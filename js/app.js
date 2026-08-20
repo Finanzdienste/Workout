@@ -139,6 +139,12 @@ function renderDashboard() {
 
   const parts = [];
 
+  if (!store.canPersist()) {
+    parts.push(`<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu – Eintragungen
+      gehen beim Neuladen verloren. Im privaten Modus oder in einer eingebetteten Ansicht?
+      Dann die Seite direkt im Browser öffnen.</div>`);
+  }
+
   parts.push(`
     <section class="card">
       <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
@@ -638,12 +644,18 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'download': {
-      const blob = new Blob([store.exportJSON()], { type: 'application/json' });
+      const json = store.exportJSON();
+      // Manche Umgebungen – eingebettete Ansichten, strenge Browser – lassen
+      // den Download stillschweigend fallen. Deshalb steht der Export danach
+      // immer auch im Textfeld zum Kopieren.
+      document.getElementById('io').value = json;
+      const blob = new Blob([json], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `workout-backup-${todayISO()}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      toast('Gesichert – falls kein Download kam: Text unten kopieren');
       break;
     }
     case 'import': {

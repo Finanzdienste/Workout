@@ -88,6 +88,8 @@ manifest.webmanifest    Installierbar als App auf dem Homescreen
 data/…xlsx              Quelle des Plans
 tools/build-data.py     Generator: Excel + Hinweise -> js/data.js
 tools/exercise-meta.json  Muskelgruppe, Equipment und Ausführungshinweise je Übung
+tools/build-single.py   Bündelt alles zu dist/workout.html
+dist/workout.html       Erzeugt: die App als eine portable Datei
 ```
 
 `js/data.js` ist generiert und wird nicht von Hand editiert. Planänderungen
@@ -102,11 +104,35 @@ Der Generator bricht ab, wenn eine Zeile nicht dem Muster `3× Übung (8–12)`
 folgt, wenn Hantel- und Bodyweight-Spalte unterschiedlich viele Übungen haben
 oder wenn zu einer Übung der Eintrag in `exercise-meta.json` fehlt.
 
+## Aufs Handy bekommen
+
+**Als GitHub Page.** In den Repo-Einstellungen unter *Pages* als Quelle diesen
+Branch und den Ordner `/ (root)` wählen. Die App liegt dann unter
+`https://finanzdienste.github.io/Workout/` und lässt sich im Browser über
+*Teilen → Zum Home-Bildschirm* als App ablegen – dank `manifest.webmanifest`
+startet sie dann ohne Browser-Leiste im Vollbild.
+
+**Als einzelne Datei.** `dist/workout.html` enthält die gesamte App inklusive
+CSS und JavaScript. Die Datei funktioniert per Doppelklick, aus einer Cloud
+oder als Mail-Anhang – ohne Server und ohne Netz. Neu bauen nach Änderungen:
+
+```bash
+python3 tools/build-single.py
+```
+
+Ein Hinweis dazu: Der Trainingsfortschritt liegt im `localStorage` und hängt
+damit am Ort, von dem die App geladen wurde. Wer zwischen GitHub Page und
+lokaler Datei wechselt, nimmt seine Daten über *Mehr → Export/Import* mit.
+Kann ein Browser gar nicht speichern (privates Fenster, eingebettete Ansicht),
+weist die App im Dashboard sichtbar darauf hin, statt Einträge still zu
+verlieren.
+
 ## Lokal starten
 
 ```bash
 npx http-server -p 8080 .
 ```
 
-Dann `http://localhost:8080` öffnen. (Ein Server ist nötig, weil die App
-ES-Module lädt; ein direkter `file://`-Aufruf wird vom Browser blockiert.)
+Dann `http://localhost:8080` öffnen. Ein Server ist nötig, weil `index.html`
+ES-Module lädt und ein direkter `file://`-Aufruf davon vom Browser blockiert
+wird – `dist/workout.html` hat dieses Problem nicht.

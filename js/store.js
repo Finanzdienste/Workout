@@ -29,9 +29,32 @@ function load() {
 
 let saveTimer = null;
 
+/**
+ * Einmal vorab prüfen, statt auf den ersten fehlgeschlagenen Schreibvorgang zu
+ * warten: In privaten Fenstern und manchen eingebetteten Ansichten ist der
+ * Speicher gesperrt, und dann darf die App das nicht stillschweigend schlucken.
+ */
+let storageOk = (() => {
+  try {
+    localStorage.setItem(`${KEY}.probe`, '1');
+    localStorage.removeItem(`${KEY}.probe`);
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+/** false, wenn der Browser nichts speichern kann – Eintragungen sind flüchtig. */
+export function canPersist() { return storageOk; }
+
 function write() {
   saveTimer = null;
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* Speicher voll / privater Modus */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    storageOk = true;
+  } catch {
+    storageOk = false; // Speicher voll oder gesperrt
+  }
 }
 
 function persist() {
