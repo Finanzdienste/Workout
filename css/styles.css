@@ -520,6 +520,15 @@ button { font: inherit; color: inherit; }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+.notice {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-elev));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 11px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
 .empty {
   text-align: center;
   color: var(--muted);

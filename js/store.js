@@ -1,9 +1,14 @@
+import { todayISO } from './dates.js';
+
 const KEY = 'workout.state.v1';
 
 const DEFAULT_STATE = {
   mode: 'db',            // global default: 'db' (Hanteln) | 'bw' (Bodyweight)
   keepModePerWorkout: true,
-  log: {},               // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode: 'db'|'bw' } }
+  autoShift: true,       // verpasste Tage schieben den Restplan nach hinten
+  shift: 0,              // Tage, um die der noch offene Plan verschoben ist
+  // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
+  log: {},
 };
 
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -23,11 +28,26 @@ function load() {
 }
 
 let saveTimer = null;
+
+function write() {
+  saveTimer = null;
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* Speicher voll / privater Modus */ }
+}
+
 function persist() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* Speicher voll / privater Modus */ }
-  }, 120);
+  saveTimer = setTimeout(write, 120);
+}
+
+/**
+ * Ausstehenden Schreibvorgang sofort ausführen. Nötig, bevor die App in den
+ * Hintergrund geht: mobile Browser verwerfen die Seite dort ohne Vorwarnung,
+ * und der letzte abgehakte Satz wäre sonst verloren.
+ */
+export function flush() {
+  if (saveTimer === null) return;
+  clearTimeout(saveTimer);
+  write();
 }
 
 function emit() {
@@ -80,6 +100,40 @@ export function getSets(n, mode, exId, setCount) {
   return arr;
 }
 
+/** Wurde an diesem Workout überhaupt schon etwas eingetragen oder abgehakt? */
+export function isStarted(n) {
+  const e = state.log[n];
+  if (!e) return false;
+  return ['db', 'bw'].some((m) => Object.values(e[m] || {}).some(
+    (arr) => Array.isArray(arr) && arr.some((s) => s.done || s.w !== '' || s.r !== ''),
+  ));
+}
+
+/** Tag, an dem tatsächlich trainiert wurde – oder null, solange nichts erfasst ist. */
+export function startedOn(n) {
+  const e = state.log[n];
+  return (e && e.startedOn) || null;
+}
+
+/** Hält fest, wann eine Einheit begonnen wurde, bzw. löst die Markierung wieder. */
+function syncStartedOn(n) {
+  const e = state.log[n];
+  if (!e) return;
+  if (isStarted(n)) {
+    if (!e.startedOn) e.startedOn = todayISO();
+  } else {
+    delete e.startedOn;
+  }
+}
+
+export function setShift(days) {
+  const v = Math.max(0, Math.round(Number(days) || 0));
+  if (v === state.shift) return;
+  state.shift = v;
+  persist();
+  emit();
+}
+
 /** Nur lesen – legt nichts an, damit reines Blättern den Speicher nicht füllt. */
 export function peekSets(n, mode, exId) {
   const e = state.log[n];
@@ -91,6 +145,7 @@ export function updateSet(n, mode, exId, setCount, index, patch) {
   const arr = getSets(n, mode, exId, setCount);
   Object.assign(arr[index], patch);
   ensure(n).mode = mode;
+  syncStartedOn(n);
   persist();
   emit();
 }
@@ -99,6 +154,7 @@ export function resetWorkout(n, mode) {
   const e = state.log[n];
   if (!e) return;
   e[mode] = {};
+  syncStartedOn(n);
   persist();
   emit();
 }
@@ -110,6 +166,7 @@ export function completeWorkout(n, mode, exList) {
     const arr = getSets(n, mode, item.id, item.sets);
     arr.forEach((s) => { s.done = true; });
   });
+  syncStartedOn(n);
   persist();
   emit();
 }

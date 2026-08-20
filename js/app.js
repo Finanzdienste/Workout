@@ -1,5 +1,6 @@
 import { EXERCISES, PLAN } from './data.js';
 import * as store from './store.js';
+import { todayISO, addDays, daysBetween, fmtDate, plural } from './dates.js';
 
 /* ------------------------------------------------------------------ *
  * Hilfsfunktionen
@@ -12,9 +13,6 @@ const modeSwitch = document.getElementById('modeSwitch');
 const toastEl = document.getElementById('toast');
 
 const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
-const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli',
-  'August', 'September', 'Oktober', 'November', 'Dezember'];
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => (
@@ -22,36 +20,38 @@ function esc(s) {
   ));
 }
 
-function todayISO() {
-  const d = new Date();
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+/**
+ * Tatsächlicher Termin einer Einheit.
+ *
+ * Bereits begonnene Einheiten bleiben auf dem Tag, an dem trainiert wurde –
+ * die Historie darf sich nicht rückwirkend verschieben. Alles Offene liegt
+ * auf seinem Plandatum plus der aktuellen Verschiebung.
+ */
+function effDate(w) {
+  return store.startedOn(w.n) || addDays(w.date, store.getState().shift);
 }
 
-function parseISO(iso) {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
+/**
+ * Verpasste Tage nachtragen: Ist der Termin der frühesten noch nicht
+ * begonnenen Einheit verstrichen, wandert der gesamte Restplan um genau so
+ * viele Tage nach hinten, bis diese Einheit auf heute fällt. Die Abstände
+ * zwischen den Einheiten bleiben dabei erhalten.
+ */
+function catchUpPlan() {
+  const s = store.getState();
+  if (!s.autoShift) return 0;
+  const open = PLAN.find((w) => !store.isStarted(w.n));
+  if (!open) return 0;
+  const missed = daysBetween(effDate(open), todayISO());
+  if (missed <= 0) return 0;
+  store.setShift(s.shift + missed);
+  return missed;
 }
 
-function fmtDate(iso, long) {
-  const d = parseISO(iso);
-  const wd = WEEKDAYS[d.getDay()];
-  if (long) return `${wd}, ${d.getDate()}. ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-  return `${wd}, ${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`;
-}
-
-function daysBetween(isoA, isoB) {
-  return Math.round((parseISO(isoB) - parseISO(isoA)) / 86400000);
-}
-
-/** Das Workout für heute – exakter Treffer, sonst das nächste anstehende. */
+/** Die Einheit, die als Nächstes ansteht: die erste noch nicht abgeschlossene. */
 function defaultWorkoutNo() {
-  const t = todayISO();
-  const exact = PLAN.find((w) => w.date === t);
-  if (exact) return exact.n;
-  const next = PLAN.find((w) => w.date > t);
-  if (next) return next.n;
-  return PLAN[PLAN.length - 1].n;
+  const open = PLAN.find((w) => !completedMode(w.n));
+  return open ? open.n : PLAN[PLAN.length - 1].n;
 }
 
 function workoutByNo(n) {
@@ -123,7 +123,9 @@ function renderDashboard() {
   const mode = store.workoutMode(n);
   const prog = progressOf(n, mode);
   const today = todayISO();
-  const diff = daysBetween(today, w.date);
+  const date = effDate(w);
+  const diff = daysBetween(today, date);
+  const shift = store.getState().shift;
 
   let when;
   if (diff === 0) when = 'Heute';
@@ -140,12 +142,13 @@ function renderDashboard() {
   parts.push(`
     <section class="card">
       <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
-      <h2 class="hero-title">${esc(fmtDate(w.date, true))}</h2>
+      <h2 class="hero-title">${esc(fmtDate(date, true))}</h2>
       <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
       <div class="hero-badges">
         <span class="badge accent">${mode === 'db' ? '🏋️ Hantel-Variante' : '🤸 Bodyweight-Variante'}</span>
         ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>'
                         : `<span class="badge">${prog.done}/${prog.total} Sätze</span>`}
+        ${shift ? `<span class="badge" title="Ursprünglich ${esc(fmtDate(w.date))}">↷ Plan +${esc(plural(shift, 'Tag', 'Tage'))}</span>` : ''}
       </div>
       <div class="progress"><i style="width:${prog.pct}%"></i></div>
       <div class="btn-row nav">
@@ -250,26 +253,30 @@ function renderPlan() {
     const done = completedMode(w.n);
     if (ui.planFilter === 'done') return !!done;
     if (ui.planFilter === 'open') return !done;
-    if (ui.planFilter === 'upcoming') return w.date >= today;
+    if (ui.planFilter === 'upcoming') return effDate(w) >= today;
     return true;
   }).map((w) => {
     const cm = completedMode(w.n);
     const mode = store.workoutMode(w.n);
     const first = w.ex.slice(0, 3).map((i) => resolve(i, mode).name).join(' · ');
-    const isToday = w.date === today;
+    const date = effDate(w);
+    const isToday = date === today;
     return `
       <button type="button" class="plan-item ${isToday ? 'is-today' : ''} ${cm ? 'is-done' : ''}" data-act="open-workout" data-n="${w.n}">
         <span class="plan-n">${cm ? '✓' : w.n}</span>
         <span class="plan-main">
-          <span class="plan-date">${esc(fmtDate(w.date))} ${isToday ? '· heute' : ''}</span>
+          <span class="plan-date">${esc(fmtDate(date))} ${isToday ? '· heute' : ''}</span>
           <span class="plan-sub">${esc(first)} …</span>
         </span>
         <span class="plan-flag">${cm ? (cm === 'db' ? '🏋️' : '🤸') : ''}</span>
       </button>`;
   });
 
+  const shift = store.getState().shift;
+
   view.innerHTML = `
     <div class="section-title">Trainingsplan · ${PLAN.length} Einheiten</div>
+    ${shift ? `<div class="notice">↷ Der Plan liegt ${esc(plural(shift, 'Tag', 'Tage'))} hinter dem Original – verpasste Termine sind nachgerückt.</div>` : ''}
     <div class="filter-row">
       ${filters.map(([k, l]) => `<button type="button" class="filter-btn" aria-pressed="${ui.planFilter === k}" data-act="plan-filter" data-f="${k}">${l}</button>`).join('')}
     </div>
@@ -370,13 +377,13 @@ function renderStats() {
 
   // Aktuelle Serie: rückwärts ab dem letzten fälligen Workout
   let streak = 0;
-  const past = PLAN.filter((w) => w.date <= today);
+  const past = PLAN.filter((w) => effDate(w) <= today);
   for (let i = past.length - 1; i >= 0; i--) {
     if (completedMode(past[i].n)) streak++;
     else break;
   }
 
-  const upcoming = PLAN.find((w) => w.date >= today && !completedMode(w.n));
+  const upcoming = PLAN.find((w) => !completedMode(w.n));
 
   const topEx = [...perEx.entries()]
     .map(([id, c]) => ({ ex: EX_BY_ID.get(id), c }))
@@ -398,7 +405,7 @@ function renderStats() {
     <div class="section-title">Nächste Einheit</div>
     <div class="card">
       ${upcoming
-        ? `<div class="plan-date">Workout ${upcoming.n} · ${esc(fmtDate(upcoming.date, true))}</div>
+        ? `<div class="plan-date">Workout ${upcoming.n} · ${esc(fmtDate(effDate(upcoming), true))}</div>
            <div class="small muted" style="margin-top:4px">${esc(upcoming.ex.map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
            <div class="btn-row"><button type="button" class="btn btn-primary" data-act="open-workout" data-n="${upcoming.n}">Öffnen</button></div>`
         : '<div class="muted">Alle Einheiten des Plans sind abgeschlossen. Stark.</div>'}
@@ -442,6 +449,28 @@ function renderSettings() {
         </div>
         <button type="button" class="toggle" aria-pressed="${s.keepModePerWorkout}" data-act="toggle-keep-mode" aria-label="Modus je Workout merken"></button>
       </div>
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Verpasste Tage nachrücken</div>
+          <div class="hint">Bleibt an einem Trainingstag alles unangetastet, wandert der gesamte Restplan einen Tag weiter. Abstände bleiben erhalten.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${s.autoShift}" data-act="toggle-auto-shift" aria-label="Verpasste Tage nachrücken"></button>
+      </div>
+    </div>
+
+    <div class="section-title">Plan-Verschiebung</div>
+    <div class="card">
+      <div class="stat-v">${s.shift ? `+${esc(plural(s.shift, 'Tag', 'Tage'))}` : 'Im Plan'}</div>
+      <div class="small muted" style="margin-top:2px">
+        ${s.shift
+          ? `Der offene Plan endet am ${esc(fmtDate(effDate(PLAN[PLAN.length - 1]), true))} statt am ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))}.`
+          : 'Der Plan läuft genau nach Excel-Termin.'}
+      </div>
+      <div class="btn-row nav">
+        <button type="button" class="btn" data-act="shift-minus" ${s.shift ? '' : 'disabled'}>− 1 Tag</button>
+        <button type="button" class="btn" data-act="shift-plus">+ 1 Tag</button>
+        <button type="button" class="btn btn-ghost" data-act="shift-reset" ${s.shift ? '' : 'disabled'}>Auf Original</button>
+      </div>
     </div>
 
     <div class="section-title">Daten</div>
@@ -460,7 +489,7 @@ function renderSettings() {
 
     <div class="section-title">Über den Plan</div>
     <div class="card small muted">
-      ${PLAN.length} Einheiten von ${esc(fmtDate(PLAN[0].date, true))} bis ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))},
+      ${PLAN.length} Einheiten, ursprünglich vom ${esc(fmtDate(PLAN[0].date, true))} bis ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))},
       aufgebaut auf ${EXERCISES.length} Grundübungen. Zu jeder Hantelübung gehört ein
       Bodyweight-Äquivalent mit gleicher Satzzahl und angepasstem Wiederholungsbereich.
     </div>
@@ -583,6 +612,24 @@ view.addEventListener('click', (e) => {
       store.setSetting('keepModePerWorkout', !store.getState().keepModePerWorkout);
       render();
       break;
+    case 'toggle-auto-shift': {
+      const on = !store.getState().autoShift;
+      store.setSetting('autoShift', on);
+      if (on) catchUpPlan();
+      render();
+      toast(on ? 'Verpasste Tage rücken nach' : 'Plan bleibt auf den Original-Terminen');
+      break;
+    }
+    case 'shift-plus':
+    case 'shift-minus':
+      store.setShift(store.getState().shift + (act === 'shift-plus' ? 1 : -1));
+      render();
+      break;
+    case 'shift-reset':
+      store.setShift(0);
+      render();
+      toast('Original-Termine wiederhergestellt');
+      break;
     case 'export': {
       const io = document.getElementById('io');
       io.value = store.exportJSON();
@@ -649,4 +696,30 @@ view.addEventListener('input', (e) => {
   }
 });
 
+/* ------------------------------------------------------------------ *
+ * Start
+ * ------------------------------------------------------------------ */
+
+// Bleibt die App über Mitternacht offen, muss der Plan beim Zurückkommen
+// nachgezogen werden – sonst steht dort weiter das Datum von gestern.
+let lastSeenDay = todayISO();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') {
+    store.flush();
+    return;
+  }
+  const day = todayISO();
+  const shifted = catchUpPlan();
+  if (shifted || day !== lastSeenDay) {
+    lastSeenDay = day;
+    render();
+  }
+});
+
+window.addEventListener('pagehide', store.flush);
+
+const missedAtStart = catchUpPlan();
 render();
+if (missedAtStart) {
+  toast(`↷ ${plural(missedAtStart, 'Tag', 'Tage')} verpasst – Plan nachgerückt`);
+}

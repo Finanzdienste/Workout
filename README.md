@@ -15,7 +15,30 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 | **Plan** | Alle 57 Einheiten mit Datum, Status und Filter (Alle / Offen / Erledigt / Ab heute). Antippen öffnet die Einheit im Dashboard. |
 | **Übungen** | Die 17 Grundübungen als Gegenüberstellung Hantel ⇄ Bodyweight, je mit Wiederholungsbereich, benötigtem Equipment und Ausführungshinweis. Durchsuchbar. |
 | **Statistik** | Erledigte Workouts, Serie, abgehakte Sätze, Wiederholungen, Hantel-Volumen in kg, Verteilung der Modi, meist trainierte Übungen. |
-| **Mehr** | Standardmodus, „Modus je Workout merken“, Export/Import als JSON, Backup-Datei, Alles löschen. |
+| **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, Export/Import als JSON, Backup-Datei, Alles löschen. |
+
+## Verpasste Tage
+
+Ist ein Trainingstag vorbei, ohne dass an der Einheit irgendetwas eingetragen
+oder abgehakt wurde, gilt sie als nicht stattgefunden – und **der gesamte
+Restplan rückt um so viele Tage nach hinten**, bis sie wieder auf heute fällt.
+Die Abstände zwischen den Einheiten bleiben dabei unverändert; aus einer Pause
+von drei Tagen wird also kein gedrängter Nachholplan.
+
+Zwei Punkte, die dabei absichtlich so geregelt sind:
+
+* **Die Historie wandert nicht mit.** Sobald an einer Einheit etwas erfasst
+  wurde, merkt sich die App den Tag, an dem das passiert ist. Dieses Datum
+  bleibt stehen, auch wenn der Plan später weiterrückt.
+* **Angefangen zählt als trainiert.** Nachgerückt wird nur, wenn zu der Einheit
+  gar nichts vorliegt – weder ein Haken noch ein eingetragenes Gewicht. Wer
+  Sätze notiert, aber das Abhaken vergisst, verliert seinen Platz im Plan nicht.
+
+Nachgerechnet wird beim Öffnen der App und beim Zurückkehren aus dem
+Hintergrund, damit auch eine über Mitternacht offene App den richtigen Tag
+zeigt. Unter **Mehr** lässt sich die Automatik abschalten, die aktuelle
+Verschiebung ablesen, tageweise korrigieren oder auf die Original-Termine aus
+der Excel zurücksetzen.
 
 ## Die zwei Modi
 
@@ -58,6 +81,7 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
 js/data.js              Aus der Excel generiert: 17 Übungen + 57 Einheiten
+js/dates.js             Datums-Hilfsfunktionen
 js/store.js             Zustand und localStorage-Persistenz
 js/app.js               Rendering der fünf Tabs und Event-Handling
 manifest.webmanifest    Installierbar als App auf dem Homescreen
