@@ -776,6 +776,8 @@ button { font: inherit; color: inherit; }
 .fig-bar { stroke: #e8eaed; stroke-linecap: round; }
 .fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
 .fig-ground { fill: var(--line); opacity: .55; }
+.fig-bench { fill: #4a5468; }
+.fig-bench-leg { stroke: #3b4354; stroke-linecap: round; }
 
 /* ---------- Pausentimer ---------- */
 .rest-bar {
@@ -1785,10 +1787,12 @@ const PATTERNS = {
     ],
   },
   lateral: {
-    label: 'Seitheben',
+    // Sitzend: Hüfte und Knie rechtwinklig, dazu eine Bank unter dem Gesäß.
+    // Ohne die stünde die Figur nur mit angewinkelten Beinen in der Luft.
+    label: 'Seitheben', seat: true,
     poses: [
-      { lean: 4, arm: A(6, 10, 10), leg: L(2, 5, 4) },
-      { lean: 4, arm: A(6, 92, 10), leg: L(2, 5, 4) },
+      { lean: 4, arm: A(6, 10, 10), leg: L(88, 8, 92) },
+      { lean: 4, arm: A(6, 92, 10), leg: L(88, 8, 92) },
     ],
   },
   reversefly: {
@@ -2087,6 +2091,37 @@ function mountFigure(host, pattern, weight, equip) {
         z: q.z + 0.01,
         node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (5.4 * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
       });
+    }
+
+    if (spec.seat) {
+      // Bank: Sitzfläche knapp unter der Hüfte, zwei Beine bis auf den Boden.
+      // Sie liegt im Raum und kippt deshalb beim Drehen mit.
+      const top = j.hipC[1] - 0.085;
+      const halfW = 0.24; const back = -0.24; const front = 0.30; const thick = 0.055;
+      const slab = (y, zs) => zs.map(([sx, sz]) => P([sx * halfW, y, sz]));
+      const quad = (pts4, dz) => parts.push({
+        z: pts4.reduce((acc, q) => acc + q.z, 0) / 4 + dz,
+        node: el('polygon', {
+          points: pts4.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+          class: 'fig-bench',
+        }),
+      });
+      // Sitzfläche und Vorderkante: eine einzelne Fläche sähe von vorn aus wie
+      // ein Strich, die Bank hätte keine Dicke.
+      quad(slab(top, [[-1, back], [1, back], [1, front], [-1, front]]), -0.04);
+      quad([...slab(top, [[-1, front], [1, front]]), ...slab(top - thick, [[1, front], [-1, front]])], -0.03);
+      quad([...slab(top, [[1, back], [1, front]]), ...slab(top - thick, [[1, front], [1, back]])], -0.03);
+      quad([...slab(top, [[-1, back], [-1, front]]), ...slab(top - thick, [[-1, front], [-1, back]])], -0.03);
+      [-0.16, 0.22].forEach((sz) => [-0.18, 0.18].forEach((sx) => {
+        const a1 = P([sx, top - thick, sz]); const a2 = P([sx, -0.62, sz]);
+        parts.push({
+          z: (a1.z + a2.z) / 2 - 0.06,
+          node: el('line', {
+            x1: a1.x.toFixed(1), y1: a1.y.toFixed(1), x2: a2.x.toFixed(1), y2: a2.y.toFixed(1),
+            'stroke-width': (3 * gearScale).toFixed(2), class: 'fig-bench-leg',
+          }),
+        });
+      }));
     }
 
     if (spec.bar) {

@@ -138,6 +138,11 @@ Die 14 Muster sind nach **Bewegungsart** benannt, nicht nach Übung – Goblet
 Squat und Bodyweight Squat teilen sich `squat`. Zugeordnet wird je Variante
 über `dbPattern`/`bwPattern` in `tools/exercise-meta.json`.
 
+Wo eine Übung im Sitzen ausgeführt wird, setzt `seat: true` eine Bank unter die
+Figur – Sitzfläche mit Vorderkante und vier Beinen, damit sie beim Drehen von
+allen Seiten eine Bank bleibt und von vorn nicht zum Strich wird. Nur angewinkelte
+Beine ohne Bank sähen aus, als säße die Figur in der Luft.
+
 **Das Gerät steht ausdrücklich in `tools/exercise-meta.json`** (Feld `equip`):
 `dumbbells` je eine Kurzhantel pro Hand, `onehand` eine in einer Hand,
 `goblet` eine senkrecht vor der Brust, `barbell` eine Stange über beide Hände,
