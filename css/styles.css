@@ -443,57 +443,7 @@ button { font: inherit; color: inherit; }
 .btn-row.nav .btn { flex: 1 1 0; min-width: 0; padding: 11px 4px; font-size: 13px; }
 .btn:disabled { opacity: .4; cursor: default; }
 
-/* ---------- Plan list ---------- */
-.plan-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  background: var(--bg-elev);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  margin-bottom: 8px;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-}
-.plan-item.is-today { border-color: var(--accent); }
-.plan-item.is-done .plan-n { background: var(--ok); color: #0d1b14; }
-.plan-n {
-  flex: none;
-  width: 34px; height: 34px;
-  border-radius: 10px;
-  background: var(--bg-elev-2);
-  display: grid; place-items: center;
-  font-weight: 700; font-size: 13px;
-  color: var(--muted);
-}
-.plan-main { min-width: 0; }
 .plan-date { display: block; font-size: 14.5px; font-weight: 600; }
-.plan-sub {
-  display: block;
-  font-size: 12.5px; color: var(--muted);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.plan-flag { margin-left: auto; font-size: 11px; color: var(--muted); flex: none; }
-
-.filter-row {
-  display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;
-}
-.filter-btn {
-  border: 1px solid var(--line);
-  background: var(--bg-elev);
-  color: var(--muted);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.filter-btn[aria-pressed="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 
 /* ---------- Exercise library ---------- */
 .lib-item { padding: 14px; }
@@ -691,6 +641,9 @@ button { font: inherit; color: inherit; }
   transition: fill .25s ease;
 }
 .bm-part.on { fill: var(--accent); }
+/* Dünne Trennlinie in Hintergrundfarbe: ohne sie verschmelzen benachbarte
+   Bereiche an einem Ganzkörpertag zu einem einzigen orangen Fleck. */
+.bm-part { stroke: var(--bg-elev); stroke-width: .8; }
 .bm-label {
   fill: var(--muted);
   font-size: 9px;
@@ -795,15 +748,19 @@ button { font: inherit; color: inherit; }
 }
 .fig-hint.gone { opacity: 0; }
 
-.fig-limb, .fig-spine {
-  fill: none;
-  stroke: var(--accent);
-  stroke-linecap: round;
+/* Gliedmaßen sind Flächen, keine Striche: nur so lassen sie sich zum Gelenk
+   hin verjüngen und je nach Tiefe abdunkeln. Die Trennlinie in Hintergrundfarbe
+   hält sie auseinander – in der tiefen Hocke lag sonst alles als ein Klumpen
+   übereinander. Der Rumpf bleibt ohne, seine Flächen gehören zusammen. */
+.fig-limb, .fig-spine, .fig-torso, .fig-head {
+  fill: var(--accent);
+  stroke: none;
+}
+.fig-limb, .fig-spine, .fig-head {
+  stroke: var(--bg-elev);
+  stroke-width: .9;
   stroke-linejoin: round;
 }
-.fig-foot { opacity: .8; }
-.fig-torso { fill: var(--accent); opacity: .92; }
-.fig-head { fill: var(--accent); }
 
 .fig-plate { fill: #e8eaed; }
 .fig-bar { stroke: #e8eaed; stroke-linecap: round; }

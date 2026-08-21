@@ -26,8 +26,8 @@
  */
 
 const RIG = {
-  hipW: 0.10, shoulderW: 0.20, shoulderY: 0.42,
-  chestY: 0.28, neckY: 0.46, headY: 0.62, headR: 0.105,
+  hipW: 0.10, shoulderW: 0.215, shoulderY: 0.42,
+  chestY: 0.28, neckY: 0.47, headY: 0.63, headR: 0.115,
   upperArm: 0.27, foreArm: 0.25, hand: 0.06,
   thigh: 0.44, shin: 0.42, foot: 0.15,
 };
@@ -48,6 +48,11 @@ function rotZ(v, deg) {
   const c = Math.cos(rad(deg)); const s = Math.sin(rad(deg));
   return [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]];
 }
+
+/** Punkt zwischen zwei projizierten Punkten. */
+const mixPt = (p, q, f) => ({
+  x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, z: p.z + (q.z - p.z) * f,
+});
 
 const A = (p = 0, a = 0, e = 0, i = 0) => ({ p, a, e, i });
 const L = (p = 0, a = 0, k = 0) => ({ p, a, k });
@@ -263,7 +268,12 @@ export function mountFigure(host, pattern, weight, equip) {
   host.textContent = '';
   if (!spec) return () => {};
 
-  const svg = el('svg', { viewBox: '0 0 100 100', class: 'fig' });
+  // Sichtfeld in der Form des Kastens: bei festem Quadrat blieb links und
+  // rechts breiter Rand ungenutzt, und die Figur wirkte verloren.
+  const box = host.getBoundingClientRect();
+  const VBW = 100;
+  const VBH = box.width > 0 ? Math.max(50, Math.min(160, Math.round((100 * box.height) / box.width))) : 100;
+  const svg = el('svg', { viewBox: `0 0 ${VBW} ${VBH}`, class: 'fig' });
   const scene = el('g');
   svg.appendChild(scene);
   host.appendChild(svg);
@@ -342,10 +352,12 @@ export function mountFigure(host, pattern, weight, equip) {
   const fit = (() => {
     const all = [skeleton(0), skeleton(1)].flatMap((j) => Object.values(j));
     const mid = [0, 1, 2].map((i) => (Math.min(...all.map((q) => q[i])) + Math.max(...all.map((q) => q[i]))) / 2);
+    // Radius statt Rechteck: so ändert das Drehen die Größe nicht, und die
+    // Figur kann in keiner Lage über den Rand ragen.
     const r = Math.max(...all.map((q) => Math.hypot(q[0] - mid[0], q[1] - mid[1], q[2] - mid[2])));
-    return { mid, scale: Math.min(52, 40 / Math.max(r, 0.1)) };
+    return { mid, scale: (Math.min(VBW, VBH) / 2) * 0.94 / Math.max(r, 0.1) };
   })();
-  const gearScale = fit.scale / 44;
+  const gearScale = fit.scale / 40;
 
   const draw = (t) => {
     lastT = t;
@@ -354,65 +366,120 @@ export function mountFigure(host, pattern, weight, equip) {
 
     scene.textContent = '';
     const P = (p) => project(
-      [p[0] - fit.mid[0], p[1] - fit.mid[1], p[2] - fit.mid[2]], yaw, pitch, fit.scale, 50, 52,
+      [p[0] - fit.mid[0], p[1] - fit.mid[1], p[2] - fit.mid[2]], yaw, pitch, fit.scale, VBW / 2, VBH / 2,
     );
     const pts0 = j;   // Weltkoordinaten, für die Ausrichtung der Geräte
     const pts = {};
     Object.entries(j).forEach(([k, v]) => { pts[k] = P(v); });
 
     const parts = [];
-    const bone = (from, to, w, cls = 'fig-limb') => parts.push({
-      z: (from.z + to.z) / 2,
-      node: el('line', {
-        x1: from.x.toFixed(1), y1: from.y.toFixed(1), x2: to.x.toFixed(1), y2: to.y.toFixed(1),
-        'stroke-width': (w * gearScale * (from.k + to.k) / 2).toFixed(2), class: cls,
-      }),
-    });
 
-    // Rumpf als Fläche zwischen Schultern und Hüften
-    const quad = [pts.shoulderL, pts.shoulderR, pts.hipR, pts.hipL];
-    parts.push({
-      z: quad.reduce((s, p) => s + p.z, 0) / 4,
-      node: el('polygon', {
-        points: quad.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '),
-        class: 'fig-torso',
-      }),
-    });
-    bone(pts.hipC, pts.neck, 7.5, 'fig-spine');
-
-    ['L', 'R'].forEach((s) => {
-      bone(pts[`shoulder${s}`], pts[`elbow${s}`], 5.6);
-      bone(pts[`elbow${s}`], pts[`hand${s}`], 4.4);
-      bone(pts[`hip${s}`], pts[`knee${s}`], 7.2);
-      bone(pts[`knee${s}`], pts[`ankle${s}`], 5.4);
-      bone(pts[`ankle${s}`], pts[`toe${s}`], 3.8, 'fig-limb fig-foot');
-    });
-
-    parts.push({
-      z: pts.head.z,
-      node: el('circle', {
-        cx: pts.head.x.toFixed(1), cy: pts.head.y.toFixed(1),
-        r: (RIG.headR * 46 * gearScale * pts.head.k).toFixed(1), class: 'fig-head',
-      }),
-    });
-
-    // Gerät. Ausgerichtet an den Achsen des Skeletts selbst – die sind schon
-    // gedreht und gekippt, anders als eine nachgerechnete Näherung.
+    // Achsen des Skeletts selbst – schon gedreht und gekippt, anders als eine
+    // nachgerechnete Näherung. Rumpf und Gerät richten sich danach aus.
     const norm = (v) => {
       const n = Math.hypot(v[0], v[1], v[2]) || 1;
       return [v[0] / n, v[1] / n, v[2] / n];
     };
+    const midOf = (a2, b2) => [(a2[0] + b2[0]) / 2, (a2[1] + b2[1]) / 2, (a2[2] + b2[2]) / 2];
     const sideAxis = norm([j.shoulderR[0] - j.shoulderL[0], j.shoulderR[1] - j.shoulderL[1], j.shoulderR[2] - j.shoulderL[2]]);
     const upAxis = norm([j.neck[0] - j.hipC[0], j.neck[1] - j.hipC[1], j.neck[2] - j.hipC[2]]);
-    // Blickrichtung des Rumpfes aus Schulter- und Längsachse – gilt auch im
-    // Liegen, wo "vorn" nicht mehr zum Betrachter zeigt.
+    // Blickrichtung des Rumpfes: gilt auch im Liegen, wo "vorn" nicht mehr zum
+    // Betrachter zeigt.
     const frontAxis = norm([
       sideAxis[1] * upAxis[2] - sideAxis[2] * upAxis[1],
       sideAxis[2] * upAxis[0] - sideAxis[0] * upAxis[2],
       sideAxis[0] * upAxis[1] - sideAxis[1] * upAxis[0],
     ]);
-    const midOf = (a2, b2) => [(a2[0] + b2[0]) / 2, (a2[1] + b2[1]) / 2, (a2[2] + b2[2]) / 2];
 
+    // Tiefe als Helligkeit: was hinten liegt, wird etwas dunkler. Der
+    // Maleralgorithmus allein sagt nur, was verdeckt – nicht, was weiter weg
+    // ist; bei gedrehter Figur überlagern sich sonst gleich helle Glieder.
+    const depth = (z) => (0.74 + 0.26 * Math.min(1, Math.max(0, (z + 0.9) / 1.8))).toFixed(3);
+
+    /**
+     * Gliedmaße als eine einzige Fläche: von w1 auf w2 verjüngt, an beiden
+     * Enden halbrund. Ein gleich dicker Strich sieht aus wie ein
+     * Strichmännchen – ein Muskel wird zum Gelenk hin schmaler.
+     *
+     * Bewusst ein Pfad und nicht Viereck plus zwei Kreise: nur so lässt sich
+     * eine Trennlinie außen herum ziehen, ohne dass innen Nähte auftauchen.
+     */
+    const limb = (from, to, w1, w2, cls = 'fig-limb') => {
+      const dx = to.x - from.x; const dy = to.y - from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len; const ny = dx / len;
+      const a = Math.max(0.4, w1 * gearScale * from.k);
+      const b = Math.max(0.4, w2 * gearScale * to.k);
+      const f = (v) => v.toFixed(1);
+      const d = `M${f(from.x + nx * a)} ${f(from.y + ny * a)}`
+        + ` A${f(a)} ${f(a)} 0 0 1 ${f(from.x - nx * a)} ${f(from.y - ny * a)}`
+        + ` L${f(to.x - nx * b)} ${f(to.y - ny * b)}`
+        + ` A${f(b)} ${f(b)} 0 0 1 ${f(to.x + nx * b)} ${f(to.y + ny * b)} Z`;
+      const z = (from.z + to.z) / 2;
+      parts.push({ z, node: el('path', { d, class: cls, opacity: depth(z) }) });
+    };
+
+    // Rumpf als Körper mit Tiefe. Eine einzelne Fläche zwischen Schultern und
+    // Hüften war von der Seite papierdünn und hatte keine Taille. Drei Ringe
+    // (Schulter, Taille, Becken) aus je vier Ecken ergeben einen Rumpf, der aus
+    // jeder Richtung Volumen hat.
+    const ring = (centre, w, d) => [[1, 1], [1, -1], [-1, -1], [-1, 1]]
+      .map(([a2, b2]) => P(add(add(centre, mul(sideAxis, a2 * w)), mul(frontAxis, b2 * d))));
+    const shoulderMid = midOf(j.shoulderL, j.shoulderR);
+    const hipMid = midOf(j.hipL, j.hipR);
+    const waistMid = midOf(midOf(shoulderMid, hipMid), hipMid);   // 75 % Richtung Becken
+    const rings = [ring(shoulderMid, 0.200, 0.098), ring(waistMid, 0.125, 0.075), ring(hipMid, 0.150, 0.090)];
+    const face = (quad) => {
+      const z = quad.reduce((acc, q) => acc + q.z, 0) / quad.length;
+      parts.push({
+        z,
+        node: el('polygon', {
+          points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+          class: 'fig-torso', opacity: depth(z),
+        }),
+      });
+    };
+    face(rings[0]);                                        // Schulterdeckel
+    face(rings[2]);                                        // Beckenboden
+    [0, 1].forEach((r) => [0, 1, 2, 3].forEach((c) => {
+      const d2 = (c + 1) % 4;
+      face([rings[r][c], rings[r][d2], rings[r + 1][d2], rings[r + 1][c]]);
+    }));
+    limb(pts.hipC, pts.neck, 4.2, 3.4, 'fig-spine');
+    limb(pts.neck, pts.head, 2.6, 2.2, 'fig-spine');   // Hals schließt die Lücke
+
+    ['L', 'R'].forEach((s) => {
+      limb(pts[`shoulder${s}`], pts[`elbow${s}`], 3.4, 2.5);
+      limb(pts[`elbow${s}`], pts[`hand${s}`], 2.5, 1.8);
+      // Hand als eigener Ballen: sonst hört der Unterarm einfach auf und es
+      // ist nicht zu sehen, dass die Figur etwas greift.
+      parts.push({
+        z: pts[`hand${s}`].z + 0.002,
+        node: el('circle', {
+          cx: pts[`hand${s}`].x.toFixed(1), cy: pts[`hand${s}`].y.toFixed(1),
+          r: (2.4 * gearScale * pts[`hand${s}`].k).toFixed(1),
+          class: 'fig-limb', opacity: depth(pts[`hand${s}`].z),
+        }),
+      });
+      limb(pts[`hip${s}`], pts[`knee${s}`], 4.6, 3.1);
+      limb(pts[`knee${s}`], pts[`ankle${s}`], 3.1, 1.9);
+      limb(pts[`ankle${s}`], pts[`toe${s}`], 1.9, 1.5, 'fig-limb fig-foot');
+    });
+
+    // Kopf als Ei entlang der Rumpfachse statt als Kreis
+    const headR = RIG.headR * 46 * gearScale * pts.head.k;
+    const axis = Math.atan2(pts.head.y - pts.neck.y, pts.head.x - pts.neck.x) * 180 / Math.PI + 90;
+    parts.push({
+      z: pts.head.z + 0.001,
+      node: el('ellipse', {
+        cx: pts.head.x.toFixed(1), cy: pts.head.y.toFixed(1),
+        rx: (headR * 0.86).toFixed(1), ry: headR.toFixed(1),
+        transform: `rotate(${axis.toFixed(1)} ${pts.head.x.toFixed(1)} ${pts.head.y.toFixed(1)})`,
+        class: 'fig-head', opacity: depth(pts.head.z),
+      }),
+    });
+
+    // Gerät, ausgerichtet an den Achsen des Skeletts selbst
     /** Stange samt Scheiben entlang einer Achse im Raum. */
     const barAt = (centre, axis, half, plate) => {
       const e1 = P(add(centre, mul(axis, -half)));

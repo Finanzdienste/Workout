@@ -283,7 +283,6 @@ const ui = {
   tab: 'dashboard',
   workoutNo: defaultWorkoutNo(),
   openEx: new Set(),
-  planFilter: 'all',
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
@@ -587,49 +586,6 @@ function lastLoggedFor(exId, mode, beforeN) {
 }
 
 /* ------------------------------------------------------------------ *
- * Plan
- * ------------------------------------------------------------------ */
-
-function renderPlan() {
-  const today = todayISO();
-  const filters = [['all', 'Alle'], ['open', 'Offen'], ['done', 'Erledigt'], ['upcoming', 'Ab heute']];
-
-  const rows = PLAN.filter((w) => {
-    const done = completedMode(w.n);
-    if (ui.planFilter === 'done') return !!done;
-    if (ui.planFilter === 'open') return !done;
-    if (ui.planFilter === 'upcoming') return effDate(w) >= today;
-    return true;
-  }).map((w) => {
-    const cm = completedMode(w.n);
-    const mode = store.workoutMode(w.n);
-    const first = w.ex.slice(0, 3).map((i) => resolve(i, mode).name).join(' · ');
-    const date = effDate(w);
-    const isToday = date === today;
-    return `
-      <button type="button" class="plan-item ${isToday ? 'is-today' : ''} ${cm ? 'is-done' : ''}" data-act="open-workout" data-n="${w.n}">
-        <span class="plan-n">${cm ? '✓' : w.n}</span>
-        <span class="plan-main">
-          <span class="plan-date">${esc(fmtDate(date))} ${isToday ? '· heute' : ''}</span>
-          <span class="plan-sub">${esc(first)} …</span>
-        </span>
-        <span class="plan-flag">${cm ? (cm === 'db' ? '🏋️' : '🤸') : ''}</span>
-      </button>`;
-  });
-
-  const shift = store.getState().shift;
-
-  view.innerHTML = `
-    <div class="section-title">Trainingsplan · ${PLAN.length} Einheiten</div>
-    ${shift ? `<div class="notice">↷ Der Plan liegt ${esc(plural(shift, 'Tag', 'Tage'))} hinter dem Original – verpasste Termine sind nachgerückt.</div>` : ''}
-    <div class="filter-row">
-      ${filters.map(([k, l]) => `<button type="button" class="filter-btn" aria-pressed="${ui.planFilter === k}" data-act="plan-filter" data-f="${k}">${l}</button>`).join('')}
-    </div>
-    ${rows.length ? rows.join('') : '<div class="empty">Keine Einheiten in diesem Filter.</div>'}
-  `;
-}
-
-/* ------------------------------------------------------------------ *
  * Statistik
  * ------------------------------------------------------------------ */
 
@@ -916,7 +872,6 @@ const RENDERERS = {
     else if (ui.listView) renderDashboard();
     else renderOverview();
   },
-  plan: renderPlan,
   stats: renderStats,
   settings: renderSettings,
 };
@@ -1095,10 +1050,6 @@ view.addEventListener('click', (e) => {
       ui.openEx.clear();
       ui.listView = false;
       go('dashboard');
-      break;
-    case 'plan-filter':
-      ui.planFilter = t.dataset.f;
-      render();
       break;
     case 'toggle-default-mode':
       store.setMode(store.getState().mode === 'bw' ? 'db' : 'bw');

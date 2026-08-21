@@ -11,8 +11,7 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 
 | Tab | Inhalt |
 | --- | --- |
-| **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. |
-| **Plan** | Alle 57 Einheiten mit Datum, Status und Filter (Alle / Offen / Erledigt / Ab heute). Antippen öffnet die Einheit im Dashboard. |
+| **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
 | **Statistik** | Kennzahlen, nächste Einheit, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
 | **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, Export/Import als JSON, Backup-Datei, Alles löschen. |
 
@@ -33,11 +32,20 @@ tiefer, wenn man es braucht:
 
 ### Körperkarte
 
-`js/body.js` setzt Vorder- und Rückansicht aus den Muskelregionen selbst
-zusammen – Hervorheben ist dadurch nur eine Frage der Füllfarbe, ohne zweite
-Zeichnung darunter. Darunter liegt eine durchgehende Silhouette, sonst zerfällt
-der Körper in einzelne Flecken. Kopf, Unterarme, Hände und Füße sind kein
-Trainingsziel und bleiben neutral.
+`js/body.js` zeichnet Vorder- und Rückansicht **aus einem Skelett**, nicht aus
+einzeln hingelegten Ovalen. Aus denselben Gelenkpunkten entstehen Silhouette
+und Muskeln: die Gliedmaßen als zum Gelenk hin schmaler werdende Flächen, die
+Muskeln als Spindeln entlang genau desselben Knochens. Dadurch sitzt der Bizeps
+zwangsläufig auf dem Oberarm, und eine Änderung an den Proportionen zieht beides
+zugleich nach. Rumpf, Brust, Rücken und Gesäß haben keine Knochenachse, die sie
+beschreiben würde – die sind als Pfade gezeichnet.
+
+Hervorheben ist nur eine Frage der Füllfarbe, ohne zweite Zeichnung darunter.
+Eine dünne Trennlinie in Hintergrundfarbe hält benachbarte Bereiche
+auseinander; ohne sie verschmelzen sie an einem Ganzkörpertag zu einem einzigen
+orangen Fleck. Die Arme stehen leicht ab, sonst fallen Schulter und Brust
+optisch zusammen. Kopf, Unterarme, Hände und Füße sind kein Trainingsziel und
+bleiben neutral.
 
 Welche Region eine Übung trifft, steht als `dbMuscles`/`bwMuscles` in
 `tools/exercise-meta.json` – je Variante getrennt, weil sie sich unterscheiden
@@ -77,8 +85,21 @@ nicht neben der Hüfte landen, und dieselbe Stellung stimmt aus jedem
 Blickwinkel. Waagerechtes Ziehen dreht um die Hochachse.
 
 Gezeichnet wird mit schwacher Perspektive und Maleralgorithmus – was hinten
-liegt, kommt zuerst. Der Rumpf ist eine Fläche zwischen Schultern und Hüften,
-die Gliedmaßen sind Striche mit abgestufter Stärke.
+liegt, kommt zuerst.
+
+**Der Körper hat Volumen.** Der Rumpf ist kein Viereck zwischen Schultern und
+Hüften mehr – das war von der Seite papierdünn und hatte keine Taille –, sondern
+ein Körper aus drei Ringen (Schulter, Taille, Becken) mit je vier Ecken.
+Gliedmaßen sind Flächen statt Striche, zum Gelenk hin schmaler, jede ein
+einzelner Pfad mit halbrunden Enden. Dazu Hals, Hände und ein Kopf als Ei entlang
+der Rumpfachse.
+
+Zwei Kleinigkeiten, die den Unterschied machen: **Tiefe als Helligkeit** – was
+hinten liegt, wird etwas dunkler, denn der Maleralgorithmus sagt nur, was
+verdeckt ist, nicht, was weiter weg ist. Und eine **Trennlinie** in
+Hintergrundfarbe um jede Gliedmaße; ohne sie lag in der tiefen Hocke alles als
+ein einziger Klumpen übereinander. Der Rumpf bleibt ohne, seine Flächen gehören
+zusammen.
 
 **Frei drehbar in alle Richtungen:** waagerechtes Ziehen um die Hochachse,
 senkrechtes um die Querachse, beides unbegrenzt und über volle Umdrehungen
@@ -106,7 +127,8 @@ zugleich den Boden berühren.
 Endstellungen gerechnet. Eine feste Größe ließ liegende Übungen klein in einem
 halbleeren Kasten stehen; ein Maß je Einzelbild würde die Figur beim Abspielen
 atmen lassen. Gemessen wird ein Radius, kein Rechteck – sonst änderte schon das
-Drehen die Größe.
+Drehen die Größe. Das Sichtfeld übernimmt zudem die Form des Kastens; bei festem
+Quadrat blieb links und rechts breiter Rand ungenutzt.
 
 Beim Wadenheben steigt der Körper, die **Zehen bleiben liegen**. Wird alles
 zusammen angehoben, wandert bloß die ganze Figur nach oben und die Bewegung ist
