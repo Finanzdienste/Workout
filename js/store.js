@@ -13,6 +13,8 @@ const DEFAULT_STATE = {
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   session: null,         // laufendes Training: { n, startedAt }
+  lastBackup: null,      // { on, done } – Stand der letzten Sicherung
+  rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log }]
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };
@@ -239,6 +241,30 @@ export function completeWorkout(n, mode, exList) {
 
 export function setSetting(key, value) {
   state[key] = value;
+  persist();
+  emit();
+}
+
+/** Hält fest, dass gesichert wurde – gemessen an der Zahl erledigter Einheiten. */
+export function markBackup(done) {
+  state.lastBackup = { on: todayISO(), done };
+  persist();
+  emit();
+}
+
+/**
+ * Plan von vorn beginnen. Der bisherige Verlauf wandert in `rounds`, die
+ * Gewichte bleiben stehen – Runde zwei startet also auf dem erreichten Stand
+ * und nicht wieder bei den Anfangswerten.
+ */
+export function restartPlan(shiftDays) {
+  if (Object.keys(state.log).length) {
+    state.rounds.push({ finishedOn: todayISO(), log: state.log });
+  }
+  state.log = {};
+  state.session = null;
+  state.rest = null;
+  state.shift = Math.max(0, Math.round(Number(shiftDays) || 0));
   persist();
   emit();
 }

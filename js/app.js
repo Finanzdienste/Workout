@@ -101,6 +101,88 @@ function usedWeight(n, mode, exId) {
   return workingWeight(exId);
 }
 
+/**
+ * Vorschlag, das Gewicht zu erhöhen – doppelte Progression ohne Eingabe.
+ *
+ * Bedingung: die letzten beiden Male wurde diese Übung mit genau diesem
+ * Gewicht komplett durchgezogen. Dann ist sie kein Reiz mehr. Gezählt werden
+ * nur die Hantel-Variante und nur Einheiten, in denen wirklich alle Sätze
+ * stehen – ein abgebrochenes Workout ist kein Beweis.
+ *
+ * Bewusst nur ein Vorschlag: ob der Satz sauber war, weiß die App nicht.
+ */
+const BUMP_KG = 2.5;
+const BUMP_NEEDED = 2;
+
+function bumpHint(exId) {
+  const ex = EX_BY_ID.get(exId);
+  if (!ex || ex.weight === null) return null;
+  const current = workingWeight(exId);
+
+  let streak = 0;
+  for (let i = PLAN.length - 1; i >= 0; i--) {
+    const w = PLAN[i];
+    const item = w.ex.find((x) => x.id === exId);
+    if (!item) continue;
+    const sets = store.peekSets(w.n, 'db', exId);
+    if (!sets || !sets.length) continue;
+    const complete = sets.length >= item.sets && sets.slice(0, item.sets).every((x) => x.done);
+    if (!complete) break;                       // Lücke beendet die Serie
+    const used = parseFloat(String(sets[0].w).replace(',', '.'));
+    if (!(Math.abs(used - current) < 0.01)) break;   // anderes Gewicht: Serie neu
+    streak += 1;
+    if (streak >= BUMP_NEEDED) return { from: current, to: current + BUMP_KG, streak };
+  }
+  return null;
+}
+
+/**
+ * Sicherung als Datei. Alles liegt nur im Speicher dieses Browsers – Android
+ * räumt den bei Platzmangel weg, und "Websitedaten löschen" reicht ebenfalls.
+ * Deshalb wird der Stand mitgeschrieben, um später erinnern zu können.
+ */
+function downloadBackup() {
+  const json = store.exportJSON();
+  // Manche Umgebungen – eingebettete Ansichten, strenge Browser – lassen den
+  // Download stillschweigend fallen. Deshalb steht der Export danach immer
+  // auch im Textfeld zum Kopieren.
+  const io = document.getElementById('io');
+  if (io) io.value = json;
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `workout-backup-${todayISO()}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  store.markBackup(doneCount());
+  toast('Gesichert – falls kein Download kam: Text in „Mehr“ kopieren');
+}
+
+/** Zahl der abgeschlossenen Einheiten in dieser Runde. */
+function doneCount() {
+  return PLAN.filter((w) => completedMode(w.n)).length;
+}
+
+/** Wie viele Einheiten seit der letzten Sicherung dazugekommen sind. */
+const BACKUP_EVERY = 8;
+
+function backupDue() {
+  const done = doneCount();
+  const last = store.getState().lastBackup;
+  if (!last) return done >= 3 ? done : 0;
+  return done - last.done >= BACKUP_EVERY ? done - last.done : 0;
+}
+
+/** Knopf, der den Vorschlag annimmt – oder nichts, wenn keiner ansteht. */
+function bumpChip(exId, mode) {
+  if (mode !== 'db') return '';
+  const hint = bumpHint(exId);
+  if (!hint) return '';
+  return `<button type="button" class="kg-bump" data-act="accept-bump" data-ex="${exId}" data-kg="${hint.to}">
+      ${hint.streak}× alles geschafft · auf ${esc(fmtKg(hint.to))} kg?
+    </button>`;
+}
+
 function fmtKg(kg) {
   return Number.isInteger(kg) ? String(kg) : kg.toFixed(1).replace('.', ',');
 }
@@ -344,7 +426,7 @@ function renderFocus() {
         </div>
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="2.5" aria-label="2,5 Kilo mehr">+</button>
       </div>
-      ${frozen ? `<div class="kg-next focus-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : ''}`}
+      ${frozen ? `<div class="kg-next focus-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : bumpChip(it.id, mode)}`}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -395,6 +477,8 @@ function renderOverview() {
   const items = w.ex.map((item) => resolve(item, mode));
   const totalSets = items.reduce((a, x) => a + x.sets, 0);
   const muscles = new Set(items.flatMap((it) => it.muscles));
+  const planDone = doneCount() === PLAN.length;
+  const due = backupDue();
 
   // Eine Bildschirmseite, ohne Scrollen: Kopf, Körper, Start. Der Körper
   // nimmt sich den Platz, der zwischen den beiden übrig bleibt.
@@ -402,6 +486,13 @@ function renderOverview() {
     <section class="ov">
       ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
         Eintragungen gehen beim Neuladen verloren.</div>`}
+      ${planDone ? `<div class="notice done-notice">🎉 Plan geschafft – alle ${PLAN.length} Einheiten.
+        <button type="button" class="btn btn-primary btn-block" data-act="restart-plan"
+                style="margin-top:10px">Von vorn beginnen</button>
+        <span class="small muted">Die erreichten Gewichte bleiben stehen.</span></div>` : ''}
+      ${due ? `<div class="notice warn">💾 ${esc(plural(due, 'Einheit', 'Einheiten'))} seit der letzten
+        Sicherung. Alles liegt nur in diesem Browser.
+        <button type="button" class="btn btn-block" data-act="backup-now" style="margin-top:10px">Jetzt sichern</button></div>` : ''}
 
       <header class="ov-top">
         <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
@@ -528,7 +619,7 @@ function renderDashboard() {
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="2.5"
                 aria-label="2,5 Kilo mehr">+</button>
       </div>
-      ${frozen ? `<div class="kg-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : ''}`;
+      ${frozen ? `<div class="kg-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : bumpChip(it.id, mode)}`;
 
     parts.push(`
       <article class="ex ${open ? 'open' : ''} ${complete ? 'complete' : ''}">
@@ -694,6 +785,8 @@ function renderStats() {
       <div class="stat"><div class="stat-v">${repsTotal ? `ca. ${Math.round(repsTotal)}` : '–'}</div><div class="stat-l">Wiederholungen (geplant)</div></div>
       <div class="stat"><div class="stat-v">${volume ? `ca. ${Math.round(volume).toLocaleString('de-DE')}` : '–'}</div><div class="stat-l">Volumen kg (Hanteln)</div></div>
       <div class="stat"><div class="stat-v">🏋️ ${doneDb} · 🤸 ${doneBw}</div><div class="stat-l">Modus-Verteilung</div></div>
+      ${store.getState().rounds.length
+        ? `<div class="stat"><div class="stat-v">${store.getState().rounds.length}</div><div class="stat-l">Runden abgeschlossen</div></div>` : ''}
     </div>
 
     <div class="section-title">Nächste Einheit</div>
@@ -837,9 +930,25 @@ function renderSettings() {
       </div>
     </div>
 
+    <div class="section-title">Plan neu starten</div>
+    <div class="card">
+      <div class="small muted">Setzt alle abgehakten Sätze zurück und legt Workout 1 auf heute.
+        Die erreichten Gewichte bleiben stehen, der bisherige Verlauf wandert in die Ablage
+        und bleibt im Export erhalten.${store.getState().rounds.length
+          ? ` Bisher ${esc(plural(store.getState().rounds.length, 'Runde', 'Runden'))} abgeschlossen.` : ''}</div>
+      <div class="btn-row">
+        <button type="button" class="btn" data-act="restart-plan">Von vorn beginnen</button>
+      </div>
+    </div>
+
     <div class="section-title">Daten</div>
     <div class="card">
-      <div class="small muted">Alles liegt lokal im Browser. Sicherung als Text kopieren oder hier wieder einfügen.</div>
+      <div class="small muted">Alles liegt lokal im Browser – Android räumt den bei Platzmangel weg.
+        ${(() => {
+          const b = store.getState().lastBackup;
+          if (!b) return 'Noch nie gesichert.';
+          return `Zuletzt gesichert am ${esc(fmtDate(b.on))}, nach ${esc(plural(b.done, 'Einheit', 'Einheiten'))}.`;
+        })()}</div>
       <div class="btn-row">
         <button type="button" class="btn" data-act="export">Export anzeigen</button>
         <button type="button" class="btn" data-act="download">Als Datei sichern</button>
@@ -887,6 +996,7 @@ function render() {
   });
   clearFigures(); // alte Animationen abmelden, bevor das DOM ersetzt wird
   (RENDERERS[ui.tab] || renderDashboard)();
+  syncHistory();
 }
 
 function go(tab) {
@@ -894,6 +1004,38 @@ function go(tab) {
   render();
   window.scrollTo({ top: 0 });
 }
+
+/* ------------------------------------------------------------------ *
+ * Zurück-Taste
+ *
+ * Auf Android verlässt die Zurück-Taste sonst gleich die ganze App, auch aus
+ * der Fokus-Ansicht heraus. Statt jeden Knopf einzeln anzufassen, vergleicht
+ * render() die sichtbare Ebene mit der zuletzt abgelegten – ändert sie sich,
+ * kommt ein Eintrag in den Verlauf. Ein Satz abhaken ändert die Ebene nicht
+ * und legt deshalb auch nichts ab.
+ * ------------------------------------------------------------------ */
+
+const levelOf = () => `${ui.tab}|${ui.listView ? 1 : 0}|${ui.focus ? 1 : 0}`;
+let lastLevel = levelOf();
+let goingBack = false;
+
+function syncHistory() {
+  const now = levelOf();
+  if (goingBack || now === lastLevel) return;
+  lastLevel = now;
+  history.pushState({ tab: ui.tab, listView: ui.listView, focus: ui.focus }, '');
+}
+
+window.addEventListener('popstate', (e) => {
+  const st = e.state || { tab: 'dashboard', listView: false, focus: false };
+  goingBack = true;
+  ui.tab = st.tab || 'dashboard';
+  ui.listView = !!st.listView;
+  ui.focus = !!st.focus;
+  lastLevel = levelOf();
+  render();
+  goingBack = false;
+});
 
 /* ------------------------------------------------------------------ *
  * Events
@@ -976,6 +1118,31 @@ view.addEventListener('click', (e) => {
       toast(started ? `Nächstes Mal ${fmtKg(kg)} kg` : `${fmtKg(kg)} kg`);
       break;
     }
+    case 'accept-bump': {
+      const id = t.dataset.ex;
+      const kg = store.setWeight(id, Number(t.dataset.kg));
+      render();
+      toast(`Nächstes Mal ${fmtKg(kg)} kg 💪`);
+      break;
+    }
+    case 'restart-plan': {
+      // Runde 1 wandert in die Ablage, die Gewichte bleiben. Workout 1 rückt
+      // auf heute, sonst würde die Nachrück-Automatik den halben Plan
+      // verschieben, weil das Originaldatum längst vorbei ist.
+      const target = Math.max(0, daysBetween(PLAN[0].date, todayISO()));
+      store.restartPlan(target);
+      ui.workoutNo = PLAN[0].n;
+      ui.focus = false;
+      ui.listView = false;
+      ui.openEx.clear();
+      render();
+      toast('Neue Runde – viel Erfolg 💪');
+      break;
+    }
+    case 'backup-now':
+      downloadBackup();
+      render();
+      break;
     case 'start-session':
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       store.startSession(n);
@@ -1109,21 +1276,9 @@ view.addEventListener('click', (e) => {
       toast('Export erzeugt – kopieren und sicher ablegen.');
       break;
     }
-    case 'download': {
-      const json = store.exportJSON();
-      // Manche Umgebungen – eingebettete Ansichten, strenge Browser – lassen
-      // den Download stillschweigend fallen. Deshalb steht der Export danach
-      // immer auch im Textfeld zum Kopieren.
-      document.getElementById('io').value = json;
-      const blob = new Blob([json], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `workout-backup-${todayISO()}.json`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      toast('Gesichert – falls kein Download kam: Text unten kopieren');
+    case 'download':
+      downloadBackup();
       break;
-    }
     case 'import': {
       const io = document.getElementById('io');
       try {

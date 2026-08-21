@@ -198,6 +198,13 @@ lauffähig.
 
 ### Gewichte und Progression
 
+**Steigerungsvorschlag statt Gedächtnis.** Wer zwei Einheiten in Folge alle
+Sätze einer Übung mit demselben Gewicht durchzieht, bekommt einen Knopf
+angeboten: *„2× alles geschafft · auf 22,5 kg?"*. Ein Tipp übernimmt es fürs
+nächste Mal. Bewusst nur ein Vorschlag – ob die Wiederholungen sauber waren,
+weiß die App nicht. Gezählt werden nur Hantel-Einheiten und nur solche, in
+denen wirklich alle Sätze stehen; eine abgebrochene Einheit beendet die Serie.
+
 `tools/exercise-meta.json` hält je Übung ein Startgewicht (`dbWeight`) und
 einen Hinweis, wie es gemeint ist (`weightNote`: „je Hand", „eine Hantel",
 „Zusatzgewicht", „Stange gesamt"). Übungen ohne Zusatzlast – Chin-ups, Sliding
@@ -264,6 +271,30 @@ vollständige Reihe steht im `aria-label`.
 Volumen = Gewicht × geplante Wiederholungen × abgehakte Sätze. Nur
 Hantel-Einheiten tragen Kilo bei; Bodyweight-Einheiten haben kein Gewicht, das
 sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
+
+## Sicherung
+
+Alles liegt im `localStorage` genau eines Browsers. Android räumt den bei
+Platzmangel weg, und „Websitedaten löschen" reicht ebenfalls – ein halbes Jahr
+Training wäre weg. Deshalb erinnert die Startansicht nach acht erledigten
+Einheiten daran und bietet die Sicherung direkt an; in *Mehr* steht, wann
+zuletzt gesichert wurde.
+
+## Wenn der Plan durch ist
+
+Nach der letzten von 57 Einheiten bietet die Startansicht *Von vorn beginnen*
+an. Der bisherige Verlauf wandert in `rounds` und bleibt im Export erhalten,
+die **Gewichte bleiben stehen** – Runde zwei startet also auf dem erreichten
+Stand. Workout 1 rückt auf heute, sonst würde die Nachrück-Automatik den
+halben Plan verschieben, weil das Originaldatum längst vorbei ist.
+
+## Zurück-Taste
+
+Auf Android verließ die Zurück-Taste sonst gleich die ganze App, auch aus der
+Fokus-Ansicht heraus. Statt jeden Knopf einzeln anzufassen, vergleicht
+`render()` die sichtbare Ebene mit der zuletzt abgelegten – ändert sie sich,
+kommt ein Eintrag in den Verlauf. Einen Satz abhaken ändert die Ebene nicht und
+legt deshalb auch nichts ab.
 
 ## Verpasste Tage
 

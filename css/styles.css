@@ -445,6 +445,22 @@ button { font: inherit; color: inherit; }
 
 .plan-date { display: block; font-size: 14.5px; font-weight: 600; }
 
+/* Steigerungsvorschlag: sichtbar, aber kein Alarm – es bleibt ein Angebot. */
+.kg-bump {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--ok) 55%, var(--line));
+  background: color-mix(in srgb, var(--ok) 14%, var(--bg-elev));
+  color: var(--ok);
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.done-notice { border-color: var(--ok); color: var(--ok); }
+
 /* ---------- Exercise library ---------- */
 .lib-item { padding: 14px; }
 .lib-group {
