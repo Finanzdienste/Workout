@@ -113,12 +113,19 @@ Branch und den Ordner `/ (root)` wählen. Die App liegt dann unter
 startet sie dann ohne Browser-Leiste im Vollbild.
 
 **Als einzelne Datei.** `dist/workout.html` enthält die gesamte App inklusive
-CSS und JavaScript. Die Datei funktioniert per Doppelklick, aus einer Cloud
-oder als Mail-Anhang – ohne Server und ohne Netz. Neu bauen nach Änderungen:
+CSS und JavaScript und läuft ohne Server und ohne Netz. Neu bauen nach
+Änderungen an `index.html`, `css/` oder `js/` – die Datei ist eine Kopie, kein
+Verweis:
 
 ```bash
 python3 tools/build-single.py
 ```
+
+Auf Android: Datei aufs Gerät legen (Download, Cloud, Messenger, Kabel), in der
+Dateien-App antippen, Chrome öffnet sie. Über *Menü → Zum Startbildschirm
+hinzufügen* landet sie als Symbol neben den übrigen Apps. Eingetragene Sätze
+überstehen Neuladen und Neustart – über `file://` mit persistentem
+Browserprofil getestet.
 
 Ein Hinweis dazu: Der Trainingsfortschritt liegt im `localStorage` und hängt
 damit am Ort, von dem die App geladen wurde. Wer zwischen GitHub Page und
