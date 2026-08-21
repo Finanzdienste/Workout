@@ -1913,6 +1913,16 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('pagehide', store.flush);
 
+// Offline-Betrieb. Nur über http(s) – unter file:// gibt es keine Service
+// Worker, und die gebündelte Einzeldatei braucht sie ohnehin nicht.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      // Kein Offline-Betrieb, aber die App läuft normal weiter.
+    });
+  });
+}
+
 const missedAtStart = catchUpPlan();
 render();
 if (missedAtStart) {

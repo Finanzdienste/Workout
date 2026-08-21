@@ -84,6 +84,7 @@ js/data.js              Aus der Excel generiert: 17 Übungen + 57 Einheiten
 js/dates.js             Datums-Hilfsfunktionen
 js/store.js             Zustand und localStorage-Persistenz
 js/app.js               Rendering der fünf Tabs und Event-Handling
+sw.js                   Service Worker für den Offline-Betrieb
 manifest.webmanifest    Installierbar als App auf dem Homescreen
 data/…xlsx              Quelle des Plans
 tools/build-data.py     Generator: Excel + Hinweise -> js/data.js
@@ -111,6 +112,16 @@ Branch und den Ordner `/ (root)` wählen. Die App liegt dann unter
 `https://finanzdienste.github.io/Workout/` und lässt sich im Browser über
 *Teilen → Zum Home-Bildschirm* als App ablegen – dank `manifest.webmanifest`
 startet sie dann ohne Browser-Leiste im Vollbild.
+
+Einmal geladen, läuft die Seite auch **ohne Netz** – `sw.js` legt Oberfläche und
+Plandaten im Browser ab. Seitenaufrufe gehen erst ans Netz und fallen bei
+Fehlschlag auf den Zwischenspeicher zurück, damit eine neue Fassung sofort
+ankommt, sobald Empfang besteht. Übrige Dateien kommen sofort aus dem
+Zwischenspeicher und werden im Hintergrund erneuert.
+
+Wichtig beim Ändern: `VERSION` in `sw.js` hochzählen, wenn Dateien aus der
+Liste `SHELL` dazukommen oder wegfallen – daran hängt das Aufräumen alter
+Zwischenspeicher.
 
 **Als einzelne Datei.** `dist/workout.html` enthält die gesamte App inklusive
 CSS und JavaScript und läuft ohne Server und ohne Netz. Neu bauen nach
