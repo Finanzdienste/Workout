@@ -20,7 +20,8 @@
    "quads",
    "glutes",
    "abs"
-  ]
+  ],
+  "equip": "goblet"
  },
  "fersenerhoehter-goblet-squat": {
   "group": "Beine",
@@ -41,7 +42,8 @@
   "bwMuscles": [
    "quads",
    "glutes"
-  ]
+  ],
+  "equip": "goblet"
  },
  "sliding-leg-curl": {
   "group": "Beinbeuger",
@@ -62,7 +64,8 @@
   "bwMuscles": [
    "hamstrings",
    "glutes"
-  ]
+  ],
+  "equip": null
  },
  "einbeiniger-sliding-leg-curl": {
   "group": "Beinbeuger",
@@ -83,7 +86,8 @@
   "bwMuscles": [
    "hamstrings",
    "glutes"
-  ]
+  ],
+  "equip": null
  },
  "hip-thrust": {
   "group": "Gesäß",
@@ -104,7 +108,8 @@
   "bwMuscles": [
    "glutes",
    "hamstrings"
-  ]
+  ],
+  "equip": "hipbar"
  },
  "gewichtete-liegestuetze": {
   "group": "Brust",
@@ -127,7 +132,8 @@
    "chest",
    "triceps",
    "delts"
-  ]
+  ],
+  "equip": "plate"
  },
  "fuesse-erhoehte-liegestuetze": {
   "group": "Brust (oben)",
@@ -150,7 +156,8 @@
    "chest",
    "delts",
    "triceps"
-  ]
+  ],
+  "equip": null
  },
  "floor-press": {
   "group": "Brust/Trizeps",
@@ -172,7 +179,8 @@
    "chest",
    "triceps",
    "delts"
-  ]
+  ],
+  "equip": "dumbbells"
  },
  "einarmiges-kh-rudern": {
   "group": "Rücken",
@@ -195,7 +203,8 @@
    "lats",
    "biceps",
    "traps"
-  ]
+  ],
+  "equip": "onehand"
  },
  "chin-ups": {
   "group": "Rücken/Bizeps",
@@ -216,7 +225,8 @@
   "bwMuscles": [
    "lats",
    "biceps"
-  ]
+  ],
+  "equip": null
  },
  "reverse-fly": {
   "group": "Schulter (hinten)",
@@ -237,7 +247,8 @@
   "bwMuscles": [
    "rearDelts",
    "traps"
-  ]
+  ],
+  "equip": "dumbbells"
  },
  "sitzendes-seitheben": {
   "group": "Schulter",
@@ -257,7 +268,8 @@
   "bwMuscles": [
    "delts",
    "triceps"
-  ]
+  ],
+  "equip": "dumbbells"
  },
  "liegende-trizepsstrecker": {
   "group": "Trizeps",
@@ -276,7 +288,8 @@
   ],
   "bwMuscles": [
    "triceps"
-  ]
+  ],
+  "equip": "dumbbells"
  },
  "sz-curls": {
   "group": "Bizeps",
@@ -296,7 +309,8 @@
   "bwMuscles": [
    "biceps",
    "lats"
-  ]
+  ],
+  "equip": "barbell"
  },
  "gewichtete-crunches": {
   "group": "Bauch",
@@ -315,7 +329,8 @@
   ],
   "bwMuscles": [
    "abs"
-  ]
+  ],
+  "equip": "plate"
  },
  "einbeiniges-stehendes-wadenheben": {
   "group": "Waden",
@@ -334,7 +349,8 @@
   ],
   "bwMuscles": [
    "calves"
-  ]
+  ],
+  "equip": "onehand"
  },
  "wadenheben-gebeugtes-knie": {
   "group": "Waden (Soleus)",
@@ -353,6 +369,7 @@
   ],
   "bwMuscles": [
    "calves"
-  ]
+  ],
+  "equip": "onehand"
  }
 }

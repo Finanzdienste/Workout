@@ -6,6 +6,7 @@ export const EXERCISES = [
     "group": "Beine",
     "weight": 20,
     "weightNote": "eine Hantel",
+    "equip": "goblet",
     "db": {
       "name": "Goblet Squat",
       "reps": "8–12",
@@ -38,6 +39,7 @@ export const EXERCISES = [
     "group": "Beinbeuger",
     "weight": null,
     "weightNote": null,
+    "equip": null,
     "db": {
       "name": "Sliding Leg Curl",
       "reps": "8–15",
@@ -68,6 +70,7 @@ export const EXERCISES = [
     "group": "Brust",
     "weight": 10,
     "weightNote": "Zusatzgewicht",
+    "equip": "plate",
     "db": {
       "name": "Gewichtete Liegestütze",
       "reps": "8–15",
@@ -100,6 +103,7 @@ export const EXERCISES = [
     "group": "Rücken/Bizeps",
     "weight": null,
     "weightNote": null,
+    "equip": null,
     "db": {
       "name": "Chin-ups",
       "reps": "5–10",
@@ -130,6 +134,7 @@ export const EXERCISES = [
     "group": "Schulter",
     "weight": 6,
     "weightNote": "je Hand",
+    "equip": "dumbbells",
     "db": {
       "name": "Sitzendes Seitheben",
       "reps": "12–20",
@@ -159,6 +164,7 @@ export const EXERCISES = [
     "group": "Trizeps",
     "weight": 8,
     "weightNote": "je Hand",
+    "equip": "dumbbells",
     "db": {
       "name": "Liegende Trizepsstrecker",
       "reps": "8–15",
@@ -187,6 +193,7 @@ export const EXERCISES = [
     "group": "Waden",
     "weight": 12,
     "weightNote": "eine Hantel",
+    "equip": "onehand",
     "db": {
       "name": "Einbeiniges stehendes Wadenheben",
       "reps": "10–20 je Bein",
@@ -215,6 +222,7 @@ export const EXERCISES = [
     "group": "Waden (Soleus)",
     "weight": 12,
     "weightNote": "eine Hantel",
+    "equip": "onehand",
     "db": {
       "name": "Wadenheben gebeugtes Knie",
       "reps": "12–20",
@@ -243,6 +251,7 @@ export const EXERCISES = [
     "group": "Beine",
     "weight": 20,
     "weightNote": "eine Hantel",
+    "equip": "goblet",
     "db": {
       "name": "Fersenerhöhter Goblet Squat",
       "reps": "8–12",
@@ -273,6 +282,7 @@ export const EXERCISES = [
     "group": "Bizeps",
     "weight": 15,
     "weightNote": "Stange gesamt",
+    "equip": "barbell",
     "db": {
       "name": "SZ-Curls",
       "reps": "8–15",
@@ -302,6 +312,7 @@ export const EXERCISES = [
     "group": "Bauch",
     "weight": 5,
     "weightNote": "Zusatzgewicht",
+    "equip": "plate",
     "db": {
       "name": "Gewichtete Crunches",
       "reps": "10–20",
@@ -330,6 +341,7 @@ export const EXERCISES = [
     "group": "Beinbeuger",
     "weight": null,
     "weightNote": null,
+    "equip": null,
     "db": {
       "name": "Einbeiniger Sliding Leg Curl",
       "reps": "6–12 je Bein",
@@ -360,6 +372,7 @@ export const EXERCISES = [
     "group": "Brust (oben)",
     "weight": null,
     "weightNote": null,
+    "equip": null,
     "db": {
       "name": "Füße-erhöhte Liegestütze",
       "reps": "8–15",
@@ -392,6 +405,7 @@ export const EXERCISES = [
     "group": "Brust/Trizeps",
     "weight": 14,
     "weightNote": "je Hand",
+    "equip": "dumbbells",
     "db": {
       "name": "Floor Press",
       "reps": "6–12",
@@ -423,6 +437,7 @@ export const EXERCISES = [
     "group": "Rücken",
     "weight": 16,
     "weightNote": "je Hand",
+    "equip": "onehand",
     "db": {
       "name": "Einarmiges KH-Rudern",
       "reps": "8–12 je Seite",
@@ -455,6 +470,7 @@ export const EXERCISES = [
     "group": "Gesäß",
     "weight": 20,
     "weightNote": "auf der Hüfte",
+    "equip": "hipbar",
     "db": {
       "name": "Hip Thrust",
       "reps": "8–15",
@@ -485,6 +501,7 @@ export const EXERCISES = [
     "group": "Schulter (hinten)",
     "weight": 5,
     "weightNote": "je Hand",
+    "equip": "dumbbells",
     "db": {
       "name": "Reverse Fly",
       "reps": "12–20",

@@ -18,6 +18,7 @@
  *   arm.p     Schulter nach vorn (0 = Arm hängt)
  *   arm.a     Arm zur Seite abgespreizt
  *   arm.e     Ellenbogen gebeugt
+ *   arm.i     Unterarm zur Körpermitte gedreht (beidhändiger Griff)
  *   leg.p     Hüfte gebeugt (Knie nach vorn)
  *   leg.a     Bein zur Seite
  *   leg.k     Knie gebeugt (Ferse nach hinten)
@@ -47,7 +48,7 @@ function rotZ(v, deg) {
   return [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]];
 }
 
-const A = (p = 0, a = 0, e = 0) => ({ p, a, e });
+const A = (p = 0, a = 0, e = 0, i = 0) => ({ p, a, e, i });
 const L = (p = 0, a = 0, k = 0) => ({ p, a, k });
 
 /** Gelenkpunkte einer Stellung, Hüftmitte im Ursprung. */
@@ -73,7 +74,9 @@ function solve(pose) {
     const shoulder = add(shoulderMid, mul(side, sign * R.shoulderW));
     const upperDir = rotX(rotZ([0, -1, 0], sign * arm.a), -arm.p + lean);
     const elbow = add(shoulder, mul(upperDir, R.upperArm));
-    const foreDir = rotX(upperDir, -arm.e);
+    // arm.i dreht den Unterarm zur Körpermitte – nötig, wo beide Hände
+    // dasselbe Gerät fassen, etwa die Hantel beim Goblet Squat.
+    const foreDir = rotZ(rotX(upperDir, -arm.e), sign * (arm.i || 0));
     const hand = add(elbow, mul(foreDir, R.foreArm));
 
     // Bein: Hüfte beugen, dann Knie
@@ -110,8 +113,8 @@ export const PATTERNS = {
   squat: {
     label: 'Kniebeuge',
     poses: [
-      { lean: 6, arm: A(12, 6, 132), leg: L(2, 5, 4) },
-      { lean: 42, arm: A(18, 6, 128), leg: L(96, 9, 116) },
+      { lean: 6, arm: A(26, -18, 130, 32), leg: L(2, 5, 4) },
+      { lean: 42, arm: A(30, -18, 128, 32), leg: L(96, 9, 116) },
     ],
   },
   legcurl: {
@@ -210,20 +213,6 @@ export const PATTERNS = {
   },
 };
 
-/* ------------------------------------------------------------------ *
- * Geräte
- * ------------------------------------------------------------------ */
-
-/** Aus dem Hinweis im Plan ableiten, was in der Hand liegt. */
-export function equipFor(note) {
-  if (!note) return null;
-  if (note.includes('je Hand')) return 'dumbbells';
-  if (note.includes('eine Hantel')) return 'goblet';
-  if (note.includes('Stange')) return 'barbell';
-  if (note.includes('Zusatzgewicht')) return 'plate';
-  if (note.includes('Hüfte')) return 'hipbar';
-  return null;
-}
 
 const NS = 'http://www.w3.org/2000/svg';
 const CYCLE_MS = 3200;
@@ -292,7 +281,7 @@ export function mountFigure(host, pattern, weight, equip) {
   const [a, b] = spec.poses;
   const blend = (t) => {
     const mix = (x, y) => x + (y - x) * t;
-    const mixA = (x = A(), y = A()) => A(mix(x.p, y.p), mix(x.a, y.a), mix(x.e, y.e));
+    const mixA = (x = A(), y = A()) => A(mix(x.p, y.p), mix(x.a, y.a), mix(x.e, y.e), mix(x.i || 0, y.i || 0));
     const mixL = (x = L(), y = L()) => L(mix(x.p, y.p), mix(x.a, y.a), mix(x.k, y.k));
     return {
       lean: mix(a.lean || 0, b.lean || 0),
@@ -323,6 +312,7 @@ export function mountFigure(host, pattern, weight, equip) {
 
     scene.textContent = '';
     const P = (p) => project(p, yaw, pitch, 44, 50, 52);
+    const pts0 = j;   // Weltkoordinaten, für die Ausrichtung der Geräte
     const pts = {};
     Object.entries(j).forEach(([k, v]) => { pts[k] = P(v); });
 
@@ -362,48 +352,50 @@ export function mountFigure(host, pattern, weight, equip) {
       }),
     });
 
-    // Gerät
-    const gear = (from, to, w, cls) => parts.push({
-      z: (from.z + to.z) / 2,
-      node: el('line', {
-        x1: from.x.toFixed(1), y1: from.y.toFixed(1), x2: to.x.toFixed(1), y2: to.y.toFixed(1),
-        'stroke-width': w, class: cls,
-      }),
-    });
-    const plateAt = (p, r) => parts.push({
-      z: p.z + 0.01,
-      node: el('circle', { cx: p.x.toFixed(1), cy: p.y.toFixed(1), r, class: 'fig-plate' }),
-    });
+    // Gerät. Ausgerichtet an den Achsen des Skeletts selbst – die sind schon
+    // gedreht und gekippt, anders als eine nachgerechnete Näherung.
+    const norm = (v) => {
+      const n = Math.hypot(v[0], v[1], v[2]) || 1;
+      return [v[0] / n, v[1] / n, v[2] / n];
+    };
+    const sideAxis = norm([j.shoulderR[0] - j.shoulderL[0], j.shoulderR[1] - j.shoulderL[1], j.shoulderR[2] - j.shoulderL[2]]);
+    const upAxis = norm([j.neck[0] - j.hipC[0], j.neck[1] - j.hipC[1], j.neck[2] - j.hipC[2]]);
+    const midOf = (a2, b2) => [(a2[0] + b2[0]) / 2, (a2[1] + b2[1]) / 2, (a2[2] + b2[2]) / 2];
 
-    if (equip === 'dumbbells' || equip === 'goblet') {
-      const hands = equip === 'goblet' ? [pts.handL] : [pts.handL, pts.handR];
-      hands.forEach((h) => {
-        const off = 0.085 * 46 * h.k;
-        const dir = rotY([1, 0, 0], yaw);
-        const dx = dir[0] * off; const dy = 0;
-        gear({ x: h.x - dx, y: h.y - dy, z: h.z, k: h.k }, { x: h.x + dx, y: h.y + dy, z: h.z, k: h.k }, 2.2, 'fig-bar');
-        plateAt({ x: h.x - dx, y: h.y - dy, z: h.z }, 3.4 * h.k);
-        plateAt({ x: h.x + dx, y: h.y + dy, z: h.z }, 3.4 * h.k);
+    /** Stange samt Scheiben entlang einer Achse im Raum. */
+    const barAt = (centre, axis, half, plate) => {
+      const e1 = P(add(centre, mul(axis, -half)));
+      const e2 = P(add(centre, mul(axis, half)));
+      parts.push({
+        z: (e1.z + e2.z) / 2,
+        node: el('line', {
+          x1: e1.x.toFixed(1), y1: e1.y.toFixed(1), x2: e2.x.toFixed(1), y2: e2.y.toFixed(1),
+          'stroke-width': (2.2 * (e1.k + e2.k) / 2).toFixed(2), class: 'fig-bar',
+        }),
       });
+      [e1, e2].forEach((q) => parts.push({
+        z: q.z + 0.01,
+        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (plate * q.k).toFixed(1), class: 'fig-plate' }),
+      }));
+    };
+
+    if (equip === 'dumbbells') {
+      [pts0.handL, pts0.handR].forEach((h) => barAt(h, sideAxis, 0.085, 3.4));
+    } else if (equip === 'onehand') {
+      barAt(pts0.handR, sideAxis, 0.085, 3.4);
+    } else if (equip === 'goblet') {
+      // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten
+      barAt(midOf(pts0.handL, pts0.handR), upAxis, 0.105, 4.4);
     } else if (equip === 'barbell') {
-      const dir = rotY([1, 0, 0], yaw);
-      const ext = 0.30 * 46;
-      const mid = { x: (pts.handL.x + pts.handR.x) / 2, y: (pts.handL.y + pts.handR.y) / 2, z: (pts.handL.z + pts.handR.z) / 2, k: 1 };
-      const e1 = { x: mid.x - dir[0] * ext, y: mid.y, z: mid.z };
-      const e2 = { x: mid.x + dir[0] * ext, y: mid.y, z: mid.z };
-      gear({ ...e1, k: 1 }, { ...e2, k: 1 }, 2.4, 'fig-bar');
-      plateAt(e1, 5); plateAt(e2, 5);
+      barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.34, 5.2);
     } else if (equip === 'hipbar') {
-      const dir = rotY([1, 0, 0], yaw);
-      const hipMid = { x: (pts.hipL.x + pts.hipR.x) / 2, y: (pts.hipL.y + pts.hipR.y) / 2, z: (pts.hipL.z + pts.hipR.z) / 2 };
-      const ext = 0.24 * 46;
-      gear({ x: hipMid.x - dir[0] * ext, y: hipMid.y, z: hipMid.z, k: 1 },
-        { x: hipMid.x + dir[0] * ext, y: hipMid.y, z: hipMid.z, k: 1 }, 2.4, 'fig-bar');
-      plateAt({ x: hipMid.x - dir[0] * ext, y: hipMid.y, z: hipMid.z }, 4.6);
-      plateAt({ x: hipMid.x + dir[0] * ext, y: hipMid.y, z: hipMid.z }, 4.6);
+      barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.26, 4.8);
     } else if (equip === 'plate') {
-      const back = P(add(j.chest, rotY([0, 0, -0.12], 0)));
-      plateAt(back, 5.5 * back.k);
+      const back = P(add(j.chest, mul(norm([j.chest[0] - j.hipC[0] + upAxis[2], upAxis[0], -0.5]), 0.11)));
+      parts.push({
+        z: back.z + 0.01,
+        node: el('circle', { cx: back.x.toFixed(1), cy: back.y.toFixed(1), r: (5.4 * back.k).toFixed(1), class: 'fig-plate' }),
+      });
     }
 
     if (spec.bar) {

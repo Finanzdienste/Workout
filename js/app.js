@@ -1,7 +1,7 @@
 import { EXERCISES, PLAN } from './data.js';
 import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural } from './dates.js';
-import { mountFigure, clearFigures, equipFor } from './figure.js';
+import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
 import { sparkPanel } from './chart.js';
 
@@ -77,6 +77,7 @@ function resolve(item, mode) {
     // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
     // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
     weight: mode === 'db' ? ex.weight : null,
+    gear: mode === 'db' ? ex.equip : null,    // Gerät der Figur; Bodyweight hat keins
     weightNote: ex.weightNote,
   };
 }
@@ -367,7 +368,7 @@ function renderFocus() {
   `;
 
   const host = document.getElementById('focusFig');
-  if (host) mountFigure(host, it.pattern, it.weight !== null, it.weight === null ? null : equipFor(it.weightNote));
+  if (host) mountFigure(host, it.pattern, it.weight !== null, it.gear);
 }
 
 /**

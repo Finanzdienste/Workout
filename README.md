@@ -98,10 +98,21 @@ Die 14 Muster sind nach **Bewegungsart** benannt, nicht nach Übung – Goblet
 Squat und Bodyweight Squat teilen sich `squat`. Zugeordnet wird je Variante
 über `dbPattern`/`bwPattern` in `tools/exercise-meta.json`.
 
-**Das Gerät leitet sich aus `weightNote` ab** (`equipFor`): „je Hand" ergibt
-eine Kurzhantel pro Hand, „eine Hantel" eine vor der Brust, „Stange gesamt"
-eine Langhantel über beide Hände, „auf der Hüfte" eine Hantel quer über dem
-Becken. So sieht man der Figur an, womit sie arbeitet.
+**Das Gerät steht ausdrücklich in `tools/exercise-meta.json`** (Feld `equip`):
+`dumbbells` je eine Kurzhantel pro Hand, `onehand` eine in einer Hand,
+`goblet` eine senkrecht vor der Brust, `barbell` eine Stange über beide Hände,
+`hipbar` eine quer über dem Becken, `plate` eine Scheibe am Rumpf, `null` kein
+Gerät. Vorher wurde es aus `weightNote` erraten – „eine Hantel" trifft aber
+sowohl auf den Goblet Squat zu (beidhändig vor der Brust) als auch aufs
+Wadenheben (einhändig neben dem Körper), und die Figur hielt dann das Falsche.
+
+Gezeichnet wird das Gerät entlang der Achsen des Skeletts selbst
+(Schulterachse, Rumpfachse), nicht entlang der Bildschirmachsen – so bleibt es
+beim Drehen in der Hand statt daneben zu schweben.
+
+Wo beide Hände dasselbe Gerät fassen, dreht `arm.i` den Unterarm zur
+Körpermitte; ohne das griffen die Hände schulterbreit ins Leere und die Hantel
+schwebte dazwischen.
 
 Bewusst keine fremden Bilder: Übungs-GIFs sind fast durchweg urheberrechtlich
 geschützt, und ein zugekaufter Fremdstil neben eigenen Zeichnungen wirkt
