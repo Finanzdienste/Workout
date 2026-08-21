@@ -23,7 +23,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'dist' / 'workout.html'
 
 # Reihenfolge = Abhaengigkeitsreihenfolge
-MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/store.js', 'js/app.js']
+MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js', 'js/store.js', 'js/app.js']
 
 IMPORT_RE = re.compile(r'^\s*import\s.+?;\s*$', re.MULTILINE)
 EXPORT_RE = re.compile(r'^(\s*)export\s+(?=(?:const|let|var|function|class)\b)', re.MULTILINE)
@@ -54,14 +54,6 @@ def main():
                 sys.exit('js/store.js: keine Exporte gefunden')
             # app.js spricht den Store als Namensraum an
             chunks.append('const store = { ' + ', '.join(sorted(names)) + ' };')
-
-    # Illustrationen als data:-URI mitgeben, damit die Einzeldatei sie kennt
-    inline = {}
-    for svg_file in sorted((ROOT / 'img').glob('*.svg')):
-        data = svg_file.read_text(encoding='utf-8')
-        inline[svg_file.stem] = 'data:image/svg+xml,' + quote(data, safe='')
-    if inline:
-        chunks.append('registerInline(' + json.dumps(inline) + ');')
 
     # Alle Module landen in EINEM Gueltigkeitsbereich - gleiche Namen auf
     # oberster Ebene wuerden das ganze Skript zum Absturz bringen, waehrend die

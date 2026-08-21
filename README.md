@@ -13,7 +13,7 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. |
 | **Plan** | Alle 57 Einheiten mit Datum, Status und Filter (Alle / Offen / Erledigt / Ab heute). Antippen öffnet die Einheit im Dashboard. |
-| **Statistik** | Erledigte Workouts, Serie, abgehakte Sätze, Wiederholungen, Hantel-Volumen in kg, Verteilung der Modi, meist trainierte Übungen. |
+| **Statistik** | Kennzahlen, nächste Einheit, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
 | **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, Export/Import als JSON, Backup-Datei, Alles löschen. |
 
 ## Drei Ebenen
@@ -70,42 +70,34 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 
 ### Bewegungsabläufe
 
-Jede Übung zeigt ihre Bewegung als Überblendung zwischen Start- und
-Endstellung. Zwei Quellen, bewusst gemischt:
+`js/figure.js` zeichnet eine **drehbare 3D-Figur**. Eine Stellung hält nur
+Gelenkwinkel, das Skelett rechnet `solve()` daraus. Das ist nicht bloß kürzer
+als feste Punkte, sondern hält die Figur anatomisch beisammen: ein Knie kann
+nicht neben der Hüfte landen, und dieselbe Stellung stimmt aus jedem
+Blickwinkel. Waagerechtes Ziehen dreht um die Hochachse.
 
-**Illustrationen von Everkinetic** (`img/`, CC BY-SA 3.0, siehe
-`img/CREDITS.md`) für 10 der 17 Übungen. Anatomisch genauer als eine
-Strichfigur. Importiert mit `tools/import-illustrations.py` aus
-[chaosbastler/opentraining-exercises](https://github.com/chaosbastler/opentraining-exercises);
-das Skript dünnt die SVGs aus (389 KB statt 655 KB) und schreibt den
-Bildnachweis. Die App invertiert sie per CSS, weil es schwarze Linien auf
-transparent sind.
+Gezeichnet wird mit schwacher Perspektive und Maleralgorithmus – was hinten
+liegt, kommt zuerst. Der Rumpf ist eine Fläche zwischen Schultern und Hüften,
+die Gliedmaßen sind Striche mit abgestufter Stärke.
 
-**Eigene Zeichnungen** (`js/figure.js`) für den Rest – dort, wo Everkinetic
-keine passende hat (Waden, Sliding Leg Curl, Pike Push-ups, Klimmzüge) oder
-eine andere Ausführung zeigt: der dortige Squat trägt eine Langhantel im
-Nacken, unser Plan sieht Goblet Squats vor.
-
-Freie GIFs aus dem Netz zu übernehmen scheidet aus: fast alle sind
-urheberrechtlich geschützt, und dieses Repo ist öffentlich – Verwendung wäre
-Weiterverbreitung. Everkinetic erlaubt es ausdrücklich, verlangt aber die
-Namensnennung, die in der App unter *Mehr* und an jeder Illustration steht.
-
-Eine Stellung ist eine Sammlung benannter Punkte (Kopf, Nacken, Schulter,
-Ellenbogen, Hand, Hüfte, Knie, Knöchel, Zehe) im Feld 100 × 100. Zwischen den
-beiden Stellungen wird mit weicher Umkehr interpoliert; eine gemeinsame
-`requestAnimationFrame`-Schleife bedient alle sichtbaren Figuren und ruht,
-solange der Tab im Hintergrund ist.
+Reihenfolge der Drehungen ist bedeutsam: erst `roll` um die Längsachse (Brust
+nach unten oder oben), dann `tilt` um die Blickachse (aufrecht oder liegend).
+Umgekehrt liegt die Figur falsch herum – beim Liegestütz zeigte die Brust sonst
+zum Betrachter statt zum Boden.
 
 Die 14 Muster sind nach **Bewegungsart** benannt, nicht nach Übung – Goblet
 Squat und Bodyweight Squat teilen sich `squat`. Zugeordnet wird je Variante
-über `dbPattern`/`bwPattern` in `tools/exercise-meta.json`, weil sich die
-Varianten unterscheiden können: Seitheben ist `lateral`, sein Bodyweight-
-Äquivalent Pike Push-ups dagegen `pike`.
+über `dbPattern`/`bwPattern` in `tools/exercise-meta.json`.
 
-Gezeichnet wird von der Seite. `mirror: true` schaltet auf Frontansicht mit
-zwei Armen und Beinen – nötig bei Seitheben und Reverse Fly, wo die Seitenansicht
-nichts zeigen würde.
+**Das Gerät leitet sich aus `weightNote` ab** (`equipFor`): „je Hand" ergibt
+eine Kurzhantel pro Hand, „eine Hantel" eine vor der Brust, „Stange gesamt"
+eine Langhantel über beide Hände, „auf der Hüfte" eine Hantel quer über dem
+Becken. So sieht man der Figur an, womit sie arbeitet.
+
+Bewusst keine fremden Bilder: Übungs-GIFs sind fast durchweg urheberrechtlich
+geschützt, und ein zugekaufter Fremdstil neben eigenen Zeichnungen wirkt
+zusammengestückelt. Alles aus einer Hand bleibt einheitlich und offline
+lauffähig.
 
 ### Gewichte und Progression
 
@@ -158,6 +150,23 @@ Da Wiederholungen nicht mehr erfasst werden, rechnet die Statistik mit dem
 geplanten Wert – der unteren Grenze des Bereichs, also eher zu niedrig als zu
 hoch. Die betroffenen Kennzahlen sind entsprechend als „ca." und „geplant"
 ausgewiesen.
+
+### Verlaufskarten
+
+Die Statistik zeigt Gewicht je Übung und Volumen je Muskelgruppe über die Zeit
+als **Small Multiples** – eine kleine Karte je Reihe statt eines Diagramms mit
+vielen Linien. Bei zwölf Muskelgruppen wären zwölf Farben nicht mehr
+auseinanderzuhalten, für Farbfehlsichtige schon gar nicht. Eine Karte je Reihe
+braucht dagegen nur eine Farbe, und die Überschrift ersetzt die Legende.
+
+Je Karte: Fläche als 10-%-Hauch, Linie 2 px, Endpunkt als Punkt mit Ring in der
+Untergrundfarbe. Beschriftet wird nur der Endwert – eine Zahl an jedem Punkt
+liest niemand. Ziehen über die Karte zeigt den Wert des jeweiligen Tages, die
+vollständige Reihe steht im `aria-label`.
+
+Volumen = Gewicht × geplante Wiederholungen × abgehakte Sätze. Nur
+Hantel-Einheiten tragen Kilo bei; Bodyweight-Einheiten haben kein Gewicht, das
+sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
 
 ## Verpasste Tage
 
@@ -228,6 +237,7 @@ js/store.js             Zustand und localStorage-Persistenz
 js/app.js               Rendering der fünf Tabs und Event-Handling
 js/figure.js            Animierte Bewegungsabläufe (14 Muster)
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
+js/chart.js             Verlaufskarten für die Statistik
 sw.js                   Service Worker für den Offline-Betrieb
 manifest.webmanifest    Installierbar als App auf dem Homescreen
 data/…xlsx              Quelle des Plans

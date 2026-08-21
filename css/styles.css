@@ -553,6 +553,98 @@ button { font: inherit; color: inherit; }
 .bar-track > i { display: block; height: 100%; background: var(--accent-2); }
 .bar-val { font-size: 12px; color: var(--muted); text-align: right; }
 
+/* ---------- Fokus-Ansicht ---------- */
+.focus-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.focus-count { font-size: 12.5px; color: var(--muted); font-weight: 600; text-align: right; }
+
+.focus-fig {
+  position: relative;
+  height: 270px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px;
+  margin-bottom: 14px;
+}
+.focus-name {
+  margin: 0 0 3px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+  line-height: 1.15;
+}
+.focus-meta { font-size: 13.5px; color: var(--muted); margin-bottom: 14px; }
+.focus-weight { padding: 0 0 10px; }
+.focus-next { margin: -4px 0 10px; }
+.focus-sets { display: flex; gap: 10px; margin-bottom: 14px; }
+.focus-set { height: 68px; font-size: 22px; }
+.focus-cue { margin-bottom: 4px; }
+
+/* ---------- Verlaufskarten ---------- */
+.spark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.spark {
+  margin: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 10px 8px;
+  touch-action: pan-y;
+}
+.spark figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.spark-name {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spark-val {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.spark-svg { display: block; width: 100%; height: 46px; }
+.spark-area { fill: var(--accent); opacity: .10; stroke: none; }
+.spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.spark-dot {
+  fill: var(--accent);
+  stroke: var(--bg-elev);        /* Ring in der Untergrundfarbe */
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.spark-foot {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-height: 14px;
+}
+
 /* ---------- Tabbar ---------- */
 .tabbar {
   position: fixed;
@@ -681,81 +773,42 @@ button { font: inherit; color: inherit; }
 .ov-nav:disabled { opacity: .35; }
 
 /* ---------- Bewegungsablauf ---------- */
-/* Everkinetic zeichnet schwarze Linien auf transparent – auf dunklem Grund
-   waeren sie unsichtbar. Invertieren und in die Akzentfarbe drehen. */
-.has-illu { position: relative; }
-.illu {
-  position: absolute;
-  inset: 8px;
-  width: calc(100% - 16px);
-  height: calc(100% - 16px);
-  object-fit: contain;
-  filter: invert(1) sepia(1) saturate(5) hue-rotate(337deg) brightness(1.05);
+.fig {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;   /* waagerechtes Ziehen dreht die Figur */
+  cursor: grab;
+  user-select: none;
 }
-body.mode-bw .illu { filter: invert(1) sepia(1) saturate(4) hue-rotate(175deg) brightness(1.05); }
-.illu-credit {
-  font-size: 10.5px;
-  color: var(--muted);
-  text-align: right;
-  margin: -10px 2px 12px;
-}
+.fig:active { cursor: grabbing; }
 
-.fig { display: block; width: 100%; height: 100%; }
-.fig-limb, .fig-torso {
+.fig-hint {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted);
+  pointer-events: none;
+  transition: opacity .4s;
+}
+.fig-hint.gone { opacity: 0; }
+
+.fig-limb, .fig-spine {
   fill: none;
   stroke: var(--accent);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.fig-torso { stroke-width: 7; }
-.fig-limb { stroke-width: 5; opacity: .85; }
-.fig-foot { stroke-width: 4; }
+.fig-foot { opacity: .8; }
+.fig-torso { fill: var(--accent); opacity: .92; }
 .fig-head { fill: var(--accent); }
-.fig-weight { fill: var(--text); }
-.fig-ground, .fig-bar {
-  stroke: var(--line);
-  stroke-width: 2;
-  stroke-linecap: round;
-}
 
-.focus-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-.focus-count { font-size: 12.5px; color: var(--muted); font-weight: 600; }
-
-.focus-fig {
-  height: 240px;
-  background: var(--bg-elev);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 10px;
-  margin-bottom: 14px;
-}
-.focus-name {
-  margin: 0 0 3px;
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -.5px;
-  line-height: 1.15;
-}
-.focus-meta { font-size: 13.5px; color: var(--muted); margin-bottom: 14px; }
-.focus-weight { padding: 0 0 10px; }
-.focus-next { margin: -4px 0 10px; }
-.focus-sets { display: flex; gap: 10px; margin-bottom: 14px; }
-.focus-set { height: 68px; font-size: 22px; }
-.focus-cue { margin-bottom: 4px; }
-
-.lib-fig {
-  height: 150px;
-  background: var(--bg-elev-2);
-  border-radius: 11px;
-  padding: 8px;
-  margin-top: 10px;
-}
+.fig-plate { fill: #e8eaed; }
+.fig-bar { stroke: #e8eaed; stroke-linecap: round; }
+.fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
+.fig-ground { stroke: var(--line); stroke-width: 2; stroke-linecap: round; }
 
 /* ---------- Pausentimer ---------- */
 .rest-bar {

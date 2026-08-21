@@ -1,8 +1,9 @@
 import { EXERCISES, PLAN } from './data.js';
 import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural } from './dates.js';
-import { mountFigure, clearFigures } from './figure.js';
+import { mountFigure, clearFigures, equipFor } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
+import { sparkPanel } from './chart.js';
 
 /* ------------------------------------------------------------------ *
  * Hilfsfunktionen
@@ -72,7 +73,7 @@ function resolve(item, mode) {
   const v = ex[mode];
   return {
     id: item.id, sets: item.sets, group: ex.group,
-    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern, img: v.img, muscles: v.muscles,
+    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern, muscles: v.muscles,
     // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
     // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
     weight: mode === 'db' ? ex.weight : null,
@@ -329,7 +330,6 @@ function renderFocus() {
     </div>
 
     <div class="focus-fig" id="focusFig"></div>
-    ${it.img ? '<div class="illu-credit">Abb.: Everkinetic · CC BY-SA 3.0</div>' : ''}
 
     <h2 class="focus-name">${esc(it.name)}</h2>
     <div class="focus-meta">${it.sets} Sätze × ${esc(it.reps)} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
@@ -367,7 +367,7 @@ function renderFocus() {
   `;
 
   const host = document.getElementById('focusFig');
-  if (host) mountFigure(host, it.pattern, it.weight !== null, it.img);
+  if (host) mountFigure(host, it.pattern, it.weight !== null, it.weight === null ? null : equipFor(it.weightNote));
 }
 
 /**
@@ -632,6 +632,47 @@ function renderPlan() {
  * Statistik
  * ------------------------------------------------------------------ */
 
+/**
+ * Zeitreihen aus dem Protokoll: je Übung das benutzte Gewicht, je
+ * Muskelgruppe das Volumen (Gewicht × geplante Wdh. × Sätze) einer Einheit.
+ *
+ * Nur abgehakte Sätze zählen, und nur die Hantel-Variante trägt Kilo bei –
+ * Bodyweight-Einheiten haben schlicht kein Gewicht, das man summieren könnte.
+ */
+function progressSeries() {
+  const perExercise = new Map();
+  const perMuscle = new Map();
+
+  PLAN.forEach((w) => {
+    const day = fmtDate(effDate(w));
+    const muscleDay = new Map();
+
+    w.ex.forEach((item) => {
+      const arr = store.peekSets(w.n, 'db', item.id);
+      if (!arr) return;
+      const done = arr.slice(0, item.sets).filter((x) => x.done && x.w !== '');
+      if (!done.length) return;
+
+      const kg = parseFloat(String(done[0].w).replace(',', '.'));
+      if (Number.isNaN(kg) || kg <= 0) return;
+
+      const ex = EX_BY_ID.get(item.id);
+      if (!perExercise.has(item.id)) perExercise.set(item.id, []);
+      perExercise.get(item.id).push({ label: day, value: kg });
+
+      const vol = kg * plannedReps(ex.db.reps) * done.length;
+      ex.db.muscles.forEach((m) => muscleDay.set(m, (muscleDay.get(m) || 0) + vol));
+    });
+
+    muscleDay.forEach((vol, m) => {
+      if (!perMuscle.has(m)) perMuscle.set(m, []);
+      perMuscle.get(m).push({ label: day, value: vol });
+    });
+  });
+
+  return { perExercise, perMuscle };
+}
+
 function renderStats() {
   const log = store.getState().log;
   const today = todayISO();
@@ -707,6 +748,12 @@ function renderStats() {
         : '<div class="muted">Alle Einheiten des Plans sind abgeschlossen. Stark.</div>'}
     </div>
 
+    <div class="section-title">Gewicht je Übung</div>
+    <div class="spark-grid" id="sparkEx"></div>
+
+    <div class="section-title">Volumen je Muskelgruppe</div>
+    <div class="spark-grid" id="sparkMus"></div>
+
     <div class="section-title">Meist trainierte Übungen</div>
     <div class="card">
       ${topEx.length ? `<div class="bars">${topEx.map((t) => `
@@ -720,6 +767,31 @@ function renderStats() {
         : '<div class="muted small">Noch keine Sätze protokolliert – hak im Dashboard den ersten Satz ab.</div>'}
     </div>
   `;
+
+  const { perExercise, perMuscle } = progressSeries();
+  const kgFmt = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1).replace('.', ','));
+
+  const fill = (id, entries, label, unit, fmt, empty) => {
+    const host = document.getElementById(id);
+    if (!host) return;
+    if (!entries.length) {
+      host.innerHTML = `<div class="card muted small">${empty}</div>`;
+      return;
+    }
+    entries.forEach(([key, points]) => {
+      host.appendChild(sparkPanel({ label: label(key), points, unit, fmt }));
+    });
+  };
+
+  fill('sparkEx',
+    [...perExercise.entries()].sort((a, b) => b[1].length - a[1].length),
+    (id) => EX_BY_ID.get(id).db.name, 'kg', kgFmt,
+    'Sobald du mit Hanteln trainierst, steht hier der Verlauf je Übung.');
+
+  fill('sparkMus',
+    [...perMuscle.entries()].sort((a, b) => b[1].length - a[1].length),
+    (m) => MUSCLE_LABEL[m] || m, 'kg', (v) => Math.round(v).toLocaleString('de-DE'),
+    'Noch kein Volumen erfasst. Nur Hantel-Einheiten tragen Kilo bei.');
 }
 
 /* ------------------------------------------------------------------ *
@@ -822,13 +894,6 @@ function renderSettings() {
       </div>
     </div>
 
-    <div class="section-title">Bildnachweis</div>
-    <div class="card small muted">
-      Ein Teil der Bewegungsbilder stammt von <b>Everkinetic</b> und steht unter
-      <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0</a>.
-      Sie wurden verkleinert und für den dunklen Hintergrund eingefärbt und stehen als
-      Bearbeitung ebenfalls unter CC BY-SA 3.0. Die übrigen Bewegungen sind eigene Zeichnungen.
-    </div>
 
     <div class="section-title">Über den Plan</div>
     <div class="card small muted">

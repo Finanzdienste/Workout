@@ -11,8 +11,6 @@
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
   "bwPattern": "squat",
-  "dbImage": null,
-  "bwImage": null,
   "dbMuscles": [
    "quads",
    "glutes",
@@ -36,8 +34,6 @@
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
   "bwPattern": "squat",
-  "dbImage": null,
-  "bwImage": null,
   "dbMuscles": [
    "quads",
    "glutes"
@@ -59,8 +55,6 @@
   "weightNote": null,
   "dbPattern": "legcurl",
   "bwPattern": "legcurl",
-  "dbImage": null,
-  "bwImage": null,
   "dbMuscles": [
    "hamstrings",
    "glutes"
@@ -82,8 +76,6 @@
   "weightNote": null,
   "dbPattern": "legcurl",
   "bwPattern": "legcurl",
-  "dbImage": null,
-  "bwImage": null,
   "dbMuscles": [
    "hamstrings",
    "glutes"
@@ -105,8 +97,6 @@
   "weightNote": "auf der Hüfte",
   "dbPattern": "thrust",
   "bwPattern": "thrust",
-  "dbImage": "bridge",
-  "bwImage": "bridge",
   "dbMuscles": [
    "glutes",
    "hamstrings"
@@ -128,8 +118,6 @@
   "weightNote": "Zusatzgewicht",
   "dbPattern": "pushup",
   "bwPattern": "pushup",
-  "dbImage": "pushup",
-  "bwImage": "pushup",
   "dbMuscles": [
    "chest",
    "triceps",
@@ -153,8 +141,6 @@
   "weightNote": null,
   "dbPattern": "pushup",
   "bwPattern": "pushup",
-  "dbImage": "pushup-feet",
-  "bwImage": "pushup-feet",
   "dbMuscles": [
    "chest",
    "delts",
@@ -178,8 +164,6 @@
   "weightNote": "je Hand",
   "dbPattern": "press",
   "bwPattern": "pushup",
-  "dbImage": "benchpress",
-  "bwImage": "pushup",
   "dbMuscles": [
    "chest",
    "triceps"
@@ -202,8 +186,6 @@
   "weightNote": "je Hand",
   "dbPattern": "row",
   "bwPattern": "row",
-  "dbImage": "row",
-  "bwImage": null,
   "dbMuscles": [
    "lats",
    "biceps",
@@ -227,8 +209,6 @@
   "weightNote": null,
   "dbPattern": "pullup",
   "bwPattern": "pullup",
-  "dbImage": null,
-  "bwImage": null,
   "dbMuscles": [
    "lats",
    "biceps"
@@ -250,8 +230,6 @@
   "weightNote": "je Hand",
   "dbPattern": "reversefly",
   "bwPattern": "reversefly",
-  "dbImage": "reversefly",
-  "bwImage": "reversefly",
   "dbMuscles": [
    "rearDelts",
    "traps"
@@ -273,8 +251,6 @@
   "weightNote": "je Hand",
   "dbPattern": "lateral",
   "bwPattern": "pike",
-  "dbImage": "lateral",
-  "bwImage": null,
   "dbMuscles": [
    "delts"
   ],
@@ -295,8 +271,6 @@
   "weightNote": "je Hand",
   "dbPattern": "triceps",
   "bwPattern": "pike",
-  "dbImage": "triceps",
-  "bwImage": null,
   "dbMuscles": [
    "triceps"
   ],
@@ -316,8 +290,6 @@
   "weightNote": "Stange gesamt",
   "dbPattern": "curl",
   "bwPattern": "pullup",
-  "dbImage": "curl",
-  "bwImage": null,
   "dbMuscles": [
    "biceps"
   ],
@@ -338,8 +310,6 @@
   "weightNote": "Zusatzgewicht",
   "dbPattern": "crunch",
   "bwPattern": "crunch",
-  "dbImage": "crunch",
-  "bwImage": "crunch",
   "dbMuscles": [
    "abs"
   ],
@@ -359,8 +329,6 @@
   "weightNote": "eine Hantel",
   "dbPattern": "calf",
   "bwPattern": "calf",
-  "dbImage": null,
-  "bwImage": null,
   "dbMuscles": [
    "calves"
   ],
@@ -380,8 +348,6 @@
   "weightNote": "eine Hantel",
   "dbPattern": "calf",
   "bwPattern": "calf",
-  "dbImage": null,
-  "bwImage": null,
   "dbMuscles": [
    "calves"
   ],

@@ -13,7 +13,6 @@ export const EXERCISES = [
       "cue": "Hantel senkrecht vor der Brust halten, Ellenbogen zwischen den Knien führen. Tief absitzen, Rumpf aufrecht, Fersen am Boden.",
       "rest": 150,
       "pattern": "squat",
-      "img": null,
       "muscles": [
         "quads",
         "glutes",
@@ -27,7 +26,6 @@ export const EXERCISES = [
       "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch. Das zählt als EINE Wiederholung. Tempo bewusst langsam.",
       "rest": 120,
       "pattern": "squat",
-      "img": null,
       "muscles": [
         "quads",
         "glutes",
@@ -47,7 +45,6 @@ export const EXERCISES = [
       "cue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen.",
       "rest": 90,
       "pattern": "legcurl",
-      "img": null,
       "muscles": [
         "hamstrings",
         "glutes"
@@ -60,7 +57,6 @@ export const EXERCISES = [
       "cue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s).",
       "rest": 90,
       "pattern": "legcurl",
-      "img": null,
       "muscles": [
         "hamstrings",
         "glutes"
@@ -79,7 +75,6 @@ export const EXERCISES = [
       "cue": "Scheibe/Rucksack auf dem oberen Rücken. Körper bleibt eine Linie, Ellenbogen ca. 45°.",
       "rest": 120,
       "pattern": "pushup",
-      "img": "pushup",
       "muscles": [
         "chest",
         "triceps",
@@ -93,7 +88,6 @@ export const EXERCISES = [
       "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht.",
       "rest": 120,
       "pattern": "pushup",
-      "img": "pushup",
       "muscles": [
         "chest",
         "triceps",
@@ -113,7 +107,6 @@ export const EXERCISES = [
       "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen.",
       "rest": 150,
       "pattern": "pullup",
-      "img": null,
       "muscles": [
         "lats",
         "biceps"
@@ -126,7 +119,6 @@ export const EXERCISES = [
       "cue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen.",
       "rest": 150,
       "pattern": "pullup",
-      "img": null,
       "muscles": [
         "lats",
         "biceps"
@@ -145,7 +137,6 @@ export const EXERCISES = [
       "cue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
       "rest": 60,
       "pattern": "lateral",
-      "img": "lateral",
       "muscles": [
         "delts"
       ]
@@ -157,7 +148,6 @@ export const EXERCISES = [
       "cue": "Pike Push-ups: Hüfte hoch, umgedrehtes V, Scheitel Richtung Boden senken. Füße erhöhen macht es schwerer.",
       "rest": 120,
       "pattern": "pike",
-      "img": null,
       "muscles": [
         "delts",
         "triceps"
@@ -176,7 +166,6 @@ export const EXERCISES = [
       "cue": "Rücken am Boden/Bank, Oberarme fixiert. Nur im Ellenbogen beugen, Gewicht Richtung Stirn senken.",
       "rest": 75,
       "pattern": "triceps",
-      "img": "triceps",
       "muscles": [
         "triceps"
       ]
@@ -188,7 +177,6 @@ export const EXERCISES = [
       "cue": "Hände auf einer niedrigen Stange, Körper schräg. Ellenbogen beugen bis der Kopf unter die Stange geht, dann strecken. Steilerer Winkel = leichter.",
       "rest": 75,
       "pattern": "pike",
-      "img": null,
       "muscles": [
         "triceps"
       ]
@@ -206,7 +194,6 @@ export const EXERCISES = [
       "cue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten.",
       "rest": 60,
       "pattern": "calf",
-      "img": null,
       "muscles": [
         "calves"
       ]
@@ -218,7 +205,6 @@ export const EXERCISES = [
       "cue": "Ohne Gewicht, dafür deutlich mehr Wiederholungen. Volle Dehnung unten, 1 s Pause oben – bis es wirklich brennt.",
       "rest": 60,
       "pattern": "calf",
-      "img": null,
       "muscles": [
         "calves"
       ]
@@ -236,7 +222,6 @@ export const EXERCISES = [
       "cue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
       "rest": 60,
       "pattern": "calf",
-      "img": null,
       "muscles": [
         "calves"
       ]
@@ -248,7 +233,6 @@ export const EXERCISES = [
       "cue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
       "rest": 60,
       "pattern": "calf",
-      "img": null,
       "muscles": [
         "calves"
       ]
@@ -266,7 +250,6 @@ export const EXERCISES = [
       "cue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
       "rest": 150,
       "pattern": "squat",
-      "img": null,
       "muscles": [
         "quads",
         "glutes"
@@ -279,7 +262,6 @@ export const EXERCISES = [
       "cue": "Fersen erhöht, gleiche 1½-Technik. Betont den vorderen Oberschenkel deutlich stärker.",
       "rest": 120,
       "pattern": "squat",
-      "img": null,
       "muscles": [
         "quads",
         "glutes"
@@ -298,7 +280,6 @@ export const EXERCISES = [
       "cue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung.",
       "rest": 75,
       "pattern": "curl",
-      "img": "curl",
       "muscles": [
         "biceps"
       ]
@@ -310,7 +291,6 @@ export const EXERCISES = [
       "cue": "Enge supinierte Chin-ups: Untergriff, Hände dicht beieinander. Bewusst über den Bizeps ziehen, langsam ablassen.",
       "rest": 120,
       "pattern": "pullup",
-      "img": null,
       "muscles": [
         "biceps",
         "lats"
@@ -329,7 +309,6 @@ export const EXERCISES = [
       "cue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
       "rest": 45,
       "pattern": "crunch",
-      "img": "crunch",
       "muscles": [
         "abs"
       ]
@@ -341,7 +320,6 @@ export const EXERCISES = [
       "cue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer.",
       "rest": 45,
       "pattern": "crunch",
-      "img": "crunch",
       "muscles": [
         "abs"
       ]
@@ -359,7 +337,6 @@ export const EXERCISES = [
       "cue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
       "rest": 90,
       "pattern": "legcurl",
-      "img": null,
       "muscles": [
         "hamstrings",
         "glutes"
@@ -372,7 +349,6 @@ export const EXERCISES = [
       "cue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück.",
       "rest": 90,
       "pattern": "legcurl",
-      "img": null,
       "muscles": [
         "hamstrings",
         "glutes"
@@ -391,7 +367,6 @@ export const EXERCISES = [
       "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter.",
       "rest": 120,
       "pattern": "pushup",
-      "img": "pushup-feet",
       "muscles": [
         "chest",
         "delts",
@@ -405,7 +380,6 @@ export const EXERCISES = [
       "cue": "Identisch. Für mehr Reiz Füße höher stellen oder langsamer ablassen.",
       "rest": 120,
       "pattern": "pushup",
-      "img": "pushup-feet",
       "muscles": [
         "chest",
         "delts",
@@ -425,7 +399,6 @@ export const EXERCISES = [
       "cue": "Rücken am Boden, Oberarme setzen kurz ab. Schont die Schulter, betont den Trizeps-Lockout.",
       "rest": 120,
       "pattern": "press",
-      "img": "benchpress",
       "muscles": [
         "chest",
         "triceps"
@@ -438,7 +411,6 @@ export const EXERCISES = [
       "cue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press.",
       "rest": 90,
       "pattern": "pushup",
-      "img": "pushup",
       "muscles": [
         "chest",
         "triceps",
@@ -458,7 +430,6 @@ export const EXERCISES = [
       "cue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen.",
       "rest": 120,
       "pattern": "row",
-      "img": "row",
       "muscles": [
         "lats",
         "biceps",
@@ -472,7 +443,6 @@ export const EXERCISES = [
       "cue": "Inverted Rows: unter eine stabile niedrige Stange (oder Tischkante) legen, Körper gerade, Brust zur Stange ziehen. Schwerer: Füße erhöhen.",
       "rest": 120,
       "pattern": "row",
-      "img": null,
       "muscles": [
         "lats",
         "biceps",
@@ -492,7 +462,6 @@ export const EXERCISES = [
       "cue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
       "rest": 120,
       "pattern": "thrust",
-      "img": "bridge",
       "muscles": [
         "glutes",
         "hamstrings"
@@ -505,7 +474,6 @@ export const EXERCISES = [
       "cue": "Einbeinig ausführen, freies Bein angewinkelt. Oben 1–2 s halten – ersetzt die fehlende Zusatzlast.",
       "rest": 90,
       "pattern": "thrust",
-      "img": "bridge",
       "muscles": [
         "glutes",
         "hamstrings"
@@ -524,7 +492,6 @@ export const EXERCISES = [
       "cue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
       "rest": 60,
       "pattern": "reversefly",
-      "img": "reversefly",
       "muscles": [
         "rearDelts",
         "traps"
@@ -537,7 +504,6 @@ export const EXERCISES = [
       "cue": "Bauchlage, Arme angehoben, Reverse Snow Angels: Arme langsam vom Kopf bis zur Hüfte und zurück führen, ohne den Boden zu berühren.",
       "rest": 60,
       "pattern": "reversefly",
-      "img": "reversefly",
       "muscles": [
         "rearDelts",
         "traps"
