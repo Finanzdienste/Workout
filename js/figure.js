@@ -334,7 +334,7 @@ export const PATTERNS = {
 
 
 const NS = 'http://www.w3.org/2000/svg';
-const CYCLE_MS = 3200;
+const CYCLE_MS = 4200;   // eine Wiederholung; das Tempo darin ist unsymmetrisch
 const el = (name, attrs = {}) => {
   const node = document.createElementNS(NS, name);
   Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, v));
@@ -703,8 +703,10 @@ export function mountFigure(host, pattern, weight, equip) {
     parts.sort((p, q) => p.z - q.z).forEach((p) => scene.appendChild(p.node));
   };
 
-  const entry = { draw };
-  draw(0);
+  const entry = { draw, effortAt1: !LOWER_TO_1.includes(pattern) };
+  // Bei ausgeschalteter Bewegung eine mittlere Stellung zeigen statt der
+  // Ausgangsstellung – sonst sieht man von der Übung nichts.
+  draw(reduceMotion.matches ? 0.55 : 0);
   active.add(entry);
   return {
     draw,
@@ -721,11 +723,47 @@ export function clearFigures() {
   active.clear();
 }
 
+/**
+ * Tempo einer Wiederholung.
+ *
+ * Hin und zurück gleich schnell sieht aus wie ein Pendel, nicht wie Training.
+ * Echte Wiederholungen sind unsymmetrisch: kurz halten, zügig in die
+ * Anstrengung, oben oder unten einen Moment stehen, deutlich langsamer zurück.
+ * Genau so steht es auch in den Hinweisen ("3 Sekunden kontrolliert ablassen").
+ *
+ * u läuft von 0 bis 1 durch einen Zyklus, zurück kommt die Stellung zwischen
+ * den beiden Endlagen. Welche der beiden die anstrengende ist, hängt von der
+ * Übung ab: bei der Kniebeuge ist Stellung 1 unten (die Anstrengung geht
+ * zurück nach 0), beim Curl ist Stellung 1 oben.
+ */
+const ease = (x) => x * x * (3 - 2 * x);
+const span = (u, a, b) => ease(Math.min(1, Math.max(0, (u - a) / (b - a))));
+
+function tempo(u, effortAt1) {
+  if (effortAt1) {
+    if (u < 0.06) return 0;                 // Ausgangsstellung halten
+    if (u < 0.34) return span(u, 0.06, 0.34);      // zügig in die Anstrengung
+    if (u < 0.44) return 1;                 // oben kurz halten
+    return 1 - span(u, 0.44, 1);            // langsam zurück
+  }
+  if (u < 0.06) return 0;                   // oben stehen
+  if (u < 0.62) return span(u, 0.06, 0.62); // langsam ablassen
+  if (u < 0.70) return 1;                   // unten kurz halten
+  return 1 - span(u, 0.70, 1);              // zügig hoch
+}
+
+// Muster, bei denen Stellung 1 das Ende des Ablassens ist, nicht die
+// Anstrengung: dort läuft das Tempo andersherum.
+const LOWER_TO_1 = ['squat', 'squatbw', 'pushup', 'pushupfeet', 'pike', 'tricepsbar'];
+
+const reduceMotion = window.matchMedia
+  ? window.matchMedia('(prefers-reduced-motion: reduce)')
+  : { matches: false };
+
 function frame(now) {
-  if (document.visibilityState === 'visible' && active.size) {
-    const t = (now % CYCLE_MS) / CYCLE_MS;
-    const tri = t < 0.5 ? t * 2 : (1 - t) * 2;
-    active.forEach((f) => f.draw(tri * tri * (3 - 2 * tri)));
+  if (document.visibilityState === 'visible' && active.size && !reduceMotion.matches) {
+    const u = (now % CYCLE_MS) / CYCLE_MS;
+    active.forEach((f) => f.draw(tempo(u, f.effortAt1)));
   }
   requestAnimationFrame(frame);
 }

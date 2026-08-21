@@ -657,6 +657,9 @@ button { font: inherit; color: inherit; }
   transition: fill .25s ease;
 }
 .bm-part.on { fill: var(--accent); }
+/* Mitarbeitende Gruppen blasser – sonst sagt die Karte an einem
+   Ganzkörpertag nichts mehr aus, weil alles gleich hell leuchtet. */
+.bm-part.on.sub { fill: color-mix(in srgb, var(--accent) 52%, var(--bg-elev)); }
 /* Dünne Trennlinie in Hintergrundfarbe: ohne sie verschmelzen benachbarte
    Bereiche an einem Ganzkörpertag zu einem einzigen orangen Fleck. */
 .bm-part { stroke: var(--bg-elev); stroke-width: .8; }
@@ -674,6 +677,11 @@ button { font: inherit; color: inherit; }
   flex-wrap: wrap;
   gap: 6px;
   justify-content: center;
+}
+.bm-legend span.sub {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--muted);
 }
 .bm-legend span {
   background: color-mix(in srgb, var(--accent) 16%, var(--bg-elev));

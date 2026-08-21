@@ -477,6 +477,9 @@ function renderOverview() {
   const items = w.ex.map((item) => resolve(item, mode));
   const totalSets = items.reduce((a, x) => a + x.sets, 0);
   const muscles = new Set(items.flatMap((it) => it.muscles));
+  // In den Daten steht der zuerst beanspruchte Muskel vorn. Daraus zwei
+  // Stufen: was heute wirklich dran ist, und was nur mitarbeitet.
+  const primary = new Set(items.map((it) => it.muscles[0]).filter(Boolean));
   const planDone = doneCount() === PLAN.length;
   const due = backupDue();
 
@@ -506,7 +509,8 @@ function renderOverview() {
       <div class="ov-body" id="bodyMap"></div>
 
       <div class="bm-legend">${[...muscles]
-        .map((m) => `<span>${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
+        .sort((a, b) => (primary.has(b) ? 1 : 0) - (primary.has(a) ? 1 : 0))
+        .map((m) => `<span class="${primary.has(m) ? '' : 'sub'}">${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
 
       <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
         ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
@@ -521,7 +525,7 @@ function renderOverview() {
   `;
 
   const host = document.getElementById('bodyMap');
-  if (host) mountBody(host, muscles);
+  if (host) mountBody(host, muscles, primary);
 }
 
 function renderDashboard() {

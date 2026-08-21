@@ -667,6 +667,9 @@ button { font: inherit; color: inherit; }
   transition: fill .25s ease;
 }
 .bm-part.on { fill: var(--accent); }
+/* Mitarbeitende Gruppen blasser – sonst sagt die Karte an einem
+   Ganzkörpertag nichts mehr aus, weil alles gleich hell leuchtet. */
+.bm-part.on.sub { fill: color-mix(in srgb, var(--accent) 52%, var(--bg-elev)); }
 /* Dünne Trennlinie in Hintergrundfarbe: ohne sie verschmelzen benachbarte
    Bereiche an einem Ganzkörpertag zu einem einzigen orangen Fleck. */
 .bm-part { stroke: var(--bg-elev); stroke-width: .8; }
@@ -684,6 +687,11 @@ button { font: inherit; color: inherit; }
   flex-wrap: wrap;
   gap: 6px;
   justify-content: center;
+}
+.bm-legend span.sub {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--muted);
 }
 .bm-legend span {
   background: color-mix(in srgb, var(--accent) 16%, var(--bg-elev));
@@ -1923,7 +1931,7 @@ const PATTERNS = {
 
 
 const NS = 'http://www.w3.org/2000/svg';
-const CYCLE_MS = 3200;
+const CYCLE_MS = 4200;   // eine Wiederholung; das Tempo darin ist unsymmetrisch
 const el = (name, attrs = {}) => {
   const node = document.createElementNS(NS, name);
   Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, v));
@@ -2292,8 +2300,10 @@ function mountFigure(host, pattern, weight, equip) {
     parts.sort((p, q) => p.z - q.z).forEach((p) => scene.appendChild(p.node));
   };
 
-  const entry = { draw };
-  draw(0);
+  const entry = { draw, effortAt1: !LOWER_TO_1.includes(pattern) };
+  // Bei ausgeschalteter Bewegung eine mittlere Stellung zeigen statt der
+  // Ausgangsstellung – sonst sieht man von der Übung nichts.
+  draw(reduceMotion.matches ? 0.55 : 0);
   active.add(entry);
   return {
     draw,
@@ -2310,11 +2320,47 @@ function clearFigures() {
   active.clear();
 }
 
+/**
+ * Tempo einer Wiederholung.
+ *
+ * Hin und zurück gleich schnell sieht aus wie ein Pendel, nicht wie Training.
+ * Echte Wiederholungen sind unsymmetrisch: kurz halten, zügig in die
+ * Anstrengung, oben oder unten einen Moment stehen, deutlich langsamer zurück.
+ * Genau so steht es auch in den Hinweisen ("3 Sekunden kontrolliert ablassen").
+ *
+ * u läuft von 0 bis 1 durch einen Zyklus, zurück kommt die Stellung zwischen
+ * den beiden Endlagen. Welche der beiden die anstrengende ist, hängt von der
+ * Übung ab: bei der Kniebeuge ist Stellung 1 unten (die Anstrengung geht
+ * zurück nach 0), beim Curl ist Stellung 1 oben.
+ */
+const ease = (x) => x * x * (3 - 2 * x);
+const span = (u, a, b) => ease(Math.min(1, Math.max(0, (u - a) / (b - a))));
+
+function tempo(u, effortAt1) {
+  if (effortAt1) {
+    if (u < 0.06) return 0;                 // Ausgangsstellung halten
+    if (u < 0.34) return span(u, 0.06, 0.34);      // zügig in die Anstrengung
+    if (u < 0.44) return 1;                 // oben kurz halten
+    return 1 - span(u, 0.44, 1);            // langsam zurück
+  }
+  if (u < 0.06) return 0;                   // oben stehen
+  if (u < 0.62) return span(u, 0.06, 0.62); // langsam ablassen
+  if (u < 0.70) return 1;                   // unten kurz halten
+  return 1 - span(u, 0.70, 1);              // zügig hoch
+}
+
+// Muster, bei denen Stellung 1 das Ende des Ablassens ist, nicht die
+// Anstrengung: dort läuft das Tempo andersherum.
+const LOWER_TO_1 = ['squat', 'squatbw', 'pushup', 'pushupfeet', 'pike', 'tricepsbar'];
+
+const reduceMotion = window.matchMedia
+  ? window.matchMedia('(prefers-reduced-motion: reduce)')
+  : { matches: false };
+
 function frame(now) {
-  if (document.visibilityState === 'visible' && active.size) {
-    const t = (now % CYCLE_MS) / CYCLE_MS;
-    const tri = t < 0.5 ? t * 2 : (1 - t) * 2;
-    active.forEach((f) => f.draw(tri * tri * (3 - 2 * tri)));
+  if (document.visibilityState === 'visible' && active.size && !reduceMotion.matches) {
+    const u = (now % CYCLE_MS) / CYCLE_MS;
+    active.forEach((f) => f.draw(tempo(u, f.effortAt1)));
   }
   requestAnimationFrame(frame);
 }
@@ -2446,7 +2492,13 @@ const FRONT = [
   ['delts', [belly(J.shoulder, J.elbow, -0.08, 0.24, 6.9)], true],
   ['biceps', [belly(J.shoulder, J.elbow, 0.28, 0.90, 5.4)], true],
   ['chest', [P('M50.5 55 C58 54 64.5 57 68 62 C68.5 69 65 75 59 77.5 C55 79 52 78.5 50.5 78 Z')], true],
-  ['abs', [P('M43.5 81 H56.5 C57.5 90 57.5 100 56 110 C54 112.5 46 112.5 44 110 C42.5 100 42.5 90 43.5 81 Z')], false],
+  // Sechs Felder statt eines Blocks: die Trennlinien zwischen den Formen
+  // zeichnen das Muster von selbst, weil jede Fläche ihre eigene Kontur hat.
+  ['abs', [
+    P('M50.4 81 H56.4 C57 85 57.2 88 57.3 90.6 H50.4 Z'),
+    P('M50.4 91.6 H57.3 C57.4 95 57.4 98 57.2 100.8 H50.4 Z'),
+    P('M50.4 101.8 H57.2 C57 105 56.5 108.4 55.8 110 C54.2 112.4 52 112.8 50.4 112.6 Z'),
+  ], true],
   ['quads', [belly(J.hip, J.knee, 0.02, 0.93, 9.8)], true],
   ['calves', [belly(J.knee, J.ankle, 0.02, 0.52, 6.9)], true],
 ];
@@ -2491,7 +2543,7 @@ function shapeEl(shape, mirrored) {
   return node;
 }
 
-function halfView(regions, active, label) {
+function halfView(regions, active, primary, label) {
   const g = document.createElementNS(BODY_NS, 'g');
 
   // Silhouette einmal rechts, einmal gespiegelt – der Rumpf ist schon
@@ -2507,13 +2559,17 @@ function halfView(regions, active, label) {
 
   regions.forEach(([muscle, shapes, mirror]) => {
     const on = active.has(muscle);
+    // Zwei Stufen: was eine Übung zuerst trifft, leuchtet voll; was nebenbei
+    // mitarbeitet, blasser. Alles gleich hell hieß an einem Ganzkörpertag,
+    // dass die Karte nichts mehr aussagt.
+    const level = !on ? '' : (primary.has(muscle) ? ' on' : ' on sub');
     shapes.forEach((shape) => {
       [false, ...(mirror ? [true] : [])].forEach((m) => {
         const node = shapeEl(shape, m);
-        node.setAttribute('class', `bm-part${on ? ' on' : ''}`);
+        node.setAttribute('class', `bm-part${level}`);
         if (on) {
           const title = document.createElementNS(BODY_NS, 'title');
-          title.textContent = MUSCLE_LABEL[muscle] || muscle;
+          title.textContent = `${MUSCLE_LABEL[muscle] || muscle}${primary.has(muscle) ? '' : ' (mitarbeitend)'}`;
           node.appendChild(title);
         }
         g.appendChild(node);
@@ -2533,23 +2589,26 @@ function halfView(regions, active, label) {
 /**
  * Zeichnet Vorder- und Rückansicht nebeneinander.
  *
- * @param {Element} host   Zielelement, wird geleert
- * @param {Set}     active Muskelregionen, die hervorgehoben werden
+ * @param {Element} host    Zielelement, wird geleert
+ * @param {Set}     active  Muskelregionen, die hervorgehoben werden
+ * @param {Set}     primary davon die zuerst beanspruchten; der Rest blasser
  */
-function mountBody(host, active) {
+function mountBody(host, active, primary = active) {
   host.textContent = '';
   const svg = document.createElementNS(BODY_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 210 226');
   svg.setAttribute('class', 'bodymap');
   svg.setAttribute('role', 'img');
 
-  const names = [...active].map((m) => MUSCLE_LABEL[m] || m);
-  svg.setAttribute('aria-label', names.length
-    ? `Heute beansprucht: ${names.join(', ')}`
+  const label = (m) => MUSCLE_LABEL[m] || m;
+  const haupt = [...active].filter((m) => primary.has(m)).map(label);
+  const neben = [...active].filter((m) => !primary.has(m)).map(label);
+  svg.setAttribute('aria-label', active.size
+    ? `Heute vor allem: ${haupt.join(', ') || '–'}${neben.length ? `. Mitarbeitend: ${neben.join(', ')}` : ''}`
     : 'Keine Muskelgruppen hervorgehoben');
 
-  const front = halfView(FRONT, active, 'vorn');
-  const back = halfView(BACK, active, 'hinten');
+  const front = halfView(FRONT, active, primary, 'vorn');
+  const back = halfView(BACK, active, primary, 'hinten');
   back.setAttribute('transform', 'translate(110,0)');
   svg.append(front, back);
   host.appendChild(svg);
@@ -3430,6 +3489,9 @@ function renderOverview() {
   const items = w.ex.map((item) => resolve(item, mode));
   const totalSets = items.reduce((a, x) => a + x.sets, 0);
   const muscles = new Set(items.flatMap((it) => it.muscles));
+  // In den Daten steht der zuerst beanspruchte Muskel vorn. Daraus zwei
+  // Stufen: was heute wirklich dran ist, und was nur mitarbeitet.
+  const primary = new Set(items.map((it) => it.muscles[0]).filter(Boolean));
   const planDone = doneCount() === PLAN.length;
   const due = backupDue();
 
@@ -3459,7 +3521,8 @@ function renderOverview() {
       <div class="ov-body" id="bodyMap"></div>
 
       <div class="bm-legend">${[...muscles]
-        .map((m) => `<span>${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
+        .sort((a, b) => (primary.has(b) ? 1 : 0) - (primary.has(a) ? 1 : 0))
+        .map((m) => `<span class="${primary.has(m) ? '' : 'sub'}">${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
 
       <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
         ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
@@ -3474,7 +3537,7 @@ function renderOverview() {
   `;
 
   const host = document.getElementById('bodyMap');
-  if (host) mountBody(host, muscles);
+  if (host) mountBody(host, muscles, primary);
 }
 
 function renderDashboard() {

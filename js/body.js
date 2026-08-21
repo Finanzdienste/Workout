@@ -123,7 +123,13 @@ const FRONT = [
   ['delts', [belly(J.shoulder, J.elbow, -0.08, 0.24, 6.9)], true],
   ['biceps', [belly(J.shoulder, J.elbow, 0.28, 0.90, 5.4)], true],
   ['chest', [P('M50.5 55 C58 54 64.5 57 68 62 C68.5 69 65 75 59 77.5 C55 79 52 78.5 50.5 78 Z')], true],
-  ['abs', [P('M43.5 81 H56.5 C57.5 90 57.5 100 56 110 C54 112.5 46 112.5 44 110 C42.5 100 42.5 90 43.5 81 Z')], false],
+  // Sechs Felder statt eines Blocks: die Trennlinien zwischen den Formen
+  // zeichnen das Muster von selbst, weil jede Fläche ihre eigene Kontur hat.
+  ['abs', [
+    P('M50.4 81 H56.4 C57 85 57.2 88 57.3 90.6 H50.4 Z'),
+    P('M50.4 91.6 H57.3 C57.4 95 57.4 98 57.2 100.8 H50.4 Z'),
+    P('M50.4 101.8 H57.2 C57 105 56.5 108.4 55.8 110 C54.2 112.4 52 112.8 50.4 112.6 Z'),
+  ], true],
   ['quads', [belly(J.hip, J.knee, 0.02, 0.93, 9.8)], true],
   ['calves', [belly(J.knee, J.ankle, 0.02, 0.52, 6.9)], true],
 ];
@@ -168,7 +174,7 @@ function shapeEl(shape, mirrored) {
   return node;
 }
 
-function halfView(regions, active, label) {
+function halfView(regions, active, primary, label) {
   const g = document.createElementNS(BODY_NS, 'g');
 
   // Silhouette einmal rechts, einmal gespiegelt – der Rumpf ist schon
@@ -184,13 +190,17 @@ function halfView(regions, active, label) {
 
   regions.forEach(([muscle, shapes, mirror]) => {
     const on = active.has(muscle);
+    // Zwei Stufen: was eine Übung zuerst trifft, leuchtet voll; was nebenbei
+    // mitarbeitet, blasser. Alles gleich hell hieß an einem Ganzkörpertag,
+    // dass die Karte nichts mehr aussagt.
+    const level = !on ? '' : (primary.has(muscle) ? ' on' : ' on sub');
     shapes.forEach((shape) => {
       [false, ...(mirror ? [true] : [])].forEach((m) => {
         const node = shapeEl(shape, m);
-        node.setAttribute('class', `bm-part${on ? ' on' : ''}`);
+        node.setAttribute('class', `bm-part${level}`);
         if (on) {
           const title = document.createElementNS(BODY_NS, 'title');
-          title.textContent = MUSCLE_LABEL[muscle] || muscle;
+          title.textContent = `${MUSCLE_LABEL[muscle] || muscle}${primary.has(muscle) ? '' : ' (mitarbeitend)'}`;
           node.appendChild(title);
         }
         g.appendChild(node);
@@ -210,23 +220,26 @@ function halfView(regions, active, label) {
 /**
  * Zeichnet Vorder- und Rückansicht nebeneinander.
  *
- * @param {Element} host   Zielelement, wird geleert
- * @param {Set}     active Muskelregionen, die hervorgehoben werden
+ * @param {Element} host    Zielelement, wird geleert
+ * @param {Set}     active  Muskelregionen, die hervorgehoben werden
+ * @param {Set}     primary davon die zuerst beanspruchten; der Rest blasser
  */
-export function mountBody(host, active) {
+export function mountBody(host, active, primary = active) {
   host.textContent = '';
   const svg = document.createElementNS(BODY_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 210 226');
   svg.setAttribute('class', 'bodymap');
   svg.setAttribute('role', 'img');
 
-  const names = [...active].map((m) => MUSCLE_LABEL[m] || m);
-  svg.setAttribute('aria-label', names.length
-    ? `Heute beansprucht: ${names.join(', ')}`
+  const label = (m) => MUSCLE_LABEL[m] || m;
+  const haupt = [...active].filter((m) => primary.has(m)).map(label);
+  const neben = [...active].filter((m) => !primary.has(m)).map(label);
+  svg.setAttribute('aria-label', active.size
+    ? `Heute vor allem: ${haupt.join(', ') || '–'}${neben.length ? `. Mitarbeitend: ${neben.join(', ')}` : ''}`
     : 'Keine Muskelgruppen hervorgehoben');
 
-  const front = halfView(FRONT, active, 'vorn');
-  const back = halfView(BACK, active, 'hinten');
+  const front = halfView(FRONT, active, primary, 'vorn');
+  const back = halfView(BACK, active, primary, 'hinten');
   back.setAttribute('transform', 'translate(110,0)');
   svg.append(front, back);
   host.appendChild(svg);

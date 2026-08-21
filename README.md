@@ -52,8 +52,15 @@ Welche Region eine Übung trifft, steht als `dbMuscles`/`bwMuscles` in
 können: Seitheben trifft nur die Schulter, sein Bodyweight-Äquivalent Pike
 Push-ups zusätzlich den Trizeps.
 
-Der Plan ist Ganzkörpertraining, entsprechend ist an den meisten Tagen fast
-alles hervorgehoben. Die Karte zeigt eher, was *nicht* drankommt.
+**Zwei Stufen statt einer.** In `dbMuscles`/`bwMuscles` steht der zuerst
+beanspruchte Muskel vorn. Was eine Übung zuerst trifft, leuchtet voll; was nur
+mitarbeitet, bleibt gedämpft. Der Plan ist Ganzkörpertraining – wäre alles
+gleich hell, würde die Karte an den meisten Tagen gar nichts mehr aussagen.
+Die Marken darunter sind entsprechend sortiert, und das `aria-label` nennt
+beide Stufen getrennt.
+
+Die Bauchmuskeln sind in sechs Felder geteilt, nicht ein Block: die Kontur um
+jede Fläche zeichnet das Muster von selbst.
 
 ## Bedienung während des Trainings
 
@@ -147,6 +154,18 @@ Quadrat blieb links und rechts breiter Rand ungenutzt.
 Beim Wadenheben steigt der Körper, die **Zehen bleiben liegen**. Wird alles
 zusammen angehoben, wandert bloß die ganze Figur nach oben und die Bewegung ist
 unsichtbar.
+
+**Das Tempo einer Wiederholung ist unsymmetrisch.** Hin und zurück gleich
+schnell sieht aus wie ein Pendel, nicht wie Training: echte Wiederholungen
+gehen zügig in die Anstrengung, halten dort kurz und kommen deutlich langsamer
+zurück – so steht es auch in den Hinweisen („3 Sekunden kontrolliert
+ablassen"). Welche der beiden Endstellungen die anstrengende ist, hängt von der
+Übung ab: beim Curl ist Stellung 1 oben, bei der Kniebeuge unten. Die Muster in
+`LOWER_TO_1` laufen deshalb andersherum.
+
+Ist im System *reduzierte Bewegung* eingestellt, steht die Figur still – aber in
+einer mittleren Stellung, sonst sähe man von der Übung nichts. Drehen geht
+weiterhin.
 
 Die 23 Muster sind nach **Bewegungsart** benannt, nicht nach Übung. Zugeordnet
 wird je Variante über `dbPattern`/`bwPattern` in `tools/exercise-meta.json` –
