@@ -79,6 +79,12 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 * **Ein Arbeitsgewicht je Übung**, vorbelegt mit einem Startwert (siehe unten).
   Änderbar durch Antippen der Zahl oder über **−** und **+**, die in 2,5-kg-
   Schritten gehen.
+* **Zwei Wege aus dem Training.** *Abschließen* behält, was abgehakt ist – auch
+  wenn nicht alles steht; der Knopf nennt den Stand mit. *Abbrechen* verwirft
+  die Einheit ganz, sie gilt dann als nicht trainiert und der Plan behandelt
+  den Tag wie einen verpassten. Verworfen wird alles zu diesem Workout in
+  dieser Variante, nicht nur die Sätze von heute – deshalb steht die Zahl in
+  der Rückfrage.
 * **Pausentimer.** Startet automatisch beim Abhaken und meldet sich am Ende mit
   Ton und Vibration. Nach dem letzten Satz einer Übung läuft bewusst keiner.
   Während der Pause um 30 s verlängerbar oder vorzeitig beendbar.

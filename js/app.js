@@ -173,6 +173,25 @@ function backupDue() {
   return done - last.done >= BACKUP_EVERY ? done - last.done : 0;
 }
 
+/**
+ * Abschluss eines laufenden Trainings: zwei Wege, klar getrennt.
+ *
+ * "Abschließen" behält, was abgehakt ist – auch wenn nicht alles steht.
+ * "Abbrechen" verwirft die Einheit ganz, damit sie als nicht trainiert gilt
+ * und der Plan sie behandelt wie einen verpassten Tag. Ohne diese Trennung
+ * blieb nach jedem Abbruch ein halb abgehaktes Workout stehen.
+ */
+function sessionButtons(n, mode) {
+  const prog = progressOf(n, mode);
+  return `
+    <div class="btn-row nav">
+      <button type="button" class="btn btn-danger" data-act="discard-session">Abbrechen</button>
+      <button type="button" class="btn btn-ok" data-act="finish-session">
+        ✓ Abschließen${prog.done ? ` (${prog.done}/${prog.total})` : ''}
+      </button>
+    </div>`;
+}
+
 /** Knopf, der den Vorschlag annimmt – oder nichts, wenn keiner ansteht. */
 function bumpChip(exId, mode) {
   if (mode !== 'db') return '';
@@ -443,9 +462,7 @@ function renderFocus() {
               data-act="focus-step" data-d="1" ${i === w.ex.length - 1 ? 'disabled' : ''}>Weiter →</button>
     </div>
 
-    <div class="btn-row">
-      <button type="button" class="btn btn-danger btn-block" data-act="end-session">Training beenden</button>
-    </div>
+    ${sessionButtons(n, mode)}
   `;
 
   const host = document.getElementById('focusFig');
@@ -572,9 +589,7 @@ function renderDashboard() {
       </div>
       <div class="progress"><i style="width:${prog.pct}%"></i></div>
       ${session
-        ? `<div class="btn-row">
-             <button type="button" class="btn btn-danger" data-act="end-session">Training beenden</button>
-           </div>`
+        ? sessionButtons(n, mode)
         : `<div class="btn-row">
              <button type="button" class="btn btn-primary btn-block" data-act="start-session">▶︎ Workout starten</button>
            </div>`}
@@ -1156,14 +1171,35 @@ view.addEventListener('click', (e) => {
       render();
       toast('Los geht’s 💪');
       break;
-    case 'end-session':
+    case 'finish-session': {
+      const prog = progressOf(n, mode);
       store.endSession();
       ui.focus = false;
       ui.listView = false;
       if (store.getState().rest) endRest(false);
       render();
-      toast('Training beendet');
+      toast(prog.complete
+        ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
+        : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
       break;
+    }
+    case 'discard-session': {
+      const prog = progressOf(n, mode);
+      // Verwerfen löscht alles zu diesem Workout in dieser Variante, nicht nur
+      // die Sätze von heute – deshalb steht die Zahl in der Rückfrage.
+      const ok = !prog.done || confirm(
+        `Training abbrechen und ${prog.done} abgehakte ${prog.done === 1 ? 'Satz' : 'Sätze'} verwerfen?`,
+      );
+      if (!ok) break;
+      store.resetWorkout(n, mode);
+      store.endSession();
+      ui.focus = false;
+      ui.listView = false;
+      if (store.getState().rest) endRest(false);
+      render();
+      toast('Training abgebrochen – nichts gespeichert');
+      break;
+    }
     case 'focus-list':
       ui.focus = false;
       ui.listView = true;
