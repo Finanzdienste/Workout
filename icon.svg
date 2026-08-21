@@ -1,7 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0f1115"/>
-  <g fill="none" stroke="#ff7a45" stroke-width="34" stroke-linecap="round">
-    <path d="M128 256h256"/>
-    <path d="M112 196v120M160 172v168M400 196v120M352 172v168"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Workout">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#252a36"/>
+      <stop offset="1" stop-color="#0f1115"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff9a63"/>
+      <stop offset="1" stop-color="#ff6a2c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.55">
+      <stop offset="0" stop-color="#ff7a45" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#ff7a45" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#glow)"/>
+
+  <!-- Kurzhantel, leicht angeschrägt: wirkt in Bewegung statt abgelegt -->
+  <g transform="rotate(-24 256 256)" fill="url(#bar)">
+    <rect x="140" y="234" width="232" height="44" rx="22"/>
+    <rect x="106" y="182" width="52" height="148" rx="22"/>
+    <rect x="354" y="182" width="52" height="148" rx="22"/>
+    <rect x="68"  y="208" width="34" height="96"  rx="15"/>
+    <rect x="410" y="208" width="34" height="96"  rx="15"/>
   </g>
 </svg>

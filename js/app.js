@@ -58,6 +58,12 @@ function workoutByNo(n) {
   return PLAN.find((w) => w.n === n) || PLAN[0];
 }
 
+/** Untere Grenze eines Wiederholungsbereichs, z. B. "8–12" -> 8. */
+function plannedReps(reps) {
+  const m = String(reps).match(/\d+/);
+  return m ? Number(m[0]) : 0;
+}
+
 /** Variante (db/bw) einer geplanten Übung inkl. Sätze. */
 function resolve(item, mode) {
   const ex = EX_BY_ID.get(item.id);
@@ -92,6 +98,125 @@ function hasAnyEntry(n, mode) {
   return w.ex.some((item) => (store.peekSets(n, mode, item.id) || [])
     .some((s) => s.done || s.w !== '' || s.r !== ''));
 }
+
+/* ------------------------------------------------------------------ *
+ * Pausentimer
+ * ------------------------------------------------------------------ */
+
+const restBar = document.getElementById('restBar');
+const restTime = document.getElementById('restTime');
+const restNext = document.getElementById('restNext');
+const restFill = document.getElementById('restFill');
+
+let audioCtx = null;
+let restTicker = null;
+let wakeLock = null;
+
+/**
+ * Kurzes Doppelsignal zum Ende der Pause – erzeugt statt geladen, damit die
+ * App ohne Netz und ohne zusätzliche Datei auskommt.
+ *
+ * Der AudioContext entsteht erst beim ersten Abhaken. Mobile Browser lassen
+ * Ton nur zu, wenn er auf eine Berührung zurückgeht; genau die ist das.
+ */
+function initAudio() {
+  if (audioCtx) return;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  try { audioCtx = new Ctx(); } catch { audioCtx = null; }
+}
+
+function beep() {
+  if (!store.getState().sound || !audioCtx) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  const now = audioCtx.currentTime;
+  [0, 0.28].forEach((offset, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = i === 0 ? 880 : 1320;
+    gain.gain.setValueAtTime(0.0001, now + offset);
+    gain.gain.exponentialRampToValueAtTime(0.35, now + offset + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.22);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now + offset);
+    osc.stop(now + offset + 0.24);
+  });
+}
+
+/**
+ * Displaysperre während der Pause. Ohne sie schläft das Handy ein, der Browser
+ * friert die Seite ein – und der Ton käme zu spät oder gar nicht.
+ */
+async function holdScreen(on) {
+  try {
+    if (on) {
+      if (!wakeLock && navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen');
+    } else if (wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  } catch {
+    wakeLock = null; // nicht unterstützt oder abgelehnt – kein Beinbruch
+  }
+}
+
+function startRest(exName, setIndex, sets) {
+  const secs = store.getState().restSeconds;
+  if (!secs) return;
+  store.setRest({
+    endsAt: Date.now() + secs * 1000,
+    total: secs,
+    next: `Satz ${setIndex + 2} von ${sets} · ${exName}`,
+  });
+  holdScreen(true);
+  tickRest();
+}
+
+function endRest(withSignal) {
+  if (!restBar) return;
+  if (restTicker) { clearInterval(restTicker); restTicker = null; }
+  holdScreen(false);
+  store.setRest(null);
+  restBar.hidden = true;
+  document.body.classList.remove('resting');
+  if (withSignal) {
+    beep();
+    if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
+  }
+}
+
+function tickRest() {
+  // Sollten Seite und Skript aus unterschiedlich alten Zwischenspeichern
+  // stammen, fehlt die Leiste - dann lieber ohne Timer weiterlaufen als alles
+  // mit einem Fehler anhalten.
+  if (!restBar) return;
+  const rest = store.getState().rest;
+  if (!rest) { restBar.hidden = true; document.body.classList.remove('resting'); return; }
+
+  const left = Math.round((rest.endsAt - Date.now()) / 1000);
+  if (left <= 0) {
+    endRest(true);
+    toast('Pause vorbei – nächster Satz');
+    return;
+  }
+
+  restBar.hidden = false;
+  document.body.classList.add('resting');
+  restTime.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  restNext.textContent = rest.next;
+  restFill.style.width = `${Math.max(0, (left / rest.total) * 100)}%`;
+
+  if (!restTicker) restTicker = setInterval(tickRest, 250);
+}
+
+document.getElementById('restSkip')?.addEventListener('click', () => endRest(false));
+document.getElementById('restPlus')?.addEventListener('click', () => {
+  const rest = store.getState().rest;
+  if (!rest) return;
+  store.setRest({ ...rest, endsAt: rest.endsAt + 30000, total: rest.total + 30 });
+  tickRest();
+});
 
 let toastTimer = null;
 function toast(msg) {
@@ -174,20 +299,20 @@ function renderDashboard() {
     const complete = doneCount === it.sets;
     const prev = lastLoggedFor(it.id, mode, n);
 
-    const dots = sets.map((s) => `<i class="${s.done ? 'on' : ''}"></i>`).join('');
+    // Satz-Knöpfe liegen bewusst außerhalb des aufklappbaren Bereichs: Abhaken
+    // ist der eine Handgriff, der zwischen zwei Sätzen schnell gehen muss.
+    const setBtns = sets.map((s, idx) => `
+      <button type="button" class="set-btn ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
+              aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
+              data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>
+    `).join('');
 
-    const rows = sets.map((s, idx) => `
+    const weights = sets.map((s, idx) => `
       <div class="set-row">
         <span class="set-no">Satz ${idx + 1}</span>
-        ${mode === 'db'
-          ? `<input type="text" inputmode="decimal" placeholder="kg" value="${esc(s.w)}"
-                    data-act="set-input" data-field="w" data-ex="${it.id}" data-i="${idx}" aria-label="Gewicht Satz ${idx + 1}">`
-          : `<input type="text" placeholder="Notiz" value="${esc(s.w)}"
-                    data-act="set-input" data-field="w" data-ex="${it.id}" data-i="${idx}" aria-label="Notiz Satz ${idx + 1}">`}
-        <input type="text" inputmode="numeric" placeholder="Wdh." value="${esc(s.r)}"
-               data-act="set-input" data-field="r" data-ex="${it.id}" data-i="${idx}" aria-label="Wiederholungen Satz ${idx + 1}">
-        <button type="button" class="chk" aria-pressed="${s.done}" aria-label="Satz ${idx + 1} erledigt"
-                data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">✓</button>
+        <input type="text" ${mode === 'db' ? 'inputmode="decimal" placeholder="kg"' : 'placeholder="Notiz"'}
+               value="${esc(s.w)}" data-act="set-input" data-field="w" data-ex="${it.id}" data-i="${idx}"
+               aria-label="${mode === 'db' ? 'Gewicht' : 'Notiz'} Satz ${idx + 1}">
       </div>
     `).join('');
 
@@ -199,17 +324,13 @@ function renderDashboard() {
             <span class="ex-name">${esc(it.name)}</span>
             <span class="ex-meta">${it.sets} × ${esc(it.reps)} · ${esc(it.group)} · ${esc(it.equip)}</span>
           </span>
-          <span class="ex-right">
-            <span class="set-dots">${dots}</span>
-            <span class="chev">▼</span>
-          </span>
+          <span class="ex-right"><span class="chev">▼</span></span>
         </div>
+        <div class="ex-sets">${setBtns}</div>
         <div class="ex-body">
           <div class="cue">${esc(it.cue)}</div>
-          <div class="set-legend">
-            <span></span><span>${mode === 'db' ? 'Gewicht' : 'Notiz'}</span><span>Wdh.</span><span></span>
-          </div>
-          ${rows}
+          <div class="set-legend"><span></span><span>${mode === 'db' ? 'Gewicht' : 'Notiz'}</span></div>
+          ${weights}
           ${prev ? `<div class="last-time">Zuletzt (Workout ${prev.n}): ${esc(prev.text)}</div>` : ''}
         </div>
       </article>
@@ -239,10 +360,9 @@ function lastLoggedFor(exId, mode, beforeN) {
     if (!item) continue;
     const arr = store.peekSets(w.n, mode, exId);
     if (!arr) continue;
-    const filled = arr.filter((s) => s.r !== '' || s.w !== '');
+    const filled = arr.filter((s) => s.w !== '');
     if (!filled.length) continue;
-    const text = filled.map((s) => (mode === 'db' && s.w ? `${s.w}×${s.r || '?'}` : (s.r || '–'))).join(', ');
-    return { n: w.n, text };
+    return { n: w.n, text: filled.map((s) => s.w).join(' · ') };
   }
   return null;
 }
@@ -361,15 +481,16 @@ function renderStats() {
       w.ex.forEach((item) => {
         const arr = entry[m] && entry[m][item.id];
         if (!Array.isArray(arr)) return;
+        // Wiederholungen werden nicht mehr erfasst; gerechnet wird deshalb mit
+        // dem geplanten Wert – der unteren Grenze des Bereichs, also bewusst
+        // eher zu niedrig als zu hoch.
+        const planned = plannedReps(EX_BY_ID.get(item.id)[m].reps);
         arr.forEach((s) => {
           if (!s.done) return;
           setsDone++;
-          const r = parseFloat(String(s.r).replace(',', '.'));
-          if (!Number.isNaN(r)) {
-            repsTotal += r;
-            const kg = parseFloat(String(s.w).replace(',', '.'));
-            if (m === 'db' && !Number.isNaN(kg)) volume += kg * r;
-          }
+          repsTotal += planned;
+          const kg = parseFloat(String(s.w).replace(',', '.'));
+          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
           perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
         });
       });
@@ -403,8 +524,8 @@ function renderStats() {
       <div class="stat"><div class="stat-v">${workoutsDone}<span class="muted" style="font-size:15px">/${PLAN.length}</span></div><div class="stat-l">Workouts erledigt</div></div>
       <div class="stat"><div class="stat-v">${streak}</div><div class="stat-l">Serie in Folge</div></div>
       <div class="stat"><div class="stat-v">${setsDone}</div><div class="stat-l">Sätze abgehakt</div></div>
-      <div class="stat"><div class="stat-v">${Math.round(repsTotal)}</div><div class="stat-l">Wiederholungen</div></div>
-      <div class="stat"><div class="stat-v">${volume ? Math.round(volume).toLocaleString('de-DE') : '–'}</div><div class="stat-l">Volumen kg (Hanteln)</div></div>
+      <div class="stat"><div class="stat-v">${repsTotal ? `ca. ${Math.round(repsTotal)}` : '–'}</div><div class="stat-l">Wiederholungen (geplant)</div></div>
+      <div class="stat"><div class="stat-v">${volume ? `ca. ${Math.round(volume).toLocaleString('de-DE')}` : '–'}</div><div class="stat-l">Volumen kg (Hanteln)</div></div>
       <div class="stat"><div class="stat-v">🏋️ ${doneDb} · 🤸 ${doneBw}</div><div class="stat-l">Modus-Verteilung</div></div>
     </div>
 
@@ -461,6 +582,34 @@ function renderSettings() {
           <div class="hint">Bleibt an einem Trainingstag alles unangetastet, wandert der gesamte Restplan einen Tag weiter. Abstände bleiben erhalten.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${s.autoShift}" data-act="toggle-auto-shift" aria-label="Verpasste Tage nachrücken"></button>
+      </div>
+    </div>
+
+    <div class="section-title">Pause zwischen den Sätzen</div>
+    <div class="card">
+      <div class="stat-v">${s.restSeconds ? `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min` : 'Aus'}</div>
+      <div class="small muted" style="margin-top:2px">
+        Läuft automatisch, sobald du einen Satz abhakst – außer nach dem letzten Satz
+        einer Übung. Am Ende kommt ein Signalton.
+      </div>
+      <div class="btn-row nav">
+        ${[60, 90, 120, 180].map((sec) => `
+          <button type="button" class="btn ${s.restSeconds === sec ? 'btn-primary' : ''}"
+                  data-act="set-rest" data-sec="${sec}">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</button>`).join('')}
+      </div>
+      <div class="switch-row" style="margin-top:6px">
+        <div>
+          <div class="lbl">Signalton</div>
+          <div class="hint">Zusätzlich vibriert das Handy. Der Ton wird erzeugt, nicht geladen – funktioniert also auch ohne Netz.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${s.sound}" data-act="toggle-sound" aria-label="Signalton"></button>
+      </div>
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Pause abschalten</div>
+          <div class="hint">Kein Timer, kein Ton – Sätze nur abhaken.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${!s.restSeconds}" data-act="toggle-rest-off" aria-label="Pause abschalten"></button>
       </div>
     </div>
 
@@ -570,19 +719,32 @@ view.addEventListener('click', (e) => {
       const i = Number(t.dataset.i);
       const item = workoutByNo(n).ex.find((x) => x.id === id);
       const cur = store.getSets(n, mode, id, item.sets)[i].done;
+      initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
       store.updateSet(n, mode, id, item.sets, i, { done: !cur });
       render();
-      if (!cur && progressOf(n, mode).complete) toast('Workout abgeschlossen 🎉');
+
+      const done = !cur;
+      const workoutComplete = done && progressOf(n, mode).complete;
+      // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
+      // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
+      if (done && !workoutComplete && i < item.sets - 1) {
+        startRest(resolve(item, mode).name, i, item.sets);
+      } else if (store.getState().rest) {
+        endRest(false);
+      }
+      if (workoutComplete) toast('Workout abgeschlossen 🎉');
       break;
     }
     case 'complete-workout':
       store.completeWorkout(n, mode, workoutByNo(n).ex);
+      if (store.getState().rest) endRest(false);
       render();
       toast('Alle Sätze abgehakt 🎉');
       break;
     case 'reset-workout':
       if (!hasAnyEntry(n, mode) || confirm(`Workout ${n} (${MODE_LABEL[mode]}) wirklich zurücksetzen?`)) {
         store.resetWorkout(n, mode);
+        if (store.getState().rest) endRest(false);
         render();
         toast('Zurückgesetzt');
       }
@@ -626,6 +788,24 @@ view.addEventListener('click', (e) => {
       toast(on ? 'Verpasste Tage rücken nach' : 'Plan bleibt auf den Original-Terminen');
       break;
     }
+    case 'set-rest':
+      initAudio();
+      store.setSetting('restSeconds', Number(t.dataset.sec));
+      render();
+      break;
+    case 'toggle-sound': {
+      initAudio();
+      const on = !store.getState().sound;
+      store.setSetting('sound', on);
+      render();
+      if (on) beep();
+      break;
+    }
+    case 'toggle-rest-off':
+      store.setSetting('restSeconds', store.getState().restSeconds ? 0 : 90);
+      if (store.getState().rest) endRest(false);
+      render();
+      break;
     case 'shift-plus':
     case 'shift-minus':
       store.setShift(store.getState().shift + (act === 'shift-plus' ? 1 : -1));
@@ -720,6 +900,7 @@ document.addEventListener('visibilitychange', () => {
     store.flush();
     return;
   }
+  tickRest(); // war das Handy gesperrt, ist die Pause womöglich abgelaufen
   const day = todayISO();
   const shifted = catchUpPlan();
   if (shifted || day !== lastSeenDay) {
@@ -742,6 +923,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 
 const missedAtStart = catchUpPlan();
 render();
+tickRest(); // eine Pause, die einen Neustart der Seite überdauert hat
 if (missedAtStart) {
   toast(`↷ ${plural(missedAtStart, 'Tag', 'Tage')} verpasst – Plan nachgerückt`);
 }

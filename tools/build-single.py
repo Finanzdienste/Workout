@@ -16,6 +16,7 @@ benutzt, wird ein Objekt aus den exportierten Namen von store.js gebaut.
 import pathlib
 import re
 import sys
+from urllib.parse import quote
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'dist' / 'workout.html'
@@ -64,7 +65,12 @@ def main():
         f'<script type="module">\n{script}\n</script>')
     html = re.sub(r'^\s*<link rel="manifest".*\n', '', html, flags=re.MULTILINE)
 
-    for leftover in ('href="css/', 'src="js/', 'href="manifest'):
+    # Icon als data:-URI einbetten, sonst zeigte die Einzeldatei ins Leere
+    icon = (ROOT / 'icon.svg').read_text(encoding='utf-8')
+    icon_uri = 'data:image/svg+xml,' + quote(icon, safe='')
+    html = html.replace('href="icon.svg"', f'href="{icon_uri}"')
+
+    for leftover in ('href="css/', 'src="js/', 'href="manifest', 'href="icon'):
         if leftover in html:
             sys.exit(f'Externer Verweis nicht ersetzt: {leftover}')
 

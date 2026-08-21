@@ -7,6 +7,9 @@ const DEFAULT_STATE = {
   keepModePerWorkout: true,
   autoShift: true,       // verpasste Tage schieben den Restplan nach hinten
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
+  restSeconds: 90,       // Pause zwischen zwei Sätzen
+  sound: true,           // Ton am Ende der Pause
+  rest: null,            // laufende Pause: { endsAt, exId, setIndex, nextSet, n }
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };
@@ -147,6 +150,17 @@ function syncStartedOn(n) {
   } else {
     delete e.startedOn;
   }
+}
+
+/**
+ * Laufende Pause setzen oder beenden. Gespeichert wird der Endzeitpunkt, nicht
+ * die Restdauer – so stimmt die Anzeige auch, wenn das Handy zwischendurch
+ * gesperrt war und die App erst später wieder in den Vordergrund kommt.
+ */
+export function setRest(rest) {
+  state.rest = rest;
+  persist();
+  emit();
 }
 
 export function setShift(days) {

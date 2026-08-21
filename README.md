@@ -11,11 +11,39 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 
 | Tab | Inhalt |
 | --- | --- |
-| **Dashboard** | Das heutige Workout (bzw. das nächste anstehende). Umschalter Hanteln ⇄ Bodyweight, Sätze abhaken, Gewicht/Wiederholungen protokollieren, Ausführungshinweis je Übung, Vergleich zum letzten Mal. Blättern zu jeder anderen Einheit. |
+| **Dashboard** | Das heutige Workout (bzw. das nächste anstehende). Umschalter Hanteln ⇄ Bodyweight, Sätze direkt abhaken, Pausentimer, Gewicht notieren, Ausführungshinweis je Übung, Vergleich zum letzten Mal. Blättern zu jeder anderen Einheit. |
 | **Plan** | Alle 57 Einheiten mit Datum, Status und Filter (Alle / Offen / Erledigt / Ab heute). Antippen öffnet die Einheit im Dashboard. |
 | **Übungen** | Die 17 Grundübungen als Gegenüberstellung Hantel ⇄ Bodyweight, je mit Wiederholungsbereich, benötigtem Equipment und Ausführungshinweis. Durchsuchbar. |
 | **Statistik** | Erledigte Workouts, Serie, abgehakte Sätze, Wiederholungen, Hantel-Volumen in kg, Verteilung der Modi, meist trainierte Übungen. |
 | **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, Export/Import als JSON, Backup-Datei, Alles löschen. |
+
+## Bedienung während des Trainings
+
+Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
+
+* **Ein Griff pro Satz.** Die Satz-Knöpfe liegen außerhalb des aufklappbaren
+  Bereichs und sind 48 px hoch – Abhaken ohne Zielen, ohne vorher aufzuklappen.
+* **Keine Wiederholungen eintragen.** Die stehen im Plan. Aufgeklappt wird nur
+  noch das Gewicht notiert, und auch das freiwillig.
+* **Pausentimer.** Startet automatisch beim Abhaken und meldet sich am Ende mit
+  Ton und Vibration. Nach dem letzten Satz einer Übung läuft bewusst keiner.
+  Länge über *Mehr* einstellbar (Standard 1:30), abschaltbar, während der Pause
+  um 30 s verlängerbar oder vorzeitig beendbar.
+
+Der Ton wird per Web Audio erzeugt, nicht als Datei geladen – das hält die App
+offline-tauglich. Weil mobile Browser Ton nur nach einer Berührung zulassen,
+entsteht der AudioContext beim ersten Abhaken. Während einer Pause hält die App
+zusätzlich das Display wach (`navigator.wakeLock`), sonst friert der Browser die
+Seite ein und das Signal käme zu spät.
+
+Gespeichert wird der **Endzeitpunkt** der Pause, nicht die Restdauer. Dadurch
+stimmt die Anzeige auch, wenn das Handy zwischendurch gesperrt war, und eine
+laufende Pause übersteht sogar einen Neustart der Seite.
+
+Da Wiederholungen nicht mehr erfasst werden, rechnet die Statistik mit dem
+geplanten Wert – der unteren Grenze des Bereichs, also eher zu niedrig als zu
+hoch. Die betroffenen Kennzahlen sind entsprechend als „ca." und „geplant"
+ausgewiesen.
 
 ## Verpasste Tage
 
