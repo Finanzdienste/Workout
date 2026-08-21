@@ -140,14 +140,59 @@ const mirrorX = (p) => [100 - p[0], p[1]];
 
 const active = new Set();
 
+/*
+ * Illustrationen von Everkinetic (CC BY-SA 3.0), siehe img/CREDITS.md. Sie
+ * liegen als Paar vor – Start- und Endstellung – und werden ineinander
+ * geblendet. Wo keine passende existiert, übernimmt die gezeichnete Figur.
+ */
+const INLINE = {};
+
+/** Der Einzeldatei-Build reicht die Bilder als data:-URI herein. */
+export function registerInline(map) {
+  Object.assign(INLINE, map);
+}
+
+const imgUrl = (name, frame) => INLINE[`${name}-${frame}`] || `img/${name}-${frame}.svg`;
+
+/** Zwei übereinanderliegende Bilder, deren Deckkraft gegenläufig wandert. */
+function mountIllustration(host, name) {
+  host.textContent = '';
+  const layers = [1, 2].map((frame) => {
+    const img = document.createElement('img');
+    img.src = imgUrl(name, frame);
+    img.alt = '';
+    img.className = 'illu';
+    host.appendChild(img);
+    return img;
+  });
+
+  const entry = {
+    draw: (t) => {
+      layers[0].style.opacity = 1 - t;
+      layers[1].style.opacity = t;
+    },
+  };
+  entry.draw(0);
+  active.add(entry);
+  return () => active.delete(entry);
+}
+
 /**
- * Hängt eine animierte Figur in ein Element.
+ * Hängt eine Bewegungsvorführung in ein Element: die Everkinetic-Illustration,
+ * wenn es eine gibt, sonst die selbst gezeichnete Figur.
  *
  * @param {Element} host    Zielelement, wird geleert
  * @param {string}  pattern Schlüssel aus PATTERNS
  * @param {boolean} weight  Hantel in die Hand zeichnen
+ * @param {?string} illu    Name eines Illustrationspaars in img/
  */
-export function mountFigure(host, pattern, weight) {
+export function mountFigure(host, pattern, weight, illu) {
+  if (illu) {
+    host.classList.add('has-illu');
+    return mountIllustration(host, illu);
+  }
+  host.classList.remove('has-illu');
+
   const spec = PATTERNS[pattern];
   host.textContent = '';
   if (!spec) return;

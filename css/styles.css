@@ -585,6 +585,25 @@ button { font: inherit; color: inherit; }
 .tab[aria-selected="true"] .ti { filter: none; }
 
 /* ---------- Bewegungsablauf ---------- */
+/* Everkinetic zeichnet schwarze Linien auf transparent – auf dunklem Grund
+   waeren sie unsichtbar. Invertieren und in die Akzentfarbe drehen. */
+.has-illu { position: relative; }
+.illu {
+  position: absolute;
+  inset: 8px;
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  object-fit: contain;
+  filter: invert(1) sepia(1) saturate(5) hue-rotate(337deg) brightness(1.05);
+}
+body.mode-bw .illu { filter: invert(1) sepia(1) saturate(4) hue-rotate(175deg) brightness(1.05); }
+.illu-credit {
+  font-size: 10.5px;
+  color: var(--muted);
+  text-align: right;
+  margin: -10px 2px 12px;
+}
+
 .fig { display: block; width: 100%; height: 100%; }
 .fig-limb, .fig-torso {
   fill: none;

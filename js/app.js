@@ -71,7 +71,7 @@ function resolve(item, mode) {
   const v = ex[mode];
   return {
     id: item.id, sets: item.sets, group: ex.group,
-    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern,
+    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern, img: v.img,
     // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
     // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
     weight: mode === 'db' ? ex.weight : null,
@@ -327,7 +327,8 @@ function renderFocus() {
       </span>
     </div>
 
-    <div class="focus-fig" id="focusFig" data-pattern="${esc(it.pattern)}" data-weight="${it.weight !== null}"></div>
+    <div class="focus-fig" id="focusFig"></div>
+    ${it.img ? '<div class="illu-credit">Abb.: Everkinetic · CC BY-SA 3.0</div>' : ''}
 
     <h2 class="focus-name">${esc(it.name)}</h2>
     <div class="focus-meta">${it.sets} Sätze × ${esc(it.reps)} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
@@ -365,7 +366,7 @@ function renderFocus() {
   `;
 
   const host = document.getElementById('focusFig');
-  if (host) mountFigure(host, it.pattern, it.weight !== null);
+  if (host) mountFigure(host, it.pattern, it.weight !== null, it.img);
 }
 
 function renderDashboard() {
@@ -576,7 +577,7 @@ function renderExercises() {
   const cards = list.map((e) => `
     <article class="card lib-item">
       <div class="lib-group">${esc(e.group)}</div>
-      <div class="lib-fig" data-pattern="${esc(e[mode].pattern)}" data-weight="${mode === 'db' && e.weight !== null}"></div>
+      <div class="lib-fig" data-pattern="${esc(e[mode].pattern)}" data-weight="${mode === 'db' && e.weight !== null}" data-img="${e[mode].img || ''}"></div>
       <div class="swap">
         <div class="swap-side ${mode === 'db' ? 'active' : ''}">
           <div class="swap-label">🏋️ Hanteln</div>
@@ -610,7 +611,7 @@ function renderExercises() {
   `;
 
   view.querySelectorAll('.lib-fig').forEach((host) => {
-    mountFigure(host, host.dataset.pattern, host.dataset.weight === 'true');
+    mountFigure(host, host.dataset.pattern, host.dataset.weight === 'true', host.dataset.img || null);
   });
 }
 
@@ -806,6 +807,14 @@ function renderSettings() {
         <button type="button" class="btn" data-act="import">Importieren</button>
         <button type="button" class="btn btn-danger" data-act="reset-all">Alle Daten löschen</button>
       </div>
+    </div>
+
+    <div class="section-title">Bildnachweis</div>
+    <div class="card small muted">
+      Ein Teil der Bewegungsbilder stammt von <b>Everkinetic</b> und steht unter
+      <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0</a>.
+      Sie wurden verkleinert und für den dunklen Hintergrund eingefärbt und stehen als
+      Bearbeitung ebenfalls unter CC BY-SA 3.0. Die übrigen Bewegungen sind eigene Zeichnungen.
     </div>
 
     <div class="section-title">Über den Plan</div>

@@ -40,11 +40,26 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 
 ### Bewegungsabläufe
 
-`js/figure.js` zeichnet zu jeder Übung eine Figur und bewegt sie zwischen zwei
-Schlüsselstellungen hin und her. **Bewusst keine Übungs-GIFs:** die sind fast
-durchweg urheberrechtlich geschützt, und eingebettete Fremddateien würden die
-App vom Netz abhängig machen. Selbst gezeichnet bleibt sie klein, offline
-lauffähig und rechtlich unbedenklich.
+Jede Übung zeigt ihre Bewegung als Überblendung zwischen Start- und
+Endstellung. Zwei Quellen, bewusst gemischt:
+
+**Illustrationen von Everkinetic** (`img/`, CC BY-SA 3.0, siehe
+`img/CREDITS.md`) für 10 der 17 Übungen. Anatomisch genauer als eine
+Strichfigur. Importiert mit `tools/import-illustrations.py` aus
+[chaosbastler/opentraining-exercises](https://github.com/chaosbastler/opentraining-exercises);
+das Skript dünnt die SVGs aus (389 KB statt 655 KB) und schreibt den
+Bildnachweis. Die App invertiert sie per CSS, weil es schwarze Linien auf
+transparent sind.
+
+**Eigene Zeichnungen** (`js/figure.js`) für den Rest – dort, wo Everkinetic
+keine passende hat (Waden, Sliding Leg Curl, Pike Push-ups, Klimmzüge) oder
+eine andere Ausführung zeigt: der dortige Squat trägt eine Langhantel im
+Nacken, unser Plan sieht Goblet Squats vor.
+
+Freie GIFs aus dem Netz zu übernehmen scheidet aus: fast alle sind
+urheberrechtlich geschützt, und dieses Repo ist öffentlich – Verwendung wäre
+Weiterverbreitung. Everkinetic erlaubt es ausdrücklich, verlangt aber die
+Namensnennung, die in der App unter *Mehr* und an jeder Illustration steht.
 
 Eine Stellung ist eine Sammlung benannter Punkte (Kopf, Nacken, Schulter,
 Ellenbogen, Hand, Hüfte, Knie, Knöchel, Zehe) im Feld 100 × 100. Zwischen den

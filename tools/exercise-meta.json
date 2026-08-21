@@ -10,7 +10,9 @@
   "dbWeight": 20,
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
-  "bwPattern": "squat"
+  "bwPattern": "squat",
+  "dbImage": null,
+  "bwImage": null
  },
  "fersenerhoehter-goblet-squat": {
   "group": "Beine",
@@ -23,7 +25,9 @@
   "dbWeight": 20,
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
-  "bwPattern": "squat"
+  "bwPattern": "squat",
+  "dbImage": null,
+  "bwImage": null
  },
  "sliding-leg-curl": {
   "group": "Beinbeuger",
@@ -36,7 +40,9 @@
   "dbWeight": null,
   "weightNote": null,
   "dbPattern": "legcurl",
-  "bwPattern": "legcurl"
+  "bwPattern": "legcurl",
+  "dbImage": null,
+  "bwImage": null
  },
  "einbeiniger-sliding-leg-curl": {
   "group": "Beinbeuger",
@@ -49,7 +55,9 @@
   "dbWeight": null,
   "weightNote": null,
   "dbPattern": "legcurl",
-  "bwPattern": "legcurl"
+  "bwPattern": "legcurl",
+  "dbImage": null,
+  "bwImage": null
  },
  "hip-thrust": {
   "group": "Gesäß",
@@ -62,7 +70,9 @@
   "dbWeight": 20,
   "weightNote": "auf der Hüfte",
   "dbPattern": "thrust",
-  "bwPattern": "thrust"
+  "bwPattern": "thrust",
+  "dbImage": "bridge",
+  "bwImage": "bridge"
  },
  "gewichtete-liegestuetze": {
   "group": "Brust",
@@ -75,7 +85,9 @@
   "dbWeight": 10,
   "weightNote": "Zusatzgewicht",
   "dbPattern": "pushup",
-  "bwPattern": "pushup"
+  "bwPattern": "pushup",
+  "dbImage": "pushup",
+  "bwImage": "pushup"
  },
  "fuesse-erhoehte-liegestuetze": {
   "group": "Brust (oben)",
@@ -88,7 +100,9 @@
   "dbWeight": null,
   "weightNote": null,
   "dbPattern": "pushup",
-  "bwPattern": "pushup"
+  "bwPattern": "pushup",
+  "dbImage": "pushup-feet",
+  "bwImage": "pushup-feet"
  },
  "floor-press": {
   "group": "Brust/Trizeps",
@@ -101,7 +115,9 @@
   "dbWeight": 14,
   "weightNote": "je Hand",
   "dbPattern": "press",
-  "bwPattern": "pushup"
+  "bwPattern": "pushup",
+  "dbImage": "benchpress",
+  "bwImage": "pushup"
  },
  "einarmiges-kh-rudern": {
   "group": "Rücken",
@@ -114,7 +130,9 @@
   "dbWeight": 16,
   "weightNote": "je Hand",
   "dbPattern": "row",
-  "bwPattern": "row"
+  "bwPattern": "row",
+  "dbImage": "row",
+  "bwImage": null
  },
  "chin-ups": {
   "group": "Rücken/Bizeps",
@@ -127,7 +145,9 @@
   "dbWeight": null,
   "weightNote": null,
   "dbPattern": "pullup",
-  "bwPattern": "pullup"
+  "bwPattern": "pullup",
+  "dbImage": null,
+  "bwImage": null
  },
  "reverse-fly": {
   "group": "Schulter (hinten)",
@@ -140,7 +160,9 @@
   "dbWeight": 5,
   "weightNote": "je Hand",
   "dbPattern": "reversefly",
-  "bwPattern": "reversefly"
+  "bwPattern": "reversefly",
+  "dbImage": "reversefly",
+  "bwImage": "reversefly"
  },
  "sitzendes-seitheben": {
   "group": "Schulter",
@@ -153,7 +175,9 @@
   "dbWeight": 6,
   "weightNote": "je Hand",
   "dbPattern": "lateral",
-  "bwPattern": "pike"
+  "bwPattern": "pike",
+  "dbImage": "lateral",
+  "bwImage": null
  },
  "liegende-trizepsstrecker": {
   "group": "Trizeps",
@@ -166,7 +190,9 @@
   "dbWeight": 8,
   "weightNote": "je Hand",
   "dbPattern": "triceps",
-  "bwPattern": "pike"
+  "bwPattern": "pike",
+  "dbImage": "triceps",
+  "bwImage": null
  },
  "sz-curls": {
   "group": "Bizeps",
@@ -179,7 +205,9 @@
   "dbWeight": 15,
   "weightNote": "Stange gesamt",
   "dbPattern": "curl",
-  "bwPattern": "pullup"
+  "bwPattern": "pullup",
+  "dbImage": "curl",
+  "bwImage": null
  },
  "gewichtete-crunches": {
   "group": "Bauch",
@@ -192,7 +220,9 @@
   "dbWeight": 5,
   "weightNote": "Zusatzgewicht",
   "dbPattern": "crunch",
-  "bwPattern": "crunch"
+  "bwPattern": "crunch",
+  "dbImage": "crunch",
+  "bwImage": "crunch"
  },
  "einbeiniges-stehendes-wadenheben": {
   "group": "Waden",
@@ -205,7 +235,9 @@
   "dbWeight": 12,
   "weightNote": "eine Hantel",
   "dbPattern": "calf",
-  "bwPattern": "calf"
+  "bwPattern": "calf",
+  "dbImage": null,
+  "bwImage": null
  },
  "wadenheben-gebeugtes-knie": {
   "group": "Waden (Soleus)",
@@ -218,6 +250,8 @@
   "dbWeight": 12,
   "weightNote": "eine Hantel",
   "dbPattern": "calf",
-  "bwPattern": "calf"
+  "bwPattern": "calf",
+  "dbImage": null,
+  "bwImage": null
  }
 }

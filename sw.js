@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -33,6 +33,26 @@ const SHELL = [
   './js/store.js',
   './icon.svg',
   './manifest.webmanifest',
+  './img/benchpress-1.svg',
+  './img/benchpress-2.svg',
+  './img/bridge-1.svg',
+  './img/bridge-2.svg',
+  './img/crunch-1.svg',
+  './img/crunch-2.svg',
+  './img/curl-1.svg',
+  './img/curl-2.svg',
+  './img/lateral-1.svg',
+  './img/lateral-2.svg',
+  './img/pushup-1.svg',
+  './img/pushup-2.svg',
+  './img/pushup-feet-1.svg',
+  './img/pushup-feet-2.svg',
+  './img/reversefly-1.svg',
+  './img/reversefly-2.svg',
+  './img/row-1.svg',
+  './img/row-2.svg',
+  './img/triceps-1.svg',
+  './img/triceps-2.svg',
 ];
 
 self.addEventListener('install', (event) => {

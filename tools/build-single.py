@@ -14,6 +14,7 @@ benutzt, wird ein Objekt aus den exportierten Namen von store.js gebaut.
 """
 
 import pathlib
+import json
 import re
 import sys
 from urllib.parse import quote
@@ -51,6 +52,14 @@ def main():
                 sys.exit('js/store.js: keine Exporte gefunden')
             # app.js spricht den Store als Namensraum an
             chunks.append('const store = { ' + ', '.join(sorted(names)) + ' };')
+
+    # Illustrationen als data:-URI mitgeben, damit die Einzeldatei sie kennt
+    inline = {}
+    for svg_file in sorted((ROOT / 'img').glob('*.svg')):
+        data = svg_file.read_text(encoding='utf-8')
+        inline[svg_file.stem] = 'data:image/svg+xml,' + quote(data, safe='')
+    if inline:
+        chunks.append('registerInline(' + json.dumps(inline) + ');')
 
     script = '\n\n'.join(chunks)
     if '</script' in script:
