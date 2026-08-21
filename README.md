@@ -21,14 +21,55 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 
 Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 
+* **Workout starten.** Ein Knopf beginnt die Einheit, zeigt die Laufzeit im
+  Kopfbereich und schaltet nebenbei den Ton frei – mobile Browser lassen ihn
+  nur nach einer Berührung zu, und so sitzt schon das erste Pausensignal.
 * **Ein Griff pro Satz.** Die Satz-Knöpfe liegen außerhalb des aufklappbaren
   Bereichs und sind 48 px hoch – Abhaken ohne Zielen, ohne vorher aufzuklappen.
-* **Keine Wiederholungen eintragen.** Die stehen im Plan. Aufgeklappt wird nur
-  noch das Gewicht notiert, und auch das freiwillig.
+* **Keine Wiederholungen eintragen.** Die stehen im Plan.
+* **Ein Arbeitsgewicht je Übung**, vorbelegt mit einem Startwert (siehe unten).
+  Änderbar durch Antippen der Zahl oder über **−** und **+**, die in 2,5-kg-
+  Schritten gehen.
 * **Pausentimer.** Startet automatisch beim Abhaken und meldet sich am Ende mit
   Ton und Vibration. Nach dem letzten Satz einer Übung läuft bewusst keiner.
-  Länge über *Mehr* einstellbar (Standard 1:30), abschaltbar, während der Pause
-  um 30 s verlängerbar oder vorzeitig beendbar.
+  Während der Pause um 30 s verlängerbar oder vorzeitig beendbar.
+
+### Gewichte und Progression
+
+`tools/exercise-meta.json` hält je Übung ein Startgewicht (`dbWeight`) und
+einen Hinweis, wie es gemeint ist (`weightNote`: „je Hand", „eine Hantel",
+„Zusatzgewicht", „Stange gesamt"). Übungen ohne Zusatzlast – Chin-ups, Sliding
+Leg Curls, Füße-erhöhte Liegestütze – tragen dort `null` und zeigen gar keine
+Gewichtszeile.
+
+Die Startwerte sind Schätzungen für einen durchschnittlich trainierten
+Erwachsenen, kein Messwert. Sie sind als Ausgangspunkt gedacht und werden vom
+eigenen Wert überschrieben, sobald einer gesetzt ist.
+
+**Das „+" wirkt ab dem nächsten Mal.** Sobald in einer Einheit der erste Satz
+steht, ist deren Gewicht festgeschrieben: Beim Abhaken wird der benutzte Wert
+in den Satz geschrieben, und die Karte zeigt weiter ihn. Eine Erhöhung landet
+dann sichtbar als „Nächstes Mal: 22,5 kg" – die laufende Einheit wird nicht
+rückwirkend umgeschrieben.
+
+### Pausenlängen
+
+Statt einer festen Länge bekommt jede Übung die, die zu ihrer Belastung passt
+(`dbRest`/`bwRest` je Variante, an ACSM/NSCA-Richtwerten orientiert):
+
+| Art | Pause | Beispiel |
+| --- | --- | --- |
+| mehrgelenkig schwer | 2:30 | Goblet Squat, Chin-ups |
+| mehrgelenkig mittel | 2:00 | Floor Press, KH-Rudern, Hip Thrust |
+| Beinbeuger | 1:30 | Sliding Leg Curl |
+| größere Isolation | 1:15 | Trizepsstrecker, SZ-Curls |
+| kleine Isolation, Waden | 1:00 | Seitheben, Reverse Fly, Wadenheben |
+| Bauch | 0:45 | Crunches |
+
+Die Bodyweight-Varianten weichen dort ab, wo sie einen anderen Charakter haben
+– Pike Push-ups sind mehrgelenkig und bekommen 2:00, wo das Seitheben 1:00
+hätte. Über *Mehr* lässt sich stattdessen eine feste Länge wählen oder die
+Pause ganz abschalten.
 
 Der Ton wird per Web Audio erzeugt, nicht als Datei geladen – das hält die App
 offline-tauglich. Weil mobile Browser Ton nur nach einer Berührung zulassen,

@@ -7,9 +7,12 @@ const DEFAULT_STATE = {
   keepModePerWorkout: true,
   autoShift: true,       // verpasste Tage schieben den Restplan nach hinten
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
-  restSeconds: 90,       // Pause zwischen zwei Sätzen
+  useExerciseRest: true, // Pause je Übung statt einer festen Länge
+  restSeconds: 90,       // feste Pause, wenn useExerciseRest aus ist; 0 = keine
   sound: true,           // Ton am Ende der Pause
-  rest: null,            // laufende Pause: { endsAt, exId, setIndex, nextSet, n }
+  rest: null,            // laufende Pause: { endsAt, total, next }
+  weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
+  session: null,         // laufendes Training: { n, startedAt }
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };
@@ -159,6 +162,32 @@ function syncStartedOn(n) {
  */
 export function setRest(rest) {
   state.rest = rest;
+  persist();
+  emit();
+}
+
+/** Arbeitsgewicht einer Übung; null, solange der Nutzer nichts geändert hat. */
+export function weightOf(exId) {
+  const w = state.weights[exId];
+  return typeof w === 'number' ? w : null;
+}
+
+export function setWeight(exId, kg) {
+  const v = Math.max(0, Math.round(kg * 2) / 2); // auf halbe Kilo runden
+  state.weights[exId] = v;
+  persist();
+  emit();
+  return v;
+}
+
+export function startSession(n) {
+  state.session = { n, startedAt: Date.now() };
+  persist();
+  emit();
+}
+
+export function endSession() {
+  state.session = null;
   persist();
   emit();
 }

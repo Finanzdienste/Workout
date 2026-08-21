@@ -94,8 +94,12 @@ def main():
                 catalog[key] = {
                     'id': key,
                     'group': m['group'],
-                    'db': {'name': db['name'], 'reps': db['reps'], 'equip': m['dbEquip'], 'cue': m['dbCue']},
-                    'bw': {'name': bw['name'], 'reps': bw['reps'], 'equip': m['bwEquip'], 'cue': m['bwCue']},
+                    'weight': m['dbWeight'],       # Startgewicht in kg, null = ohne Zusatzlast
+                    'weightNote': m['weightNote'],
+                    'db': {'name': db['name'], 'reps': db['reps'], 'equip': m['dbEquip'],
+                           'cue': m['dbCue'], 'rest': m['dbRest']},
+                    'bw': {'name': bw['name'], 'reps': bw['reps'], 'equip': m['bwEquip'],
+                           'cue': m['bwCue'], 'rest': m['bwRest']},
                 }
             elif (entry['db']['reps'], entry['bw']['name'], entry['bw']['reps']) != (db['reps'], bw['name'], bw['reps']):
                 sys.exit(f'{date}: widerspruechliche Angaben fuer {key!r}')

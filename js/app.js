@@ -68,7 +68,44 @@ function plannedReps(reps) {
 function resolve(item, mode) {
   const ex = EX_BY_ID.get(item.id);
   const v = ex[mode];
-  return { id: item.id, sets: item.sets, group: ex.group, name: v.name, reps: v.reps, equip: v.equip, cue: v.cue };
+  return {
+    id: item.id, sets: item.sets, group: ex.group,
+    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest,
+    // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
+    // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
+    weight: mode === 'db' ? ex.weight : null,
+    weightNote: ex.weightNote,
+  };
+}
+
+/** Gewicht, mit dem diese Übung heute gearbeitet wird. */
+function workingWeight(exId) {
+  const ex = EX_BY_ID.get(exId);
+  if (ex.weight === null) return null;
+  const own = store.weightOf(exId);
+  return own === null ? ex.weight : own;
+}
+
+/**
+ * Gewicht, das in diesem Workout tatsächlich benutzt wurde. Sobald der erste
+ * Satz steht, ist es festgeschrieben – ein späteres "+2,5 kg" gilt dann fürs
+ * nächste Mal und schreibt die heutige Einheit nicht rückwirkend um.
+ */
+function usedWeight(n, mode, exId) {
+  const logged = (store.peekSets(n, mode, exId) || []).find((s) => s.w !== '');
+  if (logged) return parseFloat(logged.w);
+  return workingWeight(exId);
+}
+
+function fmtKg(kg) {
+  return Number.isInteger(kg) ? String(kg) : kg.toFixed(1).replace('.', ',');
+}
+
+/** Pausenlänge für eine Übung – empfohlen oder fest, je nach Einstellung. */
+function restFor(item) {
+  const s = store.getState();
+  if (!s.useExerciseRest) return s.restSeconds;
+  return item.rest;
 }
 
 function progressOf(n, mode) {
@@ -96,7 +133,7 @@ function completedMode(n) {
 function hasAnyEntry(n, mode) {
   const w = workoutByNo(n);
   return w.ex.some((item) => (store.peekSets(n, mode, item.id) || [])
-    .some((s) => s.done || s.w !== '' || s.r !== ''));
+    .some((s) => s.done || s.w !== ''));
 }
 
 /* ------------------------------------------------------------------ *
@@ -161,8 +198,7 @@ async function holdScreen(on) {
   }
 }
 
-function startRest(exName, setIndex, sets) {
-  const secs = store.getState().restSeconds;
+function startRest(exName, setIndex, sets, secs) {
   if (!secs) return;
   store.setRest({
     endsAt: Date.now() + secs * 1000,
@@ -210,6 +246,15 @@ function tickRest() {
   if (!restTicker) restTicker = setInterval(tickRest, 250);
 }
 
+/** Laufzeit des Trainings im Kopfbereich mitzählen, ohne neu zu rendern. */
+setInterval(() => {
+  const badge = document.getElementById('sessionBadge');
+  const sess = store.getState().session;
+  if (!badge || !sess) return;
+  const secs = Math.floor((Date.now() - sess.startedAt) / 1000);
+  badge.textContent = `⏱ ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+}, 1000);
+
 document.getElementById('restSkip')?.addEventListener('click', () => endRest(false));
 document.getElementById('restPlus')?.addEventListener('click', () => {
   const rest = store.getState().rest;
@@ -251,6 +296,8 @@ function renderDashboard() {
   const date = effDate(w);
   const diff = daysBetween(today, date);
   const shift = store.getState().shift;
+  const sess = store.getState().session;
+  const session = sess && sess.n === n ? sess : null;
 
   let when;
   if (diff === 0) when = 'Heute';
@@ -280,8 +327,16 @@ function renderDashboard() {
         ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>'
                         : `<span class="badge">${prog.done}/${prog.total} Sätze</span>`}
         ${shift ? `<span class="badge" title="Ursprünglich ${esc(fmtDate(w.date))}">↷ Plan +${esc(plural(shift, 'Tag', 'Tage'))}</span>` : ''}
+        ${session ? '<span class="badge accent" id="sessionBadge">⏱ läuft</span>' : ''}
       </div>
       <div class="progress"><i style="width:${prog.pct}%"></i></div>
+      ${session
+        ? `<div class="btn-row">
+             <button type="button" class="btn btn-danger" data-act="end-session">Training beenden</button>
+           </div>`
+        : `<div class="btn-row">
+             <button type="button" class="btn btn-primary btn-block" data-act="start-session">▶︎ Workout starten</button>
+           </div>`}
       <div class="btn-row nav">
         <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
         <button type="button" class="btn btn-ghost" data-act="nav-today">Heute</button>
@@ -307,14 +362,24 @@ function renderDashboard() {
               data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>
     `).join('');
 
-    const weights = sets.map((s, idx) => `
-      <div class="set-row">
-        <span class="set-no">Satz ${idx + 1}</span>
-        <input type="text" ${mode === 'db' ? 'inputmode="decimal" placeholder="kg"' : 'placeholder="Notiz"'}
-               value="${esc(s.w)}" data-act="set-input" data-field="w" data-ex="${it.id}" data-i="${idx}"
-               aria-label="${mode === 'db' ? 'Gewicht' : 'Notiz'} Satz ${idx + 1}">
+    // Gewichtszeile: ein Arbeitsgewicht je Übung, nicht je Satz. "+2,5 kg"
+    // gilt ab dem nächsten Mal, sobald heute schon ein Satz steht.
+    const kg = it.weight === null ? null : usedWeight(n, mode, it.id);
+    const next = it.weight === null ? null : workingWeight(it.id);
+    const frozen = kg !== null && next !== null && Math.abs(kg - next) > 0.01;
+    const weightRow = kg === null ? '' : `
+      <div class="ex-weight">
+        <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="-2.5"
+                aria-label="2,5 Kilo weniger">−</button>
+        <div class="kg-main">
+          <input type="text" inputmode="decimal" class="kg-val" value="${fmtKg(kg)}"
+                 data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht ${esc(it.name)} in Kilo">
+          <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
+        </div>
+        <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="2.5"
+                aria-label="2,5 Kilo mehr">+</button>
       </div>
-    `).join('');
+      ${frozen ? `<div class="kg-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : ''}`;
 
     parts.push(`
       <article class="ex ${open ? 'open' : ''} ${complete ? 'complete' : ''}">
@@ -326,11 +391,15 @@ function renderDashboard() {
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
+        ${weightRow}
         <div class="ex-sets">${setBtns}</div>
         <div class="ex-body">
           <div class="cue">${esc(it.cue)}</div>
-          <div class="set-legend"><span></span><span>${mode === 'db' ? 'Gewicht' : 'Notiz'}</span></div>
-          ${weights}
+          <div class="ex-facts">
+            <span>Pause ${Math.floor(restFor(it) / 60)}:${String(restFor(it) % 60).padStart(2, '0')} min</span>
+            <span>${it.sets} Sätze × ${esc(it.reps)} Wdh.</span>
+            <span>${esc(it.equip)}</span>
+          </div>
           ${prev ? `<div class="last-time">Zuletzt (Workout ${prev.n}): ${esc(prev.text)}</div>` : ''}
         </div>
       </article>
@@ -587,17 +656,28 @@ function renderSettings() {
 
     <div class="section-title">Pause zwischen den Sätzen</div>
     <div class="card">
-      <div class="stat-v">${s.restSeconds ? `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min` : 'Aus'}</div>
+      <div class="stat-v">${s.useExerciseRest
+        ? '0:45 – 2:30 min'
+        : (s.restSeconds ? `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min` : 'Aus')}</div>
       <div class="small muted" style="margin-top:2px">
         Läuft automatisch, sobald du einen Satz abhakst – außer nach dem letzten Satz
         einer Übung. Am Ende kommt ein Signalton.
       </div>
+      <div class="switch-row" style="margin-top:10px">
+        <div>
+          <div class="lbl">Pause je Übung</div>
+          <div class="hint">Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen –
+            2:30 beim Squat, 0:45 bei Crunches. Aus schaltet auf eine feste Länge um.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${s.useExerciseRest}" data-act="toggle-ex-rest" aria-label="Pause je Übung"></button>
+      </div>
+      ${s.useExerciseRest ? '' : `
       <div class="btn-row nav">
         ${[60, 90, 120, 180].map((sec) => `
           <button type="button" class="btn ${s.restSeconds === sec ? 'btn-primary' : ''}"
                   data-act="set-rest" data-sec="${sec}">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</button>`).join('')}
-      </div>
-      <div class="switch-row" style="margin-top:6px">
+      </div>`}
+      <div class="switch-row">
         <div>
           <div class="lbl">Signalton</div>
           <div class="hint">Zusätzlich vibriert das Handy. Der Ton wird erzeugt, nicht geladen – funktioniert also auch ohne Netz.</div>
@@ -609,7 +689,7 @@ function renderSettings() {
           <div class="lbl">Pause abschalten</div>
           <div class="hint">Kein Timer, kein Ton – Sätze nur abhaken.</div>
         </div>
-        <button type="button" class="toggle" aria-pressed="${!s.restSeconds}" data-act="toggle-rest-off" aria-label="Pause abschalten"></button>
+        <button type="button" class="toggle" aria-pressed="${!s.useExerciseRest && !s.restSeconds}" data-act="toggle-rest-off" aria-label="Pause abschalten"></button>
       </div>
     </div>
 
@@ -719,8 +799,15 @@ view.addEventListener('click', (e) => {
       const i = Number(t.dataset.i);
       const item = workoutByNo(n).ex.find((x) => x.id === id);
       const cur = store.getSets(n, mode, id, item.sets)[i].done;
+      const variant = resolve(item, mode);
       initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
-      store.updateSet(n, mode, id, item.sets, i, { done: !cur });
+
+      // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
+      // später der Vergleich "Zuletzt" und die Volumenrechnung.
+      const patch = { done: !cur };
+      if (!cur && variant.weight !== null) patch.w = fmtKg(usedWeight(n, mode, id));
+      else if (cur) patch.w = '';
+      store.updateSet(n, mode, id, item.sets, i, patch);
       render();
 
       const done = !cur;
@@ -728,13 +815,34 @@ view.addEventListener('click', (e) => {
       // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
       // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
       if (done && !workoutComplete && i < item.sets - 1) {
-        startRest(resolve(item, mode).name, i, item.sets);
+        startRest(variant.name, i, item.sets, restFor(variant));
       } else if (store.getState().rest) {
         endRest(false);
       }
       if (workoutComplete) toast('Workout abgeschlossen 🎉');
       break;
     }
+    case 'weight-step': {
+      const id = t.dataset.ex;
+      const kg = store.setWeight(id, (workingWeight(id) || 0) + Number(t.dataset.d));
+      render();
+      // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
+      const started = (store.peekSets(n, mode, id) || []).some((s) => s.w !== '');
+      toast(started ? `Nächstes Mal ${fmtKg(kg)} kg` : `${fmtKg(kg)} kg`);
+      break;
+    }
+    case 'start-session':
+      initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
+      store.startSession(n);
+      render();
+      toast('Los geht’s 💪');
+      break;
+    case 'end-session':
+      store.endSession();
+      if (store.getState().rest) endRest(false);
+      render();
+      toast('Training beendet');
+      break;
     case 'complete-workout':
       store.completeWorkout(n, mode, workoutByNo(n).ex);
       if (store.getState().rest) endRest(false);
@@ -801,11 +909,18 @@ view.addEventListener('click', (e) => {
       if (on) beep();
       break;
     }
-    case 'toggle-rest-off':
-      store.setSetting('restSeconds', store.getState().restSeconds ? 0 : 90);
+    case 'toggle-ex-rest':
+      store.setSetting('useExerciseRest', !store.getState().useExerciseRest);
+      render();
+      break;
+    case 'toggle-rest-off': {
+      const off = !store.getState().useExerciseRest && !store.getState().restSeconds;
+      store.setSetting('useExerciseRest', off);
+      store.setSetting('restSeconds', off ? 90 : 0);
       if (store.getState().rest) endRest(false);
       render();
       break;
+    }
     case 'shift-plus':
     case 'shift-minus':
       store.setShift(store.getState().shift + (act === 'shift-plus' ? 1 : -1));
@@ -874,7 +989,10 @@ view.addEventListener('keydown', (e) => {
 view.addEventListener('input', (e) => {
   const t = e.target.closest('[data-act]');
   if (!t) return;
-  if (t.dataset.act === 'set-input') {
+  if (t.dataset.act === 'weight-input') {
+    const kg = parseFloat(t.value.replace(',', '.'));
+    if (!Number.isNaN(kg)) store.setWeight(t.dataset.ex, kg);
+  } else if (t.dataset.act === 'set-input') {
     const n = ui.workoutNo;
     const mode = store.workoutMode(n);
     const item = workoutByNo(n).ex.find((x) => x.id === t.dataset.ex);

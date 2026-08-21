@@ -248,6 +248,74 @@ button { font: inherit; color: inherit; }
 }
 .ex.open .chev { transform: rotate(180deg); }
 
+/* Gewichtszeile: ein Arbeitsgewicht je Übung. */
+.ex-weight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 10px;
+}
+.kg-step {
+  flex: none;
+  width: 46px; height: 46px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.kg-plus {
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-elev-2));
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  color: var(--accent);
+}
+.kg-step:active { transform: scale(.95); }
+.kg-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+.kg-val {
+  width: 3.6em;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 800;
+  text-align: right;
+  padding: 2px 2px 3px;
+  font-variant-numeric: tabular-nums;
+}
+.kg-val:focus { outline: none; border-bottom-color: var(--accent); }
+.kg-unit { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.kg-next {
+  margin: -4px 14px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.ex-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ex-facts span {
+  background: var(--bg-elev-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
 /* Satz-Knöpfe: immer sichtbar, daumengroß. */
 .ex-sets {
   display: flex;
@@ -792,273 +860,341 @@ const EXERCISES = [
   {
     "id": "goblet-squat",
     "group": "Beine",
+    "weight": 20,
+    "weightNote": "eine Hantel",
     "db": {
       "name": "Goblet Squat",
       "reps": "8–12",
       "equip": "Kurzhantel",
-      "cue": "Hantel senkrecht vor der Brust halten, Ellenbogen zwischen den Knien führen. Tief absitzen, Rumpf aufrecht, Fersen am Boden."
+      "cue": "Hantel senkrecht vor der Brust halten, Ellenbogen zwischen den Knien führen. Tief absitzen, Rumpf aufrecht, Fersen am Boden.",
+      "rest": 150
     },
     "bw": {
       "name": "1½-Wdh. Bodyweight Squat",
       "reps": "12–25",
       "equip": "Ohne Gerät",
-      "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch. Das zählt als EINE Wiederholung. Tempo bewusst langsam."
+      "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch. Das zählt als EINE Wiederholung. Tempo bewusst langsam.",
+      "rest": 120
     }
   },
   {
     "id": "sliding-leg-curl",
     "group": "Beinbeuger",
+    "weight": null,
+    "weightNote": null,
     "db": {
       "name": "Sliding Leg Curl",
       "reps": "8–15",
       "equip": "Slider/Handtuch",
-      "cue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen."
+      "cue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen.",
+      "rest": 90
     },
     "bw": {
       "name": "Sliding Leg Curl",
       "reps": "8–15",
       "equip": "Slider/Handtuch",
-      "cue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s)."
+      "cue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s).",
+      "rest": 90
     }
   },
   {
     "id": "gewichtete-liegestuetze",
     "group": "Brust",
+    "weight": 10,
+    "weightNote": "Zusatzgewicht",
     "db": {
       "name": "Gewichtete Liegestütze",
       "reps": "8–15",
       "equip": "Zusatzgewicht",
-      "cue": "Scheibe/Rucksack auf dem oberen Rücken. Körper bleibt eine Linie, Ellenbogen ca. 45°."
+      "cue": "Scheibe/Rucksack auf dem oberen Rücken. Körper bleibt eine Linie, Ellenbogen ca. 45°.",
+      "rest": 120
     },
     "bw": {
       "name": "Langsame Liegestütze (3 s ablassen)",
       "reps": "8–20",
       "equip": "Ohne Gerät",
-      "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht."
+      "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht.",
+      "rest": 120
     }
   },
   {
     "id": "chin-ups",
     "group": "Rücken/Bizeps",
+    "weight": null,
+    "weightNote": null,
     "db": {
       "name": "Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange",
-      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen."
+      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen.",
+      "rest": 150
     },
     "bw": {
       "name": "Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange",
-      "cue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen."
+      "cue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen.",
+      "rest": 150
     }
   },
   {
     "id": "sitzendes-seitheben",
     "group": "Schulter",
+    "weight": 6,
+    "weightNote": "je Hand",
     "db": {
       "name": "Sitzendes Seitheben",
       "reps": "12–20",
       "equip": "Kurzhanteln",
-      "cue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken."
+      "cue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
+      "rest": 60
     },
     "bw": {
       "name": "Pike Push-ups",
       "reps": "6–15",
       "equip": "Ohne Gerät",
-      "cue": "Pike Push-ups: Hüfte hoch, umgedrehtes V, Scheitel Richtung Boden senken. Füße erhöhen macht es schwerer."
+      "cue": "Pike Push-ups: Hüfte hoch, umgedrehtes V, Scheitel Richtung Boden senken. Füße erhöhen macht es schwerer.",
+      "rest": 120
     }
   },
   {
     "id": "liegende-trizepsstrecker",
     "group": "Trizeps",
+    "weight": 8,
+    "weightNote": "je Hand",
     "db": {
       "name": "Liegende Trizepsstrecker",
       "reps": "8–15",
       "equip": "Kurzhanteln/SZ",
-      "cue": "Rücken am Boden/Bank, Oberarme fixiert. Nur im Ellenbogen beugen, Gewicht Richtung Stirn senken."
+      "cue": "Rücken am Boden/Bank, Oberarme fixiert. Nur im Ellenbogen beugen, Gewicht Richtung Stirn senken.",
+      "rest": 75
     },
     "bw": {
       "name": "Bodyweight Trizeps Extensions an niedriger Stange",
       "reps": "8–15",
       "equip": "Niedrige Stange",
-      "cue": "Hände auf einer niedrigen Stange, Körper schräg. Ellenbogen beugen bis der Kopf unter die Stange geht, dann strecken. Steilerer Winkel = leichter."
+      "cue": "Hände auf einer niedrigen Stange, Körper schräg. Ellenbogen beugen bis der Kopf unter die Stange geht, dann strecken. Steilerer Winkel = leichter.",
+      "rest": 75
     }
   },
   {
     "id": "einbeiniges-stehendes-wadenheben",
     "group": "Waden",
+    "weight": 12,
+    "weightNote": "eine Hantel",
     "db": {
       "name": "Einbeiniges stehendes Wadenheben",
       "reps": "10–20 je Bein",
       "equip": "Kurzhantel",
-      "cue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten."
+      "cue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten.",
+      "rest": 60
     },
     "bw": {
       "name": "Einbeiniges Wadenheben",
       "reps": "15–30 je Bein",
       "equip": "Ohne Gerät",
-      "cue": "Ohne Gewicht, dafür deutlich mehr Wiederholungen. Volle Dehnung unten, 1 s Pause oben – bis es wirklich brennt."
+      "cue": "Ohne Gewicht, dafür deutlich mehr Wiederholungen. Volle Dehnung unten, 1 s Pause oben – bis es wirklich brennt.",
+      "rest": 60
     }
   },
   {
     "id": "wadenheben-gebeugtes-knie",
     "group": "Waden (Soleus)",
+    "weight": 12,
+    "weightNote": "eine Hantel",
     "db": {
       "name": "Wadenheben gebeugtes Knie",
       "reps": "12–20",
       "equip": "Kurzhantel",
-      "cue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel."
+      "cue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
+      "rest": 60
     },
     "bw": {
       "name": "Wadenheben mit gebeugtem Knie",
       "reps": "15–30",
       "equip": "Ohne Gerät",
-      "cue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last."
+      "cue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
+      "rest": 60
     }
   },
   {
     "id": "fersenerhoehter-goblet-squat",
     "group": "Beine",
+    "weight": 20,
+    "weightNote": "eine Hantel",
     "db": {
       "name": "Fersenerhöhter Goblet Squat",
       "reps": "8–12",
       "equip": "Kurzhantel + Erhöhung",
-      "cue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern."
+      "cue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
+      "rest": 150
     },
     "bw": {
       "name": "Fersenerhöhter 1½-Wdh. Bodyweight Squat",
       "reps": "12–25",
       "equip": "Erhöhung (Buch/Keil)",
-      "cue": "Fersen erhöht, gleiche 1½-Technik. Betont den vorderen Oberschenkel deutlich stärker."
+      "cue": "Fersen erhöht, gleiche 1½-Technik. Betont den vorderen Oberschenkel deutlich stärker.",
+      "rest": 120
     }
   },
   {
     "id": "sz-curls",
     "group": "Bizeps",
+    "weight": 15,
+    "weightNote": "Stange gesamt",
     "db": {
       "name": "SZ-Curls",
       "reps": "8–15",
       "equip": "SZ-Stange",
-      "cue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung."
+      "cue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung.",
+      "rest": 75
     },
     "bw": {
       "name": "Enge supinierte Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange",
-      "cue": "Enge supinierte Chin-ups: Untergriff, Hände dicht beieinander. Bewusst über den Bizeps ziehen, langsam ablassen."
+      "cue": "Enge supinierte Chin-ups: Untergriff, Hände dicht beieinander. Bewusst über den Bizeps ziehen, langsam ablassen.",
+      "rest": 120
     }
   },
   {
     "id": "gewichtete-crunches",
     "group": "Bauch",
+    "weight": 5,
+    "weightNote": "Zusatzgewicht",
     "db": {
       "name": "Gewichtete Crunches",
       "reps": "10–20",
       "equip": "Zusatzgewicht",
-      "cue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen."
+      "cue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
+      "rest": 45
     },
     "bw": {
       "name": "Crunches",
       "reps": "15–30",
       "equip": "Ohne Gerät",
-      "cue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer."
+      "cue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer.",
+      "rest": 45
     }
   },
   {
     "id": "einbeiniger-sliding-leg-curl",
     "group": "Beinbeuger",
+    "weight": null,
+    "weightNote": null,
     "db": {
       "name": "Einbeiniger Sliding Leg Curl",
       "reps": "6–12 je Bein",
       "equip": "Slider/Handtuch",
-      "cue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten."
+      "cue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
+      "rest": 90
     },
     "bw": {
       "name": "Einbeiniger Sliding Leg Curl",
       "reps": "6–12 je Bein",
       "equip": "Slider/Handtuch",
-      "cue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück."
+      "cue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück.",
+      "rest": 90
     }
   },
   {
     "id": "fuesse-erhoehte-liegestuetze",
     "group": "Brust (oben)",
+    "weight": null,
+    "weightNote": null,
     "db": {
       "name": "Füße-erhöhte Liegestütze",
       "reps": "8–15",
       "equip": "Erhöhung",
-      "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter."
+      "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter.",
+      "rest": 120
     },
     "bw": {
       "name": "Füße-erhöhte Liegestütze",
       "reps": "8–20",
       "equip": "Erhöhung",
-      "cue": "Identisch. Für mehr Reiz Füße höher stellen oder langsamer ablassen."
+      "cue": "Identisch. Für mehr Reiz Füße höher stellen oder langsamer ablassen.",
+      "rest": 120
     }
   },
   {
     "id": "floor-press",
     "group": "Brust/Trizeps",
+    "weight": 14,
+    "weightNote": "je Hand",
     "db": {
       "name": "Floor Press",
       "reps": "6–12",
       "equip": "Kurzhanteln",
-      "cue": "Rücken am Boden, Oberarme setzen kurz ab. Schont die Schulter, betont den Trizeps-Lockout."
+      "cue": "Rücken am Boden, Oberarme setzen kurz ab. Schont die Schulter, betont den Trizeps-Lockout.",
+      "rest": 120
     },
     "bw": {
       "name": "Liegestütze",
       "reps": "8–20",
       "equip": "Ohne Gerät",
-      "cue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press."
+      "cue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press.",
+      "rest": 90
     }
   },
   {
     "id": "einarmiges-kh-rudern",
     "group": "Rücken",
+    "weight": 16,
+    "weightNote": "je Hand",
     "db": {
       "name": "Einarmiges KH-Rudern",
       "reps": "8–12 je Seite",
       "equip": "Kurzhantel",
-      "cue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen."
+      "cue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen.",
+      "rest": 120
     },
     "bw": {
       "name": "Inverted Rows an sicherer niedriger Stange",
       "reps": "8–15",
       "equip": "Niedrige Stange/Tisch",
-      "cue": "Inverted Rows: unter eine stabile niedrige Stange (oder Tischkante) legen, Körper gerade, Brust zur Stange ziehen. Schwerer: Füße erhöhen."
+      "cue": "Inverted Rows: unter eine stabile niedrige Stange (oder Tischkante) legen, Körper gerade, Brust zur Stange ziehen. Schwerer: Füße erhöhen.",
+      "rest": 120
     }
   },
   {
     "id": "hip-thrust",
     "group": "Gesäß",
+    "weight": 20,
+    "weightNote": "auf der Hüfte",
     "db": {
       "name": "Hip Thrust",
       "reps": "8–15",
       "equip": "Kurzhantel",
-      "cue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen."
+      "cue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
+      "rest": 120
     },
     "bw": {
       "name": "Einbeiniger Hip Thrust",
       "reps": "10–20 je Bein",
       "equip": "Ohne Gerät",
-      "cue": "Einbeinig ausführen, freies Bein angewinkelt. Oben 1–2 s halten – ersetzt die fehlende Zusatzlast."
+      "cue": "Einbeinig ausführen, freies Bein angewinkelt. Oben 1–2 s halten – ersetzt die fehlende Zusatzlast.",
+      "rest": 90
     }
   },
   {
     "id": "reverse-fly",
     "group": "Schulter (hinten)",
+    "weight": 5,
+    "weightNote": "je Hand",
     "db": {
       "name": "Reverse Fly",
       "reps": "12–20",
       "equip": "Kurzhanteln",
-      "cue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt."
+      "cue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
+      "rest": 60
     },
     "bw": {
       "name": "Prone Reverse Fly / Reverse Snow Angels",
       "reps": "12–25",
       "equip": "Ohne Gerät",
-      "cue": "Bauchlage, Arme angehoben, Reverse Snow Angels: Arme langsam vom Kopf bis zur Hüfte und zurück führen, ohne den Boden zu berühren."
+      "cue": "Bauchlage, Arme angehoben, Reverse Snow Angels: Arme langsam vom Kopf bis zur Hüfte und zurück führen, ohne den Boden zu berühren.",
+      "rest": 60
     }
   }
 ];
@@ -1073,9 +1209,12 @@ const DEFAULT_STATE = {
   keepModePerWorkout: true,
   autoShift: true,       // verpasste Tage schieben den Restplan nach hinten
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
-  restSeconds: 90,       // Pause zwischen zwei Sätzen
+  useExerciseRest: true, // Pause je Übung statt einer festen Länge
+  restSeconds: 90,       // feste Pause, wenn useExerciseRest aus ist; 0 = keine
   sound: true,           // Ton am Ende der Pause
-  rest: null,            // laufende Pause: { endsAt, exId, setIndex, nextSet, n }
+  rest: null,            // laufende Pause: { endsAt, total, next }
+  weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
+  session: null,         // laufendes Training: { n, startedAt }
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };
@@ -1229,6 +1368,32 @@ function setRest(rest) {
   emit();
 }
 
+/** Arbeitsgewicht einer Übung; null, solange der Nutzer nichts geändert hat. */
+function weightOf(exId) {
+  const w = state.weights[exId];
+  return typeof w === 'number' ? w : null;
+}
+
+function setWeight(exId, kg) {
+  const v = Math.max(0, Math.round(kg * 2) / 2); // auf halbe Kilo runden
+  state.weights[exId] = v;
+  persist();
+  emit();
+  return v;
+}
+
+function startSession(n) {
+  state.session = { n, startedAt: Date.now() };
+  persist();
+  emit();
+}
+
+function endSession() {
+  state.session = null;
+  persist();
+  emit();
+}
+
 function setShift(days) {
   const v = Math.max(0, Math.round(Number(days) || 0));
   if (v === state.shift) return;
@@ -1301,7 +1466,7 @@ function resetAll() {
   emit();
 }
 
-const store = { canPersist, completeWorkout, exportJSON, flush, getSets, getState, importJSON, isStarted, peekSets, resetAll, resetWorkout, setMode, setRest, setSetting, setShift, setWorkoutMode, startedOn, subscribe, updateSet, workoutMode };
+const store = { canPersist, completeWorkout, endSession, exportJSON, flush, getSets, getState, importJSON, isStarted, peekSets, resetAll, resetWorkout, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, startSession, startedOn, subscribe, updateSet, weightOf, workoutMode };
 
 /* ===== js/app.js ===== */
 /* ------------------------------------------------------------------ *
@@ -1370,7 +1535,44 @@ function plannedReps(reps) {
 function resolve(item, mode) {
   const ex = EX_BY_ID.get(item.id);
   const v = ex[mode];
-  return { id: item.id, sets: item.sets, group: ex.group, name: v.name, reps: v.reps, equip: v.equip, cue: v.cue };
+  return {
+    id: item.id, sets: item.sets, group: ex.group,
+    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest,
+    // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
+    // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
+    weight: mode === 'db' ? ex.weight : null,
+    weightNote: ex.weightNote,
+  };
+}
+
+/** Gewicht, mit dem diese Übung heute gearbeitet wird. */
+function workingWeight(exId) {
+  const ex = EX_BY_ID.get(exId);
+  if (ex.weight === null) return null;
+  const own = store.weightOf(exId);
+  return own === null ? ex.weight : own;
+}
+
+/**
+ * Gewicht, das in diesem Workout tatsächlich benutzt wurde. Sobald der erste
+ * Satz steht, ist es festgeschrieben – ein späteres "+2,5 kg" gilt dann fürs
+ * nächste Mal und schreibt die heutige Einheit nicht rückwirkend um.
+ */
+function usedWeight(n, mode, exId) {
+  const logged = (store.peekSets(n, mode, exId) || []).find((s) => s.w !== '');
+  if (logged) return parseFloat(logged.w);
+  return workingWeight(exId);
+}
+
+function fmtKg(kg) {
+  return Number.isInteger(kg) ? String(kg) : kg.toFixed(1).replace('.', ',');
+}
+
+/** Pausenlänge für eine Übung – empfohlen oder fest, je nach Einstellung. */
+function restFor(item) {
+  const s = store.getState();
+  if (!s.useExerciseRest) return s.restSeconds;
+  return item.rest;
 }
 
 function progressOf(n, mode) {
@@ -1398,7 +1600,7 @@ function completedMode(n) {
 function hasAnyEntry(n, mode) {
   const w = workoutByNo(n);
   return w.ex.some((item) => (store.peekSets(n, mode, item.id) || [])
-    .some((s) => s.done || s.w !== '' || s.r !== ''));
+    .some((s) => s.done || s.w !== ''));
 }
 
 /* ------------------------------------------------------------------ *
@@ -1463,8 +1665,7 @@ async function holdScreen(on) {
   }
 }
 
-function startRest(exName, setIndex, sets) {
-  const secs = store.getState().restSeconds;
+function startRest(exName, setIndex, sets, secs) {
   if (!secs) return;
   store.setRest({
     endsAt: Date.now() + secs * 1000,
@@ -1512,6 +1713,15 @@ function tickRest() {
   if (!restTicker) restTicker = setInterval(tickRest, 250);
 }
 
+/** Laufzeit des Trainings im Kopfbereich mitzählen, ohne neu zu rendern. */
+setInterval(() => {
+  const badge = document.getElementById('sessionBadge');
+  const sess = store.getState().session;
+  if (!badge || !sess) return;
+  const secs = Math.floor((Date.now() - sess.startedAt) / 1000);
+  badge.textContent = `⏱ ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+}, 1000);
+
 document.getElementById('restSkip')?.addEventListener('click', () => endRest(false));
 document.getElementById('restPlus')?.addEventListener('click', () => {
   const rest = store.getState().rest;
@@ -1553,6 +1763,8 @@ function renderDashboard() {
   const date = effDate(w);
   const diff = daysBetween(today, date);
   const shift = store.getState().shift;
+  const sess = store.getState().session;
+  const session = sess && sess.n === n ? sess : null;
 
   let when;
   if (diff === 0) when = 'Heute';
@@ -1582,8 +1794,16 @@ function renderDashboard() {
         ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>'
                         : `<span class="badge">${prog.done}/${prog.total} Sätze</span>`}
         ${shift ? `<span class="badge" title="Ursprünglich ${esc(fmtDate(w.date))}">↷ Plan +${esc(plural(shift, 'Tag', 'Tage'))}</span>` : ''}
+        ${session ? '<span class="badge accent" id="sessionBadge">⏱ läuft</span>' : ''}
       </div>
       <div class="progress"><i style="width:${prog.pct}%"></i></div>
+      ${session
+        ? `<div class="btn-row">
+             <button type="button" class="btn btn-danger" data-act="end-session">Training beenden</button>
+           </div>`
+        : `<div class="btn-row">
+             <button type="button" class="btn btn-primary btn-block" data-act="start-session">▶︎ Workout starten</button>
+           </div>`}
       <div class="btn-row nav">
         <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
         <button type="button" class="btn btn-ghost" data-act="nav-today">Heute</button>
@@ -1609,14 +1829,24 @@ function renderDashboard() {
               data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>
     `).join('');
 
-    const weights = sets.map((s, idx) => `
-      <div class="set-row">
-        <span class="set-no">Satz ${idx + 1}</span>
-        <input type="text" ${mode === 'db' ? 'inputmode="decimal" placeholder="kg"' : 'placeholder="Notiz"'}
-               value="${esc(s.w)}" data-act="set-input" data-field="w" data-ex="${it.id}" data-i="${idx}"
-               aria-label="${mode === 'db' ? 'Gewicht' : 'Notiz'} Satz ${idx + 1}">
+    // Gewichtszeile: ein Arbeitsgewicht je Übung, nicht je Satz. "+2,5 kg"
+    // gilt ab dem nächsten Mal, sobald heute schon ein Satz steht.
+    const kg = it.weight === null ? null : usedWeight(n, mode, it.id);
+    const next = it.weight === null ? null : workingWeight(it.id);
+    const frozen = kg !== null && next !== null && Math.abs(kg - next) > 0.01;
+    const weightRow = kg === null ? '' : `
+      <div class="ex-weight">
+        <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="-2.5"
+                aria-label="2,5 Kilo weniger">−</button>
+        <div class="kg-main">
+          <input type="text" inputmode="decimal" class="kg-val" value="${fmtKg(kg)}"
+                 data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht ${esc(it.name)} in Kilo">
+          <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
+        </div>
+        <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="2.5"
+                aria-label="2,5 Kilo mehr">+</button>
       </div>
-    `).join('');
+      ${frozen ? `<div class="kg-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : ''}`;
 
     parts.push(`
       <article class="ex ${open ? 'open' : ''} ${complete ? 'complete' : ''}">
@@ -1628,11 +1858,15 @@ function renderDashboard() {
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
+        ${weightRow}
         <div class="ex-sets">${setBtns}</div>
         <div class="ex-body">
           <div class="cue">${esc(it.cue)}</div>
-          <div class="set-legend"><span></span><span>${mode === 'db' ? 'Gewicht' : 'Notiz'}</span></div>
-          ${weights}
+          <div class="ex-facts">
+            <span>Pause ${Math.floor(restFor(it) / 60)}:${String(restFor(it) % 60).padStart(2, '0')} min</span>
+            <span>${it.sets} Sätze × ${esc(it.reps)} Wdh.</span>
+            <span>${esc(it.equip)}</span>
+          </div>
           ${prev ? `<div class="last-time">Zuletzt (Workout ${prev.n}): ${esc(prev.text)}</div>` : ''}
         </div>
       </article>
@@ -1889,17 +2123,28 @@ function renderSettings() {
 
     <div class="section-title">Pause zwischen den Sätzen</div>
     <div class="card">
-      <div class="stat-v">${s.restSeconds ? `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min` : 'Aus'}</div>
+      <div class="stat-v">${s.useExerciseRest
+        ? '0:45 – 2:30 min'
+        : (s.restSeconds ? `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min` : 'Aus')}</div>
       <div class="small muted" style="margin-top:2px">
         Läuft automatisch, sobald du einen Satz abhakst – außer nach dem letzten Satz
         einer Übung. Am Ende kommt ein Signalton.
       </div>
+      <div class="switch-row" style="margin-top:10px">
+        <div>
+          <div class="lbl">Pause je Übung</div>
+          <div class="hint">Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen –
+            2:30 beim Squat, 0:45 bei Crunches. Aus schaltet auf eine feste Länge um.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${s.useExerciseRest}" data-act="toggle-ex-rest" aria-label="Pause je Übung"></button>
+      </div>
+      ${s.useExerciseRest ? '' : `
       <div class="btn-row nav">
         ${[60, 90, 120, 180].map((sec) => `
           <button type="button" class="btn ${s.restSeconds === sec ? 'btn-primary' : ''}"
                   data-act="set-rest" data-sec="${sec}">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</button>`).join('')}
-      </div>
-      <div class="switch-row" style="margin-top:6px">
+      </div>`}
+      <div class="switch-row">
         <div>
           <div class="lbl">Signalton</div>
           <div class="hint">Zusätzlich vibriert das Handy. Der Ton wird erzeugt, nicht geladen – funktioniert also auch ohne Netz.</div>
@@ -1911,7 +2156,7 @@ function renderSettings() {
           <div class="lbl">Pause abschalten</div>
           <div class="hint">Kein Timer, kein Ton – Sätze nur abhaken.</div>
         </div>
-        <button type="button" class="toggle" aria-pressed="${!s.restSeconds}" data-act="toggle-rest-off" aria-label="Pause abschalten"></button>
+        <button type="button" class="toggle" aria-pressed="${!s.useExerciseRest && !s.restSeconds}" data-act="toggle-rest-off" aria-label="Pause abschalten"></button>
       </div>
     </div>
 
@@ -2021,8 +2266,15 @@ view.addEventListener('click', (e) => {
       const i = Number(t.dataset.i);
       const item = workoutByNo(n).ex.find((x) => x.id === id);
       const cur = store.getSets(n, mode, id, item.sets)[i].done;
+      const variant = resolve(item, mode);
       initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
-      store.updateSet(n, mode, id, item.sets, i, { done: !cur });
+
+      // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
+      // später der Vergleich "Zuletzt" und die Volumenrechnung.
+      const patch = { done: !cur };
+      if (!cur && variant.weight !== null) patch.w = fmtKg(usedWeight(n, mode, id));
+      else if (cur) patch.w = '';
+      store.updateSet(n, mode, id, item.sets, i, patch);
       render();
 
       const done = !cur;
@@ -2030,13 +2282,34 @@ view.addEventListener('click', (e) => {
       // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
       // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
       if (done && !workoutComplete && i < item.sets - 1) {
-        startRest(resolve(item, mode).name, i, item.sets);
+        startRest(variant.name, i, item.sets, restFor(variant));
       } else if (store.getState().rest) {
         endRest(false);
       }
       if (workoutComplete) toast('Workout abgeschlossen 🎉');
       break;
     }
+    case 'weight-step': {
+      const id = t.dataset.ex;
+      const kg = store.setWeight(id, (workingWeight(id) || 0) + Number(t.dataset.d));
+      render();
+      // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
+      const started = (store.peekSets(n, mode, id) || []).some((s) => s.w !== '');
+      toast(started ? `Nächstes Mal ${fmtKg(kg)} kg` : `${fmtKg(kg)} kg`);
+      break;
+    }
+    case 'start-session':
+      initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
+      store.startSession(n);
+      render();
+      toast('Los geht’s 💪');
+      break;
+    case 'end-session':
+      store.endSession();
+      if (store.getState().rest) endRest(false);
+      render();
+      toast('Training beendet');
+      break;
     case 'complete-workout':
       store.completeWorkout(n, mode, workoutByNo(n).ex);
       if (store.getState().rest) endRest(false);
@@ -2103,11 +2376,18 @@ view.addEventListener('click', (e) => {
       if (on) beep();
       break;
     }
-    case 'toggle-rest-off':
-      store.setSetting('restSeconds', store.getState().restSeconds ? 0 : 90);
+    case 'toggle-ex-rest':
+      store.setSetting('useExerciseRest', !store.getState().useExerciseRest);
+      render();
+      break;
+    case 'toggle-rest-off': {
+      const off = !store.getState().useExerciseRest && !store.getState().restSeconds;
+      store.setSetting('useExerciseRest', off);
+      store.setSetting('restSeconds', off ? 90 : 0);
       if (store.getState().rest) endRest(false);
       render();
       break;
+    }
     case 'shift-plus':
     case 'shift-minus':
       store.setShift(store.getState().shift + (act === 'shift-plus' ? 1 : -1));
@@ -2176,7 +2456,10 @@ view.addEventListener('keydown', (e) => {
 view.addEventListener('input', (e) => {
   const t = e.target.closest('[data-act]');
   if (!t) return;
-  if (t.dataset.act === 'set-input') {
+  if (t.dataset.act === 'weight-input') {
+    const kg = parseFloat(t.value.replace(',', '.'));
+    if (!Number.isNaN(kg)) store.setWeight(t.dataset.ex, kg);
+  } else if (t.dataset.act === 'set-input') {
     const n = ui.workoutNo;
     const mode = store.workoutMode(n);
     const item = workoutByNo(n).ex.find((x) => x.id === t.dataset.ex);
