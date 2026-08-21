@@ -89,10 +89,28 @@ Vorzeichen: `+lean` neigt den Rumpf **nach vorn**, und der Arm dreht mit dem
 Rumpf mit (`-arm.p + lean`). Beides war zeitweise verdreht, wodurch die Figur
 sich nach hinten lehnte und die Stellungen mühsam darum herumgebogen waren.
 
-Reihenfolge der Drehungen ist bedeutsam: erst `roll` um die Längsachse (Brust
-nach unten oder oben), dann `tilt` um die Blickachse (aufrecht oder liegend).
-Umgekehrt liegt die Figur falsch herum – beim Liegestütz zeigte die Brust sonst
-zum Betrachter statt zum Boden.
+**Liegende Übungen liegen wirklich.** Vorher wurde die stehende Figur mit zwei
+Winkeln (`roll`/`tilt`) so lange schräg gedreht, bis sie aus *einem* bestimmten
+Blickwinkel lag – aus jedem anderen sah sie umgekippt aus, und die Gelenkwinkel
+waren nur noch Ausgleich für diese Schieflage. Jetzt gibt `lie: 'supine'` oder
+`'prone'` eine echte Lage vor: die Längsachse zeigt nach links (Kopf links, Füße
+rechts), der Bauch nach oben oder nach unten. Die Gelenkwinkel bedeuten damit
+wieder das, was ihr Name sagt – bei Rückenlage hebt `arm.p = 90` den Arm senkrecht
+nach oben, bei Bauchlage stellt er ihn senkrecht auf den Boden.
+
+`tilt` neigt die ganze liegende Figur: positiv hebt es das Fußende (die Brücke
+beim Hip Thrust), negativ senkt es sie, bis beim Liegestütz Hände und Zehen
+zugleich den Boden berühren.
+
+**Der Ausschnitt passt sich der Bewegung an**, einmal je Muster aus beiden
+Endstellungen gerechnet. Eine feste Größe ließ liegende Übungen klein in einem
+halbleeren Kasten stehen; ein Maß je Einzelbild würde die Figur beim Abspielen
+atmen lassen. Gemessen wird ein Radius, kein Rechteck – sonst änderte schon das
+Drehen die Größe.
+
+Beim Wadenheben steigt der Körper, die **Zehen bleiben liegen**. Wird alles
+zusammen angehoben, wandert bloß die ganze Figur nach oben und die Bewegung ist
+unsichtbar.
 
 Die 14 Muster sind nach **Bewegungsart** benannt, nicht nach Übung – Goblet
 Squat und Bodyweight Squat teilen sich `squat`. Zugeordnet wird je Variante
@@ -101,8 +119,8 @@ Squat und Bodyweight Squat teilen sich `squat`. Zugeordnet wird je Variante
 **Das Gerät steht ausdrücklich in `tools/exercise-meta.json`** (Feld `equip`):
 `dumbbells` je eine Kurzhantel pro Hand, `onehand` eine in einer Hand,
 `goblet` eine senkrecht vor der Brust, `barbell` eine Stange über beide Hände,
-`hipbar` eine quer über dem Becken, `plate` eine Scheibe am Rumpf, `null` kein
-Gerät. Vorher wurde es aus `weightNote` erraten – „eine Hantel" trifft aber
+`hipbar` eine quer über dem Becken, `plate` eine Scheibe vor der Brust,
+`backplate` eine auf dem Rücken, `null` kein Gerät. Vorher wurde es aus `weightNote` erraten – „eine Hantel" trifft aber
 sowohl auf den Goblet Squat zu (beidhändig vor der Brust) als auch aufs
 Wadenheben (einhändig neben dem Körper), und die Figur hielt dann das Falsche.
 

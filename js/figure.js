@@ -14,7 +14,8 @@
  *
  * Winkel in Grad:
  *   lean      Rumpfneigung nach vorn
- *   tilt      ganze Figur um die Blickachse – 90 = liegend, Kopf links
+ *   lie       'supine' oder 'prone' – Figur liegt, Kopf links
+ *   tilt      Neigung der liegenden Figur, + hebt das Fußende
  *   arm.p     Schulter nach vorn (0 = Arm hängt)
  *   arm.a     Arm zur Seite abgespreizt
  *   arm.e     Ellenbogen gebeugt
@@ -94,11 +95,27 @@ function solve(pose) {
     });
   });
 
-  // Erst um die Längsachse rollen (Brust nach unten/oben), dann kippen.
-  // Die Reihenfolge ist entscheidend: umgekehrt liegt die Figur falsch herum.
-  if (pose.roll) {
-    Object.keys(joints).forEach((k) => { joints[k] = rotY(joints[k], pose.roll); });
+  // Wadenheben: der Körper steigt, die Zehen bleiben liegen. Nur so sieht man
+  // die Ferse abheben – hebt man alles zusammen an, wandert bloß die ganze
+  // Figur nach oben und die Bewegung ist unsichtbar.
+  if (pose.heel) {
+    Object.keys(joints).forEach((k) => {
+      if (k.startsWith('toe')) return;
+      joints[k] = [joints[k][0], joints[k][1] + pose.heel * 0.12, joints[k][2]];
+    });
   }
+
+  // Hinlegen. Früher wurde die stehende Figur mit zwei Winkeln (roll/tilt)
+  // schräg gedreht, bis sie aus einem bestimmten Blickwinkel lag – aus jedem
+  // anderen sah sie umgekippt aus. Jetzt ist es eine echte Lage: die Längsachse
+  // des Körpers zeigt nach links (Kopf links, Füße rechts), der Bauch nach oben
+  // (Rücklage) oder nach unten (Bauchlage).
+  if (pose.lie) {
+    const belly = pose.lie === 'prone' ? 90 : -90;
+    Object.keys(joints).forEach((k) => { joints[k] = rotX(rotZ(joints[k], 90), belly); });
+  }
+  // Neigung der ganzen Figur um die Blickachse: bei liegenden Übungen hebt ein
+  // positiver Wert das Fußende, so entsteht die Brücke beim Hip Thrust.
   if (pose.tilt) {
     Object.keys(joints).forEach((k) => { joints[k] = rotZ(joints[k], pose.tilt); });
   }
@@ -119,39 +136,44 @@ export const PATTERNS = {
   },
   legcurl: {
     // Rücken am Boden, Hüfte oben, Fersen ziehen heran
-    label: 'Beinbeuger', roll: 90, tilt: 68,
+    label: 'Beinbeuger', lie: 'supine',
     poses: [
-      { roll: 90, tilt: 68, lean: -26, arm: A(-16, 20, 12), leg: L(-16, 5, 10) },
-      { roll: 90, tilt: 68, lean: -26, arm: A(-16, 20, 12), leg: L(6, 5, 92) },
+      { tilt: 20, arm: A(8, 26, 6), leg: L(4, 6, 12) },
+      { tilt: 30, arm: A(8, 26, 6), leg: L(18, 6, 94) },
     ],
   },
   thrust: {
-    label: 'Hüftstreckung',
+    // Schultern am Boden, Hüfte hoch bis Rumpf und Oberschenkel eine Linie sind
+    label: 'Hüftstreckung', lie: 'supine',
     poses: [
-      { roll: 90, tilt: 52, lean: 0, arm: A(-12, 22, 26), leg: L(76, 6, 104) },
-      { roll: 90, tilt: 74, lean: 0, arm: A(-12, 22, 26), leg: L(12, 6, 94) },
+      { tilt: 8, arm: A(10, 26, 8), leg: L(40, 8, 102) },
+      { tilt: 32, arm: A(10, 26, 8), leg: L(2, 8, 98) },
     ],
   },
   pushup: {
-    label: 'Liegestütz', roll: -90, tilt: 78,
+    label: 'Liegestütz', lie: 'prone',
     poses: [
-      { roll: -90, tilt: 78, lean: 0, arm: A(90, 14, 2), leg: L(-4, 6, 4) },
-      { roll: -90, tilt: 78, lean: 0, arm: A(62, 40, 78), leg: L(-4, 6, 4) },
+      // tilt senkt das Fußende, bis Hände und Zehen zugleich den Boden
+      // berühren – ohne das schweben die Füße in der Luft.
+      { tilt: -16, arm: A(90, 16, 4), leg: L(0, 6, 4) },
+      { tilt: -16, arm: A(64, 42, 80), leg: L(0, 6, 4) },
     ],
   },
   press: {
-    label: 'Drücken im Liegen', roll: 90, tilt: 90,
+    label: 'Drücken im Liegen', lie: 'supine',
     poses: [
-      { roll: 90, tilt: 90, lean: 0, arm: A(84, 20, 86), leg: L(52, 9, 96) },
-      { roll: 90, tilt: 90, lean: 0, arm: A(90, 10, 2), leg: L(52, 9, 96) },
+      { arm: A(72, 42, 92), leg: L(56, 9, 100) },
+      { arm: A(90, 10, 4), leg: L(56, 9, 100) },
     ],
   },
   row: {
     // Einarmig vorgebeugt: die andere Hand stützt sich ab
     label: 'Rudern',
     poses: [
-      { lean: 72, armL: A(96, 12, 24), armR: A(72, 8, 6), leg: L(24, 6, 30) },
-      { lean: 72, armL: A(96, 12, 24), armR: A(112, 16, 96), leg: L(24, 6, 30) },
+      // armL stützt senkrecht ab (p = lean, also Arm lotrecht), armR hängt erst
+      // ebenso und zieht dann den Ellenbogen nach hinten an den Rumpf.
+      { lean: 72, armL: A(72, 10, 10), armR: A(72, 8, 6), leg: L(6, 6, 22) },
+      { lean: 72, armL: A(72, 10, 10), armR: A(4, 10, 95), leg: L(6, 6, 22) },
     ],
   },
   pullup: {
@@ -162,11 +184,13 @@ export const PATTERNS = {
     ],
   },
   pike: {
-    // Umgekehrtes V, Kopf senkt sich zwischen die Hände
+    // Umgekehrtes V: Hüfte ist der höchste Punkt, Hände und Füße am Boden,
+    // der Kopf senkt sich zwischen die Hände. Die Arme zeigen senkrecht nach
+    // unten, dafür muss arm.p der Rumpfneigung folgen (-p + lean = 0).
     label: 'Überkopf-Drücken',
     poses: [
-      { lean: 84, arm: A(84, 12, 4), leg: L(84, 6, 8) },
-      { lean: 84, arm: A(70, 34, 76), leg: L(84, 6, 8) },
+      { lean: 146, arm: A(146, 10, 4), leg: L(-24, 6, 8) },
+      { lean: 146, arm: A(126, 30, 78), leg: L(-24, 6, 8) },
     ],
   },
   curl: {
@@ -177,10 +201,11 @@ export const PATTERNS = {
     ],
   },
   triceps: {
-    label: 'Trizeps-Strecken', roll: 90, tilt: 90,
+    // Oberarm bleibt senkrecht stehen, nur der Ellenbogen arbeitet
+    label: 'Trizeps-Strecken', lie: 'supine',
     poses: [
-      { roll: 90, tilt: 90, lean: 0, arm: A(96, 10, 108), leg: L(52, 9, 96) },
-      { roll: 90, tilt: 90, lean: 0, arm: A(92, 10, 4), leg: L(52, 9, 96) },
+      { arm: A(84, 8, 112), leg: L(56, 9, 100) },
+      { arm: A(90, 8, 4), leg: L(56, 9, 100) },
     ],
   },
   lateral: {
@@ -198,10 +223,11 @@ export const PATTERNS = {
     ],
   },
   crunch: {
-    label: 'Crunch', roll: 90, tilt: 90,
+    // Arme halten die Scheibe vor der Brust, der Rumpf rollt ein Stück auf
+    label: 'Crunch', lie: 'supine',
     poses: [
-      { roll: 90, tilt: 90, lean: 0, arm: A(152, 26, 104), leg: L(54, 9, 96) },
-      { roll: 90, tilt: 90, lean: 34, arm: A(152, 26, 104), leg: L(54, 9, 96) },
+      { lean: 0, arm: A(56, -14, 140, 28), leg: L(56, 9, 100) },
+      { lean: 34, arm: A(56, -14, 140, 28), leg: L(56, 9, 100) },
     ],
   },
   calf: {
@@ -284,9 +310,9 @@ export function mountFigure(host, pattern, weight, equip) {
     const mixA = (x = A(), y = A()) => A(mix(x.p, y.p), mix(x.a, y.a), mix(x.e, y.e), mix(x.i || 0, y.i || 0));
     const mixL = (x = L(), y = L()) => L(mix(x.p, y.p), mix(x.a, y.a), mix(x.k, y.k));
     return {
+      lie: spec.lie,                       // Lage gilt fürs ganze Muster
       lean: mix(a.lean || 0, b.lean || 0),
       tilt: mix(a.tilt || 0, b.tilt || 0),
-      roll: mix(a.roll || 0, b.roll || 0),
       heel: mix(a.heel || 0, b.heel || 0),
       armL: mixA(a.armL || a.arm, b.armL || b.arm),
       armR: mixA(a.armR || a.arm, b.armR || b.arm),
@@ -295,23 +321,41 @@ export function mountFigure(host, pattern, weight, equip) {
     };
   };
 
-  const draw = (t) => {
-    lastT = t;
-    const pose = blend(t);
-    const j = solve(pose);
-
+  /** Skelett einer Stellung, schon auf den Boden gesetzt. */
+  const skeleton = (t) => {
+    const j = solve(blend(t));
     // Auf den Boden setzen bzw. an der Stange aufhängen
     let shift;
     if (spec.anchor === 'bar') {
       shift = -Math.max(j.handL[1], j.handR[1]) + 0.52;   // haengt an der Stange
     } else {
       shift = -Math.min(...Object.values(j).map((q) => q[1])) - 0.62;
-      if (pose.heel) shift += pose.heel * 0.10;           // Ferse hebt ab
     }
     Object.keys(j).forEach((k) => { j[k] = [j[k][0], j[k][1] + shift, j[k][2]]; });
+    return j;
+  };
+
+  // Ausschnitt einmal für das ganze Muster festlegen, aus beiden Endstellungen.
+  // Eine feste Größe ließ liegende Übungen klein in einem halbleeren Kasten
+  // stehen; ein Maß je Einzelbild würde die Figur beim Abspielen atmen lassen.
+  // Radius statt Rechteck, damit auch das Drehen nichts daran ändert.
+  const fit = (() => {
+    const all = [skeleton(0), skeleton(1)].flatMap((j) => Object.values(j));
+    const mid = [0, 1, 2].map((i) => (Math.min(...all.map((q) => q[i])) + Math.max(...all.map((q) => q[i]))) / 2);
+    const r = Math.max(...all.map((q) => Math.hypot(q[0] - mid[0], q[1] - mid[1], q[2] - mid[2])));
+    return { mid, scale: Math.min(52, 40 / Math.max(r, 0.1)) };
+  })();
+  const gearScale = fit.scale / 44;
+
+  const draw = (t) => {
+    lastT = t;
+    const pose = blend(t);
+    const j = skeleton(t);
 
     scene.textContent = '';
-    const P = (p) => project(p, yaw, pitch, 44, 50, 52);
+    const P = (p) => project(
+      [p[0] - fit.mid[0], p[1] - fit.mid[1], p[2] - fit.mid[2]], yaw, pitch, fit.scale, 50, 52,
+    );
     const pts0 = j;   // Weltkoordinaten, für die Ausrichtung der Geräte
     const pts = {};
     Object.entries(j).forEach(([k, v]) => { pts[k] = P(v); });
@@ -321,7 +365,7 @@ export function mountFigure(host, pattern, weight, equip) {
       z: (from.z + to.z) / 2,
       node: el('line', {
         x1: from.x.toFixed(1), y1: from.y.toFixed(1), x2: to.x.toFixed(1), y2: to.y.toFixed(1),
-        'stroke-width': (w * (from.k + to.k) / 2).toFixed(2), class: cls,
+        'stroke-width': (w * gearScale * (from.k + to.k) / 2).toFixed(2), class: cls,
       }),
     });
 
@@ -348,7 +392,7 @@ export function mountFigure(host, pattern, weight, equip) {
       z: pts.head.z,
       node: el('circle', {
         cx: pts.head.x.toFixed(1), cy: pts.head.y.toFixed(1),
-        r: (RIG.headR * 46 * pts.head.k).toFixed(1), class: 'fig-head',
+        r: (RIG.headR * 46 * gearScale * pts.head.k).toFixed(1), class: 'fig-head',
       }),
     });
 
@@ -360,6 +404,13 @@ export function mountFigure(host, pattern, weight, equip) {
     };
     const sideAxis = norm([j.shoulderR[0] - j.shoulderL[0], j.shoulderR[1] - j.shoulderL[1], j.shoulderR[2] - j.shoulderL[2]]);
     const upAxis = norm([j.neck[0] - j.hipC[0], j.neck[1] - j.hipC[1], j.neck[2] - j.hipC[2]]);
+    // Blickrichtung des Rumpfes aus Schulter- und Längsachse – gilt auch im
+    // Liegen, wo "vorn" nicht mehr zum Betrachter zeigt.
+    const frontAxis = norm([
+      sideAxis[1] * upAxis[2] - sideAxis[2] * upAxis[1],
+      sideAxis[2] * upAxis[0] - sideAxis[0] * upAxis[2],
+      sideAxis[0] * upAxis[1] - sideAxis[1] * upAxis[0],
+    ]);
     const midOf = (a2, b2) => [(a2[0] + b2[0]) / 2, (a2[1] + b2[1]) / 2, (a2[2] + b2[2]) / 2];
 
     /** Stange samt Scheiben entlang einer Achse im Raum. */
@@ -370,12 +421,12 @@ export function mountFigure(host, pattern, weight, equip) {
         z: (e1.z + e2.z) / 2,
         node: el('line', {
           x1: e1.x.toFixed(1), y1: e1.y.toFixed(1), x2: e2.x.toFixed(1), y2: e2.y.toFixed(1),
-          'stroke-width': (2.2 * (e1.k + e2.k) / 2).toFixed(2), class: 'fig-bar',
+          'stroke-width': (2.2 * gearScale * (e1.k + e2.k) / 2).toFixed(2), class: 'fig-bar',
         }),
       });
       [e1, e2].forEach((q) => parts.push({
         z: q.z + 0.01,
-        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (plate * q.k).toFixed(1), class: 'fig-plate' }),
+        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (plate * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
       }));
     };
 
@@ -390,11 +441,13 @@ export function mountFigure(host, pattern, weight, equip) {
       barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.34, 5.2);
     } else if (equip === 'hipbar') {
       barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.26, 4.8);
-    } else if (equip === 'plate') {
-      const back = P(add(j.chest, mul(norm([j.chest[0] - j.hipC[0] + upAxis[2], upAxis[0], -0.5]), 0.11)));
+    } else if (equip === 'plate' || equip === 'backplate') {
+      // Scheibe auf der Brust (Crunches) bzw. auf dem Rücken (Liegestütze)
+      const side = equip === 'plate' ? 0.11 : -0.11;
+      const q = P(add(j.chest, mul(frontAxis, side)));
       parts.push({
-        z: back.z + 0.01,
-        node: el('circle', { cx: back.x.toFixed(1), cy: back.y.toFixed(1), r: (5.4 * back.k).toFixed(1), class: 'fig-plate' }),
+        z: q.z + 0.01,
+        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (5.4 * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
       });
     }
 

@@ -70,7 +70,7 @@ export const EXERCISES = [
     "group": "Brust",
     "weight": 10,
     "weightNote": "Zusatzgewicht",
-    "equip": "plate",
+    "equip": "backplate",
     "db": {
       "name": "Gewichtete Liegestütze",
       "reps": "8–15",
