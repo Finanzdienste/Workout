@@ -80,6 +80,15 @@ Gezeichnet wird mit schwacher Perspektive und Maleralgorithmus – was hinten
 liegt, kommt zuerst. Der Rumpf ist eine Fläche zwischen Schultern und Hüften,
 die Gliedmaßen sind Striche mit abgestufter Stärke.
 
+**Frei drehbar in alle Richtungen:** waagerechtes Ziehen um die Hochachse,
+senkrechtes um die Querachse, beides unbegrenzt und über volle Umdrehungen
+hinaus. Auch der Boden liegt als Fläche im Raum und kippt mit – ein Strich am
+unteren Rand sah aus wie ein Schieberegler.
+
+Vorzeichen: `+lean` neigt den Rumpf **nach vorn**, und der Arm dreht mit dem
+Rumpf mit (`-arm.p + lean`). Beides war zeitweise verdreht, wodurch die Figur
+sich nach hinten lehnte und die Stellungen mühsam darum herumgebogen waren.
+
 Reihenfolge der Drehungen ist bedeutsam: erst `roll` um die Längsachse (Brust
 nach unten oder oben), dann `tilt` um die Blickachse (aufrecht oder liegend).
 Umgekehrt liegt die Figur falsch herum – beim Liegestütz zeigte die Brust sonst

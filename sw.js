@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v9';
+const VERSION = 'v10';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [

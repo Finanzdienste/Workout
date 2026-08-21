@@ -6,9 +6,11 @@
  * anatomisch beisammen: ein Knie kann nicht versehentlich neben der Hüfte
  * landen, und dieselbe Stellung stimmt aus jedem Blickwinkel.
  *
- * Koordinaten: x nach rechts, y nach oben, z zum Betrachter. Gezeichnet wird
- * mit schwacher Perspektive und Maleralgorithmus – was hinten liegt, kommt
- * zuerst. Ziehen mit dem Finger dreht um die Hochachse.
+ * Koordinaten: x nach rechts, y nach oben, z nach vorn (zum Betrachter); die
+ * Figur schaut nach +z. Gezeichnet wird mit schwacher Perspektive und
+ * Maleralgorithmus – was hinten liegt, kommt zuerst. Ziehen dreht frei:
+ * waagerecht um die Hochachse, senkrecht um die Querachse, beides unbegrenzt.
+ * Auch Boden und Klimmzugstange liegen im Raum und kippen deshalb mit.
  *
  * Winkel in Grad:
  *   lean      Rumpfneigung nach vorn
@@ -52,7 +54,7 @@ const L = (p = 0, a = 0, k = 0) => ({ p, a, k });
 function solve(pose) {
   const R = RIG;
   const lean = pose.lean || 0;
-  const up = rotX([0, 1, 0], -lean);          // Rumpfachse
+  const up = rotX([0, 1, 0], lean);           // Rumpfachse, +lean = nach vorn
   const side = [1, 0, 0];                     // Schulterachse, von lean unberührt
 
   const hipC = [0, 0, 0];
@@ -69,7 +71,7 @@ function solve(pose) {
     // Arm: Richtung aus Neigung und Abspreizung, dann Ellenbogen beugen
     const arm = pose[`arm${s}`] || pose.arm || A();
     const shoulder = add(shoulderMid, mul(side, sign * R.shoulderW));
-    const upperDir = rotX(rotZ([0, -1, 0], sign * arm.a), -arm.p - lean);
+    const upperDir = rotX(rotZ([0, -1, 0], sign * arm.a), -arm.p + lean);
     const elbow = add(shoulder, mul(upperDir, R.upperArm));
     const foreDir = rotX(upperDir, -arm.e);
     const hand = add(elbow, mul(foreDir, R.foreArm));
@@ -106,101 +108,104 @@ function solve(pose) {
 
 export const PATTERNS = {
   squat: {
-    label: 'Kniebeuge', anchor: 'ground',
+    label: 'Kniebeuge',
     poses: [
-      { lean: 4, arm: A(16, 8, 126), leg: L(0, 4, 2) },
-      { lean: 34, arm: A(20, 8, 126), leg: L(76, 8, 92) },
+      { lean: 6, arm: A(12, 6, 132), leg: L(2, 5, 4) },
+      { lean: 42, arm: A(18, 6, 128), leg: L(96, 9, 116) },
     ],
   },
   legcurl: {
-    label: 'Beinbeuger', anchor: 'ground', tiltBase: 78,
+    // Rücken am Boden, Hüfte oben, Fersen ziehen heran
+    label: 'Beinbeuger', roll: 90, tilt: 68,
     poses: [
-      { roll: 90, tilt: 66, lean: -34, arm: A(-14, 18, 12), leg: L(4, 4, 22) },
-      { roll: 90, tilt: 66, lean: -34, arm: A(-14, 18, 12), leg: L(26, 4, 88) },
+      { roll: 90, tilt: 68, lean: -26, arm: A(-16, 20, 12), leg: L(-16, 5, 10) },
+      { roll: 90, tilt: 68, lean: -26, arm: A(-16, 20, 12), leg: L(6, 5, 92) },
     ],
   },
   thrust: {
-    label: 'Hüftstreckung', anchor: 'ground',
+    label: 'Hüftstreckung',
     poses: [
-      { roll: 90, tilt: 52, lean: -22, arm: A(6, 18, 34), leg: L(16, 6, 104) },
-      { roll: 90, tilt: 76, lean: -46, arm: A(6, 18, 34), leg: L(48, 6, 92) },
+      { roll: 90, tilt: 52, lean: 0, arm: A(-12, 22, 26), leg: L(76, 6, 104) },
+      { roll: 90, tilt: 74, lean: 0, arm: A(-12, 22, 26), leg: L(12, 6, 94) },
     ],
   },
   pushup: {
-    label: 'Liegestütz', anchor: 'ground',
+    label: 'Liegestütz', roll: -90, tilt: 78,
     poses: [
-      { roll: -90, tilt: 74, lean: -4, arm: A(84, 12, 4), leg: L(-8, 5, 3) },
-      { roll: -90, tilt: 74, lean: -4, arm: A(52, 36, 74), leg: L(-8, 5, 3) },
+      { roll: -90, tilt: 78, lean: 0, arm: A(90, 14, 2), leg: L(-4, 6, 4) },
+      { roll: -90, tilt: 78, lean: 0, arm: A(62, 40, 78), leg: L(-4, 6, 4) },
     ],
   },
   press: {
-    label: 'Drücken im Liegen', anchor: 'ground',
+    label: 'Drücken im Liegen', roll: 90, tilt: 90,
     poses: [
-      { roll: 90, tilt: 88, lean: 0, arm: A(86, 16, 84), leg: L(44, 8, 86) },
-      { roll: 90, tilt: 88, lean: 0, arm: A(90, 8, 4), leg: L(44, 8, 86) },
+      { roll: 90, tilt: 90, lean: 0, arm: A(84, 20, 86), leg: L(52, 9, 96) },
+      { roll: 90, tilt: 90, lean: 0, arm: A(90, 10, 2), leg: L(52, 9, 96) },
     ],
   },
   row: {
-    label: 'Rudern', anchor: 'ground',
+    // Einarmig vorgebeugt: die andere Hand stützt sich ab
+    label: 'Rudern',
     poses: [
-      { lean: 62, armL: A(-58, 8, 8), armR: A(-58, 8, 8), leg: L(22, 6, 26) },
-      { lean: 62, armL: A(-58, 8, 8), armR: A(-96, 16, 82), leg: L(22, 6, 26) },
+      { lean: 72, armL: A(96, 12, 24), armR: A(72, 8, 6), leg: L(24, 6, 30) },
+      { lean: 72, armL: A(96, 12, 24), armR: A(112, 16, 96), leg: L(24, 6, 30) },
     ],
   },
   pullup: {
     label: 'Klimmzug', anchor: 'bar', bar: true,
     poses: [
-      { arm: A(172, 10, 4), leg: L(-4, 5, 24) },
-      { arm: A(158, 24, 84), leg: L(-4, 5, 28) },
+      { arm: A(176, 9, 2), leg: L(-6, 5, 28) },
+      { arm: A(148, 20, 96), leg: L(-6, 5, 34) },
     ],
   },
   pike: {
-    label: 'Überkopf-Drücken', anchor: 'ground',
+    // Umgekehrtes V, Kopf senkt sich zwischen die Hände
+    label: 'Überkopf-Drücken',
     poses: [
-      { lean: 82, arm: A(-58, 12, 4), leg: L(76, 6, 6) },
-      { lean: 82, arm: A(-40, 34, 78), leg: L(76, 6, 6) },
+      { lean: 84, arm: A(84, 12, 4), leg: L(84, 6, 8) },
+      { lean: 84, arm: A(70, 34, 76), leg: L(84, 6, 8) },
     ],
   },
   curl: {
-    label: 'Bizeps-Curl', anchor: 'ground',
+    label: 'Bizeps-Curl',
     poses: [
-      { lean: 3, arm: A(2, 9, 6), leg: L(0, 4, 2) },
-      { lean: 3, arm: A(6, 9, 128), leg: L(0, 4, 2) },
+      { lean: 3, arm: A(4, 8, 6), leg: L(2, 5, 4) },
+      { lean: 3, arm: A(10, 8, 136), leg: L(2, 5, 4) },
     ],
   },
   triceps: {
-    label: 'Trizeps-Strecken', anchor: 'ground',
+    label: 'Trizeps-Strecken', roll: 90, tilt: 90,
     poses: [
-      { roll: 90, tilt: 88, lean: 0, arm: A(100, 8, 104), leg: L(44, 8, 86) },
-      { roll: 90, tilt: 88, lean: 0, arm: A(92, 8, 4), leg: L(44, 8, 86) },
+      { roll: 90, tilt: 90, lean: 0, arm: A(96, 10, 108), leg: L(52, 9, 96) },
+      { roll: 90, tilt: 90, lean: 0, arm: A(92, 10, 4), leg: L(52, 9, 96) },
     ],
   },
   lateral: {
-    label: 'Seitheben', anchor: 'ground',
+    label: 'Seitheben',
     poses: [
-      { lean: 3, arm: A(4, 10, 8), leg: L(0, 4, 2) },
-      { lean: 3, arm: A(4, 88, 8), leg: L(0, 4, 2) },
+      { lean: 4, arm: A(6, 10, 10), leg: L(2, 5, 4) },
+      { lean: 4, arm: A(6, 92, 10), leg: L(2, 5, 4) },
     ],
   },
   reversefly: {
-    label: 'Reverse Fly', anchor: 'ground',
+    label: 'Reverse Fly',
     poses: [
-      { lean: 68, arm: A(-64, 8, 10), leg: L(24, 6, 26) },
-      { lean: 68, arm: A(-64, 84, 12), leg: L(24, 6, 26) },
+      { lean: 76, arm: A(76, 8, 10), leg: L(26, 6, 30) },
+      { lean: 76, arm: A(76, 88, 12), leg: L(26, 6, 30) },
     ],
   },
   crunch: {
-    label: 'Crunch', anchor: 'ground',
+    label: 'Crunch', roll: 90, tilt: 90,
     poses: [
-      { roll: 90, tilt: 88, lean: -4, arm: A(148, 26, 100), leg: L(46, 8, 88) },
-      { roll: 90, tilt: 88, lean: 32, arm: A(148, 26, 100), leg: L(46, 8, 88) },
+      { roll: 90, tilt: 90, lean: 0, arm: A(152, 26, 104), leg: L(54, 9, 96) },
+      { roll: 90, tilt: 90, lean: 34, arm: A(152, 26, 104), leg: L(54, 9, 96) },
     ],
   },
   calf: {
-    label: 'Wadenheben', anchor: 'ground',
+    label: 'Wadenheben',
     poses: [
-      { lean: 2, arm: A(4, 8, 8), leg: L(0, 4, 2), heel: 0 },
-      { lean: 2, arm: A(4, 8, 8), leg: L(0, 4, 2), heel: 1 },
+      { lean: 2, arm: A(4, 8, 8), leg: L(2, 5, 4), heel: 0 },
+      { lean: 2, arm: A(4, 8, 8), leg: L(2, 5, 4), heel: 1 },
     ],
   },
 };
@@ -231,8 +236,8 @@ const el = (name, attrs = {}) => {
 const active = new Set();
 
 /** Schwache Perspektive: weiter hinten = kleiner. */
-function project(p, yaw, scale, cx, cy) {
-  const r = rotY(p, yaw);
+function project(p, yaw, pitch, scale, cx, cy) {
+  const r = rotX(rotY(p, yaw), pitch);
   const f = 3.4;
   const k = f / (f - r[2]);
   return { x: cx + r[0] * scale * k, y: cy - r[1] * scale * k, z: r[2], k };
@@ -250,25 +255,31 @@ export function mountFigure(host, pattern, weight, equip) {
 
   const hint = document.createElement('span');
   hint.className = 'fig-hint';
-  hint.textContent = '↔ ziehen zum Drehen';
+  hint.textContent = '↕↔ ziehen zum Drehen';
   host.appendChild(hint);
 
-  let yaw = 26;          // Dreiviertelansicht steht der Figur am besten
+  let yaw = 25;          // Dreiviertelansicht steht der Figur am besten
+  let pitch = 8;         // leicht von oben
   let dragging = false;
   let lastX = 0;
+  let lastY = 0;
   let lastT = 0;         // zuletzt gezeichneter Punkt der Bewegung
 
   const onDown = (e) => {
     dragging = true;
-    lastX = (e.touches ? e.touches[0] : e).clientX;
+    const t = e.touches ? e.touches[0] : e;
+    lastX = t.clientX;
+    lastY = t.clientY;
     hint.classList.add('gone');
     e.preventDefault();
   };
   const onMove = (e) => {
     if (!dragging) return;
-    const x = (e.touches ? e.touches[0] : e).clientX;
-    yaw = (yaw + (x - lastX) * 0.6) % 360;
-    lastX = x;
+    const t = e.touches ? e.touches[0] : e;
+    yaw = (yaw + (t.clientX - lastX) * 0.6) % 360;
+    pitch = (pitch + (t.clientY - lastY) * 0.6) % 360;   // bewusst ohne Grenze
+    lastX = t.clientX;
+    lastY = t.clientY;
     draw(lastT);   // sofort neu zeichnen, statt auf die Animation zu warten
     e.preventDefault();
   };
@@ -311,7 +322,7 @@ export function mountFigure(host, pattern, weight, equip) {
     Object.keys(j).forEach((k) => { j[k] = [j[k][0], j[k][1] + shift, j[k][2]]; });
 
     scene.textContent = '';
-    const P = (p) => project(p, yaw, 46, 50, 52);
+    const P = (p) => project(p, yaw, pitch, 44, 50, 52);
     const pts = {};
     Object.entries(j).forEach(([k, v]) => { pts[k] = P(v); });
 
@@ -396,11 +407,29 @@ export function mountFigure(host, pattern, weight, equip) {
     }
 
     if (spec.bar) {
-      const y = Math.min(pts.handL.y, pts.handR.y);
-      parts.unshift({ z: -9, node: el('line', { x1: 14, y1: y.toFixed(1), x2: 86, y2: y.toFixed(1), class: 'fig-bar-fixed' }) });
-    }
-    if (spec.anchor !== 'hands' || spec.bar) {
-      parts.unshift({ z: -9, node: el('line', { x1: 6, y1: 94, x2: 94, y2: 94, class: 'fig-ground' }) });
+      const barY = Math.max(j.handL[1], j.handR[1]);
+      const a1 = P([-0.75, barY, 0]); const a2 = P([0.75, barY, 0]);
+      parts.push({
+        z: (a1.z + a2.z) / 2 - 0.02,
+        node: el('line', {
+          x1: a1.x.toFixed(1), y1: a1.y.toFixed(1), x2: a2.x.toFixed(1), y2: a2.y.toFixed(1),
+          class: 'fig-bar-fixed',
+        }),
+      });
+    } else {
+      // Bodenscheibe statt Strich: ein Strich unten am Rand sieht aus wie ein
+      // Schieberegler; eine Fläche im Raum liest sich als Boden und kippt mit.
+      const ring = [];
+      for (let a = 0; a < 360; a += 15) {
+        ring.push(P([Math.cos(rad(a)) * 0.62, -0.62, Math.sin(rad(a)) * 0.34]));
+      }
+      parts.push({
+        z: Math.min(...ring.map((q) => q.z)) - 0.02,
+        node: el('polygon', {
+          points: ring.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+          class: 'fig-ground',
+        }),
+      });
     }
 
     // Maleralgorithmus: hinten zuerst
@@ -412,7 +441,7 @@ export function mountFigure(host, pattern, weight, equip) {
   active.add(entry);
   return {
     draw,
-    setYaw: (deg) => { yaw = deg; draw(0); },
+    setView: (y, pi = 0) => { yaw = y; pitch = pi; draw(lastT); },
     stop: () => {
       active.delete(entry);
       window.removeEventListener('pointermove', onMove);
