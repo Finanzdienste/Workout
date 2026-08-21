@@ -396,41 +396,37 @@ function renderOverview() {
   const totalSets = items.reduce((a, x) => a + x.sets, 0);
   const muscles = new Set(items.flatMap((it) => it.muscles));
 
+  // Eine Bildschirmseite, ohne Scrollen: Kopf, Körper, Start. Der Körper
+  // nimmt sich den Platz, der zwischen den beiden übrig bleibt.
   view.innerHTML = `
-    ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
-      Eintragungen gehen beim Neuladen verloren.</div>`}
+    <section class="ov">
+      ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
+        Eintragungen gehen beim Neuladen verloren.</div>`}
 
-    <section class="card ov-head">
-      <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
-      <h2 class="hero-title">${esc(fmtDate(date, true))}</h2>
-      <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
-      <div class="hero-badges">
-        ${prog.done ? `<span class="badge accent">${prog.done}/${prog.total} Sätze erledigt</span>` : ''}
-        ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>' : ''}
-        ${shift ? `<span class="badge">↷ Plan +${esc(plural(shift, 'Tag', 'Tage'))}</span>` : ''}
+      <header class="ov-top">
+        <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
+        <h2 class="hero-title">${esc(fmtDate(date, true))}</h2>
+        <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze${
+          shift ? ` · Plan +${esc(plural(shift, 'Tag', 'Tage'))}` : ''}</div>
+        ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
+          <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.complete ? ' · abgeschlossen' : ''}</div>` : ''}
+      </header>
+
+      <div class="ov-body" id="bodyMap"></div>
+
+      <div class="bm-legend">${[...muscles]
+        .map((m) => `<span>${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
+
+      <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
+        ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
+      </button>
+
+      <div class="ov-foot">
+        <button type="button" class="ov-nav" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>←</button>
+        <button type="button" class="ov-nav wide" data-act="show-list">Übungen &amp; Gewichte</button>
+        <button type="button" class="ov-nav" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>→</button>
       </div>
-      ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>` : ''}
     </section>
-
-    <div class="bm-wrap" id="bodyMap"></div>
-    <div class="bm-legend">${[...muscles]
-      .map((m) => `<span>${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
-
-    <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
-      ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
-    </button>
-
-    <button type="button" class="ov-list" data-act="show-list">
-      ${items.map((it, i) => `<span class="ov-row"><b>${i + 1}</b> ${esc(it.name)}
-        <em>${it.sets} × ${esc(it.reps)}</em></span>`).join('')}
-      <span class="ov-more">Alle Übungen öffnen ›</span>
-    </button>
-
-    <div class="btn-row nav">
-      <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
-      <button type="button" class="btn btn-ghost" data-act="nav-today">Heute</button>
-      <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>Nächstes →</button>
-    </div>
   `;
 
   const host = document.getElementById('bodyMap');

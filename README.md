@@ -21,12 +21,14 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 Die App zeigt beim Öffnen nur, was vor dem Training zählt, und wird erst
 tiefer, wenn man es braucht:
 
-1. **Startansicht** – Datum, Umfang, eine Körperkarte mit den heute
-   beanspruchten Muskelgruppen, der Startknopf und eine Kurzliste der Übungen.
-   Keine Satz-Knöpfe, kein Gewicht: vor dem Training will man wissen, was
-   kommt, nicht schon etwas abhaken.
+1. **Startansicht** – eine Bildschirmseite ohne Scrollen: Datum und Umfang
+   oben, darunter die Körperkarte über die volle Breite, die beanspruchten
+   Gruppen als Marken, der Startknopf. Keine Übungsliste, keine Satz-Knöpfe:
+   vor dem Training will man wissen, was kommt, nicht schon etwas abhaken.
+   Kopf und Fuß nehmen sich, was sie brauchen, die Körperkarte bekommt den
+   Rest – geprüft von 414 × 896 bis 360 × 740.
 2. **Übungsliste** – die vollen Karten mit Gewicht, Satz-Knöpfen und Hinweisen.
-   Erreichbar über die Kurzliste oder aus dem laufenden Training.
+   Erreichbar über *Übungen & Gewichte* oder aus dem laufenden Training.
 3. **Fokus-Ansicht** – eine Übung groß, während trainiert wird.
 
 ### Körperkarte
