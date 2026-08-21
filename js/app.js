@@ -2,6 +2,7 @@ import { EXERCISES, PLAN } from './data.js';
 import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
+import { mountBody, MUSCLE_LABEL } from './body.js';
 
 /* ------------------------------------------------------------------ *
  * Hilfsfunktionen
@@ -71,7 +72,7 @@ function resolve(item, mode) {
   const v = ex[mode];
   return {
     id: item.id, sets: item.sets, group: ex.group,
-    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern, img: v.img,
+    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern, img: v.img, muscles: v.muscles,
     // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
     // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
     weight: mode === 'db' ? ex.weight : null,
@@ -281,8 +282,8 @@ const ui = {
   workoutNo: defaultWorkoutNo(),
   openEx: new Set(),
   planFilter: 'all',
-  exSearch: '',
-  focus: false,   // Fokus-Ansicht statt Übungsliste
+  focus: false,    // Fokus-Ansicht: eine Übung groß
+  listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
 };
 
@@ -369,6 +370,73 @@ function renderFocus() {
   if (host) mountFigure(host, it.pattern, it.weight !== null, it.img);
 }
 
+/**
+ * Startansicht: was heute ansteht, welche Muskelgruppen drankommen, los.
+ * Die einzelnen Übungen liegen eine Ebene tiefer – vor dem Training will man
+ * sie nicht abhaken, sondern nur wissen, was kommt.
+ */
+function renderOverview() {
+  const n = ui.workoutNo;
+  const w = workoutByNo(n);
+  const mode = store.workoutMode(n);
+  const prog = progressOf(n, mode);
+  const today = todayISO();
+  const date = effDate(w);
+  const diff = daysBetween(today, date);
+  const shift = store.getState().shift;
+
+  let when;
+  if (diff === 0) when = 'Heute';
+  else if (diff === 1) when = 'Morgen';
+  else if (diff === -1) when = 'Gestern';
+  else if (diff > 1) when = `in ${diff} Tagen`;
+  else when = `vor ${-diff} Tagen`;
+
+  const items = w.ex.map((item) => resolve(item, mode));
+  const totalSets = items.reduce((a, x) => a + x.sets, 0);
+  const muscles = new Set(items.flatMap((it) => it.muscles));
+
+  view.innerHTML = `
+    ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
+      Eintragungen gehen beim Neuladen verloren.</div>`}
+
+    <section class="card ov-head">
+      <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
+      <h2 class="hero-title">${esc(fmtDate(date, true))}</h2>
+      <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
+      <div class="hero-badges">
+        ${prog.done ? `<span class="badge accent">${prog.done}/${prog.total} Sätze erledigt</span>` : ''}
+        ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>' : ''}
+        ${shift ? `<span class="badge">↷ Plan +${esc(plural(shift, 'Tag', 'Tage'))}</span>` : ''}
+      </div>
+      ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>` : ''}
+    </section>
+
+    <div class="bm-wrap" id="bodyMap"></div>
+    <div class="bm-legend">${[...muscles]
+      .map((m) => `<span>${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
+
+    <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
+      ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
+    </button>
+
+    <button type="button" class="ov-list" data-act="show-list">
+      ${items.map((it, i) => `<span class="ov-row"><b>${i + 1}</b> ${esc(it.name)}
+        <em>${it.sets} × ${esc(it.reps)}</em></span>`).join('')}
+      <span class="ov-more">Alle Übungen öffnen ›</span>
+    </button>
+
+    <div class="btn-row nav">
+      <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
+      <button type="button" class="btn btn-ghost" data-act="nav-today">Heute</button>
+      <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>Nächstes →</button>
+    </div>
+  `;
+
+  const host = document.getElementById('bodyMap');
+  if (host) mountBody(host, muscles);
+}
+
 function renderDashboard() {
   const n = ui.workoutNo;
   const w = workoutByNo(n);
@@ -427,7 +495,10 @@ function renderDashboard() {
     </section>
   `);
 
-  parts.push('<div class="section-title">Übungen</div>');
+  parts.push(`<div class="focus-top">
+      <button type="button" class="back-link" data-act="${store.getState().session ? 'focus-back' : 'hide-list'}">‹ Zurück</button>
+      <span class="focus-count">${w.ex.length} Übungen · ${prog.done}/${prog.total} Sätze</span>
+    </div>`);
 
   items.forEach((it, i) => {
     const sets = store.getSets(n, mode, it.id, it.sets);
@@ -559,60 +630,6 @@ function renderPlan() {
     </div>
     ${rows.length ? rows.join('') : '<div class="empty">Keine Einheiten in diesem Filter.</div>'}
   `;
-}
-
-/* ------------------------------------------------------------------ *
- * Übungs-Bibliothek
- * ------------------------------------------------------------------ */
-
-function renderExercises() {
-  const mode = store.getState().mode;
-  const q = ui.exSearch.trim().toLowerCase();
-
-  const list = EXERCISES.filter((e) => !q
-    || e.db.name.toLowerCase().includes(q)
-    || e.bw.name.toLowerCase().includes(q)
-    || e.group.toLowerCase().includes(q));
-
-  const cards = list.map((e) => `
-    <article class="card lib-item">
-      <div class="lib-group">${esc(e.group)}</div>
-      <div class="lib-fig" data-pattern="${esc(e[mode].pattern)}" data-weight="${mode === 'db' && e.weight !== null}" data-img="${e[mode].img || ''}"></div>
-      <div class="swap">
-        <div class="swap-side ${mode === 'db' ? 'active' : ''}">
-          <div class="swap-label">🏋️ Hanteln</div>
-          <div class="swap-name">${esc(e.db.name)}</div>
-          <div class="swap-reps">${esc(e.db.reps)} Wdh. · ${esc(e.db.equip)}</div>
-        </div>
-        <div class="swap-arrow">⇄</div>
-        <div class="swap-side ${mode === 'bw' ? 'active' : ''}">
-          <div class="swap-label">🤸 Bodyweight</div>
-          <div class="swap-name">${esc(e.bw.name)}</div>
-          <div class="swap-reps">${esc(e.bw.reps)} Wdh. · ${esc(e.bw.equip)}</div>
-        </div>
-      </div>
-      <div class="cue-pair"><b>Hanteln:</b> ${esc(e.db.cue)}</div>
-      <div class="cue-pair"><b>Bodyweight:</b> ${esc(e.bw.cue)}</div>
-    </article>
-  `);
-
-  view.innerHTML = `
-    <div class="section-title">Übungen &amp; Bodyweight-Äquivalente</div>
-    <div class="card" style="padding:10px 12px">
-      <input type="search" class="io" style="min-height:0;font-family:inherit;font-size:14px;padding:10px"
-             placeholder="Übung oder Muskelgruppe suchen…" value="${esc(ui.exSearch)}" data-act="ex-search">
-    </div>
-    ${cards.length ? cards.join('') : '<div class="empty">Nichts gefunden.</div>'}
-    <p class="small muted">
-      Jede der ${EXERCISES.length} Plan-Übungen hat ein Äquivalent ohne Zusatzgewicht.
-      Die Satzzahl bleibt identisch, die Wiederholungsbereiche sind angepasst, damit die
-      Variante ohne Zusatzlast sinnvoll schwer bleibt.
-    </p>
-  `;
-
-  view.querySelectorAll('.lib-fig').forEach((host) => {
-    mountFigure(host, host.dataset.pattern, host.dataset.weight === 'true', host.dataset.img || null);
-  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -834,10 +851,10 @@ const RENDERERS = {
   dashboard: () => {
     const sess = store.getState().session;
     if (ui.focus && sess && sess.n === ui.workoutNo) renderFocus();
-    else renderDashboard();
+    else if (ui.listView) renderDashboard();
+    else renderOverview();
   },
   plan: renderPlan,
-  exercises: renderExercises,
   stats: renderStats,
   settings: renderSettings,
 };
@@ -946,6 +963,7 @@ view.addEventListener('click', (e) => {
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       store.startSession(n);
       ui.focus = true;
+      ui.listView = false;
       ui.focusIdx = firstOpenExercise(n, mode);
       render();
       toast('Los geht’s 💪');
@@ -953,12 +971,27 @@ view.addEventListener('click', (e) => {
     case 'end-session':
       store.endSession();
       ui.focus = false;
+      ui.listView = false;
       if (store.getState().rest) endRest(false);
       render();
       toast('Training beendet');
       break;
     case 'focus-list':
       ui.focus = false;
+      ui.listView = true;
+      render();
+      break;
+    case 'show-list':
+      ui.listView = true;
+      render();
+      break;
+    case 'focus-back': // aus der Liste zurück in die laufende Übung
+      ui.focus = true;
+      ui.listView = false;
+      render();
+      break;
+    case 'hide-list':
+      ui.listView = false;
       render();
       break;
     case 'focus-step':
@@ -984,6 +1017,7 @@ view.addEventListener('click', (e) => {
       if (PLAN.some((w) => w.n === next)) {
         ui.workoutNo = next;
         ui.openEx.clear();
+        ui.listView = false;
         render();
       }
       break;
@@ -991,11 +1025,13 @@ view.addEventListener('click', (e) => {
     case 'nav-today':
       ui.workoutNo = defaultWorkoutNo();
       ui.openEx.clear();
+      ui.listView = false;
       render();
       break;
     case 'open-workout':
       ui.workoutNo = Number(t.dataset.n);
       ui.openEx.clear();
+      ui.listView = false;
       go('dashboard');
       break;
     case 'plan-filter':
@@ -1119,12 +1155,6 @@ view.addEventListener('input', (e) => {
     const mode = store.workoutMode(n);
     const item = workoutByNo(n).ex.find((x) => x.id === t.dataset.ex);
     store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value });
-  } else if (t.dataset.act === 'ex-search') {
-    ui.exSearch = t.value;
-    const pos = t.selectionStart;
-    renderExercises();
-    const again = view.querySelector('[data-act="ex-search"]');
-    if (again) { again.focus(); again.setSelectionRange(pos, pos); }
   }
 });
 

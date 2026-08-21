@@ -23,10 +23,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'dist' / 'workout.html'
 
 # Reihenfolge = Abhaengigkeitsreihenfolge
-MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/store.js', 'js/app.js']
+MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/store.js', 'js/app.js']
 
 IMPORT_RE = re.compile(r'^\s*import\s.+?;\s*$', re.MULTILINE)
 EXPORT_RE = re.compile(r'^(\s*)export\s+(?=(?:const|let|var|function|class)\b)', re.MULTILINE)
+TOPLEVEL_RE = re.compile(
+    r'^(?:export\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)', re.MULTILINE)
 EXPORTED_NAME_RE = re.compile(
     r'^\s*export\s+(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)', re.MULTILINE)
 
@@ -60,6 +62,17 @@ def main():
         inline[svg_file.stem] = 'data:image/svg+xml,' + quote(data, safe='')
     if inline:
         chunks.append('registerInline(' + json.dumps(inline) + ');')
+
+    # Alle Module landen in EINEM Gueltigkeitsbereich - gleiche Namen auf
+    # oberster Ebene wuerden das ganze Skript zum Absturz bringen, waehrend die
+    # modulare Fassung weiterlaeuft. Deshalb hier hart pruefen.
+    seen = {}
+    for rel in MODULES:
+        for name in TOPLEVEL_RE.findall((ROOT / rel).read_text(encoding='utf-8')):
+            if name in seen:
+                sys.exit(f'Namenskollision {name!r}: {seen[name]} und {rel} '
+                         f'- im Buendel teilen sich alle Module einen Gueltigkeitsbereich')
+            seen[name] = rel
 
     script = '\n\n'.join(chunks)
     if '</script' in script:

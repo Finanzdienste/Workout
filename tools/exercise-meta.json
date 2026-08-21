@@ -12,7 +12,17 @@
   "dbPattern": "squat",
   "bwPattern": "squat",
   "dbImage": null,
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "quads",
+   "glutes",
+   "abs"
+  ],
+  "bwMuscles": [
+   "quads",
+   "glutes",
+   "abs"
+  ]
  },
  "fersenerhoehter-goblet-squat": {
   "group": "Beine",
@@ -27,7 +37,15 @@
   "dbPattern": "squat",
   "bwPattern": "squat",
   "dbImage": null,
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "quads",
+   "glutes"
+  ],
+  "bwMuscles": [
+   "quads",
+   "glutes"
+  ]
  },
  "sliding-leg-curl": {
   "group": "Beinbeuger",
@@ -42,7 +60,15 @@
   "dbPattern": "legcurl",
   "bwPattern": "legcurl",
   "dbImage": null,
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "hamstrings",
+   "glutes"
+  ],
+  "bwMuscles": [
+   "hamstrings",
+   "glutes"
+  ]
  },
  "einbeiniger-sliding-leg-curl": {
   "group": "Beinbeuger",
@@ -57,7 +83,15 @@
   "dbPattern": "legcurl",
   "bwPattern": "legcurl",
   "dbImage": null,
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "hamstrings",
+   "glutes"
+  ],
+  "bwMuscles": [
+   "hamstrings",
+   "glutes"
+  ]
  },
  "hip-thrust": {
   "group": "Gesäß",
@@ -72,7 +106,15 @@
   "dbPattern": "thrust",
   "bwPattern": "thrust",
   "dbImage": "bridge",
-  "bwImage": "bridge"
+  "bwImage": "bridge",
+  "dbMuscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "bwMuscles": [
+   "glutes",
+   "hamstrings"
+  ]
  },
  "gewichtete-liegestuetze": {
   "group": "Brust",
@@ -87,7 +129,17 @@
   "dbPattern": "pushup",
   "bwPattern": "pushup",
   "dbImage": "pushup",
-  "bwImage": "pushup"
+  "bwImage": "pushup",
+  "dbMuscles": [
+   "chest",
+   "triceps",
+   "delts"
+  ],
+  "bwMuscles": [
+   "chest",
+   "triceps",
+   "delts"
+  ]
  },
  "fuesse-erhoehte-liegestuetze": {
   "group": "Brust (oben)",
@@ -102,7 +154,17 @@
   "dbPattern": "pushup",
   "bwPattern": "pushup",
   "dbImage": "pushup-feet",
-  "bwImage": "pushup-feet"
+  "bwImage": "pushup-feet",
+  "dbMuscles": [
+   "chest",
+   "delts",
+   "triceps"
+  ],
+  "bwMuscles": [
+   "chest",
+   "delts",
+   "triceps"
+  ]
  },
  "floor-press": {
   "group": "Brust/Trizeps",
@@ -117,7 +179,16 @@
   "dbPattern": "press",
   "bwPattern": "pushup",
   "dbImage": "benchpress",
-  "bwImage": "pushup"
+  "bwImage": "pushup",
+  "dbMuscles": [
+   "chest",
+   "triceps"
+  ],
+  "bwMuscles": [
+   "chest",
+   "triceps",
+   "delts"
+  ]
  },
  "einarmiges-kh-rudern": {
   "group": "Rücken",
@@ -132,7 +203,17 @@
   "dbPattern": "row",
   "bwPattern": "row",
   "dbImage": "row",
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "lats",
+   "biceps",
+   "traps"
+  ],
+  "bwMuscles": [
+   "lats",
+   "biceps",
+   "traps"
+  ]
  },
  "chin-ups": {
   "group": "Rücken/Bizeps",
@@ -147,7 +228,15 @@
   "dbPattern": "pullup",
   "bwPattern": "pullup",
   "dbImage": null,
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "lats",
+   "biceps"
+  ],
+  "bwMuscles": [
+   "lats",
+   "biceps"
+  ]
  },
  "reverse-fly": {
   "group": "Schulter (hinten)",
@@ -162,7 +251,15 @@
   "dbPattern": "reversefly",
   "bwPattern": "reversefly",
   "dbImage": "reversefly",
-  "bwImage": "reversefly"
+  "bwImage": "reversefly",
+  "dbMuscles": [
+   "rearDelts",
+   "traps"
+  ],
+  "bwMuscles": [
+   "rearDelts",
+   "traps"
+  ]
  },
  "sitzendes-seitheben": {
   "group": "Schulter",
@@ -177,7 +274,14 @@
   "dbPattern": "lateral",
   "bwPattern": "pike",
   "dbImage": "lateral",
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "delts"
+  ],
+  "bwMuscles": [
+   "delts",
+   "triceps"
+  ]
  },
  "liegende-trizepsstrecker": {
   "group": "Trizeps",
@@ -192,7 +296,13 @@
   "dbPattern": "triceps",
   "bwPattern": "pike",
   "dbImage": "triceps",
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "triceps"
+  ],
+  "bwMuscles": [
+   "triceps"
+  ]
  },
  "sz-curls": {
   "group": "Bizeps",
@@ -207,7 +317,14 @@
   "dbPattern": "curl",
   "bwPattern": "pullup",
   "dbImage": "curl",
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "biceps"
+  ],
+  "bwMuscles": [
+   "biceps",
+   "lats"
+  ]
  },
  "gewichtete-crunches": {
   "group": "Bauch",
@@ -222,7 +339,13 @@
   "dbPattern": "crunch",
   "bwPattern": "crunch",
   "dbImage": "crunch",
-  "bwImage": "crunch"
+  "bwImage": "crunch",
+  "dbMuscles": [
+   "abs"
+  ],
+  "bwMuscles": [
+   "abs"
+  ]
  },
  "einbeiniges-stehendes-wadenheben": {
   "group": "Waden",
@@ -237,7 +360,13 @@
   "dbPattern": "calf",
   "bwPattern": "calf",
   "dbImage": null,
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "calves"
+  ],
+  "bwMuscles": [
+   "calves"
+  ]
  },
  "wadenheben-gebeugtes-knie": {
   "group": "Waden (Soleus)",
@@ -252,6 +381,12 @@
   "dbPattern": "calf",
   "bwPattern": "calf",
   "dbImage": null,
-  "bwImage": null
+  "bwImage": null,
+  "dbMuscles": [
+   "calves"
+  ],
+  "bwMuscles": [
+   "calves"
+  ]
  }
 }

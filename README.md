@@ -11,11 +11,39 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 
 | Tab | Inhalt |
 | --- | --- |
-| **Dashboard** | Das heutige Workout (bzw. das nächste anstehende). Umschalter Hanteln ⇄ Bodyweight, Sätze direkt abhaken, Pausentimer, Gewicht notieren, Ausführungshinweis je Übung, Vergleich zum letzten Mal. Blättern zu jeder anderen Einheit. |
+| **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. |
 | **Plan** | Alle 57 Einheiten mit Datum, Status und Filter (Alle / Offen / Erledigt / Ab heute). Antippen öffnet die Einheit im Dashboard. |
-| **Übungen** | Die 17 Grundübungen als Gegenüberstellung Hantel ⇄ Bodyweight, je mit Wiederholungsbereich, benötigtem Equipment und Ausführungshinweis. Durchsuchbar. |
 | **Statistik** | Erledigte Workouts, Serie, abgehakte Sätze, Wiederholungen, Hantel-Volumen in kg, Verteilung der Modi, meist trainierte Übungen. |
 | **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, Export/Import als JSON, Backup-Datei, Alles löschen. |
+
+## Drei Ebenen
+
+Die App zeigt beim Öffnen nur, was vor dem Training zählt, und wird erst
+tiefer, wenn man es braucht:
+
+1. **Startansicht** – Datum, Umfang, eine Körperkarte mit den heute
+   beanspruchten Muskelgruppen, der Startknopf und eine Kurzliste der Übungen.
+   Keine Satz-Knöpfe, kein Gewicht: vor dem Training will man wissen, was
+   kommt, nicht schon etwas abhaken.
+2. **Übungsliste** – die vollen Karten mit Gewicht, Satz-Knöpfen und Hinweisen.
+   Erreichbar über die Kurzliste oder aus dem laufenden Training.
+3. **Fokus-Ansicht** – eine Übung groß, während trainiert wird.
+
+### Körperkarte
+
+`js/body.js` setzt Vorder- und Rückansicht aus den Muskelregionen selbst
+zusammen – Hervorheben ist dadurch nur eine Frage der Füllfarbe, ohne zweite
+Zeichnung darunter. Darunter liegt eine durchgehende Silhouette, sonst zerfällt
+der Körper in einzelne Flecken. Kopf, Unterarme, Hände und Füße sind kein
+Trainingsziel und bleiben neutral.
+
+Welche Region eine Übung trifft, steht als `dbMuscles`/`bwMuscles` in
+`tools/exercise-meta.json` – je Variante getrennt, weil sie sich unterscheiden
+können: Seitheben trifft nur die Schulter, sein Bodyweight-Äquivalent Pike
+Push-ups zusätzlich den Trizeps.
+
+Der Plan ist Ganzkörpertraining, entsprechend ist an den meisten Tagen fast
+alles hervorgehoben. Die Karte zeigt eher, was *nicht* drankommt.
 
 ## Bedienung während des Trainings
 
@@ -197,6 +225,7 @@ js/dates.js             Datums-Hilfsfunktionen
 js/store.js             Zustand und localStorage-Persistenz
 js/app.js               Rendering der fünf Tabs und Event-Handling
 js/figure.js            Animierte Bewegungsabläufe (14 Muster)
+js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
 sw.js                   Service Worker für den Offline-Betrieb
 manifest.webmanifest    Installierbar als App auf dem Homescreen
 data/…xlsx              Quelle des Plans

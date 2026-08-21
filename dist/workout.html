@@ -594,6 +594,90 @@ button { font: inherit; color: inherit; }
 .tab[aria-selected="true"] { color: var(--accent); }
 .tab[aria-selected="true"] .ti { filter: none; }
 
+/* ---------- Körperkarte ---------- */
+.bm-wrap {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 10px 6px;
+  margin-bottom: 10px;
+}
+.bodymap { display: block; width: 100%; height: auto; }
+.bm-filler { fill: #333a48; }
+.bm-part {
+  fill: #454e5f;
+  transition: fill .25s ease;
+}
+.bm-part.on { fill: var(--accent); }
+.bm-label {
+  fill: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  text-anchor: middle;
+}
+.bm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.bm-legend span {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-elev));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+/* ---------- Startansicht ---------- */
+.ov-head { margin-bottom: 10px; }
+.btn-start {
+  height: 58px;
+  font-size: 17px;
+  margin-bottom: 12px;
+}
+.ov-list {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px 14px 12px;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.ov-row {
+  display: block;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14.5px;
+}
+.ov-row b {
+  display: inline-block;
+  width: 20px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ov-row em {
+  float: right;
+  font-style: normal;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.ov-more {
+  display: block;
+  padding-top: 11px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--accent);
+}
+
 /* ---------- Bewegungsablauf ---------- */
 /* Everkinetic zeichnet schwarze Linien auf transparent – auf dunklem Grund
    waeren sie unsichtbar. Invertieren und in die Akzentfarbe drehen. */
@@ -866,7 +950,6 @@ textarea.io {
 <nav class="tabbar" id="tabbar" role="tablist">
   <button type="button" class="tab" data-tab="dashboard" role="tab"><span class="ti">🏠</span><span>Dashboard</span></button>
   <button type="button" class="tab" data-tab="plan" role="tab"><span class="ti">📅</span><span>Plan</span></button>
-  <button type="button" class="tab" data-tab="exercises" role="tab"><span class="ti">💪</span><span>Übungen</span></button>
   <button type="button" class="tab" data-tab="stats" role="tab"><span class="ti">📈</span><span>Statistik</span></button>
   <button type="button" class="tab" data-tab="settings" role="tab"><span class="ti">⚙️</span><span>Mehr</span></button>
 </nav>
@@ -946,7 +1029,12 @@ const EXERCISES = [
       "cue": "Hantel senkrecht vor der Brust halten, Ellenbogen zwischen den Knien führen. Tief absitzen, Rumpf aufrecht, Fersen am Boden.",
       "rest": 150,
       "pattern": "squat",
-      "img": null
+      "img": null,
+      "muscles": [
+        "quads",
+        "glutes",
+        "abs"
+      ]
     },
     "bw": {
       "name": "1½-Wdh. Bodyweight Squat",
@@ -955,7 +1043,12 @@ const EXERCISES = [
       "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch. Das zählt als EINE Wiederholung. Tempo bewusst langsam.",
       "rest": 120,
       "pattern": "squat",
-      "img": null
+      "img": null,
+      "muscles": [
+        "quads",
+        "glutes",
+        "abs"
+      ]
     }
   },
   {
@@ -970,7 +1063,11 @@ const EXERCISES = [
       "cue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen.",
       "rest": 90,
       "pattern": "legcurl",
-      "img": null
+      "img": null,
+      "muscles": [
+        "hamstrings",
+        "glutes"
+      ]
     },
     "bw": {
       "name": "Sliding Leg Curl",
@@ -979,7 +1076,11 @@ const EXERCISES = [
       "cue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s).",
       "rest": 90,
       "pattern": "legcurl",
-      "img": null
+      "img": null,
+      "muscles": [
+        "hamstrings",
+        "glutes"
+      ]
     }
   },
   {
@@ -994,7 +1095,12 @@ const EXERCISES = [
       "cue": "Scheibe/Rucksack auf dem oberen Rücken. Körper bleibt eine Linie, Ellenbogen ca. 45°.",
       "rest": 120,
       "pattern": "pushup",
-      "img": "pushup"
+      "img": "pushup",
+      "muscles": [
+        "chest",
+        "triceps",
+        "delts"
+      ]
     },
     "bw": {
       "name": "Langsame Liegestütze (3 s ablassen)",
@@ -1003,7 +1109,12 @@ const EXERCISES = [
       "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht.",
       "rest": 120,
       "pattern": "pushup",
-      "img": "pushup"
+      "img": "pushup",
+      "muscles": [
+        "chest",
+        "triceps",
+        "delts"
+      ]
     }
   },
   {
@@ -1018,7 +1129,11 @@ const EXERCISES = [
       "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen.",
       "rest": 150,
       "pattern": "pullup",
-      "img": null
+      "img": null,
+      "muscles": [
+        "lats",
+        "biceps"
+      ]
     },
     "bw": {
       "name": "Chin-ups",
@@ -1027,7 +1142,11 @@ const EXERCISES = [
       "cue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen.",
       "rest": 150,
       "pattern": "pullup",
-      "img": null
+      "img": null,
+      "muscles": [
+        "lats",
+        "biceps"
+      ]
     }
   },
   {
@@ -1042,7 +1161,10 @@ const EXERCISES = [
       "cue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
       "rest": 60,
       "pattern": "lateral",
-      "img": "lateral"
+      "img": "lateral",
+      "muscles": [
+        "delts"
+      ]
     },
     "bw": {
       "name": "Pike Push-ups",
@@ -1051,7 +1173,11 @@ const EXERCISES = [
       "cue": "Pike Push-ups: Hüfte hoch, umgedrehtes V, Scheitel Richtung Boden senken. Füße erhöhen macht es schwerer.",
       "rest": 120,
       "pattern": "pike",
-      "img": null
+      "img": null,
+      "muscles": [
+        "delts",
+        "triceps"
+      ]
     }
   },
   {
@@ -1066,7 +1192,10 @@ const EXERCISES = [
       "cue": "Rücken am Boden/Bank, Oberarme fixiert. Nur im Ellenbogen beugen, Gewicht Richtung Stirn senken.",
       "rest": 75,
       "pattern": "triceps",
-      "img": "triceps"
+      "img": "triceps",
+      "muscles": [
+        "triceps"
+      ]
     },
     "bw": {
       "name": "Bodyweight Trizeps Extensions an niedriger Stange",
@@ -1075,7 +1204,10 @@ const EXERCISES = [
       "cue": "Hände auf einer niedrigen Stange, Körper schräg. Ellenbogen beugen bis der Kopf unter die Stange geht, dann strecken. Steilerer Winkel = leichter.",
       "rest": 75,
       "pattern": "pike",
-      "img": null
+      "img": null,
+      "muscles": [
+        "triceps"
+      ]
     }
   },
   {
@@ -1090,7 +1222,10 @@ const EXERCISES = [
       "cue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten.",
       "rest": 60,
       "pattern": "calf",
-      "img": null
+      "img": null,
+      "muscles": [
+        "calves"
+      ]
     },
     "bw": {
       "name": "Einbeiniges Wadenheben",
@@ -1099,7 +1234,10 @@ const EXERCISES = [
       "cue": "Ohne Gewicht, dafür deutlich mehr Wiederholungen. Volle Dehnung unten, 1 s Pause oben – bis es wirklich brennt.",
       "rest": 60,
       "pattern": "calf",
-      "img": null
+      "img": null,
+      "muscles": [
+        "calves"
+      ]
     }
   },
   {
@@ -1114,7 +1252,10 @@ const EXERCISES = [
       "cue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
       "rest": 60,
       "pattern": "calf",
-      "img": null
+      "img": null,
+      "muscles": [
+        "calves"
+      ]
     },
     "bw": {
       "name": "Wadenheben mit gebeugtem Knie",
@@ -1123,7 +1264,10 @@ const EXERCISES = [
       "cue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
       "rest": 60,
       "pattern": "calf",
-      "img": null
+      "img": null,
+      "muscles": [
+        "calves"
+      ]
     }
   },
   {
@@ -1138,7 +1282,11 @@ const EXERCISES = [
       "cue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
       "rest": 150,
       "pattern": "squat",
-      "img": null
+      "img": null,
+      "muscles": [
+        "quads",
+        "glutes"
+      ]
     },
     "bw": {
       "name": "Fersenerhöhter 1½-Wdh. Bodyweight Squat",
@@ -1147,7 +1295,11 @@ const EXERCISES = [
       "cue": "Fersen erhöht, gleiche 1½-Technik. Betont den vorderen Oberschenkel deutlich stärker.",
       "rest": 120,
       "pattern": "squat",
-      "img": null
+      "img": null,
+      "muscles": [
+        "quads",
+        "glutes"
+      ]
     }
   },
   {
@@ -1162,7 +1314,10 @@ const EXERCISES = [
       "cue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung.",
       "rest": 75,
       "pattern": "curl",
-      "img": "curl"
+      "img": "curl",
+      "muscles": [
+        "biceps"
+      ]
     },
     "bw": {
       "name": "Enge supinierte Chin-ups",
@@ -1171,7 +1326,11 @@ const EXERCISES = [
       "cue": "Enge supinierte Chin-ups: Untergriff, Hände dicht beieinander. Bewusst über den Bizeps ziehen, langsam ablassen.",
       "rest": 120,
       "pattern": "pullup",
-      "img": null
+      "img": null,
+      "muscles": [
+        "biceps",
+        "lats"
+      ]
     }
   },
   {
@@ -1186,7 +1345,10 @@ const EXERCISES = [
       "cue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
       "rest": 45,
       "pattern": "crunch",
-      "img": "crunch"
+      "img": "crunch",
+      "muscles": [
+        "abs"
+      ]
     },
     "bw": {
       "name": "Crunches",
@@ -1195,7 +1357,10 @@ const EXERCISES = [
       "cue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer.",
       "rest": 45,
       "pattern": "crunch",
-      "img": "crunch"
+      "img": "crunch",
+      "muscles": [
+        "abs"
+      ]
     }
   },
   {
@@ -1210,7 +1375,11 @@ const EXERCISES = [
       "cue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
       "rest": 90,
       "pattern": "legcurl",
-      "img": null
+      "img": null,
+      "muscles": [
+        "hamstrings",
+        "glutes"
+      ]
     },
     "bw": {
       "name": "Einbeiniger Sliding Leg Curl",
@@ -1219,7 +1388,11 @@ const EXERCISES = [
       "cue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück.",
       "rest": 90,
       "pattern": "legcurl",
-      "img": null
+      "img": null,
+      "muscles": [
+        "hamstrings",
+        "glutes"
+      ]
     }
   },
   {
@@ -1234,7 +1407,12 @@ const EXERCISES = [
       "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter.",
       "rest": 120,
       "pattern": "pushup",
-      "img": "pushup-feet"
+      "img": "pushup-feet",
+      "muscles": [
+        "chest",
+        "delts",
+        "triceps"
+      ]
     },
     "bw": {
       "name": "Füße-erhöhte Liegestütze",
@@ -1243,7 +1421,12 @@ const EXERCISES = [
       "cue": "Identisch. Für mehr Reiz Füße höher stellen oder langsamer ablassen.",
       "rest": 120,
       "pattern": "pushup",
-      "img": "pushup-feet"
+      "img": "pushup-feet",
+      "muscles": [
+        "chest",
+        "delts",
+        "triceps"
+      ]
     }
   },
   {
@@ -1258,7 +1441,11 @@ const EXERCISES = [
       "cue": "Rücken am Boden, Oberarme setzen kurz ab. Schont die Schulter, betont den Trizeps-Lockout.",
       "rest": 120,
       "pattern": "press",
-      "img": "benchpress"
+      "img": "benchpress",
+      "muscles": [
+        "chest",
+        "triceps"
+      ]
     },
     "bw": {
       "name": "Liegestütze",
@@ -1267,7 +1454,12 @@ const EXERCISES = [
       "cue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press.",
       "rest": 90,
       "pattern": "pushup",
-      "img": "pushup"
+      "img": "pushup",
+      "muscles": [
+        "chest",
+        "triceps",
+        "delts"
+      ]
     }
   },
   {
@@ -1282,7 +1474,12 @@ const EXERCISES = [
       "cue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen.",
       "rest": 120,
       "pattern": "row",
-      "img": "row"
+      "img": "row",
+      "muscles": [
+        "lats",
+        "biceps",
+        "traps"
+      ]
     },
     "bw": {
       "name": "Inverted Rows an sicherer niedriger Stange",
@@ -1291,7 +1488,12 @@ const EXERCISES = [
       "cue": "Inverted Rows: unter eine stabile niedrige Stange (oder Tischkante) legen, Körper gerade, Brust zur Stange ziehen. Schwerer: Füße erhöhen.",
       "rest": 120,
       "pattern": "row",
-      "img": null
+      "img": null,
+      "muscles": [
+        "lats",
+        "biceps",
+        "traps"
+      ]
     }
   },
   {
@@ -1306,7 +1508,11 @@ const EXERCISES = [
       "cue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
       "rest": 120,
       "pattern": "thrust",
-      "img": "bridge"
+      "img": "bridge",
+      "muscles": [
+        "glutes",
+        "hamstrings"
+      ]
     },
     "bw": {
       "name": "Einbeiniger Hip Thrust",
@@ -1315,7 +1521,11 @@ const EXERCISES = [
       "cue": "Einbeinig ausführen, freies Bein angewinkelt. Oben 1–2 s halten – ersetzt die fehlende Zusatzlast.",
       "rest": 90,
       "pattern": "thrust",
-      "img": "bridge"
+      "img": "bridge",
+      "muscles": [
+        "glutes",
+        "hamstrings"
+      ]
     }
   },
   {
@@ -1330,7 +1540,11 @@ const EXERCISES = [
       "cue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
       "rest": 60,
       "pattern": "reversefly",
-      "img": "reversefly"
+      "img": "reversefly",
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ]
     },
     "bw": {
       "name": "Prone Reverse Fly / Reverse Snow Angels",
@@ -1339,7 +1553,11 @@ const EXERCISES = [
       "cue": "Bauchlage, Arme angehoben, Reverse Snow Angels: Arme langsam vom Kopf bis zur Hüfte und zurück führen, ohne den Boden zu berühren.",
       "rest": 60,
       "pattern": "reversefly",
-      "img": "reversefly"
+      "img": "reversefly",
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ]
     }
   }
 ];
@@ -1621,6 +1839,152 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+/* ===== js/body.js ===== */
+/*
+ * Körperkarte: zeigt in Vorder- und Rückansicht, was heute drankommt.
+ *
+ * Der Körper ist aus den Muskelregionen selbst zusammengesetzt – dadurch ist
+ * Hervorheben nur eine Frage der Füllfarbe, und es braucht keine zweite
+ * Zeichnung darunter. Was keine Trainingsregion ist (Kopf, Unterarme, Hände,
+ * Füße), liegt als neutrales Beiwerk daneben.
+ *
+ * Gezeichnet wird in einem Feld von 100 × 220 je Ansicht, symmetrisch um
+ * x = 50. Seitenpaare werden nur einmal angegeben und automatisch gespiegelt.
+ */
+
+const MUSCLE_LABEL = {
+  chest: 'Brust',
+  delts: 'Schultern',
+  rearDelts: 'hintere Schulter',
+  biceps: 'Bizeps',
+  triceps: 'Trizeps',
+  abs: 'Bauch',
+  lats: 'Rücken',
+  traps: 'Nacken',
+  glutes: 'Gesäß',
+  quads: 'Oberschenkel',
+  hamstrings: 'Beinbeuger',
+  calves: 'Waden',
+};
+
+// ['e', cx, cy, rx, ry] Ellipse · ['p', d] Pfad · mirror: zusätzlich gespiegelt
+const E = (cx, cy, rx, ry) => ['e', cx, cy, rx, ry];
+
+const FRONT = [
+  ['delts', [E(29, 49, 11, 10)], true],
+  ['chest', [['p', 'M40 43 H49 V67 Q41 66 37 58 Q35 49 40 43 Z']], true],
+  ['biceps', [E(23, 67, 7, 14)], true],
+  ['abs', [['p', 'M42 68 H58 Q60 84 58 100 H42 Q40 84 42 68 Z']], false],
+  ['quads', [E(41, 133, 11, 27)], true],
+  ['calves', [E(41, 180, 8, 19)], true],
+];
+
+const BACK = [
+  ['traps', [['p', 'M50 35 L64 43 L58 60 H42 L36 43 Z']], false],
+  ['rearDelts', [E(29, 49, 11, 10)], true],
+  ['lats', [['p', 'M42 58 H49 V95 L40 88 Q33 78 34 66 Z']], true],
+  ['triceps', [E(23, 67, 7, 14)], true],
+  ['glutes', [E(42, 112, 10, 12)], true],
+  ['hamstrings', [E(41, 142, 11, 26)], true],
+  ['calves', [E(41, 182, 9, 19)], true],
+];
+
+/*
+ * Durchgehende Silhouette unter den Muskelregionen. Ohne sie zerfällt der
+ * Körper in einzelne Flecken; die Regionen liegen darauf und heben sich nur
+ * noch farblich ab.
+ */
+const FILLER = [
+  E(50, 20, 11.5, 13),                     // Kopf
+  ['p', 'M45 29 H55 V42 H45 Z'],           // Hals
+  ['p', 'M36 45 Q34 70 38 100 H62 Q66 70 64 45 Z'], // Rumpf
+  E(26, 64, 8.5, 22), E(74, 64, 8.5, 22),  // Oberarme
+  E(20, 95, 6.5, 18), E(80, 95, 6.5, 18),  // Unterarme
+  E(18, 114, 5.5, 6), E(82, 114, 5.5, 6),  // Hände
+  ['p', 'M37 97 H63 L60 120 H40 Z'],       // Becken
+  E(41, 133, 12, 31), E(59, 133, 12, 31),  // Oberschenkel
+  E(41, 163, 8.5, 8), E(59, 163, 8.5, 8),  // Knie
+  E(41, 182, 9.5, 22), E(59, 182, 9.5, 22),// Unterschenkel
+  E(40, 205, 7.5, 5), E(60, 205, 7.5, 5),  // Füße
+];
+
+const BODY_NS = 'http://www.w3.org/2000/svg';
+
+function shapeEl(shape, mirrored) {
+  if (shape[0] === 'e') {
+    const [, cx, cy, rx, ry] = shape;
+    const node = document.createElementNS(BODY_NS, 'ellipse');
+    node.setAttribute('cx', mirrored ? 100 - cx : cx);
+    node.setAttribute('cy', cy);
+    node.setAttribute('rx', rx);
+    node.setAttribute('ry', ry);
+    return node;
+  }
+  const node = document.createElementNS(BODY_NS, 'path');
+  node.setAttribute('d', shape[1]);
+  if (mirrored) node.setAttribute('transform', 'translate(100,0) scale(-1,1)');
+  return node;
+}
+
+function halfView(regions, active, label) {
+  const g = document.createElementNS(BODY_NS, 'g');
+
+  FILLER.forEach((shape) => {
+    const node = shapeEl(shape, false);
+    node.setAttribute('class', 'bm-filler');
+    g.appendChild(node);
+  });
+
+  regions.forEach(([muscle, shapes, mirror]) => {
+    const on = active.has(muscle);
+    shapes.forEach((shape) => {
+      [false, ...(mirror ? [true] : [])].forEach((m) => {
+        const node = shapeEl(shape, m);
+        node.setAttribute('class', `bm-part${on ? ' on' : ''}`);
+        if (on) {
+          const title = document.createElementNS(BODY_NS, 'title');
+          title.textContent = MUSCLE_LABEL[muscle] || muscle;
+          node.appendChild(title);
+        }
+        g.appendChild(node);
+      });
+    });
+  });
+
+  const text = document.createElementNS(BODY_NS, 'text');
+  text.setAttribute('x', 50);
+  text.setAttribute('y', 216);
+  text.setAttribute('class', 'bm-label');
+  text.textContent = label;
+  g.appendChild(text);
+  return g;
+}
+
+/**
+ * Zeichnet Vorder- und Rückansicht nebeneinander.
+ *
+ * @param {Element} host   Zielelement, wird geleert
+ * @param {Set}     active Muskelregionen, die hervorgehoben werden
+ */
+function mountBody(host, active) {
+  host.textContent = '';
+  const svg = document.createElementNS(BODY_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 210 224');
+  svg.setAttribute('class', 'bodymap');
+  svg.setAttribute('role', 'img');
+
+  const names = [...active].map((m) => MUSCLE_LABEL[m] || m);
+  svg.setAttribute('aria-label', names.length
+    ? `Heute beansprucht: ${names.join(', ')}`
+    : 'Keine Muskelgruppen hervorgehoben');
+
+  const front = halfView(FRONT, active, 'vorn');
+  const back = halfView(BACK, active, 'hinten');
+  back.setAttribute('transform', 'translate(110,0)');
+  svg.append(front, back);
+  host.appendChild(svg);
+}
 
 /* ===== js/store.js ===== */
 const KEY = 'workout.state.v1';
@@ -1958,7 +2322,7 @@ function resolve(item, mode) {
   const v = ex[mode];
   return {
     id: item.id, sets: item.sets, group: ex.group,
-    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern, img: v.img,
+    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern, img: v.img, muscles: v.muscles,
     // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
     // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
     weight: mode === 'db' ? ex.weight : null,
@@ -2168,8 +2532,8 @@ const ui = {
   workoutNo: defaultWorkoutNo(),
   openEx: new Set(),
   planFilter: 'all',
-  exSearch: '',
-  focus: false,   // Fokus-Ansicht statt Übungsliste
+  focus: false,    // Fokus-Ansicht: eine Übung groß
+  listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
 };
 
@@ -2256,6 +2620,73 @@ function renderFocus() {
   if (host) mountFigure(host, it.pattern, it.weight !== null, it.img);
 }
 
+/**
+ * Startansicht: was heute ansteht, welche Muskelgruppen drankommen, los.
+ * Die einzelnen Übungen liegen eine Ebene tiefer – vor dem Training will man
+ * sie nicht abhaken, sondern nur wissen, was kommt.
+ */
+function renderOverview() {
+  const n = ui.workoutNo;
+  const w = workoutByNo(n);
+  const mode = store.workoutMode(n);
+  const prog = progressOf(n, mode);
+  const today = todayISO();
+  const date = effDate(w);
+  const diff = daysBetween(today, date);
+  const shift = store.getState().shift;
+
+  let when;
+  if (diff === 0) when = 'Heute';
+  else if (diff === 1) when = 'Morgen';
+  else if (diff === -1) when = 'Gestern';
+  else if (diff > 1) when = `in ${diff} Tagen`;
+  else when = `vor ${-diff} Tagen`;
+
+  const items = w.ex.map((item) => resolve(item, mode));
+  const totalSets = items.reduce((a, x) => a + x.sets, 0);
+  const muscles = new Set(items.flatMap((it) => it.muscles));
+
+  view.innerHTML = `
+    ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
+      Eintragungen gehen beim Neuladen verloren.</div>`}
+
+    <section class="card ov-head">
+      <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
+      <h2 class="hero-title">${esc(fmtDate(date, true))}</h2>
+      <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
+      <div class="hero-badges">
+        ${prog.done ? `<span class="badge accent">${prog.done}/${prog.total} Sätze erledigt</span>` : ''}
+        ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>' : ''}
+        ${shift ? `<span class="badge">↷ Plan +${esc(plural(shift, 'Tag', 'Tage'))}</span>` : ''}
+      </div>
+      ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>` : ''}
+    </section>
+
+    <div class="bm-wrap" id="bodyMap"></div>
+    <div class="bm-legend">${[...muscles]
+      .map((m) => `<span>${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
+
+    <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
+      ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
+    </button>
+
+    <button type="button" class="ov-list" data-act="show-list">
+      ${items.map((it, i) => `<span class="ov-row"><b>${i + 1}</b> ${esc(it.name)}
+        <em>${it.sets} × ${esc(it.reps)}</em></span>`).join('')}
+      <span class="ov-more">Alle Übungen öffnen ›</span>
+    </button>
+
+    <div class="btn-row nav">
+      <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
+      <button type="button" class="btn btn-ghost" data-act="nav-today">Heute</button>
+      <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>Nächstes →</button>
+    </div>
+  `;
+
+  const host = document.getElementById('bodyMap');
+  if (host) mountBody(host, muscles);
+}
+
 function renderDashboard() {
   const n = ui.workoutNo;
   const w = workoutByNo(n);
@@ -2314,7 +2745,10 @@ function renderDashboard() {
     </section>
   `);
 
-  parts.push('<div class="section-title">Übungen</div>');
+  parts.push(`<div class="focus-top">
+      <button type="button" class="back-link" data-act="${store.getState().session ? 'focus-back' : 'hide-list'}">‹ Zurück</button>
+      <span class="focus-count">${w.ex.length} Übungen · ${prog.done}/${prog.total} Sätze</span>
+    </div>`);
 
   items.forEach((it, i) => {
     const sets = store.getSets(n, mode, it.id, it.sets);
@@ -2446,60 +2880,6 @@ function renderPlan() {
     </div>
     ${rows.length ? rows.join('') : '<div class="empty">Keine Einheiten in diesem Filter.</div>'}
   `;
-}
-
-/* ------------------------------------------------------------------ *
- * Übungs-Bibliothek
- * ------------------------------------------------------------------ */
-
-function renderExercises() {
-  const mode = store.getState().mode;
-  const q = ui.exSearch.trim().toLowerCase();
-
-  const list = EXERCISES.filter((e) => !q
-    || e.db.name.toLowerCase().includes(q)
-    || e.bw.name.toLowerCase().includes(q)
-    || e.group.toLowerCase().includes(q));
-
-  const cards = list.map((e) => `
-    <article class="card lib-item">
-      <div class="lib-group">${esc(e.group)}</div>
-      <div class="lib-fig" data-pattern="${esc(e[mode].pattern)}" data-weight="${mode === 'db' && e.weight !== null}" data-img="${e[mode].img || ''}"></div>
-      <div class="swap">
-        <div class="swap-side ${mode === 'db' ? 'active' : ''}">
-          <div class="swap-label">🏋️ Hanteln</div>
-          <div class="swap-name">${esc(e.db.name)}</div>
-          <div class="swap-reps">${esc(e.db.reps)} Wdh. · ${esc(e.db.equip)}</div>
-        </div>
-        <div class="swap-arrow">⇄</div>
-        <div class="swap-side ${mode === 'bw' ? 'active' : ''}">
-          <div class="swap-label">🤸 Bodyweight</div>
-          <div class="swap-name">${esc(e.bw.name)}</div>
-          <div class="swap-reps">${esc(e.bw.reps)} Wdh. · ${esc(e.bw.equip)}</div>
-        </div>
-      </div>
-      <div class="cue-pair"><b>Hanteln:</b> ${esc(e.db.cue)}</div>
-      <div class="cue-pair"><b>Bodyweight:</b> ${esc(e.bw.cue)}</div>
-    </article>
-  `);
-
-  view.innerHTML = `
-    <div class="section-title">Übungen &amp; Bodyweight-Äquivalente</div>
-    <div class="card" style="padding:10px 12px">
-      <input type="search" class="io" style="min-height:0;font-family:inherit;font-size:14px;padding:10px"
-             placeholder="Übung oder Muskelgruppe suchen…" value="${esc(ui.exSearch)}" data-act="ex-search">
-    </div>
-    ${cards.length ? cards.join('') : '<div class="empty">Nichts gefunden.</div>'}
-    <p class="small muted">
-      Jede der ${EXERCISES.length} Plan-Übungen hat ein Äquivalent ohne Zusatzgewicht.
-      Die Satzzahl bleibt identisch, die Wiederholungsbereiche sind angepasst, damit die
-      Variante ohne Zusatzlast sinnvoll schwer bleibt.
-    </p>
-  `;
-
-  view.querySelectorAll('.lib-fig').forEach((host) => {
-    mountFigure(host, host.dataset.pattern, host.dataset.weight === 'true', host.dataset.img || null);
-  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -2721,10 +3101,10 @@ const RENDERERS = {
   dashboard: () => {
     const sess = store.getState().session;
     if (ui.focus && sess && sess.n === ui.workoutNo) renderFocus();
-    else renderDashboard();
+    else if (ui.listView) renderDashboard();
+    else renderOverview();
   },
   plan: renderPlan,
-  exercises: renderExercises,
   stats: renderStats,
   settings: renderSettings,
 };
@@ -2833,6 +3213,7 @@ view.addEventListener('click', (e) => {
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       store.startSession(n);
       ui.focus = true;
+      ui.listView = false;
       ui.focusIdx = firstOpenExercise(n, mode);
       render();
       toast('Los geht’s 💪');
@@ -2840,12 +3221,27 @@ view.addEventListener('click', (e) => {
     case 'end-session':
       store.endSession();
       ui.focus = false;
+      ui.listView = false;
       if (store.getState().rest) endRest(false);
       render();
       toast('Training beendet');
       break;
     case 'focus-list':
       ui.focus = false;
+      ui.listView = true;
+      render();
+      break;
+    case 'show-list':
+      ui.listView = true;
+      render();
+      break;
+    case 'focus-back': // aus der Liste zurück in die laufende Übung
+      ui.focus = true;
+      ui.listView = false;
+      render();
+      break;
+    case 'hide-list':
+      ui.listView = false;
       render();
       break;
     case 'focus-step':
@@ -2871,6 +3267,7 @@ view.addEventListener('click', (e) => {
       if (PLAN.some((w) => w.n === next)) {
         ui.workoutNo = next;
         ui.openEx.clear();
+        ui.listView = false;
         render();
       }
       break;
@@ -2878,11 +3275,13 @@ view.addEventListener('click', (e) => {
     case 'nav-today':
       ui.workoutNo = defaultWorkoutNo();
       ui.openEx.clear();
+      ui.listView = false;
       render();
       break;
     case 'open-workout':
       ui.workoutNo = Number(t.dataset.n);
       ui.openEx.clear();
+      ui.listView = false;
       go('dashboard');
       break;
     case 'plan-filter':
@@ -3006,12 +3405,6 @@ view.addEventListener('input', (e) => {
     const mode = store.workoutMode(n);
     const item = workoutByNo(n).ex.find((x) => x.id === t.dataset.ex);
     store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value });
-  } else if (t.dataset.act === 'ex-search') {
-    ui.exSearch = t.value;
-    const pos = t.selectionStart;
-    renderExercises();
-    const again = view.querySelector('[data-act="ex-search"]');
-    if (again) { again.focus(); again.setSelectionRange(pos, pos); }
   }
 });
 
