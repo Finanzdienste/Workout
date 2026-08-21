@@ -123,6 +123,12 @@ nach oben, bei Bauchlage stellt er ihn senkrecht auf den Boden.
 beim Hip Thrust), negativ senkt es sie, bis beim Liegestütz Hände und Zehen
 zugleich den Boden berühren.
 
+Beim **Klimmzug** schwingt die Schulter weit: unten zeigt der Oberarm nach
+oben (`arm.p` knapp über 180, damit die Arme leicht nach hinten greifen und der
+Kopf davor sichtbar bleibt), oben nach unten-vorn, mit dem Ellenbogen am Rumpf.
+Bleibt `arm.p` oben nahe 180, steht der Ellenbogen über der Schulter ab wie ein
+Flügel, und der Kopf kommt nie über die Stange.
+
 **Wer eine Stange greift, hält sie fest.** Mit `anchor: 'bar'` sitzt nicht der
 Körper auf dem Boden, sondern die Hände liegen auf einer festen Stange in Höhe
 `barY`, und der Körper bewegt sich dagegen – bei Klimmzügen, Inverted Rows und

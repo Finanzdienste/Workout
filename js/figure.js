@@ -186,9 +186,13 @@ export const PATTERNS = {
   },
   pullup: {
     label: 'Klimmzug', anchor: 'bar', bar: true, float: true,
+    // arm.p etwas über 180: die Arme greifen nach oben und leicht nach hinten,
+    // damit der Kopf davor liegt und nicht dahinter verschwindet.
     poses: [
-      { arm: A(176, 9, 2), leg: L(-6, 5, 28) },
-      { arm: A(148, 20, 96), leg: L(-6, 5, 34) },
+      { arm: A(184, 17, 6), leg: L(8, 6, 20) },
+      // Oben zeigt der Oberarm nach unten-vorn, der Ellenbogen liegt am Rumpf.
+      // Mit einem Wert nahe 180 stand er über der Schulter ab wie ein Flügel.
+      { arm: A(46, 20, 148), leg: L(26, 6, 38) },
     ],
   },
   pike: {
