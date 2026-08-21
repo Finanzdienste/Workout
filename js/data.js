@@ -26,7 +26,7 @@ export const EXERCISES = [
       "equip": "Ohne Gerät",
       "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch. Das zählt als EINE Wiederholung. Tempo bewusst langsam.",
       "rest": 120,
-      "pattern": "squat",
+      "pattern": "squatbw",
       "muscles": [
         "quads",
         "glutes",
@@ -182,7 +182,7 @@ export const EXERCISES = [
       "equip": "Niedrige Stange",
       "cue": "Hände auf einer niedrigen Stange, Körper schräg. Ellenbogen beugen bis der Kopf unter die Stange geht, dann strecken. Steilerer Winkel = leichter.",
       "rest": 75,
-      "pattern": "pike",
+      "pattern": "tricepsbar",
       "muscles": [
         "triceps"
       ]
@@ -200,7 +200,7 @@ export const EXERCISES = [
       "equip": "Kurzhantel",
       "cue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten.",
       "rest": 60,
-      "pattern": "calf",
+      "pattern": "calf1",
       "muscles": [
         "calves"
       ]
@@ -211,7 +211,7 @@ export const EXERCISES = [
       "equip": "Ohne Gerät",
       "cue": "Ohne Gewicht, dafür deutlich mehr Wiederholungen. Volle Dehnung unten, 1 s Pause oben – bis es wirklich brennt.",
       "rest": 60,
-      "pattern": "calf",
+      "pattern": "calf1",
       "muscles": [
         "calves"
       ]
@@ -229,7 +229,7 @@ export const EXERCISES = [
       "equip": "Kurzhantel",
       "cue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
       "rest": 60,
-      "pattern": "calf",
+      "pattern": "calfbent",
       "muscles": [
         "calves"
       ]
@@ -240,7 +240,7 @@ export const EXERCISES = [
       "equip": "Ohne Gerät",
       "cue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
       "rest": 60,
-      "pattern": "calf",
+      "pattern": "calfbent",
       "muscles": [
         "calves"
       ]
@@ -270,7 +270,7 @@ export const EXERCISES = [
       "equip": "Erhöhung (Buch/Keil)",
       "cue": "Fersen erhöht, gleiche 1½-Technik. Betont den vorderen Oberschenkel deutlich stärker.",
       "rest": 120,
-      "pattern": "squat",
+      "pattern": "squatbw",
       "muscles": [
         "quads",
         "glutes"
@@ -348,7 +348,7 @@ export const EXERCISES = [
       "equip": "Slider/Handtuch",
       "cue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
       "rest": 90,
-      "pattern": "legcurl",
+      "pattern": "legcurl1",
       "muscles": [
         "hamstrings",
         "glutes"
@@ -360,7 +360,7 @@ export const EXERCISES = [
       "equip": "Slider/Handtuch",
       "cue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück.",
       "rest": 90,
-      "pattern": "legcurl",
+      "pattern": "legcurl1",
       "muscles": [
         "hamstrings",
         "glutes"
@@ -379,7 +379,7 @@ export const EXERCISES = [
       "equip": "Erhöhung",
       "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter.",
       "rest": 120,
-      "pattern": "pushup",
+      "pattern": "pushupfeet",
       "muscles": [
         "chest",
         "delts",
@@ -392,7 +392,7 @@ export const EXERCISES = [
       "equip": "Erhöhung",
       "cue": "Identisch. Für mehr Reiz Füße höher stellen oder langsamer ablassen.",
       "rest": 120,
-      "pattern": "pushup",
+      "pattern": "pushupfeet",
       "muscles": [
         "chest",
         "delts",
@@ -457,7 +457,7 @@ export const EXERCISES = [
       "equip": "Niedrige Stange/Tisch",
       "cue": "Inverted Rows: unter eine stabile niedrige Stange (oder Tischkante) legen, Körper gerade, Brust zur Stange ziehen. Schwerer: Füße erhöhen.",
       "rest": 120,
-      "pattern": "row",
+      "pattern": "invrow",
       "muscles": [
         "lats",
         "biceps",
@@ -489,7 +489,7 @@ export const EXERCISES = [
       "equip": "Ohne Gerät",
       "cue": "Einbeinig ausführen, freies Bein angewinkelt. Oben 1–2 s halten – ersetzt die fehlende Zusatzlast.",
       "rest": 90,
-      "pattern": "thrust",
+      "pattern": "thrust1",
       "muscles": [
         "glutes",
         "hamstrings"
@@ -520,7 +520,7 @@ export const EXERCISES = [
       "equip": "Ohne Gerät",
       "cue": "Bauchlage, Arme angehoben, Reverse Snow Angels: Arme langsam vom Kopf bis zur Hüfte und zurück führen, ohne den Boden zu berühren.",
       "rest": 60,
-      "pattern": "reversefly",
+      "pattern": "snowangel",
       "muscles": [
         "rearDelts",
         "traps"

@@ -123,6 +123,14 @@ nach oben, bei Bauchlage stellt er ihn senkrecht auf den Boden.
 beim Hip Thrust), negativ senkt es sie, bis beim Liegestütz Hände und Zehen
 zugleich den Boden berühren.
 
+**Wer eine Stange greift, hält sie fest.** Mit `anchor: 'bar'` sitzt nicht der
+Körper auf dem Boden, sondern die Hände liegen auf einer festen Stange in Höhe
+`barY`, und der Körper bewegt sich dagegen – bei Klimmzügen, Inverted Rows und
+Trizeps an der Stange. Andersherum wanderte die Stange mit den Händen mit, und
+das fällt sofort als Fehler auf. Damit dabei die Füße stehen bleiben, ändern
+diese Muster ihre Neigung zwischen den Stellungen: der Körper dreht sich um die
+Fersen, statt sich als Ganzes zu verschieben.
+
 **Der Ausschnitt passt sich der Bewegung an**, einmal je Muster aus beiden
 Endstellungen gerechnet. Eine feste Größe ließ liegende Übungen klein in einem
 halbleeren Kasten stehen; ein Maß je Einzelbild würde die Figur beim Abspielen
@@ -134,9 +142,27 @@ Beim Wadenheben steigt der Körper, die **Zehen bleiben liegen**. Wird alles
 zusammen angehoben, wandert bloß die ganze Figur nach oben und die Bewegung ist
 unsichtbar.
 
-Die 14 Muster sind nach **Bewegungsart** benannt, nicht nach Übung – Goblet
-Squat und Bodyweight Squat teilen sich `squat`. Zugeordnet wird je Variante
-über `dbPattern`/`bwPattern` in `tools/exercise-meta.json`.
+Die 23 Muster sind nach **Bewegungsart** benannt, nicht nach Übung. Zugeordnet
+wird je Variante über `dbPattern`/`bwPattern` in `tools/exercise-meta.json` –
+und zwar **getrennt**, denn oft ist die Bodyweight-Variante eine ganz andere
+Bewegung als die mit Hanteln:
+
+| Hanteln | Bodyweight |
+| --- | --- |
+| Einarmiges KH-Rudern (`row`) | Inverted Rows unter der Stange (`invrow`) |
+| Liegende Trizepsstrecker (`triceps`) | Trizeps an niedriger Stange (`tricepsbar`) |
+| Reverse Fly vorgebeugt (`reversefly`) | Reverse Snow Angels in Bauchlage (`snowangel`) |
+| Goblet Squat (`squat`) | Kniebeuge mit vorgestreckten Armen (`squatbw`) |
+| Hip Thrust beidbeinig (`thrust`) | einbeinig (`thrust1`) |
+
+Der Goblet Squat ist das feinste Beispiel: ohne Hantel greifen die Hände nichts,
+und mit der geerbten Goblet-Haltung sah es aus, als hielte die Figur eine
+unsichtbare Hantel vor der Brust.
+
+Auch innerhalb einer Variante zählt der Unterschied: einbeinige Übungen haben
+eigene Muster (`legcurl1`, `calf1`), das Wadenheben mit gebeugtem Knie ebenso
+(`calfbent`), und bei den Füße-erhöhten Liegestützen (`pushupfeet`) steht ein
+Kasten unter den Füßen – sonst wäre nicht zu sehen, dass sie erhöht sind.
 
 Wo eine Übung im Sitzen ausgeführt wird, setzt `seat: true` eine Bank unter die
 Figur – Sitzfläche mit Vorderkante und vier Beinen, damit sie beim Drehen von

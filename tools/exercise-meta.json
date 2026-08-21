@@ -10,7 +10,7 @@
   "dbWeight": 20,
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
-  "bwPattern": "squat",
+  "bwPattern": "squatbw",
   "dbMuscles": [
    "quads",
    "glutes",
@@ -34,7 +34,7 @@
   "dbWeight": 20,
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
-  "bwPattern": "squat",
+  "bwPattern": "squatbw",
   "dbMuscles": [
    "quads",
    "glutes"
@@ -77,8 +77,8 @@
   "bwRest": 90,
   "dbWeight": null,
   "weightNote": null,
-  "dbPattern": "legcurl",
-  "bwPattern": "legcurl",
+  "dbPattern": "legcurl1",
+  "bwPattern": "legcurl1",
   "dbMuscles": [
    "hamstrings",
    "glutes"
@@ -100,7 +100,7 @@
   "dbWeight": 20,
   "weightNote": "auf der Hüfte",
   "dbPattern": "thrust",
-  "bwPattern": "thrust",
+  "bwPattern": "thrust1",
   "dbMuscles": [
    "glutes",
    "hamstrings"
@@ -145,8 +145,8 @@
   "bwRest": 120,
   "dbWeight": null,
   "weightNote": null,
-  "dbPattern": "pushup",
-  "bwPattern": "pushup",
+  "dbPattern": "pushupfeet",
+  "bwPattern": "pushupfeet",
   "dbMuscles": [
    "chest",
    "delts",
@@ -193,7 +193,7 @@
   "dbWeight": 16,
   "weightNote": "je Hand",
   "dbPattern": "row",
-  "bwPattern": "row",
+  "bwPattern": "invrow",
   "dbMuscles": [
    "lats",
    "biceps",
@@ -239,7 +239,7 @@
   "dbWeight": 5,
   "weightNote": "je Hand",
   "dbPattern": "reversefly",
-  "bwPattern": "reversefly",
+  "bwPattern": "snowangel",
   "dbMuscles": [
    "rearDelts",
    "traps"
@@ -282,7 +282,7 @@
   "dbWeight": 8,
   "weightNote": "je Hand",
   "dbPattern": "triceps",
-  "bwPattern": "pike",
+  "bwPattern": "tricepsbar",
   "dbMuscles": [
    "triceps"
   ],
@@ -342,8 +342,8 @@
   "bwRest": 60,
   "dbWeight": 12,
   "weightNote": "eine Hantel",
-  "dbPattern": "calf",
-  "bwPattern": "calf",
+  "dbPattern": "calf1",
+  "bwPattern": "calf1",
   "dbMuscles": [
    "calves"
   ],
@@ -362,8 +362,8 @@
   "bwRest": 60,
   "dbWeight": 12,
   "weightNote": "eine Hantel",
-  "dbPattern": "calf",
-  "bwPattern": "calf",
+  "dbPattern": "calfbent",
+  "bwPattern": "calfbent",
   "dbMuscles": [
    "calves"
   ],

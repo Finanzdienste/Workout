@@ -104,8 +104,11 @@ function solve(pose) {
   // die Ferse abheben – hebt man alles zusammen an, wandert bloß die ganze
   // Figur nach oben und die Bewegung ist unsichtbar.
   if (pose.heel) {
+    // stance nennt das Standbein: beim einbeinigen Wadenheben darf nur dessen
+    // Zeh liegen bleiben, sonst zieht sich das freie Bein in die Länge.
+    const planted = pose.stance ? [`toe${pose.stance}`] : ['toeL', 'toeR'];
     Object.keys(joints).forEach((k) => {
-      if (k.startsWith('toe')) return;
+      if (planted.includes(k)) return;
       joints[k] = [joints[k][0], joints[k][1] + pose.heel * 0.12, joints[k][2]];
     });
   }
@@ -182,7 +185,7 @@ export const PATTERNS = {
     ],
   },
   pullup: {
-    label: 'Klimmzug', anchor: 'bar', bar: true,
+    label: 'Klimmzug', anchor: 'bar', bar: true, float: true,
     poses: [
       { arm: A(176, 9, 2), leg: L(-6, 5, 28) },
       { arm: A(148, 20, 96), leg: L(-6, 5, 34) },
@@ -235,6 +238,85 @@ export const PATTERNS = {
     poses: [
       { lean: 0, arm: A(56, -14, 140, 28), leg: L(56, 9, 100) },
       { lean: 34, arm: A(56, -14, 140, 28), leg: L(56, 9, 100) },
+    ],
+  },
+  legcurl1: {
+    // Einbeinig: das freie Bein bleibt angewinkelt in der Luft
+    label: 'Beinbeuger einbeinig', lie: 'supine',
+    poses: [
+      { tilt: 20, arm: A(8, 26, 6), legR: L(4, 6, 12), legL: L(62, 10, 92) },
+      { tilt: 30, arm: A(8, 26, 6), legR: L(18, 6, 94), legL: L(62, 10, 92) },
+    ],
+  },
+  thrust1: {
+    label: 'Hüftstreckung einbeinig', lie: 'supine',
+    poses: [
+      { tilt: 8, arm: A(10, 26, 8), legR: L(40, 8, 102), legL: L(96, 12, 94) },
+      { tilt: 32, arm: A(10, 26, 8), legR: L(2, 8, 98), legL: L(78, 12, 92) },
+    ],
+  },
+  calf1: {
+    // Ein Bein trägt, das andere hängt angewinkelt hinten
+    label: 'Wadenheben einbeinig', stance: 'R',
+    poses: [
+      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-10, 8, 76), heel: 0 },
+      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-10, 8, 76), heel: 1 },
+    ],
+  },
+  pushupfeet: {
+    // Füße erhöht: positiver tilt hebt das Fußende, dazu ein Kasten darunter
+    label: 'Liegestütz mit erhöhten Füßen', lie: 'prone', step: true,
+    poses: [
+      { tilt: 8, arm: A(90, 16, 4), leg: L(0, 6, 4) },
+      { tilt: 8, arm: A(64, 42, 80), leg: L(0, 6, 4) },
+    ],
+  },
+  calfbent: {
+    // Mit gebeugtem Knie: trifft den flachen Wadenmuskel statt der Zwillingswade
+    label: 'Wadenheben, gebeugtes Knie',
+    poses: [
+      { lean: 10, arm: A(4, 8, 8), leg: L(28, 6, 40), heel: 0 },
+      { lean: 10, arm: A(4, 8, 8), leg: L(28, 6, 40), heel: 1 },
+    ],
+  },
+  squatbw: {
+    // Ohne Hantel greifen die Hände nichts – die Arme gehen zum Ausgleich nach
+    // vorn. Mit der Goblet-Haltung sah es aus, als hielte die Figur eine
+    // unsichtbare Hantel.
+    label: 'Kniebeuge ohne Gewicht',
+    poses: [
+      { lean: 6, arm: A(22, 10, 16), leg: L(2, 5, 4) },
+      { lean: 42, arm: A(130, 10, 12), leg: L(96, 9, 116) },
+    ],
+  },
+  invrow: {
+    // Unter einer niedrigen Stange, Körper gerade, Brust zur Stange. Die Hände
+    // bleiben an der Stange, der Körper dreht sich um die Fersen nach oben.
+    label: 'Inverted Row', lie: 'supine', anchor: 'bar', barY: 0.04, bar: true,
+    poses: [
+      { tilt: -20, arm: A(92, 14, 8), leg: L(-2, 6, 4) },
+      { tilt: -27, arm: A(58, 32, 88), leg: L(-2, 6, 4) },
+    ],
+  },
+  tricepsbar: {
+    // Schräg stehend, Hände auf einer niedrigen Stange. Nur der Ellenbogen
+    // arbeitet, der Kopf senkt sich unter die Stange.
+    label: 'Trizeps an der Stange', anchor: 'bar', barY: 0.02, bar: true,
+    // leg.p spiegelt lean: nur so bleibt der Körper eine gerade Linie von den
+    // Fersen bis zum Kopf. Mit senkrechten Beinen wurde daraus ein Hüftknick.
+    poses: [
+      { lean: 50, arm: A(50, 12, 6), leg: L(-50, 6, 4) },
+      { lean: 62, arm: A(40, 16, 96), leg: L(-62, 6, 4) },
+    ],
+  },
+  snowangel: {
+    // Bauchlage, Arme angehoben, vom Kopf bis zur Hüfte und zurück
+    label: 'Reverse Snow Angel', lie: 'prone',
+    poses: [
+      // Brust deutlich angehoben: liegt der Rumpf flach, liegen auch die Arme
+      // am Boden und von der Bewegung ist nichts zu sehen.
+      { lean: -24, arm: A(164, 32, 10), leg: L(0, 6, 4) },
+      { lean: -24, arm: A(26, 46, 10), leg: L(0, 6, 4) },
     ],
   },
   calf: {
@@ -323,6 +405,7 @@ export function mountFigure(host, pattern, weight, equip) {
     const mixL = (x = L(), y = L()) => L(mix(x.p, y.p), mix(x.a, y.a), mix(x.k, y.k));
     return {
       lie: spec.lie,                       // Lage gilt fürs ganze Muster
+      stance: spec.stance,
       lean: mix(a.lean || 0, b.lean || 0),
       tilt: mix(a.tilt || 0, b.tilt || 0),
       heel: mix(a.heel || 0, b.heel || 0),
@@ -336,13 +419,17 @@ export function mountFigure(host, pattern, weight, equip) {
   /** Skelett einer Stellung, schon auf den Boden gesetzt. */
   const skeleton = (t) => {
     const j = solve(blend(t));
-    // Auf den Boden setzen bzw. an der Stange aufhängen
-    let shift;
+    // An der Stange festhalten oder auf den Boden setzen. Beim Griff an eine
+    // Stange bleiben die Hände stehen und der Körper bewegt sich – andersherum
+    // wanderte die Stange mit den Händen mit, was sofort als Fehler auffällt.
     if (spec.anchor === 'bar') {
-      shift = -Math.max(j.handL[1], j.handR[1]) + 0.52;   // haengt an der Stange
-    } else {
-      shift = -Math.min(...Object.values(j).map((q) => q[1])) - 0.62;
+      const barY = spec.barY === undefined ? 0.52 : spec.barY;
+      const hand = [0, 1, 2].map((i) => (j.handL[i] + j.handR[i]) / 2);
+      const d = [-hand[0], barY - hand[1], -hand[2]];
+      Object.keys(j).forEach((k) => { j[k] = [j[k][0] + d[0], j[k][1] + d[1], j[k][2] + d[2]]; });
+      return j;
     }
+    const shift = -Math.min(...Object.values(j).map((q) => q[1])) - 0.62;
     Object.keys(j).forEach((k) => { j[k] = [j[k][0], j[k][1] + shift, j[k][2]]; });
     return j;
   };
@@ -357,7 +444,11 @@ export function mountFigure(host, pattern, weight, equip) {
     // Radius statt Rechteck: so ändert das Drehen die Größe nicht, und die
     // Figur kann in keiner Lage über den Rand ragen.
     const r = Math.max(...all.map((q) => Math.hypot(q[0] - mid[0], q[1] - mid[1], q[2] - mid[2])));
-    return { mid, scale: (Math.min(VBW, VBH) / 2) * 0.94 / Math.max(r, 0.1) };
+    // Bodenhöhe einmal aus der Startstellung: bei einem Griff an die Stange
+    // liegt der Körper nicht mehr fest auf dem Boden auf, der Boden darf aber
+    // trotzdem nicht bei jedem Einzelbild auf und ab wandern.
+    const groundY = Math.min(...Object.values(skeleton(0)).map((q) => q[1]));
+    return { mid, groundY, scale: (Math.min(VBW, VBH) / 2) * 0.94 / Math.max(r, 0.1) };
   })();
   const gearScale = fit.scale / 40;
 
@@ -520,6 +611,26 @@ export function mountFigure(host, pattern, weight, equip) {
       });
     }
 
+    if (spec.step) {
+      // Kasten unter den Füßen: ohne ihn stünde nur eine schräge Figur da und
+      // man sähe nicht, dass die Füße erhöht stehen.
+      const heel = midOf(j.ankleL, j.ankleR);
+      const top = Math.min(j.toeL[1], j.toeR[1]) - 0.02;
+      const zc = heel[2]; const xc = heel[0];
+      const corner = (sx, sz, y) => P([xc + sx * 0.16, y, zc + sz * 0.26]);
+      const face = (quad) => parts.push({
+        z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length - 0.05,
+        node: el('polygon', {
+          points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+          class: 'fig-bench',
+        }),
+      });
+      face([corner(-1, -1, top), corner(1, -1, top), corner(1, 1, top), corner(-1, 1, top)]);
+      face([corner(-1, 1, top), corner(1, 1, top), corner(1, 1, -0.62), corner(-1, 1, -0.62)]);
+      face([corner(1, -1, top), corner(1, 1, top), corner(1, 1, -0.62), corner(1, -1, -0.62)]);
+      face([corner(-1, -1, top), corner(-1, 1, top), corner(-1, 1, -0.62), corner(-1, -1, -0.62)]);
+    }
+
     if (spec.seat) {
       // Bank: Sitzfläche knapp unter der Hüfte, zwei Beine bis auf den Boden.
       // Sie liegt im Raum und kippt deshalb beim Drehen mit.
@@ -552,8 +663,11 @@ export function mountFigure(host, pattern, weight, equip) {
     }
 
     if (spec.bar) {
-      const barY = Math.max(j.handL[1], j.handR[1]);
-      const a1 = P([-0.75, barY, 0]); const a2 = P([0.75, barY, 0]);
+      // Entlang der Schulterachse durch beide Hände: so liegt sie beim Klimmzug
+      // quer vor dem Körper und bei den Inverted Rows quer über ihm.
+      const centre = midOf(j.handL, j.handR);
+      const a1 = P(add(centre, mul(sideAxis, -0.8)));
+      const a2 = P(add(centre, mul(sideAxis, 0.8)));
       parts.push({
         z: (a1.z + a2.z) / 2 - 0.02,
         node: el('line', {
@@ -561,12 +675,16 @@ export function mountFigure(host, pattern, weight, equip) {
           class: 'fig-bar-fixed',
         }),
       });
-    } else {
+    }
+    if (!spec.float) {
       // Bodenscheibe statt Strich: ein Strich unten am Rand sieht aus wie ein
       // Schieberegler; eine Fläche im Raum liest sich als Boden und kippt mit.
+      // Mittig unter der Figur, nicht am Ursprung: wer an einer Stange hängt,
+      // steht nicht über dem Nullpunkt, und die Scheibe lag dann daneben.
+      const gy = spec.anchor === 'bar' ? fit.groundY : -0.62;
       const ring = [];
       for (let a = 0; a < 360; a += 15) {
-        ring.push(P([Math.cos(rad(a)) * 0.62, -0.62, Math.sin(rad(a)) * 0.34]));
+        ring.push(P([fit.mid[0] + Math.cos(rad(a)) * 0.62, gy, fit.mid[2] + Math.sin(rad(a)) * 0.34]));
       }
       parts.push({
         z: Math.min(...ring.map((q) => q.z)) - 0.02,
