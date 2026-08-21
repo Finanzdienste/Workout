@@ -8,7 +8,9 @@
   "dbRest": 150,
   "bwRest": 120,
   "dbWeight": 20,
-  "weightNote": "eine Hantel"
+  "weightNote": "eine Hantel",
+  "dbPattern": "squat",
+  "bwPattern": "squat"
  },
  "fersenerhoehter-goblet-squat": {
   "group": "Beine",
@@ -19,7 +21,9 @@
   "dbRest": 150,
   "bwRest": 120,
   "dbWeight": 20,
-  "weightNote": "eine Hantel"
+  "weightNote": "eine Hantel",
+  "dbPattern": "squat",
+  "bwPattern": "squat"
  },
  "sliding-leg-curl": {
   "group": "Beinbeuger",
@@ -30,7 +34,9 @@
   "dbRest": 90,
   "bwRest": 90,
   "dbWeight": null,
-  "weightNote": null
+  "weightNote": null,
+  "dbPattern": "legcurl",
+  "bwPattern": "legcurl"
  },
  "einbeiniger-sliding-leg-curl": {
   "group": "Beinbeuger",
@@ -41,7 +47,9 @@
   "dbRest": 90,
   "bwRest": 90,
   "dbWeight": null,
-  "weightNote": null
+  "weightNote": null,
+  "dbPattern": "legcurl",
+  "bwPattern": "legcurl"
  },
  "hip-thrust": {
   "group": "Gesäß",
@@ -52,7 +60,9 @@
   "dbRest": 120,
   "bwRest": 90,
   "dbWeight": 20,
-  "weightNote": "auf der Hüfte"
+  "weightNote": "auf der Hüfte",
+  "dbPattern": "thrust",
+  "bwPattern": "thrust"
  },
  "gewichtete-liegestuetze": {
   "group": "Brust",
@@ -63,7 +73,9 @@
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 10,
-  "weightNote": "Zusatzgewicht"
+  "weightNote": "Zusatzgewicht",
+  "dbPattern": "pushup",
+  "bwPattern": "pushup"
  },
  "fuesse-erhoehte-liegestuetze": {
   "group": "Brust (oben)",
@@ -74,7 +86,9 @@
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": null,
-  "weightNote": null
+  "weightNote": null,
+  "dbPattern": "pushup",
+  "bwPattern": "pushup"
  },
  "floor-press": {
   "group": "Brust/Trizeps",
@@ -85,7 +99,9 @@
   "dbRest": 120,
   "bwRest": 90,
   "dbWeight": 14,
-  "weightNote": "je Hand"
+  "weightNote": "je Hand",
+  "dbPattern": "press",
+  "bwPattern": "pushup"
  },
  "einarmiges-kh-rudern": {
   "group": "Rücken",
@@ -96,7 +112,9 @@
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 16,
-  "weightNote": "je Hand"
+  "weightNote": "je Hand",
+  "dbPattern": "row",
+  "bwPattern": "row"
  },
  "chin-ups": {
   "group": "Rücken/Bizeps",
@@ -107,7 +125,9 @@
   "dbRest": 150,
   "bwRest": 150,
   "dbWeight": null,
-  "weightNote": null
+  "weightNote": null,
+  "dbPattern": "pullup",
+  "bwPattern": "pullup"
  },
  "reverse-fly": {
   "group": "Schulter (hinten)",
@@ -118,7 +138,9 @@
   "dbRest": 60,
   "bwRest": 60,
   "dbWeight": 5,
-  "weightNote": "je Hand"
+  "weightNote": "je Hand",
+  "dbPattern": "reversefly",
+  "bwPattern": "reversefly"
  },
  "sitzendes-seitheben": {
   "group": "Schulter",
@@ -129,7 +151,9 @@
   "dbRest": 60,
   "bwRest": 120,
   "dbWeight": 6,
-  "weightNote": "je Hand"
+  "weightNote": "je Hand",
+  "dbPattern": "lateral",
+  "bwPattern": "pike"
  },
  "liegende-trizepsstrecker": {
   "group": "Trizeps",
@@ -140,7 +164,9 @@
   "dbRest": 75,
   "bwRest": 75,
   "dbWeight": 8,
-  "weightNote": "je Hand"
+  "weightNote": "je Hand",
+  "dbPattern": "triceps",
+  "bwPattern": "pike"
  },
  "sz-curls": {
   "group": "Bizeps",
@@ -151,7 +177,9 @@
   "dbRest": 75,
   "bwRest": 120,
   "dbWeight": 15,
-  "weightNote": "Stange gesamt"
+  "weightNote": "Stange gesamt",
+  "dbPattern": "curl",
+  "bwPattern": "pullup"
  },
  "gewichtete-crunches": {
   "group": "Bauch",
@@ -162,7 +190,9 @@
   "dbRest": 45,
   "bwRest": 45,
   "dbWeight": 5,
-  "weightNote": "Zusatzgewicht"
+  "weightNote": "Zusatzgewicht",
+  "dbPattern": "crunch",
+  "bwPattern": "crunch"
  },
  "einbeiniges-stehendes-wadenheben": {
   "group": "Waden",
@@ -173,7 +203,9 @@
   "dbRest": 60,
   "bwRest": 60,
   "dbWeight": 12,
-  "weightNote": "eine Hantel"
+  "weightNote": "eine Hantel",
+  "dbPattern": "calf",
+  "bwPattern": "calf"
  },
  "wadenheben-gebeugtes-knie": {
   "group": "Waden (Soleus)",
@@ -184,6 +216,8 @@
   "dbRest": 60,
   "bwRest": 60,
   "dbWeight": 12,
-  "weightNote": "eine Hantel"
+  "weightNote": "eine Hantel",
+  "dbPattern": "calf",
+  "bwPattern": "calf"
  }
 }

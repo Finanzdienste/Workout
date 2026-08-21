@@ -11,14 +11,16 @@ export const EXERCISES = [
       "reps": "8–12",
       "equip": "Kurzhantel",
       "cue": "Hantel senkrecht vor der Brust halten, Ellenbogen zwischen den Knien führen. Tief absitzen, Rumpf aufrecht, Fersen am Boden.",
-      "rest": 150
+      "rest": 150,
+      "pattern": "squat"
     },
     "bw": {
       "name": "1½-Wdh. Bodyweight Squat",
       "reps": "12–25",
       "equip": "Ohne Gerät",
       "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch. Das zählt als EINE Wiederholung. Tempo bewusst langsam.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "squat"
     }
   },
   {
@@ -31,14 +33,16 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Slider/Handtuch",
       "cue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen.",
-      "rest": 90
+      "rest": 90,
+      "pattern": "legcurl"
     },
     "bw": {
       "name": "Sliding Leg Curl",
       "reps": "8–15",
       "equip": "Slider/Handtuch",
       "cue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s).",
-      "rest": 90
+      "rest": 90,
+      "pattern": "legcurl"
     }
   },
   {
@@ -51,14 +55,16 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Zusatzgewicht",
       "cue": "Scheibe/Rucksack auf dem oberen Rücken. Körper bleibt eine Linie, Ellenbogen ca. 45°.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "pushup"
     },
     "bw": {
       "name": "Langsame Liegestütze (3 s ablassen)",
       "reps": "8–20",
       "equip": "Ohne Gerät",
       "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "pushup"
     }
   },
   {
@@ -71,14 +77,16 @@ export const EXERCISES = [
       "reps": "5–10",
       "equip": "Klimmzugstange",
       "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen.",
-      "rest": 150
+      "rest": 150,
+      "pattern": "pullup"
     },
     "bw": {
       "name": "Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange",
       "cue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen.",
-      "rest": 150
+      "rest": 150,
+      "pattern": "pullup"
     }
   },
   {
@@ -91,14 +99,16 @@ export const EXERCISES = [
       "reps": "12–20",
       "equip": "Kurzhanteln",
       "cue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
-      "rest": 60
+      "rest": 60,
+      "pattern": "lateral"
     },
     "bw": {
       "name": "Pike Push-ups",
       "reps": "6–15",
       "equip": "Ohne Gerät",
       "cue": "Pike Push-ups: Hüfte hoch, umgedrehtes V, Scheitel Richtung Boden senken. Füße erhöhen macht es schwerer.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "pike"
     }
   },
   {
@@ -111,14 +121,16 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Kurzhanteln/SZ",
       "cue": "Rücken am Boden/Bank, Oberarme fixiert. Nur im Ellenbogen beugen, Gewicht Richtung Stirn senken.",
-      "rest": 75
+      "rest": 75,
+      "pattern": "triceps"
     },
     "bw": {
       "name": "Bodyweight Trizeps Extensions an niedriger Stange",
       "reps": "8–15",
       "equip": "Niedrige Stange",
       "cue": "Hände auf einer niedrigen Stange, Körper schräg. Ellenbogen beugen bis der Kopf unter die Stange geht, dann strecken. Steilerer Winkel = leichter.",
-      "rest": 75
+      "rest": 75,
+      "pattern": "pike"
     }
   },
   {
@@ -131,14 +143,16 @@ export const EXERCISES = [
       "reps": "10–20 je Bein",
       "equip": "Kurzhantel",
       "cue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten.",
-      "rest": 60
+      "rest": 60,
+      "pattern": "calf"
     },
     "bw": {
       "name": "Einbeiniges Wadenheben",
       "reps": "15–30 je Bein",
       "equip": "Ohne Gerät",
       "cue": "Ohne Gewicht, dafür deutlich mehr Wiederholungen. Volle Dehnung unten, 1 s Pause oben – bis es wirklich brennt.",
-      "rest": 60
+      "rest": 60,
+      "pattern": "calf"
     }
   },
   {
@@ -151,14 +165,16 @@ export const EXERCISES = [
       "reps": "12–20",
       "equip": "Kurzhantel",
       "cue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
-      "rest": 60
+      "rest": 60,
+      "pattern": "calf"
     },
     "bw": {
       "name": "Wadenheben mit gebeugtem Knie",
       "reps": "15–30",
       "equip": "Ohne Gerät",
       "cue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
-      "rest": 60
+      "rest": 60,
+      "pattern": "calf"
     }
   },
   {
@@ -171,14 +187,16 @@ export const EXERCISES = [
       "reps": "8–12",
       "equip": "Kurzhantel + Erhöhung",
       "cue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
-      "rest": 150
+      "rest": 150,
+      "pattern": "squat"
     },
     "bw": {
       "name": "Fersenerhöhter 1½-Wdh. Bodyweight Squat",
       "reps": "12–25",
       "equip": "Erhöhung (Buch/Keil)",
       "cue": "Fersen erhöht, gleiche 1½-Technik. Betont den vorderen Oberschenkel deutlich stärker.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "squat"
     }
   },
   {
@@ -191,14 +209,16 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "SZ-Stange",
       "cue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung.",
-      "rest": 75
+      "rest": 75,
+      "pattern": "curl"
     },
     "bw": {
       "name": "Enge supinierte Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange",
       "cue": "Enge supinierte Chin-ups: Untergriff, Hände dicht beieinander. Bewusst über den Bizeps ziehen, langsam ablassen.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "pullup"
     }
   },
   {
@@ -211,14 +231,16 @@ export const EXERCISES = [
       "reps": "10–20",
       "equip": "Zusatzgewicht",
       "cue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
-      "rest": 45
+      "rest": 45,
+      "pattern": "crunch"
     },
     "bw": {
       "name": "Crunches",
       "reps": "15–30",
       "equip": "Ohne Gerät",
       "cue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer.",
-      "rest": 45
+      "rest": 45,
+      "pattern": "crunch"
     }
   },
   {
@@ -231,14 +253,16 @@ export const EXERCISES = [
       "reps": "6–12 je Bein",
       "equip": "Slider/Handtuch",
       "cue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
-      "rest": 90
+      "rest": 90,
+      "pattern": "legcurl"
     },
     "bw": {
       "name": "Einbeiniger Sliding Leg Curl",
       "reps": "6–12 je Bein",
       "equip": "Slider/Handtuch",
       "cue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück.",
-      "rest": 90
+      "rest": 90,
+      "pattern": "legcurl"
     }
   },
   {
@@ -251,14 +275,16 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Erhöhung",
       "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "pushup"
     },
     "bw": {
       "name": "Füße-erhöhte Liegestütze",
       "reps": "8–20",
       "equip": "Erhöhung",
       "cue": "Identisch. Für mehr Reiz Füße höher stellen oder langsamer ablassen.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "pushup"
     }
   },
   {
@@ -271,14 +297,16 @@ export const EXERCISES = [
       "reps": "6–12",
       "equip": "Kurzhanteln",
       "cue": "Rücken am Boden, Oberarme setzen kurz ab. Schont die Schulter, betont den Trizeps-Lockout.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "press"
     },
     "bw": {
       "name": "Liegestütze",
       "reps": "8–20",
       "equip": "Ohne Gerät",
       "cue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press.",
-      "rest": 90
+      "rest": 90,
+      "pattern": "pushup"
     }
   },
   {
@@ -291,14 +319,16 @@ export const EXERCISES = [
       "reps": "8–12 je Seite",
       "equip": "Kurzhantel",
       "cue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "row"
     },
     "bw": {
       "name": "Inverted Rows an sicherer niedriger Stange",
       "reps": "8–15",
       "equip": "Niedrige Stange/Tisch",
       "cue": "Inverted Rows: unter eine stabile niedrige Stange (oder Tischkante) legen, Körper gerade, Brust zur Stange ziehen. Schwerer: Füße erhöhen.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "row"
     }
   },
   {
@@ -311,14 +341,16 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Kurzhantel",
       "cue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
-      "rest": 120
+      "rest": 120,
+      "pattern": "thrust"
     },
     "bw": {
       "name": "Einbeiniger Hip Thrust",
       "reps": "10–20 je Bein",
       "equip": "Ohne Gerät",
       "cue": "Einbeinig ausführen, freies Bein angewinkelt. Oben 1–2 s halten – ersetzt die fehlende Zusatzlast.",
-      "rest": 90
+      "rest": 90,
+      "pattern": "thrust"
     }
   },
   {
@@ -331,14 +363,16 @@ export const EXERCISES = [
       "reps": "12–20",
       "equip": "Kurzhanteln",
       "cue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
-      "rest": 60
+      "rest": 60,
+      "pattern": "reversefly"
     },
     "bw": {
       "name": "Prone Reverse Fly / Reverse Snow Angels",
       "reps": "12–25",
       "equip": "Ohne Gerät",
       "cue": "Bauchlage, Arme angehoben, Reverse Snow Angels: Arme langsam vom Kopf bis zur Hüfte und zurück führen, ohne den Boden zu berühren.",
-      "rest": 60
+      "rest": 60,
+      "pattern": "reversefly"
     }
   }
 ];

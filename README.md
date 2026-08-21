@@ -21,9 +21,13 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 
 Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 
-* **Workout starten.** Ein Knopf beginnt die Einheit, zeigt die Laufzeit im
-  Kopfbereich und schaltet nebenbei den Ton frei – mobile Browser lassen ihn
-  nur nach einer Berührung zu, und so sitzt schon das erste Pausensignal.
+* **Workout starten.** Der Knopf beginnt die Einheit und wechselt in die
+  Fokus-Ansicht: eine Übung groß, mit vorgeführter Bewegung, Gewicht und
+  Satz-Knöpfen. Sind alle Sätze abgehakt, rückt die App von selbst zur
+  nächsten offenen Übung. Über *☰ Übersicht* geht es jederzeit zurück in die
+  Liste, ohne das Training zu beenden. Der Start schaltet nebenbei den Ton frei
+  – mobile Browser lassen ihn nur nach einer Berührung zu, und so sitzt schon
+  das erste Pausensignal.
 * **Ein Griff pro Satz.** Die Satz-Knöpfe liegen außerhalb des aufklappbaren
   Bereichs und sind 48 px hoch – Abhaken ohne Zielen, ohne vorher aufzuklappen.
 * **Keine Wiederholungen eintragen.** Die stehen im Plan.
@@ -33,6 +37,30 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 * **Pausentimer.** Startet automatisch beim Abhaken und meldet sich am Ende mit
   Ton und Vibration. Nach dem letzten Satz einer Übung läuft bewusst keiner.
   Während der Pause um 30 s verlängerbar oder vorzeitig beendbar.
+
+### Bewegungsabläufe
+
+`js/figure.js` zeichnet zu jeder Übung eine Figur und bewegt sie zwischen zwei
+Schlüsselstellungen hin und her. **Bewusst keine Übungs-GIFs:** die sind fast
+durchweg urheberrechtlich geschützt, und eingebettete Fremddateien würden die
+App vom Netz abhängig machen. Selbst gezeichnet bleibt sie klein, offline
+lauffähig und rechtlich unbedenklich.
+
+Eine Stellung ist eine Sammlung benannter Punkte (Kopf, Nacken, Schulter,
+Ellenbogen, Hand, Hüfte, Knie, Knöchel, Zehe) im Feld 100 × 100. Zwischen den
+beiden Stellungen wird mit weicher Umkehr interpoliert; eine gemeinsame
+`requestAnimationFrame`-Schleife bedient alle sichtbaren Figuren und ruht,
+solange der Tab im Hintergrund ist.
+
+Die 14 Muster sind nach **Bewegungsart** benannt, nicht nach Übung – Goblet
+Squat und Bodyweight Squat teilen sich `squat`. Zugeordnet wird je Variante
+über `dbPattern`/`bwPattern` in `tools/exercise-meta.json`, weil sich die
+Varianten unterscheiden können: Seitheben ist `lateral`, sein Bodyweight-
+Äquivalent Pike Push-ups dagegen `pike`.
+
+Gezeichnet wird von der Seite. `mirror: true` schaltet auf Frontansicht mit
+zwei Armen und Beinen – nötig bei Seitheben und Reverse Fly, wo die Seitenansicht
+nichts zeigen würde.
 
 ### Gewichte und Progression
 
@@ -153,6 +181,7 @@ js/data.js              Aus der Excel generiert: 17 Übungen + 57 Einheiten
 js/dates.js             Datums-Hilfsfunktionen
 js/store.js             Zustand und localStorage-Persistenz
 js/app.js               Rendering der fünf Tabs und Event-Handling
+js/figure.js            Animierte Bewegungsabläufe (14 Muster)
 sw.js                   Service Worker für den Offline-Betrieb
 manifest.webmanifest    Installierbar als App auf dem Homescreen
 data/…xlsx              Quelle des Plans

@@ -1,6 +1,7 @@
 import { EXERCISES, PLAN } from './data.js';
 import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural } from './dates.js';
+import { mountFigure, clearFigures } from './figure.js';
 
 /* ------------------------------------------------------------------ *
  * Hilfsfunktionen
@@ -70,7 +71,7 @@ function resolve(item, mode) {
   const v = ex[mode];
   return {
     id: item.id, sets: item.sets, group: ex.group,
-    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest,
+    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern,
     // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
     // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
     weight: mode === 'db' ? ex.weight : null,
@@ -281,11 +282,91 @@ const ui = {
   openEx: new Set(),
   planFilter: 'all',
   exSearch: '',
+  focus: false,   // Fokus-Ansicht statt Übungsliste
+  focusIdx: 0,
 };
 
 /* ------------------------------------------------------------------ *
  * Dashboard
  * ------------------------------------------------------------------ */
+
+/** Index der ersten Übung, in der noch ein Satz offen ist. */
+function firstOpenExercise(n, mode) {
+  const w = workoutByNo(n);
+  const idx = w.ex.findIndex((item) => {
+    const arr = store.peekSets(n, mode, item.id) || [];
+    return arr.slice(0, item.sets).filter((s) => s.done).length < item.sets;
+  });
+  return idx === -1 ? w.ex.length - 1 : idx;
+}
+
+/**
+ * Fokus-Ansicht: eine Übung groß, mit vorgeführter Bewegung. Sobald alle Sätze
+ * stehen, rückt die App von selbst zur nächsten offenen Übung weiter.
+ */
+function renderFocus() {
+  const n = ui.workoutNo;
+  const w = workoutByNo(n);
+  const mode = store.workoutMode(n);
+  const prog = progressOf(n, mode);
+
+  const i = Math.min(ui.focusIdx, w.ex.length - 1);
+  const item = w.ex[i];
+  const it = resolve(item, mode);
+  const sets = store.getSets(n, mode, it.id, it.sets);
+  const doneCount = sets.filter((s) => s.done).length;
+  const kg = it.weight === null ? null : usedWeight(n, mode, it.id);
+  const next = it.weight === null ? null : workingWeight(it.id);
+  const frozen = kg !== null && next !== null && Math.abs(kg - next) > 0.01;
+
+  view.innerHTML = `
+    <div class="focus-top">
+      <button type="button" class="back-link" data-act="focus-list">☰ Übersicht</button>
+      <span class="focus-count">
+        <span id="sessionBadge">⏱ 0:00</span> · Übung ${i + 1} von ${w.ex.length} · ${prog.done}/${prog.total} Sätze
+      </span>
+    </div>
+
+    <div class="focus-fig" id="focusFig" data-pattern="${esc(it.pattern)}" data-weight="${it.weight !== null}"></div>
+
+    <h2 class="focus-name">${esc(it.name)}</h2>
+    <div class="focus-meta">${it.sets} Sätze × ${esc(it.reps)} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
+
+    ${kg === null ? '' : `
+      <div class="ex-weight focus-weight">
+        <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="-2.5" aria-label="2,5 Kilo weniger">−</button>
+        <div class="kg-main">
+          <input type="text" inputmode="decimal" class="kg-val" value="${fmtKg(kg)}"
+                 data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht in Kilo">
+          <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
+        </div>
+        <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="2.5" aria-label="2,5 Kilo mehr">+</button>
+      </div>
+      ${frozen ? `<div class="kg-next focus-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : ''}`}
+
+    <div class="focus-sets">
+      ${sets.map((s, idx) => `
+        <button type="button" class="set-btn focus-set ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
+                aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
+                data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
+    </div>
+
+    <div class="cue focus-cue">${esc(it.cue)}</div>
+
+    <div class="btn-row nav">
+      <button type="button" class="btn btn-ghost" data-act="focus-step" data-d="-1" ${i === 0 ? 'disabled' : ''}>← Zurück</button>
+      <button type="button" class="btn ${doneCount === it.sets ? 'btn-primary' : 'btn-ghost'}"
+              data-act="focus-step" data-d="1" ${i === w.ex.length - 1 ? 'disabled' : ''}>Weiter →</button>
+    </div>
+
+    <div class="btn-row">
+      <button type="button" class="btn btn-danger btn-block" data-act="end-session">Training beenden</button>
+    </div>
+  `;
+
+  const host = document.getElementById('focusFig');
+  if (host) mountFigure(host, it.pattern, it.weight !== null);
+}
 
 function renderDashboard() {
   const n = ui.workoutNo;
@@ -495,6 +576,7 @@ function renderExercises() {
   const cards = list.map((e) => `
     <article class="card lib-item">
       <div class="lib-group">${esc(e.group)}</div>
+      <div class="lib-fig" data-pattern="${esc(e[mode].pattern)}" data-weight="${mode === 'db' && e.weight !== null}"></div>
       <div class="swap">
         <div class="swap-side ${mode === 'db' ? 'active' : ''}">
           <div class="swap-label">🏋️ Hanteln</div>
@@ -526,6 +608,10 @@ function renderExercises() {
       Variante ohne Zusatzlast sinnvoll schwer bleibt.
     </p>
   `;
+
+  view.querySelectorAll('.lib-fig').forEach((host) => {
+    mountFigure(host, host.dataset.pattern, host.dataset.weight === 'true');
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -736,7 +822,11 @@ function renderSettings() {
  * ------------------------------------------------------------------ */
 
 const RENDERERS = {
-  dashboard: renderDashboard,
+  dashboard: () => {
+    const sess = store.getState().session;
+    if (ui.focus && sess && sess.n === ui.workoutNo) renderFocus();
+    else renderDashboard();
+  },
   plan: renderPlan,
   exercises: renderExercises,
   stats: renderStats,
@@ -752,6 +842,7 @@ function render() {
   tabbar.querySelectorAll('.tab').forEach((b) => {
     b.setAttribute('aria-selected', String(b.dataset.tab === ui.tab));
   });
+  clearFigures(); // alte Animationen abmelden, bevor das DOM ersetzt wird
   (RENDERERS[ui.tab] || renderDashboard)();
 }
 
@@ -808,10 +899,21 @@ view.addEventListener('click', (e) => {
       if (!cur && variant.weight !== null) patch.w = fmtKg(usedWeight(n, mode, id));
       else if (cur) patch.w = '';
       store.updateSet(n, mode, id, item.sets, i, patch);
-      render();
 
       const done = !cur;
       const workoutComplete = done && progressOf(n, mode).complete;
+      const exDone = done && i === item.sets - 1
+        && store.getSets(n, mode, id, item.sets).every((s) => s.done);
+
+      // In der Fokus-Ansicht von selbst zur nächsten offenen Übung rücken.
+      if (ui.focus && exDone && !workoutComplete) {
+        const nextIdx = firstOpenExercise(n, mode);
+        if (nextIdx !== ui.focusIdx) {
+          ui.focusIdx = nextIdx;
+          toast(`Weiter: ${resolve(workoutByNo(n).ex[nextIdx], mode).name}`);
+        }
+      }
+      render();
       // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
       // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
       if (done && !workoutComplete && i < item.sets - 1) {
@@ -834,14 +936,25 @@ view.addEventListener('click', (e) => {
     case 'start-session':
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       store.startSession(n);
+      ui.focus = true;
+      ui.focusIdx = firstOpenExercise(n, mode);
       render();
       toast('Los geht’s 💪');
       break;
     case 'end-session':
       store.endSession();
+      ui.focus = false;
       if (store.getState().rest) endRest(false);
       render();
       toast('Training beendet');
+      break;
+    case 'focus-list':
+      ui.focus = false;
+      render();
+      break;
+    case 'focus-step':
+      ui.focusIdx = Math.max(0, Math.min(workoutByNo(n).ex.length - 1, ui.focusIdx + Number(t.dataset.d)));
+      render();
       break;
     case 'complete-workout':
       store.completeWorkout(n, mode, workoutByNo(n).ex);

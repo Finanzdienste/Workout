@@ -584,6 +584,64 @@ button { font: inherit; color: inherit; }
 .tab[aria-selected="true"] { color: var(--accent); }
 .tab[aria-selected="true"] .ti { filter: none; }
 
+/* ---------- Bewegungsablauf ---------- */
+.fig { display: block; width: 100%; height: 100%; }
+.fig-limb, .fig-torso {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fig-torso { stroke-width: 7; }
+.fig-limb { stroke-width: 5; opacity: .85; }
+.fig-foot { stroke-width: 4; }
+.fig-head { fill: var(--accent); }
+.fig-weight { fill: var(--text); }
+.fig-ground, .fig-bar {
+  stroke: var(--line);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.focus-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.focus-count { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+
+.focus-fig {
+  height: 240px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px;
+  margin-bottom: 14px;
+}
+.focus-name {
+  margin: 0 0 3px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+  line-height: 1.15;
+}
+.focus-meta { font-size: 13.5px; color: var(--muted); margin-bottom: 14px; }
+.focus-weight { padding: 0 0 10px; }
+.focus-next { margin: -4px 0 10px; }
+.focus-sets { display: flex; gap: 10px; margin-bottom: 14px; }
+.focus-set { height: 68px; font-size: 22px; }
+.focus-cue { margin-bottom: 4px; }
+
+.lib-fig {
+  height: 150px;
+  background: var(--bg-elev-2);
+  border-radius: 11px;
+  padding: 8px;
+  margin-top: 10px;
+}
+
 /* ---------- Pausentimer ---------- */
 .rest-bar {
   position: fixed;
