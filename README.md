@@ -315,12 +315,18 @@ drei Tage, drei Einheiten decken also gut sieben Tage ab.
 | Nacken | 1,5 | **10,0000** | 9,6–10,2 |
 | hintere Schulter | **0,5** | **10,0000** | 9,1–10,1 |
 | Bizeps | 7,3 | **10,0000** | 9,3–10,3 |
-| Bauch | 7,8 | **10,0000** | 9,5–10,4 |
-| Schultern, Beinbeuger, Trizeps | | **10,0000** | 9,7–10,8 |
-| Gesäß | | **10,0000** | 9,5–11,0 |
+| Bauch | 7,8 | **10,0000** | 9,4–10,7 |
+| Beinbeuger, Gesäß, Schultern, Trizeps | | **10,0000** | 9,2–10,8 |
 
-**Höchstens drei Sätze je Übung und Einheit**, mindestens zwei. Eine Einheit
-hat damit 10 oder 11 Übungen und 24–26 Sätze.
+In keiner der 20 Wochen liegt eine Gruppe einen ganzen Satz daneben; 0,9 ist
+das Schlimmste, was vorkommt.
+
+**Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, und **so wenige
+verschiedene Übungen je Einheit wie möglich**: 9 in 14 Einheiten, 10 in 43,
+11 in 3. Weniger geht nicht – bei 24 bis 26 Sätzen und höchstens drei je Übung
+sind neun Zeilen die Untergrenze, und die ist nur erreichbar, wenn die Satzzahl
+der Übung in dieser Woche durch drei teilbar ist. Sechs Sätze sind zwei
+Auftritte à drei, sieben schon drei Auftritte (3+2+2).
 
 **Die Zahl der Wochen muss gerade sein.** Das ist keine Feinheit, sondern der
 Grund, warum der Plan von 57 auf 60 Einheiten gewachsen ist. Der Rücken kommt
@@ -347,11 +353,15 @@ Plan endet jetzt am 12.01.2027 statt am 04.01.
    früh ab, dass alle Lösungen in unter einer Sekunde dastehen. Zufallssuche
    findet hier übrigens *nichts* – die exakten Punkte liegen zu dünn.
 2. **Verteilung auf die Wochen.** Die Summen stehen fest, verschoben werden nur
-   Sätze zwischen Wochen. Der Schnitt bleibt damit zwangsläufig exakt; verglichen
-   werden die Verteilungen an ihrer vollen Liste aller Abweichungen, absteigend
-   sortiert – erst die größte, bei Gleichstand die nächste.
-3. **Aufteilung auf die Einheiten.** Zwei oder drei Sätze je Auftritt, ein bis
-   drei Auftritte je Woche, alle drei Einheiten etwa gleich lang.
+   Sätze zwischen Wochen. Der Schnitt bleibt damit zwangsläufig exakt. Bewertet
+   wird in drei Stufen, streng nacheinander: kein ganzer Satz Abweichung, dann
+   möglichst wenige Auftritte, dann die kleinen Abweichungen in vierter Potenz.
+   Ein zusätzlicher Auftritt und eine Abweichung von gut 0,85 Sätzen stehen dabei
+   etwa gleich hoch – für eine Übung weniger in der Einheit darf eine Gruppe ein
+   paar Zehntel danebenliegen, für einen halben Satz aber nicht.
+3. **Aufteilung auf die Einheiten.** Zwei oder drei Sätze je Auftritt, immer die
+   kürzeste Zerlegung, alle drei Einheiten etwa gleich lang und keine die
+   längste.
 
 Gerechnet wird durchweg in Zwanzigsteln eines Satzes – alle Anteile sind
 Vielfache von 0,05, damit ist „exakt" wirklich exakt und nicht bis auf
@@ -360,28 +370,33 @@ Rundungsfehler.
 **Was die Exaktheit kostet.** Die Gleichungen lassen weniger Spielraum, als man
 denkt, und drei Dinge fallen dabei ab:
 
-- **Der Hip Thrust muss rein, aber nur mit 10 Sätzen im ganzen Plan.** Ohne ihn
+- **Der Hip Thrust muss rein, aber nur mit 8 Sätzen im ganzen Plan.** Ohne ihn
   ist das Gesäß nicht auf 10 zu bringen (Kniebeugen und Beinbeuger liefern
   zusammen zu wenig), mit mehr als einem halben Satz pro Woche liegt es
-  darüber. In den fünf Wochen, in denen er auftaucht, geht das Gesäß auf 11,0 –
-  die schlechteste Woche im ganzen Plan und rechnerisch nicht zu unterbieten.
+  darüber. Er steht deshalb in vier der 60 Einheiten; in diesen Wochen geht das
+  Gesäß auf 10,8.
 - **Rudern 8 Sätze pro Woche.** Das Seitheben ist über den Nacken an Rudern
   gekoppelt, und was dann noch an Schulter fehlt, müssen die Brustübungen
   liefern – daraus folgt zwingend Rudern ≥ 7,5 pro Woche. Ein ausgeglicheneres
-  Zug-Verhältnis gibt es in keiner der sieben Lösungen.
+  Zug-Verhältnis gibt es in keiner der sieben Lösungen. Rudern, Goblet Squat
+  und Floor Press stehen deshalb in jeder der 60 Einheiten.
 - **Die füße-erhöhten Liegestütze fallen aus dem Kalender** (in der
   Übungsübersicht bleiben sie). Die Alternative wäre gewesen, Rudern auf 9
   Sätze pro Woche zu setzen und die Chin-ups auf einen – und weil ein Auftritt
   mindestens zwei Sätze hat, wäre der Rücken dann in *jeder* Woche bei 9 oder
   11 gewesen, nie bei 10. Eine dritte Druckvariante ist das nicht wert.
 
-Sonst gilt: von allen exakten Lösungen gewinnt die, die sich am engsten auf die
-Wochen verteilen lässt; bei Gleichstand die, bei der keine Übung herausfällt,
-und dann die mit der geringsten Streuung.
+Sonst gilt: von allen exakten Lösungen gewinnt die, mit der keine Gruppe einen
+ganzen Satz danebenliegt; dann die, bei der keine Übung unter einen Satz pro
+Woche rutscht (vier Sätze im ganzen Plan sind schlechter als gar keine); dann
+die mit den kürzesten Einheiten. Für die aussichtsreichsten fünfzig wird das
+kurz durchgerechnet, statt es zu schätzen.
 
-**Warum ein ganzer Satz Abweichung gesondert zählt.** Beim Verteilen auf die
-Wochen wiegt jede Abweichung in vierter Potenz, und wer einen *ganzen* Satz
-danebenliegt, bekommt zusätzlich einen festen Zuschlag. Ohne den tauscht das
+**Zwei Stellen, an denen das Verfahren sonst danebengreift.** Die
+Startverteilung muss so breit wie möglich streuen: staffelt sie 40 Sätze auf
+zehn Wochen à vier statt zwanzig à zwei, liegt der Rücken jede zweite Woche um
+einen ganzen Satz daneben, und der Abstieg findet von dort nicht zurück. Und
+ein *ganzer* Satz Abweichung braucht einen eigenen Zuschlag, sonst tauscht das
 Verfahren bereitwillig einen ganzen Satz Rücken gegen ein paar Zehntel
 anderswo – in der App sieht man den ganzen Satz, die Zehntel nicht.
 
