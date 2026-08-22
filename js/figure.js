@@ -146,7 +146,7 @@ export const PATTERNS = {
   },
   legcurl: {
     // Rücken am Boden, Hüfte oben, Fersen ziehen heran
-    label: 'Beinbeuger', lie: 'supine',
+    label: 'Beinbeuger', lie: 'supine', view: [20, -30],
     poses: [
       // arm.p 0: die Arme liegen längs am Körper. Mit Beugung schwebten sie
       // sichtbar über dem Rumpf.
@@ -156,7 +156,7 @@ export const PATTERNS = {
   },
   thrust: {
     // Schultern am Boden, Hüfte hoch bis Rumpf und Oberschenkel eine Linie sind
-    label: 'Hüftstreckung', lie: 'supine',
+    label: 'Hüftstreckung', lie: 'supine', view: [20, -30],
     poses: [
       { tilt: 8, arm: A(0, 17, 8), leg: L(40, 8, 102) },
       { tilt: 32, arm: A(0, 17, 8), leg: L(2, 8, 98) },
@@ -172,7 +172,7 @@ export const PATTERNS = {
     ],
   },
   press: {
-    label: 'Drücken im Liegen', lie: 'supine',
+    label: 'Drücken im Liegen', lie: 'supine', view: [20, -30],
     poses: [
       { arm: A(72, 42, 92), leg: L(56, 9, 100) },
       { arm: A(90, 10, 4), leg: L(56, 9, 100) },
@@ -222,7 +222,7 @@ export const PATTERNS = {
   },
   triceps: {
     // Oberarm bleibt senkrecht stehen, nur der Ellenbogen arbeitet
-    label: 'Trizeps-Strecken', lie: 'supine',
+    label: 'Trizeps-Strecken', lie: 'supine', view: [20, -30],
     poses: [
       { arm: A(84, 8, 112), leg: L(56, 9, 100) },
       { arm: A(90, 8, 4), leg: L(56, 9, 100) },
@@ -246,7 +246,7 @@ export const PATTERNS = {
   },
   crunch: {
     // Arme halten die Scheibe vor der Brust, der Rumpf rollt ein Stück auf
-    label: 'Crunch', lie: 'supine',
+    label: 'Crunch', lie: 'supine', view: [20, -30],
     poses: [
       // Unterarme längs am Rumpf statt quer darüber: eng gefaltet verdeckten
       // sie die Scheibe und alles verschmolz zu einem Knäuel.
@@ -256,14 +256,14 @@ export const PATTERNS = {
   },
   legcurl1: {
     // Einbeinig: das freie Bein bleibt angewinkelt in der Luft
-    label: 'Beinbeuger einbeinig', lie: 'supine',
+    label: 'Beinbeuger einbeinig', lie: 'supine', view: [20, -30],
     poses: [
       { tilt: 20, arm: A(0, 17, 6), legR: L(4, 6, 12), legL: L(62, 10, 92) },
       { tilt: 30, arm: A(0, 17, 6), legR: L(18, 6, 94), legL: L(62, 10, 92) },
     ],
   },
   thrust1: {
-    label: 'Hüftstreckung einbeinig', lie: 'supine',
+    label: 'Hüftstreckung einbeinig', lie: 'supine', view: [20, -30],
     poses: [
       { tilt: 8, arm: A(0, 17, 8), legR: L(40, 8, 102), legL: L(96, 12, 94) },
       { tilt: 32, arm: A(0, 17, 8), legR: L(2, 8, 98), legL: L(78, 12, 92) },
@@ -384,8 +384,12 @@ export function mountFigure(host, pattern, weight, equip) {
   hint.textContent = '↕↔ ziehen zum Drehen';
   host.appendChild(hint);
 
-  let yaw = 25;          // Dreiviertelansicht steht der Figur am besten
-  let pitch = 8;         // leicht von oben
+  // Dreiviertelansicht steht der stehenden Figur am besten. Eine liegende ist
+  // von der Seite dagegen zwangsläufig ein Strich – Rumpf, Arme und Beine
+  // liegen in einer Linie. Dort schaut die Kamera von schräg oben auf den
+  // Körper, dann trennen sich die Glieder wieder.
+  let yaw = spec.view ? spec.view[0] : 25;
+  let pitch = spec.view ? spec.view[1] : 8;
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
@@ -705,8 +709,11 @@ export function mountFigure(host, pattern, weight, equip) {
       for (let a = 0; a < 360; a += 15) {
         ring.push(P([fit.mid[0] + Math.cos(rad(a)) * 0.62, gy, fit.mid[2] + Math.sin(rad(a)) * 0.34]));
       }
+      // Immer ganz nach hinten. Sortiert man den Boden wie ein Körperteil ein,
+      // legt er sich beim Blick von oben über das hintere Bein und färbt es
+      // durch seine halbe Deckkraft braun.
       parts.push({
-        z: Math.min(...ring.map((q) => q.z)) - 0.02,
+        z: -Infinity,
         node: el('polygon', {
           points: ring.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
           class: 'fig-ground',
