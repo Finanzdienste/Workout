@@ -47,14 +47,19 @@ orangen Fleck. Die Arme stehen leicht ab, sonst fallen Schulter und Brust
 optisch zusammen. Kopf, Unterarme, Hände und Füße sind kein Trainingsziel und
 bleiben neutral.
 
-Welche Region eine Übung trifft, steht als `dbMuscles`/`bwMuscles` in
-`tools/exercise-meta.json` – je Variante getrennt, weil sie sich unterscheiden
-können: Seitheben trifft nur die Schulter, sein Bodyweight-Äquivalent Pike
-Push-ups zusätzlich den Trizeps.
+Welche Region eine Übung trifft, steht als `dbShares`/`bwShares` in
+`tools/exercise-meta.json` – **als Anteil, nicht als Liste**: 1,0 heißt „dafür
+ist die Übung da", 0,55 „arbeitet deutlich mit". Je Variante getrennt, weil sie
+sich unterscheiden: Seitheben trifft nur die Schulter, sein
+Bodyweight-Äquivalent Pike Push-ups zusätzlich den Trizeps.
 
-**Zwei Stufen statt einer.** In `dbMuscles`/`bwMuscles` steht der zuerst
-beanspruchte Muskel vorn. Was eine Übung zuerst trifft, leuchtet voll; was nur
-mitarbeitet, bleibt gedämpft. Der Plan ist Ganzkörpertraining – wäre alles
+Aus denselben Anteilen kommt beides – die Hervorhebung auf der Karte (der
+größte Anteil zuerst) und die Volumenrechnung in `tools/build-plan.py`. Eine
+Quelle, damit Karte und Plan nicht auseinanderlaufen können. Die Werte sind
+Schätzungen aus gängiger Trainingslehre, keine Messwerte.
+
+**Zwei Stufen statt einer.** Was eine Übung mit Anteil 1,0 trifft, leuchtet
+voll; was nur mitarbeitet, bleibt gedämpft. Der Plan ist Ganzkörpertraining – wäre alles
 gleich hell, würde die Karte an den meisten Tagen gar nichts mehr aussagen.
 Die Marken darunter sind entsprechend sortiert, und das `aria-label` nennt
 beide Stufen getrennt.
@@ -296,6 +301,41 @@ vollständige Reihe steht im `aria-label`.
 Volumen = Gewicht × geplante Wiederholungen × abgehakte Sätze. Nur
 Hantel-Einheiten tragen Kilo bei; Bodyweight-Einheiten haben kein Gewicht, das
 sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
+
+## Wochenvolumen je Muskelgruppe
+
+Ziel sind **10 Sätze pro Woche und Muskelgruppe**, Anteile eingerechnet. Der
+Plan aus der Excel zog die Übungen praktisch zufällig – 55 verschiedene
+Zusammenstellungen in 57 Einheiten – und traf damit die großen Gruppen, aber
+nicht die kleinen:
+
+| | vorher | jetzt |
+| --- | --- | --- |
+| hintere Schulter | **0,5** | 9,8 |
+| Nacken | 1,5 | 9,4 |
+| Bizeps | 7,3 | 9,8 |
+| Bauch | 7,8 | 9,8 |
+| Waden | **10,2** | 9,8 |
+| übrige | 9,7–11,1 | 9,5–10,6 |
+
+Reverse Fly stand 4× im ganzen Plan, Floor Press 2×, Hip Thrust 7× – diese
+Übungen waren zwar da, trugen aber nichts bei. Umgekehrt kamen die Waden mit
+zwei Übungen auf 10 Sätze.
+
+**Die Abwechslung bleibt vollständig erhalten:** weiterhin 57 verschiedene
+Zusammenstellungen bei 57 Einheiten. Geändert hat sich nur, *wie oft* welche
+Übung gezogen wird. `tools/build-plan.py` rechnet das aus und schreibt
+`tools/plan.json`; `tools/build-data.py` übernimmt daraus die Auswahl je Tag.
+Termine, Namen, Wiederholungen und die Bodyweight-Äquivalente kommen
+unverändert aus der Excel. `tools/plan.json` löschen und neu generieren stellt
+den Originalplan wieder her.
+
+Die Einheiten sind dafür unterschiedlich lang – 33× acht Übungen, 24× neun –,
+weil die Summe sonst nicht aufgeht. Das sind 73 statt 69 Sätze pro Woche.
+
+Im Bodyweight-Modus liegen Rücken (12,9) und Trizeps (12,6) höher: die
+Äquivalente von SZ-Curls und Seitheben sind enge Chin-ups und Pike Push-ups,
+die beide zusätzlich mitarbeiten. Nach unten weicht dort nichts ab.
 
 ## Sicherung
 

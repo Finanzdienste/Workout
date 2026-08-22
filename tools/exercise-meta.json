@@ -10,17 +10,19 @@
   "dbWeight": 20,
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
+  "dbShares": {
+   "quads": 1.0,
+   "glutes": 0.55,
+   "abs": 0.35,
+   "hamstrings": 0.15
+  },
   "bwPattern": "squatbw",
-  "dbMuscles": [
-   "quads",
-   "glutes",
-   "abs"
-  ],
-  "bwMuscles": [
-   "quads",
-   "glutes",
-   "abs"
-  ],
+  "bwShares": {
+   "quads": 1.0,
+   "glutes": 0.55,
+   "abs": 0.35,
+   "hamstrings": 0.15
+  },
   "equip": "goblet"
  },
  "fersenerhoehter-goblet-squat": {
@@ -34,15 +36,17 @@
   "dbWeight": 20,
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
+  "dbShares": {
+   "quads": 1.0,
+   "glutes": 0.45,
+   "abs": 0.3
+  },
   "bwPattern": "squatbw",
-  "dbMuscles": [
-   "quads",
-   "glutes"
-  ],
-  "bwMuscles": [
-   "quads",
-   "glutes"
-  ],
+  "bwShares": {
+   "quads": 1.0,
+   "glutes": 0.45,
+   "abs": 0.3
+  },
   "equip": "goblet"
  },
  "sliding-leg-curl": {
@@ -56,15 +60,17 @@
   "dbWeight": null,
   "weightNote": null,
   "dbPattern": "legcurl",
+  "dbShares": {
+   "hamstrings": 1.0,
+   "glutes": 0.5,
+   "abs": 0.3
+  },
   "bwPattern": "legcurl",
-  "dbMuscles": [
-   "hamstrings",
-   "glutes"
-  ],
-  "bwMuscles": [
-   "hamstrings",
-   "glutes"
-  ],
+  "bwShares": {
+   "hamstrings": 1.0,
+   "glutes": 0.5,
+   "abs": 0.3
+  },
   "equip": null
  },
  "einbeiniger-sliding-leg-curl": {
@@ -78,15 +84,17 @@
   "dbWeight": null,
   "weightNote": null,
   "dbPattern": "legcurl1",
+  "dbShares": {
+   "hamstrings": 1.0,
+   "glutes": 0.5,
+   "abs": 0.35
+  },
   "bwPattern": "legcurl1",
-  "dbMuscles": [
-   "hamstrings",
-   "glutes"
-  ],
-  "bwMuscles": [
-   "hamstrings",
-   "glutes"
-  ],
+  "bwShares": {
+   "hamstrings": 1.0,
+   "glutes": 0.5,
+   "abs": 0.35
+  },
   "equip": null
  },
  "hip-thrust": {
@@ -100,15 +108,15 @@
   "dbWeight": 20,
   "weightNote": "auf der Hüfte",
   "dbPattern": "thrust",
+  "dbShares": {
+   "glutes": 1.0,
+   "hamstrings": 0.5
+  },
   "bwPattern": "thrust1",
-  "dbMuscles": [
-   "glutes",
-   "hamstrings"
-  ],
-  "bwMuscles": [
-   "glutes",
-   "hamstrings"
-  ],
+  "bwShares": {
+   "glutes": 1.0,
+   "hamstrings": 0.5
+  },
   "equip": "hipbar"
  },
  "gewichtete-liegestuetze": {
@@ -122,17 +130,17 @@
   "dbWeight": 10,
   "weightNote": "Zusatzgewicht",
   "dbPattern": "pushup",
+  "dbShares": {
+   "chest": 1.0,
+   "triceps": 0.6,
+   "delts": 0.45
+  },
   "bwPattern": "pushup",
-  "dbMuscles": [
-   "chest",
-   "triceps",
-   "delts"
-  ],
-  "bwMuscles": [
-   "chest",
-   "triceps",
-   "delts"
-  ],
+  "bwShares": {
+   "chest": 1.0,
+   "triceps": 0.6,
+   "delts": 0.45
+  },
   "equip": "backplate"
  },
  "fuesse-erhoehte-liegestuetze": {
@@ -146,17 +154,17 @@
   "dbWeight": null,
   "weightNote": null,
   "dbPattern": "pushupfeet",
+  "dbShares": {
+   "chest": 1.0,
+   "delts": 0.6,
+   "triceps": 0.55
+  },
   "bwPattern": "pushupfeet",
-  "dbMuscles": [
-   "chest",
-   "delts",
-   "triceps"
-  ],
-  "bwMuscles": [
-   "chest",
-   "delts",
-   "triceps"
-  ],
+  "bwShares": {
+   "chest": 1.0,
+   "delts": 0.6,
+   "triceps": 0.55
+  },
   "equip": null
  },
  "floor-press": {
@@ -170,16 +178,17 @@
   "dbWeight": 14,
   "weightNote": "je Hand",
   "dbPattern": "press",
+  "dbShares": {
+   "chest": 1.0,
+   "triceps": 0.7,
+   "delts": 0.35
+  },
   "bwPattern": "pushup",
-  "dbMuscles": [
-   "chest",
-   "triceps"
-  ],
-  "bwMuscles": [
-   "chest",
-   "triceps",
-   "delts"
-  ],
+  "bwShares": {
+   "chest": 1.0,
+   "triceps": 0.6,
+   "delts": 0.45
+  },
   "equip": "dumbbells"
  },
  "einarmiges-kh-rudern": {
@@ -193,17 +202,19 @@
   "dbWeight": 16,
   "weightNote": "je Hand",
   "dbPattern": "row",
+  "dbShares": {
+   "lats": 1.0,
+   "biceps": 0.5,
+   "traps": 0.5,
+   "rearDelts": 0.35
+  },
   "bwPattern": "invrow",
-  "dbMuscles": [
-   "lats",
-   "biceps",
-   "traps"
-  ],
-  "bwMuscles": [
-   "lats",
-   "biceps",
-   "traps"
-  ],
+  "bwShares": {
+   "lats": 1.0,
+   "biceps": 0.5,
+   "traps": 0.5,
+   "rearDelts": 0.35
+  },
   "equip": "onehand"
  },
  "chin-ups": {
@@ -217,15 +228,19 @@
   "dbWeight": null,
   "weightNote": null,
   "dbPattern": "pullup",
+  "dbShares": {
+   "lats": 1.0,
+   "biceps": 0.65,
+   "traps": 0.3,
+   "rearDelts": 0.15
+  },
   "bwPattern": "pullup",
-  "dbMuscles": [
-   "lats",
-   "biceps"
-  ],
-  "bwMuscles": [
-   "lats",
-   "biceps"
-  ],
+  "bwShares": {
+   "lats": 1.0,
+   "biceps": 0.65,
+   "traps": 0.3,
+   "rearDelts": 0.15
+  },
   "equip": null
  },
  "reverse-fly": {
@@ -239,15 +254,15 @@
   "dbWeight": 5,
   "weightNote": "je Hand",
   "dbPattern": "reversefly",
+  "dbShares": {
+   "rearDelts": 1.0,
+   "traps": 0.6
+  },
   "bwPattern": "snowangel",
-  "dbMuscles": [
-   "rearDelts",
-   "traps"
-  ],
-  "bwMuscles": [
-   "rearDelts",
-   "traps"
-  ],
+  "bwShares": {
+   "rearDelts": 1.0,
+   "traps": 0.6
+  },
   "equip": "dumbbells"
  },
  "sitzendes-seitheben": {
@@ -261,14 +276,16 @@
   "dbWeight": 6,
   "weightNote": "je Hand",
   "dbPattern": "lateral",
+  "dbShares": {
+   "delts": 1.0,
+   "traps": 0.2
+  },
   "bwPattern": "pike",
-  "dbMuscles": [
-   "delts"
-  ],
-  "bwMuscles": [
-   "delts",
-   "triceps"
-  ],
+  "bwShares": {
+   "delts": 1.0,
+   "triceps": 0.6,
+   "traps": 0.2
+  },
   "equip": "dumbbells"
  },
  "liegende-trizepsstrecker": {
@@ -282,13 +299,14 @@
   "dbWeight": 8,
   "weightNote": "je Hand",
   "dbPattern": "triceps",
+  "dbShares": {
+   "triceps": 1.0
+  },
   "bwPattern": "tricepsbar",
-  "dbMuscles": [
-   "triceps"
-  ],
-  "bwMuscles": [
-   "triceps"
-  ],
+  "bwShares": {
+   "triceps": 1.0,
+   "chest": 0.3
+  },
   "equip": "dumbbells"
  },
  "sz-curls": {
@@ -302,14 +320,15 @@
   "dbWeight": 15,
   "weightNote": "Stange gesamt",
   "dbPattern": "curl",
+  "dbShares": {
+   "biceps": 1.0
+  },
   "bwPattern": "pullup",
-  "dbMuscles": [
-   "biceps"
-  ],
-  "bwMuscles": [
-   "biceps",
-   "lats"
-  ],
+  "bwShares": {
+   "biceps": 1.0,
+   "lats": 0.7,
+   "traps": 0.2
+  },
   "equip": "barbell"
  },
  "gewichtete-crunches": {
@@ -323,13 +342,13 @@
   "dbWeight": 5,
   "weightNote": "Zusatzgewicht",
   "dbPattern": "crunch",
+  "dbShares": {
+   "abs": 1.0
+  },
   "bwPattern": "crunch",
-  "dbMuscles": [
-   "abs"
-  ],
-  "bwMuscles": [
-   "abs"
-  ],
+  "bwShares": {
+   "abs": 1.0
+  },
   "equip": "plate"
  },
  "einbeiniges-stehendes-wadenheben": {
@@ -343,13 +362,13 @@
   "dbWeight": 12,
   "weightNote": "eine Hantel",
   "dbPattern": "calf1",
+  "dbShares": {
+   "calves": 1.0
+  },
   "bwPattern": "calf1",
-  "dbMuscles": [
-   "calves"
-  ],
-  "bwMuscles": [
-   "calves"
-  ],
+  "bwShares": {
+   "calves": 1.0
+  },
   "equip": "onehand"
  },
  "wadenheben-gebeugtes-knie": {
@@ -363,13 +382,13 @@
   "dbWeight": 12,
   "weightNote": "eine Hantel",
   "dbPattern": "calfbent",
+  "dbShares": {
+   "calves": 1.0
+  },
   "bwPattern": "calfbent",
-  "dbMuscles": [
-   "calves"
-  ],
-  "bwMuscles": [
-   "calves"
-  ],
+  "bwShares": {
+   "calves": 1.0
+  },
   "equip": "onehand"
  }
 }

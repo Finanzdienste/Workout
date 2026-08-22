@@ -22,6 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 XLSX = ROOT / 'data' / 'Workoutplan_mit_Bodyweight_Equivalent.xlsx'
 META = ROOT / 'tools' / 'exercise-meta.json'
 OUT = ROOT / 'js' / 'data.js'
+PLAN_OVERRIDE = ROOT / 'tools' / 'plan.json'
 
 NS = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
 LINE_RE = re.compile(r'^(\d+)×\s*(.+?)\s*\(([^()]*)\)\s*$')
@@ -61,6 +62,15 @@ def parse_block(text, has_title):
     return out
 
 
+def muscles(shares):
+    """Muskeln nach Anteil, der größte zuerst.
+
+    Die Körperkarte hebt den ersten voll hervor und den Rest gedämpft; damit
+    ergibt sich das direkt aus den Anteilen und kann nicht auseinanderlaufen.
+    """
+    return [m for m, _ in sorted(shares.items(), key=lambda x: -x[1])]
+
+
 def slug(s):
     s = s.replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
     s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode()
@@ -98,15 +108,34 @@ def main():
                     'weightNote': m['weightNote'],
                     'equip': m['equip'],      # Geraet in der Hantel-Variante
                     'db': {'name': db['name'], 'reps': db['reps'], 'equip': m['dbEquip'],
-                           'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'], 'muscles': m['dbMuscles']},
+                           'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],
+                           'shares': m['dbShares'], 'muscles': muscles(m['dbShares'])},
                     'bw': {'name': bw['name'], 'reps': bw['reps'], 'equip': m['bwEquip'],
-                           'cue': m['bwCue'], 'rest': m['bwRest'], 'pattern': m['bwPattern'], 'muscles': m['bwMuscles']},
+                           'cue': m['bwCue'], 'rest': m['bwRest'], 'pattern': m['bwPattern'],
+                           'shares': m['bwShares'], 'muscles': muscles(m['bwShares'])},
                 }
             elif (entry['db']['reps'], entry['bw']['name'], entry['bw']['reps']) != (db['reps'], bw['name'], bw['reps']):
                 sys.exit(f'{date}: widerspruechliche Angaben fuer {key!r}')
             items.append({'id': key, 'sets': db['sets']})
 
         plan.append({'n': len(plan) + 1, 'date': date, 'ex': items})
+
+    # Übungsauswahl je Tag darf aus tools/plan.json kommen. Die Excel bleibt
+    # Quelle für Termine, Namen, Wiederholungen und das Bodyweight-Äquivalent;
+    # ersetzt wird nur, welche Übung an welchem Tag steht. Datei löschen und neu
+    # generieren stellt den Originalplan wieder her.
+    if PLAN_OVERRIDE.exists():
+        override = json.loads(PLAN_OVERRIDE.read_text(encoding='utf-8'))
+        if len(override) != len(plan):
+            sys.exit(f'{PLAN_OVERRIDE.name}: {len(override)} Einheiten, Excel hat {len(plan)}')
+        for w, o in zip(plan, override):
+            if w['date'] != o['date']:
+                sys.exit(f'{PLAN_OVERRIDE.name}: Termin {o["date"]} passt nicht zu {w["date"]}')
+            unknown = [i['id'] for i in o['ex'] if i['id'] not in catalog]
+            if unknown:
+                sys.exit(f'{PLAN_OVERRIDE.name}: unbekannte Übung {unknown}')
+            w['ex'] = o['ex']
+        print(f'{PLAN_OVERRIDE.relative_to(ROOT)}: Auswahl je Tag übernommen')
 
     unused = set(meta) - set(catalog)
     if unused:
