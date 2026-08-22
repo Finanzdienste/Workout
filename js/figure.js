@@ -109,7 +109,7 @@ function solve(pose) {
     const planted = pose.stance ? [`toe${pose.stance}`] : ['toeL', 'toeR'];
     Object.keys(joints).forEach((k) => {
       if (planted.includes(k)) return;
-      joints[k] = [joints[k][0], joints[k][1] + pose.heel * 0.12, joints[k][2]];
+      joints[k] = [joints[k][0], joints[k][1] + pose.heel * 0.16, joints[k][2]];
     });
   }
 
@@ -138,24 +138,28 @@ export const PATTERNS = {
   squat: {
     label: 'Kniebeuge',
     poses: [
+      // lean unten bewusst moderat: mit 42° klappte die Figur zusammen und der
+      // Kopf stand auf Kniehöhe. Beim Goblet Squat bleibt der Rumpf aufrecht.
       { lean: 6, arm: A(26, -18, 130, 32), leg: L(2, 5, 4) },
-      { lean: 42, arm: A(30, -18, 128, 32), leg: L(96, 9, 116) },
+      { lean: 24, arm: A(34, -18, 126, 32), leg: L(100, 9, 118) },
     ],
   },
   legcurl: {
     // Rücken am Boden, Hüfte oben, Fersen ziehen heran
     label: 'Beinbeuger', lie: 'supine',
     poses: [
-      { tilt: 20, arm: A(8, 26, 6), leg: L(4, 6, 12) },
-      { tilt: 30, arm: A(8, 26, 6), leg: L(18, 6, 94) },
+      // arm.p 0: die Arme liegen längs am Körper. Mit Beugung schwebten sie
+      // sichtbar über dem Rumpf.
+      { tilt: 20, arm: A(0, 17, 6), leg: L(4, 6, 12) },
+      { tilt: 30, arm: A(0, 17, 6), leg: L(18, 6, 94) },
     ],
   },
   thrust: {
     // Schultern am Boden, Hüfte hoch bis Rumpf und Oberschenkel eine Linie sind
     label: 'Hüftstreckung', lie: 'supine',
     poses: [
-      { tilt: 8, arm: A(10, 26, 8), leg: L(40, 8, 102) },
-      { tilt: 32, arm: A(10, 26, 8), leg: L(2, 8, 98) },
+      { tilt: 8, arm: A(0, 17, 8), leg: L(40, 8, 102) },
+      { tilt: 32, arm: A(0, 17, 8), leg: L(2, 8, 98) },
     ],
   },
   pushup: {
@@ -180,8 +184,10 @@ export const PATTERNS = {
     poses: [
       // armL stützt senkrecht ab (p = lean, also Arm lotrecht), armR hängt erst
       // ebenso und zieht dann den Ellenbogen nach hinten an den Rumpf.
-      { lean: 72, armL: A(72, 10, 10), armR: A(72, 8, 6), leg: L(6, 6, 22) },
-      { lean: 72, armL: A(72, 10, 10), armR: A(4, 10, 95), leg: L(6, 6, 22) },
+      // lean 62 statt 72: fast waagerecht hing der Kopf tief unter den Schultern
+      // und die Figur sah aus, als würde sie nach vorn kippen.
+      { lean: 62, armL: A(62, 10, 10), armR: A(62, 8, 6), leg: L(8, 6, 22) },
+      { lean: 62, armL: A(62, 10, 10), armR: A(2, 10, 94), leg: L(8, 6, 22) },
     ],
   },
   pullup: {
@@ -201,15 +207,17 @@ export const PATTERNS = {
     // unten, dafür muss arm.p der Rumpfneigung folgen (-p + lean = 0).
     label: 'Überkopf-Drücken',
     poses: [
-      { lean: 146, arm: A(146, 10, 4), leg: L(-24, 6, 8) },
-      { lean: 146, arm: A(126, 30, 78), leg: L(-24, 6, 8) },
+      // lean 146 legte den Kopf zwischen die Hände auf den Boden. Bei 126 ist
+      // die Hüfte klar der höchste Punkt und der Kopf bleibt darüber.
+      { lean: 126, arm: A(132, 10, 4), leg: L(-30, 6, 10) },
+      { lean: 126, arm: A(112, 30, 76), leg: L(-30, 6, 10) },
     ],
   },
   curl: {
     label: 'Bizeps-Curl',
     poses: [
       { lean: 3, arm: A(4, 8, 6), leg: L(2, 5, 4) },
-      { lean: 3, arm: A(10, 8, 136), leg: L(2, 5, 4) },
+      { lean: 3, arm: A(12, 8, 126), leg: L(2, 5, 4) },   // oben auf Brusthöhe, nicht am Kinn
     ],
   },
   triceps: {
@@ -240,31 +248,34 @@ export const PATTERNS = {
     // Arme halten die Scheibe vor der Brust, der Rumpf rollt ein Stück auf
     label: 'Crunch', lie: 'supine',
     poses: [
-      { lean: 0, arm: A(56, -14, 140, 28), leg: L(56, 9, 100) },
-      { lean: 34, arm: A(56, -14, 140, 28), leg: L(56, 9, 100) },
+      // Unterarme längs am Rumpf statt quer darüber: eng gefaltet verdeckten
+      // sie die Scheibe und alles verschmolz zu einem Knäuel.
+      { lean: 0, arm: A(46, -6, 120, 26), leg: L(58, 9, 104) },
+      { lean: 34, arm: A(46, -6, 120, 26), leg: L(58, 9, 104) },
     ],
   },
   legcurl1: {
     // Einbeinig: das freie Bein bleibt angewinkelt in der Luft
     label: 'Beinbeuger einbeinig', lie: 'supine',
     poses: [
-      { tilt: 20, arm: A(8, 26, 6), legR: L(4, 6, 12), legL: L(62, 10, 92) },
-      { tilt: 30, arm: A(8, 26, 6), legR: L(18, 6, 94), legL: L(62, 10, 92) },
+      { tilt: 20, arm: A(0, 17, 6), legR: L(4, 6, 12), legL: L(62, 10, 92) },
+      { tilt: 30, arm: A(0, 17, 6), legR: L(18, 6, 94), legL: L(62, 10, 92) },
     ],
   },
   thrust1: {
     label: 'Hüftstreckung einbeinig', lie: 'supine',
     poses: [
-      { tilt: 8, arm: A(10, 26, 8), legR: L(40, 8, 102), legL: L(96, 12, 94) },
-      { tilt: 32, arm: A(10, 26, 8), legR: L(2, 8, 98), legL: L(78, 12, 92) },
+      { tilt: 8, arm: A(0, 17, 8), legR: L(40, 8, 102), legL: L(96, 12, 94) },
+      { tilt: 32, arm: A(0, 17, 8), legR: L(2, 8, 98), legL: L(78, 12, 92) },
     ],
   },
   calf1: {
     // Ein Bein trägt, das andere hängt angewinkelt hinten
     label: 'Wadenheben einbeinig', stance: 'R',
     poses: [
-      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-10, 8, 76), heel: 0 },
-      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-10, 8, 76), heel: 1 },
+      // Knie nach hinten, nicht nach vorn – sonst sieht es aus wie ein Ausfallschritt
+      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-26, 8, 88), heel: 0 },
+      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-26, 8, 88), heel: 1 },
     ],
   },
   pushupfeet: {
@@ -279,8 +290,10 @@ export const PATTERNS = {
     // Mit gebeugtem Knie: trifft den flachen Wadenmuskel statt der Zwillingswade
     label: 'Wadenheben, gebeugtes Knie',
     poses: [
-      { lean: 10, arm: A(4, 8, 8), leg: L(28, 6, 40), heel: 0 },
-      { lean: 10, arm: A(4, 8, 8), leg: L(28, 6, 40), heel: 1 },
+      // Rumpf aufrecht, nur das Knie beugt. Mit Hüftbeugung wurde daraus eine
+      // halbe Kniebeuge und vom Wadenheben war nichts mehr zu sehen.
+      { lean: 4, arm: A(4, 8, 8), leg: L(14, 6, 34), heel: 0 },
+      { lean: 4, arm: A(4, 8, 8), leg: L(14, 6, 34), heel: 1 },
     ],
   },
   squatbw: {
@@ -290,7 +303,7 @@ export const PATTERNS = {
     label: 'Kniebeuge ohne Gewicht',
     poses: [
       { lean: 6, arm: A(22, 10, 16), leg: L(2, 5, 4) },
-      { lean: 42, arm: A(130, 10, 12), leg: L(96, 9, 116) },
+      { lean: 30, arm: A(118, 10, 12), leg: L(100, 9, 118) },
     ],
   },
   invrow: {
@@ -607,7 +620,9 @@ export function mountFigure(host, pattern, weight, equip) {
       barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.26, 4.8);
     } else if (equip === 'plate' || equip === 'backplate') {
       // Scheibe auf der Brust (Crunches) bzw. auf dem Rücken (Liegestütze)
-      const side = equip === 'plate' ? 0.11 : -0.11;
+      // Die gehaltene Scheibe liegt etwas weiter vorn als die Unterarme,
+      // sonst verschwindet sie dahinter.
+      const side = equip === 'plate' ? 0.155 : -0.11;
       const q = P(add(j.chest, mul(frontAxis, side)));
       parts.push({
         z: q.z + 0.01,
