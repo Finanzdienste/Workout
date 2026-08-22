@@ -304,38 +304,60 @@ sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
 
 ## Wochenvolumen je Muskelgruppe
 
-Ziel sind **10 Sätze pro Woche und Muskelgruppe**, Anteile eingerechnet. Der
-Plan aus der Excel zog die Übungen praktisch zufällig – 55 verschiedene
-Zusammenstellungen in 57 Einheiten – und traf damit die großen Gruppen, aber
-nicht die kleinen:
+Ziel sind **10 Sätze pro Woche und Muskelgruppe**, Anteile eingerechnet – und
+zwar in *jeder* Woche, nicht im Durchschnitt über den Plan. Eine Woche sind
+hier drei aufeinanderfolgende Einheiten; der Plan trainiert alle zwei bis drei
+Tage, drei Einheiten decken also gut sieben Tage ab.
 
-| | vorher | jetzt |
+Der Plan aus der Excel zog die Übungen praktisch zufällig und traf damit die
+großen Gruppen, aber nicht die kleinen. Jetzt liegt jede Gruppe in jeder der
+19 Wochen zwischen 9,7 und 10,3 Sätzen:
+
+| | Excel, im Mittel | jetzt, jede Woche |
 | --- | --- | --- |
-| hintere Schulter | **0,5** | 9,8 |
-| Nacken | 1,5 | 9,4 |
-| Bizeps | 7,3 | 9,8 |
-| Bauch | 7,8 | 9,8 |
-| Waden | **10,2** | 9,8 |
-| übrige | 9,7–11,1 | 9,5–10,6 |
+| hintere Schulter | **0,5** | 10,1–10,3 |
+| Nacken | 1,5 | 9,8–10,0 |
+| Bizeps | 7,3 | 9,9–10,3 |
+| Bauch | 7,8 | 10,1–10,2 |
+| Waden | **10,2** | genau 10,0 |
+| Oberschenkel, Brust, Rücken | 9,7–11,1 | genau 10,0 |
+| Gesäß, Beinbeuger, Schultern, Trizeps | 9,7–11,1 | 9,7–10,3 |
 
-Reverse Fly stand 4× im ganzen Plan, Floor Press 2×, Hip Thrust 7× – diese
-Übungen waren zwar da, trugen aber nichts bei. Umgekehrt kamen die Waden mit
-zwei Übungen auf 10 Sätze.
+**Genau 10,00 geht nicht**, und das liegt nicht an der Länge des Kalenders.
+Ganze Sätze treffen auf krumme Anteile: ein Goblet Squat bringt 1,0
+Oberschenkel, 0,55 Gesäß, 0,35 Bauch, 0,15 Beinbeuger. Aus solchen Zahlen lässt
+sich 10,00 in zwölf Gruppen gleichzeitig nicht zusammensetzen. Rechnerisch
+bleiben **0,3 Sätze** übrig – rechnet man ohne die Ganzzahligkeit, kommt man auf
+0,003, also ist die Rundung die ganze Differenz. Ein längerer Kalender ändert
+daran nichts, weil die Grenze schon in der einen Woche steckt.
 
-**Die Abwechslung bleibt vollständig erhalten:** weiterhin 57 verschiedene
-Zusammenstellungen bei 57 Einheiten. Geändert hat sich nur, *wie oft* welche
-Übung gezogen wird. `tools/build-plan.py` rechnet das aus und schreibt
-`tools/plan.json`; `tools/build-data.py` übernimmt daraus die Auswahl je Tag.
+`tools/build-plan.py` sucht deshalb nicht eine Woche, sondern viele: erst das
+Optimum, dann per Anstoßen-und-neu-Absteigen alle anderen Belegungen, die
+dasselbe Optimum treffen (56 verschiedene). Für den Plan werden davon die 19
+gewählt, die am weitesten auseinanderliegen. Ergebnis: **57 verschiedene
+Zusammenstellungen bei 57 Einheiten** – die Abwechslung bleibt vollständig
+erhalten.
+
+Die Satzzahl je Übung ist dafür nicht mehr fest 3, sondern 2 bis 4, und eine
+Übung kommt in einer Woche ein- bis dreimal vor. Eine Einheit hat 9 oder 10
+Übungen und 24 bis 26 Sätze – ungefähr so lang wie vorher.
+
+`tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json`.
 Termine, Namen, Wiederholungen und die Bodyweight-Äquivalente kommen
 unverändert aus der Excel. `tools/plan.json` löschen und neu generieren stellt
 den Originalplan wieder her.
 
-Die Einheiten sind dafür unterschiedlich lang – 33× acht Übungen, 24× neun –,
-weil die Summe sonst nicht aufgeht. Das sind 73 statt 69 Sätze pro Woche.
+**Der Hip Thrust fällt aus dem Kalender** (er bleibt in der Übungsübersicht).
+Sein Anteil ist Gesäß 1,0 / Beinbeuger 0,5 – aber das Gesäß ist von Kniebeugen
+(0,45–0,55) und Beinbeugern (0,5) schon voll, sobald Oberschenkel und
+Beinbeuger ihre 10 haben. Jeder Satz Hip Thrust schiebt es darüber: mit ihm
+liegt die schlechteste Gruppe bei 10,7 statt 10,3.
+`python3 tools/build-plan.py --alle` erzwingt ihn, wenn einem die Übung wichtiger
+ist als die 0,4 Sätze.
 
-Im Bodyweight-Modus liegen Rücken (12,9) und Trizeps (12,6) höher: die
-Äquivalente von SZ-Curls und Seitheben sind enge Chin-ups und Pike Push-ups,
-die beide zusätzlich mitarbeiten. Nach unten weicht dort nichts ab.
+Im Bodyweight-Modus liegen Rücken (12,8–13,5) und Trizeps (12,5–13,6) höher:
+die Äquivalente von SZ-Curls und Seitheben sind enge Chin-ups und Pike
+Push-ups, die beide zusätzlich mitarbeiten. Nach unten weicht dort nichts ab.
 
 ## Sicherung
 
