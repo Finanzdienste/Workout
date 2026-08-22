@@ -312,12 +312,15 @@ drei Tage, drei Einheiten decken also gut sieben Tage ab.
 | | Excel, im Mittel | jetzt, Schnitt | jetzt, einzelne Woche |
 | --- | --- | --- | --- |
 | Oberschenkel, Brust, Rücken, Waden | 9,7–11,1 | **10,0000** | immer genau 10,0 |
-| Nacken | 1,5 | **10,0000** | 9,8–10,4 |
-| hintere Schulter | **0,5** | **10,0000** | 9,5–10,5 |
-| Bizeps | 7,3 | **10,0000** | 9,3–10,5 |
-| Bauch | 7,8 | **10,0000** | 9,4–10,4 |
-| Schultern, Trizeps, Beinbeuger | | **10,0000** | 9,3–10,7 |
-| Gesäß | | **10,0000** | 9,4–11,0 |
+| Nacken | 1,5 | **10,0000** | 9,6–10,2 |
+| hintere Schulter | **0,5** | **10,0000** | 9,1–10,1 |
+| Bizeps | 7,3 | **10,0000** | 9,3–10,3 |
+| Bauch | 7,8 | **10,0000** | 9,5–10,4 |
+| Schultern, Beinbeuger, Trizeps | | **10,0000** | 9,7–10,8 |
+| Gesäß | | **10,0000** | 9,5–11,0 |
+
+**Höchstens drei Sätze je Übung und Einheit**, mindestens zwei. Eine Einheit
+hat damit 10 oder 11 Übungen und 24–26 Sätze.
 
 **Die Zahl der Wochen muss gerade sein.** Das ist keine Feinheit, sondern der
 Grund, warum der Plan von 57 auf 60 Einheiten gewachsen ist. Der Rücken kommt
@@ -344,9 +347,10 @@ Plan endet jetzt am 12.01.2027 statt am 04.01.
    früh ab, dass alle Lösungen in unter einer Sekunde dastehen. Zufallssuche
    findet hier übrigens *nichts* – die exakten Punkte liegen zu dünn.
 2. **Verteilung auf die Wochen.** Die Summen stehen fest, verschoben werden nur
-   Sätze zwischen Wochen. Der Schnitt bleibt damit zwangsläufig exakt; gesucht
-   wird die Verteilung mit der besten schlechtesten Woche.
-3. **Aufteilung auf die Einheiten.** Zwei bis vier Sätze je Auftritt, ein bis
+   Sätze zwischen Wochen. Der Schnitt bleibt damit zwangsläufig exakt; verglichen
+   werden die Verteilungen an ihrer vollen Liste aller Abweichungen, absteigend
+   sortiert – erst die größte, bei Gleichstand die nächste.
+3. **Aufteilung auf die Einheiten.** Zwei oder drei Sätze je Auftritt, ein bis
    drei Auftritte je Woche, alle drei Einheiten etwa gleich lang.
 
 Gerechnet wird durchweg in Zwanzigsteln eines Satzes – alle Anteile sind
@@ -360,23 +364,29 @@ denkt, und drei Dinge fallen dabei ab:
   ist das Gesäß nicht auf 10 zu bringen (Kniebeugen und Beinbeuger liefern
   zusammen zu wenig), mit mehr als einem halben Satz pro Woche liegt es
   darüber. In den fünf Wochen, in denen er auftaucht, geht das Gesäß auf 11,0 –
-  das ist die schlechteste Woche im ganzen Plan und rechnerisch nicht zu
-  unterbieten.
-- **Rudern 9 Sätze pro Woche, Chin-ups 1.** Das Seitheben ist über den Nacken
-  an Rudern gekoppelt, und was dann noch an Schulter fehlt, müssen die
-  Brustübungen liefern – daraus folgt zwingend Rudern ≥ 7,5 pro Woche. Ein
-  ausgeglicheneres Zug-Verhältnis gibt es in keiner der sechzehn Lösungen.
-- **Füße-erhöhte Liegestütze 1 Satz pro Woche.** Aus derselben Gleichung.
+  die schlechteste Woche im ganzen Plan und rechnerisch nicht zu unterbieten.
+- **Rudern 8 Sätze pro Woche.** Das Seitheben ist über den Nacken an Rudern
+  gekoppelt, und was dann noch an Schulter fehlt, müssen die Brustübungen
+  liefern – daraus folgt zwingend Rudern ≥ 7,5 pro Woche. Ein ausgeglicheneres
+  Zug-Verhältnis gibt es in keiner der sieben Lösungen.
+- **Die füße-erhöhten Liegestütze fallen aus dem Kalender** (in der
+  Übungsübersicht bleiben sie). Die Alternative wäre gewesen, Rudern auf 9
+  Sätze pro Woche zu setzen und die Chin-ups auf einen – und weil ein Auftritt
+  mindestens zwei Sätze hat, wäre der Rücken dann in *jeder* Woche bei 9 oder
+  11 gewesen, nie bei 10. Eine dritte Druckvariante ist das nicht wert.
 
-Von allen exakten Lösungen wird die ausgewogenste genommen: keine Übung fällt
-ganz heraus, und die Streuung der Satzzahlen ist so klein wie möglich. Zum
-Vergleich: die vorige Fassung ohne Exaktheitsforderung hielt jede Woche in
-9,7–10,3, traf den Schnitt aber nur ungefähr. Wer das lieber hat, nimmt sie aus
-der Versionsgeschichte zurück – exakt im Schnitt und eng in jeder Woche geht
-nicht beides.
+Sonst gilt: von allen exakten Lösungen gewinnt die, die sich am engsten auf die
+Wochen verteilen lässt; bei Gleichstand die, bei der keine Übung herausfällt,
+und dann die mit der geringsten Streuung.
+
+**Warum ein ganzer Satz Abweichung gesondert zählt.** Beim Verteilen auf die
+Wochen wiegt jede Abweichung in vierter Potenz, und wer einen *ganzen* Satz
+danebenliegt, bekommt zusätzlich einen festen Zuschlag. Ohne den tauscht das
+Verfahren bereitwillig einen ganzen Satz Rücken gegen ein paar Zehntel
+anderswo – in der App sieht man den ganzen Satz, die Zehntel nicht.
 
 **Die Abwechslung bleibt vollständig:** 60 verschiedene Zusammenstellungen bei
-60 Einheiten, 8–10 Übungen und 24–25 Sätze je Einheit.
+60 Einheiten.
 
 `tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json`;
 Namen, Wiederholungen und die Bodyweight-Äquivalente kommen unverändert aus der

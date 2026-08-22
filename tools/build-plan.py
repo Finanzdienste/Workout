@@ -66,10 +66,13 @@ OUT = ROOT / 'tools' / 'plan.json'
 
 TARGET = 10              # Sätze je Muskelgruppe und Woche
 WEEK = 3                 # Einheiten je Woche
-PER_SET = (2, 4)         # Sätze je Auftritt einer Übung
-PER_WEEK = 10            # Sätze je Übung und Woche
+PER_SET = (2, 3)         # Sätze je Auftritt einer Übung
+PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
 MAX_EX = 10              # Übungen je Einheit – mehr wird zu kleinteilig
 EXACT_LIMIT = 4000       # so viele Plansummen je Block reichen zur Auswahl
+SCREEN = 8               # davon werden die besten probeweise verteilt
+SCREEN_RESTARTS = 3      # Anläufe je Probe
+SCREEN_ROUNDS = 120000   # Schritte je Probe
 RESTARTS = 24            # Anläufe beim Verteilen auf die Wochen
 SPREAD_ROUNDS = 600000   # Schritte je Anlauf
 SPLITS = 900             # Versuche je Woche für die Aufteilung
@@ -236,9 +239,19 @@ def exact(block, shares, weeks, values, limit, rnd):
 def totals(ids, shares, groups, weeks, rnd):
     """Sätze je Übung über den ganzen Plan, exakt 10·W für jede Gruppe.
 
-    Von allen Lösungen gewinnt die ausgewogenste: erst keine Übung, die ganz
-    herausfällt, dann die geringste Streuung – sonst bekäme eine Übung 9 Sätze
-    pro Woche und die nächste zwei im ganzen Plan.
+    Exakt sind viele Lösungen; brauchbar sind es weniger. Erst werden die
+    ausgewogensten vorsortiert – keine Übung, die ganz herausfällt, möglichst
+    wenig Streuung –, dann wird für die vordersten kurz durchgerechnet, wie eng
+    sich damit die einzelne Woche halten lässt. Das entscheidet.
+
+    Der Unterschied ist nicht klein: 180 Sätze Rudern sehen ausgewogen aus,
+    ergeben aber 9 pro Woche und damit in jeder Woche dieselben drei Auftritte
+    – die Chin-ups müssten dann auf einen Satz pro Woche, was bei mindestens
+    zwei Sätzen je Auftritt nicht geht, und der Rücken schwankt um einen ganzen
+    Satz. 160 Sätze Rudern lassen sich dagegen sauber teilen.
+
+    Die Blöcke hängen über keine Gruppe zusammen, also lässt sich das je Block
+    getrennt beurteilen.
     """
     values = [0] + list(range(2, PER_WEEK * weeks + 1))
     total, variants = {}, []
@@ -254,7 +267,20 @@ def totals(ids, shares, groups, weeks, rnd):
                     sum((v - mean) ** 2 for v in sol.values()),
                     sorted(sol.items()))
 
-        total.update(min(found, key=balance))
+        found.sort(key=balance)
+        vol = Volume(shares, block, sorted({m for i in block for m in shares[i]}))
+        best = None
+        for sol in found[:SCREEN]:
+            _, (worst, sq) = spread([sol[i] for i in block], vol, weeks, rnd,
+                                    SCREEN_RESTARTS, SCREEN_ROUNDS)
+            # Die einzelne Woche entscheidet, ob eine Übung herausfällt erst
+            # bei Gleichstand. Andersherum wäre der Rücken in *jeder* Woche bei
+            # 9 oder 11 – nie bei 10 –, nur um eine dritte Druckvariante zu
+            # halten. Das ist der schlechtere Tausch.
+            got = (worst, sq, min(sol.values()) == 0, balance(sol))
+            if best is None or got < best[0]:
+                best = (got, sol)
+        total.update(best[1])
     return [total[i] for i in ids], variants
 
 
@@ -269,14 +295,29 @@ def start(total, weeks, rnd):
     for t in total:
         row = [0] * weeks
         if t:
-            k = max(-(-t // hi), 1)                  # so viele Wochen mindestens
-            k = max(k, min(weeks, round(t / 4)))
-            k = min(k, t // lo, weeks)
+            # So breit wie möglich streuen: über alle Wochen, solange in jeder
+            # noch die Mindestzahl steht. Auf wenige Wochen zu stapeln macht
+            # aus 40 Sätzen zehnmal vier statt zwanzigmal zwei – und damit eine
+            # Gruppe, die jede zweite Woche um einen ganzen Satz danebenliegt.
+            k = min(weeks, t // lo)
+            k = max(k, -(-t // hi), 1)
             base, extra = divmod(t, k)
             for j, w in enumerate(sorted(rnd.sample(range(weeks), k))):
                 row[w] = base + (1 if j < extra else 0)
         rows.append(row)
     return rows
+
+
+HARD = 10 ** 9           # Zuschlag für einen ganzen Satz Abweichung
+
+
+def pen(week_vol):
+    """Strafe einer Woche: ein ganzer Satz daneben wiegt gesondert."""
+    out = 0
+    for x in week_vol:
+        d = abs(x - GOAL)
+        out += d ** 4 + (HARD if d >= UNIT else 0)
+    return out
 
 
 def spread(total, vol, weeks, rnd, restarts, rounds):
@@ -298,9 +339,20 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
         rows = start(total, weeks, rnd)
         vols = [[sum(rows[i][w] * rows_s[i][g] for i in range(len(rows)))
                  for g in range(len(vol.groups))] for w in range(weeks)]
-        sq = [sum((x - GOAL) ** 2 for x in v) for v in vols]
+        # Vierte Potenz statt Quadrat: sonst ist es dem Verfahren gleich, ob
+        # eine Gruppe in einer Woche einen ganzen Satz danebenliegt oder drei
+        # Gruppen ein Drittel. Genau das soll es aber nicht sein. Ein ganzer
+        # Satz Abweichung wiegt obendrein gesondert schwer – der ist in der App
+        # sichtbar, alles darunter nicht.
+        sq = [pen(v) for v in vols]
         energy = sum(sq)
-        temp = 400.0
+        # Der erste Anlauf glüht gar nicht aus, sondern schleift die
+        # gleichmäßige Startverteilung nur nach. Die ist oft schon fast
+        # richtig – 8 Sätze Rudern in jeder der 20 Wochen etwa –, und
+        # Ausglühen zerlegt sie zuverlässig, ohne zurückzufinden.
+        temp = 0.0 if run == 0 else 3e5 * (1 + run % 4)   # gegen HARD chancenlos,
+        # das ist Absicht: ein ganzer Satz Abweichung wird nie freiwillig
+        # in Kauf genommen, nur wenn es gar nicht anders geht.
         for step in range(rounds):
             temp *= 0.99995
             i = rnd.randrange(len(rows))
@@ -311,14 +363,11 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
             if d <= 0 or not fits(rows[i][u] - d) or not fits(rows[i][v] + d):
                 continue
             share = rows_s[i]
-            su = sv = 0
             for g, c in enumerate(share):
                 if c:
                     vols[u][g] -= d * c
                     vols[v][g] += d * c
-            for g in range(len(share)):
-                su += (vols[u][g] - GOAL) ** 2
-                sv += (vols[v][g] - GOAL) ** 2
+            su, sv = pen(vols[u]), pen(vols[v])
             delta = su + sv - sq[u] - sq[v]
             if delta <= 0 or rnd.random() < pow(2.718, -delta / max(temp, 1e-9)):
                 rows[i][u] -= d
@@ -336,9 +385,10 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
         while moving:
             moving = False
             dev = [max(abs(x - GOAL) for x in v) for v in vols]
-            # Nicht nur die schlechteste Woche zählt: absteigend sortiert
-            # vergleichen drückt auch die zweit- und drittschlechteste.
-            cur = (sorted(dev, reverse=True), sum(sq))
+            # Nicht die schlechteste Woche zuerst, sondern die Summe aller
+            # Abweichungen: sonst darf eine Gruppe in einer Woche, die ohnehin
+            # schon die schlechteste ist, beliebig danebenliegen.
+            cur = (sum(sq), sorted(dev, reverse=True))
             for i in range(len(rows)):
                 for u in range(weeks):
                     for v in range(weeks):
@@ -351,12 +401,11 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
                                 if c:
                                     vols[u][g] -= d * c
                                     vols[v][g] += d * c
-                            su = sum((x - GOAL) ** 2 for x in vols[u])
-                            sv = sum((x - GOAL) ** 2 for x in vols[v])
+                            su, sv = pen(vols[u]), pen(vols[v])
                             dev[u] = max(abs(x - GOAL) for x in vols[u])
                             dev[v] = max(abs(x - GOAL) for x in vols[v])
-                            got = (sorted(dev, reverse=True),
-                                   sum(sq) - sq[u] - sq[v] + su + sv)
+                            got = (sum(sq) - sq[u] - sq[v] + su + sv,
+                                   sorted(dev, reverse=True))
                             if got < cur:
                                 rows[i][u] -= d
                                 rows[i][v] += d
@@ -376,10 +425,14 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
                 if moving:
                     break
         per_week = [[row[w] for row in rows] for w in range(weeks)]
-        got = (max(max(abs(x - GOAL) for x in v) for v in vols), sum(sq))
-        if best is None or got < best[0]:
-            best = (got, per_week)
-    return best[1], best[0]
+        # Zwischen den Anläufen entscheidet die volle Liste aller Abweichungen,
+        # absteigend sortiert: erst die größte, bei Gleichstand die nächste.
+        # Die Summe allein würde eine Woche mit einem ganzen Satz Abweichung
+        # gegen viele kleine eintauschen.
+        alle = sorted((abs(x - GOAL) for v in vols for x in v), reverse=True)
+        if best is None or alle < best[0]:
+            best = (alle, per_week)
+    return best[1], (best[0][0], sum(x * x for x in best[0]))
 
 
 # ------------------------------------------------------------------ #
