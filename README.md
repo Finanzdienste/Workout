@@ -305,59 +305,89 @@ sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
 ## Wochenvolumen je Muskelgruppe
 
 Ziel sind **10 Sätze pro Woche und Muskelgruppe**, Anteile eingerechnet – und
-zwar in *jeder* Woche, nicht im Durchschnitt über den Plan. Eine Woche sind
-hier drei aufeinanderfolgende Einheiten; der Plan trainiert alle zwei bis drei
-Tage, drei Einheiten decken also gut sieben Tage ab.
+über den ganzen Plan im Schnitt **exakt** 10,0000, nicht ungefähr. Eine Woche
+sind hier drei aufeinanderfolgende Einheiten; der Plan trainiert alle zwei bis
+drei Tage, drei Einheiten decken also gut sieben Tage ab.
 
-Der Plan aus der Excel zog die Übungen praktisch zufällig und traf damit die
-großen Gruppen, aber nicht die kleinen. Jetzt liegt jede Gruppe in jeder der
-19 Wochen zwischen 9,7 und 10,3 Sätzen:
+| | Excel, im Mittel | jetzt, Schnitt | jetzt, einzelne Woche |
+| --- | --- | --- | --- |
+| Oberschenkel, Brust, Rücken, Waden | 9,7–11,1 | **10,0000** | immer genau 10,0 |
+| Nacken | 1,5 | **10,0000** | 9,8–10,4 |
+| hintere Schulter | **0,5** | **10,0000** | 9,5–10,5 |
+| Bizeps | 7,3 | **10,0000** | 9,3–10,5 |
+| Bauch | 7,8 | **10,0000** | 9,4–10,4 |
+| Schultern, Trizeps, Beinbeuger | | **10,0000** | 9,3–10,7 |
+| Gesäß | | **10,0000** | 9,4–11,0 |
 
-| | Excel, im Mittel | jetzt, jede Woche |
-| --- | --- | --- |
-| hintere Schulter | **0,5** | 10,1–10,3 |
-| Nacken | 1,5 | 9,8–10,0 |
-| Bizeps | 7,3 | 9,9–10,3 |
-| Bauch | 7,8 | 10,1–10,2 |
-| Waden | **10,2** | genau 10,0 |
-| Oberschenkel, Brust, Rücken | 9,7–11,1 | genau 10,0 |
-| Gesäß, Beinbeuger, Schultern, Trizeps | 9,7–11,1 | 9,7–10,3 |
+**Die Zahl der Wochen muss gerade sein.** Das ist keine Feinheit, sondern der
+Grund, warum der Plan von 57 auf 60 Einheiten gewachsen ist. Der Rücken kommt
+nur aus Rudern und Chin-ups, beide mit Anteil 1,0 – seine Plansumme ist also
+immer eine ganze Zahl und trifft 10·W genau. Die hintere Schulter hängt an
+denselben zwei Übungen (0,35 und 0,15) plus Reverse Fly:
 
-**Genau 10,00 geht nicht**, und das liegt nicht an der Länge des Kalenders.
-Ganze Sätze treffen auf krumme Anteile: ein Goblet Squat bringt 1,0
-Oberschenkel, 0,55 Gesäß, 0,35 Bauch, 0,15 Beinbeuger. Aus solchen Zahlen lässt
-sich 10,00 in zwölf Gruppen gleichzeitig nicht zusammensetzen. Rechnerisch
-bleiben **0,3 Sätze** übrig – rechnet man ohne die Ganzzahligkeit, kommt man auf
-0,003, also ist die Rundung die ganze Differenz. Ein längerer Kalender ändert
-daran nichts, weil die Grenze schon in der einen Woche steckt.
+    hintere Schulter = 1,5·W + 0,2·Rudern + ReverseFly
 
-`tools/build-plan.py` sucht deshalb nicht eine Woche, sondern viele: erst das
-Optimum, dann per Anstoßen-und-neu-Absteigen alle anderen Belegungen, die
-dasselbe Optimum treffen (56 verschiedene). Für den Plan werden davon die 19
-gewählt, die am weitesten auseinanderliegen. Ergebnis: **57 verschiedene
-Zusammenstellungen bei 57 Einheiten** – die Abwechslung bleibt vollständig
-erhalten.
+Für 10·W bräuchte es ReverseFly = 8,5·W − 0,2·Rudern. Bei ungeradem W endet
+8,5·W auf ,5, und 0,2·Rudern kann nur auf ,0 ,2 ,4 ,6 oder ,8 enden – das geht
+nie auf. Mit 19 Wochen ist exakt 10 also nicht knapp verfehlt, sondern
+unmöglich; mit 20 Wochen geht es, sobald Rudern durch 20 teilbar ist. Die drei
+Zusatztermine setzen den Rhythmus der Excel fort (alle zwei bis drei Tage), der
+Plan endet jetzt am 12.01.2027 statt am 04.01.
 
-Die Satzzahl je Übung ist dafür nicht mehr fest 3, sondern 2 bis 4, und eine
-Übung kommt in einer Woche ein- bis dreimal vor. Eine Einheit hat 9 oder 10
-Übungen und 24 bis 26 Sätze – ungefähr so lang wie vorher.
+`tools/build-plan.py` rechnet in drei Schritten:
 
-`tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json`.
-Termine, Namen, Wiederholungen und die Bodyweight-Äquivalente kommen
-unverändert aus der Excel. `tools/plan.json` löschen und neu generieren stellt
+1. **Plansummen.** Wie viele Sätze bekommt jede Übung über den ganzen Plan?
+   Das ist ein Gleichungssystem mit zwölf Zeilen und siebzehn Unbekannten,
+   gelöst per Tiefensuche: steht in einer Gleichung nur noch eine Übung offen,
+   ist ihr Wert bestimmt; stehen mehrere offen, muss der Rest durch den größten
+   gemeinsamen Teiler ihrer Anteile teilbar sein. Das schneidet den Suchbaum so
+   früh ab, dass alle Lösungen in unter einer Sekunde dastehen. Zufallssuche
+   findet hier übrigens *nichts* – die exakten Punkte liegen zu dünn.
+2. **Verteilung auf die Wochen.** Die Summen stehen fest, verschoben werden nur
+   Sätze zwischen Wochen. Der Schnitt bleibt damit zwangsläufig exakt; gesucht
+   wird die Verteilung mit der besten schlechtesten Woche.
+3. **Aufteilung auf die Einheiten.** Zwei bis vier Sätze je Auftritt, ein bis
+   drei Auftritte je Woche, alle drei Einheiten etwa gleich lang.
+
+Gerechnet wird durchweg in Zwanzigsteln eines Satzes – alle Anteile sind
+Vielfache von 0,05, damit ist „exakt" wirklich exakt und nicht bis auf
+Rundungsfehler.
+
+**Was die Exaktheit kostet.** Die Gleichungen lassen weniger Spielraum, als man
+denkt, und drei Dinge fallen dabei ab:
+
+- **Der Hip Thrust muss rein, aber nur mit 10 Sätzen im ganzen Plan.** Ohne ihn
+  ist das Gesäß nicht auf 10 zu bringen (Kniebeugen und Beinbeuger liefern
+  zusammen zu wenig), mit mehr als einem halben Satz pro Woche liegt es
+  darüber. In den fünf Wochen, in denen er auftaucht, geht das Gesäß auf 11,0 –
+  das ist die schlechteste Woche im ganzen Plan und rechnerisch nicht zu
+  unterbieten.
+- **Rudern 9 Sätze pro Woche, Chin-ups 1.** Das Seitheben ist über den Nacken
+  an Rudern gekoppelt, und was dann noch an Schulter fehlt, müssen die
+  Brustübungen liefern – daraus folgt zwingend Rudern ≥ 7,5 pro Woche. Ein
+  ausgeglicheneres Zug-Verhältnis gibt es in keiner der sechzehn Lösungen.
+- **Füße-erhöhte Liegestütze 1 Satz pro Woche.** Aus derselben Gleichung.
+
+Von allen exakten Lösungen wird die ausgewogenste genommen: keine Übung fällt
+ganz heraus, und die Streuung der Satzzahlen ist so klein wie möglich. Zum
+Vergleich: die vorige Fassung ohne Exaktheitsforderung hielt jede Woche in
+9,7–10,3, traf den Schnitt aber nur ungefähr. Wer das lieber hat, nimmt sie aus
+der Versionsgeschichte zurück – exakt im Schnitt und eng in jeder Woche geht
+nicht beides.
+
+**Die Abwechslung bleibt vollständig:** 60 verschiedene Zusammenstellungen bei
+60 Einheiten, 8–10 Übungen und 24–25 Sätze je Einheit.
+
+`tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json`;
+Namen, Wiederholungen und die Bodyweight-Äquivalente kommen unverändert aus der
+Excel. Der Plan darf dabei über das Excel-Ende hinausgehen – die Zusatztermine
+stehen dann in `plan.json`. `tools/plan.json` löschen und neu generieren stellt
 den Originalplan wieder her.
 
-**Der Hip Thrust fällt aus dem Kalender** (er bleibt in der Übungsübersicht).
-Sein Anteil ist Gesäß 1,0 / Beinbeuger 0,5 – aber das Gesäß ist von Kniebeugen
-(0,45–0,55) und Beinbeugern (0,5) schon voll, sobald Oberschenkel und
-Beinbeuger ihre 10 haben. Jeder Satz Hip Thrust schiebt es darüber: mit ihm
-liegt die schlechteste Gruppe bei 10,7 statt 10,3.
-`python3 tools/build-plan.py --alle` erzwingt ihn, wenn einem die Übung wichtiger
-ist als die 0,4 Sätze.
-
-Im Bodyweight-Modus liegen Rücken (12,8–13,5) und Trizeps (12,5–13,6) höher:
-die Äquivalente von SZ-Curls und Seitheben sind enge Chin-ups und Pike
-Push-ups, die beide zusätzlich mitarbeiten. Nach unten weicht dort nichts ab.
+Im Bodyweight-Modus liegen Rücken (13,4) und Trizeps (13,0) höher, Brust,
+Nacken und Schulter leicht: die Äquivalente von SZ-Curls und Seitheben sind
+enge Chin-ups und Pike Push-ups, die beide zusätzlich mitarbeiten. Die übrigen
+acht Gruppen treffen auch dort exakt 10. Nach unten weicht nichts ab.
 
 ## Sicherung
 
@@ -369,7 +399,7 @@ zuletzt gesichert wurde.
 
 ## Wenn der Plan durch ist
 
-Nach der letzten von 57 Einheiten bietet die Startansicht *Von vorn beginnen*
+Nach der letzten von 60 Einheiten bietet die Startansicht *Von vorn beginnen*
 an. Der bisherige Verlauf wandert in `rounds` und bleibt im Export erhalten,
 die **Gewichte bleiben stehen** – Runde zwei startet also auf dem erreichten
 Stand. Workout 1 rückt auf heute, sonst würde die Nachrück-Automatik den
@@ -446,7 +476,7 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 ```
 index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
-js/data.js              Aus der Excel generiert: 17 Übungen + 57 Einheiten
+js/data.js              Aus der Excel generiert: 17 Übungen + 60 Einheiten
 js/dates.js             Datums-Hilfsfunktionen
 js/store.js             Zustand und localStorage-Persistenz
 js/app.js               Rendering der fünf Tabs und Event-Handling
