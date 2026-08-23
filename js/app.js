@@ -3,7 +3,7 @@ import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
-import { INJURIES, KIND_LABEL, injuryById, applyInjuries, blocked, weeklyImpact, combosFor } from './injuries.js';
+import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, applyInjuries, blocked, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
 import { sparkPanel } from './chart.js';
 
 /* ------------------------------------------------------------------ *
@@ -938,13 +938,33 @@ function injuryNote(w, mode) {
   const lines = [];
   swapped.forEach((s) => lines.push(`${esc(nm(s.from))} → ${esc(nm(s.to))}`));
   dropped.forEach((d) => lines.push(`${esc(nm(d.id))} fällt aus`));
+  const pflege = careFor(act);
   return `
     <div class="card injury-note">
       <div class="inj-note-head">🩹 Rücksicht auf: ${esc(names.join(', '))}</div>
       ${lines.length
         ? `<div class="small muted">Heute deshalb: ${lines.join(' · ')}</div>`
         : '<div class="small muted">Heute ändert das nichts – keine der Übungen ist betroffen.</div>'}
+      ${pflege.length ? `<div class="small muted" style="margin-top:6px">
+        Dazu ${plural(pflege.length, 'Übung', 'Übungen')} zum Dehnen und Kräftigen:
+        ${esc(pflege.slice(0, 3).map((c) => c.name).join(' · '))}${pflege.length > 3 ? ' …' : ''}
+      </div>` : ''}
       <button type="button" class="btn btn-ghost btn-sm" data-act="go-injuries">Verletzungen ansehen</button>
+    </div>`;
+}
+
+/** Eine Zusatzübung als Karte. Dauer statt Sätzen – das ist kein Trainingsvolumen. */
+function careCard(c) {
+  return `
+    <div class="care">
+      <div class="care-head">
+        <span class="care-name">${esc(c.name)}</span>
+        <span class="care-kind care-${esc(c.kind)}">${esc(CARE_LABEL[c.kind] || c.kind)}</span>
+      </div>
+      <div class="care-dose">${esc(c.dose)}</div>
+      <div class="care-cue">${esc(c.cue)}</div>
+      ${c.wegen && c.wegen.length > 1
+        ? `<div class="care-why">wegen ${esc(c.wegen.join(' und '))}</div>` : ''}
     </div>`;
 }
 
@@ -980,6 +1000,7 @@ function renderInjuries() {
 
   const conflicts = swapConflicts(act);
   const combos = combosFor(act);
+  const pflege = careFor(act);
 
   const summary = act.length ? `
     <section class="card inj-summary">
@@ -1015,6 +1036,18 @@ function renderInjuries() {
         </tr>`).join('')}</tbody>
       </table>
       <div class="small muted" style="margin-top:8px">Sätze je Woche, Anteile eingerechnet. Ziel sind 10.</div>
+    </section>` : ''}
+
+    ${pflege.length ? `<section class="card">
+      <div class="section-title" style="margin:0 0 4px">Was jetzt gut tut</div>
+      <div class="small muted" style="margin-bottom:10px">
+        ${plural(pflege.length, 'Übung', 'Übungen')} zum Dehnen, Mobilisieren und gezielten
+        Kräftigen. Sie zählen nicht ins Wochenvolumen – das hier ist Reha, kein Aufbau.
+        ${pflege.some((c) => c.clearance)
+          ? '<b>Erst nach ärztlicher Freigabe:</b> bei Bruch, Riss oder Bandscheibenvorfall entscheidet nicht der Plan, wann wieder bewegt wird.'
+          : ''}
+      </div>
+      ${pflege.map((c) => careCard(c)).join('')}
     </section>` : ''}
 
     ${conflicts.length || combos.length ? `<section class="card">
@@ -1074,7 +1107,12 @@ function renderInjuries() {
                 Object.entries(i.swap).map(([a, b]) => `${esc(nm(a))} → ${esc(nm(b))}`).join(' · ')}</div>`
                 : '<div class="small muted" style="margin-top:4px">Kein Ersatz – die Übungen fallen weg.</div>'}
             </div>
-          </div>` : ''}
+          </div>
+          ${(i.care || []).length ? `<div class="inj-care">
+            <div class="small"><b>Was gut tut</b>${needsClearance(i.id)
+              ? ' <span class="muted">– erst nach ärztlicher Freigabe</span>' : ''}</div>
+            ${i.care.map((k) => (CARE[k] ? careCard({ key: k, ...CARE[k] }) : '')).join('')}
+          </div>` : ''}` : ''}
         </section>`;
       }).join('')}
     `).join('')}

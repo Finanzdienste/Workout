@@ -10,6 +10,8 @@
  *   swap    Ersatz, wo es einen gibt, der dieselbe Richtung trainiert, ohne
  *           die betroffene Stelle zu belasten. Ohne Eintrag fällt die Übung
  *           ersatzlos weg – das ist ehrlicher als ein Ersatz, der auch weh tut.
+ *   care    Was stattdessen gut tut: dehnen, mobilisieren, gezielt kräftigen.
+ *           Steht in CARE weiter unten und zählt nicht ins Wochenvolumen.
  *
  * Ein Ersatz kann selbst gesperrt sein, wenn eine zweite Beschwerde dazukommt.
  * Dann greift er nicht und die Übung fällt doch weg; genau das zeigt der Tab
@@ -42,6 +44,9 @@ export const INJURIES = [
       + 'Drücken am Boden mit kurzem Weg geht meist, Heben über Schulterhöhe nicht.',
     avoid: ['sitzendes-seitheben', 'fuesse-erhoehte-liegestuetze'],
     swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
+    care: [
+      'aussenrotation', 'wandengel', 'brustdehnung', 'schulterblatt', 'sleeper',
+    ],
   },
   {
     id: 'rotatorenmanschette',
@@ -53,6 +58,7 @@ export const INJURIES = [
     avoid: ['sitzendes-seitheben', 'fuesse-erhoehte-liegestuetze', 'gewichtete-liegestuetze',
       'floor-press', 'reverse-fly', 'chin-ups', 'einarmiges-kh-rudern'],
     swap: {},
+    care: ['aussenrotation', 'schulterblatt'],
   },
   {
     id: 'ac-gelenk',
@@ -63,6 +69,7 @@ export const INJURIES = [
       + 'und bei allem, was die Schultern nach vorn zieht.',
     avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press'],
     swap: { 'fuesse-erhoehte-liegestuetze': 'reverse-fly' },
+    care: ['schulterblatt', 'brustdehnung', 'aussenrotation'],
   },
   {
     id: 'bizepssehne',
@@ -73,6 +80,7 @@ export const INJURIES = [
       + 'nach außen dreht – Curls und Klimmzüge im Untergriff also.',
     avoid: ['sz-curls', 'chin-ups'],
     swap: { 'chin-ups': 'einarmiges-kh-rudern' },
+    care: ['aussenrotation', 'brustdehnung', 'beugerDehnen'],
   },
 
   /* ---------------- Ellenbogen und Hand ---------------- */
@@ -85,6 +93,9 @@ export const INJURIES = [
       + 'Drücken belastet ihn kaum.',
     avoid: ['chin-ups', 'sz-curls', 'einarmiges-kh-rudern'],
     swap: {},
+    care: [
+      'streckerExzentrik', 'streckerDehnen', 'fingerstrecker', 'handgelenkMobil',
+    ],
   },
   {
     id: 'golferarm',
@@ -94,6 +105,7 @@ export const INJURIES = [
       + 'Griff das Problem, dazu jede kräftige Beugung im Ellenbogen.',
     avoid: ['chin-ups', 'sz-curls', 'einarmiges-kh-rudern'],
     swap: {},
+    care: ['beugerExzentrik', 'beugerDehnen', 'handgelenkMobil'],
   },
   {
     id: 'ellenbogen-bursitis',
@@ -103,6 +115,7 @@ export const INJURIES = [
       + 'Druck auf den Ellenbogen und volle Streckung gegen Widerstand sind unangenehm.',
     avoid: ['liegende-trizepsstrecker', 'gewichtete-liegestuetze', 'floor-press'],
     swap: { 'gewichtete-liegestuetze': 'reverse-fly' },
+    care: ['streckerDehnen', 'beugerDehnen', 'schulterblatt'],
   },
   {
     id: 'handgelenk-reizung',
@@ -112,6 +125,9 @@ export const INJURIES = [
       + 'Stellung beim Liegestütz. Mit gerader Hand am Griff geht es meist gut.',
     avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze'],
     swap: { 'gewichtete-liegestuetze': 'floor-press', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
+    care: [
+      'handgelenkMobil', 'streckerDehnen', 'beugerDehnen', 'fingerstrecker',
+    ],
   },
   {
     id: 'handgelenk-bruch',
@@ -125,6 +141,7 @@ export const INJURIES = [
       'reverse-fly', 'sitzendes-seitheben', 'liegende-trizepsstrecker', 'sz-curls',
       'gewichtete-crunches'],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+    care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
   },
   {
     id: 'daumen-sehnenscheide',
@@ -134,6 +151,7 @@ export const INJURIES = [
       + 'Speichenseite. Alles, was fest gegriffen wird, zieht daran.',
     avoid: ['chin-ups', 'einarmiges-kh-rudern', 'sz-curls'],
     swap: {},
+    care: ['streckerDehnen', 'fingerstrecker', 'handgelenkMobil'],
   },
   {
     id: 'ringband',
@@ -143,6 +161,7 @@ export const INJURIES = [
       + 'klassisch vom Hängen an einer Kante. Jeder feste Griff belastet es.',
     avoid: ['chin-ups', 'einarmiges-kh-rudern'],
     swap: {},
+    care: ['fingerstrecker', 'handgelenkMobil'],
   },
 
   /* ---------------- Rumpf ---------------- */
@@ -154,6 +173,7 @@ export const INJURIES = [
       + 'bei Übungen, in denen der Kopf gegen die Schwerkraft gehalten wird.',
     avoid: ['gewichtete-crunches', 'sitzendes-seitheben'],
     swap: { 'sitzendes-seitheben': 'floor-press' },
+    care: ['kinnZurueck', 'nackenSeite', 'schulterkreisen', 'brustdehnung'],
   },
   {
     id: 'hws-bandscheibe',
@@ -165,6 +185,7 @@ export const INJURIES = [
     avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'chin-ups', 'einarmiges-kh-rudern',
       'reverse-fly'],
     swap: {},
+    care: ['kinnZurueck', 'schulterkreisen', 'atmung'],
   },
   {
     id: 'lws-bandscheibe',
@@ -176,6 +197,7 @@ export const INJURIES = [
     avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat',
       'einarmiges-kh-rudern', 'reverse-fly'],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+    care: ['kobra', 'deadBug', 'vogelhund', 'hueftbeuger'],
   },
   {
     id: 'hexenschuss',
@@ -187,6 +209,7 @@ export const INJURIES = [
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einarmiges-kh-rudern',
       'gewichtete-crunches'],
     swap: { 'goblet-squat': 'hip-thrust' },
+    care: ['katzeKuh', 'kobra', 'deadBug', 'hueftbeuger'],
   },
   {
     id: 'isg',
@@ -199,6 +222,7 @@ export const INJURIES = [
       'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
     },
+    care: ['vogelhund', 'piriformis', 'glutebridge', 'huefte9090'],
   },
   {
     id: 'rippenprellung',
@@ -208,6 +232,7 @@ export const INJURIES = [
       + 'weh, ebenso Druck von außen – die Hantel vor der Brust zum Beispiel.',
     avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat'],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+    care: ['atmung', 'schulterkreisen'],
   },
   {
     id: 'bauchmuskelzerrung',
@@ -217,6 +242,7 @@ export const INJURIES = [
       + 'gegen Widerstand fällt aus; halten und stabilisieren geht meist noch.',
     avoid: ['gewichtete-crunches'],
     swap: {},
+    care: ['atmung', 'katzeKuh', 'deadBug'],
   },
   {
     id: 'brustmuskelzerrung',
@@ -226,6 +252,7 @@ export const INJURIES = [
       + 'aus der gedehnten Stellung nach vorn bringt, ist betroffen.',
     avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press'],
     swap: {},
+    care: ['brustdehnung', 'schulterblatt', 'aussenrotation'],
   },
   {
     id: 'leistenbruch',
@@ -237,6 +264,7 @@ export const INJURIES = [
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'gewichtete-crunches',
       'hip-thrust', 'einarmiges-kh-rudern'],
     swap: {},
+    care: ['atmung', 'deadBug'],
   },
 
   /* ---------------- Hüfte und Bein ---------------- */
@@ -249,6 +277,7 @@ export const INJURIES = [
       + 'geht dagegen gut.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat'],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+    care: ['huefte9090', 'hueftbeuger', 'glutebridge', 'piriformis'],
   },
   {
     id: 'leistenzerrung',
@@ -262,6 +291,7 @@ export const INJURIES = [
       'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
     },
+    care: ['adduktoren', 'huefte9090', 'glutebridge'],
   },
   {
     id: 'patellasehne',
@@ -271,6 +301,7 @@ export const INJURIES = [
       + 'unter Last drückt darauf, erhöhte Fersen machen es schlimmer, nicht besser.',
     avoid: ['fersenerhoehter-goblet-squat', 'goblet-squat'],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+    care: ['wandsitz', 'beinbeugerDehnen', 'hueftbeuger', 'glutebridge'],
   },
   {
     id: 'meniskus',
@@ -280,6 +311,7 @@ export const INJURIES = [
       + 'Last und Drehung im belasteten Knie sind die kritischen Bewegungen.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einbeiniger-sliding-leg-curl'],
     swap: { 'goblet-squat': 'hip-thrust', 'einbeiniger-sliding-leg-curl': 'hip-thrust' },
+    care: ['knieextension', 'wandsitz', 'glutebridge'],
   },
   {
     id: 'kreuzband',
@@ -292,6 +324,7 @@ export const INJURIES = [
       'einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
       'wadenheben-gebeugtes-knie'],
     swap: {},
+    care: ['knieextension', 'glutebridge', 'einbeinstand'],
   },
   {
     id: 'laeuferknie',
@@ -306,6 +339,7 @@ export const INJURIES = [
       'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
       'fersenerhoehter-goblet-squat': 'goblet-squat',
     },
+    care: ['piriformis', 'glutebridge', 'huefte9090', 'wandsitz'],
   },
   {
     id: 'hamstringzerrung',
@@ -316,6 +350,7 @@ export const INJURIES = [
       + 'empfindlichsten.',
     avoid: ['sliding-leg-curl', 'einbeiniger-sliding-leg-curl', 'hip-thrust'],
     swap: {},
+    care: ['beinbeugerIso', 'beinbeugerDehnen', 'glutebridge'],
   },
   {
     id: 'wadenzerrung',
@@ -325,6 +360,7 @@ export const INJURIES = [
       + 'Antritt. Jedes Wadenheben zieht direkt daran.',
     avoid: ['einbeiniges-stehendes-wadenheben', 'wadenheben-gebeugtes-knie'],
     swap: {},
+    care: ['wadeGestreckt', 'wadeGebeugt', 'fussABC'],
   },
   {
     id: 'achillessehne',
@@ -334,6 +370,7 @@ export const INJURIES = [
       + 'belastet sie am stärksten; mit gebeugtem Knie deutlich weniger.',
     avoid: ['einbeiniges-stehendes-wadenheben'],
     swap: { 'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie' },
+    care: ['achillesExzentrik', 'wadeGebeugt', 'wadeGestreckt'],
   },
   {
     id: 'sprunggelenk',
@@ -348,6 +385,7 @@ export const INJURIES = [
       'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'goblet-squat': 'fersenerhoehter-goblet-squat',
     },
+    care: ['fussABC', 'einbeinstand', 'wadeGestreckt', 'zehenheben'],
   },
   {
     id: 'schienbeinkante',
@@ -357,8 +395,226 @@ export const INJURIES = [
       + 'zu viel Laufen. Stoßbelastung und Wadenheben im Stand reizen weiter.',
     avoid: ['einbeiniges-stehendes-wadenheben'],
     swap: { 'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie' },
+    care: ['zehenheben', 'wadeGestreckt', 'fussABC'],
   },
 ];
+
+/* ------------------------------------------------------------------ *
+ * Was gut tut
+ *
+ * Zu jeder Beschwerde ein paar Übungen, die üblicherweise helfen: dehnen,
+ * mobilisieren, gezielt kräftigen. Sie gehören *nicht* in die Volumenrechnung
+ * – Reha-Arbeit ist kein Muskelaufbau, und ein Satz Außenrotation mit dem
+ * Gummiband ist kein Satz Rudern. Sie stehen deshalb als eigene Liste daneben,
+ * mit Dauer statt Sätzen.
+ *
+ * Bei Bruch, Riss und Bandscheibenvorfall steht die Liste unter Vorbehalt:
+ * dort entscheidet die ärztliche Freigabe, wann überhaupt wieder bewegt wird.
+ * ------------------------------------------------------------------ */
+
+export const CARE_LABEL = {
+  dehnen: 'Dehnen',
+  kraeftigen: 'Kräftigen',
+  mobilisieren: 'Mobilisieren',
+  entlasten: 'Entlasten',
+};
+
+export const CARE = {
+  /* ---- Schulter ---- */
+  aussenrotation: {
+    name: 'Außenrotation mit Band', kind: 'kraeftigen', dose: '3 × 15 je Seite',
+    cue: 'Oberarm am Körper, Ellenbogen 90°, ein Handtuch zwischen Arm und Rippen '
+      + 'klemmen. Unterarm langsam nach außen ziehen, ohne dass die Schulter mitgeht. '
+      + 'Leicht – hier zählt Sauberkeit, nicht Widerstand.',
+  },
+  wandengel: {
+    name: 'Wandengel', kind: 'mobilisieren', dose: '2 × 10 langsam',
+    cue: 'Mit Rücken, Kopf und Armen an der Wand, Ellenbogen 90°. Arme langsam nach '
+      + 'oben schieben, ohne dass Handrücken oder Rücken die Wand verlassen. Nur so '
+      + 'weit, wie es ohne Ausweichen geht.',
+  },
+  brustdehnung: {
+    name: 'Brustdehnung im Türrahmen', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Unterarm am Türrahmen, Ellenbogen auf Schulterhöhe, einen Schritt nach vorn. '
+      + 'Zug vorn an der Brust, nicht in der Schulter. Ruhig atmen.',
+  },
+  schulterblatt: {
+    name: 'Schulterblätter zusammenziehen', kind: 'kraeftigen', dose: '3 × 15',
+    cue: 'Arme locker hängen lassen, nur die Schulterblätter nach hinten unten ziehen '
+      + 'und zwei Sekunden halten. Die Arme machen nichts.',
+  },
+  sleeper: {
+    name: 'Sleeper Stretch', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Auf der betroffenen Seite liegen, Arm im rechten Winkel vor dem Körper. Mit '
+      + 'der anderen Hand den Unterarm sanft Richtung Boden drücken. Für die hintere '
+      + 'Kapsel – bei Schmerz sofort nachlassen.',
+  },
+
+  /* ---- Ellenbogen und Hand ---- */
+  streckerExzentrik: {
+    name: 'Handgelenkstrecken, langsam ablassen', kind: 'kraeftigen', dose: '3 × 15 je Seite',
+    cue: 'Unterarm aufgelegt, Handrücken nach oben, leichtes Gewicht. Mit der anderen '
+      + 'Hand hochhelfen, dann allein über 3–4 Sekunden ablassen. Das langsame Ablassen '
+      + 'ist der wirksame Teil beim Tennisarm.',
+  },
+  beugerExzentrik: {
+    name: 'Handgelenkbeugen, langsam ablassen', kind: 'kraeftigen', dose: '3 × 15 je Seite',
+    cue: 'Wie oben, nur mit der Handfläche nach oben. Hochhelfen, allein über 3–4 '
+      + 'Sekunden ablassen. Das Gegenstück für den Golferarm.',
+  },
+  streckerDehnen: {
+    name: 'Unterarmstrecker dehnen', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Arm gestreckt vor den Körper, Handrücken nach oben, Hand nach unten ziehen. '
+      + 'Zug an der Außenseite des Unterarms.',
+  },
+  beugerDehnen: {
+    name: 'Unterarmbeuger dehnen', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Arm gestreckt, Handfläche nach oben, Finger nach unten ziehen. Zug an der '
+      + 'Innenseite.',
+  },
+  handgelenkMobil: {
+    name: 'Handgelenke mobilisieren', kind: 'mobilisieren', dose: '2 Minuten',
+    cue: 'Im Vierfüßlerstand die Hände langsam kreisen lassen, Finger mal nach vorn, '
+      + 'mal zur Seite, mal nach hinten. Gewicht dosiert verlagern.',
+  },
+  fingerstrecker: {
+    name: 'Finger gegen Gummiband spreizen', kind: 'kraeftigen', dose: '3 × 20',
+    cue: 'Ein Haushaltsgummi um alle Fingerspitzen, Finger langsam aufspannen und '
+      + 'kontrolliert zurück. Gleicht das ewige Greifen aus.',
+  },
+
+  /* ---- Nacken ---- */
+  kinnZurueck: {
+    name: 'Kinn zurückziehen', kind: 'kraeftigen', dose: '3 × 10, je 5 s halten',
+    cue: 'Kopf gerade, Kinn waagerecht nach hinten schieben (Doppelkinn), nicht nicken. '
+      + 'Zieht die tiefen Halsbeuger an, die bei Nackenschmerz meist schwach sind.',
+  },
+  nackenSeite: {
+    name: 'Nacken seitlich dehnen', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Ohr zur Schulter, die andere Hand greift die Sitzfläche und hält die Schulter '
+      + 'unten. Kein Ziehen mit der Hand am Kopf.',
+  },
+  schulterkreisen: {
+    name: 'Schultern kreisen', kind: 'mobilisieren', dose: '2 × 15 nach hinten',
+    cue: 'Große, langsame Kreise nach hinten. Klingt banal, löst aber genau die Stelle, '
+      + 'die vom Sitzen verklebt.',
+  },
+
+  /* ---- Rücken und Becken ---- */
+  katzeKuh: {
+    name: 'Katze–Kuh', kind: 'mobilisieren', dose: '2 × 10 langsam',
+    cue: 'Im Vierfüßlerstand die Wirbelsäule abschnittsweise runden und strecken, im '
+      + 'Atemrhythmus. Ohne Kraft, ohne Endanschlag.',
+  },
+  kobra: {
+    name: 'Streckung in Bauchlage', kind: 'mobilisieren', dose: '10 × 5 s',
+    cue: 'Bauchlage, Hände unter den Schultern, Oberkörper so weit anheben, wie es ohne '
+      + 'Schmerz geht, Becken bleibt liegen. Bei Bandscheibenbeschwerden oft die '
+      + 'Richtung, die den Schmerz aus dem Bein zurückwandern lässt – wandert er ins '
+      + 'Bein, sofort aufhören.',
+  },
+  deadBug: {
+    name: 'Dead Bug', kind: 'kraeftigen', dose: '3 × 8 je Seite',
+    cue: 'Rückenlage, Arme und Beine hoch. Gegenüberliegenden Arm und Bein langsam '
+      + 'absenken, der untere Rücken bleibt am Boden. Rumpfstabilität ohne Beugung.',
+  },
+  vogelhund: {
+    name: 'Bird Dog', kind: 'kraeftigen', dose: '3 × 8 je Seite',
+    cue: 'Vierfüßlerstand, gegenüberliegenden Arm und Bein lang ausstrecken und 3 s '
+      + 'halten. Becken bleibt waagerecht – ein Glas Wasser auf dem Kreuz dürfte nicht '
+      + 'kippen.',
+  },
+  glutebridge: {
+    name: 'Beckenheben', kind: 'kraeftigen', dose: '3 × 12',
+    cue: 'Rückenlage, Füße aufgestellt, Becken heben bis Knie–Hüfte–Schulter eine Linie '
+      + 'bilden. Oben eine Sekunde die Pobacken fest zusammendrücken.',
+  },
+  hueftbeuger: {
+    name: 'Hüftbeuger dehnen', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Halber Kniestand, Becken nach vorn schieben und dabei das Steißbein leicht '
+      + 'einrollen. Zug vorn in der Leiste des hinteren Beins, nicht im Rücken.',
+  },
+  piriformis: {
+    name: 'Gesäß dehnen (Vierer)', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Rückenlage, Knöchel aufs andere Knie legen, das untere Bein zur Brust ziehen. '
+      + 'Zug tief im Gesäß der oben liegenden Seite.',
+  },
+  atmung: {
+    name: 'Ruhige Rippenatmung', kind: 'entlasten', dose: '5 Minuten',
+    cue: 'Hände seitlich an die unteren Rippen, langsam so einatmen, dass sich die '
+      + 'Rippen zur Seite weiten, nicht der Bauch nach vorn. Hält die Rippen beweglich, '
+      + 'ohne den verletzten Bereich zu belasten.',
+  },
+
+  /* ---- Hüfte und Bein ---- */
+  huefte9090: {
+    name: '90/90 Hüftrotation', kind: 'mobilisieren', dose: '2 × 10 je Seite',
+    cue: 'Im Sitzen beide Knie 90°, ein Bein vor, eines seitlich. Langsam von Seite zu '
+      + 'Seite kippen. Öffnet die Hüfte, ohne sie in den Anschlag zu drücken.',
+  },
+  adduktoren: {
+    name: 'Adduktoren dehnen', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Breiter Stand, Gewicht auf ein gebeugtes Bein, das andere lang und gestreckt. '
+      + 'Zug an der Oberschenkelinnenseite.',
+  },
+  wandsitz: {
+    name: 'Wandsitz', kind: 'kraeftigen', dose: '4 × 30–45 s',
+    cue: 'Mit dem Rücken an der Wand, Knie etwa 60° gebeugt, ruhig halten. Isometrisch '
+      + 'belastet das die Patellasehne, ohne sie zu reizen – bei Springerknie oft das, '
+      + 'was den Schmerz noch am selben Tag senkt.',
+  },
+  knieextension: {
+    name: 'Knie zu Ende strecken', kind: 'kraeftigen', dose: '3 × 15 je Seite',
+    cue: 'Handtuchrolle unter dem Knie, Ferse liegen lassen und das Knie kräftig in die '
+      + 'Rolle drücken, bis es ganz gestreckt ist. 5 s halten. Die letzten Grad sind '
+      + 'die, die nach jeder Knieverletzung fehlen.',
+  },
+  beinbeugerDehnen: {
+    name: 'Beinbeuger dehnen', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Ferse auf eine niedrige Stufe, Bein gestreckt, aus der Hüfte nach vorn kippen '
+      + 'mit geradem Rücken. Kein Rundrücken – sonst zieht es an der falschen Stelle.',
+  },
+  beinbeugerIso: {
+    name: 'Beinbeuger anspannen', kind: 'kraeftigen', dose: '4 × 20 s je Seite',
+    cue: 'Rückenlage, Ferse in den Boden drücken, Knie leicht gebeugt, halten. Bei einer '
+      + 'frischen Zerrung der erste Reiz, der wieder gut tut – schmerzfrei dosieren.',
+  },
+
+  /* ---- Wade und Fuß ---- */
+  wadeGestreckt: {
+    name: 'Wade dehnen, Knie gestreckt', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Schrittstellung an der Wand, hinteres Bein gestreckt, Ferse am Boden. Trifft '
+      + 'den zweiköpfigen Wadenmuskel.',
+  },
+  wadeGebeugt: {
+    name: 'Wade dehnen, Knie gebeugt', kind: 'dehnen', dose: '3 × 30 s je Seite',
+    cue: 'Dieselbe Stellung, hinteres Knie leicht gebeugt. Trifft den tiefer liegenden '
+      + 'Schollenmuskel und damit den Ansatz der Achillessehne.',
+  },
+  achillesExzentrik: {
+    name: 'Wadenheben, langsam ablassen', kind: 'kraeftigen', dose: '3 × 15, zweimal täglich',
+    cue: 'Auf einer Stufe mit beiden Beinen hoch, das Gewicht aufs betroffene Bein '
+      + 'verlagern und über 3–4 Sekunden unter die Stufenkante ablassen. Das '
+      + 'Standardprogramm bei Achillessehnenbeschwerden; leichter Schmerz während der '
+      + 'Übung ist dabei erlaubt.',
+  },
+  fussABC: {
+    name: 'Fuß-ABC', kind: 'mobilisieren', dose: '2 Durchgänge je Seite',
+    cue: 'Im Sitzen mit der großen Zehe das Alphabet in die Luft schreiben. Bringt das '
+      + 'Sprunggelenk in alle Richtungen, ohne es zu belasten.',
+  },
+  einbeinstand: {
+    name: 'Einbeinstand', kind: 'kraeftigen', dose: '3 × 45 s je Seite',
+    cue: 'Auf einem Bein stehen, erst mit offenen, dann mit geschlossenen Augen. Nach '
+      + 'dem Umknicken ist es die gestörte Tiefenwahrnehmung, die das nächste Umknicken '
+      + 'wahrscheinlich macht.',
+  },
+  zehenheben: {
+    name: 'Zehen heben', kind: 'kraeftigen', dose: '3 × 20',
+    cue: 'Mit den Fersen auf einer Stufe stehen, Fußspitzen anheben und langsam ablassen. '
+      + 'Kräftigt den vorderen Schienbeinmuskel.',
+  },
+};
 
 const BY_ID = new Map(INJURIES.map((i) => [i.id, i]));
 
@@ -500,6 +756,38 @@ export function weeklyImpact(plan, byId, active, mode, weeks) {
     out[m] = { before: before[m] / weeks, after: (after[m] || 0) / weeks };
   });
   return out;
+}
+
+/**
+ * Freigabe abwarten? Bei Bruch, Riss und Bandscheibenvorfall entscheidet nicht
+ * der Trainingsplan, wann wieder bewegt wird.
+ */
+export function needsClearance(id) {
+  const inj = BY_ID.get(id);
+  return !!inj && ['bruch', 'riss', 'vorfall'].includes(inj.kind);
+}
+
+/**
+ * Übungen, die bei der aktuellen Auswahl gut tun – ohne Doppelte, in der
+ * Reihenfolge der angehakten Beschwerden.
+ *
+ * Zu jeder steht dabei, wegen welcher Beschwerde sie in der Liste ist, und ob
+ * eine davon erst eine ärztliche Freigabe braucht.
+ */
+export function careFor(active) {
+  const out = new Map();
+  active.forEach((id) => {
+    const inj = BY_ID.get(id);
+    if (!inj) return;
+    (inj.care || []).forEach((key) => {
+      if (!CARE[key]) return;
+      const seen = out.get(key) || { key, ...CARE[key], wegen: [], clearance: false };
+      seen.wegen.push(inj.name);
+      seen.clearance = seen.clearance || needsClearance(id);
+      out.set(key, seen);
+    });
+  });
+  return [...out.values()];
 }
 
 /** Von Hand notierte Wechselwirkungen, die auf die Auswahl passen. */

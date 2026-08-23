@@ -439,6 +439,22 @@ Ersatz gibt.
     swap    Ersatz, wo es einen gibt, der dieselbe Richtung trainiert, ohne
             die Stelle zu belasten. Ohne Eintrag fällt die Übung ersatzlos weg
             – das ist ehrlicher als ein Ersatz, der auch weh tut.
+    care    Was stattdessen gut tut – Verweise in den Katalog `CARE`.
+
+**Was gut tut.** 34 Zusatzübungen in `CARE`, jede mit Art (dehnen,
+mobilisieren, kräftigen, entlasten), Dosierung und einem Hinweis, worauf es
+ankommt – beim Wandsitz etwa, dass die isometrische Belastung die Patellasehne
+reizarm belastet und den Schmerz oft noch am selben Tag senkt. Je Beschwerde
+zwei bis fünf davon; die Auswahl erscheint aufgeklappt in der Karte und, für
+alle angehakten zusammengefasst und ohne Doppelte, oben im Tab.
+
+Sie zählen bewusst **nicht** ins Wochenvolumen und stehen mit Dauer statt
+Sätzen da: ein Satz Außenrotation mit dem Gummiband ist kein Satz Rudern, und
+die exakte 10 würde sonst zu einer Zahl, die nichts mehr bedeutet.
+
+Bei Bruch, Riss und Bandscheibenvorfall steht über der Liste, dass hier die
+ärztliche Freigabe entscheidet, wann überhaupt wieder bewegt wird – nicht der
+Trainingsplan.
 
 **Alles geht durch eine Stelle.** `exOf()` in `js/app.js` ist der einzige Weg,
 auf dem die App an die Übungen eines Plantags kommt – Startansicht, Fokus,

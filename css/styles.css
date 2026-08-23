@@ -1057,3 +1057,27 @@ textarea.io {
   border: 1px solid var(--line);
 }
 .chip.on { border-color: var(--accent); color: var(--accent); }
+
+/* Zusatzübungen bei Verletzungen */
+.care {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.care-head { display: flex; align-items: baseline; gap: 8px; justify-content: space-between; }
+.care-name { font-weight: 600; font-size: 15px; }
+.care-kind {
+  flex: 0 0 auto;
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px;
+  background: rgba(255, 255, 255, .06); color: var(--muted);
+}
+.care-dehnen { color: #8fd0ff; }
+.care-kraeftigen { color: #ffb26b; }
+.care-mobilisieren { color: #a6e3a1; }
+.care-entlasten { color: #d8c2ff; }
+.care-dose { font-size: 13px; color: var(--accent); margin-top: 2px; }
+.care-cue { font-size: 14px; line-height: 1.45; margin-top: 6px; }
+.care-why { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.inj-care { padding: 0 14px 14px; }
