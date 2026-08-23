@@ -135,6 +135,15 @@ function solve(pose) {
  * ------------------------------------------------------------------ */
 
 export const PATTERNS = {
+  // Ruhig stehende Figur ohne Bewegung – Grundlage für die Verletzungskarte.
+  // Die Arme stehen etwas ab, sonst verschwindet die Schultermarke im Rumpf.
+  stand: {
+    label: 'Körper', float: false,
+    poses: [
+      { lean: 2, arm: A(4, 14, 8), leg: L(2, 4, 3) },
+      { lean: 2, arm: A(4, 14, 8), leg: L(2, 4, 3) },
+    ],
+  },
   squat: {
     label: 'Kniebeuge',
     poses: [
@@ -356,6 +365,39 @@ const el = (name, attrs = {}) => {
 
 const active = new Set();
 
+/* ------------------------------------------------------------------ *
+ * Stellen am Körper
+ *
+ * Für die Verletzungskarte: ein Name wie 'knie' muss zu Punkten im Raum
+ * werden. Alles, was es doppelt gibt, wird auch doppelt markiert – der Plan
+ * unterscheidet die Seiten nicht, und eine einseitige Marke würde eine
+ * Genauigkeit vortäuschen, die nicht dahintersteckt.
+ * ------------------------------------------------------------------ */
+
+const between = (a, b, t) => [0, 1, 2].map((i) => a[i] + (b[i] - a[i]) * t);
+
+export const SPOTS = {
+  shoulder: (j) => [j.shoulderL, j.shoulderR],
+  upperArm: (j) => [between(j.shoulderL, j.elbowL, 0.3), between(j.shoulderR, j.elbowR, 0.3)],
+  elbow: (j) => [j.elbowL, j.elbowR],
+  wrist: (j) => [between(j.elbowL, j.handL, 0.86), between(j.elbowR, j.handR, 0.86)],
+  hand: (j) => [j.handL, j.handR],
+  neck: (j) => [j.neck],
+  chest: (j) => [j.chest],
+  ribs: (j) => [between(j.chest, j.hipC, 0.35)],
+  abs: (j) => [between(j.chest, j.hipC, 0.62)],
+  lowerBack: (j) => [between(j.hipC, j.chest, 0.24)],
+  pelvis: (j) => [j.hipC],
+  groin: (j) => [between(j.hipC, between(j.kneeL, j.kneeR, 0.5), 0.16)],
+  hip: (j) => [j.hipL, j.hipR],
+  knee: (j) => [j.kneeL, j.kneeR],
+  hamstring: (j) => [between(j.hipL, j.kneeL, 0.55), between(j.hipR, j.kneeR, 0.55)],
+  calf: (j) => [between(j.kneeL, j.ankleL, 0.38), between(j.kneeR, j.ankleR, 0.38)],
+  shin: (j) => [between(j.kneeL, j.ankleL, 0.5), between(j.kneeR, j.ankleR, 0.5)],
+  achilles: (j) => [between(j.kneeL, j.ankleL, 0.9), between(j.kneeR, j.ankleR, 0.9)],
+  ankle: (j) => [j.ankleL, j.ankleR],
+};
+
 /** Schwache Perspektive: weiter hinten = kleiner. */
 function project(p, yaw, pitch, scale, cx, cy) {
   const r = rotX(rotY(p, yaw), pitch);
@@ -364,7 +406,7 @@ function project(p, yaw, pitch, scale, cx, cy) {
   return { x: cx + r[0] * scale * k, y: cy - r[1] * scale * k, z: r[2], k };
 }
 
-export function mountFigure(host, pattern, weight, equip) {
+export function mountFigure(host, pattern, weight, equip, marks = []) {
   const spec = PATTERNS[pattern];
   host.textContent = '';
   if (!spec) return () => {};
@@ -374,15 +416,19 @@ export function mountFigure(host, pattern, weight, equip) {
   const box = host.getBoundingClientRect();
   const VBW = 100;
   const VBH = box.width > 0 ? Math.max(50, Math.min(160, Math.round((100 * box.height) / box.width))) : 100;
-  const svg = el('svg', { viewBox: `0 0 ${VBW} ${VBH}`, class: 'fig' });
+  // Mit Verletzungsmarken wird der Körper neutral gefärbt – sonst hebt sich
+  // die Marke nicht ab, beides wäre in der Akzentfarbe.
+  const svg = el('svg', { viewBox: `0 0 ${VBW} ${VBH}`, class: marks.length ? 'fig hurt-mode' : 'fig' });
   const scene = el('g');
   svg.appendChild(scene);
   host.appendChild(svg);
 
+  // In den kleinen Verletzungskarten ist für den Hinweis kein Platz; dort
+  // steht er im Fließtext daneben.
   const hint = document.createElement('span');
   hint.className = 'fig-hint';
   hint.textContent = '↕↔ ziehen zum Drehen';
-  host.appendChild(hint);
+  if (!host.classList.contains('no-hint')) host.appendChild(hint);
 
   // Dreiviertelansicht steht der stehenden Figur am besten. Eine liegende ist
   // von der Seite dagegen zwangsläufig ein Strich – Rumpf, Arme und Beine
@@ -720,6 +766,36 @@ export function mountFigure(host, pattern, weight, equip) {
         }),
       });
     }
+
+    // Verletzungsmarken ganz oben: sie sollen auch dann zu sehen sein, wenn
+    // die Stelle gerade hinten liegt – sonst muss man die Figur erst drehen,
+    // um zu erkennen, worum es geht.
+    marks.forEach(({ spot, kind }) => {
+      const at = SPOTS[spot];
+      if (!at) return;
+      at(j).forEach((p3) => {
+        const q = P(p3);
+        // Etwas schmaler als ein Oberarm: eine Marke soll die Stelle zeigen,
+        // nicht die Figur darunter verdecken.
+        const r = Math.max(1.2, 2.6 * gearScale * q.k);
+        const f = (v) => v.toFixed(1);
+        parts.push({
+          z: Infinity,
+          node: el('circle', { cx: f(q.x), cy: f(q.y), r: f(r * 1.75), class: 'fig-hurt-halo' }),
+        });
+        parts.push({
+          z: Infinity,
+          node: el('circle', { cx: f(q.x), cy: f(q.y), r: f(r), class: 'fig-hurt' }),
+        });
+        // Bruch und Riss bekommen einen Zackenblitz, damit sich die Art der
+        // Verletzung schon am Bild unterscheiden lässt.
+        if (kind === 'bruch' || kind === 'riss') {
+          const pts = [[-0.7, -1], [0.1, -0.2], [-0.3, 0.15], [0.6, 1]]
+            .map(([dx, dy]) => `${f(q.x + dx * r)},${f(q.y + dy * r)}`).join(' ');
+          parts.push({ z: Infinity, node: el('polyline', { points: pts, class: 'fig-hurt-crack' }) });
+        }
+      });
+    });
 
     // Maleralgorithmus: hinten zuerst
     parts.sort((p, q) => p.z - q.z).forEach((p) => scene.appendChild(p.node));

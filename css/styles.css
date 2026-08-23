@@ -976,3 +976,80 @@ textarea.io {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ------------------------------------------------------------------ *
+ * Verletzungen
+ * ------------------------------------------------------------------ */
+
+.inj-summary { display: flex; gap: 14px; align-items: stretch; }
+.inj-sum-body { flex: 1 1 auto; min-width: 0; }
+.inj-fig {
+  position: relative;
+  flex: 0 0 108px;
+  width: 108px;
+  height: 168px;
+  border-radius: 12px;
+  background: var(--card-2, rgba(255, 255, 255, .03));
+}
+.inj-fig.small-fig { flex-basis: 84px; width: 84px; height: 132px; }
+
+.inj-area {
+  margin: 18px 2px 6px;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.inj-card { padding: 0; overflow: hidden; }
+.inj-card.on { border-color: var(--accent); }
+.inj-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; cursor: pointer;
+}
+.inj-title { flex: 1 1 auto; min-width: 0; }
+.inj-body { display: flex; gap: 14px; padding: 0 14px 14px; }
+.inj-text { flex: 1 1 auto; min-width: 0; }
+.inj-text p { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
+
+.inj-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.inj-table th {
+  text-align: left; font-weight: 600; font-size: 12px;
+  color: var(--muted); padding-bottom: 6px;
+}
+.inj-table td { padding: 4px 0; border-top: 1px solid var(--line); }
+.inj-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.inj-loss { color: #ff8f6b; }
+.inj-gain { color: #7fd8a0; }
+
+.inj-warn {
+  font-size: 14px; line-height: 1.45;
+  padding: 10px 12px; margin-bottom: 8px;
+  border-radius: 10px;
+  background: rgba(255, 143, 107, .10);
+  border: 1px solid rgba(255, 143, 107, .28);
+}
+.inj-warn:last-child { margin-bottom: 0; }
+
+.injury-note { border-color: rgba(255, 143, 107, .35); }
+.inj-note-head { font-weight: 600; margin-bottom: 4px; }
+.injury-note .btn { margin-top: 10px; }
+
+/* Marken auf der 3D-Figur. Der Körper wird dabei neutral, sonst ginge die
+   Marke in der Akzentfarbe unter. */
+.fig.hurt-mode .fig-limb,
+.fig.hurt-mode .fig-spine,
+.fig.hurt-mode .fig-torso,
+.fig.hurt-mode .fig-head { fill: #56607a; }
+.fig-hurt { fill: #ff3b30; stroke: #fff; stroke-width: .5; }
+.fig-hurt-halo { fill: rgba(255, 59, 48, .26); }
+.fig-hurt-crack { fill: none; stroke: #fff; stroke-width: .9; stroke-linejoin: round; stroke-linecap: round; }
+
+.btn-sm { padding: 8px 12px; font-size: 14px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-size: 13px; background: var(--card-2, rgba(255, 255, 255, .05));
+  border: 1px solid var(--line);
+}
+.chip.on { border-color: var(--accent); color: var(--accent); }

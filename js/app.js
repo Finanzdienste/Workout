@@ -3,6 +3,7 @@ import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
+import { INJURIES, KIND_LABEL, injuryById, applyInjuries, blocked, weeklyImpact, combosFor } from './injuries.js';
 import { sparkPanel } from './chart.js';
 
 /* ------------------------------------------------------------------ *
@@ -57,8 +58,25 @@ function defaultWorkoutNo() {
   return open ? open.n : PLAN[PLAN.length - 1].n;
 }
 
+/** Angehakte Verletzungen. */
+function activeInjuries() { return store.getState().injuries || []; }
+
+/**
+ * Übungsliste eines Plantags, angepasst an die angehakten Verletzungen.
+ *
+ * Alles in der App geht durch diese Stelle – Übersicht, Fokus, Statistik,
+ * Steigerungsvorschlag. So kann es gar nicht passieren, dass an einer Stelle
+ * eine gesperrte Übung auftaucht und an einer anderen nicht.
+ */
+function exOf(w) {
+  const act = activeInjuries();
+  return act.length ? applyInjuries(w.ex, act).items : w.ex;
+}
+
 function workoutByNo(n) {
-  return PLAN.find((w) => w.n === n) || PLAN[0];
+  const w = PLAN.find((x) => x.n === n) || PLAN[0];
+  const ex = exOf(w);
+  return ex === w.ex ? w : { ...w, ex };
 }
 
 /** Untere Grenze eines Wiederholungsbereichs, z. B. "8–12" -> 8. */
@@ -122,7 +140,7 @@ function bumpHint(exId) {
   let streak = 0;
   for (let i = PLAN.length - 1; i >= 0; i--) {
     const w = PLAN[i];
-    const item = w.ex.find((x) => x.id === exId);
+    const item = exOf(w).find((x) => x.id === exId);
     if (!item) continue;
     const sets = store.peekSets(w.n, 'db', exId);
     if (!sets || !sets.length) continue;
@@ -384,6 +402,7 @@ const ui = {
   tab: 'dashboard',
   workoutNo: defaultWorkoutNo(),
   openEx: new Set(),
+  openInjury: new Set(),
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
@@ -463,6 +482,7 @@ function renderFocus() {
     </div>
 
     ${sessionButtons(n, mode)}
+    ${injuryNote(w, mode)}
   `;
 
   const host = document.getElementById('focusFig');
@@ -539,6 +559,7 @@ function renderOverview() {
         <button type="button" class="ov-nav" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>→</button>
       </div>
     </section>
+    ${injuryNote(w, mode)}
   `;
 
   const host = document.getElementById('bodyMap');
@@ -674,6 +695,7 @@ function renderDashboard() {
       Der Umschalter oben wechselt zwischen der Hantel-Variante aus dem Plan und dem
       Bodyweight-Äquivalent. Beide Varianten werden getrennt protokolliert.
     </p>
+    ${injuryNote(w, mode)}
   `);
 
   view.innerHTML = parts.join('');
@@ -684,7 +706,7 @@ function lastLoggedFor(exId, mode, beforeN) {
   for (let i = PLAN.length - 1; i >= 0; i--) {
     const w = PLAN[i];
     if (w.n >= beforeN) continue;
-    const item = w.ex.find((x) => x.id === exId);
+    const item = exOf(w).find((x) => x.id === exId);
     if (!item) continue;
     const arr = store.peekSets(w.n, mode, exId);
     if (!arr) continue;
@@ -714,7 +736,7 @@ function progressSeries() {
     const day = fmtDate(effDate(w));
     const muscleDay = new Map();
 
-    w.ex.forEach((item) => {
+    exOf(w).forEach((item) => {
       const arr = store.peekSets(w.n, 'db', item.id);
       if (!arr) return;
       const done = arr.slice(0, item.sets).filter((x) => x.done && x.w !== '');
@@ -755,7 +777,7 @@ function renderStats() {
     const entry = log[w.n];
     if (!entry) return;
     ['db', 'bw'].forEach((m) => {
-      w.ex.forEach((item) => {
+      exOf(w).forEach((item) => {
         const arr = entry[m] && entry[m][item.id];
         if (!Array.isArray(arr)) return;
         // Wiederholungen werden nicht mehr erfasst; gerechnet wird deshalb mit
@@ -812,7 +834,7 @@ function renderStats() {
     <div class="card">
       ${upcoming
         ? `<div class="plan-date">Workout ${upcoming.n} · ${esc(fmtDate(effDate(upcoming), true))}</div>
-           <div class="small muted" style="margin-top:4px">${esc(upcoming.ex.map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
+           <div class="small muted" style="margin-top:4px">${esc(exOf(upcoming).map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
            <div class="btn-row"><button type="button" class="btn btn-primary" data-act="open-workout" data-n="${upcoming.n}">Öffnen</button></div>`
         : '<div class="muted">Alle Einheiten des Plans sind abgeschlossen. Stark.</div>'}
     </div>
@@ -861,6 +883,207 @@ function renderStats() {
     [...perMuscle.entries()].sort((a, b) => b[1].length - a[1].length),
     (m) => MUSCLE_LABEL[m] || m, 'kg', (v) => Math.round(v).toLocaleString('de-DE'),
     'Noch kein Volumen erfasst. Nur Hantel-Einheiten tragen Kilo bei.');
+}
+
+/* ------------------------------------------------------------------ *
+ * Verletzungen
+ *
+ * Angehakt gilt dauerhaft: der Plan rechnet ab sofort ohne die betroffenen
+ * Übungen weiter, bis der Haken wieder weg ist. Was das kostet, steht daneben
+ * – ausgerechnet über den ganzen Plan, nicht geschätzt.
+ * ------------------------------------------------------------------ */
+
+/** Wochen im Plan, aus den Terminen abgeleitet. */
+const PLAN_WEEKS = (() => {
+  const span = daysBetween(PLAN[0].date, PLAN[PLAN.length - 1].date);
+  // Die letzte Einheit endet nicht am Wochenende: eine Lücke dazurechnen,
+  // sonst kommt bei 80 Einheiten in 139 Tagen 19,9 statt 20 heraus.
+  return Math.max(1, Math.round((span * PLAN.length) / Math.max(1, PLAN.length - 1) / 7));
+})();
+
+/**
+ * Ersatz, der wegen einer zweiten Beschwerde nicht greift.
+ *
+ * Das ist die Wechselwirkung, die sich rechnen lässt: Beschwerde A würde eine
+ * Übung durch eine andere ersetzen, Beschwerde B sperrt aber genau die.
+ */
+function swapConflicts(act) {
+  const block = blocked(act);
+  const out = [];
+  act.forEach((id) => {
+    const inj = injuryById(id);
+    if (!inj) return;
+    Object.entries(inj.swap).forEach(([from, to]) => {
+      if (!block.has(from) || !block.has(to)) return;
+      const by = act.filter((o) => o !== id && (injuryById(o) || { avoid: [] }).avoid.includes(to));
+      if (by.length) out.push({ inj, from, to, by: by.map((o) => injuryById(o).name) });
+    });
+  });
+  return out;
+}
+
+/** Kurzfassung fürs Training: was heute anders ist. */
+function injuryNote(w, mode) {
+  const act = activeInjuries();
+  if (!act.length) return '';
+  const src = PLAN.find((x) => x.n === w.n) || w;
+  const { dropped, swapped } = applyInjuries(src.ex, act);
+  const names = act.map((id) => (injuryById(id) || {}).name).filter(Boolean);
+  const nm = (id) => resolve({ id, sets: 0 }, mode).name;
+  const lines = [];
+  swapped.forEach((s) => lines.push(`${esc(nm(s.from))} → ${esc(nm(s.to))}`));
+  dropped.forEach((d) => lines.push(`${esc(nm(d.id))} fällt aus`));
+  return `
+    <div class="card injury-note">
+      <div class="inj-note-head">🩹 Rücksicht auf: ${esc(names.join(', '))}</div>
+      ${lines.length
+        ? `<div class="small muted">Heute deshalb: ${lines.join(' · ')}</div>`
+        : '<div class="small muted">Heute ändert das nichts – keine der Übungen ist betroffen.</div>'}
+      <button type="button" class="btn btn-ghost btn-sm" data-act="go-injuries">Verletzungen ansehen</button>
+    </div>`;
+}
+
+function renderInjuries() {
+  const act = activeInjuries();
+  const mode = store.getState().mode;
+  const activeSet = new Set(act);
+  const nm = (id) => resolve({ id, sets: 0 }, mode).name;
+
+  const marks = act.map((id) => injuryById(id)).filter(Boolean)
+    .map((i) => ({ spot: i.spot, kind: i.kind }));
+
+  // Auswirkungen über den ganzen Plan, nicht nur über heute
+  const block = blocked(act);
+  const gone = [];
+  const swapCount = new Map();
+  PLAN.forEach((w) => {
+    const r = applyInjuries(w.ex, act);
+    r.dropped.forEach((d) => gone.push(d));
+    r.swapped.forEach((s) => {
+      const key = `${s.from}→${s.to}`;
+      swapCount.set(key, (swapCount.get(key) || 0) + s.sets);
+    });
+  });
+  const goneSets = new Map();
+  gone.forEach((d) => goneSets.set(d.id, (goneSets.get(d.id) || 0) + d.sets));
+
+  const impact = act.length ? weeklyImpact(PLAN, EX_BY_ID, act, mode, PLAN_WEEKS) : {};
+  const hits = Object.entries(impact)
+    .map(([m, v]) => ({ m, ...v, diff: v.after - v.before }))
+    .filter((x) => Math.abs(x.diff) > 0.05)
+    .sort((a, b) => a.diff - b.diff);
+
+  const conflicts = swapConflicts(act);
+  const combos = combosFor(act);
+
+  const summary = act.length ? `
+    <section class="card inj-summary">
+      <div class="inj-fig no-hint" id="injFigure" aria-label="Körper mit den betroffenen Stellen"></div>
+      <div class="inj-sum-body">
+        <div class="section-title" style="margin:0 0 6px">${plural(act.length, 'Beschwerde', 'Beschwerden')} aktiv</div>
+        <div class="chips">${act.map((id) => {
+          const i = injuryById(id);
+          return i ? `<span class="chip on">${esc(i.name)}</span>` : '';
+        }).join('')}</div>
+        ${[...swapCount.entries()].length ? `<div class="small" style="margin-top:10px">
+          <b>Getauscht:</b> ${[...swapCount.entries()].map(([k, sets]) => {
+            const [from, to] = k.split('→');
+            return `${esc(nm(from))} → ${esc(nm(to))} <span class="muted">(${sets} Sätze)</span>`;
+          }).join(' · ')}</div>` : ''}
+        ${goneSets.size ? `<div class="small" style="margin-top:6px">
+          <b>Fällt ersatzlos weg:</b> ${[...goneSets.entries()]
+            .map(([id, sets]) => `${esc(nm(id))} <span class="muted">(${sets} Sätze)</span>`).join(' · ')}</div>` : ''}
+        ${!swapCount.size && !goneSets.size ? '<div class="small muted" style="margin-top:10px">Am Plan ändert sich nichts – keine der angehakten Beschwerden trifft eine Übung, die vorkommt.</div>' : ''}
+        <button type="button" class="btn btn-ghost btn-sm" data-act="clear-injuries" style="margin-top:12px">Alle Haken entfernen</button>
+      </div>
+    </section>
+
+    ${hits.length ? `<section class="card">
+      <div class="section-title" style="margin:0 0 8px">Was das pro Woche kostet</div>
+      <table class="inj-table">
+        <thead><tr><th>Muskelgruppe</th><th>vorher</th><th>jetzt</th></tr></thead>
+        <tbody>${hits.map((x) => `<tr>
+          <td>${esc(MUSCLE_LABEL[x.m] || x.m)}</td>
+          <td class="muted">${x.before.toFixed(1)}</td>
+          <td class="${x.after < x.before - 0.05 ? 'inj-loss' : 'inj-gain'}">${x.after.toFixed(1)}
+            <span class="small">(${x.diff > 0 ? '+' : '−'}${Math.abs(x.diff).toFixed(1)})</span></td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div class="small muted" style="margin-top:8px">Sätze je Woche, Anteile eingerechnet. Ziel sind 10.</div>
+    </section>` : ''}
+
+    ${conflicts.length || combos.length ? `<section class="card">
+      <div class="section-title" style="margin:0 0 8px">Wechselwirkungen</div>
+      ${conflicts.map((c) => `<div class="inj-warn">
+        <b>${esc(c.inj.name)}</b> würde ${esc(nm(c.from))} durch ${esc(nm(c.to))} ersetzen –
+        das sperrt aber ${esc(c.by.join(' und '))}. Die Übung fällt deshalb ganz weg.
+      </div>`).join('')}
+      ${combos.map((c) => `<div class="inj-warn">${esc(c.text)}</div>`).join('')}
+    </section>` : ''}
+  ` : `
+    <section class="card inj-summary">
+      <div class="inj-fig no-hint" id="injFigure" aria-label="Körper ohne Beschwerden"></div>
+      <div class="inj-sum-body">
+        <div class="section-title" style="margin:0 0 6px">Nichts angehakt</div>
+        <div class="small muted">Hak an, was gerade weh tut. Der Plan lässt die betroffenen
+        Übungen dann weg oder tauscht sie – dauerhaft, bis der Haken wieder weg ist.</div>
+      </div>
+    </section>`;
+
+  const areas = [];
+  INJURIES.forEach((i) => {
+    const last = areas[areas.length - 1];
+    if (last && last.area === i.area) last.list.push(i);
+    else areas.push({ area: i.area, list: [i] });
+  });
+
+  view.innerHTML = `
+    <div class="section-title">Verletzungen &amp; Beschwerden</div>
+    ${summary}
+    ${areas.map((g) => `
+      <div class="inj-area">${esc(g.area)}</div>
+      ${g.list.map((i) => {
+        const open = ui.openInjury.has(i.id);
+        const on = activeSet.has(i.id);
+        const hitsPlan = i.avoid.some((x) => PLAN.some((w) => w.ex.some((e) => e.id === x)));
+        return `
+        <section class="card inj-card${on ? ' on' : ''}">
+          <div class="inj-head" data-act="toggle-injury-open" data-inj="${i.id}" role="button" tabindex="0">
+            <div class="inj-title">
+              <div class="lbl">${esc(i.name)}</div>
+              <div class="hint">${esc(KIND_LABEL[i.kind] || i.kind)} · ${esc(i.area)}${
+                hitsPlan ? '' : ' · betrifft keine Übung im Plan'}</div>
+            </div>
+            <button type="button" class="toggle" aria-pressed="${on}"
+              data-act="toggle-injury" data-inj="${i.id}"
+              aria-label="${esc(i.name)} ${on ? 'abwählen' : 'anhaken'}"></button>
+          </div>
+          ${open ? `<div class="inj-body">
+            <div class="inj-fig small-fig no-hint" data-spot="${i.spot}" data-kind="${i.kind}"
+              aria-label="Körper, betroffen: ${esc(i.area)}"></div>
+            <div class="inj-text">
+              <p>${esc(i.text)}</p>
+              ${i.avoid.length ? `<div class="small"><b>Betrifft:</b> ${
+                i.avoid.map((x) => esc(nm(x))).join(' · ')}</div>` : ''}
+              ${Object.keys(i.swap).length ? `<div class="small" style="margin-top:4px"><b>Ersatz:</b> ${
+                Object.entries(i.swap).map(([a, b]) => `${esc(nm(a))} → ${esc(nm(b))}`).join(' · ')}</div>`
+                : '<div class="small muted" style="margin-top:4px">Kein Ersatz – die Übungen fallen weg.</div>'}
+            </div>
+          </div>` : ''}
+        </section>`;
+      }).join('')}
+    `).join('')}
+    <div class="card muted small">
+      Das hier ersetzt keine Diagnose. Die Zuordnungen sind gängige Trainingslehre –
+      was im Einzelfall gut tut, weiß nur eine Untersuchung. Bei Schmerz, der bleibt,
+      gehört jemand draufgeschaut, der das kann.
+    </div>`;
+
+  const big = document.getElementById('injFigure');
+  if (big) mountFigure(big, 'stand', false, null, marks);
+  view.querySelectorAll('.inj-fig.small-fig').forEach((host) => {
+    mountFigure(host, 'stand', false, null, [{ spot: host.dataset.spot, kind: host.dataset.kind }]);
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -1001,6 +1224,7 @@ const RENDERERS = {
     else renderOverview();
   },
   stats: renderStats,
+  injuries: renderInjuries,
   settings: renderSettings,
 };
 
@@ -1083,6 +1307,29 @@ view.addEventListener('click', (e) => {
   const mode = store.workoutMode(n);
 
   switch (act) {
+    case 'toggle-injury': {
+      const id = t.dataset.inj;
+      const on = t.getAttribute('aria-pressed') !== 'true';
+      store.toggleInjury(id, on);
+      render();
+      toast(on ? `🩹 ${injuryById(id).name} angehakt` : `✓ ${injuryById(id).name} entfernt`);
+      break;
+    }
+    case 'toggle-injury-open': {
+      const id = t.dataset.inj;
+      if (ui.openInjury.has(id)) ui.openInjury.delete(id); else ui.openInjury.add(id);
+      render();
+      break;
+    }
+    case 'clear-injuries': {
+      store.clearInjuries();
+      render();
+      toast('Alle Haken entfernt');
+      break;
+    }
+    case 'go-injuries':
+      go('injuries');
+      break;
     case 'toggle-ex': {
       const id = t.dataset.ex;
       if (ui.openEx.has(id)) ui.openEx.delete(id); else ui.openEx.add(id);

@@ -65,7 +65,8 @@ DATA = ROOT / 'js' / 'data.js'
 OUT = ROOT / 'tools' / 'plan.json'
 
 TARGET = 10              # Sätze je Muskelgruppe und Woche
-WEEK = 3                 # Einheiten je Woche
+WEEK = 4                 # Einheiten je Woche
+WEEKS = 20               # Wochen im Plan – muss gerade sein, siehe oben
 PER_SET = (2, 3)         # Sätze je Auftritt einer Übung
 PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
 EXACT_LIMIT = 4000       # so viele Plansummen je Block reichen zur Auswahl
@@ -94,29 +95,25 @@ LABEL = {
 # Termine
 # ------------------------------------------------------------------ #
 
-def dates():
+def dates(weeks):
+    """Trainingstermine erzeugen: `weeks` Wochen à WEEK Einheiten.
+
+    Der erste Termin kommt aus der Excel, der Rhythmus aus WEEK: die sieben
+    Tage einer Woche werden so gleichmäßig wie möglich auf die Abstände
+    verteilt. Bei drei Einheiten sind das 3-2-2, bei vier 2-2-2-1 – vier
+    Einheiten in sieben Tagen heißen zwangsläufig einmal zwei Tage
+    hintereinander. Die Wochentage bleiben dabei fest, weil sich die Abstände
+    zu genau sieben Tagen addieren.
+    """
     src = DATA.read_text(encoding='utf-8')
     plan = json.loads(re.search(r'export const PLAN = ([\s\S]*?);\n?$', src).group(1))
-    return [datetime.date.fromisoformat(w['date']) for w in plan]
+    start = datetime.date.fromisoformat(plan[0]['date'])
 
-
-def extend(day, want):
-    """Termine bis `want` Einheiten fortschreiben, im Rhythmus der Excel.
-
-    Die Abstände wiederholen sich; die Periode wird gesucht und fortgesetzt,
-    damit die Zusatztage nicht aus der Reihe fallen.
-    """
-    if want <= len(day):
-        return day[:want]
-    gap = [(day[i + 1] - day[i]).days for i in range(len(day) - 1)]
-    period = next((p for p in range(1, len(gap) // 3 + 1)
-                   if all(gap[-1 - i] == gap[-1 - i - p]
-                          for i in range(min(len(gap) - p, 3 * p)))), None)
-    day = list(day)
-    while len(day) < want:
-        step = gap[len(day) - 1 - period] if period else (2 if len(day) % 2 else 3)
-        gap.append(step)
-        day.append(day[-1] + datetime.timedelta(days=step))
+    base, extra = divmod(7, WEEK)
+    gaps = [base + 1] * extra + [base] * (WEEK - extra)
+    day = [start]
+    while len(day) < weeks * WEEK:
+        day.append(day[-1] + datetime.timedelta(days=gaps[(len(day) - 1) % WEEK]))
     return day
 
 
@@ -273,10 +270,10 @@ def totals(ids, shares, groups, weeks, rnd):
             _, (hart, auftritte, worst) = spread([sol[i] for i in block], vol, weeks,
                                                  rnd, SCREEN_RESTARTS, SCREEN_ROUNDS)
             # Erst: keine Gruppe soll einen ganzen Satz danebenliegen. Dann:
-            # keine Übung soll unter einen Satz pro Woche rutschen – vier Sätze
-            # im ganzen Plan sind schlechter als gar keine. Dann die Länge der
-            # Einheiten, dann die schlechteste Woche.
-            knapp = sum(1 for v in sol.values() if 0 < v < weeks)
+            # keine Übung soll unter einen Satz pro Woche rutschen, ganz
+            # herausfallen eingeschlossen. Dann die Länge der Einheiten, dann
+            # die schlechteste Woche.
+            knapp = sum(1 for v in sol.values() if v < weeks)
             got = (hart, knapp, auftritte, worst, min(sol.values()) == 0, balance(sol))
             if best is None or got < best[0]:
                 best = (got, sol)
@@ -517,10 +514,8 @@ def main():
     groups = sorted({m for sh in shares.values() for m in sh})
     weight = {i: sum(shares[i].values()) for i in ids}   # große Übungen zuerst
 
-    day = dates()
-    weeks = -(-len(day) // WEEK)
-    weeks += weeks % 2                                   # exakt geht nur geradzahlig
-    day = extend(day, weeks * WEEK)
+    weeks = WEEKS + WEEKS % 2                            # exakt geht nur geradzahlig
+    day = dates(weeks)
 
     rnd = random.Random(7)
     vol = Volume(shares, ids, groups)

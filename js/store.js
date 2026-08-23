@@ -15,6 +15,9 @@ const DEFAULT_STATE = {
   session: null,         // laufendes Training: { n, startedAt }
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
   rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log }]
+  // Angehakte Verletzungen als IDs aus js/injuries.js. Sie gelten für alle
+  // kommenden Trainings, bis der Haken wieder weg ist – nicht nur für heute.
+  injuries: [],
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };
@@ -237,6 +240,21 @@ export function completeWorkout(n, mode, exList) {
   syncStartedOn(n);
   persist();
   emit();
+}
+
+/** Verletzung an- oder abhaken. Gilt für alle kommenden Trainings. */
+export function toggleInjury(id, on) {
+  const set = new Set(state.injuries || []);
+  if (on) set.add(id);
+  else set.delete(id);
+  state.injuries = [...set];
+  persist();
+}
+
+/** Alle Haken auf einmal entfernen. */
+export function clearInjuries() {
+  state.injuries = [];
+  persist();
 }
 
 export function setSetting(key, value) {

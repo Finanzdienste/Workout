@@ -13,6 +13,7 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
 | **Statistik** | Kennzahlen, nächste Einheit, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
+| **Verletzt** | Verletzungen und Beschwerden anhaken. Betroffene Übungen fallen aus dem Plan oder werden getauscht – dauerhaft, bis der Haken weg ist. |
 | **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, Export/Import als JSON, Backup-Datei, Alles löschen. |
 
 ## Drei Ebenen
@@ -305,31 +306,38 @@ sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
 ## Wochenvolumen je Muskelgruppe
 
 Ziel sind **10 Sätze pro Woche und Muskelgruppe**, Anteile eingerechnet – und
-über den ganzen Plan im Schnitt **exakt** 10,0000, nicht ungefähr. Eine Woche
-sind hier drei aufeinanderfolgende Einheiten; der Plan trainiert alle zwei bis
-drei Tage, drei Einheiten decken also gut sieben Tage ab.
+über den ganzen Plan im Schnitt **exakt** 10,0000, nicht ungefähr.
+
+**Vier Einheiten pro Woche**, feste Wochentage: Montag, Mittwoch, Donnerstag,
+Samstag. Vier Termine in sieben Tagen heißen zwangsläufig einmal zwei Tage
+hintereinander – das ist der Mittwoch/Donnerstag. 80 Einheiten in 20 Wochen,
+vom 20.08.2026 bis zum 06.01.2027.
 
 | | Excel, im Mittel | jetzt, Schnitt | jetzt, einzelne Woche |
 | --- | --- | --- | --- |
 | Oberschenkel, Brust, Rücken, Waden | 9,7–11,1 | **10,0000** | immer genau 10,0 |
-| Nacken | 1,5 | **10,0000** | 9,6–10,2 |
-| hintere Schulter | **0,5** | **10,0000** | 9,1–10,1 |
+| Nacken | 1,5 | **10,0000** | 9,8–10,4 |
+| hintere Schulter | **0,5** | **10,0000** | 9,5–10,5 |
 | Bizeps | 7,3 | **10,0000** | 9,3–10,3 |
-| Bauch | 7,8 | **10,0000** | 9,4–10,7 |
-| Beinbeuger, Gesäß, Schultern, Trizeps | | **10,0000** | 9,2–10,8 |
+| Bauch | 7,8 | **10,0000** | 9,5–10,9 |
+| Gesäß, Beinbeuger, Schultern, Trizeps | | **10,0000** | 9,2–10,8 |
 
 In keiner der 20 Wochen liegt eine Gruppe einen ganzen Satz daneben; 0,9 ist
 das Schlimmste, was vorkommt.
 
 **Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, und **so wenige
-verschiedene Übungen je Einheit wie möglich**: 9 in 14 Einheiten, 10 in 43,
-11 in 3. Weniger geht nicht – bei 24 bis 26 Sätzen und höchstens drei je Übung
-sind neun Zeilen die Untergrenze, und die ist nur erreichbar, wenn die Satzzahl
-der Übung in dieser Woche durch drei teilbar ist. Sechs Sätze sind zwei
-Auftritte à drei, sieben schon drei Auftritte (3+2+2).
+verschiedene Übungen je Einheit wie möglich**: 6 in zwei Einheiten, 7 in 57,
+8 in 21. Das sind 17 bis 19 Sätze und geschätzte 31 bis 38 Minuten.
+
+Die Länge einer Einheit ergibt sich fast vollständig aus dem Ziel: 10 Sätze auf
+zwölf Muskelgruppen, abzüglich der Überschneidung (ein Goblet Squat zahlt
+gleichzeitig auf Oberschenkel, Gesäß, Bauch und Beinbeuger ein), macht rund 74
+Sätze pro Woche. Bei drei Einheiten sind das 25 pro Training und damit
+mindestens neun Übungen; bei vier sind es 18 und sieben Übungen. Die Frequenz
+ist der Hebel, nicht die Verteilung.
 
 **Die Zahl der Wochen muss gerade sein.** Das ist keine Feinheit, sondern der
-Grund, warum der Plan von 57 auf 60 Einheiten gewachsen ist. Der Rücken kommt
+Grund, warum der Plan nicht mehr 19 Wochen lang ist. Der Rücken kommt
 nur aus Rudern und Chin-ups, beide mit Anteil 1,0 – seine Plansumme ist also
 immer eine ganze Zahl und trifft 10·W genau. Die hintere Schulter hängt an
 denselben zwei Übungen (0,35 und 0,15) plus Reverse Fly:
@@ -339,9 +347,12 @@ denselben zwei Übungen (0,35 und 0,15) plus Reverse Fly:
 Für 10·W bräuchte es ReverseFly = 8,5·W − 0,2·Rudern. Bei ungeradem W endet
 8,5·W auf ,5, und 0,2·Rudern kann nur auf ,0 ,2 ,4 ,6 oder ,8 enden – das geht
 nie auf. Mit 19 Wochen ist exakt 10 also nicht knapp verfehlt, sondern
-unmöglich; mit 20 Wochen geht es, sobald Rudern durch 20 teilbar ist. Die drei
-Zusatztermine setzen den Rhythmus der Excel fort (alle zwei bis drei Tage), der
-Plan endet jetzt am 12.01.2027 statt am 04.01.
+unmöglich; mit 20 Wochen geht es, sobald Rudern durch 20 teilbar ist.
+
+Die Termine erzeugt `tools/build-plan.py` selbst: erster Tag aus der Excel,
+danach die sieben Tage einer Woche so gleichmäßig wie möglich auf die Abstände
+verteilt (bei vier Einheiten 2-2-2-1). Weil sich die Abstände zu genau sieben
+Tagen addieren, bleiben die Wochentage fest.
 
 `tools/build-plan.py` rechnet in drei Schritten:
 
@@ -373,18 +384,17 @@ denkt, und drei Dinge fallen dabei ab:
 - **Der Hip Thrust muss rein, aber nur mit 8 Sätzen im ganzen Plan.** Ohne ihn
   ist das Gesäß nicht auf 10 zu bringen (Kniebeugen und Beinbeuger liefern
   zusammen zu wenig), mit mehr als einem halben Satz pro Woche liegt es
-  darüber. Er steht deshalb in vier der 60 Einheiten; in diesen Wochen geht das
-  Gesäß auf 10,8.
-- **Rudern 8 Sätze pro Woche.** Das Seitheben ist über den Nacken an Rudern
+  darüber. Er steht deshalb nur in drei der 80 Einheiten; in diesen Wochen geht
+  das Gesäß auf 10,8.
+- **Rudern 9 Sätze pro Woche.** Das Seitheben ist über den Nacken an Rudern
   gekoppelt, und was dann noch an Schulter fehlt, müssen die Brustübungen
   liefern – daraus folgt zwingend Rudern ≥ 7,5 pro Woche. Ein ausgeglicheneres
-  Zug-Verhältnis gibt es in keiner der sieben Lösungen. Rudern, Goblet Squat
-  und Floor Press stehen deshalb in jeder der 60 Einheiten.
-- **Die füße-erhöhten Liegestütze fallen aus dem Kalender** (in der
-  Übungsübersicht bleiben sie). Die Alternative wäre gewesen, Rudern auf 9
-  Sätze pro Woche zu setzen und die Chin-ups auf einen – und weil ein Auftritt
-  mindestens zwei Sätze hat, wäre der Rücken dann in *jeder* Woche bei 9 oder
-  11 gewesen, nie bei 10. Eine dritte Druckvariante ist das nicht wert.
+  Zug-Verhältnis gibt es in keiner der Lösungen. Rudern und Goblet Squat stehen
+  deshalb in fast jeder Einheit.
+- **Chin-ups und gewichtete Liegestütze kommen nur je einmal pro Woche vor.**
+  Beide hängen an Gleichungen, die anderswo schon festgelegt sind – die
+  Chin-ups am Rücken, die Liegestütze an der Brust. Mehr geht nicht, ohne dass
+  eine andere Gruppe danebenliegt.
 
 Sonst gilt: von allen exakten Lösungen gewinnt die, mit der keine Gruppe einen
 ganzen Satz danebenliegt; dann die, bei der keine Übung unter einen Satz pro
@@ -400,8 +410,8 @@ ein *ganzer* Satz Abweichung braucht einen eigenen Zuschlag, sonst tauscht das
 Verfahren bereitwillig einen ganzen Satz Rücken gegen ein paar Zehntel
 anderswo – in der App sieht man den ganzen Satz, die Zehntel nicht.
 
-**Die Abwechslung bleibt vollständig:** 60 verschiedene Zusammenstellungen bei
-60 Einheiten.
+**Die Abwechslung bleibt vollständig:** 80 verschiedene Zusammenstellungen bei
+80 Einheiten, alle 17 Übungen kommen vor.
 
 `tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json`;
 Namen, Wiederholungen und die Bodyweight-Äquivalente kommen unverändert aus der
@@ -414,6 +424,57 @@ Nacken und Schulter leicht: die Äquivalente von SZ-Curls und Seitheben sind
 enge Chin-ups und Pike Push-ups, die beide zusätzlich mitarbeiten. Die übrigen
 acht Gruppen treffen auch dort exakt 10. Nach unten weicht nichts ab.
 
+## Verletzungen
+
+Ein eigener Tab, in dem sich anhaken lässt, was gerade weh tut. Die Auswahl
+bleibt stehen, bis der Haken wieder weg ist – sie gilt also für alle kommenden
+Trainings, nicht nur für heute.
+
+**31 Einträge** in `js/injuries.js`, nach Körperregion sortiert, von der
+Schulter bis zur Achillessehne. Je Eintrag: eine kurze Beschreibung, welche
+Bewegung das Problem ist, welche Übungen deshalb gesperrt sind und wo es einen
+Ersatz gibt.
+
+    avoid   Übungen, die mit dieser Beschwerde nicht in den Plan gehören.
+    swap    Ersatz, wo es einen gibt, der dieselbe Richtung trainiert, ohne
+            die Stelle zu belasten. Ohne Eintrag fällt die Übung ersatzlos weg
+            – das ist ehrlicher als ein Ersatz, der auch weh tut.
+
+**Alles geht durch eine Stelle.** `exOf()` in `js/app.js` ist der einzige Weg,
+auf dem die App an die Übungen eines Plantags kommt – Startansicht, Fokus,
+Statistik, Steigerungsvorschlag. Damit kann es gar nicht passieren, dass eine
+gesperrte Übung an einer Stelle auftaucht und an einer anderen nicht.
+
+**Die Auswirkungen werden gerechnet, nicht behauptet.** Der Tab zeigt für die
+angehakte Auswahl, was über den ganzen Plan getauscht wird, was ersatzlos
+wegfällt und wie sich die Sätze je Muskelgruppe und Woche dadurch verschieben –
+gegen dieselbe 10, an der der ganze Plan hängt. Mit Meniskus, Handgelenk und
+Schulter zusammen fallen die Oberschenkel zum Beispiel von 10,0 auf 0,0, während
+die hintere Schulter auf 15,9 steigt, weil das Seitheben durch Reverse Fly
+ersetzt wird.
+
+**Wechselwirkungen** gibt es in zwei Sorten. Die eine rechnet sich aus: Wenn
+Beschwerde A eine Übung durch eine andere ersetzen würde, Beschwerde B aber
+genau die sperrt, greift der Ersatz nicht und die Übung fällt doch weg. Das
+findet die App selbst und schreibt es hin. Die andere steht als `COMBOS` von
+Hand in der Datei – Dinge, die man wissen muss und die keine Formel hergibt,
+etwa dass Tennis- und Golferarm zusammen den kompletten Zug lahmlegen.
+
+**Die 3D-Figur** kommt aus `js/figure.js`, mit einer ruhig stehenden Stellung
+(`stand`) und Marken an den betroffenen Stellen. `SPOTS` übersetzt einen Namen
+wie `knee` in Punkte am Skelett; was es doppelt gibt, wird auch doppelt
+markiert, weil der Plan die Seiten nicht unterscheidet. Bruch und Riss bekommen
+einen Zackenblitz. Mit Marken färbt sich der Körper neutral, sonst ginge die
+Marke in der Akzentfarbe unter. Die Figur ist drehbar wie die
+Bewegungsabläufe.
+
+Während des Trainings steht unten eine Karte, die die aktiven Beschwerden nennt
+und was sich heute konkret dadurch geändert hat.
+
+Das ersetzt keine Diagnose, und die Zuordnungen sind gängige Trainingslehre,
+keine Messwerte – was im Einzelfall gut tut, weiß nur eine Untersuchung. Das
+steht auch in der App unter der Liste.
+
 ## Sicherung
 
 Alles liegt im `localStorage` genau eines Browsers. Android räumt den bei
@@ -424,7 +485,7 @@ zuletzt gesichert wurde.
 
 ## Wenn der Plan durch ist
 
-Nach der letzten von 60 Einheiten bietet die Startansicht *Von vorn beginnen*
+Nach der letzten von 80 Einheiten bietet die Startansicht *Von vorn beginnen*
 an. Der bisherige Verlauf wandert in `rounds` und bleibt im Export erhalten,
 die **Gewichte bleiben stehen** – Runde zwei startet also auf dem erreichten
 Stand. Workout 1 rückt auf heute, sonst würde die Nachrück-Automatik den
@@ -501,11 +562,12 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 ```
 index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
-js/data.js              Aus der Excel generiert: 17 Übungen + 60 Einheiten
+js/data.js              Aus Excel + plan.json erzeugt: 17 Übungen + 80 Einheiten
+js/injuries.js          Verletzungskatalog und die Anpassung des Plans
 js/dates.js             Datums-Hilfsfunktionen
 js/store.js             Zustand und localStorage-Persistenz
-js/app.js               Rendering der fünf Tabs und Event-Handling
-js/figure.js            Animierte Bewegungsabläufe (14 Muster)
+js/app.js               Rendering der vier Tabs und Event-Handling
+js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
 js/chart.js             Verlaufskarten für die Statistik
 sw.js                   Service Worker für den Offline-Betrieb
@@ -513,6 +575,7 @@ manifest.webmanifest    Installierbar als App auf dem Homescreen
 data/…xlsx              Quelle des Plans
 tools/build-data.py     Generator: Excel + Hinweise -> js/data.js
 tools/exercise-meta.json  Muskelgruppe, Equipment und Ausführungshinweise je Übung
+tools/build-plan.py     Generator: verteilt die Übungen -> tools/plan.json
 tools/build-single.py   Bündelt alles zu dist/workout.html
 dist/workout.html       Erzeugt: die App als eine portable Datei
 ```

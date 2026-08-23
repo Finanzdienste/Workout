@@ -987,6 +987,83 @@ textarea.io {
   * { transition: none !important; }
 }
 
+/* ------------------------------------------------------------------ *
+ * Verletzungen
+ * ------------------------------------------------------------------ */
+
+.inj-summary { display: flex; gap: 14px; align-items: stretch; }
+.inj-sum-body { flex: 1 1 auto; min-width: 0; }
+.inj-fig {
+  position: relative;
+  flex: 0 0 108px;
+  width: 108px;
+  height: 168px;
+  border-radius: 12px;
+  background: var(--card-2, rgba(255, 255, 255, .03));
+}
+.inj-fig.small-fig { flex-basis: 84px; width: 84px; height: 132px; }
+
+.inj-area {
+  margin: 18px 2px 6px;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.inj-card { padding: 0; overflow: hidden; }
+.inj-card.on { border-color: var(--accent); }
+.inj-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; cursor: pointer;
+}
+.inj-title { flex: 1 1 auto; min-width: 0; }
+.inj-body { display: flex; gap: 14px; padding: 0 14px 14px; }
+.inj-text { flex: 1 1 auto; min-width: 0; }
+.inj-text p { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
+
+.inj-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.inj-table th {
+  text-align: left; font-weight: 600; font-size: 12px;
+  color: var(--muted); padding-bottom: 6px;
+}
+.inj-table td { padding: 4px 0; border-top: 1px solid var(--line); }
+.inj-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.inj-loss { color: #ff8f6b; }
+.inj-gain { color: #7fd8a0; }
+
+.inj-warn {
+  font-size: 14px; line-height: 1.45;
+  padding: 10px 12px; margin-bottom: 8px;
+  border-radius: 10px;
+  background: rgba(255, 143, 107, .10);
+  border: 1px solid rgba(255, 143, 107, .28);
+}
+.inj-warn:last-child { margin-bottom: 0; }
+
+.injury-note { border-color: rgba(255, 143, 107, .35); }
+.inj-note-head { font-weight: 600; margin-bottom: 4px; }
+.injury-note .btn { margin-top: 10px; }
+
+/* Marken auf der 3D-Figur. Der Körper wird dabei neutral, sonst ginge die
+   Marke in der Akzentfarbe unter. */
+.fig.hurt-mode .fig-limb,
+.fig.hurt-mode .fig-spine,
+.fig.hurt-mode .fig-torso,
+.fig.hurt-mode .fig-head { fill: #56607a; }
+.fig-hurt { fill: #ff3b30; stroke: #fff; stroke-width: .5; }
+.fig-hurt-halo { fill: rgba(255, 59, 48, .26); }
+.fig-hurt-crack { fill: none; stroke: #fff; stroke-width: .9; stroke-linejoin: round; stroke-linecap: round; }
+
+.btn-sm { padding: 8px 12px; font-size: 14px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-size: 13px; background: var(--card-2, rgba(255, 255, 255, .05));
+  border: 1px solid var(--line);
+}
+.chip.on { border-color: var(--accent); color: var(--accent); }
+
 </style>
 </head>
 <body>
@@ -1004,7 +1081,8 @@ textarea.io {
 
 <nav class="tabbar" id="tabbar" role="tablist">
   <button type="button" class="tab" data-tab="dashboard" role="tab"><span class="ti">🏠</span><span>Dashboard</span></button>
-    <button type="button" class="tab" data-tab="stats" role="tab"><span class="ti">📈</span><span>Statistik</span></button>
+  <button type="button" class="tab" data-tab="stats" role="tab"><span class="ti">📈</span><span>Statistik</span></button>
+  <button type="button" class="tab" data-tab="injuries" role="tab"><span class="ti">🩹</span><span>Verletzt</span></button>
   <button type="button" class="tab" data-tab="settings" role="tab"><span class="ti">⚙️</span><span>Mehr</span></button>
 </nav>
 
@@ -1772,7 +1850,7 @@ const EXERCISES = [
   }
 ];
 
-const PLAN = [{"n":1,"date":"2026-08-20","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":2,"date":"2026-08-22","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":3,"date":"2026-08-25","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":4,"date":"2026-08-27","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":5,"date":"2026-08-30","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":6,"date":"2026-09-01","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":7,"date":"2026-09-04","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":8,"date":"2026-09-06","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":9,"date":"2026-09-09","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":10,"date":"2026-09-11","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"sz-curls","sets":2}]},{"n":11,"date":"2026-09-14","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"sz-curls","sets":2}]},{"n":12,"date":"2026-09-16","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":13,"date":"2026-09-18","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":14,"date":"2026-09-21","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":15,"date":"2026-09-23","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":16,"date":"2026-09-26","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":17,"date":"2026-09-28","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":18,"date":"2026-10-01","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":19,"date":"2026-10-03","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":20,"date":"2026-10-06","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":21,"date":"2026-10-08","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":22,"date":"2026-10-11","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":23,"date":"2026-10-13","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":24,"date":"2026-10-15","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":25,"date":"2026-10-18","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":26,"date":"2026-10-20","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":27,"date":"2026-10-23","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":28,"date":"2026-10-25","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":29,"date":"2026-10-28","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":2},{"id":"sz-curls","sets":2}]},{"n":30,"date":"2026-10-30","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"sz-curls","sets":2}]},{"n":31,"date":"2026-11-02","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"sz-curls","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":32,"date":"2026-11-04","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":33,"date":"2026-11-07","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"sz-curls","sets":2}]},{"n":34,"date":"2026-11-09","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3}]},{"n":35,"date":"2026-11-11","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":36,"date":"2026-11-14","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":37,"date":"2026-11-16","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":38,"date":"2026-11-19","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":39,"date":"2026-11-21","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":40,"date":"2026-11-24","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"sz-curls","sets":2}]},{"n":41,"date":"2026-11-26","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"sz-curls","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":42,"date":"2026-11-29","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":43,"date":"2026-12-01","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":44,"date":"2026-12-04","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":45,"date":"2026-12-06","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":46,"date":"2026-12-08","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":47,"date":"2026-12-11","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":48,"date":"2026-12-13","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":49,"date":"2026-12-16","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":50,"date":"2026-12-18","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":51,"date":"2026-12-21","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":52,"date":"2026-12-23","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2},{"id":"sz-curls","sets":2}]},{"n":53,"date":"2026-12-26","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"sz-curls","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":54,"date":"2026-12-28","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":55,"date":"2026-12-31","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":56,"date":"2027-01-02","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":57,"date":"2027-01-04","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":58,"date":"2027-01-07","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"sz-curls","sets":2}]},{"n":59,"date":"2027-01-09","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":60,"date":"2027-01-12","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"sz-curls","sets":2},{"id":"gewichtete-crunches","sets":3}]}];
+const PLAN = [{"n":1,"date":"2026-08-20","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":2,"date":"2026-08-22","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":3,"date":"2026-08-24","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":4,"date":"2026-08-26","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":5,"date":"2026-08-27","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"hip-thrust","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":6,"date":"2026-08-29","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":3}]},{"n":7,"date":"2026-08-31","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":8,"date":"2026-09-02","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":9,"date":"2026-09-03","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"sz-curls","sets":2}]},{"n":10,"date":"2026-09-05","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":11,"date":"2026-09-07","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"sz-curls","sets":2}]},{"n":12,"date":"2026-09-09","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":13,"date":"2026-09-10","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":14,"date":"2026-09-12","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":15,"date":"2026-09-14","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":16,"date":"2026-09-16","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":17,"date":"2026-09-17","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":18,"date":"2026-09-19","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":19,"date":"2026-09-21","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":20,"date":"2026-09-23","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":21,"date":"2026-09-24","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":22,"date":"2026-09-26","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":23,"date":"2026-09-28","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":24,"date":"2026-09-30","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":25,"date":"2026-10-01","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":26,"date":"2026-10-03","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":27,"date":"2026-10-05","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":28,"date":"2026-10-07","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":29,"date":"2026-10-08","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":30,"date":"2026-10-10","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":31,"date":"2026-10-12","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":32,"date":"2026-10-14","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":33,"date":"2026-10-15","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"sz-curls","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":34,"date":"2026-10-17","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":35,"date":"2026-10-19","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"sz-curls","sets":2}]},{"n":36,"date":"2026-10-21","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":37,"date":"2026-10-22","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"liegende-trizepsstrecker","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":38,"date":"2026-10-24","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":39,"date":"2026-10-26","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"goblet-squat","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":40,"date":"2026-10-28","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":41,"date":"2026-10-29","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":42,"date":"2026-10-31","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":43,"date":"2026-11-02","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":44,"date":"2026-11-04","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sz-curls","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":45,"date":"2026-11-05","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":46,"date":"2026-11-07","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":47,"date":"2026-11-09","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":48,"date":"2026-11-11","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":49,"date":"2026-11-12","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":50,"date":"2026-11-14","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":51,"date":"2026-11-16","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":52,"date":"2026-11-18","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3}]},{"n":53,"date":"2026-11-19","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":54,"date":"2026-11-21","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":55,"date":"2026-11-23","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":56,"date":"2026-11-25","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3}]},{"n":57,"date":"2026-11-26","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":58,"date":"2026-11-28","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":59,"date":"2026-11-30","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2}]},{"n":60,"date":"2026-12-02","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":61,"date":"2026-12-03","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":62,"date":"2026-12-05","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":63,"date":"2026-12-07","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":64,"date":"2026-12-09","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":65,"date":"2026-12-10","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":66,"date":"2026-12-12","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":67,"date":"2026-12-14","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":68,"date":"2026-12-16","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":69,"date":"2026-12-17","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":70,"date":"2026-12-19","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":71,"date":"2026-12-21","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":72,"date":"2026-12-23","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":73,"date":"2026-12-24","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2}]},{"n":74,"date":"2026-12-26","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sz-curls","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":3}]},{"n":75,"date":"2026-12-28","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":76,"date":"2026-12-30","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":77,"date":"2026-12-31","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"sz-curls","sets":2}]},{"n":78,"date":"2027-01-02","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":79,"date":"2027-01-04","ex":[{"id":"einarmiges-kh-rudern","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":3},{"id":"sz-curls","sets":2}]},{"n":80,"date":"2027-01-06","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]}];
 
 /* ===== js/figure.js ===== */
 /*
@@ -1912,6 +1990,15 @@ function solve(pose) {
  * ------------------------------------------------------------------ */
 
 const PATTERNS = {
+  // Ruhig stehende Figur ohne Bewegung – Grundlage für die Verletzungskarte.
+  // Die Arme stehen etwas ab, sonst verschwindet die Schultermarke im Rumpf.
+  stand: {
+    label: 'Körper', float: false,
+    poses: [
+      { lean: 2, arm: A(4, 14, 8), leg: L(2, 4, 3) },
+      { lean: 2, arm: A(4, 14, 8), leg: L(2, 4, 3) },
+    ],
+  },
   squat: {
     label: 'Kniebeuge',
     poses: [
@@ -2133,6 +2220,39 @@ const el = (name, attrs = {}) => {
 
 const active = new Set();
 
+/* ------------------------------------------------------------------ *
+ * Stellen am Körper
+ *
+ * Für die Verletzungskarte: ein Name wie 'knie' muss zu Punkten im Raum
+ * werden. Alles, was es doppelt gibt, wird auch doppelt markiert – der Plan
+ * unterscheidet die Seiten nicht, und eine einseitige Marke würde eine
+ * Genauigkeit vortäuschen, die nicht dahintersteckt.
+ * ------------------------------------------------------------------ */
+
+const between = (a, b, t) => [0, 1, 2].map((i) => a[i] + (b[i] - a[i]) * t);
+
+const SPOTS = {
+  shoulder: (j) => [j.shoulderL, j.shoulderR],
+  upperArm: (j) => [between(j.shoulderL, j.elbowL, 0.3), between(j.shoulderR, j.elbowR, 0.3)],
+  elbow: (j) => [j.elbowL, j.elbowR],
+  wrist: (j) => [between(j.elbowL, j.handL, 0.86), between(j.elbowR, j.handR, 0.86)],
+  hand: (j) => [j.handL, j.handR],
+  neck: (j) => [j.neck],
+  chest: (j) => [j.chest],
+  ribs: (j) => [between(j.chest, j.hipC, 0.35)],
+  abs: (j) => [between(j.chest, j.hipC, 0.62)],
+  lowerBack: (j) => [between(j.hipC, j.chest, 0.24)],
+  pelvis: (j) => [j.hipC],
+  groin: (j) => [between(j.hipC, between(j.kneeL, j.kneeR, 0.5), 0.16)],
+  hip: (j) => [j.hipL, j.hipR],
+  knee: (j) => [j.kneeL, j.kneeR],
+  hamstring: (j) => [between(j.hipL, j.kneeL, 0.55), between(j.hipR, j.kneeR, 0.55)],
+  calf: (j) => [between(j.kneeL, j.ankleL, 0.38), between(j.kneeR, j.ankleR, 0.38)],
+  shin: (j) => [between(j.kneeL, j.ankleL, 0.5), between(j.kneeR, j.ankleR, 0.5)],
+  achilles: (j) => [between(j.kneeL, j.ankleL, 0.9), between(j.kneeR, j.ankleR, 0.9)],
+  ankle: (j) => [j.ankleL, j.ankleR],
+};
+
 /** Schwache Perspektive: weiter hinten = kleiner. */
 function project(p, yaw, pitch, scale, cx, cy) {
   const r = rotX(rotY(p, yaw), pitch);
@@ -2141,7 +2261,7 @@ function project(p, yaw, pitch, scale, cx, cy) {
   return { x: cx + r[0] * scale * k, y: cy - r[1] * scale * k, z: r[2], k };
 }
 
-function mountFigure(host, pattern, weight, equip) {
+function mountFigure(host, pattern, weight, equip, marks = []) {
   const spec = PATTERNS[pattern];
   host.textContent = '';
   if (!spec) return () => {};
@@ -2151,15 +2271,19 @@ function mountFigure(host, pattern, weight, equip) {
   const box = host.getBoundingClientRect();
   const VBW = 100;
   const VBH = box.width > 0 ? Math.max(50, Math.min(160, Math.round((100 * box.height) / box.width))) : 100;
-  const svg = el('svg', { viewBox: `0 0 ${VBW} ${VBH}`, class: 'fig' });
+  // Mit Verletzungsmarken wird der Körper neutral gefärbt – sonst hebt sich
+  // die Marke nicht ab, beides wäre in der Akzentfarbe.
+  const svg = el('svg', { viewBox: `0 0 ${VBW} ${VBH}`, class: marks.length ? 'fig hurt-mode' : 'fig' });
   const scene = el('g');
   svg.appendChild(scene);
   host.appendChild(svg);
 
+  // In den kleinen Verletzungskarten ist für den Hinweis kein Platz; dort
+  // steht er im Fließtext daneben.
   const hint = document.createElement('span');
   hint.className = 'fig-hint';
   hint.textContent = '↕↔ ziehen zum Drehen';
-  host.appendChild(hint);
+  if (!host.classList.contains('no-hint')) host.appendChild(hint);
 
   // Dreiviertelansicht steht der stehenden Figur am besten. Eine liegende ist
   // von der Seite dagegen zwangsläufig ein Strich – Rumpf, Arme und Beine
@@ -2497,6 +2621,36 @@ function mountFigure(host, pattern, weight, equip) {
         }),
       });
     }
+
+    // Verletzungsmarken ganz oben: sie sollen auch dann zu sehen sein, wenn
+    // die Stelle gerade hinten liegt – sonst muss man die Figur erst drehen,
+    // um zu erkennen, worum es geht.
+    marks.forEach(({ spot, kind }) => {
+      const at = SPOTS[spot];
+      if (!at) return;
+      at(j).forEach((p3) => {
+        const q = P(p3);
+        // Etwas schmaler als ein Oberarm: eine Marke soll die Stelle zeigen,
+        // nicht die Figur darunter verdecken.
+        const r = Math.max(1.2, 2.6 * gearScale * q.k);
+        const f = (v) => v.toFixed(1);
+        parts.push({
+          z: Infinity,
+          node: el('circle', { cx: f(q.x), cy: f(q.y), r: f(r * 1.75), class: 'fig-hurt-halo' }),
+        });
+        parts.push({
+          z: Infinity,
+          node: el('circle', { cx: f(q.x), cy: f(q.y), r: f(r), class: 'fig-hurt' }),
+        });
+        // Bruch und Riss bekommen einen Zackenblitz, damit sich die Art der
+        // Verletzung schon am Bild unterscheiden lässt.
+        if (kind === 'bruch' || kind === 'riss') {
+          const pts = [[-0.7, -1], [0.1, -0.2], [-0.3, 0.15], [0.6, 1]]
+            .map(([dx, dy]) => `${f(q.x + dx * r)},${f(q.y + dy * r)}`).join(' ');
+          parts.push({ z: Infinity, node: el('polyline', { points: pts, class: 'fig-hurt-crack' }) });
+        }
+      });
+    });
 
     // Maleralgorithmus: hinten zuerst
     parts.sort((p, q) => p.z - q.z).forEach((p) => scene.appendChild(p.node));
@@ -2925,6 +3079,517 @@ function sparkPanel({ label, points, unit = '', fmt = (v) => String(Math.round(v
   return fig;
 }
 
+/* ===== js/injuries.js ===== */
+/*
+ * Verletzungen und Beschwerden.
+ *
+ * Wer etwas anhakt, bekommt einen angepassten Plan: betroffene Übungen fallen
+ * weg oder werden getauscht, und zwar dauerhaft, bis der Haken wieder weg ist.
+ *
+ * Zwei Listen je Eintrag:
+ *
+ *   avoid   Übungen, die mit dieser Beschwerde nicht in den Plan gehören.
+ *   swap    Ersatz, wo es einen gibt, der dieselbe Richtung trainiert, ohne
+ *           die betroffene Stelle zu belasten. Ohne Eintrag fällt die Übung
+ *           ersatzlos weg – das ist ehrlicher als ein Ersatz, der auch weh tut.
+ *
+ * Ein Ersatz kann selbst gesperrt sein, wenn eine zweite Beschwerde dazukommt.
+ * Dann greift er nicht und die Übung fällt doch weg; genau das zeigt der Tab
+ * als Wechselwirkung an. Ausgerechnet wird das, nicht behauptet.
+ *
+ * `spot` ist die Stelle auf der 3D-Figur, `kind` bestimmt das Symbol.
+ *
+ * Das hier ersetzt keine Diagnose. Die Zuordnungen sind gängige
+ * Trainingslehre – was im Einzelfall gut tut, weiß nur eine Untersuchung.
+ */
+
+const KIND_LABEL = {
+  bruch: 'Bruch',
+  riss: 'Riss',
+  zerrung: 'Zerrung',
+  reizung: 'Reizung',
+  vorfall: 'Vorfall',
+  blockade: 'Blockade',
+  prellung: 'Prellung',
+};
+
+const INJURIES = [
+  /* ---------------- Schulter ---------------- */
+  {
+    id: 'schulter-impingement',
+    name: 'Schulter-Impingement',
+    area: 'Schulter', spot: 'shoulder', kind: 'reizung',
+    text: 'Der Raum unter dem Schulterdach wird eng. Typisch ist der Schmerz beim '
+      + 'Heben des Arms zwischen etwa 60° und 120° – seitlich mehr als vorn. '
+      + 'Drücken am Boden mit kurzem Weg geht meist, Heben über Schulterhöhe nicht.',
+    avoid: ['sitzendes-seitheben', 'fuesse-erhoehte-liegestuetze'],
+    swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
+  },
+  {
+    id: 'rotatorenmanschette',
+    name: 'Rotatorenmanschetten-Riss',
+    area: 'Schulter', spot: 'shoulder', kind: 'riss',
+    text: 'Riss in einer der vier Sehnen, die den Oberarmkopf in der Pfanne führen. '
+      + 'Alles, was den Arm gegen Widerstand hebt, dreht oder drückt, fällt aus. '
+      + 'Hier gehört ein Arzt drauf, nicht ein Trainingsplan.',
+    avoid: ['sitzendes-seitheben', 'fuesse-erhoehte-liegestuetze', 'gewichtete-liegestuetze',
+      'floor-press', 'reverse-fly', 'chin-ups', 'einarmiges-kh-rudern'],
+    swap: {},
+  },
+  {
+    id: 'ac-gelenk',
+    name: 'AC-Gelenk-Reizung (Schultereck)',
+    area: 'Schulter', spot: 'shoulder', kind: 'reizung',
+    text: 'Das kleine Gelenk zwischen Schlüsselbein und Schulterdach. Es meldet sich, '
+      + 'wenn der Arm quer vor dem Körper zusammengeführt wird – also beim Drücken '
+      + 'und bei allem, was die Schultern nach vorn zieht.',
+    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press'],
+    swap: { 'fuesse-erhoehte-liegestuetze': 'reverse-fly' },
+  },
+  {
+    id: 'bizepssehne',
+    name: 'Reizung der langen Bizepssehne',
+    area: 'Schulter', spot: 'upperArm', kind: 'reizung',
+    text: 'Die lange Bizepssehne läuft durch eine Rinne am Oberarmkopf. Sie reibt bei '
+      + 'Zug mit gestrecktem Arm und bei allem, was den Unterarm gegen Widerstand '
+      + 'nach außen dreht – Curls und Klimmzüge im Untergriff also.',
+    avoid: ['sz-curls', 'chin-ups'],
+    swap: { 'chin-ups': 'einarmiges-kh-rudern' },
+  },
+
+  /* ---------------- Ellenbogen und Hand ---------------- */
+  {
+    id: 'tennisarm',
+    name: 'Tennisarm (Epicondylitis lateralis)',
+    area: 'Ellenbogen', spot: 'elbow', kind: 'reizung',
+    text: 'Der Ansatz der Handstrecker an der Außenseite des Ellenbogens ist gereizt. '
+      + 'Weh tut vor allem Zugreifen und Festhalten – Rudern, Klimmzüge, Curls. '
+      + 'Drücken belastet ihn kaum.',
+    avoid: ['chin-ups', 'sz-curls', 'einarmiges-kh-rudern'],
+    swap: {},
+  },
+  {
+    id: 'golferarm',
+    name: 'Golferarm (Epicondylitis medialis)',
+    area: 'Ellenbogen', spot: 'elbow', kind: 'reizung',
+    text: 'Dasselbe an der Innenseite, am Ansatz der Handbeuger. Auch hier ist der '
+      + 'Griff das Problem, dazu jede kräftige Beugung im Ellenbogen.',
+    avoid: ['chin-ups', 'sz-curls', 'einarmiges-kh-rudern'],
+    swap: {},
+  },
+  {
+    id: 'ellenbogen-bursitis',
+    name: 'Schleimbeutelentzündung am Ellenbogen',
+    area: 'Ellenbogen', spot: 'elbow', kind: 'reizung',
+    text: 'Der Schleimbeutel an der Ellenbogenspitze schwillt an und drückt. Direkter '
+      + 'Druck auf den Ellenbogen und volle Streckung gegen Widerstand sind unangenehm.',
+    avoid: ['liegende-trizepsstrecker', 'gewichtete-liegestuetze', 'floor-press'],
+    swap: { 'gewichtete-liegestuetze': 'reverse-fly' },
+  },
+  {
+    id: 'handgelenk-reizung',
+    name: 'Handgelenksüberlastung',
+    area: 'Handgelenk', spot: 'wrist', kind: 'reizung',
+    text: 'Schmerz, wenn das Handgelenk unter Last nach hinten abknickt – genau die '
+      + 'Stellung beim Liegestütz. Mit gerader Hand am Griff geht es meist gut.',
+    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze'],
+    swap: { 'gewichtete-liegestuetze': 'floor-press', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
+  },
+  {
+    id: 'handgelenk-bruch',
+    name: 'Handgelenkbruch',
+    area: 'Handgelenk', spot: 'wrist', kind: 'bruch',
+    text: 'Mit Gips oder frisch verheilt geht über die Hand keine Last. Damit fällt '
+      + 'fast der ganze Oberkörper weg – übrig bleiben Übungen, bei denen die Hände '
+      + 'nichts halten und nichts tragen.',
+    avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'gewichtete-liegestuetze',
+      'fuesse-erhoehte-liegestuetze', 'floor-press', 'einarmiges-kh-rudern', 'chin-ups',
+      'reverse-fly', 'sitzendes-seitheben', 'liegende-trizepsstrecker', 'sz-curls',
+      'gewichtete-crunches'],
+    swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+  },
+  {
+    id: 'daumen-sehnenscheide',
+    name: 'Sehnenscheidenentzündung am Daumen',
+    area: 'Handgelenk', spot: 'wrist', kind: 'reizung',
+    text: 'De Quervain: die Sehnen zum Daumen laufen durch ein zu enges Fach an der '
+      + 'Speichenseite. Alles, was fest gegriffen wird, zieht daran.',
+    avoid: ['chin-ups', 'einarmiges-kh-rudern', 'sz-curls'],
+    swap: {},
+  },
+  {
+    id: 'ringband',
+    name: 'Ringbandverletzung am Finger',
+    area: 'Hand', spot: 'hand', kind: 'riss',
+    text: 'Das Band, das die Beugesehne am Knochen hält, ist überdehnt oder gerissen – '
+      + 'klassisch vom Hängen an einer Kante. Jeder feste Griff belastet es.',
+    avoid: ['chin-ups', 'einarmiges-kh-rudern'],
+    swap: {},
+  },
+
+  /* ---------------- Rumpf ---------------- */
+  {
+    id: 'nacken',
+    name: 'Nackenverspannung / HWS-Reizung',
+    area: 'Nacken', spot: 'neck', kind: 'reizung',
+    text: 'Verspannter Nacken meldet sich bei allem, was die Schultern hochzieht, und '
+      + 'bei Übungen, in denen der Kopf gegen die Schwerkraft gehalten wird.',
+    avoid: ['gewichtete-crunches', 'sitzendes-seitheben'],
+    swap: { 'sitzendes-seitheben': 'floor-press' },
+  },
+  {
+    id: 'hws-bandscheibe',
+    name: 'Bandscheibenvorfall HWS',
+    area: 'Nacken', spot: 'neck', kind: 'vorfall',
+    text: 'Vorfall in der Halswirbelsäule, oft mit Ausstrahlung in den Arm. Zug am Arm '
+      + 'und Last auf den Schultern sind tabu, ebenso jede Beugung des Nackens gegen '
+      + 'Widerstand.',
+    avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'chin-ups', 'einarmiges-kh-rudern',
+      'reverse-fly'],
+    swap: {},
+  },
+  {
+    id: 'lws-bandscheibe',
+    name: 'Bandscheibenvorfall LWS',
+    area: 'unterer Rücken', spot: 'lowerBack', kind: 'vorfall',
+    text: 'Vorfall in der Lendenwirbelsäule. Beugung der Wirbelsäule unter Last ist das '
+      + 'Gegenteil dessen, was hilft – Crunches fallen ganz weg, ebenso alles '
+      + 'vorgebeugte. Gestützte Hüftstreckung ist meist gut verträglich.',
+    avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat',
+      'einarmiges-kh-rudern', 'reverse-fly'],
+    swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+  },
+  {
+    id: 'hexenschuss',
+    name: 'Hexenschuss (Lumbago)',
+    area: 'unterer Rücken', spot: 'lowerBack', kind: 'blockade',
+    text: 'Der Rücken macht plötzlich dicht, meist nach einer ungünstigen Bewegung. '
+      + 'Nichts Schweres aufrecht halten, nichts vorgebeugt ziehen; leichte Bewegung '
+      + 'tut in der Regel besser als liegen bleiben.',
+    avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einarmiges-kh-rudern',
+      'gewichtete-crunches'],
+    swap: { 'goblet-squat': 'hip-thrust' },
+  },
+  {
+    id: 'isg',
+    name: 'ISG-Blockade',
+    area: 'Becken', spot: 'pelvis', kind: 'blockade',
+    text: 'Das Kreuz-Darmbein-Gelenk sitzt fest, der Schmerz sitzt tief seitlich über '
+      + 'dem Gesäß. Einbeinige Belastung und kräftige Hüftstreckung reizen es.',
+    avoid: ['hip-thrust', 'einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben'],
+    swap: {
+      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
+    },
+  },
+  {
+    id: 'rippenprellung',
+    name: 'Rippenprellung',
+    area: 'Rippen', spot: 'ribs', kind: 'prellung',
+    text: 'Prellung oder Anriss einer Rippe. Jedes kräftige Anspannen des Rumpfes tut '
+      + 'weh, ebenso Druck von außen – die Hantel vor der Brust zum Beispiel.',
+    avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat'],
+    swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+  },
+  {
+    id: 'bauchmuskelzerrung',
+    name: 'Bauchmuskelzerrung',
+    area: 'Bauch', spot: 'abs', kind: 'zerrung',
+    text: 'Gezerrte gerade Bauchmuskulatur, oft nach einer schnellen Drehung. Beugung '
+      + 'gegen Widerstand fällt aus; halten und stabilisieren geht meist noch.',
+    avoid: ['gewichtete-crunches'],
+    swap: {},
+  },
+  {
+    id: 'brustmuskelzerrung',
+    name: 'Zerrung der Brustmuskulatur',
+    area: 'Brust', spot: 'chest', kind: 'zerrung',
+    text: 'Meist am Übergang zur Sehne nahe der Achsel. Drücken und alles, was den Arm '
+      + 'aus der gedehnten Stellung nach vorn bringt, ist betroffen.',
+    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press'],
+    swap: {},
+  },
+  {
+    id: 'leistenbruch',
+    name: 'Leistenbruch (Hernie)',
+    area: 'Leiste', spot: 'groin', kind: 'bruch',
+    text: 'Eine Lücke in der Bauchwand, durch die Gewebe drückt. Jede kräftige '
+      + 'Bauchpresse vergrößert sie – schwere Übungen im Stand und alles mit '
+      + 'angehaltenem Atem fallen weg, bis das operiert ist.',
+    avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'gewichtete-crunches',
+      'hip-thrust', 'einarmiges-kh-rudern'],
+    swap: {},
+  },
+
+  /* ---------------- Hüfte und Bein ---------------- */
+  {
+    id: 'huefte-fai',
+    name: 'Hüftimpingement (FAI)',
+    area: 'Hüfte', spot: 'hip', kind: 'reizung',
+    text: 'Schenkelhals und Pfannenrand stoßen in tiefer Beugung aneinander. Tiefe '
+      + 'Kniebeugen kneifen vorn in der Leiste; Hüftstreckung aus flacher Stellung '
+      + 'geht dagegen gut.',
+    avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat'],
+    swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+  },
+  {
+    id: 'leistenzerrung',
+    name: 'Leistenzerrung (Adduktoren)',
+    area: 'Leiste', spot: 'groin', kind: 'zerrung',
+    text: 'Die Adduktoren an der Oberschenkelinnenseite sind gezerrt. Breiter Stand und '
+      + 'einbeinige Übungen ziehen daran.',
+    avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einbeiniger-sliding-leg-curl',
+      'einbeiniges-stehendes-wadenheben'],
+    swap: {
+      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
+    },
+  },
+  {
+    id: 'patellasehne',
+    name: 'Springerknie (Patellasehne)',
+    area: 'Knie', spot: 'knee', kind: 'reizung',
+    text: 'Die Sehne zwischen Kniescheibe und Schienbein ist gereizt. Tiefe Beugung '
+      + 'unter Last drückt darauf, erhöhte Fersen machen es schlimmer, nicht besser.',
+    avoid: ['fersenerhoehter-goblet-squat', 'goblet-squat'],
+    swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+  },
+  {
+    id: 'meniskus',
+    name: 'Meniskusriss',
+    area: 'Knie', spot: 'knee', kind: 'riss',
+    text: 'Riss im Faserknorpel zwischen Ober- und Unterschenkel. Tiefe Beugung unter '
+      + 'Last und Drehung im belasteten Knie sind die kritischen Bewegungen.',
+    avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einbeiniger-sliding-leg-curl'],
+    swap: { 'goblet-squat': 'hip-thrust', 'einbeiniger-sliding-leg-curl': 'hip-thrust' },
+  },
+  {
+    id: 'kreuzband',
+    name: 'Kreuzbandriss',
+    area: 'Knie', spot: 'knee', kind: 'riss',
+    text: 'Das Knie hat seine vordere Führung verloren. Ohne ärztliche Freigabe geht '
+      + 'gar nichts, was das Knie unter Last beugt oder streckt – auch nicht einbeinig '
+      + 'im Stand.',
+    avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'sliding-leg-curl',
+      'einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
+      'wadenheben-gebeugtes-knie'],
+    swap: {},
+  },
+  {
+    id: 'laeuferknie',
+    name: 'Läuferknie (ITBS)',
+    area: 'Knie', spot: 'knee', kind: 'reizung',
+    text: 'Der Tractus iliotibialis reibt außen am Knie. Wiederholte Beugung um die 30° '
+      + 'reizt am meisten – einbeinige Übungen und tiefe Kniebeugen also.',
+    avoid: ['einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
+      'fersenerhoehter-goblet-squat'],
+    swap: {
+      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
+      'fersenerhoehter-goblet-squat': 'goblet-squat',
+    },
+  },
+  {
+    id: 'hamstringzerrung',
+    name: 'Zerrung der Oberschenkelrückseite',
+    area: 'Beinbeuger', spot: 'hamstring', kind: 'zerrung',
+    text: 'Der Beinbeuger ist gezerrt, meist nahe am Sitzbein. Exzentrisches Nachgeben '
+      + 'in der Länge – genau das, was der Sliding Leg Curl macht – ist am '
+      + 'empfindlichsten.',
+    avoid: ['sliding-leg-curl', 'einbeiniger-sliding-leg-curl', 'hip-thrust'],
+    swap: {},
+  },
+  {
+    id: 'wadenzerrung',
+    name: 'Wadenzerrung',
+    area: 'Wade', spot: 'calf', kind: 'zerrung',
+    text: 'Riss einzelner Fasern im Wadenmuskel, oft mit einem hörbaren Knall beim '
+      + 'Antritt. Jedes Wadenheben zieht direkt daran.',
+    avoid: ['einbeiniges-stehendes-wadenheben', 'wadenheben-gebeugtes-knie'],
+    swap: {},
+  },
+  {
+    id: 'achillessehne',
+    name: 'Achillessehnen-Reizung',
+    area: 'Achillessehne', spot: 'achilles', kind: 'reizung',
+    text: 'Die Sehne ist verdickt und morgens steif. Wadenheben mit gestrecktem Knie '
+      + 'belastet sie am stärksten; mit gebeugtem Knie deutlich weniger.',
+    avoid: ['einbeiniges-stehendes-wadenheben'],
+    swap: { 'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie' },
+  },
+  {
+    id: 'sprunggelenk',
+    name: 'Umgeknickt (Bänderdehnung)',
+    area: 'Sprunggelenk', spot: 'ankle', kind: 'zerrung',
+    text: 'Die Außenbänder sind überdehnt, das Gelenk ist wackelig. Alles auf einem Bein '
+      + 'fällt weg, ebenso tiefe Kniebeugen, bei denen das Sprunggelenk weit nach vorn '
+      + 'kippt.',
+    avoid: ['einbeiniges-stehendes-wadenheben', 'einbeiniger-sliding-leg-curl', 'goblet-squat'],
+    swap: {
+      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
+      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'goblet-squat': 'fersenerhoehter-goblet-squat',
+    },
+  },
+  {
+    id: 'schienbeinkante',
+    name: 'Schienbeinkantensyndrom',
+    area: 'Schienbein', spot: 'shin', kind: 'reizung',
+    text: 'Der Ansatz der Muskulatur an der Schienbeinkante ist überlastet, typisch nach '
+      + 'zu viel Laufen. Stoßbelastung und Wadenheben im Stand reizen weiter.',
+    avoid: ['einbeiniges-stehendes-wadenheben'],
+    swap: { 'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie' },
+  },
+];
+
+const BY_ID = new Map(INJURIES.map((i) => [i.id, i]));
+
+function injuryById(id) { return BY_ID.get(id) || null; }
+
+/**
+ * Von Hand notierte Wechselwirkungen. Alles, was sich ausrechnen lässt –
+ * welche Übung wegfällt, welcher Ersatz nicht greift –, steht nicht hier,
+ * sondern wird gerechnet. Hier stehen nur Dinge, die man wissen muss und die
+ * keine Formel hergibt.
+ */
+const COMBOS = [
+  {
+    when: ['schulter-impingement', 'handgelenk-reizung'],
+    text: 'Schulter und Handgelenk zusammen lassen vom Drücken nichts übrig: die '
+      + 'Schulter verbietet den erhöhten Liegestütz, das Handgelenk den flachen, '
+      + 'und der Floor Press ist der Ersatz für beide – er kann nicht gleichzeitig '
+      + 'Ersatz und Ausweg sein.',
+  },
+  {
+    when: ['tennisarm', 'golferarm'],
+    text: 'Beide Seiten des Ellenbogens gereizt heißt: kein Griff hält mehr etwas. '
+      + 'Damit fällt der komplette Zug weg – Rücken und Bizeps bekommen null Sätze.',
+  },
+  {
+    when: ['lws-bandscheibe', 'patellasehne'],
+    text: 'Rücken und Knie zusammen sperren die Kniebeuge doppelt, und der Hip Thrust '
+      + 'ist für beide der Ausweg. Ob er sich gut anfühlt, entscheidet die '
+      + 'Bandscheibe – wenn nicht, bleibt für die Oberschenkel nichts.',
+  },
+  {
+    when: ['kreuzband', 'hamstringzerrung'],
+    text: 'Knie und Beinbeuger gleichzeitig: das gesamte Beintraining fällt aus, '
+      + 'inklusive Waden. Übrig bleibt reines Oberkörpertraining.',
+  },
+  {
+    when: ['rotatorenmanschette', 'handgelenk-bruch'],
+    text: 'Schulter und Hand zusammen: vom Oberkörper bleibt nichts übrig. In so einer '
+      + 'Lage ist der Plan das kleinste Problem.',
+  },
+  {
+    when: ['isg', 'huefte-fai'],
+    text: 'Becken und Hüfte zusammen nehmen sowohl die Kniebeuge als auch den Hip '
+      + 'Thrust – der eine ist der Ersatz des anderen. Für Gesäß und Oberschenkel '
+      + 'bleibt dann nur, was die Beinbeuger nebenbei mitnehmen.',
+  },
+];
+
+/* ------------------------------------------------------------------ *
+ * Anwenden
+ * ------------------------------------------------------------------ */
+
+/** Vereinigung aller gesperrten Übungen. */
+function blocked(active) {
+  const out = new Set();
+  active.forEach((id) => {
+    const inj = BY_ID.get(id);
+    if (inj) inj.avoid.forEach((x) => out.add(x));
+  });
+  return out;
+}
+
+/**
+ * Ersatz für eine gesperrte Übung, oder null.
+ *
+ * Vorschläge mehrerer Beschwerden werden der Reihe nach geprüft; der erste,
+ * der nicht selbst gesperrt ist, gewinnt. Ist keiner frei, fällt die Übung weg.
+ */
+function substitute(exId, active, block) {
+  for (const id of active) {
+    const inj = BY_ID.get(id);
+    const to = inj && inj.swap[exId];
+    if (to && !block.has(to)) return to;
+  }
+  return null;
+}
+
+/**
+ * Übungsliste eines Trainings unter den aktiven Beschwerden.
+ *
+ * Rückgabe je Eintrag: `{ id, sets, from }` – `from` ist gesetzt, wenn getauscht
+ * wurde. Fällt eine Übung ersatzlos weg, fehlt sie in der Liste; ihre Sätze
+ * stehen in `dropped`.
+ *
+ * Landen zwei Einträge auf derselben Übung, werden ihre Sätze zusammengelegt –
+ * zweimal dieselbe Zeile im selben Training wäre nur verwirrend.
+ */
+function applyInjuries(items, active) {
+  const block = blocked(active);
+  if (!block.size) return { items: items.map((i) => ({ ...i })), dropped: [], swapped: [] };
+
+  const out = [];
+  const dropped = [];
+  const swapped = [];
+  items.forEach((item) => {
+    if (!block.has(item.id)) {
+      out.push({ ...item });
+      return;
+    }
+    const to = substitute(item.id, active, block);
+    if (!to) {
+      dropped.push({ ...item });
+      return;
+    }
+    swapped.push({ from: item.id, to, sets: item.sets });
+    const same = out.find((x) => x.id === to);
+    if (same) same.sets += item.sets;
+    else out.push({ id: to, sets: item.sets, from: item.id });
+  });
+  return { items: out, dropped, swapped };
+}
+
+/**
+ * Was die Auswahl im Schnitt pro Woche kostet.
+ *
+ * Gerechnet über den ganzen Plan, damit die Zahl nicht vom heutigen Tag
+ * abhängt: Sätze je Muskelgruppe mit und ohne Beschwerden, umgerechnet auf
+ * eine Woche.
+ */
+function weeklyImpact(plan, byId, active, mode, weeks) {
+  const sum = (list) => {
+    const acc = {};
+    list.forEach((it) => {
+      const shares = byId.get(it.id)[mode].shares;
+      Object.entries(shares).forEach(([m, s]) => { acc[m] = (acc[m] || 0) + it.sets * s; });
+    });
+    return acc;
+  };
+  const before = {};
+  const after = {};
+  plan.forEach((w) => {
+    const a = sum(w.ex);
+    const b = sum(applyInjuries(w.ex, active).items);
+    Object.entries(a).forEach(([m, v]) => { before[m] = (before[m] || 0) + v; });
+    Object.entries(b).forEach(([m, v]) => { after[m] = (after[m] || 0) + v; });
+  });
+  const out = {};
+  Object.keys(before).forEach((m) => {
+    out[m] = { before: before[m] / weeks, after: (after[m] || 0) / weeks };
+  });
+  return out;
+}
+
+/** Von Hand notierte Wechselwirkungen, die auf die Auswahl passen. */
+function combosFor(active) {
+  const set = new Set(active);
+  return COMBOS.filter((c) => c.when.every((id) => set.has(id)));
+}
+
 /* ===== js/store.js ===== */
 const KEY = 'workout.state.v1';
 
@@ -2941,6 +3606,9 @@ const DEFAULT_STATE = {
   session: null,         // laufendes Training: { n, startedAt }
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
   rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log }]
+  // Angehakte Verletzungen als IDs aus js/injuries.js. Sie gelten für alle
+  // kommenden Trainings, bis der Haken wieder weg ist – nicht nur für heute.
+  injuries: [],
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };
@@ -3165,6 +3833,21 @@ function completeWorkout(n, mode, exList) {
   emit();
 }
 
+/** Verletzung an- oder abhaken. Gilt für alle kommenden Trainings. */
+function toggleInjury(id, on) {
+  const set = new Set(state.injuries || []);
+  if (on) set.add(id);
+  else set.delete(id);
+  state.injuries = [...set];
+  persist();
+}
+
+/** Alle Haken auf einmal entfernen. */
+function clearInjuries() {
+  state.injuries = [];
+  persist();
+}
+
 function setSetting(key, value) {
   state[key] = value;
   persist();
@@ -3216,7 +3899,7 @@ function resetAll() {
   emit();
 }
 
-const store = { canPersist, completeWorkout, endSession, exportJSON, flush, getSets, getState, importJSON, isStarted, markBackup, peekSets, resetAll, resetWorkout, restartPlan, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, startSession, startedOn, subscribe, updateSet, weightOf, workoutMode };
+const store = { canPersist, clearInjuries, completeWorkout, endSession, exportJSON, flush, getSets, getState, importJSON, isStarted, markBackup, peekSets, resetAll, resetWorkout, restartPlan, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, startSession, startedOn, subscribe, toggleInjury, updateSet, weightOf, workoutMode };
 
 /* ===== js/app.js ===== */
 /* ------------------------------------------------------------------ *
@@ -3271,8 +3954,25 @@ function defaultWorkoutNo() {
   return open ? open.n : PLAN[PLAN.length - 1].n;
 }
 
+/** Angehakte Verletzungen. */
+function activeInjuries() { return store.getState().injuries || []; }
+
+/**
+ * Übungsliste eines Plantags, angepasst an die angehakten Verletzungen.
+ *
+ * Alles in der App geht durch diese Stelle – Übersicht, Fokus, Statistik,
+ * Steigerungsvorschlag. So kann es gar nicht passieren, dass an einer Stelle
+ * eine gesperrte Übung auftaucht und an einer anderen nicht.
+ */
+function exOf(w) {
+  const act = activeInjuries();
+  return act.length ? applyInjuries(w.ex, act).items : w.ex;
+}
+
 function workoutByNo(n) {
-  return PLAN.find((w) => w.n === n) || PLAN[0];
+  const w = PLAN.find((x) => x.n === n) || PLAN[0];
+  const ex = exOf(w);
+  return ex === w.ex ? w : { ...w, ex };
 }
 
 /** Untere Grenze eines Wiederholungsbereichs, z. B. "8–12" -> 8. */
@@ -3336,7 +4036,7 @@ function bumpHint(exId) {
   let streak = 0;
   for (let i = PLAN.length - 1; i >= 0; i--) {
     const w = PLAN[i];
-    const item = w.ex.find((x) => x.id === exId);
+    const item = exOf(w).find((x) => x.id === exId);
     if (!item) continue;
     const sets = store.peekSets(w.n, 'db', exId);
     if (!sets || !sets.length) continue;
@@ -3598,6 +4298,7 @@ const ui = {
   tab: 'dashboard',
   workoutNo: defaultWorkoutNo(),
   openEx: new Set(),
+  openInjury: new Set(),
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
@@ -3677,6 +4378,7 @@ function renderFocus() {
     </div>
 
     ${sessionButtons(n, mode)}
+    ${injuryNote(w, mode)}
   `;
 
   const host = document.getElementById('focusFig');
@@ -3753,6 +4455,7 @@ function renderOverview() {
         <button type="button" class="ov-nav" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>→</button>
       </div>
     </section>
+    ${injuryNote(w, mode)}
   `;
 
   const host = document.getElementById('bodyMap');
@@ -3888,6 +4591,7 @@ function renderDashboard() {
       Der Umschalter oben wechselt zwischen der Hantel-Variante aus dem Plan und dem
       Bodyweight-Äquivalent. Beide Varianten werden getrennt protokolliert.
     </p>
+    ${injuryNote(w, mode)}
   `);
 
   view.innerHTML = parts.join('');
@@ -3898,7 +4602,7 @@ function lastLoggedFor(exId, mode, beforeN) {
   for (let i = PLAN.length - 1; i >= 0; i--) {
     const w = PLAN[i];
     if (w.n >= beforeN) continue;
-    const item = w.ex.find((x) => x.id === exId);
+    const item = exOf(w).find((x) => x.id === exId);
     if (!item) continue;
     const arr = store.peekSets(w.n, mode, exId);
     if (!arr) continue;
@@ -3928,7 +4632,7 @@ function progressSeries() {
     const day = fmtDate(effDate(w));
     const muscleDay = new Map();
 
-    w.ex.forEach((item) => {
+    exOf(w).forEach((item) => {
       const arr = store.peekSets(w.n, 'db', item.id);
       if (!arr) return;
       const done = arr.slice(0, item.sets).filter((x) => x.done && x.w !== '');
@@ -3969,7 +4673,7 @@ function renderStats() {
     const entry = log[w.n];
     if (!entry) return;
     ['db', 'bw'].forEach((m) => {
-      w.ex.forEach((item) => {
+      exOf(w).forEach((item) => {
         const arr = entry[m] && entry[m][item.id];
         if (!Array.isArray(arr)) return;
         // Wiederholungen werden nicht mehr erfasst; gerechnet wird deshalb mit
@@ -4026,7 +4730,7 @@ function renderStats() {
     <div class="card">
       ${upcoming
         ? `<div class="plan-date">Workout ${upcoming.n} · ${esc(fmtDate(effDate(upcoming), true))}</div>
-           <div class="small muted" style="margin-top:4px">${esc(upcoming.ex.map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
+           <div class="small muted" style="margin-top:4px">${esc(exOf(upcoming).map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
            <div class="btn-row"><button type="button" class="btn btn-primary" data-act="open-workout" data-n="${upcoming.n}">Öffnen</button></div>`
         : '<div class="muted">Alle Einheiten des Plans sind abgeschlossen. Stark.</div>'}
     </div>
@@ -4075,6 +4779,207 @@ function renderStats() {
     [...perMuscle.entries()].sort((a, b) => b[1].length - a[1].length),
     (m) => MUSCLE_LABEL[m] || m, 'kg', (v) => Math.round(v).toLocaleString('de-DE'),
     'Noch kein Volumen erfasst. Nur Hantel-Einheiten tragen Kilo bei.');
+}
+
+/* ------------------------------------------------------------------ *
+ * Verletzungen
+ *
+ * Angehakt gilt dauerhaft: der Plan rechnet ab sofort ohne die betroffenen
+ * Übungen weiter, bis der Haken wieder weg ist. Was das kostet, steht daneben
+ * – ausgerechnet über den ganzen Plan, nicht geschätzt.
+ * ------------------------------------------------------------------ */
+
+/** Wochen im Plan, aus den Terminen abgeleitet. */
+const PLAN_WEEKS = (() => {
+  const span = daysBetween(PLAN[0].date, PLAN[PLAN.length - 1].date);
+  // Die letzte Einheit endet nicht am Wochenende: eine Lücke dazurechnen,
+  // sonst kommt bei 80 Einheiten in 139 Tagen 19,9 statt 20 heraus.
+  return Math.max(1, Math.round((span * PLAN.length) / Math.max(1, PLAN.length - 1) / 7));
+})();
+
+/**
+ * Ersatz, der wegen einer zweiten Beschwerde nicht greift.
+ *
+ * Das ist die Wechselwirkung, die sich rechnen lässt: Beschwerde A würde eine
+ * Übung durch eine andere ersetzen, Beschwerde B sperrt aber genau die.
+ */
+function swapConflicts(act) {
+  const block = blocked(act);
+  const out = [];
+  act.forEach((id) => {
+    const inj = injuryById(id);
+    if (!inj) return;
+    Object.entries(inj.swap).forEach(([from, to]) => {
+      if (!block.has(from) || !block.has(to)) return;
+      const by = act.filter((o) => o !== id && (injuryById(o) || { avoid: [] }).avoid.includes(to));
+      if (by.length) out.push({ inj, from, to, by: by.map((o) => injuryById(o).name) });
+    });
+  });
+  return out;
+}
+
+/** Kurzfassung fürs Training: was heute anders ist. */
+function injuryNote(w, mode) {
+  const act = activeInjuries();
+  if (!act.length) return '';
+  const src = PLAN.find((x) => x.n === w.n) || w;
+  const { dropped, swapped } = applyInjuries(src.ex, act);
+  const names = act.map((id) => (injuryById(id) || {}).name).filter(Boolean);
+  const nm = (id) => resolve({ id, sets: 0 }, mode).name;
+  const lines = [];
+  swapped.forEach((s) => lines.push(`${esc(nm(s.from))} → ${esc(nm(s.to))}`));
+  dropped.forEach((d) => lines.push(`${esc(nm(d.id))} fällt aus`));
+  return `
+    <div class="card injury-note">
+      <div class="inj-note-head">🩹 Rücksicht auf: ${esc(names.join(', '))}</div>
+      ${lines.length
+        ? `<div class="small muted">Heute deshalb: ${lines.join(' · ')}</div>`
+        : '<div class="small muted">Heute ändert das nichts – keine der Übungen ist betroffen.</div>'}
+      <button type="button" class="btn btn-ghost btn-sm" data-act="go-injuries">Verletzungen ansehen</button>
+    </div>`;
+}
+
+function renderInjuries() {
+  const act = activeInjuries();
+  const mode = store.getState().mode;
+  const activeSet = new Set(act);
+  const nm = (id) => resolve({ id, sets: 0 }, mode).name;
+
+  const marks = act.map((id) => injuryById(id)).filter(Boolean)
+    .map((i) => ({ spot: i.spot, kind: i.kind }));
+
+  // Auswirkungen über den ganzen Plan, nicht nur über heute
+  const block = blocked(act);
+  const gone = [];
+  const swapCount = new Map();
+  PLAN.forEach((w) => {
+    const r = applyInjuries(w.ex, act);
+    r.dropped.forEach((d) => gone.push(d));
+    r.swapped.forEach((s) => {
+      const key = `${s.from}→${s.to}`;
+      swapCount.set(key, (swapCount.get(key) || 0) + s.sets);
+    });
+  });
+  const goneSets = new Map();
+  gone.forEach((d) => goneSets.set(d.id, (goneSets.get(d.id) || 0) + d.sets));
+
+  const impact = act.length ? weeklyImpact(PLAN, EX_BY_ID, act, mode, PLAN_WEEKS) : {};
+  const hits = Object.entries(impact)
+    .map(([m, v]) => ({ m, ...v, diff: v.after - v.before }))
+    .filter((x) => Math.abs(x.diff) > 0.05)
+    .sort((a, b) => a.diff - b.diff);
+
+  const conflicts = swapConflicts(act);
+  const combos = combosFor(act);
+
+  const summary = act.length ? `
+    <section class="card inj-summary">
+      <div class="inj-fig no-hint" id="injFigure" aria-label="Körper mit den betroffenen Stellen"></div>
+      <div class="inj-sum-body">
+        <div class="section-title" style="margin:0 0 6px">${plural(act.length, 'Beschwerde', 'Beschwerden')} aktiv</div>
+        <div class="chips">${act.map((id) => {
+          const i = injuryById(id);
+          return i ? `<span class="chip on">${esc(i.name)}</span>` : '';
+        }).join('')}</div>
+        ${[...swapCount.entries()].length ? `<div class="small" style="margin-top:10px">
+          <b>Getauscht:</b> ${[...swapCount.entries()].map(([k, sets]) => {
+            const [from, to] = k.split('→');
+            return `${esc(nm(from))} → ${esc(nm(to))} <span class="muted">(${sets} Sätze)</span>`;
+          }).join(' · ')}</div>` : ''}
+        ${goneSets.size ? `<div class="small" style="margin-top:6px">
+          <b>Fällt ersatzlos weg:</b> ${[...goneSets.entries()]
+            .map(([id, sets]) => `${esc(nm(id))} <span class="muted">(${sets} Sätze)</span>`).join(' · ')}</div>` : ''}
+        ${!swapCount.size && !goneSets.size ? '<div class="small muted" style="margin-top:10px">Am Plan ändert sich nichts – keine der angehakten Beschwerden trifft eine Übung, die vorkommt.</div>' : ''}
+        <button type="button" class="btn btn-ghost btn-sm" data-act="clear-injuries" style="margin-top:12px">Alle Haken entfernen</button>
+      </div>
+    </section>
+
+    ${hits.length ? `<section class="card">
+      <div class="section-title" style="margin:0 0 8px">Was das pro Woche kostet</div>
+      <table class="inj-table">
+        <thead><tr><th>Muskelgruppe</th><th>vorher</th><th>jetzt</th></tr></thead>
+        <tbody>${hits.map((x) => `<tr>
+          <td>${esc(MUSCLE_LABEL[x.m] || x.m)}</td>
+          <td class="muted">${x.before.toFixed(1)}</td>
+          <td class="${x.after < x.before - 0.05 ? 'inj-loss' : 'inj-gain'}">${x.after.toFixed(1)}
+            <span class="small">(${x.diff > 0 ? '+' : '−'}${Math.abs(x.diff).toFixed(1)})</span></td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div class="small muted" style="margin-top:8px">Sätze je Woche, Anteile eingerechnet. Ziel sind 10.</div>
+    </section>` : ''}
+
+    ${conflicts.length || combos.length ? `<section class="card">
+      <div class="section-title" style="margin:0 0 8px">Wechselwirkungen</div>
+      ${conflicts.map((c) => `<div class="inj-warn">
+        <b>${esc(c.inj.name)}</b> würde ${esc(nm(c.from))} durch ${esc(nm(c.to))} ersetzen –
+        das sperrt aber ${esc(c.by.join(' und '))}. Die Übung fällt deshalb ganz weg.
+      </div>`).join('')}
+      ${combos.map((c) => `<div class="inj-warn">${esc(c.text)}</div>`).join('')}
+    </section>` : ''}
+  ` : `
+    <section class="card inj-summary">
+      <div class="inj-fig no-hint" id="injFigure" aria-label="Körper ohne Beschwerden"></div>
+      <div class="inj-sum-body">
+        <div class="section-title" style="margin:0 0 6px">Nichts angehakt</div>
+        <div class="small muted">Hak an, was gerade weh tut. Der Plan lässt die betroffenen
+        Übungen dann weg oder tauscht sie – dauerhaft, bis der Haken wieder weg ist.</div>
+      </div>
+    </section>`;
+
+  const areas = [];
+  INJURIES.forEach((i) => {
+    const last = areas[areas.length - 1];
+    if (last && last.area === i.area) last.list.push(i);
+    else areas.push({ area: i.area, list: [i] });
+  });
+
+  view.innerHTML = `
+    <div class="section-title">Verletzungen &amp; Beschwerden</div>
+    ${summary}
+    ${areas.map((g) => `
+      <div class="inj-area">${esc(g.area)}</div>
+      ${g.list.map((i) => {
+        const open = ui.openInjury.has(i.id);
+        const on = activeSet.has(i.id);
+        const hitsPlan = i.avoid.some((x) => PLAN.some((w) => w.ex.some((e) => e.id === x)));
+        return `
+        <section class="card inj-card${on ? ' on' : ''}">
+          <div class="inj-head" data-act="toggle-injury-open" data-inj="${i.id}" role="button" tabindex="0">
+            <div class="inj-title">
+              <div class="lbl">${esc(i.name)}</div>
+              <div class="hint">${esc(KIND_LABEL[i.kind] || i.kind)} · ${esc(i.area)}${
+                hitsPlan ? '' : ' · betrifft keine Übung im Plan'}</div>
+            </div>
+            <button type="button" class="toggle" aria-pressed="${on}"
+              data-act="toggle-injury" data-inj="${i.id}"
+              aria-label="${esc(i.name)} ${on ? 'abwählen' : 'anhaken'}"></button>
+          </div>
+          ${open ? `<div class="inj-body">
+            <div class="inj-fig small-fig no-hint" data-spot="${i.spot}" data-kind="${i.kind}"
+              aria-label="Körper, betroffen: ${esc(i.area)}"></div>
+            <div class="inj-text">
+              <p>${esc(i.text)}</p>
+              ${i.avoid.length ? `<div class="small"><b>Betrifft:</b> ${
+                i.avoid.map((x) => esc(nm(x))).join(' · ')}</div>` : ''}
+              ${Object.keys(i.swap).length ? `<div class="small" style="margin-top:4px"><b>Ersatz:</b> ${
+                Object.entries(i.swap).map(([a, b]) => `${esc(nm(a))} → ${esc(nm(b))}`).join(' · ')}</div>`
+                : '<div class="small muted" style="margin-top:4px">Kein Ersatz – die Übungen fallen weg.</div>'}
+            </div>
+          </div>` : ''}
+        </section>`;
+      }).join('')}
+    `).join('')}
+    <div class="card muted small">
+      Das hier ersetzt keine Diagnose. Die Zuordnungen sind gängige Trainingslehre –
+      was im Einzelfall gut tut, weiß nur eine Untersuchung. Bei Schmerz, der bleibt,
+      gehört jemand draufgeschaut, der das kann.
+    </div>`;
+
+  const big = document.getElementById('injFigure');
+  if (big) mountFigure(big, 'stand', false, null, marks);
+  view.querySelectorAll('.inj-fig.small-fig').forEach((host) => {
+    mountFigure(host, 'stand', false, null, [{ spot: host.dataset.spot, kind: host.dataset.kind }]);
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -4215,6 +5120,7 @@ const RENDERERS = {
     else renderOverview();
   },
   stats: renderStats,
+  injuries: renderInjuries,
   settings: renderSettings,
 };
 
@@ -4297,6 +5203,29 @@ view.addEventListener('click', (e) => {
   const mode = store.workoutMode(n);
 
   switch (act) {
+    case 'toggle-injury': {
+      const id = t.dataset.inj;
+      const on = t.getAttribute('aria-pressed') !== 'true';
+      store.toggleInjury(id, on);
+      render();
+      toast(on ? `🩹 ${injuryById(id).name} angehakt` : `✓ ${injuryById(id).name} entfernt`);
+      break;
+    }
+    case 'toggle-injury-open': {
+      const id = t.dataset.inj;
+      if (ui.openInjury.has(id)) ui.openInjury.delete(id); else ui.openInjury.add(id);
+      render();
+      break;
+    }
+    case 'clear-injuries': {
+      store.clearInjuries();
+      render();
+      toast('Alle Haken entfernt');
+      break;
+    }
+    case 'go-injuries':
+      go('injuries');
+      break;
     case 'toggle-ex': {
       const id = t.dataset.ex;
       if (ui.openEx.has(id)) ui.openEx.delete(id); else ui.openEx.add(id);

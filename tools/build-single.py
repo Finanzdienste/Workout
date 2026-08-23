@@ -23,7 +23,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'dist' / 'workout.html'
 
 # Reihenfolge = Abhaengigkeitsreihenfolge
-MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js', 'js/store.js', 'js/app.js']
+MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js',
+           'js/injuries.js', 'js/store.js', 'js/app.js']
 
 IMPORT_RE = re.compile(r'^\s*import\s.+?;\s*$', re.MULTILINE)
 EXPORT_RE = re.compile(r'^(\s*)export\s+(?=(?:const|let|var|function|class)\b)', re.MULTILINE)

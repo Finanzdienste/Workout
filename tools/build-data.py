@@ -120,38 +120,25 @@ def main():
 
         plan.append({'n': len(plan) + 1, 'date': date, 'ex': items})
 
-    # Übungsauswahl je Tag darf aus tools/plan.json kommen. Die Excel bleibt
-    # Quelle für Namen, Wiederholungen und das Bodyweight-Äquivalent; ersetzt
-    # wird, welche Übung an welchem Tag steht. Datei löschen und neu generieren
-    # stellt den Originalplan wieder her.
-    #
-    # Anhängen ist erlaubt: der Plan darf über das Excel-Ende hinausgehen, wenn
-    # die Rechnung dafür eine bestimmte Zahl an Einheiten braucht. Die Termine
-    # der Zusatztage stehen dann in plan.json und müssen den letzten Excel-Tag
-    # sauber fortsetzen.
+    # Der Trainingsplan darf komplett aus tools/plan.json kommen: Termine,
+    # Auswahl und Satzzahlen. Die Excel bleibt Quelle für die Übungen selbst –
+    # Namen, Wiederholungen, Hinweise und das Bodyweight-Äquivalent. Datei
+    # löschen und neu generieren stellt den Originalplan wieder her.
     if PLAN_OVERRIDE.exists():
         override = json.loads(PLAN_OVERRIDE.read_text(encoding='utf-8'))
-        if len(override) < len(plan):
-            sys.exit(f'{PLAN_OVERRIDE.name}: {len(override)} Einheiten, Excel hat {len(plan)}')
-        for w, o in zip(plan, override):
-            if w['date'] != o['date']:
-                sys.exit(f'{PLAN_OVERRIDE.name}: Termin {o["date"]} passt nicht zu {w["date"]}')
-            unknown = [i['id'] for i in o['ex'] if i['id'] not in catalog]
-            if unknown:
-                sys.exit(f'{PLAN_OVERRIDE.name}: unbekannte Übung {unknown}')
-            w['ex'] = o['ex']
-        extra = len(override) - len(plan)
-        for o in override[len(plan):]:
-            last = datetime.date.fromisoformat(plan[-1]['date'])
+        fresh, prev = [], None
+        for o in override:
             date = datetime.date.fromisoformat(o['date'])
-            if not last < date <= last + datetime.timedelta(days=7):
-                sys.exit(f'{PLAN_OVERRIDE.name}: Zusatztermin {o["date"]} folgt nicht auf {last}')
+            if prev is not None and date <= prev:
+                sys.exit(f'{PLAN_OVERRIDE.name}: Termin {o["date"]} folgt nicht auf {prev}')
+            prev = date
             unknown = [i['id'] for i in o['ex'] if i['id'] not in catalog]
             if unknown:
                 sys.exit(f'{PLAN_OVERRIDE.name}: unbekannte Übung {unknown}')
-            plan.append({'n': len(plan) + 1, 'date': o['date'], 'ex': o['ex']})
-        print(f'{PLAN_OVERRIDE.relative_to(ROOT)}: Auswahl je Tag übernommen'
-              + (f', {extra} Einheiten angehängt' if extra else ''))
+            fresh.append({'n': len(fresh) + 1, 'date': o['date'], 'ex': o['ex']})
+        print(f'{PLAN_OVERRIDE.relative_to(ROOT)}: {len(fresh)} Einheiten übernommen '
+              f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), Excel liefert nur die Übungen')
+        plan = fresh
 
     unused = set(meta) - set(catalog)
     if unused:
