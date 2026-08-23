@@ -18,6 +18,7 @@ const DEFAULT_STATE = {
   // Angehakte Verletzungen als IDs aus js/injuries.js. Sie gelten für alle
   // kommenden Trainings, bis der Haken wieder weg ist – nicht nur für heute.
   injuries: [],
+  tab: 'dashboard',      // zuletzt sichtbarer Tab, damit ein Neuladen nicht herausreißt
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };

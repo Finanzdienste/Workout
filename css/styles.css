@@ -22,6 +22,10 @@ body.mode-bw {
 html, body {
   margin: 0;
   padding: 0;
+  /* Kein Ziehen-zum-Neuladen. Am oberen Rand nach unten zu wischen lud sonst
+     die Seite neu, und das warf einen aus jedem Tab zurück aufs Dashboard –
+     mitten im Training genau die falsche Geste. */
+  overscroll-behavior-y: contain;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

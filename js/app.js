@@ -398,8 +398,13 @@ function toast(msg) {
  * UI-Zustand (nicht persistiert)
  * ------------------------------------------------------------------ */
 
+const TABS = ['dashboard', 'stats', 'injuries', 'settings'];
+
 const ui = {
-  tab: 'dashboard',
+  // Beim Neuladen im selben Tab bleiben. Die Seite lädt öfter neu, als man
+  // denkt – nach einer Aktualisierung etwa –, und jedes Mal auf dem Dashboard
+  // zu landen ist lästig.
+  tab: TABS.includes(store.getState().tab) ? store.getState().tab : 'dashboard',
   workoutNo: defaultWorkoutNo(),
   openEx: new Set(),
   openInjury: new Set(),
@@ -1090,6 +1095,28 @@ function renderInjuries() {
  * Einstellungen
  * ------------------------------------------------------------------ */
 
+/**
+ * Welche Fassung gerade läuft.
+ *
+ * Nicht aus einer Konstante im Skript – die würde man beim Ändern vergessen –,
+ * sondern aus dem Namen des Zwischenspeichers, den der Service Worker anlegt.
+ * Damit steht dort, was wirklich ausgeliefert wird, und im Zweifel sieht man
+ * sofort, ob eine alte Fassung klebt.
+ */
+function showVersion() {
+  const host = document.getElementById('appVersion');
+  if (!host) return;
+  const plan = `Plan: ${PLAN.length} Einheiten bis ${fmtDate(PLAN[PLAN.length - 1].date, true)}`;
+  if (!window.caches) {
+    host.textContent = `${plan} · kein Zwischenspeicher`;
+    return;
+  }
+  caches.keys().then((keys) => {
+    const mine = keys.filter((k) => k.startsWith('workout-'));
+    host.textContent = `${plan} · Zwischenspeicher: ${mine.join(', ') || 'keiner'}`;
+  }).catch(() => { host.textContent = plan; });
+}
+
 function renderSettings() {
   const s = store.getState();
   view.innerHTML = `
@@ -1203,6 +1230,16 @@ function renderSettings() {
     </div>
 
 
+    <div class="section-title">Fassung</div>
+    <div class="card">
+      <div class="small muted" id="appVersion">Zwischenspeicher wird gelesen…</div>
+      <div class="btn-row">
+        <button type="button" class="btn" data-act="force-update">App aktualisieren</button>
+      </div>
+      <div class="small muted" style="margin-top:8px">Leert den Zwischenspeicher und lädt
+        alles neu. Trainingsdaten bleiben unangetastet – nur die App selbst wird geholt.</div>
+    </div>
+
     <div class="section-title">Über den Plan</div>
     <div class="card small muted">
       ${PLAN.length} Einheiten, ursprünglich vom ${esc(fmtDate(PLAN[0].date, true))} bis ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))},
@@ -1210,6 +1247,8 @@ function renderSettings() {
       Bodyweight-Äquivalent mit gleicher Satzzahl und angepasstem Wiederholungsbereich.
     </div>
   `;
+
+  showVersion();
 }
 
 /* ------------------------------------------------------------------ *
@@ -1244,6 +1283,7 @@ function render() {
 
 function go(tab) {
   ui.tab = tab;
+  store.setSetting('tab', tab);
   render();
   window.scrollTo({ top: 0 });
 }
@@ -1575,6 +1615,29 @@ view.addEventListener('click', (e) => {
       } catch (err) {
         toast(`Import fehlgeschlagen: ${err.message}`);
       }
+      break;
+    }
+    case 'force-update': {
+      // Notausgang, wenn eine alte Fassung im Zwischenspeicher klebt: Service
+      // Worker abmelden, Zwischenspeicher leeren, neu laden. Der localStorage
+      // bleibt, dort liegen die Trainingsdaten.
+      (async () => {
+        try {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          }
+          if (window.caches) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          }
+          sessionStorage.removeItem('workout.reloaded');
+        } catch {
+          // Auch ohne Aufräumen ist ein Neuladen besser als nichts.
+        }
+        store.flush();
+        location.reload();
+      })();
       break;
     }
     case 'reset-all':

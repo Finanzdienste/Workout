@@ -477,16 +477,47 @@ steht auch in der App unter der Liste.
 
 ## Nach einer Aktualisierung
 
-Der Service Worker holt Seitenaufrufe aus dem Netz und alles andere zuerst aus
-dem Zwischenspeicher – das macht den Start schnell, hat aber eine Kante: direkt
-nach einer neuen Fassung trifft ein frisches `index.html` auf ein altes
-`app.js`. Dann steht in der Tabbar ein Tab, den das alte Skript nicht kennt,
-und im Kopf die Einheitenzahl des alten Plans.
+Hier steckten zwei Fehler übereinander, und beide sind die Sorte, die man nur
+im echten Betrieb sieht.
 
-Deshalb lädt die App einmal neu, sobald ein neuer Service Worker die Seite
-übernimmt (`controllerchange`) – aber nur, wenn vorher schon einer da war, und
-nur einmal je Sitzung, damit ein kaputter Service Worker keine Schleife
-auslösen kann. Danach stammt alles aus derselben Fassung.
+**Der Browser-Zwischenspeicher fütterte den Service Worker mit alten Dateien.**
+GitHub Pages liefert alles mit zehn Minuten Haltbarkeit aus. Ein gewöhnliches
+`fetch()` im Service Worker bekommt in dieser Zeit die *alte* Fassung aus dem
+Zwischenspeicher des Browsers – und der Service Worker legt sie als vermeintlich
+frisch in seinen eigenen. Damit kann eine neue Fassung beliebig lange nicht
+ankommen, obwohl sie längst online steht. Deshalb geht jeder Abruf, der etwas in
+den Zwischenspeicher schreibt, jetzt mit `cache: 'reload'` daran vorbei.
+
+Dazu: `caches.match()` ohne Angabe durchsucht **alle** Zwischenspeicher, auch
+übrig gebliebene alte. Gesucht wird jetzt nur noch in dem der laufenden Fassung.
+
+**Frisches `index.html` traf auf altes `app.js`.** Seitenaufrufe holt der
+Service Worker aus dem Netz, alles andere zuerst aus dem Zwischenspeicher – das
+macht den Start schnell, mischt aber direkt nach einer Aktualisierung zwei
+Fassungen. Sichtbar wurde das, als ein neuer Tab in der Tabbar stand, den das
+alte Skript nicht kannte: der Tab ließ sich anwählen, zeigte aber das Dashboard.
+Jetzt lädt die App einmal neu, sobald ein neuer Service Worker die Seite
+übernimmt (`controllerchange`) – nur wenn vorher schon einer da war, und nur
+einmal je Sitzung, damit ein kaputter Service Worker keine Schleife auslöst.
+
+**Notausgang.** In *Mehr* steht, welche Fassung läuft – nicht aus einer
+Konstante im Skript, die man beim Ändern vergisst, sondern aus dem Namen des
+Zwischenspeichers. Daneben ein Knopf, der Service Worker abmeldet,
+Zwischenspeicher leert und neu lädt. Die Trainingsdaten liegen im
+`localStorage` und bleiben unangetastet.
+
+Geprüft wird das von einer eigenen Testreihe, die den echten Ablauf nachstellt –
+Fassung installieren, benutzen, neue Fassung ausliefern, App wieder öffnen –
+und zwar über einen Server, der wie GitHub Pages zehn Minuten Haltbarkeit
+mitschickt. Mit dem alten `fetch()` fällt sie durch.
+
+## Tab bleibt stehen
+
+Am oberen Rand nach unten zu wischen lud die Seite neu und warf einen damit aus
+jedem Tab zurück aufs Dashboard – mitten im Training genau die falsche Geste.
+`overscroll-behavior-y: contain` schaltet das ab. Zusätzlich merkt sich die App
+den zuletzt sichtbaren Tab, damit auch ein Neuladen aus anderem Anlass nicht
+herausreißt.
 
 ## Sicherung
 
