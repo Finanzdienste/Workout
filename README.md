@@ -432,7 +432,7 @@ deutlich bessere.
 
 **Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, und **so wenige
 verschiedene Übungen je Einheit wie möglich**: 6 bis 8, im Mittel 6,6. Das sind
-15 bis 17 Sätze und geschätzte 30 bis 42 Minuten – zwei Sätze und rund fünf
+14 bis 18 Sätze und geschätzte 30 bis 42 Minuten – zwei Sätze und rund fünf
 Minuten weniger als mit flachen 10 überall.
 
 Die Länge einer Einheit ergibt sich fast vollständig aus den Zielen: ihre Summe
@@ -440,6 +440,46 @@ Die Länge einer Einheit ergibt sich fast vollständig aus den Zielen: ihre Summ
 gleichzeitig auf Oberschenkel, Gesäß, Bauch und Beinbeuger ein), macht rund 64
 Sätze pro Woche und damit 16 je Training. Die Frequenz ist der Hebel, nicht die
 Verteilung.
+
+### 48 Stunden je Muskelgruppe
+
+**Vier Termine in sieben Tagen erzwingen einen Ein-Tages-Abstand.** Die
+Abstände müssen sich zu sieben addieren; bei höchstens zwei Tagen bleibt nur
+2-2-2-1. Wegplanen lässt sich das nicht – aber verlegen: die Einheit davor und
+die danach nehmen **verschiedene Hälften des Körpers**, dann hat jede Gruppe
+trotzdem ihre 48 Stunden.
+
+Maßstab ist die *direkte* Arbeit, Anteil ab 0,5. Drei Sätze Kniebeugen sind für
+den Oberschenkel etwas anderes als der Bauchanteil derselben Sätze; Nebenanteile
+am kurzen Übergang bleiben deshalb erlaubt. Übrig bleiben genau zwei: der Nacken
+(Ø 3,9 Sätze über beide Tage) und der Bauch (Ø 4,7) – beides Beiwerk aus
+Rudern, Chin-ups und Kniebeugen.
+
+**Die Hälften stehen nicht in der Datei, sie werden gerechnet.** Übungen, die
+eine direkte Gruppe teilen, müssen zusammenbleiben – daraus ergeben sich Blöcke
+(Ziehen, Drücken, Beine, Bauch, Waden). Von allen Aufteilungen dieser Blöcke
+gewinnt die mit dem kleinsten Satzunterschied, sonst wird eine der beiden
+Einheiten zum Rumpf. Heraus kommt:
+
+| Hälfte | Gruppen | Sätze/Woche |
+| --- | --- | --- |
+| A | Beinbeuger, Brust, Gesäß, Oberschenkel, Schultern, Trizeps | 32,2 |
+| B | Bauch, Bizeps, Nacken, Rücken, Waden, hintere Schulter | 32,5 |
+
+Nur die beiden Einheiten am kurzen Übergang bekommen eine Hälfte zugewiesen;
+die zwei dazwischen bleiben frei und nehmen, was übrig ist. Deshalb kostet die
+Bedingung fast nichts: weiterhin 6 bis 8 Übungen je Einheit, 14 bis 18 Sätze.
+
+**Was sie kostet:** die Abwechslung. 67 von 80 Zusammenstellungen sind
+verschieden statt 80 von 80 – der Raum ist kleiner, wenn zwei der vier
+Einheiten festgelegt sind. Mehr Suchversuche ändern daran nichts, es sind
+schlicht nicht mehr da. Zwei gleiche Einheiten direkt hintereinander kommen
+trotzdem nicht vor.
+
+Ein erster Versuch hatte die Bedingung stur beim Verteilen erzwungen, ohne die
+Hälften: dann muss die erste Einheit einer Woche alles meiden, was am Vortag
+dran war, und es blieben Einheiten mit 2 Übungen und 4 Sätzen neben solchen mit
+9 und 21. Die Bedingung war erfüllt und der Plan unbrauchbar.
 
 **Die Zahl der Wochen muss gerade sein**, solange Rücken und hintere Schulter
 dasselbe Ziel haben. Das ist keine Feinheit, sondern der
@@ -479,7 +519,8 @@ Tagen addieren, bleiben die Wochentage fest.
    paar Zehntel danebenliegen, für einen halben Satz aber nicht.
 3. **Aufteilung auf die Einheiten.** Zwei oder drei Sätze je Auftritt, immer die
    kürzeste Zerlegung, alle vier Einheiten etwa gleich lang und keine die
-   längste.
+   längste – und die beiden am Ein-Tages-Abstand je auf eine Körperhälfte
+   festgelegt, siehe oben.
 
 Gerechnet wird durchweg in Zwanzigsteln eines Satzes – alle Anteile sind
 Vielfache von 0,05, damit ist „exakt" wirklich exakt und nicht bis auf

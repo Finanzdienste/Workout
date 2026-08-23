@@ -90,6 +90,8 @@ TARGET = {
     'glutes': 8, 'quads': 6, 'hamstrings': 6, 'calves': 4,
 }
 CAP = 10                 # keine Gruppe darüber, indirekte Anteile eingerechnet
+DIRECT = 0.5             # ab diesem Anteil gilt eine Übung als direkt für die Gruppe
+REST_DAYS = 2            # so viele Tage Abstand, bevor eine Gruppe wieder direkt drankommt
 WEEK = 4                 # Einheiten je Woche
 WEEKS = 20               # Wochen im Plan – muss gerade sein, siehe oben
 PER_SET = (2, 3)         # Sätze je Auftritt einer Übung
@@ -506,54 +508,156 @@ def chunks(sets, rnd, sessions):
     return pick
 
 
-def split(week, ids, shares, groups, sessions, rnd, tries, used):
+def sides(ids, shares, total, groups):
+    """Zwei Hälften des Körpers, die sich keine Übung teilen.
+
+    Der Ein-Tages-Abstand lässt sich nicht wegplanen – vier Termine in sieben
+    Tagen erzwingen ihn. Er lässt sich aber auf zwei Hälften legen: die Einheit
+    davor nimmt nur die eine, die danach nur die andere. Damit hat jede Gruppe
+    mindestens REST_DAYS Tage, ohne dass eine Einheit leer ausgeht.
+
+    Die Hälften werden nicht von Hand gesetzt, sondern gerechnet. Übungen, die
+    eine direkte Gruppe teilen, müssen zusammenbleiben – daraus ergeben sich
+    Blöcke (Ziehen, Drücken, Beine, Bauch, Waden). Von allen Aufteilungen
+    dieser Blöcke gewinnt die, bei der beide Hälften gleich viele Sätze haben:
+    sonst wird eine der beiden Einheiten zum Rumpf.
+    """
+    root = {i: i for i in ids}
+
+    def find(x):
+        while root[x] != x:
+            root[x] = root[root[x]]
+            x = root[x]
+        return x
+
+    for m in groups:
+        hit = [i for i in ids if shares[i].get(m, 0) >= DIRECT]
+        for i in hit[1:]:
+            root[find(i)] = find(hit[0])
+    block = {}
+    for i, t in zip(ids, total):
+        block.setdefault(find(i), []).append((i, t))
+
+    keys = list(block)
+    saetze = [sum(t for _, t in block[k]) for k in keys]
+    ganz = sum(saetze)
+    best = None
+    for mask in range(1 << len(keys)):
+        a = sum(s for i, s in enumerate(saetze) if mask >> i & 1)
+        got = (abs(2 * a - ganz), mask)
+        if best is None or got < best:
+            best = got
+    _, mask = best
+    half = [set(), set()]
+    for i, k in enumerate(keys):
+        seite = half[0] if mask >> i & 1 else half[1]
+        for ex, _ in block[k]:
+            seite |= direct_groups(ex, shares)
+    return [frozenset(h) for h in half], best[0]
+
+
+def clash(slot, dset, direkt, tight, prev):
+    """Verletzt die Übung in dieser Einheit die Erholungsbedingung?
+
+    Geprüft wird gegen beide Nachbarn: die zu kurz davorliegende Einheit des
+    Blocks und, für die erste Einheit, die letzte der Vorwoche.
+    """
+    for a, b in tight:
+        if slot == a and direkt[b] & dset:
+            return True
+        if slot == b and direkt[a] & dset:
+            return True
+    return slot == 0 and bool(prev & dset)
+
+
+def direct_groups(ex, shares):
+    """Muskelgruppen, für die eine Übung *da* ist – Anteil ab DIRECT.
+
+    Die Trennung ist grob, aber sie ist die, um die es bei der Erholung geht:
+    drei Sätze Kniebeugen sind für den Oberschenkel etwas anderes als der
+    Bauchanteil derselben Sätze.
+    """
+    return frozenset(m for m, s in shares[ex].items() if s >= DIRECT)
+
+
+def split(week, ids, shares, groups, sessions, rnd, tries, used, tight=(), prev=frozenset(), roles=None):
     """Aufteilung mit möglichst gleich langen und gleich gemischten Einheiten.
 
     `used` sind die bereits vergebenen Zusammenstellungen; eine Wiederholung
     wiegt schwerer als jede Unwucht, sonst gleichen sich zwei Wochen an.
+
+    `roles` gibt je Einheit vor, welche Muskelgruppen sie direkt treffen darf –
+    darüber laufen die beiden Hälften aus sides(). Nur die Einheiten an einem
+    zu kurzen Übergang bekommen eine Rolle, die übrigen bleiben frei.
+    `tight` sind Paare von Einheiten dieses Blocks, die weniger als REST_DAYS
+    Tage auseinanderliegen, `prev` die direkt trainierten Gruppen der Einheit
+    unmittelbar davor, falls auch dieser Abstand zu kurz ist – beides als
+    Rückversicherung, damit die Bedingung auch dann hält, wenn WEEK oder die
+    Abstände einmal anders stehen.
+
+    Zurück kommt (Einheiten, Konflikte): Konflikte > 0 heißt, dass sich die
+    Bedingung in dieser Woche nicht einhalten ließ.
     """
     target_sets = sum(week) / sessions
     target_vol = {m: sum(week[k] * shares[ids[k]].get(m, 0) for k in range(len(ids))) / sessions
                   for m in groups}
     best = None
-    for _ in range(tries):
-        day = [[] for _ in range(sessions)]
-        ok = True
-        for k in sorted(range(len(ids)), key=lambda x: -week[x]):
-            if not week[k]:
+    # Erst mit Erholungsbedingung; findet sich damit keine Aufteilung, wird sie
+    # für diese Woche fallen gelassen statt den Plan scheitern zu lassen.
+    for streng in (True, False):
+        for _ in range(tries):
+            day = [[] for _ in range(sessions)]
+            direkt = [set() for _ in range(sessions)]
+            ok = True
+            for k in sorted(range(len(ids)), key=lambda x: -week[x]):
+                if not week[k]:
+                    continue
+                part = chunks(week[k], rnd, sessions)
+                if part is None:
+                    ok = False
+                    break
+                dset = direct_groups(ids[k], shares)
+                free = sorted(range(sessions),
+                              key=lambda s: (len(day[s]), sum(x[1] for x in day[s]), rnd.random()))
+                if streng:
+                    free = [s for s in free
+                            if (roles is None or roles[s] is None or dset <= roles[s])
+                            and not clash(s, dset, direkt, tight, prev)]
+                if len(free) < len(part):
+                    ok = False
+                    break
+                for slot, sets in zip(free, part):
+                    day[slot].append((ids[k], sets))
+                    direkt[slot] |= dset
+            if not ok:
                 continue
-            part = chunks(week[k], rnd, sessions)
-            if part is None:
-                ok = False
-                break
-            free = sorted(range(sessions),
-                          key=lambda s: (len(day[s]), sum(x[1] for x in day[s]), rnd.random()))
-            for slot, sets in zip(free, part):
-                day[slot].append((ids[k], sets))
-        if not ok:
-            continue
-        load = [sum(s for _, s in d) for d in day]
-        imbalance = max(abs(x - target_sets) for x in load)
-        mix = 0.0
-        for d in day:
-            v = dict.fromkeys(groups, 0.0)
-            for ex, sets in d:
-                for m, share in shares[ex].items():
-                    v[m] += sets * share
-            mix += sum((v[m] - target_vol[m]) ** 2 for m in groups)
-        count = max(len(d) for d in day) - min(len(d) for d in day)
-        shape = [frozenset(ex for ex, _ in d) for d in day]
-        doppelt = sum(1 for s in shape if s in used) + (len(set(shape)) < len(shape))
-        # Wie viele Übungen die Woche hat, steht schon fest; hier geht es nur
-        # noch darum, dass keine Einheit die längste wird.
-        laengste = max(len(d) for d in day)
-        got = (doppelt, laengste, imbalance, count, round(mix, 6))
-        if best is None or got < best[0]:
-            best = (got, day)
+            load = [sum(s for _, s in d) for d in day]
+            imbalance = max(abs(x - target_sets) for x in load)
+            mix = 0.0
+            for d in day:
+                v = dict.fromkeys(groups, 0.0)
+                for ex, sets in d:
+                    for m, share in shares[ex].items():
+                        v[m] += sets * share
+                mix += sum((v[m] - target_vol[m]) ** 2 for m in groups)
+            count = max(len(d) for d in day) - min(len(d) for d in day)
+            shape = [frozenset(ex for ex, _ in d) for d in day]
+            doppelt = sum(1 for s in shape if s in used) + (len(set(shape)) < len(shape))
+            # Wie viele Übungen die Woche hat, steht schon fest; hier geht es nur
+            # noch darum, dass keine Einheit die längste wird.
+            laengste = max(len(d) for d in day)
+            got = (doppelt, laengste, imbalance, count, round(mix, 6))
+            if best is None or got < best[0]:
+                best = (got, day, direkt)
+        if best is not None:
+            break
     if best is None:
         sys.exit('Keine Aufteilung gefunden – PER_SET/PER_WEEK prüfen.')
-    used.update(frozenset(ex for ex, _ in d) for d in best[1])
-    return best[1]
+    _, day, direkt = best
+    konflikte = sum(len(direkt[a] & direkt[b]) for a, b in tight)
+    konflikte += len(prev & direkt[0]) if prev else 0
+    used.update(frozenset(ex for ex, _ in d) for d in day)
+    return day, direkt, konflikte
 
 
 # ------------------------------------------------------------------ #
@@ -582,11 +686,38 @@ def main():
           f'schlechteste Woche {worst / UNIT:.2f} Sätze daneben, '
           f'{hart} ganze Sätze daneben')
 
+    half, unwucht = sides(ids, shares, total, groups)
+    print(f'Erholung: zwei Hälften mit {unwucht / 2 / weeks:+.1f} Sätzen Unterschied pro Woche – '
+          f'[{", ".join(sorted(LABEL.get(m, m) for m in half[0]))}] gegen '
+          f'[{", ".join(sorted(LABEL.get(m, m) for m in half[1]))}]')
+
     plan = []
     used = set()
+    offen = 0            # Wochen, in denen die Erholungsbedingung nicht aufging
+    prev = frozenset()   # direkt trainierte Gruppen der letzten Einheit davor
     for k, w in enumerate(per_week):
         block = day[k * WEEK:(k + 1) * WEEK]
-        for d, sess in zip(block, split(w, ids, shares, groups, WEEK, rnd, SPLITS, used)):
+        # Welche Einheiten dieses Blocks liegen zu dicht beieinander? Bei vier
+        # Terminen in sieben Tagen ist das genau einer – meist der Übergang zur
+        # nächsten Woche, deshalb wird `prev` mitgeführt.
+        tight = [(i, i + 1) for i in range(len(block) - 1)
+                 if (block[i + 1] - block[i]).days < REST_DAYS]
+        eng_am_anfang = k > 0 and (block[0] - day[k * WEEK - 1]).days < REST_DAYS
+        eng_am_ende = k + 1 < len(per_week) and (day[(k + 1) * WEEK] - block[-1]).days < REST_DAYS
+        # Nur die Einheiten an einem zu kurzen Übergang bekommen eine Hälfte
+        # zugewiesen; die dazwischen bleiben frei und nehmen, was übrig ist.
+        roles = [None] * WEEK
+        if eng_am_ende:
+            roles[-1] = half[0]
+        if eng_am_anfang:
+            roles[0] = half[1]
+        for a, b in tight:
+            roles[a], roles[b] = roles[a] or half[0], roles[b] or half[1]
+        sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd, SPLITS, used,
+                                             tight, prev if eng_am_anfang else frozenset(), roles)
+        offen += 1 if konflikte else 0
+        prev = frozenset(direkt[-1])
+        for d, sess in zip(block, sess_list):
             sess.sort(key=lambda x: -weight[x[0]])
             plan.append({'date': d.isoformat(), 'ex': [{'id': e, 'sets': s} for e, s in sess]})
 
@@ -598,7 +729,30 @@ def main():
     print(f'{uniq} von {len(plan)} Einheiten verschieden, '
           f'{min(len(s["ex"]) for s in plan)}–{max(len(s["ex"]) for s in plan)} Übungen je Einheit, '
           f'{min(sum(e["sets"] for e in s["ex"]) for s in plan)}–'
-          f'{max(sum(e["sets"] for e in s["ex"]) for s in plan)} Sätze je Einheit\n')
+          f'{max(sum(e["sets"] for e in s["ex"]) for s in plan)} Sätze je Einheit')
+
+    # ---- Erholung: am fertigen Plan nachgemessen, nicht dem Verfahren geglaubt ----
+    def direkt_am_tag(sess):
+        out = set()
+        for e in sess['ex']:
+            out |= direct_groups(e['id'], shares)
+        return out
+
+    eng, doppelt = 0, []
+    for i in range(len(plan) - 1):
+        d1 = datetime.date.fromisoformat(plan[i]['date'])
+        d2 = datetime.date.fromisoformat(plan[i + 1]['date'])
+        if (d2 - d1).days >= REST_DAYS:
+            continue
+        eng += 1
+        beide = direkt_am_tag(plan[i]) & direkt_am_tag(plan[i + 1])
+        if beide:
+            doppelt.append((plan[i]['date'], sorted(LABEL.get(m, m) for m in beide)))
+    print(f'{eng} Übergänge unter {REST_DAYS} Tagen, davon {len(doppelt)} mit einer Gruppe '
+          f'zweimal direkt{" (Wochen ohne Lösung: " + str(offen) + ")" if offen else ""}')
+    for datum, ms in doppelt[:5]:
+        print(f'   {datum} -> Folgetag: {", ".join(ms)}')
+    print()
 
     print(f'{"Muskelgruppe":16s} {"Ziel":>5s} {"Schnitt":>9s} {"min":>6s} {"max":>6s}')
     for g, m in enumerate(groups):
