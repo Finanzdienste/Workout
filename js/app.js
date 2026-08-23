@@ -1,6 +1,6 @@
 import { EXERCISES, PLAN, TARGET } from './data.js';
 import * as store from './store.js';
-import { todayISO, addDays, daysBetween, fmtDate, plural } from './dates.js';
+import { todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
 import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, applyInjuries, blocked, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
@@ -418,7 +418,7 @@ function toast(msg) {
  * UI-Zustand (nicht persistiert)
  * ------------------------------------------------------------------ */
 
-const TABS = ['dashboard', 'stats', 'injuries', 'settings'];
+const TABS = ['dashboard', 'calendar', 'stats', 'injuries', 'settings'];
 
 const ui = {
   // Beim Neuladen im selben Tab bleiben. Die Seite lädt öfter neu, als man
@@ -431,6 +431,11 @@ const ui = {
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
+  // Kalender: gezeigter Monat und der angetippte Tag. Beides fängt bei der
+  // nächsten offenen Einheit an, nicht stur bei heute – wer den Tab öffnet,
+  // will meistens wissen, was als Nächstes kommt.
+  calMonth: null,
+  calDay: null,
 };
 
 /* ------------------------------------------------------------------ *
@@ -1244,6 +1249,160 @@ function careCard(c) {
     </div>`;
 }
 
+/* ------------------------------------------------------------------ *
+ * Kalender
+ *
+ * Der Plan steht als Liste von Einheiten da, aber gelebt wird er in Tagen:
+ * Wann war ich dran, wann war ich es nicht, was kommt. Gezeigt wird deshalb
+ * ein gewöhnliches Monatsraster – und zwar mit den *tatsächlichen* Terminen
+ * aus effDate(), nicht mit den Plandaten, sonst stimmt nach dem ersten
+ * verpassten Tag nichts mehr.
+ * ------------------------------------------------------------------ */
+
+const MODE_ICON = { db: '🏋️', bw: '🤸' };
+
+/** Zustand eines Kalendertags. Reihenfolge zählt: erledigt schlägt alles. */
+function dayState(w, iso, today) {
+  if (!w) return null;
+  const done = completedMode(w.n);
+  if (done) return { kind: 'done', mode: done };
+  const angefangen = store.isStarted(w.n);
+  if (iso < today) return { kind: angefangen ? 'part' : 'miss', mode: store.workoutMode(w.n) };
+  return { kind: angefangen ? 'part' : 'plan', mode: store.workoutMode(w.n) };
+}
+
+const KIND_TEXT = { done: 'trainiert', part: 'angefangen', miss: 'ausgefallen', plan: 'geplant' };
+
+function calendarCell(iso, month, today, byDate, sel) {
+  const ws = byDate.get(iso) || [];
+  const st = dayState(ws[0], iso, today);
+  const cls = ['cal-cell'];
+  if (iso.slice(0, 7) !== month.slice(0, 7)) cls.push('out');
+  if (iso === today) cls.push('today');
+  if (iso === sel) cls.push('sel');
+  if (st) cls.push(st.kind, st.mode);
+  const tag = Number(iso.slice(8));
+  // Ohne Einheit ist der Tag kein Knopf: nichts anzuzeigen, nichts zu tippen.
+  if (!st) return `<div class="${cls.join(' ')}"><span class="cal-num">${tag}</span></div>`;
+  const mehr = ws.length > 1 ? ` (+${ws.length - 1})` : '';
+  return `
+    <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
+            aria-pressed="${iso === sel}"
+            aria-label="${esc(fmtDate(iso, true))}: ${plural(ws.length, 'Einheit', 'Einheiten')} ${
+              esc(KIND_TEXT[st.kind])}, ${esc(MODE_LABEL[st.mode])}">
+      <span class="cal-num">${tag}</span>
+      <span class="cal-mark">${st.kind === 'miss' ? '·' : MODE_ICON[st.mode]}${mehr}</span>
+    </button>`;
+}
+
+/** Die angetippte Einheit im Detail: Übungen, Sätze, Modus. */
+function calendarDetail(iso, byDate, today) {
+  const ws = byDate.get(iso) || [];
+  if (!ws.length) {
+    return `<div class="card muted small">Kein Training an diesem Tag. Tippe einen
+      markierten Tag an, um die Einheit zu sehen.</div>`;
+  }
+  // Zwei Einheiten an einem Tag gibt es wirklich – etwa wenn zwei an
+  // demselben Tag nachgetragen werden. Dann stehen beide da.
+  return ws.map((w) => calendarWorkout(w, iso, today)).join('');
+}
+
+function calendarWorkout(w, iso, today) {
+  const st = dayState(w, iso, today);
+  const mode = st.mode;
+  const items = exOf(w).map((it) => resolve(it, mode));
+  const saetze = items.reduce((a, x) => a + x.sets, 0);
+  const kopf = KIND_TEXT[st.kind];
+  const prog = progressOf(w.n, mode);
+
+  return `
+    <div class="card cal-detail">
+      <div class="cal-det-head">
+        <div>
+          <div class="lbl">Workout ${w.n} · ${esc(kopf)}</div>
+          <div class="hint">${esc(fmtDate(iso, true))} · ${plural(items.length, 'Übung', 'Übungen')} ·
+            ${plural(saetze, 'Satz', 'Sätze')}</div>
+        </div>
+        <span class="chip ${mode}">${MODE_ICON[mode]} ${esc(MODE_LABEL[mode])}</span>
+      </div>
+      ${st.kind === 'part' ? `<div class="hint">${prog.done} von ${prog.total} Sätzen stehen.</div>` : ''}
+      <ul class="cal-list">
+        ${items.map((it) => `
+          <li>
+            <span class="cal-ex">${esc(it.name)}</span>
+            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, mode))}</span>
+          </li>`).join('')}
+      </ul>
+      <button type="button" class="btn btn-sm" data-act="cal-open" data-n="${w.n}">
+        ${st.kind === 'done' ? 'Im Dashboard ansehen' : 'Zu dieser Einheit'}
+      </button>
+    </div>`;
+}
+
+/** Gezeigter Monat: gewählter, sonst der der nächsten offenen Einheit. */
+function calMonthNow() {
+  if (ui.calMonth) return ui.calMonth;
+  const naechste = PLAN.find((w) => !completedMode(w.n));
+  return monthStart(naechste ? effDate(naechste) : todayISO());
+}
+
+function renderCalendar() {
+  const today = todayISO();
+  const byDate = new Map();
+  PLAN.forEach((w) => {
+    const d = effDate(w);
+    byDate.set(d, (byDate.get(d) || []).concat(w));
+  });
+  const month = calMonthNow();
+  const sel = ui.calDay;
+  const tage = monthGrid(month);
+
+  // Gezählt werden Einheiten, nicht Tage – an einem Tag können zwei stehen.
+  const imMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7))
+    .flatMap((d) => (byDate.get(d) || []).map((w) => dayState(w, d, today)));
+  const zaehl = { done: 0, part: 0, miss: 0, plan: 0 };
+  const proModus = { db: 0, bw: 0 };
+  imMonat.forEach((st) => {
+    zaehl[st.kind] += 1;
+    if (st.kind === 'done') proModus[st.mode] += 1;
+  });
+
+  view.innerHTML = `
+    <div class="section-title">Kalender</div>
+
+    <div class="card">
+      <div class="cal-top">
+        <button type="button" class="cal-nav" data-act="cal-month" data-d="-1" aria-label="Voriger Monat">‹</button>
+        <div class="cal-title">${esc(fmtMonth(month))}</div>
+        <button type="button" class="cal-nav" data-act="cal-month" data-d="1" aria-label="Nächster Monat">›</button>
+      </div>
+      <div class="cal-grid cal-head">${WEEK_HEAD.map((d) => `<div>${d}</div>`).join('')}</div>
+      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel)).join('')}</div>
+      <div class="cal-legend">
+        <span><i class="dot done"></i> trainiert</span>
+        <span><i class="dot part"></i> angefangen</span>
+        <span><i class="dot plan"></i> geplant</span>
+        <span><i class="dot miss"></i> ausgefallen</span>
+      </div>
+      <div class="small muted">
+        ${plural(imMonat.length, 'Einheit', 'Einheiten')} in diesem Monat ·
+        ${zaehl.done} trainiert${zaehl.done ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
+          zaehl.miss ? ` · ${zaehl.miss} ausgefallen` : ''}${
+          zaehl.plan ? ` · ${zaehl.plan} offen` : ''}
+      </div>
+      ${month.slice(0, 7) === today.slice(0, 7) ? '' : `
+        <button type="button" class="btn btn-sm" data-act="cal-today">Zu heute</button>`}
+    </div>
+
+    ${calendarDetail(sel, byDate, today)}
+
+    <div class="small muted">
+      Die Termine sind die tatsächlichen: verpasste Tage rücken den Restplan
+      nach hinten, abgeschlossene Einheiten bleiben auf dem Tag, an dem du
+      trainiert hast.
+    </div>`;
+}
+
 function renderInjuries() {
   const act = activeInjuries();
   const mode = store.getState().mode;
@@ -1576,6 +1735,7 @@ const RENDERERS = {
     else if (ui.listView) renderDashboard();
     else renderOverview();
   },
+  calendar: renderCalendar,
   stats: renderStats,
   injuries: renderInjuries,
   settings: renderSettings,
@@ -1697,6 +1857,26 @@ view.addEventListener('click', (e) => {
     }
     case 'go-injuries':
       go('injuries');
+      break;
+    case 'cal-month':
+      ui.calMonth = addMonths(calMonthNow(), Number(t.dataset.d));
+      render();
+      break;
+    case 'cal-today':
+      ui.calMonth = monthStart(todayISO());
+      render();
+      break;
+    case 'cal-day':
+      // Nochmal antippen macht die Auswahl wieder auf – sonst gäbe es keinen
+      // Weg zurück zur reinen Monatsübersicht.
+      ui.calDay = ui.calDay === t.dataset.iso ? null : t.dataset.iso;
+      render();
+      break;
+    case 'cal-open':
+      ui.workoutNo = Number(t.dataset.n);
+      ui.focus = false;
+      ui.listView = false;
+      go('dashboard');
       break;
     case 'toggle-ex': {
       const id = t.dataset.ex;

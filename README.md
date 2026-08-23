@@ -12,6 +12,7 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 | Tab | Inhalt |
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
+| **Kalender** | Monatsraster mit den tatsächlichen Terminen: was trainiert ist, was ansteht, was ausgefallen ist – je Tag mit Modus. Tippen zeigt die Übungen der Einheit. |
 | **Statistik** | Kennzahlen, nächste Einheit, **Wochenvolumen Soll gegen Ist**, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
 | **Verletzt** | Verletzungen und Beschwerden anhaken. Betroffene Übungen fallen aus dem Plan oder werden getauscht – dauerhaft, bis der Haken weg ist. |
 | **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, Export/Import als JSON, Backup-Datei, Alles löschen. |
@@ -533,6 +534,41 @@ und Seitheben sind enge Chin-ups und Pike Push-ups, die beide zusätzlich
 mitarbeiten. Die übrigen sechs Gruppen treffen auch dort ihr Ziel genau. Nach
 unten weicht nichts ab.
 
+## Kalender
+
+Der Plan ist eine Liste von Einheiten, gelebt wird er aber in Tagen. Der Tab
+zeigt deshalb ein gewöhnliches Monatsraster, Montag bis Sonntag, mit den
+**tatsächlichen** Terminen aus `effDate()` – nicht mit den Plandaten aus der
+Excel. Nach dem ersten verpassten Tag wären die nämlich falsch: der Restplan
+rückt nach, abgeschlossene Einheiten bleiben auf dem Tag, an dem wirklich
+trainiert wurde.
+
+Vier Zustände, und zwar **auch ohne Farbe unterscheidbar** – gefüllt ist
+trainiert, umrandet geplant, gestrichelt ausgefallen, plus ein Ring um heute:
+
+| | |
+| --- | --- |
+| **trainiert** | gefüllt, in der Farbe des Modus (orange Hanteln, blau Bodyweight) |
+| **angefangen** | getönt mit Rahmen – Sätze stehen, die Einheit ist aber nicht fertig |
+| **geplant** | schlichter Rahmen |
+| **ausgefallen** | gestrichelt, nur bei abgeschaltetem Nachrücken möglich |
+
+Das Zeichen in der Kachel nennt den Modus (🏋️ / 🤸), bei erledigten Einheiten
+den, in dem tatsächlich trainiert wurde, sonst den, der beim Start greifen
+würde. Darunter zählt eine Zeile den Monat zusammen: wie viele Einheiten,
+wie viele davon mit Hanteln, wie viele mit Bodyweight, was offen ist.
+
+**Ein Tipp auf einen Tag** klappt die Einheit auf: Datum, Zustand, Modus-Marke
+und alle Übungen mit Sätzen und Wiederholungen – in der Variante, die zu dem
+Tag gehört. Ein zweiter Tipp schließt sie wieder, ein Knopf springt ins
+Dashboard zu genau dieser Einheit. Angehakte Verletzungen wirken auch hier,
+weil die Liste durch dasselbe `exOf()` läuft wie überall sonst.
+
+**Zwei Einheiten an einem Tag** kommen wirklich vor – etwa wenn zwei
+nacheinander nachgetragen werden. Die Kachel zeigt dann „+1", und aufgeklappt
+stehen beide untereinander. Eine Map von Datum auf *eine* Einheit hätte die
+zweite still verschluckt.
+
 ## Verletzungen
 
 Ein eigener Tab, in dem sich anhaken lässt, was gerade weh tut. Die Auswahl
@@ -733,9 +769,9 @@ index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
 js/data.js              Aus Excel + plan.json erzeugt: 17 Übungen, 80 Einheiten, Wochenziele
 js/injuries.js          Verletzungskatalog und die Anpassung des Plans
-js/dates.js             Datums-Hilfsfunktionen
+js/dates.js             Datums-Hilfsfunktionen inkl. Monatsraster
 js/store.js             Zustand und localStorage-Persistenz
-js/app.js               Rendering der vier Tabs und Event-Handling
+js/app.js               Rendering der fünf Tabs und Event-Handling
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
 js/chart.js             Verlaufskarten für die Statistik
