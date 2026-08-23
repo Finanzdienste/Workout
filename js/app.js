@@ -1,4 +1,4 @@
-import { EXERCISES, PLAN } from './data.js';
+import { EXERCISES, PLAN, TARGET } from './data.js';
 import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
@@ -230,12 +230,18 @@ function bumpChip(exId, mode) {
   const hint = bumpHint(exId);
   if (!hint) return '';
   return `<button type="button" class="kg-bump" data-act="accept-bump" data-ex="${exId}" data-kg="${hint.to}">
-      ${hint.streak}× alles geschafft · auf ${esc(fmtKg(hint.to))} kg?
+      ${hint.streak}× alles geschafft · auf ${esc(fmtNum(hint.to))} kg?
     </button>`;
 }
 
-function fmtKg(kg) {
-  return Number.isInteger(kg) ? String(kg) : kg.toFixed(1).replace('.', ',');
+/** Zahl in deutscher Schreibweise, ohne unnötige Null hinter dem Komma.
+ *
+ * Zwei Nachkommastellen, nicht eine: seit die Gewichtsschritte je Übung gehen,
+ * gibt es 1,25-kg-Sprünge, und 21,25 kg als "21,3" anzuzeigen wäre schlicht
+ * falsch – die Zahl steht am Knopf, nach dem man greift.
+ */
+function fmtNum(n) {
+  return Number.isInteger(n) ? String(n) : String(+n.toFixed(2)).replace('.', ',');
 }
 
 /** Pausenlänge für eine Übung – empfohlen oder fest, je nach Einstellung. */
@@ -476,16 +482,16 @@ function renderFocus() {
     ${kg === null ? '' : `
       <div class="ex-weight focus-weight">
         <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
-                aria-label="${esc(fmtKg(stepOf(it.id)))} Kilo weniger">−</button>
+                aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo weniger">−</button>
         <div class="kg-main">
-          <input type="text" inputmode="decimal" class="kg-val" value="${fmtKg(kg)}"
+          <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
         </div>
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
-                aria-label="${esc(fmtKg(stepOf(it.id)))} Kilo mehr">+</button>
+                aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
-      ${frozen ? `<div class="kg-next focus-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : bumpChip(it.id, mode)}`}
+      ${frozen ? `<div class="kg-next focus-next">Nächstes Mal: ${esc(fmtNum(next))} kg</div>` : bumpChip(it.id, mode)}`}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -676,16 +682,16 @@ function renderDashboard() {
     const weightRow = kg === null ? '' : `
       <div class="ex-weight">
         <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
-                aria-label="${esc(fmtKg(stepOf(it.id)))} Kilo weniger">−</button>
+                aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo weniger">−</button>
         <div class="kg-main">
-          <input type="text" inputmode="decimal" class="kg-val" value="${fmtKg(kg)}"
+          <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht ${esc(it.name)} in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
         </div>
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
-                aria-label="${esc(fmtKg(stepOf(it.id)))} Kilo mehr">+</button>
+                aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
-      ${frozen ? `<div class="kg-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : bumpChip(it.id, mode)}`;
+      ${frozen ? `<div class="kg-next">Nächstes Mal: ${esc(fmtNum(next))} kg</div>` : bumpChip(it.id, mode)}`;
 
     // Im Bodyweight-Modus gibt es kein Gewicht – dort ist die Steigerung die
     // Wiederholungszahl, und der Vorschlag hängt an "ging leicht".
@@ -950,8 +956,8 @@ function warmupCard(items, n, mode) {
   const offen = ui.openEx.has('__warmup');
   const saetze = kg === null
     ? `<li>Ein lockerer Satz <b>${esc(erste.name)}</b> mit halber Wiederholungszahl.</li>`
-    : `<li>1 × 8 <b>${esc(erste.name)}</b> mit ${esc(fmtKg(roundToStep(kg * 0.5, step)))} kg</li>
-       <li>1 × 5 mit ${esc(fmtKg(roundToStep(kg * 0.75, step)))} kg</li>`;
+    : `<li>1 × 8 <b>${esc(erste.name)}</b> mit ${esc(fmtNum(roundToStep(kg * 0.5, step)))} kg</li>
+       <li>1 × 5 mit ${esc(fmtNum(roundToStep(kg * 0.75, step)))} kg</li>`;
   // Bewusst eigene Klassen statt .ex: das hier ist keine Übung, wird nicht
   // abgehakt und zählt nirgends mit. Als .ex hätte es sich in jede Zählung
   // eingeschlichen – in der App wie in den Testreihen.
@@ -1039,10 +1045,17 @@ function bwBump(exId) {
 /* ------------------------------------------------------------------ *
  * Wochenvolumen: Soll gegen Ist
  *
- * Der ganze Plan ist darauf gebaut, dass jede Muskelgruppe zehn Sätze pro
+ * Der ganze Plan ist darauf gebaut, dass jede Muskelgruppe ihre Sätze pro
  * Woche bekommt – und genau das war bisher nirgends nachzusehen. Verpasste
  * Einheiten, abgebrochene Trainings und jede angehakte Verletzung verschieben
  * diese Zahl, unsichtbar.
+ *
+ * Das Ziel ist nicht überall dasselbe: es kommt als TARGET aus den erzeugten
+ * Daten, damit hier keine zweite Zahl steht, die von der Rechnung abweichen
+ * kann. Im Ziel heißt: keinen ganzen Satz darunter – genau die Grenze, die
+ * tools/build-plan.py für die einzelne Woche garantiert. Enger wäre es keine
+ * Aussage über das Training, sondern über den Rundungsspielraum des Plans:
+ * dessen eigene Wochen weichen um bis zu 0,95 Sätze ab.
  *
  * Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den
  * jeweiligen Anteilen. Eine Woche sind WEEK_SESSIONS aufeinanderfolgende
@@ -1050,8 +1063,9 @@ function bwBump(exId) {
  * rechnet.
  * ------------------------------------------------------------------ */
 
-const TARGET_SETS = 10;
 const WEEK_SESSIONS = 4;
+const targetOf = (mus) => TARGET[mus] ?? 10;
+const inTarget = (mus, got) => got > targetOf(mus) - 1;
 
 function weeklyDone() {
   const log = store.getState().log;
@@ -1081,16 +1095,34 @@ function weeklyDone() {
   return weeks;
 }
 
-/** Balken für eine Muskelgruppe: erreicht gegen die zehn. */
+/** Balken für eine Muskelgruppe: erreicht gegen ihr eigenes Ziel.
+ *
+ * Die Zahl daneben nennt beides. Seit die Ziele auseinandergehen, sagt "4,0"
+ * für sich genommen nichts mehr – erst "4,0/4" zeigt, dass die Woche steht.
+ */
 function volumeBar(mus, got) {
-  const pct = Math.min(150, (got / TARGET_SETS) * 100);
-  const state = got >= TARGET_SETS - 0.5 ? 'full' : (got >= TARGET_SETS * 0.6 ? 'part' : 'thin');
+  const soll = targetOf(mus);
+  const pct = Math.min(150, (got / soll) * 100);
+  const state = inTarget(mus, got) ? 'full' : (got >= soll * 0.6 ? 'part' : 'thin');
   return `
     <div class="vol-row">
       <div class="vol-name">${esc(MUSCLE_LABEL[mus] || mus)}</div>
       <div class="vol-track"><i class="vol-fill ${state}" style="width:${Math.min(100, pct).toFixed(0)}%"></i></div>
-      <div class="vol-num">${got.toFixed(1).replace('.', ',')}</div>
+      <div class="vol-num">${got.toFixed(1).replace('.', ',')}<span>/${fmtNum(soll)}</span></div>
     </div>`;
+}
+
+/** Die Ziele in einem Satz, nach Höhe gruppiert statt zwölfmal aufgezählt. */
+function zielText() {
+  const byTarget = new Map();
+  Object.keys(MUSCLE_LABEL).forEach((m) => {
+    const t = targetOf(m);
+    byTarget.set(t, (byTarget.get(t) || []).concat(MUSCLE_LABEL[m]));
+  });
+  return [...byTarget.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([t, ms]) => `${fmtNum(t)}× ${ms.join(', ')}`)
+    .join(' · ');
 }
 
 function renderWeeklyVolume() {
@@ -1100,7 +1132,7 @@ function renderWeeklyVolume() {
   const done = weeks.filter((w) => w.any);
   if (!done.length) {
     host.innerHTML = '<div class="card muted small">Sobald die erste Einheit steht, '
-      + 'zeigt sich hier, wie nah du an den zehn Sätzen je Muskelgruppe bist.</div>';
+      + 'zeigt sich hier, wie nah du am Wochenziel je Muskelgruppe bist.</div>';
     return;
   }
   // Die zuletzt begonnene Woche ist die interessante – nicht die letzte des Plans.
@@ -1108,9 +1140,9 @@ function renderWeeklyVolume() {
   const prev = done.length > 1 ? done[done.length - 2] : null;
   const groups = Object.keys(MUSCLE_LABEL);
   // Nicht in Prozent: eine Woche mit 9,5 und 10,5 wären 99 %, obwohl alles
-  // stimmt – der Plan selbst schwankt um einen halben Satz. Gezählt wird
+  // stimmt – der Plan selbst schwankt um bis zu einen Satz. Gezählt wird
   // deshalb, wie viele Gruppen ihr Ziel erreicht haben.
-  const voll = groups.filter((m) => (cur.acc[m] || 0) >= TARGET_SETS - 0.5).length;
+  const voll = groups.filter((m) => inTarget(m, cur.acc[m] || 0)).length;
   const offen = PLAN.slice(PLAN.indexOf(cur.from), PLAN.indexOf(cur.to) + 1)
     .filter((w) => !completedMode(w.n)).length;
 
@@ -1126,9 +1158,9 @@ function renderWeeklyVolume() {
       </div>
       ${groups.map((m) => volumeBar(m, cur.acc[m] || 0)).join('')}
       <div class="small muted" style="margin-top:10px">
-        Ziel sind 10 Sätze je Gruppe, Anteile eingerechnet – bei ${offen ? 'noch offenen Einheiten ist die Woche naturgemäß unvollständig'
-          : 'einer vollen Woche sollte alles bei 10 stehen'}.
-        ${prev ? `Woche davor: ${groups.filter((m) => (prev.acc[m] || 0) >= TARGET_SETS - 0.5).length}
+        Ziel je Gruppe, Anteile eingerechnet: ${esc(zielText())} – bei ${offen ? 'noch offenen Einheiten ist die Woche naturgemäß unvollständig'
+          : 'einer vollen Woche sollte jede Gruppe ihr Ziel erreichen'}.
+        ${prev ? `Woche davor: ${groups.filter((m) => inTarget(m, prev.acc[m] || 0)).length}
           von ${groups.length} Gruppen im Ziel.` : ''}
       </div>
     </div>`;
@@ -1683,7 +1715,7 @@ view.addEventListener('click', (e) => {
       // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
       // später der Vergleich "Zuletzt" und die Volumenrechnung.
       const patch = { done: !cur };
-      if (!cur && variant.weight !== null) patch.w = fmtKg(usedWeight(n, mode, id));
+      if (!cur && variant.weight !== null) patch.w = fmtNum(usedWeight(n, mode, id));
       else if (cur) patch.w = '';
       store.updateSet(n, mode, id, item.sets, i, patch);
 
@@ -1717,14 +1749,14 @@ view.addEventListener('click', (e) => {
       render();
       // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
       const started = (store.peekSets(n, mode, id) || []).some((s) => s.w !== '');
-      toast(started ? `Nächstes Mal ${fmtKg(kg)} kg` : `${fmtKg(kg)} kg`);
+      toast(started ? `Nächstes Mal ${fmtNum(kg)} kg` : `${fmtNum(kg)} kg`);
       break;
     }
     case 'accept-bump': {
       const id = t.dataset.ex;
       const kg = store.setWeight(id, Number(t.dataset.kg));
       render();
-      toast(`Nächstes Mal ${fmtKg(kg)} kg 💪`);
+      toast(`Nächstes Mal ${fmtNum(kg)} kg 💪`);
       break;
     }
     case 'restart-plan': {

@@ -1096,7 +1096,8 @@ textarea.io {
 .vol-fill.full { background: #7fd8a0; }
 .vol-fill.part { background: var(--accent); }
 .vol-fill.thin { background: #ff8f6b; }
-.vol-num { flex: 0 0 38px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+.vol-num { flex: 0 0 58px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+.vol-num span { color: var(--muted); font-size: 11px; }
 
 /* Aufwärmen. Sieht aus wie eine Übungskarte, ist aber keine – eigene Klassen,
    damit es sich in keine Zählung einschleicht. */

@@ -24,6 +24,7 @@ META = ROOT / 'tools' / 'exercise-meta.json'
 OUT = ROOT / 'js' / 'data.js'
 PLAN_OVERRIDE = ROOT / 'tools' / 'plan.json'
 
+DEFAULT_TARGET = 10   # Sätze je Muskelgruppe und Woche, wenn plan.json fehlt
 NS = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
 LINE_RE = re.compile(r'^(\d+)×\s*(.+?)\s*\(([^()]*)\)\s*$')
 EXCEL_EPOCH = datetime.date(1899, 12, 30)
@@ -125,10 +126,13 @@ def main():
     # Auswahl und Satzzahlen. Die Excel bleibt Quelle für die Übungen selbst –
     # Namen, Wiederholungen, Hinweise und das Bodyweight-Äquivalent. Datei
     # löschen und neu generieren stellt den Originalplan wieder her.
+    # Ohne plan.json gilt das alte, gleichmäßige Ziel für jede Gruppe.
+    target = {}
     if PLAN_OVERRIDE.exists():
         override = json.loads(PLAN_OVERRIDE.read_text(encoding='utf-8'))
+        target = override['target']
         fresh, prev = [], None
-        for o in override:
+        for o in override['plan']:
             date = datetime.date.fromisoformat(o['date'])
             if prev is not None and date <= prev:
                 sys.exit(f'{PLAN_OVERRIDE.name}: Termin {o["date"]} folgt nicht auf {prev}')
@@ -145,14 +149,20 @@ def main():
     if unused:
         sys.exit(f'Unbenutzte Eintraege in exercise-meta.json: {sorted(unused)}')
 
+    groups = sorted({m for e in catalog.values() for m in e['db']['shares']})
+    target = {m: target.get(m, DEFAULT_TARGET) for m in groups}
+
     OUT.write_text(
         "// Auto-generiert von tools/build-data.py aus data/Workoutplan_mit_Bodyweight_Equivalent.xlsx.\n"
         "// Nicht von Hand bearbeiten - Plan in der Excel aendern und neu generieren.\n"
         "export const EXERCISES = " + json.dumps(list(catalog.values()), ensure_ascii=False, indent=2) + ";\n\n"
+        "// Saetze je Muskelgruppe und Woche, auf die der Plan gerechnet ist.\n"
+        "export const TARGET = " + json.dumps(target, ensure_ascii=False) + ";\n\n"
         "export const PLAN = " + json.dumps(plan, ensure_ascii=False, separators=(',', ':')) + ";\n",
         encoding='utf-8',
     )
-    print(f'{OUT.relative_to(ROOT)}: {len(catalog)} Uebungen, {len(plan)} Einheiten')
+    print(f'{OUT.relative_to(ROOT)}: {len(catalog)} Uebungen, {len(plan)} Einheiten, '
+          f'Ziele {min(target.values())}–{max(target.values())} Sätze je Gruppe')
 
 
 if __name__ == '__main__':

@@ -184,7 +184,10 @@ export function weightOf(exId) {
 }
 
 export function setWeight(exId, kg) {
-  const v = Math.max(0, Math.round(kg * 2) / 2); // auf halbe Kilo runden
+  // Auf Viertelkilo runden, nicht auf halbe: die Gewichtsschritte gehen je
+  // Übung, und die kleinen liegen bei 1,25 kg. Mit halben Kilo wurde aus dem
+  // Vorschlag "auf 21,25 kg" beim Annehmen still 21,5.
+  const v = Math.max(0, Math.round(kg * 4) / 4);
   state.weights[exId] = v;
   persist();
   emit();

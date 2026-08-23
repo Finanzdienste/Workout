@@ -276,6 +276,10 @@ und Steigerungsvorschlag holen ihn dort.
 Maßstab: kein Schritt über einem Viertel des Arbeitsgewichts. Der größte liegt
 bei 25 % (Reverse Fly, 1 von 4 kg), die meisten deutlich darunter.
 
+Gespeichert wird auf **Viertelkilo** gerundet, nicht auf halbe: sonst würde aus
+dem angenommenen Vorschlag „auf 21,25 kg" still 21,5. Aus demselben Grund zeigt
+die App zwei Nachkommastellen statt einer.
+
 #### Progression ohne Gewicht
 
 Im Bodyweight-Modus gibt es nichts zu erhöhen – dort geht der Fortschritt über
@@ -340,21 +344,30 @@ ausgewiesen.
 
 ### Wochenvolumen: Soll gegen Ist
 
-Der ganze Plan ist darauf gebaut, dass jede Muskelgruppe zehn Sätze pro Woche
+Der ganze Plan ist darauf gebaut, dass jede Muskelgruppe ihre Sätze pro Woche
 bekommt – und genau das war in der App nirgends nachzusehen. Verpasste
 Einheiten, abgebrochene Trainings und jede angehakte Verletzung verschieben die
 Zahl, unsichtbar. Oben in der Statistik steht deshalb die zuletzt begonnene
-Woche mit zwölf Balken gegen die Zehn, dazu die Woche davor als Vergleich.
+Woche mit zwölf Balken gegen ihr jeweiliges Ziel, dazu die Woche davor als
+Vergleich.
+
+**Das Ziel kommt aus den erzeugten Daten**, nicht aus einer Konstante im
+Skript: `tools/build-plan.py` schreibt es als `TARGET` nach `plan.json`, von
+dort geht es über `js/data.js` in die App. Eine zweite Zahl im Frontend wäre
+eine Zahl, die beim nächsten Umrechnen still falsch wird. Jede Zeile nennt
+beides – „6,8/10" statt bloß „6,8", seit die Ziele auseinandergehen.
 
 Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den jeweiligen
 Anteilen; eine Woche sind vier aufeinanderfolgende Einheiten – dieselbe
 Einteilung, mit der `tools/build-plan.py` rechnet.
 
 **Kein Prozentwert.** Eine Woche mit 9,5 und 10,5 wären 99 %, obwohl alles
-stimmt: der Plan selbst schwankt um einen halben Satz. Angezeigt wird deshalb,
-wie viele Gruppen ihr Ziel erreicht haben („12/12"), mit ± 0,5 als Grenze. Sind
-noch Einheiten der Woche offen, steht das dabei – sonst sähe eine halb
-trainierte Woche wie ein Rückstand aus.
+stimmt: der Plan selbst schwankt um bis zu einen Satz. Angezeigt wird deshalb,
+wie viele Gruppen ihr Ziel erreicht haben („12/12"). Die Grenze ist genau das,
+was der Generator für die einzelne Woche garantiert – **kein ganzer Satz
+darunter**. Enger wäre keine Aussage über das Training, sondern über den
+Rundungsspielraum des Plans. Sind noch Einheiten der Woche offen, steht das
+dabei – sonst sähe eine halb trainierte Woche wie ein Rückstand aus.
 
 ### Verlaufskarten
 
@@ -375,39 +388,61 @@ sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
 
 ## Wochenvolumen je Muskelgruppe
 
-Ziel sind **10 Sätze pro Woche und Muskelgruppe**, Anteile eingerechnet – und
-über den ganzen Plan im Schnitt **exakt** 10,0000, nicht ungefähr.
+Das Ziel ist **nicht überall dieselbe Zahl**. Es steht als `TARGET` in
+`tools/build-plan.py`, wird über den ganzen Plan im Schnitt **exakt** getroffen
+und keine Gruppe geht über die Obergrenze `CAP` von 10 Sätzen pro Woche,
+indirekte Anteile eingerechnet.
 
 **Vier Einheiten pro Woche**, feste Wochentage: Montag, Mittwoch, Donnerstag,
 Samstag. Vier Termine in sieben Tagen heißen zwangsläufig einmal zwei Tage
 hintereinander – das ist der Mittwoch/Donnerstag. 80 Einheiten in 20 Wochen,
 vom 20.08.2026 bis zum 06.01.2027.
 
-| | Excel, im Mittel | jetzt, Schnitt | jetzt, einzelne Woche |
+| Gruppe | Ziel | Schnitt | einzelne Woche |
 | --- | --- | --- | --- |
-| Oberschenkel, Brust, Rücken, Waden | 9,7–11,1 | **10,0000** | immer genau 10,0 |
-| Nacken | 1,5 | **10,0000** | 9,8–10,4 |
-| hintere Schulter | **0,5** | **10,0000** | 9,5–10,5 |
-| Bizeps | 7,3 | **10,0000** | 9,3–10,3 |
-| Bauch | 7,8 | **10,0000** | 9,5–10,9 |
-| Gesäß, Beinbeuger, Schultern, Trizeps | | **10,0000** | 9,2–10,8 |
+| Brust, Rücken, Schultern, hintere Schulter, Bizeps, Trizeps, Bauch | 10 | **exakt** | 9,25–10,95 |
+| Gesäß | 8 | **exakt** | 7,5–8,5 |
+| Oberschenkel, Beinbeuger | 6 | **exakt** | 5,1–6,8 |
+| Waden | 4 | **exakt** | immer genau 4,0 |
+| Nacken | *Ergebnis* | 9,65 | 9,4–10,0 |
 
-In keiner der 20 Wochen liegt eine Gruppe einen ganzen Satz daneben; 0,9 ist
+In keiner der 20 Wochen liegt eine Gruppe einen ganzen Satz daneben; 0,95 ist
 das Schlimmste, was vorkommt.
 
+**Warum nicht überall 10.** Zehn Sätze sind der Bereich, in dem der Großteil
+des Effekts liegt – aber nur da, wo man den Effekt will. Vierzehn Prozent aller
+Sätze für die Waden aufzuwenden ist eine Entscheidung, keine Trainingslehre,
+und dieselbe Zeit trägt an der Schulter mehr. Der Unterkörper steht deshalb auf
+Erhalt (6–8), die Waden auf 4, der Oberkörper am Limit. Ändern heißt: `TARGET`
+umschreiben und neu rechnen – ob die neuen Ziele zusammen überhaupt erreichbar
+sind, sagt der Lauf selbst.
+
+**Der Nacken ist keine freie Größe.** Er kommt vollständig aus Übungen, die
+schon anderswo festgelegt sind:
+
+    Nacken = 0,29·Rudern + 0,21·Chin-ups + 0,6·ReverseFly + 0,2·Seitheben
+
+Bei 10 Sätzen Rücken und 10 hinterer Schulter liegt er damit rechnerisch bei
+mindestens 8,9 – ein Ziel von 8 ist nicht knapp verfehlt, sondern unmöglich. Er
+bekommt deshalb gar keine Gleichung (`None`), sondern nur die Obergrenze. Das
+kostet nichts und bringt viel: **ohne diese eine Gleichung hat der
+Oberkörper-Block 2431 exakte Lösungen statt 16**, und unter denen liegt eine
+deutlich bessere.
+
 **Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, und **so wenige
-verschiedene Übungen je Einheit wie möglich**: 6 in zwei Einheiten, 7 in 57,
-8 in 21. Das sind 17 bis 19 Sätze und geschätzte 31 bis 38 Minuten.
+verschiedene Übungen je Einheit wie möglich**: 6 bis 8, im Mittel 6,6. Das sind
+15 bis 17 Sätze und geschätzte 30 bis 42 Minuten – zwei Sätze und rund fünf
+Minuten weniger als mit flachen 10 überall.
 
-Die Länge einer Einheit ergibt sich fast vollständig aus dem Ziel: 10 Sätze auf
-zwölf Muskelgruppen, abzüglich der Überschneidung (ein Goblet Squat zahlt
-gleichzeitig auf Oberschenkel, Gesäß, Bauch und Beinbeuger ein), macht rund 74
-Sätze pro Woche. Bei drei Einheiten sind das 25 pro Training und damit
-mindestens neun Übungen; bei vier sind es 18 und sieben Übungen. Die Frequenz
-ist der Hebel, nicht die Verteilung.
+Die Länge einer Einheit ergibt sich fast vollständig aus den Zielen: ihre Summe
+über zwölf Gruppen, abzüglich der Überschneidung (ein Goblet Squat zahlt
+gleichzeitig auf Oberschenkel, Gesäß, Bauch und Beinbeuger ein), macht rund 64
+Sätze pro Woche und damit 16 je Training. Die Frequenz ist der Hebel, nicht die
+Verteilung.
 
-**Die Zahl der Wochen muss gerade sein.** Das ist keine Feinheit, sondern der
-Grund, warum der Plan nicht mehr 19 Wochen lang ist. Der Rücken kommt
+**Die Zahl der Wochen muss gerade sein**, solange Rücken und hintere Schulter
+dasselbe Ziel haben. Das ist keine Feinheit, sondern der
+Grund, warum der Plan nicht 19 Wochen lang ist. Der Rücken kommt
 nur aus Rudern und Chin-ups, beide mit Anteil 1,0 – seine Plansumme ist also
 immer eine ganze Zahl und trifft 10·W genau. Die hintere Schulter hängt an
 denselben zwei Übungen (0,35 und 0,15) plus Reverse Fly:
@@ -427,7 +462,8 @@ Tagen addieren, bleiben die Wochentage fest.
 `tools/build-plan.py` rechnet in drei Schritten:
 
 1. **Plansummen.** Wie viele Sätze bekommt jede Übung über den ganzen Plan?
-   Das ist ein Gleichungssystem mit zwölf Zeilen und siebzehn Unbekannten,
+   Das ist ein Gleichungssystem mit elf Zeilen und siebzehn Unbekannten – der
+   Nacken hat keine, er wird nur gedeckelt –,
    gelöst per Tiefensuche: steht in einer Gleichung nur noch eine Übung offen,
    ist ihr Wert bestimmt; stehen mehrere offen, muss der Rest durch den größten
    gemeinsamen Teiler ihrer Anteile teilbar sein. Das schneidet den Suchbaum so
@@ -441,30 +477,30 @@ Tagen addieren, bleiben die Wochentage fest.
    etwa gleich hoch – für eine Übung weniger in der Einheit darf eine Gruppe ein
    paar Zehntel danebenliegen, für einen halben Satz aber nicht.
 3. **Aufteilung auf die Einheiten.** Zwei oder drei Sätze je Auftritt, immer die
-   kürzeste Zerlegung, alle drei Einheiten etwa gleich lang und keine die
+   kürzeste Zerlegung, alle vier Einheiten etwa gleich lang und keine die
    längste.
 
 Gerechnet wird durchweg in Zwanzigsteln eines Satzes – alle Anteile sind
 Vielfache von 0,05, damit ist „exakt" wirklich exakt und nicht bis auf
 Rundungsfehler.
 
-**Was die Exaktheit kostet.** Die Gleichungen lassen weniger Spielraum, als man
-denkt, und drei Dinge fallen dabei ab:
+**Was die Ziele bewirken.** Die Gleichungen lassen weniger Spielraum, als man
+denkt – wer eine Zahl ändert, sieht es an ganz anderer Stelle:
 
-- **Der Hip Thrust muss rein, aber nur mit 8 Sätzen im ganzen Plan.** Ohne ihn
-  ist das Gesäß nicht auf 10 zu bringen (Kniebeugen und Beinbeuger liefern
-  zusammen zu wenig), mit mehr als einem halben Satz pro Woche liegt es
-  darüber. Er steht deshalb nur in drei der 80 Einheiten; in diesen Wochen geht
-  das Gesäß auf 10,8.
-- **Rudern 9 Sätze pro Woche.** Das Seitheben ist über den Nacken an Rudern
-  gekoppelt, und was dann noch an Schulter fehlt, müssen die Brustübungen
-  liefern – daraus folgt zwingend Rudern ≥ 7,5 pro Woche. Ein ausgeglicheneres
-  Zug-Verhältnis gibt es in keiner der Lösungen. Rudern und Goblet Squat stehen
-  deshalb in fast jeder Einheit.
-- **Chin-ups und gewichtete Liegestütze kommen nur je einmal pro Woche vor.**
-  Beide hängen an Gleichungen, die anderswo schon festgelegt sind – die
-  Chin-ups am Rücken, die Liegestütze an der Brust. Mehr geht nicht, ohne dass
-  eine andere Gruppe danebenliegt.
+- **Chin-ups von 1 auf 4 Sätze pro Woche.** Vorher hingen sie an einer
+  Nacken-Gleichung, die Rudern erzwang; ohne sie verteilt sich der Rücken auf
+  beide Zugrichtungen statt zu 90 % auf Rudern. Für die Breite ist genau das
+  der Unterschied – vertikales Ziehen kam vorher praktisch nicht vor.
+- **Reverse Fly ist die häufigste Übung** (7,3 Sätze pro Woche). Die hintere
+  Schulter steht auf 10, und da Rudern zurückgeht, muss der Rest von dort
+  kommen. Das ist kein Zufall, sondern die Gleichung.
+- **Der Hip Thrust wird gebraucht** (2,9 Sätze pro Woche statt 0,5). Gesäß 8 bei
+  Oberschenkel 6 geht nicht mehr über Kniebeugen: die sind durch das
+  Oberschenkel-Ziel gedeckelt, also muss das Gesäß direkt kommen.
+- **Der Bauch wird echt trainiert.** Vorher kamen 6,3 seiner 10 Sätze nebenbei
+  aus Kniebeugen und Rudern, nur 3,6 direkt. Jetzt sind es 6,8 direkte – weil
+  weniger Beinarbeit weniger Bauch nebenbei liefert und die Crunches
+  nachrücken müssen.
 
 Sonst gilt: von allen exakten Lösungen gewinnt die, mit der keine Gruppe einen
 ganzen Satz danebenliegt; dann die, bei der keine Übung unter einen Satz pro
@@ -483,16 +519,19 @@ anderswo – in der App sieht man den ganzen Satz, die Zehntel nicht.
 **Die Abwechslung bleibt vollständig:** 80 verschiedene Zusammenstellungen bei
 80 Einheiten, alle 17 Übungen kommen vor.
 
-`tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json`;
+`tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json` –
+dort stehen neben den Einheiten auch die **Ziele je Muskelgruppe** und die
+Obergrenze, damit die App gegen dieselben Zahlen rechnet wie der Generator.
 Namen, Wiederholungen und die Bodyweight-Äquivalente kommen unverändert aus der
 Excel. Der Plan darf dabei über das Excel-Ende hinausgehen – die Zusatztermine
 stehen dann in `plan.json`. `tools/plan.json` löschen und neu generieren stellt
-den Originalplan wieder her.
+den Originalplan wieder her; ohne die Datei gilt für jede Gruppe wieder 10.
 
-Im Bodyweight-Modus liegen Rücken (13,4) und Trizeps (13,0) höher, Brust,
-Nacken und Schulter leicht: die Äquivalente von SZ-Curls und Seitheben sind
-enge Chin-ups und Pike Push-ups, die beide zusätzlich mitarbeiten. Die übrigen
-acht Gruppen treffen auch dort exakt 10. Nach unten weicht nichts ab.
+Im Bodyweight-Modus liegen Rücken (13,1) und Trizeps (12,8) höher, Brust
+(11,1), Nacken (10,5) und Schulter (10,4) leicht: die Äquivalente von SZ-Curls
+und Seitheben sind enge Chin-ups und Pike Push-ups, die beide zusätzlich
+mitarbeiten. Die übrigen sechs Gruppen treffen auch dort ihr Ziel genau. Nach
+unten weicht nichts ab.
 
 ## Verletzungen
 
@@ -534,10 +573,10 @@ gesperrte Übung an einer Stelle auftaucht und an einer anderen nicht.
 **Die Auswirkungen werden gerechnet, nicht behauptet.** Der Tab zeigt für die
 angehakte Auswahl, was über den ganzen Plan getauscht wird, was ersatzlos
 wegfällt und wie sich die Sätze je Muskelgruppe und Woche dadurch verschieben –
-gegen dieselbe 10, an der der ganze Plan hängt. Mit Meniskus, Handgelenk und
-Schulter zusammen fallen die Oberschenkel zum Beispiel von 10,0 auf 0,0, während
-die hintere Schulter auf 15,9 steigt, weil das Seitheben durch Reverse Fly
-ersetzt wird.
+gegen dieselben Ziele, an denen der ganze Plan hängt. Mit Meniskus und
+Schulter-Impingement zusammen fallen die Oberschenkel zum Beispiel von 6,0 auf
+0,0 und die Schultern von 10,0 auf 3,8, während die hintere Schulter auf 15,4
+steigt, weil das Seitheben durch Reverse Fly ersetzt wird.
 
 **Wechselwirkungen** gibt es in zwei Sorten. Die eine rechnet sich aus: Wenn
 Beschwerde A eine Übung durch eine andere ersetzen würde, Beschwerde B aber
@@ -692,7 +731,7 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 ```
 index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
-js/data.js              Aus Excel + plan.json erzeugt: 17 Übungen + 80 Einheiten
+js/data.js              Aus Excel + plan.json erzeugt: 17 Übungen, 80 Einheiten, Wochenziele
 js/injuries.js          Verletzungskatalog und die Anpassung des Plans
 js/dates.js             Datums-Hilfsfunktionen
 js/store.js             Zustand und localStorage-Persistenz
@@ -705,7 +744,7 @@ manifest.webmanifest    Installierbar als App auf dem Homescreen
 data/…xlsx              Quelle des Plans
 tools/build-data.py     Generator: Excel + Hinweise -> js/data.js
 tools/exercise-meta.json  Muskelgruppe, Equipment und Ausführungshinweise je Übung
-tools/build-plan.py     Generator: verteilt die Übungen -> tools/plan.json
+tools/build-plan.py     Generator: Ziele je Muskelgruppe -> tools/plan.json
 tools/build-single.py   Bündelt alles zu dist/workout.html
 dist/workout.html       Erzeugt: die App als eine portable Datei
 ```

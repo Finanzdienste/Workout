@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """Verteilt die Übungen so auf die Trainingstage, dass jede Muskelgruppe über
-den ganzen Plan im Schnitt exakt 10 Sätze pro Woche bekommt.
+den ganzen Plan im Schnitt exakt ihr Ziel aus TARGET an Sätzen pro Woche
+bekommt – und keine über der Obergrenze CAP liegt.
 
     python3 tools/build-plan.py             # schreibt tools/plan.json
     python3 tools/build-plan.py --report    # nur rechnen und zeigen
 
-Eine "Woche" sind hier drei aufeinanderfolgende Einheiten – der Plan aus der
-Excel trainiert alle zwei bis drei Tage, drei Einheiten decken also gut sieben
-Tage ab.
+Die Ziele sind nicht überall gleich: der Oberkörper steht am Limit, der
+Unterkörper hält. Wer das anders gewichten will, ändert TARGET und lässt neu
+rechnen; welche Ziele überhaupt zusammen erreichbar sind, sagt der Lauf selbst.
+Eine Gruppe darf auch ohne Ziel bleiben (None) – dann ergibt sie sich aus den
+übrigen und muss nur unter CAP bleiben.
+
+Eine "Woche" sind hier WEEK aufeinanderfolgende Einheiten.
 
 Warum das überhaupt gerechnet werden muss: die Übungen treffen die
 Muskelgruppen nicht sauber getrennt, sondern anteilig. Ein Goblet Squat ist
@@ -15,7 +20,8 @@ voll Oberschenkel, gut zur Hälfte Gesäß, ein Drittel Bauch. Wer stur drei Sä
 je Übung verteilt, landet bei manchen Gruppen weit über und bei anderen weit
 unter dem Ziel. Also wird die Satzzahl je Übung gesucht statt gesetzt.
 
-**Die Zahl der Wochen muss gerade sein.** Sonst ist "exakt 10" nicht knapp
+**Die Zahl der Wochen muss gerade sein** – solange Rücken und hintere Schulter
+dasselbe Ziel haben, was sie derzeit tun. Sonst ist "exakt 10" nicht knapp
 verfehlt, sondern grundsätzlich unerreichbar. Der Rücken kommt nur aus Rudern
 und Chin-ups, beide mit Anteil 1,0 – seine Plansumme ist also eine ganze Zahl
 und trifft 10·W genau. Die hintere Schulter hängt an denselben zwei Übungen
@@ -32,14 +38,15 @@ setzen den Rhythmus der Excel fort.
 Gerechnet wird in drei Schritten:
 
   1. Plansummen.  Wie viele Sätze bekommt jede Übung über den ganzen Plan?
-     Gesucht wird eine Lösung, die alle zwölf Gleichungen exakt trifft – von
-     vielen gefundenen die ausgewogenste, damit keine Übung fast verschwindet.
+     Gesucht wird eine Lösung, die jede Zielgleichung exakt trifft und die
+     Gruppen ohne Ziel unter CAP lässt – von vielen gefundenen die
+     ausgewogenste, damit keine Übung fast verschwindet.
   2. Verteilung auf die Wochen.  Die Summen stehen fest; verschoben werden nur
      einzelne Sätze zwischen Wochen. Der Schnitt bleibt dabei zwangsläufig
      exakt, und gesucht wird die Verteilung, bei der die schlechteste einzelne
-     Woche am nächsten an der 10 liegt.
-  3. Aufteilung auf die drei Einheiten.  Jede Übung kommt ein- bis dreimal pro
-     Woche vor, je zwei bis vier Sätze; alle drei Einheiten etwa gleich lang.
+     Woche ihrem Ziel am nächsten liegt.
+  3. Aufteilung auf die Einheiten.  Jede Übung kommt ein- bis dreimal pro
+     Woche vor, je zwei bis drei Sätze; alle Einheiten etwa gleich lang.
 
 Die Anteile sind Schätzungen aus gängiger Trainingslehre, keine Messwerte: 1,0
 heißt "dafür ist die Übung da", 0,5 "arbeitet spürbar mit". Wer sie anders
@@ -64,7 +71,25 @@ META = ROOT / 'tools' / 'exercise-meta.json'
 DATA = ROOT / 'js' / 'data.js'
 OUT = ROOT / 'tools' / 'plan.json'
 
-TARGET = 10              # Sätze je Muskelgruppe und Woche
+# Sätze je Muskelgruppe und Woche. Nicht überall dieselbe Zahl: der Plan soll
+# den Oberkörper voll bedienen und unten halten, was da ist. None heißt "kein
+# Ziel" – die Gruppe kommt heraus, wie sie herauskommt, und muss nur unter CAP
+# bleiben. Der Nacken ist so ein Fall: er hängt vollständig an Rudern,
+# Chin-ups, Reverse Fly und Seitheben,
+#
+#     Nacken = 0,29·Rudern + 0,21·Chin-ups + 0,6·ReverseFly + 0,2·Seitheben
+#
+# und ist damit keine freie Größe mehr. Ein Ziel dafür macht das
+# Gleichungssystem nur unlösbar oder erzwingt eine Verteilung, die anderswo
+# schlechter ist – ohne Gleichung bleiben im Oberkörper 2431 exakte Lösungen
+# statt 16, aus denen sich die ausgewogenste wählen lässt.
+TARGET = {
+    'chest': 10, 'lats': 10, 'delts': 10, 'rearDelts': 10,
+    'biceps': 10, 'triceps': 10, 'abs': 10,
+    'traps': None,
+    'glutes': 8, 'quads': 6, 'hamstrings': 6, 'calves': 4,
+}
+CAP = 10                 # keine Gruppe darüber, indirekte Anteile eingerechnet
 WEEK = 4                 # Einheiten je Woche
 WEEKS = 20               # Wochen im Plan – muss gerade sein, siehe oben
 PER_SET = (2, 3)         # Sätze je Auftritt einer Übung
@@ -81,7 +106,8 @@ SPLITS = 900             # Versuche je Woche für die Aufteilung
 # exercise-meta.json sind Vielfache von 0,05, damit bleibt alles ganzzahlig und
 # "exakt" heißt wirklich exakt und nicht "bis auf Rundungsfehler".
 UNIT = 20
-GOAL = TARGET * UNIT
+GOAL = {m: (None if t is None else t * UNIT) for m, t in TARGET.items()}
+CAP_U = CAP * UNIT
 
 LABEL = {
     'quads': 'Oberschenkel', 'hamstrings': 'Beinbeuger', 'glutes': 'Gesäß',
@@ -137,11 +163,6 @@ class Volume:
                         out[g] += c * v
         return out
 
-    def off(self, n, goal):
-        """Größte und quadratische Abweichung vom Ziel."""
-        v = self.of(n)
-        return (max(abs(x - goal) for x in v), sum((x - goal) ** 2 for x in v))
-
 
 # ------------------------------------------------------------------ #
 # Schritt 1: Plansummen, die exakt aufgehen
@@ -172,18 +193,36 @@ def parts(ids, shares, groups):
     return list(out.values())
 
 
+def capped(sol, shares, weeks):
+    """Bleibt jede Gruppe ohne Ziel unter der Obergrenze?
+
+    Für Gruppen mit Ziel erledigen das die Gleichungen. Für die anderen ist es
+    die einzige Bedingung: höchstens CAP Sätze pro Woche, indirekte Anteile
+    eingerechnet.
+    """
+    got = {}
+    for i, n in sol.items():
+        for m, s in shares[i].items():
+            if GOAL.get(m) is None:
+                got[m] = got.get(m, 0) + n * round(s * UNIT)
+    return all(v <= CAP_U * weeks for v in got.values())
+
+
 def exact(block, shares, weeks, values, limit, rnd):
-    """Alle Satzzahlen eines Blocks, die jede seiner Gruppen exakt treffen.
+    """Alle Satzzahlen eines Blocks, die jede Zielgruppe exakt treffen.
 
     Tiefensuche mit zwei Abkürzungen. Steht in einer Gleichung nur noch eine
     Übung offen, ist ihr Wert bestimmt – passt er nicht, ist der Ast tot.
     Stehen mehrere offen, muss der Rest durch den größten gemeinsamen Teiler
     ihrer Anteile teilbar sein; das schneidet den Baum früh ab, lange bevor
     unten etwas nicht aufginge.
+
+    Gruppen ohne Ziel (GOAL[m] is None) bekommen keine Gleichung. Sie werden
+    hinterher nur noch gegen CAP geprüft – siehe capped().
     """
-    goal = GOAL * weeks
-    groups = sorted({m for i in block for m in shares[i]})
-    eqs = [[(i, round(shares[i][m] * UNIT)) for i in block if shares[i].get(m)]
+    groups = [m for m in sorted({m for i in block for m in shares[i]})
+              if GOAL.get(m) is not None]
+    eqs = [(GOAL[m] * weeks, [(i, round(shares[i][m] * UNIT)) for i in block if shares[i].get(m)])
            for m in groups]
     allowed = set(values)
     out = []
@@ -191,7 +230,7 @@ def exact(block, shares, weeks, values, limit, rnd):
     def rec(val):
         while True:
             again = False
-            for eq in eqs:
+            for goal, eq in eqs:
                 rest, open_ = goal, []
                 for i, c in eq:
                     if i in val:
@@ -216,9 +255,10 @@ def exact(block, shares, weeks, values, limit, rnd):
                 break
         rest_ex = [i for i in block if i not in val]
         if not rest_ex:
-            out.append(dict(val))
+            if capped(val, shares, weeks):
+                out.append(dict(val))
             return
-        tight = min((eq for eq in eqs if sum(1 for i, _ in eq if i not in val) > 1),
+        tight = min((eq for _, eq in eqs if sum(1 for i, _ in eq if i not in val) > 1),
                     key=lambda eq: sum(1 for i, _ in eq if i not in val), default=None)
         pick = next(i for i, _ in tight if i not in val) if tight else rest_ex[0]
         order = list(values)
@@ -318,7 +358,17 @@ def visits(sets):
     return -(-sets // PER_SET[1])
 
 
-def pen(week_vol, week_sets):
+def miss(x, goal):
+    """Abweichung einer Gruppe in dieser Woche.
+
+    Mit Ziel zählt jede Richtung. Ohne Ziel zählt nur, was über die Obergrenze
+    hinausgeht – unterhalb ist jeder Wert gleich recht, sonst zöge die Strafe
+    eine ungezielte Gruppe unnötig an eine Zahl, die niemand gesetzt hat.
+    """
+    return abs(x - goal) if goal is not None else max(0, x - CAP_U)
+
+
+def pen(week_vol, week_sets, goals):
     """Strafe einer Woche.
 
     Ein ganzer Satz Abweichung in einer Gruppe wiegt am schwersten – so weit
@@ -328,8 +378,8 @@ def pen(week_vol, week_sets):
     Zehntel danebenliegen, für einen halben Satz aber nicht.
     """
     out = APP * sum(visits(c) for c in week_sets if c)
-    for x in week_vol:
-        d = abs(x - GOAL)
+    for x, goal in zip(week_vol, goals):
+        d = miss(x, goal)
         out += d ** 4 + (HARD if d >= UNIT else 0)
     return out
 
@@ -346,6 +396,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
     """
     lo, hi = PER_SET[0], PER_WEEK
     rows_s = vol.s
+    goals = [GOAL.get(m) for m in vol.groups]
 
     def fits(v):
         return v == 0 or lo <= v <= hi
@@ -356,7 +407,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
         vols = [[sum(rows[i][w] * rows_s[i][g] for i in range(len(rows)))
                  for g in range(len(vol.groups))] for w in range(weeks)]
         col = [[row[w] for row in rows] for w in range(weeks)]
-        sq = [pen(vols[w], col[w]) for w in range(weeks)]
+        sq = [pen(vols[w], col[w], goals) for w in range(weeks)]
         # Der erste Anlauf glüht gar nicht aus, sondern schleift die
         # gleichmäßige Startverteilung nur nach. Die ist oft schon fast
         # richtig – 8 Sätze Rudern in jeder der 20 Wochen etwa –, und
@@ -373,7 +424,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
                 if c:
                     vols[u][g] -= d * c
                     vols[v][g] += d * c
-            return pen(vols[u], col[u]), pen(vols[v], col[v])
+            return pen(vols[u], col[u], goals), pen(vols[v], col[v], goals)
 
         for _ in range(rounds):
             temp *= 0.99995
@@ -421,7 +472,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
         # ganze Sätze daneben, dann Auftritte, dann die volle Liste aller
         # Abweichungen, absteigend sortiert.
         auftritte = sum(visits(c) for w in col for c in w if c)
-        alle = sorted((abs(x - GOAL) for v in vols for x in v), reverse=True)
+        alle = sorted((miss(x, g) for v in vols for x, g in zip(v, goals)), reverse=True)
         hart = sum(1 for x in alle if x >= UNIT)
         got = (hart, auftritte, alle)
         if best is None or got < best[0]:
@@ -549,13 +600,22 @@ def main():
           f'{min(sum(e["sets"] for e in s["ex"]) for s in plan)}–'
           f'{max(sum(e["sets"] for e in s["ex"]) for s in plan)} Sätze je Einheit\n')
 
-    print(f'{"Muskelgruppe":16s} {"Schnitt":>9s} {"min":>6s} {"max":>6s}')
+    print(f'{"Muskelgruppe":16s} {"Ziel":>5s} {"Schnitt":>9s} {"min":>6s} {"max":>6s}')
     for g, m in enumerate(groups):
         col = [v[g] / UNIT for v in got]
-        print(f'{LABEL.get(m, m):16s} {sum(col) / weeks:9.4f} {min(col):6.2f} {max(col):6.2f}')
-    if any(sum(v[g] for v in got) != GOAL * weeks for g in range(len(groups))):
-        sys.exit('\nFEHLER: der Schnitt trifft die 10 nicht exakt.')
-    print('\nSchnitt exakt 10,0000 in allen zwölf Gruppen.')
+        ziel = TARGET.get(m)
+        print(f'{LABEL.get(m, m):16s} {"–" if ziel is None else ziel:>5} '
+              f'{sum(col) / weeks:9.4f} {min(col):6.2f} {max(col):6.2f}')
+    for g, m in enumerate(groups):
+        summe = sum(v[g] for v in got)
+        if GOAL.get(m) is None:
+            if summe > CAP_U * weeks:
+                sys.exit(f'\nFEHLER: {LABEL.get(m, m)} über der Obergrenze von {CAP}.')
+        elif summe != GOAL[m] * weeks:
+            sys.exit(f'\nFEHLER: {LABEL.get(m, m)} trifft {TARGET[m]} nicht exakt.')
+    gezielt = sum(1 for m in groups if GOAL.get(m) is not None)
+    print(f'\nSchnitt exakt getroffen in {gezielt} von {len(groups)} Gruppen, '
+          f'der Rest unter der Obergrenze von {CAP}.')
 
     print(f'\n{"Übung":34s} {"Plan":>5s} {"je Woche":>9s}')
     for i, t in sorted(zip(ids, total), key=lambda x: -x[1]):
@@ -563,7 +623,17 @@ def main():
 
     if '--report' in sys.argv:
         return
-    OUT.write_text(json.dumps(plan, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+    # Die Ziele wandern mit: die App zeigt das Wochenvolumen gegen genau diese
+    # Zahlen, und eine zweite Stelle, an der 10 steht, wäre eine Stelle zu viel.
+    # Der Nacken bekommt seinen Ist-Wert als Ziel – ohne Ziel gäbe es dort
+    # nichts anzuzeigen, und die Obergrenze ist keine Ansage. Zwei
+    # Nachkommastellen sind dabei nicht gerundet, sondern exakt: der Wert ist
+    # ein Vielfaches von 0,05.
+    ziele = {m: TARGET[m] if TARGET.get(m) is not None
+             else round(sum(v[groups.index(m)] for v in got) / weeks / UNIT, 2)
+             for m in groups}
+    OUT.write_text(json.dumps({'target': ziele, 'cap': CAP, 'plan': plan},
+                              ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
     print(f'\n{OUT.relative_to(ROOT)} geschrieben')
 
 
