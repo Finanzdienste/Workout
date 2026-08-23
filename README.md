@@ -627,6 +627,26 @@ Ersatz gibt.
             – das ist ehrlicher als ein Ersatz, der auch weh tut.
     care    Was stattdessen gut tut – Verweise in den Katalog `CARE`.
 
+**Ein Ersatz, der die Erholung bricht, ist keiner.** Der Plan hält 48 Stunden
+zwischen zwei direkten Reizen auf dieselbe Gruppe ein (siehe oben) – ein Tausch
+könnte das aushebeln, weil die Ersatzübung eine ganz andere Gruppe trifft als
+die gesperrte. Deshalb kennt `applyInjuries()` einen dritten Parameter: Übungen,
+die hier gerade unpassend sind. Greift der Ersatz eine Gruppe, die am Nachbartag
+schon direkt drankommt, fällt die Übung an *diesem* Tag ersatzlos weg – an den
+übrigen wird weiter getauscht.
+
+Beim Schulter-Impingement heißt das: 49 Tausche bleiben, 19 fallen weg, und die
+Zahl der Verstöße geht von 19 auf 0. Der Tab schreibt hin, wie viele Sätze das
+kostet und warum.
+
+Gerechnet wird das in einem **Vorwärtsdurchlauf** über den ganzen Plan: jeder
+Tag sieht den Vortag in der bereits angepassten Fassung und den Folgetag so, wie
+er im Plan steht – dessen eigene Tausche werden dann ihrerseits gegen diesen Tag
+geprüft. Das Ergebnis liegt gemerkt in `adjustedPlan()`; Startansicht, Fokus,
+Statistik, Kalender und der Verletzungs-Tab lesen alle daraus, damit die Zahlen
+nicht auseinanderlaufen. Die Schwelle (48 Stunden, Anteil ab 0,5) kommt als
+`REST` aus denselben erzeugten Daten wie der Plan.
+
 **Was gut tut.** 34 Zusatzübungen in `CARE`, jede mit Art (dehnen,
 mobilisieren, kräftigen, entlasten), Dosierung und einem Hinweis, worauf es
 ankommt – beim Wandsitz etwa, dass die isometrische Belastung die Patellasehne
@@ -642,7 +662,8 @@ Bei Bruch, Riss und Bandscheibenvorfall steht über der Liste, dass hier die
 ärztliche Freigabe entscheidet, wann überhaupt wieder bewegt wird – nicht der
 Trainingsplan.
 
-**Alles geht durch eine Stelle.** `exOf()` in `js/app.js` ist der einzige Weg,
+**Alles geht durch eine Stelle.** `exOf()` in `js/app.js` – und darunter
+`adjustedPlan()` – ist der einzige Weg,
 auf dem die App an die Übungen eines Plantags kommt – Startansicht, Fokus,
 Statistik, Steigerungsvorschlag. Damit kann es gar nicht passieren, dass eine
 gesperrte Übung an einer Stelle auftaucht und an einer anderen nicht.

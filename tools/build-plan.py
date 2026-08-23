@@ -786,7 +786,12 @@ def main():
     ziele = {m: TARGET[m] if TARGET.get(m) is not None
              else round(sum(v[groups.index(m)] for v in got) / weeks / UNIT, 2)
              for m in groups}
-    OUT.write_text(json.dumps({'target': ziele, 'cap': CAP, 'plan': plan},
+    # Die Erholungsregel wandert ebenfalls mit: die App tauscht bei
+    # Verletzungen Übungen aus und muss dabei dieselbe Schwelle einhalten wie
+    # der Generator, sonst steht die Gruppe doch zweimal in 48 Stunden.
+    OUT.write_text(json.dumps({'target': ziele, 'cap': CAP,
+                               'rest': {'days': REST_DAYS, 'direct': DIRECT},
+                               'plan': plan},
                               ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
     print(f'\n{OUT.relative_to(ROOT)} geschrieben')
 

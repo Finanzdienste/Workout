@@ -1,4 +1,4 @@
-import { EXERCISES, PLAN, TARGET } from './data.js';
+import { EXERCISES, PLAN, TARGET, REST } from './data.js';
 import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
@@ -61,6 +61,63 @@ function defaultWorkoutNo() {
 /** Angehakte Verletzungen. */
 function activeInjuries() { return store.getState().injuries || []; }
 
+/** Muskelgruppen, für die eine Übung da ist – dieselbe Schwelle wie im Plan. */
+function directOf(exId) {
+  const ex = EX_BY_ID.get(exId);
+  if (!ex) return [];
+  return Object.entries(ex.db.shares).filter(([, v]) => v >= REST.direct).map(([m]) => m);
+}
+
+const directSets = (items) => new Set(items.flatMap((it) => directOf(it.id)));
+
+/**
+ * Der ganze Plan unter den angehakten Beschwerden – einmal gerechnet, gemerkt.
+ *
+ * Ein Tausch darf die Erholung nicht aushebeln: Der Plan ist so gebaut, dass
+ * keine Muskelgruppe innerhalb von REST.days Tagen zweimal direkt drankommt,
+ * und ein Ersatz, der genau das täte, ist keiner – dann fällt die Übung lieber
+ * ersatzlos weg. Geprüft wird gegen beide Nachbarn: den Vortag in der bereits
+ * angepassten Fassung und den Folgetag so, wie er im Plan steht. Dessen eigene
+ * Tausche werden dann ihrerseits gegen diesen Tag geprüft.
+ */
+const planCache = { key: null, list: null, notes: null };
+
+function adjustedPlan() {
+  const act = activeInjuries();
+  const key = `${act.join(',')}|${store.getState().shift}`;
+  if (planCache.key === key) return planCache.list;
+
+  const list = [];
+  const notes = [];
+  PLAN.forEach((w, i) => {
+    if (!act.length) {
+      list.push(w.ex);
+      notes.push({ dropped: [], swapped: [] });
+      return;
+    }
+    const eng = (a, b) => a && b && Math.abs(daysBetween(effDate(a), effDate(b))) < REST.days;
+    const meide = new Set();
+    if (eng(PLAN[i - 1], w)) directSets(list[i - 1]).forEach((m) => meide.add(m));
+    if (eng(w, PLAN[i + 1])) directSets(PLAN[i + 1].ex).forEach((m) => meide.add(m));
+    const taboo = new Set(EXERCISES
+      .filter((e) => directOf(e.id).some((m) => meide.has(m)))
+      .map((e) => e.id));
+    const r = applyInjuries(w.ex, act, taboo);
+    list.push(r.items);
+    notes.push({ dropped: r.dropped, swapped: r.swapped });
+  });
+  planCache.key = key;
+  planCache.list = list;
+  planCache.notes = notes;
+  return list;
+}
+
+/** Was an einem Plantag getauscht wurde und was wegfiel. */
+function injuryNotes(n) {
+  adjustedPlan();
+  return planCache.notes[n - 1] || { dropped: [], swapped: [] };
+}
+
 /**
  * Übungsliste eines Plantags, angepasst an die angehakten Verletzungen.
  *
@@ -69,8 +126,7 @@ function activeInjuries() { return store.getState().injuries || []; }
  * eine gesperrte Übung auftaucht und an einer anderen nicht.
  */
 function exOf(w) {
-  const act = activeInjuries();
-  return act.length ? applyInjuries(w.ex, act).items : w.ex;
+  return adjustedPlan()[w.n - 1] || w.ex;
 }
 
 function workoutByNo(n) {
@@ -1212,13 +1268,13 @@ function swapConflicts(act) {
 function injuryNote(w, mode) {
   const act = activeInjuries();
   if (!act.length) return '';
-  const src = PLAN.find((x) => x.n === w.n) || w;
-  const { dropped, swapped } = applyInjuries(src.ex, act);
+  const { dropped, swapped } = injuryNotes(w.n);
   const names = act.map((id) => (injuryById(id) || {}).name).filter(Boolean);
   const nm = (id) => resolve({ id, sets: 0 }, mode).name;
   const lines = [];
   swapped.forEach((s) => lines.push(`${esc(nm(s.from))} → ${esc(nm(s.to))}`));
-  dropped.forEach((d) => lines.push(`${esc(nm(d.id))} fällt aus`));
+  dropped.forEach((d) => lines.push(`${esc(nm(d.id))} fällt aus${
+    d.reason === 'rest' ? ' (Ersatz erst nach 48 h)' : ''}`));
   const pflege = careFor(act);
   return `
     <div class="card injury-note">
@@ -1416,9 +1472,13 @@ function renderInjuries() {
   const block = blocked(act);
   const gone = [];
   const swapCount = new Map();
+  let wegenPause = 0;
   PLAN.forEach((w) => {
-    const r = applyInjuries(w.ex, act);
-    r.dropped.forEach((d) => gone.push(d));
+    const r = injuryNotes(w.n);
+    r.dropped.forEach((d) => {
+      gone.push(d);
+      if (d.reason === 'rest') wegenPause += d.sets;
+    });
     r.swapped.forEach((s) => {
       const key = `${s.from}→${s.to}`;
       swapCount.set(key, (swapCount.get(key) || 0) + s.sets);
@@ -1427,7 +1487,8 @@ function renderInjuries() {
   const goneSets = new Map();
   gone.forEach((d) => goneSets.set(d.id, (goneSets.get(d.id) || 0) + d.sets));
 
-  const impact = act.length ? weeklyImpact(PLAN, EX_BY_ID, act, mode, PLAN_WEEKS) : {};
+  const impact = act.length
+    ? weeklyImpact(PLAN, PLAN.map((w) => exOf(w)), EX_BY_ID, mode, PLAN_WEEKS) : {};
   const hits = Object.entries(impact)
     .map(([m, v]) => ({ m, ...v, diff: v.after - v.before }))
     .filter((x) => Math.abs(x.diff) > 0.05)
@@ -1454,6 +1515,10 @@ function renderInjuries() {
         ${goneSets.size ? `<div class="small" style="margin-top:6px">
           <b>Fällt ersatzlos weg:</b> ${[...goneSets.entries()]
             .map(([id, sets]) => `${esc(nm(id))} <span class="muted">(${sets} Sätze)</span>`).join(' · ')}</div>` : ''}
+        ${wegenPause ? `<div class="small muted" style="margin-top:6px">
+          Davon ${wegenPause} Sätze ohne Ersatz, weil der Ersatz dieselbe Muskelgruppe
+          getroffen hätte wie der Tag davor oder danach – ${REST.days === 2 ? '48 Stunden' : `${REST.days} Tage`}
+          Erholung gehen vor.</div>` : ''}
         ${!swapCount.size && !goneSets.size ? '<div class="small muted" style="margin-top:10px">Am Plan ändert sich nichts – keine der angehakten Beschwerden trifft eine Übung, die vorkommt.</div>' : ''}
         <button type="button" class="btn btn-ghost btn-sm" data-act="clear-injuries" style="margin-top:12px">Alle Haken entfernen</button>
       </div>

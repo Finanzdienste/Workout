@@ -25,6 +25,7 @@ OUT = ROOT / 'js' / 'data.js'
 PLAN_OVERRIDE = ROOT / 'tools' / 'plan.json'
 
 DEFAULT_TARGET = 10   # Sätze je Muskelgruppe und Woche, wenn plan.json fehlt
+DEFAULT_REST = {'days': 2, 'direct': 0.5}   # Erholung, wenn plan.json fehlt
 NS = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
 LINE_RE = re.compile(r'^(\d+)×\s*(.+?)\s*\(([^()]*)\)\s*$')
 EXCEL_EPOCH = datetime.date(1899, 12, 30)
@@ -127,10 +128,11 @@ def main():
     # Namen, Wiederholungen, Hinweise und das Bodyweight-Äquivalent. Datei
     # löschen und neu generieren stellt den Originalplan wieder her.
     # Ohne plan.json gilt das alte, gleichmäßige Ziel für jede Gruppe.
-    target = {}
+    target, rest = {}, dict(DEFAULT_REST)
     if PLAN_OVERRIDE.exists():
         override = json.loads(PLAN_OVERRIDE.read_text(encoding='utf-8'))
         target = override['target']
+        rest = override.get('rest', rest)
         fresh, prev = [], None
         for o in override['plan']:
             date = datetime.date.fromisoformat(o['date'])
@@ -158,6 +160,9 @@ def main():
         "export const EXERCISES = " + json.dumps(list(catalog.values()), ensure_ascii=False, indent=2) + ";\n\n"
         "// Saetze je Muskelgruppe und Woche, auf die der Plan gerechnet ist.\n"
         "export const TARGET = " + json.dumps(target, ensure_ascii=False) + ";\n\n"
+        "// Erholung: Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,\n"
+        "// und ab welchem Anteil eine Uebung als direkt fuer die Gruppe gilt.\n"
+        "export const REST = " + json.dumps(rest, ensure_ascii=False) + ";\n\n"
         "export const PLAN = " + json.dumps(plan, ensure_ascii=False, separators=(',', ':')) + ";\n",
         encoding='utf-8',
     )

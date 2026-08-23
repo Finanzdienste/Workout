@@ -2047,6 +2047,10 @@ const EXERCISES = [
 // Saetze je Muskelgruppe und Woche, auf die der Plan gerechnet ist.
 const TARGET = {"abs": 10, "biceps": 10, "calves": 4, "chest": 10, "delts": 10, "glutes": 8, "hamstrings": 6, "lats": 10, "quads": 6, "rearDelts": 10, "traps": 9.65, "triceps": 10};
 
+// Erholung: Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,
+// und ab welchem Anteil eine Uebung als direkt fuer die Gruppe gilt.
+const REST = {"days": 2, "direct": 0.5};
+
 const PLAN = [{"n":1,"date":"2026-08-20","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":2},{"id":"reverse-fly","sets":3},{"id":"hip-thrust","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":2,"date":"2026-08-22","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2}]},{"n":3,"date":"2026-08-24","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":4,"date":"2026-08-26","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":5,"date":"2026-08-27","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":6,"date":"2026-08-29","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"chin-ups","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":3},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2}]},{"n":7,"date":"2026-08-31","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":8,"date":"2026-09-02","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"hip-thrust","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":9,"date":"2026-09-03","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2}]},{"n":10,"date":"2026-09-05","ex":[{"id":"chin-ups","sets":2},{"id":"gewichtete-liegestuetze","sets":3},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":11,"date":"2026-09-07","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":12,"date":"2026-09-09","ex":[{"id":"gewichtete-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":13,"date":"2026-09-10","ex":[{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":14,"date":"2026-09-12","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":3},{"id":"goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2}]},{"n":15,"date":"2026-09-14","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"chin-ups","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":16,"date":"2026-09-16","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":17,"date":"2026-09-17","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":18,"date":"2026-09-19","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"chin-ups","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":3}]},{"n":19,"date":"2026-09-21","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":20,"date":"2026-09-23","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":21,"date":"2026-09-24","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":22,"date":"2026-09-26","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":3},{"id":"floor-press","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":23,"date":"2026-09-28","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2}]},{"n":24,"date":"2026-09-30","ex":[{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":25,"date":"2026-10-01","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2}]},{"n":26,"date":"2026-10-03","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":3},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":27,"date":"2026-10-05","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2}]},{"n":28,"date":"2026-10-07","ex":[{"id":"gewichtete-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3}]},{"n":29,"date":"2026-10-08","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":30,"date":"2026-10-10","ex":[{"id":"chin-ups","sets":2},{"id":"floor-press","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2}]},{"n":31,"date":"2026-10-12","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":32,"date":"2026-10-14","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":33,"date":"2026-10-15","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":34,"date":"2026-10-17","ex":[{"id":"chin-ups","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":35,"date":"2026-10-19","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3}]},{"n":36,"date":"2026-10-21","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3}]},{"n":37,"date":"2026-10-22","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":38,"date":"2026-10-24","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"chin-ups","sets":2},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"gewichtete-crunches","sets":2}]},{"n":39,"date":"2026-10-26","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":2},{"id":"sz-curls","sets":2}]},{"n":40,"date":"2026-10-28","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":41,"date":"2026-10-29","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":42,"date":"2026-10-31","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"gewichtete-liegestuetze","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":43,"date":"2026-11-02","ex":[{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"sz-curls","sets":2}]},{"n":44,"date":"2026-11-04","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":45,"date":"2026-11-05","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":46,"date":"2026-11-07","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"reverse-fly","sets":3},{"id":"hip-thrust","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":47,"date":"2026-11-09","ex":[{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2}]},{"n":48,"date":"2026-11-11","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":49,"date":"2026-11-12","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2}]},{"n":50,"date":"2026-11-14","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":51,"date":"2026-11-16","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2}]},{"n":52,"date":"2026-11-18","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"gewichtete-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":53,"date":"2026-11-19","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2}]},{"n":54,"date":"2026-11-21","ex":[{"id":"chin-ups","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":55,"date":"2026-11-23","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":3},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":56,"date":"2026-11-25","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"sliding-leg-curl","sets":3},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3}]},{"n":57,"date":"2026-11-26","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":3},{"id":"einbeiniges-stehendes-wadenheben","sets":2}]},{"n":58,"date":"2026-11-28","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2}]},{"n":59,"date":"2026-11-30","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":60,"date":"2026-12-02","ex":[{"id":"gewichtete-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":61,"date":"2026-12-03","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":62,"date":"2026-12-05","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"chin-ups","sets":2},{"id":"gewichtete-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2}]},{"n":63,"date":"2026-12-07","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"floor-press","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"hip-thrust","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":64,"date":"2026-12-09","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":65,"date":"2026-12-10","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":66,"date":"2026-12-12","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"chin-ups","sets":2},{"id":"floor-press","sets":2},{"id":"goblet-squat","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3}]},{"n":67,"date":"2026-12-14","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":3},{"id":"reverse-fly","sets":2},{"id":"hip-thrust","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":3}]},{"n":68,"date":"2026-12-16","ex":[{"id":"floor-press","sets":3},{"id":"goblet-squat","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]},{"n":69,"date":"2026-12-17","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":70,"date":"2026-12-19","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":2},{"id":"sz-curls","sets":2}]},{"n":71,"date":"2026-12-21","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":3},{"id":"floor-press","sets":3},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":2}]},{"n":72,"date":"2026-12-23","ex":[{"id":"gewichtete-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"sliding-leg-curl","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":73,"date":"2026-12-24","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"reverse-fly","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":74,"date":"2026-12-26","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"chin-ups","sets":2},{"id":"goblet-squat","sets":2},{"id":"sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"sz-curls","sets":2}]},{"n":75,"date":"2026-12-28","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":2},{"id":"reverse-fly","sets":3},{"id":"sitzendes-seitheben","sets":3},{"id":"gewichtete-crunches","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":76,"date":"2026-12-30","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":2},{"id":"goblet-squat","sets":2},{"id":"floor-press","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"hip-thrust","sets":3},{"id":"sitzendes-seitheben","sets":2},{"id":"liegende-trizepsstrecker","sets":2}]},{"n":77,"date":"2026-12-31","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"chin-ups","sets":2},{"id":"gewichtete-crunches","sets":3},{"id":"sz-curls","sets":2},{"id":"einbeiniges-stehendes-wadenheben","sets":2},{"id":"wadenheben-gebeugtes-knie","sets":2}]},{"n":78,"date":"2027-01-02","ex":[{"id":"fuesse-erhoehte-liegestuetze","sets":3},{"id":"chin-ups","sets":2},{"id":"floor-press","sets":2},{"id":"sliding-leg-curl","sets":3},{"id":"reverse-fly","sets":3},{"id":"gewichtete-crunches","sets":3}]},{"n":79,"date":"2027-01-04","ex":[{"id":"einarmiges-kh-rudern","sets":3},{"id":"gewichtete-liegestuetze","sets":3},{"id":"goblet-squat","sets":3},{"id":"einbeiniger-sliding-leg-curl","sets":2},{"id":"reverse-fly","sets":2},{"id":"sitzendes-seitheben","sets":3}]},{"n":80,"date":"2027-01-06","ex":[{"id":"floor-press","sets":2},{"id":"fersenerhoehter-goblet-squat","sets":3},{"id":"reverse-fly","sets":3},{"id":"hip-thrust","sets":2},{"id":"sitzendes-seitheben","sets":2},{"id":"sz-curls","sets":3},{"id":"liegende-trizepsstrecker","sets":3}]}];
 
 /* ===== js/figure.js ===== */
@@ -3946,6 +3950,8 @@ const COMBOS = [
  * Anwenden
  * ------------------------------------------------------------------ */
 
+const EMPTY = new Set();
+
 /** Vereinigung aller gesperrten Übungen. */
 function blocked(active) {
   const out = new Set();
@@ -3961,12 +3967,17 @@ function blocked(active) {
  *
  * Vorschläge mehrerer Beschwerden werden der Reihe nach geprüft; der erste,
  * der nicht selbst gesperrt ist, gewinnt. Ist keiner frei, fällt die Übung weg.
+ *
+ * `taboo` sind Übungen, die hier zwar erlaubt, aber gerade unpassend sind –
+ * in der App die, die eine Muskelgruppe ein zweites Mal innerhalb der
+ * Erholungszeit direkt träfen. Ein Ersatz, der die 48 Stunden bricht, ist
+ * keiner.
  */
-function substitute(exId, active, block) {
+function substitute(exId, active, block, taboo) {
   for (const id of active) {
     const inj = BY_ID.get(id);
     const to = inj && inj.swap[exId];
-    if (to && !block.has(to)) return to;
+    if (to && !block.has(to) && !taboo.has(to)) return to;
   }
   return null;
 }
@@ -3981,7 +3992,7 @@ function substitute(exId, active, block) {
  * Landen zwei Einträge auf derselben Übung, werden ihre Sätze zusammengelegt –
  * zweimal dieselbe Zeile im selben Training wäre nur verwirrend.
  */
-function applyInjuries(items, active) {
+function applyInjuries(items, active, taboo = EMPTY) {
   const block = blocked(active);
   if (!block.size) return { items: items.map((i) => ({ ...i })), dropped: [], swapped: [] };
 
@@ -3993,9 +4004,16 @@ function applyInjuries(items, active) {
       out.push({ ...item });
       return;
     }
-    const to = substitute(item.id, active, block);
+    const to = substitute(item.id, active, block, taboo);
     if (!to) {
-      dropped.push({ ...item });
+      // Warum nichts kam, macht einen Unterschied: gar kein Vorschlag ist
+      // etwas anderes als einer, der erst am Folgetag wieder ginge.
+      const wegen = active.some((id) => {
+        const inj = BY_ID.get(id);
+        const alt = inj && inj.swap[item.id];
+        return alt && !block.has(alt) && taboo.has(alt);
+      });
+      dropped.push({ ...item, reason: wegen ? 'rest' : 'none' });
       return;
     }
     swapped.push({ from: item.id, to, sets: item.sets });
@@ -4011,9 +4029,11 @@ function applyInjuries(items, active) {
  *
  * Gerechnet über den ganzen Plan, damit die Zahl nicht vom heutigen Tag
  * abhängt: Sätze je Muskelgruppe mit und ohne Beschwerden, umgerechnet auf
- * eine Woche.
+ * eine Woche. Die angepasste Fassung kommt fertig herein – sie hängt an den
+ * Nachbartagen und wird deshalb an einer Stelle in der App gerechnet, nicht
+ * hier noch einmal.
  */
-function weeklyImpact(plan, byId, active, mode, weeks) {
+function weeklyImpact(plan, adjusted, byId, mode, weeks) {
   const sum = (list) => {
     const acc = {};
     list.forEach((it) => {
@@ -4024,9 +4044,9 @@ function weeklyImpact(plan, byId, active, mode, weeks) {
   };
   const before = {};
   const after = {};
-  plan.forEach((w) => {
+  plan.forEach((w, i) => {
     const a = sum(w.ex);
-    const b = sum(applyInjuries(w.ex, active).items);
+    const b = sum(adjusted[i]);
     Object.entries(a).forEach(([m, v]) => { before[m] = (before[m] || 0) + v; });
     Object.entries(b).forEach(([m, v]) => { after[m] = (after[m] || 0) + v; });
   });
@@ -4472,6 +4492,63 @@ function defaultWorkoutNo() {
 /** Angehakte Verletzungen. */
 function activeInjuries() { return store.getState().injuries || []; }
 
+/** Muskelgruppen, für die eine Übung da ist – dieselbe Schwelle wie im Plan. */
+function directOf(exId) {
+  const ex = EX_BY_ID.get(exId);
+  if (!ex) return [];
+  return Object.entries(ex.db.shares).filter(([, v]) => v >= REST.direct).map(([m]) => m);
+}
+
+const directSets = (items) => new Set(items.flatMap((it) => directOf(it.id)));
+
+/**
+ * Der ganze Plan unter den angehakten Beschwerden – einmal gerechnet, gemerkt.
+ *
+ * Ein Tausch darf die Erholung nicht aushebeln: Der Plan ist so gebaut, dass
+ * keine Muskelgruppe innerhalb von REST.days Tagen zweimal direkt drankommt,
+ * und ein Ersatz, der genau das täte, ist keiner – dann fällt die Übung lieber
+ * ersatzlos weg. Geprüft wird gegen beide Nachbarn: den Vortag in der bereits
+ * angepassten Fassung und den Folgetag so, wie er im Plan steht. Dessen eigene
+ * Tausche werden dann ihrerseits gegen diesen Tag geprüft.
+ */
+const planCache = { key: null, list: null, notes: null };
+
+function adjustedPlan() {
+  const act = activeInjuries();
+  const key = `${act.join(',')}|${store.getState().shift}`;
+  if (planCache.key === key) return planCache.list;
+
+  const list = [];
+  const notes = [];
+  PLAN.forEach((w, i) => {
+    if (!act.length) {
+      list.push(w.ex);
+      notes.push({ dropped: [], swapped: [] });
+      return;
+    }
+    const eng = (a, b) => a && b && Math.abs(daysBetween(effDate(a), effDate(b))) < REST.days;
+    const meide = new Set();
+    if (eng(PLAN[i - 1], w)) directSets(list[i - 1]).forEach((m) => meide.add(m));
+    if (eng(w, PLAN[i + 1])) directSets(PLAN[i + 1].ex).forEach((m) => meide.add(m));
+    const taboo = new Set(EXERCISES
+      .filter((e) => directOf(e.id).some((m) => meide.has(m)))
+      .map((e) => e.id));
+    const r = applyInjuries(w.ex, act, taboo);
+    list.push(r.items);
+    notes.push({ dropped: r.dropped, swapped: r.swapped });
+  });
+  planCache.key = key;
+  planCache.list = list;
+  planCache.notes = notes;
+  return list;
+}
+
+/** Was an einem Plantag getauscht wurde und was wegfiel. */
+function injuryNotes(n) {
+  adjustedPlan();
+  return planCache.notes[n - 1] || { dropped: [], swapped: [] };
+}
+
 /**
  * Übungsliste eines Plantags, angepasst an die angehakten Verletzungen.
  *
@@ -4480,8 +4557,7 @@ function activeInjuries() { return store.getState().injuries || []; }
  * eine gesperrte Übung auftaucht und an einer anderen nicht.
  */
 function exOf(w) {
-  const act = activeInjuries();
-  return act.length ? applyInjuries(w.ex, act).items : w.ex;
+  return adjustedPlan()[w.n - 1] || w.ex;
 }
 
 function workoutByNo(n) {
@@ -5623,13 +5699,13 @@ function swapConflicts(act) {
 function injuryNote(w, mode) {
   const act = activeInjuries();
   if (!act.length) return '';
-  const src = PLAN.find((x) => x.n === w.n) || w;
-  const { dropped, swapped } = applyInjuries(src.ex, act);
+  const { dropped, swapped } = injuryNotes(w.n);
   const names = act.map((id) => (injuryById(id) || {}).name).filter(Boolean);
   const nm = (id) => resolve({ id, sets: 0 }, mode).name;
   const lines = [];
   swapped.forEach((s) => lines.push(`${esc(nm(s.from))} → ${esc(nm(s.to))}`));
-  dropped.forEach((d) => lines.push(`${esc(nm(d.id))} fällt aus`));
+  dropped.forEach((d) => lines.push(`${esc(nm(d.id))} fällt aus${
+    d.reason === 'rest' ? ' (Ersatz erst nach 48 h)' : ''}`));
   const pflege = careFor(act);
   return `
     <div class="card injury-note">
@@ -5827,9 +5903,13 @@ function renderInjuries() {
   const block = blocked(act);
   const gone = [];
   const swapCount = new Map();
+  let wegenPause = 0;
   PLAN.forEach((w) => {
-    const r = applyInjuries(w.ex, act);
-    r.dropped.forEach((d) => gone.push(d));
+    const r = injuryNotes(w.n);
+    r.dropped.forEach((d) => {
+      gone.push(d);
+      if (d.reason === 'rest') wegenPause += d.sets;
+    });
     r.swapped.forEach((s) => {
       const key = `${s.from}→${s.to}`;
       swapCount.set(key, (swapCount.get(key) || 0) + s.sets);
@@ -5838,7 +5918,8 @@ function renderInjuries() {
   const goneSets = new Map();
   gone.forEach((d) => goneSets.set(d.id, (goneSets.get(d.id) || 0) + d.sets));
 
-  const impact = act.length ? weeklyImpact(PLAN, EX_BY_ID, act, mode, PLAN_WEEKS) : {};
+  const impact = act.length
+    ? weeklyImpact(PLAN, PLAN.map((w) => exOf(w)), EX_BY_ID, mode, PLAN_WEEKS) : {};
   const hits = Object.entries(impact)
     .map(([m, v]) => ({ m, ...v, diff: v.after - v.before }))
     .filter((x) => Math.abs(x.diff) > 0.05)
@@ -5865,6 +5946,10 @@ function renderInjuries() {
         ${goneSets.size ? `<div class="small" style="margin-top:6px">
           <b>Fällt ersatzlos weg:</b> ${[...goneSets.entries()]
             .map(([id, sets]) => `${esc(nm(id))} <span class="muted">(${sets} Sätze)</span>`).join(' · ')}</div>` : ''}
+        ${wegenPause ? `<div class="small muted" style="margin-top:6px">
+          Davon ${wegenPause} Sätze ohne Ersatz, weil der Ersatz dieselbe Muskelgruppe
+          getroffen hätte wie der Tag davor oder danach – ${REST.days === 2 ? '48 Stunden' : `${REST.days} Tage`}
+          Erholung gehen vor.</div>` : ''}
         ${!swapCount.size && !goneSets.size ? '<div class="small muted" style="margin-top:10px">Am Plan ändert sich nichts – keine der angehakten Beschwerden trifft eine Übung, die vorkommt.</div>' : ''}
         <button type="button" class="btn btn-ghost btn-sm" data-act="clear-injuries" style="margin-top:12px">Alle Haken entfernen</button>
       </div>

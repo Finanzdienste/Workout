@@ -667,6 +667,8 @@ export const COMBOS = [
  * Anwenden
  * ------------------------------------------------------------------ */
 
+const EMPTY = new Set();
+
 /** Vereinigung aller gesperrten Übungen. */
 export function blocked(active) {
   const out = new Set();
@@ -682,12 +684,17 @@ export function blocked(active) {
  *
  * Vorschläge mehrerer Beschwerden werden der Reihe nach geprüft; der erste,
  * der nicht selbst gesperrt ist, gewinnt. Ist keiner frei, fällt die Übung weg.
+ *
+ * `taboo` sind Übungen, die hier zwar erlaubt, aber gerade unpassend sind –
+ * in der App die, die eine Muskelgruppe ein zweites Mal innerhalb der
+ * Erholungszeit direkt träfen. Ein Ersatz, der die 48 Stunden bricht, ist
+ * keiner.
  */
-function substitute(exId, active, block) {
+function substitute(exId, active, block, taboo) {
   for (const id of active) {
     const inj = BY_ID.get(id);
     const to = inj && inj.swap[exId];
-    if (to && !block.has(to)) return to;
+    if (to && !block.has(to) && !taboo.has(to)) return to;
   }
   return null;
 }
@@ -702,7 +709,7 @@ function substitute(exId, active, block) {
  * Landen zwei Einträge auf derselben Übung, werden ihre Sätze zusammengelegt –
  * zweimal dieselbe Zeile im selben Training wäre nur verwirrend.
  */
-export function applyInjuries(items, active) {
+export function applyInjuries(items, active, taboo = EMPTY) {
   const block = blocked(active);
   if (!block.size) return { items: items.map((i) => ({ ...i })), dropped: [], swapped: [] };
 
@@ -714,9 +721,16 @@ export function applyInjuries(items, active) {
       out.push({ ...item });
       return;
     }
-    const to = substitute(item.id, active, block);
+    const to = substitute(item.id, active, block, taboo);
     if (!to) {
-      dropped.push({ ...item });
+      // Warum nichts kam, macht einen Unterschied: gar kein Vorschlag ist
+      // etwas anderes als einer, der erst am Folgetag wieder ginge.
+      const wegen = active.some((id) => {
+        const inj = BY_ID.get(id);
+        const alt = inj && inj.swap[item.id];
+        return alt && !block.has(alt) && taboo.has(alt);
+      });
+      dropped.push({ ...item, reason: wegen ? 'rest' : 'none' });
       return;
     }
     swapped.push({ from: item.id, to, sets: item.sets });
@@ -732,9 +746,11 @@ export function applyInjuries(items, active) {
  *
  * Gerechnet über den ganzen Plan, damit die Zahl nicht vom heutigen Tag
  * abhängt: Sätze je Muskelgruppe mit und ohne Beschwerden, umgerechnet auf
- * eine Woche.
+ * eine Woche. Die angepasste Fassung kommt fertig herein – sie hängt an den
+ * Nachbartagen und wird deshalb an einer Stelle in der App gerechnet, nicht
+ * hier noch einmal.
  */
-export function weeklyImpact(plan, byId, active, mode, weeks) {
+export function weeklyImpact(plan, adjusted, byId, mode, weeks) {
   const sum = (list) => {
     const acc = {};
     list.forEach((it) => {
@@ -745,9 +761,9 @@ export function weeklyImpact(plan, byId, active, mode, weeks) {
   };
   const before = {};
   const after = {};
-  plan.forEach((w) => {
+  plan.forEach((w, i) => {
     const a = sum(w.ex);
-    const b = sum(applyInjuries(w.ex, active).items);
+    const b = sum(adjusted[i]);
     Object.entries(a).forEach(([m, v]) => { before[m] = (before[m] || 0) + v; });
     Object.entries(b).forEach(([m, v]) => { after[m] = (after[m] || 0) + v; });
   });
