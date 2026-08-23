@@ -19,6 +19,11 @@ const DEFAULT_STATE = {
   // kommenden Trainings, bis der Haken wieder weg ist – nicht nur für heute.
   injuries: [],
   tab: 'dashboard',      // zuletzt sichtbarer Tab, damit ein Neuladen nicht herausreißt
+  // Wie sich eine Übung angefühlt hat: { [workoutNo]: { db: {exId: 'leicht'|'ok'|'schwer'}, bw: {…} } }
+  effort: {},
+  // Zusätzliche Wiederholungen im Bodyweight-Modus, je Übung. Dort gibt es
+  // kein Gewicht, das man erhöhen könnte – die Steigerung sind die Wdh.
+  bwPlus: {},
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };
@@ -241,6 +246,27 @@ export function completeWorkout(n, mode, exList) {
   syncStartedOn(n);
   persist();
   emit();
+}
+
+/** Wie sich eine Übung angefühlt hat – 'leicht', 'ok' oder 'schwer'. */
+export function effortOf(n, mode, exId) {
+  return ((state.effort[n] || {})[mode] || {})[exId] || null;
+}
+
+export function setEffort(n, mode, exId, value) {
+  const day = state.effort[n] || (state.effort[n] = {});
+  const m = day[mode] || (day[mode] = {});
+  if (value) m[exId] = value;
+  else delete m[exId];
+  persist();
+}
+
+/** Aufschlag an Wiederholungen im Bodyweight-Modus. */
+export function bwPlusOf(exId) { return state.bwPlus[exId] || 0; }
+
+export function addBwPlus(exId, delta) {
+  state.bwPlus[exId] = Math.max(0, (state.bwPlus[exId] || 0) + delta);
+  persist();
 }
 
 /** Verletzung an- oder abhaken. Gilt für alle kommenden Trainings. */

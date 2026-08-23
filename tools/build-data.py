@@ -105,6 +105,7 @@ def main():
                     'id': key,
                     'group': m['group'],
                     'weight': m['dbWeight'],       # Startgewicht in kg, null = ohne Zusatzlast
+                    'step': m['dbStep'],           # sinnvolle Steigerung in kg
                     'weightNote': m['weightNote'],
                     'equip': m['equip'],      # Geraet in der Hantel-Variante
                     'db': {'name': db['name'], 'reps': db['reps'], 'equip': m['dbEquip'],

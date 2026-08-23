@@ -12,7 +12,7 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 | Tab | Inhalt |
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
-| **Statistik** | Kennzahlen, nächste Einheit, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
+| **Statistik** | Kennzahlen, nächste Einheit, **Wochenvolumen Soll gegen Ist**, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
 | **Verletzt** | Verletzungen und Beschwerden anhaken. Betroffene Übungen fallen aus dem Plan oder werden getauscht – dauerhaft, bis der Haken weg ist. |
 | **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, Export/Import als JSON, Backup-Datei, Alles löschen. |
 
@@ -83,8 +83,12 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   Bereichs und sind 48 px hoch – Abhaken ohne Zielen, ohne vorher aufzuklappen.
 * **Keine Wiederholungen eintragen.** Die stehen im Plan.
 * **Ein Arbeitsgewicht je Übung**, vorbelegt mit einem Startwert (siehe unten).
-  Änderbar durch Antippen der Zahl oder über **−** und **+**, die in 2,5-kg-
-  Schritten gehen.
+  Änderbar durch Antippen der Zahl oder über **−** und **+**, die je Übung
+  unterschiedlich weit gehen (siehe *Gewichtsschritte*).
+* **Aufwärmen steht oben.** Eine eigene Karte über der ersten Übung, aufklappbar,
+  mit den Anlaufsätzen fürs erste Arbeitsgewicht.
+* **„Wie war das?"** – drei Knöpfe nach dem letzten Satz einer Übung. Freiwillig,
+  ein Griff, und die Grundlage für den Vorschlag beim nächsten Mal.
 * **Zwei Wege aus dem Training.** *Abschließen* behält, was abgehakt ist – auch
   wenn nicht alles steht; der Knopf nennt den Stand mit. *Abbrechen* verwirft
   die Einheit ganz, sie gilt dann als nicht trainiert und der Plan behandelt
@@ -252,6 +256,54 @@ in den Satz geschrieben, und die Karte zeigt weiter ihn. Eine Erhöhung landet
 dann sichtbar als „Nächstes Mal: 22,5 kg" – die laufende Einheit wird nicht
 rückwirkend umgeschrieben.
 
+#### Gewichtsschritte je Übung
+
+2,5 kg überall war für die schweren Übungen zu wenig und für die kleinen zu
+viel: Beim Seitheben mit 8 kg sind 2,5 kg ein Sprung um 31 % – das schafft
+niemand von einer Woche auf die nächste, und der Vorschlagsknopf schlug etwas
+vor, was nicht ging. Deshalb steht der Schritt jetzt als `dbStep` neben dem
+Startgewicht in `tools/exercise-meta.json` und geht über `js/data.js` in die
+App, wo `stepOf()` die einzige Stelle ist, die ihn kennt – Knöpfe, `aria-label`
+und Steigerungsvorschlag holen ihn dort.
+
+| Schritt | Übungen | warum |
+| --- | --- | --- |
+| 2,5 kg | Goblet Squats, Hip Thrust, SZ-Curls | schwer, beidhändig, gröbere Scheiben |
+| 2 kg | Floor Press, KH-Rudern, Wadenheben | je Hand gerechnet, also 2 kg pro Hantel |
+| 1,25 kg | gewichtete Liegestütze, Crunches | Zusatzgewicht auf dem Rücken |
+| 1 kg | Reverse Fly, Seitheben, Trizepsstrecker | kleine Muskeln, kleine Hanteln |
+
+Maßstab: kein Schritt über einem Viertel des Arbeitsgewichts. Der größte liegt
+bei 25 % (Reverse Fly, 1 von 4 kg), die meisten deutlich darunter.
+
+#### Progression ohne Gewicht
+
+Im Bodyweight-Modus gibt es nichts zu erhöhen – dort geht der Fortschritt über
+Wiederholungen. Die App fragt nach dem letzten Satz **„Wie war das?"** (*ging
+leicht* / *passte* / *war schwer*). Zweimal in Folge alles durchgezogen **und**
+beide Male „ging leicht" ergibt den Vorschlag *„2× ging leicht · nächstes Mal
+10–17 Wdh.?"*. Ein Tipp verschiebt den angezeigten Bereich dauerhaft um zwei
+nach oben, für diese Übung.
+
+Dieselbe Antwort dient bei den Hanteln als Bremse: „war schwer" beendet die
+Serie, ohne dass man das Gewicht zurücknehmen müsste. Beantworten ist
+freiwillig – ohne Antwort verhält sich die Hantel-Progression wie vorher.
+
+### Aufwärmen
+
+Der Plan fing kalt an: erste Karte, erster Satz, volles Arbeitsgewicht. Über
+der ersten Übung steht jetzt eine eigene Karte – zwei bis drei Minuten allgemein
+warm werden, die Gelenke bewegen, und dann die **Anlaufsätze fürs erste
+Arbeitsgewicht**: 1 × 8 mit der Hälfte, 1 × 5 mit drei Vierteln, jeweils auf die
+Schrittweite der Übung gerundet („1 × 8 Einarmiges KH-Rudern mit 8 kg / 1 × 5
+mit 12 kg"). Ohne Zusatzlast bleibt es bei einem lockeren Satz mit halber
+Wiederholungszahl.
+
+Die Karte hat bewusst **eigene Klassen** statt `.ex`: sie wird nicht abgehakt,
+zählt nicht ins Wochenvolumen und darf in keiner Zählung mitlaufen – als
+`.ex` hatte sie sich sofort in die Übungszahl und in die Testreihen
+eingeschlichen.
+
 ### Pausenlängen
 
 Statt einer festen Länge bekommt jede Übung die, die zu ihrer Belastung passt
@@ -285,6 +337,24 @@ Da Wiederholungen nicht mehr erfasst werden, rechnet die Statistik mit dem
 geplanten Wert – der unteren Grenze des Bereichs, also eher zu niedrig als zu
 hoch. Die betroffenen Kennzahlen sind entsprechend als „ca." und „geplant"
 ausgewiesen.
+
+### Wochenvolumen: Soll gegen Ist
+
+Der ganze Plan ist darauf gebaut, dass jede Muskelgruppe zehn Sätze pro Woche
+bekommt – und genau das war in der App nirgends nachzusehen. Verpasste
+Einheiten, abgebrochene Trainings und jede angehakte Verletzung verschieben die
+Zahl, unsichtbar. Oben in der Statistik steht deshalb die zuletzt begonnene
+Woche mit zwölf Balken gegen die Zehn, dazu die Woche davor als Vergleich.
+
+Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den jeweiligen
+Anteilen; eine Woche sind vier aufeinanderfolgende Einheiten – dieselbe
+Einteilung, mit der `tools/build-plan.py` rechnet.
+
+**Kein Prozentwert.** Eine Woche mit 9,5 und 10,5 wären 99 %, obwohl alles
+stimmt: der Plan selbst schwankt um einen halben Satz. Angezeigt wird deshalb,
+wie viele Gruppen ihr Ziel erreicht haben („12/12"), mit ± 0,5 als Grenze. Sind
+noch Einheiten der Woche offen, steht das dabei – sonst sähe eine halb
+trainierte Woche wie ein Rückstand aus.
 
 ### Verlaufskarten
 

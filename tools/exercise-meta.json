@@ -8,6 +8,7 @@
   "dbRest": 150,
   "bwRest": 120,
   "dbWeight": 20,
+  "dbStep": 2.5,
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
   "dbShares": {
@@ -34,6 +35,7 @@
   "dbRest": 150,
   "bwRest": 120,
   "dbWeight": 20,
+  "dbStep": 2.5,
   "weightNote": "eine Hantel",
   "dbPattern": "squat",
   "dbShares": {
@@ -58,6 +60,7 @@
   "dbRest": 90,
   "bwRest": 90,
   "dbWeight": null,
+  "dbStep": null,
   "weightNote": null,
   "dbPattern": "legcurl",
   "dbShares": {
@@ -82,6 +85,7 @@
   "dbRest": 90,
   "bwRest": 90,
   "dbWeight": null,
+  "dbStep": null,
   "weightNote": null,
   "dbPattern": "legcurl1",
   "dbShares": {
@@ -106,6 +110,7 @@
   "dbRest": 120,
   "bwRest": 90,
   "dbWeight": 20,
+  "dbStep": 2.5,
   "weightNote": "auf der Hüfte",
   "dbPattern": "thrust",
   "dbShares": {
@@ -128,6 +133,7 @@
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 10,
+  "dbStep": 1.25,
   "weightNote": "Zusatzgewicht",
   "dbPattern": "pushup",
   "dbShares": {
@@ -152,6 +158,7 @@
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": null,
+  "dbStep": null,
   "weightNote": null,
   "dbPattern": "pushupfeet",
   "dbShares": {
@@ -176,6 +183,7 @@
   "dbRest": 120,
   "bwRest": 90,
   "dbWeight": 14,
+  "dbStep": 2,
   "weightNote": "je Hand",
   "dbPattern": "press",
   "dbShares": {
@@ -200,6 +208,7 @@
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 16,
+  "dbStep": 2,
   "weightNote": "je Hand",
   "dbPattern": "row",
   "dbShares": {
@@ -226,6 +235,7 @@
   "dbRest": 150,
   "bwRest": 150,
   "dbWeight": null,
+  "dbStep": null,
   "weightNote": null,
   "dbPattern": "pullup",
   "dbShares": {
@@ -252,6 +262,7 @@
   "dbRest": 60,
   "bwRest": 60,
   "dbWeight": 5,
+  "dbStep": 1,
   "weightNote": "je Hand",
   "dbPattern": "reversefly",
   "dbShares": {
@@ -274,6 +285,7 @@
   "dbRest": 60,
   "bwRest": 120,
   "dbWeight": 6,
+  "dbStep": 1,
   "weightNote": "je Hand",
   "dbPattern": "lateral",
   "dbShares": {
@@ -297,6 +309,7 @@
   "dbRest": 75,
   "bwRest": 75,
   "dbWeight": 8,
+  "dbStep": 1,
   "weightNote": "je Hand",
   "dbPattern": "triceps",
   "dbShares": {
@@ -318,6 +331,7 @@
   "dbRest": 75,
   "bwRest": 120,
   "dbWeight": 15,
+  "dbStep": 2.5,
   "weightNote": "Stange gesamt",
   "dbPattern": "curl",
   "dbShares": {
@@ -340,6 +354,7 @@
   "dbRest": 45,
   "bwRest": 45,
   "dbWeight": 5,
+  "dbStep": 1.25,
   "weightNote": "Zusatzgewicht",
   "dbPattern": "crunch",
   "dbShares": {
@@ -360,6 +375,7 @@
   "dbRest": 60,
   "bwRest": 60,
   "dbWeight": 12,
+  "dbStep": 2,
   "weightNote": "eine Hantel",
   "dbPattern": "calf1",
   "dbShares": {
@@ -380,6 +396,7 @@
   "dbRest": 60,
   "bwRest": 60,
   "dbWeight": 12,
+  "dbStep": 2,
   "weightNote": "eine Hantel",
   "dbPattern": "calfbent",
   "dbShares": {

@@ -1081,3 +1081,51 @@ textarea.io {
 .care-cue { font-size: 14px; line-height: 1.45; margin-top: 6px; }
 .care-why { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .inj-care { padding: 0 14px 14px; }
+
+/* Wochenvolumen: Soll gegen Ist */
+.vol-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.vol-quote { font-size: 30px; font-weight: 700; line-height: 1; }
+.vol-quote span { font-size: 15px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+.vol-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.vol-name { flex: 0 0 108px; font-size: 13px; }
+.vol-track {
+  flex: 1 1 auto; height: 10px; border-radius: 999px;
+  background: rgba(255, 255, 255, .06); overflow: hidden;
+}
+.vol-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.vol-fill.full { background: #7fd8a0; }
+.vol-fill.part { background: var(--accent); }
+.vol-fill.thin { background: #ff8f6b; }
+.vol-num { flex: 0 0 38px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* Aufwärmen. Sieht aus wie eine Übungskarte, ist aber keine – eigene Klassen,
+   damit es sich in keine Zählung einschleicht. */
+.warmup {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 14px; margin-bottom: 10px; overflow: hidden;
+}
+.warm-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; }
+.warm-icon {
+  flex: 0 0 30px; height: 30px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 143, 107, .16);
+}
+.warm-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.warm-name { font-weight: 600; }
+.warm-meta { font-size: 13px; color: var(--muted); }
+.warm-body { padding: 0 14px 14px; }
+.warm-list { margin: 10px 0; padding-left: 20px; font-size: 14px; line-height: 1.6; }
+
+/* Wie war das? */
+.effort {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 0 12px 12px;
+}
+.effort-q { font-size: 13px; color: var(--muted); margin-right: 2px; }
+.effort-btn {
+  flex: 1 1 0; min-width: 84px;
+  padding: 8px 6px; font-size: 13px; font-weight: 600;
+  border-radius: 9px; border: 1px solid var(--line);
+  background: transparent; color: var(--text);
+}
+.effort-btn.on { border-color: var(--accent); color: var(--accent); }

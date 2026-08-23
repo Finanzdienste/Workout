@@ -129,7 +129,18 @@ function usedWeight(n, mode, exId) {
  *
  * Bewusst nur ein Vorschlag: ob der Satz sauber war, weiß die App nicht.
  */
-const BUMP_KG = 2.5;
+/**
+ * Wie viel eine Steigerung ausmacht, steht je Übung in exercise-meta.json.
+ *
+ * Fest 2,5 kg war für den Goblet Squat richtig (20 → 22,5, also ein Achtel
+ * mehr) und für das Seitheben Unsinn: 6 → 8,5 kg je Hand sind über vierzig
+ * Prozent auf einmal. Der Vorschlag empfahl damit regelmäßig etwas, das
+ * niemand schafft.
+ */
+const stepOf = (exId) => {
+  const ex = EX_BY_ID.get(exId);
+  return (ex && ex.step) || 2.5;
+};
 const BUMP_NEEDED = 2;
 
 function bumpHint(exId) {
@@ -146,10 +157,13 @@ function bumpHint(exId) {
     if (!sets || !sets.length) continue;
     const complete = sets.length >= item.sets && sets.slice(0, item.sets).every((x) => x.done);
     if (!complete) break;                       // Lücke beendet die Serie
+    // Wer nach der Einheit "war schwer" angetippt hat, bekommt keinen
+    // Vorschlag: dieselbe Last noch einmal sauber ist der nächste Schritt.
+    if (store.effortOf(w.n, 'db', exId) === 'schwer') break;
     const used = parseFloat(String(sets[0].w).replace(',', '.'));
     if (!(Math.abs(used - current) < 0.01)) break;   // anderes Gewicht: Serie neu
     streak += 1;
-    if (streak >= BUMP_NEEDED) return { from: current, to: current + BUMP_KG, streak };
+    if (streak >= BUMP_NEEDED) return { from: current, to: current + stepOf(exId), streak };
   }
   return null;
 }
@@ -461,13 +475,15 @@ function renderFocus() {
 
     ${kg === null ? '' : `
       <div class="ex-weight focus-weight">
-        <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="-2.5" aria-label="2,5 Kilo weniger">−</button>
+        <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
+                aria-label="${esc(fmtKg(stepOf(it.id)))} Kilo weniger">−</button>
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtKg(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
         </div>
-        <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="2.5" aria-label="2,5 Kilo mehr">+</button>
+        <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
+                aria-label="${esc(fmtKg(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
       ${frozen ? `<div class="kg-next focus-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : bumpChip(it.id, mode)}`}
 
@@ -632,6 +648,10 @@ function renderDashboard() {
       <span class="focus-count">${w.ex.length} Übungen · ${prog.done}/${prog.total} Sätze</span>
     </div>`);
 
+  // Aufwärmen steht vor der ersten Übung, nicht darunter – dort liest es
+  // niemand mehr, wenn schon der erste Satz abgehakt ist.
+  parts.push(warmupCard(items, n, mode));
+
   items.forEach((it, i) => {
     const sets = store.getSets(n, mode, it.id, it.sets);
     const doneCount = sets.filter((s) => s.done).length;
@@ -647,24 +667,36 @@ function renderDashboard() {
               data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>
     `).join('');
 
-    // Gewichtszeile: ein Arbeitsgewicht je Übung, nicht je Satz. "+2,5 kg"
-    // gilt ab dem nächsten Mal, sobald heute schon ein Satz steht.
+    // Gewichtszeile: ein Arbeitsgewicht je Übung, nicht je Satz. Die Erhöhung
+    // gilt ab dem nächsten Mal, sobald heute schon ein Satz steht. Wie groß
+    // ein Schritt ist, hängt an der Übung – siehe stepOf().
     const kg = it.weight === null ? null : usedWeight(n, mode, it.id);
     const next = it.weight === null ? null : workingWeight(it.id);
     const frozen = kg !== null && next !== null && Math.abs(kg - next) > 0.01;
     const weightRow = kg === null ? '' : `
       <div class="ex-weight">
-        <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="-2.5"
-                aria-label="2,5 Kilo weniger">−</button>
+        <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
+                aria-label="${esc(fmtKg(stepOf(it.id)))} Kilo weniger">−</button>
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtKg(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht ${esc(it.name)} in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
         </div>
-        <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="2.5"
-                aria-label="2,5 Kilo mehr">+</button>
+        <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
+                aria-label="${esc(fmtKg(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
       ${frozen ? `<div class="kg-next">Nächstes Mal: ${esc(fmtKg(next))} kg</div>` : bumpChip(it.id, mode)}`;
+
+    // Im Bodyweight-Modus gibt es kein Gewicht – dort ist die Steigerung die
+    // Wiederholungszahl, und der Vorschlag hängt an "ging leicht".
+    // Den *neuen* Bereich zeigen, nicht den alten mit einem Plus dahinter –
+    // sonst muss man beim Lesen selbst rechnen.
+    const bwZiel = String(it.reps).replace(/\d+/g, (d) => String(Number(d) + store.bwPlusOf(it.id) + 2));
+    const bwChip = mode === 'bw' && bwBump(it.id)
+      ? `<button type="button" class="kg-bump" data-act="bw-bump" data-ex="${it.id}">
+           2× ging leicht · nächstes Mal ${esc(bwZiel)} Wdh.?
+         </button>`
+      : '';
 
     parts.push(`
       <article class="ex ${open ? 'open' : ''} ${complete ? 'complete' : ''}">
@@ -672,12 +704,14 @@ function renderDashboard() {
           <span class="ex-idx">${complete ? '✓' : i + 1}</span>
           <span class="ex-main">
             <span class="ex-name">${esc(it.name)}</span>
-            <span class="ex-meta">${it.sets} × ${esc(it.reps)} · ${esc(it.group)} · ${esc(it.equip)}</span>
+            <span class="ex-meta">${it.sets} × ${esc(repsLabel(it, mode))} · ${esc(it.group)} · ${esc(it.equip)}</span>
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
         ${weightRow}
+        ${bwChip}
         <div class="ex-sets">${setBtns}</div>
+        ${effortRow(n, mode, it.id, complete)}
         <div class="ex-body">
           <div class="cue">${esc(it.cue)}</div>
           <div class="ex-facts">
@@ -844,6 +878,9 @@ function renderStats() {
         : '<div class="muted">Alle Einheiten des Plans sind abgeschlossen. Stark.</div>'}
     </div>
 
+    <div class="section-title">Wochenvolumen</div>
+    <div id="volWeek"></div>
+
     <div class="section-title">Gewicht je Übung</div>
     <div class="spark-grid" id="sparkEx"></div>
 
@@ -884,10 +921,217 @@ function renderStats() {
     (id) => EX_BY_ID.get(id).db.name, 'kg', kgFmt,
     'Sobald du mit Hanteln trainierst, steht hier der Verlauf je Übung.');
 
+  renderWeeklyVolume();
+
   fill('sparkMus',
     [...perMuscle.entries()].sort((a, b) => b[1].length - a[1].length),
     (m) => MUSCLE_LABEL[m] || m, 'kg', (v) => Math.round(v).toLocaleString('de-DE'),
     'Noch kein Volumen erfasst. Nur Hantel-Einheiten tragen Kilo bei.');
+}
+
+/* ------------------------------------------------------------------ *
+ * Aufwärmen
+ *
+ * Der Plan fing bisher kalt an: drei Sätze Rudern mit 16 kg als Erstes. Was
+ * hier steht, ist bewusst knapp und zählt nicht ins Wochenvolumen – es ist
+ * Vorbereitung, kein Training.
+ * ------------------------------------------------------------------ */
+
+/** Auf ein Vielfaches der Schrittweite runden, mindestens einen Schritt. */
+function roundToStep(kg, step) {
+  return Math.max(step, Math.round(kg / step) * step);
+}
+
+function warmupCard(items, n, mode) {
+  if (!items.length) return '';
+  const erste = items[0];
+  const kg = mode === 'db' && erste.weight !== null ? usedWeight(n, mode, erste.id) : null;
+  const step = stepOf(erste.id);
+  const offen = ui.openEx.has('__warmup');
+  const saetze = kg === null
+    ? `<li>Ein lockerer Satz <b>${esc(erste.name)}</b> mit halber Wiederholungszahl.</li>`
+    : `<li>1 × 8 <b>${esc(erste.name)}</b> mit ${esc(fmtKg(roundToStep(kg * 0.5, step)))} kg</li>
+       <li>1 × 5 mit ${esc(fmtKg(roundToStep(kg * 0.75, step)))} kg</li>`;
+  // Bewusst eigene Klassen statt .ex: das hier ist keine Übung, wird nicht
+  // abgehakt und zählt nirgends mit. Als .ex hätte es sich in jede Zählung
+  // eingeschlichen – in der App wie in den Testreihen.
+  return `
+    <article class="warmup">
+      <div class="warm-head" data-act="toggle-ex" data-ex="__warmup" role="button" tabindex="0"
+           aria-expanded="${offen}">
+        <span class="warm-icon">🔥</span>
+        <span class="warm-main">
+          <span class="warm-name">Aufwärmen</span>
+          <span class="warm-meta">3 Minuten · zählt nicht mit</span>
+        </span>
+        <span class="chev">▼</span>
+      </div>
+      ${offen ? `<div class="warm-body">
+        <div class="cue">Zwei, drei Minuten, bis dir warm ist: Hampelmänner, Seilspringen
+          oder zügiges Treppensteigen. Dann die Gelenke, die gleich arbeiten – Arme
+          kreisen, Hüfte kreisen, ein paar tiefe Kniebeugen ohne Gewicht.</div>
+        <ul class="warm-list">${saetze}</ul>
+        <div class="small muted">Die Anlaufsätze machen nicht müde, sie stellen die
+          Bewegung ein. Erst danach steht das Arbeitsgewicht.</div>
+      </div>` : ''}
+    </article>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Wie war das?
+ *
+ * Ein Griff nach dem letzten Satz. Damit weiß die App zweierlei: ob der
+ * Steigerungsvorschlag mit Hanteln gerechtfertigt ist – und im
+ * Bodyweight-Modus, wo es kein Gewicht zu erhöhen gibt, ob es Zeit für ein
+ * paar Wiederholungen mehr ist.
+ * ------------------------------------------------------------------ */
+
+const EFFORT = [
+  ['leicht', 'ging leicht'],
+  ['ok', 'passte'],
+  ['schwer', 'war schwer'],
+];
+
+function effortRow(n, mode, exId, complete) {
+  if (!complete) return '';
+  const cur = store.effortOf(n, mode, exId);
+  return `
+    <div class="effort">
+      <span class="effort-q">Wie war das?</span>
+      ${EFFORT.map(([key, label]) => `
+        <button type="button" class="effort-btn ${cur === key ? 'on' : ''}"
+                aria-pressed="${cur === key}" data-act="set-effort"
+                data-ex="${exId}" data-v="${key}">${label}</button>`).join('')}
+    </div>`;
+}
+
+/** Wiederholungsbereich um den Bodyweight-Aufschlag verschoben. */
+function repsLabel(it, mode) {
+  const plus = mode === 'bw' ? store.bwPlusOf(it.id) : 0;
+  if (!plus) return it.reps;
+  return String(it.reps).replace(/\d+/g, (d) => String(Number(d) + plus));
+}
+
+/**
+ * Vorschlag im Bodyweight-Modus: mehr Wiederholungen.
+ *
+ * Bedingung wie bei den Hanteln – die letzten beiden Male vollständig
+ * durchgezogen –, nur zählt hier nicht das Gewicht, sondern dass es beide Male
+ * als leicht durchging.
+ */
+function bwBump(exId) {
+  let streak = 0;
+  for (let i = PLAN.length - 1; i >= 0; i--) {
+    const w = PLAN[i];
+    const item = exOf(w).find((x) => x.id === exId);
+    if (!item) continue;
+    const sets = store.peekSets(w.n, 'bw', exId);
+    if (!sets || !sets.length) continue;
+    const complete = sets.length >= item.sets && sets.slice(0, item.sets).every((x) => x.done);
+    if (!complete) break;
+    if (store.effortOf(w.n, 'bw', exId) !== 'leicht') break;
+    streak += 1;
+    if (streak >= BUMP_NEEDED) return streak;
+  }
+  return 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Wochenvolumen: Soll gegen Ist
+ *
+ * Der ganze Plan ist darauf gebaut, dass jede Muskelgruppe zehn Sätze pro
+ * Woche bekommt – und genau das war bisher nirgends nachzusehen. Verpasste
+ * Einheiten, abgebrochene Trainings und jede angehakte Verletzung verschieben
+ * diese Zahl, unsichtbar.
+ *
+ * Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den
+ * jeweiligen Anteilen. Eine Woche sind WEEK_SESSIONS aufeinanderfolgende
+ * Einheiten des Plans – dieselbe Einteilung, mit der tools/build-plan.py
+ * rechnet.
+ * ------------------------------------------------------------------ */
+
+const TARGET_SETS = 10;
+const WEEK_SESSIONS = 4;
+
+function weeklyDone() {
+  const log = store.getState().log;
+  const weeks = [];
+  for (let k = 0; k < PLAN.length; k += WEEK_SESSIONS) {
+    const block = PLAN.slice(k, k + WEEK_SESSIONS);
+    const acc = {};
+    let any = false;
+    block.forEach((w) => {
+      const entry = log[w.n];
+      if (!entry) return;
+      ['db', 'bw'].forEach((m) => {
+        exOf(w).forEach((item) => {
+          const arr = (entry[m] || {})[item.id];
+          if (!Array.isArray(arr)) return;
+          const done = arr.slice(0, item.sets).filter((x) => x.done).length;
+          if (!done) return;
+          any = true;
+          Object.entries(EX_BY_ID.get(item.id)[m].shares).forEach(([mus, share]) => {
+            acc[mus] = (acc[mus] || 0) + done * share;
+          });
+        });
+      });
+    });
+    weeks.push({ nr: weeks.length + 1, from: block[0], to: block[block.length - 1], acc, any });
+  }
+  return weeks;
+}
+
+/** Balken für eine Muskelgruppe: erreicht gegen die zehn. */
+function volumeBar(mus, got) {
+  const pct = Math.min(150, (got / TARGET_SETS) * 100);
+  const state = got >= TARGET_SETS - 0.5 ? 'full' : (got >= TARGET_SETS * 0.6 ? 'part' : 'thin');
+  return `
+    <div class="vol-row">
+      <div class="vol-name">${esc(MUSCLE_LABEL[mus] || mus)}</div>
+      <div class="vol-track"><i class="vol-fill ${state}" style="width:${Math.min(100, pct).toFixed(0)}%"></i></div>
+      <div class="vol-num">${got.toFixed(1).replace('.', ',')}</div>
+    </div>`;
+}
+
+function renderWeeklyVolume() {
+  const host = document.getElementById('volWeek');
+  if (!host) return;
+  const weeks = weeklyDone();
+  const done = weeks.filter((w) => w.any);
+  if (!done.length) {
+    host.innerHTML = '<div class="card muted small">Sobald die erste Einheit steht, '
+      + 'zeigt sich hier, wie nah du an den zehn Sätzen je Muskelgruppe bist.</div>';
+    return;
+  }
+  // Die zuletzt begonnene Woche ist die interessante – nicht die letzte des Plans.
+  const cur = done[done.length - 1];
+  const prev = done.length > 1 ? done[done.length - 2] : null;
+  const groups = Object.keys(MUSCLE_LABEL);
+  // Nicht in Prozent: eine Woche mit 9,5 und 10,5 wären 99 %, obwohl alles
+  // stimmt – der Plan selbst schwankt um einen halben Satz. Gezählt wird
+  // deshalb, wie viele Gruppen ihr Ziel erreicht haben.
+  const voll = groups.filter((m) => (cur.acc[m] || 0) >= TARGET_SETS - 0.5).length;
+  const offen = PLAN.slice(PLAN.indexOf(cur.from), PLAN.indexOf(cur.to) + 1)
+    .filter((w) => !completedMode(w.n)).length;
+
+  host.innerHTML = `
+    <div class="card">
+      <div class="vol-head">
+        <div>
+          <div class="lbl">Woche ${cur.nr} · ${plural(voll, 'Gruppe', 'Gruppen')} im Ziel</div>
+          <div class="hint">${esc(fmtDate(effDate(cur.from)))} – ${esc(fmtDate(effDate(cur.to)))}${
+            offen ? ` · ${plural(offen, 'Einheit', 'Einheiten')} offen` : ' · abgeschlossen'}</div>
+        </div>
+        <div class="vol-quote">${voll}<span>/${groups.length}</span></div>
+      </div>
+      ${groups.map((m) => volumeBar(m, cur.acc[m] || 0)).join('')}
+      <div class="small muted" style="margin-top:10px">
+        Ziel sind 10 Sätze je Gruppe, Anteile eingerechnet – bei ${offen ? 'noch offenen Einheiten ist die Woche naturgemäß unvollständig'
+          : 'einer vollen Woche sollte alles bei 10 stehen'}.
+        ${prev ? `Woche davor: ${groups.filter((m) => (prev.acc[m] || 0) >= TARGET_SETS - 0.5).length}
+          von ${groups.length} Gruppen im Ziel.` : ''}
+      </div>
+    </div>`;
 }
 
 /* ------------------------------------------------------------------ *
@@ -1385,6 +1629,20 @@ view.addEventListener('click', (e) => {
   const mode = store.workoutMode(n);
 
   switch (act) {
+    case 'set-effort': {
+      const id = t.dataset.ex;
+      const v = t.dataset.v;
+      store.setEffort(n, mode, id, store.effortOf(n, mode, id) === v ? null : v);
+      render();
+      break;
+    }
+    case 'bw-bump': {
+      const id = t.dataset.ex;
+      store.addBwPlus(id, 2);
+      render();
+      toast('↑ Zwei Wiederholungen mehr ab dem nächsten Mal');
+      break;
+    }
     case 'toggle-injury': {
       const id = t.dataset.inj;
       const on = t.getAttribute('aria-pressed') !== 'true';
