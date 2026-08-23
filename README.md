@@ -475,6 +475,19 @@ Das ersetzt keine Diagnose, und die Zuordnungen sind gängige Trainingslehre,
 keine Messwerte – was im Einzelfall gut tut, weiß nur eine Untersuchung. Das
 steht auch in der App unter der Liste.
 
+## Nach einer Aktualisierung
+
+Der Service Worker holt Seitenaufrufe aus dem Netz und alles andere zuerst aus
+dem Zwischenspeicher – das macht den Start schnell, hat aber eine Kante: direkt
+nach einer neuen Fassung trifft ein frisches `index.html` auf ein altes
+`app.js`. Dann steht in der Tabbar ein Tab, den das alte Skript nicht kennt,
+und im Kopf die Einheitenzahl des alten Plans.
+
+Deshalb lädt die App einmal neu, sobald ein neuer Service Worker die Seite
+übernimmt (`controllerchange`) – aber nur, wenn vorher schon einer da war, und
+nur einmal je Sitzung, damit ein kaputter Service Worker keine Schleife
+auslösen kann. Danach stammt alles aus derselben Fassung.
+
 ## Sicherung
 
 Alles liegt im `localStorage` genau eines Browsers. Android räumt den bei

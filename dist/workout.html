@@ -5535,6 +5535,30 @@ window.addEventListener('pagehide', store.flush);
 // Offline-Betrieb. Nur über http(s) – unter file:// gibt es keine Service
 // Worker, und die gebündelte Einzeldatei braucht sie ohnehin nicht.
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  // Nach einer neuen Fassung einmal neu laden.
+  //
+  // Der Service Worker holt Seitenaufrufe aus dem Netz, alles andere zuerst
+  // aus dem Zwischenspeicher. Direkt nach einer Aktualisierung trifft damit
+  // ein frisches index.html auf altes app.js und data.js – dann steht in der
+  // Tabbar ein Tab, den das alte Skript nicht kennt, und im Kopf die
+  // Einheitenzahl des alten Plans. Übernimmt der neue Service Worker die
+  // Seite, ist alles Weitere frisch; ein Neuladen holt es sofort.
+  //
+  // Nur wenn vorher schon einer die Seite hatte: bei der allerersten
+  // Installation greift `clients.claim()` ebenfalls, und ein Neuladen wäre
+  // dort unnötig. Und nur einmal je Sitzung, damit ein kaputter Service
+  // Worker die Seite nicht in eine Schleife schickt.
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    try {
+      if (sessionStorage.getItem('workout.reloaded')) return;
+      sessionStorage.setItem('workout.reloaded', '1');
+    } catch {
+      return;   // ohne Speicher lieber gar nicht neu laden als endlos
+    }
+    location.reload();
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {
       // Kein Offline-Betrieb, aber die App läuft normal weiter.
