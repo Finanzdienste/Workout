@@ -698,6 +698,28 @@ Das ersetzt keine Diagnose, und die Zuordnungen sind gängige Trainingslehre,
 keine Messwerte – was im Einzelfall gut tut, weiß nur eine Untersuchung. Das
 steht auch in der App unter der Liste.
 
+## Wenn nichts übrig bleibt
+
+Mit genug angehakten Beschwerden fällt eine Einheit komplett aus – ein
+Handgelenksbruch allein leert zwei der 80, zwei Beschwerden zusammen in 37 von
+465 Kombinationen mindestens eine. Die Startansicht sagt das dann und bietet
+gar nicht erst an, ein leeres Training zu beginnen. Vorher lief die
+Fokus-Ansicht in ein `undefined`, und es passierte sichtbar gar nichts.
+
+## Bedienung ohne Maus und ohne Augen
+
+Die Ansicht wird bei jedem abgehakten Satz komplett neu geschrieben – der
+Tastaturfokus landete danach wieder ganz oben. `render()` merkt sich deshalb
+vorher, worauf der Fokus stand, und setzt ihn hinterher zurück; wiedergefunden
+wird das Element an seinen `data`-Attributen, die ohnehin schon beschreiben,
+was der Knopf tut. Ohne `preventScroll` springt die Seite dabei.
+
+Die Pause meldet sich mit Ton und Vibration – lautlos braucht es eine Ansage.
+Eine eigene Live-Region nennt Beginn („Pause 2:00 Minuten, danach Satz 2 von 3,
+Einarmiges KH-Rudern") und Ende, aber nicht die laufende Zeit: im Sekundentakt
+vorgelesen wäre der Timer unbenutzbar. Die Tabs verweisen mit `aria-controls`
+auf die Ansicht, die Ansicht mit `aria-labelledby` zurück auf den aktiven Tab.
+
 ## Nach einer Aktualisierung
 
 Hier steckten zwei Fehler übereinander, und beide sind die Sorte, die man nur
@@ -891,6 +913,11 @@ Dateien-App antippen, Chrome öffnet sie. Über *Menü → Zum Startbildschirm
 hinzufügen* landet sie als Symbol neben den übrigen Apps. Eingetragene Sätze
 überstehen Neuladen und Neustart – über `file://` mit persistentem
 Browserprofil getestet.
+
+Beim Einlesen wird geprüft, was hereinkommt: Eine Datei ohne `log` wird
+abgewiesen, falsche Typen und Fremdfelder fallen weg. Nicht aus Misstrauen –
+eine halb passende Datei hinterließe sonst still einen Zustand, in dem die App
+merkwürdig wird.
 
 Ein Hinweis dazu: Der Trainingsfortschritt liegt im `localStorage` und hängt
 damit am Ort, von dem die App geladen wurde. Wer zwischen GitHub Page und

@@ -307,9 +307,14 @@ export function markBackup(done) {
  */
 export function restartPlan(shiftDays) {
   if (Object.keys(state.log).length) {
-    state.rounds.push({ finishedOn: todayISO(), log: state.log });
+    state.rounds.push({ finishedOn: todayISO(), log: state.log, effort: state.effort });
   }
   state.log = {};
+  // Die Antworten auf "Wie war das?" hängen an der Workout-Nummer, nicht am
+  // Durchlauf – ohne sie mitzuräumen stünde in Runde zwei bei jeder gerade
+  // beendeten Übung schon eine Antwort aus Runde eins. Gewichte und der
+  // Bodyweight-Aufschlag bleiben dagegen: das ist der erreichte Stand.
+  state.effort = {};
   state.session = null;
   state.rest = null;
   state.shift = Math.max(0, Math.round(Number(shiftDays) || 0));
@@ -321,12 +326,32 @@ export function exportJSON() {
   return JSON.stringify(state, null, 2);
 }
 
+/**
+ * Sicherung einlesen.
+ *
+ * Geprüft wird nicht aus Misstrauen, sondern weil eine halb passende Datei
+ * sonst still einen Zustand hinterlässt, in dem die App merkwürdig wird –
+ * `injuries` als Zeichenkette etwa, oder ein `log` voller Fremdformate. Alles
+ * Unbekannte fällt weg, alles Bekannte wird auf seinen Typ gebracht.
+ */
 export function importJSON(text) {
   const parsed = JSON.parse(text);
-  if (!parsed || typeof parsed !== 'object' || typeof parsed.log !== 'object') {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
+      || !parsed.log || typeof parsed.log !== 'object' || Array.isArray(parsed.log)) {
     throw new Error('Unerwartetes Format – "log" fehlt.');
   }
-  state = Object.assign(clone(DEFAULT_STATE), parsed);
+  const fresh = clone(DEFAULT_STATE);
+  Object.keys(DEFAULT_STATE).forEach((key) => {
+    const v = parsed[key];
+    if (v === undefined || v === null) return;
+    const soll = DEFAULT_STATE[key];
+    if (Array.isArray(soll) !== Array.isArray(v)) return;
+    if (soll !== null && typeof soll !== typeof v) return;
+    fresh[key] = v;
+  });
+  if (typeof fresh.shift !== 'number' || !Number.isFinite(fresh.shift)) fresh.shift = 0;
+  fresh.injuries = fresh.injuries.filter((x) => typeof x === 'string');
+  state = fresh;
   persist();
   emit();
 }

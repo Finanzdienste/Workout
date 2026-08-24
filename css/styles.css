@@ -1189,3 +1189,13 @@ textarea.io {
 }
 .cal-ex { flex: 1; }
 .cal-sets { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Tag ohne jede Übung: mit genug angehakten Beschwerden bleibt nichts übrig. */
+.empty-day { margin-top: 4px; font-size: 14px; line-height: 1.5; }
+.empty-day .btn { margin-top: 10px; }
+
+/* Nur für Screenreader: sichtbar für die Vorlesefunktion, unsichtbar am Bild. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}

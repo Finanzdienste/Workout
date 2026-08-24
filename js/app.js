@@ -82,8 +82,19 @@ const directSets = (items) => new Set(items.flatMap((it) => directOf(it.id)));
  */
 const planCache = { key: null, list: null, notes: null };
 
+// Jede Zustandsänderung verwirft den Zwischenstand. Die Anpassung hängt an den
+// tatsächlichen Terminen, und die ändern sich auch, wenn eine Einheit begonnen
+// wird – das ließe sich am Schlüssel kaum zuverlässig ablesen. Ein Neuaufbau
+// kostet unter einer Millisekunde, die Ersparnis liegt in den vielen Aufrufen
+// innerhalb *eines* Renderdurchlaufs.
+store.subscribe(() => { planCache.key = null; });
+
 function adjustedPlan() {
   const act = activeInjuries();
+  // Der Schlüssel nennt nur, was die Anpassung selbst bestimmt. Die Termine
+  // hängen zusätzlich daran, wann tatsächlich trainiert wurde – deshalb wird
+  // der Zwischenstand bei jeder Zustandsänderung verworfen (siehe unten),
+  // statt hier eine Signatur über den ganzen Verlauf zu bilden.
   const key = `${act.join(',')}|${store.getState().shift}`;
   if (planCache.key === key) return planCache.list;
 
@@ -343,6 +354,12 @@ const restBar = document.getElementById('restBar');
 const restTime = document.getElementById('restTime');
 const restNext = document.getElementById('restNext');
 const restFill = document.getElementById('restFill');
+const restLive = document.getElementById('restLive');
+
+/** Ansage für Screenreader – nur zum Anfang und Ende, nicht im Sekundentakt. */
+function announce(text) {
+  if (restLive) restLive.textContent = text;
+}
 
 let audioCtx = null;
 let restTicker = null;
@@ -404,6 +421,8 @@ function startRest(exName, setIndex, sets, secs) {
     total: secs,
     next: `Satz ${setIndex + 2} von ${sets} · ${exName}`,
   });
+  announce(`Pause ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} Minuten, `
+    + `danach Satz ${setIndex + 2} von ${sets}, ${exName}`);
   holdScreen(true);
   tickRest();
 }
@@ -418,6 +437,9 @@ function endRest(withSignal) {
   if (withSignal) {
     beep();
     if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
+    announce('Pause vorbei, nächster Satz');
+  } else {
+    announce('');
   }
 }
 
@@ -518,7 +540,16 @@ function renderFocus() {
   const mode = store.workoutMode(n);
   const prog = progressOf(n, mode);
 
-  const i = Math.min(ui.focusIdx, w.ex.length - 1);
+  // Eine Einheit kann leer sein: mit genug angehakten Beschwerden fällt jede
+  // Übung weg. Dann gibt es nichts zu fokussieren – zurück in die Startansicht,
+  // die den Grund nennt. Vorher lief die Ansicht hier in ein undefined.
+  if (!w.ex.length) {
+    ui.focus = false;
+    renderOverview();
+    return;
+  }
+
+  const i = Math.min(Math.max(0, ui.focusIdx), w.ex.length - 1);
   const item = w.ex[i];
   const it = resolve(item, mode);
   const sets = store.getSets(n, mode, it.id, it.sets);
@@ -637,9 +668,17 @@ function renderOverview() {
         .sort((a, b) => (primary.has(b) ? 1 : 0) - (primary.has(a) ? 1 : 0))
         .map((m) => `<span class="${primary.has(m) ? '' : 'sub'}">${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
 
-      <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
-        ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
-      </button>
+      ${items.length ? `
+        <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
+          ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
+        </button>`
+      : `<div class="card empty-day">
+          <b>Heute bleibt nichts übrig.</b> Die angehakten Beschwerden sperren
+          jede Übung dieser Einheit, und für keine gibt es einen Ersatz, der
+          nicht auch weh täte. Das ist kein Fehler – nur ein Tag, an dem
+          Krafttraining nicht dran ist.
+          <button type="button" class="btn btn-ghost btn-sm" data-act="go-injuries">Verletzungen ansehen</button>
+        </div>`}
 
       <div class="ov-foot">
         <button type="button" class="ov-nav" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>←</button>
@@ -1138,16 +1177,19 @@ function weeklyDone() {
     block.forEach((w) => {
       const entry = log[w.n];
       if (!entry) return;
-      ['db', 'bw'].forEach((m) => {
-        exOf(w).forEach((item) => {
-          const arr = (entry[m] || {})[item.id];
-          if (!Array.isArray(arr)) return;
-          const done = arr.slice(0, item.sets).filter((x) => x.done).length;
-          if (!done) return;
-          any = true;
-          Object.entries(EX_BY_ID.get(item.id)[m].shares).forEach(([mus, share]) => {
-            acc[mus] = (acc[mus] || 0) + done * share;
-          });
+      // Nur eine Variante zählen. Wer mit Hanteln anfängt und im
+      // Bodyweight-Modus fertig wird, hat die Sätze einmal gemacht, nicht
+      // zweimal – gezählt wird die abgeschlossene Variante, sonst die, in der
+      // das Workout gerade steht.
+      const m = completedMode(w.n) || store.workoutMode(w.n);
+      exOf(w).forEach((item) => {
+        const arr = (entry[m] || {})[item.id];
+        if (!Array.isArray(arr)) return;
+        const done = arr.slice(0, item.sets).filter((x) => x.done).length;
+        if (!done) return;
+        any = true;
+        Object.entries(EX_BY_ID.get(item.id)[m].shares).forEach(([mus, share]) => {
+          acc[mus] = (acc[mus] || 0) + done * share;
         });
       });
     });
@@ -1806,6 +1848,30 @@ const RENDERERS = {
   settings: renderSettings,
 };
 
+/**
+ * Kennung eines bedienbaren Elements, die einen Neuaufbau übersteht.
+ *
+ * Die Ansicht wird bei jedem abgehakten Satz komplett neu geschrieben – der
+ * Tastaturfokus landete danach wieder ganz oben, und wer mit Screenreader oder
+ * Tastatur arbeitet, musste sich jedes Mal neu durchhangeln. Über die
+ * data-Attribute lässt sich dasselbe Element hinterher wiederfinden; sie
+ * beschreiben ohnehin schon, was der Knopf tut.
+ */
+function focusKey(el) {
+  if (!el || !view.contains(el)) return null;
+  const d = el.dataset || {};
+  return [el.tagName, el.id, d.act, d.ex, d.i, d.tab, d.iso, d.n, d.d, d.delta, d.v]
+    .map((x) => x || '').join('|');
+}
+
+function restoreFocus(key) {
+  if (!key) return;
+  const hit = [...view.querySelectorAll('button, input, select, textarea, [tabindex]')]
+    .find((el) => focusKey(el) === key);
+  // preventScroll: sonst springt die Seite beim Abhaken zum Knopf zurück.
+  if (hit) hit.focus({ preventScroll: true });
+}
+
 function render() {
   const mode = ui.tab === 'dashboard' ? store.workoutMode(ui.workoutNo) : store.getState().mode;
   document.body.classList.toggle('mode-bw', mode === 'bw');
@@ -1815,8 +1881,11 @@ function render() {
   tabbar.querySelectorAll('.tab').forEach((b) => {
     b.setAttribute('aria-selected', String(b.dataset.tab === ui.tab));
   });
+  view.setAttribute('aria-labelledby', `tab-${ui.tab}`);
+  const hatte = focusKey(document.activeElement);
   clearFigures(); // alte Animationen abmelden, bevor das DOM ersetzt wird
   (RENDERERS[ui.tab] || renderDashboard)();
+  restoreFocus(hatte);
   syncHistory();
 }
 
@@ -2023,6 +2092,10 @@ view.addEventListener('click', (e) => {
       render();
       break;
     case 'start-session':
+      if (!workoutByNo(n).ex.length) {
+        toast('Heute fällt alles weg – nichts zu starten');
+        break;
+      }
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       store.startSession(n);
       ui.focus = true;

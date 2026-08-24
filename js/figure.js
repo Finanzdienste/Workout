@@ -801,7 +801,16 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     parts.sort((p, q) => p.z - q.z).forEach((p) => scene.appendChild(p.node));
   };
 
-  const entry = { draw, effortAt1: !LOWER_TO_1.includes(pattern) };
+  // Die beiden Listener hängen am Fenster, nicht am Kasten – sonst bräche das
+  // Drehen ab, sobald der Finger die Figur verlässt. Genau deshalb müssen sie
+  // aber auch wieder weg, wenn die Figur verschwindet: die Ansicht wird bei
+  // jedem abgehakten Satz neu geschrieben, und die alten Listener blieben
+  // sonst samt ihrer Zeichendaten liegen.
+  const off = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+  };
+  const entry = { draw, off, effortAt1: !LOWER_TO_1.includes(pattern) };
   // Bei ausgeschalteter Bewegung eine mittlere Stellung zeigen statt der
   // Ausgangsstellung – sonst sieht man von der Übung nichts.
   draw(reduceMotion.matches ? 0.55 : 0);
@@ -811,13 +820,20 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     setView: (y, pi = 0) => { yaw = y; pitch = pi; draw(lastT); },
     stop: () => {
       active.delete(entry);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+      off();
     },
   };
 }
 
+/**
+ * Alle Figuren abmelden – vor jedem Neuaufbau der Ansicht.
+ *
+ * Nicht nur aus der Zeichenschleife nehmen, sondern auch die Fenster-Listener
+ * lösen. Ohne das kamen bei einem Training gut fünfzig zusammen, jeder mit
+ * seiner SVG im Gepäck.
+ */
 export function clearFigures() {
+  active.forEach((f) => f.off && f.off());
   active.clear();
 }
 
