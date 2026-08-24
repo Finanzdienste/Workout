@@ -549,6 +549,17 @@ button { font: inherit; color: inherit; }
   padding: 8px;
   margin-bottom: 14px;
 }
+/* Dieselbe Figur in der aufgeklappten Karte der Übungsliste, nur flacher –
+   dort teilt sie sich den Platz mit Hinweis, Pause und letztem Mal. */
+.ex-fig {
+  position: relative;
+  height: 210px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px;
+  margin-bottom: 10px;
+}
 .focus-name {
   margin: 0 0 3px;
   font-size: 26px;

@@ -888,6 +888,8 @@ function renderDashboard() {
         <div class="ex-sets">${setBtns}</div>
         ${effortRow(n, mode, it.id, complete)}
         <div class="ex-body">
+          ${open ? `<div class="ex-fig" data-pattern="${esc(it.pattern)}"
+               data-weight="${it.weight !== null}" data-gear="${esc(it.gear || '')}"></div>` : ''}
           <div class="cue">${esc(it.cue)}</div>
           <div class="ex-facts">
             <span>Pause ${Math.floor(restFor(it) / 60)}:${String(restFor(it) % 60).padStart(2, '0')} min</span>
@@ -913,6 +915,13 @@ function renderDashboard() {
   `);
 
   view.innerHTML = parts.join('');
+
+  // Die Figur erst nach dem Einhängen montieren – sie misst ihren Platz und
+  // hängt Listener fürs Drehen an. Nur aufgeklappte Karten bekommen eine:
+  // eine Animation je Übung im Hintergrund wäre Rechenzeit für nichts.
+  view.querySelectorAll('.ex-fig').forEach((host) => {
+    mountFigure(host, host.dataset.pattern, host.dataset.weight === 'true', host.dataset.gear || null);
+  });
 }
 
 /** Letzter protokollierter Eintrag derselben Übung im selben Modus. */
@@ -1137,8 +1146,12 @@ function warmupCard(items, n, mode) {
   // Angerampt wird die erste Übung, die überhaupt ein Gewicht hat. Steht vorn
   // eine ohne Zusatzlast – Chin-ups etwa –, gäbe es sonst nichts zu rechnen,
   // obwohl gleich danach eine schwere Hantelübung kommt.
-  const erste = (mode === 'db' && items.find((x) => x.weight !== null)) || items[0];
-  const kg = mode === 'db' && erste.weight !== null ? usedWeight(n, mode, erste.id) : null;
+  // Gemeint ist eine Übung, bei der wirklich Last auf der Stange liegt. Ein
+  // Zusatzgewicht von 0 kg – Chin-ups am eigenen Körpergewicht – ergäbe sonst
+  // die Anweisung "1 × 8 mit 0 kg".
+  const geladen = (x) => x.weight !== null && usedWeight(n, mode, x.id) > 0;
+  const erste = (mode === 'db' && items.find(geladen)) || items[0];
+  const kg = mode === 'db' && geladen(erste) ? usedWeight(n, mode, erste.id) : null;
   const step = stepOf(erste.id);
   const offen = ui.openEx.has('__warmup');
   const saetze = kg === null

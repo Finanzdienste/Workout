@@ -238,15 +238,15 @@
  "chin-ups": {
   "group": "Rücken/Bizeps",
   "tier": 1,
-  "dbEquip": "Klimmzugstange",
+  "dbEquip": "Klimmzugstange + Rucksack",
   "bwEquip": "Klimmzugstange",
-  "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen.",
+  "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zusatzgewicht erst, wenn 10 saubere Wiederholungen stehen – dann Rucksack auf den Rücken (Wasserflaschen, Bücher, Kurzhanteln) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
   "bwCue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen.",
   "dbRest": 180,
   "bwRest": 180,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
+  "dbWeight": 0,
+  "dbStep": 1,
+  "weightNote": "im Rucksack",
   "dbPattern": "pullup",
   "dbShares": {
    "lats": 1.0,
@@ -261,7 +261,7 @@
    "traps": 0.3,
    "rearDelts": 0.15
   },
-  "equip": null
+  "equip": "backpack"
  },
  "reverse-fly": {
   "group": "Schulter (hinten)",

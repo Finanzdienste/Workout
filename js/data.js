@@ -140,15 +140,15 @@ export const EXERCISES = [
   {
     "id": "chin-ups",
     "group": "Rücken/Bizeps",
-    "weight": null,
-    "step": null,
-    "weightNote": null,
-    "equip": null,
+    "weight": 0,
+    "step": 1,
+    "weightNote": "im Rucksack",
+    "equip": "backpack",
     "db": {
       "name": "Chin-ups",
       "reps": "5–10",
-      "equip": "Klimmzugstange",
-      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen.",
+      "equip": "Klimmzugstange + Rucksack",
+      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zusatzgewicht erst, wenn 10 saubere Wiederholungen stehen – dann Rucksack auf den Rücken (Wasserflaschen, Bücher, Kurzhanteln) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
       "rest": 180,
       "pattern": "pullup",
       "shares": {
