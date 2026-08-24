@@ -1,6 +1,7 @@
 {
  "goblet-squat": {
   "group": "Beine",
+  "tier": 1,
   "dbEquip": "Kurzhantel",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Hantel senkrecht vor der Brust halten, Ellenbogen zwischen den Knien führen. Tief absitzen, Rumpf aufrecht, Fersen am Boden.",
@@ -28,6 +29,7 @@
  },
  "fersenerhoehter-goblet-squat": {
   "group": "Beine",
+  "tier": 1,
   "dbEquip": "Kurzhantel + Erhöhung",
   "bwEquip": "Erhöhung (Buch/Keil)",
   "dbCue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
@@ -53,6 +55,7 @@
  },
  "sliding-leg-curl": {
   "group": "Beinbeuger",
+  "tier": 2,
   "dbEquip": "Slider/Handtuch",
   "bwEquip": "Slider/Handtuch",
   "dbCue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen.",
@@ -78,6 +81,7 @@
  },
  "einbeiniger-sliding-leg-curl": {
   "group": "Beinbeuger",
+  "tier": 2,
   "dbEquip": "Slider/Handtuch",
   "bwEquip": "Slider/Handtuch",
   "dbCue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
@@ -103,6 +107,7 @@
  },
  "hip-thrust": {
   "group": "Gesäß",
+  "tier": 1,
   "dbEquip": "Kurzhantel",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
@@ -126,6 +131,7 @@
  },
  "gewichtete-liegestuetze": {
   "group": "Brust",
+  "tier": 1,
   "dbEquip": "Zusatzgewicht",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Scheibe/Rucksack auf dem oberen Rücken. Körper bleibt eine Linie, Ellenbogen ca. 45°.",
@@ -151,6 +157,7 @@
  },
  "fuesse-erhoehte-liegestuetze": {
   "group": "Brust (oben)",
+  "tier": 1,
   "dbEquip": "Erhöhung",
   "bwEquip": "Erhöhung",
   "dbCue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter.",
@@ -176,6 +183,7 @@
  },
  "floor-press": {
   "group": "Brust/Trizeps",
+  "tier": 1,
   "dbEquip": "Kurzhanteln",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Rücken am Boden, Oberarme setzen kurz ab. Schont die Schulter, betont den Trizeps-Lockout.",
@@ -201,6 +209,7 @@
  },
  "einarmiges-kh-rudern": {
   "group": "Rücken",
+  "tier": 1,
   "dbEquip": "Kurzhantel",
   "bwEquip": "Niedrige Stange/Tisch",
   "dbCue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen.",
@@ -228,6 +237,7 @@
  },
  "chin-ups": {
   "group": "Rücken/Bizeps",
+  "tier": 1,
   "dbEquip": "Klimmzugstange",
   "bwEquip": "Klimmzugstange",
   "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen.",
@@ -255,6 +265,7 @@
  },
  "reverse-fly": {
   "group": "Schulter (hinten)",
+  "tier": 3,
   "dbEquip": "Kurzhanteln",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
@@ -278,6 +289,7 @@
  },
  "sitzendes-seitheben": {
   "group": "Schulter",
+  "tier": 3,
   "dbEquip": "Kurzhanteln",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
@@ -302,6 +314,7 @@
  },
  "liegende-trizepsstrecker": {
   "group": "Trizeps",
+  "tier": 3,
   "dbEquip": "Kurzhanteln/SZ",
   "bwEquip": "Niedrige Stange",
   "dbCue": "Rücken am Boden/Bank, Oberarme fixiert. Nur im Ellenbogen beugen, Gewicht Richtung Stirn senken.",
@@ -324,6 +337,7 @@
  },
  "sz-curls": {
   "group": "Bizeps",
+  "tier": 3,
   "dbEquip": "SZ-Stange",
   "bwEquip": "Klimmzugstange",
   "dbCue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung.",
@@ -347,6 +361,7 @@
  },
  "gewichtete-crunches": {
   "group": "Bauch",
+  "tier": 4,
   "dbEquip": "Zusatzgewicht",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
@@ -368,6 +383,7 @@
  },
  "einbeiniges-stehendes-wadenheben": {
   "group": "Waden",
+  "tier": 4,
   "dbEquip": "Kurzhantel",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten.",
@@ -389,6 +405,7 @@
  },
  "wadenheben-gebeugtes-knie": {
   "group": "Waden (Soleus)",
+  "tier": 4,
   "dbEquip": "Kurzhantel",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
@@ -407,5 +424,124 @@
    "calves": 1.0
   },
   "equip": "onehand"
+ },
+ "sitzendes-schulterdruecken": {
+  "group": "Schulter",
+  "tier": 1,
+  "name": "Sitzendes Schulterdrücken",
+  "reps": "6–12",
+  "bwName": "Füße-erhöhte Pike Push-ups",
+  "bwReps": "5–12",
+  "dbEquip": "Kurzhanteln",
+  "bwEquip": "Erhöhung",
+  "dbCue": "Aufrecht sitzen, Rippen unten lassen. Hanteln von Schulterhöhe senkrecht nach oben, Ellenbogen leicht vor der Schulterachse. Oben nicht in den Rücken ausweichen.",
+  "bwCue": "Füße auf eine Erhöhung, Hüfte hoch, Scheitel Richtung Boden. Je höher die Füße, desto mehr Last auf der Schulter.",
+  "dbRest": 120,
+  "bwRest": 120,
+  "dbWeight": 10,
+  "dbStep": 2,
+  "weightNote": "je Hand",
+  "dbPattern": "ohp",
+  "dbShares": {
+   "delts": 1.0,
+   "triceps": 0.6,
+   "traps": 0.3
+  },
+  "bwPattern": "pike",
+  "bwShares": {
+   "delts": 1.0,
+   "triceps": 0.65,
+   "chest": 0.3,
+   "traps": 0.25
+  },
+  "equip": "dumbbells"
+ },
+ "rumaenisches-kreuzheben": {
+  "group": "Beine",
+  "tier": 1,
+  "name": "Rumänisches Kreuzheben",
+  "reps": "8–12",
+  "bwName": "Einbeiniges Kreuzheben (Standwaage)",
+  "bwReps": "8–15 je Bein",
+  "dbEquip": "Kurzhanteln",
+  "bwEquip": "Ohne Gerät",
+  "dbCue": "Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Hanteln nah am Bein. Nicht tiefer als die Dehnung erlaubt.",
+  "bwCue": "Auf einem Bein, das freie Bein wandert nach hinten, bis Rumpf und Bein eine Linie bilden. Hüfte gerade halten, nicht zur Seite kippen.",
+  "dbRest": 120,
+  "bwRest": 90,
+  "dbWeight": 12,
+  "dbStep": 2,
+  "weightNote": "je Hand",
+  "dbPattern": "hinge",
+  "dbShares": {
+   "hamstrings": 1.0,
+   "glutes": 0.7,
+   "abs": 0.2
+  },
+  "bwPattern": "hinge1",
+  "bwShares": {
+   "hamstrings": 1.0,
+   "glutes": 0.75,
+   "abs": 0.3
+  },
+  "equip": "dumbbells"
+ },
+ "split-squat": {
+  "group": "Beine",
+  "tier": 1,
+  "name": "Split Squat",
+  "reps": "8–12 je Bein",
+  "bwName": "Split Squat ohne Gewicht",
+  "bwReps": "12–20 je Bein",
+  "dbEquip": "Kurzhanteln",
+  "bwEquip": "Ohne Gerät",
+  "dbCue": "Ein Bein weit vorn, das hintere Knie senkt sich Richtung Boden. Rumpf aufrecht, das Gewicht auf der ganzen vorderen Fußsohle. Hinteren Fuß erhöhen macht es schwerer.",
+  "bwCue": "Gleiche Stellung ohne Gewicht, dafür langsam: drei Sekunden ablassen, unten kurz halten.",
+  "dbRest": 120,
+  "bwRest": 90,
+  "dbWeight": 10,
+  "dbStep": 2,
+  "weightNote": "je Hand",
+  "dbPattern": "splitsquat",
+  "dbShares": {
+   "quads": 1.0,
+   "glutes": 0.8,
+   "hamstrings": 0.3,
+   "abs": 0.25
+  },
+  "bwPattern": "splitsquat",
+  "bwShares": {
+   "quads": 1.0,
+   "glutes": 0.8,
+   "hamstrings": 0.3,
+   "abs": 0.25
+  },
+  "equip": "dumbbells"
+ },
+ "haengendes-knieheben": {
+  "group": "Bauch",
+  "tier": 3,
+  "name": "Hängendes Knieheben",
+  "reps": "8–15",
+  "bwName": "Hängendes Knieheben",
+  "bwReps": "8–15",
+  "dbEquip": "Klimmzugstange",
+  "bwEquip": "Klimmzugstange",
+  "dbCue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit.",
+  "bwCue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit.",
+  "dbRest": 60,
+  "bwRest": 60,
+  "dbWeight": null,
+  "dbStep": null,
+  "weightNote": null,
+  "dbPattern": "kneeraise",
+  "dbShares": {
+   "abs": 1.0
+  },
+  "bwPattern": "kneeraise",
+  "bwShares": {
+   "abs": 1.0
+  },
+  "equip": null
  }
 }

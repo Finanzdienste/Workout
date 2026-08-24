@@ -394,18 +394,24 @@ Das Ziel ist **nicht überall dieselbe Zahl**. Es steht als `TARGET` in
 und keine Gruppe geht über die Obergrenze `CAP` von 10 Sätzen pro Woche,
 indirekte Anteile eingerechnet.
 
-**Vier Einheiten pro Woche**, feste Wochentage: Montag, Mittwoch, Donnerstag,
-Samstag. Vier Termine in sieben Tagen heißen zwangsläufig einmal zwei Tage
-hintereinander – das ist der Mittwoch/Donnerstag. 80 Einheiten in 20 Wochen,
-vom 20.08.2026 bis zum 06.01.2027.
+**Vier Einheiten pro Woche**, feste Wochentage: **Montag, Mittwoch, Freitag,
+Samstag**. Die stehen als `DAYS` in `tools/build-plan.py` – vorher ergaben sie
+sich aus dem Startdatum der Excel, das war ein Nebenprodukt statt einer
+Entscheidung. Vier Termine in sieben Tagen heißen zwangsläufig einmal zwei
+Tage hintereinander; hier liegt das auf Freitag/Samstag, der Sonntag bleibt
+frei. 80 Einheiten in 20 Wochen, vom 24.08.2026 bis zum 09.01.2027.
 
 | Gruppe | Ziel | Schnitt | einzelne Woche |
 | --- | --- | --- | --- |
-| Brust, Rücken, Schultern, hintere Schulter, Bizeps, Trizeps, Bauch | 10 | **exakt** | 9,25–10,95 |
-| Gesäß | 8 | **exakt** | 7,5–8,5 |
-| Oberschenkel, Beinbeuger | 6 | **exakt** | 5,1–6,8 |
+| Brust, Rücken, Schultern, hintere Schulter, Bizeps, Trizeps, Bauch | 10 | **exakt** | 9,2–10,9 |
+| Gesäß | 8 | **exakt** | 7,7–8,5 |
+| Oberschenkel, Beinbeuger | 6 | **exakt** | 5,4–6,6 |
 | Waden | 4 | **exakt** | immer genau 4,0 |
-| Nacken | *Ergebnis* | 9,65 | 9,4–10,0 |
+| Nacken | *Ergebnis* | 9,645 | 9,4–10,0 |
+
+Welche Gruppen ein Ziel haben und welche bloß herausfallen, steht als
+`DERIVED` in den erzeugten Daten – „exakt getroffen" darf niemand für eine
+Gruppe behaupten, die gar nicht gesetzt wurde.
 
 In keiner der 20 Wochen liegt eine Gruppe einen ganzen Satz daneben; 0,95 ist
 das Schlimmste, was vorkommt.
@@ -430,10 +436,9 @@ kostet nichts und bringt viel: **ohne diese eine Gleichung hat der
 Oberkörper-Block 2431 exakte Lösungen statt 16**, und unter denen liegt eine
 deutlich bessere.
 
-**Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, und **so wenige
-verschiedene Übungen je Einheit wie möglich**: 6 bis 8, im Mittel 6,6. Das sind
-14 bis 18 Sätze und geschätzte 30 bis 42 Minuten – zwei Sätze und rund fünf
-Minuten weniger als mit flachen 10 überall.
+**Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, höchstens acht
+pro Woche, und **so wenige verschiedene Übungen je Einheit wie möglich**: 6 bis
+7, im Mittel 6,6. Das sind 13 bis 17 Sätze und geschätzte 26 bis 47 Minuten.
 
 Die Länge einer Einheit ergibt sich fast vollständig aus den Zielen: ihre Summe
 über zwölf Gruppen, abzüglich der Überschneidung (ein Goblet Squat zahlt
@@ -609,6 +614,54 @@ weil die Liste durch dasselbe `exOf()` läuft wie überall sonst.
 nacheinander nachgetragen werden. Die Kachel zeigt dann „+1", und aufgeklappt
 stehen beide untereinander. Eine Map von Datum auf *eine* Einheit hätte die
 zweite still verschluckt.
+
+## Übungsvorrat
+
+**21 Übungen.** Die ursprünglichen 17 aus der Excel deckten die
+Bewegungsmuster nicht vollständig ab – vier Lücken, die keine Rechnung
+schließen kann, weil die Übung schlicht fehlte:
+
+| Neu | Schließt |
+| --- | --- |
+| **Sitzendes Schulterdrücken** | Es gab kein Überkopfdrücken. Die Schulter hing an Seitheben, und das ist mit 8 kg irgendwann am Ende – ein Drücken lässt sich progressiv laden. |
+| **Rumänisches Kreuzheben** | Der Beinbeuger kam ausschließlich aus Kniebeugung (Leg Curl). Die Hüftstreck-Funktion, die größere Hälfte, wurde nie trainiert. |
+| **Split Squat** | Der Goblet Squat ist ab einem gewissen Punkt durch das *Halten* der Hantel begrenzt, nicht durch die Beine. Einbeinig fällt diese Grenze weg. |
+| **Hängendes Knieheben** | Der Bauch bestand aus Crunches, also nur Beugen. Jetzt kommt der Zug von unten dazu – und der Bauch hat 7,0 direkte Sätze statt 3,6. |
+
+Die vier stehen **nicht in der Excel**. Die bleibt Quelle des ursprünglichen
+Plans; was später dazukommt, steht vollständig in `tools/exercise-meta.json` –
+mit Name, Wiederholungen und Bodyweight-Äquivalent. `tools/build-data.py`
+nimmt beides.
+
+**Was das gekostet hat, war lehrreich.** Zwei Fallen auf einmal:
+
+1. **Ein Anteil an der falschen Stelle legt die Rechnung lahm.** Mein
+   Kreuzheben hatte anfangs `traps: 0.25` und `lats: 0.2` für den isometrischen
+   Halt. Damit hängen Bein- und Oberkörperblock über eine gemeinsame Gruppe
+   zusammen – aus drei kleinen Gleichungssystemen wird eines mit 19 Unbekannten,
+   und die Tiefensuche lief nach 26 Minuten noch. Ohne die beiden Anteile
+   zerfällt es wieder in 9 + 10 + 2 Übungen und ist in Sekunden gelöst. Die
+   Anteile waren ohnehin großzügig: ein Halten ist kein Rückentraining.
+2. **Mehr Übungen heißt ein größerer Lösungsraum – und der braucht Führung.**
+   Mit 21 Übungen sind die ersten 4000 gefundenen Lösungen keine Auswahl mehr,
+   sondern Zufall. Heraus kam eine, die rechnerisch exakt stimmte und als Plan
+   unbrauchbar war: Chin-ups am Anschlag mit 10 Sätzen pro Woche, **Rudern
+   komplett bei null**. Zwei Zeilen haben das behoben – `PER_EX_WEEK = (1, 8)`
+   begrenzt, was eine Übung pro Woche tragen darf, und die Suche probiert Werte
+   in der Nähe eines ausgewogenen Anteils zuerst statt in zufälliger
+   Reihenfolge. Jetzt kommt jede der 21 Übungen mit 1,1 bis 7,9 Sätzen vor.
+
+### Reihenfolge in der Einheit
+
+Sortiert wird nach `tier` aus `tools/exercise-meta.json`: 1 schwer
+mehrgelenkig, 2 mehrgelenkig, 3 Isolation, 4 Bauch und Waden. Innerhalb einer
+Stufe kommt zuerst, was auf das höchste Wochenziel einzahlt – die Prioritäten
+stehen damit an genau einer Stelle, in `TARGET`.
+
+Vorher entschied die Summe aller Muskelanteile, eine Hilfsgröße, die meistens
+stimmte und manchmal daneben lag: der Hip Thrust (1,50) landete hinter dem
+Reverse Fly (1,60) – eine schwere Hüftstreckung also hinter einer
+Schulter-Isolation.
 
 ## Verletzungen
 

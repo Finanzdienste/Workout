@@ -1050,7 +1050,10 @@ function roundToStep(kg, step) {
 
 function warmupCard(items, n, mode) {
   if (!items.length) return '';
-  const erste = items[0];
+  // Angerampt wird die erste Übung, die überhaupt ein Gewicht hat. Steht vorn
+  // eine ohne Zusatzlast – Chin-ups etwa –, gäbe es sonst nichts zu rechnen,
+  // obwohl gleich danach eine schwere Hantelübung kommt.
+  const erste = (mode === 'db' && items.find((x) => x.weight !== null)) || items[0];
   const kg = mode === 'db' && erste.weight !== null ? usedWeight(n, mode, erste.id) : null;
   const step = stepOf(erste.id);
   const offen = ui.openEx.has('__warmup');

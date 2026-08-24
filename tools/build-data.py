@@ -123,15 +123,41 @@ def main():
 
         plan.append({'n': len(plan) + 1, 'date': date, 'ex': items})
 
+    # Übungen, die nicht in der Excel stehen. Die Excel ist die Quelle für den
+    # ursprünglichen Plan; was später dazukommt, um eine Lücke im Bewegungs-
+    # repertoire zu schließen, braucht keine Tabellenzeile – es braucht Name,
+    # Wiederholungen und ein Bodyweight-Äquivalent, und die stehen dann
+    # vollständig in exercise-meta.json.
+    for key, m in meta.items():
+        if key in catalog or 'name' not in m:
+            continue
+        catalog[key] = {
+            'id': key,
+            'group': m['group'],
+            'weight': m['dbWeight'],
+            'step': m['dbStep'],
+            'weightNote': m['weightNote'],
+            'equip': m['equip'],
+            'db': {'name': m['name'], 'reps': m['reps'], 'equip': m['dbEquip'],
+                   'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],
+                   'shares': m['dbShares'], 'muscles': muscles(m['dbShares'])},
+            'bw': {'name': m['bwName'], 'reps': m['bwReps'], 'equip': m['bwEquip'],
+                   'cue': m['bwCue'], 'rest': m['bwRest'], 'pattern': m['bwPattern'],
+                   'shares': m['bwShares'], 'muscles': muscles(m['bwShares'])},
+        }
+        print(f'{key}: nicht in der Excel, aus exercise-meta.json übernommen')
+
+
     # Der Trainingsplan darf komplett aus tools/plan.json kommen: Termine,
     # Auswahl und Satzzahlen. Die Excel bleibt Quelle für die Übungen selbst –
     # Namen, Wiederholungen, Hinweise und das Bodyweight-Äquivalent. Datei
     # löschen und neu generieren stellt den Originalplan wieder her.
     # Ohne plan.json gilt das alte, gleichmäßige Ziel für jede Gruppe.
-    target, rest = {}, dict(DEFAULT_REST)
+    target, derived, rest = {}, [], dict(DEFAULT_REST)
     if PLAN_OVERRIDE.exists():
         override = json.loads(PLAN_OVERRIDE.read_text(encoding='utf-8'))
         target = override['target']
+        derived = override.get('derived', [])
         rest = override.get('rest', rest)
         fresh, prev = [], None
         for o in override['plan']:
@@ -160,6 +186,8 @@ def main():
         "export const EXERCISES = " + json.dumps(list(catalog.values()), ensure_ascii=False, indent=2) + ";\n\n"
         "// Saetze je Muskelgruppe und Woche, auf die der Plan gerechnet ist.\n"
         "export const TARGET = " + json.dumps(target, ensure_ascii=False) + ";\n\n"
+        "// Gruppen ohne eigenes Ziel: ihr Wert faellt aus den uebrigen Gleichungen.\n"
+        "export const DERIVED = " + json.dumps(derived, ensure_ascii=False) + ";\n\n"
         "// Erholung: Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,\n"
         "// und ab welchem Anteil eine Uebung als direkt fuer die Gruppe gilt.\n"
         "export const REST = " + json.dumps(rest, ensure_ascii=False) + ";\n\n"

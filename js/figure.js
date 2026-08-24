@@ -222,6 +222,52 @@ export const PATTERNS = {
       { lean: 126, arm: A(112, 30, 76), leg: L(-30, 6, 10) },
     ],
   },
+  ohp: {
+    // Sitzend aus der Ablage senkrecht nach oben. Die Abspreizung bleibt unter
+    // 90°, weil der Ellenbogen nur in der Längsebene beugt – ganz zur Seite
+    // abgespreizt wäre von der Beugung nichts zu sehen.
+    label: 'Schulterdrücken', seat: true,
+    poses: [
+      { lean: 4, arm: A(10, 58, 104), leg: L(88, 8, 92) },
+      { lean: 4, arm: A(6, 166, 8), leg: L(88, 8, 92) },
+    ],
+  },
+  hinge: {
+    // Hüftbeuge: die Knie bleiben fast gestreckt, der Rumpf kippt nach vorn.
+    // Die Arme hängen dabei lotrecht – dafür muss arm.p der Rumpfneigung
+    // folgen (-p + lean = 0), sonst schwingen die Hanteln nach vorn weg.
+    label: 'Hüftbeuge', view: [24, -6],
+    poses: [
+      { lean: 6, arm: A(6, 9, 4), leg: L(2, 5, 6) },
+      { lean: 70, arm: A(70, 9, 4), leg: L(8, 5, 16) },
+    ],
+  },
+  hinge1: {
+    // Einbeinig: das freie Bein steigt nach hinten, bis Rumpf und Bein eine
+    // Linie bilden. stance nennt das Standbein.
+    label: 'Hüftbeuge einbeinig', stance: 'R', view: [38, -6],
+    poses: [
+      { lean: 6, arm: A(6, 9, 4), legR: L(2, 5, 6), legL: L(-6, 7, 14) },
+      { lean: 76, arm: A(76, 9, 4), legR: L(6, 5, 14), legL: L(-74, 7, 10) },
+    ],
+  },
+  splitsquat: {
+    // Ein Bein vorn, eines hinten, beide Knie beugen. Der Rumpf bleibt
+    // aufrecht – kippt er mit, wird daraus optisch eine Kniebeuge.
+    label: 'Ausfallschritt', view: [42, -6],
+    poses: [
+      { lean: 5, arm: A(5, 9, 4), legR: L(16, 6, 12), legL: L(-18, 7, 26) },
+      { lean: 9, arm: A(9, 9, 4), legR: L(62, 6, 74), legL: L(-30, 7, 106) },
+    ],
+  },
+  kneeraise: {
+    // An der Stange hängend: nur die Beine arbeiten, die Arme bleiben oben.
+    label: 'Knieheben', anchor: 'bar', bar: true, float: true,
+    poses: [
+      { arm: A(184, 17, 6), leg: L(4, 6, 14) },
+      { arm: A(184, 17, 6), leg: L(96, 6, 108) },
+    ],
+  },
   curl: {
     label: 'Bizeps-Curl',
     poses: [
@@ -868,7 +914,8 @@ function tempo(u, effortAt1) {
 
 // Muster, bei denen Stellung 1 das Ende des Ablassens ist, nicht die
 // Anstrengung: dort läuft das Tempo andersherum.
-const LOWER_TO_1 = ['squat', 'squatbw', 'pushup', 'pushupfeet', 'pike', 'tricepsbar'];
+const LOWER_TO_1 = ['squat', 'squatbw', 'pushup', 'pushupfeet', 'pike', 'tricepsbar',
+  'hinge', 'hinge1', 'splitsquat'];
 
 const reduceMotion = window.matchMedia
   ? window.matchMedia('(prefers-reduced-motion: reduce)')

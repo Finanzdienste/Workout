@@ -92,10 +92,26 @@ TARGET = {
 CAP = 10                 # keine Gruppe darüber, indirekte Anteile eingerechnet
 DIRECT = 0.5             # ab diesem Anteil gilt eine Übung als direkt für die Gruppe
 REST_DAYS = 2            # so viele Tage Abstand, bevor eine Gruppe wieder direkt drankommt
-WEEK = 4                 # Einheiten je Woche
+
+# Trainingstage als Wochentage, 0 = Montag. Vorher ergaben sich die Termine aus
+# dem Startdatum der Excel und einem gleichmäßigen Rhythmus – das war ein
+# Nebenprodukt, keine Entscheidung. Hier steht sie ausdrücklich: Montag,
+# Mittwoch, Freitag, Samstag. Der Ein-Tages-Abstand liegt damit auf Fr/Sa, der
+# Sonntag bleibt frei. Wer anders kann, ändert die Zeile; die Erholungsregel
+# rechnet mit den tatsächlichen Abständen und passt sich von selbst an.
+DAYS = (0, 2, 4, 5)
+WEEK = len(DAYS)         # Einheiten je Woche
 WEEKS = 20               # Wochen im Plan – muss gerade sein, siehe oben
 PER_SET = (2, 3)         # Sätze je Auftritt einer Übung
 PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
+
+# Sätze je Übung und Woche, wenn sie überhaupt vorkommt. Ohne diese Schranken
+# wählt die Suche gern Extreme: bei 21 Übungen kam eine Lösung heraus, in der
+# Chin-ups mit 10 Sätzen pro Woche am Anschlag standen und das Rudern
+# vollständig verschwand – rechnerisch exakt und als Plan unbrauchbar. Nach
+# oben begrenzt heißt: keine Übung trägt eine Gruppe allein; nach unten: wer
+# vorkommt, kommt regelmäßig vor.
+PER_EX_WEEK = (1, 8)
 EXACT_LIMIT = 4000       # so viele Plansummen je Block reichen zur Auswahl
 SCREEN = 50              # davon werden die besten probeweise verteilt
 SCREEN_RESTARTS = 2      # Anläufe je Probe
@@ -126,22 +142,24 @@ LABEL = {
 def dates(weeks):
     """Trainingstermine erzeugen: `weeks` Wochen à WEEK Einheiten.
 
-    Der erste Termin kommt aus der Excel, der Rhythmus aus WEEK: die sieben
-    Tage einer Woche werden so gleichmäßig wie möglich auf die Abstände
-    verteilt. Bei drei Einheiten sind das 3-2-2, bei vier 2-2-2-1 – vier
-    Einheiten in sieben Tagen heißen zwangsläufig einmal zwei Tage
-    hintereinander. Die Wochentage bleiben dabei fest, weil sich die Abstände
-    zu genau sieben Tagen addieren.
+    Die Wochentage stehen in DAYS. Losgelegt wird am ersten dieser Tage ab dem
+    Startdatum der Excel – und zwar am *ersten* aus DAYS, damit jede Woche
+    vollständig ist: die Volumenrechnung fasst je WEEK aufeinanderfolgende
+    Einheiten zu einer Woche zusammen, und eine angebrochene erste Woche würde
+    diese Blöcke gegen den Kalender verschieben.
     """
     src = DATA.read_text(encoding='utf-8')
     plan = json.loads(re.search(r'export const PLAN = ([\s\S]*?);\n?$', src).group(1))
     start = datetime.date.fromisoformat(plan[0]['date'])
 
-    base, extra = divmod(7, WEEK)
-    gaps = [base + 1] * extra + [base] * (WEEK - extra)
-    day = [start]
-    while len(day) < weeks * WEEK:
-        day.append(day[-1] + datetime.timedelta(days=gaps[(len(day) - 1) % WEEK]))
+    tage = sorted(DAYS)
+    first = start
+    while first.weekday() != tage[0]:
+        first += datetime.timedelta(days=1)
+    day = []
+    for w in range(weeks):
+        for d in tage:
+            day.append(first + datetime.timedelta(days=7 * w + d - tage[0]))
     return day
 
 
@@ -227,6 +245,7 @@ def exact(block, shares, weeks, values, limit, rnd):
     eqs = [(GOAL[m] * weeks, [(i, round(shares[i][m] * UNIT)) for i in block if shares[i].get(m)])
            for m in groups]
     allowed = set(values)
+    fair = PER_SET[1] * weeks     # drei Sätze pro Woche als neutraler Anker
     out = []
 
     def rec(val):
@@ -263,8 +282,12 @@ def exact(block, shares, weeks, values, limit, rnd):
         tight = min((eq for _, eq in eqs if sum(1 for i, _ in eq if i not in val) > 1),
                     key=lambda eq: sum(1 for i, _ in eq if i not in val), default=None)
         pick = next(i for i, _ in tight if i not in val) if tight else rest_ex[0]
-        order = list(values)
-        rnd.shuffle(order)
+        # Erst die Werte nahe an einem ausgewogenen Anteil, dann die Ränder.
+        # Die Tiefensuche findet ohnehin nur so viele Lösungen, wie das Limit
+        # zulässt – dann sollen es die brauchbaren sein und nicht die, die
+        # zufällig zuerst kommen. Der Zufall bleibt als Tiebreak, damit
+        # verschiedene Läufe verschiedene Lösungen sehen.
+        order = sorted(values, key=lambda v: (abs(v - fair), rnd.random()))
         for v in order:
             if len(out) >= limit:
                 return
@@ -291,7 +314,7 @@ def totals(ids, shares, groups, weeks, rnd):
     Die Blöcke hängen über keine Gruppe zusammen, also lässt sich das je Block
     getrennt beurteilen.
     """
-    values = [0] + list(range(2, PER_WEEK * weeks + 1))
+    values = [0] + list(range(PER_EX_WEEK[0] * weeks, PER_EX_WEEK[1] * weeks + 1))
     total, variants = {}, []
     for block in parts(ids, shares, groups):
         found = exact(block, shares, weeks, values, EXACT_LIMIT, rnd)
@@ -667,7 +690,16 @@ def main():
     shares = {k: v['dbShares'] for k, v in meta.items()}
     ids = list(shares)
     groups = sorted({m for sh in shares.values() for m in sh})
-    weight = {i: sum(shares[i].values()) for i in ids}   # große Übungen zuerst
+    # Reihenfolge in der Einheit. Vorher war es die Summe aller Muskelanteile –
+    # eine Hilfsgröße, die meistens stimmte und manchmal daneben lag: der Hip
+    # Thrust (1,50) landete hinter dem Reverse Fly (1,60), eine schwere
+    # Hüftstreckung also hinter einer Schulter-Isolation. Jetzt steht die
+    # Einordnung als `tier` in exercise-meta.json, und innerhalb einer Stufe
+    # kommt zuerst, was auf die höchsten Wochenziele einzahlt – die Prioritäten
+    # stehen damit an genau einer Stelle, in TARGET.
+    def rang(ex):
+        ziele = [TARGET.get(m) or 0 for m, v in shares[ex].items() if v >= DIRECT]
+        return (meta[ex]['tier'], -max(ziele or [0]), -sum(shares[ex].values()), ex)
 
     weeks = WEEKS + WEEKS % 2                            # exakt geht nur geradzahlig
     day = dates(weeks)
@@ -718,7 +750,7 @@ def main():
         offen += 1 if konflikte else 0
         prev = frozenset(direkt[-1])
         for d, sess in zip(block, sess_list):
-            sess.sort(key=lambda x: -weight[x[0]])
+            sess.sort(key=lambda x: rang(x[0]))
             plan.append({'date': d.isoformat(), 'ex': [{'id': e, 'sets': s} for e, s in sess]})
 
     # ---- Bericht ----
@@ -784,12 +816,16 @@ def main():
     # Nachkommastellen sind dabei nicht gerundet, sondern exakt: der Wert ist
     # ein Vielfaches von 0,05.
     ziele = {m: TARGET[m] if TARGET.get(m) is not None
-             else round(sum(v[groups.index(m)] for v in got) / weeks / UNIT, 2)
+             else round(sum(v[groups.index(m)] for v in got) / weeks / UNIT, 4)
              for m in groups}
+    # Welche davon Ziel sind und welche bloß Ergebnis, steht ausdrücklich dabei:
+    # der Nacken lässt sich nicht setzen, und "exakt getroffen" darf für ihn
+    # niemand behaupten – sein Wert ist, was aus den anderen Gleichungen fällt.
+    ergebnis = sorted(m for m in groups if TARGET.get(m) is None)
     # Die Erholungsregel wandert ebenfalls mit: die App tauscht bei
     # Verletzungen Übungen aus und muss dabei dieselbe Schwelle einhalten wie
     # der Generator, sonst steht die Gruppe doch zweimal in 48 Stunden.
-    OUT.write_text(json.dumps({'target': ziele, 'cap': CAP,
+    OUT.write_text(json.dumps({'target': ziele, 'derived': ergebnis, 'cap': CAP,
                                'rest': {'days': REST_DAYS, 'direct': DIRECT},
                                'plan': plan},
                               ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
