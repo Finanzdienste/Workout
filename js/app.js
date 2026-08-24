@@ -5,6 +5,7 @@ import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
 import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, applyInjuries, blocked, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
 import { sparkPanel } from './chart.js';
+import { buildICS } from './ics.js';
 
 /* ------------------------------------------------------------------ *
  * Hilfsfunktionen
@@ -255,6 +256,35 @@ function downloadBackup() {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   store.markBackup(doneCount());
   toast('Gesichert – falls kein Download kam: Text in „Mehr“ kopieren');
+}
+
+/**
+ * Trainingstermine als Kalenderdatei.
+ *
+ * Geschrieben werden die *tatsächlichen* Termine – verschobene inbegriffen –
+ * mit fester Kennung je Workout. Wird die Datei nach einer Verschiebung erneut
+ * eingelesen, wandern dieselben Termine mit, statt sich zu verdoppeln.
+ */
+function downloadICS() {
+  const stand = store.markIcs();
+  const text = buildICS(
+    PLAN.map((w) => ({ n: w.n, date: effDate(w) })),
+    (w) => exOf(workoutByNo(w.n)).map((it) => resolve(it, store.workoutMode(w.n))),
+    { hour: 18, seq: stand.seq },
+  );
+  const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `workout-termine-${todayISO()}.ics`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('Kalenderdatei erstellt – in Google Kalender importieren');
+}
+
+/** Stimmen die Termine im Kalender noch, oder hat sich der Plan seither verschoben? */
+function icsStale() {
+  const s = store.getState();
+  return !!s.lastIcs && s.lastIcs.shift !== s.shift;
 }
 
 /** Zahl der abgeschlossenen Einheiten in dieser Runde. */
@@ -1812,6 +1842,30 @@ function renderSettings() {
       </div>
     </div>
 
+    <div class="section-title">Kalender</div>
+    <div class="card">
+      <div class="small muted">Alle Trainingstermine als Kalenderdatei, jeweils um 18 Uhr,
+        mit den Übungen des Tages in der Beschreibung. In Google Kalender über
+        <i>Einstellungen → Importieren</i> einlesen.</div>
+      ${icsStale() ? `<div class="hint" style="color:var(--accent);margin-top:8px">
+        Der Plan hat sich seit dem letzten Export um
+        ${esc(plural(Math.abs(store.getState().shift - store.getState().lastIcs.shift), 'Tag', 'Tage'))}
+        verschoben – Datei neu erzeugen und noch einmal importieren, dann wandern
+        die Termine mit.</div>` : ''}
+      <div class="btn-row">
+        <button type="button" class="btn" data-act="download-ics">Kalenderdatei (.ics)</button>
+      </div>
+      <div class="small muted" style="margin-top:8px">
+        ${(() => {
+          const i = store.getState().lastIcs;
+          return i ? `Zuletzt erzeugt am ${esc(fmtDate(i.on))}.`
+                   : 'Noch nie erzeugt.';
+        })()}
+        Jeder Termin behält seine Kennung: ein erneuter Import verschiebt die
+        vorhandenen Einträge, statt neue anzulegen.
+      </div>
+    </div>
+
     <div class="section-title">Daten</div>
     <div class="card">
       <div class="small muted">Alles liegt lokal im Browser – Android räumt den bei Platzmangel weg.
@@ -2271,6 +2325,10 @@ view.addEventListener('click', (e) => {
       toast('Export erzeugt – kopieren und sicher ablegen.');
       break;
     }
+    case 'download-ics':
+      downloadICS();
+      render();
+      break;
     case 'download':
       downloadBackup();
       break;

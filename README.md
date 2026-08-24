@@ -15,7 +15,7 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 | **Kalender** | Monatsraster mit den tatsächlichen Terminen: was trainiert ist, was ansteht, was ausgefallen ist – je Tag mit Modus. Tippen zeigt die Übungen der Einheit. |
 | **Statistik** | Kennzahlen, nächste Einheit, **Wochenvolumen Soll gegen Ist**, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
 | **Verletzt** | Verletzungen und Beschwerden anhaken. Betroffene Übungen fallen aus dem Plan oder werden getauscht – dauerhaft, bis der Haken weg ist. |
-| **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, Export/Import als JSON, Backup-Datei, Alles löschen. |
+| **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, **Kalenderdatei für Google Kalender**, Export/Import als JSON, Backup-Datei, Alles löschen. |
 
 ## Drei Ebenen
 
@@ -649,6 +649,39 @@ nacheinander nachgetragen werden. Die Kachel zeigt dann „+1", und aufgeklappt
 stehen beide untereinander. Eine Map von Datum auf *eine* Einheit hätte die
 zweite still verschluckt.
 
+### In den Google-Kalender
+
+*Mehr → Kalender → Kalenderdatei (.ics)* schreibt **alle 80 Termine** in eine
+Datei, jeweils um **18:00** am tatsächlichen Trainingstag. In der
+Google-Kalender-App: *Einstellungen → Importieren* bzw. am Rechner
+[calendar.google.com/calendar/u/0/r/settings/export](https://calendar.google.com/calendar/u/0/r/settings/export)
+→ *Importieren*. Der Titel nennt Nummer, Anzahl Übungen und Sätze, die
+Beschreibung listet die Übungen in der Variante, in der trainiert wird
+(Hanteln oder Bodyweight, samt Verletzungs-Ersatz). Die Dauer ist gerechnet,
+nicht geraten: Arbeitszeit je Satz plus die Pausen *zwischen* den Sätzen plus
+Umbauzeit, auf fünf Minuten aufgerundet.
+
+**Verschiebt sich der Plan, wandern die Termine mit** – aber nicht von selbst.
+Die App spricht mit keinem Server und kennt kein Google-Konto; automatisch
+schreiben hieße OAuth, ein Google-Cloud-Projekt und eine Netzverbindung, also
+genau die drei Dinge, die diese App bewusst nicht hat. Stattdessen trägt jeder
+Termin eine **feste Kennung** aus seiner Workout-Nummer
+(`workout-7@finanzdienste.github.io`). Wird die Datei nach einer Verschiebung
+neu erzeugt und noch einmal importiert, erkennt der Kalender dieselben Termine
+wieder und **verschiebt sie**, statt achtzig neue danebenzulegen. Damit die
+neue Fassung gewinnt, zählt `SEQUENCE` bei jedem Export hoch – ohne das
+behält der Kalender stur den alten Stand.
+
+Daran erinnert die App von sich aus: Steht der Plan nicht mehr dort, wo er beim
+letzten Export stand, erscheint in der Kalender-Karte der Hinweis „Der Plan hat
+sich seit dem letzten Export um *n* Tage verschoben". Ein Tipp auf den Knopf,
+ein Import, und die Termine stimmen wieder.
+
+Die Uhrzeit steht **ohne Zeitzone** in der Datei („floating"): 18:00 heißt
+18:00 im Kalender des Geräts, im Sommer wie im Winter. Mit fester Zeitzone
+müsste eine `VTIMEZONE`-Tabelle mitreisen, die zur nächsten Zeitumstellung
+falsch wäre.
+
 ## Übungsvorrat
 
 **22 Übungen.** Die ursprünglichen 17 aus der Excel deckten die
@@ -965,12 +998,16 @@ js/app.js               Rendering der fünf Tabs und Event-Handling
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
 js/chart.js             Verlaufskarten für die Statistik
+js/ics.js               Trainingstermine als Kalenderdatei (.ics)
 sw.js                   Service Worker für den Offline-Betrieb
 manifest.webmanifest    Installierbar als App auf dem Homescreen
+icon.svg                Quelle des Symbols
+icon-192/512/maskable   Erzeugt: dieselben Symbole als PNG für den Launcher
 data/…xlsx              Quelle des Plans
 tools/build-data.py     Generator: Excel + Hinweise -> js/data.js
 tools/exercise-meta.json  Muskelgruppe, Equipment und Ausführungshinweise je Übung
 tools/build-plan.py     Generator: Ziele je Muskelgruppe -> tools/plan.json
+tools/build-icons.mjs   Generator: icon.svg -> die drei PNGs
 tools/build-single.py   Bündelt alles zu dist/workout.html
 dist/workout.html       Erzeugt: die App als eine portable Datei
 ```
@@ -1004,6 +1041,34 @@ Zwischenspeicher und werden im Hintergrund erneuert.
 Wichtig beim Ändern: `VERSION` in `sw.js` hochzählen, wenn Dateien aus der
 Liste `SHELL` dazukommen oder wegfallen – daran hängt das Aufräumen alter
 Zwischenspeicher.
+
+### Das Symbol auf dem Startbildschirm
+
+Die Quelle ist `icon.svg`, ausgeliefert werden zusätzlich drei PNGs. Nicht aus
+Nostalgie: **Firefox für Android nimmt für die Verknüpfung kein SVG.** Dort
+stand statt der Hantel ein generierter Buchstabe mit Firefox-Abzeichen auf dem
+Startbildschirm – Chrome kam mit dem SVG zurecht, Firefox nicht. Mit PNG in
+den üblichen Größen sieht es überall gleich aus:
+
+| Datei | wofür |
+| --- | --- |
+| `icon-192.png` | Startbildschirm und `apple-touch-icon` |
+| `icon-512.png` | Splash-Screen und größere Raster |
+| `icon-maskable-512.png` | `purpose: "maskable"` – Android schneidet daraus einen Kreis oder ein Rundeck |
+
+Die maskierbare Fassung ist bewusst eine **eigene**: Ihr Hintergrund reicht
+bis an den Rand (eigene runde Ecken würden doppelt abgeschnitten) und die
+Hantel sitzt auf 74 % verkleinert in der Mitte, damit sie den Beschnitt
+überlebt. Neu erzeugen nur nötig, wenn sich `icon.svg` ändert – die Dateien
+liegen im Repository:
+
+```bash
+node tools/build-icons.mjs
+```
+
+Playwright rastert dabei das SVG; es ist Werkzeug, keine Abhängigkeit der App.
+`dist/workout.html` bekommt das 192er-PNG als Data-URI eingebettet, damit auch
+die Einzeldatei ein Symbol hat.
 
 **Als einzelne Datei.** `dist/workout.html` enthält die gesamte App inklusive
 CSS und JavaScript und läuft ohne Server und ohne Netz. Neu bauen nach

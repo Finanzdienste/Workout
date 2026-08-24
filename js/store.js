@@ -14,6 +14,11 @@ const DEFAULT_STATE = {
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   session: null,         // laufendes Training: { n, startedAt }
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
+  // Stand der zuletzt erzeugten Kalenderdatei: { on, shift, seq }. Aus `shift`
+  // ergibt sich, ob die Termine im Kalender noch stimmen; `seq` zählt hoch,
+  // damit ein erneuter Import die alten Termine überschreibt statt sie stehen
+  // zu lassen.
+  lastIcs: null,
   rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log }]
   // Angehakte Verletzungen als IDs aus js/injuries.js. Sie gelten für alle
   // kommenden Trainings, bis der Haken wieder weg ist – nicht nur für heute.
@@ -320,6 +325,15 @@ export function restartPlan(shiftDays) {
   state.shift = Math.max(0, Math.round(Number(shiftDays) || 0));
   persist();
   emit();
+}
+
+/** Hält fest, dass eine Kalenderdatei erzeugt wurde, und zählt SEQUENCE hoch. */
+export function markIcs() {
+  const seq = (state.lastIcs && state.lastIcs.seq) || 0;
+  state.lastIcs = { on: todayISO(), shift: state.shift, seq: seq + 1 };
+  persist();
+  emit();
+  return state.lastIcs;
 }
 
 export function exportJSON() {

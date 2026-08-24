@@ -15,6 +15,7 @@ benutzt, wird ein Objekt aus den exportierten Namen von store.js gebaut.
 
 import pathlib
 import json
+import base64
 import re
 import sys
 from urllib.parse import quote
@@ -80,10 +81,14 @@ def main():
         f'<script type="module">\n{script}\n</script>')
     html = re.sub(r'^\s*<link rel="manifest".*\n', '', html, flags=re.MULTILINE)
 
-    # Icon als data:-URI einbetten, sonst zeigte die Einzeldatei ins Leere
+    # Symbole als data:-URI einbetten, sonst zeigte die Einzeldatei ins Leere.
+    # Das SVG bleibt lesbar eingebettet, das PNG fürs Startbildschirm-Symbol
+    # muss als base64 mit – Android-Launcher nehmen kein SVG.
     icon = (ROOT / 'icon.svg').read_text(encoding='utf-8')
     icon_uri = 'data:image/svg+xml,' + quote(icon, safe='')
     html = html.replace('href="icon.svg"', f'href="{icon_uri}"')
+    png = base64.b64encode((ROOT / 'icon-192.png').read_bytes()).decode()
+    html = html.replace('href="icon-192.png"', f'href="data:image/png;base64,{png}"')
 
     for leftover in ('href="css/', 'src="js/', 'href="manifest', 'href="icon'):
         if leftover in html:
