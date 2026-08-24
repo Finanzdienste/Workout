@@ -211,8 +211,15 @@ export function endSession() {
   emit();
 }
 
+/**
+ * Verschiebung des offenen Plans in Tagen.
+ *
+ * Auch negativ: Die Termine kommen aus der Excel und liegen unter Umständen in
+ * der Zukunft. Vorher war hier eine Untergrenze von 0 – wer früher anfangen
+ * wollte als die Tabelle vorsah, konnte nur warten.
+ */
 export function setShift(days) {
-  const v = Math.max(0, Math.round(Number(days) || 0));
+  const v = Math.round(Number(days) || 0);
   if (v === state.shift) return;
   state.shift = v;
   persist();
@@ -322,7 +329,7 @@ export function restartPlan(shiftDays) {
   state.effort = {};
   state.session = null;
   state.rest = null;
-  state.shift = Math.max(0, Math.round(Number(shiftDays) || 0));
+  state.shift = Math.round(Number(shiftDays) || 0);
   persist();
   emit();
 }

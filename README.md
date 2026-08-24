@@ -950,6 +950,21 @@ zeigt. Unter **Mehr** lässt sich die Automatik abschalten, die aktuelle
 Verschiebung ablesen, tageweise korrigieren oder auf die Original-Termine aus
 der Excel zurücksetzen.
 
+### Heute anfangen
+
+Die Verschiebung geht **in beide Richtungen**. Das Nachrücken allein reichte
+nicht: Es schiebt nur, was verstrichen ist. Die Termine stammen aber aus der
+Excel und können in der Zukunft liegen – und dann stand da „in 5 Tagen",
+`− 1 Tag` war ausgegraut, und wer heute anfangen wollte, konnte nur warten.
+Die Untergrenze von null war schlicht falsch.
+
+Liegt die nächste offene Einheit in der Zukunft, steht deshalb unter dem
+Startknopf **„Heute anfangen – Plan *n* Tage vorziehen"**. Der ganze offene
+Plan rückt mit, die Abstände bleiben – die 48 Stunden Erholung zwischen zwei
+direkten Reizen gelten unverändert, es wird nichts übersprungen und nichts
+gedrängt. Dieselbe Rechnung greift beim Neustart einer Runde: Sie beginnt
+heute, nicht am Excel-Termin.
+
 ## Die zwei Modi
 
 Der Umschalter oben rechts wechselt die angezeigte Variante. Die Satzzahl bleibt

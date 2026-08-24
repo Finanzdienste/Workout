@@ -53,6 +53,42 @@ function catchUpPlan() {
   return missed;
 }
 
+/** Die erste Einheit, die noch nicht angefangen wurde – die, die dran wäre. */
+function firstOpen() {
+  return PLAN.find((w) => !store.isStarted(w.n)) || PLAN[PLAN.length - 1];
+}
+
+/**
+ * Verschiebung, die die nächste offene Einheit auf heute legt – in beide
+ * Richtungen.
+ *
+ * Die Termine stammen aus der Excel und liegen unter Umständen in der Zukunft.
+ * Nachrücken allein half da nicht: Es schiebt nur, was verstrichen ist. Wer
+ * heute anfangen will, braucht den Weg nach vorn genauso.
+ */
+function shiftToToday() {
+  return store.getState().shift + daysBetween(effDate(firstOpen()), todayISO());
+}
+
+/**
+ * Knopf „Heute anfangen“ – nur, wenn es etwas vorzuziehen gibt.
+ *
+ * Sichtbar an genau der Einheit, die als Nächstes offen ist: An Workout 40
+ * angetippt würde er den halben Plan um Monate verschieben, und das will
+ * niemand aus Versehen.
+ */
+function startTodayRow(n) {
+  const offen = firstOpen();
+  if (store.getState().session || offen.n !== n) return '';
+  const tage = daysBetween(todayISO(), effDate(offen));
+  if (tage <= 0) return '';
+  return `<div class="btn-row">
+      <button type="button" class="btn btn-ghost btn-block" data-act="start-today">
+        Heute anfangen – Plan ${esc(plural(tage, 'Tag', 'Tage'))} vorziehen
+      </button>
+    </div>`;
+}
+
 /** Die Einheit, die als Nächstes ansteht: die erste noch nicht abgeschlossene. */
 function defaultWorkoutNo() {
   const open = PLAN.find((w) => !completedMode(w.n));
@@ -688,7 +724,7 @@ function renderOverview() {
         <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
         <h2 class="hero-title">${esc(fmtDate(date, true))}</h2>
         <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze${
-          shift ? ` · Plan +${esc(plural(shift, 'Tag', 'Tage'))}` : ''}</div>
+          shift ? ` · Plan ${shift > 0 ? '+' : '−'}${esc(plural(Math.abs(shift), 'Tag', 'Tage'))}` : ''}</div>
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
           <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.complete ? ' · abgeschlossen' : ''}</div>` : ''}
       </header>
@@ -702,7 +738,8 @@ function renderOverview() {
       ${items.length ? `
         <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
           ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
-        </button>`
+        </button>
+        ${startTodayRow(w.n)}`
       : `<div class="card empty-day">
           <b>Heute bleibt nichts übrig.</b> Die angehakten Beschwerden sperren
           jede Übung dieser Einheit, und für keine gibt es einen Ersatz, der
@@ -763,7 +800,7 @@ function renderDashboard() {
         <span class="badge accent">${mode === 'db' ? '🏋️ Hantel-Variante' : '🤸 Bodyweight-Variante'}</span>
         ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>'
                         : `<span class="badge">${prog.done}/${prog.total} Sätze</span>`}
-        ${shift ? `<span class="badge" title="Ursprünglich ${esc(fmtDate(w.date))}">↷ Plan +${esc(plural(shift, 'Tag', 'Tage'))}</span>` : ''}
+        ${shift ? `<span class="badge" title="Ursprünglich ${esc(fmtDate(w.date))}">↷ Plan ${shift > 0 ? '+' : '−'}${esc(plural(Math.abs(shift), 'Tag', 'Tage'))}</span>` : ''}
         ${session ? '<span class="badge accent" id="sessionBadge">⏱ läuft</span>' : ''}
       </div>
       <div class="progress"><i style="width:${prog.pct}%"></i></div>
@@ -772,6 +809,7 @@ function renderDashboard() {
         : `<div class="btn-row">
              <button type="button" class="btn btn-primary btn-block" data-act="start-session">▶︎ Workout starten</button>
            </div>`}
+      ${startTodayRow(n)}
       <div class="btn-row nav">
         <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
         <button type="button" class="btn btn-ghost" data-act="nav-today">Heute</button>
@@ -1818,14 +1856,20 @@ function renderSettings() {
 
     <div class="section-title">Plan-Verschiebung</div>
     <div class="card">
-      <div class="stat-v">${s.shift ? `+${esc(plural(s.shift, 'Tag', 'Tage'))}` : 'Im Plan'}</div>
+      <div class="stat-v">${s.shift ? `${s.shift > 0 ? '+' : '−'}${esc(plural(Math.abs(s.shift), 'Tag', 'Tage'))}` : 'Im Plan'}</div>
       <div class="small muted" style="margin-top:2px">
         ${s.shift
           ? `Der offene Plan endet am ${esc(fmtDate(effDate(PLAN[PLAN.length - 1]), true))} statt am ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))}.`
           : 'Der Plan läuft genau nach Excel-Termin.'}
       </div>
+      ${daysBetween(effDate(firstOpen()), todayISO()) !== 0 ? `
+      <div class="btn-row">
+        <button type="button" class="btn btn-block" data-act="start-today">Nächste Einheit auf heute</button>
+      </div>
+      <div class="small muted">Zieht den ganzen offenen Plan mit – die Abstände zwischen den
+        Einheiten bleiben, übersprungen wird nichts.</div>` : ''}
       <div class="btn-row nav">
-        <button type="button" class="btn" data-act="shift-minus" ${s.shift ? '' : 'disabled'}>− 1 Tag</button>
+        <button type="button" class="btn" data-act="shift-minus">− 1 Tag</button>
         <button type="button" class="btn" data-act="shift-plus">+ 1 Tag</button>
         <button type="button" class="btn btn-ghost" data-act="shift-reset" ${s.shift ? '' : 'disabled'}>Auf Original</button>
       </div>
@@ -2149,11 +2193,25 @@ view.addEventListener('click', (e) => {
       toast(`Nächstes Mal ${fmtNum(kg)} kg 💪`);
       break;
     }
+    case 'start-today': {
+      // Der ganze offene Plan rückt mit, die Abstände bleiben – es wird nichts
+      // übersprungen, nur vorgezogen.
+      const ziel = shiftToToday();
+      const tage = ziel - store.getState().shift;
+      store.setShift(ziel);
+      ui.workoutNo = firstOpen().n;
+      render();
+      toast(tage < 0 ? `Plan um ${plural(-tage, 'Tag', 'Tage')} vorgezogen – los geht's 💪`
+                     : 'Der Plan steht auf heute');
+      break;
+    }
     case 'restart-plan': {
       // Runde 1 wandert in die Ablage, die Gewichte bleiben. Workout 1 rückt
       // auf heute, sonst würde die Nachrück-Automatik den halben Plan
       // verschieben, weil das Originaldatum längst vorbei ist.
-      const target = Math.max(0, daysBetween(PLAN[0].date, todayISO()));
+      // Auch nach vorn: Liegt der Excel-Termin in der Zukunft, fängt die neue
+      // Runde trotzdem heute an und nicht irgendwann.
+      const target = daysBetween(PLAN[0].date, todayISO());
       store.restartPlan(target);
       ui.workoutNo = PLAN[0].n;
       ui.focus = false;
