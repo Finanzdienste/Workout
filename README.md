@@ -445,25 +445,26 @@ Samstag**. Die stehen als `DAYS` in `tools/build-plan.py` – vorher ergaben sie
 sich aus dem Startdatum der Excel, das war ein Nebenprodukt statt einer
 Entscheidung. Vier Termine in sieben Tagen heißen zwangsläufig einmal zwei
 Tage hintereinander; hier liegt das auf Freitag/Samstag, der Sonntag bleibt
-frei. 80 Einheiten in 20 Wochen, vom 24.08.2026 bis zum 09.01.2027.
+frei. 84 Einheiten in 21 Wochen, vom 24.08.2026 bis zum 16.01.2027.
 
-| Gruppe | Ziel | Schnitt | einzelne Woche |
-| --- | --- | --- | --- |
-| Brust, Schultern | 16 | **exakt** | 15,2–16,2 |
-| Rücken, Bizeps, Trizeps | 14 | **exakt** | 13,4–15,0 |
-| hintere Schulter | 12 | **exakt** | 11,3–12,3 |
-| Gesäß | 8 | **exakt** | 7,6–8,6 |
-| Oberschenkel, Beinbeuger | 6 | **exakt** | 5,4–6,6 |
-| Bauch | 8 | **exakt** | 7,7–8,7 |
-| Waden | 4 | **exakt** | immer genau 4,0 |
-| Nacken | *Ergebnis* | 13,305 | 12,5–13,9 |
+| Gruppe | Ziel | Schnitt | einzelne Woche | Abweichung |
+| --- | --- | --- | --- | --- |
+| **Brust, Rücken** | 12 | **exakt** | immer genau 12,0 | **0 %** |
+| **Oberschenkel** | 6 | **exakt** | immer genau 6,0 | **0 %** |
+| **Waden** | 6 | **exakt** | immer genau 6,0 | **0 %** |
+| Schultern, hintere Schulter, Bizeps, Trizeps | 10 | **exakt** | 8,7–12,0 | ≤ 20 % |
+| Gesäß | 9 | **exakt** | 7,1–10,8 | 22 % |
+| Beinbeuger | 6 | **exakt** | 5,0–7,3 | 22 % |
+| Bauch | 9 | **exakt** | 8,4–11,4 | 27 % |
+| Nacken | *Ergebnis* | ~10 | – | – |
 
 Welche Gruppen ein Ziel haben und welche bloß herausfallen, steht als
 `DERIVED` in den erzeugten Daten – „exakt getroffen" darf niemand für eine
 Gruppe behaupten, die gar nicht gesetzt wurde.
 
-In keiner der 20 Wochen liegt eine gesetzte Gruppe einen ganzen Satz daneben;
-0,95 ist das Schlimmste, was vorkommt. Der Nacken darf weiter ausschlagen: Er
+Vier Gruppen treffen ihr Ziel in **jeder** Woche exakt; bei den übrigen liegt
+die schlimmste Woche 27 % daneben – gemessen am Ziel der Gruppe, nicht in
+Sätzen. Der Nacken darf weiter ausschlagen: Er
 hat kein Ziel, das die Verteilung optimieren könnte.
 
 **Warum nicht überall dieselbe Zahl.** Der Unterkörper steht auf Erhalt (6–8),
@@ -471,7 +472,30 @@ die Waden auf 4, der Oberkörper trägt den Rest: Vierzehn Prozent aller Sätze
 für die Waden aufzuwenden ist eine Entscheidung, keine Trainingslehre, und
 dieselbe Zeit trägt an der Schulter mehr.
 
-**Zweite Fassung der Zahlen.** Vorher stand im Oberkörper überall eine 10 –
+**Jede Übung steht mit drei Sätzen da.** `PER_SET = (3, 3)` – und das ändert
+mehr als die Satzzahl. Bei fester Satzzahl ist die Wochensumme jeder Übung ein
+Vielfaches von drei, und für Gruppen, deren Übungen alle Anteil 1,0 haben
+(Brust, Rücken, Oberschenkel, Waden), gilt das damit auch für die Gruppe. Ein
+Ziel von 10 ist dort im Schnitt erreichbar, in einer einzelnen Woche aber
+**nie** – es käme immer 9 oder 12 heraus. Deshalb stehen Brust und Rücken auf
+12 und die Waden auf 6: Ziele, die zur Körnung passen, werden in **jeder**
+Woche exakt getroffen statt nur im Schnitt. Aus demselben Grund läuft der Plan
+über 21 Wochen statt 20 – Ziel × Wochen muss durch drei teilbar sein, und die
+Wochenzahl sucht sich der Lauf jetzt selbst.
+
+Was das bringt: **5,5 Übungen je Einheit statt 7,7**, 42 statt 47 Minuten.
+Was es kostet: gut 10 Sätze Wochenvolumen weniger (66 statt 76) und größere
+Ausschläge in den gemischten Gruppen – bis 27 % statt bis 10 %. Der Schnitt
+über den ganzen Plan bleibt in beiden Fällen exakt.
+
+**Gewichtet wird im Verhältnis zum Ziel**, nicht in Sätzen. Ein Satz zu wenig
+ist bei den Waden (Ziel 6) ein Sechstel des Wochenpensums, bei der Brust (12)
+ein Zwölftel – dieselbe Zahl, ein ganz anderer Verlust. Vorher zählte die
+absolute Abweichung, und das bevorzugte systematisch die großen Gruppen: Die
+Suche holte sich ein paar Zehntel bei der Brust, indem sie den Waden einen
+ganzen Satz nahm.
+
+**Erste Fassung der Ziele.** Vorher stand im Oberkörper überall eine 10 –
 das war die selbst gesetzte Obergrenze, nicht das Optimum. Zwei Korrekturen:
 
 * **Bauch von 10 auf 8.** Zehn Sätze pro Woche waren das teuerste Nichts im
@@ -487,7 +511,8 @@ das war die selbst gesetzte Obergrenze, nicht das Optimum. Zwei Korrekturen:
   (14 – sie tragen bei jedem Drücken und Ziehen ohnehin mit), die hintere
   Schulter 12.
 
-Das kostet Zeit: Die Einheiten wachsen von durchschnittlich 38 auf 47 Minuten.
+Das kostete zunächst Zeit – die Einheiten wuchsen von 38 auf 47 Minuten; mit
+den festen Dreiersätzen sind es wieder 42.
 
 **Ein Ziel ist nicht dasselbe wie direkte Arbeit.** Die Zahl in `TARGET` zählt
 indirekte Anteile mit, und bei einer Gruppe macht das den Unterschied zwischen
@@ -521,10 +546,10 @@ gar keine Gleichung (`None`), sondern nur die Obergrenze. Das kostet nichts und
 bringt viel: **ohne diese eine Gleichung hat der Oberkörper-Block ein
 Vielfaches an exakten Lösungen**, und unter denen liegt eine deutlich bessere.
 
-**Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, höchstens acht
-pro Woche, und **so wenige verschiedene Übungen je Einheit wie möglich**: 6 bis
-9, im Mittel 7,7. Das sind 16 bis 22 Sätze und geschätzte 40 bis 54 Minuten.
-**73 von 80 Einheiten sind verschieden.**
+**Immer drei Sätze je Übung und Einheit**, höchstens neun pro Woche, und **so
+wenige verschiedene Übungen je Einheit wie möglich**: 5 bis 6, im Mittel 5,5.
+Das sind 15 bis 18 Sätze und geschätzte 34 bis 50 Minuten.
+**84 von 84 Einheiten sind verschieden.**
 
 **Was zweimal in der Woche vorkommt, gehört auf zwei Tage.** Zweimal pro Woche
 schlägt einmal bei gleicher Satzzahl – aber die Aufteilung wusste davon nichts:
@@ -581,11 +606,11 @@ Einheiten zum Rumpf. Heraus kommt:
 
 Nur die beiden Einheiten am kurzen Übergang bekommen eine Hälfte zugewiesen;
 die zwei dazwischen bleiben frei und nehmen, was übrig ist. Deshalb kostet die
-Bedingung fast nichts: weiterhin 6 bis 9 Übungen je Einheit, 16 bis 22 Sätze.
+Bedingung fast nichts: weiterhin 5 bis 6 Übungen je Einheit, 15 bis 18 Sätze.
 
-**Was sie kostet:** die Abwechslung. 73 von 80 Zusammenstellungen sind
-verschieden – der Raum ist kleiner, wenn zwei der vier Einheiten festgelegt
-sind. Zwei gleiche Einheiten direkt hintereinander kommen nicht vor.
+**Was sie kostet:** nichts an der Abwechslung – 84 von 84 Zusammenstellungen
+sind verschieden. Zwei gleiche Einheiten direkt hintereinander kommen ohnehin
+nicht vor.
 
 **Ein zweiter Anlauf, wenn eine Woche nicht aufgeht.** Bei zehn Sätzen je
 Gruppe fand die Suche in jeder Woche eine Aufteilung. Bei sechzehn nicht mehr:
@@ -602,21 +627,15 @@ Hälften: dann muss die erste Einheit einer Woche alles meiden, was am Vortag
 dran war, und es blieben Einheiten mit 2 Übungen und 4 Sätzen neben solchen mit
 9 und 21. Die Bedingung war erfüllt und der Plan unbrauchbar.
 
-**Die Zahl der Wochen musste gerade sein**, solange Rücken und hintere Schulter
-dasselbe Ziel hatten und der Rücken nur aus zwei Übungen kam. Mit den Pull-ups
-als drittem Zug und getrennten Zielen (14 und 12) bindet die Bedingung nicht
-mehr – verlassen sollte man sich darauf nicht, der Lauf sagt es selbst. Das ist keine Feinheit, sondern der
-Grund, warum der Plan nicht 19 Wochen lang ist. Der Rücken kommt
-nur aus Rudern und Chin-ups, beide mit Anteil 1,0 – seine Plansumme ist also
-immer eine ganze Zahl und trifft 10·W genau. Die hintere Schulter hängt an
-denselben zwei Übungen (0,35 und 0,15) plus Reverse Fly:
-
-    hintere Schulter = 1,5·W + 0,2·Rudern + ReverseFly
-
-Für 10·W bräuchte es ReverseFly = 8,5·W − 0,2·Rudern. Bei ungeradem W endet
-8,5·W auf ,5, und 0,2·Rudern kann nur auf ,0 ,2 ,4 ,6 oder ,8 enden – das geht
-nie auf. Mit 19 Wochen ist exakt 10 also nicht knapp verfehlt, sondern
-unmöglich; mit 20 Wochen geht es, sobald Rudern durch 20 teilbar ist.
+**Die Zahl der Wochen ist eine Frage der Teilbarkeit, keine Wahl.** Der Rücken
+kommt aus drei Übungen mit Anteil 1,0; bei festen Dreiersätzen ist seine
+Plansumme also ein Vielfaches von drei und muss Ziel × Wochen treffen. Bei
+einem Ziel von 12 geht das für jede Wochenzahl auf, bei 10 nur für Vielfache
+von drei. Früher stand hier eine feste Regel („Wochenzahl gerade"), abgeleitet
+aus einer bestimmten Kombination von Zielen und Anteilen – und die wurde
+falsch, sobald sich eine davon änderte. Jetzt probiert der Lauf, statt zu
+raten: Er nimmt die erste Wochenzahl ab `WEEKS`, für die alle Blöcke exakt
+aufgehen, und sagt es, wenn er erhöhen musste.
 
 Die Termine erzeugt `tools/build-plan.py` selbst: erster Tag aus der Excel,
 danach die sieben Tage einer Woche so gleichmäßig wie möglich auf die Abstände
@@ -681,9 +700,9 @@ ein *ganzer* Satz Abweichung braucht einen eigenen Zuschlag, sonst tauscht das
 Verfahren bereitwillig einen ganzen Satz Rücken gegen ein paar Zehntel
 anderswo – in der App sieht man den ganzen Satz, die Zehntel nicht.
 
-**Die Abwechslung bleibt fast vollständig:** 73 verschiedene Zusammenstellungen
-bei 80 Einheiten, und jede der 23 Übungen kommt vor – die seltenste mit einem
-Satz pro Woche.
+**Die Abwechslung bleibt vollständig:** 84 verschiedene Zusammenstellungen bei
+84 Einheiten, und jede der 23 Übungen kommt vor – die seltenste mit einem Satz
+pro Woche.
 
 `tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json` –
 dort stehen neben den Einheiten auch die **Ziele je Muskelgruppe** und die
@@ -780,7 +799,7 @@ kann, weil die Übung schlicht fehlte:
 | **Rumänisches Kreuzheben** | Der Beinbeuger kam ausschließlich aus Kniebeugung (Leg Curl). Die Hüftstreck-Funktion, die größere Hälfte, wurde nie trainiert. |
 | **Split Squat** | Der Goblet Squat ist ab einem gewissen Punkt durch das *Halten* der Hantel begrenzt, nicht durch die Beine. Einbeinig fällt diese Grenze weg. |
 | **Hängendes Knieheben** | Der Bauch bestand aus Crunches, also nur Beugen. Jetzt kommt der Zug von unten dazu – und der Bauch hat 7,0 direkte Sätze statt 3,6. |
-| **Pull-ups** | Der Rücken hing an zwei Übungen, Chin-ups und Rudern. Bei einer Obergrenze von 8 Sätzen je Übung und Woche war damit bei 16 Sätzen Schluss – das Ziel hätte beide fest angeschlagen. Der weite Obergriff nimmt außerdem den Bizeps aus der Bewegung: mehr Rücken je Satz, und genau der macht die V-Form. |
+| **Pull-ups** | Der Rücken hing an zwei Übungen, Chin-ups und Rudern. Bei einer Obergrenze von acht Sätzen je Übung und Woche war damit früh Schluss – das Ziel hätte beide fest angeschlagen. Der weite Obergriff nimmt außerdem den Bizeps aus der Bewegung: mehr Rücken je Satz, und genau der macht die V-Form. |
 | **Band-Pull-Apart** | Die hintere Schulter hing an einer einzigen Übung mit 7,9 Sätzen pro Woche. Jetzt teilen sich zwei den Reiz: Reverse Fly 3,0 und Pull-Apart 4,9. Beim Band steigt der Widerstand zum Ende der Bewegung – genau dort, wo die hintere Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull, die bessere Variante; der Hinweis sagt das. |
 
 Die vier stehen **nicht in der Excel**. Die bleibt Quelle des ursprünglichen
@@ -1017,7 +1036,7 @@ zuletzt gesichert wurde.
 
 ## Wenn der Plan durch ist
 
-Nach der letzten von 80 Einheiten bietet die Startansicht *Von vorn beginnen*
+Nach der letzten von 84 Einheiten bietet die Startansicht *Von vorn beginnen*
 an. Der bisherige Verlauf wandert in `rounds` und bleibt im Export erhalten,
 die **Gewichte bleiben stehen** – Runde zwei startet also auf dem erreichten
 Stand. Workout 1 rückt auf heute, sonst würde die Nachrück-Automatik den
@@ -1109,7 +1128,7 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 ```
 index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
-js/data.js              Aus Excel + plan.json erzeugt: 23 Übungen, 80 Einheiten, Wochenziele
+js/data.js              Aus Excel + plan.json erzeugt: 23 Übungen, 84 Einheiten, Wochenziele
 js/injuries.js          Verletzungskatalog und die Anpassung des Plans
 js/dates.js             Datums-Hilfsfunktionen inkl. Monatsraster
 js/store.js             Zustand und localStorage-Persistenz

@@ -1268,7 +1268,36 @@ function bwBump(exId) {
 
 const WEEK_SESSIONS = 4;
 const targetOf = (mus) => TARGET[mus] ?? 10;
-const inTarget = (mus, got) => got > targetOf(mus) - 1;
+/**
+ * Im Ziel heißt: mindestens neun Zehntel dessen, was für **diese Woche**
+ * geplant war.
+ *
+ * Vorher stand hier eine feste Toleranz von einem Satz gegen das
+ * Wochen*ziel*. Das war zweimal falsch. Erstens ist ein Satz bei den Waden
+ * (Ziel 6) ein Sechstel und bei der Brust (12) ein Zwölftel – dieselbe Zahl,
+ * ein ganz anderer Anteil. Zweitens ist das Ziel ein Schnitt über den ganzen
+ * Plan; die einzelne Woche liegt zwangsläufig darüber oder darunter, seit
+ * jede Übung mit drei Sätzen dasteht. Wer alles abgehakt hatte, sah dann
+ * trotzdem "8 von 12 Gruppen im Ziel" – ein Vorwurf für die Arithmetik des
+ * Plans, nicht für den Nutzer. Verglichen wird deshalb mit dem Pensum der
+ * Woche, und das kennt die App aus dem Plan.
+ */
+const inTarget = (got, soll) => got >= soll * 0.9;
+
+/** Was der Plan für diese Woche vorsieht, je Muskelgruppe – Verletzungen und
+ *  Modus eingerechnet, also dieselbe Rechnung wie beim Abhaken. */
+function plannedWeek(block) {
+  const acc = {};
+  block.forEach((w) => {
+    const mode = completedMode(w.n) || store.workoutMode(w.n);
+    exOf(w).forEach((item) => {
+      Object.entries(EX_BY_ID.get(item.id)[mode].shares).forEach(([mus, share]) => {
+        acc[mus] = (acc[mus] || 0) + item.sets * share;
+      });
+    });
+  });
+  return acc;
+}
 
 function weeklyDone() {
   const log = store.getState().log;
@@ -1296,20 +1325,20 @@ function weeklyDone() {
         });
       });
     });
-    weeks.push({ nr: weeks.length + 1, from: block[0], to: block[block.length - 1], acc, any });
+    weeks.push({ nr: weeks.length + 1, from: block[0], to: block[block.length - 1],
+                 acc, soll: plannedWeek(block), any });
   }
   return weeks;
 }
 
-/** Balken für eine Muskelgruppe: erreicht gegen ihr eigenes Ziel.
+/** Balken für eine Muskelgruppe: erreicht gegen das Pensum dieser Woche.
  *
  * Die Zahl daneben nennt beides. Seit die Ziele auseinandergehen, sagt "4,0"
- * für sich genommen nichts mehr – erst "4,0/4" zeigt, dass die Woche steht.
+ * für sich genommen nichts mehr – erst "4,0/6" zeigt, dass die Woche steht.
  */
-function volumeBar(mus, got) {
-  const soll = targetOf(mus);
+function volumeBar(mus, got, soll) {
   const pct = Math.min(150, (got / soll) * 100);
-  const state = inTarget(mus, got) ? 'full' : (got >= soll * 0.6 ? 'part' : 'thin');
+  const state = inTarget(got, soll) ? 'full' : (got >= soll * 0.6 ? 'part' : 'thin');
   return `
     <div class="vol-row">
       <div class="vol-name">${esc(MUSCLE_LABEL[mus] || mus)}</div>
@@ -1348,7 +1377,7 @@ function renderWeeklyVolume() {
   // Nicht in Prozent: eine Woche mit 9,5 und 10,5 wären 99 %, obwohl alles
   // stimmt – der Plan selbst schwankt um bis zu einen Satz. Gezählt wird
   // deshalb, wie viele Gruppen ihr Ziel erreicht haben.
-  const voll = groups.filter((m) => inTarget(m, cur.acc[m] || 0)).length;
+  const voll = groups.filter((m) => inTarget(cur.acc[m] || 0, cur.soll[m] || 0)).length;
   const inWoche = PLAN.slice(PLAN.indexOf(cur.from), PLAN.indexOf(cur.to) + 1);
   const offen = inWoche.filter((w) => !completedMode(w.n)).length;
 
@@ -1372,11 +1401,14 @@ function renderWeeklyVolume() {
         </div>
         <div class="vol-quote">${kopf.zahl}<span>/${kopf.von}</span></div>
       </div>
-      ${groups.map((m) => volumeBar(m, cur.acc[m] || 0)).join('')}
+      ${groups.map((m) => volumeBar(m, cur.acc[m] || 0, cur.soll[m] || 0)).join('')}
       <div class="small muted" style="margin-top:10px">
-        Ziel je Gruppe, Anteile eingerechnet: ${esc(zielText())} – bei ${offen ? 'noch offenen Einheiten ist die Woche naturgemäß unvollständig'
-          : 'einer vollen Woche sollte jede Gruppe ihr Ziel erreichen'}.
-        ${prev ? `Woche davor: ${groups.filter((m) => inTarget(m, prev.acc[m] || 0)).length}
+        Verglichen wird mit dem, was <b>diese Woche</b> auf dem Plan steht – nicht mit dem
+        Wochenziel. Das Ziel ist ein Schnitt über den ganzen Plan (${esc(zielText())},
+        Anteile eingerechnet); die einzelne Woche liegt darüber oder darunter, weil jede
+        Übung mit drei Sätzen dasteht und sich Sätze nur als Ganzes verschieben lassen.
+        ${offen ? 'Bei noch offenen Einheiten ist die Woche naturgemäß unvollständig.' : ''}
+        ${prev ? `Woche davor: ${groups.filter((m) => inTarget(prev.acc[m] || 0, prev.soll[m] || 0)).length}
           von ${groups.length} Gruppen im Ziel.` : ''}
       </div>
     </div>`;

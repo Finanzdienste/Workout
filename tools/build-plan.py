@@ -102,12 +102,12 @@ OUT = ROOT / 'tools' / 'plan.json'
 # freie Größe mehr. Ein Ziel dafür macht das Gleichungssystem nur unlösbar oder
 # erzwingt eine Verteilung, die anderswo schlechter ist.
 TARGET = {
-    'chest': 16, 'lats': 14, 'delts': 16, 'rearDelts': 12,
-    'biceps': 14, 'triceps': 14, 'abs': 8,
+    'chest': 12, 'lats': 12, 'delts': 10, 'rearDelts': 10,
+    'biceps': 10, 'triceps': 10, 'abs': 9,
     'traps': None,
-    'glutes': 8, 'quads': 6, 'hamstrings': 6, 'calves': 4,
+    'glutes': 9, 'quads': 6, 'hamstrings': 6, 'calves': 6,
 }
-CAP = 18                 # keine Gruppe darüber, indirekte Anteile eingerechnet
+CAP = 12                 # keine Gruppe darüber, indirekte Anteile eingerechnet
 DIRECT = 0.5             # ab diesem Anteil gilt eine Übung als direkt für die Gruppe
 REST_DAYS = 2            # so viele Tage Abstand, bevor eine Gruppe wieder direkt drankommt
 
@@ -119,8 +119,16 @@ REST_DAYS = 2            # so viele Tage Abstand, bevor eine Gruppe wieder direk
 # rechnet mit den tatsächlichen Abständen und passt sich von selbst an.
 DAYS = (0, 2, 4, 5)
 WEEK = len(DAYS)         # Einheiten je Woche
-WEEKS = 20               # Wochen im Plan – muss gerade sein, siehe oben
-PER_SET = (2, 3)         # Sätze je Auftritt einer Übung
+WEEKS = 21               # Wochen im Plan – Vielfaches von GRAIN, siehe oben
+# Sätze je Auftritt einer Übung. Gleicher Wert oben wie unten heißt: jede
+# Übung steht immer mit derselben Satzzahl da. Das kostet Genauigkeit in der
+# einzelnen Woche – die Satzzahl jeder Übung ist dann ein Vielfaches von drei,
+# und Gruppen, deren Übungen alle Anteil 1,0 haben (Brust, Rücken,
+# Oberschenkel, Waden), können in einer Woche nur 3, 6, 9 … Sätze bekommen.
+# Dafür sind die Einheiten kürzer: dieselben Sätze auf weniger Übungen.
+PER_SET = (3, 3)         # Sätze je Auftritt einer Übung
+# Körnung: Bei fester Satzzahl bewegt sich alles in Dreierschritten.
+GRAIN = PER_SET[0] if PER_SET[0] == PER_SET[1] else 1
 PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
 
 # Sätze je Übung und Woche, wenn sie überhaupt vorkommt. Ohne diese Schranken
@@ -129,7 +137,7 @@ PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
 # vollständig verschwand – rechnerisch exakt und als Plan unbrauchbar. Nach
 # oben begrenzt heißt: keine Übung trägt eine Gruppe allein; nach unten: wer
 # vorkommt, kommt regelmäßig vor.
-PER_EX_WEEK = (1, 8)
+PER_EX_WEEK = (1, 9)
 EXACT_LIMIT = 4000       # so viele Plansummen je Block reichen zur Auswahl
 SCREEN = 50              # davon werden die besten probeweise verteilt
 SCREEN_RESTARTS = 2      # Anläufe je Probe
@@ -338,7 +346,7 @@ def klumpen(sol, block, shares):
     return round(schlimmst * 20)
 
 
-def totals(ids, shares, groups, weeks, rnd):
+def totals(ids, shares, groups, weeks, rnd, streng=True):
     """Sätze je Übung über den ganzen Plan, exakt 10·W für jede Gruppe.
 
     Exakt sind viele Lösungen; brauchbar sind es weniger. Erst werden die
@@ -355,12 +363,15 @@ def totals(ids, shares, groups, weeks, rnd):
     Die Blöcke hängen über keine Gruppe zusammen, also lässt sich das je Block
     getrennt beurteilen.
     """
-    values = [0] + list(range(PER_EX_WEEK[0] * weeks, PER_EX_WEEK[1] * weeks + 1))
+    values = [0] + [v for v in range(PER_EX_WEEK[0] * weeks, PER_EX_WEEK[1] * weeks + 1)
+                    if v % GRAIN == 0]
     total, variants = {}, []
     for block in parts(ids, shares, groups):
         found = exact(block, shares, weeks, values, EXACT_LIMIT, rnd)
         if not found:
-            sys.exit(f'Keine exakte Lösung für {weeks} Wochen – Wochenzahl gerade?')
+            if streng:
+                sys.exit(f'Keine exakte Lösung für {weeks} Wochen')
+            return None, None
         variants.append(len(found))
 
         def balance(sol):
@@ -404,17 +415,27 @@ def start(total, weeks, rnd):
             # noch die Mindestzahl steht. Auf wenige Wochen zu stapeln macht
             # aus 40 Sätzen zehnmal vier statt zwanzigmal zwei – und damit eine
             # Gruppe, die jede zweite Woche um einen ganzen Satz danebenliegt.
-            k = min(weeks, t // lo)
+            # Gerechnet wird in Blöcken der Körnung, damit jede Wochenzahl
+            # ein Vielfaches davon bleibt.
+            einheiten = t // GRAIN
+            k = min(weeks, einheiten * GRAIN // lo, einheiten)
             k = max(k, -(-t // hi), 1)
-            base, extra = divmod(t, k)
+            base, extra = divmod(einheiten, k)
             for j, w in enumerate(sorted(rnd.sample(range(weeks), k))):
-                row[w] = base + (1 if j < extra else 0)
+                row[w] = (base + (1 if j < extra else 0)) * GRAIN
         rows.append(row)
     return rows
 
 
-HARD = 10 ** 9           # Zuschlag für einen ganzen Satz Abweichung
+HARD = 10 ** 9           # Zuschlag ab MAX_REL Abweichung
 APP = 2 * 10 ** 5        # Zuschlag je Auftritt einer Übung
+REF = 10 * UNIT          # Bezugsziel der relativen Strafe: zehn Sätze
+# Ab welchem Anteil des Wochenziels eine Abweichung als grob gilt. Ein Drittel
+# klingt viel und ist bei Dreierschritten das Mindeste: Eine Gruppe mit Ziel 6,
+# deren Übungen alle voll auf sie gehen, kann in einer Woche nur 3, 6 oder 9
+# Sätze bekommen – 9 sind bereits die Hälfte darüber. Enger gesetzt findet der
+# Lauf für solche Gruppen gar keine Verteilung mehr.
+MAX_REL = 0.5
 
 
 def visits(sets):
@@ -439,16 +460,24 @@ def miss(x, goal):
 def pen(week_vol, week_sets, goals):
     """Strafe einer Woche.
 
-    Ein ganzer Satz Abweichung in einer Gruppe wiegt am schwersten – so weit
-    kommt es nur, wo es rechnerisch nicht anders geht. Darunter stehen ein
-    zusätzlicher Auftritt und eine Abweichung von gut 0,85 Sätzen etwa gleich
-    hoch: für eine Übung weniger in der Einheit darf eine Gruppe ein paar
-    Zehntel danebenliegen, für einen halben Satz aber nicht.
+    Gewogen wird **im Verhältnis zum Ziel der Gruppe**, nicht in Sätzen. Ein
+    Satz zu wenig ist bei den Waden (Ziel 4) ein Viertel des Wochenpensums, bei
+    der Brust (Ziel 10) ein Zehntel – dieselbe Zahl, ein ganz anderer Verlust.
+    Vorher zählte die absolute Abweichung, und das bevorzugte systematisch die
+    großen Gruppen: Der Suchlauf holte sich zehn Zehntel bei der Brust, indem
+    er den Waden einen ganzen Satz nahm.
+
+    Bezugsgröße ist REF – ein Ziel von zehn Sätzen. Bei genau dieser Gruppe
+    rechnet die Strafe wie vorher, darunter strenger, darüber milder.
+
+    Gruppen ohne Ziel haben kein Verhältnis; für sie zählt weiter nur, was über
+    die Obergrenze hinausgeht, gemessen an der Obergrenze.
     """
     out = APP * sum(visits(c) for c in week_sets if c)
     for x, goal in zip(week_vol, goals):
         d = miss(x, goal)
-        out += d ** 4 + (HARD if d >= UNIT else 0)
+        rel = d / (goal if goal else CAP_U)
+        out += (rel * REF) ** 4 + (HARD if rel >= MAX_REL else 0)
     return out
 
 
@@ -467,7 +496,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
     goals = [GOAL.get(m) for m in vol.groups]
 
     def fits(v):
-        return v == 0 or lo <= v <= hi
+        return v == 0 or (lo <= v <= hi and v % GRAIN == 0)
 
     best = None
     for run in range(restarts):
@@ -500,7 +529,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
             u, v = rnd.randrange(weeks), rnd.randrange(weeks)
             if u == v or not rows[i][u]:
                 continue
-            d = rnd.choice((1, 2, 3, rows[i][u] - rows[i][v]))
+            d = rnd.choice((GRAIN, 2 * GRAIN, 3 * GRAIN, rows[i][u] - rows[i][v]))
             if d <= 0 or not fits(rows[i][u] - d) or not fits(rows[i][v] + d):
                 continue
             su, sv = move(i, u, v, d)
@@ -524,7 +553,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
                     for v in range(weeks):
                         if u == v:
                             continue
-                        for d in (1, 2, 3, rows[i][u] - rows[i][v]):
+                        for d in (GRAIN, 2 * GRAIN, 3 * GRAIN, rows[i][u] - rows[i][v]):
                             if d <= 0 or not fits(rows[i][u] - d) or not fits(rows[i][v] + d):
                                 continue
                             su, sv = move(i, u, v, d)
@@ -537,11 +566,12 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
                             break
 
         # Zwischen den Anläufen zählt dieselbe Rangfolge wie in pen(): erst
-        # ganze Sätze daneben, dann Auftritte, dann die volle Liste aller
-        # Abweichungen, absteigend sortiert.
+        # grobe Abweichungen, dann Auftritte, dann die volle Liste – alles im
+        # Verhältnis zum Ziel der jeweiligen Gruppe, nicht in Sätzen.
         auftritte = sum(visits(c) for w in col for c in w if c)
-        alle = sorted((miss(x, g) for v in vols for x, g in zip(v, goals)), reverse=True)
-        hart = sum(1 for x in alle if x >= UNIT)
+        alle = sorted((miss(x, g) / (g if g else CAP_U)
+                       for v in vols for x, g in zip(v, goals)), reverse=True)
+        hart = sum(1 for x in alle if x >= MAX_REL)
         got = (hart, auftritte, alle)
         if best is None or got < best[0]:
             best = (got, [list(c) for c in col])
@@ -781,22 +811,34 @@ def main():
         ziele = [TARGET.get(m) or 0 for m, v in shares[ex].items() if v >= DIRECT]
         return (meta[ex]['tier'], -max(ziele or [0]), -sum(shares[ex].values()), ex)
 
-    weeks = WEEKS + WEEKS % 2                            # exakt geht nur geradzahlig
-    day = dates(weeks)
-
+    # Ob ein Ziel exakt erreichbar ist, hängt an der Teilbarkeit: Der Rücken
+    # kommt aus drei Übungen mit Anteil 1,0, seine Plansumme ist bei
+    # Dreierschritten also ein Vielfaches von drei – und muss Ziel·Wochen
+    # treffen. Früher stand hier eine feste Regel ("Wochenzahl gerade"). Die
+    # galt für eine bestimmte Kombination aus Zielen und Anteilen und wurde
+    # falsch, sobald sich eine davon änderte. Jetzt probiert der Lauf, statt zu
+    # raten: die erste Wochenzahl ab WEEKS, für die alle Blöcke aufgehen.
     rnd = random.Random(7)
     vol = Volume(shares, ids, groups)
-
-    total, variants = totals(ids, shares, groups, weeks, rnd)
+    for weeks in range(WEEKS, WEEKS + 12):
+        total, variants = totals(ids, shares, groups, weeks, rnd, streng=False)
+        if total is not None:
+            break
+    else:
+        sys.exit(f'Keine exakte Lösung zwischen {WEEKS} und {WEEKS + 11} Wochen – '
+                 'Ziele oder Anteile passen nicht zur Körnung.')
+    if weeks != WEEKS:
+        print(f'Wochenzahl auf {weeks} erhöht – mit {WEEKS} geht das Ziel nicht exakt auf')
+    day = dates(weeks)
     print(f'exakte Plansummen: {"·".join(map(str, variants))} Lösungen je Block, '
           f'ausgewogenste gewählt ({min(total)}–{max(total)} Sätze je Übung)')
 
     per_week, (hart, auftritte, worst) = spread(total, vol, weeks, rnd,
                                                 RESTARTS, SPREAD_ROUNDS)
-    # Ein ganzer Satz Abweichung ist die eine Sache, die nicht vorkommen soll.
-    # Bleibt nach dem ersten Anlauf einer stehen, wird weitergesucht statt ihn
+    # Eine Abweichung über MAX_REL ist die eine Sache, die nicht vorkommen soll.
+    # Bleibt nach dem ersten Anlauf eine stehen, wird weitergesucht statt sie
     # hinzunehmen: die Verteilung ist eine Suche, kein Beweis, und ein zweiter
-    # Anlauf mit anderem Zufall findet ihn oft doch. Erst nach mehreren
+    # Anlauf mit anderem Zufall findet sie oft doch. Erst nach mehreren
     # vergeblichen Versuchen gilt es als Eigenschaft der Plansummen.
     for _ in range(3):
         if not hart:
@@ -804,11 +846,11 @@ def main():
         kandidat = spread(total, vol, weeks, rnd, RESTARTS, SPREAD_ROUNDS)
         if kandidat[1][0] < hart:
             per_week, (hart, auftritte, worst) = kandidat
-            print(f'   nochmal verteilt: {hart} ganze Sätze daneben')
+            print(f'   nochmal verteilt: {hart} Gruppenwochen über {MAX_REL:.0%}')
     print(f'auf {weeks} Wochen verteilt: {auftritte} Auftritte '
           f'({auftritte / (weeks * WEEK):.2f} Übungen je Einheit), '
-          f'schlechteste Woche {worst / UNIT:.2f} Sätze daneben, '
-          f'{hart} ganze Sätze daneben')
+          f'schlechteste Woche {worst:.0%} vom Ziel entfernt, '
+          f'{hart} Gruppenwochen über {MAX_REL:.0%}')
 
     half, unwucht = sides(ids, shares, total, groups)
     print(f'Erholung: zwei Hälften mit {unwucht / 2 / weeks:+.1f} Sätzen Unterschied pro Woche – '
