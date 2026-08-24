@@ -104,7 +104,7 @@ export const EXERCISES = [
       "name": "Gewichtete Liegestütze",
       "reps": "8–15",
       "equip": "Rucksack",
-      "cue": "Rucksack auf den oberen Rücken, hoch zwischen die Schulterblätter, Gurte fest – rutscht er Richtung Becken, hebelt er dich hoch. Füllung: Wasserflaschen (1 l = 1 kg), Bücher oder die Kurzhanteln selbst. Körper bleibt eine Linie, Ellenbogen ca. 45°. Mehr Tiefe bekommst du, wenn du die Hände auf die Kurzhanteln stützt: dann sinkt die Brust unter Handhöhe, was am Boden nicht geht.",
+      "cue": "Rucksack auf den oberen Rücken, hoch zwischen die Schulterblätter, Gurte fest – rutscht er Richtung Becken, hebelt er dich hoch. Füllung: Wasserflaschen (1 l = 1 kg), Bücher oder die Kurzhanteln selbst. Körper bleibt eine Linie, Ellenbogen ca. 45°. Mehr Tiefe bringen zwei gleich hohe, kippsichere Auflagen unter den Händen – dicke Bücher oder niedrige Kisten; dann sinkt die Brust darunter. Auf Kurzhanteln nur, wenn sie sechseckig sind: runde Scheiben rollen unter Last weg.",
       "rest": 150,
       "pattern": "pushup",
       "shares": {
@@ -122,7 +122,7 @@ export const EXERCISES = [
       "name": "Langsame Liegestütze (3 s ablassen)",
       "reps": "8–20",
       "equip": "Ohne Gerät",
-      "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht.",
+      "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht. Mehr Tiefe bringen zwei gleich hohe, kippsichere Auflagen unter den Händen – runde Hantelscheiben taugen dafür nicht, die rollen.",
       "rest": 150,
       "pattern": "pushup",
       "shares": {

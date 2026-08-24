@@ -228,8 +228,13 @@ Figur trug eine Scheibe auf dem Rücken, die Gewichtsangabe hieß
 „Zusatzgewicht" – beides zeigt etwas, das man sich allein nicht auflegen kann.
 Ein Rucksack schon, und er sieht auch anders aus: ein Kasten, keine Scheibe.
 Der Hinweis sagt jetzt, was hineingehört (Wasserflaschen, 1 l = 1 kg), wie er
-sitzt (hoch zwischen den Schulterblättern, sonst hebelt er) – und dass die
-Hände auf den Kurzhanteln mehr Tiefe geben als der Boden zulässt. Vorher wurde es aus `weightNote` erraten – „eine Hantel" trifft aber
+sitzt (hoch zwischen den Schulterblättern, sonst hebelt er) – und wie mehr
+Tiefe geht als der Boden zulässt: zwei gleich hohe, kippsichere Auflagen unter
+den Händen. **Nicht auf Kurzhanteln**, außer sie sind sechseckig; runde
+Scheiben rollen unter Last weg, und zwar genau unten in der gedehnten Position,
+wo das Handgelenk schräg steht. Der erste Entwurf hat das empfohlen – ein
+schlechter Rat, der nur deshalb aufgefallen ist, weil jemand mit den eigenen
+Hanteln davorstand. Vorher wurde es aus `weightNote` erraten – „eine Hantel" trifft aber
 sowohl auf den Goblet Squat zu (beidhändig vor der Brust) als auch aufs
 Wadenheben (einhändig neben dem Körper), und die Figur hielt dann das Falsche.
 
