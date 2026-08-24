@@ -361,7 +361,7 @@ Gegenteil: auch bei eingelenkigen Übungen bringen zwei bis drei Minuten mehr
 als eine, weil sonst die Wiederholungen in den Folgesätzen einbrechen und mit
 ihnen das tatsächlich geleistete Volumen. Der Preis ist Zeit: die Einheit geht
 von durchschnittlich 32 auf 38 Minuten – mit dem größeren Wochenvolumen sind
-es inzwischen 46. Das ist der Tausch, und er ist bewusst so herum gemacht.
+es inzwischen 47. Das ist der Tausch, und er ist bewusst so herum gemacht.
 
 Über *Mehr* lässt sich stattdessen eine feste Länge wählen oder die Pause ganz
 abschalten.
@@ -454,9 +454,9 @@ frei. 80 Einheiten in 20 Wochen, vom 24.08.2026 bis zum 09.01.2027.
 | hintere Schulter | 12 | **exakt** | 11,3–12,3 |
 | Gesäß | 8 | **exakt** | 7,6–8,6 |
 | Oberschenkel, Beinbeuger | 6 | **exakt** | 5,4–6,6 |
-| Bauch | 5 | **exakt** | 4,7–5,4 |
+| Bauch | 8 | **exakt** | 7,7–8,7 |
 | Waden | 4 | **exakt** | immer genau 4,0 |
-| Nacken | *Ergebnis* | 13,325 | 12,3–13,8 |
+| Nacken | *Ergebnis* | 13,305 | 12,5–13,9 |
 
 Welche Gruppen ein Ziel haben und welche bloß herausfallen, steht als
 `DERIVED` in den erzeugten Daten – „exakt getroffen" darf niemand für eine
@@ -474,11 +474,12 @@ dieselbe Zeit trägt an der Schulter mehr.
 **Zweite Fassung der Zahlen.** Vorher stand im Oberkörper überall eine 10 –
 das war die selbst gesetzte Obergrenze, nicht das Optimum. Zwei Korrekturen:
 
-* **Bauch von 10 auf 5.** Zehn Sätze pro Woche waren das teuerste Nichts im
+* **Bauch von 10 auf 8.** Zehn Sätze pro Woche waren das teuerste Nichts im
   Plan: Ein sichtbarer Bauch ist eine Frage des Körperfetts, nicht der
-  Crunches. Fünf halten die Rumpfkraft – ganz auf vier wollte ich nicht, weil
-  der indirekte Anteil aus Kniebeugen und Kreuzheben dann schon fast das ganze
-  Ziel deckt und eine der beiden Bauchübungen aus dem Plan fällt.
+  Crunches. Erst standen hier fünf – und das war zu wenig, aus einem Grund,
+  den die Zahl verdeckt (siehe unten): **Beim Bauch stecken 60 % des Ziels in
+  indirekten Anteilen.** Von fünf blieben zwei direkte Sätze übrig, an einem
+  einzigen Tag der Woche. Acht ergeben rund fünf direkte Sätze auf zwei Tagen.
 * **Oberkörper auf 12–16.** Die Dosis-Wirkung steigt bis etwa zwanzig Sätze je
   Muskel und Woche weiter, mit abnehmendem Ertrag. Wer schnell zulegen will,
   liegt bei 14–16 näher am Optimum als bei 10. Am meisten bekommt, was den
@@ -486,7 +487,25 @@ das war die selbst gesetzte Obergrenze, nicht das Optimum. Zwei Korrekturen:
   (14 – sie tragen bei jedem Drücken und Ziehen ohnehin mit), die hintere
   Schulter 12.
 
-Das kostet Zeit: Die Einheiten wachsen von durchschnittlich 38 auf 46 Minuten.
+Das kostet Zeit: Die Einheiten wachsen von durchschnittlich 38 auf 47 Minuten.
+
+**Ein Ziel ist nicht dasselbe wie direkte Arbeit.** Die Zahl in `TARGET` zählt
+indirekte Anteile mit, und bei einer Gruppe macht das den Unterschied zwischen
+Training und Buchhaltung:
+
+| Gruppe | Ziel | davon direkt | indirekt |
+| --- | --- | --- | --- |
+| Brust, Rücken, Oberschenkel, Trizeps, Waden | wie gesetzt | **100 %** | – |
+| Bizeps, Gesäß, Beinbeuger | | 86–89 % | 11–14 % |
+| Schultern, hintere Schulter, Nacken | | 61–74 % | 26–39 % |
+| **Bauch** | 8 | **63 %** | **37 %** |
+
+Beim Bauch ist der indirekte Anteil das Halten bei Kniebeuge, Kreuzheben und
+Leg Curl – isometrische Stabilisationsarbeit. Als Reiz für einen Muskel, der
+wachsen soll, ist das kein Ersatz für Beugen gegen Widerstand. Mit einem Ziel
+von 5 blieben davon **zwei direkte Sätze pro Woche** übrig, an einem Tag; mit 8
+sind es gut fünf auf zwei Tagen. Bei den übrigen Gruppen ist der Unterschied
+klein genug, um ihn zu ignorieren.
 Ändern heißt: `TARGET` umschreiben und neu rechnen – ob die neuen Ziele
 zusammen überhaupt erreichbar sind, sagt der Lauf selbst.
 
@@ -503,9 +522,24 @@ bringt viel: **ohne diese eine Gleichung hat der Oberkörper-Block ein
 Vielfaches an exakten Lösungen**, und unter denen liegt eine deutlich bessere.
 
 **Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, höchstens acht
-pro Woche, und **so wenige verschiedene Übungen je Einheit wie möglich**: 7 bis
-8, im Mittel 7,5. Das sind 17 bis 20 Sätze und geschätzte 40 bis 52 Minuten.
-**78 von 80 Einheiten sind verschieden.**
+pro Woche, und **so wenige verschiedene Übungen je Einheit wie möglich**: 6 bis
+9, im Mittel 7,7. Das sind 16 bis 22 Sätze und geschätzte 40 bis 54 Minuten.
+**73 von 80 Einheiten sind verschieden.**
+
+**Was zweimal in der Woche vorkommt, gehört auf zwei Tage.** Zweimal pro Woche
+schlägt einmal bei gleicher Satzzahl – aber die Aufteilung wusste davon nichts:
+Jede Übung suchte für sich den leersten Tag, und dass die zweite Wadenübung
+dieselbe Gruppe trifft, sah sie nicht. Ergebnis: Die Waden lagen in acht von
+zwanzig Wochen auf einem einzigen Tag, der Bauch in **jeder**. Jetzt bevorzugt
+die Platzierung einen Tag, an dem die Gruppe noch nicht direkt drankam, und ein
+eigenes Kriterium in der Bewertung zählt die Fälle, in denen das misslingt.
+
+Nur für *knappe* Gruppen – höchstens sechs direkte Sätze in dieser Woche, also
+zwei Auftritte. Für alle zu gelten war zu viel des Guten: Brust und Rücken
+streuen bei drei Auftritten von selbst, und sie auf frische Tage zu drängen
+schob Sätze auf ohnehin volle Tage – die Einheiten gingen auf 37 bis 57 Minuten
+auseinander und nur noch 67 von 80 waren verschieden. So kommt jede Gruppe in
+jeder Woche an mindestens zwei Tagen dran, ohne dass es woanders weh tut.
 
 **Ein ganzer Satz Abweichung wird nicht hingenommen.** Bleibt nach dem ersten
 Verteilungslauf eine Woche stehen, in der eine Gruppe einen ganzen Satz
@@ -542,14 +576,14 @@ Einheiten zum Rumpf. Heraus kommt:
 
 | Hälfte | Gruppen | Sätze/Woche |
 | --- | --- | --- |
-| A | Beinbeuger, Brust, Gesäß, Oberschenkel, Schultern, Trizeps | ~44 |
-| B | Bauch, Bizeps, Nacken, Rücken, Waden, hintere Schulter | ~45 |
+| A | Beinbeuger, Brust, Gesäß, Oberschenkel, Schultern, Trizeps | ~46 |
+| B | Bauch, Bizeps, Nacken, Rücken, Waden, hintere Schulter | ~46 |
 
 Nur die beiden Einheiten am kurzen Übergang bekommen eine Hälfte zugewiesen;
 die zwei dazwischen bleiben frei und nehmen, was übrig ist. Deshalb kostet die
-Bedingung fast nichts: weiterhin 7 bis 8 Übungen je Einheit, 17 bis 20 Sätze.
+Bedingung fast nichts: weiterhin 6 bis 9 Übungen je Einheit, 16 bis 22 Sätze.
 
-**Was sie kostet:** die Abwechslung. 78 von 80 Zusammenstellungen sind
+**Was sie kostet:** die Abwechslung. 73 von 80 Zusammenstellungen sind
 verschieden – der Raum ist kleiner, wenn zwei der vier Einheiten festgelegt
 sind. Zwei gleiche Einheiten direkt hintereinander kommen nicht vor.
 
@@ -647,7 +681,7 @@ ein *ganzer* Satz Abweichung braucht einen eigenen Zuschlag, sonst tauscht das
 Verfahren bereitwillig einen ganzen Satz Rücken gegen ein paar Zehntel
 anderswo – in der App sieht man den ganzen Satz, die Zehntel nicht.
 
-**Die Abwechslung bleibt fast vollständig:** 78 verschiedene Zusammenstellungen
+**Die Abwechslung bleibt fast vollständig:** 73 verschiedene Zusammenstellungen
 bei 80 Einheiten, und jede der 23 Übungen kommt vor – die seltenste mit einem
 Satz pro Woche.
 

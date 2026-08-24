@@ -59,6 +59,7 @@ Excel – hier wird nur bestimmt, welche Übung mit wie vielen Sätzen an welche
 Tag steht.
 """
 
+import collections
 import datetime
 import itertools
 import json
@@ -79,10 +80,14 @@ OUT = ROOT / 'tools' / 'plan.json'
 #
 #   * Bauch. Zehn Sätze pro Woche waren das teuerste Nichts im Plan – ein
 #     sichtbarer Bauch ist eine Frage des Körperfetts, nicht der Crunches.
-#     Fünf Sätze halten die Rumpfkraft – vier wären auch genug, aber dann
-#     deckt der indirekte Anteil aus Kniebeugen und Kreuzheben das Ziel
-#     schon fast allein, und eine der beiden Bauchübungen fällt ganz aus
-#     dem Plan. Der Rest wandert nach oben.
+#     Erst standen hier fünf. Das war zu wenig, und zwar aus einem Grund,
+#     den die Zahl verdeckt: Beim Bauch stecken 60 % des Ziels in
+#     indirekten Anteilen – dem Halten bei Kniebeuge, Kreuzheben und Leg
+#     Curl. Von fünf blieben zwei direkte Sätze übrig, an einem Tag der
+#     Woche. Isometrisches Halten ist aber kein Ersatz für Beugen gegen
+#     Widerstand. Acht ergeben rund fünf direkte Sätze auf zwei Tagen –
+#     die einzige Gruppe, bei der das Ziel deutlich über dem liegt, was
+#     tatsächlich direkt trainiert wird.
 #   * Zehn Sätze sind nicht das Ende der Fahnenstange. Die Dosis-Wirkung
 #     steigt bis etwa zwanzig Sätze je Muskel und Woche weiter, mit
 #     abnehmendem Ertrag. Wer schnell zulegen will, liegt bei 14–16 näher am
@@ -98,7 +103,7 @@ OUT = ROOT / 'tools' / 'plan.json'
 # erzwingt eine Verteilung, die anderswo schlechter ist.
 TARGET = {
     'chest': 16, 'lats': 14, 'delts': 16, 'rearDelts': 12,
-    'biceps': 14, 'triceps': 14, 'abs': 5,
+    'biceps': 14, 'triceps': 14, 'abs': 8,
     'traps': None,
     'glutes': 8, 'quads': 6, 'hamstrings': 6, 'calves': 4,
 }
@@ -131,7 +136,7 @@ SCREEN_RESTARTS = 2      # Anläufe je Probe
 SCREEN_ROUNDS = 90000    # Schritte je Probe
 RESTARTS = 16            # Anläufe beim Verteilen auf die Wochen
 SPREAD_ROUNDS = 400000   # Schritte je Anlauf
-SPLITS = 900             # Versuche je Woche für die Aufteilung
+SPLITS = 2000            # Versuche je Woche für die Aufteilung
 
 # Gerechnet wird durchweg in Zwanzigsteln eines Satzes: alle Anteile in
 # exercise-meta.json sind Vielfache von 0,05, damit bleibt alles ganzzahlig und
@@ -660,6 +665,18 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, tight=(), prev=
     Bedingung in dieser Woche nicht einhalten ließ.
     """
     target_sets = sum(week) / sessions
+    # Welche Gruppen sind in dieser Woche knapp? Bei höchstens sechs direkten
+    # Sätzen sind das zwei Auftritte, und dann entscheidet die Platzierung
+    # darüber, ob die Gruppe an einem oder an zwei Tagen drankommt. Bei Brust
+    # oder Rücken mit drei Auftritten ergibt sich die Streuung von selbst –
+    # dort auf frische Tage zu drängen, schiebt nur Sätze auf ohnehin volle
+    # Tage und zieht die Einheiten auseinander (16 bis 22 Sätze statt 18 bis 20).
+    direkt_woche = collections.Counter()
+    for k, ex in enumerate(ids):
+        if week[k]:
+            for m in direct_groups(ex, shares):
+                direkt_woche[m] += week[k]
+    knapp = {m for m, n in direkt_woche.items() if n <= 6}
     target_vol = {m: sum(week[k] * shares[ids[k]].get(m, 0) for k in range(len(ids))) / sessions
                   for m in groups}
     best = None
@@ -678,8 +695,19 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, tight=(), prev=
                     ok = False
                     break
                 dset = direct_groups(ids[k], shares)
+                # Zuerst ein Tag, an dem eine *knappe* Gruppe dieser Übung
+                # noch nicht direkt drankam, dann der leerste. Ohne den ersten
+                # Teil landeten die beiden Wadenübungen regelmäßig am selben
+                # Tag: Jede für sich sucht nur den leersten Platz, und dass die
+                # andere dieselbe Gruppe trifft, sieht sie nicht. Als reines
+                # Auswahlkriterium reichte das nicht – unter 900
+                # Zufallsversuchen war oft kein einziger dabei, der es besser
+                # machte. Für *alle* Gruppen zu gelten war dagegen zu viel des
+                # Guten; siehe `knapp` oben.
+                eng_dset = dset & knapp
                 free = sorted(range(sessions),
-                              key=lambda s: (len(day[s]), sum(x[1] for x in day[s]), rnd.random()))
+                              key=lambda s: (len(eng_dset & direkt[s]), len(day[s]),
+                                             sum(x[1] for x in day[s]), rnd.random()))
                 if streng:
                     free = [s for s in free
                             if (roles is None or roles[s] is None or dset <= roles[s])
@@ -707,7 +735,21 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, tight=(), prev=
             # Wie viele Übungen die Woche hat, steht schon fest; hier geht es nur
             # noch darum, dass keine Einheit die längste wird.
             laengste = max(len(d) for d in day)
-            got = (doppelt, laengste, imbalance, count, round(mix, 6))
+            # Was zweimal in der Woche vorkommt, gehört auf zwei Tage. Zweimal
+            # pro Woche schlägt einmal bei gleicher Satzzahl – und ohne dieses
+            # Kriterium landeten beide Auftritte gern am selben Tag: die Waden
+            # in acht von zwanzig Wochen, der Bauch in jeder. Gezählt werden
+            # nur Gruppen, die überhaupt zwei Auftritte haben; eine Gruppe mit
+            # einem einzigen Zweiersatz kann nicht auf zwei Tage.
+            tage, auftritte = {}, collections.Counter()
+            for slot, d in enumerate(day):
+                for ex, _ in d:
+                    for m in direct_groups(ex, shares):
+                        tage.setdefault(m, set()).add(slot)
+                        auftritte[m] += 1
+            selten = sum(1 for m, slots in tage.items()
+                         if len(slots) < 2 <= auftritte[m])
+            got = (doppelt, selten, laengste, imbalance, count, round(mix, 6))
             if best is None or got < best[0]:
                 best = (got, day, direkt)
         if best is not None:
