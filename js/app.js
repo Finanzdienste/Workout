@@ -1349,18 +1349,28 @@ function renderWeeklyVolume() {
   // stimmt – der Plan selbst schwankt um bis zu einen Satz. Gezählt wird
   // deshalb, wie viele Gruppen ihr Ziel erreicht haben.
   const voll = groups.filter((m) => inTarget(m, cur.acc[m] || 0)).length;
-  const offen = PLAN.slice(PLAN.indexOf(cur.from), PLAN.indexOf(cur.to) + 1)
-    .filter((w) => !completedMode(w.n)).length;
+  const inWoche = PLAN.slice(PLAN.indexOf(cur.from), PLAN.indexOf(cur.to) + 1);
+  const offen = inWoche.filter((w) => !completedMode(w.n)).length;
+
+  // Solange die Woche läuft, kann keine Gruppe ihr Ziel erreichen – "0 von 12"
+  // stünde dann als Vorwurf da, obwohl nichts versäumt ist. Bis zum Ende der
+  // Woche zählt deshalb der Fortschritt in Einheiten, danach das, worum es
+  // geht. Die Balken darunter bleiben in beiden Fällen dieselben.
+  const kopf = offen
+    ? { lbl: `Woche ${cur.nr} · ${inWoche.length - offen} von ${inWoche.length} Einheiten`,
+        zahl: inWoche.length - offen, von: inWoche.length }
+    : { lbl: `Woche ${cur.nr} · ${plural(voll, 'Gruppe', 'Gruppen')} im Ziel`,
+        zahl: voll, von: groups.length };
 
   host.innerHTML = `
     <div class="card">
       <div class="vol-head">
         <div>
-          <div class="lbl">Woche ${cur.nr} · ${plural(voll, 'Gruppe', 'Gruppen')} im Ziel</div>
+          <div class="lbl">${esc(kopf.lbl)}</div>
           <div class="hint">${esc(fmtDate(effDate(cur.from)))} – ${esc(fmtDate(effDate(cur.to)))}${
             offen ? ` · ${plural(offen, 'Einheit', 'Einheiten')} offen` : ' · abgeschlossen'}</div>
         </div>
-        <div class="vol-quote">${voll}<span>/${groups.length}</span></div>
+        <div class="vol-quote">${kopf.zahl}<span>/${kopf.von}</span></div>
       </div>
       ${groups.map((m) => volumeBar(m, cur.acc[m] || 0)).join('')}
       <div class="small muted" style="margin-top:10px">

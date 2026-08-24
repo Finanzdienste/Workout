@@ -116,6 +116,18 @@ Blickwinkel. Waagerechtes Ziehen dreht um die Hochachse.
 Gezeichnet wird mit schwacher Perspektive und Maleralgorithmus – was hinten
 liegt, kommt zuerst.
 
+**Sie steht auch in der aufgeklappten Übungskarte**, nicht nur in der
+Fokus-Ansicht: Genau dort schaut man nach, wie eine Übung geht. Nur offene
+Karten bekommen eine Figur, und **gezeichnet wird nur, was im Bild ist** – ein
+`IntersectionObserver` meldet jede Figur ab, die aus dem Sichtfeld scrollt. Mit
+acht offenen Karten und gedrosselter CPU fiel sonst jede zehnte Bildwiedergabe
+aus, für Figuren, die gerade niemand sah. Alle Figuren teilen sich eine einzige
+`requestAnimationFrame`-Schleife, die pausiert, sobald der Tab in den
+Hintergrund geht oder das System reduzierte Bewegung verlangt.
+
+Für Screenreader ist die Figur `aria-hidden`: zwei Dutzend namenlose Formen,
+deren Inhalt als Text direkt daneben steht.
+
 **Der Körper hat Volumen.** Der Rumpf ist kein Viereck zwischen Schultern und
 Hüften mehr – das war von der Seite papierdünn und hatte keine Taille –, sondern
 ein Körper aus drei Ringen (Schulter, Taille, Becken) mit je vier Ecken.
@@ -383,6 +395,14 @@ Skript: `tools/build-plan.py` schreibt es als `TARGET` nach `plan.json`, von
 dort geht es über `js/data.js` in die App. Eine zweite Zahl im Frontend wäre
 eine Zahl, die beim nächsten Umrechnen still falsch wird. Jede Zeile nennt
 beides – „6,8/10" statt bloß „6,8", seit die Ziele auseinandergehen.
+
+**Solange die Woche läuft, zählt die Karte Einheiten statt Gruppen.** Vorher
+stand dort „0 Gruppen im Ziel · 0/12", wenn zwei der vier Einheiten noch offen
+waren – als Vorwurf für etwas, das gar nicht versäumt war: Vor der letzten
+Einheit *kann* keine Gruppe ihr Ziel erreichen. Jetzt heißt es „Woche 2 · 2 von
+4 Einheiten", und erst mit der letzten abgehakten Einheit springt die Karte auf
+die Zahl um, um die es geht. Die zwölf Balken darunter bleiben in beiden Fällen
+dieselben.
 
 Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den jeweiligen
 Anteilen; eine Woche sind vier aufeinanderfolgende Einheiten – dieselbe

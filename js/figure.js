@@ -432,6 +432,25 @@ const el = (name, attrs = {}) => {
 
 const active = new Set();
 
+/**
+ * Nur zeichnen, was zu sehen ist.
+ *
+ * In der Übungsliste können acht Karten gleichzeitig offen stehen, und jede
+ * hat ihre Figur. Alle acht in jedem Bild neu zu zeichnen kostete auf einem
+ * gedrosselten Gerät jede zehnte Bildwiedergabe – sichtbar als Ruckeln beim
+ * Scrollen, für Figuren, die gerade gar nicht im Bild sind. Ein Beobachter
+ * schaltet die Unsichtbaren ab; `sichtbar` bleibt true, wo es den Beobachter
+ * nicht gibt, damit die Figur dort nicht stillsteht.
+ */
+const sichtbarkeit = typeof IntersectionObserver === 'function'
+  ? new IntersectionObserver((eintraege) => {
+    eintraege.forEach((e) => {
+      const entry = e.target.__figEntry;
+      if (entry) entry.sichtbar = e.isIntersecting;
+    });
+  }, { rootMargin: '80px' })
+  : null;
+
 /* ------------------------------------------------------------------ *
  * Stellen am Körper
  *
@@ -485,7 +504,15 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
   const VBH = box.width > 0 ? Math.max(50, Math.min(160, Math.round((100 * box.height) / box.width))) : 100;
   // Mit Verletzungsmarken wird der Körper neutral gefärbt – sonst hebt sich
   // die Marke nicht ab, beides wäre in der Akzentfarbe.
-  const svg = el('svg', { viewBox: `0 0 ${VBW} ${VBH}`, class: marks.length ? 'fig hurt-mode' : 'fig' });
+  // Für Screenreader ist die Figur nichts wert: Sie besteht aus zwei Dutzend
+  // namenlosen Formen, und was sie zeigt, steht als Text direkt daneben. Ohne
+  // aria-hidden liest die Sprachausgabe hier eine Grafik nach der anderen vor,
+  // ohne je etwas zu sagen.
+  const svg = el('svg', {
+    viewBox: `0 0 ${VBW} ${VBH}`,
+    class: marks.length ? 'fig hurt-mode' : 'fig',
+    'aria-hidden': 'true',
+  });
   const scene = el('g');
   svg.appendChild(scene);
   host.appendChild(svg);
@@ -495,6 +522,7 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
   const hint = document.createElement('span');
   hint.className = 'fig-hint';
   hint.textContent = '↕↔ ziehen zum Drehen';
+  hint.setAttribute('aria-hidden', 'true');   // Drehen geht nur mit dem Finger
   if (!host.classList.contains('no-hint')) host.appendChild(hint);
 
   // Dreiviertelansicht steht der stehenden Figur am besten. Eine liegende ist
@@ -908,8 +936,14 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
   const off = () => {
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
+    if (sichtbarkeit) sichtbarkeit.unobserve(host);
+    delete host.__figEntry;
   };
-  const entry = { draw, off, effortAt1: !LOWER_TO_1.includes(pattern) };
+  const entry = { draw, off, effortAt1: !LOWER_TO_1.includes(pattern), sichtbar: true };
+  if (sichtbarkeit) {
+    host.__figEntry = entry;
+    sichtbarkeit.observe(host);
+  }
   // Bei ausgeschalteter Bewegung eine mittlere Stellung zeigen statt der
   // Ausgangsstellung – sonst sieht man von der Übung nichts.
   draw(reduceMotion.matches ? 0.55 : 0);
@@ -977,7 +1011,7 @@ const reduceMotion = window.matchMedia
 function frame(now) {
   if (document.visibilityState === 'visible' && active.size && !reduceMotion.matches) {
     const u = (now % CYCLE_MS) / CYCLE_MS;
-    active.forEach((f) => f.draw(tempo(u, f.effortAt1)));
+    active.forEach((f) => { if (f.sichtbar) f.draw(tempo(u, f.effortAt1)); });
   }
   requestAnimationFrame(frame);
 }
