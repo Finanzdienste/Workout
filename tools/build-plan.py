@@ -20,20 +20,22 @@ voll Oberschenkel, gut zur Hälfte Gesäß, ein Drittel Bauch. Wer stur drei Sä
 je Übung verteilt, landet bei manchen Gruppen weit über und bei anderen weit
 unter dem Ziel. Also wird die Satzzahl je Übung gesucht statt gesetzt.
 
-**Die Zahl der Wochen muss gerade sein** – solange Rücken und hintere Schulter
-dasselbe Ziel haben, was sie derzeit tun. Sonst ist "exakt 10" nicht knapp
-verfehlt, sondern grundsätzlich unerreichbar. Der Rücken kommt nur aus Rudern
-und Chin-ups, beide mit Anteil 1,0 – seine Plansumme ist also eine ganze Zahl
-und trifft 10·W genau. Die hintere Schulter hängt an denselben zwei Übungen
-(0,35 und 0,15) plus Reverse Fly:
+**Ob ein Ziel überhaupt exakt erreichbar ist, ist eine Frage der Teilbarkeit.**
+Solange Rücken und hintere Schulter dasselbe Ziel hatten und der Rücken nur aus
+zwei Übungen kam – Rudern und Chin-ups, beide mit Anteil 1,0 –, musste die Zahl
+der Wochen gerade sein. Die hintere Schulter hing an denselben zwei Übungen
+plus Reverse Fly:
 
     hintere Schulter = 1,5·W + 0,2·Rudern + ReverseFly
 
 Für 10·W bräuchte es ReverseFly = 8,5·W − 0,2·Rudern. Bei ungeradem W endet
 8,5·W auf ,5, und 0,2·Rudern kann nur auf ,0 ,2 ,4 ,6 oder ,8 enden – das geht
-nie auf. Bei geradem W schon, sobald Rudern durch 20 teilbar ist. Der Kalender
-wird deshalb nötigenfalls um ein paar Einheiten verlängert; die Zusatztermine
-setzen den Rhythmus der Excel fort.
+nie auf. Mit den Pull-ups als drittem Zug und getrennten Zielen (Rücken 14,
+hintere Schulter 12) hat das System einen Freiheitsgrad mehr, und die Bedingung
+bindet so nicht mehr. Verlassen sollte man sich darauf nicht: Was zusammen
+aufgeht, sagt der Lauf selbst – er meldet für jede Gruppe, ob der Schnitt exakt
+getroffen wurde. Geht eine nicht auf, hilft ein anderes Ziel, ein anderer
+Anteil oder eine gerade Wochenzahl.
 
 Gerechnet wird in drei Schritten:
 
@@ -71,25 +73,36 @@ META = ROOT / 'tools' / 'exercise-meta.json'
 DATA = ROOT / 'js' / 'data.js'
 OUT = ROOT / 'tools' / 'plan.json'
 
-# Sätze je Muskelgruppe und Woche. Nicht überall dieselbe Zahl: der Plan soll
-# den Oberkörper voll bedienen und unten halten, was da ist. None heißt "kein
-# Ziel" – die Gruppe kommt heraus, wie sie herauskommt, und muss nur unter CAP
-# bleiben. Der Nacken ist so ein Fall: er hängt vollständig an Rudern,
-# Chin-ups, Reverse Fly und Seitheben,
+# Sätze je Muskelgruppe und Woche – zweite Fassung. Vorher stand im Oberkörper
+# überall eine 10, weil das die selbst gesetzte Obergrenze war. Zwei Dinge
+# sprachen dagegen:
 #
-#     Nacken = 0,29·Rudern + 0,21·Chin-ups + 0,6·ReverseFly + 0,2·Seitheben
+#   * Bauch. Zehn Sätze pro Woche waren das teuerste Nichts im Plan – ein
+#     sichtbarer Bauch ist eine Frage des Körperfetts, nicht der Crunches.
+#     Fünf Sätze halten die Rumpfkraft – vier wären auch genug, aber dann
+#     deckt der indirekte Anteil aus Kniebeugen und Kreuzheben das Ziel
+#     schon fast allein, und eine der beiden Bauchübungen fällt ganz aus
+#     dem Plan. Der Rest wandert nach oben.
+#   * Zehn Sätze sind nicht das Ende der Fahnenstange. Die Dosis-Wirkung
+#     steigt bis etwa zwanzig Sätze je Muskel und Woche weiter, mit
+#     abnehmendem Ertrag. Wer schnell zulegen will, liegt bei 14–16 näher am
+#     Optimum als bei 10.
 #
-# und ist damit keine freie Größe mehr. Ein Ziel dafür macht das
-# Gleichungssystem nur unlösbar oder erzwingt eine Verteilung, die anderswo
-# schlechter ist – ohne Gleichung bleiben im Oberkörper 2431 exakte Lösungen
-# statt 16, aus denen sich die ausgewogenste wählen lässt.
+# Nicht überall dieselbe Zahl: Was den Oberkörper breit macht – Brust, Rücken,
+# Schulter – bekommt am meisten, die Arme etwas weniger (sie tragen bei jedem
+# Drücken und Ziehen ohnehin mit), die Beine bleiben, wie sie waren. None heißt
+# "kein Ziel" – die Gruppe kommt heraus, wie sie herauskommt, und muss nur
+# unter CAP bleiben. Der Nacken ist so ein Fall: er hängt vollständig an
+# Rudern, Chin-ups, Pull-ups, Reverse Fly und Seitheben und ist damit keine
+# freie Größe mehr. Ein Ziel dafür macht das Gleichungssystem nur unlösbar oder
+# erzwingt eine Verteilung, die anderswo schlechter ist.
 TARGET = {
-    'chest': 10, 'lats': 10, 'delts': 10, 'rearDelts': 10,
-    'biceps': 10, 'triceps': 10, 'abs': 10,
+    'chest': 16, 'lats': 14, 'delts': 16, 'rearDelts': 12,
+    'biceps': 14, 'triceps': 14, 'abs': 5,
     'traps': None,
     'glutes': 8, 'quads': 6, 'hamstrings': 6, 'calves': 4,
 }
-CAP = 10                 # keine Gruppe darüber, indirekte Anteile eingerechnet
+CAP = 18                 # keine Gruppe darüber, indirekte Anteile eingerechnet
 DIRECT = 0.5             # ab diesem Anteil gilt eine Übung als direkt für die Gruppe
 REST_DAYS = 2            # so viele Tage Abstand, bevor eine Gruppe wieder direkt drankommt
 
@@ -782,8 +795,20 @@ def main():
             roles[0] = half[1]
         for a, b in tight:
             roles[a], roles[b] = roles[a] or half[0], roles[b] or half[1]
+        eng_prev = prev if eng_am_anfang else frozenset()
         sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd, SPLITS, used,
-                                             tight, prev if eng_am_anfang else frozenset(), roles)
+                                             tight, eng_prev, roles)
+        # Ging es nicht auf, kostet ein zweiter Anlauf nur für diese eine Woche
+        # ein paar Sekunden – und die Erholungsbedingung ist der Punkt, an dem
+        # der ganze Plan hängt. Vorher fiel sie hier still weg: bei zehn Sätzen
+        # je Gruppe fand die erste Runde immer eine Lösung, bei sechzehn in zwei
+        # von zwanzig Wochen nicht mehr, und im Plan standen zwei Übergänge mit
+        # derselben Gruppe an zwei Tagen hintereinander.
+        for faktor in (8, 40):
+            if not konflikte:
+                break
+            sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd,
+                                                 SPLITS * faktor, used, tight, eng_prev, roles)
         offen += 1 if konflikte else 0
         prev = frozenset(direkt[-1])
         for d, sess in zip(block, sess_list):

@@ -210,6 +210,18 @@ export const PATTERNS = {
       { arm: A(46, 20, 148), leg: L(26, 6, 38) },
     ],
   },
+  pullupwide: {
+    // Derselbe Zug im weiten Obergriff. Eigenes Muster, weil Chin-ups und
+    // Pull-ups in derselben Einheit direkt untereinander stehen – zweimal
+    // dieselbe Animation daneben sagt nichts über den Unterschied.
+    // Der Unterschied steckt in der Abspreizung: die Hände greifen weiter
+    // außen, der Ellenbogen wandert nach unten statt an den Rumpf.
+    label: 'Klimmzug im Obergriff', anchor: 'bar', bar: true, float: true,
+    poses: [
+      { arm: A(178, 42, 6), leg: L(8, 6, 20) },
+      { arm: A(74, 58, 128), leg: L(26, 6, 38) },
+    ],
+  },
   pike: {
     // Umgekehrtes V: Hüfte ist der höchste Punkt, Hände und Füße am Boden,
     // der Kopf senkt sich zwischen die Hände. Die Arme zeigen senkrecht nach

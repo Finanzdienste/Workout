@@ -263,6 +263,38 @@
   },
   "equip": "backpack"
  },
+ "pull-ups": {
+  "group": "Rücken/Bizeps",
+  "tier": 1,
+  "name": "Pull-ups",
+  "reps": "4–10",
+  "bwName": "Pull-ups",
+  "bwReps": "4–10",
+  "dbEquip": "Klimmzugstange + Rucksack",
+  "bwEquip": "Klimmzugstange",
+  "dbCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
+  "bwCue": "Identisch, ohne Zusatzgewicht. Noch keine ganze schaffst du? Negative: hochspringen und 5 Sekunden ablassen. Oder Füße auf einem Stuhl abstützen und nur so viel abnehmen, wie nötig ist. Drei bis vier Wochen, dann geht die erste freie.",
+  "dbRest": 180,
+  "bwRest": 180,
+  "dbWeight": 0,
+  "dbStep": 1,
+  "weightNote": "im Rucksack",
+  "dbPattern": "pullupwide",
+  "dbShares": {
+   "lats": 1.0,
+   "biceps": 0.4,
+   "traps": 0.35,
+   "rearDelts": 0.2
+  },
+  "bwPattern": "pullupwide",
+  "bwShares": {
+   "lats": 1.0,
+   "biceps": 0.4,
+   "traps": 0.35,
+   "rearDelts": 0.2
+  },
+  "equip": "backpack"
+ },
  "reverse-fly": {
   "group": "Schulter (hinten)",
   "tier": 3,
