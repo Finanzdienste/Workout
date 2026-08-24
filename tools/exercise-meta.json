@@ -543,5 +543,33 @@
    "abs": 1.0
   },
   "equip": null
+ },
+ "band-pull-apart": {
+  "group": "Schulter",
+  "tier": 3,
+  "name": "Band-Pull-Apart",
+  "reps": "12–20",
+  "bwName": "Band-Pull-Apart",
+  "bwReps": "12–20",
+  "dbEquip": "Loop-Band",
+  "bwEquip": "Loop-Band",
+  "dbCue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff.",
+  "bwCue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff.",
+  "dbRest": 60,
+  "bwRest": 60,
+  "dbWeight": null,
+  "dbStep": null,
+  "weightNote": null,
+  "dbPattern": "pullapart",
+  "dbShares": {
+   "rearDelts": 1.0,
+   "traps": 0.7
+  },
+  "bwPattern": "pullapart",
+  "bwShares": {
+   "rearDelts": 1.0,
+   "traps": 0.7
+  },
+  "equip": "band"
  }
 }

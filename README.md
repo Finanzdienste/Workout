@@ -90,6 +90,11 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   mit den Anlaufsätzen fürs erste Arbeitsgewicht.
 * **„Wie war das?"** – drei Knöpfe nach dem letzten Satz einer Übung. Freiwillig,
   ein Griff, und die Grundlage für den Vorschlag beim nächsten Mal.
+* **Wie schwer.** Unter dem Übungsnamen steht, wie nah ans Limit gegangen wird:
+  *„noch 1–2 Wiederholungen drin – nicht mehr"*, im letzten Satz einer Übung
+  *„bis kurz vors Versagen"*. Das ist die Zahl, die am meisten über das
+  Ergebnis entscheidet, und sie stand vorher nirgends – während wir monatelang
+  die Nachkommastelle beim Wochenvolumen optimiert haben.
 * **Zwei Wege aus dem Training.** *Abschließen* behält, was abgehakt ist – auch
   wenn nicht alles steht; der Knopf nennt den Stand mit. *Abbrechen* verwirft
   die Einheit ganz, sie gilt dann als nicht trainiert und der Plan behandelt
@@ -437,8 +442,16 @@ Oberkörper-Block 2431 exakte Lösungen statt 16**, und unter denen liegt eine
 deutlich bessere.
 
 **Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, höchstens acht
-pro Woche, und **so wenige verschiedene Übungen je Einheit wie möglich**: 6 bis
-7, im Mittel 6,6. Das sind 13 bis 17 Sätze und geschätzte 26 bis 47 Minuten.
+pro Woche, und **so wenige verschiedene Übungen je Einheit wie möglich**: 5 bis
+7, im Mittel 6,6. Das sind 13 bis 18 Sätze und geschätzte 29 bis 45 Minuten.
+**80 von 80 Einheiten sind verschieden.**
+
+**Ein ganzer Satz Abweichung wird nicht hingenommen.** Bleibt nach dem ersten
+Verteilungslauf eine Woche stehen, in der eine Gruppe einen ganzen Satz
+danebenliegt, sucht der Generator weiter – bis zu dreimal mit anderem Zufall.
+Die Verteilung ist eine Suche, kein Beweis: beim Einbau des Klumpen-Kriteriums
+stand nach dem ersten Anlauf genau ein solcher Fall da, und der zweite fand
+eine Verteilung ohne ihn.
 
 Die Länge einer Einheit ergibt sich fast vollständig aus den Zielen: ihre Summe
 über zwölf Gruppen, abzüglich der Überschneidung (ein Goblet Squat zahlt
@@ -617,7 +630,7 @@ zweite still verschluckt.
 
 ## Übungsvorrat
 
-**21 Übungen.** Die ursprünglichen 17 aus der Excel deckten die
+**22 Übungen.** Die ursprünglichen 17 aus der Excel deckten die
 Bewegungsmuster nicht vollständig ab – vier Lücken, die keine Rechnung
 schließen kann, weil die Übung schlicht fehlte:
 
@@ -627,6 +640,7 @@ schließen kann, weil die Übung schlicht fehlte:
 | **Rumänisches Kreuzheben** | Der Beinbeuger kam ausschließlich aus Kniebeugung (Leg Curl). Die Hüftstreck-Funktion, die größere Hälfte, wurde nie trainiert. |
 | **Split Squat** | Der Goblet Squat ist ab einem gewissen Punkt durch das *Halten* der Hantel begrenzt, nicht durch die Beine. Einbeinig fällt diese Grenze weg. |
 | **Hängendes Knieheben** | Der Bauch bestand aus Crunches, also nur Beugen. Jetzt kommt der Zug von unten dazu – und der Bauch hat 7,0 direkte Sätze statt 3,6. |
+| **Band-Pull-Apart** | Die hintere Schulter hing an einer einzigen Übung mit 7,9 Sätzen pro Woche. Jetzt teilen sich zwei den Reiz: Reverse Fly 3,0 und Pull-Apart 4,9. Beim Band steigt der Widerstand zum Ende der Bewegung – genau dort, wo die hintere Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull, die bessere Variante; der Hinweis sagt das. |
 
 Die vier stehen **nicht in der Excel**. Die bleibt Quelle des ursprünglichen
 Plans; was später dazukommt, steht vollständig in `tools/exercise-meta.json` –
@@ -650,6 +664,24 @@ nimmt beides.
    begrenzt, was eine Übung pro Woche tragen darf, und die Suche probiert Werte
    in der Nähe eines ausgewogenen Anteils zuerst statt in zufälliger
    Reihenfolge. Jetzt kommt jede der 21 Übungen mit 1,1 bis 7,9 Sätzen vor.
+
+### Keine Gruppe an einer einzigen Übung
+
+Von allen exakten Lösungen gewinnt nicht mehr nur die ausgewogenste über die
+Übungen, sondern auch die, bei der **keine Muskelgruppe an einer einzigen
+Übung hängt** (`klumpen()`). Das ist kein Schönheitspreis:
+
+- Ein Reiz aus zwei Richtungen ist mehr wert als derselbe Reiz doppelt.
+- Fällt eine Übung wegen einer Beschwerde aus, bleibt bei einer
+  Klumpen-Lösung nichts übrig.
+
+Der Unterschied war deutlich: vorher trug der Reverse Fly 7,9 der 10 Sätze für
+die hintere Schulter allein, jetzt sind es 3,0 plus 4,9 Pull-Apart.
+
+Was das Kriterium **nicht** löst: das Zug-Verhältnis steht weiter bei 7,0
+Chin-ups zu 3,0 Rudern. Gemessen wird der schlimmste Klumpen über alle
+Gruppen, und der Rücken ist mit 0,7 nicht der schlimmste – für Breite ist
+vertikales Ziehen ohnehin das Richtige, für Dicke wäre ausgeglichener besser.
 
 ### Reihenfolge in der Einheit
 
@@ -904,7 +936,7 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 ```
 index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
-js/data.js              Aus Excel + plan.json erzeugt: 17 Übungen, 80 Einheiten, Wochenziele
+js/data.js              Aus Excel + plan.json erzeugt: 22 Übungen, 80 Einheiten, Wochenziele
 js/injuries.js          Verletzungskatalog und die Anpassung des Plans
 js/dates.js             Datums-Hilfsfunktionen inkl. Monatsraster
 js/store.js             Zustand und localStorage-Persistenz

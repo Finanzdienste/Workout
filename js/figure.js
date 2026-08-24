@@ -268,6 +268,15 @@ export const PATTERNS = {
       { arm: A(184, 17, 6), leg: L(96, 6, 108) },
     ],
   },
+  pullapart: {
+    // Arme vorn auf Schulterhöhe, dann zur Seite auseinander. Der Rumpf bleibt
+    // stehen – zieht er mit, wird daraus ein Rudern.
+    label: 'Band auseinanderziehen', view: [16, -6],
+    poses: [
+      { lean: 3, arm: A(86, 8, 8), leg: L(2, 5, 4) },
+      { lean: 3, arm: A(8, 86, 8), leg: L(2, 5, 4) },
+    ],
+  },
   curl: {
     label: 'Bizeps-Curl',
     poses: [
@@ -714,6 +723,23 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.34, 5.2);
     } else if (equip === 'hipbar') {
       barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.26, 4.8);
+    } else if (equip === 'band') {
+      // Band zwischen den Händen: eine Linie, die sich beim Auseinanderziehen
+      // spannt. Mehr braucht es nicht – genau so sieht ein Loop-Band aus, das
+      // vor dem Körper gehalten wird. Leicht durchhängend gezeichnet, damit es
+      // in der Ausgangsstellung nicht wie eine starre Stange wirkt.
+      const a = P(pts0.handL);
+      const b = P(pts0.handR);
+      const span = Math.hypot(a.x - b.x, a.y - b.y);
+      const sag = Math.max(0, 26 * gearScale - span * 0.22);
+      parts.push({
+        z: (a.z + b.z) / 2 + 0.01,
+        node: el('path', {
+          d: `M${a.x.toFixed(1)} ${a.y.toFixed(1)} Q${((a.x + b.x) / 2).toFixed(1)} `
+             + `${((a.y + b.y) / 2 + sag).toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`,
+          class: 'fig-band',
+        }),
+      });
     } else if (equip === 'plate' || equip === 'backplate') {
       // Scheibe auf der Brust (Crunches) bzw. auf dem Rücken (Liegestütze)
       // Die gehaltene Scheibe liegt etwas weiter vorn als die Unterarme,

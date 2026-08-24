@@ -297,6 +297,29 @@ def exact(block, shares, weeks, values, limit, rnd):
     return out
 
 
+def klumpen(sol, block, shares):
+    """Wie sehr hängt eine Gruppe an einer einzigen Übung?
+
+    Zurück kommt der größte Anteil, den eine Übung am Volumen *einer* Gruppe
+    hat, grob gestuft. Das ist kein Schönheitspreis: Vorher standen 7,9 Sätze
+    Reverse Fly pro Woche für die hintere Schulter und ein Zug-Verhältnis von
+    7 zu 3 zwischen Klimmzug und Rudern – beides nicht entschieden, sondern
+    zufällig so gewählt. Ein Reiz aus zwei Richtungen ist mehr wert als
+    derselbe Reiz doppelt, und fällt eine Übung wegen einer Beschwerde aus,
+    bleibt bei einer Klumpen-Lösung nichts übrig.
+
+    Gestuft in Zwanzigsteln, damit winzige Unterschiede nicht die Reihenfolge
+    umwerfen und die späteren Kriterien noch etwas zu sagen haben.
+    """
+    schlimmst = 0.0
+    for m in {m for i in block for m in shares[i] if GOAL.get(m) is not None}:
+        teile = [sol[i] * shares[i].get(m, 0) for i in block]
+        ganz = sum(teile)
+        if ganz:
+            schlimmst = max(schlimmst, max(teile) / ganz)
+    return round(schlimmst * 20)
+
+
 def totals(ids, shares, groups, weeks, rnd):
     """Sätze je Übung über den ganzen Plan, exakt 10·W für jede Gruppe.
 
@@ -336,10 +359,12 @@ def totals(ids, shares, groups, weeks, rnd):
                                                  rnd, SCREEN_RESTARTS, SCREEN_ROUNDS)
             # Erst: keine Gruppe soll einen ganzen Satz danebenliegen. Dann:
             # keine Übung soll unter einen Satz pro Woche rutschen, ganz
-            # herausfallen eingeschlossen. Dann die Länge der Einheiten, dann
-            # die schlechteste Woche.
+            # herausfallen eingeschlossen. Dann: keine Gruppe soll an einer
+            # einzigen Übung hängen. Dann die Länge der Einheiten, dann die
+            # schlechteste Woche.
             knapp = sum(1 for v in sol.values() if v < weeks)
-            got = (hart, knapp, auftritte, worst, min(sol.values()) == 0, balance(sol))
+            got = (hart, knapp, klumpen(sol, block, shares), auftritte, worst,
+                   min(sol.values()) == 0, balance(sol))
             if best is None or got < best[0]:
                 best = (got, sol)
         total.update(best[1])
@@ -713,6 +738,18 @@ def main():
 
     per_week, (hart, auftritte, worst) = spread(total, vol, weeks, rnd,
                                                 RESTARTS, SPREAD_ROUNDS)
+    # Ein ganzer Satz Abweichung ist die eine Sache, die nicht vorkommen soll.
+    # Bleibt nach dem ersten Anlauf einer stehen, wird weitergesucht statt ihn
+    # hinzunehmen: die Verteilung ist eine Suche, kein Beweis, und ein zweiter
+    # Anlauf mit anderem Zufall findet ihn oft doch. Erst nach mehreren
+    # vergeblichen Versuchen gilt es als Eigenschaft der Plansummen.
+    for _ in range(3):
+        if not hart:
+            break
+        kandidat = spread(total, vol, weeks, rnd, RESTARTS, SPREAD_ROUNDS)
+        if kandidat[1][0] < hart:
+            per_week, (hart, auftritte, worst) = kandidat
+            print(f'   nochmal verteilt: {hart} ganze Sätze daneben')
     print(f'auf {weeks} Wochen verteilt: {auftritte} Auftritte '
           f'({auftritte / (weeks * WEEK):.2f} Übungen je Einheit), '
           f'schlechteste Woche {worst / UNIT:.2f} Sätze daneben, '

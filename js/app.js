@@ -569,7 +569,8 @@ function renderFocus() {
     <div class="focus-fig" id="focusFig"></div>
 
     <h2 class="focus-name">${esc(it.name)}</h2>
-    <div class="focus-meta">${it.sets} Sätze × ${esc(it.reps)} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
+    <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
+    <div class="intensity">${esc(INTENSITY[doneCount + 1 >= it.sets ? 'last' : 'normal'])}</div>
 
     ${kg === null ? '' : `
       <div class="ex-weight focus-weight">
@@ -1036,6 +1037,21 @@ function renderStats() {
 }
 
 /* ------------------------------------------------------------------ *
+ * Wie schwer?
+ *
+ * Die Zahl, die am meisten über das Ergebnis entscheidet, stand bisher
+ * nirgends: nicht wie viele Sätze, sondern wie nah am Limit. Zwei Sätze
+ * Wortlaut, dafür an der Stelle, an der man gerade steht – im letzten Satz
+ * einer Übung darf mehr riskiert werden als im ersten, weil danach nichts
+ * mehr kommt, was darunter leidet.
+ * ------------------------------------------------------------------ */
+
+const INTENSITY = {
+  normal: 'So schwer wählen, dass noch 1–2 Wiederholungen drin wären – nicht mehr.',
+  last: 'Letzter Satz: bis kurz vors Versagen, saubere Technik bis zum Schluss.',
+};
+
+/* ------------------------------------------------------------------ *
  * Aufwärmen
  *
  * Der Plan fing bisher kalt an: drei Sätze Rudern mit 16 kg als Erstes. Was
@@ -1082,6 +1098,9 @@ function warmupCard(items, n, mode) {
         <ul class="warm-list">${saetze}</ul>
         <div class="small muted">Die Anlaufsätze machen nicht müde, sie stellen die
           Bewegung ein. Erst danach steht das Arbeitsgewicht.</div>
+        <div class="cue" style="margin-top:8px"><b>Wie schwer danach?</b> ${esc(INTENSITY.normal)}
+          ${esc(INTENSITY.last)} Das entscheidet mehr als die Frage, ob eine Gruppe
+          9,7 oder 10,0 Sätze bekommt.</div>
       </div>` : ''}
     </article>`;
 }
