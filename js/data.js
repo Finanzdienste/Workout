@@ -33,7 +33,7 @@ export const EXERCISES = [
       "reps": "12–25",
       "equip": "Ohne Gerät",
       "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch. Das zählt als EINE Wiederholung. Tempo bewusst langsam.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "squatbw",
       "shares": {
         "quads": 1.0,
@@ -61,7 +61,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Slider/Handtuch",
       "cue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen.",
-      "rest": 90,
+      "rest": 120,
       "pattern": "legcurl",
       "shares": {
         "hamstrings": 1.0,
@@ -79,7 +79,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Slider/Handtuch",
       "cue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s).",
-      "rest": 90,
+      "rest": 120,
       "pattern": "legcurl",
       "shares": {
         "hamstrings": 1.0,
@@ -105,7 +105,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Zusatzgewicht",
       "cue": "Scheibe/Rucksack auf dem oberen Rücken. Körper bleibt eine Linie, Ellenbogen ca. 45°.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "pushup",
       "shares": {
         "chest": 1.0,
@@ -123,7 +123,7 @@ export const EXERCISES = [
       "reps": "8–20",
       "equip": "Ohne Gerät",
       "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "pushup",
       "shares": {
         "chest": 1.0,
@@ -149,7 +149,7 @@ export const EXERCISES = [
       "reps": "5–10",
       "equip": "Klimmzugstange",
       "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen.",
-      "rest": 150,
+      "rest": 180,
       "pattern": "pullup",
       "shares": {
         "lats": 1.0,
@@ -169,7 +169,7 @@ export const EXERCISES = [
       "reps": "5–10",
       "equip": "Klimmzugstange",
       "cue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen.",
-      "rest": 150,
+      "rest": 180,
       "pattern": "pullup",
       "shares": {
         "lats": 1.0,
@@ -197,7 +197,7 @@ export const EXERCISES = [
       "reps": "12–20",
       "equip": "Kurzhanteln",
       "cue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
-      "rest": 60,
+      "rest": 120,
       "pattern": "lateral",
       "shares": {
         "delts": 1.0,
@@ -239,7 +239,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Kurzhanteln/SZ",
       "cue": "Rücken am Boden/Bank, Oberarme fixiert. Nur im Ellenbogen beugen, Gewicht Richtung Stirn senken.",
-      "rest": 75,
+      "rest": 120,
       "pattern": "triceps",
       "shares": {
         "triceps": 1.0
@@ -253,7 +253,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Niedrige Stange",
       "cue": "Hände auf einer niedrigen Stange, Körper schräg. Ellenbogen beugen bis der Kopf unter die Stange geht, dann strecken. Steilerer Winkel = leichter.",
-      "rest": 75,
+      "rest": 120,
       "pattern": "tricepsbar",
       "shares": {
         "triceps": 1.0,
@@ -277,7 +277,7 @@ export const EXERCISES = [
       "reps": "10–20 je Bein",
       "equip": "Kurzhantel",
       "cue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten.",
-      "rest": 60,
+      "rest": 90,
       "pattern": "calf1",
       "shares": {
         "calves": 1.0
@@ -291,7 +291,7 @@ export const EXERCISES = [
       "reps": "15–30 je Bein",
       "equip": "Ohne Gerät",
       "cue": "Ohne Gewicht, dafür deutlich mehr Wiederholungen. Volle Dehnung unten, 1 s Pause oben – bis es wirklich brennt.",
-      "rest": 60,
+      "rest": 90,
       "pattern": "calf1",
       "shares": {
         "calves": 1.0
@@ -313,7 +313,7 @@ export const EXERCISES = [
       "reps": "12–20",
       "equip": "Kurzhantel",
       "cue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
-      "rest": 60,
+      "rest": 90,
       "pattern": "calfbent",
       "shares": {
         "calves": 1.0
@@ -327,7 +327,7 @@ export const EXERCISES = [
       "reps": "15–30",
       "equip": "Ohne Gerät",
       "cue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
-      "rest": 60,
+      "rest": 90,
       "pattern": "calfbent",
       "shares": {
         "calves": 1.0
@@ -367,7 +367,7 @@ export const EXERCISES = [
       "reps": "12–25",
       "equip": "Erhöhung (Buch/Keil)",
       "cue": "Fersen erhöht, gleiche 1½-Technik. Betont den vorderen Oberschenkel deutlich stärker.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "squatbw",
       "shares": {
         "quads": 1.0,
@@ -393,7 +393,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "SZ-Stange",
       "cue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung.",
-      "rest": 75,
+      "rest": 120,
       "pattern": "curl",
       "shares": {
         "biceps": 1.0
@@ -433,7 +433,7 @@ export const EXERCISES = [
       "reps": "10–20",
       "equip": "Zusatzgewicht",
       "cue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
-      "rest": 45,
+      "rest": 90,
       "pattern": "crunch",
       "shares": {
         "abs": 1.0
@@ -447,7 +447,7 @@ export const EXERCISES = [
       "reps": "15–30",
       "equip": "Ohne Gerät",
       "cue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer.",
-      "rest": 45,
+      "rest": 90,
       "pattern": "crunch",
       "shares": {
         "abs": 1.0
@@ -469,7 +469,7 @@ export const EXERCISES = [
       "reps": "6–12 je Bein",
       "equip": "Slider/Handtuch",
       "cue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
-      "rest": 90,
+      "rest": 120,
       "pattern": "legcurl1",
       "shares": {
         "hamstrings": 1.0,
@@ -487,7 +487,7 @@ export const EXERCISES = [
       "reps": "6–12 je Bein",
       "equip": "Slider/Handtuch",
       "cue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück.",
-      "rest": 90,
+      "rest": 120,
       "pattern": "legcurl1",
       "shares": {
         "hamstrings": 1.0,
@@ -513,7 +513,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Erhöhung",
       "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "pushupfeet",
       "shares": {
         "chest": 1.0,
@@ -531,7 +531,7 @@ export const EXERCISES = [
       "reps": "8–20",
       "equip": "Erhöhung",
       "cue": "Identisch. Für mehr Reiz Füße höher stellen oder langsamer ablassen.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "pushupfeet",
       "shares": {
         "chest": 1.0,
@@ -557,7 +557,7 @@ export const EXERCISES = [
       "reps": "6–12",
       "equip": "Kurzhanteln",
       "cue": "Rücken am Boden, Oberarme setzen kurz ab. Schont die Schulter, betont den Trizeps-Lockout.",
-      "rest": 120,
+      "rest": 180,
       "pattern": "press",
       "shares": {
         "chest": 1.0,
@@ -575,7 +575,7 @@ export const EXERCISES = [
       "reps": "8–20",
       "equip": "Ohne Gerät",
       "cue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press.",
-      "rest": 90,
+      "rest": 150,
       "pattern": "pushup",
       "shares": {
         "chest": 1.0,
@@ -601,7 +601,7 @@ export const EXERCISES = [
       "reps": "8–12 je Seite",
       "equip": "Kurzhantel",
       "cue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "row",
       "shares": {
         "lats": 1.0,
@@ -621,7 +621,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Niedrige Stange/Tisch",
       "cue": "Inverted Rows: unter eine stabile niedrige Stange (oder Tischkante) legen, Körper gerade, Brust zur Stange ziehen. Schwerer: Füße erhöhen.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "invrow",
       "shares": {
         "lats": 1.0,
@@ -649,7 +649,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Kurzhantel",
       "cue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "thrust",
       "shares": {
         "glutes": 1.0,
@@ -665,7 +665,7 @@ export const EXERCISES = [
       "reps": "10–20 je Bein",
       "equip": "Ohne Gerät",
       "cue": "Einbeinig ausführen, freies Bein angewinkelt. Oben 1–2 s halten – ersetzt die fehlende Zusatzlast.",
-      "rest": 90,
+      "rest": 150,
       "pattern": "thrust1",
       "shares": {
         "glutes": 1.0,
@@ -689,7 +689,7 @@ export const EXERCISES = [
       "reps": "12–20",
       "equip": "Kurzhanteln",
       "cue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
-      "rest": 60,
+      "rest": 120,
       "pattern": "reversefly",
       "shares": {
         "rearDelts": 1.0,
@@ -705,7 +705,7 @@ export const EXERCISES = [
       "reps": "12–25",
       "equip": "Ohne Gerät",
       "cue": "Bauchlage, Arme angehoben, Reverse Snow Angels: Arme langsam vom Kopf bis zur Hüfte und zurück führen, ohne den Boden zu berühren.",
-      "rest": 60,
+      "rest": 120,
       "pattern": "snowangel",
       "shares": {
         "rearDelts": 1.0,
@@ -729,7 +729,7 @@ export const EXERCISES = [
       "reps": "6–12",
       "equip": "Kurzhanteln",
       "cue": "Aufrecht sitzen, Rippen unten lassen. Hanteln von Schulterhöhe senkrecht nach oben, Ellenbogen leicht vor der Schulterachse. Oben nicht in den Rücken ausweichen.",
-      "rest": 120,
+      "rest": 180,
       "pattern": "ohp",
       "shares": {
         "delts": 1.0,
@@ -747,7 +747,7 @@ export const EXERCISES = [
       "reps": "5–12",
       "equip": "Erhöhung",
       "cue": "Füße auf eine Erhöhung, Hüfte hoch, Scheitel Richtung Boden. Je höher die Füße, desto mehr Last auf der Schulter.",
-      "rest": 120,
+      "rest": 180,
       "pattern": "pike",
       "shares": {
         "delts": 1.0,
@@ -775,7 +775,7 @@ export const EXERCISES = [
       "reps": "8–12",
       "equip": "Kurzhanteln",
       "cue": "Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Hanteln nah am Bein. Nicht tiefer als die Dehnung erlaubt.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "hinge",
       "shares": {
         "hamstrings": 1.0,
@@ -793,7 +793,7 @@ export const EXERCISES = [
       "reps": "8–15 je Bein",
       "equip": "Ohne Gerät",
       "cue": "Auf einem Bein, das freie Bein wandert nach hinten, bis Rumpf und Bein eine Linie bilden. Hüfte gerade halten, nicht zur Seite kippen.",
-      "rest": 90,
+      "rest": 150,
       "pattern": "hinge1",
       "shares": {
         "hamstrings": 1.0,
@@ -819,7 +819,7 @@ export const EXERCISES = [
       "reps": "8–12 je Bein",
       "equip": "Kurzhanteln",
       "cue": "Ein Bein weit vorn, das hintere Knie senkt sich Richtung Boden. Rumpf aufrecht, das Gewicht auf der ganzen vorderen Fußsohle. Hinteren Fuß erhöhen macht es schwerer.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "splitsquat",
       "shares": {
         "quads": 1.0,
@@ -839,7 +839,7 @@ export const EXERCISES = [
       "reps": "12–20 je Bein",
       "equip": "Ohne Gerät",
       "cue": "Gleiche Stellung ohne Gewicht, dafür langsam: drei Sekunden ablassen, unten kurz halten.",
-      "rest": 90,
+      "rest": 150,
       "pattern": "splitsquat",
       "shares": {
         "quads": 1.0,
@@ -867,7 +867,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Klimmzugstange",
       "cue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit.",
-      "rest": 60,
+      "rest": 120,
       "pattern": "kneeraise",
       "shares": {
         "abs": 1.0
@@ -881,7 +881,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Klimmzugstange",
       "cue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit.",
-      "rest": 60,
+      "rest": 120,
       "pattern": "kneeraise",
       "shares": {
         "abs": 1.0
@@ -903,7 +903,7 @@ export const EXERCISES = [
       "reps": "12–20",
       "equip": "Loop-Band",
       "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff.",
-      "rest": 60,
+      "rest": 120,
       "pattern": "pullapart",
       "shares": {
         "rearDelts": 1.0,
@@ -919,7 +919,7 @@ export const EXERCISES = [
       "reps": "12–20",
       "equip": "Loop-Band",
       "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff.",
-      "rest": 60,
+      "rest": 120,
       "pattern": "pullapart",
       "shares": {
         "rearDelts": 1.0,

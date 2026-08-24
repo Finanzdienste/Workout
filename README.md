@@ -317,21 +317,28 @@ eingeschlichen.
 ### Pausenlängen
 
 Statt einer festen Länge bekommt jede Übung die, die zu ihrer Belastung passt
-(`dbRest`/`bwRest` je Variante, an ACSM/NSCA-Richtwerten orientiert):
+(`dbRest`/`bwRest` je Variante). Die Werte folgen einer Regel aus zwei Größen:
+der Stufe aus `tier` und der **unteren Grenze des Wiederholungsbereichs** – ein
+Satz zu sechs Wiederholungen kostet mehr Erholung als einer zu fünfzehn.
 
 | Art | Pause | Beispiel |
 | --- | --- | --- |
-| mehrgelenkig schwer | 2:30 | Goblet Squat, Chin-ups |
-| mehrgelenkig mittel | 2:00 | Floor Press, KH-Rudern, Hip Thrust |
-| Beinbeuger | 1:30 | Sliding Leg Curl |
-| größere Isolation | 1:15 | Trizepsstrecker, SZ-Curls |
-| kleine Isolation, Waden | 1:00 | Seitheben, Reverse Fly, Wadenheben |
-| Bauch | 0:45 | Crunches |
+| Stufe 1, unter 8 Wdh. | 3:00 | Chin-ups (5–10), Floor Press (6–12), Schulterdrücken (6–12) |
+| Stufe 1, ab 8 Wdh. | 2:30 | Goblet Squat, Rudern, Hip Thrust, Kreuzheben |
+| Stufe 2 und 3 | 2:00 | Leg Curls, Seitheben, Curls, Reverse Fly, Pull-Apart |
+| Stufe 4 (Bauch, Waden) | 1:30 | Crunches, Wadenheben |
 
-Die Bodyweight-Varianten weichen dort ab, wo sie einen anderen Charakter haben
-– Pike Push-ups sind mehrgelenkig und bekommen 2:00, wo das Seitheben 1:00
-hätte. Über *Mehr* lässt sich stattdessen eine feste Länge wählen oder die
-Pause ganz abschalten.
+**Vorher war die Isolation zu kurz.** Reverse Fly und Seitheben standen bei
+1:00, Crunches bei 0:45 – das kam aus älteren ACSM/NSCA-Richtwerten, in denen
+kurze Pausen als „hypertrophieorientiert" galten. Neuere Arbeiten finden das
+Gegenteil: auch bei eingelenkigen Übungen bringen zwei bis drei Minuten mehr
+als eine, weil sonst die Wiederholungen in den Folgesätzen einbrechen und mit
+ihnen das tatsächlich geleistete Volumen. Der Preis ist Zeit: die Einheit geht
+von durchschnittlich 32 auf 38 Minuten. Das ist der Tausch, und er ist bewusst
+so herum gemacht.
+
+Über *Mehr* lässt sich stattdessen eine feste Länge wählen oder die Pause ganz
+abschalten.
 
 Der Ton wird per Web Audio erzeugt, nicht als Datei geladen – das hält die App
 offline-tauglich. Weil mobile Browser Ton nur nach einer Berührung zulassen,
@@ -443,7 +450,7 @@ deutlich bessere.
 
 **Höchstens drei Sätze je Übung und Einheit**, mindestens zwei, höchstens acht
 pro Woche, und **so wenige verschiedene Übungen je Einheit wie möglich**: 5 bis
-7, im Mittel 6,6. Das sind 13 bis 18 Sätze und geschätzte 29 bis 45 Minuten.
+7, im Mittel 6,6. Das sind 13 bis 18 Sätze und geschätzte 32 bis 44 Minuten.
 **80 von 80 Einheiten sind verschieden.**
 
 **Ein ganzer Satz Abweichung wird nicht hingenommen.** Bleibt nach dem ersten
