@@ -132,15 +132,15 @@
  "gewichtete-liegestuetze": {
   "group": "Brust",
   "tier": 1,
-  "dbEquip": "Zusatzgewicht",
+  "dbEquip": "Rucksack",
   "bwEquip": "Ohne Gerät",
-  "dbCue": "Scheibe/Rucksack auf dem oberen Rücken. Körper bleibt eine Linie, Ellenbogen ca. 45°.",
+  "dbCue": "Rucksack auf den oberen Rücken, hoch zwischen die Schulterblätter, Gurte fest – rutscht er Richtung Becken, hebelt er dich hoch. Füllung: Wasserflaschen (1 l = 1 kg), Bücher oder die Kurzhanteln selbst. Körper bleibt eine Linie, Ellenbogen ca. 45°. Mehr Tiefe bekommst du, wenn du die Hände auf die Kurzhanteln stützt: dann sinkt die Brust unter Handhöhe, was am Boden nicht geht.",
   "bwCue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht.",
   "dbRest": 150,
   "bwRest": 150,
-  "dbWeight": 10,
-  "dbStep": 1.25,
-  "weightNote": "Zusatzgewicht",
+  "dbWeight": 8,
+  "dbStep": 1,
+  "weightNote": "im Rucksack",
   "dbPattern": "pushup",
   "dbShares": {
    "chest": 1.0,
@@ -153,7 +153,7 @@
    "triceps": 0.6,
    "delts": 0.45
   },
-  "equip": "backplate"
+  "equip": "backpack"
  },
  "fuesse-erhoehte-liegestuetze": {
   "group": "Brust (oben)",
@@ -362,7 +362,7 @@
  "gewichtete-crunches": {
   "group": "Bauch",
   "tier": 4,
-  "dbEquip": "Zusatzgewicht",
+  "dbEquip": "Kurzhantel oder Scheibe",
   "bwEquip": "Ohne Gerät",
   "dbCue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
   "bwCue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer.",
@@ -370,7 +370,7 @@
   "bwRest": 90,
   "dbWeight": 5,
   "dbStep": 1.25,
-  "weightNote": "Zusatzgewicht",
+  "weightNote": "auf der Brust",
   "dbPattern": "crunch",
   "dbShares": {
    "abs": 1.0

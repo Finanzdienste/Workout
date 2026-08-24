@@ -740,15 +740,30 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
           class: 'fig-band',
         }),
       });
-    } else if (equip === 'plate' || equip === 'backplate') {
-      // Scheibe auf der Brust (Crunches) bzw. auf dem Rücken (Liegestütze)
-      // Die gehaltene Scheibe liegt etwas weiter vorn als die Unterarme,
-      // sonst verschwindet sie dahinter.
-      const side = equip === 'plate' ? 0.155 : -0.11;
-      const q = P(add(j.chest, mul(frontAxis, side)));
+    } else if (equip === 'plate') {
+      // Scheibe oder Hantel auf der Brust (Crunches). Sie liegt etwas weiter
+      // vorn als die Unterarme, sonst verschwindet sie dahinter.
+      const q = P(add(j.chest, mul(frontAxis, 0.155)));
       parts.push({
         z: q.z + 0.01,
         node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (5.4 * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
+      });
+    } else if (equip === 'backpack') {
+      // Rucksack auf dem oberen Rücken. Vorher lag hier eine Scheibe – die
+      // sieht man in jedem Trainingsvideo, nur bekommt man sie ohne zweite
+      // Person nicht auf den eigenen Rücken. Ein Rucksack schon, und er sieht
+      // auch anders aus: ein Kasten, keine Scheibe.
+      // Mitte zwischen Brust und Becken: auf Brusthöhe säße er im Nacken.
+      const q = P(add(midOf(j.chest, j.hipC), mul(frontAxis, -0.12)));
+      const w = 7.6 * gearScale * q.k;
+      const h = 9.0 * gearScale * q.k;
+      parts.push({
+        z: q.z + 0.01,
+        node: el('rect', {
+          x: (q.x - w / 2).toFixed(1), y: (q.y - h / 2).toFixed(1),
+          width: w.toFixed(1), height: h.toFixed(1), rx: (w * 0.28).toFixed(1),
+          class: 'fig-pack',
+        }),
       });
     }
 

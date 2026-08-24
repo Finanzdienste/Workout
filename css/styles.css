@@ -1208,3 +1208,7 @@ textarea.io {
   margin: 6px 0 2px; font-size: 13px; line-height: 1.4; color: var(--muted);
   border-left: 2px solid var(--accent); padding-left: 8px;
 }
+
+/* Rucksack auf dem Rücken – so hell wie die Scheiben, damit er sich vom Körper
+   abhebt, aber als Kasten statt als Scheibe erkennbar bleibt. */
+.fig-pack { fill: #e8eaed; }

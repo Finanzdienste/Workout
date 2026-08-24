@@ -220,7 +220,16 @@ Beine ohne Bank sähen aus, als säße die Figur in der Luft.
 `dumbbells` je eine Kurzhantel pro Hand, `onehand` eine in einer Hand,
 `goblet` eine senkrecht vor der Brust, `barbell` eine Stange über beide Hände,
 `hipbar` eine quer über dem Becken, `plate` eine Scheibe vor der Brust,
-`backplate` eine auf dem Rücken, `null` kein Gerät. Vorher wurde es aus `weightNote` erraten – „eine Hantel" trifft aber
+`backpack` ein Rucksack auf dem Rücken, `band` ein Band zwischen den Händen,
+`null` kein Gerät.
+
+**Aus `backplate` wurde `backpack`**, und das war kein Schönheitsfehler: Die
+Figur trug eine Scheibe auf dem Rücken, die Gewichtsangabe hieß
+„Zusatzgewicht" – beides zeigt etwas, das man sich allein nicht auflegen kann.
+Ein Rucksack schon, und er sieht auch anders aus: ein Kasten, keine Scheibe.
+Der Hinweis sagt jetzt, was hineingehört (Wasserflaschen, 1 l = 1 kg), wie er
+sitzt (hoch zwischen den Schulterblättern, sonst hebelt er) – und dass die
+Hände auf den Kurzhanteln mehr Tiefe geben als der Boden zulässt. Vorher wurde es aus `weightNote` erraten – „eine Hantel" trifft aber
 sowohl auf den Goblet Squat zu (beidhändig vor der Brust) als auch aufs
 Wadenheben (einhändig neben dem Körper), und die Figur hielt dann das Falsche.
 
