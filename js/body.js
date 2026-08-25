@@ -16,7 +16,8 @@
 
 export const MUSCLE_LABEL = {
   chest: 'Brust',
-  delts: 'Schultern',
+  frontDelts: 'vordere Schulter',
+  sideDelts: 'seitliche Schulter',
   rearDelts: 'hintere Schulter',
   biceps: 'Bizeps',
   triceps: 'Trizeps',
@@ -120,7 +121,13 @@ const FILLER = [
 // [Muskel, Formen, auch gespiegelt]
 const FRONT = [
   ['traps', [P('M50 41 C56 41 61 43 65.5 47.5 C60 50.5 55 52.5 50 52.5 C45 52.5 40 50.5 34.5 47.5 C39 43 44 41 50 41 Z')], false],
-  ['delts', [belly(J.shoulder, J.elbow, -0.08, 0.24, 6.9)], true],
+  // Zwei Formen statt einer: Von vorn gesehen liegt der seitliche Anteil außen
+  // an der Schulterkappe, der vordere darunter zur Brust hin. Der Plan zählt
+  // sie getrennt, seit sichtbar wurde, dass "10 Sätze Schulter" in Wahrheit
+  // acht vordere und knapp vier seitliche waren – jedes Drücken füttert die
+  // vordere mit, die seitliche hängt allein am Heben zur Seite.
+  ['sideDelts', [belly(J.shoulder, J.elbow, -0.10, 0.09, 6.9)], true],
+  ['frontDelts', [belly(J.shoulder, J.elbow, 0.11, 0.30, 5.9)], true],
   ['biceps', [belly(J.shoulder, J.elbow, 0.28, 0.90, 5.4)], true],
   ['chest', [P('M50.5 55 C58 54 64.5 57 68 62 C68.5 69 65 75 59 77.5 C55 79 52 78.5 50.5 78 Z')], true],
   // Sechs Felder statt eines Blocks: die Trennlinien zwischen den Formen

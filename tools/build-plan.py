@@ -30,12 +30,12 @@ plus Reverse Fly:
 
 Für 10·W bräuchte es ReverseFly = 8,5·W − 0,2·Rudern. Bei ungeradem W endet
 8,5·W auf ,5, und 0,2·Rudern kann nur auf ,0 ,2 ,4 ,6 oder ,8 enden – das geht
-nie auf. Mit den Pull-ups als drittem Zug und getrennten Zielen (Rücken 14,
-hintere Schulter 12) hat das System einen Freiheitsgrad mehr, und die Bedingung
-bindet so nicht mehr. Verlassen sollte man sich darauf nicht: Was zusammen
-aufgeht, sagt der Lauf selbst – er meldet für jede Gruppe, ob der Schnitt exakt
-getroffen wurde. Geht eine nicht auf, hilft ein anderes Ziel, ein anderer
-Anteil oder eine gerade Wochenzahl.
+nie auf. Inzwischen ist die Lage eine andere – drei Zugübungen statt zwei, und
+mit festen Dreiersätzen bewegt sich alles in Dreierschritten –, aber die Art
+der Bedingung bleibt dieselbe. Verlassen sollte man sich auf keine Faustregel:
+Was zusammen aufgeht, sagt der Lauf selbst. Er sucht die erste Wochenzahl ab
+WEEKS, für die alle Blöcke exakt aufgehen, und meldet für jede Gruppe, ob der
+Schnitt getroffen wurde.
 
 Gerechnet wird in drei Schritten:
 
@@ -85,7 +85,7 @@ OUT = ROOT / 'tools' / 'plan.json'
 #     indirekten Anteilen – dem Halten bei Kniebeuge, Kreuzheben und Leg
 #     Curl. Von fünf blieben zwei direkte Sätze übrig, an einem Tag der
 #     Woche. Isometrisches Halten ist aber kein Ersatz für Beugen gegen
-#     Widerstand. Acht ergeben rund fünf direkte Sätze auf zwei Tagen –
+#     Widerstand. Neun ergeben rund sechs direkte Sätze auf zwei Tagen –
 #     die einzige Gruppe, bei der das Ziel deutlich über dem liegt, was
 #     tatsächlich direkt trainiert wird.
 #   * Zehn Sätze sind nicht das Ende der Fahnenstange. Die Dosis-Wirkung
@@ -93,18 +93,24 @@ OUT = ROOT / 'tools' / 'plan.json'
 #     abnehmendem Ertrag. Wer schnell zulegen will, liegt bei 14–16 näher am
 #     Optimum als bei 10.
 #
-# Nicht überall dieselbe Zahl: Was den Oberkörper breit macht – Brust, Rücken,
-# Schulter – bekommt am meisten, die Arme etwas weniger (sie tragen bei jedem
-# Drücken und Ziehen ohnehin mit), die Beine bleiben, wie sie waren. None heißt
+# **Die Schulter zählt getrennt.** "10 Sätze Schulter" waren nachgerechnet 8,1
+# vordere und 3,7 seitliche: Jedes Drücken füttert die vordere mit, die
+# seitliche hängt allein am Heben zur Seite – und sie ist die, die breit macht.
+# Zusammengefasst verdeckte das Ziel genau diesen Unterschied. Die seitliche
+# bekommt deshalb ein eigenes Ziel, die vordere gar keins: Sie ergibt sich aus
+# dem Drücken und muss nur unter der Obergrenze bleiben, so wie der Nacken.
+#
+# Nicht überall dieselbe Zahl: Was den Oberkörper breit macht, bekommt am
+# meisten, die Beine bleiben, wie sie waren. None heißt
 # "kein Ziel" – die Gruppe kommt heraus, wie sie herauskommt, und muss nur
 # unter CAP bleiben. Der Nacken ist so ein Fall: er hängt vollständig an
 # Rudern, Chin-ups, Pull-ups, Reverse Fly und Seitheben und ist damit keine
 # freie Größe mehr. Ein Ziel dafür macht das Gleichungssystem nur unlösbar oder
 # erzwingt eine Verteilung, die anderswo schlechter ist.
 TARGET = {
-    'chest': 12, 'lats': 12, 'delts': 10, 'rearDelts': 10,
+    'chest': 10, 'lats': 10, 'sideDelts': 10, 'rearDelts': 10,
     'biceps': 10, 'triceps': 10, 'abs': 9,
-    'traps': None,
+    'frontDelts': None, 'traps': None,
     'glutes': 9, 'quads': 6, 'hamstrings': 6, 'calves': 6,
 }
 CAP = 12                 # keine Gruppe darüber, indirekte Anteile eingerechnet
@@ -155,7 +161,8 @@ CAP_U = CAP * UNIT
 
 LABEL = {
     'quads': 'Oberschenkel', 'hamstrings': 'Beinbeuger', 'glutes': 'Gesäß',
-    'chest': 'Brust', 'lats': 'Rücken', 'delts': 'Schultern',
+    'chest': 'Brust', 'lats': 'Rücken',
+    'frontDelts': 'vord. Schulter', 'sideDelts': 'seitl. Schulter',
     'rearDelts': 'hint. Schulter', 'biceps': 'Bizeps', 'triceps': 'Trizeps',
     'abs': 'Bauch', 'calves': 'Waden', 'traps': 'Nacken',
 }

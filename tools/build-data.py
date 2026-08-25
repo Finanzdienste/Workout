@@ -114,11 +114,20 @@ def main():
                     'db': {'name': db['name'], 'reps': db['reps'], 'equip': m['dbEquip'],
                            'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],
                            'shares': m['dbShares'], 'muscles': muscles(m['dbShares'])},
-                    'bw': {'name': bw['name'], 'reps': bw['reps'], 'equip': m['bwEquip'],
+                    # Das Bodyweight-Äquivalent kommt aus der Excel – es sei
+                    # denn, in exercise-meta.json steht ein eigenes. Nötig
+                    # geworden, als vordere und seitliche Schulter getrennt
+                    # gezählt wurden: Die Excel macht aus dem Seitheben Pike
+                    # Push-ups, und das ist ein Überkopfdrücken. Anatomisch
+                    # passte die Zuordnung damit nicht mehr.
+                    'bw': {'name': m.get('bwName') or bw['name'],
+                           'reps': m.get('bwReps') or bw['reps'], 'equip': m['bwEquip'],
                            'cue': m['bwCue'], 'rest': m['bwRest'], 'pattern': m['bwPattern'],
                            'shares': m['bwShares'], 'muscles': muscles(m['bwShares'])},
                 }
-            elif (entry['db']['reps'], entry['bw']['name'], entry['bw']['reps']) != (db['reps'], bw['name'], bw['reps']):
+            elif (entry['db']['reps'], entry['bw']['name'], entry['bw']['reps']) != (
+                    db['reps'], meta[key].get('bwName') or bw['name'],
+                    meta[key].get('bwReps') or bw['reps']):
                 sys.exit(f'{date}: widerspruechliche Angaben fuer {key!r}')
             items.append({'id': key, 'sets': db['sets']})
 

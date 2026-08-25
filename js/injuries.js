@@ -42,7 +42,7 @@ export const INJURIES = [
     text: 'Der Raum unter dem Schulterdach wird eng. Typisch ist der Schmerz beim '
       + 'Heben des Arms zwischen etwa 60° und 120° – seitlich mehr als vorn. '
       + 'Drücken am Boden mit kurzem Weg geht meist, Heben über Schulterhöhe nicht.',
-    avoid: ['sitzendes-seitheben', 'fuesse-erhoehte-liegestuetze',
+    avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze',
       'sitzendes-schulterdruecken'],
     swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
     care: [
@@ -56,7 +56,7 @@ export const INJURIES = [
     text: 'Riss in einer der vier Sehnen, die den Oberarmkopf in der Pfanne führen. '
       + 'Alles, was den Arm gegen Widerstand hebt, dreht oder drückt, fällt aus. '
       + 'Hier gehört ein Arzt drauf, nicht ein Trainingsplan.',
-    avoid: ['sitzendes-seitheben', 'fuesse-erhoehte-liegestuetze', 'gewichtete-liegestuetze',
+    avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze', 'gewichtete-liegestuetze',
       'floor-press', 'reverse-fly', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
       'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart'],
     swap: {},
@@ -146,7 +146,7 @@ export const INJURIES = [
       + 'nichts halten und nichts tragen.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'gewichtete-liegestuetze',
       'fuesse-erhoehte-liegestuetze', 'floor-press', 'einarmiges-kh-rudern', 'chin-ups', 'pull-ups',
-      'reverse-fly', 'sitzendes-seitheben', 'liegende-trizepsstrecker', 'sz-curls',
+      'reverse-fly', 'sitzendes-seitheben', 'band-seitheben', 'liegende-trizepsstrecker', 'sz-curls',
       'gewichtete-crunches',
       'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart'],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
@@ -182,7 +182,7 @@ export const INJURIES = [
     area: 'Nacken', spot: 'neck', kind: 'reizung',
     text: 'Verspannter Nacken meldet sich bei allem, was die Schultern hochzieht, und '
       + 'bei Übungen, in denen der Kopf gegen die Schwerkraft gehalten wird.',
-    avoid: ['gewichtete-crunches', 'sitzendes-seitheben',
+    avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'band-seitheben',
       'sitzendes-schulterdruecken'],
     swap: { 'sitzendes-seitheben': 'floor-press' },
     care: ['kinnZurueck', 'nackenSeite', 'schulterkreisen', 'brustdehnung'],
@@ -194,7 +194,7 @@ export const INJURIES = [
     text: 'Vorfall in der Halswirbelsäule, oft mit Ausstrahlung in den Arm. Zug am Arm '
       + 'und Last auf den Schultern sind tabu, ebenso jede Beugung des Nackens gegen '
       + 'Widerstand.',
-    avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
+    avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'band-seitheben', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
       'reverse-fly',
       'sitzendes-schulterdruecken', 'haengendes-knieheben'],
     swap: {},

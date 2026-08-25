@@ -145,13 +145,13 @@
   "dbShares": {
    "chest": 1.0,
    "triceps": 0.6,
-   "delts": 0.45
+   "frontDelts": 0.45
   },
   "bwPattern": "pushup",
   "bwShares": {
    "chest": 1.0,
    "triceps": 0.6,
-   "delts": 0.45
+   "frontDelts": 0.45
   },
   "equip": "backpack"
  },
@@ -170,13 +170,15 @@
   "dbPattern": "pushupfeet",
   "dbShares": {
    "chest": 1.0,
-   "delts": 0.6,
+   "frontDelts": 0.6,
+   "sideDelts": 0.1,
    "triceps": 0.55
   },
   "bwPattern": "pushupfeet",
   "bwShares": {
    "chest": 1.0,
-   "delts": 0.6,
+   "frontDelts": 0.6,
+   "sideDelts": 0.1,
    "triceps": 0.55
   },
   "equip": null
@@ -197,13 +199,13 @@
   "dbShares": {
    "chest": 1.0,
    "triceps": 0.7,
-   "delts": 0.35
+   "frontDelts": 0.35
   },
   "bwPattern": "pushup",
   "bwShares": {
    "chest": 1.0,
    "triceps": 0.6,
-   "delts": 0.45
+   "frontDelts": 0.45
   },
   "equip": "dumbbells"
  },
@@ -323,9 +325,9 @@
   "group": "Schulter",
   "tier": 3,
   "dbEquip": "Kurzhanteln",
-  "bwEquip": "Ohne Gerät",
+  "bwEquip": "Loop-Band",
   "dbCue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
-  "bwCue": "Pike Push-ups: Hüfte hoch, umgedrehtes V, Scheitel Richtung Boden senken. Füße erhöhen macht es schwerer.",
+  "bwCue": "Band unter den Fuß der Standbeinseite, anderes Ende in die freie Hand. An einem Türrahmen festhalten und den Körper zur Gegenseite lehnen – das verlängert den Weg und hält die Spannung auch unten. Arm fast gestreckt zur Seite heben bis waagerecht, langsam zurück. Ohne Widerstand geht die seitliche Schulter nicht: Pike Push-ups, die die Excel hier vorsah, sind ein Überkopfdrücken und treffen die vordere.",
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 6,
@@ -333,16 +335,49 @@
   "weightNote": "je Hand",
   "dbPattern": "lateral",
   "dbShares": {
-   "delts": 1.0,
+   "sideDelts": 1.0,
+   "frontDelts": 0.15,
    "traps": 0.2
   },
-  "bwPattern": "pike",
+  "bwPattern": "lateral",
   "bwShares": {
-   "delts": 1.0,
-   "triceps": 0.6,
+   "sideDelts": 1.0,
+   "frontDelts": 0.1,
+   "traps": 0.15
+  },
+  "equip": "dumbbells",
+  "bwName": "Einarmiges Band-Seitheben (weggelehnt)",
+  "bwReps": "12–20 je Seite"
+ },
+ "band-seitheben": {
+  "group": "Schulter",
+  "tier": 3,
+  "name": "Band-Seitheben",
+  "reps": "12–20",
+  "bwName": "Band-Seitheben",
+  "bwReps": "12–20",
+  "dbEquip": "Loop-Band",
+  "bwEquip": "Loop-Band",
+  "dbCue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
+  "bwCue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
+  "dbRest": 120,
+  "bwRest": 120,
+  "dbWeight": null,
+  "dbStep": null,
+  "weightNote": null,
+  "dbPattern": "lateral",
+  "dbShares": {
+   "sideDelts": 1.0,
+   "frontDelts": 0.15,
    "traps": 0.2
   },
-  "equip": "dumbbells"
+  "bwPattern": "lateral",
+  "bwShares": {
+   "sideDelts": 1.0,
+   "frontDelts": 0.15,
+   "traps": 0.2
+  },
+  "equip": "band"
  },
  "liegende-trizepsstrecker": {
   "group": "Trizeps",
@@ -475,13 +510,15 @@
   "weightNote": "je Hand",
   "dbPattern": "ohp",
   "dbShares": {
-   "delts": 1.0,
+   "frontDelts": 1.0,
+   "sideDelts": 0.45,
    "triceps": 0.6,
    "traps": 0.3
   },
   "bwPattern": "pike",
   "bwShares": {
-   "delts": 1.0,
+   "frontDelts": 1.0,
+   "sideDelts": 0.3,
    "triceps": 0.65,
    "chest": 0.3,
    "traps": 0.25

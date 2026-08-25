@@ -449,14 +449,14 @@ frei. 84 Einheiten in 21 Wochen, vom 24.08.2026 bis zum 16.01.2027.
 
 | Gruppe | Ziel | Schnitt | einzelne Woche | Abweichung |
 | --- | --- | --- | --- | --- |
-| **Brust, Rücken** | 12 | **exakt** | immer genau 12,0 | **0 %** |
-| **Oberschenkel** | 6 | **exakt** | immer genau 6,0 | **0 %** |
-| **Waden** | 6 | **exakt** | immer genau 6,0 | **0 %** |
-| Schultern, hintere Schulter, Bizeps, Trizeps | 10 | **exakt** | 8,7–12,0 | ≤ 20 % |
-| Gesäß | 9 | **exakt** | 7,1–10,8 | 22 % |
-| Beinbeuger | 6 | **exakt** | 5,0–7,3 | 22 % |
-| Bauch | 9 | **exakt** | 8,4–11,4 | 27 % |
-| Nacken | *Ergebnis* | ~10 | – | – |
+| Brust, Rücken | 10 | **exakt** | 9,0–12,0 | 20 % |
+| **seitliche Schulter** | 10 | **exakt** | 8,7–11,0 | 13 % |
+| hintere Schulter, Bizeps, Trizeps | 10 | **exakt** | 8,3–11,9 | ≤ 19 % |
+| Bauch | 9 | **exakt** | 8,6–10,5 | 17 % |
+| Gesäß | 9 | **exakt** | 6,6–10,8 | 27 % |
+| **Oberschenkel, Waden** | 6 | **exakt** | immer genau 6,0 | **0 %** |
+| Beinbeuger | 6 | **exakt** | 4,8–7,4 | 23 % |
+| vordere Schulter, Nacken | *Ergebnis* | 9,2 / 11,5 | – | – |
 
 Welche Gruppen ein Ziel haben und welche bloß herausfallen, steht als
 `DERIVED` in den erzeugten Daten – „exakt getroffen" darf niemand für eine
@@ -472,19 +472,55 @@ die Waden auf 4, der Oberkörper trägt den Rest: Vierzehn Prozent aller Sätze
 für die Waden aufzuwenden ist eine Entscheidung, keine Trainingslehre, und
 dieselbe Zeit trägt an der Schulter mehr.
 
+### Die Schulter zählt getrennt
+
+**„10 Sätze Schulter" waren nachgerechnet 8,1 vordere und 3,7 seitliche.** Das
+ist der Unterschied zwischen einer Zahl und einer Aussage: Jedes Drücken –
+Liegestütze, Floor Press, Schulterdrücken – füttert die vordere Schulter mit,
+sie kommt also von allein. Die seitliche hängt allein am Heben zur Seite, und
+sie ist die, die breit macht. Zusammengefasst verdeckte das Ziel genau diesen
+Unterschied.
+
+Deshalb sind es jetzt drei Gruppen statt zwei: **seitliche Schulter mit
+eigenem Ziel (10), vordere ohne Ziel** – sie ergibt sich aus dem Drücken und
+muss nur unter der Obergrenze bleiben, so wie der Nacken –, hintere unverändert
+bei 10. Die seitliche steht damit bei 10,0 statt bei 3,7 Sätzen pro Woche.
+
+Zwei Dinge kamen dabei heraus, die vorher niemand sehen konnte:
+
+* **Eine Übung hing an einer einzigen Übung.** Mit 10 Sätzen seitlicher
+  Schulter und nur dem Seitheben dafür wäre die Gruppe genau der Klumpen, den
+  das `klumpen()`-Kriterium verhindern soll. Es gibt deshalb jetzt ein
+  **Band-Seitheben** dazu – beim Band steigt der Widerstand nach oben, also
+  dorthin, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es
+  umgekehrt.
+* **Das Bodyweight-Äquivalent war anatomisch falsch.** Die Excel macht aus dem
+  Seitheben *Pike Push-ups* – ein Überkopfdrücken, also vordere Schulter. Im
+  Bodyweight-Modus fiel die seitliche damit auf 30 % ihres Ziels. Sie hat jetzt
+  ein eigenes Äquivalent (einarmiges Band-Seitheben, weggelehnt), und
+  `exercise-meta.json` darf das Äquivalent aus der Excel überschreiben.
+  Bodyweight liegt damit bei 9,5 statt 3.
+
+Anderswo lohnt eine feinere Aufteilung **nicht** – nachgerechnet: Der Rücken
+steht bei 8,6 senkrechtem Zug (Latissimus, Breite) zu 3,4 waagerechtem, und
+das ist für die V-Form die richtige Richtung; die scapuläre Arbeit zählt
+ohnehin schon als eigene Gruppe (Nacken). Die Brust liegt bei 4,9 oben zu 7,1
+mitte/unten, der Bizeps bekommt 3,9 von 10 Sätzen aus Curls und den Rest aus
+dem Ziehen. Alles im Rahmen.
+
 **Jede Übung steht mit drei Sätzen da.** `PER_SET = (3, 3)` – und das ändert
 mehr als die Satzzahl. Bei fester Satzzahl ist die Wochensumme jeder Übung ein
 Vielfaches von drei, und für Gruppen, deren Übungen alle Anteil 1,0 haben
 (Brust, Rücken, Oberschenkel, Waden), gilt das damit auch für die Gruppe. Ein
 Ziel von 10 ist dort im Schnitt erreichbar, in einer einzelnen Woche aber
-**nie** – es käme immer 9 oder 12 heraus. Deshalb stehen Brust und Rücken auf
-12 und die Waden auf 6: Ziele, die zur Körnung passen, werden in **jeder**
-Woche exakt getroffen statt nur im Schnitt. Aus demselben Grund läuft der Plan
+**nie** – es käme immer 9 oder 12 heraus. Brust und Rücken stehen deshalb auf 10 im
+**Schnitt** und schwanken zwischen 9 und 12; die Waden auf 6, und die werden
+in jeder einzelnen Woche exakt getroffen. Aus demselben Grund läuft der Plan
 über 21 Wochen statt 20 – Ziel × Wochen muss durch drei teilbar sein, und die
 Wochenzahl sucht sich der Lauf jetzt selbst.
 
-Was das bringt: **5,5 Übungen je Einheit statt 7,7**, 42 statt 47 Minuten.
-Was es kostet: gut 10 Sätze Wochenvolumen weniger (66 statt 76) und größere
+Was das bringt: **5,9 Übungen je Einheit statt 7,7**, 45 statt 47 Minuten.
+Was es kostet: ein paar Sätze Wochenvolumen weniger (71 statt 76) und größere
 Ausschläge in den gemischten Gruppen – bis 27 % statt bis 10 %. Der Schnitt
 über den ganzen Plan bleibt in beiden Fällen exakt.
 
@@ -507,7 +543,7 @@ das war die selbst gesetzte Obergrenze, nicht das Optimum. Zwei Korrekturen:
 * **Oberkörper auf 12–16.** Die Dosis-Wirkung steigt bis etwa zwanzig Sätze je
   Muskel und Woche weiter, mit abnehmendem Ertrag. Wer schnell zulegen will,
   liegt bei 14–16 näher am Optimum als bei 10. Am meisten bekommt, was den
-  Oberkörper breit macht (Brust und Schultern 16), die Arme etwas weniger
+  Oberkörper breit macht (damals Brust und Schultern 16), die Arme etwas weniger
   (14 – sie tragen bei jedem Drücken und Ziehen ohnehin mit), die hintere
   Schulter 12.
 
@@ -522,7 +558,7 @@ Training und Buchhaltung:
 | --- | --- | --- | --- |
 | Brust, Rücken, Oberschenkel, Trizeps, Waden | wie gesetzt | **100 %** | – |
 | Bizeps, Gesäß, Beinbeuger | | 86–89 % | 11–14 % |
-| Schultern, hintere Schulter, Nacken | | 61–74 % | 26–39 % |
+| vordere/seitliche/hintere Schulter, Nacken | | 61–74 % | 26–39 % |
 | **Bauch** | 8 | **63 %** | **37 %** |
 
 Beim Bauch ist der indirekte Anteil das Halten bei Kniebeuge, Kreuzheben und
@@ -547,8 +583,8 @@ bringt viel: **ohne diese eine Gleichung hat der Oberkörper-Block ein
 Vielfaches an exakten Lösungen**, und unter denen liegt eine deutlich bessere.
 
 **Immer drei Sätze je Übung und Einheit**, höchstens neun pro Woche, und **so
-wenige verschiedene Übungen je Einheit wie möglich**: 5 bis 6, im Mittel 5,5.
-Das sind 15 bis 18 Sätze und geschätzte 34 bis 50 Minuten.
+wenige verschiedene Übungen je Einheit wie möglich**: 5 bis 7, im Mittel 5,9.
+Das sind 15 bis 21 Sätze und geschätzte 35 bis 56 Minuten.
 **84 von 84 Einheiten sind verschieden.**
 
 **Was zweimal in der Woche vorkommt, gehört auf zwei Tage.** Zweimal pro Woche
@@ -601,12 +637,12 @@ Einheiten zum Rumpf. Heraus kommt:
 
 | Hälfte | Gruppen | Sätze/Woche |
 | --- | --- | --- |
-| A | Beinbeuger, Brust, Gesäß, Oberschenkel, Schultern, Trizeps | ~46 |
-| B | Bauch, Bizeps, Nacken, Rücken, Waden, hintere Schulter | ~46 |
+| A | Bauch, Brust, Trizeps, Waden, vordere und seitliche Schulter | ~46 |
+| B | Beinbeuger, Bizeps, Gesäß, Nacken, Oberschenkel, Rücken, hintere Schulter | ~46 |
 
 Nur die beiden Einheiten am kurzen Übergang bekommen eine Hälfte zugewiesen;
 die zwei dazwischen bleiben frei und nehmen, was übrig ist. Deshalb kostet die
-Bedingung fast nichts: weiterhin 5 bis 6 Übungen je Einheit, 15 bis 18 Sätze.
+Bedingung fast nichts: weiterhin 5 bis 7 Übungen je Einheit, 15 bis 21 Sätze.
 
 **Was sie kostet:** nichts an der Abwechslung – 84 von 84 Zusammenstellungen
 sind verschieden. Zwei gleiche Einheiten direkt hintereinander kommen ohnehin
@@ -701,7 +737,7 @@ Verfahren bereitwillig einen ganzen Satz Rücken gegen ein paar Zehntel
 anderswo – in der App sieht man den ganzen Satz, die Zehntel nicht.
 
 **Die Abwechslung bleibt vollständig:** 84 verschiedene Zusammenstellungen bei
-84 Einheiten, und jede der 23 Übungen kommt vor – die seltenste mit einem Satz
+84 Einheiten, und jede der 24 Übungen kommt vor – die seltenste mit einem Satz
 pro Woche.
 
 `tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json` –
@@ -789,7 +825,7 @@ falsch wäre.
 
 ## Übungsvorrat
 
-**23 Übungen.** Die ursprünglichen 17 aus der Excel deckten die
+**24 Übungen.** Die ursprünglichen 17 aus der Excel deckten die
 Bewegungsmuster nicht vollständig ab – Lücken, die keine Rechnung schließen
 kann, weil die Übung schlicht fehlte:
 
@@ -800,6 +836,7 @@ kann, weil die Übung schlicht fehlte:
 | **Split Squat** | Der Goblet Squat ist ab einem gewissen Punkt durch das *Halten* der Hantel begrenzt, nicht durch die Beine. Einbeinig fällt diese Grenze weg. |
 | **Hängendes Knieheben** | Der Bauch bestand aus Crunches, also nur Beugen. Jetzt kommt der Zug von unten dazu – und der Bauch hat 7,0 direkte Sätze statt 3,6. |
 | **Pull-ups** | Der Rücken hing an zwei Übungen, Chin-ups und Rudern. Bei einer Obergrenze von acht Sätzen je Übung und Woche war damit früh Schluss – das Ziel hätte beide fest angeschlagen. Der weite Obergriff nimmt außerdem den Bizeps aus der Bewegung: mehr Rücken je Satz, und genau der macht die V-Form. |
+| **Band-Seitheben** | Mit 10 Sätzen seitlicher Schulter hinge die Gruppe an einer einzigen Übung – genau der Klumpen, den das Kriterium verhindern soll. Beim Band steigt der Widerstand nach oben, dorthin, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. |
 | **Band-Pull-Apart** | Die hintere Schulter hing an einer einzigen Übung mit 7,9 Sätzen pro Woche. Jetzt teilen sich zwei den Reiz: Reverse Fly 3,0 und Pull-Apart 4,9. Beim Band steigt der Widerstand zum Ende der Bewegung – genau dort, wo die hintere Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull, die bessere Variante; der Hinweis sagt das. |
 
 Die vier stehen **nicht in der Excel**. Die bleibt Quelle des ursprünglichen
@@ -935,8 +972,11 @@ angehakte Auswahl, was über den ganzen Plan getauscht wird, was ersatzlos
 wegfällt und wie sich die Sätze je Muskelgruppe und Woche dadurch verschieben –
 gegen dieselben Ziele, an denen der ganze Plan hängt. Mit Meniskus und
 Schulter-Impingement zusammen fallen die Oberschenkel zum Beispiel von 6,0 auf
-0,0 und die Schultern von 10,0 auf 3,8, während die hintere Schulter auf 15,4
-steigt, weil das Seitheben durch Reverse Fly ersetzt wird.
+0,0 und die **seitliche Schulter von 10,0 auf 0,0**, während die hintere auf
+13,7 steigt, weil das Seitheben durch Reverse Fly ersetzt wird. Vorher, als
+vordere und seitliche Schulter noch eine Gruppe waren, stand da „von 10,0 auf
+3,8" – dieselbe Lage, nur unkenntlich: Die 3,8 waren vordere Schulter aus dem
+Drücken, die seitliche war längst bei null.
 
 **Wechselwirkungen** gibt es in zwei Sorten. Die eine rechnet sich aus: Wenn
 Beschwerde A eine Übung durch eine andere ersetzen würde, Beschwerde B aber
@@ -1128,7 +1168,7 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 ```
 index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
-js/data.js              Aus Excel + plan.json erzeugt: 23 Übungen, 84 Einheiten, Wochenziele
+js/data.js              Aus Excel + plan.json erzeugt: 24 Übungen, 84 Einheiten, Wochenziele
 js/injuries.js          Verletzungskatalog und die Anpassung des Plans
 js/dates.js             Datums-Hilfsfunktionen inkl. Monatsraster
 js/store.js             Zustand und localStorage-Persistenz
