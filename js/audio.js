@@ -24,7 +24,10 @@ const SOUNDS = {
   // Training beginnt – aufsteigender Dreiklang.
   start: [[523.25, 0, 0.14], [659.25, 0.11, 0.14], [783.99, 0.22, 0.34]],
   // Satz abgehakt – kurzer, leiser Tupfer. Kommt 20-mal pro Training vor.
-  set: [[1244.51, 0, 0.07, 0.12]],
+  // Erst stand hier ein einzelner Ton bei 1245 Hz; der war den Mithörenden im
+  // Raum zu fiepsig. Jetzt eine Oktave tiefer und mit einem leisen Grundton
+  // darunter: gleiche Kürze, wärmerer Klang.
+  set: [[523.25, 0, 0.1, 0.13], [261.63, 0, 0.12, 0.05]],
   // Übung fertig, nächste kommt.
   exercise: [[659.25, 0, 0.1], [987.77, 0.1, 0.24]],
   // Fertig machen – fünf Sekunden vor Schluss. Zwei kurze, tiefere Tupfer:

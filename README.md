@@ -10,13 +10,23 @@ protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 
 ## Tabs
 
+Drei Reiter, nicht fünf: Kalender und Verletzungen ruft man selten und nie
+mitten im Satz auf. Sie standen trotzdem dauerhaft unten und haben die drei
+wichtigen schmal gemacht – jetzt liegen sie als Einstiege oben unter *Mehr*.
+
 | Tab | Inhalt |
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
+| **Statistik** | Kennzahlen, **Vergleich mit Freunden**, nächste Einheit, **Wochenvolumen Soll gegen Ist**, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
+| **Mehr** | Einstiege zu **Kalender**, **Verletzt** und **eigenen Workouts**; Farbdesign, Teilen, Töne, Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, **Kalenderdatei für Google Kalender**, Export/Import als JSON, Backup-Datei, Alles löschen. |
+
+Unter *Mehr* erreichbar:
+
+| Seite | Inhalt |
+| --- | --- |
 | **Kalender** | Monatsraster mit den tatsächlichen Terminen: was trainiert ist, was ansteht, was ausgefallen ist – je Tag mit Modus. Tippen zeigt die Übungen der Einheit. |
-| **Statistik** | Kennzahlen, nächste Einheit, **Wochenvolumen Soll gegen Ist**, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
 | **Verletzt** | Verletzungen und Beschwerden anhaken. Betroffene Übungen fallen aus dem Plan oder werden getauscht – dauerhaft, bis der Haken weg ist. |
-| **Mehr** | Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, **Kalenderdatei für Google Kalender**, Export/Import als JSON, Backup-Datei, Alles löschen. |
+| **Eigenes Workout** | Eine Einheit selbst zusammenstellen – neben dem Plan, nicht darin. |
 
 ## Drei Ebenen
 
@@ -108,7 +118,10 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   steht in der ausführlichen Erklärung dort, wo er hingehört – bei den Übungen,
   bei denen es darauf ankommt (Floor Press ohne Ständer etwa).
 * **Zwei Wege aus dem Training.** *Abschließen* behält, was abgehakt ist – auch
-  wenn nicht alles steht; der Knopf nennt den Stand mit. *Abbrechen* verwirft
+  wenn nicht alles steht; der Knopf nennt den Stand mit. Der Tag gilt damit als
+  trainiert: im Kalender, in der Serie, in der Statistik. Wer den letzten Satz
+  Wadenheben weglässt, hat trotzdem trainiert – vorher stand dort ein
+  ausgefallener Tag, obwohl 16 von 18 Sätzen standen. *Abbrechen* verwirft
   die Einheit ganz, sie gilt dann als nicht trainiert und der Plan behandelt
   den Tag wie einen verpassten. Verworfen wird alles zu diesem Workout in
   dieser Variante, nicht nur die Sätze von heute – deshalb steht die Zahl in
@@ -343,6 +356,17 @@ beiden Langhantelübungen sind es 12,5 % – wer 1,25-kg-Scheiben hat, setzt
 Gespeichert wird auf **Viertelkilo** gerundet, nicht auf halbe: sonst würde aus
 dem angenommenen Vorschlag „auf 21,25 kg" still 21,5. Aus demselben Grund zeigt
 die App zwei Nachkommastellen statt einer.
+
+#### Zwei Bänder statt Kilo
+
+Am Band gibt es kein Gewicht, aber zwei Bänder: **gelb ist leicht, rot ist
+schwer**. Genau das ist dort die Steigerung – dieselbe Übung, stärkeres Band.
+Bandübungen zeigen deshalb statt der Kilo-Zeile eine Auswahl der beiden Farben,
+gespeichert je Übung. Nochmal auf dieselbe Farbe tippen nimmt die Auswahl
+zurück; „noch nicht entschieden" bleibt ein möglicher Zustand.
+
+Erkannt werden sie am Gerätenamen der Variante: Wo „Band" drinsteht, steht die
+Auswahl.
 
 #### Progression ohne Gewicht
 
@@ -1609,6 +1633,56 @@ Der Generator bricht ab, wenn eine Zeile nicht dem Muster `3× Übung (8–12)`
 folgt, wenn Hantel- und Bodyweight-Spalte unterschiedlich viele Übungen haben
 oder wenn zu einer Übung der Eintrag in `exercise-meta.json` fehlt.
 
+## Eigene Workouts
+
+Der Plan deckt 21 Wochen ab und rechnet sein Wochenvolumen aus 84 festen
+Einheiten. Etwas dazwischenzuschieben würde diese Rechnung stillschweigend
+verschieben – deshalb stehen eigene Einheiten **neben** dem Plan: Sie laufen in
+derselben Fokus-Ansicht mit Pausen, Gewichten und Bewegungsbildern, aber sie
+zählen nicht als erledigte Plan-Einheit. Ihre Sätze und Kilo tauchen in der
+Statistik trotzdem auf, mit dem Zusatz „(x eigene)" – trainiert ist trainiert.
+
+Gedacht für die Fälle, die der Plan nicht kennt: im Urlaub nur das, wofür es ein
+Gerät gibt; nach einer Pause etwas Kurzes; oder eine Extraeinheit für eine
+Muskelgruppe, die man selbst zu kurz findet.
+
+Technisch sind es Einheiten mit einer Kennung statt einer Nummer (`c…`). Alles,
+was am Workout hängt – Sätze, Gewichte, Modus, Pausen –, ist ohnehin nach dieser
+Kennung abgelegt; nur `effDate()`, `exOf()` und `workoutByNo()` müssen wissen,
+dass es keinen Plantermin dazu gibt.
+
+## Vergleich mit Freunden
+
+**Ohne Server.** Es gibt keine Konten, keine Anmeldung und nichts, was im
+Hintergrund abgleicht; die App liegt als statische Seite auf GitHub Pages und
+soll dort bleiben. Ein Vergleich braucht aber die Zahlen des anderen – also
+wandern sie im Link mit: Einheiten, Sätze, Volumen, Serie, base64-kodiert im
+Anker (`#stand=…`).
+
+Wer den Link öffnet, bekommt die Rückfrage „übernehmen?" und hat den Stand
+danach lokal gespeichert. Die Statistik zeigt daraus eine Rangliste, mit dem
+Alter des Standes daneben – ohne das hielte man einen drei Wochen alten Wert für
+den heutigen. Ein zweiter Stand desselben Menschen ersetzt den ersten; der
+Schlüssel ist der Name.
+
+Kommt der Link an, während die App schon offen ist, lädt der Browser nichts neu
+– er ändert nur den Anker. Ein `hashchange`-Zweig fängt genau das ab.
+
+Das ist der ehrliche Umfang dessen, was ohne Server geht, und es reicht für das,
+worum es geht: zu sehen, wer gerade vorn liegt.
+
+## Farbdesign
+
+Fünf Farben unter *Mehr*: Orange (Standard), Rosa, Blau, Grün, Violett. Geändert
+werden nur die beiden Akzente – Hintergrund, Linien und das Grün für „erledigt"
+bleiben, damit die App überall gleich lesbar ist.
+
+Zwei Akzente, nicht einer: Die Hantel-Variante ist warm, die Bodyweight-Variante
+kühl. Daran erkennt man den Modus, ohne den Schalter zu lesen. Das Design setzt
+beide (`--accent-db`, `--accent-bw`), und `body.mode-bw` schaltet zwischen ihnen
+um. Das Attribut sitzt am `<html>` und nicht am `<body>`: `--accent` wird auf
+`:root` abgeleitet und nähme sonst weiter den Standardwert von dort.
+
 ## Weitergeben
 
 Unter *Mehr* steht ein Knopf **Link teilen**. Er ruft den Systemdialog
@@ -1627,7 +1701,10 @@ jemand anderem auftaucht. Geteilt wird der Link, nicht der Fortschritt.
 
 Wer schon Daten hat, wird nicht begrüßt: Fehlt im gespeicherten Stand der
 Schlüssel `greeted`, stammt er aus einer Fassung vor der Willkommensseite – und
-dann ist derjenige nicht neu hier.
+dann ist derjenige nicht neu hier. In genau diesem Fall trägt sich auch der Name
+selbst ein („Tobi"): Diese App ist für einen bestimmten Menschen gebaut, und
+sein Stand ist der einzige, der aus der Zeit davor stammt. Änderbar ist er unter
+*Mehr* in einer Zeile.
 
 ## Aufs Handy bekommen
 

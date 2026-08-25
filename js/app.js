@@ -34,8 +34,14 @@ function esc(s) {
  * auf seinem Plandatum plus der aktuellen Verschiebung.
  */
 function effDate(w) {
+  // Eigene Einheiten hängen an keinem Plantermin: Sie sind an dem Tag, an dem
+  // man sie macht, und verschieben sich mit dem Plan nicht mit.
+  if (istCustom(w.n)) return store.startedOn(w.n) || todayISO();
   return store.startedOn(w.n) || addDays(w.date, store.getState().shift);
 }
+
+/** Eigene Einheiten haben eine Kennung statt einer Nummer. */
+const istCustom = (n) => typeof n === 'string' && n.startsWith('c');
 
 /**
  * Verpasste Tage nachtragen: Ist der Termin der frühesten noch nicht
@@ -175,6 +181,7 @@ function injuryNotes(n) {
  * eine gesperrte Übung auftaucht und an einer anderen nicht.
  */
 function exOf(w) {
+  if (istCustom(w.n)) return w.ex;
   const items = adjustedPlan()[w.n - 1] || w.ex;
   // Nur bei den Hanteln: Im Bodyweight-Modus gibt es nichts umzubauen, und die
   // Reihenfolge soll dann die des Plans bleiben.
@@ -182,6 +189,10 @@ function exOf(w) {
 }
 
 function workoutByNo(n) {
+  if (istCustom(n)) {
+    const c = store.customById(n);
+    if (c) return { n, date: todayISO(), name: c.name, ex: c.ex, custom: true };
+  }
   const w = PLAN.find((x) => x.n === n) || PLAN[0];
   const ex = exOf(w);
   return ex === w.ex ? w : { ...w, ex };
@@ -528,7 +539,10 @@ function completedMode(n) {
   for (const m of ['db', 'bw']) {
     if (progressOf(n, m).complete) return m;
   }
-  return null;
+  // Von Hand abgeschlossen: "Abschließen" heißt, dass die Einheit fertig ist –
+  // auch wenn der letzte Satz Wadenheben fehlt. Ohne das stand im Kalender ein
+  // ausgefallener Tag, obwohl 16 von 18 Sätzen standen.
+  return st.done && hasAnyEntry(n, st.done) ? st.done : null;
 }
 
 function hasAnyEntry(n, mode) {
@@ -799,6 +813,8 @@ const ui = {
   workoutNo: defaultWorkoutNo(),
   openEx: new Set(),
   openDetail: new Set(),   // Übungen, deren ausführliche Erklärung offen steht
+  standAngebot: null,      // Stand, den jemand per Link geschickt hat
+  customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   openInjury: new Set(),
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
@@ -906,7 +922,7 @@ function renderFocus() {
     <h2 class="focus-name">${esc(it.name)}</h2>
     <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
 
-    ${kg === null ? '' : `
+    ${kg === null ? bandRow(it) : `
       ${ruestHint(n, mode, w.ex, i)}
       <div class="ex-weight focus-weight">
         <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
@@ -983,6 +999,14 @@ function renderOverview() {
     <section class="ov">
       ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
         Eintragungen gehen beim Neuladen verloren.</div>`}
+      ${ui.standAngebot ? `<div class="notice">
+        👋 <b>${esc(ui.standAngebot.n)}</b> hat dir seinen Stand geschickt:
+        ${ui.standAngebot.w} von ${ui.standAngebot.p} Einheiten, ${ui.standAngebot.s} Sätze${
+          ui.standAngebot.kg ? `, ${ui.standAngebot.kg.toLocaleString('de-DE')} kg Volumen` : ''}.
+        <div class="btn-row nav" style="margin-top:10px">
+          <button type="button" class="btn btn-primary" data-act="accept-stand">Zum Vergleich</button>
+          <button type="button" class="btn btn-ghost" data-act="drop-stand">Verwerfen</button>
+        </div></div>` : ''}
       ${planDone ? `<div class="notice done-notice">🎉 Plan geschafft – alle ${PLAN.length} Einheiten.
         <button type="button" class="btn btn-primary btn-block" data-act="restart-plan"
                 style="margin-top:10px">Von vorn beginnen</button>
@@ -992,8 +1016,9 @@ function renderOverview() {
         <button type="button" class="btn btn-block" data-act="backup-now" style="margin-top:10px">Jetzt sichern</button></div>` : ''}
 
       <header class="ov-top">
-        <div class="hero-eyebrow">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
-        <h2 class="hero-title">${esc(fmtDate(date, true))}</h2>
+        <div class="hero-eyebrow">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${
+          w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n} von ${PLAN.length}`}</div>
+        <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
         <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze${
           shift ? ` · Plan ${shift > 0 ? '+' : '−'}${esc(plural(Math.abs(shift), 'Tag', 'Tage'))}` : ''}</div>
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
@@ -1020,9 +1045,11 @@ function renderOverview() {
         </div>`}
 
       <div class="ov-foot">
-        <button type="button" class="ov-nav" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>←</button>
+        ${w.custom ? `<button type="button" class="ov-nav" data-act="back-to-plan" aria-label="Zurück zum Plan">↩</button>`
+          : `<button type="button" class="ov-nav" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>←</button>`}
         <button type="button" class="ov-nav wide" data-act="show-list">Übungen &amp; Gewichte</button>
-        <button type="button" class="ov-nav" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>→</button>
+        ${w.custom ? `<button type="button" class="ov-nav" data-act="go-tab" data-tab="custom" aria-label="Eigenes Workout bearbeiten">✎</button>`
+          : `<button type="button" class="ov-nav" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>→</button>`}
       </div>
     </section>
     ${injuryNote(w, mode)}
@@ -1057,8 +1084,12 @@ function renderWelcome() {
       <header class="ov-top">
         <div class="hero-eyebrow">Trainingsplan</div>
         <h2 class="hero-title">Willkommen</h2>
-        <div class="hero-sub">84 Einheiten über 21 Wochen</div>
+        <div class="hero-sub">${PLAN.length} Einheiten über ${PLAN_WEEKS} Wochen</div>
       </header>
+
+      ${ui.standAngebot ? `<div class="notice">👋 <b>${esc(ui.standAngebot.n)}</b> hat dir den Link
+        geschickt und seinen Stand mitgeschickt: ${ui.standAngebot.w} von ${ui.standAngebot.p}
+        Einheiten. Sobald du deinen Namen einträgst, steht er in deinem Vergleich.</div>` : ''}
 
       <div class="card">
         <p class="small">Jede Einheit steht fertig da: Übungen, Sätze, Wiederholungen,
@@ -1116,9 +1147,89 @@ function willkommenFertig() {
   const name = (feld ? feld.value : '').trim().slice(0, 24);
   store.setSetting('name', name);
   store.setSetting('greeted', true);
+  // Kam der Link mit einem Stand, ist die Rückfrage danach überflüssig: Wer den
+  // Link von jemandem bekommt, will genau dessen Zahlen sehen.
+  if (ui.standAngebot) {
+    store.setFriend(freundId(ui.standAngebot.n), ui.standAngebot);
+    ui.standAngebot = null;
+  }
   render();
   toast(name ? `Los geht’s, ${name} 💪` : 'Los geht’s 💪');
 }
+
+/* ------------------------------------------------------------------ *
+ * Vergleich mit Freunden
+ *
+ * Ohne Server. Es gibt keine Konten, keine Anmeldung und nichts, was im
+ * Hintergrund abgleicht – die App liegt als statische Seite auf GitHub Pages
+ * und soll dort auch bleiben.
+ *
+ * Stattdessen schickt man seinen Stand als Link: Ein paar Zahlen (Einheiten,
+ * Sätze, Volumen, Serie) wandern base64-kodiert im Anker der Adresse mit. Wer
+ * ihn öffnet, bekommt die Rückfrage "übernehmen?" und hat den Stand danach
+ * lokal gespeichert. Der Vergleich in der Statistik zeigt also immer den Stand,
+ * den der andere zuletzt geschickt hat – mit Datum daneben, damit niemand einen
+ * drei Wochen alten Wert für aktuell hält.
+ *
+ * Das ist der ehrliche Umfang dessen, was ohne Server geht, und es reicht für
+ * das, worum es geht: zu sehen, wer gerade vorn liegt.
+ * ------------------------------------------------------------------ */
+
+const STAND_VERSION = 1;
+
+function meinStand() {
+  const st = sammleStats();
+  return {
+    v: STAND_VERSION,
+    n: store.getState().name || 'Ohne Namen',
+    w: st.workoutsDone,
+    s: st.setsDone,
+    kg: Math.round(st.volume),
+    r: st.streak,
+    p: PLAN.length,
+    d: todayISO(),
+  };
+}
+
+/** JSON -> base64url. Umlaute im Namen überleben das nur über UTF-8. */
+function codeVon(obj) {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  let roh = '';
+  bytes.forEach((b) => { roh += String.fromCharCode(b); });
+  return btoa(roh).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function codeZu(code) {
+  try {
+    const b64 = code.replace(/-/g, '+').replace(/_/g, '/');
+    const roh = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+    const bytes = Uint8Array.from(roh, (c) => c.charCodeAt(0));
+    const obj = JSON.parse(new TextDecoder().decode(bytes));
+    return obj && obj.v === STAND_VERSION && typeof obj.n === 'string' ? obj : null;
+  } catch {
+    return null;
+  }
+}
+
+const standLink = () => `${appURL()}#stand=${codeVon(meinStand())}`;
+
+/**
+ * Stand aus der Adresse lesen – und den Anker sofort entfernen.
+ *
+ * Sonst steht er beim nächsten Neuladen wieder da, und die Frage "übernehmen?"
+ * käme nach dem Übernehmen erneut. replaceState statt pushState: Der Anker soll
+ * auch keinen Eintrag im Verlauf hinterlassen, sonst führt die Zurück-Taste
+ * wieder hinein.
+ */
+function standAusAdresse() {
+  const treffer = /[#&]stand=([A-Za-z0-9_-]+)/.exec(location.hash);
+  if (!treffer) return null;
+  history.replaceState(history.state, '', location.pathname + location.search);
+  return codeZu(treffer[1]);
+}
+
+/** Kurzschlüssel eines Freundes: gleicher Name, gleicher Eintrag. */
+const freundId = (name) => name.trim().toLowerCase().slice(0, 24);
 
 /** Adresse der App zum Weitergeben – ohne Anker und ohne Suchteil. */
 function appURL() {
@@ -1163,8 +1274,8 @@ function renderDashboard() {
 
   parts.push(`
     <section class="card">
-      <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
-      <h2 class="hero-title">${esc(fmtDate(date, true))}</h2>
+      <div class="hero-eyebrow">${w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n} von ${PLAN.length}`}</div>
+      <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
       <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
       <div class="hero-badges">
         <span class="badge accent">${mode === 'db' ? '🏋️ Hantel-Variante' : '🤸 Bodyweight-Variante'}</span>
@@ -1181,9 +1292,9 @@ function renderDashboard() {
            </div>`}
       ${startTodayRow(n)}
       <div class="btn-row nav">
-        <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
+        <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${w.custom || n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
         <button type="button" class="btn btn-ghost" data-act="nav-today">Heute</button>
-        <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>Nächstes →</button>
+        <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="1" ${w.custom || n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>Nächstes →</button>
       </div>
     </section>
   `);
@@ -1214,7 +1325,7 @@ function renderDashboard() {
     const kg = it.weight === null ? null : usedWeight(n, mode, it.id);
     const next = it.weight === null ? null : workingWeight(it.id);
     const frozen = kg !== null && next !== null && Math.abs(kg - next) > 0.01;
-    const weightRow = kg === null ? '' : `
+    const weightRow = kg === null ? bandRow(it) : `
       <div class="ex-weight">
         <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
                 aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo weniger">−</button>
@@ -1350,7 +1461,14 @@ function progressSeries() {
   return { perExercise, perMuscle };
 }
 
-function renderStats() {
+/**
+ * Die Zahlen der Statistik an einer Stelle.
+ *
+ * Ausgelagert, weil sie zweimal gebraucht werden: für den Statistik-Tab und
+ * für den Stand, den man Freunden schickt. Zwei Rechnungen für dieselbe Zahl
+ * wären zwei Zahlen.
+ */
+function sammleStats() {
   const log = store.getState().log;
   const today = todayISO();
 
@@ -1397,7 +1515,91 @@ function renderStats() {
     else break;
   }
 
+  // Eigene Einheiten zählen nicht als Plan-Einheit, ihre Sätze und Kilo aber
+  // schon: Trainiert ist trainiert, und eine Statistik, die das verschweigt,
+  // ist falsch.
+  let customSets = 0;
+  store.customs().forEach((c) => {
+    const entry = log[c.id];
+    if (!entry) return;
+    ['db', 'bw'].forEach((m) => {
+      c.ex.forEach((item) => {
+        const arr = entry[m] && entry[m][item.id];
+        const ex = EX_BY_ID.get(item.id);
+        if (!Array.isArray(arr) || !ex) return;
+        const planned = plannedReps(ex[m].reps);
+        arr.slice(0, item.sets).forEach((x) => {
+          if (!x.done) return;
+          setsDone++;
+          customSets++;
+          repsTotal += planned;
+          const kg = parseFloat(String(x.w).replace(',', '.'));
+          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
+          perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
+        });
+      });
+    });
+  });
+
   const upcoming = PLAN.find((w) => !completedMode(w.n));
+  return { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak, upcoming,
+           customSets };
+}
+
+/**
+ * Vergleich mit den Freunden, die einem ihren Stand geschickt haben.
+ *
+ * Sortiert nach erledigten Einheiten. Beim eigenen Eintrag steht "du", bei den
+ * anderen, wie alt ihr Stand ist – ohne das hielte man einen drei Wochen alten
+ * Wert für den heutigen.
+ */
+function vergleichKarte() {
+  const ich = meinStand();
+  const freunde = Object.entries(store.getState().friends || {})
+    .map(([id, f]) => ({ id, ...f }));
+  const alle = [{ id: null, ...ich }, ...freunde].sort((a, b) => b.w - a.w || b.s - a.s);
+
+  return `
+    <div class="section-title">Vergleich</div>
+    <div class="card">
+      ${freunde.length ? `
+      <table class="vgl">
+        <thead><tr><th></th><th>Name</th><th>Einheiten</th><th>Sätze</th><th>Serie</th><th></th></tr></thead>
+        <tbody>${alle.map((f, i) => `
+          <tr class="${f.id === null ? 'ich' : ''}">
+            <td class="vgl-rang">${i + 1}</td>
+            <td>${esc(f.n)}${f.id === null ? ' <span class="muted">(du)</span>' : `
+              <div class="small muted">${esc(standAlter(f))}</div>`}</td>
+            <td><b>${f.w}</b><span class="muted">/${f.p}</span></td>
+            <td>${f.s}</td>
+            <td>${f.r}</td>
+            <td>${f.id === null ? '' : `<button type="button" class="vgl-weg" data-act="remove-friend"
+                   data-id="${esc(f.id)}" aria-label="${esc(f.n)} entfernen">✕</button>`}</td>
+          </tr>`).join('')}</tbody>
+      </table>` : `
+      <div class="small muted">Noch niemand im Vergleich. Schick jemandem deinen Stand –
+        wer den Link öffnet, hat dich danach in seiner Liste stehen und kann seinen
+        zurückschicken.</div>`}
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary btn-block" data-act="share-stand">Meinen Stand schicken</button>
+      </div>
+      <div class="small muted">Kein Konto, kein Server: Der Stand steckt im Link selbst.
+        Was hier steht, ist der Stand vom Tag, an dem er geschickt wurde – aktueller
+        wird er erst, wenn der andere einen neuen schickt.</div>
+    </div>`;
+}
+
+/** Wie alt der geschickte Stand ist. */
+function standAlter(f) {
+  const tage = daysBetween(f.am || f.d, todayISO());
+  if (tage <= 0) return 'Stand von heute';
+  if (tage === 1) return 'Stand von gestern';
+  return `Stand von vor ${tage} Tagen`;
+}
+
+function renderStats() {
+  const { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak,
+          upcoming, customSets } = sammleStats();
 
   const topEx = [...perEx.entries()]
     .map(([id, c]) => ({ ex: EX_BY_ID.get(id), c }))
@@ -1410,13 +1612,16 @@ function renderStats() {
     <div class="stat-grid">
       <div class="stat"><div class="stat-v">${workoutsDone}<span class="muted" style="font-size:15px">/${PLAN.length}</span></div><div class="stat-l">Workouts erledigt</div></div>
       <div class="stat"><div class="stat-v">${streak}</div><div class="stat-l">Serie in Folge</div></div>
-      <div class="stat"><div class="stat-v">${setsDone}</div><div class="stat-l">Sätze abgehakt</div></div>
+      <div class="stat"><div class="stat-v">${setsDone}</div><div class="stat-l">Sätze abgehakt${
+        customSets ? ` <span class="muted">(${customSets} eigene)</span>` : ''}</div></div>
       <div class="stat"><div class="stat-v">${repsTotal ? `ca. ${Math.round(repsTotal)}` : '–'}</div><div class="stat-l">Wiederholungen (geplant)</div></div>
       <div class="stat"><div class="stat-v">${volume ? `ca. ${Math.round(volume).toLocaleString('de-DE')}` : '–'}</div><div class="stat-l">Volumen kg (Hanteln)</div></div>
       <div class="stat"><div class="stat-v">🏋️ ${doneDb} · 🤸 ${doneBw}</div><div class="stat-l">Modus-Verteilung</div></div>
       ${store.getState().rounds.length
         ? `<div class="stat"><div class="stat-v">${store.getState().rounds.length}</div><div class="stat-l">Runden abgeschlossen</div></div>` : ''}
     </div>
+
+    ${vergleichKarte()}
 
     <div class="section-title">Nächste Einheit</div>
     <div class="card">
@@ -1476,6 +1681,33 @@ function renderStats() {
     [...perMuscle.entries()].sort((a, b) => b[1].length - a[1].length),
     (m) => MUSCLE_LABEL[m] || m, 'kg', (v) => Math.round(v).toLocaleString('de-DE'),
     'Noch kein Volumen erfasst. Nur Hantel-Einheiten tragen Kilo bei.');
+}
+
+/* ------------------------------------------------------------------ *
+ * Bandstärke
+ *
+ * Am Band gibt es kein Gewicht, aber zwei Bänder: gelb ist leicht, rot ist
+ * schwer. Genau das ist dort die Steigerung – dieselbe Übung, stärkeres Band –,
+ * und ohne eine Stelle dafür stünde bei jeder Bandübung nichts, wo sonst das
+ * Arbeitsgewicht steht.
+ * ------------------------------------------------------------------ */
+
+const BAENDER = [['gelb', 'Gelb', 'leicht'], ['rot', 'Rot', 'schwer']];
+
+/** Braucht diese Übung ein Band? Steht im Gerätenamen der Variante. */
+const amBand = (it) => /band/i.test(it.equip || '');
+
+function bandRow(it) {
+  if (!amBand(it)) return '';
+  const cur = store.bandOf(it.id);
+  return `
+    <div class="band-row" role="group" aria-label="Band für ${esc(it.name)}">
+      ${BAENDER.map(([key, label, wie]) => `
+        <button type="button" class="band-btn band-${key} ${cur === key ? 'on' : ''}"
+                aria-pressed="${cur === key}" data-act="set-band" data-ex="${it.id}" data-v="${key}">
+          <span class="band-dot"></span>${label}<span class="band-wie">${wie}</span>
+        </button>`).join('')}
+    </div>`;
 }
 
 /**
@@ -1897,6 +2129,7 @@ function renderCalendar() {
   });
 
   view.innerHTML = `
+    <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
     <div class="section-title">Kalender</div>
 
     <div class="card">
@@ -2049,6 +2282,7 @@ function renderInjuries() {
   });
 
   view.innerHTML = `
+    <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
     <div class="section-title">Verletzungen &amp; Beschwerden</div>
     ${summary}
     ${areas.map((g) => `
@@ -2128,9 +2362,146 @@ function showVersion() {
   }).catch(() => { host.textContent = plan; });
 }
 
+/* ------------------------------------------------------------------ *
+ * Eigenes Workout
+ *
+ * Der Plan deckt 21 Wochen ab und rechnet sein Wochenvolumen aus 84 festen
+ * Einheiten. Etwas dazwischenzuschieben würde diese Rechnung stillschweigend
+ * verschieben – deshalb stehen eigene Einheiten *neben* dem Plan: Sie laufen in
+ * derselben Fokus-Ansicht mit Pausen, Gewichten und Bewegungsbildern, aber sie
+ * zählen nicht als erledigte Plan-Einheit. In der Statistik tauchen ihre Sätze
+ * und Kilo trotzdem auf – trainiert ist trainiert.
+ *
+ * Gedacht für die Fälle, die der Plan nicht kennt: im Urlaub nur das, wofür es
+ * ein Gerät gibt; nach einer Pause etwas Kurzes; oder eine Extraeinheit für
+ * eine Muskelgruppe, die man selbst zu kurz findet.
+ * ------------------------------------------------------------------ */
+
+function renderCustom() {
+  const liste = store.customs();
+  const draft = ui.customDraft;
+
+  if (!draft) {
+    view.innerHTML = `
+      <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
+      <div class="section-title">Eigene Workouts</div>
+      <div class="card">
+        <div class="small muted">Stell dir eine Einheit selbst zusammen – Übungen aus dem
+          Vorrat, Sätze frei. Sie läuft wie eine Plan-Einheit, mit Pausen, Gewichten und
+          Bewegungsbildern, geht dem Plan aber nicht dazwischen: Deine 84 Einheiten bleiben,
+          wie sie sind. Sätze und Volumen zählen in der Statistik mit.</div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary btn-block" data-act="custom-new">Neues Workout</button>
+        </div>
+      </div>
+      ${liste.map((c) => {
+        const sets = c.ex.reduce((a, x) => a + x.sets, 0);
+        const prog = progressOf(c.id, store.workoutMode(c.id));
+        return `
+        <div class="card">
+          <div class="lbl">${esc(c.name)}</div>
+          <div class="hint">${c.ex.length} Übungen · ${sets} Sätze${
+            prog.done ? ` · ${prog.done}/${prog.total} abgehakt` : ''}</div>
+          <div class="small muted" style="margin-top:6px">${esc(c.ex.map((x) => resolve(x, 'db').name).join(' · ')) || 'Noch keine Übung'}</div>
+          <div class="btn-row nav">
+            <button type="button" class="btn btn-primary" data-act="custom-start" data-id="${c.id}">Öffnen</button>
+            <button type="button" class="btn" data-act="custom-edit" data-id="${c.id}">Bearbeiten</button>
+            <button type="button" class="btn btn-danger" data-act="custom-del" data-id="${c.id}">Löschen</button>
+          </div>
+        </div>`;
+      }).join('')}`;
+    return;
+  }
+
+  // --- Baukasten ---
+  const gruppen = new Map();
+  EXERCISES.forEach((e) => {
+    if (!gruppen.has(e.group)) gruppen.set(e.group, []);
+    gruppen.get(e.group).push(e);
+  });
+  const drin = new Set(draft.ex.map((x) => x.id));
+  const sets = draft.ex.reduce((a, x) => a + x.sets, 0);
+
+  view.innerHTML = `
+    <button type="button" class="back-link" data-act="custom-cancel">← Eigene Workouts</button>
+    <div class="section-title">${draft.id ? 'Bearbeiten' : 'Neues Workout'}</div>
+    <div class="card">
+      <div class="lbl">Name</div>
+      <input type="text" class="name-input" maxlength="32" value="${esc(draft.name)}"
+             data-act="custom-name" aria-label="Name des Workouts" placeholder="z. B. Kurz &amp; schwer">
+    </div>
+
+    <div class="section-title">Übungen${draft.ex.length ? ` · ${draft.ex.length} · ${sets} Sätze` : ''}</div>
+    <div class="card">
+      ${draft.ex.length ? draft.ex.map((x, i) => {
+        const v = resolve(x, 'db');
+        return `
+        <div class="cx-row">
+          <div class="cx-main">
+            <div class="lbl">${esc(v.name)}</div>
+            <div class="hint">${esc(v.group)} · ${esc(v.equip)}</div>
+          </div>
+          <div class="cx-sets">
+            <button type="button" class="kg-step" data-act="custom-sets" data-i="${i}" data-d="-1"
+                    aria-label="Ein Satz weniger">−</button>
+            <span class="cx-num">${x.sets}</span>
+            <button type="button" class="kg-step" data-act="custom-sets" data-i="${i}" data-d="1"
+                    aria-label="Ein Satz mehr">+</button>
+          </div>
+          <button type="button" class="cx-del" data-act="custom-remove" data-i="${i}"
+                  aria-label="${esc(v.name)} entfernen">✕</button>
+        </div>`;
+      }).join('') : '<div class="small muted">Noch nichts gewählt – unten aussuchen.</div>'}
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary btn-block" data-act="custom-save"
+                ${draft.ex.length ? '' : 'disabled'}>Speichern und öffnen</button>
+      </div>
+    </div>
+
+    <div class="section-title">Übungsvorrat</div>
+    <div class="card">
+      ${[...gruppen.entries()].map(([g, list]) => `
+        <div class="cx-group">${esc(g)}</div>
+        <div class="chips">${list.map((e) => `
+          <button type="button" class="chip ${drin.has(e.id) ? 'on' : ''}"
+                  data-act="custom-add" data-ex="${e.id}">${esc(e.db.name)}</button>`).join('')}</div>`).join('')}
+    </div>`;
+}
+
+/* Die Farbwerte stehen in css/styles.css; hier nur die Namen und die zwei
+ * Tupfer für die Vorschau. Zwei Stellen für dieselbe Farbe – aber die Alternative
+ * wäre, das Design aus JavaScript zusammenzubauen, und dann flackert es beim
+ * Laden. */
+const THEMES = [
+  ['orange', 'Orange', '#ff7a45', '#4ea1ff'],
+  ['rosa', 'Rosa', '#ff6fae', '#b98cff'],
+  ['blau', 'Blau', '#4ea1ff', '#4ecfd0'],
+  ['gruen', 'Grün', '#3ecf8e', '#7ad0ff'],
+  ['violett', 'Violett', '#a78bfa', '#f0abfc'],
+];
+
 function renderSettings() {
   const s = store.getState();
+  const act = activeInjuries().length;
   view.innerHTML = `
+    <div class="card kachel-karte">
+      <button type="button" class="kachel" data-act="go-tab" data-tab="calendar">
+        <span class="kachel-i">📅</span>
+        <span><span class="lbl">Kalender</span>
+        <span class="hint">Alle Termine im Monatsraster, mit dem, was an dem Tag anstand.</span></span>
+      </button>
+      <button type="button" class="kachel" data-act="go-tab" data-tab="custom">
+        <span class="kachel-i">🧩</span>
+        <span><span class="lbl">Eigenes Workout${store.customs().length ? ` · ${store.customs().length}` : ''}</span>
+        <span class="hint">Eine Einheit selbst zusammenstellen – neben dem Plan, nicht darin.</span></span>
+      </button>
+      <button type="button" class="kachel" data-act="go-tab" data-tab="injuries">
+        <span class="kachel-i">🩹</span>
+        <span><span class="lbl">Verletzt${act ? ` · ${act} aktiv` : ''}</span>
+        <span class="hint">Anhaken, was weh tut – der Plan tauscht dann selbst.</span></span>
+      </button>
+    </div>
+
     <div class="section-title">Einstellungen</div>
     <div class="card">
       <div class="switch-row">
@@ -2188,6 +2559,19 @@ function renderSettings() {
       </div>
     </div>
 
+    <div class="section-title">Farbe</div>
+    <div class="card">
+      <div class="small muted">Zwei Akzente: der wärmere gilt für die Hantel-Variante, der
+        kühlere für Bodyweight. Sonst ändert sich nichts – dunkel bleibt dunkel.</div>
+      <div class="farben">
+        ${THEMES.map(([key, label, a, bfarbe]) => `
+          <button type="button" class="farb-btn ${(s.theme || 'orange') === key ? 'on' : ''}"
+                  aria-pressed="${(s.theme || 'orange') === key}" data-act="set-theme" data-v="${key}">
+            <span class="farb-punkt" style="--a:${a};--b:${bfarbe}"></span>${label}
+          </button>`).join('')}
+      </div>
+    </div>
+
     <div class="section-title">Teilen</div>
     <div class="card">
       <div class="small muted">Schick den Link weiter – wer ihn öffnet, hat dieselbe App:
@@ -2202,6 +2586,11 @@ function renderSettings() {
         <button type="button" class="btn" data-act="share-whatsapp">WhatsApp</button>
         <button type="button" class="btn" data-act="copy-link">Link kopieren</button>
       </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-block" data-act="share-stand">Meinen Stand schicken</button>
+      </div>
+      <div class="small muted">Der Stand-Link nimmt deine Zahlen mit: Wer ihn öffnet, hat dich
+        danach im Vergleich unter Statistik stehen.</div>
       <div class="small muted" style="word-break:break-all">${esc(appURL())}</div>`
       : `<div class="small muted">Diese Fassung läuft als Datei auf deinem Gerät und hat keine
          Adresse zum Weitergeben – schick stattdessen die Datei selbst.</div>`}
@@ -2351,6 +2740,12 @@ function renderSettings() {
  * Rendering / Routing
  * ------------------------------------------------------------------ */
 
+/* Seiten, die unter Mehr liegen statt in der Leiste unten. Fünf Reiter waren
+ * zwei zu viel: Kalender und Verletzungen ruft man selten und nie mitten im
+ * Satz auf – sie standen dauerhaft da und haben die drei wichtigen schmal
+ * gemacht. */
+const UNTER_MEHR = ['calendar', 'injuries', 'custom'];
+
 const RENDERERS = {
   dashboard: () => {
     if (needsWelcome()) { renderWelcome(); return; }
@@ -2360,6 +2755,7 @@ const RENDERERS = {
     else renderOverview();
   },
   calendar: renderCalendar,
+  custom: renderCustom,
   stats: renderStats,
   injuries: renderInjuries,
   settings: renderSettings,
@@ -2392,13 +2788,17 @@ function restoreFocus(key) {
 function render() {
   const mode = ui.tab === 'dashboard' ? store.workoutMode(ui.workoutNo) : store.getState().mode;
   document.body.classList.toggle('mode-bw', mode === 'bw');
+  document.documentElement.dataset.theme = store.getState().theme || 'orange';
   modeSwitch.querySelectorAll('.mode-btn').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
   });
+  // Kalender und Verletzungen haben keinen eigenen Reiter mehr – sie liegen
+  // unter Mehr, und dessen Reiter bleibt markiert, solange man dort ist.
+  const reiter = UNTER_MEHR.includes(ui.tab) ? 'settings' : ui.tab;
   tabbar.querySelectorAll('.tab').forEach((b) => {
-    b.setAttribute('aria-selected', String(b.dataset.tab === ui.tab));
+    b.setAttribute('aria-selected', String(b.dataset.tab === reiter));
   });
-  view.setAttribute('aria-labelledby', `tab-${ui.tab}`);
+  view.setAttribute('aria-labelledby', `tab-${reiter}`);
   const hatte = focusKey(document.activeElement);
   clearFigures(); // alte Animationen abmelden, bevor das DOM ersetzt wird
   (RENDERERS[ui.tab] || renderDashboard)();
@@ -2433,6 +2833,15 @@ function syncHistory() {
   lastLevel = now;
   history.pushState({ tab: ui.tab, listView: ui.listView, focus: ui.focus }, '');
 }
+
+// Der Link kommt an, während die App schon offen ist: Dann lädt der Browser
+// nichts neu, er ändert nur den Anker. Ohne diese Zeile passiert dabei nichts.
+window.addEventListener('hashchange', () => {
+  const stand = standAusAdresse();
+  if (!stand) return;
+  ui.standAngebot = stand;
+  go('dashboard');
+});
 
 window.addEventListener('popstate', (e) => {
   const st = e.state || { tab: 'dashboard', listView: false, focus: false };
@@ -2501,6 +2910,9 @@ view.addEventListener('click', (e) => {
     }
     case 'go-injuries':
       go('injuries');
+      break;
+    case 'go-tab':
+      go(t.dataset.tab);
       break;
     case 'cal-month':
       ui.calMonth = addMonths(calMonthNow(), Number(t.dataset.d));
@@ -2631,6 +3043,10 @@ view.addEventListener('click', (e) => {
       break;
     case 'finish-session': {
       const prog = progressOf(n, mode);
+      // Abgehakt ist abgehakt: Wer hier tippt, ist fertig – der Tag zählt als
+      // trainiert, auch wenn nicht jeder Satz steht. Ohne einen einzigen Satz
+      // wäre das allerdings gelogen.
+      if (prog.done) store.markDone(n, mode);
       store.endSession();
       ui.focus = false;
       ui.listView = false;
@@ -2678,6 +3094,15 @@ view.addEventListener('click', (e) => {
       ui.listView = false;
       render();
       break;
+    case 'set-band': {
+      const id = t.dataset.ex;
+      // Nochmal auf dasselbe Band tippen nimmt die Auswahl zurück – so bleibt
+      // "noch nicht entschieden" ein möglicher Zustand.
+      store.setBand(id, store.bandOf(id) === t.dataset.v ? null : t.dataset.v);
+      sound('set');
+      render();
+      break;
+    }
     case 'toggle-detail': {
       const id = t.dataset.ex;
       if (ui.openDetail.has(id)) ui.openDetail.delete(id); else ui.openDetail.add(id);
@@ -2714,7 +3139,80 @@ view.addEventListener('click', (e) => {
         toast('Zurückgesetzt');
       }
       break;
+    case 'custom-new':
+      ui.customDraft = { id: null, name: '', ex: [] };
+      render();
+      break;
+    case 'custom-edit': {
+      const c = store.customById(t.dataset.id);
+      if (c) ui.customDraft = { id: c.id, name: c.name, ex: c.ex.map((x) => ({ ...x })) };
+      render();
+      break;
+    }
+    case 'custom-cancel':
+      ui.customDraft = null;
+      render();
+      break;
+    case 'custom-add': {
+      const id = t.dataset.ex;
+      const d = ui.customDraft;
+      if (!d) break;
+      const i = d.ex.findIndex((x) => x.id === id);
+      // Nochmal antippen nimmt sie wieder heraus – dieselbe Kachel, beide Wege.
+      if (i >= 0) d.ex.splice(i, 1);
+      else d.ex.push({ id, sets: 3 });
+      sound('set');
+      render();
+      break;
+    }
+    case 'custom-sets': {
+      const d = ui.customDraft;
+      const x = d && d.ex[Number(t.dataset.i)];
+      if (!x) break;
+      x.sets = Math.max(1, Math.min(9, x.sets + Number(t.dataset.d)));
+      render();
+      break;
+    }
+    case 'custom-remove': {
+      const d = ui.customDraft;
+      if (d) d.ex.splice(Number(t.dataset.i), 1);
+      render();
+      break;
+    }
+    case 'custom-save': {
+      const d = ui.customDraft;
+      if (!d || !d.ex.length) break;
+      const id = store.saveCustom(d);
+      ui.customDraft = null;
+      ui.workoutNo = id;
+      ui.listView = false;
+      ui.focus = false;
+      go('dashboard');
+      toast('Gespeichert – los geht’s');
+      break;
+    }
+    case 'custom-start':
+      ui.workoutNo = t.dataset.id;
+      ui.listView = false;
+      ui.focus = false;
+      go('dashboard');
+      break;
+    case 'custom-del': {
+      const c = store.customById(t.dataset.id);
+      if (!c || !confirm(`„${c.name}" löschen? Die abgehakten Sätze gehen mit.`)) break;
+      store.removeCustom(c.id);
+      if (ui.workoutNo === c.id) ui.workoutNo = defaultWorkoutNo();
+      render();
+      toast('Gelöscht');
+      break;
+    }
+    case 'back-to-plan':
+      ui.workoutNo = defaultWorkoutNo();
+      ui.listView = false;
+      render();
+      break;
     case 'nav-workout': {
+      if (istCustom(n)) break;
       const next = n + Number(t.dataset.delta);
       if (PLAN.some((w) => w.n === next)) {
         ui.workoutNo = next;
@@ -2760,6 +3258,32 @@ view.addEventListener('click', (e) => {
     case 'welcome-go':
       willkommenFertig();
       break;
+    case 'accept-stand': {
+      const stand = ui.standAngebot;
+      if (!stand) break;
+      store.setFriend(freundId(stand.n), stand);
+      ui.standAngebot = null;
+      go('stats');
+      toast(`${stand.n} steht jetzt im Vergleich`);
+      break;
+    }
+    case 'drop-stand':
+      ui.standAngebot = null;
+      render();
+      break;
+    case 'share-stand': {
+      const url = standLink();
+      const text = `Mein Stand: ${meinStand().w} Einheiten. Öffne den Link, dann stehe ich in `
+        + 'deinem Vergleich – und schick mir deinen zurück.';
+      if (navigator.share) navigator.share({ title: 'Workout', text, url }).catch(() => {});
+      else linkKopieren(url);
+      break;
+    }
+    case 'remove-friend':
+      store.removeFriend(t.dataset.id);
+      render();
+      toast('Aus dem Vergleich entfernt');
+      break;
     case 'share-link': {
       const url = appURL();
       if (navigator.share) {
@@ -2778,6 +3302,10 @@ view.addEventListener('click', (e) => {
       break;
     case 'copy-link':
       linkKopieren(appURL());
+      break;
+    case 'set-theme':
+      store.setSetting('theme', t.dataset.v);
+      render();
       break;
     case 'toggle-sound': {
       initAudio();
@@ -2925,6 +3453,8 @@ view.addEventListener('input', (e) => {
   if (t.dataset.act === 'weight-input') {
     const kg = parseFloat(t.value.replace(',', '.'));
     if (!Number.isNaN(kg)) store.setWeight(t.dataset.ex, kg);
+  } else if (t.dataset.act === 'custom-name') {
+    if (ui.customDraft) ui.customDraft.name = t.value.slice(0, 32);
   } else if (t.dataset.act === 'name-input') {
     store.setSetting('name', t.value.trim().slice(0, 24));
   } else if (t.dataset.act === 'set-input') {
@@ -3004,6 +3534,16 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 }
 
 const missedAtStart = catchUpPlan();
+// Hat jemand einen Stand geschickt? Steht im Anker der Adresse und wird dort
+// sofort entfernt. Die Frage danach stellt die Startansicht – also muss sie
+// auch die sichtbare sein, sonst öffnet der Link bei jemandem, der zuletzt in
+// der Statistik war, eine Seite ohne jeden Hinweis.
+ui.standAngebot = standAusAdresse();
+if (ui.standAngebot) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
+  ui.listView = false;
+}
 render();
 store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit
 // Neu geladen und sichtbar: Die Uhr eines laufenden Trainings muss wieder

@@ -9,6 +9,7 @@ const DEFAULT_STATE = {
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
   useExerciseRest: true, // Pause je Übung statt einer festen Länge
   restSeconds: 90,       // feste Pause, wenn useExerciseRest aus ist; 0 = keine
+  theme: 'orange',       // Farbdesign: orange | rosa | blau | gruen | violett
   name: '',              // Anzeigename – steht nur in diesem Browser, kein Konto
   greeted: false,        // Willkommensseite gesehen
   sound: true,           // Töne: Pausenende, Start, Übung fertig, Workout komplett
@@ -16,6 +17,9 @@ const DEFAULT_STATE = {
   notify: false,         // Systemhinweis am Pausenende, wenn die App im Hintergrund ist
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
+  bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)
+  friends: {},           // zuletzt geschickter Stand anderer: { id: { n, w, s, kg, r, p, d, am } }
+  customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}] }]
   session: null,         // laufendes Training: { n }
   clock: null,           // Uhr der Einheit: { n, on, spent, since } – siehe startSession()
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
@@ -51,7 +55,14 @@ function load() {
     // fragt nach dem Namen und erklärt die App – für jemanden, der seit Wochen
     // trainiert, wäre sie eine Zumutung. Der Schlüssel fehlt genau dann, wenn
     // der Stand aus einer Fassung vor der Seite stammt.
-    if (!('greeted' in parsed)) state.greeted = true;
+    if (!('greeted' in parsed)) {
+      state.greeted = true;
+      // Und dann fehlt auch der Name. Diese App ist für einen bestimmten
+      // Menschen gebaut, und dessen Stand ist genau der, in dem `greeted` noch
+      // nicht vorkam – also trägt er sich hier selbst ein. Wer den Namen nicht
+      // will, ändert ihn unter Mehr in einer Zeile.
+      if (!state.name) state.name = 'Tobi';
+    }
     return state;
   } catch {
     return clone(DEFAULT_STATE);
@@ -314,6 +325,7 @@ export function resetWorkout(n, mode) {
   const e = state.log[n];
   if (!e) return;
   e[mode] = {};
+  if (e.done === mode) delete e.done;
   // Verworfen ist verworfen: Der nächste Anlauf an dieser Einheit fängt die
   // Zeit wieder bei null an.
   if (state.clock && state.clock.n === n) state.clock = null;
@@ -332,6 +344,77 @@ export function completeWorkout(n, mode, exList) {
     arr.forEach((s) => { s.done = true; if (item.w && s.w === '') s.w = item.w; });
   });
   syncStartedOn(n);
+  persist();
+  emit();
+}
+
+/**
+ * Einheit für erledigt erklären, auch wenn nicht jeder Satz steht.
+ *
+ * "Abschließen" heißt genau das: Ich bin für heute fertig. Wer den letzten Satz
+ * Wadenheben weglässt, hat trotzdem trainiert – und der Tag soll im Kalender
+ * und in der Serie als trainiert zählen. Gespeichert wird die Variante, in der
+ * abgeschlossen wurde; ein Zurücksetzen nimmt sie wieder zurück.
+ */
+export function markDone(n, mode) {
+  const e = ensure(n);
+  e.done = mode;
+  syncStartedOn(n);
+  persist();
+  emit();
+}
+
+/* Eigene Einheiten. Sie stehen neben dem Plan, nicht darin: Der Plan rechnet
+ * sein Wochenvolumen aus 84 festen Einheiten, und eine dazwischengeschobene
+ * würde diese Rechnung stillschweigend verschieben. Was hier abgehakt wird,
+ * zählt deshalb in der Statistik mit – bei Sätzen und Volumen –, aber nicht als
+ * erledigte Plan-Einheit. */
+export function customs() { return state.customs || []; }
+
+export function customById(id) { return customs().find((c) => c.id === id) || null; }
+
+export function saveCustom(entwurf) {
+  const liste = customs();
+  const id = entwurf.id || `c${Date.now().toString(36)}`;
+  const eintrag = { id, name: entwurf.name || 'Eigenes Workout', ex: entwurf.ex || [] };
+  const i = liste.findIndex((c) => c.id === id);
+  if (i >= 0) liste[i] = eintrag;
+  else liste.push(eintrag);
+  state.customs = liste;
+  persist();
+  emit();
+  return id;
+}
+
+export function removeCustom(id) {
+  state.customs = customs().filter((c) => c.id !== id);
+  delete state.log[id];
+  persist();
+  emit();
+}
+
+/* Freunde. Kein Konto und kein Server – hier liegt nur, was jemand einem
+ * geschickt hat, mit dem Tag, an dem es angekommen ist. */
+export function setFriend(id, stand) {
+  state.friends[id] = { ...stand, am: todayISO() };
+  persist();
+  emit();
+}
+
+export function removeFriend(id) {
+  delete state.friends[id];
+  persist();
+  emit();
+}
+
+/* Bandstärke statt Gewicht. Am Band gibt es keine Kilo, aber zwei Bänder –
+ * gelb leicht, rot schwer. Das ist die Steigerung: gleiche Übung, stärkeres
+ * Band. Gespeichert wird sie je Übung, genau wie das Arbeitsgewicht. */
+export function bandOf(exId) { return state.bands[exId] || null; }
+
+export function setBand(exId, farbe) {
+  if (farbe) state.bands[exId] = farbe;
+  else delete state.bands[exId];
   persist();
   emit();
 }

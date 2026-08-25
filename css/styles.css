@@ -5,7 +5,12 @@
   --line: #2a2f3a;
   --text: #e8eaed;
   --muted: #9aa3b2;
-  --accent: #ff7a45;
+  /* Zwei Akzentfarben, nicht eine: Die Hantel-Variante ist warm, die
+     Bodyweight-Variante kühl – daran erkennt man den Modus, ohne den Schalter
+     zu lesen. Beide kommen aus dem gewählten Farbdesign (siehe unten). */
+  --accent-db: #ff7a45;
+  --accent-bw: #4ea1ff;
+  --accent: var(--accent-db);
   --accent-2: #4ea1ff;
   --ok: #3ecf8e;
   --radius: 14px;
@@ -14,8 +19,17 @@
 }
 
 body.mode-bw {
-  --accent: #4ea1ff;
+  --accent: var(--accent-bw);
 }
+
+/* Farbdesign. Nur die beiden Akzente ändern sich – Hintergrund, Linien und das
+   Grün für "erledigt" bleiben, damit die App überall gleich lesbar ist.
+   Am <html>, nicht am <body>: --accent wird oben auf :root aus --accent-db
+   abgeleitet und würde sonst weiter den Standardwert von dort nehmen. */
+:root[data-theme="rosa"]    { --accent-db: #ff6fae; --accent-bw: #b98cff; --accent-2: #b98cff; }
+:root[data-theme="blau"]    { --accent-db: #4ea1ff; --accent-bw: #4ecfd0; --accent-2: #4ecfd0; }
+:root[data-theme="gruen"]   { --accent-db: #3ecf8e; --accent-bw: #7ad0ff; --accent-2: #7ad0ff; }
+:root[data-theme="violett"] { --accent-db: #a78bfa; --accent-bw: #f0abfc; --accent-2: #f0abfc; }
 
 * { box-sizing: border-box; }
 
@@ -539,6 +553,73 @@ button { font: inherit; color: inherit; }
   margin-bottom: 8px;
 }
 .focus-count { font-size: 12.5px; color: var(--muted); font-weight: 600; text-align: right; }
+
+/* Farbwahl in den Einstellungen */
+.farben { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.farb-btn {
+  flex: 1 1 60px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 4px; font-size: 12px; font-weight: 600;
+  color: var(--muted); background: var(--bg-elev-2);
+  border: 1px solid var(--line); border-radius: 10px;
+}
+.farb-btn.on { color: var(--text); border-color: var(--accent); }
+.farb-punkt {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--a) 50%, var(--b) 50%);
+}
+
+/* Baukasten für eigene Workouts */
+.cx-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.cx-row:first-child { border-top: 0; }
+.cx-main { flex: 1; min-width: 0; }
+.cx-sets { display: flex; align-items: center; gap: 6px; flex: none; }
+.cx-num { min-width: 20px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cx-del { background: none; border: 0; color: var(--muted); font-size: 16px; padding: 4px; flex: none; }
+.cx-group {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--muted); font-weight: 700; margin: 12px 0 6px;
+}
+.cx-group:first-child { margin-top: 0; }
+
+/* Vergleich mit Freunden */
+.vgl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.vgl th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--muted); font-weight: 700; padding: 0 6px 6px 0;
+}
+.vgl td { padding: 8px 6px 8px 0; border-top: 1px solid var(--line); vertical-align: top; }
+.vgl tr.ich td { color: var(--accent); }
+.vgl-rang { font-weight: 800; color: var(--muted); width: 18px; }
+.vgl-weg { background: none; border: 0; color: var(--muted); font-size: 15px; padding: 0 2px; }
+
+/* Bandstärke statt Gewicht: gelb leicht, rot schwer. */
+.band-row { display: flex; gap: 8px; padding: 0 0 10px; }
+.band-btn {
+  flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 11px 8px; font-size: 14px; font-weight: 700;
+  color: var(--muted); background: var(--bg-elev-2);
+  border: 1px solid var(--line); border-radius: 10px;
+}
+.band-wie { font-size: 12px; font-weight: 600; opacity: .7; }
+.band-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.band-gelb .band-dot { background: #f2c14e; }
+.band-rot .band-dot { background: #e2564d; }
+.band-btn.on { color: var(--text); }
+.band-gelb.on { border-color: #f2c14e; }
+.band-rot.on { border-color: #e2564d; }
+.ex-weight + .band-row, .focus-weight + .band-row { margin-top: 0; }
+
+/* Einstiege oben unter Mehr: Kalender und Verletzungen. */
+.kachel-karte { padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.kachel {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%;
+  padding: 12px 10px; text-align: left;
+  background: none; border: 0; border-radius: 10px; color: var(--text);
+}
+.kachel + .kachel { border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; }
+.kachel-i { font-size: 20px; line-height: 1.2; }
+.kachel .lbl { display: block; }
+.kachel .hint { display: block; }
 
 /* Ausführliche Erklärung, aufklappbar */
 .detail-toggle {
