@@ -256,7 +256,9 @@ export function completeWorkout(n, mode, exList) {
   e.mode = mode;
   exList.forEach((item) => {
     const arr = getSets(n, mode, item.id, item.sets);
-    arr.forEach((s) => { s.done = true; });
+    // `w` mitschreiben, sonst fehlt der Eintrag später überall dort, wo das
+    // Gewicht zählt: in der Verlaufskurve und in der Steigerungsserie.
+    arr.forEach((s) => { s.done = true; if (item.w && s.w === '') s.w = item.w; });
   });
   syncStartedOn(n);
   persist();

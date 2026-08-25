@@ -88,10 +88,13 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 * **Ein Arbeitsgewicht je Übung**, vorbelegt mit einem Startwert (siehe unten).
   Änderbar durch Antippen der Zahl oder über **−** und **+**, die je Übung
   unterschiedlich weit gehen (siehe *Gewichtsschritte*).
-* **Aufwärmen steht oben.** Eine eigene Karte über der ersten Übung, aufklappbar,
-  mit den Anlaufsätzen fürs erste Arbeitsgewicht.
 * **„Wie war das?"** – drei Knöpfe nach dem letzten Satz einer Übung. Freiwillig,
-  ein Griff, und die Grundlage für den Vorschlag beim nächsten Mal.
+  ein Griff, und die Grundlage für den Vorschlag beim nächsten Mal. In der
+  Fokus-Ansicht ist die Antwort zugleich der Weiterschalter: Die Übung bleibt
+  nach dem letzten Satz stehen, bis geantwortet oder **Weiter →** getippt wird.
+  Vorher sprang die Ansicht sofort weiter, und die Frage war nur ein Aufblitzen –
+  im Bodyweight-Modus hing damit die ganze Progression an einer Antwort, die
+  niemand geben konnte.
 * **Wie schwer.** Unter dem Übungsnamen steht, wie nah ans Limit gegangen wird:
   *„noch 1–2 Wiederholungen drin – nicht mehr"*, im letzten Satz einer Übung
   *„bis kurz vors Versagen"*. Das ist die Zahl, die am meisten über das
@@ -330,21 +333,6 @@ nach oben, für diese Übung.
 Dieselbe Antwort dient bei den Hanteln als Bremse: „war schwer" beendet die
 Serie, ohne dass man das Gewicht zurücknehmen müsste. Beantworten ist
 freiwillig – ohne Antwort verhält sich die Hantel-Progression wie vorher.
-
-### Aufwärmen
-
-Der Plan fing kalt an: erste Karte, erster Satz, volles Arbeitsgewicht. Über
-der ersten Übung steht jetzt eine eigene Karte – zwei bis drei Minuten allgemein
-warm werden, die Gelenke bewegen, und dann die **Anlaufsätze fürs erste
-Arbeitsgewicht**: 1 × 8 mit der Hälfte, 1 × 5 mit drei Vierteln, jeweils auf die
-Schrittweite der Übung gerundet („1 × 8 Einarmiges KH-Rudern mit 8 kg / 1 × 5
-mit 12 kg"). Ohne Zusatzlast bleibt es bei einem lockeren Satz mit halber
-Wiederholungszahl.
-
-Die Karte hat bewusst **eigene Klassen** statt `.ex`: sie wird nicht abgehakt,
-zählt nicht ins Wochenvolumen und darf in keiner Zählung mitlaufen – als
-`.ex` hatte sie sich sofort in die Übungszahl und in die Testreihen
-eingeschlichen.
 
 ### Pausenlängen
 

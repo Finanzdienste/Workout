@@ -262,7 +262,12 @@ function bumpHint(exId) {
     const item = exOf(w).find((x) => x.id === exId);
     if (!item) continue;
     const sets = store.peekSets(w.n, 'db', exId);
-    if (!sets || !sets.length) continue;
+    // Leere Sätze zählen nicht als Lücke. getSets() legt sie schon beim
+    // *Ansehen* einer Einheit an – wer einmal mit "Nächstes →" nach vorn
+    // blättert, hinterlässt dort drei leere Sätze. Ohne diese Zeile bricht die
+    // Suche an genau dieser künftigen Einheit ab und der Vorschlag kam für die
+    // Übungen darin nie wieder.
+    if (!sets || !sets.some((x) => x.done || x.w !== '')) continue;
     const complete = sets.length >= item.sets && sets.slice(0, item.sets).every((x) => x.done);
     if (!complete) break;                       // Lücke beendet die Serie
     // Wer nach der Einheit "war schwer" angetippt hat, bekommt keinen
@@ -600,9 +605,18 @@ function firstOpenExercise(n, mode) {
   return idx === -1 ? w.ex.length - 1 : idx;
 }
 
+/** Zur nächsten offenen Übung rücken und sagen, welche das ist. */
+function weiterZurNaechsten(n, mode) {
+  const nextIdx = firstOpenExercise(n, mode);
+  if (nextIdx === ui.focusIdx) return;
+  ui.focusIdx = nextIdx;
+  toast(`Weiter: ${resolve(workoutByNo(n).ex[nextIdx], mode).name}`);
+}
+
 /**
  * Fokus-Ansicht: eine Übung groß, mit vorgeführter Bewegung. Sobald alle Sätze
- * stehen, rückt die App von selbst zur nächsten offenen Übung weiter.
+ * stehen, kommt die Frage nach der Anstrengung – und die Antwort rückt zur
+ * nächsten offenen Übung weiter. Wer nicht antworten mag, nimmt "Weiter →".
  */
 function renderFocus() {
   const n = ui.workoutNo;
@@ -664,6 +678,12 @@ function renderFocus() {
     </div>
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
+
+    ${/* Trainiert wird hier, nicht in der Liste – ohne diese Zeile blieb die
+          Frage nach der Anstrengung unbeantwortet, und im Bodyweight-Modus
+          steigerte sich damit nie etwas: dort ist zweimal "ging leicht" die
+          einzige Bedingung für mehr Wiederholungen. */''}
+    ${effortRow(n, mode, it.id, doneCount === it.sets)}
 
     <div class="btn-row nav">
       <button type="button" class="btn btn-ghost" data-act="focus-step" data-d="-1" ${i === 0 ? 'disabled' : ''}>← Zurück</button>
@@ -826,10 +846,6 @@ function renderDashboard() {
       <button type="button" class="back-link" data-act="${store.getState().session ? 'focus-back' : 'hide-list'}">‹ Zurück</button>
       <span class="focus-count">${w.ex.length} Übungen · ${prog.done}/${prog.total} Sätze</span>
     </div>`);
-
-  // Aufwärmen steht vor der ersten Übung, nicht darunter – dort liest es
-  // niemand mehr, wenn schon der erste Satz abgehakt ist.
-  parts.push(warmupCard(items, n, mode));
 
   items.forEach((it, i) => {
     const sets = store.getSets(n, mode, it.id, it.sets);
@@ -1132,73 +1148,6 @@ const INTENSITY = {
   last: 'Letzter Satz: bis kurz vors Versagen, saubere Technik bis zum Schluss.',
 };
 
-/* ------------------------------------------------------------------ *
- * Aufwärmen
- *
- * Der Plan fing bisher kalt an: drei Sätze Rudern mit 16 kg als Erstes. Was
- * hier steht, ist bewusst knapp und zählt nicht ins Wochenvolumen – es ist
- * Vorbereitung, kein Training.
- * ------------------------------------------------------------------ */
-
-/** Auf ein Vielfaches der Schrittweite runden, mindestens einen Schritt. */
-function roundToStep(kg, step) {
-  return Math.max(step, Math.round(kg / step) * step);
-}
-
-function warmupCard(items, n, mode) {
-  if (!items.length) return '';
-  // Angerampt wird die erste Übung, die überhaupt ein Gewicht hat. Steht vorn
-  // eine ohne Zusatzlast – Chin-ups etwa –, gäbe es sonst nichts zu rechnen,
-  // obwohl gleich danach eine schwere Hantelübung kommt.
-  // Gemeint ist eine Übung, bei der wirklich Last auf der Stange liegt. Ein
-  // Zusatzgewicht von 0 kg – Chin-ups am eigenen Körpergewicht – ergäbe sonst
-  // die Anweisung "1 × 8 mit 0 kg".
-  const geladen = (x) => x.weight !== null && usedWeight(n, mode, x.id) > 0;
-  const erste = (mode === 'db' && items.find(geladen)) || items[0];
-  const kg = mode === 'db' && geladen(erste) ? usedWeight(n, mode, erste.id) : null;
-  const step = stepOf(erste.id);
-  const offen = ui.openEx.has('__warmup');
-  const saetze = kg === null
-    ? `<li>Ein lockerer Satz <b>${esc(erste.name)}</b> mit halber Wiederholungszahl.</li>`
-    : `<li>1 × 8 <b>${esc(erste.name)}</b> mit ${esc(fmtNum(roundToStep(kg * 0.5, step)))} kg</li>
-       <li>1 × 5 mit ${esc(fmtNum(roundToStep(kg * 0.75, step)))} kg</li>`;
-  // Bewusst eigene Klassen statt .ex: das hier ist keine Übung, wird nicht
-  // abgehakt und zählt nirgends mit. Als .ex hätte es sich in jede Zählung
-  // eingeschlichen – in der App wie in den Testreihen.
-  return `
-    <article class="warmup">
-      <div class="warm-head" data-act="toggle-ex" data-ex="__warmup" role="button" tabindex="0"
-           aria-expanded="${offen}">
-        <span class="warm-icon">🔥</span>
-        <span class="warm-main">
-          <span class="warm-name">Aufwärmen</span>
-          <span class="warm-meta">3 Minuten · zählt nicht mit</span>
-        </span>
-        <span class="chev">▼</span>
-      </div>
-      ${offen ? `<div class="warm-body">
-        <div class="cue">Zwei, drei Minuten, bis dir warm ist: Hampelmänner, Seilspringen
-          oder zügiges Treppensteigen. Dann die Gelenke, die gleich arbeiten – Arme
-          kreisen, Hüfte kreisen, ein paar tiefe Kniebeugen ohne Gewicht.</div>
-        <ul class="warm-list">${saetze}</ul>
-        <div class="small muted">Die Anlaufsätze machen nicht müde, sie stellen die
-          Bewegung ein. Erst danach steht das Arbeitsgewicht.</div>
-        <div class="cue" style="margin-top:8px"><b>Wie schwer danach?</b> ${esc(INTENSITY.normal)}
-          ${esc(INTENSITY.last)} Das entscheidet mehr als die Frage, ob eine Gruppe
-          9,7 oder 10,0 Sätze bekommt.</div>
-      </div>` : ''}
-    </article>`;
-}
-
-/* ------------------------------------------------------------------ *
- * Wie war das?
- *
- * Ein Griff nach dem letzten Satz. Damit weiß die App zweierlei: ob der
- * Steigerungsvorschlag mit Hanteln gerechtfertigt ist – und im
- * Bodyweight-Modus, wo es kein Gewicht zu erhöhen gibt, ob es Zeit für ein
- * paar Wiederholungen mehr ist.
- * ------------------------------------------------------------------ */
-
 const EFFORT = [
   ['leicht', 'ging leicht'],
   ['ok', 'passte'],
@@ -1239,7 +1188,7 @@ function bwBump(exId) {
     const item = exOf(w).find((x) => x.id === exId);
     if (!item) continue;
     const sets = store.peekSets(w.n, 'bw', exId);
-    if (!sets || !sets.length) continue;
+    if (!sets || !sets.some((x) => x.done || x.w !== '')) continue;   // siehe bumpHint()
     const complete = sets.length >= item.sets && sets.slice(0, item.sets).every((x) => x.done);
     if (!complete) break;
     if (store.effortOf(w.n, 'bw', exId) !== 'leicht') break;
@@ -2137,7 +2086,12 @@ view.addEventListener('click', (e) => {
     case 'set-effort': {
       const id = t.dataset.ex;
       const v = t.dataset.v;
-      store.setEffort(n, mode, id, store.effortOf(n, mode, id) === v ? null : v);
+      const neu = store.effortOf(n, mode, id) === v ? null : v;
+      store.setEffort(n, mode, id, neu);
+      // Die Antwort ist zugleich der Weiterschalter: In der Fokus-Ansicht
+      // steht sie unter der gerade fertigen Übung, und danach will man zur
+      // nächsten. Das Zurücknehmen der Antwort schaltet nicht weiter.
+      if (neu && ui.focus && !progressOf(n, mode).complete) weiterZurNaechsten(n, mode);
       render();
       break;
     }
@@ -2217,13 +2171,14 @@ view.addEventListener('click', (e) => {
       const exDone = done && i === item.sets - 1
         && store.getSets(n, mode, id, item.sets).every((s) => s.done);
 
-      // In der Fokus-Ansicht von selbst zur nächsten offenen Übung rücken.
-      if (ui.focus && exDone && !workoutComplete) {
-        const nextIdx = firstOpenExercise(n, mode);
-        if (nextIdx !== ui.focusIdx) {
-          ui.focusIdx = nextIdx;
-          toast(`Weiter: ${resolve(workoutByNo(n).ex[nextIdx], mode).name}`);
-        }
+      // In der Fokus-Ansicht von selbst zur nächsten offenen Übung rücken –
+      // aber erst, wenn die Frage nach der Anstrengung beantwortet ist. Sie
+      // steht genau hier und wäre sonst nur aufgeblitzt: Der Sprung kam im
+      // selben Wimpernschlag, und im Bodyweight-Modus hing die ganze
+      // Progression daran. Wer nicht antworten will, tippt "Weiter →" – der
+      // Knopf steht daneben und ist hervorgehoben.
+      if (ui.focus && exDone && !workoutComplete && store.effortOf(n, mode, id)) {
+        weiterZurNaechsten(n, mode);
       }
       render();
       // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
@@ -2349,7 +2304,14 @@ view.addEventListener('click', (e) => {
       render();
       break;
     case 'complete-workout':
-      store.completeWorkout(n, mode, workoutByNo(n).ex);
+      // Das benutzte Gewicht muss mit: Ohne es fehlen die Sätze in der
+      // Verlaufskurve, und die Steigerungsserie bricht ab, weil sie das
+      // Gewicht der letzten Einheit nicht wiederfindet. Beim einzelnen
+      // Abhaken schreibt toggle-set es längst mit.
+      store.completeWorkout(n, mode, workoutByNo(n).ex.map((x) => {
+        const v = resolve(x, mode);
+        return { ...x, w: v.weight === null ? '' : fmtNum(usedWeight(n, mode, x.id)) };
+      }));
       if (store.getState().rest) endRest(false);
       render();
       toast('Alle Sätze abgehakt 🎉');
