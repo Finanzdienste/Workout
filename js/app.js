@@ -6,6 +6,7 @@ import { mountBody, MUSCLE_LABEL } from './body.js';
 import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, applyInjuries, blocked, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
 import { sparkPanel } from './chart.js';
 import { buildICS } from './ics.js';
+import { initAudio, playSound, scheduleSound, cancelSound } from './audio.js';
 
 /* ------------------------------------------------------------------ *
  * Hilfsfunktionen
@@ -436,40 +437,113 @@ function announce(text) {
   if (restLive) restLive.textContent = text;
 }
 
-let audioCtx = null;
 let restTicker = null;
 let wakeLock = null;
+let restArmed = false;   // liegt das Pausensignal schon auf der Audio-Uhr?
 
 /**
- * Kurzes Doppelsignal zum Ende der Pause – erzeugt statt geladen, damit die
- * App ohne Netz und ohne zusätzliche Datei auskommt.
+ * Ton zu einem Ereignis – Training starten, Satz abhaken, Übung fertig,
+ * Workout komplett. Die Töne selbst stehen in js/audio.js.
  *
- * Der AudioContext entsteht erst beim ersten Abhaken. Mobile Browser lassen
- * Ton nur zu, wenn er auf eine Berührung zurückgeht; genau die ist das.
+ * Der Tupfer beim Abhaken hat einen eigenen Schalter: Er kommt in einem
+ * Training zwanzigmal, und ob man das mag, ist Geschmackssache – die
+ * Ereignisse drumherum kommen ein- bis zweimal und stören niemanden.
  */
-function initAudio() {
-  if (audioCtx) return;
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  if (!Ctx) return;
-  try { audioCtx = new Ctx(); } catch { audioCtx = null; }
+function sound(name) {
+  const s = store.getState();
+  if (!s.sound) return;
+  if (name === 'set' && !s.soundSets) return;
+  playSound(name);
 }
 
-function beep() {
-  if (!store.getState().sound || !audioCtx) return;
-  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-  const now = audioCtx.currentTime;
-  [0, 0.28].forEach((offset, i) => {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = i === 0 ? 880 : 1320;
-    gain.gain.setValueAtTime(0.0001, now + offset);
-    gain.gain.exponentialRampToValueAtTime(0.35, now + offset + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.22);
-    osc.connect(gain).connect(audioCtx.destination);
-    osc.start(now + offset);
-    osc.stop(now + offset + 0.24);
-  });
+/* Hinweis zum Pausenende, wenn die App gerade nicht im Vordergrund ist.
+ *
+ * Der Ton allein reicht dafür nicht immer: Schaltet man während der Pause zu
+ * einer anderen App, darf der Browser die Seite einfrieren. Der vorausgelegte
+ * Ton übersteht das meistens (siehe js/audio.js), eine Systemmeldung kommt
+ * zusätzlich auch dann noch an, wenn er es nicht tut – und sie ist sichtbar,
+ * nicht nur hörbar. Sie braucht eine Erlaubnis, deshalb ein eigener Schalter
+ * unter Mehr statt einer Nachfrage beim ersten Start.
+ *
+ * Was auch das nicht kann: die App komplett schließen und trotzdem klingeln.
+ * Dafür bräuchte es einen Server, der eine Push-Nachricht schickt – die App
+ * hat keinen und soll keinen haben. */
+const NOTE_TAG = 'workout-pause';
+let noteTimer = null;
+
+/** Registrierung des Service Workers, immer als Promise – auch ohne ihn. */
+function swReg() {
+  try {
+    return navigator.serviceWorker?.getRegistration() || Promise.resolve(null);
+  } catch {
+    return Promise.resolve(null);
+  }
+}
+
+/** Vom Browser blockiert – dann hilft kein Schalter in der App mehr. */
+function notifyDenied() {
+  return 'Notification' in window && Notification.permission === 'denied';
+}
+
+function noteAllowed() {
+  return store.getState().notify && 'Notification' in window
+    && Notification.permission === 'granted';
+}
+
+function planNote(secs, text) {
+  dropNote();
+  if (!noteAllowed()) return;
+  noteTimer = setTimeout(() => {
+    noteTimer = null;
+    // Nur, wenn die App gerade nicht zu sehen ist: Wer davorsitzt, hört den Ton
+    // und sieht die Leiste – eine Systemmeldung wäre da nur Lärm.
+    if (!document.hidden) return;
+    const opt = {
+      body: text,
+      tag: NOTE_TAG,          // ersetzt eine ältere, statt sie zu stapeln
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      vibrate: [180, 90, 180],
+    };
+    swReg().then((reg) => {
+      if (reg) reg.showNotification('Pause vorbei', opt);
+      else new Notification('Pause vorbei', opt);
+    }).catch(() => {});
+  }, Math.max(0, secs) * 1000);
+}
+
+/** Wecker abbestellen und eine schon sichtbare Meldung schließen. */
+function dropNote() {
+  clearTimeout(noteTimer);
+  noteTimer = null;
+  swReg()
+    .then((reg) => (reg ? reg.getNotifications({ tag: NOTE_TAG }) : []))
+    .then((list) => list.forEach((nt) => nt.close()))
+    .catch(() => {});
+}
+
+/**
+ * Ton und Hinweis auf das Ende der laufenden Pause legen.
+ *
+ * Bei jeder Änderung neu: Start, „+30 s", und auch beim Umlegen der Schalter,
+ * damit eine schon laufende Pause der neuen Einstellung folgt.
+ */
+function armRest() {
+  const rest = store.getState().rest;
+  if (!rest) {
+    cancelSound();
+    dropNote();
+    restArmed = false;
+    return;
+  }
+  const left = (rest.endsAt - Date.now()) / 1000;
+  if (store.getState().sound) {
+    restArmed = scheduleSound('rest', left);
+  } else {
+    cancelSound();
+    restArmed = false;
+  }
+  planNote(left, rest.next);
 }
 
 /**
@@ -499,6 +573,7 @@ function startRest(exName, setIndex, sets, secs) {
   announce(`Pause ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} Minuten, `
     + `danach Satz ${setIndex + 2} von ${sets}, ${exName}`);
   holdScreen(true);
+  armRest();
   tickRest();
 }
 
@@ -509,8 +584,19 @@ function endRest(withSignal) {
   store.setRest(null);
   restBar.hidden = true;
   document.body.classList.remove('resting');
+  // Das Signal liegt längst auf der Audio-Uhr und hat gerade selbst gespielt –
+  // hier noch einmal anzustoßen, gäbe ein Echo. Nur wenn das Voraussetzen nicht
+  // geklappt hat (kein Ton freigeschaltet, Browser ohne Web Audio), kommt der
+  // Ton jetzt. cancelSound() lässt ein bereits laufendes Signal ausklingen.
+  if (withSignal && !restArmed) sound('rest');
+  cancelSound();
+  // Bei einer abgebrochenen Pause den Hinweis abbestellen – bei einer
+  // abgelaufenen gerade nicht: Diese Zeile läuft bis zu eine halbe Sekunde vor
+  // dem Ende (der Timer prüft im Vierteltakt und rundet), der Wecker soll aber
+  // noch losgehen, falls die App im Hintergrund ist.
+  if (!withSignal) dropNote();
+  restArmed = false;
   if (withSignal) {
-    beep();
     if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
     announce('Pause vorbei, nächster Satz');
   } else {
@@ -556,6 +642,7 @@ document.getElementById('restPlus')?.addEventListener('click', () => {
   const rest = store.getState().rest;
   if (!rest) return;
   store.setRest({ ...rest, endsAt: rest.endsAt + 30000, total: rest.total + 30 });
+  armRest(); // Signal 30 s weiter hinten neu auflegen
   tickRest();
 });
 
@@ -1850,18 +1937,46 @@ function renderSettings() {
       </div>`}
       <div class="switch-row">
         <div>
-          <div class="lbl">Signalton</div>
-          <div class="hint">Zusätzlich vibriert das Handy. Der Ton wird erzeugt, nicht geladen – funktioniert also auch ohne Netz.</div>
-        </div>
-        <button type="button" class="toggle" aria-pressed="${s.sound}" data-act="toggle-sound" aria-label="Signalton"></button>
-      </div>
-      <div class="switch-row">
-        <div>
           <div class="lbl">Pause abschalten</div>
           <div class="hint">Kein Timer, kein Ton – Sätze nur abhaken.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${!s.useExerciseRest && !s.restSeconds}" data-act="toggle-rest-off" aria-label="Pause abschalten"></button>
       </div>
+    </div>
+
+    <div class="section-title">Töne und Hinweise</div>
+    <div class="card">
+      <div class="small muted">Die Töne werden erzeugt, nicht geladen – sie funktionieren also
+        auch ohne Netz. Am Ende der Pause vibriert das Handy zusätzlich.</div>
+      <div class="switch-row" style="margin-top:10px">
+        <div>
+          <div class="lbl">Töne</div>
+          <div class="hint">Pause vorbei, Training gestartet, Übung fertig, Workout komplett.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${s.sound}" data-act="toggle-sound" aria-label="Töne"></button>
+      </div>
+      ${s.sound ? `
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Ton bei jedem Satz</div>
+          <div class="hint">Kurzer Tupfer beim Abhaken – der kommt zwanzigmal pro Training.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${s.soundSets}" data-act="toggle-sound-sets" aria-label="Ton bei jedem Satz"></button>
+      </div>` : ''}
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Hinweis im Hintergrund</div>
+          <div class="hint">Meldung vom Handy, wenn die Pause endet und du gerade woanders bist –
+            in einer anderen App oder bei gesperrtem Bildschirm. Braucht einmal deine Erlaubnis.
+            Ist die App ganz geschlossen, bleibt es still: Dafür bräuchte es einen Server, der eine
+            Nachricht schickt.${notifyDenied() ? ' <strong>Dein Browser hat Hinweise für diese Seite blockiert</strong> – das lässt sich nur in seinen Einstellungen wieder freigeben.' : ''}</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${s.notify && !notifyDenied()}" data-act="toggle-notify" aria-label="Hinweis im Hintergrund" ${notifyDenied() ? 'disabled' : ''}></button>
+      </div>
+      ${s.sound ? `
+      <div class="btn-row">
+        <button type="button" class="btn btn-block" data-act="test-sound">Töne anhören</button>
+      </div>` : ''}
     </div>
 
     <div class="section-title">Plan-Verschiebung</div>
@@ -2190,6 +2305,9 @@ view.addEventListener('click', (e) => {
       } else if (store.getState().rest) {
         endRest(false);
       }
+      // Der größte Anlass gewinnt: Workout fertig schlägt Übung fertig schlägt
+      // einzelnen Satz. Ein Haken, der wieder weggeht, bleibt still.
+      if (done) sound(workoutComplete ? 'done' : (exDone ? 'exercise' : 'set'));
       if (workoutComplete) toast('Workout abgeschlossen 🎉');
       break;
     }
@@ -2205,6 +2323,7 @@ view.addEventListener('click', (e) => {
     case 'accept-bump': {
       const id = t.dataset.ex;
       const kg = store.setWeight(id, Number(t.dataset.kg));
+      sound('bump');
       render();
       toast(`Nächstes Mal ${fmtNum(kg)} kg 💪`);
       break;
@@ -2247,6 +2366,7 @@ view.addEventListener('click', (e) => {
         break;
       }
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
+      sound('start');
       store.startSession(n);
       ui.focus = true;
       ui.listView = false;
@@ -2260,6 +2380,7 @@ view.addEventListener('click', (e) => {
       ui.focus = false;
       ui.listView = false;
       if (store.getState().rest) endRest(false);
+      sound(prog.complete ? 'done' : 'stop');
       render();
       toast(prog.complete
         ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
@@ -2279,6 +2400,7 @@ view.addEventListener('click', (e) => {
       ui.focus = false;
       ui.listView = false;
       if (store.getState().rest) endRest(false);
+      sound('stop');
       render();
       toast('Training abgebrochen – nichts gespeichert');
       break;
@@ -2315,6 +2437,7 @@ view.addEventListener('click', (e) => {
         return { ...x, w: v.weight === null ? '' : fmtNum(usedWeight(n, mode, x.id)) };
       }));
       if (store.getState().rest) endRest(false);
+      sound('done');
       render();
       toast('Alle Sätze abgehakt 🎉');
       break;
@@ -2373,8 +2496,48 @@ view.addEventListener('click', (e) => {
       initAudio();
       const on = !store.getState().sound;
       store.setSetting('sound', on);
+      armRest(); // eine laufende Pause folgt der neuen Einstellung
       render();
-      if (on) beep();
+      if (on) playSound('rest');
+      break;
+    }
+    case 'toggle-sound-sets': {
+      initAudio();
+      const on = !store.getState().soundSets;
+      store.setSetting('soundSets', on);
+      render();
+      if (on) playSound('set');
+      break;
+    }
+    case 'toggle-notify': {
+      // Die Erlaubnis holt der Browser nur aus einer Berührung heraus – also
+      // genau hier. Angeschaltet gilt der Schalter erst, wenn sie da ist.
+      if (!('Notification' in window)) {
+        toast('Dieser Browser kennt keine Hinweise');
+        break;
+      }
+      if (store.getState().notify) {
+        store.setSetting('notify', false);
+        dropNote();
+        render();
+        break;
+      }
+      Notification.requestPermission().then((erlaubnis) => {
+        store.setSetting('notify', erlaubnis === 'granted');
+        armRest();
+        render();
+        toast(erlaubnis === 'granted'
+          ? 'Hinweis kommt auch im Hintergrund'
+          : 'Ohne Erlaubnis geht das nicht');
+      }).catch(() => {});
+      break;
+    }
+    case 'test-sound': {
+      // Der Reihe nach, damit man hört, was wofür steht.
+      initAudio();
+      ['start', 'set', 'exercise', 'rest', 'done']
+        .forEach((name, i) => setTimeout(() => playSound(name), i * 900));
+      toast('Start · Satz · Übung fertig · Pause vorbei · Workout komplett');
       break;
     }
     case 'toggle-ex-rest':
@@ -2496,6 +2659,9 @@ document.addEventListener('visibilitychange', () => {
     return;
   }
   tickRest(); // war das Handy gesperrt, ist die Pause womöglich abgelaufen
+  // Läuft sie noch, das Signal neu auflegen: Ein im Hintergrund angehaltener
+  // AudioContext verliert seine vorgemerkten Töne.
+  if (store.getState().rest) armRest();
   const day = todayISO();
   const shifted = catchUpPlan();
   if (shifted || day !== lastSeenDay) {

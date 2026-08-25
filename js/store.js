@@ -9,7 +9,9 @@ const DEFAULT_STATE = {
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
   useExerciseRest: true, // Pause je Übung statt einer festen Länge
   restSeconds: 90,       // feste Pause, wenn useExerciseRest aus ist; 0 = keine
-  sound: true,           // Ton am Ende der Pause
+  sound: true,           // Töne: Pausenende, Start, Übung fertig, Workout komplett
+  soundSets: true,       // zusätzlich ein kurzer Ton bei jedem abgehakten Satz
+  notify: false,         // Systemhinweis am Pausenende, wenn die App im Hintergrund ist
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   session: null,         // laufendes Training: { n, startedAt }

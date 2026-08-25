@@ -200,10 +200,15 @@ export const PATTERNS = {
     // Weiter herumgedreht als beim Kurzhantelmuster, damit die Stange quer im
     // Bild liegt statt schräg durch den Brustkorb – aber nicht so weit, dass
     // die ferne Scheibe über dem Kopf landet.
+    // Die Abspreizung bestimmt zugleich die Griffweite: Die Hand sitzt bei
+    // 0,215 + 0,52·sin(a) von der Mitte, die Scheibe bei 0,56. Mit 40° lagen
+    // die Hände genau an den Scheiben – so greift niemand eine Stange. 15°
+    // ergibt gut anderthalb Schulterbreiten, also den üblichen Bankdrückgriff,
+    // und lässt links und rechts ein Stück Stange stehen.
     label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [35, -10],
     poses: [
-      { arm: A(74, 40, 96), leg: L(56, 9, 100) },
-      { arm: A(88, 38, 6), leg: L(56, 9, 100) },
+      { arm: A(74, 15, 96), leg: L(56, 9, 100) },
+      { arm: A(88, 15, 6), leg: L(56, 9, 100) },
     ],
   },
   row: {

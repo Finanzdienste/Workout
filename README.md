@@ -112,7 +112,12 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   der Rückfrage.
 * **Pausentimer.** Startet automatisch beim Abhaken und meldet sich am Ende mit
   Ton und Vibration. Nach dem letzten Satz einer Übung läuft bewusst keiner.
-  Während der Pause um 30 s verlängerbar oder vorzeitig beendbar.
+  Während der Pause um 30 s verlängerbar oder vorzeitig beendbar. Auf Wunsch
+  kommt am Ende zusätzlich eine Systemmeldung, wenn die App gerade im
+  Hintergrund ist (siehe *Töne*).
+* **Töne zu den Ereignissen.** Training gestartet, Satz abgehakt, Übung fertig,
+  Workout komplett – jedes mit eigenem Ton, sodass man ohne Hinsehen weiß, was
+  passiert ist.
 
 ### Bewegungsabläufe
 
@@ -367,11 +372,45 @@ es inzwischen 47. Das ist der Tausch, und er ist bewusst so herum gemacht.
 Über *Mehr* lässt sich stattdessen eine feste Länge wählen oder die Pause ganz
 abschalten.
 
-Der Ton wird per Web Audio erzeugt, nicht als Datei geladen – das hält die App
-offline-tauglich. Weil mobile Browser Ton nur nach einer Berührung zulassen,
-entsteht der AudioContext beim ersten Abhaken. Während einer Pause hält die App
-zusätzlich das Display wach (`navigator.wakeLock`), sonst friert der Browser die
-Seite ein und das Signal käme zu spät.
+### Töne
+
+`js/audio.js` erzeugt alle Töne per Web Audio, keiner wird geladen – das hält
+die App offline-tauglich und spart eine Datei, die veralten könnte. Ein Ton ist
+eine Folge von Sinus-Tönen; sieben gibt es: Training gestartet, Satz abgehakt,
+Übung fertig, Pause vorbei, Workout komplett, Training beendet, Gewicht erhöht.
+Der Tupfer beim Abhaken hat einen eigenen Schalter, weil er zwanzigmal pro
+Training kommt; die übrigen ein- bis zweimal.
+
+Weil mobile Browser Ton nur nach einer Berührung zulassen, entsteht der
+AudioContext beim Start des Trainings oder beim ersten Abhaken.
+
+**Das Pausensignal wird vorausgeplant, nicht per `setTimeout` ausgelöst.** Der
+Unterschied zählt genau dann, wenn man während der Pause das Handy weglegt oder
+zu einer anderen App wechselt: Zeitgeber der Seite werden im Hintergrund
+ausgebremst oder ganz eingefroren, die Uhr des AudioContext läuft weiter. Beim
+Start der Pause legt die App den Ton deshalb fest auf diese Uhr
+(`osc.start(ctx.currentTime + rest)`). Damit der Browser den Kontext dabei nicht
+schlafen legt, läuft bis zum Signal ein Trägerton mit: 30 Hz bei einem
+Tausendstel Lautstärke, den kein Handylautsprecher wiedergibt – im Signalweg ist
+er aber vorhanden, und damit gilt die Seite als aktiv. Wird die Pause
+übersprungen oder um 30 s verlängert, wird der vorgemerkte Ton verworfen und neu
+gelegt.
+
+Zusätzlich hält die App während der Pause das Display wach
+(`navigator.wakeLock`).
+
+**Hinweis im Hintergrund.** Wer die Pause im Hintergrund verbringt, kann sich
+zusätzlich eine Systemmeldung schicken lassen (Schalter unter *Mehr*, einmalige
+Erlaubnis des Browsers). Sie kommt nur, wenn die App gerade nicht zu sehen ist –
+davor sitzend reichen Ton und Leiste. Der Wecker dafür ist ein gewöhnliches
+`setTimeout`; der Trägerton hält die Seite wach genug, dass es auch läuft.
+`endRest()` bestellt ihn nur bei einer *abgebrochenen* Pause ab, nicht bei einer
+abgelaufenen: Diese Zeile läuft bis zu eine halbe Sekunde vor dem Ende, weil der
+Timer im Vierteltakt prüft und rundet.
+
+Was auch das nicht kann: klingeln, wenn die App ganz geschlossen ist. Dafür
+bräuchte es einen Server, der eine Push-Nachricht schickt – die App hat keinen
+und soll keinen haben.
 
 Gespeichert wird der **Endzeitpunkt** der Pause, nicht die Restdauer. Dadurch
 stimmt die Anzeige auch, wenn das Handy zwischendurch gesperrt war, und eine
@@ -1483,6 +1522,7 @@ js/app.js               Rendering der fünf Tabs und Event-Handling
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
 js/chart.js             Verlaufskarten für die Statistik
+js/audio.js             Erzeugte Töne und das vorausgeplante Pausensignal
 js/ics.js               Trainingstermine als Kalenderdatei (.ics)
 sw.js                   Service Worker für den Offline-Betrieb
 manifest.webmanifest    Installierbar als App auf dem Homescreen

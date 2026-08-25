@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v62';
+const VERSION = 'v63';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -27,6 +27,7 @@ const SHELL = [
   './index.html',
   './css/styles.css',
   './js/app.js',
+  './js/audio.js',
   './js/data.js',
   './js/body.js',
   './js/chart.js',
@@ -112,6 +113,22 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => hit);
       return hit || update;
+    }),
+  );
+});
+
+/*
+ * Tippen auf den Hinweis „Pause vorbei" bringt die App nach vorn, statt eine
+ * zweite Instanz zu oeffnen. Ohne diesen Zweig passiert schlicht nichts.
+ */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((liste) => {
+      for (const client of liste) {
+        if ('focus' in client) return client.focus();
+      }
+      return self.clients.openWindow('./');
     }),
   );
 });
