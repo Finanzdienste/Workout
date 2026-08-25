@@ -1991,15 +1991,15 @@ const EXERCISES = [
   {
     "id": "hip-thrust",
     "group": "Gesäß",
-    "weight": 20,
-    "step": 2.5,
-    "weightNote": "auf der Hüfte",
+    "weight": 40,
+    "step": 5,
+    "weightNote": "Stange gesamt",
     "equip": "hipbar",
     "db": {
       "name": "Hip Thrust",
       "reps": "8–15",
-      "equip": "Kurzhantel",
-      "cue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
+      "equip": "Langhantel + Polster",
+      "cue": "Schulterblätter auf einer Bank/Couch, die fest an der Wand steht. Stange über die angewinkelten Beine bis auf die Hüftbeuge rollen, dickes Handtuch oder Matte darunter – ohne Polster ist bei 40 kg der Knochen die Grenze, nicht das Gesäß. Oben Gesäß fest anspannen, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
       "rest": 150,
       "pattern": "thrust",
       "shares": {
@@ -2211,15 +2211,15 @@ const EXERCISES = [
   {
     "id": "rumaenisches-kreuzheben",
     "group": "Beine",
-    "weight": 12,
-    "step": 2,
-    "weightNote": "je Hand",
-    "equip": "dumbbells",
+    "weight": 40,
+    "step": 5,
+    "weightNote": "Stange gesamt",
+    "equip": "barbell",
     "db": {
       "name": "Rumänisches Kreuzheben",
       "reps": "8–12",
-      "equip": "Kurzhanteln",
-      "cue": "Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Hanteln nah am Bein. Nicht tiefer als die Dehnung erlaubt.",
+      "equip": "Langhantel",
+      "cue": "Stange dicht am Bein, Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Schulterblätter fest. Nicht tiefer als die Dehnung erlaubt – die Stange kommt nicht auf den Boden, sondern bis etwa Schienbeinmitte und wieder hoch. Abgesetzt wird nur vor und nach dem Satz, kontrolliert.",
       "rest": 150,
       "pattern": "hinge",
       "shares": {
@@ -4008,10 +4008,19 @@ const INJURIES = [
     text: 'Vorfall in der Lendenwirbelsäule. Beugung der Wirbelsäule unter Last ist das '
       + 'Gegenteil dessen, was hilft – Crunches fallen ganz weg, ebenso alles '
       + 'vorgebeugte. Gestützte Hüftstreckung ist meist gut verträglich.',
+    // Das Kreuzheben stand hier lange nicht drin, obwohl der eigene Text
+    // "alles vorgebeugte" nennt – eine belastete Hüftbeuge ist bei einem
+    // Vorfall das Lehrbuchbeispiel für "nicht machen". Der Hip Thrust bleibt:
+    // Er hält die Wirbelsäule gerade und ist genau die "gestützte
+    // Hüftstreckung", die der Text als gut verträglich beschreibt.
     avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat',
       'einarmiges-kh-rudern', 'reverse-fly',
-      'split-squat'],
-    swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+      'split-squat', 'rumaenisches-kreuzheben'],
+    swap: {
+      'goblet-squat': 'hip-thrust',
+      'fersenerhoehter-goblet-squat': 'hip-thrust',
+      'rumaenisches-kreuzheben': 'hip-thrust',
+    },
     care: ['kobra', 'deadBug', 'vogelhund', 'hueftbeuger'],
   },
   {
@@ -4021,10 +4030,12 @@ const INJURIES = [
     text: 'Der Rücken macht plötzlich dicht, meist nach einer ungünstigen Bewegung. '
       + 'Nichts Schweres aufrecht halten, nichts vorgebeugt ziehen; leichte Bewegung '
       + 'tut in der Regel besser als liegen bleiben.',
+    // "Nichts Schweres aufrecht halten, nichts vorgebeugt ziehen" – das
+    // Kreuzheben ist beides zugleich und gehörte von Anfang an hierher.
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einarmiges-kh-rudern',
       'gewichtete-crunches',
-      'split-squat'],
-    swap: { 'goblet-squat': 'hip-thrust' },
+      'split-squat', 'rumaenisches-kreuzheben'],
+    swap: { 'goblet-squat': 'hip-thrust', 'rumaenisches-kreuzheben': 'hip-thrust' },
     care: ['katzeKuh', 'kobra', 'deadBug', 'hueftbeuger'],
   },
   {

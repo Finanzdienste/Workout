@@ -648,15 +648,15 @@ export const EXERCISES = [
   {
     "id": "hip-thrust",
     "group": "Gesäß",
-    "weight": 20,
-    "step": 2.5,
-    "weightNote": "auf der Hüfte",
+    "weight": 40,
+    "step": 5,
+    "weightNote": "Stange gesamt",
     "equip": "hipbar",
     "db": {
       "name": "Hip Thrust",
       "reps": "8–15",
-      "equip": "Kurzhantel",
-      "cue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
+      "equip": "Langhantel + Polster",
+      "cue": "Schulterblätter auf einer Bank/Couch, die fest an der Wand steht. Stange über die angewinkelten Beine bis auf die Hüftbeuge rollen, dickes Handtuch oder Matte darunter – ohne Polster ist bei 40 kg der Knochen die Grenze, nicht das Gesäß. Oben Gesäß fest anspannen, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
       "rest": 150,
       "pattern": "thrust",
       "shares": {
@@ -868,15 +868,15 @@ export const EXERCISES = [
   {
     "id": "rumaenisches-kreuzheben",
     "group": "Beine",
-    "weight": 12,
-    "step": 2,
-    "weightNote": "je Hand",
-    "equip": "dumbbells",
+    "weight": 40,
+    "step": 5,
+    "weightNote": "Stange gesamt",
+    "equip": "barbell",
     "db": {
       "name": "Rumänisches Kreuzheben",
       "reps": "8–12",
-      "equip": "Kurzhanteln",
-      "cue": "Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Hanteln nah am Bein. Nicht tiefer als die Dehnung erlaubt.",
+      "equip": "Langhantel",
+      "cue": "Stange dicht am Bein, Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Schulterblätter fest. Nicht tiefer als die Dehnung erlaubt – die Stange kommt nicht auf den Boden, sondern bis etwa Schienbeinmitte und wieder hoch. Abgesetzt wird nur vor und nach dem Satz, kontrolliert.",
       "rest": 150,
       "pattern": "hinge",
       "shares": {

@@ -112,15 +112,15 @@
  "hip-thrust": {
   "group": "Gesäß",
   "tier": 1,
-  "dbEquip": "Kurzhantel",
+  "dbEquip": "Langhantel + Polster",
   "bwEquip": "Stuhl- oder Sofakante",
-  "dbCue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
+  "dbCue": "Schulterblätter auf einer Bank/Couch, die fest an der Wand steht. Stange über die angewinkelten Beine bis auf die Hüftbeuge rollen, dickes Handtuch oder Matte darunter – ohne Polster ist bei 40 kg der Knochen die Grenze, nicht das Gesäß. Oben Gesäß fest anspannen, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
   "bwCue": "Schulterblätter auf die Kante eines an die Wand geschobenen Stuhls oder Sofas, einbeinig, freies Bein angewinkelt. Oben Gesäß fest anspannen, Rippen unten lassen, 1–2 s halten – das ersetzt die fehlende Zusatzlast. Schwerer wird es mit dem Loop-Band über der Hüfte, Enden unter dem Standfuß: Die Bandspannung ist oben am größten, also dort, wo sonst die Hantel drückt.",
   "dbRest": 150,
   "bwRest": 150,
-  "dbWeight": 20,
-  "dbStep": 2.5,
-  "weightNote": "auf der Hüfte",
+  "dbWeight": 40,
+  "dbStep": 5,
+  "weightNote": "Stange gesamt",
   "dbPattern": "thrust",
   "dbShares": {
    "glutes": 1.0,
@@ -542,15 +542,15 @@
   "reps": "8–12",
   "bwName": "Einbeiniges Kreuzheben (Standwaage)",
   "bwReps": "8–15 je Bein",
-  "dbEquip": "Kurzhanteln",
+  "dbEquip": "Langhantel",
   "bwEquip": "Ohne Gerät",
-  "dbCue": "Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Hanteln nah am Bein. Nicht tiefer als die Dehnung erlaubt.",
+  "dbCue": "Stange dicht am Bein, Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Schulterblätter fest. Nicht tiefer als die Dehnung erlaubt – die Stange kommt nicht auf den Boden, sondern bis etwa Schienbeinmitte und wieder hoch. Abgesetzt wird nur vor und nach dem Satz, kontrolliert.",
   "bwCue": "Auf einem Bein, das freie Bein wandert nach hinten, bis Rumpf und Bein eine Linie bilden. Hüfte gerade halten, nicht zur Seite kippen.",
   "dbRest": 150,
   "bwRest": 150,
-  "dbWeight": 12,
-  "dbStep": 2,
-  "weightNote": "je Hand",
+  "dbWeight": 40,
+  "dbStep": 5,
+  "weightNote": "Stange gesamt",
   "dbPattern": "hinge",
   "dbShares": {
    "hamstringsHip": 1.0,
@@ -563,7 +563,7 @@
    "glutes": 0.75,
    "abs": 0.3
   },
-  "equip": "dumbbells"
+  "equip": "barbell"
  },
  "split-squat": {
   "group": "Beine",

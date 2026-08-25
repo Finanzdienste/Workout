@@ -209,10 +209,19 @@ export const INJURIES = [
     text: 'Vorfall in der Lendenwirbelsäule. Beugung der Wirbelsäule unter Last ist das '
       + 'Gegenteil dessen, was hilft – Crunches fallen ganz weg, ebenso alles '
       + 'vorgebeugte. Gestützte Hüftstreckung ist meist gut verträglich.',
+    // Das Kreuzheben stand hier lange nicht drin, obwohl der eigene Text
+    // "alles vorgebeugte" nennt – eine belastete Hüftbeuge ist bei einem
+    // Vorfall das Lehrbuchbeispiel für "nicht machen". Der Hip Thrust bleibt:
+    // Er hält die Wirbelsäule gerade und ist genau die "gestützte
+    // Hüftstreckung", die der Text als gut verträglich beschreibt.
     avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat',
       'einarmiges-kh-rudern', 'reverse-fly',
-      'split-squat'],
-    swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+      'split-squat', 'rumaenisches-kreuzheben'],
+    swap: {
+      'goblet-squat': 'hip-thrust',
+      'fersenerhoehter-goblet-squat': 'hip-thrust',
+      'rumaenisches-kreuzheben': 'hip-thrust',
+    },
     care: ['kobra', 'deadBug', 'vogelhund', 'hueftbeuger'],
   },
   {
@@ -222,10 +231,12 @@ export const INJURIES = [
     text: 'Der Rücken macht plötzlich dicht, meist nach einer ungünstigen Bewegung. '
       + 'Nichts Schweres aufrecht halten, nichts vorgebeugt ziehen; leichte Bewegung '
       + 'tut in der Regel besser als liegen bleiben.',
+    // "Nichts Schweres aufrecht halten, nichts vorgebeugt ziehen" – das
+    // Kreuzheben ist beides zugleich und gehörte von Anfang an hierher.
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einarmiges-kh-rudern',
       'gewichtete-crunches',
-      'split-squat'],
-    swap: { 'goblet-squat': 'hip-thrust' },
+      'split-squat', 'rumaenisches-kreuzheben'],
+    swap: { 'goblet-squat': 'hip-thrust', 'rumaenisches-kreuzheben': 'hip-thrust' },
     care: ['katzeKuh', 'kobra', 'deadBug', 'hueftbeuger'],
   },
   {

@@ -309,13 +309,16 @@ und Steigerungsvorschlag holen ihn dort.
 
 | Schritt | Übungen | warum |
 | --- | --- | --- |
-| 2,5 kg | Goblet Squats, Hip Thrust, SZ-Curls | schwer, beidhändig, gröbere Scheiben |
+| 5 kg | Kreuzheben, Hip Thrust | Langhantel: eine 2,5-kg-Scheibe je Seite |
+| 2,5 kg | Goblet Squats, SZ-Curls | schwer, beidhändig, gröbere Scheiben |
 | 2 kg | Floor Press, KH-Rudern, Wadenheben | je Hand gerechnet, also 2 kg pro Hantel |
 | 1,25 kg | gewichtete Liegestütze, Crunches | Zusatzgewicht auf dem Rücken |
 | 1 kg | Reverse Fly, Seitheben, Trizepsstrecker | kleine Muskeln, kleine Hanteln |
 
 Maßstab: kein Schritt über einem Viertel des Arbeitsgewichts. Der größte liegt
-bei 25 % (Reverse Fly, 1 von 4 kg), die meisten deutlich darunter.
+bei 25 % (Reverse Fly, 1 von 4 kg), die meisten deutlich darunter. Bei den
+beiden Langhantelübungen sind es 12,5 % – wer 1,25-kg-Scheiben hat, setzt
+`dbStep` dort auf 2,5.
 
 Gespeichert wird auf **Viertelkilo** gerundet, nicht auf halbe: sonst würde aus
 dem angenommenen Vorschlag „auf 21,25 kg" still 21,5. Aus demselben Grund zeigt
@@ -1019,6 +1022,47 @@ müsste eine `VTIMEZONE`-Tabelle mitreisen, die zur nächsten Zeitumstellung
 falsch wäre.
 
 ## Übungsvorrat
+
+### Die Langhantel war ein Jahr lang unsichtbar
+
+Der ganze Vorrat war um Kurzhanteln herum gebaut, obwohl eine Langhantel im
+Raum stand – im Repo kam das Wort nirgends vor. Aufgefallen ist es an einer
+Zahl, die von der anderen Seite kam: **Goblet Squat, fersenerhöhter Goblet
+Squat und Hip Thrust stehen mit 20 kg ab der ersten Einheit am Anschlag**, weil
+20 kg schlicht die schwerste vorhandene Kurzhantel ist. 43 der 84 Einheiten
+enthalten eine dieser drei. Ein Satz, der im Wochenvolumen voll zählt und weit
+von der Anstrengungsvorgabe entfernt liegt, trägt real fast nichts bei.
+
+Zwei Übungen sind deshalb auf die Stange umgezogen. Beide sind **reine
+Datenänderungen**: gleiche Übung, gleicher Schlüssel, gleiche Muskelanteile –
+also kein neuer Planlauf, keine neue Figur, keine neuen Verletzungseinträge.
+Der Generator rechnet in *Sätzen*, nicht in Kilo; die Stange ändert nicht den
+Plan, sondern was ein Satz wert ist.
+
+| | vorher | jetzt |
+| --- | --- | --- |
+| Rumänisches Kreuzheben | 12 kg je Hand = **24 kg** | **40 kg**, Stange gesamt |
+| Hip Thrust | eine Kurzhantel, **20 kg** | **40 kg**, Stange gesamt |
+
+Beim Hip Thrust zeichnete die App längst eine Stange über der Hüfte
+(`equip: 'hipbar'`) – sie war nur mit einer Kurzhantel beladen.
+
+**Was in einer Wohnung nicht geht.** Die Kniebeuge mit der Stange im Nacken
+scheitert ohne Ständer daran, dass die Stange nicht hochkommt; Frontkniebeuge
+und Zercher gehen technisch, aber ihr Notausgang ist das Fallenlassen von 50
+bis 70 kg auf einen Geschossboden. Der Langhantel-Floor-Press auf zwei Stühlen
+ist ein Unfall mit Ansage. Die beiden umgestellten Übungen sind dagegen leise:
+Beim Kreuzheben berührt die Stange den Boden nur vor und nach dem Satz – sie
+geht bis Schienbeinmitte und wieder hoch –, beim Hip Thrust bleibt sie die
+ganze Zeit auf der Hüfte. Nachgemessen kommen die beiden außerdem in **keiner
+einzigen** der 84 Einheiten gemeinsam vor: einmal laden pro Einheit, mehr
+nicht.
+
+Offen bleibt das waagerechte Ziehen (2,86 Sätze gegen 7,14 senkrecht, siehe
+oben). Ein Langhantelrudern würde das schließen, braucht aber ein eigenes
+Bewegungsbild – das jetzige ist einarmig.
+
+### Sieben Übungen, die es vorher nicht gab
 
 **24 Übungen.** Die ursprünglichen 17 aus der Excel deckten die
 Bewegungsmuster nicht vollständig ab – Lücken, die keine Rechnung schließen
