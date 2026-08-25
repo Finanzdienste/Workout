@@ -304,6 +304,18 @@ export const PATTERNS = {
       { arm: A(90, 8, 4), leg: L(56, 9, 100) },
     ],
   },
+  tricepsoh: {
+    // Sitzend, Oberarme senkrecht neben den Ohren: Nur der Ellenbogen arbeitet,
+    // die Schulter hält. Der lange Trizepskopf kreuzt sie mit – unten hinter dem
+    // Kopf steht er auf voller Länge, und genau dort wächst er.
+    // Die Abspreizung bleibt knapp unter 180°, sonst deckt der Kopf den Weg der
+    // Hantel und von der Beugung ist nichts mehr zu sehen.
+    label: 'Überkopf-Strecken', seat: true, view: [24, -8],
+    poses: [
+      { lean: 4, arm: A(8, 164, 132), leg: L(88, 8, 92) },
+      { lean: 4, arm: A(6, 170, 6), leg: L(88, 8, 92) },
+    ],
+  },
   lateral: {
     // Sitzend: Hüfte und Knie rechtwinklig, dazu eine Bank unter dem Gesäß.
     // Ohne die stünde die Figur nur mit angewinkelten Beinen in der Luft.

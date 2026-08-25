@@ -43,7 +43,7 @@ export const INJURIES = [
       + 'Heben des Arms zwischen etwa 60° und 120° – seitlich mehr als vorn. '
       + 'Drücken am Boden mit kurzem Weg geht meist, Heben über Schulterhöhe nicht.',
     avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze',
-      'sitzendes-schulterdruecken'],
+      'sitzendes-schulterdruecken', 'liegende-trizepsstrecker'],
     swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
     care: [
       'aussenrotation', 'wandengel', 'brustdehnung', 'schulterblatt', 'sleeper',
@@ -58,7 +58,8 @@ export const INJURIES = [
       + 'Hier gehört ein Arzt drauf, nicht ein Trainingsplan.',
     avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze', 'gewichtete-liegestuetze',
       'floor-press', 'reverse-fly', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
-      'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart'],
+      'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
+      'liegende-trizepsstrecker'],
     swap: {},
     care: ['aussenrotation', 'schulterblatt'],
   },
@@ -69,7 +70,8 @@ export const INJURIES = [
     text: 'Das kleine Gelenk zwischen Schlüsselbein und Schulterdach. Es meldet sich, '
       + 'wenn der Arm quer vor dem Körper zusammengeführt wird – also beim Drücken '
       + 'und bei allem, was die Schultern nach vorn zieht.',
-    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press'],
+    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press',
+      'liegende-trizepsstrecker'],
     swap: { 'fuesse-erhoehte-liegestuetze': 'reverse-fly' },
     care: ['schulterblatt', 'brustdehnung', 'aussenrotation'],
   },

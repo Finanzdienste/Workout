@@ -111,7 +111,14 @@ def main():
                     'step': m['dbStep'],           # sinnvolle Steigerung in kg
                     'weightNote': m['weightNote'],
                     'equip': m['equip'],      # Geraet in der Hantel-Variante
-                    'db': {'name': db['name'], 'reps': db['reps'], 'equip': m['dbEquip'],
+                    # Name und Wiederholungen kommen aus der Excel – es sei
+                    # denn, exercise-meta.json setzt eigene. Nötig geworden, als
+                    # aus dem liegenden ein Überkopf-Trizepsstrecker wurde: Der
+                    # Schlüssel einer Übung ist der Slug ihres Excel-Namens und
+                    # trägt die eingetragenen Gewichte, also bleibt er, wenn die
+                    # Übung selbst sich ändert. Dieselbe Mechanik wie bwName.
+                    'db': {'name': m.get('name') or db['name'],
+                           'reps': m.get('reps') or db['reps'], 'equip': m['dbEquip'],
                            'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],
                            'shares': m['dbShares'], 'muscles': muscles(m['dbShares'])},
                     # Das Bodyweight-Äquivalent kommt aus der Excel – es sei
@@ -126,7 +133,8 @@ def main():
                            'shares': m['bwShares'], 'muscles': muscles(m['bwShares'])},
                 }
             elif (entry['db']['reps'], entry['bw']['name'], entry['bw']['reps']) != (
-                    db['reps'], meta[key].get('bwName') or bw['name'],
+                    meta[key].get('reps') or db['reps'],
+                    meta[key].get('bwName') or bw['name'],
                     meta[key].get('bwReps') or bw['reps']):
                 sys.exit(f'{date}: widerspruechliche Angaben fuer {key!r}')
             items.append({'id': key, 'sets': db['sets']})

@@ -46,7 +46,8 @@ Gerechnet wird in drei Schritten:
   2. Verteilung auf die Wochen.  Die Summen stehen fest; verschoben werden nur
      einzelne Sätze zwischen Wochen. Der Schnitt bleibt dabei zwangsläufig
      exakt, und gesucht wird die Verteilung, bei der die schlechteste einzelne
-     Woche ihrem Ziel am nächsten liegt.
+     Woche ihrem Ziel am nächsten liegt. Keine Übung weicht dabei um mehr als
+     einen Auftritt von ihrem eigenen Wochenschnitt ab – siehe band().
   3. Aufteilung auf die Einheiten.  Jede Übung kommt ein- bis dreimal pro
      Woche vor, je zwei bis drei Sätze; alle Einheiten etwa gleich lang.
 
@@ -107,11 +108,23 @@ OUT = ROOT / 'tools' / 'plan.json'
 # Rudern, Chin-ups, Pull-ups, Reverse Fly und Seitheben und ist damit keine
 # freie Größe mehr. Ein Ziel dafür macht das Gleichungssystem nur unlösbar oder
 # erzwingt eine Verteilung, die anderswo schlechter ist.
+#
+# **Der Beinbeuger zählt getrennt.** Dieselbe Geschichte wie bei der Schulter,
+# eine Etage tiefer: "6 Sätze Beinbeuger" waren nachgerechnet 2,3 aus
+# Kniebeugung und 3,7 aus Hüftstreckung. Hip Thrust, Kreuzheben und jede
+# Kniebeuge zahlen auf die Hüftseite ein – der kurze Kopf des Bizeps femoris
+# kreuzt aber nur das Knie und bekommt daraus strukturell nichts. Am fertigen
+# Plan gemessen stand der Leg Curl in 16 von 84 Einheiten, mit bis zu 28 Tagen
+# dazwischen und fünf Wochen ganz ohne. Die Kniebeugung bekommt deshalb ein
+# eigenes Ziel, die Hüftseite gar keins: Sie ergibt sich aus dem Rest und muss
+# nur unter der Obergrenze bleiben, so wie die vordere Schulter und der Nacken.
+# Drei Sätze sind dabei nicht wenig, sondern genau ein Auftritt pro Woche – bei
+# festen Dreiersätzen die kleinste Zahl, die in *jeder* Woche vorkommt.
 TARGET = {
     'chest': 10, 'lats': 10, 'sideDelts': 10, 'rearDelts': 8,
     'biceps': 10, 'triceps': 10, 'abs': 9,
-    'frontDelts': None, 'traps': None,
-    'glutes': 9, 'quads': 6, 'hamstrings': 6, 'calves': 6,
+    'frontDelts': None, 'traps': None, 'hamstringsHip': None,
+    'glutes': 9, 'quads': 6, 'hamstringsKnee': 3, 'calves': 6,
 }
 CAP = 10                 # keine Gruppe darüber, indirekte Anteile eingerechnet
 #
@@ -151,7 +164,8 @@ PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
 # Chin-ups mit 10 Sätzen pro Woche am Anschlag standen und das Rudern
 # vollständig verschwand – rechnerisch exakt und als Plan unbrauchbar. Nach
 # oben begrenzt heißt: keine Übung trägt eine Gruppe allein; nach unten: wer
-# vorkommt, kommt regelmäßig vor.
+# vorkommt, kommt regelmäßig vor. Gemeint ist damit die *Plansumme*: Sie bindet
+# den Schnitt über alle Wochen, nicht die einzelne Woche – dafür sorgt band().
 PER_EX_WEEK = (1, 9)
 EXACT_LIMIT = 4000       # so viele Plansummen je Block reichen zur Auswahl
 SCREEN = 50              # davon werden die besten probeweise verteilt
@@ -169,7 +183,8 @@ GOAL = {m: (None if t is None else t * UNIT) for m, t in TARGET.items()}
 CAP_U = CAP * UNIT
 
 LABEL = {
-    'quads': 'Oberschenkel', 'hamstrings': 'Beinbeuger', 'glutes': 'Gesäß',
+    'quads': 'Oberschenkel', 'glutes': 'Gesäß',
+    'hamstringsKnee': 'Beinbeuger Knie', 'hamstringsHip': 'Beinbeuger Hüfte',
     'chest': 'Brust', 'lats': 'Rücken',
     'frontDelts': 'vord. Schulter', 'sideDelts': 'seitl. Schulter',
     'rearDelts': 'hint. Schulter', 'biceps': 'Bizeps', 'triceps': 'Trizeps',
@@ -400,15 +415,15 @@ def totals(ids, shares, groups, weeks, rnd, streng=True):
         vol = Volume(shares, block, sorted({m for i in block for m in shares[i]}))
         best = None
         for sol in found[:SCREEN]:
-            _, (hart, auftritte, worst) = spread([sol[i] for i in block], vol, weeks,
-                                                 rnd, SCREEN_RESTARTS, SCREEN_ROUNDS)
+            _, (hart, auftritte, worst, aus) = spread([sol[i] for i in block], vol, weeks,
+                                                      rnd, SCREEN_RESTARTS, SCREEN_ROUNDS)
             # Erst: keine Gruppe soll einen ganzen Satz danebenliegen. Dann:
             # keine Übung soll unter einen Satz pro Woche rutschen, ganz
             # herausfallen eingeschlossen. Dann: keine Gruppe soll an einer
             # einzigen Übung hängen. Dann die Länge der Einheiten, dann die
-            # schlechteste Woche.
+            # schlechteste Woche, dann die Ausnahmen von der Schranke.
             knapp = sum(1 for v in sol.values() if v < weeks)
-            got = (hart, knapp, klumpen(sol, block, shares), auftritte, worst,
+            got = (hart, knapp, klumpen(sol, block, shares), auftritte, worst, aus,
                    min(sol.values()) == 0, balance(sol))
             if best is None or got < best[0]:
                 best = (got, sol)
@@ -421,30 +436,44 @@ def totals(ids, shares, groups, weeks, rnd, streng=True):
 # ------------------------------------------------------------------ #
 
 def start(total, weeks, rnd):
-    """Erste Verteilung: jede Übung über so viele Wochen wie sinnvoll."""
-    lo, hi = PER_SET[0], PER_WEEK
+    """Erste Verteilung: in jeder Woche der Schnitt, der Rest zufällig verteilt.
+
+    So breit wie möglich streuen: Auf wenige Wochen zu stapeln macht aus 40
+    Sätzen zehnmal vier statt zwanzigmal zwei – und damit eine Gruppe, die jede
+    zweite Woche um einen ganzen Satz danebenliegt. Breiter als die Schranke
+    aus band() geht nicht, also fängt die Verteilung gleich dort an: überall
+    der abgerundete Schnitt, und so viele zufällige Wochen bekommen einen
+    Auftritt mehr, wie die Plansumme hergibt. Welche das sind, entscheidet
+    danach der Suchlauf.
+    """
     rows = []
     for t in total:
-        row = [0] * weeks
-        if t:
-            # So breit wie möglich streuen: über alle Wochen, solange in jeder
-            # noch die Mindestzahl steht. Auf wenige Wochen zu stapeln macht
-            # aus 40 Sätzen zehnmal vier statt zwanzigmal zwei – und damit eine
-            # Gruppe, die jede zweite Woche um einen ganzen Satz danebenliegt.
-            # Gerechnet wird in Blöcken der Körnung, damit jede Wochenzahl
-            # ein Vielfaches davon bleibt.
-            einheiten = t // GRAIN
-            k = min(weeks, einheiten * GRAIN // lo, einheiten)
-            k = max(k, -(-t // hi), 1)
-            base, extra = divmod(einheiten, k)
-            for j, w in enumerate(sorted(rnd.sample(range(weeks), k))):
-                row[w] = (base + (1 if j < extra else 0)) * GRAIN
+        lo, hi = band(t, weeks)
+        row = [lo] * weeks
+        if hi > lo:
+            for w in rnd.sample(range(weeks), (t - lo * weeks) // GRAIN):
+                row[w] = hi
         rows.append(row)
     return rows
 
 
 HARD = 10 ** 9           # Zuschlag ab MAX_REL Abweichung
 APP = 2 * 10 ** 5        # Zuschlag je Auftritt einer Übung
+# Zuschlag je Woche, in der eine Übung aus ihrer Schranke fällt – siehe band().
+# Zum Vergleich: Eine Gruppe mit Ziel 10, die in einer Woche drei Sätze
+# danebenliegt, kostet 1,3·10⁷. Eine Ausnahme ist also teurer als fast jede
+# Ungenauigkeit, aber billiger als HARD – die Schranke blockiert nie eine
+# Lösung, sie macht sie nur unattraktiv. Die Zahl ist erprobt: Bei 10⁶ nahm der
+# Lauf 40 Ausnahmen und der Trizepsstrecker fiel wieder fünf Wochen am Stück
+# aus; bei 10⁸ blieben zwei Ausnahmen übrig, und die hintere Schulter lag in
+# einer Woche 31 % daneben statt 25 %, weil das Pull-Apart die schwachen Wochen
+# des Reverse Fly nicht mehr auffangen durfte.
+BAND = 5 * 10 ** 6
+# Zuschlag je Punkt Unregelmäßigkeit aus spacing(). Die Schranke sorgt dafür,
+# dass eine Übung nicht stapelt; das hier sorgt dafür, dass ihre freien Wochen
+# nicht zusammenliegen. Ohne diesen Zuschlag standen die zehn Pull-up-Wochen so
+# beieinander, dass dazwischen 42 Tage lagen.
+LUECKE = 2 * 10 ** 6
 REF = 10 * UNIT          # Bezugsziel der relativen Strafe: zehn Sätze
 # Ab welchem Anteil des Wochenziels eine Abweichung als grob gilt. Ein Drittel
 # klingt viel und ist bei Dreierschritten das Mindeste: Eine Gruppe mit Ziel 6,
@@ -452,6 +481,52 @@ REF = 10 * UNIT          # Bezugsziel der relativen Strafe: zehn Sätze
 # Sätze bekommen – 9 sind bereits die Hälfte darüber. Enger gesetzt findet der
 # Lauf für solche Gruppen gar keine Verteilung mehr.
 MAX_REL = 0.5
+
+
+def band(t, weeks):
+    """Wochenwerte, die eine Übung annehmen darf: ihr Schnitt, ab- und aufgerundet.
+
+    Der Schnitt einer Übung ist selten glatt – 60 Sätze Rudern auf 21 Wochen
+    sind 2,86. Erlaubt sind dann die beiden Vielfachen der Körnung darum herum,
+    hier 0 und 3: die Übung steht in zwanzig Wochen einmal da und in einer gar
+    nicht. Ohne diese Schranke war dieselbe Plansumme auch als 0, 0, 0, 6, 6, 6
+    zulässig – im Schnitt dasselbe, in Wirklichkeit drei Wochen ohne Rudern und
+    danach doppelt so viel auf einmal. Genau das stand im Plan: drei Wochen ohne
+    Rudern, neun ohne Trizepsstrecker, zwischen zwei Kreuzheben bis zu 37 Tage.
+
+    Die Plansummen bleiben davon unberührt, der Schnitt also weiter exakt.
+    Verschoben wird nur, *welche* Woche den einen Auftritt mehr bekommt.
+
+    Die Schranke ist weich: Ein Schritt darüber oder darunter bleibt erlaubt und
+    kostet BAND. Hart gesetzt wäre sie zu teuer – die schlechteste Woche rückte
+    von 25 % auf 31 % vom Ziel ab, weil manche Gruppe ihre Schwankung nur
+    ausgleichen kann, wenn eine Übung einmal doppelt vorkommt. So bleibt
+    Regelmäßigkeit der Normalfall und wird nur dort aufgegeben, wo sie eine
+    Gruppe wirklich danebenliegen lässt.
+    """
+    schritt = GRAIN * weeks
+    return GRAIN * (t // schritt), GRAIN * -(-t // schritt)
+
+
+def spacing(row, weeks):
+    """Wie ungleichmäßig liegen die Auftritte einer Übung über die Wochen?
+
+    Die Schranke aus band() verhindert, dass eine Übung sich in einer Woche
+    stapelt – nicht aber, dass ihre freien Wochen zusammenliegen. Pull-ups
+    kommen auf 30 Sätze, also zehn Auftritte in 21 Wochen; ob dazwischen
+    gleichmäßig zwei Wochen liegen oder einmal sechs, ist der Schranke egal
+    und dem Muskel nicht.
+
+    Gemessen wird an den Abständen zwischen den belegten Wochen, die Ränder
+    mitgezählt. Die Summe ihrer Quadrate ist genau dann am kleinsten, wenn alle
+    Abstände gleich groß sind – ein Loch von sechs Wochen wiegt schwerer als
+    drei Löcher von zwei.
+    """
+    at = [w for w, v in enumerate(row) if v]
+    if not at:
+        return 0
+    gaps = [at[0] + 1] + [b - a for a, b in zip(at, at[1:])] + [weeks - at[-1]]
+    return sum(g * g for g in gaps)
 
 
 def visits(sets):
@@ -473,7 +548,7 @@ def miss(x, goal):
     return abs(x - goal) if goal is not None else max(0, x - CAP_U)
 
 
-def pen(week_vol, week_sets, goals):
+def pen(week_vol, week_sets, goals, bands):
     """Strafe einer Woche.
 
     Gewogen wird **im Verhältnis zum Ziel der Gruppe**, nicht in Sätzen. Ein
@@ -488,8 +563,12 @@ def pen(week_vol, week_sets, goals):
 
     Gruppen ohne Ziel haben kein Verhältnis; für sie zählt weiter nur, was über
     die Obergrenze hinausgeht, gemessen an der Obergrenze.
+
+    Dazu kommt die Regelmäßigkeit: Jede Übung, die in dieser Woche aus ihrer
+    Schranke fällt, kostet BAND – siehe band().
     """
     out = APP * sum(visits(c) for c in week_sets if c)
+    out += BAND * sum(1 for c, (lo, hi) in zip(week_sets, bands) if not lo <= c <= hi)
     for x, goal in zip(week_vol, goals):
         d = miss(x, goal)
         rel = d / (goal if goal else CAP_U)
@@ -501,18 +580,28 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
     """Plansummen auf die Wochen verteilen.
 
     Verschoben werden nur Sätze zwischen Wochen – die Plansummen bleiben
-    unberührt, der Schnitt also zwangsläufig exakt. Zu holen ist zweierlei:
-    möglichst wenige Auftritte, also kurze Einheiten, und möglichst kleine
-    Abweichungen. Beides zieht in dieselbe Richtung, solange die Satzzahl einer
+    unberührt, der Schnitt also zwangsläufig exakt. Zu holen ist dreierlei:
+    möglichst wenige Auftritte, also kurze Einheiten, möglichst kleine
+    Abweichungen, und dass jede Übung regelmäßig vorkommt statt gestapelt.
+    Die ersten beiden ziehen in dieselbe Richtung, solange die Satzzahl einer
     Übung durch drei teilbar ist – sechs Sätze sind zwei Auftritte, sieben
-    schon drei.
+    schon drei. Das dritte kostet manchmal etwas vom zweiten; was es kosten
+    darf, steht in BAND.
     """
-    lo, hi = PER_SET[0], PER_WEEK
     rows_s = vol.s
     goals = [GOAL.get(m) for m in vol.groups]
+    bands = [band(t, weeks) for t in total]
+    if any(hi > PER_WEEK for _, hi in bands):
+        sys.exit('Eine Übung braucht mehr Sätze pro Woche, als PER_SET zulässt – '
+                 'PER_EX_WEEK und PER_SET passen nicht zusammen.')
 
-    def fits(v):
-        return v == 0 or (lo <= v <= hi and v % GRAIN == 0)
+    def fits(i, v):
+        # Ein Schritt über die Schranke hinaus bleibt erlaubt; er kostet in
+        # pen() BAND. Zwei nicht – das wäre kein Ausgleich mehr, sondern der
+        # Stapel, den die Schranke verhindern soll.
+        lo, hi = bands[i]
+        return (max(0, lo - GRAIN) <= v <= min(PER_WEEK, hi + GRAIN)
+                and v % GRAIN == 0)
 
     best = None
     for run in range(restarts):
@@ -520,7 +609,11 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
         vols = [[sum(rows[i][w] * rows_s[i][g] for i in range(len(rows)))
                  for g in range(len(vol.groups))] for w in range(weeks)]
         col = [[row[w] for row in rows] for w in range(weeks)]
-        sq = [pen(vols[w], col[w], goals) for w in range(weeks)]
+        sq = [pen(vols[w], col[w], goals, bands) for w in range(weeks)]
+        # Die Strafe für die Wochen steht in sq, die für die Abstände je Übung
+        # in sp: Ein Zug verschiebt nur eine Übung, also ist auch nur deren
+        # Abstandsstrafe neu zu rechnen.
+        sp = [LUECKE * spacing(row, weeks) for row in rows]
         # Der erste Anlauf glüht gar nicht aus, sondern schleift die
         # gleichmäßige Startverteilung nur nach. Die ist oft schon fast
         # richtig – 8 Sätze Rudern in jeder der 20 Wochen etwa –, und
@@ -537,7 +630,9 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
                 if c:
                     vols[u][g] -= d * c
                     vols[v][g] += d * c
-            return pen(vols[u], col[u], goals), pen(vols[v], col[v], goals)
+            return (pen(vols[u], col[u], goals, bands),
+                    pen(vols[v], col[v], goals, bands),
+                    LUECKE * spacing(rows[i], weeks))
 
         for _ in range(rounds):
             temp *= 0.99995
@@ -545,13 +640,17 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
             u, v = rnd.randrange(weeks), rnd.randrange(weeks)
             if u == v or not rows[i][u]:
                 continue
-            d = rnd.choice((GRAIN, 2 * GRAIN, 3 * GRAIN, rows[i][u] - rows[i][v]))
-            if d <= 0 or not fits(rows[i][u] - d) or not fits(rows[i][v] + d):
+            # Ein Schritt der Körnung. Größere Sprünge braucht es nicht: Die
+            # Schranke aus band() ist nur einen Auftritt breit, jeder größere
+            # Zug landet also außerhalb, und was mehrere Schritte weit liegt,
+            # erreicht der Suchlauf über mehrere Züge.
+            d = GRAIN
+            if not fits(i, rows[i][u] - d) or not fits(i, rows[i][v] + d):
                 continue
-            su, sv = move(i, u, v, d)
-            delta = su + sv - sq[u] - sq[v]
+            su, sv, si = move(i, u, v, d)
+            delta = su + sv + si - sq[u] - sq[v] - sp[i]
             if delta <= 0 or rnd.random() < pow(2.718, -delta / max(temp, 1e-9)):
-                sq[u], sq[v] = su, sv
+                sq[u], sq[v], sp[i] = su, sv, si
             else:
                 move(i, u, v, -d)
 
@@ -569,30 +668,35 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
                     for v in range(weeks):
                         if u == v:
                             continue
-                        for d in (GRAIN, 2 * GRAIN, 3 * GRAIN, rows[i][u] - rows[i][v]):
-                            if d <= 0 or not fits(rows[i][u] - d) or not fits(rows[i][v] + d):
-                                continue
-                            su, sv = move(i, u, v, d)
-                            if su + sv < sq[u] + sq[v]:
-                                sq[u], sq[v] = su, sv
-                                moving = True
+                        d = GRAIN
+                        if not fits(i, rows[i][u] - d) or not fits(i, rows[i][v] + d):
+                            continue
+                        su, sv, si = move(i, u, v, d)
+                        if su + sv + si < sq[u] + sq[v] + sp[i]:
+                            sq[u], sq[v], sp[i] = su, sv, si
+                            moving = True
+                            if not rows[i][u]:
                                 break
-                            move(i, u, v, -d)
-                        if not rows[i][u]:
-                            break
+                            continue
+                        move(i, u, v, -d)
 
         # Zwischen den Anläufen zählt dieselbe Rangfolge wie in pen(): erst
         # grobe Abweichungen, dann Auftritte, dann die volle Liste – alles im
-        # Verhältnis zum Ziel der jeweiligen Gruppe, nicht in Sätzen.
+        # Verhältnis zum Ziel der jeweiligen Gruppe, nicht in Sätzen. Die
+        # Ausnahmen von der Schranke entscheiden zuletzt: Innerhalb eines
+        # Anlaufs wiegt pen() sie schon gegen die Genauigkeit ab, hier sollen
+        # sie eine bessere Verteilung nicht mehr überstimmen.
         auftritte = sum(visits(c) for w in col for c in w if c)
         alle = sorted((miss(x, g) / (g if g else CAP_U)
                        for v in vols for x, g in zip(v, goals)), reverse=True)
         hart = sum(1 for x in alle if x >= MAX_REL)
-        got = (hart, auftritte, alle)
+        aus = sum(1 for w in col for c, (lo, hi) in zip(w, bands) if not lo <= c <= hi)
+        eng = sum(spacing(row, weeks) for row in rows)
+        got = (hart, auftritte, alle, aus, eng)
         if best is None or got < best[0]:
             best = (got, [list(c) for c in col])
-    (hart, auftritte, alle), per_week = best
-    return per_week, (hart, auftritte, alle[0])
+    (hart, auftritte, alle, aus, eng), per_week = best
+    return per_week, (hart, auftritte, alle[0], aus)
 
 
 # ------------------------------------------------------------------ #
@@ -849,8 +953,8 @@ def main():
     print(f'exakte Plansummen: {"·".join(map(str, variants))} Lösungen je Block, '
           f'ausgewogenste gewählt ({min(total)}–{max(total)} Sätze je Übung)')
 
-    per_week, (hart, auftritte, worst) = spread(total, vol, weeks, rnd,
-                                                RESTARTS, SPREAD_ROUNDS)
+    per_week, (hart, auftritte, worst, aus) = spread(total, vol, weeks, rnd,
+                                                     RESTARTS, SPREAD_ROUNDS)
     # Eine Abweichung über MAX_REL ist die eine Sache, die nicht vorkommen soll.
     # Bleibt nach dem ersten Anlauf eine stehen, wird weitergesucht statt sie
     # hinzunehmen: die Verteilung ist eine Suche, kein Beweis, und ein zweiter
@@ -861,12 +965,13 @@ def main():
             break
         kandidat = spread(total, vol, weeks, rnd, RESTARTS, SPREAD_ROUNDS)
         if kandidat[1][0] < hart:
-            per_week, (hart, auftritte, worst) = kandidat
+            per_week, (hart, auftritte, worst, aus) = kandidat
             print(f'   nochmal verteilt: {hart} Gruppenwochen über {MAX_REL:.0%}')
     print(f'auf {weeks} Wochen verteilt: {auftritte} Auftritte '
           f'({auftritte / (weeks * WEEK):.2f} Übungen je Einheit), '
           f'schlechteste Woche {worst:.0%} vom Ziel entfernt, '
-          f'{hart} Gruppenwochen über {MAX_REL:.0%}')
+          f'{hart} Gruppenwochen über {MAX_REL:.0%}, '
+          f'{aus} Ausnahmen von der Wochenschranke')
 
     half, unwucht = sides(ids, shares, total, groups)
     print(f'Erholung: zwei Hälften mit {unwucht / 2 / weeks:+.1f} Sätzen Unterschied pro Woche – '

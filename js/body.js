@@ -26,7 +26,8 @@ export const MUSCLE_LABEL = {
   traps: 'Nacken',
   glutes: 'Gesäß',
   quads: 'Oberschenkel',
-  hamstrings: 'Beinbeuger',
+  hamstringsKnee: 'Beinbeuger Knie',
+  hamstringsHip: 'Beinbeuger Hüfte',
   calves: 'Waden',
 };
 
@@ -147,7 +148,13 @@ const BACK = [
   ['lats', [P('M52 64 C60 65 67 71 69 79 C68 90 62 100 54 107 C53 96 52 80 52 64 Z')], true],
   ['triceps', [belly(J.shoulder, J.elbow, 0.26, 0.90, 5.8)], true],
   ['glutes', [['e', 57, 124, 9.4, 11.5, -12]], true],
-  ['hamstrings', [belly(J.hip, J.knee, 0.14, 0.94, 9.4)], true],
+  // Wie bei der Schulter zwei Formen statt einer: Der Beinbeuger zählt getrennt,
+  // seit sichtbar wurde, dass die sechs Sätze zu zwei Dritteln aus Hüftstreckung
+  // kamen – Hip Thrust, Kreuzheben, Kniebeuge. Der kurze Kopf des Bizeps femoris
+  // kreuzt aber nur das Knie und bekommt daraus nichts. Oben die Hälfte, die an
+  // der Hüfte arbeitet, unten die, die das Knie beugt.
+  ['hamstringsHip', [belly(J.hip, J.knee, 0.14, 0.55, 9.6)], true],
+  ['hamstringsKnee', [belly(J.hip, J.knee, 0.55, 0.94, 8.8)], true],
   ['calves', [belly(J.knee, J.ankle, 0.02, 0.54, 7.1)], true],
 ];
 

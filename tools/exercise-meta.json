@@ -16,14 +16,14 @@
    "quads": 1.0,
    "glutes": 0.55,
    "abs": 0.35,
-   "hamstrings": 0.15
+   "hamstringsHip": 0.15
   },
   "bwPattern": "squatbw",
   "bwShares": {
    "quads": 1.0,
    "glutes": 0.55,
    "abs": 0.2,
-   "hamstrings": 0.15
+   "hamstringsHip": 0.15
   },
   "equip": "goblet"
  },
@@ -67,13 +67,15 @@
   "weightNote": null,
   "dbPattern": "legcurl",
   "dbShares": {
-   "hamstrings": 1.0,
+   "hamstringsKnee": 1.0,
+   "hamstringsHip": 0.3,
    "glutes": 0.5,
    "abs": 0.3
   },
   "bwPattern": "legcurl",
   "bwShares": {
-   "hamstrings": 1.0,
+   "hamstringsKnee": 1.0,
+   "hamstringsHip": 0.3,
    "glutes": 0.5,
    "abs": 0.3
   },
@@ -93,13 +95,15 @@
   "weightNote": null,
   "dbPattern": "legcurl1",
   "dbShares": {
-   "hamstrings": 1.0,
+   "hamstringsKnee": 1.0,
+   "hamstringsHip": 0.3,
    "glutes": 0.5,
    "abs": 0.35
   },
   "bwPattern": "legcurl1",
   "bwShares": {
-   "hamstrings": 1.0,
+   "hamstringsKnee": 1.0,
+   "hamstringsHip": 0.3,
    "glutes": 0.5,
    "abs": 0.35
   },
@@ -120,12 +124,12 @@
   "dbPattern": "thrust",
   "dbShares": {
    "glutes": 1.0,
-   "hamstrings": 0.5
+   "hamstringsHip": 0.5
   },
   "bwPattern": "thrust1",
   "bwShares": {
    "glutes": 1.0,
-   "hamstrings": 0.6
+   "hamstringsHip": 0.6
   },
   "equip": "hipbar"
  },
@@ -387,25 +391,27 @@
   "group": "Trizeps",
   "tier": 3,
   "dbEquip": "Kurzhanteln/SZ",
-  "bwEquip": "Loop-Band",
-  "dbCue": "Rücken am Boden/Bank, Oberarme fixiert. Nur im Ellenbogen beugen, Gewicht Richtung Stirn senken.",
-  "bwCue": "Band hinter dem Rücken oder oben an einer Kante einhängen, Ellenbogen zeigen nach vorn und bleiben stehen. Nur strecken, nicht drücken. Vorher standen hier Extensions an der niedrigen Stange – die nehmen die Brust deutlich mit, und die steht am selben Tag ohnehin auf dem Plan. Schwerer wird es mit dem nächststärkeren Band, weiterem Abstand zum Ankerpunkt oder einem Schritt nach vorn.",
+  "bwEquip": "Loop-Band + Stuhl",
+  "dbCue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. Gewicht hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
+  "bwCue": "Auf den Stuhl setzen, das Band unter beide Füße klemmen und die Enden hinter dem Kopf fassen. Oberarme senkrecht neben den Ohren, nur strecken – die Ellenbogen bleiben stehen. Über Kopf steht der lange Trizepskopf auf voller Länge; genau dort soll der Zug ankommen. Schwerer wird es mit dem nächststärkeren Band oder indem du das Band kürzer fasst.",
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 8,
   "dbStep": 1,
   "weightNote": "je Hand",
-  "dbPattern": "triceps",
+  "dbPattern": "tricepsoh",
   "dbShares": {
    "triceps": 1.0
   },
-  "bwPattern": "triceps",
+  "bwPattern": "tricepsoh",
   "bwShares": {
    "triceps": 1.0
   },
   "equip": "dumbbells",
-  "bwName": "Band-Trizepsdrücken",
-  "bwReps": "10–20"
+  "bwName": "Überkopf-Trizepsstrecker am Band",
+  "bwReps": "10–20",
+  "name": "Überkopf-Trizepsstrecker",
+  "reps": "8–12"
  },
  "sz-curls": {
   "group": "Bizeps",
@@ -547,13 +553,13 @@
   "weightNote": "je Hand",
   "dbPattern": "hinge",
   "dbShares": {
-   "hamstrings": 1.0,
+   "hamstringsHip": 1.0,
    "glutes": 0.7,
    "abs": 0.2
   },
   "bwPattern": "hinge1",
   "bwShares": {
-   "hamstrings": 1.0,
+   "hamstringsHip": 1.0,
    "glutes": 0.75,
    "abs": 0.3
   },
@@ -579,14 +585,14 @@
   "dbShares": {
    "quads": 1.0,
    "glutes": 0.8,
-   "hamstrings": 0.3,
+   "hamstringsHip": 0.3,
    "abs": 0.25
   },
   "bwPattern": "splitsquat",
   "bwShares": {
    "quads": 1.0,
    "glutes": 0.8,
-   "hamstrings": 0.3,
+   "hamstringsHip": 0.3,
    "abs": 0.15
   },
   "equip": "dumbbells"

@@ -443,7 +443,7 @@ sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
 
 Das Ziel ist **nicht überall dieselbe Zahl**. Es steht als `TARGET` in
 `tools/build-plan.py`, wird über den ganzen Plan im Schnitt **exakt** getroffen
-und keine Gruppe geht über die Obergrenze `CAP` von 18 Sätzen pro Woche,
+und keine Gruppe geht über die Obergrenze `CAP` von 10 Sätzen pro Woche,
 indirekte Anteile eingerechnet.
 
 **Vier Einheiten pro Woche**, feste Wochentage: **Montag, Mittwoch, Freitag,
@@ -456,27 +456,32 @@ frei. 84 Einheiten in 21 Wochen, vom 24.08.2026 bis zum 16.01.2027.
 | Gruppe | Ziel | Schnitt | einzelne Woche | Abweichung |
 | --- | --- | --- | --- | --- |
 | Brust, Rücken | 10 | **exakt** | 9,0–12,0 | 20 % |
-| seitliche Schulter | 10 | **exakt** | 8,7–11,3 | 13 % |
-| Bizeps, Trizeps | 10 | **exakt** | 8,4–11,6 | ≤ 16 % |
-| Bauch, Gesäß | 9 | **exakt** | 7,4–11,3 | ≤ 25 % |
-| hintere Schulter | 8 | **exakt** | 6,2–9,0 | 23 % |
+| Bizeps | 10 | **exakt** | 8,4–11,4 | 16 % |
+| Trizeps | 10 | **exakt** | 9,0–11,3 | 13 % |
+| seitliche Schulter | 10 | **exakt** | 7,7–10,7 | 23 % |
+| Bauch | 9 | **exakt** | 7,0–9,8 | 22 % |
+| Gesäß | 9 | **exakt** | 7,7–10,3 | 15 % |
+| hintere Schulter | 8 | **exakt** | 6,0–8,6 | 25 % |
 | **Oberschenkel, Waden** | 6 | **exakt** | immer genau 6,0 | **0 %** |
-| Beinbeuger | 6 | **exakt** | 5,0–7,4 | 23 % |
-| vordere Schulter, Nacken | *Ergebnis* | 9,2 / **10,0** | 6,9–11,1 | – |
+| **Beinbeuger Knie** | 3 | **exakt** | immer genau 3,0 | **0 %** |
+| vordere Schulter, Nacken, Beinbeuger Hüfte | *Ergebnis* | 9,2 / **10,0** / 5,1 | 3,3–12,1 | – |
 
 Welche Gruppen ein Ziel haben und welche bloß herausfallen, steht als
 `DERIVED` in den erzeugten Daten – „exakt getroffen" darf niemand für eine
 Gruppe behaupten, die gar nicht gesetzt wurde.
 
-Vier Gruppen treffen ihr Ziel in **jeder** Woche exakt; bei den übrigen liegt
-die schlimmste Woche 27 % daneben – gemessen am Ziel der Gruppe, nicht in
-Sätzen. Der Nacken darf weiter ausschlagen: Er
-hat kein Ziel, das die Verteilung optimieren könnte.
+Drei Gruppen treffen ihr Ziel in **jeder** Woche exakt; bei den übrigen liegt
+die schlimmste Woche 25 % daneben – gemessen am Ziel der Gruppe, nicht in
+Sätzen. Die Gruppen ohne Ziel dürfen weiter ausschlagen: Sie haben keins, das
+die Verteilung optimieren könnte.
 
-**Warum nicht überall dieselbe Zahl.** Der Unterkörper steht auf Erhalt (6–8),
-die Waden auf 4, der Oberkörper trägt den Rest: Vierzehn Prozent aller Sätze
-für die Waden aufzuwenden ist eine Entscheidung, keine Trainingslehre, und
-dieselbe Zeit trägt an der Schulter mehr.
+**Warum nicht überall dieselbe Zahl.** Der Unterkörper steht auf Erhalt
+(Oberschenkel, Waden 6, Gesäß 9), der Oberkörper trägt den Rest: Ein Sechstel
+aller Sätze für die Waden aufzuwenden wäre eine Entscheidung, keine
+Trainingslehre, und dieselbe Zeit trägt an der Schulter mehr. Das ist die
+größte bewusste Unterdosierung im Plan – wer den Oberschenkel als das nimmt,
+was er ist (die größte Muskelgruppe des Körpers), setzt hier eine andere Zahl
+und lässt neu rechnen.
 
 ### Der Nacken bekommt keinen einzigen eigenen Satz
 
@@ -529,12 +534,71 @@ Zwei Dinge kamen dabei heraus, die vorher niemand sehen konnte:
   `exercise-meta.json` darf das Äquivalent aus der Excel überschreiben.
   Bodyweight liegt damit bei 9,5 statt 3.
 
-Anderswo lohnt eine feinere Aufteilung **nicht** – nachgerechnet: Der Rücken
-steht bei 8,6 senkrechtem Zug (Latissimus, Breite) zu 3,4 waagerechtem, und
-das ist für die V-Form die richtige Richtung; die scapuläre Arbeit zählt
-ohnehin schon als eigene Gruppe (Nacken). Die Brust liegt bei 4,9 oben zu 7,1
-mitte/unten, der Bizeps bekommt 3,9 von 10 Sätzen aus Curls und den Rest aus
-dem Ziehen. Alles im Rahmen.
+### Der Beinbeuger zählt auch getrennt
+
+Dieselbe Geschichte, eine Etage tiefer. **„6 Sätze Beinbeuger" waren
+nachgerechnet 2,3 Kniebeugung und 3,7 Hüftstreckung.** Hip Thrust, Kreuzheben
+und jede Kniebeuge zahlen auf die Hüftseite ein; der **kurze Kopf des Bizeps
+femoris kreuzt aber nur das Knie** und bekommt aus der ganzen anderen
+Funktionshälfte strukturell nichts – genau die Lage der seitlichen Schulter,
+die am Drücken nur nebenher hängt.
+
+Der Schaden stand im Plan, nicht in der Theorie: Der Leg Curl kam in **16 von
+84 Einheiten** vor, zwischen zwei Auftritten lagen bis zu **28 Tage**, und in
+**5 von 21 Wochen** fiel er ganz aus. Der Schnitt von 6,0 stimmte dabei exakt.
+
+Die Kniebeugung bekommt deshalb ein eigenes Ziel: **3 Sätze**. Das ist bei
+festen Dreiersätzen nicht wenig, sondern die kleinste Zahl, die in *jeder*
+Woche vorkommt – genau ein Auftritt. Die Hüftseite bekommt gar keins; sie
+ergibt sich aus dem Rest und muss nur unter der Obergrenze bleiben, so wie die
+vordere Schulter und der Nacken.
+
+| | vorher | jetzt |
+| --- | --- | --- |
+| Kniebeugung | 2,3 Sätze/Woche | **3,0** |
+| Leg Curl in | 16 von 84 Einheiten | **21 von 84** |
+| größte Lücke | 28 Tage | **11 Tage** |
+| Wochen ganz ohne | 5 von 21 | **keine** |
+| Beinbeuger insgesamt | 6,0 | 8,1 |
+
+Die 8,1 sind nur zum Teil mehr Training: Der gleitende Leg Curl hält die Hüfte
+die ganze Zeit gestreckt, und dafür steht jetzt ein Anteil von 0,3 auf der
+Hüftseite – dieselbe Haltearbeit, für die schon `glutes: 0.5` stand. Real dazu
+kommen rund 1,2 Sätze pro Woche, bei drei zusätzlichen Sätzen im ganzen Plan.
+Bezahlt wird das aus dem Beinblock selbst: Der Hip Thrust geht von 3,7 auf 2,4
+Sätze zurück, das Kreuzheben von 1,0 auf 2,0 hoch.
+
+**Der Muskel kommt weiter zweimal pro Woche dran**, nur eben über zwei Ziele:
+Kniebeugung an einem Tag, Hüftstreckung an 1,5 – zusammen 2,29 Einheiten je
+Woche, exakt wie vorher.
+
+### Anderswo lohnt eine feinere Aufteilung nicht
+
+Der Maßstab hat drei Teile, und alle drei müssen zutreffen: Die Unterköpfe
+müssen von den vorhandenen Übungen **sehr** ungleich belastet werden, sie
+müssen sich mit dem vorhandenen Gerät **getrennt ansteuern** lassen, und das
+Sammelziel muss eine Unterpartie **tatsächlich verhungern** lassen. Schulter
+und Beinbeuger erfüllen alle drei. Der Rest nicht:
+
+| Kandidat | Warum nicht |
+| --- | --- |
+| **Rücken** senkrecht/waagerecht | 7,1 zu 2,9 – aber alle drei Zugübungen tragen `lats: 1.0`. Ein zweites Ziel zählte dieselben Sätze doppelt. Was senkrecht und waagerecht wirklich trennt, sind die Schulterblattzieher, und die zählen schon als eigene Gruppe (Nacken). |
+| **Brust** oben/unten | 3,1 zu 6,9, und wieder tragen alle drei `chest: 1.0`. Eine ansteuerbare untere Fassung gibt es ohne Dips oder Negativbank nicht. |
+| **Waden** | Zwei Übungen, ein Ziel – aber sie stehen in **allen 21 Wochen** 1:1 nebeneinander. Ein getrenntes Ziel erzeugte genau das, was ohnehin dasteht. Das ist der Unterschied zum Beinbeuger: dort waren es 16 von 84 Einheiten, hier 21 von 21 Wochen. |
+| **Bizeps** | Beide Köpfe arbeiten in jedem Curl und jedem Klimmzug; der Brachialis sitzt an der Elle, ihm ist der Griff egal. Neutral und proniert laufen mit 4,3 Sätzen aus Rudern und Pull-ups ohnehin mit. |
+| **Unterarme** | Kein eigener Satz im Plan – und trotzdem rund 9,4 gewichtete Sätze pro Woche allein aus Hängen und Halten. Überversorgt, nicht unterversorgt. |
+| **Adduktoren, Rotatorenmanschette, Serratus, Hals, Schienbein** | Werden real mitbelastet oder sind für Masse bedeutungslos. Der Serratus etwa bekommt 9,6 Sätze aus Liegestütz und Überkopfdrücken; ein Push-up Plus liefert nichts dazu. |
+| **schräge Bauchmuskeln** | Der stärkste **abgelehnte** Kandidat: Anti-Rotation und Seitbeugung sind tatsächlich 0,0 in allen 21 Wochen. Er scheitert am zweiten Teil des Maßstabs – ein Koffertragen mit 16 kg ist nicht steigerbar, dieselbe Hantel *bewegst* du beim Rudern, und das Wiederholungsschema kennt keine Sekunden. |
+
+**Der Trizeps stand nur rechnerisch bei zehn.** 8,3 der 10 Sätze kommen aus
+Drückbewegungen; direkt blieben 1,7, und die fielen in neun von 21 Wochen ganz
+aus. Mehr direktes Volumen geht nicht – der Trizeps sitzt an jeder Drückübung
+mit, ein höheres Ziel reißt die Obergrenze. Was ging, war die Übung selbst:
+Aus dem **liegenden** wurde ein **Überkopf-Trizepsstrecker**. Der lange Kopf
+kreuzt die Schulter; über Kopf steht er auf voller Länge, und gedehnt wächst er
+mehr. Gleiche Hantel, gleiche Satzzahl, gleicher Anteil – nur die Position
+ändert sich, und der Schlüssel der Übung bleibt derselbe, damit die
+eingetragenen Gewichte stehen bleiben.
 
 **Jede Übung steht mit drei Sätzen da.** `PER_SET = (3, 3)` – und das ändert
 mehr als die Satzzahl. Bei fester Satzzahl ist die Wochensumme jeder Übung ein
@@ -547,17 +611,67 @@ in jeder einzelnen Woche exakt getroffen. Aus demselben Grund läuft der Plan
 über 21 Wochen statt 20 – Ziel × Wochen muss durch drei teilbar sein, und die
 Wochenzahl sucht sich der Lauf jetzt selbst.
 
-Was das bringt: **5,9 Übungen je Einheit statt 7,7**, 45 statt 47 Minuten.
-Was es kostet: ein paar Sätze Wochenvolumen weniger (71 statt 76) und größere
-Ausschläge in den gemischten Gruppen – bis 27 % statt bis 10 %. Der Schnitt
-über den ganzen Plan bleibt in beiden Fällen exakt.
+Was das bringt: **5,7 Übungen je Einheit statt 7,7**, 15 bis 18 Sätze je
+Einheit statt 15 bis 21. Was es kostet: ein paar Sätze Wochenvolumen weniger
+und größere Ausschläge in den gemischten Gruppen – bis 25 % statt bis 10 %.
+Der Schnitt über den ganzen Plan bleibt in beiden Fällen exakt.
 
 **Gewichtet wird im Verhältnis zum Ziel**, nicht in Sätzen. Ein Satz zu wenig
-ist bei den Waden (Ziel 6) ein Sechstel des Wochenpensums, bei der Brust (12)
-ein Zwölftel – dieselbe Zahl, ein ganz anderer Verlust. Vorher zählte die
+ist bei den Waden (Ziel 6) ein Sechstel des Wochenpensums, bei der Brust (10)
+ein Zehntel – dieselbe Zahl, ein ganz anderer Verlust. Vorher zählte die
 absolute Abweichung, und das bevorzugte systematisch die großen Gruppen: Die
 Suche holte sich ein paar Zehntel bei der Brust, indem sie den Waden einen
 ganzen Satz nahm.
+
+### Der Schnitt sagt nichts darüber, wann etwas stattfindet
+
+`PER_EX_WEEK` band lange nur die **Plansumme**, nicht die einzelne Woche. 60
+Sätze Rudern auf 21 Wochen sind im Schnitt 2,86 – und waren als 0, 0, 0, 6, 6, 6
+genauso zulässig wie als zwanzigmal 3. Am fertigen Plan nachgemessen sah das so
+aus:
+
+| Übung | Auftritte | größte Lücke | Wochen ohne |
+| --- | --- | --- | --- |
+| Rumänisches Kreuzheben | 7 von 84 | **37 Tage** | 15 von 21 |
+| Trizepsstrecker | 12 von 84 | 21 Tage | 9 von 21 |
+| Leg Curl (beide zusammen) | 16 von 84 | 28 Tage | 5 von 21 |
+| Einarmiges Rudern | 20 von 84 | 14 Tage | 3 von 21 |
+
+Ein Reiz alle fünf Wochen ist kein Reiz. Der Schnitt stimmte in jedem dieser
+Fälle exakt – er sagt eben nichts darüber, *wann* etwas stattfindet.
+
+Dagegen stehen jetzt zwei Kriterien, und beide kosten **keinen einzigen
+zusätzlichen Satz**:
+
+* **`band()` – eine Schranke je Übung.** Erlaubt sind die beiden Vielfachen der
+  Körnung um den eigenen Wochenschnitt herum, beim Rudern also 0 und 3. Damit
+  steht es in zwanzig Wochen einmal da und in einer gar nicht, statt dreimal
+  doppelt und dreimal gar nicht.
+* **`spacing()` – der Abstand dazwischen.** Die Schranke verhindert das
+  Stapeln, nicht aber, dass die freien Wochen zusammenliegen: Pull-ups haben
+  zehn Auftritte in 21 Wochen, und ob dazwischen gleichmäßig zwei Wochen liegen
+  oder einmal sechs, ist der Schranke egal. Gewertet wird deshalb die Summe der
+  quadrierten Abstände – die ist am kleinsten, wenn alle gleich groß sind.
+
+**Beide sind weich.** Hart gesetzt kostet die Schranke zu viel: Die schlechteste
+Woche rückte von 25 % auf 31 % vom Ziel ab, weil die hintere Schulter ihre
+schwachen Wochen nur ausgleichen kann, wenn das Pull-Apart einmal doppelt
+vorkommt. Eine Ausnahme kostet deshalb `BAND` statt verboten zu sein. Heraus
+kommen neun Ausnahmen in 504 Übungswochen – und:
+
+| Bewegung | vorher | jetzt |
+| --- | --- | --- |
+| Kreuzheben | 7 Einheiten, 37 Tage | **14 Einheiten, 18 Tage** |
+| Kniebeugung | 16 Einheiten, 28 Tage | **21 Einheiten, 11 Tage** |
+| Trizeps direkt | 12 Einheiten, 21 Tage | **12 Einheiten, 18 Tage** |
+| Rudern | 20 Einheiten, 14 Tage | 20 Einheiten, 19 Tage |
+| schlechteste Woche | 25 % | **25 %** |
+
+Das Rudern ist der einzige Rückschritt, und zwar innerhalb der Schranke: Es
+kommt weiterhin in 20 von 21 Wochen vor, nur liegt sein einziges Loch jetzt
+ungünstiger im Kalender. Der Trizepsstrecker bleibt bei zwölf Auftritten – bei
+36 Sätzen und drei Sätzen je Auftritt sind neun Wochen ohne ihn keine Frage der
+Verteilung, sondern der Arithmetik.
 
 **Erste Fassung der Ziele.** Vorher stand im Oberkörper überall eine 10 –
 das war die selbst gesetzte Obergrenze, nicht das Optimum. Zwei Korrekturen:
@@ -584,17 +698,19 @@ Training und Buchhaltung:
 
 | Gruppe | Ziel | davon direkt | indirekt |
 | --- | --- | --- | --- |
-| Brust, Rücken, Oberschenkel, Trizeps, Waden | wie gesetzt | **100 %** | – |
-| Bizeps, Gesäß, Beinbeuger | | 86–89 % | 11–14 % |
-| vordere/seitliche/hintere Schulter, Nacken | | 61–74 % | 26–39 % |
-| **Bauch** | 8 | **63 %** | **37 %** |
+| Brust, Rücken, Oberschenkel, Trizeps, Waden, Beinbeuger Knie | wie gesetzt | **100 %** | – |
+| Bizeps, Gesäß | | 90–94 % | 6–10 % |
+| seitliche/hintere Schulter | | 73–81 % | 19–27 % |
+| vordere Schulter, Nacken, Beinbeuger Hüfte | *Ergebnis* | 51–64 % | 36–49 % |
+| **Bauch** | 9 | **65 %** | **35 %** |
 
 Beim Bauch ist der indirekte Anteil das Halten bei Kniebeuge, Kreuzheben und
 Leg Curl – isometrische Stabilisationsarbeit. Als Reiz für einen Muskel, der
 wachsen soll, ist das kein Ersatz für Beugen gegen Widerstand. Mit einem Ziel
-von 5 blieben davon **zwei direkte Sätze pro Woche** übrig, an einem Tag; mit 8
-sind es gut fünf auf zwei Tagen. Bei den übrigen Gruppen ist der Unterschied
-klein genug, um ihn zu ignorieren.
+von 5 blieben davon **zwei direkte Sätze pro Woche** übrig, an einem Tag; mit 9
+sind es knapp sechs auf zwei Tagen. Bei den übrigen gesetzten Gruppen ist der
+Unterschied klein genug, um ihn zu ignorieren; die drei ohne Ziel stehen
+ohnehin da, wo sie herauskommen.
 Ändern heißt: `TARGET` umschreiben und neu rechnen – ob die neuen Ziele
 zusammen überhaupt erreichbar sind, sagt der Lauf selbst.
 
@@ -638,9 +754,9 @@ stand nach dem ersten Anlauf genau ein solcher Fall da, und der zweite fand
 eine Verteilung ohne ihn.
 
 Die Länge einer Einheit ergibt sich fast vollständig aus den Zielen: ihre Summe
-über zwölf Gruppen, abzüglich der Überschneidung (ein Goblet Squat zahlt
-gleichzeitig auf Oberschenkel, Gesäß, Bauch und Beinbeuger ein), macht rund 64
-Sätze pro Woche und damit 16 je Training. Die Frequenz ist der Hebel, nicht die
+über vierzehn Gruppen, abzüglich der Überschneidung (ein Goblet Squat zahlt
+gleichzeitig auf Oberschenkel, Gesäß, Bauch und Beinbeuger ein), macht rund 69
+Sätze pro Woche und damit 17 je Training. Die Frequenz ist der Hebel, nicht die
 Verteilung.
 
 ### 48 Stunden je Muskelgruppe
@@ -653,9 +769,10 @@ trotzdem ihre 48 Stunden.
 
 Maßstab ist die *direkte* Arbeit, Anteil ab 0,5. Drei Sätze Kniebeugen sind für
 den Oberschenkel etwas anderes als der Bauchanteil derselben Sätze; Nebenanteile
-am kurzen Übergang bleiben deshalb erlaubt. Übrig bleiben genau zwei: der Nacken
-(Ø 3,9 Sätze über beide Tage) und der Bauch (Ø 4,7) – beides Beiwerk aus
-Rudern, Chin-ups und Kniebeugen.
+am kurzen Übergang bleiben deshalb erlaubt. Übrig bleiben drei: die seitliche
+und die vordere Schulter (Ø 5,0 bzw. 4,9 Sätze über beide Tage) und der Nacken
+(Ø 5,0) – Beiwerk aus Drücken, Rudern und Klimmzügen. Zweimal *direkt* kommt
+über alle 21 kurzen Übergänge keine einzige Gruppe.
 
 **Die Hälften stehen nicht in der Datei, sie werden gerechnet.** Übungen, die
 eine direkte Gruppe teilen, müssen zusammenbleiben – daraus ergeben sich Blöcke
@@ -665,8 +782,8 @@ Einheiten zum Rumpf. Heraus kommt:
 
 | Hälfte | Gruppen | Sätze/Woche |
 | --- | --- | --- |
-| A | Bauch, Brust, Trizeps, Waden, vordere und seitliche Schulter | ~46 |
-| B | Beinbeuger, Bizeps, Gesäß, Nacken, Oberschenkel, Rücken, hintere Schulter | ~46 |
+| A | Bauch, beide Beinbeuger-Hälften, Brust, Gesäß, Oberschenkel, Trizeps, vordere Schulter | ~48 |
+| B | Bizeps, Nacken, Rücken, Waden, hintere und seitliche Schulter | ~48 |
 
 Nur die beiden Einheiten am kurzen Übergang bekommen eine Hälfte zugewiesen;
 die zwei dazwischen bleiben frei und nehmen, was übrig ist. Deshalb kostet die
@@ -792,17 +909,17 @@ verursachten praktisch alles davon:
 | --- | --- | --- |
 | SZ-Curls | Enge supinierte Chin-ups | **+3,0 Rücken**, +0,9 Nacken |
 | Sitzendes Schulterdrücken | Füße-erhöhte Pike Push-ups | +1,0 Brust, −0,5 seitliche Schulter |
-| Liegende Trizepsstrecker | Extensions an niedriger Stange | +0,5 Brust |
+| Trizepsstrecker | Extensions an niedriger Stange | +0,5 Brust |
 | Einarmiges KH-Rudern | Inverted Rows an niedriger Stange | Gerät, das unterwegs fehlt |
 | Reverse Fly | Reverse Snow Angels | Überkopf-Anteil ist Nacken, nicht hintere Schulter |
 
 Jede dieser drei ist ein *anderes* Muster, nicht dieselbe Bewegung ohne Hantel:
 Chin-ups sind Rückentraining, Pike Push-ups sind zu gutem Teil Brust. Ersetzt
 sind sie jetzt durch die Band-Fassung derselben Bewegung – Band-Curls,
-Band-Schulterdrücken, Band-Trizepsdrücken. Ein Loop-Band wiegt nichts und ist
+Band-Schulterdrücken, Überkopf-Trizepsstrecker am Band. Ein Loop-Band wiegt nichts und ist
 genau das, was auf Reisen mitkommt.
 
-**Ergebnis: 0,56 Sätze Abstand je Einheit statt 1,80**, schlimmster Fall 1,35
+**Ergebnis: 0,51 Sätze Abstand je Einheit statt 1,80**, schlimmster Fall 1,35
 statt 4,30.
 
 Die Zahl war zwischenzeitlich 0,32 – und das war zu gut, um wahr zu sein. Fünf
@@ -821,13 +938,16 @@ der einbeinige Hip Thrust mehr Beinbeuger (0,60 statt 0,50).
 
 Was übrig bleibt, ist ehrlich und klein: Trizeps 9,6 statt 10 (die Liegestütze
 gibt gegenüber dem Floor Press etwas Trizeps an die vordere Schulter ab) und
-Bauch 8,3 statt 9 (ohne Hantel vor der Brust ist die Kniebeuge weniger
-Rumpfarbeit – genau das, was die korrigierte Schätzung jetzt sagt).
+Bauch 8,4 statt 9 (ohne Hantel vor der Brust ist die Kniebeuge weniger
+Rumpfarbeit – genau das, was die korrigierte Schätzung jetzt sagt). Die größte
+Lücke in einer einzelnen Einheit sind 0,45 Sätze Bauch; eine zusätzliche Übung
+wären drei, also das Siebenfache – deshalb steht dort keine.
 
 Der Preis: **Die Fassung für unterwegs setzt ein Loop-Band und eine
 Klimmzugstange voraus.** Ohne Band fehlen Bizeps, Trizeps, Überkopfdrücken,
-Rudern, Reverse Fly und beide Seitheben-Fassungen (19,4 Sätze pro Woche); ohne
-Stange Chin-ups, Pull-ups und das hängende Knieheben (9,9 Sätze pro Woche).
+Rudern, Reverse Fly, Pull-Apart und beide Seitheben-Fassungen (26,3 Sätze pro
+Woche); ohne Stange Chin-ups, Pull-ups und das hängende Knieheben (11,3 Sätze
+pro Woche).
 Dazu kommen Gegenstände, die in jedem Zimmer stehen: ein Stuhl, ein paar
 Bücher, ein Handtuch. Die Figur zeichnet das Band deshalb auch dort, wo es nur
 in der Fassung für unterwegs vorkommt.
@@ -921,15 +1041,19 @@ kann, weil die Übung schlicht fehlte:
 | **Sitzendes Schulterdrücken** | Es gab kein Überkopfdrücken. Die Schulter hing an Seitheben, und das ist mit 8 kg irgendwann am Ende – ein Drücken lässt sich progressiv laden. |
 | **Rumänisches Kreuzheben** | Der Beinbeuger kam ausschließlich aus Kniebeugung (Leg Curl). Die Hüftstreck-Funktion, die größere Hälfte, wurde nie trainiert. |
 | **Split Squat** | Der Goblet Squat ist ab einem gewissen Punkt durch das *Halten* der Hantel begrenzt, nicht durch die Beine. Einbeinig fällt diese Grenze weg. |
-| **Hängendes Knieheben** | Der Bauch bestand aus Crunches, also nur Beugen. Jetzt kommt der Zug von unten dazu – und der Bauch hat 7,0 direkte Sätze statt 3,6. |
+| **Hängendes Knieheben** | Der Bauch bestand aus Crunches, also nur Beugen. Jetzt kommt der Zug von unten dazu – und der Bauch hat 5,9 direkte Sätze statt 3,6, auf zwei Übungen verteilt. |
 | **Pull-ups** | Der Rücken hing an zwei Übungen, Chin-ups und Rudern. Bei einer Obergrenze von acht Sätzen je Übung und Woche war damit früh Schluss – das Ziel hätte beide fest angeschlagen. Der weite Obergriff nimmt außerdem den Bizeps aus der Bewegung: mehr Rücken je Satz, und genau der macht die V-Form. |
 | **Band-Seitheben** | Mit 10 Sätzen seitlicher Schulter hinge die Gruppe an einer einzigen Übung – genau der Klumpen, den das Kriterium verhindern soll. Beim Band steigt der Widerstand nach oben, dorthin, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. |
-| **Band-Pull-Apart** | Die hintere Schulter hing an einer einzigen Übung mit 7,9 Sätzen pro Woche. Jetzt teilen sich zwei den Reiz: Reverse Fly 3,0 und Pull-Apart 4,9. Beim Band steigt der Widerstand zum Ende der Bewegung – genau dort, wo die hintere Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull, die bessere Variante; der Hinweis sagt das. |
+| **Band-Pull-Apart** | Die hintere Schulter hing an einer einzigen Übung mit 7,9 Sätzen pro Woche. Jetzt teilen sich zwei den Reiz: Reverse Fly 4,0 und Pull-Apart 1,9. Beim Band steigt der Widerstand zum Ende der Bewegung – genau dort, wo die hintere Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull, die bessere Variante; der Hinweis sagt das. |
 
-Die vier stehen **nicht in der Excel**. Die bleibt Quelle des ursprünglichen
+Die sieben stehen **nicht in der Excel**. Die bleibt Quelle des ursprünglichen
 Plans; was später dazukommt, steht vollständig in `tools/exercise-meta.json` –
 mit Name, Wiederholungen und Bodyweight-Äquivalent. `tools/build-data.py`
-nimmt beides.
+nimmt beides. Denselben Weg nimmt eine Übung, die sich *ändert*: Der Schlüssel
+ist der Slug ihres Excel-Namens und trägt die eingetragenen Gewichte, also
+bleibt er stehen, und `name` in `exercise-meta.json` überschreibt die Anzeige –
+so wurde aus dem liegenden Trizepsstrecker der Überkopf-Trizepsstrecker, ohne
+dass die Excel angefasst werden musste.
 
 **Was das gekostet hat, war lehrreich.** Zwei Fallen auf einmal:
 
@@ -944,10 +1068,10 @@ nimmt beides.
    Mit 21 Übungen sind die ersten 4000 gefundenen Lösungen keine Auswahl mehr,
    sondern Zufall. Heraus kam eine, die rechnerisch exakt stimmte und als Plan
    unbrauchbar war: Chin-ups am Anschlag mit 10 Sätzen pro Woche, **Rudern
-   komplett bei null**. Zwei Zeilen haben das behoben – `PER_EX_WEEK = (1, 8)`
-   begrenzt, was eine Übung pro Woche tragen darf, und die Suche probiert Werte
-   in der Nähe eines ausgewogenen Anteils zuerst statt in zufälliger
-   Reihenfolge. Jetzt kommt jede der 23 Übungen mit 1,0 bis 8,0 Sätzen vor.
+   komplett bei null**. Zwei Zeilen haben das behoben – `PER_EX_WEEK = (1, 9)`
+   begrenzt, was eine Übung im Schnitt pro Woche tragen darf, und die Suche
+   probiert Werte in der Nähe eines ausgewogenen Anteils zuerst statt in
+   zufälliger Reihenfolge. Jetzt kommt jede der 24 Übungen vor.
 
 ### Keine Gruppe an einer einzigen Übung
 
@@ -1237,7 +1361,7 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 | Gewichtete Liegestütze | Langsame Liegestütze (3 s ablassen) | Ohne Gerät (optional zwei Bücherstapel) |
 | Chin-ups | Chin-ups | Klimmzugstange (+ Stuhl) |
 | Sitzendes Seitheben | Sitzendes Band-Seitheben | Loop-Band + Stuhl |
-| Liegende Trizepsstrecker | Band-Trizepsdrücken | Loop-Band |
+| Überkopf-Trizepsstrecker | Überkopf-Trizepsstrecker am Band | Loop-Band + Stuhl |
 | Einbeiniges stehendes Wadenheben | Einbeiniges Wadenheben | Stufe oder dickes Buch |
 | Wadenheben gebeugtes Knie | Wadenheben mit gebeugtem Knie | Ohne Gerät |
 | Fersenerhöhter Goblet Squat | Fersenerhöhter 1½-Wdh. Bodyweight Squat | Erhöhung (Buch/Keil) |
