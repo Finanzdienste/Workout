@@ -27,6 +27,9 @@ const SOUNDS = {
   set: [[1244.51, 0, 0.07, 0.12]],
   // Übung fertig, nächste kommt.
   exercise: [[659.25, 0, 0.1], [987.77, 0.1, 0.24]],
+  // Fertig machen – fünf Sekunden vor Schluss. Zwei kurze, tiefere Tupfer:
+  // erkennbar anders als das Signal selbst, sonst steht man zu früh auf.
+  ready: [[587.33, 0, 0.09, 0.18], [587.33, 0.16, 0.09, 0.18]],
   // Pause vorbei – das lauteste Signal, es muss quer durch den Raum kommen.
   rest: [[880, 0, 0.24, 0.35], [1320, 0.28, 0.26, 0.35]],
   // Workout komplett.
@@ -38,7 +41,7 @@ const SOUNDS = {
 };
 
 let ctx = null;
-let geplant = null;   // vorausgelegtes Signal: { quellen: [OscillatorNode] }
+let geplant = [];     // vorausgelegte Signale: [{ quellen, at }]
 let traegerTon = null;
 
 /** AudioContext anlegen – nur aus einer Berührung heraus aufrufen. */
@@ -103,31 +106,45 @@ export function playSound(name) {
 }
 
 /**
- * Ton in `secs` Sekunden abspielen, fest auf die Uhr des AudioContext gelegt.
- * Gibt zurück, ob das geklappt hat – sonst muss der Aufrufer sich anders helfen.
+ * Töne vorausplanen, fest auf die Uhr des AudioContext gelegt.
+ *
+ * `plan` ist eine Liste [Name, Sekunden ab jetzt]. Mehrere auf einmal, weil zu
+ * einer Pause zwei gehören: die Vorwarnung und das Signal selbst. Alles Frühere
+ * wird dabei verworfen – es gibt immer nur eine laufende Pause.
+ *
+ * Gibt zurück, ob es geklappt hat; sonst muss der Aufrufer sich anders helfen.
  */
-export function scheduleSound(name, secs) {
+export function scheduleSound(plan) {
   initAudio();
-  if (!ctx || !SOUNDS[name]) return false;
+  if (!ctx) return false;
   wecken();
   cancelSound();
-  const at = ctx.currentTime + Math.max(0, secs);
-  geplant = { quellen: SOUNDS[name].map((t) => ton(at, t)) };
+  plan.forEach(([name, secs]) => {
+    if (!SOUNDS[name] || secs < 0) return;
+    const at = ctx.currentTime + secs;
+    geplant.push({ at, quellen: SOUNDS[name].map((t) => ton(at, t)) });
+  });
+  if (!geplant.length) return false;
   traeger(true);
   return true;
 }
 
-/** Vorausgelegtes Signal verwerfen – Pause übersprungen, verlängert, aus. */
+/**
+ * Vorausgelegte Signale verwerfen – Pause übersprungen, verlängert, aus.
+ *
+ * Was gerade spielt, bleibt: Ein Ton, der schon begonnen hat, würde sonst
+ * mitten im Klang abgeschnitten – und genau das passiert am Ende der Pause,
+ * wo endRest() eine Viertelsekunde nach dem Signal aufräumt.
+ */
 export function cancelSound() {
-  if (geplant) {
-    geplant.quellen.forEach((osc) => { try { osc.stop(); } catch { /* egal */ } });
-    geplant = null;
-  }
+  const jetzt = ctx ? ctx.currentTime : 0;
+  geplant.forEach((g) => {
+    if (g.at <= jetzt) return;
+    g.quellen.forEach((osc) => { try { osc.stop(); } catch { /* egal */ } });
+  });
+  geplant = [];
   traeger(false);
 }
-
-/** Läuft gerade ein vorausgelegtes Signal? */
-export function soundPending() { return geplant !== null; }
 
 // Zurück aus dem Hintergrund: iOS legt den Kontext beim Wegschalten schlafen,
 // und ein schlafender Kontext bleibt es, bis ihn jemand weckt.

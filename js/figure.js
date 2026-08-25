@@ -219,8 +219,8 @@ export const PATTERNS = {
       // ebenso und zieht dann den Ellenbogen nach hinten an den Rumpf.
       // lean 62 statt 72: fast waagerecht hing der Kopf tief unter den Schultern
       // und die Figur sah aus, als würde sie nach vorn kippen.
-      { lean: 62, armL: A(62, 10, 10), armR: A(62, 8, 6), leg: L(8, 6, 22) },
-      { lean: 62, armL: A(62, 10, 10), armR: A(2, 10, 94), leg: L(8, 6, 22) },
+      { lean: 62, armL: A(62, 10, 10), armR: A(62, 8, 6), leg: L(20, 6, 24) },
+      { lean: 62, armL: A(62, 10, 10), armR: A(2, 10, 94), leg: L(20, 6, 24) },
     ],
   },
   rowbar: {
@@ -228,10 +228,14 @@ export const PATTERNS = {
     // einarmigen Rudern – nur stützt sich hier nichts ab, beide Arme ziehen.
     // Genau das ist auch der Unterschied für den unteren Rücken: Er hält die
     // Neigung allein, ohne die abgestützte Hand.
+    //
+    // Die Hüfte steht dabei hinten, wie bei der Hüftbeuge: Ohne das sieht die
+    // Neigung aus wie ein Bücken aus dem Rücken. leg.p 20 schiebt das Knie vor
+    // die Hüfte, leg.k 24 stellt das Schienbein wieder senkrecht.
     label: 'Langhantelrudern', view: [24, -6],
     poses: [
-      { lean: 62, arm: A(62, 8, 6), leg: L(8, 6, 22) },
-      { lean: 62, arm: A(2, 10, 94), leg: L(8, 6, 22) },
+      { lean: 62, arm: A(62, 8, 6), leg: L(20, 6, 24) },
+      { lean: 62, arm: A(2, 10, 94), leg: L(20, 6, 24) },
     ],
   },
   pullup: {
@@ -283,19 +287,29 @@ export const PATTERNS = {
     // Hüftbeuge: die Knie bleiben fast gestreckt, der Rumpf kippt nach vorn.
     // Die Arme hängen dabei lotrecht – dafür muss arm.p der Rumpfneigung
     // folgen (-p + lean = 0), sonst schwingen die Hanteln nach vorn weg.
+    //
+    // **Das Gesäß muss nach hinten.** Vorher stand das Bein fast senkrecht
+    // (leg.p 8) und nur der Rumpf kippte – das sieht aus, als käme die Bewegung
+    // aus dem Rücken, und genau so wurde es auch gelesen. Beim Kreuzheben
+    // wandert die Hüfte nach hinten, während das Schienbein senkrecht bleibt:
+    // leg.p 26 dreht den Oberschenkel so, dass das Knie vor der Hüfte steht,
+    // leg.k 24 stellt das Schienbein wieder senkrecht. Damit liegt die Hüfte
+    // rund eine Fußlänge hinter den Knöcheln – das ist der Unterschied zwischen
+    // einer Hüftbeuge und einem Bücken.
     label: 'Hüftbeuge', view: [24, -6],
     poses: [
-      { lean: 6, arm: A(6, 9, 4), leg: L(2, 5, 6) },
-      { lean: 70, arm: A(70, 9, 4), leg: L(8, 5, 16) },
+      { lean: 4, arm: A(4, 9, 4), leg: L(4, 5, 8) },
+      { lean: 68, arm: A(68, 9, 4), leg: L(26, 5, 24) },
     ],
   },
   hinge1: {
     // Einbeinig: das freie Bein steigt nach hinten, bis Rumpf und Bein eine
-    // Linie bilden. stance nennt das Standbein.
+    // Linie bilden. stance nennt das Standbein. Dieselbe Hüfte nach hinten wie
+    // oben, nur weniger – auf einem Bein geht das Gegengewicht ins Standbein.
     label: 'Hüftbeuge einbeinig', stance: 'R', view: [38, -6],
     poses: [
-      { lean: 6, arm: A(6, 9, 4), legR: L(2, 5, 6), legL: L(-6, 7, 14) },
-      { lean: 76, arm: A(76, 9, 4), legR: L(6, 5, 14), legL: L(-74, 7, 10) },
+      { lean: 4, arm: A(4, 9, 4), legR: L(4, 5, 8), legL: L(-6, 7, 14) },
+      { lean: 74, arm: A(74, 9, 4), legR: L(18, 5, 20), legL: L(-70, 7, 10) },
     ],
   },
   splitsquat: {

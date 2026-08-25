@@ -84,6 +84,14 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   das erste Pausensignal.
 * **Ein Griff pro Satz.** Die Satz-Knöpfe liegen außerhalb des aufklappbaren
   Bereichs und sind 48 px hoch – Abhaken ohne Zielen, ohne vorher aufzuklappen.
+* **Fortschrittsleiste.** Über der Fokus-Ansicht ein Kasten je Übung, darunter
+  ein Feld je Satz: was steht, wo man gerade ist, was noch kommt. Die Breite
+  folgt der Satzzahl, ein Tipp auf einen Kasten springt dorthin.
+* **Die Uhr misst Training, nicht Anwesenheit.** Sie läuft, solange die App
+  offen ist oder eine Pause läuft, und steht, wenn beides nicht zutrifft – wer
+  zwischendurch das Handy weglegt, bekommt sonst zwei Stunden angezeigt, in
+  denen vierzig Minuten trainiert wurde. *Fortsetzen* zählt weiter statt neu
+  anzufangen, über Nacht fängt sie von vorn an, *Abbrechen* setzt sie zurück.
 * **Keine Wiederholungen eintragen.** Die stehen im Plan.
 * **Ein Arbeitsgewicht je Übung**, vorbelegt mit einem Startwert (siehe unten).
   Änderbar durch Antippen der Zahl oder über **−** und **+**, die je Übung
@@ -93,15 +101,12 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   das?" mit drei Knöpfen; sie ist raus. Sie kostete bei jeder Übung einen Griff,
   hielt den Ablauf an – und die Progression kommt auch ohne sie aus: Was zählt,
   ist, dass alle Sätze standen.
-* **Wie schwer.** Unter dem Übungsnamen steht, wie nah ans Limit gegangen wird:
-  *„noch 1–2 Wiederholungen drin – nicht mehr"*. Das ist die Zahl, die am
-  meisten über das Ergebnis entscheidet, und sie stand vorher nirgends –
-  während wir monatelang die Nachkommastelle beim Wochenvolumen optimiert
-  haben. Über dem letzten Satz stand früher zusätzlich *„bis kurz vors
-  Versagen"*; das ist weg. Der Ertrag gegenüber ein, zwei Wiederholungen
-  Reserve ist klein, die Ermüdung nicht – und bei einer Langhantel ohne Ablage
-  ist das Versagen die eine Stellung, aus der man allein schlecht wieder
-  herauskommt.
+* **Wie schwer – einmal gelesen, nicht dauernd wiederholt.** Unter dem
+  Übungsnamen stand eine Zeile *„so schwer wählen, dass noch 1–2 Wiederholungen
+  drin wären"*. Sie ist raus: Wer den Plan zweimal gemacht hat, weiß das, und
+  darunter steht sie bei jeder Übung im Weg. Der Grundsatz gilt weiter und
+  steht in der ausführlichen Erklärung dort, wo er hingehört – bei den Übungen,
+  bei denen es darauf ankommt (Floor Press ohne Ständer etwa).
 * **Zwei Wege aus dem Training.** *Abschließen* behält, was abgehakt ist – auch
   wenn nicht alles steht; der Knopf nennt den Stand mit. *Abbrechen* verwirft
   die Einheit ganz, sie gilt dann als nicht trainiert und der Plan behandelt
@@ -113,6 +118,14 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   Während der Pause um 30 s verlängerbar oder vorzeitig beendbar. Auf Wunsch
   kommt am Ende zusätzlich eine Systemmeldung, wenn die App gerade im
   Hintergrund ist (siehe *Töne*).
+* **Fünf Sekunden Vorwarnung.** Zwischen dem Signal und der ersten Wiederholung
+  liegen sonst noch der Weg zur Hantel und das Zurechtlegen – die Pause ist
+  damit in Wahrheit länger als geplant. Fünf Sekunden vor Schluss kommt deshalb
+  ein leiserer, tieferer Ton, und die Leiste schaltet auf *Fertig machen* um.
+  Beim Signal selbst steht man dann schon an der Stange.
+* **Rüstzeile.** Über dem Gewicht steht, was für diese Übung umzubauen ist –
+  oder dass nichts umzubauen ist, weil die Stange schon so daliegt (siehe
+  *Umbauen kostet mehr Zeit als Pausieren*).
 * **Töne zu den Ereignissen.** Training gestartet, Satz abgehakt, Übung fertig,
   Workout komplett – jedes mit eigenem Ton, sodass man ohne Hinsehen weiß, was
   passiert ist.
@@ -1230,6 +1243,54 @@ stimmte und manchmal daneben lag: der Hip Thrust (1,50) landete hinter dem
 Reverse Fly (1,60) – eine schwere Hüftstreckung also hinter einer
 Schulter-Isolation.
 
+### Umbauen kostet mehr Zeit als Pausieren
+
+Zwischen zwei Übungen steht in der Wohnung nicht die Pause, sondern der Umbau:
+Scheiben abziehen, andere aufstecken, Verschlüsse zu. Das ist die Zeit, die eine
+Einheit wirklich lang macht, und sie stand in keinem Plan. Zwei Stellen arbeiten
+dagegen.
+
+**Der Generator legt zusammen, was dasselbe Gerät braucht.** Welche Übungen in
+einer Woche wie oft vorkommen, steht vor der Aufteilung auf die vier Tage fest –
+welcher Tag sie bekommt, ist frei. `split()` bewertet deshalb zusätzlich, wie
+viele Geräte an einem Tag aufgebaut werden müssen (`ruest`): Zwei Übungen an
+derselben Stange sind ein Aufbau, verteilt auf zwei Tage sind es zwei, bei
+identischem Volumen. Das drückt den Schnitt von 2,79 auf 2,26 Geräte je Einheit,
+ohne dass sich am Wochenvolumen einer einzigen Muskelgruppe etwas ändert – und
+ohne dass die Einheiten länger oder ungleicher werden: 5–6 Übungen und 15–18
+Sätze, genau wie vorher.
+
+Die Stelle in der Bewertungsreihenfolge ist mit Bedacht gewählt: hinter der Länge
+der Einheiten. Weiter vorn holt der Rüstaufwand mehr heraus – 2,23 Geräte je
+Einheit –, aber die Einheiten laufen dann auseinander: 12 bis 21 Sätze statt 15
+bis 18. Eine Einheit, die anderthalbmal so lang ist wie die nächste, ist der
+schlechtere Tausch. Umgebaut wird zwischendurch, gewartet wird die ganze Zeit.
+
+**Die App sortiert innerhalb der Einheit.** Nach Gerät, und innerhalb des Geräts
+absteigend nach Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in
+kleinen Schritten nach unten statt hin und her. Die Reihenfolge der Geräte bleibt
+dabei die des Plans – das erste Vorkommen bestimmt den Platz –, damit vorn
+weiterhin steht, was `tier` nach vorn gestellt hat.
+
+Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
+Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach dem
+dritten angenommenen Steigerungsvorschlag nicht mehr.
+
+Übungen ohne Aufbau – Klimmzüge, Band, Bodyweight – behalten ihren Platz. Sie
+kosten nichts, also darf zwischen zwei Langhantelübungen ruhig ein Satz
+Pull-Apart liegen; die Stange bleibt ja geladen.
+
+Am Plan nachgerechnet, mit den Startgewichten und einem einfachen Maß – wie viele
+Kilo in einer Einheit von einer Stange auf die andere wandern:
+
+| | Geräte je Einheit | bewegte Kilo je Einheit |
+| --- | --- | --- |
+| vorher | 2,79 | 109 |
+| nur sortiert | 2,79 | 98 |
+| Generator + sortiert | 2,26 | 84 |
+
+Knapp ein Viertel weniger geschleppt, bei unverändertem Trainingsinhalt.
+
 ## Verletzungen
 
 Ein eigener Tab, in dem sich anhaken lässt, was gerade weh tut. Die Auswahl
@@ -1547,6 +1608,26 @@ python3 tools/build-data.py
 Der Generator bricht ab, wenn eine Zeile nicht dem Muster `3× Übung (8–12)`
 folgt, wenn Hantel- und Bodyweight-Spalte unterschiedlich viele Übungen haben
 oder wenn zu einer Übung der Eintrag in `exercise-meta.json` fehlt.
+
+## Weitergeben
+
+Unter *Mehr* steht ein Knopf **Link teilen**. Er ruft den Systemdialog
+(`navigator.share`) – auf dem Handy also WhatsApp, Signal, Mail, was da ist –,
+daneben liegen ein direkter WhatsApp-Knopf und *Link kopieren* als Rückfallweg
+für Browser ohne den Dialog.
+
+Wer den Link öffnet, hat dieselbe App: denselben Plan, dieselben Bewegungen,
+offline. Beim ersten Start kommt eine Seite, die in vier Sätzen erklärt, was das
+ist, und nach dem Namen fragt.
+
+**Der Name ist kein Konto.** Es gibt keinen Server, keine Anmeldung und nichts
+zu synchronisieren – er steht in genau diesem Browser und sonst nirgends. Genau
+das sagt die Seite auch, sonst wartet jemand darauf, dass sein Training bei
+jemand anderem auftaucht. Geteilt wird der Link, nicht der Fortschritt.
+
+Wer schon Daten hat, wird nicht begrüßt: Fehlt im gespeicherten Stand der
+Schlüssel `greeted`, stammt er aus einer Fassung vor der Willkommensseite – und
+dann ist derjenige nicht neu hier.
 
 ## Aufs Handy bekommen
 

@@ -175,6 +175,18 @@ RESTARTS = 16            # Anläufe beim Verteilen auf die Wochen
 SPREAD_ROUNDS = 400000   # Schritte je Anlauf
 SPLITS = 2000            # Versuche je Woche für die Aufteilung
 
+# Rüstzeit. Zwischen zwei Übungen steht in der Wohnung nicht die Pause, sondern
+# der Umbau: Scheiben ab, andere drauf, Verschlüsse zu. Welche Geräte an einem
+# Tag zusammenkommen, entscheidet sich hier – und die Aufteilung hat dabei
+# echten Spielraum, weil das Wochenvolumen längst feststeht und nur noch die
+# Verteilung auf die vier Tage offen ist. Übungen ohne Aufbau (Klimmzüge, Band,
+# Bodyweight) zählen nicht mit, sie kosten nichts.
+GERAET = {
+    'barbell': 'lh', 'hipbar': 'lh',      # dieselbe Stange
+    'dumbbells': 'kh2', 'goblet': 'kh1', 'onehand': 'kh1', 'plate': 'kh1',
+    'backpack': 'ruck',
+}
+
 # Gerechnet wird durchweg in Zwanzigsteln eines Satzes: alle Anteile in
 # exercise-meta.json sind Vielfache von 0,05, damit bleibt alles ganzzahlig und
 # "exakt" heißt wirklich exakt und nicht "bis auf Rundungsfehler".
@@ -796,11 +808,14 @@ def direct_groups(ex, shares):
     return frozenset(m for m, s in shares[ex].items() if s >= DIRECT)
 
 
-def split(week, ids, shares, groups, sessions, rnd, tries, used, tight=(), prev=frozenset(), roles=None):
+def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(), prev=frozenset(), roles=None):
     """Aufteilung mit möglichst gleich langen und gleich gemischten Einheiten.
 
     `used` sind die bereits vergebenen Zusammenstellungen; eine Wiederholung
     wiegt schwerer als jede Unwucht, sonst gleichen sich zwei Wochen an.
+
+    `geraet` ordnet jeder Übung ihr Gerät zu (oder nichts) – daraus ergibt sich,
+    wie oft an einem Tag umgebaut werden muss.
 
     `roles` gibt je Einheit vor, welche Muskelgruppen sie direkt treffen darf –
     darüber laufen die beiden Hälften aus sides(). Nur die Einheiten an einem
@@ -899,7 +914,19 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, tight=(), prev=
                         auftritte[m] += 1
             selten = sum(1 for m, slots in tage.items()
                          if len(slots) < 2 <= auftritte[m])
-            got = (doppelt, selten, laengste, imbalance, count, round(mix, 6))
+            # Wie viele Geräte je Tag aufgebaut werden müssen. Zwei Übungen an
+            # derselben Stange sind ein Aufbau, verteilt auf zwei Tage sind es
+            # zwei – bei gleichem Volumen.
+            #
+            # Die Stelle in der Reihenfolge ist mit Bedacht gewählt: hinter der
+            # Länge der Einheiten. Weiter vorn holt der Rüstaufwand zwar mehr
+            # heraus (2,23 statt 2,52 Geräte je Einheit), aber die Einheiten
+            # laufen dann auseinander – 12 bis 21 Sätze statt 15 bis 18. Eine
+            # Einheit, die anderthalbmal so lang ist wie die nächste, ist der
+            # schlechtere Tausch: Umgebaut wird zwischendurch, gewartet wird die
+            # ganze Zeit.
+            ruest = sum(len({geraet[ex] for ex, _ in d if geraet.get(ex)}) for d in day)
+            got = (doppelt, selten, laengste, imbalance, ruest, count, round(mix, 6))
             if best is None or got < best[0]:
                 best = (got, day, direkt)
         if best is not None:
@@ -938,6 +965,9 @@ def main():
     # galt für eine bestimmte Kombination aus Zielen und Anteilen und wurde
     # falsch, sobald sich eine davon änderte. Jetzt probiert der Lauf, statt zu
     # raten: die erste Wochenzahl ab WEEKS, für die alle Blöcke aufgehen.
+    # Gerät je Übung – ohne Gewicht ist nichts aufzubauen (Klimmzüge stehen mit
+    # 0 kg im Rucksack, Band und Bodyweight ohnehin).
+    geraet = {k: (GERAET.get(v['equip']) if v['dbWeight'] else None) for k, v in meta.items()}
     rnd = random.Random(7)
     vol = Volume(shares, ids, groups)
     for weeks in range(WEEKS, WEEKS + 12):
@@ -1002,7 +1032,7 @@ def main():
             roles[a], roles[b] = roles[a] or half[0], roles[b] or half[1]
         eng_prev = prev if eng_am_anfang else frozenset()
         sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd, SPLITS, used,
-                                             tight, eng_prev, roles)
+                                             geraet, tight, eng_prev, roles)
         # Ging es nicht auf, kostet ein zweiter Anlauf nur für diese eine Woche
         # ein paar Sekunden – und die Erholungsbedingung ist der Punkt, an dem
         # der ganze Plan hängt. Vorher fiel sie hier still weg: bei zehn Sätzen
@@ -1013,7 +1043,8 @@ def main():
             if not konflikte:
                 break
             sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd,
-                                                 SPLITS * faktor, used, tight, eng_prev, roles)
+                                                 SPLITS * faktor, used, geraet, tight, eng_prev,
+                                                 roles)
         offen += 1 if konflikte else 0
         prev = frozenset(direkt[-1])
         for d, sess in zip(block, sess_list):

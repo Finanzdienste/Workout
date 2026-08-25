@@ -9,13 +9,15 @@ const DEFAULT_STATE = {
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
   useExerciseRest: true, // Pause je Übung statt einer festen Länge
   restSeconds: 90,       // feste Pause, wenn useExerciseRest aus ist; 0 = keine
+  name: '',              // Anzeigename – steht nur in diesem Browser, kein Konto
+  greeted: false,        // Willkommensseite gesehen
   sound: true,           // Töne: Pausenende, Start, Übung fertig, Workout komplett
   soundSets: true,       // zusätzlich ein kurzer Ton bei jedem abgehakten Satz
   notify: false,         // Systemhinweis am Pausenende, wenn die App im Hintergrund ist
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
-  session: null,         // laufendes Training: { n, startedAt }
-  sessionStart: null,    // Beginn der heutigen Einheit: { n, on, at } – überlebt endSession()
+  session: null,         // laufendes Training: { n }
+  clock: null,           // Uhr der Einheit: { n, on, spent, since } – siehe startSession()
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
   // Stand der zuletzt erzeugten Kalenderdatei: { on, shift, seq }. Aus `shift`
   // ergibt sich, ob die Termine im Kalender noch stimmen; `seq` zählt hoch,
@@ -44,7 +46,13 @@ function load() {
     const raw = localStorage.getItem(KEY);
     if (!raw) return clone(DEFAULT_STATE);
     const parsed = JSON.parse(raw);
-    return Object.assign(clone(DEFAULT_STATE), parsed);
+    const state = Object.assign(clone(DEFAULT_STATE), parsed);
+    // Wer schon etwas gespeichert hat, ist nicht neu hier: Die Willkommensseite
+    // fragt nach dem Namen und erklärt die App – für jemanden, der seit Wochen
+    // trainiert, wäre sie eine Zumutung. Der Schlüssel fehlt genau dann, wenn
+    // der Stand aus einer Fassung vor der Seite stammt.
+    if (!('greeted' in parsed)) state.greeted = true;
+    return state;
   } catch {
     return clone(DEFAULT_STATE);
   }
@@ -200,29 +208,75 @@ export function setWeight(exId, kg) {
   return v;
 }
 
-/**
- * Training beginnen – oder fortsetzen.
+/* Die Uhr des Trainings.
  *
- * Fortsetzen ist kein Neuanfang: Wer zwischendurch aus dem Training geht und
- * wieder hineingeht, will sehen, wie lange er heute schon dabei ist, und nicht
- * wieder 0:00. Der Beginn hängt deshalb an der Einheit und überlebt
- * endSession(). Über Nacht fängt er neu an – sonst stünde am nächsten Morgen
- * eine zwölfstündige Einheit da.
+ * Sie misst nicht die Zeit seit dem Startknopf, sondern die Zeit, die wirklich
+ * trainiert wurde: Sie läuft, solange die App offen ist oder eine Pause läuft,
+ * und steht, wenn beides nicht zutrifft. Wer zwischendurch aufs Handy verzichtet
+ * oder die App weglegt, bekommt sonst eine Einheit von zwei Stunden angezeigt,
+ * in der er vierzig Minuten trainiert hat.
+ *
+ * `clock` hält deshalb zwei Zahlen: `spent` ist die schon gezählte Zeit in
+ * Millisekunden, `since` der Zeitpunkt, seit dem sie wieder läuft (oder null,
+ * wenn sie steht). Beides hängt an der Einheit und am Tag, damit Fortsetzen
+ * kein Neuanfang ist – und damit am nächsten Morgen nicht eine zwölfstündige
+ * Einheit dasteht.
  */
+
 export function startSession(n) {
-  const alt = state.sessionStart;
-  const weiter = alt && alt.n === n && alt.on === todayISO() ? alt.at : null;
-  const at = weiter || Date.now();
-  state.sessionStart = { n, on: todayISO(), at };
-  state.session = { n, startedAt: at };
+  const c = state.clock;
+  const weiter = c && c.n === n && c.on === todayISO();
+  state.clock = {
+    n, on: todayISO(), spent: weiter ? c.spent : 0, since: Date.now(),
+  };
+  state.session = { n };
   persist();
   emit();
 }
 
 export function endSession() {
+  clockStop();
   state.session = null;
   persist();
   emit();
+}
+
+/** Uhr anhalten – App im Hintergrund und keine Pause, oder Training beendet. */
+export function clockStop() {
+  const c = state.clock;
+  if (!c || c.since === null) return;
+  state.clock = { ...c, spent: c.spent + (Date.now() - c.since), since: null };
+  persist();
+}
+
+/** Uhr weiterlaufen lassen – App wieder da. */
+export function clockStart() {
+  const c = state.clock;
+  if (!state.session || !c || c.since !== null) return;
+  state.clock = { ...c, since: Date.now() };
+  persist();
+}
+
+/**
+ * Beim Laden der Seite: die Lücke seit dem letzten Mal nicht mitzählen.
+ *
+ * Normalerweise hält `pagehide` die Uhr an, bevor die Seite verschwindet. Wird
+ * der Browser abgeschossen oder das Handy hart ausgeschaltet, bleibt `since`
+ * stehen – und ohne diese Zeile stünden beim nächsten Öffnen die Stunden
+ * dazwischen in der Einheit.
+ */
+export function clockResync() {
+  const c = state.clock;
+  if (!c || c.since === null) return;
+  state.clock = { ...c, since: Date.now() };
+  persist();
+}
+
+/** Bisher gezählte Trainingszeit der laufenden Einheit, in Sekunden. */
+export function sessionSeconds() {
+  const c = state.clock;
+  if (!c) return 0;
+  return Math.floor((c.spent + (c.since ? Date.now() - c.since : 0)) / 1000);
 }
 
 /**
@@ -262,7 +316,7 @@ export function resetWorkout(n, mode) {
   e[mode] = {};
   // Verworfen ist verworfen: Der nächste Anlauf an dieser Einheit fängt die
   // Zeit wieder bei null an.
-  if (state.sessionStart && state.sessionStart.n === n) state.sessionStart = null;
+  if (state.clock && state.clock.n === n) state.clock = null;
   syncStartedOn(n);
   persist();
   emit();
@@ -329,7 +383,7 @@ export function restartPlan(shiftDays) {
   }
   state.log = {};
   state.session = null;
-  state.sessionStart = null;
+  state.clock = null;
   state.rest = null;
   state.shift = Math.round(Number(shiftDays) || 0);
   persist();

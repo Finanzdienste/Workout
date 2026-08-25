@@ -175,7 +175,10 @@ function injuryNotes(n) {
  * eine gesperrte Übung auftaucht und an einer anderen nicht.
  */
 function exOf(w) {
-  return adjustedPlan()[w.n - 1] || w.ex;
+  const items = adjustedPlan()[w.n - 1] || w.ex;
+  // Nur bei den Hanteln: Im Bodyweight-Modus gibt es nichts umzubauen, und die
+  // Reihenfolge soll dann die des Plans bleiben.
+  return store.workoutMode(w.n) === 'db' ? ruestOrderStabil(items, w.n, 'db') : items;
 }
 
 function workoutByNo(n) {
@@ -197,6 +200,9 @@ function resolve(item, mode) {
   return {
     id: item.id, sets: item.sets, group: ex.group,
     name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern, muscles: v.muscles,
+    // Die ausführliche Erklärung hängt an der Übung, nicht an der Variante:
+    // Griff, Aufbau und typische Fehler sind in beiden Fassungen dieselben.
+    detail: ex.detail,
     // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
     // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
     weight: mode === 'db' ? ex.weight : null,
@@ -226,6 +232,118 @@ function usedWeight(n, mode, exId) {
   const logged = (store.peekSets(n, mode, exId) || []).find((s) => s.w !== '');
   if (logged) return parseFloat(logged.w);
   return workingWeight(exId);
+}
+
+/* ------------------------------------------------------------------ *
+ * Rüstzeit: Reihenfolge nach Gerät und Gewicht
+ *
+ * Zwischen zwei Übungen steht oft nicht die Pause, sondern der Umbau: Scheiben
+ * abziehen, andere aufstecken, Verschlüsse zu. Das ist die Zeit, die eine
+ * Einheit in der Wohnung wirklich lang macht, und sie steht in keinem Plan.
+ *
+ * Die Reihenfolge innerhalb einer Einheit ist dafür der ganze Hebel. Welche
+ * Übungen an einem Tag stehen, entscheidet tools/build-plan.py nach dem
+ * Wochenvolumen – daran wird hier nichts geändert. Aber ob die beiden
+ * Langhantel-Übungen hintereinander kommen oder eine Kurzhantelübung dazwischen
+ * liegt, kostet einen kompletten Auf- und Abbau.
+ *
+ * Sortiert wird deshalb nach Gerät und innerhalb des Geräts absteigend nach
+ * Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in kleinen
+ * Schritten nach unten statt hin und her. Am Plan gemessen sind das rund 30 %
+ * weniger Kilo, die in einer Einheit bewegt werden – und schwer zuerst ist
+ * ohnehin die richtige Reihenfolge fürs Training.
+ *
+ * Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
+ * Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach
+ * dem dritten Steigerungsvorschlag nicht mehr.
+ *
+ * Die Plätze der Übungen ohne Aufbau (Klimmzüge, Band, Bodyweight) bleiben, wo
+ * sie sind: Sie kosten keinen Umbau, also darf zwischen zwei Langhantelübungen
+ * ruhig ein Satz Pull-Apart liegen – die Stange bleibt ja geladen.
+ * ------------------------------------------------------------------ */
+
+const RUEST_FAM = {
+  barbell: 'lh', hipbar: 'lh',          // dieselbe Stange, nur einmal mit Polster
+  dumbbells: 'kh2',                     // beide Kurzhanteln auf dasselbe Gewicht
+  goblet: 'kh1', onehand: 'kh1', plate: 'kh1',
+  backpack: 'ruck',
+};
+const FAM_LABEL = { lh: 'Stange', kh2: 'Kurzhanteln', kh1: 'Kurzhantel', ruck: 'Rucksack' };
+
+/** Was für eine Übung aufzubauen ist – oder null, wenn nichts zu schleppen ist. */
+function setupOf(exId, kg) {
+  const ex = EX_BY_ID.get(exId);
+  const fam = ex && RUEST_FAM[ex.equip];
+  if (!fam || !kg) return null;   // Klimmzüge stehen mit 0 kg im Rucksack: nichts zu tun
+  return { fam, kg, label: FAM_LABEL[fam], note: ex.weightNote };
+}
+
+/**
+ * Übungen einer Einheit nach Rüstaufwand ordnen.
+ *
+ * Die Reihenfolge der Geräte bleibt die des Plans – das erste Vorkommen eines
+ * Geräts bestimmt seinen Platz. Damit steht vorn weiter, was der Generator nach
+ * vorn gestellt hat (schwere Grundübung zuerst), und nur das Verstreute rückt
+ * zusammen.
+ */
+const ruestCache = new Map();   // "Nummer|Modus|Übungen" -> Reihenfolge der IDs
+
+/**
+ * Wie ruestOrder(), aber die einmal gefundene Reihenfolge bleibt stehen.
+ *
+ * Ohne das springen die Karten unter dem Finger: Wer das Gewicht einer Übung
+ * ändert, ändert damit ihren Platz in der Sortierung – und schon steht die
+ * Übung, die man gerade bearbeitet, zwei Zeilen weiter oben. Die Reihenfolge
+ * ist ein Plan für diese Einheit, keine ständig nachgeführte Sortierung; sie
+ * wird beim ersten Ansehen festgelegt und beim nächsten Laden neu berechnet.
+ *
+ * Der Schlüssel enthält die Übungen selbst: Hakt jemand eine Verletzung an,
+ * fällt eine Übung weg – dann ist es eine andere Einheit und wird neu sortiert.
+ */
+function ruestOrderStabil(items, n, mode) {
+  const key = `${n}|${mode}|${items.map((i) => i.id).join(',')}`;
+  const gemerkt = ruestCache.get(key);
+  if (gemerkt) {
+    const byId = new Map(items.map((i) => [i.id, i]));
+    return gemerkt.map((id) => byId.get(id));
+  }
+  const out = ruestOrder(items);
+  ruestCache.set(key, out.map((i) => i.id));
+  return out;
+}
+
+function ruestOrder(items) {
+  const platz = new Map();
+  const geladen = [];
+  items.forEach((it, i) => {
+    const s = setupOf(it.id, workingWeight(it.id));
+    if (!s) return;
+    if (!platz.has(s.fam)) platz.set(s.fam, i);
+    geladen.push({ it, s, i });
+  });
+  if (geladen.length < 3) return items;   // darunter gibt es nichts zu gewinnen
+  const sortiert = geladen.slice().sort((a, b) => (
+    platz.get(a.s.fam) - platz.get(b.s.fam) || b.s.kg - a.s.kg || a.i - b.i));
+  const out = items.slice();
+  geladen.forEach((g, k) => { out[g.i] = sortiert[k].it; });
+  return out;
+}
+
+/** Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist. */
+function ruestHint(n, mode, list, i) {
+  if (mode !== 'db') return '';
+  const cur = setupOf(list[i].id, usedWeight(n, mode, list[i].id));
+  if (!cur) return '';
+  let prev = null;
+  for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, usedWeight(n, mode, list[k].id));
+  const kg = `${fmtNum(cur.kg)} kg${cur.note ? ` ${cur.note}` : ''}`;
+  if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
+    return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen</div>`;
+  }
+  if (prev && prev.fam === cur.fam) {
+    return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}</div>`;
+  }
+  return `<div class="ruest">Aufbauen: ${esc(cur.label)} auf ${esc(kg)}</div>`;
 }
 
 /**
@@ -428,6 +546,7 @@ const restTime = document.getElementById('restTime');
 const restNext = document.getElementById('restNext');
 const restFill = document.getElementById('restFill');
 const restLive = document.getElementById('restLive');
+const restLabel = document.getElementById('restLabel');
 
 /** Ansage für Screenreader – nur zum Anfang und Ende, nicht im Sekundentakt. */
 function announce(text) {
@@ -437,6 +556,17 @@ function announce(text) {
 let restTicker = null;
 let wakeLock = null;
 let restArmed = false;   // liegt das Pausensignal schon auf der Audio-Uhr?
+
+/**
+ * Vorwarnung vor dem Ende der Pause.
+ *
+ * Zwischen dem Signal und dem ersten Wiederholung liegen sonst noch der Weg zur
+ * Hantel und das Zurechtlegen – die Pause ist damit in Wahrheit länger als
+ * geplant. Fünf Sekunden vorher kommt deshalb ein leiserer, tieferer Ton, und
+ * die Leiste schaltet auf "Fertig machen" um. Beim Signal selbst steht man dann
+ * schon an der Stange.
+ */
+const VORLAUF = 5;
 
 /**
  * Ton zu einem Ereignis – Training starten, Satz abhaken, Übung fertig,
@@ -535,7 +665,7 @@ function armRest() {
   }
   const left = (rest.endsAt - Date.now()) / 1000;
   if (store.getState().sound) {
-    restArmed = scheduleSound('rest', left);
+    restArmed = scheduleSound([['ready', left - VORLAUF], ['rest', left]]);
   } else {
     cancelSound();
     restArmed = false;
@@ -580,6 +710,7 @@ function endRest(withSignal) {
   holdScreen(false);
   store.setRest(null);
   restBar.hidden = true;
+  restBar.classList.remove('ready');
   document.body.classList.remove('resting');
   // Das Signal liegt längst auf der Audio-Uhr und hat gerade selbst gespielt –
   // hier noch einmal anzustoßen, gäbe ein Echo. Nur wenn das Voraussetzen nicht
@@ -618,6 +749,10 @@ function tickRest() {
 
   restBar.hidden = false;
   document.body.classList.add('resting');
+  // Die letzten Sekunden gehören dem Weg zur Hantel, nicht mehr der Pause.
+  const gleich = left <= VORLAUF;
+  restBar.classList.toggle('ready', gleich);
+  if (restLabel) restLabel.textContent = gleich ? 'Fertig machen' : 'Pause';
   restTime.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   restNext.textContent = rest.next;
   restFill.style.width = `${Math.max(0, (left / rest.total) * 100)}%`;
@@ -628,9 +763,8 @@ function tickRest() {
 /** Laufzeit des Trainings im Kopfbereich mitzählen, ohne neu zu rendern. */
 setInterval(() => {
   const badge = document.getElementById('sessionBadge');
-  const sess = store.getState().session;
-  if (!badge || !sess) return;
-  const secs = Math.floor((Date.now() - sess.startedAt) / 1000);
+  if (!badge || !store.getState().session) return;
+  const secs = store.sessionSeconds();
   badge.textContent = `⏱ ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 }, 1000);
 
@@ -664,6 +798,7 @@ const ui = {
   tab: TABS.includes(store.getState().tab) ? store.getState().tab : 'dashboard',
   workoutNo: defaultWorkoutNo(),
   openEx: new Set(),
+  openDetail: new Set(),   // Übungen, deren ausführliche Erklärung offen steht
   openInjury: new Set(),
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
@@ -700,10 +835,14 @@ function weiterZurNaechsten(n, mode) {
 /**
  * Fortschrittsleiste über der Fokus-Ansicht.
  *
- * Ein Kasten je Übung, darunter ein Feld je Satz. Damit steht die ganze Einheit
+ * Ein Feld je Satz, in Gruppen zu je einer Übung. Damit steht die ganze Einheit
  * auf einen Blick da: was schon steht, wo man gerade ist, was noch kommt – und
- * ein Tipp auf einen Kasten springt dorthin. Die Breite folgt der Satzzahl,
+ * ein Tipp auf eine Gruppe springt dorthin. Die Breite folgt der Satzzahl,
  * sonst sähe eine Übung mit drei Sätzen so groß aus wie eine mit einem.
+ *
+ * Über den Sätzen stand zuerst noch ein Balken je Übung. Der sagte nichts, was
+ * die Felder darunter nicht schon sagen – drei grüne Felder sind eine fertige
+ * Übung. Die laufende Übung erkennt man jetzt an den umrandeten Feldern.
  */
 function progressStrip(n, mode, w, cur) {
   return `
@@ -717,7 +856,6 @@ function progressStrip(n, mode, w, cur) {
                 style="flex-grow:${v.sets}" data-act="focus-goto" data-i="${k}"
                 aria-label="Übung ${k + 1}, ${esc(v.name)}, ${done} von ${v.sets} Sätzen"
                 aria-current="${k === cur}">
-          <span class="prog-cap"></span>
           <span class="prog-sets">
             ${Array.from({ length: v.sets }, (_, x) => `<i class="${x < done ? 'on' : ''}"></i>`).join('')}
           </span>
@@ -767,9 +905,9 @@ function renderFocus() {
 
     <h2 class="focus-name">${esc(it.name)}</h2>
     <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
-    <div class="intensity">${esc(INTENSITY)}</div>
 
     ${kg === null ? '' : `
+      ${ruestHint(n, mode, w.ex, i)}
       <div class="ex-weight focus-weight">
         <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
                 aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo weniger">−</button>
@@ -791,6 +929,7 @@ function renderFocus() {
     </div>
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
+    ${detailBlock(it)}
 
 
     <div class="btn-row nav">
@@ -853,7 +992,7 @@ function renderOverview() {
         <button type="button" class="btn btn-block" data-act="backup-now" style="margin-top:10px">Jetzt sichern</button></div>` : ''}
 
       <header class="ov-top">
-        <div class="hero-eyebrow">${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
+        <div class="hero-eyebrow">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${esc(when)} · Workout ${w.n} von ${PLAN.length}</div>
         <h2 class="hero-title">${esc(fmtDate(date, true))}</h2>
         <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze${
           shift ? ` · Plan ${shift > 0 ? '+' : '−'}${esc(plural(Math.abs(shift), 'Tag', 'Tage'))}` : ''}</div>
@@ -892,6 +1031,105 @@ function renderOverview() {
   const host = document.getElementById('bodyMap');
   if (host) mountBody(host, muscles, primary);
 }
+
+/* ------------------------------------------------------------------ *
+ * Erster Start
+ *
+ * Die App ist zum Weitergeben gedacht: ein Link, und wer ihn öffnet, hat
+ * dieselbe App. Nur weiß er beim ersten Öffnen nicht, was er vor sich hat –
+ * ein Plan über 84 Einheiten mit fremden Startgewichten. Deshalb einmal eine
+ * Seite, die das in vier Sätzen erklärt und nach dem Namen fragt.
+ *
+ * Der Name ist kein Konto. Es gibt keinen Server, keine Anmeldung und nichts
+ * zu synchronisieren; er steht in diesem Browser und sonst nirgends. Genau das
+ * sagt die Seite auch – sonst wartet jemand darauf, dass sein Training bei
+ * jemand anderem auftaucht.
+ * ------------------------------------------------------------------ */
+
+function needsWelcome() {
+  const s = store.getState();
+  return !s.greeted && !Object.keys(s.log).length;
+}
+
+function renderWelcome() {
+  view.innerHTML = `
+    <section class="ov welcome">
+      <header class="ov-top">
+        <div class="hero-eyebrow">Trainingsplan</div>
+        <h2 class="hero-title">Willkommen</h2>
+        <div class="hero-sub">84 Einheiten über 21 Wochen</div>
+      </header>
+
+      <div class="card">
+        <p class="small">Jede Einheit steht fertig da: Übungen, Sätze, Wiederholungen,
+          Pausen – und zu jeder Übung eine vorgeführte Bewegung, die sich drehen lässt.
+          Trainieren kannst du sie mit <strong>Hanteln</strong> oder als
+          <strong>Bodyweight</strong>-Variante ganz ohne Geräte; der Umschalter oben
+          wechselt jederzeit.</p>
+        <p class="small">Die App läuft offline und braucht kein Konto. Alles, was du
+          einträgst, bleibt in diesem Browser – niemand sonst sieht es, und es geht
+          auch nirgendwohin. Sicherungen machst du unter <em>Mehr</em> selbst.</p>
+      </div>
+
+      <div class="card">
+        <div class="lbl">Wie heißt du?</div>
+        <div class="hint">Nur für die Anzeige. Kannst du auch leer lassen.</div>
+        <input type="text" id="nameInput" class="name-input" maxlength="24"
+               autocomplete="name" placeholder="Dein Name" aria-label="Dein Name">
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary btn-block" data-act="welcome-go">Los geht’s</button>
+        </div>
+      </div>
+
+      <p class="small muted">Tipp: „Zum Startbildschirm hinzufügen" macht daraus ein
+        eigenes Symbol, das ohne Browserleiste startet.</p>
+    </section>`;
+  const feld = document.getElementById('nameInput');
+  if (feld) {
+    feld.value = store.getState().name || '';
+    // Enter statt Knopf – auf dem Handy steht dort ohnehin „Fertig".
+    feld.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); willkommenFertig(); }
+    });
+  }
+}
+
+/** Link in die Zwischenablage – mit Rückfallweg für ältere Browser. */
+function linkKopieren(url) {
+  const fertig = () => toast('Link kopiert – jetzt einfügen und abschicken');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(fertig).catch(() => toast(url));
+    return;
+  }
+  const feld = document.createElement('textarea');
+  feld.value = url;
+  feld.setAttribute('readonly', '');
+  feld.style.cssText = 'position:fixed;top:-100px';
+  document.body.appendChild(feld);
+  feld.select();
+  try { document.execCommand('copy'); fertig(); } catch { toast(url); }
+  feld.remove();
+}
+
+function willkommenFertig() {
+  const feld = document.getElementById('nameInput');
+  const name = (feld ? feld.value : '').trim().slice(0, 24);
+  store.setSetting('name', name);
+  store.setSetting('greeted', true);
+  render();
+  toast(name ? `Los geht’s, ${name} 💪` : 'Los geht’s 💪');
+}
+
+/** Adresse der App zum Weitergeben – ohne Anker und ohne Suchteil. */
+function appURL() {
+  const u = new URL(location.href);
+  u.hash = '';
+  u.search = '';
+  return u.href.replace(/index\.html$/, '');
+}
+
+const SHARE_TEXT = 'Mein Trainingsplan als App: 84 Einheiten, mit Hanteln oder ohne, '
+  + 'mit vorgeführten Bewegungen und Pausentimer. Läuft im Browser, offline, ohne Konto.';
 
 function renderDashboard() {
   const n = ui.workoutNo;
@@ -1017,6 +1255,7 @@ function renderDashboard() {
           ${open ? `<div class="ex-fig" data-pattern="${esc(it.pattern)}"
                data-weight="${it.weight !== null}" data-gear="${esc(it.gear || '')}"></div>` : ''}
           <div class="cue">${esc(it.cue)}</div>
+          ${detailBlock(it)}
           <div class="ex-facts">
             <span>Pause ${Math.floor(restFor(it) / 60)}:${String(restFor(it) % 60).padStart(2, '0')} min</span>
             <span>${it.sets} Sätze × ${esc(it.reps)} Wdh.</span>
@@ -1239,22 +1478,26 @@ function renderStats() {
     'Noch kein Volumen erfasst. Nur Hantel-Einheiten tragen Kilo bei.');
 }
 
-/* ------------------------------------------------------------------ *
- * Wie schwer?
+/**
+ * Ausführliche Erklärung zu einer Übung, aufklappbar.
  *
- * Die Zahl, die am meisten über das Ergebnis entscheidet, stand bisher
- * nirgends: nicht wie viele Sätze, sondern wie nah am Limit. Zwei Sätze
- * Wortlaut, dafür an der Stelle, an der man gerade steht – im letzten Satz
- * einer Übung darf mehr riskiert werden als im ersten, weil danach nichts
- * mehr kommt, was darunter leidet.
- * ------------------------------------------------------------------ */
-
-// Eine Ansage für alle Sätze, nicht zwei. Vorher stand über dem letzten Satz
-// "bis kurz vors Versagen" – das ist weg. Der Ertrag gegenüber ein, zwei
-// Wiederholungen Reserve ist klein, die Ermüdung nicht, und bei einer
-// Langhantel ohne Ablage ist das Versagen die eine Stellung, aus der man
-// allein schlecht wieder herauskommt.
-const INTENSITY = 'So schwer wählen, dass noch 1–2 Wiederholungen drin wären – nicht mehr.';
+ * Der kurze Hinweis über der Bewegung sagt, was zu tun ist. Alles, was man
+ * einmal wissen will und dann nicht mehr – welcher Griff, wie der Aufbau geht,
+ * was schiefgeht –, steht hier darunter und nimmt zugeklappt eine Zeile weg.
+ */
+function detailBlock(it) {
+  if (!it.detail || !it.detail.length) return '';
+  const offen = ui.openDetail.has(it.id);
+  return `
+    <button type="button" class="detail-toggle ${offen ? 'on' : ''}" data-act="toggle-detail"
+            data-ex="${it.id}" aria-expanded="${offen}">
+      ${offen ? 'Weniger' : `Mehr zur Ausführung · ${it.detail.length} Punkte`}
+      <span class="chev">▼</span>
+    </button>
+    ${offen ? `<div class="detail">${it.detail.map(([titel, text]) => `
+      <div class="detail-h">${esc(titel)}</div>
+      <p>${esc(text)}</p>`).join('')}</div>` : ''}`;
+}
 
 /** Wiederholungsbereich um den Bodyweight-Aufschlag verschoben. */
 function repsLabel(it, mode) {
@@ -1945,6 +2188,33 @@ function renderSettings() {
       </div>
     </div>
 
+    <div class="section-title">Teilen</div>
+    <div class="card">
+      <div class="small muted">Schick den Link weiter – wer ihn öffnet, hat dieselbe App:
+        derselbe Plan, dieselben Bewegungen, offline und ohne Konto. Jeder trägt seinen
+        eigenen Namen ein und trainiert für sich; ihr seht nichts voneinander, und es
+        wird auch nichts irgendwohin übertragen.</div>
+      ${location.protocol.startsWith('http') ? `
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary btn-block" data-act="share-link">Link teilen</button>
+      </div>
+      <div class="btn-row nav">
+        <button type="button" class="btn" data-act="share-whatsapp">WhatsApp</button>
+        <button type="button" class="btn" data-act="copy-link">Link kopieren</button>
+      </div>
+      <div class="small muted" style="word-break:break-all">${esc(appURL())}</div>`
+      : `<div class="small muted">Diese Fassung läuft als Datei auf deinem Gerät und hat keine
+         Adresse zum Weitergeben – schick stattdessen die Datei selbst.</div>`}
+      <div class="switch-row" style="margin-top:12px">
+        <div>
+          <div class="lbl">Dein Name</div>
+          <div class="hint">Steht auf der Startseite. Bleibt in diesem Browser.</div>
+        </div>
+        <input type="text" class="name-input schmal" maxlength="24" value="${esc(s.name || '')}"
+               data-act="name-input" aria-label="Dein Name" placeholder="—">
+      </div>
+    </div>
+
     <div class="section-title">Töne und Hinweise</div>
     <div class="card">
       <div class="small muted">Die Töne werden erzeugt, nicht geladen – sie funktionieren also
@@ -2083,6 +2353,7 @@ function renderSettings() {
 
 const RENDERERS = {
   dashboard: () => {
+    if (needsWelcome()) { renderWelcome(); return; }
     const sess = store.getState().session;
     if (ui.focus && sess && sess.n === ui.workoutNo) renderFocus();
     else if (ui.listView) renderDashboard();
@@ -2407,6 +2678,12 @@ view.addEventListener('click', (e) => {
       ui.listView = false;
       render();
       break;
+    case 'toggle-detail': {
+      const id = t.dataset.ex;
+      if (ui.openDetail.has(id)) ui.openDetail.delete(id); else ui.openDetail.add(id);
+      render();
+      break;
+    }
     case 'focus-goto':
       ui.focusIdx = Number(t.dataset.i);
       render();
@@ -2480,6 +2757,28 @@ view.addEventListener('click', (e) => {
       store.setSetting('restSeconds', Number(t.dataset.sec));
       render();
       break;
+    case 'welcome-go':
+      willkommenFertig();
+      break;
+    case 'share-link': {
+      const url = appURL();
+      if (navigator.share) {
+        // Der Systemdialog braucht die Berührung, in der wir gerade stecken –
+        // deshalb hier und nicht nach einem await.
+        navigator.share({ title: 'Workout', text: SHARE_TEXT, url })
+          .catch(() => {});   // Abbrechen ist kein Fehler
+      } else {
+        linkKopieren(url);
+      }
+      break;
+    }
+    case 'share-whatsapp':
+      window.open(`https://wa.me/?text=${encodeURIComponent(`${SHARE_TEXT} ${appURL()}`)}`,
+        '_blank', 'noopener');
+      break;
+    case 'copy-link':
+      linkKopieren(appURL());
+      break;
     case 'toggle-sound': {
       initAudio();
       const on = !store.getState().sound;
@@ -2523,9 +2822,9 @@ view.addEventListener('click', (e) => {
     case 'test-sound': {
       // Der Reihe nach, damit man hört, was wofür steht.
       initAudio();
-      ['start', 'set', 'exercise', 'rest', 'done']
+      ['start', 'set', 'exercise', 'ready', 'rest', 'done']
         .forEach((name, i) => setTimeout(() => playSound(name), i * 900));
-      toast('Start · Satz · Übung fertig · Pause vorbei · Workout komplett');
+      toast('Start · Satz · Übung fertig · fertig machen · Pause vorbei · Workout komplett');
       break;
     }
     case 'toggle-ex-rest':
@@ -2626,6 +2925,8 @@ view.addEventListener('input', (e) => {
   if (t.dataset.act === 'weight-input') {
     const kg = parseFloat(t.value.replace(',', '.'));
     if (!Number.isNaN(kg)) store.setWeight(t.dataset.ex, kg);
+  } else if (t.dataset.act === 'name-input') {
+    store.setSetting('name', t.value.trim().slice(0, 24));
   } else if (t.dataset.act === 'set-input') {
     const n = ui.workoutNo;
     const mode = store.workoutMode(n);
@@ -2643,9 +2944,14 @@ view.addEventListener('input', (e) => {
 let lastSeenDay = todayISO();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') {
+    // Die Trainingsuhr steht, solange die App weg ist – es sei denn, es läuft
+    // eine Pause. Die gehört zum Training, auch wenn man dabei aufs Handy
+    // verzichtet.
+    if (!store.getState().rest) store.clockStop();
     store.flush();
     return;
   }
+  store.clockStart();
   tickRest(); // war das Handy gesperrt, ist die Pause womöglich abgelaufen
   // Läuft sie noch, das Signal neu auflegen: Ein im Hintergrund angehaltener
   // AudioContext verliert seine vorgemerkten Töne.
@@ -2658,7 +2964,10 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-window.addEventListener('pagehide', store.flush);
+window.addEventListener('pagehide', () => {
+  if (!store.getState().rest) store.clockStop();
+  store.flush();
+});
 
 // Offline-Betrieb. Nur über http(s) – unter file:// gibt es keine Service
 // Worker, und die gebündelte Einzeldatei braucht sie ohnehin nicht.
@@ -2696,6 +3005,10 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 
 const missedAtStart = catchUpPlan();
 render();
+store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit
+// Neu geladen und sichtbar: Die Uhr eines laufenden Trainings muss wieder
+// anlaufen. Ohne diese Zeile stünde sie bis zum nächsten Wegschalten still.
+if (!document.hidden) store.clockStart();
 tickRest(); // eine Pause, die einen Neustart der Seite überdauert hat
 if (missedAtStart) {
   toast(`↷ ${plural(missedAtStart, 'Tag', 'Tage')} verpasst – Plan nachgerückt`);
