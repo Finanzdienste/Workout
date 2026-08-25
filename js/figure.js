@@ -199,6 +199,17 @@ export const PATTERNS = {
       { lean: 62, armL: A(62, 10, 10), armR: A(2, 10, 94), leg: L(8, 6, 22) },
     ],
   },
+  rowbar: {
+    // Beidarmig vorgebeugt an der Langhantel. Dieselbe Rumpfneigung wie beim
+    // einarmigen Rudern – nur stützt sich hier nichts ab, beide Arme ziehen.
+    // Genau das ist auch der Unterschied für den unteren Rücken: Er hält die
+    // Neigung allein, ohne die abgestützte Hand.
+    label: 'Langhantelrudern', view: [24, -6],
+    poses: [
+      { lean: 62, arm: A(62, 8, 6), leg: L(8, 6, 22) },
+      { lean: 62, arm: A(2, 10, 94), leg: L(8, 6, 22) },
+    ],
+  },
   pullup: {
     label: 'Klimmzug', anchor: 'bar', bar: true, float: true,
     // arm.p etwas über 180: die Arme greifen nach oben und leicht nach hinten,

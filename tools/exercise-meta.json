@@ -216,32 +216,34 @@
  "einarmiges-kh-rudern": {
   "group": "Rücken",
   "tier": 1,
-  "dbEquip": "Kurzhantel",
+  "dbEquip": "Langhantel",
   "bwEquip": "Loop-Band",
-  "dbCue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen.",
-  "bwCue": "Einen Fuß auf das Band, vorgebeugt wie mit der Hantel, das andere Ende in der Hand derselben Seite. Ellenbogen eng am Körper nach hinten ziehen, oben das Schulterblatt zusammenziehen. Vorher standen hier Inverted Rows unter einer niedrigen Stange – die gibt es unterwegs nicht, und unter einer Tischkante lässt sich die einzige Steigerung (Füße erhöhen) nicht ausführen. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
+  "dbCue": "Hüfte nach hinten, Rumpf etwa 60° vorgeneigt, Rücken flach und dort halten. Stange am Schienbein entlang zum Bauchnabel ziehen, Ellenbogen eng am Körper, oben die Schulterblätter zusammen. Nicht mit dem Rumpf hochreißen – die Neigung bleibt die ganze Zeit gleich. Zwischen den Sätzen abstellen, nicht fallen lassen.",
+  "bwCue": "Beide Füße auf das Band, hüftbreit, Enden in beiden Händen. Rumpf etwa 60° vorgeneigt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben die Schulterblätter zusammen. Vorher standen hier Inverted Rows unter einer niedrigen Stange – die gibt es unterwegs nicht. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
   "dbRest": 150,
   "bwRest": 150,
-  "dbWeight": 16,
-  "dbStep": 2,
-  "weightNote": "je Hand",
-  "dbPattern": "row",
+  "dbWeight": 35,
+  "dbStep": 5,
+  "weightNote": "Stange gesamt",
+  "dbPattern": "rowbar",
   "dbShares": {
    "lats": 1.0,
    "biceps": 0.5,
    "traps": 0.5,
    "rearDelts": 0.35
   },
-  "bwPattern": "row",
+  "bwPattern": "rowbar",
   "bwShares": {
    "lats": 1.0,
    "biceps": 0.5,
    "traps": 0.5,
    "rearDelts": 0.35
   },
-  "equip": "onehand",
-  "bwName": "Einarmiges Band-Rudern",
-  "bwReps": "8–15 je Seite"
+  "equip": "barbell",
+  "bwName": "Vorgebeugtes Band-Rudern",
+  "bwReps": "10–20",
+  "name": "Langhantelrudern",
+  "reps": "8–12"
  },
  "chin-ups": {
   "group": "Rücken/Bizeps",

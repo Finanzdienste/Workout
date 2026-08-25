@@ -309,9 +309,9 @@ und Steigerungsvorschlag holen ihn dort.
 
 | Schritt | Übungen | warum |
 | --- | --- | --- |
-| 5 kg | Kreuzheben, Hip Thrust | Langhantel: eine 2,5-kg-Scheibe je Seite |
+| 5 kg | Kreuzheben, Hip Thrust, Rudern | Langhantel: eine 2,5-kg-Scheibe je Seite |
 | 2,5 kg | Goblet Squats, SZ-Curls | schwer, beidhändig, gröbere Scheiben |
-| 2 kg | Floor Press, KH-Rudern, Wadenheben | je Hand gerechnet, also 2 kg pro Hantel |
+| 2 kg | Floor Press, Wadenheben | je Hand gerechnet, also 2 kg pro Hantel |
 | 1,25 kg | gewichtete Liegestütze, Crunches | Zusatzgewicht auf dem Rücken |
 | 1 kg | Reverse Fly, Seitheben, Trizepsstrecker | kleine Muskeln, kleine Hanteln |
 
@@ -1033,16 +1033,17 @@ Squat und Hip Thrust stehen mit 20 kg ab der ersten Einheit am Anschlag**, weil
 enthalten eine dieser drei. Ein Satz, der im Wochenvolumen voll zählt und weit
 von der Anstrengungsvorgabe entfernt liegt, trägt real fast nichts bei.
 
-Zwei Übungen sind deshalb auf die Stange umgezogen. Beide sind **reine
-Datenänderungen**: gleiche Übung, gleicher Schlüssel, gleiche Muskelanteile –
-also kein neuer Planlauf, keine neue Figur, keine neuen Verletzungseinträge.
-Der Generator rechnet in *Sätzen*, nicht in Kilo; die Stange ändert nicht den
+Drei Übungen sind deshalb auf die Stange umgezogen. Alle drei behalten
+**Schlüssel und Muskelanteile** – also kein neuer Planlauf, keine neuen
+Verletzungseinträge, und die eingetragenen Gewichte bleiben stehen. Der
+Generator rechnet in *Sätzen*, nicht in Kilo; die Stange ändert nicht den
 Plan, sondern was ein Satz wert ist.
 
 | | vorher | jetzt |
 | --- | --- | --- |
 | Rumänisches Kreuzheben | 12 kg je Hand = **24 kg** | **40 kg**, Stange gesamt |
 | Hip Thrust | eine Kurzhantel, **20 kg** | **40 kg**, Stange gesamt |
+| Einarmiges KH-Rudern → **Langhantelrudern** | 16 kg, einarmig | **35 kg**, Stange gesamt |
 
 Beim Hip Thrust zeichnete die App längst eine Stange über der Hüfte
 (`equip: 'hipbar'`) – sie war nur mit einer Kurzhantel beladen.
@@ -1054,13 +1055,27 @@ bis 70 kg auf einen Geschossboden. Der Langhantel-Floor-Press auf zwei Stühlen
 ist ein Unfall mit Ansage. Die beiden umgestellten Übungen sind dagegen leise:
 Beim Kreuzheben berührt die Stange den Boden nur vor und nach dem Satz – sie
 geht bis Schienbeinmitte und wieder hoch –, beim Hip Thrust bleibt sie die
-ganze Zeit auf der Hüfte. Nachgemessen kommen die beiden außerdem in **keiner
-einzigen** der 84 Einheiten gemeinsam vor: einmal laden pro Einheit, mehr
-nicht.
+ganze Zeit auf der Hüfte, beim Rudern hängt sie am gestreckten Arm. Nachgemessen
+kommen die drei außerdem in **keiner einzigen** der 84 Einheiten gemeinsam vor:
+einmal laden pro Einheit, mehr nicht.
 
-Offen bleibt das waagerechte Ziehen (2,86 Sätze gegen 7,14 senkrecht, siehe
-oben). Ein Langhantelrudern würde das schließen, braucht aber ein eigenes
-Bewegungsbild – das jetzige ist einarmig.
+Das Rudern hat als einzige der drei ein eigenes Bewegungsbild bekommen
+(`rowbar`): beidarmig vorgebeugt statt einarmig abgestützt. Genau das ist auch
+der Unterschied für den unteren Rücken – er hält die Neigung jetzt allein. Die
+Fassung für unterwegs zieht mit, damit Bild und Bewegung zusammenpassen:
+beide Füße auf das Band, beide Hände ziehen.
+
+**Die Sperrlisten stimmten hier schon.** Bandscheibenvorfall LWS, Hexenschuss,
+HWS-Vorfall und Leistenbruch sperren das Rudern längst – also genau die
+Beschwerden, bei denen „vorgebeugt ziehen" das Problem ist. Beim Kreuzheben
+war das nicht so, siehe unten.
+
+**Was die Stange *nicht* ändert:** das Verhältnis von senkrechtem zu
+waagerechtem Zug. Das steht weiter bei 7,14 zu 2,86 Sätzen, denn der Plan zählt
+Sätze, und an der Zahl der Rudersätze ändert eine schwerere Stange nichts. Was
+sich ändert, ist, was in diesen 2,86 Sätzen passiert: 35 kg beidarmig statt
+16 kg einarmig, und ein Zug, der wachsen kann statt bei 20 kg Kurzhantel zu
+enden.
 
 ### Sieben Übungen, die es vorher nicht gab
 
@@ -1261,7 +1276,7 @@ was der Knopf tut. Ohne `preventScroll` springt die Seite dabei.
 
 Die Pause meldet sich mit Ton und Vibration – lautlos braucht es eine Ansage.
 Eine eigene Live-Region nennt Beginn („Pause 2:00 Minuten, danach Satz 2 von 3,
-Einarmiges KH-Rudern") und Ende, aber nicht die laufende Zeit: im Sekundentakt
+Langhantelrudern") und Ende, aber nicht die laufende Zeit: im Sekundentakt
 vorgelesen wäre der Timer unbenutzbar. Die Tabs verweisen mit `aria-controls`
 auf die Ansicht, die Ansicht mit `aria-labelledby` zurück auf den aktiven Tab.
 
@@ -1402,7 +1417,7 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 | Einbeiniger Sliding Leg Curl | Einbeiniger Sliding Leg Curl | Handtuch, glatter Boden |
 | Füße-erhöhte Liegestütze | Füße-erhöhte Liegestütze | Stuhl oder feste Kiste |
 | Floor Press | Liegestütze | Ohne Gerät |
-| Einarmiges KH-Rudern | Einarmiges Band-Rudern | Loop-Band |
+| Langhantelrudern | Vorgebeugtes Band-Rudern | Loop-Band |
 | Hip Thrust | Einbeiniger Hip Thrust | Stuhl- oder Sofakante |
 | Reverse Fly | Vorgebeugtes Band-Reverse-Fly | Loop-Band |
 | Pull-ups | Pull-ups | Klimmzugstange (+ Stuhl) |

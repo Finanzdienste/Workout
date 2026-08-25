@@ -600,17 +600,17 @@ export const EXERCISES = [
   {
     "id": "einarmiges-kh-rudern",
     "group": "Rücken",
-    "weight": 16,
-    "step": 2,
-    "weightNote": "je Hand",
-    "equip": "onehand",
+    "weight": 35,
+    "step": 5,
+    "weightNote": "Stange gesamt",
+    "equip": "barbell",
     "db": {
-      "name": "Einarmiges KH-Rudern",
-      "reps": "8–12 je Seite",
-      "equip": "Kurzhantel",
-      "cue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen.",
+      "name": "Langhantelrudern",
+      "reps": "8–12",
+      "equip": "Langhantel",
+      "cue": "Hüfte nach hinten, Rumpf etwa 60° vorgeneigt, Rücken flach und dort halten. Stange am Schienbein entlang zum Bauchnabel ziehen, Ellenbogen eng am Körper, oben die Schulterblätter zusammen. Nicht mit dem Rumpf hochreißen – die Neigung bleibt die ganze Zeit gleich. Zwischen den Sätzen abstellen, nicht fallen lassen.",
       "rest": 150,
-      "pattern": "row",
+      "pattern": "rowbar",
       "shares": {
         "lats": 1.0,
         "biceps": 0.5,
@@ -625,12 +625,12 @@ export const EXERCISES = [
       ]
     },
     "bw": {
-      "name": "Einarmiges Band-Rudern",
-      "reps": "8–15 je Seite",
+      "name": "Vorgebeugtes Band-Rudern",
+      "reps": "10–20",
       "equip": "Loop-Band",
-      "cue": "Einen Fuß auf das Band, vorgebeugt wie mit der Hantel, das andere Ende in der Hand derselben Seite. Ellenbogen eng am Körper nach hinten ziehen, oben das Schulterblatt zusammenziehen. Vorher standen hier Inverted Rows unter einer niedrigen Stange – die gibt es unterwegs nicht, und unter einer Tischkante lässt sich die einzige Steigerung (Füße erhöhen) nicht ausführen. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
+      "cue": "Beide Füße auf das Band, hüftbreit, Enden in beiden Händen. Rumpf etwa 60° vorgeneigt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben die Schulterblätter zusammen. Vorher standen hier Inverted Rows unter einer niedrigen Stange – die gibt es unterwegs nicht. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
       "rest": 150,
-      "pattern": "row",
+      "pattern": "rowbar",
       "shares": {
         "lats": 1.0,
         "biceps": 0.5,
