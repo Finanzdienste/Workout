@@ -1078,6 +1078,17 @@ das, weil er als einzige Drückübung mit fast allem zusammen liegt: 13-mal mit
 dem Hip Thrust, 6-mal mit dem Kreuzheben, 3-mal mit dem Rudern. In den übrigen
 62 Einheiten wird die Stange einmal geladen und nicht mehr angefasst.
 
+**Alle 38 Muster-Gerät-Kombinationen einmal angesehen.** Nicht gerechnet,
+sondern gerendert und geprüft – Start- und Endstellung, in der Ansicht, die die
+App benutzt. Vier Dinge stimmten nicht, und drei davon lagen an einer Zahl:
+
+| Was | Warum es falsch aussah |
+| --- | --- |
+| **Das Band** hing zwischen den Händen | Richtig ist das nur beim Pull-Apart und beim Reverse Fly. Bei Curls, Seitheben, Schulterdrücken, Rudern und Überkopfstrecken **steht man darauf** – die Figur sah aus, als hielte sie ein schlaffes Springseil vor sich. Das Band geht jetzt von jeder Hand hinunter zum Fuß; welche Fassung gilt, steht als `band: 'hands'` am Muster. |
+| **Die Kurzhanteln** waren 19 cm lang | Zu kurz: Die beiden Scheiben überdeckten sich aus den meisten Blickwinkeln zu einem einzigen weißen Fleck. Jetzt 29 cm. |
+| **Die Scheibe beim Crunch** war unsichtbar | Sie lag 0,155 vor der Brust und damit hinter den gefalteten Armen; übrig blieb ein weißer Keil. Jetzt 0,26 – sie liegt sichtbar auf der Brust. |
+| **Das gebeugte Knie** war von vorn nicht zu sehen | Und damit war der ganze Unterschied zur Schwesterübung weg. Das Wadenheben mit gebeugtem Knie steht jetzt seitlich. |
+
 **Die Stange sah lange nicht wie eine Stange aus.** Sie war mit `half = 0.34`
 gerade **75 cm lang** – die Maße einer Kurzhantelstange. Die Scheiben klebten
 damit an den Händen, weil sie größer waren als das Stück Stange, das überhaupt

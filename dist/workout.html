@@ -2561,11 +2561,13 @@ const PATTERNS = {
   },
   thrust: {
     // Schultern am Boden, Hüfte hoch bis Rumpf und Oberschenkel eine Linie sind
-    // Blickwinkel weiter herumgedreht als beim einbeinigen Zwilling: Sobald
-    // eine Stange über der Hüfte liegt, muss sie waagerecht dastehen. Bei
-    // yaw 20 / pitch -30 lief sie schräg durch den Körper, eine Scheibe oben,
-    // eine unten.
-    label: 'Hüftstreckung', lie: 'supine', view: [62, -8],
+    // Der Blickwinkel muss zwei Dinge zugleich schaffen: Die Stange über der
+    // Hüfte soll waagerecht liegen, und der Körper soll der Länge nach zu
+    // sehen sein. Bei yaw 20 / pitch -30 lief die Stange schräg durch den
+    // Körper; bei yaw 62 stand die ferne Scheibe neben dem Kopf. Von der Seite
+    // her verschwindet sie hinter dem Körper – genau so sieht ein Hip Thrust
+    // in Wirklichkeit aus.
+    label: 'Hüftstreckung', lie: 'supine', view: [30, -8],
     poses: [
       { tilt: 8, arm: A(0, 17, 8), leg: L(40, 8, 102) },
       { tilt: 32, arm: A(0, 17, 8), leg: L(2, 8, 98) },
@@ -2591,9 +2593,10 @@ const PATTERNS = {
     // Dasselbe im Liegen, aber an der Stange: Die Abspreizung bleibt oben wie
     // unten gleich. Beim Kurzhantelmuster wandern die Hände oben zusammen –
     // mit einer Stange in beiden Händen sähe das aus, als würde sie schrumpfen.
-    // Weiter herumgedreht als beim Kurzhantelmuster, damit die Stange quer
-    // im Bild liegt statt schräg durch den Brustkorb.
-    label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [58, -10],
+    // Weiter herumgedreht als beim Kurzhantelmuster, damit die Stange quer im
+    // Bild liegt statt schräg durch den Brustkorb – aber nicht so weit, dass
+    // die ferne Scheibe über dem Kopf landet.
+    label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [35, -10],
     poses: [
       { arm: A(74, 40, 96), leg: L(56, 9, 100) },
       { arm: A(88, 38, 6), leg: L(56, 9, 100) },
@@ -2706,7 +2709,9 @@ const PATTERNS = {
   pullapart: {
     // Arme vorn auf Schulterhöhe, dann zur Seite auseinander. Der Rumpf bleibt
     // stehen – zieht er mit, wird daraus ein Rudern.
-    label: 'Band auseinanderziehen', view: [16, -6],
+    // band: 'hands' – hier hält man das Band wirklich zwischen beiden Händen,
+    // anders als bei allen übrigen Bandübungen, wo man darauf steht.
+    label: 'Band auseinanderziehen', band: 'hands', view: [16, -6],
     poses: [
       { lean: 3, arm: A(86, 8, 8), leg: L(2, 5, 4) },
       { lean: 3, arm: A(8, 86, 8), leg: L(2, 5, 4) },
@@ -2749,7 +2754,8 @@ const PATTERNS = {
     ],
   },
   reversefly: {
-    label: 'Reverse Fly',
+    // Wie beim Pull-Apart: Das Band liegt zwischen den Händen, nicht unter dem Fuß.
+    label: 'Reverse Fly', band: 'hands',
     poses: [
       { lean: 76, arm: A(76, 8, 10), leg: L(26, 6, 30) },
       { lean: 76, arm: A(76, 88, 12), leg: L(26, 6, 30) },
@@ -2798,8 +2804,10 @@ const PATTERNS = {
     ],
   },
   calfbent: {
-    // Mit gebeugtem Knie: trifft den flachen Wadenmuskel statt der Zwillingswade
-    label: 'Wadenheben, gebeugtes Knie',
+    // Mit gebeugtem Knie: trifft den flachen Wadenmuskel statt der Zwillingswade.
+    // Von vorn ist die Kniebeugung nicht zu sehen – der ganze Unterschied zur
+    // Schwesterübung verschwindet dann. Deshalb von der Seite.
+    label: 'Wadenheben, gebeugtes Knie', view: [62, 6],
     poses: [
       // Rumpf aufrecht, nur das Knie beugt. Mit Hüftbeugung wurde daraus eine
       // halbe Kniebeuge und vom Wadenheben war nichts mehr zu sehen.
@@ -3203,9 +3211,11 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     };
 
     if (equip === 'dumbbells') {
-      [pts0.handL, pts0.handR].forEach((h) => barAt(h, sideAxis, 0.085, 3.4));
+      // 0.085 waren 19 cm – so kurz, dass sich die beiden Scheiben aus den
+      // meisten Blickwinkeln zu einem einzigen Fleck überdeckten.
+      [pts0.handL, pts0.handR].forEach((h) => barAt(h, sideAxis, 0.13, 3.4));
     } else if (equip === 'onehand') {
-      barAt(pts0.handR, sideAxis, 0.085, 3.4);
+      barAt(pts0.handR, sideAxis, 0.13, 3.4);
     } else if (equip === 'goblet') {
       // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten
       barAt(midOf(pts0.handL, pts0.handR), upAxis, 0.105, 4.4);
@@ -3220,26 +3230,42 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     } else if (equip === 'hipbar') {
       barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.56, 4.4);
     } else if (equip === 'band') {
-      // Band zwischen den Händen: eine Linie, die sich beim Auseinanderziehen
-      // spannt. Mehr braucht es nicht – genau so sieht ein Loop-Band aus, das
-      // vor dem Körper gehalten wird. Leicht durchhängend gezeichnet, damit es
-      // in der Ausgangsstellung nicht wie eine starre Stange wirkt.
-      const a = P(pts0.handL);
-      const b = P(pts0.handR);
-      const span = Math.hypot(a.x - b.x, a.y - b.y);
-      const sag = Math.max(0, 26 * gearScale - span * 0.22);
-      parts.push({
+      // Ein Loop-Band hängt nicht überall gleich. Beim Pull-Apart und beim
+      // Reverse Fly hält man es wirklich zwischen beiden Händen – dort ist eine
+      // Linie von Hand zu Hand richtig. Bei allen übrigen Bandübungen steht man
+      // darauf: Curls, Seitheben, Schulterdrücken, Rudern, Überkopfstrecken.
+      // Dort lief die Linie bisher trotzdem von Hand zu Hand, und die Figur sah
+      // aus, als hielte sie ein schlaffes Springseil vor sich. Jetzt geht das
+      // Band von jeder Hand hinunter zum Fuß, wo es auch wirklich verankert ist.
+      // Leicht durchhängend, damit es nicht wie eine Stange wirkt.
+      const bogen = (a, b, sag) => parts.push({
         z: (a.z + b.z) / 2 + 0.01,
         node: el('path', {
-          d: `M${a.x.toFixed(1)} ${a.y.toFixed(1)} Q${((a.x + b.x) / 2).toFixed(1)} `
-             + `${((a.y + b.y) / 2 + sag).toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`,
+          d: `M${a.x.toFixed(1)} ${a.y.toFixed(1)} Q${((a.x + b.x) / 2 + sag.x).toFixed(1)} `
+             + `${((a.y + b.y) / 2 + sag.y).toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`,
           class: 'fig-band',
         }),
       });
+      if (spec.band === 'hands') {
+        const a = P(pts0.handL);
+        const b = P(pts0.handR);
+        const span = Math.hypot(a.x - b.x, a.y - b.y);
+        bogen(a, b, { x: 0, y: Math.max(0, 26 * gearScale - span * 0.22) });
+      } else {
+        // Verankert unter den Füßen: zwei Stränge, je einer zur nächstgelegenen
+        // Ferse. Der Bauch des Bogens geht nach außen, sonst schneidet das Band
+        // durch die Beine.
+        ['L', 'R'].forEach((s) => {
+          const hand = P(pts0[`hand${s}`]);
+          const fuss = P(pts0[`ankle${s}`]);
+          bogen(hand, fuss, { x: (s === 'L' ? -1 : 1) * 5 * gearScale, y: 0 });
+        });
+      }
     } else if (equip === 'plate') {
-      // Scheibe oder Hantel auf der Brust (Crunches). Sie liegt etwas weiter
-      // vorn als die Unterarme, sonst verschwindet sie dahinter.
-      const q = P(add(j.chest, mul(frontAxis, 0.155)));
+      // Scheibe oder Hantel auf der Brust (Crunches). Sie liegt weiter vorn als
+      // die Unterarme, sonst verschwindet sie dahinter – bei 0.155 blieb von
+      // ihr ein weißer Keil zwischen den Armen übrig, aus jedem Blickwinkel.
+      const q = P(add(j.chest, mul(frontAxis, 0.26)));
       parts.push({
         z: q.z + 0.01,
         node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (5.4 * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
