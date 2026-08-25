@@ -251,19 +251,17 @@ export const EXERCISES = [
       ]
     },
     "bw": {
-      "name": "Bodyweight Trizeps Extensions an niedriger Stange",
-      "reps": "8–15",
-      "equip": "Niedrige Stange",
-      "cue": "Hände auf einer niedrigen Stange, Körper schräg. Ellenbogen beugen bis der Kopf unter die Stange geht, dann strecken. Steilerer Winkel = leichter.",
+      "name": "Band-Trizepsdrücken",
+      "reps": "10–20",
+      "equip": "Loop-Band",
+      "cue": "Band hinter dem Rücken oder oben an einer Kante einhängen, Ellenbogen zeigen nach vorn und bleiben stehen. Nur strecken, nicht drücken. Vorher standen hier Extensions an der niedrigen Stange – die nehmen die Brust deutlich mit, und die steht am selben Tag ohnehin auf dem Plan.",
       "rest": 120,
-      "pattern": "tricepsbar",
+      "pattern": "triceps",
       "shares": {
-        "triceps": 1.0,
-        "chest": 0.3
+        "triceps": 1.0
       },
       "muscles": [
-        "triceps",
-        "chest"
+        "triceps"
       ]
     }
   },
@@ -405,21 +403,17 @@ export const EXERCISES = [
       ]
     },
     "bw": {
-      "name": "Enge supinierte Chin-ups",
-      "reps": "5–10",
-      "equip": "Klimmzugstange",
-      "cue": "Enge supinierte Chin-ups: Untergriff, Hände dicht beieinander. Bewusst über den Bizeps ziehen, langsam ablassen.",
+      "name": "Band-Curls",
+      "reps": "10–20",
+      "equip": "Loop-Band",
+      "cue": "Band unter beide Füße, Enden in den Händen, Handflächen nach vorn. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Vorher standen hier enge supinierte Chin-ups – die trainieren aber vor allem den Rücken mit, und der ist an dem Tag schon bedient. Schwerer wird es mit breiterem Stand auf dem Band.",
       "rest": 120,
-      "pattern": "pullup",
+      "pattern": "curl",
       "shares": {
-        "biceps": 1.0,
-        "lats": 0.7,
-        "traps": 0.2
+        "biceps": 1.0
       },
       "muscles": [
-        "biceps",
-        "lats",
-        "traps"
+        "biceps"
       ]
     }
   },
@@ -843,24 +837,22 @@ export const EXERCISES = [
       ]
     },
     "bw": {
-      "name": "Füße-erhöhte Pike Push-ups",
-      "reps": "5–12",
-      "equip": "Erhöhung",
-      "cue": "Füße auf eine Erhöhung, Hüfte hoch, Scheitel Richtung Boden. Je höher die Füße, desto mehr Last auf der Schulter.",
+      "name": "Band-Schulterdrücken",
+      "reps": "8–15",
+      "equip": "Loop-Band",
+      "cue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Vorher standen hier füße-erhöhte Pike Push-ups – die sind zu einem guten Teil Brust und treffen die seitliche Schulter kaum.",
       "rest": 180,
-      "pattern": "pike",
+      "pattern": "ohp",
       "shares": {
         "frontDelts": 1.0,
-        "sideDelts": 0.3,
-        "triceps": 0.65,
-        "chest": 0.3,
-        "traps": 0.25
+        "sideDelts": 0.45,
+        "triceps": 0.6,
+        "traps": 0.3
       },
       "muscles": [
         "frontDelts",
         "triceps",
         "sideDelts",
-        "chest",
         "traps"
       ]
     }

@@ -199,7 +199,11 @@ function resolve(item, mode) {
     // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
     // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
     weight: mode === 'db' ? ex.weight : null,
-    gear: mode === 'db' ? ex.equip : null,    // Gerät der Figur; Bodyweight hat keins
+    // Gerät der Figur. Bodyweight heißt nicht gerätelos: Ein Loop-Band ist in
+    // beiden Varianten dasselbe Gerät, und seit die Bodyweight-Fassungen von
+    // Curls, Trizepsdrücken und Schulterdrücken am Band hängen, wäre eine Figur
+    // ohne Band schlicht falsch.
+    gear: mode === 'db' ? ex.equip : (/band/i.test(v.equip) ? 'band' : null),
     weightNote: ex.weightNote,
   };
 }

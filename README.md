@@ -770,12 +770,39 @@ Excel. Der Plan darf dabei über das Excel-Ende hinausgehen – die Zusatztermin
 stehen dann in `plan.json`. `tools/plan.json` löschen und neu generieren stellt
 den Originalplan wieder her; ohne die Datei gilt für jede Gruppe wieder 10.
 
-Im Bodyweight-Modus liegt der Rücken deutlich höher (18,7 statt 14), Trizeps
-(15,9), Brust (17,7), Nacken (14,4) und Schulter (16,8) etwas: die Äquivalente
-von SZ-Curls und Seitheben sind enge Chin-ups und Pike Push-ups, die beide
-zusätzlich mitarbeiten, und Floor Press wird zur Liegestütze. Die übrigen
-Gruppen treffen auch dort ihr Ziel genau. **Nach unten weicht nichts ab** – das
-ist der Punkt: Der Bodyweight-Tag ist kein schwächerer Tag.
+### Bodyweight ist keine Übersetzung, sondern derselbe Reiz
+
+Der Bodyweight-Modus ist für unterwegs gedacht: nicht als eigener Plan, sondern
+als Fassung **derselben Einheit** ohne Hanteln. Der Maßstab ist deshalb nicht
+„gibt es eine ähnliche Übung", sondern: **Trifft die Bodyweight-Fassung dieser
+Einheit dieselben Muskelgruppen wie ihre Hantel-Fassung?**
+
+Nachgemessen war der Abstand anfangs **1,80 Sätze je Einheit** (Summe über alle
+dreizehn Gruppen), im schlimmsten Fall 4,30. Drei Zuordnungen aus der Excel
+verursachten praktisch alles davon:
+
+| Hantel | Excel-Äquivalent | Verschiebung je Woche |
+| --- | --- | --- |
+| SZ-Curls | Enge supinierte Chin-ups | **+3,0 Rücken**, +0,9 Nacken |
+| Sitzendes Schulterdrücken | Füße-erhöhte Pike Push-ups | +1,0 Brust, −0,5 seitliche Schulter |
+| Liegende Trizepsstrecker | Extensions an niedriger Stange | +0,5 Brust |
+
+Jede dieser drei ist ein *anderes* Muster, nicht dieselbe Bewegung ohne Hantel:
+Chin-ups sind Rückentraining, Pike Push-ups sind zu gutem Teil Brust. Ersetzt
+sind sie jetzt durch die Band-Fassung derselben Bewegung – Band-Curls,
+Band-Schulterdrücken, Band-Trizepsdrücken. Ein Loop-Band wiegt nichts und ist
+genau das, was auf Reisen mitkommt.
+
+**Ergebnis: 0,32 Sätze Abstand je Einheit statt 1,80**, schlimmster Fall 1,05
+statt 4,30. Das Bodyweight-Wochenvolumen trifft damit jedes Ziel bis auf den
+Trizeps (9,6 statt 10) – der Rest der Abweichung steckt in der Liegestütze, die
+gegenüber dem Floor Press etwas Trizeps an die vordere Schulter abgibt. Das ist
+kein Fehler, sondern der Unterschied zwischen den Bewegungen.
+
+Der Preis: **Der Bodyweight-Modus setzt ein Loop-Band voraus.** Ohne Band
+fehlen Bizeps, Trizeps-Isolation, Überkopfdrücken und beide Seitheben-Fassungen.
+Die Figur zeichnet das Band deshalb auch dort, wo es nur in der
+Bodyweight-Variante vorkommt.
 
 ## Kalender
 

@@ -383,9 +383,9 @@
   "group": "Trizeps",
   "tier": 3,
   "dbEquip": "Kurzhanteln/SZ",
-  "bwEquip": "Niedrige Stange",
+  "bwEquip": "Loop-Band",
   "dbCue": "Rücken am Boden/Bank, Oberarme fixiert. Nur im Ellenbogen beugen, Gewicht Richtung Stirn senken.",
-  "bwCue": "Hände auf einer niedrigen Stange, Körper schräg. Ellenbogen beugen bis der Kopf unter die Stange geht, dann strecken. Steilerer Winkel = leichter.",
+  "bwCue": "Band hinter dem Rücken oder oben an einer Kante einhängen, Ellenbogen zeigen nach vorn und bleiben stehen. Nur strecken, nicht drücken. Vorher standen hier Extensions an der niedrigen Stange – die nehmen die Brust deutlich mit, und die steht am selben Tag ohnehin auf dem Plan.",
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 8,
@@ -395,20 +395,21 @@
   "dbShares": {
    "triceps": 1.0
   },
-  "bwPattern": "tricepsbar",
+  "bwPattern": "triceps",
   "bwShares": {
-   "triceps": 1.0,
-   "chest": 0.3
+   "triceps": 1.0
   },
-  "equip": "dumbbells"
+  "equip": "dumbbells",
+  "bwName": "Band-Trizepsdrücken",
+  "bwReps": "10–20"
  },
  "sz-curls": {
   "group": "Bizeps",
   "tier": 3,
   "dbEquip": "SZ-Stange",
-  "bwEquip": "Klimmzugstange",
+  "bwEquip": "Loop-Band",
   "dbCue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung.",
-  "bwCue": "Enge supinierte Chin-ups: Untergriff, Hände dicht beieinander. Bewusst über den Bizeps ziehen, langsam ablassen.",
+  "bwCue": "Band unter beide Füße, Enden in den Händen, Handflächen nach vorn. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Vorher standen hier enge supinierte Chin-ups – die trainieren aber vor allem den Rücken mit, und der ist an dem Tag schon bedient. Schwerer wird es mit breiterem Stand auf dem Band.",
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 15,
@@ -418,13 +419,13 @@
   "dbShares": {
    "biceps": 1.0
   },
-  "bwPattern": "pullup",
+  "bwPattern": "curl",
   "bwShares": {
-   "biceps": 1.0,
-   "lats": 0.7,
-   "traps": 0.2
+   "biceps": 1.0
   },
-  "equip": "barbell"
+  "equip": "barbell",
+  "bwName": "Band-Curls",
+  "bwReps": "10–20"
  },
  "gewichtete-crunches": {
   "group": "Bauch",
@@ -497,12 +498,12 @@
   "tier": 1,
   "name": "Sitzendes Schulterdrücken",
   "reps": "6–12",
-  "bwName": "Füße-erhöhte Pike Push-ups",
-  "bwReps": "5–12",
+  "bwName": "Band-Schulterdrücken",
+  "bwReps": "8–15",
   "dbEquip": "Kurzhanteln",
-  "bwEquip": "Erhöhung",
+  "bwEquip": "Loop-Band",
   "dbCue": "Aufrecht sitzen, Rippen unten lassen. Hanteln von Schulterhöhe senkrecht nach oben, Ellenbogen leicht vor der Schulterachse. Oben nicht in den Rücken ausweichen.",
-  "bwCue": "Füße auf eine Erhöhung, Hüfte hoch, Scheitel Richtung Boden. Je höher die Füße, desto mehr Last auf der Schulter.",
+  "bwCue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Vorher standen hier füße-erhöhte Pike Push-ups – die sind zu einem guten Teil Brust und treffen die seitliche Schulter kaum.",
   "dbRest": 180,
   "bwRest": 180,
   "dbWeight": 10,
@@ -515,13 +516,12 @@
    "triceps": 0.6,
    "traps": 0.3
   },
-  "bwPattern": "pike",
+  "bwPattern": "ohp",
   "bwShares": {
    "frontDelts": 1.0,
-   "sideDelts": 0.3,
-   "triceps": 0.65,
-   "chest": 0.3,
-   "traps": 0.25
+   "sideDelts": 0.45,
+   "triceps": 0.6,
+   "traps": 0.3
   },
   "equip": "dumbbells"
  },
