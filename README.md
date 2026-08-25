@@ -18,7 +18,7 @@ wichtigen schmal gemacht – jetzt liegen sie als Einstiege oben unter *Mehr*.
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
 | **Statistik** | Kennzahlen, **Vergleich mit Freunden**, nächste Einheit, **Wochenvolumen Soll gegen Ist**, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
-| **Mehr** | Einstiege zu **Kalender**, **Verletzt** und **eigenen Workouts**; Farbdesign, Teilen, Töne, Standardmodus, „Modus je Workout merken“, verpasste Tage nachrücken, Plan-Verschiebung, **Kalenderdatei für Google Kalender**, Export/Import als JSON, Backup-Datei, Alles löschen. |
+| **Mehr** | Einstiege zu **Kalender**, **Verletzt** und **eigenen Workouts**; Farbdesign, Teilen, Töne, Trainingsfokus, Standardmodus, „Modus je Workout merken“, Plan-Verschiebung, **Kalenderdatei für Google Kalender**, Export/Import als JSON, Backup-Datei, Alles löschen. |
 
 Unter *Mehr* erreichbar:
 
@@ -1536,9 +1536,20 @@ Zwei Punkte, die dabei absichtlich so geregelt sind:
 
 Nachgerechnet wird beim Öffnen der App und beim Zurückkehren aus dem
 Hintergrund, damit auch eine über Mitternacht offene App den richtigen Tag
-zeigt. Unter **Mehr** lässt sich die Automatik abschalten, die aktuelle
-Verschiebung ablesen, tageweise korrigieren oder auf die Original-Termine aus
-der Excel zurücksetzen.
+zeigt. Unter **Mehr** lässt sich die aktuelle Verschiebung ablesen, tageweise
+korrigieren oder auf die Original-Termine aus der Excel zurücksetzen.
+
+**Es passiert still.** Einen Schalter dafür gab es einmal – abgeschaltet war er
+nie sinnvoll, und angeschaltet stellte er eine Frage, deren Antwort immer
+dieselbe ist. Auch die Meldung „↷ 2 Tage verpasst" ist weg. Was übrig bleibt,
+ist die eine Folge, die man wirklich wissen muss: **Wer seine Termine im
+Kalender stehen hat, hat sie jetzt an den falschen Tagen.** Genau danach fragt
+die Startansicht dann – *Neue Kalenderdatei erzeugen? Ja / Nein* –, und nur,
+wenn überhaupt schon einmal eine erzeugt wurde.
+
+Was die App nicht kann: den Google-Kalender selbst umschreiben. Dafür bräuchte
+es eine Anmeldung bei Google und einen Zugriffsschlüssel; eine Datei
+herunterladen und importieren ist der Weg, der ohne beides auskommt.
 
 ### Heute anfangen
 

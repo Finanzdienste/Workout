@@ -6,6 +6,11 @@
  * hieße OAuth, ein Google-Cloud-Projekt und eine Netzverbindung – drei Dinge,
  * die diese App bewusst nicht hat.
  *
+ * Was die Datei dafür kann: Sie bringt den Kalender jedes Mal auf denselben
+ * Stand wie den Plan. Termine, die es nicht mehr gibt, kommen als STATUS:
+ * CANCELLED mit – der Kalender räumt sie damit selbst weg, statt sie neben den
+ * neuen stehen zu lassen.
+ *
  * Der wichtige Teil steckt in der UID: Jeder Termin trägt eine feste Kennung
  * aus seiner Workout-Nummer. Wird der Plan verschoben und die Datei neu
  * eingelesen, erkennt der Kalender dieselben Termine wieder und *verschiebt*
@@ -84,7 +89,7 @@ export function duration(items) {
  * Verschiebung), `resolve` liefert je Eintrag Name, Sätze, Wiederholungen und
  * Pause in der Variante, in der trainiert wird.
  */
-export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout' } = {}) {
+export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout', cancel = [] } = {}) {
   const zeilen = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -114,6 +119,28 @@ export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout' }
       `DTEND:${stamp(w.date, hour * 60 + dauer)}`,
       fold(`SUMMARY:${esc(`Workout ${w.n} · ${items.length} Übungen · ${saetze} Sätze`)}`),
       fold(`DESCRIPTION:${esc(liste)}`),
+      'END:VEVENT',
+    );
+  });
+
+  // Termine, die es nicht mehr gibt: abgesagt statt stehen gelassen.
+  //
+  // Der Fall kommt vor, sobald sich der Plan selbst ändert – ein anderer
+  // Trainingsfokus hat womöglich weniger Einheiten, und ein Tag, an dem
+  // Verletzungen jede Übung sperren, hat gar keinen Termin mehr. Ohne diesen
+  // Teil blieben die alten Einträge für immer im Kalender stehen, während die
+  // neuen daneben auftauchen.
+  cancel.forEach((n) => {
+    zeilen.push(
+      'BEGIN:VEVENT',
+      `UID:workout-${n}@workout.local`,
+      `DTSTAMP:${jetzt}`,
+      `SEQUENCE:${seq}`,
+      'STATUS:CANCELLED',
+      // DTSTART muss dabeistehen, auch wenn der Termin verschwindet: ein VEVENT
+      // ohne Beginn lehnen manche Kalender als fehlerhaft ab.
+      `DTSTART:${stamp('1970-01-01', hour * 60)}`,
+      fold(`SUMMARY:${esc(`Workout ${n} – entfällt`)}`),
       'END:VEVENT',
     );
   });

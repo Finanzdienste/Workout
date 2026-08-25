@@ -5,7 +5,6 @@ const KEY = 'workout.state.v1';
 const DEFAULT_STATE = {
   mode: 'db',            // global default: 'db' (Hanteln) | 'bw' (Bodyweight)
   keepModePerWorkout: true,
-  autoShift: true,       // verpasste Tage schieben den Restplan nach hinten
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
   useExerciseRest: true, // Pause je Übung statt einer festen Länge
   restSeconds: 90,       // feste Pause, wenn useExerciseRest aus ist; 0 = keine
@@ -475,9 +474,11 @@ export function restartPlan(shiftDays) {
 }
 
 /** Hält fest, dass eine Kalenderdatei erzeugt wurde, und zählt SEQUENCE hoch. */
-export function markIcs() {
+export function markIcs(count = 0) {
   const seq = (state.lastIcs && state.lastIcs.seq) || 0;
-  state.lastIcs = { on: todayISO(), shift: state.shift, seq: seq + 1 };
+  // `count` merkt sich, wie viele Termine in der Datei standen. Beim nächsten
+  // Export weiß die App damit, welche Nummern abzusagen sind.
+  state.lastIcs = { on: todayISO(), shift: state.shift, seq: seq + 1, count };
   persist();
   emit();
   return state.lastIcs;

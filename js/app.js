@@ -55,7 +55,6 @@ const istCustom = (n) => typeof n === 'string' && n.startsWith('c');
  */
 function catchUpPlan() {
   const s = store.getState();
-  if (!s.autoShift) return 0;
   const open = PLAN.find((w) => !store.isStarted(w.n));
   if (!open) return 0;
   const missed = daysBetween(effDate(open), todayISO());
@@ -442,11 +441,21 @@ function downloadBackup() {
  * eingelesen, wandern dieselben Termine mit, statt sich zu verdoppeln.
  */
 function downloadICS() {
-  const stand = store.markIcs();
+  const vorher = store.getState().lastIcs;
+  const stand = store.markIcs(PLAN.length);
+  // Was beim letzten Mal exportiert wurde und diesmal nicht mehr vorkommt, muss
+  // aus dem Kalender wieder heraus: ein anderer Trainingsfokus hat womöglich
+  // weniger Einheiten, und ein Tag, an dem Verletzungen alles sperren, hat gar
+  // keinen Termin mehr.
+  const jetzt = new Set(PLAN.filter((w) => exOf(workoutByNo(w.n)).length).map((w) => w.n));
+  const cancel = [];
+  for (let n = 1; n <= Math.max((vorher && vorher.count) || 0, PLAN.length); n++) {
+    if (!jetzt.has(n)) cancel.push(n);
+  }
   const text = buildICS(
     PLAN.map((w) => ({ n: w.n, date: effDate(w) })),
     (w) => exOf(workoutByNo(w.n)).map((it) => resolve(it, store.workoutMode(w.n))),
-    { hour: 18, seq: stand.seq },
+    { hour: 18, seq: stand.seq, cancel },
   );
   const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
   const a = document.createElement('a');
@@ -818,6 +827,7 @@ const ui = {
   openEx: new Set(),
   openDetail: new Set(),   // Übungen, deren ausführliche Erklärung offen steht
   standAngebot: null,      // Stand, den jemand per Link geschickt hat
+  shiftInfo: 0,            // um so viele Tage ist der Plan gerade nachgerückt
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
   openInjury: new Set(),
@@ -1004,6 +1014,19 @@ function renderOverview() {
     <section class="ov">
       ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
         Eintragungen gehen beim Neuladen verloren.</div>`}
+      ${ui.shiftInfo ? `<div class="notice">
+        ↷ <b>${esc(plural(ui.shiftInfo, 'Tag', 'Tage'))} verpasst.</b> Der Plan ist
+        nachgerückt – die Abstände zwischen den Einheiten bleiben, übersprungen wird nichts.
+        ${store.getState().lastIcs ? `<div style="margin-top:8px">Deine Termine im Kalender
+          stehen jetzt an den falschen Tagen. Neue Kalenderdatei erzeugen?</div>
+          <div class="btn-row nav" style="margin-top:8px">
+            <button type="button" class="btn btn-primary" data-act="shift-ics">Ja, Datei erzeugen</button>
+            <button type="button" class="btn btn-ghost" data-act="shift-ok">Nein, später</button>
+          </div>`
+        : `<div class="btn-row" style="margin-top:8px">
+            <button type="button" class="btn btn-ghost btn-block" data-act="shift-ok">Alles klar</button>
+          </div>`}
+      </div>` : ''}
       ${ui.standAngebot ? `<div class="notice">
         👋 <b>${esc(ui.standAngebot.n)}</b> hat dir seinen Stand geschickt:
         ${ui.standAngebot.w} von ${ui.standAngebot.p} Einheiten, ${ui.standAngebot.s} Sätze${
@@ -2583,13 +2606,6 @@ function renderSettings() {
         </div>
         <button type="button" class="toggle" aria-pressed="${s.keepModePerWorkout}" data-act="toggle-keep-mode" aria-label="Modus je Workout merken"></button>
       </div>
-      <div class="switch-row">
-        <div>
-          <div class="lbl">Verpasste Tage nachrücken</div>
-          <div class="hint">Bleibt an einem Trainingstag alles unangetastet, wandert der gesamte Restplan einen Tag weiter. Abstände bleiben erhalten.</div>
-        </div>
-        <button type="button" class="toggle" aria-pressed="${s.autoShift}" data-act="toggle-auto-shift" aria-label="Verpasste Tage nachrücken"></button>
-      </div>
     </div>
 
     <div class="section-title">Pause zwischen den Sätzen</div>
@@ -3324,17 +3340,18 @@ view.addEventListener('click', (e) => {
       store.setSetting('keepModePerWorkout', !store.getState().keepModePerWorkout);
       render();
       break;
-    case 'toggle-auto-shift': {
-      const on = !store.getState().autoShift;
-      store.setSetting('autoShift', on);
-      if (on) catchUpPlan();
-      render();
-      toast(on ? 'Verpasste Tage rücken nach' : 'Plan bleibt auf den Original-Terminen');
-      break;
-    }
     case 'set-rest':
       initAudio();
       store.setSetting('restSeconds', Number(t.dataset.sec));
+      render();
+      break;
+    case 'shift-ics':
+      ui.shiftInfo = 0;
+      downloadICS();
+      render();
+      break;
+    case 'shift-ok':
+      ui.shiftInfo = 0;
       render();
       break;
     case 'setup-next':
@@ -3641,6 +3658,10 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 }
 
 const missedAtStart = catchUpPlan();
+// Nachgerückt wird still. Gefragt wird nur, was danach zu tun ist: Wer seine
+// Termine im Kalender stehen hat, hat sie jetzt an den falschen Tagen. Muss vor
+// dem ersten render() stehen, sonst kommt die Frage einen Aufbau zu spät.
+ui.shiftInfo = missedAtStart;
 // Hat jemand einen Stand geschickt? Steht im Anker der Adresse und wird dort
 // sofort entfernt. Die Frage danach stellt die Startansicht – also muss sie
 // auch die sichtbare sein, sonst öffnet der Link bei jemandem, der zuletzt in
@@ -3657,6 +3678,3 @@ store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit
 // anlaufen. Ohne diese Zeile stünde sie bis zum nächsten Wegschalten still.
 if (!document.hidden) store.clockStart();
 tickRest(); // eine Pause, die einen Neustart der Seite überdauert hat
-if (missedAtStart) {
-  toast(`↷ ${plural(missedAtStart, 'Tag', 'Tage')} verpasst – Plan nachgerückt`);
-}
