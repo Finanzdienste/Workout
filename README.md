@@ -1633,6 +1633,46 @@ Der Generator bricht ab, wenn eine Zeile nicht dem Muster `3× Übung (8–12)`
 folgt, wenn Hantel- und Bodyweight-Spalte unterschiedlich viele Übungen haben
 oder wenn zu einer Übung der Eintrag in `exercise-meta.json` fehlt.
 
+## Trainingsfokus
+
+Nicht jeder will dasselbe. Wer den Link weitergibt, gibt ihn an Menschen, die
+sich für Beine und Gesäß interessieren oder ausschließlich für den Oberkörper –
+und dann soll der Plan nicht „ausgewogen" heißen und trotzdem zehn Sätze Brust
+rechnen.
+
+Der Fokus ist deshalb **kein Filter über einen Plan, sondern ein eigener Plan**.
+`tools/build-plan.py <variante>` läuft mit anderen Wochenzielen durch dieselbe
+Rechnung: exakte Wochensummen, 48 Stunden Erholung, gleichmäßige Verteilung,
+gruppierte Geräte. Es ändert sich nichts an der Sorgfalt, nur an der Betonung.
+
+| Variante | Betonung |
+| --- | --- |
+| `standard` – Ausgewogen | Rücken, Brust, seitliche Schulter vorn; Beine laufen mit |
+| `bbp` – Bauch, Beine, Po | Gesäß 15, Beine 12, Bauch 12 Sätze/Woche; Oberkörper reduziert |
+| `oberkoerper` – Oberkörper | Brust, Rücken, Schultern, Arme je 12; Beine ein Auftritt/Woche |
+| `kurz` – Kurz und knapp | dieselben Übungen, überall weniger Sätze – kürzere Einheiten |
+
+`cap` steht je Variante dabei, weil die Obergrenze in Wahrheit nur den Nacken
+bindet: Wer Rücken und hintere Schulter hochzieht, treibt ihn mit hoch, und eine
+10 wäre dort unerfüllbar (siehe *Der Nacken bekommt keinen einzigen eigenen
+Satz*).
+
+Alle Varianten liegen zusammen in `js/data.js` unter `PLANS`. Welche gilt, liest
+die Datei beim Laden selbst aus dem Speicher (`focus`) – so meinen `PLAN`,
+`TARGET` und `REST` überall dasselbe, auch in Modulen, die den Zustand gar nicht
+kennen. Ein Wechsel lädt die Seite neu: Der Plan steckt in Hunderten von Zeilen,
+und ein Tausch mitten im Betrieb hieße, dass die halbe App noch mit dem alten
+rechnet. Wer mittendrin wechselt, wird gefragt – der bisherige Verlauf wandert
+in die Ablage, die erreichten Gewichte bleiben.
+
+### Einrichten in drei Schritten
+
+Wer den Link zum ersten Mal öffnet, bekommt **Name, Farbe, Fokus** – in dieser
+Reihenfolge, eine Frage pro Bildschirm. Die Farbe wirkt sofort, damit die
+Auswahl nicht abstrakt bleibt. Am Ende steht der Hinweis, dass sich unter *Mehr
+→ Eigenes Workout* ohnehin jede Einheit selbst zusammenstellen lässt: Der Fokus
+ist ein Vorschlag, kein Korsett.
+
 ## Eigene Workouts
 
 Der Plan deckt 21 Wochen ab und rechnet sein Wochenvolumen aus 84 festen

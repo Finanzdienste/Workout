@@ -74,6 +74,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 META = ROOT / 'tools' / 'exercise-meta.json'
 DATA = ROOT / 'js' / 'data.js'
 OUT = ROOT / 'tools' / 'plan.json'
+# Aufruf mit dem Namen einer Variante schreibt tools/plan-<name>.json; ohne
+# Angabe entsteht der ausgewogene Plan unter tools/plan.json.
+VARIANTE = sys.argv[1] if len(sys.argv) > 1 else 'standard'
 
 # Sätze je Muskelgruppe und Woche – zweite Fassung. Vorher stand im Oberkörper
 # überall eine 10, weil das die selbst gesetzte Obergrenze war. Zwei Dinge
@@ -127,6 +130,64 @@ TARGET = {
     'glutes': 9, 'quads': 6, 'hamstringsKnee': 3, 'calves': 6,
 }
 CAP = 10                 # keine Gruppe darüber, indirekte Anteile eingerechnet
+
+# Trainingsfokus: derselbe Generator, andere Wochenziele.
+#
+# Nicht jeder will dasselbe. Wer den Link weitergibt, gibt ihn an Menschen, die
+# sich für Beine und Gesäß interessieren oder ausschließlich für den Oberkörper
+# – und der Plan soll dann nicht "ausgewogen" heißen und trotzdem zehn Sätze
+# Brust rechnen. Die Varianten gehen durch dieselbe Rechnung: exakte
+# Wochensummen, 48 Stunden Erholung, gleichmäßige Verteilung. Nur die Zielzahlen
+# unterscheiden sich – und damit ändert sich nichts an der Sorgfalt, nur an der
+# Betonung.
+#
+# `cap` je Variante, weil die Obergrenze für den Nacken an der hinteren Schulter
+# hängt: Wer den Rücken betont, treibt sie mit hoch, und eine 10 wäre dort
+# unerfüllbar.
+VARIANTEN = {
+    'standard': {
+        'name': 'Ausgewogen',
+        'ziele': TARGET,
+        'cap': CAP,
+    },
+    'bbp': {
+        'name': 'Bauch, Beine, Po',
+        'ziele': {
+            'chest': 6, 'lats': 7, 'sideDelts': 6, 'rearDelts': 5,
+            'biceps': 5, 'triceps': 5, 'abs': 12,
+            'frontDelts': None, 'traps': None, 'hamstringsHip': None,
+            'glutes': 15, 'quads': 12, 'hamstringsKnee': 6, 'calves': 9,
+        },
+        'cap': 12,
+    },
+    'oberkoerper': {
+        'name': 'Oberkörper',
+        'ziele': {
+            'chest': 12, 'lats': 12, 'sideDelts': 12, 'rearDelts': 9,
+            'biceps': 12, 'triceps': 12, 'abs': 6,
+            'frontDelts': None, 'traps': None, 'hamstringsHip': None,
+            'glutes': 3, 'quads': 3, 'hamstringsKnee': 3, 'calves': 3,
+        },
+        'cap': 13,
+    },
+    'kurz': {
+        'name': 'Kurz und knapp',
+        'ziele': {
+            'chest': 6, 'lats': 6, 'sideDelts': 6, 'rearDelts': 5,
+            'biceps': 6, 'triceps': 6, 'abs': 6,
+            'frontDelts': None, 'traps': None, 'hamstringsHip': None,
+            'glutes': 6, 'quads': 6, 'hamstringsKnee': 3, 'calves': 3,
+        },
+        'cap': 10,
+    },
+}
+
+if VARIANTE not in VARIANTEN:
+    sys.exit(f'Unbekannte Variante {VARIANTE!r} – bekannt: {", ".join(VARIANTEN)}')
+TARGET = VARIANTEN[VARIANTE]['ziele']
+CAP = VARIANTEN[VARIANTE]['cap']
+if VARIANTE != 'standard':
+    OUT = ROOT / 'tools' / f'plan-{VARIANTE}.json'
 #
 # Die Obergrenze bindet in Wahrheit nur eine Gruppe: den Nacken. Er bekommt
 # keinen einzigen eigenen Satz – kein Shrug, nichts –, sondern sammelt aus
@@ -1123,7 +1184,9 @@ def main():
     # Die Erholungsregel wandert ebenfalls mit: die App tauscht bei
     # Verletzungen Übungen aus und muss dabei dieselbe Schwelle einhalten wie
     # der Generator, sonst steht die Gruppe doch zweimal in 48 Stunden.
-    OUT.write_text(json.dumps({'target': ziele, 'derived': ergebnis, 'cap': CAP,
+    OUT.write_text(json.dumps({'variante': VARIANTE,
+                               'name': VARIANTEN[VARIANTE]['name'],
+                               'target': ziele, 'derived': ergebnis, 'cap': CAP,
                                'rest': {'days': REST_DAYS, 'direct': DIRECT},
                                'plan': plan},
                               ensure_ascii=False, indent=1) + '\n', encoding='utf-8')

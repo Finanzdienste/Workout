@@ -23,6 +23,10 @@ XLSX = ROOT / 'data' / 'Workoutplan_mit_Bodyweight_Equivalent.xlsx'
 META = ROOT / 'tools' / 'exercise-meta.json'
 OUT = ROOT / 'js' / 'data.js'
 PLAN_OVERRIDE = ROOT / 'tools' / 'plan.json'
+# Weitere Trainingsfokusse: tools/plan-<name>.json, erzeugt mit
+# `python3 tools/build-plan.py <name>`. Alle wandern zusammen nach js/data.js;
+# welcher gilt, entscheidet die App.
+VARIANT_GLOB = 'plan-*.json'
 
 DEFAULT_TARGET = 10   # Sätze je Muskelgruppe und Woche, wenn plan.json fehlt
 DEFAULT_CAP = 10      # Obergrenze je Gruppe, wenn plan.json fehlt
@@ -176,26 +180,42 @@ def main():
     # Namen, Wiederholungen, Hinweise und das Bodyweight-Äquivalent. Datei
     # löschen und neu generieren stellt den Originalplan wieder her.
     # Ohne plan.json gilt das alte, gleichmäßige Ziel für jede Gruppe.
-    target, derived, rest, cap = {}, [], dict(DEFAULT_REST), DEFAULT_CAP
-    if PLAN_OVERRIDE.exists():
-        override = json.loads(PLAN_OVERRIDE.read_text(encoding='utf-8'))
-        target = override['target']
-        derived = override.get('derived', [])
-        rest = override.get('rest', rest)
-        cap = override.get('cap', cap)
+    def lies_plan(pfad):
+        """Eine Plandatei prüfen und in die Form bringen, die die App erwartet."""
+        roh = json.loads(pfad.read_text(encoding='utf-8'))
         fresh, prev = [], None
-        for o in override['plan']:
+        for o in roh['plan']:
             date = datetime.date.fromisoformat(o['date'])
             if prev is not None and date <= prev:
-                sys.exit(f'{PLAN_OVERRIDE.name}: Termin {o["date"]} folgt nicht auf {prev}')
+                sys.exit(f'{pfad.name}: Termin {o["date"]} folgt nicht auf {prev}')
             prev = date
             unknown = [i['id'] for i in o['ex'] if i['id'] not in catalog]
             if unknown:
-                sys.exit(f'{PLAN_OVERRIDE.name}: unbekannte Übung {unknown}')
+                sys.exit(f'{pfad.name}: unbekannte Übung {unknown}')
             fresh.append({'n': len(fresh) + 1, 'date': o['date'], 'ex': o['ex']})
-        print(f'{PLAN_OVERRIDE.relative_to(ROOT)}: {len(fresh)} Einheiten übernommen '
-              f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), Excel liefert nur die Übungen')
-        plan = fresh
+        print(f'{pfad.relative_to(ROOT)}: {len(fresh)} Einheiten '
+              f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), '
+              f'Fokus "{roh.get("name", "Ausgewogen")}"')
+        return {
+            'name': roh.get('name', 'Ausgewogen'),
+            'target': roh['target'],
+            'derived': roh.get('derived', []),
+            'cap': roh.get('cap', DEFAULT_CAP),
+            'rest': roh.get('rest', dict(DEFAULT_REST)),
+            'plan': fresh,
+        }
+
+    target, derived, rest, cap = {}, [], dict(DEFAULT_REST), DEFAULT_CAP
+    varianten = {}
+    if PLAN_OVERRIDE.exists():
+        standard = lies_plan(PLAN_OVERRIDE)
+        varianten['standard'] = standard
+        target, derived = standard['target'], standard['derived']
+        rest, cap = standard['rest'], standard['cap']
+        plan = standard['plan']
+        for pfad in sorted((ROOT / 'tools').glob(VARIANT_GLOB)):
+            key = pfad.stem[len('plan-'):]
+            varianten[key] = lies_plan(pfad)
 
     unused = set(meta) - set(catalog)
     if unused:
@@ -203,24 +223,66 @@ def main():
 
     groups = sorted({m for e in catalog.values() for m in e['db']['shares']})
     target = {m: target.get(m, DEFAULT_TARGET) for m in groups}
+    if not varianten:
+        varianten['standard'] = {'name': 'Ausgewogen', 'target': target, 'derived': derived,
+                                 'cap': cap, 'rest': rest, 'plan': plan}
+    for v in varianten.values():
+        v['target'] = {m: v['target'].get(m, DEFAULT_TARGET) for m in groups}
 
     OUT.write_text(
         "// Auto-generiert von tools/build-data.py aus data/Workoutplan_mit_Bodyweight_Equivalent.xlsx.\n"
         "// Nicht von Hand bearbeiten - Plan in der Excel aendern und neu generieren.\n"
         "export const EXERCISES = " + json.dumps(list(catalog.values()), ensure_ascii=False, indent=2) + ";\n\n"
+        "// Ein Eintrag je Trainingsfokus. Alle kommen aus derselben Rechnung in\n"
+        "// tools/build-plan.py und unterscheiden sich nur in den Wochenzielen:\n"
+        "//   name     wie der Fokus in der App heisst\n"
+        "//   target   Saetze je Muskelgruppe und Woche, auf die der Plan gerechnet ist\n"
+        "//   derived  Gruppen ohne eigenes Ziel - ihr Wert faellt aus den Gleichungen\n"
+        "//   cap      Obergrenze: keine Gruppe darueber, indirekte Anteile eingerechnet\n"
+        "//   rest     Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,\n"
+        "//            und ab welchem Anteil eine Uebung als direkt fuer sie gilt\n"
+        "//   plan     die Einheiten selbst\n"
+        "export const PLANS = {\n"
+        + "".join(
+            f"  {json.dumps(key)}: {{\n"
+            f"    name: {json.dumps(v['name'], ensure_ascii=False)},\n"
+            f"    target: {json.dumps(v['target'], ensure_ascii=False)},\n"
+            f"    derived: {json.dumps(v['derived'], ensure_ascii=False)},\n"
+            f"    cap: {json.dumps(v['cap'])},\n"
+            f"    rest: {json.dumps(v['rest'], ensure_ascii=False)},\n"
+            f"    plan: {json.dumps(v['plan'], ensure_ascii=False, separators=(',', ':'))},\n"
+            f"  }},\n"
+            for key, v in varianten.items())
+        + "};\n\n"
+        "// Welcher Fokus gilt, steht im Speicher des Browsers - unter demselben\n"
+        "// Schluessel wie der uebrige Zustand. Hier gelesen und nicht in der App\n"
+        "// gewaehlt, damit PLAN, TARGET und REST ueberall dasselbe meinen. Ein\n"
+        "// Wechsel laedt die Seite neu; der Plan steckt in Hunderten von Zeilen,\n"
+        "// und ein Tausch mitten im Betrieb hiesse, dass die halbe App noch mit\n"
+        "// dem alten rechnet.\n"
+        "const AKTIV = (() => {\n"
+        "  try {\n"
+        "    const key = JSON.parse(localStorage.getItem('workout.state.v1') || '{}').focus;\n"
+        "    return PLANS[key] || PLANS.standard;\n"
+        "  } catch {\n"
+        "    return PLANS.standard;   // privater Modus: kein Speicher, kein Fokus\n"
+        "  }\n"
+        "})();\n\n"
+        "export const FOCUS = AKTIV;\n"
         "// Saetze je Muskelgruppe und Woche, auf die der Plan gerechnet ist.\n"
-        "export const TARGET = " + json.dumps(target, ensure_ascii=False) + ";\n\n"
+        "export const TARGET = AKTIV.target;\n"
         "// Obergrenze: keine Gruppe kommt darueber, indirekte Anteile eingerechnet.\n"
-        "export const CAP = " + json.dumps(cap) + ";\n\n"
+        "export const CAP = AKTIV.cap;\n"
         "// Gruppen ohne eigenes Ziel: ihr Wert faellt aus den uebrigen Gleichungen.\n"
-        "export const DERIVED = " + json.dumps(derived, ensure_ascii=False) + ";\n\n"
-        "// Erholung: Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,\n"
-        "// und ab welchem Anteil eine Uebung als direkt fuer die Gruppe gilt.\n"
-        "export const REST = " + json.dumps(rest, ensure_ascii=False) + ";\n\n"
-        "export const PLAN = " + json.dumps(plan, ensure_ascii=False, separators=(',', ':')) + ";\n",
+        "export const DERIVED = AKTIV.derived;\n"
+        "// Erholung: Mindestabstand in Tagen und ab welchem Anteil eine Uebung\n"
+        "// als direkt fuer die Gruppe gilt.\n"
+        "export const REST = AKTIV.rest;\n"
+        "export const PLAN = AKTIV.plan;\n",
         encoding='utf-8',
     )
-    print(f'{OUT.relative_to(ROOT)}: {len(catalog)} Uebungen, {len(plan)} Einheiten, '
+    print(f'{OUT.relative_to(ROOT)}: {len(catalog)} Uebungen, '
+          f'{len(varianten)} Fokus-Varianten, {len(plan)} Einheiten je Variante, '
           f'Ziele {min(target.values())}–{max(target.values())} Sätze je Gruppe')
 
 

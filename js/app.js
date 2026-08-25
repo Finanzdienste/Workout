@@ -1,4 +1,4 @@
-import { EXERCISES, PLAN, TARGET, REST } from './data.js';
+import { EXERCISES, PLAN, PLANS, TARGET, REST } from './data.js';
 import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
@@ -11,6 +11,10 @@ import { initAudio, playSound, scheduleSound, cancelSound } from './audio.js';
 /* ------------------------------------------------------------------ *
  * Hilfsfunktionen
  * ------------------------------------------------------------------ */
+
+/* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
+ * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
+ * überall dasselbe. Der Wechsel lädt die Seite neu, siehe 'set-focus'. */
 
 const EX_BY_ID = new Map(EXERCISES.map((e) => [e.id, e]));
 const view = document.getElementById('view');
@@ -815,6 +819,7 @@ const ui = {
   openDetail: new Set(),   // Übungen, deren ausführliche Erklärung offen steht
   standAngebot: null,      // Stand, den jemand per Link geschickt hat
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
+  setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
   openInjury: new Set(),
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
@@ -1079,73 +1084,91 @@ function needsWelcome() {
 }
 
 function renderWelcome() {
+  const schritt = ui.setupStep || 0;
+  const s = store.getState();
+
+  const kopf = `
+    <header class="ov-top">
+      <div class="hero-eyebrow">Einrichten · Schritt ${schritt + 1} von 3</div>
+      <h2 class="hero-title">${['Willkommen', 'Farbe', 'Worauf soll es hinauslaufen?'][schritt]}</h2>
+    </header>
+    ${ui.standAngebot && schritt === 0 ? `<div class="notice">👋 <b>${esc(ui.standAngebot.n)}</b> hat dir
+      den Link geschickt und seinen Stand mitgeschickt: ${ui.standAngebot.w} von
+      ${ui.standAngebot.p} Einheiten. Sobald du fertig eingerichtet hast, steht er in deinem
+      Vergleich.</div>` : ''}`;
+
+  const seiten = [`
+    <div class="card">
+      <p class="small">Ein fertiger Trainingsplan: Übungen, Sätze, Wiederholungen, Pausen –
+        und zu jeder Übung eine vorgeführte Bewegung, die sich drehen lässt. Trainieren kannst
+        du mit <strong>Hanteln</strong> oder als <strong>Bodyweight</strong>-Variante ganz ohne
+        Geräte; der Umschalter oben wechselt jederzeit.</p>
+      <p class="small">Die App läuft offline und braucht kein Konto. Alles, was du einträgst,
+        bleibt in diesem Browser – niemand sonst sieht es.</p>
+    </div>
+    <div class="card">
+      <div class="lbl">Wie heißt du?</div>
+      <div class="hint">Nur für die Anzeige und für den Vergleich mit Freunden.</div>
+      <input type="text" id="nameInput" class="name-input" maxlength="24"
+             autocomplete="name" placeholder="Dein Name" aria-label="Dein Name">
+    </div>`, `
+    <div class="card">
+      <div class="small muted">Zwei Akzente: der wärmere gilt für die Hantel-Variante, der
+        kühlere für Bodyweight. Sonst ändert sich nichts – dunkel bleibt dunkel.</div>
+      <div class="farben">
+        ${THEMES.map(([key, label, a, bfarbe]) => `
+          <button type="button" class="farb-btn ${(s.theme || 'orange') === key ? 'on' : ''}"
+                  aria-pressed="${(s.theme || 'orange') === key}" data-act="set-theme" data-v="${key}">
+            <span class="farb-punkt" style="--a:${a};--b:${bfarbe}"></span>${label}
+          </button>`).join('')}
+      </div>
+    </div>`, `
+    <div class="card">
+      <div class="small muted">Jeder Fokus ist ein eigener, durchgerechneter Plan: dieselben
+        84 Termine, dieselbe Erholungsregel, andere Schwerpunkte. Später änderbar.</div>
+      <div class="fokus-liste">${fokusKarten(s.focus || 'standard')}</div>
+    </div>
+    <p class="small muted">Und wenn nichts davon passt: Unter <em>Mehr → Eigenes Workout</em>
+      stellst du dir jede Einheit selbst zusammen, aus demselben Übungsvorrat.</p>`];
+
   view.innerHTML = `
     <section class="ov welcome">
-      <header class="ov-top">
-        <div class="hero-eyebrow">Trainingsplan</div>
-        <h2 class="hero-title">Willkommen</h2>
-        <div class="hero-sub">${PLAN.length} Einheiten über ${PLAN_WEEKS} Wochen</div>
-      </header>
-
-      ${ui.standAngebot ? `<div class="notice">👋 <b>${esc(ui.standAngebot.n)}</b> hat dir den Link
-        geschickt und seinen Stand mitgeschickt: ${ui.standAngebot.w} von ${ui.standAngebot.p}
-        Einheiten. Sobald du deinen Namen einträgst, steht er in deinem Vergleich.</div>` : ''}
-
-      <div class="card">
-        <p class="small">Jede Einheit steht fertig da: Übungen, Sätze, Wiederholungen,
-          Pausen – und zu jeder Übung eine vorgeführte Bewegung, die sich drehen lässt.
-          Trainieren kannst du sie mit <strong>Hanteln</strong> oder als
-          <strong>Bodyweight</strong>-Variante ganz ohne Geräte; der Umschalter oben
-          wechselt jederzeit.</p>
-        <p class="small">Die App läuft offline und braucht kein Konto. Alles, was du
-          einträgst, bleibt in diesem Browser – niemand sonst sieht es, und es geht
-          auch nirgendwohin. Sicherungen machst du unter <em>Mehr</em> selbst.</p>
+      ${kopf}
+      ${seiten[schritt]}
+      <div class="btn-row nav">
+        ${schritt ? '<button type="button" class="btn btn-ghost" data-act="setup-back">← Zurück</button>' : ''}
+        <button type="button" class="btn btn-primary" data-act="setup-next">
+          ${schritt === 2 ? 'Los geht’s' : 'Weiter →'}
+        </button>
       </div>
-
-      <div class="card">
-        <div class="lbl">Wie heißt du?</div>
-        <div class="hint">Nur für die Anzeige. Kannst du auch leer lassen.</div>
-        <input type="text" id="nameInput" class="name-input" maxlength="24"
-               autocomplete="name" placeholder="Dein Name" aria-label="Dein Name">
-        <div class="btn-row">
-          <button type="button" class="btn btn-primary btn-block" data-act="welcome-go">Los geht’s</button>
-        </div>
-      </div>
-
-      <p class="small muted">Tipp: „Zum Startbildschirm hinzufügen" macht daraus ein
-        eigenes Symbol, das ohne Browserleiste startet.</p>
+      ${schritt === 0 ? `<p class="small muted">Tipp: „Zum Startbildschirm hinzufügen" macht
+        daraus ein eigenes Symbol, das ohne Browserleiste startet.</p>` : ''}
     </section>`;
+
   const feld = document.getElementById('nameInput');
   if (feld) {
     feld.value = store.getState().name || '';
-    // Enter statt Knopf – auf dem Handy steht dort ohnehin „Fertig".
     feld.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); willkommenFertig(); }
+      if (e.key === 'Enter') { e.preventDefault(); setupWeiter(); }
     });
   }
 }
 
-/** Link in die Zwischenablage – mit Rückfallweg für ältere Browser. */
-function linkKopieren(url) {
-  const fertig = () => toast('Link kopiert – jetzt einfügen und abschicken');
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(fertig).catch(() => toast(url));
+/** Ein Schritt weiter im Einstieg – im letzten Schritt ist es der Abschluss. */
+function setupWeiter() {
+  const feld = document.getElementById('nameInput');
+  if (feld) store.setSetting('name', feld.value.trim().slice(0, 24));
+  if ((ui.setupStep || 0) < 2) {
+    ui.setupStep = (ui.setupStep || 0) + 1;
+    render();
+    window.scrollTo({ top: 0 });
     return;
   }
-  const feld = document.createElement('textarea');
-  feld.value = url;
-  feld.setAttribute('readonly', '');
-  feld.style.cssText = 'position:fixed;top:-100px';
-  document.body.appendChild(feld);
-  feld.select();
-  try { document.execCommand('copy'); fertig(); } catch { toast(url); }
-  feld.remove();
+  willkommenFertig();
 }
 
 function willkommenFertig() {
-  const feld = document.getElementById('nameInput');
-  const name = (feld ? feld.value : '').trim().slice(0, 24);
-  store.setSetting('name', name);
+  const name = store.getState().name;
   store.setSetting('greeted', true);
   // Kam der Link mit einem Stand, ist die Rückfrage danach überflüssig: Wer den
   // Link von jemandem bekommt, will genau dessen Zahlen sehen.
@@ -2472,6 +2495,40 @@ function renderCustom() {
  * Tupfer für die Vorschau. Zwei Stellen für dieselbe Farbe – aber die Alternative
  * wäre, das Design aus JavaScript zusammenzubauen, und dann flackert es beim
  * Laden. */
+/* Trainingsfokus: was hinter den Varianten aus js/data.js steht. Die Zahlen
+ * rechnet fokusZeile() aus dem Plan selbst aus – hier steht nur, für wen das
+ * gedacht ist. */
+const FOKUS_TEXT = {
+  standard: 'Alles gleichmäßig, mit etwas mehr für das, was breit macht: Rücken, Brust und '
+    + 'seitliche Schulter. Die Beine laufen mit.',
+  bbp: 'Gesäß, Beine und Bauch bekommen das meiste. Der Oberkörper bleibt drin, damit die '
+    + 'Haltung nicht auf der Strecke bleibt – nur mit weniger Sätzen.',
+  oberkoerper: 'Brust, Rücken, Schultern und Arme. Beine und Gesäß nur als Grundlage, ein '
+    + 'Auftritt pro Woche.',
+  kurz: 'Dieselben Übungen, weniger Sätze pro Woche – für Wochen, in denen die Zeit knapp ist. '
+    + 'Kürzere Einheiten, dafür alles drin.',
+};
+
+/** Eine Zeile Zahlen zu einer Variante: Einheiten, Sätze, geschätzte Dauer. */
+function fokusZeile(v) {
+  const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + x.sets, 0), 0);
+  const proEinheit = saetze / v.plan.length;
+  // Grobe Schätzung: ein Satz kostet mit Pause etwa zweieinhalb Minuten.
+  const min = Math.round((proEinheit * 2.5) / 5) * 5;
+  return `${v.plan.length} Einheiten · ${proEinheit.toFixed(1)} Sätze je Einheit · ca. ${min} min`;
+}
+
+/** Auswahlkarten für den Trainingsfokus – im Einstieg und in den Einstellungen. */
+function fokusKarten(aktuell) {
+  return Object.entries(PLANS).map(([key, v]) => `
+    <button type="button" class="fokus-btn ${key === aktuell ? 'on' : ''}"
+            aria-pressed="${key === aktuell}" data-act="set-focus" data-v="${key}">
+      <span class="lbl">${esc(v.name)}${key === aktuell ? ' ✓' : ''}</span>
+      <span class="hint">${esc(FOKUS_TEXT[key] || '')}</span>
+      <span class="fokus-zahl">${esc(fokusZeile(v))}</span>
+    </button>`).join('');
+}
+
 const THEMES = [
   ['orange', 'Orange', '#ff7a45', '#4ea1ff'],
   ['rosa', 'Rosa', '#ff6fae', '#b98cff'],
@@ -2557,6 +2614,16 @@ function renderSettings() {
         </div>
         <button type="button" class="toggle" aria-pressed="${!s.useExerciseRest && !s.restSeconds}" data-act="toggle-rest-off" aria-label="Pause abschalten"></button>
       </div>
+    </div>
+
+    <div class="section-title">Trainingsfokus</div>
+    <div class="card">
+      <div class="small muted">Jeder Fokus ist ein eigener, durchgerechneter Plan: dieselben
+        Termine, dieselbe Erholungsregel, andere Schwerpunkte. Ein Wechsel legt den bisherigen
+        Verlauf in die Ablage – die erreichten Gewichte bleiben.</div>
+      <div class="fokus-liste">${fokusKarten(s.focus || 'standard')}</div>
+      ${Object.keys(PLANS).length < 2 ? `<div class="small muted">In dieser Fassung ist nur der
+        ausgewogene Plan mitgeliefert.</div>` : ''}
     </div>
 
     <div class="section-title">Farbe</div>
@@ -3255,9 +3322,34 @@ view.addEventListener('click', (e) => {
       store.setSetting('restSeconds', Number(t.dataset.sec));
       render();
       break;
+    case 'setup-next':
+      setupWeiter();
+      break;
+    case 'setup-back':
+      ui.setupStep = Math.max(0, (ui.setupStep || 0) - 1);
+      render();
+      break;
     case 'welcome-go':
       willkommenFertig();
       break;
+    case 'set-focus': {
+      const key = t.dataset.v;
+      if (!PLANS[key] || key === (store.getState().focus || 'standard')) break;
+      // Im Einstieg ist noch nichts protokolliert – da ist der Wechsel eine
+      // Auswahl. Später ist er ein Neuanfang: Die Einheiten eines anderen Fokus
+      // stehen an denselben Nummern, aber mit anderen Übungen; ein Protokoll,
+      // das dazwischen hängt, wäre danach nicht mehr zuzuordnen.
+      const laeuft = Object.keys(store.getState().log).length && store.getState().greeted;
+      if (laeuft && !confirm(`Auf "${PLANS[key].name}" wechseln? Der bisherige Verlauf wandert `
+        + 'in die Ablage und bleibt im Export erhalten, die erreichten Gewichte bleiben stehen.')) break;
+      store.setSetting('focus', key);
+      if (laeuft) store.restartPlan(0);
+      // Der Plan steckt beim Laden in Hunderten von Zeilen; ein Wechsel mitten
+      // im Betrieb hieße, dass die halbe App noch mit dem alten rechnet.
+      if (store.getState().greeted) location.reload();
+      else render();
+      break;
+    }
     case 'accept-stand': {
       const stand = ui.standAngebot;
       if (!stand) break;

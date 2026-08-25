@@ -9,6 +9,7 @@ const DEFAULT_STATE = {
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
   useExerciseRest: true, // Pause je Übung statt einer festen Länge
   restSeconds: 90,       // feste Pause, wenn useExerciseRest aus ist; 0 = keine
+  focus: 'standard',     // Trainingsfokus – welche Planvariante gilt (siehe js/data.js)
   theme: 'orange',       // Farbdesign: orange | rosa | blau | gruen | violett
   name: '',              // Anzeigename – steht nur in diesem Browser, kein Konto
   greeted: false,        // Willkommensseite gesehen
