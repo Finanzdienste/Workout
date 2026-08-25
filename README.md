@@ -14,6 +14,15 @@ Drei Reiter, nicht fünf: Kalender und Verletzungen ruft man selten und nie
 mitten im Satz auf. Sie standen trotzdem dauerhaft unten und haben die drei
 wichtigen schmal gemacht – jetzt liegen sie als Einstiege oben unter *Mehr*.
 
+**Welche unten stehen, entscheidet aber der Nutzer** (*Mehr → Leiste unten*):
+Wer jeden zweiten Tag in den Kalender schaut, soll ihn dort haben. *Dashboard*
+und *Mehr* bleiben gesetzt – ohne das eine gibt es kein Training, ohne das
+andere keinen Weg zurück zu dieser Einstellung –, dazu bis zu drei weitere; mehr
+als fünf werden auf schmalen Handys zur Briefmarke. Die drei Standardreiter
+stehen zusätzlich fest im HTML: Seite und Skript können aus unterschiedlich
+alten Zwischenspeichern stammen, und eine leere Leiste mit einem älteren Skript
+wäre eine App ohne Navigation.
+
 | Tab | Inhalt |
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
@@ -123,7 +132,8 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   bei denen es darauf ankommt (Floor Press ohne Ständer etwa).
 * **Zwei Wege aus dem Training.** *Abschließen* behält, was abgehakt ist – auch
   wenn nicht alles steht; der Knopf nennt den Stand mit. Der Tag gilt damit als
-  trainiert: im Kalender, in der Serie, in der Statistik. Wer den letzten Satz
+  trainiert: im Kalender, in der Serie, in der Statistik. Für den Tag, an dem man
+  das vergessen hat, steht auf der Startansicht *✓ Als trainiert markieren*. Wer den letzten Satz
   Wadenheben weglässt, hat trotzdem trainiert – vorher stand dort ein
   ausgefallener Tag, obwohl 16 von 18 Sätzen standen. *Abbrechen* verwirft
   die Einheit ganz, sie gilt dann als nicht trainiert und der Plan behandelt
@@ -1695,13 +1705,36 @@ und ein Tausch mitten im Betrieb hieße, dass die halbe App noch mit dem alten
 rechnet. Wer mittendrin wechselt, wird gefragt – der bisherige Verlauf wandert
 in die Ablage, die erreichten Gewichte bleiben.
 
-### Einrichten in drei Schritten
+### Erfahrung: dieselben Übungen, andere Startgewichte
 
-Wer den Link zum ersten Mal öffnet, bekommt **Name, Farbe, Fokus** – in dieser
-Reihenfolge, eine Frage pro Bildschirm. Die Farbe wirkt sofort, damit die
-Auswahl nicht abstrakt bleibt. Am Ende steht der Hinweis, dass sich unter *Mehr
-→ Eigenes Workout* ohnehin jede Einheit selbst zusammenstellen lässt: Der Fokus
-ist ein Vorschlag, kein Korsett.
+Die Startgewichte in `tools/exercise-meta.json` sind die eines Menschen, der
+seit einer Weile trainiert: 40 kg Floor Press, 20 kg Goblet Squat. Für jemand
+anderen, der den Link bekommt, ist das entweder zu viel oder zu wenig – und
+beides führt zum selben Ergebnis, nämlich dass die erste Einheit nichts taugt.
+
+| Stufe | Faktor | Floor Press | Goblet Squat |
+| --- | --- | --- | --- |
+| Anfänger | ×0,5 | 20 kg | 10 kg |
+| Geübt | ×1 | 40 kg | 20 kg |
+| Fortgeschritten | ×1,5 | 60 kg | 30 kg |
+
+Gerundet wird auf die Schrittweite der jeweiligen Übung, mindestens auf einen
+Schritt. `0 kg` bleibt `0 kg`: Bei Klimmzügen heißt das „ohne Zusatzlast", und
+das gilt für jeden.
+
+Mehr ändert die Stufe nicht. Sätze, Pausen, Übungsauswahl und die
+Erholungsregel sind für Anfänger dieselben – daran ist nichts
+anfängerspezifisch. Und sobald jemand ein Gewicht selbst einstellt, gilt seins:
+Die Stufe ist ein Startpunkt, keine Obergrenze.
+
+### Einrichten in vier Schritten
+
+Wer den Link zum ersten Mal öffnet, bekommt **Name, Farbe, Erfahrung, Fokus** –
+in dieser Reihenfolge, eine Frage pro Bildschirm. Die Farbe wirkt sofort, damit
+die Auswahl nicht abstrakt bleibt; bei der Erfahrung stehen zwei Beispielgewichte
+unter jeder Stufe. Am Ende steht der Hinweis, dass sich unter *Mehr → Eigenes
+Workout* ohnehin jede Einheit selbst zusammenstellen lässt: Der Fokus ist ein
+Vorschlag, kein Korsett.
 
 ## Eigene Workouts
 
@@ -1730,10 +1763,15 @@ wandern sie im Link mit: Einheiten, Sätze, Volumen, Serie, base64-kodiert im
 Anker (`#stand=…`).
 
 Wer den Link öffnet, bekommt die Rückfrage „übernehmen?" und hat den Stand
-danach lokal gespeichert. Die Statistik zeigt daraus eine Rangliste, mit dem
-Alter des Standes daneben – ohne das hielte man einen drei Wochen alten Wert für
-den heutigen. Ein zweiter Stand desselben Menschen ersetzt den ersten; der
-Schlüssel ist der Name.
+danach lokal gespeichert. Die Statistik zeigt daraus eine Rangliste – mit
+Trainingsfokus, letztem Training und dem Alter des Standes darunter. „Zuletzt
+vor 15 Tagen" ist die interessanteste Zeile überhaupt, und ohne das Alter hielte
+man einen drei Wochen alten Wert für den heutigen. Ein zweiter Stand desselben
+Menschen ersetzt den ersten; der Schlüssel ist der Name.
+
+Der Rückweg wird angeboten, statt ihn zu erwarten: Wer einen Stand übernimmt,
+sieht darüber „*X* sieht deinen Stand erst, wenn du ihn zurückschickst" mit
+einem Knopf dafür. Ohne das bleibt der Vergleich einseitig.
 
 Kommt der Link an, während die App schon offen ist, lädt der Browser nichts neu
 – er ändert nur den Anker. Ein `hashchange`-Zweig fängt genau das ab.

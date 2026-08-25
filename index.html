@@ -23,6 +23,11 @@
 
 <main id="view" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tab-dashboard"></main>
 
+<!-- Welche Reiter hier stehen, entscheidet der Nutzer unter Mehr – gefüllt wird
+     die Leiste aus js/app.js. Die drei hier sind der Standard und stehen aus
+     einem zweiten Grund im HTML: Seite und Skript können aus unterschiedlich
+     alten Zwischenspeichern stammen. Eine leere Leiste mit einem älteren Skript
+     wäre eine App ohne Navigation. -->
 <nav class="tabbar" id="tabbar" role="tablist">
   <button type="button" class="tab" id="tab-dashboard" data-tab="dashboard" role="tab" aria-controls="view"><span class="ti">🏠</span><span>Dashboard</span></button>
   <button type="button" class="tab" id="tab-stats" data-tab="stats" role="tab" aria-controls="view"><span class="ti">📈</span><span>Statistik</span></button>

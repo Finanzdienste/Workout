@@ -1,4 +1,4 @@
-import { EXERCISES, PLAN, PLANS, TARGET, REST } from './data.js';
+import { EXERCISES, FOCUS, PLAN, PLANS, TARGET, REST } from './data.js';
 import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
@@ -229,12 +229,65 @@ function resolve(item, mode) {
   };
 }
 
+/* ------------------------------------------------------------------ *
+ * Erfahrung
+ *
+ * Die Startgewichte in tools/exercise-meta.json sind die eines Menschen, der
+ * seit einer Weile trainiert: 40 kg Floor Press, 20 kg Goblet Squat. Für jemand
+ * anderen, der den Link bekommt, ist das entweder zu viel oder zu wenig – und
+ * beides führt zum selben Ergebnis, nämlich dass die erste Einheit nichts taugt.
+ *
+ * Die Erfahrung skaliert deshalb die Startwerte, gerundet auf die Schrittweite
+ * der jeweiligen Übung. Mehr nicht: Der Plan selbst, die Sätze, die Pausen und
+ * die Erholungsregel sind für Anfänger dieselben wie für alle anderen – daran
+ * ist nichts anfängerspezifisch. Und sobald jemand ein Gewicht selbst einstellt,
+ * gilt seins; die Erfahrung ist ein Startpunkt, keine Obergrenze.
+ * ------------------------------------------------------------------ */
+
+const LEVELS = [
+  ['anfaenger', 'Anfänger', 'Neu im Krafttraining oder lange raus. Die Startgewichte gehen '
+    + 'auf die Hälfte – die ersten Wochen entscheidet die Technik, nicht die Scheibe.', 0.5],
+  ['geuebt', 'Geübt', 'Du weißt, wie sich ein sauberer Satz anfühlt, und trainierst schon '
+    + 'eine Weile. Die Startgewichte des Plans passen so.', 1],
+  ['fortgeschritten', 'Fortgeschritten', 'Jahre im Training, die Technik sitzt. Die '
+    + 'Startgewichte gehen um die Hälfte hoch.', 1.5],
+];
+
+/** Zwei Beispiele, damit die Wahl nicht abstrakt bleibt. */
+function levelBeispiel(faktor) {
+  const zeig = ['floor-press', 'goblet-squat']
+    .map((id) => EX_BY_ID.get(id))
+    .filter((ex) => ex && ex.weight)
+    .map((ex) => {
+      const step = ex.step || 2.5;
+      const kg = faktor === 1 ? ex.weight
+        : Math.max(step, Math.round((ex.weight * faktor) / step) * step);
+      return `${ex.db.name} ${fmtNum(kg)} kg`;
+    });
+  return zeig.join(' · ');
+}
+
+const levelFaktor = () => {
+  const eintrag = LEVELS.find(([key]) => key === (store.getState().level || 'geuebt'));
+  return eintrag ? eintrag[3] : 1;
+};
+
+/** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
+function startWeight(ex) {
+  if (ex.weight === null) return null;
+  const f = levelFaktor();
+  // 0 kg heißt "ohne Zusatzlast" (Klimmzüge) – das bleibt 0, egal wer trainiert.
+  if (!ex.weight || f === 1) return ex.weight;
+  const step = ex.step || 2.5;
+  return Math.max(step, Math.round((ex.weight * f) / step) * step);
+}
+
 /** Gewicht, mit dem diese Übung heute gearbeitet wird. */
 function workingWeight(exId) {
   const ex = EX_BY_ID.get(exId);
   if (ex.weight === null) return null;
   const own = store.weightOf(exId);
-  return own === null ? ex.weight : own;
+  return own === null ? startWeight(ex) : own;
 }
 
 /**
@@ -838,18 +891,22 @@ function toast(msg) {
  * UI-Zustand (nicht persistiert)
  * ------------------------------------------------------------------ */
 
-const TABS = ['dashboard', 'calendar', 'stats', 'injuries', 'settings'];
+// Alle Seiten, die es gibt – auch die ohne Reiter unten. Welche unten stehen,
+// entscheidet TABS weiter hinten; hier geht es nur darum, welchen gespeicherten
+// Wert `tab` überhaupt annehmen darf.
+const SEITEN = ['dashboard', 'calendar', 'stats', 'injuries', 'custom', 'settings'];
 
 const ui = {
   // Beim Neuladen im selben Tab bleiben. Die Seite lädt öfter neu, als man
   // denkt – nach einer Aktualisierung etwa –, und jedes Mal auf dem Dashboard
   // zu landen ist lästig.
-  tab: TABS.includes(store.getState().tab) ? store.getState().tab : 'dashboard',
+  tab: SEITEN.includes(store.getState().tab) ? store.getState().tab : 'dashboard',
   workoutNo: defaultWorkoutNo(),
   openEx: new Set(),
   openDetail: new Set(),   // Übungen, deren ausführliche Erklärung offen steht
   standAngebot: null,      // Stand, den jemand per Link geschickt hat
   shiftInfo: 0,            // um so viele Tage ist der Plan gerade nachgerückt
+  standZurueck: null,      // Name, dem man seinen Stand noch zurückschicken wollte
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
   openInjury: new Set(),
@@ -1085,7 +1142,11 @@ function renderOverview() {
         ${prog.done ? `
         <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
           ▶︎ Training fortsetzen
-        </button>`
+        </button>
+        ${prog.complete || completedMode(n) ? '' : `
+        <button type="button" class="btn btn-ghost btn-block" data-act="mark-done" style="margin-top:8px">
+          ✓ Als trainiert markieren
+        </button>`}`
         : `
         <div class="start-paar">
           <button type="button" class="btn btn-primary btn-start ${mode === 'db' ? '' : 'zweit'}"
@@ -1138,14 +1199,17 @@ function needsWelcome() {
   return !s.greeted && !Object.keys(s.log).length;
 }
 
+const SETUP_LETZTER = 3;   // Name, Farbe, Erfahrung, Fokus
+
 function renderWelcome() {
   const schritt = ui.setupStep || 0;
   const s = store.getState();
 
   const kopf = `
     <header class="ov-top">
-      <div class="hero-eyebrow">Einrichten · Schritt ${schritt + 1} von 3</div>
-      <h2 class="hero-title">${['Willkommen', 'Farbe', 'Worauf soll es hinauslaufen?'][schritt]}</h2>
+      <div class="hero-eyebrow">Einrichten · Schritt ${schritt + 1} von ${SETUP_LETZTER + 1}</div>
+      <h2 class="hero-title">${['Willkommen', 'Farbe', 'Wie viel Erfahrung?',
+        'Worauf soll es hinauslaufen?'][schritt]}</h2>
     </header>
     ${ui.standAngebot && schritt === 0 ? `<div class="notice">👋 <b>${esc(ui.standAngebot.n)}</b> hat dir
       den Link geschickt und seinen Stand mitgeschickt: ${ui.standAngebot.w} von
@@ -1181,8 +1245,23 @@ function renderWelcome() {
       </div>
     </div>`, `
     <div class="card">
-      <div class="small muted">Jeder Fokus ist ein eigener, durchgerechneter Plan: dieselben
-        84 Termine, dieselbe Erholungsregel, andere Schwerpunkte. Später änderbar.</div>
+      <div class="small muted">Die Startgewichte des Plans stammen von jemandem, der seit einer
+        Weile trainiert. Damit die erste Einheit etwas taugt, rechnen wir sie auf dich um –
+        Sätze, Pausen und Übungen bleiben gleich, und ändern kannst du jedes Gewicht sowieso
+        selbst.</div>
+      <div class="fokus-liste">
+        ${LEVELS.map(([key, name, hint, faktor]) => `
+          <button type="button" class="fokus-btn ${(s.level || 'geuebt') === key ? 'on' : ''}"
+                  aria-pressed="${(s.level || 'geuebt') === key}" data-act="set-level" data-v="${key}">
+            <span class="lbl">${esc(name)}${(s.level || 'geuebt') === key ? ' ✓' : ''}</span>
+            <span class="hint">${esc(hint)}</span>
+            <span class="fokus-zahl">${esc(levelBeispiel(faktor))}</span>
+          </button>`).join('')}
+      </div>
+    </div>`, `
+    <div class="card">
+      <div class="small muted">Jeder Fokus ist ein eigener, durchgerechneter Plan: dieselbe
+        Rechnung, dieselbe Erholungsregel, andere Schwerpunkte. Später änderbar.</div>
       <div class="fokus-liste">${fokusKarten(s.focus || 'standard')}</div>
     </div>
     <p class="small muted">Und wenn nichts davon passt: Unter <em>Mehr → Eigenes Workout</em>
@@ -1195,7 +1274,7 @@ function renderWelcome() {
       <div class="btn-row nav">
         ${schritt ? '<button type="button" class="btn btn-ghost" data-act="setup-back">← Zurück</button>' : ''}
         <button type="button" class="btn btn-primary" data-act="setup-next">
-          ${schritt === 2 ? 'Los geht’s' : 'Weiter →'}
+          ${schritt === SETUP_LETZTER ? 'Los geht’s' : 'Weiter →'}
         </button>
       </div>
       ${schritt === 0 ? `<p class="small muted">Tipp: „Zum Startbildschirm hinzufügen" macht
@@ -1215,7 +1294,7 @@ function renderWelcome() {
 function setupWeiter() {
   const feld = document.getElementById('nameInput');
   if (feld) store.setSetting('name', feld.value.trim().slice(0, 24));
-  if ((ui.setupStep || 0) < 2) {
+  if ((ui.setupStep || 0) < SETUP_LETZTER) {
     ui.setupStep = (ui.setupStep || 0) + 1;
     render();
     window.scrollTo({ top: 0 });
@@ -1259,6 +1338,7 @@ const STAND_VERSION = 1;
 
 function meinStand() {
   const st = sammleStats();
+  const zuletzt = PLAN.filter((w) => completedMode(w.n)).map((w) => effDate(w)).sort();
   return {
     v: STAND_VERSION,
     n: store.getState().name || 'Ohne Namen',
@@ -1268,6 +1348,12 @@ function meinStand() {
     r: st.streak,
     p: PLAN.length,
     d: todayISO(),
+    // Fokus und letztes Training kommen mit, seit der Vergleich mehr sein soll
+    // als eine Rangliste: Wer Bauch/Beine/Po macht, hat andere Zahlen als wer
+    // Oberkörper macht, und "seit drei Wochen nichts" ist die interessanteste
+    // Zeile überhaupt.
+    f: FOCUS.name,
+    z: zuletzt.length ? zuletzt[zuletzt.length - 1] : null,
   };
 }
 
@@ -1642,14 +1728,22 @@ function vergleichKarte() {
   return `
     <div class="section-title">Vergleich</div>
     <div class="card">
+      ${ui.standZurueck ? `<div class="notice" style="margin:0 0 10px">
+        ↩︎ ${esc(ui.standZurueck)} sieht deinen Stand erst, wenn du ihn zurückschickst.
+        <div class="btn-row nav" style="margin-top:8px">
+          <button type="button" class="btn btn-primary" data-act="share-stand">Zurückschicken</button>
+          <button type="button" class="btn btn-ghost" data-act="drop-zurueck">Später</button>
+        </div></div>` : ''}
       ${freunde.length ? `
       <table class="vgl">
         <thead><tr><th></th><th>Name</th><th>Einheiten</th><th>Sätze</th><th>Serie</th><th></th></tr></thead>
         <tbody>${alle.map((f, i) => `
           <tr class="${f.id === null ? 'ich' : ''}">
             <td class="vgl-rang">${i + 1}</td>
-            <td>${esc(f.n)}${f.id === null ? ' <span class="muted">(du)</span>' : `
-              <div class="small muted">${esc(standAlter(f))}</div>`}</td>
+            <td>${esc(f.n)}${f.id === null ? ' <span class="muted">(du)</span>' : ''}
+              <div class="small muted">${esc([
+                f.f || '', letztesTraining(f), f.id === null ? '' : standAlter(f),
+              ].filter(Boolean).join(' · '))}</div></td>
             <td><b>${f.w}</b><span class="muted">/${f.p}</span></td>
             <td>${f.s}</td>
             <td>${f.r}</td>
@@ -1667,6 +1761,15 @@ function vergleichKarte() {
         Was hier steht, ist der Stand vom Tag, an dem er geschickt wurde – aktueller
         wird er erst, wenn der andere einen neuen schickt.</div>
     </div>`;
+}
+
+/** Wann zuletzt trainiert wurde – die interessanteste Zeile im Vergleich. */
+function letztesTraining(f) {
+  if (!f.z) return 'noch nicht angefangen';
+  const tage = daysBetween(f.z, todayISO());
+  if (tage <= 0) return 'heute trainiert';
+  if (tage === 1) return 'gestern trainiert';
+  return `zuletzt vor ${tage} Tagen`;
 }
 
 /** Wie alt der geschickte Stand ist. */
@@ -2714,6 +2817,44 @@ function renderSettings() {
       </div>
     </div>
 
+    <div class="section-title">Leiste unten</div>
+    <div class="card">
+      <div class="small muted">Welche Seiten unten stehen. <em>Dashboard</em> und <em>Mehr</em>
+        bleiben – ohne das eine gibt es kein Training, ohne das andere keinen Weg zurück
+        hierher. Alles andere ist auch ohne Reiter über Mehr erreichbar.</div>
+      ${Object.entries(TABS).filter(([k]) => !TABS_FIX.includes(k)).map(([key, [icon, label]]) => {
+        const an = tabsAktiv().includes(key);
+        const voll = tabsAktiv().length >= TABS_MAX && !an;
+        return `
+        <div class="switch-row">
+          <div>
+            <div class="lbl">${icon} ${esc(label)}</div>
+            ${voll ? `<div class="hint">Erst einen anderen abwählen – mehr als ${TABS_MAX}
+              werden unten zu schmal.</div>` : ''}
+          </div>
+          <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-tab"
+                  data-v="${key}" aria-label="${esc(label)} unten anzeigen" ${voll ? 'disabled' : ''}></button>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="section-title">Erfahrung</div>
+    <div class="card">
+      <div class="small muted">Die Startgewichte des Plans stammen von jemandem, der seit
+        einer Weile trainiert. Hier lassen sie sich auf die eigene Erfahrung umrechnen –
+        Sätze, Pausen und Übungen bleiben, wie sie sind. Was du selbst eingestellt hast,
+        bleibt ohnehin stehen.</div>
+      <div class="fokus-liste">
+        ${LEVELS.map(([key, name, hint, faktor]) => `
+          <button type="button" class="fokus-btn ${(s.level || 'geuebt') === key ? 'on' : ''}"
+                  aria-pressed="${(s.level || 'geuebt') === key}" data-act="set-level" data-v="${key}">
+            <span class="lbl">${esc(name)}${(s.level || 'geuebt') === key ? ' ✓' : ''}</span>
+            <span class="hint">${esc(hint)}</span>
+            <span class="fokus-zahl">${esc(levelBeispiel(faktor))}</span>
+          </button>`).join('')}
+      </div>
+    </div>
+
     <div class="section-title">Trainingsfokus</div>
     <div class="card">
       <div class="small muted">Jeder Fokus ist ein eigener, durchgerechneter Plan: dieselben
@@ -2906,11 +3047,43 @@ function renderSettings() {
  * Rendering / Routing
  * ------------------------------------------------------------------ */
 
-/* Seiten, die unter Mehr liegen statt in der Leiste unten. Fünf Reiter waren
- * zwei zu viel: Kalender und Verletzungen ruft man selten und nie mitten im
- * Satz auf – sie standen dauerhaft da und haben die drei wichtigen schmal
- * gemacht. */
-const UNTER_MEHR = ['calendar', 'injuries', 'custom'];
+/* ------------------------------------------------------------------ *
+ * Die Leiste unten
+ *
+ * Fünf Reiter waren zwei zu viel: Kalender und Verletzungen ruft man selten und
+ * nie mitten im Satz auf, sie standen aber dauerhaft da und haben die wichtigen
+ * schmal gemacht. Drei sind der Standard.
+ *
+ * Welche es sind, steht aber nicht fest – wer jeden zweiten Tag in den Kalender
+ * schaut, soll ihn unten haben. Dashboard und Mehr bleiben gesetzt: ohne das
+ * eine gibt es kein Training, ohne das andere keinen Weg zurück zu dieser
+ * Einstellung. Alles, was nicht unten steht, ist über Mehr erreichbar.
+ * ------------------------------------------------------------------ */
+
+const TABS = {
+  dashboard: ['🏠', 'Dashboard'],
+  stats: ['📈', 'Statistik'],
+  calendar: ['📅', 'Kalender'],
+  injuries: ['🩹', 'Verletzt'],
+  custom: ['🧩', 'Eigenes'],
+  settings: ['⚙️', 'Mehr'],
+};
+const TABS_FIX = ['dashboard', 'settings'];
+const TABS_MAX = 5;   // mehr wird auf schmalen Handys zur Briefmarke
+
+/** Reiter in der Leiste, immer in der Reihenfolge von TABS. */
+function tabsAktiv() {
+  const gewaehlt = new Set(store.getState().tabs || ['stats']);
+  return Object.keys(TABS).filter((k) => TABS_FIX.includes(k) || gewaehlt.has(k));
+}
+
+function renderTabbar(aktiv) {
+  tabbar.innerHTML = tabsAktiv().map((key) => {
+    const [icon, label] = TABS[key];
+    return `<button type="button" class="tab" id="tab-${key}" data-tab="${key}" role="tab"
+              aria-controls="view" aria-selected="${key === aktiv}"><span class="ti">${icon}</span><span>${esc(label)}</span></button>`;
+  }).join('');
+}
 
 const RENDERERS = {
   dashboard: () => {
@@ -2962,12 +3135,10 @@ function render() {
   modeSwitch.querySelectorAll('.mode-btn').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
   });
-  // Kalender und Verletzungen haben keinen eigenen Reiter mehr – sie liegen
-  // unter Mehr, und dessen Reiter bleibt markiert, solange man dort ist.
-  const reiter = UNTER_MEHR.includes(ui.tab) ? 'settings' : ui.tab;
-  tabbar.querySelectorAll('.tab').forEach((b) => {
-    b.setAttribute('aria-selected', String(b.dataset.tab === reiter));
-  });
+  // Seiten ohne eigenen Reiter liegen unter Mehr – dessen Reiter bleibt
+  // markiert, solange man dort ist.
+  const reiter = tabsAktiv().includes(ui.tab) ? ui.tab : 'settings';
+  renderTabbar(reiter);
   view.setAttribute('aria-labelledby', `tab-${reiter}`);
   const hatte = focusKey(document.activeElement);
   clearFigures(); // alte Animationen abmelden, bevor das DOM ersetzt wird
@@ -3384,6 +3555,18 @@ view.addEventListener('click', (e) => {
       toast('Gelöscht');
       break;
     }
+    case 'mark-done':
+      // Für den Tag, an dem man abgehakt, aber nicht abgeschlossen hat – und für
+      // den, an dem drei Sätze fehlten und man trotzdem trainiert hat.
+      if (!progressOf(n, mode).done) {
+        toast('Ohne einen abgehakten Satz gibt es nichts zu markieren');
+        break;
+      }
+      store.markDone(n, mode);
+      sound('done');
+      render();
+      toast('Als trainiert eingetragen – steht jetzt so im Kalender');
+      break;
     case 'back-to-plan':
       ui.workoutNo = defaultWorkoutNo();
       ui.listView = false;
@@ -3467,15 +3650,21 @@ view.addEventListener('click', (e) => {
       if (!stand) break;
       store.setFriend(freundId(stand.n), stand);
       ui.standAngebot = null;
+      ui.standZurueck = stand.n;   // Vorschlag: eigenen Stand zurückschicken
       go('stats');
       toast(`${stand.n} steht jetzt im Vergleich`);
       break;
     }
+    case 'drop-zurueck':
+      ui.standZurueck = null;
+      render();
+      break;
     case 'drop-stand':
       ui.standAngebot = null;
       render();
       break;
     case 'share-stand': {
+      ui.standZurueck = null;
       const url = standLink();
       const text = `Mein Stand: ${meinStand().w} Einheiten. Öffne den Link, dann stehe ich in `
         + 'deinem Vergleich – und schick mir deinen zurück.';
@@ -3506,6 +3695,20 @@ view.addEventListener('click', (e) => {
       break;
     case 'copy-link':
       linkKopieren(appURL());
+      break;
+    case 'toggle-tab': {
+      const key = t.dataset.v;
+      const drin = new Set(store.getState().tabs || ['stats']);
+      if (drin.has(key)) drin.delete(key);
+      else if (tabsAktiv().length < TABS_MAX) drin.add(key);
+      store.setSetting('tabs', [...drin]);
+      render();
+      break;
+    }
+    case 'set-level':
+      store.setSetting('level', t.dataset.v);
+      render();
+      toast('Startgewichte umgerechnet – eingestellte Gewichte bleiben');
       break;
     case 'set-theme':
       store.setSetting('theme', t.dataset.v);
