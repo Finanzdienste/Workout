@@ -1647,6 +1647,8 @@ js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
 js/chart.js             Verlaufskarten für die Statistik
 js/audio.js             Erzeugte Töne und das vorausgeplante Pausensignal
+js/config.js            Adresse des Rückkanals – leer heißt: kein Server
+js/telemetry.js         Melden, löschen, Betreiber-Übersicht (siehe Rückkanal)
 js/ics.js               Trainingstermine als Kalenderdatei (.ics)
 sw.js                   Service Worker für den Offline-Betrieb
 manifest.webmanifest    Installierbar als App auf dem Homescreen
@@ -1790,6 +1792,86 @@ kühl. Daran erkennt man den Modus, ohne den Schalter zu lesen. Das Design setzt
 beide (`--accent-db`, `--accent-bw`), und `body.mode-bw` schaltet zwischen ihnen
 um. Das Attribut sitzt am `<html>` und nicht am `<body>`: `--accent` wird auf
 `:root` abgeleitet und nähme sonst weiter den Standardwert von dort.
+
+## Rückkanal und Betreiber-Übersicht
+
+Die App ist ohne ihn vollständig – kein Konto, kein Server, alles im Browser.
+Er beantwortet genau eine Frage, die von innen nicht zu beantworten ist: wie die
+App bei den Leuten läuft, denen der Link geschickt wurde.
+
+**Ohne Eintrag in `js/config.js` gibt es ihn nicht.** Kein Text, kein Schalter,
+keine Verbindung; das ist der Auslieferungszustand und der Grund, warum die App
+weiter offline und ohne Konto läuft.
+
+### Drei Regeln
+
+* **Sichtbar.** Wer die App einrichtet, liest im letzten Schritt in einem Satz,
+  was rausgeht und an wen – mit dem Schalter direkt daneben. Unter *Mehr* steht
+  derselbe Satz noch einmal, dazu der Zeitpunkt der letzten Meldung.
+* **Abschaltbar.** Ein Tipp, und es geht nichts mehr raus. *Meine Daten dort
+  löschen* entfernt die eigene Zeile auch rückwirkend.
+* **Wenig.** Nur, was in der App ohnehin auf dem Bildschirm steht: Name, Fokus,
+  Erfahrungsstufe, Einheiten, Sätze, Volumen, Serie, letztes Training, Sätze je
+  Übung, wie oft weitergeschickt. Keine Uhrzeiten, keine Adressen, nichts von
+  außerhalb dieser App.
+
+Heimlich mitzuzählen wäre technisch dasselbe und trotzdem etwas anderes: Die App
+verspricht jedem beim ersten Start, dass nichts von allein sein Gerät verlässt.
+Eine Zusage, die sie an anderer Stelle bricht, ist schlimmer als gar keine.
+
+### Einrichten (einmalig, ~5 Minuten)
+
+1. Auf [supabase.com](https://supabase.com) ein kostenloses Projekt anlegen.
+2. Im **SQL-Editor** das Folgende ausführen. `DEIN-PASSWORT` ist frei wählbar
+   und steht nur hier, nie in der App:
+
+```sql
+create table nutzung (
+  id text primary key,
+  name text, fokus text, stufe text,
+  einheiten int, plan int, saetze int, volumen int, serie int,
+  zuletzt date, geteilt int, freunde int,
+  uebungen jsonb,
+  gesehen timestamptz default now()
+);
+
+alter table nutzung enable row level security;
+
+-- Jedes Gerät darf seine eigene Zeile schreiben und aktualisieren …
+create policy schreiben on nutzung for insert to anon with check (true);
+create policy aendern  on nutzung for update to anon using (true) with check (true);
+create policy loeschen on nutzung for delete to anon using (true);
+-- … aber niemand darf die Tabelle lesen. Kein select-Recht für anon.
+
+-- Gelesen wird nur über diese Funktion, und nur mit Passwort.
+create or replace function admin_liste(pass text)
+returns setof nutzung
+language plpgsql security definer as $$
+begin
+  if pass is distinct from 'DEIN-PASSWORT' then
+    raise exception 'nope' using errcode = '42501';
+  end if;
+  return query select * from nutzung order by einheiten desc;
+end $$;
+
+revoke all on function admin_liste(text) from public;
+grant execute on function admin_liste(text) to anon;
+```
+
+3. In `js/config.js` `url` und `key` eintragen (Projekt-URL und der öffentliche
+   **anon**-Schlüssel aus *Project Settings → API*). Beide dürfen öffentlich
+   sein: Mit den Regeln oben darf der anon-Schlüssel nur schreiben.
+4. `python3 tools/build-single.py`, committen, pushen.
+
+Die Übersicht steht danach unter *Mehr → Übersicht öffnen* und fragt nach dem
+Passwort aus Schritt 2. Sie zeigt Geräte insgesamt, wie viele in den letzten
+sieben Tagen offen waren, wer wie weit ist, wann er zuletzt trainiert hat, die
+Verteilung von Fokus und Erfahrung und die meistgemachten Übungen.
+
+**Warum ein Passwort und kein zweiter Schlüssel:** Ein Schlüssel mit Leserecht
+müsste in der App liegen und läge damit bei allen, die den Link haben. Die
+Funktion `admin_liste` läuft dagegen mit den Rechten ihres Besitzers und gibt
+nur bei passendem Passwort Zeilen zurück; das Passwort steht nirgends im Code.
 
 ## Weitergeben
 

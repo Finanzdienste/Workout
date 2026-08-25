@@ -8,6 +8,11 @@ const DEFAULT_STATE = {
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
   useExerciseRest: true, // Pause je Übung statt einer festen Länge
   restSeconds: 90,       // feste Pause, wenn useExerciseRest aus ist; 0 = keine
+  shareCount: 0,         // wie oft der Link oder der Stand weitergeschickt wurde
+  share: true,           // Stand an den Betreiber melden (nur wenn js/config.js einen Server nennt)
+  deviceId: null,        // zufällige Kennung dieses Geräts für genau diese Meldung
+  lastShare: null,       // { on, ok } – wann zuletzt gemeldet wurde
+  adminPass: null,       // Passwort für die Betreiber-Übersicht, nur auf dessen Gerät
   tabs: ['stats'],       // frei wählbare Reiter unten; Dashboard und Mehr stehen immer
   level: 'geuebt',       // Erfahrung: anfaenger | geuebt | fortgeschritten – skaliert die Startgewichte
   focus: 'standard',     // Trainingsfokus – welche Planvariante gilt (siehe js/data.js)

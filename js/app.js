@@ -6,6 +6,8 @@ import { mountBody, MUSCLE_LABEL } from './body.js';
 import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, applyInjuries, blocked, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
 import { sparkPanel } from './chart.js';
 import { buildICS } from './ics.js';
+import { CONFIG, hatServer } from './config.js';
+import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
 import { initAudio, playSound, scheduleSound, cancelSound } from './audio.js';
 
 /* ------------------------------------------------------------------ *
@@ -894,7 +896,7 @@ function toast(msg) {
 // Alle Seiten, die es gibt – auch die ohne Reiter unten. Welche unten stehen,
 // entscheidet TABS weiter hinten; hier geht es nur darum, welchen gespeicherten
 // Wert `tab` überhaupt annehmen darf.
-const SEITEN = ['dashboard', 'calendar', 'stats', 'injuries', 'custom', 'settings'];
+const SEITEN = ['dashboard', 'calendar', 'stats', 'injuries', 'custom', 'settings', 'admin'];
 
 const ui = {
   // Beim Neuladen im selben Tab bleiben. Die Seite lädt öfter neu, als man
@@ -907,6 +909,9 @@ const ui = {
   standAngebot: null,      // Stand, den jemand per Link geschickt hat
   shiftInfo: 0,            // um so viele Tage ist der Plan gerade nachgerückt
   standZurueck: null,      // Name, dem man seinen Stand noch zurückschicken wollte
+  adminDaten: null,        // geladene Zeilen der Betreiber-Übersicht
+  adminFehler: '',
+  adminLaeuft: false,
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
   openInjury: new Set(),
@@ -1264,6 +1269,7 @@ function renderWelcome() {
         Rechnung, dieselbe Erholungsregel, andere Schwerpunkte. Später änderbar.</div>
       <div class="fokus-liste">${fokusKarten(s.focus || 'standard')}</div>
     </div>
+    ${shareKarte()}
     <p class="small muted">Und wenn nichts davon passt: Unter <em>Mehr → Eigenes Workout</em>
       stellst du dir jede Einheit selbst zusammen, aus demselben Übungsvorrat.</p>`];
 
@@ -1314,6 +1320,100 @@ function willkommenFertig() {
   }
   render();
   toast(name ? `Los geht’s, ${name} 💪` : 'Los geht’s 💪');
+}
+
+/* ------------------------------------------------------------------ *
+ * Rückkanal
+ *
+ * Ohne Eintrag in js/config.js gibt es ihn nicht: keine Frage, kein Schalter,
+ * keine Verbindung. Mit Eintrag meldet jedes Gerät einmal am Tag denselben
+ * Stand, der auch im Vergleich steht, plus Sätze je Übung – damit der Betreiber
+ * sieht, wie die App bei den Leuten läuft, denen er den Link geschickt hat.
+ *
+ * Was hier *nicht* passiert: heimlich sammeln. Der Einstieg sagt in einem Satz,
+ * was rausgeht und an wen, mit dem Schalter daneben; unter Mehr steht dasselbe
+ * noch einmal, mitsamt dem Zeitpunkt der letzten Meldung und einem Knopf, der
+ * die eigene Zeile wieder löscht.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Der eine Satz, der aus Sammeln eine Absprache macht.
+ *
+ * Er steht im Einstieg und unter Mehr, wortgleich, mit dem Schalter daneben.
+ * Ohne Server in js/config.js gibt es ihn nicht – dann gibt es auch nichts zu
+ * erlauben.
+ */
+function shareKarte(ausfuehrlich = false) {
+  if (!hatServer()) return '';
+  const s = store.getState();
+  const an = s.share !== false;
+  return `
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Nutzung mit ${esc(CONFIG.betreiber)} teilen</div>
+          <div class="hint">Einmal am Tag gehen dein Name, dein Trainingsfokus, deine
+            Erfahrungsstufe und dein Fortschritt an ${esc(CONFIG.betreiber)} – Einheiten,
+            Sätze, Volumen, wann du zuletzt trainiert hast und welche Übungen wie oft
+            vorkamen. Er hat die App gebaut und sieht daran, ob sie benutzt wird und was
+            hakt. Sonst geht nichts raus: keine Uhrzeiten, keine Adressen, nichts von
+            außerhalb dieser App.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-share"
+                aria-label="Nutzung teilen"></button>
+      </div>
+      ${ausfuehrlich ? `
+      <div class="small muted">${s.lastShare
+        ? `Zuletzt gemeldet am ${esc(fmtDate(s.lastShare.on))}${s.lastShare.ok ? '' : ' – hat nicht geklappt'}.`
+        : 'Noch nichts gemeldet.'}
+        ${an ? '' : 'Abgeschaltet – es geht nichts mehr raus.'}</div>
+      <div class="btn-row">
+        <button type="button" class="btn" data-act="share-delete">Meine Daten dort löschen</button>
+      </div>` : ''}
+    </div>`;
+}
+
+/** Meldet dieses Gerät gerade? Nur mit Server und nur mit Zustimmung. */
+const meldetMit = () => hatServer() && store.getState().share !== false;
+
+function standZeile() {
+  const st = sammleStats();
+  const zuletzt = PLAN.filter((w) => completedMode(w.n)).map((w) => effDate(w)).sort();
+  const proUebung = {};
+  st.perEx.forEach((anzahl, id) => { proUebung[id] = anzahl; });
+  return {
+    id: store.getState().deviceId,
+    name: store.getState().name || 'Ohne Namen',
+    fokus: FOCUS.name,
+    stufe: (LEVELS.find(([k]) => k === (store.getState().level || 'geuebt')) || [])[1] || '',
+    einheiten: st.workoutsDone,
+    plan: PLAN.length,
+    saetze: st.setsDone,
+    volumen: Math.round(st.volume),
+    serie: st.streak,
+    zuletzt: zuletzt.length ? zuletzt[zuletzt.length - 1] : null,
+    geteilt: store.getState().shareCount || 0,
+    freunde: Object.keys(store.getState().friends || {}).length,
+    uebungen: proUebung,
+    gesehen: new Date().toISOString(),
+  };
+}
+
+/**
+ * Einmal am Tag melden, im Hintergrund, ohne die App aufzuhalten.
+ *
+ * Öfter bringt nichts: Die Zahlen ändern sich pro Einheit, nicht pro Minute.
+ * Nach einem abgeschlossenen Training wird zusätzlich gemeldet (`sofort`),
+ * damit die Übersicht nicht einen Tag hinterherhinkt.
+ */
+function meldeStand(sofort = false) {
+  if (!meldetMit()) return;
+  const s = store.getState();
+  if (!sofort && s.lastShare && s.lastShare.on === todayISO()) return;
+  if (!s.deviceId) store.setSetting('deviceId', geraeteId(null));
+  melden(standZeile()).then((ok) => {
+    store.setSetting('lastShare', { on: todayISO(), ok });
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -2745,6 +2845,166 @@ const THEMES = [
   ['violett', 'Violett', '#a78bfa', '#f0abfc'],
 ];
 
+/* ------------------------------------------------------------------ *
+ * Betreiber-Übersicht
+ *
+ * Die eine Ansicht, die nicht jedem gehört: Wer den Link verschickt hat, sieht
+ * hier, was daraus geworden ist – wie viele Geräte, welche Fokusse, wer noch
+ * trainiert und wer nicht mehr.
+ *
+ * Der Zugang hängt an einem Passwort, das nirgends im Code steht. Die App
+ * schickt es an eine Datenbankfunktion, die nur bei Übereinstimmung Zeilen
+ * zurückgibt; ein Schlüssel mit Leserecht müsste dagegen in der App liegen und
+ * läge damit bei allen, die den Link haben.
+ * ------------------------------------------------------------------ */
+
+function adminKarte() {
+  if (!hatServer()) return '';
+  return `
+    <div class="section-title">Übersicht</div>
+    <div class="card">
+      <div class="small muted">Wer den Link verschickt hat, sieht hier, wie die App
+        benutzt wird. Braucht das Passwort aus der Einrichtung.</div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-block" data-act="go-tab" data-tab="admin">Übersicht öffnen</button>
+      </div>
+    </div>`;
+}
+
+function renderAdmin() {
+  const zurueck = '<button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>';
+  if (!hatServer()) {
+    view.innerHTML = `${zurueck}<div class="card muted small">In dieser Fassung ist kein Server
+      eingetragen – es gibt nichts zu zeigen.</div>`;
+    return;
+  }
+  const daten = ui.adminDaten;
+  if (!daten && store.getState().adminPass && !ui.adminFehler && !ui.adminLaeuft) {
+    // Passwort steht schon: dann nicht danach fragen, sondern laden.
+    ui.adminLaeuft = true;
+    adminOeffnen(store.getState().adminPass);
+  }
+  if (!daten) {
+    view.innerHTML = `
+      ${zurueck}
+      <div class="section-title">Übersicht</div>
+      <div class="card">
+        <div class="small muted">Passwort aus der Einrichtung (steht in der Datenbankfunktion
+          <code>admin_liste</code>, nicht in der App).</div>
+        <input type="password" class="name-input" id="adminPass" autocomplete="current-password"
+               placeholder="Passwort" aria-label="Passwort">
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary btn-block" data-act="admin-open">Öffnen</button>
+        </div>
+        ${ui.adminFehler ? `<div class="hint" style="color:var(--accent)">${esc(ui.adminFehler)}</div>` : ''}
+      </div>`;
+    const feld = document.getElementById('adminPass');
+    if (feld) {
+      feld.value = store.getState().adminPass || '';
+      feld.addEventListener('keydown', (e) => { if (e.key === 'Enter') adminOeffnen(); });
+    }
+    return;
+  }
+
+  // --- Zahlen aus den Zeilen ---
+  const heute = todayISO();
+  const tage = (d) => (d ? daysBetween(String(d).slice(0, 10), heute) : null);
+  const aktiv = daten.filter((r) => tage(r.gesehen) !== null && tage(r.gesehen) <= 7).length;
+  const trainiert = daten.filter((r) => (r.einheiten || 0) > 0).length;
+  const summeSaetze = daten.reduce((a, r) => a + (r.saetze || 0), 0);
+  const geteilt = daten.reduce((a, r) => a + (r.geteilt || 0), 0);
+  const fokusse = new Map();
+  daten.forEach((r) => fokusse.set(r.fokus || '–', (fokusse.get(r.fokus || '–') || 0) + 1));
+  const stufen = new Map();
+  daten.forEach((r) => stufen.set(r.stufe || '–', (stufen.get(r.stufe || '–') || 0) + 1));
+  const uebungen = new Map();
+  daten.forEach((r) => Object.entries(r.uebungen || {}).forEach(([id, n]) => {
+    uebungen.set(id, (uebungen.get(id) || 0) + n);
+  }));
+  const topUe = [...uebungen.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxUe = topUe.length ? topUe[0][1] : 1;
+  const reihen = [...daten].sort((a, b) => (b.einheiten || 0) - (a.einheiten || 0));
+
+  const verteilung = (karte) => [...karte.entries()].sort((a, b) => b[1] - a[1])
+    .map(([k, n]) => `${esc(k)} <b>${n}</b>`).join(' · ');
+
+  view.innerHTML = `
+    ${zurueck}
+    <div class="section-title">Übersicht</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-v">${daten.length}</div><div class="stat-l">Geräte insgesamt</div></div>
+      <div class="stat"><div class="stat-v">${aktiv}</div><div class="stat-l">in den letzten 7 Tagen</div></div>
+      <div class="stat"><div class="stat-v">${trainiert}</div><div class="stat-l">haben trainiert</div></div>
+      <div class="stat"><div class="stat-v">${summeSaetze}</div><div class="stat-l">Sätze zusammen</div></div>
+      <div class="stat"><div class="stat-v">${geteilt}</div><div class="stat-l">mal weitergeschickt</div></div>
+      <div class="stat"><div class="stat-v">${daten.filter((r) => (r.freunde || 0) > 0).length}</div><div class="stat-l">mit Vergleich</div></div>
+    </div>
+
+    <div class="section-title">Fokus und Erfahrung</div>
+    <div class="card">
+      <div class="small">${verteilung(fokusse) || '–'}</div>
+      <div class="small muted" style="margin-top:8px">${verteilung(stufen) || '–'}</div>
+    </div>
+
+    <div class="section-title">Wer</div>
+    <div class="card">
+      <table class="vgl">
+        <thead><tr><th>Name</th><th>Einheiten</th><th>Sätze</th><th>zuletzt</th></tr></thead>
+        <tbody>${reihen.map((r) => {
+          const t = tage(r.gesehen);
+          return `<tr>
+            <td>${esc(r.name || '–')}
+              <div class="small muted">${esc(r.fokus || '')}${r.stufe ? ` · ${esc(r.stufe)}` : ''}</div></td>
+            <td><b>${r.einheiten || 0}</b><span class="muted">/${r.plan || '?'}</span></td>
+            <td>${r.saetze || 0}</td>
+            <td>${r.zuletzt ? esc(fmtDate(String(r.zuletzt).slice(0, 10))) : '–'}
+              <div class="small muted">${t === null ? ''
+                : t === 0 ? 'App heute geöffnet' : `App vor ${plural(t, 'Tag', 'Tagen')}`}</div></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>
+
+    <div class="section-title">Meistgemachte Übungen</div>
+    <div class="card">
+      ${topUe.length ? `<div class="bars">${topUe.map(([id, n]) => `
+        <div class="bar-row">
+          <div>
+            <div class="bar-name">${esc((EX_BY_ID.get(id) || {}).db ? EX_BY_ID.get(id).db.name : id)}</div>
+            <div class="bar-track"><i style="width:${Math.round((n / maxUe) * 100)}%"></i></div>
+          </div>
+          <div class="bar-val">${n}</div>
+        </div>`).join('')}</div>` : '<div class="muted small">Noch nichts abgehakt.</div>'}
+    </div>
+
+    <div class="btn-row nav">
+      <button type="button" class="btn" data-act="admin-reload">Neu laden</button>
+      <button type="button" class="btn btn-ghost" data-act="admin-logout">Passwort vergessen</button>
+    </div>
+    <p class="small muted">Jede Zeile ist ein Gerät, das die App eingerichtet hat und das
+      Teilen angelassen hat. Wer abschaltet, verschwindet aus der Liste, sobald er auf
+      „Meine Daten dort löschen" tippt.</p>`;
+}
+
+/** Passwort prüfen und Liste holen. */
+function adminOeffnen(pass) {
+  const feld = document.getElementById('adminPass');
+  const wort = pass || (feld ? feld.value.trim() : store.getState().adminPass);
+  if (!wort) return;
+  ui.adminFehler = '';
+  adminListe(wort).then((daten) => {
+    store.setSetting('adminPass', wort);
+    ui.adminDaten = daten;
+    ui.adminLaeuft = false;
+    render();
+  }).catch((e) => {
+    ui.adminFehler = e.message || 'Hat nicht geklappt';
+    ui.adminDaten = null;
+    ui.adminLaeuft = false;
+    render();
+  });
+}
+
 function renderSettings() {
   const s = store.getState();
   const act = activeInjuries().length;
@@ -2816,6 +3076,11 @@ function renderSettings() {
         <button type="button" class="toggle" aria-pressed="${!s.useExerciseRest && !s.restSeconds}" data-act="toggle-rest-off" aria-label="Pause abschalten"></button>
       </div>
     </div>
+
+    ${hatServer() ? `<div class="section-title">Nutzung teilen</div>
+    ${shareKarte(true)}` : ''}
+
+    ${adminKarte()}
 
     <div class="section-title">Leiste unten</div>
     <div class="card">
@@ -3095,6 +3360,7 @@ const RENDERERS = {
   },
   calendar: renderCalendar,
   custom: renderCustom,
+  admin: renderAdmin,
   stats: renderStats,
   injuries: renderInjuries,
   settings: renderSettings,
@@ -3392,6 +3658,7 @@ view.addEventListener('click', (e) => {
       // wäre das allerdings gelogen.
       if (prog.done) store.markDone(n, mode);
       store.endSession();
+      meldeStand(true);
       ui.focus = false;
       ui.listView = false;
       if (store.getState().rest) endRest(false);
@@ -3678,6 +3945,7 @@ view.addEventListener('click', (e) => {
       toast('Aus dem Vergleich entfernt');
       break;
     case 'share-link': {
+      store.setSetting('shareCount', (store.getState().shareCount || 0) + 1);
       const url = appURL();
       if (navigator.share) {
         // Der Systemdialog braucht die Berührung, in der wir gerade stecken –
@@ -3690,12 +3958,44 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'share-whatsapp':
+      store.setSetting('shareCount', (store.getState().shareCount || 0) + 1);
       window.open(`https://wa.me/?text=${encodeURIComponent(`${SHARE_TEXT} ${appURL()}`)}`,
         '_blank', 'noopener');
       break;
     case 'copy-link':
       linkKopieren(appURL());
       break;
+    case 'admin-open':
+      adminOeffnen();
+      break;
+    case 'admin-reload':
+      adminOeffnen(store.getState().adminPass);
+      break;
+    case 'admin-logout':
+      store.setSetting('adminPass', null);
+      ui.adminDaten = null;
+      ui.adminFehler = '';
+      render();
+      break;
+    case 'toggle-share': {
+      const an = store.getState().share === false;
+      store.setSetting('share', an);
+      render();
+      if (an) {
+        meldeStand(true);
+        toast('Wird ab jetzt geteilt');
+      } else {
+        toast('Abgeschaltet – es geht nichts mehr raus');
+      }
+      break;
+    }
+    case 'share-delete': {
+      const id = store.getState().deviceId;
+      loeschen(id).then((ok) => toast(ok ? 'Gelöscht' : 'Hat nicht geklappt – später nochmal'));
+      store.setSetting('share', false);
+      render();
+      break;
+    }
     case 'toggle-tab': {
       const key = t.dataset.v;
       const drin = new Set(store.getState().tabs || ['stats']);
@@ -3956,6 +4256,7 @@ if (ui.standAngebot) {
   ui.listView = false;
 }
 render();
+meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist
 store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit
 // Neu geladen und sichtbar: Die Uhr eines laufenden Trainings muss wieder
 // anlaufen. Ohne diese Zeile stünde sie bis zum nächsten Wegschalten still.
