@@ -271,9 +271,6 @@ function bumpHint(exId) {
     if (!sets || !sets.some((x) => x.done || x.w !== '')) continue;
     const complete = sets.length >= item.sets && sets.slice(0, item.sets).every((x) => x.done);
     if (!complete) break;                       // Lücke beendet die Serie
-    // Wer nach der Einheit "war schwer" angetippt hat, bekommt keinen
-    // Vorschlag: dieselbe Last noch einmal sauber ist der nächste Schritt.
-    if (store.effortOf(w.n, 'db', exId) === 'schwer') break;
     const used = parseFloat(String(sets[0].w).replace(',', '.'));
     if (!(Math.abs(used - current) < 0.01)) break;   // anderes Gewicht: Serie neu
     streak += 1;
@@ -701,9 +698,37 @@ function weiterZurNaechsten(n, mode) {
 }
 
 /**
+ * Fortschrittsleiste über der Fokus-Ansicht.
+ *
+ * Ein Kasten je Übung, darunter ein Feld je Satz. Damit steht die ganze Einheit
+ * auf einen Blick da: was schon steht, wo man gerade ist, was noch kommt – und
+ * ein Tipp auf einen Kasten springt dorthin. Die Breite folgt der Satzzahl,
+ * sonst sähe eine Übung mit drei Sätzen so groß aus wie eine mit einem.
+ */
+function progressStrip(n, mode, w, cur) {
+  return `
+    <div class="prog">
+      ${w.ex.map((item, k) => {
+        const v = resolve(item, mode);
+        const arr = store.peekSets(n, mode, v.id) || [];
+        const done = arr.slice(0, v.sets).filter((x) => x.done).length;
+        return `
+        <button type="button" class="prog-ex ${k === cur ? 'cur' : ''} ${done === v.sets ? 'done' : ''}"
+                style="flex-grow:${v.sets}" data-act="focus-goto" data-i="${k}"
+                aria-label="Übung ${k + 1}, ${esc(v.name)}, ${done} von ${v.sets} Sätzen"
+                aria-current="${k === cur}">
+          <span class="prog-cap"></span>
+          <span class="prog-sets">
+            ${Array.from({ length: v.sets }, (_, x) => `<i class="${x < done ? 'on' : ''}"></i>`).join('')}
+          </span>
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
+/**
  * Fokus-Ansicht: eine Übung groß, mit vorgeführter Bewegung. Sobald alle Sätze
- * stehen, kommt die Frage nach der Anstrengung – und die Antwort rückt zur
- * nächsten offenen Übung weiter. Wer nicht antworten mag, nimmt "Weiter →".
+ * stehen, rückt sie von selbst zur nächsten offenen Übung weiter.
  */
 function renderFocus() {
   const n = ui.workoutNo;
@@ -736,6 +761,7 @@ function renderFocus() {
         <span id="sessionBadge">⏱ 0:00</span> · Übung ${i + 1} von ${w.ex.length} · ${prog.done}/${prog.total} Sätze
       </span>
     </div>
+    ${progressStrip(n, mode, w, i)}
 
     <div class="focus-fig" id="focusFig"></div>
 
@@ -766,11 +792,6 @@ function renderFocus() {
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
 
-    ${/* Trainiert wird hier, nicht in der Liste – ohne diese Zeile blieb die
-          Frage nach der Anstrengung unbeantwortet, und im Bodyweight-Modus
-          steigerte sich damit nie etwas: dort ist zweimal "ging leicht" die
-          einzige Bedingung für mehr Wiederholungen. */''}
-    ${effortRow(n, mode, it.id, doneCount === it.sets)}
 
     <div class="btn-row nav">
       <button type="button" class="btn btn-ghost" data-act="focus-step" data-d="-1" ${i === 0 ? 'disabled' : ''}>← Zurück</button>
@@ -970,13 +991,12 @@ function renderDashboard() {
       ${frozen ? `<div class="kg-next">Nächstes Mal: ${esc(fmtNum(next))} kg</div>` : bumpChip(it.id, mode)}`;
 
     // Im Bodyweight-Modus gibt es kein Gewicht – dort ist die Steigerung die
-    // Wiederholungszahl, und der Vorschlag hängt an "ging leicht".
-    // Den *neuen* Bereich zeigen, nicht den alten mit einem Plus dahinter –
-    // sonst muss man beim Lesen selbst rechnen.
+    // Wiederholungszahl. Den *neuen* Bereich zeigen, nicht den alten mit einem
+    // Plus dahinter – sonst muss man beim Lesen selbst rechnen.
     const bwZiel = String(it.reps).replace(/\d+/g, (d) => String(Number(d) + store.bwPlusOf(it.id) + 2));
     const bwChip = mode === 'bw' && bwBump(it.id)
       ? `<button type="button" class="kg-bump" data-act="bw-bump" data-ex="${it.id}">
-           2× ging leicht · nächstes Mal ${esc(bwZiel)} Wdh.?
+           2× komplett · nächstes Mal ${esc(bwZiel)} Wdh.?
          </button>`
       : '';
 
@@ -993,7 +1013,6 @@ function renderDashboard() {
         ${weightRow}
         ${bwChip}
         <div class="ex-sets">${setBtns}</div>
-        ${effortRow(n, mode, it.id, complete)}
         <div class="ex-body">
           ${open ? `<div class="ex-fig" data-pattern="${esc(it.pattern)}"
                data-weight="${it.weight !== null}" data-gear="${esc(it.gear || '')}"></div>` : ''}
@@ -1237,25 +1256,6 @@ function renderStats() {
 // allein schlecht wieder herauskommt.
 const INTENSITY = 'So schwer wählen, dass noch 1–2 Wiederholungen drin wären – nicht mehr.';
 
-const EFFORT = [
-  ['leicht', 'ging leicht'],
-  ['ok', 'passte'],
-  ['schwer', 'war schwer'],
-];
-
-function effortRow(n, mode, exId, complete) {
-  if (!complete) return '';
-  const cur = store.effortOf(n, mode, exId);
-  return `
-    <div class="effort">
-      <span class="effort-q">Wie war das?</span>
-      ${EFFORT.map(([key, label]) => `
-        <button type="button" class="effort-btn ${cur === key ? 'on' : ''}"
-                aria-pressed="${cur === key}" data-act="set-effort"
-                data-ex="${exId}" data-v="${key}">${label}</button>`).join('')}
-    </div>`;
-}
-
 /** Wiederholungsbereich um den Bodyweight-Aufschlag verschoben. */
 function repsLabel(it, mode) {
   const plus = mode === 'bw' ? store.bwPlusOf(it.id) : 0;
@@ -1266,9 +1266,11 @@ function repsLabel(it, mode) {
 /**
  * Vorschlag im Bodyweight-Modus: mehr Wiederholungen.
  *
- * Bedingung wie bei den Hanteln – die letzten beiden Male vollständig
- * durchgezogen –, nur zählt hier nicht das Gewicht, sondern dass es beide Male
- * als leicht durchging.
+ * Bedingung wie bei den Hanteln: die letzten beiden Male vollständig
+ * durchgezogen. Vorher musste es zusätzlich zweimal als "ging leicht"
+ * beantwortet sein – diese Frage ist raus, und damit hängt die Steigerung nur
+ * noch daran, dass alle Sätze standen. Wer eine Übung schwer fand, nimmt den
+ * Vorschlag einfach nicht an; er steht als Angebot da, nicht als Anweisung.
  */
 function bwBump(exId) {
   let streak = 0;
@@ -1280,7 +1282,6 @@ function bwBump(exId) {
     if (!sets || !sets.some((x) => x.done || x.w !== '')) continue;   // siehe bumpHint()
     const complete = sets.length >= item.sets && sets.slice(0, item.sets).every((x) => x.done);
     if (!complete) break;
-    if (store.effortOf(w.n, 'bw', exId) !== 'leicht') break;
     streak += 1;
     if (streak >= BUMP_NEEDED) return streak;
   }
@@ -2200,18 +2201,6 @@ view.addEventListener('click', (e) => {
   const mode = store.workoutMode(n);
 
   switch (act) {
-    case 'set-effort': {
-      const id = t.dataset.ex;
-      const v = t.dataset.v;
-      const neu = store.effortOf(n, mode, id) === v ? null : v;
-      store.setEffort(n, mode, id, neu);
-      // Die Antwort ist zugleich der Weiterschalter: In der Fokus-Ansicht
-      // steht sie unter der gerade fertigen Übung, und danach will man zur
-      // nächsten. Das Zurücknehmen der Antwort schaltet nicht weiter.
-      if (neu && ui.focus && !progressOf(n, mode).complete) weiterZurNaechsten(n, mode);
-      render();
-      break;
-    }
     case 'bw-bump': {
       const id = t.dataset.ex;
       store.addBwPlus(id, 2);
@@ -2288,15 +2277,10 @@ view.addEventListener('click', (e) => {
       const exDone = done && i === item.sets - 1
         && store.getSets(n, mode, id, item.sets).every((s) => s.done);
 
-      // In der Fokus-Ansicht von selbst zur nächsten offenen Übung rücken –
-      // aber erst, wenn die Frage nach der Anstrengung beantwortet ist. Sie
-      // steht genau hier und wäre sonst nur aufgeblitzt: Der Sprung kam im
-      // selben Wimpernschlag, und im Bodyweight-Modus hing die ganze
-      // Progression daran. Wer nicht antworten will, tippt "Weiter →" – der
-      // Knopf steht daneben und ist hervorgehoben.
-      if (ui.focus && exDone && !workoutComplete && store.effortOf(n, mode, id)) {
-        weiterZurNaechsten(n, mode);
-      }
+      // In der Fokus-Ansicht sofort zur nächsten offenen Übung rücken. Bis
+      // hierher wartete der Sprung auf die Antwort zu "Wie war das?" – die
+      // Frage gibt es nicht mehr, also gibt es auch nichts mehr abzuwarten.
+      if (ui.focus && exDone && !workoutComplete) weiterZurNaechsten(n, mode);
       render();
       // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
       // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
@@ -2421,6 +2405,10 @@ view.addEventListener('click', (e) => {
       break;
     case 'hide-list':
       ui.listView = false;
+      render();
+      break;
+    case 'focus-goto':
+      ui.focusIdx = Number(t.dataset.i);
       render();
       break;
     case 'focus-step':

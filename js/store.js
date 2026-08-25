@@ -15,6 +15,7 @@ const DEFAULT_STATE = {
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   session: null,         // laufendes Training: { n, startedAt }
+  sessionStart: null,    // Beginn der heutigen Einheit: { n, on, at } – überlebt endSession()
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
   // Stand der zuletzt erzeugten Kalenderdatei: { on, shift, seq }. Aus `shift`
   // ergibt sich, ob die Termine im Kalender noch stimmen; `seq` zählt hoch,
@@ -26,8 +27,6 @@ const DEFAULT_STATE = {
   // kommenden Trainings, bis der Haken wieder weg ist – nicht nur für heute.
   injuries: [],
   tab: 'dashboard',      // zuletzt sichtbarer Tab, damit ein Neuladen nicht herausreißt
-  // Wie sich eine Übung angefühlt hat: { [workoutNo]: { db: {exId: 'leicht'|'ok'|'schwer'}, bw: {…} } }
-  effort: {},
   // Zusätzliche Wiederholungen im Bodyweight-Modus, je Übung. Dort gibt es
   // kein Gewicht, das man erhöhen könnte – die Steigerung sind die Wdh.
   bwPlus: {},
@@ -201,8 +200,21 @@ export function setWeight(exId, kg) {
   return v;
 }
 
+/**
+ * Training beginnen – oder fortsetzen.
+ *
+ * Fortsetzen ist kein Neuanfang: Wer zwischendurch aus dem Training geht und
+ * wieder hineingeht, will sehen, wie lange er heute schon dabei ist, und nicht
+ * wieder 0:00. Der Beginn hängt deshalb an der Einheit und überlebt
+ * endSession(). Über Nacht fängt er neu an – sonst stünde am nächsten Morgen
+ * eine zwölfstündige Einheit da.
+ */
 export function startSession(n) {
-  state.session = { n, startedAt: Date.now() };
+  const alt = state.sessionStart;
+  const weiter = alt && alt.n === n && alt.on === todayISO() ? alt.at : null;
+  const at = weiter || Date.now();
+  state.sessionStart = { n, on: todayISO(), at };
+  state.session = { n, startedAt: at };
   persist();
   emit();
 }
@@ -248,6 +260,9 @@ export function resetWorkout(n, mode) {
   const e = state.log[n];
   if (!e) return;
   e[mode] = {};
+  // Verworfen ist verworfen: Der nächste Anlauf an dieser Einheit fängt die
+  // Zeit wieder bei null an.
+  if (state.sessionStart && state.sessionStart.n === n) state.sessionStart = null;
   syncStartedOn(n);
   persist();
   emit();
@@ -265,19 +280,6 @@ export function completeWorkout(n, mode, exList) {
   syncStartedOn(n);
   persist();
   emit();
-}
-
-/** Wie sich eine Übung angefühlt hat – 'leicht', 'ok' oder 'schwer'. */
-export function effortOf(n, mode, exId) {
-  return ((state.effort[n] || {})[mode] || {})[exId] || null;
-}
-
-export function setEffort(n, mode, exId, value) {
-  const day = state.effort[n] || (state.effort[n] = {});
-  const m = day[mode] || (day[mode] = {});
-  if (value) m[exId] = value;
-  else delete m[exId];
-  persist();
 }
 
 /** Aufschlag an Wiederholungen im Bodyweight-Modus. */
@@ -323,15 +325,11 @@ export function markBackup(done) {
  */
 export function restartPlan(shiftDays) {
   if (Object.keys(state.log).length) {
-    state.rounds.push({ finishedOn: todayISO(), log: state.log, effort: state.effort });
+    state.rounds.push({ finishedOn: todayISO(), log: state.log });
   }
   state.log = {};
-  // Die Antworten auf "Wie war das?" hängen an der Workout-Nummer, nicht am
-  // Durchlauf – ohne sie mitzuräumen stünde in Runde zwei bei jeder gerade
-  // beendeten Übung schon eine Antwort aus Runde eins. Gewichte und der
-  // Bodyweight-Aufschlag bleiben dagegen: das ist der erreichte Stand.
-  state.effort = {};
   state.session = null;
+  state.sessionStart = null;
   state.rest = null;
   state.shift = Math.round(Number(shiftDays) || 0);
   persist();

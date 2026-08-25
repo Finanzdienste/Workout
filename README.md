@@ -88,13 +88,11 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 * **Ein Arbeitsgewicht je Übung**, vorbelegt mit einem Startwert (siehe unten).
   Änderbar durch Antippen der Zahl oder über **−** und **+**, die je Übung
   unterschiedlich weit gehen (siehe *Gewichtsschritte*).
-* **„Wie war das?"** – drei Knöpfe nach dem letzten Satz einer Übung. Freiwillig,
-  ein Griff, und die Grundlage für den Vorschlag beim nächsten Mal. In der
-  Fokus-Ansicht ist die Antwort zugleich der Weiterschalter: Die Übung bleibt
-  nach dem letzten Satz stehen, bis geantwortet oder **Weiter →** getippt wird.
-  Vorher sprang die Ansicht sofort weiter, und die Frage war nur ein Aufblitzen –
-  im Bodyweight-Modus hing damit die ganze Progression an einer Antwort, die
-  niemand geben konnte.
+* **Kein Fragebogen.** Nach dem letzten Satz einer Übung springt die
+  Fokus-Ansicht sofort zur nächsten. Dazwischen stand einmal die Frage „Wie war
+  das?" mit drei Knöpfen; sie ist raus. Sie kostete bei jeder Übung einen Griff,
+  hielt den Ablauf an – und die Progression kommt auch ohne sie aus: Was zählt,
+  ist, dass alle Sätze standen.
 * **Wie schwer.** Unter dem Übungsnamen steht, wie nah ans Limit gegangen wird:
   *„noch 1–2 Wiederholungen drin – nicht mehr"*. Das ist die Zahl, die am
   meisten über das Ergebnis entscheidet, und sie stand vorher nirgends –
@@ -336,15 +334,16 @@ die App zwei Nachkommastellen statt einer.
 #### Progression ohne Gewicht
 
 Im Bodyweight-Modus gibt es nichts zu erhöhen – dort geht der Fortschritt über
-Wiederholungen. Die App fragt nach dem letzten Satz **„Wie war das?"** (*ging
-leicht* / *passte* / *war schwer*). Zweimal in Folge alles durchgezogen **und**
-beide Male „ging leicht" ergibt den Vorschlag *„2× ging leicht · nächstes Mal
-10–17 Wdh.?"*. Ein Tipp verschiebt den angezeigten Bereich dauerhaft um zwei
-nach oben, für diese Übung.
+Wiederholungen. Zweimal in Folge alles durchgezogen ergibt den Vorschlag *„2×
+komplett · nächstes Mal 10–17 Wdh.?"*. Ein Tipp verschiebt den angezeigten
+Bereich dauerhaft um zwei nach oben, für diese Übung.
 
-Dieselbe Antwort dient bei den Hanteln als Bremse: „war schwer" beendet die
-Serie, ohne dass man das Gewicht zurücknehmen müsste. Beantworten ist
-freiwillig – ohne Antwort verhält sich die Hantel-Progression wie vorher.
+**Ohne Fragebogen.** Bis hierher hing beides an einer Frage nach dem letzten
+Satz – „Wie war das?" mit *ging leicht* / *passte* / *war schwer*. Zweimal „ging
+leicht" war die Bedingung für mehr Wiederholungen, „war schwer" bremste die
+Hantel-Progression. Die Frage ist raus: Sie kostete bei jeder Übung einen
+Griff und hielt den Ablauf an, obwohl der Vorschlag ohnehin nur ein Angebot ist.
+Wer eine Übung schwer fand, nimmt ihn einfach nicht an.
 
 ### Pausenlängen
 
