@@ -278,9 +278,18 @@ def dates(weeks):
     Einheiten zu einer Woche zusammen, und eine angebrochene erste Woche würde
     diese Blöcke gegen den Kalender verschieben.
     """
-    src = DATA.read_text(encoding='utf-8')
-    plan = json.loads(re.search(r'export const PLAN = ([\s\S]*?);\n?$', src).group(1))
-    start = datetime.date.fromisoformat(plan[0]['date'])
+    # Das Startdatum steht im zuletzt erzeugten Plan. Früher wurde es aus
+    # js/data.js gelesen – dort steht seit den Fokus-Varianten aber nur noch ein
+    # Verweis (`export const PLAN = AKTIV.plan`), kein JSON mehr. tools/plan.json
+    # ist ohnehin die Quelle, aus der js/data.js entsteht.
+    quelle = ROOT / 'tools' / 'plan.json'
+    if quelle.exists():
+        start = datetime.date.fromisoformat(json.loads(quelle.read_text(encoding='utf-8'))['plan'][0]['date'])
+    else:
+        # Allererster Lauf: Dann gilt das Datum aus der Excel-Fassung von data.js.
+        src = DATA.read_text(encoding='utf-8')
+        treffer = re.search(r'"date":"(\d{4}-\d{2}-\d{2})"', src)
+        start = datetime.date.fromisoformat(treffer.group(1))
 
     tage = sorted(DAYS)
     first = start

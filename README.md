@@ -85,6 +85,10 @@ jede Fläche zeichnet das Muster von selbst.
 
 Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 
+* **Zwei Startknöpfe, kein Umschalten mittendrin.** *Hanteln starten* oder
+  *Bodyweight starten* – die Variante wird beim Start gewählt und steht dann
+  fest. Der Umschalter oben verschwindet während des Trainings: Zwischen zwei
+  Sätzen ist er keine Wahl mehr, sondern eine Möglichkeit, sich zu verklicken.
 * **Workout starten.** Der Knopf beginnt die Einheit und wechselt in die
   Fokus-Ansicht: eine Übung groß, mit vorgeführter Bewegung, Gewicht und
   Satz-Knöpfen. Sind alle Sätze abgehakt, rückt die App von selbst zur
@@ -1084,7 +1088,7 @@ Die App spricht mit keinem Server und kennt kein Google-Konto; automatisch
 schreiben hieße OAuth, ein Google-Cloud-Projekt und eine Netzverbindung, also
 genau die drei Dinge, die diese App bewusst nicht hat. Stattdessen trägt jeder
 Termin eine **feste Kennung** aus seiner Workout-Nummer
-(`workout-7@finanzdienste.github.io`). Wird die Datei nach einer Verschiebung
+(`workout-7@workout.local`). Wird die Datei nach einer Verschiebung
 neu erzeugt und noch einmal importiert, erkennt der Kalender dieselben Termine
 wieder und **verschiebt sie**, statt achtzig neue danebenzulegen. Damit die
 neue Fassung gewinnt, zählt `SEQUENCE` bei jedem Export hoch – ohne das

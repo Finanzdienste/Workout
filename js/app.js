@@ -1037,9 +1037,17 @@ function renderOverview() {
         .map((m) => `<span class="${primary.has(m) ? '' : 'sub'}">${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
 
       ${items.length ? `
+        ${prog.done ? `
         <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
-          ${prog.done ? '▶︎ Training fortsetzen' : '▶︎ Workout starten'}
-        </button>
+          ▶︎ Training fortsetzen
+        </button>`
+        : `
+        <div class="start-paar">
+          <button type="button" class="btn btn-primary btn-block btn-start ${mode === 'db' ? '' : 'zweit'}"
+                  data-act="start-session" data-mode="db">🏋️ Hanteln starten</button>
+          <button type="button" class="btn btn-primary btn-block btn-start ${mode === 'bw' ? '' : 'zweit'}"
+                  data-act="start-session" data-mode="bw">🤸 Bodyweight starten</button>
+        </div>`}
         ${startTodayRow(w.n)}`
       : `<div class="card empty-day">
           <b>Heute bleibt nichts übrig.</b> Die angehakten Beschwerden sperren
@@ -2856,6 +2864,10 @@ function render() {
   const mode = ui.tab === 'dashboard' ? store.workoutMode(ui.workoutNo) : store.getState().mode;
   document.body.classList.toggle('mode-bw', mode === 'bw');
   document.documentElement.dataset.theme = store.getState().theme || 'orange';
+  // Während des Trainings ist die Wahl längst getroffen – der Umschalter oben
+  // wäre dort nur eine Möglichkeit, sich mitten im Satz zu verklicken.
+  const imTraining = !!store.getState().session;
+  modeSwitch.hidden = imTraining;
   modeSwitch.querySelectorAll('.mode-btn').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
   });
@@ -3099,6 +3111,9 @@ view.addEventListener('click', (e) => {
         toast('Heute fällt alles weg – nichts zu starten');
         break;
       }
+      // Die Variante wird beim Starten gewählt, nicht während des Trainings:
+      // Der Umschalter oben ist zwischen zwei Sätzen nur eine Falle.
+      if (t.dataset.mode) store.setWorkoutMode(n, t.dataset.mode);
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       sound('start');
       store.startSession(n);

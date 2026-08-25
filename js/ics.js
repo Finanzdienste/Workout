@@ -104,8 +104,10 @@ export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout' }
     zeilen.push(
       'BEGIN:VEVENT',
       // Feste Kennung je Workout: dieselbe Datei später erneut eingelesen
-      // verschiebt die Termine, statt sie zu verdoppeln.
-      `UID:workout-${w.n}@finanzdienste.github.io`,
+      // verschiebt die Termine, statt sie zu verdoppeln. Der Teil hinter dem @
+      // muss nur eindeutig sein und kein echter Rechner – hier steht deshalb
+      // nichts, was irgendwohin zeigt.
+      `UID:workout-${w.n}@workout.local`,
       `DTSTAMP:${jetzt}`,
       `SEQUENCE:${seq}`,
       `DTSTART:${stamp(w.date, hour * 60)}`,

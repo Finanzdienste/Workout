@@ -96,6 +96,8 @@ button { font: inherit; color: inherit; }
   padding: 3px;
   gap: 2px;
 }
+/* [hidden] allein reicht nicht, sobald display gesetzt ist. */
+.mode-switch[hidden] { display: none; }
 .mode-btn {
   border: 0;
   background: transparent;
@@ -553,6 +555,14 @@ button { font: inherit; color: inherit; }
   margin-bottom: 8px;
 }
 .focus-count { font-size: 12.5px; color: var(--muted); font-weight: 600; text-align: right; }
+
+/* Zwei Startknöpfe: die Variante wird beim Starten gewählt, nicht danach. */
+.start-paar { display: flex; flex-direction: column; gap: 8px; }
+.start-paar .btn-start { margin: 0; }
+.btn-start.zweit {
+  background: var(--bg-elev-2); color: var(--text);
+  border: 1px solid var(--line);
+}
 
 /* Trainingsfokus: eine Karte je Variante */
 .fokus-liste { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
