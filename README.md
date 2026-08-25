@@ -1078,8 +1078,20 @@ das, weil er als einzige Drückübung mit fast allem zusammen liegt: 13-mal mit
 dem Hip Thrust, 6-mal mit dem Kreuzheben, 3-mal mit dem Rudern. In den übrigen
 62 Einheiten wird die Stange einmal geladen und nicht mehr angefasst.
 
-Das Rudern hat als einzige der drei ein eigenes Bewegungsbild bekommen
-(`rowbar`): beidarmig vorgebeugt statt einarmig abgestützt. Genau das ist auch
+**Die Stange sah lange nicht wie eine Stange aus.** Sie war mit `half = 0.34`
+gerade **75 cm lang** – die Maße einer Kurzhantelstange. Die Scheiben klebten
+damit an den Händen, weil sie größer waren als das Stück Stange, das überhaupt
+aus der Faust herausschaute. Dazu kippte sie: Projiziert man die beiden Enden
+einzeln, bekommt das nähere einen größeren Perspektivfaktor als das fernere,
+und aus einer waagerechten Stange wird eine Wippe. Bei einer Kurzhantel sieht
+das niemand, bei 1,2 m schon. Beide Enden rechnen jetzt mit dem Faktor der
+Stangenmitte – die Verkürzung beim Drehen bleibt, die falsche Neigung
+verschwindet. Hip Thrust und Floor Press haben außerdem einen weiter
+herumgedrehten Blickwinkel bekommen: Bei der alten Kameravorgabe lief die
+Stange schräg durch den Körper, eine Scheibe oben, eine unten.
+
+Das Rudern hat ein eigenes Bewegungsbild bekommen (`rowbar`): beidarmig
+vorgebeugt statt einarmig abgestützt. Genau das ist auch
 der Unterschied für den unteren Rücken – er hält die Neigung jetzt allein. Die
 Fassung für unterwegs zieht mit, damit Bild und Bewegung zusammenpassen:
 beide Füße auf das Band, beide Hände ziehen.

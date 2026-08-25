@@ -2561,7 +2561,11 @@ const PATTERNS = {
   },
   thrust: {
     // Schultern am Boden, Hüfte hoch bis Rumpf und Oberschenkel eine Linie sind
-    label: 'Hüftstreckung', lie: 'supine', view: [20, -30],
+    // Blickwinkel weiter herumgedreht als beim einbeinigen Zwilling: Sobald
+    // eine Stange über der Hüfte liegt, muss sie waagerecht dastehen. Bei
+    // yaw 20 / pitch -30 lief sie schräg durch den Körper, eine Scheibe oben,
+    // eine unten.
+    label: 'Hüftstreckung', lie: 'supine', view: [62, -8],
     poses: [
       { tilt: 8, arm: A(0, 17, 8), leg: L(40, 8, 102) },
       { tilt: 32, arm: A(0, 17, 8), leg: L(2, 8, 98) },
@@ -2587,7 +2591,9 @@ const PATTERNS = {
     // Dasselbe im Liegen, aber an der Stange: Die Abspreizung bleibt oben wie
     // unten gleich. Beim Kurzhantelmuster wandern die Hände oben zusammen –
     // mit einer Stange in beiden Händen sähe das aus, als würde sie schrumpfen.
-    label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [20, -30],
+    // Weiter herumgedreht als beim Kurzhantelmuster, damit die Stange quer
+    // im Bild liegt statt schräg durch den Brustkorb.
+    label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [58, -10],
     poses: [
       { arm: A(74, 40, 96), leg: L(56, 9, 100) },
       { arm: A(88, 38, 6), leg: L(56, 9, 100) },
@@ -3166,8 +3172,23 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     // Gerät, ausgerichtet an den Achsen des Skeletts selbst
     /** Stange samt Scheiben entlang einer Achse im Raum. */
     const barAt = (centre, axis, half, plate) => {
-      const e1 = P(add(centre, mul(axis, -half)));
-      const e2 = P(add(centre, mul(axis, half)));
+      // Eine Stange ist ein starrer, gerader Gegenstand. Projiziert man ihre
+      // Enden einzeln, bekommt das nähere einen größeren Perspektivfaktor als
+      // das fernere – bei einer Kurzhantel unsichtbar, bei 1,2 m Langhantel
+      // kippt sie sichtbar wie eine Wippe, obwohl sie waagerecht liegt. Beide
+      // Enden rechnen deshalb mit dem Faktor der Stangenmitte: Die Verkürzung
+      // beim Drehen bleibt, die falsche Neigung verschwindet.
+      const c = P(centre);
+      const end = (s) => {
+        const q = P(add(centre, mul(axis, s * half)));
+        return {
+          x: VBW / 2 + (q.x - VBW / 2) * (c.k / q.k),
+          y: VBH / 2 + (q.y - VBH / 2) * (c.k / q.k),
+          z: q.z, k: c.k,
+        };
+      };
+      const e1 = end(-1);
+      const e2 = end(1);
       parts.push({
         z: (e1.z + e2.z) / 2,
         node: el('line', {
@@ -3189,9 +3210,15 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten
       barAt(midOf(pts0.handL, pts0.handR), upAxis, 0.105, 4.4);
     } else if (equip === 'barbell') {
-      barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.34, 5.2);
+      // Eine Langhantel ist doppelt so breit wie die Schultern, und zwischen
+      // Hand und Scheibe liegt ein gutes Stück blanke Stange. Mit dem alten
+      // half = 0.34 war sie 75 cm lang: Die Scheiben klebten an den Händen und
+      // das Ganze sah aus wie eine Kurzhantelstange. 0.56 ist immer noch kürzer
+      // als in Wirklichkeit – weiter geht es nicht, ohne dass die Enden aus dem
+      // Kasten laufen, denn der Ausschnitt richtet sich nach der Figur.
+      barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.56, 4.4);
     } else if (equip === 'hipbar') {
-      barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.26, 4.8);
+      barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.56, 4.4);
     } else if (equip === 'band') {
       // Band zwischen den Händen: eine Linie, die sich beim Auseinanderziehen
       // spannt. Mehr braucht es nicht – genau so sieht ein Loop-Band aus, das
