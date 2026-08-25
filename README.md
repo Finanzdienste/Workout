@@ -1,7 +1,8 @@
 # Workout
 
 Trainings-App zum Plan aus `Workoutplan_mit_Bodyweight_Equivalent.xlsx` – mit
-Umschalter zwischen **Hantel-Variante** und **reinem Bodyweight-Äquivalent**.
+Umschalter zwischen **Hantel-Variante** und der **Fassung für unterwegs**
+(Körpergewicht, Loop-Band und Klimmzugstange).
 
 Statische Web-App: kein Build, keine Abhängigkeiten, keine Server-Anbindung.
 `index.html` im Browser öffnen oder über GitHub Pages ausliefern. Alle
