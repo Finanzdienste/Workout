@@ -990,6 +990,7 @@ function renderFocus() {
               data-act="focus-step" data-d="1" ${i === w.ex.length - 1 ? 'disabled' : ''}>Weiter →</button>
     </div>
 
+    ${i === w.ex.length - 1 ? careBlock(n) : ''}
     ${sessionButtons(n, mode)}
     ${injuryNote(w, mode)}
   `;
@@ -1087,10 +1088,12 @@ function renderOverview() {
         </button>`
         : `
         <div class="start-paar">
-          <button type="button" class="btn btn-primary btn-block btn-start ${mode === 'db' ? '' : 'zweit'}"
-                  data-act="start-session" data-mode="db">🏋️ Hanteln starten</button>
-          <button type="button" class="btn btn-primary btn-block btn-start ${mode === 'bw' ? '' : 'zweit'}"
-                  data-act="start-session" data-mode="bw">🤸 Bodyweight starten</button>
+          <button type="button" class="btn btn-primary btn-start ${mode === 'db' ? '' : 'zweit'}"
+                  data-act="start-session" data-mode="db"
+                  aria-label="Workout mit Hanteln starten">▶︎ Hanteln</button>
+          <button type="button" class="btn btn-primary btn-start ${mode === 'bw' ? '' : 'zweit'}"
+                  data-act="start-session" data-mode="bw"
+                  aria-label="Workout als Bodyweight starten">▶︎ Bodyweight</button>
         </div>`}
         ${startTodayRow(w.n)}`
       : `<div class="card empty-day">
@@ -1155,8 +1158,10 @@ function renderWelcome() {
         und zu jeder Übung eine vorgeführte Bewegung, die sich drehen lässt. Trainieren kannst
         du mit <strong>Hanteln</strong> oder als <strong>Bodyweight</strong>-Variante ganz ohne
         Geräte; der Umschalter oben wechselt jederzeit.</p>
-      <p class="small">Die App läuft offline und braucht kein Konto. Alles, was du einträgst,
-        bleibt in diesem Browser – niemand sonst sieht es.</p>
+      <p class="small">Die App läuft offline und braucht kein Konto. Was du einträgst, bleibt
+        auf diesem Gerät – bis du selbst etwas verschickst: Für den Vergleich unter
+        <em>Statistik</em> schickst du deinen Stand als Link, und wer ihn bekommt, sieht die
+        Zahlen darin. Von allein geht nichts irgendwohin.</p>
     </div>
     <div class="card">
       <div class="lbl">Wie heißt du?</div>
@@ -1452,6 +1457,7 @@ function renderDashboard() {
     `);
   });
 
+  parts.push(careBlock(n));
   parts.push(`
     <div class="btn-row">
       <button type="button" class="btn btn-primary" data-act="complete-workout">Alle Sätze abhaken</button>
@@ -2070,6 +2076,54 @@ function injuryNote(w, mode) {
 }
 
 /** Eine Zusatzübung als Karte. Dauer statt Sätzen – das ist kein Trainingsvolumen. */
+/* ------------------------------------------------------------------ *
+ * Reha-Übungen im Training
+ *
+ * Was bei einer angehakten Beschwerde gut tut – dehnen, mobilisieren, gezielt
+ * kräftigen –, stand bisher nur im Verletzungs-Tab. Dort liest man es einmal
+ * und macht es nie: Gemacht wird, was im Training steht.
+ *
+ * Sie hängen deshalb am Trainingstag an, hinter der letzten Übung. Nicht darin:
+ * Sie zählen nicht als Sätze, gehen nicht ins Wochenvolumen ein und halten
+ * "Abschließen" nicht auf – ein Satz Außenrotation mit dem Gummiband ist kein
+ * Satz Rudern. Sie stehen mit Dosis und Hinweis da und haben einen Haken.
+ * ------------------------------------------------------------------ */
+
+/** Reha-Übungen, die heute dazugehören – leer, wenn nichts angehakt ist. */
+function careToday() {
+  return careFor(activeInjuries());
+}
+
+function careBlock(n) {
+  const liste = careToday();
+  if (!liste.length) return '';
+  const fertig = liste.filter((c) => store.careDone(n, c.key)).length;
+  return `
+    <section class="card care-block">
+      <div class="section-title" style="margin:0 0 4px">Zum Schluss · Beschwerden</div>
+      <div class="small muted">${plural(liste.length, 'Übung', 'Übungen')} zum Dehnen,
+        Mobilisieren und gezielten Kräftigen – wegen dem, was du unter <em>Verletzt</em>
+        angehakt hast. Sie zählen nicht als Sätze und halten das Abschließen nicht auf.
+        ${fertig ? `<b>${fertig} von ${liste.length} erledigt.</b>` : ''}</div>
+      ${liste.map((c) => {
+        const an = store.careDone(n, c.key);
+        return `
+        <button type="button" class="care-row ${an ? 'on' : ''}" aria-pressed="${an}"
+                data-act="toggle-care" data-key="${esc(c.key)}">
+          <span class="care-tick">${an ? '✓' : ''}</span>
+          <span class="care-body">
+            <span class="care-head">
+              <span class="care-name">${esc(c.name)}</span>
+              <span class="care-kind care-${esc(c.kind)}">${esc(CARE_LABEL[c.kind] || c.kind)}</span>
+            </span>
+            <span class="care-dose">${esc(c.dose)}${c.clearance ? ' · erst nach ärztlicher Freigabe' : ''}</span>
+            <span class="care-cue">${esc(c.cue)}</span>
+          </span>
+        </button>`;
+      }).join('')}
+    </section>`;
+}
+
 function careCard(c) {
   return `
     <div class="care">
@@ -2686,9 +2740,9 @@ function renderSettings() {
     <div class="section-title">Teilen</div>
     <div class="card">
       <div class="small muted">Schick den Link weiter – wer ihn öffnet, hat dieselbe App:
-        derselbe Plan, dieselben Bewegungen, offline und ohne Konto. Jeder trägt seinen
-        eigenen Namen ein und trainiert für sich; ihr seht nichts voneinander, und es
-        wird auch nichts irgendwohin übertragen.</div>
+        derselbe Plan, dieselben Bewegungen, offline und ohne Konto. Jeder trainiert für sich;
+        von allein wird nichts übertragen. Voneinander seht ihr genau das, was ihr euch
+        gegenseitig schickt – dafür ist der Stand-Link unten da.</div>
       ${location.protocol.startsWith('http') ? `
       <div class="btn-row">
         <button type="button" class="btn btn-primary btn-block" data-act="share-link">Link teilen</button>
@@ -2708,7 +2762,8 @@ function renderSettings() {
       <div class="switch-row" style="margin-top:12px">
         <div>
           <div class="lbl">Dein Name</div>
-          <div class="hint">Steht auf der Startseite. Bleibt in diesem Browser.</div>
+          <div class="hint">Steht auf der Startseite – und im Vergleich, wenn du deinen
+            Stand verschickst.</div>
         </div>
         <input type="text" class="name-input schmal" maxlength="24" value="${esc(s.name || '')}"
                data-act="name-input" aria-label="Dein Name" placeholder="—">
@@ -3221,6 +3276,11 @@ view.addEventListener('click', (e) => {
       render();
       break;
     }
+    case 'toggle-care':
+      store.toggleCare(n, t.dataset.key);
+      sound('set');
+      render();
+      break;
     case 'toggle-detail': {
       const id = t.dataset.ex;
       if (ui.openDetail.has(id)) ui.openDetail.delete(id); else ui.openDetail.add(id);

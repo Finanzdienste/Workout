@@ -557,8 +557,10 @@ button { font: inherit; color: inherit; }
 .focus-count { font-size: 12.5px; color: var(--muted); font-weight: 600; text-align: right; }
 
 /* Zwei Startknöpfe: die Variante wird beim Starten gewählt, nicht danach. */
-.start-paar { display: flex; flex-direction: column; gap: 8px; }
-.start-paar .btn-start { margin: 0; }
+/* Nebeneinander, nicht untereinander: Die Startansicht soll auf einen
+   Bildschirm passen, und die Körperkarte darüber braucht den Platz. */
+.start-paar { display: flex; gap: 8px; }
+.start-paar .btn-start { flex: 1 1 0; margin: 0; min-width: 0; }
 .btn-start.zweit {
   background: var(--bg-elev-2); color: var(--text);
   border: 1px solid var(--line);
@@ -1249,6 +1251,27 @@ textarea.io {
 .care-dose { font-size: 13px; color: var(--accent); margin-top: 2px; }
 .care-cue { font-size: 14px; line-height: 1.45; margin-top: 6px; }
 .care-why { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+/* Dieselben Übungen, aber im Training: mit Haken statt nur zum Lesen. */
+.care-block { margin-top: 14px; }
+.care-row {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left;
+  margin-top: 8px; padding: 10px 12px;
+  background: none; color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px;
+}
+.care-row.on { border-color: var(--ok); }
+.care-tick {
+  flex: none; width: 26px; height: 26px; border-radius: 8px;
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; color: #0d1b14;
+}
+.care-row.on .care-tick { background: var(--ok); border-color: var(--ok); }
+.care-body { min-width: 0; flex: 1; }
+.care-row .care-head, .care-row .care-dose, .care-row .care-cue { display: flex; }
+.care-row .care-cue { display: block; color: var(--muted); font-size: 13px; }
+.care-row.on .care-name { color: var(--muted); }
 .inj-care { padding: 0 14px 14px; }
 
 /* Wochenvolumen: Soll gegen Ist */

@@ -348,6 +348,25 @@ export function completeWorkout(n, mode, exList) {
   emit();
 }
 
+/* Reha-Übungen einer Einheit. Sie hängen am Workout, nicht am Tag: Gemacht
+ * werden sie im Anschluss ans Training, und wer eine Einheit zurücksetzt, setzt
+ * sie mit zurück. In die Volumenrechnung gehen sie nicht ein – Reha-Arbeit ist
+ * kein Muskelaufbau. */
+export function careDone(n, key) {
+  const e = state.log[n];
+  return !!(e && e.care && e.care[key]);
+}
+
+export function toggleCare(n, key) {
+  const e = ensure(n);
+  const care = e.care || (e.care = {});
+  if (care[key]) delete care[key];
+  else care[key] = true;
+  syncStartedOn(n);
+  persist();
+  emit();
+}
+
 /**
  * Einheit für erledigt erklären, auch wenn nicht jeder Satz steht.
  *

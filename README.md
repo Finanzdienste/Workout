@@ -1319,6 +1319,21 @@ Kilo in einer Einheit von einer Stange auf die andere wandern:
 
 Knapp ein Viertel weniger geschleppt, bei unverändertem Trainingsinhalt.
 
+## Reha-Übungen im Training
+
+Was bei einer angehakten Beschwerde gut tut – dehnen, mobilisieren, gezielt
+kräftigen –, stand bisher nur im Verletzungs-Tab. Dort liest man es einmal und
+macht es nie: Gemacht wird, was im Training steht.
+
+Sie hängen deshalb am Trainingstag an, hinter der letzten Übung, mit Dosis,
+Hinweis und einem Haken. Nicht *darin*: Sie zählen nicht als Sätze, gehen nicht
+ins Wochenvolumen ein und halten das Abschließen nicht auf. Ein Satz
+Außenrotation mit dem Gummiband ist kein Satz Rudern – das ist derselbe Grund,
+aus dem sie in `js/injuries.js` mit Dauer statt Sätzen stehen.
+
+Abgehakt wird je Einheit (`log[n].care`), nicht je Tag: Wer eine Einheit
+zurücksetzt, setzt sie mit zurück.
+
 ## Verletzungen
 
 Ein eigener Tab, in dem sich anhaken lässt, was gerade weh tut. Die Auswahl
@@ -1749,10 +1764,14 @@ Wer den Link öffnet, hat dieselbe App: denselben Plan, dieselben Bewegungen,
 offline. Beim ersten Start kommt eine Seite, die in vier Sätzen erklärt, was das
 ist, und nach dem Namen fragt.
 
-**Der Name ist kein Konto.** Es gibt keinen Server, keine Anmeldung und nichts
-zu synchronisieren – er steht in genau diesem Browser und sonst nirgends. Genau
-das sagt die Seite auch, sonst wartet jemand darauf, dass sein Training bei
-jemand anderem auftaucht. Geteilt wird der Link, nicht der Fortschritt.
+**Der Name ist kein Konto.** Es gibt keinen Server, keine Anmeldung und nichts,
+was im Hintergrund abgleicht. Was jemand einträgt, bleibt auf seinem Gerät – bis
+er selbst etwas verschickt: Für den Vergleich unter *Statistik* schickt man
+seinen Stand als Link, und wer ihn bekommt, sieht die Zahlen darin.
+
+Genau so steht es auch auf der Seite. Vorher stand dort „niemand sonst sieht es",
+und das stimmte nicht mehr, seit es den Vergleich gibt – eine Zusage, die die App
+an einer anderen Stelle bricht, ist schlimmer als gar keine.
 
 Wer schon Daten hat, wird nicht begrüßt: Fehlt im gespeicherten Stand der
 Schlüssel `greeted`, stammt er aus einer Fassung vor der Willkommensseite – und
