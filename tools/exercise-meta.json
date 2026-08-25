@@ -190,16 +190,16 @@
  "floor-press": {
   "group": "Brust/Trizeps",
   "tier": 1,
-  "dbEquip": "Kurzhanteln",
+  "dbEquip": "Langhantel",
   "bwEquip": "Ohne Gerät",
-  "dbCue": "Rücken am Boden, Oberarme setzen kurz ab. Schont die Schulter, betont den Trizeps-Lockout.",
+  "dbCue": "Rücken am Boden, Stange über der unteren Brust. Oberarme setzen unten kurz ab – das ist der Bewegungsstopp, nicht der Boden als Ablage. Handgelenke gerade über den Ellenbogen. Aufbau ohne Ständer: Stange neben dich legen, im Sitzen über die Oberschenkel rollen, mit ihr zurücklegen; zum Schluss denselben Weg zurück. Verschlüsse drauf, keine Stühle als Ablage – die kippen. Und hier wirklich eine Wiederholung in Reserve lassen: Ohne Ablage kommt die Stange nur über den Bauch wieder herunter, und dafür brauchst du Kraft.",
   "bwCue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press.",
   "dbRest": 180,
   "bwRest": 150,
-  "dbWeight": 14,
-  "dbStep": 2,
-  "weightNote": "je Hand",
-  "dbPattern": "press",
+  "dbWeight": 40,
+  "dbStep": 5,
+  "weightNote": "Stange gesamt",
+  "dbPattern": "pressbar",
   "dbShares": {
    "chest": 1.0,
    "triceps": 0.7,
@@ -211,7 +211,7 @@
    "triceps": 0.6,
    "frontDelts": 0.45
   },
-  "equip": "dumbbells"
+  "equip": "barbell"
  },
  "einarmiges-kh-rudern": {
   "group": "Rücken",

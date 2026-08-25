@@ -654,7 +654,7 @@ function renderFocus() {
 
     <h2 class="focus-name">${esc(it.name)}</h2>
     <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
-    <div class="intensity">${esc(INTENSITY[doneCount + 1 >= it.sets ? 'last' : 'normal'])}</div>
+    <div class="intensity">${esc(INTENSITY)}</div>
 
     ${kg === null ? '' : `
       <div class="ex-weight focus-weight">
@@ -1143,10 +1143,12 @@ function renderStats() {
  * mehr kommt, was darunter leidet.
  * ------------------------------------------------------------------ */
 
-const INTENSITY = {
-  normal: 'So schwer wählen, dass noch 1–2 Wiederholungen drin wären – nicht mehr.',
-  last: 'Letzter Satz: bis kurz vors Versagen, saubere Technik bis zum Schluss.',
-};
+// Eine Ansage für alle Sätze, nicht zwei. Vorher stand über dem letzten Satz
+// "bis kurz vors Versagen" – das ist weg. Der Ertrag gegenüber ein, zwei
+// Wiederholungen Reserve ist klein, die Ermüdung nicht, und bei einer
+// Langhantel ohne Ablage ist das Versagen die eine Stellung, aus der man
+// allein schlecht wieder herauskommt.
+const INTENSITY = 'So schwer wählen, dass noch 1–2 Wiederholungen drin wären – nicht mehr.';
 
 const EFFORT = [
   ['leicht', 'ging leicht'],

@@ -96,10 +96,14 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   im Bodyweight-Modus hing damit die ganze Progression an einer Antwort, die
   niemand geben konnte.
 * **Wie schwer.** Unter dem Übungsnamen steht, wie nah ans Limit gegangen wird:
-  *„noch 1–2 Wiederholungen drin – nicht mehr"*, im letzten Satz einer Übung
-  *„bis kurz vors Versagen"*. Das ist die Zahl, die am meisten über das
-  Ergebnis entscheidet, und sie stand vorher nirgends – während wir monatelang
-  die Nachkommastelle beim Wochenvolumen optimiert haben.
+  *„noch 1–2 Wiederholungen drin – nicht mehr"*. Das ist die Zahl, die am
+  meisten über das Ergebnis entscheidet, und sie stand vorher nirgends –
+  während wir monatelang die Nachkommastelle beim Wochenvolumen optimiert
+  haben. Über dem letzten Satz stand früher zusätzlich *„bis kurz vors
+  Versagen"*; das ist weg. Der Ertrag gegenüber ein, zwei Wiederholungen
+  Reserve ist klein, die Ermüdung nicht – und bei einer Langhantel ohne Ablage
+  ist das Versagen die eine Stellung, aus der man allein schlecht wieder
+  herauskommt.
 * **Zwei Wege aus dem Training.** *Abschließen* behält, was abgehakt ist – auch
   wenn nicht alles steht; der Knopf nennt den Stand mit. *Abbrechen* verwirft
   die Einheit ganz, sie gilt dann als nicht trainiert und der Plan behandelt
@@ -1033,7 +1037,7 @@ Squat und Hip Thrust stehen mit 20 kg ab der ersten Einheit am Anschlag**, weil
 enthalten eine dieser drei. Ein Satz, der im Wochenvolumen voll zählt und weit
 von der Anstrengungsvorgabe entfernt liegt, trägt real fast nichts bei.
 
-Drei Übungen sind deshalb auf die Stange umgezogen. Alle drei behalten
+Vier Übungen sind deshalb auf die Stange umgezogen. Alle vier behalten
 **Schlüssel und Muskelanteile** – also kein neuer Planlauf, keine neuen
 Verletzungseinträge, und die eingetragenen Gewichte bleiben stehen. Der
 Generator rechnet in *Sätzen*, nicht in Kilo; die Stange ändert nicht den
@@ -1044,20 +1048,35 @@ Plan, sondern was ein Satz wert ist.
 | Rumänisches Kreuzheben | 12 kg je Hand = **24 kg** | **40 kg**, Stange gesamt |
 | Hip Thrust | eine Kurzhantel, **20 kg** | **40 kg**, Stange gesamt |
 | Einarmiges KH-Rudern → **Langhantelrudern** | 16 kg, einarmig | **35 kg**, Stange gesamt |
+| Floor Press | 14 kg je Hand = **28 kg** | **40 kg**, Stange gesamt |
 
 Beim Hip Thrust zeichnete die App längst eine Stange über der Hüfte
 (`equip: 'hipbar'`) – sie war nur mit einer Kurzhantel beladen.
 
+**Der Floor Press war der Sonderfall.** Erst stand hier, er solle bei den
+Kurzhanteln bleiben – der Notausgang ist dort einfach, man lässt sie neben sich
+fallen. Dagegen stand die Erfahrung: Verstellbare Kurzhanteln werden mit vielen
+Scheiben lang und kopflastig, und dann knickt das Handgelenk weg. Das ist ein
+härteres Argument als eine Notausgangs-Überlegung, denn es passiert in jedem
+einzelnen Satz. Mit der Stange liegen beide Handgelenke in einer Linie. Was
+bleibt, ist die Auflage: **keine Stühle** – die kippen. Stange neben sich legen,
+im Sitzen über die Oberschenkel rollen, mit ihr zurücklegen, und denselben Weg
+zurück. Verschlüsse drauf.
+
 **Was in einer Wohnung nicht geht.** Die Kniebeuge mit der Stange im Nacken
 scheitert ohne Ständer daran, dass die Stange nicht hochkommt; Frontkniebeuge
 und Zercher gehen technisch, aber ihr Notausgang ist das Fallenlassen von 50
-bis 70 kg auf einen Geschossboden. Der Langhantel-Floor-Press auf zwei Stühlen
-ist ein Unfall mit Ansage. Die beiden umgestellten Übungen sind dagegen leise:
+bis 70 kg auf einen Geschossboden. Die umgestellten Übungen sind dagegen leise:
 Beim Kreuzheben berührt die Stange den Boden nur vor und nach dem Satz – sie
 geht bis Schienbeinmitte und wieder hoch –, beim Hip Thrust bleibt sie die
-ganze Zeit auf der Hüfte, beim Rudern hängt sie am gestreckten Arm. Nachgemessen
-kommen die drei außerdem in **keiner einzigen** der 84 Einheiten gemeinsam vor:
-einmal laden pro Einheit, mehr nicht.
+ganze Zeit auf der Hüfte, beim Rudern hängt sie am gestreckten Arm, beim Floor
+Press liegt sie in den Händen.
+
+**Was es kostet: einmal umladen in 22 von 84 Einheiten.** Mit drei
+Langhantelübungen kam keine Einheit auf zwei davon – der Floor Press bricht
+das, weil er als einzige Drückübung mit fast allem zusammen liegt: 13-mal mit
+dem Hip Thrust, 6-mal mit dem Kreuzheben, 3-mal mit dem Rudern. In den übrigen
+62 Einheiten wird die Stange einmal geladen und nicht mehr angefasst.
 
 Das Rudern hat als einzige der drei ein eigenes Bewegungsbild bekommen
 (`rowbar`): beidarmig vorgebeugt statt einarmig abgestützt. Genau das ist auch

@@ -1899,17 +1899,17 @@ const EXERCISES = [
   {
     "id": "floor-press",
     "group": "Brust/Trizeps",
-    "weight": 14,
-    "step": 2,
-    "weightNote": "je Hand",
-    "equip": "dumbbells",
+    "weight": 40,
+    "step": 5,
+    "weightNote": "Stange gesamt",
+    "equip": "barbell",
     "db": {
       "name": "Floor Press",
       "reps": "6–12",
-      "equip": "Kurzhanteln",
-      "cue": "Rücken am Boden, Oberarme setzen kurz ab. Schont die Schulter, betont den Trizeps-Lockout.",
+      "equip": "Langhantel",
+      "cue": "Rücken am Boden, Stange über der unteren Brust. Oberarme setzen unten kurz ab – das ist der Bewegungsstopp, nicht der Boden als Ablage. Handgelenke gerade über den Ellenbogen. Aufbau ohne Ständer: Stange neben dich legen, im Sitzen über die Oberschenkel rollen, mit ihr zurücklegen; zum Schluss denselben Weg zurück. Verschlüsse drauf, keine Stühle als Ablage – die kippen. Und hier wirklich eine Wiederholung in Reserve lassen: Ohne Ablage kommt die Stange nur über den Bauch wieder herunter, und dafür brauchst du Kraft.",
       "rest": 180,
-      "pattern": "press",
+      "pattern": "pressbar",
       "shares": {
         "chest": 1.0,
         "triceps": 0.7,
@@ -2581,6 +2581,16 @@ const PATTERNS = {
     poses: [
       { arm: A(72, 42, 92), leg: L(56, 9, 100) },
       { arm: A(90, 10, 4), leg: L(56, 9, 100) },
+    ],
+  },
+  pressbar: {
+    // Dasselbe im Liegen, aber an der Stange: Die Abspreizung bleibt oben wie
+    // unten gleich. Beim Kurzhantelmuster wandern die Hände oben zusammen –
+    // mit einer Stange in beiden Händen sähe das aus, als würde sie schrumpfen.
+    label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [20, -30],
+    poses: [
+      { arm: A(74, 40, 96), leg: L(56, 9, 100) },
+      { arm: A(88, 38, 6), leg: L(56, 9, 100) },
     ],
   },
   row: {
@@ -5698,7 +5708,7 @@ function renderFocus() {
 
     <h2 class="focus-name">${esc(it.name)}</h2>
     <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
-    <div class="intensity">${esc(INTENSITY[doneCount + 1 >= it.sets ? 'last' : 'normal'])}</div>
+    <div class="intensity">${esc(INTENSITY)}</div>
 
     ${kg === null ? '' : `
       <div class="ex-weight focus-weight">
@@ -6187,10 +6197,12 @@ function renderStats() {
  * mehr kommt, was darunter leidet.
  * ------------------------------------------------------------------ */
 
-const INTENSITY = {
-  normal: 'So schwer wählen, dass noch 1–2 Wiederholungen drin wären – nicht mehr.',
-  last: 'Letzter Satz: bis kurz vors Versagen, saubere Technik bis zum Schluss.',
-};
+// Eine Ansage für alle Sätze, nicht zwei. Vorher stand über dem letzten Satz
+// "bis kurz vors Versagen" – das ist weg. Der Ertrag gegenüber ein, zwei
+// Wiederholungen Reserve ist klein, die Ermüdung nicht, und bei einer
+// Langhantel ohne Ablage ist das Versagen die eine Stellung, aus der man
+// allein schlecht wieder herauskommt.
+const INTENSITY = 'So schwer wählen, dass noch 1–2 Wiederholungen drin wären – nicht mehr.';
 
 const EFFORT = [
   ['leicht', 'ging leicht'],

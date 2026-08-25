@@ -187,6 +187,16 @@ export const PATTERNS = {
       { arm: A(90, 10, 4), leg: L(56, 9, 100) },
     ],
   },
+  pressbar: {
+    // Dasselbe im Liegen, aber an der Stange: Die Abspreizung bleibt oben wie
+    // unten gleich. Beim Kurzhantelmuster wandern die Hände oben zusammen –
+    // mit einer Stange in beiden Händen sähe das aus, als würde sie schrumpfen.
+    label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [20, -30],
+    poses: [
+      { arm: A(74, 40, 96), leg: L(56, 9, 100) },
+      { arm: A(88, 38, 6), leg: L(56, 9, 100) },
+    ],
+  },
   row: {
     // Einarmig vorgebeugt: die andere Hand stützt sich ab
     label: 'Rudern',
