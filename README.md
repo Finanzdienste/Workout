@@ -450,13 +450,13 @@ frei. 84 Einheiten in 21 Wochen, vom 24.08.2026 bis zum 16.01.2027.
 | Gruppe | Ziel | Schnitt | einzelne Woche | Abweichung |
 | --- | --- | --- | --- | --- |
 | Brust, Rücken | 10 | **exakt** | 9,0–12,0 | 20 % |
-| **seitliche Schulter** | 10 | **exakt** | 8,7–11,0 | 13 % |
-| hintere Schulter, Bizeps, Trizeps | 10 | **exakt** | 8,3–11,9 | ≤ 19 % |
-| Bauch | 9 | **exakt** | 8,6–10,5 | 17 % |
-| Gesäß | 9 | **exakt** | 6,6–10,8 | 27 % |
+| seitliche Schulter | 10 | **exakt** | 8,7–11,3 | 13 % |
+| Bizeps, Trizeps | 10 | **exakt** | 8,4–11,6 | ≤ 16 % |
+| Bauch, Gesäß | 9 | **exakt** | 7,4–11,3 | ≤ 25 % |
+| hintere Schulter | 8 | **exakt** | 6,2–9,0 | 23 % |
 | **Oberschenkel, Waden** | 6 | **exakt** | immer genau 6,0 | **0 %** |
-| Beinbeuger | 6 | **exakt** | 4,8–7,4 | 23 % |
-| vordere Schulter, Nacken | *Ergebnis* | 9,2 / 11,5 | – | – |
+| Beinbeuger | 6 | **exakt** | 5,0–7,4 | 23 % |
+| vordere Schulter, Nacken | *Ergebnis* | 9,2 / **10,0** | 6,9–11,1 | – |
 
 Welche Gruppen ein Ziel haben und welche bloß herausfallen, steht als
 `DERIVED` in den erzeugten Daten – „exakt getroffen" darf niemand für eine
@@ -471,6 +471,28 @@ hat kein Ziel, das die Verteilung optimieren könnte.
 die Waden auf 4, der Oberkörper trägt den Rest: Vierzehn Prozent aller Sätze
 für die Waden aufzuwenden ist eine Entscheidung, keine Trainingslehre, und
 dieselbe Zeit trägt an der Schulter mehr.
+
+### Der Nacken bekommt keinen einzigen eigenen Satz
+
+Und liegt trotzdem bei zehn. Er sammelt aus Rudern, Klimmzügen, Reverse Fly
+und Pull-Apart – ein Shrug steht nirgends im Plan. Genau deshalb ist er teuer:
+**Jede Übung, die Rücken oder hintere Schulter trainiert, lädt ihn mit.**
+
+Er unter zehn zu bekommen ist keine Frage der Suche, sondern der Arithmetik.
+Ausgerechnet über 8000 exakte Lösungen des Oberkörper-Blocks:
+
+| hintere Schulter | kleinster möglicher Nacken | brauchbare Lösungen darunter |
+| --- | --- | --- |
+| 10 | 10,79 | **keine** |
+| 9 | 10,19 | keine |
+| 8,5 | 9,89 | 0 von 28 |
+| **8** | **9,59** | 310 |
+
+Bei einem Ziel von 10 für die hintere Schulter ist eine Obergrenze von 10 für
+den Nacken also nicht knapp verfehlt, sondern unerfüllbar. Der Tausch, der sie
+möglich macht: **hintere Schulter auf 8**. Damit steht der Nacken bei exakt
+10,0 im Schnitt – in einzelnen Wochen bis 11,1, denn eine Gruppe ohne Ziel
+wird von der Verteilung nicht geglättet.
 
 ### Die Schulter zählt getrennt
 

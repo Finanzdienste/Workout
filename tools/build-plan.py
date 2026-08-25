@@ -108,12 +108,21 @@ OUT = ROOT / 'tools' / 'plan.json'
 # freie Größe mehr. Ein Ziel dafür macht das Gleichungssystem nur unlösbar oder
 # erzwingt eine Verteilung, die anderswo schlechter ist.
 TARGET = {
-    'chest': 10, 'lats': 10, 'sideDelts': 10, 'rearDelts': 10,
+    'chest': 10, 'lats': 10, 'sideDelts': 10, 'rearDelts': 8,
     'biceps': 10, 'triceps': 10, 'abs': 9,
     'frontDelts': None, 'traps': None,
     'glutes': 9, 'quads': 6, 'hamstrings': 6, 'calves': 6,
 }
-CAP = 12                 # keine Gruppe darüber, indirekte Anteile eingerechnet
+CAP = 10                 # keine Gruppe darüber, indirekte Anteile eingerechnet
+#
+# Die Obergrenze bindet in Wahrheit nur eine Gruppe: den Nacken. Er bekommt
+# keinen einzigen eigenen Satz – kein Shrug, nichts –, sondern sammelt aus
+# Rudern, Klimmzügen, Reverse Fly und Pull-Apart. Genau deshalb ist er teuer:
+# Jede Übung, die Rücken oder hintere Schulter trainiert, lädt ihn mit. Bei
+# hinterer Schulter 10 liegt sein rechnerisches Minimum bei 10,79 – eine
+# Obergrenze von 10 wäre dort schlicht unerfüllbar. Mit 8 sinkt das Minimum auf
+# 9,59, und es bleiben genug brauchbare Lösungen übrig. Das ist der Tausch:
+# zwei Sätze hintere Schulter für einen Nacken unter zehn.
 DIRECT = 0.5             # ab diesem Anteil gilt eine Übung als direkt für die Gruppe
 REST_DAYS = 2            # so viele Tage Abstand, bevor eine Gruppe wieder direkt drankommt
 
