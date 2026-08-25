@@ -6192,14 +6192,36 @@ function workingWeight(exId) {
 }
 
 /**
- * Gewicht, das in diesem Workout tatsächlich benutzt wurde. Sobald der erste
- * Satz steht, ist es festgeschrieben – ein späteres "+2,5 kg" gilt dann fürs
- * nächste Mal und schreibt die heutige Einheit nicht rückwirkend um.
+ * Womit die schon abgehakten Sätze gemacht wurden, wenn es abweicht.
+ *
+ * Jeder Satz merkt sich sein eigenes Gewicht, sobald er abgehakt wird. Das ist
+ * der Grund, warum sich mitten im Training umentscheiden lässt: Wer nach dem
+ * ersten Satz merkt, dass 40 kg zu viel sind, stellt auf 35 und macht die
+ * restlichen Sätze damit. Die schon abgehakten bleiben, wie sie waren – nichts
+ * wird rückwirkend umgeschrieben.
+ *
+ * Früher stand deshalb das *zuerst* benutzte Gewicht groß in der Zeile und jede
+ * Änderung galt "nächstes Mal". Das war beim Erhöhen richtig und beim Senken
+ * falsch: Man senkt es ja gerade, weil der nächste Satz jetzt dran ist. Jetzt
+ * steht dort das Gewicht für den nächsten Satz, und diese Zeile sagt, womit die
+ * bisherigen gemacht wurden.
  */
-function usedWeight(n, mode, exId) {
-  const logged = (store.peekSets(n, mode, exId) || []).find((s) => s.w !== '');
-  if (logged) return parseFloat(logged.w);
-  return workingWeight(exId);
+function doneWeightNote(n, mode, exId) {
+  const arr = store.peekSets(n, mode, exId) || [];
+  const jetzt = workingWeight(exId);
+  const andere = [];
+  arr.forEach((x, i) => {
+    if (!x.done || x.w === '') return;
+    const kg = parseFloat(String(x.w).replace(',', '.'));
+    if (Number.isNaN(kg) || Math.abs(kg - jetzt) < 0.01) return;
+    andere.push({ i: i + 1, kg });
+  });
+  if (!andere.length) return '';
+  const gruppen = new Map();
+  andere.forEach(({ i, kg }) => gruppen.set(kg, (gruppen.get(kg) || []).concat(i)));
+  return [...gruppen.entries()]
+    .map(([kg, saetze]) => `Satz ${saetze.join(', ')} mit ${fmtNum(kg)} kg`)
+    .join(' · ');
 }
 
 /* ------------------------------------------------------------------ *
@@ -6300,10 +6322,10 @@ function ruestOrder(items) {
 /** Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist. */
 function ruestHint(n, mode, list, i) {
   if (mode !== 'db') return '';
-  const cur = setupOf(list[i].id, usedWeight(n, mode, list[i].id));
+  const cur = setupOf(list[i].id, workingWeight(list[i].id));
   if (!cur) return '';
   let prev = null;
-  for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, usedWeight(n, mode, list[k].id));
+  for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, workingWeight(list[k].id));
   const kg = `${fmtNum(cur.kg)} kg${cur.note ? ` ${cur.note}` : ''}`;
   if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
     return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen</div>`;
@@ -6873,9 +6895,8 @@ function renderFocus() {
   const it = resolve(item, mode);
   const sets = store.getSets(n, mode, it.id, it.sets);
   const doneCount = sets.filter((s) => s.done).length;
-  const kg = it.weight === null ? null : usedWeight(n, mode, it.id);
-  const next = it.weight === null ? null : workingWeight(it.id);
-  const frozen = kg !== null && next !== null && Math.abs(kg - next) > 0.01;
+  const kg = it.weight === null ? null : workingWeight(it.id);
+  const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
 
   view.innerHTML = `
     <div class="focus-top">
@@ -6904,7 +6925,7 @@ function renderFocus() {
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
                 aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
-      ${frozen ? `<div class="kg-next focus-next">Nächstes Mal: ${esc(fmtNum(next))} kg</div>` : bumpChip(it.id, mode)}`}
+      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : bumpChip(it.id, mode)}`}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -7330,9 +7351,8 @@ function renderDashboard() {
     // Gewichtszeile: ein Arbeitsgewicht je Übung, nicht je Satz. Die Erhöhung
     // gilt ab dem nächsten Mal, sobald heute schon ein Satz steht. Wie groß
     // ein Schritt ist, hängt an der Übung – siehe stepOf().
-    const kg = it.weight === null ? null : usedWeight(n, mode, it.id);
-    const next = it.weight === null ? null : workingWeight(it.id);
-    const frozen = kg !== null && next !== null && Math.abs(kg - next) > 0.01;
+    const kg = it.weight === null ? null : workingWeight(it.id);
+    const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
     const weightRow = kg === null ? bandRow(it) : `
       <div class="ex-weight">
         <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
@@ -7345,7 +7365,7 @@ function renderDashboard() {
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
                 aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
-      ${frozen ? `<div class="kg-next">Nächstes Mal: ${esc(fmtNum(next))} kg</div>` : bumpChip(it.id, mode)}`;
+      ${anders ? `<div class="kg-next">${esc(anders)}</div>` : bumpChip(it.id, mode)}`;
 
     // Im Bodyweight-Modus gibt es kein Gewicht – dort ist die Steigerung die
     // Wiederholungszahl. Den *neuen* Bereich zeigen, nicht den alten mit einem
@@ -9000,7 +9020,7 @@ view.addEventListener('click', (e) => {
       // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
       // später der Vergleich "Zuletzt" und die Volumenrechnung.
       const patch = { done: !cur };
-      if (!cur && variant.weight !== null) patch.w = fmtNum(usedWeight(n, mode, id));
+      if (!cur && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
       else if (cur) patch.w = '';
       store.updateSet(n, mode, id, item.sets, i, patch);
 
@@ -9032,8 +9052,8 @@ view.addEventListener('click', (e) => {
       const kg = store.setWeight(id, (workingWeight(id) || 0) + Number(t.dataset.d));
       render();
       // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
-      const started = (store.peekSets(n, mode, id) || []).some((s) => s.w !== '');
-      toast(started ? `Nächstes Mal ${fmtNum(kg)} kg` : `${fmtNum(kg)} kg`);
+      const started = (store.peekSets(n, mode, id) || []).some((s) => s.done);
+      toast(started ? `Ab dem nächsten Satz ${fmtNum(kg)} kg` : `${fmtNum(kg)} kg`);
       break;
     }
     case 'accept-bump': {
@@ -9176,7 +9196,7 @@ view.addEventListener('click', (e) => {
       // Abhaken schreibt toggle-set es längst mit.
       store.completeWorkout(n, mode, workoutByNo(n).ex.map((x) => {
         const v = resolve(x, mode);
-        return { ...x, w: v.weight === null ? '' : fmtNum(usedWeight(n, mode, x.id)) };
+        return { ...x, w: v.weight === null ? '' : fmtNum(workingWeight(x.id)) };
       }));
       if (store.getState().rest) endRest(false);
       sound('done');
