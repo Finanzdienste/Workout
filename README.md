@@ -53,8 +53,9 @@ bleiben neutral.
 Welche Region eine Übung trifft, steht als `dbShares`/`bwShares` in
 `tools/exercise-meta.json` – **als Anteil, nicht als Liste**: 1,0 heißt „dafür
 ist die Übung da", 0,55 „arbeitet deutlich mit". Je Variante getrennt, weil sie
-sich unterscheiden: Seitheben trifft nur die Schulter, sein
-Bodyweight-Äquivalent Pike Push-ups zusätzlich den Trizeps.
+sich unterscheiden: Der Floor Press trifft den Trizeps mit 0,70 und die vordere
+Schulter mit 0,35, seine Fassung für unterwegs – die Liegestütze – verschiebt
+das auf 0,60 und 0,45.
 
 Aus denselben Anteilen kommt beides – die Hervorhebung auf der Karte (der
 größte Anteil zuerst) und die Volumenrechnung in `tools/build-plan.py`. Eine
@@ -207,13 +208,17 @@ wird je Variante über `dbPattern`/`bwPattern` in `tools/exercise-meta.json` –
 und zwar **getrennt**, denn oft ist die Bodyweight-Variante eine ganz andere
 Bewegung als die mit Hanteln:
 
-| Hanteln | Bodyweight |
+| Hanteln | Fassung für unterwegs |
 | --- | --- |
-| Einarmiges KH-Rudern (`row`) | Inverted Rows unter der Stange (`invrow`) |
-| Liegende Trizepsstrecker (`triceps`) | Trizeps an niedriger Stange (`tricepsbar`) |
-| Reverse Fly vorgebeugt (`reversefly`) | Reverse Snow Angels in Bauchlage (`snowangel`) |
 | Goblet Squat (`squat`) | Kniebeuge mit vorgestreckten Armen (`squatbw`) |
 | Hip Thrust beidbeinig (`thrust`) | einbeinig (`thrust1`) |
+| Floor Press (`press`) | Liegestütze (`pushup`) |
+
+Umgekehrt gilt genauso: Wo die Fassung für unterwegs **dieselbe** Bewegung mit
+dem Band ist – Rudern, Reverse Fly, Trizepsdrücken, Schulterdrücken, Curls –,
+muss das Muster auch dasselbe sein. Eine Figur, die im Bodyweight-Modus grundlos
+etwas anderes vorführt, ist derselbe Fehler mit umgekehrtem Vorzeichen. Beide
+Richtungen stehen in der Testreihe.
 
 Der Goblet Squat ist das feinste Beispiel: ohne Hantel greifen die Hände nichts,
 und mit der geerbten Goblet-Haltung sah es aus, als hielte die Figur eine
@@ -766,8 +771,9 @@ pro Woche.
 `tools/build-data.py` übernimmt die Auswahl je Tag aus `tools/plan.json` –
 dort stehen neben den Einheiten auch die **Ziele je Muskelgruppe** und die
 Obergrenze, damit die App gegen dieselben Zahlen rechnet wie der Generator.
-Namen, Wiederholungen und die Bodyweight-Äquivalente kommen unverändert aus der
-Excel. Der Plan darf dabei über das Excel-Ende hinausgehen – die Zusatztermine
+Namen, Wiederholungen und die Fassung für unterwegs kommen aus der Excel –
+sofern `exercise-meta.json` kein eigenes `bwName`/`bwReps` setzt oder die Übung
+gar nicht in der Excel steht. Der Plan darf dabei über das Excel-Ende hinausgehen – die Zusatztermine
 stehen dann in `plan.json`. `tools/plan.json` löschen und neu generieren stellt
 den Originalplan wieder her; ohne die Datei gilt für jede Gruppe wieder 10.
 
@@ -787,6 +793,8 @@ verursachten praktisch alles davon:
 | SZ-Curls | Enge supinierte Chin-ups | **+3,0 Rücken**, +0,9 Nacken |
 | Sitzendes Schulterdrücken | Füße-erhöhte Pike Push-ups | +1,0 Brust, −0,5 seitliche Schulter |
 | Liegende Trizepsstrecker | Extensions an niedriger Stange | +0,5 Brust |
+| Einarmiges KH-Rudern | Inverted Rows an niedriger Stange | Gerät, das unterwegs fehlt |
+| Reverse Fly | Reverse Snow Angels | Überkopf-Anteil ist Nacken, nicht hintere Schulter |
 
 Jede dieser drei ist ein *anderes* Muster, nicht dieselbe Bewegung ohne Hantel:
 Chin-ups sind Rückentraining, Pike Push-ups sind zu gutem Teil Brust. Ersetzt
@@ -794,16 +802,45 @@ sind sie jetzt durch die Band-Fassung derselben Bewegung – Band-Curls,
 Band-Schulterdrücken, Band-Trizepsdrücken. Ein Loop-Band wiegt nichts und ist
 genau das, was auf Reisen mitkommt.
 
-**Ergebnis: 0,32 Sätze Abstand je Einheit statt 1,80**, schlimmster Fall 1,05
-statt 4,30. Das Bodyweight-Wochenvolumen trifft damit jedes Ziel bis auf den
-Trizeps (9,6 statt 10) – der Rest der Abweichung steckt in der Liegestütze, die
-gegenüber dem Floor Press etwas Trizeps an die vordere Schulter abgibt. Das ist
-kein Fehler, sondern der Unterschied zwischen den Bewegungen.
+**Ergebnis: 0,56 Sätze Abstand je Einheit statt 1,80**, schlimmster Fall 1,35
+statt 4,30.
 
-Der Preis: **Der Bodyweight-Modus setzt ein Loop-Band voraus.** Ohne Band
-fehlen Bizeps, Trizeps-Isolation, Überkopfdrücken und beide Seitheben-Fassungen.
-Die Figur zeichnet das Band deshalb auch dort, wo es nur in der
-Bodyweight-Variante vorkommt.
+Die Zahl war zwischenzeitlich 0,32 – und das war zu gut, um wahr zu sein. Fünf
+Bodyweight-Fassungen hatten ihre Muskelanteile **unverändert von der
+Hantel-Fassung geerbt**, obwohl sie eine andere Bewegung sind: Inverted Rows
+statt vorgebeugtem Rudern, Snow Angels statt Reverse Fly, einbeiniger Hip
+Thrust statt beidbeinigem, und zwei Kniebeugen, deren Bauchanteil von den 20 kg
+vor der Brust stammte, die im Bodyweight-Modus niemand hält. Eine kopierte
+Schätzung sieht in der Rechnung wie Übereinstimmung aus, ohne welche zu sein.
+
+Drei davon sind jetzt echte Band-Fassungen derselben Bewegung – Band-Rudern,
+Band-Reverse-Fly, sitzendes Band-Seitheben –, bei denen die geerbten Anteile
+zu Recht stehen. Zwei behalten die Bewegung und haben korrigierte Anteile: Die
+Kniebeugen ohne Hantel bekommen weniger Bauch (0,20 / 0,15 statt 0,35 / 0,30),
+der einbeinige Hip Thrust mehr Beinbeuger (0,60 statt 0,50).
+
+Was übrig bleibt, ist ehrlich und klein: Trizeps 9,6 statt 10 (die Liegestütze
+gibt gegenüber dem Floor Press etwas Trizeps an die vordere Schulter ab) und
+Bauch 8,3 statt 9 (ohne Hantel vor der Brust ist die Kniebeuge weniger
+Rumpfarbeit – genau das, was die korrigierte Schätzung jetzt sagt).
+
+Der Preis: **Die Fassung für unterwegs setzt ein Loop-Band und eine
+Klimmzugstange voraus.** Ohne Band fehlen Bizeps, Trizeps, Überkopfdrücken,
+Rudern, Reverse Fly und beide Seitheben-Fassungen (19,4 Sätze pro Woche); ohne
+Stange Chin-ups, Pull-ups und das hängende Knieheben (9,9 Sätze pro Woche).
+Dazu kommen Gegenstände, die in jedem Zimmer stehen: ein Stuhl, ein paar
+Bücher, ein Handtuch. Die Figur zeichnet das Band deshalb auch dort, wo es nur
+in der Fassung für unterwegs vorkommt.
+
+**Die Geräteangabe muss vollständig sein, weil der Hantel-Hinweis unsichtbar
+ist.** Im Bodyweight-Modus zeigt die App ausschließlich den `bwCue` – ein
+Hinweis, der mit "Identisch." auf den Hantel-Text verweist, ist dort blind.
+Genau das war an fünf Stellen der Fall: Der einbeinige Hip Thrust brauchte eine
+Schulterauflage, die nur im Hantel-Hinweis stand; die füße-erhöhten Liegestütze
+sagten nicht, worauf die Füße kommen; das Wadenheben verlangte "volle Dehnung"
+ohne die Stufe, die sie erst möglich macht; die gewichteten Liegestütze warnten
+vor Hantelscheiben, die es im Bodyweight-Modus gar nicht gibt; und Chin-ups
+nannten einen Stuhl, den die Geräteangabe verschwieg.
 
 ## Kalender
 
@@ -1193,25 +1230,32 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 
 ## Übungszuordnung
 
-| Hanteln | Bodyweight-Äquivalent |
-| --- | --- |
-| Goblet Squat | 1½-Wdh. Bodyweight Squat |
-| Fersenerhöhter Goblet Squat | Fersenerhöhter 1½-Wdh. Bodyweight Squat |
-| Sliding Leg Curl | Sliding Leg Curl |
-| Einbeiniger Sliding Leg Curl | Einbeiniger Sliding Leg Curl |
-| Hip Thrust | Einbeiniger Hip Thrust |
-| Gewichtete Liegestütze | Langsame Liegestütze (3 s ablassen) |
-| Füße-erhöhte Liegestütze | Füße-erhöhte Liegestütze |
-| Floor Press | Liegestütze |
-| Einarmiges KH-Rudern | Inverted Rows an sicherer niedriger Stange |
-| Chin-ups | Chin-ups |
-| Reverse Fly | Prone Reverse Fly / Reverse Snow Angels |
-| Sitzendes Seitheben | Pike Push-ups |
-| Liegende Trizepsstrecker | Bodyweight Trizeps Extensions an niedriger Stange |
-| SZ-Curls | Enge supinierte Chin-ups |
-| Gewichtete Crunches | Crunches |
-| Einbeiniges stehendes Wadenheben | Einbeiniges Wadenheben |
-| Wadenheben gebeugtes Knie | Wadenheben mit gebeugtem Knie |
+| Hanteln | Fassung für unterwegs | Gerät |
+| --- | --- | --- |
+| Goblet Squat | 1½-Wdh. Bodyweight Squat | Ohne Gerät |
+| Sliding Leg Curl | Sliding Leg Curl | Handtuch, glatter Boden |
+| Gewichtete Liegestütze | Langsame Liegestütze (3 s ablassen) | Ohne Gerät (optional zwei Bücherstapel) |
+| Chin-ups | Chin-ups | Klimmzugstange (+ Stuhl) |
+| Sitzendes Seitheben | Sitzendes Band-Seitheben | Loop-Band + Stuhl |
+| Liegende Trizepsstrecker | Band-Trizepsdrücken | Loop-Band |
+| Einbeiniges stehendes Wadenheben | Einbeiniges Wadenheben | Stufe oder dickes Buch |
+| Wadenheben gebeugtes Knie | Wadenheben mit gebeugtem Knie | Ohne Gerät |
+| Fersenerhöhter Goblet Squat | Fersenerhöhter 1½-Wdh. Bodyweight Squat | Erhöhung (Buch/Keil) |
+| SZ-Curls | Band-Curls | Loop-Band |
+| Gewichtete Crunches | Crunches | Ohne Gerät |
+| Einbeiniger Sliding Leg Curl | Einbeiniger Sliding Leg Curl | Handtuch, glatter Boden |
+| Füße-erhöhte Liegestütze | Füße-erhöhte Liegestütze | Stuhl oder feste Kiste |
+| Floor Press | Liegestütze | Ohne Gerät |
+| Einarmiges KH-Rudern | Einarmiges Band-Rudern | Loop-Band |
+| Hip Thrust | Einbeiniger Hip Thrust | Stuhl- oder Sofakante |
+| Reverse Fly | Vorgebeugtes Band-Reverse-Fly | Loop-Band |
+| Pull-ups | Pull-ups | Klimmzugstange (+ Stuhl) |
+| Band-Seitheben | Band-Seitheben | Loop-Band |
+| Sitzendes Schulterdrücken | Band-Schulterdrücken | Loop-Band |
+| Rumänisches Kreuzheben | Einbeiniges Kreuzheben (Standwaage) | Ohne Gerät |
+| Split Squat | Split Squat ohne Gewicht | Ohne Gerät |
+| Hängendes Knieheben | Hängendes Knieheben | Klimmzugstange |
+| Band-Pull-Apart | Band-Pull-Apart | Loop-Band (Face Pull: + Klimmzugstange) |
 
 ## Aufbau
 

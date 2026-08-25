@@ -54,9 +54,9 @@ Die Anteile sind Schätzungen aus gängiger Trainingslehre, keine Messwerte: 1,0
 heißt "dafür ist die Übung da", 0,5 "arbeitet spürbar mit". Wer sie anders
 einschätzt, ändert exercise-meta.json und lässt neu rechnen.
 
-Namen, Wiederholungen und das Bodyweight-Äquivalent kommen unverändert aus der
-Excel – hier wird nur bestimmt, welche Übung mit wie vielen Sätzen an welchem
-Tag steht.
+Namen, Wiederholungen und die Fassung für unterwegs kommen aus der Excel,
+sofern exercise-meta.json nichts Eigenes setzt – hier wird nur bestimmt, welche
+Übung mit wie vielen Sätzen an welchem Tag steht.
 """
 
 import collections

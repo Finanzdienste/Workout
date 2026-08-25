@@ -22,7 +22,7 @@
   "bwShares": {
    "quads": 1.0,
    "glutes": 0.55,
-   "abs": 0.35,
+   "abs": 0.2,
    "hamstrings": 0.15
   },
   "equip": "goblet"
@@ -49,7 +49,7 @@
   "bwShares": {
    "quads": 1.0,
    "glutes": 0.45,
-   "abs": 0.3
+   "abs": 0.15
   },
   "equip": "goblet"
  },
@@ -57,9 +57,9 @@
   "group": "Beinbeuger",
   "tier": 2,
   "dbEquip": "Slider/Handtuch",
-  "bwEquip": "Slider/Handtuch",
+  "bwEquip": "Handtuch, glatter Boden",
   "dbCue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen.",
-  "bwCue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s).",
+  "bwCue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s). Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": null,
@@ -83,9 +83,9 @@
   "group": "Beinbeuger",
   "tier": 2,
   "dbEquip": "Slider/Handtuch",
-  "bwEquip": "Slider/Handtuch",
+  "bwEquip": "Handtuch, glatter Boden",
   "dbCue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
-  "bwCue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück.",
+  "bwCue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": null,
@@ -109,9 +109,9 @@
   "group": "Gesäß",
   "tier": 1,
   "dbEquip": "Kurzhantel",
-  "bwEquip": "Ohne Gerät",
+  "bwEquip": "Stuhl- oder Sofakante",
   "dbCue": "Schulterblätter auf einer Bank/Couch, Hantel auf der Hüfte. Oben Gesäß fest anspannen, Rippen unten lassen.",
-  "bwCue": "Einbeinig ausführen, freies Bein angewinkelt. Oben 1–2 s halten – ersetzt die fehlende Zusatzlast.",
+  "bwCue": "Schulterblätter auf die Kante eines an die Wand geschobenen Stuhls oder Sofas, einbeinig, freies Bein angewinkelt. Oben Gesäß fest anspannen, Rippen unten lassen, 1–2 s halten – das ersetzt die fehlende Zusatzlast. Schwerer wird es mit dem Loop-Band über der Hüfte, Enden unter dem Standfuß: Die Bandspannung ist oben am größten, also dort, wo sonst die Hantel drückt.",
   "dbRest": 150,
   "bwRest": 150,
   "dbWeight": 20,
@@ -125,7 +125,7 @@
   "bwPattern": "thrust1",
   "bwShares": {
    "glutes": 1.0,
-   "hamstrings": 0.5
+   "hamstrings": 0.6
   },
   "equip": "hipbar"
  },
@@ -133,9 +133,9 @@
   "group": "Brust",
   "tier": 1,
   "dbEquip": "Rucksack",
-  "bwEquip": "Ohne Gerät",
+  "bwEquip": "Ohne Gerät (optional zwei Bücherstapel)",
   "dbCue": "Rucksack auf den oberen Rücken, hoch zwischen die Schulterblätter, Gurte fest – rutscht er Richtung Becken, hebelt er dich hoch. Füllung: Wasserflaschen (1 l = 1 kg), Bücher oder die Kurzhanteln selbst. Körper bleibt eine Linie, Ellenbogen ca. 45°. Mehr Tiefe bringen zwei gleich hohe, kippsichere Auflagen unter den Händen – dicke Bücher oder niedrige Kisten; dann sinkt die Brust darunter. Auf Kurzhanteln nur, wenn sie sechseckig sind: runde Scheiben rollen unter Last weg.",
-  "bwCue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht. Mehr Tiefe bringen zwei gleich hohe, kippsichere Auflagen unter den Händen – runde Hantelscheiben taugen dafür nicht, die rollen.",
+  "bwCue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht. Mehr Tiefe bringen zwei gleich hohe Bücherstapel oder kippsichere Kisten unter den Händen.",
   "dbRest": 150,
   "bwRest": 150,
   "dbWeight": 8,
@@ -159,9 +159,9 @@
   "group": "Brust (oben)",
   "tier": 1,
   "dbEquip": "Erhöhung",
-  "bwEquip": "Erhöhung",
+  "bwEquip": "Stuhl oder feste Kiste",
   "dbCue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter.",
-  "bwCue": "Identisch. Für mehr Reiz Füße höher stellen oder langsamer ablassen.",
+  "bwCue": "Füße auf einen Stuhl oder eine feste Kiste, Körper eine Linie, Ellenbogen ca. 45°. Je höher die Füße, desto mehr obere Brust und Schulter. Für mehr Reiz Füße höher stellen oder langsamer ablassen.",
   "dbRest": 150,
   "bwRest": 150,
   "dbWeight": null,
@@ -213,9 +213,9 @@
   "group": "Rücken",
   "tier": 1,
   "dbEquip": "Kurzhantel",
-  "bwEquip": "Niedrige Stange/Tisch",
+  "bwEquip": "Loop-Band",
   "dbCue": "Eine Hand abgestützt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben Schulterblatt zusammenziehen.",
-  "bwCue": "Inverted Rows: unter eine stabile niedrige Stange (oder Tischkante) legen, Körper gerade, Brust zur Stange ziehen. Schwerer: Füße erhöhen.",
+  "bwCue": "Einen Fuß auf das Band, vorgebeugt wie mit der Hantel, das andere Ende in der Hand derselben Seite. Ellenbogen eng am Körper nach hinten ziehen, oben das Schulterblatt zusammenziehen. Vorher standen hier Inverted Rows unter einer niedrigen Stange – die gibt es unterwegs nicht, und unter einer Tischkante lässt sich die einzige Steigerung (Füße erhöhen) nicht ausführen. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
   "dbRest": 150,
   "bwRest": 150,
   "dbWeight": 16,
@@ -228,20 +228,22 @@
    "traps": 0.5,
    "rearDelts": 0.35
   },
-  "bwPattern": "invrow",
+  "bwPattern": "row",
   "bwShares": {
    "lats": 1.0,
    "biceps": 0.5,
    "traps": 0.5,
    "rearDelts": 0.35
   },
-  "equip": "onehand"
+  "equip": "onehand",
+  "bwName": "Einarmiges Band-Rudern",
+  "bwReps": "8–15 je Seite"
  },
  "chin-ups": {
   "group": "Rücken/Bizeps",
   "tier": 1,
   "dbEquip": "Klimmzugstange + Rucksack",
-  "bwEquip": "Klimmzugstange",
+  "bwEquip": "Klimmzugstange (+ Stuhl)",
   "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zusatzgewicht erst, wenn 10 saubere Wiederholungen stehen – dann Rucksack auf den Rücken (Wasserflaschen, Bücher, Kurzhanteln) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
   "bwCue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen.",
   "dbRest": 180,
@@ -273,7 +275,7 @@
   "bwName": "Pull-ups",
   "bwReps": "4–10",
   "dbEquip": "Klimmzugstange + Rucksack",
-  "bwEquip": "Klimmzugstange",
+  "bwEquip": "Klimmzugstange (+ Stuhl)",
   "dbCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
   "bwCue": "Identisch, ohne Zusatzgewicht. Noch keine ganze schaffst du? Negative: hochspringen und 5 Sekunden ablassen. Oder Füße auf einem Stuhl abstützen und nur so viel abnehmen, wie nötig ist. Drei bis vier Wochen, dann geht die erste freie.",
   "dbRest": 180,
@@ -301,9 +303,9 @@
   "group": "Schulter (hinten)",
   "tier": 3,
   "dbEquip": "Kurzhanteln",
-  "bwEquip": "Ohne Gerät",
+  "bwEquip": "Loop-Band",
   "dbCue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
-  "bwCue": "Bauchlage, Arme angehoben, Reverse Snow Angels: Arme langsam vom Kopf bis zur Hüfte und zurück führen, ohne den Boden zu berühren.",
+  "bwCue": "Auf das Band stellen, Enden überkreuz in die Hände, vorgebeugt wie mit den Hanteln. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt. Vorher standen hier Reverse Snow Angels – die führen die Arme bis über den Kopf und sind damit zu einem guten Teil Nacken statt hintere Schulter. Schwerer wird es mit dem nächststärkeren Band oder überkreuztem Griff.",
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 5,
@@ -314,20 +316,22 @@
    "rearDelts": 1.0,
    "traps": 0.6
   },
-  "bwPattern": "snowangel",
+  "bwPattern": "reversefly",
   "bwShares": {
    "rearDelts": 1.0,
    "traps": 0.6
   },
-  "equip": "dumbbells"
+  "equip": "dumbbells",
+  "bwName": "Vorgebeugtes Band-Reverse-Fly",
+  "bwReps": "12–20"
  },
  "sitzendes-seitheben": {
   "group": "Schulter",
   "tier": 3,
   "dbEquip": "Kurzhanteln",
-  "bwEquip": "Loop-Band",
+  "bwEquip": "Loop-Band + Stuhl",
   "dbCue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
-  "bwCue": "Band unter den Fuß der Standbeinseite, anderes Ende in die freie Hand. An einem Türrahmen festhalten und den Körper zur Gegenseite lehnen – das verlängert den Weg und hält die Spannung auch unten. Arm fast gestreckt zur Seite heben bis waagerecht, langsam zurück. Ohne Widerstand geht die seitliche Schulter nicht: Pike Push-ups, die die Excel hier vorsah, sind ein Überkopfdrücken und treffen die vordere.",
+  "bwCue": "Auf einen Stuhl setzen, Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind, langsam zurück. Sitzend, weil so weder Beine noch Rumpf nachhelfen können – genau wie beim sitzenden Seitheben mit Hanteln. Schwerer wird es mit dem nächststärkeren Band.",
   "dbRest": 120,
   "bwRest": 120,
   "dbWeight": 6,
@@ -342,12 +346,12 @@
   "bwPattern": "lateral",
   "bwShares": {
    "sideDelts": 1.0,
-   "frontDelts": 0.1,
+   "frontDelts": 0.15,
    "traps": 0.15
   },
   "equip": "dumbbells",
-  "bwName": "Einarmiges Band-Seitheben (weggelehnt)",
-  "bwReps": "12–20 je Seite"
+  "bwName": "Sitzendes Band-Seitheben",
+  "bwReps": "12–20"
  },
  "band-seitheben": {
   "group": "Schulter",
@@ -453,9 +457,9 @@
   "group": "Waden",
   "tier": 4,
   "dbEquip": "Kurzhantel",
-  "bwEquip": "Ohne Gerät",
+  "bwEquip": "Stufe oder dickes Buch",
   "dbCue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten.",
-  "bwCue": "Ohne Gewicht, dafür deutlich mehr Wiederholungen. Volle Dehnung unten, 1 s Pause oben – bis es wirklich brennt.",
+  "bwCue": "Fußballen auf eine Stufe oder ein dickes Buch, Ferse tief absenken – flach auf dem Boden fehlt genau der gedehnte Teil, auf den es hier ankommt. Ganz hoch auf den Ballen, oben 1 s halten. Ohne Gewicht dafür deutlich mehr Wiederholungen.",
   "dbRest": 90,
   "bwRest": 90,
   "dbWeight": 12,
@@ -583,7 +587,7 @@
    "quads": 1.0,
    "glutes": 0.8,
    "hamstrings": 0.3,
-   "abs": 0.25
+   "abs": 0.15
   },
   "equip": "dumbbells"
  },
@@ -621,7 +625,7 @@
   "bwName": "Band-Pull-Apart",
   "bwReps": "12–20",
   "dbEquip": "Loop-Band",
-  "bwEquip": "Loop-Band",
+  "bwEquip": "Loop-Band (Face Pull: + Klimmzugstange)",
   "dbCue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff.",
   "bwCue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff.",
   "dbRest": 120,
