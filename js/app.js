@@ -260,7 +260,7 @@ const LEVELS = [
 ];
 
 /** Zwei Beispiele, damit die Wahl nicht abstrakt bleibt. */
-function levelBeispiel(faktor) {
+function levelBeispiel(faktor, key) {
   const zeig = ['floor-press', 'goblet-squat']
     .map((id) => EX_BY_ID.get(id))
     .filter((ex) => ex && ex.weight)
@@ -270,7 +270,10 @@ function levelBeispiel(faktor) {
         : Math.max(step, Math.round((ex.weight * faktor) / step) * step);
       return `${ex.db.name} ${fmtNum(kg)} kg`;
     });
-  return zeig.join(' · ');
+  // Die Satzzahl gehört dazu: Sie ist seit Neuestem der größere Unterschied
+  // zwischen den Stufen – die Gewichte stellt man sich ohnehin selbst ein.
+  const saetze = SAETZE_JE_STUFE[key] || 3;
+  return `${plural(saetze, 'Satz', 'Sätze')} je Übung · ${zeig.join(' · ')}`;
 }
 
 const levelFaktor = () => {
@@ -1291,7 +1294,7 @@ function renderWelcome() {
                   aria-pressed="${(s.level || 'geuebt') === key}" data-act="set-level" data-v="${key}">
             <span class="lbl">${esc(name)}${(s.level || 'geuebt') === key ? ' ✓' : ''}</span>
             <span class="hint">${esc(hint)}</span>
-            <span class="fokus-zahl">${esc(levelBeispiel(faktor))}</span>
+            <span class="fokus-zahl">${esc(levelBeispiel(faktor, key))}</span>
           </button>`).join('')}
       </div>
     </div>`, `
@@ -3271,17 +3274,19 @@ function renderSettings() {
 
     <div class="section-title">Erfahrung</div>
     <div class="card">
-      <div class="small muted">Die Startgewichte des Plans stammen von jemandem, der seit
-        einer Weile trainiert. Hier lassen sie sich auf die eigene Erfahrung umrechnen –
-        Sätze, Pausen und Übungen bleiben, wie sie sind. Was du selbst eingestellt hast,
-        bleibt ohnehin stehen.</div>
+      <div class="small muted">Der Plan ist für jemanden gerechnet, der seit einer Weile
+        trainiert. Die Stufe rechnet ihn auf die eigene Erfahrung um: Startgewichte
+        <em>und</em> Sätze je Übung. Übungen, Pausen und die Verteilung über die Woche
+        bleiben, wie sie sind – jede Muskelgruppe behält ihren Anteil, nur die Höhe ändert
+        sich. Was du selbst eingestellt hast, bleibt ohnehin stehen, und abgehakte Sätze
+        werden beim Wechsel nicht gelöscht.</div>
       <div class="fokus-liste">
         ${LEVELS.map(([key, name, hint, faktor]) => `
           <button type="button" class="fokus-btn ${(s.level || 'geuebt') === key ? 'on' : ''}"
                   aria-pressed="${(s.level || 'geuebt') === key}" data-act="set-level" data-v="${key}">
             <span class="lbl">${esc(name)}${(s.level || 'geuebt') === key ? ' ✓' : ''}</span>
             <span class="hint">${esc(hint)}</span>
-            <span class="fokus-zahl">${esc(levelBeispiel(faktor))}</span>
+            <span class="fokus-zahl">${esc(levelBeispiel(faktor, key))}</span>
           </button>`).join('')}
       </div>
     </div>
