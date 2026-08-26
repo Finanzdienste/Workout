@@ -197,6 +197,10 @@ VARIANTEN = {
     #     ausgewogenen Plan von selbst bekommt). Als abgeleitete Größe fiel sie
     #     auf 0,7 Auftritte mit 19 Tagen Abstand – dieselbe Stelle, an der auch
     #     "Kurz und knapp" bricht.
+    #   * Gesäß 8 statt 7, und das ist keine Trainingsentscheidung, sondern
+    #     Arithmetik: Mit Hüftstreckung 5 und Gesäß 7 geht zwischen 21 und 32
+    #     Wochen keine exakte Lösung auf. Mit 8 geht sie ab 21. Was zusammen
+    #     erreichbar ist, sagt der Lauf – hier hat er es gesagt.
     #
     # Die Beine stehen im ausgewogenen Plan schon auf Erhalt; sie noch weiter zu
     # senken hieße, unter den Erhalt zu gehen. Sie bleiben deshalb, wo sie sind.
@@ -206,7 +210,7 @@ VARIANTEN = {
             'chest': 7, 'lats': 7, 'sideDelts': 7, 'rearDelts': 7,
             'biceps': 7, 'triceps': 7, 'abs': 9,
             'frontDelts': None, 'traps': None,
-            'glutes': 7, 'quads': 6, 'hamstringsHip': 5, 'hamstringsKnee': 3, 'calves': 6,
+            'glutes': 8, 'quads': 6, 'hamstringsHip': 5, 'hamstringsKnee': 3, 'calves': 6,
         },
         'cap': 10,
     },
