@@ -1319,6 +1319,9 @@ function willkommenFertig() {
     ui.standAngebot = null;
   }
   render();
+  // Jetzt erst: Der Satz mit dem Schalter stand im letzten Schritt, und der
+  // Schalter stand daneben.
+  meldeStand(true);
   toast(name ? `Los geht’s, ${name} 💪` : 'Los geht’s 💪');
 }
 
@@ -1353,18 +1356,28 @@ function serverHinweis(msg) {
   if (/permission denied for function/i.test(m)) {
     return 'Der Funktion melde fehlt das Ausführungsrecht: grant execute … to anon.';
   }
-  if (/PGRST202|schema cache|function.*(does not exist|not found)/i.test(m)) {
+  // Reihenfolge zählt: PostgREST schreibt in alle drei Fällen "schema cache",
+  // der Code dahinter trennt sie. Erst der genaue, dann der allgemeine Fall.
+  if (/PGRST204/i.test(m)) {
+    return 'Der Tabelle fehlt eine Spalte – den Block aus der README noch einmal ausführen.';
+  }
+  if (/PGRST205/i.test(m)) {
+    return 'Die Tabelle nutzung gibt es dort nicht.';
+  }
+  if (/PGRST202|function.*(does not exist|not found)|Could not find the function/i.test(m)) {
     return 'Die Funktion melde gibt es dort nicht – der SQL-Block aus der README ist '
-      + 'nicht (vollständig) gelaufen.';
+      + 'nicht (vollständig) gelaufen. Direkt danach kann es auch heißen: ein paar '
+      + 'Sekunden warten, der Server kennt sie noch nicht.';
   }
   if (/invalid api key|JWS|JWT|apikey/i.test(m)) {
     return 'Der Schlüssel in js/config.js gehört nicht zu diesem Projekt.';
   }
-  if (/^40?4|PGRST205|not exist|Not Found/i.test(m)) {
-    return 'Unter dieser Adresse gibt es die Tabelle nutzung nicht.';
+  if (/^\s*404|Not Found/i.test(m)) {
+    return 'Unter dieser Adresse antwortet weder die Funktion noch die Tabelle – '
+      + 'die Projekt-Adresse in js/config.js prüfen.';
   }
-  if (/PGRST204|column|Spalte/i.test(m)) {
-    return 'Der Tabelle fehlt eine Spalte – am einfachsten neu anlegen, wie in der README.';
+  if (/column|Spalte/i.test(m)) {
+    return 'Der Tabelle fehlt eine Spalte – den Block aus der README noch einmal ausführen.';
   }
   if (/Keine Verbindung/i.test(m)) {
     return 'Kein Netz – oder die Projekt-Adresse in js/config.js stimmt nicht.';
@@ -1390,10 +1403,12 @@ function shareKarte(ausfuehrlich = false) {
           <div class="lbl">Nutzung mit ${esc(CONFIG.betreiber)} teilen</div>
           <div class="hint">Einmal am Tag gehen dein Name, dein Trainingsfokus, deine
             Erfahrungsstufe und dein Fortschritt an ${esc(CONFIG.betreiber)} – Einheiten,
-            Sätze, Volumen, wann du zuletzt trainiert hast und welche Übungen wie oft
-            vorkamen. Er hat die App gebaut und sieht daran, ob sie benutzt wird und was
-            hakt. Sonst geht nichts raus: keine Uhrzeiten, keine Adressen, nichts von
-            außerhalb dieser App.</div>
+            Sätze, Volumen, Serie, wann du zuletzt trainiert hast, welche Übungen wie oft
+            vorkamen, wie oft du den Link weitergeschickt hast und wie viele Stände von
+            Freunden du übernommen hast. Dazu eine Zufallszahl, an der dein Gerät
+            wiedererkannt wird. Er hat die App gebaut und sieht daran, ob sie benutzt wird
+            und was hakt. Sonst geht nichts raus: keine Uhrzeiten, keine Adressen, nichts
+            von außerhalb dieser App.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-share"
                 aria-label="Nutzung teilen"></button>
@@ -1435,7 +1450,9 @@ function standZeile() {
     geteilt: store.getState().shareCount || 0,
     freunde: Object.keys(store.getState().friends || {}).length,
     uebungen: proUebung,
-    gesehen: new Date().toISOString(),
+    // Kein Zeitstempel: "keine Uhrzeiten" steht so im Einwilligungstext. Wann
+    // zuletzt gemeldet wurde, hält der Server als Datum fest – auf den Tag
+    // genau, mehr braucht die Übersicht nicht.
   };
 }
 
@@ -1448,6 +1465,10 @@ function standZeile() {
  */
 function meldeStand(sofort = false) {
   if (!meldetMit()) return;
+  // Wer den Einstieg noch vor sich hat, hat den Satz mit dem Schalter noch
+  // nicht gelesen. Vorher etwas zu schicken, wäre genau das, was der Satz
+  // ausschließt – auch wenn es nur "Gerät eingerichtet" wäre.
+  if (needsWelcome()) return;
   const s = store.getState();
   // Einmal am Tag – aber nur, wenn es auch geklappt hat. Ein Fehlversuch am
   // Morgen sperrte den Rest des Tages: Wer den Server repariert, sah bis zum
@@ -2917,6 +2938,42 @@ function adminKarte() {
     </div>`;
 }
 
+/**
+ * Was vom Server kommt, ist fremder Text – auch wenn er von der eigenen App
+ * stammen sollte.
+ *
+ * Schreiben darf jeder, der den öffentlichen Schlüssel hat, und der steht im
+ * Repo. Eine Zeile könnte also statt einer Zahl eine Zeichenkette mitbringen;
+ * die landete beim Zusammenrechnen als Text in der Übersicht und von dort
+ * ungefiltert im HTML. Deshalb wird hier einmal alles auf seine Form gebracht,
+ * bevor die Ansicht es überhaupt sieht: Zahlen sind danach Zahlen, alles andere
+ * geht wie gehabt durch esc().
+ */
+function saubereZeilen(daten) {
+  const zahl = (x) => (Number.isFinite(Number(x)) ? Number(x) : 0);
+  const text = (x) => (x === null || x === undefined ? '' : String(x));
+  return (Array.isArray(daten) ? daten : []).map((r) => {
+    const ue = {};
+    Object.entries((r && r.uebungen) || {}).forEach(([id, n]) => { ue[text(id)] = zahl(n); });
+    return {
+      id: text(r.id),
+      name: text(r.name),
+      fokus: text(r.fokus),
+      stufe: text(r.stufe),
+      einheiten: zahl(r.einheiten),
+      plan: zahl(r.plan),
+      saetze: zahl(r.saetze),
+      volumen: zahl(r.volumen),
+      serie: zahl(r.serie),
+      geteilt: zahl(r.geteilt),
+      freunde: zahl(r.freunde),
+      zuletzt: text(r.zuletzt),
+      gesehen: text(r.gesehen),
+      uebungen: ue,
+    };
+  });
+}
+
 function renderAdmin() {
   const zurueck = '<button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>';
   if (!hatServer()) {
@@ -2965,7 +3022,7 @@ function renderAdmin() {
   daten.forEach((r) => stufen.set(r.stufe || '–', (stufen.get(r.stufe || '–') || 0) + 1));
   const uebungen = new Map();
   daten.forEach((r) => Object.entries(r.uebungen || {}).forEach(([id, n]) => {
-    uebungen.set(id, (uebungen.get(id) || 0) + n);
+    uebungen.set(id, (uebungen.get(id) || 0) + (Number(n) || 0));
   }));
   const topUe = [...uebungen.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
   const maxUe = topUe.length ? topUe[0][1] : 1;
@@ -3001,8 +3058,8 @@ function renderAdmin() {
           return `<tr>
             <td>${esc(r.name || '–')}
               <div class="small muted">${esc(r.fokus || '')}${r.stufe ? ` · ${esc(r.stufe)}` : ''}</div></td>
-            <td><b>${r.einheiten || 0}</b><span class="muted">/${r.plan || '?'}</span></td>
-            <td>${r.saetze || 0}</td>
+            <td><b>${esc(r.einheiten || 0)}</b><span class="muted">/${esc(r.plan || '?')}</span></td>
+            <td>${esc(r.saetze || 0)}</td>
             <td>${r.zuletzt ? esc(fmtDate(String(r.zuletzt).slice(0, 10))) : '–'}
               <div class="small muted">${t === null ? ''
                 : t === 0 ? 'App heute geöffnet' : `App vor ${plural(t, 'Tag', 'Tagen')}`}</div></td>
@@ -3019,7 +3076,7 @@ function renderAdmin() {
             <div class="bar-name">${esc((EX_BY_ID.get(id) || {}).db ? EX_BY_ID.get(id).db.name : id)}</div>
             <div class="bar-track"><i style="width:${Math.round((n / maxUe) * 100)}%"></i></div>
           </div>
-          <div class="bar-val">${n}</div>
+          <div class="bar-val">${esc(n)}</div>
         </div>`).join('')}</div>` : '<div class="muted small">Noch nichts abgehakt.</div>'}
     </div>
 
@@ -3040,7 +3097,7 @@ function adminOeffnen(pass) {
   ui.adminFehler = '';
   adminListe(wort).then((daten) => {
     store.setSetting('adminPass', wort);
-    ui.adminDaten = daten;
+    ui.adminDaten = saubereZeilen(daten);
     ui.adminLaeuft = false;
     render();
   }).catch((e) => {
@@ -4059,14 +4116,19 @@ view.addEventListener('click', (e) => {
       if (!store.getState().deviceId) store.setSetting('deviceId', geraeteId(null));
       melden(standZeile()).then(({ ok, msg }) => {
         store.setSetting('lastShare', { on: todayISO(), ok, msg: ok ? '' : msg });
-        render();
+        if (ui.tab === 'settings') render();
         toast(ok ? 'Gemeldet' : msg || 'Hat nicht geklappt');
       });
       break;
     case 'share-delete': {
       const id = store.getState().deviceId;
-      loeschen(id).then((ok) => toast(ok ? 'Gelöscht' : 'Hat nicht geklappt – später nochmal'));
+      // Erst abschalten, dann löschen: Sonst könnte eine noch laufende Meldung
+      // die Zeile gleich wieder hinschreiben.
       store.setSetting('share', false);
+      loeschen(id).then(({ ok, zeilen, msg }) => {
+        if (!ok) toast(msg || 'Hat nicht geklappt – später nochmal');
+        else toast(zeilen === 0 ? 'Da lag nichts – jetzt ist es auch abgeschaltet' : 'Gelöscht');
+      });
       render();
       break;
     }
@@ -4208,6 +4270,11 @@ view.addEventListener('click', (e) => {
     }
     case 'reset-all':
       if (confirm('Wirklich alle protokollierten Sätze und Einstellungen löschen?')) {
+        // Erst die Zeile auf dem Server, dann den Speicher: Danach ist die
+        // Kennung weg, mit der sie zu finden wäre – sie bliebe für immer
+        // stehen, obwohl hier gerade alles gelöscht wird.
+        const id = meldetMit() ? store.getState().deviceId : null;
+        if (id) loeschen(id);
         store.resetAll();
         ui.workoutNo = defaultWorkoutNo();
         render();

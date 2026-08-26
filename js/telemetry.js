@@ -10,13 +10,17 @@
  *
  *   Sichtbar.    Wer die App einrichtet, liest in einem Satz, was rausgeht und
  *                an wen, und hat den Schalter direkt daneben. Unter Mehr steht
- *                dasselbe noch einmal, mitsamt dem, was zuletzt geschickt wurde.
+ *                dasselbe noch einmal, mitsamt dem Tag der letzten Meldung und
+ *                dem, was der Server geantwortet hat, falls es schiefging.
  *   Abschaltbar. Ein Tipp, und es geht nichts mehr raus – rückwirkend gelöscht
  *                wird auf Wunsch auch (loeschen()).
  *   Wenig.       Es geht nur, was in der App ohnehin auf dem Bildschirm steht:
- *                Name, Fokus, Erfahrung, Einheiten, Sätze, Volumen, letztes
- *                Training, Sätze je Übung. Keine Uhrzeiten, keine Adressen,
- *                keine Kennungen von außerhalb dieser App.
+ *                Name, Fokus, Erfahrung, Einheiten, Sätze, Volumen, Serie,
+ *                letztes Training, Sätze je Übung, wie oft weitergeschickt und
+ *                wie viele Freundes-Stände übernommen wurden – dazu eine
+ *                Zufallszahl als Kennung dieses Geräts. Keine Uhrzeiten (der
+ *                Server vermerkt den Tag der Meldung), keine Adressen, keine
+ *                Kennungen von außerhalb dieser App.
  *
  * Technisch ist es eine Supabase-Tabelle mit einer Zeile je Gerät (upsert auf
  * die zufällige Geräte-ID). Auf die Tabelle selbst hat der öffentliche Schlüssel
@@ -31,9 +35,15 @@ const TABELLE = 'nutzung';
 /** Zufällige Kennung dieses Geräts – ohne Bezug zu irgendetwas anderem. */
 export function geraeteId(vorhanden) {
   if (vorhanden) return vorhanden;
-  const zufall = crypto.randomUUID ? crypto.randomUUID()
-    : `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-  return zufall;
+  if (crypto.randomUUID) return crypto.randomUUID();
+  // Ohne randomUUID (ältere Browser) trotzdem echter Zufall: Die Kennung ist
+  // das Einzige, was die eigene Zeile von fremden trennt – Math.random() wäre
+  // dafür zu wenig.
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const hex = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /**
@@ -55,14 +65,24 @@ function kopf(mitBearer = true) {
  * Authorization-Kopf, falls das Projekt ihn abweist.
  */
 async function senden(pfad, optionen, mitBearer = true) {
-  const res = await fetch(`${CONFIG.url}${pfad}`, {
-    ...optionen,
-    headers: { ...kopf(mitBearer), ...(optionen.headers || {}) },
-  });
-  if (!res.ok && mitBearer && istJwt() && (res.status === 401 || res.status === 403)) {
-    return senden(pfad, optionen, false);
+  // Zehn Sekunden, dann ist gut. Ohne Schranke bliebe die Anfrage bei einem
+  // Server, der die Verbindung offen lässt, für immer stehen – und "Jetzt
+  // melden" gäbe nie eine Antwort.
+  const abbruch = new AbortController();
+  const uhr = setTimeout(() => abbruch.abort(), 10000);
+  try {
+    const res = await fetch(`${CONFIG.url}${pfad}`, {
+      ...optionen,
+      signal: abbruch.signal,
+      headers: { ...kopf(mitBearer), ...(optionen.headers || {}) },
+    });
+    if (!res.ok && mitBearer && istJwt() && (res.status === 401 || res.status === 403)) {
+      return senden(pfad, optionen, false);
+    }
+    return res;
+  } finally {
+    clearTimeout(uhr);
   }
-  return res;
 }
 
 /**
@@ -137,20 +157,32 @@ export async function melden(zeile) {
  * dann gelogen.
  */
 export async function loeschen(id) {
-  if (!hatServer() || !id) return false;
+  if (!hatServer() || !id) return { ok: false, zeilen: 0, msg: 'Nichts zu löschen' };
   try {
     const res = await senden('/rest/v1/rpc/entferne', {
       method: 'POST',
       body: JSON.stringify({ geraet: id }),
     });
-    if (res.ok) return true;
-    if (!fehltFunktion(res, await grund(res))) return false;
+    if (res.ok) {
+      // Ältere Fassungen der Funktion geben nichts zurück; dann gilt "erledigt".
+      const roh = (await res.text()).trim();
+      const zahl = roh === '' || roh === 'null' ? null : Number(roh);
+      return { ok: true, zeilen: Number.isFinite(zahl) ? zahl : null, msg: '' };
+    }
+    const msg = await grund(res);
+    if (!fehltFunktion(res, msg)) return { ok: false, zeilen: 0, msg };
+
+    // Alte Einrichtung: über die Tabelle, und zwar so, dass sich nachsehen
+    // lässt, ob wirklich etwas wegging.
     const alt = await senden(`/rest/v1/${TABELLE}?id=eq.${encodeURIComponent(id)}`, {
       method: 'DELETE',
+      headers: { Prefer: 'return=representation' },
     });
-    return alt.ok;
-  } catch {
-    return false;
+    if (!alt.ok) return { ok: false, zeilen: 0, msg: await grund(alt) };
+    const weg = await alt.json().catch(() => null);
+    return { ok: true, zeilen: Array.isArray(weg) ? weg.length : null, msg: '' };
+  } catch (e) {
+    return { ok: false, zeilen: 0, msg: `Keine Verbindung (${e && e.message ? e.message : 'Netz'})` };
   }
 }
 
@@ -163,16 +195,22 @@ export async function loeschen(id) {
  */
 export async function adminListe(passwort) {
   if (!hatServer()) throw new Error('Kein Server eingetragen');
-  const res = await senden('/rest/v1/rpc/admin_liste', {
-    method: 'POST',
-    body: JSON.stringify({ pass: passwort }),
-  });
-  // 42501 ist der Code, den die Funktion bei falschem Passwort wirft; alles
-  // andere (Funktion fehlt, Recht fehlt) soll nicht als "Passwort falsch"
-  // durchgehen – sonst sucht man ewig am falschen Ende.
+  let res;
+  try {
+    res = await senden('/rest/v1/rpc/admin_liste', {
+      method: 'POST',
+      body: JSON.stringify({ pass: passwort }),
+    });
+  } catch (e) {
+    throw new Error(`Keine Verbindung (${e && e.message ? e.message : 'Netz'})`);
+  }
+  // "nope" wirft nur die Funktion selbst, und zwar bei falschem Passwort. Der
+  // Fehlercode taugt dafür nicht: 42501 vergibt Postgres auch für ein fehlendes
+  // Ausführungsrecht – eine kaputte Einrichtung sähe dann aus wie ein Tippfehler.
   if (!res.ok) {
     const text = await grund(res);
-    throw new Error(/42501|nope/.test(text) ? 'Passwort falsch' : text);
+    const falsch = /\bnope\b/.test(text) && !/permission denied/i.test(text);
+    throw new Error(falsch ? 'Passwort falsch' : text);
   }
   const daten = await res.json();
   if (!Array.isArray(daten)) throw new Error('Passwort falsch');

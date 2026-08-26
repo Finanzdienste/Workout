@@ -533,8 +533,16 @@ export function markIcs(count = 0) {
   return state.lastIcs;
 }
 
+/**
+ * Alles für die Sicherung – bis auf das Betreiber-Passwort.
+ *
+ * Eine Sicherungsdatei wird weitergegeben, auf einen anderen Rechner, in eine
+ * Cloud, per Mail an sich selbst. Das Passwort für die Übersicht hat darin
+ * nichts zu suchen; es öffnet die Daten aller anderen.
+ */
 export function exportJSON() {
-  return JSON.stringify(state, null, 2);
+  const { adminPass, ...rest } = state;
+  return JSON.stringify(rest, null, 2);
 }
 
 /**

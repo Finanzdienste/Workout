@@ -1818,8 +1818,10 @@ weiter offline und ohne Konto läuft.
   löschen* entfernt die eigene Zeile auch rückwirkend.
 * **Wenig.** Nur, was in der App ohnehin auf dem Bildschirm steht: Name, Fokus,
   Erfahrungsstufe, Einheiten, Sätze, Volumen, Serie, letztes Training, Sätze je
-  Übung, wie oft weitergeschickt. Keine Uhrzeiten, keine Adressen, nichts von
-  außerhalb dieser App.
+  Übung, wie oft weitergeschickt, wie viele Freundes-Stände übernommen wurden –
+  dazu eine Zufallszahl als Kennung des Geräts. Keine Uhrzeiten (der Server
+  vermerkt nur den Tag der letzten Meldung), keine Adressen, nichts von
+  außerhalb dieser App. Dieselbe Aufzählung steht wortgleich in der App.
 
 Heimlich mitzuzählen wäre technisch dasselbe und trotzdem etwas anderes: Die App
 verspricht jedem beim ersten Start, dass nichts von allein sein Gerät verlässt.
@@ -1839,56 +1841,109 @@ create table if not exists nutzung (
   einheiten int, plan int, saetze int, volumen int, serie int,
   zuletzt date, geteilt int, freunde int,
   uebungen jsonb,
-  gesehen timestamptz default now()
+  gesehen date default current_date
 );
 
+-- Falls die Tabelle schon steht und aus einer aelteren Fassung stammt: Der
+-- Block soll auch dann durchlaufen und nicht an einer fehlenden Spalte scheitern.
+alter table nutzung add column if not exists name text;
+alter table nutzung add column if not exists fokus text;
+alter table nutzung add column if not exists stufe text;
+alter table nutzung add column if not exists einheiten int;
+alter table nutzung add column if not exists plan int;
+alter table nutzung add column if not exists saetze int;
+alter table nutzung add column if not exists volumen int;
+alter table nutzung add column if not exists serie int;
+alter table nutzung add column if not exists zuletzt date;
+alter table nutzung add column if not exists geteilt int;
+alter table nutzung add column if not exists freunde int;
+alter table nutzung add column if not exists uebungen jsonb;
+alter table nutzung add column if not exists gesehen date default current_date;
+-- Nur ein Datum, keine Uhrzeit: So steht es in der Zusage an die Nutzer.
+alter table nutzung alter column gesehen type date;
+
 alter table nutzung enable row level security;
+
+-- Regeln aus aelteren Fassungen: Sie greifen ohnehin nicht mehr, sobald anon
+-- kein Recht auf der Tabelle hat – aber sie sollen auch nicht herumliegen.
+drop policy if exists schreiben on nutzung;
+drop policy if exists aendern   on nutzung;
+drop policy if exists loeschen  on nutzung;
+
+-- Erst weg, dann neu: Ändert sich der Rückgabetyp einer Funktion – entferne()
+-- gibt jetzt die Zahl der gelöschten Zeilen zurück –, verweigert
+-- "create or replace" den Dienst.
+drop function if exists melde(jsonb);
+drop function if exists entferne(text);
+drop function if exists admin_liste(text);
 
 -- Geschrieben wird über diese Funktion, nicht über die Tabelle. Sie läuft mit
 -- den Rechten ihres Besitzers – deshalb braucht anon auf nutzung selbst gar
 -- kein Recht, und damit gibt es auch nichts, was versehentlich lesbar wäre.
+-- pg_temp steht am Ende des Suchpfads, sonst käme es zuerst.
 create or replace function melde(zeile jsonb)
 returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare kennung text := zeile->>'id';
 begin
+  -- Schreiben darf jeder, der den Link hat. Was er schreibt, hat trotzdem eine
+  -- Form zu haben: eine Kennung wie die der App, und nicht beliebig viel davon.
+  if kennung is null or kennung !~ '^[A-Za-z0-9-]{8,64}$' then
+    raise exception 'ungueltige Kennung';
+  end if;
+  if length(zeile::text) > 4000 then
+    raise exception 'Zeile zu gross';
+  end if;
+
   insert into nutzung (id, name, fokus, stufe, einheiten, plan, saetze,
                        volumen, serie, zuletzt, geteilt, freunde, uebungen, gesehen)
-  select z.id, z.name, z.fokus, z.stufe, z.einheiten, z.plan, z.saetze,
-         z.volumen, z.serie, z.zuletzt, z.geteilt, z.freunde, z.uebungen, now()
+  select z.id, left(z.name, 60), left(z.fokus, 40), left(z.stufe, 40),
+         z.einheiten, z.plan, z.saetze, z.volumen, z.serie, z.zuletzt,
+         z.geteilt, z.freunde, z.uebungen, current_date
     from jsonb_populate_record(null::nutzung, zeile) z
-   where z.id is not null
   on conflict (id) do update set
     name = excluded.name, fokus = excluded.fokus, stufe = excluded.stufe,
     einheiten = excluded.einheiten, plan = excluded.plan, saetze = excluded.saetze,
     volumen = excluded.volumen, serie = excluded.serie, zuletzt = excluded.zuletzt,
     geteilt = excluded.geteilt, freunde = excluded.freunde,
-    uebungen = excluded.uebungen, gesehen = now();
+    uebungen = excluded.uebungen, gesehen = current_date;
 end $$;
 
--- Der Weg zurück: die eigene Zeile wieder entfernen.
+-- Der Weg zurück: die eigene Zeile wieder entfernen. Gibt zurück, wie viele
+-- Zeilen weggingen – sonst müsste die App "Gelöscht" sagen, ohne es zu wissen.
 create or replace function entferne(geraet text)
-returns void
-language plpgsql security definer set search_path = public as $$
+returns int
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare weg int;
 begin
   delete from nutzung where id = geraet;
+  get diagnostics weg = row_count;
+  return weg;
 end $$;
 
--- Gelesen wird nur hier, und nur mit Passwort.
+-- Gelesen wird nur hier, und nur mit Passwort. Die Sekunde Verzögerung bei
+-- einem Fehlversuch macht aus dem Durchprobieren eine Geduldsprobe.
 create or replace function admin_liste(pass text)
 returns setof nutzung
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, pg_temp as $$
 begin
   if pass is distinct from 'DEIN-PASSWORT' then
-    raise exception 'nope' using errcode = '42501';
+    perform pg_sleep(1);
+    raise exception 'nope';
   end if;
   return query select * from nutzung order by einheiten desc;
 end $$;
 
 -- Nur die drei Funktionen sind erreichbar, die Tabelle selbst nicht.
 revoke all on table nutzung from anon, authenticated;
-revoke all on function melde(jsonb), entferne(text), admin_liste(text) from public;
+revoke all on function melde(jsonb), entferne(text), admin_liste(text)
+  from public, anon, authenticated;
 grant execute on function melde(jsonb), entferne(text), admin_liste(text) to anon;
 ```
+
+   Der Block lässt sich jederzeit erneut ausführen – auch über eine bestehende
+   Einrichtung. Er legt nichts doppelt an, löscht keine Zeilen und bringt eine
+   ältere Tabelle auf den heutigen Stand.
 
 3. In `js/config.js` `url` und `key` eintragen (Projekt-URL und der öffentliche
    Schlüssel aus *Project Settings → API Keys*; `anon`-JWT oder der neue
@@ -1939,6 +1994,7 @@ danach muss nicht mehr geraten werden:
 | `404` oder `PGRST202` | die Funktion `melde` fehlt – Block aus Schritt 2 lief nicht durch. Direkt danach kann es auch heißen: PostgREST kennt sie noch nicht, ein paar Sekunden warten und noch einmal tippen |
 | `…new row violates row-level security policy…` | der Block aus Schritt 2 lief nicht; geschrieben wurde direkt in die Tabelle, und daran scheitert der Upsert (siehe oben) |
 | `…permission denied for function melde…` | `grant execute` fehlt |
+| `…ungueltige Kennung…` / `…Zeile zu gross…` | die Funktion hat die Zeile abgewiesen – so soll sie sich gegen Fremdes wehren; bei der eigenen App kommt das nicht vor |
 | `Keine Verbindung` | kein Netz, oder die Projekt-URL stimmt nicht |
 
 Der Status allein sagt wenig: Ein abgelehnter Schreibversuch kommt bei Supabase
