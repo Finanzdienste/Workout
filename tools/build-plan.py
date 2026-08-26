@@ -187,6 +187,12 @@ VARIANTEN = {
     #     Kreuzheben und Hip Thrust fest im Plan.
     #   * **Beinbeuger am Knie auf 6.** Drei Sätze waren genau ein Auftritt pro
     #     Woche, mit bis zu elf Tagen Abstand; sechs sind zwei Auftritte.
+    #   * **Bauch auf 12.** Nicht mehr Bauchtraining, sondern gleich viel: Beim
+    #     Bauch steckt der größere Teil des Ziels in indirekten Anteilen, und
+    #     jede zusätzliche Kniebeuge erhöht die. Ein erster Lauf mit Ziel 9
+    #     ergab nur noch 3,1 direkte Sätze auf einem einzigen Tag der Woche, mit
+    #     bis zu zwölf Tagen Abstand – dieselbe Falle, wegen der die 9 einmal
+    #     aus der 5 entstanden ist. Mit 12 bleiben rund sechs direkte Sätze.
     #
     # Der Oberkörper bleibt unverändert – das ist der Punkt: nicht umverteilen,
     # sondern die Unterdosierung beenden. Die Einheiten werden dadurch länger.
@@ -194,7 +200,7 @@ VARIANTEN = {
         'name': 'Beine ernst gemeint',
         'ziele': {
             'chest': 10, 'lats': 10, 'sideDelts': 10, 'rearDelts': 8,
-            'biceps': 10, 'triceps': 10, 'abs': 9,
+            'biceps': 10, 'triceps': 10, 'abs': 12,
             'frontDelts': None, 'traps': None,
             'glutes': 12, 'quads': 10, 'hamstringsHip': 7, 'hamstringsKnee': 6, 'calves': 6,
         },
@@ -490,11 +496,16 @@ def bw_fehler(sol, weeks):
         for m, anteil in BW_SHARES.get(i, {}).items():
             got[m] = got.get(m, 0) + n * anteil
     fehler = 0.0
-    for m, ziel in GOAL.items():
+    for m, summe in got.items():
+        ziel = GOAL.get(m)
+        # Nur die Gruppen, die dieser Block überhaupt bedient. Sonst zählte jede
+        # Gruppe der *anderen* Blöcke als "um ihr ganzes Ziel verfehlt" mit –
+        # eine Konstante, die den Vergleich nicht verfälscht, aber die Zahl
+        # unlesbar macht.
         if ziel is None:
             continue
-        fehler += (got.get(m, 0) / weeks - ziel / UNIT) ** 2
-    return round(fehler, 3)
+        fehler += (summe / weeks - ziel / UNIT) ** 2
+    return round(fehler, 4)
 
 
 def klumpen(sol, block, shares):
@@ -1232,6 +1243,27 @@ def main():
     gezielt = sum(1 for m in groups if GOAL.get(m) is not None)
     print(f'\nSchnitt exakt getroffen in {gezielt} von {len(groups)} Gruppen, '
           f'der Rest unter der Obergrenze von {CAP}.')
+
+    # Und was davon im Bodyweight-Modus übrig bleibt.
+    #
+    # Exakt ist der Plan für die Hantel-Fassung; dieselbe Übung trifft ohne
+    # Zusatzlast teils andere Muskeln. Beides zugleich exakt geht nicht – also
+    # steht hier, was es kostet, statt es zu verschweigen. Nachgemessen lässt
+    # sich der Rest auch nicht wegwählen: Unter den Lösungen, die für die
+    # Hantel exakt sind, liegen die gescreenten alle beim selben Wert; die
+    # besseren erkaufen ihn mit deutlich schlechterer Ausgewogenheit.
+    bw = {}
+    for i, n in zip(ids, total):
+        for m, anteil in BW_SHARES.get(i, {}).items():
+            bw[m] = bw.get(m, 0) + n * anteil
+    ab = sorted(((bw.get(m, 0) / weeks - TARGET[m], m) for m in groups
+                 if GOAL.get(m) is not None), key=lambda x: -abs(x[0]))
+    if ab and abs(ab[0][0]) > 0.005:
+        print('Im Bodyweight-Modus weicht derselbe Plan ab, am meisten bei '
+              + ', '.join(f'{LABEL.get(m, m)} {d:+.2f}' for d, m in ab[:3] if abs(d) > 0.005)
+              + f' (Sätze je Woche, Summe der Quadrate {sum(d * d for d, _ in ab):.3f}).')
+    else:
+        print('Im Bodyweight-Modus trifft derselbe Plan dieselben Ziele.')
 
     print(f'\n{"Übung":34s} {"Plan":>5s} {"je Woche":>9s}')
     for i, t in sorted(zip(ids, total), key=lambda x: -x[1]):
