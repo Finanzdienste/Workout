@@ -180,19 +180,33 @@ VARIANTEN = {
     # Der Unterschied zu "Kurz und knapp" ist der entscheidende: Dort wurde
     # überall gekürzt, bis mehrere Gruppen bei einem Auftritt pro Woche landeten
     # (die Hüftstreckung bei 0,4 mit bis zu 30 Tagen Abstand, Hip Thrust fiel
-    # ganz heraus). Hier bleibt die Frequenz stehen und nur die Satzzahl sinkt –
-    # deshalb liegt kein Ziel unter 6: Bei drei Sätzen je Auftritt sind 6 genau
-    # zwei Auftritte pro Woche, und darunter fällt eine Gruppe auf einen.
+    # ganz heraus). Hier bleibt die Frequenz stehen und nur die Satzzahl sinkt.
+    #
+    # **Ein Ziel von 6 heißt nicht zwei Auftritte pro Woche.** Das war der erste
+    # Anlauf, und er ging schief: Das Ziel zählt *gewichtetes* Volumen, die
+    # Frequenz hängt aber an den direkten Sätzen. Bei Ziel 6 kamen der Bauch auf
+    # 1,0 Auftritte (10 Tage Abstand) und die hintere Schulter auf 1,4, weil ein
+    # guter Teil ihres Volumens aus Kniebeugen und Rudern nebenbei anfällt.
+    # Gruppen mit viel indirektem Zufluss brauchen deshalb ein *höheres* Ziel,
+    # nicht trotz, sondern wegen der Kürzung:
+    #
+    #   * Bauch bleibt bei 9 wie im ausgewogenen Plan. Er kostet dort nur rund
+    #     sechs direkte Sätze; der Rest ist Halten bei Kniebeuge und Kreuzheben.
+    #   * Hintere Schulter auf 7 statt 6 – unter 7 kippt sie auf einen Auftritt.
+    #   * Die Hüftstreckung bekommt ein eigenes Ziel (5, so viel wie sie im
+    #     ausgewogenen Plan von selbst bekommt). Als abgeleitete Größe fiel sie
+    #     auf 0,7 Auftritte mit 19 Tagen Abstand – dieselbe Stelle, an der auch
+    #     "Kurz und knapp" bricht.
     #
     # Die Beine stehen im ausgewogenen Plan schon auf Erhalt; sie noch weiter zu
     # senken hieße, unter den Erhalt zu gehen. Sie bleiben deshalb, wo sie sind.
     'cut': {
         'name': 'Cut',
         'ziele': {
-            'chest': 7, 'lats': 7, 'sideDelts': 7, 'rearDelts': 6,
-            'biceps': 7, 'triceps': 7, 'abs': 6,
-            'frontDelts': None, 'traps': None, 'hamstringsHip': None,
-            'glutes': 7, 'quads': 6, 'hamstringsKnee': 3, 'calves': 6,
+            'chest': 7, 'lats': 7, 'sideDelts': 7, 'rearDelts': 7,
+            'biceps': 7, 'triceps': 7, 'abs': 9,
+            'frontDelts': None, 'traps': None,
+            'glutes': 7, 'quads': 6, 'hamstringsHip': 5, 'hamstringsKnee': 3, 'calves': 6,
         },
         'cap': 10,
     },
