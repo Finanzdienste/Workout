@@ -1759,6 +1759,61 @@ gruppierte Geräte. Es ändert sich nichts an der Sorgfalt, nur an der Betonung.
 | `oberkoerper` – Oberkörper | Brust, Rücken, Schultern, Arme je 12; Beine ein Auftritt/Woche |
 | `kurz` – Kurz und knapp | dieselben Übungen, überall weniger Sätze – kürzere Einheiten |
 | `beine` – Beine ernst gemeint | wie Ausgewogen, aber Beine mit eigenem Ziel statt auf Erhalt |
+| `cut` – Cut | weniger Sätze bei gleicher Abdeckung – für Wochen im Kaloriendefizit |
+
+### Warum es „Cut" gibt, und warum es nicht „Kurz und knapp" ist
+
+Im Kaloriendefizit hält die **Last** die Muskeln, nicht das Volumen: dieselben
+Gewichte weiter bewegen ist der Hebel, zusätzliche Sätze kosten vor allem
+Erholung, die dort ohnehin knapp ist. Also weniger Sätze – aber bei voller
+Abdeckung, denn die Frequenz ist das, was man zuletzt aufgeben will.
+
+Genau daran ist der erste Anlauf gescheitert, und der Fehler lohnt das
+Aufschreiben: **Ein Ziel von 6 heißt nicht zwei Auftritte pro Woche.** Das Ziel
+zählt *gewichtetes* Volumen, die Frequenz hängt an den **direkten** Sätzen. Mit
+Ziel 6 kam der Bauch auf 1,0 Auftritte (10 Tage Abstand) und die hintere
+Schulter auf 1,4 – bei beiden fällt ein guter Teil des Volumens aus Kniebeugen
+und Rudern nebenbei an. Gruppen mit viel indirektem Zufluss brauchen deshalb ein
+*höheres* Ziel, gerade weil gekürzt wird.
+
+Der zweite Anlauf brach ganz ab: *keine exakte Lösung zwischen 21 und 32
+Wochen*. Welches Ziel klemmt, sagt ein Probelauf, der nur die Gleichungen prüft
+(Sekunden statt einer halben Stunde – die Verteilung auf Wochen und Tage macht
+den ganzen Rest der Rechenzeit aus):
+
+| Zielsatz | erfüllbar |
+| --- | --- |
+| Hüftstreckung 5, Gesäß 7 | nein |
+| Hüftstreckung 6, Gesäß 7 | nein |
+| Hüftstreckung 4, Gesäß 7 | ja, ab 24 Wochen |
+| **Hüftstreckung 5, Gesäß 8** | **ja, ab 21 Wochen** |
+
+Gesäß 8 statt 7 ist damit keine Trainingsentscheidung, sondern Teilbarkeit.
+
+| Gruppe | Ausgewogen | Cut | warum |
+| --- | --- | --- | --- |
+| Brust, Rücken, seitl. Schulter, Bizeps, Trizeps | 10 | **7** | rund ein Drittel weniger |
+| hintere Schulter | 8 | **7** | unter 7 kippt sie auf einen Auftritt |
+| Bauch | 9 | **9** | kostet nur ~6 direkte Sätze, der Rest fällt nebenbei an |
+| Gesäß | 9 | **8** | Teilbarkeit, siehe oben |
+| Hüftstreckung | *Ergebnis* (5,1) | **5** (eigenes Ziel) | abgeleitet fiel sie auf 0,7 Auftritte |
+| Oberschenkel, Waden, Beinbeuger Knie | 6 / 6 / 3 | **unverändert** | stehen schon auf Erhalt |
+
+Das Ergebnis, am fertigen Plan gemessen:
+
+| | Ausgewogen | Cut |
+| --- | --- | --- |
+| Sätze je Woche | 69 | **57** |
+| Sätze je Einheit | 15–18 (Ø 17,2) | 12–15 (Ø 14,2) |
+| geschätzte Dauer | ca. 50 min | **ca. 40 min** |
+| Erholungsverstöße | 0 | 0 |
+| Bodyweight-Abweichung | 0,502 | **0,312** (die beste aller Varianten) |
+| Übungen im Plan | 24 von 24 | 23 von 24 – der einfache Goblet Squat fällt heraus |
+
+Der fehlende Goblet Squat ist der eine Makel, und er ist verkraftbar: Der
+fersenerhöhte steht weiter im Plan, das Bewegungsmuster fehlt also nicht. Anders
+als bei *Kurz und knapp*, wo mit dem Hip Thrust die halbe Hüftstreckung
+verschwand.
 
 ### Warum es „Beine ernst gemeint" gibt
 

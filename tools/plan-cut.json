@@ -2,24 +2,23 @@
  "variante": "cut",
  "name": "Cut",
  "target": {
-  "abs": 6,
+  "abs": 9,
   "biceps": 7,
   "calves": 6,
   "chest": 7,
   "frontDelts": 5.9357,
-  "glutes": 7,
-  "hamstringsHip": 3.4571,
+  "glutes": 8,
+  "hamstringsHip": 5,
   "hamstringsKnee": 3,
   "lats": 7,
   "quads": 6,
-  "rearDelts": 6,
+  "rearDelts": 7,
   "sideDelts": 7,
-  "traps": 7.3071,
+  "traps": 7.9786,
   "triceps": 7
  },
  "derived": [
   "frontDelts",
-  "hamstringsHip",
   "traps"
  ],
  "cap": 10,
@@ -32,11 +31,15 @@
    "date": "2026-08-24",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "floor-press",
      "sets": 3
     },
     {
-     "id": "floor-press",
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "band-pull-apart",
      "sets": 3
     },
     {
@@ -53,23 +56,19 @@
    "date": "2026-08-26",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "goblet-squat",
-     "sets": 3
-    },
-    {
      "id": "pull-ups",
      "sets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "fersenerhoehter-goblet-squat",
      "sets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "sliding-leg-curl",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3
     }
    ]
@@ -82,113 +81,21 @@
      "sets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
+     "id": "rumaenisches-kreuzheben",
      "sets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "einarmiges-kh-rudern",
      "sets": 3
     },
     {
-     "id": "reverse-fly",
+     "id": "band-pull-apart",
      "sets": 3
     }
    ]
   },
   {
    "date": "2026-08-29",
-   "ex": [
-    {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3
-    },
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-08-31",
-   "ex": [
-    {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3
-    },
-    {
-     "id": "hip-thrust",
-     "sets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "reverse-fly",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-02",
-   "ex": [
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "chin-ups",
-     "sets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-04",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3
-    },
-    {
-     "id": "goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-05",
    "ex": [
     {
      "id": "gewichtete-liegestuetze",
@@ -213,18 +120,97 @@
    ]
   },
   {
-   "date": "2026-09-07",
+   "date": "2026-08-31",
    "ex": [
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-02",
+   "ex": [
+    {
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniger-sliding-leg-curl",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "ex": [
+    {
+     "id": "split-squat",
+     "sets": 3
+    },
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
     {
      "id": "einarmiges-kh-rudern",
      "sets": 3
     },
     {
-     "id": "floor-press",
+     "id": "band-pull-apart",
      "sets": 3
     },
     {
-     "id": "goblet-squat",
+     "id": "sz-curls",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-05",
+   "ex": [
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
      "sets": 3
     },
     {
@@ -234,22 +220,47 @@
    ]
   },
   {
-   "date": "2026-09-09",
+   "date": "2026-09-07",
    "ex": [
     {
-     "id": "goblet-squat",
+     "id": "split-squat",
      "sets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "floor-press",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
      "sets": 3
     },
     {
      "id": "band-seitheben",
      "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-09",
+   "ex": [
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "chin-ups",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
      "sets": 3
     },
     {
@@ -262,15 +273,15 @@
    "date": "2026-09-11",
    "ex": [
     {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
      "id": "einarmiges-kh-rudern",
      "sets": 3
     },
     {
-     "id": "pull-ups",
-     "sets": 3
-    },
-    {
-     "id": "rumaenisches-kreuzheben",
+     "id": "einbeiniger-sliding-leg-curl",
      "sets": 3
     },
     {
@@ -297,6 +308,10 @@
     {
      "id": "gewichtete-crunches",
      "sets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3
     }
    ]
   },
@@ -304,7 +319,11 @@
    "date": "2026-09-14",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "sliding-leg-curl",
+     "sets": 3
+    },
+    {
+     "id": "band-pull-apart",
      "sets": 3
     },
     {
@@ -316,7 +335,7 @@
      "sets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3
     }
    ]
@@ -329,11 +348,15 @@
      "sets": 3
     },
     {
-     "id": "goblet-squat",
+     "id": "pull-ups",
      "sets": 3
     },
     {
-     "id": "reverse-fly",
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
      "sets": 3
     },
     {
@@ -347,6 +370,206 @@
    "ex": [
     {
      "id": "split-squat",
+     "sets": 3
+    },
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-19",
+   "ex": [
+    {
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3
+    },
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
+     "sets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-21",
+   "ex": [
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-23",
+   "ex": [
+    {
+     "id": "chin-ups",
+     "sets": 3
+    },
+    {
+     "id": "floor-press",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "band-pull-apart",
+     "sets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-25",
+   "ex": [
+    {
+     "id": "hip-thrust",
+     "sets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "ex": [
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
+     "sets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "ex": [
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-30",
+   "ex": [
+    {
+     "id": "split-squat",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3
+    },
+    {
+     "id": "floor-press",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-02",
+   "ex": [
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
      "sets": 3
     },
     {
@@ -364,7 +587,7 @@
    ]
   },
   {
-   "date": "2026-09-19",
+   "date": "2026-10-03",
    "ex": [
     {
      "id": "gewichtete-liegestuetze",
@@ -375,24 +598,28 @@
      "sets": 3
     },
     {
-     "id": "liegende-trizepsstrecker",
+     "id": "gewichtete-crunches",
      "sets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3
     }
    ]
   },
   {
-   "date": "2026-09-21",
+   "date": "2026-10-05",
    "ex": [
     {
-     "id": "split-squat",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3
     },
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
      "sets": 3
     },
     {
@@ -400,20 +627,66 @@
      "sets": 3
     },
     {
-     "id": "reverse-fly",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3
     }
    ]
   },
   {
-   "date": "2026-09-23",
+   "date": "2026-10-07",
    "ex": [
+    {
+     "id": "split-squat",
+     "sets": 3
+    },
     {
      "id": "chin-ups",
      "sets": 3
     },
     {
-     "id": "goblet-squat",
+     "id": "einbeiniger-sliding-leg-curl",
+     "sets": 3
+    },
+    {
+     "id": "band-pull-apart",
+     "sets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "ex": [
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "ex": [
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
      "sets": 3
     },
     {
@@ -427,232 +700,18 @@
    ]
   },
   {
-   "date": "2026-09-25",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3
-    },
-    {
-     "id": "band-pull-apart",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-26",
-   "ex": [
-    {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3
-    },
-    {
-     "id": "floor-press",
-     "sets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-28",
-   "ex": [
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-30",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3
-    },
-    {
-     "id": "hip-thrust",
-     "sets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-02",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3
-    },
-    {
-     "id": "split-squat",
-     "sets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3
-    },
-    {
-     "id": "reverse-fly",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-03",
-   "ex": [
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "liegende-trizepsstrecker",
-     "sets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-05",
-   "ex": [
-    {
-     "id": "floor-press",
-     "sets": 3
-    },
-    {
-     "id": "goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3
-    },
-    {
-     "id": "band-pull-apart",
-     "sets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-07",
-   "ex": [
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-09",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3
-    },
-    {
-     "id": "split-squat",
-     "sets": 3
-    },
-    {
-     "id": "rumaenisches-kreuzheben",
-     "sets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-10",
-   "ex": [
-    {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3
-    },
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
    "date": "2026-10-12",
    "ex": [
     {
-     "id": "chin-ups",
+     "id": "einarmiges-kh-rudern",
      "sets": 3
     },
     {
-     "id": "floor-press",
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
      "sets": 3
     },
     {
@@ -669,15 +728,40 @@
    "date": "2026-10-14",
    "ex": [
     {
-     "id": "split-squat",
+     "id": "rumaenisches-kreuzheben",
      "sets": 3
     },
     {
-     "id": "chin-ups",
+     "id": "floor-press",
      "sets": 3
     },
     {
-     "id": "liegende-trizepsstrecker",
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "ex": [
+    {
+     "id": "hip-thrust",
+     "sets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
      "sets": 3
     },
     {
@@ -687,29 +771,12 @@
    ]
   },
   {
-   "date": "2026-10-16",
-   "ex": [
-    {
-     "id": "split-squat",
-     "sets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3
-    },
-    {
-     "id": "reverse-fly",
-     "sets": 3
-    }
-   ]
-  },
-  {
    "date": "2026-10-17",
    "ex": [
+    {
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3
+    },
     {
      "id": "gewichtete-liegestuetze",
      "sets": 3
@@ -732,11 +799,11 @@
    "date": "2026-10-19",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "fersenerhoehter-goblet-squat",
      "sets": 3
     },
     {
-     "id": "fersenerhoehter-goblet-squat",
+     "id": "einbeiniger-sliding-leg-curl",
      "sets": 3
     },
     {
@@ -744,7 +811,7 @@
      "sets": 3
     },
     {
-     "id": "einbeiniges-stehendes-wadenheben",
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3
     }
    ]
@@ -753,15 +820,11 @@
    "date": "2026-10-21",
    "ex": [
     {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
      "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "hip-thrust",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
      "sets": 3
     },
     {
@@ -769,7 +832,11 @@
      "sets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "sz-curls",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3
     }
    ]
@@ -782,11 +849,15 @@
      "sets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "rumaenisches-kreuzheben",
      "sets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "chin-ups",
      "sets": 3
     },
     {
@@ -799,10 +870,6 @@
    "date": "2026-10-24",
    "ex": [
     {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3
-    },
-    {
      "id": "gewichtete-liegestuetze",
      "sets": 3
     },
@@ -813,12 +880,24 @@
     {
      "id": "liegende-trizepsstrecker",
      "sets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3
     }
    ]
   },
   {
    "date": "2026-10-26",
    "ex": [
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
     {
      "id": "floor-press",
      "sets": 3
@@ -828,7 +907,28 @@
      "sets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "band-seitheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-28",
+   "ex": [
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "band-pull-apart",
      "sets": 3
     },
     {
@@ -838,18 +938,39 @@
    ]
   },
   {
-   "date": "2026-10-28",
+   "date": "2026-10-30",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "hip-thrust",
      "sets": 3
     },
+    {
+     "id": "einbeiniger-sliding-leg-curl",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-31",
+   "ex": [
     {
      "id": "sitzendes-schulterdruecken",
      "sets": 3
     },
     {
-     "id": "goblet-squat",
+     "id": "gewichtete-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
      "sets": 3
     },
     {
@@ -863,60 +984,22 @@
    ]
   },
   {
-   "date": "2026-10-30",
+   "date": "2026-11-02",
    "ex": [
     {
-     "id": "pull-ups",
+     "id": "split-squat",
      "sets": 3
     },
-    {
-     "id": "rumaenisches-kreuzheben",
-     "sets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3
-    },
-    {
-     "id": "band-pull-apart",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-31",
-   "ex": [
     {
      "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3
     },
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "reverse-fly",
      "sets": 3
     },
     {
-     "id": "band-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-02",
-   "ex": [
-    {
-     "id": "chin-ups",
-     "sets": 3
-    },
-    {
-     "id": "goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "band-seitheben",
+     "id": "gewichtete-crunches",
      "sets": 3
     },
     {
@@ -929,19 +1012,19 @@
    "date": "2026-11-04",
    "ex": [
     {
-     "id": "split-squat",
+     "id": "chin-ups",
      "sets": 3
     },
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "fersenerhoehter-goblet-squat",
      "sets": 3
     },
     {
-     "id": "liegende-trizepsstrecker",
+     "id": "band-seitheben",
      "sets": 3
     },
     {
-     "id": "reverse-fly",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3
     }
    ]
@@ -950,19 +1033,23 @@
    "date": "2026-11-06",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "rumaenisches-kreuzheben",
      "sets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
+     "id": "pull-ups",
      "sets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "sliding-leg-curl",
      "sets": 3
     },
     {
      "id": "band-pull-apart",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3
     }
    ]
@@ -975,21 +1062,46 @@
      "sets": 3
     },
     {
-     "id": "sitzendes-seitheben",
-     "sets": 3
-    },
-    {
      "id": "haengendes-knieheben",
      "sets": 3
     },
     {
-     "id": "einbeiniges-stehendes-wadenheben",
+     "id": "sitzendes-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
      "sets": 3
     }
    ]
   },
   {
    "date": "2026-11-09",
+   "ex": [
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "floor-press",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-11",
    "ex": [
     {
      "id": "sitzendes-schulterdruecken",
@@ -1004,36 +1116,11 @@
      "sets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
+     "id": "sitzendes-seitheben",
      "sets": 3
     },
     {
-     "id": "reverse-fly",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-11",
-   "ex": [
-    {
-     "id": "floor-press",
-     "sets": 3
-    },
-    {
-     "id": "goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
+     "id": "gewichtete-crunches",
      "sets": 3
     }
    ]
@@ -1042,19 +1129,23 @@
    "date": "2026-11-13",
    "ex": [
     {
-     "id": "pull-ups",
-     "sets": 3
-    },
-    {
      "id": "hip-thrust",
      "sets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
      "sets": 3
     },
     {
      "id": "band-pull-apart",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3
     }
    ]
@@ -1068,6 +1159,106 @@
     },
     {
      "id": "gewichtete-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-16",
+   "ex": [
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "chin-ups",
+     "sets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-18",
+   "ex": [
+    {
+     "id": "hip-thrust",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-20",
+   "ex": [
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "band-pull-apart",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-21",
+   "ex": [
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "floor-press",
      "sets": 3
     },
     {
@@ -1085,7 +1276,32 @@
    ]
   },
   {
-   "date": "2026-11-16",
+   "date": "2026-11-23",
+   "ex": [
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "floor-press",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-25",
    "ex": [
     {
      "id": "pull-ups",
@@ -1096,74 +1312,11 @@
      "sets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
-     "sets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-18",
-   "ex": [
-    {
-     "id": "floor-press",
-     "sets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3
-    },
-    {
      "id": "band-pull-apart",
      "sets": 3
     },
     {
-     "id": "haengendes-knieheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-20",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3
-    },
-    {
-     "id": "split-squat",
-     "sets": 3
-    },
-    {
-     "id": "rumaenisches-kreuzheben",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-21",
-   "ex": [
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "liegende-trizepsstrecker",
+     "id": "gewichtete-crunches",
      "sets": 3
     },
     {
@@ -1173,31 +1326,10 @@
    ]
   },
   {
-   "date": "2026-11-23",
+   "date": "2026-11-27",
    "ex": [
     {
      "id": "split-squat",
-     "sets": 3
-    },
-    {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3
-    },
-    {
-     "id": "chin-ups",
-     "sets": 3
-    },
-    {
-     "id": "reverse-fly",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-25",
-   "ex": [
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3
     },
     {
@@ -1205,32 +1337,11 @@
      "sets": 3
     },
     {
-     "id": "band-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-27",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3
-    },
-    {
-     "id": "split-squat",
+     "id": "reverse-fly",
      "sets": 3
     },
     {
      "id": "sz-curls",
-     "sets": 3
-    },
-    {
-     "id": "band-pull-apart",
      "sets": 3
     }
    ]
@@ -1251,11 +1362,7 @@
      "sets": 3
     },
     {
-     "id": "haengendes-knieheben",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3
     }
    ]
@@ -1264,15 +1371,40 @@
    "date": "2026-11-30",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "split-squat",
      "sets": 3
     },
     {
-     "id": "hip-thrust",
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3
+    },
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
      "sets": 3
     },
     {
      "id": "band-seitheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-02",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
      "sets": 3
     },
     {
@@ -1282,14 +1414,10 @@
    ]
   },
   {
-   "date": "2026-12-02",
+   "date": "2026-12-04",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "goblet-squat",
+     "id": "rumaenisches-kreuzheben",
      "sets": 3
     },
     {
@@ -1297,32 +1425,15 @@
      "sets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-04",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
+     "id": "einbeiniger-sliding-leg-curl",
      "sets": 3
     },
     {
-     "id": "split-squat",
-     "sets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
+     "id": "band-pull-apart",
      "sets": 3
     },
     {
      "id": "sz-curls",
-     "sets": 3
-    },
-    {
-     "id": "reverse-fly",
      "sets": 3
     }
    ]
@@ -1331,7 +1442,11 @@
    "date": "2026-12-05",
    "ex": [
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
      "sets": 3
     },
     {
@@ -1343,7 +1458,7 @@
      "sets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3
     }
    ]
@@ -1352,19 +1467,15 @@
    "date": "2026-12-07",
    "ex": [
     {
-     "id": "sitzendes-schulterdruecken",
+     "id": "pull-ups",
      "sets": 3
     },
     {
-     "id": "goblet-squat",
+     "id": "fersenerhoehter-goblet-squat",
      "sets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
-     "sets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
+     "id": "band-seitheben",
      "sets": 3
     },
     {
@@ -1377,23 +1488,23 @@
    "date": "2026-12-09",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "split-squat",
      "sets": 3
     },
     {
-     "id": "floor-press",
+     "id": "chin-ups",
      "sets": 3
     },
     {
-     "id": "band-seitheben",
+     "id": "gewichtete-liegestuetze",
      "sets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "reverse-fly",
      "sets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "gewichtete-crunches",
      "sets": 3
     }
    ]
@@ -1402,19 +1513,23 @@
    "date": "2026-12-11",
    "ex": [
     {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
      "id": "einarmiges-kh-rudern",
      "sets": 3
     },
     {
-     "id": "goblet-squat",
+     "id": "einbeiniger-sliding-leg-curl",
      "sets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "band-pull-apart",
      "sets": 3
     },
     {
-     "id": "rumaenisches-kreuzheben",
+     "id": "sz-curls",
      "sets": 3
     }
    ]
@@ -1427,11 +1542,165 @@
      "sets": 3
     },
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
      "sets": 3
     },
     {
      "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-14",
+   "ex": [
+    {
+     "id": "hip-thrust",
+     "sets": 3
+    },
+    {
+     "id": "floor-press",
+     "sets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-16",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-18",
+   "ex": [
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "band-pull-apart",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-19",
+   "ex": [
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-21",
+   "ex": [
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-23",
+   "ex": [
+    {
+     "id": "split-squat",
+     "sets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3
     },
     {
@@ -1441,10 +1710,18 @@
    ]
   },
   {
-   "date": "2026-12-14",
+   "date": "2026-12-25",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
      "sets": 3
     },
     {
@@ -1452,145 +1729,7 @@
      "sets": 3
     },
     {
-     "id": "band-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-16",
-   "ex": [
-    {
-     "id": "floor-press",
-     "sets": 3
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-18",
-   "ex": [
-    {
-     "id": "hip-thrust",
-     "sets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3
-    },
-    {
-     "id": "reverse-fly",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-19",
-   "ex": [
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3
-    },
-    {
-     "id": "liegende-trizepsstrecker",
-     "sets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-21",
-   "ex": [
-    {
-     "id": "floor-press",
-     "sets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3
-    },
-    {
      "id": "band-pull-apart",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-23",
-   "ex": [
-    {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3
-    },
-    {
-     "id": "chin-ups",
-     "sets": 3
-    },
-    {
-     "id": "goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "reverse-fly",
-     "sets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-25",
-   "ex": [
-    {
-     "id": "pull-ups",
-     "sets": 3
-    },
-    {
-     "id": "hip-thrust",
-     "sets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3
-    },
-    {
-     "id": "sz-curls",
      "sets": 3
     }
    ]
@@ -1599,10 +1738,6 @@
    "date": "2026-12-26",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3
-    },
-    {
      "id": "gewichtete-liegestuetze",
      "sets": 3
     },
@@ -1611,7 +1746,11 @@
      "sets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "liegende-trizepsstrecker",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3
     }
    ]
@@ -1620,19 +1759,23 @@
    "date": "2026-12-28",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "chin-ups",
      "sets": 3
     },
     {
-     "id": "split-squat",
+     "id": "gewichtete-liegestuetze",
      "sets": 3
     },
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "fersenerhoehter-goblet-squat",
      "sets": 3
     },
     {
-     "id": "liegende-trizepsstrecker",
+     "id": "band-pull-apart",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3
     }
    ]
@@ -1641,23 +1784,23 @@
    "date": "2026-12-30",
    "ex": [
     {
-     "id": "goblet-squat",
+     "id": "hip-thrust",
      "sets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "sitzendes-schulterdruecken",
      "sets": 3
     },
     {
-     "id": "band-seitheben",
+     "id": "floor-press",
      "sets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "reverse-fly",
      "sets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "sitzendes-seitheben",
      "sets": 3
     }
    ]
@@ -1666,11 +1809,15 @@
    "date": "2027-01-01",
    "ex": [
     {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
+    {
      "id": "einarmiges-kh-rudern",
      "sets": 3
     },
     {
-     "id": "rumaenisches-kreuzheben",
+     "id": "fersenerhoehter-goblet-squat",
      "sets": 3
     },
     {
@@ -1687,40 +1834,15 @@
    "date": "2027-01-02",
    "ex": [
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3
     },
     {
-     "id": "band-seitheben",
+     "id": "sitzendes-seitheben",
      "sets": 3
     },
     {
-     "id": "haengendes-knieheben",
-     "sets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3
-    }
-   ]
-  },
-  {
-   "date": "2027-01-04",
-   "ex": [
-    {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3
-    },
-    {
-     "id": "goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3
-    },
-    {
-     "id": "reverse-fly",
+     "id": "gewichtete-crunches",
      "sets": 3
     },
     {
@@ -1730,18 +1852,18 @@
    ]
   },
   {
-   "date": "2027-01-06",
+   "date": "2027-01-04",
    "ex": [
+    {
+     "id": "rumaenisches-kreuzheben",
+     "sets": 3
+    },
     {
      "id": "einarmiges-kh-rudern",
      "sets": 3
     },
     {
-     "id": "floor-press",
-     "sets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
+     "id": "gewichtete-liegestuetze",
      "sets": 3
     },
     {
@@ -1751,18 +1873,43 @@
    ]
   },
   {
-   "date": "2027-01-08",
+   "date": "2027-01-06",
    "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3
-    },
     {
      "id": "pull-ups",
      "sets": 3
     },
     {
-     "id": "hip-thrust",
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3
+    },
+    {
+     "id": "band-pull-apart",
+     "sets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3
+    }
+   ]
+  },
+  {
+   "date": "2027-01-08",
+   "ex": [
+    {
+     "id": "split-squat",
+     "sets": 3
+    },
+    {
+     "id": "einbeiniger-sliding-leg-curl",
+     "sets": 3
+    },
+    {
+     "id": "reverse-fly",
      "sets": 3
     },
     {
@@ -1775,19 +1922,19 @@
    "date": "2027-01-09",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "sitzendes-schulterdruecken",
      "sets": 3
     },
     {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
+     "id": "floor-press",
      "sets": 3
     },
     {
      "id": "haengendes-knieheben",
+     "sets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
      "sets": 3
     },
     {
@@ -1800,15 +1947,15 @@
    "date": "2027-01-11",
    "ex": [
     {
-     "id": "chin-ups",
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3
+    },
+    {
+     "id": "pull-ups",
      "sets": 3
     },
     {
      "id": "fersenerhoehter-goblet-squat",
-     "sets": 3
-    },
-    {
-     "id": "band-seitheben",
      "sets": 3
     },
     {
@@ -1825,11 +1972,11 @@
    "date": "2027-01-13",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "einbeiniger-sliding-leg-curl",
      "sets": 3
     },
     {
-     "id": "goblet-squat",
+     "id": "haengendes-knieheben",
      "sets": 3
     },
     {
@@ -1837,7 +1984,11 @@
      "sets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "band-seitheben",
+     "sets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3
     }
    ]
@@ -1846,7 +1997,7 @@
    "date": "2027-01-15",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "split-squat",
      "sets": 3
     },
     {
@@ -1854,7 +2005,7 @@
      "sets": 3
     },
     {
-     "id": "sliding-leg-curl",
+     "id": "einarmiges-kh-rudern",
      "sets": 3
     },
     {
@@ -1880,6 +2031,10 @@
     },
     {
      "id": "gewichtete-crunches",
+     "sets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3
     }
    ]
