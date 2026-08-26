@@ -9411,6 +9411,46 @@ function adminPassMerken(wort) {
   } catch { /* gesperrter Speicher: dann eben jedes Mal eintippen */ }
 }
 
+/**
+ * Geräte zu Menschen zusammenfassen.
+ *
+ * Ohne Konten kennt der Server nur Geräte: Jedes bekommt beim ersten Start eine
+ * Zufallskennung, und zwei Browser desselben Menschen sind zwei Kennungen. In
+ * der Übersicht standen sie deshalb als zwei Nutzer – bei drei Zeilen fällt das
+ * auf, bei dreißig nicht mehr.
+ *
+ * Zusammengefasst wird über den Namen, weil es nichts Besseres gibt. Das ist
+ * eine Annahme, keine Tatsache: Zwei verschiedene Menschen, die beide "Tobi"
+ * heißen, werden hier zu einem. Deshalb steht die Geräte-Zahl weiter daneben,
+ * und unter der Tabelle steht, worauf sie beruht.
+ *
+ * Gezählt wird je Spalte das **Maximum**, nicht die Summe: Wer dieselbe Einheit
+ * auf zwei Geräten offen hatte, hat sie einmal trainiert. Summieren würde ihn
+ * doppelt zählen; das Maximum ist der Stand des Geräts, das am weitesten ist.
+ */
+function alsMenschen(zeilen) {
+  const gruppen = new Map();
+  zeilen.forEach((r) => {
+    const key = (r.name || '–').trim().toLowerCase() || '–';
+    const g = gruppen.get(key);
+    if (!g) {
+      gruppen.set(key, { ...r, geraete: 1 });
+      return;
+    }
+    g.geraete += 1;
+    ['einheiten', 'plan', 'saetze', 'volumen', 'serie', 'geteilt', 'freunde']
+      .forEach((f) => { g[f] = Math.max(g[f], r[f]); });
+    // Späteres Datum gewinnt – bei "zuletzt trainiert" wie bei "zuletzt gesehen".
+    ['zuletzt', 'gesehen'].forEach((f) => { if (r[f] > g[f]) g[f] = r[f]; });
+    // Fokus und Stufe vom zuletzt gesehenen Gerät.
+    if (r.gesehen >= g.gesehen) { g.name = r.name; g.fokus = r.fokus; g.stufe = r.stufe; }
+    Object.entries(r.uebungen).forEach(([id, n]) => {
+      g.uebungen[id] = Math.max(g.uebungen[id] || 0, n);
+    });
+  });
+  return [...gruppen.values()];
+}
+
 function renderAdmin() {
   const zurueck = '<button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>';
   if (!hatServer()) {
@@ -9449,21 +9489,23 @@ function renderAdmin() {
   // --- Zahlen aus den Zeilen ---
   const heute = todayISO();
   const tage = (d) => (d ? daysBetween(String(d).slice(0, 10), heute) : null);
-  const aktiv = daten.filter((r) => tage(r.gesehen) !== null && tage(r.gesehen) <= 7).length;
-  const trainiert = daten.filter((r) => (r.einheiten || 0) > 0).length;
+  // Menschen statt Geräte, wo es um Menschen geht – siehe alsMenschen().
+  const leute = alsMenschen(daten);
+  const aktiv = leute.filter((r) => tage(r.gesehen) !== null && tage(r.gesehen) <= 7).length;
+  const trainiert = leute.filter((r) => (r.einheiten || 0) > 0).length;
   const summeSaetze = daten.reduce((a, r) => a + (r.saetze || 0), 0);
   const geteilt = daten.reduce((a, r) => a + (r.geteilt || 0), 0);
   const fokusse = new Map();
-  daten.forEach((r) => fokusse.set(r.fokus || '–', (fokusse.get(r.fokus || '–') || 0) + 1));
+  leute.forEach((r) => fokusse.set(r.fokus || '–', (fokusse.get(r.fokus || '–') || 0) + 1));
   const stufen = new Map();
-  daten.forEach((r) => stufen.set(r.stufe || '–', (stufen.get(r.stufe || '–') || 0) + 1));
+  leute.forEach((r) => stufen.set(r.stufe || '–', (stufen.get(r.stufe || '–') || 0) + 1));
   const uebungen = new Map();
   daten.forEach((r) => Object.entries(r.uebungen || {}).forEach(([id, n]) => {
     uebungen.set(id, (uebungen.get(id) || 0) + (Number(n) || 0));
   }));
   const topUe = [...uebungen.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
   const maxUe = topUe.length ? topUe[0][1] : 1;
-  const reihen = [...daten].sort((a, b) => (b.einheiten || 0) - (a.einheiten || 0));
+  const reihen = [...leute].sort((a, b) => (b.einheiten || 0) - (a.einheiten || 0));
 
   const verteilung = (karte) => [...karte.entries()].sort((a, b) => b[1] - a[1])
     .map(([k, n]) => `${esc(k)} <b>${n}</b>`).join(' · ');
@@ -9472,6 +9514,7 @@ function renderAdmin() {
     ${zurueck}
     <div class="section-title">Übersicht</div>
     <div class="stat-grid">
+      <div class="stat"><div class="stat-v">${leute.length}</div><div class="stat-l">Personen</div></div>
       <div class="stat"><div class="stat-v">${daten.length}</div><div class="stat-l">Geräte insgesamt</div></div>
       <div class="stat"><div class="stat-v">${aktiv}</div><div class="stat-l">in den letzten 7 Tagen</div></div>
       <div class="stat"><div class="stat-v">${trainiert}</div><div class="stat-l">haben trainiert</div></div>
@@ -9494,7 +9537,8 @@ function renderAdmin() {
           const t = tage(r.gesehen);
           return `<tr>
             <td>${esc(r.name || '–')}
-              <div class="small muted">${esc(r.fokus || '')}${r.stufe ? ` · ${esc(r.stufe)}` : ''}</div></td>
+              <div class="small muted">${esc(r.fokus || '')}${r.stufe ? ` · ${esc(r.stufe)}` : ''}${
+                r.geraete > 1 ? ` · ${esc(plural(r.geraete, 'Gerät', 'Geräte'))}` : ''}</div></td>
             <td><b>${esc(r.einheiten || 0)}</b><span class="muted">/${esc(r.plan || '?')}</span></td>
             <td>${esc(r.saetze || 0)}</td>
             <td>${r.zuletzt ? esc(fmtDate(String(r.zuletzt).slice(0, 10))) : '–'}
@@ -9521,9 +9565,13 @@ function renderAdmin() {
       <button type="button" class="btn" data-act="admin-reload">Neu laden</button>
       <button type="button" class="btn btn-ghost" data-act="admin-logout">Passwort vergessen</button>
     </div>
-    <p class="small muted">Jede Zeile ist ein Gerät, das die App eingerichtet hat und das
-      Teilen angelassen hat. Wer abschaltet, verschwindet aus der Liste, sobald er auf
-      „Meine Daten dort löschen" tippt.</p>`;
+    <p class="small muted">Jede Zeile ist ein Mensch, jede Kennung ein Gerät – ohne Konten
+      kann der Server die beiden nicht auseinanderhalten, also fasst diese Liste zusammen,
+      was denselben Namen trägt. Zwei Browser derselben Person sind eine Zeile mit dem
+      Vermerk „2 Geräte"; zwei verschiedene Menschen mit demselben Namen wären hier
+      allerdings auch einer. Je Spalte steht der höchste Wert der Geräte, nicht ihre Summe –
+      wer dieselbe Einheit auf zwei Geräten offen hatte, hat sie einmal trainiert. Wer das
+      Teilen abschaltet, verschwindet, sobald er auf „Meine Daten dort löschen" tippt.</p>`;
 }
 
 /** Passwort prüfen und Liste holen. */

@@ -2252,6 +2252,22 @@ Es öffnet die Zahlen aller anderen, und es hat weder in einer Sicherungsdatei
 noch in einem Speicher zu stehen, den jedes Skript auf der Seite lesen kann.
 Wer den Tab schließt, tippt es beim nächsten Mal wieder ein.
 
+### Geräte sind keine Menschen
+
+Ohne Konten kennt der Server nur Geräte: Jedes bekommt beim ersten Start eine
+Zufallskennung, und zwei Browser desselben Menschen sind zwei Kennungen. In der
+Übersicht standen sie als zwei Nutzer – bei drei Zeilen fällt das auf, bei
+dreißig nicht mehr.
+
+`alsMenschen()` fasst deshalb zusammen, was denselben Namen trägt, und die
+Kacheln nennen beides: **Personen** und **Geräte insgesamt**. Unter der Tabelle
+steht, worauf das beruht, denn es ist eine Annahme und keine Tatsache – zwei
+verschiedene Menschen mit demselben Namen wären hier auch einer.
+
+Gezählt wird je Spalte das **Maximum** der Geräte, nicht ihre Summe: Wer
+dieselbe Einheit auf zwei Geräten offen hatte, hat sie einmal trainiert.
+Summieren würde ihn doppelt zählen.
+
 **Warum ein Passwort und kein zweiter Schlüssel:** Ein Schlüssel mit Leserecht
 müsste in der App liegen und läge damit bei allen, die den Link haben. Die
 Funktion `admin_liste` läuft dagegen mit den Rechten ihres Besitzers und gibt
