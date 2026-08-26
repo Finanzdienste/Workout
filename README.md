@@ -1822,11 +1822,12 @@ Eine Zusage, die sie an anderer Stelle bricht, ist schlimmer als gar keine.
 ### Einrichten (einmalig, ~5 Minuten)
 
 1. Auf [supabase.com](https://supabase.com) ein kostenloses Projekt anlegen.
-2. Im **SQL-Editor** das Folgende ausführen. `DEIN-PASSWORT` ist frei wählbar
-   und steht nur hier, nie in der App:
+2. Im **SQL-Editor** das Folgende am Stück ausführen. `DEIN-PASSWORT` ist frei
+   wählbar und steht nur hier, nie in der App. Der Block ist wiederholbar – ein
+   zweiter Lauf stirbt nicht am ersten Statement und löscht nichts:
 
 ```sql
-create table nutzung (
+create table if not exists nutzung (
   id text primary key,
   name text, fokus text, stufe text,
   einheiten int, plan int, saetze int, volumen int, serie int,
@@ -1837,21 +1838,39 @@ create table nutzung (
 
 alter table nutzung enable row level security;
 
--- Jedes Gerät darf seine eigene Zeile schreiben und aktualisieren …
-create policy schreiben on nutzung for insert to anon with check (true);
-create policy aendern  on nutzung for update to anon using (true) with check (true);
-create policy loeschen on nutzung for delete to anon using (true);
--- … aber niemand darf die Tabelle lesen. Kein select-Recht für anon.
+-- Geschrieben wird über diese Funktion, nicht über die Tabelle. Sie läuft mit
+-- den Rechten ihres Besitzers – deshalb braucht anon auf nutzung selbst gar
+-- kein Recht, und damit gibt es auch nichts, was versehentlich lesbar wäre.
+create or replace function melde(zeile jsonb)
+returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into nutzung (id, name, fokus, stufe, einheiten, plan, saetze,
+                       volumen, serie, zuletzt, geteilt, freunde, uebungen, gesehen)
+  select z.id, z.name, z.fokus, z.stufe, z.einheiten, z.plan, z.saetze,
+         z.volumen, z.serie, z.zuletzt, z.geteilt, z.freunde, z.uebungen, now()
+    from jsonb_populate_record(null::nutzung, zeile) z
+   where z.id is not null
+  on conflict (id) do update set
+    name = excluded.name, fokus = excluded.fokus, stufe = excluded.stufe,
+    einheiten = excluded.einheiten, plan = excluded.plan, saetze = excluded.saetze,
+    volumen = excluded.volumen, serie = excluded.serie, zuletzt = excluded.zuletzt,
+    geteilt = excluded.geteilt, freunde = excluded.freunde,
+    uebungen = excluded.uebungen, gesehen = now();
+end $$;
 
--- Regeln erlauben nur; das Recht auf die Tabelle muss auch da sein. Neue
--- Projekte vergeben es beim Anlegen automatisch, ältere nicht immer –
--- doppelt schadet nicht, und ohne merkt man es erst am 403.
-grant insert, update, delete on table nutzung to anon;
+-- Der Weg zurück: die eigene Zeile wieder entfernen.
+create or replace function entferne(geraet text)
+returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from nutzung where id = geraet;
+end $$;
 
--- Gelesen wird nur über diese Funktion, und nur mit Passwort.
+-- Gelesen wird nur hier, und nur mit Passwort.
 create or replace function admin_liste(pass text)
 returns setof nutzung
-language plpgsql security definer as $$
+language plpgsql security definer set search_path = public as $$
 begin
   if pass is distinct from 'DEIN-PASSWORT' then
     raise exception 'nope' using errcode = '42501';
@@ -1859,19 +1878,48 @@ begin
   return query select * from nutzung order by einheiten desc;
 end $$;
 
-revoke all on function admin_liste(text) from public;
-grant execute on function admin_liste(text) to anon;
+-- Nur die drei Funktionen sind erreichbar, die Tabelle selbst nicht.
+revoke all on table nutzung from anon, authenticated;
+revoke all on function melde(jsonb), entferne(text), admin_liste(text) from public;
+grant execute on function melde(jsonb), entferne(text), admin_liste(text) to anon;
 ```
 
 3. In `js/config.js` `url` und `key` eintragen (Projekt-URL und der öffentliche
-   **anon**-Schlüssel aus *Project Settings → API*). Beide dürfen öffentlich
-   sein: Mit den Regeln oben darf der anon-Schlüssel nur schreiben.
+   Schlüssel aus *Project Settings → API Keys*; `anon`-JWT oder der neue
+   `sb_publishable_…` – beides geht). Beide dürfen öffentlich sein: Mit dem
+   Block oben kommt man damit an genau drei Funktionen, und die eine, die etwas
+   herausgibt, will ein Passwort.
 4. `python3 tools/build-single.py`, committen, pushen.
 
 Die Übersicht steht danach unter *Mehr → Übersicht öffnen* und fragt nach dem
 Passwort aus Schritt 2. Sie zeigt Geräte insgesamt, wie viele in den letzten
 sieben Tagen offen waren, wer wie weit ist, wann er zuletzt trainiert hat, die
 Verteilung von Fokus und Erfahrung und die meistgemachten Übungen.
+
+**Warum über Funktionen und nicht über die Tabelle:** Weil der direkte Weg mit
+genau dieser Absicht – schreiben ja, lesen nein – gar nicht funktioniert. Die App
+schreibt eine Zeile je Gerät, also einen Upsert; PostgREST macht daraus
+`insert … on conflict (id) do update`. Und dabei prüft Postgres die Zeile
+zusätzlich gegen die **select**-Regeln, auch wenn die Tabelle leer ist und gar
+kein Konflikt auftreten kann. Gibt es keine select-Regel, ist die Prüfliste leer,
+und jeder Schreibversuch scheitert – mit einer Meldung, die auf die falsche
+Fährte führt:
+
+```
+ERROR:  new row violates row-level security policy for table "nutzung"
+```
+
+Nachgestellt mit PostgreSQL 16: reiner `insert` als `anon` geht durch, derselbe
+`insert … on conflict` scheitert – ohne select-Recht mit `permission denied`, mit
+select-Recht (das Supabase neuen Tabellen automatisch gibt) mit der Meldung oben.
+Eine select-Regel dazuzunehmen würde die Tabelle für jeden lesbar machen, der den
+Link hat; genau das soll sie nicht sein.
+
+Die Funktion hat diese Stelle nicht: Sie läuft mit den Rechten ihres Besitzers,
+und auf die Tabelle selbst hat außer ihr niemand ein Recht.
+
+Wer eine ältere Einrichtung mit Regeln statt Funktionen hat, muss nichts tun –
+die App fällt darauf zurück, wenn es `melde` nicht gibt.
 
 ### Wenn nichts ankommt
 
@@ -1881,22 +1929,38 @@ danach muss nicht mehr geraten werden:
 
 | Antwort | Ursache |
 | --- | --- |
-| `401: Invalid API key` | Schlüssel in `js/config.js` gehört nicht zu diesem Projekt |
-| `403: …row-level security…` | Regeln oder `grant` aus Schritt 2 fehlen |
-| `404` | Tabelle heißt anders oder liegt nicht in `public` |
-| `400: …column…` | Spalte fehlt – Tabelle noch einmal wie oben anlegen |
+| `401/403: Invalid API key` | Schlüssel in `js/config.js` gehört nicht zu diesem Projekt |
+| `404` oder `PGRST202` | die Funktion `melde` fehlt – Block aus Schritt 2 lief nicht durch. Direkt danach kann es auch heißen: PostgREST kennt sie noch nicht, ein paar Sekunden warten und noch einmal tippen |
+| `…new row violates row-level security policy…` | der Block aus Schritt 2 lief nicht; geschrieben wurde direkt in die Tabelle, und daran scheitert der Upsert (siehe oben) |
+| `…permission denied for function melde…` | `grant execute` fehlt |
 | `Keine Verbindung` | kein Netz, oder die Projekt-URL stimmt nicht |
+
+Der Status allein sagt wenig: Ein abgelehnter Schreibversuch kommt bei Supabase
+als **401** zurück, nicht als 403, sobald die Anfrage als anonyme Rolle ankommt.
+Es zählt der Text dahinter.
 
 Nachsehen lässt sich das im SQL-Editor:
 
 ```sql
-select tablename, policyname, cmd, roles from pg_policies where tablename = 'nutzung';
-select grantee, privilege_type from information_schema.role_table_grants
- where table_name = 'nutzung' and grantee = 'anon';
+select routine_name from information_schema.routines
+ where routine_schema = 'public' and routine_name in ('melde', 'entferne', 'admin_liste');
+
+select p.proname, r.rolname
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  left join lateral aclexplode(p.proacl) a on true
+  left join pg_roles r on r.oid = a.grantee
+ where n.nspname = 'public' and p.proname in ('melde', 'entferne', 'admin_liste');
 ```
 
-Drei Regeln (`insert`, `update`, `delete`) für `{anon}` und drei Rechte für
-`anon` – dann liegt es nicht an der Datenbank.
+Drei Funktionen, und `anon` steht bei jeder – dann liegt es nicht an der
+Datenbank. Ein Schreibversuch lässt sich auch direkt nachspielen:
+
+```sql
+select melde('{"id":"probe","name":"Probe","einheiten":1}'::jsonb);
+select id, name, einheiten, gesehen from nutzung where id = 'probe';
+delete from nutzung where id = 'probe';
+```
 
 **Warum ein Passwort und kein zweiter Schlüssel:** Ein Schlüssel mit Leserecht
 müsste in der App liegen und läge damit bei allen, die den Link haben. Die

@@ -19,8 +19,9 @@
  *                keine Kennungen von außerhalb dieser App.
  *
  * Technisch ist es eine Supabase-Tabelle mit einer Zeile je Gerät (upsert auf
- * die zufällige Geräte-ID). Der anon-Schlüssel darf nur schreiben; gelesen wird
- * über eine Funktion mit Passwort, siehe README.
+ * die zufällige Geräte-ID). Auf die Tabelle selbst hat der öffentliche Schlüssel
+ * kein Recht: Geschrieben wird über die Funktion melde(), gelöscht über
+ * entferne(), gelesen über admin_liste() mit Passwort – siehe README.
  */
 
 import { CONFIG, hatServer } from './config.js';
@@ -35,48 +36,61 @@ export function geraeteId(vorhanden) {
   return zufall;
 }
 
+/**
+ * Die alten anon-Schlüssel sind JWTs und gehören zusätzlich in den
+ * Authorization-Kopf. Die neuen (sb_publishable_…) sind keine – dort ist der
+ * Kopf bestenfalls wirkungslos, und ein Versuch damit verschleiert nur die
+ * eigentliche Antwort.
+ */
+const istJwt = () => !/^sb_/.test(CONFIG.key);
+
 function kopf(mitBearer = true) {
   const h = { 'Content-Type': 'application/json', apikey: CONFIG.key };
-  // Die alten anon-Schlüssel sind JWTs und gehören zusätzlich in Authorization.
-  // Die neuen (sb_publishable_…) sind es nicht – manche Projekte weisen sie dort
-  // ab. Deshalb ist der Kopf abschaltbar: senden() versucht es dann ohne.
-  if (mitBearer) h.Authorization = `Bearer ${CONFIG.key}`;
+  if (mitBearer && istJwt()) h.Authorization = `Bearer ${CONFIG.key}`;
   return h;
 }
 
 /**
- * Eine Anfrage, zwei Versuche.
- *
- * Antwortet der Server mit "nicht erlaubt", kann das am Bearer-Kopf liegen
- * (siehe kopf()). Einmal ohne ihn nachfassen kostet nichts und erspart die
- * Fehlersuche im Blindflug.
+ * Eine Anfrage – und beim JWT-Schlüssel notfalls ein zweiter Versuch ohne den
+ * Authorization-Kopf, falls das Projekt ihn abweist.
  */
 async function senden(pfad, optionen, mitBearer = true) {
   const res = await fetch(`${CONFIG.url}${pfad}`, {
     ...optionen,
     headers: { ...kopf(mitBearer), ...(optionen.headers || {}) },
   });
-  if (!res.ok && mitBearer && (res.status === 401 || res.status === 403)) {
+  if (!res.ok && mitBearer && istJwt() && (res.status === 401 || res.status === 403)) {
     return senden(pfad, optionen, false);
   }
   return res;
 }
 
-/** Die Fehlermeldung des Servers in einem Satz – PostgREST antwortet als JSON. */
+/**
+ * Die Fehlermeldung des Servers in einem Satz – PostgREST antwortet als JSON.
+ *
+ * Der `code` kommt mit: Er trennt auf einen Blick, wer geantwortet hat. PGRST…
+ * ist PostgREST selbst (Funktion fehlt, Spalte fehlt), fünfstellige Ziffern
+ * sind Postgres-Fehlercodes – 42501 etwa heißt "darf nicht".
+ */
 async function grund(res) {
   try {
     const roh = await res.text();
     if (!roh) return `Fehler ${res.status}`;
     try {
       const j = JSON.parse(roh);
-      return `${res.status}: ${j.message || j.msg || j.error || roh}`.slice(0, 160);
+      const text = j.message || j.msg || j.error || roh;
+      return `${res.status}: ${text}${j.code ? ` [${j.code}]` : ''}`.slice(0, 200);
     } catch {
-      return `${res.status}: ${roh}`.slice(0, 160);
+      return `${res.status}: ${roh}`.slice(0, 200);
     }
   } catch {
     return `Fehler ${res.status}`;
   }
 }
+
+/** Antwortet der Server "diese Funktion kenne ich nicht"? */
+const fehltFunktion = (res, text) => res.status === 404
+  || (res.status === 400 && /PGRST202|function|schema cache/i.test(text || ''));
 
 /**
  * Stand melden. Fehler sind hier keine Fehler: Kein Netz, Server weg, Tabelle
@@ -88,27 +102,53 @@ async function grund(res) {
 export async function melden(zeile) {
   if (!hatServer()) return { ok: false, status: 0, msg: 'Kein Server eingetragen' };
   try {
-    const res = await senden(`/rest/v1/${TABELLE}`, {
+    // Der Weg über die Funktion braucht keine Rechte auf der Tabelle – und
+    // damit auch keine Regeln, die für die richtige Rolle greifen müssen.
+    const res = await senden('/rest/v1/rpc/melde', {
+      method: 'POST',
+      body: JSON.stringify({ zeile }),
+    });
+    if (res.ok) return { ok: true, status: res.status, msg: '' };
+    const msg = await grund(res);
+    if (!fehltFunktion(res, msg)) return { ok: false, status: res.status, msg };
+
+    // Ältere Einrichtung ohne die Funktion: direkt in die Tabelle, wie bisher.
+    const alt = await senden(`/rest/v1/${TABELLE}`, {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify([zeile]),
     });
-    if (res.ok) return { ok: true, status: res.status, msg: '' };
-    return { ok: false, status: res.status, msg: await grund(res) };
+    if (alt.ok) return { ok: true, status: alt.status, msg: '' };
+    // Beide Wege dicht: Dann gehört beides in die Meldung. Der Satz "melde
+    // fehlt" allein führte sonst in die Irre, wenn die Tabelle den eigentlichen
+    // Grund nennt – und umgekehrt.
+    return { ok: false, status: alt.status, msg: `${msg} · direkt in die Tabelle: ${await grund(alt)}` };
   } catch (e) {
     // fetch wirft nur bei Netz oder CORS – der Status bleibt unbekannt.
     return { ok: false, status: 0, msg: `Keine Verbindung (${e && e.message ? e.message : 'Netz oder CORS'})` };
   }
 }
 
-/** Eigene Zeile löschen – der Weg zurück, wenn jemand doch nicht mag. */
+/**
+ * Eigene Zeile löschen – der Weg zurück, wenn jemand doch nicht mag.
+ *
+ * Auch das läuft über eine Funktion. Ein DELETE über die Tabelle meldet nämlich
+ * auch dann Erfolg, wenn es null Zeilen getroffen hat – und "Gelöscht" wäre
+ * dann gelogen.
+ */
 export async function loeschen(id) {
   if (!hatServer() || !id) return false;
   try {
-    const res = await senden(`/rest/v1/${TABELLE}?id=eq.${encodeURIComponent(id)}`, {
+    const res = await senden('/rest/v1/rpc/entferne', {
+      method: 'POST',
+      body: JSON.stringify({ geraet: id }),
+    });
+    if (res.ok) return true;
+    if (!fehltFunktion(res, await grund(res))) return false;
+    const alt = await senden(`/rest/v1/${TABELLE}?id=eq.${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
-    return res.ok;
+    return alt.ok;
   } catch {
     return false;
   }

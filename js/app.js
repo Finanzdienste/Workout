@@ -1337,6 +1337,42 @@ function willkommenFertig() {
  * ------------------------------------------------------------------ */
 
 /**
+ * Was die Antwort des Servers bedeutet, in einem Satz.
+ *
+ * Der Wortlaut von PostgREST ist genau, aber nur für den lesbar, der ihn schon
+ * kennt. Wer die App gerade einrichtet, soll den nächsten Schritt lesen können,
+ * ohne die README zu suchen.
+ */
+function serverHinweis(msg) {
+  const m = String(msg || '');
+  if (/row-level security|violates row/i.test(m)) {
+    return 'Die Tabelle nimmt die Zeile nicht an – die Regeln greifen nicht für die '
+      + 'anonyme Rolle. Einmal den SQL-Block aus der README ausführen: Danach läuft '
+      + 'das Schreiben über eine Funktion und hängt an keiner Regel mehr.';
+  }
+  if (/permission denied for function/i.test(m)) {
+    return 'Der Funktion melde fehlt das Ausführungsrecht: grant execute … to anon.';
+  }
+  if (/PGRST202|schema cache|function.*(does not exist|not found)/i.test(m)) {
+    return 'Die Funktion melde gibt es dort nicht – der SQL-Block aus der README ist '
+      + 'nicht (vollständig) gelaufen.';
+  }
+  if (/invalid api key|JWS|JWT|apikey/i.test(m)) {
+    return 'Der Schlüssel in js/config.js gehört nicht zu diesem Projekt.';
+  }
+  if (/^40?4|PGRST205|not exist|Not Found/i.test(m)) {
+    return 'Unter dieser Adresse gibt es die Tabelle nutzung nicht.';
+  }
+  if (/PGRST204|column|Spalte/i.test(m)) {
+    return 'Der Tabelle fehlt eine Spalte – am einfachsten neu anlegen, wie in der README.';
+  }
+  if (/Keine Verbindung/i.test(m)) {
+    return 'Kein Netz – oder die Projekt-Adresse in js/config.js stimmt nicht.';
+  }
+  return '';
+}
+
+/**
  * Der eine Satz, der aus Sammeln eine Absprache macht.
  *
  * Er steht im Einstieg und unter Mehr, wortgleich, mit dem Schalter daneben.
@@ -1367,8 +1403,9 @@ function shareKarte(ausfuehrlich = false) {
         ? `Zuletzt gemeldet am ${esc(fmtDate(s.lastShare.on))}${s.lastShare.ok ? '' : ' – hat nicht geklappt'}.`
         : 'Noch nichts gemeldet.'}
         ${an ? '' : 'Abgeschaltet – es geht nichts mehr raus.'}</div>
-      ${s.lastShare && !s.lastShare.ok && s.lastShare.msg
-        ? `<div class="hint" style="color:var(--accent)">Der Server sagt: ${esc(s.lastShare.msg)}</div>` : ''}
+      ${s.lastShare && !s.lastShare.ok && s.lastShare.msg ? `
+      <div class="hint" style="color:var(--accent)">Der Server sagt: ${esc(s.lastShare.msg)}</div>
+      ${serverHinweis(s.lastShare.msg) ? `<div class="hint">${esc(serverHinweis(s.lastShare.msg))}</div>` : ''}` : ''}
       <div class="btn-row">
         <button type="button" class="btn" data-act="share-now">Jetzt melden</button>
         <button type="button" class="btn" data-act="share-delete">Meine Daten dort löschen</button>
