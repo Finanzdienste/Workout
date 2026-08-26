@@ -1,6 +1,7 @@
 {
   "name": "Workout – Hanteln & Bodyweight",
   "short_name": "Workout",
+  "id": "/Workout/",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0f1115",

@@ -2273,6 +2273,27 @@ müsste in der App liegen und läge damit bei allen, die den Link haben. Die
 Funktion `admin_liste` läuft dagegen mit den Rechten ihres Besitzers und gibt
 nur bei passendem Passwort Zeilen zurück; das Passwort steht nirgends im Code.
 
+## Als eigene App auf dem Handy
+
+In Androids *Digitalem Wohlbefinden* zählt die Zeit nach **Prozess**, nicht nach
+Seite. Wer die App über Firefox auf den Startbildschirm legt, bekommt eine
+Verknüpfung, die im Firefox-Prozess läuft – die Trainingszeit landet dort unter
+„Firefox", zusammen mit allem anderen Surfen.
+
+Chromium-Browser (Chrome, Edge, Samsung Internet) machen etwas anderes: Sie
+lassen von den Play-Diensten ein **WebAPK** erzeugen, ein echtes Android-Paket
+mit eigenem Namen und Symbol. Erst dann steht die App im Digitalen Wohlbefinden
+als „Workout" da, lässt sich einzeln begrenzen und taucht in der App-Liste auf.
+
+Das Manifest bringt alles mit, was dafür nötig ist: `name`, `short_name`,
+`start_url`, `display: standalone`, Symbole in 192 und 512 sowie ein maskables,
+dazu `id` als feste Kennung – ohne die leitet der Browser die Identität aus
+`start_url` ab, und eine spätere Änderung daran ergäbe eine zweite, fremde App.
+
+**Der Haken beim Umzug:** Der Speicher gehört dem Browser. Wer von Firefox nach
+Chrome wechselt, startet mit leerem Protokoll. Der Weg dazwischen führt über
+*Mehr → Daten → Als Datei sichern* und drüben über *Importieren*.
+
 ## Weitergeben
 
 Unter *Mehr* steht ein Knopf **Link teilen**. Er ruft den Systemdialog
