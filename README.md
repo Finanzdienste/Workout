@@ -1343,6 +1343,31 @@ Einheit –, aber die Einheiten laufen dann auseinander: 12 bis 21 Sätze statt 
 bis 18. Eine Einheit, die anderthalbmal so lang ist wie die nächste, ist der
 schlechtere Tausch. Umgebaut wird zwischendurch, gewartet wird die ganze Zeit.
 
+### Mehr Sätze auf weniger Übungen – gemessen und verworfen
+
+Naheliegend, wenn Umbauten das Ärgernis sind: dieselbe Wochenmenge auf **vier**
+Sätze je Auftritt verteilen statt auf drei. Ein Drittel weniger Auftritte, also
+weniger Übungen je Einheit, also weniger Geräte. Am Beinplan durchgerechnet:
+
+| | 3 Sätze je Auftritt | 4 Sätze je Auftritt |
+| --- | --- | --- |
+| Übungen je Einheit | 6,32 | **4,78** |
+| **Rüstvorgänge je Einheit** | 3,67 | **3,05** |
+| bewegte Kilo | 57 | 52 |
+| Sätze je Einheit | 19,0 | 19,1 |
+| Gruppen unter 1,8× pro Woche | **1** | **6** |
+| größte Lücke | **9 Tage** | **14 Tage** |
+| vordere Schulter | 2,0× pro Woche | **1,0×** |
+
+Der Gewinn ist klein, weil die Gerätegruppierung den Löwenanteil längst holt:
+5,7 Übungen, aber nur 3,6 Aufbauten. Ein Drittel der Übungen zu streichen spart
+deshalb nur 0,6 Rüstvorgänge – rund eine halbe Minute je Einheit. Dagegen steht
+die vordere Schulter, die nur noch alle zwei Wochen drankommt. Bei gleichem
+Wochenvolumen wächst ein Muskel zwar unabhängig von der Frequenz ähnlich gut –
+aber 14 Tage sind keine niedrigere Frequenz mehr, das ist eine Lücke.
+
+`PER_SET` steht deshalb weiter auf `(3, 3)`.
+
 **Die App sortiert innerhalb der Einheit.** Nach Gerät, und innerhalb des Geräts
 absteigend nach Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in
 kleinen Schritten nach unten statt hin und her. Die Reihenfolge der Geräte bleibt

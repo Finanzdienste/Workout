@@ -295,19 +295,21 @@ WEEKS = 21               # Wochen im Plan – Vielfaches von GRAIN, siehe oben
 # Werts, und Gruppen, deren Übungen alle Anteil 1,0 haben (Brust, Rücken,
 # Oberschenkel, Waden), können in einer Woche nur Vielfache davon bekommen.
 #
-# **Vier statt drei, und der Grund ist der Rüstaufwand.** Dieselbe Wochenmenge
-# auf vier Sätze je Auftritt verteilt braucht ein Drittel weniger Auftritte –
-# aus rund sechs Übungen je Einheit werden gut vier, und jede Übung, die
-# wegfällt, ist ein Gerät weniger, das auf- und abgebaut wird. Bezahlt wird das
-# mit Frequenz: Jede Gruppe kommt entsprechend seltener dran. Bei gleichem
-# Wochenvolumen wächst der Muskel dadurch praktisch gleich gut; was verloren
-# geht, ist Übung an der Bewegung selbst.
+# **Vier statt drei war einen Versuch wert und ist durchgefallen.** Dieselbe
+# Wochenmenge auf vier Sätze je Auftritt verteilt braucht ein Drittel weniger
+# Auftritte – aus 6,3 Übungen je Einheit wurden 4,8, und jede Übung weniger ist
+# ein Gerät weniger. Am Beinplan nachgemessen sparte das aber nur **0,6
+# Rüstvorgänge je Einheit** (3,67 -> 3,05), weil die Gerätegruppierung in der
+# App den Löwenanteil schon vorher holt. Bezahlt hätte man es mit Frequenz:
+# Gruppen unter zwei Auftritten pro Woche stiegen von einer auf sechs, die
+# größte Lücke von 9 auf 14 Tage, die vordere Schulter fiel von 2,0 auf 1,0
+# Auftritte. Eine halbe Minute Umbauzeit gegen zwei Wochen ohne Reiz ist kein
+# Tausch, den man macht.
 #
-# Höher geht es nicht sinnvoll: Die Erfahrungsstufe skaliert diesen Wert mit
-# (siehe satzZahl() in js/app.js), und bei fünf oder sechs stünden
-# Fortgeschrittene bei sieben bis acht Sätzen derselben Übung am Stück. Mit
-# vier sind es über alle drei Stufen 3, 4 und 5.
-PER_SET = (4, 4)         # Sätze je Auftritt einer Übung
+# Höher ginge es ohnehin nicht sinnvoll: Die Erfahrungsstufe skaliert diesen
+# Wert mit (siehe satzZahl() in js/app.js), und bei fünf oder sechs stünden
+# Fortgeschrittene bei sieben bis acht Sätzen derselben Übung am Stück.
+PER_SET = (3, 3)         # Sätze je Auftritt einer Übung
 # Körnung: Bei fester Satzzahl bewegt sich alles in Dreierschritten.
 GRAIN = PER_SET[0] if PER_SET[0] == PER_SET[1] else 1
 PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
