@@ -2935,6 +2935,9 @@ const FOKUS_TEXT = {
     + 'Auftritt pro Woche.',
   kurz: 'Dieselben Übungen, weniger Sätze pro Woche – für Wochen, in denen die Zeit knapp ist. '
     + 'Kürzere Einheiten, dafür alles drin.',
+  beine: 'Wie Ausgewogen, aber die Beine stehen nicht mehr auf Erhalt: Oberschenkel, Gesäß und '
+    + 'beide Seiten des Beinbeugers bekommen ein eigenes Ziel. Der Oberkörper bleibt, wie er '
+    + 'ist – die Einheiten werden dadurch etwas länger.',
 };
 
 /** Eine Zeile Zahlen zu einer Variante: Einheiten, Sätze, geschätzte Dauer. */

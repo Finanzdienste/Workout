@@ -170,6 +170,36 @@ VARIANTEN = {
         },
         'cap': 13,
     },
+    # Beine mit eigenem Ziel statt auf Erhalt.
+    #
+    # Der Oberschenkel ist die größte Muskelgruppe des Körpers und steht im
+    # ausgewogenen Plan bei 6 Sätzen – das hält, was da ist, mehr nicht. Wer
+    # ihn wachsen lassen will, braucht mehr, und zwar nicht nur beim Beuger:
+    #
+    #   * **Gesäß mit hoch.** Jede Kniebeuge zahlt mit 0,55 auf das Gesäß ein.
+    #     Bleibt sein Ziel bei 9, während der Oberschenkel steigt, ist das
+    #     Budget allein mit Kniebeugen aufgebraucht – ein Probelauf mit
+    #     Oberschenkel 12 und Gesäß 9 warf Hip Thrust und Kreuzheben komplett
+    #     aus dem Plan (0 Sätze) und ließ die Hüftstreckung von 5,1 auf 2,4
+    #     fallen. Ein Beinplan ohne Hüftstreckung ist keiner.
+    #   * **Die Hüftstreckung bekommt ein eigenes Ziel.** Sonst fällt sie als
+    #     abgeleitete Größe genau dort heraus, wo es eng wird. Mit 7 stehen
+    #     Kreuzheben und Hip Thrust fest im Plan.
+    #   * **Beinbeuger am Knie auf 6.** Drei Sätze waren genau ein Auftritt pro
+    #     Woche, mit bis zu elf Tagen Abstand; sechs sind zwei Auftritte.
+    #
+    # Der Oberkörper bleibt unverändert – das ist der Punkt: nicht umverteilen,
+    # sondern die Unterdosierung beenden. Die Einheiten werden dadurch länger.
+    'beine': {
+        'name': 'Beine ernst gemeint',
+        'ziele': {
+            'chest': 10, 'lats': 10, 'sideDelts': 10, 'rearDelts': 8,
+            'biceps': 10, 'triceps': 10, 'abs': 9,
+            'frontDelts': None, 'traps': None,
+            'glutes': 12, 'quads': 10, 'hamstringsHip': 7, 'hamstringsKnee': 6, 'calves': 6,
+        },
+        'cap': 10,
+    },
     'kurz': {
         'name': 'Kurz und knapp',
         'ziele': {
@@ -436,6 +466,37 @@ def exact(block, shares, weeks, values, limit, rnd):
     return out
 
 
+# Die Bodyweight-Anteile. Sie stehen nicht in den Gleichungen – die rechnen mit
+# den Hantel-Anteilen –, entscheiden aber unter den exakten Lösungen mit; siehe
+# bw_fehler().
+BW_SHARES = {}
+
+
+def bw_fehler(sol, weeks):
+    """Wie weit liegt der Bodyweight-Modus mit dieser Lösung daneben?
+
+    Dieselbe Übung trifft in beiden Fassungen nicht genau dieselben Muskeln: Der
+    Goblet Squat hält den Bauch mit 0,35, seine Bodyweight-Fassung mit 0,2, und
+    aus dem Seitheben wird ein Überkopfdrücken. Eine Satzzahl kann deshalb nicht
+    beide Gleichungssysteme exakt treffen – wohl aber das eine exakt und das
+    andere so knapp wie möglich.
+
+    Zurück kommt die Summe der quadrierten Abweichungen je Zielgruppe, grob
+    gerundet: ein Kriterium für den Gleichstand, kein Grund, eine trainings-
+    technisch bessere Lösung zu verwerfen. Deshalb steht es in `got` ganz hinten.
+    """
+    got = {}
+    for i, n in sol.items():
+        for m, anteil in BW_SHARES.get(i, {}).items():
+            got[m] = got.get(m, 0) + n * anteil
+    fehler = 0.0
+    for m, ziel in GOAL.items():
+        if ziel is None:
+            continue
+        fehler += (got.get(m, 0) / weeks - ziel / UNIT) ** 2
+    return round(fehler, 3)
+
+
 def klumpen(sol, block, shares):
     """Wie sehr hängt eine Gruppe an einer einzigen Übung?
 
@@ -506,7 +567,7 @@ def totals(ids, shares, groups, weeks, rnd, streng=True):
             # schlechteste Woche, dann die Ausnahmen von der Schranke.
             knapp = sum(1 for v in sol.values() if v < weeks)
             got = (hart, knapp, klumpen(sol, block, shares), auftritte, worst, aus,
-                   min(sol.values()) == 0, balance(sol))
+                   min(sol.values()) == 0, bw_fehler(sol, weeks), balance(sol))
             if best is None or got < best[0]:
                 best = (got, sol)
         total.update(best[1])
@@ -1015,6 +1076,7 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
 def main():
     meta = json.loads(META.read_text(encoding='utf-8'))
     shares = {k: v['dbShares'] for k, v in meta.items()}
+    BW_SHARES.update({k: v['bwShares'] for k, v in meta.items()})
     ids = list(shares)
     groups = sorted({m for sh in shares.values() for m in sh})
     # Reihenfolge in der Einheit. Vorher war es die Summe aller Muskelanteile –
