@@ -5748,7 +5748,6 @@ const DEFAULT_STATE = {
   share: true,           // Stand an den Betreiber melden (nur wenn js/config.js einen Server nennt)
   deviceId: null,        // zufällige Kennung dieses Geräts für genau diese Meldung
   lastShare: null,       // { on, ok, msg } – wann zuletzt gemeldet wurde und was schiefging
-  adminPass: null,       // Passwort für die Betreiber-Übersicht, nur auf dessen Gerät
   tabs: ['stats'],       // frei wählbare Reiter unten; Dashboard und Mehr stehen immer
   level: 'geuebt',       // Erfahrung: anfaenger | geuebt | fortgeschritten – skaliert die Startgewichte
   focus: 'standard',     // Trainingsfokus – welche Planvariante gilt (siehe js/data.js)
@@ -5794,6 +5793,10 @@ function load() {
     if (!raw) return clone(DEFAULT_STATE);
     const parsed = JSON.parse(raw);
     const state = Object.assign(clone(DEFAULT_STATE), parsed);
+    // Das Betreiber-Passwort lag früher hier. Es gehört in den Tab-Speicher
+    // (siehe adminPassMerken in js/app.js) und nicht in eine Sicherungsdatei –
+    // ein alter Stand wird deshalb beim Laden davon befreit.
+    if ('adminPass' in state) delete state.adminPass;
     // Wer schon etwas gespeichert hat, ist nicht neu hier: Die Willkommensseite
     // fragt nach dem Namen und erklärt die App – für jemanden, der seit Wochen
     // trainiert, wäre sie eine Zumutung. Der Schlüssel fehlt genau dann, wenn
@@ -6274,7 +6277,9 @@ function markIcs(count = 0) {
  *
  * Eine Sicherungsdatei wird weitergegeben, auf einen anderen Rechner, in eine
  * Cloud, per Mail an sich selbst. Das Passwort für die Übersicht hat darin
- * nichts zu suchen; es öffnet die Daten aller anderen.
+ * nichts zu suchen; es öffnet die Daten aller anderen. Es steht ohnehin nicht
+ * mehr im Zustand – die Zeile hier ist der Riegel für alte Stände, die es noch
+ * mitschleppen.
  */
 function exportJSON() {
   const { adminPass, ...rest } = state;
@@ -9285,6 +9290,25 @@ function saubereZeilen(daten) {
   });
 }
 
+/**
+ * Das Betreiber-Passwort lebt nur, solange der Tab offen ist.
+ *
+ * Es öffnet die Zahlen aller anderen, und es lag bisher im selben Speicher wie
+ * der ganze Rest: dauerhaft, lesbar für jedes Skript auf dieser Seite, und in
+ * jeder Sicherungsdatei mit drin. Der Tab-Speicher überlebt Neuladen und
+ * Zurück-Taste, aber weder das Schließen noch den Export.
+ */
+const PASS_SCHLUESSEL = 'workout.adminPass';
+function adminPassLesen() {
+  try { return sessionStorage.getItem(PASS_SCHLUESSEL) || ''; } catch { return ''; }
+}
+function adminPassMerken(wort) {
+  try {
+    if (wort) sessionStorage.setItem(PASS_SCHLUESSEL, wort);
+    else sessionStorage.removeItem(PASS_SCHLUESSEL);
+  } catch { /* gesperrter Speicher: dann eben jedes Mal eintippen */ }
+}
+
 function renderAdmin() {
   const zurueck = '<button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>';
   if (!hatServer()) {
@@ -9293,10 +9317,10 @@ function renderAdmin() {
     return;
   }
   const daten = ui.adminDaten;
-  if (!daten && store.getState().adminPass && !ui.adminFehler && !ui.adminLaeuft) {
+  if (!daten && adminPassLesen() && !ui.adminFehler && !ui.adminLaeuft) {
     // Passwort steht schon: dann nicht danach fragen, sondern laden.
     ui.adminLaeuft = true;
-    adminOeffnen(store.getState().adminPass);
+    adminOeffnen(adminPassLesen());
   }
   if (!daten) {
     view.innerHTML = `
@@ -9314,7 +9338,7 @@ function renderAdmin() {
       </div>`;
     const feld = document.getElementById('adminPass');
     if (feld) {
-      feld.value = store.getState().adminPass || '';
+      feld.value = adminPassLesen();
       feld.addEventListener('keydown', (e) => { if (e.key === 'Enter') adminOeffnen(); });
     }
     return;
@@ -9403,11 +9427,11 @@ function renderAdmin() {
 /** Passwort prüfen und Liste holen. */
 function adminOeffnen(pass) {
   const feld = document.getElementById('adminPass');
-  const wort = pass || (feld ? feld.value.trim() : store.getState().adminPass);
+  const wort = pass || (feld ? feld.value.trim() : adminPassLesen());
   if (!wort) return;
   ui.adminFehler = '';
   adminListe(wort).then((daten) => {
-    store.setSetting('adminPass', wort);
+    adminPassMerken(wort);
     ui.adminDaten = saubereZeilen(daten);
     ui.adminLaeuft = false;
     render();
@@ -10400,10 +10424,10 @@ view.addEventListener('click', (e) => {
       adminOeffnen();
       break;
     case 'admin-reload':
-      adminOeffnen(store.getState().adminPass);
+      adminOeffnen(adminPassLesen());
       break;
     case 'admin-logout':
-      store.setSetting('adminPass', null);
+      adminPassMerken(null);
       ui.adminDaten = null;
       ui.adminFehler = '';
       render();

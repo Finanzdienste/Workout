@@ -12,7 +12,6 @@ const DEFAULT_STATE = {
   share: true,           // Stand an den Betreiber melden (nur wenn js/config.js einen Server nennt)
   deviceId: null,        // zufällige Kennung dieses Geräts für genau diese Meldung
   lastShare: null,       // { on, ok, msg } – wann zuletzt gemeldet wurde und was schiefging
-  adminPass: null,       // Passwort für die Betreiber-Übersicht, nur auf dessen Gerät
   tabs: ['stats'],       // frei wählbare Reiter unten; Dashboard und Mehr stehen immer
   level: 'geuebt',       // Erfahrung: anfaenger | geuebt | fortgeschritten – skaliert die Startgewichte
   focus: 'standard',     // Trainingsfokus – welche Planvariante gilt (siehe js/data.js)
@@ -58,6 +57,10 @@ function load() {
     if (!raw) return clone(DEFAULT_STATE);
     const parsed = JSON.parse(raw);
     const state = Object.assign(clone(DEFAULT_STATE), parsed);
+    // Das Betreiber-Passwort lag früher hier. Es gehört in den Tab-Speicher
+    // (siehe adminPassMerken in js/app.js) und nicht in eine Sicherungsdatei –
+    // ein alter Stand wird deshalb beim Laden davon befreit.
+    if ('adminPass' in state) delete state.adminPass;
     // Wer schon etwas gespeichert hat, ist nicht neu hier: Die Willkommensseite
     // fragt nach dem Namen und erklärt die App – für jemanden, der seit Wochen
     // trainiert, wäre sie eine Zumutung. Der Schlüssel fehlt genau dann, wenn
@@ -538,7 +541,9 @@ export function markIcs(count = 0) {
  *
  * Eine Sicherungsdatei wird weitergegeben, auf einen anderen Rechner, in eine
  * Cloud, per Mail an sich selbst. Das Passwort für die Übersicht hat darin
- * nichts zu suchen; es öffnet die Daten aller anderen.
+ * nichts zu suchen; es öffnet die Daten aller anderen. Es steht ohnehin nicht
+ * mehr im Zustand – die Zeile hier ist der Riegel für alte Stände, die es noch
+ * mitschleppen.
  */
 export function exportJSON() {
   const { adminPass, ...rest } = state;

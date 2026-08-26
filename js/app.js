@@ -2974,6 +2974,25 @@ function saubereZeilen(daten) {
   });
 }
 
+/**
+ * Das Betreiber-Passwort lebt nur, solange der Tab offen ist.
+ *
+ * Es öffnet die Zahlen aller anderen, und es lag bisher im selben Speicher wie
+ * der ganze Rest: dauerhaft, lesbar für jedes Skript auf dieser Seite, und in
+ * jeder Sicherungsdatei mit drin. Der Tab-Speicher überlebt Neuladen und
+ * Zurück-Taste, aber weder das Schließen noch den Export.
+ */
+const PASS_SCHLUESSEL = 'workout.adminPass';
+function adminPassLesen() {
+  try { return sessionStorage.getItem(PASS_SCHLUESSEL) || ''; } catch { return ''; }
+}
+function adminPassMerken(wort) {
+  try {
+    if (wort) sessionStorage.setItem(PASS_SCHLUESSEL, wort);
+    else sessionStorage.removeItem(PASS_SCHLUESSEL);
+  } catch { /* gesperrter Speicher: dann eben jedes Mal eintippen */ }
+}
+
 function renderAdmin() {
   const zurueck = '<button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>';
   if (!hatServer()) {
@@ -2982,10 +3001,10 @@ function renderAdmin() {
     return;
   }
   const daten = ui.adminDaten;
-  if (!daten && store.getState().adminPass && !ui.adminFehler && !ui.adminLaeuft) {
+  if (!daten && adminPassLesen() && !ui.adminFehler && !ui.adminLaeuft) {
     // Passwort steht schon: dann nicht danach fragen, sondern laden.
     ui.adminLaeuft = true;
-    adminOeffnen(store.getState().adminPass);
+    adminOeffnen(adminPassLesen());
   }
   if (!daten) {
     view.innerHTML = `
@@ -3003,7 +3022,7 @@ function renderAdmin() {
       </div>`;
     const feld = document.getElementById('adminPass');
     if (feld) {
-      feld.value = store.getState().adminPass || '';
+      feld.value = adminPassLesen();
       feld.addEventListener('keydown', (e) => { if (e.key === 'Enter') adminOeffnen(); });
     }
     return;
@@ -3092,11 +3111,11 @@ function renderAdmin() {
 /** Passwort prüfen und Liste holen. */
 function adminOeffnen(pass) {
   const feld = document.getElementById('adminPass');
-  const wort = pass || (feld ? feld.value.trim() : store.getState().adminPass);
+  const wort = pass || (feld ? feld.value.trim() : adminPassLesen());
   if (!wort) return;
   ui.adminFehler = '';
   adminListe(wort).then((daten) => {
-    store.setSetting('adminPass', wort);
+    adminPassMerken(wort);
     ui.adminDaten = saubereZeilen(daten);
     ui.adminLaeuft = false;
     render();
@@ -4089,10 +4108,10 @@ view.addEventListener('click', (e) => {
       adminOeffnen();
       break;
     case 'admin-reload':
-      adminOeffnen(store.getState().adminPass);
+      adminOeffnen(adminPassLesen());
       break;
     case 'admin-logout':
-      store.setSetting('adminPass', null);
+      adminPassMerken(null);
       ui.adminDaten = null;
       ui.adminFehler = '';
       render();

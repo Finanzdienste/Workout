@@ -2024,6 +2024,11 @@ select id, name, einheiten, gesehen from nutzung where id = 'probe';
 delete from nutzung where id = 'probe';
 ```
 
+Das Passwort bleibt im Tab-Speicher (`sessionStorage`), nicht im dauerhaften:
+Es öffnet die Zahlen aller anderen, und es hat weder in einer Sicherungsdatei
+noch in einem Speicher zu stehen, den jedes Skript auf der Seite lesen kann.
+Wer den Tab schließt, tippt es beim nächsten Mal wieder ein.
+
 **Warum ein Passwort und kein zweiter Schlüssel:** Ein Schlüssel mit Leserecht
 müsste in der App liegen und läge damit bei allen, die den Link haben. Die
 Funktion `admin_liste` läuft dagegen mit den Rechten ihres Besitzers und gibt
