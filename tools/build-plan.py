@@ -291,11 +291,23 @@ WEEK = len(DAYS)         # Einheiten je Woche
 WEEKS = 21               # Wochen im Plan – Vielfaches von GRAIN, siehe oben
 # Sätze je Auftritt einer Übung. Gleicher Wert oben wie unten heißt: jede
 # Übung steht immer mit derselben Satzzahl da. Das kostet Genauigkeit in der
-# einzelnen Woche – die Satzzahl jeder Übung ist dann ein Vielfaches von drei,
-# und Gruppen, deren Übungen alle Anteil 1,0 haben (Brust, Rücken,
-# Oberschenkel, Waden), können in einer Woche nur 3, 6, 9 … Sätze bekommen.
-# Dafür sind die Einheiten kürzer: dieselben Sätze auf weniger Übungen.
-PER_SET = (3, 3)         # Sätze je Auftritt einer Übung
+# einzelnen Woche – die Satzzahl jeder Übung ist dann ein Vielfaches dieses
+# Werts, und Gruppen, deren Übungen alle Anteil 1,0 haben (Brust, Rücken,
+# Oberschenkel, Waden), können in einer Woche nur Vielfache davon bekommen.
+#
+# **Vier statt drei, und der Grund ist der Rüstaufwand.** Dieselbe Wochenmenge
+# auf vier Sätze je Auftritt verteilt braucht ein Drittel weniger Auftritte –
+# aus rund sechs Übungen je Einheit werden gut vier, und jede Übung, die
+# wegfällt, ist ein Gerät weniger, das auf- und abgebaut wird. Bezahlt wird das
+# mit Frequenz: Jede Gruppe kommt entsprechend seltener dran. Bei gleichem
+# Wochenvolumen wächst der Muskel dadurch praktisch gleich gut; was verloren
+# geht, ist Übung an der Bewegung selbst.
+#
+# Höher geht es nicht sinnvoll: Die Erfahrungsstufe skaliert diesen Wert mit
+# (siehe satzZahl() in js/app.js), und bei fünf oder sechs stünden
+# Fortgeschrittene bei sieben bis acht Sätzen derselben Übung am Stück. Mit
+# vier sind es über alle drei Stufen 3, 4 und 5.
+PER_SET = (4, 4)         # Sätze je Auftritt einer Übung
 # Körnung: Bei fester Satzzahl bewegt sich alles in Dreierschritten.
 GRAIN = PER_SET[0] if PER_SET[0] == PER_SET[1] else 1
 PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
