@@ -115,6 +115,12 @@ def main():
                     'step': m['dbStep'],           # sinnvolle Steigerung in kg
                     'weightNote': m['weightNote'],
                     'equip': m['equip'],      # Geraet in der Hantel-Variante
+                    # Stufe der Uebung: 1 schwere Grunduebung ... 4 kleine
+                    # Isolation. Der Generator sortiert die Einheit danach; die
+                    # App braucht sie, damit ihre Ruest-Sortierung eine
+                    # Isolation nicht vor eine Grunduebung am selben Muskel
+                    # zieht (siehe ruestOrder in js/app.js).
+                    'tier': m['tier'],
                     # Ausführliche Erklärung, aufklappbar in der App. Sie hängt
                     # an der Übung und nicht an der Variante: Griff, Aufbau und
                     # typische Fehler sind in beiden Fassungen dieselben.
@@ -164,6 +170,7 @@ def main():
             'step': m['dbStep'],
             'weightNote': m['weightNote'],
             'equip': m['equip'],
+            'tier': m['tier'],
             'detail': m.get('detail', []),
             'db': {'name': m['name'], 'reps': m['reps'], 'equip': m['dbEquip'],
                    'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],

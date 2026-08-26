@@ -403,20 +403,73 @@ function ruestOrderStabil(items, n, mode) {
   return out;
 }
 
+/**
+ * Zieht diese Reihenfolge eine kleine Übung vor eine schwere am selben Muskel?
+ *
+ * Gibt beide Plätze zurück, sonst null. Zwei Übungen sind "am selben Muskel",
+ * wenn beide ihn direkt treffen (Anteil ab 0,5) – der Trizepsstrecker vor den
+ * Liegestützen ist der Fall, der Beinbeuger vor dem Drücken nicht.
+ */
+function vorgezogen(liste) {
+  const direkt = (it) => {
+    const ex = EX_BY_ID.get(it.id);
+    const sh = (ex && ex.db && ex.db.shares) || {};
+    return new Set(Object.keys(sh).filter((m) => sh[m] >= 0.5));
+  };
+  const stufe = (it) => (EX_BY_ID.get(it.id) || {}).tier || 1;
+  for (let a = 0; a < liste.length; a++) {
+    for (let b = a + 1; b < liste.length; b++) {
+      if (stufe(liste[a]) <= stufe(liste[b])) continue;
+      const ma = direkt(liste[a]);
+      if ([...direkt(liste[b])].some((m) => ma.has(m))) return [a, b];
+    }
+  }
+  return null;
+}
+
 function ruestOrder(items) {
-  const platz = new Map();
   const geladen = [];
   items.forEach((it, i) => {
     const s = setupOf(it.id, workingWeight(it.id));
-    if (!s) return;
-    if (!platz.has(s.fam)) platz.set(s.fam, i);
-    geladen.push({ it, s, i });
+    if (s) geladen.push({ it, s, i });
   });
   if (geladen.length < 3) return items;   // darunter gibt es nichts zu gewinnen
-  const sortiert = geladen.slice().sort((a, b) => (
-    platz.get(a.s.fam) - platz.get(b.s.fam) || b.s.kg - a.s.kg || a.i - b.i));
-  const out = items.slice();
-  geladen.forEach((g, k) => { out[g.i] = sortiert[k].it; });
+
+  // `fest` sind Übungen, die auf ihrem Platz bleiben müssen. Anfangs keine;
+  // wer eine Grundübung überholt hat, kommt dazu und wird neu sortiert.
+  const fest = new Set();
+  const bauen = () => {
+    const platz = new Map();
+    const key = (g) => (fest.has(g.i) ? `#${g.i}` : g.s.fam);
+    geladen.forEach((g) => { if (!platz.has(key(g))) platz.set(key(g), g.i); });
+    const sortiert = geladen.slice().sort((a, b) => (
+      platz.get(key(a)) - platz.get(key(b)) || b.s.kg - a.s.kg || a.i - b.i));
+    const out = items.slice();
+    geladen.forEach((g, k) => { out[g.i] = sortiert[k].it; });
+    return out;
+  };
+
+  // Höchstens so viele Durchgänge, wie es Übungen gibt: Jeder setzt eine fest,
+  // und mit allen festgesetzten steht wieder die Reihenfolge des Plans da.
+  let out = bauen();
+  for (let runde = 0; runde < geladen.length; runde++) {
+    const paar = vorgezogen(out);
+    if (!paar) break;
+    // Festsetzen lässt sich nur, was überhaupt verschoben wurde. Drei Fälle,
+    // in dieser Reihenfolge:
+    //   1. die kleine Übung ist nach vorn gerutscht – sie bleibt stehen;
+    //   2. sie stand schon immer da (Beinbeuger ohne Gewicht), und die schwere
+    //      wurde nach hinten geschoben: dann bleibt das stehen, was ihren
+    //      Platz eingenommen hat;
+    //   3. sonst die schwere Übung selbst.
+    const schwer = geladen.find((x) => x.it === out[paar[1]]);
+    const kandidaten = [out[paar[0]], schwer ? out[schwer.i] : null, out[paar[1]]];
+    const g = kandidaten.reduce((gefunden, it) => gefunden
+      || (it ? geladen.find((x) => x.it === it && !fest.has(x.i)) : null), null);
+    if (!g) break;
+    fest.add(g.i);
+    out = bauen();
+  }
   return out;
 }
 

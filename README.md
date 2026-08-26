@@ -526,9 +526,11 @@ sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
 ## Wochenvolumen je Muskelgruppe
 
 Das Ziel ist **nicht überall dieselbe Zahl**. Es steht als `TARGET` in
-`tools/build-plan.py`, wird über den ganzen Plan im Schnitt **exakt** getroffen
-und keine Gruppe geht über die Obergrenze `CAP` von 10 Sätzen pro Woche,
-indirekte Anteile eingerechnet.
+`tools/build-plan.py`, wird über den ganzen Plan im Schnitt **exakt** getroffen,
+und keine Gruppe geht **im Schnitt** über die Obergrenze `CAP` von 10 Sätzen pro
+Woche, indirekte Anteile eingerechnet. Im Schnitt, nicht in jeder einzelnen
+Woche: `capped()` prüft die Plansumme gegen `CAP · Wochen`. Was die einzelne
+Woche ausschlägt, steht in der Spalte daneben – bis 12,0 bei Brust und Rücken.
 
 **Vier Einheiten pro Woche**, feste Wochentage: **Montag, Mittwoch, Freitag,
 Samstag**. Die stehen als `DAYS` in `tools/build-plan.py` – vorher ergaben sie
@@ -1317,6 +1319,18 @@ dritten angenommenen Steigerungsvorschlag nicht mehr.
 Übungen ohne Aufbau – Klimmzüge, Band, Bodyweight – behalten ihren Platz. Sie
 kosten nichts, also darf zwischen zwei Langhantelübungen ruhig ein Satz
 Pull-Apart liegen; die Stange bleibt ja geladen.
+
+**Eine Grenze hat das Sortieren.** Am fertigen Plan nachgemessen zog es in 9 von
+84 Einheiten eine kleine Übung vor eine schwere am selben Muskel – achtmal den
+Trizepsstrecker vor die gewichteten Liegestütze, dazu viermal einen Beinbeuger
+vor Kniebeuge oder Kreuzheben. Beides ist Vorermüdung: Die Grundübung endet
+dann am kleinen Muskel statt am großen, und genau dafür ist sie nicht da.
+`ruestOrder()` prüft das Ergebnis deshalb und setzt die Übung fest, die
+überholt hat; danach wird neu sortiert, bis nichts mehr überholt. Die Ersparnis
+bleibt dabei stehen – 304 Rüstvorgänge über den Plan, genau wie ohne die Regel,
+gegen 312 in der reinen Plan-Reihenfolge. Der Maßstab ist `tier` aus
+`exercise-meta.json` und "beide treffen denselben Muskel direkt" (Anteil ab
+0,5); der Beinbeuger vor dem Drücken bleibt also erlaubt.
 
 Am Plan nachgerechnet, mit den Startgewichten und einem einfachen Maß – wie viele
 Kilo in einer Einheit von einer Stange auf die andere wandern:

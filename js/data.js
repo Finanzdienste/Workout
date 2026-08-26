@@ -8,6 +8,7 @@ export const EXERCISES = [
     "step": 2.5,
     "weightNote": "eine Hantel",
     "equip": "goblet",
+    "tier": 1,
     "detail": [
       [
         "Wie du die Hantel hältst",
@@ -74,6 +75,7 @@ export const EXERCISES = [
     "step": null,
     "weightNote": null,
     "equip": null,
+    "tier": 2,
     "detail": [
       [
         "Untergrund",
@@ -140,6 +142,7 @@ export const EXERCISES = [
     "step": 1,
     "weightNote": "im Rucksack",
     "equip": "backpack",
+    "tier": 1,
     "detail": [
       [
         "Rucksack richtig packen",
@@ -202,6 +205,7 @@ export const EXERCISES = [
     "step": 1,
     "weightNote": "im Rucksack",
     "equip": "backpack",
+    "tier": 1,
     "detail": [
       [
         "Griff",
@@ -268,6 +272,7 @@ export const EXERCISES = [
     "step": 1,
     "weightNote": "je Hand",
     "equip": "dumbbells",
+    "tier": 3,
     "detail": [
       [
         "Warum sitzend",
@@ -326,6 +331,7 @@ export const EXERCISES = [
     "step": 1,
     "weightNote": "je Hand",
     "equip": "dumbbells",
+    "tier": 3,
     "detail": [
       [
         "Warum über Kopf",
@@ -380,6 +386,7 @@ export const EXERCISES = [
     "step": 2,
     "weightNote": "eine Hantel",
     "equip": "onehand",
+    "tier": 4,
     "detail": [
       [
         "Die Dehnung unten zählt",
@@ -430,6 +437,7 @@ export const EXERCISES = [
     "step": 2,
     "weightNote": "eine Hantel",
     "equip": "onehand",
+    "tier": 4,
     "detail": [
       [
         "Warum gebeugt",
@@ -476,6 +484,7 @@ export const EXERCISES = [
     "step": 2.5,
     "weightNote": "eine Hantel",
     "equip": "goblet",
+    "tier": 1,
     "detail": [
       [
         "Womit erhöhen",
@@ -534,6 +543,7 @@ export const EXERCISES = [
     "step": 2.5,
     "weightNote": "Stange gesamt",
     "equip": "barbell",
+    "tier": 3,
     "detail": [
       [
         "Warum die SZ-Stange",
@@ -584,6 +594,7 @@ export const EXERCISES = [
     "step": 1.25,
     "weightNote": "auf der Brust",
     "equip": "plate",
+    "tier": 4,
     "detail": [
       [
         "Wohin das Gewicht",
@@ -634,6 +645,7 @@ export const EXERCISES = [
     "step": null,
     "weightNote": null,
     "equip": null,
+    "tier": 2,
     "detail": [
       [
         "Aufteilen, wenn es zu schwer ist",
@@ -692,6 +704,7 @@ export const EXERCISES = [
     "step": null,
     "weightNote": null,
     "equip": null,
+    "tier": 1,
     "detail": [
       [
         "Wie hoch",
@@ -750,6 +763,7 @@ export const EXERCISES = [
     "step": 5,
     "weightNote": "Stange gesamt",
     "equip": "barbell",
+    "tier": 1,
     "detail": [
       [
         "Griff",
@@ -816,6 +830,7 @@ export const EXERCISES = [
     "step": 5,
     "weightNote": "Stange gesamt",
     "equip": "barbell",
+    "tier": 1,
     "detail": [
       [
         "Griff",
@@ -882,6 +897,7 @@ export const EXERCISES = [
     "step": 5,
     "weightNote": "Stange gesamt",
     "equip": "hipbar",
+    "tier": 1,
     "detail": [
       [
         "Aufbau",
@@ -940,6 +956,7 @@ export const EXERCISES = [
     "step": 1,
     "weightNote": "je Hand",
     "equip": "dumbbells",
+    "tier": 3,
     "detail": [
       [
         "Leicht ist hier richtig",
@@ -994,6 +1011,7 @@ export const EXERCISES = [
     "step": 1,
     "weightNote": "im Rucksack",
     "equip": "backpack",
+    "tier": 1,
     "detail": [
       [
         "Griff",
@@ -1056,6 +1074,7 @@ export const EXERCISES = [
     "step": null,
     "weightNote": null,
     "equip": "band",
+    "tier": 3,
     "detail": [
       [
         "Widerstand am richtigen Ort",
@@ -1110,6 +1129,7 @@ export const EXERCISES = [
     "step": 2,
     "weightNote": "je Hand",
     "equip": "dumbbells",
+    "tier": 1,
     "detail": [
       [
         "Wo die Hanteln starten",
@@ -1172,6 +1192,7 @@ export const EXERCISES = [
     "step": 5,
     "weightNote": "Stange gesamt",
     "equip": "barbell",
+    "tier": 1,
     "detail": [
       [
         "Griff: Obergriff, beide Hände gleich",
@@ -1238,6 +1259,7 @@ export const EXERCISES = [
     "step": 2,
     "weightNote": "je Hand",
     "equip": "dumbbells",
+    "tier": 1,
     "detail": [
       [
         "Stand",
@@ -1304,6 +1326,7 @@ export const EXERCISES = [
     "step": null,
     "weightNote": null,
     "equip": null,
+    "tier": 3,
     "detail": [
       [
         "Schultern aktiv",
@@ -1354,6 +1377,7 @@ export const EXERCISES = [
     "step": null,
     "weightNote": null,
     "equip": "band",
+    "tier": 3,
     "detail": [
       [
         "Wozu",
