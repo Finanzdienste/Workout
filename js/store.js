@@ -499,6 +499,29 @@ export function restartPlan(shiftDays) {
   emit();
 }
 
+/**
+ * Den zuletzt abgelegten Verlauf zurückholen.
+ *
+ * `restartPlan` ist die einzige Stelle, an der ein Protokoll verschwindet – und
+ * sie hängt an einer einzigen Rückfrage, die man auch aus Versehen wegklickt
+ * (der Wechsel des Trainingsfokus geht denselben Weg). Ohne Rückweg wäre das
+ * eine Falltür.
+ *
+ * Zusammengeführt wird pro Einheit: Was seit dem Neustart abgehakt wurde, bleibt
+ * stehen; alles andere kommt zurück.
+ */
+export function restoreRound() {
+  const runde = (state.rounds || []).pop();
+  if (!runde) return false;
+  const zurueck = runde.log || {};
+  Object.keys(zurueck).forEach((n) => {
+    if (!state.log[n]) state.log[n] = zurueck[n];
+  });
+  persist();
+  emit();
+  return true;
+}
+
 /** Hält fest, dass eine Kalenderdatei erzeugt wurde, und zählt SEQUENCE hoch. */
 export function markIcs(count = 0) {
   const seq = (state.lastIcs && state.lastIcs.seq) || 0;

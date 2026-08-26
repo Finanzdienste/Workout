@@ -1534,6 +1534,11 @@ die **Gewichte bleiben stehen** – Runde zwei startet also auf dem erreichten
 Stand. Workout 1 rückt auf heute, sonst würde die Nachrück-Automatik den
 halben Plan verschieben, weil das Originaldatum längst vorbei ist.
 
+Daneben steht *Verlauf zurückholen*, sobald etwas in der Ablage liegt. Es ist
+der Rückweg aus genau einer Falltür: Neustart und Fokuswechsel hängen an einer
+einzigen Rückfrage, und die klickt man auch mal weg. Zusammengeführt wird pro
+Einheit – was seit dem Neustart abgehakt wurde, bleibt stehen.
+
 ## Zurück-Taste
 
 Auf Android verließ die Zurück-Taste sonst gleich die ganze App, auch aus der
@@ -1705,7 +1710,8 @@ die Datei beim Laden selbst aus dem Speicher (`focus`) – so meinen `PLAN`,
 kennen. Ein Wechsel lädt die Seite neu: Der Plan steckt in Hunderten von Zeilen,
 und ein Tausch mitten im Betrieb hieße, dass die halbe App noch mit dem alten
 rechnet. Wer mittendrin wechselt, wird gefragt – der bisherige Verlauf wandert
-in die Ablage, die erreichten Gewichte bleiben.
+in die Ablage, die erreichten Gewichte bleiben. Zurück geht es über *Mehr → Plan
+neu starten → Verlauf zurückholen*.
 
 ### Erfahrung: dieselben Übungen, andere Startgewichte
 

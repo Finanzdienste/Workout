@@ -1449,7 +1449,10 @@ function standZeile() {
 function meldeStand(sofort = false) {
   if (!meldetMit()) return;
   const s = store.getState();
-  if (!sofort && s.lastShare && s.lastShare.on === todayISO()) return;
+  // Einmal am Tag – aber nur, wenn es auch geklappt hat. Ein Fehlversuch am
+  // Morgen sperrte den Rest des Tages: Wer den Server repariert, sah bis zum
+  // nächsten Tag nichts davon.
+  if (!sofort && s.lastShare && s.lastShare.on === todayISO() && s.lastShare.ok) return;
   if (!s.deviceId) store.setSetting('deviceId', geraeteId(null));
   melden(standZeile()).then(({ ok, msg }) => {
     store.setSetting('lastShare', { on: todayISO(), ok, msg: ok ? '' : msg });
@@ -3283,7 +3286,13 @@ function renderSettings() {
           ? ` Bisher ${esc(plural(store.getState().rounds.length, 'Runde', 'Runden'))} abgeschlossen.` : ''}</div>
       <div class="btn-row">
         <button type="button" class="btn" data-act="restart-plan">Von vorn beginnen</button>
+        ${store.getState().rounds.length ? `
+        <button type="button" class="btn" data-act="restore-round">Verlauf zurückholen</button>` : ''}
       </div>
+      ${store.getState().rounds.length ? `
+      <div class="small muted">Zurückholen legt den letzten abgelegten Verlauf wieder auf den
+        Plan – für den Fall, dass der Neustart oder ein Wechsel des Trainingsfokus nicht
+        gewollt war. Was du seitdem abgehakt hast, bleibt stehen.</div>` : ''}
     </div>
 
     <div class="section-title">Kalender</div>
@@ -3671,6 +3680,17 @@ view.addEventListener('click', (e) => {
       ui.openEx.clear();
       render();
       toast('Neue Runde – viel Erfolg 💪');
+      break;
+    }
+    case 'restore-round': {
+      const ok = store.restoreRound();
+      // Der Verlauf steht wieder auf dem Plan; die Termine richten sich danach,
+      // also gleich zur Startansicht zurück.
+      ui.focus = false;
+      ui.listView = false;
+      render();
+      toast(ok ? 'Verlauf ist zurück' : 'Da liegt nichts in der Ablage');
+      if (ok) meldeStand(true);
       break;
     }
     case 'backup-now':
