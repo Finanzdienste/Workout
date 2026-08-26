@@ -2880,6 +2880,9 @@ const FOKUS_TEXT = {
   beine: 'Wie Ausgewogen, aber die Beine stehen nicht mehr auf Erhalt: Oberschenkel, Gesäß und '
     + 'beide Seiten des Beinbeugers bekommen ein eigenes Ziel. Der Oberkörper bleibt, wie er '
     + 'ist – die Einheiten werden dadurch etwas länger.',
+  cut: 'Für Wochen im Kaloriendefizit: dieselben Übungen mit denselben Gewichten, nur weniger '
+    + 'Sätze. Im Defizit hält die Last die Muskeln, nicht das Volumen – und jede Gruppe kommt '
+    + 'weiter zweimal die Woche dran.',
 };
 
 /* Wie lange ein Satz selbst dauert – acht bis zwölf Wiederholungen mit

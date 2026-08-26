@@ -170,6 +170,32 @@ VARIANTEN = {
         },
         'cap': 13,
     },
+    # Weniger Volumen, gleiche Abdeckung – für Wochen im Kaloriendefizit.
+    #
+    # Im Defizit wird nicht aufgebaut, sondern gehalten, und gehalten wird über
+    # die *Last*, nicht über das Volumen: Dieselben Gewichte weiter bewegen ist
+    # der Hebel, zusätzliche Sätze kosten vor allem Erholung, die im Defizit
+    # ohnehin knapp ist.
+    #
+    # Der Unterschied zu "Kurz und knapp" ist der entscheidende: Dort wurde
+    # überall gekürzt, bis mehrere Gruppen bei einem Auftritt pro Woche landeten
+    # (die Hüftstreckung bei 0,4 mit bis zu 30 Tagen Abstand, Hip Thrust fiel
+    # ganz heraus). Hier bleibt die Frequenz stehen und nur die Satzzahl sinkt –
+    # deshalb liegt kein Ziel unter 6: Bei drei Sätzen je Auftritt sind 6 genau
+    # zwei Auftritte pro Woche, und darunter fällt eine Gruppe auf einen.
+    #
+    # Die Beine stehen im ausgewogenen Plan schon auf Erhalt; sie noch weiter zu
+    # senken hieße, unter den Erhalt zu gehen. Sie bleiben deshalb, wo sie sind.
+    'cut': {
+        'name': 'Cut',
+        'ziele': {
+            'chest': 7, 'lats': 7, 'sideDelts': 7, 'rearDelts': 6,
+            'biceps': 7, 'triceps': 7, 'abs': 6,
+            'frontDelts': None, 'traps': None, 'hamstringsHip': None,
+            'glutes': 7, 'quads': 6, 'hamstringsKnee': 3, 'calves': 6,
+        },
+        'cap': 10,
+    },
     # Beine mit eigenem Ziel statt auf Erhalt.
     #
     # Der Oberschenkel ist die größte Muskelgruppe des Körpers und steht im
