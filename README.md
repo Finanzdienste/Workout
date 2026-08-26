@@ -1579,10 +1579,19 @@ die **Gewichte bleiben stehen** – Runde zwei startet also auf dem erreichten
 Stand. Workout 1 rückt auf heute, sonst würde die Nachrück-Automatik den
 halben Plan verschieben, weil das Originaldatum längst vorbei ist.
 
-Daneben steht *Verlauf zurückholen*, sobald etwas in der Ablage liegt. Es ist
-der Rückweg aus genau einer Falltür: Neustart und Fokuswechsel hängen an einer
-einzigen Rückfrage, und die klickt man auch mal weg. Zusammengeführt wird pro
-Einheit – was seit dem Neustart abgehakt wurde, bleibt stehen.
+Daneben steht *Verlauf zurückholen*, sobald etwas Passendes in der Ablage liegt.
+Es ist der Rückweg aus genau einer Falltür: Neustart und Fokuswechsel hängen an
+einer einzigen Rückfrage, und die klickt man auch mal weg. Zusammengeführt wird
+pro Einheit – was seit dem Neustart abgehakt wurde, bleibt stehen.
+
+**Passend heißt: aus demselben Trainingsfokus.** Ein Protokoll ist nach
+Workout-Nummer abgelegt, die Übungen dahinter stehen aber im Plan – Workout 3 im
+Beinplan ist ein anderes als Workout 3 im ausgewogenen. Ein Verlauf aus einem
+anderen Fokus markierte also Einheiten als erledigt, die nie jemand gemacht hat.
+`restartPlan()` vermerkt deshalb den Fokus am abgelegten Verlauf, und
+`restorable()` gibt nur zurück, was in den heutigen Plan gehört; sonst steht in
+den Einstellungen, warum der Knopf fehlt. Verläufe ohne Vermerk stammen aus
+einer Fassung, die nur einen Plan kannte, und gelten als passend.
 
 ## Zurück-Taste
 

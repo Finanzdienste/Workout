@@ -491,7 +491,11 @@ export function markBackup(done) {
  */
 export function restartPlan(shiftDays) {
   if (Object.keys(state.log).length) {
-    state.rounds.push({ finishedOn: todayISO(), log: state.log });
+    // Der Fokus gehört dazu: Ein Protokoll ist nach Workout-Nummer abgelegt,
+    // und Workout 3 im Beinplan hat andere Übungen als Workout 3 im
+    // ausgewogenen. Ohne diesen Vermerk ließe sich ein Verlauf in einen Plan
+    // zurückholen, in den er nicht gehört.
+    state.rounds.push({ finishedOn: todayISO(), log: state.log, focus: state.focus });
   }
   state.log = {};
   state.session = null;
@@ -512,10 +516,13 @@ export function restartPlan(shiftDays) {
  *
  * Zusammengeführt wird pro Einheit: Was seit dem Neustart abgehakt wurde, bleibt
  * stehen; alles andere kommt zurück.
+ *
+ * Nur aus demselben Trainingsfokus: siehe restoreRound() weiter unten.
  */
 export function restoreRound() {
-  const runde = (state.rounds || []).pop();
+  const runde = restorable();
   if (!runde) return false;
+  state.rounds = state.rounds.filter((r) => r !== runde);
   const zurueck = runde.log || {};
   Object.keys(zurueck).forEach((n) => {
     if (!state.log[n]) state.log[n] = zurueck[n];
@@ -523,6 +530,23 @@ export function restoreRound() {
   persist();
   emit();
   return true;
+}
+
+/**
+ * Der zuletzt abgelegte Verlauf, der in den heutigen Plan gehört – oder null.
+ *
+ * Ein Protokoll ist nach Workout-Nummer abgelegt, die Übungen dahinter stehen
+ * aber im Plan. Aus einem anderen Fokus zurückgeholt, markierte es Einheiten
+ * als erledigt, die jemand nie gemacht hat. Verläufe ohne Vermerk stammen aus
+ * einer Fassung, die nur einen Plan kannte, und gelten deshalb als passend.
+ */
+export function restorable() {
+  const liste = state.rounds || [];
+  for (let i = liste.length - 1; i >= 0; i--) {
+    const r = liste[i];
+    if (!r.focus || r.focus === (state.focus || 'standard')) return r;
+  }
+  return null;
 }
 
 /** Hält fest, dass eine Kalenderdatei erzeugt wurde, und zählt SEQUENCE hoch. */

@@ -3431,13 +3431,17 @@ function renderSettings() {
           ? ` Bisher ${esc(plural(store.getState().rounds.length, 'Runde', 'Runden'))} abgeschlossen.` : ''}</div>
       <div class="btn-row">
         <button type="button" class="btn" data-act="restart-plan">Von vorn beginnen</button>
-        ${store.getState().rounds.length ? `
+        ${store.restorable() ? `
         <button type="button" class="btn" data-act="restore-round">Verlauf zurückholen</button>` : ''}
       </div>
-      ${store.getState().rounds.length ? `
+      ${store.restorable() ? `
       <div class="small muted">Zurückholen legt den letzten abgelegten Verlauf wieder auf den
         Plan – für den Fall, dass der Neustart oder ein Wechsel des Trainingsfokus nicht
-        gewollt war. Was du seitdem abgehakt hast, bleibt stehen.</div>` : ''}
+        gewollt war. Was du seitdem abgehakt hast, bleibt stehen.</div>`
+      : (store.getState().rounds.length ? `
+      <div class="small muted">In der Ablage liegt ein Verlauf, aber aus einem anderen
+        Trainingsfokus – er passt nicht auf diesen Plan. Wechsle zurück, um ihn zu
+        holen; im Export steht er weiterhin drin.</div>` : '')}
     </div>
 
     <div class="section-title">Kalender</div>
@@ -4112,8 +4116,10 @@ view.addEventListener('click', (e) => {
       const laeuft = Object.keys(store.getState().log).length && store.getState().greeted;
       if (laeuft && !confirm(`Auf "${PLANS[key].name}" wechseln? Der bisherige Verlauf wandert `
         + 'in die Ablage und bleibt im Export erhalten, die erreichten Gewichte bleiben stehen.')) break;
-      store.setSetting('focus', key);
+      // Reihenfolge: erst ablegen, dann umschalten. restartPlan() vermerkt den
+      // Fokus am Verlauf, und das muss der sein, aus dem er stammt.
       if (laeuft) store.restartPlan(0);
+      store.setSetting('focus', key);
       // Der Plan steckt beim Laden in Hunderten von Zeilen; ein Wechsel mitten
       // im Betrieb hieße, dass die halbe App noch mit dem alten rechnet.
       if (store.getState().greeted) location.reload();
