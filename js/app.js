@@ -2940,12 +2940,25 @@ const FOKUS_TEXT = {
     + 'ist – die Einheiten werden dadurch etwas länger.',
 };
 
+/* Wie lange ein Satz selbst dauert – acht bis zwölf Wiederholungen mit
+ * Aufstellen. Grob, aber die Pausen daneben sind der viel größere Posten. */
+const ARBEIT_JE_SATZ = 40;
+
 /** Eine Zeile Zahlen zu einer Variante: Einheiten, Sätze, geschätzte Dauer. */
 function fokusZeile(v) {
   const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + x.sets, 0), 0);
   const proEinheit = saetze / v.plan.length;
-  // Grobe Schätzung: ein Satz kostet mit Pause etwa zweieinhalb Minuten.
-  const min = Math.round((proEinheit * 2.5) / 5) * 5;
+  // Mit den echten Pausen rechnen, nicht mit einem Mittelwert für alle: Ein Satz
+  // Chin-ups kostet 180 s Pause, einer Wadenheben 90. Pauschal zweieinhalb
+  // Minuten je Satz unterschätzte deshalb genau die Varianten mit vielen
+  // Grundübungen – und nach dieser Zahl wird die Variante ausgesucht.
+  const sekunden = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => {
+    const ex = EX_BY_ID.get(x.id);
+    const pause = (ex && ex.db && ex.db.rest) || 120;
+    // Arbeit plus Pause nach jedem Satz; die letzte Pause der Einheit fällt weg.
+    return b + x.sets * (ARBEIT_JE_SATZ + pause);
+  }, 0) - ((w.ex.length && EX_BY_ID.get(w.ex[w.ex.length - 1].id).db.rest) || 0), 0);
+  const min = Math.round((sekunden / v.plan.length / 60) / 5) * 5;
   return `${v.plan.length} Einheiten · ${proEinheit.toFixed(1)} Sätze je Einheit · ca. ${min} min`;
 }
 

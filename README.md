@@ -561,6 +561,37 @@ die schlimmste Woche 25 % daneben – gemessen am Ziel der Gruppe, nicht in
 Sätzen. Die Gruppen ohne Ziel dürfen weiter ausschlagen: Sie haben keins, das
 die Verteilung optimieren könnte.
 
+### Der Bodyweight-Modus trifft dieselben Ziele nicht ganz
+
+Gerechnet wird mit den **Hantel-Anteilen**. Dieselbe Übung trifft ohne Zusatzlast
+aber teils andere Muskeln: Der Goblet Squat hält den Bauch mit 0,35, seine
+Bodyweight-Fassung mit 0,20; das rumänische Kreuzheben umgekehrt mit 0,20 gegen
+0,30; der Floor Press gibt 0,70 Trizeps ab, die Liegestütz-Fassung 0,60. Eine
+Satzzahl kann nicht beide Gleichungssysteme exakt treffen – „exakt" gilt für die
+Hantel-Fassung.
+
+Was übrig bleibt, steht seit `bw_fehler()` in jedem Lauf im Bericht:
+
+| Variante | größte Abweichung im Bodyweight-Modus |
+| --- | --- |
+| Ausgewogen | Bauch −0,59 · Trizeps −0,39 Sätze/Woche |
+| Bauch, Beine, Po | Bauch −1,27 · Trizeps −0,16 |
+| Oberkörper | Trizeps −0,60 · Bauch −0,45 |
+| Kurz und knapp | Bauch −0,68 · Trizeps −0,25 |
+| Beine ernst gemeint | Bauch −1,09 · Trizeps −0,39 |
+
+**Wegwählen lässt sich das nicht.** Nachgemessen an den 4000 exakten Lösungen je
+Block: Im großen Oberkörper-Block haben *alle* 50 gescreenten denselben Wert
+(0,149); der beste unter allen 4000 läge bei 0,010 und erkauft ihn mit einer
+Streuung von 7624 statt 6019. Im zweiten Block dasselbe Bild – 0,196 statt 0,270
+wäre möglich, mit fast doppelter Streuung. Der Rest ist strukturell, nicht die
+Folge einer schlechten Satzwahl.
+
+Das Kriterium steht trotzdem in der Bewertung, ganz hinten vor `balance()`: Es
+kostet nichts und würde greifen, sobald sich Ziele oder Anteile ändern. Zum
+Zeitpunkt dieser Zeilen entscheidet es in keiner der fünf Varianten etwas – alle
+fünf sind mit und ohne das Kriterium Einheit für Einheit dieselben.
+
 **Warum nicht überall dieselbe Zahl.** Der Unterkörper steht auf Erhalt
 (Oberschenkel, Waden 6, Gesäß 9), der Oberkörper trägt den Rest: Ein Sechstel
 aller Sätze für die Waden aufzuwenden wäre eine Entscheidung, keine
@@ -1712,6 +1743,55 @@ gruppierte Geräte. Es ändert sich nichts an der Sorgfalt, nur an der Betonung.
 | `bbp` – Bauch, Beine, Po | Gesäß 15, Beine 12, Bauch 12 Sätze/Woche; Oberkörper reduziert |
 | `oberkoerper` – Oberkörper | Brust, Rücken, Schultern, Arme je 12; Beine ein Auftritt/Woche |
 | `kurz` – Kurz und knapp | dieselben Übungen, überall weniger Sätze – kürzere Einheiten |
+| `beine` – Beine ernst gemeint | wie Ausgewogen, aber Beine mit eigenem Ziel statt auf Erhalt |
+
+### Warum es „Beine ernst gemeint" gibt
+
+Der Oberschenkel ist die größte Muskelgruppe des Körpers und steht im
+ausgewogenen Plan bei **6 Sätzen** – das hält, was da ist, mehr nicht. Das war
+eine Entscheidung, keine Trainingslehre, und die Variante nimmt sie zurück,
+ohne den Oberkörper anzufassen.
+
+Nur die Zahl hochzusetzen genügt nicht. Ein Probelauf mit Oberschenkel 12 bei
+sonst unveränderten Zielen ergab einen **schlechteren** Plan: Hip Thrust und
+rumänisches Kreuzheben fielen komplett heraus (0 Sätze), die Hüftstreckung fiel
+von 5,1 auf 2,4 Sätze pro Woche. Jede Kniebeuge zahlt mit 0,55 auf das Gesäß
+ein – bleibt dessen Ziel bei 9, ist das Budget allein mit Kniebeugen
+aufgebraucht, und für die Hüftstreckung ist nichts mehr übrig. Ein Beinplan
+ohne Hüftstreckung ist keiner.
+
+Ein zweiter Lauf mit Gesäß 12 und einem eigenen Ziel für die Hüftstreckung lief
+in die nächste Falle: **Bauch nur noch 1×/Woche** mit bis zu zwölf Tagen
+Abstand. Beim Bauch steckt der größere Teil des Ziels in indirekten Anteilen,
+und jede zusätzliche Kniebeuge erhöht die – von 9 Sätzen blieben 3,1 direkte
+übrig, alle an einem Tag. Dieselbe Falle, wegen der die 9 einmal aus der 5
+entstanden ist.
+
+Der Zielsatz, der stehen blieb:
+
+| Gruppe | Ausgewogen | Beine ernst gemeint |
+| --- | --- | --- |
+| Oberschenkel | 6 | **10** |
+| Gesäß | 9 | **12** |
+| Beinbeuger Hüfte | *Ergebnis* (5,1) | **7** (eigenes Ziel) |
+| Beinbeuger Knie | 3 | **6** |
+| Bauch | 9 | **12** (hält die direkten Sätze bei sechs) |
+| Oberkörper | unverändert | unverändert |
+
+Was das kostet, gemessen am fertigen Plan:
+
+| | Ausgewogen | Beine ernst gemeint |
+| --- | --- | --- |
+| Sätze je Woche | 69 | 76 |
+| Sätze je Einheit | 15–18 (Ø 17,2) | 15–21 (Ø 19,0) |
+| geschätzte Dauer | 40–57 min (Ø 51) | 48–66 min (Ø 56) |
+| Bauch: Frequenz / größte Lücke | 2,0× / 9 Tage | 2,0× / 5 Tage |
+| Beinbeuger Knie: Frequenz / Lücke | 1,0× / 11 Tage | 2,0× / 7 Tage |
+| Erholungsverstöße | 0 | 0 |
+| Übungen im Plan | 24 von 24 | 24 von 24 |
+
+Fünf Minuten mehr je Einheit für doppelte Beinarbeit – und der Bauch kommt
+sogar regelmäßiger dran als vorher.
 
 `cap` steht je Variante dabei, weil die Obergrenze in Wahrheit nur den Nacken
 bindet: Wer Rücken und hintere Schulter hochzieht, treibt ihn mit hoch, und eine
