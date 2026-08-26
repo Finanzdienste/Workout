@@ -39,8 +39,6 @@ const SOUNDS = {
   done: [[523.25, 0, 0.14], [659.25, 0.13, 0.14], [783.99, 0.26, 0.14], [1046.5, 0.39, 0.55]],
   // Training beendet oder abgebrochen – absteigend, ohne Feierlichkeit.
   stop: [[587.33, 0, 0.16], [440, 0.14, 0.34]],
-  // Gewicht erhöht.
-  bump: [[783.99, 0, 0.09], [1174.66, 0.09, 0.22]],
 };
 
 let ctx = null;

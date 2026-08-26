@@ -491,56 +491,16 @@ function ruestHint(n, mode, list, i) {
 }
 
 /**
- * Vorschlag, das Gewicht zu erhöhen – doppelte Progression ohne Eingabe.
- *
- * Bedingung: die letzten beiden Male wurde diese Übung mit genau diesem
- * Gewicht komplett durchgezogen. Dann ist sie kein Reiz mehr. Gezählt werden
- * nur die Hantel-Variante und nur Einheiten, in denen wirklich alle Sätze
- * stehen – ein abgebrochenes Workout ist kein Beweis.
- *
- * Bewusst nur ein Vorschlag: ob der Satz sauber war, weiß die App nicht.
- */
-/**
  * Wie viel eine Steigerung ausmacht, steht je Übung in exercise-meta.json.
  *
  * Fest 2,5 kg war für den Goblet Squat richtig (20 → 22,5, also ein Achtel
  * mehr) und für das Seitheben Unsinn: 6 → 8,5 kg je Hand sind über vierzig
- * Prozent auf einmal. Der Vorschlag empfahl damit regelmäßig etwas, das
- * niemand schafft.
+ * Prozent auf einmal. Die Schrittweite der Knöpfe hängt deshalb an der Übung.
  */
 const stepOf = (exId) => {
   const ex = EX_BY_ID.get(exId);
   return (ex && ex.step) || 2.5;
 };
-const BUMP_NEEDED = 2;
-
-function bumpHint(exId) {
-  const ex = EX_BY_ID.get(exId);
-  if (!ex || ex.weight === null) return null;
-  const current = workingWeight(exId);
-
-  let streak = 0;
-  for (let i = PLAN.length - 1; i >= 0; i--) {
-    const w = PLAN[i];
-    const item = exOf(w).find((x) => x.id === exId);
-    if (!item) continue;
-    const sets = store.peekSets(w.n, 'db', exId);
-    // Leere Sätze zählen nicht als Lücke. getSets() legt sie schon beim
-    // *Ansehen* einer Einheit an – wer einmal mit "Nächstes →" nach vorn
-    // blättert, hinterlässt dort drei leere Sätze. Ohne diese Zeile bricht die
-    // Suche an genau dieser künftigen Einheit ab und der Vorschlag kam für die
-    // Übungen darin nie wieder.
-    if (!sets || !sets.some((x) => x.done || x.w !== '')) continue;
-    const complete = sets.length >= item.sets && sets.slice(0, item.sets).every((x) => x.done);
-    if (!complete) break;                       // Lücke beendet die Serie
-    const used = parseFloat(String(sets[0].w).replace(',', '.'));
-    if (!(Math.abs(used - current) < 0.01)) break;   // anderes Gewicht: Serie neu
-    streak += 1;
-    if (streak >= BUMP_NEEDED) return { from: current, to: current + stepOf(exId), streak };
-  }
-  return null;
-}
-
 /**
  * Sicherung als Datei. Alles liegt nur im Speicher dieses Browsers – Android
  * räumt den bei Platzmangel weg, und "Websitedaten löschen" reicht ebenfalls.
@@ -634,16 +594,6 @@ function sessionButtons(n, mode) {
         ✓ Abschließen${prog.done ? ` (${prog.done}/${prog.total})` : ''}
       </button>
     </div>`;
-}
-
-/** Knopf, der den Vorschlag annimmt – oder nichts, wenn keiner ansteht. */
-function bumpChip(exId, mode) {
-  if (mode !== 'db') return '';
-  const hint = bumpHint(exId);
-  if (!hint) return '';
-  return `<button type="button" class="kg-bump" data-act="accept-bump" data-ex="${exId}" data-kg="${hint.to}">
-      ${hint.streak}× alles geschafft · auf ${esc(fmtNum(hint.to))} kg?
-    </button>`;
 }
 
 /** Zahl in deutscher Schreibweise, ohne unnötige Null hinter dem Komma.
@@ -1073,7 +1023,7 @@ function renderFocus() {
     <h2 class="focus-name">${esc(it.name)}</h2>
     <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
 
-    ${kg === null ? bandRow(it) : `
+    ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
       ${ruestHint(n, mode, w.ex, i)}
       <div class="ex-weight focus-weight">
         <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
@@ -1086,7 +1036,7 @@ function renderFocus() {
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
                 aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
-      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : bumpChip(it.id, mode)}`}
+      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}`}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -1722,17 +1672,8 @@ function renderDashboard() {
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
                 aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
-      ${anders ? `<div class="kg-next">${esc(anders)}</div>` : bumpChip(it.id, mode)}`;
+      ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}`;
 
-    // Im Bodyweight-Modus gibt es kein Gewicht – dort ist die Steigerung die
-    // Wiederholungszahl. Den *neuen* Bereich zeigen, nicht den alten mit einem
-    // Plus dahinter – sonst muss man beim Lesen selbst rechnen.
-    const bwZiel = String(it.reps).replace(/\d+/g, (d) => String(Number(d) + store.bwPlusOf(it.id) + 2));
-    const bwChip = mode === 'bw' && bwBump(it.id)
-      ? `<button type="button" class="kg-bump" data-act="bw-bump" data-ex="${it.id}">
-           2× komplett · nächstes Mal ${esc(bwZiel)} Wdh.?
-         </button>`
-      : '';
 
     parts.push(`
       <article class="ex ${open ? 'open' : ''} ${complete ? 'complete' : ''}">
@@ -1745,7 +1686,7 @@ function renderDashboard() {
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
         ${weightRow}
-        ${bwChip}
+        ${wdhRow(it, mode)}
         <div class="ex-sets">${setBtns}</div>
         <div class="ex-body">
           ${open ? `<div class="ex-fig" data-pattern="${esc(it.pattern)}"
@@ -2100,6 +2041,32 @@ const BAENDER = [['gelb', 'Gelb', 'leicht'], ['rot', 'Rot', 'schwer']];
 /** Braucht diese Übung ein Band? Steht im Gerätenamen der Variante. */
 const amBand = (it) => /band/i.test(it.equip || '');
 
+/**
+ * Wiederholungen im Bodyweight-Modus – dieselbe Zeile wie das Gewicht.
+ *
+ * Ohne Zusatzlast ist die Wiederholungszahl die Steigerung. Erreichbar war sie
+ * bisher nur über einen Vorschlag ("2× komplett · nächstes Mal 14–22?"), und
+ * Vorschläge sind raus: Die App weiß nicht, wie schwer ein Satz war, also
+ * entscheidet das der Mensch. Jetzt stehen hier zwei Knöpfe, genau wie bei den
+ * Kilo. Angezeigt wird der *neue* Bereich, nicht der alte mit einem Plus
+ * dahinter – sonst rechnet man beim Lesen selbst.
+ */
+function wdhRow(it, mode, extra = '') {
+  if (mode !== 'bw') return '';
+  const plus = store.bwPlusOf(it.id);
+  return `
+    <div class="ex-weight ${extra}">
+      <button type="button" class="kg-step" data-act="reps-step" data-ex="${it.id}" data-d="-1"
+              ${plus ? '' : 'disabled'} aria-label="Eine Wiederholung weniger">−</button>
+      <div class="kg-main">
+        <span class="kg-val kg-fest">${esc(repsLabel(it, mode))}</span>
+        <span class="kg-unit">Wdh.${plus ? ` · ${plus} mehr als im Plan` : ''}</span>
+      </div>
+      <button type="button" class="kg-step kg-plus" data-act="reps-step" data-ex="${it.id}" data-d="1"
+              aria-label="Eine Wiederholung mehr">+</button>
+    </div>`;
+}
+
 function bandRow(it) {
   if (!amBand(it)) return '';
   const cur = store.bandOf(it.id);
@@ -2139,31 +2106,6 @@ function repsLabel(it, mode) {
   const plus = mode === 'bw' ? store.bwPlusOf(it.id) : 0;
   if (!plus) return it.reps;
   return String(it.reps).replace(/\d+/g, (d) => String(Number(d) + plus));
-}
-
-/**
- * Vorschlag im Bodyweight-Modus: mehr Wiederholungen.
- *
- * Bedingung wie bei den Hanteln: die letzten beiden Male vollständig
- * durchgezogen. Vorher musste es zusätzlich zweimal als "ging leicht"
- * beantwortet sein – diese Frage ist raus, und damit hängt die Steigerung nur
- * noch daran, dass alle Sätze standen. Wer eine Übung schwer fand, nimmt den
- * Vorschlag einfach nicht an; er steht als Angebot da, nicht als Anweisung.
- */
-function bwBump(exId) {
-  let streak = 0;
-  for (let i = PLAN.length - 1; i >= 0; i--) {
-    const w = PLAN[i];
-    const item = exOf(w).find((x) => x.id === exId);
-    if (!item) continue;
-    const sets = store.peekSets(w.n, 'bw', exId);
-    if (!sets || !sets.some((x) => x.done || x.w !== '')) continue;   // siehe bumpHint()
-    const complete = sets.length >= item.sets && sets.slice(0, item.sets).every((x) => x.done);
-    if (!complete) break;
-    streak += 1;
-    if (streak >= BUMP_NEEDED) return streak;
-  }
-  return 0;
 }
 
 /* ------------------------------------------------------------------ *
@@ -3689,13 +3631,6 @@ view.addEventListener('click', (e) => {
   const mode = store.workoutMode(n);
 
   switch (act) {
-    case 'bw-bump': {
-      const id = t.dataset.ex;
-      store.addBwPlus(id, 2);
-      render();
-      toast('↑ Zwei Wiederholungen mehr ab dem nächsten Mal');
-      break;
-    }
     case 'toggle-injury': {
       const id = t.dataset.inj;
       const on = t.getAttribute('aria-pressed') !== 'true';
@@ -3786,6 +3721,12 @@ view.addEventListener('click', (e) => {
       if (workoutComplete) toast('Workout abgeschlossen 🎉');
       break;
     }
+    case 'reps-step': {
+      // Bodyweight: die Steigerung sind die Wiederholungen, nicht die Kilo.
+      store.addBwPlus(t.dataset.ex, Number(t.dataset.d));
+      render();
+      break;
+    }
     case 'weight-step': {
       const id = t.dataset.ex;
       const kg = store.setWeight(id, (workingWeight(id) || 0) + Number(t.dataset.d));
@@ -3793,14 +3734,6 @@ view.addEventListener('click', (e) => {
       // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
       const started = (store.peekSets(n, mode, id) || []).some((s) => s.done);
       toast(started ? `Ab dem nächsten Satz ${fmtNum(kg)} kg` : `${fmtNum(kg)} kg`);
-      break;
-    }
-    case 'accept-bump': {
-      const id = t.dataset.ex;
-      const kg = store.setWeight(id, Number(t.dataset.kg));
-      sound('bump');
-      render();
-      toast(`Nächstes Mal ${fmtNum(kg)} kg 💪`);
       break;
     }
     case 'start-today': {

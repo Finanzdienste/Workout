@@ -321,12 +321,16 @@ lauffähig.
 
 ### Gewichte und Progression
 
-**Steigerungsvorschlag statt Gedächtnis.** Wer zwei Einheiten in Folge alle
-Sätze einer Übung mit demselben Gewicht durchzieht, bekommt einen Knopf
-angeboten: *„2× alles geschafft · auf 22,5 kg?"*. Ein Tipp übernimmt es fürs
-nächste Mal. Bewusst nur ein Vorschlag – ob die Wiederholungen sauber waren,
-weiß die App nicht. Gezählt werden nur Hantel-Einheiten und nur solche, in
-denen wirklich alle Sätze stehen; eine abgebrochene Einheit beendet die Serie.
+**Plus und Minus, sonst nichts.** Das Gewicht steht mit zwei Knöpfen daneben,
+und wann es hochgeht, entscheidet der Mensch.
+
+Es gab hier einmal einen Vorschlag: Wer zwei Einheiten in Folge alle Sätze mit
+demselben Gewicht durchzog, bekam *„2× alles geschafft · auf 22,5 kg?"*
+angeboten. Er ist raus, und zwar nicht aus Bequemlichkeit. Die App erfasst keine
+Wiederholungen – sie konnte nicht unterscheiden, ob acht oder zwölf drin waren,
+und schlug nach zwei Einheiten am unteren Ende des Bereichs dasselbe vor wie
+nach zwei am oberen. Ein Vorschlag, der die halbe Information nicht hat, ist
+keine Hilfe, sondern eine Behauptung. Wer es genau wissen will, weiß es selbst.
 
 `tools/exercise-meta.json` hält je Übung ein Startgewicht (`dbWeight`) und
 einen Hinweis, wie es gemeint ist (`weightNote`: „je Hand", „eine Hantel",
@@ -348,11 +352,11 @@ rückwirkend umgeschrieben.
 
 2,5 kg überall war für die schweren Übungen zu wenig und für die kleinen zu
 viel: Beim Seitheben mit 8 kg sind 2,5 kg ein Sprung um 31 % – das schafft
-niemand von einer Woche auf die nächste, und der Vorschlagsknopf schlug etwas
-vor, was nicht ging. Deshalb steht der Schritt jetzt als `dbStep` neben dem
+niemand von einer Woche auf die nächste, und ein Tipp auf „+" war damit ein
+Tipp ins Leere. Deshalb steht der Schritt jetzt als `dbStep` neben dem
 Startgewicht in `tools/exercise-meta.json` und geht über `js/data.js` in die
-App, wo `stepOf()` die einzige Stelle ist, die ihn kennt – Knöpfe, `aria-label`
-und Steigerungsvorschlag holen ihn dort.
+App, wo `stepOf()` die einzige Stelle ist, die ihn kennt – die Knöpfe und ihr
+`aria-label` holen ihn dort.
 
 | Schritt | Übungen | warum |
 | --- | --- | --- |
@@ -368,8 +372,8 @@ beiden Langhantelübungen sind es 12,5 % – wer 1,25-kg-Scheiben hat, setzt
 `dbStep` dort auf 2,5.
 
 Gespeichert wird auf **Viertelkilo** gerundet, nicht auf halbe: sonst würde aus
-dem angenommenen Vorschlag „auf 21,25 kg" still 21,5. Aus demselben Grund zeigt
-die App zwei Nachkommastellen statt einer.
+einem Schritt auf 21,25 kg still 21,5. Aus demselben Grund zeigt die App zwei
+Nachkommastellen statt einer.
 
 #### Zwei Bänder statt Kilo
 
@@ -384,17 +388,19 @@ Auswahl.
 
 #### Progression ohne Gewicht
 
-Im Bodyweight-Modus gibt es nichts zu erhöhen – dort geht der Fortschritt über
-Wiederholungen. Zweimal in Folge alles durchgezogen ergibt den Vorschlag *„2×
-komplett · nächstes Mal 10–17 Wdh.?"*. Ein Tipp verschiebt den angezeigten
-Bereich dauerhaft um zwei nach oben, für diese Übung.
+Im Bodyweight-Modus gibt es kein Kilo zu erhöhen – dort ist die Wiederholungs-
+zahl die Steigerung. Sie steht in derselben Zeile wie sonst das Gewicht, mit
+denselben zwei Knöpfen: *− 8–15 Wdh. +*, ein Schritt ist eine Wiederholung.
+Angezeigt wird der **neue** Bereich, nicht der alte mit einem Plus dahinter –
+sonst rechnet man beim Lesen selbst. Unter den Planwert geht es nicht, dort ist
+das Minus gesperrt.
 
-**Ohne Fragebogen.** Bis hierher hing beides an einer Frage nach dem letzten
-Satz – „Wie war das?" mit *ging leicht* / *passte* / *war schwer*. Zweimal „ging
-leicht" war die Bedingung für mehr Wiederholungen, „war schwer" bremste die
-Hantel-Progression. Die Frage ist raus: Sie kostete bei jeder Übung einen
-Griff und hielt den Ablauf an, obwohl der Vorschlag ohnehin nur ein Angebot ist.
-Wer eine Übung schwer fand, nimmt ihn einfach nicht an.
+**Nichts fragt nach, nichts schlägt vor.** Hier standen einmal zwei Dinge: eine
+Frage nach dem letzten Satz („Wie war das?" – *ging leicht* / *passte* / *war
+schwer*) und ein Vorschlagsknopf. Die Frage kostete bei jeder Übung einen Griff
+und hielt den Ablauf an; der Vorschlag behauptete etwas, das er ohne erfasste
+Wiederholungen nicht wissen konnte. Beides ist raus. Was bleibt, sind zwei
+Knöpfe, die genau das tun, was draufsteht.
 
 ### Pausenlängen
 
@@ -1345,7 +1351,7 @@ weiterhin steht, was `tier` nach vorn gestellt hat.
 
 Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
 Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach dem
-dritten angenommenen Steigerungsvorschlag nicht mehr.
+dritten Tipp auf „+" nicht mehr.
 
 Übungen ohne Aufbau – Klimmzüge, Band, Bodyweight – behalten ihren Platz. Sie
 kosten nichts, also darf zwischen zwei Langhantelübungen ruhig ein Satz
@@ -1461,7 +1467,7 @@ Trainingsplan.
 **Alles geht durch eine Stelle.** `exOf()` in `js/app.js` – und darunter
 `adjustedPlan()` – ist der einzige Weg,
 auf dem die App an die Übungen eines Plantags kommt – Startansicht, Fokus,
-Statistik, Steigerungsvorschlag. Damit kann es gar nicht passieren, dass eine
+Statistik, Kalender. Damit kann es gar nicht passieren, dass eine
 gesperrte Übung an einer Stelle auftaucht und an einer anderen nicht.
 
 **Die Auswirkungen werden gerechnet, nicht behauptet.** Der Tab zeigt für die
