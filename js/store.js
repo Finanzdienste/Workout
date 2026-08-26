@@ -11,7 +11,7 @@ const DEFAULT_STATE = {
   shareCount: 0,         // wie oft der Link oder der Stand weitergeschickt wurde
   share: true,           // Stand an den Betreiber melden (nur wenn js/config.js einen Server nennt)
   deviceId: null,        // zufällige Kennung dieses Geräts für genau diese Meldung
-  lastShare: null,       // { on, ok } – wann zuletzt gemeldet wurde
+  lastShare: null,       // { on, ok, msg } – wann zuletzt gemeldet wurde und was schiefging
   adminPass: null,       // Passwort für die Betreiber-Übersicht, nur auf dessen Gerät
   tabs: ['stats'],       // frei wählbare Reiter unten; Dashboard und Mehr stehen immer
   level: 'geuebt',       // Erfahrung: anfaenger | geuebt | fortgeschritten – skaliert die Startgewichte

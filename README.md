@@ -1843,6 +1843,11 @@ create policy aendern  on nutzung for update to anon using (true) with check (tr
 create policy loeschen on nutzung for delete to anon using (true);
 -- … aber niemand darf die Tabelle lesen. Kein select-Recht für anon.
 
+-- Regeln erlauben nur; das Recht auf die Tabelle muss auch da sein. Neue
+-- Projekte vergeben es beim Anlegen automatisch, ältere nicht immer –
+-- doppelt schadet nicht, und ohne merkt man es erst am 403.
+grant insert, update, delete on table nutzung to anon;
+
 -- Gelesen wird nur über diese Funktion, und nur mit Passwort.
 create or replace function admin_liste(pass text)
 returns setof nutzung
@@ -1867,6 +1872,31 @@ Die Übersicht steht danach unter *Mehr → Übersicht öffnen* und fragt nach d
 Passwort aus Schritt 2. Sie zeigt Geräte insgesamt, wie viele in den letzten
 sieben Tagen offen waren, wer wie weit ist, wann er zuletzt trainiert hat, die
 Verteilung von Fokus und Erfahrung und die meistgemachten Übungen.
+
+### Wenn nichts ankommt
+
+Unter *Mehr → Nutzung teilen* steht **Jetzt melden**. Der Knopf schickt sofort
+und schreibt die Antwort des Servers darunter, statt sie zu verschlucken –
+danach muss nicht mehr geraten werden:
+
+| Antwort | Ursache |
+| --- | --- |
+| `401: Invalid API key` | Schlüssel in `js/config.js` gehört nicht zu diesem Projekt |
+| `403: …row-level security…` | Regeln oder `grant` aus Schritt 2 fehlen |
+| `404` | Tabelle heißt anders oder liegt nicht in `public` |
+| `400: …column…` | Spalte fehlt – Tabelle noch einmal wie oben anlegen |
+| `Keine Verbindung` | kein Netz, oder die Projekt-URL stimmt nicht |
+
+Nachsehen lässt sich das im SQL-Editor:
+
+```sql
+select tablename, policyname, cmd, roles from pg_policies where tablename = 'nutzung';
+select grantee, privilege_type from information_schema.role_table_grants
+ where table_name = 'nutzung' and grantee = 'anon';
+```
+
+Drei Regeln (`insert`, `update`, `delete`) für `{anon}` und drei Rechte für
+`anon` – dann liegt es nicht an der Datenbank.
 
 **Warum ein Passwort und kein zweiter Schlüssel:** Ein Schlüssel mit Leserecht
 müsste in der App liegen und läge damit bei allen, die den Link haben. Die

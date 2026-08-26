@@ -35,29 +35,69 @@ export function geraeteId(vorhanden) {
   return zufall;
 }
 
-function kopf() {
-  return {
-    'Content-Type': 'application/json',
-    apikey: CONFIG.key,
-    Authorization: `Bearer ${CONFIG.key}`,
-  };
+function kopf(mitBearer = true) {
+  const h = { 'Content-Type': 'application/json', apikey: CONFIG.key };
+  // Die alten anon-Schlüssel sind JWTs und gehören zusätzlich in Authorization.
+  // Die neuen (sb_publishable_…) sind es nicht – manche Projekte weisen sie dort
+  // ab. Deshalb ist der Kopf abschaltbar: senden() versucht es dann ohne.
+  if (mitBearer) h.Authorization = `Bearer ${CONFIG.key}`;
+  return h;
+}
+
+/**
+ * Eine Anfrage, zwei Versuche.
+ *
+ * Antwortet der Server mit "nicht erlaubt", kann das am Bearer-Kopf liegen
+ * (siehe kopf()). Einmal ohne ihn nachfassen kostet nichts und erspart die
+ * Fehlersuche im Blindflug.
+ */
+async function senden(pfad, optionen, mitBearer = true) {
+  const res = await fetch(`${CONFIG.url}${pfad}`, {
+    ...optionen,
+    headers: { ...kopf(mitBearer), ...(optionen.headers || {}) },
+  });
+  if (!res.ok && mitBearer && (res.status === 401 || res.status === 403)) {
+    return senden(pfad, optionen, false);
+  }
+  return res;
+}
+
+/** Die Fehlermeldung des Servers in einem Satz – PostgREST antwortet als JSON. */
+async function grund(res) {
+  try {
+    const roh = await res.text();
+    if (!roh) return `Fehler ${res.status}`;
+    try {
+      const j = JSON.parse(roh);
+      return `${res.status}: ${j.message || j.msg || j.error || roh}`.slice(0, 160);
+    } catch {
+      return `${res.status}: ${roh}`.slice(0, 160);
+    }
+  } catch {
+    return `Fehler ${res.status}`;
+  }
 }
 
 /**
  * Stand melden. Fehler sind hier keine Fehler: Kein Netz, Server weg, Tabelle
  * anders – die App darf davon nichts merken, sie ist ohne den Server vollständig.
+ *
+ * Zurück kommt trotzdem, *warum* es nicht ging: { ok, status, msg }. Das steht
+ * dann unter Mehr, sonst sucht man den Fehler auf der falschen Seite.
  */
 export async function melden(zeile) {
-  if (!hatServer()) return false;
+  if (!hatServer()) return { ok: false, status: 0, msg: 'Kein Server eingetragen' };
   try {
-    const res = await fetch(`${CONFIG.url}/rest/v1/${TABELLE}`, {
+    const res = await senden(`/rest/v1/${TABELLE}`, {
       method: 'POST',
-      headers: { ...kopf(), Prefer: 'resolution=merge-duplicates,return=minimal' },
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify([zeile]),
     });
-    return res.ok;
-  } catch {
-    return false;
+    if (res.ok) return { ok: true, status: res.status, msg: '' };
+    return { ok: false, status: res.status, msg: await grund(res) };
+  } catch (e) {
+    // fetch wirft nur bei Netz oder CORS – der Status bleibt unbekannt.
+    return { ok: false, status: 0, msg: `Keine Verbindung (${e && e.message ? e.message : 'Netz oder CORS'})` };
   }
 }
 
@@ -65,9 +105,8 @@ export async function melden(zeile) {
 export async function loeschen(id) {
   if (!hatServer() || !id) return false;
   try {
-    const res = await fetch(`${CONFIG.url}/rest/v1/${TABELLE}?id=eq.${encodeURIComponent(id)}`, {
+    const res = await senden(`/rest/v1/${TABELLE}?id=eq.${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      headers: kopf(),
     });
     return res.ok;
   } catch {
@@ -84,12 +123,17 @@ export async function loeschen(id) {
  */
 export async function adminListe(passwort) {
   if (!hatServer()) throw new Error('Kein Server eingetragen');
-  const res = await fetch(`${CONFIG.url}/rest/v1/rpc/admin_liste`, {
+  const res = await senden('/rest/v1/rpc/admin_liste', {
     method: 'POST',
-    headers: kopf(),
     body: JSON.stringify({ pass: passwort }),
   });
-  if (!res.ok) throw new Error(res.status === 401 || res.status === 403 ? 'Passwort falsch' : `Fehler ${res.status}`);
+  // 42501 ist der Code, den die Funktion bei falschem Passwort wirft; alles
+  // andere (Funktion fehlt, Recht fehlt) soll nicht als "Passwort falsch"
+  // durchgehen – sonst sucht man ewig am falschen Ende.
+  if (!res.ok) {
+    const text = await grund(res);
+    throw new Error(/42501|nope/.test(text) ? 'Passwort falsch' : text);
+  }
   const daten = await res.json();
   if (!Array.isArray(daten)) throw new Error('Passwort falsch');
   return daten;

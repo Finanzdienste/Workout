@@ -1367,7 +1367,10 @@ function shareKarte(ausfuehrlich = false) {
         ? `Zuletzt gemeldet am ${esc(fmtDate(s.lastShare.on))}${s.lastShare.ok ? '' : ' – hat nicht geklappt'}.`
         : 'Noch nichts gemeldet.'}
         ${an ? '' : 'Abgeschaltet – es geht nichts mehr raus.'}</div>
+      ${s.lastShare && !s.lastShare.ok && s.lastShare.msg
+        ? `<div class="hint" style="color:var(--accent)">Der Server sagt: ${esc(s.lastShare.msg)}</div>` : ''}
       <div class="btn-row">
+        <button type="button" class="btn" data-act="share-now">Jetzt melden</button>
         <button type="button" class="btn" data-act="share-delete">Meine Daten dort löschen</button>
       </div>` : ''}
     </div>`;
@@ -1411,8 +1414,11 @@ function meldeStand(sofort = false) {
   const s = store.getState();
   if (!sofort && s.lastShare && s.lastShare.on === todayISO()) return;
   if (!s.deviceId) store.setSetting('deviceId', geraeteId(null));
-  melden(standZeile()).then((ok) => {
-    store.setSetting('lastShare', { on: todayISO(), ok });
+  melden(standZeile()).then(({ ok, msg }) => {
+    store.setSetting('lastShare', { on: todayISO(), ok, msg: ok ? '' : msg });
+    // Nur neu zeichnen, wo das Ergebnis auch steht – mitten im Training wäre
+    // ein Neuaufbau der Seite eine Zumutung.
+    if (ui.tab === 'settings') render();
   });
 }
 
@@ -3989,6 +3995,17 @@ view.addEventListener('click', (e) => {
       }
       break;
     }
+    case 'share-now':
+      // Von Hand anstoßen, ohne auf den nächsten Tag zu warten – und die
+      // Antwort des Servers gleich sichtbar machen.
+      if (!meldetMit()) { toast('Ist abgeschaltet'); break; }
+      if (!store.getState().deviceId) store.setSetting('deviceId', geraeteId(null));
+      melden(standZeile()).then(({ ok, msg }) => {
+        store.setSetting('lastShare', { on: todayISO(), ok, msg: ok ? '' : msg });
+        render();
+        toast(ok ? 'Gemeldet' : msg || 'Hat nicht geklappt');
+      });
+      break;
     case 'share-delete': {
       const id = store.getState().deviceId;
       loeschen(id).then((ok) => toast(ok ? 'Gelöscht' : 'Hat nicht geklappt – später nochmal'));
