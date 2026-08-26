@@ -18,10 +18,10 @@
  */
 
 export const CONFIG = {
-  // z. B. 'https://abcdefgh.supabase.co'
-  url: '',
-  // der öffentliche anon-Schlüssel aus den Projekteinstellungen
-  key: '',
+  url: 'https://vjyohppohmvhhxgwouti.supabase.co',
+  // Der öffentliche Schlüssel darf hier stehen: Mit den Regeln aus der README
+  // darf er ausschließlich schreiben.
+  key: 'sb_publishable_wTUNShIKMFjCOmZzQuuN-A_vFHPkKUI',
   // Wem die Zahlen zugutekommen – steht so im Einwilligungstext.
   betreiber: 'Tobi',
 };
