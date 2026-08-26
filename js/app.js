@@ -187,7 +187,10 @@ function injuryNotes(n) {
  */
 function exOf(w) {
   if (istCustom(w.n)) return w.ex;
-  const items = adjustedPlan()[w.n - 1] || w.ex;
+  const geplant = adjustedPlan()[w.n - 1] || w.ex;
+  // Erfahrung: gleich viele Übungen, andere Satzzahl. Siehe satzZahl().
+  const items = satzFaktor() === 1 ? geplant
+    : geplant.map((it) => ({ ...it, sets: satzZahl(it.sets) }));
   // Nur bei den Hanteln: Im Bodyweight-Modus gibt es nichts umzubauen, und die
   // Reihenfolge soll dann die des Plans bleiben.
   return store.workoutMode(w.n) === 'db' ? ruestOrderStabil(items, w.n, 'db') : items;
@@ -247,12 +250,13 @@ function resolve(item, mode) {
  * ------------------------------------------------------------------ */
 
 const LEVELS = [
-  ['anfaenger', 'Anfänger', 'Neu im Krafttraining oder lange raus. Die Startgewichte gehen '
-    + 'auf die Hälfte – die ersten Wochen entscheidet die Technik, nicht die Scheibe.', 0.5],
+  ['anfaenger', 'Anfänger', 'Neu im Krafttraining oder lange raus. Startgewichte auf der '
+    + 'Hälfte und zwei Sätze je Übung statt drei: Wer neu anfängt, wächst schon bei wenig '
+    + 'Volumen – die ersten Wochen entscheidet die Technik, nicht die Scheibe.', 0.5],
   ['geuebt', 'Geübt', 'Du weißt, wie sich ein sauberer Satz anfühlt, und trainierst schon '
-    + 'eine Weile. Die Startgewichte des Plans passen so.', 1],
-  ['fortgeschritten', 'Fortgeschritten', 'Jahre im Training, die Technik sitzt. Die '
-    + 'Startgewichte gehen um die Hälfte hoch.', 1.5],
+    + 'eine Weile. Startgewichte und drei Sätze je Übung passen so.', 1],
+  ['fortgeschritten', 'Fortgeschritten', 'Jahre im Training, die Technik sitzt. Startgewichte '
+    + 'um die Hälfte höher und vier Sätze je Übung – dein Reiz liegt weiter oben.', 1.5],
 ];
 
 /** Zwei Beispiele, damit die Wahl nicht abstrakt bleibt. */
@@ -273,6 +277,30 @@ const levelFaktor = () => {
   const eintrag = LEVELS.find(([key]) => key === (store.getState().level || 'geuebt'));
   return eintrag ? eintrag[3] : 1;
 };
+
+/**
+ * Sätze je Übung nach Erfahrung.
+ *
+ * Die Stufe skalierte lange nur die Startgewichte. Dabei ist das *Volumen* die
+ * Größe, die sich zwischen Anfänger und Fortgeschrittenem am deutlichsten
+ * unterscheidet: Wer neu anfängt, wächst schon bei drei bis fünf Sätzen je
+ * Muskel und Woche fast maximal – die Dosis-Wirkungs-Kurve ist dort oben flach.
+ * Mehr bringt kaum etwas und kostet das, woran es bei Anfängern wirklich hängt:
+ * saubere Technik in den letzten Sätzen, erträglicher Muskelkater, und eine
+ * Einheit, die man ein halbes Jahr lang durchhält.
+ *
+ * Skaliert wird **gleichmäßig über alle Übungen**. Das ist der Grund, warum es
+ * die exakte Rechnung des Generators nicht kaputt macht: Bekommt jede Übung
+ * zwei Drittel ihrer Sätze, bekommt auch jede Muskelgruppe exakt zwei Drittel
+ * ihres Ziels. Die Verteilung bleibt dieselbe, nur die Höhe ändert sich – und
+ * targetOf() rechnet mit demselben Faktor, damit "Soll gegen Ist" weiter stimmt.
+ *
+ * Eigene Workouts bleiben außen vor: Was jemand selbst zusammenstellt, hat er
+ * so gemeint (siehe exOf()).
+ */
+const SAETZE_JE_STUFE = { anfaenger: 2, geuebt: 3, fortgeschritten: 4 };
+const satzFaktor = () => (SAETZE_JE_STUFE[store.getState().level || 'geuebt'] || 3) / 3;
+const satzZahl = (n) => Math.max(1, Math.round(n * satzFaktor()));
 
 /** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
 function startWeight(ex) {
@@ -1004,7 +1032,7 @@ function renderFocus() {
   const i = Math.min(Math.max(0, ui.focusIdx), w.ex.length - 1);
   const item = w.ex[i];
   const it = resolve(item, mode);
-  const sets = store.getSets(n, mode, it.id, it.sets);
+  const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
   const doneCount = sets.filter((s) => s.done).length;
   const kg = it.weight === null ? null : workingWeight(it.id);
   const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
@@ -1641,7 +1669,7 @@ function renderDashboard() {
     </div>`);
 
   items.forEach((it, i) => {
-    const sets = store.getSets(n, mode, it.id, it.sets);
+    const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
     const doneCount = sets.filter((s) => s.done).length;
     const open = ui.openEx.has(it.id);
     const complete = doneCount === it.sets;
@@ -2130,7 +2158,7 @@ function repsLabel(it, mode) {
  * ------------------------------------------------------------------ */
 
 const WEEK_SESSIONS = 4;
-const targetOf = (mus) => TARGET[mus] ?? 10;
+const targetOf = (mus) => (TARGET[mus] ?? 10) * satzFaktor();
 /**
  * Im Ziel heißt: mindestens neun Zehntel dessen, was für **diese Woche**
  * geplant war.
@@ -2891,7 +2919,9 @@ const ARBEIT_JE_SATZ = 40;
 
 /** Eine Zeile Zahlen zu einer Variante: Einheiten, Sätze, geschätzte Dauer. */
 function fokusZeile(v) {
-  const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + x.sets, 0), 0);
+  // Mit der Satzzahl der eingestellten Erfahrung rechnen, nicht mit der des
+  // Plans: Verglichen wird, was tatsächlich vor einem liegt.
+  const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + satzZahl(x.sets), 0), 0);
   const proEinheit = saetze / v.plan.length;
   // Mit den echten Pausen rechnen, nicht mit einem Mittelwert für alle: Ein Satz
   // Chin-ups kostet 180 s Pause, einer Wadenheben 90. Pauschal zweieinhalb
@@ -2901,7 +2931,7 @@ function fokusZeile(v) {
     const ex = EX_BY_ID.get(x.id);
     const pause = (ex && ex.db && ex.db.rest) || 120;
     // Arbeit plus Pause nach jedem Satz; die letzte Pause der Einheit fällt weg.
-    return b + x.sets * (ARBEIT_JE_SATZ + pause);
+    return b + satzZahl(x.sets) * (ARBEIT_JE_SATZ + pause);
   }, 0) - ((w.ex.length && EX_BY_ID.get(w.ex[w.ex.length - 1].id).db.rest) || 0), 0);
   const min = Math.round((sekunden / v.plan.length / 60) / 5) * 5;
   return `${v.plan.length} Einheiten · ${proEinheit.toFixed(1)} Sätze je Einheit · ca. ${min} min`;
@@ -3704,7 +3734,7 @@ view.addEventListener('click', (e) => {
       const done = !cur;
       const workoutComplete = done && progressOf(n, mode).complete;
       const exDone = done && i === item.sets - 1
-        && store.getSets(n, mode, id, item.sets).every((s) => s.done);
+        && store.getSets(n, mode, id, item.sets).slice(0, item.sets).every((s) => s.done);
 
       // In der Fokus-Ansicht sofort zur nächsten offenen Übung rücken. Bis
       // hierher wartete der Sprung auf die Antwort zu "Wie war das?" – die

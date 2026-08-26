@@ -171,7 +171,12 @@ export function getSets(n, mode, exId, setCount) {
   let arr = bucket[exId];
   if (!Array.isArray(arr)) arr = bucket[exId] = [];
   while (arr.length < setCount) arr.push({ w: '', r: '', done: false });
-  if (arr.length > setCount) arr.length = setCount;
+  // Gekürzt wird nur, was leer ist. Seit die Erfahrungsstufe die Satzzahl
+  // bestimmt (drei Sätze für Geübte, zwei für Anfänger), würde ein Wechsel
+  // sonst rückwirkend den dritten Satz jeder protokollierten Übung löschen –
+  // eine Einstellung darf keine Trainingsgeschichte wegräumen.
+  const leer = (x) => !x.done && x.w === '' && x.r === '';
+  while (arr.length > setCount && leer(arr[arr.length - 1])) arr.pop();
   return arr;
 }
 

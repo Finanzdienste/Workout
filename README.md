@@ -1877,7 +1877,7 @@ rechnet. Wer mittendrin wechselt, wird gefragt – der bisherige Verlauf wandert
 in die Ablage, die erreichten Gewichte bleiben. Zurück geht es über *Mehr → Plan
 neu starten → Verlauf zurückholen*.
 
-### Erfahrung: dieselben Übungen, andere Startgewichte
+### Erfahrung: dieselben Übungen, andere Startgewichte – und anderes Volumen
 
 Die Startgewichte in `tools/exercise-meta.json` sind die eines Menschen, der
 seit einer Weile trainiert: 40 kg Floor Press, 20 kg Goblet Squat. Für jemand
@@ -1907,6 +1907,40 @@ die Auswahl nicht abstrakt bleibt; bei der Erfahrung stehen zwei Beispielgewicht
 unter jeder Stufe. Am Ende steht der Hinweis, dass sich unter *Mehr → Eigenes
 Workout* ohnehin jede Einheit selbst zusammenstellen lässt: Der Fokus ist ein
 Vorschlag, kein Korsett.
+
+
+**Die Stufe bestimmt auch die Satzzahl.** Lange skalierte sie nur die
+Startgewichte – dabei ist das Volumen die Größe, die sich zwischen Anfänger und
+Fortgeschrittenem am deutlichsten unterscheidet. Wer neu anfängt, wächst schon
+bei drei bis fünf Sätzen je Muskel und Woche fast maximal; die Dosis-Wirkungs-
+Kurve ist dort oben flach. Mehr bringt kaum etwas und kostet genau das, woran es
+bei Anfängern hängt: saubere Technik in den letzten Sätzen, erträglicher
+Muskelkater, und eine Einheit, die man ein halbes Jahr durchhält.
+
+| Stufe | Sätze je Übung | Startgewichte | *Ausgewogen* wird daraus |
+| --- | --- | --- | --- |
+| Anfänger | **2** | halbiert | 6 Übungen · 12 Sätze · ca. 35 min |
+| Geübt | 3 | wie im Plan | 6 Übungen · 18 Sätze · ca. 50 min |
+| Fortgeschritten | **4** | plus die Hälfte | 6 Übungen · 24 Sätze · ca. 65 min |
+
+**Warum das die exakte Rechnung nicht kaputt macht:** Skaliert wird gleichmäßig
+über alle Übungen. Bekommt jede Übung zwei Drittel ihrer Sätze, bekommt auch
+jede Muskelgruppe exakt zwei Drittel ihres Ziels – die Verteilung bleibt
+dieselbe, nur die Höhe ändert sich. `targetOf()` rechnet mit demselben Faktor,
+damit *Soll gegen Ist* weiter stimmt; sonst stünde beim Anfänger dauerhaft
+„0 von 12 Gruppen im Ziel", obwohl er genau das gemacht hat, was sein Plan
+vorsieht.
+
+Drei Stufen mal sechs Fokus ergeben damit **18 Trainingspläne aus sechs
+gerechneten** – *Anfänger + Cut* etwa sind 5 Übungen, 10 Sätze, keine halbe
+Stunde. Eigene Workouts bleiben außen vor: Was jemand selbst zusammenstellt,
+hat er so gemeint.
+
+**Ein Stufenwechsel löscht nichts.** `getSets()` kürzt nur Sätze, in denen
+nichts steht. Ohne das hätte ein Wechsel auf Anfänger rückwirkend den dritten
+Satz jeder protokollierten Übung entfernt – eine Einstellung darf keine
+Trainingsgeschichte wegräumen. Angezeigt wird, was der heutige Plan vorsieht;
+gespeichert bleibt, was tatsächlich gemacht wurde.
 
 ## Eigene Workouts
 
