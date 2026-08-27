@@ -1732,6 +1732,29 @@ Training wäre weg. Deshalb erinnert die Startansicht nach acht erledigten
 Einheiten daran und bietet die Sicherung direkt an; in *Mehr* steht, wann
 zuletzt gesichert wurde.
 
+**Umzug auf ein anderes Gerät oder in die installierte App.** *Genau eines
+Browsers* ist dabei wörtlich zu nehmen: Chrome und Firefox teilen sich nichts,
+und die über Chrome installierte App bekommt zwar denselben Speicher wie Chrome,
+aber nicht den von Firefox. Wer umzieht, nimmt seinen Stand also mit oder fängt
+bei null an.
+
+    altes Gerät    Mehr → Daten → Als Datei sichern
+    neues Gerät    Mehr → Daten → Datei laden
+
+Der Knopf *Datei laden* fehlte lange, und das war ein handfester Fehler: Die App
+konnte eine Sicherung **schreiben, aber nicht lesen**. Der Import nahm nur
+eingefügten Text, und einen mehrere Kilobyte langen JSON-Block auf dem Handy von
+Hand zu markieren und zwischen zwei Browsern zu kopieren, ist keine Lösung –
+zumal der Umzug der häufigste Grund ist, überhaupt eine Sicherung zu brauchen.
+Der Textweg steht weiterhin daneben, für den Fall, dass ein Browser den
+Dateidialog verweigert.
+
+Das Einlesen **beendet auch die Einrichtung**: Wer die frisch installierte App
+öffnet, steht auf „Schritt 1 von 4" und soll sich nicht erst durch vier Fragen
+klicken, die der Import gleich wieder überschreibt. Der Knopf ist deshalb unter
+*Mehr* erreichbar, ohne die Einrichtung abzuschließen. Eine kaputte Datei lässt
+den vorhandenen Stand unangetastet.
+
 ## Wenn der Plan durch ist
 
 Nach der letzten von 84 Einheiten bietet die Startansicht *Von vorn beginnen*

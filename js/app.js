@@ -684,6 +684,42 @@ function downloadBackup() {
 }
 
 /**
+ * Eine Sicherungsdatei wieder einlesen.
+ *
+ * Die App konnte eine Datei schreiben, aber nicht lesen – der Import nahm nur
+ * eingefügten Text. Auf dem Rechner ist das lästig, auf dem Handy eine Sperre:
+ * Wer von einem Browser in die installierte App umzieht, müsste einen langen
+ * JSON-Block von Hand markieren und kopieren. Genau dieser Umzug ist aber der
+ * häufigste Grund, überhaupt eine Sicherung zu brauchen.
+ *
+ * Das Dateifeld wird bei jedem Aufruf neu gebaut und danach weggeworfen: Ein
+ * dauerhaft im DOM stehendes Feld behält die zuletzt gewählte Datei, und
+ * zweimal dieselbe Datei zu wählen löst dann kein `change` mehr aus.
+ */
+function importBackupDatei() {
+  const feld = document.createElement('input');
+  feld.type = 'file';
+  // Nicht nur .json: Manche Dateimanager reichen die Sicherung als text/plain
+  // weiter, und dann stünde die eigene Datei ausgegraut da.
+  feld.accept = 'application/json,text/plain,.json,.txt';
+  feld.addEventListener('change', () => {
+    const datei = feld.files && feld.files[0];
+    if (!datei) return;
+    datei.text()
+      .then((text) => {
+        store.importJSON(text);
+        // Nach dem Import gilt der eingelesene Stand – auch die Einrichtung,
+        // die gerade noch offen war.
+        ui.setupStep = 0;
+        render();
+        toast(`Eingelesen: ${datei.name}`);
+      })
+      .catch((err) => toast(`Import fehlgeschlagen: ${err.message}`));
+  });
+  feld.click();
+}
+
+/**
  * Trainingstermine als Kalenderdatei.
  *
  * Geschrieben werden die *tatsächlichen* Termine – verschobene inbegriffen –
@@ -3709,7 +3745,13 @@ function renderSettings() {
       </div>
       <textarea class="io" id="io" placeholder="Hier JSON einfügen und auf „Importieren“ tippen…" style="margin-top:10px"></textarea>
       <div class="btn-row">
-        <button type="button" class="btn" data-act="import">Importieren</button>
+        <button type="button" class="btn btn-primary" data-act="import-file">Datei laden</button>
+        <button type="button" class="btn" data-act="import">Eingefügten Text laden</button>
+      </div>
+      <div class="small muted" style="margin-top:8px">Umzug auf ein anderes Gerät oder in die
+        installierte App: dort <i>Als Datei sichern</i>, hier <i>Datei laden</i>. Der eingelesene
+        Stand ersetzt den bisherigen vollständig.</div>
+      <div class="btn-row" style="margin-top:10px">
         <button type="button" class="btn btn-danger" data-act="reset-all">Alle Daten löschen</button>
       </div>
     </div>
@@ -4570,6 +4612,9 @@ view.addEventListener('click', (e) => {
       break;
     case 'download':
       downloadBackup();
+      break;
+    case 'import-file':
+      importBackupDatei();
       break;
     case 'import': {
       const io = document.getElementById('io');
