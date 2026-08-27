@@ -228,7 +228,7 @@ export const EXERCISES = [
       "name": "Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange + Rucksack",
-      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zusatzgewicht erst, wenn 10 saubere Wiederholungen stehen – dann Rucksack auf den Rücken (Wasserflaschen, Bücher, Kurzhanteln) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
+      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Schaffst du noch keine 5? Dann ist eine einzelne Wiederholung ein Maximalversuch und kein Trainingssatz: Negative (von einem Stuhl aus starten, 5 s ablassen) oder Füße auf einem Stuhl abstützen, bis du im Bereich 5–10 arbeitest. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Wasserflaschen, Bücher, Kurzhanteln) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
       "rest": 180,
       "pattern": "pullup",
       "shares": {
@@ -1030,7 +1030,7 @@ export const EXERCISES = [
       "name": "Pull-ups",
       "reps": "4–10",
       "equip": "Klimmzugstange + Rucksack",
-      "cue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
+      "cue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Noch keine 4? Dann Negative (hochspringen, 5 s ablassen) oder Füße auf einem Stuhl, bis der Bereich steht – einzelne Maximalversuche bringen für den Aufbau wenig. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
       "rest": 180,
       "pattern": "pullupwide",
       "shares": {
