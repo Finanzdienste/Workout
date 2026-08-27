@@ -1967,8 +1967,8 @@ gruppierte Geräte. Es ändert sich nichts an der Sorgfalt, nur an der Betonung.
 | Variante | Betonung |
 | --- | --- |
 | `standard` – Ausgewogen | Rücken, Brust, seitliche Schulter vorn; Beine laufen mit |
-| `bbp` – Bauch, Beine, Po | Gesäß 15, Beine 12, Bauch 12 Sätze/Woche; Oberkörper reduziert |
-| `oberkoerper` – Oberkörper | Brust, Rücken, Schultern, Arme je 12; Beine ein Auftritt/Woche |
+| `bbp` – Bauch, Beine, Po | Gesäß 15, Beine 12, Bauch 12 Sätze/Woche; Oberkörper reduziert, aber nicht unter zwei Termine |
+| `oberkoerper` – Oberkörper | Brust, Rücken, Schultern, Arme je 12; Beine ein Auftritt/Woche, Hüftstreckung inklusive |
 | `kurz` – Kurz und knapp | dieselben Übungen, kürzere Einheiten – ~13 statt ~17 Sätze |
 | `beine` – Beine ernst gemeint | wie Ausgewogen, aber Beine mit eigenem Ziel statt auf Erhalt |
 | `cut` – Cut | weniger Sätze bei gleicher Abdeckung – für Wochen im Kaloriendefizit |
@@ -2081,6 +2081,57 @@ Und der eigentliche Punkt: Dass das ein Jahr lang niemandem auffiel, lag nicht
 an mangelnder Sorgfalt beim Rechnen, sondern daran, dass **niemand nachgesehen
 hat, was am Ende herauskommt**. Genau dafür gibt es jetzt
 `tools/pruefung/plan-pruefen.py` – siehe „Prüfen".
+
+### Zwei Pläne mit demselben Fehler wie „Kurz und knapp"
+
+Nachdem das Prüftor stand, habe ich damit nachgesehen, was sonst noch so
+aussieht. Zwei Treffer, beide vom selben Muster: Ziele exakt getroffen,
+Frequenz im Keller.
+
+**„Bauch, Beine, Po".** Der Unterkörper war nie das Problem – Gesäß 3,0
+Termine die Woche, Oberschenkel 2,8, Bauch 2,0. Kaputt war der Oberkörper:
+
+| | vorher | jetzt |
+| --- | --- | --- |
+| hintere Schulter | **1,05×/Woche, 12 Tage Abstand** | 2,05×, 5 Tage |
+| seitliche Schulter | 1,57×, 10 Tage | 2,00×, 5 Tage |
+| Nacken | 2,05× | 2,43× |
+| Trizepsstrecker | **kam nicht vor** | im Plan |
+
+Die Zielzahlen dafür: hintere Schulter 5 → **8**, seitliche 6 → **7**,
+Trizeps 5 → **6**.
+
+Dass die hintere Schulter hier **dasselbe Ziel wie im ausgewogenen Plan**
+bekommt, obwohl ringsum gekürzt wird, sieht falsch aus und ist es nicht: Sie
+lebt zum guten Teil vom Rudern, und dieser Plan rudert weniger (Rücken 7 statt
+10). Wer den Zufluss kürzt, muss das Ziel halten, sonst kürzt er doppelt –
+dieselbe Lehre wie beim Bauch, eine Etage höher.
+
+**Was es gekostet hat, und das gehört dazu:** Die vordere Schulter fällt von
+1,52 auf 1,05 Termine, mit bis zu 17 Tagen zwischen zwei *direkten* Reizen. Das
+Prüftor hat das gemeldet, und ich habe es bewusst hingenommen. Zwei Gründe:
+„Direkt" heißt Anteil ab 0,5, und das sind nur Schulterdrücken (1,00) und
+fußerhöhte Liegestütze (0,60) – Floor Press (0,35) und beschwerte Liegestütze
+(0,45) arbeiten weiter an ihr, zählen hier bloß nicht mit. Und von den drei
+Schulterköpfen ist die vordere der, den jedes Drücken ohnehin trifft; die
+hintere ist der, den man vergisst. Ihr Wochenvolumen liegt weiterhin bei 5,0
+Sätzen.
+
+**„Oberkörper" kannte keine Hüftstreckung.** Kreuzheben, Hip Thrust, Split
+Squat und der einbeinige Leg Curl kamen im ganzen Plan nicht vor – 24 Wochen
+ohne einen einzigen Hüftstreckungsreiz. Für einen Oberkörperplan ist wenig
+Beinarbeit richtig; ein halbes Jahr ohne das Bewegungsmuster ist etwas anderes.
+
+Ein eigenes Ziel für die Hüftstreckung geht **nicht**: 36 Kombinationen aus
+Hüftstreckung 3–5, Gesäß 3–5 und Bauch 6–8 durchgerechnet, keine einzige exakte
+Lösung zwischen 21 und 32 Wochen. Bei so wenig Beinvolumen ist der Block
+überbestimmt, sobald eine Gleichung dazukommt.
+
+Über das Gesäß geht es: **3 → 6**, und damit sind Kreuzheben, Hip Thrust und
+Split Squat zurück, die Hüftstreckung bei 1,00 statt 0,00 Terminen. Kostet drei
+Sätze die Woche, und der Plan geht jetzt in 21 statt 24 Wochen auf. Draußen
+bleibt nur noch der einfache Goblet Squat – das Kniebeugemuster steht mit der
+fersenerhöhten Fassung im Plan, das Hüftmuster stand vorher mit gar nichts.
 
 ### Warum es „Beine ernst gemeint" gibt
 

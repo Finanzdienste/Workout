@@ -4,74 +4,70 @@
    "abs": 7,
    "biceps": 7,
    "calves": 5,
-   "chest": 7,
-   "frontDelts": 9,
+   "chest": 5,
+   "frontDelts": 17,
    "glutes": 3,
-   "hamstringsHip": 11,
+   "hamstringsHip": 9,
    "hamstringsKnee": 7,
    "lats": 5,
    "quads": 5,
-   "rearDelts": 12,
-   "sideDelts": 10,
-   "traps": 7,
+   "rearDelts": 5,
+   "sideDelts": 5,
+   "traps": 5,
    "triceps": 5
   },
   "frequenz": {
    "abs": 2,
-   "biceps": 1.95,
-   "calves": 2.29,
+   "biceps": 2,
+   "calves": 2.19,
    "chest": 2,
-   "frontDelts": 1.52,
+   "frontDelts": 1.05,
    "glutes": 3,
    "hamstringsHip": 1.76,
    "hamstringsKnee": 2,
-   "lats": 2.1,
-   "quads": 2.81,
-   "rearDelts": 1.05,
-   "sideDelts": 1.57,
-   "traps": 2.05,
-   "triceps": 2.19
+   "lats": 2.14,
+   "quads": 2.76,
+   "rearDelts": 2.05,
+   "sideDelts": 2,
+   "traps": 2.43,
+   "triceps": 2.24
   },
-  "ohne_saetze": [
-   "liegende-trizepsstrecker"
-  ]
+  "ohne_saetze": []
  },
  "bbp/db": {
   "abstand_max": {
    "abs": 7,
    "biceps": 7,
    "calves": 5,
-   "chest": 7,
-   "frontDelts": 9,
+   "chest": 5,
+   "frontDelts": 17,
    "glutes": 3,
-   "hamstringsHip": 11,
+   "hamstringsHip": 9,
    "hamstringsKnee": 7,
    "lats": 5,
    "quads": 5,
-   "rearDelts": 12,
-   "sideDelts": 10,
-   "traps": 7,
+   "rearDelts": 5,
+   "sideDelts": 5,
+   "traps": 5,
    "triceps": 5
   },
   "frequenz": {
    "abs": 2,
-   "biceps": 1.95,
-   "calves": 2.29,
+   "biceps": 2,
+   "calves": 2.19,
    "chest": 2,
-   "frontDelts": 1.52,
+   "frontDelts": 1.05,
    "glutes": 3,
    "hamstringsHip": 1.76,
    "hamstringsKnee": 2,
-   "lats": 2.1,
-   "quads": 2.81,
-   "rearDelts": 1.05,
-   "sideDelts": 1.57,
-   "traps": 2.05,
-   "triceps": 2.19
+   "lats": 2.14,
+   "quads": 2.76,
+   "rearDelts": 2.05,
+   "sideDelts": 2,
+   "traps": 2.43,
+   "triceps": 2.24
   },
-  "ohne_saetze": [
-   "liegende-trizepsstrecker"
-  ]
+  "ohne_saetze": []
  },
  "beine/bw": {
   "abstand_max": {
@@ -289,82 +285,76 @@
  },
  "oberkoerper/bw": {
   "abstand_max": {
-   "abs": 11,
+   "abs": 12,
    "biceps": 5,
    "calves": 12,
    "chest": 5,
-   "frontDelts": 11,
-   "glutes": 12,
-   "hamstringsHip": null,
-   "hamstringsKnee": 12,
+   "frontDelts": 7,
+   "glutes": 5,
+   "hamstringsHip": 11,
+   "hamstringsKnee": 11,
    "lats": 5,
-   "quads": 12,
+   "quads": 11,
    "rearDelts": 7,
    "sideDelts": 5,
    "traps": 5,
-   "triceps": 3
+   "triceps": 5
   },
   "frequenz": {
-   "abs": 1.38,
-   "biceps": 2.71,
+   "abs": 1.33,
+   "biceps": 2.67,
    "calves": 1,
-   "chest": 2.67,
-   "frontDelts": 1.33,
-   "glutes": 1.5,
-   "hamstringsHip": 0,
+   "chest": 2.86,
+   "frontDelts": 1.71,
+   "glutes": 2.1,
+   "hamstringsHip": 1,
    "hamstringsKnee": 1,
-   "lats": 2.96,
+   "lats": 2.62,
    "quads": 1,
-   "rearDelts": 2.04,
-   "sideDelts": 2.79,
-   "traps": 2.58,
-   "triceps": 3
+   "rearDelts": 2.05,
+   "sideDelts": 2.62,
+   "traps": 2.57,
+   "triceps": 2.9
   },
   "ohne_saetze": [
-   "einbeiniger-sliding-leg-curl",
-   "hip-thrust",
-   "rumaenisches-kreuzheben",
-   "split-squat"
+   "goblet-squat"
   ]
  },
  "oberkoerper/db": {
   "abstand_max": {
-   "abs": 11,
+   "abs": 12,
    "biceps": 5,
    "calves": 12,
    "chest": 5,
-   "frontDelts": 11,
-   "glutes": 12,
-   "hamstringsHip": null,
-   "hamstringsKnee": 12,
+   "frontDelts": 7,
+   "glutes": 5,
+   "hamstringsHip": 11,
+   "hamstringsKnee": 11,
    "lats": 5,
-   "quads": 12,
+   "quads": 11,
    "rearDelts": 7,
    "sideDelts": 5,
    "traps": 5,
-   "triceps": 3
+   "triceps": 5
   },
   "frequenz": {
-   "abs": 1.38,
-   "biceps": 2.71,
+   "abs": 1.33,
+   "biceps": 2.67,
    "calves": 1,
-   "chest": 2.67,
-   "frontDelts": 1.33,
-   "glutes": 1.5,
-   "hamstringsHip": 0,
+   "chest": 2.86,
+   "frontDelts": 1.71,
+   "glutes": 2.1,
+   "hamstringsHip": 1,
    "hamstringsKnee": 1,
-   "lats": 2.96,
+   "lats": 2.62,
    "quads": 1,
-   "rearDelts": 2.04,
-   "sideDelts": 2.79,
-   "traps": 2.58,
-   "triceps": 3
+   "rearDelts": 2.05,
+   "sideDelts": 2.62,
+   "traps": 2.57,
+   "triceps": 2.9
   },
   "ohne_saetze": [
-   "einbeiniger-sliding-leg-curl",
-   "hip-thrust",
-   "rumaenisches-kreuzheben",
-   "split-squat"
+   "goblet-squat"
   ]
  },
  "standard/bw": {

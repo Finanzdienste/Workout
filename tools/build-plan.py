@@ -150,23 +150,62 @@ VARIANTEN = {
         'ziele': TARGET,
         'cap': CAP,
     },
+    # Der Unterkörper war hier nie das Problem – Gesäß 3,0 Termine die Woche,
+    # Oberschenkel 2,8, Bauch 2,0. Kaputt war der Oberkörper, und zwar nach
+    # demselben Muster wie bei „Kurz und knapp": Ziele exakt getroffen,
+    # Frequenz im Keller.
+    #
+    #   hintere Schulter   3,1 direkte Sätze → 1,05 Termine, bis 12 Tage Abstand
+    #   seitliche Schulter 4,7 direkte Sätze → 1,57 Termine, bis 10 Tage
+    #   Trizepsstrecker    kam im ganzen Plan nicht vor
+    #
+    # **Die hintere Schulter braucht hier ein *höheres* Ziel als im
+    # ausgewogenen Plan** – 8 gegen 8, also gleich viel, obwohl ringsum
+    # gekürzt wird. Das sieht falsch aus und ist es nicht: Sie lebt zum guten
+    # Teil vom Rudern, und dieser Plan rudert weniger (Rücken 7 statt 10). Wer
+    # den Zufluss kürzt, muss das Ziel halten, sonst kürzt er doppelt. Dieselbe
+    # Lehre wie beim Bauch, nur eine Etage höher.
+    #
+    # Trizeps 5 → 6 hält das Schulterdrücken im Plan; bei 5 fiel es ganz heraus
+    # und die vordere Schulter auf 0,48 Termine. Bei 6 steht sie bei 1,05 –
+    # weniger als die 1,62 von vorher, und das ist der Preis: Was die hintere
+    # Schulter mehr bekommt, geht der vorderen ab. Von den drei Köpfen ist die
+    # vordere der, der von jedem Drücken und jeder Liegestütze ohnehin etwas
+    # abbekommt; die hintere ist der, den man vergisst.
     'bbp': {
         'name': 'Bauch, Beine, Po',
         'ziele': {
-            'chest': 6, 'lats': 7, 'sideDelts': 6, 'rearDelts': 5,
-            'biceps': 5, 'triceps': 5, 'abs': 12,
+            'chest': 6, 'lats': 7, 'sideDelts': 7, 'rearDelts': 8,
+            'biceps': 5, 'triceps': 6, 'abs': 12,
             'frontDelts': None, 'traps': None, 'hamstringsHip': None,
             'glutes': 15, 'quads': 12, 'hamstringsKnee': 6, 'calves': 9,
         },
         'cap': 12,
     },
+    # Beine auf Erhalt – aber nicht die Hüftstreckung auf null.
+    #
+    # Mit Gesäß 3 fielen Kreuzheben, Hip Thrust, Split Squat und der einbeinige
+    # Leg Curl komplett aus dem Plan: **kein einziger Hüftstreckungsreiz in 24
+    # Wochen.** Für einen Oberkörperplan ist wenig Beinarbeit richtig, ein
+    # halbes Jahr ohne das Bewegungsmuster ist etwas anderes – wer danach
+    # wieder Kreuzheben will, fängt bei null an.
+    #
+    # Ein eigenes Ziel für die Hüftstreckung geht *nicht*: Nachgerechnet über
+    # 36 Kombinationen aus Hüftstreckung 3–5, Gesäß 3–5 und Bauch 6–8 gibt es
+    # zwischen 21 und 32 Wochen keine einzige exakte Lösung. Bei so wenig
+    # Beinvolumen ist der Block überbestimmt, sobald eine Gleichung dazukommt.
+    #
+    # Also über das Gesäß: 3 → 6 bringt das Kreuzheben zurück und die
+    # Hüftstreckung auf 1,21 Termine die Woche. Kostet drei Sätze die Woche.
+    # Der Split Squat bleibt draußen – das Kniebeugemuster steht mit zwei
+    # Goblet-Fassungen im Plan, das Hüftmuster stand mit gar nichts.
     'oberkoerper': {
         'name': 'Oberkörper',
         'ziele': {
             'chest': 12, 'lats': 12, 'sideDelts': 12, 'rearDelts': 9,
             'biceps': 12, 'triceps': 12, 'abs': 6,
             'frontDelts': None, 'traps': None, 'hamstringsHip': None,
-            'glutes': 3, 'quads': 3, 'hamstringsKnee': 3, 'calves': 3,
+            'glutes': 6, 'quads': 3, 'hamstringsKnee': 3, 'calves': 3,
         },
         'cap': 13,
     },
@@ -1585,8 +1624,10 @@ def main():
     if bw_rest < 1e-9:
         print('  jetzt:  jedes Ziel exakt getroffen.')
     else:
-        print(f'  jetzt:  Summe der Quadrate {sum(d * d for d, _ in neu):.3f}, am meisten '
-              + ', '.join(f'{LABEL.get(m, m)} {d:+.2f}' for d, m in neu[:3] if abs(d) > 0.005))
+        nennen = [f'{LABEL.get(m, m)} {d:+.2f}' for d, m in neu[:3] if abs(d) > 0.005]
+        print(f'  jetzt:  Summe der Quadrate {sum(d * d for d, _ in neu):.3f}'
+              + (', am meisten ' + ', '.join(nennen) if nennen
+                 else ' – keine Gruppe weicht um mehr als 0,005 Sätze ab'))
         print('          ' + ('der Suchraum ist vollständig abgesucht – mit zwei bis vier '
                               'Sätzen je Auftritt gibt es hier keine exakte Lösung.'
                               if bw_ganz else
