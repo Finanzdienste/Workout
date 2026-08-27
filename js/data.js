@@ -100,7 +100,7 @@ export const EXERCISES = [
       "name": "Sliding Leg Curl",
       "reps": "8–15",
       "equip": "Slider/Handtuch",
-      "cue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen.",
+      "cue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
       "rest": 120,
       "pattern": "legcurl",
       "shares": {
@@ -121,7 +121,7 @@ export const EXERCISES = [
       "name": "Sliding Leg Curl",
       "reps": "8–15",
       "equip": "Handtuch, glatter Boden",
-      "cue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s). Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
+      "cue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s). Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
       "rest": 120,
       "pattern": "legcurl",
       "shares": {
@@ -753,7 +753,7 @@ export const EXERCISES = [
       "name": "Füße-erhöhte Liegestütze",
       "reps": "8–15",
       "equip": "Erhöhung",
-      "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter.",
+      "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter. Schaffst du keine 8? Dann in die Gegenrichtung: Füße auf den Boden, und wenn das noch zu viel ist, die Hände erhöhen – auf eine Stuhlkante oder Treppenstufe. Je höher die Hände, desto leichter. Von dort Stufe für Stufe wieder herunter.",
       "rest": 150,
       "pattern": "pushupfeet",
       "shares": {
@@ -774,7 +774,7 @@ export const EXERCISES = [
       "name": "Füße-erhöhte Liegestütze",
       "reps": "8–20",
       "equip": "Stuhl oder feste Kiste",
-      "cue": "Füße auf einen Stuhl oder eine feste Kiste, Körper eine Linie, Ellenbogen ca. 45°. Je höher die Füße, desto mehr obere Brust und Schulter. Für mehr Reiz Füße höher stellen oder langsamer ablassen.",
+      "cue": "Füße auf einen Stuhl oder eine feste Kiste, Körper eine Linie, Ellenbogen ca. 45°. Je höher die Füße, desto mehr obere Brust und Schulter. Für mehr Reiz Füße höher stellen oder langsamer ablassen. Zu schwer? Füße auf den Boden, danach die Hände erhöhen (Stuhlkante, Treppenstufe) – je höher die Hände, desto leichter.",
       "rest": 150,
       "pattern": "pushupfeet",
       "shares": {
@@ -1401,6 +1401,10 @@ export const EXERCISES = [
         "Knie anheben reicht nicht – der Bauch arbeitet erst, wenn das Becken am Ende nach oben einrollt. Genau diesen Teil kürzen die meisten ab."
       ],
       [
+        "Wenn es noch nicht geht",
+        "Zwei Wiederholungen an der Stange sind kein Bauchtraining – meist ist der Griff zuerst am Ende, und der Bauch bekommt gar nicht genug ab. Dieselbe Bewegung im Liegen löst beides: auf dem Rücken, Hände unter dem Gesäß, Knie anheben und am Ende das Becken einrollen. Wer dort bei 15 sauberen ankommt, hängt sich wieder an die Stange. Zwischenschritt für den Griff allein: einfach hängen und die Zeit stoppen."
+      ],
+      [
         "Typische Fehler",
         "Schwingen und den Schwung mitnehmen. Nur die Beine pendeln lassen. Zu schnell ablassen."
       ]
@@ -1409,7 +1413,7 @@ export const EXERCISES = [
       "name": "Hängendes Knieheben",
       "reps": "8–15",
       "equip": "Klimmzugstange",
-      "cue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit.",
+      "cue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit. Schaffst du keine 8? Dann dieselbe Bewegung im Liegen: auf dem Rücken, Hände unter dem Gesäß, Knie anheben und das Becken einrollen. Damit bist du sofort im Bereich – an der Stange hört man meist wegen des Griffs auf, nicht wegen des Bauchs.",
       "rest": 120,
       "pattern": "kneeraise",
       "shares": {
@@ -1424,7 +1428,7 @@ export const EXERCISES = [
       "name": "Hängendes Knieheben",
       "reps": "8–15",
       "equip": "Klimmzugstange",
-      "cue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit.",
+      "cue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit. Schaffst du keine 8? Dann dieselbe Bewegung im Liegen: auf dem Rücken, Hände unter dem Gesäß, Knie anheben und das Becken einrollen. Damit bist du sofort im Bereich – an der Stange hört man meist wegen des Griffs auf, nicht wegen des Bauchs.",
       "rest": 120,
       "pattern": "kneeraise",
       "shares": {
@@ -1458,7 +1462,7 @@ export const EXERCISES = [
       "name": "Band-Pull-Apart",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff.",
+      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "pullapart",
       "shares": {
@@ -1475,7 +1479,7 @@ export const EXERCISES = [
       "name": "Band-Pull-Apart",
       "reps": "12–20",
       "equip": "Loop-Band (Face Pull: + Klimmzugstange)",
-      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff.",
+      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "pullapart",
       "shares": {

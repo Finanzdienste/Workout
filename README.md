@@ -2302,6 +2302,34 @@ Pausen, Übungsauswahl und die Erholungsregel sind für alle dieselben – daran
 ist nichts stufenspezifisch. Und sobald jemand ein Gewicht selbst einstellt,
 gilt seins: Die Stufe ist ein Startpunkt, keine Obergrenze.
 
+### Jede Übung muss einen Weg nach unten nennen
+
+Der Plan gibt Wiederholungsbereiche vor. Wer sie nicht erreicht, braucht eine
+leichtere Fassung – und bei den meisten Übungen erledigt das die
+Erfahrungsstufe von selbst: halbes Gewicht, gleicher Bereich. **Bei acht der 24
+Übungen gibt es kein Gewichtsfeld.** Dort ist das Körpergewicht die Last, und
+die einzige Anpassung ist eine andere Ausführung.
+
+Steht die nirgends, bekommt der Anfänger eine Vorgabe, die er nicht erfüllen
+kann. Das war viermal der Fall, und jedes Mal ist es erst aufgefallen, als
+jemand danach gefragt hat:
+
+| Übung | was dastand |
+| --- | --- |
+| Chin-ups, Pull-ups | nur, wann man Gewicht *dazu*packt |
+| Hängendes Knieheben | kannte die Fassung im Liegen nicht |
+| Fußerhöhte Liegestütze | „Für mehr Reiz Füße höher stellen" – nur nach oben |
+| Sliding Leg Curl | nur der Hinweis für Teppichboden |
+
+Beim Knieheben kommt eine Besonderheit dazu, die eine kleinere Zahl nicht
+gelöst hätte: **Wer dort nach zwei Wiederholungen aufhört, hört meist wegen des
+Griffs auf, nicht wegen des Bauchs.** Die Vorgabe zu senken hätte den Muskel
+erst recht nicht erreicht – nötig war die Bewegung im Liegen.
+
+`tools/pruefung/weg-nach-unten.py` macht daraus eine Regel statt einer fünften
+Einzelkorrektur: Jede Übung ohne Gewichtsfeld muss im Hinweis oder in der
+Erklärung eine leichtere Ausführung nennen. Läuft bei jedem Push mit.
+
 ### Wo die Stufe nicht reicht: Wiederholungen und Pause
 
 Das Umrechnen über das Gewicht löst das Problem fast überall: Der Anfänger

@@ -23,6 +23,12 @@ jobs:
       - name: Pläne prüfen
         run: python3 tools/pruefung/plan-pruefen.py --bericht
 
+      # Wer den vorgegebenen Wiederholungsbereich nicht erreicht, braucht eine
+      # leichtere Ausführung. Bei Übungen mit Gewichtsfeld erledigt das die
+      # Erfahrungsstufe; bei den anderen muss sie im Hinweis stehen.
+      - name: Jede Übung nennt einen Weg nach unten
+        run: python3 tools/pruefung/weg-nach-unten.py
+
       # Die erzeugten Dateien noch einmal erzeugen. Kommt dabei etwas anderes
       # heraus als eingecheckt ist, wurde von Hand hineingeschrieben oder ein
       # Generatorlauf vergessen – beides läuft irgendwann auseinander.
