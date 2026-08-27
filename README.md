@@ -567,6 +567,57 @@ die schlimmste Woche 25 % daneben – gemessen am Ziel der Gruppe, nicht in
 Sätzen. Die Gruppen ohne Ziel dürfen weiter ausschlagen: Sie haben keins, das
 die Verteilung optimieren könnte.
 
+### Was „exakt" wert ist, wenn die Anteile geschätzt sind
+
+Der Generator trifft jedes Wochenziel exakt. Er trifft es aber exakt *unter der
+Annahme*, dass ein Goblet Squat zu 1,0 auf den Oberschenkel, zu 0,55 auf das
+Gesäß und zu 0,35 auf den Bauch geht – und diese Zahlen sind Schätzungen aus
+gängiger Trainingslehre, keine Messwerte. Damit steht die ganze exakte
+Rechnerei auf Koeffizienten mit erheblichem Spielraum, und die Frage ist nicht
+rhetorisch: Wie viel Präzision darf man einem Plan zuschreiben, dessen
+Eingangsgrößen um ein Drittel daneben liegen können?
+
+`tools/pruefung/anteile-streuung.py` misst es, statt es zu behaupten: Jeder
+Anteil unter 1,0 wird unabhängig um bis zu ±30 % verschoben, dann wird der
+ausgelieferte Plan damit nachgerechnet – 2000 mal. Die 1,0 bleibt stehen, sie
+heißt „dafür ist die Übung da" und ist Festlegung, keine Schätzung.
+
+| Gruppe | Ziel | 5 %–95 % | Spanne |
+| --- | --- | --- | --- |
+| **Brust, Rücken, Oberschenkel, Waden, Beinbeuger Knie** | 10 / 6 / 3 | **unverändert** | **0 %** |
+| Bauch | 9 | 8,62 – 9,38 | 8 % |
+| seitliche Schulter | 10 | 9,58 – 10,41 | 8 % |
+| hintere Schulter | 8 | 7,61 – 8,38 | 10 % |
+| Gesäß | 9 | 8,18 – 9,83 | 18 % |
+| vordere Schulter, Beinbeuger Hüfte | *Ergebnis* | ±18 % | 18 % |
+| Nacken | *Ergebnis* | 8,97 – 11,05 | 21 % |
+| Bizeps | 10 | 8,90 – 11,12 | 22 % |
+| Trizeps | 10 | 8,84 – 11,21 | 24 % |
+
+Zwei Dinge stehen da, und beide sind es wert, ausgesprochen zu werden.
+
+**Die Hälfte der Gruppen ist überhaupt nicht betroffen.** Brust, Rücken,
+Oberschenkel, Waden und der knienahe Beinbeuger beziehen ihr gesamtes Volumen
+aus Übungen mit Anteil 1,0. Dort ist „exakt 10" wirklich exakt 10 – die
+Unsicherheit in den Nebenanteilen kann daran nichts ändern.
+
+**Am anderen Ende steht der Trizeps mit ±24 %.** Er bekommt den größten Teil
+seines Volumens nebenbei, aus jedem Drücken; wenn diese Nebenanteile falsch
+geschätzt sind, ist seine 10 in Wahrheit eine 8,8 bis 11,2. Dasselbe gilt für
+Bizeps und Nacken.
+
+Bemerkenswert ist dabei, dass ±30 % Eingangsfehler nur ±24 % Ausgangsfehler
+ergeben, und bei den meisten Gruppen deutlich weniger. Der Grund ist banal und
+tröstlich: Jede Gruppe wird von mehreren Übungen gefüttert, und unabhängige
+Schätzfehler heben sich zum Teil gegenseitig auf.
+
+**Was folgt daraus?** Nicht, dass die exakte Rechnung überflüssig wäre – sie
+verhindert die groben Fehler, um die es hier gar nicht geht: dass eine Gruppe
+das Doppelte einer anderen bekommt, dass eine Übung ganz herausfällt, dass zwei
+Reize auf aufeinanderfolgende Tage rutschen. Wohl aber, dass die zweite
+Nachkommastelle nichts bedeutet. Wer die Ziele um einen Satz verschiebt,
+verschiebt weniger, als in den Anteilen ohnehin an Unsicherheit steckt.
+
 ### Der Bodyweight-Modus trifft dieselben Ziele nicht ganz
 
 Gerechnet wird mit den **Hantel-Anteilen**. Dieselbe Übung trifft ohne Zusatzlast
