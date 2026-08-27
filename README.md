@@ -1751,6 +1751,9 @@ tools/build-plan.py     Generator: Ziele je Muskelgruppe -> tools/plan.json
 tools/build-icons.mjs   Generator: icon.svg -> die drei PNGs
 tools/build-single.py   Bündelt alles zu dist/workout.html
 dist/workout.html       Erzeugt: die App als eine portable Datei
+tests/                  Browsertests, siehe „Prüfen"
+tools/pruefung/         Nachrechnen der fertigen Pläne, siehe „Prüfen"
+.github/workflows/      Beides bei jedem Push
 ```
 
 `js/data.js` ist generiert und wird nicht von Hand editiert. Planänderungen
@@ -1764,6 +1767,84 @@ python3 tools/build-data.py
 Der Generator bricht ab, wenn eine Zeile nicht dem Muster `3× Übung (8–12)`
 folgt, wenn Hantel- und Bodyweight-Spalte unterschiedlich viele Übungen haben
 oder wenn zu einer Übung der Eintrag in `exercise-meta.json` fehlt.
+
+## Prüfen
+
+Die App hat keinen Bauschritt, aber sie hat zwei Dinge, die stillschweigend
+kaputtgehen können: erzeugte Dateien und eine Mathematik. Beides wird bei jedem
+Push nachgerechnet.
+
+```bash
+npm install          # nur für die Tests; die App selbst braucht nichts
+npx playwright install chromium
+npm test             # alle Browsertests
+npm run test:plan    # die sechs Pläne nachrechnen
+```
+
+Einzelne Tests: `node tests/lauf.mjs zeit stufen`. Der Läufer startet die
+beiden Webserver selbst und meldet am Ende, wie viele Prüfungen gelaufen sind.
+Ein Test ohne eine einzige Prüfung gilt als gescheitert – sonst wäre eine Datei,
+die gleich beim Start abbricht, ein „bestandener" Test.
+
+### Warum Browsertests und nicht Unit-Tests
+
+Die interessanten Fehler dieser App lagen nie in einer einzelnen Funktion. Sie
+lagen darin, dass ein frisches `index.html` auf ein altes `app.js` traf, dass
+die Uhr beim Wiederaufnehmen doppelt zählte, dass ein Neuladen die Reihenfolge
+änderte und der Test danach eine andere Übung anfasste. Das sieht man nur, wenn
+ein echter Browser die echte Seite lädt – mit Service Worker, `localStorage`
+und allem, was ein Handy sonst auch mitbringt.
+
+`tests/server.mjs` liefert deshalb auf Port 8100 dieselben Dateien noch einmal
+aus, aber mit zehn Minuten Haltbarkeit, so wie GitHub Pages es tut. Genau daran
+ist die Aktualisierung einmal gescheitert, und ohne diesen zweiten Server ließe
+sich das nicht nachstellen.
+
+### Was am Plan geprüft wird
+
+`tools/pruefung/plan-pruefen.py` unterscheidet zwei Arten von Fehler:
+
+**Feste Regeln**, die immer gelten. Ein Ziel, das im Schnitt nicht getroffen
+wird. Eine Gruppe ohne Ziel über der Obergrenze. Zwei direkte Reize derselben
+Muskelgruppe an aufeinanderfolgenden Tagen – 48 Stunden Erholung sind die
+Zusage, auf der die ganze Tagesverteilung steht.
+
+**Ein Vergleichsstand** für alles, wo es kein sauberes Ja/Nein gibt: Frequenz
+je Gruppe, größter Abstand zwischen zwei Reizen, Übungen mit null Sätzen. Diese
+Zahlen stehen in `tools/pruefung/befunde.json`, und die Prüfung schlägt an, wenn
+sie *schlechter* werden. Kein erfundener Schwellenwert, sondern die Frage, die
+zählt: Habe ich gerade etwas verschlimmert? Der Vergleichsstand hält damit fest,
+wie gut die Pläne *sind* – nicht, wie gut sie sein sollten. Wer eine Zahl darin
+schlecht findet, verbessert den Plan und schreibt ihn mit `--schreiben` neu,
+statt die Regel zu lockern.
+
+Das ist keine akademische Vorsichtsmaßnahme. „Kurz und knapp" hatte über
+Monate eine Muskelgruppe bei 0,38 Terminen pro Woche und eine Übung, die
+überhaupt nicht mehr vorkam – während die exakte Rechnung des Generators
+zufrieden meldete, dass alle Ziele getroffen seien. Sie waren es auch. Nur
+hilft das niemandem, dessen Hip Thrust seit dreißig Tagen ausfällt.
+
+### Termine je Woche = direkte Sätze ÷ 3
+
+Der Zusammenhang, an dem sich beide Fehlschläge aufhängen, ist keine
+Faustregel, sondern eine Gleichung. Ein Auftritt einer Übung hat immer drei
+Sätze; also kommt eine Muskelgruppe genau so oft dran, wie sie direkte Sätze
+durch drei hat. An allen sechs Plänen nachgemessen stimmt das auf zwei
+Nachkommastellen: 3,0 direkte Sätze ergeben 1,00 Termine, 4,4 ergeben 1,48,
+5,9 ergeben 1,95, 8,1 ergeben 2,24.
+
+Der Haken ist, dass die *Ziele* etwas anderes zählen – gewichtetes Volumen,
+also auch das Halten bei der Kniebeuge und das Mitziehen beim Rudern. Eine
+Gruppe mit viel indirektem Zufluss kann deshalb ein hohes Ziel haben und
+trotzdem kaum direkt trainiert werden. Genau das ist beim Bauch der Fall, und
+deshalb braucht er ein *höheres* Ziel als die Gruppen, die ihr Volumen
+vollständig aus eigenen Übungen beziehen.
+
+`tools/pruefung/ziele-probe.py` rechnet das für einen Zielsatz in ein bis zwei
+Minuten aus, statt in den zehn Minuten, die ein voller Generatorlauf braucht:
+Es löst nur die Gleichungen und sagt, wie viele direkte Sätze dabei
+herauskommen. Damit lässt sich ein untauglicher Zielsatz erkennen, bevor er
+Rechenzeit kostet.
 
 ## Trainingsfokus
 
@@ -1919,10 +2000,64 @@ Gerundet wird auf die Schrittweite der jeweiligen Übung, mindestens auf einen
 Schritt. `0 kg` bleibt `0 kg`: Bei Klimmzügen heißt das „ohne Zusatzlast", und
 das gilt für jeden.
 
-Mehr ändert die Stufe nicht. Sätze, Pausen, Übungsauswahl und die
-Erholungsregel sind für Anfänger dieselben – daran ist nichts
-anfängerspezifisch. Und sobald jemand ein Gewicht selbst einstellt, gilt seins:
-Die Stufe ist ein Startpunkt, keine Obergrenze.
+**Und die Satzzahl.** Das war lange nicht so, und es war der größere Fehler:
+Die Stufe skalierte nur die Gewichte, obwohl das *Volumen* die Größe ist, die
+sich zwischen Anfänger und Fortgeschrittenem am deutlichsten unterscheidet. Wer
+neu anfängt, wächst schon bei drei bis fünf Sätzen je Muskel und Woche fast
+maximal – die Dosis-Wirkungs-Kurve ist dort oben flach. Mehr bringt kaum etwas
+und kostet das, woran es bei Anfängern wirklich hängt: saubere Technik in den
+letzten Sätzen, erträglicher Muskelkater, und eine Einheit, die man ein halbes
+Jahr lang durchhält.
+
+| Stufe | Sätze je Übung | Sätze je Einheit |
+| --- | --- | --- |
+| Anfänger | 2 | ~11,5 |
+| Geübt | 3 | ~17,2 |
+| Fortgeschritten | 4 | ~22,9 |
+
+Skaliert wird **gleichmäßig über alle Übungen**, und das ist der Grund, warum
+es die exakte Rechnung nicht kaputt macht: Bekommt jede Übung zwei Drittel
+ihrer Sätze, bekommt auch jede Muskelgruppe exakt zwei Drittel ihres Ziels. Die
+Verteilung bleibt dieselbe, nur die Höhe ändert sich – und das Wochensoll in
+der Statistik rechnet mit demselben Faktor, damit „Soll gegen Ist" weiter
+stimmt. Eigene Workouts bleiben außen vor: Was jemand selbst zusammenstellt,
+hat er so gemeint.
+
+Pausen, Übungsauswahl und die Erholungsregel sind für alle dieselben – daran
+ist nichts stufenspezifisch. Und sobald jemand ein Gewicht selbst einstellt,
+gilt seins: Die Stufe ist ein Startpunkt, keine Obergrenze.
+
+### Aufsteigen, ohne daran zu denken
+
+Eine Einstellung, die man einmal trifft und dann vergisst, ist genau dann
+schädlich, wenn sie mit der Zeit falsch wird. Wer als Anfänger anfängt und ein
+Jahr durchhält, trainiert danach immer noch auf zwei Sätzen je Übung, weil ihm
+niemand gesagt hat, dass die Zahl inzwischen zu klein ist. Die App weiß es
+aber – sie zählt ohnehin mit.
+
+| Schritt | Einheiten | Sätze | Tonnage |
+| --- | --- | --- | --- |
+| Anfänger → Geübt | 60 | 700 | 30 t |
+| Geübt → Fortgeschritten | 200 | 3400 | 200 t |
+
+Alle drei Bedingungen zusammen, denn jede einzelne lässt sich zu leicht
+erfüllen. **Einheiten**, weil Erfahrung vor allem Zeit unter der Hantel ist –
+60 sind bei vier pro Woche rund ein Vierteljahr. **Sätze**, damit halbe
+Einheiten nicht so viel zählen wie ganze. **Tonnage** (Kilo × Wiederholungen,
+aufsummiert), weil das der einzige Teil ist, der *Fortschritt* misst statt nur
+Anwesenheit.
+
+Die Tonnage gilt nur für den, der mit Gewichten trainiert. Im Bodyweight-Modus
+gibt es keine Kilo zu zählen, und jemanden deswegen ewig auf Anfänger stehen zu
+lassen, wäre eine Strafe für die Wahl der Variante.
+
+Passiert es, wird die Stufe **umgestellt** – das ist der Punkt, der Arbeit
+spart – und ein Hinweis auf der Startseite sagt, was sich dadurch ändert, mit
+einem Knopf zum Zurückstellen daneben. Jeder Schritt kommt genau einmal: Wer
+zurückstellt, bleibt unten, bis er selbst etwas anderes will. Geprüft wird nach
+jeder abgeschlossenen Einheit und einmal beim Start – Letzteres, damit eine
+eingelesene Sicherung sofort richtig einsortiert wird und nicht erst beim
+nächsten Training.
 
 ### Einrichten in vier Schritten
 

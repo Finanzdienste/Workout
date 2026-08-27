@@ -5804,6 +5804,13 @@ const DEFAULT_STATE = {
   // Zusätzliche Wiederholungen im Bodyweight-Modus, je Übung. Dort gibt es
   // kein Gewicht, das man erhöhen könnte – die Steigerung sind die Wdh.
   bwPlus: {},
+  // Stufen, in die die App von selbst hochgestuft hat: ['geuebt', ...].
+  // Jeder Schritt kommt genau einmal. Wer danach von Hand zurückstellt, wird
+  // nicht wieder hochgestuft – sonst wäre die Wahl keine.
+  aufstiege: [],
+  // Der zuletzt vollzogene Aufstieg, solange der Hinweis noch nicht weggetippt
+  // ist: { nach, von, am, einheiten, tonnen }.
+  aufstieg: null,
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };
@@ -6703,6 +6710,100 @@ const SAETZE_JE_STUFE = { anfaenger: 2, geuebt: 3, fortgeschritten: 4 };
 const satzFaktor = () => (SAETZE_JE_STUFE[store.getState().level || 'geuebt'] || 3) / 3;
 const satzZahl = (n) => Math.max(1, Math.round(n * satzFaktor()));
 
+/* ------------------------------------------------------------------ *
+ * Aufsteigen, ohne daran zu denken
+ *
+ * Die Stufe war bisher eine Einstellung, die man einmal trifft und dann
+ * vergisst – und genau das ist der Fehler. Wer als Anfänger anfängt und ein
+ * Jahr durchhält, trainiert danach immer noch auf zwei Sätzen je Übung, weil
+ * ihm niemand gesagt hat, dass die Zahl inzwischen zu klein ist. Die App weiß
+ * es aber: Sie zählt mit.
+ *
+ * **Woran gemessen wird.** An drei Dingen zusammen, denn jedes einzelne lässt
+ * sich zu leicht erfüllen:
+ *
+ *   Einheiten   Erfahrung ist vor allem Zeit unter der Hantel. 60 Einheiten
+ *               sind bei vier pro Woche rund ein Vierteljahr.
+ *   Sätze       Damit halbe Einheiten nicht so viel zählen wie ganze.
+ *   Tonnage     Kilo mal Wiederholungen, aufsummiert. Das ist der Teil, der
+ *               *Fortschritt* misst statt nur Anwesenheit: Wer schwerer wird,
+ *               kommt schneller ans Ziel.
+ *
+ * Die Tonnage gilt nur für den, der mit Gewichten trainiert. Im
+ * Bodyweight-Modus gibt es keine Kilo zu zählen, und jemanden deswegen ewig auf
+ * Anfänger stehen zu lassen, wäre eine Strafe für die Wahl der Variante.
+ *
+ * **Was dann passiert.** Die Stufe wird umgestellt – das ist der Punkt, der
+ * Arbeit spart – und ein Hinweis sagt, was sich dadurch ändert, mit einem
+ * Knopf zum Zurückstellen daneben. Jeder Schritt kommt genau einmal: Wer
+ * zurückstellt, bleibt unten, bis er selbst etwas anderes will.
+ * ------------------------------------------------------------------ */
+const AUFSTIEGE = [
+  { von: 'anfaenger', nach: 'geuebt', einheiten: 60, saetze: 700, tonnen: 30 },
+  { von: 'geuebt', nach: 'fortgeschritten', einheiten: 200, saetze: 3400, tonnen: 200 },
+];
+
+/** Der nächste Schritt, wenn es einen gibt und er noch nicht dran war. */
+function offenerAufstieg() {
+  const s = store.getState();
+  const schritt = AUFSTIEGE.find((a) => a.von === (s.level || 'geuebt'));
+  if (!schritt) return null;
+  return (s.aufstiege || []).includes(schritt.nach) ? null : schritt;
+}
+
+/**
+ * Prüfen und gegebenenfalls hochstufen. Gibt zurück, ob etwas passiert ist.
+ *
+ * Wird nach jeder abgeschlossenen Einheit aufgerufen und einmal beim Start –
+ * Letzteres, damit auch eine eingelesene Sicherung sofort richtig einsortiert
+ * wird und nicht erst beim nächsten Training.
+ */
+function pruefeAufstieg() {
+  const schritt = offenerAufstieg();
+  if (!schritt) return false;
+  const st = sammleStats();
+  const mitGewichten = st.doneDb >= st.doneBw;
+  if (st.workoutsDone < schritt.einheiten) return false;
+  if (st.setsDone < schritt.saetze) return false;
+  if (mitGewichten && st.volume < schritt.tonnen * 1000) return false;
+
+  const s = store.getState();
+  store.setSetting('aufstiege', [...(s.aufstiege || []), schritt.nach]);
+  store.setSetting('aufstieg', {
+    von: schritt.von,
+    nach: schritt.nach,
+    am: todayISO(),
+    einheiten: st.workoutsDone,
+    tonnen: Math.round(st.volume / 1000),
+  });
+  store.setSetting('level', schritt.nach);
+  return true;
+}
+
+/** Der Hinweis auf dem Dashboard, bis er weggetippt wird. */
+function aufstiegHinweis() {
+  const a = store.getState().aufstieg;
+  if (!a) return '';
+  const name = (k) => (LEVELS.find(([key]) => key === k) || [])[1] || k;
+  const vorher = SAETZE_JE_STUFE[a.von] || 3;
+  const jetzt = SAETZE_JE_STUFE[a.nach] || 3;
+  return `
+    <div class="notice aufstieg" style="margin:0 0 12px">
+      <strong>Aufgestiegen: ${esc(name(a.nach))}</strong>
+      <div class="small" style="margin-top:6px">
+        ${a.einheiten} Einheiten${a.tonnen ? ` und ${fmtNum(a.tonnen)} Tonnen bewegt` : ''} –
+        das ist keine Anfängerlast mehr. Ab jetzt stehen ${jetzt} statt ${vorher} Sätze je
+        Übung im Plan; Übungen, Pausen und die Verteilung über die Woche bleiben, wie sie
+        sind. Deine eingetragenen Gewichte rührt das nicht an.
+      </div>
+      <div class="btn-row nav" style="margin-top:10px">
+        <button type="button" class="btn btn-primary" data-act="aufstieg-ok">Passt</button>
+        <button type="button" class="btn btn-ghost" data-act="aufstieg-zurueck">
+          Bei ${esc(name(a.von))} bleiben</button>
+      </div>
+    </div>`;
+}
+
 /** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
 function startWeight(ex) {
   if (ex.weight === null) return null;
@@ -7528,6 +7629,7 @@ function renderOverview() {
   // nimmt sich den Platz, der zwischen den beiden übrig bleibt.
   view.innerHTML = `
     <section class="ov">
+      ${aufstiegHinweis()}
       ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
         Eintragungen gehen beim Neuladen verloren.</div>`}
       ${ui.shiftInfo ? `<div class="notice">
@@ -8030,6 +8132,8 @@ function renderDashboard() {
   const totalSets = items.reduce((a, x) => a + x.sets, 0);
 
   const parts = [];
+
+  parts.push(aufstiegHinweis());
 
   if (!store.canPersist()) {
     parts.push(`<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu – Eintragungen
@@ -10316,8 +10420,12 @@ view.addEventListener('click', (e) => {
       ui.listView = false;
       if (store.getState().rest) endRest(false);
       sound(prog.complete ? 'done' : 'stop');
+      // Erst nach markDone: Die Einheit, die gerade fertig geworden ist, soll
+      // mitzählen. Sonst käme der Aufstieg immer eine Einheit zu spät.
+      const gestiegen = pruefeAufstieg();
       render();
-      toast(prog.complete
+      if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
+      else toast(prog.complete
         ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
         : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
       break;
@@ -10678,9 +10786,26 @@ view.addEventListener('click', (e) => {
     }
     case 'set-level':
       store.setSetting('level', t.dataset.v);
+      // Von Hand gewählt ist von Hand gewählt: Der Hinweis eines automatischen
+      // Aufstiegs hat sich damit erledigt, auch wenn er noch offen stand.
+      store.setSetting('aufstieg', null);
       render();
       toast('Startgewichte umgerechnet – eingestellte Gewichte bleiben');
       break;
+    case 'aufstieg-ok':
+      store.setSetting('aufstieg', null);
+      render();
+      break;
+    case 'aufstieg-zurueck': {
+      const a = store.getState().aufstieg;
+      // Der Schritt bleibt in `aufstiege` stehen – wer zurückstellt, soll nicht
+      // nach der nächsten Einheit dieselbe Meldung wieder bekommen.
+      if (a) store.setSetting('level', a.von);
+      store.setSetting('aufstieg', null);
+      render();
+      toast('Bleibt, wie es war');
+      break;
+    }
     case 'set-theme':
       store.setSetting('theme', t.dataset.v);
       render();
@@ -10930,6 +11055,13 @@ if (ui.standAngebot) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;
+}
+// Auch beim Start prüfen, nicht nur nach einer Einheit: Eine eingelesene
+// Sicherung bringt womöglich ein halbes Jahr Training mit, und das soll sofort
+// in der richtigen Stufe landen statt erst nach dem nächsten Training.
+if (pruefeAufstieg()) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
 }
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist

@@ -1,0 +1,63 @@
+# Bei jedem Push: nachrechnen, nachbauen, nachklicken.
+#
+# Die App hat keinen Bauschritt – aber sie hat erzeugte Dateien (js/data.js,
+# dist/workout.html, tools/plan*.json) und eine Mathematik, die stimmen muss.
+# Beides fällt sonst erst auf, wenn jemand damit trainiert.
+name: Prüfung
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rechnen:
+    name: Pläne und erzeugte Dateien
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Pläne prüfen
+        run: python3 tools/pruefung/plan-pruefen.py --bericht
+
+      # Die erzeugten Dateien noch einmal erzeugen. Kommt dabei etwas anderes
+      # heraus als eingecheckt ist, wurde von Hand hineingeschrieben oder ein
+      # Generatorlauf vergessen – beides läuft irgendwann auseinander.
+      - name: Erzeugte Dateien sind aktuell
+        run: |
+          pip install --quiet openpyxl
+          python3 tools/build-data.py
+          python3 tools/build-single.py
+          git diff --exit-code -- js/data.js dist/workout.html \
+            || { echo "::error::js/data.js oder dist/workout.html ist nicht neu erzeugt worden."; exit 1; }
+
+  klicken:
+    name: Browsertests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+      # Nur Chromium: die App ist für das Handy gebaut, und drei Browser
+      # herunterzuladen kostet mehr Zeit als der ganze Testlauf.
+      - run: npx playwright install --with-deps chromium
+
+      - name: Alle Tests
+        run: node tests/lauf.mjs
+
+      # Bildschirmfotos aus dem Lauf – bei einem Fehlschlag ist das der
+      # schnellste Weg zu sehen, was die App wirklich angezeigt hat.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bildschirmfotos
+          path: .testlauf/*.png
+          if-no-files-found: ignore
+          retention-days: 7

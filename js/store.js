@@ -42,6 +42,13 @@ const DEFAULT_STATE = {
   // Zusätzliche Wiederholungen im Bodyweight-Modus, je Übung. Dort gibt es
   // kein Gewicht, das man erhöhen könnte – die Steigerung sind die Wdh.
   bwPlus: {},
+  // Stufen, in die die App von selbst hochgestuft hat: ['geuebt', ...].
+  // Jeder Schritt kommt genau einmal. Wer danach von Hand zurückstellt, wird
+  // nicht wieder hochgestuft – sonst wäre die Wahl keine.
+  aufstiege: [],
+  // Der zuletzt vollzogene Aufstieg, solange der Hinweis noch nicht weggetippt
+  // ist: { nach, von, am, einheiten, tonnen }.
+  aufstieg: null,
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };

@@ -1,0 +1,444 @@
+{
+ "bbp/bw": {
+  "abstand_max": {
+   "abs": 7,
+   "biceps": 7,
+   "calves": 5,
+   "chest": 7,
+   "frontDelts": 9,
+   "glutes": 3,
+   "hamstringsHip": 11,
+   "hamstringsKnee": 7,
+   "lats": 5,
+   "quads": 5,
+   "rearDelts": 12,
+   "sideDelts": 10,
+   "traps": 7,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 2,
+   "biceps": 1.95,
+   "calves": 2.29,
+   "chest": 2,
+   "frontDelts": 1.52,
+   "glutes": 3,
+   "hamstringsHip": 1.76,
+   "hamstringsKnee": 2,
+   "lats": 2.1,
+   "quads": 2.81,
+   "rearDelts": 1.05,
+   "sideDelts": 1.57,
+   "traps": 2.05,
+   "triceps": 2.19
+  },
+  "ohne_saetze": [
+   "liegende-trizepsstrecker"
+  ]
+ },
+ "bbp/db": {
+  "abstand_max": {
+   "abs": 7,
+   "biceps": 7,
+   "calves": 5,
+   "chest": 7,
+   "frontDelts": 9,
+   "glutes": 3,
+   "hamstringsHip": 11,
+   "hamstringsKnee": 7,
+   "lats": 5,
+   "quads": 5,
+   "rearDelts": 12,
+   "sideDelts": 10,
+   "traps": 7,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 2,
+   "biceps": 1.95,
+   "calves": 2.29,
+   "chest": 2,
+   "frontDelts": 1.52,
+   "glutes": 3,
+   "hamstringsHip": 1.76,
+   "hamstringsKnee": 2,
+   "lats": 2.1,
+   "quads": 2.81,
+   "rearDelts": 1.05,
+   "sideDelts": 1.57,
+   "traps": 2.05,
+   "triceps": 2.19
+  },
+  "ohne_saetze": [
+   "liegende-trizepsstrecker"
+  ]
+ },
+ "beine/bw": {
+  "abstand_max": {
+   "abs": 5,
+   "biceps": 5,
+   "calves": 7,
+   "chest": 5,
+   "frontDelts": 7,
+   "glutes": 3,
+   "hamstringsHip": 9,
+   "hamstringsKnee": 7,
+   "lats": 5,
+   "quads": 5,
+   "rearDelts": 7,
+   "sideDelts": 7,
+   "traps": 5,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 2,
+   "biceps": 2.71,
+   "calves": 2,
+   "chest": 2.71,
+   "frontDelts": 2.05,
+   "glutes": 3,
+   "hamstringsHip": 1.43,
+   "hamstringsKnee": 2,
+   "lats": 2.24,
+   "quads": 2.43,
+   "rearDelts": 1.95,
+   "sideDelts": 2.33,
+   "traps": 2.24,
+   "triceps": 2.9
+  },
+  "ohne_saetze": []
+ },
+ "beine/db": {
+  "abstand_max": {
+   "abs": 5,
+   "biceps": 5,
+   "calves": 7,
+   "chest": 5,
+   "frontDelts": 7,
+   "glutes": 3,
+   "hamstringsHip": 9,
+   "hamstringsKnee": 7,
+   "lats": 5,
+   "quads": 5,
+   "rearDelts": 7,
+   "sideDelts": 7,
+   "traps": 5,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 2,
+   "biceps": 2.71,
+   "calves": 2,
+   "chest": 2.71,
+   "frontDelts": 2.05,
+   "glutes": 3,
+   "hamstringsHip": 1.43,
+   "hamstringsKnee": 2,
+   "lats": 2.24,
+   "quads": 2.43,
+   "rearDelts": 1.95,
+   "sideDelts": 2.33,
+   "traps": 2.24,
+   "triceps": 2.9
+  },
+  "ohne_saetze": []
+ },
+ "cut/bw": {
+  "abstand_max": {
+   "abs": 10,
+   "biceps": 7,
+   "calves": 7,
+   "chest": 5,
+   "frontDelts": 12,
+   "glutes": 5,
+   "hamstringsHip": 11,
+   "hamstringsKnee": 11,
+   "lats": 7,
+   "quads": 7,
+   "rearDelts": 7,
+   "sideDelts": 5,
+   "traps": 5,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 1.9,
+   "biceps": 2.1,
+   "calves": 2,
+   "chest": 2.19,
+   "frontDelts": 1.33,
+   "glutes": 2.1,
+   "hamstringsHip": 1.33,
+   "hamstringsKnee": 1,
+   "lats": 2.19,
+   "quads": 2,
+   "rearDelts": 1.71,
+   "sideDelts": 2,
+   "traps": 2.38,
+   "triceps": 2.43
+  },
+  "ohne_saetze": [
+   "goblet-squat"
+  ]
+ },
+ "cut/db": {
+  "abstand_max": {
+   "abs": 10,
+   "biceps": 7,
+   "calves": 7,
+   "chest": 5,
+   "frontDelts": 12,
+   "glutes": 5,
+   "hamstringsHip": 11,
+   "hamstringsKnee": 11,
+   "lats": 7,
+   "quads": 7,
+   "rearDelts": 7,
+   "sideDelts": 5,
+   "traps": 5,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 1.9,
+   "biceps": 2.1,
+   "calves": 2,
+   "chest": 2.19,
+   "frontDelts": 1.33,
+   "glutes": 2.1,
+   "hamstringsHip": 1.33,
+   "hamstringsKnee": 1,
+   "lats": 2.19,
+   "quads": 2,
+   "rearDelts": 1.71,
+   "sideDelts": 2,
+   "traps": 2.38,
+   "triceps": 2.43
+  },
+  "ohne_saetze": [
+   "goblet-squat"
+  ]
+ },
+ "kurz/bw": {
+  "abstand_max": {
+   "abs": 12,
+   "biceps": 7,
+   "calves": 12,
+   "chest": 7,
+   "frontDelts": 21,
+   "glutes": 7,
+   "hamstringsHip": 30,
+   "hamstringsKnee": 12,
+   "lats": 7,
+   "quads": 7,
+   "rearDelts": 9,
+   "sideDelts": 10,
+   "traps": 9,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 1,
+   "biceps": 1.92,
+   "calves": 1,
+   "chest": 2,
+   "frontDelts": 1,
+   "glutes": 2.29,
+   "hamstringsHip": 0.38,
+   "hamstringsKnee": 1,
+   "lats": 2,
+   "quads": 2,
+   "rearDelts": 1.25,
+   "sideDelts": 1.67,
+   "traps": 1.58,
+   "triceps": 2.67
+  },
+  "ohne_saetze": [
+   "hip-thrust"
+  ]
+ },
+ "kurz/db": {
+  "abstand_max": {
+   "abs": 12,
+   "biceps": 7,
+   "calves": 12,
+   "chest": 7,
+   "frontDelts": 21,
+   "glutes": 7,
+   "hamstringsHip": 30,
+   "hamstringsKnee": 12,
+   "lats": 7,
+   "quads": 7,
+   "rearDelts": 9,
+   "sideDelts": 10,
+   "traps": 9,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 1,
+   "biceps": 1.92,
+   "calves": 1,
+   "chest": 2,
+   "frontDelts": 1,
+   "glutes": 2.29,
+   "hamstringsHip": 0.38,
+   "hamstringsKnee": 1,
+   "lats": 2,
+   "quads": 2,
+   "rearDelts": 1.25,
+   "sideDelts": 1.67,
+   "traps": 1.58,
+   "triceps": 2.67
+  },
+  "ohne_saetze": [
+   "hip-thrust"
+  ]
+ },
+ "oberkoerper/bw": {
+  "abstand_max": {
+   "abs": 11,
+   "biceps": 5,
+   "calves": 12,
+   "chest": 5,
+   "frontDelts": 11,
+   "glutes": 12,
+   "hamstringsHip": null,
+   "hamstringsKnee": 12,
+   "lats": 5,
+   "quads": 12,
+   "rearDelts": 7,
+   "sideDelts": 5,
+   "traps": 5,
+   "triceps": 3
+  },
+  "frequenz": {
+   "abs": 1.38,
+   "biceps": 2.71,
+   "calves": 1,
+   "chest": 2.67,
+   "frontDelts": 1.33,
+   "glutes": 1.5,
+   "hamstringsHip": 0,
+   "hamstringsKnee": 1,
+   "lats": 2.96,
+   "quads": 1,
+   "rearDelts": 2.04,
+   "sideDelts": 2.79,
+   "traps": 2.58,
+   "triceps": 3
+  },
+  "ohne_saetze": [
+   "einbeiniger-sliding-leg-curl",
+   "hip-thrust",
+   "rumaenisches-kreuzheben",
+   "split-squat"
+  ]
+ },
+ "oberkoerper/db": {
+  "abstand_max": {
+   "abs": 11,
+   "biceps": 5,
+   "calves": 12,
+   "chest": 5,
+   "frontDelts": 11,
+   "glutes": 12,
+   "hamstringsHip": null,
+   "hamstringsKnee": 12,
+   "lats": 5,
+   "quads": 12,
+   "rearDelts": 7,
+   "sideDelts": 5,
+   "traps": 5,
+   "triceps": 3
+  },
+  "frequenz": {
+   "abs": 1.38,
+   "biceps": 2.71,
+   "calves": 1,
+   "chest": 2.67,
+   "frontDelts": 1.33,
+   "glutes": 1.5,
+   "hamstringsHip": 0,
+   "hamstringsKnee": 1,
+   "lats": 2.96,
+   "quads": 1,
+   "rearDelts": 2.04,
+   "sideDelts": 2.79,
+   "traps": 2.58,
+   "triceps": 3
+  },
+  "ohne_saetze": [
+   "einbeiniger-sliding-leg-curl",
+   "hip-thrust",
+   "rumaenisches-kreuzheben",
+   "split-squat"
+  ]
+ },
+ "standard/bw": {
+  "abstand_max": {
+   "abs": 9,
+   "biceps": 5,
+   "calves": 7,
+   "chest": 5,
+   "frontDelts": 7,
+   "glutes": 5,
+   "hamstringsHip": 11,
+   "hamstringsKnee": 11,
+   "lats": 5,
+   "quads": 5,
+   "rearDelts": 7,
+   "sideDelts": 7,
+   "traps": 5,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 1.95,
+   "biceps": 2.81,
+   "calves": 2,
+   "chest": 2.81,
+   "frontDelts": 2.1,
+   "glutes": 2.57,
+   "hamstringsHip": 1.48,
+   "hamstringsKnee": 1,
+   "lats": 2.48,
+   "quads": 2,
+   "rearDelts": 1.95,
+   "sideDelts": 2.24,
+   "traps": 2.29,
+   "triceps": 2.95
+  },
+  "ohne_saetze": []
+ },
+ "standard/db": {
+  "abstand_max": {
+   "abs": 9,
+   "biceps": 5,
+   "calves": 7,
+   "chest": 5,
+   "frontDelts": 7,
+   "glutes": 5,
+   "hamstringsHip": 11,
+   "hamstringsKnee": 11,
+   "lats": 5,
+   "quads": 5,
+   "rearDelts": 7,
+   "sideDelts": 7,
+   "traps": 5,
+   "triceps": 5
+  },
+  "frequenz": {
+   "abs": 1.95,
+   "biceps": 2.81,
+   "calves": 2,
+   "chest": 2.81,
+   "frontDelts": 2.1,
+   "glutes": 2.57,
+   "hamstringsHip": 1.48,
+   "hamstringsKnee": 1,
+   "lats": 2.48,
+   "quads": 2,
+   "rearDelts": 1.95,
+   "sideDelts": 2.24,
+   "traps": 2.29,
+   "triceps": 2.95
+  },
+  "ohne_saetze": []
+ }
+}
