@@ -630,36 +630,63 @@ Reize auf aufeinanderfolgende Tage rutschen. Wohl aber, dass die zweite
 Nachkommastelle nichts bedeutet. Wer die Ziele um einen Satz verschiebt,
 verschiebt weniger, als in den Anteilen ohnehin an Unsicherheit steckt.
 
-### Der Bodyweight-Modus trifft dieselben Ziele nicht ganz
+### Der Bodyweight-Modus trifft jetzt dieselben Ziele
 
-Gerechnet wird mit den **Hantel-Anteilen**. Dieselbe Übung trifft ohne Zusatzlast
-aber teils andere Muskeln: Der Goblet Squat hält den Bauch mit 0,35, seine
-Bodyweight-Fassung mit 0,20; das rumänische Kreuzheben umgekehrt mit 0,20 gegen
-0,30; der Floor Press gibt 0,70 Trizeps ab, die Liegestütz-Fassung 0,60. Eine
-Satzzahl kann nicht beide Gleichungssysteme exakt treffen – „exakt" gilt für die
-Hantel-Fassung.
+Gerechnet wird mit den **Hantel-Anteilen**. Dieselbe Übung trifft ohne
+Zusatzlast aber teils andere Muskeln: Der Goblet Squat hält den Bauch mit 0,35,
+seine Bodyweight-Fassung mit 0,20; das rumänische Kreuzheben umgekehrt mit 0,20
+gegen 0,30; der Floor Press gibt 0,70 Trizeps ab, die Liegestütz-Fassung 0,60.
+Eine Satzzahl kann nicht beide Gleichungssysteme treffen – und über ein Jahr
+lang hieß das schlicht: „exakt" gilt für die Hantel-Fassung, der
+Bodyweight-Modus liegt eben daneben.
 
-Was übrig bleibt, steht seit `bw_fehler()` in jedem Lauf im Bericht:
+Das war eine Kapitulation vor der falschen Größe. Nicht die Anteile sind das
+Problem, sondern dass **die Satzzahl je Auftritt festgenagelt war**. Wer
+Termine, Übungen und Reihenfolge stehen lässt und nur die Sätze je Auftritt
+zwischen zwei und vier variieren lässt, bekommt genug Spielraum für das zweite
+System. Die Einheit bleibt dieselbe Einheit, am selben Tag, mit denselben
+Übungen – nur stehen bei manchen zwei oder vier Sätze statt drei.
 
-| Variante | größte Abweichung im Bodyweight-Modus |
-| --- | --- |
-| Ausgewogen | Bauch −0,59 · Trizeps −0,39 Sätze/Woche |
-| Bauch, Beine, Po | Bauch −1,27 · Trizeps −0,16 |
-| Oberkörper | Trizeps −0,60 · Bauch −0,45 |
-| Kurz und knapp | Bauch −0,68 · Trizeps −0,25 |
-| Beine ernst gemeint | Bauch −1,09 · Trizeps −0,39 |
+| Variante | vorher (Summe der Quadrate) | jetzt | Auftritte ≠ 3 Sätze |
+| --- | --- | --- | --- |
+| Ausgewogen | 0,502 (Bauch −0,59) | **exakt** | 54 von 481 |
+| Bauch, Beine, Po | 1,660 (Bauch −1,27) | **exakt** | 93 von 441 |
+| Kurz und knapp | 0,368 (Bauch −0,68) | **exakt** | 51 von 410 |
+| Oberkörper | 0,562 (Trizeps −0,60) | 0,000 (Trizeps −0,02) | 25 von 520 |
+| Beine ernst gemeint | 1,365 (Bauch −1,09) | 0,001 (Gesäß +0,02) | 34 von 531 |
+| Cut | 0,312 (Bauch −0,45) | 0,001 (Bauch −0,02) | 17 von 398 |
 
-**Wegwählen lässt sich das nicht.** Nachgemessen an den 4000 exakten Lösungen je
-Block: Im großen Oberkörper-Block haben *alle* 50 gescreenten denselben Wert
-(0,149); der beste unter allen 4000 läge bei 0,010 und erkauft ihn mit einer
-Streuung von 7624 statt 6019. Im zweiten Block dasselbe Bild – 0,196 statt 0,270
-wäre möglich, mit fast doppelter Streuung. Der Rest ist strukturell, nicht die
-Folge einer schlechten Satzwahl.
+In drei Varianten geht es exakt auf; in den anderen dreien bleibt eine
+Abweichung von höchstens **0,02 Sätzen pro Woche** – zwei Hundertstel eines
+Satzes gegen vorher mehr als ein halber. Und das ist kein „nicht gefunden",
+sondern ein „gibt es nicht": Der Suchraum ist in diesen drei Fällen vollständig
+abgesucht (in Zehntelsekunden, weil er klein ist). Mit einem Auftritt bei einem
+oder fünf Sätzen ginge es auf – aber ein einzelner Satz ist kein Reiz, und fünf
+ändern den Charakter der Einheit. Zwei Hundertstel sind der bessere Preis.
 
-Das Kriterium steht trotzdem in der Bewertung, ganz hinten vor `balance()`: Es
-kostet nichts und würde greifen, sobald sich Ziele oder Anteile ändern. Zum
-Zeitpunkt dieser Zeilen entscheidet es in keiner der fünf Varianten etwas – alle
-fünf sind mit und ohne das Kriterium Einheit für Einheit dieselben.
+**Wie gerechnet wird.** `bw_saetze()` in `tools/build-plan.py`, zwei Verfahren
+nacheinander: erst dieselbe Tiefensuche wie bei der Hantel-Rechnung, nur mit
+einer eigenen Wertemenge je Übung und den Werten nahe der Dreierzahl zuerst;
+findet sie nichts, ein Abstieg von der Dreierzahl aus, ±1 Satz je Schritt.
+Unter den exakten Lösungen wird die genommen, die dem Hantel-Plan am nächsten
+kommt – je weniger Auftritte abweichen, desto weniger merkt man, dass da zwei
+Pläne liegen. Danach verteilt `bw_verteilen()` die Plansumme gleichmäßig über
+die Auftritte, damit die Ausreißer nicht am Anfang stapeln.
+
+Das Ganze hängt allein am fertigen Plan, nicht am Generatorlauf –
+`tools/pruefung/bw-satzzahl.py` rechnet es in acht Sekunden für alle sechs
+Varianten nach, statt sechsmal zehn Minuten.
+
+**Der schwierigere Teil war die App.** Sobald die Satzzahl vom Modus abhängt,
+wird aus jeder Stelle, die einen Modus *kennt*, ihn aber nicht *weitergibt*,
+ein Fehler. `progressOf(n, mode)` etwa holte die abgehakten Sätze aus dem
+übergebenen Modus, das Soll aber aus dem gerade eingestellten – solange beide
+Zahlen gleich waren, fiel das nicht auf. Ab jetzt hätte eine im
+Bodyweight-Modus fertig gemachte Einheit nie auf „abgeschlossen" kommen können,
+und eine halb gemachte Hantel-Einheit hätte nach einem Tipp auf den Umschalter
+plötzlich als fertig gegolten. `exOf()` und `workoutByNo()` nehmen den Modus
+deshalb jetzt als Parameter, und die zwölf Aufrufer, die ihn kennen, geben ihn
+weiter.
 
 **Warum nicht überall dieselbe Zahl.** Der Unterkörper steht auf Erhalt
 (Oberschenkel, Waden 6, Gesäß 9), der Oberkörper trägt den Rest: Ein Sechstel
@@ -1976,7 +2003,7 @@ Das Ergebnis, am fertigen Plan gemessen:
 | Sätze je Einheit | 15–18 (Ø 17,2) | 12–15 (Ø 14,2) |
 | geschätzte Dauer | ca. 50 min | **ca. 40 min** |
 | Erholungsverstöße | 0 | 0 |
-| Bodyweight-Abweichung | 0,502 | **0,312** (die beste aller Varianten) |
+| Bodyweight-Abweichung (vor der eigenen Satzzahl) | 0,502 | **0,312** (die beste aller Varianten) |
 | Übungen im Plan | 24 von 24 | 23 von 24 – der einfache Goblet Squat fällt heraus |
 
 Der fehlende Goblet Squat ist der eine Makel, und er ist verkraftbar: Der
@@ -2027,7 +2054,7 @@ rund 72 Sätze die Woche – das ist der ausgewogene Plan, nicht ein kurzer.
 | Sätze je Woche | 69 | 57 | **51** |
 | Sätze je Einheit | Ø 17,2 | Ø 14,2 | **Ø 12,8** |
 | Übungen je Einheit | 5,7 | 4,7 | **4,3** |
-| Bodyweight-Abweichung | 0,502 | 0,312 | **0,368** |
+| Bodyweight-Abweichung (vor der eigenen Satzzahl) | 0,502 | 0,312 | **0,368** |
 | Übungen im Plan | 24 von 24 | 23 von 24 | **24 von 24** |
 
 Waden, knienaher Beinbeuger und Hüftstreckung bleiben bei einem Termin pro

@@ -185,24 +185,40 @@ function injuryNotes(n) {
  * Steigerungsvorschlag. So kann es gar nicht passieren, dass an einer Stelle
  * eine gesperrte Übung auftaucht und an einer anderen nicht.
  */
-function exOf(w) {
+function exOf(w, mode) {
   if (istCustom(w.n)) return w.ex;
+  const m = mode || store.workoutMode(w.n);
   const geplant = adjustedPlan()[w.n - 1] || w.ex;
-  // Erfahrung: gleich viele Übungen, andere Satzzahl. Siehe satzZahl().
-  const items = satzFaktor() === 1 ? geplant
-    : geplant.map((it) => ({ ...it, sets: satzZahl(it.sets) }));
+  // Der Modus bestimmt die Satzzahl, die Erfahrung skaliert sie. Beides muss
+  // hier passieren und nicht erst beim Anzeigen: Ab workoutByNo() reicht die
+  // App nur noch `sets` weiter, und wer dort die falsche Zahl hineingibt,
+  // bekommt sie in der Fortschrittsanzeige, im Protokoll und in der Statistik
+  // wieder heraus. Siehe bw_saetze() in tools/build-plan.py.
+  const items = geplant.map((it) => {
+    const roh = m === 'bw' && it.bwSets ? it.bwSets : it.sets;
+    const sets = satzZahl(roh);
+    return sets === it.sets ? it : { ...it, sets };
+  });
   // Nur bei den Hanteln: Im Bodyweight-Modus gibt es nichts umzubauen, und die
   // Reihenfolge soll dann die des Plans bleiben.
-  return store.workoutMode(w.n) === 'db' ? ruestOrderStabil(items, w.n, 'db') : items;
+  return m === 'db' ? ruestOrderStabil(items, w.n, 'db') : items;
 }
 
-function workoutByNo(n) {
+/**
+ * Ein Plantag mit den Satzzahlen des gewünschten Modus.
+ *
+ * `mode` ist optional und heißt "der Modus, in dem diese Einheit gerade steht".
+ * Wer über *beide* Modi rechnet – completedMode(), die Statistik – muss ihn
+ * ausdrücklich mitgeben, sonst bekommt er zweimal dieselben Zahlen und misst
+ * den einen Modus am Soll des anderen.
+ */
+function workoutByNo(n, mode) {
   if (istCustom(n)) {
     const c = store.customById(n);
     if (c) return { n, date: todayISO(), name: c.name, ex: c.ex, custom: true };
   }
   const w = PLAN.find((x) => x.n === n) || PLAN[0];
-  const ex = exOf(w);
+  const ex = exOf(w, mode);
   return ex === w.ex ? w : { ...w, ex };
 }
 
@@ -669,7 +685,8 @@ function downloadICS() {
   }
   const text = buildICS(
     PLAN.map((w) => ({ n: w.n, date: effDate(w) })),
-    (w) => exOf(workoutByNo(w.n)).map((it) => resolve(it, store.workoutMode(w.n))),
+    (w) => exOf(workoutByNo(w.n, store.workoutMode(w.n)), store.workoutMode(w.n))
+      .map((it) => resolve(it, store.workoutMode(w.n))),
     { hour: 18, seq: stand.seq, cancel },
   );
   const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
@@ -739,7 +756,11 @@ function restFor(item) {
 }
 
 function progressOf(n, mode) {
-  const w = workoutByNo(n);
+  // Mit dem Modus, nicht ohne: `mode` sagt, aus welchem Eimer die abgehakten
+  // Sätze kommen – dann muss auch das Soll aus demselben Modus stammen. Ohne
+  // das würde eine im Bodyweight-Modus vollständig gemachte Einheit am Soll
+  // der Hantel-Fassung gemessen und käme nie auf "fertig".
+  const w = workoutByNo(n, mode);
   let done = 0;
   let total = 0;
   w.ex.forEach((item) => {
@@ -764,7 +785,7 @@ function completedMode(n) {
 }
 
 function hasAnyEntry(n, mode) {
-  const w = workoutByNo(n);
+  const w = workoutByNo(n, mode);
   return w.ex.some((item) => (store.peekSets(n, mode, item.id) || [])
     .some((s) => s.done || s.w !== ''));
 }
@@ -1059,7 +1080,7 @@ const ui = {
 
 /** Index der ersten Übung, in der noch ein Satz offen ist. */
 function firstOpenExercise(n, mode) {
-  const w = workoutByNo(n);
+  const w = workoutByNo(n, mode);
   const idx = w.ex.findIndex((item) => {
     const arr = store.peekSets(n, mode, item.id) || [];
     return arr.slice(0, item.sets).filter((s) => s.done).length < item.sets;
@@ -1072,7 +1093,7 @@ function weiterZurNaechsten(n, mode) {
   const nextIdx = firstOpenExercise(n, mode);
   if (nextIdx === ui.focusIdx) return;
   ui.focusIdx = nextIdx;
-  toast(`Weiter: ${resolve(workoutByNo(n).ex[nextIdx], mode).name}`);
+  toast(`Weiter: ${resolve(workoutByNo(n, mode).ex[nextIdx], mode).name}`);
 }
 
 /**
@@ -1860,7 +1881,7 @@ function lastLoggedFor(exId, mode, beforeN) {
   for (let i = PLAN.length - 1; i >= 0; i--) {
     const w = PLAN[i];
     if (w.n >= beforeN) continue;
-    const item = exOf(w).find((x) => x.id === exId);
+    const item = exOf(w, mode).find((x) => x.id === exId);
     if (!item) continue;
     const arr = store.peekSets(w.n, mode, exId);
     if (!arr) continue;
@@ -1890,7 +1911,7 @@ function progressSeries() {
     const day = fmtDate(effDate(w));
     const muscleDay = new Map();
 
-    exOf(w).forEach((item) => {
+    exOf(w, 'db').forEach((item) => {
       const arr = store.peekSets(w.n, 'db', item.id);
       if (!arr) return;
       const done = arr.slice(0, item.sets).filter((x) => x.done && x.w !== '');
@@ -1938,7 +1959,7 @@ function sammleStats() {
     const entry = log[w.n];
     if (!entry) return;
     ['db', 'bw'].forEach((m) => {
-      exOf(w).forEach((item) => {
+      exOf(w, m).forEach((item) => {
         const arr = entry[m] && entry[m][item.id];
         if (!Array.isArray(arr)) return;
         // Wiederholungen werden nicht mehr erfasst; gerechnet wird deshalb mit
@@ -2111,7 +2132,7 @@ function renderStats() {
     <div class="card">
       ${upcoming
         ? `<div class="plan-date">Workout ${upcoming.n} · ${esc(fmtDate(effDate(upcoming), true))}</div>
-           <div class="small muted" style="margin-top:4px">${esc(exOf(upcoming).map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
+           <div class="small muted" style="margin-top:4px">${esc(exOf(upcoming, store.workoutMode(upcoming.n)).map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
            <div class="btn-row"><button type="button" class="btn btn-primary" data-act="open-workout" data-n="${upcoming.n}">Öffnen</button></div>`
         : '<div class="muted">Alle Einheiten des Plans sind abgeschlossen. Stark.</div>'}
     </div>
@@ -2293,7 +2314,7 @@ function plannedWeek(block) {
   const acc = {};
   block.forEach((w) => {
     const mode = completedMode(w.n) || store.workoutMode(w.n);
-    exOf(w).forEach((item) => {
+    exOf(w, mode).forEach((item) => {
       Object.entries(EX_BY_ID.get(item.id)[mode].shares).forEach(([mus, share]) => {
         acc[mus] = (acc[mus] || 0) + item.sets * share;
       });
@@ -2317,7 +2338,7 @@ function weeklyDone() {
       // zweimal – gezählt wird die abgeschlossene Variante, sonst die, in der
       // das Workout gerade steht.
       const m = completedMode(w.n) || store.workoutMode(w.n);
-      exOf(w).forEach((item) => {
+      exOf(w, m).forEach((item) => {
         const arr = (entry[m] || {})[item.id];
         if (!Array.isArray(arr)) return;
         const done = arr.slice(0, item.sets).filter((x) => x.done).length;
@@ -2604,7 +2625,7 @@ function calendarDetail(iso, byDate, today) {
 function calendarWorkout(w, iso, today) {
   const st = dayState(w, iso, today);
   const mode = st.mode;
-  const items = exOf(w).map((it) => resolve(it, mode));
+  const items = exOf(w, mode).map((it) => resolve(it, mode));
   const saetze = items.reduce((a, x) => a + x.sets, 0);
   const kopf = KIND_TEXT[st.kind];
   const prog = progressOf(w.n, mode);
@@ -2727,7 +2748,7 @@ function renderInjuries() {
   gone.forEach((d) => goneSets.set(d.id, (goneSets.get(d.id) || 0) + d.sets));
 
   const impact = act.length
-    ? weeklyImpact(PLAN, PLAN.map((w) => exOf(w)), EX_BY_ID, mode, PLAN_WEEKS) : {};
+    ? weeklyImpact(PLAN, PLAN.map((w) => exOf(w, mode)), EX_BY_ID, mode, PLAN_WEEKS) : {};
   const hits = Object.entries(impact)
     .map(([m, v]) => ({ m, ...v, diff: v.after - v.before }))
     .filter((x) => Math.abs(x.diff) > 0.05)
@@ -3043,9 +3064,13 @@ function dauerText(sek) {
 
 /** Eine Zeile Zahlen zu einer Variante: Einheiten, Sätze, geschätzte Dauer. */
 function fokusZeile(v) {
-  // Mit der Satzzahl der eingestellten Erfahrung rechnen, nicht mit der des
-  // Plans: Verglichen wird, was tatsächlich vor einem liegt.
-  const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + satzZahl(x.sets), 0), 0);
+  // Mit der Satzzahl der eingestellten Erfahrung *und* des eingestellten Modus
+  // rechnen, nicht mit der des Plans: Verglichen wird, was tatsächlich vor
+  // einem liegt. Im Bodyweight-Modus sind das teils andere Zahlen – siehe
+  // bw_saetze() in tools/build-plan.py.
+  const modus = store.getState().mode;
+  const roh = (x) => (modus === 'bw' && x.bwSets ? x.bwSets : x.sets);
+  const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + satzZahl(roh(x)), 0), 0);
   const proEinheit = saetze / v.plan.length;
   // Mit den echten Pausen rechnen, nicht mit einem Mittelwert für alle: Ein Satz
   // Chin-ups kostet 180 s Pause, einer Wadenheben 90. Pauschal zweieinhalb
@@ -3053,10 +3078,10 @@ function fokusZeile(v) {
   // Grundübungen – und nach dieser Zahl wird die Variante ausgesucht.
   const sekunden = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => {
     const ex = EX_BY_ID.get(x.id);
-    const pause = (ex && ex.db && ex.db.rest) || 120;
+    const pause = (ex && ex[modus] && ex[modus].rest) || 120;
     // Arbeit plus Pause nach jedem Satz; die letzte Pause der Einheit fällt weg.
-    return b + satzZahl(x.sets) * (ARBEIT_JE_SATZ + pause);
-  }, 0) - ((w.ex.length && EX_BY_ID.get(w.ex[w.ex.length - 1].id).db.rest) || 0), 0);
+    return b + satzZahl(roh(x)) * (ARBEIT_JE_SATZ + pause);
+  }, 0) - ((w.ex.length && EX_BY_ID.get(w.ex[w.ex.length - 1].id)[modus].rest) || 0), 0);
   const min = Math.round((sekunden / v.plan.length / 60) / 5) * 5;
   return `${v.plan.length} Einheiten · ${proEinheit.toFixed(1)} Sätze je Einheit · ca. ${min} min`;
 }
@@ -3893,7 +3918,7 @@ view.addEventListener('click', (e) => {
     case 'toggle-set': {
       const id = t.dataset.ex;
       const i = Number(t.dataset.i);
-      const item = workoutByNo(n).ex.find((x) => x.id === id);
+      const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
       const cur = store.getSets(n, mode, id, item.sets)[i].done;
       const variant = resolve(item, mode);
       initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
@@ -4094,7 +4119,7 @@ view.addEventListener('click', (e) => {
       // Verlaufskurve, und die Steigerungsserie bricht ab, weil sie das
       // Gewicht der letzten Einheit nicht wiederfindet. Beim einzelnen
       // Abhaken schreibt toggle-set es längst mit.
-      store.completeWorkout(n, mode, workoutByNo(n).ex.map((x) => {
+      store.completeWorkout(n, mode, workoutByNo(n, mode).ex.map((x) => {
         const v = resolve(x, mode);
         return { ...x, w: v.weight === null ? '' : fmtNum(workingWeight(x.id)) };
       }));
@@ -4563,7 +4588,7 @@ view.addEventListener('input', (e) => {
   } else if (t.dataset.act === 'set-input') {
     const n = ui.workoutNo;
     const mode = store.workoutMode(n);
-    const item = workoutByNo(n).ex.find((x) => x.id === t.dataset.ex);
+    const item = workoutByNo(n, mode).ex.find((x) => x.id === t.dataset.ex);
     store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value });
   }
 });

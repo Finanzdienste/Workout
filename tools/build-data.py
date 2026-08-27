@@ -199,6 +199,14 @@ def main():
             unknown = [i['id'] for i in o['ex'] if i['id'] not in catalog]
             if unknown:
                 sys.exit(f'{pfad.name}: unbekannte Übung {unknown}')
+            # Der Bodyweight-Modus hat seine eigene Satzzahl (siehe bw_saetze()
+            # in build-plan.py). Fehlt sie, gilt die der Hantel-Fassung – aber
+            # eine unsinnige darf nicht durchrutschen.
+            for i in o['ex']:
+                i.setdefault('bwSets', i['sets'])
+                if not 1 <= i['bwSets'] <= 6:
+                    sys.exit(f'{pfad.name}: {i["id"]} am {o["date"]} hat '
+                             f'{i["bwSets"]} Bodyweight-Sätze')
             fresh.append({'n': len(fresh) + 1, 'date': o['date'], 'ex': o['ex']})
         print(f'{pfad.relative_to(ROOT)}: {len(fresh)} Einheiten '
               f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), '

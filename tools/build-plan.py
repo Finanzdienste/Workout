@@ -501,6 +501,194 @@ def capped(sol, shares, weeks):
     return all(v <= CAP_U * weeks for v in got.values())
 
 
+def bw_saetze(plan, weeks, lo=2, hi=4, budget=4000000, sammeln=400):
+    """Eigene Satzzahlen für den Bodyweight-Modus – auf demselben Terminplan.
+
+    Der Plan ist für die **Hantel-Fassung** exakt gerechnet. Ohne Zusatzlast
+    trifft dieselbe Übung aber teils andere Muskeln: Der Goblet Squat hält den
+    Bauch mit 0,35, seine Bodyweight-Fassung mit 0,20. Eine einzige Satzzahl
+    kann nicht beide Gleichungssysteme treffen, und bis hierher hieß das: Der
+    Bodyweight-Modus liegt eben daneben, im ausgewogenen Plan beim Bauch um
+    0,59 Sätze die Woche.
+
+    Das muss es aber nicht heißen, denn **die Satzzahl ist nicht die einzige
+    freie Größe – sie ist bloß die einzige, die bisher festgenagelt war.** Wer
+    Termine und Übungen stehen lässt und nur die Sätze je Auftritt zwischen
+    zwei und vier variieren lässt, bekommt genug Spielraum, um auch das zweite
+    System zu treffen. Die Einheit bleibt dieselbe Einheit, an denselben Tagen,
+    mit denselben Übungen in derselben Reihenfolge – nur stehen bei manchen
+    zwei oder vier Sätze statt drei.
+
+    Warum nicht eins bis fünf: Ein einzelner Satz ist kein Reiz, und fünf
+    ändern den Charakter der Einheit. Der engere Rahmen kostet in zwei von
+    sechs Varianten die Exaktheit; was übrig bleibt, steht im Bericht.
+
+    Zwei Verfahren nacheinander, weil keines allein reicht:
+
+      1. **Tiefensuche** wie bei der Hantel-Rechnung, nur mit einer eigenen
+         Wertemenge je Übung ([lo·Auftritte, hi·Auftritte]) und mit den Werten
+         nahe der Dreierzahl zuerst. Findet sie eine exakte Lösung, ist die
+         Sache erledigt. Sie kann aber lange suchen – deshalb ein Knotenbudget.
+      2. **Abstieg** von der Dreierzahl aus, ±1 Satz je Schritt, immer der
+         Schritt mit der größten Verbesserung. Er trifft nicht immer exakt,
+         kommt aber überall nah heran und braucht Millisekunden.
+
+    Zurück kommt {übung: Sätze über den ganzen Plan}.
+    """
+    auftritte = collections.Counter()
+    for e in plan:
+        for it in e['ex']:
+            auftritte[it['id']] += 1
+    ids = [i for i in auftritte]
+    shares = {i: BW_SHARES.get(i, {}) for i in ids}
+    groups = sorted({m for i in ids for m in shares[i]})
+    # Gerechnet wird in Zwanzigsteln, wie überall sonst auch.
+    ziel = {m: (GOAL[m] * weeks if GOAL.get(m) is not None else None) for m in groups}
+    grenzen = {i: (lo * auftritte[i], hi * auftritte[i]) for i in ids}
+    start = {i: 3 * auftritte[i] for i in ids}
+
+    def summe(val):
+        got = collections.Counter()
+        for i, n in val.items():
+            for m, a in shares[i].items():
+                got[m] += n * round(a * UNIT)
+        return got
+
+    def fehler(val):
+        """Summe der Quadrate über die Zielgruppen, in Sätzen je Woche."""
+        got = summe(val)
+        return sum(((got[m] - ziel[m]) / UNIT / weeks) ** 2
+                   for m in groups if ziel[m] is not None)
+
+    def haltbar(val):
+        got = summe(val)
+        return all(got[m] <= CAP_U * weeks for m in groups if ziel[m] is None)
+
+    # ---- 1. Tiefensuche je Block ----------------------------------------
+    erlaubt = {i: sorted(range(grenzen[i][0], grenzen[i][1] + 1),
+                         key=lambda n, a=auftritte[i]: (abs(n - 3 * a), n))
+               for i in ids}
+    erlaubt_set = {i: set(v) for i, v in erlaubt.items()}
+    gesamt, exakt = {}, True
+    # Ob die Suche den Raum wirklich abgegrast hat oder am Budget abgebrochen
+    # ist, ist der Unterschied zwischen "es gibt keine Lösung" und "ich habe
+    # keine gefunden". Der gehört in den Bericht.
+    vollstaendig = True
+    for block in parts(ids, shares, groups):
+        eqs = [(ziel[m], [(i, round(shares[i][m] * UNIT)) for i in block if shares[i].get(m)])
+               for m in sorted({m for i in block for m in shares[i]}) if ziel[m] is not None]
+        reihe = sorted(block, key=lambda i: len(erlaubt[i]))
+        knoten = [0]
+        gefunden = []
+
+        def rec(val):
+            if len(gefunden) >= sammeln or knoten[0] > budget:
+                return
+            knoten[0] += 1
+            while True:
+                wieder = False
+                for goal, eq in eqs:
+                    rest, offen = goal, []
+                    for i, c in eq:
+                        if i in val:
+                            rest -= c * val[i]
+                        else:
+                            offen.append((i, c))
+                    if not offen:
+                        if rest:
+                            return
+                        continue
+                    if len(offen) == 1:
+                        i, c = offen[0]
+                        if rest % c or rest // c not in erlaubt_set[i]:
+                            return
+                        val[i] = rest // c
+                        wieder = True
+                        continue
+                    if rest % math.gcd(*[c for _, c in offen]):
+                        return
+                    if not (sum(c * grenzen[i][0] for i, c in offen) <= rest
+                            <= sum(c * grenzen[i][1] for i, c in offen)):
+                        return
+                if not wieder:
+                    break
+            frei = [i for i in reihe if i not in val]
+            if not frei:
+                if haltbar(val):
+                    gefunden.append(dict(val))
+                return
+            for n in erlaubt[frei[0]]:
+                rec({**val, frei[0]: n})
+
+        rec({})
+        if knoten[0] > budget:
+            vollstaendig = False
+        if gefunden:
+            # Unter den exakten die, die dem Hantel-Plan am nächsten kommt: Je
+            # weniger Auftritte von drei Sätzen abweichen, desto weniger fällt
+            # dem Trainierenden auf, dass er zwei Pläne vor sich hat.
+            gefunden.sort(key=lambda v: (sum(abs(v[i] - start[i]) for i in v),
+                                         max(abs(v[i] - start[i]) for i in v),
+                                         sorted(v.items())))
+            gesamt.update(gefunden[0])
+        else:
+            exakt = False
+            gesamt.update({i: start[i] for i in block})
+
+    if exakt:
+        return gesamt, 0.0, True
+
+    # ---- 2. Abstieg, wo die Suche nicht durchkam ------------------------
+    val = dict(start)
+    besser = True
+    while besser:
+        besser = False
+        jetzt = fehler(val)
+        bester = None
+        for i in ids:
+            for d in (-1, 1):
+                n = val[i] + d
+                if not (grenzen[i][0] <= n <= grenzen[i][1]):
+                    continue
+                probe = {**val, i: n}
+                if not haltbar(probe):
+                    continue
+                f = fehler(probe)
+                if f < jetzt - 1e-12 and (bester is None or f < bester[0]):
+                    bester = (f, i, n)
+        if bester:
+            val[bester[1]] = bester[2]
+            besser = True
+    return val, fehler(val), vollstaendig
+
+
+def bw_verteilen(plan, gesamt):
+    """Die Plansumme je Übung auf ihre Auftritte verteilen.
+
+    Möglichst gleichmäßig über den ganzen Plan: Bekommt eine Übung 80 Sätze auf
+    24 Auftritte, sind das acht Auftritte mit vier und sechzehn mit drei – und
+    die vier Sätze sollen sich über die Wochen verteilen, nicht am Anfang
+    stapeln. Sonst schwankt das Wochenvolumen im Bodyweight-Modus stärker als
+    im Hantel-Modus, obwohl der Schnitt stimmt.
+    """
+    auftritte = collections.Counter()
+    for e in plan:
+        for it in e['ex']:
+            auftritte[it['id']] += 1
+    gezaehlt = collections.Counter()
+    for e in plan:
+        for it in e['ex']:
+            i = it['id']
+            a, n = auftritte[i], gesamt[i]
+            k = gezaehlt[i]
+            # Der k-te Auftritt bekommt so viele Sätze, dass die Teilsummen der
+            # idealen Verteilung n·(k+1)/a folgen – das streut die Ausreißer
+            # von selbst gleichmäßig.
+            it['bwSets'] = (n * (k + 1)) // a - (n * k) // a
+            gezaehlt[i] += 1
+    return plan
+
+
 def exact(block, shares, weeks, values, limit, rnd):
     """Alle Satzzahlen eines Blocks, die jede Zielgruppe exakt treffen.
 
@@ -1342,26 +1530,47 @@ def main():
     print(f'\nSchnitt exakt getroffen in {gezielt} von {len(groups)} Gruppen, '
           f'der Rest unter der Obergrenze von {CAP}.')
 
-    # Und was davon im Bodyweight-Modus übrig bleibt.
+    # ---- Der Bodyweight-Modus bekommt seine eigene Satzzahl ---------------
     #
-    # Exakt ist der Plan für die Hantel-Fassung; dieselbe Übung trifft ohne
-    # Zusatzlast teils andere Muskeln. Beides zugleich exakt geht nicht – also
-    # steht hier, was es kostet, statt es zu verschweigen. Nachgemessen lässt
-    # sich der Rest auch nicht wegwählen: Unter den Lösungen, die für die
-    # Hantel exakt sind, liegen die gescreenten alle beim selben Wert; die
-    # besseren erkaufen ihn mit deutlich schlechterer Ausgewogenheit.
-    bw = {}
+    # Bis hierher galt: Exakt ist der Plan für die Hantel-Fassung, und was der
+    # Bodyweight-Modus danebenliegt, steht eben im Bericht. Das war eine
+    # Kapitulation vor der falschen Größe – nicht die Anteile sind das
+    # Problem, sondern dass die Satzzahl je Auftritt festgenagelt war. Siehe
+    # bw_saetze().
+    vorher = {}
     for i, n in zip(ids, total):
         for m, anteil in BW_SHARES.get(i, {}).items():
-            bw[m] = bw.get(m, 0) + n * anteil
-    ab = sorted(((bw.get(m, 0) / weeks - TARGET[m], m) for m in groups
-                 if GOAL.get(m) is not None), key=lambda x: -abs(x[0]))
-    if ab and abs(ab[0][0]) > 0.005:
-        print('Im Bodyweight-Modus weicht derselbe Plan ab, am meisten bei '
-              + ', '.join(f'{LABEL.get(m, m)} {d:+.2f}' for d, m in ab[:3] if abs(d) > 0.005)
-              + f' (Sätze je Woche, Summe der Quadrate {sum(d * d for d, _ in ab):.3f}).')
+            vorher[m] = vorher.get(m, 0) + n * anteil
+    alt = sorted(((vorher.get(m, 0) / weeks - TARGET[m], m) for m in groups
+                  if GOAL.get(m) is not None), key=lambda x: -abs(x[0]))
+
+    bw_total, bw_rest, bw_ganz = bw_saetze(plan, weeks)
+    bw_verteilen(plan, bw_total)
+
+    nachher = {}
+    for i, n in bw_total.items():
+        for m, anteil in BW_SHARES.get(i, {}).items():
+            nachher[m] = nachher.get(m, 0) + n * anteil
+    neu = sorted(((nachher.get(m, 0) / weeks - TARGET[m], m) for m in groups
+                  if GOAL.get(m) is not None), key=lambda x: -abs(x[0]))
+    anders = sum(1 for e in plan for it in e['ex'] if it['bwSets'] != it['sets'])
+    gesamt_bw = sum(it['bwSets'] for e in plan for it in e['ex'])
+    print(f'\nBodyweight-Modus: eigene Satzzahl, {anders} von '
+          f'{sum(len(e["ex"]) for e in plan)} Auftritten weichen von drei ab, '
+          f'{gesamt_bw} statt {sum(total)} Sätze.')
+    print(f'  vorher: Summe der Quadrate {sum(d * d for d, _ in alt):.3f}'
+          + (', am meisten ' + ', '.join(f'{LABEL.get(m, m)} {d:+.2f}'
+                                         for d, m in alt[:3] if abs(d) > 0.005) if alt else ''))
+    if bw_rest < 1e-9:
+        print('  jetzt:  jedes Ziel exakt getroffen.')
     else:
-        print('Im Bodyweight-Modus trifft derselbe Plan dieselben Ziele.')
+        print(f'  jetzt:  Summe der Quadrate {sum(d * d for d, _ in neu):.3f}, am meisten '
+              + ', '.join(f'{LABEL.get(m, m)} {d:+.2f}' for d, m in neu[:3] if abs(d) > 0.005))
+        print('          ' + ('der Suchraum ist vollständig abgesucht – mit zwei bis vier '
+                              'Sätzen je Auftritt gibt es hier keine exakte Lösung.'
+                              if bw_ganz else
+                              'die Suche brach am Knotenbudget ab; es könnte eine exakte '
+                              'Lösung geben, die sie nicht gesehen hat.'))
 
     print(f'\n{"Übung":34s} {"Plan":>5s} {"je Woche":>9s}')
     for i, t in sorted(zip(ids, total), key=lambda x: -x[1]):

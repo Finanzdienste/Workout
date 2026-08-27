@@ -71,6 +71,9 @@ def messen(variante, modus):
     abgeleitet = set(p.get('derived', []))
     ziele = {m: (None if m in abgeleitet else t) for m, t in p['target'].items()}
     schluessel = f'{modus}Shares'
+    # Der Bodyweight-Modus hat seine eigene Satzzahl je Auftritt. Wer hier
+    # `sets` nähme, prüfte einen Plan, den niemand trainiert.
+    feld = 'bwSets' if modus == 'bw' else 'sets'
     gruppen = sorted({m for e in META.values() for m in e.get(schluessel, {})})
 
     wochen = [plan[i:i + WEEK] for i in range(0, len(plan), WEEK)]
@@ -82,9 +85,9 @@ def messen(variante, modus):
         for tag, e in enumerate(w):
             for it in e['ex']:
                 for m, anteil in META[it['id']].get(schluessel, {}).items():
-                    summe[m] += it['sets'] * anteil
+                    summe[m] += it.get(feld, it['sets']) * anteil
                     if anteil >= 0.5:
-                        dir_[m] += it['sets']
+                        dir_[m] += it.get(feld, it['sets'])
                         tage[m].add(tag)
         for m in gruppen:
             volumen[m].append(summe[m])
@@ -102,7 +105,7 @@ def messen(variante, modus):
     saetze = collections.Counter()
     for e in plan:
         for it in e['ex']:
-            saetze[it['id']] += it['sets']
+            saetze[it['id']] += it.get(feld, it['sets'])
 
     return {
         'wochen': len(wochen), 'ziele': ziele, 'cap': cap, 'gruppen': gruppen,
@@ -121,14 +124,17 @@ def feste_regeln(v, modus, m):
         ziel = m['ziele'].get(g)
         schnitt = m['schnitt'][g]
         name = NAMEN.get(g, g)
-        # Im Bodyweight-Modus sind die Anteile andere; die Ziele gelten für den
-        # gerechneten Modus. Siehe README, „Der Bodyweight-Modus trifft
-        # dieselben Ziele nicht ganz".
-        if modus == 'db':
-            if ziel is not None and abs(schnitt - ziel) > 0.05:
-                fehler.append(f'{name}: Ziel {ziel} im Schnitt verfehlt ({schnitt:+.2f} → {schnitt:.2f})')
-            if ziel is None and schnitt > m['cap'] + 0.05:
-                fehler.append(f'{name}: ohne Ziel über der Obergrenze ({schnitt:.2f} > {m["cap"]})')
+        # Beide Modi, dieselben Ziele. Das galt lange nicht: Gerechnet war der
+        # Plan für die Hantel-Fassung, und der Bodyweight-Modus lag eben
+        # daneben. Seit er eine eigene Satzzahl je Auftritt hat, trifft er
+        # dieselben Ziele – in vier von sechs Varianten exakt, sonst auf
+        # Hundertstel. Die Schranke von 0,05 Sätzen fängt genau das ab: Sie
+        # lässt den Rest der Ganzzahligkeit durch und schlüge sofort an, wenn
+        # die alten 0,59 Sätze Abweichung zurückkämen.
+        if ziel is not None and abs(schnitt - ziel) > 0.05:
+            fehler.append(f'{name}: Ziel {ziel} im Schnitt verfehlt ({schnitt - ziel:+.2f} → {schnitt:.2f})')
+        if ziel is None and schnitt > m['cap'] + 0.05:
+            fehler.append(f'{name}: ohne Ziel über der Obergrenze ({schnitt:.2f} > {m["cap"]})')
         klein, _ = m['abstand'][g]
         if klein is not None and klein < REST_DAYS:
             fehler.append(f'{name}: nur {klein} Tag(e) zwischen zwei direkten Reizen')
@@ -206,7 +212,7 @@ def main():
         for f in fehler:
             print(f'  {f}')
         return 1
-    print(f'\n{len(VARIANTEN)} Pläne × {len(MODI)} Modi: alle Ziele exakt, '
+    print(f'\n{len(VARIANTEN)} Pläne × {len(MODI)} Modi: jedes Ziel im Schnitt getroffen, '
           f'48 Stunden Erholung eingehalten, nichts schlechter als zuletzt.')
     return 0
 
