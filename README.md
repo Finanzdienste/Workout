@@ -1238,6 +1238,30 @@ letzten Export stand, erscheint in der Kalender-Karte der Hinweis „Der Plan ha
 sich seit dem letzten Export um *n* Tage verschoben". Ein Tipp auf den Knopf,
 ein Import, und die Termine stimmen wieder.
 
+### Wieder austragen
+
+*Mehr → Kalender → **Termine austragen*** erzeugt die Gegenrichtung: eine Datei
+aus lauter Absagen, ohne einen einzigen neuen Termin. Importieren, und alle
+Workout-Einträge sind aus dem Kalender verschwunden. Der Plan in der App bleibt
+dabei unangetastet – ausgetragen wird der Kalender, nicht das Training.
+
+Möglich ist das aus demselben Grund, aus dem ein zweiter Import die Termine
+verschiebt statt verdoppelt: Über die feste Kennung findet der Kalender jeden
+Eintrag wieder. Ein `VEVENT` mit derselben `UID`, `STATUS:CANCELLED` und einer
+höheren `SEQUENCE` löscht ihn.
+
+Zwei Feinheiten, die den Unterschied machen, ob die Termine wirklich
+verschwinden oder nur doppelt dastehen:
+
+* **Abgesagt wird die größte Einheitenzahl über *alle* Fokus-Varianten**, nicht
+  nur die des eigenen Plans. Wer den Fokus einmal gewechselt hat, kann Termine
+  mit höheren Nummern im Kalender haben, und die sollen genauso weg. Eine
+  Absage für eine Kennung, die es nie gab, ist folgenlos.
+* **Die Fassungsnummer springt weit nach oben** (`SEQUENCE + 1000`). Läge sie
+  gleichauf mit dem letzten Export, ignorierte der Kalender die Absage und
+  behielte den alten Stand – der häufigste Grund, warum ein Löschen per .ics
+  scheinbar nichts tut.
+
 Die Uhrzeit steht **ohne Zeitzone** in der Datei („floating"): 18:00 heißt
 18:00 im Kalender des Geräts, im Sommer wie im Winter. Mit fester Zeitzone
 müsste eine `VTIMEZONE`-Tabelle mitreisen, die zur nächsten Zeitumstellung

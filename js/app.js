@@ -698,6 +698,33 @@ function downloadICS() {
   toast('Kalenderdatei erstellt – in Google Kalender importieren');
 }
 
+/**
+ * Alle Trainingstermine wieder aus dem Kalender austragen.
+ *
+ * Die Gegenrichtung zu downloadICS(), und sie braucht kein Konto und keine
+ * Anbindung: Weil jeder Termin seine feste Kennung trägt, genügt eine Datei
+ * mit lauter Absagen. Der Kalender ordnet sie über die Kennung den vorhandenen
+ * Einträgen zu und räumt sie weg.
+ *
+ * Abgesagt wird die *größte* Einheitenzahl über alle Fokus-Varianten, nicht
+ * nur die des eigenen Plans: Wer den Fokus einmal gewechselt hat, hat womöglich
+ * Termine mit höheren Nummern im Kalender, und die sollen genauso verschwinden.
+ * Eine Absage für eine Kennung, die es nie gab, ist folgenlos.
+ */
+function downloadICSAus() {
+  const stand = store.markIcs(0);
+  const groesste = Math.max(...Object.values(PLANS).map((v) => v.plan.length));
+  const cancel = Array.from({ length: groesste }, (_, i) => i + 1);
+  const text = buildICS([], () => [], { hour: 18, seq: stand.seq + 1000, cancel });
+  const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `workout-termine-austragen-${todayISO()}.ics`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(`${cancel.length} Absagen erzeugt – importieren, dann sind die Termine weg`);
+}
+
 /** Stimmen die Termine im Kalender noch, oder hat sich der Plan seither verschoben? */
 function icsStale() {
   const s = store.getState();
@@ -3630,7 +3657,11 @@ function renderSettings() {
         die Termine mit.</div>` : ''}
       <div class="btn-row">
         <button type="button" class="btn" data-act="download-ics">Kalenderdatei (.ics)</button>
+        <button type="button" class="btn btn-ghost" data-act="ics-aus">Termine austragen</button>
       </div>
+      <div class="small muted" style="margin-top:6px">„Termine austragen" erzeugt eine Datei
+        aus lauter Absagen. Nach dem Importieren sind alle Workout-Termine aus dem Kalender
+        verschwunden – der Plan in der App bleibt, wie er ist.</div>
       <div class="small muted" style="margin-top:8px">
         ${(() => {
           const i = store.getState().lastIcs;
@@ -4254,6 +4285,10 @@ view.addEventListener('click', (e) => {
     case 'set-rest':
       initAudio();
       store.setSetting('restSeconds', Number(t.dataset.sec));
+      render();
+      break;
+    case 'ics-aus':
+      downloadICSAus();
       render();
       break;
     case 'shift-ics':
