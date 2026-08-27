@@ -2273,6 +2273,29 @@ müsste in der App liegen und läge damit bei allen, die den Link haben. Die
 Funktion `admin_liste` läuft dagegen mit den Rechten ihres Besitzers und gibt
 nur bei passendem Passwort Zeilen zurück; das Passwort steht nirgends im Code.
 
+### Zeit im Training
+
+Die Uhr, die nur läuft, wenn tatsächlich trainiert wird (siehe *Die Uhr misst
+Training, nicht Anwesenheit*), lebte bisher nur für die laufende Einheit:
+`state.clock` wird beim Start der nächsten überschrieben, und damit war die Zeit
+weg. Sie gehört ins Protokoll, wo auch die Sätze stehen.
+
+`bucheZeit()` schreibt sie bei jedem Anhalten der Uhr in die Einheit – gebucht
+wird die **Differenz** zum schon Gebuchten, nicht die Summe. Ohne das zählte
+jede Unterbrechung (App im Hintergrund, Seite verlassen, Training fortsetzen)
+die bisherige Zeit noch einmal dazu. Gebucht wird nur in eine Einheit, die es
+schon gibt: Wer startet und ohne einen einzigen Satz aufhört, hat nicht
+trainiert.
+
+In der Statistik steht daraus eine Kachel mit der Gesamtzeit und dem Schnitt je
+Einheit. Sie erscheint erst, wenn überhaupt Zeit gemessen wurde – Einheiten aus
+der Zeit davor tragen keine, und ein Durchschnitt über null Einheiten wäre eine
+Lüge.
+
+Das ist übrigens die ehrlichere Zahl als die des Handys: Androids *Digitales
+Wohlbefinden* zählt, wie lange die App offen war, diese Uhr zählt, wie lange
+trainiert wurde.
+
 ## Als eigene App auf dem Handy
 
 In Androids *Digitalem Wohlbefinden* zählt die Zeit nach **Prozess**, nicht nach

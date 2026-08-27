@@ -1876,6 +1876,15 @@ function sammleStats() {
   // Eigene Einheiten zählen nicht als Plan-Einheit, ihre Sätze und Kilo aber
   // schon: Trainiert ist trainiert, und eine Statistik, die das verschweigt,
   // ist falsch.
+  // Zeit im Training, aus dem Protokoll. Ältere Einheiten haben keine – die
+  // Uhr wurde erst später mitgeschrieben; gezählt wird deshalb auch, wie viele
+  // Einheiten überhaupt eine Zeit tragen.
+  let seconds = 0;
+  let mitZeit = 0;
+  Object.values(log).forEach((e) => {
+    if (e && e.secs > 0) { seconds += e.secs; mitZeit += 1; }
+  });
+
   let customSets = 0;
   store.customs().forEach((c) => {
     const entry = log[c.id];
@@ -1901,7 +1910,7 @@ function sammleStats() {
 
   const upcoming = PLAN.find((w) => !completedMode(w.n));
   return { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak, upcoming,
-           customSets };
+           customSets, seconds, mitZeit };
 }
 
 /**
@@ -1974,7 +1983,7 @@ function standAlter(f) {
 
 function renderStats() {
   const { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak,
-          upcoming, customSets } = sammleStats();
+          upcoming, customSets, seconds, mitZeit } = sammleStats();
 
   const topEx = [...perEx.entries()]
     .map(([id, c]) => ({ ex: EX_BY_ID.get(id), c }))
@@ -1992,6 +2001,9 @@ function renderStats() {
       <div class="stat"><div class="stat-v">${repsTotal ? `ca. ${Math.round(repsTotal)}` : '–'}</div><div class="stat-l">Wiederholungen (geplant)</div></div>
       <div class="stat"><div class="stat-v">${volume ? `ca. ${Math.round(volume).toLocaleString('de-DE')}` : '–'}</div><div class="stat-l">Volumen kg (Hanteln)</div></div>
       <div class="stat"><div class="stat-v">🏋️ ${doneDb} · 🤸 ${doneBw}</div><div class="stat-l">Modus-Verteilung</div></div>
+      ${seconds ? `<div class="stat"><div class="stat-v">${esc(dauerText(seconds))}</div>
+        <div class="stat-l">Zeit im Training${mitZeit > 1
+          ? ` <span class="muted">(Ø ${esc(dauerText(Math.round(seconds / mitZeit)))})</span>` : ''}</div></div>` : ''}
       ${store.getState().rounds.length
         ? `<div class="stat"><div class="stat-v">${store.getState().rounds.length}</div><div class="stat-l">Runden abgeschlossen</div></div>` : ''}
     </div>
@@ -2919,6 +2931,18 @@ const FOKUS_TEXT = {
 /* Wie lange ein Satz selbst dauert – acht bis zwölf Wiederholungen mit
  * Aufstellen. Grob, aber die Pausen daneben sind der viel größere Posten. */
 const ARBEIT_JE_SATZ = 40;
+
+/**
+ * Sekunden als Zeitangabe, wie man sie ausspricht: "48 min", "3 h 12".
+ *
+ * Nicht 0:48:00 – das liest sich wie eine Stoppuhr, und hier geht es um eine
+ * Größenordnung, nicht um Sekundengenauigkeit.
+ */
+function dauerText(sek) {
+  const min = Math.round(sek / 60);
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`;
+}
 
 /** Eine Zeile Zahlen zu einer Variante: Einheiten, Sätze, geschätzte Dauer. */
 function fokusZeile(v) {

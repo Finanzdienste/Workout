@@ -254,6 +254,9 @@ export function startSession(n) {
   const weiter = c && c.n === n && c.on === todayISO();
   state.clock = {
     n, on: todayISO(), spent: weiter ? c.spent : 0, since: Date.now(),
+    // Mitgenommen wird auch, was davon schon ins Protokoll gebucht ist –
+    // sonst zählte eine fortgesetzte Einheit ihre bisherige Zeit doppelt.
+    gebucht: weiter ? (c.gebucht || 0) : 0,
   };
   state.session = { n };
   persist();
@@ -267,11 +270,35 @@ export function endSession() {
   emit();
 }
 
+/**
+ * Gezählte Zeit in die Einheit schreiben.
+ *
+ * Die Uhr lebte bisher nur für die laufende Einheit: `state.clock` wird beim
+ * Start der nächsten überschrieben, und damit war die Trainingszeit weg. Sie
+ * gehört ins Protokoll, wo auch die Sätze stehen.
+ *
+ * Gebucht wird die *Differenz* zum schon Gebuchten, nicht die Summe – sonst
+ * zählte jede Unterbrechung (App im Hintergrund, Seite verlassen) die bisherige
+ * Zeit noch einmal dazu. Nur in eine Einheit, die es schon gibt: Wer startet
+ * und ohne einen einzigen Satz aufhört, hat nicht trainiert.
+ */
+function bucheZeit() {
+  const c = state.clock;
+  if (!c) return;
+  const gesamt = Math.floor(c.spent / 1000);
+  const schon = c.gebucht || 0;
+  if (gesamt <= schon) return;
+  const e = state.log[c.n];
+  if (e) e.secs = (e.secs || 0) + (gesamt - schon);
+  state.clock = { ...c, gebucht: gesamt };
+}
+
 /** Uhr anhalten – App im Hintergrund und keine Pause, oder Training beendet. */
 export function clockStop() {
   const c = state.clock;
   if (!c || c.since === null) return;
   state.clock = { ...c, spent: c.spent + (Date.now() - c.since), since: null };
+  bucheZeit();
   persist();
 }
 
