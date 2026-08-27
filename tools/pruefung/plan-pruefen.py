@@ -62,7 +62,14 @@ def pfad(variante):
 def messen(variante, modus):
     """Alles, was sich am fertigen Plan nachrechnen lässt."""
     p = json.load(open(pfad(variante)))
-    plan, ziele, cap = p['plan'], p['target'], p['cap']
+    plan, cap = p['plan'], p['cap']
+    # Im Planfile steht unter `target` für die abgeleiteten Gruppen der Wert,
+    # der herausgekommen *ist*, nicht einer, der gesetzt war. Wer das nicht
+    # trennt, prüft sie gegen sich selbst – immer erfüllt, nie etwas gemerkt –
+    # und lässt dabei die Obergrenze aus, die für sie die einzige Bedingung
+    # ist. Welche Gruppe abgeleitet ist, steht daneben.
+    abgeleitet = set(p.get('derived', []))
+    ziele = {m: (None if m in abgeleitet else t) for m, t in p['target'].items()}
     schluessel = f'{modus}Shares'
     gruppen = sorted({m for e in META.values() for m in e.get(schluessel, {})})
 

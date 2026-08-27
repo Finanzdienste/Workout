@@ -219,77 +219,73 @@
  },
  "kurz/bw": {
   "abstand_max": {
-   "abs": 12,
+   "abs": 9,
    "biceps": 7,
    "calves": 12,
    "chest": 7,
-   "frontDelts": 21,
-   "glutes": 7,
-   "hamstringsHip": 30,
+   "frontDelts": 14,
+   "glutes": 5,
+   "hamstringsHip": 12,
    "hamstringsKnee": 12,
-   "lats": 7,
+   "lats": 5,
    "quads": 7,
-   "rearDelts": 9,
-   "sideDelts": 10,
-   "traps": 9,
+   "rearDelts": 5,
+   "sideDelts": 7,
+   "traps": 5,
    "triceps": 5
   },
   "frequenz": {
-   "abs": 1,
-   "biceps": 1.92,
+   "abs": 1.92,
+   "biceps": 1.96,
    "calves": 1,
    "chest": 2,
-   "frontDelts": 1,
-   "glutes": 2.29,
-   "hamstringsHip": 0.38,
+   "frontDelts": 1.17,
+   "glutes": 2.67,
+   "hamstringsHip": 1.21,
    "hamstringsKnee": 1,
    "lats": 2,
    "quads": 2,
-   "rearDelts": 1.25,
-   "sideDelts": 1.67,
-   "traps": 1.58,
-   "triceps": 2.67
+   "rearDelts": 1.92,
+   "sideDelts": 2,
+   "traps": 2.04,
+   "triceps": 2.62
   },
-  "ohne_saetze": [
-   "hip-thrust"
-  ]
+  "ohne_saetze": []
  },
  "kurz/db": {
   "abstand_max": {
-   "abs": 12,
+   "abs": 9,
    "biceps": 7,
    "calves": 12,
    "chest": 7,
-   "frontDelts": 21,
-   "glutes": 7,
-   "hamstringsHip": 30,
+   "frontDelts": 14,
+   "glutes": 5,
+   "hamstringsHip": 12,
    "hamstringsKnee": 12,
-   "lats": 7,
+   "lats": 5,
    "quads": 7,
-   "rearDelts": 9,
-   "sideDelts": 10,
-   "traps": 9,
+   "rearDelts": 5,
+   "sideDelts": 7,
+   "traps": 5,
    "triceps": 5
   },
   "frequenz": {
-   "abs": 1,
-   "biceps": 1.92,
+   "abs": 1.92,
+   "biceps": 1.96,
    "calves": 1,
    "chest": 2,
-   "frontDelts": 1,
-   "glutes": 2.29,
-   "hamstringsHip": 0.38,
+   "frontDelts": 1.17,
+   "glutes": 2.67,
+   "hamstringsHip": 1.21,
    "hamstringsKnee": 1,
    "lats": 2,
    "quads": 2,
-   "rearDelts": 1.25,
-   "sideDelts": 1.67,
-   "traps": 1.58,
-   "triceps": 2.67
+   "rearDelts": 1.92,
+   "sideDelts": 2,
+   "traps": 2.04,
+   "triceps": 2.62
   },
-  "ohne_saetze": [
-   "hip-thrust"
-  ]
+  "ohne_saetze": []
  },
  "oberkoerper/bw": {
   "abstand_max": {

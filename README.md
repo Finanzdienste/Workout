@@ -1926,7 +1926,7 @@ gruppierte Geräte. Es ändert sich nichts an der Sorgfalt, nur an der Betonung.
 | `standard` – Ausgewogen | Rücken, Brust, seitliche Schulter vorn; Beine laufen mit |
 | `bbp` – Bauch, Beine, Po | Gesäß 15, Beine 12, Bauch 12 Sätze/Woche; Oberkörper reduziert |
 | `oberkoerper` – Oberkörper | Brust, Rücken, Schultern, Arme je 12; Beine ein Auftritt/Woche |
-| `kurz` – Kurz und knapp | dieselben Übungen, überall weniger Sätze – kürzere Einheiten |
+| `kurz` – Kurz und knapp | dieselben Übungen, kürzere Einheiten – ~13 statt ~17 Sätze |
 | `beine` – Beine ernst gemeint | wie Ausgewogen, aber Beine mit eigenem Ziel statt auf Erhalt |
 | `cut` – Cut | weniger Sätze bei gleicher Abdeckung – für Wochen im Kaloriendefizit |
 
@@ -1980,9 +1980,64 @@ Das Ergebnis, am fertigen Plan gemessen:
 | Übungen im Plan | 24 von 24 | 23 von 24 – der einfache Goblet Squat fällt heraus |
 
 Der fehlende Goblet Squat ist der eine Makel, und er ist verkraftbar: Der
-fersenerhöhte steht weiter im Plan, das Bewegungsmuster fehlt also nicht. Anders
-als bei *Kurz und knapp*, wo mit dem Hip Thrust die halbe Hüftstreckung
-verschwand.
+fersenerhöhte steht weiter im Plan, das Bewegungsmuster fehlt also nicht.
+
+### „Kurz und knapp" war ein Jahr lang kaputt
+
+Derselbe Fehler, nur früher und unbemerkt. Der erste Anlauf hatte einfach
+überall gekürzt: fast alles auf 6, die kleinen Gruppen auf 3. Alle Ziele wurden
+exakt getroffen; der Generator meldete das auch so. Im fertigen Plan stand
+trotzdem:
+
+| Gruppe | vorher | jetzt |
+| --- | --- | --- |
+| Hüftstreckung | **0,38×/Woche**, bis zu **30 Tage** Abstand | 1,21×/Woche, max. 12 Tage |
+| Hip Thrust | **kam in 96 Einheiten nicht vor** | 1,4 Sätze/Woche |
+| Bauch | 1,00×/Woche, 12 Tage | **1,92×/Woche**, 9 Tage |
+| hintere Schulter | 1,25×/Woche | **1,92×/Woche** |
+| seitliche Schulter | 1,67×/Woche | **2,00×/Woche** |
+| Nacken | 1,58×/Woche | **2,04×/Woche** |
+| vordere Schulter | 1,00×/Woche, **21 Tage** | 1,17×/Woche, 14 Tage |
+
+Der Schlüssel ist derselbe wie beim Cut, nur diesmal als Gleichung statt als
+Einsicht: **Termine je Woche = direkte Sätze ÷ 3.** Wer kürzt, muss deshalb bei
+den Gruppen mit viel indirektem Zufluss *nach oben* gehen, nicht mit. Der neue
+Zielsatz ist blockweise durchsucht, nicht geraten – der Löser zerlegt die
+Übungen ohnehin in drei unabhängige Blöcke, und jeder lässt sich für sich
+absuchen:
+
+| | vorher | jetzt | warum |
+| --- | --- | --- | --- |
+| Bauch | 6 | **9** | 5,8 statt 3,0 direkte Sätze |
+| Gesäß | 6 | **8** | hält Hip Thrust und Kreuzheben im Plan |
+| seitliche Schulter | 6 | **7** | 6,1 direkte Sätze, also zwei Termine |
+| hintere Schulter | 5 | **7** | 5,8 statt 3,8 |
+| Brust, Rücken, Bizeps, Trizeps, Oberschenkel, Waden, Beinbeuger Knie | | **unverändert** | waren nie das Problem |
+
+Die Hüftstreckung bleibt bewusst ohne eigenes Ziel: Mit einem – gleich welchem –
+ging zwischen 21 und 32 Wochen keine exakte Lösung mehr auf. Über Gesäß 8
+bekommt sie trotzdem, was sie braucht.
+
+**Was bleibt, ist ein Kompromiss, und der gehört benannt.** Bei vier Einheiten
+pro Woche und festen Dreiersätzen kosten zwei Termine für jede der zwölf Gruppen
+rund 72 Sätze die Woche – das ist der ausgewogene Plan, nicht ein kurzer.
+
+| | Ausgewogen | Cut | Kurz und knapp |
+| --- | --- | --- | --- |
+| Sätze je Woche | 69 | 57 | **51** |
+| Sätze je Einheit | Ø 17,2 | Ø 14,2 | **Ø 12,8** |
+| Übungen je Einheit | 5,7 | 4,7 | **4,3** |
+| Bodyweight-Abweichung | 0,502 | 0,312 | **0,368** |
+| Übungen im Plan | 24 von 24 | 23 von 24 | **24 von 24** |
+
+Waden, knienaher Beinbeuger und Hüftstreckung bleiben bei einem Termin pro
+Woche. Das ist eine Entscheidung, keine Panne: Die Löcher sind zu, die
+Sparsamkeit bleibt.
+
+Und der eigentliche Punkt: Dass das ein Jahr lang niemandem auffiel, lag nicht
+an mangelnder Sorgfalt beim Rechnen, sondern daran, dass **niemand nachgesehen
+hat, was am Ende herauskommt**. Genau dafür gibt es jetzt
+`tools/pruefung/plan-pruefen.py` – siehe „Prüfen".
 
 ### Warum es „Beine ernst gemeint" gibt
 

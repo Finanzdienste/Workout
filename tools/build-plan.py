@@ -250,13 +250,53 @@ VARIANTEN = {
         },
         'cap': 10,
     },
+    # Kurze Einheiten – zweite Fassung, nachdem die erste ein Jahr lang kaputt
+    # war, ohne dass die exakte Rechnung etwas gemerkt hätte.
+    #
+    # Der erste Anlauf hatte einfach überall gekürzt: fast alles auf 6, die
+    # kleinen Gruppen auf 3. Alle Ziele wurden exakt getroffen. Trotzdem stand
+    # im fertigen Plan:
+    #
+    #   * **Hip Thrust kam überhaupt nicht mehr vor.** Null Sätze in 96
+    #     Einheiten. Die Hüftstreckung hing damit an einer einzigen Übung und
+    #     kam auf 0,38 Termine pro Woche – mit bis zu 30 Tagen zwischen zwei
+    #     Reizen.
+    #   * **Der Bauch bekam 3,0 direkte Sätze.** Ein Termin pro Woche, bis zu
+    #     zwölf Tage Abstand. Der Rest seines Ziels war Halten bei Kniebeuge
+    #     und Kreuzheben – dieselbe Falle, wegen der die 9 im ausgewogenen Plan
+    #     einmal aus der 5 entstanden ist.
+    #   * Seitliche Schulter 1,7 Termine, hintere Schulter 1,3, Nacken 1,6.
+    #
+    # **Termine je Woche = direkte Sätze ÷ 3.** Das ist keine Faustregel,
+    # sondern eine Gleichung – ein Auftritt hat immer drei Sätze. Für zwei
+    # Termine braucht es sechs direkte Sätze, wie hoch das Ziel auch steht. Wer
+    # kürzt, muss deshalb bei den Gruppen mit viel indirektem Zufluss *nach
+    # oben* gehen, nicht mit.
+    #
+    # Nachgerechnet mit tools/pruefung/ziele-probe.py, blockweise durchsucht:
+    #
+    #   Bauch 6 → 9        4,9 statt 3,0 direkte Sätze, also 1,95 Termine
+    #   Gesäß 6 → 8        hält Hip Thrust und Kreuzheben im Plan
+    #   seitliche 6 → 7    2,04 Termine statt 1,7
+    #   hintere 5 → 7      1,92 Termine statt 1,3
+    #
+    # Die Hüftstreckung bleibt bewusst ohne eigenes Ziel: Mit einem – gleich
+    # welchem – ging zwischen 21 und 32 Wochen keine exakte Lösung mehr auf.
+    # Über Gesäß 8 bekommt sie trotzdem, was sie braucht.
+    #
+    # **Was bleibt, ist ein Kompromiss, und der gehört benannt.** Bei vier
+    # Einheiten pro Woche und festen Dreiersätzen kosten zwei Termine für jede
+    # der zwölf Gruppen rund 72 Sätze die Woche – das ist der ausgewogene Plan,
+    # nicht ein kurzer. „Kurz und knapp" kommt auf rund 51 und lässt dafür
+    # Waden, Beinbeuger und Hüftstreckung bei einem Termin. Das ist eine
+    # Entscheidung, keine Panne: Die Löcher sind zu, die Sparsamkeit bleibt.
     'kurz': {
         'name': 'Kurz und knapp',
         'ziele': {
-            'chest': 6, 'lats': 6, 'sideDelts': 6, 'rearDelts': 5,
-            'biceps': 6, 'triceps': 6, 'abs': 6,
+            'chest': 6, 'lats': 6, 'sideDelts': 7, 'rearDelts': 7,
+            'biceps': 6, 'triceps': 6, 'abs': 9,
             'frontDelts': None, 'traps': None, 'hamstringsHip': None,
-            'glutes': 6, 'quads': 6, 'hamstringsKnee': 3, 'calves': 3,
+            'glutes': 8, 'quads': 6, 'hamstringsKnee': 3, 'calves': 3,
         },
         'cap': 10,
     },
