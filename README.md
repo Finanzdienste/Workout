@@ -611,6 +611,18 @@ ergeben, und bei den meisten Gruppen deutlich weniger. Der Grund ist banal und
 tröstlich: Jede Gruppe wird von mehreren Übungen gefüttert, und unabhängige
 Schätzfehler heben sich zum Teil gegenseitig auf.
 
+**Der Plan selbst ist dagegen empfindlich.** Das ist die zweite Frage, und sie
+hat eine andere Antwort: Wird mit gestörten Anteilen nicht nur *nachgerechnet*,
+sondern neu *gelöst*, kommt eine spürbar andere Satzverteilung heraus – im
+Schnitt 0,57 Sätze pro Woche und Übung Unterschied, im schlimmsten Fall 3,4.
+Bei Übungen, die ohnehin nur zwei bis vier Sätze die Woche haben, ist das viel.
+In drei von zwölf Störungen ging bei 21 Wochen überhaupt keine exakte Lösung
+mehr auf, und in einer fiel das sitzende Schulterdrücken ganz aus dem Plan.
+
+Beides zusammen ergibt ein stimmiges Bild: *Welche Übung* das Volumen trägt,
+hängt merklich an den geschätzten Anteilen – *wo die Muskelgruppe am Ende
+landet*, kaum. Für das Training zählt das zweite.
+
 **Was folgt daraus?** Nicht, dass die exakte Rechnung überflüssig wäre – sie
 verhindert die groben Fehler, um die es hier gar nicht geht: dass eine Gruppe
 das Doppelte einer anderen bekommt, dass eine Übung ganz herausfällt, dass zwei

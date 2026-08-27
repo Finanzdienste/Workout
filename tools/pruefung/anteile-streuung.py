@@ -178,7 +178,10 @@ def teil_b(laeufe):
     print(f'\n   Ø Unterschied je Übung: {statistics.mean(abweichung):.2f} Sätze/Woche')
     print(f'   Größter Unterschied in einem Lauf: {max(groesste):.2f} Sätze/Woche')
     if unloesbar:
-        print(f'   {unloesbar} von {laeufe} Störungen gingen gar nicht exakt auf.')
+        # Gerechnet wird hier fest mit 21 Wochen. Der Generator sucht sich sonst
+        # die erste Wochenzahl, in der alles aufgeht – „geht nicht auf" heißt
+        # also „nicht bei 21 Wochen", nicht „gar nicht".
+        print(f'   {unloesbar} von {laeufe} Störungen gingen bei {wochen} Wochen nicht exakt auf.')
     if raus:
         print(f'   Übungen, die in mindestens einer Störung ganz herausfielen: {", ".join(sorted(raus))}')
     else:
