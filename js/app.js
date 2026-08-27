@@ -228,13 +228,32 @@ function plannedReps(reps) {
   return m ? Number(m[0]) : 0;
 }
 
+/**
+ * Wiederholungen und Pause, auf die Erfahrungsstufe umgerechnet.
+ *
+ * Bei fast jeder Übung braucht es das nicht: Der Anfänger nimmt die Hälfte des
+ * Gewichts und trifft damit denselben Wiederholungsbereich. Klimmzüge kennen
+ * diesen Hebel nicht – dort *ist* das Körpergewicht die Last. Wer eine
+ * Wiederholung schafft, bekommt eine Vorgabe von 5–10 und kann sie nicht
+ * erfüllen; die Zahl wird damit von einer Ansage zu einem Vorwurf.
+ *
+ * Die Ausnahmen stehen als `stufen` an der Übung selbst (siehe
+ * tools/exercise-meta.json), damit hier keine Übungsnamen im Code stehen.
+ */
+function stufenWerte(v) {
+  const s = (v.stufen || {})[store.getState().level || 'geuebt'];
+  return { reps: (s && s.reps) || v.reps, rest: (s && s.rest) || v.rest };
+}
+
 /** Variante (db/bw) einer geplanten Übung inkl. Sätze. */
 function resolve(item, mode) {
   const ex = EX_BY_ID.get(item.id);
   const v = ex[mode];
+  const stufe = stufenWerte(v);
   return {
     id: item.id, sets: item.sets, group: ex.group,
-    name: v.name, reps: v.reps, equip: v.equip, cue: v.cue, rest: v.rest, pattern: v.pattern, muscles: v.muscles,
+    name: v.name, reps: stufe.reps, equip: v.equip, cue: v.cue, rest: stufe.rest,
+    pattern: v.pattern, muscles: v.muscles,
     // Die ausführliche Erklärung hängt an der Übung, nicht an der Variante:
     // Griff, Aufbau und typische Fehler sind in beiden Fassungen dieselben.
     detail: ex.detail,
@@ -1951,7 +1970,7 @@ function progressSeries() {
       if (!perExercise.has(item.id)) perExercise.set(item.id, []);
       perExercise.get(item.id).push({ label: day, value: kg });
 
-      const vol = kg * plannedReps(ex.db.reps) * done.length;
+      const vol = kg * plannedReps(stufenWerte(ex.db).reps) * done.length;
       ex.db.muscles.forEach((m) => muscleDay.set(m, (muscleDay.get(m) || 0) + vol));
     });
 
@@ -1992,7 +2011,7 @@ function sammleStats() {
         // Wiederholungen werden nicht mehr erfasst; gerechnet wird deshalb mit
         // dem geplanten Wert – der unteren Grenze des Bereichs, also bewusst
         // eher zu niedrig als zu hoch.
-        const planned = plannedReps(EX_BY_ID.get(item.id)[m].reps);
+        const planned = plannedReps(stufenWerte(EX_BY_ID.get(item.id)[m]).reps);
         arr.forEach((s) => {
           if (!s.done) return;
           setsDone++;
@@ -2039,7 +2058,7 @@ function sammleStats() {
         const arr = entry[m] && entry[m][item.id];
         const ex = EX_BY_ID.get(item.id);
         if (!Array.isArray(arr) || !ex) return;
-        const planned = plannedReps(ex[m].reps);
+        const planned = plannedReps(stufenWerte(ex[m]).reps);
         arr.slice(0, item.sets).forEach((x) => {
           if (!x.done) return;
           setsDone++;

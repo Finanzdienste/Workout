@@ -45,7 +45,8 @@ export const EXERCISES = [
         "glutes",
         "abs",
         "hamstringsHip"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "1½-Wdh. Bodyweight Squat",
@@ -65,7 +66,8 @@ export const EXERCISES = [
         "glutes",
         "abs",
         "hamstringsHip"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -112,7 +114,8 @@ export const EXERCISES = [
         "glutes",
         "hamstringsHip",
         "abs"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Sliding Leg Curl",
@@ -132,7 +135,8 @@ export const EXERCISES = [
         "glutes",
         "hamstringsHip",
         "abs"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -177,7 +181,8 @@ export const EXERCISES = [
         "chest",
         "triceps",
         "frontDelts"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Langsame Liegestütze (3 s ablassen)",
@@ -195,7 +200,8 @@ export const EXERCISES = [
         "chest",
         "triceps",
         "frontDelts"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -242,7 +248,13 @@ export const EXERCISES = [
         "biceps",
         "traps",
         "rearDelts"
-      ]
+      ],
+      "stufen": {
+        "anfaenger": {
+          "reps": "1–3",
+          "rest": 120
+        }
+      }
     },
     "bw": {
       "name": "Chin-ups",
@@ -262,7 +274,13 @@ export const EXERCISES = [
         "biceps",
         "traps",
         "rearDelts"
-      ]
+      ],
+      "stufen": {
+        "anfaenger": {
+          "reps": "1–3",
+          "rest": 120
+        }
+      }
     }
   },
   {
@@ -303,7 +321,8 @@ export const EXERCISES = [
         "sideDelts",
         "traps",
         "frontDelts"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Sitzendes Band-Seitheben",
@@ -321,7 +340,8 @@ export const EXERCISES = [
         "sideDelts",
         "frontDelts",
         "traps"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -362,7 +382,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "triceps"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Überkopf-Trizepsstrecker am Band",
@@ -376,7 +397,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "triceps"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -413,7 +435,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "calves"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Einbeiniges Wadenheben",
@@ -427,7 +450,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "calves"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -460,7 +484,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "calves"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Wadenheben mit gebeugtem Knie",
@@ -474,7 +499,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "calves"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -515,7 +541,8 @@ export const EXERCISES = [
         "quads",
         "glutes",
         "abs"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Fersenerhöhter 1½-Wdh. Bodyweight Squat",
@@ -533,7 +560,8 @@ export const EXERCISES = [
         "quads",
         "glutes",
         "abs"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -570,7 +598,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "biceps"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Band-Curls",
@@ -584,7 +613,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "biceps"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -621,7 +651,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "abs"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Crunches",
@@ -635,7 +666,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "abs"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -674,7 +706,8 @@ export const EXERCISES = [
         "glutes",
         "abs",
         "hamstringsHip"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Einbeiniger Sliding Leg Curl",
@@ -694,7 +727,8 @@ export const EXERCISES = [
         "glutes",
         "abs",
         "hamstringsHip"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -733,7 +767,8 @@ export const EXERCISES = [
         "frontDelts",
         "triceps",
         "sideDelts"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Füße-erhöhte Liegestütze",
@@ -753,7 +788,8 @@ export const EXERCISES = [
         "frontDelts",
         "triceps",
         "sideDelts"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -802,7 +838,8 @@ export const EXERCISES = [
         "chest",
         "triceps",
         "frontDelts"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Liegestütze",
@@ -820,7 +857,8 @@ export const EXERCISES = [
         "chest",
         "triceps",
         "frontDelts"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -867,7 +905,8 @@ export const EXERCISES = [
         "biceps",
         "traps",
         "rearDelts"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Vorgebeugtes Band-Rudern",
@@ -887,7 +926,8 @@ export const EXERCISES = [
         "biceps",
         "traps",
         "rearDelts"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -930,7 +970,8 @@ export const EXERCISES = [
       "muscles": [
         "glutes",
         "hamstringsHip"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Einbeiniger Hip Thrust",
@@ -946,7 +987,8 @@ export const EXERCISES = [
       "muscles": [
         "glutes",
         "hamstringsHip"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -985,7 +1027,8 @@ export const EXERCISES = [
       "muscles": [
         "rearDelts",
         "traps"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Vorgebeugtes Band-Reverse-Fly",
@@ -1001,7 +1044,8 @@ export const EXERCISES = [
       "muscles": [
         "rearDelts",
         "traps"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -1044,7 +1088,13 @@ export const EXERCISES = [
         "biceps",
         "traps",
         "rearDelts"
-      ]
+      ],
+      "stufen": {
+        "anfaenger": {
+          "reps": "1–3",
+          "rest": 120
+        }
+      }
     },
     "bw": {
       "name": "Pull-ups",
@@ -1064,7 +1114,13 @@ export const EXERCISES = [
         "biceps",
         "traps",
         "rearDelts"
-      ]
+      ],
+      "stufen": {
+        "anfaenger": {
+          "reps": "1–3",
+          "rest": 120
+        }
+      }
     }
   },
   {
@@ -1101,7 +1157,8 @@ export const EXERCISES = [
         "sideDelts",
         "traps",
         "frontDelts"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Band-Seitheben",
@@ -1119,7 +1176,8 @@ export const EXERCISES = [
         "sideDelts",
         "traps",
         "frontDelts"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -1162,7 +1220,8 @@ export const EXERCISES = [
         "triceps",
         "sideDelts",
         "traps"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Band-Schulterdrücken",
@@ -1182,7 +1241,8 @@ export const EXERCISES = [
         "triceps",
         "sideDelts",
         "traps"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -1231,7 +1291,8 @@ export const EXERCISES = [
         "hamstringsHip",
         "glutes",
         "abs"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Einbeiniges Kreuzheben (Standwaage)",
@@ -1249,7 +1310,8 @@ export const EXERCISES = [
         "hamstringsHip",
         "glutes",
         "abs"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -1296,7 +1358,8 @@ export const EXERCISES = [
         "glutes",
         "hamstringsHip",
         "abs"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Split Squat ohne Gewicht",
@@ -1316,7 +1379,8 @@ export const EXERCISES = [
         "glutes",
         "hamstringsHip",
         "abs"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -1353,7 +1417,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "abs"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Hängendes Knieheben",
@@ -1367,7 +1432,8 @@ export const EXERCISES = [
       },
       "muscles": [
         "abs"
-      ]
+      ],
+      "stufen": {}
     }
   },
   {
@@ -1402,7 +1468,8 @@ export const EXERCISES = [
       "muscles": [
         "rearDelts",
         "traps"
-      ]
+      ],
+      "stufen": {}
     },
     "bw": {
       "name": "Band-Pull-Apart",
@@ -1418,7 +1485,8 @@ export const EXERCISES = [
       "muscles": [
         "rearDelts",
         "traps"
-      ]
+      ],
+      "stufen": {}
     }
   }
 ];

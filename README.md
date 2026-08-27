@@ -2279,6 +2279,47 @@ Pausen, Übungsauswahl und die Erholungsregel sind für alle dieselben – daran
 ist nichts stufenspezifisch. Und sobald jemand ein Gewicht selbst einstellt,
 gilt seins: Die Stufe ist ein Startpunkt, keine Obergrenze.
 
+### Wo die Stufe nicht reicht: Wiederholungen und Pause
+
+Das Umrechnen über das Gewicht löst das Problem fast überall: Der Anfänger
+nimmt die Hälfte und trifft damit denselben Wiederholungsbereich. **Klimmzüge
+kennen diesen Hebel nicht** – dort *ist* das Körpergewicht die Last. Wer eine
+Wiederholung schafft, bekam eine Vorgabe von 5–10 und konnte sie nicht
+erfüllen; die Zahl war damit von einer Ansage zu einem Vorwurf geworden.
+
+| | Geübt / Fortgeschritten | Anfänger |
+| --- | --- | --- |
+| Chin-ups | 5–10 Wdh., 180 s | **1–3 Wdh., 120 s** |
+| Pull-ups | 4–10 Wdh., 180 s | **1–3 Wdh., 120 s** |
+
+Die Ausnahme steht als `dbStufen`/`bwStufen` an der Übung selbst, nicht als
+Sonderfall im Code – so lässt sich jede weitere Übung nachziehen, ohne dass
+`js/app.js` Übungsnamen kennen muss.
+
+**Warum nur diese zwei.** Acht Übungen haben kein Gewichtsfeld, aber sechs
+davon lassen sich trotzdem leichter machen: über die Bandstärke, die Neigung
+der Liegestütze oder die Ausführung des Leg Curls. Bei Klimmzügen bleibt nur,
+die Übung selbst zu ersetzen.
+
+**Die 120 Sekunden sind ein Kompromiss, kein Messwert.** Nach ein bis drei
+Wiederholungen ist die Erschöpfung gering, die Erholung dauert trotzdem gut
+zwei Minuten – volle drei wären nicht falsch, kosten aber neun Minuten für
+sechs Wiederholungen. Die Datenlage zu Pausenlängen bei so kurzen Sätzen ist
+dünn genug, dass hier die Praktikabilität entscheiden darf.
+
+**Und die Statistik rechnet mit.** Sie schätzt das Volumen aus dem *geplanten*
+Wiederholungswert (untere Grenze des Bereichs). Bliebe sie bei 5, bekäme der
+Anfänger je Satz das Fünffache gutgeschrieben – und stiege über die
+Tonnage-Schwelle zu früh auf. `stufenWerte()` sitzt deshalb auch in
+`sammleStats()`, nicht nur in der Anzeige.
+
+**Was das nicht ersetzt.** Ein bis drei Wiederholungen bis zum Versagen sind
+Maximalkrafttraining, nicht Aufbau. Der wirksamere Weg zur ersten sauberen
+Fünf sind Negative (fünf Sekunden ablassen) oder Füße auf einem Stuhl, bis der
+Bereich 5–10 steht. Das sagt jetzt auch der Übungshinweis im Hantel-Modus –
+vorher stand es nur im Bodyweight-Hinweis, den niemand sieht, der mit Hanteln
+trainiert.
+
 ### Aufsteigen, ohne daran zu denken
 
 Eine Einstellung, die man einmal trifft und dann vergisst, ist genau dann

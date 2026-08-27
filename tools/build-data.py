@@ -134,7 +134,11 @@ def main():
                     'db': {'name': m.get('name') or db['name'],
                            'reps': m.get('reps') or db['reps'], 'equip': m['dbEquip'],
                            'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],
-                           'shares': m['dbShares'], 'muscles': muscles(m['dbShares'])},
+                           'shares': m['dbShares'], 'muscles': muscles(m['dbShares']),
+                           # Eigene Wiederholungen und Pause je Erfahrungsstufe –
+                           # nur dort nötig, wo sich die Last nicht herunterdrehen
+                           # lässt. Siehe stufen() in js/app.js.
+                           'stufen': m.get('dbStufen', {})},
                     # Das Bodyweight-Äquivalent kommt aus der Excel – es sei
                     # denn, in exercise-meta.json steht ein eigenes. Nötig
                     # geworden, als vordere und seitliche Schulter getrennt
@@ -144,7 +148,8 @@ def main():
                     'bw': {'name': m.get('bwName') or bw['name'],
                            'reps': m.get('bwReps') or bw['reps'], 'equip': m['bwEquip'],
                            'cue': m['bwCue'], 'rest': m['bwRest'], 'pattern': m['bwPattern'],
-                           'shares': m['bwShares'], 'muscles': muscles(m['bwShares'])},
+                           'shares': m['bwShares'], 'muscles': muscles(m['bwShares']),
+                           'stufen': m.get('bwStufen', {})},
                 }
             elif (entry['db']['reps'], entry['bw']['name'], entry['bw']['reps']) != (
                     meta[key].get('reps') or db['reps'],
@@ -174,10 +179,12 @@ def main():
             'detail': m.get('detail', []),
             'db': {'name': m['name'], 'reps': m['reps'], 'equip': m['dbEquip'],
                    'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],
-                   'shares': m['dbShares'], 'muscles': muscles(m['dbShares'])},
+                   'shares': m['dbShares'], 'muscles': muscles(m['dbShares']),
+                   'stufen': m.get('dbStufen', {})},
             'bw': {'name': m['bwName'], 'reps': m['bwReps'], 'equip': m['bwEquip'],
                    'cue': m['bwCue'], 'rest': m['bwRest'], 'pattern': m['bwPattern'],
-                   'shares': m['bwShares'], 'muscles': muscles(m['bwShares'])},
+                   'shares': m['bwShares'], 'muscles': muscles(m['bwShares']),
+                   'stufen': m.get('bwStufen', {})},
         }
         print(f'{key}: nicht in der Excel, aus exercise-meta.json übernommen')
 
