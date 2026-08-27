@@ -10053,8 +10053,11 @@ function renderSettings() {
     <div class="section-title">Kalender</div>
     <div class="card">
       <div class="small muted">Alle Trainingstermine als Kalenderdatei, jeweils um 18 Uhr,
-        mit den Übungen des Tages in der Beschreibung. In Google Kalender über
-        <i>Einstellungen → Importieren</i> einlesen.</div>
+        mit den Übungen des Tages in der Beschreibung.
+        <b>Die Google-Kalender-App kann keine Dateien einlesen</b> – das geht nur über die
+        Weboberfläche. Am Handy: in Chrome <i>calendar.google.com</i> öffnen, im
+        Drei-Punkte-Menü <i>Desktopseite</i> anhaken, dann
+        <i>Einstellungen → Importieren und exportieren</i>.</div>
       ${icsStale() ? `<div class="hint" style="color:var(--accent);margin-top:8px">
         Der Plan hat sich seit dem letzten Export um
         ${esc(plural(Math.abs(store.getState().shift - store.getState().lastIcs.shift), 'Tag', 'Tage'))}

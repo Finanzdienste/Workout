@@ -1212,11 +1212,27 @@ zweite still verschluckt.
 
 ### In den Google-Kalender
 
-*Mehr → Kalender → Kalenderdatei (.ics)* schreibt **alle 80 Termine** in eine
-Datei, jeweils um **18:00** am tatsächlichen Trainingstag. In der
-Google-Kalender-App: *Einstellungen → Importieren* bzw. am Rechner
-[calendar.google.com/calendar/u/0/r/settings/export](https://calendar.google.com/calendar/u/0/r/settings/export)
-→ *Importieren*. Der Titel nennt Nummer, Anzahl Übungen und Sätze, die
+*Mehr → Kalender → Kalenderdatei (.ics)* schreibt **alle 84 Termine** in eine
+Datei, jeweils um **18:00** am tatsächlichen Trainingstag.
+
+**Die Google-Kalender-App kann keine Kalenderdateien einlesen.** Weder auf
+Android noch auf iOS gibt es dort einen Import; er existiert ausschließlich in
+der Weboberfläche. Hier stand das jahrelang falsch, und es ist kein Detail –
+diese App läuft auf dem Handy, also ist der Weg über das Handy der einzige, der
+zählt:
+
+1. **Chrome** öffnen (nicht die Kalender-App) und `calendar.google.com` aufrufen.
+2. Im **Drei-Punkte-Menü** *Desktopseite* anhaken. Ohne das fehlt die
+   Einstellungsseite – die mobile Fassung zeigt sie gar nicht erst.
+3. *Einstellungen → **Importieren und exportieren*** → Datei wählen → Kalender
+   wählen → *Importieren*.
+
+Am Rechner direkt über
+[calendar.google.com/calendar/u/0/r/settings/export](https://calendar.google.com/calendar/u/0/r/settings/export).
+
+Was auf dem Handy **nicht** funktioniert: die Datei im Dateimanager antippen.
+Android bietet dann zwar „Mit Google Kalender öffnen" an, legt aber nur den
+*ersten* Termin an – bei 84 Einträgen also praktisch nichts. Der Titel nennt Nummer, Anzahl Übungen und Sätze, die
 Beschreibung listet die Übungen in der Variante, in der trainiert wird
 (Hanteln oder Bodyweight, samt Verletzungs-Ersatz). Die Dauer ist gerechnet,
 nicht geraten: Arbeitszeit je Satz plus die Pausen *zwischen* den Sätzen plus
