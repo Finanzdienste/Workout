@@ -1899,6 +1899,22 @@ wird. Eine Gruppe ohne Ziel über der Obergrenze. Zwei direkte Reize derselben
 Muskelgruppe an aufeinanderfolgenden Tagen – 48 Stunden Erholung sind die
 Zusage, auf der die ganze Tagesverteilung steht.
 
+**Keine Einheit gibt einer Gruppe mehr, als ihr die ganze Woche zusteht.** Die
+dritte feste Regel, und sie kommt ohne neue Zahl aus: Die Wochenobergrenze
+steht schon da. Schöpft ein einzelner Tag sie aus, ist etwas grundsätzlich
+schiefgegangen – unabhängig davon, was die Trainingslehre zum optimalen
+Tagesvolumen sagt, wo die Datenlage dünn ist. Sie greift heute nirgends: Der
+höchste Wert über alle sechs Pläne und beide Modi ist 9,0 bei einer Obergrenze
+von 10. Genau das ist ihr Zweck – nichts ändern, sondern anschlagen, wenn sich
+etwas ändert.
+
+Gemessen wird in **gewichtetem Volumen**, derselben Währung wie die Ziele. Die
+rohe Satzzahl taugt dafür nicht, und das ist keine Feinheit: Sie meldet für den
+Trizeps eine Einheit mit *elf* Sätzen, wo gewichtet 8,2 stehen – vier Sätze
+Schulterdrücken (Anteil 0,60), drei Liegestütze (0,60) und vier
+Trizepsstrecker (1,00). Eine völlig normale Oberkörpereinheit, die in der
+falschen Währung nach einem Problem aussieht.
+
 **Ein Vergleichsstand** für alles, wo es kein sauberes Ja/Nein gibt: Frequenz
 je Gruppe, größter Abstand zwischen zwei Reizen, Übungen mit null Sätzen. Diese
 Zahlen stehen in `tools/pruefung/befunde.json`, und die Prüfung schlägt an, wenn

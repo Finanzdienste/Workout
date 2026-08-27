@@ -102,6 +102,17 @@ def messen(variante, modus):
         ab = [(b - a).days for a, b in zip(tage, tage[1:])]
         abstand[m] = (min(ab), max(ab)) if ab else (None, None)
 
+    # Höchstes gewichtetes Volumen, das eine Gruppe an einem einzigen Tag
+    # bekommt. Siehe die Regel in feste_regeln().
+    spitze = {m: 0.0 for m in gruppen}
+    for e in plan:
+        tag = collections.Counter()
+        for it in e['ex']:
+            for m, anteil in META[it['id']].get(schluessel, {}).items():
+                tag[m] += it.get(feld, it['sets']) * anteil
+        for m, x in tag.items():
+            spitze[m] = max(spitze[m], x)
+
     saetze = collections.Counter()
     for e in plan:
         for it in e['ex']:
@@ -113,6 +124,7 @@ def messen(variante, modus):
         'direkt': {m: statistics.mean(direkt[m]) for m in gruppen},
         'frequenz': {m: statistics.mean(frequenz[m]) for m in gruppen},
         'abstand': abstand,
+        'spitze': spitze,
         'ohne_saetze': sorted(i for i in META if not saetze[i]),
     }
 
@@ -138,6 +150,22 @@ def feste_regeln(v, modus, m):
         klein, _ = m['abstand'][g]
         if klein is not None and klein < REST_DAYS:
             fehler.append(f'{name}: nur {klein} Tag(e) zwischen zwei direkten Reizen')
+        # **Keine Einheit gibt einer Gruppe mehr, als ihr die ganze Woche
+        # zusteht.** Das ist bewusst keine Dosis-Wirkungs-Regel – dafür ist die
+        # Datenlage zu dünn –, sondern eine Absurditätsschranke, und sie kommt
+        # ohne neue Zahl aus: Die Obergrenze der Woche steht schon da. Wenn ein
+        # einzelner Tag sie ausschöpft, ist etwas grundsätzlich schiefgegangen,
+        # egal was die Trainingslehre zum optimalen Tagesvolumen sagt.
+        #
+        # Sie greift heute nirgends: Der höchste Wert über alle sechs Pläne und
+        # beide Modi ist 9,0 bei einer Obergrenze von 10. Das ist der Sinn der
+        # Sache – sie soll nichts ändern, sondern anschlagen, wenn sich etwas
+        # ändert. Gemessen wird in gewichtetem Volumen, derselben Währung wie
+        # die Ziele; die rohe Satzzahl taugt dafür nicht, weil sie ein Drücken
+        # voll auf den Trizeps rechnet.
+        if m['spitze'][g] > m['cap'] + 0.05:
+            fehler.append(f'{name}: eine einzelne Einheit gibt {m["spitze"][g]:.2f} – '
+                          f'mehr als die Wochenobergrenze {m["cap"]}')
     return fehler
 
 
@@ -169,13 +197,14 @@ def vergleiche(alt, neu):
 
 def bericht(v, modus, m):
     print(f'\n=== {v} / {modus} · {m["wochen"]} Wochen ===')
-    print(f'{"Gruppe":<22}{"Ziel":>6}{"Ø":>7}{"direkt":>8}{"Freq":>7}{"Abstand":>10}')
+    print(f'{"Gruppe":<22}{"Ziel":>6}{"Ø":>7}{"direkt":>8}{"Freq":>7}{"Abstand":>10}{"Spitzentag":>12}')
     for g in m['gruppen']:
         ziel = m['ziele'].get(g)
         klein, gross = m['abstand'][g]
         spanne = f'{klein}–{gross}d' if klein is not None else '–'
         print(f'{NAMEN.get(g, g):<22}{(f"{ziel:.0f}" if ziel is not None else "–"):>6}'
-              f'{m["schnitt"][g]:>7.2f}{m["direkt"][g]:>8.1f}{m["frequenz"][g]:>7.2f}{spanne:>10}')
+              f'{m["schnitt"][g]:>7.2f}{m["direkt"][g]:>8.1f}{m["frequenz"][g]:>7.2f}{spanne:>10}'
+              f'{m["spitze"][g]:>12.2f}')
     if m['ohne_saetze']:
         print('nicht im Plan:', ', '.join(m['ohne_saetze']))
 
@@ -213,7 +242,8 @@ def main():
             print(f'  {f}')
         return 1
     print(f'\n{len(VARIANTEN)} Pläne × {len(MODI)} Modi: jedes Ziel im Schnitt getroffen, '
-          f'48 Stunden Erholung eingehalten, nichts schlechter als zuletzt.')
+          f'48 Stunden Erholung eingehalten, keine Einheit über der Wochenobergrenze, '
+          f'nichts schlechter als zuletzt.')
     return 0
 
 

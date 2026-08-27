@@ -1553,6 +1553,27 @@ def main():
             nachher[m] = nachher.get(m, 0) + n * anteil
     neu = sorted(((nachher.get(m, 0) / weeks - TARGET[m], m) for m in groups
                   if GOAL.get(m) is not None), key=lambda x: -abs(x[0]))
+    # **Keine Einheit gibt einer Gruppe mehr, als ihr die ganze Woche zusteht.**
+    #
+    # Bewusst keine Dosis-Wirkungs-Regel – dafür ist die Datenlage zu dünn –,
+    # sondern eine Absurditätsschranke, und sie kommt ohne neue Zahl aus: Die
+    # Wochenobergrenze steht schon da. Schöpft ein einzelner Tag sie aus, ist
+    # etwas grundsätzlich schiefgegangen.
+    #
+    # Gemessen wird in gewichtetem Volumen, derselben Währung wie die Ziele.
+    # Die rohe Satzzahl taugt dafür nicht: Sie rechnet ein Drücken voll auf den
+    # Trizeps und meldet elf Sätze, wo gewichtet 8,2 stehen.
+    for feld, anteile in (('sets', shares), ('bwSets', BW_SHARES)):
+        for e in plan:
+            tag = collections.Counter()
+            for it in e['ex']:
+                for m, a in anteile.get(it['id'], {}).items():
+                    tag[m] += it[feld] * a
+            for m, x in tag.items():
+                if x > CAP + 0.05:
+                    sys.exit(f'\nFEHLER: {LABEL.get(m, m)} bekommt am {e["date"]} '
+                             f'{x:.2f} Sätze ({feld}) – mehr als die Wochenobergrenze {CAP}.')
+
     anders = sum(1 for e in plan for it in e['ex'] if it['bwSets'] != it['sets'])
     gesamt_bw = sum(it['bwSets'] for e in plan for it in e['ex'])
     print(f'\nBodyweight-Modus: eigene Satzzahl, {anders} von '
