@@ -127,23 +127,77 @@ await page.reload({ waitUntil: 'networkidle' });
 s = await lies();
 check(s.level === 'geuebt', `70 vollständige stufen hoch (${s.level})`);
 
-// --- 3. Ein gestrichener Fokus: Sätze ja, Einheiten nur mit Vermerk -----
-// Zu 'kurz' gibt es keinen Plan mehr, also lässt sich "vollständig" nicht
-// nachrechnen. Gezählt wird trotzdem – nur vorsichtig.
-const kurzOhneVermerk = await protokoll(0, 70, { markiere: false });
+// --- 3. Der automatische Umzug darf die Geschichte nicht wegwerfen -----
+//
+// Der Fall, an dem die erste Fassung gescheitert ist, und er ist tückisch: Wer
+// noch auf 'kurz' steht, bekommt von js/data.js beim Laden längst den
+// Cut-Plan – FOKUS_ERSATZ wird beim Import aufgelöst. Das Protokoll ist aber
+// nach den Einheiten des alten Plans abgelegt. Wer die Bilanz in diesem Moment
+// über den geladenen Plan zieht, zählt einen Cut-Plan gegen ein
+// Kurz-Protokoll: gemessen kamen dabei {0 Einheiten, 0 Sätze, 0 Volumen} für
+// 96 tatsächlich trainierte Einheiten heraus – und weil eine einmal
+// geschriebene Bilanz nicht mehr nachgerechnet wird, war das endgültig.
+//
+// Gebaut wird deshalb ein Protokoll mit den Einheitengrößen des ECHTEN alten
+// Plans (96 Einheiten, 3–5 Übungen), nicht mit denen des heutigen.
+const kurzLog = await page.evaluate(async () => {
+  const { FOKUS_ERSATZ, EXERCISES } = await import('./js/data.js');
+  const ids = EXERCISES.map((e) => e.id);
+  const log = {};
+  FOKUS_ERSATZ.kurz.uebungen.forEach((wieViele, i) => {
+    const e = { mode: 'db', db: {} };
+    for (let k = 0; k < wieViele; k++) {
+      e.db[ids[(i * 7 + k) % ids.length]] = Array.from({ length: 3 },
+        () => ({ w: '20', r: '', done: true }));
+    }
+    log[i + 1] = e;
+  });
+  return log;
+});
+check(Object.keys(kurzLog).length === 96,
+  `das alte 'kurz' hatte 96 Einheiten, die kennt die App noch (${Object.keys(kurzLog).length})`);
+
+await setze({ greeted: true, name: 'T', level: 'anfaenger', focus: 'kurz', log: kurzLog });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+const nachUmzug = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const daten = await import('./js/data.js');
+  const st = store.getState();
+  return { level: st.level, focus: st.focus, plan: daten.FOCUS.name,
+           bilanz: (st.rounds[0] || {}).bilanz };
+});
+console.log('     Bilanz nach dem Umzug:', JSON.stringify(nachUmzug.bilanz));
+check(nachUmzug.plan === 'Cut' && nachUmzug.focus === 'cut',
+  `umgezogen auf Cut (${nachUmzug.plan})`);
+check(nachUmzug.bilanz && nachUmzug.bilanz.einheiten === 96,
+  `alle 96 Einheiten sind erhalten (${nachUmzug.bilanz && nachUmzug.bilanz.einheiten})`);
+check(nachUmzug.bilanz && nachUmzug.bilanz.saetze > SCHWELLE.saetze,
+  `und ihre Sätze auch (${nachUmzug.bilanz && nachUmzug.bilanz.saetze})`);
+check(nachUmzug.level === 'geuebt',
+  `der Umzug kostet den fälligen Aufstieg nicht (${nachUmzug.level})`);
+
+// Dieselbe Runde, aber angebrochen: dann zählt sie auch hier nicht.
+const kurzHalb = await page.evaluate(async () => {
+  const { FOKUS_ERSATZ, EXERCISES } = await import('./js/data.js');
+  const ids = EXERCISES.map((e) => e.id);
+  const log = {};
+  FOKUS_ERSATZ.kurz.uebungen.forEach((wieViele, i) => {
+    const e = { mode: 'db', db: {} };
+    for (let k = 0; k < wieViele - 1; k++) {
+      e.db[ids[(i * 7 + k) % ids.length]] = Array.from({ length: 3 },
+        () => ({ w: '20', r: '', done: true }));
+    }
+    log[i + 1] = e;
+  });
+  return log;
+});
 await setze({ greeted: true, name: 'T', level: 'anfaenger', focus: 'cut', log: {},
-  rounds: [{ finishedOn: '2026-01-01', log: kurzOhneVermerk, focus: 'kurz' }] });
+  rounds: [{ finishedOn: '2026-01-01', log: kurzHalb, focus: 'kurz' }] });
 await page.reload({ waitUntil: 'networkidle' });
 s = await lies();
 check(s.level === 'anfaenger',
-  `aus einer 'kurz'-Runde ohne Abschluss-Vermerk zählen keine Einheiten (${s.level})`);
-
-const kurzMitVermerk = await protokoll(0, 70, { markiere: true });
-await setze({ greeted: true, name: 'T', level: 'anfaenger', focus: 'cut', log: {},
-  rounds: [{ finishedOn: '2026-01-01', log: kurzMitVermerk, focus: 'kurz' }] });
-await page.reload({ waitUntil: 'networkidle' });
-s = await lies();
-check(s.level === 'geuebt', `mit Abschluss-Vermerk zählen sie (${s.level})`);
+  `auch beim alten Plan zählt eine angebrochene Einheit nicht (${s.level})`);
 
 // --- 4. Nichts wird doppelt gezählt ------------------------------------
 // 40 in der Ablage, 40 laufend, aus demselben Fokus: zusammen 80. Holt man die
@@ -226,6 +280,48 @@ await page.waitForTimeout(400);
 const ohneAblage = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(!/Insgesamt trainiert/.test(ohneAblage),
   'in der ersten Runde steht sie nicht da');
+
+// --- 7. Eine kaputte Sicherung darf nicht jeden hochstufen --------------
+//
+// importJSON() prüft an `rounds` nur, dass es ein Array ist (js/store.js). Eine
+// Sicherungsdatei kommt aber von irgendwoher. Stünde dort eine Bilanz mit
+// {einheiten: "viele"}, ergäbe die Summe NaN – und **NaN < 60 ist false**.
+// Damit fiele nicht eine Schwelle durch, sondern alle drei auf einmal: Eine
+// kaputte Datei hätte nicht die Rechnung gestört, sondern sofort hochgestuft.
+await setze({ greeted: true, name: 'T', level: 'anfaenger', log: {},
+  rounds: [
+    { finishedOn: '2026-01-01', log: {}, focus: 'standard',
+      bilanz: { einheiten: 'viele', saetze: null, volumen: undefined } },
+    null,
+    'kaputt',
+    { finishedOn: '2026-01-02' },
+  ] });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+s = await lies();
+check(s.level === 'anfaenger', `Unsinn in der Ablage stuft niemanden hoch (${s.level})`);
+check(await page.locator('[data-act="start-session"]').count() > 0,
+  'und die App läuft weiter, statt leer zu bleiben');
+check(errs.length === 0, `ohne Fehler in der Konsole${errs.length ? ': ' + errs.join(' | ') : ''}`);
+
+// --- 8. Eine Wahl von Hand bleibt eine Wahl -----------------------------
+// Seit über alles Trainierte gerechnet wird, sind die Schwellen für jemanden
+// mit Vorgeschichte längst überschritten. Wer sich nach einer langen Pause
+// bewusst zurückstellt, stünde beim nächsten Laden sonst wieder oben.
+await setze({ greeted: true, name: 'T', level: 'geuebt', log: {},
+  rounds: [{ finishedOn: '2026-01-01', log: ganze, focus: 'standard' }] });
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(300);
+await page.locator('[data-act="set-level"][data-v="anfaenger"]').first().click();
+await page.waitForTimeout(300);
+s = await lies();
+check(s.level === 'anfaenger', `von Hand auf Anfänger zurückgestellt (${s.level})`);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+s = await lies();
+check(s.level === 'anfaenger',
+  `und das hält auch nach dem Neuladen (${s.level})`);
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

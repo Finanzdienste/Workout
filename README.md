@@ -2430,8 +2430,47 @@ genau, wie es die Lage hergibt:
 | | wie genau | warum |
 | --- | --- | --- |
 | Sätze, Volumen | **exakt** | stehen mit Übungs-ID im Log selbst; dafür braucht es den Plan nicht |
-| Einheiten | exakt, solange es den Plan der Runde gibt | erledigt = zu jeder geplanten Übung mindestens ein Satz |
-| Einheiten aus `kurz`/`beine` | nur mit Abschluss-Vermerk | diese Pläne gibt es nicht mehr, es ist nichts zum Vergleichen da |
+| Einheiten | **exakt** | erledigt = zu jeder geplanten Übung mindestens ein Satz |
+
+**Auch für `kurz` und `beine`, und das war der Fehler, der fast durchgerutscht
+wäre.** Beim automatischen Fokus-Umzug hat `js/data.js` den Nachfolgeplan längst
+geladen – `FOKUS_ERSATZ` wird beim Import aufgelöst –, während das Protokoll
+noch nach den Einheiten des *alten* Plans abgelegt ist. Wer die Bilanz in diesem
+Moment über den geladenen Plan zieht, zählt einen Cut-Plan gegen ein
+Kurz-Protokoll. Nachgemessen an einem Gerät mit einer vollständigen
+„Kurz und knapp"-Runde – 96 Einheiten, 1230 Sätze:
+
+| | Einheiten | Sätze | Volumen |
+| --- | --- | --- | --- |
+| tatsächlich trainiert | 96 | 1230 | ~200 t |
+| in die Ablage geschrieben | **0** | **0** | **0** |
+
+Und endgültig, denn eine vorhandene Bilanz wird nicht noch einmal nachgerechnet.
+Ausgerechnet der eine Weg, für den die ganze Rechnerei gebaut ist, hätte die
+Geschichte gelöscht statt sie zu retten – und der Test, der das gemerkt hat,
+existierte erst, nachdem eine Prüfung des Entwurfs gezielt danach gesucht hatte.
+
+Die Lösung ist billig: `FOKUS_ERSATZ` bringt jetzt die Zahl der Übungen je
+Einheit des alten Plans mit (rund 400 Byte für beide). Mehr braucht es nicht,
+denn die Übungen selbst stehen mit ihrer ID im Protokoll. Damit sind auch diese
+Runden exakt. Und die Reihenfolge beim Start hat sich umgedreht: Der Aufstieg
+wird jetzt **nach** dem Umzug geprüft, weil erst dann die richtige Zahl
+dasteht – vorher war es genau umgekehrt begründet, und diese Begründung ist mit
+der Bilanz hinfällig geworden.
+
+Zwei weitere Klippen, beide aus derselben Prüfung:
+
+* **`importJSON()` prüft an `rounds` nur, dass es ein Array ist.** Stünde in
+  einer Sicherungsdatei eine Bilanz mit `{einheiten: "viele"}`, ergäbe die Summe
+  `NaN` – und `NaN < 60` ist `false`. Nicht eine Schwelle wäre durchgefallen,
+  sondern alle drei auf einmal: Eine kaputte Datei hätte jeden sofort
+  hochgestuft. Jede mitgebrachte Zahl wird deshalb geprüft, nicht geglaubt.
+* **Eine Wahl von Hand muss eine Wahl bleiben.** Seit über alles Trainierte
+  gerechnet wird, sind die Schwellen für jemanden mit Vorgeschichte längst
+  überschritten. Wer sich nach einer langen Pause bewusst auf Anfänger
+  zurückstellt, stünde beim nächsten Laden wieder auf Geübt. `set-level`
+  vermerkt den Schritt deshalb als erledigt – denselben Weg geht der Knopf
+  *Bei Anfänger bleiben*.
 
 Gezählt werden dabei **Übungen, nicht Sätze**, und das ist kein Detail: Wie
 viele Sätze geplant waren, hängt an der Erfahrungsstufe – und die ändert sich
@@ -2450,7 +2489,7 @@ hochstufen – wer die Zahl, gegen die gerechnet wird, nirgends sehen kann, häl
 das für einen Fehler. Die Karte erscheint erst, sobald es eine abgelegte Runde
 gibt; vorher wären es zwei Mal dieselbe Zahl nebeneinander.
 
-`tests/test-gesamt.mjs` prüft das mit 24 Prüfungen, darunter beide Richtungen:
+`tests/test-gesamt.mjs` prüft das mit 33 Prüfungen, darunter beide Richtungen:
 dass 35 + 35 aus der Ablage hochstufen, und dass 84 *angebrochene* Einheiten es
 nicht tun. Gegengeprüft – nimmt man die kumulative Zählung heraus, fallen zwei
 Prüfungen um; ersetzt man die Vollständigkeitsregel durch „irgendwas abgehakt",

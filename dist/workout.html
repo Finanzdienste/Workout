@@ -3044,11 +3044,195 @@ const PLANS = {
 const FOKUS_ERSATZ = {
   "kurz": {
     "nach": "cut",
-    "name": "Kurz und knapp"
+    "name": "Kurz und knapp",
+    "uebungen": [
+      4,
+      5,
+      4,
+      4,
+      5,
+      4,
+      4,
+      4,
+      5,
+      5,
+      4,
+      4,
+      5,
+      4,
+      4,
+      4,
+      5,
+      5,
+      4,
+      4,
+      5,
+      5,
+      3,
+      4,
+      4,
+      5,
+      4,
+      4,
+      5,
+      5,
+      3,
+      4,
+      5,
+      4,
+      4,
+      4,
+      4,
+      5,
+      4,
+      4,
+      4,
+      5,
+      4,
+      4,
+      4,
+      5,
+      4,
+      4,
+      4,
+      5,
+      4,
+      4,
+      4,
+      5,
+      4,
+      4,
+      5,
+      5,
+      3,
+      4,
+      5,
+      4,
+      4,
+      4,
+      5,
+      5,
+      4,
+      4,
+      5,
+      5,
+      4,
+      4,
+      4,
+      5,
+      4,
+      4,
+      5,
+      4,
+      3,
+      4,
+      5,
+      4,
+      4,
+      4,
+      4,
+      5,
+      4,
+      4,
+      5,
+      4,
+      4,
+      4,
+      5,
+      4,
+      3,
+      4
+    ]
   },
   "beine": {
     "nach": "bbp",
-    "name": "Beine ernst gemeint"
+    "name": "Beine ernst gemeint",
+    "uebungen": [
+      7,
+      6,
+      7,
+      6,
+      6,
+      6,
+      6,
+      6,
+      7,
+      7,
+      6,
+      6,
+      7,
+      6,
+      6,
+      6,
+      6,
+      7,
+      6,
+      6,
+      7,
+      7,
+      6,
+      6,
+      7,
+      7,
+      6,
+      6,
+      6,
+      6,
+      6,
+      7,
+      7,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      7,
+      7,
+      6,
+      6,
+      6,
+      7,
+      6,
+      7,
+      6,
+      6,
+      7,
+      6,
+      6,
+      6,
+      7,
+      6,
+      6,
+      7,
+      6,
+      5,
+      7,
+      7,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      7,
+      6,
+      6,
+      6,
+      7,
+      7,
+      6,
+      7,
+      6,
+      7,
+      7,
+      6,
+      6,
+      6,
+      6,
+      7
+    ]
   }
 };
 
@@ -6921,21 +7105,48 @@ function rundenBilanz() {
  * rückwirkend jede Anfänger-Einheit für unfertig erklären. Die Zahl der
  * Übungen je Einheit steht dagegen fest im Plan.
  *
- * Ein Tausch wegen Verletzung übersteht das ebenfalls: applyInjuries() setzt
+ * Einen Tausch wegen Verletzung übersteht das meistens: applyInjuries() setzt
  * eine Ersatzübung an dieselbe Stelle (js/injuries.js), die Zahl bleibt gleich,
- * nur die ID ist eine andere. Fällt eine Übung ersatzlos aus oder wird sie mit
- * einer anderen zusammengelegt, zählt die Einheit hier als unfertig.
+ * nur die ID ist eine andere. Nicht immer aber – fällt eine Übung ersatzlos aus
+ * oder landet ihr Ersatz auf einer Übung, die ohnehin schon in der Einheit
+ * steht (`same.sets += item.sets`), schrumpft die Zahl. Solche Einheiten zählen
+ * hier als unfertig. Das ist die verkraftbare Richtung: zu wenig, nicht zu viel.
  *
- * Für 'kurz' und 'beine' gibt es keinen Plan mehr. Diese Runden zählen ihre
- * Sätze und Kilo voll mit, ihre Einheiten aber nur, wenn sie ausdrücklich als
- * abgeschlossen vermerkt sind (`done`). Das zählt zu niedrig, und das ist die
- * gewollte Richtung: Ein Aufstieg, der eine Einheit zu spät kommt, ist ein
- * Ärgernis; einer, der zu früh kommt, ist eine Stufe, die niemand erarbeitet hat.
+ * Für 'kurz' und 'beine' gibt es keinen Plan mehr – wohl aber die Zahl der
+ * Übungen je Einheit, die `FOKUS_ERSATZ` aus js/data.js mitbringt. Mehr braucht
+ * es dafür nicht, und deshalb sind auch diese Runden exakt. Runden ganz ohne
+ * Fokus-Vermerk stammen aus einer Fassung, die nur einen Plan kannte.
  */
+const LEERE_BILANZ = { einheiten: 0, saetze: 0, volumen: 0, db: 0, bw: 0 };
+
+/** Eine Zahl, oder 0. Nicht `undefined`, und vor allem nicht NaN – siehe bilanzAus(). */
+function zahl(x) {
+  const n = typeof x === 'number' ? x : parseFloat(x);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
 function bilanzAus(runde) {
-  if (runde.bilanz) return runde.bilanz;
-  const plan = (PLANS[runde.focus || 'standard'] || {}).plan;
-  const geplant = plan && new Map(plan.map((w) => [String(w.n), w.ex.length]));
+  if (!runde || typeof runde !== 'object') return LEERE_BILANZ;
+  // Eine mitgebrachte Bilanz wird geprüft, nicht geglaubt. importJSON() lässt
+  // `rounds` bis auf "ist ein Array" ungeprüft durch (js/store.js), und eine
+  // Sicherung kommt als Datei von irgendwoher. Stünde dort {einheiten: "viele"},
+  // würde daraus in gesamtStats() ein NaN – und **NaN < 60 ist false**, also
+  // fiele jede einzelne Schwelle auf einen Schlag durch. Eine kaputte Datei
+  // hätte damit nicht die Rechnung gestört, sondern jeden sofort hochgestuft.
+  if (runde.bilanz && typeof runde.bilanz === 'object') {
+    const b = runde.bilanz;
+    return { einheiten: zahl(b.einheiten), saetze: zahl(b.saetze),
+             volumen: zahl(b.volumen), db: zahl(b.db), bw: zahl(b.bw) };
+  }
+  const key = runde.focus || 'standard';
+  const plan = (PLANS[key] || {}).plan;
+  const alt = FOKUS_ERSATZ[key];
+  const geplant = plan
+    ? new Map(plan.map((w) => [String(w.n), w.ex.length]))
+    // Abgeschaffter Plan: seine Einheiten stehen der Reihe nach, Nummer 1 vorn.
+    : (alt && alt.uebungen
+      ? new Map(alt.uebungen.map((anzahl, i) => [String(i + 1), anzahl]))
+      : null);
   let einheiten = 0, saetze = 0, volumen = 0, db = 0, bw = 0;
 
   Object.entries(runde.log || {}).forEach(([n, e]) => {
@@ -7004,6 +7215,9 @@ function gesamtStats() {
     summe.db += b.db;
     summe.bw += b.bw;
   });
+  // Auch die laufende Runde kann aus einer eingelesenen Sicherung stammen.
+  // Lieber eine 0 als ein NaN, das jede Schwelle unterläuft.
+  ['einheiten', 'saetze', 'volumen', 'db', 'bw'].forEach((k) => { summe[k] = zahl(summe[k]); });
   return summe;
 }
 
@@ -7099,9 +7313,23 @@ function fokusUmzug() {
   // Reihenfolge: erst ablegen, dann umschreiben. restartPlan() vermerkt den
   // Fokus, der beim Training galt, und das war der alte.
   const hatteVerlauf = Object.keys(s.log || {}).length > 0;
-  // Die Bilanz muss vor dem Ablegen gezogen werden – danach ist das Protokoll
-  // leer, und die Erfahrung dieser Runde wäre für den Stufenaufstieg verloren.
-  store.restartPlan(0, rundenBilanz());
+  // **Nicht** rundenBilanz(): Die rechnet über den Plan, den die App gerade
+  // geladen hat – und das ist hier schon der *Nachfolger*. js/data.js löst
+  // FOKUS_ERSATZ beim Import auf, lange bevor diese Zeile läuft. Das Protokoll
+  // stammt dagegen noch aus dem alten Plan, mit dessen Einheiten und Übungen.
+  //
+  // Gemessen, was dabei herauskam: ein Gerät mit einer vollständigen
+  // „Kurz und knapp"-Runde – 96 Einheiten, 1230 Sätze – bekam eine Bilanz von
+  // {0, 0, 0} in die Ablage geschrieben. Ein Cut-Plan gegen ein Kurz-Protokoll
+  // gezählt findet fast keine Übung wieder, und die zwölf Einheiten 85–96 sieht
+  // er überhaupt nicht. Weil bilanzAus() eine vorhandene Bilanz unbesehen
+  // zurückgibt, wäre die Null endgültig gewesen – ausgerechnet auf dem einen
+  // Weg, für den die ganze Rechnerei gebaut ist.
+  //
+  // bilanzAus() nimmt den Fokus der Runde als Ausgangspunkt und kommt deshalb
+  // auf die richtigen Zahlen. Es bekommt hier eine Runde gereicht, die es so
+  // gleich noch einmal sieht – dieselbe Rechnung, nur eben rechtzeitig.
+  store.restartPlan(0, bilanzAus({ log: s.log, focus: alt }));
   store.setSetting('focus', ziel.nach);
   store.setSetting('fokusUmzug', {
     von: ziel.name, nach: PLANS[ziel.nach].name, am: todayISO(), abgelegt: hatteVerlauf,
@@ -11275,14 +11503,25 @@ view.addEventListener('click', (e) => {
       render();
       break;
     }
-    case 'set-level':
+    case 'set-level': {
       store.setSetting('level', t.dataset.v);
       // Von Hand gewählt ist von Hand gewählt: Der Hinweis eines automatischen
       // Aufstiegs hat sich damit erledigt, auch wenn er noch offen stand.
       store.setSetting('aufstieg', null);
+      // Und die App stuft von dieser Stufe aus nicht mehr selbst hoch. Ohne das
+      // wäre die Wahl keine: Seit der Aufstieg über *alles* Trainierte rechnet,
+      // sind die Schwellen für jemanden mit Vorgeschichte längst überschritten –
+      // wer sich nach einer langen Pause bewusst auf Anfänger zurückstellt,
+      // stünde beim nächsten Laden wieder auf Geübt. Denselben Weg geht
+      // 'aufstieg-zurueck'.
+      const offen = offenerAufstieg();
+      if (offen) {
+        store.setSetting('aufstiege', [...(store.getState().aufstiege || []), offen.nach]);
+      }
       render();
       toast('Startgewichte umgerechnet – eingestellte Gewichte bleiben');
       break;
+    }
     case 'aufstieg-ok':
       store.setSetting('aufstieg', null);
       render();
@@ -11563,18 +11802,6 @@ if (ui.standAngebot) {
   ui.focus = false;
   ui.listView = false;
 }
-// Auch beim Start prüfen, nicht nur nach einer Einheit: Eine eingelesene
-// Sicherung bringt womöglich ein halbes Jahr Training mit, und das soll sofort
-// in der richtigen Stufe landen statt erst nach dem nächsten Training.
-//
-// **Vor dem Fokus-Umzug**, und das ist keine Geschmacksfrage: sammleStats()
-// rechnet über `state.log`, nicht über die Ablage. Der Umzug legt den Verlauf
-// ab und leert das Protokoll – wer danach prüft, prüft gegen null und hält
-// einen fälligen Aufstieg zurück, obwohl das Training stattgefunden hat.
-if (pruefeAufstieg()) {
-  ui.tab = 'dashboard';
-  ui.focus = false;
-}
 // Stand dieses Gerät auf einem Fokus, den es nicht mehr gibt? Dann jetzt
 // umschreiben – js/data.js hat den Nachfolger schon geladen, hier zieht der
 // gespeicherte Wert nach.
@@ -11582,6 +11809,22 @@ if (fokusUmzug()) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;
+}
+// Auch beim Start prüfen, nicht nur nach einer Einheit: Eine eingelesene
+// Sicherung bringt womöglich ein halbes Jahr Training mit, und das soll sofort
+// in der richtigen Stufe landen statt erst nach dem nächsten Training.
+//
+// **Nach dem Fokus-Umzug**, und das war einmal andersherum: Solange der
+// Aufstieg nur `state.log` zählte, musste er vor dem Umzug laufen, weil der das
+// Protokoll wegräumt. Seit die abgelegte Runde ihre eigene Bilanz mitbringt und
+// gesamtStats() sie mitzählt, gilt das Gegenteil – und zwar zwingend: Während
+// des Umzugs steht das Protokoll des *alten* Plans einem bereits geladenen
+// *neuen* gegenüber, und dagegen gerechnet findet sammleStats() so gut wie
+// nichts. Erst nachdem der Umzug die Runde samt Bilanz abgelegt hat, steht dem
+// Aufstieg die richtige Zahl gegenüber.
+if (pruefeAufstieg()) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
 }
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist

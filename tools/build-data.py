@@ -44,9 +44,35 @@ VARIANT_GLOB = 'plan-*.json'
 # Ziel – das ist „Bauch, Beine, Po". `name` steht dabei, weil die App dem
 # Nutzer sagen soll, *woher* er kommt, und der Name sonst mit der Variante
 # verschwunden wäre.
+# `uebungen` ist die Zahl der Übungen je Einheit des *alten* Plans, und sie steht
+# hier, weil sie sonst nirgends mehr steht: Die Plandateien sind gelöscht.
+#
+# Ohne sie geht beim Umzug die Trainingsgeschichte verloren. Gemessen: Ein Gerät
+# mit einer vollständigen „Kurz und knapp"-Runde – 96 Einheiten, 1230 Sätze –
+# schrieb beim automatischen Umzug eine Bilanz von {0, 0, 0} in die Ablage. Denn
+# js/data.js hat zu diesem Zeitpunkt längst den Nachfolgeplan geladen, während
+# das Protokoll noch nach den Einheiten des alten abgelegt ist; gezählt wurde
+# damit ein Cut-Plan gegen ein Kurz-Protokoll.
+#
+# Mehr als diese Zahl braucht es nicht: Ob eine Einheit fertig war, hängt daran,
+# ob zu *jeder* geplanten Übung ein Satz abgehakt ist – die Übungen selbst
+# stehen mit ihrer ID im Protokoll. Rund 400 Byte gegen ein halbes Jahr
+# Trainingsgeschichte.
 FOKUS_ERSATZ = {
-    'kurz': {'nach': 'cut', 'name': 'Kurz und knapp'},
-    'beine': {'nach': 'bbp', 'name': 'Beine ernst gemeint'},
+    'kurz': {
+        'nach': 'cut', 'name': 'Kurz und knapp',
+        'uebungen': [4, 5, 4, 4, 5, 4, 4, 4, 5, 5, 4, 4, 5, 4, 4, 4, 5, 5, 4, 4, 5, 5, 3, 4,
+                     4, 5, 4, 4, 5, 5, 3, 4, 5, 4, 4, 4, 4, 5, 4, 4, 4, 5, 4, 4, 4, 5, 4, 4,
+                     4, 5, 4, 4, 4, 5, 4, 4, 5, 5, 3, 4, 5, 4, 4, 4, 5, 5, 4, 4, 5, 5, 4, 4,
+                     4, 5, 4, 4, 5, 4, 3, 4, 5, 4, 4, 4, 4, 5, 4, 4, 5, 4, 4, 4, 5, 4, 3, 4],
+    },
+    'beine': {
+        'nach': 'bbp', 'name': 'Beine ernst gemeint',
+        'uebungen': [7, 6, 7, 6, 6, 6, 6, 6, 7, 7, 6, 6, 7, 6, 6, 6, 6, 7, 6, 6, 7, 7, 6, 6,
+                     7, 7, 6, 6, 6, 6, 6, 7, 7, 6, 6, 6, 6, 6, 6, 7, 7, 6, 6, 6, 7, 6, 7, 6,
+                     6, 7, 6, 6, 6, 7, 6, 6, 7, 6, 5, 7, 7, 6, 6, 6, 6, 6, 6, 6, 7, 6, 6, 6,
+                     7, 7, 6, 7, 6, 7, 7, 6, 6, 6, 6, 7],
+    },
 }
 
 DEFAULT_TARGET = 10   # Sätze je Muskelgruppe und Woche, wenn plan.json fehlt
