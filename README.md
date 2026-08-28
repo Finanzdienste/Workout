@@ -2389,6 +2389,73 @@ Pausen, Übungsauswahl und die Erholungsregel sind für alle dieselben – daran
 ist nichts stufenspezifisch. Und sobald jemand ein Gewicht selbst einstellt,
 gilt seins: Die Stufe ist ein Startpunkt, keine Obergrenze.
 
+### Der Aufstieg zählt über Runden hinweg
+
+Die App stuft von selbst hoch, sobald drei Schwellen zusammen erreicht sind:
+
+| Schritt | Einheiten | Sätze | Tonnen |
+| --- | --- | --- | --- |
+| Anfänger → Geübt | 60 | 700 | 30 |
+| Geübt → Fortgeschritten | 200 | 3400 | 200 |
+
+Die Tonnage zählt nur, wer überwiegend mit Hanteln trainiert; ohne Zusatzlast
+gibt es keine Kilo, und wer deswegen ewig auf Anfänger stünde, würde für die
+Wahl seiner Variante bestraft.
+
+**Gezählt wurde das lange falsch, und der Fehler ist lehrreich**, weil er
+nirgends aussieht wie einer. `sammleStats()` liest `state.log` – das Protokoll
+der *laufenden* Runde. `restartPlan()` schiebt genau dieses Protokoll in die
+Ablage und leert es. Beides für sich ist richtig; zusammen heißt es, dass jeder
+Neustart und jeder Wechsel des Trainingsfokus den Fortschritt zur nächsten
+Stufe auf null setzt. Wer 55 von 60 Einheiten hatte und den Plan wechselte,
+fing wieder bei null an – bestraft dafür, dass er eine Entscheidung getroffen
+hat. Der automatische Fokus-Umzug hätte es sogar ungefragt getan.
+
+Der Aufstieg fragt aber nach der Erfahrung eines Menschen, nicht nach dem
+Fortschritt in einem Plan. `gesamtStats()` rechnet deshalb über alles
+Trainierte: laufende Runde plus Ablage.
+
+**Die Bilanz einer Runde entsteht beim Ablegen, nicht beim Auswerten.** Das ist
+die eigentliche Entscheidung dahinter, und sie hat einen gemessenen Grund: Ein
+Protokoll speichert nur die *angetippten* Übungen. Wer eine Einheit nach der
+ersten Übung abbricht, hinterlässt ein Log, in dem alles abgehakt ist –
+nachgemessen stand von sechs geplanten Übungen genau eine darin. Aus dem Log
+allein ist eine abgebrochene Einheit von einer fertigen nicht zu unterscheiden.
+`restartPlan()` bekommt die Zahlen deshalb aus `js/app.js` mitgegeben, solange
+der Plan noch gilt.
+
+Für Runden, die vor dieser Änderung abgelegt wurden, wird nachgerechnet – so
+genau, wie es die Lage hergibt:
+
+| | wie genau | warum |
+| --- | --- | --- |
+| Sätze, Volumen | **exakt** | stehen mit Übungs-ID im Log selbst; dafür braucht es den Plan nicht |
+| Einheiten | exakt, solange es den Plan der Runde gibt | erledigt = zu jeder geplanten Übung mindestens ein Satz |
+| Einheiten aus `kurz`/`beine` | nur mit Abschluss-Vermerk | diese Pläne gibt es nicht mehr, es ist nichts zum Vergleichen da |
+
+Gezählt werden dabei **Übungen, nicht Sätze**, und das ist kein Detail: Wie
+viele Sätze geplant waren, hängt an der Erfahrungsstufe – und die ändert sich
+ausgerechnet beim Aufstieg. Über die Satzzahl gerechnet würde ein Aufstieg
+rückwirkend jede Anfänger-Einheit für unfertig erklären. Die Zahl der Übungen
+je Einheit steht dagegen fest im Plan und übersteht auch einen Tausch wegen
+Verletzung: `applyInjuries()` setzt die Ersatzübung an dieselbe Stelle.
+
+Wo es unsicher ist, wird **zu niedrig** gezählt. Ein Aufstieg, der eine Einheit
+zu spät kommt, ist ein Ärgernis; einer, der zu früh kommt, ist eine Stufe, die
+niemand erarbeitet hat.
+
+Und es steht sichtbar da. Ohne die Karte *Insgesamt trainiert* im
+Statistik-Tab stünde oben „4 von 84 Workouts", und die App würde bei 60
+hochstufen – wer die Zahl, gegen die gerechnet wird, nirgends sehen kann, hält
+das für einen Fehler. Die Karte erscheint erst, sobald es eine abgelegte Runde
+gibt; vorher wären es zwei Mal dieselbe Zahl nebeneinander.
+
+`tests/test-gesamt.mjs` prüft das mit 24 Prüfungen, darunter beide Richtungen:
+dass 35 + 35 aus der Ablage hochstufen, und dass 84 *angebrochene* Einheiten es
+nicht tun. Gegengeprüft – nimmt man die kumulative Zählung heraus, fallen zwei
+Prüfungen um; ersetzt man die Vollständigkeitsregel durch „irgendwas abgehakt",
+zwei andere.
+
 ### Jede Übung muss einen Weg nach unten nennen
 
 Der Plan gibt Wiederholungsbereiche vor. Wer sie nicht erreicht, braucht eine

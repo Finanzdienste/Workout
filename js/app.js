@@ -382,20 +382,151 @@ function offenerAufstieg() {
 }
 
 /**
+ * Was eine Runde geleistet hat, festgehalten in dem Moment, in dem sie in die
+ * Ablage wandert.
+ *
+ * Muss beim Ablegen passieren, nicht beim Auswerten: Ein Protokoll speichert
+ * nur die *angetippten* Übungen. Eine Einheit, bei der jemand nach der ersten
+ * Übung aufgehört hat, sieht darin genauso aus wie eine fertige – ein Log mit
+ * lauter abgehakten Sätzen. Nachgemessen: von sechs geplanten Übungen stand
+ * nach dem Abhaken der ersten genau eine im Log.
+ */
+function rundenBilanz() {
+  const st = sammleStats();
+  return {
+    einheiten: st.workoutsDone,
+    saetze: st.setsDone,
+    volumen: Math.round(st.volume),
+    db: st.doneDb,
+    bw: st.doneBw,
+  };
+}
+
+/**
+ * Die Bilanz einer abgelegten Runde – notfalls nachgerechnet.
+ *
+ * Runden, die vor der Einführung von `bilanz` abgelegt wurden, tragen keine.
+ * Für die wird nachgerechnet, und zwar so genau, wie es die Lage hergibt:
+ *
+ *   Sätze und Volumen  sind **exakt**, immer. Sie stehen mit Übungs-ID im Log
+ *                      selbst; dafür braucht es den Plan gar nicht – auch nicht
+ *                      für Runden aus den gestrichenen Fokussen.
+ *   Einheiten          brauchen den Plan der Runde. Gibt es ihn noch (standard,
+ *                      bbp, cut, oberkoerper), gilt eine Einheit als erledigt,
+ *                      wenn zu **jeder geplanten Übung** mindestens ein Satz
+ *                      abgehakt ist.
+ *
+ * Gezählt werden Übungen, nicht Sätze, und das ist der Punkt: Wie viele Sätze
+ * geplant waren, hängt an der Erfahrungsstufe (zwei für Anfänger, drei für
+ * Geübte). Die Stufe von damals steht nirgends – und ausgerechnet beim
+ * Aufstieg ändert sie sich. Über die Satzzahl gerechnet würde ein Aufstieg
+ * rückwirkend jede Anfänger-Einheit für unfertig erklären. Die Zahl der
+ * Übungen je Einheit steht dagegen fest im Plan.
+ *
+ * Ein Tausch wegen Verletzung übersteht das ebenfalls: applyInjuries() setzt
+ * eine Ersatzübung an dieselbe Stelle (js/injuries.js), die Zahl bleibt gleich,
+ * nur die ID ist eine andere. Fällt eine Übung ersatzlos aus oder wird sie mit
+ * einer anderen zusammengelegt, zählt die Einheit hier als unfertig.
+ *
+ * Für 'kurz' und 'beine' gibt es keinen Plan mehr. Diese Runden zählen ihre
+ * Sätze und Kilo voll mit, ihre Einheiten aber nur, wenn sie ausdrücklich als
+ * abgeschlossen vermerkt sind (`done`). Das zählt zu niedrig, und das ist die
+ * gewollte Richtung: Ein Aufstieg, der eine Einheit zu spät kommt, ist ein
+ * Ärgernis; einer, der zu früh kommt, ist eine Stufe, die niemand erarbeitet hat.
+ */
+function bilanzAus(runde) {
+  if (runde.bilanz) return runde.bilanz;
+  const plan = (PLANS[runde.focus || 'standard'] || {}).plan;
+  const geplant = plan && new Map(plan.map((w) => [String(w.n), w.ex.length]));
+  let einheiten = 0, saetze = 0, volumen = 0, db = 0, bw = 0;
+
+  Object.entries(runde.log || {}).forEach(([n, e]) => {
+    if (!e) return;
+    const soll = geplant && geplant.get(String(n));
+    let fertig = null;
+    ['db', 'bw'].forEach((m) => {
+      let mitSatz = 0;
+      Object.entries(e[m] || {}).forEach(([id, arr]) => {
+        const ex = EX_BY_ID.get(id);
+        if (!ex || !Array.isArray(arr)) return;
+        const planned = plannedReps(stufenWerte(ex[m]).reps);
+        let hier = 0;
+        arr.forEach((s) => {
+          if (!s.done) return;
+          saetze++;
+          hier++;
+          const kg = parseFloat(String(s.w).replace(',', '.'));
+          if (m === 'db' && !Number.isNaN(kg)) volumen += kg * planned;
+        });
+        if (hier) mitSatz++;
+      });
+      // "Von Hand abgeschlossen" gilt auch ohne den letzten Satz – genau wie in
+      // completedMode(). Sonst fehlte jede Einheit, die jemand bewusst beendet
+      // hat, bevor das Wadenheben stand.
+      if (e.done === m && mitSatz > 0) fertig = fertig || m;
+      else if (soll && mitSatz >= soll) fertig = fertig || m;
+    });
+    // Eigene Workouts haben eine Kennung wie 'c1' statt einer Nummer. Ihre
+    // Sätze zählen (trainiert ist trainiert), als Plan-Einheit zählen sie
+    // nicht – dieselbe Regel wie in sammleStats().
+    if (fertig && /^\d+$/.test(String(n))) {
+      einheiten++;
+      if (fertig === 'db') db++; else bw++;
+    }
+  });
+  return { einheiten, saetze, volumen: Math.round(volumen), db, bw };
+}
+
+/**
+ * Alles, was je trainiert wurde – laufende Runde plus Ablage.
+ *
+ * Der Stufenaufstieg fragt nach der Erfahrung eines Menschen, nicht nach dem
+ * Fortschritt in einem Plan. sammleStats() beantwortet die zweite Frage: Es
+ * liest ausschließlich `state.log`, und restartPlan() räumt genau das weg.
+ * Wer 55 von 60 nötigen Einheiten hatte und den Trainingsfokus wechselte, fing
+ * damit wieder bei null an – bestraft dafür, dass er eine Entscheidung
+ * getroffen hat. Der automatische Fokus-Umzug hätte das sogar ungefragt getan.
+ */
+function gesamtStats() {
+  const jetzt = sammleStats();
+  const runden = store.getState().rounds || [];
+  const summe = {
+    einheiten: jetzt.workoutsDone,
+    saetze: jetzt.setsDone,
+    volumen: jetzt.volume,
+    db: jetzt.doneDb,
+    bw: jetzt.doneBw,
+    runden: runden.length,
+  };
+  runden.forEach((r) => {
+    const b = bilanzAus(r);
+    summe.einheiten += b.einheiten;
+    summe.saetze += b.saetze;
+    summe.volumen += b.volumen;
+    summe.db += b.db;
+    summe.bw += b.bw;
+  });
+  return summe;
+}
+
+/**
  * Prüfen und gegebenenfalls hochstufen. Gibt zurück, ob etwas passiert ist.
  *
  * Wird nach jeder abgeschlossenen Einheit aufgerufen und einmal beim Start –
  * Letzteres, damit auch eine eingelesene Sicherung sofort richtig einsortiert
  * wird und nicht erst beim nächsten Training.
+ *
+ * Gerechnet wird über *alles* Trainierte, nicht über die laufende Runde: siehe
+ * gesamtStats().
  */
 function pruefeAufstieg() {
   const schritt = offenerAufstieg();
   if (!schritt) return false;
-  const st = sammleStats();
-  const mitGewichten = st.doneDb >= st.doneBw;
-  if (st.workoutsDone < schritt.einheiten) return false;
-  if (st.setsDone < schritt.saetze) return false;
-  if (mitGewichten && st.volume < schritt.tonnen * 1000) return false;
+  const st = gesamtStats();
+  const mitGewichten = st.db >= st.bw;
+  if (st.einheiten < schritt.einheiten) return false;
+  if (st.saetze < schritt.saetze) return false;
+  if (mitGewichten && st.volumen < schritt.tonnen * 1000) return false;
 
   const s = store.getState();
   store.setSetting('aufstiege', [...(s.aufstiege || []), schritt.nach]);
@@ -403,8 +534,8 @@ function pruefeAufstieg() {
     von: schritt.von,
     nach: schritt.nach,
     am: todayISO(),
-    einheiten: st.workoutsDone,
-    tonnen: Math.round(st.volume / 1000),
+    einheiten: st.einheiten,
+    tonnen: Math.round(st.volumen / 1000),
   });
   store.setSetting('level', schritt.nach);
   return true;
@@ -421,10 +552,13 @@ function aufstiegHinweis() {
     <div class="notice aufstieg" style="margin:0 0 12px">
       <strong>Aufgestiegen: ${esc(name(a.nach))}</strong>
       <div class="small" style="margin-top:6px">
-        ${a.einheiten} Einheiten${a.tonnen ? ` und ${fmtNum(a.tonnen)} Tonnen bewegt` : ''} –
+        Insgesamt ${a.einheiten} Einheiten${a.tonnen ? ` und ${fmtNum(a.tonnen)} Tonnen bewegt` : ''} –
         das ist keine Anfängerlast mehr. Ab jetzt stehen ${jetzt} statt ${vorher} Sätze je
         Übung im Plan; Übungen, Pausen und die Verteilung über die Woche bleiben, wie sie
         sind. Deine eingetragenen Gewichte rührt das nicht an.
+        ${store.getState().rounds.length ? `<div style="margin-top:6px">Gezählt über alle
+          Runden, nicht nur die laufende – ein Neustart oder ein Wechsel des Fokus wirft
+          dich nicht zurück.</div>` : ''}
       </div>
       <div class="btn-row nav" style="margin-top:10px">
         <button type="button" class="btn btn-primary" data-act="aufstieg-ok">Passt</button>
@@ -467,7 +601,9 @@ function fokusUmzug() {
   // Reihenfolge: erst ablegen, dann umschreiben. restartPlan() vermerkt den
   // Fokus, der beim Training galt, und das war der alte.
   const hatteVerlauf = Object.keys(s.log || {}).length > 0;
-  store.restartPlan(0);
+  // Die Bilanz muss vor dem Ablegen gezogen werden – danach ist das Protokoll
+  // leer, und die Erfahrung dieser Runde wäre für den Stufenaufstieg verloren.
+  store.restartPlan(0, rundenBilanz());
   store.setSetting('focus', ziel.nach);
   store.setSetting('fokusUmzug', {
     von: ziel.name, nach: PLANS[ziel.nach].name, am: todayISO(), abgelegt: hatteVerlauf,
@@ -1809,6 +1945,11 @@ function meldeStand(sofort = false) {
 const STAND_VERSION = 1;
 
 function meinStand() {
+  // Bewusst sammleStats() und nicht gesamtStats(): Hier steht "w von p",
+  // Einheiten gegen Planlänge. Eine Gesamtzahl über alle Runden wäre größer als
+  // p und ergäbe "112 von 84". Der Vergleich mit Freunden fragt, wie weit jemand
+  // im Plan ist; der Stufenaufstieg fragt, wie viel jemand insgesamt trainiert
+  // hat. Zwei Fragen, zwei Zahlen.
   const st = sammleStats();
   const zuletzt = PLAN.filter((w) => completedMode(w.n)).map((w) => effDate(w)).sort();
   return {
@@ -2255,6 +2396,68 @@ function standAlter(f) {
   return `Stand von vor ${tage} Tagen`;
 }
 
+/**
+ * Was über alle Runden zusammenkommt – und wie weit es bis zur nächsten Stufe ist.
+ *
+ * Steht nur da, wenn es überhaupt eine abgelegte Runde gibt: Solange die erste
+ * läuft, sind Gesamtzahl und Rundenzahl dieselbe Zahl, und zwei gleiche Zahlen
+ * nebeneinander erklären nichts.
+ *
+ * Ohne diese Karte wäre der Aufstieg unerklärlich. Oben steht "4 von 84
+ * Workouts", und dann stuft die App bei 60 hoch – wer die Zahl, gegen die
+ * gerechnet wird, nirgends sehen kann, hält das für einen Fehler.
+ */
+function gesamtKarte() {
+  const s = store.getState();
+  if (!(s.rounds || []).length) return '';
+  const g = gesamtStats();
+  const schritt = offenerAufstieg();
+  const name = (k) => (LEVELS.find(([key]) => key === k) || [])[1] || k;
+  const zeile = (wert, ziel, was) => {
+    const pct = Math.min(100, Math.round((wert / ziel) * 100));
+    return `
+      <div class="bar-row">
+        <div>
+          <div class="bar-name">${esc(was)}</div>
+          <div class="bar-track"><i style="width:${pct}%"></i></div>
+        </div>
+        <div class="bar-val">${fmtNum(Math.round(wert))} / ${fmtNum(ziel)}</div>
+      </div>`;
+  };
+  // Die Tonnage zählt nur der Hantel-Modus – wer überwiegend ohne Gewichte
+  // trainiert, wird an ihr auch nicht gemessen (siehe pruefeAufstieg()).
+  const mitGewichten = g.db >= g.bw;
+  return `
+    <div class="section-title">Insgesamt trainiert</div>
+    <div class="card">
+      <div class="small muted">Über alle ${plural(g.runden + 1, 'Runde', 'Runden')} zusammen,
+        die laufende eingerechnet. Ein Neustart oder ein Wechsel des Trainingsfokus legt den
+        Verlauf in die Ablage – gezählt wird er weiter.</div>
+      <div class="stat-grid" style="margin-top:10px">
+        <div class="stat"><div class="stat-v">${g.einheiten}</div><div class="stat-l">Einheiten</div></div>
+        <div class="stat"><div class="stat-v">${fmtNum(g.saetze)}</div><div class="stat-l">Sätze</div></div>
+        <div class="stat"><div class="stat-v">${g.volumen
+          ? `ca. ${Math.round(g.volumen / 1000).toLocaleString('de-DE')}` : '–'}</div>
+          <div class="stat-l">Tonnen (Hanteln)</div></div>
+      </div>
+      ${schritt ? `
+        <div class="small muted" style="margin-top:14px">Bis <b>${esc(name(schritt.nach))}</b> –
+          alle drei müssen voll sein${mitGewichten ? '' : ', die Tonnage zählt bei dir nicht mit'}:</div>
+        <div class="bars" style="margin-top:8px">
+          ${zeile(g.einheiten, schritt.einheiten, 'Einheiten')}
+          ${zeile(g.saetze, schritt.saetze, 'Sätze')}
+          ${mitGewichten ? zeile(g.volumen / 1000, schritt.tonnen, 'Tonnen') : ''}
+        </div>`
+        : `<div class="small muted" style="margin-top:12px">${
+            (s.aufstiege || []).length && s.level !== 'fortgeschritten'
+              ? 'Der nächste Schritt war schon einmal dran und wurde zurückgestellt – die App '
+                + 'stuft dich nicht noch einmal von selbst hoch. Umstellen kannst du jederzeit '
+                + 'unter <i>Mehr → Erfahrung</i>.'
+              : 'Du stehst auf der höchsten Erfahrungsstufe – hier kommt nichts mehr dazu.'}
+           </div>`}
+    </div>`;
+}
+
 function renderStats() {
   const { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak,
           upcoming, customSets, seconds, mitZeit } = sammleStats();
@@ -2281,6 +2484,8 @@ function renderStats() {
       ${store.getState().rounds.length
         ? `<div class="stat"><div class="stat-v">${store.getState().rounds.length}</div><div class="stat-l">Runden abgeschlossen</div></div>` : ''}
     </div>
+
+    ${gesamtKarte()}
 
     ${vergleichKarte()}
 
@@ -4151,7 +4356,7 @@ view.addEventListener('click', (e) => {
       // Auch nach vorn: Liegt der Excel-Termin in der Zukunft, fängt die neue
       // Runde trotzdem heute an und nicht irgendwann.
       const target = daysBetween(PLAN[0].date, todayISO());
-      store.restartPlan(target);
+      store.restartPlan(target, rundenBilanz());
       ui.workoutNo = PLAN[0].n;
       ui.focus = false;
       ui.listView = false;
@@ -4455,7 +4660,7 @@ view.addEventListener('click', (e) => {
         + 'in die Ablage und bleibt im Export erhalten, die erreichten Gewichte bleiben stehen.')) break;
       // Reihenfolge: erst ablegen, dann umschalten. restartPlan() vermerkt den
       // Fokus am Verlauf, und das muss der sein, aus dem er stammt.
-      if (laeuft) store.restartPlan(0);
+      if (laeuft) store.restartPlan(0, rundenBilanz());
       store.setSetting('focus', key);
       // Der Plan steckt beim Laden in Hunderten von Zeilen; ein Wechsel mitten
       // im Betrieb hieße, dass die halbe App noch mit dem alten rechnet.

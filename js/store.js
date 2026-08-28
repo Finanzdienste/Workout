@@ -532,14 +532,25 @@ export function markBackup(done) {
  * Plan von vorn beginnen. Der bisherige Verlauf wandert in `rounds`, die
  * Gewichte bleiben stehen – Runde zwei startet also auf dem erreichten Stand
  * und nicht wieder bei den Anfangswerten.
+ *
+ * `bilanz` ist die Zusammenfassung dessen, was in dieser Runde geleistet wurde:
+ * {einheiten, saetze, volumen, db, bw}. Sie kommt aus js/app.js, weil nur die
+ * App den Plan kennt – und sie kommt **jetzt**, weil sie später nicht mehr
+ * sauber nachzurechnen ist: Ein Protokoll speichert nur die angetippten
+ * Übungen, nicht die geplanten. Aus dem Log allein lässt sich deshalb nicht
+ * unterscheiden, ob jemand eine Einheit fertig gemacht oder nach der ersten
+ * Übung aufgehört hat. Ohne diesen Vermerk müsste der Stufenaufstieg raten.
  */
-export function restartPlan(shiftDays) {
+export function restartPlan(shiftDays, bilanz) {
   if (Object.keys(state.log).length) {
     // Der Fokus gehört dazu: Ein Protokoll ist nach Workout-Nummer abgelegt,
     // und Workout 3 im Beinplan hat andere Übungen als Workout 3 im
     // ausgewogenen. Ohne diesen Vermerk ließe sich ein Verlauf in einen Plan
     // zurückholen, in den er nicht gehört.
-    state.rounds.push({ finishedOn: todayISO(), log: state.log, focus: state.focus });
+    state.rounds.push({
+      finishedOn: todayISO(), log: state.log, focus: state.focus,
+      ...(bilanz ? { bilanz } : {}),
+    });
   }
   state.log = {};
   state.session = null;
