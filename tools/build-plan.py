@@ -144,9 +144,35 @@ CAP = 10                 # keine Gruppe darüber, indirekte Anteile eingerechnet
 # `cap` je Variante, weil die Obergrenze für den Nacken an der hinteren Schulter
 # hängt: Wer den Rücken betont, treibt sie mit hoch, und eine 10 wäre dort
 # unerfüllbar.
+#
+# **Termine je Woche = direkte Sätze ÷ 3.** Der Satz steht hier oben, weil er für
+# jede Variante gilt und weil zwei von ihnen an ihm gescheitert sind. Er ist
+# keine Faustregel, sondern eine Gleichung: Ein Auftritt hat immer drei Sätze,
+# also braucht es für zwei Termine sechs *direkte* Sätze – wie hoch das Ziel auch
+# steht. Das Ziel zählt aber *gewichtetes* Volumen, und bei Gruppen mit viel
+# indirektem Zufluss (Bauch, hintere Schulter, Hüftstreckung) kommt der größere
+# Teil davon nebenbei aus Kniebeuge, Kreuzheben und Rudern. Wer dort kürzt, muss
+# das Ziel deshalb *anheben*, nicht senken – sonst sind die Wochensummen exakt
+# getroffen und die Gruppe kommt trotzdem nur einmal in zwölf Tagen dran.
+#
+# Vier Varianten, nicht sechs. „Kurz und knapp" und „Beine ernst gemeint" sind
+# weg – nicht weil sie kaputt waren (beide waren zuletzt nachgerechnet und in
+# Ordnung), sondern weil sie neben den anderen keine eigene Antwort mehr gaben:
+# „Kurz und knapp" wollte weniger Volumen bei gleicher Abdeckung, und genau das
+# ist „Cut", nur ohne dessen Löcher bei Waden, Beinbeuger und Hüftstreckung.
+# „Beine ernst gemeint" wollte Beine mit eigenem Ziel, und das ist
+# „Bauch, Beine, Po". Wer sechs Pläne anbietet, von denen zwei Paare fast
+# dasselbe meinen, verlangt eine Entscheidung, für die es keine Grundlage gibt.
+# Für alle, die auf einer der beiden standen, leitet die App um – siehe
+# FOKUS_ERSATZ in tools/build-data.py. Die Rechnungen dahinter stehen weiter im
+# README, unter „Zwei Pläne, die es nicht mehr gibt".
 VARIANTEN = {
+    # „Ausgewogen" hieß der hier ein Jahr lang, und der Name beschrieb die
+    # Rechnung statt den Zweck: Ausgewogen sind alle vier, das ist der Anspruch
+    # des Generators und kein Merkmal. Wer hier landet, will aufbauen – die
+    # anderen drei sind Defizit, Beine und Oberkörper.
     'standard': {
-        'name': 'Ausgewogen',
+        'name': 'Aufbau',
         'ziele': TARGET,
         'cap': CAP,
     },
@@ -216,10 +242,11 @@ VARIANTEN = {
     # der Hebel, zusätzliche Sätze kosten vor allem Erholung, die im Defizit
     # ohnehin knapp ist.
     #
-    # Der Unterschied zu "Kurz und knapp" ist der entscheidende: Dort wurde
-    # überall gekürzt, bis mehrere Gruppen bei einem Auftritt pro Woche landeten
-    # (die Hüftstreckung bei 0,4 mit bis zu 30 Tagen Abstand, Hip Thrust fiel
-    # ganz heraus). Hier bleibt die Frequenz stehen und nur die Satzzahl sinkt.
+    # Der Unterschied zum abgeschafften "Kurz und knapp" ist der entscheidende
+    # und der Grund, warum dessen Nachfolger dieser Plan ist: Dort wurde überall
+    # gekürzt, bis mehrere Gruppen bei einem Auftritt pro Woche landeten (die
+    # Hüftstreckung bei 0,4 mit bis zu 30 Tagen Abstand, Hip Thrust fiel ganz
+    # heraus). Hier bleibt die Frequenz stehen und nur die Satzzahl sinkt.
     #
     # **Ein Ziel von 6 heißt nicht zwei Auftritte pro Woche.** Das war der erste
     # Anlauf, und er ging schief: Das Ziel zählt *gewichtetes* Volumen, die
@@ -250,92 +277,6 @@ VARIANTEN = {
             'biceps': 7, 'triceps': 7, 'abs': 9,
             'frontDelts': None, 'traps': None,
             'glutes': 8, 'quads': 6, 'hamstringsHip': 5, 'hamstringsKnee': 3, 'calves': 6,
-        },
-        'cap': 10,
-    },
-    # Beine mit eigenem Ziel statt auf Erhalt.
-    #
-    # Der Oberschenkel ist die größte Muskelgruppe des Körpers und steht im
-    # ausgewogenen Plan bei 6 Sätzen – das hält, was da ist, mehr nicht. Wer
-    # ihn wachsen lassen will, braucht mehr, und zwar nicht nur beim Beuger:
-    #
-    #   * **Gesäß mit hoch.** Jede Kniebeuge zahlt mit 0,55 auf das Gesäß ein.
-    #     Bleibt sein Ziel bei 9, während der Oberschenkel steigt, ist das
-    #     Budget allein mit Kniebeugen aufgebraucht – ein Probelauf mit
-    #     Oberschenkel 12 und Gesäß 9 warf Hip Thrust und Kreuzheben komplett
-    #     aus dem Plan (0 Sätze) und ließ die Hüftstreckung von 5,1 auf 2,4
-    #     fallen. Ein Beinplan ohne Hüftstreckung ist keiner.
-    #   * **Die Hüftstreckung bekommt ein eigenes Ziel.** Sonst fällt sie als
-    #     abgeleitete Größe genau dort heraus, wo es eng wird. Mit 7 stehen
-    #     Kreuzheben und Hip Thrust fest im Plan.
-    #   * **Beinbeuger am Knie auf 6.** Drei Sätze waren genau ein Auftritt pro
-    #     Woche, mit bis zu elf Tagen Abstand; sechs sind zwei Auftritte.
-    #   * **Bauch auf 12.** Nicht mehr Bauchtraining, sondern gleich viel: Beim
-    #     Bauch steckt der größere Teil des Ziels in indirekten Anteilen, und
-    #     jede zusätzliche Kniebeuge erhöht die. Ein erster Lauf mit Ziel 9
-    #     ergab nur noch 3,1 direkte Sätze auf einem einzigen Tag der Woche, mit
-    #     bis zu zwölf Tagen Abstand – dieselbe Falle, wegen der die 9 einmal
-    #     aus der 5 entstanden ist. Mit 12 bleiben rund sechs direkte Sätze.
-    #
-    # Der Oberkörper bleibt unverändert – das ist der Punkt: nicht umverteilen,
-    # sondern die Unterdosierung beenden. Die Einheiten werden dadurch länger.
-    'beine': {
-        'name': 'Beine ernst gemeint',
-        'ziele': {
-            'chest': 10, 'lats': 10, 'sideDelts': 10, 'rearDelts': 8,
-            'biceps': 10, 'triceps': 10, 'abs': 12,
-            'frontDelts': None, 'traps': None,
-            'glutes': 12, 'quads': 10, 'hamstringsHip': 7, 'hamstringsKnee': 6, 'calves': 6,
-        },
-        'cap': 10,
-    },
-    # Kurze Einheiten – zweite Fassung, nachdem die erste ein Jahr lang kaputt
-    # war, ohne dass die exakte Rechnung etwas gemerkt hätte.
-    #
-    # Der erste Anlauf hatte einfach überall gekürzt: fast alles auf 6, die
-    # kleinen Gruppen auf 3. Alle Ziele wurden exakt getroffen. Trotzdem stand
-    # im fertigen Plan:
-    #
-    #   * **Hip Thrust kam überhaupt nicht mehr vor.** Null Sätze in 96
-    #     Einheiten. Die Hüftstreckung hing damit an einer einzigen Übung und
-    #     kam auf 0,38 Termine pro Woche – mit bis zu 30 Tagen zwischen zwei
-    #     Reizen.
-    #   * **Der Bauch bekam 3,0 direkte Sätze.** Ein Termin pro Woche, bis zu
-    #     zwölf Tage Abstand. Der Rest seines Ziels war Halten bei Kniebeuge
-    #     und Kreuzheben – dieselbe Falle, wegen der die 9 im ausgewogenen Plan
-    #     einmal aus der 5 entstanden ist.
-    #   * Seitliche Schulter 1,7 Termine, hintere Schulter 1,3, Nacken 1,6.
-    #
-    # **Termine je Woche = direkte Sätze ÷ 3.** Das ist keine Faustregel,
-    # sondern eine Gleichung – ein Auftritt hat immer drei Sätze. Für zwei
-    # Termine braucht es sechs direkte Sätze, wie hoch das Ziel auch steht. Wer
-    # kürzt, muss deshalb bei den Gruppen mit viel indirektem Zufluss *nach
-    # oben* gehen, nicht mit.
-    #
-    # Nachgerechnet mit tools/pruefung/ziele-probe.py, blockweise durchsucht:
-    #
-    #   Bauch 6 → 9        4,9 statt 3,0 direkte Sätze, also 1,95 Termine
-    #   Gesäß 6 → 8        hält Hip Thrust und Kreuzheben im Plan
-    #   seitliche 6 → 7    2,04 Termine statt 1,7
-    #   hintere 5 → 7      1,92 Termine statt 1,3
-    #
-    # Die Hüftstreckung bleibt bewusst ohne eigenes Ziel: Mit einem – gleich
-    # welchem – ging zwischen 21 und 32 Wochen keine exakte Lösung mehr auf.
-    # Über Gesäß 8 bekommt sie trotzdem, was sie braucht.
-    #
-    # **Was bleibt, ist ein Kompromiss, und der gehört benannt.** Bei vier
-    # Einheiten pro Woche und festen Dreiersätzen kosten zwei Termine für jede
-    # der zwölf Gruppen rund 72 Sätze die Woche – das ist der ausgewogene Plan,
-    # nicht ein kurzer. „Kurz und knapp" kommt auf rund 51 und lässt dafür
-    # Waden, Beinbeuger und Hüftstreckung bei einem Termin. Das ist eine
-    # Entscheidung, keine Panne: Die Löcher sind zu, die Sparsamkeit bleibt.
-    'kurz': {
-        'name': 'Kurz und knapp',
-        'ziele': {
-            'chest': 6, 'lats': 6, 'sideDelts': 7, 'rearDelts': 7,
-            'biceps': 6, 'triceps': 6, 'abs': 9,
-            'frontDelts': None, 'traps': None, 'hamstringsHip': None,
-            'glutes': 8, 'quads': 6, 'hamstringsKnee': 3, 'calves': 3,
         },
         'cap': 10,
     },

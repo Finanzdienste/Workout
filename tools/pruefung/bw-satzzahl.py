@@ -21,7 +21,7 @@ import sys
 WURZEL = pathlib.Path(__file__).resolve().parent.parent
 ROOT = WURZEL.parent
 ARGV = sys.argv[1:]
-VARIANTEN = ['standard', 'bbp', 'oberkoerper', 'kurz', 'beine', 'cut']
+VARIANTEN = ['standard', 'bbp', 'oberkoerper', 'cut']
 LABEL = {
     'chest': 'Brust', 'lats': 'Rücken', 'sideDelts': 'Schulter seitlich',
     'rearDelts': 'Schulter hinten', 'frontDelts': 'Schulter vorn', 'traps': 'Nacken',

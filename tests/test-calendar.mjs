@@ -71,6 +71,21 @@ await page.evaluate(async () => {
 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
+
+// Nach dem Neuladen steht der Kalender beim Monat der *nächsten offenen*
+// Einheit – so ist er gedacht (calMonthNow()), und das ist nicht zwangsläufig
+// der Monat, in dem gerade trainiert wurde: Liegen die ersten Einheiten am
+// Monatsende, ist die dritte schon im nächsten. Der Test hat das lange nicht
+// gemerkt, weil er zufällig in Monatsmitte lief; als der Plan an den 24. eines
+// Monats rückte, stand er plötzlich einen Monat zu weit und fand keinen
+// einzigen trainierten Tag. Also hinblättern statt hoffen.
+// Die trainierten Einheiten sind die ersten des Plans, liegen also nie *nach*
+// dem gezeigten Monat – zurückblättern genügt, und zwei Schritte reichen immer.
+for (let i = 0; i < 3 && !(await page.locator('.cal-cell.done').count()); i++) {
+  await page.locator('[data-act="cal-month"][data-d="-1"]').click();
+  await page.waitForTimeout(150);
+}
+console.log('     Monat der ersten Einheiten:', (await page.locator('.cal-title').textContent()).trim());
 check(await page.locator('.cal-cell.done').count() >= 1, 'trainierte Tage sind markiert');
 const zusammen = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 console.log('     Zusammenfassung:', zusammen.match(/\d+ Einheiten? in diesem Monat[^Z]*/)?.[0]?.trim());

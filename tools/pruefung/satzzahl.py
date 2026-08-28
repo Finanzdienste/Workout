@@ -26,7 +26,7 @@ def geht(ziele, grain, wochen=range(21, 41)):
             return w
     return None
 
-for name in ('standard', 'cut', 'beine', 'bbp', 'oberkoerper', 'kurz'):
+for name in ('standard', 'cut', 'bbp', 'oberkoerper'):
     ziele = bp.VARIANTEN[name]['ziele']
     bp.CAP = bp.VARIANTEN[name]['cap']
     bp.CAP_U = bp.CAP * bp.UNIT

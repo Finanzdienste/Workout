@@ -69,13 +69,20 @@ const vergessen = termine.filter((u) => !ausUIDs.has(u));
 check(vergessen.length === 0,
   `jede exportierte Kennung wird abgesagt${vergessen.length ? ': fehlt ' + vergessen.slice(0, 3).join(', ') : ''}`);
 
-// Und darüber hinaus die Nummern der anderen Fokus-Varianten.
-const groesste = await page.evaluate(async () => {
+// Und darüber hinaus die Nummern der anderen Fokus-Varianten – und die der
+// abgeschafften. Abgesagt wird nach Terminnummer, und im Kalender steht, was
+// *jemals* exportiert wurde: „Kurz und knapp" hatte 96 Einheiten und gibt es
+// nicht mehr. Nähme die App die höchste Zahl der heutigen Pläne (84), blieben
+// zwölf Termine für immer stehen. Eine Absage für einen Termin, den es nie
+// gab, kostet dagegen nichts – die Zahl darf nur steigen, nie fallen.
+const heuteGroesste = await page.evaluate(async () => {
   const { PLANS } = await import('./js/data.js');
   return Math.max(...Object.values(PLANS).map((v) => v.plan.length));
 });
-check(ausUIDs.size === groesste,
-  `abgesagt wird die größte Einheitenzahl über alle Varianten (${ausUIDs.size} von ${groesste})`);
+check(ausUIDs.size >= heuteGroesste,
+  `abgesagt wird mindestens die größte Einheitenzahl von heute (${ausUIDs.size} ≥ ${heuteGroesste})`);
+check(ausUIDs.size >= 96,
+  `und die 96 des abgeschafften „Kurz und knapp" ebenfalls (${ausUIDs.size})`);
 
 // SEQUENCE muss jeden bisherigen Export schlagen.
 const seqAus = Math.min(...[...aus.text.matchAll(/SEQUENCE:(\d+)/g)].map((m) => Number(m[1])));

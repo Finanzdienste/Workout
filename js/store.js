@@ -49,6 +49,11 @@ const DEFAULT_STATE = {
   // Der zuletzt vollzogene Aufstieg, solange der Hinweis noch nicht weggetippt
   // ist: { nach, von, am, einheiten, tonnen }.
   aufstieg: null,
+  // Ein abgeschaffter Trainingsfokus, auf den dieses Gerät noch stand, solange
+  // der Hinweis dazu offen ist: { von, nach, am, abgelegt }. `von` und `nach`
+  // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
+  // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/app.js.
+  fokusUmzug: null,
   // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };

@@ -139,29 +139,33 @@ const overflow = await page.evaluate(() => document.documentElement.scrollWidth 
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);
 
 
-// --- Die fünfte Variante: Beine mit eigenem Ziel ---
+// --- Vier Pläne zur Wahl, und der Beinplan rechnet auf Beinziele ---
 await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(250);
 const knoepfe = page.locator('[data-act="set-focus"]');
-check(await knoepfe.count() === 6, `sechs Trainingsfokus zur Wahl (${await knoepfe.count()})`);
-const beine = page.locator('[data-act="set-focus"][data-v="beine"]');
-check(await beine.count() === 1, 'darunter "Beine ernst gemeint"');
-check((await beine.textContent()).includes('Erhalt'), 'mit einem Satz, was daran anders ist');
-const zahlen = (await beine.locator('.fokus-zahl').textContent()).replace(/\s+/g, ' ');
+check(await knoepfe.count() === 4, `vier Trainingsfokus zur Wahl (${await knoepfe.count()})`);
+const fokusNamen = (await knoepfe.allTextContents()).join(' | ');
+check(!/Kurz und knapp|Beine ernst gemeint/.test(fokusNamen),
+  'die beiden abgeschafften stehen nicht mehr darunter');
+check(/Aufbau/.test(fokusNamen), 'der ausgewogene Plan heißt jetzt "Aufbau"');
+const bbp = page.locator('[data-act="set-focus"][data-v="bbp"]');
+check(await bbp.count() === 1, 'darunter "Bauch, Beine, Po"');
+check((await bbp.textContent()).includes('Gesäß'), 'mit einem Satz, was daran anders ist');
+const zahlen = (await bbp.locator('.fokus-zahl').textContent()).replace(/\s+/g, ' ');
 console.log('     ', zahlen.trim());
 check(/\d+ Sätze/.test(zahlen), 'und den Zahlen der Variante');
 
 page.once('dialog', (d) => d.accept());
-await beine.click();
+await bbp.click();
 await page.waitForTimeout(1200);
 const stand = await page.evaluate(() => {
   const s = JSON.parse(localStorage.getItem('workout.state.v1') || '{}');
   return s.focus;
 });
-check(stand === 'beine', `nach dem Wechsel steht der Fokus auf beine (${stand})`);
+check(stand === 'bbp', `nach dem Wechsel steht der Fokus auf bbp (${stand})`);
 const ziele = await page.evaluate(async () => (await import('./js/data.js')).TARGET);
-check(ziele.quads === 10 && ziele.hamstringsKnee === 6 && ziele.glutes === 12,
-  `und die Ziele stimmen (Oberschenkel ${ziele.quads}, Gesäß ${ziele.glutes}, Beinbeuger Knie ${ziele.hamstringsKnee})`);
+check(ziele.quads === 12 && ziele.glutes === 15 && ziele.abs === 12,
+  `und die Ziele stimmen (Oberschenkel ${ziele.quads}, Gesäß ${ziele.glutes}, Bauch ${ziele.abs})`);
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

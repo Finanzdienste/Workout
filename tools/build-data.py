@@ -28,6 +28,27 @@ PLAN_OVERRIDE = ROOT / 'tools' / 'plan.json'
 # welcher gilt, entscheidet die App.
 VARIANT_GLOB = 'plan-*.json'
 
+# Abgeschaffte Fokusse und wohin sie führen.
+#
+# Ein Fokus steht im Browser des Nutzers, nicht in der App. Wird eine Variante
+# gestrichen, findet der Browser beim nächsten Laden einen Schlüssel, den es
+# nicht mehr gibt – und fiel bisher stillschweigend auf den Standardplan
+# zurück. Still ist hier das Problem: `state.focus` blieb auf 'kurz' stehen,
+# während der ausgewogene Plan lief. Zwei Werte, die dasselbe meinen sollen,
+# gingen dauerhaft auseinander, und `restorable()` in js/store.js hätte danach
+# ein Protokoll aus dem alten Plan in den neuen zurückgeholt.
+#
+# Deshalb hier ein benannter Nachfolger statt eines Fallbacks. Die Zuordnung
+# ist nicht beliebig: „Kurz und knapp" wollte weniger Volumen bei gleicher
+# Abdeckung – das ist „Cut". „Beine ernst gemeint" wollte Beine mit eigenem
+# Ziel – das ist „Bauch, Beine, Po". `name` steht dabei, weil die App dem
+# Nutzer sagen soll, *woher* er kommt, und der Name sonst mit der Variante
+# verschwunden wäre.
+FOKUS_ERSATZ = {
+    'kurz': {'nach': 'cut', 'name': 'Kurz und knapp'},
+    'beine': {'nach': 'bbp', 'name': 'Beine ernst gemeint'},
+}
+
 DEFAULT_TARGET = 10   # Sätze je Muskelgruppe und Woche, wenn plan.json fehlt
 DEFAULT_CAP = 10      # Obergrenze je Gruppe, wenn plan.json fehlt
 DEFAULT_REST = {'days': 2, 'direct': 0.5}   # Erholung, wenn plan.json fehlt
@@ -219,7 +240,7 @@ def main():
               f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), '
               f'Fokus "{roh.get("name", "Ausgewogen")}"')
         return {
-            'name': roh.get('name', 'Ausgewogen'),
+            'name': roh.get('name', 'Aufbau'),
             'target': roh['target'],
             'derived': roh.get('derived', []),
             'cap': roh.get('cap', DEFAULT_CAP),
@@ -246,10 +267,18 @@ def main():
     groups = sorted({m for e in catalog.values() for m in e['db']['shares']})
     target = {m: target.get(m, DEFAULT_TARGET) for m in groups}
     if not varianten:
-        varianten['standard'] = {'name': 'Ausgewogen', 'target': target, 'derived': derived,
+        varianten['standard'] = {'name': 'Aufbau', 'target': target, 'derived': derived,
                                  'cap': cap, 'rest': rest, 'plan': plan}
     for v in varianten.values():
         v['target'] = {m: v['target'].get(m, DEFAULT_TARGET) for m in groups}
+
+    # Eine Umleitung ins Leere wäre schlimmer als gar keine: Sie sieht im Code
+    # nach Sorgfalt aus und landet doch wieder beim stillen Rückfall.
+    for alt, ziel in FOKUS_ERSATZ.items():
+        if alt in varianten:
+            sys.exit(f'{alt!r} steht in FOKUS_ERSATZ, existiert aber noch als Variante')
+        if ziel['nach'] not in varianten:
+            sys.exit(f'FOKUS_ERSATZ leitet {alt!r} auf {ziel["nach"]!r} – die Variante gibt es nicht')
 
     OUT.write_text(
         "// Auto-generiert von tools/build-data.py aus data/Workoutplan_mit_Bodyweight_Equivalent.xlsx.\n"
@@ -276,6 +305,14 @@ def main():
             f"  }},\n"
             for key, v in varianten.items())
         + "};\n\n"
+        "// Abgeschaffte Fokusse und ihr Nachfolger. Ein Fokus steht im Browser des\n"
+        "// Nutzers; wird eine Variante gestrichen, findet der Browser beim naechsten\n"
+        "// Laden einen Schluessel, den es nicht mehr gibt. Ohne diese Tabelle fiele er\n"
+        "// still auf den Standardplan zurueck - und state.focus bliebe auf dem alten\n"
+        "// Wert stehen, waehrend ein anderer Plan laeuft. js/app.js schreibt den Wert\n"
+        "// beim Start um und sagt es dem Nutzer; `name` ist dafuer da, damit die App\n"
+        "// den alten Plan noch benennen kann, obwohl es ihn nicht mehr gibt.\n"
+        "export const FOKUS_ERSATZ = " + json.dumps(FOKUS_ERSATZ, ensure_ascii=False, indent=2) + ";\n\n"
         "// Welcher Fokus gilt, steht im Speicher des Browsers - unter demselben\n"
         "// Schluessel wie der uebrige Zustand. Hier gelesen und nicht in der App\n"
         "// gewaehlt, damit PLAN, TARGET und REST ueberall dasselbe meinen. Ein\n"
@@ -285,7 +322,10 @@ def main():
         "const AKTIV = (() => {\n"
         "  try {\n"
         "    const key = JSON.parse(localStorage.getItem('workout.state.v1') || '{}').focus;\n"
-        "    return PLANS[key] || PLANS.standard;\n"
+        "    if (PLANS[key]) return PLANS[key];\n"
+        "    // Abgeschaffter Fokus: zum benannten Nachfolger, nicht irgendwohin.\n"
+        "    const ersatz = FOKUS_ERSATZ[key];\n"
+        "    return (ersatz && PLANS[ersatz.nach]) || PLANS.standard;\n"
         "  } catch {\n"
         "    return PLANS.standard;   // privater Modus: kein Speicher, kein Fokus\n"
         "  }\n"

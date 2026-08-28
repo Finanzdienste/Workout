@@ -649,17 +649,19 @@ System. Die Einheit bleibt dieselbe Einheit, am selben Tag, mit denselben
 
 | Variante | vorher (Summe der Quadrate) | jetzt | Auftritte ≠ 3 Sätze |
 | --- | --- | --- | --- |
-| Ausgewogen | 0,502 (Bauch −0,59) | **exakt** | 54 von 481 |
+| Aufbau | 0,502 (Bauch −0,59) | **exakt** | 54 von 481 |
 | Bauch, Beine, Po | 1,660 (Bauch −1,27) | **exakt** | 93 von 441 |
-| Kurz und knapp | 0,368 (Bauch −0,68) | **exakt** | 51 von 410 |
 | Oberkörper | 0,562 (Trizeps −0,60) | 0,000 (Trizeps −0,02) | 25 von 520 |
-| Beine ernst gemeint | 1,365 (Bauch −1,09) | 0,001 (Gesäß +0,02) | 34 von 531 |
 | Cut | 0,312 (Bauch −0,45) | 0,001 (Bauch −0,02) | 17 von 398 |
+| ~~Kurz und knapp~~ | 0,368 (Bauch −0,68) | **exakt** | 51 von 410 |
+| ~~Beine ernst gemeint~~ | 1,365 (Bauch −1,09) | 0,001 (Gesäß +0,02) | 34 von 531 |
 
-In drei Varianten geht es exakt auf; in den anderen dreien bleibt eine
-Abweichung von höchstens **0,02 Sätzen pro Woche** – zwei Hundertstel eines
-Satzes gegen vorher mehr als ein halber. Und das ist kein „nicht gefunden",
-sondern ein „gibt es nicht": Der Suchraum ist in diesen drei Fällen vollständig
+Der Lauf ging über alle sechs Varianten, die es damals gab; die beiden unteren
+sind inzwischen gestrichen (siehe *Zwei Pläne, die es nicht mehr gibt*) und
+stehen nur noch als Messwert da. In der Hälfte der Fälle geht es exakt auf; in
+der anderen bleibt eine Abweichung von höchstens **0,02 Sätzen pro Woche** –
+zwei Hundertstel eines Satzes gegen vorher mehr als ein halber. Und das ist kein
+„nicht gefunden", sondern ein „gibt es nicht": Der Suchraum ist dort vollständig
 abgesucht (in Zehntelsekunden, weil er klein ist). Mit einem Auftritt bei einem
 oder fünf Sätzen ginge es auf – aber ein einzelner Satz ist kein Reiz, und fünf
 ändern den Charakter der Einheit. Zwei Hundertstel sind der bessere Preis.
@@ -2029,12 +2031,14 @@ gruppierte Geräte. Es ändert sich nichts an der Sorgfalt, nur an der Betonung.
 
 | Variante | Betonung |
 | --- | --- |
-| `standard` – Ausgewogen | Rücken, Brust, seitliche Schulter vorn; Beine laufen mit |
+| `standard` – Aufbau | Rücken, Brust, seitliche Schulter vorn; Beine laufen mit |
 | `bbp` – Bauch, Beine, Po | Gesäß 15, Beine 12, Bauch 12 Sätze/Woche; Oberkörper reduziert, aber nicht unter zwei Termine |
 | `oberkoerper` – Oberkörper | Brust, Rücken, Schultern, Arme je 12; Beine ein Auftritt/Woche, Hüftstreckung inklusive |
-| `kurz` – Kurz und knapp | dieselben Übungen, kürzere Einheiten – ~13 statt ~17 Sätze |
-| `beine` – Beine ernst gemeint | wie Ausgewogen, aber Beine mit eigenem Ziel statt auf Erhalt |
 | `cut` – Cut | weniger Sätze bei gleicher Abdeckung – für Wochen im Kaloriendefizit |
+
+Es waren sechs. Warum es vier geworden sind, steht unter
+[Zwei Pläne, die es nicht mehr gibt](#zwei-pläne-die-es-nicht-mehr-gibt) – samt
+dem, was beim Streichen einer Variante schiefgeht, wenn man es still tut.
 
 ### Warum es „Cut" gibt, und warum es nicht „Kurz und knapp" ist
 
@@ -2065,7 +2069,7 @@ den ganzen Rest der Rechenzeit aus):
 
 Gesäß 8 statt 7 ist damit keine Trainingsentscheidung, sondern Teilbarkeit.
 
-| Gruppe | Ausgewogen | Cut | warum |
+| Gruppe | Aufbau | Cut | warum |
 | --- | --- | --- | --- |
 | Brust, Rücken, seitl. Schulter, Bizeps, Trizeps | 10 | **7** | rund ein Drittel weniger |
 | hintere Schulter | 8 | **7** | unter 7 kippt sie auf einen Auftritt |
@@ -2076,7 +2080,7 @@ Gesäß 8 statt 7 ist damit keine Trainingsentscheidung, sondern Teilbarkeit.
 
 Das Ergebnis, am fertigen Plan gemessen:
 
-| | Ausgewogen | Cut |
+| | Aufbau | Cut |
 | --- | --- | --- |
 | Sätze je Woche | 69 | **57** |
 | Sätze je Einheit | 15–18 (Ø 17,2) | 12–15 (Ø 14,2) |
@@ -2089,6 +2093,12 @@ Der fehlende Goblet Squat ist der eine Makel, und er ist verkraftbar: Der
 fersenerhöhte steht weiter im Plan, das Bewegungsmuster fehlt also nicht.
 
 ### „Kurz und knapp" war ein Jahr lang kaputt
+
+*Auch diese Variante gibt es nicht mehr – siehe [Zwei Pläne, die es nicht mehr
+gibt](#zwei-pläne-die-es-nicht-mehr-gibt). Repariert wurde sie trotzdem, und der
+Weg dahin ist der wichtigste Abschnitt in diesem Kapitel: Er ist der Grund, aus
+dem heute jeder Plan gegen die Frequenz geprüft wird und nicht nur gegen die
+Wochensumme.*
 
 Derselbe Fehler, nur früher und unbemerkt. Der erste Anlauf hatte einfach
 überall gekürzt: fast alles auf 6, die kleinen Gruppen auf 3. Alle Ziele wurden
@@ -2128,7 +2138,7 @@ bekommt sie trotzdem, was sie braucht.
 pro Woche und festen Dreiersätzen kosten zwei Termine für jede der zwölf Gruppen
 rund 72 Sätze die Woche – das ist der ausgewogene Plan, nicht ein kurzer.
 
-| | Ausgewogen | Cut | Kurz und knapp |
+| | Aufbau | Cut | Kurz und knapp |
 | --- | --- | --- | --- |
 | Sätze je Woche | 69 | 57 | **51** |
 | Sätze je Einheit | Ø 17,2 | Ø 14,2 | **Ø 12,8** |
@@ -2196,11 +2206,15 @@ Sätze die Woche, und der Plan geht jetzt in 21 statt 24 Wochen auf. Draußen
 bleibt nur noch der einfache Goblet Squat – das Kniebeugemuster steht mit der
 fersenerhöhten Fassung im Plan, das Hüftmuster stand vorher mit gar nichts.
 
-### Warum es „Beine ernst gemeint" gibt
+### Warum es „Beine ernst gemeint" gab
+
+*Diese Variante gibt es nicht mehr – siehe [Zwei Pläne, die es nicht mehr
+gibt](#zwei-pläne-die-es-nicht-mehr-gibt). Die Rechnung bleibt hier stehen,
+weil ihre beiden Fallen für jeden Beinplan gelten.*
 
 Der Oberschenkel ist die größte Muskelgruppe des Körpers und steht im
-ausgewogenen Plan bei **6 Sätzen** – das hält, was da ist, mehr nicht. Das war
-eine Entscheidung, keine Trainingslehre, und die Variante nimmt sie zurück,
+Aufbauplan bei **6 Sätzen** – das hält, was da ist, mehr nicht. Das war
+eine Entscheidung, keine Trainingslehre, und die Variante nahm sie zurück,
 ohne den Oberkörper anzufassen.
 
 Nur die Zahl hochzusetzen genügt nicht. Ein Probelauf mit Oberschenkel 12 bei
@@ -2220,7 +2234,7 @@ entstanden ist.
 
 Der Zielsatz, der stehen blieb:
 
-| Gruppe | Ausgewogen | Beine ernst gemeint |
+| Gruppe | Aufbau | Beine ernst gemeint |
 | --- | --- | --- |
 | Oberschenkel | 6 | **10** |
 | Gesäß | 9 | **12** |
@@ -2231,7 +2245,7 @@ Der Zielsatz, der stehen blieb:
 
 Was das kostet, gemessen am fertigen Plan:
 
-| | Ausgewogen | Beine ernst gemeint |
+| | Aufbau | Beine ernst gemeint |
 | --- | --- | --- |
 | Sätze je Woche | 69 | 76 |
 | Sätze je Einheit | 15–18 (Ø 17,2) | 15–21 (Ø 19,0) |
@@ -2243,6 +2257,79 @@ Was das kostet, gemessen am fertigen Plan:
 
 Fünf Minuten mehr je Einheit für doppelte Beinarbeit – und der Bauch kommt
 sogar regelmäßiger dran als vorher.
+
+### Zwei Pläne, die es nicht mehr gibt
+
+Sechs Varianten waren zwei zu viel. Nicht weil zwei davon kaputt gewesen wären –
+beide waren zuletzt durchgerechnet und in Ordnung –, sondern weil sie neben den
+anderen keine eigene Antwort mehr gaben:
+
+| gestrichen | wollte | gibt es schon als |
+| --- | --- | --- |
+| `kurz` – Kurz und knapp | weniger Volumen bei gleicher Abdeckung | `cut` – Cut |
+| `beine` – Beine ernst gemeint | Beine mit eigenem Ziel statt auf Erhalt | `bbp` – Bauch, Beine, Po |
+
+Bei „Kurz und knapp" ist die Doppelung sogar eine Verbesserung: Cut erreicht
+dasselbe Ziel ohne dessen Restlöcher – Waden, Beinbeuger und Hüftstreckung
+blieben dort bei einem Termin pro Woche, bei Cut kommt jede Gruppe zweimal dran.
+Wer sechs Pläne anbietet, von denen zwei Paare fast dasselbe meinen, verlangt
+eine Entscheidung, für die es keine Grundlage gibt. `standard` heißt bei der
+Gelegenheit **Aufbau** statt „Ausgewogen": Ausgewogen sind alle vier – das ist
+der Anspruch des Generators und kein Merkmal, mit dem sich einer von ihnen
+auszeichnen ließe.
+
+**Das Streichen selbst ist der interessante Teil.** Der Fokus steht nicht in der
+App, sondern im Browser des Nutzers. Wird eine Variante entfernt, findet der
+Browser beim nächsten Laden einen Schlüssel, den es nicht mehr gibt – und
+`js/data.js` fiel dafür still auf den Standardplan zurück:
+
+```js
+return PLANS[key] || PLANS.standard;   // vorher
+```
+
+Das ist nicht bloß unhöflich, das ist ein Datenfehler. `state.focus` bleibt auf
+`'kurz'` stehen, während ein anderer Plan läuft, und ab da vergleichen App und
+Speicher dauerhaft zwei verschiedene Dinge:
+
+* `restorable()` in `js/store.js` prüft, ob ein abgelegter Verlauf zum aktuellen
+  Fokus gehört – über genau diesen Wert. Beide stünden auf `'kurz'`: Ein
+  Protokoll aus **96** Einheiten ließe sich in einen Plan mit **84** zurückholen
+  und markierte dort Einheiten als erledigt, die nie stattgefunden haben.
+* In der Fokusauswahl wäre keine Karte markiert, weil zu `'kurz'` keine gehört.
+  Jeder Plan sähe nicht ausgewählt aus.
+* Der Rückkanal meldete weiter „Kurz und knapp" für einen Cut-Plan.
+
+Statt des Fallbacks steht deshalb ein benannter Nachfolger in `js/data.js`, aus
+`FOKUS_ERSATZ` in `tools/build-data.py` erzeugt. `build-data.py` prüft dabei
+beides: dass der gestrichene Schlüssel wirklich weg ist und dass das Ziel
+existiert – eine Umleitung ins Leere sähe nach Sorgfalt aus und wäre wieder der
+stille Rückfall.
+
+`js/app.js` schreibt den gespeicherten Wert beim Start einmal um, auf demselben
+Weg wie ein Wechsel von Hand: Der bisherige Verlauf wandert als eigene Runde in
+die Ablage – mit dem **alten** Fokus als Vermerk, weshalb er sich später nicht
+in den neuen Plan zurückholen lässt –, Gewichte, Bänder, Zusatzwiederholungen
+und die Erfahrungsstufe bleiben stehen, und auf der Startseite steht, was
+passiert ist und warum. Daneben ein zweiter Knopf: Der Nachfolger ist eine
+Annahme, keine Entscheidung, und wer sie nicht teilt, kommt in einem Griff zur
+Auswahl.
+
+Die Reihenfolge beim Start ist dabei kein Geschmack. `pruefeAufstieg()` läuft
+**vor** dem Umzug, weil `sammleStats()` über `state.log` rechnet und nicht über
+die Ablage: Wer zuerst umzieht, prüft gegen ein leeres Protokoll und hält einen
+fälligen Aufstieg zurück, obwohl das Training stattgefunden hat.
+
+Eine Kleinigkeit mit langer Reichweite hängt noch daran: **Absagen im Kalender
+gehen nach Terminnummer.** „Kurz und knapp" hatte 96 Einheiten; wer damals
+importiert hat, hat 96 Termine stehen. `downloadICSAus()` nahm bisher die
+höchste Zahl der *heutigen* Pläne – nach dem Streichen wären das 84 gewesen, und
+zwölf Termine blieben für immer im Kalender. Die Zahl darf nur steigen, nie
+fallen: Eine Absage für einen Termin, den es nie gab, kostet nichts, ein übrig
+gebliebener Termin schon.
+
+Geprüft wird das alles in `tests/test-fokus-umzug.mjs` – vom geladenen Plan über
+die Ablage bis zu der Frage, ob der Umzug wirklich nur **einmal** läuft und
+nicht bei jedem Laden eine neue Runde anlegt.
 
 `cap` steht je Variante dabei, weil die Obergrenze in Wahrheit nur den Nacken
 bindet: Wer Rücken und hintere Schulter hochzieht, treibt ihn mit hoch, und eine
@@ -2421,7 +2508,7 @@ Kurve ist dort oben flach. Mehr bringt kaum etwas und kostet genau das, woran es
 bei Anfängern hängt: saubere Technik in den letzten Sätzen, erträglicher
 Muskelkater, und eine Einheit, die man ein halbes Jahr durchhält.
 
-| Stufe | Sätze je Übung | Startgewichte | *Ausgewogen* wird daraus |
+| Stufe | Sätze je Übung | Startgewichte | *Aufbau* wird daraus |
 | --- | --- | --- | --- |
 | Anfänger | **2** | halbiert | 6 Übungen · 12 Sätze · ca. 35 min |
 | Geübt | 3 | wie im Plan | 6 Übungen · 18 Sätze · ca. 50 min |

@@ -82,7 +82,7 @@ await page.evaluate(async () => {
 // Fokuswechsel: legt den Verlauf ab und schaltet um.
 await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(250);
-await page.locator('[data-act="set-focus"][data-v="beine"]').click();
+await page.locator('[data-act="set-focus"][data-v="bbp"]').click();
 await page.waitForTimeout(1500);
 const nachWechsel = await page.evaluate(async () => {
   const s = await import('./js/store.js');
@@ -94,7 +94,7 @@ const nachWechsel = await page.evaluate(async () => {
     log: Object.keys(st.log).length,
   };
 });
-check(nachWechsel.focus === 'beine', `Fokus steht auf beine (${nachWechsel.focus})`);
+check(nachWechsel.focus === 'bbp', `Fokus steht auf bbp (${nachWechsel.focus})`);
 check(nachWechsel.log === 0, 'der Plan startet leer');
 check(nachWechsel.ablage[nachWechsel.ablage.length - 1] === 'standard',
   `der abgelegte Verlauf trägt den Fokus, aus dem er stammt (${nachWechsel.ablage.join(',')})`);

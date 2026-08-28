@@ -26,7 +26,7 @@ hier dieselbe Vorsortierung (die ausgewogenste zuerst), und das genügt, um
 einen untauglichen Zielsatz zu erkennen, bevor er Rechenzeit kostet.
 
     python3 tools/pruefung/ziele-probe.py            # die eingetragenen Varianten
-    python3 tools/pruefung/ziele-probe.py kurz cut   # nur diese
+    python3 tools/pruefung/ziele-probe.py bbp cut    # nur diese
 """
 import importlib.util
 import json

@@ -1,4 +1,4 @@
-import { EXERCISES, FOCUS, PLAN, PLANS, TARGET, REST } from './data.js';
+import { EXERCISES, FOCUS, FOKUS_ERSATZ, PLAN, PLANS, TARGET, REST } from './data.js';
 import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
@@ -434,6 +434,70 @@ function aufstiegHinweis() {
     </div>`;
 }
 
+/* ------------------------------------------------------------------ *
+ * Abgeschaffter Trainingsfokus
+ *
+ * Der Fokus steht im Browser, der Plan in der App. Wird eine Variante
+ * gestrichen, treffen sich beim nächsten Laden ein Schlüssel und kein Plan.
+ * js/data.js löst das für sich – es lädt den benannten Nachfolger, sonst
+ * stünde die halbe App ohne Übungen da. Aber `state.focus` zeigt danach noch
+ * auf den alten Wert, und zwei Angaben, die dasselbe meinen sollen, liefen von
+ * da an dauerhaft auseinander:
+ *
+ *   * `restorable()` in js/store.js vergleicht den Fokus eines abgelegten
+ *     Durchlaufs mit `state.focus`. Beide stünden auf 'kurz' – ein Protokoll
+ *     aus 96 Einheiten ließe sich in einen Plan mit 84 zurückholen und
+ *     markierte dort Einheiten als erledigt, die nie stattgefunden haben.
+ *   * Die Fokusauswahl hätte keine Karte markiert, weil zu 'kurz' keine
+ *     gehört – jeder Plan sähe nicht ausgewählt aus.
+ *   * Der Rückkanal meldete weiter „Kurz und knapp" für einen Cut-Plan.
+ *
+ * Deshalb einmal beim Start umschreiben, und zwar auf demselben Weg wie ein
+ * Wechsel von Hand: Der bisherige Verlauf wandert als eigene Runde in die
+ * Ablage (mit dem *alten* Fokus als Vermerk – restartPlan() liest ihn, bevor
+ * wir ihn ändern), die Gewichte bleiben stehen. Ein Protokoll nach
+ * Workout-Nummer in einen anderen Plan zu übernehmen ginge nicht: Workout 12
+ * hieß dort etwas anderes.
+ * ------------------------------------------------------------------ */
+function fokusUmzug() {
+  const s = store.getState();
+  const alt = s.focus;
+  const ziel = FOKUS_ERSATZ[alt];
+  if (!ziel || !PLANS[ziel.nach]) return false;
+  // Reihenfolge: erst ablegen, dann umschreiben. restartPlan() vermerkt den
+  // Fokus, der beim Training galt, und das war der alte.
+  const hatteVerlauf = Object.keys(s.log || {}).length > 0;
+  store.restartPlan(0);
+  store.setSetting('focus', ziel.nach);
+  store.setSetting('fokusUmzug', {
+    von: ziel.name, nach: PLANS[ziel.nach].name, am: todayISO(), abgelegt: hatteVerlauf,
+  });
+  return true;
+}
+
+/** Der Hinweis dazu auf dem Dashboard, bis er weggetippt wird. */
+function umzugHinweis() {
+  const u = store.getState().fokusUmzug;
+  if (!u) return '';
+  const abgelegt = !!u.abgelegt;
+  return `
+    <div class="notice aufstieg" style="margin:0 0 12px">
+      <strong>„${esc(u.von)}" gibt es nicht mehr</strong>
+      <div class="small" style="margin-top:6px">
+        Aus sechs Plänen sind vier geworden – zwei Paare meinten fast dasselbe. Du stehst
+        jetzt auf <b>${esc(u.nach)}</b>, dem Plan, der am nächsten dran ist. Deine Gewichte,
+        Bänder und Zusatzwiederholungen bleiben unverändert.
+        ${abgelegt ? ' Dein bisheriger Verlauf ist unter <i>Mehr → Daten</i> abgelegt; '
+          + 'zurückholen lässt er sich nicht, weil hinter Workout 12 andere Übungen stehen '
+          + 'als vorher.' : ''}
+      </div>
+      <div class="btn-row nav" style="margin-top:10px">
+        <button type="button" class="btn btn-primary" data-act="umzug-ok">Verstanden</button>
+        <button type="button" class="btn btn-ghost" data-act="umzug-waehlen">Anderen Plan wählen</button>
+      </div>
+    </div>`;
+}
+
 /** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
 function startWeight(ex) {
   if (ex.weight === null) return null;
@@ -768,7 +832,15 @@ function downloadICS() {
  */
 function downloadICSAus() {
   const stand = store.markIcs(0);
-  const groesste = Math.max(...Object.values(PLANS).map((v) => v.plan.length));
+  // Abgesagt wird nach Terminnummer, und abzusagen ist, was *jemals* in einem
+  // Kalender gelandet sein kann – nicht, was heute im längsten Plan steht.
+  // „Kurz und knapp" hatte 96 Einheiten und gibt es nicht mehr; wer damals
+  // importiert hat, hat 96 Termine stehen. Mit der heutigen Höchstzahl (84)
+  // blieben zwölf davon für immer im Kalender. Die Zahl darf deshalb nur
+  // steigen, nie fallen – eine Absage für einen Termin, den es nie gab,
+  // kostet nichts, ein übrig gebliebener Termin dagegen schon.
+  const JE_EXPORTIERT = 96;
+  const groesste = Math.max(JE_EXPORTIERT, ...Object.values(PLANS).map((v) => v.plan.length));
   const cancel = Array.from({ length: groesste }, (_, i) => i + 1);
   const text = buildICS([], () => [], { hour: 18, seq: stand.seq + 1000, cancel });
   const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
@@ -1327,6 +1399,7 @@ function renderOverview() {
   // nimmt sich den Platz, der zwischen den beiden übrig bleibt.
   view.innerHTML = `
     <section class="ov">
+      ${umzugHinweis()}
       ${aufstiegHinweis()}
       ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
         Eintragungen gehen beim Neuladen verloren.</div>`}
@@ -1831,6 +1904,7 @@ function renderDashboard() {
 
   const parts = [];
 
+  parts.push(umzugHinweis());
   parts.push(aufstiegHinweis());
 
   if (!store.canPersist()) {
@@ -3112,20 +3186,15 @@ function renderCustom() {
  * rechnet fokusZeile() aus dem Plan selbst aus – hier steht nur, für wen das
  * gedacht ist. */
 const FOKUS_TEXT = {
-  standard: 'Alles gleichmäßig, mit etwas mehr für das, was breit macht: Rücken, Brust und '
-    + 'seitliche Schulter. Die Beine laufen mit.',
+  standard: 'Der Normalfall: alles gleichmäßig, mit etwas mehr für das, was breit macht – '
+    + 'Rücken, Brust und seitliche Schulter. Die Beine laufen mit.',
   bbp: 'Gesäß, Beine und Bauch bekommen das meiste. Der Oberkörper bleibt drin, damit die '
     + 'Haltung nicht auf der Strecke bleibt – nur mit weniger Sätzen.',
   oberkoerper: 'Brust, Rücken, Schultern und Arme. Beine und Gesäß nur als Grundlage, ein '
     + 'Auftritt pro Woche.',
-  kurz: 'Dieselben Übungen, weniger Sätze pro Woche – für Wochen, in denen die Zeit knapp ist. '
-    + 'Kürzere Einheiten, dafür alles drin.',
-  beine: 'Wie Ausgewogen, aber die Beine stehen nicht mehr auf Erhalt: Oberschenkel, Gesäß und '
-    + 'beide Seiten des Beinbeugers bekommen ein eigenes Ziel. Der Oberkörper bleibt, wie er '
-    + 'ist – die Einheiten werden dadurch etwas länger.',
   cut: 'Für Wochen im Kaloriendefizit: dieselben Übungen mit denselben Gewichten, nur weniger '
     + 'Sätze. Im Defizit hält die Last die Muskeln, nicht das Volumen – und jede Gruppe kommt '
-    + 'weiter zweimal die Woche dran.',
+    + 'weiter zweimal die Woche dran. Auch die Wahl, wenn einfach die Zeit knapp ist.',
 };
 
 /* Wie lange ein Satz selbst dauert – acht bis zwölf Wiederholungen mit
@@ -3567,14 +3636,14 @@ function renderSettings() {
       </div>
     </div>
 
-    <div class="section-title">Trainingsfokus</div>
+    <div class="section-title" id="fokus-wahl">Trainingsfokus</div>
     <div class="card">
       <div class="small muted">Jeder Fokus ist ein eigener, durchgerechneter Plan: dieselben
         Termine, dieselbe Erholungsregel, andere Schwerpunkte. Ein Wechsel legt den bisherigen
         Verlauf in die Ablage – die erreichten Gewichte bleiben.</div>
       <div class="fokus-liste">${fokusKarten(s.focus || 'standard')}</div>
       ${Object.keys(PLANS).length < 2 ? `<div class="small muted">In dieser Fassung ist nur der
-        ausgewogene Plan mitgeliefert.</div>` : ''}
+        Aufbauplan mitgeliefert.</div>` : ''}
     </div>
 
     <div class="section-title">Farbe</div>
@@ -4515,6 +4584,19 @@ view.addEventListener('click', (e) => {
       store.setSetting('aufstieg', null);
       render();
       break;
+    case 'umzug-ok':
+      store.setSetting('fokusUmzug', null);
+      render();
+      break;
+    case 'umzug-waehlen':
+      // Der Nachfolger ist eine Annahme, keine Entscheidung – wer sie nicht
+      // teilt, kommt hier direkt zur Auswahl statt sie in einer langen
+      // Einstellungsseite zu suchen.
+      store.setSetting('fokusUmzug', null);
+      ui.tab = 'settings';
+      render();
+      document.getElementById('fokus-wahl')?.scrollIntoView({ block: 'start' });
+      break;
     case 'aufstieg-zurueck': {
       const a = store.getState().aufstieg;
       // Der Schritt bleibt in `aufstiege` stehen – wer zurückstellt, soll nicht
@@ -4781,9 +4863,22 @@ if (ui.standAngebot) {
 // Auch beim Start prüfen, nicht nur nach einer Einheit: Eine eingelesene
 // Sicherung bringt womöglich ein halbes Jahr Training mit, und das soll sofort
 // in der richtigen Stufe landen statt erst nach dem nächsten Training.
+//
+// **Vor dem Fokus-Umzug**, und das ist keine Geschmacksfrage: sammleStats()
+// rechnet über `state.log`, nicht über die Ablage. Der Umzug legt den Verlauf
+// ab und leert das Protokoll – wer danach prüft, prüft gegen null und hält
+// einen fälligen Aufstieg zurück, obwohl das Training stattgefunden hat.
 if (pruefeAufstieg()) {
   ui.tab = 'dashboard';
   ui.focus = false;
+}
+// Stand dieses Gerät auf einem Fokus, den es nicht mehr gibt? Dann jetzt
+// umschreiben – js/data.js hat den Nachfolger schon geladen, hier zieht der
+// gespeicherte Wert nach.
+if (fokusUmzug()) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
+  ui.listView = false;
 }
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist

@@ -41,7 +41,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 META = json.load(open(ROOT / 'tools' / 'exercise-meta.json'))
 STAND = pathlib.Path(__file__).resolve().parent / 'befunde.json'
 
-VARIANTEN = ['standard', 'bbp', 'oberkoerper', 'kurz', 'beine', 'cut']
+VARIANTEN = ['standard', 'bbp', 'oberkoerper', 'cut']
 MODI = ['db', 'bw']
 WEEK = 4
 REST_DAYS = 2
