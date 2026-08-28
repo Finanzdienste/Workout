@@ -16,6 +16,15 @@ const check = (cond, msg) => {
   if (!cond) { fails++; process.exitCode = 1; }
 };
 
+// Mitschreiben, ob diese Datei den echten Rückkanal anspricht. Sie hat es
+// jahrelang getan: „Tom" steht in keiner anderen Testdatei, und in der
+// Betreiber-Übersicht standen 52 Geräte dieses Namens – ein Gerät je Lauf,
+// erzeugt vom Ablauf bei GitHub. Geprüft wird hier und nicht in einer eigenen
+// Datei, weil genau dieser Test den Weg geht, der gemeldet hat: Name eintragen,
+// Einstieg abschließen.
+const anDenServer = [];
+page.on('request', (r) => { if (/supabase|rest\/v1/.test(r.url())) anDenServer.push(r.url()); });
+
 await ctx.addInitScript(() => {
   window.__geteilt = [];
   navigator.share = (d) => { window.__geteilt.push(d); return Promise.resolve(); };
@@ -148,6 +157,13 @@ await page.evaluate(() => {
 await page.waitForTimeout(2500);
 const lauf5 = await page.evaluate(async () => (await import('./js/store.js')).sessionSeconds());
 check(lauf5 > lauf4, `während der Pause zählt sie auch im Hintergrund weiter (${lauf4} -> ${lauf5} s)`);
+
+// Der ganze Lauf über: kein einziger Aufruf nach draußen. „Tom" hat den
+// Einstieg abgeschlossen, einen Namen eingetragen und trainiert – und bleibt
+// trotzdem, was er ist: ein Testlauf.
+check(anDenServer.length === 0,
+  `kein Aufruf an den Rückkanal aus einem Testlauf${
+    anDenServer.length ? ': ' + anDenServer.slice(0, 2).join(', ') : ''}`);
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

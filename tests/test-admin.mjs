@@ -6,6 +6,11 @@ const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { 
 const b = await chromium.launch();
 const ctx = await b.newContext({ viewport: { width: 414, height: 896 }, deviceScaleFactor: 2 });
 const p = await ctx.newPage();
+
+// Der Rückkanal ist von lokalen Adressen aus abgeschaltet (siehe hatServer() in
+// js/config.js) – sonst hätte jeder Testlauf echte Geräte gemeldet. Diese Datei
+// prüft ihn aber, also schaltet sie ihn ausdrücklich frei.
+await ctx.addInitScript(() => localStorage.setItem('workout.rueckkanal.lokal', '1'));
 p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
 p.on('console', (m) => m.type()==='error' && console.log('CONSOLE', m.text()));
 
@@ -36,7 +41,13 @@ await p.evaluate(async () => {
   c.CONFIG.url = 'https://test.supabase.co';
   c.CONFIG.key = 'anon-test';
 });
-await p.evaluate(() => { localStorage.clear(); localStorage.setItem('workout.state.v1', '{"greeted":true,"name":"Tobi"}'); });
+// Die Freigabe muss den clear() überleben – ohne sie hält hatServer() diese
+// Seite für einen Testlauf und schaltet den Rückkanal ab, zu Recht.
+await p.evaluate(() => {
+  localStorage.clear();
+  localStorage.setItem('workout.rueckkanal.lokal', '1');
+  localStorage.setItem('workout.state.v1', '{"greeted":true,"name":"Tobi"}');
+});
 await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('workout.state.v1')); localStorage.setItem('workout.state.v1', JSON.stringify(s)); });
 await p.locator('.tab[data-tab="settings"]').click();
 await p.waitForTimeout(300);

@@ -2718,6 +2718,40 @@ weiter offline und ohne Konto läuft.
   vermerkt nur den Tag der letzten Meldung), keine Adressen, nichts von
   außerhalb dieser App. Dieselbe Aufzählung steht wortgleich in der App.
 
+### Die Übersicht zählte hauptsächlich sich selbst
+
+Eine vierte Regel fehlte, und sie hat die anderen drei wertlos gemacht: **Ein
+Testlauf ist kein Nutzer.** Die Übersicht stand bei rund 1000 Geräten. Wer sich
+die Namen ansieht, sieht den Grund:
+
+| Name | Geräte | kommt vor in |
+| --- | --- | --- |
+| Ohne Namen | 584 | jedem Test, der `greeted` setzt und keinen Namen |
+| Tobi | 312 | mehreren Testdateien |
+| Tom | 52 | **nur** `tests/test-welcome.mjs` |
+| Alex | 26 | **nur** `tests/test-freunde.mjs` |
+| Chris | 26 | **nur** `tests/test-freunde.mjs` |
+
+Dass Alex und Chris auf dieselbe Zahl kommen, ist kein Zufall: Beide entstehen
+einmal je Lauf in derselben Datei. Der Weg dorthin ist kurz — jeder frische
+Browserkontext hat einen leeren Speicher, also eine neue Gerätekennung und kein
+`lastShare`; die Drossel „einmal am Tag" greift nie. **23 der 37 Testdateien
+fingen die Aufrufe an Supabase nicht ab**, und der Ablauf bei GitHub führt sie
+bei jedem Push aus. Macht rund zwei Dutzend erfundene Geräte je Lauf.
+
+Die Regel steht deshalb in `hatServer()` und nicht in den Tests: Von einer
+lokalen Adresse (`localhost`, `127.0.0.1`, `file://`) geht nichts raus. Eine
+Regel, an die 23 Dateien denken müssen, ist keine Regel. Die zwei Dateien, die
+den Rückkanal selbst prüfen, schalten ihn ausdrücklich frei — über einen
+Schlüssel im Speicher, den sie setzen müssen und der beim `localStorage.clear()`
+mitgeht, sonst fällt es sofort auf.
+
+Gegengeprüft: Nimmt man die Sperre heraus, meldet `test-welcome.mjs` sofort
+wieder nach draußen und die Prüfung schlägt an.
+
+Die alten Zeilen stehen weiter in der Tabelle. Sie zu löschen ist eine
+Entscheidung des Betreibers, kein Aufräumen nebenbei.
+
 Heimlich mitzuzählen wäre technisch dasselbe und trotzdem etwas anderes: Die App
 verspricht jedem beim ersten Start, dass nichts von allein sein Gerät verlässt.
 Eine Zusage, die sie an anderer Stelle bricht, ist schlimmer als gar keine.

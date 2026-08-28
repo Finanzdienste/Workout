@@ -6,6 +6,11 @@ import { URL, SHOT } from './umgebung.mjs';
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 414, height: 896 } });
 const page = await ctx.newPage();
+
+// Der Rückkanal ist von lokalen Adressen aus abgeschaltet (siehe hatServer() in
+// js/config.js) – sonst hätte jeder Testlauf echte Geräte gemeldet. Diese Datei
+// prüft ihn aber, also schaltet sie ihn ausdrücklich frei.
+await ctx.addInitScript(() => localStorage.setItem('workout.rueckkanal.lokal', '1'));
 const errs = [];
 page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
 
