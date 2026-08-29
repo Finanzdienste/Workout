@@ -2525,9 +2525,22 @@ eine **ganze** Einheit ausgelassen hat, dem fehlen fünfzehn – die passen
 nirgendwo mehr hinein, ohne dass die nächste Einheit zur Zumutung wird.
 
 Also nicht hineinstopfen, sondern danebenstellen. Sobald eine Woche **durch**
-ist und trotzdem ein Rückstand steht, schlägt die App eine zusätzliche Einheit
-vor: normale Satzzahl, normale Pausen, und die Übungen sind genau die, die zu
-kurz gekommen sind. Zusammengestellt wird gierig – immer die Übung, die vom
+ist und trotzdem ein Rückstand steht, legt die App eine zusätzliche Einheit an:
+normale Satzzahl, normale Pausen, und die Übungen sind genau die, die zu kurz
+gekommen sind.
+
+**Ungefragt**, wie der Stufenaufstieg. Das war zuerst ein Knopf in der
+Wochenkarte, und das war falsch: Ein Knopf, den man erst suchen und dann drücken
+muss, ist keine Anpassung, sondern eine Hausaufgabe. Wer den Zusatztag nicht
+will, tippt ihn weg – ein Griff statt zwei. Und das wird gemerkt: Ohne dieses
+Gedächtnis legt ihn der nächste Start wieder an, und „brauch ich nicht" wäre
+keine Antwort, sondern eine Wiederholungsschleife. Genau daran ist der Test
+beim ersten Lauf hängengeblieben.
+
+Ältere Zusatztage, die nie angefasst wurden, fliegen beim Anlegen des nächsten
+raus. Dieselbe Überlegung wie beim Deckel der Nacharbeit: Volumen wirkt dann,
+wenn es anfällt. Ein unberührter Zusatztag von vor drei Wochen holt nichts mehr
+nach, er steht nur im Weg. Zusammengestellt wird gierig – immer die Übung, die vom
 Rückstand am meisten wegnimmt, mit ihren Anteilen gerechnet.
 
 Erst wenn die Woche durch ist, und das ist die halbe Idee: Solange noch eine
@@ -2561,14 +2574,13 @@ dazwischengeschobene würde diese Rechnung stillschweigend verschieben. Abgehakt
 Sätze zählen trotzdem in der Statistik mit; trainiert ist trainiert.
 
 **Nur einmal je Woche.** Der Rückstand schrumpft nicht dadurch, dass man den
-Zusatztag macht – er steht im Plan, nicht im Protokoll. Ohne diese Sperre stünde
-der Vorschlag weiter da, und zweimal Tippen ergäbe zwei gleiche Einheiten. Das
-ist im ersten Testlauf sofort aufgefallen; jetzt steht dort stattdessen ein Link
-auf den, den es schon gibt.
+Zusatztag macht – er steht im Plan, nicht im Protokoll. Ohne diese Sperre käme
+bei jedem Laden ein weiterer dazu.
 
 `tests/test-zusatztag.mjs`, 17 Prüfungen – darunter die Gegenrechnung über den
 echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in Reichweite
-kollidiert.
+kollidiert, und die beiden Fälle, in denen **nichts** passieren darf: volle
+Woche, und Woche läuft noch.
 
 **Nur nach oben.** Hier stand einmal die Gegenrichtung: Wer über mehrere
 Einheiten hinweg nur einen Teil schafft, dem hätte die App die Erfahrungsstufe

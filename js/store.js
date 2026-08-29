@@ -49,6 +49,14 @@ const DEFAULT_STATE = {
   // Der zuletzt vollzogene Aufstieg, solange der Hinweis noch nicht weggetippt
   // ist: { nach, von, am, einheiten, tonnen }.
   aufstieg: null,
+  // Wochen, für die der Zusatztag ausdrücklich weggetippt wurde. Ohne dieses
+  // Gedächtnis legt ihn der nächste Start wieder an – „brauch ich nicht" wäre
+  // dann keine Antwort, sondern eine Wiederholungsschleife.
+  zusatzNein: [],
+  // Ein von selbst angelegter Zusatztag, solange sein Hinweis offen ist:
+  // { id, name, woche, uebungen, saetze, fehlt, gruppen, am }. Die Einheit
+  // selbst steht in `customs` und bleibt auch, wenn der Hinweis weg ist.
+  zusatztag: null,
   // Ein abgeschaffter Trainingsfokus, auf den dieses Gerät noch stand, solange
   // der Hinweis dazu offen ist: { von, nach, am, abgelegt }. `von` und `nach`
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und

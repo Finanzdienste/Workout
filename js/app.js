@@ -1742,6 +1742,7 @@ function renderOverview() {
   // nimmt sich den Platz, der zwischen den beiden übrig bleibt.
   view.innerHTML = `
     <section class="ov">
+      ${zusatztagHinweis()}
       ${umzugHinweis()}
       ${aufstiegHinweis()}
       ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
@@ -2255,6 +2256,7 @@ function renderDashboard() {
 
   const parts = [];
 
+  parts.push(zusatztagHinweis());
   parts.push(umzugHinweis());
   parts.push(aufstiegHinweis());
 
@@ -3028,6 +3030,82 @@ function zusatztagEx(woche, mode) {
   return { ex: gewaehlt, fehlt: Math.round(summe), gruppen: Object.keys(rest).length };
 }
 
+/**
+ * Zusatztag anlegen, wenn eine Woche mit Rückstand zu Ende gegangen ist.
+ *
+ * Ungefragt – wie der Stufenaufstieg. Ein Knopf, den man erst suchen und dann
+ * drücken muss, ist keine Anpassung, sondern eine Hausaufgabe. Wer ihn nicht
+ * will, tippt ihn weg; das ist ein Griff statt zwei.
+ *
+ * Nur für die **zuletzt abgeschlossene** Woche. Eine Woche gilt als
+ * abgeschlossen, wenn jede ihrer Einheiten abgehakt oder beendet ist – solange
+ * eine offen steht, ist nichts versäumt, und der Plan rückt ohnehin nach.
+ *
+ * Und dabei fliegen ältere Zusatztage raus, die nie angefasst wurden. Das ist
+ * dieselbe Überlegung wie beim Deckel der Nacharbeit: Volumen wirkt dann, wenn
+ * es anfällt. Ein unberührter Zusatztag von vor drei Wochen holt nichts mehr
+ * nach, er steht nur im Weg.
+ */
+function pruefeZusatztag() {
+  const wochen = weeklyDone();
+  let ziel = null;
+  wochen.forEach((w) => {
+    if (!w.any) return;
+    const block = PLAN.slice(PLAN.indexOf(w.from), PLAN.indexOf(w.to) + 1);
+    if (block.some((x) => !completedMode(x.n))) return;
+    ziel = w;
+  });
+  if (!ziel) return false;
+  const name = `Zusatztag Woche ${ziel.nr}`;
+  if (store.customs().some((c) => c.name === name)) return false;
+  // Einmal weggetippt bleibt weggetippt.
+  if ((store.getState().zusatzNein || []).includes(ziel.nr)) return false;
+  const vorschlag = zusatztagEx(ziel, store.getState().mode);
+  if (!vorschlag) return false;
+
+  store.customs()
+    .filter((c) => /^Zusatztag Woche /.test(c.name) && !store.isStarted(c.id))
+    .forEach((c) => store.removeCustom(c.id));
+
+  const id = store.saveCustom({ name, ex: vorschlag.ex });
+  store.setSetting('zusatztag', {
+    id,
+    name,
+    woche: ziel.nr,
+    uebungen: vorschlag.ex.length,
+    saetze: vorschlag.ex.reduce((a, x) => a + x.sets, 0),
+    fehlt: vorschlag.fehlt,
+    gruppen: vorschlag.gruppen,
+    am: todayISO(),
+  });
+  return true;
+}
+
+/** Der Hinweis dazu, bis er weggetippt wird. */
+function zusatztagHinweis() {
+  const z = store.getState().zusatztag;
+  if (!z) return '';
+  const da = store.customById(z.id);
+  if (!da) return '';
+  return `
+    <div class="notice aufstieg" style="margin:0 0 12px">
+      <strong>Zusatztag angelegt</strong>
+      <div class="small" style="margin-top:6px">
+        In Woche ${z.woche} sind rund ${z.fehlt} Sätze bei
+        ${esc(plural(z.gruppen, 'Muskelgruppe', 'Muskelgruppen'))} liegen geblieben – zu viel,
+        um sie in die nächsten Einheiten zu stopfen. Deshalb steht jetzt eine eigene
+        Einheit bereit: <b>${z.uebungen} Übungen, ${z.saetze} Sätze</b>, genau das, was zu
+        kurz kam. Gruppen, die gerade Erholung brauchen, sind ausgenommen.
+      </div>
+      <div class="btn-row nav" style="margin-top:10px">
+        <button type="button" class="btn btn-primary" data-act="zusatztag-start"
+                data-id="${esc(z.id)}">Ansehen</button>
+        <button type="button" class="btn btn-ghost" data-act="zusatztag-ok">Später</button>
+        <button type="button" class="btn btn-ghost" data-act="zusatztag-weg">Brauch ich nicht</button>
+      </div>
+    </div>`;
+}
+
 /** Balken für eine Muskelgruppe: erreicht gegen das Pensum dieser Woche.
  *
  * Die Zahl daneben nennt beides. Seit die Ziele auseinandergehen, sagt "4,0"
@@ -3077,16 +3155,10 @@ function renderWeeklyVolume() {
   const voll = groups.filter((m) => inTarget(cur.acc[m] || 0, cur.soll[m] || 0)).length;
   const inWoche = PLAN.slice(PLAN.indexOf(cur.from), PLAN.indexOf(cur.to) + 1);
   const offen = inWoche.filter((w) => !completedMode(w.n)).length;
-  // Erst wenn die Woche durch ist: Solange noch eine Einheit aussteht, ist
-  // nichts versäumt, und ein Vorschlag wäre bloß Drängeln.
-  //
-  // Und nur einmal je Woche. Der Rückstand schrumpft nicht dadurch, dass man
-  // den Zusatztag macht – er steht ja im Plan, nicht im Protokoll. Ohne diese
-  // Sperre stünde der Vorschlag weiter da, und zweimal Tippen ergäbe zwei
-  // gleiche Einheiten.
-  const zusatzName = `Zusatztag Woche ${cur.nr}`;
-  const schonDa = store.customs().find((c) => c.name === zusatzName);
-  const zusatz = (offen || schonDa) ? null : zusatztagEx(cur, store.getState().mode);
+  // Angelegt wird der Zusatztag von selbst (pruefeZusatztag()). Hier steht nur
+  // noch der Weg dorthin, damit er auffindbar bleibt, wenn der Hinweis auf der
+  // Startseite längst weggetippt ist.
+  const schonDa = store.customs().find((c) => c.name === `Zusatztag Woche ${cur.nr}`);
 
   // Solange die Woche läuft, kann keine Gruppe ihr Ziel erreichen – "0 von 12"
   // stünde dann als Vorwurf da, obwohl nichts versäumt ist. Bis zum Ende der
@@ -3109,24 +3181,6 @@ function renderWeeklyVolume() {
         <div class="vol-quote">${kopf.zahl}<span>/${kopf.von}</span></div>
       </div>
       ${groups.map((m) => volumeBar(m, cur.acc[m] || 0, cur.soll[m] || 0)).join('')}
-      ${zusatz ? `<div class="notice" style="margin-top:12px">
-        <strong>Zusatztag?</strong>
-        <div class="small" style="margin-top:6px">
-          Diese Woche ist durch, und es fehlen rund ${zusatz.fehlt} Sätze bei
-          ${esc(plural(zusatz.gruppen, 'Muskelgruppe', 'Muskelgruppen'))}. Statt sie in die
-          nächsten Einheiten zu stopfen, gibt es sie als eigene Einheit:
-          ${zusatz.ex.length} Übungen, ${zusatz.ex.reduce((a, x) => a + x.sets, 0)} Sätze,
-          genau das, was zu kurz kam. Gruppen, die gerade Erholung brauchen, sind
-          ausgenommen – die 48-Stunden-Regel gilt auch hier.
-        </div>
-        <div class="btn-row nav" style="margin-top:10px">
-          <button type="button" class="btn btn-primary" data-act="zusatztag"
-                  data-woche="${cur.nr}">Zusatztag anlegen</button>
-        </div>
-        <div class="small muted" style="margin-top:8px">Er landet unter
-          <i>Mehr → Eigenes Workout</i> und zählt in der Statistik mit – als Plan-Einheit
-          nicht, denn der Plan rechnet mit festen Terminen.</div>
-      </div>` : ''}
       ${schonDa ? `<div class="small muted" style="margin-top:12px">↩︎ Für diese Woche steht
         schon ein Zusatztag bereit: <b>${esc(schonDa.name)}</b>, ${schonDa.ex.length} Übungen.
         <button type="button" class="btn btn-sm" data-act="custom-start"
@@ -4756,8 +4810,12 @@ view.addEventListener('click', (e) => {
       // Erst nach markDone: Die Einheit, die gerade fertig geworden ist, soll
       // mitzählen. Sonst käme der Aufstieg immer eine Einheit zu spät.
       const gestiegen = pruefeAufstieg();
+      // Nach der letzten Einheit einer Woche entscheidet sich, ob etwas
+      // liegen geblieben ist – also hier und nicht erst beim nächsten Start.
+      const zusatz = pruefeZusatztag();
       render();
       if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
+      else if (zusatz) toast('Zusatztag angelegt – siehe oben');
       else toast(prog.complete
         ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
         : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
@@ -4901,19 +4959,28 @@ view.addEventListener('click', (e) => {
       toast('Gespeichert – los geht’s');
       break;
     }
-    case 'zusatztag': {
-      const woche = weeklyDone().find((w) => String(w.nr) === t.dataset.woche);
-      const vorschlag = woche && zusatztagEx(woche, store.getState().mode);
-      if (!vorschlag) { toast('Diese Woche fehlt nichts mehr'); break; }
-      const id = store.saveCustom({
-        name: `Zusatztag Woche ${woche.nr}`,
-        ex: vorschlag.ex,
-      });
-      ui.workoutNo = id;
+    case 'zusatztag-start':
+      store.setSetting('zusatztag', null);
+      ui.workoutNo = t.dataset.id;
       ui.listView = true;
       ui.focus = false;
       go('dashboard');
-      toast('Zusatztag angelegt – steht jetzt im Dashboard');
+      break;
+    case 'zusatztag-ok':
+      store.setSetting('zusatztag', null);
+      render();
+      break;
+    case 'zusatztag-weg': {
+      const z = store.getState().zusatztag;
+      if (z) {
+        store.removeCustom(z.id);
+        // Merken, sonst legt ihn der nächste Start wieder an.
+        const nein = store.getState().zusatzNein || [];
+        if (!nein.includes(z.woche)) store.setSetting('zusatzNein', [...nein, z.woche]);
+      }
+      store.setSetting('zusatztag', null);
+      render();
+      toast('Weg damit');
       break;
     }
     case 'custom-start':
@@ -5455,7 +5522,7 @@ if (fokusUmzug()) {
 // *neuen* gegenüber, und dagegen gerechnet findet sammleStats() so gut wie
 // nichts. Erst nachdem der Umzug die Runde samt Bilanz abgelegt hat, steht dem
 // Aufstieg die richtige Zahl gegenüber.
-if (pruefeAufstieg()) {
+if (pruefeAufstieg() || pruefeZusatztag()) {
   ui.tab = 'dashboard';
   ui.focus = false;
 }
