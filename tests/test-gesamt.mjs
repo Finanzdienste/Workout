@@ -56,8 +56,22 @@ const protokoll = (von, bis, { modus = 'db', kg = 20, auslassen = 0, markiere = 
     return log;
   }, [von, bis, modus, kg, auslassen, markiere]);
 
-const setze = (zustand) => page.evaluate(
-  (z) => localStorage.setItem('workout.state.v1', JSON.stringify(z)), zustand);
+/**
+ * Den ganzen gespeicherten Stand setzen – und zwar wirklich den ganzen.
+ *
+ * Die Ablage abgeschlossener Runden liegt seit der Auslagerung in einem eigenen
+ * Schlüssel. Wer hier nur den Hauptschlüssel setzt, erbt sonst die Ablage des
+ * vorigen Prüfschritts: Ein Fall, der „keine Runde abgelegt" meint, startet
+ * dann mit der Runde von vorhin, und die neu abgelegte steht an Position 1
+ * statt 0. Genau das hat diese Prüfung nach der Auslagerung falsch gemeldet.
+ *
+ * Ein Stand mit `rounds` im Hauptschlüssel bleibt erlaubt – store.js wandert
+ * ihn beim Laden von selbst in den eigenen Schlüssel.
+ */
+const setze = (zustand) => page.evaluate((z) => {
+  localStorage.removeItem('workout.rounds.v1');
+  localStorage.setItem('workout.state.v1', JSON.stringify(z));
+}, zustand);
 
 const lies = () => page.evaluate(async () => {
   const s = (await import('./js/store.js')).getState();

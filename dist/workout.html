@@ -6083,6 +6083,29 @@ export async function adminListe(passwort) {
 /* ===== js/store.js ===== */
 const KEY = 'workout.state.v1';
 
+/* Die Ablage liegt in einem eigenen Schlüssel, und das hat einen gemessenen
+ * Grund: `persist()` schreibt bei **jedem abgehakten Satz** den ganzen Zustand.
+ * Ein abgeschlossener Durchlauf über 84 Einheiten ist dabei rund 65 KB groß,
+ * und vorher lagen alle im selben Schlüssel:
+ *
+ *     1 abgelegte Runde   65 KB je abgehaktem Satz
+ *     3 Runden           194 KB
+ *     5 Runden           324 KB
+ *
+ * Das wuchs mit jedem Durchlauf und wurde nie wieder kleiner – auf einem Handy
+ * mitten im Training ist das die eine Stelle, an der die App von selbst träger
+ * wird, je länger man sie benutzt.
+ *
+ * Ehrlich dazugesagt: Der *laufende* Durchlauf steht weiterhin im
+ * Hauptschlüssel und muss das auch, denn er ändert sich bei jedem Tipp. Der
+ * Schreibweg ist also nicht klein, sondern **begrenzt** – höchstens eine Runde
+ * statt einer Runde plus allem, was je vorher war. Die Ablage selbst ändert
+ * sich nur beim Neustart des Plans, beim Zurückholen und beim Einlesen einer
+ * Sicherung, also zwei-, dreimal im halben Jahr.
+ *
+ * Nachgemessen wird das in tests/test-speicher.mjs, nicht nur behauptet. */
+const KEY_RUNDEN = 'workout.rounds.v1';
+
 const DEFAULT_STATE = {
   mode: 'db',            // global default: 'db' (Hanteln) | 'bw' (Bodyweight)
   keepModePerWorkout: true,
@@ -6149,6 +6172,10 @@ const DEFAULT_STATE = {
 
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
+// Muss vor load() stehen: load() läuft schon bei der Modulauswertung, und eine
+// weiter unten deklarierte Variable wäre dort noch nicht initialisiert.
+let wandert = false;
+
 let state = load();
 const listeners = new Set();
 
@@ -6162,6 +6189,19 @@ function load() {
     // (siehe adminPassMerken in js/app.js) und nicht in eine Sicherungsdatei –
     // ein alter Stand wird deshalb beim Laden davon befreit.
     if ('adminPass' in state) delete state.adminPass;
+    // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
+    // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
+    // von Hand gesetzter (Sicherung, Tests). Sonst kommt sie aus ihrem eigenen
+    // Schlüssel.
+    if (Array.isArray(parsed.rounds)) {
+      state.rounds = parsed.rounds;
+      wandert = true;
+    } else {
+      const roh = localStorage.getItem(KEY_RUNDEN);
+      if (roh !== null) {
+        try { state.rounds = JSON.parse(roh) || []; } catch { state.rounds = []; }
+      }
+    }
     // Wer schon etwas gespeichert hat, ist nicht neu hier: Die Willkommensseite
     // fragt nach dem Namen und erklärt die App – für jemanden, der seit Wochen
     // trainiert, wäre sie eine Zumutung. Der Schlüssel fehlt genau dann, wenn
@@ -6200,13 +6240,32 @@ let storageOk = (() => {
 /** false, wenn der Browser nichts speichern kann – Eintragungen sind flüchtig. */
 function canPersist() { return storageOk; }
 
+// Kam die Ablage aus dem Hauptschlüssel, muss sie **sofort** in ihren eigenen –
+// nicht erst beim nächsten abgehakten Satz. Dazwischen hätte der Hauptschlüssel
+// sie beim ersten write() verloren, während der neue noch leer wäre.
+if (wandert) {
+  schreibeRunden();
+  persist();
+}
+
 function write() {
   saveTimer = null;
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    // Ohne die Ablage – die steht in KEY_RUNDEN und ändert sich fast nie.
+    const { rounds, ...schlank } = state;
+    localStorage.setItem(KEY, JSON.stringify(schlank));
     storageOk = true;
   } catch {
     storageOk = false; // Speicher voll oder gesperrt
+  }
+}
+
+/** Die Ablage schreiben. Nur aufrufen, wo sie sich wirklich ändert. */
+function schreibeRunden() {
+  try {
+    localStorage.setItem(KEY_RUNDEN, JSON.stringify(state.rounds || []));
+  } catch {
+    storageOk = false;
   }
 }
 
@@ -6646,6 +6705,7 @@ function restartPlan(shiftDays, bilanz) {
   state.clock = null;
   state.rest = null;
   state.shift = Math.round(Number(shiftDays) || 0);
+  schreibeRunden();
   persist();
   emit();
 }
@@ -6671,6 +6731,7 @@ function restoreRound() {
   Object.keys(zurueck).forEach((n) => {
     if (!state.log[n]) state.log[n] = zurueck[n];
   });
+  schreibeRunden();
   persist();
   emit();
   return true;
@@ -6744,13 +6805,17 @@ function importJSON(text) {
   if (typeof fresh.shift !== 'number' || !Number.isFinite(fresh.shift)) fresh.shift = 0;
   fresh.injuries = fresh.injuries.filter((x) => typeof x === 'string');
   state = fresh;
+  schreibeRunden();
   persist();
   emit();
 }
 
 function resetAll() {
   state = clone(DEFAULT_STATE);
-  try { localStorage.removeItem(KEY); } catch { /* ignorieren */ }
+  try {
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(KEY_RUNDEN);
+  } catch { /* ignorieren */ }
   persist();
   emit();
 }
@@ -9422,6 +9487,9 @@ function gesamtKarte() {
 function renderStats() {
   const { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak,
           upcoming, customSets, seconds, mitZeit } = sammleStats();
+  // Ab fünf gemessenen Einheiten rechnet die App nicht mehr mit der Formel,
+  // sondern mit dem, was die Uhr sagt – siehe zeitEichung().
+  const eich = zeitEichung();
 
   const topEx = [...perEx.entries()]
     .map(([id, c]) => ({ ex: EX_BY_ID.get(id), c }))
@@ -9442,11 +9510,26 @@ function renderStats() {
       ${seconds ? `<div class="stat"><div class="stat-v">${esc(dauerText(seconds))}</div>
         <div class="stat-l">Zeit im Training${mitZeit > 1
           ? ` <span class="muted">(Ø ${esc(dauerText(Math.round(seconds / mitZeit)))})</span>` : ''}</div></div>` : ''}
+      ${eich ? `<div class="stat"><div class="stat-v">${eich.faktor < 1 ? '−' : '+'}${
+        Math.abs(Math.round((eich.faktor - 1) * 100))} %</div>
+        <div class="stat-l">gegen die Schätzung <span class="muted">(${eich.einheiten} Einheiten)</span></div></div>` : ''}
       ${store.getState().rounds.length
         ? `<div class="stat"><div class="stat-v">${store.getState().rounds.length}</div><div class="stat-l">Runden abgeschlossen</div></div>` : ''}
     </div>
 
     ${gesamtKarte()}
+
+    ${eich ? `<div class="card small muted" style="margin-top:-4px">
+      Die Dauer an den Trainingsplänen ist keine Schätzung mehr: Über
+      ${eich.einheiten} gemessene Einheiten brauchst du
+      <b>${eich.faktor < 1 ? Math.round((1 - eich.faktor) * 100) + ' % weniger'
+        : Math.round((eich.faktor - 1) * 100) + ' % mehr'}</b>
+      Zeit als die Formel (40 s je Satz plus die vorgesehene Pause) annimmt.
+      Damit rechnet sie ab jetzt.${eich.gedeckelt
+        ? ' Der gemessene Wert liegt außerhalb des Vertrauensbereichs und ist gedeckelt –'
+          + ' vermutlich lief die Uhr einmal weiter, während du etwas anderes gemacht hast.'
+        : ''}
+    </div>` : ''}
 
     ${vergleichKarte()}
 
@@ -10552,6 +10635,77 @@ const FOKUS_TEXT = {
  * Aufstellen. Grob, aber die Pausen daneben sind der viel größere Posten. */
 const ARBEIT_JE_SATZ = 40;
 
+/* ------------------------------------------------------------------ *
+ * Die Zeitschätzung an der echten Uhr eichen
+ *
+ * „ca. 50 min" steht an jeder Variante, und nach dieser Zahl sucht jemand
+ * seinen Plan aus. Sie kommt aus einer Formel: 40 Sekunden je Satz plus die
+ * vorgesehene Pause. Beides ist geraten – der Satz dauert länger, wenn man
+ * umbaut, und kürzer, wenn man die Pause abbricht.
+ *
+ * Die Uhr misst derweil mit (`secs` je Einheit im Protokoll) und wurde bisher
+ * nur angezeigt. Aus beidem zusammen wird ein Faktor: Wer regelmäßig 20 %
+ * länger braucht, soll auch 20 % mehr angezeigt bekommen.
+ *
+ * **Erst ab fünf gemessenen Einheiten.** Eine einzelne sagt nichts – wer beim
+ * ersten Mal zwischendurch telefoniert, bekäme sonst für den Rest des Plans
+ * falsche Zahlen. Und der Faktor ist gedeckelt: Zwischen halb und doppelt so
+ * lang. Was darüber hinausgeht, ist keine Eichung mehr, sondern eine Einheit,
+ * bei der die Uhr mitlief, während jemand einkaufen war.
+ * ------------------------------------------------------------------ */
+const EICHUNG_AB = 5;
+const EICHUNG_MIN = 0.5;
+const EICHUNG_MAX = 2.0;
+
+/**
+ * Wie lange eine Einheit nach der Formel dauern müsste, in Sekunden.
+ *
+ * Mit den echten Pausen je Übung, nicht mit einem Mittelwert: Ein Satz
+ * Chin-ups kostet 180 s Pause, einer Wadenheben 90.
+ */
+function dauerLautFormel(items, mode) {
+  if (!items.length) return 0;
+  const pause = (id) => {
+    const ex = EX_BY_ID.get(id);
+    return (ex && ex[mode] && ex[mode].rest) || 120;
+  };
+  const summe = items.reduce((a, it) => a + it.sets * (ARBEIT_JE_SATZ + pause(it.id)), 0);
+  // Die letzte Pause der Einheit fällt weg – danach ist man fertig.
+  return summe - pause(items[items.length - 1].id);
+}
+
+/**
+ * Der gemessene Faktor zwischen echter und geschätzter Dauer – oder null.
+ *
+ * Gezählt werden nur abgeschlossene Einheiten mit erfasster Zeit. Verglichen
+ * werden Summen und nicht Einzelwerte: Eine Einheit, bei der die App im
+ * Hintergrund lag, zieht so nicht den ganzen Schnitt.
+ */
+function zeitEichung() {
+  const log = store.getState().log;
+  let echt = 0;
+  let formel = 0;
+  let n = 0;
+  PLAN.forEach((w) => {
+    const e = log[w.n];
+    const m = completedMode(w.n);
+    if (!e || !m || !(e.secs > 0)) return;
+    const soll = dauerLautFormel(exOf(w, m), m);
+    if (soll <= 0) return;
+    echt += e.secs;
+    formel += soll;
+    n += 1;
+  });
+  if (n < EICHUNG_AB || formel <= 0) return null;
+  const roh = echt / formel;
+  return {
+    faktor: Math.min(EICHUNG_MAX, Math.max(EICHUNG_MIN, roh)),
+    roh,
+    einheiten: n,
+    gedeckelt: roh < EICHUNG_MIN || roh > EICHUNG_MAX,
+  };
+}
+
 /**
  * Sekunden als Zeitangabe, wie man sie ausspricht: "48 min", "3 h 12".
  *
@@ -10584,8 +10738,11 @@ function fokusZeile(v) {
     // Arbeit plus Pause nach jedem Satz; die letzte Pause der Einheit fällt weg.
     return b + satzZahl(roh(x)) * (ARBEIT_JE_SATZ + pause);
   }, 0) - ((w.ex.length && EX_BY_ID.get(w.ex[w.ex.length - 1].id)[modus].rest) || 0), 0);
-  const min = Math.round((sekunden / v.plan.length / 60) / 5) * 5;
-  return `${v.plan.length} Einheiten · ${proEinheit.toFixed(1)} Sätze je Einheit · ca. ${min} min`;
+  // Wer schon gemessen hat, bekommt seine eigene Zahl statt der Formel.
+  const eich = zeitEichung();
+  const min = Math.round((sekunden * (eich ? eich.faktor : 1) / v.plan.length / 60) / 5) * 5;
+  return `${v.plan.length} Einheiten · ${proEinheit.toFixed(1)} Sätze je Einheit · `
+    + `${eich ? '' : 'ca. '}${min} min${eich ? ' (gemessen)' : ''}`;
 }
 
 /** Auswahlkarten für den Trainingsfokus – im Einstieg und in den Einstellungen. */

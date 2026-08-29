@@ -147,8 +147,23 @@ check(eyebrow.includes('Workout 1'), 'nach dem Neustart steht Workout 1 an');
 check((await page.locator('.hero-eyebrow').textContent()).includes('Heute'), 'und zwar heute');
 const after = await page.evaluate(() => JSON.parse(localStorage.getItem('workout.state.v1')));
 check(Object.keys(after.log).length === 0, 'Verlauf ist geleert');
-check(after.rounds.length === 1, 'alte Runde liegt in der Ablage');
 check(after.weights['goblet-squat'] === 30, 'Gewichte bleiben stehen (30 kg)');
+// Die Ablage steht in ihrem eigenen Schlüssel, und zwar aus einem Grund, der
+// genau hier hängt: Der Hauptschlüssel wird bei **jedem abgehakten Satz**
+// geschrieben. Läge die abgeschlossene Runde darin, ginge sie 96-mal je Plan
+// mit über die Leitung. Beide Hälften werden deshalb geprüft – dass sie da ist,
+// und dass sie nicht mehr im Weg liegt.
+const ablage = await page.evaluate(() => JSON.parse(localStorage.getItem('workout.rounds.v1')));
+check(ablage.length === 1, 'alte Runde liegt in der Ablage');
+check(after.rounds === undefined, 'und nicht mehr im Schlüssel, den jeder Satz schreibt');
+const gross = await page.evaluate(() => ({
+  haupt: localStorage.getItem('workout.state.v1').length,
+  ablage: localStorage.getItem('workout.rounds.v1').length,
+}));
+console.log(`     je Satz geschrieben: ${(gross.haupt / 1024).toFixed(0)} KB `
+  + `(Ablage ${(gross.ablage / 1024).toFixed(0)} KB liegt daneben)`);
+check(gross.haupt < gross.ablage,
+  `der Schreibweg ist kleiner als die Ablage, die er nicht mehr trägt`);
 await page.locator('.tab[data-tab="stats"]').click();
 await page.waitForTimeout(200);
 const stats = (await page.locator('.stat').allTextContents()).join(' | ');

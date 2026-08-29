@@ -2,6 +2,29 @@ import { todayISO } from './dates.js';
 
 const KEY = 'workout.state.v1';
 
+/* Die Ablage liegt in einem eigenen Schlüssel, und das hat einen gemessenen
+ * Grund: `persist()` schreibt bei **jedem abgehakten Satz** den ganzen Zustand.
+ * Ein abgeschlossener Durchlauf über 84 Einheiten ist dabei rund 65 KB groß,
+ * und vorher lagen alle im selben Schlüssel:
+ *
+ *     1 abgelegte Runde   65 KB je abgehaktem Satz
+ *     3 Runden           194 KB
+ *     5 Runden           324 KB
+ *
+ * Das wuchs mit jedem Durchlauf und wurde nie wieder kleiner – auf einem Handy
+ * mitten im Training ist das die eine Stelle, an der die App von selbst träger
+ * wird, je länger man sie benutzt.
+ *
+ * Ehrlich dazugesagt: Der *laufende* Durchlauf steht weiterhin im
+ * Hauptschlüssel und muss das auch, denn er ändert sich bei jedem Tipp. Der
+ * Schreibweg ist also nicht klein, sondern **begrenzt** – höchstens eine Runde
+ * statt einer Runde plus allem, was je vorher war. Die Ablage selbst ändert
+ * sich nur beim Neustart des Plans, beim Zurückholen und beim Einlesen einer
+ * Sicherung, also zwei-, dreimal im halben Jahr.
+ *
+ * Nachgemessen wird das in tests/test-speicher.mjs, nicht nur behauptet. */
+const KEY_RUNDEN = 'workout.rounds.v1';
+
 const DEFAULT_STATE = {
   mode: 'db',            // global default: 'db' (Hanteln) | 'bw' (Bodyweight)
   keepModePerWorkout: true,
@@ -68,6 +91,10 @@ const DEFAULT_STATE = {
 
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
+// Muss vor load() stehen: load() läuft schon bei der Modulauswertung, und eine
+// weiter unten deklarierte Variable wäre dort noch nicht initialisiert.
+let wandert = false;
+
 let state = load();
 const listeners = new Set();
 
@@ -81,6 +108,19 @@ function load() {
     // (siehe adminPassMerken in js/app.js) und nicht in eine Sicherungsdatei –
     // ein alter Stand wird deshalb beim Laden davon befreit.
     if ('adminPass' in state) delete state.adminPass;
+    // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
+    // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
+    // von Hand gesetzter (Sicherung, Tests). Sonst kommt sie aus ihrem eigenen
+    // Schlüssel.
+    if (Array.isArray(parsed.rounds)) {
+      state.rounds = parsed.rounds;
+      wandert = true;
+    } else {
+      const roh = localStorage.getItem(KEY_RUNDEN);
+      if (roh !== null) {
+        try { state.rounds = JSON.parse(roh) || []; } catch { state.rounds = []; }
+      }
+    }
     // Wer schon etwas gespeichert hat, ist nicht neu hier: Die Willkommensseite
     // fragt nach dem Namen und erklärt die App – für jemanden, der seit Wochen
     // trainiert, wäre sie eine Zumutung. Der Schlüssel fehlt genau dann, wenn
@@ -119,13 +159,32 @@ let storageOk = (() => {
 /** false, wenn der Browser nichts speichern kann – Eintragungen sind flüchtig. */
 export function canPersist() { return storageOk; }
 
+// Kam die Ablage aus dem Hauptschlüssel, muss sie **sofort** in ihren eigenen –
+// nicht erst beim nächsten abgehakten Satz. Dazwischen hätte der Hauptschlüssel
+// sie beim ersten write() verloren, während der neue noch leer wäre.
+if (wandert) {
+  schreibeRunden();
+  persist();
+}
+
 function write() {
   saveTimer = null;
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    // Ohne die Ablage – die steht in KEY_RUNDEN und ändert sich fast nie.
+    const { rounds, ...schlank } = state;
+    localStorage.setItem(KEY, JSON.stringify(schlank));
     storageOk = true;
   } catch {
     storageOk = false; // Speicher voll oder gesperrt
+  }
+}
+
+/** Die Ablage schreiben. Nur aufrufen, wo sie sich wirklich ändert. */
+function schreibeRunden() {
+  try {
+    localStorage.setItem(KEY_RUNDEN, JSON.stringify(state.rounds || []));
+  } catch {
+    storageOk = false;
   }
 }
 
@@ -565,6 +624,7 @@ export function restartPlan(shiftDays, bilanz) {
   state.clock = null;
   state.rest = null;
   state.shift = Math.round(Number(shiftDays) || 0);
+  schreibeRunden();
   persist();
   emit();
 }
@@ -590,6 +650,7 @@ export function restoreRound() {
   Object.keys(zurueck).forEach((n) => {
     if (!state.log[n]) state.log[n] = zurueck[n];
   });
+  schreibeRunden();
   persist();
   emit();
   return true;
@@ -663,13 +724,17 @@ export function importJSON(text) {
   if (typeof fresh.shift !== 'number' || !Number.isFinite(fresh.shift)) fresh.shift = 0;
   fresh.injuries = fresh.injuries.filter((x) => typeof x === 'string');
   state = fresh;
+  schreibeRunden();
   persist();
   emit();
 }
 
 export function resetAll() {
   state = clone(DEFAULT_STATE);
-  try { localStorage.removeItem(KEY); } catch { /* ignorieren */ }
+  try {
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(KEY_RUNDEN);
+  } catch { /* ignorieren */ }
   persist();
   emit();
 }

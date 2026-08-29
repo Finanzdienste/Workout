@@ -1757,6 +1757,38 @@ klicken, die der Import gleich wieder überschreibt. Der Knopf ist deshalb unter
 *Mehr* erreichbar, ohne die Einrichtung abzuschließen. Eine kaputte Datei lässt
 den vorhandenen Stand unangetastet.
 
+### Die Ablage liegt nicht mehr im Weg jedes abgehakten Satzes
+
+Gespeichert wird bei **jeder** Änderung der ganze Zustand — also auch bei jedem
+angetippten Satz, einige Hundert Mal je Plan. Die abgeschlossenen Durchläufe
+lagen bis vor Kurzem im selben Schlüssel und wurden dabei jedes Mal mit
+serialisiert und geschrieben, obwohl sie sich zwei-, dreimal im halben Jahr
+ändern. Gemessen über einen vollen Durchlauf mit 84 Einheiten:
+
+| abgelegte Runden | je abgehaktem Satz geschrieben |
+| --- | --- |
+| 1 | 65 KB |
+| 3 | 194 KB |
+| 5 | 324 KB |
+
+Das wuchs mit jedem Durchlauf und wurde nie wieder kleiner — auf einem Handy
+mitten im Training ist das die eine Stelle, an der die App von selbst träger
+wird, je länger man sie benutzt. Die Ablage steht deshalb jetzt in einem eigenen
+Schlüssel (`workout.rounds.v1`), der nur beim Neustart des Plans, beim
+Zurückholen, beim Einlesen einer Sicherung und beim Zurücksetzen geschrieben
+wird.
+
+**Ehrlich dazugesagt:** Der *laufende* Durchlauf steht weiterhin im
+Hauptschlüssel und muss das auch — er ändert sich ja bei jedem Tipp. Der
+Schreibweg ist also nicht klein, sondern **begrenzt**: höchstens eine Runde
+statt einer Runde plus allem, was je vorher war.
+
+Ein vorhandener Stand wandert beim ersten Laden von selbst hinüber, und zwar
+**sofort** und nicht erst beim nächsten Satz — dazwischen hätte ein Neuladen die
+Ablage gekostet. Die Sicherungsdatei enthält sie unverändert mit; sonst sähe sie
+vollständig aus, und der Verlust fiele erst beim Einlesen auf.
+`tests/test-speicher.mjs` misst beide Hälften nach, statt sie zu behaupten.
+
 ## Wenn der Plan durch ist
 
 Nach der letzten von 84 Einheiten bietet die Startansicht *Von vorn beginnen*
