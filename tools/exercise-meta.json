@@ -615,13 +615,13 @@
   "dbWeight": null,
   "dbStep": null,
   "weightNote": null,
-  "dbPattern": "lateral",
+  "dbPattern": "lateralstand",
   "dbShares": {
    "sideDelts": 1.0,
    "frontDelts": 0.15,
    "traps": 0.2
   },
-  "bwPattern": "lateral",
+  "bwPattern": "lateralstand",
   "bwShares": {
    "sideDelts": 1.0,
    "frontDelts": 0.15,
@@ -852,7 +852,7 @@
    "triceps": 0.6,
    "traps": 0.3
   },
-  "bwPattern": "ohp",
+  "bwPattern": "ohpstand",
   "bwShares": {
    "frontDelts": 1.0,
    "sideDelts": 0.45,

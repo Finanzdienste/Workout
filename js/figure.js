@@ -376,6 +376,25 @@ export const PATTERNS = {
       { lean: 4, arm: A(6, 92, 10), leg: L(88, 8, 92) },
     ],
   },
+  // Dieselbe Bewegung im Stehen – für die Bandfassung, bei der man auf dem Band
+  // steht. Sitzend gezeichnet lief das Band von den Händen hinunter zu Füßen,
+  // die auf einer Bank ruhten: eine Verankerung, die es dort gar nicht gibt.
+  lateralstand: {
+    label: 'Seitheben im Stehen',
+    poses: [
+      { lean: 2, arm: A(6, 10, 10), leg: L(4, 4, 4) },
+      { lean: 2, arm: A(6, 92, 10), leg: L(4, 4, 4) },
+    ],
+  },
+  // Und dasselbe fürs Drücken. „Auf das Band stellen" heißt stehen, auch wenn
+  // die Hantelfassung derselben Übung sitzt.
+  ohpstand: {
+    label: 'Schulterdrücken im Stehen',
+    poses: [
+      { lean: 2, arm: A(10, 58, 104), leg: L(4, 4, 4) },
+      { lean: 2, arm: A(6, 166, 8), leg: L(4, 4, 4) },
+    ],
+  },
   reversefly: {
     // Wie beim Pull-Apart: Das Band liegt zwischen den Händen, nicht unter dem Fuß.
     label: 'Reverse Fly', band: 'hands',

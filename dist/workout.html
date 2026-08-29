@@ -2642,7 +2642,7 @@ const EXERCISES = [
       "equip": "Loop-Band",
       "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
       "rest": 120,
-      "pattern": "lateral",
+      "pattern": "lateralstand",
       "shares": {
         "sideDelts": 1.0,
         "frontDelts": 0.15,
@@ -2661,7 +2661,7 @@ const EXERCISES = [
       "equip": "Loop-Band",
       "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
       "rest": 120,
-      "pattern": "lateral",
+      "pattern": "lateralstand",
       "shares": {
         "sideDelts": 1.0,
         "frontDelts": 0.15,
@@ -2724,7 +2724,7 @@ const EXERCISES = [
       "equip": "Loop-Band",
       "cue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Vorher standen hier füße-erhöhte Pike Push-ups – die sind zu einem guten Teil Brust und treffen die seitliche Schulter kaum. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand darauf; leichter, indem du nur mit einem Fuß darauf stehst.",
       "rest": 180,
-      "pattern": "ohp",
+      "pattern": "ohpstand",
       "shares": {
         "frontDelts": 1.0,
         "sideDelts": 0.45,
@@ -3643,6 +3643,25 @@ const PATTERNS = {
     poses: [
       { lean: 4, arm: A(6, 10, 10), leg: L(88, 8, 92) },
       { lean: 4, arm: A(6, 92, 10), leg: L(88, 8, 92) },
+    ],
+  },
+  // Dieselbe Bewegung im Stehen – für die Bandfassung, bei der man auf dem Band
+  // steht. Sitzend gezeichnet lief das Band von den Händen hinunter zu Füßen,
+  // die auf einer Bank ruhten: eine Verankerung, die es dort gar nicht gibt.
+  lateralstand: {
+    label: 'Seitheben im Stehen',
+    poses: [
+      { lean: 2, arm: A(6, 10, 10), leg: L(4, 4, 4) },
+      { lean: 2, arm: A(6, 92, 10), leg: L(4, 4, 4) },
+    ],
+  },
+  // Und dasselbe fürs Drücken. „Auf das Band stellen" heißt stehen, auch wenn
+  // die Hantelfassung derselben Übung sitzt.
+  ohpstand: {
+    label: 'Schulterdrücken im Stehen',
+    poses: [
+      { lean: 2, arm: A(10, 58, 104), leg: L(4, 4, 4) },
+      { lean: 2, arm: A(6, 166, 8), leg: L(4, 4, 4) },
     ],
   },
   reversefly: {

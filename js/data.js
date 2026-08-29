@@ -1147,7 +1147,7 @@ export const EXERCISES = [
       "equip": "Loop-Band",
       "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
       "rest": 120,
-      "pattern": "lateral",
+      "pattern": "lateralstand",
       "shares": {
         "sideDelts": 1.0,
         "frontDelts": 0.15,
@@ -1166,7 +1166,7 @@ export const EXERCISES = [
       "equip": "Loop-Band",
       "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
       "rest": 120,
-      "pattern": "lateral",
+      "pattern": "lateralstand",
       "shares": {
         "sideDelts": 1.0,
         "frontDelts": 0.15,
@@ -1229,7 +1229,7 @@ export const EXERCISES = [
       "equip": "Loop-Band",
       "cue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Vorher standen hier füße-erhöhte Pike Push-ups – die sind zu einem guten Teil Brust und treffen die seitliche Schulter kaum. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand darauf; leichter, indem du nur mit einem Fuß darauf stehst.",
       "rest": 180,
-      "pattern": "ohp",
+      "pattern": "ohpstand",
       "shares": {
         "frontDelts": 1.0,
         "sideDelts": 0.45,

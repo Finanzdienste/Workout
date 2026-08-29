@@ -2613,6 +2613,55 @@ fielen gleichzeitig um, die Ursache war eine Zeile Reihenfolge.
 wichtigste: dass **nichts** passiert, wenn alles normal läuft. Gegengeprüft –
 nimmt man die Nacharbeit heraus, fallen drei Prüfungen um.
 
+### Name, Gerät, Zeichnung und Hinweis müssen dasselbe sagen
+
+Eine Übung wird an vier Stellen beschrieben, und keine davon kennt die anderen:
+der Name, der Gerätetext für den Menschen, das Gerät, mit dem die Figur sie
+zeichnet, und der Ausführungshinweis. Von Hand gepflegt laufen die vier
+auseinander, und zwar unbemerkt — bis jemand die Übung wirklich machen will.
+
+Genau so kam es beim **Überkopf-Trizepsstrecker**: Der Name stimmte, der Hinweis
+beschrieb die sitzende Fassung, als Gerät stand „Kurzhanteln/SZ" da — und die
+Figur hielt **zwei einzelne Kurzhanteln** über den Kopf. Von den drei gängigen
+Formen (SZ-Stange, eine Kurzhantel beidhändig, Kabel) war das die einzige, die
+kaum jemand macht. Aufgefallen ist es durch eine Rückfrage, nicht durch eine
+Prüfung.
+
+`tools/pruefung/geraete.py` macht daraus eine Regel und läuft bei jedem Push:
+
+| Geprüft wird | Woran |
+| --- | --- |
+| Sitzt die Figur, wenn der Hinweis vom Sitzen spricht — und umgekehrt? | `seat: true` im Muster gegen den Hinweistext |
+| Liegt sie, wenn er vom Liegen spricht? | `lie:` im Muster gegen den Hinweistext |
+| Passt das gezeichnete Gerät zum Gerätetext? | `equip` gegen `dbEquip` |
+| Behauptet der Schlüssel etwas anderes als der Name? | Haltungs- und Gerätewörter im Schlüssel gegen den Namen |
+
+Die Haltungen liest das Skript direkt aus `js/figure.js` statt sie abzuschreiben
+— eine zweite Liste wäre die nächste Stelle zum Auseinanderlaufen.
+
+**Zwei echte Funde beim ersten Lauf**, beide vom selben Typ: `band-seitheben`
+und die Bandfassung des Schulterdrückens werden **im Stehen** gemacht — man
+steht auf dem Band —, wurden aber mit dem sitzenden Muster gezeichnet. Die Figur
+saß also auf einer Bank, während das Band von ihren Händen zu Füßen lief, die
+dort gar nichts verankern konnten. Dafür gibt es jetzt `lateralstand` und
+`ohpstand`.
+
+Drei weitere Treffer waren die Prüfung selbst, nicht die App: „Rucksack auf den
+**Rücken**" ist keine Rückenlage, und „Aufrecht **sitzen**" ist Sitzen, auch
+wenn dort nicht „sitzend" steht. Die Ausdrücke sind entsprechend geschärft.
+
+Punkt vier ist bewusst nur eine **Warnung**. Zwei Schlüssel beschreiben etwas
+anderes als ihr Name:
+
+| Schlüssel | heißt in der App |
+| --- | --- |
+| `liegende-trizepsstrecker` | Überkopf-Trizepsstrecker |
+| `einarmiges-kh-rudern` | Langhantelrudern |
+
+Umbenennen wäre falsch: An den Schlüsseln hängen die eingetragenen Gewichte und
+jeder protokollierte Satz. Sie sollen nur nicht unbemerkt das Gegenteil
+behaupten — der erste war die Spur, die zum Fehler oben geführt hätte.
+
 ### Jede Übung muss einen Weg nach unten nennen
 
 Der Plan gibt Wiederholungsbereiche vor. Wer sie nicht erreicht, braucht eine

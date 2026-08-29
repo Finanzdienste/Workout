@@ -29,6 +29,11 @@ jobs:
       - name: Jede Übung nennt einen Weg nach unten
         run: python3 tools/pruefung/weg-nach-unten.py
 
+      # Name, Gerätetext, Zeichnung und Hinweis einer Übung werden an vier
+      # getrennten Stellen gepflegt und laufen sonst unbemerkt auseinander.
+      - name: Übung, Gerät und Zeichnung passen zusammen
+        run: python3 tools/pruefung/geraete.py
+
       # Die erzeugten Dateien noch einmal erzeugen. Kommt dabei etwas anderes
       # heraus als eingecheckt ist, wurde von Hand hineingeschrieben oder ein
       # Generatorlauf vergessen – beides läuft irgendwann auseinander.
