@@ -49,13 +49,6 @@ const DEFAULT_STATE = {
   // Der zuletzt vollzogene Aufstieg, solange der Hinweis noch nicht weggetippt
   // ist: { nach, von, am, einheiten, tonnen }.
   aufstieg: null,
-  // Dasselbe für die Gegenrichtung: Stufen, in die die App heruntergestuft hat,
-  // weil die Einheiten regelmäßig nicht zu Ende gemacht wurden. Auch hier kommt
-  // jeder Schritt genau einmal.
-  abstiege: [],
-  // Der zuletzt vollzogene Abstieg, solange sein Hinweis offen ist:
-  // { von, nach, am, einheiten, prozent }.
-  abstieg: null,
   // Ein abgeschaffter Trainingsfokus, auf den dieses Gerät noch stand, solange
   // der Hinweis dazu offen ist: { von, nach, am, abgelegt }. `von` und `nach`
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und

@@ -6,17 +6,17 @@
  * auf das dieser Plan exakt gerechnet ist, stimmte danach nicht mehr – und
  * niemand erfuhr davon.
  *
- * Zwei Hälften, die in verschiedene Richtungen zeigen, und beide müssen stimmen:
+ * Was diese Woche liegen bleibt, kommt auf die nächsten Einheiten derselben
+ * Woche – gedeckelt, und niemals über die Wochengrenze hinaus.
  *
- *   Nacharbeit    Was diese Woche liegen bleibt, kommt auf die nächsten
- *                 Einheiten derselben Woche – gedeckelt, und niemals über die
- *                 Wochengrenze hinaus.
- *   Abstieg       Wer über mehrere Einheiten hinweg regelmäßig nur einen Teil
- *                 schafft, bekommt keinen Berg, sondern einen kleineren Plan.
+ * **Nur nach oben.** Eine zweite Hälfte hätte die Einheiten von selbst gekürzt,
+ * wenn jemand sie regelmäßig nicht zu Ende macht. Die ist wieder raus, auf
+ * ausdrücklichen Wunsch; Prüfung 5 hält fest, dass die Erfahrungsstufe
+ * unangetastet bleibt.
  *
- * Die dritte Prüfung ist die wichtigste: dass nichts passiert, wenn alles
- * normal läuft. Ein Plan, der bei jeder Kleinigkeit an sich herumschraubt,
- * wäre schlimmer als einer, der stehen bleibt.
+ * Die wichtigste Prüfung ist die erste: dass nichts passiert, wenn alles normal
+ * läuft. Ein Plan, der bei jeder Kleinigkeit an sich herumschraubt, wäre
+ * schlimmer als einer, der stehen bleibt.
  */
 import { chromium } from 'playwright';
 import { URL } from './umgebung.mjs';
@@ -130,73 +130,32 @@ const summe4 = vier.reduce((a, x) => a + Number((x.meta.match(/\+(\d+) nachgehol
 console.log('     Einheit 4 nach drei abgebrochenen:', summe4, 'Sätze nachgeholt');
 check(summe4 <= 3, `drei abgebrochene Einheiten sprengen die Einheit nicht (${summe4} Sätze)`);
 
-// --- 5. Chronischer Rückstand macht den Plan kleiner ---------------------
-// Sechs abgeschlossene Einheiten, bei denen je zwei Übungen fehlen: unter
-// 70 % der geplanten Sätze. Das ist keine Frage der Disziplin mehr.
+// --- 5. Die Erfahrungsstufe bleibt unangetastet -------------------------
+//
+// Hier stand einmal die Gegenrichtung: Wer über mehrere Einheiten hinweg nur
+// einen Teil schafft, dem hätte die App die Stufe von selbst gesenkt. Das ist
+// wieder raus, auf ausdrücklichen Wunsch. Die Prüfung bleibt – als Zusage: Der
+// Plan wird nicht hinter dem Rücken des Nutzers kleiner.
 const sechs = await protokoll(0, 6, 2);
 await setze({ greeted: true, name: 'T', level: 'geuebt', shift: 0, log: sechs });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(500);
-const nachAbstieg = await page.evaluate(async () => {
+const nachSechs = await page.evaluate(async () => {
   const s = (await import('./js/store.js')).getState();
-  return { level: s.level, abstiege: s.abstiege || [], abstieg: s.abstieg,
-           aufstiege: s.aufstiege || [] };
+  return { level: s.level, abstieg: s.abstieg, aufstieg: s.aufstieg };
 });
-console.log('     ', JSON.stringify(nachAbstieg.abstieg));
-check(nachAbstieg.level === 'anfaenger',
-  `nach sechs angebrochenen Einheiten steht die Stufe auf Anfänger (${nachAbstieg.level})`);
-check(nachAbstieg.abstiege.includes('anfaenger'), 'der Schritt ist vermerkt');
-check(nachAbstieg.aufstiege.includes('geuebt'),
-  'und der Gegenschritt gleich mit – sonst stuft der Aufstieg sofort zurück');
+check(nachSechs.level === 'geuebt',
+  `sechs angebrochene Einheiten senken die Stufe nicht (${nachSechs.level})`);
+check(!nachSechs.abstieg, 'und lösen keinen Hinweis über eine Kürzung aus');
+const text5 = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(!/zu groß|heruntergestuft|gekürzt/.test(text5),
+  'nirgends steht, dass der Plan verkleinert wurde');
 
-const hinweis = (await page.locator('.notice.aufstieg').first().textContent()).replace(/\s+/g, ' ');
-console.log('     Hinweis:', hinweis.slice(0, 90).trim(), '…');
-check(/Der Plan war zu groß/.test(hinweis), 'der Hinweis benennt die Ursache beim Plan, nicht beim Menschen');
-check(/2 statt 3 Sätze/.test(hinweis), 'und sagt, was sich ändert');
-
-// Und es hält: kein Hin und Her beim nächsten Laden.
-await page.reload({ waitUntil: 'networkidle' });
-await page.waitForTimeout(400);
-const zweitesLaden = await page.evaluate(async () => {
-  const s = (await import('./js/store.js')).getState();
-  return { level: s.level, abstiege: (s.abstiege || []).length };
-});
-check(zweitesLaden.level === 'anfaenger',
-  `nach dem Neuladen immer noch Anfänger (${zweitesLaden.level})`);
-check(zweitesLaden.abstiege === 1, `und der Schritt kommt nur einmal (${zweitesLaden.abstiege})`);
-
-// --- 6. Zurückstellen hält ebenfalls -------------------------------------
-await page.locator('.tab[data-tab="dashboard"]').click();
-await page.waitForTimeout(250);
-await page.locator('[data-act="abstieg-zurueck"]').click();
-await page.waitForTimeout(300);
-let s6 = await page.evaluate(async () => {
-  const s = (await import('./js/store.js')).getState();
-  return { level: s.level, abstieg: s.abstieg, abstiege: s.abstiege || [] };
-});
-check(s6.level === 'geuebt', `zurückgestellt auf Geübt (${s6.level})`);
-check(!s6.abstieg, 'der Hinweis ist weg');
-await page.reload({ waitUntil: 'networkidle' });
-await page.waitForTimeout(400);
-s6 = await page.evaluate(async () => {
-  const s = (await import('./js/store.js')).getState();
-  return { level: s.level, abstieg: s.abstieg };
-});
-check(s6.level === 'geuebt', `und bleibt es auch nach dem Neuladen (${s6.level})`);
-check(!s6.abstieg, 'ohne dass der Hinweis wiederkommt');
-
-// --- 7. Wer seine Einheiten schafft, wird nicht heruntergestuft ----------
-const ganz = await protokoll(0, 6, 0);
-await setze({ greeted: true, name: 'T', level: 'geuebt', shift: 0, log: ganz });
-await page.reload({ waitUntil: 'networkidle' });
-await page.waitForTimeout(400);
-const heil = await page.evaluate(async () => {
-  const s = (await import('./js/store.js')).getState();
-  return { level: s.level, abstieg: s.abstieg };
-});
-check(heil.level === 'geuebt',
-  `sechs vollständige Einheiten ändern nichts (${heil.level})`);
-check(!heil.abstieg, 'und lösen keinen Hinweis aus');
+// Die Sätze je Übung stehen weiter auf dem Wert der eingestellten Stufe.
+const sieben = await einheit(7);
+const basis = sieben.map((x) => Number((x.meta.match(/^(\d+) ×/) || [])[1] || 0));
+console.log('     Sätze je Übung in Einheit 7:', basis.join(', '));
+check(basis.every((n) => n >= 3), `Geübt bleibt bei drei Sätzen je Übung (${basis.join(',')})`);
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

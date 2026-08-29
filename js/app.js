@@ -218,9 +218,7 @@ function exBasis(w, mode) {
  * die Trainingslehre: Volumen wirkt über die Zeit, in der es anfällt. Was drei
  * Wochen später nachgeholt wird, ist kein Ausgleich, sondern eine zusätzliche
  * Belastung zur Unzeit – und ein Rückstand, der über Wochen mitwächst, führt zu
- * Einheiten, die niemand mehr schafft. Wer chronisch nicht fertig wird,
- * bekommt deshalb keinen Berg, sondern einen kleineren Plan: siehe
- * pruefeAbstieg().
+ * Einheiten, die niemand mehr schafft.
  *
  * **Gedeckelt.** Höchstens ein Satz je Übung und drei je Einheit. Eine Einheit
  * soll wiedererkennbar bleiben, und mehr als das wäre auch nicht mehr die
@@ -229,6 +227,13 @@ function exBasis(w, mode) {
  * **Ohne Aufschaukeln.** Gemessen wird gegen den Plan *ohne* Nacharbeit
  * (exBasis). Wer die nachgetragenen Sätze auch liegen lässt, bekommt sie nicht
  * ein zweites Mal obendrauf.
+ *
+ * **Nur nach oben.** Hier stand einmal auch die Gegenrichtung: Wer über Wochen
+ * nur einen Teil schafft, dem hätte die App die Einheiten von selbst gekürzt.
+ * Das ist wieder raus, auf ausdrücklichen Wunsch – die Erfahrungsstufe gehört
+ * dem Nutzer, und eine App, die sie ungefragt senkt, nimmt ihm eine
+ * Entscheidung ab, um die er nicht gebeten hat. Wer kürzere Einheiten will,
+ * stellt die Stufe unter *Mehr → Erfahrung* selbst um.
  * ------------------------------------------------------------------ */
 // Vier Einheiten sind eine Woche. Steht bewusst hier oben und nicht bei der
 // Wochenauswertung, wo es hingehört: Das `ui`-Objekt ruft defaultWorkoutNo()
@@ -333,6 +338,11 @@ function nacharbeit(w, m) {
     });
   }
   return extra.size ? extra : null;
+}
+
+/** Wie viele Sätze einer Einheit aus der Nacharbeit stammen. */
+function nachSumme(items) {
+  return items.reduce((a, it) => a + (it.nach || 0), 0);
 }
 
 /**
@@ -525,31 +535,6 @@ const AUFSTIEGE = [
   { von: 'anfaenger', nach: 'geuebt', einheiten: 60, saetze: 700, tonnen: 30 },
   { von: 'geuebt', nach: 'fortgeschritten', einheiten: 200, saetze: 3400, tonnen: 200 },
 ];
-
-/* Und die Gegenrichtung.
- *
- * Der Aufstieg hatte lange kein Gegenstück, und das war eine Behauptung: dass
- * der Plan schon passt und nur der Mensch noch hineinwachsen muss. Wer Woche
- * für Woche nach zwei Dritteln aufhört, dem sagt das nichts über seine
- * Disziplin – dem ist die Einheit zu groß. Eine Vorgabe, die nie erfüllt wird,
- * ist keine Vorgabe mehr, sondern eine tägliche Niederlage.
- *
- * Gemessen wird über die letzten `LETZTE` abgeschlossenen Einheiten, gegen die
- * Plan-Satzzahl *ohne* Nacharbeit: Was die App selbst obendrauf gelegt hat,
- * darf niemandem als Versäumnis angerechnet werden.
- *
- * Die Schwelle ist bewusst tief. Zwei Drittel einer Einheit ist kein
- * schlechtes Training, das ist ein normaler Tag mit wenig Zeit; erst wer
- * dauerhaft darunter bleibt, trainiert nach einem Plan, der ihm nicht gehört.
- * Sechs Einheiten sind bei vier pro Woche rund anderthalb Wochen – lang genug,
- * dass eine einzelne kurze Woche nichts auslöst.
- */
-const ABSTIEGE = [
-  { von: 'fortgeschritten', nach: 'geuebt' },
-  { von: 'geuebt', nach: 'anfaenger' },
-];
-const ABSTIEG_LETZTE = 6;
-const ABSTIEG_ANTEIL = 0.7;
 
 /** Der nächste Schritt, wenn es einen gibt und er noch nicht dran war. */
 function offenerAufstieg() {
@@ -747,108 +732,6 @@ function pruefeAufstieg() {
   });
   store.setSetting('level', schritt.nach);
   return true;
-}
-
-/**
- * Wie viel der letzten Einheiten tatsächlich abgehakt wurde.
- *
- * Gibt `null` zurück, solange es nicht genug abgeschlossene Einheiten gibt –
- * aus zwei Trainings lässt sich nichts ableiten. Gemessen wird gegen exBasis(),
- * also gegen den Plan ohne Nacharbeit: Was die App selbst obendrauf gelegt hat,
- * darf niemandem als Versäumnis angerechnet werden.
- */
-function letzteQuote() {
-  const log = store.getState().log;
-  const fertig = PLAN.filter((w) => fertigOhneNacharbeit(w.n)).slice(-ABSTIEG_LETZTE);
-  if (fertig.length < ABSTIEG_LETZTE) return null;
-  let soll = 0;
-  let ist = 0;
-  fertig.forEach((w) => {
-    const m = fertigOhneNacharbeit(w.n);
-    const eintrag = (log[w.n] || {})[m] || {};
-    exBasis(w, m).forEach((it) => {
-      const arr = eintrag[it.id];
-      soll += it.sets;
-      ist += Array.isArray(arr) ? arr.slice(0, it.sets).filter((s) => s.done).length : 0;
-    });
-  });
-  return soll ? { quote: ist / soll, einheiten: fertig.length, soll, ist } : null;
-}
-
-/** Wie viele Sätze einer Einheit aus der Nacharbeit stammen. */
-function nachSumme(items) {
-  return items.reduce((a, it) => a + (it.nach || 0), 0);
-}
-
-/** Der nächste Schritt nach unten, wenn es einen gibt und er noch nicht dran war. */
-function offenerAbstieg() {
-  const s = store.getState();
-  const schritt = ABSTIEGE.find((a) => a.von === (s.level || 'geuebt'));
-  if (!schritt) return null;
-  return (s.abstiege || []).includes(schritt.nach) ? null : schritt;
-}
-
-/**
- * Prüfen und gegebenenfalls herunterstufen. Gibt zurück, ob etwas passiert ist.
- *
- * Läuft **vor** pruefeAufstieg(): Was jemand in den letzten anderthalb Wochen
- * wirklich geschafft hat, sagt mehr über die richtige Einheitengröße als die
- * Summe seines bisherigen Trainings. Wer beides zugleich erfüllt – viel
- * trainiert, zuletzt wenig geschafft – gehört nach unten, nicht nach oben.
- *
- * Der Gegenschritt wandert dabei in `aufstiege`. Ohne das ginge es sofort
- * wieder hoch: Die Aufstiegsschwellen zählen über *alles* Trainierte und sind
- * für jemanden mit Vorgeschichte längst überschritten. Die beiden Regeln
- * würden sich bei jedem Laden gegenseitig überschreiben.
- */
-function pruefeAbstieg() {
-  const schritt = offenerAbstieg();
-  if (!schritt) return false;
-  const q = letzteQuote();
-  if (!q || q.quote >= ABSTIEG_ANTEIL) return false;
-
-  const s = store.getState();
-  store.setSetting('abstiege', [...(s.abstiege || []), schritt.nach]);
-  // Den Gegenschritt gleich mit abhaken – sonst stuft pruefeAufstieg() sofort
-  // zurück, und der Nutzer sieht bei jedem Laden zwei Meldungen.
-  const gegen = AUFSTIEGE.find((a) => a.von === schritt.nach);
-  if (gegen && !(s.aufstiege || []).includes(gegen.nach)) {
-    store.setSetting('aufstiege', [...(s.aufstiege || []), gegen.nach]);
-  }
-  store.setSetting('abstieg', {
-    von: schritt.von,
-    nach: schritt.nach,
-    am: todayISO(),
-    einheiten: q.einheiten,
-    prozent: Math.round(q.quote * 100),
-  });
-  store.setSetting('level', schritt.nach);
-  return true;
-}
-
-/** Der Hinweis dazu – eine Ansage, kein Vorwurf. */
-function abstiegHinweis() {
-  const a = store.getState().abstieg;
-  if (!a) return '';
-  const name = (k) => (LEVELS.find(([key]) => key === k) || [])[1] || k;
-  const vorher = SAETZE_JE_STUFE[a.von] || 3;
-  const jetzt = SAETZE_JE_STUFE[a.nach] || 3;
-  return `
-    <div class="notice aufstieg" style="margin:0 0 12px">
-      <strong>Der Plan war zu groß</strong>
-      <div class="small" style="margin-top:6px">
-        Von den letzten ${a.einheiten} Einheiten hast du im Schnitt ${a.prozent} % abgehakt.
-        Das ist keine Frage der Disziplin, sondern eine der Dosis: Ab jetzt stehen
-        ${jetzt} statt ${vorher} Sätze je Übung im Plan. Übungen, Pausen und die Verteilung
-        über die Woche bleiben, wie sie sind – und deine eingetragenen Gewichte auch.
-        Eine Einheit, die du zu Ende machst, ist mehr wert als eine, die du abbrichst.
-      </div>
-      <div class="btn-row nav" style="margin-top:10px">
-        <button type="button" class="btn btn-primary" data-act="abstieg-ok">Passt</button>
-        <button type="button" class="btn btn-ghost" data-act="abstieg-zurueck">
-          Bei ${esc(name(a.von))} bleiben</button>
-      </div>
-    </div>`;
 }
 
 /** Der Hinweis auf dem Dashboard, bis er weggetippt wird. */
@@ -1860,7 +1743,6 @@ function renderOverview() {
   view.innerHTML = `
     <section class="ov">
       ${umzugHinweis()}
-      ${abstiegHinweis()}
       ${aufstiegHinweis()}
       ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
         Eintragungen gehen beim Neuladen verloren.</div>`}
@@ -2374,7 +2256,6 @@ function renderDashboard() {
   const parts = [];
 
   parts.push(umzugHinweis());
-  parts.push(abstiegHinweis());
   parts.push(aufstiegHinweis());
 
   if (!store.canPersist()) {
@@ -4740,12 +4621,9 @@ view.addEventListener('click', (e) => {
       sound(prog.complete ? 'done' : 'stop');
       // Erst nach markDone: Die Einheit, die gerade fertig geworden ist, soll
       // mitzählen. Sonst käme der Aufstieg immer eine Einheit zu spät.
-      // Abstieg zuerst – siehe pruefeAbstieg().
-      const gefallen = pruefeAbstieg();
-      const gestiegen = !gefallen && pruefeAufstieg();
+      const gestiegen = pruefeAufstieg();
       render();
-      if (gefallen) toast('Plan angepasst – siehe oben');
-      else if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
+      if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
       else toast(prog.complete
         ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
         : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
@@ -5132,21 +5010,6 @@ view.addEventListener('click', (e) => {
       store.setSetting('aufstieg', null);
       render();
       break;
-    case 'abstieg-ok':
-      store.setSetting('abstieg', null);
-      render();
-      break;
-    case 'abstieg-zurueck': {
-      const a = store.getState().abstieg;
-      // Der Schritt bleibt in `abstiege` stehen: Wer die größere Einheit
-      // behalten will, soll nicht nach der nächsten kurzen Woche dieselbe
-      // Meldung wieder bekommen.
-      if (a) store.setSetting('level', a.von);
-      store.setSetting('abstieg', null);
-      render();
-      toast('Bleibt, wie es war');
-      break;
-    }
     case 'umzug-ok':
       store.setSetting('fokusUmzug', null);
       render();
@@ -5443,9 +5306,7 @@ if (fokusUmzug()) {
 // *neuen* gegenüber, und dagegen gerechnet findet sammleStats() so gut wie
 // nichts. Erst nachdem der Umzug die Runde samt Bilanz abgelegt hat, steht dem
 // Aufstieg die richtige Zahl gegenüber.
-// Der Abstieg zuerst: Was jemand zuletzt wirklich geschafft hat, sagt mehr über
-// die richtige Einheitengröße als die Summe seines bisherigen Trainings.
-if (pruefeAbstieg() || pruefeAufstieg()) {
+if (pruefeAufstieg()) {
   ui.tab = 'dashboard';
   ui.focus = false;
 }

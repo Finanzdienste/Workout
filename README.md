@@ -2502,10 +2502,6 @@ auch mit halb offener Liste –, und der Plan ging weiter, als wäre nichts
 gewesen. Das Wochenziel je Muskelgruppe, auf das dieser Plan exakt gerechnet
 ist, stimmte danach nicht mehr, und niemand erfuhr davon.
 
-Die Antwort darauf zeigt in **zwei Richtungen**, und das ist kein Widerspruch,
-sondern die Unterscheidung, an der alles hängt: *einmal keine Zeit gehabt* ist
-etwas anderes als *der Plan ist zu groß*.
-
 **Nacharbeit — innerhalb derselben Woche.** Was liegen bleibt, kommt auf die
 nächsten Einheiten derselben Woche. Verteilt wird gierig: immer der Satz, der
 vom Rückstand am meisten wegnimmt, wobei eine Übung mit ihren Anteilen zählt –
@@ -2522,29 +2518,18 @@ Drei Grenzen, jede aus einem Grund:
 Nur an **offenen** Einheiten. Einer abgeschlossenen nachträglich Sätze
 hinzuzufügen hieße, sie rückwirkend für unfertig zu erklären.
 
-**Abstieg — wenn es chronisch klemmt.** Der Aufstieg hatte lange kein
-Gegenstück, und das war eine Behauptung: dass der Plan schon passt und nur der
-Mensch noch hineinwachsen muss. Wer Woche für Woche nach zwei Dritteln aufhört,
-dem sagt das nichts über seine Disziplin – dem ist die Einheit zu groß. Liegt
-der Anteil abgehakter Sätze über die letzten **sechs** abgeschlossenen
-Einheiten unter **70 %**, geht die Erfahrungsstufe eine Stufe herunter: weniger
-Sätze je Übung, gleiche Übungen, gleiche Pausen. Mit Hinweis und
-Zurück-Knopf, wie beim Aufstieg.
+**Nur nach oben.** Hier stand einmal die Gegenrichtung: Wer über mehrere
+Einheiten hinweg nur einen Teil schafft, dem hätte die App die Erfahrungsstufe
+gesenkt und damit die Einheiten gekürzt. Das ist wieder raus, auf ausdrücklichen
+Wunsch — und das Argument dagegen ist besser als meines dafür war: **Die
+Erfahrungsstufe gehört dem Nutzer.** Eine App, die sie ungefragt senkt, nimmt
+ihm eine Entscheidung ab, um die er nicht gebeten hat, und begründet sie
+ausgerechnet mit seinen schwächsten Wochen. Wer kürzere Einheiten will, stellt
+die Stufe unter *Mehr → Erfahrung* selbst um; dort steht sie schon immer.
 
-Sechs Einheiten sind bei vier pro Woche rund anderthalb Wochen – lang genug,
-dass eine einzelne kurze Woche nichts auslöst. Und zwei Drittel einer Einheit
-sind kein schlechtes Training, sondern ein normaler Tag mit wenig Zeit; erst
-wer dauerhaft darunter bleibt, trainiert nach einem Plan, der ihm nicht gehört.
-
-Zwei Feinheiten, ohne die es sich selbst zerlegt:
-
-* **Der Gegenschritt wandert mit in `aufstiege`.** Sonst ginge es sofort wieder
-  hoch: Die Aufstiegsschwellen zählen über *alles* Trainierte und sind für
-  jemanden mit Vorgeschichte längst überschritten. Die beiden Regeln würden
-  sich bei jedem Laden gegenseitig überschreiben.
-* **Der Abstieg wird zuerst geprüft.** Was jemand in den letzten anderthalb
-  Wochen wirklich geschafft hat, sagt mehr über die richtige Einheitengröße als
-  die Summe seines bisherigen Trainings.
+Was bleibt, ist die Zusage in der anderen Richtung: Der Plan wird nie hinter dem
+Rücken kleiner. `tests/test-nacharbeit.mjs` hält das mit einer eigenen Prüfung
+fest — sechs angebrochene Einheiten ändern die Stufe nicht.
 
 Gemessen wird gegen `exBasis()` – den Plan *ohne* Nacharbeit. Was die App
 selbst obendrauf gelegt hat, darf niemandem als Versäumnis angerechnet werden.
@@ -2560,10 +2545,9 @@ noch nicht initialisiert – und das zeigte sich erst, sobald ein Protokoll da
 war, weil `completedMode()` ohne Protokoll vorher aussteigt. Elf Testdateien
 fielen gleichzeitig um, die Ursache war eine Zeile Reihenfolge.
 
-`tests/test-nacharbeit.mjs` prüft beide Hälften mit 23 Prüfungen, darunter die
+`tests/test-nacharbeit.mjs` prüft das mit 14 Prüfungen, darunter die
 wichtigste: dass **nichts** passiert, wenn alles normal läuft. Gegengeprüft –
-nimmt man die Nacharbeit heraus, fallen drei Prüfungen um; nimmt man den
-Abstieg heraus, drei andere.
+nimmt man die Nacharbeit heraus, fallen drei Prüfungen um.
 
 ### Jede Übung muss einen Weg nach unten nennen
 
