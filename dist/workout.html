@@ -6080,6 +6080,161 @@ export async function adminListe(passwort) {
   return daten;
 }
 
+/* ===== js/ics.js ===== */
+/*
+ * Trainingstermine als Kalenderdatei (iCalendar/.ics).
+ *
+ * Warum eine Datei und keine Anbindung: Die App kennt keine Konten, spricht mit
+ * keinem Server und läuft offline. Direkt in einen Google-Kalender zu schreiben
+ * hieße OAuth, ein Google-Cloud-Projekt und eine Netzverbindung – drei Dinge,
+ * die diese App bewusst nicht hat.
+ *
+ * Was die Datei dafür kann: Sie bringt den Kalender jedes Mal auf denselben
+ * Stand wie den Plan. Termine, die es nicht mehr gibt, kommen als STATUS:
+ * CANCELLED mit – der Kalender räumt sie damit selbst weg, statt sie neben den
+ * neuen stehen zu lassen.
+ *
+ * Der wichtige Teil steckt in der UID: Jeder Termin trägt eine feste Kennung
+ * aus seiner Workout-Nummer. Wird der Plan verschoben und die Datei neu
+ * eingelesen, erkennt der Kalender dieselben Termine wieder und *verschiebt*
+ * sie, statt achtzig neue anzulegen. Damit das Aktualisieren greift, zählt
+ * SEQUENCE bei jedem Export hoch – ältere Fassungen gewinnen sonst.
+ *
+ * Die Uhrzeit steht ohne Zeitzone da ("floating"): 18:00 heißt 18:00 in der
+ * Zeitzone des Kalenders, egal ob Sommer- oder Winterzeit. Mit fester Zeitzone
+ * müsste hier eine VTIMEZONE-Tabelle mitgeschleppt werden, die zur nächsten
+ * Zeitumstellung falsch wäre.
+ */
+
+const NL = '\r\n';
+
+/* Text für iCalendar entschärfen: Trennzeichen und Zeilenumbrüche.
+ *
+ * Heißt nicht esc(): So heißt in js/text.js das Entschärfen für HTML, und im
+ * Bündel (dist/workout.html) teilen sich alle Module einen Gültigkeitsbereich.
+ * Zwei gleichnamige, verschiedene Funktionen gehen dort nicht – und genau
+ * daran ist diese Datei nie ins Bündel aufgenommen worden. */
+function escIcs(text) {
+  return String(text)
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
+}
+
+/**
+ * Zeilen auf 75 Zeichen umbrechen, Fortsetzung mit einem Leerzeichen.
+ *
+ * Der Standard verlangt das, und manche Kalender verschlucken sonst den Rest
+ * der Zeile – die Übungsliste ist schnell länger.
+ */
+function fold(line) {
+  if (line.length <= 75) return line;
+  const teile = [line.slice(0, 75)];
+  let rest = line.slice(75);
+  while (rest.length > 74) {
+    teile.push(` ${rest.slice(0, 74)}`);
+    rest = rest.slice(74);
+  }
+  if (rest) teile.push(` ${rest}`);
+  return teile.join(NL);
+}
+
+/** 2026-08-24 + 18:00 -> 20260824T180000 (ohne Zeitzone, siehe oben). */
+function stamp(iso, minutes) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const t = new Date(y, m - 1, d, 0, minutes);
+  return `${t.getFullYear()}${pad(t.getMonth() + 1)}${pad(t.getDate())}`
+       + `T${pad(t.getHours())}${pad(t.getMinutes())}00`;
+}
+
+/** Jetzt, in UTC – für DTSTAMP, das ist Pflicht und keine Anzeige. */
+function nowUTC() {
+  const d = new Date();
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`
+       + `T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+}
+
+/**
+ * Geschätzte Dauer einer Einheit in Minuten.
+ *
+ * Arbeit knapp eine Dreiviertelminute je Satz, dazu die Pausen *zwischen* den
+ * Sätzen – nach dem letzten läuft keine – und etwas Umbauzeit je Übung. Auf
+ * fünf Minuten aufgerundet: der Kalender soll den Abend grob abstecken, nicht
+ * Sekunden versprechen.
+ */
+function duration(items) {
+  const secs = items.reduce((a, it) => a + it.sets * 45 + (it.sets - 1) * (it.rest || 90) + 45, 0);
+  return Math.max(30, Math.ceil(secs / 60 / 5) * 5);
+}
+
+/**
+ * Kalenderdatei für den ganzen Plan.
+ *
+ * `plan` sind die Einheiten mit ihren *tatsächlichen* Terminen (also nach
+ * Verschiebung), `resolve` liefert je Eintrag Name, Sätze, Wiederholungen und
+ * Pause in der Variante, in der trainiert wird.
+ */
+function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout', cancel = [] } = {}) {
+  const zeilen = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Workout//Trainingsplan//DE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${escIcs(name)}`,
+  ];
+  const jetzt = nowUTC();
+
+  plan.forEach((w) => {
+    const items = resolve(w);
+    if (!items.length) return;          // ein leerer Tag ist kein Termin
+    const dauer = duration(items);
+    const liste = items.map((it) => `• ${it.sets} × ${it.reps} ${it.name}`).join('\n');
+    const saetze = items.reduce((a, it) => a + it.sets, 0);
+    zeilen.push(
+      'BEGIN:VEVENT',
+      // Feste Kennung je Workout: dieselbe Datei später erneut eingelesen
+      // verschiebt die Termine, statt sie zu verdoppeln. Der Teil hinter dem @
+      // muss nur eindeutig sein und kein echter Rechner – hier steht deshalb
+      // nichts, was irgendwohin zeigt.
+      `UID:workout-${w.n}@workout.local`,
+      `DTSTAMP:${jetzt}`,
+      `SEQUENCE:${seq}`,
+      `DTSTART:${stamp(w.date, hour * 60)}`,
+      `DTEND:${stamp(w.date, hour * 60 + dauer)}`,
+      fold(`SUMMARY:${escIcs(`Workout ${w.n} · ${items.length} Übungen · ${saetze} Sätze`)}`),
+      fold(`DESCRIPTION:${escIcs(liste)}`),
+      'END:VEVENT',
+    );
+  });
+
+  // Termine, die es nicht mehr gibt: abgesagt statt stehen gelassen.
+  //
+  // Der Fall kommt vor, sobald sich der Plan selbst ändert – ein anderer
+  // Trainingsfokus hat womöglich weniger Einheiten, und ein Tag, an dem
+  // Verletzungen jede Übung sperren, hat gar keinen Termin mehr. Ohne diesen
+  // Teil blieben die alten Einträge für immer im Kalender stehen, während die
+  // neuen daneben auftauchen.
+  cancel.forEach((n) => {
+    zeilen.push(
+      'BEGIN:VEVENT',
+      `UID:workout-${n}@workout.local`,
+      `DTSTAMP:${jetzt}`,
+      `SEQUENCE:${seq}`,
+      'STATUS:CANCELLED',
+      // DTSTART muss dabeistehen, auch wenn der Termin verschwindet: ein VEVENT
+      // ohne Beginn lehnen manche Kalender als fehlerhaft ab.
+      `DTSTART:${stamp('1970-01-01', hour * 60)}`,
+      fold(`SUMMARY:${escIcs(`Workout ${n} – entfällt`)}`),
+      'END:VEVENT',
+    );
+  });
+
+  zeilen.push('END:VCALENDAR');
+  return zeilen.join(NL) + NL;
+}
+
 /* ===== js/store.js ===== */
 const KEY = 'workout.state.v1';
 
@@ -6822,28 +6977,461 @@ function resetAll() {
 
 const store = { addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, flush, getSets, getState, importJSON, isStarted, markBackup, markDone, markIcs, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, weightOf, workoutMode };
 
-/* ===== js/app.js ===== */
-/* ------------------------------------------------------------------ *
- * Hilfsfunktionen
- * ------------------------------------------------------------------ */
-
-/* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
- * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
- * überall dasselbe. Der Wechsel lädt die Seite neu, siehe 'set-focus'. */
-
-const EX_BY_ID = new Map(EXERCISES.map((e) => [e.id, e]));
-const view = document.getElementById('view');
-const tabbar = document.getElementById('tabbar');
-const modeSwitch = document.getElementById('modeSwitch');
-const toastEl = document.getElementById('toast');
-
-const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
+/* ===== js/text.js ===== */
+/*
+ * Text und Zahlen fürs Auge.
+ *
+ * Zwei Funktionen, die überall gebraucht werden und von nichts abhängen –
+ * deshalb stehen sie ganz unten im Stapel: Jedes andere Modul darf sie
+ * benutzen, sie selbst dürfen nichts.
+ */
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
 }
+
+/** Zahl in deutscher Schreibweise, ohne unnötige Null hinter dem Komma.
+ *
+ * Zwei Nachkommastellen, nicht eine: seit die Gewichtsschritte je Übung gehen,
+ * gibt es 1,25-kg-Sprünge, und 21,25 kg als "21,3" anzuzeigen wäre schlicht
+ * falsch – die Zahl steht am Knopf, nach dem man greift.
+ */
+function fmtNum(n) {
+  return Number.isInteger(n) ? String(n) : String(+n.toFixed(2)).replace('.', ',');
+}
+
+/* ===== js/uebung.js ===== */
+/*
+ * Die einzelne Übung: nachschlagen, Wiederholungen lesen, Muskeln zuordnen.
+ *
+ * Was hier steht, kennt den Übungskatalog aus js/data.js und – für die
+ * Wiederholungen – die Erfahrungsstufe. Den Plan kennt es nicht: keine
+ * Termine, keine Einheiten, kein Protokoll.
+ */
+
+
+const EX_BY_ID = new Map(EXERCISES.map((e) => [e.id, e]));
+
+/** Muskelgruppen, für die eine Übung da ist – dieselbe Schwelle wie im Plan. */
+function directOf(exId) {
+  const ex = EX_BY_ID.get(exId);
+  if (!ex) return [];
+  return Object.entries(ex.db.shares).filter(([, v]) => v >= REST.direct).map(([m]) => m);
+}
+
+const directSets = (items) => new Set(items.flatMap((it) => directOf(it.id)));
+
+/** Untere Grenze eines Wiederholungsbereichs, z. B. "8–12" -> 8. */
+function plannedReps(reps) {
+  const m = String(reps).match(/\d+/);
+  return m ? Number(m[0]) : 0;
+}
+
+/**
+ * Wiederholungen und Pause, auf die Erfahrungsstufe umgerechnet.
+ *
+ * Bei fast jeder Übung braucht es das nicht: Der Anfänger nimmt die Hälfte des
+ * Gewichts und trifft damit denselben Wiederholungsbereich. Klimmzüge kennen
+ * diesen Hebel nicht – dort *ist* das Körpergewicht die Last. Wer eine
+ * Wiederholung schafft, bekommt eine Vorgabe von 5–10 und kann sie nicht
+ * erfüllen; die Zahl wird damit von einer Ansage zu einem Vorwurf.
+ *
+ * Die Ausnahmen stehen als `stufen` an der Übung selbst (siehe
+ * tools/exercise-meta.json), damit hier keine Übungsnamen im Code stehen.
+ */
+function stufenWerte(v) {
+  const s = (v.stufen || {})[store.getState().level || 'geuebt'];
+  return { reps: (s && s.reps) || v.reps, rest: (s && s.rest) || v.rest };
+}
+
+/* ===== js/stufen.js ===== */
+/*
+ * Erfahrungsstufen: Startgewichte, Sätze je Übung und der Aufstieg.
+ *
+ * Die Stufe entscheidet zwei Dinge – wie schwer eine Übung startet und wie
+ * viele Sätze sie bekommt. Beides wird an genug Stellen gebraucht, dass es
+ * einen eigenen Ort verdient.
+ */
+
+
+
+
+/* ------------------------------------------------------------------ *
+ * Erfahrung
+ *
+ * Die Startgewichte in tools/exercise-meta.json sind die eines Menschen, der
+ * seit einer Weile trainiert: 40 kg Floor Press, 20 kg Goblet Squat. Für jemand
+ * anderen, der den Link bekommt, ist das entweder zu viel oder zu wenig – und
+ * beides führt zum selben Ergebnis, nämlich dass die erste Einheit nichts taugt.
+ *
+ * Die Erfahrung skaliert deshalb die Startwerte, gerundet auf die Schrittweite
+ * der jeweiligen Übung. Mehr nicht: Der Plan selbst, die Sätze, die Pausen und
+ * die Erholungsregel sind für Anfänger dieselben wie für alle anderen – daran
+ * ist nichts anfängerspezifisch. Und sobald jemand ein Gewicht selbst einstellt,
+ * gilt seins; die Erfahrung ist ein Startpunkt, keine Obergrenze.
+ * ------------------------------------------------------------------ */
+
+const LEVELS = [
+  ['anfaenger', 'Anfänger', 'Neu im Krafttraining oder lange raus. Startgewichte auf der '
+    + 'Hälfte und zwei Sätze je Übung statt drei: Wer neu anfängt, wächst schon bei wenig '
+    + 'Volumen – die ersten Wochen entscheidet die Technik, nicht die Scheibe.', 0.5],
+  ['geuebt', 'Geübt', 'Du weißt, wie sich ein sauberer Satz anfühlt, und trainierst schon '
+    + 'eine Weile. Startgewichte und drei Sätze je Übung passen so.', 1],
+  ['fortgeschritten', 'Fortgeschritten', 'Jahre im Training, die Technik sitzt. Startgewichte '
+    + 'um die Hälfte höher und vier Sätze je Übung – dein Reiz liegt weiter oben.', 1.5],
+];
+
+/** Zwei Beispiele, damit die Wahl nicht abstrakt bleibt. */
+function levelBeispiel(faktor, key) {
+  const zeig = ['floor-press', 'goblet-squat']
+    .map((id) => EX_BY_ID.get(id))
+    .filter((ex) => ex && ex.weight)
+    .map((ex) => {
+      const step = ex.step || 2.5;
+      const kg = faktor === 1 ? ex.weight
+        : Math.max(step, Math.round((ex.weight * faktor) / step) * step);
+      return `${ex.db.name} ${fmtNum(kg)} kg`;
+    });
+  // Die Satzzahl gehört dazu: Sie ist seit Neuestem der größere Unterschied
+  // zwischen den Stufen – die Gewichte stellt man sich ohnehin selbst ein.
+  const saetze = SAETZE_JE_STUFE[key] || 3;
+  return `${plural(saetze, 'Satz', 'Sätze')} je Übung · ${zeig.join(' · ')}`;
+}
+
+const levelFaktor = () => {
+  const eintrag = LEVELS.find(([key]) => key === (store.getState().level || 'geuebt'));
+  return eintrag ? eintrag[3] : 1;
+};
+
+/**
+ * Sätze je Übung nach Erfahrung.
+ *
+ * Die Stufe skalierte lange nur die Startgewichte. Dabei ist das *Volumen* die
+ * Größe, die sich zwischen Anfänger und Fortgeschrittenem am deutlichsten
+ * unterscheidet: Wer neu anfängt, wächst schon bei drei bis fünf Sätzen je
+ * Muskel und Woche fast maximal – die Dosis-Wirkungs-Kurve ist dort oben flach.
+ * Mehr bringt kaum etwas und kostet das, woran es bei Anfängern wirklich hängt:
+ * saubere Technik in den letzten Sätzen, erträglicher Muskelkater, und eine
+ * Einheit, die man ein halbes Jahr lang durchhält.
+ *
+ * Skaliert wird **gleichmäßig über alle Übungen**. Das ist der Grund, warum es
+ * die exakte Rechnung des Generators nicht kaputt macht: Bekommt jede Übung
+ * zwei Drittel ihrer Sätze, bekommt auch jede Muskelgruppe exakt zwei Drittel
+ * ihres Ziels. Die Verteilung bleibt dieselbe, nur die Höhe ändert sich – und
+ * targetOf() rechnet mit demselben Faktor, damit "Soll gegen Ist" weiter stimmt.
+ *
+ * Eigene Workouts bleiben außen vor: Was jemand selbst zusammenstellt, hat er
+ * so gemeint (siehe exOf()).
+ */
+const SAETZE_JE_STUFE = { anfaenger: 2, geuebt: 3, fortgeschritten: 4 };
+
+const satzFaktor = () => (SAETZE_JE_STUFE[store.getState().level || 'geuebt'] || 3) / 3;
+
+const satzZahl = (n) => Math.max(1, Math.round(n * satzFaktor()));
+
+/* ------------------------------------------------------------------ *
+ * Aufsteigen, ohne daran zu denken
+ *
+ * Die Stufe war bisher eine Einstellung, die man einmal trifft und dann
+ * vergisst – und genau das ist der Fehler. Wer als Anfänger anfängt und ein
+ * Jahr durchhält, trainiert danach immer noch auf zwei Sätzen je Übung, weil
+ * ihm niemand gesagt hat, dass die Zahl inzwischen zu klein ist. Die App weiß
+ * es aber: Sie zählt mit.
+ *
+ * **Woran gemessen wird.** An drei Dingen zusammen, denn jedes einzelne lässt
+ * sich zu leicht erfüllen:
+ *
+ *   Einheiten   Erfahrung ist vor allem Zeit unter der Hantel. 60 Einheiten
+ *               sind bei vier pro Woche rund ein Vierteljahr.
+ *   Sätze       Damit halbe Einheiten nicht so viel zählen wie ganze.
+ *   Tonnage     Kilo mal Wiederholungen, aufsummiert. Das ist der Teil, der
+ *               *Fortschritt* misst statt nur Anwesenheit: Wer schwerer wird,
+ *               kommt schneller ans Ziel.
+ *
+ * Die Tonnage gilt nur für den, der mit Gewichten trainiert. Im
+ * Bodyweight-Modus gibt es keine Kilo zu zählen, und jemanden deswegen ewig auf
+ * Anfänger stehen zu lassen, wäre eine Strafe für die Wahl der Variante.
+ *
+ * **Was dann passiert.** Die Stufe wird umgestellt – das ist der Punkt, der
+ * Arbeit spart – und ein Hinweis sagt, was sich dadurch ändert, mit einem
+ * Knopf zum Zurückstellen daneben. Jeder Schritt kommt genau einmal: Wer
+ * zurückstellt, bleibt unten, bis er selbst etwas anderes will.
+ * ------------------------------------------------------------------ */
+const AUFSTIEGE = [
+  { von: 'anfaenger', nach: 'geuebt', einheiten: 60, saetze: 700, tonnen: 30 },
+  { von: 'geuebt', nach: 'fortgeschritten', einheiten: 200, saetze: 3400, tonnen: 200 },
+];
+
+/** Der nächste Schritt, wenn es einen gibt und er noch nicht dran war. */
+function offenerAufstieg() {
+  const s = store.getState();
+  const schritt = AUFSTIEGE.find((a) => a.von === (s.level || 'geuebt'));
+  if (!schritt) return null;
+  return (s.aufstiege || []).includes(schritt.nach) ? null : schritt;
+}
+
+/* ===== js/gewichte.js ===== */
+/*
+ * Arbeitsgewichte und die Reihenfolge, in der umgebaut wird.
+ *
+ * Beides gehört zusammen: Die Reihenfolge innerhalb einer Einheit richtet
+ * sich nach Gerät und Gewicht, und dafür muss man die aktuellen
+ * Arbeitsgewichte kennen.
+ */
+
+
+
+
+/** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
+function startWeight(ex) {
+  if (ex.weight === null) return null;
+  const f = levelFaktor();
+  // 0 kg heißt "ohne Zusatzlast" (Klimmzüge) – das bleibt 0, egal wer trainiert.
+  if (!ex.weight || f === 1) return ex.weight;
+  const step = ex.step || 2.5;
+  return Math.max(step, Math.round((ex.weight * f) / step) * step);
+}
+
+/** Gewicht, mit dem diese Übung heute gearbeitet wird. */
+function workingWeight(exId) {
+  const ex = EX_BY_ID.get(exId);
+  if (ex.weight === null) return null;
+  const own = store.weightOf(exId);
+  return own === null ? startWeight(ex) : own;
+}
+
+/**
+ * Womit die schon abgehakten Sätze gemacht wurden, wenn es abweicht.
+ *
+ * Jeder Satz merkt sich sein eigenes Gewicht, sobald er abgehakt wird. Das ist
+ * der Grund, warum sich mitten im Training umentscheiden lässt: Wer nach dem
+ * ersten Satz merkt, dass 40 kg zu viel sind, stellt auf 35 und macht die
+ * restlichen Sätze damit. Die schon abgehakten bleiben, wie sie waren – nichts
+ * wird rückwirkend umgeschrieben.
+ *
+ * Früher stand deshalb das *zuerst* benutzte Gewicht groß in der Zeile und jede
+ * Änderung galt "nächstes Mal". Das war beim Erhöhen richtig und beim Senken
+ * falsch: Man senkt es ja gerade, weil der nächste Satz jetzt dran ist. Jetzt
+ * steht dort das Gewicht für den nächsten Satz, und diese Zeile sagt, womit die
+ * bisherigen gemacht wurden.
+ */
+function doneWeightNote(n, mode, exId) {
+  const arr = store.peekSets(n, mode, exId) || [];
+  const jetzt = workingWeight(exId);
+  const andere = [];
+  arr.forEach((x, i) => {
+    if (!x.done || x.w === '') return;
+    const kg = parseFloat(String(x.w).replace(',', '.'));
+    if (Number.isNaN(kg) || Math.abs(kg - jetzt) < 0.01) return;
+    andere.push({ i: i + 1, kg });
+  });
+  if (!andere.length) return '';
+  const gruppen = new Map();
+  andere.forEach(({ i, kg }) => gruppen.set(kg, (gruppen.get(kg) || []).concat(i)));
+  return [...gruppen.entries()]
+    .map(([kg, saetze]) => `Satz ${saetze.join(', ')} mit ${fmtNum(kg)} kg`)
+    .join(' · ');
+}
+
+/* ------------------------------------------------------------------ *
+ * Rüstzeit: Reihenfolge nach Gerät und Gewicht
+ *
+ * Zwischen zwei Übungen steht oft nicht die Pause, sondern der Umbau: Scheiben
+ * abziehen, andere aufstecken, Verschlüsse zu. Das ist die Zeit, die eine
+ * Einheit in der Wohnung wirklich lang macht, und sie steht in keinem Plan.
+ *
+ * Die Reihenfolge innerhalb einer Einheit ist dafür der ganze Hebel. Welche
+ * Übungen an einem Tag stehen, entscheidet tools/build-plan.py nach dem
+ * Wochenvolumen – daran wird hier nichts geändert. Aber ob die beiden
+ * Langhantel-Übungen hintereinander kommen oder eine Kurzhantelübung dazwischen
+ * liegt, kostet einen kompletten Auf- und Abbau.
+ *
+ * Sortiert wird deshalb nach Gerät und innerhalb des Geräts absteigend nach
+ * Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in kleinen
+ * Schritten nach unten statt hin und her. Am Plan gemessen sind das rund 30 %
+ * weniger Kilo, die in einer Einheit bewegt werden – und schwer zuerst ist
+ * ohnehin die richtige Reihenfolge fürs Training.
+ *
+ * Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
+ * Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach
+ * dem dritten Steigerungsvorschlag nicht mehr.
+ *
+ * Die Plätze der Übungen ohne Aufbau (Klimmzüge, Band, Bodyweight) bleiben, wo
+ * sie sind: Sie kosten keinen Umbau, also darf zwischen zwei Langhantelübungen
+ * ruhig ein Satz Pull-Apart liegen – die Stange bleibt ja geladen.
+ * ------------------------------------------------------------------ */
+
+const RUEST_FAM = {
+  barbell: 'lh', hipbar: 'lh',          // dieselbe Stange, nur einmal mit Polster
+  dumbbells: 'kh2',                     // beide Kurzhanteln auf dasselbe Gewicht
+  goblet: 'kh1', onehand: 'kh1', plate: 'kh1',
+  backpack: 'ruck',
+};
+
+const FAM_LABEL = { lh: 'Stange', kh2: 'Kurzhanteln', kh1: 'Kurzhantel', ruck: 'Rucksack' };
+
+/** Was für eine Übung aufzubauen ist – oder null, wenn nichts zu schleppen ist. */
+function setupOf(exId, kg) {
+  const ex = EX_BY_ID.get(exId);
+  const fam = ex && RUEST_FAM[ex.equip];
+  if (!fam || !kg) return null;   // Klimmzüge stehen mit 0 kg im Rucksack: nichts zu tun
+  return { fam, kg, label: FAM_LABEL[fam], note: ex.weightNote };
+}
+
+/**
+ * Übungen einer Einheit nach Rüstaufwand ordnen.
+ *
+ * Die Reihenfolge der Geräte bleibt die des Plans – das erste Vorkommen eines
+ * Geräts bestimmt seinen Platz. Damit steht vorn weiter, was der Generator nach
+ * vorn gestellt hat (schwere Grundübung zuerst), und nur das Verstreute rückt
+ * zusammen.
+ */
+const ruestCache = new Map();   // "Nummer|Modus|Übungen" -> Reihenfolge der IDs
+
+/**
+ * Wie ruestOrder(), aber die einmal gefundene Reihenfolge bleibt stehen.
+ *
+ * Ohne das springen die Karten unter dem Finger: Wer das Gewicht einer Übung
+ * ändert, ändert damit ihren Platz in der Sortierung – und schon steht die
+ * Übung, die man gerade bearbeitet, zwei Zeilen weiter oben. Die Reihenfolge
+ * ist ein Plan für diese Einheit, keine ständig nachgeführte Sortierung; sie
+ * wird beim ersten Ansehen festgelegt und beim nächsten Laden neu berechnet.
+ *
+ * Der Schlüssel enthält die Übungen selbst: Hakt jemand eine Verletzung an,
+ * fällt eine Übung weg – dann ist es eine andere Einheit und wird neu sortiert.
+ */
+function ruestOrderStabil(items, n, mode) {
+  const key = `${n}|${mode}|${items.map((i) => i.id).join(',')}`;
+  const gemerkt = ruestCache.get(key);
+  if (gemerkt) {
+    const byId = new Map(items.map((i) => [i.id, i]));
+    return gemerkt.map((id) => byId.get(id));
+  }
+  const out = ruestOrder(items);
+  ruestCache.set(key, out.map((i) => i.id));
+  return out;
+}
+
+/**
+ * Zieht diese Reihenfolge eine kleine Übung vor eine schwere am selben Muskel?
+ *
+ * Gibt beide Plätze zurück, sonst null. Zwei Übungen sind "am selben Muskel",
+ * wenn beide ihn direkt treffen (Anteil ab 0,5) – der Trizepsstrecker vor den
+ * Liegestützen ist der Fall, der Beinbeuger vor dem Drücken nicht.
+ */
+function vorgezogen(liste) {
+  const direkt = (it) => {
+    const ex = EX_BY_ID.get(it.id);
+    const sh = (ex && ex.db && ex.db.shares) || {};
+    return new Set(Object.keys(sh).filter((m) => sh[m] >= 0.5));
+  };
+  const stufe = (it) => (EX_BY_ID.get(it.id) || {}).tier || 1;
+  for (let a = 0; a < liste.length; a++) {
+    for (let b = a + 1; b < liste.length; b++) {
+      if (stufe(liste[a]) <= stufe(liste[b])) continue;
+      const ma = direkt(liste[a]);
+      if ([...direkt(liste[b])].some((m) => ma.has(m))) return [a, b];
+    }
+  }
+  return null;
+}
+
+function ruestOrder(items) {
+  const geladen = [];
+  items.forEach((it, i) => {
+    const s = setupOf(it.id, workingWeight(it.id));
+    if (s) geladen.push({ it, s, i });
+  });
+  if (geladen.length < 3) return items;   // darunter gibt es nichts zu gewinnen
+
+  // `fest` sind Übungen, die auf ihrem Platz bleiben müssen. Anfangs keine;
+  // wer eine Grundübung überholt hat, kommt dazu und wird neu sortiert.
+  const fest = new Set();
+  const bauen = () => {
+    const platz = new Map();
+    const key = (g) => (fest.has(g.i) ? `#${g.i}` : g.s.fam);
+    geladen.forEach((g) => { if (!platz.has(key(g))) platz.set(key(g), g.i); });
+    const sortiert = geladen.slice().sort((a, b) => (
+      platz.get(key(a)) - platz.get(key(b)) || b.s.kg - a.s.kg || a.i - b.i));
+    const out = items.slice();
+    geladen.forEach((g, k) => { out[g.i] = sortiert[k].it; });
+    return out;
+  };
+
+  // Höchstens so viele Durchgänge, wie es Übungen gibt: Jeder setzt eine fest,
+  // und mit allen festgesetzten steht wieder die Reihenfolge des Plans da.
+  let out = bauen();
+  for (let runde = 0; runde < geladen.length; runde++) {
+    const paar = vorgezogen(out);
+    if (!paar) break;
+    // Festsetzen lässt sich nur, was überhaupt verschoben wurde. Drei Fälle,
+    // in dieser Reihenfolge:
+    //   1. die kleine Übung ist nach vorn gerutscht – sie bleibt stehen;
+    //   2. sie stand schon immer da (Beinbeuger ohne Gewicht), und die schwere
+    //      wurde nach hinten geschoben: dann bleibt das stehen, was ihren
+    //      Platz eingenommen hat;
+    //   3. sonst die schwere Übung selbst.
+    const schwer = geladen.find((x) => x.it === out[paar[1]]);
+    const kandidaten = [out[paar[0]], schwer ? out[schwer.i] : null, out[paar[1]]];
+    const g = kandidaten.reduce((gefunden, it) => gefunden
+      || (it ? geladen.find((x) => x.it === it && !fest.has(x.i)) : null), null);
+    if (!g) break;
+    fest.add(g.i);
+    out = bauen();
+  }
+  return out;
+}
+
+/** Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist. */
+function ruestHint(n, mode, list, i) {
+  if (mode !== 'db') return '';
+  const cur = setupOf(list[i].id, workingWeight(list[i].id));
+  if (!cur) return '';
+  let prev = null;
+  for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, workingWeight(list[k].id));
+  const kg = `${fmtNum(cur.kg)} kg${cur.note ? ` ${cur.note}` : ''}`;
+  if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
+    return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen</div>`;
+  }
+  if (prev && prev.fam === cur.fam) {
+    return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}</div>`;
+  }
+  return `<div class="ruest">Aufbauen: ${esc(cur.label)} auf ${esc(kg)}</div>`;
+}
+
+/**
+ * Wie viel eine Steigerung ausmacht, steht je Übung in exercise-meta.json.
+ *
+ * Fest 2,5 kg war für den Goblet Squat richtig (20 → 22,5, also ein Achtel
+ * mehr) und für das Seitheben Unsinn: 6 → 8,5 kg je Hand sind über vierzig
+ * Prozent auf einmal. Die Schrittweite der Knöpfe hängt deshalb an der Übung.
+ */
+const stepOf = (exId) => {
+  const ex = EX_BY_ID.get(exId);
+  return (ex && ex.step) || 2.5;
+};
+
+/* ===== js/plan.js ===== */
+/*
+ * Der Plan: Termine, Übungen je Einheit, Nacharbeit, Fortschritt.
+ *
+ * Das Herz der Rechnung. js/data.js liefert den geschriebenen Plan; hier wird
+ * daraus der Plan, der heute gilt – verschoben um verpasste Tage, angepasst an
+ * Verletzungen, skaliert auf die Erfahrungsstufe, ergänzt um Nacharbeit.
+ *
+ * exOf() ist die eine Stelle, an der Modus und Stufe über die Satzzahl
+ * entscheiden. Alles danach – Protokoll, Fortschritt, Wochenvolumen,
+ * Zeitschätzung – rechnet mit dem, was von dort kommt.
+ */
+
+
+
+
+
+
+
 
 /**
  * Tatsächlicher Termin einer Einheit.
@@ -6923,15 +7511,6 @@ function defaultWorkoutNo() {
 /** Angehakte Verletzungen. */
 function activeInjuries() { return store.getState().injuries || []; }
 
-/** Muskelgruppen, für die eine Übung da ist – dieselbe Schwelle wie im Plan. */
-function directOf(exId) {
-  const ex = EX_BY_ID.get(exId);
-  if (!ex) return [];
-  return Object.entries(ex.db.shares).filter(([, v]) => v >= REST.direct).map(([m]) => m);
-}
-
-const directSets = (items) => new Set(items.flatMap((it) => directOf(it.id)));
-
 /**
  * Der ganze Plan unter den angehakten Beschwerden – einmal gerechnet, gemerkt.
  *
@@ -6955,7 +7534,7 @@ function adjustedPlan() {
   const act = activeInjuries();
   // Der Schlüssel nennt nur, was die Anpassung selbst bestimmt. Die Termine
   // hängen zusätzlich daran, wann tatsächlich trainiert wurde – deshalb wird
-  // der Zwischenstand bei jeder Zustandsänderung verworfen (siehe unten),
+  // der Zwischenstand bei jeder Zustandsänderung verworfen (siehe oben),
   // statt hier eine Signatur über den ganzen Verlauf zu bilden.
   const key = `${act.join(',')}|${store.getState().shift}`;
   if (planCache.key === key) return planCache.list;
@@ -7048,6 +7627,7 @@ function exBasis(w, mode) {
  * Entscheidung ab, um die er nicht gebeten hat. Wer kürzere Einheiten will,
  * stellt die Stufe unter *Mehr → Erfahrung* selbst um.
  * ------------------------------------------------------------------ */
+
 // Vier Einheiten sind eine Woche. Steht bewusst hier oben und nicht bei der
 // Wochenauswertung, wo es hingehört: Das `ui`-Objekt ruft defaultWorkoutNo()
 // noch während der Modulauswertung auf, und das geht über completedMode() bis
@@ -7055,7 +7635,9 @@ function exBasis(w, mode) {
 // nicht initialisiert – und der Fehler zeigt sich erst, sobald ein Protokoll
 // da ist, weil completedMode() ohne Protokoll vorher aussteigt.
 const WEEK_SESSIONS = 4;
+
 const NACH_JE_EINHEIT = 3;
+
 const NACH_JE_UEBUNG = 1;
 
 /**
@@ -7194,29 +7776,6 @@ function workoutByNo(n, mode) {
   return ex === w.ex ? w : { ...w, ex };
 }
 
-/** Untere Grenze eines Wiederholungsbereichs, z. B. "8–12" -> 8. */
-function plannedReps(reps) {
-  const m = String(reps).match(/\d+/);
-  return m ? Number(m[0]) : 0;
-}
-
-/**
- * Wiederholungen und Pause, auf die Erfahrungsstufe umgerechnet.
- *
- * Bei fast jeder Übung braucht es das nicht: Der Anfänger nimmt die Hälfte des
- * Gewichts und trifft damit denselben Wiederholungsbereich. Klimmzüge kennen
- * diesen Hebel nicht – dort *ist* das Körpergewicht die Last. Wer eine
- * Wiederholung schafft, bekommt eine Vorgabe von 5–10 und kann sie nicht
- * erfüllen; die Zahl wird damit von einer Ansage zu einem Vorwurf.
- *
- * Die Ausnahmen stehen als `stufen` an der Übung selbst (siehe
- * tools/exercise-meta.json), damit hier keine Übungsnamen im Code stehen.
- */
-function stufenWerte(v) {
-  const s = (v.stufen || {})[store.getState().level || 'geuebt'];
-  return { reps: (s && s.reps) || v.reps, rest: (s && s.rest) || v.rest };
-}
-
 /** Variante (db/bw) einer geplanten Übung inkl. Sätze. */
 function resolve(item, mode) {
   const ex = EX_BY_ID.get(item.id);
@@ -7245,117 +7804,149 @@ function resolve(item, mode) {
   };
 }
 
-/* ------------------------------------------------------------------ *
- * Erfahrung
- *
- * Die Startgewichte in tools/exercise-meta.json sind die eines Menschen, der
- * seit einer Weile trainiert: 40 kg Floor Press, 20 kg Goblet Squat. Für jemand
- * anderen, der den Link bekommt, ist das entweder zu viel oder zu wenig – und
- * beides führt zum selben Ergebnis, nämlich dass die erste Einheit nichts taugt.
- *
- * Die Erfahrung skaliert deshalb die Startwerte, gerundet auf die Schrittweite
- * der jeweiligen Übung. Mehr nicht: Der Plan selbst, die Sätze, die Pausen und
- * die Erholungsregel sind für Anfänger dieselben wie für alle anderen – daran
- * ist nichts anfängerspezifisch. Und sobald jemand ein Gewicht selbst einstellt,
- * gilt seins; die Erfahrung ist ein Startpunkt, keine Obergrenze.
- * ------------------------------------------------------------------ */
-
-const LEVELS = [
-  ['anfaenger', 'Anfänger', 'Neu im Krafttraining oder lange raus. Startgewichte auf der '
-    + 'Hälfte und zwei Sätze je Übung statt drei: Wer neu anfängt, wächst schon bei wenig '
-    + 'Volumen – die ersten Wochen entscheidet die Technik, nicht die Scheibe.', 0.5],
-  ['geuebt', 'Geübt', 'Du weißt, wie sich ein sauberer Satz anfühlt, und trainierst schon '
-    + 'eine Weile. Startgewichte und drei Sätze je Übung passen so.', 1],
-  ['fortgeschritten', 'Fortgeschritten', 'Jahre im Training, die Technik sitzt. Startgewichte '
-    + 'um die Hälfte höher und vier Sätze je Übung – dein Reiz liegt weiter oben.', 1.5],
-];
-
-/** Zwei Beispiele, damit die Wahl nicht abstrakt bleibt. */
-function levelBeispiel(faktor, key) {
-  const zeig = ['floor-press', 'goblet-squat']
-    .map((id) => EX_BY_ID.get(id))
-    .filter((ex) => ex && ex.weight)
-    .map((ex) => {
-      const step = ex.step || 2.5;
-      const kg = faktor === 1 ? ex.weight
-        : Math.max(step, Math.round((ex.weight * faktor) / step) * step);
-      return `${ex.db.name} ${fmtNum(kg)} kg`;
-    });
-  // Die Satzzahl gehört dazu: Sie ist seit Neuestem der größere Unterschied
-  // zwischen den Stufen – die Gewichte stellt man sich ohnehin selbst ein.
-  const saetze = SAETZE_JE_STUFE[key] || 3;
-  return `${plural(saetze, 'Satz', 'Sätze')} je Übung · ${zeig.join(' · ')}`;
+function progressOf(n, mode) {
+  // Mit dem Modus, nicht ohne: `mode` sagt, aus welchem Eimer die abgehakten
+  // Sätze kommen – dann muss auch das Soll aus demselben Modus stammen. Ohne
+  // das würde eine im Bodyweight-Modus vollständig gemachte Einheit am Soll
+  // der Hantel-Fassung gemessen und käme nie auf "fertig".
+  const w = workoutByNo(n, mode);
+  let done = 0;
+  let total = 0;
+  w.ex.forEach((item) => {
+    const arr = store.peekSets(n, mode, item.id) || [];
+    total += item.sets;
+    done += arr.slice(0, item.sets).filter((s) => s.done).length;
+  });
+  return { done, total, pct: total ? Math.round((done / total) * 100) : 0, complete: total > 0 && done === total };
 }
 
-const levelFaktor = () => {
-  const eintrag = LEVELS.find(([key]) => key === (store.getState().level || 'geuebt'));
-  return eintrag ? eintrag[3] : 1;
-};
+/** Ist das Workout in irgendeinem Modus abgeschlossen? Gibt den Modus zurück. */
+function completedMode(n) {
+  const st = store.getState().log[n];
+  if (!st) return null;
+  for (const m of ['db', 'bw']) {
+    if (progressOf(n, m).complete) return m;
+  }
+  // Von Hand abgeschlossen: "Abschließen" heißt, dass die Einheit fertig ist –
+  // auch wenn der letzte Satz Wadenheben fehlt. Ohne das stand im Kalender ein
+  // ausgefallener Tag, obwohl 16 von 18 Sätzen standen.
+  return st.done && hasAnyEntry(n, st.done) ? st.done : null;
+}
+
+function hasAnyEntry(n, mode) {
+  const w = workoutByNo(n, mode);
+  return w.ex.some((item) => (store.peekSets(n, mode, item.id) || [])
+    .some((s) => s.done || s.w !== ''));
+}
 
 /**
- * Sätze je Übung nach Erfahrung.
+ * Die Zahlen der Statistik an einer Stelle.
  *
- * Die Stufe skalierte lange nur die Startgewichte. Dabei ist das *Volumen* die
- * Größe, die sich zwischen Anfänger und Fortgeschrittenem am deutlichsten
- * unterscheidet: Wer neu anfängt, wächst schon bei drei bis fünf Sätzen je
- * Muskel und Woche fast maximal – die Dosis-Wirkungs-Kurve ist dort oben flach.
- * Mehr bringt kaum etwas und kostet das, woran es bei Anfängern wirklich hängt:
- * saubere Technik in den letzten Sätzen, erträglicher Muskelkater, und eine
- * Einheit, die man ein halbes Jahr lang durchhält.
- *
- * Skaliert wird **gleichmäßig über alle Übungen**. Das ist der Grund, warum es
- * die exakte Rechnung des Generators nicht kaputt macht: Bekommt jede Übung
- * zwei Drittel ihrer Sätze, bekommt auch jede Muskelgruppe exakt zwei Drittel
- * ihres Ziels. Die Verteilung bleibt dieselbe, nur die Höhe ändert sich – und
- * targetOf() rechnet mit demselben Faktor, damit "Soll gegen Ist" weiter stimmt.
- *
- * Eigene Workouts bleiben außen vor: Was jemand selbst zusammenstellt, hat er
- * so gemeint (siehe exOf()).
+ * Ausgelagert, weil sie zweimal gebraucht werden: für den Statistik-Tab und
+ * für den Stand, den man Freunden schickt. Zwei Rechnungen für dieselbe Zahl
+ * wären zwei Zahlen.
  */
-const SAETZE_JE_STUFE = { anfaenger: 2, geuebt: 3, fortgeschritten: 4 };
-const satzFaktor = () => (SAETZE_JE_STUFE[store.getState().level || 'geuebt'] || 3) / 3;
-const satzZahl = (n) => Math.max(1, Math.round(n * satzFaktor()));
+function sammleStats() {
+  const log = store.getState().log;
+  const today = todayISO();
 
-/* ------------------------------------------------------------------ *
- * Aufsteigen, ohne daran zu denken
- *
- * Die Stufe war bisher eine Einstellung, die man einmal trifft und dann
- * vergisst – und genau das ist der Fehler. Wer als Anfänger anfängt und ein
- * Jahr durchhält, trainiert danach immer noch auf zwei Sätzen je Übung, weil
- * ihm niemand gesagt hat, dass die Zahl inzwischen zu klein ist. Die App weiß
- * es aber: Sie zählt mit.
- *
- * **Woran gemessen wird.** An drei Dingen zusammen, denn jedes einzelne lässt
- * sich zu leicht erfüllen:
- *
- *   Einheiten   Erfahrung ist vor allem Zeit unter der Hantel. 60 Einheiten
- *               sind bei vier pro Woche rund ein Vierteljahr.
- *   Sätze       Damit halbe Einheiten nicht so viel zählen wie ganze.
- *   Tonnage     Kilo mal Wiederholungen, aufsummiert. Das ist der Teil, der
- *               *Fortschritt* misst statt nur Anwesenheit: Wer schwerer wird,
- *               kommt schneller ans Ziel.
- *
- * Die Tonnage gilt nur für den, der mit Gewichten trainiert. Im
- * Bodyweight-Modus gibt es keine Kilo zu zählen, und jemanden deswegen ewig auf
- * Anfänger stehen zu lassen, wäre eine Strafe für die Wahl der Variante.
- *
- * **Was dann passiert.** Die Stufe wird umgestellt – das ist der Punkt, der
- * Arbeit spart – und ein Hinweis sagt, was sich dadurch ändert, mit einem
- * Knopf zum Zurückstellen daneben. Jeder Schritt kommt genau einmal: Wer
- * zurückstellt, bleibt unten, bis er selbst etwas anderes will.
- * ------------------------------------------------------------------ */
-const AUFSTIEGE = [
-  { von: 'anfaenger', nach: 'geuebt', einheiten: 60, saetze: 700, tonnen: 30 },
-  { von: 'geuebt', nach: 'fortgeschritten', einheiten: 200, saetze: 3400, tonnen: 200 },
-];
+  let setsDone = 0;
+  let repsTotal = 0;
+  let volume = 0;
+  let doneDb = 0;
+  let doneBw = 0;
+  const perEx = new Map();
 
-/** Der nächste Schritt, wenn es einen gibt und er noch nicht dran war. */
-function offenerAufstieg() {
-  const s = store.getState();
-  const schritt = AUFSTIEGE.find((a) => a.von === (s.level || 'geuebt'));
-  if (!schritt) return null;
-  return (s.aufstiege || []).includes(schritt.nach) ? null : schritt;
+  PLAN.forEach((w) => {
+    const entry = log[w.n];
+    if (!entry) return;
+    ['db', 'bw'].forEach((m) => {
+      exOf(w, m).forEach((item) => {
+        const arr = entry[m] && entry[m][item.id];
+        if (!Array.isArray(arr)) return;
+        // Wiederholungen werden nicht mehr erfasst; gerechnet wird deshalb mit
+        // dem geplanten Wert – der unteren Grenze des Bereichs, also bewusst
+        // eher zu niedrig als zu hoch.
+        const planned = plannedReps(stufenWerte(EX_BY_ID.get(item.id)[m]).reps);
+        arr.forEach((s) => {
+          if (!s.done) return;
+          setsDone++;
+          repsTotal += planned;
+          const kg = parseFloat(String(s.w).replace(',', '.'));
+          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
+          perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
+        });
+      });
+    });
+    const cm = completedMode(w.n);
+    if (cm === 'db') doneDb++;
+    else if (cm === 'bw') doneBw++;
+  });
+
+  const workoutsDone = doneDb + doneBw;
+
+  // Aktuelle Serie: rückwärts ab dem letzten fälligen Workout
+  let streak = 0;
+  const past = PLAN.filter((w) => effDate(w) <= today);
+  for (let i = past.length - 1; i >= 0; i--) {
+    if (completedMode(past[i].n)) streak++;
+    else break;
+  }
+
+  // Eigene Einheiten zählen nicht als Plan-Einheit, ihre Sätze und Kilo aber
+  // schon: Trainiert ist trainiert, und eine Statistik, die das verschweigt,
+  // ist falsch.
+  // Zeit im Training, aus dem Protokoll. Ältere Einheiten haben keine – die
+  // Uhr wurde erst später mitgeschrieben; gezählt wird deshalb auch, wie viele
+  // Einheiten überhaupt eine Zeit tragen.
+  let seconds = 0;
+  let mitZeit = 0;
+  Object.values(log).forEach((e) => {
+    if (e && e.secs > 0) { seconds += e.secs; mitZeit += 1; }
+  });
+
+  let customSets = 0;
+  store.customs().forEach((c) => {
+    const entry = log[c.id];
+    if (!entry) return;
+    ['db', 'bw'].forEach((m) => {
+      c.ex.forEach((item) => {
+        const arr = entry[m] && entry[m][item.id];
+        const ex = EX_BY_ID.get(item.id);
+        if (!Array.isArray(arr) || !ex) return;
+        const planned = plannedReps(stufenWerte(ex[m]).reps);
+        arr.slice(0, item.sets).forEach((x) => {
+          if (!x.done) return;
+          setsDone++;
+          customSets++;
+          repsTotal += planned;
+          const kg = parseFloat(String(x.w).replace(',', '.'));
+          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
+          perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
+        });
+      });
+    });
+  });
+
+  const upcoming = PLAN.find((w) => !completedMode(w.n));
+  return { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak, upcoming,
+           customSets, seconds, mitZeit };
 }
+
+/* ===== js/bilanz.js ===== */
+/*
+ * Was insgesamt geleistet wurde – über abgelegte Runden hinweg.
+ *
+ * sammleStats() in js/plan.js beantwortet die Frage „wie weit bin ich in
+ * diesem Plan". Der Stufenaufstieg fragt aber nach der Erfahrung eines
+ * Menschen, und die endet nicht mit einem Neustart. Hier wird deshalb die
+ * laufende Runde mit allen abgelegten zusammengezählt.
+ */
+
+
+
+
+
 
 /**
  * Was eine Runde geleistet hat, festgehalten in dem Moment, in dem sie in die
@@ -7547,6 +8138,55 @@ function pruefeAufstieg() {
   return true;
 }
 
+/* ===== js/app.js ===== */
+/*
+ * Die Oberfläche: was auf den Schirm kommt und was ein Tipp auslöst.
+ *
+ * Diese Datei hatte einmal 5535 Zeilen und war alles zugleich – die Rechnung
+ * und ihre Anzeige. Die Rechnung steht jetzt daneben, in sechs Modulen, die
+ * aufeinander aufbauen und nichts von der Oberfläche wissen:
+ *
+ *     text.js      Text und Zahlen fürs Auge
+ *     uebung.js    die einzelne Übung nachschlagen
+ *     stufen.js    Erfahrungsstufen: Startgewichte, Sätze, Aufstieg
+ *     gewichte.js  Arbeitsgewichte und die Reihenfolge beim Umbauen
+ *     plan.js      Termine, Übungen je Einheit, Nacharbeit, Fortschritt
+ *     bilanz.js    was insgesamt geleistet wurde, über Runden hinweg
+ *
+ * Die Richtung ist streng: Jedes Modul benutzt nur die vor ihm, und keines
+ * benutzt diese Datei. Was hier bleibt, sind die Renderfunktionen, der
+ * Zustand der Oberfläche (`ui`), die Tab-Verwaltung und der Klick-Verteiler.
+ * Weiter aufteilen ginge, hieße aber, `ui`, `render()` und `go()` über eine
+ * Registrierung zu entkoppeln – mehr Maschinerie, als es einbringt.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
+ * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
+ * überall dasselbe. Der Wechsel lädt die Seite neu, siehe 'set-focus'. */
+
+const view = document.getElementById('view');
+const tabbar = document.getElementById('tabbar');
+const modeSwitch = document.getElementById('modeSwitch');
+const toastEl = document.getElementById('toast');
+
+const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
+
 /** Der Hinweis auf dem Dashboard, bis er weggetippt wird. */
 function aufstiegHinweis() {
   const a = store.getState().aufstieg;
@@ -7654,233 +8294,6 @@ function umzugHinweis() {
     </div>`;
 }
 
-/** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
-function startWeight(ex) {
-  if (ex.weight === null) return null;
-  const f = levelFaktor();
-  // 0 kg heißt "ohne Zusatzlast" (Klimmzüge) – das bleibt 0, egal wer trainiert.
-  if (!ex.weight || f === 1) return ex.weight;
-  const step = ex.step || 2.5;
-  return Math.max(step, Math.round((ex.weight * f) / step) * step);
-}
-
-/** Gewicht, mit dem diese Übung heute gearbeitet wird. */
-function workingWeight(exId) {
-  const ex = EX_BY_ID.get(exId);
-  if (ex.weight === null) return null;
-  const own = store.weightOf(exId);
-  return own === null ? startWeight(ex) : own;
-}
-
-/**
- * Womit die schon abgehakten Sätze gemacht wurden, wenn es abweicht.
- *
- * Jeder Satz merkt sich sein eigenes Gewicht, sobald er abgehakt wird. Das ist
- * der Grund, warum sich mitten im Training umentscheiden lässt: Wer nach dem
- * ersten Satz merkt, dass 40 kg zu viel sind, stellt auf 35 und macht die
- * restlichen Sätze damit. Die schon abgehakten bleiben, wie sie waren – nichts
- * wird rückwirkend umgeschrieben.
- *
- * Früher stand deshalb das *zuerst* benutzte Gewicht groß in der Zeile und jede
- * Änderung galt "nächstes Mal". Das war beim Erhöhen richtig und beim Senken
- * falsch: Man senkt es ja gerade, weil der nächste Satz jetzt dran ist. Jetzt
- * steht dort das Gewicht für den nächsten Satz, und diese Zeile sagt, womit die
- * bisherigen gemacht wurden.
- */
-function doneWeightNote(n, mode, exId) {
-  const arr = store.peekSets(n, mode, exId) || [];
-  const jetzt = workingWeight(exId);
-  const andere = [];
-  arr.forEach((x, i) => {
-    if (!x.done || x.w === '') return;
-    const kg = parseFloat(String(x.w).replace(',', '.'));
-    if (Number.isNaN(kg) || Math.abs(kg - jetzt) < 0.01) return;
-    andere.push({ i: i + 1, kg });
-  });
-  if (!andere.length) return '';
-  const gruppen = new Map();
-  andere.forEach(({ i, kg }) => gruppen.set(kg, (gruppen.get(kg) || []).concat(i)));
-  return [...gruppen.entries()]
-    .map(([kg, saetze]) => `Satz ${saetze.join(', ')} mit ${fmtNum(kg)} kg`)
-    .join(' · ');
-}
-
-/* ------------------------------------------------------------------ *
- * Rüstzeit: Reihenfolge nach Gerät und Gewicht
- *
- * Zwischen zwei Übungen steht oft nicht die Pause, sondern der Umbau: Scheiben
- * abziehen, andere aufstecken, Verschlüsse zu. Das ist die Zeit, die eine
- * Einheit in der Wohnung wirklich lang macht, und sie steht in keinem Plan.
- *
- * Die Reihenfolge innerhalb einer Einheit ist dafür der ganze Hebel. Welche
- * Übungen an einem Tag stehen, entscheidet tools/build-plan.py nach dem
- * Wochenvolumen – daran wird hier nichts geändert. Aber ob die beiden
- * Langhantel-Übungen hintereinander kommen oder eine Kurzhantelübung dazwischen
- * liegt, kostet einen kompletten Auf- und Abbau.
- *
- * Sortiert wird deshalb nach Gerät und innerhalb des Geräts absteigend nach
- * Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in kleinen
- * Schritten nach unten statt hin und her. Am Plan gemessen sind das rund 30 %
- * weniger Kilo, die in einer Einheit bewegt werden – und schwer zuerst ist
- * ohnehin die richtige Reihenfolge fürs Training.
- *
- * Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
- * Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach
- * dem dritten Steigerungsvorschlag nicht mehr.
- *
- * Die Plätze der Übungen ohne Aufbau (Klimmzüge, Band, Bodyweight) bleiben, wo
- * sie sind: Sie kosten keinen Umbau, also darf zwischen zwei Langhantelübungen
- * ruhig ein Satz Pull-Apart liegen – die Stange bleibt ja geladen.
- * ------------------------------------------------------------------ */
-
-const RUEST_FAM = {
-  barbell: 'lh', hipbar: 'lh',          // dieselbe Stange, nur einmal mit Polster
-  dumbbells: 'kh2',                     // beide Kurzhanteln auf dasselbe Gewicht
-  goblet: 'kh1', onehand: 'kh1', plate: 'kh1',
-  backpack: 'ruck',
-};
-const FAM_LABEL = { lh: 'Stange', kh2: 'Kurzhanteln', kh1: 'Kurzhantel', ruck: 'Rucksack' };
-
-/** Was für eine Übung aufzubauen ist – oder null, wenn nichts zu schleppen ist. */
-function setupOf(exId, kg) {
-  const ex = EX_BY_ID.get(exId);
-  const fam = ex && RUEST_FAM[ex.equip];
-  if (!fam || !kg) return null;   // Klimmzüge stehen mit 0 kg im Rucksack: nichts zu tun
-  return { fam, kg, label: FAM_LABEL[fam], note: ex.weightNote };
-}
-
-/**
- * Übungen einer Einheit nach Rüstaufwand ordnen.
- *
- * Die Reihenfolge der Geräte bleibt die des Plans – das erste Vorkommen eines
- * Geräts bestimmt seinen Platz. Damit steht vorn weiter, was der Generator nach
- * vorn gestellt hat (schwere Grundübung zuerst), und nur das Verstreute rückt
- * zusammen.
- */
-const ruestCache = new Map();   // "Nummer|Modus|Übungen" -> Reihenfolge der IDs
-
-/**
- * Wie ruestOrder(), aber die einmal gefundene Reihenfolge bleibt stehen.
- *
- * Ohne das springen die Karten unter dem Finger: Wer das Gewicht einer Übung
- * ändert, ändert damit ihren Platz in der Sortierung – und schon steht die
- * Übung, die man gerade bearbeitet, zwei Zeilen weiter oben. Die Reihenfolge
- * ist ein Plan für diese Einheit, keine ständig nachgeführte Sortierung; sie
- * wird beim ersten Ansehen festgelegt und beim nächsten Laden neu berechnet.
- *
- * Der Schlüssel enthält die Übungen selbst: Hakt jemand eine Verletzung an,
- * fällt eine Übung weg – dann ist es eine andere Einheit und wird neu sortiert.
- */
-function ruestOrderStabil(items, n, mode) {
-  const key = `${n}|${mode}|${items.map((i) => i.id).join(',')}`;
-  const gemerkt = ruestCache.get(key);
-  if (gemerkt) {
-    const byId = new Map(items.map((i) => [i.id, i]));
-    return gemerkt.map((id) => byId.get(id));
-  }
-  const out = ruestOrder(items);
-  ruestCache.set(key, out.map((i) => i.id));
-  return out;
-}
-
-/**
- * Zieht diese Reihenfolge eine kleine Übung vor eine schwere am selben Muskel?
- *
- * Gibt beide Plätze zurück, sonst null. Zwei Übungen sind "am selben Muskel",
- * wenn beide ihn direkt treffen (Anteil ab 0,5) – der Trizepsstrecker vor den
- * Liegestützen ist der Fall, der Beinbeuger vor dem Drücken nicht.
- */
-function vorgezogen(liste) {
-  const direkt = (it) => {
-    const ex = EX_BY_ID.get(it.id);
-    const sh = (ex && ex.db && ex.db.shares) || {};
-    return new Set(Object.keys(sh).filter((m) => sh[m] >= 0.5));
-  };
-  const stufe = (it) => (EX_BY_ID.get(it.id) || {}).tier || 1;
-  for (let a = 0; a < liste.length; a++) {
-    for (let b = a + 1; b < liste.length; b++) {
-      if (stufe(liste[a]) <= stufe(liste[b])) continue;
-      const ma = direkt(liste[a]);
-      if ([...direkt(liste[b])].some((m) => ma.has(m))) return [a, b];
-    }
-  }
-  return null;
-}
-
-function ruestOrder(items) {
-  const geladen = [];
-  items.forEach((it, i) => {
-    const s = setupOf(it.id, workingWeight(it.id));
-    if (s) geladen.push({ it, s, i });
-  });
-  if (geladen.length < 3) return items;   // darunter gibt es nichts zu gewinnen
-
-  // `fest` sind Übungen, die auf ihrem Platz bleiben müssen. Anfangs keine;
-  // wer eine Grundübung überholt hat, kommt dazu und wird neu sortiert.
-  const fest = new Set();
-  const bauen = () => {
-    const platz = new Map();
-    const key = (g) => (fest.has(g.i) ? `#${g.i}` : g.s.fam);
-    geladen.forEach((g) => { if (!platz.has(key(g))) platz.set(key(g), g.i); });
-    const sortiert = geladen.slice().sort((a, b) => (
-      platz.get(key(a)) - platz.get(key(b)) || b.s.kg - a.s.kg || a.i - b.i));
-    const out = items.slice();
-    geladen.forEach((g, k) => { out[g.i] = sortiert[k].it; });
-    return out;
-  };
-
-  // Höchstens so viele Durchgänge, wie es Übungen gibt: Jeder setzt eine fest,
-  // und mit allen festgesetzten steht wieder die Reihenfolge des Plans da.
-  let out = bauen();
-  for (let runde = 0; runde < geladen.length; runde++) {
-    const paar = vorgezogen(out);
-    if (!paar) break;
-    // Festsetzen lässt sich nur, was überhaupt verschoben wurde. Drei Fälle,
-    // in dieser Reihenfolge:
-    //   1. die kleine Übung ist nach vorn gerutscht – sie bleibt stehen;
-    //   2. sie stand schon immer da (Beinbeuger ohne Gewicht), und die schwere
-    //      wurde nach hinten geschoben: dann bleibt das stehen, was ihren
-    //      Platz eingenommen hat;
-    //   3. sonst die schwere Übung selbst.
-    const schwer = geladen.find((x) => x.it === out[paar[1]]);
-    const kandidaten = [out[paar[0]], schwer ? out[schwer.i] : null, out[paar[1]]];
-    const g = kandidaten.reduce((gefunden, it) => gefunden
-      || (it ? geladen.find((x) => x.it === it && !fest.has(x.i)) : null), null);
-    if (!g) break;
-    fest.add(g.i);
-    out = bauen();
-  }
-  return out;
-}
-
-/** Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist. */
-function ruestHint(n, mode, list, i) {
-  if (mode !== 'db') return '';
-  const cur = setupOf(list[i].id, workingWeight(list[i].id));
-  if (!cur) return '';
-  let prev = null;
-  for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, workingWeight(list[k].id));
-  const kg = `${fmtNum(cur.kg)} kg${cur.note ? ` ${cur.note}` : ''}`;
-  if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
-    return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen</div>`;
-  }
-  if (prev && prev.fam === cur.fam) {
-    return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}</div>`;
-  }
-  return `<div class="ruest">Aufbauen: ${esc(cur.label)} auf ${esc(kg)}</div>`;
-}
-
-/**
- * Wie viel eine Steigerung ausmacht, steht je Übung in exercise-meta.json.
- *
- * Fest 2,5 kg war für den Goblet Squat richtig (20 → 22,5, also ein Achtel
- * mehr) und für das Seitheben Unsinn: 6 → 8,5 kg je Hand sind über vierzig
- * Prozent auf einmal. Die Schrittweite der Knöpfe hängt deshalb an der Übung.
- */
-const stepOf = (exId) => {
-  const ex = EX_BY_ID.get(exId);
-  return (ex && ex.step) || 2.5;
-};
 /**
  * Sicherung als Datei. Alles liegt nur im Speicher dieses Browsers – Android
  * räumt den bei Platzmangel weg, und "Websitedaten löschen" reicht ebenfalls.
@@ -8048,56 +8461,11 @@ function sessionButtons(n, mode) {
     </div>`;
 }
 
-/** Zahl in deutscher Schreibweise, ohne unnötige Null hinter dem Komma.
- *
- * Zwei Nachkommastellen, nicht eine: seit die Gewichtsschritte je Übung gehen,
- * gibt es 1,25-kg-Sprünge, und 21,25 kg als "21,3" anzuzeigen wäre schlicht
- * falsch – die Zahl steht am Knopf, nach dem man greift.
- */
-function fmtNum(n) {
-  return Number.isInteger(n) ? String(n) : String(+n.toFixed(2)).replace('.', ',');
-}
-
 /** Pausenlänge für eine Übung – empfohlen oder fest, je nach Einstellung. */
 function restFor(item) {
   const s = store.getState();
   if (!s.useExerciseRest) return s.restSeconds;
   return item.rest;
-}
-
-function progressOf(n, mode) {
-  // Mit dem Modus, nicht ohne: `mode` sagt, aus welchem Eimer die abgehakten
-  // Sätze kommen – dann muss auch das Soll aus demselben Modus stammen. Ohne
-  // das würde eine im Bodyweight-Modus vollständig gemachte Einheit am Soll
-  // der Hantel-Fassung gemessen und käme nie auf "fertig".
-  const w = workoutByNo(n, mode);
-  let done = 0;
-  let total = 0;
-  w.ex.forEach((item) => {
-    const arr = store.peekSets(n, mode, item.id) || [];
-    total += item.sets;
-    done += arr.slice(0, item.sets).filter((s) => s.done).length;
-  });
-  return { done, total, pct: total ? Math.round((done / total) * 100) : 0, complete: total > 0 && done === total };
-}
-
-/** Ist das Workout in irgendeinem Modus abgeschlossen? Gibt den Modus zurück. */
-function completedMode(n) {
-  const st = store.getState().log[n];
-  if (!st) return null;
-  for (const m of ['db', 'bw']) {
-    if (progressOf(n, m).complete) return m;
-  }
-  // Von Hand abgeschlossen: "Abschließen" heißt, dass die Einheit fertig ist –
-  // auch wenn der letzte Satz Wadenheben fehlt. Ohne das stand im Kalender ein
-  // ausgefallener Tag, obwohl 16 von 18 Sätzen standen.
-  return st.done && hasAnyEntry(n, st.done) ? st.done : null;
-}
-
-function hasAnyEntry(n, mode) {
-  const w = workoutByNo(n, mode);
-  return w.ex.some((item) => (store.peekSets(n, mode, item.id) || [])
-    .some((s) => s.done || s.w !== ''));
 }
 
 /* ------------------------------------------------------------------ *
@@ -8503,7 +8871,6 @@ function renderFocus() {
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
     ${detailBlock(it)}
-
 
     <div class="btn-row nav">
       <button type="button" class="btn btn-ghost" data-act="focus-step" data-d="-1" ${i === 0 ? 'disabled' : ''}>← Zurück</button>
@@ -9145,7 +9512,6 @@ function renderDashboard() {
       </div>
       ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}`;
 
-
     parts.push(`
       <article class="ex ${open ? 'open' : ''} ${complete ? 'complete' : ''}">
         <div class="ex-head" data-act="toggle-ex" data-ex="${it.id}" role="button" tabindex="0" aria-expanded="${open}">
@@ -9258,100 +9624,6 @@ function progressSeries() {
   });
 
   return { perExercise, perMuscle };
-}
-
-/**
- * Die Zahlen der Statistik an einer Stelle.
- *
- * Ausgelagert, weil sie zweimal gebraucht werden: für den Statistik-Tab und
- * für den Stand, den man Freunden schickt. Zwei Rechnungen für dieselbe Zahl
- * wären zwei Zahlen.
- */
-function sammleStats() {
-  const log = store.getState().log;
-  const today = todayISO();
-
-  let setsDone = 0;
-  let repsTotal = 0;
-  let volume = 0;
-  let doneDb = 0;
-  let doneBw = 0;
-  const perEx = new Map();
-
-  PLAN.forEach((w) => {
-    const entry = log[w.n];
-    if (!entry) return;
-    ['db', 'bw'].forEach((m) => {
-      exOf(w, m).forEach((item) => {
-        const arr = entry[m] && entry[m][item.id];
-        if (!Array.isArray(arr)) return;
-        // Wiederholungen werden nicht mehr erfasst; gerechnet wird deshalb mit
-        // dem geplanten Wert – der unteren Grenze des Bereichs, also bewusst
-        // eher zu niedrig als zu hoch.
-        const planned = plannedReps(stufenWerte(EX_BY_ID.get(item.id)[m]).reps);
-        arr.forEach((s) => {
-          if (!s.done) return;
-          setsDone++;
-          repsTotal += planned;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
-          perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
-        });
-      });
-    });
-    const cm = completedMode(w.n);
-    if (cm === 'db') doneDb++;
-    else if (cm === 'bw') doneBw++;
-  });
-
-  const workoutsDone = doneDb + doneBw;
-
-  // Aktuelle Serie: rückwärts ab dem letzten fälligen Workout
-  let streak = 0;
-  const past = PLAN.filter((w) => effDate(w) <= today);
-  for (let i = past.length - 1; i >= 0; i--) {
-    if (completedMode(past[i].n)) streak++;
-    else break;
-  }
-
-  // Eigene Einheiten zählen nicht als Plan-Einheit, ihre Sätze und Kilo aber
-  // schon: Trainiert ist trainiert, und eine Statistik, die das verschweigt,
-  // ist falsch.
-  // Zeit im Training, aus dem Protokoll. Ältere Einheiten haben keine – die
-  // Uhr wurde erst später mitgeschrieben; gezählt wird deshalb auch, wie viele
-  // Einheiten überhaupt eine Zeit tragen.
-  let seconds = 0;
-  let mitZeit = 0;
-  Object.values(log).forEach((e) => {
-    if (e && e.secs > 0) { seconds += e.secs; mitZeit += 1; }
-  });
-
-  let customSets = 0;
-  store.customs().forEach((c) => {
-    const entry = log[c.id];
-    if (!entry) return;
-    ['db', 'bw'].forEach((m) => {
-      c.ex.forEach((item) => {
-        const arr = entry[m] && entry[m][item.id];
-        const ex = EX_BY_ID.get(item.id);
-        if (!Array.isArray(arr) || !ex) return;
-        const planned = plannedReps(stufenWerte(ex[m]).reps);
-        arr.slice(0, item.sets).forEach((x) => {
-          if (!x.done) return;
-          setsDone++;
-          customSets++;
-          repsTotal += planned;
-          const kg = parseFloat(String(x.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
-          perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
-        });
-      });
-    });
-  });
-
-  const upcoming = PLAN.find((w) => !completedMode(w.n));
-  return { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak, upcoming,
-           customSets, seconds, mitZeit };
 }
 
 /**
@@ -11332,7 +11604,6 @@ function renderSettings() {
         <button type="button" class="btn btn-danger" data-act="reset-all">Alle Daten löschen</button>
       </div>
     </div>
-
 
     <div class="section-title">Fassung</div>
     <div class="card">

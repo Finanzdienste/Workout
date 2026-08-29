@@ -26,7 +26,18 @@ OUT = ROOT / 'dist' / 'workout.html'
 # Reihenfolge = Abhaengigkeitsreihenfolge
 MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js',
            'js/injuries.js', 'js/audio.js', 'js/config.js', 'js/telemetry.js',
-           'js/store.js', 'js/app.js']
+           # Fehlte hier jahrelang: js/app.js importiert buildICS, im Buendel
+           # war die Funktion nie definiert. Der Kalenderexport der Ein-Datei-
+           # Fassung endete deshalb in einem ReferenceError, waehrend er unter
+           # index.html lief. Gefunden von tools/pruefung/schichten.py.
+           'js/ics.js',
+           'js/store.js',
+           # Die Rechenschicht, in Abhaengigkeitsreihenfolge: jedes Modul
+           # benutzt nur die vor ihm. Wer das aendert, merkt es hier zuerst –
+           # im Buendel gibt es keine Importe, die eine Reihenfolge erzwingen.
+           'js/text.js', 'js/uebung.js', 'js/stufen.js', 'js/gewichte.js',
+           'js/plan.js', 'js/bilanz.js',
+           'js/app.js']
 
 IMPORT_RE = re.compile(r'^\s*import\s.+?;\s*$', re.MULTILINE)
 EXPORT_RE = re.compile(r'^(\s*)export\s+(?=(?:const|let|var|function|class)\b)', re.MULTILINE)

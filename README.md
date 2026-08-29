@@ -1919,6 +1919,12 @@ js/data.js              Aus Excel + plan.json erzeugt: 24 Übungen, 84 Einheiten
 js/injuries.js          Verletzungskatalog und die Anpassung des Plans
 js/dates.js             Datums-Hilfsfunktionen inkl. Monatsraster
 js/store.js             Zustand und localStorage-Persistenz
+js/text.js              Text und Zahlen fürs Auge
+js/uebung.js            Die einzelne Übung nachschlagen
+js/stufen.js            Erfahrungsstufen: Startgewichte, Sätze, Aufstieg
+js/gewichte.js          Arbeitsgewichte und die Reihenfolge beim Umbauen
+js/plan.js              Termine, Übungen je Einheit, Nacharbeit, Fortschritt
+js/bilanz.js            Was insgesamt geleistet wurde, über Runden hinweg
 js/app.js               Rendering der fünf Tabs und Event-Handling
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
@@ -1954,6 +1960,52 @@ python3 tools/build-data.py
 Der Generator bricht ab, wenn eine Zeile nicht dem Muster `3× Übung (8–12)`
 folgt, wenn Hantel- und Bodyweight-Spalte unterschiedlich viele Übungen haben
 oder wenn zu einer Übung der Eintrag in `exercise-meta.json` fehlt.
+
+### Die Rechnung steht neben der Anzeige, nicht darin
+
+`js/app.js` hatte 5535 Zeilen und war beides zugleich: was die App weiß und was
+sie zeigt. Das ist keine Stilfrage. Wer nachsehen wollte, wie die Satzzahl
+zustande kommt, musste durch Renderfunktionen scrollen; und jede Rechnung war
+nur über den Browser prüfbar, weil sie an einem `<div>` klebte.
+
+Die Rechnung steht jetzt in sechs Modulen daneben, streng in einer Richtung —
+jedes benutzt nur die vor ihm, keines benutzt `app.js`:
+
+| Modul | Was darin steht | Zeilen |
+| --- | --- | --- |
+| `js/text.js` | Text und Zahlen fürs Auge | 23 |
+| `js/uebung.js` | die einzelne Übung nachschlagen | 43 |
+| `js/stufen.js` | Startgewichte, Sätze je Übung, Aufstieg | 125 |
+| `js/gewichte.js` | Arbeitsgewichte, Reihenfolge beim Umbauen | 240 |
+| `js/plan.js` | Termine, Übungen je Einheit, Nacharbeit, Fortschritt | 519 |
+| `js/bilanz.js` | was insgesamt geleistet wurde, über Runden hinweg | 204 |
+
+Verschoben wurde **wortgleich**: kein Verhalten geändert, keine Zeile neu
+getippt. Die 815 Browserprüfungen liefen vorher und nachher unverändert grün —
+bei einem Umbau dieser Größe ist das der einzige Beleg, der zählt.
+
+**Was bleibt.** `js/app.js` hat noch 4571 Zeilen: die Renderfunktionen,
+den Zustand der Oberfläche (`ui`), die Tab-Verwaltung und den Klick-Verteiler.
+Diese Hälfte weiter zu zerlegen ginge auch, hieße aber, `ui`, `render()` und
+`go()` über eine Registrierung zu entkoppeln — die drei Blöcke, die dafür in
+Frage kämen (Kalender, Verletzungen, Betreiber-Übersicht), greifen alle
+darauf zu. Das ist mehr Maschinerie, als es einbringt, und wird deshalb
+bewusst nicht gemacht.
+
+**Damit die Richtung hält**, prüft `tools/pruefung/schichten.py` bei jedem
+Push drei Dinge: keine Kreise zwischen den Modulen, jedes von `app.js`
+erreichbare Modul steht in der Bündelliste von `tools/build-single.py`, und
+jedes steht im Offline-Vorrat in `sw.js`.
+
+Diese Prüfung hat sofort einen echten Fehler gefunden, und zwar einen alten:
+**`js/ics.js` stand nie in der Bündelliste.** Unter `index.html` lief der
+Kalenderexport, in `dist/workout.html` war `buildICS` schlicht nicht definiert
+— ein ReferenceError beim Antippen. Der Grund, warum die Datei nie aufgenommen
+wurde, steht in ihr selbst: Sie hatte ein eigenes `esc()` und ein eigenes
+`pad()`, und im Bündel teilen sich alle Module einen Gültigkeitsbereich. `pad`
+kommt jetzt aus `js/dates.js`, das iCalendar-Entschärfen heißt `escIcs()`, und
+`tests/test-single.mjs` drückt den Knopf und sieht nach, ob eine Datei
+herauskommt.
 
 ## Prüfen
 

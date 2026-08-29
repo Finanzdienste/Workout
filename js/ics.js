@@ -22,11 +22,17 @@
  * müsste hier eine VTIMEZONE-Tabelle mitgeschleppt werden, die zur nächsten
  * Zeitumstellung falsch wäre.
  */
+import { pad } from './dates.js';
 
 const NL = '\r\n';
 
-/** Text für iCalendar entschärfen: Trennzeichen und Zeilenumbrüche. */
-function esc(text) {
+/* Text für iCalendar entschärfen: Trennzeichen und Zeilenumbrüche.
+ *
+ * Heißt nicht esc(): So heißt in js/text.js das Entschärfen für HTML, und im
+ * Bündel (dist/workout.html) teilen sich alle Module einen Gültigkeitsbereich.
+ * Zwei gleichnamige, verschiedene Funktionen gehen dort nicht – und genau
+ * daran ist diese Datei nie ins Bündel aufgenommen worden. */
+function escIcs(text) {
   return String(text)
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
@@ -51,8 +57,6 @@ function fold(line) {
   if (rest) teile.push(` ${rest}`);
   return teile.join(NL);
 }
-
-const pad = (n) => String(n).padStart(2, '0');
 
 /** 2026-08-24 + 18:00 -> 20260824T180000 (ohne Zeitzone, siehe oben). */
 function stamp(iso, minutes) {
@@ -96,7 +100,7 @@ export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout', 
     'PRODID:-//Workout//Trainingsplan//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${esc(name)}`,
+    `X-WR-CALNAME:${escIcs(name)}`,
   ];
   const jetzt = nowUTC();
 
@@ -117,8 +121,8 @@ export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout', 
       `SEQUENCE:${seq}`,
       `DTSTART:${stamp(w.date, hour * 60)}`,
       `DTEND:${stamp(w.date, hour * 60 + dauer)}`,
-      fold(`SUMMARY:${esc(`Workout ${w.n} · ${items.length} Übungen · ${saetze} Sätze`)}`),
-      fold(`DESCRIPTION:${esc(liste)}`),
+      fold(`SUMMARY:${escIcs(`Workout ${w.n} · ${items.length} Übungen · ${saetze} Sätze`)}`),
+      fold(`DESCRIPTION:${escIcs(liste)}`),
       'END:VEVENT',
     );
   });
@@ -140,7 +144,7 @@ export function buildICS(plan, resolve, { hour = 18, seq = 0, name = 'Workout', 
       // DTSTART muss dabeistehen, auch wenn der Termin verschwindet: ein VEVENT
       // ohne Beginn lehnen manche Kalender als fehlerhaft ab.
       `DTSTART:${stamp('1970-01-01', hour * 60)}`,
-      fold(`SUMMARY:${esc(`Workout ${n} – entfällt`)}`),
+      fold(`SUMMARY:${escIcs(`Workout ${n} – entfällt`)}`),
       'END:VEVENT',
     );
   });

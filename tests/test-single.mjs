@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { EINZEL, SHOT } from './umgebung.mjs';
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 414, height: 896 } });
+const page = await browser.newPage({ viewport: { width: 414, height: 896 }, acceptDownloads: true });
 const errs = [];
 page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()); });
@@ -90,6 +90,30 @@ check(await page.locator('.set-btn.on').count() === 1, 'Satz abhaken funktionier
 
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);
+
+// Der Kalenderexport – die eine Stelle, an der diese Fassung jahrelang kaputt
+// war, ohne dass es jemandem auffiel: js/ics.js stand nicht in der Modulliste
+// des Bündels, buildICS() war also nie definiert. Unter index.html lief alles,
+// hier gab es einen ReferenceError.
+//
+// Von außen nachschauen geht nicht – im Bündel steht alles in einem
+// Modul-Gültigkeitsbereich, nicht am window. Geprüft wird deshalb über den
+// Knopf: Kommt eine Datei heraus, war die Funktion da.
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(300);
+const knopf = page.locator('[data-act="download-ics"]');
+check(await knopf.count() > 0, 'der Kalenderexport steht unter Mehr');
+const [download] = await Promise.all([
+  page.waitForEvent('download', { timeout: 8000 }).catch(() => null),
+  knopf.first().click(),
+]);
+check(!!download, `der Export liefert eine Datei (${download ? download.suggestedFilename() : 'keine'})`);
+if (download) {
+  const pfad = await download.path();
+  const text = pfad ? await (await import('node:fs/promises')).readFile(pfad, 'utf8') : '';
+  check(/^BEGIN:VCALENDAR/.test(text) && /BEGIN:VEVENT/.test(text),
+    `und darin steht ein Kalender mit Terminen (${text.slice(0, 22)})`);
+}
 
 await page.screenshot({ path: `${SHOT}/20-single-file.png`, fullPage: false });
 
