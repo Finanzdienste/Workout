@@ -3193,6 +3193,37 @@ Das ist übrigens die ehrlichere Zahl als die des Handys: Androids *Digitales
 Wohlbefinden* zählt, wie lange die App offen war, diese Uhr zählt, wie lange
 trainiert wurde.
 
+### Die Zeitschätzung wird an der eigenen Uhr geeicht
+
+An jeder Planvariante steht eine Dauer, und nach dieser Zahl sucht man sich den
+Plan aus. Sie kam aus einer Formel: **40 Sekunden je Satz plus die vorgesehene
+Pause**, die letzte Pause abgezogen. Beide Zahlen sind geraten — 40 Sekunden je
+Satz gilt für einen zügigen Zehner, nicht für Kreuzheben mit Umbau davor.
+
+Die Uhr misst derweil längst mit und wurde nur angezeigt. Sobald **fünf**
+Einheiten mit gemessener Zeit vorliegen, rechnet die App den Faktor aus, um den
+dieser Mensch von der Formel abweicht, und wendet ihn auf alle Schätzungen an.
+Aus „ca. 51 min" wird „**56 min (gemessen)**" — die Klammer sagt, dass es keine
+Schätzung mehr ist.
+
+Drei Vorsichtsmaßnahmen, und alle drei sind Fälle, in denen die Formel
+**bleibt**:
+
+| Lage | Was passiert |
+| --- | --- |
+| keine gemessene Einheit | „ca." bleibt — eine Eichung aus dem Nichts wäre schlechter als eine ehrliche Schätzung |
+| eine bis vier Einheiten | „ca." bleibt — wer beim ersten Mal zwischendurch telefoniert, bekäme sonst für den Rest des Plans falsche Zahlen |
+| Faktor außerhalb 0,5×–2,0× | gedeckelt, und die Statistik sagt, dass gedeckelt wurde |
+
+Der Deckel ist kein Schönheitsfehler: Wenn die Uhr einmal weiterlief, während
+jemand einkaufen war, stünden ungedeckelt 250 min am Plan, und niemand würde ihn
+je wieder wählen. Eine einzelne vergessene Uhr darf die Zahl verzerren, aber
+nicht zerstören.
+
+In der Statistik steht eine eigene Kachel *gegen die Schätzung* mit dem Faktor
+und der Zahl der Einheiten, aus denen er stammt. Wer sehen will, ob die App
+gerechnet oder geraten hat, muss nicht raten.
+
 ## Als eigene App auf dem Handy
 
 In Androids *Digitalem Wohlbefinden* zählt die Zeit nach **Prozess**, nicht nach

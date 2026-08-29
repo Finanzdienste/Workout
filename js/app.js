@@ -2674,6 +2674,9 @@ function gesamtKarte() {
 function renderStats() {
   const { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak,
           upcoming, customSets, seconds, mitZeit } = sammleStats();
+  // Ab fünf gemessenen Einheiten rechnet die App nicht mehr mit der Formel,
+  // sondern mit dem, was die Uhr sagt – siehe zeitEichung().
+  const eich = zeitEichung();
 
   const topEx = [...perEx.entries()]
     .map(([id, c]) => ({ ex: EX_BY_ID.get(id), c }))
@@ -2694,11 +2697,26 @@ function renderStats() {
       ${seconds ? `<div class="stat"><div class="stat-v">${esc(dauerText(seconds))}</div>
         <div class="stat-l">Zeit im Training${mitZeit > 1
           ? ` <span class="muted">(Ø ${esc(dauerText(Math.round(seconds / mitZeit)))})</span>` : ''}</div></div>` : ''}
+      ${eich ? `<div class="stat"><div class="stat-v">${eich.faktor < 1 ? '−' : '+'}${
+        Math.abs(Math.round((eich.faktor - 1) * 100))} %</div>
+        <div class="stat-l">gegen die Schätzung <span class="muted">(${eich.einheiten} Einheiten)</span></div></div>` : ''}
       ${store.getState().rounds.length
         ? `<div class="stat"><div class="stat-v">${store.getState().rounds.length}</div><div class="stat-l">Runden abgeschlossen</div></div>` : ''}
     </div>
 
     ${gesamtKarte()}
+
+    ${eich ? `<div class="card small muted" style="margin-top:-4px">
+      Die Dauer an den Trainingsplänen ist keine Schätzung mehr: Über
+      ${eich.einheiten} gemessene Einheiten brauchst du
+      <b>${eich.faktor < 1 ? Math.round((1 - eich.faktor) * 100) + ' % weniger'
+        : Math.round((eich.faktor - 1) * 100) + ' % mehr'}</b>
+      Zeit als die Formel (40 s je Satz plus die vorgesehene Pause) annimmt.
+      Damit rechnet sie ab jetzt.${eich.gedeckelt
+        ? ' Der gemessene Wert liegt außerhalb des Vertrauensbereichs und ist gedeckelt –'
+          + ' vermutlich lief die Uhr einmal weiter, während du etwas anderes gemacht hast.'
+        : ''}
+    </div>` : ''}
 
     ${vergleichKarte()}
 
@@ -3804,6 +3822,77 @@ const FOKUS_TEXT = {
  * Aufstellen. Grob, aber die Pausen daneben sind der viel größere Posten. */
 const ARBEIT_JE_SATZ = 40;
 
+/* ------------------------------------------------------------------ *
+ * Die Zeitschätzung an der echten Uhr eichen
+ *
+ * „ca. 50 min" steht an jeder Variante, und nach dieser Zahl sucht jemand
+ * seinen Plan aus. Sie kommt aus einer Formel: 40 Sekunden je Satz plus die
+ * vorgesehene Pause. Beides ist geraten – der Satz dauert länger, wenn man
+ * umbaut, und kürzer, wenn man die Pause abbricht.
+ *
+ * Die Uhr misst derweil mit (`secs` je Einheit im Protokoll) und wurde bisher
+ * nur angezeigt. Aus beidem zusammen wird ein Faktor: Wer regelmäßig 20 %
+ * länger braucht, soll auch 20 % mehr angezeigt bekommen.
+ *
+ * **Erst ab fünf gemessenen Einheiten.** Eine einzelne sagt nichts – wer beim
+ * ersten Mal zwischendurch telefoniert, bekäme sonst für den Rest des Plans
+ * falsche Zahlen. Und der Faktor ist gedeckelt: Zwischen halb und doppelt so
+ * lang. Was darüber hinausgeht, ist keine Eichung mehr, sondern eine Einheit,
+ * bei der die Uhr mitlief, während jemand einkaufen war.
+ * ------------------------------------------------------------------ */
+const EICHUNG_AB = 5;
+const EICHUNG_MIN = 0.5;
+const EICHUNG_MAX = 2.0;
+
+/**
+ * Wie lange eine Einheit nach der Formel dauern müsste, in Sekunden.
+ *
+ * Mit den echten Pausen je Übung, nicht mit einem Mittelwert: Ein Satz
+ * Chin-ups kostet 180 s Pause, einer Wadenheben 90.
+ */
+function dauerLautFormel(items, mode) {
+  if (!items.length) return 0;
+  const pause = (id) => {
+    const ex = EX_BY_ID.get(id);
+    return (ex && ex[mode] && ex[mode].rest) || 120;
+  };
+  const summe = items.reduce((a, it) => a + it.sets * (ARBEIT_JE_SATZ + pause(it.id)), 0);
+  // Die letzte Pause der Einheit fällt weg – danach ist man fertig.
+  return summe - pause(items[items.length - 1].id);
+}
+
+/**
+ * Der gemessene Faktor zwischen echter und geschätzter Dauer – oder null.
+ *
+ * Gezählt werden nur abgeschlossene Einheiten mit erfasster Zeit. Verglichen
+ * werden Summen und nicht Einzelwerte: Eine Einheit, bei der die App im
+ * Hintergrund lag, zieht so nicht den ganzen Schnitt.
+ */
+function zeitEichung() {
+  const log = store.getState().log;
+  let echt = 0;
+  let formel = 0;
+  let n = 0;
+  PLAN.forEach((w) => {
+    const e = log[w.n];
+    const m = completedMode(w.n);
+    if (!e || !m || !(e.secs > 0)) return;
+    const soll = dauerLautFormel(exOf(w, m), m);
+    if (soll <= 0) return;
+    echt += e.secs;
+    formel += soll;
+    n += 1;
+  });
+  if (n < EICHUNG_AB || formel <= 0) return null;
+  const roh = echt / formel;
+  return {
+    faktor: Math.min(EICHUNG_MAX, Math.max(EICHUNG_MIN, roh)),
+    roh,
+    einheiten: n,
+    gedeckelt: roh < EICHUNG_MIN || roh > EICHUNG_MAX,
+  };
+}
+
 /**
  * Sekunden als Zeitangabe, wie man sie ausspricht: "48 min", "3 h 12".
  *
@@ -3836,8 +3925,11 @@ function fokusZeile(v) {
     // Arbeit plus Pause nach jedem Satz; die letzte Pause der Einheit fällt weg.
     return b + satzZahl(roh(x)) * (ARBEIT_JE_SATZ + pause);
   }, 0) - ((w.ex.length && EX_BY_ID.get(w.ex[w.ex.length - 1].id)[modus].rest) || 0), 0);
-  const min = Math.round((sekunden / v.plan.length / 60) / 5) * 5;
-  return `${v.plan.length} Einheiten · ${proEinheit.toFixed(1)} Sätze je Einheit · ca. ${min} min`;
+  // Wer schon gemessen hat, bekommt seine eigene Zahl statt der Formel.
+  const eich = zeitEichung();
+  const min = Math.round((sekunden * (eich ? eich.faktor : 1) / v.plan.length / 60) / 5) * 5;
+  return `${v.plan.length} Einheiten · ${proEinheit.toFixed(1)} Sätze je Einheit · `
+    + `${eich ? '' : 'ca. '}${min} min${eich ? ' (gemessen)' : ''}`;
 }
 
 /** Auswahlkarten für den Trainingsfokus – im Einstieg und in den Einstellungen. */
