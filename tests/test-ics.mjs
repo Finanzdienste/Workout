@@ -108,7 +108,14 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
 const text = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/Plan hat sich seit dem letzten Export/.test(text), 'die App meldet den veralteten Kalender');
-check(/4 Tage/.test(text), 'und nennt die Zahl der Tage');
+// Die Zahl kommt aus der App, nicht aus diesem Test. Hier stand einmal eine
+// feste 4 – und die stimmte nur an dem Tag, an dem sie geschrieben wurde:
+// catchUpPlan() rückt den Plan bei jedem Laden auf heute nach, der Wert steigt
+// also mit jedem Tag. Der Test schlug prompt am nächsten Morgen fehl.
+const shift = await page.evaluate(async () => (await import('./js/store.js')).getState().shift);
+check(shift > 0, `der Plan ist nachgerückt (${shift} Tage)`);
+check(new RegExp(`${shift} Tage`).test(text),
+  `und der Hinweis nennt genau diese Zahl (${shift})`);
 check(await page.locator('[data-act="download-ics"]').count() === 1, 'Knopf zum Erzeugen da');
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

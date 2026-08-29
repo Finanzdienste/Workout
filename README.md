@@ -2495,6 +2495,76 @@ nicht tun. Gegengeprüft – nimmt man die kumulative Zählung heraus, fallen zw
 Prüfungen um; ersetzt man die Vollständigkeitsregel durch „irgendwas abgehakt",
 zwei andere.
 
+### Wenn eine Einheit nicht zu Ende gemacht wurde
+
+Bisher passierte dann gar nichts. *Abschließen* zählt den Tag als trainiert –
+auch mit halb offener Liste –, und der Plan ging weiter, als wäre nichts
+gewesen. Das Wochenziel je Muskelgruppe, auf das dieser Plan exakt gerechnet
+ist, stimmte danach nicht mehr, und niemand erfuhr davon.
+
+Die Antwort darauf zeigt in **zwei Richtungen**, und das ist kein Widerspruch,
+sondern die Unterscheidung, an der alles hängt: *einmal keine Zeit gehabt* ist
+etwas anderes als *der Plan ist zu groß*.
+
+**Nacharbeit — innerhalb derselben Woche.** Was liegen bleibt, kommt auf die
+nächsten Einheiten derselben Woche. Verteilt wird gierig: immer der Satz, der
+vom Rückstand am meisten wegnimmt, wobei eine Übung mit ihren Anteilen zählt –
+ein Satz Kniebeugen schließt etwas beim Oberschenkel *und* beim Gesäß.
+
+Drei Grenzen, jede aus einem Grund:
+
+| Grenze | warum |
+| --- | --- |
+| nur dieselbe Woche | Volumen wirkt dann, wenn es anfällt. Drei Wochen später nachgeholt ist kein Ausgleich, sondern eine zusätzliche Belastung zur Unzeit. |
+| höchstens 1 Satz je Übung, 3 je Einheit | Eine Einheit soll wiedererkennbar bleiben – und mehr wäre auch nicht die Belastung, für die die Erholungsregel gerechnet ist. |
+| gemessen gegen den Plan *ohne* Nacharbeit | Sonst wächst der Rückstand an sich selbst. Wer die nachgetragenen Sätze auch liegen lässt, bekommt sie nicht ein zweites Mal obendrauf. |
+
+Nur an **offenen** Einheiten. Einer abgeschlossenen nachträglich Sätze
+hinzuzufügen hieße, sie rückwirkend für unfertig zu erklären.
+
+**Abstieg — wenn es chronisch klemmt.** Der Aufstieg hatte lange kein
+Gegenstück, und das war eine Behauptung: dass der Plan schon passt und nur der
+Mensch noch hineinwachsen muss. Wer Woche für Woche nach zwei Dritteln aufhört,
+dem sagt das nichts über seine Disziplin – dem ist die Einheit zu groß. Liegt
+der Anteil abgehakter Sätze über die letzten **sechs** abgeschlossenen
+Einheiten unter **70 %**, geht die Erfahrungsstufe eine Stufe herunter: weniger
+Sätze je Übung, gleiche Übungen, gleiche Pausen. Mit Hinweis und
+Zurück-Knopf, wie beim Aufstieg.
+
+Sechs Einheiten sind bei vier pro Woche rund anderthalb Wochen – lang genug,
+dass eine einzelne kurze Woche nichts auslöst. Und zwei Drittel einer Einheit
+sind kein schlechtes Training, sondern ein normaler Tag mit wenig Zeit; erst
+wer dauerhaft darunter bleibt, trainiert nach einem Plan, der ihm nicht gehört.
+
+Zwei Feinheiten, ohne die es sich selbst zerlegt:
+
+* **Der Gegenschritt wandert mit in `aufstiege`.** Sonst ginge es sofort wieder
+  hoch: Die Aufstiegsschwellen zählen über *alles* Trainierte und sind für
+  jemanden mit Vorgeschichte längst überschritten. Die beiden Regeln würden
+  sich bei jedem Laden gegenseitig überschreiben.
+* **Der Abstieg wird zuerst geprüft.** Was jemand in den letzten anderthalb
+  Wochen wirklich geschafft hat, sagt mehr über die richtige Einheitengröße als
+  die Summe seines bisherigen Trainings.
+
+Gemessen wird gegen `exBasis()` – den Plan *ohne* Nacharbeit. Was die App
+selbst obendrauf gelegt hat, darf niemandem als Versäumnis angerechnet werden.
+
+**Und es steht dran.** An der Übung („+1 nachgeholt") und im Kopf der Einheit.
+Eine Einheit, die kommentarlos wächst, ist eine Zumutung.
+
+Beim Einbau ist ein Fehler aufgefallen, der nichts mit dem Feature zu tun hat
+und trotzdem daran hing: Das `ui`-Objekt ruft `defaultWorkoutNo()` **während
+der Modulauswertung** auf, und das geht über `completedMode()` bis in `exOf()`.
+Eine Konstante, die weiter unten in der Datei steht, ist zu diesem Zeitpunkt
+noch nicht initialisiert – und das zeigte sich erst, sobald ein Protokoll da
+war, weil `completedMode()` ohne Protokoll vorher aussteigt. Elf Testdateien
+fielen gleichzeitig um, die Ursache war eine Zeile Reihenfolge.
+
+`tests/test-nacharbeit.mjs` prüft beide Hälften mit 23 Prüfungen, darunter die
+wichtigste: dass **nichts** passiert, wenn alles normal läuft. Gegengeprüft –
+nimmt man die Nacharbeit heraus, fallen drei Prüfungen um; nimmt man den
+Abstieg heraus, drei andere.
+
 ### Jede Übung muss einen Weg nach unten nennen
 
 Der Plan gibt Wiederholungsbereiche vor. Wer sie nicht erreicht, braucht eine

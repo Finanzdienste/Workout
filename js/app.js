@@ -179,13 +179,15 @@ function injuryNotes(n) {
 }
 
 /**
- * Übungsliste eines Plantags, angepasst an die angehakten Verletzungen.
+ * Der Plantag, wie er im Plan steht – Verletzungen, Modus und Erfahrungsstufe
+ * eingerechnet, aber ohne Nacharbeit.
  *
- * Alles in der App geht durch diese Stelle – Übersicht, Fokus, Statistik,
- * Steigerungsvorschlag. So kann es gar nicht passieren, dass an einer Stelle
- * eine gesperrte Übung auftaucht und an einer anderen nicht.
+ * Das ist die Zahl, gegen die gemessen wird: Wer wissen will, was diese Woche
+ * liegen geblieben ist, muss den *Plan* fragen und nicht eine Einheit, die
+ * schon Nachgetragenes enthält. Sonst wächst der Rückstand an sich selbst.
+ * Nach außen geht exOf(), nicht diese Funktion.
  */
-function exOf(w, mode) {
+function exBasis(w, mode) {
   if (istCustom(w.n)) return w.ex;
   const m = mode || store.workoutMode(w.n);
   const geplant = adjustedPlan()[w.n - 1] || w.ex;
@@ -202,6 +204,153 @@ function exOf(w, mode) {
   // Nur bei den Hanteln: Im Bodyweight-Modus gibt es nichts umzubauen, und die
   // Reihenfolge soll dann die des Plans bleiben.
   return m === 'db' ? ruestOrderStabil(items, w.n, 'db') : items;
+}
+
+/* ------------------------------------------------------------------ *
+ * Nacharbeit: was diese Woche liegen geblieben ist
+ *
+ * Wer eine Einheit nicht zu Ende macht, verlor die fehlenden Sätze bisher
+ * ersatzlos – "Abschließen" zählt den Tag als trainiert, und der Plan ging
+ * weiter, als wäre nichts gewesen. Das Wochenziel je Muskelgruppe, auf das
+ * dieser Plan exakt gerechnet ist, stimmte dann für diese Woche nicht mehr.
+ *
+ * **Nur innerhalb derselben Woche.** Das ist keine technische Grenze, sondern
+ * die Trainingslehre: Volumen wirkt über die Zeit, in der es anfällt. Was drei
+ * Wochen später nachgeholt wird, ist kein Ausgleich, sondern eine zusätzliche
+ * Belastung zur Unzeit – und ein Rückstand, der über Wochen mitwächst, führt zu
+ * Einheiten, die niemand mehr schafft. Wer chronisch nicht fertig wird,
+ * bekommt deshalb keinen Berg, sondern einen kleineren Plan: siehe
+ * pruefeAbstieg().
+ *
+ * **Gedeckelt.** Höchstens ein Satz je Übung und drei je Einheit. Eine Einheit
+ * soll wiedererkennbar bleiben, und mehr als das wäre auch nicht mehr die
+ * Belastung, für die die Erholungsregel gerechnet ist.
+ *
+ * **Ohne Aufschaukeln.** Gemessen wird gegen den Plan *ohne* Nacharbeit
+ * (exBasis). Wer die nachgetragenen Sätze auch liegen lässt, bekommt sie nicht
+ * ein zweites Mal obendrauf.
+ * ------------------------------------------------------------------ */
+// Vier Einheiten sind eine Woche. Steht bewusst hier oben und nicht bei der
+// Wochenauswertung, wo es hingehört: Das `ui`-Objekt ruft defaultWorkoutNo()
+// noch während der Modulauswertung auf, und das geht über completedMode() bis
+// hierher. Eine weiter unten stehende Konstante ist zu diesem Zeitpunkt noch
+// nicht initialisiert – und der Fehler zeigt sich erst, sobald ein Protokoll
+// da ist, weil completedMode() ohne Protokoll vorher aussteigt.
+const WEEK_SESSIONS = 4;
+const NACH_JE_EINHEIT = 3;
+const NACH_JE_UEBUNG = 1;
+
+/**
+ * Ist diese Einheit abgeschlossen? Wie completedMode(), aber über die
+ * Plan-Satzzahl ohne Nacharbeit.
+ *
+ * Eine eigene Fassung, weil completedMode() über workoutByNo() an exOf() geht –
+ * und exOf() fragt hier. Das wäre eine Endlosschleife.
+ */
+function fertigOhneNacharbeit(n) {
+  const st = store.getState().log[n];
+  const w = PLAN[n - 1];
+  if (!st || !w) return null;
+  for (const m of ['db', 'bw']) {
+    let total = 0;
+    let done = 0;
+    exBasis(w, m).forEach((it) => {
+      const arr = (st[m] || {})[it.id] || [];
+      total += it.sets;
+      done += arr.slice(0, it.sets).filter((s) => s.done).length;
+    });
+    if (total > 0 && done === total) return m;
+  }
+  // Von Hand abgeschlossen zählt auch – aber nur, wenn überhaupt etwas steht.
+  if (st.done) {
+    const drin = Object.values(st[st.done] || {})
+      .some((arr) => Array.isArray(arr) && arr.some((s) => s.done));
+    if (drin) return st.done;
+  }
+  return null;
+}
+
+/** Was in dieser Woche vor `w` liegen geblieben ist, je Muskelgruppe. */
+function offenInWoche(w) {
+  const start = Math.floor((w.n - 1) / WEEK_SESSIONS) * WEEK_SESSIONS;
+  const fehlt = {};
+  let summe = 0;
+  for (let i = start; i < w.n - 1 && i < PLAN.length; i++) {
+    const x = PLAN[i];
+    const mx = fertigOhneNacharbeit(x.n);
+    if (!mx) continue;   // noch offen – das ist kein Rückstand, das ist Zukunft
+    const log = (store.getState().log[x.n] || {})[mx] || {};
+    exBasis(x, mx).forEach((it) => {
+      const arr = log[it.id];
+      const done = Array.isArray(arr) ? arr.slice(0, it.sets).filter((s) => s.done).length : 0;
+      const offen = it.sets - done;
+      if (offen <= 0) return;
+      const shares = EX_BY_ID.get(it.id)[mx].shares;
+      Object.entries(shares).forEach(([mus, share]) => {
+        fehlt[mus] = (fehlt[mus] || 0) + offen * share;
+        summe += offen * share;
+      });
+    });
+  }
+  return { fehlt, summe };
+}
+
+/**
+ * Wie viele Sätze diese Einheit obendrauf bekommt, je Übung.
+ *
+ * Verteilt wird gierig: Immer der Satz, der vom Rückstand am meisten wegnimmt.
+ * Eine Übung zählt dabei mit ihren Anteilen – ein Satz Kniebeugen schließt
+ * etwas beim Oberschenkel *und* beim Gesäß.
+ */
+function nacharbeit(w, m) {
+  if (istCustom(w.n) || !PLAN[w.n - 1]) return null;
+  // Eine abgeschlossene Einheit ist Geschichte. Ihr nachträglich Sätze
+  // hinzuzufügen, hieße, sie rückwirkend für unfertig zu erklären.
+  if (fertigOhneNacharbeit(w.n)) return null;
+  const { fehlt, summe } = offenInWoche(w);
+  // Unter einem halben Satz lohnt die Unruhe nicht.
+  if (summe < 0.5) return null;
+
+  const rest = { ...fehlt };
+  const items = exBasis(w, m);
+  const extra = new Map();
+  for (let k = 0; k < NACH_JE_EINHEIT; k++) {
+    let beste = null;
+    let bestWert = 0;
+    items.forEach((it) => {
+      if ((extra.get(it.id) || 0) >= NACH_JE_UEBUNG) return;
+      const shares = EX_BY_ID.get(it.id)[m].shares;
+      // Was ein zusätzlicher Satz vom Rückstand wirklich wegnimmt – mehr als
+      // offen ist, kann er nicht schließen.
+      const wert = Object.entries(shares)
+        .reduce((a, [mus, share]) => a + Math.min(share, rest[mus] || 0), 0);
+      if (wert > bestWert) { bestWert = wert; beste = it; }
+    });
+    if (!beste || bestWert < 0.25) break;
+    extra.set(beste.id, (extra.get(beste.id) || 0) + 1);
+    Object.entries(EX_BY_ID.get(beste.id)[m].shares).forEach(([mus, share]) => {
+      rest[mus] = Math.max(0, (rest[mus] || 0) - share);
+    });
+  }
+  return extra.size ? extra : null;
+}
+
+/**
+ * Übungsliste eines Plantags – Verletzungen, Modus, Erfahrung und Nacharbeit.
+ *
+ * Alles in der App geht durch diese Stelle. Die nachgetragenen Sätze stehen
+ * deshalb schon hier drin und nicht erst in der Anzeige: Protokoll,
+ * Fortschritt, Wochenvolumen und Zeitschätzung rechnen dann von selbst mit.
+ */
+function exOf(w, mode) {
+  if (istCustom(w.n)) return w.ex;
+  const m = mode || store.workoutMode(w.n);
+  const basis = exBasis(w, m);
+  const extra = nacharbeit(w, m);
+  if (!extra) return basis;
+  return basis.map((it) => (extra.has(it.id)
+    ? { ...it, sets: it.sets + extra.get(it.id), nach: extra.get(it.id) }
+    : it));
 }
 
 /**
@@ -252,6 +401,10 @@ function resolve(item, mode) {
   const stufe = stufenWerte(v);
   return {
     id: item.id, sets: item.sets, group: ex.group,
+    // Wie viele dieser Sätze aus der Nacharbeit stammen – siehe nacharbeit().
+    // Muss mitwandern: Ab hier sieht die Anzeige nur noch das, was hier steht,
+    // und eine Einheit, die kommentarlos wächst, ist eine Zumutung.
+    nach: item.nach || 0,
     name: v.name, reps: stufe.reps, equip: v.equip, cue: v.cue, rest: stufe.rest,
     pattern: v.pattern, muscles: v.muscles,
     // Die ausführliche Erklärung hängt an der Übung, nicht an der Variante:
@@ -372,6 +525,31 @@ const AUFSTIEGE = [
   { von: 'anfaenger', nach: 'geuebt', einheiten: 60, saetze: 700, tonnen: 30 },
   { von: 'geuebt', nach: 'fortgeschritten', einheiten: 200, saetze: 3400, tonnen: 200 },
 ];
+
+/* Und die Gegenrichtung.
+ *
+ * Der Aufstieg hatte lange kein Gegenstück, und das war eine Behauptung: dass
+ * der Plan schon passt und nur der Mensch noch hineinwachsen muss. Wer Woche
+ * für Woche nach zwei Dritteln aufhört, dem sagt das nichts über seine
+ * Disziplin – dem ist die Einheit zu groß. Eine Vorgabe, die nie erfüllt wird,
+ * ist keine Vorgabe mehr, sondern eine tägliche Niederlage.
+ *
+ * Gemessen wird über die letzten `LETZTE` abgeschlossenen Einheiten, gegen die
+ * Plan-Satzzahl *ohne* Nacharbeit: Was die App selbst obendrauf gelegt hat,
+ * darf niemandem als Versäumnis angerechnet werden.
+ *
+ * Die Schwelle ist bewusst tief. Zwei Drittel einer Einheit ist kein
+ * schlechtes Training, das ist ein normaler Tag mit wenig Zeit; erst wer
+ * dauerhaft darunter bleibt, trainiert nach einem Plan, der ihm nicht gehört.
+ * Sechs Einheiten sind bei vier pro Woche rund anderthalb Wochen – lang genug,
+ * dass eine einzelne kurze Woche nichts auslöst.
+ */
+const ABSTIEGE = [
+  { von: 'fortgeschritten', nach: 'geuebt' },
+  { von: 'geuebt', nach: 'anfaenger' },
+];
+const ABSTIEG_LETZTE = 6;
+const ABSTIEG_ANTEIL = 0.7;
 
 /** Der nächste Schritt, wenn es einen gibt und er noch nicht dran war. */
 function offenerAufstieg() {
@@ -569,6 +747,108 @@ function pruefeAufstieg() {
   });
   store.setSetting('level', schritt.nach);
   return true;
+}
+
+/**
+ * Wie viel der letzten Einheiten tatsächlich abgehakt wurde.
+ *
+ * Gibt `null` zurück, solange es nicht genug abgeschlossene Einheiten gibt –
+ * aus zwei Trainings lässt sich nichts ableiten. Gemessen wird gegen exBasis(),
+ * also gegen den Plan ohne Nacharbeit: Was die App selbst obendrauf gelegt hat,
+ * darf niemandem als Versäumnis angerechnet werden.
+ */
+function letzteQuote() {
+  const log = store.getState().log;
+  const fertig = PLAN.filter((w) => fertigOhneNacharbeit(w.n)).slice(-ABSTIEG_LETZTE);
+  if (fertig.length < ABSTIEG_LETZTE) return null;
+  let soll = 0;
+  let ist = 0;
+  fertig.forEach((w) => {
+    const m = fertigOhneNacharbeit(w.n);
+    const eintrag = (log[w.n] || {})[m] || {};
+    exBasis(w, m).forEach((it) => {
+      const arr = eintrag[it.id];
+      soll += it.sets;
+      ist += Array.isArray(arr) ? arr.slice(0, it.sets).filter((s) => s.done).length : 0;
+    });
+  });
+  return soll ? { quote: ist / soll, einheiten: fertig.length, soll, ist } : null;
+}
+
+/** Wie viele Sätze einer Einheit aus der Nacharbeit stammen. */
+function nachSumme(items) {
+  return items.reduce((a, it) => a + (it.nach || 0), 0);
+}
+
+/** Der nächste Schritt nach unten, wenn es einen gibt und er noch nicht dran war. */
+function offenerAbstieg() {
+  const s = store.getState();
+  const schritt = ABSTIEGE.find((a) => a.von === (s.level || 'geuebt'));
+  if (!schritt) return null;
+  return (s.abstiege || []).includes(schritt.nach) ? null : schritt;
+}
+
+/**
+ * Prüfen und gegebenenfalls herunterstufen. Gibt zurück, ob etwas passiert ist.
+ *
+ * Läuft **vor** pruefeAufstieg(): Was jemand in den letzten anderthalb Wochen
+ * wirklich geschafft hat, sagt mehr über die richtige Einheitengröße als die
+ * Summe seines bisherigen Trainings. Wer beides zugleich erfüllt – viel
+ * trainiert, zuletzt wenig geschafft – gehört nach unten, nicht nach oben.
+ *
+ * Der Gegenschritt wandert dabei in `aufstiege`. Ohne das ginge es sofort
+ * wieder hoch: Die Aufstiegsschwellen zählen über *alles* Trainierte und sind
+ * für jemanden mit Vorgeschichte längst überschritten. Die beiden Regeln
+ * würden sich bei jedem Laden gegenseitig überschreiben.
+ */
+function pruefeAbstieg() {
+  const schritt = offenerAbstieg();
+  if (!schritt) return false;
+  const q = letzteQuote();
+  if (!q || q.quote >= ABSTIEG_ANTEIL) return false;
+
+  const s = store.getState();
+  store.setSetting('abstiege', [...(s.abstiege || []), schritt.nach]);
+  // Den Gegenschritt gleich mit abhaken – sonst stuft pruefeAufstieg() sofort
+  // zurück, und der Nutzer sieht bei jedem Laden zwei Meldungen.
+  const gegen = AUFSTIEGE.find((a) => a.von === schritt.nach);
+  if (gegen && !(s.aufstiege || []).includes(gegen.nach)) {
+    store.setSetting('aufstiege', [...(s.aufstiege || []), gegen.nach]);
+  }
+  store.setSetting('abstieg', {
+    von: schritt.von,
+    nach: schritt.nach,
+    am: todayISO(),
+    einheiten: q.einheiten,
+    prozent: Math.round(q.quote * 100),
+  });
+  store.setSetting('level', schritt.nach);
+  return true;
+}
+
+/** Der Hinweis dazu – eine Ansage, kein Vorwurf. */
+function abstiegHinweis() {
+  const a = store.getState().abstieg;
+  if (!a) return '';
+  const name = (k) => (LEVELS.find(([key]) => key === k) || [])[1] || k;
+  const vorher = SAETZE_JE_STUFE[a.von] || 3;
+  const jetzt = SAETZE_JE_STUFE[a.nach] || 3;
+  return `
+    <div class="notice aufstieg" style="margin:0 0 12px">
+      <strong>Der Plan war zu groß</strong>
+      <div class="small" style="margin-top:6px">
+        Von den letzten ${a.einheiten} Einheiten hast du im Schnitt ${a.prozent} % abgehakt.
+        Das ist keine Frage der Disziplin, sondern eine der Dosis: Ab jetzt stehen
+        ${jetzt} statt ${vorher} Sätze je Übung im Plan. Übungen, Pausen und die Verteilung
+        über die Woche bleiben, wie sie sind – und deine eingetragenen Gewichte auch.
+        Eine Einheit, die du zu Ende machst, ist mehr wert als eine, die du abbrichst.
+      </div>
+      <div class="btn-row nav" style="margin-top:10px">
+        <button type="button" class="btn btn-primary" data-act="abstieg-ok">Passt</button>
+        <button type="button" class="btn btn-ghost" data-act="abstieg-zurueck">
+          Bei ${esc(name(a.von))} bleiben</button>
+      </div>
+    </div>`;
 }
 
 /** Der Hinweis auf dem Dashboard, bis er weggetippt wird. */
@@ -1580,6 +1860,7 @@ function renderOverview() {
   view.innerHTML = `
     <section class="ov">
       ${umzugHinweis()}
+      ${abstiegHinweis()}
       ${aufstiegHinweis()}
       ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
         Eintragungen gehen beim Neuladen verloren.</div>`}
@@ -1620,6 +1901,9 @@ function renderOverview() {
           shift ? ` · Plan ${shift > 0 ? '+' : '−'}${esc(plural(Math.abs(shift), 'Tag', 'Tage'))}` : ''}</div>
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
           <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.complete ? ' · abgeschlossen' : ''}</div>` : ''}
+        ${nachSumme(items) ? `<div class="small muted" style="margin-top:8px">
+          ↩︎ ${esc(plural(nachSumme(items), 'Satz', 'Sätze'))} aus dieser Woche nachgeholt – diese Woche
+          ist etwas liegen geblieben, und das Wochenpensum je Muskelgruppe geht so wieder auf.</div>` : ''}
       </header>
 
       <div class="ov-body" id="bodyMap"></div>
@@ -2090,6 +2374,7 @@ function renderDashboard() {
   const parts = [];
 
   parts.push(umzugHinweis());
+  parts.push(abstiegHinweis());
   parts.push(aufstiegHinweis());
 
   if (!store.canPersist()) {
@@ -2171,7 +2456,8 @@ function renderDashboard() {
           <span class="ex-idx">${complete ? '✓' : i + 1}</span>
           <span class="ex-main">
             <span class="ex-name">${esc(it.name)}</span>
-            <span class="ex-meta">${it.sets} × ${esc(repsLabel(it, mode))} · ${esc(it.group)} · ${esc(it.equip)}</span>
+            <span class="ex-meta">${it.sets} × ${esc(repsLabel(it, mode))} · ${esc(it.group)} · ${esc(it.equip)}${
+              it.nach ? ` · <b>+${it.nach} nachgeholt</b>` : ''}</span>
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
@@ -2695,7 +2981,6 @@ function repsLabel(it, mode) {
  * rechnet.
  * ------------------------------------------------------------------ */
 
-const WEEK_SESSIONS = 4;
 const targetOf = (mus) => (TARGET[mus] ?? 10) * satzFaktor();
 /**
  * Im Ziel heißt: mindestens neun Zehntel dessen, was für **diese Woche**
@@ -4455,9 +4740,12 @@ view.addEventListener('click', (e) => {
       sound(prog.complete ? 'done' : 'stop');
       // Erst nach markDone: Die Einheit, die gerade fertig geworden ist, soll
       // mitzählen. Sonst käme der Aufstieg immer eine Einheit zu spät.
-      const gestiegen = pruefeAufstieg();
+      // Abstieg zuerst – siehe pruefeAbstieg().
+      const gefallen = pruefeAbstieg();
+      const gestiegen = !gefallen && pruefeAufstieg();
       render();
-      if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
+      if (gefallen) toast('Plan angepasst – siehe oben');
+      else if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
       else toast(prog.complete
         ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
         : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
@@ -4844,6 +5132,21 @@ view.addEventListener('click', (e) => {
       store.setSetting('aufstieg', null);
       render();
       break;
+    case 'abstieg-ok':
+      store.setSetting('abstieg', null);
+      render();
+      break;
+    case 'abstieg-zurueck': {
+      const a = store.getState().abstieg;
+      // Der Schritt bleibt in `abstiege` stehen: Wer die größere Einheit
+      // behalten will, soll nicht nach der nächsten kurzen Woche dieselbe
+      // Meldung wieder bekommen.
+      if (a) store.setSetting('level', a.von);
+      store.setSetting('abstieg', null);
+      render();
+      toast('Bleibt, wie es war');
+      break;
+    }
     case 'umzug-ok':
       store.setSetting('fokusUmzug', null);
       render();
@@ -5140,7 +5443,9 @@ if (fokusUmzug()) {
 // *neuen* gegenüber, und dagegen gerechnet findet sammleStats() so gut wie
 // nichts. Erst nachdem der Umzug die Runde samt Bilanz abgelegt hat, steht dem
 // Aufstieg die richtige Zahl gegenüber.
-if (pruefeAufstieg()) {
+// Der Abstieg zuerst: Was jemand zuletzt wirklich geschafft hat, sagt mehr über
+// die richtige Einheitengröße als die Summe seines bisherigen Trainings.
+if (pruefeAbstieg() || pruefeAufstieg()) {
   ui.tab = 'dashboard';
   ui.focus = false;
 }
