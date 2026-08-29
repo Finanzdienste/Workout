@@ -632,9 +632,9 @@
  "liegende-trizepsstrecker": {
   "group": "Trizeps",
   "tier": 3,
-  "dbEquip": "Kurzhanteln/SZ",
+  "dbEquip": "SZ-Stange/Kurzhantel",
   "bwEquip": "Loop-Band + Stuhl",
-  "dbCue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. Gewicht hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
+  "dbCue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. SZ-Stange (oder eine Kurzhantel beidhändig) hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
   "bwCue": "Auf den Stuhl setzen, das Band unter beide Füße klemmen und die Enden hinter dem Kopf fassen. Oberarme senkrecht neben den Ohren, nur strecken – die Ellenbogen bleiben stehen. Über Kopf steht der lange Trizepskopf auf voller Länge; genau dort soll der Zug ankommen. Schwerer wird es mit dem nächststärkeren Band oder indem du das Band kürzer fasst.",
   "detail": [
    [
@@ -667,7 +667,7 @@
   "bwShares": {
    "triceps": 1.0
   },
-  "equip": "dumbbells",
+  "equip": "barbell",
   "bwName": "Überkopf-Trizepsstrecker am Band",
   "bwReps": "10–20",
   "name": "Überkopf-Trizepsstrecker",
