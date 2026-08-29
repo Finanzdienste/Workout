@@ -9647,6 +9647,108 @@ function weeklyDone() {
   return weeks;
 }
 
+/* ------------------------------------------------------------------ *
+ * Der Zusatztag
+ *
+ * Die Nacharbeit hat einen Deckel, und der ist gewollt: Höchstens drei Sätze
+ * kommen auf eine Einheit obendrauf. Wer aber eine *ganze* Einheit ausgelassen
+ * hat, dem fehlen fünfzehn – die passen nirgendwo mehr hinein, ohne dass die
+ * nächste Einheit zur Zumutung wird.
+ *
+ * Also nicht hineinstopfen, sondern danebenstellen. Eine zusätzliche Einheit
+ * ist die sauberere Dosis: normale Satzzahl, normale Pausen, und die Übungen
+ * sind genau die, die diese Woche zu kurz gekommen sind.
+ *
+ * Angeboten wird sie erst, wenn die Woche **durch** ist. Solange noch eine
+ * Einheit offen steht, ist nichts versäumt – da erledigt die Nacharbeit den
+ * Rest, und ein Vorschlag wäre bloß Drängeln.
+ *
+ * Sie geht als *eigenes* Workout in die Ablage, nicht in den Plan. Der Plan
+ * rechnet sein Wochenvolumen aus festen Einheiten; eine dazwischengeschobene
+ * würde diese Rechnung stillschweigend verschieben (siehe customs() in
+ * js/store.js). Abgehakte Sätze zählen trotzdem mit – trainiert ist trainiert.
+ * ------------------------------------------------------------------ */
+const ZUSATZ_UEBUNGEN = 5;      // so lang wie eine gewöhnliche Einheit
+const ZUSATZ_AB = 6;            // unter sechs Sätzen Rückstand lohnt es nicht
+
+/**
+ * Muskelgruppen, die gerade Ruhe brauchen.
+ *
+ * Dieselbe Regel wie im Generator: Wer in den letzten `REST.days` Tagen direkt
+ * dran war – oder es in der nächsten Einheit ist –, kommt nicht in den
+ * Zusatztag. Sonst stünde die Erholungsregel, die den ganzen Plan trägt,
+ * ausgerechnet für die Einheit nicht, die freiwillig dazukommt.
+ *
+ * Ausgefallene Einheiten sperren nichts: Was nicht stattgefunden hat, muss auch
+ * nicht erholt werden.
+ */
+function ruhendeGruppen() {
+  const heute = todayISO();
+  const sperre = new Set();
+  PLAN.forEach((w) => {
+    const d = effDate(w);
+    if (Math.abs(daysBetween(d, heute)) >= REST.days) return;
+    const fertig = completedMode(w.n);
+    if (!fertig && d < heute) return;
+    const m = fertig || store.workoutMode(w.n);
+    exBasis(w, m).forEach((it) => {
+      const ex = EX_BY_ID.get(it.id);
+      if (!ex) return;
+      Object.entries(ex[m].shares).forEach(([mus, share]) => {
+        if (share >= REST.direct) sperre.add(mus);
+      });
+    });
+  });
+  return sperre;
+}
+
+/**
+ * Die Übungen für einen Zusatztag – oder null, wenn keiner nötig ist.
+ *
+ * Gierig zusammengestellt: immer die Übung, die vom Rückstand am meisten
+ * wegnimmt. Eine Übung zählt dabei mit ihren Anteilen, ein Satz Kreuzheben
+ * schließt etwas bei der Hüftstreckung *und* beim Gesäß.
+ */
+function zusatztagEx(woche, mode) {
+  const rest = {};
+  let summe = 0;
+  Object.keys(MUSCLE_LABEL).forEach((m) => {
+    const luecke = (woche.soll[m] || 0) - (woche.acc[m] || 0);
+    if (luecke > 0.5) { rest[m] = luecke; summe += luecke; }
+  });
+  if (summe < ZUSATZ_AB) return null;
+
+  const ruht = ruhendeGruppen();
+  const gesperrt = blocked(store.getState().injuries || []);
+  const satz = satzZahl(3);
+  const kandidaten = EXERCISES.filter((ex) => {
+    if (gesperrt.has(ex.id)) return false;
+    const shares = ex[mode].shares;
+    // Keine Übung, die eine ruhende Gruppe direkt trifft.
+    return !Object.entries(shares).some(([m, s]) => s >= REST.direct && ruht.has(m));
+  });
+
+  const gewaehlt = [];
+  const uebrig = { ...rest };
+  for (let k = 0; k < ZUSATZ_UEBUNGEN; k++) {
+    let beste = null;
+    let bestWert = 0;
+    kandidaten.forEach((ex) => {
+      if (gewaehlt.some((g) => g.id === ex.id)) return;
+      const wert = Object.entries(ex[mode].shares)
+        .reduce((a, [m, s]) => a + Math.min(s * satz, uebrig[m] || 0), 0);
+      if (wert > bestWert) { bestWert = wert; beste = ex; }
+    });
+    if (!beste || bestWert < 0.5) break;
+    gewaehlt.push({ id: beste.id, sets: satz });
+    Object.entries(beste[mode].shares).forEach(([m, s]) => {
+      uebrig[m] = Math.max(0, (uebrig[m] || 0) - s * satz);
+    });
+  }
+  if (gewaehlt.length < 2) return null;
+  return { ex: gewaehlt, fehlt: Math.round(summe), gruppen: Object.keys(rest).length };
+}
+
 /** Balken für eine Muskelgruppe: erreicht gegen das Pensum dieser Woche.
  *
  * Die Zahl daneben nennt beides. Seit die Ziele auseinandergehen, sagt "4,0"
@@ -9696,6 +9798,16 @@ function renderWeeklyVolume() {
   const voll = groups.filter((m) => inTarget(cur.acc[m] || 0, cur.soll[m] || 0)).length;
   const inWoche = PLAN.slice(PLAN.indexOf(cur.from), PLAN.indexOf(cur.to) + 1);
   const offen = inWoche.filter((w) => !completedMode(w.n)).length;
+  // Erst wenn die Woche durch ist: Solange noch eine Einheit aussteht, ist
+  // nichts versäumt, und ein Vorschlag wäre bloß Drängeln.
+  //
+  // Und nur einmal je Woche. Der Rückstand schrumpft nicht dadurch, dass man
+  // den Zusatztag macht – er steht ja im Plan, nicht im Protokoll. Ohne diese
+  // Sperre stünde der Vorschlag weiter da, und zweimal Tippen ergäbe zwei
+  // gleiche Einheiten.
+  const zusatzName = `Zusatztag Woche ${cur.nr}`;
+  const schonDa = store.customs().find((c) => c.name === zusatzName);
+  const zusatz = (offen || schonDa) ? null : zusatztagEx(cur, store.getState().mode);
 
   // Solange die Woche läuft, kann keine Gruppe ihr Ziel erreichen – "0 von 12"
   // stünde dann als Vorwurf da, obwohl nichts versäumt ist. Bis zum Ende der
@@ -9718,6 +9830,28 @@ function renderWeeklyVolume() {
         <div class="vol-quote">${kopf.zahl}<span>/${kopf.von}</span></div>
       </div>
       ${groups.map((m) => volumeBar(m, cur.acc[m] || 0, cur.soll[m] || 0)).join('')}
+      ${zusatz ? `<div class="notice" style="margin-top:12px">
+        <strong>Zusatztag?</strong>
+        <div class="small" style="margin-top:6px">
+          Diese Woche ist durch, und es fehlen rund ${zusatz.fehlt} Sätze bei
+          ${esc(plural(zusatz.gruppen, 'Muskelgruppe', 'Muskelgruppen'))}. Statt sie in die
+          nächsten Einheiten zu stopfen, gibt es sie als eigene Einheit:
+          ${zusatz.ex.length} Übungen, ${zusatz.ex.reduce((a, x) => a + x.sets, 0)} Sätze,
+          genau das, was zu kurz kam. Gruppen, die gerade Erholung brauchen, sind
+          ausgenommen – die 48-Stunden-Regel gilt auch hier.
+        </div>
+        <div class="btn-row nav" style="margin-top:10px">
+          <button type="button" class="btn btn-primary" data-act="zusatztag"
+                  data-woche="${cur.nr}">Zusatztag anlegen</button>
+        </div>
+        <div class="small muted" style="margin-top:8px">Er landet unter
+          <i>Mehr → Eigenes Workout</i> und zählt in der Statistik mit – als Plan-Einheit
+          nicht, denn der Plan rechnet mit festen Terminen.</div>
+      </div>` : ''}
+      ${schonDa ? `<div class="small muted" style="margin-top:12px">↩︎ Für diese Woche steht
+        schon ein Zusatztag bereit: <b>${esc(schonDa.name)}</b>, ${schonDa.ex.length} Übungen.
+        <button type="button" class="btn btn-sm" data-act="custom-start"
+                data-id="${esc(schonDa.id)}" style="margin-left:6px">Öffnen</button></div>` : ''}
       <div class="small muted" style="margin-top:10px">
         Verglichen wird mit dem, was <b>diese Woche</b> auf dem Plan steht – nicht mit dem
         Wochenziel. Das Ziel ist ein Schnitt über den ganzen Plan (${esc(zielText())},
@@ -11486,6 +11620,21 @@ view.addEventListener('click', (e) => {
       ui.focus = false;
       go('dashboard');
       toast('Gespeichert – los geht’s');
+      break;
+    }
+    case 'zusatztag': {
+      const woche = weeklyDone().find((w) => String(w.nr) === t.dataset.woche);
+      const vorschlag = woche && zusatztagEx(woche, store.getState().mode);
+      if (!vorschlag) { toast('Diese Woche fehlt nichts mehr'); break; }
+      const id = store.saveCustom({
+        name: `Zusatztag Woche ${woche.nr}`,
+        ex: vorschlag.ex,
+      });
+      ui.workoutNo = id;
+      ui.listView = true;
+      ui.focus = false;
+      go('dashboard');
+      toast('Zusatztag angelegt – steht jetzt im Dashboard');
       break;
     }
     case 'custom-start':

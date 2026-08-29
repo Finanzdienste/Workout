@@ -2518,6 +2518,58 @@ Drei Grenzen, jede aus einem Grund:
 Nur an **offenen** Einheiten. Einer abgeschlossenen nachträglich Sätze
 hinzuzufügen hieße, sie rückwirkend für unfertig zu erklären.
 
+### Der Zusatztag
+
+Die Nacharbeit hat einen Deckel von drei Sätzen, und der ist gewollt. Wer aber
+eine **ganze** Einheit ausgelassen hat, dem fehlen fünfzehn – die passen
+nirgendwo mehr hinein, ohne dass die nächste Einheit zur Zumutung wird.
+
+Also nicht hineinstopfen, sondern danebenstellen. Sobald eine Woche **durch**
+ist und trotzdem ein Rückstand steht, schlägt die App eine zusätzliche Einheit
+vor: normale Satzzahl, normale Pausen, und die Übungen sind genau die, die zu
+kurz gekommen sind. Zusammengestellt wird gierig – immer die Übung, die vom
+Rückstand am meisten wegnimmt, mit ihren Anteilen gerechnet.
+
+Erst wenn die Woche durch ist, und das ist die halbe Idee: Solange noch eine
+Einheit offen steht, ist nichts versäumt. Da erledigt die Nacharbeit den Rest,
+und ein Vorschlag wäre bloß Drängeln. So greifen die beiden nie gleichzeitig.
+
+**Die 48-Stunden-Regel gilt auch für sie.** Gruppen, die in den letzten zwei
+Tagen direkt dran waren oder es in der nächsten Einheit sind, kommen nicht
+hinein – sonst stünde die Regel, die den ganzen Plan trägt, ausgerechnet für
+die freiwillige Einheit nicht. Ausgefallene Einheiten sperren nichts: Was nicht
+stattgefunden hat, muss auch nicht erholt werden. Angehakte Verletzungen
+ebenfalls eingerechnet.
+
+Ein Beispiel aus dem Testlauf – vier Einheiten „abgeschlossen", bei jeder die
+letzten zwei Übungen nie angefasst:
+
+| | |
+| --- | --- |
+| Rückstand | rund 26 Sätze bei 7 Muskelgruppen |
+| Vorschlag | 5 Übungen, 15 Sätze |
+| davon | Band-Pull-Apart, Schulterdrücken, zwei Wadenheben, SZ-Curls |
+| direkt getroffen | hintere/vordere Schulter, Nacken, Trizeps, Waden, Bizeps |
+| Kollisionen mit dem Plan | keine |
+
+Genau die kleinen Gruppen also, die hinten aus der Einheit fallen, wenn die
+Zeit knapp wird.
+
+Der Zusatztag geht als **eigenes Workout** in die Ablage, nicht in den Plan –
+der rechnet sein Wochenvolumen aus festen Einheiten, und eine
+dazwischengeschobene würde diese Rechnung stillschweigend verschieben. Abgehakte
+Sätze zählen trotzdem in der Statistik mit; trainiert ist trainiert.
+
+**Nur einmal je Woche.** Der Rückstand schrumpft nicht dadurch, dass man den
+Zusatztag macht – er steht im Plan, nicht im Protokoll. Ohne diese Sperre stünde
+der Vorschlag weiter da, und zweimal Tippen ergäbe zwei gleiche Einheiten. Das
+ist im ersten Testlauf sofort aufgefallen; jetzt steht dort stattdessen ein Link
+auf den, den es schon gibt.
+
+`tests/test-zusatztag.mjs`, 17 Prüfungen – darunter die Gegenrechnung über den
+echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in Reichweite
+kollidiert.
+
 **Nur nach oben.** Hier stand einmal die Gegenrichtung: Wer über mehrere
 Einheiten hinweg nur einen Teil schafft, dem hätte die App die Erfahrungsstufe
 gesenkt und damit die Einheiten gekürzt. Das ist wieder raus, auf ausdrücklichen
