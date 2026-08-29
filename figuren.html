@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alle Bewegungsbilder – Workout</title>
+<link rel="stylesheet" href="./css/styles.css">
+<style>
+  /* Eigene Seite statt eines Reiters in der App: Das hier ist Werkzeug, kein
+     Feature. Wer die Übungen macht, soll in fünf Minuten alle 24 durchsehen
+     können, statt sich durch 84 Einheiten zu klicken – genau daran ist der
+     Überkopf-Trizepsstrecker monatelang vorbeigelaufen. */
+  body { padding: 16px 12px 60px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .lead { color: var(--muted, #9aa); font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
+  .modus { display: flex; gap: 8px; margin: 0 0 18px; }
+  .modus button {
+    flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--line, #333);
+    background: var(--card, #1a1a1e); color: inherit; font: inherit; cursor: pointer;
+  }
+  .modus button[aria-pressed="true"] { background: var(--accent, #ff7a45); color: #111; font-weight: 600; }
+  .gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .karte {
+    background: var(--card, #1a1a1e); border: 1px solid var(--line, #333);
+    border-radius: 12px; padding: 10px; display: flex; flex-direction: column;
+  }
+  .karte h2 { font-size: 13px; margin: 0 0 2px; line-height: 1.3; }
+  .karte .unten { font-size: 11px; color: var(--muted, #9aa); margin-top: 6px; line-height: 1.4; }
+  .karte .fig { height: 190px; }
+  .karte code { font-size: 10px; opacity: .65; }
+</style>
+</head>
+<body>
+<h1>Alle Bewegungsbilder</h1>
+<p class="lead">
+  Jede Übung in beiden Fassungen, nebeneinander. Gesucht wird, was eine
+  automatische Prüfung nicht sieht: ob der Ellenbogen dahin geht, wo er
+  hingehört, ob die Endposition stimmt, ob das Gerät passt.
+  <b>Haltung und Gerät</b> prüft <code>tools/pruefung/geraete.py</code> bei jedem
+  Push – <b>ob die Bewegung richtig aussieht</b>, sieht nur, wer sie macht.
+</p>
+
+<div class="modus">
+  <button type="button" data-modus="db" aria-pressed="true">🏋️ Hanteln</button>
+  <button type="button" data-modus="bw" aria-pressed="false">🤸 Bodyweight</button>
+</div>
+
+<div class="gitter" id="gitter"></div>
+
+<script type="module">
+import { EXERCISES } from './js/data.js';
+import { mountFigure } from './js/figure.js';
+
+const gitter = document.getElementById('gitter');
+let stopper = [];
+
+function zeichne(modus) {
+  // mountFigure() liefert {draw, setView, stop} – kein reines Abmelde-Callback.
+  // Ohne stop() liefen beim Umschalten 24 Animationen weiter, die niemand mehr
+  // sieht, und die Seite würde mit jedem Wechsel träger.
+  stopper.forEach((s) => s && s.stop && s.stop());
+  stopper = [];
+  gitter.textContent = '';
+
+  [...EXERCISES]
+    .sort((a, b) => a[modus].name.localeCompare(b[modus].name, 'de'))
+    .forEach((ex) => {
+      const v = ex[modus];
+      const karte = document.createElement('div');
+      karte.className = 'karte';
+
+      const h = document.createElement('h2');
+      h.textContent = v.name;
+      karte.appendChild(h);
+
+      const fig = document.createElement('div');
+      fig.className = 'fig';
+      karte.appendChild(fig);
+
+      const unten = document.createElement('div');
+      unten.className = 'unten';
+      // Dieselbe Ableitung wie in resolve() in js/app.js: Im Hantel-Modus das
+      // Gerät der Übung, im Bodyweight-Modus nur dann ein Band, wenn im
+      // Gerätetext eines steht.
+      const gear = modus === 'db' ? ex.equip : (/band/i.test(v.equip) ? 'band' : null);
+      unten.innerHTML = `${v.equip}<br><code>${v.pattern} · ${gear || 'ohne Gerät'}</code>`;
+      karte.appendChild(unten);
+
+      gitter.appendChild(karte);
+      stopper.push(mountFigure(fig, v.pattern, modus === 'db' ? ex.weight : null, gear));
+    });
+}
+
+document.querySelectorAll('.modus button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.modus button')
+      .forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    zeichne(b.dataset.modus);
+  });
+});
+
+zeichne('db');
+</script>
+</body>
+</html>

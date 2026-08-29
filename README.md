@@ -2662,6 +2662,30 @@ Umbenennen wäre falsch: An den Schlüsseln hängen die eingetragenen Gewichte u
 jeder protokollierte Satz. Sie sollen nur nicht unbemerkt das Gegenteil
 behaupten — der erste war die Spur, die zum Fehler oben geführt hätte.
 
+### Alle 48 Bewegungsbilder auf einer Seite
+
+Die Prüfung oben sieht, ob Name, Gerätetext, Zeichnung und Hinweis *dasselbe*
+sagen. Sie sieht nicht, ob die Bewegung **richtig aussieht** — ob der Ellenbogen
+dahin geht, wo er hingehört, ob die Endposition stimmt. Das sieht nur, wer die
+Übung macht.
+
+Dafür braucht es aber überhaupt erst einen Blick auf die Figuren, und den gab es
+nicht: In der App steht jede Zeichnung an ihrer Übung, und die Übung steht in
+einer von 84 Einheiten. Genau deshalb ist der Überkopf-Trizepsstrecker
+monatelang unbemerkt falsch gezeichnet worden — nicht weil niemand hingesehen
+hätte, sondern weil Hinsehen bedeutet hätte, sich durch den halben Plan zu
+klicken.
+
+**[`figuren.html`](figuren.html)** zeigt alle 24 Übungen nebeneinander, in beiden
+Fassungen umschaltbar, mit Gerätetext und dem gezeichneten Muster darunter.
+Fünf Minuten scrollen statt einer halben Stunde klicken.
+
+Die Seite ist Werkzeug, kein Feature: Sie hat keinen Reiter in der App, steht
+nicht im Offline-Vorrat des Service Workers und wird direkt aufgerufen.
+`tests/test-figuren.mjs` prüft, dass wirklich *jede* Übung darauf steht und jede
+eine gezeichnete Figur bekommt — eine Übersicht mit Lücken wäre schlimmer als
+keine, weil man sich darauf verlässt, alles gesehen zu haben.
+
 ### Jede Übung muss einen Weg nach unten nennen
 
 Der Plan gibt Wiederholungsbereiche vor. Wer sie nicht erreicht, braucht eine
