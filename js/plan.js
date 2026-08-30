@@ -11,7 +11,7 @@
  */
 import * as store from './store.js';
 import { EXERCISES, PLAN, REST } from './data.js';
-import { EX_BY_ID, directOf, directSets, plannedReps, stufenWerte } from './uebung.js';
+import { EX_BY_ID, directOf, directSets, gezaehlteReps, stufenWerte } from './uebung.js';
 import { addDays, daysBetween, plural, todayISO } from './dates.js';
 import { applyInjuries } from './injuries.js';
 import { esc } from './text.js';
@@ -449,12 +449,13 @@ export function sammleStats() {
       exOf(w, m).forEach((item) => {
         const arr = entry[m] && entry[m][item.id];
         if (!Array.isArray(arr)) return;
-        // Wiederholungen werden nicht mehr erfasst; gerechnet wird deshalb mit
-        // dem geplanten Wert – der unteren Grenze des Bereichs, also bewusst
-        // eher zu niedrig als zu hoch.
-        const planned = plannedReps(stufenWerte(EX_BY_ID.get(item.id)[m]).reps);
+        // Gerechnet wird mit gezaehlteReps(): der unteren Grenze des Bereichs,
+        // und der oberen nur dort, wo der Satz ausdrücklich als "oben raus"
+        // beantwortet wurde. Bewusst eher zu niedrig als zu hoch.
+        const reps = stufenWerte(EX_BY_ID.get(item.id)[m]).reps;
         arr.forEach((s) => {
           if (!s.done) return;
+          const planned = gezaehlteReps(s, reps);
           setsDone++;
           repsTotal += planned;
           const kg = parseFloat(String(s.w).replace(',', '.'));
@@ -499,9 +500,10 @@ export function sammleStats() {
         const arr = entry[m] && entry[m][item.id];
         const ex = EX_BY_ID.get(item.id);
         if (!Array.isArray(arr) || !ex) return;
-        const planned = plannedReps(stufenWerte(ex[m]).reps);
+        const reps = stufenWerte(ex[m]).reps;
         arr.slice(0, item.sets).forEach((x) => {
           if (!x.done) return;
+          const planned = gezaehlteReps(x, reps);
           setsDone++;
           customSets++;
           repsTotal += planned;

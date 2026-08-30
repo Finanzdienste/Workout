@@ -1975,6 +1975,7 @@ data/…xlsx              Quelle des Plans
 tools/build-data.py     Generator: Excel + Hinweise -> js/data.js
 tools/exercise-meta.json  Muskelgruppe, Equipment und Ausführungshinweise je Übung
 tools/build-plan.py     Generator: Ziele je Muskelgruppe -> tools/plan.json
+tools/plan-eingaben.json  Aus welchen Eingaben die Pläne erzeugt wurden
 tools/build-icons.mjs   Generator: icon.svg -> die drei PNGs
 tools/build-single.py   Bündelt alles zu dist/workout.html
 dist/workout.html       Erzeugt: die App als eine portable Datei
@@ -1994,6 +1995,54 @@ python3 tools/build-data.py
 Der Generator bricht ab, wenn eine Zeile nicht dem Muster `3× Übung (8–12)`
 folgt, wenn Hantel- und Bodyweight-Spalte unterschiedlich viele Übungen haben
 oder wenn zu einer Übung der Eintrag in `exercise-meta.json` fehlt.
+
+### Die Pläne waren älter als ihre Eingaben
+
+`tools/plan*.json` ist erzeugt, nicht geschrieben. Für alles andere Erzeugte
+prüft die CI das Naheliegende: noch einmal erzeugen und vergleichen. Bei den
+Plänen geht das nicht — ein Lauf dauert **15 Minuten je Variante**. Genau
+deshalb war hier ein blinder Fleck, und er hat sich gefüllt.
+
+Aufgefallen ist es nebenbei: Ein Generatorlauf, gestartet nur um die Laufzeit zu
+messen, veränderte 180 Zeilen in `tools/plan.json`. Der Generator ist aber
+gesetzt (`random.Random(7)`) und müsste identisch herauskommen.
+
+Die Ursache war nachprüfbar, nicht vermutet:
+
+| Test | Ergebnis |
+| --- | --- |
+| Zwei Läufe mit `PYTHONHASHSEED=0`, einer mit `=1` | **alle drei identisch** — der Generator ist deterministisch |
+| Ein Lauf mit `equip: dumbbells` statt `barbell` für den Überkopf-Trizepsstrecker | **exakt der eingecheckte Plan**, Byte für Byte |
+
+Damit war es klar: Der Trizepsstrecker wurde auf die SZ-Stange korrigiert
+(Commit `90e6757`) — sachlich richtig, man macht ihn so. Nur fließt `equip` in
+die Tagesaufteilung ein: Der Generator legt Übungen desselben Geräts zusammen,
+damit nicht dreimal umgebaut wird. Die Pläne wurden danach nicht neu erzeugt.
+
+**Und neu erzeugen ist die falsche Antwort.** Alle vier Varianten wurden mit den
+korrigierten Eingaben neu gebaut und gegen den Vergleichsstand geprüft:
+**12 Verschlechterungen**, darunter „Schulter vorn" mit dem größten Abstand von
+7 auf 10 Tage. Der ältere Plan ist der bessere. Er bleibt.
+
+Was bleibt, ist die Aufgabe, das nicht mehr unbemerkt passieren zu lassen.
+`tools/pruefung/plan-frisch.py` hält in `tools/plan-eingaben.json` fest, aus
+welchen Eingaben die Pläne entstanden sind — und zwar nur die fünf Felder, die
+den Plan wirklich bestimmen (`dbShares`, `bwShares`, `tier`, `equip`,
+`dbWeight`). Hinweistexte und Zeichenmuster ändern sich oft und ändern am Plan
+nichts; zählte man sie mit, schlüge die Prüfung ständig grundlos an und wäre
+nach der dritten Meldung abgeschaltet.
+
+Die bekannte Abweichung steht unter `hingenommen`, mit Begründung. Das ist kein
+Schlupfloch, sondern der ehrlichere von zwei Wegen: Im Repo steht damit
+schwarz auf weiß, dass die Pläne älter sind als ihre Eingaben und warum das so
+bleiben soll. Ein Fingerabdruck, den man einfach nachzieht, verschwiege
+dieselbe Lage. Jede *neue* Abweichung schlägt an — nachgestellt mit einer
+erfundenen Änderung an `goblet-squat.tier`.
+
+Praktisch heißt das: `equip` wirkt hier nur auf die Bündelung der Umbauten. Die
+Reihenfolge *innerhalb* einer Einheit rechnet die App ohnehin zur Laufzeit mit
+dem aktuellen Wert (`ruestOrder` in `js/gewichte.js`) — die SZ-Stange steht also
+längst da, wo sie hingehört.
 
 ### Die Rechnung steht neben der Anzeige, nicht darin
 
@@ -2881,6 +2930,58 @@ Fünf sind Negative (fünf Sekunden ablassen) oder Füße auf einem Stuhl, bis d
 Bereich 5–10 steht. Das sagt jetzt auch der Übungshinweis im Hantel-Modus –
 vorher stand es nur im Bodyweight-Hinweis, den niemand sieht, der mit Hanteln
 trainiert.
+
+### Eine Frage in der Pause, und was daraus folgt
+
+Die App wusste nicht, wie ein Satz gelaufen ist. Das Datenmodell hatte zwar seit
+jeher ein Feld `r` für Wiederholungen — nur wurde es **nie beschrieben**: leer
+angelegt, leer gespeichert, leer ausgewertet. Die Folgen waren größer, als das
+Feld aussah:
+
+* Das Volumen rechnete für **jeden** Satz mit der Untergrenze des Bereichs. Bei
+  „8–12" zählte ein Satz mit zwölf Wiederholungen als acht.
+* Einen Steigerungsvorschlag konnte es nicht geben. Er war einmal da und flog
+  wieder raus, mit genau dieser Begründung: *„Die App weiß nicht, wie schwer ein
+  Satz war, also entscheidet das der Mensch."*
+
+**Die Frage stand schon einmal da.** „Wie war das?" wurde in `b9ae2b3` entfernt,
+und der Grund war richtig — sie *hielt den Ablauf an*: Der Sprung zur nächsten
+Übung wartete auf die Antwort. Nicht der Tipp war das Problem, sondern das
+Warten.
+
+Deshalb steht sie jetzt woanders: **unter dem Satzraster, sichtbar in der
+Pause**, in der ohnehin nichts zu tun ist. Sie hält nichts auf, blockiert
+nichts, und wer sie übergeht, verliert nichts — dann zählt der Satz wie bisher
+mit der Untergrenze. Der erste Test dazu prüft genau das zuerst: dass man eine
+ganze Übung ohne eine einzige Antwort durchklicken kann und die App trotzdem
+weiterspringt.
+
+Gefragt wird nach der **Lage im Bereich**, nicht nach der Zahl: bei „8–12" drei
+Knöpfe `unter 8`, `8–11`, `12+`. Ein Zahlenfeld mitten im Training ist eine
+Tastatur über dem halben Bildschirm, und die genaue Zahl braucht niemand.
+
+Daraus wird zweierlei:
+
+| | vorher | jetzt |
+| --- | --- | --- |
+| Volumen | immer die Untergrenze | die Obergrenze für Sätze, die als „oben raus" beantwortet sind |
+| Steigerung | kein Vorschlag möglich | *„Alle Sätze oben raus – nächstes Mal 45 kg?"* |
+
+Die Regel ist die klassische Doppelprogression: erst den Bereich oben
+ausreizen, dann das Gewicht. Vorgeschlagen wird, wenn **jeder beantwortete
+Satz** oben lag und mindestens zwei beantwortet wurden — eine einzelne Antwort
+ist ein Zufall, keine Aussage. Und es bleibt ein Vorschlag: Erhöht wird nichts
+von selbst. Was auf der Stange liegt, entscheidet der, der darunter liegt.
+
+Vorsichtig bleibt die Rechnung trotzdem. „Unter dem Bereich" zählt weiterhin
+mit der Untergrenze — wie weit darunter, weiß niemand, und eine erfundene Zahl
+wäre schlechter als eine zu hohe. Die Volumenzahl ist damit weiter eine
+Untergrenze und heißt in der Statistik weiterhin „ca."; sie ist nur nicht mehr
+für *jeden* Satz die kleinste denkbare.
+
+Das Feld `r` ist bei der Gelegenheit raus. Ein Feld, das aussieht, als würde es
+gefüllt, ist schlimmer als keins: Die Volumenrechnung sah aus, als kenne sie die
+Wiederholungen.
 
 ### Aufsteigen, ohne daran zu denken
 

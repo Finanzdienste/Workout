@@ -6337,7 +6337,12 @@ const DEFAULT_STATE = {
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
   // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/app.js.
   fokusUmzug: null,
-  // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
+  // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn }
+  //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
+  //   done abgehakt
+  //   wie  'unter' | 'drin' | 'oben' – wo im Wiederholungsbereich der Satz
+  //        lag, falls beantwortet. Fehlt, wenn die Frage übergangen wurde;
+  //        das ist der Normalfall und kostet nichts. }
   log: {},
 };
 
@@ -6539,12 +6544,21 @@ function getSets(n, mode, exId, setCount) {
   const bucket = ensure(n)[mode];
   let arr = bucket[exId];
   if (!Array.isArray(arr)) arr = bucket[exId] = [];
-  while (arr.length < setCount) arr.push({ w: '', r: '', done: false });
+  // Ein Satz ist: benutztes Gewicht, abgehakt, und – wenn beantwortet – wie er
+  // gelaufen ist (`wie`, siehe updateSet). Ein Feld `r` für Wiederholungen
+  // stand hier jahrelang mit drin und wurde **nie beschrieben**: leer angelegt,
+  // leer gespeichert, leer ausgewertet. Es ist raus. Ein Feld, das aussieht,
+  // als würde es gefüllt, ist schlimmer als keins – die Volumenrechnung sah
+  // danach aus, als kenne sie die Wiederholungen, und rechnete in Wahrheit mit
+  // der Untergrenze des geplanten Bereichs.
+  while (arr.length < setCount) arr.push({ w: '', done: false });
   // Gekürzt wird nur, was leer ist. Seit die Erfahrungsstufe die Satzzahl
   // bestimmt (drei Sätze für Geübte, zwei für Anfänger), würde ein Wechsel
   // sonst rückwirkend den dritten Satz jeder protokollierten Übung löschen –
   // eine Einstellung darf keine Trainingsgeschichte wegräumen.
-  const leer = (x) => !x.done && x.w === '' && x.r === '';
+  // `r` steht in alten Ständen noch drin und darf einen Satz nicht am Leben
+  // halten: geprüft wird auf leer im Sinne von "nichts eingetragen".
+  const leer = (x) => !x.done && !x.w && !x.wie;
   while (arr.length > setCount && leer(arr[arr.length - 1])) arr.pop();
   return arr;
 }
@@ -6554,7 +6568,7 @@ function isStarted(n) {
   const e = state.log[n];
   if (!e) return false;
   return ['db', 'bw'].some((m) => Object.values(e[m] || {}).some(
-    (arr) => Array.isArray(arr) && arr.some((s) => s.done || s.w !== '' || s.r !== ''),
+    (arr) => Array.isArray(arr) && arr.some((s) => s.done || !!s.w || !!s.wie),
   ));
 }
 
@@ -9005,7 +9019,8 @@ function renderFocus() {
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
                 aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
-      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}`}
+      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
+      ${steigerungHinweis(n, mode, it)}`}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -9013,6 +9028,8 @@ function renderFocus() {
                 aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
                 data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
     </div>
+
+    ${satzFrage(n, mode, it, sets)}
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
     ${detailBlock(it)}
@@ -10051,6 +10068,75 @@ function wdhRow(it, mode, extra = '') {
       <button type="button" class="kg-step kg-plus" data-act="reps-step" data-ex="${it.id}" data-d="1"
               aria-label="Eine Wiederholung mehr">+</button>
     </div>`;
+}
+
+/**
+ * „Wie ist der Satz gelaufen?" – ein Tipp, während die Pause läuft.
+ *
+ * Diese Frage stand schon einmal in der App und flog wieder raus (b9ae2b3).
+ * Der Grund steht in der Begründung von damals und war richtig: Sie *hielt den
+ * Ablauf an* – der Sprung zur nächsten Übung wartete auf die Antwort. Nicht der
+ * Tipp war das Problem, sondern das Warten.
+ *
+ * Deshalb steht sie jetzt hier: unter dem Satzraster, sichtbar genau in der
+ * Pause, in der ohnehin nichts zu tun ist. Sie hält nichts auf, sie blockiert
+ * nichts, und wer sie übergeht, verliert nichts – dann steht der Satz eben wie
+ * bisher mit der Untergrenze in der Rechnung.
+ *
+ * Gefragt wird nach der Lage im Bereich, nicht nach der Zahl. Drei Knöpfe statt
+ * eines Zahlenfelds: Ein Zahlenfeld mitten im Training ist eine Tastatur, die
+ * sich über den halben Bildschirm legt, und die genaue Zahl braucht niemand –
+ * für die Steigerung zählt, ob der Bereich oben erreicht wurde.
+ */
+function satzFrage(n, mode, it, sets) {
+  if (!ui.focus) return '';
+  // Der letzte abgehakte Satz, der noch keine Antwort hat.
+  let idx = -1;
+  for (let k = sets.length - 1; k >= 0; k--) {
+    if (sets[k].done && !sets[k].wie) { idx = k; break; }
+    if (sets[k].done) break; // der letzte ist beantwortet – nicht weiter zurück
+  }
+  if (idx < 0) return '';
+  const { lo, hi } = repsBereich(repsLabel(it, mode));
+  if (!lo) return '';
+  const mitte = hi > lo ? `${lo}–${hi - 1}` : `${lo}`;
+  const knopf = (wert, text, titel) => `
+    <button type="button" class="wie-btn" data-act="set-wie" data-ex="${it.id}"
+            data-i="${idx}" data-v="${wert}" title="${esc(titel)}">${esc(text)}</button>`;
+  return `
+    <div class="wie-row" role="group" aria-label="Satz ${idx + 1}: wie viele Wiederholungen?">
+      <span class="wie-frage">Satz ${idx + 1}:</span>
+      ${knopf('unter', `unter ${lo}`, 'Der Bereich wurde nicht erreicht')}
+      ${knopf('drin', mitte, 'Im vorgesehenen Bereich')}
+      ${knopf('oben', `${hi}+`, 'Oben raus – dann darf mehr Gewicht drauf')}
+    </div>`;
+}
+
+/**
+ * Der Steigerungsvorschlag – und diesmal auf Daten gestützt.
+ *
+ * Vorschläge waren aus der App geflogen, mit einer Begründung, die stimmte:
+ * „Die App weiß nicht, wie schwer ein Satz war, also entscheidet das der
+ * Mensch." Seit satzFrage() weiß sie es, wenn man ihr antwortet – also darf
+ * sie wieder etwas vorschlagen.
+ *
+ * Die Regel ist die klassische Doppelprogression: Erst den Bereich oben
+ * ausreizen, dann das Gewicht erhöhen. Vorgeschlagen wird, wenn beim letzten
+ * Mal **jeder beantwortete Satz** oben raus war und mindestens zwei Sätze
+ * beantwortet wurden – eine einzelne Antwort ist ein Zufall, keine Aussage.
+ *
+ * Und es bleibt ein Vorschlag. Erhöht wird nichts von selbst: Was auf der
+ * Stange liegt, entscheidet der, der darunter liegt.
+ */
+function steigerungHinweis(n, mode, it) {
+  if (it.weight === null) return '';
+  const arr = store.peekSets(n, mode, it.id) || [];
+  const beantwortet = arr.filter((s) => s.done && s.wie);
+  if (beantwortet.length < 2) return '';
+  if (!beantwortet.every((s) => s.wie === 'oben')) return '';
+  const schritt = stepOf(it.id);
+  return `<div class="kg-next">Alle Sätze oben raus – nächstes Mal `
+    + `${esc(fmtNum(workingWeight(it.id) + schritt))} kg?</div>`;
 }
 
 function bandRow(it) {
@@ -12049,6 +12135,17 @@ view.addEventListener('click', (e) => {
       // einzelnen Satz. Ein Haken, der wieder weggeht, bleibt still.
       if (done) sound(workoutComplete ? 'done' : (exDone ? 'exercise' : 'set'));
       if (workoutComplete) toast('Workout abgeschlossen 🎉');
+      break;
+    }
+    case 'set-wie': {
+      // Antwort auf satzFrage(). Kein render()-Sonderweg nötig: updateSet()
+      // meldet die Änderung, und der Klick-Verteiler zeichnet ohnehin neu.
+      const id = t.dataset.ex;
+      const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
+      if (item) {
+        store.updateSet(n, mode, id, item.sets, Number(t.dataset.i), { wie: t.dataset.v });
+      }
+      render();
       break;
     }
     case 'reps-step': {

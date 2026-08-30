@@ -26,6 +26,41 @@ export function plannedReps(reps) {
 }
 
 /**
+ * Beide Grenzen eines Wiederholungsbereichs: "8–12 je Bein" -> { lo: 8, hi: 12 }.
+ *
+ * Der Zusatz hinter der Zahl ist Absicht und darf nicht stören – "je Bein"
+ * sagt etwas über die Ausführung, nicht über den Bereich.
+ */
+export function repsBereich(reps) {
+  const zahlen = String(reps).match(/\d+/g) || [];
+  const lo = Number(zahlen[0] || 0);
+  const hi = Number(zahlen[1] || zahlen[0] || 0);
+  return { lo, hi };
+}
+
+/**
+ * Mit wie vielen Wiederholungen ein abgehakter Satz in die Volumenrechnung
+ * eingeht.
+ *
+ * Erfasst wird nicht die Zahl, sondern die Lage im Bereich – ein Tipp statt
+ * eines Zahlenfelds (siehe satzFrage() in js/app.js). Daraus wird hier so
+ * vorsichtig wie möglich gerechnet:
+ *
+ *   oben        die obere Grenze. Wer 12 von 8–12 schafft, hat 12 gemacht.
+ *   drin/nichts die untere Grenze – wie bisher, und bewusst eher zu niedrig.
+ *   unter       ebenfalls die untere Grenze. Wie weit darunter, weiß niemand,
+ *               und eine erfundene Zahl wäre schlechter als eine zu hohe.
+ *
+ * Die Volumenzahl bleibt damit eine Untergrenze und heißt in der Statistik
+ * weiterhin "ca." – sie ist nur nicht mehr für *jeden* Satz die kleinste
+ * denkbare.
+ */
+export function gezaehlteReps(satz, reps) {
+  const { lo, hi } = repsBereich(reps);
+  return satz && satz.wie === 'oben' ? hi : lo;
+}
+
+/**
  * Wiederholungen und Pause, auf die Erfahrungsstufe umgerechnet.
  *
  * Bei fast jeder Übung braucht es das nicht: Der Anfänger nimmt die Hälfte des

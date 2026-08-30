@@ -85,7 +85,12 @@ const DEFAULT_STATE = {
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
   // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/app.js.
   fokusUmzug: null,
-  // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
+  // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn }
+  //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
+  //   done abgehakt
+  //   wie  'unter' | 'drin' | 'oben' – wo im Wiederholungsbereich der Satz
+  //        lag, falls beantwortet. Fehlt, wenn die Frage übergangen wurde;
+  //        das ist der Normalfall und kostet nichts. }
   log: {},
 };
 
@@ -287,12 +292,21 @@ export function getSets(n, mode, exId, setCount) {
   const bucket = ensure(n)[mode];
   let arr = bucket[exId];
   if (!Array.isArray(arr)) arr = bucket[exId] = [];
-  while (arr.length < setCount) arr.push({ w: '', r: '', done: false });
+  // Ein Satz ist: benutztes Gewicht, abgehakt, und – wenn beantwortet – wie er
+  // gelaufen ist (`wie`, siehe updateSet). Ein Feld `r` für Wiederholungen
+  // stand hier jahrelang mit drin und wurde **nie beschrieben**: leer angelegt,
+  // leer gespeichert, leer ausgewertet. Es ist raus. Ein Feld, das aussieht,
+  // als würde es gefüllt, ist schlimmer als keins – die Volumenrechnung sah
+  // danach aus, als kenne sie die Wiederholungen, und rechnete in Wahrheit mit
+  // der Untergrenze des geplanten Bereichs.
+  while (arr.length < setCount) arr.push({ w: '', done: false });
   // Gekürzt wird nur, was leer ist. Seit die Erfahrungsstufe die Satzzahl
   // bestimmt (drei Sätze für Geübte, zwei für Anfänger), würde ein Wechsel
   // sonst rückwirkend den dritten Satz jeder protokollierten Übung löschen –
   // eine Einstellung darf keine Trainingsgeschichte wegräumen.
-  const leer = (x) => !x.done && x.w === '' && x.r === '';
+  // `r` steht in alten Ständen noch drin und darf einen Satz nicht am Leben
+  // halten: geprüft wird auf leer im Sinne von "nichts eingetragen".
+  const leer = (x) => !x.done && !x.w && !x.wie;
   while (arr.length > setCount && leer(arr[arr.length - 1])) arr.pop();
   return arr;
 }
@@ -302,7 +316,7 @@ export function isStarted(n) {
   const e = state.log[n];
   if (!e) return false;
   return ['db', 'bw'].some((m) => Object.values(e[m] || {}).some(
-    (arr) => Array.isArray(arr) && arr.some((s) => s.done || s.w !== '' || s.r !== ''),
+    (arr) => Array.isArray(arr) && arr.some((s) => s.done || !!s.w || !!s.wie),
   ));
 }
 

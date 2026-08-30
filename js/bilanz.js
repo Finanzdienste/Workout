@@ -7,7 +7,7 @@
  * laufende Runde mit allen abgelegten zusammengezählt.
  */
 import * as store from './store.js';
-import { EX_BY_ID, plannedReps, stufenWerte } from './uebung.js';
+import { EX_BY_ID, gezaehlteReps, stufenWerte } from './uebung.js';
 import { FOKUS_ERSATZ, PLANS } from './data.js';
 import { offenerAufstieg } from './stufen.js';
 import { sammleStats } from './plan.js';
@@ -108,14 +108,14 @@ export function bilanzAus(runde) {
       Object.entries(e[m] || {}).forEach(([id, arr]) => {
         const ex = EX_BY_ID.get(id);
         if (!ex || !Array.isArray(arr)) return;
-        const planned = plannedReps(stufenWerte(ex[m]).reps);
+        const reps = stufenWerte(ex[m]).reps;
         let hier = 0;
         arr.forEach((s) => {
           if (!s.done) return;
           saetze++;
           hier++;
           const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volumen += kg * planned;
+          if (m === 'db' && !Number.isNaN(kg)) volumen += kg * gezaehlteReps(s, reps);
         });
         if (hier) mitSatz++;
       });

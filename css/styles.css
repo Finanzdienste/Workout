@@ -621,6 +621,22 @@ button { font: inherit; color: inherit; }
 .band-rot.on { border-color: #e2564d; }
 .ex-weight + .band-row, .focus-weight + .band-row { margin-top: 0; }
 
+/* „Wie ist der Satz gelaufen?" – die eine Frage, die während der Pause dasteht.
+   Bewusst leiser als die Satzfelder darüber: Sie ist ein Angebot, keine
+   Aufgabe. Wer sie übergeht, verliert nichts, und sie soll nicht aussehen, als
+   müsse man sie erledigen, bevor es weitergeht. */
+.wie-row {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px 0 0; padding: 0;
+}
+.wie-frage { font-size: 12px; color: var(--muted); flex: none; }
+.wie-btn {
+  flex: 1 1 0; padding: 9px 6px; font-size: 13px; font-weight: 600;
+  color: var(--muted); background: var(--bg-elev-2);
+  border: 1px solid var(--line); border-radius: 9px;
+}
+.wie-btn:active { color: var(--text); border-color: var(--accent); }
+
 /* Einstiege oben unter Mehr: Kalender und Verletzungen. */
 .kachel-karte { padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 .kachel {

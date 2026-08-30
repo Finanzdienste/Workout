@@ -30,7 +30,7 @@ import { CONFIG, hatServer } from './config.js';
 import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
 import { initAudio, playSound, scheduleSound, cancelSound } from './audio.js';
 import { esc, fmtNum } from './text.js';
-import { EX_BY_ID, plannedReps, stufenWerte } from './uebung.js';
+import { EX_BY_ID, plannedReps, repsBereich, stufenWerte } from './uebung.js';
 import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, offenerAufstieg, satzFaktor, satzZahl } from './stufen.js';
 import { doneWeightNote, ruestHint, stepOf, vorgezogen, workingWeight } from './gewichte.js';
 import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, startTodayRow, workoutByNo } from './plan.js';
@@ -774,7 +774,8 @@ function renderFocus() {
         <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
                 aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
       </div>
-      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}`}
+      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
+      ${steigerungHinweis(n, mode, it)}`}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -782,6 +783,8 @@ function renderFocus() {
                 aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
                 data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
     </div>
+
+    ${satzFrage(n, mode, it, sets)}
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
     ${detailBlock(it)}
@@ -1820,6 +1823,75 @@ function wdhRow(it, mode, extra = '') {
       <button type="button" class="kg-step kg-plus" data-act="reps-step" data-ex="${it.id}" data-d="1"
               aria-label="Eine Wiederholung mehr">+</button>
     </div>`;
+}
+
+/**
+ * „Wie ist der Satz gelaufen?" – ein Tipp, während die Pause läuft.
+ *
+ * Diese Frage stand schon einmal in der App und flog wieder raus (b9ae2b3).
+ * Der Grund steht in der Begründung von damals und war richtig: Sie *hielt den
+ * Ablauf an* – der Sprung zur nächsten Übung wartete auf die Antwort. Nicht der
+ * Tipp war das Problem, sondern das Warten.
+ *
+ * Deshalb steht sie jetzt hier: unter dem Satzraster, sichtbar genau in der
+ * Pause, in der ohnehin nichts zu tun ist. Sie hält nichts auf, sie blockiert
+ * nichts, und wer sie übergeht, verliert nichts – dann steht der Satz eben wie
+ * bisher mit der Untergrenze in der Rechnung.
+ *
+ * Gefragt wird nach der Lage im Bereich, nicht nach der Zahl. Drei Knöpfe statt
+ * eines Zahlenfelds: Ein Zahlenfeld mitten im Training ist eine Tastatur, die
+ * sich über den halben Bildschirm legt, und die genaue Zahl braucht niemand –
+ * für die Steigerung zählt, ob der Bereich oben erreicht wurde.
+ */
+function satzFrage(n, mode, it, sets) {
+  if (!ui.focus) return '';
+  // Der letzte abgehakte Satz, der noch keine Antwort hat.
+  let idx = -1;
+  for (let k = sets.length - 1; k >= 0; k--) {
+    if (sets[k].done && !sets[k].wie) { idx = k; break; }
+    if (sets[k].done) break; // der letzte ist beantwortet – nicht weiter zurück
+  }
+  if (idx < 0) return '';
+  const { lo, hi } = repsBereich(repsLabel(it, mode));
+  if (!lo) return '';
+  const mitte = hi > lo ? `${lo}–${hi - 1}` : `${lo}`;
+  const knopf = (wert, text, titel) => `
+    <button type="button" class="wie-btn" data-act="set-wie" data-ex="${it.id}"
+            data-i="${idx}" data-v="${wert}" title="${esc(titel)}">${esc(text)}</button>`;
+  return `
+    <div class="wie-row" role="group" aria-label="Satz ${idx + 1}: wie viele Wiederholungen?">
+      <span class="wie-frage">Satz ${idx + 1}:</span>
+      ${knopf('unter', `unter ${lo}`, 'Der Bereich wurde nicht erreicht')}
+      ${knopf('drin', mitte, 'Im vorgesehenen Bereich')}
+      ${knopf('oben', `${hi}+`, 'Oben raus – dann darf mehr Gewicht drauf')}
+    </div>`;
+}
+
+/**
+ * Der Steigerungsvorschlag – und diesmal auf Daten gestützt.
+ *
+ * Vorschläge waren aus der App geflogen, mit einer Begründung, die stimmte:
+ * „Die App weiß nicht, wie schwer ein Satz war, also entscheidet das der
+ * Mensch." Seit satzFrage() weiß sie es, wenn man ihr antwortet – also darf
+ * sie wieder etwas vorschlagen.
+ *
+ * Die Regel ist die klassische Doppelprogression: Erst den Bereich oben
+ * ausreizen, dann das Gewicht erhöhen. Vorgeschlagen wird, wenn beim letzten
+ * Mal **jeder beantwortete Satz** oben raus war und mindestens zwei Sätze
+ * beantwortet wurden – eine einzelne Antwort ist ein Zufall, keine Aussage.
+ *
+ * Und es bleibt ein Vorschlag. Erhöht wird nichts von selbst: Was auf der
+ * Stange liegt, entscheidet der, der darunter liegt.
+ */
+function steigerungHinweis(n, mode, it) {
+  if (it.weight === null) return '';
+  const arr = store.peekSets(n, mode, it.id) || [];
+  const beantwortet = arr.filter((s) => s.done && s.wie);
+  if (beantwortet.length < 2) return '';
+  if (!beantwortet.every((s) => s.wie === 'oben')) return '';
+  const schritt = stepOf(it.id);
+  return `<div class="kg-next">Alle Sätze oben raus – nächstes Mal `
+    + `${esc(fmtNum(workingWeight(it.id) + schritt))} kg?</div>`;
 }
 
 function bandRow(it) {
@@ -3818,6 +3890,17 @@ view.addEventListener('click', (e) => {
       // einzelnen Satz. Ein Haken, der wieder weggeht, bleibt still.
       if (done) sound(workoutComplete ? 'done' : (exDone ? 'exercise' : 'set'));
       if (workoutComplete) toast('Workout abgeschlossen 🎉');
+      break;
+    }
+    case 'set-wie': {
+      // Antwort auf satzFrage(). Kein render()-Sonderweg nötig: updateSet()
+      // meldet die Änderung, und der Klick-Verteiler zeichnet ohnehin neu.
+      const id = t.dataset.ex;
+      const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
+      if (item) {
+        store.updateSet(n, mode, id, item.sets, Number(t.dataset.i), { wie: t.dataset.v });
+      }
+      render();
       break;
     }
     case 'reps-step': {
