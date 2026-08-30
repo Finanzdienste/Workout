@@ -1,0 +1,361 @@
+{
+  "hinweis": "Erzeugt von tools/pruefung/plan-frisch.py – der Stand der Eingaben, aus denen tools/plan*.json erzeugt wurden. Unter \"hingenommen\" stehen Abweichungen, die bewusst so bleiben; alles andere laesst die Pruefung nicht durch.",
+  "fingerabdruck": "926438adffdba8da",
+  "hingenommen": {
+    "liegende-trizepsstrecker.equip": {
+      "erzeugt_mit": "dumbbells",
+      "jetzt": "barbell",
+      "grund": "Der Ueberkopf-Trizepsstrecker wurde auf die SZ-Stange korrigiert (Commit 90e6757), die Plaene wurden danach nicht neu erzeugt. Nachgemessen: Mit dem alten Wert kommt der eingecheckte Plan Byte fuer Byte wieder heraus, mit dem neuen ein anderer – und der ist schlechter. Alle vier Varianten neu erzeugt und gegen den Vergleichsstand geprueft: 12 Verschlechterungen, darunter Schulter vorn von 7 auf 10 Tage groesstem Abstand. Der aeltere Plan bleibt deshalb stehen. `equip` wirkt hier nur auf die Buendelung der Umbauten; die Reihenfolge in der Einheit rechnet die App ohnehin zur Laufzeit mit dem aktuellen Wert (ruestOrder in js/gewichte.js)."
+    }
+  },
+  "felder": {
+    "band-pull-apart": {
+      "dbShares": {
+        "rearDelts": 1.0,
+        "traps": 0.7
+      },
+      "bwShares": {
+        "rearDelts": 1.0,
+        "traps": 0.7
+      },
+      "tier": 3,
+      "equip": "band",
+      "dbWeight": null
+    },
+    "band-seitheben": {
+      "dbShares": {
+        "sideDelts": 1.0,
+        "frontDelts": 0.15,
+        "traps": 0.2
+      },
+      "bwShares": {
+        "sideDelts": 1.0,
+        "frontDelts": 0.15,
+        "traps": 0.2
+      },
+      "tier": 3,
+      "equip": "band",
+      "dbWeight": null
+    },
+    "chin-ups": {
+      "dbShares": {
+        "lats": 1.0,
+        "biceps": 0.65,
+        "traps": 0.3,
+        "rearDelts": 0.15
+      },
+      "bwShares": {
+        "lats": 1.0,
+        "biceps": 0.65,
+        "traps": 0.3,
+        "rearDelts": 0.15
+      },
+      "tier": 1,
+      "equip": "backpack",
+      "dbWeight": 0
+    },
+    "einarmiges-kh-rudern": {
+      "dbShares": {
+        "lats": 1.0,
+        "biceps": 0.5,
+        "traps": 0.5,
+        "rearDelts": 0.35
+      },
+      "bwShares": {
+        "lats": 1.0,
+        "biceps": 0.5,
+        "traps": 0.5,
+        "rearDelts": 0.35
+      },
+      "tier": 1,
+      "equip": "barbell",
+      "dbWeight": 35
+    },
+    "einbeiniger-sliding-leg-curl": {
+      "dbShares": {
+        "hamstringsKnee": 1.0,
+        "hamstringsHip": 0.3,
+        "glutes": 0.5,
+        "abs": 0.35
+      },
+      "bwShares": {
+        "hamstringsKnee": 1.0,
+        "hamstringsHip": 0.3,
+        "glutes": 0.5,
+        "abs": 0.35
+      },
+      "tier": 2,
+      "equip": null,
+      "dbWeight": null
+    },
+    "einbeiniges-stehendes-wadenheben": {
+      "dbShares": {
+        "calves": 1.0
+      },
+      "bwShares": {
+        "calves": 1.0
+      },
+      "tier": 4,
+      "equip": "onehand",
+      "dbWeight": 12
+    },
+    "fersenerhoehter-goblet-squat": {
+      "dbShares": {
+        "quads": 1.0,
+        "glutes": 0.45,
+        "abs": 0.3
+      },
+      "bwShares": {
+        "quads": 1.0,
+        "glutes": 0.45,
+        "abs": 0.15
+      },
+      "tier": 1,
+      "equip": "goblet",
+      "dbWeight": 20
+    },
+    "floor-press": {
+      "dbShares": {
+        "chest": 1.0,
+        "triceps": 0.7,
+        "frontDelts": 0.35
+      },
+      "bwShares": {
+        "chest": 1.0,
+        "triceps": 0.6,
+        "frontDelts": 0.45
+      },
+      "tier": 1,
+      "equip": "barbell",
+      "dbWeight": 40
+    },
+    "fuesse-erhoehte-liegestuetze": {
+      "dbShares": {
+        "chest": 1.0,
+        "frontDelts": 0.6,
+        "sideDelts": 0.1,
+        "triceps": 0.55
+      },
+      "bwShares": {
+        "chest": 1.0,
+        "frontDelts": 0.6,
+        "sideDelts": 0.1,
+        "triceps": 0.55
+      },
+      "tier": 1,
+      "equip": null,
+      "dbWeight": null
+    },
+    "gewichtete-crunches": {
+      "dbShares": {
+        "abs": 1.0
+      },
+      "bwShares": {
+        "abs": 1.0
+      },
+      "tier": 4,
+      "equip": "plate",
+      "dbWeight": 5
+    },
+    "gewichtete-liegestuetze": {
+      "dbShares": {
+        "chest": 1.0,
+        "triceps": 0.6,
+        "frontDelts": 0.45
+      },
+      "bwShares": {
+        "chest": 1.0,
+        "triceps": 0.6,
+        "frontDelts": 0.45
+      },
+      "tier": 1,
+      "equip": "backpack",
+      "dbWeight": 8
+    },
+    "goblet-squat": {
+      "dbShares": {
+        "quads": 1.0,
+        "glutes": 0.55,
+        "abs": 0.35,
+        "hamstringsHip": 0.15
+      },
+      "bwShares": {
+        "quads": 1.0,
+        "glutes": 0.55,
+        "abs": 0.2,
+        "hamstringsHip": 0.15
+      },
+      "tier": 1,
+      "equip": "goblet",
+      "dbWeight": 20
+    },
+    "haengendes-knieheben": {
+      "dbShares": {
+        "abs": 1.0
+      },
+      "bwShares": {
+        "abs": 1.0
+      },
+      "tier": 3,
+      "equip": null,
+      "dbWeight": null
+    },
+    "hip-thrust": {
+      "dbShares": {
+        "glutes": 1.0,
+        "hamstringsHip": 0.5
+      },
+      "bwShares": {
+        "glutes": 1.0,
+        "hamstringsHip": 0.6
+      },
+      "tier": 1,
+      "equip": "hipbar",
+      "dbWeight": 40
+    },
+    "liegende-trizepsstrecker": {
+      "dbShares": {
+        "triceps": 1.0
+      },
+      "bwShares": {
+        "triceps": 1.0
+      },
+      "tier": 3,
+      "equip": "dumbbells",
+      "dbWeight": 8
+    },
+    "pull-ups": {
+      "dbShares": {
+        "lats": 1.0,
+        "biceps": 0.4,
+        "traps": 0.35,
+        "rearDelts": 0.2
+      },
+      "bwShares": {
+        "lats": 1.0,
+        "biceps": 0.4,
+        "traps": 0.35,
+        "rearDelts": 0.2
+      },
+      "tier": 1,
+      "equip": "backpack",
+      "dbWeight": 0
+    },
+    "reverse-fly": {
+      "dbShares": {
+        "rearDelts": 1.0,
+        "traps": 0.6
+      },
+      "bwShares": {
+        "rearDelts": 1.0,
+        "traps": 0.6
+      },
+      "tier": 3,
+      "equip": "dumbbells",
+      "dbWeight": 5
+    },
+    "rumaenisches-kreuzheben": {
+      "dbShares": {
+        "hamstringsHip": 1.0,
+        "glutes": 0.7,
+        "abs": 0.2
+      },
+      "bwShares": {
+        "hamstringsHip": 1.0,
+        "glutes": 0.75,
+        "abs": 0.3
+      },
+      "tier": 1,
+      "equip": "barbell",
+      "dbWeight": 40
+    },
+    "sitzendes-schulterdruecken": {
+      "dbShares": {
+        "frontDelts": 1.0,
+        "sideDelts": 0.45,
+        "triceps": 0.6,
+        "traps": 0.3
+      },
+      "bwShares": {
+        "frontDelts": 1.0,
+        "sideDelts": 0.45,
+        "triceps": 0.6,
+        "traps": 0.3
+      },
+      "tier": 1,
+      "equip": "dumbbells",
+      "dbWeight": 10
+    },
+    "sitzendes-seitheben": {
+      "dbShares": {
+        "sideDelts": 1.0,
+        "frontDelts": 0.15,
+        "traps": 0.2
+      },
+      "bwShares": {
+        "sideDelts": 1.0,
+        "frontDelts": 0.15,
+        "traps": 0.15
+      },
+      "tier": 3,
+      "equip": "dumbbells",
+      "dbWeight": 6
+    },
+    "sliding-leg-curl": {
+      "dbShares": {
+        "hamstringsKnee": 1.0,
+        "hamstringsHip": 0.3,
+        "glutes": 0.5,
+        "abs": 0.3
+      },
+      "bwShares": {
+        "hamstringsKnee": 1.0,
+        "hamstringsHip": 0.3,
+        "glutes": 0.5,
+        "abs": 0.3
+      },
+      "tier": 2,
+      "equip": null,
+      "dbWeight": null
+    },
+    "split-squat": {
+      "dbShares": {
+        "quads": 1.0,
+        "glutes": 0.8,
+        "hamstringsHip": 0.3,
+        "abs": 0.25
+      },
+      "bwShares": {
+        "quads": 1.0,
+        "glutes": 0.8,
+        "hamstringsHip": 0.3,
+        "abs": 0.15
+      },
+      "tier": 1,
+      "equip": "dumbbells",
+      "dbWeight": 10
+    },
+    "sz-curls": {
+      "dbShares": {
+        "biceps": 1.0
+      },
+      "bwShares": {
+        "biceps": 1.0
+      },
+      "tier": 3,
+      "equip": "barbell",
+      "dbWeight": 15
+    },
+    "wadenheben-gebeugtes-knie": {
+      "dbShares": {
+        "calves": 1.0
+      },
+      "bwShares": {
+        "calves": 1.0
+      },
+      "tier": 4,
+      "equip": "onehand",
+      "dbWeight": 12
+    }
+  }
+}

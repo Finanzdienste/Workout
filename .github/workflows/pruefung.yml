@@ -34,6 +34,13 @@ jobs:
       - name: Übung, Gerät und Zeichnung passen zusammen
         run: python3 tools/pruefung/geraete.py
 
+      # Ein Plan-Lauf dauert eine Viertelstunde je Variante – „neu erzeugen und
+      # vergleichen" wie bei den anderen erzeugten Dateien geht hier nicht. Statt
+      # dessen wird geprüft, ob sich die *Eingaben* seit dem letzten Lauf geändert
+      # haben. Genau das war passiert und ein halbes Dutzend Commits lang unsichtbar.
+      - name: Pläne passen noch zu ihren Eingaben
+        run: python3 tools/pruefung/plan-frisch.py
+
       # Die Rechenschicht darf nicht wieder an der Anzeige hängen, und ein
       # neues Modul muss in beiden Listen stehen – im Bündel und im
       # Offline-Vorrat. Beides geht sonst still kaputt: js/ics.js fehlte
