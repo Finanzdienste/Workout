@@ -631,6 +631,22 @@ button { font: inherit; color: inherit; }
 .band-rot.on { border-color: #e2564d; }
 .ex-weight + .band-row, .focus-weight + .band-row { margin-top: 0; }
 
+/* „Wie ist der Satz gelaufen?" – die eine Frage, die während der Pause dasteht.
+   Bewusst leiser als die Satzfelder darüber: Sie ist ein Angebot, keine
+   Aufgabe. Wer sie übergeht, verliert nichts, und sie soll nicht aussehen, als
+   müsse man sie erledigen, bevor es weitergeht. */
+.wie-row {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px 0 0; padding: 0;
+}
+.wie-frage { font-size: 12px; color: var(--muted); flex: none; }
+.wie-btn {
+  flex: 1 1 0; padding: 9px 6px; font-size: 13px; font-weight: 600;
+  color: var(--muted); background: var(--bg-elev-2);
+  border: 1px solid var(--line); border-radius: 9px;
+}
+.wie-btn:active { color: var(--text); border-color: var(--accent); }
+
 /* Einstiege oben unter Mehr: Kalender und Verletzungen. */
 .kachel-karte { padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 .kachel {
@@ -6321,7 +6337,12 @@ const DEFAULT_STATE = {
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
   // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/app.js.
   fokusUmzug: null,
-  // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
+  // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn }
+  //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
+  //   done abgehakt
+  //   wie  'unter' | 'drin' | 'oben' – wo im Wiederholungsbereich der Satz
+  //        lag, falls beantwortet. Fehlt, wenn die Frage übergangen wurde;
+  //        das ist der Normalfall und kostet nichts. }
   log: {},
 };
 
@@ -6378,22 +6399,50 @@ function load() {
 let saveTimer = null;
 
 /**
- * Einmal vorab prüfen, statt auf den ersten fehlgeschlagenen Schreibvorgang zu
- * warten: In privaten Fenstern und manchen eingebetteten Ansichten ist der
- * Speicher gesperrt, und dann darf die App das nicht stillschweigend schlucken.
+ * Warum nicht gespeichert werden kann – und das sind zwei verschiedene Lagen.
+ *
+ *   'gesperrt'  Der Browser lässt gar nicht erst speichern: privates Fenster,
+ *               eingebettete Ansicht, Website-Daten blockiert. Nichts von dem,
+ *               was eingetragen wird, überlebt das Neuladen – aber es war auch
+ *               nie etwas da.
+ *
+ *   'voll'      Es ging bisher, und jetzt nicht mehr. Das ist die gefährliche
+ *               Lage: Ein halbes Jahr Training liegt gespeichert, der heutige
+ *               Satz kommt nicht mehr dazu, und der Rat „öffne die Seite direkt
+ *               im Browser" hilft daran gar nichts. Hier gehört die Sicherung
+ *               hin, sofort.
+ *
+ * Vorher stand für beides derselbe Satz da, und er beschrieb nur die erste.
  */
+function warumNicht(fehler) {
+  // Chrome/Safari melden QuotaExceededError, Firefox NS_ERROR_DOM_QUOTA_REACHED,
+  // ältere Fassungen nur den Code 22. Alles andere ist eine Sperre.
+  const name = fehler && (fehler.name || '');
+  const code = fehler && fehler.code;
+  return (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED'
+    || code === 22 || code === 1014) ? 'voll' : 'gesperrt';
+}
+
+let speicherFehler = null;
+
 let storageOk = (() => {
   try {
     localStorage.setItem(`${KEY}.probe`, '1');
     localStorage.removeItem(`${KEY}.probe`);
     return true;
-  } catch {
+  } catch (e) {
+    // Beim Start ist auch ein voller Speicher eine Sperre: Es gibt noch nichts
+    // zu retten, und der einzige Rat wäre derselbe wie bei jeder anderen.
+    speicherFehler = 'gesperrt';
     return false;
   }
 })();
 
 /** false, wenn der Browser nichts speichern kann – Eintragungen sind flüchtig. */
 function canPersist() { return storageOk; }
+
+/** 'gesperrt', 'voll' oder null – siehe warumNicht(). */
+function speicherGrund() { return storageOk ? null : speicherFehler; }
 
 // Kam die Ablage aus dem Hauptschlüssel, muss sie **sofort** in ihren eigenen –
 // nicht erst beim nächsten abgehakten Satz. Dazwischen hätte der Hauptschlüssel
@@ -6405,22 +6454,32 @@ if (wandert) {
 
 function write() {
   saveTimer = null;
+  const vorher = storageOk;
   try {
     // Ohne die Ablage – die steht in KEY_RUNDEN und ändert sich fast nie.
     const { rounds, ...schlank } = state;
     localStorage.setItem(KEY, JSON.stringify(schlank));
     storageOk = true;
-  } catch {
-    storageOk = false; // Speicher voll oder gesperrt
+    speicherFehler = null;
+  } catch (e) {
+    storageOk = false;
+    speicherFehler = warumNicht(e);
   }
+  // Beim Wechsel melden, in **beide** Richtungen. Nötig, weil dieser
+  // Schreibvorgang *nach* dem Rendern läuft – persist() wartet 120 ms. Ohne
+  // diese Meldung stünde die Warnung einen verlorenen Satz zu spät da; und
+  // wäre nur das Scheitern gemeldet, bliebe sie nach dem Aufräumen kleben, bis
+  // von selbst etwas anderes neu zeichnet. Wer darauf reagiert: js/app.js.
+  if (storageOk !== vorher) emit();
 }
 
 /** Die Ablage schreiben. Nur aufrufen, wo sie sich wirklich ändert. */
 function schreibeRunden() {
   try {
     localStorage.setItem(KEY_RUNDEN, JSON.stringify(state.rounds || []));
-  } catch {
+  } catch (e) {
     storageOk = false;
+    speicherFehler = warumNicht(e);
   }
 }
 
@@ -6485,12 +6544,21 @@ function getSets(n, mode, exId, setCount) {
   const bucket = ensure(n)[mode];
   let arr = bucket[exId];
   if (!Array.isArray(arr)) arr = bucket[exId] = [];
-  while (arr.length < setCount) arr.push({ w: '', r: '', done: false });
+  // Ein Satz ist: benutztes Gewicht, abgehakt, und – wenn beantwortet – wie er
+  // gelaufen ist (`wie`, siehe updateSet). Ein Feld `r` für Wiederholungen
+  // stand hier jahrelang mit drin und wurde **nie beschrieben**: leer angelegt,
+  // leer gespeichert, leer ausgewertet. Es ist raus. Ein Feld, das aussieht,
+  // als würde es gefüllt, ist schlimmer als keins – die Volumenrechnung sah
+  // danach aus, als kenne sie die Wiederholungen, und rechnete in Wahrheit mit
+  // der Untergrenze des geplanten Bereichs.
+  while (arr.length < setCount) arr.push({ w: '', done: false });
   // Gekürzt wird nur, was leer ist. Seit die Erfahrungsstufe die Satzzahl
   // bestimmt (drei Sätze für Geübte, zwei für Anfänger), würde ein Wechsel
   // sonst rückwirkend den dritten Satz jeder protokollierten Übung löschen –
   // eine Einstellung darf keine Trainingsgeschichte wegräumen.
-  const leer = (x) => !x.done && x.w === '' && x.r === '';
+  // `r` steht in alten Ständen noch drin und darf einen Satz nicht am Leben
+  // halten: geprüft wird auf leer im Sinne von "nichts eingetragen".
+  const leer = (x) => !x.done && !x.w && !x.wie;
   while (arr.length > setCount && leer(arr[arr.length - 1])) arr.pop();
   return arr;
 }
@@ -6500,7 +6568,7 @@ function isStarted(n) {
   const e = state.log[n];
   if (!e) return false;
   return ['db', 'bw'].some((m) => Object.values(e[m] || {}).some(
-    (arr) => Array.isArray(arr) && arr.some((s) => s.done || s.w !== '' || s.r !== ''),
+    (arr) => Array.isArray(arr) && arr.some((s) => s.done || !!s.w || !!s.wie),
   ));
 }
 
@@ -6975,7 +7043,7 @@ function resetAll() {
   emit();
 }
 
-const store = { addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, flush, getSets, getState, importJSON, isStarted, markBackup, markDone, markIcs, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, weightOf, workoutMode };
+const store = { addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, flush, getSets, getState, importJSON, isStarted, markBackup, markDone, markIcs, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, speicherGrund, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, weightOf, workoutMode };
 
 /* ===== js/text.js ===== */
 /*
@@ -7027,6 +7095,41 @@ const directSets = (items) => new Set(items.flatMap((it) => directOf(it.id)));
 function plannedReps(reps) {
   const m = String(reps).match(/\d+/);
   return m ? Number(m[0]) : 0;
+}
+
+/**
+ * Beide Grenzen eines Wiederholungsbereichs: "8–12 je Bein" -> { lo: 8, hi: 12 }.
+ *
+ * Der Zusatz hinter der Zahl ist Absicht und darf nicht stören – "je Bein"
+ * sagt etwas über die Ausführung, nicht über den Bereich.
+ */
+function repsBereich(reps) {
+  const zahlen = String(reps).match(/\d+/g) || [];
+  const lo = Number(zahlen[0] || 0);
+  const hi = Number(zahlen[1] || zahlen[0] || 0);
+  return { lo, hi };
+}
+
+/**
+ * Mit wie vielen Wiederholungen ein abgehakter Satz in die Volumenrechnung
+ * eingeht.
+ *
+ * Erfasst wird nicht die Zahl, sondern die Lage im Bereich – ein Tipp statt
+ * eines Zahlenfelds (siehe satzFrage() in js/app.js). Daraus wird hier so
+ * vorsichtig wie möglich gerechnet:
+ *
+ *   oben        die obere Grenze. Wer 12 von 8–12 schafft, hat 12 gemacht.
+ *   drin/nichts die untere Grenze – wie bisher, und bewusst eher zu niedrig.
+ *   unter       ebenfalls die untere Grenze. Wie weit darunter, weiß niemand,
+ *               und eine erfundene Zahl wäre schlechter als eine zu hohe.
+ *
+ * Die Volumenzahl bleibt damit eine Untergrenze und heißt in der Statistik
+ * weiterhin "ca." – sie ist nur nicht mehr für *jeden* Satz die kleinste
+ * denkbare.
+ */
+function gezaehlteReps(satz, reps) {
+  const { lo, hi } = repsBereich(reps);
+  return satz && satz.wie === 'oben' ? hi : lo;
 }
 
 /**
@@ -7864,12 +7967,13 @@ function sammleStats() {
       exOf(w, m).forEach((item) => {
         const arr = entry[m] && entry[m][item.id];
         if (!Array.isArray(arr)) return;
-        // Wiederholungen werden nicht mehr erfasst; gerechnet wird deshalb mit
-        // dem geplanten Wert – der unteren Grenze des Bereichs, also bewusst
-        // eher zu niedrig als zu hoch.
-        const planned = plannedReps(stufenWerte(EX_BY_ID.get(item.id)[m]).reps);
+        // Gerechnet wird mit gezaehlteReps(): der unteren Grenze des Bereichs,
+        // und der oberen nur dort, wo der Satz ausdrücklich als "oben raus"
+        // beantwortet wurde. Bewusst eher zu niedrig als zu hoch.
+        const reps = stufenWerte(EX_BY_ID.get(item.id)[m]).reps;
         arr.forEach((s) => {
           if (!s.done) return;
+          const planned = gezaehlteReps(s, reps);
           setsDone++;
           repsTotal += planned;
           const kg = parseFloat(String(s.w).replace(',', '.'));
@@ -7914,9 +8018,10 @@ function sammleStats() {
         const arr = entry[m] && entry[m][item.id];
         const ex = EX_BY_ID.get(item.id);
         if (!Array.isArray(arr) || !ex) return;
-        const planned = plannedReps(stufenWerte(ex[m]).reps);
+        const reps = stufenWerte(ex[m]).reps;
         arr.slice(0, item.sets).forEach((x) => {
           if (!x.done) return;
+          const planned = gezaehlteReps(x, reps);
           setsDone++;
           customSets++;
           repsTotal += planned;
@@ -8043,14 +8148,14 @@ function bilanzAus(runde) {
       Object.entries(e[m] || {}).forEach(([id, arr]) => {
         const ex = EX_BY_ID.get(id);
         if (!ex || !Array.isArray(arr)) return;
-        const planned = plannedReps(stufenWerte(ex[m]).reps);
+        const reps = stufenWerte(ex[m]).reps;
         let hier = 0;
         arr.forEach((s) => {
           if (!s.done) return;
           saetze++;
           hier++;
           const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volumen += kg * planned;
+          if (m === 'db' && !Number.isNaN(kg)) volumen += kg * gezaehlteReps(s, reps);
         });
         if (hier) mitSatz++;
       });
@@ -8186,6 +8291,21 @@ const modeSwitch = document.getElementById('modeSwitch');
 const toastEl = document.getElementById('toast');
 
 const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
+
+/**
+ * Läuft die App als dist/workout.html, also als eine einzige Datei?
+ *
+ * Dort gibt es keine Nachbardateien: Ein Verweis auf figuren.html ginge ins
+ * Leere, und die Datei soll ohne Server, ohne Netz und als Mail-Anhang laufen.
+ * Erkennbar ist die Lage am Skript selbst: tools/build-single.py ersetzt das
+ * Modul-Skript-Element durch den eingebetteten Inhalt, und danach gibt es
+ * keines mehr, das auf js/app.js zeigt.
+ *
+ * (Der Verweis steht hier bewusst ohne Anführungszeichen. Der Bundler prüft am
+ * Ende, ob noch ein externer Verweis im Dokument steht, und würde ihn sonst in
+ * diesem Kommentar finden – gefunden beim ersten Bauversuch.)
+ */
+const EINZELDATEI = !document.querySelector('script[src$="js/app.js"]');
 
 /** Der Hinweis auf dem Dashboard, bis er weggetippt wird. */
 function aufstiegHinweis() {
@@ -8960,8 +9080,13 @@ function renderOverview() {
         <div class="hero-eyebrow">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${
           w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n} von ${PLAN.length}`}</div>
         <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
-        <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze${
-          shift ? ` · Plan ${shift > 0 ? '+' : '−'}${esc(plural(Math.abs(shift), 'Tag', 'Tage'))}` : ''}</div>
+        <!-- Kein "Plan +2 Tage" mehr: Der Plan rückt von selbst nach, wenn ein
+             Termin verstreicht (catchUpPlan). Wie weit er dabei insgesamt vom
+             ursprünglichen Kalender abweicht, ändert an der heutigen Einheit
+             nichts – es stand nur da und sah nach einem Rückstand aus, den es
+             nicht gibt. Wer die Zahl wirklich sucht, findet sie unter
+             Mehr → Termine. -->
+        <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
           <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.complete ? ' · abgeschlossen' : ''}</div>` : ''}
         ${nachSumme(items) ? `<div class="small muted" style="margin-top:8px">
@@ -9455,7 +9580,10 @@ function renderDashboard() {
         <span class="badge accent">${mode === 'db' ? '🏋️ Hantel-Variante' : '🤸 Bodyweight-Variante'}</span>
         ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>'
                         : `<span class="badge">${prog.done}/${prog.total} Sätze</span>`}
-        ${shift ? `<span class="badge" title="Ursprünglich ${esc(fmtDate(w.date))}">↷ Plan ${shift > 0 ? '+' : '−'}${esc(plural(Math.abs(shift), 'Tag', 'Tage'))}</span>` : ''}
+        <!-- Hier stand dasselbe "Plan +2 Tage" wie in der Übersicht, nur als
+             Abzeichen. Es dort rauszunehmen und einen Tipp weiter wieder
+             hinzustellen wäre keine Änderung gewesen. Die Zahl steht weiterhin
+             unter Mehr → Termine, wo man sie sucht, wenn man sie sucht. -->
         ${session ? '<span class="badge accent" id="sessionBadge">⏱ läuft</span>' : ''}
       </div>
       <div class="progress"><i style="width:${prog.pct}%"></i></div>
@@ -11620,6 +11748,13 @@ function renderSettings() {
       ${PLAN.length} Einheiten, ursprünglich vom ${esc(fmtDate(PLAN[0].date, true))} bis ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))},
       aufgebaut auf ${EXERCISES.length} Grundübungen. Zu jeder Hantelübung gehört ein
       Bodyweight-Äquivalent mit gleicher Satzzahl und angepasstem Wiederholungsbereich.
+      ${EINZELDATEI ? '' : `
+      <div style="margin-top:10px">
+        <a class="btn btn-block" href="./figuren.html">Alle Bewegungsbilder ansehen</a>
+      </div>
+      <div style="margin-top:6px">Alle ${EXERCISES.length} Übungen auf einer Seite, in beiden
+        Fassungen nebeneinander – zum Durchsehen, ohne sich durch ${PLAN.length} Einheiten
+        zu tippen.</div>`}
     </div>
   `;
 

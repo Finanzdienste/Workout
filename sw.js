@@ -19,12 +19,16 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v103';
+const VERSION = 'v105';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
   './',
   './index.html',
+  // Die Übersicht aller Bewegungsbilder. Kein Teil der App, aber aus ihr
+  // verlinkt – eine Seite, die offline ins Leere läuft, ist schlimmer als
+  // keine Verlinkung.
+  './figuren.html',
   './css/styles.css',
   './js/app.js',
   './js/audio.js',

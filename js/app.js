@@ -47,6 +47,21 @@ const toastEl = document.getElementById('toast');
 
 const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
 
+/**
+ * Läuft die App als dist/workout.html, also als eine einzige Datei?
+ *
+ * Dort gibt es keine Nachbardateien: Ein Verweis auf figuren.html ginge ins
+ * Leere, und die Datei soll ohne Server, ohne Netz und als Mail-Anhang laufen.
+ * Erkennbar ist die Lage am Skript selbst: tools/build-single.py ersetzt das
+ * Modul-Skript-Element durch den eingebetteten Inhalt, und danach gibt es
+ * keines mehr, das auf js/app.js zeigt.
+ *
+ * (Der Verweis steht hier bewusst ohne Anführungszeichen. Der Bundler prüft am
+ * Ende, ob noch ein externer Verweis im Dokument steht, und würde ihn sonst in
+ * diesem Kommentar finden – gefunden beim ersten Bauversuch.)
+ */
+const EINZELDATEI = !document.querySelector('script[src$="js/app.js"]');
+
 /** Der Hinweis auf dem Dashboard, bis er weggetippt wird. */
 function aufstiegHinweis() {
   const a = store.getState().aufstieg;
@@ -820,8 +835,13 @@ function renderOverview() {
         <div class="hero-eyebrow">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${
           w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n} von ${PLAN.length}`}</div>
         <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
-        <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze${
-          shift ? ` · Plan ${shift > 0 ? '+' : '−'}${esc(plural(Math.abs(shift), 'Tag', 'Tage'))}` : ''}</div>
+        <!-- Kein "Plan +2 Tage" mehr: Der Plan rückt von selbst nach, wenn ein
+             Termin verstreicht (catchUpPlan). Wie weit er dabei insgesamt vom
+             ursprünglichen Kalender abweicht, ändert an der heutigen Einheit
+             nichts – es stand nur da und sah nach einem Rückstand aus, den es
+             nicht gibt. Wer die Zahl wirklich sucht, findet sie unter
+             Mehr → Termine. -->
+        <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
           <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.complete ? ' · abgeschlossen' : ''}</div>` : ''}
         ${nachSumme(items) ? `<div class="small muted" style="margin-top:8px">
@@ -1315,7 +1335,10 @@ function renderDashboard() {
         <span class="badge accent">${mode === 'db' ? '🏋️ Hantel-Variante' : '🤸 Bodyweight-Variante'}</span>
         ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>'
                         : `<span class="badge">${prog.done}/${prog.total} Sätze</span>`}
-        ${shift ? `<span class="badge" title="Ursprünglich ${esc(fmtDate(w.date))}">↷ Plan ${shift > 0 ? '+' : '−'}${esc(plural(Math.abs(shift), 'Tag', 'Tage'))}</span>` : ''}
+        <!-- Hier stand dasselbe "Plan +2 Tage" wie in der Übersicht, nur als
+             Abzeichen. Es dort rauszunehmen und einen Tipp weiter wieder
+             hinzustellen wäre keine Änderung gewesen. Die Zahl steht weiterhin
+             unter Mehr → Termine, wo man sie sucht, wenn man sie sucht. -->
         ${session ? '<span class="badge accent" id="sessionBadge">⏱ läuft</span>' : ''}
       </div>
       <div class="progress"><i style="width:${prog.pct}%"></i></div>
@@ -3480,6 +3503,13 @@ function renderSettings() {
       ${PLAN.length} Einheiten, ursprünglich vom ${esc(fmtDate(PLAN[0].date, true))} bis ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))},
       aufgebaut auf ${EXERCISES.length} Grundübungen. Zu jeder Hantelübung gehört ein
       Bodyweight-Äquivalent mit gleicher Satzzahl und angepasstem Wiederholungsbereich.
+      ${EINZELDATEI ? '' : `
+      <div style="margin-top:10px">
+        <a class="btn btn-block" href="./figuren.html">Alle Bewegungsbilder ansehen</a>
+      </div>
+      <div style="margin-top:6px">Alle ${EXERCISES.length} Übungen auf einer Seite, in beiden
+        Fassungen nebeneinander – zum Durchsehen, ohne sich durch ${PLAN.length} Einheiten
+        zu tippen.</div>`}
     </div>
   `;
 

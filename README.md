@@ -2764,8 +2764,17 @@ klicken.
 Fassungen umschaltbar, mit Gerätetext und dem gezeichneten Muster darunter.
 Fünf Minuten scrollen statt einer halben Stunde klicken.
 
-Die Seite ist Werkzeug, kein Feature: Sie hat keinen Reiter in der App, steht
-nicht im Offline-Vorrat des Service Workers und wird direkt aufgerufen.
+Die Seite ist Werkzeug, kein Feature: Sie hat keinen eigenen Reiter, sondern
+steht als Verweis unter *Mehr → Über den Plan*. Im Offline-Vorrat liegt sie
+trotzdem — eine verlinkte Seite, die ohne Netz ins Leere läuft, ist schlimmer
+als gar kein Verweis.
+
+In `dist/workout.html` fehlt der Verweis, und zwar mit Absicht: Diese Fassung
+ist **eine** Datei, die per Doppelklick oder als Mail-Anhang laufen soll; eine
+Nachbardatei gibt es dort nicht. Die App erkennt die Lage an ihrem eigenen
+Skript (`EINZELDATEI` in `js/app.js`) — `tools/build-single.py` ersetzt das
+Modul-Skript-Element durch den eingebetteten Inhalt.
+
 `tests/test-figuren.mjs` prüft, dass wirklich *jede* Übung darauf steht und jede
 eine gezeichnete Figur bekommt — eine Übersicht mit Lücken wäre schlimmer als
 keine, weil man sich darauf verlässt, alles gesehen zu haben.
