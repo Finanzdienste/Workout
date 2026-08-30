@@ -1975,7 +1975,7 @@ data/…xlsx              Quelle des Plans
 tools/build-data.py     Generator: Excel + Hinweise -> js/data.js
 tools/exercise-meta.json  Muskelgruppe, Equipment und Ausführungshinweise je Übung
 tools/build-plan.py     Generator: Ziele je Muskelgruppe -> tools/plan.json
-tools/plan-eingaben.json  Aus welchen Eingaben die Pläne erzeugt wurden
+tools/pruefung/plan-eingaben.json  Aus welchen Eingaben die Pläne erzeugt wurden
 tools/build-icons.mjs   Generator: icon.svg -> die drei PNGs
 tools/build-single.py   Bündelt alles zu dist/workout.html
 dist/workout.html       Erzeugt: die App als eine portable Datei
@@ -2025,11 +2025,11 @@ korrigierten Eingaben neu gebaut und gegen den Vergleichsstand geprüft:
 7 auf 10 Tage. Der ältere Plan ist der bessere. Er bleibt.
 
 Was bleibt, ist die Aufgabe, das nicht mehr unbemerkt passieren zu lassen.
-`tools/pruefung/plan-frisch.py` hält in `tools/plan-eingaben.json` fest, aus
-welchen Eingaben die Pläne entstanden sind — und zwar nur die fünf Felder, die
-den Plan wirklich bestimmen (`dbShares`, `bwShares`, `tier`, `equip`,
-`dbWeight`). Hinweistexte und Zeichenmuster ändern sich oft und ändern am Plan
-nichts; zählte man sie mit, schlüge die Prüfung ständig grundlos an und wäre
+`tools/pruefung/plan-frisch.py` hält in `tools/pruefung/plan-eingaben.json`
+fest, aus welchen Eingaben die Pläne entstanden sind — und zwar nur die fünf
+Felder, die den Plan wirklich bestimmen (`dbShares`, `bwShares`, `tier`,
+`equip`, `dbWeight`). Hinweistexte und Zeichenmuster ändern sich oft und ändern
+am Plan nichts; zählte man sie mit, schlüge die Prüfung ständig grundlos an und wäre
 nach der dritten Meldung abgeschaltet.
 
 Die bekannte Abweichung steht unter `hingenommen`, mit Begründung. Das ist kein

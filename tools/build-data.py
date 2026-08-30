@@ -244,6 +244,16 @@ def main():
     def lies_plan(pfad):
         """Eine Plandatei prüfen und in die Form bringen, die die App erwartet."""
         roh = json.loads(pfad.read_text(encoding='utf-8'))
+        # Der Suchbegriff ist tools/plan-*.json, und da geraet leicht etwas
+        # hinein, das kein Plan ist – eine Notiz, ein Zwischenstand, eine Datei
+        # neben dem Generator. Ohne diese Zeile stirbt der Lauf an einem
+        # KeyError mitten in der Ausgabe, und man sucht den Fehler im Plan
+        # statt im Dateinamen. Genau so ist es passiert.
+        if 'plan' not in roh:
+            sys.exit(f'{pfad.name}: kein "plan" darin. Der Suchbegriff '
+                     f'{VARIANT_GLOB} meint Planvarianten – andere Dateien '
+                     f'gehoeren nicht nach tools/ oder brauchen einen Namen, '
+                     f'der nicht darauf passt.')
         fresh, prev = [], None
         for o in roh['plan']:
             date = datetime.date.fromisoformat(o['date'])

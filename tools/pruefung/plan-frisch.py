@@ -27,8 +27,8 @@ Zum Aufloesen gibt es zwei ehrliche Wege, und beide sind sichtbar:
   * Plaene neu erzeugen (`python3 tools/build-plan.py [variante]`) und danach
     `--schreiben`. Der Plan-Gate sagt anschliessend, ob der neue schlechter ist.
   * Die Abweichung bewusst hinnehmen – dann steht sie unter `hingenommen` in
-    tools/plan-eingaben.json, mit Grund, und diese Pruefung laesst genau sie
-    durch. Alles andere schlaegt weiter an.
+    tools/pruefung/plan-eingaben.json, mit Grund, und diese Pruefung laesst
+    genau sie durch. Alles andere schlaegt weiter an.
 
 Der zweite Weg ist kein Schlupfloch, sondern der ehrlichere von beiden: Er
 schreibt ins Repo, dass die Plaene aelter sind als ihre Eingaben, und warum das
@@ -42,7 +42,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 META = ROOT / 'tools' / 'exercise-meta.json'
-STAND = ROOT / 'tools' / 'plan-eingaben.json'
+STAND = ROOT / 'tools' / 'pruefung' / 'plan-eingaben.json'
 
 # Genau die Felder, die tools/build-plan.py aus exercise-meta.json liest:
 #   dbShares/bwShares  die Muskelanteile – daraus kommen die Wochenmengen
