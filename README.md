@@ -1789,6 +1789,40 @@ Ablage gekostet. Die Sicherungsdatei enthält sie unverändert mit; sonst sähe 
 vollständig aus, und der Verlust fiele erst beim Einlesen auf.
 `tests/test-speicher.mjs` misst beide Hälften nach, statt sie zu behaupten.
 
+### Wenn der Speicher voll ist, sagt die App jetzt das Richtige
+
+„Speichern geht nicht" hat zwei ganz verschiedene Ursachen, und lange stand für
+beide derselbe Satz da:
+
+| Lage | Was wirklich los ist | Was hilft |
+| --- | --- | --- |
+| **gesperrt** | Privates Fenster, eingebettete Ansicht, blockierte Website-Daten | Die Seite normal im Browser öffnen |
+| **voll** | Es ging bisher und geht jetzt nicht mehr | Sichern, dann aufräumen |
+
+Der alte Text erklärte nur die erste — *„Im privaten Modus? Dann die Seite
+direkt im Browser öffnen."* Ausgerechnet in der zweiten Lage, in der ein halbes
+Jahr Training im Speicher liegt und der heutige Satz nicht mehr dazukommt, gab
+die App also einen Rat, der nichts nützt. Jetzt steht dort, dass der Speicher
+voll ist, dass der Eintrag gerade **nicht** ankommt, und der Sicherungsknopf
+direkt daneben.
+
+Zwei Dinge, die dabei erst der Test gefunden hat:
+
+* **Die Warnung erscheint sofort.** Gespeichert wird 120 ms *nach* dem Zeichnen,
+  der Bildschirm steht also längst, wenn der Schreibvorgang scheitert. Der Store
+  meldet den Wechsel deshalb ausdrücklich — in beide Richtungen, sonst klebte
+  die Warnung nach dem Aufräumen fest.
+* **Sie stand in der falschen Ansicht.** Zuerst nur in der Übersicht und in der
+  Übungsliste — also überall außer in der Trainingsansicht, in der die Sätze
+  abgehakt werden und gerade etwas verloren geht.
+
+`tests/test-speicher-voll.mjs` schreibt den Speicher wirklich voll, statt es zu
+simulieren: erst in 64-KB-Blöcken, dann 1 KB, dann 32 Byte. Die letzte Stufe ist
+der Punkt — ein gespeicherter Stand **ersetzt** seinen alten Eintrag, muss also
+nicht ganz hineinpassen, sondern nur sein *Zuwachs*. Mit 64 KB Luft gehen noch
+Hunderte abgehakter Sätze durch, und der erste Anlauf dieses Tests fand deshalb
+gar nichts.
+
 ## Wenn der Plan durch ist
 
 Nach der letzten von 84 Einheiten bietet die Startansicht *Von vorn beginnen*

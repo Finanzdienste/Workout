@@ -6337,12 +6337,7 @@ const DEFAULT_STATE = {
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
   // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/app.js.
   fokusUmzug: null,
-  // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn }
-  //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
-  //   done abgehakt
-  //   wie  'unter' | 'drin' | 'oben' – wo im Wiederholungsbereich der Satz
-  //        lag, falls beantwortet. Fehlt, wenn die Frage übergangen wurde;
-  //        das ist der Normalfall und kostet nichts. }
+  // { [workoutNo]: { db: {exId: [{w,r,done}]}, bw: {...}, mode, startedOn } }
   log: {},
 };
 
@@ -6544,21 +6539,12 @@ function getSets(n, mode, exId, setCount) {
   const bucket = ensure(n)[mode];
   let arr = bucket[exId];
   if (!Array.isArray(arr)) arr = bucket[exId] = [];
-  // Ein Satz ist: benutztes Gewicht, abgehakt, und – wenn beantwortet – wie er
-  // gelaufen ist (`wie`, siehe updateSet). Ein Feld `r` für Wiederholungen
-  // stand hier jahrelang mit drin und wurde **nie beschrieben**: leer angelegt,
-  // leer gespeichert, leer ausgewertet. Es ist raus. Ein Feld, das aussieht,
-  // als würde es gefüllt, ist schlimmer als keins – die Volumenrechnung sah
-  // danach aus, als kenne sie die Wiederholungen, und rechnete in Wahrheit mit
-  // der Untergrenze des geplanten Bereichs.
-  while (arr.length < setCount) arr.push({ w: '', done: false });
+  while (arr.length < setCount) arr.push({ w: '', r: '', done: false });
   // Gekürzt wird nur, was leer ist. Seit die Erfahrungsstufe die Satzzahl
   // bestimmt (drei Sätze für Geübte, zwei für Anfänger), würde ein Wechsel
   // sonst rückwirkend den dritten Satz jeder protokollierten Übung löschen –
   // eine Einstellung darf keine Trainingsgeschichte wegräumen.
-  // `r` steht in alten Ständen noch drin und darf einen Satz nicht am Leben
-  // halten: geprüft wird auf leer im Sinne von "nichts eingetragen".
-  const leer = (x) => !x.done && !x.w && !x.wie;
+  const leer = (x) => !x.done && x.w === '' && x.r === '';
   while (arr.length > setCount && leer(arr[arr.length - 1])) arr.pop();
   return arr;
 }
@@ -6568,7 +6554,7 @@ function isStarted(n) {
   const e = state.log[n];
   if (!e) return false;
   return ['db', 'bw'].some((m) => Object.values(e[m] || {}).some(
-    (arr) => Array.isArray(arr) && arr.some((s) => s.done || !!s.w || !!s.wie),
+    (arr) => Array.isArray(arr) && arr.some((s) => s.done || s.w !== '' || s.r !== ''),
   ));
 }
 
@@ -8307,6 +8293,38 @@ const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
  */
 const EINZELDATEI = !document.querySelector('script[src$="js/app.js"]');
 
+/**
+ * Die Warnung, wenn nicht gespeichert werden kann – und die hängt daran,
+ * *warum* nicht.
+ *
+ *   gesperrt   Privates Fenster, eingebettete Ansicht, blockierte
+ *              Website-Daten. Es war nie etwas da, es geht nichts verloren,
+ *              und der Ausweg ist, die Seite normal im Browser zu öffnen.
+ *
+ *   voll       Es ging bisher und geht jetzt nicht mehr. Hier liegt ein halbes
+ *              Jahr Training im Speicher, der heutige Satz kommt nicht mehr
+ *              dazu, und „öffne die Seite direkt im Browser" hilft null.
+ *              Deshalb steht hier der Sicherungsknopf, und zwar sofort.
+ *
+ * Vorher stand für beide Lagen derselbe Satz da, und er beschrieb nur die
+ * erste – ausgerechnet in der zweiten, in der wirklich etwas auf dem Spiel
+ * steht, gab die App den falschen Rat.
+ */
+function speicherWarnung() {
+  const grund = store.speicherGrund();
+  if (!grund) return '';
+  if (grund === 'voll') {
+    return `<div class="notice warn">⚠️ <b>Der Speicher dieses Browsers ist voll.</b>
+      Was du gerade einträgst, wird <b>nicht</b> gespeichert – der bisherige Stand liegt
+      noch da. Jetzt sichern, dann unter <i>Mehr → Daten</i> aufräumen.
+      <button type="button" class="btn btn-block" data-act="backup-now"
+              style="margin-top:10px">Jetzt sichern</button></div>`;
+  }
+  return `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu – Eintragungen
+    gehen beim Neuladen verloren. Im privaten Modus oder in einer eingebetteten Ansicht?
+    Dann die Seite direkt im Browser öffnen.</div>`;
+}
+
 /** Der Hinweis auf dem Dashboard, bis er weggetippt wird. */
 function aufstiegHinweis() {
   const a = store.getState().aufstieg;
@@ -8962,6 +8980,13 @@ function renderFocus() {
     </div>
     ${progressStrip(n, mode, w, i)}
 
+    <!-- Die Speicherwarnung gehört ausgerechnet hierher: Das ist die Ansicht,
+         in der die Sätze abgehakt werden. Sie stand zuerst nur in der Übersicht
+         und in der Übungsliste – also überall außer dort, wo gerade etwas
+         verloren geht. Aufgefallen ist das erst, als der Test den Speicher
+         wirklich vollgeschrieben hat. -->
+    ${speicherWarnung()}
+
     <div class="focus-fig" id="focusFig"></div>
 
     <h2 class="focus-name">${esc(it.name)}</h2>
@@ -9045,8 +9070,7 @@ function renderOverview() {
       ${zusatztagHinweis()}
       ${umzugHinweis()}
       ${aufstiegHinweis()}
-      ${store.canPersist() ? '' : `<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu –
-        Eintragungen gehen beim Neuladen verloren.</div>`}
+      ${speicherWarnung()}
       ${ui.shiftInfo ? `<div class="notice">
         ↷ <b>${esc(plural(ui.shiftInfo, 'Tag', 'Tage'))} verpasst.</b> Der Plan ist
         nachgerückt – die Abstände zwischen den Einheiten bleiben, übersprungen wird nichts.
@@ -9565,11 +9589,7 @@ function renderDashboard() {
   parts.push(umzugHinweis());
   parts.push(aufstiegHinweis());
 
-  if (!store.canPersist()) {
-    parts.push(`<div class="notice warn">⚠️ Dieser Browser lässt keine Speicherung zu – Eintragungen
-      gehen beim Neuladen verloren. Im privaten Modus oder in einer eingebetteten Ansicht?
-      Dann die Seite direkt im Browser öffnen.</div>`);
-  }
+  if (!store.canPersist()) parts.push(speicherWarnung());
 
   parts.push(`
     <section class="card">
@@ -12837,6 +12857,22 @@ if (pruefeAufstieg() || pruefeZusatztag()) {
   ui.tab = 'dashboard';
   ui.focus = false;
 }
+/*
+ * Wenn das Speichern kippt, muss der Bildschirm es sagen – sofort.
+ *
+ * Der Schreibvorgang läuft 120 ms *nach* dem Rendern (persist()). Scheitert er,
+ * ist die Oberfläche längst gezeichnet, und ohne diesen Abgleich stünde die
+ * Warnung erst nach dem nächsten Tipp da – also nach dem nächsten Satz, der
+ * nicht mehr ankommt. Gerendert wird nur beim Wechsel, nicht bei jeder Meldung:
+ * Sonst zöge jeder abgehakte Satz einen zweiten Neuaufbau nach sich.
+ */
+let speicherStand = store.canPersist();
+store.subscribe(() => {
+  if (store.canPersist() === speicherStand) return;
+  speicherStand = store.canPersist();
+  render();
+});
+
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist
 store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit

@@ -142,22 +142,50 @@ function load() {
 let saveTimer = null;
 
 /**
- * Einmal vorab prüfen, statt auf den ersten fehlgeschlagenen Schreibvorgang zu
- * warten: In privaten Fenstern und manchen eingebetteten Ansichten ist der
- * Speicher gesperrt, und dann darf die App das nicht stillschweigend schlucken.
+ * Warum nicht gespeichert werden kann – und das sind zwei verschiedene Lagen.
+ *
+ *   'gesperrt'  Der Browser lässt gar nicht erst speichern: privates Fenster,
+ *               eingebettete Ansicht, Website-Daten blockiert. Nichts von dem,
+ *               was eingetragen wird, überlebt das Neuladen – aber es war auch
+ *               nie etwas da.
+ *
+ *   'voll'      Es ging bisher, und jetzt nicht mehr. Das ist die gefährliche
+ *               Lage: Ein halbes Jahr Training liegt gespeichert, der heutige
+ *               Satz kommt nicht mehr dazu, und der Rat „öffne die Seite direkt
+ *               im Browser" hilft daran gar nichts. Hier gehört die Sicherung
+ *               hin, sofort.
+ *
+ * Vorher stand für beides derselbe Satz da, und er beschrieb nur die erste.
  */
+function warumNicht(fehler) {
+  // Chrome/Safari melden QuotaExceededError, Firefox NS_ERROR_DOM_QUOTA_REACHED,
+  // ältere Fassungen nur den Code 22. Alles andere ist eine Sperre.
+  const name = fehler && (fehler.name || '');
+  const code = fehler && fehler.code;
+  return (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED'
+    || code === 22 || code === 1014) ? 'voll' : 'gesperrt';
+}
+
+let speicherFehler = null;
+
 let storageOk = (() => {
   try {
     localStorage.setItem(`${KEY}.probe`, '1');
     localStorage.removeItem(`${KEY}.probe`);
     return true;
-  } catch {
+  } catch (e) {
+    // Beim Start ist auch ein voller Speicher eine Sperre: Es gibt noch nichts
+    // zu retten, und der einzige Rat wäre derselbe wie bei jeder anderen.
+    speicherFehler = 'gesperrt';
     return false;
   }
 })();
 
 /** false, wenn der Browser nichts speichern kann – Eintragungen sind flüchtig. */
 export function canPersist() { return storageOk; }
+
+/** 'gesperrt', 'voll' oder null – siehe warumNicht(). */
+export function speicherGrund() { return storageOk ? null : speicherFehler; }
 
 // Kam die Ablage aus dem Hauptschlüssel, muss sie **sofort** in ihren eigenen –
 // nicht erst beim nächsten abgehakten Satz. Dazwischen hätte der Hauptschlüssel
@@ -169,22 +197,32 @@ if (wandert) {
 
 function write() {
   saveTimer = null;
+  const vorher = storageOk;
   try {
     // Ohne die Ablage – die steht in KEY_RUNDEN und ändert sich fast nie.
     const { rounds, ...schlank } = state;
     localStorage.setItem(KEY, JSON.stringify(schlank));
     storageOk = true;
-  } catch {
-    storageOk = false; // Speicher voll oder gesperrt
+    speicherFehler = null;
+  } catch (e) {
+    storageOk = false;
+    speicherFehler = warumNicht(e);
   }
+  // Beim Wechsel melden, in **beide** Richtungen. Nötig, weil dieser
+  // Schreibvorgang *nach* dem Rendern läuft – persist() wartet 120 ms. Ohne
+  // diese Meldung stünde die Warnung einen verlorenen Satz zu spät da; und
+  // wäre nur das Scheitern gemeldet, bliebe sie nach dem Aufräumen kleben, bis
+  // von selbst etwas anderes neu zeichnet. Wer darauf reagiert: js/app.js.
+  if (storageOk !== vorher) emit();
 }
 
 /** Die Ablage schreiben. Nur aufrufen, wo sie sich wirklich ändert. */
 function schreibeRunden() {
   try {
     localStorage.setItem(KEY_RUNDEN, JSON.stringify(state.rounds || []));
-  } catch {
+  } catch (e) {
     storageOk = false;
+    speicherFehler = warumNicht(e);
   }
 }
 
