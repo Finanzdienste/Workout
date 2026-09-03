@@ -60,7 +60,7 @@ await page.waitForTimeout(400);
 
 check(await page.locator('.anlegen-btn').count() === 4, 'die App zeichnet ohne Netz');
 const grund = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-check(grund === 'rgb(16, 19, 17)', `das Styling ist auch offline da (${grund})`);
+check(grund === 'rgb(20, 16, 19)', `das Styling ist auch offline da (${grund})`);
 check(await page.locator('.strang-zeile').count() === 1, 'der Eintrag von vorhin steht noch da');
 
 // Offline weiterarbeiten – das ist der eigentliche Zweck.

@@ -39,10 +39,10 @@ const REITER = [
 ];
 
 const THEMEN = [
-  { id: 'salbei', name: 'Salbei' },
-  { id: 'blau', name: 'Blau' },
-  { id: 'sand', name: 'Sand' },
+  { id: 'rosa', name: 'Rosé' },
   { id: 'flieder', name: 'Flieder' },
+  { id: 'koralle', name: 'Koralle' },
+  { id: 'salbei', name: 'Salbei' },
 ];
 
 /*
@@ -57,6 +57,11 @@ const ui = {
   zeitraum: 30,
   bogen: null,      // { art, id, entwurf } – der offene Eingabebogen
   bericht: null,    // erzeugter Berichtstext, solange er angezeigt wird
+  // Die Sicherung als Text, solange sie offen steht. Sie gibt es zusätzlich
+  // zur Datei, weil ein Herunterladen nicht überall geht: eingebettete
+  // Ansichten, der Browser in einer Messenger-App, manche Verwaltungsgeräte.
+  // Dort wäre die einzige Kopie, die es je geben wird, sonst nicht erreichbar.
+  sicherung: null,
 };
 
 let toastUhr = null;
@@ -344,9 +349,19 @@ function mehrAnsicht(s) {
     gibt es nirgends. Die Sicherung ist eine gewöhnliche JSON-Datei.</p>
     <p class="klein ${alt > 30 ? 'warnend' : ''}">Gesichert: ${gesichert}</p>
     <div class="reihe">
-      ${knopf('export', 'Sichern', 'btn-primary')}
-      ${knopf('import', 'Sicherung einlesen')}
+      ${knopf('export', 'Als Datei sichern', 'btn-primary')}
+      ${knopf('sicherung-text', 'Als Text')}
+      ${knopf('import', 'Einlesen')}
     </div>
+    ${ui.sicherung ? `
+      <p class="klein" style="margin-top:10px">Alles markieren und in eine
+      Notiz oder eine Mail an sich selbst kopieren. Zum Zurückholen denselben
+      Text als <code>.json</code> speichern und über „Einlesen" wählen.</p>
+      <textarea class="bericht" readonly rows="10">${esc(ui.sicherung)}</textarea>
+      <div class="reihe">
+        ${knopf('sicherung-kopieren', 'Kopieren', 'btn-primary')}
+        ${knopf('sicherung-zu', 'Schließen', 'btn-ghost')}
+      </div>` : ''}
   </div>
 
   <div class="karte">
@@ -507,7 +522,7 @@ function willkommen() {
 
 function male() {
   const s = store.zustandLesen();
-  document.documentElement.dataset.theme = s.theme || 'salbei';
+  document.documentElement.dataset.theme = s.theme || 'rosa';
 
   if (!s.begruesst) {
     viewEl.innerHTML = willkommen();
@@ -624,6 +639,21 @@ function datenAusgeben(text, name, typ) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+/**
+ * In die Zwischenablage – und wenn der Browser das nicht erlaubt, wenigstens
+ * das Feld markieren. Von Hand kopieren kann man immer.
+ */
+async function kopiere(text, wahl) {
+  try {
+    await navigator.clipboard.writeText(text || '');
+    melden('Kopiert.');
+  } catch {
+    const feld = viewEl.querySelector(wahl);
+    if (feld) { feld.focus(); feld.select(); }
+    melden('Bitte von Hand kopieren.');
+  }
+}
+
 function sicherungLaden() {
   const feld = document.createElement('input');
   feld.type = 'file';
@@ -650,7 +680,12 @@ function sicherungLaden() {
 
 const AKTION = {
   los: () => { store.einstellen('begruesst', true); zeichne(); },
-  tab: (el) => { store.einstellen('tab', el.dataset.tab); ui.bericht = null; zeichne(); },
+  tab: (el) => {
+    store.einstellen('tab', el.dataset.tab);
+    ui.bericht = null;
+    ui.sicherung = null;
+    zeichne();
+  },
 
   neu: (el) => bogenOeffnen(el.dataset.art),
   bearbeiten: (el) => {
@@ -720,6 +755,13 @@ const AKTION = {
     zeichne();
   },
   import: sicherungLaden,
+  'sicherung-text': () => {
+    ui.sicherung = store.alsJSON();
+    store.sicherungNotiert();
+    zeichne();
+  },
+  'sicherung-zu': () => { ui.sicherung = null; zeichne(); },
+  'sicherung-kopieren': () => kopiere(ui.sicherung, '.bericht'),
 
   bericht: (el) => {
     const s = store.zustandLesen();
@@ -728,18 +770,7 @@ const AKTION = {
     zeichne();
   },
   'bericht-zu': () => { ui.bericht = null; zeichne(); },
-  'bericht-kopieren': async () => {
-    try {
-      await navigator.clipboard.writeText(ui.bericht || '');
-      melden('Kopiert.');
-    } catch {
-      // Ohne Erlaubnis für die Zwischenablage ist das Feld der Ausweg:
-      // markieren kann man von Hand.
-      const feld = viewEl.querySelector('.bericht');
-      if (feld) { feld.focus(); feld.select(); }
-      melden('Bitte von Hand kopieren.');
-    }
-  },
+  'bericht-kopieren': () => kopiere(ui.bericht, '.bericht'),
   'bericht-laden': () => {
     const bis = heuteISO();
     datenAusgeben(ui.bericht || '', berichtName(plusTage(bis, -29), bis), 'text/plain');

@@ -63,6 +63,26 @@ check(
   'danach merkt sich die App, dass gesichert wurde',
 );
 
+/* ---------- Derselbe Stand auch als Text ---------- */
+// Herunterladen geht nicht überall: eingebettete Ansichten, der Browser in
+// einer Messenger-App. Dort wäre die einzige Kopie sonst nicht erreichbar.
+await page.locator('[data-act="sicherung-text"]').click();
+await page.waitForTimeout(250);
+const alsText = await page.locator('.bericht').inputValue();
+check(JSON.parse(alsText).eintraege.length === 3, 'die Sicherung steht auch als Text da');
+// Nicht Zeichen für Zeichen dieselbe wie die Datei: Der Export hat inzwischen
+// vermerkt, dass gesichert wurde. Gleich sein muss, worauf es ankommt.
+const a = JSON.parse(alsText);
+check(
+  JSON.stringify(a.eintraege) === JSON.stringify(gesichert.eintraege)
+    && JSON.stringify(a.tage) === JSON.stringify(gesichert.tage)
+    && a.theme === gesichert.theme,
+  'mit demselben Inhalt wie die Datei',
+);
+await page.locator('[data-act="sicherung-zu"]').click();
+await page.waitForTimeout(200);
+check(await page.locator('.bericht').count() === 0, 'und lässt sich wieder schließen');
+
 /* ---------- Alles löschen ---------- */
 
 await page.locator('[data-act="alles-weg"]').click();

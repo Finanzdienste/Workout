@@ -4,8 +4,8 @@
   "id": "/Bauchbuch/",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#101311",
-  "theme_color": "#101311",
+  "background_color": "#141013",
+  "theme_color": "#141013",
   "lang": "de",
   "description": "Ernährungs- und Beschwerdetagebuch für den Magen. Alles bleibt auf dem Gerät.",
   "icons": [

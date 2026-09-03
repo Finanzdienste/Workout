@@ -11,14 +11,17 @@
  */
 
 :root {
-  --bg: #101311;
-  --bg-elev: #181c19;
-  --bg-elev-2: #212722;
-  --line: #2c332e;
-  --text: #e9ece9;
-  --muted: #94a09a;
-  --accent: #6dbf9a;
-  --accent-weich: #6dbf9a22;
+  /* Der Grund bleibt dunkel und wird nur warm getönt statt neutral grau: Ein
+     rosa Akzent auf blaustichigem Grau wird schmutzig, auf einem Grund mit
+     einem Hauch Rot bleibt er rosa. */
+  --bg: #141013;
+  --bg-elev: #1c171b;
+  --bg-elev-2: #251f24;
+  --line: #362c33;
+  --text: #efe9ec;
+  --muted: #a5959e;
+  --accent: #ff7fb0;
+  --accent-weich: #ff7fb022;
   /* Die Ampel des Verlaufs. Vier Stufen, und sie bleiben in jeder Farbwahl
      gleich: Ein Kalender, dessen Farben mit dem Design wandern, ist nach dem
      dritten Umstellen nicht mehr zu lesen.
@@ -31,14 +34,18 @@
   --leicht: #c2bd57;
   --warn: #dda03f;
   --bad: #e07268;
+  /* Damit der Browser auch seine eigenen Bedienelemente dunkel zeichnet –
+     ohne das stehen die Datums- und Uhrzeitfelder als weiße Kästen im
+     dunklen Blatt. */
+  color-scheme: dark;
   --radius: 14px;
   --tabbar-h: 60px;
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
 
-:root[data-theme="blau"]    { --accent: #64aee0; --accent-weich: #64aee022; }
-:root[data-theme="sand"]    { --accent: #d7a35f; --accent-weich: #d7a35f22; }
-:root[data-theme="flieder"] { --accent: #a58ed6; --accent-weich: #a58ed622; }
+:root[data-theme="flieder"] { --accent: #c79bec; --accent-weich: #c79bec22; }
+:root[data-theme="koralle"] { --accent: #ff8f7a; --accent-weich: #ff8f7a22; }
+:root[data-theme="salbei"]  { --accent: #6dbf9a; --accent-weich: #6dbf9a22; }
 
 * { box-sizing: border-box; }
 
@@ -137,7 +144,7 @@ p { margin: 0 0 8px; }
   min-height: 44px;
 }
 .btn:disabled { opacity: .35; cursor: default; }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #0d100e; font-weight: 600; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #1a1014; font-weight: 600; }
 .btn-ghost { background: none; }
 .btn-danger { background: none; border-color: var(--bad); color: var(--bad); }
 .btn-block { display: block; width: 100%; }
@@ -240,7 +247,7 @@ p { margin: 0 0 8px; }
   font-size: 13px;
   cursor: pointer;
 }
-.stufe.an { color: #0d100e; font-weight: 700; }
+.stufe.an { color: #1a1014; font-weight: 700; }
 .stufe.s-null.an { background: var(--ok); border-color: var(--ok); }
 .stufe.s-tief.an { background: var(--accent); border-color: var(--accent); }
 .stufe.s-mittel.an { background: var(--warn); border-color: var(--warn); }

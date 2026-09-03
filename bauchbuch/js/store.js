@@ -37,7 +37,7 @@ const VORGABE = {
   mindestFaelle: 5,
   eigeneAusloeser: [],   // [{ id: 'x:...', name }]
   zuletztMittel: [],     // zuletzt eingetragene Medikamente, als Vorschlag
-  theme: 'salbei',
+  theme: 'rosa',
   begruesst: false,
   tab: 'heute',
   lastBackup: null,      // { on, anzahl } – wann zuletzt gesichert wurde
