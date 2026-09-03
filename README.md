@@ -3178,8 +3178,10 @@ Eine Zusage, die sie an anderer Stelle bricht, ist schlimmer als gar keine.
 
 ### Die Testleichen wegräumen
 
-Die rund 1000 Zeilen aus den Testläufen stehen noch in der Tabelle. Sie kommen
-nicht mehr dazu, aber sie gehen auch nicht von selbst.
+Seit der Korrektur kommen keine Testzeilen mehr dazu — die rund 1000, die schon
+drin standen, gingen davon aber nicht weg. Dafür ist dieses Skript da, und es
+bleibt liegen: Dieselbe Lage kann wiederkommen, wenn einmal jemand mit
+abgeschalteter Sperre testet.
 
 **[`tools/aufraeumen.sql`](tools/aufraeumen.sql)** räumt sie weg: einfügen in
 Supabase → SQL Editor → Run. Erst drei `select`, die zeigen, was da ist und was
