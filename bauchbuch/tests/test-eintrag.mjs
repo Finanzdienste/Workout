@@ -114,16 +114,16 @@ check(await page.locator('.strang-zeile').count() === 2, 'abgebrochen heißt nic
 
 /* ---------- Der Tag hat Umstände ---------- */
 
-await page.locator('[data-act="stress"][data-n="3"]').click();
+await page.locator('[data-act="tagfrage"][data-id="stress"][data-n="3"]').click();
 await page.waitForTimeout(150);
 check(
-  await page.locator('[data-act="stress"][data-n="3"]').getAttribute('aria-pressed') === 'true',
+  await page.locator('[data-act="tagfrage"][data-id="stress"][data-n="3"]').getAttribute('aria-pressed') === 'true',
   'die Anspannung lässt sich setzen',
 );
-await page.locator('[data-act="stress"][data-n="3"]').click();
+await page.locator('[data-act="tagfrage"][data-id="stress"][data-n="3"]').click();
 await page.waitForTimeout(150);
 check(
-  await page.locator('[data-act="stress"][data-n="3"]').getAttribute('aria-pressed') === 'false',
+  await page.locator('[data-act="tagfrage"][data-id="stress"][data-n="3"]').getAttribute('aria-pressed') === 'false',
   'und durch ein zweites Tippen wieder zurücknehmen',
 );
 

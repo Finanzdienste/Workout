@@ -16,7 +16,10 @@
 import { fmtDatum, tageDazwischen } from './datum.js';
 import { fmtZahl, mehrzahl } from './text.js';
 import { ausloeserName, beschwerdeName, STAERKE_WORT } from './daten.js';
-import { ausloeserBilanz, einstufung, gesamtZahlen, nachArt, nachTageszeit } from './auswertung.js';
+import { ausloeserBilanz, einstufung, gesamtZahlen, nachArt, nachTageszeit, tagesWert } from './auswertung.js';
+import { bildLesen } from './bild.js';
+import { phasenBilanz } from './zyklus.js';
+import { wissenZu } from './mittel.js';
 
 const prozent = (x) => `${Math.round(x * 100)} %`;
 
@@ -39,6 +42,32 @@ export function arztBericht(zustand, von, bis) {
   if (!z.notierteTage) {
     sag('In diesem Zeitraum wurde nichts eingetragen.');
     return zeilen.join('\n');
+  }
+
+  const bild = bildLesen({
+    eintraege: imZeitraum,
+    tage,
+    bilanz: ausloeserBilanz(imZeitraum, {
+      fenster: zustand.fenster,
+      mindestFaelle: zustand.mindestFaelle,
+      eigene: zustand.eigeneAusloeser,
+    }),
+    name: (id) => ausloeserName(id, zustand.eigeneAusloeser),
+    istNsar: (name) => {
+      const g = wissenZu(name);
+      return !!g && g.id === 'nsar';
+    },
+  });
+
+  // Warnzeichen stehen ganz oben, vor den Zahlen. Wer den Zettel in der Hand
+  // hat, soll sie sehen, bevor er zu blättern anfängt.
+  if (bild.warnungen.length) {
+    sag('!! WARNZEICHEN IM ZEITRAUM');
+    bild.warnungen.forEach((w) => {
+      sag(`  [${w.dringlichkeit === 'sofort' ? 'sofort' : 'zeitnah'}] ${w.name}`);
+      sag(`           ${mehrzahl(w.anzahl, 'Mal', 'Mal')}, zuletzt ${fmtDatum(w.zuletzt, true)}`);
+    });
+    sag();
   }
 
   sag('ÜBERSICHT');
@@ -106,10 +135,40 @@ export function arztBericht(zustand, von, bis) {
     sag();
   }
 
+  const phasen = phasenBilanz(imZeitraum, tage, tagesWert);
+  if (phasen.length > 1) {
+    sag('NACH ZYKLUSPHASE');
+    phasen.forEach((p) => {
+      sag(`  ${p.name.padEnd(24)} ${String(p.tage).padStart(3)} Tage, `
+        + `im Mittel ${fmtZahl(p.schnitt)}`);
+    });
+    sag('  (Phasen geschätzt aus den eingetragenen Blutungstagen.)');
+    sag();
+  }
+
+  if (bild.muster.length) {
+    sag('WORAUF DAS MUSTER HINDEUTET');
+    sag('  (Beschreibung des Verlaufs, keine Diagnose – siehe unten.)');
+    bild.muster.slice(0, 2).forEach((m, i) => {
+      sag(`  ${i + 1}. ${m.name}`);
+      m.belege.forEach((x) => sag(`     - ${x}`));
+      sag(`     Abzuklären wäre: ${m.ursachen.map((u) => u.name).join(', ')}`);
+    });
+    sag();
+  }
+
+  if (bild.fragen.length) {
+    sag('FRAGEN');
+    bild.fragen.forEach((f) => sag(`  - ${f}`));
+    sag();
+  }
+
   sag('---');
   sag('Selbst geführtes Tagebuch. Die Zahlen sind gezählt, nicht gedeutet;');
   sag('„auffällig" heißt hier nur: nach diesen Mahlzeiten stand im Mittel ein');
-  sag('höherer Wert als nach den übrigen.');
+  sag('höherer Wert als nach den übrigen. Der Abschnitt zum Muster ordnet den');
+  sag('Verlauf in gebräuchliche Begriffe ein und stellt keine Diagnose – die');
+  sag('genannten Möglichkeiten unterscheidet eine Untersuchung, nicht ein Tagebuch.');
   return zeilen.join('\n');
 }
 

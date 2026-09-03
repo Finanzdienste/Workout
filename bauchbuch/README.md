@@ -1,8 +1,10 @@
 # Bauchbuch
 
-Ein Ernährungs- und Beschwerdetagebuch für den Magen. Man trägt ein, was man
-gegessen hat und wie es einem danach ging; nach ein paar Wochen zeigt die App,
-was zusammenfällt, und macht daraus einen Zettel für den nächsten Arzttermin.
+Ein Gesundheitstagebuch mit Schwerpunkt Magen und Verdauung. Man trägt ein, was
+man gegessen hat und wie es einem danach ging – dazu Stimmung, Anspannung,
+Schlaf, Bewegung und Zyklus. Nach ein paar Wochen zeigt die App, was
+zusammenfällt, ordnet das Bild ein und macht daraus einen Zettel für den
+nächsten Arzttermin.
 
 **Alles bleibt auf dem Gerät.** Es gibt keinen Server, kein Konto, keine
 Anmeldung und keine Zählung von Aufrufen. Die Eintragungen liegen im
@@ -24,9 +26,16 @@ eine Notiz. Dazu für den ganzen Tag: Anspannung und Schlaf.
 und vier Zahlen: notierte Tage, Anteil mit Beschwerden, mittlere Stärke,
 beschwerdefreie Tage in Folge.
 
-**Muster.** Die eigentliche Auskunft: Geht es nach Mahlzeiten mit einem
-bestimmten Merkmal schlechter als nach den übrigen? Dazu Tageszeit und Art
-der Beschwerden.
+**Muster.** Die eigentliche Auskunft. Ganz oben Warnzeichen, darunter die
+Einordnung des Bildes (siehe unten), dann: Geht es nach Mahlzeiten mit einem
+bestimmten Merkmal schlechter als nach den übrigen? Dazu Tageszeit, Art der
+Beschwerden und die Auswertung nach Zyklusphase.
+
+**Ruhe.** Vier Atemübungen – 4–7–8, Quadrat, Gleichmaß, Bauchatmung – mit Ton,
+damit man die Augen zumachen kann. Der Ton entsteht im Browser aus einem
+Oszillator: keine Datei, kein Download, läuft offline. Bei jeder Übung ist das
+Ausatmen mindestens so lang wie das Einatmen; umgekehrt täte die Übung das
+Gegenteil.
 
 **Ideen.** Ein Zettel für Verbesserungsvorschläge zur App selbst. Wer die App
 benutzt, sitzt selten neben dem, der sie baut – deshalb ist der eigentliche
@@ -36,7 +45,62 @@ ihnen, und tauchen in keiner Auswertung auf.
 
 **Mehr.** Sicherung als JSON-Datei und zurück, der Bericht für den Arzttermin,
 die Übersicht „Was die Mittel bewirken", die Einstellungen der Auswertung,
-eigene Auslöser, vier Farbvarianten.
+welche Tagesfragen erscheinen sollen, eigene Auslöser, Ton, vier Farbvarianten.
+
+### Vorschläge für heute
+
+Auf dem Tagesreiter steht, was für heute naheliegt: worauf sie heute eher
+verzichten würde, ob Bewegung gerade intensiv oder moderat sinnvoll ist, ob
+eine Atemrunde ansteht. Jeder Vorschlag trägt sein **warum** sichtbar mit sich
+und die Angabe, woher es kommt:
+
+* **aus deinem Verlauf** – aus den eigenen Eintragungen gerechnet, mit den
+  Zahlen daneben („nach 12 Mahlzeiten mit Kaffee im Mittel 7,0 statt 0,0").
+* **allgemein** – gilt für einen Durchschnitt, den es nicht gibt. Sticht der
+  eigene Verlauf.
+
+Ein Rat ohne Begründung ist ein Befehl, und Befehle über das eigene Essen
+befolgt man blind oder gar nicht. Beides ist schlecht.
+
+**Was hier nicht vorkommt: welches Medikament sie nehmen soll.** Diese Wahl
+hängt an Diagnose, anderen Mitteln, Nieren, Leber, Schwangerschaft – nichts
+davon weiß die App, und keines davon kann sie erfragen, ohne so zu tun, als
+wüsste sie es dann. Was stattdessen kommt: was sie selbst eingenommen hat, wann
+zuletzt, was es bewirkt, und die Frage dazu für den nächsten Termin.
+
+### Wie weit Richtung Diagnose
+
+So weit, wie ein Tagebuch ehrlich kommt – und keinen Schritt weiter.
+
+Nicht weiter, weil weiter geraten wäre: Gastritis, Magengeschwür,
+Refluxkrankheit, funktionelle Dyspepsie und ein Reizdarm machen im Tagebuch
+teils dasselbe Bild. Auseinander hält sie eine Magenspiegelung, ein Test auf
+Helicobacter, ein Blutbild, ein Atemtest. Eine App, die sich trotzdem für eine
+entscheidet, nimmt der Untersuchung ihre Frage weg.
+
+Was `js/bild.js` stattdessen liefert:
+
+1. **Warnzeichen.** Blut erbrochen, schwarzer Stuhl, Schluckstörung,
+   ungewollter Gewichtsverlust, nächtliches Aufwachen, Schmerz mit Ausstrahlung
+   in Arm oder Kiefer. Sie werden im Beschwerdebogen angekreuzt, tauchen in
+   keiner Statistik auf und stehen im Reiter „Muster" wie im Bericht ganz oben,
+   mit `sofort` oder `zeitnah`. Ohne Schwelle: Ein einziges Mal ist ein
+   einziges Mal zu viel.
+2. **Muster mit Belegen.** Säuretypisch, Nüchternschmerz, Völlegefühl nach dem
+   Essen, darmbetont, Zusammenhang mit Schmerzmitteln, zyklusgebunden,
+   anspannungsgebunden. Jedes nennt seine Belege mit Zahlen – „14 von 14
+   zuordenbaren Beschwerden kamen erst vier Stunden nach der letzten Mahlzeit".
+   Angezeigt wird nur, was mindestens zwei Belege hat.
+3. **Was dahinterstecken kann und was es unterscheidet.** Also welche
+   Untersuchung welche Frage beantwortet – die nützlichste Zeile des
+   Programms.
+4. **Fertige Fragen für den Termin.**
+
+Der Zyklus wird aus den eingetragenen Blutungstagen gerechnet, nicht
+vorhergesagt. Ohne abgeschlossenen Zyklus gibt es keine mittlere Länge und
+damit keine Phasen; 28 Tage still anzunehmen wäre bequem und bei jedem, dessen
+Zyklus 24 oder 34 Tage dauert, durchgehend falsch. **Nicht zur Verhütung
+geeignet** – der Eisprung wird hier nicht gemessen, sondern geschätzt.
 
 ### Was die Mittel bewirken
 
@@ -151,6 +215,11 @@ js/chart.js         Balken und Vergleichsbalken als SVG-Zeichenkette
 js/store.js         der Speicher – localStorage, mehr gibt es nicht
 js/auswertung.js    die Rechenschicht: Merkmale, Fenster, Bilanz, Verlauf
 js/mittel.js        was die Wirkstoffgruppen bewirken – reine Daten
+js/klang.js         Töne aus einem Oszillator, keine Dateien
+js/atem.js          die Atemübungen – Daten, nicht der Ablauf
+js/zyklus.js        Zyklen und Phasen aus Blutungstagen
+js/bild.js          Warnzeichen, Muster, Differentialdiagnosen, Fragen
+js/rat.js           Vorschläge für heute, jeder mit seinem Grund
 js/bericht.js       der Zettel für den Arzttermin, als reiner Text
 js/app.js           die Anzeige: ein Zustand, eine Zeichenfunktion,
                     ein Klick-Empfänger für alles
@@ -165,7 +234,7 @@ in einer der Listen, geht genau eine der beiden Fassungen still kaputt.
 
 ### Tests
 
-Elf Dateien, gut 200 Prüfungen, alle in einem echten Chromium. Kein
+Sechzehn Dateien, über 320 Prüfungen, alle in einem echten Chromium. Kein
 Rahmenwerk: Jeder Test ist ein eigenes Programm und meldet sein Ergebnis über
 den Rückgabewert.
 
@@ -181,6 +250,11 @@ den Rückgabewert.
 | `test-offline.mjs` | Service Worker, offline eintragen, offline auswerten |
 | `test-ideen.mjs` | eintragen, abhaken, kopieren – und Ideen bleiben aus der Auswertung heraus |
 | `test-mittel.mjs` | die Zuordnung freier Namen zur Wirkstoffgruppe, und der Ton der Texte |
+| `test-zutaten.mjs` | Reihenfolge nach Häufigkeit, Rollen statt Gramm, Umrechnung alter Stände |
+| `test-zyklus.mjs` | Zyklen, Phasen – und das Schweigen ohne Grundlage |
+| `test-bild.mjs` | Warnzeichen kommen durch; Nüchternschmerz wird nicht mit Völlegefühl verwechselt |
+| `test-rat.mjs` | jeder Vorschlag mit Grund, und keine Medikamentenempfehlung |
+| `test-atem.mjs` | Phasenlängen, Ablauf, Abbruch beim Reiterwechsel, stummer Betrieb |
 | `test-still.mjs` | die App schickt nichts |
 
 Die Auswertung wird nicht daran geprüft, ob im Browser etwas Grünes steht,

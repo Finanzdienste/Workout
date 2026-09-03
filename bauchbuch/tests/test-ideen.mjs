@@ -23,7 +23,7 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ begruesst: true, tab: 'ideen' })), KEY);
 await page.reload({ waitUntil: 'networkidle' });
 
-check(await page.locator('.tab').count() === 5, 'fünf Reiter unten, „Ideen" ist dabei');
+check(await page.locator('.tab').count() === 6, 'sechs Reiter unten, „Ideen" ist dabei');
 check(
   await page.locator('[data-act="tab"][data-tab="ideen"]').count() === 1,
   'der Reiter lässt sich ansteuern',

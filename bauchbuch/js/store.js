@@ -24,8 +24,9 @@ const VORGABE = {
   //   medikament  { mittel, dosis }
   //   notiz       { text }
   eintraege: [],
-  // Was für einen ganzen Tag gilt, nicht für einen Zeitpunkt:
-  // { 'YYYY-MM-DD': { stress: 0..4, schlaf: 0..4, notiz } }
+  // Was für einen ganzen Tag gilt, nicht für einen Zeitpunkt. Welche Angaben
+  // es gibt, steht in TAGESFRAGEN (js/daten.js):
+  // { 'YYYY-MM-DD': { stimmung, stress, schlaf, bewegung, blutung, sex, notiz } }
   tage: {},
   // In wie vielen Stunden nach einer Mahlzeit eine Beschwerde ihr noch
   // zugerechnet wird. Vier Stunden sind der Vorschlag, nicht das Gesetz –
@@ -41,6 +42,12 @@ const VORGABE = {
   ideen: [],
   eigeneAusloeser: [],   // [{ id: 'x:...', name }]
   zuletztMittel: [],     // zuletzt eingetragene Medikamente, als Vorschlag
+  // Welche Tagesfragen erscheinen. Im Auslieferungszustand alle – wer eine
+  // davon nicht beantworten will, schaltet sie unter Mehr ab.
+  tagesfragen: ['stimmung', 'stress', 'schlaf', 'bewegung', 'blutung', 'sex'],
+  atemUebung: '478',     // zuletzt gewählte Atemübung
+  atemRunden: null,      // eigene Rundenzahl; null = Vorschlag der Übung
+  ton: true,             // Ton bei der Atemübung – der einzige der App
   theme: 'rosa',
   begruesst: false,
   tab: 'heute',
@@ -265,20 +272,19 @@ export function letzterZeitpunkt() {
 /* ---------- Tagesangaben ---------- */
 
 export function tagLesen(iso) {
-  return zustand.tage[iso] || { stress: null, schlaf: null, notiz: '' };
+  return zustand.tage[iso] || {};
 }
 
 export function tagSetzen(iso, patch) {
-  const vorher = tagLesen(iso);
-  const neu = { ...vorher, ...patch };
+  const neu = { ...tagLesen(iso), ...patch };
   // Einen leeren Tag gar nicht erst anlegen: Sonst wächst `tage` mit jedem
   // angetippten und wieder abgewählten Regler, und die Sicherung füllt sich
-  // mit Zeilen, die nichts aussagen.
-  if (neu.stress === null && neu.schlaf === null && !String(neu.notiz || '').trim()) {
-    delete zustand.tage[iso];
-  } else {
-    zustand.tage[iso] = neu;
-  }
+  // mit Zeilen, die nichts aussagen. Geprüft wird über alle Felder, nicht über
+  // eine feste Liste – sonst hinterlässt jede neue Tagesfrage leere Tage.
+  const leer = Object.values(neu).every((v) => v === null || v === undefined
+    || v === '' || (typeof v === 'string' && !v.trim()));
+  if (leer) delete zustand.tage[iso];
+  else zustand.tage[iso] = neu;
   merke();
   melde();
 }

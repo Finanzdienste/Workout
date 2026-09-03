@@ -18,16 +18,24 @@ import {
 import { esc, fmtZahl, kuerze, mehrzahl } from './text.js';
 import {
   AUSLOESER, BESCHWERDEN, MITTEL_VORSCHLAEGE, PORTIONEN, ROLLEN, ROLLE_VORGABE,
-  STAERKE_WORT, ausloeserName, beschwerdeName, eigeneId, rolleName,
+  STAERKE_WORT, TAGESFRAGEN, ausloeserName, beschwerdeName, eigeneId, rolleName,
+  sichtbareFragen,
 } from './daten.js';
 import {
-  ausloeserBilanz, einstufung, EINSTUFUNG_WORT, gesamtZahlen, haeufigeGerichte,
-  haeufigeZutaten, nachArt, nachTageszeit, rollenBilanz, serieOhne, tagesWert,
-  verlaufReihe, zutatenVon,
+  ausloeserBilanz, einstufung, EINSTUFUNG_WORT, faktorBilanz, gesamtZahlen,
+  haeufigeGerichte, haeufigeZutaten, nachArt, nachTageszeit, rollenBilanz,
+  serieOhne, stundenSeitEssen, tagesWert, verlaufReihe, zutatenVon,
 } from './auswertung.js';
 import { vergleichBalken, verlaufTafel } from './chart.js';
 import { arztBericht, berichtName } from './bericht.js';
 import { MITTEL_WISSEN, REIZSTOFFE, wissenZu } from './mittel.js';
+import {
+  belastbar, heutigerStand, mittlereLaenge, phasenBilanz, phasenName, schwankung,
+} from './zyklus.js';
+import { WARNZEICHEN, bildLesen, genugFuerBild } from './bild.js';
+import { BEREICH_ICON, BEREICH_NAME, raete } from './rat.js';
+import { UEBUNGEN, ablauf, dauerText, gesamtDauer, uebungVon } from './atem.js';
+import { KLAENGE, ruettel, weckKlang } from './klang.js';
 
 const viewEl = document.getElementById('view');
 const tabbarEl = document.getElementById('tabbar');
@@ -37,6 +45,7 @@ const REITER = [
   { id: 'heute', name: 'Tag', icon: '📓' },
   { id: 'verlauf', name: 'Verlauf', icon: '📅' },
   { id: 'muster', name: 'Muster', icon: '🔍' },
+  { id: 'ruhe', name: 'Ruhe', icon: '🌬️' },
   { id: 'ideen', name: 'Ideen', icon: '💡' },
   { id: 'mehr', name: 'Mehr', icon: '⚙️' },
 ];
@@ -66,6 +75,9 @@ const ui = {
   // Dort wäre die einzige Kopie, die es je geben wird, sonst nicht erreichbar.
   sicherung: null,
   mittel: false,    // steht die ganze Mittelübersicht offen?
+  // Die laufende Atemübung: { schritte, i, bisMs, uhr, wecker }. Nicht im
+  // Speicher – eine Übung, die beim nächsten Öffnen weiterliefe, wäre keine.
+  atem: null,
 };
 
 let toastUhr = null;
@@ -103,15 +115,20 @@ function skala(wert) {
   return `${raus}</div><p class="skala-wort">${STAERKE_WORT[wert] ?? ''}</p>`;
 }
 
-/** Vier Stufen für Stress und Schlaf. `null` heißt: nicht beantwortet. */
-function vierStufen(act, wert, worte) {
-  return `<div class="vier">${worte.map((w, i) => `
-    <button type="button" class="vier-btn${wert === i ? ' an' : ''}"
-            data-act="${act}" data-n="${i}" aria-pressed="${wert === i}">${w}</button>`).join('')}</div>`;
+/**
+ * Eine Tagesfrage als Reihe von Stufen. `null` heißt: nicht beantwortet.
+ *
+ * Ein zweites Tippen auf dieselbe Stufe nimmt die Antwort zurück – „ich habe
+ * nichts eingetragen" und „ich habe null eingetragen" müssen verschiedene
+ * Dinge bleiben, sonst zählt die Auswertung Nichtwissen als Wohlbefinden.
+ */
+function tagesFrage(frage, wert) {
+  return `<p class="feld-name">${esc(frage.name)}</p>
+    <div class="vier">${frage.worte.map((w, i) => `
+      <button type="button" class="vier-btn${wert === i ? ' an' : ''}"
+              data-act="tagfrage" data-id="${frage.id}" data-n="${i}"
+              aria-pressed="${wert === i}">${esc(w)}</button>`).join('')}</div>`;
 }
-
-const STRESS_WORT = ['ruhig', 'geht so', 'angespannt', 'viel', 'sehr viel'];
-const SCHLAF_WORT = ['gut', 'ok', 'mäßig', 'schlecht', 'kaum'];
 
 /* ==================== Reiter: Tag ==================== */
 
@@ -187,15 +204,70 @@ function tagAnsicht(s) {
       ${mehrzahl(t.anzahl, 'Beschwerde', 'Beschwerden')}${t.medikamente ? `, ${mehrzahl(t.medikamente, 'Medikament', 'Medikamente')}` : ''}</p>
   </div>` : '';
 
-  const umstaende = `<div class="karte">
+  const fragen = sichtbareFragen(s.tagesfragen);
+  const umstaende = fragen.length ? `<div class="karte">
     <h3>Wie war der Tag sonst?</h3>
-    <p class="feld-name">Anspannung</p>
-    ${vierStufen('stress', tagInfo.stress, STRESS_WORT)}
-    <p class="feld-name">Schlaf</p>
-    ${vierStufen('schlaf', tagInfo.schlaf, SCHLAF_WORT)}
-  </div>`;
+    ${fragen.map((f) => tagesFrage(f, tagInfo[f.id] === undefined ? null : tagInfo[f.id])).join('')}
+    <p class="klein">Welche Fragen hier stehen, wählst du unter „Mehr".</p>
+  </div>` : '';
 
-  return kopf + bilanz + anlegen + zeilen + umstaende;
+  const stand = heutigerStand(s.tage, iso);
+  const zyklusZeile = stand ? `<p class="klein zyklus-zeile">
+    Zyklustag ${stand.tag}${stand.phase ? ` · ${esc(phasenName(stand.phase))}` : ''}
+    ${stand.laenge ? ` · deine Zyklen dauern im Mittel ${stand.laenge} Tage` : ''}
+  </p>` : '';
+
+  return kopf + bilanz + zyklusZeile + (iso === heuteISO() ? ratKarte(s) : '')
+    + anlegen + zeilen + umstaende;
+}
+
+/**
+ * Die Vorschläge für heute.
+ *
+ * Jeder trägt sein „warum" sichtbar mit sich, und woher es kommt: aus ihrem
+ * eigenen Verlauf oder aus dem, was allgemein empfohlen wird. Ohne diese
+ * Unterscheidung wäre beides gleich viel wert, und das ist es nicht.
+ */
+function ratKarte(s) {
+  const letzteMahlzeit = [...s.eintraege].reverse().find((e) => e.art === 'essen');
+  const mittel = new Map();
+  s.eintraege.filter((e) => e.art === 'medikament').forEach((e) => {
+    const name = String(e.mittel || '').trim();
+    if (name) mittel.set(name, e.am);
+  });
+
+  const liste = raete({
+    eintraege: s.eintraege,
+    tage: s.tage,
+    heute: heuteISO(),
+    eigene: s.eigeneAusloeser,
+    bilanz: ausloeserBilanz(s.eintraege, {
+      fenster: s.fenster, mindestFaelle: s.mindestFaelle, eigene: s.eigeneAusloeser,
+    }),
+    faktoren: Object.fromEntries(['stress', 'schlaf', 'stimmung']
+      .map((id) => [id, faktorBilanz(s.eintraege, s.tage, id, tagesWert)])),
+    phasen: phasenBilanz(s.eintraege, s.tage, tagesWert),
+    letzteMahlzeitStunden: letzteMahlzeit
+      ? stundenSeitEssen(s.eintraege, { am: heuteISO(), um: jetztUhr() }) : null,
+    mittel: [...mittel.entries()].slice(-3).map(([name, am]) => ({ name, zuletzt: fmtDatum(am) })),
+  });
+
+  if (!liste.length) return '';
+  return `<div class="karte rat">
+    <h3>Für heute</h3>
+    <ul class="raete">${liste.map((r) => `<li class="rat-${r.bereich}">
+      <div class="rat-kopf">
+        <span class="rat-i" aria-hidden="true">${BEREICH_ICON[r.bereich]}</span>
+        <b>${esc(r.titel)}</b>
+        <span class="rat-quelle q-${r.quelle}">${r.quelle === 'eigen' ? 'aus deinem Verlauf' : 'allgemein'}</span>
+      </div>
+      <p>${esc(r.text)}</p>
+      <p class="klein">${esc(r.warum)}</p>
+    </li>`).join('')}</ul>
+    <p class="klein">„Aus deinem Verlauf" heißt: aus deinen eigenen Eintragungen
+    gerechnet, mit den Zahlen daneben. „Allgemein" heißt: gilt für einen
+    Durchschnitt, den es nicht gibt – dein eigener Verlauf sticht das.</p>
+  </div>`;
 }
 
 /* ==================== Reiter: Verlauf ==================== */
@@ -273,9 +345,13 @@ function musterAnsicht(s) {
     nicht als Ersatz dafür.</p>
   </div>`;
 
+  // Warnzeichen und Einordnung stehen *vor* dieser Abkürzung: Wer Beschwerden
+  // einträgt, aber keine Mahlzeiten, hat trotzdem ein Tagebuch – und wenn
+  // darin ein Warnzeichen steht, ist das Fehlen von Mahlzeiten der falsche
+  // Grund, es nicht anzuzeigen. Genau das war es einmal.
   if (!mahlzeiten) {
-    return `<p class="leer">Noch keine Mahlzeit eingetragen. Sobald ein paar
-      Tage beisammen sind, steht hier, was auffällt.</p>${erklaerung}`;
+    return `${bildTeil(s)}<p class="leer">Noch keine Mahlzeit eingetragen. Sobald ein paar
+      Tage beisammen sind, steht hier, was auffällt.</p>${zyklusTeil(s)}${erklaerung}`;
   }
 
   const fertig = bilanz.filter((b) => b.genug);
@@ -336,7 +412,131 @@ function musterAnsicht(s) {
     </li>`).join('')}</ul>
   </div>` : '';
 
-  return gefunden + wartet + wann + wie + erklaerung;
+  return bildTeil(s) + gefunden + wartet + wann + wie + zyklusTeil(s) + erklaerung;
+}
+
+/* ==================== Reiter: Ruhe ==================== */
+
+function ruheAnsicht(s) {
+  const u = uebungVon(s.atemUebung);
+  const runden = s.atemRunden || u.runden;
+  const laeuft = !!ui.atem;
+
+  // Während die Übung läuft, steht auf dem Bildschirm nichts als der Kreis und
+  // der Abbruchknopf: Wer die Augen zumacht, braucht keine Auswahl, und wer sie
+  // aufmacht, soll nicht auf Einstellungen schauen.
+  const wahl = `<div class="karte">
+    <h3>Übung</h3>
+    <div class="wahl">${UEBUNGEN.map((x) => `
+      <button type="button" class="wahl-btn${x.id === u.id ? ' an' : ''}"
+              data-act="atem-uebung" data-id="${x.id}">${esc(x.name)}</button>`).join('')}</div>
+    <p class="feld-name">${esc(u.zweck)}</p>
+    <p class="klein">${esc(u.beschreibung)}</p>
+    <p class="feld-name">Runden – etwa ${dauerText(gesamtDauer(u, runden))}</p>
+    <div class="wahl">${[2, 4, 6, 8, 10, 15].map((n) => `
+      <button type="button" class="wahl-btn${runden === n ? ' an' : ''}"
+              data-act="atem-runden" data-n="${n}">${n}</button>`).join('')}</div>
+  </div>`;
+
+  const kreis = `<div class="atem${laeuft ? ' laeuft' : ''}">
+    <div class="atem-kreis" id="atemKreis"><span id="atemZahl">${laeuft ? '' : '·'}</span></div>
+    <p class="atem-wort" id="atemWort">${laeuft ? '' : 'Bereit, wenn du bist'}</p>
+    <p class="klein" id="atemRunde">${laeuft ? '' : `${runden} Runden, ${esc(u.name)}`}</p>
+  </div>`;
+
+  return `
+  <h2>Ruhe</h2>
+  <p class="klein">Langes Ausatmen schaltet auf den Teil des Nervensystems um,
+  unter dem der Darm arbeitet statt stillzustehen. Bei Beschwerden, die an
+  Anspannung hängen, ist das eine Behandlung und keine Beschäftigung.</p>
+
+  ${kreis}
+
+  <div class="karte">
+    <div class="reihe">
+      ${laeuft
+    ? knopf('atem-stopp', 'Abbrechen', 'btn-block')
+    : knopf('atem-start', 'Anfangen', 'btn-primary btn-block')}
+    </div>
+    <p class="klein" style="margin-top:10px">Der Ton sagt dir, was dran ist:
+    aufwärts einatmen, ein kurzer Ton halten, abwärts ausatmen. Damit kannst du
+    die Augen zumachen und das Handy weglegen.
+    ${s.ton ? '' : '<b>Der Ton ist gerade aus – unter „Mehr" wieder an.</b>'}</p>
+  </div>
+
+  ${laeuft ? '' : wahl}`;
+}
+
+/* ---------- Der Ablauf ---------- */
+
+function atemZeigen(schritt, restSek) {
+  const zahl = document.getElementById('atemZahl');
+  const wort = document.getElementById('atemWort');
+  const runde = document.getElementById('atemRunde');
+  const kreis = document.getElementById('atemKreis');
+  if (!zahl || !kreis) return;
+  zahl.textContent = String(Math.max(1, Math.ceil(restSek)));
+  wort.textContent = schritt.wort;
+  runde.textContent = `Runde ${schritt.runde} von ${schritt.von}`;
+  // Der Kreis wächst über die Dauer der Phase mit. Beim Halten bleibt er,
+  // wo er ist – deshalb wird die Größe nur bei ein und aus gesetzt.
+  kreis.style.transitionDuration = `${schritt.sek}s`;
+  if (schritt.art === 'ein') kreis.style.transform = 'scale(1)';
+  else if (schritt.art === 'aus') kreis.style.transform = 'scale(0.45)';
+  kreis.dataset.art = schritt.art;
+}
+
+function atemSchritt() {
+  const a = ui.atem;
+  if (!a) return;
+  if (a.i >= a.schritte.length) { atemFertig(); return; }
+  const schritt = a.schritte[a.i];
+  a.bisMs = Date.now() + schritt.sek * 1000;
+  if (a.ton) {
+    if (schritt.art === 'ein') KLAENGE.ein();
+    else if (schritt.art === 'aus') KLAENGE.aus();
+    else KLAENGE.halten();
+  }
+  ruettel(schritt.art === 'halten' ? 30 : 60);
+  atemZeigen(schritt, schritt.sek);
+  a.wecker = setTimeout(() => { a.i += 1; atemSchritt(); }, schritt.sek * 1000);
+}
+
+function atemFertig() {
+  const a = ui.atem;
+  if (a && a.ton) KLAENGE.fertig();
+  ruettel([60, 80, 60]);
+  atemStopp();
+  melden('Geschafft.');
+}
+
+function atemStart(s) {
+  const u = uebungVon(s.atemUebung);
+  const runden = s.atemRunden || u.runden;
+  // Der Tonkontext darf erst hier entstehen: Browser lassen Audio nur nach
+  // einer Nutzergeste zu, und "Anfangen" ist diese Geste.
+  const ton = s.ton !== false && weckKlang();
+  ui.atem = { schritte: ablauf(u, runden), i: 0, ton, wecker: null, uhr: null };
+  zeichne();
+  // Erst zeichnen, dann anfangen – sonst greift der erste Schritt auf Elemente
+  // zu, die es noch nicht gibt.
+  queueMicrotask(() => {
+    if (!ui.atem) return;
+    ui.atem.uhr = setInterval(() => {
+      const a = ui.atem;
+      if (!a || a.i >= a.schritte.length) return;
+      atemZeigen(a.schritte[a.i], (a.bisMs - Date.now()) / 1000);
+    }, 200);
+    atemSchritt();
+  });
+}
+
+function atemStopp() {
+  if (!ui.atem) return;
+  clearTimeout(ui.atem.wecker);
+  clearInterval(ui.atem.uhr);
+  ui.atem = null;
+  zeichne();
 }
 
 /* ==================== Reiter: Ideen ==================== */
@@ -388,6 +588,103 @@ function ideenAnsicht(s) {
       </div>
     </div>`
     : '<p class="leer">Noch keine Idee eingetragen.</p>'}`;
+}
+
+/**
+ * Warnzeichen und die Einordnung – das, was am nächsten an eine Diagnose
+ * herankommt, ohne eine zu sein.
+ */
+function bildTeil(s) {
+  const b = bildLesen({
+    eintraege: s.eintraege,
+    tage: s.tage,
+    bilanz: ausloeserBilanz(s.eintraege, {
+      fenster: s.fenster, mindestFaelle: s.mindestFaelle, eigene: s.eigeneAusloeser,
+    }),
+    name: (id) => ausloeserName(id, s.eigeneAusloeser),
+    istNsar: (name) => {
+      const g = wissenZu(name);
+      return !!g && g.id === 'nsar';
+    },
+  });
+
+  // Warnzeichen stehen vor allem anderen und ohne Statistik daneben.
+  const warn = b.warnungen.length ? `<div class="karte karte-warn">
+    <h3>${b.warnungen.some((w) => w.dringlichkeit === 'sofort')
+    ? 'Das gehört heute abgeklärt' : 'Das gehört zeitnah abgeklärt'}</h3>
+    <ul class="warnliste">${b.warnungen.map((w) => `<li class="w-${w.dringlichkeit}">
+      <b>${esc(w.name)}</b>
+      <span class="zeile-tags">${esc(w.warum)}</span>
+      <span class="klein">${mehrzahl(w.anzahl, 'Mal', 'Mal')} eingetragen,
+        zuletzt ${esc(fmtDatum(w.zuletzt, true))}</span>
+    </li>`).join('')}</ul>
+    <p class="klein">Bei Blut, schwarzem Stuhl oder Schmerz mit Ausstrahlung in
+    Arm oder Kiefer nicht auf einen Termin warten – Notaufnahme oder 112.</p>
+  </div>` : '';
+
+  if (!b.muster.length) {
+    return warn + (genugFuerBild(b.basis) ? '' : `<div class="karte">
+      <h3>Einordnung</h3>
+      <p class="klein">Für eine Einordnung fehlt noch Material:
+      ${b.basis.notierteTage} notierte Tage und ${b.basis.beschwerden} Eintragungen
+      zu Beschwerden. Ab etwa zehn Tagen und fünf Eintragungen steht hier, wonach
+      das Bild aussieht.</p>
+    </div>`);
+  }
+
+  const kasten = (m, i) => `<li class="muster${i === 0 ? ' erst' : ''}">
+    <div class="muster-kopf">
+      <b>${esc(m.name)}</b>
+      ${i === 0 ? '<span class="fund-urteil">passt am ehesten</span>' : ''}
+    </div>
+    <p>${esc(m.satz)}</p>
+    <p class="feld-name">Woran das zu sehen ist</p>
+    <ul class="belege">${m.belege.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <p class="feld-name">Was dahinterstecken kann – und was es unterscheidet</p>
+    <ul class="ursachen">${m.ursachen.map((u) => `<li>
+      <b>${esc(u.name)}</b><span class="zeile-tags">${esc(u.klaerung)}</span>
+    </li>`).join('')}</ul>
+  </li>`;
+
+  return `${warn}<div class="karte">
+    <h3>Einordnung</h3>
+    <p class="klein">Das hier ist <b>keine Diagnose</b>, und zwar nicht aus
+    Vorsicht, sondern weil es keine sein kann: Gastritis, Magengeschwür,
+    Reflux, funktionelle Dyspepsie und ein Reizdarm sehen im Tagebuch teils
+    gleich aus. Auseinander hält sie eine Untersuchung. Was hier steht, ist die
+    Beschreibung deines Musters in den Worten, die in einer Praxis benutzt
+    werden – damit das Gespräch dort nicht bei null anfängt.</p>
+    <ul class="muster-liste">${b.muster.slice(0, 3).map(kasten).join('')}</ul>
+    <p class="klein">Grundlage: ${b.basis.notierteTage} notierte Tage,
+      ${b.basis.beschwerden} Eintragungen zu Beschwerden, davon
+      ${b.basis.zuordenbar} einer Mahlzeit zuzuordnen.</p>
+  </div>
+  ${b.fragen.length ? `<div class="karte">
+    <h3>Fragen für den nächsten Termin</h3>
+    <ul class="fragen">${b.fragen.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+    <p class="klein">Stehen auch im Bericht unter „Mehr".</p>
+  </div>` : ''}`;
+}
+
+/** Der Zyklus, wenn genug davon eingetragen wurde. */
+function zyklusTeil(s) {
+  const phasen = phasenBilanz(s.eintraege, s.tage, tagesWert);
+  if (!phasen.length) return '';
+  const laenge = mittlereLaenge(s.tage);
+  const spanne = schwankung(s.tage);
+  return `<div class="karte">
+    <h3>Nach Zyklusphase</h3>
+    <ul class="wartend">${phasen.map((p) => `<li>
+      <span>${esc(p.name)}</span>
+      <span class="klein">${mehrzahl(p.tage, 'Tag', 'Tage')}, im Mittel ${fmtZahl(p.schnitt)}</span>
+    </li>`).join('')}</ul>
+    <p class="klein">
+      ${laenge ? `Deine Zyklen dauern im Mittel ${laenge} Tage${spanne ? ` (${spanne.von} bis ${spanne.bis}, aus ${spanne.anzahl} Zyklen)` : ''}. ` : ''}
+      ${belastbar(s.tage) ? '' : 'Noch keine zwei abgeschlossenen Zyklen – die Zahlen stehen da, aber es folgt noch nichts daraus. '}
+      Die Phasen sind geschätzt: Die Periode kommt aus deinen Eintragungen, die
+      Mitte aus der halben Zykluslänge. <b>Nicht zur Verhütung geeignet</b> –
+      der Eisprung wird hier nicht gemessen.</p>
+  </div>`;
 }
 
 /* ==================== Reiter: Mehr ==================== */
@@ -469,6 +766,24 @@ function mehrAnsicht(s) {
       <input type="text" class="feld" id="neuerAusloeser" placeholder="z. B. Rotwein"
              aria-label="Name des eigenen Auslösers">
       ${knopf('ausloeser-neu', 'Hinzufügen')}
+    </div>
+  </div>
+
+  <div class="karte">
+    <h3>Welche Fragen stellt der Tag?</h3>
+    <p class="klein">Nicht jede Frage will jeder beantworten. Was hier aus ist,
+    erscheint nicht in der Tagesansicht – schon Eingetragenes bleibt erhalten
+    und wird weiter mitgerechnet.</p>
+    ${marken(TAGESFRAGEN, s.tagesfragen || [], 'frageAn')}
+  </div>
+
+  <div class="karte">
+    <h3>Ton</h3>
+    <p class="klein">Nur für die Atemübung unter „Ruhe". Sonst gibt diese App
+    keinen Laut von sich.</p>
+    <div class="wahl">
+      <button type="button" class="wahl-btn${s.ton !== false ? ' an' : ''}" data-act="ton">
+        ${s.ton !== false ? 'Ton ist an' : 'Ton ist aus'}</button>
     </div>
   </div>
 
@@ -621,7 +936,14 @@ function bogenHTML(s) {
       ${marken(BESCHWERDEN, e.arten || [], 'beschwerdeart')}
       <label class="feld-name" for="bogenNotiz">Notiz</label>
       <input type="text" class="feld feld-breit" id="bogenNotiz" data-act="notiz"
-             value="${esc(e.notiz || '')}" placeholder="optional" autocomplete="off">`;
+             value="${esc(e.notiz || '')}" placeholder="optional" autocomplete="off">
+      <details class="warnbogen"${(e.warnzeichen || []).length ? ' open' : ''}>
+        <summary>War etwas davon dabei?</summary>
+        <p class="klein">Selten, aber wichtig. Was hier angekreuzt wird, taucht
+        nicht in der Statistik auf, sondern ganz oben unter „Muster" – mit dem
+        Hinweis, wie eilig es ist.</p>
+        ${marken(WARNZEICHEN, e.warnzeichen || [], 'warnzeichen')}
+      </details>`;
   } else if (b.art === 'medikament') {
     const vorschlaege = [...new Set([...s.zuletztMittel, ...MITTEL_VORSCHLAEGE])].slice(0, 8);
     mitte = `
@@ -702,7 +1024,7 @@ function male() {
   const tab = REITER.some((r) => r.id === s.tab) ? s.tab : 'heute';
   const inhalt = {
     heute: tagAnsicht, verlauf: verlaufAnsicht, muster: musterAnsicht,
-    ideen: ideenAnsicht, mehr: mehrAnsicht,
+    ruhe: ruheAnsicht, ideen: ideenAnsicht, mehr: mehrAnsicht,
   }[tab];
   viewEl.innerHTML = warnung + inhalt(s) + bogenHTML(s);
 
@@ -845,6 +1167,10 @@ function sicherungLaden() {
 const AKTION = {
   los: () => { store.einstellen('begruesst', true); zeichne(); },
   tab: (el) => {
+    // Eine laufende Atemübung endet beim Wechseln. Sie im Hintergrund
+    // weiterpiepsen zu lassen, während jemand im Tagebuch blättert, wäre
+    // das Gegenteil dessen, wozu sie da ist.
+    atemStopp();
     store.einstellen('tab', el.dataset.tab);
     ui.bericht = null;
     ui.sicherung = null;
@@ -878,6 +1204,7 @@ const AKTION = {
   },
   gericht: (el) => entwurf({ was: el.dataset.text }),
   beschwerdeart: (el) => umschalten('arten', el.dataset.id),
+  warnzeichen: (el) => umschalten('warnzeichen', el.dataset.id),
   'mittel-vorschlag': (el) => entwurf({ mittel: el.dataset.id }),
 
   'tag-blaettern': (el) => {
@@ -895,18 +1222,29 @@ const AKTION = {
   },
   zeitraum: (el) => { ui.zeitraum = Number(el.dataset.n); zeichne(); },
 
-  stress: (el) => {
+  tagfrage: (el) => {
+    const id = el.dataset.id;
     const n = Number(el.dataset.n);
-    const jetzt = store.tagLesen(ui.tag).stress;
-    store.tagSetzen(ui.tag, { stress: jetzt === n ? null : n });
+    const jetzt = store.tagLesen(ui.tag)[id];
+    store.tagSetzen(ui.tag, { [id]: jetzt === n ? null : n });
     zeichne();
   },
-  schlaf: (el) => {
-    const n = Number(el.dataset.n);
-    const jetzt = store.tagLesen(ui.tag).schlaf;
-    store.tagSetzen(ui.tag, { schlaf: jetzt === n ? null : n });
+  frageAn: (el) => {
+    const gewaehlt = store.zustandLesen().tagesfragen || [];
+    const id = el.dataset.id;
+    store.einstellen('tagesfragen', gewaehlt.includes(id)
+      ? gewaehlt.filter((x) => x !== id) : [...gewaehlt, id]);
     zeichne();
   },
+  ton: () => {
+    store.einstellen('ton', !store.zustandLesen().ton);
+    zeichne();
+  },
+
+  'atem-uebung': (el) => { store.einstellen('atemUebung', el.dataset.id); zeichne(); },
+  'atem-runden': (el) => { store.einstellen('atemRunden', Number(el.dataset.n)); zeichne(); },
+  'atem-start': () => atemStart(store.zustandLesen()),
+  'atem-stopp': atemStopp,
 
   fenster: (el) => { store.einstellen('fenster', Number(el.dataset.n)); zeichne(); },
   mindest: (el) => { store.einstellen('mindestFaelle', Number(el.dataset.n)); zeichne(); },

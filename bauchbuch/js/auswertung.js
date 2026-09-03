@@ -194,6 +194,93 @@ export function rollenBilanz(eintraege, id, fensterStunden) {
   return raus.sort((a, b) => b.schnitt - a.schnitt);
 }
 
+/* ---------- Die übrigen Faktoren ---------- */
+
+/**
+ * Wie viele Stunden vor einer Beschwerde zuletzt gegessen wurde.
+ *
+ * `null`, wenn an dem Tag und dem davor gar nichts eingetragen ist – dann ist
+ * die Angabe nicht „lange her", sondern unbekannt, und das sind zwei
+ * verschiedene Dinge.
+ */
+export function stundenSeitEssen(eintraege, beschwerde) {
+  const t = zeitpunkt(beschwerde.am, beschwerde.um);
+  let letzte = null;
+  eintraege.filter((e) => e.art === 'essen').forEach((e) => {
+    const te = zeitpunkt(e.am, e.um);
+    if (te < t && (letzte === null || te > letzte)) letzte = te;
+  });
+  if (letzte === null) return null;
+  const std = stundenDazwischen(letzte, t);
+  return std <= 24 ? std : null;
+}
+
+/**
+ * Kommen die Beschwerden nach dem Essen oder nüchtern?
+ *
+ * Das ist die erste Frage, die im Sprechzimmer gestellt wird, und die
+ * schwerste aus dem Kopf zu beantworten. Aus dem Tagebuch fällt sie ab.
+ */
+export function essensbezug(eintraege, nahStunden = 2, fernStunden = 4) {
+  const beschwerden = eintraege.filter((e) => e.art === 'beschwerde');
+  let nah = 0;
+  let fern = 0;
+  let unbekannt = 0;
+  beschwerden.forEach((b) => {
+    const std = stundenSeitEssen(eintraege, b);
+    if (std === null) unbekannt += 1;
+    else if (std <= nahStunden) nah += 1;
+    else if (std >= fernStunden) fern += 1;
+  });
+  const bewertbar = nah + fern;
+  return {
+    gesamt: beschwerden.length,
+    nachDemEssen: nah,
+    nuechtern: fern,
+    unbekannt,
+    anteilNachDemEssen: bewertbar ? nah / bewertbar : 0,
+    anteilNuechtern: bewertbar ? fern / bewertbar : 0,
+    bewertbar,
+  };
+}
+
+/**
+ * Ein Tagesfaktor gegen die Beschwerdestärke: Tage mit viel gegen Tage mit
+ * wenig davon.
+ *
+ * Dieselbe Logik wie bei den Auslösern und aus demselben Grund: Verglichen
+ * wird gegen den eigenen Alltag, nicht gegen null. Wer an jedem zweiten Tag
+ * angespannt ist, hätte sonst „Anspannung" als Dauerbefund.
+ */
+export function faktorBilanz(eintraege, tage, frageId, tagesWertFn) {
+  const hoch = [];
+  const niedrig = [];
+  Object.keys(tage || {}).forEach((iso) => {
+    const wert = tage[iso] ? tage[iso][frageId] : null;
+    if (wert === null || wert === undefined) return;
+    const t = tagesWertFn(eintraege, iso, tage);
+    if (!t.notiert) return;
+    if (Number(wert) >= 3) hoch.push(t.wert);
+    else if (Number(wert) <= 1) niedrig.push(t.wert);
+  });
+  const schnitt = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+  return {
+    id: frageId,
+    hoch: { tage: hoch.length, schnitt: schnitt(hoch) },
+    niedrig: { tage: niedrig.length, schnitt: schnitt(niedrig) },
+    differenz: schnitt(hoch) - schnitt(niedrig),
+    genug: hoch.length >= 4 && niedrig.length >= 4,
+  };
+}
+
+/** Wie oft eine Beschwerdeart unter allen Beschwerden vorkommt, als Anteil. */
+export function artAnteil(eintraege, arten) {
+  const alle = eintraege.filter((e) => e.art === 'beschwerde');
+  if (!alle.length) return { anteil: 0, anzahl: 0, gesamt: 0 };
+  const treffer = alle.filter((e) => (e.arten || []).some((a) => arten.includes(a)));
+  return { anteil: treffer.length / alle.length, anzahl: treffer.length, gesamt: alle.length };
+}
+
 /* ---------- Was oft vorkommt ---------- */
 
 /**

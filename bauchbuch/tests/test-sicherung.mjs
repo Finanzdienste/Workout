@@ -120,7 +120,7 @@ check(
   'mit ihrem Text',
 );
 check(
-  await page.locator('[data-act="stress"][data-n="3"]').getAttribute('aria-pressed') === 'true',
+  await page.locator('[data-act="tagfrage"][data-id="stress"][data-n="3"]').getAttribute('aria-pressed') === 'true',
   'und die Tagesangaben stehen wieder',
 );
 

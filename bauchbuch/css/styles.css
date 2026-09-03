@@ -376,6 +376,102 @@ p { margin: 0 0 8px; }
   font-size: 12px; line-height: 1.4; margin-bottom: 8px;
 }
 
+/* ---------- Rat für heute ---------- */
+.rat > h3 { margin-bottom: 10px; }
+.raete { list-style: none; margin: 0; padding: 0; }
+.raete > li {
+  border-left: 3px solid var(--accent);
+  padding: 2px 0 2px 12px;
+  margin-bottom: 14px;
+}
+.raete > li:last-child { margin-bottom: 6px; }
+.rat-sport { border-left-color: var(--ok); }
+.rat-ruhe { border-left-color: var(--leicht); }
+.rat-mittel { border-left-color: var(--warn); }
+.rat-kopf { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.rat-kopf b { font-size: 15px; }
+.rat-i { font-size: 15px; }
+.raete p { font-size: 14px; margin: 4px 0 0; }
+/* Woher ein Rat kommt, steht an ihm dran und nicht im Kleingedruckten:
+   „aus deinem Verlauf" wiegt schwerer als „allgemein", und das muss man
+   sehen, ohne es nachzulesen. */
+.rat-quelle {
+  font-size: 11px; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.rat-quelle.q-eigen { border-color: var(--accent); color: var(--accent); }
+
+.zyklus-zeile {
+  text-align: center;
+  margin: -4px 0 12px;
+}
+
+/* ---------- Warnzeichen und Einordnung ---------- */
+.karte-warn { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--bg-elev)); }
+.karte-warn h3 { color: var(--bad); }
+.warnliste { list-style: none; margin: 0 0 8px; padding: 0; }
+.warnliste li {
+  padding: 8px 0 8px 12px;
+  border-left: 3px solid var(--warn);
+  margin-bottom: 8px;
+}
+.warnliste .w-sofort { border-left-color: var(--bad); }
+.warnliste b { display: block; font-size: 15px; }
+
+.warnbogen { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.warnbogen > summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+.warnbogen .marke { font-size: 13px; text-align: left; }
+
+.muster-liste { list-style: none; margin: 12px 0 8px; padding: 0; }
+.muster {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: var(--bg-elev-2);
+}
+.muster.erst { border-color: var(--accent); }
+.muster-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.muster p { font-size: 14px; }
+.belege, .ursachen, .fragen { margin: 0; padding-left: 18px; font-size: 13px; }
+.belege li, .fragen li { margin-bottom: 5px; color: var(--muted); }
+.ursachen { list-style: none; padding-left: 0; }
+.ursachen li { margin-bottom: 8px; }
+.ursachen b { font-size: 14px; }
+
+/* ---------- Atemübung ---------- */
+.atem {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px;
+  padding: 18px 0 22px;
+}
+.atem-kreis {
+  width: 190px; height: 190px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 40%,
+    color-mix(in srgb, var(--accent) 45%, transparent),
+    color-mix(in srgb, var(--accent) 12%, transparent));
+  border: 2px solid var(--accent);
+  transform: scale(0.45);
+  transition-property: transform;
+  transition-timing-function: ease-in-out;
+  transition-duration: .6s;
+  font-size: 34px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+}
+/* Beim Halten steht der Kreis still und wird nur etwas kräftiger – so ist die
+   Phase auch mit offenen Augen zu erkennen, ohne dass sich etwas bewegt. */
+.atem-kreis[data-art="halten"] { background: radial-gradient(circle at 50% 40%,
+  color-mix(in srgb, var(--accent) 60%, transparent),
+  color-mix(in srgb, var(--accent) 18%, transparent)); }
+.atem-wort { font-size: 17px; margin: 0; min-height: 24px; }
+.atem .klein { margin: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .atem-kreis { transition-duration: 0s !important; }
+}
+
 /* ---------- Ideen ---------- */
 .ideen { list-style: none; margin: 0 0 12px; padding: 0; }
 .idee {

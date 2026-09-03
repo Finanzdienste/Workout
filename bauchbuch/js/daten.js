@@ -97,6 +97,46 @@ export function rolleName(id, kurz) {
   return kurz ? r.kurz : r.name;
 }
 
+/*
+ * Was für einen ganzen Tag gilt, nicht für einen Zeitpunkt.
+ *
+ * Aus dem Magentagebuch ist ein Gesundheitstagebuch geworden, und diese Liste
+ * ist der Grund, warum das kein Umbau war: Eine weitere Frage ist eine
+ * weitere Zeile. Anzeige, Speicher, Auswertung und Bericht lesen alle hier.
+ *
+ * Zwei Regeln für die Skalen:
+ *
+ *   * Bei allem, was gut oder schlecht sein kann, ist **0 gut und 4 schlecht**.
+ *     Dann bedeutet ein Zusammenhang immer dasselbe, und die Auswertung muss
+ *     sich nicht je Frage merken, in welche Richtung sie zu lesen ist.
+ *   * `bewegung`, `blutung` und `sex` sind Mengen, keine Bewertungen. Sie
+ *     tragen `menge: true` und werden nirgends als „schlecht" gerechnet.
+ *
+ * Nicht jede Frage will jeder beantworten – ein Feld für Sex im Tagebuch ist
+ * für die einen selbstverständlich und für die anderen ein Übergriff. Welche
+ * Fragen erscheinen, entscheidet die Einstellung `tagesfragen` unter Mehr.
+ */
+export const TAGESFRAGEN = [
+  { id: 'stimmung', name: 'Stimmung', worte: ['gut', 'ok', 'gedrückt', 'schlecht', 'sehr schlecht'] },
+  { id: 'stress', name: 'Anspannung', worte: ['ruhig', 'geht so', 'angespannt', 'viel', 'sehr viel'] },
+  { id: 'schlaf', name: 'Schlaf', worte: ['gut', 'ok', 'mäßig', 'schlecht', 'kaum'] },
+  { id: 'bewegung', name: 'Bewegung', menge: true, worte: ['keine', 'leicht', 'moderat', 'intensiv', 'sehr intensiv'] },
+  { id: 'blutung', name: 'Periode', menge: true, worte: ['keine', 'Schmierblutung', 'leicht', 'mittel', 'stark'] },
+  { id: 'sex', name: 'Sex', menge: true, worte: ['nein', 'ja'] },
+];
+
+const FRAGEN_MAP = Object.fromEntries(TAGESFRAGEN.map((f) => [f.id, f]));
+
+export function frageVon(id) {
+  return FRAGEN_MAP[id] || null;
+}
+
+/** Die Fragen, die dieser Nutzer sehen will – in der Reihenfolge von oben. */
+export function sichtbareFragen(gewaehlt) {
+  if (!Array.isArray(gewaehlt)) return TAGESFRAGEN;
+  return TAGESFRAGEN.filter((f) => gewaehlt.includes(f.id));
+}
+
 export const PORTIONEN = [
   { id: 'klein', name: 'klein' },
   { id: 'normal', name: 'normal' },

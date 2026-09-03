@@ -389,6 +389,102 @@ p { margin: 0 0 8px; }
   font-size: 12px; line-height: 1.4; margin-bottom: 8px;
 }
 
+/* ---------- Rat für heute ---------- */
+.rat > h3 { margin-bottom: 10px; }
+.raete { list-style: none; margin: 0; padding: 0; }
+.raete > li {
+  border-left: 3px solid var(--accent);
+  padding: 2px 0 2px 12px;
+  margin-bottom: 14px;
+}
+.raete > li:last-child { margin-bottom: 6px; }
+.rat-sport { border-left-color: var(--ok); }
+.rat-ruhe { border-left-color: var(--leicht); }
+.rat-mittel { border-left-color: var(--warn); }
+.rat-kopf { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.rat-kopf b { font-size: 15px; }
+.rat-i { font-size: 15px; }
+.raete p { font-size: 14px; margin: 4px 0 0; }
+/* Woher ein Rat kommt, steht an ihm dran und nicht im Kleingedruckten:
+   „aus deinem Verlauf" wiegt schwerer als „allgemein", und das muss man
+   sehen, ohne es nachzulesen. */
+.rat-quelle {
+  font-size: 11px; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.rat-quelle.q-eigen { border-color: var(--accent); color: var(--accent); }
+
+.zyklus-zeile {
+  text-align: center;
+  margin: -4px 0 12px;
+}
+
+/* ---------- Warnzeichen und Einordnung ---------- */
+.karte-warn { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--bg-elev)); }
+.karte-warn h3 { color: var(--bad); }
+.warnliste { list-style: none; margin: 0 0 8px; padding: 0; }
+.warnliste li {
+  padding: 8px 0 8px 12px;
+  border-left: 3px solid var(--warn);
+  margin-bottom: 8px;
+}
+.warnliste .w-sofort { border-left-color: var(--bad); }
+.warnliste b { display: block; font-size: 15px; }
+
+.warnbogen { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.warnbogen > summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+.warnbogen .marke { font-size: 13px; text-align: left; }
+
+.muster-liste { list-style: none; margin: 12px 0 8px; padding: 0; }
+.muster {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: var(--bg-elev-2);
+}
+.muster.erst { border-color: var(--accent); }
+.muster-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.muster p { font-size: 14px; }
+.belege, .ursachen, .fragen { margin: 0; padding-left: 18px; font-size: 13px; }
+.belege li, .fragen li { margin-bottom: 5px; color: var(--muted); }
+.ursachen { list-style: none; padding-left: 0; }
+.ursachen li { margin-bottom: 8px; }
+.ursachen b { font-size: 14px; }
+
+/* ---------- Atemübung ---------- */
+.atem {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px;
+  padding: 18px 0 22px;
+}
+.atem-kreis {
+  width: 190px; height: 190px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 40%,
+    color-mix(in srgb, var(--accent) 45%, transparent),
+    color-mix(in srgb, var(--accent) 12%, transparent));
+  border: 2px solid var(--accent);
+  transform: scale(0.45);
+  transition-property: transform;
+  transition-timing-function: ease-in-out;
+  transition-duration: .6s;
+  font-size: 34px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+}
+/* Beim Halten steht der Kreis still und wird nur etwas kräftiger – so ist die
+   Phase auch mit offenen Augen zu erkennen, ohne dass sich etwas bewegt. */
+.atem-kreis[data-art="halten"] { background: radial-gradient(circle at 50% 40%,
+  color-mix(in srgb, var(--accent) 60%, transparent),
+  color-mix(in srgb, var(--accent) 18%, transparent)); }
+.atem-wort { font-size: 17px; margin: 0; min-height: 24px; }
+.atem .klein { margin: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .atem-kreis { transition-duration: 0s !important; }
+}
+
 /* ---------- Ideen ---------- */
 .ideen { list-style: none; margin: 0 0 12px; padding: 0; }
 .idee {
@@ -825,6 +921,46 @@ function rolleName(id, kurz) {
   return kurz ? r.kurz : r.name;
 }
 
+/*
+ * Was für einen ganzen Tag gilt, nicht für einen Zeitpunkt.
+ *
+ * Aus dem Magentagebuch ist ein Gesundheitstagebuch geworden, und diese Liste
+ * ist der Grund, warum das kein Umbau war: Eine weitere Frage ist eine
+ * weitere Zeile. Anzeige, Speicher, Auswertung und Bericht lesen alle hier.
+ *
+ * Zwei Regeln für die Skalen:
+ *
+ *   * Bei allem, was gut oder schlecht sein kann, ist **0 gut und 4 schlecht**.
+ *     Dann bedeutet ein Zusammenhang immer dasselbe, und die Auswertung muss
+ *     sich nicht je Frage merken, in welche Richtung sie zu lesen ist.
+ *   * `bewegung`, `blutung` und `sex` sind Mengen, keine Bewertungen. Sie
+ *     tragen `menge: true` und werden nirgends als „schlecht" gerechnet.
+ *
+ * Nicht jede Frage will jeder beantworten – ein Feld für Sex im Tagebuch ist
+ * für die einen selbstverständlich und für die anderen ein Übergriff. Welche
+ * Fragen erscheinen, entscheidet die Einstellung `tagesfragen` unter Mehr.
+ */
+const TAGESFRAGEN = [
+  { id: 'stimmung', name: 'Stimmung', worte: ['gut', 'ok', 'gedrückt', 'schlecht', 'sehr schlecht'] },
+  { id: 'stress', name: 'Anspannung', worte: ['ruhig', 'geht so', 'angespannt', 'viel', 'sehr viel'] },
+  { id: 'schlaf', name: 'Schlaf', worte: ['gut', 'ok', 'mäßig', 'schlecht', 'kaum'] },
+  { id: 'bewegung', name: 'Bewegung', menge: true, worte: ['keine', 'leicht', 'moderat', 'intensiv', 'sehr intensiv'] },
+  { id: 'blutung', name: 'Periode', menge: true, worte: ['keine', 'Schmierblutung', 'leicht', 'mittel', 'stark'] },
+  { id: 'sex', name: 'Sex', menge: true, worte: ['nein', 'ja'] },
+];
+
+const FRAGEN_MAP = Object.fromEntries(TAGESFRAGEN.map((f) => [f.id, f]));
+
+function frageVon(id) {
+  return FRAGEN_MAP[id] || null;
+}
+
+/** Die Fragen, die dieser Nutzer sehen will – in der Reihenfolge von oben. */
+function sichtbareFragen(gewaehlt) {
+  if (!Array.isArray(gewaehlt)) return TAGESFRAGEN;
+  return TAGESFRAGEN.filter((f) => gewaehlt.includes(f.id));
+}
+
 const PORTIONEN = [
   { id: 'klein', name: 'klein' },
   { id: 'normal', name: 'normal' },
@@ -1092,6 +1228,436 @@ function wissenZu(name) {
     || null;
 }
 
+/* ===== js/klang.js ===== */
+/*
+ * Töne – erzeugt, nicht geladen.
+ *
+ * Die Atemübung führt jemand mit geschlossenen Augen durch. Der Ton ist dann
+ * nicht Beiwerk, sondern die ganze Bedienoberfläche: Er sagt, wann eingeatmet
+ * wird, wann gehalten und wann ausgeatmet.
+ *
+ * Deshalb keine Audiodateien. Eine Datei wäre ein Download, in der
+ * Ein-Datei-Fassung ein halbes Megabyte base64, und ohne Netz womöglich gar
+ * nicht da. Hier entstehen die Töne im Browser aus einem Oszillator: ein paar
+ * Zeilen, kein Byte Ladelast, funktioniert offline und in der einen Datei
+ * gleichermaßen.
+ *
+ * Klanglich bewusst weich: Sinuston, sanft ein- und ausgeblendet. Ein harter
+ * Anschlag reißt genau die Anspannung wieder hoch, gegen die die Übung läuft.
+ */
+
+let kontext = null;
+
+/**
+ * Den Tonkontext holen – und zwar erst, wenn wirklich ein Ton kommen soll.
+ *
+ * Browser lassen Audio nur nach einer Nutzergeste zu. Ein Kontext, der beim
+ * Laden der Seite entsteht, startet gesperrt und bleibt es; einer, der beim
+ * Druck auf „Start" entsteht, läuft.
+ */
+function holeKontext() {
+  if (kontext) return kontext;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  try {
+    kontext = new AC();
+  } catch {
+    return null;
+  }
+  return kontext;
+}
+
+/** Nach einer Pause im Hintergrund steht der Kontext still. */
+function weckKlang() {
+  const k = holeKontext();
+  if (k && k.state === 'suspended') k.resume().catch(() => {});
+  return !!k;
+}
+
+/**
+ * Ein einzelner weicher Ton.
+ *
+ * @param {number} hz     Tonhöhe
+ * @param {number} dauer  Sekunden
+ * @param {number} laut   0 bis 1
+ */
+function ton(hz, dauer = 0.35, laut = 0.18) {
+  const k = holeKontext();
+  if (!k) return;
+  if (k.state === 'suspended') k.resume().catch(() => {});
+  const jetzt = k.currentTime;
+  const osz = k.createOscillator();
+  const huelle = k.createGain();
+  osz.type = 'sine';
+  osz.frequency.setValueAtTime(hz, jetzt);
+  // Ein- und ausblenden über je 60 ms. Ohne das knackt es an beiden Enden,
+  // und ein Knacken im Ohr ist bei geschlossenen Augen doppelt unangenehm.
+  huelle.gain.setValueAtTime(0.0001, jetzt);
+  huelle.gain.exponentialRampToValueAtTime(laut, jetzt + 0.06);
+  huelle.gain.setValueAtTime(laut, jetzt + Math.max(0.07, dauer - 0.06));
+  huelle.gain.exponentialRampToValueAtTime(0.0001, jetzt + dauer);
+  osz.connect(huelle).connect(k.destination);
+  osz.start(jetzt);
+  osz.stop(jetzt + dauer + 0.02);
+}
+
+/*
+ * Die Töne der Atemübung. Drei Höhen, die man auch schlaftrunken
+ * auseinanderhält: aufwärts heißt einatmen, gleichbleibend heißt halten,
+ * abwärts heißt ausatmen.
+ */
+const KLAENGE = {
+  ein: () => { ton(523.25, 0.3); setTimeout(() => ton(659.25, 0.34), 110); },
+  halten: () => ton(587.33, 0.22, 0.12),
+  aus: () => { ton(523.25, 0.3); setTimeout(() => ton(392.0, 0.5), 110); },
+  fertig: () => {
+    ton(523.25, 0.5, 0.16);
+    setTimeout(() => ton(659.25, 0.5, 0.16), 160);
+    setTimeout(() => ton(783.99, 0.9, 0.16), 320);
+  },
+  tick: () => ton(880, 0.06, 0.05),
+};
+
+/** Ein kurzer Rüttler, wo das Gerät ihn kann – hilft, wenn es leise sein muss. */
+function ruettel(muster) {
+  try {
+    if (navigator.vibrate) navigator.vibrate(muster);
+  } catch { /* dann eben nicht */ }
+}
+
+/* ===== js/atem.js ===== */
+/*
+ * Atemübungen – die Daten dazu, nicht der Ablauf.
+ *
+ * Warum in einem Magentagebuch: Bauch und Nervensystem hängen zusammen, und
+ * zwar in beide Richtungen. Langes Ausatmen schaltet messbar auf den Teil des
+ * Nervensystems um, unter dem der Darm arbeitet statt stillzustehen. Bei
+ * stressgebundenen Beschwerden ist das keine Beschäftigungstherapie, sondern
+ * das Mittel, das man ohne Rezept und ohne Nebenwirkung hat.
+ *
+ * Deshalb ist bei allen Übungen hier das Ausatmen mindestens so lang wie das
+ * Einatmen. Umgekehrt – kurz aus, lang ein – täte das Gegenteil.
+ *
+ * Reine Daten, keine Abhängigkeiten. Wer die Übung *ausführt*, ist js/app.js;
+ * getaktet wird sie mit den Tönen aus js/klang.js.
+ */
+
+/**
+ * Eine Übung besteht aus Phasen. `sek: 0` heißt: Phase fällt weg.
+ *
+ * `runden` ist der Vorschlag, nicht die Vorschrift – wer mehr will, stellt um.
+ */
+const UEBUNGEN = [
+  {
+    id: '478',
+    name: '4–7–8',
+    zweck: 'Zum Runterkommen und zum Einschlafen',
+    beschreibung: 'Vier Sekunden durch die Nase ein, sieben halten, acht durch '
+      + 'den Mund aus. Das lange Ausatmen ist der Wirkstoff; die Zahlen sind nur '
+      + 'die Verpackung. Wenn sieben Sekunden Halten zu lang sind, ist es keine '
+      + 'schlechtere Übung, wenn man kürzer macht.',
+    runden: 4,
+    phasen: [
+      { art: 'ein', sek: 4, wort: 'Einatmen' },
+      { art: 'halten', sek: 7, wort: 'Halten' },
+      { art: 'aus', sek: 8, wort: 'Ausatmen' },
+    ],
+  },
+  {
+    id: 'box',
+    name: 'Quadrat',
+    zweck: 'Wenn der Kopf rattert',
+    beschreibung: 'Vier ein, vier halten, vier aus, vier halten. Der gleiche '
+      + 'Takt in alle vier Richtungen gibt dem Denken etwas zu tun, ohne es zu '
+      + 'beschäftigen.',
+    runden: 6,
+    phasen: [
+      { art: 'ein', sek: 4, wort: 'Einatmen' },
+      { art: 'halten', sek: 4, wort: 'Halten' },
+      { art: 'aus', sek: 4, wort: 'Ausatmen' },
+      { art: 'halten', sek: 4, wort: 'Halten' },
+    ],
+  },
+  {
+    id: 'kohaerenz',
+    name: 'Gleichmaß',
+    zweck: 'Für zwischendurch, auch im Sitzen am Schreibtisch',
+    beschreibung: 'Fünfeinhalb Sekunden ein, fünfeinhalb aus, ohne Halten – gut '
+      + 'sechs Atemzüge in der Minute. Der Takt, bei dem Puls und Atem in einen '
+      + 'gemeinsamen Rhythmus fallen. Unauffällig genug für den Bus.',
+    runden: 10,
+    phasen: [
+      { art: 'ein', sek: 5.5, wort: 'Einatmen' },
+      { art: 'aus', sek: 5.5, wort: 'Ausatmen' },
+    ],
+  },
+  {
+    id: 'bauch',
+    name: 'Bauchatmung',
+    zweck: 'Direkt auf den Bauch, bei Druck und Krämpfen',
+    beschreibung: 'Eine Hand auf den Bauch, vier Sekunden so einatmen, dass sich '
+      + 'die Hand hebt und nicht die Schulter, sechs Sekunden aus. Das Zwerchfell '
+      + 'massiert dabei, was darunter liegt.',
+    runden: 8,
+    phasen: [
+      { art: 'ein', sek: 4, wort: 'Einatmen, Bauch hebt sich' },
+      { art: 'aus', sek: 6, wort: 'Ausatmen, Bauch senkt sich' },
+    ],
+  },
+];
+
+const MAP = Object.fromEntries(UEBUNGEN.map((u) => [u.id, u]));
+
+function uebungVon(id) {
+  return MAP[id] || UEBUNGEN[0];
+}
+
+/** Wie lange eine Runde dauert, in Sekunden. */
+function rundenDauer(uebung) {
+  return uebung.phasen.reduce((s, p) => s + p.sek, 0);
+}
+
+/** Die ganze Übung, in Sekunden – für die Anzeige „etwa 2 Minuten". */
+function gesamtDauer(uebung, runden) {
+  return rundenDauer(uebung) * (runden || uebung.runden);
+}
+
+function dauerText(sekunden) {
+  const m = Math.round(sekunden / 60);
+  if (sekunden < 90) return `${Math.round(sekunden)} Sekunden`;
+  return `${m} Minuten`;
+}
+
+/**
+ * Der Ablauf als flache Liste: jede Phase jeder Runde, einmal ausgerollt.
+ *
+ * Ausgerollt statt gerechnet, weil der Ablauf dadurch selbst zum Prüfgegenstand
+ * wird – man kann ihn ansehen und nachzählen, statt einer Schleife zu glauben.
+ */
+function ablauf(uebung, runden) {
+  const n = runden || uebung.runden;
+  const schritte = [];
+  for (let r = 1; r <= n; r++) {
+    uebung.phasen.forEach((p, i) => {
+      schritte.push({
+        runde: r,
+        von: n,
+        art: p.art,
+        wort: p.wort,
+        sek: p.sek,
+        letzte: r === n && i === uebung.phasen.length - 1,
+      });
+    });
+  }
+  return schritte;
+}
+
+/* ===== js/zyklus.js ===== */
+/*
+ * Der Zyklus – gerechnet aus dem, was eingetragen wurde, und aus nichts sonst.
+ *
+ * Warum das in ein Magentagebuch gehört: Bei vielen Menschen schwanken
+ * Übelkeit, Blähungen, Sodbrennen und Appetit mit dem Zyklus, und wer das
+ * nicht mitzählt, sucht die Ursache vier Wochen lang im Essen. Ein Muster, das
+ * sich alle vier Wochen wiederholt, sieht man nur, wenn man weiß, wo die
+ * Wochen anfangen.
+ *
+ * WOFÜR DAS HIER NICHT TAUGT, und das ist keine Formalie:
+ *
+ *   * **Nicht zur Verhütung.** Der Eisprung wird hier nicht gemessen, sondern
+ *     aus der halben Zykluslänge geschätzt. Er verschiebt sich, und zwar
+ *     gerade dann, wenn jemand krank ist oder unter Druck steht – also genau
+ *     in den Zeiträumen, um die es in dieser App geht.
+ *   * **Nicht als Vorhersage.** „Nächste Periode am …" steht nirgends. Eine
+ *     Zahl, die aus drei beobachteten Zyklen stammt, sieht genauso aus wie
+ *     eine, die aus dreißig stammt – und wird genauso geglaubt.
+ *
+ * Was hier steht, ist eine Einordnung des *vergangenen* Verlaufs: In welcher
+ * Phase lag ein bestimmter Tag, gemessen an den eingetragenen Blutungstagen.
+ */
+
+/** Ab hier gilt ein Tag als Blutungstag – Schmierblutung zählt mit. */
+const BLUTUNG_AB = 1;
+
+/**
+ * Eine Lücke von so vielen Tagen trennt zwei Zyklen.
+ *
+ * Zwei Tage Pause mitten in der Periode sind nichts Ungewöhnliches; würde man
+ * schon daraus einen neuen Zyklus machen, käme eine Zykluslänge von vier Tagen
+ * heraus. Drei Tage ist die übliche Grenze.
+ */
+const LUECKE = 3;
+
+const PHASEN = [
+  { id: 'menstruation', name: 'Periode' },
+  { id: 'follikel', name: 'erste Zyklushälfte' },
+  { id: 'ovulation', name: 'Zyklusmitte' },
+  { id: 'luteal', name: 'zweite Zyklushälfte' },
+];
+
+const PHASEN_MAP = Object.fromEntries(PHASEN.map((p) => [p.id, p]));
+
+function phasenName(id) {
+  return PHASEN_MAP[id] ? PHASEN_MAP[id].name : id;
+}
+
+/** Alle eingetragenen Blutungstage, aufsteigend. */
+function blutungsTage(tage) {
+  return Object.keys(tage || {})
+    .filter((iso) => Number(tage[iso] && tage[iso].blutung) >= BLUTUNG_AB)
+    .sort();
+}
+
+/**
+ * Die beobachteten Zyklen: [{ start, laenge }].
+ *
+ * Ein Zyklus beginnt am ersten Blutungstag nach einer Lücke. Seine Länge ist
+ * der Abstand zum nächsten Anfang – der letzte Zyklus hat deshalb keine, er
+ * läuft noch.
+ */
+function zyklen(tage) {
+  const bt = blutungsTage(tage);
+  if (!bt.length) return [];
+  const starts = [bt[0]];
+  const blutungsEnden = [];
+  for (let i = 1; i < bt.length; i++) {
+    if (tageDazwischen(bt[i - 1], bt[i]) >= LUECKE) {
+      blutungsEnden.push(bt[i - 1]);
+      starts.push(bt[i]);
+    }
+  }
+  blutungsEnden.push(bt[bt.length - 1]);
+  return starts.map((start, i) => ({
+    start,
+    blutungBis: blutungsEnden[i],
+    blutungsTage: tageDazwischen(start, blutungsEnden[i]) + 1,
+    laenge: i + 1 < starts.length ? tageDazwischen(start, starts[i + 1]) : null,
+  }));
+}
+
+/**
+ * Die mittlere Zykluslänge aus den abgeschlossenen Zyklen.
+ *
+ * Ohne abgeschlossenen Zyklus gibt es keine – dann liefert das hier `null`,
+ * und alles, was darauf aufbaut, hält den Mund. 28 als stille Annahme
+ * einzusetzen wäre bequem und falsch: Es gibt genug Menschen, bei denen 24
+ * oder 34 der Normalfall ist, und deren Phasen lägen dann durchgehend daneben.
+ */
+function mittlereLaenge(tage) {
+  const fertig = zyklen(tage).filter((z) => z.laenge && z.laenge >= 15 && z.laenge <= 60);
+  if (!fertig.length) return null;
+  return Math.round(fertig.reduce((s, z) => s + z.laenge, 0) / fertig.length);
+}
+
+/** Wie stark die Zykluslänge schwankt – die Spanne zwischen kürzestem und längstem. */
+function schwankung(tage) {
+  const laengen = zyklen(tage).map((z) => z.laenge)
+    .filter((l) => l && l >= 15 && l <= 60);
+  if (laengen.length < 2) return null;
+  return { von: Math.min(...laengen), bis: Math.max(...laengen), anzahl: laengen.length };
+}
+
+/**
+ * Der Zyklustag eines Datums: 1 am ersten Blutungstag.
+ *
+ * `null`, wenn der Tag vor dem ersten eingetragenen Zyklus liegt oder mehr als
+ * zwei Monate hinter seinem Anfang – dann ist die Zuordnung geraten, nicht
+ * gerechnet.
+ */
+function zyklusTag(tage, iso) {
+  const alle = zyklen(tage);
+  let letzter = null;
+  for (const z of alle) {
+    if (z.start <= iso) letzter = z;
+  }
+  if (!letzter) return null;
+  const tag = tageDazwischen(letzter.start, iso) + 1;
+  return tag >= 1 && tag <= 60 ? tag : null;
+}
+
+/**
+ * Die Phase eines Tages.
+ *
+ * Grob und offen gesagt grob: Die Periode kommt aus den Eintragungen, die
+ * Mitte wird aus der halben Zykluslänge geschätzt, der Rest teilt sich davor
+ * und danach auf. Feiner geht es ohne Temperatur- oder Hormonmessung nicht,
+ * und feiner zu *tun* wäre schlimmer als grob zu sein.
+ */
+function phaseVon(tage, iso) {
+  const tag = zyklusTag(tage, iso);
+  if (!tag) return null;
+  const tagInfo = (tage || {})[iso];
+  if (Number(tagInfo && tagInfo.blutung) >= BLUTUNG_AB) return 'menstruation';
+  const laenge = mittlereLaenge(tage);
+  if (!laenge) return null;
+  const mitte = Math.round(laenge / 2);
+  if (tag >= mitte - 2 && tag <= mitte + 2) return 'ovulation';
+  return tag < mitte ? 'follikel' : 'luteal';
+}
+
+/**
+ * Beschwerdestärke je Zyklusphase.
+ *
+ * Die eigentliche Auskunft dieses Moduls. Zurück kommt für jede Phase, in der
+ * überhaupt etwas notiert wurde: wie viele Tage, wie stark im Mittel, und wie
+ * viele davon mit Beschwerden. Ohne Schwelle und ohne Urteil – die Fallzahlen
+ * stehen daneben, damit man selbst sieht, ob drei Tage oder dreißig gemeint
+ * sind.
+ */
+function phasenBilanz(eintraege, tage, tagesWert) {
+  const eimer = Object.fromEntries(PHASEN.map((p) => [p.id, { tage: 0, summe: 0, mit: 0 }]));
+  const gesehen = new Set();
+  const alleTage = new Set([
+    ...Object.keys(tage || {}),
+    ...eintraege.map((e) => e.am),
+  ]);
+  alleTage.forEach((iso) => {
+    if (gesehen.has(iso)) return;
+    gesehen.add(iso);
+    const p = phaseVon(tage, iso);
+    if (!p) return;
+    const t = tagesWert(eintraege, iso, tage);
+    if (!t.notiert) return;
+    eimer[p].tage += 1;
+    eimer[p].summe += t.wert;
+    if (t.wert > 0) eimer[p].mit += 1;
+  });
+  return PHASEN
+    .filter((p) => eimer[p.id].tage > 0)
+    .map((p) => ({
+      phase: p.id,
+      name: p.name,
+      tage: eimer[p.id].tage,
+      schnitt: eimer[p.id].summe / eimer[p.id].tage,
+      anteil: eimer[p.id].mit / eimer[p.id].tage,
+    }));
+}
+
+/**
+ * Reicht das für eine Aussage?
+ *
+ * Zwei abgeschlossene Zyklen sind die Untergrenze, unter der eine Phase
+ * bestenfalls ein Zufall ist. Steht hier `false`, zeigt die App die Zahlen
+ * trotzdem – aber ohne den Satz, dass daraus etwas folgt.
+ */
+function belastbar(tage) {
+  return zyklen(tage).filter((z) => z.laenge).length >= 2;
+}
+
+/** Der Stand von heute, für die Tagesansicht. */
+function heutigerStand(tage, iso) {
+  const tag = zyklusTag(tage, iso);
+  if (!tag) return null;
+  return {
+    tag,
+    phase: phaseVon(tage, iso),
+    laenge: mittlereLaenge(tage),
+    // Nur zur Einordnung des Heute, nicht als Vorhersage: Wie weit ist der
+    // Zyklus, gemessen an der bisherigen mittleren Länge.
+    seitAnfang: plusTage(iso, -(tag - 1)),
+  };
+}
+
 /* ===== js/chart.js ===== */
 /*
  * Ein Balkendiagramm als SVG-Zeichenkette. Ohne Bibliothek, ohne Leinwand.
@@ -1199,8 +1765,9 @@ const VORGABE = {
   //   medikament  { mittel, dosis }
   //   notiz       { text }
   eintraege: [],
-  // Was für einen ganzen Tag gilt, nicht für einen Zeitpunkt:
-  // { 'YYYY-MM-DD': { stress: 0..4, schlaf: 0..4, notiz } }
+  // Was für einen ganzen Tag gilt, nicht für einen Zeitpunkt. Welche Angaben
+  // es gibt, steht in TAGESFRAGEN (js/daten.js):
+  // { 'YYYY-MM-DD': { stimmung, stress, schlaf, bewegung, blutung, sex, notiz } }
   tage: {},
   // In wie vielen Stunden nach einer Mahlzeit eine Beschwerde ihr noch
   // zugerechnet wird. Vier Stunden sind der Vorschlag, nicht das Gesetz –
@@ -1216,6 +1783,12 @@ const VORGABE = {
   ideen: [],
   eigeneAusloeser: [],   // [{ id: 'x:...', name }]
   zuletztMittel: [],     // zuletzt eingetragene Medikamente, als Vorschlag
+  // Welche Tagesfragen erscheinen. Im Auslieferungszustand alle – wer eine
+  // davon nicht beantworten will, schaltet sie unter Mehr ab.
+  tagesfragen: ['stimmung', 'stress', 'schlaf', 'bewegung', 'blutung', 'sex'],
+  atemUebung: '478',     // zuletzt gewählte Atemübung
+  atemRunden: null,      // eigene Rundenzahl; null = Vorschlag der Übung
+  ton: true,             // Ton bei der Atemübung – der einzige der App
   theme: 'rosa',
   begruesst: false,
   tab: 'heute',
@@ -1440,20 +2013,19 @@ function letzterZeitpunkt() {
 /* ---------- Tagesangaben ---------- */
 
 function tagLesen(iso) {
-  return zustand.tage[iso] || { stress: null, schlaf: null, notiz: '' };
+  return zustand.tage[iso] || {};
 }
 
 function tagSetzen(iso, patch) {
-  const vorher = tagLesen(iso);
-  const neu = { ...vorher, ...patch };
+  const neu = { ...tagLesen(iso), ...patch };
   // Einen leeren Tag gar nicht erst anlegen: Sonst wächst `tage` mit jedem
   // angetippten und wieder abgewählten Regler, und die Sicherung füllt sich
-  // mit Zeilen, die nichts aussagen.
-  if (neu.stress === null && neu.schlaf === null && !String(neu.notiz || '').trim()) {
-    delete zustand.tage[iso];
-  } else {
-    zustand.tage[iso] = neu;
-  }
+  // mit Zeilen, die nichts aussagen. Geprüft wird über alle Felder, nicht über
+  // eine feste Liste – sonst hinterlässt jede neue Tagesfrage leere Tage.
+  const leer = Object.values(neu).every((v) => v === null || v === undefined
+    || v === '' || (typeof v === 'string' && !v.trim()));
+  if (leer) delete zustand.tage[iso];
+  else zustand.tage[iso] = neu;
   merke();
   melde();
 }
@@ -1782,6 +2354,93 @@ function rollenBilanz(eintraege, id, fensterStunden) {
   return raus.sort((a, b) => b.schnitt - a.schnitt);
 }
 
+/* ---------- Die übrigen Faktoren ---------- */
+
+/**
+ * Wie viele Stunden vor einer Beschwerde zuletzt gegessen wurde.
+ *
+ * `null`, wenn an dem Tag und dem davor gar nichts eingetragen ist – dann ist
+ * die Angabe nicht „lange her", sondern unbekannt, und das sind zwei
+ * verschiedene Dinge.
+ */
+function stundenSeitEssen(eintraege, beschwerde) {
+  const t = zeitpunkt(beschwerde.am, beschwerde.um);
+  let letzte = null;
+  eintraege.filter((e) => e.art === 'essen').forEach((e) => {
+    const te = zeitpunkt(e.am, e.um);
+    if (te < t && (letzte === null || te > letzte)) letzte = te;
+  });
+  if (letzte === null) return null;
+  const std = stundenDazwischen(letzte, t);
+  return std <= 24 ? std : null;
+}
+
+/**
+ * Kommen die Beschwerden nach dem Essen oder nüchtern?
+ *
+ * Das ist die erste Frage, die im Sprechzimmer gestellt wird, und die
+ * schwerste aus dem Kopf zu beantworten. Aus dem Tagebuch fällt sie ab.
+ */
+function essensbezug(eintraege, nahStunden = 2, fernStunden = 4) {
+  const beschwerden = eintraege.filter((e) => e.art === 'beschwerde');
+  let nah = 0;
+  let fern = 0;
+  let unbekannt = 0;
+  beschwerden.forEach((b) => {
+    const std = stundenSeitEssen(eintraege, b);
+    if (std === null) unbekannt += 1;
+    else if (std <= nahStunden) nah += 1;
+    else if (std >= fernStunden) fern += 1;
+  });
+  const bewertbar = nah + fern;
+  return {
+    gesamt: beschwerden.length,
+    nachDemEssen: nah,
+    nuechtern: fern,
+    unbekannt,
+    anteilNachDemEssen: bewertbar ? nah / bewertbar : 0,
+    anteilNuechtern: bewertbar ? fern / bewertbar : 0,
+    bewertbar,
+  };
+}
+
+/**
+ * Ein Tagesfaktor gegen die Beschwerdestärke: Tage mit viel gegen Tage mit
+ * wenig davon.
+ *
+ * Dieselbe Logik wie bei den Auslösern und aus demselben Grund: Verglichen
+ * wird gegen den eigenen Alltag, nicht gegen null. Wer an jedem zweiten Tag
+ * angespannt ist, hätte sonst „Anspannung" als Dauerbefund.
+ */
+function faktorBilanz(eintraege, tage, frageId, tagesWertFn) {
+  const hoch = [];
+  const niedrig = [];
+  Object.keys(tage || {}).forEach((iso) => {
+    const wert = tage[iso] ? tage[iso][frageId] : null;
+    if (wert === null || wert === undefined) return;
+    const t = tagesWertFn(eintraege, iso, tage);
+    if (!t.notiert) return;
+    if (Number(wert) >= 3) hoch.push(t.wert);
+    else if (Number(wert) <= 1) niedrig.push(t.wert);
+  });
+  const schnitt = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+  return {
+    id: frageId,
+    hoch: { tage: hoch.length, schnitt: schnitt(hoch) },
+    niedrig: { tage: niedrig.length, schnitt: schnitt(niedrig) },
+    differenz: schnitt(hoch) - schnitt(niedrig),
+    genug: hoch.length >= 4 && niedrig.length >= 4,
+  };
+}
+
+/** Wie oft eine Beschwerdeart unter allen Beschwerden vorkommt, als Anteil. */
+function artAnteil(eintraege, arten) {
+  const alle = eintraege.filter((e) => e.art === 'beschwerde');
+  if (!alle.length) return { anteil: 0, anzahl: 0, gesamt: 0 };
+  const treffer = alle.filter((e) => (e.arten || []).some((a) => arten.includes(a)));
+  return { anteil: treffer.length / alle.length, anzahl: treffer.length, gesamt: alle.length };
+}
+
 /* ---------- Was oft vorkommt ---------- */
 
 /**
@@ -1927,6 +2586,730 @@ function gesamtZahlen(eintraege, tage, von, bis) {
   };
 }
 
+/* ===== js/bild.js ===== */
+/*
+ * Das Bild: so weit Richtung Diagnose, wie ein Tagebuch ehrlich kommt.
+ *
+ * Diese Datei sagt nicht, was jemand hat. Sie sagt, wonach das aussieht, was
+ * er eingetragen hat – und zwar in den Begriffen, die in einer Praxis benutzt
+ * werden, damit das Gespräch dort nicht bei null anfängt.
+ *
+ * Warum nicht weiter? Weil weiter geraten wäre. Gastritis, Magengeschwür,
+ * Refluxkrankheit, funktionelle Dyspepsie und ein Reizdarm machen im Tagebuch
+ * teils dasselbe Bild. Auseinander hält sie eine Magenspiegelung, ein Test auf
+ * Helicobacter, ein Blutbild, ein Atemtest – Dinge, die man nicht eintippen
+ * kann. Eine App, die sich trotzdem für eine entscheidet, nimmt der
+ * Untersuchung ihre Frage weg und der Nutzerin die Möglichkeit zu merken, dass
+ * es etwas anderes ist.
+ *
+ * Was hier deshalb steht, ist dreierlei:
+ *
+ *   1. **Warnzeichen.** Der einzige Teil, der wirklich dringt. Wo Blut,
+ *      Gewichtsverlust oder eine Schluckstörung im Tagebuch stehen, gehört ein
+ *      klarer Satz hin und keine Statistik.
+ *   2. **Muster mit Belegen.** „Säuretypisch, in 78 % der Einträge Brennen
+ *      oder Sodbrennen, davon 12 von 15 nachts" – eine Beschreibung, die man
+ *      nachrechnen und vorlesen kann.
+ *   3. **Was dahinterstecken kann und was es unterscheidet.** Also welche
+ *      Untersuchung welche Frage beantwortet. Das ist die nützlichste Zeile
+ *      des ganzen Programms.
+ */
+
+
+/*
+ * ---------------------------------------------------------------------------
+ * 1. Warnzeichen
+ * ---------------------------------------------------------------------------
+ *
+ * Sie stehen als eigene Liste im Beschwerdebogen, getrennt von der Frage, wie
+ * es sich anfühlt. Ein Warnzeichen ist keine Ausprägung von „Brennen", es ist
+ * eine andere Art von Angabe – und es darf nie in einer Statistik verschwinden.
+ *
+ * `dringlichkeit`:
+ *   'sofort'  heute, notfalls über die 112 oder eine Notaufnahme
+ *   'zeitnah' in den nächsten Tagen ein Termin, nicht „irgendwann mal"
+ */
+const WARNZEICHEN = [
+  {
+    id: 'bluterbrechen',
+    name: 'Blut erbrochen oder kaffeesatzartiges Erbrechen',
+    dringlichkeit: 'sofort',
+    warum: 'Das kann eine Blutung im Magen oder in der Speiseröhre sein.',
+  },
+  {
+    id: 'teerstuhl',
+    name: 'Schwarzer, klebriger Stuhl',
+    dringlichkeit: 'sofort',
+    warum: 'Schwarzer Stuhl kann verdautes Blut sein. (Eisentabletten, Heidelbeeren '
+      + 'und Bismut färben ihn ebenfalls dunkel – das gehört dazugesagt, aber '
+      + 'geklärt wird das dort und nicht hier.)',
+  },
+  {
+    id: 'ausstrahlung',
+    name: 'Schmerz strahlt in Arm, Kiefer oder Rücken aus, mit Luftnot oder kaltem Schweiß',
+    dringlichkeit: 'sofort',
+    warum: 'Beschwerden in der Magengegend können vom Herzen kommen, besonders '
+      + 'bei Frauen. Das ist der eine Fall, in dem Abwarten teuer wird.',
+  },
+  {
+    id: 'blutstuhl',
+    name: 'Frisches Blut im Stuhl',
+    dringlichkeit: 'zeitnah',
+    warum: 'Gehört abgeklärt, auch wenn Hämorrhoiden die häufigste Ursache sind.',
+  },
+  {
+    id: 'schlucken',
+    name: 'Schluckstörung, Essen bleibt stecken',
+    dringlichkeit: 'zeitnah',
+    warum: 'Eine Enge in der Speiseröhre wird nicht von selbst besser.',
+  },
+  {
+    id: 'gewicht',
+    name: 'Ungewollter Gewichtsverlust',
+    dringlichkeit: 'zeitnah',
+    warum: 'Abnehmen, ohne es zu wollen, ist immer eine eigene Frage wert.',
+  },
+  {
+    id: 'erbrechen',
+    name: 'Anhaltendes Erbrechen',
+    dringlichkeit: 'zeitnah',
+    warum: 'Länger als ein, zwei Tage: Es geht dabei auch Flüssigkeit verloren.',
+  },
+  {
+    id: 'nachtschmerz',
+    name: 'Schmerz weckt nachts auf',
+    dringlichkeit: 'zeitnah',
+    warum: 'Beschwerden, die aus dem Schlaf reißen, unterscheiden sich von '
+      + 'solchen, die tagsüber kommen und gehen.',
+  },
+  {
+    id: 'blaesse',
+    name: 'Auffällige Blässe, Schwäche oder Luftnot bei Anstrengung',
+    dringlichkeit: 'zeitnah',
+    warum: 'Zeichen, die zu einer Blutarmut passen – ein Blutbild klärt das in '
+      + 'einer Viertelstunde.',
+  },
+  {
+    id: 'fieber',
+    name: 'Fieber dazu',
+    dringlichkeit: 'zeitnah',
+    warum: 'Fieber gehört nicht zu einer gereizten Magenschleimhaut.',
+  },
+];
+
+const WARN_MAP = Object.fromEntries(WARNZEICHEN.map((w) => [w.id, w]));
+
+function warnzeichenVon(id) {
+  return WARN_MAP[id] || null;
+}
+
+/**
+ * Welche Warnzeichen im Tagebuch stehen – mit Datum und Häufigkeit.
+ *
+ * Ohne Zeitgrenze und ohne Schwelle: Ein einziges Mal Blut erbrochen ist ein
+ * einziges Mal zu viel, und ein Eintrag von vor drei Monaten, der nie
+ * abgeklärt wurde, ist keine alte Nachricht.
+ */
+function warnungen(eintraege) {
+  const zaehler = new Map();
+  eintraege.filter((e) => e.art === 'beschwerde').forEach((e) => {
+    (e.warnzeichen || []).forEach((id) => {
+      const w = WARN_MAP[id];
+      if (!w) return;
+      const v = zaehler.get(id) || { ...w, anzahl: 0, zuerst: e.am, zuletzt: e.am };
+      v.anzahl += 1;
+      if (e.am < v.zuerst) v.zuerst = e.am;
+      if (e.am > v.zuletzt) v.zuletzt = e.am;
+      zaehler.set(id, v);
+    });
+  });
+  // Das Dringende zuerst, sonst nach Häufigkeit.
+  const rang = { sofort: 0, zeitnah: 1 };
+  return [...zaehler.values()]
+    .sort((a, b) => (rang[a.dringlichkeit] - rang[b.dringlichkeit]) || (b.anzahl - a.anzahl));
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * 2. Die Muster
+ * ---------------------------------------------------------------------------
+ *
+ * Jedes Muster prüft ein paar Bedingungen an den eigenen Daten. Jede erfüllte
+ * Bedingung bringt Punkte *und* einen Beleg im Klartext – ein Punktestand ohne
+ * Begründung wäre ein Orakel. Angezeigt wird nur, was mindestens zwei Belege
+ * hat: Ein einzelner Treffer ist noch kein Bild.
+ */
+
+const SAEURE_ARTEN = ['brennen', 'sodbrennen', 'aufstossen'];
+const FUELLE_ARTEN = ['druck', 'uebelkeit', 'appetit'];
+const DARM_ARTEN = ['blaehung', 'krampf'];
+
+const pz = (x) => `${Math.round(x * 100)} %`;
+
+function musterSaeure(d) {
+  const belege = [];
+  let punkte = 0;
+  const a = artAnteil(d.eintraege, SAEURE_ARTEN);
+  if (a.gesamt >= 5 && a.anteil >= 0.5) {
+    punkte += 2;
+    belege.push(`In ${a.anzahl} von ${a.gesamt} Eintragungen ging es um Brennen, `
+      + `Sodbrennen oder Aufstoßen (${pz(a.anteil)}).`);
+  }
+  const nacht = d.zeiten.find((z) => z.id === 'nacht');
+  const abend = d.zeiten.find((z) => z.id === 'abend');
+  const spaet = (nacht ? nacht.anzahl : 0) + (abend ? abend.anzahl : 0);
+  const gesamtZeiten = d.zeiten.reduce((s, z) => s + z.anzahl, 0);
+  if (gesamtZeiten >= 5 && spaet / gesamtZeiten >= 0.4) {
+    punkte += 1;
+    belege.push(`${spaet} von ${gesamtZeiten} Beschwerden traten abends oder nachts auf.`);
+  }
+  const spaetEssen = d.bilanz.find((b) => b.id === 'spaet');
+  if (spaetEssen && spaetEssen.genug && spaetEssen.differenz >= 1) {
+    punkte += 1;
+    belege.push('Nach spätem Essen war es im Mittel deutlich schlechter als sonst.');
+  }
+  return { punkte, belege };
+}
+
+function musterFuelle(d) {
+  const belege = [];
+  let punkte = 0;
+  const a = artAnteil(d.eintraege, FUELLE_ARTEN);
+  if (a.gesamt >= 5 && a.anteil >= 0.5) {
+    punkte += 2;
+    belege.push(`In ${a.anzahl} von ${a.gesamt} Eintragungen ging es um Völlegefühl, `
+      + `Übelkeit oder fehlenden Appetit (${pz(a.anteil)}).`);
+  }
+  if (d.essen.bewertbar >= 8 && d.essen.anteilNachDemEssen >= 0.6) {
+    punkte += 2;
+    belege.push(`${d.essen.nachDemEssen} von ${d.essen.bewertbar} zuordenbaren `
+      + `Beschwerden kamen innerhalb von zwei Stunden nach dem Essen.`);
+  }
+  const gross = d.bilanz.find((b) => b.id === 'gross');
+  if (gross && gross.genug && gross.differenz >= 1) {
+    punkte += 1;
+    belege.push('Nach großen Portionen war es im Mittel schlechter als nach kleinen.');
+  }
+  return { punkte, belege };
+}
+
+function musterNuechtern(d) {
+  const belege = [];
+  let punkte = 0;
+  if (d.essen.bewertbar >= 8 && d.essen.anteilNuechtern >= 0.5) {
+    // Höher gewichtet als die anderen Muster, und das mit Absicht: „Brennen"
+    // haben fast alle, aber *wann* es kommt, ist die spezifische Angabe. Sie
+    // trennt den Nüchternschmerz vom Völlegefühl nach dem Essen – und das sind
+    // zwei verschiedene Sprechstunden.
+    punkte += 4;
+    belege.push(`${d.essen.nuechtern} von ${d.essen.bewertbar} zuordenbaren `
+      + `Beschwerden kamen erst vier Stunden oder länger nach der letzten Mahlzeit.`);
+    // Die Gegenprobe gehört dazu: Dass es *nicht* nach dem Essen kommt, ist
+    // hier der halbe Befund, und ohne ihn stünde die Aussage auf einem Bein.
+    punkte += 1;
+    belege.push(`Nur ${d.essen.nachDemEssen} davon kamen innerhalb von zwei `
+      + `Stunden nach einer Mahlzeit.`);
+  }
+  const nacht = d.zeiten.find((z) => z.id === 'nacht');
+  if (nacht && nacht.anzahl >= 3) {
+    punkte += 1;
+    belege.push(`${nacht.anzahl}-mal traten Beschwerden nachts auf.`);
+  }
+  return { punkte, belege };
+}
+
+function musterDarm(d) {
+  const belege = [];
+  let punkte = 0;
+  const a = artAnteil(d.eintraege, DARM_ARTEN);
+  if (a.gesamt >= 5 && a.anteil >= 0.4) {
+    punkte += 2;
+    belege.push(`In ${a.anzahl} von ${a.gesamt} Eintragungen ging es um Blähungen `
+      + `oder Krämpfe (${pz(a.anteil)}).`);
+  }
+  ['huelsen', 'milch', 'rohkost', 'vollkorn'].forEach((id) => {
+    const b = d.bilanz.find((x) => x.id === id);
+    if (b && b.genug && b.differenz >= 1) {
+      punkte += 1;
+      belege.push(`Auffällig nach Mahlzeiten mit ${d.name(id)} `
+        + `(${b.faelle} Mahlzeiten damit, ${b.gegenFaelle} ohne).`);
+    }
+  });
+  return { punkte, belege };
+}
+
+function musterNsar(d) {
+  const belege = [];
+  let punkte = 0;
+  if (d.nsarTage >= 3) {
+    punkte += 3;
+    belege.push(`An ${d.nsarTage} Tagen wurde ein entzündungshemmendes `
+      + `Schmerzmittel eingetragen (Ibuprofen, Diclofenac, ASS oder ähnlich).`);
+    if (d.nsarSchnitt > d.schnittGesamt + 0.5) {
+      punkte += 1;
+      belege.push(`An diesen Tagen lag die Beschwerdestärke bei `
+        + `${d.nsarSchnitt.toFixed(1).replace('.', ',')} statt `
+        + `${d.schnittGesamt.toFixed(1).replace('.', ',')}.`);
+    }
+  }
+  return { punkte, belege };
+}
+
+function musterStress(d) {
+  const belege = [];
+  let punkte = 0;
+  [['stress', 'Anspannung'], ['schlaf', 'schlechtem Schlaf'], ['stimmung', 'gedrückter Stimmung']]
+    .forEach(([id, wort]) => {
+      const f = d.faktoren[id];
+      if (f && f.genug && f.differenz >= 1) {
+        punkte += 2;
+        belege.push(`An Tagen mit ${wort} lag die Beschwerdestärke bei `
+          + `${f.hoch.schnitt.toFixed(1).replace('.', ',')} statt `
+          + `${f.niedrig.schnitt.toFixed(1).replace('.', ',')} `
+          + `(${f.hoch.tage} gegen ${f.niedrig.tage} Tage).`);
+      }
+    });
+  return { punkte, belege };
+}
+
+function musterZyklus(d) {
+  const belege = [];
+  let punkte = 0;
+  if (!d.zyklusBelastbar || d.phasen.length < 2) return { punkte, belege };
+  const sortiert = [...d.phasen].sort((a, b) => b.schnitt - a.schnitt);
+  const hoch = sortiert[0];
+  const tief = sortiert[sortiert.length - 1];
+  if (hoch.schnitt - tief.schnitt >= 1.5 && hoch.tage >= 4 && tief.tage >= 4) {
+    punkte += 3;
+    belege.push(`In der Phase „${hoch.name}" lag die Beschwerdestärke bei `
+      + `${hoch.schnitt.toFixed(1).replace('.', ',')} (${hoch.tage} Tage), `
+      + `in der Phase „${tief.name}" bei ${tief.schnitt.toFixed(1).replace('.', ',')} `
+      + `(${tief.tage} Tage).`);
+  }
+  return { punkte, belege };
+}
+
+/**
+ * Die Muster mit dem, was dahinterstecken kann – und, das ist die eigentliche
+ * Auskunft, womit sich das eine vom anderen unterscheiden lässt.
+ */
+const MUSTER = [
+  {
+    id: 'saeure',
+    name: 'Säuretypisches Bild',
+    satz: 'Brennen, Sodbrennen und Aufstoßen stehen im Vordergrund, oft abends '
+      + 'oder im Liegen.',
+    pruefe: musterSaeure,
+    ursachen: [
+      { name: 'Refluxkrankheit', klaerung: 'Spiegelung der Speiseröhre; oft wird zuerst probeweise ein Säureblocker gegeben und geschaut, ob es besser wird.' },
+      { name: 'Gastritis', klaerung: 'Magenspiegelung mit Gewebeprobe – nur die zeigt, ob und welche Entzündung da ist.' },
+      { name: 'Helicobacter pylori', klaerung: 'Atemtest, Stuhltest oder Probe bei der Spiegelung. Behandelbar, und dann ist es weg.' },
+    ],
+    fragen: [
+      'Wäre ein Test auf Helicobacter pylori sinnvoll?',
+      'Spricht etwas für oder gegen einen befristeten Versuch mit einem Säureblocker?',
+    ],
+  },
+  {
+    id: 'nuechtern',
+    name: 'Nüchternschmerz',
+    satz: 'Die Beschwerden kommen mit Abstand zur letzten Mahlzeit oder nachts, '
+      + 'nicht direkt nach dem Essen.',
+    pruefe: musterNuechtern,
+    ursachen: [
+      { name: 'Geschwür im Zwölffingerdarm', klaerung: 'Magenspiegelung. Der Nüchternschmerz ist dafür das klassische Muster.' },
+      { name: 'Helicobacter pylori', klaerung: 'Atem-, Stuhl- oder Gewebetest – häufigste Ursache eines solchen Geschwürs.' },
+      { name: 'Übersäuerung ohne Geschwür', klaerung: 'Bleibt übrig, wenn die Spiegelung unauffällig ist.' },
+    ],
+    fragen: [
+      'Der Schmerz kommt nüchtern und bessert sich nach dem Essen – wie wird das eingeordnet?',
+      'Ist eine Magenspiegelung angezeigt?',
+    ],
+  },
+  {
+    id: 'fuelle',
+    name: 'Völlegefühl nach dem Essen',
+    satz: 'Druck, frühes Sattsein und Übelkeit, vor allem in den zwei Stunden '
+      + 'nach einer Mahlzeit.',
+    pruefe: musterFuelle,
+    ursachen: [
+      { name: 'Funktionelle Dyspepsie', klaerung: 'Die Diagnose, die bleibt, wenn die Spiegelung nichts zeigt – häufig und behandelbar, nur anders.' },
+      { name: 'Verzögerte Magenentleerung', klaerung: 'Szintigrafie oder Atemtest; kommt unter anderem bei langjährigem Diabetes vor.' },
+      { name: 'Gastritis', klaerung: 'Magenspiegelung mit Gewebeprobe.' },
+    ],
+    fragen: [
+      'Passt das Bild eher zu einer funktionellen Störung oder steckt etwas dahinter?',
+      'Wären kleinere, häufigere Mahlzeiten hier der richtige Ansatz?',
+    ],
+  },
+  {
+    id: 'darm',
+    name: 'Darmbetontes Bild',
+    satz: 'Blähungen und Krämpfe stehen im Vordergrund, oft nach bestimmten '
+      + 'Kohlenhydraten.',
+    pruefe: musterDarm,
+    ursachen: [
+      { name: 'Reizdarmsyndrom', klaerung: 'Diagnose nach Ausschluss; die Auslöserliste aus diesem Tagebuch ist dafür brauchbares Material.' },
+      { name: 'Laktose- oder Fruktoseunverträglichkeit', klaerung: 'H2-Atemtest, dauert einen Vormittag.' },
+      { name: 'Zöliakie', klaerung: 'Bluttest auf Antikörper – wichtig: solange noch Gluten gegessen wird, sonst ist er falsch negativ.' },
+    ],
+    fragen: [
+      'Wäre ein Atemtest auf Laktose oder Fruktose sinnvoll?',
+      'Ist Zöliakie schon einmal ausgeschlossen worden?',
+    ],
+  },
+  {
+    id: 'nsar',
+    name: 'Zusammenhang mit Schmerzmitteln',
+    satz: 'Im Tagebuch stehen entzündungshemmende Schmerzmittel – die häufigste '
+      + 'vermeidbare Ursache einer gereizten Magenschleimhaut.',
+    pruefe: musterNsar,
+    ursachen: [
+      { name: 'NSAR-bedingte Magenschleimhautschädigung', klaerung: 'Auslassversuch unter ärztlicher Begleitung; bei anhaltenden Beschwerden Spiegelung.' },
+    ],
+    fragen: [
+      'Ich nehme regelmäßig ein entzündungshemmendes Schmerzmittel – gibt es dafür eine magenfreundlichere Alternative?',
+      'Wenn es dabei bleiben muss: Ist ein Magenschutz angezeigt?',
+    ],
+  },
+  {
+    id: 'zyklus',
+    name: 'Zyklusgebundenes Bild',
+    satz: 'Die Beschwerden schwanken deutlich mit dem Zyklus.',
+    pruefe: musterZyklus,
+    ursachen: [
+      { name: 'Zyklusabhängige Verdauungsbeschwerden', klaerung: 'Häufig und für sich genommen harmlos – die Hormonschwankung wirkt auf den Darm.' },
+      { name: 'Endometriose', klaerung: 'Kommt in Frage, wenn dazu starke Regelschmerzen, Schmerzen beim Sex oder zyklische Darmbeschwerden gehören. Wird oft jahrelang übersehen; abgeklärt wird sie gynäkologisch.' },
+    ],
+    fragen: [
+      'Meine Beschwerden folgen dem Zyklus – kann das zusammenhängen?',
+      'Wäre eine gynäkologische Abklärung sinnvoll?',
+    ],
+  },
+  {
+    id: 'stress',
+    name: 'Zusammenhang mit Anspannung und Schlaf',
+    satz: 'An angespannten Tagen und nach schlechten Nächten ist es messbar '
+      + 'schlechter.',
+    pruefe: musterStress,
+    ursachen: [
+      { name: 'Stressassoziierte Beschwerden', klaerung: 'Kein Ausschlussurteil und keine Einbildung: Darm und Nervensystem hängen zusammen. Entspannungsverfahren sind hier eine Behandlung, keine Beschäftigung.' },
+    ],
+    fragen: [
+      'Meine Beschwerden hängen deutlich an Anspannung – was ist da an Unterstützung möglich?',
+    ],
+  },
+];
+
+/**
+ * Das ganze Bild.
+ *
+ * @param {{eintraege, tage, fenster, mindestFaelle, bilanz, nsarNamen}} d
+ *   `bilanz` ist das Ergebnis von ausloeserBilanz(), `nsarNamen` die Prüfung,
+ *   ob ein eingetragenes Mittel ein NSAR ist – beides kommt von außen herein,
+ *   damit diese Datei nichts doppelt rechnet und nichts über die Anzeige weiß.
+ */
+function bildLesen(d) {
+  const eintraege = d.eintraege || [];
+  const tage = d.tage || {};
+
+  const tageMitBeschwerden = [...new Set(eintraege
+    .filter((e) => e.art === 'beschwerde').map((e) => e.am))];
+  const alleNotiert = [...new Set([...eintraege.map((e) => e.am), ...Object.keys(tage)])]
+    .filter((iso) => tagesWert(eintraege, iso, tage).notiert);
+  const schnittGesamt = alleNotiert.length
+    ? alleNotiert.reduce((s, iso) => s + tagesWert(eintraege, iso, tage).wert, 0) / alleNotiert.length
+    : 0;
+
+  const nsarTageListe = [...new Set(eintraege
+    .filter((e) => e.art === 'medikament' && d.istNsar(e.mittel))
+    .map((e) => e.am))];
+  const nsarSchnitt = nsarTageListe.length
+    ? nsarTageListe.reduce((s, iso) => s + tagesWert(eintraege, iso, tage).wert, 0) / nsarTageListe.length
+    : 0;
+
+  const daten = {
+    eintraege,
+    tage,
+    bilanz: d.bilanz || [],
+    name: d.name || ((id) => id),
+    zeiten: nachTageszeit(eintraege),
+    essen: essensbezug(eintraege),
+    faktoren: Object.fromEntries(['stress', 'schlaf', 'stimmung']
+      .map((id) => [id, faktorBilanz(eintraege, tage, id, tagesWert)])),
+    phasen: phasenBilanz(eintraege, tage, tagesWert),
+    zyklusBelastbar: belastbar(tage),
+    nsarTage: nsarTageListe.length,
+    nsarSchnitt,
+    schnittGesamt,
+  };
+
+  const muster = MUSTER
+    .map((m) => ({ ...m, ...m.pruefe(daten) }))
+    // Zwei Belege sind die Untergrenze. Ein einzelner Treffer ist ein Zufall,
+    // und ein Zufall, der als „Bild" ausgegeben wird, führt jemanden in die
+    // falsche Sprechstunde.
+    .filter((m) => m.belege.length >= 2)
+    .sort((a, b) => b.punkte - a.punkte);
+
+  return {
+    warnungen: warnungen(eintraege),
+    muster,
+    // Woran das alles hängt – steht in der Anzeige daneben, damit sichtbar ist,
+    // wie dünn oder dick die Grundlage ist.
+    basis: {
+      beschwerden: eintraege.filter((e) => e.art === 'beschwerde').length,
+      tageMitBeschwerden: tageMitBeschwerden.length,
+      notierteTage: alleNotiert.length,
+      zuordenbar: daten.essen.bewertbar,
+    },
+    fragen: [...new Set(muster.flatMap((m) => m.fragen))].slice(0, 6),
+  };
+}
+
+/** Reicht die Grundlage, damit die Einordnung überhaupt etwas bedeutet? */
+function genugFuerBild(basis) {
+  return basis.notierteTage >= 10 && basis.beschwerden >= 5;
+}
+
+/* ===== js/rat.js ===== */
+/*
+ * Vorschläge für heute – hergeleitet, nicht ausgedacht.
+ *
+ * Jeder Vorschlag trägt ein `warum`, und das ist keine Höflichkeit: Ein Rat
+ * ohne Begründung ist ein Befehl, und Befehle über das eigene Essen befolgt man
+ * entweder blind oder gar nicht. Beides ist schlecht. Steht daneben „weil es
+ * nach deinen letzten 14 Mahlzeiten mit Kaffee im Mittel schlechter war",
+ * kann man widersprechen – und genau das soll möglich sein.
+ *
+ * Zwei Quellen, sauber getrennt und in der Anzeige unterscheidbar:
+ *
+ *   'eigen'      Kommt aus ihren eigenen Eintragungen. Belastbar, soweit die
+ *                Fallzahl reicht, und die steht dabei.
+ *   'allgemein'  Kommt aus dem, was bei Magenbeschwerden üblicherweise
+ *                empfohlen wird. Gilt für einen Durchschnitt, den es nicht
+ *                gibt – deshalb immer nachrangig hinter dem eigenen Verlauf.
+ *
+ * WAS HIER NICHT VORKOMMT: welches Medikament sie nehmen soll. Diese Wahl
+ * hängt an Diagnose, anderen Medikamenten, Nieren, Leber, Schwangerschaft –
+ * nichts davon weiß diese App, und keines davon kann sie erfragen, ohne so zu
+ * tun, als wüsste sie es dann. Was stattdessen kommt: was sie selbst
+ * eingenommen hat, wann zuletzt, und die Frage dazu für den nächsten Termin.
+ */
+
+
+
+/**
+ * Was bei gereiztem Magen üblicherweise gut vertragen wird.
+ *
+ * Bewusst kurz und bewusst langweilig. Das ist keine Diät und keine
+ * Empfehlung auf Dauer – wer wochenlang nur das isst, isst zu einseitig.
+ * Gedacht für die zwei, drei Tage, an denen ohnehin nichts anderes geht.
+ */
+const SCHONKOST = [
+  'Haferbrei mit Wasser', 'Kartoffeln, gestampft', 'gedünstete Karotte oder Zucchini',
+  'Reis', 'Banane', 'mageres Geflügel oder Fisch', 'Zwieback',
+  'Kamillen- oder Fencheltee', 'stilles Wasser',
+];
+
+const rat = (id, bereich, titel, text, warum, quelle) => ({
+  id, bereich, titel, text, warum, quelle,
+});
+
+/**
+ * @param {object} d
+ *   eintraege, tage, heute (ISO), bilanz (aus ausloeserBilanz),
+ *   faktoren ({stress, schlaf, stimmung} aus faktorBilanz),
+ *   phasen (aus phasenBilanz), eigene (eigene Auslöser),
+ *   letzteMahlzeitStunden (Zahl oder null), mittel (zuletzt eingenommene)
+ */
+function raete(d) {
+  const raus = [];
+  const heuteWert = tagesWert(d.eintraege, d.heute, d.tage).wert;
+  const heuteTag = d.tage[d.heute] || {};
+  const akut = heuteWert >= 6;
+  const leicht = heuteWert > 0 && heuteWert < 6;
+
+  /* ---------- Essen ---------- */
+
+  // Was ihr eigener Verlauf hergibt, steht vor allem Allgemeinen.
+  const auffaellig = (d.bilanz || [])
+    .filter((b) => b.genug && ['auffaellig', 'moeglich'].includes(einstufung(b)))
+    .filter((b) => !['gross', 'spaet'].includes(b.id))
+    .slice(0, 3);
+
+  if (auffaellig.length) {
+    const namen = auffaellig.map((b) => ausloeserName(b.id, d.eigene)).join(', ');
+    raus.push(rat('essen-eigen', 'essen',
+      `Heute eher ohne ${namen}`,
+      'Nicht für immer streichen – nur an Tagen wie diesem einmal weglassen und '
+      + 'schauen, ob es einen Unterschied macht. Ein Auslöser, der sich in zwei '
+      + 'Wochen ohne ihn nicht bestätigt, war keiner.',
+      auffaellig.map((b) => `${ausloeserName(b.id, d.eigene)}: danach im Mittel `
+        + `${b.schnittMit.toFixed(1).replace('.', ',')} statt `
+        + `${b.schnittOhne.toFixed(1).replace('.', ',')} `
+        + `(${b.faelle} Mahlzeiten damit, ${b.gegenFaelle} ohne)`).join(' · '),
+      'eigen'));
+  }
+
+  if (akut) {
+    raus.push(rat('essen-schon', 'essen',
+      'Heute klein und mild',
+      `Mehrere kleine Portionen statt zwei großen, und dabei bleiben bei: `
+      + `${SCHONKOST.slice(0, 6).join(', ')}.`,
+      `Der heutige Wert liegt bei ${heuteWert} von 10.`,
+      'allgemein'));
+  }
+
+  const spaet = (d.bilanz || []).find((b) => b.id === 'spaet');
+  if (spaet && spaet.genug && spaet.differenz >= 1) {
+    raus.push(rat('essen-spaet', 'essen',
+      'Die letzte Mahlzeit früher legen',
+      'Zwischen dem letzten Essen und dem Hinlegen etwa drei Stunden – im Liegen '
+      + 'hat der Magen keine Schwerkraft mehr auf seiner Seite.',
+      `Nach Mahlzeiten nach 20 Uhr lag der Wert bei `
+      + `${spaet.schnittMit.toFixed(1).replace('.', ',')} statt `
+      + `${spaet.schnittOhne.toFixed(1).replace('.', ',')} (${spaet.faelle} Fälle).`,
+      'eigen'));
+  }
+
+  const gross = (d.bilanz || []).find((b) => b.id === 'gross');
+  if (gross && gross.genug && gross.differenz >= 1) {
+    raus.push(rat('essen-portion', 'essen',
+      'Lieber öfter und kleiner',
+      'Fünf kleine Mahlzeiten belasten weniger als drei große – der Magen muss '
+      + 'dann nie viel auf einmal bewegen.',
+      `Nach großen Portionen lag der Wert bei `
+      + `${gross.schnittMit.toFixed(1).replace('.', ',')} statt `
+      + `${gross.schnittOhne.toFixed(1).replace('.', ',')} (${gross.faelle} Fälle).`,
+      'eigen'));
+  }
+
+  /* ---------- Entspannung ---------- */
+
+  const stress = d.faktoren && d.faktoren.stress;
+  const heuteAngespannt = Number(heuteTag.stress) >= 3;
+  const schlechtGeschlafen = Number(heuteTag.schlaf) >= 3;
+
+  if (stress && stress.genug && stress.differenz >= 1) {
+    raus.push(rat('ruhe-eigen', 'ruhe',
+      heuteAngespannt ? 'Heute wäre eine Atemrunde dran' : 'Anspannung ist bei dir ein Faktor',
+      'Bei dir hängen Anspannung und Beschwerden messbar zusammen. Langes '
+      + 'Ausatmen schaltet auf den Teil des Nervensystems um, unter dem der Darm '
+      + 'arbeitet – unter „Ruhe" liegt 4–7–8, gut zwei Minuten.',
+      `An angespannten Tagen ${stress.hoch.schnitt.toFixed(1).replace('.', ',')} `
+      + `statt ${stress.niedrig.schnitt.toFixed(1).replace('.', ',')} `
+      + `(${stress.hoch.tage} gegen ${stress.niedrig.tage} Tage).`,
+      'eigen'));
+  } else if (heuteAngespannt || akut) {
+    raus.push(rat('ruhe-heute', 'ruhe',
+      'Zwei Minuten Atmen',
+      'Unter „Ruhe": 4–7–8 zum Runterkommen, Gleichmaß fürs Sitzen zwischendurch. '
+      + 'Mit Ton, damit die Augen zubleiben können.',
+      heuteAngespannt ? 'Du hast heute viel Anspannung eingetragen.'
+        : `Der heutige Wert liegt bei ${heuteWert} von 10.`,
+      'allgemein'));
+  }
+
+  if (schlechtGeschlafen) {
+    raus.push(rat('ruhe-schlaf', 'ruhe',
+      'Heute Abend 4–7–8 vor dem Schlafen',
+      'Die Übung ist ursprünglich fürs Einschlafen gedacht. Vier Runden im Bett, '
+      + 'Licht schon aus.',
+      'Du hast für heute schlechten Schlaf eingetragen.',
+      'allgemein'));
+  }
+
+  /* ---------- Sport ---------- */
+
+  raus.push(sportRat(d, { heuteWert, akut, leicht, heuteTag, heuteAngespannt }));
+
+  /* ---------- Medikamente: kein Rat, sondern der Stand ---------- */
+
+  if (d.mittel && d.mittel.length) {
+    raus.push(rat('mittel', 'mittel',
+      'Was du nimmst',
+      d.mittel.map((m) => `${m.name} – zuletzt ${m.zuletzt}`).join(' · ')
+      + '. Was die Mittel bewirken, steht unter „Mehr".',
+      'Diese App schlägt bewusst kein Medikament vor: Das hängt an Diagnose, '
+      + 'anderen Mitteln und Vorerkrankungen, und nichts davon weiß sie. Nimm '
+      + 'die Liste mit zum Termin.',
+      'allgemein'));
+  }
+
+  return raus.filter(Boolean);
+}
+
+/**
+ * Intensiv oder moderat?
+ *
+ * Bewegung hilft bei fast allem hier – aber nicht jede Bewegung zu jeder
+ * Stunde. Zwei Regeln sind unstrittig genug, um sie hinzuschreiben: nicht
+ * intensiv direkt nach dem Essen (im Liegen und Springen kommt hoch, was
+ * unten bleiben soll), und nicht intensiv, während es akut weh tut. Alles
+ * andere kommt aus ihrem eigenen Verlauf.
+ */
+function sportRat(d, k) {
+  const seitEssen = d.letzteMahlzeitStunden;
+  const frischGegessen = seitEssen !== null && seitEssen < 2;
+  const phase = phaseVon(d.tage, d.heute);
+  const phasenSchlecht = phase && (d.phasen || [])
+    .some((p) => p.phase === phase && p.schnitt >= 4 && p.tage >= 4);
+
+  if (k.akut) {
+    return rat('sport', 'sport', 'Heute nur spazieren',
+      'Bei einem Wert wie heute bringt intensives Training nichts und kann die '
+      + 'Beschwerden verstärken. Zwanzig Minuten gehen hilft der Verdauung '
+      + 'trotzdem.',
+      `Der heutige Wert liegt bei ${k.heuteWert} von 10.`, 'allgemein');
+  }
+  if (frischGegessen) {
+    return rat('sport', 'sport', 'Erst in zwei Stunden intensiv',
+      'Jetzt passt ein Spaziergang. Intensives Training kurz nach dem Essen '
+      + 'drückt auf den vollen Magen – danach spricht nichts dagegen.',
+      `Die letzte Mahlzeit ist ${Math.round(seitEssen * 10) / 10} Stunden her.`,
+      'allgemein');
+  }
+  if (phasenSchlecht) {
+    return rat('sport', 'sport', 'Heute eher moderat',
+      'Ausdauer in ruhigem Tempo, 30 bis 45 Minuten. In dieser Zyklusphase war '
+      + 'es bei dir bisher schwerer – das heißt nicht „gar nichts", sondern '
+      + '„nicht auf Zeit".',
+      `In der Phase „${phasenName(phase)}" lagen deine Werte höher als sonst.`,
+      'eigen');
+  }
+  if (k.heuteAngespannt) {
+    return rat('sport', 'sport', 'Moderate Ausdauer wäre heute richtig',
+      'Laufen, Rad, zügiges Gehen in einem Tempo, bei dem Reden noch geht – das '
+      + 'baut Anspannung ab, ohne neuen Stress zu machen. Intensive Intervalle '
+      + 'tun an einem angespannten Tag das Gegenteil.',
+      'Du hast heute viel Anspannung eingetragen.', 'allgemein');
+  }
+  if (k.leicht) {
+    return rat('sport', 'sport', 'Moderat spricht nichts dagegen',
+      'Bei leichten Beschwerden ist Bewegung eher hilfreich als schädlich. '
+      + 'Intensiv würde ich heute noch nicht ansetzen.',
+      `Der heutige Wert liegt bei ${k.heuteWert} von 10.`, 'allgemein');
+  }
+  return rat('sport', 'sport', 'Heute geht auch intensiv',
+    'Beschwerdefrei und ausgeruht: Wenn du intensiv trainieren willst, ist heute '
+    + 'der Tag dafür. Danach mindestens eine Stunde, bevor du dich hinlegst.',
+    k.heuteWert === 0 ? 'Heute ist bisher nichts an Beschwerden eingetragen.'
+      : 'Keine Beschwerden und keine hohe Anspannung für heute eingetragen.',
+    'allgemein');
+}
+
+const BEREICH_NAME = {
+  essen: 'Essen',
+  ruhe: 'Ruhe',
+  sport: 'Bewegung',
+  mittel: 'Medikamente',
+};
+
+const BEREICH_ICON = {
+  essen: '🍽️', ruhe: '🌬️', sport: '🚶', mittel: '💊',
+};
+
 /* ===== js/bericht.js ===== */
 /*
  * Der Ausdruck für den Arzttermin.
@@ -1943,6 +3326,9 @@ function gesamtZahlen(eintraege, tage, von, bis) {
  * Der Bericht behauptet nichts. Er zählt, und er sagt dazu, wie oft. Die
  * Einordnung macht die Praxis.
  */
+
+
+
 
 
 
@@ -1968,6 +3354,32 @@ function arztBericht(zustand, von, bis) {
   if (!z.notierteTage) {
     sag('In diesem Zeitraum wurde nichts eingetragen.');
     return zeilen.join('\n');
+  }
+
+  const bild = bildLesen({
+    eintraege: imZeitraum,
+    tage,
+    bilanz: ausloeserBilanz(imZeitraum, {
+      fenster: zustand.fenster,
+      mindestFaelle: zustand.mindestFaelle,
+      eigene: zustand.eigeneAusloeser,
+    }),
+    name: (id) => ausloeserName(id, zustand.eigeneAusloeser),
+    istNsar: (name) => {
+      const g = wissenZu(name);
+      return !!g && g.id === 'nsar';
+    },
+  });
+
+  // Warnzeichen stehen ganz oben, vor den Zahlen. Wer den Zettel in der Hand
+  // hat, soll sie sehen, bevor er zu blättern anfängt.
+  if (bild.warnungen.length) {
+    sag('!! WARNZEICHEN IM ZEITRAUM');
+    bild.warnungen.forEach((w) => {
+      sag(`  [${w.dringlichkeit === 'sofort' ? 'sofort' : 'zeitnah'}] ${w.name}`);
+      sag(`           ${mehrzahl(w.anzahl, 'Mal', 'Mal')}, zuletzt ${fmtDatum(w.zuletzt, true)}`);
+    });
+    sag();
   }
 
   sag('ÜBERSICHT');
@@ -2035,10 +3447,40 @@ function arztBericht(zustand, von, bis) {
     sag();
   }
 
+  const phasen = phasenBilanz(imZeitraum, tage, tagesWert);
+  if (phasen.length > 1) {
+    sag('NACH ZYKLUSPHASE');
+    phasen.forEach((p) => {
+      sag(`  ${p.name.padEnd(24)} ${String(p.tage).padStart(3)} Tage, `
+        + `im Mittel ${fmtZahl(p.schnitt)}`);
+    });
+    sag('  (Phasen geschätzt aus den eingetragenen Blutungstagen.)');
+    sag();
+  }
+
+  if (bild.muster.length) {
+    sag('WORAUF DAS MUSTER HINDEUTET');
+    sag('  (Beschreibung des Verlaufs, keine Diagnose – siehe unten.)');
+    bild.muster.slice(0, 2).forEach((m, i) => {
+      sag(`  ${i + 1}. ${m.name}`);
+      m.belege.forEach((x) => sag(`     - ${x}`));
+      sag(`     Abzuklären wäre: ${m.ursachen.map((u) => u.name).join(', ')}`);
+    });
+    sag();
+  }
+
+  if (bild.fragen.length) {
+    sag('FRAGEN');
+    bild.fragen.forEach((f) => sag(`  - ${f}`));
+    sag();
+  }
+
   sag('---');
   sag('Selbst geführtes Tagebuch. Die Zahlen sind gezählt, nicht gedeutet;');
   sag('„auffällig" heißt hier nur: nach diesen Mahlzeiten stand im Mittel ein');
-  sag('höherer Wert als nach den übrigen.');
+  sag('höherer Wert als nach den übrigen. Der Abschnitt zum Muster ordnet den');
+  sag('Verlauf in gebräuchliche Begriffe ein und stellt keine Diagnose – die');
+  sag('genannten Möglichkeiten unterscheidet eine Untersuchung, nicht ein Tagebuch.');
   return zeilen.join('\n');
 }
 
@@ -2069,6 +3511,7 @@ const REITER = [
   { id: 'heute', name: 'Tag', icon: '📓' },
   { id: 'verlauf', name: 'Verlauf', icon: '📅' },
   { id: 'muster', name: 'Muster', icon: '🔍' },
+  { id: 'ruhe', name: 'Ruhe', icon: '🌬️' },
   { id: 'ideen', name: 'Ideen', icon: '💡' },
   { id: 'mehr', name: 'Mehr', icon: '⚙️' },
 ];
@@ -2098,6 +3541,9 @@ const ui = {
   // Dort wäre die einzige Kopie, die es je geben wird, sonst nicht erreichbar.
   sicherung: null,
   mittel: false,    // steht die ganze Mittelübersicht offen?
+  // Die laufende Atemübung: { schritte, i, bisMs, uhr, wecker }. Nicht im
+  // Speicher – eine Übung, die beim nächsten Öffnen weiterliefe, wäre keine.
+  atem: null,
 };
 
 let toastUhr = null;
@@ -2135,15 +3581,20 @@ function skala(wert) {
   return `${raus}</div><p class="skala-wort">${STAERKE_WORT[wert] ?? ''}</p>`;
 }
 
-/** Vier Stufen für Stress und Schlaf. `null` heißt: nicht beantwortet. */
-function vierStufen(act, wert, worte) {
-  return `<div class="vier">${worte.map((w, i) => `
-    <button type="button" class="vier-btn${wert === i ? ' an' : ''}"
-            data-act="${act}" data-n="${i}" aria-pressed="${wert === i}">${w}</button>`).join('')}</div>`;
+/**
+ * Eine Tagesfrage als Reihe von Stufen. `null` heißt: nicht beantwortet.
+ *
+ * Ein zweites Tippen auf dieselbe Stufe nimmt die Antwort zurück – „ich habe
+ * nichts eingetragen" und „ich habe null eingetragen" müssen verschiedene
+ * Dinge bleiben, sonst zählt die Auswertung Nichtwissen als Wohlbefinden.
+ */
+function tagesFrage(frage, wert) {
+  return `<p class="feld-name">${esc(frage.name)}</p>
+    <div class="vier">${frage.worte.map((w, i) => `
+      <button type="button" class="vier-btn${wert === i ? ' an' : ''}"
+              data-act="tagfrage" data-id="${frage.id}" data-n="${i}"
+              aria-pressed="${wert === i}">${esc(w)}</button>`).join('')}</div>`;
 }
-
-const STRESS_WORT = ['ruhig', 'geht so', 'angespannt', 'viel', 'sehr viel'];
-const SCHLAF_WORT = ['gut', 'ok', 'mäßig', 'schlecht', 'kaum'];
 
 /* ==================== Reiter: Tag ==================== */
 
@@ -2219,15 +3670,70 @@ function tagAnsicht(s) {
       ${mehrzahl(t.anzahl, 'Beschwerde', 'Beschwerden')}${t.medikamente ? `, ${mehrzahl(t.medikamente, 'Medikament', 'Medikamente')}` : ''}</p>
   </div>` : '';
 
-  const umstaende = `<div class="karte">
+  const fragen = sichtbareFragen(s.tagesfragen);
+  const umstaende = fragen.length ? `<div class="karte">
     <h3>Wie war der Tag sonst?</h3>
-    <p class="feld-name">Anspannung</p>
-    ${vierStufen('stress', tagInfo.stress, STRESS_WORT)}
-    <p class="feld-name">Schlaf</p>
-    ${vierStufen('schlaf', tagInfo.schlaf, SCHLAF_WORT)}
-  </div>`;
+    ${fragen.map((f) => tagesFrage(f, tagInfo[f.id] === undefined ? null : tagInfo[f.id])).join('')}
+    <p class="klein">Welche Fragen hier stehen, wählst du unter „Mehr".</p>
+  </div>` : '';
 
-  return kopf + bilanz + anlegen + zeilen + umstaende;
+  const stand = heutigerStand(s.tage, iso);
+  const zyklusZeile = stand ? `<p class="klein zyklus-zeile">
+    Zyklustag ${stand.tag}${stand.phase ? ` · ${esc(phasenName(stand.phase))}` : ''}
+    ${stand.laenge ? ` · deine Zyklen dauern im Mittel ${stand.laenge} Tage` : ''}
+  </p>` : '';
+
+  return kopf + bilanz + zyklusZeile + (iso === heuteISO() ? ratKarte(s) : '')
+    + anlegen + zeilen + umstaende;
+}
+
+/**
+ * Die Vorschläge für heute.
+ *
+ * Jeder trägt sein „warum" sichtbar mit sich, und woher es kommt: aus ihrem
+ * eigenen Verlauf oder aus dem, was allgemein empfohlen wird. Ohne diese
+ * Unterscheidung wäre beides gleich viel wert, und das ist es nicht.
+ */
+function ratKarte(s) {
+  const letzteMahlzeit = [...s.eintraege].reverse().find((e) => e.art === 'essen');
+  const mittel = new Map();
+  s.eintraege.filter((e) => e.art === 'medikament').forEach((e) => {
+    const name = String(e.mittel || '').trim();
+    if (name) mittel.set(name, e.am);
+  });
+
+  const liste = raete({
+    eintraege: s.eintraege,
+    tage: s.tage,
+    heute: heuteISO(),
+    eigene: s.eigeneAusloeser,
+    bilanz: ausloeserBilanz(s.eintraege, {
+      fenster: s.fenster, mindestFaelle: s.mindestFaelle, eigene: s.eigeneAusloeser,
+    }),
+    faktoren: Object.fromEntries(['stress', 'schlaf', 'stimmung']
+      .map((id) => [id, faktorBilanz(s.eintraege, s.tage, id, tagesWert)])),
+    phasen: phasenBilanz(s.eintraege, s.tage, tagesWert),
+    letzteMahlzeitStunden: letzteMahlzeit
+      ? stundenSeitEssen(s.eintraege, { am: heuteISO(), um: jetztUhr() }) : null,
+    mittel: [...mittel.entries()].slice(-3).map(([name, am]) => ({ name, zuletzt: fmtDatum(am) })),
+  });
+
+  if (!liste.length) return '';
+  return `<div class="karte rat">
+    <h3>Für heute</h3>
+    <ul class="raete">${liste.map((r) => `<li class="rat-${r.bereich}">
+      <div class="rat-kopf">
+        <span class="rat-i" aria-hidden="true">${BEREICH_ICON[r.bereich]}</span>
+        <b>${esc(r.titel)}</b>
+        <span class="rat-quelle q-${r.quelle}">${r.quelle === 'eigen' ? 'aus deinem Verlauf' : 'allgemein'}</span>
+      </div>
+      <p>${esc(r.text)}</p>
+      <p class="klein">${esc(r.warum)}</p>
+    </li>`).join('')}</ul>
+    <p class="klein">„Aus deinem Verlauf" heißt: aus deinen eigenen Eintragungen
+    gerechnet, mit den Zahlen daneben. „Allgemein" heißt: gilt für einen
+    Durchschnitt, den es nicht gibt – dein eigener Verlauf sticht das.</p>
+  </div>`;
 }
 
 /* ==================== Reiter: Verlauf ==================== */
@@ -2305,9 +3811,13 @@ function musterAnsicht(s) {
     nicht als Ersatz dafür.</p>
   </div>`;
 
+  // Warnzeichen und Einordnung stehen *vor* dieser Abkürzung: Wer Beschwerden
+  // einträgt, aber keine Mahlzeiten, hat trotzdem ein Tagebuch – und wenn
+  // darin ein Warnzeichen steht, ist das Fehlen von Mahlzeiten der falsche
+  // Grund, es nicht anzuzeigen. Genau das war es einmal.
   if (!mahlzeiten) {
-    return `<p class="leer">Noch keine Mahlzeit eingetragen. Sobald ein paar
-      Tage beisammen sind, steht hier, was auffällt.</p>${erklaerung}`;
+    return `${bildTeil(s)}<p class="leer">Noch keine Mahlzeit eingetragen. Sobald ein paar
+      Tage beisammen sind, steht hier, was auffällt.</p>${zyklusTeil(s)}${erklaerung}`;
   }
 
   const fertig = bilanz.filter((b) => b.genug);
@@ -2368,7 +3878,131 @@ function musterAnsicht(s) {
     </li>`).join('')}</ul>
   </div>` : '';
 
-  return gefunden + wartet + wann + wie + erklaerung;
+  return bildTeil(s) + gefunden + wartet + wann + wie + zyklusTeil(s) + erklaerung;
+}
+
+/* ==================== Reiter: Ruhe ==================== */
+
+function ruheAnsicht(s) {
+  const u = uebungVon(s.atemUebung);
+  const runden = s.atemRunden || u.runden;
+  const laeuft = !!ui.atem;
+
+  // Während die Übung läuft, steht auf dem Bildschirm nichts als der Kreis und
+  // der Abbruchknopf: Wer die Augen zumacht, braucht keine Auswahl, und wer sie
+  // aufmacht, soll nicht auf Einstellungen schauen.
+  const wahl = `<div class="karte">
+    <h3>Übung</h3>
+    <div class="wahl">${UEBUNGEN.map((x) => `
+      <button type="button" class="wahl-btn${x.id === u.id ? ' an' : ''}"
+              data-act="atem-uebung" data-id="${x.id}">${esc(x.name)}</button>`).join('')}</div>
+    <p class="feld-name">${esc(u.zweck)}</p>
+    <p class="klein">${esc(u.beschreibung)}</p>
+    <p class="feld-name">Runden – etwa ${dauerText(gesamtDauer(u, runden))}</p>
+    <div class="wahl">${[2, 4, 6, 8, 10, 15].map((n) => `
+      <button type="button" class="wahl-btn${runden === n ? ' an' : ''}"
+              data-act="atem-runden" data-n="${n}">${n}</button>`).join('')}</div>
+  </div>`;
+
+  const kreis = `<div class="atem${laeuft ? ' laeuft' : ''}">
+    <div class="atem-kreis" id="atemKreis"><span id="atemZahl">${laeuft ? '' : '·'}</span></div>
+    <p class="atem-wort" id="atemWort">${laeuft ? '' : 'Bereit, wenn du bist'}</p>
+    <p class="klein" id="atemRunde">${laeuft ? '' : `${runden} Runden, ${esc(u.name)}`}</p>
+  </div>`;
+
+  return `
+  <h2>Ruhe</h2>
+  <p class="klein">Langes Ausatmen schaltet auf den Teil des Nervensystems um,
+  unter dem der Darm arbeitet statt stillzustehen. Bei Beschwerden, die an
+  Anspannung hängen, ist das eine Behandlung und keine Beschäftigung.</p>
+
+  ${kreis}
+
+  <div class="karte">
+    <div class="reihe">
+      ${laeuft
+    ? knopf('atem-stopp', 'Abbrechen', 'btn-block')
+    : knopf('atem-start', 'Anfangen', 'btn-primary btn-block')}
+    </div>
+    <p class="klein" style="margin-top:10px">Der Ton sagt dir, was dran ist:
+    aufwärts einatmen, ein kurzer Ton halten, abwärts ausatmen. Damit kannst du
+    die Augen zumachen und das Handy weglegen.
+    ${s.ton ? '' : '<b>Der Ton ist gerade aus – unter „Mehr" wieder an.</b>'}</p>
+  </div>
+
+  ${laeuft ? '' : wahl}`;
+}
+
+/* ---------- Der Ablauf ---------- */
+
+function atemZeigen(schritt, restSek) {
+  const zahl = document.getElementById('atemZahl');
+  const wort = document.getElementById('atemWort');
+  const runde = document.getElementById('atemRunde');
+  const kreis = document.getElementById('atemKreis');
+  if (!zahl || !kreis) return;
+  zahl.textContent = String(Math.max(1, Math.ceil(restSek)));
+  wort.textContent = schritt.wort;
+  runde.textContent = `Runde ${schritt.runde} von ${schritt.von}`;
+  // Der Kreis wächst über die Dauer der Phase mit. Beim Halten bleibt er,
+  // wo er ist – deshalb wird die Größe nur bei ein und aus gesetzt.
+  kreis.style.transitionDuration = `${schritt.sek}s`;
+  if (schritt.art === 'ein') kreis.style.transform = 'scale(1)';
+  else if (schritt.art === 'aus') kreis.style.transform = 'scale(0.45)';
+  kreis.dataset.art = schritt.art;
+}
+
+function atemSchritt() {
+  const a = ui.atem;
+  if (!a) return;
+  if (a.i >= a.schritte.length) { atemFertig(); return; }
+  const schritt = a.schritte[a.i];
+  a.bisMs = Date.now() + schritt.sek * 1000;
+  if (a.ton) {
+    if (schritt.art === 'ein') KLAENGE.ein();
+    else if (schritt.art === 'aus') KLAENGE.aus();
+    else KLAENGE.halten();
+  }
+  ruettel(schritt.art === 'halten' ? 30 : 60);
+  atemZeigen(schritt, schritt.sek);
+  a.wecker = setTimeout(() => { a.i += 1; atemSchritt(); }, schritt.sek * 1000);
+}
+
+function atemFertig() {
+  const a = ui.atem;
+  if (a && a.ton) KLAENGE.fertig();
+  ruettel([60, 80, 60]);
+  atemStopp();
+  melden('Geschafft.');
+}
+
+function atemStart(s) {
+  const u = uebungVon(s.atemUebung);
+  const runden = s.atemRunden || u.runden;
+  // Der Tonkontext darf erst hier entstehen: Browser lassen Audio nur nach
+  // einer Nutzergeste zu, und "Anfangen" ist diese Geste.
+  const ton = s.ton !== false && weckKlang();
+  ui.atem = { schritte: ablauf(u, runden), i: 0, ton, wecker: null, uhr: null };
+  zeichne();
+  // Erst zeichnen, dann anfangen – sonst greift der erste Schritt auf Elemente
+  // zu, die es noch nicht gibt.
+  queueMicrotask(() => {
+    if (!ui.atem) return;
+    ui.atem.uhr = setInterval(() => {
+      const a = ui.atem;
+      if (!a || a.i >= a.schritte.length) return;
+      atemZeigen(a.schritte[a.i], (a.bisMs - Date.now()) / 1000);
+    }, 200);
+    atemSchritt();
+  });
+}
+
+function atemStopp() {
+  if (!ui.atem) return;
+  clearTimeout(ui.atem.wecker);
+  clearInterval(ui.atem.uhr);
+  ui.atem = null;
+  zeichne();
 }
 
 /* ==================== Reiter: Ideen ==================== */
@@ -2420,6 +4054,103 @@ function ideenAnsicht(s) {
       </div>
     </div>`
     : '<p class="leer">Noch keine Idee eingetragen.</p>'}`;
+}
+
+/**
+ * Warnzeichen und die Einordnung – das, was am nächsten an eine Diagnose
+ * herankommt, ohne eine zu sein.
+ */
+function bildTeil(s) {
+  const b = bildLesen({
+    eintraege: s.eintraege,
+    tage: s.tage,
+    bilanz: ausloeserBilanz(s.eintraege, {
+      fenster: s.fenster, mindestFaelle: s.mindestFaelle, eigene: s.eigeneAusloeser,
+    }),
+    name: (id) => ausloeserName(id, s.eigeneAusloeser),
+    istNsar: (name) => {
+      const g = wissenZu(name);
+      return !!g && g.id === 'nsar';
+    },
+  });
+
+  // Warnzeichen stehen vor allem anderen und ohne Statistik daneben.
+  const warn = b.warnungen.length ? `<div class="karte karte-warn">
+    <h3>${b.warnungen.some((w) => w.dringlichkeit === 'sofort')
+    ? 'Das gehört heute abgeklärt' : 'Das gehört zeitnah abgeklärt'}</h3>
+    <ul class="warnliste">${b.warnungen.map((w) => `<li class="w-${w.dringlichkeit}">
+      <b>${esc(w.name)}</b>
+      <span class="zeile-tags">${esc(w.warum)}</span>
+      <span class="klein">${mehrzahl(w.anzahl, 'Mal', 'Mal')} eingetragen,
+        zuletzt ${esc(fmtDatum(w.zuletzt, true))}</span>
+    </li>`).join('')}</ul>
+    <p class="klein">Bei Blut, schwarzem Stuhl oder Schmerz mit Ausstrahlung in
+    Arm oder Kiefer nicht auf einen Termin warten – Notaufnahme oder 112.</p>
+  </div>` : '';
+
+  if (!b.muster.length) {
+    return warn + (genugFuerBild(b.basis) ? '' : `<div class="karte">
+      <h3>Einordnung</h3>
+      <p class="klein">Für eine Einordnung fehlt noch Material:
+      ${b.basis.notierteTage} notierte Tage und ${b.basis.beschwerden} Eintragungen
+      zu Beschwerden. Ab etwa zehn Tagen und fünf Eintragungen steht hier, wonach
+      das Bild aussieht.</p>
+    </div>`);
+  }
+
+  const kasten = (m, i) => `<li class="muster${i === 0 ? ' erst' : ''}">
+    <div class="muster-kopf">
+      <b>${esc(m.name)}</b>
+      ${i === 0 ? '<span class="fund-urteil">passt am ehesten</span>' : ''}
+    </div>
+    <p>${esc(m.satz)}</p>
+    <p class="feld-name">Woran das zu sehen ist</p>
+    <ul class="belege">${m.belege.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <p class="feld-name">Was dahinterstecken kann – und was es unterscheidet</p>
+    <ul class="ursachen">${m.ursachen.map((u) => `<li>
+      <b>${esc(u.name)}</b><span class="zeile-tags">${esc(u.klaerung)}</span>
+    </li>`).join('')}</ul>
+  </li>`;
+
+  return `${warn}<div class="karte">
+    <h3>Einordnung</h3>
+    <p class="klein">Das hier ist <b>keine Diagnose</b>, und zwar nicht aus
+    Vorsicht, sondern weil es keine sein kann: Gastritis, Magengeschwür,
+    Reflux, funktionelle Dyspepsie und ein Reizdarm sehen im Tagebuch teils
+    gleich aus. Auseinander hält sie eine Untersuchung. Was hier steht, ist die
+    Beschreibung deines Musters in den Worten, die in einer Praxis benutzt
+    werden – damit das Gespräch dort nicht bei null anfängt.</p>
+    <ul class="muster-liste">${b.muster.slice(0, 3).map(kasten).join('')}</ul>
+    <p class="klein">Grundlage: ${b.basis.notierteTage} notierte Tage,
+      ${b.basis.beschwerden} Eintragungen zu Beschwerden, davon
+      ${b.basis.zuordenbar} einer Mahlzeit zuzuordnen.</p>
+  </div>
+  ${b.fragen.length ? `<div class="karte">
+    <h3>Fragen für den nächsten Termin</h3>
+    <ul class="fragen">${b.fragen.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+    <p class="klein">Stehen auch im Bericht unter „Mehr".</p>
+  </div>` : ''}`;
+}
+
+/** Der Zyklus, wenn genug davon eingetragen wurde. */
+function zyklusTeil(s) {
+  const phasen = phasenBilanz(s.eintraege, s.tage, tagesWert);
+  if (!phasen.length) return '';
+  const laenge = mittlereLaenge(s.tage);
+  const spanne = schwankung(s.tage);
+  return `<div class="karte">
+    <h3>Nach Zyklusphase</h3>
+    <ul class="wartend">${phasen.map((p) => `<li>
+      <span>${esc(p.name)}</span>
+      <span class="klein">${mehrzahl(p.tage, 'Tag', 'Tage')}, im Mittel ${fmtZahl(p.schnitt)}</span>
+    </li>`).join('')}</ul>
+    <p class="klein">
+      ${laenge ? `Deine Zyklen dauern im Mittel ${laenge} Tage${spanne ? ` (${spanne.von} bis ${spanne.bis}, aus ${spanne.anzahl} Zyklen)` : ''}. ` : ''}
+      ${belastbar(s.tage) ? '' : 'Noch keine zwei abgeschlossenen Zyklen – die Zahlen stehen da, aber es folgt noch nichts daraus. '}
+      Die Phasen sind geschätzt: Die Periode kommt aus deinen Eintragungen, die
+      Mitte aus der halben Zykluslänge. <b>Nicht zur Verhütung geeignet</b> –
+      der Eisprung wird hier nicht gemessen.</p>
+  </div>`;
 }
 
 /* ==================== Reiter: Mehr ==================== */
@@ -2501,6 +4232,24 @@ function mehrAnsicht(s) {
       <input type="text" class="feld" id="neuerAusloeser" placeholder="z. B. Rotwein"
              aria-label="Name des eigenen Auslösers">
       ${knopf('ausloeser-neu', 'Hinzufügen')}
+    </div>
+  </div>
+
+  <div class="karte">
+    <h3>Welche Fragen stellt der Tag?</h3>
+    <p class="klein">Nicht jede Frage will jeder beantworten. Was hier aus ist,
+    erscheint nicht in der Tagesansicht – schon Eingetragenes bleibt erhalten
+    und wird weiter mitgerechnet.</p>
+    ${marken(TAGESFRAGEN, s.tagesfragen || [], 'frageAn')}
+  </div>
+
+  <div class="karte">
+    <h3>Ton</h3>
+    <p class="klein">Nur für die Atemübung unter „Ruhe". Sonst gibt diese App
+    keinen Laut von sich.</p>
+    <div class="wahl">
+      <button type="button" class="wahl-btn${s.ton !== false ? ' an' : ''}" data-act="ton">
+        ${s.ton !== false ? 'Ton ist an' : 'Ton ist aus'}</button>
     </div>
   </div>
 
@@ -2653,7 +4402,14 @@ function bogenHTML(s) {
       ${marken(BESCHWERDEN, e.arten || [], 'beschwerdeart')}
       <label class="feld-name" for="bogenNotiz">Notiz</label>
       <input type="text" class="feld feld-breit" id="bogenNotiz" data-act="notiz"
-             value="${esc(e.notiz || '')}" placeholder="optional" autocomplete="off">`;
+             value="${esc(e.notiz || '')}" placeholder="optional" autocomplete="off">
+      <details class="warnbogen"${(e.warnzeichen || []).length ? ' open' : ''}>
+        <summary>War etwas davon dabei?</summary>
+        <p class="klein">Selten, aber wichtig. Was hier angekreuzt wird, taucht
+        nicht in der Statistik auf, sondern ganz oben unter „Muster" – mit dem
+        Hinweis, wie eilig es ist.</p>
+        ${marken(WARNZEICHEN, e.warnzeichen || [], 'warnzeichen')}
+      </details>`;
   } else if (b.art === 'medikament') {
     const vorschlaege = [...new Set([...s.zuletztMittel, ...MITTEL_VORSCHLAEGE])].slice(0, 8);
     mitte = `
@@ -2734,7 +4490,7 @@ function male() {
   const tab = REITER.some((r) => r.id === s.tab) ? s.tab : 'heute';
   const inhalt = {
     heute: tagAnsicht, verlauf: verlaufAnsicht, muster: musterAnsicht,
-    ideen: ideenAnsicht, mehr: mehrAnsicht,
+    ruhe: ruheAnsicht, ideen: ideenAnsicht, mehr: mehrAnsicht,
   }[tab];
   viewEl.innerHTML = warnung + inhalt(s) + bogenHTML(s);
 
@@ -2877,6 +4633,10 @@ function sicherungLaden() {
 const AKTION = {
   los: () => { store.einstellen('begruesst', true); zeichne(); },
   tab: (el) => {
+    // Eine laufende Atemübung endet beim Wechseln. Sie im Hintergrund
+    // weiterpiepsen zu lassen, während jemand im Tagebuch blättert, wäre
+    // das Gegenteil dessen, wozu sie da ist.
+    atemStopp();
     store.einstellen('tab', el.dataset.tab);
     ui.bericht = null;
     ui.sicherung = null;
@@ -2910,6 +4670,7 @@ const AKTION = {
   },
   gericht: (el) => entwurf({ was: el.dataset.text }),
   beschwerdeart: (el) => umschalten('arten', el.dataset.id),
+  warnzeichen: (el) => umschalten('warnzeichen', el.dataset.id),
   'mittel-vorschlag': (el) => entwurf({ mittel: el.dataset.id }),
 
   'tag-blaettern': (el) => {
@@ -2927,18 +4688,29 @@ const AKTION = {
   },
   zeitraum: (el) => { ui.zeitraum = Number(el.dataset.n); zeichne(); },
 
-  stress: (el) => {
+  tagfrage: (el) => {
+    const id = el.dataset.id;
     const n = Number(el.dataset.n);
-    const jetzt = store.tagLesen(ui.tag).stress;
-    store.tagSetzen(ui.tag, { stress: jetzt === n ? null : n });
+    const jetzt = store.tagLesen(ui.tag)[id];
+    store.tagSetzen(ui.tag, { [id]: jetzt === n ? null : n });
     zeichne();
   },
-  schlaf: (el) => {
-    const n = Number(el.dataset.n);
-    const jetzt = store.tagLesen(ui.tag).schlaf;
-    store.tagSetzen(ui.tag, { schlaf: jetzt === n ? null : n });
+  frageAn: (el) => {
+    const gewaehlt = store.zustandLesen().tagesfragen || [];
+    const id = el.dataset.id;
+    store.einstellen('tagesfragen', gewaehlt.includes(id)
+      ? gewaehlt.filter((x) => x !== id) : [...gewaehlt, id]);
     zeichne();
   },
+  ton: () => {
+    store.einstellen('ton', !store.zustandLesen().ton);
+    zeichne();
+  },
+
+  'atem-uebung': (el) => { store.einstellen('atemUebung', el.dataset.id); zeichne(); },
+  'atem-runden': (el) => { store.einstellen('atemRunden', Number(el.dataset.n)); zeichne(); },
+  'atem-start': () => atemStart(store.zustandLesen()),
+  'atem-stopp': atemStopp,
 
   fenster: (el) => { store.einstellen('fenster', Number(el.dataset.n)); zeichne(); },
   mindest: (el) => { store.einstellen('mindestFaelle', Number(el.dataset.n)); zeichne(); },

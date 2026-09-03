@@ -55,9 +55,16 @@ check(
   text.includes('gezählt, nicht gedeutet'),
   'und der Satz, dass hier nichts gedeutet wird',
 );
+// „Diagnose" darf vorkommen – aber nur in dem Satz, der sagt, dass keine
+// gestellt wird. Behauptet werden darf sie nirgends.
 check(
-  !/Diagnose|Ursache ist|verursacht/.test(text),
-  'nirgends ein Wort, das nach Diagnose klingt',
+  text.includes('stellt keine Diagnose'),
+  'der Bericht sagt von sich, dass er keine Diagnose stellt',
+);
+const behauptet = text.match(/Diagnose:|Diagnose lautet|Ursache ist|verursacht durch/gi) || [];
+check(
+  behauptet.length === 0,
+  `nirgends eine zugeschriebene Ursache${behauptet.length ? `: ${behauptet.join(', ')}` : ''}`,
 );
 
 /* ---------- Ein leerer Zeitraum sagt das ---------- */
