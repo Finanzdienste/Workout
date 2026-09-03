@@ -62,6 +62,41 @@ export const BESCHWERDEN = [
   { id: 'appetit', name: 'Kein Appetit', icon: '🍽️' },
 ];
 
+/*
+ * Die Rolle einer Zutat in der Mahlzeit.
+ *
+ * Statt einer Menge in Gramm. Niemand wiegt sein Abendessen, und für die
+ * Frage, um die es hier geht, ist die Waage auch gar nicht das richtige
+ * Werkzeug: Ob eine Zwiebel stört, hängt weniger an ihren Gramm als daran, ob
+ * sie die Suppe war oder drei Ringe obendrauf. Genau diesen Unterschied
+ * beschreibt die Rolle – in Worten, die man beim Eintragen ohne Nachdenken
+ * trifft.
+ *
+ * Die Reihenfolge ist die Reihenfolge im Auswahlmenü und geht von „viel" nach
+ * „wenig". `haupt` ist die Vorgabe: Wer nichts umstellt, hat damit die
+ * harmlosere Angabe *nicht* gewählt.
+ */
+export const ROLLEN = [
+  { id: 'haupt', name: 'Hauptzutat', kurz: 'Haupt', hilfe: 'Das meiste an dieser Mahlzeit' },
+  { id: 'beilage', name: 'Beilage', kurz: 'Beilage', hilfe: 'Ein ordentlicher Teil, aber nicht die Hauptsache' },
+  { id: 'topping', name: 'Topping', kurz: 'Topping', hilfe: 'Obendrauf, ein paar Löffel' },
+  { id: 'getraenk', name: 'Getränk dazu', kurz: 'Getränk', hilfe: 'Getrunken, nicht gegessen' },
+  { id: 'wuerze', name: 'Würze oder Sauce', kurz: 'Würze', hilfe: 'Nur ein Hauch davon' },
+];
+
+export const ROLLE_VORGABE = 'haupt';
+
+const ROLLEN_MAP = Object.fromEntries(ROLLEN.map((r) => [r.id, r]));
+
+export function rolleVon(id) {
+  return ROLLEN_MAP[id] || ROLLEN_MAP[ROLLE_VORGABE];
+}
+
+export function rolleName(id, kurz) {
+  const r = rolleVon(id);
+  return kurz ? r.kurz : r.name;
+}
+
 export const PORTIONEN = [
   { id: 'klein', name: 'klein' },
   { id: 'normal', name: 'normal' },

@@ -19,7 +19,7 @@ const KEY = 'bauchbuch.state.v1';
 const VORGABE = {
   // Alle Eintragungen in einer Liste, nach Zeitpunkt sortiert gehalten.
   // Ein Eintrag ist immer { id, am, um, art } plus die Felder seiner Art:
-  //   essen       { was, tags: [ausloeserId], portion: 'klein'|'normal'|'gross' }
+  //   essen       { was, zutaten: [{ id, rolle }], portion: 'klein'|'normal'|'gross' }
   //   beschwerde  { staerke: 0..10, arten: [beschwerdeId], notiz }
   //   medikament  { mittel, dosis }
   //   notiz       { text }
@@ -35,6 +35,10 @@ const VORGABE = {
   // etwas dazu sagt. Darunter ist jede Aussage Zufall, und eine App, die aus
   // zwei Fällen eine Regel macht, schadet mehr als sie nützt.
   mindestFaelle: 5,
+  // Verbesserungsvorschläge zur App selbst: [{ id, am, text, erledigt }].
+  // Bewusst neben den Eintragungen und nicht in ihnen – eine Idee ist kein
+  // Tagebucheintrag und hat in keiner Auswertung etwas zu suchen.
+  ideen: [],
   eigeneAusloeser: [],   // [{ id: 'x:...', name }]
   zuletztMittel: [],     // zuletzt eingetragene Medikamente, als Vorschlag
   theme: 'rosa',
@@ -58,11 +62,38 @@ function laden() {
     // wenn der Stand aus einer Fassung stammt, die den Schlüssel noch nicht
     // kannte. Sonst stünde die Einführung eines Tages wieder vor dem Tagebuch.
     if (!('begruesst' in gelesen) && s.eintraege.length) s.begruesst = true;
-    s.eintraege = sortiert(Array.isArray(s.eintraege) ? s.eintraege : []);
+    s.eintraege = sortiert((Array.isArray(s.eintraege) ? s.eintraege : []).map(mahlzeitFrisch));
     return s;
   } catch {
     return klon(VORGABE);
   }
+}
+
+/**
+ * Eine Mahlzeit auf den heutigen Stand bringen.
+ *
+ * Früher standen die Zutaten als bloße Liste von IDs unter `tags`. Seit sie
+ * eine Rolle tragen – Hauptzutat, Beilage, Topping … –, stehen sie unter
+ * `zutaten`. Umgerechnet wird beim Laden und beim Einlesen einer Sicherung,
+ * also an genau den zwei Stellen, an denen fremde Daten hereinkommen.
+ *
+ * Alte Eintragungen bekommen `haupt`. Das ist die einzig ehrliche Annahme:
+ * Wer damals „Zwiebel" angekreuzt hat, hat nicht gesagt, es sei nur ein Hauch
+ * gewesen – und die harmlosere Rolle nachträglich zu unterstellen, würde alte
+ * Auffälligkeiten stillschweigend kleinrechnen.
+ *
+ * `tags` fällt dabei weg, damit es die Angabe nur an einer Stelle gibt. Was an
+ * dieser Umrechnung vorbeikommt, fängt zutatenVon() in js/auswertung.js ab.
+ */
+function mahlzeitFrisch(e) {
+  if (!e || e.art !== 'essen' || Array.isArray(e.zutaten)) return e;
+  const { tags, ...rest } = e;
+  return {
+    ...rest,
+    zutaten: (Array.isArray(tags) ? tags : [])
+      .filter((id) => typeof id === 'string')
+      .map((id) => ({ id, rolle: 'haupt' })),
+  };
 }
 
 /** Nach Tag und Uhrzeit. Die Liste wird nirgends anders sortiert. */
@@ -291,6 +322,35 @@ export function mittelMerken(name) {
   merke();
 }
 
+/* ---------- Ideen zur App ---------- */
+
+export function ideeAnlegen(text) {
+  const sauber = String(text || '').trim();
+  if (!sauber) return null;
+  const neu = { id: neueId(), am: heuteISO(), text: sauber, erledigt: false };
+  zustand.ideen = [neu, ...zustand.ideen];
+  merke();
+  melde();
+  return neu.id;
+}
+
+/** Abgehakt oder wieder offen. Gelöscht wird eine Idee dadurch nicht. */
+export function ideeUmschalten(id) {
+  const i = zustand.ideen.findIndex((x) => x.id === id);
+  if (i < 0) return;
+  zustand.ideen[i] = { ...zustand.ideen[i], erledigt: !zustand.ideen[i].erledigt };
+  merke();
+  melde();
+}
+
+export function ideeLoeschen(id) {
+  const vorher = zustand.ideen.length;
+  zustand.ideen = zustand.ideen.filter((x) => x.id !== id);
+  if (zustand.ideen.length === vorher) return;
+  merke();
+  melde();
+}
+
 /* ---------- Sicherung ---------- */
 
 export function alsJSON() {
@@ -329,7 +389,9 @@ export function ausJSON(text) {
   });
   frisch.eintraege = sortiert(gelesen.eintraege.filter((e) => (
     e && typeof e === 'object' && typeof e.am === 'string' && typeof e.art === 'string'
-  )).map((e) => ({ ...e, id: e.id || neueId() })));
+  )).map((e) => mahlzeitFrisch({ ...e, id: e.id || neueId() })));
+  frisch.ideen = frisch.ideen.filter((x) => x && typeof x === 'object' && typeof x.text === 'string')
+    .map((x) => ({ ...x, id: x.id || neueId(), erledigt: !!x.erledigt }));
   if (!Number.isFinite(frisch.fenster) || frisch.fenster <= 0) frisch.fenster = VORGABE.fenster;
   zustand = frisch;
   merke();

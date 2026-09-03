@@ -29,7 +29,7 @@ OUT = ROOT / 'dist' / 'bauchbuch.html'
 
 # Reihenfolge = Abhaengigkeitsreihenfolge. Wer das aendert, merkt es hier
 # zuerst: Im Buendel gibt es keine Importe, die eine Reihenfolge erzwingen.
-MODULES = ['js/datum.js', 'js/text.js', 'js/daten.js', 'js/chart.js',
+MODULES = ['js/datum.js', 'js/text.js', 'js/daten.js', 'js/mittel.js', 'js/chart.js',
            'js/store.js', 'js/auswertung.js', 'js/bericht.js', 'js/app.js']
 
 IMPORT_RE = re.compile(r'^\s*import\s.+?;\s*$', re.MULTILINE | re.DOTALL)

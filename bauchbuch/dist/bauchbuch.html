@@ -281,6 +281,29 @@ p { margin: 0 0 8px; }
 }
 .wahl-btn.an { background: var(--accent-weich); border-color: var(--accent); }
 
+/* ---------- Zutaten mit ihrer Rolle ---------- */
+.marken-eng { margin-top: 6px; }
+.marken-eng .marke { font-size: 13px; padding: 6px 10px; min-height: 34px; color: var(--muted); }
+.zutaten { display: flex; flex-direction: column; gap: 6px; }
+.zutat {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 6px 8px 6px 12px;
+}
+.zutat-name { flex: 1; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+/* Das Menü darf schmal sein, aber nicht schmaler als sein längster Eintrag –
+   sonst steht dort "Würze oder Sa…" und die Angabe ist geraten. */
+.zutat-rolle { flex: none; min-height: 38px; padding: 6px 8px; font-size: 13px; }
+
+.rollen { list-style: none; margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid var(--line); }
+.rollen li {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-size: 13px; padding: 3px 0;
+}
+.rollen li > .klein { white-space: nowrap; }
+
 /* ---------- Kacheln und Tafel ---------- */
 .kacheln { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
 .kachel {
@@ -354,12 +377,60 @@ p { margin: 0 0 8px; }
   padding: 7px 0; border-bottom: 1px solid var(--line);
 }
 .wartend li:last-child { border-bottom: none; }
+/* Die rechte Spalte ist eine Zählung ("2 Mal", "3 von 5") und gehört in eine
+   Zeile: umgebrochen liest sie sich als zwei Angaben. */
+.wartend li > .klein { white-space: nowrap; flex: none; }
+.wartend li > span:first-child { min-width: 0; }
 
 .bericht {
   width: 100%; background: var(--bg); color: var(--text);
   border: 1px solid var(--line); border-radius: 11px; padding: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px; line-height: 1.4; margin-bottom: 8px;
+}
+
+/* ---------- Ideen ---------- */
+.ideen { list-style: none; margin: 0 0 12px; padding: 0; }
+.idee {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px; margin-bottom: 6px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 11px;
+}
+/* Erledigt heißt hier nicht "weg": Eine umgesetzte Idee soll sichtbar bleiben,
+   damit man sieht, dass etwas daraus geworden ist. */
+.idee.ab { border-left-color: var(--ok); opacity: .55; }
+.idee.ab .idee-text { text-decoration: line-through; }
+.idee-haken {
+  flex: none;
+  width: 26px; height: 26px; margin-top: 2px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg-elev-2);
+  cursor: pointer; line-height: 1; font-size: 14px;
+}
+.idee.ab .idee-haken { background: var(--ok); border-color: var(--ok); color: #1a1014; }
+.idee-text { flex: 1; font-size: 15px; overflow-wrap: anywhere; }
+
+/* ---------- Mittelübersicht ---------- */
+.mittel-liste { margin-top: 12px; }
+.mittel {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: var(--bg-elev-2);
+}
+.mittel > summary { cursor: pointer; list-style-position: outside; }
+.mittel > summary::marker { color: var(--muted); }
+.mittel[open] > summary { margin-bottom: 8px; }
+.mittel p { font-size: 14px; }
+.mittel p b { color: var(--accent); font-weight: 600; }
+.mittel-hinweis {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  margin-top: 8px;
 }
 
 /* ---------- Willkommen ---------- */
@@ -456,6 +527,7 @@ p { margin: 0 0 8px; }
   <button type="button" class="tab" id="tab-heute" data-act="tab" data-tab="heute" role="tab" aria-controls="view"><span class="ti">📓</span><span>Tag</span></button>
   <button type="button" class="tab" id="tab-verlauf" data-act="tab" data-tab="verlauf" role="tab" aria-controls="view"><span class="ti">📅</span><span>Verlauf</span></button>
   <button type="button" class="tab" id="tab-muster" data-act="tab" data-tab="muster" role="tab" aria-controls="view"><span class="ti">🔍</span><span>Muster</span></button>
+  <button type="button" class="tab" id="tab-ideen" data-act="tab" data-tab="ideen" role="tab" aria-controls="view"><span class="ti">💡</span><span>Ideen</span></button>
   <button type="button" class="tab" id="tab-mehr" data-act="tab" data-tab="mehr" role="tab" aria-controls="view"><span class="ti">⚙️</span><span>Mehr</span></button>
 </nav>
 
@@ -718,6 +790,41 @@ const BESCHWERDEN = [
   { id: 'appetit', name: 'Kein Appetit', icon: '🍽️' },
 ];
 
+/*
+ * Die Rolle einer Zutat in der Mahlzeit.
+ *
+ * Statt einer Menge in Gramm. Niemand wiegt sein Abendessen, und für die
+ * Frage, um die es hier geht, ist die Waage auch gar nicht das richtige
+ * Werkzeug: Ob eine Zwiebel stört, hängt weniger an ihren Gramm als daran, ob
+ * sie die Suppe war oder drei Ringe obendrauf. Genau diesen Unterschied
+ * beschreibt die Rolle – in Worten, die man beim Eintragen ohne Nachdenken
+ * trifft.
+ *
+ * Die Reihenfolge ist die Reihenfolge im Auswahlmenü und geht von „viel" nach
+ * „wenig". `haupt` ist die Vorgabe: Wer nichts umstellt, hat damit die
+ * harmlosere Angabe *nicht* gewählt.
+ */
+const ROLLEN = [
+  { id: 'haupt', name: 'Hauptzutat', kurz: 'Haupt', hilfe: 'Das meiste an dieser Mahlzeit' },
+  { id: 'beilage', name: 'Beilage', kurz: 'Beilage', hilfe: 'Ein ordentlicher Teil, aber nicht die Hauptsache' },
+  { id: 'topping', name: 'Topping', kurz: 'Topping', hilfe: 'Obendrauf, ein paar Löffel' },
+  { id: 'getraenk', name: 'Getränk dazu', kurz: 'Getränk', hilfe: 'Getrunken, nicht gegessen' },
+  { id: 'wuerze', name: 'Würze oder Sauce', kurz: 'Würze', hilfe: 'Nur ein Hauch davon' },
+];
+
+const ROLLE_VORGABE = 'haupt';
+
+const ROLLEN_MAP = Object.fromEntries(ROLLEN.map((r) => [r.id, r]));
+
+function rolleVon(id) {
+  return ROLLEN_MAP[id] || ROLLEN_MAP[ROLLE_VORGABE];
+}
+
+function rolleName(id, kurz) {
+  const r = rolleVon(id);
+  return kurz ? r.kurz : r.name;
+}
+
 const PORTIONEN = [
   { id: 'klein', name: 'klein' },
   { id: 'normal', name: 'normal' },
@@ -777,6 +884,212 @@ function eigeneId(name) {
     .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   return `x:${rumpf || 'eigen'}`;
+}
+
+/* ===== js/mittel.js ===== */
+/*
+ * Was die Mittel bewirken – eine Übersicht, kein Rat.
+ *
+ * Wer Magenbeschwerden hat, hat bald mehrere Schachteln im Schrank, und die
+ * Beipackzettel beantworten selten die Frage, die man wirklich hat: Was macht
+ * das eigentlich, und warum soll ich es ausgerechnet vor dem Frühstück nehmen?
+ * Genau dafür steht das hier – in ganzen Sätzen, nicht in Fachsprache.
+ *
+ * Drei Regeln, an die sich dieser Text hält:
+ *
+ *   1. **Keine Dosierungen.** Was jemand nimmt und wie viel, steht auf seiner
+ *      Packung und ist mit einer Ärztin besprochen. Eine App, die hier eine
+ *      Zahl hinschreibt, macht sich zu etwas, das sie nicht ist.
+ *   2. **Keine Empfehlung.** Nirgends steht „nimm", nirgends „hilft gegen".
+ *      Beschrieben wird, wie ein Wirkstoff arbeitet – ob er für einen
+ *      bestimmten Menschen der richtige ist, weiß diese App nicht und kann
+ *      es nicht wissen.
+ *   3. **Was schadet, steht mit dabei.** Eine Übersicht über Magenmittel, in
+ *      der die Schmerzmittel fehlen, die den Magen erst reizen, ist die
+ *      halbe Wahrheit – und die gefährlichere Hälfte. Siehe REIZSTOFFE.
+ *
+ * Reine Daten, keine Abhängigkeiten.
+ */
+
+const MITTEL_WISSEN = [
+  {
+    id: 'ppi',
+    gruppe: 'Protonenpumpenhemmer',
+    kuerzel: 'PPI',
+    beispiele: ['Pantoprazol', 'Omeprazol', 'Esomeprazol', 'Lansoprazol', 'Rabeprazol'],
+    kurz: 'Drosselt die Säurebildung, damit die Schleimhaut zur Ruhe kommt.',
+    wirkung: 'Blockiert die Pumpen in der Magenwand, an denen die Säure entsteht. '
+      + 'Es wird also nicht neutralisiert, was schon da ist – es kommt weniger nach. '
+      + 'Deshalb ist die volle Wirkung erst nach ein bis vier Tagen da, und deshalb '
+      + 'hilft eine einzelne Tablette gegen akutes Brennen kaum.',
+    einnahme: 'Üblicherweise morgens auf nüchternen Magen, eine halbe bis eine Stunde '
+      + 'vor dem Frühstück. Hemmen lassen sich nur Pumpen, die gerade arbeiten – und '
+      + 'das tun sie zur ersten Mahlzeit.',
+    hinweis: 'Nach längerer Einnahme nicht von einem Tag auf den anderen weglassen: '
+      + 'Der Magen antwortet dann vorübergehend mit mehr Säure als vorher, und das '
+      + 'fühlt sich an wie ein Rückfall. Das Ausschleichen gehört besprochen. Bei '
+      + 'monatelanger Einnahme wird gelegentlich auf Magnesium, Vitamin B12 und '
+      + 'Eisen geschaut.',
+  },
+  {
+    id: 'h2',
+    gruppe: 'H2-Blocker',
+    beispiele: ['Famotidin', 'Cimetidin'],
+    kurz: 'Drosselt die Säure auch, schwächer als ein PPI, aber schneller.',
+    wirkung: 'Setzt eine Stufe früher an als der PPI: Er besetzt den Schalter '
+      + '(den Histamin-H2-Rezeptor), über den die Säurebildung angeregt wird. '
+      + 'Wirkt innerhalb einer Stunde, dafür weniger stark.',
+    einnahme: 'Oft abends, weil er die nächtliche Säure gut abfängt.',
+    hinweis: 'Bei täglicher Einnahme lässt die Wirkung nach einigen Tagen nach – '
+      + 'der Körper gewöhnt sich daran. Ranitidin, das früher hierher gehörte, ist '
+      + 'seit 2020 vom Markt.',
+  },
+  {
+    id: 'antazida',
+    gruppe: 'Antazida',
+    beispiele: ['Magaldrat', 'Hydrotalcit', 'Riopan', 'Talcid', 'Rennie', 'Antazidum'],
+    kurz: 'Neutralisiert die Säure, die schon da ist. Wirkt in Minuten.',
+    wirkung: 'Eine Base, die die vorhandene Säure abpuffert. Nichts wird gedrosselt '
+      + 'und nichts geheilt – es wird das gelöscht, was gerade brennt. Nach ein bis '
+      + 'drei Stunden ist es vorbei.',
+    einnahme: 'Bei Bedarf, häufig etwa eine Stunde nach dem Essen und vor dem '
+      + 'Schlafengehen.',
+    hinweis: 'Der wichtigste Punkt steht selten vorn auf der Packung: Antazida binden '
+      + 'andere Wirkstoffe und können sie damit unwirksam machen. Zu anderen '
+      + 'Medikamenten gehören ein bis zwei Stunden Abstand. Magnesiumhaltige wirken '
+      + 'eher abführend, aluminium- und calciumhaltige eher stopfend.',
+  },
+  {
+    id: 'alginat',
+    gruppe: 'Alginate',
+    beispiele: ['Gaviscon', 'Alginat'],
+    kurz: 'Legt einen Deckel auf den Mageninhalt, gegen Aufsteigendes.',
+    wirkung: 'Aus Algen gewonnen: Im Magen bildet sich ein leichtes Gel, das oben '
+      + 'aufschwimmt und die Säure am Übertritt in die Speiseröhre hindert. Zielt '
+      + 'also auf Sodbrennen und Aufstoßen, nicht auf die Säuremenge.',
+    einnahme: 'Nach dem Essen und vor dem Hinlegen – dann ist etwas da, worauf sich '
+      + 'das Gel legen kann.',
+    hinweis: 'Auch hier Abstand zu anderen Medikamenten.',
+  },
+  {
+    id: 'sucralfat',
+    gruppe: 'Sucralfat',
+    beispiele: ['Sucralfat', 'Ulcogant'],
+    kurz: 'Legt sich als Film über die wunden Stellen.',
+    wirkung: 'Haftet an entzündeter oder verletzter Schleimhaut und bildet dort eine '
+      + 'Schutzschicht gegen Säure und Verdauungsenzyme. Greift nicht in die '
+      + 'Säurebildung ein – es deckt ab.',
+    einnahme: 'Auf nüchternen Magen, meist etwa eine Stunde vor den Mahlzeiten.',
+    hinweis: 'Braucht ein saures Milieu, um zu haften – zusammen mit einem Antazidum '
+      + 'im selben Moment wirkt es schlechter. Auch von anderen Medikamenten Abstand '
+      + 'halten.',
+  },
+  {
+    id: 'prokinetika',
+    gruppe: 'Prokinetika',
+    beispiele: ['Domperidon', 'Metoclopramid', 'MCP'],
+    kurz: 'Bringt den Magen dazu, sich schneller zu entleeren.',
+    wirkung: 'Regt die Magenbewegung an. Gedacht für den Fall, dass das Essen zu '
+      + 'lange liegen bleibt – Völlegefühl, Übelkeit, frühes Sattsein.',
+    einnahme: 'Vor den Mahlzeiten. Verschreibungspflichtig.',
+    hinweis: 'Nicht für den Dauergebrauch gedacht; die zugelassene Anwendungsdauer '
+      + 'ist begrenzt, wegen möglicher Wirkungen auf Herzrhythmus und Nervensystem. '
+      + 'Gehört in ärztliche Hand.',
+  },
+  {
+    id: 'pflanzlich',
+    gruppe: 'Pflanzliche Mittel',
+    beispiele: ['Iberogast', 'Kamille', 'Kamillentee', 'Süßholz', 'Kümmel', 'Fenchel', 'Anis'],
+    kurz: 'Wirkt eher auf Krampf und Bewegung als auf die Säure.',
+    wirkung: 'Iberogast ist eine Mischung aus neun Pflanzenauszügen und zielt auf '
+      + 'Krämpfe und die Magenbewegung. Kamille wirkt reizlindernd, Kümmel, Fenchel '
+      + 'und Anis entkrampfen und helfen gegen Blähungen. Süßholzwurzel wird bei '
+      + 'gereizter Schleimhaut verwendet.',
+    einnahme: 'Meist zu oder nach den Mahlzeiten; Tee, wann man ihn braucht.',
+    hinweis: '„Pflanzlich" heißt nicht „harmlos". Für Iberogast gibt es wegen des '
+      + 'Schöllkraut-Anteils einen Warnhinweis zu den Leberwerten. Süßholz in größeren '
+      + 'Mengen über längere Zeit kann Blutdruck und Kalium beeinflussen. Beides '
+      + 'gehört in ein Gespräch in der Apotheke.',
+  },
+  {
+    id: 'heilerde',
+    gruppe: 'Heilerde und Bismut',
+    beispiele: ['Heilerde', 'Bismut'],
+    kurz: 'Bindet Säure und legt sich über die Schleimhaut.',
+    wirkung: 'Feiner Löss, der Säure bindet – ähnlich einem Antazidum, nur langsamer '
+      + 'und milder. Bismutsalze legen sich zusätzlich schützend auf und werden vor '
+      + 'allem in Kombinationstherapien gegen Helicobacter eingesetzt.',
+    einnahme: 'Zwischen den Mahlzeiten, mit reichlich Wasser.',
+    hinweis: 'Auch das bindet andere Wirkstoffe: Abstand halten. Bismut färbt Stuhl '
+      + 'und Zunge dunkel – erwartbar, kein Alarmzeichen.',
+  },
+  {
+    id: 'eradikation',
+    gruppe: 'Helicobacter-Behandlung',
+    beispiele: ['Amoxicillin', 'Clarithromycin', 'Metronidazol'],
+    kurz: 'Eine befristete Kombination, die ein bestimmtes Bakterium beseitigt.',
+    wirkung: 'Helicobacter pylori ist eine der häufigsten Ursachen einer chronischen '
+      + 'Gastritis. Behandelt wird nicht mit einem Mittel, sondern mit einer '
+      + 'Kombination aus einem PPI und zwei bis drei Antibiotika über sieben bis '
+      + 'vierzehn Tage.',
+    einnahme: 'Genau nach Schema, meist morgens und abends.',
+    hinweis: 'Das eine Mittel, bei dem „ich fühl mich besser, ich lass den Rest weg" '
+      + 'wirklich schadet: Eine abgebrochene Behandlung kann Keime zurücklassen, die '
+      + 'gegen das Antibiotikum unempfindlich geworden sind. Ob der Keim weg ist, '
+      + 'wird hinterher nachgeprüft.',
+  },
+];
+
+/**
+ * Was den Magen von der anderen Seite belastet.
+ *
+ * Gehört in eine Übersicht über Magenmittel, weil es der häufigste vermeidbare
+ * Grund für eine gereizte Schleimhaut ist – und weil es das Einzige hier ist,
+ * was jemand womöglich gerade selbst einnimmt, ohne den Zusammenhang zu kennen.
+ */
+const REIZSTOFFE = [
+  {
+    id: 'nsar',
+    gruppe: 'Entzündungshemmende Schmerzmittel (NSAR)',
+    beispiele: ['Ibuprofen', 'Diclofenac', 'Naproxen', 'ASS', 'Aspirin'],
+    kurz: 'Häufigster vermeidbarer Grund für eine gereizte Magenschleimhaut.',
+    wirkung: 'Sie hemmen Botenstoffe, die Schmerz und Entzündung machen – dieselben '
+      + 'Botenstoffe sorgen aber auch für die Schleimschicht, die den Magen vor '
+      + 'seiner eigenen Säure schützt. Der Schutz wird also mit abgeschaltet.',
+    einnahme: '–',
+    hinweis: 'Wer regelmäßig zu einem davon greift und Magenbeschwerden hat, sollte '
+      + 'das ansprechen – es gibt Schmerzmittel, die den Magen nicht angreifen, und '
+      + 'wenn es ohne NSAR nicht geht, gibt es einen Magenschutz dazu. Zusammen mit '
+      + 'Kortison steigt das Risiko weiter.',
+  },
+  {
+    id: 'kortison',
+    gruppe: 'Kortison',
+    beispiele: ['Prednisolon', 'Kortison'],
+    kurz: 'Allein weniger heikel, zusammen mit NSAR deutlich mehr.',
+    wirkung: 'Für sich genommen ein geringerer Magenreiz als lange angenommen. In '
+      + 'Kombination mit einem entzündungshemmenden Schmerzmittel steigt das Risiko '
+      + 'für Schleimhautschäden jedoch deutlich.',
+    einnahme: '–',
+    hinweis: 'Nie eigenmächtig absetzen. Änderungen gehören in ärztliche Hand.',
+  },
+];
+
+const ALLE = [...MITTEL_WISSEN, ...REIZSTOFFE];
+
+/**
+ * Zu einem eingetragenen Namen die passende Gruppe finden.
+ *
+ * Eingetragen wird frei: „Pantoprazol 20mg", „pantoprazol", „Panto". Deshalb
+ * wird kleingeschrieben verglichen und geprüft, ob eines der Beispiele im
+ * Eingetragenen vorkommt – nicht auf Gleichheit.
+ */
+function wissenZu(name) {
+  const gesucht = String(name || '').toLowerCase().trim();
+  if (!gesucht) return null;
+  return ALLE.find((g) => g.beispiele.some((b) => gesucht.includes(b.toLowerCase())))
+    || ALLE.find((g) => gesucht.includes(g.gruppe.toLowerCase()))
+    || null;
 }
 
 /* ===== js/chart.js ===== */
@@ -881,7 +1194,7 @@ const KEY = 'bauchbuch.state.v1';
 const VORGABE = {
   // Alle Eintragungen in einer Liste, nach Zeitpunkt sortiert gehalten.
   // Ein Eintrag ist immer { id, am, um, art } plus die Felder seiner Art:
-  //   essen       { was, tags: [ausloeserId], portion: 'klein'|'normal'|'gross' }
+  //   essen       { was, zutaten: [{ id, rolle }], portion: 'klein'|'normal'|'gross' }
   //   beschwerde  { staerke: 0..10, arten: [beschwerdeId], notiz }
   //   medikament  { mittel, dosis }
   //   notiz       { text }
@@ -897,6 +1210,10 @@ const VORGABE = {
   // etwas dazu sagt. Darunter ist jede Aussage Zufall, und eine App, die aus
   // zwei Fällen eine Regel macht, schadet mehr als sie nützt.
   mindestFaelle: 5,
+  // Verbesserungsvorschläge zur App selbst: [{ id, am, text, erledigt }].
+  // Bewusst neben den Eintragungen und nicht in ihnen – eine Idee ist kein
+  // Tagebucheintrag und hat in keiner Auswertung etwas zu suchen.
+  ideen: [],
   eigeneAusloeser: [],   // [{ id: 'x:...', name }]
   zuletztMittel: [],     // zuletzt eingetragene Medikamente, als Vorschlag
   theme: 'rosa',
@@ -920,11 +1237,38 @@ function laden() {
     // wenn der Stand aus einer Fassung stammt, die den Schlüssel noch nicht
     // kannte. Sonst stünde die Einführung eines Tages wieder vor dem Tagebuch.
     if (!('begruesst' in gelesen) && s.eintraege.length) s.begruesst = true;
-    s.eintraege = sortiert(Array.isArray(s.eintraege) ? s.eintraege : []);
+    s.eintraege = sortiert((Array.isArray(s.eintraege) ? s.eintraege : []).map(mahlzeitFrisch));
     return s;
   } catch {
     return klon(VORGABE);
   }
+}
+
+/**
+ * Eine Mahlzeit auf den heutigen Stand bringen.
+ *
+ * Früher standen die Zutaten als bloße Liste von IDs unter `tags`. Seit sie
+ * eine Rolle tragen – Hauptzutat, Beilage, Topping … –, stehen sie unter
+ * `zutaten`. Umgerechnet wird beim Laden und beim Einlesen einer Sicherung,
+ * also an genau den zwei Stellen, an denen fremde Daten hereinkommen.
+ *
+ * Alte Eintragungen bekommen `haupt`. Das ist die einzig ehrliche Annahme:
+ * Wer damals „Zwiebel" angekreuzt hat, hat nicht gesagt, es sei nur ein Hauch
+ * gewesen – und die harmlosere Rolle nachträglich zu unterstellen, würde alte
+ * Auffälligkeiten stillschweigend kleinrechnen.
+ *
+ * `tags` fällt dabei weg, damit es die Angabe nur an einer Stelle gibt. Was an
+ * dieser Umrechnung vorbeikommt, fängt zutatenVon() in js/auswertung.js ab.
+ */
+function mahlzeitFrisch(e) {
+  if (!e || e.art !== 'essen' || Array.isArray(e.zutaten)) return e;
+  const { tags, ...rest } = e;
+  return {
+    ...rest,
+    zutaten: (Array.isArray(tags) ? tags : [])
+      .filter((id) => typeof id === 'string')
+      .map((id) => ({ id, rolle: 'haupt' })),
+  };
 }
 
 /** Nach Tag und Uhrzeit. Die Liste wird nirgends anders sortiert. */
@@ -1153,6 +1497,35 @@ function mittelMerken(name) {
   merke();
 }
 
+/* ---------- Ideen zur App ---------- */
+
+function ideeAnlegen(text) {
+  const sauber = String(text || '').trim();
+  if (!sauber) return null;
+  const neu = { id: neueId(), am: heuteISO(), text: sauber, erledigt: false };
+  zustand.ideen = [neu, ...zustand.ideen];
+  merke();
+  melde();
+  return neu.id;
+}
+
+/** Abgehakt oder wieder offen. Gelöscht wird eine Idee dadurch nicht. */
+function ideeUmschalten(id) {
+  const i = zustand.ideen.findIndex((x) => x.id === id);
+  if (i < 0) return;
+  zustand.ideen[i] = { ...zustand.ideen[i], erledigt: !zustand.ideen[i].erledigt };
+  merke();
+  melde();
+}
+
+function ideeLoeschen(id) {
+  const vorher = zustand.ideen.length;
+  zustand.ideen = zustand.ideen.filter((x) => x.id !== id);
+  if (zustand.ideen.length === vorher) return;
+  merke();
+  melde();
+}
+
 /* ---------- Sicherung ---------- */
 
 function alsJSON() {
@@ -1191,7 +1564,9 @@ function ausJSON(text) {
   });
   frisch.eintraege = sortiert(gelesen.eintraege.filter((e) => (
     e && typeof e === 'object' && typeof e.am === 'string' && typeof e.art === 'string'
-  )).map((e) => ({ ...e, id: e.id || neueId() })));
+  )).map((e) => mahlzeitFrisch({ ...e, id: e.id || neueId() })));
+  frisch.ideen = frisch.ideen.filter((x) => x && typeof x === 'object' && typeof x.text === 'string')
+    .map((x) => ({ ...x, id: x.id || neueId(), erledigt: !!x.erledigt }));
   if (!Number.isFinite(frisch.fenster) || frisch.fenster <= 0) frisch.fenster = VORGABE.fenster;
   zustand = frisch;
   merke();
@@ -1209,7 +1584,7 @@ function allesLoeschen() {
   melde();
 }
 
-const store = { allesLoeschen, alsJSON, ausJSON, ausloeserAnlegen, ausloeserLoeschen, einstellen, eintraegeAm, eintragAendern, eintragLoeschen, eintragVon, eintragen, horche, kannSpeichern, letzterTag, letzterZeitpunkt, mittelMerken, sicherungNotiert, sofortSchreiben, speicherGrund, tagLesen, tagSetzen, zustandLesen };
+const store = { allesLoeschen, alsJSON, ausJSON, ausloeserAnlegen, ausloeserLoeschen, einstellen, eintraegeAm, eintragAendern, eintragLoeschen, eintragVon, eintragen, horche, ideeAnlegen, ideeLoeschen, ideeUmschalten, kannSpeichern, letzterTag, letzterZeitpunkt, mittelMerken, sicherungNotiert, sofortSchreiben, speicherGrund, tagLesen, tagSetzen, zustandLesen };
 
 /* ===== js/auswertung.js ===== */
 /*
@@ -1240,12 +1615,39 @@ const store = { allesLoeschen, alsJSON, ausJSON, ausloeserAnlegen, ausloeserLoes
 const SPAET_AB = 20;
 
 /**
- * Alle Merkmale einer Mahlzeit: angekreuzte Auslöser plus die beiden
- * Umstände, die sich aus Portion und Uhrzeit von selbst ergeben.
+ * Die Zutaten einer Mahlzeit als [{ id, rolle }].
+ *
+ * Seit die Rolle dazugehört, stehen sie unter `zutaten`. Vorher war es eine
+ * bloße Liste von IDs unter `tags`. Der Speicher rechnet alte Stände beim
+ * Laden um (siehe mahlzeitFrisch in js/store.js) – die Zeile hier ist der
+ * zweite Riegel, für alles, was an dieser Umrechnung vorbeikommt: eine
+ * Sicherung aus einer älteren Fassung, ein von Hand gesetzter Zustand, ein
+ * Test, der die Rechenschicht direkt aufruft.
+ */
+function zutatenVon(eintrag) {
+  if (Array.isArray(eintrag.zutaten)) {
+    return eintrag.zutaten
+      .filter((z) => z && typeof z.id === 'string')
+      .map((z) => ({ id: z.id, rolle: z.rolle || ROLLE_VORGABE }));
+  }
+  if (Array.isArray(eintrag.tags)) {
+    return eintrag.tags.map((id) => ({ id, rolle: ROLLE_VORGABE }));
+  }
+  return [];
+}
+
+/**
+ * Alle Merkmale einer Mahlzeit: die Zutaten plus die beiden Umstände, die
+ * sich aus Portion und Uhrzeit von selbst ergeben.
+ *
+ * Die Rolle spielt hier bewusst *keine* Rolle: Für die Frage „war es drin?"
+ * zählt jede Zutat gleich. Was die Rolle unterscheidet, steht getrennt in
+ * rollenBilanz() – und zwar mit Fallzahlen, statt still eine Gewichtung in
+ * die Hauptzahl zu rechnen, die niemand nachvollziehen könnte.
  */
 function merkmale(eintrag) {
   if (eintrag.art !== 'essen') return [];
-  const raus = Array.isArray(eintrag.tags) ? [...eintrag.tags] : [];
+  const raus = zutatenVon(eintrag).map((z) => z.id);
   if (eintrag.portion === 'gross') raus.push('gross');
   const std = Number(String(eintrag.um || '').split(':')[0]);
   if (Number.isFinite(std) && std >= SPAET_AB) raus.push('spaet');
@@ -1356,6 +1758,71 @@ const EINSTUFUNG_WORT = {
   unauffaellig: 'eher unauffällig',
   zuwenig: 'zu wenige Fälle',
 };
+
+/**
+ * Ein auffälliger Auslöser, aufgeschlüsselt nach der Rolle, in der er vorkam.
+ *
+ * Das ist die Auskunft, für die es die Rollen gibt: „Zwiebel" ist keine
+ * Antwort, wenn sie achtmal die Suppe war und viermal drei Ringe obendrauf.
+ * Zurück kommt jede Rolle, die überhaupt vorkam, mit ihrer Fallzahl – ohne
+ * Schwelle und ohne Urteil, denn eine Aufschlüsselung hat naturgemäß kleinere
+ * Zahlen als das Ganze, und wer sie liest, soll das sehen.
+ */
+function rollenBilanz(eintraege, id, fensterStunden) {
+  const treffer = eintraege.filter((e) => e.art === 'essen'
+    && zutatenVon(e).some((z) => z.id === id));
+  const raus = [];
+  ROLLEN.forEach((r) => {
+    const mit = treffer.filter((e) => zutatenVon(e)
+      .some((z) => z.id === id && z.rolle === r.id));
+    if (!mit.length) return;
+    const summe = mit.reduce((sum, e) => sum + wertNach(eintraege, e, fensterStunden), 0);
+    raus.push({ rolle: r.id, faelle: mit.length, schnitt: summe / mit.length });
+  });
+  return raus.sort((a, b) => b.schnitt - a.schnitt);
+}
+
+/* ---------- Was oft vorkommt ---------- */
+
+/**
+ * Die Zutaten nach Häufigkeit, die meistbenutzte zuerst.
+ *
+ * Die Auswahlliste beim Eintragen ist sechzehn Marken lang plus eigene. Wer
+ * jeden Tag Kaffee einträgt, soll ihn nicht jeden Tag suchen – und eine
+ * Eingabe, die drei Sekunden dauert statt fünfzehn, wird auch an einem
+ * schlechten Tag noch gemacht. Genau daran hängt, ob das Tagebuch Lücken hat.
+ */
+function haeufigeZutaten(eintraege) {
+  const zaehler = new Map();
+  eintraege.filter((e) => e.art === 'essen').forEach((e) => {
+    zutatenVon(e).forEach((z) => zaehler.set(z.id, (zaehler.get(z.id) || 0) + 1));
+  });
+  return zaehler;
+}
+
+/**
+ * Die häufigsten Mahlzeiten im Klartext, als Vorschlag fürs Textfeld.
+ *
+ * Verglichen wird kleingeschrieben und ohne Randleerzeichen, angezeigt wird
+ * die zuletzt benutzte Schreibweise – sonst stünde „haferbrei" neben
+ * „Haferbrei" und beide wären halb so häufig.
+ */
+function haeufigeGerichte(eintraege, anzahl = 6) {
+  const zaehler = new Map();
+  eintraege.filter((e) => e.art === 'essen').forEach((e) => {
+    const roh = String(e.was || '').trim();
+    if (!roh) return;
+    const schluessel = roh.toLowerCase();
+    const v = zaehler.get(schluessel) || { text: roh, anzahl: 0 };
+    v.text = roh;
+    v.anzahl += 1;
+    zaehler.set(schluessel, v);
+  });
+  return [...zaehler.values()]
+    .filter((g) => g.anzahl > 1)
+    .sort((a, b) => b.anzahl - a.anzahl)
+    .slice(0, anzahl);
+}
 
 /* ---------- Verlauf ---------- */
 
@@ -1602,6 +2069,7 @@ const REITER = [
   { id: 'heute', name: 'Tag', icon: '📓' },
   { id: 'verlauf', name: 'Verlauf', icon: '📅' },
   { id: 'muster', name: 'Muster', icon: '🔍' },
+  { id: 'ideen', name: 'Ideen', icon: '💡' },
   { id: 'mehr', name: 'Mehr', icon: '⚙️' },
 ];
 
@@ -1629,6 +2097,7 @@ const ui = {
   // Ansichten, der Browser in einer Messenger-App, manche Verwaltungsgeräte.
   // Dort wäre die einzige Kopie, die es je geben wird, sonst nicht erreichbar.
   sicherung: null,
+  mittel: false,    // steht die ganze Mittelübersicht offen?
 };
 
 let toastUhr = null;
@@ -1685,10 +2154,13 @@ const ART_ICON = { essen: '🍽️', beschwerde: '🔥', medikament: '💊', not
 
 function zeileText(e, eigene) {
   if (e.art === 'essen') {
-    const tags = (e.tags || []).map((t) => ausloeserName(t, eigene)).join(', ');
+    // Die Rolle steht nur dabei, wenn sie nicht die Vorgabe ist – „Kaffee
+    // (Haupt)" bei jedem Kaffee wäre Lärm, „Zwiebel (Würze)" ist die Auskunft.
+    const zutaten = zutatenVon(e).map((z) => ausloeserName(z.id, eigene)
+      + (z.rolle === ROLLE_VORGABE ? '' : ` (${rolleName(z.rolle, true)})`)).join(', ');
     const portion = e.portion && e.portion !== 'normal' ? ` · ${e.portion === 'gross' ? 'große' : 'kleine'} Portion` : '';
     return `<b>${esc(kuerze(e.was || 'Mahlzeit'))}</b>${portion}`
-      + (tags ? `<span class="zeile-tags">${esc(tags)}</span>` : '');
+      + (zutaten ? `<span class="zeile-tags">${esc(zutaten)}</span>` : '');
   }
   if (e.art === 'beschwerde') {
     const arten = (e.arten || []).map(beschwerdeName).join(', ');
@@ -1843,6 +2315,14 @@ function musterAnsicht(s) {
 
   const zeile = (b) => {
     const art = einstufung(b);
+    // Die Aufschlüsselung nach Rolle nur, wenn es überhaupt etwas zu
+    // unterscheiden gibt: Bei einer einzigen Rolle wiederholte sie die
+    // Hauptzahl mit anderen Worten.
+    const rollen = rollenBilanz(s.eintraege, b.id, s.fenster);
+    const nachRolle = rollen.length > 1 ? `<ul class="rollen">${rollen.map((r) => `<li>
+      <span>als ${esc(rolleName(r.rolle))}</span>
+      <span class="klein">${mehrzahl(r.faelle, 'Mal', 'Mal')}, danach ${fmtZahl(r.schnitt)}</span>
+    </li>`).join('')}</ul>` : '';
     return `<li class="fund f-${art}">
       <div class="fund-kopf">
         <b>${esc(ausloeserName(b.id, s.eigeneAusloeser))}</b>
@@ -1852,6 +2332,7 @@ function musterAnsicht(s) {
       <p class="klein">${mehrzahl(b.faelle, 'Mahlzeit', 'Mahlzeiten')} damit,
         ${b.gegenFaelle} ohne · danach ${Math.round(b.quoteMit * 100)} % mit
         Beschwerden, sonst ${Math.round(b.quoteOhne * 100)} %</p>
+      ${nachRolle}
     </li>`;
   };
 
@@ -1888,6 +2369,57 @@ function musterAnsicht(s) {
   </div>` : '';
 
   return gefunden + wartet + wann + wie + erklaerung;
+}
+
+/* ==================== Reiter: Ideen ==================== */
+
+/** Die Ideen als Text – zum Kopieren oder Weitergeben. */
+function ideenText(s) {
+  const zeile = (i) => `${i.erledigt ? '[erledigt] ' : ''}${i.text}`;
+  return ['Bauchbuch – Ideen und Verbesserungsvorschläge', '']
+    .concat(s.ideen.map(zeile)).join('\n');
+}
+
+function ideenAnsicht(s) {
+  const offen = s.ideen.filter((i) => !i.erledigt);
+  const fertig = s.ideen.filter((i) => i.erledigt);
+
+  const zeile = (i) => `<li class="idee${i.erledigt ? ' ab' : ''}">
+    <button type="button" class="idee-haken" data-act="idee-haken" data-id="${i.id}"
+            aria-pressed="${i.erledigt}"
+            aria-label="${i.erledigt ? 'Wieder offen' : 'Als erledigt merken'}">
+      ${i.erledigt ? '✓' : ''}</button>
+    <span class="idee-text">${esc(i.text)}<span class="zeile-tags">${esc(fmtDatum(i.am))}</span></span>
+    <button type="button" class="strang-weg" data-act="idee-weg" data-id="${i.id}"
+            aria-label="Idee löschen">×</button>
+  </li>`;
+
+  return `
+  <h2>Ideen fürs Bauchbuch</h2>
+  <p class="klein">Was fehlt, was stört, was du anders hättest. Alles, was hier
+  steht, bleibt wie der Rest auf diesem Gerät – zum Weitergeben gibt es unten
+  „Kopieren".</p>
+
+  <div class="karte">
+    <label class="feld-name" for="ideeText">Neue Idee</label>
+    <textarea class="feld feld-breit" id="ideeText" rows="3"
+              placeholder="Ich hätte gern …"></textarea>
+    <div class="reihe" style="margin-top:8px">
+      ${knopf('idee-neu', 'Eintragen', 'btn-primary')}
+    </div>
+  </div>
+
+  ${s.ideen.length ? `
+    <ul class="ideen">${offen.map(zeile).join('')}${fertig.map(zeile).join('')}</ul>
+    <div class="karte">
+      <p class="klein">${mehrzahl(offen.length, 'offene Idee', 'offene Ideen')}${fertig.length ? `, ${fertig.length} erledigt` : ''}.
+      Zum Weiterschicken: kopieren und in eine Nachricht einfügen.</p>
+      <div class="reihe">
+        ${knopf('ideen-kopieren', 'Alle kopieren', 'btn-primary')}
+        ${knopf('ideen-teilen', 'Teilen')}
+      </div>
+    </div>`
+    : '<p class="leer">Noch keine Idee eingetragen.</p>'}`;
 }
 
 /* ==================== Reiter: Mehr ==================== */
@@ -1930,6 +2462,8 @@ function mehrAnsicht(s) {
         ${knopf('sicherung-zu', 'Schließen', 'btn-ghost')}
       </div>` : ''}
   </div>
+
+  ${mittelKarte(s)}
 
   <div class="karte">
     <h3>Für den Arzttermin</h3>
@@ -1993,6 +2527,59 @@ function mehrAnsicht(s) {
   </div>`;
 }
 
+/* ---------- Was die Mittel bewirken ---------- */
+
+function mittelKarte(s) {
+  // Was tatsächlich eingetragen wurde – das steht oben, alles andere darunter.
+  const eigene = new Map();
+  s.eintraege.filter((e) => e.art === 'medikament').forEach((e) => {
+    const name = String(e.mittel || '').trim();
+    if (!name) return;
+    const v = eigene.get(name) || { name, anzahl: 0, zuletzt: e.am };
+    v.anzahl += 1;
+    if (e.am > v.zuletzt) v.zuletzt = e.am;
+    eigene.set(name, v);
+  });
+  const meine = [...eigene.values()].sort((a, b) => b.anzahl - a.anzahl);
+
+  const block = (g) => `<details class="mittel">
+    <summary><b>${esc(g.gruppe)}</b>${g.kuerzel ? ` <span class="klein">(${esc(g.kuerzel)})</span>` : ''}
+      <span class="zeile-tags">${esc(g.kurz)}</span></summary>
+    <p><b>Wie es wirkt.</b> ${esc(g.wirkung)}</p>
+    ${g.einnahme && g.einnahme !== '–' ? `<p><b>Wann man es nimmt.</b> ${esc(g.einnahme)}</p>` : ''}
+    <p><b>Worauf zu achten ist.</b> ${esc(g.hinweis)}</p>
+    <p class="klein">Zum Beispiel: ${esc(g.beispiele.join(', '))}</p>
+  </details>`;
+
+  return `<div class="karte">
+    <h3>Was die Mittel bewirken</h3>
+    <p class="klein">Allgemeine Information, keine Beratung – und ausdrücklich
+    keine Dosierungen. Was für dich gilt, steht auf deiner Packung und sagt dir
+    deine Ärztin oder deine Apotheke.</p>
+
+    ${meine.length ? `<p class="feld-name">Was du eingetragen hast</p>
+      <ul class="wartend">${meine.map((m) => {
+        const g = wissenZu(m.name);
+        return `<li>
+          <span>${esc(m.name)}<span class="zeile-tags">${g ? esc(g.kurz) : 'nicht in der Übersicht – frag in der Apotheke nach'}</span></span>
+          <span class="klein">${mehrzahl(m.anzahl, 'Mal', 'Mal')}</span>
+        </li>`;
+      }).join('')}</ul>`
+    : '<p class="klein">Sobald du ein Medikament einträgst, steht es hier mit dem, was es bewirkt.</p>'}
+
+    <div class="reihe" style="margin-top:10px">
+      ${knopf('mittel', ui.mittel ? 'Übersicht schließen' : 'Alle Mittel im Überblick')}
+    </div>
+
+    ${ui.mittel ? `
+      <div class="mittel-liste">
+        ${MITTEL_WISSEN.map(block).join('')}
+        <p class="feld-name">Was den Magen von der anderen Seite belastet</p>
+        ${REIZSTOFFE.map(block).join('')}
+      </div>` : ''}
+  </div>`;
+}
+
 /* ==================== Eingabebogen ==================== */
 
 function bogenHTML(s) {
@@ -2014,16 +2601,50 @@ function bogenHTML(s) {
   let mitte = '';
   if (b.art === 'essen') {
     const eigene = s.eigeneAusloeser.map((a) => ({ ...a, icon: '•' }));
+    /*
+     * Die Auswahl steht nach Häufigkeit, das Meistbenutzte oben.
+     *
+     * Sechzehn Marken plus eigene sind zu viele zum Suchen, und gesucht wird
+     * jeden Tag mehrmals. Bei gleicher Häufigkeit bleibt die Reihenfolge des
+     * Katalogs – sonst springt die Liste bei jedem Eintrag neu, und man greift
+     * ins Leere, weil die Hand sich die Stelle gemerkt hat.
+     */
+    const zaehler = haeufigeZutaten(s.eintraege);
+    const nachHaeufigkeit = [...AUSLOESER, ...eigene]
+      .map((m, i) => ({ m, i, n: zaehler.get(m.id) || 0 }))
+      .sort((x, y) => (y.n - x.n) || (x.i - y.i))
+      .map((x) => x.m);
+
+    const gewaehlt = (e.zutaten || []).map((z) => z.id);
+    const gerichte = haeufigeGerichte(s.eintraege, 6);
+
+    const zutatZeile = (z) => `<div class="zutat">
+      <span class="zutat-name">${esc(ausloeserName(z.id, s.eigeneAusloeser))}</span>
+      <select class="feld zutat-rolle" data-act="rolle" data-id="${esc(z.id)}"
+              aria-label="Rolle von ${esc(ausloeserName(z.id, s.eigeneAusloeser))}">
+        ${ROLLEN.map((r) => `<option value="${r.id}"${z.rolle === r.id ? ' selected' : ''}>${esc(r.name)}</option>`).join('')}
+      </select>
+    </div>`;
+
     mitte = `
       <label class="feld-name" for="bogenWas">Was?</label>
       <input type="text" class="feld feld-breit" id="bogenWas" data-act="was"
              value="${esc(e.was || '')}" placeholder="Haferbrei mit Banane" autocomplete="off">
+      ${gerichte.length ? `<div class="marken marken-eng">${gerichte.map((g) => `
+        <button type="button" class="marke" data-act="gericht" data-text="${esc(g.text)}">
+          ${esc(kuerze(g.text, 28))}</button>`).join('')}</div>` : ''}
+
       <p class="feld-name">Portion</p>
       <div class="wahl">${PORTIONEN.map((p) => `
         <button type="button" class="wahl-btn${e.portion === p.id ? ' an' : ''}"
                 data-act="portion" data-id="${p.id}">${p.name}</button>`).join('')}</div>
+
       <p class="feld-name">Was war drin?</p>
-      ${marken([...AUSLOESER, ...eigene], e.tags || [], 'tag')}`;
+      ${marken(nachHaeufigkeit, gewaehlt, 'zutat')}
+
+      ${e.zutaten && e.zutaten.length ? `
+        <p class="feld-name">Wie viel davon? Keine Gramm – die Rolle genügt.</p>
+        <div class="zutaten">${e.zutaten.map(zutatZeile).join('')}</div>` : ''}`;
   } else if (b.art === 'beschwerde') {
     mitte = `
       <p class="feld-name">Wie stark?</p>
@@ -2042,6 +2663,11 @@ function bogenHTML(s) {
       <div class="marken">${vorschlaege.map((m) => `
         <button type="button" class="marke${e.mittel === m ? ' an' : ''}"
                 data-act="mittel-vorschlag" data-id="${esc(m)}">${esc(m)}</button>`).join('')}</div>
+      ${(() => {
+        const g = wissenZu(e.mittel);
+        return g ? `<p class="klein mittel-hinweis">${esc(g.gruppe)}: ${esc(g.kurz)}
+          <br>Ausführlich unter „Mehr".</p>` : '';
+      })()}
       <label class="feld-name" for="bogenDosis">Dosis</label>
       <input type="text" class="feld feld-breit" id="bogenDosis" data-act="dosis"
              value="${esc(e.dosis || '')}" placeholder="z. B. 20 mg" autocomplete="off">`;
@@ -2106,7 +2732,10 @@ function male() {
   </div>` : '';
 
   const tab = REITER.some((r) => r.id === s.tab) ? s.tab : 'heute';
-  const inhalt = { heute: tagAnsicht, verlauf: verlaufAnsicht, muster: musterAnsicht, mehr: mehrAnsicht }[tab];
+  const inhalt = {
+    heute: tagAnsicht, verlauf: verlaufAnsicht, muster: musterAnsicht,
+    ideen: ideenAnsicht, mehr: mehrAnsicht,
+  }[tab];
   viewEl.innerHTML = warnung + inhalt(s) + bogenHTML(s);
 
   tabbarEl.innerHTML = REITER.map((r) => `
@@ -2137,7 +2766,7 @@ function zeichne() {
 
 function bogenOeffnen(art, id) {
   const vorlage = {
-    essen: { was: '', tags: [], portion: 'normal' },
+    essen: { was: '', zutaten: [], portion: 'normal' },
     beschwerde: { staerke: 4, arten: [], notiz: '' },
     medikament: { mittel: '', dosis: '' },
     notiz: { text: '' },
@@ -2157,7 +2786,7 @@ function bogenSpeichern() {
   const b = ui.bogen;
   if (!b) return;
   const e = { ...b.entwurf, art: b.art };
-  if (b.art === 'essen' && !String(e.was || '').trim() && !(e.tags || []).length) {
+  if (b.art === 'essen' && !String(e.was || '').trim() && !(e.zutaten || []).length) {
     melden('Bitte etwas eintragen oder ankreuzen.');
     return;
   }
@@ -2251,6 +2880,7 @@ const AKTION = {
     store.einstellen('tab', el.dataset.tab);
     ui.bericht = null;
     ui.sicherung = null;
+    ui.mittel = false;
     zeichne();
   },
 
@@ -2268,7 +2898,17 @@ const AKTION = {
   'bogen-speichern': bogenSpeichern,
   staerke: (el) => entwurf({ staerke: Number(el.dataset.n) }),
   portion: (el) => entwurf({ portion: el.dataset.id }),
-  tag: (el) => umschalten('tags', el.dataset.id),
+  zutat: (el) => {
+    if (!ui.bogen) return;
+    const id = el.dataset.id;
+    const liste = ui.bogen.entwurf.zutaten || [];
+    entwurf({
+      zutaten: liste.some((z) => z.id === id)
+        ? liste.filter((z) => z.id !== id)
+        : [...liste, { id, rolle: ROLLE_VORGABE }],
+    });
+  },
+  gericht: (el) => entwurf({ was: el.dataset.text }),
   beschwerdeart: (el) => umschalten('arten', el.dataset.id),
   'mittel-vorschlag': (el) => entwurf({ mittel: el.dataset.id }),
 
@@ -2314,6 +2954,35 @@ const AKTION = {
     zeichne();
   },
   'ausloeser-weg': (el) => { store.ausloeserLoeschen(el.dataset.id); zeichne(); },
+
+  mittel: () => { ui.mittel = !ui.mittel; zeichne(); },
+
+  'idee-neu': () => {
+    const feld = document.getElementById('ideeText');
+    if (!store.ideeAnlegen(feld.value)) { melden('Da steht noch nichts.'); return; }
+    feld.value = '';
+    melden('Notiert.');
+    zeichne();
+  },
+  'idee-haken': (el) => { store.ideeUmschalten(el.dataset.id); zeichne(); },
+  'idee-weg': (el) => { store.ideeLoeschen(el.dataset.id); zeichne(); },
+  'ideen-kopieren': () => kopiere(ideenText(store.zustandLesen()), '#ideeText'),
+  /*
+   * Teilen über das Menü des Geräts. Das ist kein Widerspruch zu „die App
+   * schickt nichts": Hier wird nichts gesendet, sondern der Text an das
+   * Betriebssystem übergeben, das daraufhin *den Nutzer* fragen lässt, wohin.
+   * Ohne diese Schnittstelle bleibt der gewöhnliche Weg über die
+   * Zwischenablage.
+   */
+  'ideen-teilen': async () => {
+    const text = ideenText(store.zustandLesen());
+    if (!navigator.share) { kopiere(text, '#ideeText'); return; }
+    try {
+      await navigator.share({ title: 'Bauchbuch – Ideen', text });
+    } catch {
+      // Abgebrochen oder nicht erlaubt – dann eben nicht.
+    }
+  },
 
   export: () => {
     datenAusgeben(store.alsJSON(), `bauchbuch-${heuteISO()}.json`, 'application/json');
@@ -2369,11 +3038,18 @@ document.addEventListener('click', (ev) => {
  * Texteingaben laufen über 'input' und zeichnen *nicht* neu – ein Neuzeichnen
  * bei jedem Tastendruck nähme dem Feld den Fokus und die Schreibmarke.
  */
-document.addEventListener('input', (ev) => {
+function eingabe(ev) {
   const el = ev.target.closest('[data-act]');
   if (!el) return;
   const wert = el.value;
   switch (el.dataset.act) {
+    case 'rolle': {
+      const liste = (ui.bogen && ui.bogen.entwurf.zutaten) || [];
+      entwurf({
+        zutaten: liste.map((z) => (z.id === el.dataset.id ? { ...z, rolle: wert } : z)),
+      }, false);
+      break;
+    }
     case 'was': entwurf({ was: wert }, false); break;
     case 'notiz': entwurf({ notiz: wert }, false); break;
     case 'mittel': entwurf({ mittel: wert }, false); break;
@@ -2386,7 +3062,16 @@ document.addEventListener('input', (ev) => {
       break;
     default: break;
   }
-});
+}
+
+/*
+ * Texteingaben melden sich über 'input', Auswahlmenüs je nach Browser über
+ * 'input' *oder* nur über 'change'. Beide auf denselben Empfänger, damit die
+ * Rolle einer Zutat nirgends verlorengeht – das ist eine Angabe, die man genau
+ * einmal macht und dann nie wieder kontrolliert.
+ */
+document.addEventListener('input', eingabe);
+document.addEventListener('change', eingabe);
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape' && ui.bogen) { ui.bogen = null; zeichne(); }

@@ -71,7 +71,8 @@ for d in dateien:
         besuche(d)
 
 # Die Anzeige darf rechnen lassen, aber nicht umgekehrt.
-for rechner in ('auswertung.js', 'bericht.js', 'store.js', 'daten.js', 'datum.js', 'text.js'):
+for rechner in ('auswertung.js', 'bericht.js', 'store.js', 'daten.js', 'datum.js',
+                'text.js', 'mittel.js'):
     if 'app.js' in graph.get(rechner, []):
         fehler.append(f'{rechner} importiert app.js - die Rechnung haengt dann an der Anzeige')
 

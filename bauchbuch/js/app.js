@@ -17,15 +17,17 @@ import {
 } from './datum.js';
 import { esc, fmtZahl, kuerze, mehrzahl } from './text.js';
 import {
-  AUSLOESER, BESCHWERDEN, MITTEL_VORSCHLAEGE, PORTIONEN, STAERKE_WORT,
-  ausloeserName, beschwerdeName, eigeneId,
+  AUSLOESER, BESCHWERDEN, MITTEL_VORSCHLAEGE, PORTIONEN, ROLLEN, ROLLE_VORGABE,
+  STAERKE_WORT, ausloeserName, beschwerdeName, eigeneId, rolleName,
 } from './daten.js';
 import {
-  ausloeserBilanz, einstufung, EINSTUFUNG_WORT, gesamtZahlen, nachArt,
-  nachTageszeit, serieOhne, tagesWert, verlaufReihe,
+  ausloeserBilanz, einstufung, EINSTUFUNG_WORT, gesamtZahlen, haeufigeGerichte,
+  haeufigeZutaten, nachArt, nachTageszeit, rollenBilanz, serieOhne, tagesWert,
+  verlaufReihe, zutatenVon,
 } from './auswertung.js';
 import { vergleichBalken, verlaufTafel } from './chart.js';
 import { arztBericht, berichtName } from './bericht.js';
+import { MITTEL_WISSEN, REIZSTOFFE, wissenZu } from './mittel.js';
 
 const viewEl = document.getElementById('view');
 const tabbarEl = document.getElementById('tabbar');
@@ -35,6 +37,7 @@ const REITER = [
   { id: 'heute', name: 'Tag', icon: '📓' },
   { id: 'verlauf', name: 'Verlauf', icon: '📅' },
   { id: 'muster', name: 'Muster', icon: '🔍' },
+  { id: 'ideen', name: 'Ideen', icon: '💡' },
   { id: 'mehr', name: 'Mehr', icon: '⚙️' },
 ];
 
@@ -62,6 +65,7 @@ const ui = {
   // Ansichten, der Browser in einer Messenger-App, manche Verwaltungsgeräte.
   // Dort wäre die einzige Kopie, die es je geben wird, sonst nicht erreichbar.
   sicherung: null,
+  mittel: false,    // steht die ganze Mittelübersicht offen?
 };
 
 let toastUhr = null;
@@ -118,10 +122,13 @@ const ART_ICON = { essen: '🍽️', beschwerde: '🔥', medikament: '💊', not
 
 function zeileText(e, eigene) {
   if (e.art === 'essen') {
-    const tags = (e.tags || []).map((t) => ausloeserName(t, eigene)).join(', ');
+    // Die Rolle steht nur dabei, wenn sie nicht die Vorgabe ist – „Kaffee
+    // (Haupt)" bei jedem Kaffee wäre Lärm, „Zwiebel (Würze)" ist die Auskunft.
+    const zutaten = zutatenVon(e).map((z) => ausloeserName(z.id, eigene)
+      + (z.rolle === ROLLE_VORGABE ? '' : ` (${rolleName(z.rolle, true)})`)).join(', ');
     const portion = e.portion && e.portion !== 'normal' ? ` · ${e.portion === 'gross' ? 'große' : 'kleine'} Portion` : '';
     return `<b>${esc(kuerze(e.was || 'Mahlzeit'))}</b>${portion}`
-      + (tags ? `<span class="zeile-tags">${esc(tags)}</span>` : '');
+      + (zutaten ? `<span class="zeile-tags">${esc(zutaten)}</span>` : '');
   }
   if (e.art === 'beschwerde') {
     const arten = (e.arten || []).map(beschwerdeName).join(', ');
@@ -276,6 +283,14 @@ function musterAnsicht(s) {
 
   const zeile = (b) => {
     const art = einstufung(b);
+    // Die Aufschlüsselung nach Rolle nur, wenn es überhaupt etwas zu
+    // unterscheiden gibt: Bei einer einzigen Rolle wiederholte sie die
+    // Hauptzahl mit anderen Worten.
+    const rollen = rollenBilanz(s.eintraege, b.id, s.fenster);
+    const nachRolle = rollen.length > 1 ? `<ul class="rollen">${rollen.map((r) => `<li>
+      <span>als ${esc(rolleName(r.rolle))}</span>
+      <span class="klein">${mehrzahl(r.faelle, 'Mal', 'Mal')}, danach ${fmtZahl(r.schnitt)}</span>
+    </li>`).join('')}</ul>` : '';
     return `<li class="fund f-${art}">
       <div class="fund-kopf">
         <b>${esc(ausloeserName(b.id, s.eigeneAusloeser))}</b>
@@ -285,6 +300,7 @@ function musterAnsicht(s) {
       <p class="klein">${mehrzahl(b.faelle, 'Mahlzeit', 'Mahlzeiten')} damit,
         ${b.gegenFaelle} ohne · danach ${Math.round(b.quoteMit * 100)} % mit
         Beschwerden, sonst ${Math.round(b.quoteOhne * 100)} %</p>
+      ${nachRolle}
     </li>`;
   };
 
@@ -321,6 +337,57 @@ function musterAnsicht(s) {
   </div>` : '';
 
   return gefunden + wartet + wann + wie + erklaerung;
+}
+
+/* ==================== Reiter: Ideen ==================== */
+
+/** Die Ideen als Text – zum Kopieren oder Weitergeben. */
+function ideenText(s) {
+  const zeile = (i) => `${i.erledigt ? '[erledigt] ' : ''}${i.text}`;
+  return ['Bauchbuch – Ideen und Verbesserungsvorschläge', '']
+    .concat(s.ideen.map(zeile)).join('\n');
+}
+
+function ideenAnsicht(s) {
+  const offen = s.ideen.filter((i) => !i.erledigt);
+  const fertig = s.ideen.filter((i) => i.erledigt);
+
+  const zeile = (i) => `<li class="idee${i.erledigt ? ' ab' : ''}">
+    <button type="button" class="idee-haken" data-act="idee-haken" data-id="${i.id}"
+            aria-pressed="${i.erledigt}"
+            aria-label="${i.erledigt ? 'Wieder offen' : 'Als erledigt merken'}">
+      ${i.erledigt ? '✓' : ''}</button>
+    <span class="idee-text">${esc(i.text)}<span class="zeile-tags">${esc(fmtDatum(i.am))}</span></span>
+    <button type="button" class="strang-weg" data-act="idee-weg" data-id="${i.id}"
+            aria-label="Idee löschen">×</button>
+  </li>`;
+
+  return `
+  <h2>Ideen fürs Bauchbuch</h2>
+  <p class="klein">Was fehlt, was stört, was du anders hättest. Alles, was hier
+  steht, bleibt wie der Rest auf diesem Gerät – zum Weitergeben gibt es unten
+  „Kopieren".</p>
+
+  <div class="karte">
+    <label class="feld-name" for="ideeText">Neue Idee</label>
+    <textarea class="feld feld-breit" id="ideeText" rows="3"
+              placeholder="Ich hätte gern …"></textarea>
+    <div class="reihe" style="margin-top:8px">
+      ${knopf('idee-neu', 'Eintragen', 'btn-primary')}
+    </div>
+  </div>
+
+  ${s.ideen.length ? `
+    <ul class="ideen">${offen.map(zeile).join('')}${fertig.map(zeile).join('')}</ul>
+    <div class="karte">
+      <p class="klein">${mehrzahl(offen.length, 'offene Idee', 'offene Ideen')}${fertig.length ? `, ${fertig.length} erledigt` : ''}.
+      Zum Weiterschicken: kopieren und in eine Nachricht einfügen.</p>
+      <div class="reihe">
+        ${knopf('ideen-kopieren', 'Alle kopieren', 'btn-primary')}
+        ${knopf('ideen-teilen', 'Teilen')}
+      </div>
+    </div>`
+    : '<p class="leer">Noch keine Idee eingetragen.</p>'}`;
 }
 
 /* ==================== Reiter: Mehr ==================== */
@@ -363,6 +430,8 @@ function mehrAnsicht(s) {
         ${knopf('sicherung-zu', 'Schließen', 'btn-ghost')}
       </div>` : ''}
   </div>
+
+  ${mittelKarte(s)}
 
   <div class="karte">
     <h3>Für den Arzttermin</h3>
@@ -426,6 +495,59 @@ function mehrAnsicht(s) {
   </div>`;
 }
 
+/* ---------- Was die Mittel bewirken ---------- */
+
+function mittelKarte(s) {
+  // Was tatsächlich eingetragen wurde – das steht oben, alles andere darunter.
+  const eigene = new Map();
+  s.eintraege.filter((e) => e.art === 'medikament').forEach((e) => {
+    const name = String(e.mittel || '').trim();
+    if (!name) return;
+    const v = eigene.get(name) || { name, anzahl: 0, zuletzt: e.am };
+    v.anzahl += 1;
+    if (e.am > v.zuletzt) v.zuletzt = e.am;
+    eigene.set(name, v);
+  });
+  const meine = [...eigene.values()].sort((a, b) => b.anzahl - a.anzahl);
+
+  const block = (g) => `<details class="mittel">
+    <summary><b>${esc(g.gruppe)}</b>${g.kuerzel ? ` <span class="klein">(${esc(g.kuerzel)})</span>` : ''}
+      <span class="zeile-tags">${esc(g.kurz)}</span></summary>
+    <p><b>Wie es wirkt.</b> ${esc(g.wirkung)}</p>
+    ${g.einnahme && g.einnahme !== '–' ? `<p><b>Wann man es nimmt.</b> ${esc(g.einnahme)}</p>` : ''}
+    <p><b>Worauf zu achten ist.</b> ${esc(g.hinweis)}</p>
+    <p class="klein">Zum Beispiel: ${esc(g.beispiele.join(', '))}</p>
+  </details>`;
+
+  return `<div class="karte">
+    <h3>Was die Mittel bewirken</h3>
+    <p class="klein">Allgemeine Information, keine Beratung – und ausdrücklich
+    keine Dosierungen. Was für dich gilt, steht auf deiner Packung und sagt dir
+    deine Ärztin oder deine Apotheke.</p>
+
+    ${meine.length ? `<p class="feld-name">Was du eingetragen hast</p>
+      <ul class="wartend">${meine.map((m) => {
+        const g = wissenZu(m.name);
+        return `<li>
+          <span>${esc(m.name)}<span class="zeile-tags">${g ? esc(g.kurz) : 'nicht in der Übersicht – frag in der Apotheke nach'}</span></span>
+          <span class="klein">${mehrzahl(m.anzahl, 'Mal', 'Mal')}</span>
+        </li>`;
+      }).join('')}</ul>`
+    : '<p class="klein">Sobald du ein Medikament einträgst, steht es hier mit dem, was es bewirkt.</p>'}
+
+    <div class="reihe" style="margin-top:10px">
+      ${knopf('mittel', ui.mittel ? 'Übersicht schließen' : 'Alle Mittel im Überblick')}
+    </div>
+
+    ${ui.mittel ? `
+      <div class="mittel-liste">
+        ${MITTEL_WISSEN.map(block).join('')}
+        <p class="feld-name">Was den Magen von der anderen Seite belastet</p>
+        ${REIZSTOFFE.map(block).join('')}
+      </div>` : ''}
+  </div>`;
+}
+
 /* ==================== Eingabebogen ==================== */
 
 function bogenHTML(s) {
@@ -447,16 +569,50 @@ function bogenHTML(s) {
   let mitte = '';
   if (b.art === 'essen') {
     const eigene = s.eigeneAusloeser.map((a) => ({ ...a, icon: '•' }));
+    /*
+     * Die Auswahl steht nach Häufigkeit, das Meistbenutzte oben.
+     *
+     * Sechzehn Marken plus eigene sind zu viele zum Suchen, und gesucht wird
+     * jeden Tag mehrmals. Bei gleicher Häufigkeit bleibt die Reihenfolge des
+     * Katalogs – sonst springt die Liste bei jedem Eintrag neu, und man greift
+     * ins Leere, weil die Hand sich die Stelle gemerkt hat.
+     */
+    const zaehler = haeufigeZutaten(s.eintraege);
+    const nachHaeufigkeit = [...AUSLOESER, ...eigene]
+      .map((m, i) => ({ m, i, n: zaehler.get(m.id) || 0 }))
+      .sort((x, y) => (y.n - x.n) || (x.i - y.i))
+      .map((x) => x.m);
+
+    const gewaehlt = (e.zutaten || []).map((z) => z.id);
+    const gerichte = haeufigeGerichte(s.eintraege, 6);
+
+    const zutatZeile = (z) => `<div class="zutat">
+      <span class="zutat-name">${esc(ausloeserName(z.id, s.eigeneAusloeser))}</span>
+      <select class="feld zutat-rolle" data-act="rolle" data-id="${esc(z.id)}"
+              aria-label="Rolle von ${esc(ausloeserName(z.id, s.eigeneAusloeser))}">
+        ${ROLLEN.map((r) => `<option value="${r.id}"${z.rolle === r.id ? ' selected' : ''}>${esc(r.name)}</option>`).join('')}
+      </select>
+    </div>`;
+
     mitte = `
       <label class="feld-name" for="bogenWas">Was?</label>
       <input type="text" class="feld feld-breit" id="bogenWas" data-act="was"
              value="${esc(e.was || '')}" placeholder="Haferbrei mit Banane" autocomplete="off">
+      ${gerichte.length ? `<div class="marken marken-eng">${gerichte.map((g) => `
+        <button type="button" class="marke" data-act="gericht" data-text="${esc(g.text)}">
+          ${esc(kuerze(g.text, 28))}</button>`).join('')}</div>` : ''}
+
       <p class="feld-name">Portion</p>
       <div class="wahl">${PORTIONEN.map((p) => `
         <button type="button" class="wahl-btn${e.portion === p.id ? ' an' : ''}"
                 data-act="portion" data-id="${p.id}">${p.name}</button>`).join('')}</div>
+
       <p class="feld-name">Was war drin?</p>
-      ${marken([...AUSLOESER, ...eigene], e.tags || [], 'tag')}`;
+      ${marken(nachHaeufigkeit, gewaehlt, 'zutat')}
+
+      ${e.zutaten && e.zutaten.length ? `
+        <p class="feld-name">Wie viel davon? Keine Gramm – die Rolle genügt.</p>
+        <div class="zutaten">${e.zutaten.map(zutatZeile).join('')}</div>` : ''}`;
   } else if (b.art === 'beschwerde') {
     mitte = `
       <p class="feld-name">Wie stark?</p>
@@ -475,6 +631,11 @@ function bogenHTML(s) {
       <div class="marken">${vorschlaege.map((m) => `
         <button type="button" class="marke${e.mittel === m ? ' an' : ''}"
                 data-act="mittel-vorschlag" data-id="${esc(m)}">${esc(m)}</button>`).join('')}</div>
+      ${(() => {
+        const g = wissenZu(e.mittel);
+        return g ? `<p class="klein mittel-hinweis">${esc(g.gruppe)}: ${esc(g.kurz)}
+          <br>Ausführlich unter „Mehr".</p>` : '';
+      })()}
       <label class="feld-name" for="bogenDosis">Dosis</label>
       <input type="text" class="feld feld-breit" id="bogenDosis" data-act="dosis"
              value="${esc(e.dosis || '')}" placeholder="z. B. 20 mg" autocomplete="off">`;
@@ -539,7 +700,10 @@ function male() {
   </div>` : '';
 
   const tab = REITER.some((r) => r.id === s.tab) ? s.tab : 'heute';
-  const inhalt = { heute: tagAnsicht, verlauf: verlaufAnsicht, muster: musterAnsicht, mehr: mehrAnsicht }[tab];
+  const inhalt = {
+    heute: tagAnsicht, verlauf: verlaufAnsicht, muster: musterAnsicht,
+    ideen: ideenAnsicht, mehr: mehrAnsicht,
+  }[tab];
   viewEl.innerHTML = warnung + inhalt(s) + bogenHTML(s);
 
   tabbarEl.innerHTML = REITER.map((r) => `
@@ -570,7 +734,7 @@ function zeichne() {
 
 function bogenOeffnen(art, id) {
   const vorlage = {
-    essen: { was: '', tags: [], portion: 'normal' },
+    essen: { was: '', zutaten: [], portion: 'normal' },
     beschwerde: { staerke: 4, arten: [], notiz: '' },
     medikament: { mittel: '', dosis: '' },
     notiz: { text: '' },
@@ -590,7 +754,7 @@ function bogenSpeichern() {
   const b = ui.bogen;
   if (!b) return;
   const e = { ...b.entwurf, art: b.art };
-  if (b.art === 'essen' && !String(e.was || '').trim() && !(e.tags || []).length) {
+  if (b.art === 'essen' && !String(e.was || '').trim() && !(e.zutaten || []).length) {
     melden('Bitte etwas eintragen oder ankreuzen.');
     return;
   }
@@ -684,6 +848,7 @@ const AKTION = {
     store.einstellen('tab', el.dataset.tab);
     ui.bericht = null;
     ui.sicherung = null;
+    ui.mittel = false;
     zeichne();
   },
 
@@ -701,7 +866,17 @@ const AKTION = {
   'bogen-speichern': bogenSpeichern,
   staerke: (el) => entwurf({ staerke: Number(el.dataset.n) }),
   portion: (el) => entwurf({ portion: el.dataset.id }),
-  tag: (el) => umschalten('tags', el.dataset.id),
+  zutat: (el) => {
+    if (!ui.bogen) return;
+    const id = el.dataset.id;
+    const liste = ui.bogen.entwurf.zutaten || [];
+    entwurf({
+      zutaten: liste.some((z) => z.id === id)
+        ? liste.filter((z) => z.id !== id)
+        : [...liste, { id, rolle: ROLLE_VORGABE }],
+    });
+  },
+  gericht: (el) => entwurf({ was: el.dataset.text }),
   beschwerdeart: (el) => umschalten('arten', el.dataset.id),
   'mittel-vorschlag': (el) => entwurf({ mittel: el.dataset.id }),
 
@@ -747,6 +922,35 @@ const AKTION = {
     zeichne();
   },
   'ausloeser-weg': (el) => { store.ausloeserLoeschen(el.dataset.id); zeichne(); },
+
+  mittel: () => { ui.mittel = !ui.mittel; zeichne(); },
+
+  'idee-neu': () => {
+    const feld = document.getElementById('ideeText');
+    if (!store.ideeAnlegen(feld.value)) { melden('Da steht noch nichts.'); return; }
+    feld.value = '';
+    melden('Notiert.');
+    zeichne();
+  },
+  'idee-haken': (el) => { store.ideeUmschalten(el.dataset.id); zeichne(); },
+  'idee-weg': (el) => { store.ideeLoeschen(el.dataset.id); zeichne(); },
+  'ideen-kopieren': () => kopiere(ideenText(store.zustandLesen()), '#ideeText'),
+  /*
+   * Teilen über das Menü des Geräts. Das ist kein Widerspruch zu „die App
+   * schickt nichts": Hier wird nichts gesendet, sondern der Text an das
+   * Betriebssystem übergeben, das daraufhin *den Nutzer* fragen lässt, wohin.
+   * Ohne diese Schnittstelle bleibt der gewöhnliche Weg über die
+   * Zwischenablage.
+   */
+  'ideen-teilen': async () => {
+    const text = ideenText(store.zustandLesen());
+    if (!navigator.share) { kopiere(text, '#ideeText'); return; }
+    try {
+      await navigator.share({ title: 'Bauchbuch – Ideen', text });
+    } catch {
+      // Abgebrochen oder nicht erlaubt – dann eben nicht.
+    }
+  },
 
   export: () => {
     datenAusgeben(store.alsJSON(), `bauchbuch-${heuteISO()}.json`, 'application/json');
@@ -802,11 +1006,18 @@ document.addEventListener('click', (ev) => {
  * Texteingaben laufen über 'input' und zeichnen *nicht* neu – ein Neuzeichnen
  * bei jedem Tastendruck nähme dem Feld den Fokus und die Schreibmarke.
  */
-document.addEventListener('input', (ev) => {
+function eingabe(ev) {
   const el = ev.target.closest('[data-act]');
   if (!el) return;
   const wert = el.value;
   switch (el.dataset.act) {
+    case 'rolle': {
+      const liste = (ui.bogen && ui.bogen.entwurf.zutaten) || [];
+      entwurf({
+        zutaten: liste.map((z) => (z.id === el.dataset.id ? { ...z, rolle: wert } : z)),
+      }, false);
+      break;
+    }
     case 'was': entwurf({ was: wert }, false); break;
     case 'notiz': entwurf({ notiz: wert }, false); break;
     case 'mittel': entwurf({ mittel: wert }, false); break;
@@ -819,7 +1030,16 @@ document.addEventListener('input', (ev) => {
       break;
     default: break;
   }
-});
+}
+
+/*
+ * Texteingaben melden sich über 'input', Auswahlmenüs je nach Browser über
+ * 'input' *oder* nur über 'change'. Beide auf denselben Empfänger, damit die
+ * Rolle einer Zutat nirgends verlorengeht – das ist eine Angabe, die man genau
+ * einmal macht und dann nie wieder kontrolliert.
+ */
+document.addEventListener('input', eingabe);
+document.addEventListener('change', eingabe);
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape' && ui.bogen) { ui.bogen = null; zeichne(); }

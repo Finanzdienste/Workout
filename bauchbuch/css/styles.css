@@ -268,6 +268,29 @@ p { margin: 0 0 8px; }
 }
 .wahl-btn.an { background: var(--accent-weich); border-color: var(--accent); }
 
+/* ---------- Zutaten mit ihrer Rolle ---------- */
+.marken-eng { margin-top: 6px; }
+.marken-eng .marke { font-size: 13px; padding: 6px 10px; min-height: 34px; color: var(--muted); }
+.zutaten { display: flex; flex-direction: column; gap: 6px; }
+.zutat {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 6px 8px 6px 12px;
+}
+.zutat-name { flex: 1; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+/* Das Menü darf schmal sein, aber nicht schmaler als sein längster Eintrag –
+   sonst steht dort "Würze oder Sa…" und die Angabe ist geraten. */
+.zutat-rolle { flex: none; min-height: 38px; padding: 6px 8px; font-size: 13px; }
+
+.rollen { list-style: none; margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid var(--line); }
+.rollen li {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-size: 13px; padding: 3px 0;
+}
+.rollen li > .klein { white-space: nowrap; }
+
 /* ---------- Kacheln und Tafel ---------- */
 .kacheln { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
 .kachel {
@@ -341,12 +364,60 @@ p { margin: 0 0 8px; }
   padding: 7px 0; border-bottom: 1px solid var(--line);
 }
 .wartend li:last-child { border-bottom: none; }
+/* Die rechte Spalte ist eine Zählung ("2 Mal", "3 von 5") und gehört in eine
+   Zeile: umgebrochen liest sie sich als zwei Angaben. */
+.wartend li > .klein { white-space: nowrap; flex: none; }
+.wartend li > span:first-child { min-width: 0; }
 
 .bericht {
   width: 100%; background: var(--bg); color: var(--text);
   border: 1px solid var(--line); border-radius: 11px; padding: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px; line-height: 1.4; margin-bottom: 8px;
+}
+
+/* ---------- Ideen ---------- */
+.ideen { list-style: none; margin: 0 0 12px; padding: 0; }
+.idee {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px; margin-bottom: 6px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 11px;
+}
+/* Erledigt heißt hier nicht "weg": Eine umgesetzte Idee soll sichtbar bleiben,
+   damit man sieht, dass etwas daraus geworden ist. */
+.idee.ab { border-left-color: var(--ok); opacity: .55; }
+.idee.ab .idee-text { text-decoration: line-through; }
+.idee-haken {
+  flex: none;
+  width: 26px; height: 26px; margin-top: 2px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg-elev-2);
+  cursor: pointer; line-height: 1; font-size: 14px;
+}
+.idee.ab .idee-haken { background: var(--ok); border-color: var(--ok); color: #1a1014; }
+.idee-text { flex: 1; font-size: 15px; overflow-wrap: anywhere; }
+
+/* ---------- Mittelübersicht ---------- */
+.mittel-liste { margin-top: 12px; }
+.mittel {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: var(--bg-elev-2);
+}
+.mittel > summary { cursor: pointer; list-style-position: outside; }
+.mittel > summary::marker { color: var(--muted); }
+.mittel[open] > summary { margin-bottom: 8px; }
+.mittel p { font-size: 14px; }
+.mittel p b { color: var(--accent); font-weight: 600; }
+.mittel-hinweis {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  margin-top: 8px;
 }
 
 /* ---------- Willkommen ---------- */

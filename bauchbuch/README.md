@@ -28,8 +28,34 @@ beschwerdefreie Tage in Folge.
 bestimmten Merkmal schlechter als nach den übrigen? Dazu Tageszeit und Art
 der Beschwerden.
 
+**Ideen.** Ein Zettel für Verbesserungsvorschläge zur App selbst. Wer die App
+benutzt, sitzt selten neben dem, der sie baut – deshalb ist der eigentliche
+Knopf nicht „Eintragen", sondern „Alle kopieren": die Liste als Text, zum
+Einfügen in eine Nachricht. Ideen stehen neben den Eintragungen, nicht in
+ihnen, und tauchen in keiner Auswertung auf.
+
 **Mehr.** Sicherung als JSON-Datei und zurück, der Bericht für den Arzttermin,
-die Einstellungen der Auswertung, eigene Auslöser, vier Farbvarianten.
+die Übersicht „Was die Mittel bewirken", die Einstellungen der Auswertung,
+eigene Auslöser, vier Farbvarianten.
+
+### Was die Mittel bewirken
+
+Wer Magenbeschwerden hat, hat bald mehrere Schachteln im Schrank, und die
+Beipackzettel beantworten selten die Frage, die man wirklich hat: Was macht das
+eigentlich, und warum ausgerechnet vor dem Frühstück? `js/mittel.js` beschreibt
+neun Wirkstoffgruppen – von Protonenpumpenhemmern über Antazida bis zur
+Helicobacter-Behandlung – in ganzen Sätzen: wie sie arbeiten, wann man sie
+üblicherweise nimmt, worauf zu achten ist. Unter „Mehr" stehen zuerst die
+Mittel, die tatsächlich eingetragen wurden, mit Häufigkeit und Erklärung; beim
+Eintragen erscheint die Erklärung gleich im Bogen.
+
+Dazu gehören zwei Gruppen, die keine Magenmittel sind: entzündungshemmende
+Schmerzmittel und Kortison. Eine Übersicht über Magenmittel, in der das fehlt,
+was den Magen erst reizt, ist die halbe Wahrheit – und die gefährlichere Hälfte.
+
+Drei Regeln hält der Text ein, und `tests/test-mittel.mjs` zählt sie nach:
+**keine Dosierungen**, **keine Empfehlung** („nimm", „hilft gegen" kommen
+nirgends vor), und der Verweis auf Ärztin oder Apotheke steht sichtbar darüber.
 
 ## Wie die Auswertung rechnet – und was sie nicht behauptet
 
@@ -72,6 +98,12 @@ ein Satz in einer README ist keine Eigenschaft. Zwei Prüfungen halten ihn:
   eigene Adresse zeigt, lässt den Test scheitern.
 
 Beide laufen bei jedem Push.
+
+Eine Ausnahme mit Ansage: Der Knopf „Teilen" unter „Ideen" ruft
+`navigator.share` auf, sofern das Gerät es kennt. Auch damit sendet die App
+nichts – der Text wird an das Betriebssystem übergeben, das daraufhin *den
+Nutzer* fragt, wohin. Wo es die Schnittstelle nicht gibt, bleibt der
+gewöhnliche Weg über die Zwischenablage.
 
 ## Benutzen
 
@@ -118,6 +150,7 @@ js/daten.js         die Kataloge: Auslöser, Beschwerdearten, Skalenworte
 js/chart.js         Balken und Vergleichsbalken als SVG-Zeichenkette
 js/store.js         der Speicher – localStorage, mehr gibt es nicht
 js/auswertung.js    die Rechenschicht: Merkmale, Fenster, Bilanz, Verlauf
+js/mittel.js        was die Wirkstoffgruppen bewirken – reine Daten
 js/bericht.js       der Zettel für den Arzttermin, als reiner Text
 js/app.js           die Anzeige: ein Zustand, eine Zeichenfunktion,
                     ein Klick-Empfänger für alles
@@ -132,7 +165,7 @@ in einer der Listen, geht genau eine der beiden Fassungen still kaputt.
 
 ### Tests
 
-Neun Dateien, rund 160 Prüfungen, alle in einem echten Chromium. Kein
+Elf Dateien, gut 200 Prüfungen, alle in einem echten Chromium. Kein
 Rahmenwerk: Jeder Test ist ein eigenes Programm und meldet sein Ergebnis über
 den Rückgabewert.
 
@@ -146,6 +179,8 @@ den Rückgabewert.
 | `test-sicherung.mjs` | sichern, alles löschen, wieder einlesen – über echte Dateien |
 | `test-persist.mjs` | die Ein-Datei-Fassung übersteht Neuladen und Neustart |
 | `test-offline.mjs` | Service Worker, offline eintragen, offline auswerten |
+| `test-ideen.mjs` | eintragen, abhaken, kopieren – und Ideen bleiben aus der Auswertung heraus |
+| `test-mittel.mjs` | die Zuordnung freier Namen zur Wirkstoffgruppe, und der Ton der Texte |
 | `test-still.mjs` | die App schickt nichts |
 
 Die Auswertung wird nicht daran geprüft, ob im Browser etwas Grünes steht,

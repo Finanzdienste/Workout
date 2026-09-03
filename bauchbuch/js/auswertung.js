@@ -21,18 +21,45 @@
  *      ein Anhaltspunkt fürs Gespräch beim Arzt, keine Diagnose.
  */
 import { plusTage, tageDazwischen, tageszeit, TAGESZEIT_NAME, zeitpunkt, stundenDazwischen } from './datum.js';
-import { ALLE_AUSLOESER } from './daten.js';
+import { ALLE_AUSLOESER, ROLLEN, ROLLE_VORGABE } from './daten.js';
 
 /** Späte Mahlzeit ab dieser Stunde – siehe UMSTAENDE in js/daten.js. */
 const SPAET_AB = 20;
 
 /**
- * Alle Merkmale einer Mahlzeit: angekreuzte Auslöser plus die beiden
- * Umstände, die sich aus Portion und Uhrzeit von selbst ergeben.
+ * Die Zutaten einer Mahlzeit als [{ id, rolle }].
+ *
+ * Seit die Rolle dazugehört, stehen sie unter `zutaten`. Vorher war es eine
+ * bloße Liste von IDs unter `tags`. Der Speicher rechnet alte Stände beim
+ * Laden um (siehe mahlzeitFrisch in js/store.js) – die Zeile hier ist der
+ * zweite Riegel, für alles, was an dieser Umrechnung vorbeikommt: eine
+ * Sicherung aus einer älteren Fassung, ein von Hand gesetzter Zustand, ein
+ * Test, der die Rechenschicht direkt aufruft.
+ */
+export function zutatenVon(eintrag) {
+  if (Array.isArray(eintrag.zutaten)) {
+    return eintrag.zutaten
+      .filter((z) => z && typeof z.id === 'string')
+      .map((z) => ({ id: z.id, rolle: z.rolle || ROLLE_VORGABE }));
+  }
+  if (Array.isArray(eintrag.tags)) {
+    return eintrag.tags.map((id) => ({ id, rolle: ROLLE_VORGABE }));
+  }
+  return [];
+}
+
+/**
+ * Alle Merkmale einer Mahlzeit: die Zutaten plus die beiden Umstände, die
+ * sich aus Portion und Uhrzeit von selbst ergeben.
+ *
+ * Die Rolle spielt hier bewusst *keine* Rolle: Für die Frage „war es drin?"
+ * zählt jede Zutat gleich. Was die Rolle unterscheidet, steht getrennt in
+ * rollenBilanz() – und zwar mit Fallzahlen, statt still eine Gewichtung in
+ * die Hauptzahl zu rechnen, die niemand nachvollziehen könnte.
  */
 export function merkmale(eintrag) {
   if (eintrag.art !== 'essen') return [];
-  const raus = Array.isArray(eintrag.tags) ? [...eintrag.tags] : [];
+  const raus = zutatenVon(eintrag).map((z) => z.id);
   if (eintrag.portion === 'gross') raus.push('gross');
   const std = Number(String(eintrag.um || '').split(':')[0]);
   if (Number.isFinite(std) && std >= SPAET_AB) raus.push('spaet');
@@ -143,6 +170,71 @@ export const EINSTUFUNG_WORT = {
   unauffaellig: 'eher unauffällig',
   zuwenig: 'zu wenige Fälle',
 };
+
+/**
+ * Ein auffälliger Auslöser, aufgeschlüsselt nach der Rolle, in der er vorkam.
+ *
+ * Das ist die Auskunft, für die es die Rollen gibt: „Zwiebel" ist keine
+ * Antwort, wenn sie achtmal die Suppe war und viermal drei Ringe obendrauf.
+ * Zurück kommt jede Rolle, die überhaupt vorkam, mit ihrer Fallzahl – ohne
+ * Schwelle und ohne Urteil, denn eine Aufschlüsselung hat naturgemäß kleinere
+ * Zahlen als das Ganze, und wer sie liest, soll das sehen.
+ */
+export function rollenBilanz(eintraege, id, fensterStunden) {
+  const treffer = eintraege.filter((e) => e.art === 'essen'
+    && zutatenVon(e).some((z) => z.id === id));
+  const raus = [];
+  ROLLEN.forEach((r) => {
+    const mit = treffer.filter((e) => zutatenVon(e)
+      .some((z) => z.id === id && z.rolle === r.id));
+    if (!mit.length) return;
+    const summe = mit.reduce((sum, e) => sum + wertNach(eintraege, e, fensterStunden), 0);
+    raus.push({ rolle: r.id, faelle: mit.length, schnitt: summe / mit.length });
+  });
+  return raus.sort((a, b) => b.schnitt - a.schnitt);
+}
+
+/* ---------- Was oft vorkommt ---------- */
+
+/**
+ * Die Zutaten nach Häufigkeit, die meistbenutzte zuerst.
+ *
+ * Die Auswahlliste beim Eintragen ist sechzehn Marken lang plus eigene. Wer
+ * jeden Tag Kaffee einträgt, soll ihn nicht jeden Tag suchen – und eine
+ * Eingabe, die drei Sekunden dauert statt fünfzehn, wird auch an einem
+ * schlechten Tag noch gemacht. Genau daran hängt, ob das Tagebuch Lücken hat.
+ */
+export function haeufigeZutaten(eintraege) {
+  const zaehler = new Map();
+  eintraege.filter((e) => e.art === 'essen').forEach((e) => {
+    zutatenVon(e).forEach((z) => zaehler.set(z.id, (zaehler.get(z.id) || 0) + 1));
+  });
+  return zaehler;
+}
+
+/**
+ * Die häufigsten Mahlzeiten im Klartext, als Vorschlag fürs Textfeld.
+ *
+ * Verglichen wird kleingeschrieben und ohne Randleerzeichen, angezeigt wird
+ * die zuletzt benutzte Schreibweise – sonst stünde „haferbrei" neben
+ * „Haferbrei" und beide wären halb so häufig.
+ */
+export function haeufigeGerichte(eintraege, anzahl = 6) {
+  const zaehler = new Map();
+  eintraege.filter((e) => e.art === 'essen').forEach((e) => {
+    const roh = String(e.was || '').trim();
+    if (!roh) return;
+    const schluessel = roh.toLowerCase();
+    const v = zaehler.get(schluessel) || { text: roh, anzahl: 0 };
+    v.text = roh;
+    v.anzahl += 1;
+    zaehler.set(schluessel, v);
+  });
+  return [...zaehler.values()]
+    .filter((g) => g.anzahl > 1)
+    .sort((a, b) => b.anzahl - a.anzahl)
+    .slice(0, anzahl);
+}
 
 /* ---------- Verlauf ---------- */
 
