@@ -1,0 +1,120 @@
+/*
+ * Service Worker – macht die App ohne Netz benutzbar.
+ *
+ * Muss im Wurzelverzeichnis liegen: Der Geltungsbereich eines Service Workers
+ * ist sein eigener Ordner, und von hier aus deckt er die gesamte App ab.
+ *
+ * Zwei Strategien, je nach Art der Anfrage:
+ *
+ *   Seitenaufrufe   erst Netz, bei Fehlschlag der Zwischenspeicher. So ist
+ *                   eine neue Fassung sofort da, sobald Empfang besteht, und
+ *                   ohne Netz startet die App trotzdem.
+ *
+ *   Alles andere    sofort aus dem Zwischenspeicher ausliefern und parallel im
+ *                   Hintergrund erneuern. Der Start bleibt dadurch auch bei
+ *                   schlechter Verbindung schnell.
+ *
+ * Was der Service Worker *nicht* tut: irgendetwas verschicken. Er holt nur die
+ * eigenen Dateien und beantwortet Anfragen an dieselbe Adresse. Eintragungen
+ * kommen hier nie vorbei – die stehen im localStorage und verlassen die Seite
+ * nicht.
+ *
+ * VERSION bei jeder Änderung an den unten gelisteten Dateien hochzählen –
+ * daran hängt das Aufräumen alter Zwischenspeicher.
+ */
+
+const VERSION = 'v1';
+const CACHE = `bauchbuch-${VERSION}`;
+
+const SHELL = [
+  './',
+  './index.html',
+  './css/styles.css',
+  './js/app.js',
+  './js/datum.js',
+  './js/text.js',
+  './js/daten.js',
+  './js/chart.js',
+  './js/store.js',
+  './js/auswertung.js',
+  './js/bericht.js',
+  './icon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-512.png',
+  './manifest.webmanifest',
+];
+
+/**
+ * Am Zwischenspeicher des Browsers vorbei laden.
+ *
+ * Das ist keine Feinheit: GitHub Pages schickt die Dateien mit einer
+ * Haltbarkeit von zehn Minuten. Ein gewöhnliches fetch() bekommt dann die
+ * *alte* Fassung aus dem Browser-Zwischenspeicher – und der Service Worker
+ * legt sie als vermeintlich frisch in seinen eigenen. So kann eine neue
+ * Fassung beliebig lange nicht ankommen, obwohl sie längst online steht.
+ */
+const frisch = (input) => fetch(new Request(input, { cache: 'reload' }));
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE)
+      // Einzeln statt addAll: eine fehlende Datei darf nicht die gesamte
+      // Installation scheitern lassen.
+      .then((cache) => Promise.all(SHELL.map((url) => frisch(url)
+        .then((res) => (res && res.ok ? cache.put(url, res) : null))
+        .catch(() => null))))
+      .then(() => self.skipWaiting()),
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Nur im Zwischenspeicher dieser Fassung nachsehen. caches.match() ohne
+  // Angabe durchsucht *alle* – ein übrig gebliebener alter würde dann weiter
+  // alte Dateien ausliefern.
+  const gespeichert = (req) => caches.open(CACHE).then((c) => c.match(req));
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      frisch(request)
+        .then((res) => {
+          const kopie = res.clone();
+          caches.open(CACHE).then((c) => c.put(request, kopie));
+          return res;
+        })
+        .catch(() => gespeichert(request)
+          .then((treffer) => treffer || gespeichert('./index.html'))
+          .then((treffer) => treffer || Response.error())),
+    );
+    return;
+  }
+
+  event.respondWith(
+    gespeichert(request).then((treffer) => {
+      const erneuern = frisch(request)
+        .then((res) => {
+          if (res && res.ok) {
+            const kopie = res.clone();
+            caches.open(CACHE).then((c) => c.put(request, kopie));
+          }
+          return res;
+        })
+        .catch(() => treffer);
+      return treffer || erneuern;
+    }),
+  );
+});

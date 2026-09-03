@@ -1,0 +1,14 @@
+{
+  "name": "bauchbuch",
+  "private": true,
+  "type": "module",
+  "description": "Nur für die Tests. Die App selbst hat keine Abhängigkeiten und keinen Bauschritt – index.html im Browser öffnen genügt.",
+  "scripts": {
+    "test": "node tests/lauf.mjs",
+    "bau": "python3 tools/build-single.py",
+    "serve": "node tests/server.mjs 8199"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

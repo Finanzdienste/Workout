@@ -1,0 +1,76 @@
+# Bei jedem Push: nachsehen, nachbauen, nachklicken.
+#
+# Die App hat keinen Bauschritt – aber sie hat eine erzeugte Datei
+# (dist/bauchbuch.html) und eine Zusage, die nur so lange gilt, wie sie geprüft
+# wird: dass nichts das Gerät verlässt.
+name: Prüfung
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lesen:
+    name: Schichtung und erzeugte Dateien
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Die eine Zusage der App. Der schnelle Nachweis ohne Browser – der
+      # gründliche steht in tests/test-still.mjs.
+      - name: Kein Weg nach draußen
+        run: python3 tools/pruefung/keine-leitung.py
+
+      # Die Rechnung darf nicht an der Anzeige hängen, und ein neues Modul muss
+      # in beiden Listen stehen: im Bündel und im Offline-Vorrat. Beides geht
+      # sonst still kaputt – die Ein-Datei-Fassung endet in einem
+      # ReferenceError, während index.html weiterläuft.
+      - name: Module sind sauber geschichtet und vollständig gelistet
+        run: python3 tools/pruefung/schichten.py
+
+      # Die Ein-Datei-Fassung noch einmal erzeugen. Kommt etwas anderes heraus
+      # als eingecheckt ist, wurde von Hand hineingeschrieben oder der Bau
+      # vergessen – und weitergegeben wird genau diese Datei.
+      - name: dist/bauchbuch.html ist aktuell
+        run: |
+          python3 tools/build-single.py
+          git diff --exit-code -- dist/bauchbuch.html \
+            || { echo "::error::dist/bauchbuch.html ist nicht neu erzeugt worden – python3 tools/build-single.py"; exit 1; }
+
+  klicken:
+    name: Browsertests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: npm ci
+      # Nur Chromium: die App ist fürs Handy gebaut, und drei Browser
+      # herunterzuladen kostet mehr Zeit als der ganze Testlauf.
+      - run: npx playwright install --with-deps chromium
+
+      # Zwei Tests prüfen die Ein-Datei-Fassung – die muss vorher da sein.
+      - run: python3 tools/build-single.py
+
+      - name: Alle Tests
+        run: node tests/lauf.mjs
+
+      # Bildschirmfotos aus dem Lauf – bei einem Fehlschlag der schnellste Weg
+      # zu sehen, was die App wirklich angezeigt hat.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bildschirmfotos
+          path: .testlauf/*.png
+          if-no-files-found: ignore
+          retention-days: 7
