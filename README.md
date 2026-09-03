@@ -1875,13 +1875,26 @@ Hintergrund, damit auch eine über Mitternacht offene App den richtigen Tag
 zeigt. Unter **Mehr** lässt sich die aktuelle Verschiebung ablesen, tageweise
 korrigieren oder auf die Original-Termine aus der Excel zurücksetzen.
 
-**Es passiert still.** Einen Schalter dafür gab es einmal – abgeschaltet war er
-nie sinnvoll, und angeschaltet stellte er eine Frage, deren Antwort immer
-dieselbe ist. Auch die Meldung „↷ 2 Tage verpasst" ist weg. Was übrig bleibt,
-ist die eine Folge, die man wirklich wissen muss: **Wer seine Termine im
-Kalender stehen hat, hat sie jetzt an den falschen Tagen.** Genau danach fragt
-die Startansicht dann – *Neue Kalenderdatei erzeugen? Ja / Nein* –, und nur,
-wenn überhaupt schon einmal eine erzeugt wurde.
+**Es passiert still, und zwar vollständig.** Einen Schalter dafür gab es einmal
+– abgeschaltet war er nie sinnvoll, und angeschaltet stellte er eine Frage,
+deren Antwort immer dieselbe ist. Danach blieb ein Kasten auf der Startansicht:
+„↷ 3 Tage verpasst. Der Plan ist nachgerückt …", und darunter die Frage *Neue
+Kalenderdatei erzeugen? Ja / Nein*. Beides ist jetzt auch weg.
+
+Der Grund ist derselbe wie beim „Plan +2 Tage" in der Kopfzeile: Es sah nach
+einem Rückstand aus, den es nicht gibt. Nachgerückt wird ja gerade, damit
+nichts übersprungen wird — die Ansage machte aus einer Selbstverständlichkeit
+ein Ereignis. Und die Kalenderfrage traf jemanden, der gar nicht mehr in den
+Kalender exportiert.
+
+Der Export selbst bleibt, unter *Mehr → Termine*: Wer ihn benutzt, erzeugt die
+Datei dort neu, wenn er es für nötig hält. Die Verschiebung in Tagen steht
+ebenfalls dort.
+
+> Am Rande: Dieser Absatz behauptete schon vor der Änderung, die Meldung sei
+> weg — sie stand aber weiter im Code und auf dem Bildschirm. Eine Zeile
+> Dokumentation, die einer Änderung vorausläuft, die dann nur halb passiert:
+> genau die Sorte, die man später glaubt.
 
 Was die App nicht kann: den Google-Kalender selbst umschreiben. Dafür bräuchte
 es eine Anmeldung bei Google und einen Zugriffsschlüssel; eine Datei

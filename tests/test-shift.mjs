@@ -161,7 +161,13 @@ check(s3.title.includes(soll.w3), `Workout 3 auf dem ${soll.w3} (Plan + 4 Tage)`
 check(s4.title.includes(soll.w4), `Workout 4 auf dem ${soll.w4} (Plan + 4 Tage)`);
 await step(1, 1);
 const s2 = await snap('zurück auf Workout 2');
-check(s2.eyebrow.includes('Plan +') || s2.title.includes(de(verpasst2)), 'Hinweis zur Verschiebung sichtbar');
+// Die Verschiebung steht im Datum, nicht in einem Hinweis. „Plan + N Tage"
+// gab es einmal in der Kopfzeile und als Abzeichen, und danach noch als
+// Kasten „N Tage verpasst" – alles drei ist raus, weil es nach einem
+// Rückstand aussah, den es nicht gibt. Diese Prüfung hing als Oder-Zweig
+// daran und wäre stillschweigend zu einer halben Prüfung geworden.
+check(s2.title.includes(de(verpasst2)),
+  `die verschobene Einheit steht auf ihrem neuen Tag (${de(verpasst2)})`);
 await page.screenshot({ path: `${SHOT}/11-plan-shifted.png`, fullPage: false });
 
 // --- Nachrücken passiert von allein ----------------------------------------

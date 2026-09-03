@@ -8886,7 +8886,6 @@ const ui = {
   openEx: new Set(),
   openDetail: new Set(),   // Übungen, deren ausführliche Erklärung offen steht
   standAngebot: null,      // Stand, den jemand per Link geschickt hat
-  shiftInfo: 0,            // um so viele Tage ist der Plan gerade nachgerückt
   standZurueck: null,      // Name, dem man seinen Stand noch zurückschicken wollte
   adminDaten: null,        // geladene Zeilen der Betreiber-Übersicht
   adminFehler: '',
@@ -9088,19 +9087,16 @@ function renderOverview() {
       ${umzugHinweis()}
       ${aufstiegHinweis()}
       ${speicherWarnung()}
-      ${ui.shiftInfo ? `<div class="notice">
-        ↷ <b>${esc(plural(ui.shiftInfo, 'Tag', 'Tage'))} verpasst.</b> Der Plan ist
-        nachgerückt – die Abstände zwischen den Einheiten bleiben, übersprungen wird nichts.
-        ${store.getState().lastIcs ? `<div style="margin-top:8px">Deine Termine im Kalender
-          stehen jetzt an den falschen Tagen. Neue Kalenderdatei erzeugen?</div>
-          <div class="btn-row nav" style="margin-top:8px">
-            <button type="button" class="btn btn-primary" data-act="shift-ics">Ja, Datei erzeugen</button>
-            <button type="button" class="btn btn-ghost" data-act="shift-ok">Nein, später</button>
-          </div>`
-        : `<div class="btn-row" style="margin-top:8px">
-            <button type="button" class="btn btn-ghost btn-block" data-act="shift-ok">Alles klar</button>
-          </div>`}
-      </div>` : ''}
+      <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
+           Frage, ob eine neue Kalenderdatei erzeugt werden soll. Beides raus,
+           auf Zuruf.
+
+           Das Nachrücken selbst bleibt – catchUpPlan() verschiebt den offenen
+           Plan weiter, wenn ein Termin verstreicht. Nur angesagt wird es nicht
+           mehr: Es sah nach einem Rückstand aus, den es nicht gibt, und wer
+           seine Termine gar nicht mehr in den Kalender exportiert, wird auch
+           nicht gefragt, ob er sie neu erzeugen will. Der Export steht
+           weiterhin unter Mehr → Termine, für den, der ihn will. -->
       ${ui.standAngebot ? `<div class="notice">
         👋 <b>${esc(ui.standAngebot.n)}</b> hat dir seinen Stand geschickt:
         ${ui.standAngebot.w} von ${ui.standAngebot.p} Einheiten, ${ui.standAngebot.s} Sätze${
@@ -12483,15 +12479,6 @@ view.addEventListener('click', (e) => {
       downloadICSAus();
       render();
       break;
-    case 'shift-ics':
-      ui.shiftInfo = 0;
-      downloadICS();
-      render();
-      break;
-    case 'shift-ok':
-      ui.shiftInfo = 0;
-      render();
-      break;
     case 'setup-next':
       setupWeiter();
       break;
@@ -12915,11 +12902,10 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   });
 }
 
-const missedAtStart = catchUpPlan();
-// Nachgerückt wird still. Gefragt wird nur, was danach zu tun ist: Wer seine
-// Termine im Kalender stehen hat, hat sie jetzt an den falschen Tagen. Muss vor
-// dem ersten render() stehen, sonst kommt die Frage einen Aufbau zu spät.
-ui.shiftInfo = missedAtStart;
+// Nachrücken passiert still: Ist der Termin der nächsten offenen Einheit
+// verstrichen, wandert der Restplan nach hinten. Der Rückgabewert – wie viele
+// Tage das waren – wird nicht mehr gebraucht, seit der Hinweis dazu weg ist.
+catchUpPlan();
 // Hat jemand einen Stand geschickt? Steht im Anker der Adresse und wird dort
 // sofort entfernt. Die Frage danach stellt die Startansicht – also muss sie
 // auch die sichtbare sein, sonst öffnet der Link bei jemandem, der zuletzt in
