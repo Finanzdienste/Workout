@@ -1978,6 +1978,7 @@ tools/build-plan.py     Generator: Ziele je Muskelgruppe -> tools/plan.json
 tools/pruefung/plan-eingaben.json  Aus welchen Eingaben die Pläne erzeugt wurden
 tools/build-icons.mjs   Generator: icon.svg -> die drei PNGs
 tools/build-single.py   Bündelt alles zu dist/workout.html
+tools/aufraeumen.sql    Testleichen aus der Rückkanal-Tabelle räumen
 dist/workout.html       Erzeugt: die App als eine portable Datei
 tests/                  Browsertests, siehe „Prüfen"
 tools/pruefung/         Nachrechnen der fertigen Pläne, siehe „Prüfen"
@@ -3174,6 +3175,56 @@ Entscheidung des Betreibers, kein Aufräumen nebenbei.
 Heimlich mitzuzählen wäre technisch dasselbe und trotzdem etwas anderes: Die App
 verspricht jedem beim ersten Start, dass nichts von allein sein Gerät verlässt.
 Eine Zusage, die sie an anderer Stelle bricht, ist schlimmer als gar keine.
+
+### Die Testleichen wegräumen
+
+Die rund 1000 Zeilen aus den Testläufen stehen noch in der Tabelle. Sie kommen
+nicht mehr dazu, aber sie gehen auch nicht von selbst.
+
+**[`tools/aufraeumen.sql`](tools/aufraeumen.sql)** räumt sie weg: einfügen in
+Supabase → SQL Editor → Run. Erst drei `select`, die zeigen, was da ist und was
+gelöscht würde, dann ein `delete`, dann zwei zum Nachsehen.
+
+Die Bedingung ist eine einzige Zeile: `gesehen <= '2026-08-29'` — alles, was
+sich seit dem Tag nach der Korrektur nicht mehr gemeldet hat. Das rät nicht an
+Namen herum (»Tobi« steht in beiden Welten, echt und im Test) und **heilt sich
+selbst**: Die Tabelle ist ein Zwischenstand, kein Archiv. Jede Zeile entsteht
+neu, wenn ein Gerät das nächste Mal meldet — die Zahlen stehen im Browser des
+Geräts. Eine gelöschte Zeile eines Geräts, das noch benutzt wird, ist beim
+nächsten Öffnen wieder da, mit aktuellen Zahlen. Verloren geht nur, was zu einem
+Gerät gehört, das sich nie wieder meldet.
+
+Das muss von Hand passieren, und das ist Absicht: Der öffentliche Schlüssel der
+App kommt an die Tabelle gar nicht heran. Es gibt also keinen Weg, das zu
+automatisieren, der nicht gleichzeitig ein Loch in die Regeln schneidet.
+
+### Damit das Projekt nicht einschläft
+
+Supabase pausiert Projekte im kostenlosen Tarif nach etwa einer Woche ohne
+Aktivität. Der Rückkanal hat davon wenig: Jedes Gerät meldet höchstens einmal am
+Tag. Ausgerechnet die Korrektur, die die Testläufe aus der Statistik geworfen
+hat, hat ihm damit auch die Aktivität genommen — vorher hielten die ~1000
+Testleichen das Projekt versehentlich beschäftigt.
+
+**[`.github/workflows/rueckkanal-wach.yml`](.github/workflows/rueckkanal-wach.yml)**
+klopft montags und donnerstags einmal an. Zwei Dinge tut es ausdrücklich nicht:
+
+* **Keine Daten schreiben.** Der Aufruf geht an die Wurzel der
+  REST-Schnittstelle und liefert nur deren Schema. Ein Ping, der sich als Gerät
+  ausgäbe, wäre eine Lüge in der eigenen Statistik.
+* **Nicht rot werden.** Ein fehlgeschlagener Ping schreibt eine Warnung in den
+  Lauf und lässt ihn grün. Auf dem Spiel steht eine Übersicht — dafür jede Woche
+  eine Fehlermail zu riskieren wäre schlimmer als die Pause, die verhindert
+  werden soll.
+
+Adresse und Schlüssel liest der Ablauf aus `js/config.js`, wo sie ohnehin
+öffentlich stehen; ein Geheimnis braucht er nicht. Ist dort nichts eingetragen,
+tut er nichts.
+
+Zwei Einschränkungen, ehrlich dazugesagt: Ob Supabase genau das als „Aktivität"
+zählt, steht nirgends garantiert — es folgt daraus, dass API-Anfragen als
+Aktivität beschrieben werden. Und GitHub schaltet zeitgesteuerte Abläufe in
+Repos ab, in denen 60 Tage nichts passiert ist.
 
 ### Einrichten (einmalig, ~5 Minuten)
 

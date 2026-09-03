@@ -1,0 +1,79 @@
+# Hält das Supabase-Projekt des Rückkanals wach.
+#
+# Supabase pausiert Projekte im kostenlosen Tarif nach etwa einer Woche ohne
+# Aktivität. Der Rückkanal hat aber von Natur aus wenig davon: Jedes Gerät
+# meldet höchstens einmal am Tag, und seit Testläufe nicht mehr mitzählen
+# (js/config.js, Commit 380cd1a) sind das ein paar Anfragen pro Woche. Vorher
+# hielten rund 1000 Testleichen das Projekt versehentlich beschäftigt.
+#
+# Zwei Dinge, die diese Datei ausdrücklich NICHT tut:
+#
+#   Keine Daten schreiben. Der Aufruf geht an die Wurzel der REST-Schnittstelle
+#   und liefert nur deren Schema. Er legt keine Zeile an, verändert keine und
+#   verfälscht damit auch keine Zahl in der Betreiber-Übersicht. Ein Ping, der
+#   sich als Gerät ausgibt, wäre eine Lüge in der eigenen Statistik.
+#
+#   Nicht rot werden. Ein fehlgeschlagener Ping schreibt eine Warnung in den
+#   Lauf, aber lässt ihn grün. Was hier auf dem Spiel steht, ist eine
+#   Übersicht – dafür jede Woche eine Fehlermail zu riskieren, wäre schlimmer
+#   als die Pause, die verhindert werden soll. Wer wissen will, ob es klappt,
+#   sieht in der Aktionsübersicht nach.
+#
+# Adresse und Schlüssel stehen in js/config.js und dürfen öffentlich sein –
+# deshalb braucht diese Datei kein Geheimnis. Sie liest sie von dort, damit es
+# nicht zwei Stellen gibt, die auseinanderlaufen können.
+#
+# Zu wissen: GitHub schaltet zeitgesteuerte Abläufe in Repos ab, in denen 60
+# Tage nichts passiert ist. Solange hier entwickelt wird, greift das nicht.
+
+name: Rückkanal wach halten
+
+on:
+  schedule:
+    # Montags und donnerstags früh. Zweimal pro Woche reicht für eine Grenze
+    # von etwa sieben Tagen und lässt Luft, wenn ein Lauf ausfällt.
+    - cron: '17 5 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pingen:
+    name: Einmal anklopfen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Adresse und Schlüssel aus js/config.js lesen
+        id: config
+        run: |
+          url=$(grep -oE "url: *'[^']+'" js/config.js | head -1 | sed "s/url: *'//;s/'//")
+          key=$(grep -oE "key: *'[^']+'" js/config.js | head -1 | sed "s/key: *'//;s/'//")
+          if [ -z "$url" ] || [ -z "$key" ]; then
+            echo "::notice::Kein Rückkanal in js/config.js eingetragen – nichts zu tun."
+            echo "leer=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          echo "Ziel: $url"
+
+      - name: Anklopfen
+        if: steps.config.outputs.leer != '1'
+        env:
+          URL: ${{ steps.config.outputs.url }}
+          KEY: ${{ steps.config.outputs.key }}
+        run: |
+          # Drei Versuche mit Abstand: Ein einzelner Aussetzer ist keine Pause.
+          for versuch in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+                     -H "apikey: $KEY" "$URL/rest/v1/" || echo 000)
+            echo "Versuch $versuch: HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "Projekt antwortet – es zählt als Aktivität."
+              exit 0
+            fi
+            [ "$versuch" -lt 3 ] && sleep $((versuch * 10))
+          done
+          echo "::warning::Der Rückkanal hat nicht mit 200 geantwortet (letzter Status: $code). Pausiert, umgezogen oder Schlüssel getauscht? Siehe README, Abschnitt Rückkanal."

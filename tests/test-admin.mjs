@@ -15,20 +15,37 @@ p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
 p.on('console', (m) => m.type()==='error' && console.log('CONSOLE', m.text()));
 
 // Supabase vortäuschen: config.js füllen und fetch abfangen
+/*
+ * Die Vorgabezeilen tragen *relative* Daten, keine festen.
+ *
+ * Hier standen einmal '2026-08-25' und Nachbarn, und die Prüfung „drei davon in
+ * den letzten sieben Tagen" hielt genau neun Tage. Danach lagen alle Zeilen
+ * außerhalb des Fensters, die Zahl kippte auf 0, und der Test meldete einen
+ * Fehler in der App, wo keiner war – der dritte dieser Sorte in diesem Repo
+ * (siehe test-calendar.mjs und test-ics.mjs).
+ *
+ * Gemessen wird ein Abstand, also gehört ein Abstand in die Vorgabe.
+ */
+const vorTagen = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+};
+
 await ctx.route('**/rest/v1/**', async (route) => {
   const url = route.request().url();
   if (url.includes('rpc/admin_liste')) {
     const body = JSON.parse(route.request().postData() || '{}');
     if (body.pass !== 'geheim') return route.fulfill({ status: 401, body: 'nope' });
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
-      { id:'a', name:'Alex', fokus:'Bauch, Beine, Po', stufe:'Anfänger', einheiten:9, plan:84, saetze:160, volumen:23000, serie:4, zuletzt:'2026-08-24', geteilt:2, freunde:1, uebungen:{'floor-press':12,'chin-ups':9}, gesehen:'2026-08-25T10:00:00Z' },
-      { id:'b', name:'Mia', fokus:'Kurz und knapp', stufe:'Geübt', einheiten:3, plan:96, saetze:54, volumen:4200, serie:1, zuletzt:'2026-08-10', geteilt:0, freunde:0, uebungen:{'goblet-squat':6}, gesehen:'2026-08-12T10:00:00Z' },
+      { id:'a', name:'Alex', fokus:'Bauch, Beine, Po', stufe:'Anfänger', einheiten:9, plan:84, saetze:160, volumen:23000, serie:4, zuletzt:vorTagen(3), geteilt:2, freunde:1, uebungen:{'floor-press':12,'chin-ups':9}, gesehen:`${vorTagen(2)}T10:00:00Z` },
+      { id:'b', name:'Mia', fokus:'Kurz und knapp', stufe:'Geübt', einheiten:3, plan:96, saetze:54, volumen:4200, serie:1, zuletzt:vorTagen(22), geteilt:0, freunde:0, uebungen:{'goblet-squat':6}, gesehen:`${vorTagen(20)}T10:00:00Z` },
       { id:'x', name:'<img src=x onerror="window.__xss=1">', fokus:'<b>fett</b>', stufe:'—',
         einheiten:'<img src=x onerror="window.__xss=2">', plan:'"><script>window.__xss=3</script>',
-        saetze:'<svg onload="window.__xss=4">', volumen:0, serie:0, zuletzt:'2026-08-20', geteilt:0, freunde:0,
-        uebungen:{'floor-press':'<img src=x onerror="window.__xss=5">'}, gesehen:'2026-08-25T10:00:00Z' },
-      { id:'c2', name:'tobi ', fokus:'Ausgewogen', stufe:'Geübt', einheiten:0, plan:84, saetze:9, volumen:0, serie:0, zuletzt:null, geteilt:0, freunde:0, uebungen:{'chin-ups':3}, gesehen:'2026-08-26' },
-      { id:'c', name:'Tobi', fokus:'Ausgewogen', stufe:'Geübt', einheiten:1, plan:84, saetze:18, volumen:900, serie:1, zuletzt:'2026-08-25', geteilt:5, freunde:2, uebungen:{'floor-press':3}, gesehen:'2026-08-25T18:00:00Z' },
+        saetze:'<svg onload="window.__xss=4">', volumen:0, serie:0, zuletzt:vorTagen(4), geteilt:0, freunde:0,
+        uebungen:{'floor-press':'<img src=x onerror="window.__xss=5">'}, gesehen:`${vorTagen(2)}T10:00:00Z` },
+      { id:'c2', name:'tobi ', fokus:'Ausgewogen', stufe:'Geübt', einheiten:0, plan:84, saetze:9, volumen:0, serie:0, zuletzt:null, geteilt:0, freunde:0, uebungen:{'chin-ups':3}, gesehen:vorTagen(1) },
+      { id:'c', name:'Tobi', fokus:'Ausgewogen', stufe:'Geübt', einheiten:1, plan:84, saetze:18, volumen:900, serie:1, zuletzt:vorTagen(2), geteilt:5, freunde:2, uebungen:{'floor-press':3}, gesehen:`${vorTagen(2)}T18:00:00Z` },
     ]) });
   }
   return route.fulfill({ status: 201, body: '' });
