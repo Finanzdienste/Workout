@@ -1,0 +1,52 @@
+{
+  "$comment": [
+    "Erlaubnisliste, damit die immer gleichen Befehle nicht jedes Mal einzeln",
+    "genehmigt werden müssen. Ohne diese Datei fragt jeder Testlauf, jeder Bau",
+    "und jedes git-Kommando einzeln nach – bei einer Sitzung von einem Handy",
+    "aus ist das ein Dutzend Rückfragen je Runde, und jede kann unterwegs",
+    "verlorengehen.",
+    "",
+    "Bewusst NICHT in der Liste: git push, git reset, rm und alles andere, was",
+    "sich nicht ohne Weiteres zurücknehmen lässt. Dort ist eine Rückfrage die",
+    "Sekunde wert."
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+
+      "Bash(node tests/lauf.mjs:*)",
+      "Bash(node tests/server.mjs:*)",
+      "Bash(node tools/build-icons.mjs:*)",
+      "Bash(npm run:*)",
+      "Bash(npm ci:*)",
+      "Bash(npx playwright install:*)",
+
+      "Bash(python3 tools/build-single.py:*)",
+      "Bash(python3 tools/build-data.py:*)",
+      "Bash(python3 tools/build-plan.py:*)",
+      "Bash(python3 tools/pruefung/:*)",
+
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(node -e:*)",
+      "Bash(node -v)",
+      "Bash(python3 -V)",
+
+      "Read",
+      "Glob",
+      "Grep"
+    ]
+  }
+}
