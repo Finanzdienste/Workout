@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v108';
+const VERSION = 'v109';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -45,6 +45,7 @@ const SHELL = [
   './js/text.js',
   './js/uebung.js',
   './js/stufen.js',
+  './js/scheiben.js',
   './js/gewichte.js',
   './js/plan.js',
   './js/bilanz.js',

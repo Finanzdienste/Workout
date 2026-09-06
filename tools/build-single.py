@@ -35,17 +35,31 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            # Die Rechenschicht, in Abhaengigkeitsreihenfolge: jedes Modul
            # benutzt nur die vor ihm. Wer das aendert, merkt es hier zuerst –
            # im Buendel gibt es keine Importe, die eine Reihenfolge erzwingen.
-           'js/text.js', 'js/uebung.js', 'js/stufen.js', 'js/gewichte.js',
+           'js/text.js', 'js/uebung.js', 'js/stufen.js', 'js/scheiben.js', 'js/gewichte.js',
            'js/plan.js', 'js/bilanz.js', 'js/erinnerung.js', 'js/merkzettel.js',
            'js/push.js',
            'js/app.js']
 
-IMPORT_RE = re.compile(r'^\s*import\s.+?;\s*$', re.MULTILINE)
-EXPORT_RE = re.compile(r'^(\s*)export\s+(?=(?:const|let|var|function|class)\b)', re.MULTILINE)
+# DOTALL, weil eine Importzeile ueber mehrere Zeilen gehen darf:
+#   import {
+#     a, b, c,
+#   } from './x.js';
+# Ohne DOTALL blieb so ein Import stehen, landete unveraendert im Buendel und
+# erklaerte dieselben Namen ein zweites Mal - "Identifier already declared",
+# und die Einzeldatei war leer. Die Namenskollisionspruefung weiter unten sah
+# das nicht: Sie sucht nach const/let/var/function/class, nicht nach Importen.
+IMPORT_RE = re.compile(r'^\s*import\s.+?;\s*$', re.MULTILINE | re.DOTALL)
+# 'async function' gehoert mit in die Aufzaehlung. Ohne es blieben sieben
+# Funktionen (melden, pushStand, liesMerkzettel, ...) mit ihrem export-Wort im
+# Buendel stehen - erlaubt in einem Modulskript, aber an der
+# Namenskollisionspruefung vorbei: Zwei gleichnamige asynchrone Funktionen aus
+# verschiedenen Modulen waeren durchgerutscht.
+DEKL = r'(?:const|let|var|class|function|async\s+function)'
+EXPORT_RE = re.compile(rf'^(\s*)export\s+(?={DEKL}\b)', re.MULTILINE)
 TOPLEVEL_RE = re.compile(
-    r'^(?:export\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)', re.MULTILINE)
+    rf'^(?:export\s+)?{DEKL}\s+([A-Za-z_$][\w$]*)', re.MULTILINE)
 EXPORTED_NAME_RE = re.compile(
-    r'^\s*export\s+(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)', re.MULTILINE)
+    rf'^\s*export\s+{DEKL}\s+([A-Za-z_$][\w$]*)', re.MULTILINE)
 
 
 def strip_module_syntax(src, path):
@@ -82,6 +96,16 @@ def main():
             seen[name] = rel
 
     script = '\n\n'.join(chunks)
+    # Der eigentliche Wachposten: Im Buendel darf kein import und kein export
+    # mehr stehen. Beides waere in einem normalen <script type="module"> zwar
+    # syntaktisch erlaubt, aber ein stehengebliebener Import erklaert Namen ein
+    # zweites Mal - und die Datei laedt dann gar nicht mehr. Lieber hier hart
+    # abbrechen als eine leere Seite ausliefern.
+    uebrig = re.search(r'^\s*(?:import|export)\s', script, re.MULTILINE)
+    if uebrig:
+        zeile = script[:uebrig.start()].count('\n') + 1
+        text = script.split('\n')[zeile - 1].strip()
+        sys.exit(f'Modulsyntax nicht entfernt (Zeile {zeile}): {text!r}')
     if '</script' in script:
         sys.exit('Skriptinhalt enthaelt "</script" und wuerde das Dokument zerreissen')
 

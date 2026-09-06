@@ -79,13 +79,17 @@ for (let i = 0; i < heute.ohneNr; i++) {
 }
 
 // --- "+" erhöht um einen Schritt --- (je Übung verschieden, siehe stepOf)
+// Der Knopf trägt seit dem Scheibensatz keine Kilozahl mehr, sondern nur die
+// Richtung: Wohin ein Schritt führt, hängt jetzt auch daran, welche Scheiben
+// eingetragen sind. Hier ist nichts eingetragen, also gilt weiter die
+// Schrittweite der Übung.
 const S = heute.erst.step;
 
-await ex(idx).locator(`[data-act="weight-step"][data-d="${S}"]`).click();
+await ex(idx).locator(`[data-act="weight-step"][data-dir="1"]`).click();
 await page.waitForTimeout(250);
 check(await ex(idx).locator('.kg-val').inputValue() === fmt(heute.erst.kg + S), `"+" macht ${fmt(heute.erst.kg)} -> ${fmt(heute.erst.kg + S)} kg (Schritt ${S})`);
 check((await state()).weights[heute.erst.id] === heute.erst.kg + S, 'Gewicht gespeichert');
-await ex(idx).locator(`[data-act="weight-step"][data-d="${-S}"]`).click();
+await ex(idx).locator(`[data-act="weight-step"][data-dir="-1"]`).click();
 await page.waitForTimeout(250);
 check(await ex(idx).locator('.kg-val').inputValue() === fmt(heute.erst.kg), '"−" macht es rückgängig');
 
@@ -116,7 +120,7 @@ check((await state()).log['1'].db[heute.erst.id][0].w === fmt(heute.erst.kg), `b
 // Der abgehakte Satz behält sein Gewicht; die Zahl in der Zeile ist die für den
 // nächsten. Vorher stand dort das zuerst benutzte Gewicht und jede Änderung galt
 // erst nächstes Mal – beim Senken mitten im Satz war das falsch.
-await ex(idx).locator(`[data-act="weight-step"][data-d="${S}"]`).click();
+await ex(idx).locator(`[data-act="weight-step"][data-dir="1"]`).click();
 await page.waitForTimeout(250);
 check(await ex(idx).locator('.kg-val').inputValue() === fmt(heute.erst.kg + S),
   `die Zeile zeigt das neue Gewicht (${fmt(heute.erst.kg + S)})`);

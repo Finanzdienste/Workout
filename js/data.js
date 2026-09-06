@@ -1207,7 +1207,7 @@ export const EXERCISES = [
       "reps": "6–12",
       "equip": "Kurzhanteln",
       "cue": "Aufrecht sitzen, Rippen unten lassen. Hanteln von Schulterhöhe senkrecht nach oben, Ellenbogen leicht vor der Schulterachse. Oben nicht in den Rücken ausweichen.",
-      "rest": 180,
+      "rest": 150,
       "pattern": "ohp",
       "shares": {
         "frontDelts": 1.0,

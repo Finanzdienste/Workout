@@ -89,7 +89,7 @@ check(await page.evaluate(() => window.__notes.length) === 0,
 
 await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(150);
-const karte = page.locator('.card').filter({ hasText: 'Hinweis im Hintergrund' }).first();
+const karte = page.locator('.card').filter({ hasText: 'Pause in der Statusleiste' }).first();
 check(await karte.count() === 1, 'Einstellungen zeigen den Abschnitt "Töne und Hinweise"');
 check(await page.locator('[data-act="toggle-sound"]').count() === 1, 'Schalter für die Töne');
 check(await page.locator('[data-act="toggle-sound-sets"]').count() === 1, 'Schalter für den Satz-Ton');

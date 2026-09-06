@@ -3039,57 +3039,131 @@ Bereich 5–10 steht. Das sagt jetzt auch der Übungshinweis im Hantel-Modus –
 vorher stand es nur im Bodyweight-Hinweis, den niemand sieht, der mit Hanteln
 trainiert.
 
-### Eine Frage in der Pause, und was daraus folgt
+### Eine Frage in der Pause – und wieder raus
 
 Die App wusste nicht, wie ein Satz gelaufen ist. Das Datenmodell hatte zwar seit
 jeher ein Feld `r` für Wiederholungen — nur wurde es **nie beschrieben**: leer
-angelegt, leer gespeichert, leer ausgewertet. Die Folgen waren größer, als das
-Feld aussah:
+angelegt, leer gespeichert, leer ausgewertet. Also stand eine Weile eine Frage
+unter dem Satzraster: bei „8–12" drei Knöpfe `unter 8`, `8–11`, `12+`, sichtbar
+in der Pause, blockierend für nichts. Daraus zog die App zweierlei — ein
+genaueres Volumen und einen Steigerungsvorschlag („alle Sätze oben raus –
+nächstes Mal 45 kg?").
 
-* Das Volumen rechnete für **jeden** Satz mit der Untergrenze des Bereichs. Bei
-  „8–12" zählte ein Satz mit zwölf Wiederholungen als acht.
-* Einen Steigerungsvorschlag konnte es nicht geben. Er war einmal da und flog
-  wieder raus, mit genau dieser Begründung: *„Die App weiß nicht, wie schwer ein
-  Satz war, also entscheidet das der Mensch."*
+**Beides ist wieder weg, auf Ansage:** *„Das mit der Wiederholungszahl kann echt
+komplett raus."* Der Einwand von damals galt der Unterbrechung, dieser gilt der
+Zeile selbst — sie stand mitten im Training und niemand hatte sie bestellt.
 
-**Die Frage stand schon einmal da.** „Wie war das?" wurde in `b9ae2b3` entfernt,
-und der Grund war richtig — sie *hielt den Ablauf an*: Der Sprung zur nächsten
-Übung wartete auf die Antwort. Nicht der Tipp war das Problem, sondern das
-Warten.
+Dass der Vorschlag mitgeht, ist keine Nebenwirkung, sondern die Konsequenz. Er
+hing an den Antworten; ohne sie weiß die App wieder nicht, wie schwer ein Satz
+war. Ein Vorschlag ohne diese Kenntnis wäre geraten, und geraten ist schlechter
+als still. Was aufs Eisen kommt, entscheidet weiter der, der darunter liegt —
+die Knöpfe dafür stehen über jedem Satz.
 
-Deshalb steht sie jetzt woanders: **unter dem Satzraster, sichtbar in der
-Pause**, in der ohnehin nichts zu tun ist. Sie hält nichts auf, blockiert
-nichts, und wer sie übergeht, verliert nichts — dann zählt der Satz wie bisher
-mit der Untergrenze. Der erste Test dazu prüft genau das zuerst: dass man eine
-ganze Übung ohne eine einzige Antwort durchklicken kann und die App trotzdem
-weiterspringt.
+Was bleibt: `gezaehlteReps()` versteht ein `wie` weiterhin, wenn es dasteht.
+Sätze, die in den Tagen dazwischen abgehakt wurden, behalten ihre Zahl;
+rückwirkend Volumen abzuziehen wäre schlechter als eine Verzweigung, die selten
+greift. Das Feld `r` bleibt raus — ein Feld, das aussieht, als würde es gefüllt,
+ist schlimmer als keins.
 
-Gefragt wird nach der **Lage im Bereich**, nicht nach der Zahl: bei „8–12" drei
-Knöpfe `unter 8`, `8–11`, `12+`. Ein Zahlenfeld mitten im Training ist eine
-Tastatur über dem halben Bildschirm, und die genaue Zahl braucht niemand.
+### Sechs Kilo, die es nicht gibt
 
-Daraus wird zweierlei:
+> *„Kann glaub ich mit meinen Scheiben nicht hinbekommen. Also komm nicht auf
+> exakt 6 kg."*
 
-| | vorher | jetzt |
+Die App hat Gewichte gerechnet, als wäre jede Zahl aufsteckbar: Startgewicht mal
+Erfahrungsfaktor, auf die Schrittweite gerundet, fertig. Dabei kam „Kurzhanteln
+auf 6 kg je Hand" heraus — und wer davorsteht, hat eine Stange und eine Handvoll
+Scheiben und kommt auf 4 oder auf 6,5. **Eine Zahl, die man nicht einstellen
+kann, ist keine Ansage, sondern eine Hausaufgabe.**
+
+Unter *Mehr* steht deshalb jetzt, **was wirklich rumliegt**: je Stange ihr
+Leergewicht, je Scheibengröße die Stückzahl. `js/scheiben.js` rechnet daraus
+umgekehrt — erst aufzählen, was damit überhaupt herauskommt, dann jeden
+Vorschlag darauf einrasten.
+
+Wie geladen wird, hängt am Gerät, nicht am Gewicht:
+
+| Gerät | Scheiben je Stufe | bringt |
 | --- | --- | --- |
-| Volumen | immer die Untergrenze | die Obergrenze für Sätze, die als „oben raus" beantwortet sind |
-| Steigerung | kein Vorschlag möglich | *„Alle Sätze oben raus – nächstes Mal 45 kg?"* |
+| Langhantel | 2 (eine je Seite) | +2 × Scheibengewicht |
+| beide Kurzhanteln | **4** (zwei je Hantel) | +2 × Scheibengewicht *je Hand* |
+| eine Kurzhantel | 2 | +2 × Scheibengewicht |
+| Scheibe auf der Brust | 1 | +1 × Scheibengewicht |
 
-Die Regel ist die klassische Doppelprogression: erst den Bereich oben
-ausreizen, dann das Gewicht. Vorgeschlagen wird, wenn **jeder beantwortete
-Satz** oben lag und mindestens zwei beantwortet wurden — eine einzelne Antwort
-ist ein Zufall, keine Aussage. Und es bleibt ein Vorschlag: Erhöht wird nichts
-von selbst. Was auf der Stange liegt, entscheidet der, der darunter liegt.
+Die vier bei den Kurzhanteln sind der Punkt, an dem sich alles ändert: Mit
+8 × 1,25 kg und 4 × 2,5 kg gibt es je Hand genau 1,5 / 4 / 6,5 / 9 / 11,5 kg.
+Sechs ist nicht dabei — deshalb rastet der Vorschlag auf 6,5, und das + springt
+von 4 gleich auf 6,5 statt auf 6. Der Knopf trägt seitdem keine Kilozahl mehr,
+sondern nur die Richtung; seine Beschriftung nennt den Schritt, der wirklich
+passiert. Stünde dort „2,5 Kilo mehr" und es werden fünf, wäre der Knopf
+gelogen.
 
-Vorsichtig bleibt die Rechnung trotzdem. „Unter dem Bereich" zählt weiterhin
-mit der Untergrenze — wie weit darunter, weiß niemand, und eine erfundene Zahl
-wäre schlechter als eine zu hohe. Die Volumenzahl ist damit weiter eine
-Untergrenze und heißt in der Statistik weiterhin „ca."; sie ist nur nicht mehr
-für *jeden* Satz die kleinste denkbare.
+Der Umbauhinweis sagt dazu, **welche Scheiben draufkommen** („Aufbauen:
+Kurzhanteln auf 6,5 kg je Hand — je Seite 1× 2,5 kg, beide Hanteln"). Gesucht
+wird dafür die Belegung mit den **wenigsten Scheiben**, nicht die erstbeste:
+Jede Scheibe ist ein Verschluss auf und zu, und genau daran hängt, wie lang eine
+Einheit in der Wohnung wirklich dauert.
 
-Das Feld `r` ist bei der Gelegenheit raus. Ein Feld, das aussieht, als würde es
-gefüllt, ist schlimmer als keins: Die Volumenrechnung sah aus, als kenne sie die
-Wiederholungen.
+Drei Entscheidungen, die dabei bewusst so ausgefallen sind:
+
+| | Entscheidung | Warum |
+| --- | --- | --- |
+| Leer | kein Standardsatz | Ein erfundener Scheibensatz sähe aus wie Wissen und wäre geraten. Ohne Eintrag rechnet die App wie vorher. |
+| Rucksack | wird nicht gerastet | Da passt auch eine Wasserflasche rein; ein Raster täuschte Genauigkeit vor. |
+| Eingabe | roh gespeichert, geprüft gerechnet | Sortieren und Aufräumen mitten im Tippen verschiebt die Zeile unter dem Finger, und der nächste Tastendruck landet in der falschen. |
+
+Direkt unter den Feldern steht, was damit erreichbar ist. Das ist der Beleg,
+dass die Eingabe stimmt: Wer seine gewohnten Gewichte wiederfindet, hat richtig
+eingetragen; wer eine Liste krummer Zahlen sieht, hat sich vertippt.
+
+### Drei Minuten waren zu viel
+
+> *„Und sicher 3 min Pause?"*
+
+Nein. Die Pausenlänge stand je Übung fest und war beim sitzenden
+Schulterdrücken auf 180 s gesetzt — dieselbe Länge wie beim Floor Press und bei
+gewichteten Klimmzügen. Das passt für eine schwere Grundübung nahe am Limit,
+nicht für ein Schulterdrücken mit leichten Kurzhanteln über 6–12
+Wiederholungen. Jetzt sind es 150 s. Bei 180 bleiben die drei Übungen, bei denen
+die Länge etwas mit der Last zu tun hat.
+
+### Die Pause in der Statusleiste
+
+Der Hintergrund-Hinweis meldete sich bisher erst, wenn die Pause vorbei war. Wer
+das Handy weglegt, will aber sehen, wie lange es noch dauert. Dieselbe Meldung
+wird deshalb jede Sekunde mit neuem Text ersetzt — `tag` sorgt dafür, dass sie
+sich ablöst statt zu stapeln, `silent` dafür, dass sie das lautlos tut. Ohne
+`silent` wäre es hundertmal Klingeln statt einmal.
+
+Zwei Grenzen stehen dabei in der App selbst, nicht nur hier: Das Mitzählen läuft
+in der Seite, nicht im Service Worker — friert der Browser sie ein, bleibt die
+Zahl stehen. Deshalb steht die **Uhrzeit des Endes** mit in der Meldung; die
+stimmt auch dann noch. Und ist die App ganz geschlossen, kommt gar nichts.
+
+### Zwei Löcher im Ein-Datei-Bau
+
+Beide fielen beim Einbauen des Scheibensatzes auf, beide waren älter als er.
+
+Der Import in `js/app.js` wurde mehrzeilig — und `build-single.py` entfernte
+Importe mit einem Muster **ohne `DOTALL`**. Der Import blieb stehen, landete
+unverändert im Bündel und erklärte dieselben Namen ein zweites Mal:
+*„Identifier 'doneWeightNote' has already been declared."* Die Einzeldatei war
+leer. Die Namenskollisionsprüfung sah es nicht — sie sucht nach
+`const/let/var/function/class`, nicht nach Importen.
+
+Der Bau hat jetzt einen Wachposten dafür: Bleibt nach dem Ausbauen irgendwo ein
+`import` oder `export` stehen, bricht er mit Zeilennummer ab, statt eine leere
+Seite auszuliefern. Genau dieser Wachposten fand sofort das zweite Loch —
+`export async function` stand in keinem der drei Muster. Sieben Funktionen
+(`melden`, `pushStand`, `liesMerkzettel`, …) behielten ihr `export` im Bündel;
+syntaktisch erlaubt, aber an der Kollisionsprüfung vorbei. Zwei gleichnamige
+asynchrone Funktionen aus verschiedenen Modulen wären durchgerutscht.
+
+### Die Erinnerungszeit ließ sich nicht ändern
+
+`erinnerung-zeit` hing im Klick-Verteiler. Ein Zeitfeld meldet eine neue Uhrzeit
+aber als `input`, nicht als Klick: Wer die Zeit umstellte, sah die neue Zahl im
+Feld — gespeichert war die alte. Steht jetzt beim Rest der Texteingaben.
 
 ### Aufsteigen, ohne daran zu denken
 

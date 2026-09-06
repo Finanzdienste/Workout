@@ -621,22 +621,6 @@ button { font: inherit; color: inherit; }
 .band-rot.on { border-color: #e2564d; }
 .ex-weight + .band-row, .focus-weight + .band-row { margin-top: 0; }
 
-/* „Wie ist der Satz gelaufen?" – die eine Frage, die während der Pause dasteht.
-   Bewusst leiser als die Satzfelder darüber: Sie ist ein Angebot, keine
-   Aufgabe. Wer sie übergeht, verliert nichts, und sie soll nicht aussehen, als
-   müsse man sie erledigen, bevor es weitergeht. */
-.wie-row {
-  display: flex; align-items: center; gap: 8px;
-  margin: 10px 0 0; padding: 0;
-}
-.wie-frage { font-size: 12px; color: var(--muted); flex: none; }
-.wie-btn {
-  flex: 1 1 0; padding: 9px 6px; font-size: 13px; font-weight: 600;
-  color: var(--muted); background: var(--bg-elev-2);
-  border: 1px solid var(--line); border-radius: 9px;
-}
-.wie-btn:active { color: var(--text); border-color: var(--accent); }
-
 /* Die zwei Uhrzeiten der Erinnerung, nebeneinander. */
 .zeit-row { display: flex; gap: 10px; margin-top: 10px; }
 .zeit { flex: 1 1 0; display: flex; flex-direction: column; gap: 4px; }
@@ -693,6 +677,23 @@ button { font: inherit; color: inherit; }
   margin: 0 0 8px;
 }
 .ruest.gleich { color: var(--ok); }
+/* Welche Scheiben draufkommen – die Zahl ist wichtiger als der Rest der Zeile. */
+.ruest-lade { color: var(--text); font-weight: 700; }
+
+/* Der eigene Scheibensatz unter Mehr: schmale Felder in einer Zeile, damit
+   „2,5 kg × 4 Stück" auch auf einem Telefon nebeneinander bleibt. */
+.scheiben-satz { margin-top: 14px; }
+.scheiben-satz > .lbl { margin-bottom: 6px; }
+.scheiben-zeile {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.scheiben-zeile .kg-val { font-size: 17px; width: 3.2em; flex: none; }
+.scheiben-mal { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.btn-mini {
+  flex: none; margin-left: auto;
+  padding: 4px 10px; font-size: 13px; line-height: 1.4;
+}
+.kg-step[disabled] { opacity: .35; cursor: default; }
 
 /* Fortschrittsleiste: ein Kasten je Übung, darunter ein Feld je Satz.
    flex-grow steht am Element und kommt aus der Satzzahl. */

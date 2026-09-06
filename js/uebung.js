@@ -42,9 +42,13 @@ export function repsBereich(reps) {
  * Mit wie vielen Wiederholungen ein abgehakter Satz in die Volumenrechnung
  * eingeht.
  *
- * Erfasst wird nicht die Zahl, sondern die Lage im Bereich – ein Tipp statt
- * eines Zahlenfelds (siehe satzFrage() in js/app.js). Daraus wird hier so
- * vorsichtig wie möglich gerechnet:
+ * Gefragt wird danach nicht mehr: Die Satzfrage in der Pause ist wieder aus
+ * der App geflogen. `wie` steht aber noch in Sätzen, die in den Tagen dazwischen
+ * abgehakt wurden, und die sollen ihre Zahl behalten – rückwirkend Volumen
+ * abzuziehen wäre schlechter als eine Verzweigung, die selten greift.
+ *
+ * Erfasst wurde nicht die Zahl, sondern die Lage im Bereich. Daraus wird hier
+ * so vorsichtig wie möglich gerechnet:
  *
  *   oben        die obere Grenze. Wer 12 von 8–12 schafft, hat 12 gemacht.
  *   drin/nichts die untere Grenze – wie bisher, und bewusst eher zu niedrig.

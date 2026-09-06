@@ -9,15 +9,32 @@ import * as store from './store.js';
 import { EX_BY_ID } from './uebung.js';
 import { esc, fmtNum } from './text.js';
 import { levelFaktor } from './stufen.js';
+import { belegungText, gepflegt, nachbar, normSatz, raste } from './scheiben.js';
+
+/** Der eingetragene Scheibensatz – oder ein leerer, wenn nichts eingetragen ist. */
+export const meinSatz = () => normSatz(store.getState().scheiben);
+
+/**
+ * Ein Gewicht auf das einrasten, was sich hier wirklich einstellen lässt.
+ *
+ * Ist nichts eingetragen, bleibt die Zahl, wie sie war. Das ist der ganze
+ * Vertrag: Die App rät keinen Scheibensatz herbei, aber sobald sie einen
+ * kennt, schlägt sie nichts Unmögliches mehr vor.
+ */
+export function gerastet(ex, kg) {
+  if (kg === null || !ex || !gepflegt(ex.equip, meinSatz())) return kg;
+  const r = raste(kg, ex.equip, meinSatz());
+  return r === null ? kg : r;
+}
 
 /** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
 export function startWeight(ex) {
   if (ex.weight === null) return null;
   const f = levelFaktor();
   // 0 kg heißt "ohne Zusatzlast" (Klimmzüge) – das bleibt 0, egal wer trainiert.
-  if (!ex.weight || f === 1) return ex.weight;
+  if (!ex.weight || f === 1) return gerastet(ex, ex.weight);
   const step = ex.step || 2.5;
-  return Math.max(step, Math.round((ex.weight * f) / step) * step);
+  return gerastet(ex, Math.max(step, Math.round((ex.weight * f) / step) * step));
 }
 
 /** Gewicht, mit dem diese Übung heute gearbeitet wird. */
@@ -218,13 +235,18 @@ export function ruestHint(n, mode, list, i) {
   let prev = null;
   for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, workingWeight(list[k].id));
   const kg = `${fmtNum(cur.kg)} kg${cur.note ? ` ${cur.note}` : ''}`;
+  // Sind die Scheiben bekannt, steht hier nicht nur das Ziel, sondern der Weg
+  // dahin: Welche Scheiben, wie viele, auf welche Seite. Das ist die Zeile, die
+  // den Umbau kurz macht.
+  const lade = ladeText(list[i].id, cur.kg);
+  const wie = lade ? ` <span class="ruest-lade">(${esc(lade)})</span>` : '';
   if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
     return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen</div>`;
   }
   if (prev && prev.fam === cur.fam) {
-    return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}</div>`;
+    return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}${wie}</div>`;
   }
-  return `<div class="ruest">Aufbauen: ${esc(cur.label)} auf ${esc(kg)}</div>`;
+  return `<div class="ruest">Aufbauen: ${esc(cur.label)} auf ${esc(kg)}${wie}</div>`;
 }
 
 /**
@@ -238,3 +260,28 @@ export const stepOf = (exId) => {
   const ex = EX_BY_ID.get(exId);
   return (ex && ex.step) || 2.5;
 };
+
+/**
+ * Wohin ein Druck auf + oder − führt.
+ *
+ * Ohne eingetragene Scheiben ist das die Schrittweite der Übung, wie bisher.
+ * Mit Scheiben ist es der nächste Wert, der sich auch aufstecken lässt – und
+ * der kann weiter weg liegen: Wer nur 2,5er-Scheiben hat, springt bei beiden
+ * Kurzhanteln in Fünferschritten je Hand, ob ihm das passt oder nicht. Genau
+ * das soll die Zahl auch zeigen.
+ */
+export function naechstesGewicht(exId, richtung) {
+  const ex = EX_BY_ID.get(exId);
+  const jetzt = workingWeight(exId) || 0;
+  const schritt = stepOf(exId);
+  if (!ex || !gepflegt(ex.equip, meinSatz())) return Math.max(0, jetzt + richtung * schritt);
+  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), schritt);
+  return n === null ? jetzt : n;
+}
+
+/** „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt. */
+export function ladeText(exId, kg) {
+  const ex = EX_BY_ID.get(exId);
+  if (!ex || kg === null) return '';
+  return belegungText(kg, ex.equip, meinSatz());
+}

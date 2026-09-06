@@ -48,6 +48,10 @@ const DEFAULT_STATE = {
   // Getrennte Zeiten, weil der Tag anders läuft: unter der Woche nach der
   // Arbeit, am Wochenende früh. Siehe js/erinnerung.js.
   erinnerung: { an: false, werktags: '16:00', wochenende: '06:30' },
+  // Welche Stangen und Scheiben es hier gibt: { lh: {stange, scheiben}, kh: … }.
+  // null heißt „nicht eingetragen" – dann rechnet die App mit freien Schritten
+  // wie früher, statt sich einen Scheibensatz auszudenken. Siehe js/scheiben.js.
+  scheiben: null,
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)

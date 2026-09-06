@@ -631,22 +631,6 @@ button { font: inherit; color: inherit; }
 .band-rot.on { border-color: #e2564d; }
 .ex-weight + .band-row, .focus-weight + .band-row { margin-top: 0; }
 
-/* „Wie ist der Satz gelaufen?" – die eine Frage, die während der Pause dasteht.
-   Bewusst leiser als die Satzfelder darüber: Sie ist ein Angebot, keine
-   Aufgabe. Wer sie übergeht, verliert nichts, und sie soll nicht aussehen, als
-   müsse man sie erledigen, bevor es weitergeht. */
-.wie-row {
-  display: flex; align-items: center; gap: 8px;
-  margin: 10px 0 0; padding: 0;
-}
-.wie-frage { font-size: 12px; color: var(--muted); flex: none; }
-.wie-btn {
-  flex: 1 1 0; padding: 9px 6px; font-size: 13px; font-weight: 600;
-  color: var(--muted); background: var(--bg-elev-2);
-  border: 1px solid var(--line); border-radius: 9px;
-}
-.wie-btn:active { color: var(--text); border-color: var(--accent); }
-
 /* Die zwei Uhrzeiten der Erinnerung, nebeneinander. */
 .zeit-row { display: flex; gap: 10px; margin-top: 10px; }
 .zeit { flex: 1 1 0; display: flex; flex-direction: column; gap: 4px; }
@@ -703,6 +687,23 @@ button { font: inherit; color: inherit; }
   margin: 0 0 8px;
 }
 .ruest.gleich { color: var(--ok); }
+/* Welche Scheiben draufkommen – die Zahl ist wichtiger als der Rest der Zeile. */
+.ruest-lade { color: var(--text); font-weight: 700; }
+
+/* Der eigene Scheibensatz unter Mehr: schmale Felder in einer Zeile, damit
+   „2,5 kg × 4 Stück" auch auf einem Telefon nebeneinander bleibt. */
+.scheiben-satz { margin-top: 14px; }
+.scheiben-satz > .lbl { margin-bottom: 6px; }
+.scheiben-zeile {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.scheiben-zeile .kg-val { font-size: 17px; width: 3.2em; flex: none; }
+.scheiben-mal { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.btn-mini {
+  flex: none; margin-left: auto;
+  padding: 4px 10px; font-size: 13px; line-height: 1.4;
+}
+.kg-step[disabled] { opacity: .35; cursor: default; }
 
 /* Fortschrittsleiste: ein Kasten je Übung, darunter ein Feld je Satz.
    flex-grow steht am Element und kommt aus der Satzzahl. */
@@ -2726,7 +2727,7 @@ const EXERCISES = [
       "reps": "6–12",
       "equip": "Kurzhanteln",
       "cue": "Aufrecht sitzen, Rippen unten lassen. Hanteln von Schulterhöhe senkrecht nach oben, Ellenbogen leicht vor der Schulterachse. Oben nicht in den Rücken ausweichen.",
-      "rest": 180,
+      "rest": 150,
       "pattern": "ohp",
       "shares": {
         "frontDelts": 1.0,
@@ -6006,7 +6007,7 @@ const fehltFunktion = (res, text) => res.status === 404
  * Zurück kommt trotzdem, *warum* es nicht ging: { ok, status, msg }. Das steht
  * dann unter Mehr, sonst sucht man den Fehler auf der falschen Seite.
  */
-export async function melden(zeile) {
+async function melden(zeile) {
   if (!hatServer()) return { ok: false, status: 0, msg: 'Kein Server eingetragen' };
   try {
     // Der Weg über die Funktion braucht keine Rechte auf der Tabelle – und
@@ -6043,7 +6044,7 @@ export async function melden(zeile) {
  * auch dann Erfolg, wenn es null Zeilen getroffen hat – und "Gelöscht" wäre
  * dann gelogen.
  */
-export async function loeschen(id) {
+async function loeschen(id) {
   if (!hatServer() || !id) return { ok: false, zeilen: 0, msg: 'Nichts zu löschen' };
   try {
     const res = await senden('/rest/v1/rpc/entferne', {
@@ -6080,7 +6081,7 @@ export async function loeschen(id) {
  * Schlüssel: Ein Schlüssel mit Leserecht müsste in der App liegen und damit bei
  * allen, die den Link haben. Das Passwort kennt nur, wer es eingibt.
  */
-export async function adminListe(passwort) {
+async function adminListe(passwort) {
   if (!hatServer()) throw new Error('Kein Server eingetragen');
   let res;
   try {
@@ -6308,6 +6309,10 @@ const DEFAULT_STATE = {
   // Getrennte Zeiten, weil der Tag anders läuft: unter der Woche nach der
   // Arbeit, am Wochenende früh. Siehe js/erinnerung.js.
   erinnerung: { an: false, werktags: '16:00', wochenende: '06:30' },
+  // Welche Stangen und Scheiben es hier gibt: { lh: {stange, scheiben}, kh: … }.
+  // null heißt „nicht eingetragen" – dann rechnet die App mit freien Schritten
+  // wie früher, statt sich einen Scheibensatz auszudenken. Siehe js/scheiben.js.
+  scheiben: null,
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)
@@ -7126,9 +7131,13 @@ function repsBereich(reps) {
  * Mit wie vielen Wiederholungen ein abgehakter Satz in die Volumenrechnung
  * eingeht.
  *
- * Erfasst wird nicht die Zahl, sondern die Lage im Bereich – ein Tipp statt
- * eines Zahlenfelds (siehe satzFrage() in js/app.js). Daraus wird hier so
- * vorsichtig wie möglich gerechnet:
+ * Gefragt wird danach nicht mehr: Die Satzfrage in der Pause ist wieder aus
+ * der App geflogen. `wie` steht aber noch in Sätzen, die in den Tagen dazwischen
+ * abgehakt wurden, und die sollen ihre Zahl behalten – rückwirkend Volumen
+ * abzuziehen wäre schlechter als eine Verzweigung, die selten greift.
+ *
+ * Erfasst wurde nicht die Zahl, sondern die Lage im Bereich. Daraus wird hier
+ * so vorsichtig wie möglich gerechnet:
  *
  *   oben        die obere Grenze. Wer 12 von 8–12 schafft, hat 12 gemacht.
  *   drin/nichts die untere Grenze – wie bisher, und bewusst eher zu niedrig.
@@ -7287,6 +7296,213 @@ function offenerAufstieg() {
   return (s.aufstiege || []).includes(schritt.nach) ? null : schritt;
 }
 
+/* ===== js/scheiben.js ===== */
+/*
+ * Was wirklich im Raum liegt – und welche Gewichte sich daraus bauen lassen.
+ *
+ * Die App hat Gewichte bisher gerechnet, als wäre jede Zahl aufsteckbar: Ein
+ * Startgewicht mal dem Erfahrungsfaktor, auf die Schrittweite gerundet, fertig.
+ * Das ergibt Vorschläge wie „Kurzhanteln auf 6 kg je Hand" – und dann steht man
+ * mit einer 1,5-kg-Stange und Scheiben zu 1,25 und 2,5 davor und kommt auf 4
+ * oder auf 6,5, aber nicht auf 6.
+ *
+ * Eine Zahl, die man nicht einstellen kann, ist keine Ansage, sondern eine
+ * Hausaufgabe. Deshalb rechnet dieses Modul umgekehrt: erst aufzählen, was mit
+ * dem vorhandenen Eisen überhaupt herauskommt, dann den Vorschlag darauf
+ * einrasten.
+ *
+ * **Leer heißt: nicht raten.** Wer nichts einträgt, bekommt das alte Verhalten.
+ * Ein erfundener Standardsatz wäre schlimmer als gar keiner: Er sähe aus wie
+ * Wissen und wäre geraten.
+ *
+ * **Wie geladen wird, hängt am Gerät, nicht am Gewicht.**
+ *   - Langhantel: Scheiben paarweise, eine je Seite. Ein Paar zu 2,5 kg macht
+ *     5 kg auf der Stange.
+ *   - Kurzhanteln, beide Hände: derselbe Aufbau zweimal. Für 2,5 kg mehr *je
+ *     Hand* braucht es vier Scheiben zu 1,25 – nicht zwei.
+ *   - Eine Kurzhantel (Goblet, einarmiges Rudern): zwei Scheiben je Stufe.
+ *   - Scheibe auf der Brust: die Scheibe selbst, einzeln.
+ *   - Rucksack: hier wird bewusst nicht gerastet. In einen Rucksack passt auch
+ *     eine Wasserflasche; ein Raster würde Genauigkeit vortäuschen.
+ */
+
+/**
+ * Je Gerät: aus welchem Satz die Scheiben kommen, wie viele eine Stufe kostet
+ * (`pro`) und wie viel eine Stufe bringt (`faktor`).
+ *
+ * Bei beiden Kurzhanteln fallen die auseinander: vier Scheiben für zwei
+ * Kilo mehr je Hand. Genau dieser Unterschied ist der Grund, warum ein
+ * einzelner „Schritt" je nach Übung etwas anderes bedeutet.
+ */
+const RASTER = {
+  barbell: { satz: 'lh', pro: 2, faktor: 2, stange: true },
+  hipbar: { satz: 'lh', pro: 2, faktor: 2, stange: true },
+  dumbbells: { satz: 'kh', pro: 4, faktor: 2, stange: true },
+  goblet: { satz: 'kh', pro: 2, faktor: 2, stange: true },
+  onehand: { satz: 'kh', pro: 2, faktor: 2, stange: true },
+  plate: { satz: 'kh', pro: 1, faktor: 1, stange: false },
+};
+
+const SATZ_LABEL = { lh: 'Langhantel', kh: 'Kurzhanteln' };
+
+/** Ein leerer Satz – nichts eingetragen, also rastet nichts. */
+const leererSatz = () => ({
+  lh: { stange: null, scheiben: [] },
+  kh: { stange: null, scheiben: [] },
+});
+
+/**
+ * Einen gespeicherten Satz auf eine brauchbare Form bringen.
+ *
+ * Die Werte kommen aus Eingabefeldern und aus alten Ständen; hier wird alles
+ * abgefangen, womit die Aufzählung sonst entgleist: Text statt Zahl, negative
+ * Scheiben, doppelte Größen, eine Null als Scheibengewicht (die brächte eine
+ * unendliche Zahl von Stufen, die alle dasselbe wiegen).
+ */
+function normSatz(roh) {
+  const out = leererSatz();
+  if (!roh || typeof roh !== 'object') return out;
+  ['lh', 'kh'].forEach((k) => {
+    const q = roh[k];
+    if (!q || typeof q !== 'object') return;
+    const st = Number(q.stange);
+    out[k].stange = Number.isFinite(st) && st >= 0 ? Math.round(st * 4) / 4 : null;
+    const gesehen = new Set();
+    (Array.isArray(q.scheiben) ? q.scheiben : []).forEach((z) => {
+      const kg = Math.round(Number(Array.isArray(z) ? z[0] : NaN) * 4) / 4;
+      const n = Math.floor(Number(Array.isArray(z) ? z[1] : NaN));
+      if (!Number.isFinite(kg) || kg <= 0 || !Number.isFinite(n) || n <= 0) return;
+      if (gesehen.has(kg)) return;
+      gesehen.add(kg);
+      out[k].scheiben.push([kg, Math.min(n, 40)]);
+    });
+    out[k].scheiben.sort((a, b) => a[0] - b[0]);
+    out[k].scheiben = out[k].scheiben.slice(0, 8);
+  });
+  return out;
+}
+
+/** Ist für dieses Gerät überhaupt etwas eingetragen? */
+function gepflegt(equip, satz) {
+  const r = RASTER[equip];
+  if (!r) return false;
+  const s = satz && satz[r.satz];
+  return !!(s && s.scheiben && s.scheiben.length);
+}
+
+/**
+ * Alle Gewichte, die sich mit dem vorhandenen Eisen einstellen lassen.
+ *
+ * Aufgezählt wird über die Scheibengrößen; nach jeder Größe wird zusammen-
+ * gefasst, sonst wächst die Liste exponentiell, obwohl viele Kombinationen
+ * dasselbe wiegen (zwei 1,25er sind ein 2,5er).
+ *
+ * Gibt null zurück, wenn nichts eingetragen ist – der Unterschied zu einer
+ * leeren Liste ist wichtig: „weiß ich nicht" ist nicht „geht nichts".
+ */
+function erreichbar(equip, satz) {
+  const r = RASTER[equip];
+  if (!r || !gepflegt(equip, satz)) return null;
+  const s = satz[r.satz];
+  const basis = r.stange ? (s.stange || 0) : 0;
+  let summen = new Set([0]);
+  s.scheiben.forEach(([kg, anzahl]) => {
+    const maxK = Math.floor(anzahl / r.pro);
+    if (maxK <= 0) return;
+    const naechste = new Set();
+    summen.forEach((vor) => {
+      for (let k = 0; k <= maxK; k++) naechste.add(Math.round((vor + r.faktor * k * kg) * 4) / 4);
+    });
+    summen = naechste;
+  });
+  return [...summen].map((x) => Math.round((basis + x) * 4) / 4).sort((a, b) => a - b);
+}
+
+/**
+ * Den nächsten wirklich einstellbaren Wert zu `kg`.
+ *
+ * Bei genau gleichem Abstand nach unten: Lieber ein halbes Kilo zu leicht als
+ * ein halbes zu schwer – das ist die Richtung, in die ein Satz noch aufgeht.
+ */
+function raste(kg, equip, satz) {
+  const liste = erreichbar(equip, satz);
+  if (!liste || !liste.length) return null;
+  let beste = liste[0];
+  liste.forEach((w) => {
+    const d = Math.abs(w - kg) - Math.abs(beste - kg);
+    if (d < -1e-9 || (Math.abs(d) < 1e-9 && w < beste)) beste = w;
+  });
+  return beste;
+}
+
+/**
+ * Ein Schritt nach oben oder unten – aber auf dem Raster, nicht auf der
+ * Wunschschrittweite.
+ *
+ * `mindestens` ist die Schrittweite der Übung: Wer 2,5 kg draufpacken will,
+ * soll nicht bei 0,25 landen, nur weil zufällig eine Kleinscheibe passt.
+ * Gibt es nichts in dieser Größenordnung, wird der nächste erreichbare Wert
+ * genommen – ein kleiner Sprung ist besser als gar keiner.
+ */
+function nachbar(kg, richtung, equip, satz, mindestens = 0) {
+  const liste = erreichbar(equip, satz);
+  if (!liste || !liste.length) return null;
+  const hoch = richtung > 0;
+  const passend = liste.filter((w) => (hoch ? w >= kg + mindestens - 1e-9 : w <= kg - mindestens + 1e-9));
+  if (passend.length) return hoch ? passend[0] : passend[passend.length - 1];
+  const naechste = liste.filter((w) => (hoch ? w > kg + 1e-9 : w < kg - 1e-9));
+  if (naechste.length) return hoch ? naechste[0] : naechste[naechste.length - 1];
+  return null;   // schon am Ende dessen, was da ist
+}
+
+/**
+ * Womit dieses Gewicht zu laden ist – mit möglichst wenig Scheiben.
+ *
+ * Wenig Scheiben ist nicht Kosmetik: Jede Scheibe ist ein Verschluss auf und
+ * zu. Gesucht wird deshalb über alle Kombinationen die mit der kleinsten
+ * Scheibenzahl, nicht die erstbeste. Der Suchraum ist klein genug dafür –
+ * höchstens acht Größen mit je einer Handvoll Stufen.
+ */
+function belegung(kg, equip, satz) {
+  const r = RASTER[equip];
+  if (!r || !gepflegt(equip, satz)) return null;
+  const s = satz[r.satz];
+  const ziel = Math.round((kg - (r.stange ? (s.stange || 0) : 0)) * 4) / 4;
+  if (ziel < -1e-9) return null;
+
+  let beste = null;
+  const suche = (i, rest, wahl, stueck) => {
+    if (beste && stueck >= beste.stueck) return;      // schon schlechter als das Beste
+    if (Math.abs(rest) < 1e-9) { beste = { wahl: wahl.slice(), stueck }; return; }
+    if (i >= s.scheiben.length || rest < -1e-9) return;
+    const [w, anzahl] = s.scheiben[i];
+    const maxK = Math.min(Math.floor(anzahl / r.pro), Math.floor((rest + 1e-9) / (r.faktor * w)));
+    for (let k = maxK; k >= 0; k--) {
+      if (k) wahl.push([w, k]);
+      suche(i + 1, Math.round((rest - r.faktor * k * w) * 4) / 4, wahl, stueck + k);
+      if (k) wahl.pop();
+    }
+  };
+  suche(0, ziel, [], 0);
+  return beste ? beste.wahl.sort((a, b) => b[0] - a[0]) : null;
+}
+
+/** Die Belegung als Satz, wie man ihn jemandem zurufen würde. */
+function belegungText(kg, equip, satz) {
+  const b = belegung(kg, equip, satz);
+  if (!b) return '';
+  const r = RASTER[equip];
+  if (!b.length) {
+    return r.stange ? 'leere Stange' : '';
+  }
+  const teile = b.map(([w, k]) => `${k}× ${fmtNum(w)}`).join(' + ');
+  // „je Seite" gilt überall dort, wo Scheiben auf eine Stange gehen – bei
+  // beiden Kurzhanteln je Seite *jeder* Hantel, also viermal die Zahl.
+  if (equip === 'dumbbells') return `je Seite ${teile} kg (beide Hanteln)`;
+  if (r.faktor === 2) return `je Seite ${teile} kg`;
+  return `${teile} kg`;
+}
+
 /* ===== js/gewichte.js ===== */
 /*
  * Arbeitsgewichte und die Reihenfolge, in der umgebaut wird.
@@ -7299,14 +7515,31 @@ function offenerAufstieg() {
 
 
 
+
+/** Der eingetragene Scheibensatz – oder ein leerer, wenn nichts eingetragen ist. */
+const meinSatz = () => normSatz(store.getState().scheiben);
+
+/**
+ * Ein Gewicht auf das einrasten, was sich hier wirklich einstellen lässt.
+ *
+ * Ist nichts eingetragen, bleibt die Zahl, wie sie war. Das ist der ganze
+ * Vertrag: Die App rät keinen Scheibensatz herbei, aber sobald sie einen
+ * kennt, schlägt sie nichts Unmögliches mehr vor.
+ */
+function gerastet(ex, kg) {
+  if (kg === null || !ex || !gepflegt(ex.equip, meinSatz())) return kg;
+  const r = raste(kg, ex.equip, meinSatz());
+  return r === null ? kg : r;
+}
+
 /** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
 function startWeight(ex) {
   if (ex.weight === null) return null;
   const f = levelFaktor();
   // 0 kg heißt "ohne Zusatzlast" (Klimmzüge) – das bleibt 0, egal wer trainiert.
-  if (!ex.weight || f === 1) return ex.weight;
+  if (!ex.weight || f === 1) return gerastet(ex, ex.weight);
   const step = ex.step || 2.5;
-  return Math.max(step, Math.round((ex.weight * f) / step) * step);
+  return gerastet(ex, Math.max(step, Math.round((ex.weight * f) / step) * step));
 }
 
 /** Gewicht, mit dem diese Übung heute gearbeitet wird. */
@@ -7507,13 +7740,18 @@ function ruestHint(n, mode, list, i) {
   let prev = null;
   for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, workingWeight(list[k].id));
   const kg = `${fmtNum(cur.kg)} kg${cur.note ? ` ${cur.note}` : ''}`;
+  // Sind die Scheiben bekannt, steht hier nicht nur das Ziel, sondern der Weg
+  // dahin: Welche Scheiben, wie viele, auf welche Seite. Das ist die Zeile, die
+  // den Umbau kurz macht.
+  const lade = ladeText(list[i].id, cur.kg);
+  const wie = lade ? ` <span class="ruest-lade">(${esc(lade)})</span>` : '';
   if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
     return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen</div>`;
   }
   if (prev && prev.fam === cur.fam) {
-    return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}</div>`;
+    return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}${wie}</div>`;
   }
-  return `<div class="ruest">Aufbauen: ${esc(cur.label)} auf ${esc(kg)}</div>`;
+  return `<div class="ruest">Aufbauen: ${esc(cur.label)} auf ${esc(kg)}${wie}</div>`;
 }
 
 /**
@@ -7527,6 +7765,31 @@ const stepOf = (exId) => {
   const ex = EX_BY_ID.get(exId);
   return (ex && ex.step) || 2.5;
 };
+
+/**
+ * Wohin ein Druck auf + oder − führt.
+ *
+ * Ohne eingetragene Scheiben ist das die Schrittweite der Übung, wie bisher.
+ * Mit Scheiben ist es der nächste Wert, der sich auch aufstecken lässt – und
+ * der kann weiter weg liegen: Wer nur 2,5er-Scheiben hat, springt bei beiden
+ * Kurzhanteln in Fünferschritten je Hand, ob ihm das passt oder nicht. Genau
+ * das soll die Zahl auch zeigen.
+ */
+function naechstesGewicht(exId, richtung) {
+  const ex = EX_BY_ID.get(exId);
+  const jetzt = workingWeight(exId) || 0;
+  const schritt = stepOf(exId);
+  if (!ex || !gepflegt(ex.equip, meinSatz())) return Math.max(0, jetzt + richtung * schritt);
+  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), schritt);
+  return n === null ? jetzt : n;
+}
+
+/** „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt. */
+function ladeText(exId, kg) {
+  const ex = EX_BY_ID.get(exId);
+  if (!ex || kg === null) return '';
+  return belegungText(kg, ex.equip, meinSatz());
+}
 
 /* ===== js/plan.js ===== */
 /*
@@ -8380,7 +8643,7 @@ function oeffne() {
 }
 
 /** Den Zettel lesen. Gibt {} zurück, wenn es keinen gibt oder etwas klemmt. */
-export async function liesMerkzettel() {
+async function liesMerkzettel() {
   try {
     const db = await oeffne();
     return await new Promise((ok) => {
@@ -8397,7 +8660,7 @@ export async function liesMerkzettel() {
 }
 
 /** Felder in den Zettel schreiben; alles Nichtgenannte bleibt stehen. */
-export async function schreibeMerkzettel(felder) {
+async function schreibeMerkzettel(felder) {
   try {
     const alt = await liesMerkzettel();
     const db = await oeffne();
@@ -8493,7 +8756,7 @@ const kannPush = () => 'serviceWorker' in navigator
  * einziges Kopieren sein. Drei Werte einzeln zu übertragen ist die Sorte
  * Aufgabe, bei der man einen davon vergisst und danach eine Woche sucht.
  */
-export async function pushEinrichten() {
+async function pushEinrichten() {
   if (!kannPush()) throw new Error('Dieser Browser kann kein Web Push.');
   const erlaubnis = await Notification.requestPermission();
   if (erlaubnis !== 'granted') throw new Error('Ohne erlaubte Hinweise geht es nicht.');
@@ -8523,7 +8786,7 @@ export async function pushEinrichten() {
 }
 
 /** Steht eine Anmeldung, und zu welchem Dienst? Für die Anzeige unter Mehr. */
-export async function pushStand() {
+async function pushStand() {
   if (!kannPush()) return { moeglich: false };
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -8559,6 +8822,7 @@ export async function pushStand() {
  * Weiter aufteilen ginge, hieße aber, `ui`, `render()` und `go()` über eine
  * Registrierung zu entkoppeln – mehr Maschinerie, als es einbringt.
  */
+
 
 
 
@@ -9046,6 +9310,7 @@ function sound(name) {
  * hat keinen und soll keinen haben. */
 const NOTE_TAG = 'workout-pause';
 let noteTimer = null;
+let laufNote = -1;   // zuletzt in der Statusleiste gezeigte Restsekunde
 
 /** Registrierung des Service Workers, immer als Promise – auch ohne ihn. */
 function swReg() {
@@ -9088,14 +9353,61 @@ function planNote(secs, text) {
   }, Math.max(0, secs) * 1000);
 }
 
-/** Wecker abbestellen und eine schon sichtbare Meldung schließen. */
-function dropNote() {
-  clearTimeout(noteTimer);
-  noteTimer = null;
+/** Eine sichtbare Meldung schließen, ohne den Wecker abzubestellen. */
+function closeNote() {
   swReg()
     .then((reg) => (reg ? reg.getNotifications({ tag: NOTE_TAG }) : []))
     .then((list) => list.forEach((nt) => nt.close()))
     .catch(() => {});
+}
+
+/** Wecker abbestellen und eine schon sichtbare Meldung schließen. */
+function dropNote() {
+  clearTimeout(noteTimer);
+  noteTimer = null;
+  laufNote = -1;
+  closeNote();
+}
+
+/**
+ * Die laufende Pause in der Statusleiste mitzählen.
+ *
+ * Bisher kam die Meldung erst, wenn die Pause vorbei war. Wer das Handy
+ * weglegt, will aber sehen, wie lange es noch dauert, ohne die App zu öffnen.
+ *
+ * Gemacht wird das, indem dieselbe Meldung jede Sekunde mit neuem Text ersetzt
+ * wird – `tag` sorgt dafür, dass sie sich ablöst statt zu stapeln, `silent`
+ * dafür, dass sie das lautlos tut. Ohne `silent` wäre es hundertmal Klingeln
+ * statt einmal.
+ *
+ * **Zwei Grenzen, die man kennen sollte.** Erstens läuft das Mitzählen in der
+ * Seite, nicht im Service Worker: Friert der Browser die Seite ein – auf
+ * Android nach einigen Minuten im Hintergrund –, bleibt die Zahl stehen.
+ * Deshalb steht die Uhrzeit des Endes mit in der Meldung; die stimmt auch
+ * dann noch. Zweitens gilt das nur, solange die App nicht ganz geschlossen
+ * ist. Der Wecker am Ende der Pause hängt an derselben Seite.
+ */
+function laufNoteZeigen(left) {
+  if (!noteAllowed() || !document.hidden) return;
+  const sek = Math.max(0, Math.round(left));
+  if (sek === laufNote) return;          // je Sekunde einmal, nicht viermal
+  laufNote = sek;
+  const rest = store.getState().rest;
+  if (!rest) return;
+  const ende = new Date(rest.endsAt);
+  const uhr = `${ende.getHours()}:${String(ende.getMinutes()).padStart(2, '0')}`;
+  swReg().then((reg) => {
+    if (!reg) return;   // ohne Service Worker gibt es kein Ersetzen, nur Stapeln
+    reg.showNotification(`Pause ${Math.floor(sek / 60)}:${String(sek % 60).padStart(2, '0')}`, {
+      body: `${rest.next} · weiter um ${uhr}`,
+      tag: NOTE_TAG,
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      silent: true,           // sonst klingelt jede Sekunde neu
+      renotify: false,
+      requireInteraction: true,
+    });
+  }).catch(() => {});
 }
 
 /**
@@ -9205,6 +9517,8 @@ function tickRest() {
   restTime.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   restNext.textContent = rest.next;
   restFill.style.width = `${Math.max(0, (left / rest.total) * 100)}%`;
+  // Dieselbe Zahl noch einmal für die Statusleiste, wenn die App weggelegt ist.
+  laufNoteZeigen(left);
 
   if (!restTicker) restTicker = setInterval(tickRest, 250);
 }
@@ -9378,18 +9692,15 @@ function renderFocus() {
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
       ${ruestHint(n, mode, w.ex, i)}
       <div class="ex-weight focus-weight">
-        <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
-                aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo weniger">−</button>
+        ${kgKnopf(it, -1)}
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
         </div>
-        <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
-                aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
+        ${kgKnopf(it, 1)}
       </div>
-      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
-      ${steigerungHinweis(n, mode, it)}`}
+      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}`}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -9397,8 +9708,6 @@ function renderFocus() {
                 aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
                 data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
     </div>
-
-    ${satzFrage(n, mode, it, sets)}
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
     ${detailBlock(it)}
@@ -10031,15 +10340,13 @@ function renderDashboard() {
     const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
     const weightRow = kg === null ? bandRow(it) : `
       <div class="ex-weight">
-        <button type="button" class="kg-step" data-act="weight-step" data-ex="${it.id}" data-d="${-stepOf(it.id)}"
-                aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo weniger">−</button>
+        ${kgKnopf(it, -1)}
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht ${esc(it.name)} in Kilo">
           <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
         </div>
-        <button type="button" class="kg-step kg-plus" data-act="weight-step" data-ex="${it.id}" data-d="${stepOf(it.id)}"
-                aria-label="${esc(fmtNum(stepOf(it.id)))} Kilo mehr">+</button>
+        ${kgKnopf(it, 1)}
       </div>
       ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}`;
 
@@ -10436,73 +10743,154 @@ function wdhRow(it, mode, extra = '') {
     </div>`;
 }
 
-/**
- * „Wie ist der Satz gelaufen?" – ein Tipp, während die Pause läuft.
+/*
+ * Hier standen die Satzfrage („unter 8 / 8-11 / 12+“) und der darauf gestuetzte
+ * Steigerungsvorschlag. Beides ist wieder raus, auf Ansage: Die Frage stand
+ * mitten im Training unter dem Satzraster und war eine Zeile, die niemand
+ * bestellt hat.
  *
- * Diese Frage stand schon einmal in der App und flog wieder raus (b9ae2b3).
- * Der Grund steht in der Begründung von damals und war richtig: Sie *hielt den
- * Ablauf an* – der Sprung zur nächsten Übung wartete auf die Antwort. Nicht der
- * Tipp war das Problem, sondern das Warten.
- *
- * Deshalb steht sie jetzt hier: unter dem Satzraster, sichtbar genau in der
- * Pause, in der ohnehin nichts zu tun ist. Sie hält nichts auf, sie blockiert
- * nichts, und wer sie übergeht, verliert nichts – dann steht der Satz eben wie
- * bisher mit der Untergrenze in der Rechnung.
- *
- * Gefragt wird nach der Lage im Bereich, nicht nach der Zahl. Drei Knöpfe statt
- * eines Zahlenfelds: Ein Zahlenfeld mitten im Training ist eine Tastatur, die
- * sich über den halben Bildschirm legt, und die genaue Zahl braucht niemand –
- * für die Steigerung zählt, ob der Bereich oben erreicht wurde.
+ * Damit faellt auch der Vorschlag weg, und das ist keine Nebenwirkung, sondern
+ * die Konsequenz: Er hing an den Antworten. Ohne sie weiss die App nicht, wie
+ * schwer ein Satz war - und ein Vorschlag ohne diese Kenntnis waere geraten.
+ * Lieber nichts sagen als etwas erfinden. Was aufs Eisen kommt, entscheidet
+ * weiter der, der darunter liegt; die Knoepfe dafuer stehen ueber jedem Satz.
  */
-function satzFrage(n, mode, it, sets) {
-  if (!ui.focus) return '';
-  // Der letzte abgehakte Satz, der noch keine Antwort hat.
-  let idx = -1;
-  for (let k = sets.length - 1; k >= 0; k--) {
-    if (sets[k].done && !sets[k].wie) { idx = k; break; }
-    if (sets[k].done) break; // der letzte ist beantwortet – nicht weiter zurück
-  }
-  if (idx < 0) return '';
-  const { lo, hi } = repsBereich(repsLabel(it, mode));
-  if (!lo) return '';
-  const mitte = hi > lo ? `${lo}–${hi - 1}` : `${lo}`;
-  const knopf = (wert, text, titel) => `
-    <button type="button" class="wie-btn" data-act="set-wie" data-ex="${it.id}"
-            data-i="${idx}" data-v="${wert}" title="${esc(titel)}">${esc(text)}</button>`;
+
+/* ------------------------------------------------------------------ *
+ * Was hier rumliegt: Stangen und Scheiben
+ *
+ * Ohne diese Angaben rechnet die App mit freien Zahlen und schlägt Gewichte
+ * vor, die sich nicht einstellen lassen – „6 kg je Hand" mit einer 1,5-kg-
+ * Stange und 1,25er-Scheiben ist so ein Fall. Mit ihnen rastet jeder Vorschlag
+ * auf etwas Aufsteckbares ein, und der Umbauhinweis sagt zusätzlich, welche
+ * Scheiben auf welche Seite gehören.
+ *
+ * Eingetragen wird, was da ist, nicht was gebraucht wird: die leere Stange und
+ * je Scheibengröße die Stückzahl. Der Rest ist Rechnen.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Der Satz, wie er gespeichert ist – ungeordnet und ungeprüft.
+ *
+ * Die Eingabefelder müssen daraus gefüllt werden, nicht aus meinSatz(): Das
+ * sortiert und wirft Unbrauchbares weg, und beides mitten im Tippen. Wer „2,5"
+ * eintippt, hätte nach der „2" eine andere Zeilennummer, und der nächste
+ * Tastendruck landete in der falschen Zeile. Gerechnet wird weiter mit der
+ * geprüften Fassung; angezeigt wird, was dasteht.
+ */
+function roherSatz() {
+  const s = store.getState().scheiben;
+  const nimm = (q) => (q && typeof q === 'object' ? {
+    stange: typeof q.stange === 'number' ? q.stange : null,
+    scheiben: (Array.isArray(q.scheiben) ? q.scheiben : [])
+      .filter(Array.isArray).map((z) => [z[0], z[1]]),
+  } : { stange: null, scheiben: [] });
+  return { lh: nimm(s && s.lh), kh: nimm(s && s.kh) };
+}
+
+/** Zahl fürs Eingabefeld – auch dann, wenn dort gerade Unsinn steht. */
+const feldWert = (v) => (typeof v === 'number' && Number.isFinite(v) ? fmtNum(v) : '');
+
+/** Eine Zeile „Größe × Stück" für eine Scheibengröße. */
+function scheibenZeile(satzKey, i, kg, anzahl) {
   return `
-    <div class="wie-row" role="group" aria-label="Satz ${idx + 1}: wie viele Wiederholungen?">
-      <span class="wie-frage">Satz ${idx + 1}:</span>
-      ${knopf('unter', `unter ${lo}`, 'Der Bereich wurde nicht erreicht')}
-      ${knopf('drin', mitte, 'Im vorgesehenen Bereich')}
-      ${knopf('oben', `${hi}+`, 'Oben raus – dann darf mehr Gewicht drauf')}
+    <div class="scheiben-zeile">
+      <input type="text" inputmode="decimal" class="kg-val" value="${esc(feldWert(kg))}"
+             data-act="scheiben-kg" data-satz="${satzKey}" data-i="${i}"
+             aria-label="Scheibengewicht in Kilo">
+      <span class="scheiben-mal">kg ×</span>
+      <input type="text" inputmode="numeric" class="kg-val" value="${esc(feldWert(anzahl))}"
+             data-act="scheiben-n" data-satz="${satzKey}" data-i="${i}"
+             aria-label="Anzahl Scheiben">
+      <span class="scheiben-mal">Stück</span>
+      <button type="button" class="btn btn-mini" data-act="scheiben-weg"
+              data-satz="${satzKey}" data-i="${i}" aria-label="Diese Größe entfernen">✕</button>
     </div>`;
 }
 
 /**
- * Der Steigerungsvorschlag – und diesmal auf Daten gestützt.
+ * Die Vorschau: was sich mit dem Eingetragenen wirklich einstellen lässt.
  *
- * Vorschläge waren aus der App geflogen, mit einer Begründung, die stimmte:
- * „Die App weiß nicht, wie schwer ein Satz war, also entscheidet das der
- * Mensch." Seit satzFrage() weiß sie es, wenn man ihr antwortet – also darf
- * sie wieder etwas vorschlagen.
- *
- * Die Regel ist die klassische Doppelprogression: Erst den Bereich oben
- * ausreizen, dann das Gewicht erhöhen. Vorgeschlagen wird, wenn beim letzten
- * Mal **jeder beantwortete Satz** oben raus war und mindestens zwei Sätze
- * beantwortet wurden – eine einzelne Antwort ist ein Zufall, keine Aussage.
- *
- * Und es bleibt ein Vorschlag. Erhöht wird nichts von selbst: Was auf der
- * Stange liegt, entscheidet der, der darunter liegt.
+ * Sie ist der eigentliche Beleg, dass die Eingabe stimmt. Wer hier seine
+ * gewohnten Gewichte wiederfindet, hat richtig eingetragen; wer eine Liste aus
+ * krummen Zahlen sieht, hat sich vertippt. Deshalb steht sie direkt darunter
+ * und nicht in einem Hilfetext.
  */
-function steigerungHinweis(n, mode, it) {
-  if (it.weight === null) return '';
-  const arr = store.peekSets(n, mode, it.id) || [];
-  const beantwortet = arr.filter((s) => s.done && s.wie);
-  if (beantwortet.length < 2) return '';
-  if (!beantwortet.every((s) => s.wie === 'oben')) return '';
-  const schritt = stepOf(it.id);
-  return `<div class="kg-next">Alle Sätze oben raus – nächstes Mal `
-    + `${esc(fmtNum(workingWeight(it.id) + schritt))} kg?</div>`;
+function scheibenVorschau(satzKey, satz) {
+  const equip = satzKey === 'lh' ? 'barbell' : 'dumbbells';
+  const liste = erreichbar(equip, satz);
+  if (!liste || !liste.length) return '';
+  const was = satzKey === 'lh' ? 'auf der Stange' : 'je Hand';
+  const gezeigt = liste.slice(0, 14).map((w) => fmtNum(w)).join(' · ');
+  return `<div class="hint">Damit einstellbar ${was}: ${esc(gezeigt)}`
+    + `${liste.length > 14 ? ' …' : ''} kg</div>`;
+}
+
+function scheibenKarte() {
+  const satz = roherSatz();
+  const geprueft = meinSatz();
+  const etwas = satz.lh.scheiben.length || satz.kh.scheiben.length;
+  return `
+    <div class="section-title">Was bei dir rumliegt</div>
+    <div class="card">
+      <div class="small muted">Trag ein, welche Stangen und Scheiben du hast. Dann schlägt
+        die App nur noch Gewichte vor, die sich damit auch einstellen lassen – und sagt beim
+        Umbauen dazu, welche Scheiben draufkommen.
+        ${etwas ? '' : ' Solange hier nichts steht, rechnet sie in festen Schritten weiter – '
+          + 'und die treffen manchmal daneben.'}</div>
+      ${['kh', 'lh'].map((k) => `
+        <div class="scheiben-satz">
+          <div class="lbl">${esc(SATZ_LABEL[k])}</div>
+          <div class="scheiben-zeile">
+            <span class="scheiben-mal">Stange leer</span>
+            <input type="text" inputmode="decimal" class="kg-val"
+                   value="${esc(feldWert(satz[k].stange))}"
+                   data-act="scheiben-stange" data-satz="${k}"
+                   aria-label="Gewicht der leeren ${esc(SATZ_LABEL[k])}">
+            <span class="scheiben-mal">kg${k === 'kh' ? ' (eine Hantel)' : ''}</span>
+          </div>
+          ${satz[k].scheiben.map(([kg, n], i) => scheibenZeile(k, i, kg, n)).join('')}
+          <button type="button" class="btn btn-block" data-act="scheiben-plus" data-satz="${k}">
+            Scheibengröße hinzufügen</button>
+          ${scheibenVorschau(k, geprueft)}
+        </div>`).join('')}
+      <div class="small muted" style="margin-top:10px">Für beide Kurzhanteln zählen vier
+        Scheiben einer Größe als ein Schritt – zwei je Hantel, eine je Seite. Deshalb springt
+        das Gewicht je Hand manchmal weiter, als dir lieb ist: Das liegt nicht an der App,
+        sondern am Eisen. Der Rucksack bleibt außen vor, da passt ohnehin alles rein.</div>
+    </div>`;
+}
+
+/**
+ * Den Satz ändern und speichern – ein Weg für alle vier Eingaben.
+ *
+ * Gespeichert wird die rohe Form; geprüft wird beim Rechnen. Sonst
+ * verschöbe sich die Zeile unter dem Finger (siehe roherSatz()).
+ */
+function scheibenAendern(satzKey, wie) {
+  const satz = roherSatz();
+  wie(satz[satzKey]);
+  store.setSetting('scheiben', satz);
+}
+
+/**
+ * Ein − oder + an der Gewichtszeile.
+ *
+ * Die Beschriftung nennt den Schritt, der wirklich passiert, nicht den
+ * gewünschten: Wer nur 2,5er-Scheiben hat, geht bei beiden Kurzhanteln in
+ * Fünferschritten je Hand. Steht auf dem Knopf „2,5 Kilo mehr" und es werden
+ * fünf, ist der Knopf gelogen.
+ */
+function kgKnopf(it, richtung) {
+  const jetzt = workingWeight(it.id);
+  const ziel = naechstesGewicht(it.id, richtung);
+  const d = Math.abs(ziel - (jetzt || 0));
+  const wort = richtung > 0 ? 'mehr' : 'weniger';
+  const label = d < 0.01 ? `Kein weiterer Schritt nach ${richtung > 0 ? 'oben' : 'unten'}`
+    : `${fmtNum(d)} Kilo ${wort}`;
+  return `<button type="button" class="kg-step${richtung > 0 ? ' kg-plus' : ''}"
+          data-act="weight-step" data-ex="${it.id}" data-dir="${richtung}"
+          ${d < 0.01 ? 'disabled' : ''} aria-label="${esc(label)}">${richtung > 0 ? '+' : '−'}</button>`;
 }
 
 function bandRow(it) {
@@ -12072,6 +12460,8 @@ function renderSettings() {
       </div>
     </div>
 
+    ${scheibenKarte()}
+
     <div class="section-title">Töne und Hinweise</div>
     <div class="card">
       <div class="small muted">Die Töne werden erzeugt, nicht geladen – sie funktionieren also
@@ -12093,13 +12483,14 @@ function renderSettings() {
       </div>` : ''}
       <div class="switch-row">
         <div>
-          <div class="lbl">Hinweis im Hintergrund</div>
-          <div class="hint">Meldung vom Handy, wenn die Pause endet und du gerade woanders bist –
-            in einer anderen App oder bei gesperrtem Bildschirm. Braucht einmal deine Erlaubnis.
-            Ist die App ganz geschlossen, bleibt es still: Dafür bräuchte es einen Server, der eine
-            Nachricht schickt.${notifyDenied() ? ' <strong>Dein Browser hat Hinweise für diese Seite blockiert</strong> – das lässt sich nur in seinen Einstellungen wieder freigeben.' : ''}</div>
+          <div class="lbl">Pause in der Statusleiste</div>
+          <div class="hint">Sobald du die App weglegst, zählt die Pause oben in der Leiste
+            weiter – mit der Uhrzeit, wann es weitergeht – und meldet sich am Ende.
+            Braucht einmal deine Erlaubnis. Zwei Einschränkungen: Friert der Browser die
+            Seite ein, bleibt die Zahl stehen (die Uhrzeit stimmt weiter), und ist die App
+            ganz geschlossen, kommt gar nichts.${notifyDenied() ? ' <strong>Dein Browser hat Hinweise für diese Seite blockiert</strong> – das lässt sich nur in seinen Einstellungen wieder freigeben.' : ''}</div>
         </div>
-        <button type="button" class="toggle" aria-pressed="${s.notify && !notifyDenied()}" data-act="toggle-notify" aria-label="Hinweis im Hintergrund" ${notifyDenied() ? 'disabled' : ''}></button>
+        <button type="button" class="toggle" aria-pressed="${s.notify && !notifyDenied()}" data-act="toggle-notify" aria-label="Pause in der Statusleiste" ${notifyDenied() ? 'disabled' : ''}></button>
       </div>
       ${s.sound ? `
       <div class="btn-row">
@@ -12591,17 +12982,6 @@ view.addEventListener('click', (e) => {
       if (workoutComplete) toast('Workout abgeschlossen 🎉');
       break;
     }
-    case 'set-wie': {
-      // Antwort auf satzFrage(). Kein render()-Sonderweg nötig: updateSet()
-      // meldet die Änderung, und der Klick-Verteiler zeichnet ohnehin neu.
-      const id = t.dataset.ex;
-      const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
-      if (item) {
-        store.updateSet(n, mode, id, item.sets, Number(t.dataset.i), { wie: t.dataset.v });
-      }
-      render();
-      break;
-    }
     case 'reps-step': {
       // Bodyweight: die Steigerung sind die Wiederholungen, nicht die Kilo.
       store.addBwPlus(t.dataset.ex, Number(t.dataset.d));
@@ -12610,7 +12990,7 @@ view.addEventListener('click', (e) => {
     }
     case 'weight-step': {
       const id = t.dataset.ex;
-      const kg = store.setWeight(id, (workingWeight(id) || 0) + Number(t.dataset.d));
+      const kg = store.setWeight(id, naechstesGewicht(id, Number(t.dataset.dir)));
       render();
       // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
       const started = (store.peekSets(n, mode, id) || []).some((s) => s.done);
@@ -13169,12 +13549,20 @@ view.addEventListener('click', (e) => {
       render();
       break;
     }
-    case 'erinnerung-zeit': {
-      // Ein leeres oder unsinniges Feld lässt die bisherige Zeit stehen, statt
-      // die Erinnerung still auf Mitternacht zu schieben.
-      if (minuten(t.value) === null) break;
-      store.setSetting('erinnerung', { ...erinnerungAn(), [t.dataset.wann]: t.value });
-      erinnerungPflegen();
+    case 'scheiben-plus': {
+      // Eine leere Zeile wäre nach normSatz() sofort wieder weg (0 kg zählt
+      // nicht). Deshalb kommt eine Größe dazu, die es noch nicht gibt.
+      scheibenAendern(t.dataset.satz, (s) => {
+        const da = new Set(s.scheiben.map(([kg]) => kg));
+        const vorschlag = [1.25, 2.5, 5, 0.5, 10, 15, 20, 25].find((kg) => !da.has(kg));
+        if (vorschlag) s.scheiben.push([vorschlag, t.dataset.satz === 'kh' ? 4 : 2]);
+      });
+      render();
+      break;
+    }
+    case 'scheiben-weg': {
+      scheibenAendern(t.dataset.satz, (s) => { s.scheiben.splice(Number(t.dataset.i), 1); });
+      render();
       break;
     }
     case 'toggle-notify': {
@@ -13323,6 +13711,28 @@ view.addEventListener('input', (e) => {
     const mode = store.workoutMode(n);
     const item = workoutByNo(n, mode).ex.find((x) => x.id === t.dataset.ex);
     store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value });
+  } else if (t.dataset.act === 'erinnerung-zeit') {
+    // Stand jahrelang im Klick-Zweig und wurde damit nie ausgelöst: Ein
+    // Zeitfeld meldet eine neue Uhrzeit als "input", nicht als Klick. Wer die
+    // Zeit umstellte, sah die neue Zahl im Feld – gespeichert war die alte.
+    // Ein leeres oder unsinniges Feld lässt die bisherige Zeit stehen, statt
+    // die Erinnerung still auf Mitternacht zu schieben.
+    if (minuten(t.value) === null) return;
+    store.setSetting('erinnerung', { ...erinnerungAn(), [t.dataset.wann]: t.value });
+    erinnerungPflegen();
+  } else if (t.dataset.act === 'scheiben-stange') {
+    // Beim Tippen still speichern, ohne neu zu rendern: Ein render() würde das
+    // Feld ersetzen und den Fokus mitnehmen, mitten im Wort.
+    const kg = parseFloat(t.value.replace(',', '.'));
+    scheibenAendern(t.dataset.satz, (s) => { s.stange = Number.isNaN(kg) ? null : kg; });
+  } else if (t.dataset.act === 'scheiben-kg' || t.dataset.act === 'scheiben-n') {
+    const zahl = parseFloat(t.value.replace(',', '.'));
+    if (Number.isNaN(zahl)) return;
+    const feld = t.dataset.act === 'scheiben-kg' ? 0 : 1;
+    scheibenAendern(t.dataset.satz, (s) => {
+      const zeile = s.scheiben[Number(t.dataset.i)];
+      if (zeile) zeile[feld] = zahl;
+    });
   }
 });
 
@@ -13343,6 +13753,9 @@ document.addEventListener('visibilitychange', () => {
     return;
   }
   store.clockStart();
+  // Wer wieder davorsitzt, sieht die Leiste in der App – die Meldung in der
+  // Statusleiste wäre jetzt nur noch ein Duplikat.
+  if (store.getState().rest) { laufNote = -1; closeNote(); }
   tickRest(); // war das Handy gesperrt, ist die Pause womöglich abgelaufen
   // Läuft sie noch, das Signal neu auflegen: Ein im Hintergrund angehaltener
   // AudioContext verliert seine vorgemerkten Töne.
