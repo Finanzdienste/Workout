@@ -510,6 +510,55 @@ Woche nach der Arbeit, am Wochenende früh. Maßgeblich ist der Wochentag des
 **fälligen Termins**, nicht der von heute — liegt die nächste Einheit auf
 Samstag, gilt die Wochenendzeit, auch wenn heute Mittwoch ist.
 
+#### Und der zuverlässige Weg: Web Push
+
+`periodicsync` ist ein Vielleicht. Web Push ist es nicht — der Push-Dienst des
+Browserherstellers stellt zu, ob die App läuft oder nicht, ob das Handy im
+Standby ist oder nicht. Was dafür fehlt, ist **nur eine Uhr**: jemand, der zur
+richtigen Zeit etwas losschickt.
+
+Den Job macht `.github/workflows/push-erinnerung.yml`. Das ist kein Server,
+sondern ein zeitgesteuerter Ablauf, wie es hier ohnehin schon einen gibt.
+
+**Der Push trägt nichts.** Kein Text, keine Daten — ein leeres Klopfen. Erst das
+Gerät liest den Merkzettel und entscheidet, ob eine Meldung erscheint und was
+drinsteht. Es verlässt kein Trainingsdatum das Handy; wer den Wecker betreibt,
+erfährt nicht einmal, ob an dem Tag etwas anstand. Das ist sauberer als der
+übliche Weg, bei dem der Absender den Text mitschickt und damit wissen muss,
+was los ist.
+
+**Die Schlüssel entstehen im Browser.** VAPID braucht ein Schlüsselpaar; es wird
+auf dem Gerät erzeugt (`js/push.js`, WebCrypto) und verlässt es einmal, als
+Text, den man selbst als GitHub-Secret einfügt. Nicht über einen Dienst, nicht
+über eine Konsole, nicht durch fremde Hände. Der private Teil liegt in einem
+eigenen `localStorage`-Schlüssel und **nicht** im Zustand der App — sonst käme
+er in jede Sicherung, in den geteilten Stand und in die Meldung an den
+Rückkanal. `tests/test-push.mjs` prüft genau das, an allen drei Stellen.
+
+Drei Entscheidungen, die im ersten Entwurf anders waren und falsch:
+
+| erst gedacht | warum es nicht ging |
+| --- | --- |
+| stündlich klopfen | Chrome bestraft Pushes, die nichts anzeigen — an Ruhetagen wären das zwei Dutzend am Tag |
+| das Handy prüft auch beim Push die Uhrzeit | zur Winterzeit trifft der Push eine Stunde früher ein, die Prüfung hätte ihn verworfen — und es wäre gar nichts gekommen |
+| Cron bestimmt die Minute | tut er auch, aber nur grob: Der Push **ist** die Uhr, das Gerät fragt nur noch, *ob* etwas ansteht |
+
+Deshalb: **ein Push am Tag**, werktags 16:00, am Wochenende 6:30 (MESZ; im
+Winter eine Stunde früher, und das ist harmlos). An Ruhetagen bleibt er still —
+das ist der Preis, und wenn Chrome ihn anmerkt, ist die Lehre nicht, öfter zu
+senden, sondern an Ruhetagen etwas Nützliches zu zeigen.
+
+**Einrichten**, einmalig: In der App unter *Mehr* auf „Zuverlässig machen"
+tippen, den Textblock kopieren und bei GitHub unter *Settings → Secrets and
+variables → Actions* als `PUSH_KONFIG` einfügen. Läuft die Anmeldung irgendwann
+ab — nach einer Neuinstallation oder geleertem Speicher —, meldet der Ablauf das
+als Warnung, statt still nichts mehr zu tun.
+
+**Was auch hier nicht geprüft ist:** dass ein Push wirklich ankommt. Dafür
+bräuchte es einen echten Push-Dienst, eine installierte App und einen Absender;
+nichts davon gibt es in einem Testlauf. Gemessen wird es trotzdem — „zuletzt
+geweckt" unter *Mehr* zählt beide Wege mit.
+
 Gespeichert wird der **Endzeitpunkt** der Pause, nicht die Restdauer. Dadurch
 stimmt die Anzeige auch, wenn das Handy zwischendurch gesperrt war, und eine
 laufende Pause übersteht sogar einen Neustart der Seite.
@@ -2016,6 +2065,7 @@ js/plan.js              Termine, Übungen je Einheit, Nacharbeit, Fortschritt
 js/bilanz.js            Was insgesamt geleistet wurde, über Runden hinweg
 js/erinnerung.js        Wann am Trainingstag erinnert wird
 js/merkzettel.js        Der Zettel, den auch der Service Worker liest
+js/push.js              Web Push einrichten – Schlüssel und Anmeldung
 js/app.js               Rendering der fünf Tabs und Event-Handling
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen

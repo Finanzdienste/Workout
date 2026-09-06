@@ -37,6 +37,7 @@ import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorko
 import { bilanzAus, gesamtStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
+import { kannPush, pushEinrichten, pushStand } from './push.js';
 
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
@@ -117,6 +118,9 @@ async function erinnerungPflegen() {
   await schreibeMerkzettel({
     an: zeiten.an && offen,
     zeigenAb: offen ? stand.zeigenAb : 0,
+    // Der Tag zusätzlich zum Zeitpunkt: Der Push kommt zur richtigen Uhrzeit
+    // und fragt nur noch, *ob* etwas ansteht – siehe erinnern() in sw.js.
+    tag: offen ? stand.tag : '',
     titel: offen ? stand.titel : '',
   });
 
@@ -711,6 +715,10 @@ const ui = {
   standZurueck: null,      // Name, dem man seinen Stand noch zurückschicken wollte
   adminDaten: null,        // geladene Zeilen der Betreiber-Übersicht
   adminFehler: '',
+  // Der Einrichtungstext für Web Push, solange er angezeigt wird. Bewusst nur
+  // im Arbeitsspeicher: Er enthält den privaten Schlüssel und hat im
+  // gespeicherten Zustand nichts zu suchen – von dort käme er in jede Sicherung.
+  pushText: '',
   adminLaeuft: false,
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
@@ -3582,10 +3590,30 @@ function renderSettings() {
                  data-act="erinnerung-zeit" data-wann="wochenende"></label>
       </div>
       <div class="small muted" id="weckStand">wird nachgesehen…</div>` : ''}
-      <div class="small muted" style="margin-top:8px">Der Haken daran, offen gesagt:
-        Wann der Browser dafür aufwacht, entscheidet er selbst – ein Versprechen ist das
-        nicht. Deshalb steht oben, wann es zuletzt geklappt hat. Bleibt die Zeile eine
-        Woche lang leer, trägt der Weg auf diesem Handy nicht.</div>
+      <div class="small muted" style="margin-top:8px">Ohne Push hängt das daran, ob der
+        Browser von selbst aufwacht – und das entscheidet er. Deshalb steht oben, wann es
+        zuletzt geklappt hat.</div>
+      <div class="btn-row" style="margin-top:10px">
+        <button type="button" class="btn btn-block" data-act="push-einrichten"
+                ${kannPush() ? '' : 'disabled'}>Zuverlässig machen (Push einrichten)</button>
+      </div>
+      <div class="small muted" id="pushStand" style="margin-top:6px"></div>
+      ${ui.pushText ? `
+      <div class="notice" style="margin-top:10px">
+        <strong>Fast fertig – ein Mal einfügen.</strong>
+        <div class="small" style="margin-top:6px">Auf GitHub im Workout-Repo:
+          <i>Settings → Secrets and variables → Actions → New repository secret</i>,
+          Name <code>PUSH_KONFIG</code>, und da unten hinein:</div>
+        <textarea class="io" readonly style="margin-top:8px;height:120px"
+                  id="pushKonfig">${esc(ui.pushText)}</textarea>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" data-act="push-kopieren">Kopieren</button>
+          <button type="button" class="btn btn-ghost" data-act="push-fertig">Fertig</button>
+        </div>
+        <div class="small muted" style="margin-top:8px">Darin steckt der private Schlüssel
+          dieses Geräts. Er gehört in das Secret und sonst nirgendwohin – nicht in eine
+          Nachricht, nicht in die Zwischenablage von jemand anderem.</div>
+      </div>` : ''}
     </div>
 
     <div class="section-title">Plan-Verschiebung</div>
@@ -3713,6 +3741,20 @@ function renderSettings() {
 
   showVersion();
   weckStandZeigen();
+  pushStandZeigen();
+}
+
+/** Steht die Push-Anmeldung? Kurz und ohne Versprechen. */
+function pushStandZeigen() {
+  const host = document.getElementById('pushStand');
+  if (!host) return;
+  if (!kannPush()) { host.textContent = 'Dieser Browser kann kein Web Push.'; return; }
+  pushStand().then((p) => {
+    if (!document.body.contains(host)) return;
+    host.textContent = p.angemeldet
+      ? 'Angemeldet. Ob wirklich etwas ankommt, siehst du oben an „zuletzt geweckt".'
+      : 'Noch nicht eingerichtet – ohne das bleibt es beim Vielleicht.';
+  });
 }
 
 /**
@@ -4561,6 +4603,25 @@ view.addEventListener('click', (e) => {
       if (on) playSound('set');
       break;
     }
+    case 'push-einrichten':
+      pushEinrichten()
+        .then((r) => { ui.pushText = r.text; render(); })
+        .catch((e) => toast(e && e.message ? e.message : 'Hat nicht geklappt.'));
+      break;
+    case 'push-kopieren': {
+      const feld = document.getElementById('pushKonfig');
+      if (feld) {
+        feld.select();
+        navigator.clipboard.writeText(feld.value)
+          .then(() => toast('Kopiert – jetzt bei GitHub als PUSH_KONFIG einfügen.'))
+          .catch(() => toast('Kopieren ging nicht – von Hand markieren.'));
+      }
+      break;
+    }
+    case 'push-fertig':
+      ui.pushText = '';
+      render();
+      break;
     case 'toggle-erinnerung': {
       const e = erinnerungAn();
       store.setSetting('erinnerung', { ...e, an: !e.an });

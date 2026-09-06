@@ -127,8 +127,14 @@ await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(400);
 const text = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/Erinnerung am Trainingstag/.test(text), 'die Einstellung steht unter Mehr');
-check(/entscheidet er selbst|ein Versprechen ist das nicht/.test(text),
+// Der Punkt dieser Prüfung ist nicht der Wortlaut, sondern dass die
+// Unsicherheit überhaupt dasteht: Ohne Push hängt die Erinnerung daran, ob der
+// Browser von sich aus aufwacht. Eine Oberfläche, die das verschweigt,
+// verspricht etwas, das sie nicht halten kann.
+check(/das entscheidet er|entscheidet er selbst/.test(text),
   'und sagt dazu, dass der Browser über den Zeitpunkt entscheidet');
+check(/zuletzt geklappt|zuletzt geweckt|Noch nie geweckt/.test(text),
+  'und zeigt, wann es zuletzt wirklich geklappt hat – statt es zu behaupten');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

@@ -8413,6 +8413,131 @@ export async function schreibeMerkzettel(felder) {
   }
 }
 
+/* ===== js/push.js ===== */
+/*
+ * Web Push: die eine Meldung, die auch bei geschlossener App ankommt.
+ *
+ * Die Erinnerung über `periodicsync` (js/erinnerung.js) hängt daran, ob Chrome
+ * den Service Worker weckt – und das ist ein Vielleicht. Web Push ist das
+ * Gegenteil: Der Push-Dienst des Browserherstellers stellt zu, ob die App läuft
+ * oder nicht, ob das Handy im Standby ist oder nicht.
+ *
+ * **Was dafür fehlt, ist nur eine Uhr.** Web Push braucht jemanden, der zur
+ * richtigen Zeit etwas losschickt. Das übernimmt ein zeitgesteuerter Ablauf bei
+ * GitHub (.github/workflows/push-erinnerung.yml) – ein Server ist das nicht,
+ * nur ein Wecker, den es ohnehin schon gibt.
+ *
+ * **Und der Push trägt nichts.** Er ist ein leeres Klopfen: „wach auf und guck
+ * nach". Erst der Service Worker liest den Merkzettel und entscheidet, ob eine
+ * Meldung erscheint und was drinsteht. Es verlässt kein Trainingsdatum das
+ * Gerät; wer den Wecker betreibt, erfährt nicht einmal, ob heute etwas anstand.
+ *
+ * **Die Schlüssel entstehen hier, im Browser.** VAPID braucht ein Schlüsselpaar.
+ * Es wird auf diesem Gerät erzeugt und verlässt es nur einmal, als Text, den man
+ * selbst bei GitHub einfügt – nicht über einen Dienst, nicht über eine Konsole,
+ * nicht durch fremde Hände.
+ */
+
+const PUSH_SCHLUESSEL = 'workout.push.v1';
+
+/** Bytes -> base64url, die Schreibweise, die VAPID überall verlangt. */
+function b64url(bytes) {
+  let roh = '';
+  new Uint8Array(bytes).forEach((b) => { roh += String.fromCharCode(b); });
+  return btoa(roh).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** base64url -> Uint8Array. Für den Schlüssel, den subscribe() haben will. */
+function ausB64url(s) {
+  const roh = atob(String(s).replace(/-/g, '+').replace(/_/g, '/')
+    + '='.repeat((4 - (s.length % 4)) % 4));
+  return Uint8Array.from(roh, (c) => c.charCodeAt(0));
+}
+
+/**
+ * Das VAPID-Schlüsselpaar dieses Geräts – einmal erzeugt, dann gemerkt.
+ *
+ * Beide Teile müssen stabil bleiben: Mit dem öffentlichen meldet sich das Gerät
+ * beim Push-Dienst an, mit dem privaten unterschreibt der Wecker jede Sendung.
+ * Ein neues Paar macht die Anmeldung wertlos.
+ */
+async function schluesselpaar() {
+  const gemerkt = localStorage.getItem(PUSH_SCHLUESSEL);
+  if (gemerkt) { try { return JSON.parse(gemerkt); } catch { /* neu erzeugen */ } }
+
+  const paar = await crypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
+  );
+  const jwk = await crypto.subtle.exportKey('jwk', paar.privateKey);
+  // VAPID will den öffentlichen Schlüssel als unkomprimierten Punkt: 0x04 || x || y.
+  const x = ausB64url(jwk.x);
+  const y = ausB64url(jwk.y);
+  const punkt = new Uint8Array(65);
+  punkt[0] = 4;
+  punkt.set(x, 1);
+  punkt.set(y, 33);
+
+  const neu = { oeffentlich: b64url(punkt), privat: jwk.d };
+  localStorage.setItem(PUSH_SCHLUESSEL, JSON.stringify(neu));
+  return neu;
+}
+
+/** Kann dieser Browser überhaupt Push? */
+const kannPush = () => 'serviceWorker' in navigator
+  && 'PushManager' in window && 'Notification' in window;
+
+/**
+ * Anmelden und die Einrichtung als ein Textblock zurückgeben.
+ *
+ * Ein Block, nicht drei Felder: Was bei GitHub eingefügt werden muss, soll ein
+ * einziges Kopieren sein. Drei Werte einzeln zu übertragen ist die Sorte
+ * Aufgabe, bei der man einen davon vergisst und danach eine Woche sucht.
+ */
+export async function pushEinrichten() {
+  if (!kannPush()) throw new Error('Dieser Browser kann kein Web Push.');
+  const erlaubnis = await Notification.requestPermission();
+  if (erlaubnis !== 'granted') throw new Error('Ohne erlaubte Hinweise geht es nicht.');
+
+  const paar = await schluesselpaar();
+  const reg = await navigator.serviceWorker.ready;
+  // Eine bestehende Anmeldung wird abgelöst: Sie hängt am alten Schlüssel und
+  // würde sonst neben der neuen weiterlaufen.
+  const alt = await reg.pushManager.getSubscription();
+  if (alt) await alt.unsubscribe();
+
+  const abo = await reg.pushManager.subscribe({
+    // Pflicht in Chrome: Jeder Push muss etwas anzeigen dürfen. Was wirklich
+    // angezeigt wird, entscheidet trotzdem das Gerät – siehe sw.js.
+    userVisibleOnly: true,
+    applicationServerKey: ausB64url(paar.oeffentlich),
+  });
+
+  return {
+    text: JSON.stringify({
+      oeffentlich: paar.oeffentlich,
+      privat: paar.privat,
+      abo: abo.toJSON(),
+    }, null, 2),
+    endpunkt: abo.endpoint,
+  };
+}
+
+/** Steht eine Anmeldung, und zu welchem Dienst? Für die Anzeige unter Mehr. */
+export async function pushStand() {
+  if (!kannPush()) return { moeglich: false };
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const abo = await reg.pushManager.getSubscription();
+    return {
+      moeglich: true,
+      angemeldet: !!abo,
+      erlaubt: Notification.permission === 'granted',
+    };
+  } catch {
+    return { moeglich: false };
+  }
+}
+
 /* ===== js/app.js ===== */
 /*
  * Die Oberfläche: was auf den Schirm kommt und was ein Tipp auslöst.
@@ -8434,6 +8559,7 @@ export async function schreibeMerkzettel(felder) {
  * Weiter aufteilen ginge, hieße aber, `ui`, `render()` und `go()` über eine
  * Registrierung zu entkoppeln – mehr Maschinerie, als es einbringt.
  */
+
 
 
 
@@ -8532,6 +8658,9 @@ async function erinnerungPflegen() {
   await schreibeMerkzettel({
     an: zeiten.an && offen,
     zeigenAb: offen ? stand.zeigenAb : 0,
+    // Der Tag zusätzlich zum Zeitpunkt: Der Push kommt zur richtigen Uhrzeit
+    // und fragt nur noch, *ob* etwas ansteht – siehe erinnern() in sw.js.
+    tag: offen ? stand.tag : '',
     titel: offen ? stand.titel : '',
   });
 
@@ -9126,6 +9255,10 @@ const ui = {
   standZurueck: null,      // Name, dem man seinen Stand noch zurückschicken wollte
   adminDaten: null,        // geladene Zeilen der Betreiber-Übersicht
   adminFehler: '',
+  // Der Einrichtungstext für Web Push, solange er angezeigt wird. Bewusst nur
+  // im Arbeitsspeicher: Er enthält den privaten Schlüssel und hat im
+  // gespeicherten Zustand nichts zu suchen – von dort käme er in jede Sicherung.
+  pushText: '',
   adminLaeuft: false,
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
@@ -11997,10 +12130,30 @@ function renderSettings() {
                  data-act="erinnerung-zeit" data-wann="wochenende"></label>
       </div>
       <div class="small muted" id="weckStand">wird nachgesehen…</div>` : ''}
-      <div class="small muted" style="margin-top:8px">Der Haken daran, offen gesagt:
-        Wann der Browser dafür aufwacht, entscheidet er selbst – ein Versprechen ist das
-        nicht. Deshalb steht oben, wann es zuletzt geklappt hat. Bleibt die Zeile eine
-        Woche lang leer, trägt der Weg auf diesem Handy nicht.</div>
+      <div class="small muted" style="margin-top:8px">Ohne Push hängt das daran, ob der
+        Browser von selbst aufwacht – und das entscheidet er. Deshalb steht oben, wann es
+        zuletzt geklappt hat.</div>
+      <div class="btn-row" style="margin-top:10px">
+        <button type="button" class="btn btn-block" data-act="push-einrichten"
+                ${kannPush() ? '' : 'disabled'}>Zuverlässig machen (Push einrichten)</button>
+      </div>
+      <div class="small muted" id="pushStand" style="margin-top:6px"></div>
+      ${ui.pushText ? `
+      <div class="notice" style="margin-top:10px">
+        <strong>Fast fertig – ein Mal einfügen.</strong>
+        <div class="small" style="margin-top:6px">Auf GitHub im Workout-Repo:
+          <i>Settings → Secrets and variables → Actions → New repository secret</i>,
+          Name <code>PUSH_KONFIG</code>, und da unten hinein:</div>
+        <textarea class="io" readonly style="margin-top:8px;height:120px"
+                  id="pushKonfig">${esc(ui.pushText)}</textarea>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" data-act="push-kopieren">Kopieren</button>
+          <button type="button" class="btn btn-ghost" data-act="push-fertig">Fertig</button>
+        </div>
+        <div class="small muted" style="margin-top:8px">Darin steckt der private Schlüssel
+          dieses Geräts. Er gehört in das Secret und sonst nirgendwohin – nicht in eine
+          Nachricht, nicht in die Zwischenablage von jemand anderem.</div>
+      </div>` : ''}
     </div>
 
     <div class="section-title">Plan-Verschiebung</div>
@@ -12128,6 +12281,20 @@ function renderSettings() {
 
   showVersion();
   weckStandZeigen();
+  pushStandZeigen();
+}
+
+/** Steht die Push-Anmeldung? Kurz und ohne Versprechen. */
+function pushStandZeigen() {
+  const host = document.getElementById('pushStand');
+  if (!host) return;
+  if (!kannPush()) { host.textContent = 'Dieser Browser kann kein Web Push.'; return; }
+  pushStand().then((p) => {
+    if (!document.body.contains(host)) return;
+    host.textContent = p.angemeldet
+      ? 'Angemeldet. Ob wirklich etwas ankommt, siehst du oben an „zuletzt geweckt".'
+      : 'Noch nicht eingerichtet – ohne das bleibt es beim Vielleicht.';
+  });
 }
 
 /**
@@ -12976,6 +13143,25 @@ view.addEventListener('click', (e) => {
       if (on) playSound('set');
       break;
     }
+    case 'push-einrichten':
+      pushEinrichten()
+        .then((r) => { ui.pushText = r.text; render(); })
+        .catch((e) => toast(e && e.message ? e.message : 'Hat nicht geklappt.'));
+      break;
+    case 'push-kopieren': {
+      const feld = document.getElementById('pushKonfig');
+      if (feld) {
+        feld.select();
+        navigator.clipboard.writeText(feld.value)
+          .then(() => toast('Kopiert – jetzt bei GitHub als PUSH_KONFIG einfügen.'))
+          .catch(() => toast('Kopieren ging nicht – von Hand markieren.'));
+      }
+      break;
+    }
+    case 'push-fertig':
+      ui.pushText = '';
+      render();
+      break;
     case 'toggle-erinnerung': {
       const e = erinnerungAn();
       store.setSetting('erinnerung', { ...e, an: !e.an });

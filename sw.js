@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v107';
+const VERSION = 'v108';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -50,6 +50,7 @@ const SHELL = [
   './js/bilanz.js',
   './js/erinnerung.js',
   './js/merkzettel.js',
+  './js/push.js',
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
@@ -204,16 +205,31 @@ const heuteISO = () => {
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
 };
 
-async function erinnern() {
+/*
+ * `zeitPruefen` trennt die beiden Ausloeser, und das ist keine Feinheit:
+ *
+ *   periodicsync  Chrome weckt, wann es will – womoeglich um 9 Uhr frueh. Ohne
+ *                 die Zeitpruefung kaeme die Erinnerung zur Unzeit.
+ *   push          Der Absender weckt zur richtigen Zeit; die Uhrzeit ist damit
+ *                 schon entschieden. Hier trotzdem zu pruefen war ein Fehler im
+ *                 ersten Entwurf: Zur Winterzeit trifft der Push eine Stunde
+ *                 vor der eingestellten Uhrzeit ein, die Pruefung haette ihn
+ *                 verworfen – und es waere an dem Tag gar nichts gekommen.
+ */
+async function erinnern(zeitPruefen) {
   const zettel = await merkLesen();
   const heute = heuteISO();
   // Der Weckruf selbst wird immer vermerkt, auch wenn nichts zu melden ist.
-  // Das ist der Messwert: Er sagt, ob Chrome diesen Worker ueberhaupt weckt.
+  // Das ist der Messwert: Er sagt, ob der Weg ueberhaupt traegt.
   await merkSchreiben({ geweckt: Date.now() });
 
   if (!zettel.an) return;
   if (zettel.gemeldet === heute) return;          // heute schon gemeldet
-  if (!zettel.zeigenAb || Date.now() < zettel.zeigenAb) return;
+  if (zeitPruefen) {
+    if (!zettel.zeigenAb || Date.now() < zettel.zeigenAb) return;
+  } else if (!zettel.tag || zettel.tag > heute) {
+    return;                                       // erst an einem spaeteren Tag faellig
+  }
 
   // Ist die App gerade offen, braucht es keine Meldung – dann sieht er es ja.
   const offen = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
@@ -235,7 +251,25 @@ async function erinnern() {
 }
 
 self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'workout-erinnerung') event.waitUntil(erinnern());
+  if (event.tag === 'workout-erinnerung') event.waitUntil(erinnern(true));
+});
+
+/*
+ * Web Push – derselbe Entscheid, nur zuverlaessig ausgeloest.
+ *
+ * Der Push kommt von einem zeitgesteuerten Ablauf bei GitHub und **traegt
+ * nichts**: kein Text, keine Daten, nur ein Klopfen. Was angezeigt wird und ob
+ * ueberhaupt, entscheidet allein dieses Geraet anhand des Merkzettels. Wer den
+ * Wecker betreibt, erfaehrt nicht einmal, ob heute etwas anstand.
+ *
+ * Chrome verlangt bei `userVisibleOnly` im Grundsatz, dass jeder Push etwas
+ * anzeigt, und blendet sonst irgendwann von sich aus „im Hintergrund
+ * aktualisiert" ein. Deshalb kommt genau **ein** Push am Tag, und an
+ * Ruhetagen bleibt er still. Sollte Chrome das anmerken, ist die Lehre nicht,
+ * oefter zu senden, sondern an Ruhetagen etwas Nuetzliches zu zeigen.
+ */
+self.addEventListener('push', (event) => {
+  event.waitUntil(erinnern(false));
 });
 
 /*

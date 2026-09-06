@@ -1,0 +1,80 @@
+# Klopft einmal am Tag ans Handy, damit die Erinnerung auch bei geschlossener
+# App ankommt.
+#
+# Web Push braucht kein eigenes Serverchen – nur jemanden, der zur richtigen
+# Zeit etwas losschickt. Das ist hier: ein zeitgesteuerter Ablauf, den es
+# ohnehin gibt.
+#
+# WAS GESENDET WIRD: nichts. Der Push traegt keinen Text und keine Daten, er ist
+# ein reines Klopfen. Erst das Handy liest seinen Merkzettel und entscheidet, ob
+# eine Meldung erscheint und was drinsteht (siehe sw.js). Wer diesen Ablauf
+# betreibt, erfaehrt nicht einmal, ob an dem Tag ueberhaupt etwas anstand.
+#
+# WARUM NUR EINMAL AM TAG: Chrome will, dass ein Push etwas anzeigt, und blendet
+# sonst irgendwann von sich aus „im Hintergrund aktualisiert" ein. An Ruhetagen
+# bleibt der Push still – das ist der Preis. Oefter zu senden wuerde ihn
+# vervielfachen, ohne etwas zu verbessern.
+#
+# ZEITZONE: Die Zeiten unten sind UTC und auf Sommerzeit (MESZ) gerechnet. Im
+# Winter kommt der Push eine Stunde frueher als eingestellt. Das ist Absicht und
+# harmlos: Der Push ist die Uhr, das Handy prueft nur noch, *ob* etwas ansteht –
+# nicht, ob die Minute stimmt. Eine Erinnerung eine Stunde zu frueh ist besser
+# als eine, die eine Zeitpruefung verschluckt hat.
+#
+# EINRICHTEN: In der App unter Mehr → „Push einrichten" antippen. Sie zeigt
+# einen Textblock. Den als Secret PUSH_KONFIG hinterlegen:
+# Settings → Secrets and variables → Actions → New repository secret.
+
+name: Erinnerung ans Handy schicken
+
+on:
+  schedule:
+    # Werktags 16:00 MESZ – nach der Arbeit.
+    - cron: '0 14 * * 1-5'
+    # Samstag und Sonntag 6:30 MESZ – vor dem Tag.
+    - cron: '30 4 * * 6,0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  klopfen:
+    name: Einmal klopfen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Push senden
+        env:
+          KONFIG: ${{ secrets.PUSH_KONFIG }}
+        run: |
+          if [ -z "$KONFIG" ]; then
+            echo "::notice::Kein PUSH_KONFIG hinterlegt – nichts zu senden. Einrichten in der App unter Mehr."
+            exit 0
+          fi
+          # Feste Fassung: Ein Ablauf, der sich stillschweigend aktualisiert, ist
+          # der, der eines Morgens ohne Zutun nicht mehr sendet.
+          npm install --no-save web-push@3.6.7 >/dev/null 2>&1
+          node -e '
+            const webpush = require("web-push");
+            const k = JSON.parse(process.env.KONFIG);
+            webpush.setVapidDetails("mailto:workout@example.invalid", k.oeffentlich, k.privat);
+            // Ohne Nutzlast: Der Push ist ein Klopfen, kein Inhalt.
+            webpush.sendNotification(k.abo, null, { TTL: 3600 })
+              .then((r) => console.log("gesendet, Status " + r.statusCode))
+              .catch((e) => {
+                const s = e && e.statusCode;
+                if (s === 404 || s === 410) {
+                  // Der Push-Dienst kennt diese Anmeldung nicht mehr. Das
+                  // passiert, wenn die App neu installiert oder der Speicher
+                  // geleert wurde – dann hilft nur, in der App neu einzurichten.
+                  console.log("::warning::Die Anmeldung ist abgelaufen (Status " + s + "). In der App unter Mehr neu einrichten und PUSH_KONFIG ersetzen.");
+                  process.exit(0);
+                }
+                console.log("::warning::Senden fehlgeschlagen: " + (e && e.message));
+                process.exit(0);
+              });
+          '
