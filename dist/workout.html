@@ -647,6 +647,14 @@ button { font: inherit; color: inherit; }
 }
 .wie-btn:active { color: var(--text); border-color: var(--accent); }
 
+/* Die zwei Uhrzeiten der Erinnerung, nebeneinander. */
+.zeit-row { display: flex; gap: 10px; margin-top: 10px; }
+.zeit { flex: 1 1 0; display: flex; flex-direction: column; gap: 4px; }
+.zeit input {
+  padding: 10px; font: inherit; color: var(--text);
+  background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: 10px;
+}
+
 /* Einstiege oben unter Mehr: Kalender und Verletzungen. */
 .kachel-karte { padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 .kachel {
@@ -6296,6 +6304,10 @@ const DEFAULT_STATE = {
   sound: true,           // Töne: Pausenende, Start, Übung fertig, Workout komplett
   soundSets: true,       // zusätzlich ein kurzer Ton bei jedem abgehakten Satz
   notify: false,         // Systemhinweis am Pausenende, wenn die App im Hintergrund ist
+  // Erinnerung am Trainingstag: { an, werktags, wochenende }, Uhrzeiten "HH:MM".
+  // Getrennte Zeiten, weil der Tag anders läuft: unter der Woche nach der
+  // Arbeit, am Wochenende früh. Siehe js/erinnerung.js.
+  erinnerung: { an: false, werktags: '16:00', wochenende: '06:30' },
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)
@@ -8243,6 +8255,164 @@ function pruefeAufstieg() {
   return true;
 }
 
+/* ===== js/erinnerung.js ===== */
+/*
+ * Erinnerung am Trainingstag – die Entscheidung, wann eine fällig ist.
+ *
+ * Der Kalenderweg schied aus, und zwar aus einem guten Grund: Der Plan rückt
+ * nach, wenn ein Termin verstreicht. Exportierte Termine stehen danach an
+ * falschen Tagen, und wer oft aussetzt, exportiert und löscht dauernd. Was
+ * bleibt, muss dem Plan von selbst folgen.
+ *
+ * **Warum diese Datei so klein und so stumpf ist.** Wecken kann die App sich
+ * nicht selbst; das macht der Browser über den Service Worker (periodicsync in
+ * sw.js). Und der kommt an `localStorage` nicht heran – Service Worker haben
+ * keinen Zugriff darauf. Also rechnet die App hier alles aus, solange sie läuft,
+ * und legt das Ergebnis als *fertige Antwort* in IndexedDB ab, wo der Worker sie
+ * findet:
+ *
+ *     zeigenAb   ein Zeitpunkt. Wacht der Worker danach auf, erinnert er.
+ *
+ * Der Worker rechnet damit gar nichts mehr – er vergleicht eine Zahl. Das ist
+ * Absicht: Was im Worker steht, lässt sich kaum testen (ein Testlauf kann
+ * periodicsync nicht auslösen), was hier steht dagegen schon.
+ */
+
+
+
+/** "16:00" -> 960 Minuten. Unbrauchbares gibt null. */
+function minuten(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/** Samstag und Sonntag. */
+const istWochenende = (d) => d.getDay() === 0 || d.getDay() === 6;
+
+/**
+ * Ab wann an einem bestimmten Tag erinnert werden soll, als Zeitstempel.
+ *
+ * Bewusst nach *diesem* Tag entschieden und nicht nach heute: Liegt die nächste
+ * Einheit auf Samstag, gilt die Wochenendzeit, auch wenn heute Mittwoch ist.
+ */
+function zeitpunkt(iso, zeiten) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const tag = new Date(y, m - 1, d);
+  const min = minuten(istWochenende(tag) ? zeiten.wochenende : zeiten.werktags);
+  if (min === null) return null;
+  tag.setHours(Math.floor(min / 60), min % 60, 0, 0);
+  return tag.getTime();
+}
+
+/**
+ * Der Stand, den der Service Worker braucht – oder null, wenn nichts ansteht.
+ *
+ * `faellig` ist der Termin der ersten noch nicht abgeschlossenen Einheit. Weil
+ * der Plan verpasste Tage nachrückt, liegt der fast immer auf heute, sobald man
+ * einmal hinterher ist – genau das soll die Erinnerung ja auffangen. Ist die
+ * Einheit von heute schon abgeschlossen, steht `faellig` auf dem nächsten
+ * Termin, und bis dahin kommt nichts.
+ */
+function erinnerungsStand(zeiten, heute = todayISO()) {
+  const n = defaultWorkoutNo();
+  const w = workoutByNo(n);
+  if (!w || completedMode(n)) return null;   // alles durch – nichts zu erinnern
+  const faellig = effDate(w);
+  // Ein Termin in der Zukunft bekommt seine eigene Uhrzeit, ein verstrichener
+  // die von heute: Wer seit Dienstag hinterher ist, soll heute erinnert werden
+  // und nicht rückwirkend am Dienstag.
+  const tag = faellig < heute ? heute : faellig;
+  const ab = zeitpunkt(tag, zeiten);
+  if (ab === null) return null;
+  return {
+    zeigenAb: ab,
+    tag,
+    nummer: n,
+    titel: `Workout ${n} von ${PLAN.length}`,
+  };
+}
+
+/* ===== js/merkzettel.js ===== */
+/*
+ * Der Merkzettel: der eine Ort, den App und Service Worker beide sehen.
+ *
+ * Der ganze Zustand der App liegt in `localStorage` – und genau darauf hat ein
+ * Service Worker keinen Zugriff. Er läuft ohne Fenster, und `localStorage` ist
+ * an eines gebunden. Wacht der Worker also nachts auf, weiß er von sich aus
+ * nichts: nicht, welche Einheit ansteht, nicht, ob sie schon gemacht ist.
+ *
+ * IndexedDB kann beides. Deshalb liegt hier ein winziger Zettel mit dem, was
+ * der Worker wissen muss – nicht der Zustand, nur die fertige Antwort:
+ *
+ *     an          ist die Erinnerung überhaupt eingeschaltet?
+ *     zeigenAb    Zeitstempel: Wacht der Worker danach auf, erinnert er.
+ *     titel       was in der Meldung stehen soll
+ *     gemeldet    an welchem Tag zuletzt gemeldet wurde – gegen Doppelmeldungen
+ *     geweckt     wann der Browser den Worker zuletzt geweckt hat
+ *
+ * `geweckt` ist der ehrliche Teil. Ob Chrome den Worker überhaupt weckt, hängt
+ * an seiner Laune und lässt sich weder versprechen noch hier nachprüfen – ein
+ * Testlauf kann periodicsync nicht auslösen. Also behauptet die App es nicht,
+ * sondern schreibt auf, wann es zuletzt passiert ist, und zeigt das unter Mehr.
+ * Steht da nach einer Woche nichts, weiß man es.
+ */
+
+const DB = 'workout.merk';
+const LADEN = 'zettel';
+const SCHLUESSEL = 'erinnerung';
+
+function oeffne() {
+  return new Promise((ok, fehler) => {
+    const anfrage = indexedDB.open(DB, 1);
+    anfrage.onupgradeneeded = () => {
+      if (!anfrage.result.objectStoreNames.contains(LADEN)) {
+        anfrage.result.createObjectStore(LADEN);
+      }
+    };
+    anfrage.onsuccess = () => ok(anfrage.result);
+    anfrage.onerror = () => fehler(anfrage.error);
+  });
+}
+
+/** Den Zettel lesen. Gibt {} zurück, wenn es keinen gibt oder etwas klemmt. */
+export async function liesMerkzettel() {
+  try {
+    const db = await oeffne();
+    return await new Promise((ok) => {
+      const a = db.transaction(LADEN, 'readonly').objectStore(LADEN).get(SCHLUESSEL);
+      a.onsuccess = () => ok(a.result || {});
+      a.onerror = () => ok({});
+    });
+  } catch {
+    // In privaten Fenstern und manchen eingebetteten Ansichten ist IndexedDB
+    // gesperrt. Dann gibt es eben keine Erinnerung – die App selbst läuft
+    // deshalb nicht schlechter.
+    return {};
+  }
+}
+
+/** Felder in den Zettel schreiben; alles Nichtgenannte bleibt stehen. */
+export async function schreibeMerkzettel(felder) {
+  try {
+    const alt = await liesMerkzettel();
+    const db = await oeffne();
+    const neu = { ...alt, ...felder };
+    await new Promise((ok) => {
+      const a = db.transaction(LADEN, 'readwrite').objectStore(LADEN).put(neu, SCHLUESSEL);
+      a.onsuccess = () => ok();
+      a.onerror = () => ok();
+    });
+    return neu;
+  } catch {
+    return null;
+  }
+}
+
 /* ===== js/app.js ===== */
 /*
  * Die Oberfläche: was auf den Schirm kommt und was ein Tipp auslöst.
@@ -8264,6 +8434,8 @@ function pruefeAufstieg() {
  * Weiter aufteilen ginge, hieße aber, `ui`, `render()` und `go()` über eine
  * Registrierung zu entkoppeln – mehr Maschinerie, als es einbringt.
  */
+
+
 
 
 
@@ -8306,6 +8478,71 @@ const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
  * diesem Kommentar finden – gefunden beim ersten Bauversuch.)
  */
 const EINZELDATEI = !document.querySelector('script[src$="js/app.js"]');
+
+/* ------------------------------------------------------------------ *
+ * Erinnerung am Trainingstag
+ *
+ * Drei Teile, und nur der erste ist verlässlich:
+ *
+ *   1. Die Zahl am App-Symbol. Steht eine Einheit offen, kommt eine 1 aufs
+ *      Symbol; ist sie gemacht, verschwindet sie. Sie bleibt auch stehen,
+ *      wenn die App zu ist – ändern kann sie sich aber nur, während die App
+ *      läuft oder der Worker geweckt wird.
+ *   2. Der Merkzettel für den Service Worker. Siehe js/merkzettel.js.
+ *   3. Die Anmeldung bei periodicsync. Ob Chrome den Worker dann wirklich
+ *      weckt, entscheidet Chrome – deshalb wird es nicht behauptet, sondern
+ *      gemessen (siehe erinnerungsZeile()).
+ * ------------------------------------------------------------------ */
+
+/** Die Einstellung, immer vollständig – auch aus einer alten Sicherung. */
+function erinnerungAn() {
+  const e = store.getState().erinnerung || {};
+  return {
+    an: !!e.an,
+    werktags: minuten(e.werktags) === null ? '16:00' : e.werktags,
+    wochenende: minuten(e.wochenende) === null ? '06:30' : e.wochenende,
+  };
+}
+
+/** Kann dieser Browser überhaupt geweckt werden? */
+const kannWecken = () => 'serviceWorker' in navigator
+  && typeof window.ServiceWorkerRegistration === 'function'
+  && 'periodicSync' in window.ServiceWorkerRegistration.prototype;
+
+/**
+ * Merkzettel und Symbol nachziehen. Läuft nach jeder Zustandsänderung – der
+ * Zettel muss stimmen, wenn die App zugeht, denn danach rechnet niemand mehr.
+ */
+async function erinnerungPflegen() {
+  const zeiten = erinnerungAn();
+  const stand = erinnerungsStand(zeiten);
+  const offen = !!stand;
+
+  // Die Zahl am Symbol: nur wenn eine Einheit fällig *und* ihr Termin nicht in
+  // der Zukunft liegt. Eine 1 drei Tage vorher wäre keine Erinnerung, sondern
+  // Dauerzustand.
+  try {
+    if (navigator.setAppBadge) {
+      const faelligHeute = offen && stand.tag <= todayISO();
+      if (zeiten.an && faelligHeute) await navigator.setAppBadge(1);
+      else if (navigator.clearAppBadge) await navigator.clearAppBadge();
+    }
+  } catch { /* nicht unterstützt – dann eben nicht */ }
+
+  await schreibeMerkzettel({
+    an: zeiten.an && offen,
+    zeigenAb: offen ? stand.zeigenAb : 0,
+    titel: offen ? stand.titel : '',
+  });
+
+  if (!zeiten.an || !kannWecken()) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    // Vier Stunden ist ein Wunsch, keine Zusage – Chrome hält sich nicht daran.
+    // Kürzer anzufragen bringt nichts, länger würde Tage verschenken.
+    await reg.periodicSync.register('workout-erinnerung', { minInterval: 4 * 60 * 60 * 1000 });
+  } catch { /* Erlaubnis fehlt oder die App ist nicht installiert */ }
+}
 
 /**
  * Die Warnung, wenn nicht gespeichert werden kann – und die hängt daran,
@@ -11737,6 +11974,35 @@ function renderSettings() {
       </div>` : ''}
     </div>
 
+    <div class="section-title">Erinnerung am Trainingstag</div>
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Erinnern, wenn ein Training ansteht</div>
+          <div class="hint">Meldung in der Statusleiste an Tagen, an denen eine Einheit
+            offen ist – auch wenn die App zu ist. Sie bleibt stehen, bis du sie wegwischst.
+            ${kannWecken() ? '' : '<strong>Dieser Browser kann das nicht.</strong> Es braucht Chrome und die App auf dem Startbildschirm.'}</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${erinnerungAn().an}"
+                data-act="toggle-erinnerung" aria-label="Erinnerung am Trainingstag"
+                ${kannWecken() ? '' : 'disabled'}></button>
+      </div>
+      ${erinnerungAn().an ? `
+      <div class="zeit-row">
+        <label class="zeit"><span class="lbl">Mo–Fr ab</span>
+          <input type="time" value="${esc(erinnerungAn().werktags)}"
+                 data-act="erinnerung-zeit" data-wann="werktags"></label>
+        <label class="zeit"><span class="lbl">Sa/So ab</span>
+          <input type="time" value="${esc(erinnerungAn().wochenende)}"
+                 data-act="erinnerung-zeit" data-wann="wochenende"></label>
+      </div>
+      <div class="small muted" id="weckStand">wird nachgesehen…</div>` : ''}
+      <div class="small muted" style="margin-top:8px">Der Haken daran, offen gesagt:
+        Wann der Browser dafür aufwacht, entscheidet er selbst – ein Versprechen ist das
+        nicht. Deshalb steht oben, wann es zuletzt geklappt hat. Bleibt die Zeile eine
+        Woche lang leer, trägt der Weg auf diesem Handy nicht.</div>
+    </div>
+
     <div class="section-title">Plan-Verschiebung</div>
     <div class="card">
       <div class="stat-v">${s.shift ? `${s.shift > 0 ? '+' : '−'}${esc(plural(Math.abs(s.shift), 'Tag', 'Tage'))}` : 'Im Plan'}</div>
@@ -11861,6 +12127,31 @@ function renderSettings() {
   `;
 
   showVersion();
+  weckStandZeigen();
+}
+
+/**
+ * Wann hat der Browser den Service Worker zuletzt geweckt?
+ *
+ * Die ehrliche Zahl zu dieser Funktion. Ob periodicsync auf einem bestimmten
+ * Handy trägt, lässt sich weder versprechen noch hier nachprüfen – ein
+ * Testlauf kann das Ereignis nicht auslösen. Also steht hier, was wirklich
+ * passiert ist, und nicht, was passieren soll.
+ */
+function weckStandZeigen() {
+  const host = document.getElementById('weckStand');
+  if (!host) return;
+  liesMerkzettel().then((z) => {
+    if (!document.body.contains(host)) return;
+    if (!z.geweckt) {
+      host.textContent = 'Noch nie geweckt worden – das kann ein paar Tage dauern.';
+      return;
+    }
+    const tage = Math.floor((Date.now() - z.geweckt) / 86400000);
+    const wann = tage === 0 ? 'heute' : tage === 1 ? 'gestern' : `vor ${tage} Tagen`;
+    host.textContent = `Zuletzt geweckt: ${wann}`
+      + (z.gemeldet ? ` · zuletzt erinnert am ${fmtDate(z.gemeldet)}` : '');
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -12685,6 +12976,21 @@ view.addEventListener('click', (e) => {
       if (on) playSound('set');
       break;
     }
+    case 'toggle-erinnerung': {
+      const e = erinnerungAn();
+      store.setSetting('erinnerung', { ...e, an: !e.an });
+      erinnerungPflegen();
+      render();
+      break;
+    }
+    case 'erinnerung-zeit': {
+      // Ein leeres oder unsinniges Feld lässt die bisherige Zeit stehen, statt
+      // die Erinnerung still auf Mitternacht zu schieben.
+      if (minuten(t.value) === null) break;
+      store.setSetting('erinnerung', { ...erinnerungAn(), [t.dataset.wann]: t.value });
+      erinnerungPflegen();
+      break;
+    }
     case 'toggle-notify': {
       // Die Erlaubnis holt der Browser nur aus einer Berührung heraus – also
       // genau hier. Angeschaltet gilt der Schalter erst, wenn sie da ist.
@@ -12955,6 +13261,18 @@ store.subscribe(() => {
   speicherStand = store.canPersist();
   render();
 });
+
+/*
+ * Merkzettel und Symbolzahl nachziehen, sobald sich etwas ändert.
+ *
+ * Muss an *jeder* Änderung hängen und nicht nur am Trainingsende: Der Zettel
+ * ist das Einzige, was der Service Worker später zu sehen bekommt, und wenn die
+ * App zugeht, rechnet niemand mehr etwas nach. Ein abgehakter letzter Satz, ein
+ * verschobener Plan, eine geänderte Uhrzeit – alles drei ändert, wann als
+ * Nächstes erinnert werden soll.
+ */
+store.subscribe(() => { erinnerungPflegen(); });
+erinnerungPflegen();
 
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist

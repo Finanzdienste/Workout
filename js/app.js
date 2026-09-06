@@ -35,6 +35,8 @@ import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, offenerAufstieg, satzFaktor, sa
 import { doneWeightNote, ruestHint, stepOf, vorgezogen, workingWeight } from './gewichte.js';
 import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, startTodayRow, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
+import { erinnerungsStand, minuten } from './erinnerung.js';
+import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
 
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
@@ -61,6 +63,71 @@ const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
  * diesem Kommentar finden – gefunden beim ersten Bauversuch.)
  */
 const EINZELDATEI = !document.querySelector('script[src$="js/app.js"]');
+
+/* ------------------------------------------------------------------ *
+ * Erinnerung am Trainingstag
+ *
+ * Drei Teile, und nur der erste ist verlässlich:
+ *
+ *   1. Die Zahl am App-Symbol. Steht eine Einheit offen, kommt eine 1 aufs
+ *      Symbol; ist sie gemacht, verschwindet sie. Sie bleibt auch stehen,
+ *      wenn die App zu ist – ändern kann sie sich aber nur, während die App
+ *      läuft oder der Worker geweckt wird.
+ *   2. Der Merkzettel für den Service Worker. Siehe js/merkzettel.js.
+ *   3. Die Anmeldung bei periodicsync. Ob Chrome den Worker dann wirklich
+ *      weckt, entscheidet Chrome – deshalb wird es nicht behauptet, sondern
+ *      gemessen (siehe erinnerungsZeile()).
+ * ------------------------------------------------------------------ */
+
+/** Die Einstellung, immer vollständig – auch aus einer alten Sicherung. */
+function erinnerungAn() {
+  const e = store.getState().erinnerung || {};
+  return {
+    an: !!e.an,
+    werktags: minuten(e.werktags) === null ? '16:00' : e.werktags,
+    wochenende: minuten(e.wochenende) === null ? '06:30' : e.wochenende,
+  };
+}
+
+/** Kann dieser Browser überhaupt geweckt werden? */
+const kannWecken = () => 'serviceWorker' in navigator
+  && typeof window.ServiceWorkerRegistration === 'function'
+  && 'periodicSync' in window.ServiceWorkerRegistration.prototype;
+
+/**
+ * Merkzettel und Symbol nachziehen. Läuft nach jeder Zustandsänderung – der
+ * Zettel muss stimmen, wenn die App zugeht, denn danach rechnet niemand mehr.
+ */
+async function erinnerungPflegen() {
+  const zeiten = erinnerungAn();
+  const stand = erinnerungsStand(zeiten);
+  const offen = !!stand;
+
+  // Die Zahl am Symbol: nur wenn eine Einheit fällig *und* ihr Termin nicht in
+  // der Zukunft liegt. Eine 1 drei Tage vorher wäre keine Erinnerung, sondern
+  // Dauerzustand.
+  try {
+    if (navigator.setAppBadge) {
+      const faelligHeute = offen && stand.tag <= todayISO();
+      if (zeiten.an && faelligHeute) await navigator.setAppBadge(1);
+      else if (navigator.clearAppBadge) await navigator.clearAppBadge();
+    }
+  } catch { /* nicht unterstützt – dann eben nicht */ }
+
+  await schreibeMerkzettel({
+    an: zeiten.an && offen,
+    zeigenAb: offen ? stand.zeigenAb : 0,
+    titel: offen ? stand.titel : '',
+  });
+
+  if (!zeiten.an || !kannWecken()) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    // Vier Stunden ist ein Wunsch, keine Zusage – Chrome hält sich nicht daran.
+    // Kürzer anzufragen bringt nichts, länger würde Tage verschenken.
+    await reg.periodicSync.register('workout-erinnerung', { minInterval: 4 * 60 * 60 * 1000 });
+  } catch { /* Erlaubnis fehlt oder die App ist nicht installiert */ }
+}
 
 /**
  * Die Warnung, wenn nicht gespeichert werden kann – und die hängt daran,
@@ -3492,6 +3559,35 @@ function renderSettings() {
       </div>` : ''}
     </div>
 
+    <div class="section-title">Erinnerung am Trainingstag</div>
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Erinnern, wenn ein Training ansteht</div>
+          <div class="hint">Meldung in der Statusleiste an Tagen, an denen eine Einheit
+            offen ist – auch wenn die App zu ist. Sie bleibt stehen, bis du sie wegwischst.
+            ${kannWecken() ? '' : '<strong>Dieser Browser kann das nicht.</strong> Es braucht Chrome und die App auf dem Startbildschirm.'}</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${erinnerungAn().an}"
+                data-act="toggle-erinnerung" aria-label="Erinnerung am Trainingstag"
+                ${kannWecken() ? '' : 'disabled'}></button>
+      </div>
+      ${erinnerungAn().an ? `
+      <div class="zeit-row">
+        <label class="zeit"><span class="lbl">Mo–Fr ab</span>
+          <input type="time" value="${esc(erinnerungAn().werktags)}"
+                 data-act="erinnerung-zeit" data-wann="werktags"></label>
+        <label class="zeit"><span class="lbl">Sa/So ab</span>
+          <input type="time" value="${esc(erinnerungAn().wochenende)}"
+                 data-act="erinnerung-zeit" data-wann="wochenende"></label>
+      </div>
+      <div class="small muted" id="weckStand">wird nachgesehen…</div>` : ''}
+      <div class="small muted" style="margin-top:8px">Der Haken daran, offen gesagt:
+        Wann der Browser dafür aufwacht, entscheidet er selbst – ein Versprechen ist das
+        nicht. Deshalb steht oben, wann es zuletzt geklappt hat. Bleibt die Zeile eine
+        Woche lang leer, trägt der Weg auf diesem Handy nicht.</div>
+    </div>
+
     <div class="section-title">Plan-Verschiebung</div>
     <div class="card">
       <div class="stat-v">${s.shift ? `${s.shift > 0 ? '+' : '−'}${esc(plural(Math.abs(s.shift), 'Tag', 'Tage'))}` : 'Im Plan'}</div>
@@ -3616,6 +3712,31 @@ function renderSettings() {
   `;
 
   showVersion();
+  weckStandZeigen();
+}
+
+/**
+ * Wann hat der Browser den Service Worker zuletzt geweckt?
+ *
+ * Die ehrliche Zahl zu dieser Funktion. Ob periodicsync auf einem bestimmten
+ * Handy trägt, lässt sich weder versprechen noch hier nachprüfen – ein
+ * Testlauf kann das Ereignis nicht auslösen. Also steht hier, was wirklich
+ * passiert ist, und nicht, was passieren soll.
+ */
+function weckStandZeigen() {
+  const host = document.getElementById('weckStand');
+  if (!host) return;
+  liesMerkzettel().then((z) => {
+    if (!document.body.contains(host)) return;
+    if (!z.geweckt) {
+      host.textContent = 'Noch nie geweckt worden – das kann ein paar Tage dauern.';
+      return;
+    }
+    const tage = Math.floor((Date.now() - z.geweckt) / 86400000);
+    const wann = tage === 0 ? 'heute' : tage === 1 ? 'gestern' : `vor ${tage} Tagen`;
+    host.textContent = `Zuletzt geweckt: ${wann}`
+      + (z.gemeldet ? ` · zuletzt erinnert am ${fmtDate(z.gemeldet)}` : '');
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -4440,6 +4561,21 @@ view.addEventListener('click', (e) => {
       if (on) playSound('set');
       break;
     }
+    case 'toggle-erinnerung': {
+      const e = erinnerungAn();
+      store.setSetting('erinnerung', { ...e, an: !e.an });
+      erinnerungPflegen();
+      render();
+      break;
+    }
+    case 'erinnerung-zeit': {
+      // Ein leeres oder unsinniges Feld lässt die bisherige Zeit stehen, statt
+      // die Erinnerung still auf Mitternacht zu schieben.
+      if (minuten(t.value) === null) break;
+      store.setSetting('erinnerung', { ...erinnerungAn(), [t.dataset.wann]: t.value });
+      erinnerungPflegen();
+      break;
+    }
     case 'toggle-notify': {
       // Die Erlaubnis holt der Browser nur aus einer Berührung heraus – also
       // genau hier. Angeschaltet gilt der Schalter erst, wenn sie da ist.
@@ -4710,6 +4846,18 @@ store.subscribe(() => {
   speicherStand = store.canPersist();
   render();
 });
+
+/*
+ * Merkzettel und Symbolzahl nachziehen, sobald sich etwas ändert.
+ *
+ * Muss an *jeder* Änderung hängen und nicht nur am Trainingsende: Der Zettel
+ * ist das Einzige, was der Service Worker später zu sehen bekommt, und wenn die
+ * App zugeht, rechnet niemand mehr etwas nach. Ein abgehakter letzter Satz, ein
+ * verschobener Plan, eine geänderte Uhrzeit – alles drei ändert, wann als
+ * Nächstes erinnert werden soll.
+ */
+store.subscribe(() => { erinnerungPflegen(); });
+erinnerungPflegen();
 
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist

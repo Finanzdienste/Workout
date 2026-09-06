@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v106';
+const VERSION = 'v107';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -48,6 +48,8 @@ const SHELL = [
   './js/gewichte.js',
   './js/plan.js',
   './js/bilanz.js',
+  './js/erinnerung.js',
+  './js/merkzettel.js',
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
@@ -127,6 +129,113 @@ self.addEventListener('fetch', (event) => {
       return hit || update;
     }),
   );
+});
+
+/* ------------------------------------------------------------------ *
+ * Erinnerung am Trainingstag
+ *
+ * Die App kann sich nicht selbst um 16:00 aufwecken – dafuer braeuchte es
+ * einen Server, der eine Nachricht schickt. Was der Browser stattdessen
+ * anbietet, ist `periodicsync`: Er weckt diesen Worker gelegentlich auf, wenn
+ * die App installiert ist und regelmaessig benutzt wird.
+ *
+ * **Gelegentlich** ist woertlich zu nehmen. Wann und ob ueberhaupt, entscheidet
+ * Chrome; das angegebene Intervall ist ein Wunsch, keine Zusage. Deshalb wird
+ * hier nichts versprochen: Jeder Weckruf wird mit Zeitstempel im Merkzettel
+ * vermerkt, und die App zeigt unter Mehr, wann es zuletzt geklappt hat. Steht
+ * da nach einer Woche nichts, weiss man, dass der Weg nicht traegt.
+ *
+ * Gerechnet wird hier absichtlich nichts. Welche Einheit ansteht, ob sie schon
+ * gemacht ist, welche Uhrzeit fuer welchen Wochentag gilt – das steht alles in
+ * js/erinnerung.js und ist dort geprueft. Hier wird eine Zahl verglichen.
+ * ------------------------------------------------------------------ */
+
+const MERK_DB = 'workout.merk';
+const MERK_LADEN = 'zettel';
+const MERK_SCHLUESSEL = 'erinnerung';
+
+// Dieselben paar Zeilen wie in js/merkzettel.js. Doppelt, weil es nicht anders
+// geht: Dieser Worker ist ein klassisches Skript und kann kein ES-Modul laden.
+// Die Alternative waere ein Modul-Worker – den kennt Firefox erst seit Kurzem,
+// und dafuer die Offline-Faehigkeit aufs Spiel zu setzen, lohnt fuer 15 Zeilen
+// nicht.
+function merkOeffnen() {
+  return new Promise((ok, fehler) => {
+    const a = indexedDB.open(MERK_DB, 1);
+    a.onupgradeneeded = () => {
+      if (!a.result.objectStoreNames.contains(MERK_LADEN)) {
+        a.result.createObjectStore(MERK_LADEN);
+      }
+    };
+    a.onsuccess = () => ok(a.result);
+    a.onerror = () => fehler(a.error);
+  });
+}
+
+async function merkLesen() {
+  try {
+    const db = await merkOeffnen();
+    return await new Promise((ok) => {
+      const a = db.transaction(MERK_LADEN, 'readonly').objectStore(MERK_LADEN).get(MERK_SCHLUESSEL);
+      a.onsuccess = () => ok(a.result || {});
+      a.onerror = () => ok({});
+    });
+  } catch {
+    return {};
+  }
+}
+
+async function merkSchreiben(felder) {
+  try {
+    const alt = await merkLesen();
+    const db = await merkOeffnen();
+    await new Promise((ok) => {
+      const a = db.transaction(MERK_LADEN, 'readwrite').objectStore(MERK_LADEN)
+        .put({ ...alt, ...felder }, MERK_SCHLUESSEL);
+      a.onsuccess = () => ok();
+      a.onerror = () => ok();
+    });
+  } catch { /* gesperrt – dann eben nicht */ }
+}
+
+const heuteISO = () => {
+  const d = new Date();
+  const z = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+};
+
+async function erinnern() {
+  const zettel = await merkLesen();
+  const heute = heuteISO();
+  // Der Weckruf selbst wird immer vermerkt, auch wenn nichts zu melden ist.
+  // Das ist der Messwert: Er sagt, ob Chrome diesen Worker ueberhaupt weckt.
+  await merkSchreiben({ geweckt: Date.now() });
+
+  if (!zettel.an) return;
+  if (zettel.gemeldet === heute) return;          // heute schon gemeldet
+  if (!zettel.zeigenAb || Date.now() < zettel.zeigenAb) return;
+
+  // Ist die App gerade offen, braucht es keine Meldung – dann sieht er es ja.
+  const offen = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  if (offen.some((c) => c.visibilityState === 'visible')) return;
+
+  await self.registration.showNotification('Training steht an', {
+    body: zettel.titel || 'Dein nächstes Workout wartet.',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: 'workout-erinnerung',
+    // Bleibt in der Leiste stehen, bis sie weggewischt wird – genau das war
+    // der Wunsch: nicht ein Piep, der im Vorbeigehen verschwindet.
+    requireInteraction: true,
+  });
+  if (self.navigator && self.navigator.setAppBadge) {
+    self.navigator.setAppBadge(1).catch(() => {});
+  }
+  await merkSchreiben({ gemeldet: heute });
+}
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'workout-erinnerung') event.waitUntil(erinnern());
 });
 
 /*

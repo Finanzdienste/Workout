@@ -637,6 +637,14 @@ button { font: inherit; color: inherit; }
 }
 .wie-btn:active { color: var(--text); border-color: var(--accent); }
 
+/* Die zwei Uhrzeiten der Erinnerung, nebeneinander. */
+.zeit-row { display: flex; gap: 10px; margin-top: 10px; }
+.zeit { flex: 1 1 0; display: flex; flex-direction: column; gap: 4px; }
+.zeit input {
+  padding: 10px; font: inherit; color: var(--text);
+  background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: 10px;
+}
+
 /* Einstiege oben unter Mehr: Kalender und Verletzungen. */
 .kachel-karte { padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 .kachel {

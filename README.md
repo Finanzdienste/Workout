@@ -466,7 +466,49 @@ Timer im Vierteltakt prüft und rundet.
 
 Was auch das nicht kann: klingeln, wenn die App ganz geschlossen ist. Dafür
 bräuchte es einen Server, der eine Push-Nachricht schickt – die App hat keinen
-und soll keinen haben.
+und soll keinen haben. Für die *eine* Meldung, die auch bei geschlossener App
+kommen soll, gibt es einen anderen Weg, siehe unten.
+
+### Erinnerung am Trainingstag
+
+Der Wunsch: an einem Trainingstag in der Statusleiste sehen, dass etwas ansteht,
+ohne die App zu öffnen. Der naheliegende Weg wäre der Kalenderexport — und der
+ist hier falsch. Der Plan **rückt nach**, wenn ein Termin verstreicht. Wer oft
+aussetzt, hat exportierte Termine dauernd an den falschen Tagen und müsste neu
+exportieren und die alten löschen. Was bleibt, muss dem Plan von selbst folgen.
+
+Drei Teile, und nur der erste ist verlässlich:
+
+| | was es tut | wie sicher |
+| --- | --- | --- |
+| **Zahl am App-Symbol** | eine `1`, solange eine Einheit offen ist | ändert sich nur, während die App läuft |
+| **Merkzettel** (`js/merkzettel.js`) | sagt dem Service Worker, was ansteht | zuverlässig |
+| **`periodicsync`** (`sw.js`) | weckt den Worker, der dann meldet | **Chrome entscheidet, ob und wann** |
+
+Der dritte Teil ist der eigentliche, und er ist der wackelige. Eine Webseite
+kann sich nicht selbst um 16:00 aufwecken; die Browser-Schnittstelle für
+zeitgesteuerte lokale Meldungen (`TimestampTrigger`) ist nie über einen Versuch
+hinausgekommen. `periodicsync` ist das, was es stattdessen gibt: Chrome weckt
+den Service Worker gelegentlich, wenn die App installiert ist und benutzt wird.
+Das angegebene Intervall ist ein **Wunsch, keine Zusage**.
+
+**Deshalb wird hier nichts behauptet, sondern gemessen.** Jeder Weckruf wird mit
+Zeitstempel im Merkzettel vermerkt, auch wenn nichts zu melden war, und unter
+*Mehr* steht, wann es zuletzt geklappt hat. Bleibt die Zeile eine Woche leer,
+trägt der Weg auf diesem Gerät nicht — und man weiß es, statt sich darauf zu
+verlassen.
+
+**Warum der Worker nichts rechnet.** Ein Service Worker kommt an `localStorage`
+nicht heran; er läuft ohne Fenster. Also rechnet die App aus, *ab wann* erinnert
+werden soll, und legt nur diesen einen Zeitstempel in IndexedDB ab. Der Worker
+vergleicht eine Zahl, mehr nicht. Das ist Absicht: Was im Worker steht, lässt
+sich nicht testen — `periodicsync` von außen auszulösen geht nicht —, was in
+`js/erinnerung.js` steht dagegen schon, und `tests/test-erinnerung.mjs` tut es.
+
+Die Uhrzeiten sind getrennt einstellbar, weil der Tag anders läuft: unter der
+Woche nach der Arbeit, am Wochenende früh. Maßgeblich ist der Wochentag des
+**fälligen Termins**, nicht der von heute — liegt die nächste Einheit auf
+Samstag, gilt die Wochenendzeit, auch wenn heute Mittwoch ist.
 
 Gespeichert wird der **Endzeitpunkt** der Pause, nicht die Restdauer. Dadurch
 stimmt die Anzeige auch, wenn das Handy zwischendurch gesperrt war, und eine
@@ -1972,6 +2014,8 @@ js/stufen.js            Erfahrungsstufen: Startgewichte, Sätze, Aufstieg
 js/gewichte.js          Arbeitsgewichte und die Reihenfolge beim Umbauen
 js/plan.js              Termine, Übungen je Einheit, Nacharbeit, Fortschritt
 js/bilanz.js            Was insgesamt geleistet wurde, über Runden hinweg
+js/erinnerung.js        Wann am Trainingstag erinnert wird
+js/merkzettel.js        Der Zettel, den auch der Service Worker liest
 js/app.js               Rendering der fünf Tabs und Event-Handling
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen

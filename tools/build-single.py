@@ -36,7 +36,7 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            # benutzt nur die vor ihm. Wer das aendert, merkt es hier zuerst –
            # im Buendel gibt es keine Importe, die eine Reihenfolge erzwingen.
            'js/text.js', 'js/uebung.js', 'js/stufen.js', 'js/gewichte.js',
-           'js/plan.js', 'js/bilanz.js',
+           'js/plan.js', 'js/bilanz.js', 'js/erinnerung.js', 'js/merkzettel.js',
            'js/app.js']
 
 IMPORT_RE = re.compile(r'^\s*import\s.+?;\s*$', re.MULTILINE)

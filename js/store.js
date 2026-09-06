@@ -44,6 +44,10 @@ const DEFAULT_STATE = {
   sound: true,           // Töne: Pausenende, Start, Übung fertig, Workout komplett
   soundSets: true,       // zusätzlich ein kurzer Ton bei jedem abgehakten Satz
   notify: false,         // Systemhinweis am Pausenende, wenn die App im Hintergrund ist
+  // Erinnerung am Trainingstag: { an, werktags, wochenende }, Uhrzeiten "HH:MM".
+  // Getrennte Zeiten, weil der Tag anders läuft: unter der Woche nach der
+  // Arbeit, am Wochenende früh. Siehe js/erinnerung.js.
+  erinnerung: { an: false, werktags: '16:00', wochenende: '06:30' },
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)
