@@ -449,6 +449,36 @@ check(Math.min(...Object.values(frequenz.schnitt)) >= 1.9,
   `jede Gruppe kommt im Schnitt an mindestens zwei Tagen pro Woche dran (schwächste: ${
     Math.min(...Object.values(frequenz.schnitt))})`);
 
+// --- Was in der Kopfzeile einer Übung steht ---------------------------
+// Anlass: „Heute hab ich ja 3 mal Schulter." Es waren drei verschiedene
+// Muskeln – vordere, seitliche und hintere Schulter –, aber dreimal dasselbe
+// Wort. Die Zeile nennt jetzt den Muskel, den die Übung wirklich meint.
+const beschriftung = await page.evaluate(async () => {
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const { MUSCLE_LABEL } = await import('./js/body.js');
+  const top = (id, mode) => {
+    const sh = (EX_BY_ID.get(id)?.[mode]?.shares) || {};
+    return Object.keys(sh).reduce((a, m) => (!a || sh[m] > sh[a] ? m : a), null);
+  };
+  return {
+    seit: MUSCLE_LABEL[top('band-seitheben', 'db')],
+    vorn: MUSCLE_LABEL[top('sitzendes-schulterdruecken', 'db')],
+    hinten: MUSCLE_LABEL[top('band-pull-apart', 'db')],
+    gruppen: ['band-seitheben', 'sitzendes-schulterdruecken', 'band-pull-apart']
+      .map((id) => EX_BY_ID.get(id).group),
+  };
+});
+console.log('     Schulterköpfe:', JSON.stringify(beschriftung));
+check(new Set(beschriftung.gruppen).size === 1,
+  'die drei Schulterübungen stehen alle in derselben Gruppe – daher die Frage');
+check(new Set([beschriftung.seit, beschriftung.vorn, beschriftung.hinten]).size === 3,
+  'sie meinen aber drei verschiedene Muskeln, und die App weiß das auch');
+
+const kopf = (await page.locator('.ex-meta').allTextContents()).join(' | ');
+console.log('     Kopfzeilen:', kopf);
+check(!/·\s*Beinbeuger/.test(kopf),
+  'verfeinert wird nur, wo der Muskelname die Gruppe enthält – aus "Beine" wird nicht "Beinbeuger"');
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();

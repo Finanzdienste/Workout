@@ -873,7 +873,7 @@ function renderFocus() {
     <div class="focus-fig" id="focusFig"></div>
 
     <h2 class="focus-name">${esc(it.name)}</h2>
-    <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(it.group)} · ${esc(it.equip)}</div>
+    <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</div>
 
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
       ${ruestHint(n, mode, w.ex, i)}
@@ -1542,7 +1542,7 @@ function renderDashboard() {
           <span class="ex-idx">${complete ? '✓' : i + 1}</span>
           <span class="ex-main">
             <span class="ex-name">${esc(it.name)}</span>
-            <span class="ex-meta">${it.sets} × ${esc(repsLabel(it, mode))} · ${esc(it.group)} · ${esc(it.equip)}${
+            <span class="ex-meta">${it.sets} × ${esc(repsLabel(it, mode))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}${
               it.nach ? ` · <b>+${it.nach} nachgeholt</b>` : ''}</span>
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
@@ -2103,6 +2103,44 @@ function kgKnopf(it, richtung) {
   return `<button type="button" class="kg-step${richtung > 0 ? ' kg-plus' : ''}"
           data-act="weight-step" data-ex="${it.id}" data-dir="${richtung}"
           ${d < 0.01 ? 'disabled' : ''} aria-label="${esc(label)}">${richtung > 0 ? '+' : '−'}</button>`;
+}
+
+/**
+ * Wofür diese Übung im Plan steht – genauer als die Gruppe.
+ *
+ * Anlass: „Heute hab ich ja 3 mal Schulter. Sicher dass das optimal ist?" Die
+ * Frage war berechtigt, die Sorge nicht: Es waren Schulterdrücken, Seitheben
+ * und Pull-Apart – vordere, seitliche und hintere Schulter, drei Muskeln, die
+ * getrennt gereizt werden müssen, weil keine Übung alle drei trifft. Nur stand
+ * dreimal dasselbe Wort da.
+ *
+ * Also steht jetzt der Muskel da, den die Übung wirklich meint: der mit dem
+ * höchsten Anteil, wenn er sich von der Gruppe unterscheidet. Aus „Schulter,
+ * Schulter, Schulter" wird „Schulter vorn, seitlich, hinten" – und die Antwort
+ * auf die Frage steht in der Zeile selbst, statt in einem Hilfetext.
+ */
+function gruppeLabel(it, mode) {
+  const ex = EX_BY_ID.get(it.id);
+  const sh = (ex && ex[mode] && ex[mode].shares) || {};
+  let top = null;
+  Object.keys(sh).forEach((m) => { if (!top || sh[m] > sh[top]) top = m; });
+  const name = top && MUSCLE_LABEL[top];
+  if (!name) return it.group;
+
+  // Verfeinert wird nur, wenn der Muskelname die Gruppe *enthält* – dann ist er
+  // eine genauere Fassung desselben Worts („seitliche Schulter" zu „Schulter").
+  // Sonst stünde in der Zeile plötzlich ein anderer Begriff als in der
+  // Statistik: Aus „Beine" würde „Beinbeuger Hüfte", und der Leser müsste zwei
+  // Vokabeln lernen, wo eine gemeint ist.
+  const teile = new RegExp(`\\b${it.group}\\b`, 'i');
+  if (!teile.test(name)) return it.group;
+
+  // „seitliche Schulter" liest sich in einer Kopfzeile schlechter als
+  // „Schulter seitlich": So steht die Gruppe vorn und die Verfeinerung dahinter,
+  // und untereinander sortiert sich die Einheit von selbst.
+  const kurz = name.replace(/^(vordere|seitliche|hintere)\s+(.+)$/, (_, a, rest) => `${rest} ${
+    { vordere: 'vorn', seitliche: 'seitlich', hintere: 'hinten' }[a]}`);
+  return kurz.toLowerCase() === it.group.toLowerCase() ? it.group : kurz;
 }
 
 /**
