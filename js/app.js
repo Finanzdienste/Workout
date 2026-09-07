@@ -35,7 +35,7 @@ import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, offenerAufstieg, satzFaktor, sa
 import {
   doneWeightNote, meinSatz, naechstesGewicht, ruestHint, vorgezogen, workingWeight,
 } from './gewichte.js';
-import { SATZ_LABEL, erreichbar } from './scheiben.js';
+import { STANGE_LABEL, erreichbar } from './scheiben.js';
 import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, startTodayRow, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
@@ -1964,8 +1964,9 @@ function wdhRow(it, mode, extra = '') {
  * auf etwas Aufsteckbares ein, und der Umbauhinweis sagt zusätzlich, welche
  * Scheiben auf welche Seite gehören.
  *
- * Eingetragen wird, was da ist, nicht was gebraucht wird: die leere Stange und
- * je Scheibengröße die Stückzahl. Der Rest ist Rechnen.
+ * Eingetragen wird, was da ist, nicht was gebraucht wird: **ein** Vorrat an
+ * Scheiben – die passen ja überall drauf – und je Stange ihr Leergewicht. Der
+ * Rest ist Rechnen.
  * ------------------------------------------------------------------ */
 
 /**
@@ -1979,31 +1980,34 @@ function wdhRow(it, mode, extra = '') {
  */
 function roherSatz() {
   const s = store.getState().scheiben;
-  const nimm = (q) => (q && typeof q === 'object' ? {
-    stange: typeof q.stange === 'number' ? q.stange : null,
-    scheiben: (Array.isArray(q.scheiben) ? q.scheiben : [])
-      .filter(Array.isArray).map((z) => [z[0], z[1]]),
-  } : { stange: null, scheiben: [] });
-  return { lh: nimm(s && s.lh), kh: nimm(s && s.kh) };
+  // Ein alter Stand mit zwei getrennten Listen wird beim ersten Ansehen
+  // zusammengelegt – normSatz() kann das, hier reicht der Blick darauf, ob es
+  // die neue Form ist.
+  if (!s || !Array.isArray(s.scheiben)) return meinSatz();
+  return {
+    stange: {
+      kh: typeof s.stange?.kh === 'number' ? s.stange.kh : null,
+      lh: typeof s.stange?.lh === 'number' ? s.stange.lh : null,
+    },
+    scheiben: s.scheiben.filter(Array.isArray).map((z) => [z[0], z[1]]),
+  };
 }
 
 /** Zahl fürs Eingabefeld – auch dann, wenn dort gerade Unsinn steht. */
 const feldWert = (v) => (typeof v === 'number' && Number.isFinite(v) ? fmtNum(v) : '');
 
 /** Eine Zeile „Größe × Stück" für eine Scheibengröße. */
-function scheibenZeile(satzKey, i, kg, anzahl) {
+function scheibenZeile(i, kg, anzahl) {
   return `
     <div class="scheiben-zeile">
       <input type="text" inputmode="decimal" class="kg-val" value="${esc(feldWert(kg))}"
-             data-act="scheiben-kg" data-satz="${satzKey}" data-i="${i}"
-             aria-label="Scheibengewicht in Kilo">
+             data-act="scheiben-kg" data-i="${i}" aria-label="Scheibengewicht in Kilo">
       <span class="scheiben-mal">kg ×</span>
       <input type="text" inputmode="numeric" class="kg-val" value="${esc(feldWert(anzahl))}"
-             data-act="scheiben-n" data-satz="${satzKey}" data-i="${i}"
-             aria-label="Anzahl Scheiben">
+             data-act="scheiben-n" data-i="${i}" aria-label="Anzahl Scheiben">
       <span class="scheiben-mal">Stück</span>
       <button type="button" class="btn btn-mini" data-act="scheiben-weg"
-              data-satz="${satzKey}" data-i="${i}" aria-label="Diese Größe entfernen">✕</button>
+              data-i="${i}" aria-label="Diese Größe entfernen">✕</button>
     </div>`;
 }
 
@@ -2014,61 +2018,83 @@ function scheibenZeile(satzKey, i, kg, anzahl) {
  * gewohnten Gewichte wiederfindet, hat richtig eingetragen; wer eine Liste aus
  * krummen Zahlen sieht, hat sich vertippt. Deshalb steht sie direkt darunter
  * und nicht in einem Hilfetext.
+ *
+ * Der wichtigste Fall ist der leere: Wer von jeder Größe nur zwei Scheiben hat,
+ * kann damit **kein Paar Kurzhanteln** bestücken – dafür braucht es vier. Dann
+ * bleibt nur die leere Stange, und hier stand vorher „0 kg". Eine Null ohne
+ * Begründung sieht aus wie ein Fehler der App; deshalb steht jetzt der Grund da.
  */
-function scheibenVorschau(satzKey, satz) {
-  const equip = satzKey === 'lh' ? 'barbell' : 'dumbbells';
+function scheibenVorschau(equip, was, satz) {
   const liste = erreichbar(equip, satz);
-  if (!liste || !liste.length) return '';
-  const was = satzKey === 'lh' ? 'auf der Stange' : 'je Hand';
+  if (!liste) return '';
+  if (liste.length <= 1) {
+    const grund = equip === 'dumbbells'
+      ? ' – für ein Paar bräuchte es von einer Größe vier Scheiben'
+      : '';
+    return `<div class="hint">${esc(was)}: nur die leere Stange${grund}.</div>`;
+  }
   const gezeigt = liste.slice(0, 14).map((w) => fmtNum(w)).join(' · ');
-  return `<div class="hint">Damit einstellbar ${was}: ${esc(gezeigt)}`
+  return `<div class="hint"><strong>${esc(was)}:</strong> ${esc(gezeigt)}`
     + `${liste.length > 14 ? ' …' : ''} kg</div>`;
 }
 
 function scheibenKarte() {
   const satz = roherSatz();
   const geprueft = meinSatz();
-  const etwas = satz.lh.scheiben.length || satz.kh.scheiben.length;
   return `
     <div class="section-title">Was bei dir rumliegt</div>
     <div class="card">
-      <div class="small muted">Trag ein, welche Stangen und Scheiben du hast. Dann schlägt
-        die App nur noch Gewichte vor, die sich damit auch einstellen lassen – und sagt beim
-        Umbauen dazu, welche Scheiben draufkommen.
-        ${etwas ? '' : ' Solange hier nichts steht, rechnet sie in festen Schritten weiter – '
-          + 'und die treffen manchmal daneben.'}</div>
-      ${['kh', 'lh'].map((k) => `
-        <div class="scheiben-satz">
-          <div class="lbl">${esc(SATZ_LABEL[k])}</div>
+      <div class="small muted">Ein Vorrat für alles: Scheiben passen ja überall drauf.
+        Trag hier ein, welche du hast und wie viele – und was die leeren Stangen wiegen.
+        Dann schlägt die App nur noch Gewichte vor, die sich damit auch einstellen lassen,
+        und sagt beim Umbauen dazu, welche Scheiben draufkommen.
+        ${geprueft.scheiben.length ? '' : ' Solange hier nichts steht, rechnet sie in festen '
+          + 'Schritten weiter – und die treffen manchmal daneben.'}</div>
+
+      <div class="scheiben-satz">
+        <div class="lbl">Scheiben</div>
+        ${satz.scheiben.map(([kg, n], i) => scheibenZeile(i, kg, n)).join('')}
+        <button type="button" class="btn btn-block" data-act="scheiben-plus">
+          Scheibengröße hinzufügen</button>
+      </div>
+
+      <div class="scheiben-satz">
+        <div class="lbl">Stangen, leer</div>
+        ${['kh', 'lh'].map((k) => `
           <div class="scheiben-zeile">
-            <span class="scheiben-mal">Stange leer</span>
             <input type="text" inputmode="decimal" class="kg-val"
-                   value="${esc(feldWert(satz[k].stange))}"
+                   value="${esc(feldWert(satz.stange[k]))}"
                    data-act="scheiben-stange" data-satz="${k}"
-                   aria-label="Gewicht der leeren ${esc(SATZ_LABEL[k])}">
-            <span class="scheiben-mal">kg${k === 'kh' ? ' (eine Hantel)' : ''}</span>
-          </div>
-          ${satz[k].scheiben.map(([kg, n], i) => scheibenZeile(k, i, kg, n)).join('')}
-          <button type="button" class="btn btn-block" data-act="scheiben-plus" data-satz="${k}">
-            Scheibengröße hinzufügen</button>
-          ${scheibenVorschau(k, geprueft)}
-        </div>`).join('')}
-      <div class="small muted" style="margin-top:10px">Für beide Kurzhanteln zählen vier
-        Scheiben einer Größe als ein Schritt – zwei je Hantel, eine je Seite. Deshalb springt
-        das Gewicht je Hand manchmal weiter, als dir lieb ist: Das liegt nicht an der App,
-        sondern am Eisen. Der Rucksack bleibt außen vor, da passt ohnehin alles rein.</div>
+                   aria-label="Gewicht der leeren ${esc(STANGE_LABEL[k])}">
+            <span class="scheiben-mal">kg · ${esc(STANGE_LABEL[k])}</span>
+          </div>`).join('')}
+      </div>
+
+      ${geprueft.scheiben.length ? `
+      <div class="scheiben-satz">
+        <div class="lbl">Damit einstellbar</div>
+        ${scheibenVorschau('dumbbells', 'Beide Kurzhanteln, je Hand', geprueft)}
+        ${scheibenVorschau('goblet', 'Eine Kurzhantel', geprueft)}
+        ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
+      </div>` : ''}
+
+      <div class="small muted" style="margin-top:10px">Für <strong>beide</strong> Kurzhanteln
+        zählen vier Scheiben einer Größe als ein Schritt – zwei je Hantel, eine je Seite.
+        Deshalb springt das Gewicht je Hand manchmal weiter, als dir lieb ist: Das liegt nicht
+        an der App, sondern am Eisen. Der Rucksack bleibt außen vor, da passt ohnehin alles
+        rein.</div>
     </div>`;
 }
 
 /**
- * Den Satz ändern und speichern – ein Weg für alle vier Eingaben.
+ * Den Satz ändern und speichern.
  *
- * Gespeichert wird die rohe Form; geprüft wird beim Rechnen. Sonst
- * verschöbe sich die Zeile unter dem Finger (siehe roherSatz()).
+ * Gespeichert wird die rohe Form; geprüft wird beim Rechnen. Sonst verschöbe
+ * sich die Zeile unter dem Finger (siehe roherSatz()).
  */
-function scheibenAendern(satzKey, wie) {
+function scheibenAendern(wie) {
   const satz = roherSatz();
-  wie(satz[satzKey]);
+  wie(satz);
   store.setSetting('scheiben', satz);
 }
 
@@ -4751,16 +4777,16 @@ view.addEventListener('click', (e) => {
     case 'scheiben-plus': {
       // Eine leere Zeile wäre nach normSatz() sofort wieder weg (0 kg zählt
       // nicht). Deshalb kommt eine Größe dazu, die es noch nicht gibt.
-      scheibenAendern(t.dataset.satz, (s) => {
+      scheibenAendern((s) => {
         const da = new Set(s.scheiben.map(([kg]) => kg));
         const vorschlag = [1.25, 2.5, 5, 0.5, 10, 15, 20, 25].find((kg) => !da.has(kg));
-        if (vorschlag) s.scheiben.push([vorschlag, t.dataset.satz === 'kh' ? 4 : 2]);
+        if (vorschlag) s.scheiben.push([vorschlag, 4]);
       });
       render();
       break;
     }
     case 'scheiben-weg': {
-      scheibenAendern(t.dataset.satz, (s) => { s.scheiben.splice(Number(t.dataset.i), 1); });
+      scheibenAendern((s) => { s.scheiben.splice(Number(t.dataset.i), 1); });
       render();
       break;
     }
@@ -4923,12 +4949,12 @@ view.addEventListener('input', (e) => {
     // Beim Tippen still speichern, ohne neu zu rendern: Ein render() würde das
     // Feld ersetzen und den Fokus mitnehmen, mitten im Wort.
     const kg = parseFloat(t.value.replace(',', '.'));
-    scheibenAendern(t.dataset.satz, (s) => { s.stange = Number.isNaN(kg) ? null : kg; });
+    scheibenAendern((s) => { s.stange[t.dataset.satz] = Number.isNaN(kg) ? null : kg; });
   } else if (t.dataset.act === 'scheiben-kg' || t.dataset.act === 'scheiben-n') {
     const zahl = parseFloat(t.value.replace(',', '.'));
     if (Number.isNaN(zahl)) return;
     const feld = t.dataset.act === 'scheiben-kg' ? 0 : 1;
-    scheibenAendern(t.dataset.satz, (s) => {
+    scheibenAendern((s) => {
       const zeile = s.scheiben[Number(t.dataset.i)];
       if (zeile) zeile[feld] = zahl;
     });

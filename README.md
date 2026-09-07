@@ -3076,10 +3076,19 @@ auf 6 kg je Hand" heraus — und wer davorsteht, hat eine Stange und eine Handvo
 Scheiben und kommt auf 4 oder auf 6,5. **Eine Zahl, die man nicht einstellen
 kann, ist keine Ansage, sondern eine Hausaufgabe.**
 
-Unter *Mehr* steht deshalb jetzt, **was wirklich rumliegt**: je Stange ihr
-Leergewicht, je Scheibengröße die Stückzahl. `js/scheiben.js` rechnet daraus
+Unter *Mehr* steht deshalb jetzt, **was wirklich rumliegt**: ein Vorrat an
+Scheiben und je Stange ihr Leergewicht. `js/scheiben.js` rechnet daraus
 umgekehrt — erst aufzählen, was damit überhaupt herauskommt, dann jeden
 Vorschlag darauf einrasten.
+
+**Ein Vorrat, nicht einer je Stange.** Die erste Fassung hatte zwei getrennte
+Listen; der Einwand kam sofort: *„Ich kann ja alle Scheiben überall
+draufmachen."* Stimmt — Scheiben liegen im Raum, nicht bei einer Hantel. Zwei
+Listen wären doppelte Arbeit und zwei Gelegenheiten, sich zu verzählen.
+Getrennt sind nur die Leergewichte. Gerechnet wird je Gerät so, als wäre die
+andere Stange leer — was sich damit deckt, was man tut: eine abbauen, die andere
+aufbauen. Ein Stand aus der ersten Fassung wird beim Laden zusammengelegt, je
+Größe die größere Stückzahl.
 
 Wie geladen wird, hängt am Gerät, nicht am Gewicht:
 
@@ -3112,9 +3121,18 @@ Drei Entscheidungen, die dabei bewusst so ausgefallen sind:
 | Rucksack | wird nicht gerastet | Da passt auch eine Wasserflasche rein; ein Raster täuschte Genauigkeit vor. |
 | Eingabe | roh gespeichert, geprüft gerechnet | Sortieren und Aufräumen mitten im Tippen verschiebt die Zeile unter dem Finger, und der nächste Tastendruck landet in der falschen. |
 
-Direkt unter den Feldern steht, was damit erreichbar ist. Das ist der Beleg,
-dass die Eingabe stimmt: Wer seine gewohnten Gewichte wiederfindet, hat richtig
-eingetragen; wer eine Liste krummer Zahlen sieht, hat sich vertippt.
+Direkt unter den Feldern steht, was damit erreichbar ist — für alle drei
+Ladearten getrennt, weil derselbe Vorrat je nach Gerät unterschiedlich weit
+reicht. Das ist der Beleg, dass die Eingabe stimmt: Wer seine gewohnten Gewichte
+wiederfindet, hat richtig eingetragen; wer eine Liste krummer Zahlen sieht, hat
+sich vertippt.
+
+Der Fall, den diese Vorschau als Erstes zutage förderte: Bei einem Vorrat mit
+**zwei Scheiben je Größe** stand dort „0 kg". Die Zahl war richtig — vier
+Scheiben kostet eine Stufe bei einem Paar, zwei reichen dafür nicht —, aber eine
+nackte Null sieht aus wie ein Fehler der App. Jetzt steht der Grund daneben:
+*„nur die leere Stange – für ein Paar bräuchte es von einer Größe vier
+Scheiben."*
 
 ### Drei Minuten waren zu viel
 

@@ -16,11 +16,23 @@
  * Ein erfundener Standardsatz wäre schlimmer als gar keiner: Er sähe aus wie
  * Wissen und wäre geraten.
  *
+ * **Ein Vorrat, mehrere Stangen.** Scheiben liegen nicht bei einer Hantel, sie
+ * liegen im Raum und passen überall drauf: *„Ich kann ja alle Scheiben überall
+ * draufmachen."* Getrennte Listen je Gerät wären deshalb doppelte Arbeit und
+ * zwei Gelegenheiten, sich zu verzählen. Gespeichert wird ein Vorrat; getrennt
+ * sind nur die Leergewichte der Stangen.
+ *
+ * Gerechnet wird je Gerät so, als wäre die andere Stange leer. Das deckt sich
+ * mit dem, was man tut: eine abbauen, die andere aufbauen.
+ *
  * **Wie geladen wird, hängt am Gerät, nicht am Gewicht.**
  *   - Langhantel: Scheiben paarweise, eine je Seite. Ein Paar zu 2,5 kg macht
  *     5 kg auf der Stange.
  *   - Kurzhanteln, beide Hände: derselbe Aufbau zweimal. Für 2,5 kg mehr *je
- *     Hand* braucht es vier Scheiben zu 1,25 – nicht zwei.
+ *     Hand* braucht es **vier** Scheiben zu 1,25 – nicht zwei. Wer von einer
+ *     Größe nur zwei hat, kann damit kein Paar bestücken; dann bleibt es bei
+ *     der leeren Stange, und die Vorschau sagt genau das, statt "0 kg"
+ *     hinzuschreiben und den Leser rätseln zu lassen.
  *   - Eine Kurzhantel (Goblet, einarmiges Rudern): zwei Scheiben je Stufe.
  *   - Scheibe auf der Brust: die Scheibe selbst, einzeln.
  *   - Rucksack: hier wird bewusst nicht gerastet. In einen Rucksack passt auch
@@ -30,29 +42,26 @@
 import { fmtNum } from './text.js';
 
 /**
- * Je Gerät: aus welchem Satz die Scheiben kommen, wie viele eine Stufe kostet
+ * Je Gerät: an welcher Stange es hängt, wie viele Scheiben eine Stufe kostet
  * (`pro`) und wie viel eine Stufe bringt (`faktor`).
  *
- * Bei beiden Kurzhanteln fallen die auseinander: vier Scheiben für zwei
- * Kilo mehr je Hand. Genau dieser Unterschied ist der Grund, warum ein
- * einzelner „Schritt" je nach Übung etwas anderes bedeutet.
+ * Bei beiden Kurzhanteln fallen die auseinander: vier Scheiben für zwei Kilo
+ * mehr je Hand. Genau dieser Unterschied ist der Grund, warum ein einzelner
+ * „Schritt" je nach Übung etwas anderes bedeutet.
  */
 export const RASTER = {
-  barbell: { satz: 'lh', pro: 2, faktor: 2, stange: true },
-  hipbar: { satz: 'lh', pro: 2, faktor: 2, stange: true },
-  dumbbells: { satz: 'kh', pro: 4, faktor: 2, stange: true },
-  goblet: { satz: 'kh', pro: 2, faktor: 2, stange: true },
-  onehand: { satz: 'kh', pro: 2, faktor: 2, stange: true },
-  plate: { satz: 'kh', pro: 1, faktor: 1, stange: false },
+  barbell: { stange: 'lh', pro: 2, faktor: 2 },
+  hipbar: { stange: 'lh', pro: 2, faktor: 2 },
+  dumbbells: { stange: 'kh', pro: 4, faktor: 2 },
+  goblet: { stange: 'kh', pro: 2, faktor: 2 },
+  onehand: { stange: 'kh', pro: 2, faktor: 2 },
+  plate: { stange: null, pro: 1, faktor: 1 },
 };
 
-export const SATZ_LABEL = { lh: 'Langhantel', kh: 'Kurzhanteln' };
+export const STANGE_LABEL = { kh: 'Kurzhantelstange (eine)', lh: 'Langhantel' };
 
 /** Ein leerer Satz – nichts eingetragen, also rastet nichts. */
-export const leererSatz = () => ({
-  lh: { stange: null, scheiben: [] },
-  kh: { stange: null, scheiben: [] },
-});
+export const leererSatz = () => ({ stange: { kh: null, lh: null }, scheiben: [] });
 
 /**
  * Einen gespeicherten Satz auf eine brauchbare Form bringen.
@@ -61,37 +70,48 @@ export const leererSatz = () => ({
  * abgefangen, womit die Aufzählung sonst entgleist: Text statt Zahl, negative
  * Scheiben, doppelte Größen, eine Null als Scheibengewicht (die brächte eine
  * unendliche Zahl von Stufen, die alle dasselbe wiegen).
+ *
+ * Die erste Fassung hatte zwei getrennte Scheibenlisten, eine je Stange. Wer so
+ * einen Stand schon eingetippt hat, soll ihn nicht noch einmal eintippen: Die
+ * beiden Listen werden zusammengelegt, je Größe die größere Stückzahl.
  */
 export function normSatz(roh) {
   const out = leererSatz();
   if (!roh || typeof roh !== 'object') return out;
-  ['lh', 'kh'].forEach((k) => {
-    const q = roh[k];
-    if (!q || typeof q !== 'object') return;
-    const st = Number(q.stange);
-    out[k].stange = Number.isFinite(st) && st >= 0 ? Math.round(st * 4) / 4 : null;
-    const gesehen = new Set();
-    (Array.isArray(q.scheiben) ? q.scheiben : []).forEach((z) => {
-      const kg = Math.round(Number(Array.isArray(z) ? z[0] : NaN) * 4) / 4;
-      const n = Math.floor(Number(Array.isArray(z) ? z[1] : NaN));
-      if (!Number.isFinite(kg) || kg <= 0 || !Number.isFinite(n) || n <= 0) return;
-      if (gesehen.has(kg)) return;
-      gesehen.add(kg);
-      out[k].scheiben.push([kg, Math.min(n, 40)]);
+
+  const zahl = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.round(n * 4) / 4 : null;
+  };
+  const alt = !!(roh.lh && typeof roh.lh === 'object' && 'scheiben' in roh.lh);
+  const stangen = alt
+    ? { kh: roh.kh && roh.kh.stange, lh: roh.lh.stange }
+    : (roh.stange && typeof roh.stange === 'object' ? roh.stange : {});
+  out.stange.kh = zahl(stangen.kh);
+  out.stange.lh = zahl(stangen.lh);
+
+  const quellen = alt ? [roh.kh && roh.kh.scheiben, roh.lh.scheiben] : [roh.scheiben];
+  const groessen = new Map();
+  quellen.forEach((liste) => {
+    (Array.isArray(liste) ? liste : []).forEach((z) => {
+      if (!Array.isArray(z)) return;
+      const kg = zahl(z[0]);
+      const n = Math.floor(Number(z[1]));
+      if (!kg || !Number.isFinite(n) || n <= 0) return;
+      groessen.set(kg, Math.max(groessen.get(kg) || 0, Math.min(n, 40)));
     });
-    out[k].scheiben.sort((a, b) => a[0] - b[0]);
-    out[k].scheiben = out[k].scheiben.slice(0, 8);
   });
+  out.scheiben = [...groessen.entries()].sort((a, b) => a[0] - b[0]).slice(0, 10);
   return out;
 }
 
 /** Ist für dieses Gerät überhaupt etwas eingetragen? */
 export function gepflegt(equip, satz) {
-  const r = RASTER[equip];
-  if (!r) return false;
-  const s = satz && satz[r.satz];
-  return !!(s && s.scheiben && s.scheiben.length);
+  return !!(RASTER[equip] && satz && Array.isArray(satz.scheiben) && satz.scheiben.length);
 }
+
+/** Das Leergewicht der Stange, an der dieses Gerät hängt. */
+const basisVon = (r, satz) => (r.stange ? (satz.stange[r.stange] || 0) : 0);
 
 /**
  * Alle Gewichte, die sich mit dem vorhandenen Eisen einstellen lassen.
@@ -106,10 +126,9 @@ export function gepflegt(equip, satz) {
 export function erreichbar(equip, satz) {
   const r = RASTER[equip];
   if (!r || !gepflegt(equip, satz)) return null;
-  const s = satz[r.satz];
-  const basis = r.stange ? (s.stange || 0) : 0;
+  const basis = basisVon(r, satz);
   let summen = new Set([0]);
-  s.scheiben.forEach(([kg, anzahl]) => {
+  satz.scheiben.forEach(([kg, anzahl]) => {
     const maxK = Math.floor(anzahl / r.pro);
     if (maxK <= 0) return;
     const naechste = new Set();
@@ -169,16 +188,15 @@ export function nachbar(kg, richtung, equip, satz, mindestens = 0) {
 export function belegung(kg, equip, satz) {
   const r = RASTER[equip];
   if (!r || !gepflegt(equip, satz)) return null;
-  const s = satz[r.satz];
-  const ziel = Math.round((kg - (r.stange ? (s.stange || 0) : 0)) * 4) / 4;
+  const ziel = Math.round((kg - basisVon(r, satz)) * 4) / 4;
   if (ziel < -1e-9) return null;
 
   let beste = null;
   const suche = (i, rest, wahl, stueck) => {
     if (beste && stueck >= beste.stueck) return;      // schon schlechter als das Beste
     if (Math.abs(rest) < 1e-9) { beste = { wahl: wahl.slice(), stueck }; return; }
-    if (i >= s.scheiben.length || rest < -1e-9) return;
-    const [w, anzahl] = s.scheiben[i];
+    if (i >= satz.scheiben.length || rest < -1e-9) return;
+    const [w, anzahl] = satz.scheiben[i];
     const maxK = Math.min(Math.floor(anzahl / r.pro), Math.floor((rest + 1e-9) / (r.faktor * w)));
     for (let k = maxK; k >= 0; k--) {
       if (k) wahl.push([w, k]);
@@ -195,9 +213,7 @@ export function belegungText(kg, equip, satz) {
   const b = belegung(kg, equip, satz);
   if (!b) return '';
   const r = RASTER[equip];
-  if (!b.length) {
-    return r.stange ? 'leere Stange' : '';
-  }
+  if (!b.length) return r.stange ? 'leere Stange' : '';
   const teile = b.map(([w, k]) => `${k}× ${fmtNum(w)}`).join(' + ');
   // „je Seite" gilt überall dort, wo Scheiben auf eine Stange gehen – bei
   // beiden Kurzhanteln je Seite *jeder* Hantel, also viermal die Zahl.
