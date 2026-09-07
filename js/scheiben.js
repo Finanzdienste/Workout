@@ -79,7 +79,11 @@ export function normSatz(roh) {
   const out = leererSatz();
   if (!roh || typeof roh !== 'object') return out;
 
+  // null ist nicht 0. Number(null) wäre 0 gewesen – und damit hätte sich
+  // „noch nicht eingetragen" nicht mehr von „zählt bewusst nicht mit"
+  // unterscheiden lassen. Beides gibt es, und die App sagt Verschiedenes dazu.
   const zahl = (v) => {
+    if (v === null || v === undefined || v === '') return null;
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? Math.round(n * 4) / 4 : null;
   };
@@ -213,7 +217,13 @@ export function belegungText(kg, equip, satz) {
   const b = belegung(kg, equip, satz);
   if (!b) return '';
   const r = RASTER[equip];
-  if (!b.length) return r.stange ? 'leere Stange' : '';
+  if (!b.length) {
+    if (!r.stange) return '';
+    // Zählt die Stange nicht mit (Leergewicht 0), ist „leere Stange" als
+    // Ansage sinnlos – dann ist die Aussage: gar nichts drauf.
+    const leer = (satz.stange[r.stange] || 0) === 0;
+    return leer ? 'ohne Scheiben' : 'leere Stange';
+  }
   const teile = b.map(([w, k]) => `${k}× ${fmtNum(w)}`).join(' + ');
   // „je Seite" gilt überall dort, wo Scheiben auf eine Stange gehen – bei
   // beiden Kurzhanteln je Seite *jeder* Hantel, also viermal die Zahl.

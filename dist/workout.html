@@ -7534,7 +7534,11 @@ function normSatz(roh) {
   const out = leererSatz();
   if (!roh || typeof roh !== 'object') return out;
 
+  // null ist nicht 0. Number(null) wäre 0 gewesen – und damit hätte sich
+  // „noch nicht eingetragen" nicht mehr von „zählt bewusst nicht mit"
+  // unterscheiden lassen. Beides gibt es, und die App sagt Verschiedenes dazu.
   const zahl = (v) => {
+    if (v === null || v === undefined || v === '') return null;
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? Math.round(n * 4) / 4 : null;
   };
@@ -7668,7 +7672,13 @@ function belegungText(kg, equip, satz) {
   const b = belegung(kg, equip, satz);
   if (!b) return '';
   const r = RASTER[equip];
-  if (!b.length) return r.stange ? 'leere Stange' : '';
+  if (!b.length) {
+    if (!r.stange) return '';
+    // Zählt die Stange nicht mit (Leergewicht 0), ist „leere Stange" als
+    // Ansage sinnlos – dann ist die Aussage: gar nichts drauf.
+    const leer = (satz.stange[r.stange] || 0) === 0;
+    return leer ? 'ohne Scheiben' : 'leere Stange';
+  }
   const teile = b.map(([w, k]) => `${k}× ${fmtNum(w)}`).join(' + ');
   // „je Seite" gilt überall dort, wo Scheiben auf eine Stange gehen – bei
   // beiden Kurzhanteln je Seite *jeder* Hantel, also viermal die Zahl.
@@ -11363,16 +11373,23 @@ function scheibenZeile(i, kg, anzahl) {
 function scheibenVorschau(equip, was, satz) {
   const liste = erreichbar(equip, satz);
   if (!liste) return '';
-  // Ohne Leergewicht beginnt die Liste bei 0 kg, und 0 kg ist kein
-  // Arbeitsgewicht. Die *Schritte* stimmen trotzdem – es fehlt nur überall
-  // derselbe Sockel. Das ist der Unterschied zwischen „falsch" und „um einen
-  // festen Betrag verschoben", und er gehört dazugesagt statt verschwiegen.
-  const ohneStange = liste[0] === 0;
-  if (ohneStange) {
+  // Zwei verschiedene Fälle mit derselben Zahl davor, und sie auseinander-
+  // zuhalten ist der ganze Punkt:
+  //
+  //   Leergewicht fehlt   Die Schritte stimmen, aber es fehlt überall derselbe
+  //                       Sockel. Wer das nicht weiß, liest brauchbare Zahlen
+  //                       und trainiert mit anderen – also dazusagen.
+  //   Leergewicht ist 0   Eine Entscheidung: „In der App soll 5 kg z. B. 2×2,5
+  //                       Scheiben bedeuten." Der Sockel ist bekannt und in
+  //                       Kauf genommen. Da ist nichts zu mahnen.
+  const stangeFehlt = RASTER[equip]?.stange && satz.stange[RASTER[equip].stange] === null;
+  if (liste[0] === 0) {
     const gezeigt = liste.slice(0, 10).map((w) => fmtNum(w)).join(' · ');
     return `<div class="hint">${esc(was)}: ${esc(gezeigt)}${liste.length > 10 ? ' …' : ''} kg
-      <strong>plus Stange</strong> – trag ihr Leergewicht oben ein, sonst sind alle
-      Zahlen um genau diesen Betrag zu klein.</div>`;
+      ${stangeFehlt
+        ? '<strong>plus Stange</strong> – trag ihr Leergewicht oben ein, sonst sind alle '
+          + 'Zahlen um genau diesen Betrag zu klein.'
+        : '<span class="muted">– reines Scheibengewicht, die Stange zählt nicht mit.</span>'}</div>`;
   }
   if (liste.length <= 1) {
     const grund = equip === 'dumbbells'

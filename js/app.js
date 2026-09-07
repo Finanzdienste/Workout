@@ -35,7 +35,7 @@ import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, offenerAufstieg, satzFaktor, sa
 import {
   doneWeightNote, meinSatz, naechstesGewicht, ruestHint, vorgezogen, workingWeight,
 } from './gewichte.js';
-import { STANGE_LABEL, erreichbar, normSatz } from './scheiben.js';
+import { RASTER, STANGE_LABEL, erreichbar, normSatz } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
 import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
@@ -2241,16 +2241,23 @@ function scheibenZeile(i, kg, anzahl) {
 function scheibenVorschau(equip, was, satz) {
   const liste = erreichbar(equip, satz);
   if (!liste) return '';
-  // Ohne Leergewicht beginnt die Liste bei 0 kg, und 0 kg ist kein
-  // Arbeitsgewicht. Die *Schritte* stimmen trotzdem – es fehlt nur überall
-  // derselbe Sockel. Das ist der Unterschied zwischen „falsch" und „um einen
-  // festen Betrag verschoben", und er gehört dazugesagt statt verschwiegen.
-  const ohneStange = liste[0] === 0;
-  if (ohneStange) {
+  // Zwei verschiedene Fälle mit derselben Zahl davor, und sie auseinander-
+  // zuhalten ist der ganze Punkt:
+  //
+  //   Leergewicht fehlt   Die Schritte stimmen, aber es fehlt überall derselbe
+  //                       Sockel. Wer das nicht weiß, liest brauchbare Zahlen
+  //                       und trainiert mit anderen – also dazusagen.
+  //   Leergewicht ist 0   Eine Entscheidung: „In der App soll 5 kg z. B. 2×2,5
+  //                       Scheiben bedeuten." Der Sockel ist bekannt und in
+  //                       Kauf genommen. Da ist nichts zu mahnen.
+  const stangeFehlt = RASTER[equip]?.stange && satz.stange[RASTER[equip].stange] === null;
+  if (liste[0] === 0) {
     const gezeigt = liste.slice(0, 10).map((w) => fmtNum(w)).join(' · ');
     return `<div class="hint">${esc(was)}: ${esc(gezeigt)}${liste.length > 10 ? ' …' : ''} kg
-      <strong>plus Stange</strong> – trag ihr Leergewicht oben ein, sonst sind alle
-      Zahlen um genau diesen Betrag zu klein.</div>`;
+      ${stangeFehlt
+        ? '<strong>plus Stange</strong> – trag ihr Leergewicht oben ein, sonst sind alle '
+          + 'Zahlen um genau diesen Betrag zu klein.'
+        : '<span class="muted">– reines Scheibengewicht, die Stange zählt nicht mit.</span>'}</div>`;
   }
   if (liste.length <= 1) {
     const grund = equip === 'dumbbells'

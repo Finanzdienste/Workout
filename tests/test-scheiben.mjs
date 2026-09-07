@@ -254,6 +254,42 @@ check(/plus Stange/.test(ohneStangeText),
   'ohne Leergewicht steht „plus Stange" dabei, statt 0 kg als Arbeitsgewicht auszugeben');
 check(/um genau diesen Betrag zu klein/.test(ohneStangeText),
   'und wodurch die Zahlen daneben liegen – ein fester Sockel, kein Zufall');
+
+// Eine eingetragene 0 ist etwas anderes als ein leeres Feld: „In der App soll
+// 5 kg z. B. 2×2,5 Scheiben bedeuten." Der Sockel ist dann bekannt und in Kauf
+// genommen – da ist nichts zu mahnen. Dieselbe Liste, andere Ansage.
+await page.evaluate(() => {
+  const st = JSON.parse(localStorage.getItem('workout.state.v1') || '{}');
+  st.scheiben = { stange: { kh: 0, lh: 0 }, scheiben: [[1.25, 8], [2.5, 4]] };
+  localStorage.setItem('workout.state.v1', JSON.stringify(st));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(400);
+const nullText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(!/plus Stange/.test(nullText),
+  'eine eingetragene 0 wird nicht angemahnt – das ist eine Entscheidung, kein Versäumnis');
+check(/reines Scheibengewicht/.test(nullText),
+  'stattdessen steht da, was die Zahl dann bedeutet');
+
+// Und die Rechnung dahinter: 5 kg sind dann genau zwei 2,5er.
+const reinScheiben = await page.evaluate(async () => {
+  const m = await import('./js/scheiben.js');
+  const satz = { stange: { kh: 0, lh: 0 }, scheiben: [[1.25, 4], [2.5, 4]] };
+  return {
+    liste: m.erreichbar('dumbbells', satz),
+    fuenf: m.belegung(5, 'dumbbells', satz),
+    text: m.belegungText(0, 'dumbbells', satz),
+  };
+});
+console.log('     ohne Stangengewicht:', JSON.stringify(reinScheiben));
+check(JSON.stringify(reinScheiben.liste) === JSON.stringify([0, 2.5, 5, 7.5]),
+  `je Hand 0 / 2,5 / 5 / 7,5 – der Sockel ist schlicht null (${JSON.stringify(reinScheiben.liste)})`);
+check(reinScheiben.fuenf.length === 1 && reinScheiben.fuenf[0][0] === 2.5
+  && reinScheiben.fuenf[0][1] === 1,
+  `5 kg heißen dann zwei 2,5er – eine je Seite (${JSON.stringify(reinScheiben.fuenf)})`);
+check(reinScheiben.text === 'ohne Scheiben',
+  `und 0 kg heißt „ohne Scheiben", nicht „leere Stange" (${reinScheiben.text})`);
 check(/Eine Kurzhantel:/.test(text) && /Langhantel:/.test(text),
   'für alle drei Ladearten, weil derselbe Vorrat je nach Gerät anders weit reicht');
 
