@@ -2241,6 +2241,17 @@ function scheibenZeile(i, kg, anzahl) {
 function scheibenVorschau(equip, was, satz) {
   const liste = erreichbar(equip, satz);
   if (!liste) return '';
+  // Ohne Leergewicht beginnt die Liste bei 0 kg, und 0 kg ist kein
+  // Arbeitsgewicht. Die *Schritte* stimmen trotzdem – es fehlt nur überall
+  // derselbe Sockel. Das ist der Unterschied zwischen „falsch" und „um einen
+  // festen Betrag verschoben", und er gehört dazugesagt statt verschwiegen.
+  const ohneStange = liste[0] === 0;
+  if (ohneStange) {
+    const gezeigt = liste.slice(0, 10).map((w) => fmtNum(w)).join(' · ');
+    return `<div class="hint">${esc(was)}: ${esc(gezeigt)}${liste.length > 10 ? ' …' : ''} kg
+      <strong>plus Stange</strong> – trag ihr Leergewicht oben ein, sonst sind alle
+      Zahlen um genau diesen Betrag zu klein.</div>`;
+  }
   if (liste.length <= 1) {
     const grund = equip === 'dumbbells'
       ? ' – für ein Paar bräuchte es von einer Größe vier Scheiben'

@@ -237,6 +237,23 @@ const text = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/Was bei dir rumliegt/.test(text), 'die Eingabe steht unter Mehr');
 check(/Beide Kurzhanteln, je Hand:.*6,5/.test(text),
   'und zeigt die erreichbaren Gewichte – der Beleg, dass richtig eingetragen wurde');
+
+// Fehlt das Leergewicht der Stange, beginnt die Liste bei 0 kg. Die Schritte
+// stimmen dann trotzdem – es fehlt überall derselbe Sockel. Verschweigen wäre
+// das Schlimmste: Man liest brauchbare Zahlen und trainiert mit anderen.
+await page.evaluate(() => {
+  const st = JSON.parse(localStorage.getItem('workout.state.v1') || '{}');
+  st.scheiben = { stange: { kh: null, lh: null }, scheiben: [[1.25, 8], [2.5, 4]] };
+  localStorage.setItem('workout.state.v1', JSON.stringify(st));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(400);
+const ohneStangeText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(/plus Stange/.test(ohneStangeText),
+  'ohne Leergewicht steht „plus Stange" dabei, statt 0 kg als Arbeitsgewicht auszugeben');
+check(/um genau diesen Betrag zu klein/.test(ohneStangeText),
+  'und wodurch die Zahlen daneben liegen – ein fester Sockel, kein Zufall');
 check(/Eine Kurzhantel:/.test(text) && /Langhantel:/.test(text),
   'für alle drei Ladearten, weil derselbe Vorrat je nach Gerät anders weit reicht');
 
