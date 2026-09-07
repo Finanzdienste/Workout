@@ -36,6 +36,7 @@ import {
   doneWeightNote, meinSatz, naechstesGewicht, ruestHint, vorgezogen, workingWeight,
 } from './gewichte.js';
 import { STANGE_LABEL, erreichbar } from './scheiben.js';
+import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
 import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, startTodayRow, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
@@ -795,6 +796,81 @@ function weiterZurNaechsten(n, mode) {
   toast(`Weiter: ${resolve(workoutByNo(n, mode).ex[nextIdx], mode).name}`);
 }
 
+/* ------------------------------------------------------------------ *
+ * Supersätze
+ *
+ * Angeschaltet läuft die Einheit nicht mehr Übung für Übung, sondern in Paaren
+ * im Wechsel: A1 B1 A2 B2. Welche zwei zusammenpassen, entscheidet
+ * js/supersatz.js – kein gemeinsamer Muskel, nicht dasselbe Gerät.
+ *
+ * Hier steht nur, was daraus im Ablauf folgt. Und das ist vor allem **die
+ * Pause**: Sie wird nicht kürzer, sie wird gefüllt. Deshalb wird sie auch nicht
+ * mehr aus einer festen Länge genommen, sondern ausgerechnet:
+ *
+ *     warten = vorgesehene Pause − (jetzt − als diese Übung zuletzt dran war)
+ *
+ * Wer zügig wechselt, wartet noch kurz; wer beim Partner trödelt, gar nicht.
+ * Am Ende steht dieselbe Erholung wie vorher, nur ist die Einheit rund 40 %
+ * kürzer. Genau das ist der ganze Trick, und er steht in dieser einen Zeile.
+ * ------------------------------------------------------------------ */
+
+/** Wann war diese Übung zuletzt dran? Nur für diese Sitzung, im Arbeitsspeicher. */
+const satzUhr = new Map();
+
+const superAn = () => !!store.getState().supersatz;
+
+/** Die Paare dieser Einheit. Neu gerechnet ist billiger als falsch gemerkt. */
+function superGruppen(n, mode) {
+  return paare(workoutByNo(n, mode).ex.map((x) => resolve(x, mode)), mode);
+}
+
+/** Steht diese Übung im Wechsel, und mit wem? */
+function superPartner(n, mode, id) {
+  if (!superAn()) return null;
+  const g = gruppeVon(superGruppen(n, mode), id);
+  return g && g.length === 2 ? g.find((x) => x.id !== id) : null;
+}
+
+/**
+ * Nach einem abgehakten Satz: wohin, und wie lange warten?
+ *
+ * Gibt zurück, ob der Supersatz den Ablauf übernommen hat. Tut er es nicht
+ * (ausgeschaltet, keine Paarung, Gruppe fertig), bleibt alles beim Alten.
+ */
+function superWeiter(n, mode, id) {
+  if (!superAn() || !ui.focus) return false;
+  const w = workoutByNo(n, mode);
+  const items = w.ex.map((x) => resolve(x, mode));
+  const g = gruppeVon(paare(items, mode), id);
+  if (!g || g.length < 2) return false;
+
+  const erledigt = (exId, satz) => {
+    const v = items.find((x) => x.id === exId);
+    const arr = store.getSets(n, mode, exId, v.sets);
+    return !!(arr[satz] && arr[satz].done);
+  };
+  const ziel = naechsterSchritt(g, erledigt);
+  if (!ziel) return false;              // Paar durch – der normale Weg greift
+
+  const v = items.find((x) => x.id === ziel.id);
+  const idx = w.ex.findIndex((x) => x.id === ziel.id);
+  if (idx >= 0) ui.focusIdx = idx;
+
+  // Die Wartezeit aus der Uhr, nicht aus einer Konstante.
+  const zuletzt = satzUhr.get(ziel.id);
+  const seit = zuletzt ? (Date.now() - zuletzt) / 1000 : Infinity;
+  const wartet = Math.max(0, Math.round(restFor(v) - seit));
+  if (wartet > 0) {
+    startRest(v.name, ziel.satz - 1, v.sets, wartet);
+  } else if (store.getState().rest) {
+    endRest(false);
+  }
+  toast(wartet > 0
+    ? `Gleich: ${v.name}, Satz ${ziel.satz + 1}`
+    : `Weiter: ${v.name}, Satz ${ziel.satz + 1}`);
+  return true;
+}
+
 /**
  * Fortschrittsleiste über der Fokus-Ansicht.
  *
@@ -874,6 +950,12 @@ function renderFocus() {
 
     <h2 class="focus-name">${esc(it.name)}</h2>
     <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</div>
+    ${(() => {
+      // Im Wechsel muss dastehen, mit wem – sonst wirkt der Sprung zur nächsten
+      // Übung wie ein Fehler statt wie der Plan.
+      const partner = superPartner(n, mode, it.id);
+      return partner ? `<div class="super-hin">↔ Im Wechsel mit ${esc(partner.name)}</div>` : '';
+    })()}
 
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
       ${ruestHint(n, mode, w.ex, i)}
@@ -1941,6 +2023,41 @@ function wdhRow(it, mode, extra = '') {
  * Lieber nichts sagen als etwas erfinden. Was aufs Eisen kommt, entscheidet
  * weiter der, der darunter liegt; die Knoepfe dafuer stehen ueber jedem Satz.
  */
+
+/**
+ * Die Paare der nächsten Einheit, zum Nachsehen.
+ *
+ * Ohne diese Vorschau wäre der Schalter ein Versprechen: „paart automatisch".
+ * Ob das für *diese* Einheit etwas bringt, sieht man erst im Training – und
+ * dann steht man mittendrin. Hier steht es vorher, mit Namen.
+ *
+ * Übungen ohne Partner stehen mit dabei, und das ist wichtiger als es aussieht:
+ * Nicht alles lässt sich paaren, und wer das nicht sieht, hält den Schalter für
+ * kaputt, wenn die Einheit doch Pausen hat.
+ */
+function superVorschau() {
+  const n = ui.workoutNo;
+  const mode = store.workoutMode(n);
+  let gruppen;
+  try {
+    gruppen = superGruppen(n, mode);
+  } catch {
+    return '';   // eigene Einheit halb angelegt o. Ä. – dann eben keine Vorschau
+  }
+  if (!gruppen.length) return '';
+  const paarZahl = gruppen.filter((g) => g.length === 2).length;
+  return `
+    <div class="scheiben-satz">
+      <div class="lbl">Workout ${n} liefe so</div>
+      ${gruppen.map((g) => (g.length === 2
+        ? `<div class="super-paar">↔ ${esc(g[0].name)} <span class="super-mit">im Wechsel mit</span> ${esc(g[1].name)}</div>`
+        : `<div class="super-paar allein">${esc(g[0].name)} <span class="super-mit">allein, mit normaler Pause</span></div>`)).join('')}
+      <div class="hint">${paarZahl
+        ? `${paarZahl} ${paarZahl === 1 ? 'Paar' : 'Paare'} – der Rest läuft wie bisher.`
+        : 'Für diese Einheit findet sich kein Paar: Entweder teilen sich die Übungen '
+          + 'einen Muskel oder sie brauchen dasselbe Gerät.'}</div>
+    </div>`;
+}
 
 /* ------------------------------------------------------------------ *
  * Was hier rumliegt: Stangen und Scheiben
@@ -3740,6 +3857,24 @@ function renderSettings() {
       </div>
     </div>
 
+    <div class="section-title">Ablauf</div>
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Supersätze</div>
+          <div class="hint">Zwei verträgliche Übungen im Wechsel, statt die Pause abzusitzen:
+            A, B, A, B. Gepaart wird nur, was keinen Muskel teilt und nicht dasselbe Gerät
+            braucht – dann bleiben beide Aufbauten stehen und es wird nichts umgebaut.
+            Die Pause wird dabei nicht kürzer, sondern gefüllt: Wenn eine Übung wieder dran
+            ist, wartest du nur noch die Zeit, die seit ihrem letzten Satz fehlt. Unterm
+            Strich rund 40 % kürzer bei gleicher Erholung.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${!!s.supersatz}"
+                data-act="toggle-supersatz" aria-label="Supersätze"></button>
+      </div>
+      ${s.supersatz ? superVorschau() : ''}
+    </div>
+
     ${scheibenKarte()}
 
     <div class="section-title">Töne und Hinweise</div>
@@ -4244,14 +4379,27 @@ view.addEventListener('click', (e) => {
       const exDone = done && i === item.sets - 1
         && store.getSets(n, mode, id, item.sets).slice(0, item.sets).every((s) => s.done);
 
-      // In der Fokus-Ansicht sofort zur nächsten offenen Übung rücken. Bis
-      // hierher wartete der Sprung auf die Antwort zu "Wie war das?" – die
-      // Frage gibt es nicht mehr, also gibt es auch nichts mehr abzuwarten.
-      if (ui.focus && exDone && !workoutComplete) weiterZurNaechsten(n, mode);
+      // Wann diese Übung zuletzt dran war – daraus rechnet der Supersatz die
+      // Wartezeit. Nur beim Setzen, nicht beim Wegnehmen: Ein zurückgenommener
+      // Haken macht die verstrichene Zeit nicht ungeschehen.
+      if (done) satzUhr.set(id, Date.now());
+
+      // Im Supersatz entscheidet der Wechsel, wohin es geht und wie lange
+      // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
+      const imWechsel = done && !workoutComplete && superWeiter(n, mode, id);
+
+      if (!imWechsel) {
+        // In der Fokus-Ansicht sofort zur nächsten offenen Übung rücken. Bis
+        // hierher wartete der Sprung auf die Antwort zu "Wie war das?" – die
+        // Frage gibt es nicht mehr, also gibt es auch nichts mehr abzuwarten.
+        if (ui.focus && exDone && !workoutComplete) weiterZurNaechsten(n, mode);
+      }
       render();
       // Pause nur nach einem gesetzten Haken und nie nach dem letzten Satz
       // einer Übung – und auch nicht, wenn das Workout damit fertig ist.
-      if (done && !workoutComplete && i < item.sets - 1) {
+      if (imWechsel) {
+        // schon erledigt
+      } else if (done && !workoutComplete && i < item.sets - 1) {
         startRest(variant.name, i, item.sets, restFor(variant));
       } else if (store.getState().rest) {
         endRest(false);
@@ -4830,6 +4978,10 @@ view.addEventListener('click', (e) => {
       render();
       break;
     }
+    case 'toggle-supersatz':
+      store.setSetting('supersatz', !store.getState().supersatz);
+      render();
+      break;
     case 'scheiben-plus': {
       // Eine leere Zeile wäre nach normSatz() sofort wieder weg (0 kg zählt
       // nicht). Deshalb kommt eine Größe dazu, die es noch nicht gibt.

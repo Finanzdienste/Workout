@@ -52,6 +52,9 @@ const DEFAULT_STATE = {
   // null heißt „nicht eingetragen" – dann rechnet die App mit freien Schritten
   // wie früher, statt sich einen Scheibensatz auszudenken. Siehe js/scheiben.js.
   scheiben: null,
+  // Supersätze: zwei verträgliche Übungen im Wechsel statt lange Pausen.
+  // Welche zwei zusammenpassen, entscheidet js/supersatz.js.
+  supersatz: false,
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)

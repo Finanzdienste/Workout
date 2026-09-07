@@ -3134,6 +3134,59 @@ nackte Null sieht aus wie ein Fehler der App. Jetzt steht der Grund daneben:
 *„nur die leere Stange – für ein Paar bräuchte es von einer Größe vier
 Scheiben."*
 
+### Supersätze: die Pause füllen statt absitzen
+
+> *„Könnte man statt den langen Pausen nicht immer Supersätze machen? Zumindest
+> wenns nicht gleiche Muskelgruppen sind und nicht das gleiche Equipment mit
+> anderem Gewicht benutzt wird."*
+
+Beide Bedingungen sind genau die richtigen, und beide kann die App prüfen — die
+Muskelanteile stehen in `tools/exercise-meta.json`, das Gerät in `RUEST_FAM`.
+Angeschaltet läuft die Einheit dann in Paaren im Wechsel: A1 B1 A2 B2.
+
+**Warum das nichts kostet.** Zwischen den beiden Sätzen von A liegt ein ganzer
+Satz B plus zwei Übergänge. A ist erholt, wenn A wieder drankommt — nur hat man
+in derselben Zeit doppelt so viel geschafft. Am Beispiel gerechnet (3 Sätze je
+Übung, 40 s Satz, 150 s Pause):
+
+| | klassisch | im Wechsel |
+| --- | --- | --- |
+| Dauer für beide Übungen | 840 s | **460 s** |
+| kürzeste Erholung je Übung | 150 s | 150 s |
+
+45 % schneller bei **identischer** Erholung. Das ist kein Kompromiss zwischen
+Zeit und Qualität, sondern geschenkte Zeit — und `tests/test-supersatz.mjs`
+rechnet beide Spalten nach, statt sie zu behaupten.
+
+**Die Pause wird nicht gekürzt, sie wird gefüllt.** Deshalb steht nirgends ein
+fester Übergang. Wie lange noch zu warten ist, ergibt sich aus der Uhr:
+
+```
+warten = vorgesehene Pause − (jetzt − als diese Übung zuletzt dran war)
+```
+
+Wer zügig wechselt, wartet noch kurz; wer beim Partner trödelt, gar nicht. Die
+Zeile ist der ganze Trick.
+
+**Paare, nicht sechs im Kreis.** Der Vorschlag war ein Rundlauf über alle
+Übungen. Der Gedanke stimmt, die Zahl nicht: Ab drei Übungen im Wechsel staut
+sich die allgemeine Erschöpfung, und die hinteren leiden — die schweren zuerst.
+Belegt gut ist der Wechsel zu zweit.
+
+Gepaart wird gierig und **in Planreihenfolge**, mit einem Fenster von drei
+Übungen. Beides mit Absicht: Eine theoretisch optimale Paarung wäre ein
+Matching-Problem, dessen Lösung den Floor Press ans Ende schieben könnte — auf
+dem Papier besser, im Training schlechter. Und ein Paar aus Übung 1 und Übung 6
+hieße, zwischen jedem Satz durch den halben Raum zu laufen.
+
+Über alle 168 Einheiten (4 Varianten × 2 Modi) findet sich im Schnitt **2,6
+Paare je Einheit**; 78 Übungen bleiben allein. Dass etwas übrig bleibt, ist
+keine Schwäche — wo zwei sich einen Muskel oder ein Gerät teilen, ist die
+normale Pause richtig. Unter *Mehr* steht deshalb nicht nur der Schalter,
+sondern auch, **wie die nächste Einheit konkret liefe**, Paar für Paar. Ein
+Schalter, der „paart automatisch" verspricht, ist sonst erst im Training
+überprüfbar — und dann steht man mittendrin.
+
 ### Drei Minuten waren zu viel
 
 > *„Und sicher 3 min Pause?"*

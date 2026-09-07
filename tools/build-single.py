@@ -36,6 +36,7 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            # benutzt nur die vor ihm. Wer das aendert, merkt es hier zuerst –
            # im Buendel gibt es keine Importe, die eine Reihenfolge erzwingen.
            'js/text.js', 'js/uebung.js', 'js/stufen.js', 'js/scheiben.js', 'js/gewichte.js',
+           'js/supersatz.js',
            'js/plan.js', 'js/bilanz.js', 'js/erinnerung.js', 'js/merkzettel.js',
            'js/push.js',
            'js/app.js']
