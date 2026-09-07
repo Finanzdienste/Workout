@@ -614,22 +614,25 @@ button { font: inherit; color: inherit; }
 .vgl-rang { font-weight: 800; color: var(--muted); width: 18px; }
 .vgl-weg { background: none; border: 0; color: var(--muted); font-size: 15px; padding: 0 2px; }
 
-/* Bandstärke statt Gewicht: gelb leicht, rot schwer. */
-.band-row { display: flex; gap: 8px; padding: 0 0 10px; }
-.band-btn {
-  flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 11px 8px; font-size: 14px; font-weight: 700;
-  color: var(--muted); background: var(--bg-elev-2);
-  border: 1px solid var(--line); border-radius: 10px;
-}
-.band-wie { font-size: 12px; font-weight: 600; opacity: .7; }
-.band-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+/* Bandstärke statt Gewicht: gelb leicht, rot schwer.
+   Gebaut wie die Gewichtszeile – links zurück, rechts hoch, in der Mitte das,
+   was gilt. Deshalb erbt die Zeile .ex-weight und braucht kaum Eigenes. */
+.band-step { display: grid; place-items: center; }
+.band-dot { width: 15px; height: 15px; border-radius: 50%; flex: none; }
 .band-gelb .band-dot { background: #f2c14e; }
 .band-rot .band-dot { background: #e2564d; }
-.band-btn.on { color: var(--text); }
-.band-gelb.on { border-color: #f2c14e; }
-.band-rot.on { border-color: #e2564d; }
-.ex-weight + .band-row, .focus-weight + .band-row { margin-top: 0; }
+/* Der Knopf trägt die Farbe des Bandes, auf das er führt – sonst müsste man
+   den Punkt lesen, statt ihn zu sehen. */
+.band-step.band-gelb { border-color: color-mix(in srgb, #f2c14e 55%, var(--line)); }
+.band-step.band-rot {
+  background: color-mix(in srgb, #e2564d 20%, var(--bg-elev-2));
+  border-color: color-mix(in srgb, #e2564d 55%, var(--line));
+}
+.band-name {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 20px; font-weight: 800; color: var(--text); white-space: nowrap;
+}
+.band-name .band-dot { width: 13px; height: 13px; }
 
 /* Die zwei Uhrzeiten der Erinnerung, nebeneinander. */
 .zeit-row { display: flex; gap: 10px; margin-top: 10px; }
@@ -2653,6 +2656,10 @@ const EXERCISES = [
     "tier": 3,
     "detail": [
       [
+        "Wenn du es im Nacken merkst",
+        "Das ist der häufigste Fehler bei dieser Übung und kein Zeichen, dass du sie falsch verstanden hast: Sobald der Widerstand zu groß wird, zieht der Körper die Schulter zum Ohr und der obere Trapez übernimmt. Drei Dinge helfen, in dieser Reihenfolge: leichteres Band (oder engerer Stand), Schultern aktiv nach unten ziehen, bevor der Arm losgeht, und oben bei waagerecht aufhören. Höher als Schulterhöhe ist die Seitendelta ohnehin fertig – ab da hebt nur noch der Nacken. Merkst du es danach immer noch, ist das Band für dich das falsche Gerät: Am Band ist der Zug oben am größten, genau da, wo das Hochziehen am nächsten liegt. Mit Kurzhanteln ist es umgekehrt."
+      ],
+      [
         "Widerstand am richtigen Ort",
         "Beim Band wächst der Zug nach oben, also genau dort, wo die seitliche Schulter stark ist. Bei der Hantel ist es umgekehrt – deshalb fühlen sich die beiden Varianten unterschiedlich an, obwohl sie dasselbe trainieren."
       ],
@@ -2665,7 +2672,7 @@ const EXERCISES = [
       "name": "Band-Seitheben",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
+      "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern dabei bewusst unten lassen und mit dem Ellenbogen führen, nicht mit der Hand: Zieht die Schulter zum Ohr, macht der Nacken die Arbeit statt der Seitendelta. Kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
       "rest": 120,
       "pattern": "lateralstand",
       "shares": {
@@ -5683,25 +5690,77 @@ function combosFor(active) {
  *                  unhörbarer Trägerton mit (siehe traeger()).
  */
 
+/*
+ * Ein Ton ist ein Objekt, keine nackte Frequenz mehr:
+ *
+ *   f      Grundfrequenz in Hz
+ *   bis    Zielfrequenz – der Ton gleitet dorthin (null = bleibt stehen)
+ *   t      Versatz in Sekunden ab dem Beginn des Signals
+ *   d      Dauer in Sekunden
+ *   v      Lautstärke
+ *   form   Wellenform: sine | triangle | square | sawtooth
+ *   ct     Verstimmung in Cent für eine zweite Stimme daneben (0 = keine)
+ *   tief   Tiefpass in Hz – nimmt den kantigen Formen die Schärfe
+ *   knack  kurzer Rauschanteil davor, der dem Ton einen Anschlag gibt
+ *
+ * Warum der Aufwand: Ein reiner Sinuston klingt nach Piepser. Zwei leicht
+ * gegeneinander verstimmte Stimmen schweben, ein Dreieck bringt Obertöne, ein
+ * Tiefpass nimmt ihnen die Schärfe, und ein Hauch Rauschen davor macht aus
+ * einem Ton einen Anschlag. Das ist der Unterschied zwischen einer Eieruhr und
+ * etwas, das man dreimal die Woche gern hört.
+ */
 const SOUNDS = {
-  // Training beginnt – aufsteigender Dreiklang.
-  start: [[523.25, 0, 0.14], [659.25, 0.11, 0.14], [783.99, 0.22, 0.34]],
-  // Satz abgehakt – kurzer, leiser Tupfer. Kommt 20-mal pro Training vor.
-  // Erst stand hier ein einzelner Ton bei 1245 Hz; der war den Mithörenden im
-  // Raum zu fiepsig. Jetzt eine Oktave tiefer und mit einem leisen Grundton
-  // darunter: gleiche Kürze, wärmerer Klang.
-  set: [[523.25, 0, 0.1, 0.13], [261.63, 0, 0.12, 0.05]],
-  // Übung fertig, nächste kommt.
-  exercise: [[659.25, 0, 0.1], [987.77, 0.1, 0.24]],
+  // Training beginnt – aufsteigender Dreiklang, warm und breit.
+  start: [
+    { f: 261.63, t: 0, d: 0.5, v: 0.1, form: 'triangle', ct: 6, tief: 2200 },
+    { f: 392.00, t: 0.09, d: 0.42, v: 0.11, form: 'triangle', ct: 6, tief: 2400 },
+    { f: 523.25, t: 0.18, d: 0.55, v: 0.13, form: 'triangle', ct: 8, tief: 2600 },
+  ],
+  // Satz abgehakt – ein Anschlag, kein Piepser. Kommt zwanzigmal pro Training
+  // vor und muss deshalb kurz, satt und unaufdringlich sein: ein tiefer
+  // Grundton mit einem Hauch Rauschen davor, das Ganze in 120 Millisekunden.
+  set: [
+    { f: 660, bis: 440, t: 0, d: 0.09, v: 0.13, form: 'triangle', tief: 3000, knack: 0.012 },
+    { f: 220, t: 0, d: 0.14, v: 0.06, form: 'sine' },
+  ],
+  // Übung fertig, nächste kommt – zwei Stufen hoch, mit Schweben.
+  exercise: [
+    { f: 523.25, t: 0, d: 0.13, v: 0.13, form: 'triangle', ct: 7, tief: 2600 },
+    { f: 783.99, t: 0.1, d: 0.36, v: 0.15, form: 'triangle', ct: 9, tief: 3000 },
+    { f: 261.63, t: 0.1, d: 0.4, v: 0.05, form: 'sine' },
+  ],
   // Fertig machen – fünf Sekunden vor Schluss. Zwei kurze, tiefere Tupfer:
   // erkennbar anders als das Signal selbst, sonst steht man zu früh auf.
-  ready: [[587.33, 0, 0.09, 0.18], [587.33, 0.16, 0.09, 0.18]],
+  ready: [
+    { f: 587.33, t: 0, d: 0.09, v: 0.15, form: 'square', tief: 1500 },
+    { f: 587.33, t: 0.16, d: 0.09, v: 0.15, form: 'square', tief: 1500 },
+  ],
   // Pause vorbei – das lauteste Signal, es muss quer durch den Raum kommen.
-  rest: [[880, 0, 0.24, 0.35], [1320, 0.28, 0.26, 0.35]],
-  // Workout komplett.
-  done: [[523.25, 0, 0.14], [659.25, 0.13, 0.14], [783.99, 0.26, 0.14], [1046.5, 0.39, 0.55]],
+  // Ein Glockenschlag: Grundton lang, zwei Obertöne kurz darüber, dazu ein
+  // Anschlag. Danach der zweite Schlag eine Quinte höher.
+  rest: [
+    { f: 880, t: 0, d: 0.6, v: 0.3, form: 'triangle', ct: 5, tief: 4000, knack: 0.02 },
+    { f: 1760, t: 0, d: 0.16, v: 0.1, form: 'sine' },
+    { f: 2640, t: 0, d: 0.09, v: 0.05, form: 'sine' },
+    { f: 1318.5, t: 0.3, d: 0.55, v: 0.26, form: 'triangle', ct: 5, tief: 5000, knack: 0.015 },
+    { f: 440, t: 0, d: 0.5, v: 0.09, form: 'sine' },
+  ],
+  // Workout komplett – eine kleine Fanfare, die sich Zeit nimmt.
+  done: [
+    { f: 523.25, t: 0, d: 0.16, v: 0.13, form: 'triangle', ct: 6, tief: 2600 },
+    { f: 659.25, t: 0.13, d: 0.16, v: 0.13, form: 'triangle', ct: 6, tief: 2800 },
+    { f: 783.99, t: 0.26, d: 0.16, v: 0.14, form: 'triangle', ct: 7, tief: 3000 },
+    { f: 1046.5, t: 0.39, d: 0.9, v: 0.16, form: 'triangle', ct: 9, tief: 3400, knack: 0.015 },
+    // Der Akkord darunter, der stehen bleibt – das ist die halbe Feier.
+    { f: 261.63, t: 0.39, d: 1.1, v: 0.07, form: 'sine' },
+    { f: 392.00, t: 0.39, d: 1.0, v: 0.06, form: 'sine' },
+    { f: 523.25, t: 0.44, d: 0.95, v: 0.05, form: 'sine' },
+  ],
   // Training beendet oder abgebrochen – absteigend, ohne Feierlichkeit.
-  stop: [[587.33, 0, 0.16], [440, 0.14, 0.34]],
+  stop: [
+    { f: 587.33, t: 0, d: 0.18, v: 0.12, form: 'triangle', tief: 1800 },
+    { f: 392.00, t: 0.14, d: 0.4, v: 0.12, form: 'triangle', ct: 5, tief: 1600 },
+  ],
 };
 
 let ctx = null;
@@ -5720,21 +5779,76 @@ function wecken() {
   if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
 
-function ton(at, [f, versatz, dauer, laut = 0.22]) {
+/**
+ * Ein kurzer Rauschanteil als Anschlag.
+ *
+ * Zwölf Millisekunden weißes Rauschen vor dem Ton – hörbar ist das nicht als
+ * Rauschen, sondern als das Anschlagen selbst. Ohne diesen Anteil setzt jeder
+ * Ton weich ein und klingt nach Signalgeber statt nach Instrument.
+ */
+function knacks(at, dauer, laut) {
+  const n = Math.max(1, Math.floor(ctx.sampleRate * dauer));
+  const puffer = ctx.createBuffer(1, n, ctx.sampleRate);
+  const daten = puffer.getChannelData(0);
+  for (let i = 0; i < n; i++) daten[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const quelle = ctx.createBufferSource();
+  quelle.buffer = puffer;
+  const gain = ctx.createGain();
+  gain.gain.value = laut;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 2400;
+  quelle.connect(filter).connect(gain).connect(ctx.destination);
+  quelle.start(at);
+  return quelle;
+}
+
+/** Eine Stimme: Oszillator, Hüllkurve, wahlweise Tiefpass und Gleitflug. */
+function stimme(t0, s, cent) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  const t0 = at + versatz;
-  osc.type = 'sine';
-  osc.frequency.value = f;
+  osc.type = s.form || 'sine';
+  // Beides: .value macht die Frequenz sofort ablesbar (auch für den Testlauf),
+  // setValueAtTime verankert sie auf der Uhr des Kontexts.
+  osc.frequency.value = s.f;
+  osc.frequency.setValueAtTime(s.f, t0);
+  if (s.bis) osc.frequency.exponentialRampToValueAtTime(s.bis, t0 + s.d);
+  if (cent) osc.detune.value = cent;
+
   // Exponentiell, nicht linear: so klingt der Ton aus, statt abgeschnitten zu
   // werden – ein hartes Ende knackt hörbar.
+  const laut = Math.max(0.0002, (s.v ?? 0.22) * (cent ? 0.6 : 1));
   gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(laut, t0 + 0.015);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dauer);
-  osc.connect(gain).connect(ctx.destination);
+  gain.gain.exponentialRampToValueAtTime(laut, t0 + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + s.d);
+
+  let ende = gain;
+  if (s.tief) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = s.tief;
+    gain.connect(filter);
+    ende = filter;
+  }
+  ende.connect(ctx.destination);
   osc.start(t0);
-  osc.stop(t0 + dauer + 0.02);
+  osc.stop(t0 + s.d + 0.05);
   return osc;
+}
+
+/**
+ * Ein Ton des Signals – als eine oder zwei gegeneinander verstimmte Stimmen.
+ *
+ * Zwei Stimmen ein paar Cent auseinander schweben gegeneinander. Das ist der
+ * Unterschied zwischen "ein Ton" und "ein Klang", und er kostet einen
+ * Oszillator.
+ */
+function ton(at, s) {
+  const t0 = at + (s.t || 0);
+  const quellen = [stimme(t0, s, 0)];
+  if (s.ct) quellen.push(stimme(t0, s, s.ct), stimme(t0, s, -s.ct));
+  if (s.knack) quellen.push(knacks(t0, s.knack, (s.v ?? 0.22) * 0.5));
+  return quellen;
 }
 
 /**
@@ -5786,7 +5900,7 @@ function scheduleSound(plan) {
   plan.forEach(([name, secs]) => {
     if (!SOUNDS[name] || secs < 0) return;
     const at = ctx.currentTime + secs;
-    geplant.push({ at, quellen: SOUNDS[name].map((t) => ton(at, t)) });
+    geplant.push({ at, quellen: SOUNDS[name].flatMap((t) => ton(at, t)) });
   });
   if (!geplant.length) return false;
   traeger(true);
@@ -9326,7 +9440,7 @@ function sound(name) {
  * hat keinen und soll keinen haben. */
 const NOTE_TAG = 'workout-pause';
 let noteTimer = null;
-let laufNote = -1;   // zuletzt in der Statusleiste gezeigte Restsekunde
+let swPause = false;   // zaehlt der Service Worker gerade eine Pause mit?
 
 /** Registrierung des Service Workers, immer als Promise – auch ohne ihn. */
 function swReg() {
@@ -9347,9 +9461,31 @@ function noteAllowed() {
     && Notification.permission === 'granted';
 }
 
+/**
+ * Die laufende Pause an den Service Worker uebergeben.
+ *
+ * Frueher lag der Wecker hier: ein setTimeout auf das Ende, dazu jede Sekunde
+ * eine ersetzte Meldung mit dem Countdown. Beides haengt an der Seite – und die
+ * friert Android im Hintergrund ein, spaetestens bei ausgeschaltetem
+ * Bildschirm. Dann stand die Zahl, und das Signal kam gar nicht.
+ *
+ * Der Worker haengt nicht an der Seite (siehe sw.js). Er bekommt einmal den
+ * Endzeitpunkt und macht den Rest allein. Bleibt der Wecker hier als Rueckfall,
+ * falls es keinen Worker gibt – ohne ihn gaebe es sonst gar keine Meldung.
+ */
 function planNote(secs, text) {
   dropNote();
   if (!noteAllowed()) return;
+
+  const endet = Date.now() + Math.max(0, secs) * 1000;
+  if (navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      typ: 'pause-start', endet, text, sichtbar: !document.hidden,
+    });
+    swPause = true;
+    return;
+  }
+
   noteTimer = setTimeout(() => {
     noteTimer = null;
     // Nur, wenn die App gerade nicht zu sehen ist: Wer davorsitzt, hört den Ton
@@ -9369,6 +9505,11 @@ function planNote(secs, text) {
   }, Math.max(0, secs) * 1000);
 }
 
+/** Dem Worker sagen, ob die App gerade vorn ist. */
+function swSichtbar(an) {
+  navigator.serviceWorker?.controller?.postMessage({ typ: 'sichtbar', an });
+}
+
 /** Eine sichtbare Meldung schließen, ohne den Wecker abzubestellen. */
 function closeNote() {
   swReg()
@@ -9381,49 +9522,11 @@ function closeNote() {
 function dropNote() {
   clearTimeout(noteTimer);
   noteTimer = null;
-  laufNote = -1;
+  if (swPause) {
+    swPause = false;
+    navigator.serviceWorker?.controller?.postMessage({ typ: 'pause-aus' });
+  }
   closeNote();
-}
-
-/**
- * Die laufende Pause in der Statusleiste mitzählen.
- *
- * Bisher kam die Meldung erst, wenn die Pause vorbei war. Wer das Handy
- * weglegt, will aber sehen, wie lange es noch dauert, ohne die App zu öffnen.
- *
- * Gemacht wird das, indem dieselbe Meldung jede Sekunde mit neuem Text ersetzt
- * wird – `tag` sorgt dafür, dass sie sich ablöst statt zu stapeln, `silent`
- * dafür, dass sie das lautlos tut. Ohne `silent` wäre es hundertmal Klingeln
- * statt einmal.
- *
- * **Zwei Grenzen, die man kennen sollte.** Erstens läuft das Mitzählen in der
- * Seite, nicht im Service Worker: Friert der Browser die Seite ein – auf
- * Android nach einigen Minuten im Hintergrund –, bleibt die Zahl stehen.
- * Deshalb steht die Uhrzeit des Endes mit in der Meldung; die stimmt auch
- * dann noch. Zweitens gilt das nur, solange die App nicht ganz geschlossen
- * ist. Der Wecker am Ende der Pause hängt an derselben Seite.
- */
-function laufNoteZeigen(left) {
-  if (!noteAllowed() || !document.hidden) return;
-  const sek = Math.max(0, Math.round(left));
-  if (sek === laufNote) return;          // je Sekunde einmal, nicht viermal
-  laufNote = sek;
-  const rest = store.getState().rest;
-  if (!rest) return;
-  const ende = new Date(rest.endsAt);
-  const uhr = `${ende.getHours()}:${String(ende.getMinutes()).padStart(2, '0')}`;
-  swReg().then((reg) => {
-    if (!reg) return;   // ohne Service Worker gibt es kein Ersetzen, nur Stapeln
-    reg.showNotification(`Pause ${Math.floor(sek / 60)}:${String(sek % 60).padStart(2, '0')}`, {
-      body: `${rest.next} · weiter um ${uhr}`,
-      tag: NOTE_TAG,
-      icon: './icon-192.png',
-      badge: './icon-192.png',
-      silent: true,           // sonst klingelt jede Sekunde neu
-      renotify: false,
-      requireInteraction: true,
-    });
-  }).catch(() => {});
 }
 
 /**
@@ -9533,8 +9636,6 @@ function tickRest() {
   restTime.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   restNext.textContent = rest.next;
   restFill.style.width = `${Math.max(0, (left / rest.total) * 100)}%`;
-  // Dieselbe Zahl noch einmal für die Statusleiste, wenn die App weggelegt ist.
-  laufNoteZeigen(left);
 
   if (!restTicker) restTicker = setInterval(tickRest, 250);
 }
@@ -10935,16 +11036,46 @@ function kgKnopf(it, richtung) {
           ${d < 0.01 ? 'disabled' : ''} aria-label="${esc(label)}">${richtung > 0 ? '+' : '−'}</button>`;
 }
 
+/**
+ * Die Bandwahl – gebaut wie die Gewichtszeile, nicht wie ein Formular.
+ *
+ * Vorher standen zwei gleichberechtigte Knöpfe nebeneinander, „Gelb" und „Rot",
+ * und man suchte sich eins aus. Das ist die falsche Frage. Am Band gibt es
+ * keine freie Wahl, sondern zwei Stufen – und Stufen bedient man mit − und +,
+ * genau wie bei den Kilo eine Zeile darüber.
+ *
+ * Also: In der Mitte steht das Band, das gilt. Rechts, wo sonst das + sitzt,
+ * steht „Rot" – die Steigerung. Links, wo sonst das − sitzt, steht „Gelb" –
+ * zurück. Wer auf Gelb ist, hat kein Links; wer auf Rot ist, kein Rechts. Damit
+ * sieht eine Bandübung aus wie jede andere Übung, und das Band ist das, was es
+ * ist: das Gewicht dieser Übung.
+ *
+ * Gelb ist dabei fest der Anfang, nicht „nichts gewählt". Eine Bandübung ohne
+ * Band ist keine Bandübung.
+ */
 function bandRow(it) {
   if (!amBand(it)) return '';
-  const cur = store.bandOf(it.id);
+  const cur = store.bandOf(it.id) === 'rot' ? 'rot' : 'gelb';
+  const knopf = (farbe, seite) => {
+    const [, label, wie] = BAENDER.find(([k]) => k === farbe);
+    const dran = cur === farbe;
+    return `
+      <button type="button" class="kg-step band-step band-${farbe}${seite === 'r' ? ' kg-plus' : ''}"
+              data-act="set-band" data-ex="${it.id}" data-v="${farbe}"
+              ${dran ? 'disabled' : ''}
+              aria-label="${esc(dran ? `${label} ist eingestellt` : `Auf ${label} wechseln (${wie})`)}">
+        <span class="band-dot"></span>
+      </button>`;
+  };
   return `
-    <div class="band-row" role="group" aria-label="Band für ${esc(it.name)}">
-      ${BAENDER.map(([key, label, wie]) => `
-        <button type="button" class="band-btn band-${key} ${cur === key ? 'on' : ''}"
-                aria-pressed="${cur === key}" data-act="set-band" data-ex="${it.id}" data-v="${key}">
-          <span class="band-dot"></span>${label}<span class="band-wie">${wie}</span>
-        </button>`).join('')}
+    <div class="ex-weight band-row" role="group" aria-label="Band für ${esc(it.name)}">
+      ${knopf('gelb', 'l')}
+      <div class="kg-main">
+        <span class="band-name band-${cur}">
+          <span class="band-dot"></span>${esc(BAENDER.find(([k]) => k === cur)[1])}</span>
+        <span class="kg-unit">${esc(BAENDER.find(([k]) => k === cur)[2])}</span>
+      </div>
+      ${knopf('rot', 'r')}
     </div>`;
 }
 
@@ -13163,9 +13294,10 @@ view.addEventListener('click', (e) => {
       break;
     case 'set-band': {
       const id = t.dataset.ex;
-      // Nochmal auf dasselbe Band tippen nimmt die Auswahl zurück – so bleibt
-      // "noch nicht entschieden" ein möglicher Zustand.
-      store.setBand(id, store.bandOf(id) === t.dataset.v ? null : t.dataset.v);
+      // Kein Abwählen mehr: Die Bandwahl ist eine Stufe wie ein Gewicht, und
+      // eine Bandübung ohne Band gibt es nicht. Gelb ist der Anfang.
+      // Kein Abwählen mehr: Eine Bandübung ohne Band gibt es nicht.
+      store.setBand(id, t.dataset.v);
       sound('set');
       render();
       break;
@@ -13791,13 +13923,15 @@ document.addEventListener('visibilitychange', () => {
     // eine Pause. Die gehört zum Training, auch wenn man dabei aufs Handy
     // verzichtet.
     if (!store.getState().rest) store.clockStop();
+    // Ab hier zaehlt der Worker sichtbar mit – die Seite friert gleich ein.
+    swSichtbar(false);
     store.flush();
     return;
   }
   store.clockStart();
   // Wer wieder davorsitzt, sieht die Leiste in der App – die Meldung in der
   // Statusleiste wäre jetzt nur noch ein Duplikat.
-  if (store.getState().rest) { laufNote = -1; closeNote(); }
+  swSichtbar(true);
   tickRest(); // war das Handy gesperrt, ist die Pause womöglich abgelaufen
   // Läuft sie noch, das Signal neu auflegen: Ein im Hintergrund angehaltener
   // AudioContext verliert seine vorgemerkten Töne.

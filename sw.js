@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v110';
+const VERSION = 'v111';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -271,6 +271,112 @@ self.addEventListener('periodicsync', (event) => {
  */
 self.addEventListener('push', (event) => {
   event.waitUntil(erinnern(false));
+});
+
+/* ------------------------------------------------------------------ *
+ * Die laufende Pause – hier statt in der Seite
+ *
+ * Erst zaehlte die Seite selbst herunter und ersetzte jede Sekunde dieselbe
+ * Meldung. Das funktioniert, solange die Seite laeuft – und genau daran hakt
+ * es: Android friert eine Seite im Hintergrund ein, spaetestens wenn der
+ * Bildschirm laenger aus ist. Dann steht die Zahl, und das Signal am Ende
+ * kommt gar nicht.
+ *
+ * Ein Service Worker haengt nicht an der Seite. Solange ein `waitUntil` offen
+ * ist, laeuft er weiter, auch wenn die Seite eingefroren oder ganz weg ist.
+ * Deshalb bekommt er beim Start der Pause einmal Bescheid und macht den Rest
+ * allein: mitzaehlen, am Ende melden.
+ *
+ * **Was das nicht kann.** Chrome beendet einen Worker, dessen Ereignis zu
+ * lange laeuft – in der Groessenordnung von fuenf Minuten. Fuer eine Pause von
+ * 90 bis 180 Sekunden reicht das; fuer eine beliebig lange nicht, deshalb der
+ * Deckel unten. Und ist der Browser ganz beendet, laeuft nichts mehr – dafuer
+ * gaebe es keinen Weg ausser einem Server, der zur Sekunde sendet.
+ * ------------------------------------------------------------------ */
+
+const PAUSE_TAG = 'workout-pause';
+const PAUSE_DECKEL = 300000;   // 5 min – darueber beendet Chrome den Worker ohnehin
+let pause = null;              // { endet, text, sichtbar, fertig }
+
+/** Eine Meldung, die sich selbst ersetzt statt zu stapeln. */
+function pauseZeigen(rest) {
+  const sek = Math.max(0, Math.round(rest / 1000));
+  const ende = new Date(pause.endet);
+  const uhr = `${ende.getHours()}:${String(ende.getMinutes()).padStart(2, '0')}`;
+  return self.registration.showNotification(
+    `Pause ${Math.floor(sek / 60)}:${String(sek % 60).padStart(2, '0')}`,
+    {
+      body: `${pause.text} · weiter um ${uhr}`,
+      tag: PAUSE_TAG,
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      silent: true,          // sonst klingelt es jede Sekunde neu
+      renotify: false,
+      requireInteraction: true,
+    },
+  );
+}
+
+/** Das Ende: die eine Meldung, die sich bemerkbar machen darf. */
+function pauseFertig() {
+  return self.registration.showNotification('Pause vorbei', {
+    body: pause.text,
+    tag: PAUSE_TAG,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    vibrate: [180, 90, 180],
+    requireInteraction: true,
+  });
+}
+
+/**
+ * Die Uhr des Workers. Laeuft, bis die Pause um ist oder abgesagt wird.
+ *
+ * Gewartet wird auf einen echten Zeitpunkt, nicht auf gezaehlte Sekunden: Wird
+ * der Worker zwischendurch ausgebremst, stimmt die Zahl trotzdem.
+ */
+function pauseUhr() {
+  return new Promise((fertig) => {
+    const takt = setInterval(async () => {
+      if (!pause) { clearInterval(takt); fertig(); return; }
+      const rest = pause.endet - Date.now();
+      if (rest <= 0) {
+        clearInterval(takt);
+        await pauseFertig().catch(() => {});
+        pause = null;
+        fertig();
+        return;
+      }
+      // Waehrend die App vorn ist, zeigt sie die Leiste selbst – eine Meldung
+      // in der Statusleiste waere daneben nur ein Duplikat.
+      if (!pause.sichtbar) await pauseZeigen(rest).catch(() => {});
+    }, 1000);
+  });
+}
+
+/** Die schon sichtbare Pausenmeldung wegraeumen. */
+async function pauseWeg() {
+  const liste = await self.registration.getNotifications({ tag: PAUSE_TAG });
+  liste.forEach((n) => n.close());
+}
+
+self.addEventListener('message', (event) => {
+  const m = event.data || {};
+  if (m.typ === 'pause-start') {
+    const lauf = Number(m.endet) - Date.now();
+    if (!(lauf > 0) || lauf > PAUSE_DECKEL) return;
+    const schonAn = !!pause;
+    pause = { endet: Number(m.endet), text: String(m.text || ''), sichtbar: !!m.sichtbar };
+    // Nur eine Uhr: Bei „+30 s" laeuft die bestehende weiter und liest den
+    // neuen Endzeitpunkt beim naechsten Takt.
+    if (!schonAn) event.waitUntil(pauseUhr());
+  } else if (m.typ === 'pause-aus') {
+    pause = null;
+    event.waitUntil(pauseWeg());
+  } else if (m.typ === 'sichtbar') {
+    if (pause) pause.sichtbar = !!m.an;
+    if (m.an) event.waitUntil(pauseWeg());
+  }
 });
 
 /*

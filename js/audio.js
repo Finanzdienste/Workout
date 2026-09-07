@@ -20,25 +20,77 @@
  *                  unhörbarer Trägerton mit (siehe traeger()).
  */
 
+/*
+ * Ein Ton ist ein Objekt, keine nackte Frequenz mehr:
+ *
+ *   f      Grundfrequenz in Hz
+ *   bis    Zielfrequenz – der Ton gleitet dorthin (null = bleibt stehen)
+ *   t      Versatz in Sekunden ab dem Beginn des Signals
+ *   d      Dauer in Sekunden
+ *   v      Lautstärke
+ *   form   Wellenform: sine | triangle | square | sawtooth
+ *   ct     Verstimmung in Cent für eine zweite Stimme daneben (0 = keine)
+ *   tief   Tiefpass in Hz – nimmt den kantigen Formen die Schärfe
+ *   knack  kurzer Rauschanteil davor, der dem Ton einen Anschlag gibt
+ *
+ * Warum der Aufwand: Ein reiner Sinuston klingt nach Piepser. Zwei leicht
+ * gegeneinander verstimmte Stimmen schweben, ein Dreieck bringt Obertöne, ein
+ * Tiefpass nimmt ihnen die Schärfe, und ein Hauch Rauschen davor macht aus
+ * einem Ton einen Anschlag. Das ist der Unterschied zwischen einer Eieruhr und
+ * etwas, das man dreimal die Woche gern hört.
+ */
 const SOUNDS = {
-  // Training beginnt – aufsteigender Dreiklang.
-  start: [[523.25, 0, 0.14], [659.25, 0.11, 0.14], [783.99, 0.22, 0.34]],
-  // Satz abgehakt – kurzer, leiser Tupfer. Kommt 20-mal pro Training vor.
-  // Erst stand hier ein einzelner Ton bei 1245 Hz; der war den Mithörenden im
-  // Raum zu fiepsig. Jetzt eine Oktave tiefer und mit einem leisen Grundton
-  // darunter: gleiche Kürze, wärmerer Klang.
-  set: [[523.25, 0, 0.1, 0.13], [261.63, 0, 0.12, 0.05]],
-  // Übung fertig, nächste kommt.
-  exercise: [[659.25, 0, 0.1], [987.77, 0.1, 0.24]],
+  // Training beginnt – aufsteigender Dreiklang, warm und breit.
+  start: [
+    { f: 261.63, t: 0, d: 0.5, v: 0.1, form: 'triangle', ct: 6, tief: 2200 },
+    { f: 392.00, t: 0.09, d: 0.42, v: 0.11, form: 'triangle', ct: 6, tief: 2400 },
+    { f: 523.25, t: 0.18, d: 0.55, v: 0.13, form: 'triangle', ct: 8, tief: 2600 },
+  ],
+  // Satz abgehakt – ein Anschlag, kein Piepser. Kommt zwanzigmal pro Training
+  // vor und muss deshalb kurz, satt und unaufdringlich sein: ein tiefer
+  // Grundton mit einem Hauch Rauschen davor, das Ganze in 120 Millisekunden.
+  set: [
+    { f: 660, bis: 440, t: 0, d: 0.09, v: 0.13, form: 'triangle', tief: 3000, knack: 0.012 },
+    { f: 220, t: 0, d: 0.14, v: 0.06, form: 'sine' },
+  ],
+  // Übung fertig, nächste kommt – zwei Stufen hoch, mit Schweben.
+  exercise: [
+    { f: 523.25, t: 0, d: 0.13, v: 0.13, form: 'triangle', ct: 7, tief: 2600 },
+    { f: 783.99, t: 0.1, d: 0.36, v: 0.15, form: 'triangle', ct: 9, tief: 3000 },
+    { f: 261.63, t: 0.1, d: 0.4, v: 0.05, form: 'sine' },
+  ],
   // Fertig machen – fünf Sekunden vor Schluss. Zwei kurze, tiefere Tupfer:
   // erkennbar anders als das Signal selbst, sonst steht man zu früh auf.
-  ready: [[587.33, 0, 0.09, 0.18], [587.33, 0.16, 0.09, 0.18]],
+  ready: [
+    { f: 587.33, t: 0, d: 0.09, v: 0.15, form: 'square', tief: 1500 },
+    { f: 587.33, t: 0.16, d: 0.09, v: 0.15, form: 'square', tief: 1500 },
+  ],
   // Pause vorbei – das lauteste Signal, es muss quer durch den Raum kommen.
-  rest: [[880, 0, 0.24, 0.35], [1320, 0.28, 0.26, 0.35]],
-  // Workout komplett.
-  done: [[523.25, 0, 0.14], [659.25, 0.13, 0.14], [783.99, 0.26, 0.14], [1046.5, 0.39, 0.55]],
+  // Ein Glockenschlag: Grundton lang, zwei Obertöne kurz darüber, dazu ein
+  // Anschlag. Danach der zweite Schlag eine Quinte höher.
+  rest: [
+    { f: 880, t: 0, d: 0.6, v: 0.3, form: 'triangle', ct: 5, tief: 4000, knack: 0.02 },
+    { f: 1760, t: 0, d: 0.16, v: 0.1, form: 'sine' },
+    { f: 2640, t: 0, d: 0.09, v: 0.05, form: 'sine' },
+    { f: 1318.5, t: 0.3, d: 0.55, v: 0.26, form: 'triangle', ct: 5, tief: 5000, knack: 0.015 },
+    { f: 440, t: 0, d: 0.5, v: 0.09, form: 'sine' },
+  ],
+  // Workout komplett – eine kleine Fanfare, die sich Zeit nimmt.
+  done: [
+    { f: 523.25, t: 0, d: 0.16, v: 0.13, form: 'triangle', ct: 6, tief: 2600 },
+    { f: 659.25, t: 0.13, d: 0.16, v: 0.13, form: 'triangle', ct: 6, tief: 2800 },
+    { f: 783.99, t: 0.26, d: 0.16, v: 0.14, form: 'triangle', ct: 7, tief: 3000 },
+    { f: 1046.5, t: 0.39, d: 0.9, v: 0.16, form: 'triangle', ct: 9, tief: 3400, knack: 0.015 },
+    // Der Akkord darunter, der stehen bleibt – das ist die halbe Feier.
+    { f: 261.63, t: 0.39, d: 1.1, v: 0.07, form: 'sine' },
+    { f: 392.00, t: 0.39, d: 1.0, v: 0.06, form: 'sine' },
+    { f: 523.25, t: 0.44, d: 0.95, v: 0.05, form: 'sine' },
+  ],
   // Training beendet oder abgebrochen – absteigend, ohne Feierlichkeit.
-  stop: [[587.33, 0, 0.16], [440, 0.14, 0.34]],
+  stop: [
+    { f: 587.33, t: 0, d: 0.18, v: 0.12, form: 'triangle', tief: 1800 },
+    { f: 392.00, t: 0.14, d: 0.4, v: 0.12, form: 'triangle', ct: 5, tief: 1600 },
+  ],
 };
 
 let ctx = null;
@@ -57,21 +109,76 @@ function wecken() {
   if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
 
-function ton(at, [f, versatz, dauer, laut = 0.22]) {
+/**
+ * Ein kurzer Rauschanteil als Anschlag.
+ *
+ * Zwölf Millisekunden weißes Rauschen vor dem Ton – hörbar ist das nicht als
+ * Rauschen, sondern als das Anschlagen selbst. Ohne diesen Anteil setzt jeder
+ * Ton weich ein und klingt nach Signalgeber statt nach Instrument.
+ */
+function knacks(at, dauer, laut) {
+  const n = Math.max(1, Math.floor(ctx.sampleRate * dauer));
+  const puffer = ctx.createBuffer(1, n, ctx.sampleRate);
+  const daten = puffer.getChannelData(0);
+  for (let i = 0; i < n; i++) daten[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const quelle = ctx.createBufferSource();
+  quelle.buffer = puffer;
+  const gain = ctx.createGain();
+  gain.gain.value = laut;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 2400;
+  quelle.connect(filter).connect(gain).connect(ctx.destination);
+  quelle.start(at);
+  return quelle;
+}
+
+/** Eine Stimme: Oszillator, Hüllkurve, wahlweise Tiefpass und Gleitflug. */
+function stimme(t0, s, cent) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  const t0 = at + versatz;
-  osc.type = 'sine';
-  osc.frequency.value = f;
+  osc.type = s.form || 'sine';
+  // Beides: .value macht die Frequenz sofort ablesbar (auch für den Testlauf),
+  // setValueAtTime verankert sie auf der Uhr des Kontexts.
+  osc.frequency.value = s.f;
+  osc.frequency.setValueAtTime(s.f, t0);
+  if (s.bis) osc.frequency.exponentialRampToValueAtTime(s.bis, t0 + s.d);
+  if (cent) osc.detune.value = cent;
+
   // Exponentiell, nicht linear: so klingt der Ton aus, statt abgeschnitten zu
   // werden – ein hartes Ende knackt hörbar.
+  const laut = Math.max(0.0002, (s.v ?? 0.22) * (cent ? 0.6 : 1));
   gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(laut, t0 + 0.015);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dauer);
-  osc.connect(gain).connect(ctx.destination);
+  gain.gain.exponentialRampToValueAtTime(laut, t0 + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + s.d);
+
+  let ende = gain;
+  if (s.tief) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = s.tief;
+    gain.connect(filter);
+    ende = filter;
+  }
+  ende.connect(ctx.destination);
   osc.start(t0);
-  osc.stop(t0 + dauer + 0.02);
+  osc.stop(t0 + s.d + 0.05);
   return osc;
+}
+
+/**
+ * Ein Ton des Signals – als eine oder zwei gegeneinander verstimmte Stimmen.
+ *
+ * Zwei Stimmen ein paar Cent auseinander schweben gegeneinander. Das ist der
+ * Unterschied zwischen "ein Ton" und "ein Klang", und er kostet einen
+ * Oszillator.
+ */
+function ton(at, s) {
+  const t0 = at + (s.t || 0);
+  const quellen = [stimme(t0, s, 0)];
+  if (s.ct) quellen.push(stimme(t0, s, s.ct), stimme(t0, s, -s.ct));
+  if (s.knack) quellen.push(knacks(t0, s.knack, (s.v ?? 0.22) * 0.5));
+  return quellen;
 }
 
 /**
@@ -123,7 +230,7 @@ export function scheduleSound(plan) {
   plan.forEach(([name, secs]) => {
     if (!SOUNDS[name] || secs < 0) return;
     const at = ctx.currentTime + secs;
-    geplant.push({ at, quellen: SOUNDS[name].map((t) => ton(at, t)) });
+    geplant.push({ at, quellen: SOUNDS[name].flatMap((t) => ton(at, t)) });
   });
   if (!geplant.length) return false;
   traeger(true);

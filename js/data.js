@@ -1133,6 +1133,10 @@ export const EXERCISES = [
     "tier": 3,
     "detail": [
       [
+        "Wenn du es im Nacken merkst",
+        "Das ist der häufigste Fehler bei dieser Übung und kein Zeichen, dass du sie falsch verstanden hast: Sobald der Widerstand zu groß wird, zieht der Körper die Schulter zum Ohr und der obere Trapez übernimmt. Drei Dinge helfen, in dieser Reihenfolge: leichteres Band (oder engerer Stand), Schultern aktiv nach unten ziehen, bevor der Arm losgeht, und oben bei waagerecht aufhören. Höher als Schulterhöhe ist die Seitendelta ohnehin fertig – ab da hebt nur noch der Nacken. Merkst du es danach immer noch, ist das Band für dich das falsche Gerät: Am Band ist der Zug oben am größten, genau da, wo das Hochziehen am nächsten liegt. Mit Kurzhanteln ist es umgekehrt."
+      ],
+      [
         "Widerstand am richtigen Ort",
         "Beim Band wächst der Zug nach oben, also genau dort, wo die seitliche Schulter stark ist. Bei der Hantel ist es umgekehrt – deshalb fühlen sich die beiden Varianten unterschiedlich an, obwohl sie dasselbe trainieren."
       ],
@@ -1145,7 +1149,7 @@ export const EXERCISES = [
       "name": "Band-Seitheben",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
+      "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern dabei bewusst unten lassen und mit dem Ellenbogen führen, nicht mit der Hand: Zieht die Schulter zum Ohr, macht der Nacken die Arbeit statt der Seitendelta. Kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
       "rest": 120,
       "pattern": "lateralstand",
       "shares": {

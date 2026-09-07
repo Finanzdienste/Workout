@@ -25,7 +25,10 @@ await ctx.addInitScript(() => {
     const osc = orig.apply(this, a);
     const start = osc.start.bind(osc);
     osc.start = (when = 0) => {
-      window.__osc.push({ f: osc.frequency.value, at: when || audio.currentTime, now: audio.currentTime });
+      window.__osc.push({
+        f: osc.frequency.value, ct: osc.detune.value,
+        at: when || audio.currentTime, now: audio.currentTime,
+      });
       return start(when);
     };
     return osc;
@@ -51,11 +54,26 @@ await ctx.addInitScript(() => {
     Object.defineProperty(navigator.serviceWorker, 'getRegistration', {
       value: () => Promise.resolve(null), configurable: true,
     });
+    // Ohne Worker geht die App den Rückfallweg: eigener Wecker, eigene
+    // Meldung. Genau der wird hier geprüft – den Worker-Weg prüft
+    // test-pause-worker.mjs, weil er sich nur an seinen Nachrichten festmachen
+    // lässt und nicht an einer sichtbaren Meldung.
+    Object.defineProperty(navigator.serviceWorker, 'controller', {
+      get: () => null, configurable: true,
+    });
   }
 });
 
-/** Töne ohne den unhörbaren Trägerton. */
-const toene = (ab = 0) => page.evaluate((ab) => window.__osc.slice(ab).filter((o) => o.f !== 30), ab);
+/**
+ * Töne ohne den unhörbaren Trägerton – und ohne die Beistimmen.
+ *
+ * Seit die Signale nicht mehr aus nackten Sinustönen bestehen, hat ein Ton bis
+ * zu drei Oszillatoren: den Grundton und zwei um ein paar Cent verstimmte
+ * daneben, die miteinander schweben. Gezählt werden soll aber, was man als Ton
+ * hört – also nur die unverstimmten.
+ */
+const toene = (ab = 0) => page.evaluate(
+  (ab) => window.__osc.slice(ab).filter((o) => o.f !== 30 && !o.ct), ab);
 const zahl = () => page.evaluate(() => window.__osc.length);
 
 await page.goto(URL, { waitUntil: 'networkidle' });
@@ -177,7 +195,18 @@ const vorPause = await zahl();
 await page.locator('.set-btn').first().click();
 await page.waitForTimeout(200);
 const paar = (await toene(vorPause)).filter((o) => o.at - o.now > 1);
-check(paar.length === 4, `zwei Signale eingeplant: Vorwarnung und Ende (${paar.length} Töne)`);
+// Nicht die Zahl der Töne zählen – die haengt am Klang und aendert sich, wenn
+// ein Signal reicher wird. Gezählt werden die *Zeitpunkte*: Ein Signal ist eine
+// Gruppe von Tönen dicht beieinander, und es müssen zwei Gruppen sein, rund
+// fünf Sekunden auseinander (die Vorwarnung und das Ende).
+const gruppen = [];
+paar.map((o) => o.at).sort((a, b) => a - b).forEach((t) => {
+  if (!gruppen.length || t - gruppen[gruppen.length - 1] > 1) gruppen.push(t);
+});
+check(gruppen.length === 2 && paar.length >= 4,
+  `zwei Signale eingeplant: Vorwarnung und Ende (${gruppen.length} Gruppen, ${paar.length} Töne)`);
+check(gruppen.length === 2 && Math.abs((gruppen[1] - gruppen[0]) - 5) < 1.5,
+  `und die Vorwarnung liegt rund fünf Sekunden vor dem Ende (${gruppen.length === 2 ? (gruppen[1] - gruppen[0]).toFixed(1) : '?'} s)`);
 const vorwarn = paar.filter((o) => Math.abs(o.at - o.now - 3) < 0.6);
 check(vorwarn.length === 2, `Vorwarnung liegt 5 s vor dem Ende (bei +${vorwarn[0] ? (vorwarn[0].at - vorwarn[0].now).toFixed(1) : '?'} s von 8)`);
 check(await page.locator('#restLabel').textContent() === 'Pause', 'Leiste sagt zunächst "Pause"');

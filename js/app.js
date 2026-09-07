@@ -509,7 +509,7 @@ function sound(name) {
  * hat keinen und soll keinen haben. */
 const NOTE_TAG = 'workout-pause';
 let noteTimer = null;
-let laufNote = -1;   // zuletzt in der Statusleiste gezeigte Restsekunde
+let swPause = false;   // zaehlt der Service Worker gerade eine Pause mit?
 
 /** Registrierung des Service Workers, immer als Promise – auch ohne ihn. */
 function swReg() {
@@ -530,9 +530,31 @@ function noteAllowed() {
     && Notification.permission === 'granted';
 }
 
+/**
+ * Die laufende Pause an den Service Worker uebergeben.
+ *
+ * Frueher lag der Wecker hier: ein setTimeout auf das Ende, dazu jede Sekunde
+ * eine ersetzte Meldung mit dem Countdown. Beides haengt an der Seite – und die
+ * friert Android im Hintergrund ein, spaetestens bei ausgeschaltetem
+ * Bildschirm. Dann stand die Zahl, und das Signal kam gar nicht.
+ *
+ * Der Worker haengt nicht an der Seite (siehe sw.js). Er bekommt einmal den
+ * Endzeitpunkt und macht den Rest allein. Bleibt der Wecker hier als Rueckfall,
+ * falls es keinen Worker gibt – ohne ihn gaebe es sonst gar keine Meldung.
+ */
 function planNote(secs, text) {
   dropNote();
   if (!noteAllowed()) return;
+
+  const endet = Date.now() + Math.max(0, secs) * 1000;
+  if (navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      typ: 'pause-start', endet, text, sichtbar: !document.hidden,
+    });
+    swPause = true;
+    return;
+  }
+
   noteTimer = setTimeout(() => {
     noteTimer = null;
     // Nur, wenn die App gerade nicht zu sehen ist: Wer davorsitzt, hört den Ton
@@ -552,6 +574,11 @@ function planNote(secs, text) {
   }, Math.max(0, secs) * 1000);
 }
 
+/** Dem Worker sagen, ob die App gerade vorn ist. */
+function swSichtbar(an) {
+  navigator.serviceWorker?.controller?.postMessage({ typ: 'sichtbar', an });
+}
+
 /** Eine sichtbare Meldung schließen, ohne den Wecker abzubestellen. */
 function closeNote() {
   swReg()
@@ -564,49 +591,11 @@ function closeNote() {
 function dropNote() {
   clearTimeout(noteTimer);
   noteTimer = null;
-  laufNote = -1;
+  if (swPause) {
+    swPause = false;
+    navigator.serviceWorker?.controller?.postMessage({ typ: 'pause-aus' });
+  }
   closeNote();
-}
-
-/**
- * Die laufende Pause in der Statusleiste mitzählen.
- *
- * Bisher kam die Meldung erst, wenn die Pause vorbei war. Wer das Handy
- * weglegt, will aber sehen, wie lange es noch dauert, ohne die App zu öffnen.
- *
- * Gemacht wird das, indem dieselbe Meldung jede Sekunde mit neuem Text ersetzt
- * wird – `tag` sorgt dafür, dass sie sich ablöst statt zu stapeln, `silent`
- * dafür, dass sie das lautlos tut. Ohne `silent` wäre es hundertmal Klingeln
- * statt einmal.
- *
- * **Zwei Grenzen, die man kennen sollte.** Erstens läuft das Mitzählen in der
- * Seite, nicht im Service Worker: Friert der Browser die Seite ein – auf
- * Android nach einigen Minuten im Hintergrund –, bleibt die Zahl stehen.
- * Deshalb steht die Uhrzeit des Endes mit in der Meldung; die stimmt auch
- * dann noch. Zweitens gilt das nur, solange die App nicht ganz geschlossen
- * ist. Der Wecker am Ende der Pause hängt an derselben Seite.
- */
-function laufNoteZeigen(left) {
-  if (!noteAllowed() || !document.hidden) return;
-  const sek = Math.max(0, Math.round(left));
-  if (sek === laufNote) return;          // je Sekunde einmal, nicht viermal
-  laufNote = sek;
-  const rest = store.getState().rest;
-  if (!rest) return;
-  const ende = new Date(rest.endsAt);
-  const uhr = `${ende.getHours()}:${String(ende.getMinutes()).padStart(2, '0')}`;
-  swReg().then((reg) => {
-    if (!reg) return;   // ohne Service Worker gibt es kein Ersetzen, nur Stapeln
-    reg.showNotification(`Pause ${Math.floor(sek / 60)}:${String(sek % 60).padStart(2, '0')}`, {
-      body: `${rest.next} · weiter um ${uhr}`,
-      tag: NOTE_TAG,
-      icon: './icon-192.png',
-      badge: './icon-192.png',
-      silent: true,           // sonst klingelt jede Sekunde neu
-      renotify: false,
-      requireInteraction: true,
-    });
-  }).catch(() => {});
 }
 
 /**
@@ -716,8 +705,6 @@ function tickRest() {
   restTime.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   restNext.textContent = rest.next;
   restFill.style.width = `${Math.max(0, (left / rest.total) * 100)}%`;
-  // Dieselbe Zahl noch einmal für die Statusleiste, wenn die App weggelegt ist.
-  laufNoteZeigen(left);
 
   if (!restTicker) restTicker = setInterval(tickRest, 250);
 }
@@ -2118,16 +2105,46 @@ function kgKnopf(it, richtung) {
           ${d < 0.01 ? 'disabled' : ''} aria-label="${esc(label)}">${richtung > 0 ? '+' : '−'}</button>`;
 }
 
+/**
+ * Die Bandwahl – gebaut wie die Gewichtszeile, nicht wie ein Formular.
+ *
+ * Vorher standen zwei gleichberechtigte Knöpfe nebeneinander, „Gelb" und „Rot",
+ * und man suchte sich eins aus. Das ist die falsche Frage. Am Band gibt es
+ * keine freie Wahl, sondern zwei Stufen – und Stufen bedient man mit − und +,
+ * genau wie bei den Kilo eine Zeile darüber.
+ *
+ * Also: In der Mitte steht das Band, das gilt. Rechts, wo sonst das + sitzt,
+ * steht „Rot" – die Steigerung. Links, wo sonst das − sitzt, steht „Gelb" –
+ * zurück. Wer auf Gelb ist, hat kein Links; wer auf Rot ist, kein Rechts. Damit
+ * sieht eine Bandübung aus wie jede andere Übung, und das Band ist das, was es
+ * ist: das Gewicht dieser Übung.
+ *
+ * Gelb ist dabei fest der Anfang, nicht „nichts gewählt". Eine Bandübung ohne
+ * Band ist keine Bandübung.
+ */
 function bandRow(it) {
   if (!amBand(it)) return '';
-  const cur = store.bandOf(it.id);
+  const cur = store.bandOf(it.id) === 'rot' ? 'rot' : 'gelb';
+  const knopf = (farbe, seite) => {
+    const [, label, wie] = BAENDER.find(([k]) => k === farbe);
+    const dran = cur === farbe;
+    return `
+      <button type="button" class="kg-step band-step band-${farbe}${seite === 'r' ? ' kg-plus' : ''}"
+              data-act="set-band" data-ex="${it.id}" data-v="${farbe}"
+              ${dran ? 'disabled' : ''}
+              aria-label="${esc(dran ? `${label} ist eingestellt` : `Auf ${label} wechseln (${wie})`)}">
+        <span class="band-dot"></span>
+      </button>`;
+  };
   return `
-    <div class="band-row" role="group" aria-label="Band für ${esc(it.name)}">
-      ${BAENDER.map(([key, label, wie]) => `
-        <button type="button" class="band-btn band-${key} ${cur === key ? 'on' : ''}"
-                aria-pressed="${cur === key}" data-act="set-band" data-ex="${it.id}" data-v="${key}">
-          <span class="band-dot"></span>${label}<span class="band-wie">${wie}</span>
-        </button>`).join('')}
+    <div class="ex-weight band-row" role="group" aria-label="Band für ${esc(it.name)}">
+      ${knopf('gelb', 'l')}
+      <div class="kg-main">
+        <span class="band-name band-${cur}">
+          <span class="band-dot"></span>${esc(BAENDER.find(([k]) => k === cur)[1])}</span>
+        <span class="kg-unit">${esc(BAENDER.find(([k]) => k === cur)[2])}</span>
+      </div>
+      ${knopf('rot', 'r')}
     </div>`;
 }
 
@@ -4346,9 +4363,10 @@ view.addEventListener('click', (e) => {
       break;
     case 'set-band': {
       const id = t.dataset.ex;
-      // Nochmal auf dasselbe Band tippen nimmt die Auswahl zurück – so bleibt
-      // "noch nicht entschieden" ein möglicher Zustand.
-      store.setBand(id, store.bandOf(id) === t.dataset.v ? null : t.dataset.v);
+      // Kein Abwählen mehr: Die Bandwahl ist eine Stufe wie ein Gewicht, und
+      // eine Bandübung ohne Band gibt es nicht. Gelb ist der Anfang.
+      // Kein Abwählen mehr: Eine Bandübung ohne Band gibt es nicht.
+      store.setBand(id, t.dataset.v);
       sound('set');
       render();
       break;
@@ -4974,13 +4992,15 @@ document.addEventListener('visibilitychange', () => {
     // eine Pause. Die gehört zum Training, auch wenn man dabei aufs Handy
     // verzichtet.
     if (!store.getState().rest) store.clockStop();
+    // Ab hier zaehlt der Worker sichtbar mit – die Seite friert gleich ein.
+    swSichtbar(false);
     store.flush();
     return;
   }
   store.clockStart();
   // Wer wieder davorsitzt, sieht die Leiste in der App – die Meldung in der
   // Statusleiste wäre jetzt nur noch ein Duplikat.
-  if (store.getState().rest) { laufNote = -1; closeNote(); }
+  swSichtbar(true);
   tickRest(); // war das Handy gesperrt, ist die Pause womöglich abgelaufen
   // Läuft sie noch, das Signal neu auflegen: Ein im Hintergrund angehaltener
   // AudioContext verliert seine vorgemerkten Töne.
