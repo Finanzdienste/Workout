@@ -251,6 +251,49 @@ await page.waitForTimeout(300);
 check(await page.locator('[data-act="scheiben-weg"]').count() === dazu - 1,
   'und das ✕ nimmt sie wieder weg');
 
+// --- 8. Der Satz als Link ----------------------------------------------
+// „Kannst ja bei mir eintragen" geht nicht – die Daten liegen im Browser des
+// anderen. Ein Link geht: einmal tippen statt zwanzig Felder.
+const code = await page.evaluate((satz) => {
+  const bytes = new TextEncoder().encode(JSON.stringify(satz));
+  let roh = ''; bytes.forEach((b) => { roh += String.fromCharCode(b); });
+  return btoa(roh).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}, { stange: { kh: 2, lh: 10 }, scheiben: [[1.25, 8], [2.5, 4]] });
+
+// Erst ablehnen: Ein Link darf nichts umstellen, was man nicht will.
+await page.evaluate(() => localStorage.setItem('workout.state.v1', JSON.stringify({
+  greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {},
+})));
+// Erst mit vollem Laden – so kommt der Link von außen an.
+page.once('dialog', (d) => d.dismiss());
+await page.goto(`${URL}#eisen=${code}`, { waitUntil: 'networkidle' });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+const abgelehnt = await page.evaluate(() => JSON.parse(
+  localStorage.getItem('workout.state.v1') || '{}').scheiben);
+check(!abgelehnt, 'abgelehnt bleibt der Satz leer – ein Link stellt nichts ungefragt um');
+check(!/eisen=/.test(page.url()), 'und der Anker ist aus der Adresse raus, egal wie man antwortet');
+
+// Dann annehmen – und diesmal auf eine schon offene App, also ohne Neuladen.
+// Genau der Fall fiel beim Bauen durch: Ein Sprung im selben Dokument lädt die
+// Seite nicht neu, und ohne einen Horcher auf hashchange passierte gar nichts.
+page.once('dialog', (d) => d.accept());
+await page.evaluate((c) => { location.hash = `eisen=${c}`; }, code);
+await page.waitForTimeout(600);
+const angenommen = await page.evaluate(() => JSON.parse(
+  localStorage.getItem('workout.state.v1') || '{}').scheiben);
+console.log('     aus dem Link:', JSON.stringify(angenommen));
+check(!!angenommen && angenommen.scheiben.length === 2,
+  'angenommen stehen die Scheiben drin');
+check(angenommen && angenommen.stange.kh === 2 && angenommen.stange.lh === 10,
+  'samt der beiden Leergewichte');
+
+// Unsinn im Anker darf die App nicht umwerfen.
+page.once('dialog', (d) => d.accept());
+await page.goto(`${URL}#eisen=nicht-base64-und-kein-json`, { waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+check(errs.length === 0, 'ein kaputter Link wirft die App nicht um');
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

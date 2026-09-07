@@ -35,7 +35,7 @@ import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, offenerAufstieg, satzFaktor, sa
 import {
   doneWeightNote, meinSatz, naechstesGewicht, ruestHint, vorgezogen, workingWeight,
 } from './gewichte.js';
-import { STANGE_LABEL, erreichbar } from './scheiben.js';
+import { STANGE_LABEL, erreichbar, normSatz } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
 import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, startTodayRow, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
@@ -1549,6 +1549,44 @@ function standAusAdresse() {
   if (!treffer) return null;
   history.replaceState(history.state, '', location.pathname + location.search);
   return codeZu(treffer[1]);
+}
+
+/**
+ * Ein Scheibensatz als Link – derselbe Weg wie beim geteilten Stand.
+ *
+ * Der Anlass: „Hab jeweils 2: 1,5; 2,5; 2; 5 und 10 Kilo Scheiben. Kannst ja bei
+ * mir eintragen." Kann ich eben nicht – die Daten liegen in *seinem* Browser,
+ * und dorthin führt kein Weg von außen. Was geht, ist ein Link: einmal tippen,
+ * und der Satz steht drin.
+ *
+ * Übernommen wird nur nach Rückfrage. Ein Link, der ungefragt die Gewichte
+ * umstellt, wäre eine Tür, die man nicht offen lässt – auch wenn hier nur
+ * Eisen drinsteht und kein Trainingsverlauf.
+ */
+function eisenAusAdresse() {
+  const treffer = /[#&]eisen=([A-Za-z0-9_-]+)/.exec(location.hash);
+  if (!treffer) return;
+  history.replaceState(history.state, '', location.pathname + location.search);
+  // Nicht codeZu(): Das prüft zusätzlich auf die Felder eines geteilten Stands
+  // (v, n) und gäbe hier immer null zurück. Derselbe Code, andere Fracht.
+  let roh = null;
+  try {
+    const b64 = treffer[1].replace(/-/g, '+').replace(/_/g, '/');
+    const bytes = Uint8Array.from(
+      atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)), (c) => c.charCodeAt(0));
+    roh = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return;
+  }
+  const satz = normSatz(roh);
+  if (!satz.scheiben.length) return;
+
+  const liste = satz.scheiben.map(([kg, n]) => `${n}× ${fmtNum(kg)} kg`).join(', ');
+  if (!confirm(`Scheibensatz übernehmen?\n\n${liste}\n\n`
+    + 'Damit schlägt die App nur noch Gewichte vor, die sich aufstecken lassen. '
+    + 'Ändern kannst du das jederzeit unter Mehr.')) return;
+  store.setSetting('scheiben', satz);
+  toast('Scheibensatz übernommen – steht unter Mehr');
 }
 
 /** Kurzschlüssel eines Freundes: gleicher Name, gleicher Eintrag. */
@@ -5295,6 +5333,14 @@ catchUpPlan();
 // auch die sichtbare sein, sonst öffnet der Link bei jemandem, der zuletzt in
 // der Statistik war, eine Seite ohne jeden Hinweis.
 ui.standAngebot = standAusAdresse();
+// Und dasselbe für einen geschickten Scheibensatz – der fragt selbst nach und
+// braucht keine eigene Ansicht, weil er nichts zeigt, was man vergleichen
+// müsste: Er trägt ein, was man ohnehin gerade eintippen wollte.
+eisenAusAdresse();
+// Und noch einmal, wenn der Link auf eine bereits offene App trifft: Dann ist
+// das ein Sprung innerhalb derselben Seite, sie lädt nicht neu, und ohne diesen
+// Horcher passierte schlicht nichts.
+window.addEventListener('hashchange', eisenAusAdresse);
 if (ui.standAngebot) {
   ui.tab = 'dashboard';
   ui.focus = false;
