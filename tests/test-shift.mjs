@@ -178,15 +178,42 @@ s = await snap('15 Tage weg');
 check(s.shift === 19, 'Shift = 19');
 check(s.title.includes(de(spaet)), 'Workout 2 auf heute nachgerückt');
 
-// --- Manuelle Korrektur ----------------------------------------------------
+// --- Von Hand einstellen lässt sich das nicht mehr -------------------------
+// „Das mit dem Verschieben will ich echt nirgends sehen. Das soll ganz im
+// Hintergrund laufen." Die Karte unter Mehr (+9 Tage, ±1 Tag, „Auf Original")
+// ist deshalb raus. Was oben geprüft wurde, gilt weiter – nur bedienen muss es
+// niemand mehr. Diese Prüfung steht hier, damit die Knöpfe nicht eines Tages
+// unbemerkt zurückkommen.
 await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(300);
 await page.screenshot({ path: `${SHOT}/12-settings-shift.png`, fullPage: true });
-await tap('[data-act="shift-plus"]');
-check((await readState()).shift === 20, '+1 Tag von Hand');
-await tap('[data-act="shift-minus"]');
-check((await readState()).shift === 19, '−1 Tag von Hand');
-await tap('[data-act="shift-reset"]');
-check((await readState()).shift === 0, 'Zurücksetzen auf Original-Termine');
+for (const act of ['shift-plus', 'shift-minus', 'shift-reset', 'start-today']) {
+  check(await page.locator(`[data-act="${act}"]`).count() === 0,
+    `„${act}" gibt es nicht mehr`);
+}
+const mehrText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(!/Plan-Verschiebung/.test(mehrText), 'und die Überschrift dazu auch nicht');
+check(!/endet am .* statt am/.test(mehrText),
+  'nirgends steht mehr, um wie viel der Plan vom Ursprung abweicht');
+// Der Shift steht trotzdem noch im Zustand – er ist ja die Mechanik dahinter.
+check((await readState()).shift === 19, 'die Verschiebung selbst arbeitet unverändert weiter');
+
+// --- Nach vorn geht es beim Starten, ohne Knopf ----------------------------
+// Vorher gab es dafür „Heute anfangen – Plan N Tage vorziehen". Jetzt rückt die
+// Einheit beim Start von selbst auf heute, wenn ihr Termin noch vor einem liegt.
+// Frischer Stand, aber die Begrüßung übersprungen – sonst steht dort die
+// Willkommensseite und gar kein Startknopf.
+await page.evaluate(() => localStorage.setItem('workout.state.v1', '{"greeted":true}'));
+await at(plus(tag1, -3));   // drei Tage VOR dem ersten Plantag
+await page.locator('.tab[data-tab="dashboard"]').click();
+await page.waitForTimeout(300);
+const vorher = await readState();
+check((vorher.shift ?? 0) === 0, 'vor dem Plantag wird nichts vorgezogen – der Plan ist ein Plan');
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(400);
+const nachher = await readState();
+check(nachher.shift === -3,
+  `wer trotzdem loslegt, zieht den Plan beim Starten mit (shift=${nachher.shift})`);
 
 // --- Ganz ohne verpasste Tage ----------------------------------------------
 await page.evaluate(() => localStorage.removeItem('workout.state.v1'));

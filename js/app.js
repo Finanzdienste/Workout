@@ -37,7 +37,7 @@ import {
 } from './gewichte.js';
 import { STANGE_LABEL, erreichbar, normSatz } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, startTodayRow, workoutByNo } from './plan.js';
+import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
@@ -996,6 +996,40 @@ function renderFocus() {
 }
 
 /**
+ * Der Plan hört nicht auf.
+ *
+ * Am Ende der 84 Einheiten stand bisher „🎉 Plan geschafft" und ein Knopf „Von
+ * vorn beginnen". Beides ist weg, auf Ansage: *„Der Plan soll unendlich
+ * laufen."* Eine Runde ist eine Buchführungseinheit, kein Ereignis, das den
+ * Nutzer etwas angeht – die Zahlen dazu stehen weiter in der Statistik.
+ *
+ * Also rollt die Runde hier von selbst weiter: Verlauf in die Ablage, Gewichte
+ * bleiben stehen, Workout 1 beginnt neu.
+ *
+ * **Wann** ist die einzige Frage, die dabei zu entscheiden war. Nicht sofort
+ * beim letzten Haken – dann flöge man aus der gerade fertigen Einheit heraus,
+ * während man noch draufschaut. Deshalb läuft das dort, wo auch das Nachrücken
+ * läuft: beim Öffnen der App und beim Zurückkommen aus dem Hintergrund.
+ *
+ * **Auf welchen Tag** ergibt sich aus dem Plan selbst: der übliche Abstand nach
+ * der letzten Einheit. Liegt der Tag schon in der Vergangenheit, zieht
+ * catchUpPlan() ihn ohnehin auf heute – es braucht also keinen Sonderfall für
+ * „drei Wochen nicht reingeschaut".
+ */
+function rundeWeiter() {
+  if (PLAN.some((w) => !completedMode(w.n))) return false;
+  const letzte = PLAN[PLAN.length - 1];
+  const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
+  const ab = addDays(store.startedOn(letzte.n) || effDate(letzte), abstand);
+  store.restartPlan(daysBetween(PLAN[0].date, ab), rundenBilanz());
+  ui.workoutNo = PLAN[0].n;
+  ui.focus = false;
+  ui.listView = false;
+  ui.openEx.clear();
+  return true;
+}
+
+/**
  * Der Knopf unter der Körperkarte – oder eben keiner.
  *
  * Drei Zustände, und der dritte fehlte: Bisher stand über jeder angefangenen
@@ -1083,7 +1117,6 @@ function renderOverview() {
   // In den Daten steht der zuerst beanspruchte Muskel vorn. Daraus zwei
   // Stufen: was heute wirklich dran ist, und was nur mitarbeitet.
   const primary = new Set(items.map((it) => it.muscles[0]).filter(Boolean));
-  const planDone = doneCount() === PLAN.length;
   const due = backupDue();
 
   // Eine Bildschirmseite, ohne Scrollen: Kopf, Körper, Start. Der Körper
@@ -1112,10 +1145,6 @@ function renderOverview() {
           <button type="button" class="btn btn-primary" data-act="accept-stand">Zum Vergleich</button>
           <button type="button" class="btn btn-ghost" data-act="drop-stand">Verwerfen</button>
         </div></div>` : ''}
-      ${planDone ? `<div class="notice done-notice">🎉 Plan geschafft – alle ${PLAN.length} Einheiten.
-        <button type="button" class="btn btn-primary btn-block" data-act="restart-plan"
-                style="margin-top:10px">Von vorn beginnen</button>
-        <span class="small muted">Die erreichten Gewichte bleiben stehen.</span></div>` : ''}
       ${due ? `<div class="notice warn">💾 ${esc(plural(due, 'Einheit', 'Einheiten'))} seit der letzten
         Sicherung. Alles liegt nur in diesem Browser.
         <button type="button" class="btn btn-block" data-act="backup-now" style="margin-top:10px">Jetzt sichern</button></div>` : ''}
@@ -1146,7 +1175,7 @@ function renderOverview() {
 
       ${items.length ? `
         ${startBlock(n, mode, prog)}
-        ${startTodayRow(w.n)}`
+`
       : `<div class="card empty-day">
           <b>Heute bleibt nichts übrig.</b> Die angehakten Beschwerden sperren
           jede Übung dieser Einheit, und für keine gibt es einen Ersatz, der
@@ -1654,7 +1683,6 @@ function renderDashboard() {
         : `<div class="btn-row">
              <button type="button" class="btn btn-primary btn-block" data-act="start-session">▶︎ Workout starten</button>
            </div>`}
-      ${startTodayRow(n)}
       <div class="btn-row nav">
         <button type="button" class="btn btn-ghost" data-act="nav-workout" data-delta="-1" ${w.custom || n === PLAN[0].n ? 'disabled' : ''}>← Vorheriges</button>
         <button type="button" class="btn btn-ghost" data-act="nav-today">Heute</button>
@@ -4044,26 +4072,17 @@ function renderSettings() {
       </div>` : ''}
     </div>
 
-    <div class="section-title">Plan-Verschiebung</div>
-    <div class="card">
-      <div class="stat-v">${s.shift ? `${s.shift > 0 ? '+' : '−'}${esc(plural(Math.abs(s.shift), 'Tag', 'Tage'))}` : 'Im Plan'}</div>
-      <div class="small muted" style="margin-top:2px">
-        ${s.shift
-          ? `Der offene Plan endet am ${esc(fmtDate(effDate(PLAN[PLAN.length - 1]), true))} statt am ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))}.`
-          : 'Der Plan läuft genau nach Excel-Termin.'}
-      </div>
-      ${daysBetween(effDate(firstOpen()), todayISO()) !== 0 ? `
-      <div class="btn-row">
-        <button type="button" class="btn btn-block" data-act="start-today">Nächste Einheit auf heute</button>
-      </div>
-      <div class="small muted">Zieht den ganzen offenen Plan mit – die Abstände zwischen den
-        Einheiten bleiben, übersprungen wird nichts.</div>` : ''}
-      <div class="btn-row nav">
-        <button type="button" class="btn" data-act="shift-minus">− 1 Tag</button>
-        <button type="button" class="btn" data-act="shift-plus">+ 1 Tag</button>
-        <button type="button" class="btn btn-ghost" data-act="shift-reset" ${s.shift ? '' : 'disabled'}>Auf Original</button>
-      </div>
-    </div>
+    <!-- Hier stand die Plan-Verschiebung: +9 Tage, "Nächste Einheit auf
+         heute", ±1 Tag, "Auf Original". Alles raus, auf Ansage: "Das mit dem
+         Verschieben will ich echt nirgends sehen. Das soll ganz im Hintergrund
+         laufen."
+
+         Und das tut es auch. catchUpPlan() zieht den offenen Plan nach, wenn
+         ein Termin verstreicht, und beim Starten eines Trainings rückt die
+         Einheit von selbst auf heute, falls ihr Termin noch in der Zukunft lag
+         (siehe start-session). Damit gibt es nichts mehr einzustellen – die
+         Zahl war eine Rechenschaft über etwas, das die App ohnehin allein
+         richtig macht. -->
 
     <div class="section-title">Plan neu starten</div>
     <div class="card">
@@ -4507,18 +4526,6 @@ view.addEventListener('click', (e) => {
       toast(started ? `Ab dem nächsten Satz ${fmtNum(kg)} kg` : `${fmtNum(kg)} kg`);
       break;
     }
-    case 'start-today': {
-      // Der ganze offene Plan rückt mit, die Abstände bleiben – es wird nichts
-      // übersprungen, nur vorgezogen.
-      const ziel = shiftToToday();
-      const tage = ziel - store.getState().shift;
-      store.setShift(ziel);
-      ui.workoutNo = firstOpen().n;
-      render();
-      toast(tage < 0 ? `Plan um ${plural(-tage, 'Tag', 'Tage')} vorgezogen – los geht's 💪`
-                     : 'Der Plan steht auf heute');
-      break;
-    }
     case 'restart-plan': {
       // Runde 1 wandert in die Ablage, die Gewichte bleiben. Workout 1 rückt
       // auf heute, sonst würde die Nachrück-Automatik den halben Plan
@@ -4558,6 +4565,14 @@ view.addEventListener('click', (e) => {
       // Die Variante wird beim Starten gewählt, nicht während des Trainings:
       // Der Umschalter oben ist zwischen zwei Sätzen nur eine Falle.
       if (t.dataset.mode) store.setWorkoutMode(n, t.dataset.mode);
+      // Liegt der Termin dieser Einheit noch in der Zukunft, rückt der Plan
+      // jetzt vor – ungefragt und ohne Anzeige. Dafür gab es früher einen
+      // Knopf ("Heute anfangen – Plan 3 Tage vorziehen"); der ist raus, weil
+      // niemand eine Verschiebung einstellen will, die sich von selbst ergibt.
+      // Nach hinten macht catchUpPlan() dasselbe, wenn ein Termin verstreicht.
+      if (firstOpen().n === n && daysBetween(todayISO(), effDate(workoutByNo(n))) > 0) {
+        store.setShift(shiftToToday());
+      }
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       sound('start');
       store.startSession(n);
@@ -5123,16 +5138,6 @@ view.addEventListener('click', (e) => {
       render();
       break;
     }
-    case 'shift-plus':
-    case 'shift-minus':
-      store.setShift(store.getState().shift + (act === 'shift-plus' ? 1 : -1));
-      render();
-      break;
-    case 'shift-reset':
-      store.setShift(0);
-      render();
-      toast('Original-Termine wiederhergestellt');
-      break;
     case 'export': {
       const io = document.getElementById('io');
       io.value = store.exportJSON();
@@ -5278,7 +5283,10 @@ document.addEventListener('visibilitychange', () => {
   // AudioContext verliert seine vorgemerkten Töne.
   if (store.getState().rest) armRest();
   const day = todayISO();
-  const shifted = catchUpPlan();
+  // Erst die Runde weiterrollen, dann nachrücken: Sonst schöbe catchUpPlan()
+  // den alten, längst fertigen Plan durch die Gegend.
+  const neueRunde = rundeWeiter();
+  const shifted = catchUpPlan() || neueRunde;
   if (shifted || day !== lastSeenDay) {
     lastSeenDay = day;
     render();
@@ -5327,6 +5335,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 // Nachrücken passiert still: Ist der Termin der nächsten offenen Einheit
 // verstrichen, wandert der Restplan nach hinten. Der Rückgabewert – wie viele
 // Tage das waren – wird nicht mehr gebraucht, seit der Hinweis dazu weg ist.
+rundeWeiter();
 catchUpPlan();
 // Hat jemand einen Stand geschickt? Steht im Anker der Adresse und wird dort
 // sofort entfernt. Die Frage danach stellt die Startansicht – also muss sie

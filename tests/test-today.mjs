@@ -3,6 +3,13 @@
  *
  * Die Termine kommen aus der Excel und können in der Zukunft liegen. Die
  * Nachrück-Automatik half da nicht: Sie schiebt nur, was verstrichen ist.
+ *
+ * Dafür gab es einen Knopf – „Heute anfangen, Plan 5 Tage vorziehen". Der ist
+ * raus, auf Ansage: *„Das mit dem Verschieben will ich echt nirgends sehen. Das
+ * soll ganz im Hintergrund laufen."* Also passiert es jetzt beim Starten von
+ * selbst. Geprüft wird beides: dass es passiert, und dass es **nicht** vorher
+ * passiert – solange niemand trainiert, ist ein Plan ein Plan und kein
+ * Vorschlag, der sich an den heutigen Tag anschmiegt.
  */
 import { chromium } from 'playwright';
 import { URL } from './umgebung.mjs';
@@ -66,17 +73,22 @@ console.log('     vorher:', (await eyebrow()).trim(), '·', (await title()).trim
 check((await eyebrow()).startsWith('in 5 Tagen'), 'Plan beginnt erst in fünf Tagen');
 check(await shift() === 0, 'die Nachrück-Automatik rührt sich nicht (richtig so)');
 
-const knopf = page.locator('[data-act="start-today"]');
-check(await knopf.count() >= 1, 'Knopf „Heute anfangen" ist da');
-check((await knopf.first().textContent()).includes('5 Tage'), 'er nennt die Zahl der Tage');
+check(await page.locator('[data-act="start-today"]').count() === 0,
+  'es gibt keinen Knopf zum Vorziehen mehr – das ist der Punkt');
 
-await knopf.first().click();
-await page.waitForTimeout(300);
+// Losgelegt wird ganz normal. Das Vorziehen ist eine Nebenwirkung davon, keine
+// eigene Handlung.
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(400);
+await page.locator('[data-act="finish-session"]').first().click();
+await page.waitForTimeout(400);
+if (await page.locator('.hero-eyebrow').count() === 0) {
+  await page.locator('.tab[data-tab="dashboard"]').click();
+  await page.waitForTimeout(250);
+}
 console.log('     nachher:', (await eyebrow()).trim(), '·', (await title()).trim());
-check((await eyebrow()).startsWith('Heute'), 'Workout 1 ist jetzt heute fällig');
-check((await title()).includes(de(heute)), `und trägt das heutige Datum (${de(heute)})`);
-check(await shift() === -5, 'die Verschiebung ist negativ (−5)');
-check(await page.locator('[data-act="start-today"]').count() === 0, 'der Knopf verschwindet, wenn nichts vorzuziehen ist');
+check((await title()).includes(de(heute)), `Workout 1 trägt das heutige Datum (${de(heute)})`);
+check(await shift() === -5, 'die Verschiebung ist negativ (−5) – der ganze Plan kam mit');
 
 // Die Abstände bleiben: Workout 2 liegt genauso weit weg wie im Plan.
 const w2 = await page.evaluate(async () => {
@@ -88,17 +100,12 @@ const abstand = (Date.parse(`${P[1]}T12:00:00`) - Date.parse(`${P[0]}T12:00:00`)
 console.log('     Workout 2:', w2.trim(), `(Plan-Abstand ${abstand} Tage)`);
 check(w2.includes(de(plus(heute, abstand))), `Workout 2 behält den Abstand von ${abstand} Tagen`);
 
-// Und der Weg zurück: „Auf Original" stellt die Excel-Termine wieder her.
+// Zurückstellen gibt es nicht mehr – es gab nichts einzustellen.
 await page.locator('.tab[data-tab="settings"]').click();
-await page.waitForTimeout(200);
-await page.locator('[data-act="shift-reset"]').click();
 await page.waitForTimeout(250);
-check(await shift() === 0, '„Auf Original" räumt die Verschiebung wieder weg');
-
-// Von Hand nach vorn: der Minus-Knopf ist bei 0 nicht mehr gesperrt.
-await page.locator('[data-act="shift-minus"]').click();
-await page.waitForTimeout(250);
-check(await shift() === -1, 'auch − 1 Tag geht jetzt unter null');
+for (const act of ['shift-reset', 'shift-minus', 'shift-plus']) {
+  check(await page.locator(`[data-act="${act}"]`).count() === 0, `„${act}" ist raus`);
+}
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

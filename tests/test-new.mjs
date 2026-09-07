@@ -128,7 +128,11 @@ await page.waitForTimeout(200);
 check(await page.locator('[data-act="backup-now"]').count() === 1, 'Sicherungshinweis nach drei Einheiten');
 await page.screenshot({ path: `${SHOT}/98-backup.png` });
 
-// --- Plan-Ende --------------------------------------------------------------
+// --- Plan-Ende: es gibt keins ------------------------------------------------
+// „Der Plan soll unendlich laufen." Am Ende der 84 Einheiten stand bisher
+// „🎉 Plan geschafft" mit einem Knopf „Von vorn beginnen". Beides ist raus – die
+// Runde rollt beim nächsten Öffnen von selbst weiter. Eine Runde ist
+// Buchführung, kein Ereignis.
 await page.evaluate(async () => {
   const store = await import('./js/store.js');
   const { PLAN } = await import('./js/data.js');
@@ -136,15 +140,34 @@ await page.evaluate(async () => {
   store.setWeight('goblet-squat', 30);
 });
 await page.reload({ waitUntil: 'networkidle' });
-await page.waitForTimeout(200);
-check(await page.locator('[data-act="restart-plan"]').count() === 1, 'Plan-Ende bietet Neustart an');
+await page.waitForTimeout(400);
 await page.screenshot({ path: `${SHOT}/99-planende.png` });
-await page.locator('[data-act="restart-plan"]').first().click();
-await page.waitForTimeout(300);
+
+const nachRunde = await page.evaluate(() => ({
+  log: Object.keys(JSON.parse(localStorage.getItem('workout.state.v1') || '{}').log || {}).length,
+  runden: JSON.parse(localStorage.getItem('workout.rounds.v1') || '[]').length,
+  kg: JSON.parse(localStorage.getItem('workout.state.v1') || '{}').weights?.['goblet-squat'],
+}));
 const eyebrow = await page.locator('.hero-eyebrow').textContent();
-console.log('     nach Neustart:', eyebrow.trim());
-check(eyebrow.includes('Workout 1'), 'nach dem Neustart steht Workout 1 an');
-check((await page.locator('.hero-eyebrow').textContent()).includes('Heute'), 'und zwar heute');
+console.log('     nach dem Plan:', eyebrow.trim(), JSON.stringify(nachRunde));
+const seite = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(!/Plan geschafft/.test(seite), 'kein Endbildschirm mehr');
+check(await page.locator('[data-act="restart-plan"]').count() === 0,
+  'und kein Knopf „Von vorn beginnen" auf der Startansicht');
+check(eyebrow.includes('Workout 1'), 'stattdessen steht Workout 1 an – die neue Runde läuft');
+check(nachRunde.log === 0 && nachRunde.runden === 1,
+  `der Verlauf ist in der Ablage, nicht weg (${nachRunde.runden} Runde, log leer: ${nachRunde.log === 0})`);
+check(nachRunde.kg === 30, 'und die erreichten Gewichte stehen weiter da');
+// Nicht heute: Wer gerade die letzte Einheit gemacht hat, soll nicht sofort
+// wieder dran sein. Die neue Runde beginnt im üblichen Abstand danach – und
+// liegt der Tag längst in der Vergangenheit, zieht catchUpPlan() ihn ohnehin
+// auf heute. Deshalb wird hier der Abstand geprüft, nicht ein fester Tag.
+const abstandNeu = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  return (Date.parse(`${PLAN[1].date}T12:00:00`) - Date.parse(`${PLAN[0].date}T12:00:00`)) / 86400000;
+});
+check(/in \d+ Tag/.test(eyebrow) || /Heute/.test(eyebrow),
+  `die neue Runde beginnt nach dem üblichen Abstand von ${abstandNeu} Tagen (${eyebrow.trim()})`);
 const after = await page.evaluate(() => JSON.parse(localStorage.getItem('workout.state.v1')));
 check(Object.keys(after.log).length === 0, 'Verlauf ist geleert');
 check(after.weights['goblet-squat'] === 30, 'Gewichte bleiben stehen (30 kg)');
