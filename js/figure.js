@@ -430,11 +430,11 @@ export const PATTERNS = {
   },
   calf1: {
     // Ein Bein trägt, das andere hängt angewinkelt hinten
-    label: 'Wadenheben einbeinig', stance: 'R',
+    label: 'Wadenheben einbeinig', stance: 'R', stufe: 'R',
     poses: [
       // Knie nach hinten, nicht nach vorn – sonst sieht es aus wie ein Ausfallschritt
-      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-26, 8, 88), heel: 0 },
-      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-26, 8, 88), heel: 1 },
+      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-14, 7, 72), heel: 0 },
+      { lean: 2, arm: A(4, 8, 8), legR: L(2, 5, 4), legL: L(-14, 7, 72), heel: 1 },
     ],
   },
   pushupfeet: {
@@ -931,13 +931,24 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       });
     }
 
-    if (spec.step) {
+    if (spec.step || spec.stufe) {
       // Kasten unter den Füßen: ohne ihn stünde nur eine schräge Figur da und
       // man sähe nicht, dass die Füße erhöht stehen.
-      const heel = midOf(j.ankleL, j.ankleR);
-      const top = Math.min(j.toeL[1], j.toeR[1]) - 0.02;
-      const zc = heel[2]; const xc = heel[0];
-      const corner = (sx, sz, y) => P([xc + sx * 0.16, y, zc + sz * 0.26]);
+      //
+      // `stufe: 'R' | 'L'` ist die einbeinige Fassung – ein schmaler Klotz unter
+      // *einem* Fuß. Er ist beim Wadenheben nicht Beiwerk, sondern die halbe
+      // Übung: Ohne erhöhten Ballen fehlt die Dehnung nach unten, und das war
+      // aus dem Bild vorher nicht zu sehen. Zuhause ist der Klotz meistens ein
+      // dickes Buch, deshalb ist er flach und nicht stufenhoch.
+      const einbein = spec.stufe === 'R' || spec.stufe === 'L';
+      const ank = einbein ? (spec.stufe === 'R' ? j.ankleR : j.ankleL) : midOf(j.ankleL, j.ankleR);
+      const zeh = einbein ? (spec.stufe === 'R' ? j.toeR : j.toeL) : null;
+      const top = einbein ? zeh[1] - 0.01 : Math.min(j.toeL[1], j.toeR[1]) - 0.02;
+      // Unter dem Ballen, nicht unter der Ferse: Der Klotz sitzt vorn.
+      const zc = einbein ? zeh[2] : ank[2]; const xc = einbein ? zeh[0] : ank[0];
+      const bx = einbein ? 0.085 : 0.16;
+      const bz = einbein ? 0.10 : 0.26;
+      const corner = (sx, sz, y) => P([xc + sx * bx, y, zc + sz * bz]);
       const face = (quad) => parts.push({
         z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length - 0.05,
         node: el('polygon', {
@@ -945,10 +956,11 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
           class: 'fig-bench',
         }),
       });
+      const boden = einbein ? top - 0.055 : -0.62;
       face([corner(-1, -1, top), corner(1, -1, top), corner(1, 1, top), corner(-1, 1, top)]);
-      face([corner(-1, 1, top), corner(1, 1, top), corner(1, 1, -0.62), corner(-1, 1, -0.62)]);
-      face([corner(1, -1, top), corner(1, 1, top), corner(1, 1, -0.62), corner(1, -1, -0.62)]);
-      face([corner(-1, -1, top), corner(-1, 1, top), corner(-1, 1, -0.62), corner(-1, -1, -0.62)]);
+      face([corner(-1, 1, top), corner(1, 1, top), corner(1, 1, boden), corner(-1, 1, boden)]);
+      face([corner(1, -1, top), corner(1, 1, top), corner(1, 1, boden), corner(1, -1, boden)]);
+      face([corner(-1, -1, top), corner(-1, 1, top), corner(-1, 1, boden), corner(-1, -1, boden)]);
     }
 
     if (spec.seat) {

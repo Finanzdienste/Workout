@@ -412,7 +412,11 @@ export const EXERCISES = [
     "detail": [
       [
         "Die Dehnung unten zählt",
-        "Fußballen auf eine Stufe oder ein dickes Buch, die Ferse sinkt darunter. Flach auf dem Boden fehlt genau der Teil, der die Wade wachsen lässt."
+        "Fußballen auf etwas Erhöhtes, die Ferse sinkt darunter. Ein dickes Buch reicht – es braucht keine Stufe, nur ein paar Zentimeter. Flach auf dem Boden fehlt genau der Teil, der die Wade wachsen lässt."
+      ],
+      [
+        "Wohin mit dem anderen Bein",
+        "Nirgendwo hin – es hängt hinten locker herunter, das Knie leicht gebeugt. Es wird nicht auf der Wade abgelegt und auch nicht angehoben: Beides kostet nur Gleichgewicht, und das brauchst du hier. Wenn du wackelst, ist die freie Hand an der Wand die Lösung, nicht eine andere Beinhaltung."
       ],
       [
         "Tempo",
@@ -427,7 +431,7 @@ export const EXERCISES = [
       "name": "Einbeiniges stehendes Wadenheben",
       "reps": "10–20 je Bein",
       "equip": "Kurzhantel",
-      "cue": "Auf einer Stufe, Ferse tief absenken. Ganz hoch auf den Ballen, oben 1 s halten.",
+      "cue": "Ballen auf ein dickes Buch, eine Türschwelle oder eine Stufe – Hauptsache, die Ferse kann darunter absinken. Ganz hoch auf den Ballen, oben 1 s halten. Das freie Bein hängt einfach locker hinten, es wird nirgends abgelegt; wer wackelt, hält sich mit der freien Hand an der Wand fest.",
       "rest": 90,
       "pattern": "calf1",
       "shares": {
