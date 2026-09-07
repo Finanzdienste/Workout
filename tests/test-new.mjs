@@ -449,6 +449,77 @@ check(Math.min(...Object.values(frequenz.schnitt)) >= 1.9,
   `jede Gruppe kommt im Schnitt an mindestens zwei Tagen pro Woche dran (schwächste: ${
     Math.min(...Object.values(frequenz.schnitt))})`);
 
+// --- Der Knopf unter der Körperkarte ----------------------------------
+// „Bin ja mit Training für heute durch. Dann brauch da ja nichts von Training
+// fortsetzen stehen." Ein Knopf, der zu nichts mehr führt, ist kein Angebot,
+// sondern eine offene Aufgabe, die es nicht gibt.
+await page.evaluate(() => { localStorage.clear(); localStorage.setItem('workout.state.v1',
+  JSON.stringify({ greeted: true, level: 'geuebt', shift: 0, log: {} })); });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+
+const sicht = async () => {
+  const t = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+  return {
+    start: /▶︎ Hanteln/.test(t),
+    weiter: /Training fortsetzen/.test(t),
+    fertig: /Für heute durch/.test(t),
+    abschliessen: /Training abschließen/.test(t),
+  };
+};
+
+const leer = await sicht();
+check(leer.start && !leer.weiter && !leer.fertig,
+  'nichts abgehakt: zwei Startknöpfe, sonst nichts');
+
+// Einen einzigen Satz setzen – angefangen, nicht fertig.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  const w = PLAN[0]; const x = w.ex[0];
+  store.updateSet(w.n, 'db', x.id, x.sets, 0, { done: true, w: '20' });
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+const angefangen = await sicht();
+check(angefangen.weiter && !angefangen.fertig,
+  'angefangen: fortsetzen – da ist wirklich noch etwas zu tun');
+
+// Alles abhaken. Danach zeigt die Startansicht die nächste Einheit; über den
+// Zurück-Knopf steht wieder die fertige da, und genau die ist der Prüffall.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  const w = PLAN[0];
+  w.ex.forEach((x) => {
+    for (let i = 0; i < x.sets; i++) store.updateSet(w.n, 'db', x.id, x.sets, i, { done: true, w: '20' });
+  });
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+await page.locator('[data-act="nav-workout"][data-delta="-1"]').click();
+await page.waitForTimeout(300);
+const durch = await sicht();
+check(durch.fertig, 'fertig: der Abschluss steht da');
+check(!durch.weiter && !durch.start,
+  'und kein Knopf mehr, der zu nichts führt');
+check(await page.locator('[data-act="mark-done"]').count() === 0,
+  '„als trainiert markieren" ist dort ebenfalls weg – es ist ja schon markiert');
+
+// Der Sonderfall: fertig, aber die Uhr läuft noch. Dann ist der nächste
+// Schritt nicht „nochmal rein", sondern „abschließen".
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  store.startSession(PLAN[0].n);
+});
+await page.waitForTimeout(300);
+await page.locator('.tab[data-tab="dashboard"]').click();
+await page.waitForTimeout(300);
+const laeuft = await sicht();
+check(laeuft.abschliessen && !laeuft.weiter,
+  'läuft die Uhr noch, steht dort „abschließen" statt „fortsetzen"');
+
 // --- Was in der Kopfzeile einer Übung steht ---------------------------
 // Anlass: „Heute hab ich ja 3 mal Schulter." Es waren drei verschiedene
 // Muskeln – vordere, seitliche und hintere Schulter –, aber dreimal dasselbe

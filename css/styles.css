@@ -1395,3 +1395,15 @@ textarea.io {
 }
 .super-paar.allein { color: var(--muted); font-weight: 500; }
 .super-mit { color: var(--muted); font-weight: 500; }
+
+/* Der Abschluss einer fertigen Einheit. Bewusst kein Knopf: Hier ist nichts
+   mehr zu tun, und ein Knopf würde etwas anderes behaupten. */
+.fertig {
+  background: color-mix(in srgb, var(--ok) 12%, var(--bg-elev));
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--line));
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  text-align: center;
+}
+.fertig-kopf { font-size: 17px; font-weight: 800; color: var(--ok); }
+.fertig-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }

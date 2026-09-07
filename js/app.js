@@ -996,6 +996,66 @@ function renderFocus() {
 }
 
 /**
+ * Der Knopf unter der Körperkarte – oder eben keiner.
+ *
+ * Drei Zustände, und der dritte fehlte: Bisher stand über jeder angefangenen
+ * Einheit „Training fortsetzen", auch über einer fertigen. *„Bin ja mit Training
+ * für heute durch. Dann brauch da ja nichts von Training fortsetzen stehen."*
+ * Stimmt – ein Knopf, der zu nichts mehr führt, ist kein Angebot, sondern eine
+ * offene Aufgabe, die es nicht gibt.
+ *
+ *   nichts abgehakt   zwei Startknöpfe, Hanteln oder Bodyweight
+ *   angefangen        fortsetzen, und wahlweise „als trainiert markieren"
+ *   fertig            der Abschluss steht da, kein Auftrag mehr
+ *
+ * Der Sonderfall dazwischen: fertig, aber die Uhr läuft noch. Dann ist der
+ * nächste Schritt nicht „nochmal rein", sondern „abschließen" – und genau der
+ * Knopf steht dann hier, statt ihn eine Ebene tiefer suchen zu lassen.
+ */
+function startBlock(n, mode, prog) {
+  const laeuft = !!store.getState().session;
+
+  if (prog.complete && laeuft) {
+    return `
+      <button type="button" class="btn btn-ok btn-block btn-start" data-act="finish-session">
+        ✓ Training abschließen (${prog.done}/${prog.total})
+      </button>`;
+  }
+
+  if (prog.complete) {
+    const e = store.getState().log[n] || {};
+    const min = e.secs > 0 ? Math.round(e.secs / 60) : 0;
+    return `
+      <div class="fertig">
+        <div class="fertig-kopf">✓ Für heute durch</div>
+        <div class="fertig-sub">Alle ${prog.total} Sätze stehen${
+          min ? ` · ${min} min` : ''}. Die nächste Einheit kommt von selbst.</div>
+      </div>`;
+  }
+
+  if (prog.done) {
+    return `
+      <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
+        ▶︎ Training fortsetzen
+      </button>
+      ${completedMode(n) ? '' : `
+      <button type="button" class="btn btn-ghost btn-block" data-act="mark-done" style="margin-top:8px">
+        ✓ Als trainiert markieren
+      </button>`}`;
+  }
+
+  return `
+    <div class="start-paar">
+      <button type="button" class="btn btn-primary btn-start ${mode === 'db' ? '' : 'zweit'}"
+              data-act="start-session" data-mode="db"
+              aria-label="Workout mit Hanteln starten">▶︎ Hanteln</button>
+      <button type="button" class="btn btn-primary btn-start ${mode === 'bw' ? '' : 'zweit'}"
+              data-act="start-session" data-mode="bw"
+              aria-label="Workout als Bodyweight starten">▶︎ Bodyweight</button>
+    </div>`;
+}
+
+/**
  * Startansicht: was heute ansteht, welche Muskelgruppen drankommen, los.
  * Die einzelnen Übungen liegen eine Ebene tiefer – vor dem Training will man
  * sie nicht abhaken, sondern nur wissen, was kommt.
@@ -1085,23 +1145,7 @@ function renderOverview() {
         .map((m) => `<span class="${primary.has(m) ? '' : 'sub'}">${esc(MUSCLE_LABEL[m] || m)}</span>`).join('')}</div>
 
       ${items.length ? `
-        ${prog.done ? `
-        <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session">
-          ▶︎ Training fortsetzen
-        </button>
-        ${prog.complete || completedMode(n) ? '' : `
-        <button type="button" class="btn btn-ghost btn-block" data-act="mark-done" style="margin-top:8px">
-          ✓ Als trainiert markieren
-        </button>`}`
-        : `
-        <div class="start-paar">
-          <button type="button" class="btn btn-primary btn-start ${mode === 'db' ? '' : 'zweit'}"
-                  data-act="start-session" data-mode="db"
-                  aria-label="Workout mit Hanteln starten">▶︎ Hanteln</button>
-          <button type="button" class="btn btn-primary btn-start ${mode === 'bw' ? '' : 'zweit'}"
-                  data-act="start-session" data-mode="bw"
-                  aria-label="Workout als Bodyweight starten">▶︎ Bodyweight</button>
-        </div>`}
+        ${startBlock(n, mode, prog)}
         ${startTodayRow(w.n)}`
       : `<div class="card empty-day">
           <b>Heute bleibt nichts übrig.</b> Die angehakten Beschwerden sperren
