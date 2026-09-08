@@ -923,6 +923,12 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // als in Wirklichkeit – weiter geht es nicht, ohne dass die Enden aus dem
       // Kasten laufen, denn der Ausschnitt richtet sich nach der Figur.
       barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.56, 4.4);
+    } else if (equip === 'szbar') {
+      // Eine SZ-Stange ist etwa halb so lang wie eine Langhantel; ihre
+      // Ausbuchtungen fallen bei dieser Strichstärke ohnehin unter den Tisch.
+      // Was man sehen soll, ist der Unterschied zur grossen Stange – und der
+      // ist die Länge.
+      barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.34, 4.0);
     } else if (equip === 'hipbar') {
       barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.56, 4.4);
     } else if (equip === 'band') {

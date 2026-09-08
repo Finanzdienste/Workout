@@ -108,12 +108,15 @@ export function doneWeightNote(n, mode, exId) {
 
 export const RUEST_FAM = {
   barbell: 'lh', hipbar: 'lh',          // dieselbe Stange, nur einmal mit Polster
+  szbar: 'sz',                          // eigene Stange, eigener Auf- und Abbau
   dumbbells: 'kh2',                     // beide Kurzhanteln auf dasselbe Gewicht
   goblet: 'kh1', onehand: 'kh1', plate: 'kh1',
   backpack: 'ruck',
 };
 
-export const FAM_LABEL = { lh: 'Stange', kh2: 'Kurzhanteln', kh1: 'Kurzhantel', ruck: 'Rucksack' };
+export const FAM_LABEL = {
+  lh: 'Stange', sz: 'SZ-Stange', kh2: 'Kurzhanteln', kh1: 'Kurzhantel', ruck: 'Rucksack',
+};
 
 /** Was für eine Übung aufzubauen ist – oder null, wenn nichts zu schleppen ist. */
 export function setupOf(exId, kg) {

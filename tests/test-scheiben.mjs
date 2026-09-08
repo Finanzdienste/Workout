@@ -87,6 +87,63 @@ check(knapp.paar.length === 1 && knapp.paar[0] === 2.5,
 check(knapp.einzeln.length > 1,
   `für eine einzelne Hantel reicht derselbe Vorrat (${JSON.stringify(knapp.einzeln)})`);
 
+// --- 1c. Eine einzige Möglichkeit ist kein Raster -----------------------
+//
+// Gemessen an einem echten Satz: 0,5 / 1,25 / 2 / 2,5 / 4 / 5 / 10 / 20, von
+// jeder Größe zwei Stück. Für ein Paar Kurzhanteln ist damit nichts
+// aufzusteckbar – erreichbar bleibt nur die leere Stange. raste() schnappte
+// daraufhin **jedes** gewünschte Gewicht darauf: aus 12 kg Schulterdrücken
+// wurden 0. Die App hätte behauptet, er könne nichts heben.
+const echterSatz = { stange: { kh: null, sz: null, lh: null },
+  scheiben: [[0.5, 2], [1.25, 2], [2, 2], [2.5, 2], [4, 2], [5, 2], [10, 2], [20, 2]] };
+const mangel = await page.evaluate(async (satz) => {
+  const s = await import('./js/scheiben.js');
+  return {
+    paar: s.erreichbar('dumbbells', satz),
+    rasteZwoelf: s.raste(12, 'dumbbells', satz),
+    schrittHoch: s.nachbar(12, 1, 'dumbbells', satz),
+    // Zum Vergleich: dort, wo es wirklich etwas zu wählen gibt, rastet es weiter.
+    einzeln: s.raste(12, 'goblet', satz),
+  };
+}, echterSatz);
+console.log('     Mangel-Fall:', JSON.stringify(mangel));
+check(mangel.paar.length === 1,
+  `mit zwei Scheiben je Größe gibt es für ein Paar genau eine Möglichkeit (${JSON.stringify(mangel.paar)})`);
+check(mangel.rasteZwoelf === null,
+  `und darauf wird nicht gerastet, sondern gar nicht (${mangel.rasteZwoelf}) – sonst würden aus 12 kg 0`);
+check(mangel.schrittHoch === null,
+  'auch der +-Knopf greift dort nicht ins Leere, sondern rechnet frei weiter');
+check(typeof mangel.einzeln === 'number' && mangel.einzeln > 0,
+  `wo es etwas zu wählen gibt, rastet es weiter (eine Hantel: ${mangel.einzeln})`);
+
+// --- 1d. Die SZ-Stange ist eine eigene Stange --------------------------
+//
+// *„Ich hab auch ne sz Stange."* Sie lädt wie eine Langhantel, wiegt leer aber
+// anders – meist 6 bis 10 kg statt 10 bis 20. Vorher liefen die Curls über
+// 'barbell' und bekamen das Leergewicht der grossen Stange aufgerechnet.
+const sz = await page.evaluate(async () => {
+  const s = await import('./js/scheiben.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const satz = { stange: { kh: 2, sz: 7, lh: 20 }, scheiben: [[2.5, 4], [5, 4]] };
+  return {
+    stangen: Object.keys(s.STANGE_LABEL),
+    leer: s.leererSatz().stange,
+    szListe: s.erreichbar('szbar', satz),
+    lhListe: s.erreichbar('barbell', satz),
+    curlEquip: EX_BY_ID.get('sz-curls').equip,
+  };
+});
+console.log('     SZ:', JSON.stringify(sz.szListe), '· LH:', JSON.stringify(sz.lhListe));
+check(sz.stangen.includes('sz'), `es gibt drei Stangen (${sz.stangen.join(', ')})`);
+check('sz' in sz.leer && sz.leer.sz === null,
+  'ein leerer Satz kennt sie auch – nicht eingetragen heisst null');
+check(sz.szListe[0] === 7 && sz.lhListe[0] === 20,
+  `jede beginnt bei ihrem eigenen Leergewicht (SZ ${sz.szListe[0]}, LH ${sz.lhListe[0]})`);
+check(sz.szListe.length === sz.lhListe.length,
+  'geladen wird gleich – nur der Sockel unterscheidet sie');
+check(sz.curlEquip === 'szbar',
+  `die SZ-Curls hängen an ihr (${sz.curlEquip})`);
+
 // --- 2. Einrasten -----------------------------------------------------
 const gerastet = await page.evaluate(async (satz) => {
   const s = await import('./js/scheiben.js');
@@ -269,6 +326,24 @@ await page.waitForTimeout(400);
 const nullText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(!/plus Stange/.test(nullText),
   'eine eingetragene 0 wird nicht angemahnt – das ist eine Entscheidung, kein Versäumnis');
+// Und die SZ-Stange steht nur da, wenn es sie gibt: Ohne Eintrag ist sie kein
+// Versäumnis, sondern schlicht nicht vorhanden. Sonst stünde bei jedem, der
+// keine hat, eine Mahnung, ein Leergewicht für nichts einzutragen.
+check(!/SZ-Stange:/.test(nullText),
+  'ohne eingetragene SZ-Stange steht sie auch nicht in der Vorschau');
+await page.evaluate(() => {
+  const st = JSON.parse(localStorage.getItem('workout.state.v1') || '{}');
+  st.scheiben = { stange: { kh: 0, sz: 7, lh: 0 }, scheiben: [[1.25, 8], [2.5, 4]] };
+  localStorage.setItem('workout.state.v1', JSON.stringify(st));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(400);
+const szText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(/SZ-Stange:/.test(szText), 'eingetragen steht sie mit ihren eigenen Zahlen da');
+check(/SZ-Stange: 7/.test(szText),
+  `und beginnt bei ihrem Leergewicht, nicht bei dem der Langhantel (${
+    (/SZ-Stange: [^k]{0,30}/.exec(szText) || [''])[0].trim()})`);
 check(/reines Scheibengewicht/.test(nullText),
   'stattdessen steht da, was die Zahl dann bedeutet');
 

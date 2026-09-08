@@ -357,7 +357,15 @@ SPLITS = 2000            # Versuche je Woche für die Aufteilung
 # Verteilung auf die vier Tage offen ist. Übungen ohne Aufbau (Klimmzüge, Band,
 # Bodyweight) zählen nicht mit, sie kosten nichts.
 GERAET = {
-    'barbell': 'lh', 'hipbar': 'lh',      # dieselbe Stange
+    # Die SZ-Stange zaehlt hier wie die Langhantel, obwohl sie in der App eine
+    # eigene Stange ist (RASTER/RUEST_FAM, eigenes Leergewicht). Fuer die
+    # *Tagesaufteilung* geht es um etwas anderes: Wer an einem Tag eine Stange
+    # laedt, hat die Scheiben ohnehin draussen – die zweite Stange ist ein
+    # Wechsel, kein Aufbau. Und weil `equip` in diese Datei nur ueber GERAET
+    # eingeht (eine einzige Stelle, siehe unten), bleibt die Eingabe des
+    # Generators dadurch unveraendert: Die eingecheckten Plaene sind weiter die
+    # ihrer Eingaben, ohne dass vier Laeufe zu je einer Viertelstunde noetig sind.
+    'barbell': 'lh', 'hipbar': 'lh', 'szbar': 'lh',
     'dumbbells': 'kh2', 'goblet': 'kh1', 'onehand': 'kh1', 'plate': 'kh1',
     'backpack': 'ruck',
 }

@@ -2382,6 +2382,18 @@ function scheibenVorschau(equip, was, satz) {
   //                       Scheiben bedeuten." Der Sockel ist bekannt und in
   //                       Kauf genommen. Da ist nichts zu mahnen.
   const stangeFehlt = RASTER[equip]?.stange && satz.stange[RASTER[equip].stange] === null;
+  // Der Mangel zuerst. Vorher stand die Zahlenzeile vorn, und weil die eine
+  // erreichbare Möglichkeit die leere Stange ist, fing sie mit einer 0 an: „Beide
+  // Kurzhanteln, je Hand: 0 kg plus Stange". Formal richtig, gelesen aber als
+  // Fehler der App – der Grund stand in einem Zweig, der nie erreicht wurde.
+  if (liste.length <= 1) {
+    const grund = equip === 'dumbbells'
+      ? ' – für ein Paar braucht eine Stufe vier Scheiben derselben Größe, zwei je Hantel. '
+        + 'Davon hast du keine Größe viermal.'
+      : ' – für eine Stufe braucht es zwei Scheiben derselben Größe.';
+    return `<div class="hint">${esc(was)}: <strong>nichts aufzustecken</strong>${grund}
+      <span class="muted">Hier rechnet die App weiter in festen Schritten.</span></div>`;
+  }
   if (liste[0] === 0) {
     const gezeigt = liste.slice(0, 10).map((w) => fmtNum(w)).join(' · ');
     return `<div class="hint">${esc(was)}: ${esc(gezeigt)}${liste.length > 10 ? ' …' : ''} kg
@@ -2389,12 +2401,6 @@ function scheibenVorschau(equip, was, satz) {
         ? '<strong>plus Stange</strong> – trag ihr Leergewicht oben ein, sonst sind alle '
           + 'Zahlen um genau diesen Betrag zu klein.'
         : '<span class="muted">– reines Scheibengewicht, die Stange zählt nicht mit.</span>'}</div>`;
-  }
-  if (liste.length <= 1) {
-    const grund = equip === 'dumbbells'
-      ? ' – für ein Paar bräuchte es von einer Größe vier Scheiben'
-      : '';
-    return `<div class="hint">${esc(was)}: nur die leere Stange${grund}.</div>`;
   }
   const gezeigt = liste.slice(0, 14).map((w) => fmtNum(w)).join(' · ');
   return `<div class="hint"><strong>${esc(was)}:</strong> ${esc(gezeigt)}`
@@ -2423,7 +2429,7 @@ function scheibenKarte() {
 
       <div class="scheiben-satz">
         <div class="lbl">Stangen, leer</div>
-        ${['kh', 'lh'].map((k) => `
+        ${Object.keys(STANGE_LABEL).map((k) => `
           <div class="scheiben-zeile">
             <input type="text" inputmode="decimal" class="kg-val"
                    value="${esc(feldWert(satz.stange[k]))}"
@@ -2438,6 +2444,12 @@ function scheibenKarte() {
         <div class="lbl">Damit einstellbar</div>
         ${scheibenVorschau('dumbbells', 'Beide Kurzhanteln, je Hand', geprueft)}
         ${scheibenVorschau('goblet', 'Eine Kurzhantel', geprueft)}
+        ${/* Nur, wenn es sie gibt. Eine SZ-Stange hat nicht jeder, und eine
+              Zeile „SZ-Stange: 0 kg plus Stange – trag ihr Leergewicht ein"
+              wäre eine Mahnung, etwas einzutragen, das gar nicht existiert.
+              Das Eingabefeld oben steht trotzdem da: Dort sagt man, dass man
+              eine hat. */
+          geprueft.stange.sz === null ? '' : scheibenVorschau('szbar', 'SZ-Stange', geprueft)}
         ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
       </div>` : ''}
 

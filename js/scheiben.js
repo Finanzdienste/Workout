@@ -52,16 +52,27 @@ import { fmtNum } from './text.js';
 export const RASTER = {
   barbell: { stange: 'lh', pro: 2, faktor: 2 },
   hipbar: { stange: 'lh', pro: 2, faktor: 2 },
+  // Die SZ-Stange lädt wie eine Langhantel, wiegt leer aber anders – meist 6
+  // bis 10 kg statt 10 bis 20. *„Ich hab auch ne sz Stange."* Vorher liefen die
+  // Curls und die Trizepsstrecker über 'lh' und bekamen damit das Leergewicht
+  // der grossen Stange aufgerechnet; bei 20 kg Langhantel und 7 kg SZ waren
+  // alle Vorschläge um 13 kg zu schwer.
+  szbar: { stange: 'sz', pro: 2, faktor: 2 },
   dumbbells: { stange: 'kh', pro: 4, faktor: 2 },
   goblet: { stange: 'kh', pro: 2, faktor: 2 },
   onehand: { stange: 'kh', pro: 2, faktor: 2 },
   plate: { stange: null, pro: 1, faktor: 1 },
 };
 
-export const STANGE_LABEL = { kh: 'Kurzhantelstange (eine)', lh: 'Langhantel' };
+export const STANGE_LABEL = {
+  kh: 'Kurzhantelstange (eine)', sz: 'SZ-Stange', lh: 'Langhantel',
+};
 
 /** Ein leerer Satz – nichts eingetragen, also rastet nichts. */
-export const leererSatz = () => ({ stange: { kh: null, lh: null }, scheiben: [] });
+export const leererSatz = () => ({
+  stange: Object.fromEntries(Object.keys(STANGE_LABEL).map((k) => [k, null])),
+  scheiben: [],
+});
 
 /**
  * Einen gespeicherten Satz auf eine brauchbare Form bringen.
@@ -91,8 +102,7 @@ export function normSatz(roh) {
   const stangen = alt
     ? { kh: roh.kh && roh.kh.stange, lh: roh.lh.stange }
     : (roh.stange && typeof roh.stange === 'object' ? roh.stange : {});
-  out.stange.kh = zahl(stangen.kh);
-  out.stange.lh = zahl(stangen.lh);
+  Object.keys(STANGE_LABEL).forEach((k) => { out.stange[k] = zahl(stangen[k]); });
 
   const quellen = alt ? [roh.kh && roh.kh.scheiben, roh.lh.scheiben] : [roh.scheiben];
   const groessen = new Map();
@@ -152,7 +162,20 @@ export function erreichbar(equip, satz) {
  */
 export function raste(kg, equip, satz) {
   const liste = erreichbar(equip, satz);
-  if (!liste || !liste.length) return null;
+  // Eine einzige Möglichkeit ist kein Raster, sondern ein Mangel – und zwar
+  // einer, der sich stillschweigend auf jedes Gewicht legt.
+  //
+  // Nachgemessen an einem echten Satz: 0,5 / 1,25 / 2 / 2,5 / 4 / 5 / 10 / 20,
+  // von jeder Größe zwei Stück. Für *beide* Kurzhanteln braucht eine Stufe vier
+  // Scheiben derselben Größe (zwei je Hantel) – davon gibt es hier keine
+  // einzige. Erreichbar ist also nur die leere Stange, und raste() schnappte
+  // daraufhin **jedes** Gewicht darauf: aus 12 kg Schulterdrücken wurden 0.
+  // Die App hätte behauptet, er könne nichts heben.
+  //
+  // Wo nichts zu wählen ist, wird nicht gerastet. Dann rechnet die App weiter
+  // in freien Schritten wie ohne Eintrag – und die Vorschau unter Mehr sagt,
+  // woran es liegt, statt eine 0 hinzuschreiben.
+  if (!liste || liste.length <= 1) return null;
   let beste = liste[0];
   liste.forEach((w) => {
     const d = Math.abs(w - kg) - Math.abs(beste - kg);
@@ -172,7 +195,10 @@ export function raste(kg, equip, satz) {
  */
 export function nachbar(kg, richtung, equip, satz, mindestens = 0) {
   const liste = erreichbar(equip, satz);
-  if (!liste || !liste.length) return null;
+  // Dieselbe Bremse wie in raste(): Mit nur einer Möglichkeit gäbe es keinen
+  // Schritt nach oben, und der +-Knopf stünde für immer auf „kein weiterer
+  // Schritt" – obwohl es an vier fehlenden Scheiben liegt, nicht am Training.
+  if (!liste || liste.length <= 1) return null;
   const hoch = richtung > 0;
   const passend = liste.filter((w) => (hoch ? w >= kg + mindestens - 1e-9 : w <= kg - mindestens + 1e-9));
   if (passend.length) return hoch ? passend[0] : passend[passend.length - 1];

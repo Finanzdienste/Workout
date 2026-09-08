@@ -350,7 +350,7 @@ export const EXERCISES = [
     "weight": 8,
     "step": 1,
     "weightNote": "je Hand",
-    "equip": "barbell",
+    "equip": "dumbbells",
     "tier": 3,
     "detail": [
       [
@@ -373,8 +373,8 @@ export const EXERCISES = [
     "db": {
       "name": "Überkopf-Trizepsstrecker",
       "reps": "8–12",
-      "equip": "SZ-Stange/Kurzhantel",
-      "cue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. SZ-Stange (oder eine Kurzhantel beidhändig) hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
+      "equip": "Kurzhanteln oder SZ-Stange",
+      "cue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. Zwei Kurzhanteln – je eine pro Hand – hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Mit einer SZ-Stange beidhändig geht es auch, dann ist der Griff enger und das eingetragene Gewicht meint die ganze Stange. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
       "rest": 120,
       "pattern": "tricepsoh",
       "shares": {
@@ -574,7 +574,7 @@ export const EXERCISES = [
     "weight": 15,
     "step": 2.5,
     "weightNote": "Stange gesamt",
-    "equip": "barbell",
+    "equip": "szbar",
     "tier": 3,
     "detail": [
       [

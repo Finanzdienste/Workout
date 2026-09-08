@@ -2,10 +2,10 @@
   "hinweis": "Erzeugt von tools/pruefung/plan-frisch.py – der Stand der Eingaben, aus denen tools/plan*.json erzeugt wurden. Unter \"hingenommen\" stehen Abweichungen, die bewusst so bleiben; alles andere laesst die Pruefung nicht durch.",
   "fingerabdruck": "926438adffdba8da",
   "hingenommen": {
-    "liegende-trizepsstrecker.equip": {
-      "erzeugt_mit": "dumbbells",
-      "jetzt": "barbell",
-      "grund": "Der Ueberkopf-Trizepsstrecker wurde auf die SZ-Stange korrigiert (Commit 90e6757), die Plaene wurden danach nicht neu erzeugt. Nachgemessen: Mit dem alten Wert kommt der eingecheckte Plan Byte fuer Byte wieder heraus, mit dem neuen ein anderer – und der ist schlechter. Alle vier Varianten neu erzeugt und gegen den Vergleichsstand geprueft: 12 Verschlechterungen, darunter Schulter vorn von 7 auf 10 Tage groesstem Abstand. Der aeltere Plan bleibt deshalb stehen. `equip` wirkt hier nur auf die Buendelung der Umbauten; die Reihenfolge in der Einheit rechnet die App ohnehin zur Laufzeit mit dem aktuellen Wert (ruestOrder in js/gewichte.js)."
+    "sz-curls.equip": {
+      "erzeugt_mit": "barbell",
+      "jetzt": "szbar",
+      "grund": "Die SZ-Stange ist in der App eine eigene Stange geworden: eigenes Leergewicht, eigener Auf- und Abbau (RASTER und RUEST_FAM in js/scheiben.js bzw. js/gewichte.js). Vorher lief sie ueber 'barbell' und bekam damit das Leergewicht der Langhantel aufgerechnet – bei 20 kg Langhantel und 7 kg SZ waren alle Vorschlaege um 13 kg zu schwer. Die Plaene bleiben trotzdem stehen, und das ist nachgerechnet, nicht gehofft: `equip` geht in tools/build-plan.py an genau einer Stelle ein (GERAET.get(v['equip']) in der Zeile mit `geraet =`), und GERAET bildet 'szbar' wie 'barbell' auf 'lh' ab – wer an einem Tag eine Stange laedt, hat die Scheiben ohnehin draussen, die zweite Stange ist ein Wechsel und kein Aufbau. Die Geraete-Abbildung des Generators ist damit Eintrag fuer Eintrag dieselbe wie die, mit der die eingecheckten Plaene erzeugt wurden; nachgemessen ueber alle Uebungen: kein Unterschied. Vier Laeufe zu je einer Viertelstunde wuerden denselben Plan ergeben."
     }
   },
   "felder": {

@@ -1913,7 +1913,7 @@ const EXERCISES = [
     "weight": 8,
     "step": 1,
     "weightNote": "je Hand",
-    "equip": "barbell",
+    "equip": "dumbbells",
     "tier": 3,
     "detail": [
       [
@@ -1936,8 +1936,8 @@ const EXERCISES = [
     "db": {
       "name": "Überkopf-Trizepsstrecker",
       "reps": "8–12",
-      "equip": "SZ-Stange/Kurzhantel",
-      "cue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. SZ-Stange (oder eine Kurzhantel beidhändig) hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
+      "equip": "Kurzhanteln oder SZ-Stange",
+      "cue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. Zwei Kurzhanteln – je eine pro Hand – hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Mit einer SZ-Stange beidhändig geht es auch, dann ist der Griff enger und das eingetragene Gewicht meint die ganze Stange. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
       "rest": 120,
       "pattern": "tricepsoh",
       "shares": {
@@ -2137,7 +2137,7 @@ const EXERCISES = [
     "weight": 15,
     "step": 2.5,
     "weightNote": "Stange gesamt",
-    "equip": "barbell",
+    "equip": "szbar",
     "tier": 3,
     "detail": [
       [
@@ -4268,6 +4268,12 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       // als in Wirklichkeit – weiter geht es nicht, ohne dass die Enden aus dem
       // Kasten laufen, denn der Ausschnitt richtet sich nach der Figur.
       barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.56, 4.4);
+    } else if (equip === 'szbar') {
+      // Eine SZ-Stange ist etwa halb so lang wie eine Langhantel; ihre
+      // Ausbuchtungen fallen bei dieser Strichstärke ohnehin unter den Tisch.
+      // Was man sehen soll, ist der Unterschied zur grossen Stange – und der
+      // ist die Länge.
+      barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.34, 4.0);
     } else if (equip === 'hipbar') {
       barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.56, 4.4);
     } else if (equip === 'band') {
@@ -7684,16 +7690,27 @@ function offenerAufstieg() {
 const RASTER = {
   barbell: { stange: 'lh', pro: 2, faktor: 2 },
   hipbar: { stange: 'lh', pro: 2, faktor: 2 },
+  // Die SZ-Stange lädt wie eine Langhantel, wiegt leer aber anders – meist 6
+  // bis 10 kg statt 10 bis 20. *„Ich hab auch ne sz Stange."* Vorher liefen die
+  // Curls und die Trizepsstrecker über 'lh' und bekamen damit das Leergewicht
+  // der grossen Stange aufgerechnet; bei 20 kg Langhantel und 7 kg SZ waren
+  // alle Vorschläge um 13 kg zu schwer.
+  szbar: { stange: 'sz', pro: 2, faktor: 2 },
   dumbbells: { stange: 'kh', pro: 4, faktor: 2 },
   goblet: { stange: 'kh', pro: 2, faktor: 2 },
   onehand: { stange: 'kh', pro: 2, faktor: 2 },
   plate: { stange: null, pro: 1, faktor: 1 },
 };
 
-const STANGE_LABEL = { kh: 'Kurzhantelstange (eine)', lh: 'Langhantel' };
+const STANGE_LABEL = {
+  kh: 'Kurzhantelstange (eine)', sz: 'SZ-Stange', lh: 'Langhantel',
+};
 
 /** Ein leerer Satz – nichts eingetragen, also rastet nichts. */
-const leererSatz = () => ({ stange: { kh: null, lh: null }, scheiben: [] });
+const leererSatz = () => ({
+  stange: Object.fromEntries(Object.keys(STANGE_LABEL).map((k) => [k, null])),
+  scheiben: [],
+});
 
 /**
  * Einen gespeicherten Satz auf eine brauchbare Form bringen.
@@ -7723,8 +7740,7 @@ function normSatz(roh) {
   const stangen = alt
     ? { kh: roh.kh && roh.kh.stange, lh: roh.lh.stange }
     : (roh.stange && typeof roh.stange === 'object' ? roh.stange : {});
-  out.stange.kh = zahl(stangen.kh);
-  out.stange.lh = zahl(stangen.lh);
+  Object.keys(STANGE_LABEL).forEach((k) => { out.stange[k] = zahl(stangen[k]); });
 
   const quellen = alt ? [roh.kh && roh.kh.scheiben, roh.lh.scheiben] : [roh.scheiben];
   const groessen = new Map();
@@ -7784,7 +7800,20 @@ function erreichbar(equip, satz) {
  */
 function raste(kg, equip, satz) {
   const liste = erreichbar(equip, satz);
-  if (!liste || !liste.length) return null;
+  // Eine einzige Möglichkeit ist kein Raster, sondern ein Mangel – und zwar
+  // einer, der sich stillschweigend auf jedes Gewicht legt.
+  //
+  // Nachgemessen an einem echten Satz: 0,5 / 1,25 / 2 / 2,5 / 4 / 5 / 10 / 20,
+  // von jeder Größe zwei Stück. Für *beide* Kurzhanteln braucht eine Stufe vier
+  // Scheiben derselben Größe (zwei je Hantel) – davon gibt es hier keine
+  // einzige. Erreichbar ist also nur die leere Stange, und raste() schnappte
+  // daraufhin **jedes** Gewicht darauf: aus 12 kg Schulterdrücken wurden 0.
+  // Die App hätte behauptet, er könne nichts heben.
+  //
+  // Wo nichts zu wählen ist, wird nicht gerastet. Dann rechnet die App weiter
+  // in freien Schritten wie ohne Eintrag – und die Vorschau unter Mehr sagt,
+  // woran es liegt, statt eine 0 hinzuschreiben.
+  if (!liste || liste.length <= 1) return null;
   let beste = liste[0];
   liste.forEach((w) => {
     const d = Math.abs(w - kg) - Math.abs(beste - kg);
@@ -7804,7 +7833,10 @@ function raste(kg, equip, satz) {
  */
 function nachbar(kg, richtung, equip, satz, mindestens = 0) {
   const liste = erreichbar(equip, satz);
-  if (!liste || !liste.length) return null;
+  // Dieselbe Bremse wie in raste(): Mit nur einer Möglichkeit gäbe es keinen
+  // Schritt nach oben, und der +-Knopf stünde für immer auf „kein weiterer
+  // Schritt" – obwohl es an vier fehlenden Scheiben liegt, nicht am Training.
+  if (!liste || liste.length <= 1) return null;
   const hoch = richtung > 0;
   const passend = liste.filter((w) => (hoch ? w >= kg + mindestens - 1e-9 : w <= kg - mindestens + 1e-9));
   if (passend.length) return hoch ? passend[0] : passend[passend.length - 1];
@@ -7974,12 +8006,15 @@ function doneWeightNote(n, mode, exId) {
 
 const RUEST_FAM = {
   barbell: 'lh', hipbar: 'lh',          // dieselbe Stange, nur einmal mit Polster
+  szbar: 'sz',                          // eigene Stange, eigener Auf- und Abbau
   dumbbells: 'kh2',                     // beide Kurzhanteln auf dasselbe Gewicht
   goblet: 'kh1', onehand: 'kh1', plate: 'kh1',
   backpack: 'ruck',
 };
 
-const FAM_LABEL = { lh: 'Stange', kh2: 'Kurzhanteln', kh1: 'Kurzhantel', ruck: 'Rucksack' };
+const FAM_LABEL = {
+  lh: 'Stange', sz: 'SZ-Stange', kh2: 'Kurzhanteln', kh1: 'Kurzhantel', ruck: 'Rucksack',
+};
 
 /** Was für eine Übung aufzubauen ist – oder null, wenn nichts zu schleppen ist. */
 function setupOf(exId, kg) {
@@ -11781,6 +11816,18 @@ function scheibenVorschau(equip, was, satz) {
   //                       Scheiben bedeuten." Der Sockel ist bekannt und in
   //                       Kauf genommen. Da ist nichts zu mahnen.
   const stangeFehlt = RASTER[equip]?.stange && satz.stange[RASTER[equip].stange] === null;
+  // Der Mangel zuerst. Vorher stand die Zahlenzeile vorn, und weil die eine
+  // erreichbare Möglichkeit die leere Stange ist, fing sie mit einer 0 an: „Beide
+  // Kurzhanteln, je Hand: 0 kg plus Stange". Formal richtig, gelesen aber als
+  // Fehler der App – der Grund stand in einem Zweig, der nie erreicht wurde.
+  if (liste.length <= 1) {
+    const grund = equip === 'dumbbells'
+      ? ' – für ein Paar braucht eine Stufe vier Scheiben derselben Größe, zwei je Hantel. '
+        + 'Davon hast du keine Größe viermal.'
+      : ' – für eine Stufe braucht es zwei Scheiben derselben Größe.';
+    return `<div class="hint">${esc(was)}: <strong>nichts aufzustecken</strong>${grund}
+      <span class="muted">Hier rechnet die App weiter in festen Schritten.</span></div>`;
+  }
   if (liste[0] === 0) {
     const gezeigt = liste.slice(0, 10).map((w) => fmtNum(w)).join(' · ');
     return `<div class="hint">${esc(was)}: ${esc(gezeigt)}${liste.length > 10 ? ' …' : ''} kg
@@ -11788,12 +11835,6 @@ function scheibenVorschau(equip, was, satz) {
         ? '<strong>plus Stange</strong> – trag ihr Leergewicht oben ein, sonst sind alle '
           + 'Zahlen um genau diesen Betrag zu klein.'
         : '<span class="muted">– reines Scheibengewicht, die Stange zählt nicht mit.</span>'}</div>`;
-  }
-  if (liste.length <= 1) {
-    const grund = equip === 'dumbbells'
-      ? ' – für ein Paar bräuchte es von einer Größe vier Scheiben'
-      : '';
-    return `<div class="hint">${esc(was)}: nur die leere Stange${grund}.</div>`;
   }
   const gezeigt = liste.slice(0, 14).map((w) => fmtNum(w)).join(' · ');
   return `<div class="hint"><strong>${esc(was)}:</strong> ${esc(gezeigt)}`
@@ -11822,7 +11863,7 @@ function scheibenKarte() {
 
       <div class="scheiben-satz">
         <div class="lbl">Stangen, leer</div>
-        ${['kh', 'lh'].map((k) => `
+        ${Object.keys(STANGE_LABEL).map((k) => `
           <div class="scheiben-zeile">
             <input type="text" inputmode="decimal" class="kg-val"
                    value="${esc(feldWert(satz.stange[k]))}"
@@ -11837,6 +11878,12 @@ function scheibenKarte() {
         <div class="lbl">Damit einstellbar</div>
         ${scheibenVorschau('dumbbells', 'Beide Kurzhanteln, je Hand', geprueft)}
         ${scheibenVorschau('goblet', 'Eine Kurzhantel', geprueft)}
+        ${/* Nur, wenn es sie gibt. Eine SZ-Stange hat nicht jeder, und eine
+              Zeile „SZ-Stange: 0 kg plus Stange – trag ihr Leergewicht ein"
+              wäre eine Mahnung, etwas einzutragen, das gar nicht existiert.
+              Das Eingabefeld oben steht trotzdem da: Dort sagt man, dass man
+              eine hat. */
+          geprueft.stange.sz === null ? '' : scheibenVorschau('szbar', 'SZ-Stange', geprueft)}
         ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
       </div>` : ''}
 

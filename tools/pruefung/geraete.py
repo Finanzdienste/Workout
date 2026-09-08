@@ -51,7 +51,9 @@ for m in re.finditer(r'^  ([a-z0-9]+): \{(.*?)^  \},', FIG, re.S | re.M):
 # Welches gezeichnete Gerät zu welchem Gerätetext passt. Mehrere erlaubt: Eine
 # Übung darf mit Kurzhantel *oder* Scheibe gehen, gezeichnet wird eine davon.
 PASST = {
-    'barbell':   r'langhantel|sz-stange|sz\b',
+    'barbell':   r'langhantel',
+    # Eigene Stange, eigenes Leergewicht – siehe RASTER in js/scheiben.js.
+    'szbar':     r'sz-stange|sz\b',
     'hipbar':    r'langhantel',
     'dumbbells': r'kurzhanteln',          # Mehrzahl: zwei Gewichte
     'onehand':   r'kurzhantel\b',         # Einzahl: eines
