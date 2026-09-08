@@ -137,38 +137,108 @@ export function bilanzAus(runde) {
 }
 
 /**
- * Alles, was je trainiert wurde – laufende Runde plus Ablage.
+ * Was in *einem* Protokoll steht – ohne den Plan dahinter.
+ *
+ * Sätze, Wiederholungen, Kilo, Zeit, Trainingstage und wie oft jede Übung
+ * drankam. Nichts davon braucht den Plan: Es steht alles im Log, an der
+ * Übungskennung. Genau deshalb lässt sich damit auch ein *abgelegter* Verlauf
+ * auswerten, dessen Plan gerade gar nicht geladen ist.
+ *
+ * Was hier fehlt, ist die Zahl der erledigten Einheiten – die braucht das Soll
+ * aus dem Plan, und dafür ist bilanzAus() zuständig.
+ */
+export function protokollWerte(log) {
+  const w = { saetze: 0, reps: 0, volumen: 0, perEx: new Map(),
+              sekunden: 0, mitZeit: 0, tage: new Set() };
+  Object.values(log || {}).forEach((e) => {
+    if (!e || typeof e !== 'object') return;
+    if (e.startedOn) w.tage.add(e.startedOn);
+    const secs = zahl(e.secs);
+    if (secs > 0) { w.sekunden += secs; w.mitZeit += 1; }
+    ['db', 'bw'].forEach((m) => {
+      Object.entries(e[m] || {}).forEach(([id, arr]) => {
+        const ex = EX_BY_ID.get(id);
+        if (!ex || !Array.isArray(arr)) return;
+        const reps = stufenWerte(ex[m]).reps;
+        arr.forEach((s) => {
+          if (!s || !s.done) return;
+          const geplant = gezaehlteReps(s, reps);
+          w.saetze += 1;
+          w.reps += geplant;
+          const kg = parseFloat(String(s.w).replace(',', '.'));
+          if (m === 'db' && !Number.isNaN(kg)) w.volumen += kg * geplant;
+          w.perEx.set(id, (w.perEx.get(id) || 0) + 1);
+        });
+      });
+    });
+  });
+  w.volumen = Math.round(w.volumen);
+  return w;
+}
+
+/**
+ * Alles, was je trainiert wurde – laufender Verlauf plus Ablage.
  *
  * Der Stufenaufstieg fragt nach der Erfahrung eines Menschen, nicht nach dem
  * Fortschritt in einem Plan. sammleStats() beantwortet die zweite Frage: Es
- * liest ausschließlich `state.log`, und restartPlan() räumt genau das weg.
+ * liest ausschließlich `state.log`, und ein Fokuswechsel legt genau das weg.
  * Wer 55 von 60 nötigen Einheiten hatte und den Trainingsfokus wechselte, fing
  * damit wieder bei null an – bestraft dafür, dass er eine Entscheidung
  * getroffen hat. Der automatische Fokus-Umzug hätte das sogar ungefragt getan.
+ *
+ * Dasselbe galt für die Statistik: *„Auch Statistik und so ist jetzt ja alles
+ * weg."* Sätze, Kilo und Trainingstage sind aber keine Eigenschaft eines Plans,
+ * sondern dessen, der trainiert hat. Sie kommen deshalb von hier – aus allen
+ * Protokollen, den abgelegten eingerechnet.
+ *
+ * Gerechnet wird über die Protokolle selbst, nicht über die beim Ablegen
+ * notierte Bilanz: Beide Wege zählen Sätze und Kilo mit derselben Rechnung
+ * (bilanzAus() macht es genauso), aber nur der erste kennt auch Zeit, Tage und
+ * Übungen. Die notierte Bilanz springt nur da ein, wo eine eingelesene
+ * Sicherung eine Runde ohne Protokoll mitbringt – sonst fiele die auf null.
  */
-export function gesamtStats() {
+export function lebenStats() {
+  const s = store.getState();
   const jetzt = sammleStats();
-  const runden = store.getState().rounds || [];
-  const summe = {
-    einheiten: jetzt.workoutsDone,
-    saetze: jetzt.setsDone,
-    volumen: jetzt.volume,
-    db: jetzt.doneDb,
-    bw: jetzt.doneBw,
-    runden: runden.length,
-  };
+  const summe = protokollWerte(s.log);
+  const runden = s.rounds || [];
+  let einheiten = jetzt.workoutsDone;
+  let db = jetzt.doneDb;
+  let bw = jetzt.doneBw;
+
   runden.forEach((r) => {
     const b = bilanzAus(r);
-    summe.einheiten += b.einheiten;
-    summe.saetze += b.saetze;
-    summe.volumen += b.volumen;
-    summe.db += b.db;
-    summe.bw += b.bw;
+    einheiten += b.einheiten;
+    db += b.db;
+    bw += b.bw;
+    const w = protokollWerte(r && r.log);
+    if (!w.saetze && b.saetze) {
+      // Runde ohne Protokoll: nur die mitgebrachten Zahlen, keine Details.
+      summe.saetze += b.saetze;
+      summe.volumen += b.volumen;
+      return;
+    }
+    summe.saetze += w.saetze;
+    summe.reps += w.reps;
+    summe.volumen += w.volumen;
+    summe.sekunden += w.sekunden;
+    summe.mitZeit += w.mitZeit;
+    w.perEx.forEach((c, id) => summe.perEx.set(id, (summe.perEx.get(id) || 0) + c));
+    w.tage.forEach((t) => summe.tage.add(t));
   });
+
   // Auch die laufende Runde kann aus einer eingelesenen Sicherung stammen.
   // Lieber eine 0 als ein NaN, das jede Schwelle unterläuft.
-  ['einheiten', 'saetze', 'volumen', 'db', 'bw'].forEach((k) => { summe[k] = zahl(summe[k]); });
-  return summe;
+  ['saetze', 'reps', 'volumen', 'sekunden'].forEach((k) => { summe[k] = zahl(summe[k]); });
+  return { ...summe, einheiten: zahl(einheiten), db: zahl(db), bw: zahl(bw),
+           runden: runden.length };
+}
+
+/** Die Zahlen, an denen der Stufenaufstieg gemessen wird. Siehe lebenStats(). */
+export function gesamtStats() {
+  const l = lebenStats();
+  return { einheiten: l.einheiten, saetze: l.saetze, volumen: l.volumen,
+           db: l.db, bw: l.bw, runden: l.runden };
 }
 
 /**

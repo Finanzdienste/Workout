@@ -693,12 +693,78 @@ export function restartPlan(shiftDays, bilanz) {
 }
 
 /**
+ * Trainingsfokus wechseln, ohne dass etwas verschwindet.
+ *
+ * *„Hab auf cut gewechselt und anscheinend hat er damit vergessen dass ich
+ * gestern und vorgestern trainiert hab. Die Übergänge von cut zu Aufbau usw
+ * müssen natürlich flüssig sein."*
+ *
+ * Der Wechsel ging bisher über restartPlan(): Verlauf in die Ablage, neuer Plan
+ * bei null. Zurückholen ließ er sich nur von Hand, über einen Knopf unter Mehr,
+ * den man kennen muss. Wer zwischen Aufbau und Cut hin und her wechselt – und
+ * genau dafür sind die Varianten da –, verlor damit jedes Mal seinen Stand aus
+ * den Augen.
+ *
+ * Ein Protokoll steht weiterhin nach Workout-Nummer, und Workout 3 im Cut-Plan
+ * hat andere Übungen als Workout 3 im Aufbau. Zusammenführen lässt sich das
+ * nicht. Was geht: **je Fokus einen eigenen Verlauf halten.** Der laufende
+ * wandert beim Wechsel in die Ablage, und der Verlauf des Ziel-Fokus kommt von
+ * dort zurück, samt seiner Verschiebung – der Cut-Plan steht also wieder genau
+ * da, wo man ihn verlassen hat. Zurück nach Aufbau, und der Aufbau-Plan steht
+ * wieder da, wo *er* war.
+ *
+ * `startShift` gilt nur für einen Fokus, der noch keinen Verlauf hat: Damit legt
+ * die App fest, auf welchen Tag dessen Workout 1 fällt (siehe frischerStart()
+ * in js/app.js). Ohne das begänne ein neuer Plan am Tag nach dem letzten
+ * Training – oder heute, als dritter Trainingstag in Folge.
+ */
+export function wechsleFokus(key, bilanz, startShift) {
+  const alt = state.focus || 'standard';
+  if (key === alt) return false;
+  if (Object.keys(state.log).length) {
+    state.rounds.push({
+      finishedOn: todayISO(), log: state.log, focus: alt, shift: state.shift,
+      ...(bilanz ? { bilanz } : {}),
+    });
+  }
+  const zurueck = letzteRunde(key);
+  if (zurueck) state.rounds = state.rounds.filter((r) => r !== zurueck);
+  state.log = (zurueck && zurueck.log) || {};
+  state.shift = Math.round(Number(zurueck ? zurueck.shift : startShift) || 0);
+  state.session = null;
+  state.clock = null;
+  state.rest = null;
+  state.focus = key;
+  schreibeRunden();
+  persist();
+  emit();
+  return true;
+}
+
+/**
+ * Der zuletzt abgelegte Verlauf genau dieses Fokus – oder null.
+ *
+ * Anders als restorable() **ohne** die Nachsicht für Runden ohne Fokus-Vermerk:
+ * Die stammen aus einer Fassung, die nur einen Plan kannte, und ließen sich
+ * deshalb keinem der heutigen zuordnen. Von Hand zurückgeholt ist das eine
+ * Entscheidung, hier liefe es ungefragt.
+ */
+function letzteRunde(key) {
+  const liste = state.rounds || [];
+  for (let i = liste.length - 1; i >= 0; i--) {
+    if (liste[i].focus === key) return liste[i];
+  }
+  return null;
+}
+
+/**
  * Den zuletzt abgelegten Verlauf zurückholen.
  *
- * `restartPlan` ist die einzige Stelle, an der ein Protokoll verschwindet – und
- * sie hängt an einer einzigen Rückfrage, die man auch aus Versehen wegklickt
- * (der Wechsel des Trainingsfokus geht denselben Weg). Ohne Rückweg wäre das
- * eine Falltür.
+ * `restartPlan` ist die einzige Stelle, an der ein Protokoll aus dem laufenden
+ * Plan verschwindet – und sie hängt an einer einzigen Rückfrage, die man auch
+ * aus Versehen wegklickt. Ohne Rückweg wäre das eine Falltür. (Der Wechsel des
+ * Trainingsfokus ging früher denselben Weg; er holt seinen Verlauf inzwischen
+ * von selbst zurück, siehe wechsleFokus().)
  *
  * Zusammengeführt wird pro Einheit: Was seit dem Neustart abgehakt wurde, bleibt
  * stehen; alles andere kommt zurück.

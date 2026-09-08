@@ -38,7 +38,7 @@ import {
 import { RASTER, STANGE_LABEL, erreichbar, normSatz } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
 import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, workoutByNo } from './plan.js';
-import { bilanzAus, gesamtStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
+import { bilanzAus, gesamtStats, lebenStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
 import { kannPush, pushEinrichten, pushStand } from './push.js';
@@ -245,8 +245,7 @@ function fokusUmzug() {
   // bilanzAus() nimmt den Fokus der Runde als Ausgangspunkt und kommt deshalb
   // auf die richtigen Zahlen. Es bekommt hier eine Runde gereicht, die es so
   // gleich noch einmal sieht – dieselbe Rechnung, nur eben rechtzeitig.
-  store.restartPlan(0, bilanzAus({ log: s.log, focus: alt }));
-  store.setSetting('focus', ziel.nach);
+  store.wechsleFokus(ziel.nach, bilanzAus({ log: s.log, focus: alt }), frischerStart());
   store.setSetting('fokusUmzug', {
     von: ziel.name, nach: PLANS[ziel.nach].name, am: todayISO(), abgelegt: hatteVerlauf,
   });
@@ -1055,6 +1054,33 @@ function rundeWeiter() {
 }
 
 /**
+ * Auf welchen Tag Workout 1 fällt, wenn ein Fokus frisch anfängt.
+ *
+ * Der Plan trägt feste Daten; `shift` verschiebt sie. Beim Wechsel auf einen
+ * Fokus, in dem noch nie trainiert wurde, stand dieser Wert bisher auf 0 – und
+ * weil alle Plandaten in der Vergangenheit liegen, zog catchUpPlan() die erste
+ * Einheit sofort auf **heute**. Wer gestern und vorgestern trainiert hat, stand
+ * damit vor dem dritten Trainingstag in Folge, nur weil er den Fokus gewechselt
+ * hat.
+ *
+ * Gerechnet wird deshalb wie beim Rundenwechsel: der übliche Abstand zwischen
+ * zwei Einheiten, gezählt ab dem letzten Tag, an dem tatsächlich trainiert
+ * wurde. Liegt der schon in der Vergangenheit, macht catchUpPlan() daraus von
+ * selbst heute – ein Sonderfall für „drei Wochen nicht reingeschaut" ist nicht
+ * nötig.
+ *
+ * Alle Varianten beginnen am selben Datum (js/data.js), die Verschiebung passt
+ * also auch auf den Plan, der gleich geladen wird.
+ */
+function frischerStart() {
+  const tage = Object.values(store.getState().log || {})
+    .map((e) => e && e.startedOn).filter(Boolean).sort();
+  if (!tage.length) return store.getState().shift;
+  const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
+  return daysBetween(PLAN[0].date, addDays(tage[tage.length - 1], abstand));
+}
+
+/**
  * Der Knopf unter der Körperkarte – oder eben keiner.
  *
  * Drei Zustände, und der dritte fehlte: Bisher stand über jeder angefangenen
@@ -1852,22 +1878,36 @@ function progressSeries() {
   const perExercise = new Map();
   const perMuscle = new Map();
 
-  PLAN.forEach((w) => {
-    const day = fmtDate(effDate(w));
+  // Alle Einheiten, in denen etwas steht – die abgelegten zuerst, dann die des
+  // laufenden Plans. Eine abgelegte Einheit kennt ihren Plan nicht mehr; ihr
+  // Tag steht im Protokoll (startedOn), sonst zählt der Tag, an dem die Runde
+  // weggelegt wurde. Ohne die Ablage bräche jede Kurve beim Fokuswechsel ab –
+  // und genau die Kurven zeigen, dass es vorangeht.
+  const einheiten = [];
+  (store.getState().rounds || []).forEach((r) => {
+    Object.values(r.log || {}).forEach((e) => {
+      if (e) einheiten.push({ tag: e.startedOn || r.finishedOn || '', e });
+    });
+  });
+  einheiten.sort((a, b) => (a.tag < b.tag ? -1 : (a.tag > b.tag ? 1 : 0)));
+  const log = store.getState().log;
+  PLAN.forEach((w) => { if (log[w.n]) einheiten.push({ tag: effDate(w), e: log[w.n] }); });
+
+  einheiten.forEach(({ tag, e }) => {
+    const day = tag ? fmtDate(tag) : '';
     const muscleDay = new Map();
 
-    exOf(w, 'db').forEach((item) => {
-      const arr = store.peekSets(w.n, 'db', item.id);
-      if (!arr) return;
-      const done = arr.slice(0, item.sets).filter((x) => x.done && x.w !== '');
+    Object.entries(e.db || {}).forEach(([id, arr]) => {
+      const ex = EX_BY_ID.get(id);
+      if (!ex || !Array.isArray(arr)) return;
+      const done = arr.filter((x) => x && x.done && x.w !== '');
       if (!done.length) return;
 
       const kg = parseFloat(String(done[0].w).replace(',', '.'));
       if (Number.isNaN(kg) || kg <= 0) return;
 
-      const ex = EX_BY_ID.get(item.id);
-      if (!perExercise.has(item.id)) perExercise.set(item.id, []);
-      perExercise.get(item.id).push({ label: day, value: kg });
+      if (!perExercise.has(id)) perExercise.set(id, []);
+      perExercise.get(id).push({ label: day, value: kg });
 
       const vol = kg * plannedReps(stufenWerte(ex.db).reps) * done.length;
       ex.db.muscles.forEach((m) => muscleDay.set(m, (muscleDay.get(m) || 0) + vol));
@@ -1984,16 +2024,14 @@ function gesamtKarte() {
   return `
     <div class="section-title">Insgesamt trainiert</div>
     <div class="card">
-      <div class="small muted">Über alle ${plural(g.runden + 1, 'Runde', 'Runden')} zusammen,
-        die laufende eingerechnet. Ein Neustart oder ein Wechsel des Trainingsfokus legt den
-        Verlauf in die Ablage – gezählt wird er weiter.</div>
-      <div class="stat-grid" style="margin-top:10px">
-        <div class="stat"><div class="stat-v">${g.einheiten}</div><div class="stat-l">Einheiten</div></div>
-        <div class="stat"><div class="stat-v">${fmtNum(g.saetze)}</div><div class="stat-l">Sätze</div></div>
-        <div class="stat"><div class="stat-v">${g.volumen
-          ? `ca. ${Math.round(g.volumen / 1000).toLocaleString('de-DE')}` : '–'}</div>
-          <div class="stat-l">Tonnen (Hanteln)</div></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-v">${g.einheiten}</div><div class="stat-l">Einheiten
+          <span class="muted">über alle Pläne</span></div></div>
       </div>
+      <div class="small muted" style="margin-top:10px">Oben steht der Fortschritt in
+        <i>diesem</i> Plan – hier stehen alle ${plural(g.runden + 1, 'Runde', 'Runden')} zusammen.
+        Ein Neustart oder ein Wechsel des Trainingsfokus fängt den Plan neu an; gezählt wird
+        weiter.</div>
       ${schritt ? `
         <div class="small muted" style="margin-top:14px">Bis <b>${esc(name(schritt.nach))}</b> –
           alle drei müssen voll sein${mitGewichten ? '' : ', die Tonnage zählt bei dir nicht mit'}:</div>
@@ -2012,9 +2050,31 @@ function gesamtKarte() {
     </div>`;
 }
 
+/**
+ * Der Überblick zählt über den Plan hinaus.
+ *
+ * *„Auch Statistik und so ist jetzt ja alles weg."* – nach einem Fokuswechsel,
+ * denn sammleStats() liest nur den laufenden Verlauf. Sätze, Wiederholungen,
+ * Kilo und Zeit gehören aber dem, der trainiert hat, und nicht dem Plan; sie
+ * kommen deshalb aus lebenStats(), also aus allen Protokollen zusammen.
+ *
+ * Plan-Zahlen bleiben Plan-Zahlen: „Workouts erledigt" zählt gegen die 84
+ * Einheiten dieser Variante, und die Serie zählt die Einheiten dieses Plans
+ * rückwärts. Beides in einen Gesamtwert zu mischen ergäbe nichts – zwei Pläne
+ * haben nicht dieselben Einheiten.
+ */
 function renderStats() {
-  const { setsDone, repsTotal, volume, doneDb, doneBw, perEx, workoutsDone, streak,
-          upcoming, customSets, seconds, mitZeit } = sammleStats();
+  const { workoutsDone, streak, upcoming, customSets } = sammleStats();
+  const leben = lebenStats();
+  const setsDone = leben.saetze;
+  const repsTotal = leben.reps;
+  const volume = leben.volumen;
+  const perEx = leben.perEx;
+  const seconds = leben.sekunden;
+  const mitZeit = leben.mitZeit;
+  // Über alle Pläne hinweg – sonst stünde nach dem Wechsel „🏋️ 0 · 🤸 0" da.
+  const modusDb = leben.db;
+  const modusBw = leben.bw;
   // Ab fünf gemessenen Einheiten rechnet die App nicht mehr mit der Formel,
   // sondern mit dem, was die Uhr sagt – siehe zeitEichung().
   const eich = zeitEichung();
@@ -2034,7 +2094,9 @@ function renderStats() {
         customSets ? ` <span class="muted">(${customSets} eigene)</span>` : ''}</div></div>
       <div class="stat"><div class="stat-v">${repsTotal ? `ca. ${Math.round(repsTotal)}` : '–'}</div><div class="stat-l">Wiederholungen (geplant)</div></div>
       <div class="stat"><div class="stat-v">${volume ? `ca. ${Math.round(volume).toLocaleString('de-DE')}` : '–'}</div><div class="stat-l">Volumen kg (Hanteln)</div></div>
-      <div class="stat"><div class="stat-v">🏋️ ${doneDb} · 🤸 ${doneBw}</div><div class="stat-l">Modus-Verteilung</div></div>
+      <div class="stat"><div class="stat-v">🏋️ ${modusDb} · 🤸 ${modusBw}</div><div class="stat-l">Modus-Verteilung</div></div>
+      ${leben.tage.size ? `<div class="stat"><div class="stat-v">${leben.tage.size}</div>
+        <div class="stat-l">Trainingstage</div></div>` : ''}
       ${seconds ? `<div class="stat"><div class="stat-v">${esc(dauerText(seconds))}</div>
         <div class="stat-l">Zeit im Training${mitZeit > 1
           ? ` <span class="muted">(Ø ${esc(dauerText(Math.round(seconds / mitZeit)))})</span>` : ''}</div></div>` : ''}
@@ -3002,31 +3064,87 @@ function dayState(w, iso, today) {
 
 const KIND_TEXT = { done: 'trainiert', part: 'angefangen', miss: 'ausgefallen', plan: 'geplant' };
 
-function calendarCell(iso, month, today, byDate, sel) {
+/**
+ * Tage, an denen unter einem anderen Plan trainiert wurde.
+ *
+ * Der Kalender zeichnet den Plan: PLAN.forEach, effDate, fertig. Nach einem
+ * Fokuswechsel steht darin nur noch der neue Plan – *„anscheinend hat er damit
+ * vergessen dass ich gestern und vorgestern trainiert hab."* Vergessen war
+ * nichts, die Tage stehen im abgelegten Protokoll; sie wurden nur nicht mehr
+ * gezeigt. Ein Trainingstag gehört aber dem Tag, nicht dem Plan.
+ *
+ * Welche Übungen es waren, weiß der Kalender nicht mehr – der Plan dazu ist
+ * nicht geladen. Gezeigt werden deshalb Tag, Modus und die Zahl der Sätze.
+ */
+function fruehereTage() {
+  const map = new Map();
+  (store.getState().rounds || []).forEach((r) => {
+    Object.values(r.log || {}).forEach((e) => {
+      if (!e || !e.startedOn) return;
+      const proModus = { db: 0, bw: 0 };
+      ['db', 'bw'].forEach((m) => {
+        Object.values(e[m] || {}).forEach((arr) => {
+          if (Array.isArray(arr)) arr.forEach((s) => { if (s && s.done) proModus[m] += 1; });
+        });
+      });
+      const saetze = proModus.db + proModus.bw;
+      if (!saetze) return;
+      const da = map.get(e.startedOn)
+        || { saetze: 0, einheiten: 0, mode: e.done || (proModus.bw > proModus.db ? 'bw' : 'db') };
+      da.saetze += saetze;
+      da.einheiten += 1;
+      map.set(e.startedOn, da);
+    });
+  });
+  return map;
+}
+
+function calendarCell(iso, month, today, byDate, sel, frueher) {
   const ws = byDate.get(iso) || [];
   const st = dayState(ws[0], iso, today);
+  // Der laufende Plan hat Vorrang: Steht heute eine Einheit an, ist das die
+  // Auskunft, und nicht das, was vor einem Fokuswechsel an diesem Tag war.
+  const alt = st ? null : (frueher && frueher.get(iso)) || null;
   const cls = ['cal-cell'];
   if (iso.slice(0, 7) !== month.slice(0, 7)) cls.push('out');
   if (iso === today) cls.push('today');
   if (iso === sel) cls.push('sel');
   if (st) cls.push(st.kind, st.mode);
+  else if (alt) cls.push('done', 'frueher', alt.mode);
   const tag = Number(iso.slice(8));
   // Ohne Einheit ist der Tag kein Knopf: nichts anzuzeigen, nichts zu tippen.
-  if (!st) return `<div class="${cls.join(' ')}"><span class="cal-num">${tag}</span></div>`;
-  const mehr = ws.length > 1 ? ` (+${ws.length - 1})` : '';
+  if (!st && !alt) return `<div class="${cls.join(' ')}"><span class="cal-num">${tag}</span></div>`;
+  const anzahl = st ? ws.length : alt.einheiten;
+  const modus = st ? st.mode : alt.mode;
+  const mehr = anzahl > 1 ? ` (+${anzahl - 1})` : '';
   return `
     <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
             aria-pressed="${iso === sel}"
-            aria-label="${esc(fmtDate(iso, true))}: ${plural(ws.length, 'Einheit', 'Einheiten')} ${
-              esc(KIND_TEXT[st.kind])}, ${esc(MODE_LABEL[st.mode])}">
+            aria-label="${esc(fmtDate(iso, true))}: ${plural(anzahl, 'Einheit', 'Einheiten')} ${
+              esc(st ? KIND_TEXT[st.kind] : 'trainiert, früherer Plan')}, ${esc(MODE_LABEL[modus])}">
       <span class="cal-num">${tag}</span>
-      <span class="cal-mark">${st.kind === 'miss' ? '·' : MODE_ICON[st.mode]}${mehr}</span>
+      <span class="cal-mark">${st && st.kind === 'miss' ? '·' : MODE_ICON[modus]}${mehr}</span>
     </button>`;
 }
 
 /** Die angetippte Einheit im Detail: Übungen, Sätze, Modus. */
-function calendarDetail(iso, byDate, today) {
+function calendarDetail(iso, byDate, today, frueher) {
   const ws = byDate.get(iso) || [];
+  const alt = ws.length ? null : (frueher && frueher.get(iso)) || null;
+  if (alt) {
+    return `
+      <div class="card cal-detail">
+        <div class="cal-det-head">
+          <div>
+            <div class="lbl">${plural(alt.einheiten, 'Einheit', 'Einheiten')} · trainiert</div>
+            <div class="hint">${esc(fmtDate(iso, true))} · ${plural(alt.saetze, 'Satz', 'Sätze')}</div>
+          </div>
+          <span class="chip ${alt.mode}">${MODE_ICON[alt.mode]} ${esc(MODE_LABEL[alt.mode])}</span>
+        </div>
+        <div class="small muted">Aus einem früheren Trainingsplan. Die Übungen dazu stehen in
+          dem Plan, der damals galt – die Sätze und Kilo zählen in der Statistik weiter mit.</div>
+      </div>`;
+  }
   if (!ws.length) {
     return `<div class="card muted small">Kein Training an diesem Tag. Tippe einen
       markierten Tag an, um die Einheit zu sehen.</div>`;
@@ -3085,6 +3203,7 @@ function renderCalendar() {
   const month = calMonthNow();
   const sel = ui.calDay;
   const tage = monthGrid(month);
+  const frueher = fruehereTage();
 
   // Gezählt werden Einheiten, nicht Tage – an einem Tag können zwei stehen.
   const imMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7))
@@ -3095,6 +3214,11 @@ function renderCalendar() {
     zaehl[st.kind] += 1;
     if (st.kind === 'done') proModus[st.mode] += 1;
   });
+  // Aus früheren Plänen, an Tagen ohne Einheit im laufenden – getrennt gezählt:
+  // Die Zahlen darüber messen diesen Plan, und dazu gehören sie nicht.
+  const altImMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7)
+    && !(byDate.get(d) || []).length && frueher.has(d))
+    .reduce((a, d) => a + frueher.get(d).einheiten, 0);
 
   view.innerHTML = `
     <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
@@ -3107,7 +3231,7 @@ function renderCalendar() {
         <button type="button" class="cal-nav" data-act="cal-month" data-d="1" aria-label="Nächster Monat">›</button>
       </div>
       <div class="cal-grid cal-head">${WEEK_HEAD.map((d) => `<div>${d}</div>`).join('')}</div>
-      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel)).join('')}</div>
+      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher)).join('')}</div>
       <div class="cal-legend">
         <span><i class="dot done"></i> trainiert</span>
         <span><i class="dot part"></i> angefangen</span>
@@ -3118,13 +3242,14 @@ function renderCalendar() {
         ${plural(imMonat.length, 'Einheit', 'Einheiten')} in diesem Monat ·
         ${zaehl.done} trainiert${zaehl.done ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
           zaehl.miss ? ` · ${zaehl.miss} ausgefallen` : ''}${
-          zaehl.plan ? ` · ${zaehl.plan} offen` : ''}
+          zaehl.plan ? ` · ${zaehl.plan} offen` : ''}${
+          altImMonat ? ` · ${altImMonat} aus einem früheren Plan` : ''}
       </div>
       ${month.slice(0, 7) === today.slice(0, 7) ? '' : `
         <button type="button" class="btn btn-sm" data-act="cal-today">Zu heute</button>`}
     </div>
 
-    ${calendarDetail(sel, byDate, today)}
+    ${calendarDetail(sel, byDate, today, frueher)}
 
     <div class="small muted">
       Die Termine sind die tatsächlichen: verpasste Tage rücken den Restplan
@@ -3974,8 +4099,9 @@ function renderSettings() {
     <div class="section-title" id="fokus-wahl">Trainingsfokus</div>
     <div class="card">
       <div class="small muted">Jeder Fokus ist ein eigener, durchgerechneter Plan: dieselben
-        Termine, dieselbe Erholungsregel, andere Schwerpunkte. Ein Wechsel legt den bisherigen
-        Verlauf in die Ablage – die erreichten Gewichte bleiben.</div>
+        Termine, dieselbe Erholungsregel, andere Schwerpunkte. Wechseln kostet nichts: Jeder
+        Fokus behält seinen eigenen Verlauf und steht beim Zurückwechseln wieder da, wo du ihn
+        verlassen hast. Gewichte, Statistik und Trainingstage gelten ohnehin über alle.</div>
       <div class="fokus-liste">${fokusKarten(s.focus || 'standard')}</div>
       ${Object.keys(PLANS).length < 2 ? `<div class="small muted">In dieser Fassung ist nur der
         Aufbauplan mitgeliefert.</div>` : ''}
@@ -4157,12 +4283,12 @@ function renderSettings() {
       </div>
       ${store.restorable() ? `
       <div class="small muted">Zurückholen legt den letzten abgelegten Verlauf wieder auf den
-        Plan – für den Fall, dass der Neustart oder ein Wechsel des Trainingsfokus nicht
-        gewollt war. Was du seitdem abgehakt hast, bleibt stehen.</div>`
+        Plan – für den Fall, dass der Neustart nicht gewollt war. Was du seitdem abgehakt
+        hast, bleibt stehen.</div>`
       : (store.getState().rounds.length ? `
       <div class="small muted">In der Ablage liegt ein Verlauf, aber aus einem anderen
-        Trainingsfokus – er passt nicht auf diesen Plan. Wechsle zurück, um ihn zu
-        holen; im Export steht er weiterhin drin.</div>` : '')}
+        Trainingsfokus. Der kommt beim Wechsel dorthin von selbst zurück – hier passt er
+        nicht auf den Plan.</div>` : '')}
     </div>
 
     <div class="section-title">Kalender</div>
@@ -4923,16 +5049,14 @@ view.addEventListener('click', (e) => {
       const key = t.dataset.v;
       if (!PLANS[key] || key === (store.getState().focus || 'standard')) break;
       // Im Einstieg ist noch nichts protokolliert – da ist der Wechsel eine
-      // Auswahl. Später ist er ein Neuanfang: Die Einheiten eines anderen Fokus
-      // stehen an denselben Nummern, aber mit anderen Übungen; ein Protokoll,
-      // das dazwischen hängt, wäre danach nicht mehr zuzuordnen.
+      // Auswahl. Später hängt an ihm ein Verlauf: Die Einheiten eines anderen
+      // Fokus stehen an denselben Nummern, aber mit anderen Übungen. Er wird
+      // deshalb nicht übernommen, sondern zur Seite gelegt und beim nächsten
+      // Wechsel zurückgeholt.
       const laeuft = Object.keys(store.getState().log).length && store.getState().greeted;
-      if (laeuft && !confirm(`Auf "${PLANS[key].name}" wechseln? Der bisherige Verlauf wandert `
-        + 'in die Ablage und bleibt im Export erhalten, die erreichten Gewichte bleiben stehen.')) break;
-      // Reihenfolge: erst ablegen, dann umschalten. restartPlan() vermerkt den
-      // Fokus am Verlauf, und das muss der sein, aus dem er stammt.
-      if (laeuft) store.restartPlan(0, rundenBilanz());
-      store.setSetting('focus', key);
+      // Keine Rückfrage mehr: Der Wechsel nimmt nichts weg. Der Verlauf des
+      // alten Fokus wartet, der des neuen kommt zurück – siehe wechsleFokus().
+      store.wechsleFokus(key, laeuft ? rundenBilanz() : null, frischerStart());
       // Der Plan steckt beim Laden in Hunderten von Zeilen; ein Wechsel mitten
       // im Betrieb hieße, dass die halbe App noch mit dem alten rechnet.
       if (store.getState().greeted) location.reload();
