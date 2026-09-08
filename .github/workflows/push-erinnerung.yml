@@ -61,7 +61,14 @@ jobs:
           node -e '
             const webpush = require("web-push");
             const k = JSON.parse(process.env.KONFIG);
-            webpush.setVapidDetails("mailto:workout@example.invalid", k.oeffentlich, k.privat);
+            // Der VAPID-Betreff sagt dem Push-Dienst, wer da sendet – falls
+            // etwas schiefgeht, weiss er, wen er sperrt. Eine Adresse gehoert
+            // dort nicht hin: Dieses Repo ist oeffentlich. Die Seite der App
+            // ist eine gueltige Angabe und verraet nichts, was nicht ohnehin
+            // im Browser steht. (Vorher stand hier mailto:...@example.invalid;
+            // eine erfundene Adresse ist keine Auskunft, sondern eine falsche.)
+            webpush.setVapidDetails(
+              "https://finanzdienste.github.io/Workout/", k.oeffentlich, k.privat);
             // Ohne Nutzlast: Der Push ist ein Klopfen, kein Inhalt.
             webpush.sendNotification(k.abo, null, { TTL: 3600 })
               .then((r) => console.log("gesendet, Status " + r.statusCode))

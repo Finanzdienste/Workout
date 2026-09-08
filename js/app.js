@@ -1688,6 +1688,25 @@ function eisenAusAdresse() {
 /** Kurzschlüssel eines Freundes: gleicher Name, gleicher Eintrag. */
 const freundId = (name) => name.trim().toLowerCase().slice(0, 24);
 
+/**
+ * Die GitHub-Seite, auf der das Secret für den Push hinterlegt wird – oder null.
+ *
+ * Der Weg dorthin heißt *Settings → Secrets and variables → Actions → New
+ * repository secret*, und das sind auf einem Handy vier Menüs in einer Ansicht,
+ * die für einen Bildschirm dreimal so breit gebaut ist. Die Adresse führt in
+ * einem Schritt hin.
+ *
+ * Abgeleitet aus der eigenen Adresse, nicht eingetragen: Wer diese App irgendwo
+ * anders hinstellt, bekommt seinen eigenen Verweis. Steht sie nicht auf
+ * GitHub Pages, gibt es keinen – dann bleibt die Wegbeschreibung stehen.
+ */
+function geheimnisURL() {
+  const konto = /^([^.]+)\.github\.io$/.exec(location.hostname);
+  const repo = location.pathname.split('/').filter(Boolean)[0];
+  if (!konto || !repo || repo.includes('.')) return null;
+  return `https://github.com/${konto[1]}/${repo}/settings/secrets/actions/new`;
+}
+
 /** Adresse der App zum Weitergeben – ohne Anker und ohne Suchteil. */
 function appURL() {
   const u = new URL(location.href);
@@ -4215,7 +4234,8 @@ function renderSettings() {
         <div>
           <div class="lbl">Erinnern, wenn ein Training ansteht</div>
           <div class="hint">Meldung in der Statusleiste an Tagen, an denen eine Einheit
-            offen ist – auch wenn die App zu ist. Sie bleibt stehen, bis du sie wegwischst.
+            offen ist – auch wenn die App zu ist. Weggewischt kommt sie zurück; endgültig weg
+            ist sie mit <i>Heute nicht</i> oder sobald du die App öffnest.
             ${kannWecken() ? '' : '<strong>Dieser Browser kann das nicht.</strong> Es braucht Chrome und die App auf dem Startbildschirm.'}</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${erinnerungAn().an}"
@@ -4243,8 +4263,11 @@ function renderSettings() {
       ${ui.pushText ? `
       <div class="notice" style="margin-top:10px">
         <strong>Fast fertig – ein Mal einfügen.</strong>
-        <div class="small" style="margin-top:6px">Auf GitHub im Workout-Repo:
-          <i>Settings → Secrets and variables → Actions → New repository secret</i>,
+        <div class="small" style="margin-top:6px">${geheimnisURL()
+          ? `<a href="${esc(geheimnisURL())}" target="_blank" rel="noopener">Diese Seite bei GitHub
+             öffnen</a> – sie ist schon die richtige.`
+          : 'Auf GitHub im Workout-Repo: <i>Settings → Secrets and variables → Actions → '
+            + 'New repository secret</i>.'}
           Name <code>PUSH_KONFIG</code>, und da unten hinein:</div>
         <textarea class="io" readonly style="margin-top:8px;height:120px"
                   id="pushKonfig">${esc(ui.pushText)}</textarea>
