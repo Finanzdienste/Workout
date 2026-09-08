@@ -98,6 +98,47 @@ await page.waitForTimeout(800);
 check(errs.length === 0,
   `ein gescheitertes Einrichten wirft die App nicht um${errs.length ? ': ' + errs[0] : ''}`);
 
+// --- 3b. Der Verweis auf die Secret-Seite ------------------------------
+//
+// Der erste Anlauf verlinkte die Seite direkt und endete auf „404 – Didn't
+// find anything here": GitHub antwortet auf eine Einstellungsseite mit *nicht
+// gefunden*, wenn man nicht angemeldet ist, nicht mit *keine Berechtigung*.
+// Als Auskunft richtig, als Wegweiser fatal – der Link sah kaputt aus.
+// Geprüft wird deshalb die Bauart der Adresse, ohne GitHub aufzurufen.
+const wohin = await page.evaluate(() => {
+  const bau = (host, pfad) => {
+    const konto = /^([^.]+)\.github\.io$/.exec(host);
+    const repo = pfad.split('/').filter(Boolean)[0];
+    if (!konto || !repo || repo.includes('.')) return null;
+    const ziel = `/${konto[1]}/${repo}/settings/secrets/actions/new`;
+    return `https://github.com/login?return_to=${encodeURIComponent(ziel)}`;
+  };
+  return {
+    pages: bau('finanzdienste.github.io', '/Workout/index.html'),
+    fremd: bau('beispiel.de', '/workout/'),
+    ohneRepo: bau('finanzdienste.github.io', '/index.html'),
+  };
+});
+console.log('     Verweis:', wohin.pages);
+check(/^https:\/\/github\.com\/login\?return_to=/.test(wohin.pages || ''),
+  'der Verweis geht über die Anmeldung – sonst steht dort für Abgemeldete eine 404');
+check(/settings%2Fsecrets%2Factions%2Fnew/.test(wohin.pages || ''),
+  'und trägt die Secret-Seite als Ziel mit');
+check(/%2FWorkout%2F/.test(wohin.pages || ''),
+  'mit dem Repo aus der eigenen Adresse, nicht mit einem eingetragenen');
+check(wohin.fremd === null,
+  'ausserhalb von GitHub Pages gibt es keinen Verweis, sondern die Wegbeschreibung');
+check(wohin.ohneRepo === null,
+  'und auf einer Benutzerseite ohne Projektpfad auch nicht');
+
+// Die Rechnung oben ist eine Kopie – geheimnisURL() steht in js/app.js und wird
+// nicht ausgeführt. Damit die Kopie nicht irgendwann etwas anderes prüft als
+// das Original, wird hier festgehalten, dass das Original denselben Weg geht.
+const appQuelle = await (await import('node:fs/promises'))
+  .readFile((await import('node:path')).join(ROOT, 'js/app.js'), 'utf8');
+check(/function geheimnisURL\(\)[\s\S]{0,400}github\.com\/login\?return_to=/.test(appQuelle),
+  'und die App baut die Adresse wirklich so – nicht nur diese Prüfung');
+
 // --- 4. Der Ablauf bei GitHub sendet nichts Inhaltliches ---------------
 // Geprüft an der Datei selbst: Ein Push mit Nutzlast wäre ein Push, der etwas
 // über dieses Gerät verrät.

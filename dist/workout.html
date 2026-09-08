@@ -11098,12 +11098,22 @@ const freundId = (name) => name.trim().toLowerCase().slice(0, 24);
  * Abgeleitet aus der eigenen Adresse, nicht eingetragen: Wer diese App irgendwo
  * anders hinstellt, bekommt seinen eigenen Verweis. Steht sie nicht auf
  * GitHub Pages, gibt es keinen – dann bleibt die Wegbeschreibung stehen.
+ *
+ * **Der Umweg über /login ist der eigentliche Trick.** Direkt aufgerufen
+ * antwortet GitHub auf eine Einstellungsseite mit *404 – Didn't find anything
+ * here*, wenn man nicht angemeldet ist. Nicht mit „keine Berechtigung": Wer
+ * nichts sehen darf, soll nicht einmal erfahren, dass es die Seite gibt. Das
+ * ist als Auskunft richtig und als Wegweiser fatal – der erste Versuch endete
+ * genau dort, und die Seite sah aus, als sei der Link kaputt. `/login` mit
+ * `return_to` führt Angemeldete unverändert durch und alle anderen erst durch
+ * die Anmeldung und dann ans Ziel.
  */
 function geheimnisURL() {
   const konto = /^([^.]+)\.github\.io$/.exec(location.hostname);
   const repo = location.pathname.split('/').filter(Boolean)[0];
   if (!konto || !repo || repo.includes('.')) return null;
-  return `https://github.com/${konto[1]}/${repo}/settings/secrets/actions/new`;
+  const ziel = `/${konto[1]}/${repo}/settings/secrets/actions/new`;
+  return `https://github.com/login?return_to=${encodeURIComponent(ziel)}`;
 }
 
 /** Adresse der App zum Weitergeben – ohne Anker und ohne Suchteil. */
@@ -13664,7 +13674,8 @@ function renderSettings() {
         <strong>Fast fertig – ein Mal einfügen.</strong>
         <div class="small" style="margin-top:6px">${geheimnisURL()
           ? `<a href="${esc(geheimnisURL())}" target="_blank" rel="noopener">Diese Seite bei GitHub
-             öffnen</a> – sie ist schon die richtige.`
+             öffnen</a> – sie ist schon die richtige. Bist du dort nicht angemeldet, kommt erst
+             die Anmeldung und danach das Ziel.`
           : 'Auf GitHub im Workout-Repo: <i>Settings → Secrets and variables → Actions → '
             + 'New repository secret</i>.'}
           Name <code>PUSH_KONFIG</code>, und da unten hinein:</div>
