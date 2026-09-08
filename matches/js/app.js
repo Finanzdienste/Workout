@@ -201,18 +201,27 @@ function zeileBauen(p) {
   tr.append(km);
 
   const name = el('td');
+  // Drei Stufen, und sie müssen sich unterscheiden lassen: ein eingetragener
+  // Name steht fett, ein geratener kursiv und grau, und wo keiner steht, ist
+  // „(ohne Namen)" ein Platzhalter – er darf nicht aussehen wie eine Angabe.
+  const wieGeschrieben = p.name
+    ? (p.geraten ? 'name name--geraten' : 'name')
+    : 'name name--leer';
   name.append(el('span', {
-    class: p.geraten ? 'name name--geraten' : 'name',
+    class: wieGeschrieben,
     text: p.name || '(ohne Namen)',
     title: p.geraten ? 'Aus der eigenen ersten Nachricht geraten – bitte prüfen.' : null,
   }));
-  if (p.ort) name.append(el('div', { class: 'notiz', text: p.ort }));
+  // Eigene Klasse, nicht die der Notiz: Der Ort erklärt die Zahl links daneben
+  // („~ 2,9 km – aus dem Ort") und muss deshalb auch auf dem Handy stehen
+  // bleiben, wo die Notizspalte verschwindet.
+  if (p.ort) name.append(el('div', { class: 'ort', text: p.ort }));
   tr.append(name);
 
   tr.append(el('td', {}, el('span', { class: `pille pille--${p.app}`, text: APPS[p.app] })));
-  tr.append(el('td', { text: p.matchAm ? p.matchAm.split('-').reverse().join('.') : '–' }));
+  tr.append(el('td', { class: 'sp-datum', text: p.matchAm ? p.matchAm.split('-').reverse().join('.') : '–' }));
   tr.append(el('td', {}, el('span', { class: `status-${p.status}`, text: STATUS[p.status] })));
-  tr.append(el('td', { text: p.nachrichten || '–' }));
+  tr.append(el('td', { class: 'sp-nachr', text: p.nachrichten || '–' }));
   tr.append(el('td', { class: 'notiz th-notiz', text: p.notiz }));
 
   const werkzeug = el('div', { class: 'zeile-werkzeug' });
