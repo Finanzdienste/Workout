@@ -11,6 +11,27 @@ page.on('response', (r) => { if (r.status() >= 400) errs.push(r.status() + ' ' +
 let fails = 0;
 const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { fails++; process.exitCode = 1; } };
 
+/**
+ * Modus umschalten – seit der Umschalter oben weg ist, geht das über die
+ * Einstellung. „Dass man sowohl oben als auch in der Mitte unterscheiden kann
+ * ist unnötig": Gewählt wird jetzt an einer Stelle, und die Startansicht sagt
+ * nur noch, was gilt.
+ */
+const modus = async (m) => {
+  await page.evaluate(async (ziel) => {
+    const store = await import('./js/store.js');
+    store.setMode(ziel);
+    store.setWorkoutMode(store.getState().session?.n ?? 1, ziel);
+  }, m);
+  // Neu zeichnen: Der Store meldet die Änderung, aber die Oberfläche hängt
+  // nicht an ihm – sie wird nach einer Bedienung gezeichnet. Ein Tipp auf den
+  // gerade offenen Reiter reicht und bleibt, wo man ist.
+  const offen = await page.locator('.tab[aria-selected="true"]').count()
+    ? '.tab[aria-selected="true"]' : '.tab[data-tab="dashboard"]';
+  await page.locator(offen).first().click();
+  await page.waitForTimeout(250);
+};
+
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.evaluate(() => { localStorage.clear(); localStorage.setItem('workout.state.v1', '{"greeted":true}'); });
 await page.reload({ waitUntil: 'networkidle' });
@@ -18,9 +39,15 @@ await page.reload({ waitUntil: 'networkidle' });
 // --- Startansicht ist schlank ---
 check(await page.locator('.ex').count() === 0, 'keine Übungskarten beim Öffnen');
 check(await page.locator('.bodymap').count() === 1, 'Körperkarte da');
-// Zwei Startknöpfe: die Variante wird beim Starten gewählt.
-check(await page.locator('[data-act="start-session"]').count() === 2,
-  'zwei Startknöpfe: Hanteln und Bodyweight');
+// Ein Startknopf, nicht zwei. Die Variante wird unter Mehr gewählt und steht
+// hier nur noch drauf – zweimal dieselbe Wahl an zwei Orten war eine zu viel.
+check(await page.locator('[data-act="start-session"]').count() === 1,
+  'ein Startknopf');
+const startText = (await page.locator('.btn-start').first().textContent()).replace(/\s+/g, ' ');
+check(/Start/.test(startText) && /(Hanteln|Bodyweight)/.test(startText),
+  `er heißt „Start" und nennt die geltende Variante (${startText.trim()})`);
+check(await page.locator('.mode-btn').count() === 0,
+  'und oben in der Leiste steht kein zweiter Umschalter mehr');
 check(await page.locator('.tab').count() === 3, '3 Tabs: Dashboard, Statistik, Mehr');
 check(await page.locator('.tab[data-tab="exercises"]').count() === 0, 'Übungen-Tab entfernt');
 const startBox = await page.locator('.btn-start').first().boundingBox();
@@ -78,10 +105,10 @@ await page.waitForTimeout(150);
 check(await page.locator('.bodymap').count() === 1, 'Zurück führt zur Startansicht');
 
 // --- Bodyweight-Modus ---
-await page.locator('.mode-btn[data-mode="bw"]').click();
+await modus('bw');
 await page.waitForTimeout(200);
 check(await page.locator('.bodymap').count() === 1, 'Körperkarte auch im Bodyweight-Modus');
-await page.locator('.mode-btn[data-mode="db"]').click();
+await modus('db');
 
 // --- Training starten und beenden ---
 await page.locator('[data-act="start-session"]').first().click();

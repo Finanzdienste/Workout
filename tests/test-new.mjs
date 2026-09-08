@@ -8,6 +8,27 @@ page.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.
 let fails = 0;
 const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { fails++; process.exitCode = 1; } };
 
+/**
+ * Modus umschalten – seit der Umschalter oben weg ist, geht das über die
+ * Einstellung. „Dass man sowohl oben als auch in der Mitte unterscheiden kann
+ * ist unnötig": Gewählt wird jetzt an einer Stelle, und die Startansicht sagt
+ * nur noch, was gilt.
+ */
+const modus = async (m) => {
+  await page.evaluate(async (ziel) => {
+    const store = await import('./js/store.js');
+    store.setMode(ziel);
+    store.setWorkoutMode(store.getState().session?.n ?? 1, ziel);
+  }, m);
+  // Neu zeichnen: Der Store meldet die Änderung, aber die Oberfläche hängt
+  // nicht an ihm – sie wird nach einer Bedienung gezeichnet. Ein Tipp auf den
+  // gerade offenen Reiter reicht und bleibt, wo man ist.
+  const offen = await page.locator('.tab[aria-selected="true"]').count()
+    ? '.tab[aria-selected="true"]' : '.tab[data-tab="dashboard"]';
+  await page.locator(offen).first().click();
+  await page.waitForTimeout(250);
+};
+
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.evaluate(() => { localStorage.clear(); localStorage.setItem('workout.state.v1', '{"greeted":true}'); });
 
@@ -62,7 +83,7 @@ await page.waitForTimeout(200);
 check(await row.locator('.kg-val').first().inputValue() === '20', '"−" nimmt es zurück');
 
 // Bodyweight: kein Kilo-Feld, dafür die Wiederholungen
-await page.locator('.mode-btn[data-mode="bw"]').click();
+await modus('bw');
 await page.waitForTimeout(250);
 check(await page.locator('.kg-bump').count() === 0, 'im Bodyweight-Modus erst recht kein Vorschlag');
 const bwOffen = page.locator('.ex.open').first();
@@ -70,7 +91,7 @@ if (await bwOffen.count()) {
   check(await bwOffen.locator('.kg-fest').count() === 1,
     'dort steht der Wiederholungsbereich mit ± daneben');
 }
-await page.locator('.mode-btn[data-mode="db"]').click();
+await modus('db');
 await page.waitForTimeout(200);
 
 // --- Zurück-Taste -----------------------------------------------------------
@@ -541,7 +562,7 @@ await page.waitForTimeout(300);
 const sicht = async () => {
   const t = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
   return {
-    start: /▶︎ Hanteln/.test(t),
+    start: /▶︎ Start/.test(t),
     weiter: /Training fortsetzen/.test(t),
     fertig: /Für heute durch/.test(t),
     abschliessen: /Training abschließen/.test(t),
@@ -550,7 +571,7 @@ const sicht = async () => {
 
 const leer = await sicht();
 check(leer.start && !leer.weiter && !leer.fertig,
-  'nichts abgehakt: zwei Startknöpfe, sonst nichts');
+  'nichts abgehakt: der Startknopf, sonst nichts');
 
 // Einen einzigen Satz setzen – angefangen, nicht fertig.
 await page.evaluate(async () => {

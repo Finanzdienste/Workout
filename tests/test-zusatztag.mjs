@@ -98,12 +98,19 @@ z = await zustand();
 console.log('     ', JSON.stringify(z.hinweis));
 check(z.customs.length === 1 && /Zusatztag Woche 1/.test(z.customs[0]),
   `der Zusatztag steht von selbst da (${z.customs.join(', ') || 'nichts'})`);
-check(!!z.hinweis, 'mit einem Hinweis auf der Startseite');
-const hinweis = (await page.locator('.notice.aufstieg').first().textContent()).replace(/\s+/g, ' ');
-check(/Zusatztag angelegt/.test(hinweis), 'der sagt, was passiert ist');
-check(/Erholung/.test(hinweis), 'und dass die Erholungsregel eingehalten ist');
-check(await page.locator('[data-act="zusatztag-weg"]').count() === 1,
-  'mit einem Weg, ihn loszuwerden');
+// Und ohne jede Meldung: „Die Zusatztag Meldung brauchen wir nicht. Es soll
+// einfach passieren." Der Kasten mit drei Knöpfen ist raus – stattdessen *ist*
+// der Zusatztag die nächste Einheit. Eine Meldung, die erklärt, was ohnehin
+// gleich dasteht, ist eine Zwischenstation ohne Aufgabe.
+check(!z.hinweis, 'ohne Meldung – es passiert einfach');
+check(await page.locator('[data-act="zusatztag-weg"]').count() === 0,
+  'und ohne die drei Knöpfe, von denen zwei nur „weg damit" hießen');
+const kopf = (await page.locator('.hero-title').textContent()).trim();
+console.log('     Startansicht zeigt:', kopf);
+check(/Zusatztag Woche 1/.test(kopf),
+  `die Startansicht steht auf dem Zusatztag (${kopf})`);
+check(await page.locator('[data-act="back-to-plan"]').count() === 1,
+  'und es gibt den Weg zurück in den Plan, wer ihn nicht will');
 
 // --- 4. Die Einheit selbst ----------------------------------------------
 const angelegt = await page.evaluate(async () => {
@@ -153,18 +160,20 @@ await page.waitForTimeout(500);
 z = await zustand();
 check(z.customs.length === 1, `es bleibt bei einem (${z.customs.length})`);
 
-// --- 7. „Brauch ich nicht" räumt ihn weg --------------------------------
+// --- 7. Wer ihn nicht will, blättert daran vorbei ------------------------
+// „Brauch ich nicht" gibt es nicht mehr – der Knopf war zwei Drittel eines
+// Kastens, den niemand bestellt hat. Der Weg zurück in den Plan reicht: Der
+// Zusatztag steht dann eben da und wird beim nächsten Wochenwechsel durch den
+// neuen ersetzt, wenn er unberührt bleibt.
 await page.locator('.tab[data-tab="dashboard"]').click();
 await page.waitForTimeout(300);
-await page.locator('[data-act="zusatztag-weg"]').click();
+await page.locator('[data-act="back-to-plan"]').click();
 await page.waitForTimeout(400);
+const zurueck = (await page.locator('.hero-eyebrow').textContent()).trim();
+console.log('     nach „Zurück zum Plan":', zurueck);
+check(/Workout \d+/.test(zurueck), `„Zurück zum Plan" führt in den Plan (${zurueck})`);
 z = await zustand();
-check(z.customs.length === 0, 'weggetippt heißt weg');
-check(!z.hinweis, 'und der Hinweis ist mit weg');
-await page.reload({ waitUntil: 'networkidle' });
-await page.waitForTimeout(600);
-z = await zustand();
-check(z.customs.length === 0, 'auch nach dem Neuladen kommt er nicht wieder');
+check(z.customs.length === 1, 'der Zusatztag bleibt dabei liegen – er ist ja nicht falsch');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

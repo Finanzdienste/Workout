@@ -49,7 +49,7 @@ import { kannPush, pushEinrichten, pushStand } from './push.js';
 
 const view = document.getElementById('view');
 const tabbar = document.getElementById('tabbar');
-const modeSwitch = document.getElementById('modeSwitch');
+const MODE_ICON = { db: '🏋️', bw: '🤸' };
 const toastEl = document.getElementById('toast');
 
 const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
@@ -749,7 +749,7 @@ const ui = {
   // denkt – nach einer Aktualisierung etwa –, und jedes Mal auf dem Dashboard
   // zu landen ist lästig.
   tab: SEITEN.includes(store.getState().tab) ? store.getState().tab : 'dashboard',
-  workoutNo: defaultWorkoutNo(),
+  workoutNo: naechsteEinheit(),
   openEx: new Set(),
   openDetail: new Set(),   // Übungen, deren ausführliche Erklärung offen steht
   standAngebot: null,      // Stand, den jemand per Link geschickt hat
@@ -1115,15 +1115,15 @@ function startBlock(n, mode, prog) {
       </button>`}`;
   }
 
+  // Ein Knopf, nicht zwei. Welche Variante gilt, steht darunter – gewechselt
+  // wird sie unter Mehr. Die Wahl gehört nicht an die Stelle, an der man
+  // loslegen will: Wer trainieren geht, hat sie längst getroffen.
   return `
-    <div class="start-paar">
-      <button type="button" class="btn btn-primary btn-start ${mode === 'db' ? '' : 'zweit'}"
-              data-act="start-session" data-mode="db"
-              aria-label="Workout mit Hanteln starten">▶︎ Hanteln</button>
-      <button type="button" class="btn btn-primary btn-start ${mode === 'bw' ? '' : 'zweit'}"
-              data-act="start-session" data-mode="bw"
-              aria-label="Workout als Bodyweight starten">▶︎ Bodyweight</button>
-    </div>`;
+    <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session"
+            aria-label="Workout starten (${esc(MODE_LABEL[mode])})">
+      ▶︎ Start
+      <span class="start-modus">${MODE_ICON[mode]} ${esc(MODE_LABEL[mode])}</span>
+    </button>`;
 }
 
 /**
@@ -1160,7 +1160,6 @@ function renderOverview() {
   // nimmt sich den Platz, der zwischen den beiden übrig bleibt.
   view.innerHTML = `
     <section class="ov">
-      ${zusatztagHinweis()}
       ${umzugHinweis()}
       ${aufstiegHinweis()}
       ${speicherWarnung()}
@@ -1187,8 +1186,13 @@ function renderOverview() {
         <button type="button" class="btn btn-block" data-act="backup-now" style="margin-top:10px">Jetzt sichern</button></div>` : ''}
 
       <header class="ov-top">
+        <!-- Kein „von 84" mehr: „Die app geht ja unendlich." Stimmt – der Plan
+             rollt am Ende von selbst in die nächste Runde, und eine Zahl, die
+             ein Ende ankündigt, das es nicht gibt, ist schlicht falsch. Die
+             laufende Nummer bleibt: Sie sagt, wo man ist, ohne zu behaupten,
+             wohin es geht. -->
         <div class="hero-eyebrow">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${
-          w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n} von ${PLAN.length}`}</div>
+          w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n}`}</div>
         <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
         <!-- Kein "Plan +2 Tage" mehr: Der Plan rückt von selbst nach, wenn ein
              Termin verstreicht (catchUpPlan). Wie weit er dabei insgesamt vom
@@ -1693,7 +1697,6 @@ function renderDashboard() {
 
   const parts = [];
 
-  parts.push(zusatztagHinweis());
   parts.push(umzugHinweis());
   parts.push(aufstiegHinweis());
 
@@ -1701,7 +1704,7 @@ function renderDashboard() {
 
   parts.push(`
     <section class="card">
-      <div class="hero-eyebrow">${w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n} von ${PLAN.length}`}</div>
+      <div class="hero-eyebrow">${w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n}`}</div>
       <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
       <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
       <div class="hero-badges">
@@ -2711,8 +2714,10 @@ function pruefeZusatztag() {
   if (!ziel) return false;
   const name = `Zusatztag Woche ${ziel.nr}`;
   if (store.customs().some((c) => c.name === name)) return false;
-  // Einmal weggetippt bleibt weggetippt.
-  if ((store.getState().zusatzNein || []).includes(ziel.nr)) return false;
+  // Die Merkliste `zusatzNein` ist mit dem Knopf „Brauch ich nicht" weggefallen.
+  // Sie wird nicht mehr gelesen: Wer den Tag nicht will, macht die nächste
+  // Planeinheit, und beim nächsten Wochenwechsel ersetzt ein neuer Zusatztag
+  // den unberührten alten.
   const vorschlag = zusatztagEx(ziel, store.getState().mode);
   if (!vorschlag) return false;
 
@@ -2720,44 +2725,42 @@ function pruefeZusatztag() {
     .filter((c) => /^Zusatztag Woche /.test(c.name) && !store.isStarted(c.id))
     .forEach((c) => store.removeCustom(c.id));
 
-  const id = store.saveCustom({ name, ex: vorschlag.ex });
-  store.setSetting('zusatztag', {
-    id,
-    name,
-    woche: ziel.nr,
-    uebungen: vorschlag.ex.length,
-    saetze: vorschlag.ex.reduce((a, x) => a + x.sets, 0),
-    fehlt: vorschlag.fehlt,
-    gruppen: vorschlag.gruppen,
-    am: todayISO(),
-  });
+  store.saveCustom({ name, ex: vorschlag.ex });
   return true;
 }
 
-/** Der Hinweis dazu, bis er weggetippt wird. */
-function zusatztagHinweis() {
-  const z = store.getState().zusatztag;
-  if (!z) return '';
-  const da = store.customById(z.id);
-  if (!da) return '';
-  return `
-    <div class="notice aufstieg" style="margin:0 0 12px">
-      <strong>Zusatztag angelegt</strong>
-      <div class="small" style="margin-top:6px">
-        In Woche ${z.woche} sind rund ${z.fehlt} Sätze bei
-        ${esc(plural(z.gruppen, 'Muskelgruppe', 'Muskelgruppen'))} liegen geblieben – zu viel,
-        um sie in die nächsten Einheiten zu stopfen. Deshalb steht jetzt eine eigene
-        Einheit bereit: <b>${z.uebungen} Übungen, ${z.saetze} Sätze</b>, genau das, was zu
-        kurz kam. Gruppen, die gerade Erholung brauchen, sind ausgenommen.
-      </div>
-      <div class="btn-row nav" style="margin-top:10px">
-        <button type="button" class="btn btn-primary" data-act="zusatztag-start"
-                data-id="${esc(z.id)}">Ansehen</button>
-        <button type="button" class="btn btn-ghost" data-act="zusatztag-ok">Später</button>
-        <button type="button" class="btn btn-ghost" data-act="zusatztag-weg">Brauch ich nicht</button>
-      </div>
-    </div>`;
+/**
+ * Welche Einheit die App zeigt, wenn sie aufgeht.
+ *
+ * Normalerweise die nächste offene aus dem Plan. Liegt aber ein unberührter
+ * Zusatztag da, ist **er** die nächste Einheit – dafür wurde er angelegt. Das
+ * ist der Unterschied zwischen „angelegt" und „passiert": Eine eigene Einheit,
+ * die man erst suchen muss, holt kein einziges Satzvolumen nach.
+ *
+ * Sobald er angefangen ist, tritt er zurück und der Plan läuft weiter. Wer ihn
+ * gar nicht will, blättert mit „Zurück zum Plan" daran vorbei; beim nächsten
+ * Wochenwechsel wird ein unberührter Zusatztag ohnehin ersetzt.
+ */
+function naechsteEinheit() {
+  const offen = store.customs()
+    .find((c) => /^Zusatztag Woche /.test(c.name) && !store.isStarted(c.id));
+  return offen ? offen.id : defaultWorkoutNo();
 }
+
+/*
+ * Hier stand der Kasten „Zusatztag angelegt" mit drei Knöpfen – Ansehen,
+ * Später, Brauch ich nicht. Raus, auf Ansage: „Die Zusatztag Meldung brauchen
+ * wir nicht. Es soll einfach passieren."
+ *
+ * Und das tut es jetzt auch wörtlich: Der Zusatztag wird angelegt und ist die
+ * nächste Einheit (siehe naechsteEinheit()). Eine Meldung, die erklärt, was
+ * ohnehin gleich dasteht, ist eine Zwischenstation ohne Aufgabe – und drei
+ * Knöpfe, von denen zwei nur „weg damit" heißen, sind zwei zu viel.
+ *
+ * Weggetippt werden muss er deshalb auch nicht mehr: Wer ihn nicht will, macht
+ * die nächste Planeinheit; beim nächsten Wochenwechsel wird ein unberührter
+ * Zusatztag ohnehin durch den neuen ersetzt.
+ */
 
 /** Balken für eine Muskelgruppe: erreicht gegen das Pensum dieser Woche.
  *
@@ -2986,7 +2989,6 @@ function careCard(c) {
  * verpassten Tag nichts mehr.
  * ------------------------------------------------------------------ */
 
-const MODE_ICON = { db: '🏋️', bw: '🤸' };
 
 /** Zustand eines Kalendertags. Reihenfolge zählt: erledigt schlägt alles. */
 function dayState(w, iso, today) {
@@ -3317,7 +3319,10 @@ function renderInjuries() {
 function showVersion() {
   const host = document.getElementById('appVersion');
   if (!host) return;
-  const plan = `Plan: ${PLAN.length} Einheiten bis ${fmtDate(PLAN[PLAN.length - 1].date, true)}`;
+  // Ohne Enddatum: Der Plan läuft weiter, sobald eine Runde durch ist. Die
+  // Zahl je Runde bleibt – sie sagt etwas über die ausgelieferte Fassung, und
+  // genau dafür steht diese Zeile hier.
+  const plan = `Plan: ${PLAN.length} Einheiten je Runde`;
   if (!window.caches) {
     host.textContent = `${plan} · kein Zwischenspeicher`;
     return;
@@ -4369,13 +4374,6 @@ function render() {
   const mode = ui.tab === 'dashboard' ? store.workoutMode(ui.workoutNo) : store.getState().mode;
   document.body.classList.toggle('mode-bw', mode === 'bw');
   document.documentElement.dataset.theme = store.getState().theme || 'orange';
-  // Während des Trainings ist die Wahl längst getroffen – der Umschalter oben
-  // wäre dort nur eine Möglichkeit, sich mitten im Satz zu verklicken.
-  const imTraining = !!store.getState().session;
-  modeSwitch.hidden = imTraining;
-  modeSwitch.querySelectorAll('.mode-btn').forEach((b) => {
-    b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
-  });
   // Seiten ohne eigenen Reiter liegen unter Mehr – dessen Reiter bleibt
   // markiert, solange man dort ist.
   const reiter = tabsAktiv().includes(ui.tab) ? ui.tab : 'settings';
@@ -4443,16 +4441,6 @@ window.addEventListener('popstate', (e) => {
 tabbar.addEventListener('click', (e) => {
   const btn = e.target.closest('.tab');
   if (btn) go(btn.dataset.tab);
-});
-
-modeSwitch.addEventListener('click', (e) => {
-  const btn = e.target.closest('.mode-btn');
-  if (!btn) return;
-  const mode = btn.dataset.mode;
-  if (ui.tab === 'dashboard') store.setWorkoutMode(ui.workoutNo, mode);
-  else store.setMode(mode);
-  render();
-  toast(mode === 'bw' ? '🤸 Bodyweight-Variante' : '🏋️ Hantel-Variante');
 });
 
 view.addEventListener('click', (e) => {
@@ -4539,6 +4527,31 @@ view.addEventListener('click', (e) => {
       // rückwirkend aus 10/10 ein 10/15 gemacht und eine fertige Einheit in
       // eine halbe verwandelt – samt Serie, Statistik und Rundenzählung.
       if (workoutComplete) store.markDone(n, mode);
+
+      // Der letzte Satz beendet das Training. „Wenn man den letzten Satz
+      // abgehakt hat soll das training automatisch zuende sein ohne dass man
+      // das nochmal extra drücken muss." Stimmt: Der Knopf „Abschließen"
+      // trägt, wenn ohnehin alles steht, keine Entscheidung mehr – er ist eine
+      // Quittung für etwas, das man gerade selbst getan hat.
+      //
+      // Was er sonst noch auslöst, passiert deshalb hier mit: Uhr anhalten,
+      // Stand melden, Aufstieg und Zusatztag prüfen. Sonst wäre „automatisch
+      // beendet" nur halb beendet.
+      if (workoutComplete && store.getState().session) {
+        store.endSession();
+        meldeStand(true);
+        ui.focus = false;
+        ui.listView = false;
+        if (store.getState().rest) endRest(false);
+        const gestiegen = pruefeAufstieg();
+        const zusatz = pruefeZusatztag();
+        if (zusatz) ui.workoutNo = naechsteEinheit();
+        sound('done');
+        render();
+        toast(gestiegen ? 'Neue Stufe – siehe oben ⬆️'
+          : `Training abgeschlossen – alle ${progressOf(n, mode).total} Sätze 🎉`);
+        break;
+      }
       const exDone = done && i === item.sets - 1
         && store.getSets(n, mode, id, item.sets).slice(0, item.sets).every((s) => s.done);
 
@@ -4664,7 +4677,9 @@ view.addEventListener('click', (e) => {
       const zusatz = pruefeZusatztag();
       render();
       if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
-      else if (zusatz) toast('Zusatztag angelegt – siehe oben');
+      // Der Zusatztag meldet sich nicht mehr: Er *ist* die nächste Einheit,
+      // und die steht nach diesem render() ohnehin auf dem Bildschirm.
+      else if (zusatz) ui.workoutNo = naechsteEinheit();
       else toast(prog.complete
         ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
         : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
@@ -4809,30 +4824,6 @@ view.addEventListener('click', (e) => {
       toast('Gespeichert – los geht’s');
       break;
     }
-    case 'zusatztag-start':
-      store.setSetting('zusatztag', null);
-      ui.workoutNo = t.dataset.id;
-      ui.listView = true;
-      ui.focus = false;
-      go('dashboard');
-      break;
-    case 'zusatztag-ok':
-      store.setSetting('zusatztag', null);
-      render();
-      break;
-    case 'zusatztag-weg': {
-      const z = store.getState().zusatztag;
-      if (z) {
-        store.removeCustom(z.id);
-        // Merken, sonst legt ihn der nächste Start wieder an.
-        const nein = store.getState().zusatzNein || [];
-        if (!nein.includes(z.woche)) store.setSetting('zusatzNein', [...nein, z.woche]);
-      }
-      store.setSetting('zusatztag', null);
-      render();
-      toast('Weg damit');
-      break;
-    }
     case 'custom-start':
       ui.workoutNo = t.dataset.id;
       ui.listView = false;
@@ -4861,6 +4852,9 @@ view.addEventListener('click', (e) => {
       toast('Als trainiert eingetragen – steht jetzt so im Kalender');
       break;
     case 'back-to-plan':
+      // Ausdrücklich der Plan, nicht die „nächste Einheit": Die wäre wieder der
+      // Zusatztag, und der Knopf führte im Kreis. Wer hier tippt, will genau
+      // von ihm weg.
       ui.workoutNo = defaultWorkoutNo();
       ui.listView = false;
       render();
@@ -4877,7 +4871,7 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'nav-today':
-      ui.workoutNo = defaultWorkoutNo();
+      ui.workoutNo = naechsteEinheit();
       ui.openEx.clear();
       ui.listView = false;
       render();
@@ -4888,10 +4882,20 @@ view.addEventListener('click', (e) => {
       ui.listView = false;
       go('dashboard');
       break;
-    case 'toggle-default-mode':
-      store.setMode(store.getState().mode === 'bw' ? 'db' : 'bw');
+    case 'toggle-default-mode': {
+      const neu = store.getState().mode === 'bw' ? 'db' : 'bw';
+      store.setMode(neu);
+      // Und die Einheit, die gerade ansteht, gleich mit – sofern sie noch nicht
+      // angefangen ist. Seit der Umschalter oben weg ist, ist das hier der
+      // einzige Weg: Ein Schalter, der nur „ab dem nächsten Mal" wirkt, während
+      // vorn unverändert die alte Variante steht, sähe kaputt aus. Was schon
+      // läuft, bleibt dagegen, wie es ist – mitten im Training die Übungen
+      // auszutauschen wäre das Gegenteil von hilfreich.
+      const offen = ui.workoutNo;
+      if (!store.isStarted(offen)) store.setWorkoutMode(offen, neu);
       render();
       break;
+    }
     case 'toggle-keep-mode':
       store.setSetting('keepModePerWorkout', !store.getState().keepModePerWorkout);
       render();
@@ -5259,7 +5263,7 @@ view.addEventListener('click', (e) => {
         const id = meldetMit() ? store.getState().deviceId : null;
         if (id) loeschen(id);
         store.resetAll();
-        ui.workoutNo = defaultWorkoutNo();
+        ui.workoutNo = naechsteEinheit();
         render();
         toast('Alle Daten gelöscht');
       }
@@ -5268,6 +5272,76 @@ view.addEventListener('click', (e) => {
       break;
   }
 });
+
+/* ------------------------------------------------------------------ *
+ * Wischen
+ *
+ * Zwei Ansichten haben eine natürliche Reihenfolge, und in beiden standen die
+ * Pfeile bisher am Rand: die Einheiten auf der Startansicht und die Übungen im
+ * Training. Beides ist eine Bewegung, die die Hand ohnehin macht.
+ *
+ * Was hier nicht passiert, ist genauso wichtig wie was passiert:
+ *
+ *   Nichts unter dem Finger. Wer auf einem Eingabefeld, einem Knopf oder dem
+ *   drehbaren Bewegungsbild loswischt, meint das, was darunter liegt – die
+ *   Figur dreht sich, das Feld markiert. Solche Starts werden übergangen.
+ *
+ *   Senkrecht schlägt waagerecht. Gescrollt wird viel öfter als geblättert;
+ *   eine Geste zählt erst als Wisch, wenn sie deutlich mehr quer als hoch
+ *   geht.
+ *
+ *   Nicht während einer Pause zwischen zwei Sätzen? Doch – gerade dann. Die
+ *   Pause ist die Zeit, in der man ohnehin nach vorn und zurück sieht.
+ * ------------------------------------------------------------------ */
+
+const WISCH_WEG = 60;      // Mindeststrecke in Pixeln
+const WISCH_SCHRAEG = 1.6; // wie viel klarer waagerecht als senkrecht sein muss
+
+let wisch = null;
+
+/** Auf welchem Element darf ein Wisch nicht anfangen? */
+const wischTabu = (ziel) => !!(ziel && ziel.closest(
+  'input, textarea, select, button, a, [data-act], .fig-wrap, svg'));
+
+view.addEventListener('touchstart', (e) => {
+  if (e.touches.length !== 1 || wischTabu(e.target)) { wisch = null; return; }
+  const t = e.touches[0];
+  wisch = { x: t.clientX, y: t.clientY };
+}, { passive: true });
+
+view.addEventListener('touchend', (e) => {
+  if (!wisch) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - wisch.x;
+  const dy = t.clientY - wisch.y;
+  wisch = null;
+  if (Math.abs(dx) < WISCH_WEG || Math.abs(dx) < Math.abs(dy) * WISCH_SCHRAEG) return;
+  blaettern(dx < 0 ? 1 : -1);
+}, { passive: true });
+
+/**
+ * Einen Schritt weiter oder zurück – je nachdem, was gerade zu sehen ist.
+ *
+ * Im Training zwischen den Übungen, sonst zwischen den Einheiten. Am Rand
+ * passiert nichts: Ein Wisch ins Leere ist besser als ein Sprung irgendwohin.
+ */
+function blaettern(richtung) {
+  const n = ui.workoutNo;
+  if (ui.focus) {
+    const w = workoutByNo(n, store.workoutMode(n));
+    const ziel = ui.focusIdx + richtung;
+    if (ziel < 0 || ziel >= w.ex.length) return;
+    ui.focusIdx = ziel;
+    render();
+    return;
+  }
+  if (ui.tab !== 'dashboard' || ui.listView || istCustom(n)) return;
+  const ziel = n + richtung;
+  if (!PLAN.some((w) => w.n === ziel)) return;
+  ui.workoutNo = ziel;
+  ui.openEx.clear();
+  render();
+}
 
 view.addEventListener('keydown', (e) => {
   const head = e.target.closest('.ex-head');
@@ -5443,6 +5517,11 @@ if (fokusUmzug()) {
 if (pruefeAufstieg() || pruefeZusatztag()) {
   ui.tab = 'dashboard';
   ui.focus = false;
+  // Der Zusatztag entsteht erst hier, also nach der Wahl der Startansicht ganz
+  // oben. Ohne diese Zeile stünde er zwar in der Ablage, aber die App zeigte
+  // weiter die nächste Planeinheit – angelegt und unsichtbar, also praktisch
+  // nicht vorhanden.
+  ui.workoutNo = naechsteEinheit();
 }
 /*
  * Wenn das Speichern kippt, muss der Bildschirm es sagen – sofort.

@@ -1407,3 +1407,11 @@ textarea.io {
 }
 .fertig-kopf { font-size: 17px; font-weight: 800; color: var(--ok); }
 .fertig-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* Der Startknopf nennt die Variante, die gilt – gewechselt wird sie unter Mehr.
+   Zwei Zeilen in einem Knopf: oben die Handlung, darunter der Zustand. */
+.start-modus {
+  display: block;
+  font-size: 12.5px; font-weight: 700; opacity: .75;
+  margin-top: 2px; letter-spacing: .2px;
+}

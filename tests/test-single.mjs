@@ -22,6 +22,31 @@ const check = (cond, msg) => {
 };
 
 await page.goto(EINZEL, { waitUntil: 'networkidle' });
+
+/**
+ * Modus umschalten – seit der Umschalter oben weg ist, geht das über die
+ * Einstellung. „Dass man sowohl oben als auch in der Mitte unterscheiden kann
+ * ist unnötig": Gewählt wird jetzt an einer Stelle, und die Startansicht sagt
+ * nur noch, was gilt.
+ */
+const modus = async (m) => {
+  // In der Einzeldatei gibt es keine Module zum Importieren – alles liegt in
+  // einem einzigen Gültigkeitsbereich, an den von außen niemand herankommt.
+  // Also über die Oberfläche, so wie ein Mensch es täte: Mehr, Schalter,
+  // zurück. Das prüft nebenbei mit, dass der Weg dorthin überhaupt existiert.
+  const willBw = m === 'bw';
+  await page.locator('.tab[data-tab="settings"]').click();
+  await page.waitForTimeout(200);
+  const schalter = page.locator('[data-act="toggle-default-mode"]');
+  if ((await schalter.getAttribute('aria-pressed')) !== String(willBw)) {
+    await schalter.click();
+    await page.waitForTimeout(200);
+  }
+  await page.locator('.tab[data-tab="dashboard"]').click();
+  await page.waitForTimeout(250);
+  const liste = page.locator('[data-act="show-list"]');
+  if (await liste.count()) { await liste.click(); await page.waitForTimeout(250); }
+};
 // Pausentimer stoert diese Tests nur - hier geht es um anderes. Und greeted:
 // ohne das steht hier die Willkommensseite, die es beim ersten Start gibt.
 await page.evaluate(() => { const k='workout.state.v1'; const s=JSON.parse(localStorage.getItem(k)||'{}'); s.restSeconds=0; s.greeted=true; localStorage.setItem(k, JSON.stringify(s)); });
@@ -58,7 +83,7 @@ check(bg === 'rgb(15, 17, 21)', `CSS eingebettet und aktiv (${bg})`);
 // fester Stelle nichts. Hier läuft alles über file:// – die Daten kommen aus
 // der Oberfläche, nicht aus einem Modul.
 const dbNamen = await page.locator('.ex-name').allTextContents();
-await page.locator('.mode-btn[data-mode="bw"]').click();
+await modus('bw');
 await page.waitForTimeout(150);
 const bwNamen = await page.locator('.ex-name').allTextContents();
 const geaendert = dbNamen.map((n, i) => [n, bwNamen[i]]).filter(([a, b]) => a !== b);
@@ -66,7 +91,7 @@ check(bwNamen.length === dbNamen.length && bwNamen.every((n) => n.length > 0),
   `Liste bleibt vollständig (${bwNamen.length} Übungen)`);
 check(geaendert.length > 0,
   `Bodyweight-Umschaltung (${geaendert.length ? geaendert[0].join(' -> ') : 'nichts geändert'})`);
-await page.locator('.mode-btn[data-mode="db"]').click();
+await modus('db');
 
 // Speichern über file:// – Chromium erlaubt hier kein localStorage
 const persists = await page.evaluate(() => {

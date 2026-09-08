@@ -67,7 +67,7 @@ const einheit = async (n) => {
   if (await zurUebersicht.count()) { await zurUebersicht.first().click(); await page.waitForTimeout(150); }
   for (let i = 0; i < 20; i++) {
     const txt = (await page.locator('.hero-eyebrow').first().textContent().catch(() => '')) || '';
-    const jetzt = Number((txt.match(/Workout (\d+) von/) || [])[1] || 0);
+    const jetzt = Number((txt.match(/Workout (\d+)/) || [])[1] || 0);
     if (jetzt === n) break;
     const knopf = page.locator(`[data-act="nav-workout"][data-delta="${jetzt < n ? 1 : -1}"]:not([disabled])`);
     if (!(await knopf.count())) break;

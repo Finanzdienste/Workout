@@ -29,6 +29,27 @@ const check = (cond, msg) => {
 };
 
 await page.goto(URL, { waitUntil: 'networkidle' });
+
+/**
+ * Modus umschalten – seit der Umschalter oben weg ist, geht das über die
+ * Einstellung. „Dass man sowohl oben als auch in der Mitte unterscheiden kann
+ * ist unnötig": Gewählt wird jetzt an einer Stelle, und die Startansicht sagt
+ * nur noch, was gilt.
+ */
+const modus = async (m) => {
+  await page.evaluate(async (ziel) => {
+    const store = await import('./js/store.js');
+    store.setMode(ziel);
+    store.setWorkoutMode(store.getState().session?.n ?? 1, ziel);
+  }, m);
+  // Neu zeichnen: Der Store meldet die Änderung, aber die Oberfläche hängt
+  // nicht an ihm – sie wird nach einer Bedienung gezeichnet. Ein Tipp auf den
+  // gerade offenen Reiter reicht und bleibt, wo man ist.
+  const offen = await page.locator('.tab[aria-selected="true"]').count()
+    ? '.tab[aria-selected="true"]' : '.tab[data-tab="dashboard"]';
+  await page.locator(offen).first().click();
+  await page.waitForTimeout(250);
+};
 await page.evaluate(() => { localStorage.clear(); localStorage.setItem('workout.state.v1', '{"greeted":true}'); });
 
 // Der Plan wird generiert – Namen und Länge der Einheit stehen nicht fest. Die
@@ -126,7 +147,7 @@ await page.locator('[data-act="finish-session"]').click();
 await page.waitForTimeout(150);
 
 // Bodyweight-Modus nutzt eigene Muster
-await page.locator('.mode-btn[data-mode="bw"]').click();
+await modus('bw');
 await page.locator('[data-act="start-session"]').first().click();
 await page.waitForTimeout(200);
 const sweepBw = await sweepFocus();
