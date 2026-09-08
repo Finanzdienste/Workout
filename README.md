@@ -3887,3 +3887,16 @@ npx http-server -p 8080 .
 Dann `http://localhost:8080` öffnen. Ein Server ist nötig, weil `index.html`
 ES-Module lädt und ein direkter `file://`-Aufruf davon vom Browser blockiert
 wird – `dist/workout.html` hat dieses Problem nicht.
+
+## Matches
+
+Unter `matches/` liegt eine zweite, eigenständige Seite: eine Tabelle aller
+Matches aus Tinder, Hinge und Bumble, sortiert nach Entfernung. Sie teilt mit
+der Workout-App nur die Farben und den Bauplan (ES-Module, kein Bauschritt,
+`localStorage`) – keinen Zustand, keinen Speicherschlüssel, keinen Code.
+
+Warum sie hier liegt und nicht in einem eigenen Projekt: Es ist derselbe
+Handgriff auf demselben Gerät – eine Seite, die man aufruft, statt einer App,
+die man installiert. Was sie kann, was in den Datenauskünften der drei Apps
+tatsächlich steht und warum die Entfernung dort *nicht* dabei ist, steht in
+[matches/README.md](matches/README.md).

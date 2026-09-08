@@ -17,6 +17,10 @@ export const ROOT = process.env.WORKOUT_ROOT
 /** Die App über einen Webserver. Ohne den gibt es keine Module und keinen Worker. */
 export const URL = process.env.WORKOUT_URL || 'http://127.0.0.1:8099/index.html';
 
+/** Die Match-Tabelle. Eigene Seite, eigener Speicher – siehe matches/. */
+export const MATCHES = process.env.WORKOUT_URL_MATCHES
+  || 'http://127.0.0.1:8099/matches/index.html';
+
 /**
  * Zweiter Server für den Aktualisierungstest. Er muss dieselben Dateien mit
  * einer Haltbarkeit ausliefern, wie GitHub Pages es tut – sonst prüft der Test
