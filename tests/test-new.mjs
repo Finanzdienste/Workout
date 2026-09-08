@@ -128,6 +128,63 @@ await page.waitForTimeout(200);
 check(await page.locator('[data-act="backup-now"]').count() === 1, 'Sicherungshinweis nach drei Einheiten');
 await page.screenshot({ path: `${SHOT}/98-backup.png` });
 
+// --- Ein fertiger Tag bleibt fertig, auch bei anderer Erfahrungsstufe --------
+// Die Satzzahl je Übung hängt an der Stufe: 2 (Anfänger), 3 (Geübt), 4
+// (Fortgeschritten). Gerechnet wurde „fertig" bis eben gegen die *heutige*
+// Zahl – wer umstellte, machte damit rückwirkend aus 10/10 eine 10/15 und aus
+// einer abgeschlossenen Einheit eine halbe. Samt Serie, Statistik und
+// Rundenzählung.
+// Aufräumen über den Store, nicht über localStorage samt Neuladen: Die App
+// schreibt ihren Zustand beim Verlassen der Seite noch einmal weg (flush), und
+// der überschrieb den von Hand gesetzten prompt wieder – Stufe *und* Protokoll
+// waren danach die alten. Aufgefallen ist das nur, weil dieser Test die Stufe
+// hinterher ausliest, statt sie vorauszusetzen.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.resetAll();
+  store.setSetting('greeted', true);
+  store.setSetting('level', 'anfaenger');
+});
+await page.waitForTimeout(200);
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  const { exBasis } = await import('./js/plan.js');
+  const w = PLAN[0];
+  exBasis(w, 'db').forEach((x) => {
+    for (let i = 0; i < x.sets; i++) store.updateSet(w.n, 'db', x.id, x.sets, i, { done: true, w: '20' });
+  });
+});
+const stand = async () => page.evaluate(async () => {
+  const { progressOf, completedMode } = await import('./js/plan.js');
+  const pr = progressOf(1, 'db');
+  return { done: pr.done, total: pr.total, complete: pr.complete, erledigt: pr.erledigt,
+           mode: completedMode(1) };
+});
+// Einmal neu laden: Genau dabei trägt die App für alte Einträge nach, dass sie
+// fertig sind (stempleFertige). Das ist der Weg, den ein bestehender Stand geht
+// – neue Einheiten halten es beim letzten Haken selbst fest.
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+
+const alsAnfaenger = await stand();
+console.log('     als Anfänger:', JSON.stringify(alsAnfaenger));
+check(alsAnfaenger.complete && alsAnfaenger.erledigt && alsAnfaenger.mode === 'db',
+  `mit zwei Sätzen je Übung ist die Einheit fertig (${alsAnfaenger.done}/${alsAnfaenger.total})`);
+
+await page.evaluate(async () => (await import('./js/store.js')).setSetting('level', 'geuebt'));
+await page.waitForTimeout(300);
+const alsGeuebt = await stand();
+console.log('     als Geübt:  ', JSON.stringify(alsGeuebt));
+check(alsGeuebt.total > alsAnfaenger.total,
+  `als Geübt sieht der Plan mehr Sätze vor (${alsAnfaenger.total} → ${alsGeuebt.total})`);
+check(alsGeuebt.erledigt === true && alsGeuebt.mode === 'db',
+  'der trainierte Tag bleibt trotzdem abgeschlossen – die Historie wird nicht umgeschrieben');
+check(alsGeuebt.complete === false,
+  'und die Häkchen behaupten nichts anderes: es stehen wirklich nicht alle');
+check(alsGeuebt.done === alsAnfaenger.done,
+  'gezählt wird weiter, was tatsächlich abgehakt wurde');
+
 // --- Plan-Ende: es gibt keins ------------------------------------------------
 // „Der Plan soll unendlich laufen." Am Ende der 84 Einheiten stand bisher
 // „🎉 Plan geschafft" mit einem Knopf „Von vorn beginnen". Beides ist raus – die

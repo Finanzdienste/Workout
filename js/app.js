@@ -996,6 +996,31 @@ function renderFocus() {
 }
 
 /**
+ * Was fertig war, bleibt fertig – einmalig nachgetragen.
+ *
+ * Bis eben hielt die App nur die Häkchen fest, nicht die Aussage „dieser Tag
+ * war fertig". Solange die Satzzahl gleich blieb, war das dasselbe. Sie hängt
+ * aber an der Erfahrungsstufe (zwei, drei oder vier Sätze je Übung), und beim
+ * Wechsel wurde aus jeder abgeschlossenen Einheit rückwirkend eine halbe.
+ *
+ * Neue Einheiten stempeln sich beim letzten Haken selbst ab. Für alles, was
+ * vorher entstanden ist, holt das hier einmal nach: Was **jetzt** vollständig
+ * ist, wird als vollständig vermerkt. Das ist keine Umdeutung, sondern die
+ * Aufzeichnung dessen, was ohnehin gerade gilt – und danach überlebt sie jede
+ * Umstellung.
+ */
+function stempleFertige() {
+  const log = store.getState().log || {};
+  Object.keys(log).forEach((k) => {
+    if (log[k].done) return;
+    const n = Number(k);
+    if (!Number.isInteger(n)) return;    // eigene Einheiten zählen nicht im Plan
+    const mode = completedMode(n);
+    if (mode) store.markDone(n, mode);
+  });
+}
+
+/**
  * Der Plan hört nicht auf.
  *
  * Am Ende der 84 Einheiten stand bisher „🎉 Plan geschafft" und ein Knopf „Von
@@ -1049,22 +1074,34 @@ function rundeWeiter() {
 function startBlock(n, mode, prog) {
   const laeuft = !!store.getState().session;
 
-  if (prog.complete && laeuft) {
+  if (prog.erledigt && laeuft) {
     return `
       <button type="button" class="btn btn-ok btn-block btn-start" data-act="finish-session">
         ✓ Training abschließen (${prog.done}/${prog.total})
       </button>`;
   }
 
-  if (prog.complete) {
+  if (prog.erledigt) {
     const e = store.getState().log[n] || {};
     const min = e.secs > 0 ? Math.round(e.secs / 60) : 0;
+    // Nicht „alle 18 Sätze", wenn 16 stehen: Wer von Hand abschließt, hat den
+    // Tag beendet, nicht jeden Satz gemacht. Die Zeile sagt, was zutrifft.
+    const wieViel = prog.done === prog.total
+      ? `Alle ${prog.total} Sätze stehen`
+      : `${prog.done} von ${prog.total} Sätzen`;
+    // Steht noch etwas offen, muss der Weg zurück hinein bleiben – leise, aber
+    // vorhanden. „Abgeschlossen" ist eine Aussage über den Tag, kein Schloss:
+    // Wer bei 16 von 18 abbricht und zehn Minuten später doch weitermacht,
+    // darf nicht vor einer Karte ohne Knöpfe stehen.
     return `
       <div class="fertig">
         <div class="fertig-kopf">✓ Für heute durch</div>
-        <div class="fertig-sub">Alle ${prog.total} Sätze stehen${
+        <div class="fertig-sub">${wieViel}${
           min ? ` · ${min} min` : ''}. Die nächste Einheit kommt von selbst.</div>
-      </div>`;
+      </div>
+      ${prog.complete ? '' : `
+      <button type="button" class="btn btn-ghost btn-block" data-act="start-session"
+              style="margin-top:8px">Doch noch weitermachen</button>`}`;
   }
 
   if (prog.done) {
@@ -1161,7 +1198,7 @@ function renderOverview() {
              Mehr → Termine. -->
         <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
-          <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.complete ? ' · abgeschlossen' : ''}</div>` : ''}
+          <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.erledigt ? ' · abgeschlossen' : ''}</div>` : ''}
         ${nachSumme(items) ? `<div class="small muted" style="margin-top:8px">
           ↩︎ ${esc(plural(nachSumme(items), 'Satz', 'Sätze'))} aus dieser Woche nachgeholt – diese Woche
           ist etwas liegen geblieben, und das Wochenpensum je Muskelgruppe geht so wieder auf.</div>` : ''}
@@ -1669,7 +1706,7 @@ function renderDashboard() {
       <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
       <div class="hero-badges">
         <span class="badge accent">${mode === 'db' ? '🏋️ Hantel-Variante' : '🤸 Bodyweight-Variante'}</span>
-        ${prog.complete ? '<span class="badge done">✓ Abgeschlossen</span>'
+        ${prog.erledigt ? '<span class="badge done">✓ Abgeschlossen</span>'
                         : `<span class="badge">${prog.done}/${prog.total} Sätze</span>`}
         <!-- Hier stand dasselbe "Plan +2 Tage" wie in der Übersicht, nur als
              Abzeichen. Es dort rauszunehmen und einen Tipp weiter wieder
@@ -4495,6 +4532,13 @@ view.addEventListener('click', (e) => {
 
       const done = !cur;
       const workoutComplete = done && progressOf(n, mode).complete;
+      // Festhalten, dass dieser Tag trainiert wurde – nicht nur, dass alle
+      // Häkchen stehen. Der Unterschied fällt erst später auf: „Alle Häkchen"
+      // wird gegen die *heutige* Satzzahl gerechnet, und die hängt an der
+      // Erfahrungsstufe. Wer von Anfänger auf Geübt wechselt, hätte sonst
+      // rückwirkend aus 10/10 ein 10/15 gemacht und eine fertige Einheit in
+      // eine halbe verwandelt – samt Serie, Statistik und Rundenzählung.
+      if (workoutComplete) store.markDone(n, mode);
       const exDone = done && i === item.sets - 1
         && store.getSets(n, mode, id, item.sets).slice(0, item.sets).every((s) => s.done);
 
@@ -5353,6 +5397,9 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 // Nachrücken passiert still: Ist der Termin der nächsten offenen Einheit
 // verstrichen, wandert der Restplan nach hinten. Der Rückgabewert – wie viele
 // Tage das waren – wird nicht mehr gebraucht, seit der Hinweis dazu weg ist.
+// Erst nachstempeln, dann die Runde prüfen: rundeWeiter() fragt genau die
+// Vollständigkeit ab, die hier festgeschrieben wird.
+stempleFertige();
 rundeWeiter();
 catchUpPlan();
 // Hat jemand einen Stand geschickt? Steht im Anker der Adresse und wird dort

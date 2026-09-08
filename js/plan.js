@@ -402,7 +402,25 @@ export function progressOf(n, mode) {
     total += item.sets;
     done += arr.slice(0, item.sets).filter((s) => s.done).length;
   });
-  return { done, total, pct: total ? Math.round((done / total) * 100) : 0, complete: total > 0 && done === total };
+  // `complete` heißt weiterhin: jedes Häkchen steht. `erledigt` heißt: der Tag
+  // ist trainiert. Meistens dasselbe, aber nicht immer, und der Unterschied
+  // trägt zwei Fälle:
+  //
+  //   Von Hand abgeschlossen. 16 von 18 Sätzen, dann „Abschließen" – der Tag
+  //   zählt, die Häkchen sind trotzdem nicht alle.
+  //   Erfahrungsstufe gewechselt. Die Satzzahl je Übung hängt daran; aus einer
+  //   fertigen 10/10 wird sonst rückwirkend eine 10/15.
+  //
+  // Was gezählt und angezeigt wird, bleibt ehrlich: done und total ändern sich
+  // nicht. Nur die Frage „ist hier noch etwas zu tun" wird richtig beantwortet.
+  const st = store.getState().log[n];
+  return {
+    done,
+    total,
+    pct: total ? Math.round((done / total) * 100) : 0,
+    complete: total > 0 && done === total,
+    erledigt: (total > 0 && done === total) || !!(st && st.done === mode),
+  };
 }
 
 /** Ist das Workout in irgendeinem Modus abgeschlossen? Gibt den Modus zurück. */
