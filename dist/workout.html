@@ -3402,7 +3402,13 @@ const mixPt = (p, q, f) => ({
 const A = (p = 0, a = 0, e = 0, i = 0) => ({ p, a, e, i });
 const L = (p = 0, a = 0, k = 0) => ({ p, a, k });
 
-/** Gelenkpunkte einer Stellung, Hüftmitte im Ursprung. */
+/**
+ * Gelenkpunkte einer Stellung, Hüftmitte im Ursprung.
+ *
+ * Ausgeführt, weil sich Stellungen sonst nur am fertigen Bild beurteilen
+ * lassen: tools/pose.mjs rechnet damit nach, ob Schultern, Hüfte und Füße dort
+ * liegen, wo die Übung sie verlangt.
+ */
 function solve(pose) {
   const R = RIG;
   const lean = pose.lean || 0;
@@ -3509,17 +3515,44 @@ const PATTERNS = {
     ],
   },
   thrust: {
-    // Schultern am Boden, Hüfte hoch bis Rumpf und Oberschenkel eine Linie sind
-    // Der Blickwinkel muss zwei Dinge zugleich schaffen: Die Stange über der
-    // Hüfte soll waagerecht liegen, und der Körper soll der Länge nach zu
-    // sehen sein. Bei yaw 20 / pitch -30 lief die Stange schräg durch den
-    // Körper; bei yaw 62 stand die ferne Scheibe neben dem Kopf. Von der Seite
-    // her verschwindet sie hinter dem Körper – genau so sieht ein Hip Thrust
-    // in Wirklichkeit aus.
-    label: 'Hüftstreckung', lie: 'supine', view: [30, -8],
+    /*
+     * Schulterblätter auf der Bank, Füße am Boden, Hüfte auf und ab.
+     *
+     * *„Teilweise sind die animationen noch irre führend. Kannst ja hier zb
+     * auch ne Couch oder bank oder so einfügen damit man erkennt was los ist."*
+     *
+     * Nachgemessen, was vorher dastand (tools/pose.mjs, Maße in Körperlängen
+     * über dem Boden):
+     *
+     *              Schulter   Hüfte    Knie     Fuß   Schienbein
+     *   unten         0.03     0.09    0.41    0.08      36° schräg
+     *   oben          0.11     0.33    0.58    0.20      26° schräg
+     *
+     * Das ist kein Hip Thrust. Die Schultern lagen am Boden, die Knie standen
+     * höher als alles andere, und die Füße schwebten – die ganze Figur war eine
+     * schräg gekippte Beckenbrücke in der Luft. Eine Bank darunterzumalen hätte
+     * daran nichts geändert; sie wäre ein Streifen am Boden gewesen.
+     *
+     * Jetzt:
+     *
+     *              Schulter   Hüfte    Knie     Fuß   Schienbein
+     *   unten         0.40     0.10    0.40    0.00      13° schräg
+     *   oben          0.40     0.40    0.40    0.00       0° senkrecht
+     *
+     * Die Schultern bleiben auf Bankhöhe, die Füße stehen (x 0.4 in beiden
+     * Stellungen), und bewegt wird die Hüfte – von knapp über dem Boden bis in
+     * die Linie Knie–Schulter. Genau das ist die Übung. Gesucht wurden die
+     * Winkel nicht nach Augenmaß, sondern gegen diese Zielmaße.
+     *
+     * Der Blickwinkel muss zwei Dinge zugleich schaffen: Die Stange über der
+     * Hüfte soll waagerecht liegen, und der Körper soll der Länge nach zu
+     * sehen sein. Bei yaw 20 / pitch -30 lief die Stange schräg durch den
+     * Körper; bei yaw 62 stand die ferne Scheibe neben dem Kopf.
+     */
+    label: 'Hüftstreckung', lie: 'supine', view: [16, -8], couch: true,
     poses: [
-      { tilt: 8, arm: A(0, 17, 8), leg: L(40, 8, 102) },
-      { tilt: 32, arm: A(0, 17, 8), leg: L(2, 8, 98) },
+      { tilt: -38, arm: A(0, 17, 8), leg: L(76, 8, 115) },
+      { tilt: 0, arm: A(0, 17, 8), leg: L(0, 8, 90) },
     ],
   },
   pushup: {
@@ -3767,10 +3800,24 @@ const PATTERNS = {
     ],
   },
   thrust1: {
-    label: 'Hüftstreckung einbeinig', lie: 'supine', view: [20, -30],
+    /*
+     * Dieselbe Übung auf einem Bein, auf der Stuhl- oder Sofakante – und
+     * deshalb dieselben Winkel für das Standbein wie bei `thrust`.
+     *
+     * Das freie Bein hält seine Richtung im *Raum*, nicht zum Rumpf: Beim
+     * Absenken kippt der Rumpf um 38°, und ein Bein mit festen Gelenkwinkeln
+     * schwenkte um dieselben 38° mit – es sähe aus, als würde es mitgetreten.
+     * Deshalb ist `p` unten um genau diese 38° größer. Nachgemessen bleibt der
+     * freie Fuß dadurch über der ganzen Bewegung an derselben Stelle (x 0.80)
+     * und steigt nur mit der Hüfte: 0.34 unten, 0.62 oben – immer deutlich über
+     * dem Standfuß. Schwebte er nur knapp, setzte ihn die Bodenrechnung von
+     * js/figure.js mit auf den Boden, und aus der einbeinigen Übung würde eine
+     * zweibeinige.
+     */
+    label: 'Hüftstreckung einbeinig', lie: 'supine', view: [16, -8], couch: true,
     poses: [
-      { tilt: 8, arm: A(0, 17, 8), legR: L(40, 8, 102), legL: L(96, 12, 94) },
-      { tilt: 32, arm: A(0, 17, 8), legR: L(2, 8, 98), legL: L(78, 12, 92) },
+      { tilt: -38, arm: A(0, 17, 8), legR: L(76, 8, 115), legL: L(62, 12, 20) },
+      { tilt: 0, arm: A(0, 17, 8), legR: L(0, 8, 90), legL: L(24, 12, 20) },
     ],
   },
   calf1: {
@@ -4040,7 +4087,14 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     // liegt der Körper nicht mehr fest auf dem Boden auf, der Boden darf aber
     // trotzdem nicht bei jedem Einzelbild auf und ab wandern.
     const groundY = Math.min(...Object.values(skeleton(0)).map((q) => q[1]));
-    return { mid, groundY, scale: (Math.min(VBW, VBH) / 2) * 0.94 / Math.max(r, 0.1) };
+    // Die Auflage unter den Schultern (Hip Thrust): einmal aus der oberen
+    // Stellung genommen und dann fest. Zeichnete man sie in jedem Einzelbild
+    // neu unter die aktuellen Schultern, wanderte sie mit ihnen – und eine Bank,
+    // die mitfährt, ist keine.
+    const oben = skeleton(1);
+    const schulter = [0, 1, 2].map((i) => (oben.shoulderL[i] + oben.shoulderR[i]) / 2);
+    return { mid, groundY, bank: schulter,
+             scale: (Math.min(VBW, VBH) / 2) * 0.94 / Math.max(r, 0.1) };
   })();
   const gearScale = fit.scale / 40;
 
@@ -4308,6 +4362,46 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       face([corner(-1, -1, top), corner(-1, 1, top), corner(-1, 1, boden), corner(-1, -1, boden)]);
     }
 
+    if (spec.couch) {
+      /*
+       * Die Auflage im Rücken: Bank, Sofa- oder Stuhlkante.
+       *
+       * Ohne sie ist die Stellung nicht zu lesen – eine Figur, deren Schultern
+       * einen halben Meter über dem Boden schweben, sieht aus wie ein Fehler.
+       * Mit ihr erklärt sich alles von selbst: Da liegt jemand mit den
+       * Schulterblättern auf einer Kante, die Füße stehen am Boden, und
+       * dazwischen geht die Hüfte auf und ab.
+       *
+       * Sie steht *hinter* den Schultern, nicht unter der ganzen Figur: Die
+       * Kante liegt unter den Schulterblättern (dbCue: „nicht im Nacken"), und
+       * genau diese Kante ist der Bezugspunkt der Übung. Eine Bank, die bis
+       * unter die Hüfte reicht, wäre eine Liege – dann hinge die Hüfte nicht
+       * frei, und die Bewegung wäre keine mehr.
+       */
+      const vorn = fit.bank[0] + 0.05;      // Vorderkante knapp vor den Schultern
+      // Oberkante auf Höhe der *Kopfunterseite*, nicht der Schultermitte: Der
+      // Kopf liegt weiter hinten als die Schultern und damit über der Auflage.
+      // Auf Schulterhöhe steckte er zur Hälfte darin.
+      const top = fit.bank[1] - RIG.headR;
+      const hinten = vorn - 0.70;
+      const halb = 0.30;                    // etwas breiter als die Schultern
+      const boden = -0.62;
+      const ecke = (x, sz, y) => P([x, y, fit.bank[2] + sz * halb]);
+      const face = (quad, dz = 0) => parts.push({
+        z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length + dz,
+        node: el('polygon', {
+          points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+          class: 'fig-bench',
+        }),
+      });
+      // Sitzfläche, Vorderkante, beide Seiten. Die Rückwand bleibt weg – sie
+      // liegt immer hinter der Sitzfläche und kostet nur Striche.
+      face([ecke(hinten, -1, top), ecke(vorn, -1, top), ecke(vorn, 1, top), ecke(hinten, 1, top)], -0.05);
+      face([ecke(vorn, -1, top), ecke(vorn, 1, top), ecke(vorn, 1, boden), ecke(vorn, -1, boden)], -0.05);
+      face([ecke(hinten, 1, top), ecke(vorn, 1, top), ecke(vorn, 1, boden), ecke(hinten, 1, boden)], -0.05);
+      face([ecke(hinten, -1, top), ecke(vorn, -1, top), ecke(vorn, -1, boden), ecke(hinten, -1, boden)], -0.05);
+    }
+
     if (spec.seat) {
       // Bank: Sitzfläche knapp unter der Hüfte, zwei Beine bis auf den Boden.
       // Sie liegt im Raum und kippt deshalb beim Drehen mit.
@@ -4485,7 +4579,9 @@ function tempo(u, effortAt1) {
 const LOWER_TO_1 = ['squat', 'squatbw', 'pushup', 'pushupfeet', 'pike', 'tricepsbar',
   'hinge', 'hinge1', 'splitsquat'];
 
-const reduceMotion = window.matchMedia
+// Wie beim Beobachter oben abgesichert: Dieses Modul wird auch ausserhalb
+// eines Browsers geladen – tools/pose.mjs rechnet damit Stellungen nach.
+const reduceMotion = typeof window !== 'undefined' && window.matchMedia
   ? window.matchMedia('(prefers-reduced-motion: reduce)')
   : { matches: false };
 
@@ -4496,7 +4592,7 @@ function frame(now) {
   }
   requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+if (typeof requestAnimationFrame === 'function') requestAnimationFrame(frame);
 
 /* ===== js/body.js ===== */
 /*
