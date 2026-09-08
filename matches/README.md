@@ -96,11 +96,49 @@ Mitnehmen und aufheben über *Sicherung* (JSON, liest sich wieder ein) und
 Speicher hängt am Ort, von dem die Seite geladen wurde – wer zwischen GitHub
 Page und lokaler Datei wechselt, nimmt die Sicherung mit.
 
+## Aufs Handy bekommen
+
+Zwei Wege, und der zweite braucht niemanden ausser dir.
+
+**Als Seite.** Liegt das Repo auf GitHub Pages, ist die Tabelle unter
+`…/matches/` erreichbar. Im Handy-Browser oeffnen, *Zum Startbildschirm
+hinzufuegen* – dann steht sie als Symbol neben den uebrigen Apps.
+
+**Als eine einzige Datei.**
+
+```bash
+python3 tools/build-matches-single.py
+```
+
+Das ergibt `dist/matches.html`: CSS, alle vier Module und das Symbol
+eingebettet, rund 100 KB. Die Datei aufs Geraet legen (Download, Cloud,
+Messenger, Kabel), in der Dateien-App antippen – der Browser oeffnet sie ohne
+Server und ohne Netz, und auch von hier aus geht *Zum Startbildschirm
+hinzufuegen*.
+
+Ein Hinweis, der bei der Workout-App genauso gilt: Der Speicher haengt am Ort,
+von dem die Seite geladen wurde. Wer zwischen der GitHub Page und der Datei
+wechselt, nimmt seine Zeilen ueber *Sicherung* mit – sonst steht er vor einer
+leeren Tabelle und haelt sie fuer einen Datenverlust.
+
+Die Reihenfolge der Module im Buendel steht nicht in einer Liste, sondern wird
+aus den import-Zeilen gelesen. Bei der Workout-App fehlte `js/ics.js`
+jahrelang in genau so einer Liste, und der Kalenderexport der Einzeldatei endete
+in einem ReferenceError, waehrend er unter `index.html` lief. Eine Liste, die
+jemand von Hand pflegen muss, geht irgendwann auseinander; die import-Zeilen
+koennen es nicht, denn ohne sie laeuft die modulare Fassung selbst nicht.
+
 ## Prüfen
 
 ```bash
 node tests/lauf.mjs matches
 ```
+
+Das laeuft beide: `test-matches.mjs` gegen die modulare Fassung und
+`test-matches-einzel.mjs` gegen `dist/matches.html` aus dem Dateisystem. Die
+zweite Pruefung ist keine Formsache – im Buendel teilen sich alle Module einen
+Gueltigkeitsbereich, und was dort schiefgeht, geht genau dort schief, wo man es
+am wenigsten merkt: auf dem Handy, offline, ohne Entwicklerwerkzeuge.
 
 Geprüft wird vor allem die Reihenfolge, und dort der unbequeme Fall: dass Zeilen
 ohne Entfernung in beiden Richtungen unten bleiben, dass eine eingetragene Zahl

@@ -32,6 +32,10 @@ export const UPDATE_URL = process.env.WORKOUT_URL_CACHE || 'http://127.0.0.1:810
 export const EINZEL = process.env.WORKOUT_EINZEL
   || pathToFileURL(path.join(ROOT, 'dist', 'workout.html')).href;
 
+/** Die Ein-Datei-Fassung der Match-Tabelle, direkt vom Dateisystem. */
+export const MATCHES_EINZEL = process.env.WORKOUT_MATCHES_EINZEL
+  || pathToFileURL(path.join(ROOT, 'dist', 'matches.html')).href;
+
 /** Wohin Bildschirmfotos und Browserprofile gehen. */
 export const ABLAGE = process.env.WORKOUT_ABLAGE || path.join(ROOT, '.testlauf');
 mkdirSync(ABLAGE, { recursive: true });

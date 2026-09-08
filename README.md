@@ -3900,3 +3900,7 @@ Handgriff auf demselben Gerät – eine Seite, die man aufruft, statt einer App,
 die man installiert. Was sie kann, was in den Datenauskünften der drei Apps
 tatsächlich steht und warum die Entfernung dort *nicht* dabei ist, steht in
 [matches/README.md](matches/README.md).
+
+Wie die Workout-App gibt es sie auch als eine einzige Datei zum Mitnehmen –
+`python3 tools/build-matches-single.py` erzeugt `dist/matches.html`, die ohne
+Server und ohne Netz läuft.

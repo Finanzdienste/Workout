@@ -57,8 +57,9 @@ jobs:
           pip install --quiet openpyxl
           python3 tools/build-data.py
           python3 tools/build-single.py
-          git diff --exit-code -- js/data.js dist/workout.html \
-            || { echo "::error::js/data.js oder dist/workout.html ist nicht neu erzeugt worden."; exit 1; }
+          python3 tools/build-matches-single.py
+          git diff --exit-code -- js/data.js dist/workout.html dist/matches.html \
+            || { echo "::error::js/data.js, dist/workout.html oder dist/matches.html ist nicht neu erzeugt worden."; exit 1; }
 
   klicken:
     name: Browsertests
