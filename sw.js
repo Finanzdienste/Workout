@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v122';
+const VERSION = 'v123';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -237,20 +237,63 @@ async function erinnern(zeitPruefen) {
   const offen = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   if (offen.some((c) => c.visibilityState === 'visible')) return;
 
-  await self.registration.showNotification('Training steht an', {
-    body: zettel.titel || 'Dein nächstes Workout wartet.',
-    icon: './icon-192.png',
-    badge: './icon-192.png',
-    tag: 'workout-erinnerung',
-    // Bleibt in der Leiste stehen, bis sie weggewischt wird – genau das war
-    // der Wunsch: nicht ein Piep, der im Vorbeigehen verschwindet.
-    requireInteraction: true,
-  });
+  await erinnerungZeigen(zettel.titel);
   if (self.navigator && self.navigator.setAppBadge) {
     self.navigator.setAppBadge(1).catch(() => {});
   }
   await merkSchreiben({ gemeldet: heute });
 }
+
+const ERINNERUNG_TAG = 'workout-erinnerung';
+
+/**
+ * Die Meldung selbst – in einer eigenen Funktion, weil sie zweimal gebraucht
+ * wird: einmal, wenn sie faellig ist, und einmal, wenn sie weggewischt wurde.
+ *
+ * **Ein Symbol, nicht zwei.** Vorher standen `icon` und `badge` beide auf
+ * icon-192.png. Android zeigt daraufhin dieselbe Hantel zweimal nebeneinander –
+ * links das kleine Symbol, rechts das grosse. Uebrig bleibt `badge`; das grosse
+ * traegt nichts bei, was das kleine nicht schon sagt.
+ *
+ * **Fest, nicht wegwischbar.** `requireInteraction` steht seit jeher hier und
+ * hilft auf Android nicht: Chrome kennt das Feld dort nicht, jede Meldung
+ * laesst sich wegwischen. Was traegt, ist der Weg unten – weggewischt kommt sie
+ * zurueck. Damit das kein Kaefig wird, hat sie einen ausdruecklichen Ausgang:
+ * „Heute nicht" beendet sie fuer diesen Tag, und die App zu oeffnen ebenso.
+ */
+function erinnerungZeigen(titel) {
+  return self.registration.showNotification('Training steht an', {
+    body: titel || 'Dein nächstes Workout wartet.',
+    badge: './icon-192.png',
+    tag: ERINNERUNG_TAG,
+    requireInteraction: true,
+    actions: [{ action: 'heute-nicht', title: 'Heute nicht' }],
+    data: { art: 'erinnerung', titel: titel || '' },
+  });
+}
+
+/**
+ * Weggewischt ist nicht erledigt.
+ *
+ * *„Außerdem kann ichs wegwischen aber es soll fest sein."* Eine Web-Meldung
+ * kennt kein „ongoing" wie eine App-eigene; der einzige Hebel ist, sie nach dem
+ * Wischen erneut zu zeigen. Genau das passiert hier – aber nur an dem Tag, an
+ * dem sie faellig war, und nur, solange sie nicht ausdruecklich beendet wurde.
+ * Ohne diese beiden Bremsen waere sie nicht fest, sondern nicht loszuwerden.
+ */
+self.addEventListener('notificationclose', (event) => {
+  const daten = event.notification.data || {};
+  if (daten.art !== 'erinnerung') return;
+  event.waitUntil((async () => {
+    const zettel = await merkLesen();
+    const heute = heuteISO();
+    if (zettel.wegAm === heute) return;      // „Heute nicht" – dann bleibt sie weg
+    if (zettel.gemeldet !== heute) return;   // von gestern; die kommt nicht wieder
+    const offen = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (offen.some((c) => c.visibilityState === 'visible')) return;
+    await erinnerungZeigen(daten.titel);
+  })());
+});
 
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'workout-erinnerung') event.waitUntil(erinnern(true));
@@ -309,7 +352,7 @@ function pauseZeigen(rest) {
     {
       body: `${pause.text} · weiter um ${uhr}`,
       tag: PAUSE_TAG,
-      icon: './icon-192.png',
+      // Nur das kleine Symbol – zu `icon` siehe erinnerungZeigen().
       badge: './icon-192.png',
       silent: true,          // sonst klingelt es jede Sekunde neu
       renotify: false,
@@ -323,7 +366,6 @@ function pauseFertig() {
   return self.registration.showNotification('Pause vorbei', {
     body: pause.text,
     tag: PAUSE_TAG,
-    icon: './icon-192.png',
     badge: './icon-192.png',
     vibrate: [180, 90, 180],
     requireInteraction: true,
@@ -385,13 +427,25 @@ self.addEventListener('message', (event) => {
  * zweite Instanz zu oeffnen. Ohne diesen Zweig passiert schlicht nichts.
  */
 self.addEventListener('notificationclick', (event) => {
+  const daten = event.notification.data || {};
   event.notification.close();
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((liste) => {
-      for (const client of liste) {
-        if ('focus' in client) return client.focus();
+  // Der Ausgang aus der Erinnerung: „Heute nicht" – oder sie zu oeffnen. Beides
+  // beendet sie fuer heute, sonst brachte sie der notificationclose-Zweig oben
+  // gleich wieder.
+  const beenden = daten.art === 'erinnerung';
+  const nurWeg = event.action === 'heute-nicht';
+  event.waitUntil((async () => {
+    if (beenden) {
+      await merkSchreiben({ wegAm: heuteISO() });
+      if (self.navigator && self.navigator.clearAppBadge) {
+        self.navigator.clearAppBadge().catch(() => {});
       }
-      return self.clients.openWindow('./');
-    }),
-  );
+    }
+    if (nurWeg) return;
+    const liste = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of liste) {
+      if ('focus' in client) return client.focus();
+    }
+    return self.clients.openWindow('./');
+  })());
 });

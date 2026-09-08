@@ -563,7 +563,7 @@ function planNote(secs, text) {
     const opt = {
       body: text,
       tag: NOTE_TAG,          // ersetzt eine ältere, statt sie zu stapeln
-      icon: './icon-192.png',
+      // Nur `badge`: Mit `icon` daneben zeichnet Android dieselbe Hantel zweimal.
       badge: './icon-192.png',
       vibrate: [180, 90, 180],
     };

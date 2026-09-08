@@ -19,9 +19,8 @@
  * Absicht: Was im Worker steht, lässt sich kaum testen (ein Testlauf kann
  * periodicsync nicht auslösen), was hier steht dagegen schon.
  */
-import { PLAN } from './data.js';
 import { defaultWorkoutNo, effDate, workoutByNo, completedMode } from './plan.js';
-import { todayISO } from './dates.js';
+import { plural, todayISO } from './dates.js';
 
 /** "16:00" -> 960 Minuten. Unbrauchbares gibt null. */
 export function minuten(hhmm) {
@@ -76,6 +75,9 @@ export function erinnerungsStand(zeiten, heute = todayISO()) {
     zeigenAb: ab,
     tag,
     nummer: n,
-    titel: `Workout ${n} von ${PLAN.length}`,
+    // Kein „von 84": *„Die app geht ja unendlich."* Stimmt – am Ende der Runde
+    // beginnt der Plan von selbst wieder bei 1. Statt der Gesamtzahl steht
+    // deshalb da, was heute ansteht, und das ist die nützlichere Auskunft.
+    titel: `Workout ${n} · ${plural(w.ex.length, 'Übung', 'Übungen')}`,
   };
 }

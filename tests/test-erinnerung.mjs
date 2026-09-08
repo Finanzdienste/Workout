@@ -74,7 +74,10 @@ const stand = await page.evaluate(async () => {
 console.log('     fällig:', JSON.stringify(stand));
 check(!!stand, 'es gibt einen fälligen Termin');
 check(stand.heute === true, `und er liegt auf heute (${stand.tag})`);
-check(/^Workout \d+ von \d+$/.test(stand.titel), `der Titel nennt die Einheit (${stand.titel})`);
+// Kein „von 84" – der Plan läuft unendlich. Was zählt, ist, was heute ansteht.
+check(/^Workout \d+ · \d+ Übungen?$/.test(stand.titel),
+  `der Titel nennt die Einheit und ihren Umfang (${stand.titel})`);
+check(!/ von \d+/.test(stand.titel), 'und nicht, wie viele es insgesamt sind');
 
 // --- 3. Der Merkzettel für den Service Worker ---------------------------
 // Das ist das Einzige, was der Worker später zu sehen bekommt. Steht hier

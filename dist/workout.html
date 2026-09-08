@@ -9042,7 +9042,6 @@ function pruefeAufstieg() {
  */
 
 
-
 /** "16:00" -> 960 Minuten. Unbrauchbares gibt null. */
 function minuten(hhmm) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
@@ -9096,7 +9095,10 @@ function erinnerungsStand(zeiten, heute = todayISO()) {
     zeigenAb: ab,
     tag,
     nummer: n,
-    titel: `Workout ${n} von ${PLAN.length}`,
+    // Kein „von 84": *„Die app geht ja unendlich."* Stimmt – am Ende der Runde
+    // beginnt der Plan von selbst wieder bei 1. Statt der Gesamtzahl steht
+    // deshalb da, was heute ansteht, und das ist die nützlichere Auskunft.
+    titel: `Workout ${n} · ${plural(w.ex.length, 'Übung', 'Übungen')}`,
   };
 }
 
@@ -9864,7 +9866,7 @@ function planNote(secs, text) {
     const opt = {
       body: text,
       tag: NOTE_TAG,          // ersetzt eine ältere, statt sie zu stapeln
-      icon: './icon-192.png',
+      // Nur `badge`: Mit `icon` daneben zeichnet Android dieselbe Hantel zweimal.
       badge: './icon-192.png',
       vibrate: [180, 90, 180],
     };
