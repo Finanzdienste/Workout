@@ -7,42 +7,36 @@ mit dem Trainingsplan außer dem Aussehen.
 Öffnen: `matches/index.html` über einen Webserver (ES-Module), im Betrieb also
 `…/matches/` auf derselben Adresse wie die Workout-App.
 
-## Was diese App nicht kann, und warum
+## Drei Wege hinein, und warum es drei sind
 
-Das gehört an den Anfang, weil es die halbe Bedienung erklärt.
+Das gehört an den Anfang, weil es die ganze Bedienung erklärt.
 
-**Es gibt keine Schnittstelle.** Weder Tinder noch Hinge noch Bumble bietet
-einen offiziellen Zugang zu den eigenen Matches. Was man bekommt, ist die
+**Eine offizielle Schnittstelle hat keiner der drei Dienste.** Es gibt die
 Datenauskunft nach Art. 15 DSGVO: selbst anfordern, ein paar Tage warten, Link
-per Mail. Der andere Weg – ein Programm, das sich als App ausgibt und das eigene
-Konto fernsteuert – verstößt gegen die Nutzungsbedingungen, und das übliche Ende
-ist eine Kontosperre. Deshalb steht er hier nicht zur Wahl.
+per Mail. **Und in dieser Auskunft steht keine Entfernung** – in keiner der
+drei. Bei Tinder und Hinge fehlen auch die Namen; Tinder liefert Kennungen wie
+`5f3a…` und die Nachrichten, die *man selbst* geschickt hat.
 
-**In dieser Auskunft stehen keine Entfernungen.** In keiner der drei. Die „4 km"
-im Profil entstehen im Moment des Anzeigens aus zwei aktuellen Standorten und
-werden nirgends gespeichert. Es gibt also keine Datei, aus der sich die
-gewünschte Spalte auslesen ließe – auf keinem legalen und auf keinem illegalen
-Weg.
+Die Entfernung gibt es trotzdem, nur eben nicht in einer Datei: Der Server
+schickt sie an die App, sonst könnte die „4 km entfernt" nicht anzeigen. Wer
+automatisch drankommen will, muss also dort mitlesen, wo sie ankommt – im
+Browser oder auf dem Bildschirm des Telefons. Beides tut diese App, und beides
+tut sie **passiv**: zusehen, nicht abfragen.
 
-**Und meistens fehlen auch die Namen.** Tinder liefert Match-Kennungen wie
-`5f3a…` und die Nachrichten, die *man selbst* geschickt hat; Hinge liefert
-Zeitstempel und Gesprächsverläufe ohne jeden Namen. Bumble ist uneinheitlich –
-dort stehen manchmal Namen dabei.
-
-Daraus folgt der Zuschnitt: Der Import baut das Gerüst (Datum, Nachrichtenzahl,
-Stand), die beiden Spalten, um die es eigentlich geht, füllt man selbst. Das
-Formular ist darauf ausgelegt – Name, App, Zahl, Enter.
-
-## Automatisch mitlesen – für Tinder
-
-`matches/mitlesen.user.js` ist der einzige Weg, auf dem eine **Entfernung von
-selbst** in diese Tabelle kommt. Er funktioniert für Tinder, und nur dafür:
-
-| Dienst | Weboberfläche | mitlesen |
+| Weg | Für wen | Bringt |
 | --- | --- | --- |
-| Tinder | tinder.com, funktioniert | ja |
-| Bumble | am 8. August 2026 abgeschaltet | nein |
-| Hinge | gab es nie | nein |
+| [`mitlesen.user.js`](mitlesen.user.js) im Browser | Tinder (tinder.com) | Name, **Entfernung**, Match-Datum |
+| [`android-lesen.py`](android-lesen.py) am Telefon | Bumble, Hinge | Name, **Entfernung** |
+| Datenauskunft einlesen | alle drei | Datum, Nachrichtenzahl, Stand |
+| Formular | alle drei | alles, in fünf Sekunden je Person |
+
+Bumble hat seine Weboberfläche am 8. August 2026 abgeschaltet, Hinge hatte nie
+eine – deshalb für diese beiden der Weg über das Telefon.
+
+Was auf keinem Weg dazukommt, trägt man im Formular nach. Es ist darauf
+ausgelegt: Name, App, Zahl, Enter.
+
+## Automatisch mitlesen – Tinder, im Browser
 
 **Mitlesen, nicht abfragen.** Das Skript schickt keine einzige eigene Anfrage.
 Es hängt sich vor `fetch` und `XMLHttpRequest` und sieht sich an, was die Seite
@@ -81,14 +75,61 @@ mit Namen und Entfernung ist eine Person), damit genau das selten nötig wird.
 
 Nichts davon verlässt den Browser.
 
-### Bumble und Hinge
+## Automatisch mitlesen – Bumble und Hinge, vom Telefon
 
-Bleiben Handarbeit – oder ein Eingriff auf dem Telefon selbst: Der Datenverkehr
-der App lässt sich mit einem Proxy mitlesen, aber beide Apps prüfen das
-Serverzertifikat gegen ihr eigenes (*certificate pinning*), was ein gerootetes
-Android und ein Werkzeug wie Frida voraussetzt. Auf iOS läuft es auf einen
-Jailbreak hinaus. Der Aufwand ist groß, das Sperrrisiko deutlich höher als beim
-Mitlesen im Browser, und beides steht hier nicht.
+`matches/android-lesen.py` liest den **Bildschirm** statt des Netzes. Android
+gibt über `uiautomator` den Textbaum der sichtbaren App heraus, und dort stehen
+Name und „4 km entfernt" als ganz gewöhnlicher Text.
+
+    python3 matches/android-lesen.py --schauen --app bumble
+
+Das Programm wischt und tippt nicht selbst. Es sieht alle zwei Sekunden nach,
+was auf dem Schirm steht. Du gehst durch deine Matches wie sonst auch und
+öffnest die Profile – die Entfernung steht bei beiden Apps dort, nicht in der
+Liste. Am Ende liegt eine Datei da, die die Tabelle unter *Datenauskunft
+einlesen* nimmt.
+
+Automatisch zu wischen wäre die naheliegende Ergänzung und fehlt mit Absicht:
+Ein Programm, das im Sekundentakt durch fremde Profile blättert, ist genau das
+Muster, das auffällt – und ein falsch gesetzter Wisch ist auf einer Dating-App
+ein Like, das man nicht zurückholt.
+
+### Was dafür nötig ist – und was ausdrücklich nicht
+
+Nötig: USB-Debugging auf dem Telefon (Einstellungen → Telefoninfo →
+Softwareinformationen → siebenmal auf *Buildnummer*, dann Entwickleroptionen),
+ein Rechner mit `adb`, ein Kabel. Sonst nichts.
+
+**Nicht nötig: Root.** Und das ist der Punkt, an dem sich die beiden Wege
+entscheiden. Den *Datenverkehr* der Apps mitzulesen wäre der andere – aber beide
+prüfen das Serverzertifikat gegen ihr eigenes (*certificate pinning*). Ein Proxy
+dazwischen bräuchte sein Zertifikat im Systemspeicher, also einen entsperrten
+Bootloader, Root und Frida. Bei Samsung setzt das Entsperren eine E-Fuse: Knox
+steht danach dauerhaft auf 0x1, Samsung Pay und Secure Folder sind
+**unwiderruflich** weg, auch nach erneutem Sperren, und das Gerät wird dabei
+gelöscht. Beim Galaxy S21 mit Snapdragon (USA, Kanada) lässt sich der Bootloader
+gar nicht erst entsperren.
+
+Der Bildschirmweg kostet nichts davon und ist serverseitig sogar unauffälliger:
+Es entsteht **kein einziges zusätzliches Netzpaket**, weil nichts abgefragt wird.
+
+Auch hier gilt: Automatisiertes Auslesen widerspricht den Nutzungsbedingungen
+beider Dienste. Das Risiko ist gering, aber nicht null.
+
+### Wenn nichts gefunden wird
+
+    python3 matches/android-lesen.py --abzug bumble.xml
+
+Das zieht den aktuellen Bildschirm einmal ab und zeigt, welche Texte darauf
+stehen und was davon als Name oder Entfernung erkannt wurde. Aus dieser Datei
+lässt sich der Leser nachziehen.
+
+Geprüft wird er in `tools/pruefung/android-lesen-pruefen.py` an nachgebauten
+Bildschirmbäumen – an ein echtes Telefon kommt weder der Testlauf bei GitHub
+noch sonst jemand hier heran, und ungeprüft bliebe ausgerechnet der Teil, der
+raten muss. Die unbequemen Fälle stehen dort zuerst: die Entfernung ohne Namen
+in der Nähe, der Wohnort unter dem Namen, die Meilenangabe, die
+Knopfbeschriftung, die aussieht wie eine Person.
 
 ## Woher die Kilometer kommen
 

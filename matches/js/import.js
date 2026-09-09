@@ -1,27 +1,25 @@
 /*
- * Die Datenauskünfte der drei Apps einlesen.
+ * Alles einlesen, was von außen hereinkommt.
  *
- * Was hier möglich ist, und was nicht – das gehört an den Anfang, weil es die
- * Erwartung an diesen Teil bestimmt:
+ * Zwei sehr verschiedene Sorten Datei landen hier, und der Unterschied bestimmt
+ * die Erwartung an den jeweiligen Leser:
  *
- *   * **Es gibt keine Schnittstelle.** Tinder, Hinge und Bumble bieten keinen
- *     offiziellen Zugang zu den eigenen Matches. Was man bekommt, ist die
- *     Datenauskunft nach Art. 15 DSGVO – eine Datei, die man selbst anfordert
- *     und die einige Tage später per Link kommt. Alles andere wäre das
- *     Fernsteuern eines fremden Kontos, gegen die Nutzungsbedingungen und mit
- *     einer Kontosperre als wahrscheinlichem Ende.
- *   * **In dieser Datei stehen keine Entfernungen.** In keiner der drei. Die
- *     Kilometerangabe entsteht im Moment des Anzeigens und wird nicht
- *     gespeichert.
- *   * **Und meistens auch keine Namen.** Tinder liefert Match-Kennungen und die
- *     Nachrichten, die *man selbst* geschickt hat; Hinge liefert Zeitstempel und
- *     Gesprächsverläufe ohne Namen. Bumble ist uneinheitlich – dort stehen
- *     manchmal Namen dabei.
+ *   * **Die Datenauskunft nach Art. 15 DSGVO.** Selbst anfordern, ein paar Tage
+ *     warten. Eine offizielle Schnittstelle hat keiner der drei Dienste, also
+ *     ist das der einzige Weg, auf dem sie von sich aus etwas herausgeben. Was
+ *     dabei *nicht* herauskommt: **Entfernungen, in keiner der drei.** Und
+ *     meistens auch keine Namen – Tinder liefert Match-Kennungen und die
+ *     Nachrichten, die man selbst geschickt hat, Hinge Zeitstempel und
+ *     Gesprächsverläufe ohne Namen. Der Import daraus ist deshalb kein
+ *     Selbstbedienungsladen, sondern ein Gerüst: Datum, Nachrichtenzahl, Stand.
+ *   * **Das Mitgelesene.** Die Entfernung existiert ja – der Server schickt sie
+ *     an die App, sonst stünde dort keine Zahl. Sie steht nur in keiner Datei,
+ *     die man sich schicken lassen kann. matches/mitlesen.user.js (Browser,
+ *     Tinder) und matches/android-lesen.py (Bildschirm des Telefons, Bumble und
+ *     Hinge) sehen deshalb dort zu, wo sie ankommt, und legen sie in einer
+ *     Datei ab, die `mitgelesen()` weiter unten liest.
  *
- * Der Import ist deshalb kein Selbstbedienungsladen, sondern ein Gerüst: Er
- * bringt die Zeilen samt Datum, Nachrichtenzahl und – wo es geht – einem
- * geratenen Namen. Wer dahinter steckt und wie weit weg, trägt man selbst ein.
- * Das ist weniger, als man sich wünscht, und mehr, als eine leere Tabelle.
+ * Was auf keinem der Wege dazukommt, trägt man im Formular nach.
  */
 
 import { schluessel } from './geo.js';
@@ -245,14 +243,14 @@ function bumble(daten, roh) {
 const APPS_BEKANNT = new Set(['tinder', 'hinge', 'bumble', 'andere']);
 
 /**
- * Die Datei aus matches/mitlesen.user.js.
+ * Die Datei aus matches/mitlesen.user.js oder matches/android-lesen.py.
  *
- * Das ist der einzige Weg, auf dem eine Entfernung *automatisch* in diese
+ * Das sind die beiden Wege, auf denen eine Entfernung *automatisch* in diese
  * Tabelle kommt: nicht aus der Datenauskunft – dort steht keine –, sondern aus
- * dem, was die Webfassung von Tinder oder Bumble ohnehin lädt, während man
- * durch seine Matches scrollt. Was dabei zusammenkommt, hängt davon ab, wie
- * weit man gescrollt hat; die Zahl dazu steht im Hinweis, damit niemand eine
- * halbe Liste für die ganze hält.
+ * dem, was Tinder im Browser ohnehin lädt oder was bei Bumble und Hinge auf dem
+ * Bildschirm des Telefons steht, während man durch seine Matches geht. Was
+ * dabei zusammenkommt, hängt davon ab, wie weit man gekommen ist; die Zahl dazu
+ * steht im Hinweis, damit niemand eine halbe Liste für die ganze hält.
  */
 function mitgelesen(daten) {
   const hinweise = [];
@@ -262,6 +260,10 @@ function mitgelesen(daten) {
     km: Number.isFinite(Number(p.km)) && p.km !== null ? Number(p.km) : null,
     matchAm: datumLesen(p.matchAm),
     extern: p.extern || null,
+    // „Weniger als 1 km" ist eine Obergrenze, kein Messwert. Die Zahl steht
+    // trotzdem in der Spalte – sie stimmt ja als Schranke –, aber die Zeile
+    // sagt dazu, dass die App sich hier nicht festgelegt hat.
+    notiz: p.ungefaehr ? `Die App sagt „weniger als ${p.km} km" – genauer wird es nicht.` : '',
   }));
 
   const mitKm = leute.filter((p) => p.km !== null).length;
@@ -274,7 +276,7 @@ function mitgelesen(daten) {
     hinweise.push(`Stand: ${String(daten.erzeugt).slice(0, 10)}. Entfernungen sind Momentaufnahmen –`
       + ' wer umzieht oder verreist, steht beim nächsten Mitlesen woanders.');
   }
-  return { app: daten.app === 'bumble' ? 'bumble' : 'tinder', leute, hinweise };
+  return { app: APPS_BEKANNT.has(daten.app) ? daten.app : 'tinder', leute, hinweise };
 }
 
 /* --- Erkennung ------------------------------------------------------- */
