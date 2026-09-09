@@ -170,6 +170,33 @@ pruefe(len(lesen.knoten(xml_liste)) == 3, 'der Knotenleser findet alle drei Zeil
 pruefe(all(not k['klickbar'] for k in lesen.knoten(xml_liste)),
        'und merkt sich, dass in diesem Baum keine davon anklickbar ist')
 
+# Der Fall, an dem die erste Fassung scheiterte, und zwar am echten Geraet:
+# Anklickbar ist der Kasten um den Text, nicht der Text. Wer nur den Text
+# ansieht, findet nie ein Ziel und wischt endlos weiter.
+VERSCHACHTELT = '''<?xml version="1.0" encoding="UTF-8"?><hierarchy rotation="0">
+ <node class="android.widget.FrameLayout" clickable="false" bounds="[0,0][1080,2400]">
+  <node class="androidx.recyclerview.widget.RecyclerView" clickable="false" bounds="[0,300][1080,2000]">
+   <node class="android.view.ViewGroup" clickable="true" bounds="[0,400][1080,700]">
+    <node class="android.widget.TextView" text="Anna" clickable="false" bounds="[48,480][300,540]"/>
+   </node>
+   <node class="android.view.ViewGroup" clickable="true" bounds="[0,700][1080,1000]">
+    <node class="android.widget.TextView" text="Mira" clickable="false" bounds="[48,780][300,840]"/>
+   </node>
+  </node>
+ </node>
+</hierarchy>'''
+
+tief = lesen.knoten(VERSCHACHTELT)
+pruefe(len(tief) == 2 and all(k['klickbar'] for k in tief),
+       'ein Text in einem klickbaren Kasten gilt als anklickbar')
+anna = next(k for k in tief if k['text'] == 'Anna')
+pruefe(anna['y'] == 550 and anna['x'] == 540,
+       f'getippt wird auf die Mitte des Kastens, nicht des Textes ({anna["x"]},{anna["y"]})')
+pruefe(anna['oben'] == 480 and anna['unten'] == 540,
+       'die Lage des Textes bleibt erhalten – daran haengt die Zuordnung der Entfernung')
+ziel = lesen.tippziel(tief, set())
+pruefe(ziel and ziel['name'] == 'Anna', 'und daraus wird ein Ziel, statt endlos zu wischen')
+
 # --- 9. Welche App gerade vorn ist -------------------------------------
 # Der eine Durchgang fuer alle drei steht und faellt damit: Jede Zeile bekommt
 # die App, die im Moment des Lesens den Fokus hatte. Erkennt das nichts, landen

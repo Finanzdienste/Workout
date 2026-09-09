@@ -458,17 +458,39 @@ def ernten(stuecke):
 
 
 def knoten(xml):
-    """Alle Knoten mit Text, Lage und der Frage, ob man sie antippen kann."""
+    """Alle Knoten mit Text, Lage und der Frage, ob man sie antippen kann.
+
+    Der Haken, an dem die erste Fassung scheiterte: Anklickbar ist in Android
+    fast nie der Text selbst, sondern der Kasten um ihn herum. Ein Listeneintrag
+    besteht aus einem klickbaren Container und einer TextView darin, die
+    `clickable="false"` ist. Wer nur den Text ansieht, findet deshalb nie ein
+    Ziel und wischt ewig weiter - genau das war im ersten Trockenlauf zu sehen.
+    Also wird der Baum von oben durchlaufen und der naechste klickbare Vorfahr
+    mitgefuehrt; getippt wird auf dessen Mitte.
+    """
     gefunden = []
     try:
         baum = ET.fromstring(xml)
     except ET.ParseError:
         return gefunden
-    for k in baum.iter('node'):
-        text = (k.get('text') or k.get('content-desc') or '').strip()
+
+    def geh(k, klickbarer_vorfahr):
         lage = grenzen(k.get('bounds'))
+        hier = k if (k.get('clickable') == 'true' and lage) else klickbarer_vorfahr
+        text = (k.get('text') or k.get('content-desc') or '').strip()
         if text and lage and len(text) <= 120:
-            gefunden.append({'text': text, 'klickbar': k.get('clickable') == 'true', **lage})
+            ziel = grenzen(hier.get('bounds')) if hier is not None else lage
+            gefunden.append({
+                'text': text,
+                'klickbar': hier is not None,
+                'x': ziel['x'], 'y': ziel['y'],
+                'oben': lage['oben'], 'unten': lage['unten'],
+            })
+        for kind in k:
+            geh(kind, hier)
+
+    for k in baum:
+        geh(k, None)
     return gefunden
 
 
@@ -597,6 +619,8 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
     letzte_app = None
     gesehen = set()          # schon angetippte Zeilen, beim Fahren
     im_profil = False        # sind wir gerade eine Ebene tiefer?
+    letzter_baum = None      # zum Erkennen, dass sich nichts mehr tut
+    gleich = 0
     hoehe = bildschirmhoehe() if fahren else 2400
 
     def daten():
@@ -671,6 +695,22 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
                             letzte_neuigkeit = time.time()
                         else:
                             wischen(hoehe, trocken)
+                            # Ändert sich danach nichts mehr, ist die Liste zu
+                            # Ende – oder es ist ein Trockenlauf, in dem gar
+                            # nicht wirklich gewischt wird. In beiden Fällen ist
+                            # Weitermachen sinnlos, und ohne diese Bremse lief
+                            # der erste Trockenlauf endlos weiter.
+                            if xml == letzter_baum:
+                                gleich += 1
+                                if gleich >= 3:
+                                    print('  Der Bildschirm ändert sich nicht mehr – '
+                                          'Ende der Liste.' + (' (Im Trockenlauf wird '
+                                          'nicht wirklich gewischt, deshalb kommt das '
+                                          'hier immer.)' if trocken else ''))
+                                    break
+                            else:
+                                gleich = 0
+                            letzter_baum = xml
                 elif fahren:
                     print('  (keine der drei Apps im Vordergrund - es wird nichts getippt)')
             # Etwas ungleichmaessig, weil ein Mensch auch nicht im Takt tippt.
