@@ -2507,11 +2507,19 @@ function roherSatz() {
   // zusammengelegt – normSatz() kann das, hier reicht der Blick darauf, ob es
   // die neue Form ist.
   if (!s || !Array.isArray(s.scheiben)) return meinSatz();
+  // Über STANGE_LABEL, nicht über eine getippte Liste. Hier standen kh und lh
+  // ausgeschrieben – aus der Zeit, als es nur zwei Stangen gab. Mit der
+  // SZ-Stange wurde daraus ein Datenverlust: scheibenAendern() nimmt genau
+  // dieses Objekt und schreibt es zurück (siehe unten), und was hier nicht
+  // aufgezählt ist, ist danach weg. Ein eingetragenes SZ-Leergewicht überlebte
+  // damit den nächsten Tipp auf irgendeine Scheibenzeile nicht, und das
+  // Eingabefeld war ohnehin von Anfang an leer.
+  //
+  // Eine Liste, die dieselben Schlüssel noch einmal aufzählt, ist genau die
+  // Sorte Wissen, die beim nächsten Zuwachs vergessen wird. Deshalb keine.
   return {
-    stange: {
-      kh: typeof s.stange?.kh === 'number' ? s.stange.kh : null,
-      lh: typeof s.stange?.lh === 'number' ? s.stange.lh : null,
-    },
+    stange: Object.fromEntries(Object.keys(STANGE_LABEL).map((k) =>
+      [k, typeof s.stange?.[k] === 'number' ? s.stange[k] : null])),
     scheiben: s.scheiben.filter(Array.isArray).map((z) => [z[0], z[1]]),
   };
 }

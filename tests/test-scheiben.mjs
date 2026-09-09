@@ -379,6 +379,31 @@ check(/SZ-Stange: 7/.test(szText),
 check(/Scheibengewicht, die Stange zählt nicht mit/.test(nullText),
   'stattdessen steht da, was die Zahl dann bedeutet');
 
+// Und sie überlebt das Bearbeiten. roherSatz() zählte kh und lh von Hand auf –
+// aus der Zeit, als es nur zwei Stangen gab. scheibenAendern() schreibt genau
+// dieses Objekt zurück; was dort fehlte, war nach dem nächsten Tipp auf
+// irgendeine Zeile weg. Ein eingetragenes SZ-Leergewicht hielt damit bis zur
+// nächsten Berührung der Karte, und das Eingabefeld dafür war von Anfang an leer.
+const szFeld = await page.evaluate(() => {
+  const feld = document.querySelector('[data-act="scheiben-stange"][data-satz="sz"]');
+  return feld ? feld.value : null;
+});
+check(szFeld === '7', `das Eingabefeld zeigt das gespeicherte SZ-Leergewicht (${szFeld})`);
+
+const nachBearbeiten = await page.evaluate(async () => {
+  // Irgendetwas anderes auf der Karte anfassen – die Scheibenzahl der ersten Zeile.
+  const feld = document.querySelector('[data-act="scheiben-n"]');
+  feld.value = String(Number(feld.value) + 2);
+  feld.dispatchEvent(new Event('input', { bubbles: true }));
+  await new Promise((ok) => setTimeout(ok, 300));
+  const store = await import('./js/store.js');
+  const { normSatz } = await import('./js/scheiben.js');
+  return normSatz(store.getState().scheiben).stange;
+});
+console.log('     nach dem Bearbeiten einer Scheibenzeile:', JSON.stringify(nachBearbeiten));
+check(nachBearbeiten.sz === 7,
+  `und eine Änderung an einer Scheibenzeile löscht es nicht (${JSON.stringify(nachBearbeiten)})`);
+
 // Und die Rechnung dahinter: 5 kg sind dann genau zwei 2,5er.
 const reinScheiben = await page.evaluate(async () => {
   const m = await import('./js/scheiben.js');

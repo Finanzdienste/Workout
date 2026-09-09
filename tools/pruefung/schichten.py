@@ -26,7 +26,21 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 JS = ROOT / 'js'
 
-IMPORT_RE = re.compile(r"^\s*import\s+(?:.+?\s+from\s+)?'\./([\w.-]+)';", re.MULTILINE)
+# `[^;]` statt `.`, und das ist der Unterschied zwischen einer Pruefung und
+# einer Beruhigung: `.` erfasst keinen Zeilenumbruch, und damit war jede
+# mehrzeilige Importzeile fuer dieses Skript unsichtbar. js/app.js importiert
+# js/gewichte.js ueber vier Zeilen (workingWeight, naechstesGewicht und ein
+# Dutzend weitere Namen passen nicht in achtzig Spalten) - das Modul stand
+# deshalb nur ueber den Umweg js/plan.js im Graphen. Waere dieser Umweg einmal
+# weggefallen, haette das Tor gemeldet, alles sei erreichbar und im
+# Zwischenspeicher, waehrend die App offline auf eine fehlende Datei gelaufen
+# waere.
+#
+# Eine negierte Zeichenklasse erfasst Zeilenumbrueche von sich aus, und das
+# Semikolon ist genau die Grenze, an der eine Importanweisung endet - damit
+# kann der Ausdruck auch mit re.DOTALL nicht ueber die naechste Anweisung
+# hinauslaufen.
+IMPORT_RE = re.compile(r"^\s*import\s+(?:[^;]+?\s+from\s+)?'\./([\w.-]+)';", re.MULTILINE)
 
 fehler = []
 
