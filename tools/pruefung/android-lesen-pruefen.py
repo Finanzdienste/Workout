@@ -113,7 +113,30 @@ pruefe(lesen.ernten(lesen.texte('<hierarchy></hierarchy>')) == [],
 pruefe(lesen.texte('kein xml') == [],
        'und etwas, das kein XML ist, auch nicht')
 
-# --- 8. Worauf getippt wird - und worauf niemals ------------------------
+# --- 8. Die Portsuche --------------------------------------------------
+# Android zeigt den Kopplungsport in einem Fenster, das sich schliesst, sobald
+# man zur Terminal-App wechselt. Statt zwei fuenfstellige Zahlen abtippen zu
+# lassen, sucht das Programm den Port selbst - und das muss es koennen, sonst
+# haengt der ganze Einrichtungsweg an einer Zahl, die man nicht mehr sieht.
+import socket
+
+horcher = socket.socket()
+horcher.bind(('127.0.0.1', 0))
+horcher.listen(1)
+welcher = horcher.getsockname()[1]
+try:
+    # Eng um den echten Port herum suchen, damit die Pruefung schnell bleibt.
+    gefunden = lesen.offene_ports(von=max(1024, welcher - 40), bis=welcher + 40)
+    pruefe(welcher in gefunden, f'ein offener Port wird gefunden ({welcher})')
+    zu = welcher + 1 if welcher + 1 not in gefunden else welcher + 2
+    pruefe(zu not in gefunden, 'ein geschlossener daneben nicht')
+finally:
+    horcher.close()
+
+pruefe(lesen.offene_ports(von=welcher, bis=welcher) == [],
+       'nach dem Schliessen ist der Port wieder weg - es wird gemessen, nicht geraten')
+
+# --- 9. Worauf getippt wird - und worauf niemals ------------------------
 # Der heikelste Teil des ganzen Programms. Ein falsch gesetzter Tipp ist auf
 # einer Dating-App im besten Fall ein Like, das man nicht zurueckholt, und im
 # schlechtesten ein Abo. Deshalb wird hier nicht geprueft, ob das Richtige

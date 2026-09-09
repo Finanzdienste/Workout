@@ -115,11 +115,10 @@ Tabelle sortiert alle zusammen nach Entfernung.
 Ohne diese Zuordnung wäre die Sache schlimmer als unbequem: Tinder-Matches
 lägen unter Bumble, und das sieht man der fertigen Tabelle nicht mehr an.
 
-Das Programm wischt und tippt nicht selbst. Es sieht alle zwei Sekunden nach,
-was auf dem Schirm steht. Du gehst durch deine Matches wie sonst auch und
-öffnest die Profile – die Entfernung steht in allen drei Apps dort, nicht in der
-Liste. Am Ende liegt eine Datei da, die die Tabelle unter *Datenauskunft
-einlesen* nimmt.
+Mit `--schauen` wischt und tippt das Programm nicht selbst: Es sieht alle zwei
+Sekunden nach, was auf dem Schirm steht, und du gehst durch deine Matches wie
+sonst auch. So oder so gilt: **Die Profile müssen aufgemacht werden** – die
+Entfernung steht in allen drei Apps dort, nicht in der Liste.
 
 ### Was `--fahren` niemals tut
 
@@ -154,15 +153,24 @@ ganze Weg keinen Rechner und kein Kabel mehr.
    `termux-setup-storage` (sonst landet die Datei in den App-Daten, wo der
    Browser nicht herankommt).
 2. Entwickleroptionen → **WLAN-Debugging** einschalten.
-3. *Gerät mit Kopplungscode koppeln* antippen — Code und Port erscheinen:
+3. Termux und die Einstellungen im **geteilten Bildschirm** nebeneinander legen
+   (Zuletzt-verwendet → auf das Termux-Symbol → *In geteilter Bildschirmansicht
+   öffnen*). Das ist nötig, weil Android den Kopplungsdialog schließt, sobald
+   man ihn verlässt — und mit ihm sterben Port und Code.
+4. *Gerät mit Kopplungscode koppeln* antippen und den sechsstelligen Code
+   eintippen:
 
-       python3 android-lesen.py --koppeln PORT CODE
+       python3 android-lesen.py --einrichten 096656
 
-4. In der Hauptansicht des WLAN-Debuggings steht ein **anderer** Port:
+   Den Port braucht es nicht: Das Programm läuft auf demselben Gerät, also kann
+   es die offenen Ports auf `127.0.0.1` selbst abzählen und den Kopplungsdienst
+   darunter finden. Nur den Code kann kein Programm lesen.
+5. Nach jedem Neustart des Telefons ist die Verbindung weg (die Kopplung
+   bleibt). Dann genügt, wieder ohne Zahl:
 
-       python3 android-lesen.py --verbinden PORT
+       python3 android-lesen.py --verbinden
 
-5. `termux-wake-lock`, dann:
+6. `termux-wake-lock`, dann:
 
        python3 android-lesen.py --fahren --server
 

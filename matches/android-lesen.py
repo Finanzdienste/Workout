@@ -181,6 +181,92 @@ def geraet_pruefen():
     return angeschlossen[0]
 
 
+def offene_ports(von=30000, bis=65535, faeden=400, wartezeit=0.05):
+    """Welche Ports auf 127.0.0.1 hoeren gerade zu?
+
+    Der Grund für diese Suche ist eine Zumutung der Bedienung: Android zeigt den
+    Kopplungsport in einem Fenster, das sich schliesst, sobald man zur
+    Terminal-App wechselt - und mit ihm sterben Port und Code. Man muss also
+    zwei fünfstellige Zahlen und einen sechsstelligen Code im Kopf behalten und
+    fehlerfrei abtippen, während man im geteilten Bildschirm hantiert.
+
+    Da wir aber *auf dem Geraet selbst* laufen, ist der Port kein Geheimnis: Der
+    Dienst hoert auf 127.0.0.1, und offene Ports kann man zaehlen. Bleibt der
+    sechsstellige Code, den nur der Mensch lesen kann.
+    """
+    import socket
+    from concurrent.futures import ThreadPoolExecutor
+
+    def offen(port):
+        with socket.socket() as s:
+            s.settimeout(wartezeit)
+            return port if s.connect_ex(('127.0.0.1', port)) == 0 else None
+
+    with ThreadPoolExecutor(max_workers=faeden) as gruppe:
+        return [p for p in gruppe.map(offen, range(von, bis + 1)) if p]
+
+
+def einrichten(code):
+    """Koppeln und verbinden in einem Zug - der Mensch nennt nur den Code.
+
+    Probiert wird gegen jeden offenen Port. Das klingt grob, ist aber harmlos:
+    Wer nicht der Kopplungsdienst ist, antwortet mit einem Fehler, und das war's.
+    """
+    print('Suche den Kopplungsdienst … (der Dialog muss offen sein)')
+    ports = offene_ports()
+    if not ports:
+        sys.exit('Kein offener Port gefunden. Ist "Debugging über WLAN" an und der '
+                 'Kopplungsdialog offen? Er muss offen *bleiben* - im geteilten '
+                 'Bildschirm neben Termux.')
+
+    gekoppelt = None
+    for port in ports:
+        try:
+            antwort = adb('pair', f'127.0.0.1:{port}', code)
+        except SystemExit:
+            continue
+        if 'Successfully paired' in antwort or 'erfolgreich' in antwort.lower():
+            gekoppelt = port
+            print(f'Gekoppelt (Port {port}).')
+            break
+    if not gekoppelt:
+        sys.exit(f'Kein Port hat den Code {code} angenommen. Meistens heisst das: Der '
+                 'Dialog war schon wieder zu, und der Code ist tot. Neu oeffnen, neuer '
+                 'Code, noch einmal.')
+
+    # Der Verbindungsport ist ein anderer als der Kopplungsport - und er ist
+    # jetzt vielleicht erst aufgegangen, deshalb noch einmal nachsehen.
+    for port in offene_ports():
+        if port == gekoppelt:
+            continue
+        try:
+            adb('connect', f'127.0.0.1:{port}')
+        except SystemExit:
+            continue
+        zeilen = adb('devices').splitlines()[1:]
+        if any(z.split()[1:2] == ['device'] for z in zeilen if z.strip()):
+            print(f'Verbunden (Port {port}).')
+            phantom_aus()
+            return
+    sys.exit('Gekoppelt, aber keine Verbindung zustande gekommen. '
+             f'Einmal von Hand: --verbinden PORT (der Port steht im Menü unter '
+             '"IP-Adresse & Port").')
+
+
+def phantom_aus():
+    """Seit Android 12 raeumt das System Kindprozesse weg, die zu keiner
+    sichtbaren App gehoeren. uiautomator ist genau so einer und wird sonst
+    mitten im Lesen abgeschossen."""
+    try:
+        adb('shell', 'settings', 'put', 'global',
+            'settings_enable_monitor_phantom_procs', 'false')
+        print('Fertig. (Die Aufsicht ueber Hintergrundprozesse ist abgeschaltet, '
+              'sonst beendet Android das Mitlesen nach wenigen Minuten von selbst.)')
+    except SystemExit:
+        print('Fertig. Die Aufsicht ueber Hintergrundprozesse liess sich nicht '
+              'abschalten - bricht das Lesen spaeter ab, ist das der Grund.')
+
+
 def koppeln(port, code):
     """Einmalig: das Telefon mit sich selbst (oder dem Rechner) koppeln."""
     print(adb('pair', f'127.0.0.1:{port}', code).strip())
@@ -188,21 +274,32 @@ def koppeln(port, code):
           'und --verbinden damit aufrufen.')
 
 
-def verbinden(port):
-    print(adb('connect', f'127.0.0.1:{port}').strip())
-    geraet_pruefen()
-    # Seit Android 12 raeumt das System "phantom processes" weg - Kindprozesse,
-    # die nicht zu einer sichtbaren App gehoeren. uiautomator ist genau so einer
-    # und wird sonst mitten im Zusehen abgeschossen. Einmal abschalten, sonst
-    # bricht das Sammeln nach ein paar Minuten ohne erkennbaren Grund ab.
-    try:
-        adb('shell', 'settings', 'put', 'global',
-            'settings_enable_monitor_phantom_procs', 'false')
-        print('Verbunden. (Die Aufsicht ueber Hintergrundprozesse ist abgeschaltet, '
-              'sonst beendet Android das Mitlesen nach wenigen Minuten von selbst.)')
-    except SystemExit:
-        print('Verbunden. Die Aufsicht ueber Hintergrundprozesse liess sich nicht '
-              'abschalten - bricht das Sammeln spaeter ab, ist das der Grund.')
+def verbinden(port=None):
+    """Verbinden. Ohne Port wird er gesucht.
+
+    Der Verbindungsport aendert sich bei jedem Neustart des Telefons - das ist
+    die eine Zahl, die man sonst regelmaessig nachschlagen und abtippen muesste.
+    Gekoppelt bleibt das Geraet dabei; nur die Verbindung ist weg.
+    """
+    if port:
+        print(adb('connect', f'127.0.0.1:{port}').strip())
+        geraet_pruefen()
+        phantom_aus()
+        return
+
+    print('Suche den Verbindungsdienst …')
+    for kandidat in offene_ports():
+        try:
+            adb('connect', f'127.0.0.1:{kandidat}')
+        except SystemExit:
+            continue
+        zeilen = adb('devices').splitlines()[1:]
+        if any(z.split()[1:2] == ['device'] for z in zeilen if z.strip()):
+            print(f'Verbunden (Port {kandidat}).')
+            phantom_aus()
+            return
+    sys.exit('Keine Verbindung zustande gekommen. Ist "Debugging über WLAN" an? '
+             'Und wurde dieses Geraet schon einmal gekoppelt (--einrichten CODE)?')
 
 
 def ablageort(name):
@@ -631,10 +728,14 @@ def main():
     zerleger.add_argument('--abzug', metavar='DATEI', help='den Bildschirm einmal abziehen')
     zerleger.add_argument('--takt', type=float, default=2.0, help='Sekunden zwischen zwei Blicken')
     zerleger.add_argument('--ruhe', type=float, default=90.0, help='Sekunden ohne Neues bis Schluss')
+    zerleger.add_argument('--einrichten', metavar='CODE',
+                          help='koppeln und verbinden in einem Zug; die Ports werden '
+                               'selbst gesucht, nur der sechsstellige Code wird gebraucht')
     zerleger.add_argument('--koppeln', nargs=2, metavar=('PORT', 'CODE'),
                           help='einmalig: WLAN-Debugging koppeln (auf dem Telefon selbst)')
-    zerleger.add_argument('--verbinden', metavar='PORT',
-                          help='nach jedem Neustart: mit dem WLAN-Debugging verbinden')
+    zerleger.add_argument('--verbinden', nargs='?', const='', metavar='PORT',
+                          help='nach jedem Neustart: verbinden; ohne Angabe wird der '
+                               'Port selbst gesucht')
     zerleger.add_argument('--fahren', action='store_true',
                           help='selbst durch die Match-Liste gehen, statt zuzusehen')
     zerleger.add_argument('--trocken', action='store_true',
@@ -643,10 +744,12 @@ def main():
                           help='die Tabelle ausliefern; sie holt sich die Zeilen dann selbst')
     wahl = zerleger.parse_args()
 
-    if wahl.koppeln:
+    if wahl.einrichten:
+        einrichten(wahl.einrichten)
+    elif wahl.koppeln:
         koppeln(*wahl.koppeln)
-    elif wahl.verbinden:
-        verbinden(wahl.verbinden)
+    elif wahl.verbinden is not None:
+        verbinden(wahl.verbinden or None)
     elif wahl.abzug:
         abzug(wahl.abzug)
     elif wahl.schauen or wahl.fahren:
