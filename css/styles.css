@@ -1342,6 +1342,19 @@ textarea.io {
 .cal-cell.done.frueher { background: transparent; color: var(--text);
   border-color: var(--accent); border-style: dashed; font-weight: 600; }
 .cal-cell.done.frueher.bw { border-color: var(--accent-2); }
+/* Die Aufwärmzeile: gedämpft und ohne Rahmen. Sie ist eine Ansage vor der
+   Arbeit, kein Teil davon – sähe sie aus wie ein Satz, würde danach gesucht,
+   wo man sie abhakt. */
+.aufwaerm { font-size: 13px; color: var(--muted); margin: 2px 0 8px;
+  padding-left: 2px; letter-spacing: .01em; }
+.aufwaerm .muted { opacity: .7; }
+/* Auswertung im Statistik-Tab: Zeile mit Text links, einer Antwort rechts. */
+.muster-liste { margin-top: 10px; display: grid; gap: 8px; }
+.muster-zeile { display: flex; align-items: center; gap: 12px;
+  background: var(--bg-elev-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; }
+.muster-zeile > div { min-width: 0; flex: 1; }
+.muster-zeile .btn { flex: none; }
 .cal-cell.part { border-color: var(--accent); background: rgba(255, 122, 69, .16); }
 .cal-cell.part.bw { border-color: var(--accent-2); background: rgba(78, 161, 255, .16); }
 .cal-cell.plan { border-color: var(--line); background: var(--bg-elev-2); }

@@ -12,7 +12,7 @@
  * sich darauf, dass man alles gesehen hat.
  */
 import { chromium } from 'playwright';
-import { URL } from './umgebung.mjs';
+import { URL, ROOT } from './umgebung.mjs';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 900, height: 1200 } });
@@ -26,8 +26,13 @@ const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { 
 await page.goto(`${URL.replace(/index\.html$/, '')}figuren.html`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(600);
 
+// Keine feste Zahl mehr: Die stand hier als Kanarienvogel und schlug jedes Mal
+// an, wenn eine Übung dazukam – also genau dann, wenn nichts kaputt war.
+// Verglichen wird jetzt mit der Quelle, aus der der Katalog erzeugt wird.
+const soll = Object.keys(JSON.parse(await (await import('node:fs/promises'))
+  .readFile((await import('node:path')).join(ROOT, 'tools', 'exercise-meta.json'), 'utf8'))).length;
 const anzahl = await page.evaluate(async () => (await import('./js/data.js')).EXERCISES.length);
-check(anzahl === 24, `der Katalog hat ${anzahl} Übungen`);
+check(anzahl === soll, `der Katalog hat alle ${soll} Übungen aus exercise-meta.json (${anzahl})`);
 
 // --- Hantel-Fassung ------------------------------------------------------
 check(await page.locator('.karte').count() === anzahl,

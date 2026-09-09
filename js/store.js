@@ -52,6 +52,18 @@ const DEFAULT_STATE = {
   // null heißt „nicht eingetragen" – dann rechnet die App mit freien Schritten
   // wie früher, statt sich einen Scheibensatz auszudenken. Siehe js/scheiben.js.
   scheiben: null,
+  // Aufwärmsätze über den schweren Übungen anzeigen. Steht auf an: Wer sie
+  // nicht will, tippt einmal; wer sie braucht, weiß meist nicht, dass es sie
+  // gäbe. Siehe aufwaermsaetze() in js/gewichte.js.
+  aufwaermen: true,
+  // Der Fingerabdruck des Plans, unter dem der laufende Verlauf entstanden ist
+  // – je Fokus. Ändert sich der Plan (neue Übungen, neu verteilt), zeigt ein
+  // alter Eintrag auf etwas anderes als das, was gemacht wurde. Siehe
+  // planWechsel() in js/app.js.
+  planStand: {},
+  // Übungen, die von Hand nach vorn geholt wurden, weil sie sonst regelmäßig
+  // ausfallen. Kostet womöglich einen zusätzlichen Umbau – siehe js/muster.js.
+  vorne: [],
   // Supersätze: zwei verträgliche Übungen im Wechsel statt lange Pausen.
   // Welche zwei zusammenpassen, entscheidet js/supersatz.js.
   supersatz: false,
@@ -63,6 +75,10 @@ const DEFAULT_STATE = {
   session: null,         // laufendes Training: { n }
   clock: null,           // Uhr der Einheit: { n, on, spent, since } – siehe startSession()
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
+  // Hat der Browser zugesagt, diesen Speicher nicht von selbst freizugeben?
+  // Ergebnis von storage.persist(), einmal beim Start erfragt – gemerkt, damit
+  // die Einstellungen den Stand nennen können, statt ihn zu behaupten.
+  dauerhaft: false,
   // Stand der zuletzt erzeugten Kalenderdatei: { on, shift, seq }. Aus `shift`
   // ergibt sich, ob die Termine im Kalender noch stimmen; `seq` zählt hoch,
   // damit ein erneuter Import die alten Termine überschreibt statt sie stehen

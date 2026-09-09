@@ -146,7 +146,11 @@ await page.evaluate(async () => {
 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(200);
-check(await page.locator('[data-act="backup-now"]').count() === 1, 'Sicherungshinweis nach drei Einheiten');
+// Der Knopf heißt seit der Sicherungsrunde „weitergeben" statt „jetzt sichern":
+// Ein Download landet im Ordner „Downloads" desselben Handys, und das ist keine
+// Kopie. Geprüft wird der Hinweis, nicht seine Beschriftung.
+check(await page.locator('[data-act="backup-teilen"], [data-act="backup-now"]').count() >= 1,
+  'Sicherungshinweis nach drei Einheiten');
 await page.screenshot({ path: `${SHOT}/98-backup.png` });
 
 // --- Ein fertiger Tag bleibt fertig, auch bei anderer Erfahrungsstufe --------

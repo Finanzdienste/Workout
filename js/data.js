@@ -1500,6 +1500,339 @@ export const EXERCISES = [
       ],
       "stufen": {}
     }
+  },
+  {
+    "id": "inverted-row",
+    "group": "Rücken",
+    "weight": 0,
+    "step": 2.5,
+    "weightNote": "im Rucksack",
+    "equip": "backpack",
+    "tier": 1,
+    "detail": [
+      [
+        "Warum sie im Plan steht",
+        "Klimmzüge ziehen von oben, diese Übung von vorn. Das sind zwei verschiedene Richtungen für denselben Muskel, und der obere Rücken – Kapuzenmuskel, Rautenmuskeln, hintere Schulter – bekommt nur bei der waagerechten wirklich etwas ab. Wer nur senkrecht zieht, lässt genau den Teil aus, der beim Sitzen den ganzen Tag nachgibt."
+      ],
+      [
+        "Schwerer und leichter",
+        "Die Last hängt am Winkel, nicht am Eisen. Füße auf einem Stuhl: schwer. Fersen am Boden, Körper waagerecht: mittel. Knie angewinkelt, Füße nah: leicht. Damit lässt sich jede Wiederholungszahl treffen, ohne etwas aufzustecken."
+      ],
+      [
+        "Die Linie",
+        "Von Kopf bis Ferse gerade, Gesäß fest, Rippen unten. Sackt die Hüfte durch, zieht der Rücken schräg – und der Reiz landet in der Lendenwirbelsäule statt zwischen den Schulterblättern."
+      ],
+      [
+        "Typische Fehler",
+        "Nur den Kopf zur Stange strecken statt die Brust. Die Ellenbogen weit nach außen führen. Oben nicht bis zum Anschlag ziehen – die letzten Zentimeter sind die, in denen die Schulterblätter zusammenkommen."
+      ]
+    ],
+    "db": {
+      "name": "Inverted Row",
+      "reps": "8–15",
+      "equip": "Klimmzugstange tief + Rucksack",
+      "cue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter, Knie angewinkelt leichter. Zusatzlast kommt in den Rucksack auf die Brust.",
+      "rest": 150,
+      "pattern": "invrow",
+      "shares": {
+        "lats": 1.0,
+        "traps": 0.75,
+        "biceps": 0.5,
+        "rearDelts": 0.45
+      },
+      "muscles": [
+        "lats",
+        "traps",
+        "biceps",
+        "rearDelts"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Inverted Row",
+      "reps": "8–20",
+      "equip": "Klimmzugstange tief oder Tischkante",
+      "cue": "Identisch, nur ohne Rucksack. Geht die Klimmzugstange nicht tief genug, tut es eine stabile Tischkante: darunterlegen, Kante fassen, ziehen. Zu schwer? Knie anwinkeln und die Füße näher heranstellen – das nimmt Last weg, ohne die Bewegung zu verändern.",
+      "rest": 150,
+      "pattern": "invrow",
+      "shares": {
+        "lats": 1.0,
+        "traps": 0.75,
+        "biceps": 0.5,
+        "rearDelts": 0.45
+      },
+      "muscles": [
+        "lats",
+        "traps",
+        "biceps",
+        "rearDelts"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "einbeiniges-kreuzheben",
+    "group": "Beine",
+    "weight": 12,
+    "step": 2,
+    "weightNote": "eine Hantel",
+    "equip": "onehand",
+    "tier": 2,
+    "detail": [
+      [
+        "Eine Hantel reicht",
+        "Das ist hier kein Behelf, sondern der Punkt: Mit dem Gewicht auf einer Seite muss der Rumpf gegen das Verdrehen halten. Und für den, der nur von jeder Scheibengröße zwei Stück hat, ist es die Hüftstreckung, die sich überhaupt beladen lässt – ein Paar Kurzhanteln braucht vier."
+      ],
+      [
+        "Die Wippe",
+        "Oberkörper und freies Bein bewegen sich gemeinsam, wie die beiden Enden eines Bretts über einem Drehpunkt. Wer das freie Bein hängen lässt und nur den Oberkörper senkt, verliert die Balance und den halben Bewegungsumfang."
+      ],
+      [
+        "Das Standknie",
+        "Leicht gebeugt und dann unverändert. Beugt es sich mit, wird aus der Hüftstreckung eine halbe Kniebeuge, und der Beinbeuger bekommt nichts mehr ab."
+      ],
+      [
+        "Typische Fehler",
+        "Die Schulter der Hantelseite fallen lassen – die Schultern bleiben parallel zum Boden. Zu tief gehen, bis der Rücken rund wird; die Dehnung hinten am Oberschenkel ist die Grenze, nicht der Boden."
+      ]
+    ],
+    "db": {
+      "name": "Einbeiniges Kreuzheben",
+      "reps": "8–12 je Bein",
+      "equip": "Kurzhantel",
+      "cue": "Eine Kurzhantel in der Hand der freien Seite. Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden. Zurück über das Gesäß, nicht über den unteren Rücken.",
+      "rest": 120,
+      "pattern": "hinge1",
+      "shares": {
+        "hamstringsHip": 1.0,
+        "glutes": 0.8,
+        "abs": 0.35,
+        "traps": 0.2
+      },
+      "muscles": [
+        "hamstringsHip",
+        "glutes",
+        "abs",
+        "traps"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Einbeiniges Kreuzheben",
+      "reps": "10–20 je Bein",
+      "equip": "ohne",
+      "cue": "Identisch, ohne Gewicht. Die Arme hängen oder greifen nach vorn. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
+      "rest": 120,
+      "pattern": "hinge1",
+      "shares": {
+        "hamstringsHip": 1.0,
+        "glutes": 0.85,
+        "abs": 0.4,
+        "traps": 0.15
+      },
+      "muscles": [
+        "hamstringsHip",
+        "glutes",
+        "abs",
+        "traps"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "pike-liegestuetze",
+    "group": "Schulter",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": null,
+    "tier": 2,
+    "detail": [
+      [
+        "Wozu ohne Hanteln drücken",
+        "Über Kopf zu drücken ist die eine Bewegung, für die es sonst zwingend Gewicht braucht. Diese Übung ersetzt es durch den Winkel: Je steiler der Oberkörper steht, desto mehr des eigenen Körpers liegt auf den Schultern. Damit gibt es auch ohne Hanteln ein Schulterdrücken, das schwer genug wird."
+      ],
+      [
+        "Der Weg des Kopfes",
+        "Der Scheitel geht nach vorn-unten, nicht senkrecht. Vor den Händen, nicht zwischen ihnen – dann arbeiten die Schultern in der Richtung, in der sie stark sind."
+      ],
+      [
+        "Handgelenke",
+        "Sie stehen hier steiler als beim Liegestütz. Tut es weh, die Hände etwas weiter nach vorn setzen oder auf Fäusten arbeiten."
+      ],
+      [
+        "Typische Fehler",
+        "Die Hüfte absinken lassen, bis daraus ein schräger Liegestütz wird. Den Kopf nur nicken statt die Arme zu beugen. Zu wenig tief – der Scheitel soll den Boden fast berühren."
+      ]
+    ],
+    "db": {
+      "name": "Pike-Liegestütze",
+      "reps": "6–15",
+      "equip": "ohne",
+      "cue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Je senkrechter der Oberkörper, desto mehr Schulter und desto weniger Brust. Füße auf einem Hocker machen es deutlich schwerer.",
+      "rest": 150,
+      "pattern": "pike",
+      "shares": {
+        "frontDelts": 1.0,
+        "sideDelts": 0.4,
+        "triceps": 0.7,
+        "traps": 0.35
+      },
+      "muscles": [
+        "frontDelts",
+        "triceps",
+        "sideDelts",
+        "traps"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Pike-Liegestütze",
+      "reps": "6–15",
+      "equip": "ohne",
+      "cue": "Identisch. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
+      "rest": 150,
+      "pattern": "pike",
+      "shares": {
+        "frontDelts": 1.0,
+        "sideDelts": 0.4,
+        "triceps": 0.7,
+        "traps": 0.35
+      },
+      "muscles": [
+        "frontDelts",
+        "triceps",
+        "sideDelts",
+        "traps"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "kurzhantel-bodenpresse",
+    "group": "Brust",
+    "weight": 12,
+    "step": 2.5,
+    "weightNote": "je Hand",
+    "equip": "dumbbells",
+    "tier": 1,
+    "detail": [
+      [
+        "Warum am Boden und nicht auf der Bank",
+        "Ohne Bank fehlt der Teil der Bewegung, in dem der Oberarm hinter den Rumpf sinkt – und genau dort holt sich die Schulter beim Bankdrücken ihre Probleme. Der Boden setzt die Grenze da, wo sie hingehört. Was fehlt, ist etwas Bewegungsumfang; was bleibt, ist der Teil, der die Brust trifft."
+      ],
+      [
+        "Zwei Hanteln statt einer Stange",
+        "Jede Seite arbeitet für sich, die stärkere kann der schwächeren nichts abnehmen. Und die Hanteln lassen sich am Ende einfach neben dem Körper ablegen – eine Stange muss über der Brust irgendwo hin."
+      ],
+      [
+        "Der Halt unten",
+        "Die Ellenbogen berühren den Boden und ruhen dort einen Moment. Das nimmt den Schwung heraus; jede Wiederholung beginnt aus dem Stand, nicht aus dem Rückprall."
+      ],
+      [
+        "Typische Fehler",
+        "Die Ellenbogen ganz nach außen stellen (Schulter). Die Hanteln auf den Boden fallen lassen und von dort abfedern. Mit dem Rücken ein Hohlkreuz drücken, um mehr Weg zu bekommen."
+      ]
+    ],
+    "db": {
+      "name": "Kurzhantel-Bodenpresse",
+      "reps": "8–15",
+      "equip": "Kurzhanteln",
+      "cue": "Rücken am Boden, Knie angewinkelt, in jeder Hand eine Kurzhantel. Oberarme etwa 45 Grad vom Rumpf, bis die Ellenbogen den Boden berühren – dort kurz halten, dann drücken. Der Boden ist die Bremse: Er begrenzt die Tiefe und nimmt der Schulter den Bereich, in dem sie ungeschützt ist.",
+      "rest": 150,
+      "pattern": "press",
+      "shares": {
+        "chest": 1.0,
+        "triceps": 0.65,
+        "frontDelts": 0.4
+      },
+      "muscles": [
+        "chest",
+        "triceps",
+        "frontDelts"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Enge Liegestütze",
+      "reps": "8–20",
+      "equip": "ohne",
+      "cue": "Liegestütze mit engem Handstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
+      "rest": 150,
+      "pattern": "pushup",
+      "shares": {
+        "chest": 1.0,
+        "triceps": 0.75,
+        "frontDelts": 0.4
+      },
+      "muscles": [
+        "chest",
+        "triceps",
+        "frontDelts"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "reverse-snow-angel",
+    "group": "Schulter (hinten)",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": null,
+    "tier": 3,
+    "detail": [
+      [
+        "Wofür",
+        "Hintere Schulter und die Muskeln zwischen den Schulterblättern – dieselbe Ecke wie Reverse Fly und Pull-Apart, aber über den vollen Weg von der Hüfte bis über den Kopf. Kein Gerät, kein Aufbau: Sie geht überall, auch am Ende einer Einheit, wenn nichts mehr hochzuheben ist."
+      ],
+      [
+        "Die Daumen",
+        "Nach oben gedreht die ganze Zeit. Dreht die Hand ein, rollt die Schulter mit nach vorn und der Muskel, um den es geht, macht Feierabend."
+      ],
+      [
+        "Der Nacken",
+        "Die Stirn bleibt unten, der Blick auf dem Boden. Den Kopf zu heben fühlt sich stärker an und verlagert die Arbeit in den Nacken – dieselbe Falle wie beim Seitheben."
+      ],
+      [
+        "Typische Fehler",
+        "Die Arme auf dem Boden ablegen und von dort neu starten. Zu schnell arbeiten. Ins Hohlkreuz gehen, statt Gesäß und Bauch fest zu lassen."
+      ]
+    ],
+    "db": {
+      "name": "Reverse Snow Angel",
+      "reps": "10–20",
+      "equip": "ohne",
+      "cue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen.",
+      "rest": 90,
+      "pattern": "snowangel",
+      "shares": {
+        "rearDelts": 1.0,
+        "traps": 0.9
+      },
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Reverse Snow Angel",
+      "reps": "10–20",
+      "equip": "ohne",
+      "cue": "Identisch. Kein Gerät, keine Zusatzlast – der Reiz kommt aus der Zeit unter Spannung. Vier Sekunden hin, vier zurück, und die Arme bleiben oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen – beides nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
+      "rest": 90,
+      "pattern": "snowangel",
+      "shares": {
+        "rearDelts": 1.0,
+        "traps": 0.9
+      },
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ],
+      "stufen": {}
+    }
   }
 ];
 
@@ -1515,6 +1848,7 @@ export const EXERCISES = [
 export const PLANS = {
   "standard": {
     name: "Aufbau",
+    stand: "54145d3f4a58",
     target: {"abs": 9, "biceps": 10, "calves": 6, "chest": 10, "frontDelts": 9.2357, "glutes": 9, "hamstringsHip": 5.0571, "hamstringsKnee": 3, "lats": 10, "quads": 6, "rearDelts": 8, "sideDelts": 10, "traps": 10.0, "triceps": 10},
     derived: ["frontDelts", "hamstringsHip", "traps"],
     cap: 10,
@@ -1523,6 +1857,7 @@ export const PLANS = {
   },
   "bbp": {
     name: "Bauch, Beine, Po",
+    stand: "f444c5997cc2",
     target: {"abs": 12, "biceps": 5, "calves": 9, "chest": 6, "frontDelts": 4.9857, "glutes": 15, "hamstringsHip": 7.8357, "hamstringsKnee": 6, "lats": 7, "quads": 12, "rearDelts": 8, "sideDelts": 7, "traps": 8.5071, "triceps": 6},
     derived: ["frontDelts", "hamstringsHip", "traps"],
     cap: 12,
@@ -1531,6 +1866,7 @@ export const PLANS = {
   },
   "cut": {
     name: "Cut",
+    stand: "d5633e6ee89a",
     target: {"abs": 9, "biceps": 7, "calves": 6, "chest": 7, "frontDelts": 5.9357, "glutes": 8, "hamstringsHip": 5, "hamstringsKnee": 3, "lats": 7, "quads": 6, "rearDelts": 7, "sideDelts": 7, "traps": 7.9786, "triceps": 7},
     derived: ["frontDelts", "traps"],
     cap: 10,
@@ -1539,6 +1875,7 @@ export const PLANS = {
   },
   "oberkoerper": {
     name: "Oberkörper",
+    stand: "9677099f2dd0",
     target: {"abs": 6, "biceps": 12, "calves": 3, "chest": 12, "frontDelts": 8.7714, "glutes": 6, "hamstringsHip": 3.2857, "hamstringsKnee": 3, "lats": 12, "quads": 3, "rearDelts": 9, "sideDelts": 12, "traps": 11.3, "triceps": 12},
     derived: ["frontDelts", "hamstringsHip", "traps"],
     cap: 13,

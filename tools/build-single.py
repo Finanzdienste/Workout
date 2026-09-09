@@ -37,7 +37,9 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            # im Buendel gibt es keine Importe, die eine Reihenfolge erzwingen.
            'js/text.js', 'js/uebung.js', 'js/stufen.js', 'js/scheiben.js', 'js/gewichte.js',
            'js/supersatz.js',
-           'js/plan.js', 'js/bilanz.js', 'js/erinnerung.js', 'js/merkzettel.js',
+           # muster.js nach plan.js: Es liest exOf() und resolve() von dort.
+           'js/plan.js', 'js/muster.js', 'js/bilanz.js', 'js/erinnerung.js',
+           'js/merkzettel.js',
            'js/push.js',
            'js/app.js']
 

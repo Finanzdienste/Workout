@@ -10,6 +10,7 @@ schreibt js/data.js. Keine Abhaengigkeiten ausser der Standardbibliothek.
 """
 
 import datetime
+import hashlib
 import json
 import pathlib
 import re
@@ -275,8 +276,20 @@ def main():
         print(f'{pfad.relative_to(ROOT)}: {len(fresh)} Einheiten '
               f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), '
               f'Fokus "{roh.get("name", "Ausgewogen")}"')
+        # Fingerabdruck der Inhalte: Welche Uebung an welcher Nummer steht.
+        #
+        # Ein Protokoll ist nach Workout-Nummer abgelegt. Aendert sich, was
+        # hinter einer Nummer steckt – weil eine Uebung dazugekommen ist und der
+        # Generator neu verteilt hat –, dann zeigt ein alter Eintrag auf etwas
+        # anderes, als damals gemacht wurde. Genau das soll die App merken
+        # koennen, ohne den ganzen Plan zu vergleichen (siehe planStand in
+        # js/app.js). Termine gehen bewusst nicht ein: Die verschieben sich im
+        # Betrieb staendig und aendern nichts an dem, was zu tun ist.
+        inhalt = ';'.join(f'{o["n"]}:' + ','.join(i['id'] for i in o['ex'])
+                          for o in fresh)
         return {
             'name': roh.get('name', 'Aufbau'),
+            'stand': hashlib.sha256(inhalt.encode()).hexdigest()[:12],
             'target': roh['target'],
             'derived': roh.get('derived', []),
             'cap': roh.get('cap', DEFAULT_CAP),
@@ -303,7 +316,8 @@ def main():
     groups = sorted({m for e in catalog.values() for m in e['db']['shares']})
     target = {m: target.get(m, DEFAULT_TARGET) for m in groups}
     if not varianten:
-        varianten['standard'] = {'name': 'Aufbau', 'target': target, 'derived': derived,
+        varianten['standard'] = {'name': 'Aufbau', 'stand': '',
+                                 'target': target, 'derived': derived,
                                  'cap': cap, 'rest': rest, 'plan': plan}
     for v in varianten.values():
         v['target'] = {m: v['target'].get(m, DEFAULT_TARGET) for m in groups}
@@ -333,6 +347,7 @@ def main():
         + "".join(
             f"  {json.dumps(key)}: {{\n"
             f"    name: {json.dumps(v['name'], ensure_ascii=False)},\n"
+            f"    stand: {json.dumps(v.get('stand', ''))},\n"
             f"    target: {json.dumps(v['target'], ensure_ascii=False)},\n"
             f"    derived: {json.dumps(v['derived'], ensure_ascii=False)},\n"
             f"    cap: {json.dumps(v['cap'])},\n"

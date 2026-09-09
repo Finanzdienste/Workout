@@ -33,6 +33,27 @@ export const KIND_LABEL = {
   prellung: 'Prellung',
 };
 
+/*
+ * Fünf Übungen kamen später dazu (Inverted Row, einbeiniges Kreuzheben,
+ * Pike-Liegestütze, Kurzhantel-Bodenpresse, Reverse Snow Angel). Ihre Sperren
+ * sind nicht nach Gefühl gesetzt, sondern mechanisch abgeleitet: **Jede erbt
+ * die Sperren ihres Bewegungsvorbilds.**
+ *
+ *   Inverted Row              wie einarmiges Rudern (waagerechtes Ziehen)
+ *                             plus Klimmzug (derselbe Griff)
+ *   Einbeiniges Kreuzheben    wie Rumänisches Kreuzheben (Hüftstreckung)
+ *                             plus einbeiniger Beinbeuger (ein Bein)
+ *   Pike-Liegestütze          wie Schulterdrücken (über Kopf)
+ *                             plus Liegestütze mit erhöhten Füßen (Handstand)
+ *   Kurzhantel-Bodenpresse    wie Floor Press
+ *   Reverse Snow Angel        wie Reverse Fly (hintere Schulter)
+ *                             plus Crunches (Rumpf am Boden)
+ *
+ * Das ergab 43 Einträge in 26 Regeln, und wo das Vorbild einen Ersatz nennt,
+ * ist er mitgekommen – sofern das Ziel in derselben Regel nicht selbst gesperrt
+ * ist. Die Ableitung irrt eher in Richtung „lieber nicht": Eine Übung zu viel
+ * auszulassen kostet ein paar Sätze, eine zu wenig kostet Wochen.
+ */
 export const INJURIES = [
   /* ---------------- Schulter ---------------- */
   {
@@ -43,8 +64,10 @@ export const INJURIES = [
       + 'Heben des Arms zwischen etwa 60° und 120° – seitlich mehr als vorn. '
       + 'Drücken am Boden mit kurzem Weg geht meist, Heben über Schulterhöhe nicht.',
     avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze',
-      'sitzendes-schulterdruecken', 'liegende-trizepsstrecker'],
-    swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
+      'sitzendes-schulterdruecken', 'liegende-trizepsstrecker',
+      'pike-liegestuetze'
+    ],
+    swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press', 'pike-liegestuetze': 'floor-press' },
     care: [
       'aussenrotation', 'wandengel', 'brustdehnung', 'schulterblatt', 'sleeper',
     ],
@@ -59,7 +82,9 @@ export const INJURIES = [
     avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze', 'gewichtete-liegestuetze',
       'floor-press', 'reverse-fly', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
       'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
-      'liegende-trizepsstrecker'],
+      'liegende-trizepsstrecker',
+      'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
+    ],
     swap: {},
     care: ['aussenrotation', 'schulterblatt'],
   },
@@ -71,8 +96,10 @@ export const INJURIES = [
       + 'wenn der Arm quer vor dem Körper zusammengeführt wird – also beim Drücken '
       + 'und bei allem, was die Schultern nach vorn zieht.',
     avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press',
-      'liegende-trizepsstrecker'],
-    swap: { 'fuesse-erhoehte-liegestuetze': 'reverse-fly' },
+      'liegende-trizepsstrecker',
+      'pike-liegestuetze', 'kurzhantel-bodenpresse'
+    ],
+    swap: { 'fuesse-erhoehte-liegestuetze': 'reverse-fly', 'pike-liegestuetze': 'reverse-fly' },
     care: ['schulterblatt', 'brustdehnung', 'aussenrotation'],
   },
   {
@@ -83,11 +110,13 @@ export const INJURIES = [
       + 'Zug mit gestrecktem Arm und bei allem, was den Unterarm gegen Widerstand '
       + 'nach außen dreht – Curls und Klimmzüge im Untergriff also.',
     avoid: ['sz-curls', 'chin-ups',
-      'haengendes-knieheben', 'pull-ups'],
+      'haengendes-knieheben', 'pull-ups',
+      'inverted-row'
+    ],
     // Ersatz ist das Rudern, nicht der Obergriff: Pull-ups drehen den Unterarm
     // zwar nicht nach außen, hängen ihn aber gestreckt an die Stange – und
     // genau dieser Zug reizt die Sehne ebenfalls.
-    swap: { 'chin-ups': 'einarmiges-kh-rudern' },
+    swap: { 'chin-ups': 'einarmiges-kh-rudern', 'inverted-row': 'einarmiges-kh-rudern' },
     care: ['aussenrotation', 'brustdehnung', 'beugerDehnen'],
   },
 
@@ -100,7 +129,9 @@ export const INJURIES = [
       + 'Weh tut vor allem Zugreifen und Festhalten – Rudern, Klimmzüge, Curls. '
       + 'Drücken belastet ihn kaum.',
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
-      'haengendes-knieheben'],
+      'haengendes-knieheben',
+      'inverted-row'
+    ],
     swap: {},
     care: [
       'streckerExzentrik', 'streckerDehnen', 'fingerstrecker', 'handgelenkMobil',
@@ -113,7 +144,9 @@ export const INJURIES = [
     text: 'Dasselbe an der Innenseite, am Ansatz der Handbeuger. Auch hier ist der '
       + 'Griff das Problem, dazu jede kräftige Beugung im Ellenbogen.',
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
-      'haengendes-knieheben'],
+      'haengendes-knieheben',
+      'inverted-row'
+    ],
     swap: {},
     care: ['beugerExzentrik', 'beugerDehnen', 'handgelenkMobil'],
   },
@@ -123,7 +156,9 @@ export const INJURIES = [
     area: 'Ellenbogen', spot: 'elbow', kind: 'reizung',
     text: 'Der Schleimbeutel an der Ellenbogenspitze schwillt an und drückt. Direkter '
       + 'Druck auf den Ellenbogen und volle Streckung gegen Widerstand sind unangenehm.',
-    avoid: ['liegende-trizepsstrecker', 'gewichtete-liegestuetze', 'floor-press'],
+    avoid: ['liegende-trizepsstrecker', 'gewichtete-liegestuetze', 'floor-press',
+      'kurzhantel-bodenpresse'
+    ],
     swap: { 'gewichtete-liegestuetze': 'reverse-fly' },
     care: ['streckerDehnen', 'beugerDehnen', 'schulterblatt'],
   },
@@ -133,8 +168,10 @@ export const INJURIES = [
     area: 'Handgelenk', spot: 'wrist', kind: 'reizung',
     text: 'Schmerz, wenn das Handgelenk unter Last nach hinten abknickt – genau die '
       + 'Stellung beim Liegestütz. Mit gerader Hand am Griff geht es meist gut.',
-    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze'],
-    swap: { 'gewichtete-liegestuetze': 'floor-press', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
+    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze',
+      'pike-liegestuetze'
+    ],
+    swap: { 'gewichtete-liegestuetze': 'floor-press', 'fuesse-erhoehte-liegestuetze': 'floor-press', 'pike-liegestuetze': 'floor-press' },
     care: [
       'handgelenkMobil', 'streckerDehnen', 'beugerDehnen', 'fingerstrecker',
     ],
@@ -150,7 +187,9 @@ export const INJURIES = [
       'fuesse-erhoehte-liegestuetze', 'floor-press', 'einarmiges-kh-rudern', 'chin-ups', 'pull-ups',
       'reverse-fly', 'sitzendes-seitheben', 'band-seitheben', 'liegende-trizepsstrecker', 'sz-curls',
       'gewichtete-crunches',
-      'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart'],
+      'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
+      'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
+    ],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
   },
@@ -161,7 +200,9 @@ export const INJURIES = [
     text: 'De Quervain: die Sehnen zum Daumen laufen durch ein zu enges Fach an der '
       + 'Speichenseite. Alles, was fest gegriffen wird, zieht daran.',
     avoid: ['chin-ups', 'pull-ups', 'einarmiges-kh-rudern', 'sz-curls',
-      'haengendes-knieheben'],
+      'haengendes-knieheben',
+      'inverted-row'
+    ],
     swap: {},
     care: ['streckerDehnen', 'fingerstrecker', 'handgelenkMobil'],
   },
@@ -172,7 +213,9 @@ export const INJURIES = [
     text: 'Das Band, das die Beugesehne am Knochen hält, ist überdehnt oder gerissen – '
       + 'klassisch vom Hängen an einer Kante. Jeder feste Griff belastet es.',
     avoid: ['chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
-      'haengendes-knieheben'],
+      'haengendes-knieheben',
+      'inverted-row'
+    ],
     swap: {},
     care: ['fingerstrecker', 'handgelenkMobil'],
   },
@@ -185,7 +228,9 @@ export const INJURIES = [
     text: 'Verspannter Nacken meldet sich bei allem, was die Schultern hochzieht, und '
       + 'bei Übungen, in denen der Kopf gegen die Schwerkraft gehalten wird.',
     avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'band-seitheben',
-      'sitzendes-schulterdruecken'],
+      'sitzendes-schulterdruecken',
+      'pike-liegestuetze', 'reverse-snow-angel'
+    ],
     swap: { 'sitzendes-seitheben': 'floor-press' },
     care: ['kinnZurueck', 'nackenSeite', 'schulterkreisen', 'brustdehnung'],
   },
@@ -198,7 +243,9 @@ export const INJURIES = [
       + 'Widerstand.',
     avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'band-seitheben', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
       'reverse-fly',
-      'sitzendes-schulterdruecken', 'haengendes-knieheben'],
+      'sitzendes-schulterdruecken', 'haengendes-knieheben',
+      'inverted-row', 'pike-liegestuetze', 'reverse-snow-angel'
+    ],
     swap: {},
     care: ['kinnZurueck', 'schulterkreisen', 'atmung'],
   },
@@ -216,12 +263,12 @@ export const INJURIES = [
     // Hüftstreckung", die der Text als gut verträglich beschreibt.
     avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat',
       'einarmiges-kh-rudern', 'reverse-fly',
-      'split-squat', 'rumaenisches-kreuzheben'],
-    swap: {
-      'goblet-squat': 'hip-thrust',
+      'split-squat', 'rumaenisches-kreuzheben',
+      'inverted-row', 'einbeiniges-kreuzheben', 'reverse-snow-angel'
+    ],
+    swap: { 'goblet-squat': 'hip-thrust',
       'fersenerhoehter-goblet-squat': 'hip-thrust',
-      'rumaenisches-kreuzheben': 'hip-thrust',
-    },
+      'rumaenisches-kreuzheben': 'hip-thrust', 'einbeiniges-kreuzheben': 'hip-thrust' },
     care: ['kobra', 'deadBug', 'vogelhund', 'hueftbeuger'],
   },
   {
@@ -235,8 +282,10 @@ export const INJURIES = [
     // Kreuzheben ist beides zugleich und gehörte von Anfang an hierher.
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einarmiges-kh-rudern',
       'gewichtete-crunches',
-      'split-squat', 'rumaenisches-kreuzheben'],
-    swap: { 'goblet-squat': 'hip-thrust', 'rumaenisches-kreuzheben': 'hip-thrust' },
+      'split-squat', 'rumaenisches-kreuzheben',
+      'inverted-row', 'einbeiniges-kreuzheben', 'reverse-snow-angel'
+    ],
+    swap: { 'goblet-squat': 'hip-thrust', 'rumaenisches-kreuzheben': 'hip-thrust', 'einbeiniges-kreuzheben': 'hip-thrust' },
     care: ['katzeKuh', 'kobra', 'deadBug', 'hueftbeuger'],
   },
   {
@@ -246,11 +295,11 @@ export const INJURIES = [
     text: 'Das Kreuz-Darmbein-Gelenk sitzt fest, der Schmerz sitzt tief seitlich über '
       + 'dem Gesäß. Einbeinige Belastung und kräftige Hüftstreckung reizen es.',
     avoid: ['hip-thrust', 'einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
-      'rumaenisches-kreuzheben'],
-    swap: {
-      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
-      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
-    },
+      'rumaenisches-kreuzheben',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['vogelhund', 'piriformis', 'glutebridge', 'huefte9090'],
   },
   {
@@ -260,7 +309,9 @@ export const INJURIES = [
     text: 'Prellung oder Anriss einer Rippe. Jedes kräftige Anspannen des Rumpfes tut '
       + 'weh, ebenso Druck von außen – die Hantel vor der Brust zum Beispiel.',
     avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat',
-      'split-squat'],
+      'split-squat',
+      'reverse-snow-angel'
+    ],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['atmung', 'schulterkreisen'],
   },
@@ -270,7 +321,9 @@ export const INJURIES = [
     area: 'Bauch', spot: 'abs', kind: 'zerrung',
     text: 'Gezerrte gerade Bauchmuskulatur, oft nach einer schnellen Drehung. Beugung '
       + 'gegen Widerstand fällt aus; halten und stabilisieren geht meist noch.',
-    avoid: ['gewichtete-crunches'],
+    avoid: ['gewichtete-crunches',
+      'reverse-snow-angel'
+    ],
     swap: {},
     care: ['atmung', 'katzeKuh', 'deadBug'],
   },
@@ -280,7 +333,9 @@ export const INJURIES = [
     area: 'Brust', spot: 'chest', kind: 'zerrung',
     text: 'Meist am Übergang zur Sehne nahe der Achsel. Drücken und alles, was den Arm '
       + 'aus der gedehnten Stellung nach vorn bringt, ist betroffen.',
-    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press'],
+    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press',
+      'pike-liegestuetze', 'kurzhantel-bodenpresse'
+    ],
     swap: {},
     care: ['brustdehnung', 'schulterblatt', 'aussenrotation'],
   },
@@ -293,7 +348,9 @@ export const INJURIES = [
       + 'angehaltenem Atem fallen weg, bis das operiert ist.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'gewichtete-crunches',
       'hip-thrust', 'einarmiges-kh-rudern',
-      'split-squat', 'rumaenisches-kreuzheben'],
+      'split-squat', 'rumaenisches-kreuzheben',
+      'inverted-row', 'einbeiniges-kreuzheben', 'reverse-snow-angel'
+    ],
     swap: {},
     care: ['atmung', 'deadBug'],
   },
@@ -319,11 +376,11 @@ export const INJURIES = [
       + 'einbeinige Übungen ziehen daran.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einbeiniger-sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben',
-      'split-squat'],
-    swap: {
-      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
-      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
-    },
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['adduktoren', 'huefte9090', 'glutebridge'],
   },
   {
@@ -344,8 +401,10 @@ export const INJURIES = [
     text: 'Riss im Faserknorpel zwischen Ober- und Unterschenkel. Tiefe Beugung unter '
       + 'Last und Drehung im belasteten Knie sind die kritischen Bewegungen.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einbeiniger-sliding-leg-curl',
-      'split-squat'],
-    swap: { 'goblet-squat': 'hip-thrust', 'einbeiniger-sliding-leg-curl': 'hip-thrust' },
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'goblet-squat': 'hip-thrust', 'einbeiniger-sliding-leg-curl': 'hip-thrust', 'einbeiniges-kreuzheben': 'hip-thrust' },
     care: ['knieextension', 'wandsitz', 'glutebridge'],
   },
   {
@@ -358,7 +417,9 @@ export const INJURIES = [
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'sliding-leg-curl',
       'einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
       'wadenheben-gebeugtes-knie',
-      'split-squat'],
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
     swap: {},
     care: ['knieextension', 'glutebridge', 'einbeinstand'],
   },
@@ -370,12 +431,12 @@ export const INJURIES = [
       + 'reizt am meisten – einbeinige Übungen und tiefe Kniebeugen also.',
     avoid: ['einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
       'fersenerhoehter-goblet-squat',
-      'split-squat'],
-    swap: {
-      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
-      'fersenerhoehter-goblet-squat': 'goblet-squat',
-    },
+      'fersenerhoehter-goblet-squat': 'goblet-squat', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['piriformis', 'glutebridge', 'huefte9090', 'wandsitz'],
   },
   {
@@ -386,7 +447,9 @@ export const INJURIES = [
       + 'in der Länge – genau das, was der Sliding Leg Curl macht – ist am '
       + 'empfindlichsten.',
     avoid: ['sliding-leg-curl', 'einbeiniger-sliding-leg-curl', 'hip-thrust',
-      'rumaenisches-kreuzheben'],
+      'rumaenisches-kreuzheben',
+      'einbeiniges-kreuzheben'
+    ],
     swap: {},
     care: ['beinbeugerIso', 'beinbeugerDehnen', 'glutebridge'],
   },
@@ -418,12 +481,12 @@ export const INJURIES = [
       + 'fällt weg, ebenso tiefe Kniebeugen, bei denen das Sprunggelenk weit nach vorn '
       + 'kippt.',
     avoid: ['einbeiniges-stehendes-wadenheben', 'einbeiniger-sliding-leg-curl', 'goblet-squat',
-      'split-squat'],
-    swap: {
-      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
       'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
-      'goblet-squat': 'fersenerhoehter-goblet-squat',
-    },
+      'goblet-squat': 'fersenerhoehter-goblet-squat', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['fussABC', 'einbeinstand', 'wadeGestreckt', 'zehenheben'],
   },
   {

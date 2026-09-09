@@ -6,7 +6,7 @@
  * Arbeitsgewichte kennen.
  */
 import * as store from './store.js';
-import { EX_BY_ID } from './uebung.js';
+import { EX_BY_ID, repsBereich } from './uebung.js';
 import { esc, fmtNum } from './text.js';
 import { levelFaktor } from './stufen.js';
 import { belegungText, gepflegt, nachbar, normSatz, raste } from './scheiben.js';
@@ -25,6 +25,60 @@ export function gerastet(ex, kg) {
   if (kg === null || !ex || !gepflegt(ex.equip, meinSatz())) return kg;
   const r = raste(kg, ex.equip, meinSatz());
   return r === null ? kg : r;
+}
+
+/* ------------------------------------------------------------------ *
+ * Aufwärmen
+ *
+ * Der erste Arbeitssatz war bisher wirklich der erste Satz. Bei 40 kg Hip
+ * Thrust heißt das: aus dem Sessel auf die Bank und volles Gewicht. Das ist die
+ * billigste Verletzungsvorbeugung, die es gibt, und sie stand nirgends.
+ *
+ * **Was hier absichtlich nicht passiert.** Aufwärmsätze werden nicht abgehakt
+ * und nicht protokolliert. Sie sind keine Leistung – zählte man sie mit, stiege
+ * die Satzzahl in der Statistik um ein Drittel, ohne dass mehr trainiert wurde,
+ * und der Stufenaufstieg käme zu früh. Es ist eine Zeile, kein Knopf.
+ *
+ * **Wer sie bekommt.** Nur Übungen mit Last und nur die schweren: `tier` 1 und 2
+ * – Grundübungen und schwere Nebenübungen. Ein Seitheben mit 5 kg braucht kein
+ * Aufwärmen, und eine Zeile, die überall steht, liest bald niemand mehr.
+ *
+ * **Womit.** Die Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf
+ * das, was sich mit den vorhandenen Scheiben wirklich aufstecken lässt – ein
+ * Aufwärmsatz mit 17,3 kg wäre eine Rechnung, keine Ansage. Fällt ein Satz mit
+ * dem Arbeitsgewicht zusammen oder mit dem anderen Aufwärmsatz, faellt er weg:
+ * Zweimal dasselbe Gewicht ist kein Aufbau.
+ *
+ * Wiederholungen: gut die Hälfte der unteren Bereichsgrenze. Aufwärmen soll
+ * wach machen, nicht müde.
+ * ------------------------------------------------------------------ */
+
+/** Anteile des Arbeitsgewichts je Stufe – schwerer heißt mehr Anlauf. */
+const AUFWAERM_STUFEN = { 1: [0.5, 0.75], 2: [0.6] };
+
+/**
+ * Die Aufwärmsätze einer Übung: [{ kg, reps }] – oder eine leere Liste.
+ *
+ * `kg` ist das Arbeitsgewicht dieser Übung in diesem Modus, `ex` der Eintrag
+ * aus dem Katalog (mit `tier`, `equip` und dem Wiederholungsbereich).
+ */
+export function aufwaermsaetze(ex, kg, reps) {
+  const stufen = AUFWAERM_STUFEN[ex && ex.tier];
+  if (!stufen || kg === null || !(kg > 0)) return [];
+  const unten = repsBereich(reps).lo || 8;
+  const wdh = Math.max(4, Math.min(8, Math.round(unten * 0.6)));
+  const gesehen = new Set([kg]);
+  const liste = [];
+  stufen.forEach((anteil) => {
+    const roh = Math.round(kg * anteil * 4) / 4;
+    const w = gerastet(ex, roh);
+    // Über dem Arbeitsgewicht ist kein Aufwärmsatz, sondern ein Fehler: Das
+    // passiert, wenn das Raster grob ist und nach oben schnappt.
+    if (!(w > 0) || w >= kg || gesehen.has(w)) return;
+    gesehen.add(w);
+    liste.push({ kg: w, reps: wdh });
+  });
+  return liste;
 }
 
 /** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
@@ -185,6 +239,24 @@ export function vorgezogen(liste) {
 }
 
 export function ruestOrder(items) {
+  // Nach vorn geholte Übungen stehen vorn, Punkt. Sie gehen der Bündelung nach
+  // Gerät vor und kosten damit womöglich einen zusätzlichen Aufbau – das ist
+  // die bewusste Entscheidung dahinter: Eine Übung, die regelmäßig ausfällt,
+  // bringt null Sätze, und ein zweiter Aufbau ist der billigere Preis. Wer sie
+  // gesetzt hat, hat genau danach gefragt (siehe vorneUm() in js/muster.js).
+  const vorn = store.getState().vorne || [];
+  if (vorn.length) {
+    const rang = (it) => {
+      const i = vorn.indexOf(it.id);
+      return i < 0 ? vorn.length : i;
+    };
+    const geholt = items.filter((it) => rang(it) < vorn.length)
+      .sort((a, b) => rang(a) - rang(b));
+    if (geholt.length) {
+      const rest = ruestOrder(items.filter((it) => rang(it) === vorn.length));
+      return [...geholt, ...rest];
+    }
+  }
   const geladen = [];
   items.forEach((it, i) => {
     const s = setupOf(it.id, workingWeight(it.id));

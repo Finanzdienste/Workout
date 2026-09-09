@@ -33,12 +33,14 @@ import { esc, fmtNum } from './text.js';
 import { EX_BY_ID, plannedReps, stufenWerte } from './uebung.js';
 import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, offenerAufstieg, satzFaktor, satzZahl } from './stufen.js';
 import {
-  doneWeightNote, meinSatz, naechstesGewicht, ruestHint, vorgezogen, workingWeight,
+  aufwaermsaetze, doneWeightNote, meinSatz, naechstesGewicht, ruestCache, ruestHint,
+  vorgezogen, workingWeight,
 } from './gewichte.js';
 import { RASTER, STANGE_LABEL, erreichbar, normSatz } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
 import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, lebenStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
+import { abbruch, ausgelassen, vorneListe, vorneUm } from './muster.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
 import { kannPush, pushEinrichten, pushStand } from './push.js';
@@ -252,6 +254,45 @@ function fokusUmzug() {
   return true;
 }
 
+/* ------------------------------------------------------------------ *
+ * Der Plan hat sich geändert
+ *
+ * Ein Protokoll steht nach Workout-Nummer. Kommen Übungen in den Katalog und
+ * verteilt der Generator neu, steckt hinter Nummer 3 etwas anderes als an dem
+ * Tag, an dem sie abgehakt wurde – und die App behauptete rückwirkend, es sei
+ * schon immer das gewesen. Das ist derselbe Fehler wie beim Fokuswechsel, nur
+ * ohne dass jemand darauf getippt hätte.
+ *
+ * Deshalb trägt jede Planvariante seit js/data.js einen Fingerabdruck ihrer
+ * Inhalte. Stimmt er nicht mehr mit dem überein, unter dem der laufende Verlauf
+ * entstanden ist, wandert dieser in die Ablage und der neue Plan fängt sauber
+ * an. Verloren geht dabei nichts: Gewichte bleiben, Statistik, Kalender und
+ * Trainingstage rechnen über alle Protokolle (siehe lebenStats()).
+ *
+ * Termine gehen in den Fingerabdruck nicht ein – die verschieben sich im
+ * Betrieb ständig und ändern nichts an dem, was zu tun ist.
+ * ------------------------------------------------------------------ */
+function planWechsel() {
+  const s = store.getState();
+  const fokus = s.focus || 'standard';
+  const jetzt = (PLANS[fokus] || {}).stand || '';
+  const vorher = (s.planStand || {})[fokus];
+  if (!jetzt) return false;
+  // Beim ersten Mal steht nichts da. Das ist kein Wechsel, sondern der Anfang
+  // der Buchführung – sonst legte dieses Merkmal bei seiner Einführung jeden
+  // laufenden Verlauf einmal weg.
+  if (vorher === undefined || vorher === jetzt) {
+    if (vorher !== jetzt) {
+      store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
+    }
+    return false;
+  }
+  const hatVerlauf = Object.keys(s.log || {}).length > 0;
+  if (hatVerlauf) store.restartPlan(0, rundenBilanz());
+  store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
+  return hatVerlauf;
+}
+
 /** Der Hinweis dazu auf dem Dashboard, bis er weggetippt wird. */
 function umzugHinweis() {
   const u = store.getState().fokusUmzug;
@@ -295,6 +336,68 @@ function downloadBackup() {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   store.markBackup(doneCount());
   toast('Gesichert – falls kein Download kam: Text in „Mehr“ kopieren');
+}
+
+/* ------------------------------------------------------------------ *
+ * Daten, die den Tag überleben
+ *
+ * Alles liegt im Speicher eines Browsers. Zwei verschiedene Arten, das zu
+ * verlieren, und zwei verschiedene Antworten:
+ *
+ *   Der Browser räumt auf   Android gibt den Speicher einer selten benutzten
+ *                           Seite bei Platzmangel frei. Dagegen hilft eine
+ *                           Zusage, die man erfragen kann: storage.persist().
+ *                           Kostet einen Aufruf und hält, solange die App
+ *                           installiert bleibt.
+ *   Das Gerät ist weg       Dagegen hilft nur eine Kopie *woanders*. Ein
+ *                           Download landet im Ordner „Downloads" desselben
+ *                           Handys – das ist keine Kopie, das ist dieselbe
+ *                           Stelle mit einem anderen Namen. Deshalb der
+ *                           Teilen-Weg: Die Datei geht an Drive, an eine Mail
+ *                           an sich selbst, an was auch immer da ist.
+ *
+ * Was hier bewusst *nicht* passiert: die Sicherung von selbst irgendwohin
+ * schicken. Der Rückkanal an den Betreiber trägt eine Handvoll Zahlen und ist
+ * abschaltbar; ein vollständiger Trainingsverlauf ist etwas anderes, und der
+ * geht nur dorthin, wohin er ausdrücklich geschickt wird.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Den Browser bitten, diese Daten nicht von selbst wegzuräumen.
+ *
+ * Einmal beim Start. Chrome sagt das für installierte Apps meist ohne
+ * Rückfrage zu und im gewöhnlichen Tab meist nicht – deshalb wird das Ergebnis
+ * gemerkt und angezeigt, statt es zu behaupten.
+ */
+async function speicherFestnageln() {
+  if (!navigator.storage || !navigator.storage.persist) return;
+  try {
+    const schon = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+    const ok = schon || await navigator.storage.persist();
+    if (store.getState().dauerhaft !== ok) store.setSetting('dauerhaft', ok);
+  } catch { /* kennt der Browser nicht – dann eben nicht */ }
+}
+
+/**
+ * Die Sicherung weitergeben statt herunterladen.
+ *
+ * Fällt auf den Download zurück, wo es das Teilen nicht gibt oder es abgelehnt
+ * wird – und zwar still: „Teilen abgebrochen" ist keine Meldung wert, das war
+ * eine Entscheidung.
+ */
+async function teileBackup() {
+  const json = store.exportJSON();
+  const datei = new File([json], `workout-backup-${todayISO()}.json`,
+    { type: 'application/json' });
+  if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+    try {
+      await navigator.share({ files: [datei], title: 'Workout-Sicherung' });
+      store.markBackup(doneCount());
+      render();
+      return;
+    } catch { return; }   // abgebrochen – kein Grund für eine Meldung
+  }
+  downloadBackup();
 }
 
 /**
@@ -988,7 +1091,8 @@ function renderFocus() {
         </div>
         ${kgKnopf(it, 1)}
       </div>
-      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}`}
+      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
+      ${aufwaermZeile(it, mode, n)}`}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -1230,7 +1334,10 @@ function renderOverview() {
         </div></div>` : ''}
       ${due ? `<div class="notice warn">💾 ${esc(plural(due, 'Einheit', 'Einheiten'))} seit der letzten
         Sicherung. Alles liegt nur in diesem Browser.
-        <button type="button" class="btn btn-block" data-act="backup-now" style="margin-top:10px">Jetzt sichern</button></div>` : ''}
+        <button type="button" class="btn btn-block btn-primary" data-act="backup-teilen"
+                style="margin-top:10px">Sicherung weitergeben</button>
+        <div class="small muted" style="margin-top:6px">Geht an Drive, an eine Mail an dich
+          selbst, an was du willst – Hauptsache nicht nur auf dieses Handy.</div></div>` : ''}
 
       <header class="ov-top">
         <!-- Kein „von 84" mehr: „Die app geht ja unendlich." Stimmt – der Plan
@@ -1842,7 +1949,8 @@ function renderDashboard() {
         </div>
         ${kgKnopf(it, 1)}
       </div>
-      ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}`;
+      ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}
+      ${aufwaermZeile(it, mode, n)}`;
 
     parts.push(`
       <article class="ex ${open ? 'open' : ''} ${complete ? 'complete' : ''}">
@@ -2113,6 +2221,53 @@ function gesamtKarte() {
  * rückwärts. Beides in einen Gesamtwert zu mischen ergäbe nichts – zwei Pläne
  * haben nicht dieselben Einheiten.
  */
+/**
+ * Was das Protokoll über die Gewohnheiten sagt – und was man dagegen tun kann.
+ *
+ * Steht in der Statistik und nicht auf dem Dashboard: Es ist eine Auswertung,
+ * kein Auftrag für heute. Und sie steht nur da, wenn es etwas zu sagen gibt –
+ * eine Karte, die in der Hälfte der Fälle „alles gut" meldet, wird nicht
+ * gelesen, sie wird überblättert.
+ */
+function musterKarte() {
+  const ab = abbruch();
+  const weg = ausgelassen();
+  if (!ab && !weg.length) return '';
+  const vorn = vorneListe();
+  return `
+    <div class="section-title">Was dir im Protokoll auffällt</div>
+    <div class="card">
+      ${ab ? `<div class="small">In ${plural(ab.kurz, 'Einheit', 'Einheiten')} von
+        ${ab.einheiten} hast du vor dem Ende aufgehört – meist nach Übung
+        <b>${ab.bis} von ${ab.von}</b>. Das ist kein Problem einer einzelnen Übung,
+        sondern der Länge: Was hinten steht, kommt nicht dran. Entweder die Einheit
+        kürzen (Erfahrungsstufe eine Stufe zurück, unter <i>Mehr</i>) oder das
+        Wichtige nach vorn holen.</div>` : ''}
+
+      ${weg.length ? `
+        <div class="small" style="${ab ? 'margin-top:12px' : ''}">Diese Übungen fallen
+          regelmäßig aus – jeweils gezählt über die Einheiten, in denen sie überhaupt
+          dran waren:</div>
+        <div class="muster-liste">
+          ${weg.map((x) => `
+            <div class="muster-zeile">
+              <div>
+                <div class="lbl">${esc(x.name)}</div>
+                <div class="hint">${x.weg} von ${x.dran} Mal übergangen</div>
+              </div>
+              <button type="button" class="btn btn-sm ${vorn.includes(x.id) ? '' : 'btn-primary'}"
+                      data-act="muster-vorne" data-ex="${esc(x.id)}">
+                ${vorn.includes(x.id) ? 'steht vorn ✓' : 'nach vorn'}
+              </button>
+            </div>`).join('')}
+        </div>
+        <div class="small muted" style="margin-top:10px">„Nach vorn" heißt: Diese Übung
+          steht ab sofort am Anfang der Einheit, vor der Bündelung nach Gerät. Das kostet
+          womöglich einen zusätzlichen Umbau – eine Übung, die ausfällt, bringt aber null
+          Sätze, und das ist der teurere Preis.</div>` : ''}
+    </div>`;
+}
+
 function renderStats() {
   const { workoutsDone, streak, upcoming, customSets } = sammleStats();
   const leben = lebenStats();
@@ -2158,6 +2313,8 @@ function renderStats() {
     </div>
 
     ${gesamtKarte()}
+
+    ${musterKarte()}
 
     ${eich ? `<div class="card small muted" style="margin-top:-4px">
       Die Dauer an den Trainingsplänen ist keine Schätzung mehr: Über
@@ -2492,6 +2649,27 @@ function scheibenAendern(wie) {
   const satz = roherSatz();
   wie(satz);
   store.setSetting('scheiben', satz);
+}
+
+/**
+ * Die Aufwärmzeile über den Sätzen – oder nichts.
+ *
+ * Bewusst eine Zeile und kein Knopf: Aufwärmsätze werden nicht abgehakt und
+ * nicht mitgezählt (siehe aufwaermsaetze() in js/gewichte.js). Wer sie anhaken
+ * könnte, hätte am Monatsende ein Drittel mehr Sätze in der Statistik, ohne ein
+ * Gramm mehr bewegt zu haben.
+ *
+ * Sie steht nur, solange von der Übung noch nichts abgehakt ist. Danach ist das
+ * Aufwärmen vorbei, und eine Ansage, die überholt ist, ist eine Ansage zu viel.
+ */
+function aufwaermZeile(it, mode, n) {
+  if (!store.getState().aufwaermen) return '';
+  if ((store.peekSets(n, mode, it.id) || []).some((s) => s.done)) return '';
+  const saetze = aufwaermsaetze(EX_BY_ID.get(it.id), workingWeight(it.id), it.reps);
+  if (!saetze.length) return '';
+  const text = saetze.map((s) => `${s.reps}× ${fmtNum(s.kg)} kg`).join(' · ');
+  return `<div class="aufwaerm">Aufwärmen: ${esc(text)}
+    <span class="muted">– zählt nicht mit</span></div>`;
 }
 
 /**
@@ -4230,6 +4408,18 @@ function renderSettings() {
         <button type="button" class="toggle" aria-pressed="${!!s.supersatz}"
                 data-act="toggle-supersatz" aria-label="Supersätze"></button>
       </div>
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Aufwärmsätze anzeigen</div>
+          <div class="hint">Über den schweren Übungen steht, womit aufzuwärmen ist – die
+            Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf deine Scheiben.
+            Nur bei Grund- und schweren Nebenübungen; ein Seitheben mit 5 kg braucht das
+            nicht. Abgehakt wird nichts davon: Aufwärmsätze zählen nicht in die Statistik
+            und nicht für den Stufenaufstieg.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${!!s.aufwaermen}"
+                data-act="toggle-aufwaermen" aria-label="Aufwärmsätze anzeigen"></button>
+      </div>
       ${s.supersatz ? superVorschau() : ''}
     </div>
 
@@ -4397,9 +4587,15 @@ function renderSettings() {
           if (!b) return 'Noch nie gesichert.';
           return `Zuletzt gesichert am ${esc(fmtDate(b.on))}, nach ${esc(plural(b.done, 'Einheit', 'Einheiten'))}.`;
         })()}</div>
+      <div class="small muted" style="margin-top:6px">${store.getState().dauerhaft
+        ? 'Der Browser hat zugesagt, diesen Speicher nicht von selbst freizugeben.'
+        : '<b>Der Browser hat nichts zugesagt</b> – er darf den Speicher bei Platzmangel '
+          + 'räumen. Am Startbildschirm installiert sagt er es meist zu.'}
+        Gegen ein verlorenes Handy hilft ohnehin nur eine Kopie woanders.</div>
       <div class="btn-row">
-        <button type="button" class="btn" data-act="export">Export anzeigen</button>
+        <button type="button" class="btn btn-primary" data-act="backup-teilen">Sicherung weitergeben</button>
         <button type="button" class="btn" data-act="download">Als Datei sichern</button>
+        <button type="button" class="btn" data-act="export">Export anzeigen</button>
       </div>
       <textarea class="io" id="io" placeholder="Hier JSON einfügen und auf „Importieren“ tippen…" style="margin-top:10px"></textarea>
       <div class="btn-row">
@@ -4824,6 +5020,9 @@ view.addEventListener('click', (e) => {
     case 'backup-now':
       downloadBackup();
       render();
+      break;
+    case 'backup-teilen':
+      teileBackup();
       break;
     case 'start-session':
       if (!workoutByNo(n).ex.length) {
@@ -5336,6 +5535,17 @@ view.addEventListener('click', (e) => {
       store.setSetting('supersatz', !store.getState().supersatz);
       render();
       break;
+    case 'muster-vorne': {
+      const jetzt = vorneUm(t.dataset.ex);
+      ruestCache.clear();   // die Reihenfolge ist gemerkt und gilt nicht mehr
+      toast(jetzt ? 'Steht ab jetzt am Anfang der Einheit' : 'Wieder an ihrem Platz im Plan');
+      render();
+      break;
+    }
+    case 'toggle-aufwaermen':
+      store.setSetting('aufwaermen', !store.getState().aufwaermen);
+      render();
+      break;
     case 'scheiben-plus': {
       // Eine leere Zeile wäre nach normSatz() sofort wieder weg (0 kg zählt
       // nicht). Deshalb kommt eine Größe dazu, die es noch nicht gibt.
@@ -5677,6 +5887,11 @@ ui.standAngebot = standAusAdresse();
 // braucht keine eigene Ansicht, weil er nichts zeigt, was man vergleichen
 // müsste: Er trägt ein, was man ohnehin gerade eintippen wollte.
 eisenAusAdresse();
+
+// Einmal beim Start den Browser bitten, diesen Speicher nicht von selbst
+// freizugeben. Ohne await: Das Ergebnis interessiert erst, wenn jemand unter
+// Mehr nachsieht, und bis dahin darf der Start nicht darauf warten.
+speicherFestnageln();
 // Und noch einmal, wenn der Link auf eine bereits offene App trifft: Dann ist
 // das ein Sprung innerhalb derselben Seite, sie lädt nicht neu, und ohne diesen
 // Horcher passierte schlicht nichts.
@@ -5690,6 +5905,15 @@ if (ui.standAngebot) {
 // umschreiben – js/data.js hat den Nachfolger schon geladen, hier zieht der
 // gespeicherte Wert nach.
 if (fokusUmzug()) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
+  ui.listView = false;
+}
+// Und danach: Hat sich der *Inhalt* des Plans geändert, ohne dass der Fokus ein
+// anderer wäre? Dann zeigt jeder alte Eintrag auf eine andere Übung, und der
+// laufende Verlauf wandert in die Ablage. Nach fokusUmzug(), nicht davor – der
+// stellt erst fest, welcher Plan überhaupt gilt.
+if (planWechsel()) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;

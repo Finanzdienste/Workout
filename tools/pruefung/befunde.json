@@ -32,7 +32,13 @@
    "traps": 2.43,
    "triceps": 2.24
   },
-  "ohne_saetze": []
+  "ohne_saetze": [
+   "einbeiniges-kreuzheben",
+   "inverted-row",
+   "kurzhantel-bodenpresse",
+   "pike-liegestuetze",
+   "reverse-snow-angel"
+  ]
  },
  "bbp/db": {
   "abstand_max": {
@@ -67,7 +73,13 @@
    "traps": 2.43,
    "triceps": 2.24
   },
-  "ohne_saetze": []
+  "ohne_saetze": [
+   "einbeiniges-kreuzheben",
+   "inverted-row",
+   "kurzhantel-bodenpresse",
+   "pike-liegestuetze",
+   "reverse-snow-angel"
+  ]
  },
  "cut/bw": {
   "abstand_max": {
@@ -103,7 +115,12 @@
    "triceps": 2.43
   },
   "ohne_saetze": [
-   "goblet-squat"
+   "einbeiniges-kreuzheben",
+   "goblet-squat",
+   "inverted-row",
+   "kurzhantel-bodenpresse",
+   "pike-liegestuetze",
+   "reverse-snow-angel"
   ]
  },
  "cut/db": {
@@ -140,7 +157,12 @@
    "triceps": 2.43
   },
   "ohne_saetze": [
-   "goblet-squat"
+   "einbeiniges-kreuzheben",
+   "goblet-squat",
+   "inverted-row",
+   "kurzhantel-bodenpresse",
+   "pike-liegestuetze",
+   "reverse-snow-angel"
   ]
  },
  "oberkoerper/bw": {
@@ -177,7 +199,12 @@
    "triceps": 2.9
   },
   "ohne_saetze": [
-   "goblet-squat"
+   "einbeiniges-kreuzheben",
+   "goblet-squat",
+   "inverted-row",
+   "kurzhantel-bodenpresse",
+   "pike-liegestuetze",
+   "reverse-snow-angel"
   ]
  },
  "oberkoerper/db": {
@@ -214,7 +241,12 @@
    "triceps": 2.9
   },
   "ohne_saetze": [
-   "goblet-squat"
+   "einbeiniges-kreuzheben",
+   "goblet-squat",
+   "inverted-row",
+   "kurzhantel-bodenpresse",
+   "pike-liegestuetze",
+   "reverse-snow-angel"
   ]
  },
  "standard/bw": {
@@ -250,7 +282,13 @@
    "traps": 2.29,
    "triceps": 2.95
   },
-  "ohne_saetze": []
+  "ohne_saetze": [
+   "einbeiniges-kreuzheben",
+   "inverted-row",
+   "kurzhantel-bodenpresse",
+   "pike-liegestuetze",
+   "reverse-snow-angel"
+  ]
  },
  "standard/db": {
   "abstand_max": {
@@ -285,6 +323,12 @@
    "traps": 2.29,
    "triceps": 2.95
   },
-  "ohne_saetze": []
+  "ohne_saetze": [
+   "einbeiniges-kreuzheben",
+   "inverted-row",
+   "kurzhantel-bodenpresse",
+   "pike-liegestuetze",
+   "reverse-snow-angel"
+  ]
  }
 }

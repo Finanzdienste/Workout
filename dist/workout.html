@@ -1352,6 +1352,19 @@ textarea.io {
 .cal-cell.done.frueher { background: transparent; color: var(--text);
   border-color: var(--accent); border-style: dashed; font-weight: 600; }
 .cal-cell.done.frueher.bw { border-color: var(--accent-2); }
+/* Die Aufwärmzeile: gedämpft und ohne Rahmen. Sie ist eine Ansage vor der
+   Arbeit, kein Teil davon – sähe sie aus wie ein Satz, würde danach gesucht,
+   wo man sie abhakt. */
+.aufwaerm { font-size: 13px; color: var(--muted); margin: 2px 0 8px;
+  padding-left: 2px; letter-spacing: .01em; }
+.aufwaerm .muted { opacity: .7; }
+/* Auswertung im Statistik-Tab: Zeile mit Text links, einer Antwort rechts. */
+.muster-liste { margin-top: 10px; display: grid; gap: 8px; }
+.muster-zeile { display: flex; align-items: center; gap: 12px;
+  background: var(--bg-elev-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; }
+.muster-zeile > div { min-width: 0; flex: 1; }
+.muster-zeile .btn { flex: none; }
 .cal-cell.part { border-color: var(--accent); background: rgba(255, 122, 69, .16); }
 .cal-cell.part.bw { border-color: var(--accent-2); background: rgba(78, 161, 255, .16); }
 .cal-cell.plan { border-color: var(--line); background: var(--bg-elev-2); }
@@ -3063,6 +3076,339 @@ const EXERCISES = [
       ],
       "stufen": {}
     }
+  },
+  {
+    "id": "inverted-row",
+    "group": "Rücken",
+    "weight": 0,
+    "step": 2.5,
+    "weightNote": "im Rucksack",
+    "equip": "backpack",
+    "tier": 1,
+    "detail": [
+      [
+        "Warum sie im Plan steht",
+        "Klimmzüge ziehen von oben, diese Übung von vorn. Das sind zwei verschiedene Richtungen für denselben Muskel, und der obere Rücken – Kapuzenmuskel, Rautenmuskeln, hintere Schulter – bekommt nur bei der waagerechten wirklich etwas ab. Wer nur senkrecht zieht, lässt genau den Teil aus, der beim Sitzen den ganzen Tag nachgibt."
+      ],
+      [
+        "Schwerer und leichter",
+        "Die Last hängt am Winkel, nicht am Eisen. Füße auf einem Stuhl: schwer. Fersen am Boden, Körper waagerecht: mittel. Knie angewinkelt, Füße nah: leicht. Damit lässt sich jede Wiederholungszahl treffen, ohne etwas aufzustecken."
+      ],
+      [
+        "Die Linie",
+        "Von Kopf bis Ferse gerade, Gesäß fest, Rippen unten. Sackt die Hüfte durch, zieht der Rücken schräg – und der Reiz landet in der Lendenwirbelsäule statt zwischen den Schulterblättern."
+      ],
+      [
+        "Typische Fehler",
+        "Nur den Kopf zur Stange strecken statt die Brust. Die Ellenbogen weit nach außen führen. Oben nicht bis zum Anschlag ziehen – die letzten Zentimeter sind die, in denen die Schulterblätter zusammenkommen."
+      ]
+    ],
+    "db": {
+      "name": "Inverted Row",
+      "reps": "8–15",
+      "equip": "Klimmzugstange tief + Rucksack",
+      "cue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter, Knie angewinkelt leichter. Zusatzlast kommt in den Rucksack auf die Brust.",
+      "rest": 150,
+      "pattern": "invrow",
+      "shares": {
+        "lats": 1.0,
+        "traps": 0.75,
+        "biceps": 0.5,
+        "rearDelts": 0.45
+      },
+      "muscles": [
+        "lats",
+        "traps",
+        "biceps",
+        "rearDelts"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Inverted Row",
+      "reps": "8–20",
+      "equip": "Klimmzugstange tief oder Tischkante",
+      "cue": "Identisch, nur ohne Rucksack. Geht die Klimmzugstange nicht tief genug, tut es eine stabile Tischkante: darunterlegen, Kante fassen, ziehen. Zu schwer? Knie anwinkeln und die Füße näher heranstellen – das nimmt Last weg, ohne die Bewegung zu verändern.",
+      "rest": 150,
+      "pattern": "invrow",
+      "shares": {
+        "lats": 1.0,
+        "traps": 0.75,
+        "biceps": 0.5,
+        "rearDelts": 0.45
+      },
+      "muscles": [
+        "lats",
+        "traps",
+        "biceps",
+        "rearDelts"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "einbeiniges-kreuzheben",
+    "group": "Beine",
+    "weight": 12,
+    "step": 2,
+    "weightNote": "eine Hantel",
+    "equip": "onehand",
+    "tier": 2,
+    "detail": [
+      [
+        "Eine Hantel reicht",
+        "Das ist hier kein Behelf, sondern der Punkt: Mit dem Gewicht auf einer Seite muss der Rumpf gegen das Verdrehen halten. Und für den, der nur von jeder Scheibengröße zwei Stück hat, ist es die Hüftstreckung, die sich überhaupt beladen lässt – ein Paar Kurzhanteln braucht vier."
+      ],
+      [
+        "Die Wippe",
+        "Oberkörper und freies Bein bewegen sich gemeinsam, wie die beiden Enden eines Bretts über einem Drehpunkt. Wer das freie Bein hängen lässt und nur den Oberkörper senkt, verliert die Balance und den halben Bewegungsumfang."
+      ],
+      [
+        "Das Standknie",
+        "Leicht gebeugt und dann unverändert. Beugt es sich mit, wird aus der Hüftstreckung eine halbe Kniebeuge, und der Beinbeuger bekommt nichts mehr ab."
+      ],
+      [
+        "Typische Fehler",
+        "Die Schulter der Hantelseite fallen lassen – die Schultern bleiben parallel zum Boden. Zu tief gehen, bis der Rücken rund wird; die Dehnung hinten am Oberschenkel ist die Grenze, nicht der Boden."
+      ]
+    ],
+    "db": {
+      "name": "Einbeiniges Kreuzheben",
+      "reps": "8–12 je Bein",
+      "equip": "Kurzhantel",
+      "cue": "Eine Kurzhantel in der Hand der freien Seite. Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden. Zurück über das Gesäß, nicht über den unteren Rücken.",
+      "rest": 120,
+      "pattern": "hinge1",
+      "shares": {
+        "hamstringsHip": 1.0,
+        "glutes": 0.8,
+        "abs": 0.35,
+        "traps": 0.2
+      },
+      "muscles": [
+        "hamstringsHip",
+        "glutes",
+        "abs",
+        "traps"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Einbeiniges Kreuzheben",
+      "reps": "10–20 je Bein",
+      "equip": "ohne",
+      "cue": "Identisch, ohne Gewicht. Die Arme hängen oder greifen nach vorn. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
+      "rest": 120,
+      "pattern": "hinge1",
+      "shares": {
+        "hamstringsHip": 1.0,
+        "glutes": 0.85,
+        "abs": 0.4,
+        "traps": 0.15
+      },
+      "muscles": [
+        "hamstringsHip",
+        "glutes",
+        "abs",
+        "traps"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "pike-liegestuetze",
+    "group": "Schulter",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": null,
+    "tier": 2,
+    "detail": [
+      [
+        "Wozu ohne Hanteln drücken",
+        "Über Kopf zu drücken ist die eine Bewegung, für die es sonst zwingend Gewicht braucht. Diese Übung ersetzt es durch den Winkel: Je steiler der Oberkörper steht, desto mehr des eigenen Körpers liegt auf den Schultern. Damit gibt es auch ohne Hanteln ein Schulterdrücken, das schwer genug wird."
+      ],
+      [
+        "Der Weg des Kopfes",
+        "Der Scheitel geht nach vorn-unten, nicht senkrecht. Vor den Händen, nicht zwischen ihnen – dann arbeiten die Schultern in der Richtung, in der sie stark sind."
+      ],
+      [
+        "Handgelenke",
+        "Sie stehen hier steiler als beim Liegestütz. Tut es weh, die Hände etwas weiter nach vorn setzen oder auf Fäusten arbeiten."
+      ],
+      [
+        "Typische Fehler",
+        "Die Hüfte absinken lassen, bis daraus ein schräger Liegestütz wird. Den Kopf nur nicken statt die Arme zu beugen. Zu wenig tief – der Scheitel soll den Boden fast berühren."
+      ]
+    ],
+    "db": {
+      "name": "Pike-Liegestütze",
+      "reps": "6–15",
+      "equip": "ohne",
+      "cue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Je senkrechter der Oberkörper, desto mehr Schulter und desto weniger Brust. Füße auf einem Hocker machen es deutlich schwerer.",
+      "rest": 150,
+      "pattern": "pike",
+      "shares": {
+        "frontDelts": 1.0,
+        "sideDelts": 0.4,
+        "triceps": 0.7,
+        "traps": 0.35
+      },
+      "muscles": [
+        "frontDelts",
+        "triceps",
+        "sideDelts",
+        "traps"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Pike-Liegestütze",
+      "reps": "6–15",
+      "equip": "ohne",
+      "cue": "Identisch. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
+      "rest": 150,
+      "pattern": "pike",
+      "shares": {
+        "frontDelts": 1.0,
+        "sideDelts": 0.4,
+        "triceps": 0.7,
+        "traps": 0.35
+      },
+      "muscles": [
+        "frontDelts",
+        "triceps",
+        "sideDelts",
+        "traps"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "kurzhantel-bodenpresse",
+    "group": "Brust",
+    "weight": 12,
+    "step": 2.5,
+    "weightNote": "je Hand",
+    "equip": "dumbbells",
+    "tier": 1,
+    "detail": [
+      [
+        "Warum am Boden und nicht auf der Bank",
+        "Ohne Bank fehlt der Teil der Bewegung, in dem der Oberarm hinter den Rumpf sinkt – und genau dort holt sich die Schulter beim Bankdrücken ihre Probleme. Der Boden setzt die Grenze da, wo sie hingehört. Was fehlt, ist etwas Bewegungsumfang; was bleibt, ist der Teil, der die Brust trifft."
+      ],
+      [
+        "Zwei Hanteln statt einer Stange",
+        "Jede Seite arbeitet für sich, die stärkere kann der schwächeren nichts abnehmen. Und die Hanteln lassen sich am Ende einfach neben dem Körper ablegen – eine Stange muss über der Brust irgendwo hin."
+      ],
+      [
+        "Der Halt unten",
+        "Die Ellenbogen berühren den Boden und ruhen dort einen Moment. Das nimmt den Schwung heraus; jede Wiederholung beginnt aus dem Stand, nicht aus dem Rückprall."
+      ],
+      [
+        "Typische Fehler",
+        "Die Ellenbogen ganz nach außen stellen (Schulter). Die Hanteln auf den Boden fallen lassen und von dort abfedern. Mit dem Rücken ein Hohlkreuz drücken, um mehr Weg zu bekommen."
+      ]
+    ],
+    "db": {
+      "name": "Kurzhantel-Bodenpresse",
+      "reps": "8–15",
+      "equip": "Kurzhanteln",
+      "cue": "Rücken am Boden, Knie angewinkelt, in jeder Hand eine Kurzhantel. Oberarme etwa 45 Grad vom Rumpf, bis die Ellenbogen den Boden berühren – dort kurz halten, dann drücken. Der Boden ist die Bremse: Er begrenzt die Tiefe und nimmt der Schulter den Bereich, in dem sie ungeschützt ist.",
+      "rest": 150,
+      "pattern": "press",
+      "shares": {
+        "chest": 1.0,
+        "triceps": 0.65,
+        "frontDelts": 0.4
+      },
+      "muscles": [
+        "chest",
+        "triceps",
+        "frontDelts"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Enge Liegestütze",
+      "reps": "8–20",
+      "equip": "ohne",
+      "cue": "Liegestütze mit engem Handstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
+      "rest": 150,
+      "pattern": "pushup",
+      "shares": {
+        "chest": 1.0,
+        "triceps": 0.75,
+        "frontDelts": 0.4
+      },
+      "muscles": [
+        "chest",
+        "triceps",
+        "frontDelts"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "reverse-snow-angel",
+    "group": "Schulter (hinten)",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": null,
+    "tier": 3,
+    "detail": [
+      [
+        "Wofür",
+        "Hintere Schulter und die Muskeln zwischen den Schulterblättern – dieselbe Ecke wie Reverse Fly und Pull-Apart, aber über den vollen Weg von der Hüfte bis über den Kopf. Kein Gerät, kein Aufbau: Sie geht überall, auch am Ende einer Einheit, wenn nichts mehr hochzuheben ist."
+      ],
+      [
+        "Die Daumen",
+        "Nach oben gedreht die ganze Zeit. Dreht die Hand ein, rollt die Schulter mit nach vorn und der Muskel, um den es geht, macht Feierabend."
+      ],
+      [
+        "Der Nacken",
+        "Die Stirn bleibt unten, der Blick auf dem Boden. Den Kopf zu heben fühlt sich stärker an und verlagert die Arbeit in den Nacken – dieselbe Falle wie beim Seitheben."
+      ],
+      [
+        "Typische Fehler",
+        "Die Arme auf dem Boden ablegen und von dort neu starten. Zu schnell arbeiten. Ins Hohlkreuz gehen, statt Gesäß und Bauch fest zu lassen."
+      ]
+    ],
+    "db": {
+      "name": "Reverse Snow Angel",
+      "reps": "10–20",
+      "equip": "ohne",
+      "cue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen.",
+      "rest": 90,
+      "pattern": "snowangel",
+      "shares": {
+        "rearDelts": 1.0,
+        "traps": 0.9
+      },
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Reverse Snow Angel",
+      "reps": "10–20",
+      "equip": "ohne",
+      "cue": "Identisch. Kein Gerät, keine Zusatzlast – der Reiz kommt aus der Zeit unter Spannung. Vier Sekunden hin, vier zurück, und die Arme bleiben oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen – beides nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
+      "rest": 90,
+      "pattern": "snowangel",
+      "shares": {
+        "rearDelts": 1.0,
+        "traps": 0.9
+      },
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ],
+      "stufen": {}
+    }
   }
 ];
 
@@ -3078,6 +3424,7 @@ const EXERCISES = [
 const PLANS = {
   "standard": {
     name: "Aufbau",
+    stand: "54145d3f4a58",
     target: {"abs": 9, "biceps": 10, "calves": 6, "chest": 10, "frontDelts": 9.2357, "glutes": 9, "hamstringsHip": 5.0571, "hamstringsKnee": 3, "lats": 10, "quads": 6, "rearDelts": 8, "sideDelts": 10, "traps": 10.0, "triceps": 10},
     derived: ["frontDelts", "hamstringsHip", "traps"],
     cap: 10,
@@ -3086,6 +3433,7 @@ const PLANS = {
   },
   "bbp": {
     name: "Bauch, Beine, Po",
+    stand: "f444c5997cc2",
     target: {"abs": 12, "biceps": 5, "calves": 9, "chest": 6, "frontDelts": 4.9857, "glutes": 15, "hamstringsHip": 7.8357, "hamstringsKnee": 6, "lats": 7, "quads": 12, "rearDelts": 8, "sideDelts": 7, "traps": 8.5071, "triceps": 6},
     derived: ["frontDelts", "hamstringsHip", "traps"],
     cap: 12,
@@ -3094,6 +3442,7 @@ const PLANS = {
   },
   "cut": {
     name: "Cut",
+    stand: "d5633e6ee89a",
     target: {"abs": 9, "biceps": 7, "calves": 6, "chest": 7, "frontDelts": 5.9357, "glutes": 8, "hamstringsHip": 5, "hamstringsKnee": 3, "lats": 7, "quads": 6, "rearDelts": 7, "sideDelts": 7, "traps": 7.9786, "triceps": 7},
     derived: ["frontDelts", "traps"],
     cap: 10,
@@ -3102,6 +3451,7 @@ const PLANS = {
   },
   "oberkoerper": {
     name: "Oberkörper",
+    stand: "9677099f2dd0",
     target: {"abs": 6, "biceps": 12, "calves": 3, "chest": 12, "frontDelts": 8.7714, "glutes": 6, "hamstringsHip": 3.2857, "hamstringsKnee": 3, "lats": 12, "quads": 3, "rearDelts": 9, "sideDelts": 12, "traps": 11.3, "triceps": 12},
     derived: ["frontDelts", "hamstringsHip", "traps"],
     cap: 13,
@@ -5007,6 +5357,27 @@ const KIND_LABEL = {
   prellung: 'Prellung',
 };
 
+/*
+ * Fünf Übungen kamen später dazu (Inverted Row, einbeiniges Kreuzheben,
+ * Pike-Liegestütze, Kurzhantel-Bodenpresse, Reverse Snow Angel). Ihre Sperren
+ * sind nicht nach Gefühl gesetzt, sondern mechanisch abgeleitet: **Jede erbt
+ * die Sperren ihres Bewegungsvorbilds.**
+ *
+ *   Inverted Row              wie einarmiges Rudern (waagerechtes Ziehen)
+ *                             plus Klimmzug (derselbe Griff)
+ *   Einbeiniges Kreuzheben    wie Rumänisches Kreuzheben (Hüftstreckung)
+ *                             plus einbeiniger Beinbeuger (ein Bein)
+ *   Pike-Liegestütze          wie Schulterdrücken (über Kopf)
+ *                             plus Liegestütze mit erhöhten Füßen (Handstand)
+ *   Kurzhantel-Bodenpresse    wie Floor Press
+ *   Reverse Snow Angel        wie Reverse Fly (hintere Schulter)
+ *                             plus Crunches (Rumpf am Boden)
+ *
+ * Das ergab 43 Einträge in 26 Regeln, und wo das Vorbild einen Ersatz nennt,
+ * ist er mitgekommen – sofern das Ziel in derselben Regel nicht selbst gesperrt
+ * ist. Die Ableitung irrt eher in Richtung „lieber nicht": Eine Übung zu viel
+ * auszulassen kostet ein paar Sätze, eine zu wenig kostet Wochen.
+ */
 const INJURIES = [
   /* ---------------- Schulter ---------------- */
   {
@@ -5017,8 +5388,10 @@ const INJURIES = [
       + 'Heben des Arms zwischen etwa 60° und 120° – seitlich mehr als vorn. '
       + 'Drücken am Boden mit kurzem Weg geht meist, Heben über Schulterhöhe nicht.',
     avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze',
-      'sitzendes-schulterdruecken', 'liegende-trizepsstrecker'],
-    swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
+      'sitzendes-schulterdruecken', 'liegende-trizepsstrecker',
+      'pike-liegestuetze'
+    ],
+    swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press', 'pike-liegestuetze': 'floor-press' },
     care: [
       'aussenrotation', 'wandengel', 'brustdehnung', 'schulterblatt', 'sleeper',
     ],
@@ -5033,7 +5406,9 @@ const INJURIES = [
     avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze', 'gewichtete-liegestuetze',
       'floor-press', 'reverse-fly', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
       'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
-      'liegende-trizepsstrecker'],
+      'liegende-trizepsstrecker',
+      'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
+    ],
     swap: {},
     care: ['aussenrotation', 'schulterblatt'],
   },
@@ -5045,8 +5420,10 @@ const INJURIES = [
       + 'wenn der Arm quer vor dem Körper zusammengeführt wird – also beim Drücken '
       + 'und bei allem, was die Schultern nach vorn zieht.',
     avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press',
-      'liegende-trizepsstrecker'],
-    swap: { 'fuesse-erhoehte-liegestuetze': 'reverse-fly' },
+      'liegende-trizepsstrecker',
+      'pike-liegestuetze', 'kurzhantel-bodenpresse'
+    ],
+    swap: { 'fuesse-erhoehte-liegestuetze': 'reverse-fly', 'pike-liegestuetze': 'reverse-fly' },
     care: ['schulterblatt', 'brustdehnung', 'aussenrotation'],
   },
   {
@@ -5057,11 +5434,13 @@ const INJURIES = [
       + 'Zug mit gestrecktem Arm und bei allem, was den Unterarm gegen Widerstand '
       + 'nach außen dreht – Curls und Klimmzüge im Untergriff also.',
     avoid: ['sz-curls', 'chin-ups',
-      'haengendes-knieheben', 'pull-ups'],
+      'haengendes-knieheben', 'pull-ups',
+      'inverted-row'
+    ],
     // Ersatz ist das Rudern, nicht der Obergriff: Pull-ups drehen den Unterarm
     // zwar nicht nach außen, hängen ihn aber gestreckt an die Stange – und
     // genau dieser Zug reizt die Sehne ebenfalls.
-    swap: { 'chin-ups': 'einarmiges-kh-rudern' },
+    swap: { 'chin-ups': 'einarmiges-kh-rudern', 'inverted-row': 'einarmiges-kh-rudern' },
     care: ['aussenrotation', 'brustdehnung', 'beugerDehnen'],
   },
 
@@ -5074,7 +5453,9 @@ const INJURIES = [
       + 'Weh tut vor allem Zugreifen und Festhalten – Rudern, Klimmzüge, Curls. '
       + 'Drücken belastet ihn kaum.',
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
-      'haengendes-knieheben'],
+      'haengendes-knieheben',
+      'inverted-row'
+    ],
     swap: {},
     care: [
       'streckerExzentrik', 'streckerDehnen', 'fingerstrecker', 'handgelenkMobil',
@@ -5087,7 +5468,9 @@ const INJURIES = [
     text: 'Dasselbe an der Innenseite, am Ansatz der Handbeuger. Auch hier ist der '
       + 'Griff das Problem, dazu jede kräftige Beugung im Ellenbogen.',
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
-      'haengendes-knieheben'],
+      'haengendes-knieheben',
+      'inverted-row'
+    ],
     swap: {},
     care: ['beugerExzentrik', 'beugerDehnen', 'handgelenkMobil'],
   },
@@ -5097,7 +5480,9 @@ const INJURIES = [
     area: 'Ellenbogen', spot: 'elbow', kind: 'reizung',
     text: 'Der Schleimbeutel an der Ellenbogenspitze schwillt an und drückt. Direkter '
       + 'Druck auf den Ellenbogen und volle Streckung gegen Widerstand sind unangenehm.',
-    avoid: ['liegende-trizepsstrecker', 'gewichtete-liegestuetze', 'floor-press'],
+    avoid: ['liegende-trizepsstrecker', 'gewichtete-liegestuetze', 'floor-press',
+      'kurzhantel-bodenpresse'
+    ],
     swap: { 'gewichtete-liegestuetze': 'reverse-fly' },
     care: ['streckerDehnen', 'beugerDehnen', 'schulterblatt'],
   },
@@ -5107,8 +5492,10 @@ const INJURIES = [
     area: 'Handgelenk', spot: 'wrist', kind: 'reizung',
     text: 'Schmerz, wenn das Handgelenk unter Last nach hinten abknickt – genau die '
       + 'Stellung beim Liegestütz. Mit gerader Hand am Griff geht es meist gut.',
-    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze'],
-    swap: { 'gewichtete-liegestuetze': 'floor-press', 'fuesse-erhoehte-liegestuetze': 'floor-press' },
+    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze',
+      'pike-liegestuetze'
+    ],
+    swap: { 'gewichtete-liegestuetze': 'floor-press', 'fuesse-erhoehte-liegestuetze': 'floor-press', 'pike-liegestuetze': 'floor-press' },
     care: [
       'handgelenkMobil', 'streckerDehnen', 'beugerDehnen', 'fingerstrecker',
     ],
@@ -5124,7 +5511,9 @@ const INJURIES = [
       'fuesse-erhoehte-liegestuetze', 'floor-press', 'einarmiges-kh-rudern', 'chin-ups', 'pull-ups',
       'reverse-fly', 'sitzendes-seitheben', 'band-seitheben', 'liegende-trizepsstrecker', 'sz-curls',
       'gewichtete-crunches',
-      'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart'],
+      'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
+      'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
+    ],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
   },
@@ -5135,7 +5524,9 @@ const INJURIES = [
     text: 'De Quervain: die Sehnen zum Daumen laufen durch ein zu enges Fach an der '
       + 'Speichenseite. Alles, was fest gegriffen wird, zieht daran.',
     avoid: ['chin-ups', 'pull-ups', 'einarmiges-kh-rudern', 'sz-curls',
-      'haengendes-knieheben'],
+      'haengendes-knieheben',
+      'inverted-row'
+    ],
     swap: {},
     care: ['streckerDehnen', 'fingerstrecker', 'handgelenkMobil'],
   },
@@ -5146,7 +5537,9 @@ const INJURIES = [
     text: 'Das Band, das die Beugesehne am Knochen hält, ist überdehnt oder gerissen – '
       + 'klassisch vom Hängen an einer Kante. Jeder feste Griff belastet es.',
     avoid: ['chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
-      'haengendes-knieheben'],
+      'haengendes-knieheben',
+      'inverted-row'
+    ],
     swap: {},
     care: ['fingerstrecker', 'handgelenkMobil'],
   },
@@ -5159,7 +5552,9 @@ const INJURIES = [
     text: 'Verspannter Nacken meldet sich bei allem, was die Schultern hochzieht, und '
       + 'bei Übungen, in denen der Kopf gegen die Schwerkraft gehalten wird.',
     avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'band-seitheben',
-      'sitzendes-schulterdruecken'],
+      'sitzendes-schulterdruecken',
+      'pike-liegestuetze', 'reverse-snow-angel'
+    ],
     swap: { 'sitzendes-seitheben': 'floor-press' },
     care: ['kinnZurueck', 'nackenSeite', 'schulterkreisen', 'brustdehnung'],
   },
@@ -5172,7 +5567,9 @@ const INJURIES = [
       + 'Widerstand.',
     avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'band-seitheben', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
       'reverse-fly',
-      'sitzendes-schulterdruecken', 'haengendes-knieheben'],
+      'sitzendes-schulterdruecken', 'haengendes-knieheben',
+      'inverted-row', 'pike-liegestuetze', 'reverse-snow-angel'
+    ],
     swap: {},
     care: ['kinnZurueck', 'schulterkreisen', 'atmung'],
   },
@@ -5190,12 +5587,12 @@ const INJURIES = [
     // Hüftstreckung", die der Text als gut verträglich beschreibt.
     avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat',
       'einarmiges-kh-rudern', 'reverse-fly',
-      'split-squat', 'rumaenisches-kreuzheben'],
-    swap: {
-      'goblet-squat': 'hip-thrust',
+      'split-squat', 'rumaenisches-kreuzheben',
+      'inverted-row', 'einbeiniges-kreuzheben', 'reverse-snow-angel'
+    ],
+    swap: { 'goblet-squat': 'hip-thrust',
       'fersenerhoehter-goblet-squat': 'hip-thrust',
-      'rumaenisches-kreuzheben': 'hip-thrust',
-    },
+      'rumaenisches-kreuzheben': 'hip-thrust', 'einbeiniges-kreuzheben': 'hip-thrust' },
     care: ['kobra', 'deadBug', 'vogelhund', 'hueftbeuger'],
   },
   {
@@ -5209,8 +5606,10 @@ const INJURIES = [
     // Kreuzheben ist beides zugleich und gehörte von Anfang an hierher.
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einarmiges-kh-rudern',
       'gewichtete-crunches',
-      'split-squat', 'rumaenisches-kreuzheben'],
-    swap: { 'goblet-squat': 'hip-thrust', 'rumaenisches-kreuzheben': 'hip-thrust' },
+      'split-squat', 'rumaenisches-kreuzheben',
+      'inverted-row', 'einbeiniges-kreuzheben', 'reverse-snow-angel'
+    ],
+    swap: { 'goblet-squat': 'hip-thrust', 'rumaenisches-kreuzheben': 'hip-thrust', 'einbeiniges-kreuzheben': 'hip-thrust' },
     care: ['katzeKuh', 'kobra', 'deadBug', 'hueftbeuger'],
   },
   {
@@ -5220,11 +5619,11 @@ const INJURIES = [
     text: 'Das Kreuz-Darmbein-Gelenk sitzt fest, der Schmerz sitzt tief seitlich über '
       + 'dem Gesäß. Einbeinige Belastung und kräftige Hüftstreckung reizen es.',
     avoid: ['hip-thrust', 'einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
-      'rumaenisches-kreuzheben'],
-    swap: {
-      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
-      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
-    },
+      'rumaenisches-kreuzheben',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['vogelhund', 'piriformis', 'glutebridge', 'huefte9090'],
   },
   {
@@ -5234,7 +5633,9 @@ const INJURIES = [
     text: 'Prellung oder Anriss einer Rippe. Jedes kräftige Anspannen des Rumpfes tut '
       + 'weh, ebenso Druck von außen – die Hantel vor der Brust zum Beispiel.',
     avoid: ['gewichtete-crunches', 'goblet-squat', 'fersenerhoehter-goblet-squat',
-      'split-squat'],
+      'split-squat',
+      'reverse-snow-angel'
+    ],
     swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['atmung', 'schulterkreisen'],
   },
@@ -5244,7 +5645,9 @@ const INJURIES = [
     area: 'Bauch', spot: 'abs', kind: 'zerrung',
     text: 'Gezerrte gerade Bauchmuskulatur, oft nach einer schnellen Drehung. Beugung '
       + 'gegen Widerstand fällt aus; halten und stabilisieren geht meist noch.',
-    avoid: ['gewichtete-crunches'],
+    avoid: ['gewichtete-crunches',
+      'reverse-snow-angel'
+    ],
     swap: {},
     care: ['atmung', 'katzeKuh', 'deadBug'],
   },
@@ -5254,7 +5657,9 @@ const INJURIES = [
     area: 'Brust', spot: 'chest', kind: 'zerrung',
     text: 'Meist am Übergang zur Sehne nahe der Achsel. Drücken und alles, was den Arm '
       + 'aus der gedehnten Stellung nach vorn bringt, ist betroffen.',
-    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press'],
+    avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press',
+      'pike-liegestuetze', 'kurzhantel-bodenpresse'
+    ],
     swap: {},
     care: ['brustdehnung', 'schulterblatt', 'aussenrotation'],
   },
@@ -5267,7 +5672,9 @@ const INJURIES = [
       + 'angehaltenem Atem fallen weg, bis das operiert ist.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'gewichtete-crunches',
       'hip-thrust', 'einarmiges-kh-rudern',
-      'split-squat', 'rumaenisches-kreuzheben'],
+      'split-squat', 'rumaenisches-kreuzheben',
+      'inverted-row', 'einbeiniges-kreuzheben', 'reverse-snow-angel'
+    ],
     swap: {},
     care: ['atmung', 'deadBug'],
   },
@@ -5293,11 +5700,11 @@ const INJURIES = [
       + 'einbeinige Übungen ziehen daran.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einbeiniger-sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben',
-      'split-squat'],
-    swap: {
-      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
-      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
-    },
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['adduktoren', 'huefte9090', 'glutebridge'],
   },
   {
@@ -5318,8 +5725,10 @@ const INJURIES = [
     text: 'Riss im Faserknorpel zwischen Ober- und Unterschenkel. Tiefe Beugung unter '
       + 'Last und Drehung im belasteten Knie sind die kritischen Bewegungen.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'einbeiniger-sliding-leg-curl',
-      'split-squat'],
-    swap: { 'goblet-squat': 'hip-thrust', 'einbeiniger-sliding-leg-curl': 'hip-thrust' },
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'goblet-squat': 'hip-thrust', 'einbeiniger-sliding-leg-curl': 'hip-thrust', 'einbeiniges-kreuzheben': 'hip-thrust' },
     care: ['knieextension', 'wandsitz', 'glutebridge'],
   },
   {
@@ -5332,7 +5741,9 @@ const INJURIES = [
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'sliding-leg-curl',
       'einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
       'wadenheben-gebeugtes-knie',
-      'split-squat'],
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
     swap: {},
     care: ['knieextension', 'glutebridge', 'einbeinstand'],
   },
@@ -5344,12 +5755,12 @@ const INJURIES = [
       + 'reizt am meisten – einbeinige Übungen und tiefe Kniebeugen also.',
     avoid: ['einbeiniger-sliding-leg-curl', 'einbeiniges-stehendes-wadenheben',
       'fersenerhoehter-goblet-squat',
-      'split-squat'],
-    swap: {
-      'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
-      'fersenerhoehter-goblet-squat': 'goblet-squat',
-    },
+      'fersenerhoehter-goblet-squat': 'goblet-squat', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['piriformis', 'glutebridge', 'huefte9090', 'wandsitz'],
   },
   {
@@ -5360,7 +5771,9 @@ const INJURIES = [
       + 'in der Länge – genau das, was der Sliding Leg Curl macht – ist am '
       + 'empfindlichsten.',
     avoid: ['sliding-leg-curl', 'einbeiniger-sliding-leg-curl', 'hip-thrust',
-      'rumaenisches-kreuzheben'],
+      'rumaenisches-kreuzheben',
+      'einbeiniges-kreuzheben'
+    ],
     swap: {},
     care: ['beinbeugerIso', 'beinbeugerDehnen', 'glutebridge'],
   },
@@ -5392,12 +5805,12 @@ const INJURIES = [
       + 'fällt weg, ebenso tiefe Kniebeugen, bei denen das Sprunggelenk weit nach vorn '
       + 'kippt.',
     avoid: ['einbeiniges-stehendes-wadenheben', 'einbeiniger-sliding-leg-curl', 'goblet-squat',
-      'split-squat'],
-    swap: {
-      'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
+      'split-squat',
+      'einbeiniges-kreuzheben'
+    ],
+    swap: { 'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
       'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
-      'goblet-squat': 'fersenerhoehter-goblet-squat',
-    },
+      'goblet-squat': 'fersenerhoehter-goblet-squat', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['fussABC', 'einbeinstand', 'wadeGestreckt', 'zehenheben'],
   },
   {
@@ -6585,6 +6998,18 @@ const DEFAULT_STATE = {
   // null heißt „nicht eingetragen" – dann rechnet die App mit freien Schritten
   // wie früher, statt sich einen Scheibensatz auszudenken. Siehe js/scheiben.js.
   scheiben: null,
+  // Aufwärmsätze über den schweren Übungen anzeigen. Steht auf an: Wer sie
+  // nicht will, tippt einmal; wer sie braucht, weiß meist nicht, dass es sie
+  // gäbe. Siehe aufwaermsaetze() in js/gewichte.js.
+  aufwaermen: true,
+  // Der Fingerabdruck des Plans, unter dem der laufende Verlauf entstanden ist
+  // – je Fokus. Ändert sich der Plan (neue Übungen, neu verteilt), zeigt ein
+  // alter Eintrag auf etwas anderes als das, was gemacht wurde. Siehe
+  // planWechsel() in js/app.js.
+  planStand: {},
+  // Übungen, die von Hand nach vorn geholt wurden, weil sie sonst regelmäßig
+  // ausfallen. Kostet womöglich einen zusätzlichen Umbau – siehe js/muster.js.
+  vorne: [],
   // Supersätze: zwei verträgliche Übungen im Wechsel statt lange Pausen.
   // Welche zwei zusammenpassen, entscheidet js/supersatz.js.
   supersatz: false,
@@ -6596,6 +7021,10 @@ const DEFAULT_STATE = {
   session: null,         // laufendes Training: { n }
   clock: null,           // Uhr der Einheit: { n, on, spent, since } – siehe startSession()
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
+  // Hat der Browser zugesagt, diesen Speicher nicht von selbst freizugeben?
+  // Ergebnis von storage.persist(), einmal beim Start erfragt – gemerkt, damit
+  // die Einstellungen den Stand nennen können, statt ihn zu behaupten.
+  dauerhaft: false,
   // Stand der zuletzt erzeugten Kalenderdatei: { on, shift, seq }. Aus `shift`
   // ergibt sich, ob die Termine im Kalender noch stimmen; `seq` zählt hoch,
   // damit ein erneuter Import die alten Termine überschreibt statt sie stehen
@@ -7925,6 +8354,60 @@ function gerastet(ex, kg) {
   return r === null ? kg : r;
 }
 
+/* ------------------------------------------------------------------ *
+ * Aufwärmen
+ *
+ * Der erste Arbeitssatz war bisher wirklich der erste Satz. Bei 40 kg Hip
+ * Thrust heißt das: aus dem Sessel auf die Bank und volles Gewicht. Das ist die
+ * billigste Verletzungsvorbeugung, die es gibt, und sie stand nirgends.
+ *
+ * **Was hier absichtlich nicht passiert.** Aufwärmsätze werden nicht abgehakt
+ * und nicht protokolliert. Sie sind keine Leistung – zählte man sie mit, stiege
+ * die Satzzahl in der Statistik um ein Drittel, ohne dass mehr trainiert wurde,
+ * und der Stufenaufstieg käme zu früh. Es ist eine Zeile, kein Knopf.
+ *
+ * **Wer sie bekommt.** Nur Übungen mit Last und nur die schweren: `tier` 1 und 2
+ * – Grundübungen und schwere Nebenübungen. Ein Seitheben mit 5 kg braucht kein
+ * Aufwärmen, und eine Zeile, die überall steht, liest bald niemand mehr.
+ *
+ * **Womit.** Die Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf
+ * das, was sich mit den vorhandenen Scheiben wirklich aufstecken lässt – ein
+ * Aufwärmsatz mit 17,3 kg wäre eine Rechnung, keine Ansage. Fällt ein Satz mit
+ * dem Arbeitsgewicht zusammen oder mit dem anderen Aufwärmsatz, faellt er weg:
+ * Zweimal dasselbe Gewicht ist kein Aufbau.
+ *
+ * Wiederholungen: gut die Hälfte der unteren Bereichsgrenze. Aufwärmen soll
+ * wach machen, nicht müde.
+ * ------------------------------------------------------------------ */
+
+/** Anteile des Arbeitsgewichts je Stufe – schwerer heißt mehr Anlauf. */
+const AUFWAERM_STUFEN = { 1: [0.5, 0.75], 2: [0.6] };
+
+/**
+ * Die Aufwärmsätze einer Übung: [{ kg, reps }] – oder eine leere Liste.
+ *
+ * `kg` ist das Arbeitsgewicht dieser Übung in diesem Modus, `ex` der Eintrag
+ * aus dem Katalog (mit `tier`, `equip` und dem Wiederholungsbereich).
+ */
+function aufwaermsaetze(ex, kg, reps) {
+  const stufen = AUFWAERM_STUFEN[ex && ex.tier];
+  if (!stufen || kg === null || !(kg > 0)) return [];
+  const unten = repsBereich(reps).lo || 8;
+  const wdh = Math.max(4, Math.min(8, Math.round(unten * 0.6)));
+  const gesehen = new Set([kg]);
+  const liste = [];
+  stufen.forEach((anteil) => {
+    const roh = Math.round(kg * anteil * 4) / 4;
+    const w = gerastet(ex, roh);
+    // Über dem Arbeitsgewicht ist kein Aufwärmsatz, sondern ein Fehler: Das
+    // passiert, wenn das Raster grob ist und nach oben schnappt.
+    if (!(w > 0) || w >= kg || gesehen.has(w)) return;
+    gesehen.add(w);
+    liste.push({ kg: w, reps: wdh });
+  });
+  return liste;
+}
+
 /** Startgewicht einer Übung, auf die Erfahrung umgerechnet. */
 function startWeight(ex) {
   if (ex.weight === null) return null;
@@ -8083,6 +8566,24 @@ function vorgezogen(liste) {
 }
 
 function ruestOrder(items) {
+  // Nach vorn geholte Übungen stehen vorn, Punkt. Sie gehen der Bündelung nach
+  // Gerät vor und kosten damit womöglich einen zusätzlichen Aufbau – das ist
+  // die bewusste Entscheidung dahinter: Eine Übung, die regelmäßig ausfällt,
+  // bringt null Sätze, und ein zweiter Aufbau ist der billigere Preis. Wer sie
+  // gesetzt hat, hat genau danach gefragt (siehe vorneUm() in js/muster.js).
+  const vorn = store.getState().vorne || [];
+  if (vorn.length) {
+    const rang = (it) => {
+      const i = vorn.indexOf(it.id);
+      return i < 0 ? vorn.length : i;
+    };
+    const geholt = items.filter((it) => rang(it) < vorn.length)
+      .sort((a, b) => rang(a) - rang(b));
+    if (geholt.length) {
+      const rest = ruestOrder(items.filter((it) => rang(it) === vorn.length));
+      return [...geholt, ...rest];
+    }
+  }
   const geladen = [];
   items.forEach((it, i) => {
     const s = setupOf(it.id, workingWeight(it.id));
@@ -8874,6 +9375,152 @@ function sammleStats() {
            customSets, seconds, mitZeit };
 }
 
+/* ===== js/muster.js ===== */
+/*
+ * Was im Protokoll steht, ohne dass es jemand hingeschrieben hat.
+ *
+ * Der Plan verschiebt sich bei verpassten Tagen – mehr lernt er nicht. Dass
+ * dreimal hintereinander dieselbe Übung fehlt, steht im Protokoll und wird
+ * nirgends gelesen. Genau das passiert hier, und zwar **ohne eine einzige neue
+ * Eingabe**: Ein abgehakter Satz ist alles, was gebraucht wird, und den gibt es
+ * ohnehin.
+ *
+ * Zwei Muster, weil sie verschiedene Ursachen haben und verschiedene Antworten:
+ *
+ *   Eine Übung fehlt        Sie liegt hinten, die Zeit war um, oder sie nervt.
+ *                           Antwort: nach vorn holen – oder wissen, dass man
+ *                           sie nicht macht, statt es sich vorzunehmen.
+ *   Die Einheit bricht ab   Nicht *eine* Übung fehlt, sondern der ganze Rest ab
+ *                           einer Stelle. Das ist kein Übungsproblem, sondern
+ *                           eine Frage der Länge.
+ *
+ * **Was hier bewusst nicht passiert: von selbst etwas ändern.** Ein Plan, der
+ * sich unbemerkt umstellt, weil man zweimal früher aufgehört hat, ist keiner.
+ * Es wird gezeigt, was dasteht; entschieden wird von Hand.
+ */
+
+
+
+
+/**
+ * Wie viele der zuletzt trainierten Einheiten angesehen werden.
+ *
+ * Der Name ist lang, weil es in js/supersatz.js schon ein FENSTER gibt (dort:
+ * wie weit im Plan nach einem Partner gesucht wird). Im Ein-Datei-Bündel teilen
+ * sich alle Module einen Gültigkeitsbereich – tools/pruefung/schichten.py hat
+ * die Kollision beim ersten Bauen gemeldet.
+ */
+const MUSTER_FENSTER = 8;
+
+/**
+ * Die zuletzt trainierten Einheiten, jüngste zuerst.
+ *
+ * „Trainiert" heißt: mindestens ein abgehakter Satz. Eine Einheit, in der
+ * nichts steht, ist keine ausgelassene Übung, sondern ein ausgefallener Tag –
+ * das ist ein anderes Thema und hat mit der Reihenfolge nichts zu tun.
+ */
+function letzteEinheiten(fenster = MUSTER_FENSTER) {
+  const log = store.getState().log || {};
+  const raus = [];
+  for (let i = PLAN.length - 1; i >= 0 && raus.length < fenster; i--) {
+    const w = PLAN[i];
+    const e = log[w.n];
+    if (!e || istCustom(w.n)) continue;
+    const mode = e.mode || store.workoutMode(w.n);
+    const gemacht = new Set();
+    ['db', 'bw'].forEach((m) => {
+      Object.entries(e[m] || {}).forEach(([id, arr]) => {
+        if (Array.isArray(arr) && arr.some((s) => s && s.done)) gemacht.add(id);
+      });
+    });
+    if (gemacht.size) raus.push({ w, mode, gemacht });
+  }
+  return raus;
+}
+
+/**
+ * Übungen, die regelmäßig übergangen werden.
+ *
+ * Gezählt wird nur, wo die Übung an dem Tag auch vorgesehen war: Was der
+ * Verletzungsfilter ohnehin herausgenommen hat, ist nicht ausgelassen.
+ *
+ * `mindestens` verhindert die Meldung nach einem einzigen schlechten Tag – und
+ * die Hälfte als Anteil verhindert sie bei einer Übung, die in acht Einheiten
+ * dreimal vorkam und einmal fehlte.
+ */
+function ausgelassen({ fenster = MUSTER_FENSTER, mindestens = 3 } = {}) {
+  const einheiten = letzteEinheiten(fenster);
+  const zaehler = new Map();
+  einheiten.forEach(({ w, mode, gemacht }) => {
+    exOf(w, mode).forEach((it) => {
+      const z = zaehler.get(it.id) || { dran: 0, weg: 0, name: null };
+      z.dran += 1;
+      if (!gemacht.has(it.id)) z.weg += 1;
+      z.name = z.name || resolve(it, mode).name;
+      zaehler.set(it.id, z);
+    });
+  });
+  return [...zaehler.entries()]
+    .filter(([, z]) => z.weg >= mindestens && z.weg * 2 >= z.dran)
+    .map(([id, z]) => ({ id, name: z.name || (EX_BY_ID.get(id) || {}).id || id,
+                         weg: z.weg, dran: z.dran }))
+    .sort((a, b) => b.weg - a.weg || b.dran - a.dran);
+}
+
+/**
+ * Bricht die Einheit regelmäßig an derselben Stelle ab?
+ *
+ * Gemessen an der Stelle der letzten Übung, an der noch etwas abgehakt wurde.
+ * Liegt sie in mehr als der Hälfte der Fälle vor dem Ende, ist nicht eine Übung
+ * das Problem, sondern die Länge – und dann hilft es nicht, eine davon nach vorn
+ * zu holen.
+ *
+ * Gibt `null` zurück, solange es zu wenige Einheiten sind, um etwas zu sagen.
+ * Vier ist die Untergrenze: Bei dreien wäre „zweimal von drei" schon ein Muster,
+ * und das ist keins, das ist ein Wochenende.
+ */
+function abbruch({ fenster = MUSTER_FENSTER } = {}) {
+  const einheiten = letzteEinheiten(fenster);
+  if (einheiten.length < 4) return null;
+  const stellen = [];
+  einheiten.forEach(({ w, mode, gemacht }) => {
+    const liste = exOf(w, mode);
+    let letzte = -1;
+    liste.forEach((it, i) => { if (gemacht.has(it.id)) letzte = i; });
+    if (letzte >= 0) stellen.push({ bis: letzte + 1, von: liste.length });
+  });
+  const kurz = stellen.filter((s) => s.bis < s.von);
+  if (kurz.length * 2 <= stellen.length) return null;
+  // Die typische Stelle: der Median, nicht der Mittelwert. Ein einzelner Tag,
+  // an dem nach der ersten Übung das Telefon klingelte, soll die Zahl nicht
+  // nach unten ziehen.
+  const bis = kurz.map((s) => s.bis).sort((a, b) => a - b);
+  return {
+    einheiten: stellen.length,
+    kurz: kurz.length,
+    bis: bis[Math.floor(bis.length / 2)],
+    von: Math.max(...kurz.map((s) => s.von)),
+  };
+}
+
+/** Übungen, die von Hand nach vorn geholt wurden. */
+const vorneListe = () => store.getState().vorne || [];
+
+/**
+ * Eine Übung nach vorn holen oder wieder loslassen.
+ *
+ * Das kostet unter Umständen einen zusätzlichen Umbau – die Reihenfolge ist
+ * sonst nach Gerät gebündelt. Es ist trotzdem richtig so: Eine Übung, die
+ * regelmäßig ausfällt, bringt null Sätze, und ein zweiter Aufbau ist ein
+ * billigerer Preis als eine Muskelgruppe, die seit einem Monat nichts bekommt.
+ */
+function vorneUm(exId) {
+  const liste = vorneListe();
+  const drin = liste.includes(exId);
+  store.setSetting('vorne', drin ? liste.filter((x) => x !== exId) : [...liste, exId]);
+  return !drin;
+}
+
 /* ===== js/bilanz.js ===== */
 /*
  * Was insgesamt geleistet wurde – über abgelegte Runden hinweg.
@@ -9477,6 +10124,7 @@ async function pushStand() {
 
 
 
+
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
  * überall dasselbe. Der Wechsel lädt die Seite neu, siehe 'set-focus'. */
@@ -9686,6 +10334,45 @@ function fokusUmzug() {
   return true;
 }
 
+/* ------------------------------------------------------------------ *
+ * Der Plan hat sich geändert
+ *
+ * Ein Protokoll steht nach Workout-Nummer. Kommen Übungen in den Katalog und
+ * verteilt der Generator neu, steckt hinter Nummer 3 etwas anderes als an dem
+ * Tag, an dem sie abgehakt wurde – und die App behauptete rückwirkend, es sei
+ * schon immer das gewesen. Das ist derselbe Fehler wie beim Fokuswechsel, nur
+ * ohne dass jemand darauf getippt hätte.
+ *
+ * Deshalb trägt jede Planvariante seit js/data.js einen Fingerabdruck ihrer
+ * Inhalte. Stimmt er nicht mehr mit dem überein, unter dem der laufende Verlauf
+ * entstanden ist, wandert dieser in die Ablage und der neue Plan fängt sauber
+ * an. Verloren geht dabei nichts: Gewichte bleiben, Statistik, Kalender und
+ * Trainingstage rechnen über alle Protokolle (siehe lebenStats()).
+ *
+ * Termine gehen in den Fingerabdruck nicht ein – die verschieben sich im
+ * Betrieb ständig und ändern nichts an dem, was zu tun ist.
+ * ------------------------------------------------------------------ */
+function planWechsel() {
+  const s = store.getState();
+  const fokus = s.focus || 'standard';
+  const jetzt = (PLANS[fokus] || {}).stand || '';
+  const vorher = (s.planStand || {})[fokus];
+  if (!jetzt) return false;
+  // Beim ersten Mal steht nichts da. Das ist kein Wechsel, sondern der Anfang
+  // der Buchführung – sonst legte dieses Merkmal bei seiner Einführung jeden
+  // laufenden Verlauf einmal weg.
+  if (vorher === undefined || vorher === jetzt) {
+    if (vorher !== jetzt) {
+      store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
+    }
+    return false;
+  }
+  const hatVerlauf = Object.keys(s.log || {}).length > 0;
+  if (hatVerlauf) store.restartPlan(0, rundenBilanz());
+  store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
+  return hatVerlauf;
+}
+
 /** Der Hinweis dazu auf dem Dashboard, bis er weggetippt wird. */
 function umzugHinweis() {
   const u = store.getState().fokusUmzug;
@@ -9729,6 +10416,68 @@ function downloadBackup() {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   store.markBackup(doneCount());
   toast('Gesichert – falls kein Download kam: Text in „Mehr“ kopieren');
+}
+
+/* ------------------------------------------------------------------ *
+ * Daten, die den Tag überleben
+ *
+ * Alles liegt im Speicher eines Browsers. Zwei verschiedene Arten, das zu
+ * verlieren, und zwei verschiedene Antworten:
+ *
+ *   Der Browser räumt auf   Android gibt den Speicher einer selten benutzten
+ *                           Seite bei Platzmangel frei. Dagegen hilft eine
+ *                           Zusage, die man erfragen kann: storage.persist().
+ *                           Kostet einen Aufruf und hält, solange die App
+ *                           installiert bleibt.
+ *   Das Gerät ist weg       Dagegen hilft nur eine Kopie *woanders*. Ein
+ *                           Download landet im Ordner „Downloads" desselben
+ *                           Handys – das ist keine Kopie, das ist dieselbe
+ *                           Stelle mit einem anderen Namen. Deshalb der
+ *                           Teilen-Weg: Die Datei geht an Drive, an eine Mail
+ *                           an sich selbst, an was auch immer da ist.
+ *
+ * Was hier bewusst *nicht* passiert: die Sicherung von selbst irgendwohin
+ * schicken. Der Rückkanal an den Betreiber trägt eine Handvoll Zahlen und ist
+ * abschaltbar; ein vollständiger Trainingsverlauf ist etwas anderes, und der
+ * geht nur dorthin, wohin er ausdrücklich geschickt wird.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Den Browser bitten, diese Daten nicht von selbst wegzuräumen.
+ *
+ * Einmal beim Start. Chrome sagt das für installierte Apps meist ohne
+ * Rückfrage zu und im gewöhnlichen Tab meist nicht – deshalb wird das Ergebnis
+ * gemerkt und angezeigt, statt es zu behaupten.
+ */
+async function speicherFestnageln() {
+  if (!navigator.storage || !navigator.storage.persist) return;
+  try {
+    const schon = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+    const ok = schon || await navigator.storage.persist();
+    if (store.getState().dauerhaft !== ok) store.setSetting('dauerhaft', ok);
+  } catch { /* kennt der Browser nicht – dann eben nicht */ }
+}
+
+/**
+ * Die Sicherung weitergeben statt herunterladen.
+ *
+ * Fällt auf den Download zurück, wo es das Teilen nicht gibt oder es abgelehnt
+ * wird – und zwar still: „Teilen abgebrochen" ist keine Meldung wert, das war
+ * eine Entscheidung.
+ */
+async function teileBackup() {
+  const json = store.exportJSON();
+  const datei = new File([json], `workout-backup-${todayISO()}.json`,
+    { type: 'application/json' });
+  if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+    try {
+      await navigator.share({ files: [datei], title: 'Workout-Sicherung' });
+      store.markBackup(doneCount());
+      render();
+      return;
+    } catch { return; }   // abgebrochen – kein Grund für eine Meldung
+  }
+  downloadBackup();
 }
 
 /**
@@ -10422,7 +11171,8 @@ function renderFocus() {
         </div>
         ${kgKnopf(it, 1)}
       </div>
-      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}`}
+      ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
+      ${aufwaermZeile(it, mode, n)}`}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -10664,7 +11414,10 @@ function renderOverview() {
         </div></div>` : ''}
       ${due ? `<div class="notice warn">💾 ${esc(plural(due, 'Einheit', 'Einheiten'))} seit der letzten
         Sicherung. Alles liegt nur in diesem Browser.
-        <button type="button" class="btn btn-block" data-act="backup-now" style="margin-top:10px">Jetzt sichern</button></div>` : ''}
+        <button type="button" class="btn btn-block btn-primary" data-act="backup-teilen"
+                style="margin-top:10px">Sicherung weitergeben</button>
+        <div class="small muted" style="margin-top:6px">Geht an Drive, an eine Mail an dich
+          selbst, an was du willst – Hauptsache nicht nur auf dieses Handy.</div></div>` : ''}
 
       <header class="ov-top">
         <!-- Kein „von 84" mehr: „Die app geht ja unendlich." Stimmt – der Plan
@@ -11276,7 +12029,8 @@ function renderDashboard() {
         </div>
         ${kgKnopf(it, 1)}
       </div>
-      ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}`;
+      ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}
+      ${aufwaermZeile(it, mode, n)}`;
 
     parts.push(`
       <article class="ex ${open ? 'open' : ''} ${complete ? 'complete' : ''}">
@@ -11547,6 +12301,53 @@ function gesamtKarte() {
  * rückwärts. Beides in einen Gesamtwert zu mischen ergäbe nichts – zwei Pläne
  * haben nicht dieselben Einheiten.
  */
+/**
+ * Was das Protokoll über die Gewohnheiten sagt – und was man dagegen tun kann.
+ *
+ * Steht in der Statistik und nicht auf dem Dashboard: Es ist eine Auswertung,
+ * kein Auftrag für heute. Und sie steht nur da, wenn es etwas zu sagen gibt –
+ * eine Karte, die in der Hälfte der Fälle „alles gut" meldet, wird nicht
+ * gelesen, sie wird überblättert.
+ */
+function musterKarte() {
+  const ab = abbruch();
+  const weg = ausgelassen();
+  if (!ab && !weg.length) return '';
+  const vorn = vorneListe();
+  return `
+    <div class="section-title">Was dir im Protokoll auffällt</div>
+    <div class="card">
+      ${ab ? `<div class="small">In ${plural(ab.kurz, 'Einheit', 'Einheiten')} von
+        ${ab.einheiten} hast du vor dem Ende aufgehört – meist nach Übung
+        <b>${ab.bis} von ${ab.von}</b>. Das ist kein Problem einer einzelnen Übung,
+        sondern der Länge: Was hinten steht, kommt nicht dran. Entweder die Einheit
+        kürzen (Erfahrungsstufe eine Stufe zurück, unter <i>Mehr</i>) oder das
+        Wichtige nach vorn holen.</div>` : ''}
+
+      ${weg.length ? `
+        <div class="small" style="${ab ? 'margin-top:12px' : ''}">Diese Übungen fallen
+          regelmäßig aus – jeweils gezählt über die Einheiten, in denen sie überhaupt
+          dran waren:</div>
+        <div class="muster-liste">
+          ${weg.map((x) => `
+            <div class="muster-zeile">
+              <div>
+                <div class="lbl">${esc(x.name)}</div>
+                <div class="hint">${x.weg} von ${x.dran} Mal übergangen</div>
+              </div>
+              <button type="button" class="btn btn-sm ${vorn.includes(x.id) ? '' : 'btn-primary'}"
+                      data-act="muster-vorne" data-ex="${esc(x.id)}">
+                ${vorn.includes(x.id) ? 'steht vorn ✓' : 'nach vorn'}
+              </button>
+            </div>`).join('')}
+        </div>
+        <div class="small muted" style="margin-top:10px">„Nach vorn" heißt: Diese Übung
+          steht ab sofort am Anfang der Einheit, vor der Bündelung nach Gerät. Das kostet
+          womöglich einen zusätzlichen Umbau – eine Übung, die ausfällt, bringt aber null
+          Sätze, und das ist der teurere Preis.</div>` : ''}
+    </div>`;
+}
+
 function renderStats() {
   const { workoutsDone, streak, upcoming, customSets } = sammleStats();
   const leben = lebenStats();
@@ -11592,6 +12393,8 @@ function renderStats() {
     </div>
 
     ${gesamtKarte()}
+
+    ${musterKarte()}
 
     ${eich ? `<div class="card small muted" style="margin-top:-4px">
       Die Dauer an den Trainingsplänen ist keine Schätzung mehr: Über
@@ -11926,6 +12729,27 @@ function scheibenAendern(wie) {
   const satz = roherSatz();
   wie(satz);
   store.setSetting('scheiben', satz);
+}
+
+/**
+ * Die Aufwärmzeile über den Sätzen – oder nichts.
+ *
+ * Bewusst eine Zeile und kein Knopf: Aufwärmsätze werden nicht abgehakt und
+ * nicht mitgezählt (siehe aufwaermsaetze() in js/gewichte.js). Wer sie anhaken
+ * könnte, hätte am Monatsende ein Drittel mehr Sätze in der Statistik, ohne ein
+ * Gramm mehr bewegt zu haben.
+ *
+ * Sie steht nur, solange von der Übung noch nichts abgehakt ist. Danach ist das
+ * Aufwärmen vorbei, und eine Ansage, die überholt ist, ist eine Ansage zu viel.
+ */
+function aufwaermZeile(it, mode, n) {
+  if (!store.getState().aufwaermen) return '';
+  if ((store.peekSets(n, mode, it.id) || []).some((s) => s.done)) return '';
+  const saetze = aufwaermsaetze(EX_BY_ID.get(it.id), workingWeight(it.id), it.reps);
+  if (!saetze.length) return '';
+  const text = saetze.map((s) => `${s.reps}× ${fmtNum(s.kg)} kg`).join(' · ');
+  return `<div class="aufwaerm">Aufwärmen: ${esc(text)}
+    <span class="muted">– zählt nicht mit</span></div>`;
 }
 
 /**
@@ -13664,6 +14488,18 @@ function renderSettings() {
         <button type="button" class="toggle" aria-pressed="${!!s.supersatz}"
                 data-act="toggle-supersatz" aria-label="Supersätze"></button>
       </div>
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Aufwärmsätze anzeigen</div>
+          <div class="hint">Über den schweren Übungen steht, womit aufzuwärmen ist – die
+            Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf deine Scheiben.
+            Nur bei Grund- und schweren Nebenübungen; ein Seitheben mit 5 kg braucht das
+            nicht. Abgehakt wird nichts davon: Aufwärmsätze zählen nicht in die Statistik
+            und nicht für den Stufenaufstieg.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${!!s.aufwaermen}"
+                data-act="toggle-aufwaermen" aria-label="Aufwärmsätze anzeigen"></button>
+      </div>
       ${s.supersatz ? superVorschau() : ''}
     </div>
 
@@ -13831,9 +14667,15 @@ function renderSettings() {
           if (!b) return 'Noch nie gesichert.';
           return `Zuletzt gesichert am ${esc(fmtDate(b.on))}, nach ${esc(plural(b.done, 'Einheit', 'Einheiten'))}.`;
         })()}</div>
+      <div class="small muted" style="margin-top:6px">${store.getState().dauerhaft
+        ? 'Der Browser hat zugesagt, diesen Speicher nicht von selbst freizugeben.'
+        : '<b>Der Browser hat nichts zugesagt</b> – er darf den Speicher bei Platzmangel '
+          + 'räumen. Am Startbildschirm installiert sagt er es meist zu.'}
+        Gegen ein verlorenes Handy hilft ohnehin nur eine Kopie woanders.</div>
       <div class="btn-row">
-        <button type="button" class="btn" data-act="export">Export anzeigen</button>
+        <button type="button" class="btn btn-primary" data-act="backup-teilen">Sicherung weitergeben</button>
         <button type="button" class="btn" data-act="download">Als Datei sichern</button>
+        <button type="button" class="btn" data-act="export">Export anzeigen</button>
       </div>
       <textarea class="io" id="io" placeholder="Hier JSON einfügen und auf „Importieren“ tippen…" style="margin-top:10px"></textarea>
       <div class="btn-row">
@@ -14258,6 +15100,9 @@ view.addEventListener('click', (e) => {
     case 'backup-now':
       downloadBackup();
       render();
+      break;
+    case 'backup-teilen':
+      teileBackup();
       break;
     case 'start-session':
       if (!workoutByNo(n).ex.length) {
@@ -14770,6 +15615,17 @@ view.addEventListener('click', (e) => {
       store.setSetting('supersatz', !store.getState().supersatz);
       render();
       break;
+    case 'muster-vorne': {
+      const jetzt = vorneUm(t.dataset.ex);
+      ruestCache.clear();   // die Reihenfolge ist gemerkt und gilt nicht mehr
+      toast(jetzt ? 'Steht ab jetzt am Anfang der Einheit' : 'Wieder an ihrem Platz im Plan');
+      render();
+      break;
+    }
+    case 'toggle-aufwaermen':
+      store.setSetting('aufwaermen', !store.getState().aufwaermen);
+      render();
+      break;
     case 'scheiben-plus': {
       // Eine leere Zeile wäre nach normSatz() sofort wieder weg (0 kg zählt
       // nicht). Deshalb kommt eine Größe dazu, die es noch nicht gibt.
@@ -15111,6 +15967,11 @@ ui.standAngebot = standAusAdresse();
 // braucht keine eigene Ansicht, weil er nichts zeigt, was man vergleichen
 // müsste: Er trägt ein, was man ohnehin gerade eintippen wollte.
 eisenAusAdresse();
+
+// Einmal beim Start den Browser bitten, diesen Speicher nicht von selbst
+// freizugeben. Ohne await: Das Ergebnis interessiert erst, wenn jemand unter
+// Mehr nachsieht, und bis dahin darf der Start nicht darauf warten.
+speicherFestnageln();
 // Und noch einmal, wenn der Link auf eine bereits offene App trifft: Dann ist
 // das ein Sprung innerhalb derselben Seite, sie lädt nicht neu, und ohne diesen
 // Horcher passierte schlicht nichts.
@@ -15124,6 +15985,15 @@ if (ui.standAngebot) {
 // umschreiben – js/data.js hat den Nachfolger schon geladen, hier zieht der
 // gespeicherte Wert nach.
 if (fokusUmzug()) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
+  ui.listView = false;
+}
+// Und danach: Hat sich der *Inhalt* des Plans geändert, ohne dass der Fokus ein
+// anderer wäre? Dann zeigt jeder alte Eintrag auf eine andere Übung, und der
+// laufende Verlauf wandert in die Ablage. Nach fokusUmzug(), nicht davor – der
+// stellt erst fest, welcher Plan überhaupt gilt.
+if (planWechsel()) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;
