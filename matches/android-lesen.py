@@ -131,6 +131,11 @@ KEINE_NAMEN = {
     'standort', 'entfernung', 'suchen', 'mehr', 'weiter', 'zurueck', 'zurück',
     'senden', 'abbrechen', 'fertig', 'teilen', 'melden', 'blockieren',
     'discover', 'settings', 'messages', 'people', 'you', 'likes you',
+    # Aus den echten Laeufen am Galaxy S21 - Tinder-Oberflaeche und, in den
+    # Augenblicken vor der Paketfilterung, Termux' eigene Tastenleiste.
+    'chat', 'explore', 'swipe', 'sicherheitstools', 'profilfoto', 'hey',
+    'verifizierungs-badge', 'esc', 'ctrl', 'alt', 'home', 'end', 'pgup', 'pgdn',
+    'tab', 'shift', 'enter',
     # Und die Staedte, die auf jedem Profil unter dem Namen stehen. Ohne sie
     # bekaeme die Entfernung im Zweifel den Wohnort als Namen angehaengt, und in
     # der Tabelle staende "Hamburg, 4 km" zwischen lauter Menschen.
@@ -443,6 +448,32 @@ sabine sabrina sally sandra sara sarah saskia selin selina sina sofia sofie sonj
 sophia sophie stefanie stella susanne svenja svea tabea talia tamara tanja tara tessa
 thea theresa therese tina vanessa vera verena victoria viktoria vivien wiebke yara
 yasmin yvonne zoe zoey
+anastasia anastasiia iryna irina oksana olena olga kateryna katerina yuliia yulia
+svitlana viktoriia valeriia daryna sofiia solomiia bohdana halyna nataliia liudmyla
+tetiana tetyana alona alyona anzhelika diana karina kristina ksenia lada larisa
+lesia marharyta milana nadiya polina roksolana ruslana snizhana svetlana taisiia
+vira yana zlata alina agata aneta beata dorota ewa hanna iwona joanna justyna
+kasia katarzyna magda magdalena malgorzata marta monika natalia paulina wanda
+weronika zofia adela andrea barbora eliska jitka lucie marketa michaela petra
+tereza veronika zuzana anica dragana ivana jelena jovana maja marija milica nevena
+sanja tamara tijana vesna ada aylin ayse burcu ceren defne derya dilan ebru ecem
+elif emine esra eylul fatma gizem gul gulsah hande irem melek merve nur ozge pinar
+selin sena seda sevim sude tugce yasemin zehra zeynep amira dalia farah hala hiba
+laila layla lina maha malak mariam nadia noor rania rasha salma samira sara yasmine
+ai aiko akari emi haruka hina kaori mei miku nana rin sakura yui yuki yuna aria
+ashley brittany chelsea courtney destiny hailey haley jasmine kayla kelsey madison
+megan paige savannah shelby sierra taylor tiffany whitney
+andrii andriy bohdan denys dmytro ihor kyrylo maksym mykola oleh oleksandr oleksii
+pavlo petro roman ruslan serhii sviatoslav taras vadym valerii vasyl viktor vitalii
+volodymyr yaroslav yevhen yurii aleksandar bojan dejan dusan filip goran igor ivan
+luka marko milan milos nemanja nikola petar stefan vladimir zoran adam bartek
+grzegorz jakub jan jerzy kacper kamil krzysztof lukasz maciej mateusz michal pawel
+piotr rafal szymon tomasz wojciech zbigniew ahmet ali baris burak cem cenk deniz
+emre ercan ferhat gokhan halil hasan huseyin ibrahim kaan kemal mehmet mert murat
+mustafa onur ozan serkan sinan tarik tolga ugur umut yigit yusuf ahmad amir hamza
+karim khaled mahmoud omar rami samir tarek youssef daichi haruto hiroshi kaito ken
+kenji ryo sota takumi yuto brandon cody dylan hunter jared jordan logan mason tyler
+zachary
 adrian alex alexander ali andre andreas anton arne arthur ben benedikt benjamin
 bernd bjoern bruno burak carl carsten christian christoph clemens conrad constantin
 daniel david dennis dieter dirk dominik eddie elias emil enes eric erik fabian felix
@@ -747,11 +778,21 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
             if app == 'auto' and jetzt != letzte_app:
                 print(f'  [{APPS.get(jetzt, jetzt)}]')
                 letzte_app = jetzt
+            # Gehoert der Bildschirm gerade keiner der drei Apps, wird gar nicht
+            # erst gelesen. Sonst landet der eigene Terminal im Ergebnis: Beim
+            # zweiten Fahrversuch standen ALT, CTRL, ESC, HOME, PGUP und PGDN in
+            # der Liste der uebersprungenen Namen - Termux' eigene Tastenleiste,
+            # eingesammelt in den Augenblicken, in denen es im Vordergrund war.
+            if jetzt not in PAKET_VON:
+                if fahren:
+                    print('  (keine der drei Apps im Vordergrund - es wird nichts getippt)')
+                time.sleep(sekunden)
+                continue
+
             xml = bildschirm()
             if xml:
-                # Nur die gemeinte App ansehen. Im geteilten Bildschirm steht im
-                # Abzug sonst auch die andere Haelfte – beim ersten Fahrversuch
-                # war das Termux selbst, samt seiner Tastenleiste.
+                # Und im geteilten Bildschirm steht im Abzug auch die andere
+                # Haelfte. Was nicht zur erkannten App gehoert, fliegt raus.
                 xml = nur_app(xml, PAKET_VON.get(jetzt))
                 for stueck in texte(xml):
                     wort = namensform(stueck['text'])
@@ -772,7 +813,7 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
                     letzte_neuigkeit = time.time()
                     print(f'  {person["name"]}: {person["km"]} km')
 
-                if fahren and jetzt in PAKETE.values():
+                if fahren:
                     if im_profil:
                         # Erst lesen, dann zurueck: Das Profil ist die einzige
                         # Stelle, an der die Entfernung steht.
@@ -804,8 +845,6 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
                             else:
                                 gleich = 0
                             letzter_baum = xml
-                elif fahren:
-                    print('  (keine der drei Apps im Vordergrund - es wird nichts getippt)')
             # Etwas ungleichmaessig, weil ein Mensch auch nicht im Takt tippt.
             time.sleep(sekunden * random.uniform(0.8, 1.4) if fahren else sekunden)
     except KeyboardInterrupt:

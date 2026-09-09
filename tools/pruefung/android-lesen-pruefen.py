@@ -72,8 +72,25 @@ pruefe(gefunden and gefunden[0]['km'] == 4.0, 'und 4 km sind 4 km')
 for aus_dem_echten_lauf in ('Sicherheitstools', 'Profilfoto', 'Weitere Optionen', 'ESC'):
     pruefe(lesen.als_name(aus_dem_echten_lauf) is None,
            f'{aus_dem_echten_lauf!r} ist kein Vorname (aus dem ersten Fahrversuch)')
-pruefe(lesen.namensform('Profilfoto') == 'Profilfoto',
-       'der Form nach sieht „Profilfoto" trotzdem wie einer aus – das ist der Punkt')
+# Der Punkt, um den es geht: An der Form ist ein deutsches Substantiv von einem
+# Vornamen nicht zu unterscheiden. „Lieblingsmusik" steht auf keiner Sperrliste
+# und besteht trotzdem jede Formregel, die auch „Anna" bestehen laesst - nur das
+# Nachschlagen trennt die beiden.
+pruefe(lesen.namensform('Lieblingsmusik') == 'Lieblingsmusik',
+       'der Form nach sieht „Lieblingsmusik" wie ein Vorname aus …')
+pruefe(lesen.als_name('Lieblingsmusik') is None,
+       '… und nur das Nachschlagen sagt, dass es keiner ist')
+
+# Der zweite Lauf meldete, was er aussortiert hatte. Zwei davon waren echte
+# Matches: Die Liste war zu deutschlastig. Der Rest ist Oberflaeche - Tinders
+# eigene und, aus den Augenblicken davor, Termux' Tastenleiste.
+for echt in ('Anastasia', 'Iryna'):
+    pruefe(lesen.als_name(echt) == echt,
+           f'{echt!r} ist ein Name (aus dem zweiten Fahrversuch aussortiert)')
+for oberflaeche in ('Chat', 'Explore', 'Swipe', 'Verifizierungs-Badge', 'Hey',
+                    'ALT', 'CTRL', 'END', 'HOME', 'PGUP', 'PGDN'):
+    pruefe(lesen.als_name(oberflaeche) is None,
+           f'{oberflaeche!r} nicht (aus demselben Lauf)')
 
 pruefe(lesen.als_name('Berlin') is None, 'ein Stadtname gilt nicht als Vorname')
 pruefe(lesen.als_name('Nachrichten') is None, 'eine Knopfbeschriftung auch nicht')
