@@ -66,6 +66,15 @@ pruefe(gefunden and gefunden[0]['km'] == 4.0, 'und 4 km sind 4 km')
 # "Berlin" steht unter der Entfernung und waere ohne die Sperrliste ein Name -
 # nur eben nicht bei dieser Entfernung, sondern bei der naechsten. Hier wird
 # geprueft, dass er ueberhaupt nicht als Name durchgeht.
+# Die vier, auf die das Programm beim ersten Fahrversuch am echten Geraet
+# tippen wollte. Alle vier bestehen jede Formregel, die auch „Anna" bestehen
+# laesst - deshalb wird seither nachgeschlagen statt geraten.
+for aus_dem_echten_lauf in ('Sicherheitstools', 'Profilfoto', 'Weitere Optionen', 'ESC'):
+    pruefe(lesen.als_name(aus_dem_echten_lauf) is None,
+           f'{aus_dem_echten_lauf!r} ist kein Vorname (aus dem ersten Fahrversuch)')
+pruefe(lesen.namensform('Profilfoto') == 'Profilfoto',
+       'der Form nach sieht „Profilfoto" trotzdem wie einer aus – das ist der Punkt')
+
 pruefe(lesen.als_name('Berlin') is None, 'ein Stadtname gilt nicht als Vorname')
 pruefe(lesen.als_name('Nachrichten') is None, 'eine Knopfbeschriftung auch nicht')
 pruefe(lesen.als_name('Sie mag Klettern und lange Spaziergaenge') is None,
@@ -196,6 +205,24 @@ pruefe(anna['oben'] == 480 and anna['unten'] == 540,
        'die Lage des Textes bleibt erhalten – daran haengt die Zuordnung der Entfernung')
 ziel = lesen.tippziel(tief, set())
 pruefe(ziel and ziel['name'] == 'Anna', 'und daraus wird ein Ziel, statt endlos zu wischen')
+
+# --- Der geteilte Bildschirm -------------------------------------------
+# `uiautomator dump` liefert den ganzen Schirm. Beim ersten Fahrversuch stand
+# darin auch Termux, und das Programm wollte auf dessen 'ESC' tippen.
+ZWEI_APPS = '''<?xml version="1.0" encoding="UTF-8"?><hierarchy rotation="0">
+ <node package="com.tinder" class="android.view.ViewGroup" clickable="true" bounds="[0,400][1080,700]">
+  <node package="com.tinder" class="android.widget.TextView" text="Anna" bounds="[48,480][300,540]"/>
+ </node>
+ <node package="com.termux" class="android.view.ViewGroup" clickable="true" bounds="[0,1400][1080,1600]">
+  <node package="com.termux" class="android.widget.TextView" text="ESC" bounds="[48,1480][160,1540]"/>
+ </node>
+</hierarchy>'''
+
+nur_tinder = lesen.knoten(lesen.nur_app(ZWEI_APPS, 'com.tinder'))
+pruefe([k['text'] for k in nur_tinder] == ['Anna'],
+       f'im geteilten Bildschirm bleibt nur die gemeinte App uebrig ({[k["text"] for k in nur_tinder]})')
+pruefe(len(lesen.knoten(lesen.nur_app(ZWEI_APPS, None))) == 2,
+       'ohne Angabe wird nichts weggeworfen')
 
 # --- 9. Welche App gerade vorn ist -------------------------------------
 # Der eine Durchgang fuer alle drei steht und faellt damit: Jede Zeile bekommt

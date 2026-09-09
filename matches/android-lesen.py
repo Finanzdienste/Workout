@@ -334,6 +334,8 @@ PAKETE = {
 
 APPS = {'tinder': 'Tinder', 'bumble': 'Bumble', 'hinge': 'Hinge', 'andere': 'Andere'}
 
+PAKET_VON = {kuerzel: paket for paket, kuerzel in PAKETE.items()}
+
 
 def vordergrund():
     """Welche App ist gerade vorn? Rueckgabe: 'tinder' | 'bumble' | 'hinge' | 'andere'."""
@@ -408,8 +410,59 @@ def kilometer(text):
     return None
 
 
-def als_name(text):
-    """Ist das ein Vorname? Gibt ihn zurueck oder None."""
+"""Vornamen.
+
+Warum eine Liste und keine Regel: Beim ersten Fahrversuch am echten Geraet
+wollte das Programm auf „Sicherheitstools", „Profilfoto" und „Weitere Optionen"
+tippen, und einer Entfernung von 4,0 km hängte es „Weitere Optionen" als Namen
+an. Alle drei bestehen jede Formregel, die auch „Anna" bestehen laesst: Sie
+fangen gross an, sind ein bis zwei Woerter lang und stehen mitten im Profil.
+
+An der *Gestalt* ist ein deutscher Vorname von einem deutschen Substantiv nicht
+zu unterscheiden. Also wird nachgeschlagen. Der Preis dafuer ist ehrlich: Wer
+einen Namen traegt, der hier fehlt, wird uebersprungen - das Programm sagt es
+dann, statt still an ihm vorbeizugehen, und die Liste laesst sich ergaenzen.
+"""
+VORNAMEN = set('''
+anna anne annika antonia amelie alina alexandra alicia amina angelina ann annalena
+antonella ariana asia astrid aylin ayse barbara bianca birgit brigitte carla carlotta
+carmen caro carolin caroline catharina cathrin celina charlotte chiara christin
+christina claudia clara conny cora corinna daniela daria denise diana dilara dominique
+dorothea ela elena eleni elif elisa elisabeth ella emilia emily emma enya erika esther
+eva evelyn fabienne fatima fiona franziska frida gabi gabriele giulia greta hanna
+hannah heike helena helene henriette ida ines inga ines irina isabel isabella jana
+janina janine jasmin jenny jennifer jessica joana johanna jolina jona josefine judith
+julia juliane julie justine kathrin katharina katja katrin kerstin kim kira klara
+kristin larissa laura lea leah lena lene leni leonie lia lilith lilli lilly lina linda
+lisa liv louisa louise luca lucia lucy luisa luise luna lydia maja malin mara maren
+maria mariam marie marina marion marlene marta martina mary maya melanie melina melis
+melissa merle mia michelle mila milena mira miriam mona monika nadine nadja nancy
+naomi natalia natalie nathalie neele nele nadia nika nikola nina nora olivia paula
+pauline petra philippa pia rabea rebecca regina renate riana romina ronja rosa ruth
+sabine sabrina sally sandra sara sarah saskia selin selina sina sofia sofie sonja
+sophia sophie stefanie stella susanne svenja svea tabea talia tamara tanja tara tessa
+thea theresa therese tina vanessa vera verena victoria viktoria vivien wiebke yara
+yasmin yvonne zoe zoey
+adrian alex alexander ali andre andreas anton arne arthur ben benedikt benjamin
+bernd bjoern bruno burak carl carsten christian christoph clemens conrad constantin
+daniel david dennis dieter dirk dominik eddie elias emil enes eric erik fabian felix
+ferdinand finn florian frank franz frederik friedrich fritz gabriel georg gerd
+gregor gustav hannes hans harald hendrik henri henrik holger hugo ingo jakob jan
+janis jannik jared jason jens jeremy jesper joel johann johannes jonas jonathan jorge
+josef julian juri justin kai karl kevin klaus konrad konstantin lars lasse leo leon
+leonard levi levin linus lorenz louis luca lucas ludwig luis lukas malte manuel marc
+marcel marco marcus mario mark markus martin marvin mathias matthias mattis max
+maximilian michael mika mike milan mirko moritz murat nick niclas nico niels niklas
+nils noah norman oliver oscar oskar patrick paul peter philipp pierre rafael ralf
+raphael rene ricardo richard robert robin roman ron ruben rudolf samuel sascha
+sebastian sergej silas simon soeren stefan steffen stephan sven thomas thorsten tim
+timo tino tobias tom tomas toni torben tristan udo ulrich valentin viktor vincent
+volker waldemar walter wilhelm william willi wolfgang yannick yusuf
+'''.split())
+
+
+def namensform(text):
+    """Sieht das *wie* ein Vorname aus? Ohne Nachschlagen."""
     t = text.strip()
     treffer = NAME_ALTER_RE.match(t)
     if treffer:
@@ -418,13 +471,22 @@ def als_name(text):
         return None
     if t.lower() in KEINE_NAMEN:
         return None
-    # Ein Name ist ein Wort, hoechstens zwei, und faengt gross an. Saetze,
-    # Knopfbeschriftungen und Profiltexte fallen damit heraus.
-    if not re.match(r'^[A-ZÄÖÜ][\wÄÖÜäöüß.\'-]*(\s[A-ZÄÖÜ][\wÄÖÜäöüß.\'-]*)?$', t):
+    # Ein Wort, gross beginnend. Doppelnamen mit Bindestrich zaehlen als eines.
+    if not re.match(r"^[A-ZÄÖÜ][\wÄÖÜäöüß.'-]*$", t):
         return None
     if kilometer(t) is not None:
         return None
     return t
+
+
+def als_name(text):
+    """Ist das ein Vorname? Gibt ihn zurueck oder None."""
+    t = namensform(text)
+    if not t:
+        return None
+    # Nachgeschlagen. Bei Doppelnamen genuegt ein bekannter Teil.
+    teile = [teil.lower() for teil in re.split(r'[-\s]', t) if teil]
+    return t if any(teil in VORNAMEN for teil in teile) else None
 
 
 def ernten(stuecke):
@@ -455,6 +517,28 @@ def ernten(stuecke):
         abstand, name = min(kandidaten, key=lambda k: k[0])
         gefunden.append({'name': name, 'km': km, 'ungefaehr': ungefaehr, 'abstand': abstand})
     return gefunden
+
+
+def nur_app(xml, paket):
+    """Alles wegwerfen, was nicht zur gemeinten App gehoert.
+
+    `uiautomator dump` liefert den *ganzen* Bildschirm. Im geteilten Bildschirm
+    steht darin auch die andere Haelfte - und beim ersten Fahrversuch war das
+    Termux selbst: Das Programm wollte auf 'ESC' aus der eigenen Tastenleiste
+    tippen. Jeder Knoten trägt aber ein `package`, und damit ist die Frage
+    entschieden, statt sie zu raten.
+    """
+    if not paket:
+        return xml
+    try:
+        baum = ET.fromstring(xml)
+    except ET.ParseError:
+        return xml
+    for eltern in baum.iter():
+        for kind in list(eltern):
+            if kind.get('package') and kind.get('package') != paket:
+                eltern.remove(kind)
+    return ET.tostring(baum, encoding='unicode')
 
 
 def knoten(xml):
@@ -621,6 +705,7 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
     im_profil = False        # sind wir gerade eine Ebene tiefer?
     letzter_baum = None      # zum Erkennen, dass sich nichts mehr tut
     gleich = 0
+    unbekannt = set()        # sah aus wie ein Vorname, stand aber nicht in der Liste
     hoehe = bildschirmhoehe() if fahren else 2400
 
     def daten():
@@ -664,6 +749,14 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
                 letzte_app = jetzt
             xml = bildschirm()
             if xml:
+                # Nur die gemeinte App ansehen. Im geteilten Bildschirm steht im
+                # Abzug sonst auch die andere Haelfte – beim ersten Fahrversuch
+                # war das Termux selbst, samt seiner Tastenleiste.
+                xml = nur_app(xml, PAKET_VON.get(jetzt))
+                for stueck in texte(xml):
+                    wort = namensform(stueck['text'])
+                    if wort and not als_name(stueck['text']):
+                        unbekannt.add(wort)
                 for person in ernten(texte(xml)):
                     schluessel = person['name'].lower()
                     alt = leute.get(schluessel)
@@ -720,6 +813,11 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
     finally:
         if server:
             server.shutdown()
+
+    if unbekannt:
+        print('\nÜbersprungen, weil nicht in der Vornamensliste: '
+              + ', '.join(sorted(unbekannt)))
+        print('Ist da ein echter Name dabei, gehoert er in VORNAMEN oben im Programm.')
 
     if not leute:
         print('\nNichts gefunden. Einmal `--abzug` machen, waehrend ein Profil offen '
