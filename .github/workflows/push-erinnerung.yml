@@ -27,12 +27,21 @@
 
 name: Erinnerung ans Handy schicken
 
+# WANN ER WIRKLICH LAEUFT: nicht dann, wann hier steht. Zeitgesteuerte Ablaeufe
+# bei GitHub stehen in einer gemeinsamen Warteschlange und starten unter Last
+# spaeter – gemessen an den ersten beiden Laeufen dieses Ablaufs: 3 h 47 min und
+# 4 h 37 min zu spaet. Zur vollen Stunde ist die Schlange am laengsten, weil dort
+# fast alle stehen; deshalb steht unten eine krumme Minute. Das ist kein
+# Versprechen, nur die billigste Verbesserung, die es gibt. Frueher zu senden
+# waere die falsche Antwort – eine Erinnerung um 14 Uhr ist schlechter als eine
+# um 17.
+
 on:
   schedule:
     # Werktags 16:00 MESZ – nach der Arbeit.
-    - cron: '0 14 * * 1-5'
+    - cron: '7 14 * * 1-5'
     # Samstag und Sonntag 6:30 MESZ – vor dem Tag.
-    - cron: '30 4 * * 6,0'
+    - cron: '37 4 * * 6,0'
   workflow_dispatch:
 
 permissions:
@@ -75,7 +84,19 @@ jobs:
             webpush.setVapidDetails(
               "https://finanzdienste.github.io/Workout/", k.oeffentlich, k.privat);
             // Ohne Nutzlast: Der Push ist ein Klopfen, kein Inhalt.
-            webpush.sendNotification(k.abo, null, { TTL: 3600 })
+            //
+            // urgency "high", und das ist der Kern der Sache: Ohne Angabe
+            // sendet web-push mit "normal", und ein Android im Doze-Modus
+            // sammelt solche Nachrichten, statt sie zuzustellen. Zugestellt
+            // werden sie dann beim naechsten Wartungsfenster – oder wenn das
+            // Geraet wieder benutzt wird. Genau das war die Beobachtung: *„Die
+            // push Nachricht kam erst als ich die app geoeffnet hab."* Nur
+            // "high" umgeht Doze; das ist die einzige Stellschraube, die der
+            // Absender ueberhaupt hat. Der Rest liegt am Geraet.
+            //
+            // TTL bleibt bei einer Stunde: Ist das Handy laenger aus, ist die
+            // Erinnerung an dem Tag ohnehin sinnlos geworden.
+            webpush.sendNotification(k.abo, null, { TTL: 3600, urgency: "high" })
               .then((r) => console.log("gesendet, Status " + r.statusCode))
               .catch((e) => {
                 const s = e && e.statusCode;

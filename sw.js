@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v133';
+const VERSION = 'v134';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -224,29 +224,48 @@ const heuteISO = () => {
  *                 vor der eingestellten Uhrzeit ein, die Pruefung haette ihn
  *                 verworfen – und es waere an dem Tag gar nichts gekommen.
  */
+/*
+ * Und warum jeder Ausgang einen Namen hat.
+ *
+ * *„Die push Nachricht kam erst als ich die app geoeffnet hab."* Dafuer gibt es
+ * zwei voellig verschiedene Ursachen, und von aussen sehen sie gleich aus:
+ *
+ *   Der Push kam nicht an     Android hat ihn im Doze-Modus zurueckgehalten und
+ *                             beim Entsperren nachgeliefert. Zu beheben beim
+ *                             Absender (urgency) und in den Akku-Einstellungen.
+ *   Der Push kam an           …und dieser Code hat entschieden, nichts zu
+ *                             zeigen. Zu beheben hier.
+ *
+ * Ohne Aufschreiben laesst sich das nicht auseinanderhalten – ich kann auf
+ * seinem Handy nichts nachmessen. Also vermerkt jeder Ausgang, *warum* er
+ * genommen wurde, mitsamt Uhrzeit; die App zeigt es unter Mehr im Klartext.
+ * Das kostet vier Zeilen und ersetzt Raten durch Nachsehen.
+ */
 async function erinnern(zeitPruefen) {
   const zettel = await merkLesen();
   const heute = heuteISO();
+  const art = zeitPruefen ? 'sync' : 'push';
   // Der Weckruf selbst wird immer vermerkt, auch wenn nichts zu melden ist.
   // Das ist der Messwert: Er sagt, ob der Weg ueberhaupt traegt.
-  await merkSchreiben({ geweckt: Date.now() });
+  const notiz = (grund) => merkSchreiben({ geweckt: Date.now(), weckArt: art, weckGrund: grund });
 
-  if (!zettel.an) return;
-  if (zettel.gemeldet === heute) return;          // heute schon gemeldet
+  if (!zettel.an) return notiz('aus');
+  if (zettel.gemeldet === heute) return notiz('schon');   // heute schon gemeldet
   if (zeitPruefen) {
-    if (!zettel.zeigenAb || Date.now() < zettel.zeigenAb) return;
+    if (!zettel.zeigenAb || Date.now() < zettel.zeigenAb) return notiz('frueh');
   } else if (!zettel.tag || zettel.tag > heute) {
-    return;                                       // erst an einem spaeteren Tag faellig
+    return notiz('kein-tag');                             // erst an einem spaeteren Tag faellig
   }
 
   // Ist die App gerade offen, braucht es keine Meldung – dann sieht er es ja.
   const offen = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  if (offen.some((c) => c.visibilityState === 'visible')) return;
+  if (offen.some((c) => c.visibilityState === 'visible')) return notiz('offen');
 
   await erinnerungZeigen(zettel.titel);
   if (self.navigator && self.navigator.setAppBadge) {
     self.navigator.setAppBadge(1).catch(() => {});
   }
+  await notiz('gezeigt');
   await merkSchreiben({ gemeldet: heute });
 }
 

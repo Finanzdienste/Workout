@@ -4664,19 +4664,53 @@ function pushStandZeigen() {
   if (!kannPush()) { host.textContent = 'Dieser Browser kann kein Web Push.'; return; }
   pushStand().then((p) => {
     if (!document.body.contains(host)) return;
-    host.textContent = p.angemeldet
-      ? 'Angemeldet. Ob wirklich etwas ankommt, siehst du oben an „zuletzt geweckt".'
-      : 'Noch nicht eingerichtet – ohne das bleibt es beim Vielleicht.';
+    if (!p.angemeldet) {
+      host.textContent = 'Noch nicht eingerichtet – ohne das bleibt es beim Vielleicht.';
+      return;
+    }
+    // Der Rest liegt am Handy, und das steht hier, weil es sonst niemand sagt:
+    // Android hält Push-Nachrichten für gedrosselte Apps zurück und liefert sie
+    // erst beim Entsperren nach. Von außen sieht das aus, als käme die Meldung
+    // „erst beim Öffnen der App".
+    host.innerHTML = 'Angemeldet. Ob wirklich etwas ankommt, siehst du oben an '
+      + '„zuletzt geweckt" – da steht seit Neuestem auch die Uhrzeit.'
+      + '<div style="margin-top:6px">Kommt die Meldung erst, wenn du das Handy '
+      + 'entsperrst, hält Android sie zurück. Dagegen hilft nur eine Einstellung '
+      + 'am Gerät: <i>Einstellungen → Apps → Chrome → Akku</i> auf '
+      + '<i>uneingeschränkt</i> (bei Xiaomi/Redmi zusätzlich <i>Autostart</i> '
+      + 'erlauben und im Task-Manager das Schloss setzen).</div>';
   });
 }
 
 /**
+ * Was der Worker beim letzten Weckruf getan hat – im Klartext.
+ *
+ * Zu jedem Grund aus erinnern() in sw.js ein Satz. Der Unterschied, um den es
+ * geht: „gezeigt" heißt, der Weg trägt und die Meldung ist wirklich erschienen;
+ * alles andere heißt, der Weckruf kam an und *dieser Code* hat entschieden,
+ * nichts zu zeigen – und dann steht hier, warum. Gar keine Zeile heißt: Es kam
+ * nichts an, und die Ursache liegt nicht in der App.
+ */
+const WECK_GRUND = {
+  gezeigt: 'Meldung erschienen',
+  offen: 'nichts gezeigt – die App war offen',
+  schon: 'nichts gezeigt – an dem Tag war schon erinnert worden',
+  aus: 'nichts gezeigt – die Erinnerung war aus',
+  frueh: 'nichts gezeigt – es war noch vor der eingestellten Uhrzeit',
+  'kein-tag': 'nichts gezeigt – es stand nichts an',
+};
+
+/**
  * Wann hat der Browser den Service Worker zuletzt geweckt?
  *
- * Die ehrliche Zahl zu dieser Funktion. Ob periodicsync auf einem bestimmten
- * Handy trägt, lässt sich weder versprechen noch hier nachprüfen – ein
- * Testlauf kann das Ereignis nicht auslösen. Also steht hier, was wirklich
- * passiert ist, und nicht, was passieren soll.
+ * Die ehrliche Zahl zu dieser Funktion. Ob der Push ankommt und ob periodicsync
+ * auf einem bestimmten Handy trägt, lässt sich weder versprechen noch hier
+ * nachprüfen – ein Testlauf kann die Ereignisse nicht auslösen. Also steht hier,
+ * was wirklich passiert ist, und nicht, was passieren soll.
+ *
+ * Mit Uhrzeit, nicht nur mit Tag: *„Die push Nachricht kam erst als ich die app
+ * geöffnet hab."* Ob der Weckruf um 16 Uhr kam oder um 21 Uhr beim Entsperren,
+ * ist genau die Frage – und „heute" beantwortet sie nicht.
  */
 function weckStandZeigen() {
   const host = document.getElementById('weckStand');
@@ -4687,9 +4721,17 @@ function weckStandZeigen() {
       host.textContent = 'Noch nie geweckt worden – das kann ein paar Tage dauern.';
       return;
     }
+    const d = new Date(z.geweckt);
     const tage = Math.floor((Date.now() - z.geweckt) / 86400000);
-    const wann = tage === 0 ? 'heute' : tage === 1 ? 'gestern' : `vor ${tage} Tagen`;
+    const uhr = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} Uhr`;
+    const wann = tage === 0 ? `heute um ${uhr}`
+      : tage === 1 ? `gestern um ${uhr}`
+        : `vor ${tage} Tagen, ${uhr}`;
+    const art = z.weckArt === 'push' ? 'Push'
+      : z.weckArt === 'sync' ? 'der Browser von selbst' : null;
     host.textContent = `Zuletzt geweckt: ${wann}`
+      + (art ? ` durch ${art}` : '')
+      + (WECK_GRUND[z.weckGrund] ? ` · ${WECK_GRUND[z.weckGrund]}` : '')
       + (z.gemeldet ? ` · zuletzt erinnert am ${fmtDate(z.gemeldet)}` : '');
   });
 }
