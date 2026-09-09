@@ -240,11 +240,50 @@ function bumble(daten, roh) {
   return { app: 'bumble', leute, hinweise };
 }
 
+/* --- Mitgelesenes ----------------------------------------------------- */
+
+const APPS_BEKANNT = new Set(['tinder', 'hinge', 'bumble', 'andere']);
+
+/**
+ * Die Datei aus matches/mitlesen.user.js.
+ *
+ * Das ist der einzige Weg, auf dem eine Entfernung *automatisch* in diese
+ * Tabelle kommt: nicht aus der Datenauskunft – dort steht keine –, sondern aus
+ * dem, was die Webfassung von Tinder oder Bumble ohnehin lädt, während man
+ * durch seine Matches scrollt. Was dabei zusammenkommt, hängt davon ab, wie
+ * weit man gescrollt hat; die Zahl dazu steht im Hinweis, damit niemand eine
+ * halbe Liste für die ganze hält.
+ */
+function mitgelesen(daten) {
+  const hinweise = [];
+  const liste = Array.isArray(daten.leute) ? daten.leute : [];
+  const leute = liste.map((p) => zeile(APPS_BEKANNT.has(p.app) ? p.app : (daten.app || 'andere'), {
+    name: String(p.name || '').trim(),
+    km: Number.isFinite(Number(p.km)) && p.km !== null ? Number(p.km) : null,
+    matchAm: datumLesen(p.matchAm),
+    extern: p.extern || null,
+  }));
+
+  const mitKm = leute.filter((p) => p.km !== null).length;
+  hinweise.push(`${leute.length} Zeilen mitgelesen, davon ${mitKm} mit Entfernung.`
+    + (mitKm < leute.length
+      ? ' Die übrigen standen nur in der Liste, nicht im Profil – die Entfernung'
+        + ' schickt der Dienst erst, wenn das Profil geöffnet wird.'
+      : ''));
+  if (daten.erzeugt) {
+    hinweise.push(`Stand: ${String(daten.erzeugt).slice(0, 10)}. Entfernungen sind Momentaufnahmen –`
+      + ' wer umzieht oder verreist, steht beim nächsten Mitlesen woanders.');
+  }
+  return { app: daten.app === 'bumble' ? 'bumble' : 'tinder', leute, hinweise };
+}
+
 /* --- Erkennung ------------------------------------------------------- */
 
 /** Woher stammt diese Datei? Am Inhalt erkannt, nicht am Dateinamen. */
 export function appErkennen(daten, dateiname = '') {
   const n = schluessel(dateiname);
+  // Die eigene Datei sagt selbst, was sie ist – vor jeder Rateroutine.
+  if (daten && daten.format === 'matches-mitlesen/1') return 'mitlesen';
   if (daten && !Array.isArray(daten) && (daten.Messages || daten.Usage || daten.SpotifyTopArtists)) return 'tinder';
   if (Array.isArray(daten) && daten.some((e) => e && (e.match || e.like || e.chats))) return 'hinge';
   if (n.includes('tinder')) return 'tinder';
@@ -262,9 +301,10 @@ export function einlesen(roh, name = '') {
   let daten = null;
   try { daten = JSON.parse(roh); } catch { /* dann eben CSV */ }
   const app = appErkennen(daten, name);
-  const ergebnis = app === 'tinder' ? tinder(daten || {})
-    : app === 'hinge' ? hinge(daten || [])
-      : bumble(daten, roh);
+  const ergebnis = app === 'mitlesen' ? mitgelesen(daten)
+    : app === 'tinder' ? tinder(daten || {})
+      : app === 'hinge' ? hinge(daten || [])
+        : bumble(daten, roh);
   if (!ergebnis.leute.length && !ergebnis.hinweise.length) {
     ergebnis.hinweise.push('Aus dieser Datei ließ sich keine einzige Zeile lesen. '
       + 'Bei Tinder ist es die data.json aus dem ZIP, bei Hinge die matches.json.');
