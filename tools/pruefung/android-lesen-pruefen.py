@@ -113,7 +113,41 @@ pruefe(lesen.ernten(lesen.texte('<hierarchy></hierarchy>')) == [],
 pruefe(lesen.texte('kein xml') == [],
        'und etwas, das kein XML ist, auch nicht')
 
-# --- 8. Welche App gerade vorn ist -------------------------------------
+# --- 8. Worauf getippt wird - und worauf niemals ------------------------
+# Der heikelste Teil des ganzen Programms. Ein falsch gesetzter Tipp ist auf
+# einer Dating-App im besten Fall ein Like, das man nicht zurueckholt, und im
+# schlechtesten ein Abo. Deshalb wird hier nicht geprueft, ob das Richtige
+# getroffen wird, sondern zuerst, ob das Falsche in Ruhe gelassen wird.
+def kn(text, klickbar=True, oben=1000):
+    return {'text': text, 'klickbar': klickbar, 'x': 500, 'y': oben + 30,
+            'oben': oben, 'unten': oben + 60}
+
+
+pruefe(lesen.tippziel([kn('Anna')], set())['name'] == 'Anna',
+       'eine anklickbare Zeile mit Vornamen ist ein Ziel')
+pruefe(lesen.tippziel([kn('Anna', klickbar=False)], set()) is None,
+       'dieselbe Zeile ohne clickable=true dagegen nicht')
+pruefe(lesen.tippziel([kn('Anna')], {'anna'}) is None,
+       'und eine schon besuchte auch nicht - sonst laeuft es im Kreis')
+
+for gefaehrlich in ('Like', 'Super Like', 'Boost kaufen', 'Premium', 'Abo verlängern',
+                    'Blockieren', 'Melden', 'Löschen', 'Einstellungen'):
+    pruefe(lesen.tippziel([kn(gefaehrlich)], set()) is None,
+           f'auf {gefaehrlich!r} wird nie getippt')
+
+pruefe(lesen.tippziel([kn('4 km entfernt')], set()) is None,
+       'auf eine Entfernungsangabe auch nicht')
+pruefe(lesen.tippziel([kn('Like'), kn('Mira', oben=1200)], set())['name'] == 'Mira',
+       'steht Gefaehrliches neben Harmlosem, wird das Harmlose genommen')
+pruefe(lesen.tippziel([], set()) is None,
+       'auf einem leeren Schirm passiert gar nichts - kein blindes Tippen')
+
+xml_liste = baum(('Nachrichten', 100, 160), ('Anna', 800, 860), ('Mira', 900, 960))
+pruefe(len(lesen.knoten(xml_liste)) == 3, 'der Knotenleser findet alle drei Zeilen')
+pruefe(all(not k['klickbar'] for k in lesen.knoten(xml_liste)),
+       'und merkt sich, dass in diesem Baum keine davon anklickbar ist')
+
+# --- 9. Welche App gerade vorn ist -------------------------------------
 # Der eine Durchgang fuer alle drei steht und faellt damit: Jede Zeile bekommt
 # die App, die im Moment des Lesens den Fokus hatte. Erkennt das nichts, landen
 # Tinder-Matches unter Bumble - eine Verwechslung, die man der fertigen Tabelle

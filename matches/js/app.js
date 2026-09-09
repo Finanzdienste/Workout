@@ -374,8 +374,57 @@ $('sicherung').addEventListener('click', () => {
 });
 
 $('netzsuche').checked = Boolean(zustand.netzsuche);
+/* --- Daten, die von selbst hereinkommen -------------------------------- */
+
+/*
+ * Wenn diese Seite über einen Server ausgeliefert wird, sieht sie alle paar
+ * Sekunden nach, ob daneben eine `daten.json` liegt – die Datei, die
+ * matches/android-lesen.py beim Mitlesen fortlaufend schreibt.
+ *
+ * Das ist der Unterschied zwischen „einlesen" und „es steht einfach da": Man
+ * geht auf dem Telefon durch seine Profile, und in der anderen Ansicht füllt
+ * sich die Tabelle mit. Niemand muss dazwischen eine Datei auswählen.
+ *
+ * Über file:// passiert nichts davon – dort gibt es keine Nachbardatei, die ein
+ * Browser holen dürfte. Dann bleibt es beim Knopf, und das ist auch richtig so.
+ */
+const HOLTAKT = 4000;
+
+async function nachschauen() {
+  if (!location.protocol.startsWith('http')) return;
+  let daten;
+  try {
+    const antwort = await fetch('./daten.json', { cache: 'no-store' });
+    if (!antwort.ok) return;
+    daten = await antwort.json();
+  } catch {
+    return; // kein Server, keine Datei, kein Drama
+  }
+  // Dieselbe Datei zweimal zu verarbeiten wäre folgenlos – zusammenfuehren()
+  // legt keine Dubletten an –, würde aber bei jedem Takt die Meldung neu
+  // schreiben. Der Zeitstempel entscheidet, ob es etwas Neues gibt.
+  if (!daten || daten.erzeugt === zustand.zuletztGeholt) return;
+  zustand.zuletztGeholt = daten.erzeugt;
+
+  const ergebnis = einlesen(JSON.stringify(daten), 'daten.json');
+  const { liste, neu, ergaenzt } = zusammenfuehren(zustand.leute, ergebnis.leute.map(person));
+  zustand.leute = liste;
+  speichern();
+  zeichnen();
+  if (neu || ergaenzt) {
+    $('importStand').replaceChildren(el('p', {
+      class: 'hinweis hinweis--ruhig',
+      text: `Vom Mitleser übernommen: ${neu} neue Zeilen`
+        + (ergaenzt ? `, ${ergaenzt} ergänzt` : '')
+        + ` (Stand ${new Date(daten.erzeugt).toLocaleTimeString('de')}).`,
+    }));
+  }
+}
+
 heimZeigen();
 zeichnen();
+nachschauen();
+setInterval(nachschauen, HOLTAKT);
 
 // Für die Tests: an das Fenster gehängt, damit sich Zustand und Rechnung von
 // außen prüfen lassen, ohne die Oberfläche nachzuspielen.

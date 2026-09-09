@@ -29,6 +29,9 @@ const LEER = {
   netzsuche: false,    // Ortssuche im Netz erlaubt (siehe geo.js)
   leute: [],
   sortier: { feld: 'km', richtung: 1 },
+  // Zeitstempel der zuletzt übernommenen daten.json des Mitlesers. Ohne den
+  // würde jeder Takt dieselbe Datei erneut melden – nicht falsch, aber laut.
+  zuletztGeholt: null,
 };
 
 /** Eine Kennung, die auch ohne crypto.randomUUID funktioniert. */

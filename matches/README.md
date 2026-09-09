@@ -25,7 +25,7 @@ tut sie **passiv**: zusehen, nicht abfragen.
 
 | Weg | Für wen | Bringt |
 | --- | --- | --- |
-| **[`android-lesen.py`](android-lesen.py) am Telefon** | **alle drei, in einem Durchgang** | Name, **Entfernung** |
+| **[`android-lesen.py`](android-lesen.py) `--fahren --server`** | **alle drei, in einem Durchgang, ohne Handgriff** | Name, **Entfernung** |
 | [`mitlesen.user.js`](mitlesen.user.js) im Browser | nur Tinder | zusätzlich das Match-Datum |
 | Datenauskunft einlesen | alle drei | Datum, Nachrichtenzahl, Stand |
 | Formular | alle drei | alles, in fünf Sekunden je Person |
@@ -91,7 +91,19 @@ Nichts davon verlässt den Browser.
 gibt über `uiautomator` den Textbaum der sichtbaren App heraus, und dort stehen
 Name und „4 km entfernt" als ganz gewöhnlicher Text.
 
-    python3 matches/android-lesen.py --schauen
+    python3 matches/android-lesen.py --fahren --server
+
+Das ist der Ein-Befehl-Fall, und er nimmt einem beide Handgriffe ab:
+
+* **`--fahren`** geht selbst durch die Match-Liste: tippt eine Zeile an, liest
+  das Profil, geht zurück, nimmt die nächste, scrollt weiter. Vorher die
+  Match-Liste der App öffnen — den Rest macht das Programm.
+* **`--server`** liefert die Tabelle unter `http://127.0.0.1:8099/` aus. Die
+  Seite dort holt sich die Zeilen alle vier Sekunden von selbst; man sieht sie
+  auflaufen, während nebenan gelesen wird. Kein Auswählen einer Datei mehr.
+
+Wer lieber selbst durch die Profile geht, lässt `--fahren` weg und nimmt
+`--schauen` — dann sieht das Programm nur zu.
 
 Ohne weitere Angabe läuft es auf `--app auto`: Bei jedem Blick wird nachgesehen,
 welche App gerade den Fokus hat, und die gefundene Zeile bekommt deren Namen.
@@ -109,10 +121,28 @@ was auf dem Schirm steht. Du gehst durch deine Matches wie sonst auch und
 Liste. Am Ende liegt eine Datei da, die die Tabelle unter *Datenauskunft
 einlesen* nimmt.
 
-Automatisch zu wischen wäre die naheliegende Ergänzung und fehlt mit Absicht:
-Ein Programm, das im Sekundentakt durch fremde Profile blättert, ist genau das
-Muster, das auffällt – und ein falsch gesetzter Wisch ist auf einer Dating-App
-ein Like, das man nicht zurückholt.
+### Was `--fahren` niemals tut
+
+Ein falsch gesetzter Tipp ist auf einer Dating-App im besten Fall ein Like, das
+man nicht zurückholt, und im schlechtesten ein Abo. Deshalb drei harte Regeln,
+und alle drei stehen in der Prüfung:
+
+1. **Keine blinden Koordinaten.** Getippt wird ausschließlich auf einen Knoten,
+   der im Textbaum steht, `clickable` ist und dessen Text wie ein Vorname
+   aussieht. Steht die App gerade woanders, findet sich kein Ziel – und dann
+   passiert nichts, statt irgendwohin zu tippen.
+2. **Eine Sperrliste, kein Filter.** Alles mit *Like, Super, Boost, Premium,
+   Abo, kaufen, verlängern, löschen, blockieren, melden, Einstellungen* wird
+   übersprungen, auch wenn es sonst passen würde. Im Zweifel wird nicht getippt.
+3. **Nur senkrecht wischen.** Waagerecht wäre in einer Kartenansicht ein Like.
+
+Dazu ein ungleichmäßiger Takt (0,8 bis 1,4 mal die eingestellte Zeit), weil ein
+Mensch auch nicht im Sekundentakt tippt.
+
+Zuerst einmal trocken laufen lassen — dann wird nur ausgegeben, was getippt
+würde, und nichts angefasst:
+
+    python3 matches/android-lesen.py --fahren --trocken
 
 ### Ohne Rechner, nur mit dem Telefon
 
@@ -132,8 +162,14 @@ ganze Weg keinen Rechner und kein Kabel mehr.
 
        python3 android-lesen.py --verbinden PORT
 
-5. `termux-wake-lock`, dann `--schauen` wie sonst. Die fertige Datei liegt in
-   den Downloads und lässt sich direkt in die Tabelle einlesen.
+5. `termux-wake-lock`, dann:
+
+       python3 android-lesen.py --fahren --server
+
+   Die Match-Liste der App öffnen und das Telefon liegen lassen. In einem
+   zweiten Browser-Tab `http://127.0.0.1:8099/` offen halten – dort füllt sich
+   die Tabelle mit, während gelesen wird. (Eine Datei landet trotzdem in den
+   Downloads, als Sicherung.)
 
 Gekoppelt wird einmal, verbunden nach jedem Neustart neu — **der Port ändert
 sich dabei jedes Mal.** Das ist lästig und liegt an Android, nicht an diesem

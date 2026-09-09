@@ -100,9 +100,11 @@ import argparse
 import json
 import os
 import pathlib
+import random
 import re
 import subprocess
 import sys
+import threading
 import time
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timezone
@@ -358,7 +360,132 @@ def ernten(stuecke):
     return gefunden
 
 
-def schauen(app, sekunden, ruhe):
+def knoten(xml):
+    """Alle Knoten mit Text, Lage und der Frage, ob man sie antippen kann."""
+    gefunden = []
+    try:
+        baum = ET.fromstring(xml)
+    except ET.ParseError:
+        return gefunden
+    for k in baum.iter('node'):
+        text = (k.get('text') or k.get('content-desc') or '').strip()
+        lage = grenzen(k.get('bounds'))
+        if text and lage and len(text) <= 120:
+            gefunden.append({'text': text, 'klickbar': k.get('clickable') == 'true', **lage})
+    return gefunden
+
+
+# Was niemals angetippt wird. Ein falsch gesetzter Tipp ist auf einer Dating-App
+# im besten Fall ein Like, das man nicht zurückholt, und im schlechtesten ein
+# Abo. Deshalb ist das hier eine Sperrliste und kein Filter: Im Zweifel wird
+# nicht getippt.
+VERBOTEN = re.compile(
+    r'\b(like|likes|nope|super|boost|premium|plus|gold|platinum|abo|kaufen|'
+    r'upgrade|bezahlen|zahlen|verlängern|verlaengern|kündigen|kuendigen|'
+    r'löschen|loeschen|entfernen|blockieren|melden|abmelden|logout|'
+    r'einstellungen|settings|subscribe|purchase|buy|unlock)\b', re.I)
+
+
+def tippziel(liste, gesehen):
+    """Welche Zeile als Naechstes antippen - oder keine.
+
+    Getippt wird nur auf etwas, das im Baum steht und wie ein Vorname aussieht.
+    Blinde Koordinaten gibt es hier nicht: Wenn die App gerade woanders steht,
+    findet sich kein Ziel, und dann passiert nichts. Das ist der Unterschied
+    zwischen „durch die Liste gehen" und „irgendwo auf den Schirm hauen".
+    """
+    for eintrag in liste:
+        if VERBOTEN.search(eintrag['text']):
+            continue
+        name = als_name(eintrag['text'])
+        if not name or name.lower() in gesehen:
+            continue
+        if kilometer(eintrag['text']) is not None:
+            continue
+        if not eintrag['klickbar']:
+            continue
+        return {**eintrag, 'name': name}
+    return None
+
+
+def tippen(ziel, trocken=False):
+    if trocken:
+        print(f'    [trocken] tippen auf {ziel["name"]!r} bei {ziel["x"]},{ziel["y"]}')
+        return
+    adb('shell', 'input', 'tap', str(ziel['x']), str(ziel['y']))
+
+
+def zurueck(trocken=False):
+    if trocken:
+        print('    [trocken] zurueck')
+        return
+    adb('shell', 'input', 'keyevent', '4')
+
+
+def wischen(hoehe, trocken=False):
+    """Ein Stueck weiter in der Liste. Senkrecht - waagerecht waere ein Like."""
+    x, oben, unten = 540, int(hoehe * 0.72), int(hoehe * 0.32)
+    if trocken:
+        print(f'    [trocken] wischen {x},{oben} -> {x},{unten}')
+        return
+    adb('shell', 'input', 'swipe', str(x), str(oben), str(x), str(unten), '450')
+
+
+def bildschirmhoehe():
+    text = adb('shell', 'wm', 'size')
+    treffer = re.search(r'(\d+)x(\d+)', text)
+    return int(treffer.group(2)) if treffer else 2400
+
+
+"""Die Seite und die Daten aus einem kleinen Server heraus anbieten.
+
+Der Grund ist eine Einschränkung des Browsers, keine Bequemlichkeit: Eine über
+file:// geoeffnete Seite darf keine Nachbardatei lesen. Damit die Tabelle sich
+die Daten *selbst* holen kann, muessen beide von derselben Adresse kommen - also
+liefert das Programm sie aus, solange es laeuft. Nur an 127.0.0.1, nur solange
+gelesen wird, und ohne dass ein Byte das Geraet verlaesst.
+"""
+
+
+def seite_finden(hier):
+    for kandidat in (hier / 'matches.html', hier / 'index.html',
+                     hier / 'dist' / 'matches.html',
+                     pathlib.Path.cwd() / 'matches.html'):
+        if kandidat.is_file():
+            return kandidat
+    return None
+
+
+def server_starten(port, seite, daten_holen):
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class Griff(BaseHTTPRequestHandler):
+        def log_message(self, *_):
+            pass  # das Protokoll wuerde die Fundmeldungen zuschuetten
+
+        def do_GET(self):
+            if self.path.startswith('/daten.json'):
+                koerper = json.dumps(daten_holen(), ensure_ascii=False).encode()
+                typ = 'application/json; charset=utf-8'
+            elif self.path in ('/', '/index.html'):
+                koerper = seite.read_bytes()
+                typ = 'text/html; charset=utf-8'
+            else:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header('content-type', typ)
+            self.send_header('content-length', str(len(koerper)))
+            self.send_header('cache-control', 'no-store')
+            self.end_headers()
+            self.wfile.write(koerper)
+
+    server = ThreadingHTTPServer(('127.0.0.1', port), Griff)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
     """Zusehen, bis nichts Neues mehr kommt.
 
     `app` ist entweder eine feste Angabe oder 'auto'. Bei 'auto' wird bei jedem
@@ -371,8 +498,35 @@ def schauen(app, sekunden, ruhe):
     leute = {}
     letzte_neuigkeit = time.time()
     letzte_app = None
+    gesehen = set()          # schon angetippte Zeilen, beim Fahren
+    im_profil = False        # sind wir gerade eine Ebene tiefer?
+    hoehe = bildschirmhoehe() if fahren else 2400
 
-    if app == 'auto':
+    def daten():
+        return {
+            'format': 'matches-mitlesen/1',
+            'app': 'gemischt' if app == 'auto' else app,
+            'erzeugt': datetime.now(timezone.utc).isoformat(),
+            'leute': list(leute.values()),
+        }
+
+    server = None
+    if port:
+        seite = seite_finden(pathlib.Path(__file__).resolve().parent)
+        if not seite:
+            sys.exit('Keine matches.html gefunden. Sie muss neben diesem Programm liegen, '
+                     'damit die Tabelle ausgeliefert werden kann.')
+        server = server_starten(port, seite, daten)
+        print(f'Tabelle: http://127.0.0.1:{port}/  – im Browser oeffnen und offen lassen.')
+        print('Sie holt sich die Zeilen von hier, solange dieses Programm laeuft.\n')
+
+    if fahren:
+        print('Fahren. Das Programm tippt selbst auf die Zeilen, liest das Profil und '
+              'geht zurueck.')
+        print('Vorher: die Match-Liste der App oeffnen. Getippt wird nur auf etwas, das '
+              'wie ein Vorname aussieht und im Baum steht - nie auf blinde Koordinaten, '
+              'nie auf Like, Boost oder Abo.')
+    elif app == 'auto':
         print('Zusehen. Geh auf dem Telefon durch deine Matches - in Tinder, Bumble '
               'und Hinge nacheinander, in beliebiger Reihenfolge.')
     else:
@@ -403,9 +557,32 @@ def schauen(app, sekunden, ruhe):
                     }
                     letzte_neuigkeit = time.time()
                     print(f'  {person["name"]}: {person["km"]} km')
-            time.sleep(sekunden)
+
+                if fahren and jetzt in PAKETE.values():
+                    if im_profil:
+                        # Erst lesen, dann zurueck: Das Profil ist die einzige
+                        # Stelle, an der die Entfernung steht.
+                        zurueck(trocken)
+                        im_profil = False
+                    else:
+                        ziel = tippziel(knoten(xml), gesehen)
+                        if ziel:
+                            gesehen.add(ziel['name'].lower())
+                            print(f'    -> {ziel["name"]}')
+                            tippen(ziel, trocken)
+                            im_profil = True
+                            letzte_neuigkeit = time.time()
+                        else:
+                            wischen(hoehe, trocken)
+                elif fahren:
+                    print('  (keine der drei Apps im Vordergrund - es wird nichts getippt)')
+            # Etwas ungleichmaessig, weil ein Mensch auch nicht im Takt tippt.
+            time.sleep(sekunden * random.uniform(0.8, 1.4) if fahren else sekunden)
     except KeyboardInterrupt:
         print('\nAbgebrochen.')
+    finally:
+        if server:
+            server.shutdown()
 
     if not leute:
         print('\nNichts gefunden. Einmal `--abzug` machen, waehrend ein Profil offen '
@@ -414,12 +591,7 @@ def schauen(app, sekunden, ruhe):
 
     name = ablageort(f'matches-{date.today().isoformat()}.json')
     with open(name, 'w', encoding='utf-8') as datei:
-        json.dump({
-            'format': 'matches-mitlesen/1',
-            'app': 'gemischt' if app == 'auto' else app,
-            'erzeugt': datetime.now(timezone.utc).isoformat(),
-            'leute': list(leute.values()),
-        }, datei, ensure_ascii=False, indent=1)
+        json.dump(daten(), datei, ensure_ascii=False, indent=1)
 
     mit_km = sum(1 for p in leute.values() if p['km'] is not None)
     print(f'\n{name}: {len(leute)} Zeilen, {mit_km} mit Entfernung.')
@@ -427,7 +599,10 @@ def schauen(app, sekunden, ruhe):
         anzahl = sum(1 for p in leute.values() if p['app'] == kuerzel)
         if anzahl:
             print(f'  {anzeige}: {anzahl}')
-    print('In der Match-Tabelle unter "Datenauskunft einlesen" auswaehlen.')
+    if not port:
+        print('In der Match-Tabelle unter "Datenauskunft einlesen" auswaehlen '
+              '- oder beim naechsten Mal --server dazunehmen, dann holt sie sich '
+              'die Zeilen von selbst.')
 
 
 def abzug(ziel):
@@ -460,6 +635,12 @@ def main():
                           help='einmalig: WLAN-Debugging koppeln (auf dem Telefon selbst)')
     zerleger.add_argument('--verbinden', metavar='PORT',
                           help='nach jedem Neustart: mit dem WLAN-Debugging verbinden')
+    zerleger.add_argument('--fahren', action='store_true',
+                          help='selbst durch die Match-Liste gehen, statt zuzusehen')
+    zerleger.add_argument('--trocken', action='store_true',
+                          help='mit --fahren: nur sagen, was getippt wuerde, und nichts tun')
+    zerleger.add_argument('--server', nargs='?', type=int, const=8099, metavar='PORT',
+                          help='die Tabelle ausliefern; sie holt sich die Zeilen dann selbst')
     wahl = zerleger.parse_args()
 
     if wahl.koppeln:
@@ -468,8 +649,9 @@ def main():
         verbinden(wahl.verbinden)
     elif wahl.abzug:
         abzug(wahl.abzug)
-    elif wahl.schauen:
-        schauen(wahl.app, wahl.takt, wahl.ruhe)
+    elif wahl.schauen or wahl.fahren:
+        schauen(wahl.app, wahl.takt, wahl.ruhe,
+                fahren=wahl.fahren, trocken=wahl.trocken, port=wahl.server)
     else:
         zerleger.print_help()
 
