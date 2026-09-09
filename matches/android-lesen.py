@@ -44,21 +44,47 @@ Ehrlich dazugesagt: Automatisiertes Auslesen widerspricht den
 Nutzungsbedingungen beider Dienste, auch dieses. Das Risiko ist gering, aber
 nicht null, und es ist deins.
 
-Was vorher da sein muss
------------------------
+Zwei Arten zu laufen
+--------------------
 
-1. Auf dem Telefon: Einstellungen -> Telefoninfo -> Softwareinformationen ->
-   siebenmal auf "Buildnummer" tippen, dann Entwickleroptionen -> USB-Debugging.
-2. Auf dem Rechner: `adb` (Android Platform Tools). Kabel dran, auf dem Telefon
-   die Nachfrage bestaetigen.
-3. `adb devices` muss das Geraet zeigen. Sonst geht hier gar nichts.
+**Am Rechner**, per Kabel - der einfache Fall:
+
+1. Telefon: Einstellungen -> Telefoninfo -> Softwareinformationen -> siebenmal
+   auf "Buildnummer" tippen, dann Entwickleroptionen -> USB-Debugging.
+2. Rechner: `adb` (Android Platform Tools). Kabel dran, Nachfrage bestaetigen.
+3. `adb devices` muss das Geraet zeigen.
+
+**Auf dem Telefon selbst**, ohne Rechner. Seit Android 11 kann sich ein Geraet
+ueber das WLAN-Debugging selbst bedienen: adb laeuft in Termux und verbindet
+sich auf 127.0.0.1. Das Galaxy S21 kann das.
+
+1. F-Droid -> Termux. Darin: `pkg install android-tools python`
+2. Entwickleroptionen -> **WLAN-Debugging** einschalten.
+3. Dort *Geraet mit Kopplungscode koppeln* antippen. Es erscheinen ein
+   sechsstelliger Code und ein Port. In Termux, mit beidem:
+
+       python3 android-lesen.py --koppeln PORT CODE
+
+4. Zurueck in der Hauptansicht des WLAN-Debuggings steht ein **anderer** Port.
+   Damit:
+
+       python3 android-lesen.py --verbinden PORT
+
+   Gekoppelt wird einmal, verbunden nach jedem Neustart neu - der Port aendert
+   sich dabei jedes Mal. Das ist laestig und liegt an Android, nicht hier.
+5. `termux-wake-lock`, damit Termux im Hintergrund weiterlaeuft, waehrend du in
+   Bumble bist. Dann `--schauen` wie sonst.
 
 Herauskommt eine Datei im selben Format wie beim Browser-Mitleser, die die
-Match-Tabelle unter *Datenauskunft einlesen* nimmt.
+Match-Tabelle unter *Datenauskunft einlesen* nimmt. In Termux landet sie in
+den Downloads, wenn `termux-setup-storage` gelaufen ist - sonst muesste man sie
+aus dem Termux-Verzeichnis heraussuchen, an das der Browser nicht herankommt.
 """
 
 import argparse
 import json
+import os
+import pathlib
 import re
 import subprocess
 import sys
@@ -118,13 +144,65 @@ def adb(*args, binaer=False):
     return fertig.stdout if binaer else fertig.stdout.decode('utf-8', 'replace')
 
 
+def in_termux():
+    """Laufen wir auf dem Telefon selbst?"""
+    return 'TERMUX_VERSION' in os.environ or 'com.termux' in os.environ.get('PREFIX', '')
+
+
 def geraet_pruefen():
     zeilen = [z for z in adb('devices').splitlines()[1:] if z.strip()]
     angeschlossen = [z.split()[0] for z in zeilen if z.split()[1:2] == ['device']]
     if not angeschlossen:
+        if in_termux():
+            sys.exit('Kein Geraet. Auf dem Telefon selbst braucht es das WLAN-Debugging:\n'
+                     '  1. Entwickleroptionen -> WLAN-Debugging einschalten\n'
+                     '  2. "Geraet mit Kopplungscode koppeln" -> --koppeln PORT CODE\n'
+                     '  3. Port aus der Hauptansicht -> --verbinden PORT\n'
+                     'Nach jedem Neustart des Telefons ist Schritt 3 noetig, mit neuem Port.')
         sys.exit('Kein Geraet. `adb devices` zeigt nichts Verbundenes - Kabel dran, '
                  'Bildschirm entsperrt, die Nachfrage auf dem Telefon bestaetigt?')
     return angeschlossen[0]
+
+
+def koppeln(port, code):
+    """Einmalig: das Telefon mit sich selbst (oder dem Rechner) koppeln."""
+    print(adb('pair', f'127.0.0.1:{port}', code).strip())
+    print('Jetzt den *anderen* Port aus der Hauptansicht des WLAN-Debuggings nehmen '
+          'und --verbinden damit aufrufen.')
+
+
+def verbinden(port):
+    print(adb('connect', f'127.0.0.1:{port}').strip())
+    geraet_pruefen()
+    # Seit Android 12 raeumt das System "phantom processes" weg - Kindprozesse,
+    # die nicht zu einer sichtbaren App gehoeren. uiautomator ist genau so einer
+    # und wird sonst mitten im Zusehen abgeschossen. Einmal abschalten, sonst
+    # bricht das Sammeln nach ein paar Minuten ohne erkennbaren Grund ab.
+    try:
+        adb('shell', 'settings', 'put', 'global',
+            'settings_enable_monitor_phantom_procs', 'false')
+        print('Verbunden. (Die Aufsicht ueber Hintergrundprozesse ist abgeschaltet, '
+              'sonst beendet Android das Mitlesen nach wenigen Minuten von selbst.)')
+    except SystemExit:
+        print('Verbunden. Die Aufsicht ueber Hintergrundprozesse liess sich nicht '
+              'abschalten - bricht das Sammeln spaeter ab, ist das der Grund.')
+
+
+def ablageort(name):
+    """Wohin die Datei geschrieben wird.
+
+    In Termux in die Downloads, sofern `termux-setup-storage` gelaufen ist: Das
+    Termux-Verzeichnis liegt in den App-Daten, und der Browser, der die Datei
+    gleich einlesen soll, kommt dort nicht heran. Eine Datei, die man nicht
+    aufmachen kann, ist keine.
+    """
+    if in_termux():
+        downloads = pathlib.Path.home() / 'storage' / 'downloads'
+        if downloads.is_dir():
+            return downloads / name
+        print('Hinweis: `termux-setup-storage` ist nicht gelaufen - die Datei landet '
+              'im Termux-Verzeichnis, an das der Browser nicht herankommt.')
+    return pathlib.Path(name)
 
 
 def bildschirm():
@@ -264,7 +342,7 @@ def schauen(app, sekunden, ruhe):
         print('\nNichts gefunden. Einmal `--abzug` machen, waehrend ein Profil offen '
               'ist, und in der Datei nachsehen, wie die Texte dort heissen.')
         return
-    name = f'matches-{app}-{date.today().isoformat()}.json'
+    name = ablageort(f'matches-{app}-{date.today().isoformat()}.json')
     with open(name, 'w', encoding='utf-8') as datei:
         json.dump({
             'format': 'matches-mitlesen/1',
@@ -301,9 +379,17 @@ def main():
     zerleger.add_argument('--abzug', metavar='DATEI', help='den Bildschirm einmal abziehen')
     zerleger.add_argument('--takt', type=float, default=2.0, help='Sekunden zwischen zwei Blicken')
     zerleger.add_argument('--ruhe', type=float, default=90.0, help='Sekunden ohne Neues bis Schluss')
+    zerleger.add_argument('--koppeln', nargs=2, metavar=('PORT', 'CODE'),
+                          help='einmalig: WLAN-Debugging koppeln (auf dem Telefon selbst)')
+    zerleger.add_argument('--verbinden', metavar='PORT',
+                          help='nach jedem Neustart: mit dem WLAN-Debugging verbinden')
     wahl = zerleger.parse_args()
 
-    if wahl.abzug:
+    if wahl.koppeln:
+        koppeln(*wahl.koppeln)
+    elif wahl.verbinden:
+        verbinden(wahl.verbinden)
+    elif wahl.abzug:
         abzug(wahl.abzug)
     elif wahl.schauen:
         schauen(wahl.app, wahl.takt, wahl.ruhe)

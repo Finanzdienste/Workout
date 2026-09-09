@@ -113,6 +113,26 @@ pruefe(lesen.ernten(lesen.texte('<hierarchy></hierarchy>')) == [],
 pruefe(lesen.texte('kein xml') == [],
        'und etwas, das kein XML ist, auch nicht')
 
+# --- 8. Wohin die Datei geschrieben wird -------------------------------
+# Auf dem Telefon liegt das Termux-Verzeichnis in den App-Daten, und der
+# Browser, der die Datei gleich einlesen soll, kommt dort nicht heran. Eine
+# Datei, die man nicht aufmachen kann, ist keine.
+import os
+
+pruefe(not lesen.in_termux(), 'auf einem gewoehnlichen Rechner ist das kein Termux')
+pruefe(str(lesen.ablageort('x.json')) == 'x.json',
+       'und die Datei landet dort, wo das Programm laeuft')
+
+os.environ['TERMUX_VERSION'] = '0.118'
+try:
+    pruefe(lesen.in_termux(), 'in Termux wird Termux erkannt')
+    # Ohne `termux-setup-storage` gibt es ~/storage/downloads nicht - dann bleibt
+    # es beim Arbeitsverzeichnis, aber mit einem Hinweis statt stillschweigend.
+    ziel = lesen.ablageort('x.json')
+    pruefe(str(ziel).endswith('x.json'), f'und der Name bleibt derselbe ({ziel})')
+finally:
+    del os.environ['TERMUX_VERSION']
+
 print()
 if fehler:
     sys.exit(f'{fehler} Pruefung(en) fehlgeschlagen.')

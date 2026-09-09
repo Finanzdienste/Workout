@@ -94,11 +94,42 @@ Ein Programm, das im Sekundentakt durch fremde Profile blättert, ist genau das
 Muster, das auffällt – und ein falsch gesetzter Wisch ist auf einer Dating-App
 ein Like, das man nicht zurückholt.
 
+### Ohne Rechner, nur mit dem Telefon
+
+Seit Android 11 kann ein Gerät sich über das **WLAN-Debugging selbst bedienen**:
+`adb` läuft in Termux und verbindet sich auf `127.0.0.1`. Damit braucht der
+ganze Weg keinen Rechner und kein Kabel mehr.
+
+1. F-Droid → Termux. Darin: `pkg install android-tools python`, dann
+   `termux-setup-storage` (sonst landet die Datei in den App-Daten, wo der
+   Browser nicht herankommt).
+2. Entwickleroptionen → **WLAN-Debugging** einschalten.
+3. *Gerät mit Kopplungscode koppeln* antippen — Code und Port erscheinen:
+
+       python3 android-lesen.py --koppeln PORT CODE
+
+4. In der Hauptansicht des WLAN-Debuggings steht ein **anderer** Port:
+
+       python3 android-lesen.py --verbinden PORT
+
+5. `termux-wake-lock`, dann `--schauen` wie sonst. Die fertige Datei liegt in
+   den Downloads und lässt sich direkt in die Tabelle einlesen.
+
+Gekoppelt wird einmal, verbunden nach jedem Neustart neu — **der Port ändert
+sich dabei jedes Mal.** Das ist lästig und liegt an Android, nicht an diesem
+Programm.
+
+`--verbinden` schaltet außerdem die Aufsicht über *phantom processes* ab
+(`settings_enable_monitor_phantom_procs`). Seit Android 12 räumt das System
+Kindprozesse weg, die zu keiner sichtbaren App gehören — `uiautomator` ist genau
+so einer, und ohne diesen Griff bricht das Mitlesen nach ein paar Minuten ohne
+erkennbaren Grund ab.
+
 ### Was dafür nötig ist – und was ausdrücklich nicht
 
-Nötig: USB-Debugging auf dem Telefon (Einstellungen → Telefoninfo →
+Am Rechner: USB-Debugging auf dem Telefon (Einstellungen → Telefoninfo →
 Softwareinformationen → siebenmal auf *Buildnummer*, dann Entwickleroptionen),
-ein Rechner mit `adb`, ein Kabel. Sonst nichts.
+`adb`, ein Kabel. Auf dem Telefon allein: Termux und die vier Schritte oben.
 
 **Nicht nötig: Root.** Und das ist der Punkt, an dem sich die beiden Wege
 entscheiden. Den *Datenverkehr* der Apps mitzulesen wäre der andere – aber beide
