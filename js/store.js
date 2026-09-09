@@ -69,6 +69,25 @@ const DEFAULT_STATE = {
   supersatz: false,
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
+  // Körpergewicht, ein Wert je Tag: [{ on: 'YYYY-MM-DD', kg }], aufsteigend.
+  //
+  // Ein Array und nicht null: importJSON() prüft den Typ gegen die Vorgabe, und
+  // bei null liefe jede Prüfung ins Leere – eine halb passende Sicherung
+  // schriebe dann Fremdinhalt hierher.
+  //
+  // Im Hauptzustand und nicht in den Runden: Es ist eine Eigenschaft des
+  // Menschen, nicht des Plans, und muss einen Fokuswechsel überstehen – wie
+  // weights, bands und bwPlus.
+  //
+  // Es geht in keine Meldung. standZeile() in js/telemetry.js zählt ihre Felder
+  // einzeln auf; wer hier etwas ergänzt, ergänzt dort nichts. Das ist Absicht:
+  // Das Körpergewicht ist die persönlichste Zahl in dieser App und hat auf
+  // einem fremden Server nichts verloren.
+  koerper: [],
+  // Übungen, bei denen ein Steigerungsvorschlag abgelehnt wurde, mit dem
+  // Gewicht, bei dem das geschah: { exId: kg }. Ändert sich das Arbeitsgewicht,
+  // gilt das Nein nicht mehr – siehe reifeUebungen() in js/gewichte.js.
+  steigerungNein: {},
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)
   friends: {},           // zuletzt geschickter Stand anderer: { id: { n, w, s, kg, r, p, d, am } }
   customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}] }]
@@ -389,6 +408,79 @@ export function setWeight(exId, kg) {
   state.weights[exId] = v;
   persist();
   emit();
+  return v;
+}
+
+/* ------------------------------------------------------------------ *
+ * Körpergewicht
+ *
+ * Ein Wert je Tag, mehr nicht. Keine Uhrzeit (wer morgens und abends wiegt,
+ * misst den Unterschied zwischen zwei Mahlzeiten, nicht den zwischen zwei
+ * Wochen), keine Maße, keine Erinnerung ans Wiegen.
+ *
+ * Gebraucht wird es an zwei Stellen, und nur an zweien: Bei Klimmzügen und Dips
+ * steht damit in der Gewichtszeile, was wirklich hängt, und im Kaloriendefizit
+ * lässt sich ein Hantelgewicht, das sich hält, richtig einordnen.
+ *
+ * **Wo es ausdrücklich nicht hingehört:** in die Volumenrechnung (js/bilanz.js
+ * zählt kg × Wiederholungen), in progressSeries() und in die Tonnage, an der
+ * js/stufen.js den Stufenaufstieg misst. Klimmzüge mit 82 kg statt 0 gerechnet
+ * hätten binnen Tagen auf „Fortgeschritten" hochgestuft, ohne dass ein Gramm
+ * mehr bewegt worden wäre.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Die brauchbaren Einträge, aufsteigend – der einzige Zugang.
+ *
+ * Gefiltert wird hier und nicht bei jedem Leser, weil importJSON() es nicht
+ * kann: Der Import vergleicht nur die *Form* gegen die Vorgabe (Array bleibt
+ * Array), nie die Elemente. Eine Sicherung mit `koerper: [{on:'…', kg:null}]`
+ * kommt vollständig durch, und die Kurve ruft darauf `toFixed` – ein
+ * TypeError, der die ganze Statistik schwarz macht.
+ */
+export function koerperListe() {
+  return (state.koerper || [])
+    .filter((x) => x && typeof x.on === 'string' && Number.isFinite(x.kg) && x.kg > 0)
+    .sort((a, b) => (a.on < b.on ? -1 : a.on > b.on ? 1 : 0));
+}
+
+/** Der zuletzt eingetragene Wert, oder null. */
+export function koerperJetzt() {
+  const l = koerperListe();
+  return l.length ? l[l.length - 1] : null;
+}
+
+/**
+ * Einen Wert für einen Tag setzen – oder ihn wieder entfernen.
+ *
+ * `kg` null oder unbrauchbar heißt: Der Eintrag dieses Tages kommt weg. Ohne
+ * diesen Weg gäbe es keinen zurück – das Feld speichert bei jedem Zeichen, und
+ * ein leer geräumtes Feld hätte sonst den letzten Zwischenstand stehen lassen.
+ *
+ * Ohne emit(), wie addBwPlus(): Beim Tippen soll nichts neu gezeichnet werden,
+ * und an jeder Meldung hängt erinnerungPflegen() mit einem Schreibvorgang nach
+ * IndexedDB (js/app.js). Ein Schreibvorgang je getipptem Zeichen wäre Unsinn.
+ * Die Karte ist beim nächsten render() aktuell, und das reicht.
+ */
+export function setKoerper(kg, on = null) {
+  const tag = on || new Date().toISOString().slice(0, 10);
+  // Über koerperListe() und nicht über state.koerper: Das ist der einzige Ort,
+  // an dem gefiltert wird, und ein Schreibvorgang ist die beste Gelegenheit,
+  // eine importierte Liste ein für alle Mal sauber zu machen. Vorher stand hier
+  // `.filter((x) => !x || x.on !== tag)` – das *behielt* die kaputten Einträge
+  // (`!x` ist für null wahr) und lief zwei Zeilen später beim Sortieren in
+  // einen TypeError. Der neue Test hat es beim ersten Lauf gefunden.
+  const rest = koerperListe().filter((x) => x.on !== tag);
+  const v = Number.isFinite(kg) && kg > 0 ? Math.round(kg * 10) / 10 : null;
+  // Der Deckel ist keine Sparmaßnahme, sondern eine Abwägung mit offenem
+  // Ergebnis: write() serialisiert bei *jedem* persist() den gesamten Zustand
+  // außer rounds, und persist() hängt an jedem abgehakten Satz. Jeder Eintrag
+  // kostet rund 30 Byte; 400 sind gut 12 KB, die bei jedem Haken mitgeschrieben
+  // werden. Bei täglichem Wiegen reicht das für über ein Jahr.
+  state.koerper = (v === null ? rest : [...rest, { on: tag, kg: v }])
+    .sort((a, b) => (a.on < b.on ? -1 : a.on > b.on ? 1 : 0))
+    .slice(-400);
+  persist();
   return v;
 }
 

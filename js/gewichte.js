@@ -354,6 +354,203 @@ export function naechstesGewicht(exId, richtung) {
   return n === null ? jetzt : n;
 }
 
+/* ------------------------------------------------------------------ *
+ * Wann ein Gewicht reif ist
+ *
+ * Die App hat nie ein Arbeitsgewicht angehoben. `weights` wurde ausschließlich
+ * von Hand gepflegt, und der „Aufstieg" in js/stufen.js ist die Erfahrungs-
+ * stufe – der ändert Satzzahlen, keine Kilo. Ein Plan ohne Progression ist
+ * Erhaltung.
+ *
+ * **Womit gerechnet wird, und womit nicht.** Im Protokoll steht je Satz genau
+ * zweierlei: das benutzte Gewicht und ob er abgehakt ist (js/store.js, getSets).
+ * Kein Wiederholungsfeld – `r` gab es, es wurde nie beschrieben und ist raus.
+ * Keine Anstrengung – die Satzfrage stand einmal im Training und wurde auf
+ * Ansage entfernt (siehe den Kommentarblock in js/app.js). Damit bleibt genau
+ * ein Signal, und es ist ein schwaches: *alle Sätze standen, beim selben
+ * Gewicht, mehrmals hintereinander.*
+ *
+ * Das ist weniger, als eine klassische doppelte Progression hätte. Es ist aber
+ * das, was wirklich dasteht – und ein Vorschlag aus erfundenen Daten wäre
+ * schlimmer als keiner. Deshalb sagt der Hinweis in der Oberfläche selbst
+ * dazu, worauf er beruht: „Wie schwer die Sätze waren, weiß die App nicht –
+ * nur, dass alle standen."
+ *
+ * **Was hier bewusst nicht passiert: von selbst etwas ändern.** Dieselbe Regel
+ * wie in js/muster.js. Gerechnet wird hier, entschieden wird von Hand.
+ * ------------------------------------------------------------------ */
+
+/** Wie viele volle Termine ein Schritt braucht. */
+export const STEIGERUNG_REIF = 3;
+
+/**
+ * Bei kleinen Übungen einer mehr.
+ *
+ * 2,5 kg auf eine Kniebeuge sind ein Achtel, auf eine Seitheben-Kurzhantel über
+ * vierzig Prozent. Wo der kleinstmögliche Schritt prozentual groß ausfällt, darf
+ * er länger auf sich warten lassen.
+ */
+export const STEIGERUNG_REIF_GROSS = 4;
+
+/** Ab wann ein Schritt „groß" ist: ein Sechstel des Arbeitsgewichts. */
+export const STEIGERUNG_GROSS = 0.15;
+
+/**
+ * Und ab wann er gar nicht mehr angeboten wird.
+ *
+ * Mit grobem Eisen kann der nächste erreichbare Wert weit springen – wer nur
+ * 5er-Scheiben hat, geht bei beiden Kurzhanteln in Zehnerschritten je Hand. Ein
+ * Sprung, den die App selbst als unbaubar groß erkennt, ist kein Angebot,
+ * sondern eine Zumutung; dann schweigt sie, und der + Knopf steht ja weiter da.
+ */
+export const STEIGERUNG_DECKEL = 0.35;
+
+/** Wie viele Vorschläge höchstens auf einmal dastehen. */
+export const STEIGERUNG_ZEILEN = 2;
+
+/**
+ * Alle protokollierten Einheiten, jüngste zuerst – über Runden hinweg.
+ *
+ * Nicht nur `state.log`: wechsleFokus() schiebt das laufende Protokoll in die
+ * Ablage und holt eine frühere Runde des Zielfokus zurück. Wer nur das Log
+ * liest, dem reißt bei jedem Fokuswechsel die Reihe – derselbe Fehler, den
+ * lebenStats() in js/bilanz.js schon einmal repariert hat.
+ *
+ * Eigene Einheiten bleiben draußen, wie in js/muster.js: Ein Zusatztag, den die
+ * App selbst angelegt hat, soll keine Steigerung mitbelegen, um die niemand
+ * gebeten hat.
+ */
+export function protokollEinheiten() {
+  const s = store.getState();
+  const raus = [];
+  // Dieselbe Zeile wie istCustom() in js/plan.js, und sie steht hier statt
+  // eines Imports: js/plan.js importiert dieses Modul (ruestOrderStabil), ein
+  // Import zurück wäre ein Zyklus – und tools/pruefung/schichten.py prüft genau
+  // darauf. Eine Kennung ist eine eigene Einheit, wenn sie mit 'c' beginnt.
+  const eigene = (n) => typeof n === 'string' && n.startsWith('c');
+  const sammeln = (log, ersatzTag) => {
+    Object.entries(log || {}).forEach(([n, e]) => {
+      if (!e || eigene(n)) return;
+      raus.push({ tag: e.startedOn || ersatzTag || '', e });
+    });
+  };
+  // `r &&`, und das ist kein Vorsichtsritual: tests/test-gesamt.mjs schiebt der
+  // App absichtlich beschädigte Stände unter, und ein `rounds: [null]` steht in
+  // einer alten oder halb geschriebenen Sicherung schneller, als man denkt. Ohne
+  // die Prüfung war es kein leerer Verlauf, sondern eine leere App.
+  (s.rounds || []).forEach((r) => { if (r) sammeln(r.log, r.finishedOn); });
+  sammeln(s.log, null);
+  return raus.filter((x) => x.tag).sort((a, b) => (a.tag < b.tag ? 1 : a.tag > b.tag ? -1 : 0));
+}
+
+/**
+ * Was eine Übung in den protokollierten Einheiten gemacht hat, jüngste zuerst.
+ *
+ * Jeder Eintrag ist `{ tag, kg, voll }`. Einheiten, in denen für diese Übung
+ * **kein einziger Haken** steht, kommen gar nicht vor – und das ist die
+ * wichtigste Einzelentscheidung hier.
+ *
+ * Der Grund: getSets() legt beim Rendern für jede Übung der Einheit ein volles
+ * Satz-Array an, auch für eine, die man nur angesehen und dann übersprungen
+ * hat. Wer bloß `every(done)` prüft, wertet einen ausgefallenen Termin als
+ * Fehlversuch und bricht die Reihe. Dass Übungen regelmäßig ausfallen, ist
+ * keine Spekulation – js/muster.js existiert genau dafür. Also: „Eine Einheit,
+ * in der nichts steht, ist keine ausgelassene Übung, sondern ein ausgefallener
+ * Tag."
+ *
+ * Das Gewicht eines Auftritts ist das **kleinste** der abgehakten Sätze, nicht
+ * das erste: Wer nach dem ersten Satz von 40 auf 35 heruntergeht, hat 35
+ * gehalten. Heruntergehen ist ausdrücklich vorgesehen (siehe doneWeightNote).
+ */
+export function auftritte(exId, grenze = 12) {
+  const raus = [];
+  protokollEinheiten().some(({ tag, e }) => {
+    const arr = (e.db || {})[exId];
+    if (!Array.isArray(arr) || !arr.length) return false;
+    const fertig = arr.filter((s) => s && s.done);
+    if (!fertig.length) return false;             // angesehen, nicht gemacht
+    const kilos = fertig
+      .map((s) => parseFloat(String(s.w).replace(',', '.')))
+      .filter((x) => Number.isFinite(x) && x > 0);
+    if (!kilos.length) return false;              // ohne Zusatzlast – siehe unten
+    raus.push({ tag, kg: Math.min(...kilos), voll: arr.every((s) => s && s.done) });
+    return raus.length >= grenze;
+  });
+  return raus;
+}
+
+/**
+ * Wie oft zuletzt hintereinander alles stand, beim selben Gewicht.
+ *
+ * Gibt `{ mal, kg, seit }` oder null. Gezählt wird von der jüngsten Einheit
+ * rückwärts, und abgebrochen wird beim ersten Auftritt, der nicht voll war oder
+ * ein anderes Gewicht trug.
+ *
+ * `voll` heißt `arr.every(done)` über das gespeicherte Array, nicht gegen die
+ * *heutige* Satzzahl. Das ist die dokumentierte Falle aus js/store.js: getSets()
+ * kürzt nur leere Sätze am Ende, „eine Einstellung darf keine Trainingsgeschichte
+ * wegräumen". Ein damals volles Dreier-Array bleibt für immer 3/3 – auch nach
+ * einem Stufenaufstieg, und auch für abgelegte Runden, deren Plan gar nicht
+ * geladen ist.
+ *
+ * Zwei Dinge lassen die Reihe absichtlich reißen, ohne dass etwas kaputt ist:
+ * ein Stufenaufstieg (er verlängert die Satzzahl, und die nächste Einheit ist
+ * erst mit mehr Sätzen wieder voll) und jede Änderung des Arbeitsgewichts von
+ * Hand. Beides sind falsche Neins – die richtige Seite des Fehlers.
+ */
+export function serie(exId) {
+  const liste = auftritte(exId);
+  if (!liste.length) return null;
+  const kg = liste[0].kg;
+  let mal = 0;
+  for (const a of liste) {
+    if (!a.voll || Math.abs(a.kg - kg) > 1e-9) break;
+    mal += 1;
+  }
+  return mal ? { mal, kg, seit: liste[mal - 1].tag } : null;
+}
+
+/**
+ * Welche der übergebenen Übungen reif für einen Schritt sind.
+ *
+ * Übergeben wird die Liste der Übungen einer Einheit (die aufgelösten `it`),
+ * damit hier nichts über den Plan gewusst werden muss.
+ *
+ * Draußen bleiben:
+ *   * Übungen ohne Zusatzlast. chin-ups, pull-ups und inverted-row stehen mit
+ *     Gewicht 0 im Katalog; ein Haken sagt dort nichts über die Last, und ihr
+ *     eigener Katalogtext sagt „Zusatzgewicht erst, wenn 10 saubere stehen" –
+ *     ob zehn saubere stehen, misst die App nicht.
+ *   * Übungen, bei denen der Vorschlag schon abgelehnt wurde und sich seither
+ *     am Arbeitsgewicht nichts geändert hat.
+ *   * Sprünge über STEIGERUNG_DECKEL.
+ */
+export function reifeUebungen(items) {
+  const nein = store.getState().steigerungNein || {};
+  const raus = [];
+  (items || []).forEach((it) => {
+    const ex = EX_BY_ID.get(it.id);
+    if (!ex || !ex.weight) return;
+    const jetzt = workingWeight(it.id);
+    if (!Number.isFinite(jetzt) || jetzt <= 0) return;
+    if (Number.isFinite(nein[it.id]) && Math.abs(nein[it.id] - jetzt) < 1e-9) return;
+    const s = serie(it.id);
+    if (!s || Math.abs(s.kg - jetzt) > 1e-9) return;
+    const ziel = naechstesGewicht(it.id, 1);
+    if (!Number.isFinite(ziel) || ziel <= jetzt) return;
+    const anteil = (ziel - jetzt) / jetzt;
+    if (anteil > STEIGERUNG_DECKEL) return;
+    // Die Einteilung „groß/klein" rechnet am *laufenden* Arbeitsgewicht, nicht
+    // am Katalogwert. Sie wandert deshalb mit: Seitheben 6 → 7 kg sind 16,7 %
+    // und brauchen vier Termine, später 12 → 13 kg nur noch 8,3 % und drei.
+    // Das ist gewollt – der Sprung wird ja auch wirklich leichter.
+    const reif = anteil > STEIGERUNG_GROSS ? STEIGERUNG_REIF_GROSS : STEIGERUNG_REIF;
+    if (s.mal < reif) return;
+    raus.push({ id: it.id, name: (it.name || ex.id), jetzt, ziel, mal: s.mal, seit: s.seit });
+  });
+  return raus.sort((a, b) => b.mal - a.mal || a.name.localeCompare(b.name));
+}
+
 /** „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt. */
 export function ladeText(exId, kg) {
   const ex = EX_BY_ID.get(exId);
