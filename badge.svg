@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Workout">
+  <!--
+    Das kleine Symbol der Systemmeldung – und ausdruecklich nicht icon.svg.
+
+    **Warum eine eigene Datei.** Android zeichnet den `badge` nicht als Bild,
+    sondern als Schablone: Es nimmt allein den Alphakanal und faerbt ihn selbst
+    ein. icon-192.png hat einen deckenden Hintergrund, also war die ganze Kachel
+    undurchsichtig – in der Statusleiste stand ein weisser Kasten, und von der
+    Hantel war nichts zu sehen. („Das Zeichen oben ist aktuell nur n weisser
+    Kasten.") Hier gibt es deshalb keinen Hintergrund und keinen Farbverlauf,
+    nur die Form in voller Deckkraft.
+
+    **Warum gerade und nicht angeschraegt.** Das App-Symbol kippt die Hantel um
+    24 Grad, damit sie in Bewegung wirkt. Auf 24 Bildpunkten hilft das nicht,
+    es kostet: Die Schraege macht aus jeder Kante eine Treppe und schiebt die
+    Form in eine Ecke. Gerade und breit gesetzt bleibt sie auch klein noch eine
+    Hantel. Nachgemessen: 14 % der Flaeche deckend in der angeschraegten
+    Fassung, 16 % in dieser – und vor allem in einem Block statt als duenner
+    Strich quer durchs Bild.
+  -->
+  <g fill="#fff">
+    <!-- Griff -->
+    <rect x="152" y="226" width="208" height="60" rx="30"/>
+    <!-- innere Scheiben -->
+    <rect x="108" y="148" width="64" height="216" rx="28"/>
+    <rect x="340" y="148" width="64" height="216" rx="28"/>
+    <!-- aeussere Verschluesse -->
+    <rect x="44"  y="192" width="56" height="128" rx="26"/>
+    <rect x="412" y="192" width="56" height="128" rx="26"/>
+  </g>
+</svg>

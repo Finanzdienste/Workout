@@ -43,9 +43,14 @@ jobs:
     name: Einmal klopfen
     runs-on: ubuntu-latest
     steps:
+      # Node 24, nicht 20: GitHub hat 20 abgekuendigt und zwingt Laeufe ohnehin
+      # schon auf 24 – im Lauf vom 09.09. stand die Warnung zweimal im Protokoll.
+      # Solange dort eine abgekuendigte Fassung steht, ist dieser Ablauf einer,
+      # der eines Morgens ohne Zutun nicht mehr sendet. Genau das soll er nicht
+      # sein; deshalb steht die Fassung ueberhaupt fest.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Push senden
         env:

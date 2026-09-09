@@ -9997,8 +9997,10 @@ function planNote(secs, text) {
     const opt = {
       body: text,
       tag: NOTE_TAG,          // ersetzt eine ältere, statt sie zu stapeln
-      // Nur `badge`: Mit `icon` daneben zeichnet Android dieselbe Hantel zweimal.
-      badge: './icon-192.png',
+      // Nur `badge`, und nicht das App-Symbol: Mit `icon` daneben zeichnet
+      // Android dieselbe Hantel zweimal, und als Schablone taugt icon-192.png
+      // nicht – sie ist deckend, es bliebe ein weisser Kasten. Siehe badge.svg.
+      badge: './badge-96.png',
       vibrate: [180, 90, 180],
     };
     swReg().then((reg) => {
@@ -10006,6 +10008,25 @@ function planNote(secs, text) {
       else new Notification('Pause vorbei', opt);
     }).catch(() => {});
   }, Math.max(0, secs) * 1000);
+}
+
+/**
+ * Beim Verlassen der App: Wenn heute noch etwas ansteht, die Erinnerung wieder
+ * hinlegen.
+ *
+ * *„Mach so dass ich es nicht weg wischen kann."* Wegwischen selbst faengt der
+ * Worker schon ab – er zeigt die Meldung erneut. Die Lücke war eine andere: Wer
+ * sie *antippt*, um kurz etwas nachzusehen, hatte sie damit für den Tag
+ * verbraucht, ohne trainiert zu haben. Genau dieser Weg ist der wahrscheinliche.
+ *
+ * Deshalb sagt die Seite dem Worker beim Weggehen Bescheid, und der entscheidet
+ * wie sonst auch: nur wenn die Erinnerung an ist, die Uhrzeit erreicht, heute
+ * eine Einheit offen und „Heute nicht" nicht getippt. Ein Feuerwerk wird daraus
+ * nicht – die Meldung trägt eine feste Kennung und ersetzt sich selbst.
+ */
+function erinnerungNachlegen() {
+  if (!erinnerungAn().an) return;
+  navigator.serviceWorker?.controller?.postMessage({ typ: 'erinnerung-wieder' });
 }
 
 /** Dem Worker sagen, ob die App gerade vorn ist. */
@@ -15012,6 +15033,7 @@ document.addEventListener('visibilitychange', () => {
     // Ab hier zaehlt der Worker sichtbar mit – die Seite friert gleich ein.
     swSichtbar(false);
     store.flush();
+    erinnerungNachlegen();
     return;
   }
   store.clockStart();

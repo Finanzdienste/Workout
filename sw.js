@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v127';
+const VERSION = 'v128';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -54,6 +54,11 @@ const SHELL = [
   './js/merkzettel.js',
   './js/push.js',
   './icon.svg',
+  './badge.svg',
+  // Das kleine Symbol der Meldungen. Eigene Datei, weil Android den `badge`
+  // als Schablone nimmt: nur der Alphakanal zaehlt, und icon-192.png ist
+  // durchgehend deckend – in der Statusleiste stand ein weisser Kasten.
+  './badge-96.png',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
@@ -264,7 +269,7 @@ const ERINNERUNG_TAG = 'workout-erinnerung';
 function erinnerungZeigen(titel) {
   return self.registration.showNotification('Training steht an', {
     body: titel || 'Dein nächstes Workout wartet.',
-    badge: './icon-192.png',
+    badge: './badge-96.png',
     tag: ERINNERUNG_TAG,
     requireInteraction: true,
     actions: [{ action: 'heute-nicht', title: 'Heute nicht' }],
@@ -289,6 +294,11 @@ self.addEventListener('notificationclose', (event) => {
     const heute = heuteISO();
     if (zettel.wegAm === heute) return;      // „Heute nicht" – dann bleibt sie weg
     if (zettel.gemeldet !== heute) return;   // von gestern; die kommt nicht wieder
+    // Und nicht, wenn die Einheit inzwischen steht: Der Merkzettel zeigt dann
+    // auf den naechsten Termin, und der liegt in der Zukunft. Ohne diese Zeile
+    // haette die Erinnerung noch nach dem Training auf dem Bildschirm geklebt –
+    // die eine Lage, in der „nicht wegwischbar" wirklich nur noch nervt.
+    if (!zettel.tag || zettel.tag > heute) return;
     const offen = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (offen.some((c) => c.visibilityState === 'visible')) return;
     await erinnerungZeigen(daten.titel);
@@ -353,7 +363,7 @@ function pauseZeigen(rest) {
       body: `${pause.text} · weiter um ${uhr}`,
       tag: PAUSE_TAG,
       // Nur das kleine Symbol – zu `icon` siehe erinnerungZeigen().
-      badge: './icon-192.png',
+      badge: './badge-96.png',
       silent: true,          // sonst klingelt es jede Sekunde neu
       renotify: false,
       requireInteraction: true,
@@ -366,7 +376,7 @@ function pauseFertig() {
   return self.registration.showNotification('Pause vorbei', {
     body: pause.text,
     tag: PAUSE_TAG,
-    badge: './icon-192.png',
+    badge: './badge-96.png',
     vibrate: [180, 90, 180],
     requireInteraction: true,
   });
@@ -419,6 +429,28 @@ self.addEventListener('message', (event) => {
   } else if (m.typ === 'sichtbar') {
     if (pause) pause.sichtbar = !!m.an;
     if (m.an) event.waitUntil(pauseWeg());
+  } else if (m.typ === 'erinnerung-wieder') {
+    // Die Seite geht in den Hintergrund und sagt: Es steht noch etwas an.
+    //
+    // Ohne das war die Erinnerung nach einem Antippen weg – auch wenn danach
+    // nicht trainiert wurde. Wer sie oeffnet, um kurz etwas nachzusehen, hatte
+    // sie damit fuer den Tag verbraucht. *„Mach so dass ich es nicht weg
+    // wischen kann."* Sie bleibt jetzt, bis trainiert ist oder „Heute nicht"
+    // getippt wurde.
+    //
+    // Die Sichtbarkeitspruefung entfaellt hier absichtlich: Der Client meldet
+    // sich im selben Augenblick, in dem er verschwindet, und stuende dann in
+    // clients.matchAll() womoeglich noch als sichtbar.
+    event.waitUntil((async () => {
+      const zettel = await merkLesen();
+      if (!zettel.an) return;
+      const heute = heuteISO();
+      if (zettel.wegAm === heute) return;              // ausdruecklich abgesagt
+      if (!zettel.tag || zettel.tag > heute) return;   // heute steht nichts an
+      if (!zettel.zeigenAb || Date.now() < zettel.zeigenAb) return;   // noch zu frueh
+      await erinnerungZeigen(zettel.titel);
+      await merkSchreiben({ gemeldet: heute });
+    })());
   }
 });
 
@@ -429,19 +461,20 @@ self.addEventListener('message', (event) => {
 self.addEventListener('notificationclick', (event) => {
   const daten = event.notification.data || {};
   event.notification.close();
-  // Der Ausgang aus der Erinnerung: „Heute nicht" – oder sie zu oeffnen. Beides
-  // beendet sie fuer heute, sonst brachte sie der notificationclose-Zweig oben
-  // gleich wieder.
-  const beenden = daten.art === 'erinnerung';
-  const nurWeg = event.action === 'heute-nicht';
+  // Der eine Ausgang aus der Erinnerung ist „Heute nicht". Die App zu oeffnen
+  // ist keiner mehr: Wer sie antippt, um kurz etwas nachzusehen, hatte sie
+  // sonst fuer den Tag verbraucht, ohne trainiert zu haben. Beim Verlassen der
+  // App meldet sich die Erinnerung deshalb wieder (Nachricht
+  // „erinnerung-wieder" oben) – bis die Einheit steht.
+  const nurWeg = daten.art === 'erinnerung' && event.action === 'heute-nicht';
   event.waitUntil((async () => {
-    if (beenden) {
+    if (nurWeg) {
       await merkSchreiben({ wegAm: heuteISO() });
       if (self.navigator && self.navigator.clearAppBadge) {
         self.navigator.clearAppBadge().catch(() => {});
       }
+      return;
     }
-    if (nurWeg) return;
     const liste = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of liste) {
       if ('focus' in client) return client.focus();

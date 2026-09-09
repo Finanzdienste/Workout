@@ -105,24 +105,54 @@ const lauf = await worker.evaluate(async () => {
   await erinnerungZeigen('Workout 7 · 6 Übungen');
   ergebnis.meldung = gezeigt.slice();
 
-  // b) Weggewischt kommt sie zurück – aber nur, wenn sie von heute ist.
-  await merkSchreiben({ gemeldet: heute, wegAm: null });
+  // b) Weggewischt kommt sie zurück – aber nur, wenn sie von heute ist und
+  //    heute auch wirklich noch eine Einheit offen steht.
+  await merkSchreiben({ an: true, tag: heute, zeigenAb: 1, gemeldet: heute, wegAm: null });
   ergebnis.nachWischen = await ereignis('notificationclose', nutzlast);
+
+  // b2) Ist die Einheit erledigt, zeigt der Merkzettel auf den nächsten Termin –
+  //     und dann klebt die Meldung nicht weiter auf dem Bildschirm. Das ist die
+  //     eine Lage, in der „nicht wegwischbar" nur noch nerven würde.
+  await merkSchreiben({ tag: '2099-01-01', gemeldet: heute, wegAm: null });
+  ergebnis.nachTraining = await ereignis('notificationclose', nutzlast);
 
   // c) Ist „Heute nicht" vermerkt, bleibt sie weg. (Dass der Knopf den Vermerk
   //    setzt, steht weiter unten – ein nachgestelltes notificationclick bringt
   //    den Worker im Testlauf zum Stehen.)
-  await merkSchreiben({ gemeldet: heute, wegAm: heute });
+  await merkSchreiben({ tag: heute, gemeldet: heute, wegAm: heute });
   ergebnis.nachAbsage = await ereignis('notificationclose', nutzlast);
 
   // d) Eine Meldung von gestern schiebt nichts nach.
-  await merkSchreiben({ gemeldet: '2020-01-01', wegAm: null });
+  await merkSchreiben({ tag: heute, gemeldet: '2020-01-01', wegAm: null });
   ergebnis.zettel = await merkLesen();
   ergebnis.vonGestern = await ereignis('notificationclose', nutzlast);
 
   // e) Eine fremde Meldung – etwa die Pause – auch nicht.
-  await merkSchreiben({ gemeldet: heute, wegAm: null });
+  await merkSchreiben({ tag: heute, gemeldet: heute, wegAm: null });
   ergebnis.fremd = await ereignis('notificationclose', {});
+
+  // e2) Die App verlassen, ohne trainiert zu haben: Die Seite meldet sich, und
+  //     der Worker legt die Erinnerung wieder hin. Ohne das war sie nach einem
+  //     Antippen für den Tag verbraucht – der wahrscheinlichste Weg, sie
+  //     loszuwerden, ganz ohne Wischen.
+  const nachricht = async (typ) => {
+    gezeigt.length = 0;
+    const warten = [];
+    const ev = new Event('message');
+    ev.data = { typ };
+    ev.waitUntil = (p) => warten.push(p);
+    self.dispatchEvent(ev);
+    await Promise.all(warten);
+    return gezeigt.slice();
+  };
+  await merkSchreiben({ an: true, tag: heute, zeigenAb: 1, wegAm: null,
+                        titel: 'Workout 7 · 6 Übungen' });
+  ergebnis.beimWeggehen = await nachricht('erinnerung-wieder');
+  // Aber nicht nach „Heute nicht", und nicht vor der eingestellten Uhrzeit.
+  await merkSchreiben({ wegAm: heute });
+  ergebnis.weggehenAbgesagt = await nachricht('erinnerung-wieder');
+  await merkSchreiben({ wegAm: null, zeigenAb: Date.now() + 3600000 });
+  ergebnis.weggehenZuFrueh = await nachricht('erinnerung-wieder');
 
   // f) Die Pausenmeldung: derselbe Worker, dieselbe Frage nach dem Symbol.
   gezeigt.length = 0;
@@ -152,7 +182,9 @@ check(lauf.meldung.length === 1, `genau eine Meldung (${lauf.meldung.length})`);
 const m = lauf.meldung[0] || {};
 check(!m.icon,
   `kein grosses Symbol – sonst steht die Hantel zweimal da (icon: ${m.icon || 'leer'})`);
-check(/icon-192/.test(m.badge || ''), 'das kleine bleibt');
+check(/badge-96/.test(m.badge || ''),
+  `das kleine ist eine eigene Datei (${m.badge}) – icon-192.png ist deckend und `
+  + 'käme als weisser Kasten in der Statusleiste an');
 check(m.titel === 'Training steht an' && m.body === 'Workout 7 · 6 Übungen',
   'Titel und Text stehen richtig');
 check((m.actions || []).some((a) => a.action === 'heute-nicht'),
@@ -166,6 +198,18 @@ check(lauf.nachWischen.length === 1, `die Meldung steht wieder da (${lauf.nachWi
 check(lauf.nachWischen[0] && lauf.nachWischen[0].body === 'Workout 7 · 6 Übungen',
   'mit demselben Text');
 
+check(lauf.nachTraining.length === 0,
+  `nach getaner Einheit klebt sie nicht weiter (${lauf.nachTraining.length})`);
+
+// --- 4b. Die App verlassen, ohne trainiert zu haben ---------------------
+console.log('     beim Weggehen:', JSON.stringify(lauf.beimWeggehen[0] && lauf.beimWeggehen[0].body));
+check(lauf.beimWeggehen.length === 1,
+  `wer die App verlässt, ohne trainiert zu haben, findet sie wieder vor (${lauf.beimWeggehen.length})`);
+check(lauf.weggehenAbgesagt.length === 0,
+  'nach „Heute nicht" aber nicht');
+check(lauf.weggehenZuFrueh.length === 0,
+  'und vor der eingestellten Uhrzeit auch nicht – die Zeit gilt weiter');
+
 // --- 5. „Heute nicht" beendet sie wirklich ------------------------------
 check(lauf.nachAbsage.length === 0,
   `mit dem Vermerk bleibt sie weg (${lauf.nachAbsage.length}) – fest heisst nicht: nicht loszuwerden`);
@@ -178,12 +222,17 @@ check(lauf.zettel && lauf.zettel.wegAm !== undefined,
 // Der Zweig ist drei Zeilen lang; ihn dafür umzubauen wäre der falsche Preis.
 const swQuelle = await (await import('node:fs/promises'))
   .readFile((await import('node:path')).join((await import('./umgebung.mjs')).ROOT, 'sw.js'), 'utf8');
-check(/const nurWeg = event\.action === 'heute-nicht'/.test(swQuelle),
-  'der Knopf „Heute nicht" wird im Worker unterschieden');
+check(/const nurWeg = daten\.art === 'erinnerung' && event\.action === 'heute-nicht'/.test(swQuelle),
+  'der Knopf „Heute nicht" wird im Worker unterschieden – und nur an der Erinnerung');
 check(/merkSchreiben\(\{ wegAm: heuteISO\(\) \}\)/.test(swQuelle),
   'und schreibt den Vermerk, der die Meldung beendet');
-check(/if \(nurWeg\) return;/.test(swQuelle),
+check(/if \(nurWeg\) \{[\s\S]{0,300}return;\s*\}/.test(swQuelle),
   'er öffnet dabei die App nicht – wer „Heute nicht" tippt, will sie nicht sehen');
+// Und umgekehrt: Die App zu öffnen ist kein Ausgang mehr. Stünde hier noch ein
+// zweiter Zweig, der wegAm setzt, wäre die Erinnerung nach einem Antippen
+// wieder für den Tag verbraucht – genau die Lücke, um die es ging.
+check((swQuelle.match(/merkSchreiben\(\{ wegAm: heuteISO\(\) \}\)/g) || []).length === 1,
+  'und es gibt genau eine Stelle, die den Tag absagt');
 
 // --- 6. Was nicht nachgeschoben wird -----------------------------------
 check(lauf.vonGestern.length === 0,
@@ -196,8 +245,8 @@ console.log('     Pausenmeldung:', JSON.stringify(lauf.pause[0]));
 check(lauf.pause.length > 0 && /^Pause /.test(lauf.pause[0].titel || ''),
   `der Worker zählt die Pause herunter (${lauf.pause.length} Meldungen)`);
 check(lauf.pause.length > 0 && !lauf.pause[0].icon, 'und zeigt dabei ebenfalls nur ein Symbol');
-check(lauf.pause.length > 0 && /icon-192/.test(lauf.pause[0].badge || ''),
-  'das kleine bleibt auch hier');
+check(lauf.pause.length > 0 && /badge-96/.test(lauf.pause[0].badge || ''),
+  'dieselbe Schablone auch hier');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();
