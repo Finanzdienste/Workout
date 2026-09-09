@@ -206,7 +206,20 @@ def bericht(v, modus, m):
               f'{m["schnitt"][g]:>7.2f}{m["direkt"][g]:>8.1f}{m["frequenz"][g]:>7.2f}{spanne:>10}'
               f'{m["spitze"][g]:>12.2f}')
     if m['ohne_saetze']:
-        print('nicht im Plan:', ', '.join(m['ohne_saetze']))
+        # Kein Mangel, sondern eine Entscheidung. Der Katalog ist breiter als der
+        # Plan, und das soll er sein: Diese Uebungen stehen fuer eigene Workouts
+        # und als Ersatz im Verletzungsfilter bereit. In den Plan kommt eine
+        # Uebung nur, wenn sie ihn besser macht.
+        #
+        # Nachgemessen, als die fuenf neuen aufgenommen wurden: Eine
+        # Neuberechnung aller vier Varianten mit ihnen brachte 80 Regressionen
+        # gegenueber den eingecheckten Plaenen. Auf die Frage, ob sie trotzdem
+        # hineinsollen, kam die Ansage: *„Wir wollen immer die optimalen
+        # Uebungen. Wenn eine neue Uebung nicht optimal ist brauchen wir sie auch
+        # nicht auf Zwang reinbringen."* Damit ist diese Zeile eine Auskunft und
+        # keine offene Aufgabe.
+        print('bewusst nicht im Plan (Katalog ist breiter als der Plan):',
+              ', '.join(m['ohne_saetze']))
 
 
 def main():

@@ -295,9 +295,14 @@ check(/Was bei dir rumliegt/.test(text), 'die Eingabe steht unter Mehr');
 check(/Beide Kurzhanteln, je Hand:.*6,5/.test(text),
   'und zeigt die erreichbaren Gewichte – der Beleg, dass richtig eingetragen wurde');
 
-// Fehlt das Leergewicht der Stange, beginnt die Liste bei 0 kg. Die Schritte
-// stimmen dann trotzdem – es fehlt überall derselbe Sockel. Verschweigen wäre
-// das Schlimmste: Man liest brauchbare Zahlen und trainiert mit anderen.
+// Ein nicht eingetragenes Leergewicht wird geschätzt, nicht auf null gesetzt.
+//
+// Hier stand vorher das Gegenteil: Die Liste begann bei 0 kg und daneben eine
+// Mahnung, das Leergewicht nachzutragen. Umgestellt auf Ansage – *„Schätz doch
+// einfach die gewichte der Stangen und Hanteln."* – und die Ansage hat recht:
+// Eine Mahnung, die monatelang unbeachtet stehen bleibt, hat in der Zeit jeden
+// Vorschlag um das ganze Leergewicht verfälscht. Eine Schätzung mit dem Wort
+// „geschätzt" daneben ist die genauere Auskunft.
 await page.evaluate(() => {
   const st = JSON.parse(localStorage.getItem('workout.state.v1') || '{}');
   st.scheiben = { stange: { kh: null, lh: null }, scheiben: [[1.25, 8], [2.5, 4]] };
@@ -307,10 +312,33 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(400);
 const ohneStangeText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-check(/plus Stange/.test(ohneStangeText),
-  'ohne Leergewicht steht „plus Stange" dabei, statt 0 kg als Arbeitsgewicht auszugeben');
-check(/um genau diesen Betrag zu klein/.test(ohneStangeText),
-  'und wodurch die Zahlen daneben liegen – ein fester Sockel, kein Zufall');
+const kh = await page.evaluate(async () => (await import('./js/scheiben.js')).SCHAETZUNG.kh);
+console.log('     Schätzung Kurzhantelstange:', kh, '·', (ohneStangeText.match(/Beide Kurzhanteln[^k]*kg/) || [''])[0]);
+check(kh > 0, `es gibt einen Schätzwert für die Kurzhantelstange (${kh} kg)`);
+check(!/Beide Kurzhanteln, je Hand: 0 /.test(ohneStangeText),
+  'die Liste beginnt nicht mehr bei 0 – die Stange wiegt etwas, auch wenn niemand es eintippt');
+check(new RegExp(`Beide Kurzhanteln, je Hand: ${String(kh).replace('.', ',')}`).test(ohneStangeText),
+  `sondern beim geschätzten Leergewicht (${kh} kg)`);
+check(/geschätzt mit/.test(ohneStangeText),
+  'und es steht dabei, dass geschätzt wurde – sonst liest man die Zahlen als gemessen');
+check(!/plus Stange/.test(ohneStangeText),
+  'die alte Mahnung „plus Stange" ist weg: Es fehlt nichts mehr, es ist nur ungefähr');
+
+// Ein Tipp ersetzt die Schätzung durch eingetragene Werte – für beide Bauarten.
+const nachTipp = await page.evaluate(async () => {
+  document.querySelector('[data-act="stange-satz"][data-bau="olympia"]').click();
+  await new Promise((ok) => setTimeout(ok, 300));
+  const { normSatz, STANGE_SCHAETZUNG } = await import('./js/scheiben.js');
+  const store = await import('./js/store.js');
+  return { satz: normSatz(store.getState().scheiben).stange, soll: STANGE_SCHAETZUNG.olympia };
+});
+console.log('     nach dem Tipp:', JSON.stringify(nachTipp.satz));
+check(nachTipp.satz.lh === nachTipp.soll.lh && nachTipp.satz.sz === nachTipp.soll.sz
+  && nachTipp.satz.kh === nachTipp.soll.kh,
+  `„50 mm (Olympia)" trägt alle drei Stangen ein (${JSON.stringify(nachTipp.satz)})`);
+const nachTippText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(!/geschätzt mit/.test(nachTippText),
+  'danach wird nichts mehr geschätzt – eingetragen sticht angenommen');
 
 // Eine eingetragene 0 ist etwas anderes als ein leeres Feld: „In der App soll
 // 5 kg z. B. 2×2,5 Scheiben bedeuten." Der Sockel ist dann bekannt und in Kauf

@@ -8081,9 +8081,18 @@ function offenerAufstieg() {
  * dem vorhandenen Eisen überhaupt herauskommt, dann den Vorschlag darauf
  * einrasten.
  *
- * **Leer heißt: nicht raten.** Wer nichts einträgt, bekommt das alte Verhalten.
- * Ein erfundener Standardsatz wäre schlimmer als gar keiner: Er sähe aus wie
- * Wissen und wäre geraten.
+ * **Leer heißt: nicht raten – außer bei den Stangen.** Beim Scheibenvorrat gilt
+ * das weiter: Wer nichts einträgt, bekommt das alte Verhalten, denn ein
+ * erfundener Vorrat sähe aus wie Wissen und wäre geraten.
+ *
+ * Bei den Leergewichten der Stangen ist es umgekehrt entschieden worden, auf
+ * Ansage: *„Schätz doch einfach die gewichte der Stangen und Hanteln."* Und das
+ * ist auch die bessere Rechnung. Eine nicht eingetragene Stange wog bisher
+ * null – die Vorschläge waren damit um das ganze Leergewicht zu leicht, bei der
+ * Langhantel um rund acht Kilo. Zwischen „acht Kilo falsch" und „ein Kilo
+ * falsch, und es steht dabei, dass geschätzt wurde" ist die Schätzung nicht die
+ * unsauberere Antwort, sondern die genauere. Eingetragen sticht geschätzt immer;
+ * eine ausdrückliche 0 bleibt eine 0 (siehe normSatz: null ist nicht 0).
  *
  * **Ein Vorrat, mehrere Stangen.** Scheiben liegen nicht bei einer Hantel, sie
  * liegen im Raum und passen überall drauf: *„Ich kann ja alle Scheiben überall
@@ -8134,6 +8143,43 @@ const RASTER = {
 const STANGE_LABEL = {
   kh: 'Kurzhantelstange (eine)', sz: 'SZ-Stange', lh: 'Langhantel',
 };
+
+/**
+ * Was eine Stange wiegt, solange niemand es eingetragen hat.
+ *
+ * Zwei Bauarten, und der Unterschied ist keine Feinheit – zwischen einer
+ * 30-mm-Langhantel und einer olympischen liegen zwölf Kilo. Erkennbar sind sie
+ * am Loch der Scheiben: 30 mm ist der übliche Heimsatz, 50 mm die dicke
+ * Aufnahme aus dem Studio.
+ *
+ * **Warum 'standard' die Vorgabe ist**, und nicht die Mitte aus beidem: Der hier
+ * eingetragene Scheibensatz enthält Größen zu 0,5, 2 und 4 kg. Die gibt es in
+ * olympischer Bauart praktisch nicht; sie sind das Erkennungszeichen eines
+ * 30-mm-Heimsatzes. Das ist keine Sicherheit, aber es ist ein Indiz, und ein
+ * Indiz schlägt einen Münzwurf.
+ *
+ * Die Zahlen sind Mittelwerte gängiger Stangen einschließlich Verschlüssen –
+ * eine 180er 30-mm-Stange liegt je nach Hersteller zwischen 6 und 9 kg. Wer es
+ * genau will, legt sie einmal auf die Personenwaage und tippt die Zahl ein;
+ * danach wird nichts mehr geschätzt.
+ */
+const STANGE_SCHAETZUNG = {
+  standard: { kh: 2, sz: 5.5, lh: 8 },
+  olympia: { kh: 2.5, sz: 10, lh: 20 },
+};
+
+/** Die Schätzung, die gilt, solange nichts eingetragen ist. */
+const SCHAETZUNG = STANGE_SCHAETZUNG.standard;
+
+/**
+ * Welche Stangen gerade geschätzt sind – für die eine Zeile, die das sagt.
+ *
+ * Gefragt wird nur nach denen, die auch gebraucht werden: Ein Feld, das leer
+ * ist, weil es die Stange gar nicht gibt, ist kein Mangel. Deshalb nimmt die
+ * Anzeige die Liste der Geräte, die im Plan wirklich vorkommen.
+ */
+const geschaetzteStangen = (satz, welche = Object.keys(STANGE_LABEL)) =>
+  welche.filter((k) => !satz || !satz.stange || satz.stange[k] === null);
 
 /** Ein leerer Satz – nichts eingetragen, also rastet nichts. */
 const leererSatz = () => ({
@@ -8191,8 +8237,23 @@ function gepflegt(equip, satz) {
   return !!(RASTER[equip] && satz && Array.isArray(satz.scheiben) && satz.scheiben.length);
 }
 
-/** Das Leergewicht der Stange, an der dieses Gerät hängt. */
-const basisVon = (r, satz) => (r.stange ? (satz.stange[r.stange] || 0) : 0);
+/**
+ * Das Leergewicht der Stange, an der dieses Gerät hängt.
+ *
+ * Nicht eingetragen (null) heißt geschätzt, nicht null. Vorher stand hier
+ * `|| 0`, und damit fiel beides zusammen: Eine Langhantel, deren Gewicht
+ * niemand eingetippt hatte, wog für die Rechnung nichts – jeder Vorschlag war
+ * um acht Kilo zu leicht, ohne dass irgendwo etwas darauf hindeutete.
+ *
+ * Die 0 selbst bleibt erhalten: Wer ausdrücklich 0 einträgt, sagt „diese Stange
+ * zählt nicht mit", und das ist eine Aussage, keine Lücke.
+ */
+const basisVon = (r, satz) => {
+  if (!r.stange) return 0;
+  const eingetragen = satz.stange[r.stange];
+  return eingetragen === null || eingetragen === undefined
+    ? (SCHAETZUNG[r.stange] || 0) : eingetragen;
+};
 
 /**
  * Alle Gewichte, die sich mit dem vorhandenen Eisen einstellen lassen.
@@ -8313,8 +8374,9 @@ function belegungText(kg, equip, satz) {
   if (!b.length) {
     if (!r.stange) return '';
     // Zählt die Stange nicht mit (Leergewicht 0), ist „leere Stange" als
-    // Ansage sinnlos – dann ist die Aussage: gar nichts drauf.
-    const leer = (satz.stange[r.stange] || 0) === 0;
+    // Ansage sinnlos – dann ist die Aussage: gar nichts drauf. Eine geschätzte
+    // Stange wiegt etwas und ist damit eine Ansage.
+    const leer = basisVon(r, satz) === 0;
     return leer ? 'ohne Scheiben' : 'leere Stange';
   }
   const teile = b.map(([w, k]) => `${k}× ${fmtNum(w)}`).join(' + ');
@@ -12637,16 +12699,24 @@ function scheibenZeile(i, kg, anzahl) {
 function scheibenVorschau(equip, was, satz) {
   const liste = erreichbar(equip, satz);
   if (!liste) return '';
-  // Zwei verschiedene Fälle mit derselben Zahl davor, und sie auseinander-
-  // zuhalten ist der ganze Punkt:
+  // Drei Fälle mit derselben Zahl davor, und sie auseinanderzuhalten ist der
+  // ganze Punkt:
   //
-  //   Leergewicht fehlt   Die Schritte stimmen, aber es fehlt überall derselbe
-  //                       Sockel. Wer das nicht weiß, liest brauchbare Zahlen
-  //                       und trainiert mit anderen – also dazusagen.
-  //   Leergewicht ist 0   Eine Entscheidung: „In der App soll 5 kg z. B. 2×2,5
-  //                       Scheiben bedeuten." Der Sockel ist bekannt und in
-  //                       Kauf genommen. Da ist nichts zu mahnen.
-  const stangeFehlt = RASTER[equip]?.stange && satz.stange[RASTER[equip].stange] === null;
+  //   Leergewicht geschätzt  Niemand hat es eingetragen; seit *„Schätz doch
+  //                          einfach die gewichte der Stangen und Hanteln."*
+  //                          wird es angenommen statt auf null gesetzt. Die
+  //                          Zahlen sind damit ungefähr richtig statt sicher
+  //                          falsch – und das gehört dazugesagt, sonst liest man
+  //                          sie als gemessen.
+  //   Leergewicht ist 0      Eine Entscheidung: „In der App soll 5 kg z. B. 2×2,5
+  //                          Scheiben bedeuten." Der Sockel ist bekannt und in
+  //                          Kauf genommen. Da ist nichts zu mahnen.
+  //   Leergewicht steht da   Nichts zu sagen, die Zahlen stimmen.
+  const stangeGeschaetzt = RASTER[equip]?.stange
+    && satz.stange[RASTER[equip].stange] === null;
+  const schaetzNote = stangeGeschaetzt
+    ? ` <span class="muted">Leergewicht der ${esc(STANGE_LABEL[RASTER[equip].stange])}
+        geschätzt mit ${fmtNum(SCHAETZUNG[RASTER[equip].stange])} kg.</span>` : '';
   // Der Mangel zuerst. Vorher stand die Zahlenzeile vorn, und weil die eine
   // erreichbare Möglichkeit die leere Stange ist, fing sie mit einer 0 an: „Beide
   // Kurzhanteln, je Hand: 0 kg plus Stange". Formal richtig, gelesen aber als
@@ -12660,16 +12730,15 @@ function scheibenVorschau(equip, was, satz) {
       <span class="muted">Hier rechnet die App weiter in festen Schritten.</span></div>`;
   }
   if (liste[0] === 0) {
+    // Nur noch, wo wirklich nichts dazukommt: eine ausdrücklich mit 0
+    // eingetragene Stange oder ein Gerät ganz ohne (die Scheibe vor der Brust).
     const gezeigt = liste.slice(0, 10).map((w) => fmtNum(w)).join(' · ');
     return `<div class="hint">${esc(was)}: ${esc(gezeigt)}${liste.length > 10 ? ' …' : ''} kg
-      ${stangeFehlt
-        ? '<strong>plus Stange</strong> – trag ihr Leergewicht oben ein, sonst sind alle '
-          + 'Zahlen um genau diesen Betrag zu klein.'
-        : '<span class="muted">– reines Scheibengewicht, die Stange zählt nicht mit.</span>'}</div>`;
+      <span class="muted">– reines Scheibengewicht, die Stange zählt nicht mit.</span></div>`;
   }
   const gezeigt = liste.slice(0, 14).map((w) => fmtNum(w)).join(' · ');
   return `<div class="hint"><strong>${esc(was)}:</strong> ${esc(gezeigt)}`
-    + `${liste.length > 14 ? ' …' : ''} kg</div>`;
+    + `${liste.length > 14 ? ' …' : ''} kg${schaetzNote}</div>`;
 }
 
 function scheibenKarte() {
@@ -12698,10 +12767,27 @@ function scheibenKarte() {
           <div class="scheiben-zeile">
             <input type="text" inputmode="decimal" class="kg-val"
                    value="${esc(feldWert(satz.stange[k]))}"
+                   placeholder="${fmtNum(SCHAETZUNG[k])}"
                    data-act="scheiben-stange" data-satz="${k}"
                    aria-label="Gewicht der leeren ${esc(STANGE_LABEL[k])}">
             <span class="scheiben-mal">kg · ${esc(STANGE_LABEL[k])}</span>
           </div>`).join('')}
+        ${geschaetzteStangen(geprueft).length ? `
+        <div class="small muted" style="margin-top:6px">Geschätzt wird gerade:
+          ${geschaetzteStangen(geprueft).map((k) =>
+            `<b>${esc(STANGE_LABEL[k])} ${fmtNum(SCHAETZUNG[k])} kg</b>`).join(' · ')}.
+          Das ist näher dran als null: Eine Langhantel, die für die Rechnung nichts
+          wiegt, macht jeden Vorschlag um ihr ganzes Leergewicht zu leicht.
+          <b>Zwei Bauarten</b>, erkennbar am Loch der Scheiben:</div>
+        <div class="btn-row">
+          <button type="button" class="btn" data-act="stange-satz" data-bau="standard">
+            30 mm (Heimsatz)</button>
+          <button type="button" class="btn" data-act="stange-satz" data-bau="olympia">
+            50 mm (Olympia)</button>
+        </div>
+        <div class="small muted">Beides trägt die Werte fest ein, danach wird nichts mehr
+          geschätzt. Genau wird es erst, wenn du eine Stange einmal auf die Personenwaage
+          legst und die Zahl eintippst.</div>` : ''}
       </div>
 
       ${geprueft.scheiben.length ? `
@@ -15692,6 +15778,17 @@ view.addEventListener('click', (e) => {
       store.setSetting('aufwaermen', !store.getState().aufwaermen);
       render();
       break;
+    case 'stange-satz': {
+      // Ein Tipp statt drei Eingabefelder. Danach steht in jedem Feld eine
+      // eingetragene Zahl, und geschätzt wird nichts mehr – auch dann nicht,
+      // wenn die Zahl zufällig dieselbe ist wie die Schätzung: „eingetragen"
+      // und „angenommen" sind zwei verschiedene Aussagen, und die App sagt
+      // nur zu einer davon, sie sei ungefähr.
+      const bau = STANGE_SCHAETZUNG[t.dataset.bau];
+      if (bau) scheibenAendern((s) => { Object.assign(s.stange, bau); });
+      render();
+      break;
+    }
     case 'scheiben-plus': {
       // Eine leere Zeile wäre nach normSatz() sofort wieder weg (0 kg zählt
       // nicht). Deshalb kommt eine Größe dazu, die es noch nicht gibt.

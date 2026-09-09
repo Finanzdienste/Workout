@@ -12,9 +12,18 @@
  * dem vorhandenen Eisen überhaupt herauskommt, dann den Vorschlag darauf
  * einrasten.
  *
- * **Leer heißt: nicht raten.** Wer nichts einträgt, bekommt das alte Verhalten.
- * Ein erfundener Standardsatz wäre schlimmer als gar keiner: Er sähe aus wie
- * Wissen und wäre geraten.
+ * **Leer heißt: nicht raten – außer bei den Stangen.** Beim Scheibenvorrat gilt
+ * das weiter: Wer nichts einträgt, bekommt das alte Verhalten, denn ein
+ * erfundener Vorrat sähe aus wie Wissen und wäre geraten.
+ *
+ * Bei den Leergewichten der Stangen ist es umgekehrt entschieden worden, auf
+ * Ansage: *„Schätz doch einfach die gewichte der Stangen und Hanteln."* Und das
+ * ist auch die bessere Rechnung. Eine nicht eingetragene Stange wog bisher
+ * null – die Vorschläge waren damit um das ganze Leergewicht zu leicht, bei der
+ * Langhantel um rund acht Kilo. Zwischen „acht Kilo falsch" und „ein Kilo
+ * falsch, und es steht dabei, dass geschätzt wurde" ist die Schätzung nicht die
+ * unsauberere Antwort, sondern die genauere. Eingetragen sticht geschätzt immer;
+ * eine ausdrückliche 0 bleibt eine 0 (siehe normSatz: null ist nicht 0).
  *
  * **Ein Vorrat, mehrere Stangen.** Scheiben liegen nicht bei einer Hantel, sie
  * liegen im Raum und passen überall drauf: *„Ich kann ja alle Scheiben überall
@@ -67,6 +76,43 @@ export const RASTER = {
 export const STANGE_LABEL = {
   kh: 'Kurzhantelstange (eine)', sz: 'SZ-Stange', lh: 'Langhantel',
 };
+
+/**
+ * Was eine Stange wiegt, solange niemand es eingetragen hat.
+ *
+ * Zwei Bauarten, und der Unterschied ist keine Feinheit – zwischen einer
+ * 30-mm-Langhantel und einer olympischen liegen zwölf Kilo. Erkennbar sind sie
+ * am Loch der Scheiben: 30 mm ist der übliche Heimsatz, 50 mm die dicke
+ * Aufnahme aus dem Studio.
+ *
+ * **Warum 'standard' die Vorgabe ist**, und nicht die Mitte aus beidem: Der hier
+ * eingetragene Scheibensatz enthält Größen zu 0,5, 2 und 4 kg. Die gibt es in
+ * olympischer Bauart praktisch nicht; sie sind das Erkennungszeichen eines
+ * 30-mm-Heimsatzes. Das ist keine Sicherheit, aber es ist ein Indiz, und ein
+ * Indiz schlägt einen Münzwurf.
+ *
+ * Die Zahlen sind Mittelwerte gängiger Stangen einschließlich Verschlüssen –
+ * eine 180er 30-mm-Stange liegt je nach Hersteller zwischen 6 und 9 kg. Wer es
+ * genau will, legt sie einmal auf die Personenwaage und tippt die Zahl ein;
+ * danach wird nichts mehr geschätzt.
+ */
+export const STANGE_SCHAETZUNG = {
+  standard: { kh: 2, sz: 5.5, lh: 8 },
+  olympia: { kh: 2.5, sz: 10, lh: 20 },
+};
+
+/** Die Schätzung, die gilt, solange nichts eingetragen ist. */
+export const SCHAETZUNG = STANGE_SCHAETZUNG.standard;
+
+/**
+ * Welche Stangen gerade geschätzt sind – für die eine Zeile, die das sagt.
+ *
+ * Gefragt wird nur nach denen, die auch gebraucht werden: Ein Feld, das leer
+ * ist, weil es die Stange gar nicht gibt, ist kein Mangel. Deshalb nimmt die
+ * Anzeige die Liste der Geräte, die im Plan wirklich vorkommen.
+ */
+export const geschaetzteStangen = (satz, welche = Object.keys(STANGE_LABEL)) =>
+  welche.filter((k) => !satz || !satz.stange || satz.stange[k] === null);
 
 /** Ein leerer Satz – nichts eingetragen, also rastet nichts. */
 export const leererSatz = () => ({
@@ -124,8 +170,23 @@ export function gepflegt(equip, satz) {
   return !!(RASTER[equip] && satz && Array.isArray(satz.scheiben) && satz.scheiben.length);
 }
 
-/** Das Leergewicht der Stange, an der dieses Gerät hängt. */
-const basisVon = (r, satz) => (r.stange ? (satz.stange[r.stange] || 0) : 0);
+/**
+ * Das Leergewicht der Stange, an der dieses Gerät hängt.
+ *
+ * Nicht eingetragen (null) heißt geschätzt, nicht null. Vorher stand hier
+ * `|| 0`, und damit fiel beides zusammen: Eine Langhantel, deren Gewicht
+ * niemand eingetippt hatte, wog für die Rechnung nichts – jeder Vorschlag war
+ * um acht Kilo zu leicht, ohne dass irgendwo etwas darauf hindeutete.
+ *
+ * Die 0 selbst bleibt erhalten: Wer ausdrücklich 0 einträgt, sagt „diese Stange
+ * zählt nicht mit", und das ist eine Aussage, keine Lücke.
+ */
+const basisVon = (r, satz) => {
+  if (!r.stange) return 0;
+  const eingetragen = satz.stange[r.stange];
+  return eingetragen === null || eingetragen === undefined
+    ? (SCHAETZUNG[r.stange] || 0) : eingetragen;
+};
 
 /**
  * Alle Gewichte, die sich mit dem vorhandenen Eisen einstellen lassen.
@@ -246,8 +307,9 @@ export function belegungText(kg, equip, satz) {
   if (!b.length) {
     if (!r.stange) return '';
     // Zählt die Stange nicht mit (Leergewicht 0), ist „leere Stange" als
-    // Ansage sinnlos – dann ist die Aussage: gar nichts drauf.
-    const leer = (satz.stange[r.stange] || 0) === 0;
+    // Ansage sinnlos – dann ist die Aussage: gar nichts drauf. Eine geschätzte
+    // Stange wiegt etwas und ist damit eine Ansage.
+    const leer = basisVon(r, satz) === 0;
     return leer ? 'ohne Scheiben' : 'leere Stange';
   }
   const teile = b.map(([w, k]) => `${k}× ${fmtNum(w)}`).join(' + ');
