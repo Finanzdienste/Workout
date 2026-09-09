@@ -7,7 +7,7 @@ mit dem Trainingsplan außer dem Aussehen.
 Öffnen: `matches/index.html` über einen Webserver (ES-Module), im Betrieb also
 `…/matches/` auf derselben Adresse wie die Workout-App.
 
-## Drei Wege hinein, und warum es drei sind
+## Der eine Weg – und was es sonst noch gibt
 
 Das gehört an den Anfang, weil es die ganze Bedienung erklärt.
 
@@ -25,13 +25,23 @@ tut sie **passiv**: zusehen, nicht abfragen.
 
 | Weg | Für wen | Bringt |
 | --- | --- | --- |
-| [`mitlesen.user.js`](mitlesen.user.js) im Browser | Tinder (tinder.com) | Name, **Entfernung**, Match-Datum |
-| [`android-lesen.py`](android-lesen.py) am Telefon | Bumble, Hinge | Name, **Entfernung** |
+| **[`android-lesen.py`](android-lesen.py) am Telefon** | **alle drei, in einem Durchgang** | Name, **Entfernung** |
+| [`mitlesen.user.js`](mitlesen.user.js) im Browser | nur Tinder | zusätzlich das Match-Datum |
 | Datenauskunft einlesen | alle drei | Datum, Nachrichtenzahl, Stand |
 | Formular | alle drei | alles, in fünf Sekunden je Person |
 
+**Der Bildschirmleser ist der Hauptweg**, und zwar aus einem Grund, der erst
+beim Benutzen auffällt: Er interessiert sich nicht dafür, welche App gerade vorn
+ist – er liest Text. Also reicht *ein* Durchgang für alle drei. Du gehst durch
+Tinder, wechselst zu Bumble, dann zu Hinge; jede Zeile bekommt die App, die im
+Moment des Lesens den Fokus hatte. Am Ende liegt eine Datei da, nicht drei.
+
 Bumble hat seine Weboberfläche am 8. August 2026 abgeschaltet, Hinge hatte nie
-eine – deshalb für diese beiden der Weg über das Telefon.
+eine – im Browser ginge also ohnehin nur Tinder, und das auch nur mit einer
+zweiten Einrichtung (Firefox, Tampermonkey, Login auf tinder.com). Das
+Userscript bleibt trotzdem da: Es bringt für Tinder zusätzlich das Match-Datum,
+und es ist die Rückfalltür, falls eine App das Auslesen ihres Bildschirms
+irgendwann unterbindet.
 
 Was auf keinem Weg dazukommt, trägt man im Formular nach. Es ist darauf
 ausgelegt: Name, App, Zahl, Enter.
@@ -75,17 +85,27 @@ mit Namen und Entfernung ist eine Person), damit genau das selten nötig wird.
 
 Nichts davon verlässt den Browser.
 
-## Automatisch mitlesen – Bumble und Hinge, vom Telefon
+## Automatisch mitlesen – alle drei, vom Telefon
 
 `matches/android-lesen.py` liest den **Bildschirm** statt des Netzes. Android
 gibt über `uiautomator` den Textbaum der sichtbaren App heraus, und dort stehen
 Name und „4 km entfernt" als ganz gewöhnlicher Text.
 
-    python3 matches/android-lesen.py --schauen --app bumble
+    python3 matches/android-lesen.py --schauen
+
+Ohne weitere Angabe läuft es auf `--app auto`: Bei jedem Blick wird nachgesehen,
+welche App gerade den Fokus hat, und die gefundene Zeile bekommt deren Namen.
+Erkannt werden `com.tinder`, `com.bumble.app` und `co.hinge.app`; alles andere
+zählt als „Andere". Deshalb reicht **ein** Durchgang: durch Tinder gehen, zu
+Bumble wechseln, dann zu Hinge. Am Ende liegt eine Datei da, nicht drei, und die
+Tabelle sortiert alle zusammen nach Entfernung.
+
+Ohne diese Zuordnung wäre die Sache schlimmer als unbequem: Tinder-Matches
+lägen unter Bumble, und das sieht man der fertigen Tabelle nicht mehr an.
 
 Das Programm wischt und tippt nicht selbst. Es sieht alle zwei Sekunden nach,
 was auf dem Schirm steht. Du gehst durch deine Matches wie sonst auch und
-öffnest die Profile – die Entfernung steht bei beiden Apps dort, nicht in der
+öffnest die Profile – die Entfernung steht in allen drei Apps dort, nicht in der
 Liste. Am Ende liegt eine Datei da, die die Tabelle unter *Datenauskunft
 einlesen* nimmt.
 

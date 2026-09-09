@@ -1,15 +1,30 @@
 #!/usr/bin/env python3
-"""Liest Bumble und Hinge vom Bildschirm des Telefons mit.
+"""Liest Tinder, Bumble und Hinge vom Bildschirm des Telefons mit.
 
     python3 matches/android-lesen.py --schauen            # zusehen und sammeln
     python3 matches/android-lesen.py --abzug bumble.xml   # einmal abziehen, zum Nachsehen
+
+Ein Weg fuer alle drei
+----------------------
+
+Der Bildschirmleser interessiert sich nicht dafuer, welche App gerade vorn ist -
+er liest Text. Deshalb reicht **ein** Durchgang fuer alle drei: durch Tinder
+gehen, zu Bumble wechseln, dann zu Hinge. Jede gefundene Zeile bekommt die App,
+die im Moment des Lesens den Fokus hatte (siehe PAKETE weiter unten). Am Ende
+liegt eine Datei da, nicht drei.
+
+Fuer Tinder gibt es zusaetzlich matches/mitlesen.user.js im Browser. Das bringt
+dort auch das Match-Datum mit - aber es ist ein zweiter Weg mit eigener
+Einrichtung, und wer alle drei an einem Nachmittag erledigen will, braucht ihn
+nicht.
 
 Warum vom Bildschirm und nicht aus dem Netz
 -------------------------------------------
 
 Bumble hat seine Weboberflaeche am 8. August 2026 abgeschaltet, Hinge hatte nie
-eine. Damit faellt der Weg weg, den matches/mitlesen.user.js fuer Tinder geht.
-Bleiben zwei Moeglichkeiten, und sie sind sehr verschieden teuer:
+eine, und Tinder liegt ohnehin als App auf dem Telefon. Um an mehr zu kommen als
+an das, was auf dem Schirm steht, bleiben zwei Moeglichkeiten, und sie sind sehr
+verschieden teuer:
 
 *Den Datenverkehr der App mitlesen.* Beide Apps pruefen das Serverzertifikat
 gegen ihr eigenes. Ein Proxy dazwischen braucht also sein Zertifikat im
@@ -205,6 +220,42 @@ def ablageort(name):
     return pathlib.Path(name)
 
 
+"""Welche App gehoert zu welchem Paketnamen.
+
+Das ist der ganze Trick am einheitlichen Weg: Der Bildschirmleser interessiert
+sich nicht dafuer, welche App gerade vorn ist - er liest Text. Also kann
+derselbe Durchgang alle drei mitnehmen, wenn nur jede Zeile weiss, wo sie
+herkam. Und das steht im Paketnamen der App, die gerade den Fokus hat.
+"""
+PAKETE = {
+    'com.tinder': 'tinder',
+    'com.bumble.app': 'bumble',
+    'co.hinge.app': 'hinge',
+}
+
+APPS = {'tinder': 'Tinder', 'bumble': 'Bumble', 'hinge': 'Hinge', 'andere': 'Andere'}
+
+
+def vordergrund():
+    """Welche App ist gerade vorn? Rueckgabe: 'tinder' | 'bumble' | 'hinge' | 'andere'."""
+    # Auf dem Geraet greppen statt hier: `dumpsys window` ist einige hundert
+    # Kilobyte gross, und davon braucht es genau eine Zeile.
+    for befehl in (
+        "dumpsys activity activities | grep -m1 -E 'mResumedActivity|topResumedActivity'",
+        "dumpsys window | grep -m1 mCurrentFocus",
+    ):
+        try:
+            zeile = adb('shell', befehl)
+        except SystemExit:
+            continue
+        for paket, kuerzel in PAKETE.items():
+            if paket in zeile:
+                return kuerzel
+        if zeile.strip():
+            return 'andere'
+    return 'andere'
+
+
 def bildschirm():
     """Den Textbaum des gerade sichtbaren Bildschirms holen."""
     # `exec-out` statt `dump` plus `pull`: Das spart die Datei auf dem Telefon.
@@ -308,16 +359,34 @@ def ernten(stuecke):
 
 
 def schauen(app, sekunden, ruhe):
-    """Zusehen, bis nichts Neues mehr kommt."""
+    """Zusehen, bis nichts Neues mehr kommt.
+
+    `app` ist entweder eine feste Angabe oder 'auto'. Bei 'auto' wird bei jedem
+    Blick nachgesehen, welche App gerade vorn ist, und die Zeile bekommt deren
+    Namen. Das ist der Grund, warum ein einziger Durchgang fuer alle drei
+    reicht: Du gehst durch Tinder, wechselst zu Bumble, dann zu Hinge, und jede
+    Zeile weiss hinterher, wo sie herkam.
+    """
     geraet_pruefen()
     leute = {}
     letzte_neuigkeit = time.time()
-    print(f'Zusehen. Geh auf dem Telefon durch deine {app.capitalize()}-Matches und '
-          'oeffne die Profile - die Entfernung steht dort, nicht in der Liste.')
+    letzte_app = None
+
+    if app == 'auto':
+        print('Zusehen. Geh auf dem Telefon durch deine Matches - in Tinder, Bumble '
+              'und Hinge nacheinander, in beliebiger Reihenfolge.')
+    else:
+        print(f'Zusehen. Geh auf dem Telefon durch deine {app.capitalize()}-Matches.')
+    print('Wichtig: die Profile oeffnen. Die Entfernung steht dort, nicht in der Liste.')
     print('Beenden mit Strg+C, oder es hoert von selbst auf, wenn '
           f'{ruhe} Sekunden lang nichts Neues kommt.\n')
+
     try:
         while time.time() - letzte_neuigkeit < ruhe:
+            jetzt = vordergrund() if app == 'auto' else app
+            if app == 'auto' and jetzt != letzte_app:
+                print(f'  [{APPS.get(jetzt, jetzt)}]')
+                letzte_app = jetzt
             xml = bildschirm()
             if xml:
                 for person in ernten(texte(xml)):
@@ -328,7 +397,7 @@ def schauen(app, sekunden, ruhe):
                     leute[schluessel] = {
                         'name': person['name'],
                         'km': person['km'],
-                        'app': app,
+                        'app': jetzt,
                         'quelle': 'android',
                         'ungefaehr': person['ungefaehr'],
                     }
@@ -342,17 +411,23 @@ def schauen(app, sekunden, ruhe):
         print('\nNichts gefunden. Einmal `--abzug` machen, waehrend ein Profil offen '
               'ist, und in der Datei nachsehen, wie die Texte dort heissen.')
         return
-    name = ablageort(f'matches-{app}-{date.today().isoformat()}.json')
+
+    name = ablageort(f'matches-{date.today().isoformat()}.json')
     with open(name, 'w', encoding='utf-8') as datei:
         json.dump({
             'format': 'matches-mitlesen/1',
-            'app': app,
+            'app': 'gemischt' if app == 'auto' else app,
             'erzeugt': datetime.now(timezone.utc).isoformat(),
             'leute': list(leute.values()),
         }, datei, ensure_ascii=False, indent=1)
+
     mit_km = sum(1 for p in leute.values() if p['km'] is not None)
-    print(f'\n{name}: {len(leute)} Zeilen, {mit_km} mit Entfernung. '
-          'In der Match-Tabelle unter "Datenauskunft einlesen" auswaehlen.')
+    print(f'\n{name}: {len(leute)} Zeilen, {mit_km} mit Entfernung.')
+    for kuerzel, anzeige in APPS.items():
+        anzahl = sum(1 for p in leute.values() if p['app'] == kuerzel)
+        if anzahl:
+            print(f'  {anzeige}: {anzahl}')
+    print('In der Match-Tabelle unter "Datenauskunft einlesen" auswaehlen.')
 
 
 def abzug(ziel):
@@ -375,7 +450,9 @@ def abzug(ziel):
 def main():
     zerleger = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     zerleger.add_argument('--schauen', action='store_true', help='zusehen und sammeln')
-    zerleger.add_argument('--app', choices=['bumble', 'hinge', 'andere'], default='bumble')
+    zerleger.add_argument('--app', choices=['auto', 'tinder', 'bumble', 'hinge', 'andere'],
+                          default='auto',
+                          help='auto (Standard): je Zeile die App nehmen, die gerade vorn ist')
     zerleger.add_argument('--abzug', metavar='DATEI', help='den Bildschirm einmal abziehen')
     zerleger.add_argument('--takt', type=float, default=2.0, help='Sekunden zwischen zwei Blicken')
     zerleger.add_argument('--ruhe', type=float, default=90.0, help='Sekunden ohne Neues bis Schluss')

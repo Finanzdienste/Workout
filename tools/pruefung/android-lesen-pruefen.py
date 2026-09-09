@@ -113,7 +113,30 @@ pruefe(lesen.ernten(lesen.texte('<hierarchy></hierarchy>')) == [],
 pruefe(lesen.texte('kein xml') == [],
        'und etwas, das kein XML ist, auch nicht')
 
-# --- 8. Wohin die Datei geschrieben wird -------------------------------
+# --- 8. Welche App gerade vorn ist -------------------------------------
+# Der eine Durchgang fuer alle drei steht und faellt damit: Jede Zeile bekommt
+# die App, die im Moment des Lesens den Fokus hatte. Erkennt das nichts, landen
+# Tinder-Matches unter Bumble - eine Verwechslung, die man der fertigen Tabelle
+# nicht mehr ansieht.
+echtes_adb = lesen.adb
+FOKUS = {
+    'mResumedActivity: ActivityRecord{a1 u0 com.tinder/.MainActivity t42}': 'tinder',
+    'mCurrentFocus=Window{b2 u0 com.bumble.app/com.bumble.app.ui.MainActivity}': 'bumble',
+    'topResumedActivity=ActivityRecord{c3 u0 co.hinge.app/.MainActivity t7}': 'hinge',
+    'mCurrentFocus=Window{d4 u0 com.whatsapp/com.whatsapp.Main}': 'andere',
+}
+try:
+    for zeile, erwartet in FOKUS.items():
+        lesen.adb = lambda *a, _z=zeile, **k: _z
+        pruefe(lesen.vordergrund() == erwartet,
+               f'{erwartet}: aus {zeile.split()[0][:22]!r} … erkannt')
+    # Antwortet adb gar nicht, darf nichts geraten werden.
+    lesen.adb = lambda *a, **k: ''
+    pruefe(lesen.vordergrund() == 'andere', 'ohne Antwort bleibt es bei „andere", statt zu raten')
+finally:
+    lesen.adb = echtes_adb
+
+# --- 9. Wohin die Datei geschrieben wird -------------------------------
 # Auf dem Telefon liegt das Termux-Verzeichnis in den App-Daten, und der
 # Browser, der die Datei gleich einlesen soll, kommt dort nicht heran. Eine
 # Datei, die man nicht aufmachen kann, ist keine.
