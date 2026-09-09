@@ -295,14 +295,18 @@ check(/Was bei dir rumliegt/.test(text), 'die Eingabe steht unter Mehr');
 check(/Beide Kurzhanteln, je Hand:.*6,5/.test(text),
   'und zeigt die erreichbaren Gewichte – der Beleg, dass richtig eingetragen wurde');
 
-// Ein nicht eingetragenes Leergewicht wird geschätzt, nicht auf null gesetzt.
+// Ohne eingetragenes Leergewicht ist die Zahl das Scheibengewicht – und das ist
+// der Normalfall, nicht ein Versäumnis.
 //
-// Hier stand vorher das Gegenteil: Die Liste begann bei 0 kg und daneben eine
-// Mahnung, das Leergewicht nachzutragen. Umgestellt auf Ansage – *„Schätz doch
-// einfach die gewichte der Stangen und Hanteln."* – und die Ansage hat recht:
-// Eine Mahnung, die monatelang unbeachtet stehen bleibt, hat in der Zeit jeden
-// Vorschlag um das ganze Leergewicht verfälscht. Eine Schätzung mit dem Wort
-// „geschätzt" daneben ist die genauere Auskunft.
+//     „Wenn bei ner Übung aber 4kg steht mein ich damit 4kg Scheibengewicht
+//      gesamt. Da will ich nicht jedesmal die Stange mit zurechnen und so."
+//
+// Hier stand zweimal etwas anderes: erst eine Mahnung („trag ihr Leergewicht
+// ein, sonst sind alle Zahlen um genau diesen Betrag zu klein"), dann kurz eine
+// Schätzung, die die Stange stillschweigend aufschlug. Beides ging von derselben
+// falschen Annahme aus – dass die Zahl an einer Übung das Gesamtgewicht meint.
+// Geprüft wird deshalb ausdrücklich, dass nichts dazukommt und nichts gemahnt
+// wird.
 await page.evaluate(() => {
   const st = JSON.parse(localStorage.getItem('workout.state.v1') || '{}');
   st.scheiben = { stange: { kh: null, lh: null }, scheiben: [[1.25, 8], [2.5, 4]] };
@@ -312,37 +316,37 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(400);
 const ohneStangeText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-const kh = await page.evaluate(async () => (await import('./js/scheiben.js')).SCHAETZUNG.kh);
-console.log('     Schätzung Kurzhantelstange:', kh, '·', (ohneStangeText.match(/Beide Kurzhanteln[^k]*kg/) || [''])[0]);
-check(kh > 0, `es gibt einen Schätzwert für die Kurzhantelstange (${kh} kg)`);
-check(!/Beide Kurzhanteln, je Hand: 0 /.test(ohneStangeText),
-  'die Liste beginnt nicht mehr bei 0 – die Stange wiegt etwas, auch wenn niemand es eintippt');
-check(new RegExp(`Beide Kurzhanteln, je Hand: ${String(kh).replace('.', ',')}`).test(ohneStangeText),
-  `sondern beim geschätzten Leergewicht (${kh} kg)`);
-check(/geschätzt mit/.test(ohneStangeText),
-  'und es steht dabei, dass geschätzt wurde – sonst liest man die Zahlen als gemessen');
-check(!/plus Stange/.test(ohneStangeText),
-  'die alte Mahnung „plus Stange" ist weg: Es fehlt nichts mehr, es ist nur ungefähr');
+console.log('     ohne Leergewicht:', (ohneStangeText.match(/Beide Kurzhanteln[^–]*/) || [''])[0].trim());
+check(/Beide Kurzhanteln, je Hand: 0 /.test(ohneStangeText),
+  'die Liste beginnt bei 0 – ohne Scheiben liegen null Kilo Scheiben drauf');
+check(/Scheibengewicht, die Stange zählt nicht mit/.test(ohneStangeText),
+  'und die Zeile sagt, welche der beiden Rechnungen gilt');
+check(!/plus Stange|zu klein|geschätzt/.test(ohneStangeText),
+  'gemahnt und geschätzt wird nichts – leer lassen ist die Vorgabe, kein Versäumnis');
+check(/Leer lassen ist der Normalfall/.test(ohneStangeText),
+  'das steht auch bei den Eingabefeldern selbst');
 
-// Ein Tipp ersetzt die Schätzung durch eingetragene Werte – für beide Bauarten.
-const nachTipp = await page.evaluate(async () => {
-  document.querySelector('[data-act="stange-satz"][data-bau="olympia"]').click();
-  await new Promise((ok) => setTimeout(ok, 300));
-  const { normSatz, STANGE_SCHAETZUNG } = await import('./js/scheiben.js');
+// Wer Gesamtgewichte will, trägt ein Leergewicht ein. Dann zählt es überall mit,
+// und die Zeile sagt das dazu – sonst finge die Liste plötzlich woanders an.
+const mitStange = await page.evaluate(async () => {
   const store = await import('./js/store.js');
-  return { satz: normSatz(store.getState().scheiben).stange, soll: STANGE_SCHAETZUNG.olympia };
+  const { erreichbar, normSatz } = await import('./js/scheiben.js');
+  store.setSetting('scheiben', { stange: { kh: 2, lh: 20 }, scheiben: [[1.25, 8], [2.5, 4]] });
+  return erreichbar('dumbbells', normSatz(store.getState().scheiben)).slice(0, 3);
 });
-console.log('     nach dem Tipp:', JSON.stringify(nachTipp.satz));
-check(nachTipp.satz.lh === nachTipp.soll.lh && nachTipp.satz.sz === nachTipp.soll.sz
-  && nachTipp.satz.kh === nachTipp.soll.kh,
-  `„50 mm (Olympia)" trägt alle drei Stangen ein (${JSON.stringify(nachTipp.satz)})`);
-const nachTippText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-check(!/geschätzt mit/.test(nachTippText),
-  'danach wird nichts mehr geschätzt – eingetragen sticht angenommen');
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(400);
+const mitStangeText = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+console.log('     mit Leergewicht:', JSON.stringify(mitStange));
+check(mitStange[0] === 2,
+  `ein eingetragenes Leergewicht zählt mit (${mitStange.join(' · ')})`);
+check(/mit dem Leergewicht der Kurzhantelstange/.test(mitStangeText),
+  'und die Zeile nennt die andere Rechnung beim Namen');
 
-// Eine eingetragene 0 ist etwas anderes als ein leeres Feld: „In der App soll
-// 5 kg z. B. 2×2,5 Scheiben bedeuten." Der Sockel ist dann bekannt und in Kauf
-// genommen – da ist nichts zu mahnen. Dieselbe Liste, andere Ansage.
+// Eine eingetragene 0 ist dasselbe wie ein leeres Feld, nur ausdrücklich: „In
+// der App soll 5 kg z. B. 2×2,5 Scheiben bedeuten." Dieselbe Liste, dieselbe
+// Ansage – da war noch nie etwas zu mahnen.
 await page.evaluate(() => {
   const st = JSON.parse(localStorage.getItem('workout.state.v1') || '{}');
   st.scheiben = { stange: { kh: 0, lh: 0 }, scheiben: [[1.25, 8], [2.5, 4]] };
@@ -372,7 +376,7 @@ check(/SZ-Stange:/.test(szText), 'eingetragen steht sie mit ihren eigenen Zahlen
 check(/SZ-Stange: 7/.test(szText),
   `und beginnt bei ihrem Leergewicht, nicht bei dem der Langhantel (${
     (/SZ-Stange: [^k]{0,30}/.exec(szText) || [''])[0].trim()})`);
-check(/reines Scheibengewicht/.test(nullText),
+check(/Scheibengewicht, die Stange zählt nicht mit/.test(nullText),
   'stattdessen steht da, was die Zahl dann bedeutet');
 
 // Und die Rechnung dahinter: 5 kg sind dann genau zwei 2,5er.

@@ -36,8 +36,7 @@ import {
   aufwaermsaetze, doneWeightNote, meinSatz, naechstesGewicht, ruestCache, ruestHint,
   vorgezogen, workingWeight,
 } from './gewichte.js';
-import { RASTER, SCHAETZUNG, STANGE_LABEL, STANGE_SCHAETZUNG, erreichbar,
-  geschaetzteStangen, normSatz } from './scheiben.js';
+import { RASTER, STANGE_LABEL, erreichbar, normSatz, stangeZaehlt } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
 import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, lebenStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
@@ -2551,24 +2550,19 @@ function scheibenZeile(i, kg, anzahl) {
 function scheibenVorschau(equip, was, satz) {
   const liste = erreichbar(equip, satz);
   if (!liste) return '';
-  // Drei Fälle mit derselben Zahl davor, und sie auseinanderzuhalten ist der
-  // ganze Punkt:
+  // Zwei Rechnungen, und welche gilt, hängt daran, ob ein Leergewicht
+  // eingetragen ist:
   //
-  //   Leergewicht geschätzt  Niemand hat es eingetragen; seit *„Schätz doch
-  //                          einfach die gewichte der Stangen und Hanteln."*
-  //                          wird es angenommen statt auf null gesetzt. Die
-  //                          Zahlen sind damit ungefähr richtig statt sicher
-  //                          falsch – und das gehört dazugesagt, sonst liest man
-  //                          sie als gemessen.
-  //   Leergewicht ist 0      Eine Entscheidung: „In der App soll 5 kg z. B. 2×2,5
-  //                          Scheiben bedeuten." Der Sockel ist bekannt und in
-  //                          Kauf genommen. Da ist nichts zu mahnen.
-  //   Leergewicht steht da   Nichts zu sagen, die Zahlen stimmen.
-  const stangeGeschaetzt = RASTER[equip]?.stange
-    && satz.stange[RASTER[equip].stange] === null;
-  const schaetzNote = stangeGeschaetzt
-    ? ` <span class="muted">Leergewicht der ${esc(STANGE_LABEL[RASTER[equip].stange])}
-        geschätzt mit ${fmtNum(SCHAETZUNG[RASTER[equip].stange])} kg.</span>` : '';
+  //   kein Leergewicht   Scheibengewicht. Der Normalfall und die Vorgabe:
+  //                      *„Wenn bei ner Übung aber 4kg steht mein ich damit 4kg
+  //                      Scheibengewicht gesamt."* Da ist nichts zu mahnen –
+  //                      hier stand einmal „trag ihr Leergewicht ein, sonst sind
+  //                      alle Zahlen zu klein", und das war schlicht die falsche
+  //                      Annahme über das, was die Zahl bedeutet.
+  //   Leergewicht steht  Gesamtgewicht. Auch in Ordnung, nur eine andere
+  //                      Rechnung – und dann sagt die Zeile das dazu, damit die
+  //                      Liste nicht plötzlich woanders anfängt und keiner weiß,
+  //                      warum.
   // Der Mangel zuerst. Vorher stand die Zahlenzeile vorn, und weil die eine
   // erreichbare Möglichkeit die leere Stange ist, fing sie mit einer 0 an: „Beide
   // Kurzhanteln, je Hand: 0 kg plus Stange". Formal richtig, gelesen aber als
@@ -2581,16 +2575,13 @@ function scheibenVorschau(equip, was, satz) {
     return `<div class="hint">${esc(was)}: <strong>nichts aufzustecken</strong>${grund}
       <span class="muted">Hier rechnet die App weiter in festen Schritten.</span></div>`;
   }
-  if (liste[0] === 0) {
-    // Nur noch, wo wirklich nichts dazukommt: eine ausdrücklich mit 0
-    // eingetragene Stange oder ein Gerät ganz ohne (die Scheibe vor der Brust).
-    const gezeigt = liste.slice(0, 10).map((w) => fmtNum(w)).join(' · ');
-    return `<div class="hint">${esc(was)}: ${esc(gezeigt)}${liste.length > 10 ? ' …' : ''} kg
-      <span class="muted">– reines Scheibengewicht, die Stange zählt nicht mit.</span></div>`;
-  }
   const gezeigt = liste.slice(0, 14).map((w) => fmtNum(w)).join(' · ');
+  const rechnung = stangeZaehlt(satz, equip)
+    ? ` <span class="muted">– mit dem Leergewicht der
+        ${esc(STANGE_LABEL[RASTER[equip].stange])}.</span>`
+    : ' <span class="muted">– Scheibengewicht, die Stange zählt nicht mit.</span>';
   return `<div class="hint"><strong>${esc(was)}:</strong> ${esc(gezeigt)}`
-    + `${liste.length > 14 ? ' …' : ''} kg${schaetzNote}</div>`;
+    + `${liste.length > 14 ? ' …' : ''} kg${RASTER[equip].stange ? rechnung : ''}</div>`;
 }
 
 function scheibenKarte() {
@@ -2619,27 +2610,15 @@ function scheibenKarte() {
           <div class="scheiben-zeile">
             <input type="text" inputmode="decimal" class="kg-val"
                    value="${esc(feldWert(satz.stange[k]))}"
-                   placeholder="${fmtNum(SCHAETZUNG[k])}"
+                   placeholder="zählt nicht mit"
                    data-act="scheiben-stange" data-satz="${k}"
                    aria-label="Gewicht der leeren ${esc(STANGE_LABEL[k])}">
             <span class="scheiben-mal">kg · ${esc(STANGE_LABEL[k])}</span>
           </div>`).join('')}
-        ${geschaetzteStangen(geprueft).length ? `
-        <div class="small muted" style="margin-top:6px">Geschätzt wird gerade:
-          ${geschaetzteStangen(geprueft).map((k) =>
-            `<b>${esc(STANGE_LABEL[k])} ${fmtNum(SCHAETZUNG[k])} kg</b>`).join(' · ')}.
-          Das ist näher dran als null: Eine Langhantel, die für die Rechnung nichts
-          wiegt, macht jeden Vorschlag um ihr ganzes Leergewicht zu leicht.
-          <b>Zwei Bauarten</b>, erkennbar am Loch der Scheiben:</div>
-        <div class="btn-row">
-          <button type="button" class="btn" data-act="stange-satz" data-bau="standard">
-            30 mm (Heimsatz)</button>
-          <button type="button" class="btn" data-act="stange-satz" data-bau="olympia">
-            50 mm (Olympia)</button>
-        </div>
-        <div class="small muted">Beides trägt die Werte fest ein, danach wird nichts mehr
-          geschätzt. Genau wird es erst, wenn du eine Stange einmal auf die Personenwaage
-          legst und die Zahl eintippst.</div>` : ''}
+        <div class="small muted" style="margin-top:6px"><b>Leer lassen ist der Normalfall.</b>
+          Dann meint jede Zahl an einer Übung das Scheibengewicht, und du musst beim
+          Aufbauen nichts abziehen. Nur wer Gesamtgewichte will, trägt hier etwas ein –
+          dann rechnet die App die Stange überall mit.</div>
       </div>
 
       ${geprueft.scheiben.length ? `
@@ -5630,17 +5609,6 @@ view.addEventListener('click', (e) => {
       store.setSetting('aufwaermen', !store.getState().aufwaermen);
       render();
       break;
-    case 'stange-satz': {
-      // Ein Tipp statt drei Eingabefelder. Danach steht in jedem Feld eine
-      // eingetragene Zahl, und geschätzt wird nichts mehr – auch dann nicht,
-      // wenn die Zahl zufällig dieselbe ist wie die Schätzung: „eingetragen"
-      // und „angenommen" sind zwei verschiedene Aussagen, und die App sagt
-      // nur zu einer davon, sie sei ungefähr.
-      const bau = STANGE_SCHAETZUNG[t.dataset.bau];
-      if (bau) scheibenAendern((s) => { Object.assign(s.stange, bau); });
-      render();
-      break;
-    }
     case 'scheiben-plus': {
       // Eine leere Zeile wäre nach normSatz() sofort wieder weg (0 kg zählt
       // nicht). Deshalb kommt eine Größe dazu, die es noch nicht gibt.
