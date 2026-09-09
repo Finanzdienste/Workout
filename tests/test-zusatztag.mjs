@@ -175,6 +175,70 @@ check(/Workout \d+/.test(zurueck), `„Zurück zum Plan" führt in den Plan (${z
 z = await zustand();
 check(z.customs.length === 1, 'der Zusatztag bleibt dabei liegen – er ist ja nicht falsch');
 
+/* ------------------------------------------------------------------ *
+ * Ein Zusatztag überlebt seine Runde nicht
+ *
+ * *„Okay ist heute Zusatztag oder normaler übungstag?"* – Das Dashboard bot
+ * „Zusatztag Woche 1" an, der Kalender zeigte für denselben Tag Workout 1 des
+ * Cut-Plans. Beide hatten recht: Der Zusatztag stammte aus der Aufbau-Runde,
+ * die beim Fokuswechsel in die Ablage gewandert war. Er blieb stehen, und weil
+ * naechsteEinheit() ihn dem Plan vorzieht, war er die nächste Einheit.
+ * ------------------------------------------------------------------ */
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  // Eine Woche komplett, aber knapp – so entsteht ein Zusatztag.
+  const wochenEnde = 3;
+  PLAN.slice(0, wochenEnde).forEach((w) => store.completeWorkout(
+    w.n, 'db', w.ex.slice(0, 2).map((x) => ({ id: x.id, sets: x.sets }))));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(500);
+const frischAngelegt = await page.evaluate(async () => (await import('./js/store.js'))
+  .customs().filter((c) => /^Zusatztag Woche /.test(c.name)).map((c) => c.name));
+console.log('     frischAngelegt:', JSON.stringify(frischAngelegt));
+check(frischAngelegt.length >= 1, `nach einer knappen Woche steht ein Zusatztag da (${frischAngelegt.length})`);
+
+// Und jetzt die Runde weglegen, so wie es ein Fokuswechsel tut.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.restartPlan(0, null);
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(500);
+const nachAblage = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const text = document.getElementById('view').textContent.replace(/\s+/g, ' ');
+  return {
+    uebrig: store.customs().filter((c) => /^Zusatztag Woche /.test(c.name)).map((c) => c.name),
+    imDashboard: /Zusatztag Woche/.test(text),
+  };
+});
+console.log('     nach dem Weglegen der Runde:', JSON.stringify(nachAblage));
+check(nachAblage.uebrig.length === 0,
+  `der unberührte Zusatztag ist weg (${nachAblage.uebrig.join(', ') || 'keiner mehr'}) – er gehörte zu einer Runde, die es nicht mehr gibt`);
+check(!nachAblage.imDashboard,
+  'und das Dashboard bietet ihn nicht mehr als nächste Einheit an');
+
+// Ein *angefangener* bleibtStehen: Was abgehakt ist, wird nicht weggeräumt.
+const schonAngefasst = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { EXERCISES } = await import('./js/data.js');
+  const id = store.saveCustom({ name: 'Zusatztag Woche 9',
+    ex: [{ id: EXERCISES[0].id, sets: 2 }] });
+  // updateSet braucht die Satzzahl mit: Ohne sie legt getSets() kein Feld an,
+  // und Object.assign stolpert über undefined.
+  store.updateSet(id, 'db', EXERCISES[0].id, 2, 0, { done: true, w: '10' });
+  return id;
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(500);
+const bleibtStehen = await page.evaluate(async () => (await import('./js/store.js'))
+  .customs().some((c) => c.name === 'Zusatztag Woche 9'));
+check(bleibtStehen, 'ein angefangener Zusatztag bleibtStehen stehen – abgehakte Sätze räumt niemand weg');
+void schonAngefasst;
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();
+

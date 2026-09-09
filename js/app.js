@@ -3013,19 +3013,36 @@ function pruefeZusatztag() {
     if (block.some((x) => !completedMode(x.n))) return;
     ziel = w;
   });
-  if (!ziel) return false;
-  const name = `Zusatztag Woche ${ziel.nr}`;
-  if (store.customs().some((c) => c.name === name)) return false;
+  const name = ziel ? `Zusatztag Woche ${ziel.nr}` : null;
+
+  // **Erst aufräumen.** Ein unberührter Zusatztag gehört zu der Runde, aus der
+  // er gerechnet wurde. Wandert die in die Ablage – Fokuswechsel, Neustart,
+  // geänderter Plan –, blieb er bisher stehen. Und weil naechsteEinheit() ihn
+  // dem Plan vorzieht, war er danach die *nächste Einheit*:
+  //
+  //   „Okay ist heute Zusatztag oder normaler übungstag?" – Das Dashboard bot
+  //   „Zusatztag Woche 1" an (2 Übungen, 4 Sätze, Bauch), der Kalender zeigte
+  //   für denselben Tag Workout 1 des Cut-Plans (5 Übungen, 10 Sätze). Beide
+  //   hatten recht, und genau deshalb war es falsch: Der Zusatztag war aus der
+  //   Aufbau-Runde übrig, die beim Fokuswechsel weggelegt worden war.
+  //
+  // Weg muss deshalb jeder unberührte, der nicht zu einer Woche gehört, die
+  // *jetzt* gerade zu wenig bekommen hat. Angefangene bleiben: Was abgehakt
+  // ist, wird nicht weggeräumt.
+  let weg = 0;
+  store.customs()
+    .filter((c) => /^Zusatztag Woche /.test(c.name) && c.name !== name
+      && !store.isStarted(c.id))
+    .forEach((c) => { store.removeCustom(c.id); weg += 1; });
+
+  if (!ziel) return weg > 0;
+  if (store.customs().some((c) => c.name === name)) return weg > 0;
   // Die Merkliste `zusatzNein` ist mit dem Knopf „Brauch ich nicht" weggefallen.
   // Sie wird nicht mehr gelesen: Wer den Tag nicht will, macht die nächste
   // Planeinheit, und beim nächsten Wochenwechsel ersetzt ein neuer Zusatztag
   // den unberührten alten.
   const vorschlag = zusatztagEx(ziel, store.getState().mode);
-  if (!vorschlag) return false;
-
-  store.customs()
-    .filter((c) => /^Zusatztag Woche /.test(c.name) && !store.isStarted(c.id))
-    .forEach((c) => store.removeCustom(c.id));
+  if (!vorschlag) return weg > 0;
 
   store.saveCustom({ name, ex: vorschlag.ex });
   return true;
