@@ -92,6 +92,12 @@ for oberflaeche in ('Chat', 'Explore', 'Swipe', 'Verifizierungs-Badge', 'Hey',
     pruefe(lesen.als_name(oberflaeche) is None,
            f'{oberflaeche!r} nicht (aus demselben Lauf)')
 
+# Aus dem vierten Lauf: Tinders Profil-Schildchen. Sie sind der Form nach nicht
+# von Vornamen zu unterscheiden und standen deshalb in der Abfuhrliste.
+for schildchen in ('Heterosexuell', 'Monogamie', 'Sternzeichen', 'Steinbock',
+                   'Ernährung', 'Haustiere', 'Beziehungsziele'):
+    pruefe(lesen.als_name(schildchen) is None,
+           f'{schildchen!r} ist ein Profil-Schildchen, kein Name')
 pruefe(lesen.als_name('Berlin') is None, 'ein Stadtname gilt nicht als Vorname')
 pruefe(lesen.als_name('Nachrichten') is None, 'eine Knopfbeschriftung auch nicht')
 pruefe(lesen.als_name('Sie mag Klettern und lange Spaziergaenge') is None,

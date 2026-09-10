@@ -152,6 +152,24 @@ KEINE_NAMEN = {
     'chat', 'explore', 'swipe', 'sicherheitstools', 'profilfoto', 'hey',
     'verifizierungs-badge', 'esc', 'ctrl', 'alt', 'home', 'end', 'pgup', 'pgdn',
     'tab', 'shift', 'enter',
+    # Die Angaben, die Tinder unter dem Profil als Schildchen zeigt. Sie sehen
+    # der Form nach aus wie Vornamen - ein Wort, gross beginnend - und standen
+    # deshalb in der Abfuhrliste des vierten Laufs ("Heterosexuell, Monogamie").
+    # Falsch war daran nichts, aber gemeldet gehoert nur, was ein Name sein
+    # koennte, sonst sieht man die echten Fehlenden nicht mehr.
+    'heterosexuell', 'homosexuell', 'bisexuell', 'pansexuell', 'asexuell',
+    'demisexuell', 'queer', 'hetero', 'lesbisch', 'schwul',
+    'monogamie', 'monogam', 'polyamorie', 'polyamor', 'beziehungstyp',
+    'beziehungsziele', 'sternzeichen', 'persoenlichkeitstyp',
+    'persönlichkeitstyp', 'kommunikationsstil', 'liebessprache',
+    'ernaehrung', 'ernährung', 'haustiere', 'rauchen', 'trinken', 'training',
+    'bildung', 'kinderwunsch', 'grundlagen', 'lebensstil',
+    # Sternzeichen stehen in denselben Schildchen. Keines davon ist im
+    # deutschsprachigen Raum ein Vorname - dieselbe Schranke wie bei den
+    # Staedten unten.
+    'widder', 'stier', 'zwillinge', 'krebs', 'löwe', 'loewe', 'jungfrau',
+    'waage', 'skorpion', 'schütze', 'schuetze', 'steinbock', 'wassermann',
+    'fische',
     # Und die Staedte, die auf jedem Profil unter dem Namen stehen. Ohne sie
     # bekaeme die Entfernung im Zweifel den Wohnort als Namen angehaengt, und in
     # der Tabelle staende "Hamburg, 4 km" zwischen lauter Menschen.
