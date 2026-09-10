@@ -135,7 +135,15 @@ MEILEN_RE = re.compile(r'(\d+(?:[.,]\d+)?)\s*(mi|mile|miles|meilen)\b', re.I)
 UNGEFAEHR_RE = re.compile(r'weniger als|less than|under', re.I)
 
 # "Anna, 28" - Name und Alter stehen bei beiden Apps in einer Zeile.
-NAME_ALTER_RE = re.compile(r'^([^\d,]{2,30}?)\s*,\s*(\d{2})$')
+# "Anna, 28", aber auch das, was Tinder im geoeffneten Profil wirklich
+# hinschreibt: "Hannah, 26 Jahre alt" - und, als eigenes Textstueck daneben,
+# blosses "Hannah,". An diesen beiden Formen scheiterten fuenf angetippte
+# Profile: Der Name wurde nicht als Name erkannt, also gab es nichts, wohin die
+# gefundene Entfernung gehoert haette.
+NAME_ALTER_RE = re.compile(
+    r'^([^\d,]{2,30}?)\s*,'
+    r'(?:\s*(\d{1,3})(?:\s*(?:Jahre|Jahren|years?)(?:\s*(?:alt|old))?)?)?\s*$',
+    re.IGNORECASE)
 
 # Woerter, die auf einem Dating-Bildschirm gross geschrieben herumstehen, ohne
 # jemand zu sein. Die Liste ist kurz und muss es auch sein: Sie darf niemals
@@ -694,14 +702,29 @@ def als_name(text):
 def ernten(stuecke):
     """Aus einem Bildschirm die Paare (Name, Entfernung) lesen.
 
-    Gepaart wird ueber die Lage: Die Entfernung steht bei beiden Apps unter dem
-    Namen, im selben Block. Genommen wird deshalb der naechste Name *ueber* der
-    Entfernung - und nur, wenn er nah genug ist. Ohne diese Schranke bekaeme
-    eine Entfernung ganz unten im Profil den Namen aus der Kopfzeile angehaengt,
-    und das waere in einer Liste von Menschen die unangenehmste Art von Fehler.
+    Gepaart wird ueber die Lage: Die Entfernung steht unter dem Namen. Genommen
+    wird deshalb der naechste Name *ueber* der Entfernung - und in einer Liste
+    nur, wenn er nah genug ist. Ohne diese Schranke bekaeme dort eine Entfernung
+    weit unten den Namen aus der Kopfzeile angehaengt, und das waere in einer
+    Liste von Menschen die unangenehmste Art von Fehler.
+
+    Auf einem geoeffneten Profil gilt sie aber gerade nicht - und das war der
+    Fehler, an dem fuenf angetippte Profile keine einzige Entfernung ergaben.
+    Der Abzug am Galaxy S21 zeigte, warum:
+
+        [  111] 'Hannah, 26 Jahre alt'
+        [ 2063] '4 km entfernt'
+
+    1952 Bildpunkte dazwischen, also weit ueber der Schranke - und trotzdem
+    unverwechselbar, denn auf dem Bildschirm steht nur ein einziger Mensch.
+    Genau daran wird es jetzt entschieden: Ist nur ein Name da, gehoert ihm die
+    Entfernung, wie weit sie auch darunter steht. Sind es mehrere, bleibt es bei
+    der Schranke, denn dann ist Naehe das einzige, was die Zuordnung traegt.
     """
     namen = [(s, als_name(s['text'])) for s in stuecke]
     namen = [(s, n) for s, n in namen if n]
+    einzeln = len({n.lower() for _, n in namen}) == 1
+    schranke = float('inf') if einzeln else 600
     gefunden = []
 
     for stueck in stuecke:
@@ -712,7 +735,7 @@ def ernten(stuecke):
         kandidaten = [
             (stueck['oben'] - s['unten'], n)
             for s, n in namen
-            if s['unten'] <= stueck['oben'] + 10 and stueck['oben'] - s['unten'] < 600
+            if s['unten'] <= stueck['oben'] + 10 and stueck['oben'] - s['unten'] < schranke
         ]
         if not kandidaten:
             continue

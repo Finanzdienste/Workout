@@ -106,19 +106,32 @@ pruefe(lesen.als_name('Sie mag Klettern und lange Spaziergaenge') is None,
 pruefe(lesen.als_name('Anna') == 'Anna', 'ein Vorname dagegen schon')
 pruefe(lesen.als_name('Marie-Luise') == 'Marie-Luise', 'auch mit Bindestrich')
 
-# --- 3. Entfernung ohne Namen in der Naehe -----------------------------
-# Der Fall, der still falsch waere: Die Kopfzeile nennt einen Namen, und weit
-# unten im Profil steht eine Entfernung. Wer beides verbindet, erfindet eine
-# Angabe.
+# --- 3. Entfernung weit weg vom Namen ----------------------------------
+# Hier stand bis zum echten Abzug das Gegenteil: dass eine Entfernung 1840
+# Bildpunkte unter dem Namen NICHT zugeordnet werden darf. Das war eine
+# Vermutung ueber Bildschirme, die ich nie gesehen hatte, und sie war falsch -
+# im geoeffneten Profil stehen Name und Entfernung genau so weit auseinander.
+# Der Fall, der still falsch waere, ist ein anderer: mehrere Menschen auf einem
+# Schirm. Dann traegt nur die Naehe.
 xml = baum(
     ('Mira, 31', 200, 260),
+    ('Jana, 29', 700, 760),
     ('Ueber mich', 900, 950),
-    ('Sucht: etwas Ernstes', 1400, 1450),
     ('12 km entfernt', 2100, 2150),
 )
 gefunden = lesen.ernten(lesen.texte(xml))
 pruefe(not gefunden,
-       f'eine Entfernung 1840 Bildpunkte unter dem Namen wird nicht zugeordnet ({gefunden})')
+       f'stehen zwei Namen da, wird weit unten nichts zugeordnet ({gefunden})')
+
+# Steht nur einer da, ist es das geoeffnete Profil und die Zuordnung eindeutig.
+xml = baum(
+    ('Mira, 31', 200, 260),
+    ('Ueber mich', 900, 950),
+    ('12 km entfernt', 2100, 2150),
+)
+gefunden = lesen.ernten(lesen.texte(xml))
+pruefe([(p['name'], p['km']) for p in gefunden] == [('Mira', 12.0)],
+       f'steht nur einer da, gehoert sie ihm ({gefunden})')
 
 # --- 4. Nah genug ist nah genug ---------------------------------------
 xml = baum(('Mira, 31', 1500, 1560), ('12 km entfernt', 1900, 1950))
@@ -513,6 +526,50 @@ finally:
     lesen.vordergrund = echtes_vordergrund
     lesen.time.sleep = echtes_schlafen
     os.environ.pop('TERMUX_VERSION', None)
+
+# --- 15. Das geoeffnete Profil, Zeile fuer Zeile aus dem echten Abzug --
+# Fuenf angetippte Profile, keine einzige Entfernung. Der Abzug am Galaxy S21
+# zeigte, dass beides dastand - nur 1952 Bildpunkte auseinander, und damit weit
+# ueber der Schranke, die fuer Listen gedacht war.
+PROFIL = [
+    {'text': 'Hannah, 26 Jahre alt', 'oben': 111, 'unten': 180},
+    {'text': 'Hannah,', 'oben': 111, 'unten': 180},
+    {'text': '26', 'oben': 112, 'unten': 180},
+    {'text': 'Profil schließen', 'oben': 98, 'unten': 160},
+    {'text': 'Weitere Optionen', 'oben': 320, 'unten': 380},
+    {'text': 'Ich suche', 'oben': 1694, 'unten': 1750},
+    {'text': 'Nix Ernstes, offen für Festes', 'oben': 1758, 'unten': 1820},
+    {'text': 'Das Wichtigste', 'oben': 1963, 'unten': 2020},
+    {'text': '4 km entfernt', 'oben': 2063, 'unten': 2120},
+    {'text': 'Hamburg', 'oben': 2186, 'unten': 2240},
+    {'text': 'Weitere Optionen', 'oben': 1915, 'unten': 1970},
+]
+ernte = lesen.ernten(PROFIL)
+pruefe([(p['name'], p['km']) for p in ernte] == [('Hannah', 4.0)],
+       f'aus dem echten Profilabzug wird genau eine Zeile ({ernte})')
+
+# Die zweite Ursache, und die eigentliche: Auf dem Profil steht der Name so,
+# wie ihn niemand vorhergesehen hatte. Beides muss durchgehen.
+for wie_es_dasteht in ('Hannah, 26 Jahre alt', 'Hannah,'):
+    pruefe(lesen.als_name(wie_es_dasteht) == 'Hannah',
+           f'{wie_es_dasteht!r} ist Hannah - so schreibt Tinder es wirklich hin')
+for daneben in ('Nix Ernstes, offen für Festes', 'Das Wichtigste', 'Profil schließen'):
+    pruefe(lesen.als_name(daneben) is None,
+           f'{daneben!r} vom selben Bildschirm dagegen nicht')
+
+# Die Gegenprobe, ohne die der Fix eine Verschlechterung waere: Stehen mehrere
+# Menschen auf dem Schirm, traegt nur die Naehe - dann darf eine Entfernung
+# ganz unten NICHT den Namen aus der Kopfzeile bekommen.
+ZWEI = [
+    {'text': 'Hannah', 'oben': 111, 'unten': 180},
+    {'text': 'Jenny', 'oben': 400, 'unten': 460},
+    {'text': '4 km entfernt', 'oben': 2063, 'unten': 2120},
+]
+pruefe(lesen.ernten(ZWEI) == [],
+       'bei mehreren Namen bleibt die Schranke, und weit unten wird nichts gepaart')
+ZWEI_NAH = ZWEI[:2] + [{'text': '4 km entfernt', 'oben': 500, 'unten': 560}]
+pruefe([(p['name'], p['km']) for p in lesen.ernten(ZWEI_NAH)] == [('Jenny', 4.0)],
+       'nah darunter dagegen schon, und zwar beim naechsten Namen')
 
 print()
 if fehler:
