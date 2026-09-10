@@ -18,6 +18,7 @@ haengenbleibt, haette dort eine Zeile mit einem falschen Menschen erzeugt.
 
 import pathlib
 import sys
+import time
 
 HIER = pathlib.Path(__file__).resolve()
 sys.path.insert(0, str(HIER.parent.parent.parent / 'matches'))
@@ -477,6 +478,40 @@ finally:
     lesen.adb = echtes_adb
     lesen.offene_ports = echte_ports
     lesen.entwickleroptionen_oeffnen = echtes_oeffnen
+    os.environ.pop('TERMUX_VERSION', None)
+
+# --- 14. Ein Abzug von der falschen App ist kein Abzug -----------------
+# Am Telefon wird der Befehl in Termux getippt, also steht Termux vorn. Der
+# erste Abzug am echten Geraet bestand aus vierzehn Textstuecken, und alle
+# vierzehn waren die eigene Tastenleiste: ESC, CTRL, ALT, PGUP.
+vorn = ['andere', 'andere', 'tinder']
+gezogen = []
+echtes_bildschirm = lesen.bildschirm
+echtes_vordergrund = lesen.vordergrund
+echtes_schlafen = time.sleep
+try:
+    lesen.adb = lambda *a, **k: 'List of devices attached\n127.0.0.1:41111\tdevice\n'
+    lesen.vordergrund = lambda: vorn.pop(0) if vorn else 'tinder'
+    lesen.bildschirm = lambda: (gezogen.append(lesen.vordergrund()) or
+                                '<?xml version="1.0"?><hierarchy />')
+    lesen.time.sleep = lambda _s: None
+    os.environ['TERMUX_VERSION'] = '0.118'
+    lesen.abzug(os.devnull)
+    pruefe(vorn == [], 'es wird gewartet, bis eine der drei Apps vorn ist')
+    pruefe(gezogen == ['tinder'], 'und erst dann abgezogen')
+
+    # Kommt keine, wird trotzdem abgezogen - aber nach Ablauf, nicht sofort.
+    vorn.clear()
+    gezogen.clear()
+    lesen.vordergrund = lambda: 'andere'
+    lesen.abzug(os.devnull, warten=0)
+    pruefe(gezogen == ['andere'],
+           'kommt keine nach vorn, wird genommen was da ist - statt gar nichts')
+finally:
+    lesen.adb = echtes_adb
+    lesen.bildschirm = echtes_bildschirm
+    lesen.vordergrund = echtes_vordergrund
+    lesen.time.sleep = echtes_schlafen
     os.environ.pop('TERMUX_VERSION', None)
 
 print()

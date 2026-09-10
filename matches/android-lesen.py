@@ -1065,9 +1065,30 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
               'die Zeilen von selbst.')
 
 
-def abzug(ziel):
-    """Einmal alles abziehen, was auf dem Schirm steht - zum Nachsehen."""
+def abzug(ziel, warten=30.0):
+    """Einmal alles abziehen, was auf dem Schirm steht - zum Nachsehen.
+
+    Auf dem Telefon selbst steht im Augenblick des Aufrufs zwangslaeufig Termux
+    vorn - man tippt den Befehl ja dort. Der erste Abzug am echten Geraet
+    bestand denn auch aus vierzehn Textstuecken, und alle vierzehn waren Termux'
+    eigene Tastenleiste: ESC, CTRL, ALT, PGUP. Also wird gewartet, bis eine der
+    drei Apps vorn ist, statt zu nehmen, was gerade da ist.
+    """
     geraet_pruefen()
+    if in_termux():
+        print('Wechsle jetzt zu der App und oeffne den Bildschirm, um den es geht.')
+        print(f'Ich warte bis zu {warten:.0f} Sekunden und ziehe ab, sobald Tinder, '
+              'Bumble oder Hinge vorn steht.')
+        ende = time.time() + warten
+        while time.time() < ende:
+            if vordergrund() in PAKET_VON:
+                # Kurz warten: Ein gerade geoeffneter Bildschirm ist selten
+                # schon fertig aufgebaut, und ein halber Baum hilft niemandem.
+                time.sleep(1.5)
+                break
+            time.sleep(1)
+        else:
+            print('Keine der drei Apps kam nach vorn - ich ziehe ab, was da ist.')
     xml = bildschirm()
     if not xml:
         sys.exit('Kein Textbaum zu bekommen. Steht die App im Vordergrund?')
