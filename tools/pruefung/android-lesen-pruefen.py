@@ -350,6 +350,42 @@ finally:
     lesen.offene_ports = echte_ports
     os.environ.pop('TERMUX_VERSION', None)
 
+# --- 11. Eine Berechtigung, die nicht ankommt, ist keine ---------------
+# `pm grant` bricht nicht auf jedem Android ab, wenn die App die Berechtigung
+# gar nicht anfordert - und genau darin steckt Termux selbst fest. Wer sich auf
+# die Meldung verlaesst, baut eine Automatik, die stillschweigend nichts tut und
+# beim naechsten Neustart trotzdem nach dem Schalter verlangt.
+lage2 = {'vergeben': False, 'gefragt': []}
+
+
+def adb_mit_grant(*args, **kw):
+    if args[:1] == ('devices',):
+        return 'List of devices attached\n127.0.0.1:41111\tdevice\n'
+    if args[:3] == ('shell', 'pm', 'grant'):
+        lage2['gefragt'].append(args[3])
+        return ''
+    if args[:3] == ('shell', 'dumpsys', 'package'):
+        return ('    android.permission.WRITE_SECURE_SETTINGS: granted=true\n'
+                if lage2['vergeben'] else '    android.permission.INTERNET: granted=true\n')
+    return ''
+
+
+try:
+    lesen.adb = adb_mit_grant
+    try:
+        lesen.freischalten('com.termux')
+        pruefe(False, 'eine nicht angekommene Berechtigung wird gemeldet')
+    except SystemExit as fehlschlag:
+        pruefe('nicht als vergeben' in str(fehlschlag),
+               'eine nicht angekommene Berechtigung wird gemeldet, statt sie zu behaupten')
+
+    lage2.update(vergeben=True, gefragt=[])
+    lesen.freischalten('com.arlosoft.macrodroid')
+    pruefe(lage2['gefragt'] == ['com.arlosoft.macrodroid'],
+           'und gefragt wird genau fuer das genannte Paket')
+finally:
+    lesen.adb = echtes_adb
+
 print()
 if fehler:
     sys.exit(f'{fehler} Pruefung(en) fehlgeschlagen.')

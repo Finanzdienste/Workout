@@ -288,6 +288,48 @@ def phantom_aus():
               'bricht das Lesen spaeter ab, ist das der Grund.)')
 
 
+def freischalten(paket):
+    """Einer App erlauben, das WLAN-Debugging von sich aus einzuschalten.
+
+    Android schaltet "Debugging ueber WLAN" bei jedem Neustart ab und ausserdem,
+    sobald das WLAN weggeht. Das ist kein Versehen, sondern der Zweck des
+    Schalters: Er ist die Tuer, durch die ein fremdes Geraet auf dieses hier
+    zugreifen darf. Von aussen laesst sich der Schalter nur mit
+    WRITE_SECURE_SETTINGS umlegen, und die vergibt allein adb - eine
+    adb-Verbindung haben wir hier aber gerade. Vergeben bleibt sie ueber
+    Neustarts hinweg; sie muss also genau einmal vergeben werden.
+
+    Termux selbst kommt dafuer nicht in Frage: Eine Berechtigung, die eine App
+    nicht in ihrem Manifest anfordert, kann ihr auch adb nicht geben. Es braucht
+    eine App, die sie anfordert - MacroDroid und Tasker tun das - und die einen
+    Ausloeser fuer "Neustart" oder "WLAN verbunden" hat.
+    """
+    geraet_pruefen()
+    print(f'{paket} soll WRITE_SECURE_SETTINGS bekommen.')
+    print('Das ist keine kleine Berechtigung: Die App darf danach *jede*')
+    print('geschuetzte Systemeinstellung aendern, nicht nur das WLAN-Debugging.')
+    print('Zuruecknehmen: adb shell pm revoke ' + paket +
+          ' android.permission.WRITE_SECURE_SETTINGS')
+    print()
+    try:
+        adb('shell', 'pm', 'grant', paket, 'android.permission.WRITE_SECURE_SETTINGS')
+    except SystemExit as fehlschlag:
+        sys.exit(str(fehlschlag) + '\n\nFordert die App die Berechtigung ueberhaupt an? '
+                 'Wenn nicht, kann adb sie\nnicht vergeben - das gilt auch fuer Termux '
+                 'selbst und fuer Termux:API.')
+
+    # `pm grant` meldet nicht auf jedem Android einen Fehler, wenn nichts
+    # geschehen ist. Deshalb wird nachgesehen statt geglaubt.
+    if 'WRITE_SECURE_SETTINGS: granted=true' not in adb('shell', 'dumpsys', 'package', paket):
+        sys.exit('Die Berechtigung steht hinterher nicht als vergeben da. Fordert die '
+                 'App sie an?')
+    print('Vergeben. Jetzt in der App eine Regel anlegen:')
+    print('  Ausloeser: Geraet gestartet - und, wenn es die App kann, WLAN verbunden')
+    print('  Aktion:    globale Einstellung  adb_wifi_enabled = 1')
+    print('Danach schaltet sich das WLAN-Debugging selbst ein, und dieses Programm')
+    print('sucht sich den Port. Von Hand bleibt dann nichts mehr.')
+
+
 def koppeln(port, code):
     """Einmalig: das Telefon mit sich selbst (oder dem Rechner) koppeln."""
     print(adb('pair', f'127.0.0.1:{port}', code).strip())
@@ -940,6 +982,9 @@ def main():
                                'gebraucht')
     zerleger.add_argument('--koppeln', nargs=2, metavar=('PORT', 'CODE'),
                           help='einmalig: WLAN-Debugging koppeln (auf dem Telefon selbst)')
+    zerleger.add_argument('--freischalten', metavar='PAKET',
+                          help='einer App (z. B. com.arlosoft.macrodroid) erlauben, das '
+                               'WLAN-Debugging selbst einzuschalten - weitreichend')
     zerleger.add_argument('--verbinden', nargs='?', const='', metavar='PORT',
                           help='von Hand verbinden; noetig ist das nicht mehr, '
                                '--schauen und --fahren verbinden sich selbst')
@@ -955,6 +1000,8 @@ def main():
         einrichten(wahl.einrichten)
     elif wahl.koppeln:
         koppeln(*wahl.koppeln)
+    elif wahl.freischalten:
+        freischalten(wahl.freischalten)
     elif wahl.verbinden is not None:
         verbinden(wahl.verbinden or None)
     elif wahl.abzug:

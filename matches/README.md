@@ -181,11 +181,46 @@ steht danach unter *Gekoppelte Geräte*. Was der Kopplungsdialog anzeigt, ist
 dagegen jedes Mal neu und nur Sekunden gültig — das ist die Kopplung selbst
 nicht.
 
-Bleibt Schritt 2, der Schalter **Debugging über WLAN**: Den schaltet Android
-bei jedem Neustart des Telefons ab, und daran lässt sich von außen nichts
-ändern — es ist genau der Schalter, der fremden Zugriff erlaubt. Als Kachel in
-den Schnelleinstellungen ist es ein Tipp (Schnelleinstellungen → Bearbeiten →
-*WLAN-Debugging*).
+Bleibt Schritt 2, der Schalter **Debugging über WLAN**. Der geht öfter aus, als
+man denkt: bei jedem Neustart, bei jedem Abschalten des WLANs, und nach längerer
+Untätigkeit. Als Kachel in den Schnelleinstellungen ist es ein Tipp
+(Schnelleinstellungen → Bearbeiten → *WLAN-Debugging*), und das ist der Weg, den
+dieses Programm empfiehlt.
+
+#### Und wenn auch dieser Tipp weg soll
+
+Er lässt sich automatisieren, aber nicht von hier aus. Der Schalter hängt an der
+globalen Einstellung `adb_wifi_enabled`, und wer die von außen setzen will,
+braucht `WRITE_SECURE_SETTINGS`. Vergeben kann die nur adb — eine adb-Verbindung
+hat dieses Programm gerade —, und **vergeben bleibt sie über Neustarts hinweg**.
+Termux selbst nützt das nichts: Eine Berechtigung, die eine App nicht in ihrem
+Manifest anfordert, kann ihr auch adb nicht geben, und weder Termux noch
+Termux:API fordern sie an. Es braucht also eine App, die das tut und einen
+Auslöser für *Gerät gestartet* hat — MacroDroid (kostenlos) und Tasker können
+beides.
+
+    python3 android-lesen.py --freischalten com.arlosoft.macrodroid
+
+Danach dort eine Regel: Auslöser *Gerät gestartet* (und, wenn vorhanden, *WLAN
+verbunden*), Aktion *globale Einstellung* `adb_wifi_enabled` = `1`.
+
+Der Preis steht hier und nicht im Kleingedruckten, weil er zweimal anfällt:
+
+* Die App darf danach **jede** geschützte Systemeinstellung ändern, nicht nur
+  diese eine. Zurücknehmen geht mit `adb shell pm revoke …` oder durch
+  Deinstallieren.
+* Ein dauerhaft eingeschaltetes WLAN-Debugging ist eine offen gelassene Tür.
+  Koppeln muss sich ein fremdes Gerät weiterhin, aber der Dienst ist im ganzen
+  Netz erreichbar — und dass Android den Schalter von selbst umlegt, ist genau
+  deshalb kein Fehler, sondern seine Aufgabe. Auf fremdem WLAN ist das etwas
+  anderes als zu Hause.
+
+Google arbeitet an einem automatischen Einschalten in *vertrauenswürdigen*
+Netzen; in einer stabilen Android-Fassung steht es noch nicht.
+
+Ohne WLAN geht ohnehin nichts: Der Schalter lässt sich nur setzen, wenn das
+Telefon in einem WLAN ist. Unterwegs auf Mobilfunk läuft dieser Weg nicht — er
+ist für den Durchgang zu Hause gedacht, bei dem das Telefon liegen bleibt.
 
 Der **Verbindungsport** wechselt dabei jedes Mal, aber abschreiben muss man ihn
 nicht: `--schauen` und `--fahren` sehen zuerst nach, ob eine Verbindung steht,
