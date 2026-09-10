@@ -165,12 +165,7 @@ ganze Weg keinen Rechner und kein Kabel mehr.
    Den Port braucht es nicht: Das Programm läuft auf demselben Gerät, also kann
    es die offenen Ports auf `127.0.0.1` selbst abzählen und den Kopplungsdienst
    darunter finden. Nur den Code kann kein Programm lesen.
-5. Nach jedem Neustart des Telefons ist die Verbindung weg (die Kopplung
-   bleibt). Dann genügt, wieder ohne Zahl:
-
-       python3 android-lesen.py --verbinden
-
-6. `termux-wake-lock`, dann:
+5. `termux-wake-lock`, dann — jedes Mal derselbe eine Befehl:
 
        python3 android-lesen.py --fahren --server
 
@@ -179,11 +174,26 @@ ganze Weg keinen Rechner und kein Kabel mehr.
    die Tabelle mit, während gelesen wird. (Eine Datei landet trotzdem in den
    Downloads, als Sicherung.)
 
-Gekoppelt wird einmal, verbunden nach jedem Neustart neu — **der Port ändert
-sich dabei jedes Mal.** Das ist lästig und liegt an Android, nicht an diesem
-Programm.
+#### Was davon beim nächsten Mal wieder anfällt
 
-`--verbinden` schaltet außerdem die Aufsicht über *phantom processes* ab
+Die Schritte 1, 3 und 4 sind einmalig; die Kopplung überlebt Neustarts und
+steht danach unter *Gekoppelte Geräte*. Was der Kopplungsdialog anzeigt, ist
+dagegen jedes Mal neu und nur Sekunden gültig — das ist die Kopplung selbst
+nicht.
+
+Bleibt Schritt 2, der Schalter **Debugging über WLAN**: Den schaltet Android
+bei jedem Neustart des Telefons ab, und daran lässt sich von außen nichts
+ändern — es ist genau der Schalter, der fremden Zugriff erlaubt. Als Kachel in
+den Schnelleinstellungen ist es ein Tipp (Schnelleinstellungen → Bearbeiten →
+*WLAN-Debugging*).
+
+Der **Verbindungsport** wechselt dabei jedes Mal, aber abschreiben muss man ihn
+nicht: `--schauen` und `--fahren` sehen zuerst nach, ob eine Verbindung steht,
+und stellen sie sonst selbst her — die offenen Ports auf `127.0.0.1` kann ein
+Programm, das auf demselben Gerät läuft, abzählen. `--verbinden` gibt es
+weiterhin, gebraucht wird es nicht mehr.
+
+Beim Verbinden wird außerdem die Aufsicht über *phantom processes* abgeschaltet
 (`settings_enable_monitor_phantom_procs`). Seit Android 12 räumt das System
 Kindprozesse weg, die zu keiner sichtbaren App gehören — `uiautomator` ist genau
 so einer, und ohne diesen Griff bricht das Mitlesen nach ein paar Minuten ohne

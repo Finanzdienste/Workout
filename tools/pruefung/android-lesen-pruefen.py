@@ -284,6 +284,72 @@ try:
 finally:
     del os.environ['TERMUX_VERSION']
 
+# --- 10. Verbinden, ohne eine Zahl abzuschreiben -----------------------
+# Nach jedem Neustart schaltet Android das WLAN-Debugging ab und vergibt beim
+# Einschalten einen neuen Port. Der Schalter bleibt Handarbeit - der Port nicht.
+# Sonst faengt jeder Durchgang damit an, eine fuenfstellige Zahl aus einem
+# Menue abzuschreiben, und genau daran ist der erste echte Versuch gescheitert.
+echtes_adb = lesen.adb
+echte_ports = lesen.offene_ports
+lage = {'verbunden': False, 'gesucht': 0, 'connects': []}
+
+
+def falsches_adb(*args, **kw):
+    if args[:1] == ('devices',):
+        return 'List of devices attached\n' + (
+            '127.0.0.1:41111\tdevice\n' if lage['verbunden'] else '')
+    if args[:1] == ('connect',):
+        lage['connects'].append(args[1])
+        if args[1] == '127.0.0.1:41111':
+            lage['verbunden'] = True
+    return ''
+
+
+def falsche_ports(*a, **kw):
+    lage['gesucht'] += 1
+    return [40000, 41111]
+
+
+try:
+    lesen.adb = falsches_adb
+    lesen.offene_ports = falsche_ports
+    os.environ['TERMUX_VERSION'] = '0.118'
+
+    lage['verbunden'] = True
+    pruefe(lesen.geraet_pruefen() == '127.0.0.1:41111', 'ein verbundenes Geraet wird genommen')
+    pruefe(lage['gesucht'] == 0, 'und dabei wird kein Port gesucht')
+
+    # Fehlt die Verbindung, wird sie hergestellt, statt sie zu verlangen.
+    lage['verbunden'] = False
+    pruefe(lesen.geraet_pruefen() == '127.0.0.1:41111',
+           'ohne Verbindung stellt Termux sie selbst her')
+    pruefe(lage['gesucht'] == 1, 'genau ein Suchlauf dafuer')
+
+    # Am Rechner am Kabel gibt es nichts zu suchen: Dort waere die Suche 35000
+    # Verbindungsversuche ins Leere, und der Fehler ist ein ganz anderer.
+    del os.environ['TERMUX_VERSION']
+    lage['verbunden'] = False
+    lage['gesucht'] = 0
+    try:
+        lesen.geraet_pruefen()
+        pruefe(False, 'ohne Termux und ohne Geraet bricht es ab')
+    except SystemExit as fehlschlag:
+        pruefe('Kabel' in str(fehlschlag),
+               'ohne Termux und ohne Geraet bricht es ab und nennt das Kabel')
+    pruefe(lage['gesucht'] == 0, 'und sucht dort keine Ports')
+
+    # Und wer einen Port nennt, bekommt genau den - sonst liefe die Suche
+    # trotzdem, und die Angabe waere eine Luege.
+    os.environ['TERMUX_VERSION'] = '0.118'
+    lage.update(verbunden=False, gesucht=0, connects=[])
+    lesen.verbinden('41111')
+    pruefe(lage['connects'] == ['127.0.0.1:41111'], 'ein genannter Port wird genommen')
+    pruefe(lage['gesucht'] == 0, 'und dann nicht zusaetzlich gesucht')
+finally:
+    lesen.adb = echtes_adb
+    lesen.offene_ports = echte_ports
+    os.environ.pop('TERMUX_VERSION', None)
+
 print()
 if fehler:
     sys.exit(f'{fehler} Pruefung(en) fehlgeschlagen.')

@@ -75,20 +75,24 @@ sich auf 127.0.0.1. Das Galaxy S21 kann das.
 
 1. F-Droid -> Termux. Darin: `pkg install android-tools python`
 2. Entwickleroptionen -> **WLAN-Debugging** einschalten.
-3. Dort *Geraet mit Kopplungscode koppeln* antippen. Es erscheinen ein
-   sechsstelliger Code und ein Port. In Termux, mit beidem:
+3. Dort *Geraet mit Kopplungscode koppeln* antippen. Es erscheint ein
+   sechsstelliger Code. In Termux, nur mit dem Code:
 
-       python3 android-lesen.py --koppeln PORT CODE
+       python3 android-lesen.py --einrichten CODE
 
-4. Zurueck in der Hauptansicht des WLAN-Debuggings steht ein **anderer** Port.
-   Damit:
+   Das ist **einmalig**. Die Kopplung ueberlebt Neustarts; sie steht danach
+   unter "Gekoppelte Geraete".
+4. Danach nichts mehr. Der Verbindungsport aendert sich zwar bei jedem
+   Neustart und bei jedem Ein- und Ausschalten des WLAN-Debuggings - aber er
+   wird gesucht, nicht abgetippt: Wer `--schauen` oder `--fahren` aufruft und
+   nicht verbunden ist, wird von selbst verbunden.
 
-       python3 android-lesen.py --verbinden PORT
-
-   Gekoppelt wird einmal, verbunden nach jedem Neustart neu - der Port aendert
-   sich dabei jedes Mal. Das ist laestig und liegt an Android, nicht hier.
+   Von Hand bleibt nur der **Schalter** "Debugging ueber WLAN": Android
+   schaltet ihn bei jedem Neustart des Telefons ab, und daran laesst sich von
+   aussen nichts aendern - es ist genau der Schalter, der fremden Zugriff
+   erlaubt. Als Kachel in den Schnelleinstellungen ist es ein Tipp.
 5. `termux-wake-lock`, damit Termux im Hintergrund weiterlaeuft, waehrend du in
-   Bumble bist. Dann `--schauen` wie sonst.
+   Bumble bist. Dann `--schauen` oder `--fahren` wie sonst.
 
 Herauskommt eine Datei im selben Format wie beim Browser-Mitleser, die die
 Match-Tabelle unter *Datenauskunft einlesen* nimmt. In Termux landet sie in
@@ -171,19 +175,39 @@ def in_termux():
     return 'TERMUX_VERSION' in os.environ or 'com.termux' in os.environ.get('PREFIX', '')
 
 
-def geraet_pruefen():
+def angeschlossen():
+    """Welche Geraete meldet adb gerade als verbunden?"""
     zeilen = [z for z in adb('devices').splitlines()[1:] if z.strip()]
-    angeschlossen = [z.split()[0] for z in zeilen if z.split()[1:2] == ['device']]
-    if not angeschlossen:
+    return [z.split()[0] for z in zeilen if z.split()[1:2] == ['device']]
+
+
+def geraet_pruefen(selbst_verbinden=True):
+    """Ein verbundenes Geraet, oder eine Meldung, die sagt, was fehlt.
+
+    Auf dem Telefon selbst wird zuerst versucht, die Verbindung herzustellen,
+    statt sie zu verlangen. Denn was nach einem Neustart fehlt, ist nicht die
+    Kopplung - die bleibt -, sondern nur die Verbindung, und deren Port kann
+    das Programm suchen (siehe `offene_ports`). Damit bleibt von der ganzen
+    Einrichtung genau ein Handgriff uebrig, den niemand abnehmen kann: der
+    Schalter "Debugging ueber WLAN", den Android bei jedem Neustart abschaltet.
+    """
+    dabei = angeschlossen()
+    if not dabei and selbst_verbinden and in_termux():
+        print('Nicht verbunden - ich suche den Port selbst. Das dauert einen Moment.')
+        if verbinden_versuchen():
+            dabei = angeschlossen()
+    if not dabei:
         if in_termux():
-            sys.exit('Kein Geraet. Auf dem Telefon selbst braucht es das WLAN-Debugging:\n'
-                     '  1. Entwickleroptionen -> WLAN-Debugging einschalten\n'
-                     '  2. "Geraet mit Kopplungscode koppeln" -> --koppeln PORT CODE\n'
-                     '  3. Port aus der Hauptansicht -> --verbinden PORT\n'
-                     'Nach jedem Neustart des Telefons ist Schritt 3 noetig, mit neuem Port.')
+            sys.exit('Kein Geraet - und auch nichts gefunden, womit sich verbinden liesse.\n'
+                     'Fast immer heisst das: "Debugging ueber WLAN" ist aus. Android\n'
+                     'schaltet es bei jedem Neustart ab.\n'
+                     '  Entwickleroptionen -> Debugging ueber WLAN einschalten,\n'
+                     '  dann denselben Befehl noch einmal.\n'
+                     'Falls dieses Telefon noch nie gekoppelt wurde: dort auf "Geraet mit\n'
+                     'Kopplungscode koppeln" tippen und einmalig --einrichten CODE aufrufen.')
         sys.exit('Kein Geraet. `adb devices` zeigt nichts Verbundenes - Kabel dran, '
                  'Bildschirm entsperrt, die Nachfrage auf dem Telefon bestaetigt?')
-    return angeschlossen[0]
+    return dabei[0]
 
 
 def offene_ports(von=30000, bis=65535, faeden=400, wartezeit=0.05):
@@ -241,18 +265,10 @@ def einrichten(code):
 
     # Der Verbindungsport ist ein anderer als der Kopplungsport - und er ist
     # jetzt vielleicht erst aufgegangen, deshalb noch einmal nachsehen.
-    for port in offene_ports():
-        if port == gekoppelt:
-            continue
-        try:
-            adb('connect', f'127.0.0.1:{port}')
-        except SystemExit:
-            continue
-        zeilen = adb('devices').splitlines()[1:]
-        if any(z.split()[1:2] == ['device'] for z in zeilen if z.strip()):
-            print(f'Verbunden (Port {port}).')
-            phantom_aus()
-            return
+    if verbinden_versuchen(ausser=gekoppelt):
+        print('Das war die Einrichtung. Sie gilt auch nach einem Neustart; nur der\n'
+              'Schalter "Debugging ueber WLAN" ist dann wieder von Hand zu setzen.')
+        return
     sys.exit('Gekoppelt, aber keine Verbindung zustande gekommen. '
              f'Einmal von Hand: --verbinden PORT (der Port steht im Menü unter '
              '"IP-Adresse & Port").')
@@ -265,11 +281,11 @@ def phantom_aus():
     try:
         adb('shell', 'settings', 'put', 'global',
             'settings_enable_monitor_phantom_procs', 'false')
-        print('Fertig. (Die Aufsicht ueber Hintergrundprozesse ist abgeschaltet, '
-              'sonst beendet Android das Mitlesen nach wenigen Minuten von selbst.)')
+        print('(Die Aufsicht ueber Hintergrundprozesse ist abgeschaltet, sonst '
+              'beendet Android das Mitlesen nach wenigen Minuten von selbst.)')
     except SystemExit:
-        print('Fertig. Die Aufsicht ueber Hintergrundprozesse liess sich nicht '
-              'abschalten - bricht das Lesen spaeter ab, ist das der Grund.')
+        print('(Die Aufsicht ueber Hintergrundprozesse liess sich nicht abschalten - '
+              'bricht das Lesen spaeter ab, ist das der Grund.)')
 
 
 def koppeln(port, code):
@@ -279,32 +295,45 @@ def koppeln(port, code):
           'und --verbinden damit aufrufen.')
 
 
+def verbinden_versuchen(ausser=None):
+    """Jeden offenen Port durchprobieren, bis adb ein Geraet meldet.
+
+    Gibt zurueck, ob es geklappt hat, statt abzubrechen - denn der Aufrufer
+    weiss besser als diese Funktion, ob ein Fehlschlag das Ende ist.
+    """
+    for kandidat in offene_ports():
+        if kandidat == ausser:
+            continue
+        try:
+            adb('connect', f'127.0.0.1:{kandidat}')
+        except SystemExit:
+            continue
+        if angeschlossen():
+            print(f'Verbunden (Port {kandidat}).')
+            phantom_aus()
+            return True
+    return False
+
+
 def verbinden(port=None):
     """Verbinden. Ohne Port wird er gesucht.
 
     Der Verbindungsport aendert sich bei jedem Neustart des Telefons - das ist
     die eine Zahl, die man sonst regelmaessig nachschlagen und abtippen muesste.
-    Gekoppelt bleibt das Geraet dabei; nur die Verbindung ist weg.
+    Gekoppelt bleibt das Geraet dabei; nur die Verbindung ist weg. Von Hand
+    aufrufen muss man das seit --schauen und --fahren nicht mehr; die verbinden
+    sich selbst.
     """
     if port:
         print(adb('connect', f'127.0.0.1:{port}').strip())
-        geraet_pruefen()
+        geraet_pruefen(selbst_verbinden=False)
         phantom_aus()
         return
 
     print('Suche den Verbindungsdienst …')
-    for kandidat in offene_ports():
-        try:
-            adb('connect', f'127.0.0.1:{kandidat}')
-        except SystemExit:
-            continue
-        zeilen = adb('devices').splitlines()[1:]
-        if any(z.split()[1:2] == ['device'] for z in zeilen if z.strip()):
-            print(f'Verbunden (Port {kandidat}).')
-            phantom_aus()
-            return
-    sys.exit('Keine Verbindung zustande gekommen. Ist "Debugging über WLAN" an? '
-             'Und wurde dieses Geraet schon einmal gekoppelt (--einrichten CODE)?')
+    if not verbinden_versuchen():
+        sys.exit('Keine Verbindung zustande gekommen. Ist "Debugging über WLAN" an? '
+                 'Und wurde dieses Geraet schon einmal gekoppelt (--einrichten CODE)?')
 
 
 def ablageort(name):
@@ -906,13 +935,14 @@ def main():
     zerleger.add_argument('--takt', type=float, default=2.0, help='Sekunden zwischen zwei Blicken')
     zerleger.add_argument('--ruhe', type=float, default=90.0, help='Sekunden ohne Neues bis Schluss')
     zerleger.add_argument('--einrichten', metavar='CODE',
-                          help='koppeln und verbinden in einem Zug; die Ports werden '
-                               'selbst gesucht, nur der sechsstellige Code wird gebraucht')
+                          help='einmalig: koppeln und verbinden in einem Zug; die Ports '
+                               'werden selbst gesucht, nur der sechsstellige Code wird '
+                               'gebraucht')
     zerleger.add_argument('--koppeln', nargs=2, metavar=('PORT', 'CODE'),
                           help='einmalig: WLAN-Debugging koppeln (auf dem Telefon selbst)')
     zerleger.add_argument('--verbinden', nargs='?', const='', metavar='PORT',
-                          help='nach jedem Neustart: verbinden; ohne Angabe wird der '
-                               'Port selbst gesucht')
+                          help='von Hand verbinden; noetig ist das nicht mehr, '
+                               '--schauen und --fahren verbinden sich selbst')
     zerleger.add_argument('--fahren', action='store_true',
                           help='selbst durch die Match-Liste gehen, statt zuzusehen')
     zerleger.add_argument('--trocken', action='store_true',
