@@ -815,6 +815,7 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
     leute = {}
     letzte_neuigkeit = time.time()
     letzte_app = None
+    pause_gemeldet = False
     gesehen = set()          # schon angetippte Zeilen, beim Fahren
     im_profil = False        # sind wir gerade eine Ebene tiefer?
     letzter_baum = None      # zum Erkennen, dass sich nichts mehr tut
@@ -867,10 +868,16 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
             # der Liste der uebersprungenen Namen - Termux' eigene Tastenleiste,
             # eingesammelt in den Augenblicken, in denen es im Vordergrund war.
             if jetzt not in PAKET_VON:
-                if fahren:
-                    print('  (keine der drei Apps im Vordergrund - es wird nichts getippt)')
+                # Einmal sagen, nicht im Zweisekundentakt: Im geteilten
+                # Bildschirm hat Termux den Fokus, sobald man hinsieht, und die
+                # Wiederholung schob den eigentlichen Verlauf aus dem Bild.
+                if fahren and not pause_gemeldet:
+                    print('  (keine der drei Apps im Vordergrund - es wird nichts '
+                          'getippt, bis eine davon wieder vorn ist)')
+                    pause_gemeldet = True
                 time.sleep(sekunden)
                 continue
+            pause_gemeldet = False
 
             xml = bildschirm()
             if xml:
