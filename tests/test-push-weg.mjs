@@ -198,6 +198,62 @@ check(!!stand && /heute um \d{1,2}:\d{2} Uhr/.test(stand),
 check(!!stand && /Push/.test(stand), 'und wodurch geweckt wurde');
 check(!!stand && /App war offen/.test(stand), 'und warum nichts kam');
 
+// --- 4. Ohne periodicSync – also in Firefox ----------------------------
+//
+// Der Schalter für die Erinnerung hing an `periodicSync in
+// ServiceWorkerRegistration.prototype`. Das kann nur Chrome. In Firefox war er
+// deshalb gesperrt, im Merkzettel stand `an: false`, und jeder ankommende Push
+// lief in erinnern() sofort in den Zweig „aus" – der Wecker klopfte, und die
+// App antwortete, sie sei abgeschaltet.
+//
+//     „Mein Handy erkennt die app immer noch nicht als eigenständig sondern
+//      Firefox"
+//
+// Web Push kann Firefox seit Jahren. Der Schalter darf deshalb nur dann
+// gesperrt sein, wenn *beide* Wege fehlen. Nachgestellt wird das, indem
+// periodicSync vor dem Laden aus dem Prototyp entfernt wird – näher an einen
+// fremden Browser kommt ein Chromium nicht.
+const ff = await browser.newContext({ viewport: { width: 414, height: 896 } });
+await ff.route('**/rest/v1/**', (r) => r.fulfill({ status: 204, body: '' }));
+const ffSeite = await ff.newPage();
+await ffSeite.addInitScript(() => {
+  try { delete ServiceWorkerRegistration.prototype.periodicSync; } catch { /* egal */ }
+});
+await ffSeite.goto(URL, { waitUntil: 'networkidle' });
+await ffSeite.evaluate(async () => {
+  const st = await import('./js/store.js');
+  st.setSetting('greeted', true); st.setSetting('name', 'T'); st.setSetting('tab', 'settings');
+});
+await ffSeite.reload({ waitUntil: 'networkidle' });
+await ffSeite.waitForTimeout(500);
+
+const lage = await ffSeite.evaluate(() => ({
+  periodicSync: 'periodicSync' in ServiceWorkerRegistration.prototype,
+  push: 'PushManager' in window,
+  gesperrt: (document.querySelector('[data-act="toggle-erinnerung"]') || {}).disabled,
+}));
+console.log('     ohne periodicSync:', JSON.stringify(lage));
+check(lage.periodicSync === false, 'periodicSync ist für diese Prüfung wirklich weg');
+check(lage.push === true, 'Web Push steht trotzdem zur Verfügung – wie in Firefox');
+check(lage.gesperrt === false,
+  'und der Schalter ist nicht gesperrt: Ein Weg reicht, es müssen nicht beide sein');
+
+await ffSeite.locator('[data-act="toggle-erinnerung"]').click();
+await ffSeite.waitForTimeout(500);
+const ffZettel = await ffSeite.evaluate(async () =>
+  (await import('./js/merkzettel.js')).liesMerkzettel());
+console.log('     Merkzettel nach dem Einschalten:', JSON.stringify({ an: ffZettel.an, tag: ffZettel.tag }));
+check(ffZettel.an === true,
+  'eingeschaltet steht im Merkzettel `an: true` – sonst verwirft der Worker jeden Push');
+check(!!ffZettel.tag, 'und ein Tag, an dem etwas ansteht');
+
+const ffText = (await ffSeite.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(/nur über Push/.test(ffText),
+  'die Einstellungen sagen dazu, dass hier allein der Push trägt');
+check(!/braucht Chrome/.test(ffText),
+  'und behaupten nicht mehr, es brauche Chrome');
+await ff.close();
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

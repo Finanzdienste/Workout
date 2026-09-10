@@ -216,6 +216,42 @@ check(await page.locator('#restLabel').textContent() === 'Fertig machen',
 check(await page.locator('#restBar').evaluate((el) => el.classList.contains('ready')),
   'und die Leiste färbt sich um');
 
+/* --- Die Auskunft unter Mehr -------------------------------------------- *
+ *
+ * *„Aktuell hör ich bei mir in der app überhaupt keine sounds."*
+ *
+ * Ob etwas hörbar war, kann diese Seite nicht wissen – und ein Test auch nicht.
+ * Was beide wissen können: ob die App einen Ton losgeschickt hat und ob der
+ * Tonkanal dabei offen war. Genau darauf zielt die Zeile unter Mehr, und genau
+ * das wird hier geprüft. Ohne sie sind „die App ist stumm" und „das Handy gibt
+ * nichts aus" von außen nicht zu unterscheiden.
+ */
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('sound', true);
+  store.setSetting('tab', 'settings');
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(500);
+
+const vorher = await page.locator('#tonStand').textContent();
+console.log('     vor dem Testton:', JSON.stringify(vorher));
+check(/Tonkanal:/.test(vorher || ''), 'die Zeile steht unter Mehr');
+
+await page.locator('[data-act="test-sound"]').first().click();
+await page.waitForTimeout(6200);
+const nachher = await page.locator('#tonStand').textContent();
+console.log('     nach dem Testton:', JSON.stringify(nachher));
+check(/läuft/.test(nachher || ''),
+  `nach dem Testton ist der Tonkanal offen (${nachher})`);
+const tonZahl = Number((/(\d+) Töne/.exec(nachher || '') || [])[1] || 0);
+check(tonZahl >= 6, `und die Zahl der losgeschickten Töne ist gestiegen (${tonZahl})`);
+
+// Der Rat daneben nennt den einen Grund, den die App nicht sehen kann.
+const rat = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(/Medien-Lautstärke/.test(rat),
+  'und daneben steht, woran es liegt, wenn trotzdem nichts zu hören ist');
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();

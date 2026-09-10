@@ -96,6 +96,11 @@ const SOUNDS = {
 let ctx = null;
 let geplant = [];     // vorausgelegte Signale: [{ quellen, at }]
 let traegerTon = null;
+// Wie viele Töne diese Sitzung wirklich losgeschickt hat. Nicht Kosmetik:
+// „Ich höre nichts" hat zwei ganz verschiedene Ursachen – die App erzeugt
+// keinen Ton, oder sie erzeugt ihn und das Gerät gibt ihn nicht aus. Von außen
+// sehen beide gleich aus, und ohne diese Zahl lässt sich das nicht trennen.
+let gespielt = 0;
 
 /** AudioContext anlegen – nur aus einer Berührung heraus aufrufen. */
 export function initAudio() {
@@ -206,11 +211,41 @@ function traeger(an) {
   }
 }
 
-/** Ton sofort abspielen. Ohne freigeschalteten Kontext passiert nichts. */
+/**
+ * Ton sofort abspielen.
+ *
+ * `initAudio()` gleich hier, wie in scheduleSound(): Vorher stand an dieser
+ * Stelle nur `if (!ctx) return`, und damit fiel jeder Ton lautlos aus, der vor
+ * dem ersten initAudio() kam. Das war nie geplant, sondern die Asymmetrie
+ * zweier Funktionen, die dasselbe brauchen. Ein Kontext, der ohne Berührung
+ * angelegt wird, startet zwar schlafend – aber schlafend und geweckt ist
+ * immer noch mehr als gar keiner.
+ */
 export function playSound(name) {
+  initAudio();
   if (!ctx || !SOUNDS[name]) return;
   wecken();
   SOUNDS[name].forEach((t) => ton(ctx.currentTime + 0.02, t));
+  gespielt += 1;
+}
+
+/**
+ * Was der Ton-Weg gerade wirklich tut – die ehrliche Auskunft.
+ *
+ * Dieselbe Sorte Messwert wie „zuletzt geweckt" beim Push: Sie sagt nicht, ob
+ * etwas zu hören war (das kann keine Seite wissen), sondern ob die App etwas
+ * losgeschickt hat und in welchem Zustand der Tonkanal dabei war.
+ *
+ *   moeglich  Kennt dieser Browser Web Audio überhaupt?
+ *   zustand   'aus'      – noch kein Kontext, es wurde noch nichts angefordert
+ *             'laeuft'   – offen, Töne gehen hinaus
+ *             'schlaeft' – angelegt, aber vom Browser angehalten
+ *   gespielt  Wie viele Töne diese Sitzung losgeschickt hat
+ */
+export function tonStand() {
+  const moeglich = !!(window.AudioContext || window.webkitAudioContext);
+  const zustand = !ctx ? 'aus' : (ctx.state === 'running' ? 'laeuft' : 'schlaeft');
+  return { moeglich, zustand, gespielt };
 }
 
 /**

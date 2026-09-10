@@ -28,7 +28,7 @@ import { sparkPanel } from './chart.js';
 import { buildICS } from './ics.js';
 import { CONFIG, hatServer } from './config.js';
 import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
-import { initAudio, playSound, scheduleSound, cancelSound } from './audio.js';
+import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './audio.js';
 import { esc, fmtNum } from './text.js';
 import { EX_BY_ID, plannedReps, stufenWerte } from './uebung.js';
 import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, offenerAufstieg, satzFaktor, satzZahl } from './stufen.js';
@@ -97,10 +97,38 @@ function erinnerungAn() {
   };
 }
 
-/** Kann dieser Browser überhaupt geweckt werden? */
+/**
+ * Kann der Browser den Worker von sich aus wecken? (periodicSync)
+ *
+ * Das kann nur Chrome, und auch dort nur, wenn es gerade will. Es ist der
+ * *schwächere* der beiden Wege – siehe kannErinnern().
+ */
 const kannWecken = () => 'serviceWorker' in navigator
   && typeof window.ServiceWorkerRegistration === 'function'
   && 'periodicSync' in window.ServiceWorkerRegistration.prototype;
+
+/**
+ * Kann diese App überhaupt an einen Trainingstag erinnern?
+ *
+ * Zwei Wege führen dahin, und sie sind unabhängig voneinander:
+ *
+ *   periodicSync   Der Browser weckt von selbst. Nur Chrome, unzuverlässig.
+ *   Web Push       Ein Wecker von außen klopft. Chrome *und* Firefox.
+ *
+ * Hier stand jahrelang nur der erste, und das war ein handfester Fehler: In
+ * Firefox ist periodicSync nicht vorhanden, der Schalter war deshalb gesperrt,
+ * im Merkzettel stand `an: false` – und jeder ankommende Push lief in
+ * erinnern() sofort in den Zweig „aus". Der Wecker klopfte, und die App
+ * antwortete, sie sei abgeschaltet. Von außen sah das aus, als käme kein Push.
+ *
+ *     „Mein Handy erkennt die app immer noch nicht als eigenständig sondern
+ *      Firefox"
+ *
+ * Ein Schalter, der wegen einer Chrome-Funktion gesperrt ist, obwohl der
+ * Firefox-Weg danebenliegt und funktioniert, sperrt die Funktion aus dem
+ * falschen Grund.
+ */
+const kannErinnern = () => kannWecken() || kannPush();
 
 /**
  * Merkzettel und Symbol nachziehen. Läuft nach jeder Zustandsänderung – der
@@ -4658,7 +4686,14 @@ function renderSettings() {
       ${s.sound ? `
       <div class="btn-row">
         <button type="button" class="btn btn-block" data-act="test-sound">Töne anhören</button>
-      </div>` : ''}
+      </div>
+      <div class="small muted" id="tonStand"></div>
+      <div class="small muted" style="margin-top:6px">Hörst du nichts, obwohl oben
+        <b>läuft</b> steht und die Zahl steigt: Dann hat die App den Ton losgeschickt und
+        das Handy gibt ihn nicht aus. Der übliche Grund ist die
+        <b>Medien-Lautstärke</b> – die Wippe stellt am Handy die Klingel, solange nichts
+        spielt. Tipp auf „Töne anhören" und drück <i>währenddessen</i> die Wippe nach
+        oben; dann regelst du den richtigen Kanal.</div>` : ''}
     </div>
 
     <div class="section-title">Erinnerung am Trainingstag</div>
@@ -4669,11 +4704,15 @@ function renderSettings() {
           <div class="hint">Meldung in der Statusleiste an Tagen, an denen eine Einheit
             offen ist – auch wenn die App zu ist. Weggewischt kommt sie zurück; endgültig weg
             ist sie mit <i>Heute nicht</i> oder sobald du die App öffnest.
-            ${kannWecken() ? '' : '<strong>Dieser Browser kann das nicht.</strong> Es braucht Chrome und die App auf dem Startbildschirm.'}</div>
+            ${kannErinnern() ? (kannWecken() ? '' : '<b>In diesem Browser geht das nur über '
+              + 'Push</b> – er weckt sich nicht von selbst. Richte es unten ein, sonst bleibt '
+              + 'der Schalter wirkungslos.')
+              : '<strong>Dieser Browser kann das nicht.</strong> Es braucht Meldungen und einen '
+                + 'Service Worker.'}</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${erinnerungAn().an}"
                 data-act="toggle-erinnerung" aria-label="Erinnerung am Trainingstag"
-                ${kannWecken() ? '' : 'disabled'}></button>
+                ${kannErinnern() ? '' : 'disabled'}></button>
       </div>
       ${erinnerungAn().an ? `
       <div class="zeit-row">
@@ -4685,9 +4724,12 @@ function renderSettings() {
                  data-act="erinnerung-zeit" data-wann="wochenende"></label>
       </div>
       <div class="small muted" id="weckStand">wird nachgesehen…</div>` : ''}
-      <div class="small muted" style="margin-top:8px">Ohne Push hängt das daran, ob der
-        Browser von selbst aufwacht – und das entscheidet er. Deshalb steht oben, wann es
-        zuletzt geklappt hat.</div>
+      <div class="small muted" style="margin-top:8px">${kannWecken()
+        ? 'Ohne Push hängt das daran, ob der Browser von selbst aufwacht – und das '
+          + 'entscheidet er. Deshalb steht oben, wann es zuletzt geklappt hat.'
+        : 'Dieser Browser wacht nicht von selbst auf; hier trägt allein der Push. '
+          + 'Er hängt am Browser, nicht am Gerät – wer die App in einem anderen Browser '
+          + 'geöffnet hat, muss ihn hier neu einrichten.'}</div>
       <div class="btn-row" style="margin-top:10px">
         <button type="button" class="btn btn-block" data-act="push-einrichten"
                 ${kannPush() ? '' : 'disabled'}>Zuverlässig machen (Push einrichten)</button>
@@ -4838,6 +4880,26 @@ function renderSettings() {
   showVersion();
   weckStandZeigen();
   pushStandZeigen();
+  tonStandZeigen();
+}
+
+/**
+ * Was der Ton-Weg gerade tut – im Klartext.
+ *
+ * *„Aktuell hör ich bei mir in der app überhaupt keine sounds."* Dahinter
+ * stecken zwei Ursachen, die von außen gleich aussehen: Die App schickt keinen
+ * Ton los, oder sie schickt ihn los und das Gerät gibt ihn nicht aus. Ob eine
+ * Seite hörbar ist, kann sie selbst nicht wissen – was sie weiß, ist, ob der
+ * Tonkanal offen war und wie viele Töne hinausgingen. Genau das steht hier.
+ */
+function tonStandZeigen() {
+  const host = document.getElementById('tonStand');
+  if (!host) return;
+  const t = tonStand();
+  if (!t.moeglich) { host.textContent = 'Dieser Browser kann keine Töne erzeugen.'; return; }
+  const wort = { aus: 'noch nicht angefordert', laeuft: 'läuft', schlaeft: 'angehalten' };
+  host.textContent = `Tonkanal: ${wort[t.zustand]} · ${t.gespielt === 1
+    ? '1 Ton losgeschickt' : `${t.gespielt} Töne losgeschickt`}, seit die App offen ist.`;
 }
 
 /** Steht die Push-Anmeldung? Kurz und ohne Versprechen. */
@@ -5862,6 +5924,9 @@ view.addEventListener('click', (e) => {
       initAudio();
       ['start', 'set', 'exercise', 'ready', 'rest', 'done']
         .forEach((name, i) => setTimeout(() => playSound(name), i * 900));
+      // Die Zahl darunter nachziehen, sonst steht dort der Stand von vorhin und
+      // sieht aus, als sei nichts passiert.
+      setTimeout(tonStandZeigen, 6 * 900);
       toast('Start · Satz · Übung fertig · fertig machen · Pause vorbei · Workout komplett');
       break;
     }
