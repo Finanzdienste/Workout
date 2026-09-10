@@ -149,7 +149,7 @@ Seit Android 11 kann ein Gerät sich über das **WLAN-Debugging selbst bedienen*
 `adb` läuft in Termux und verbindet sich auf `127.0.0.1`. Damit braucht der
 ganze Weg keinen Rechner und kein Kabel mehr.
 
-1. F-Droid → Termux. Darin: `pkg install android-tools python curl`, dann
+1. F-Droid → Termux. Darin: `pkg install android-tools python`, dann
    `termux-setup-storage` (sonst landet die Datei in den App-Daten, wo der
    Browser nicht herankommt).
 2. Das Programm holen — nicht über den Browser in die Downloads, sondern
@@ -158,7 +158,13 @@ ganze Weg keinen Rechner und kein Kabel mehr.
 
        curl -sSL -o ~/android-lesen.py https://raw.githubusercontent.com/Finanzdienste/Workout/main/matches/android-lesen.py
 
-   Dieselbe Zeile holt später auch jede neuere Fassung.
+   Dieselbe Zeile holt später auch jede neuere Fassung. `curl` gehört zur
+   Grundausstattung von Termux und muss nicht installiert werden — was gut ist,
+   denn ein `pkg install` scheitert, solange der Spiegelserver gerade
+   synchronisiert („File has unexpected size"). Falls `curl` doch fehlt, tut es
+   auch Python allein:
+
+       python3 -c "import urllib.request as u; u.urlretrieve('https://raw.githubusercontent.com/Finanzdienste/Workout/main/matches/android-lesen.py', 'android-lesen.py')"
 3. Entwickleroptionen → **WLAN-Debugging** einschalten.
 4. Steht dieses Telefon auf demselben Bildschirm schon unter **Gekoppelte
    Geräte**, sind die Schritte 5 und 6 erledigt — weiter bei 7.

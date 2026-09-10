@@ -73,13 +73,16 @@ Zwei Arten zu laufen
 ueber das WLAN-Debugging selbst bedienen: adb laeuft in Termux und verbindet
 sich auf 127.0.0.1. Das Galaxy S21 kann das.
 
-1. F-Droid -> Termux. Darin: `pkg install android-tools python curl`
+1. F-Droid -> Termux. Darin: `pkg install android-tools python`
 2. Dieses Programm holen - direkt, nicht ueber den Browser in die Downloads,
    sonst liegt irgendwann eine alte Fassung da und wirft Fehler, die laengst
    behoben sind:
 
        curl -sSL -o ~/android-lesen.py https://raw.githubusercontent.com/Finanzdienste/Workout/main/matches/android-lesen.py
 
+   curl gehoert zur Grundausstattung von Termux; ein `pkg install` waere hier
+   nicht nur unnoetig, sondern scheitert auch, solange der Spiegelserver
+   gerade synchronisiert ("File has unexpected size").
 3. Entwickleroptionen -> **WLAN-Debugging** einschalten. Steht das Telefon
    dort schon unter "Gekoppelte Geraete", ist Schritt 4 erledigt.
 4. Dort *Geraet mit Kopplungscode koppeln* antippen. Der Dialog zeigt einen
