@@ -211,6 +211,23 @@ def angeschlossen():
     return [z.split()[0] for z in zeilen if z.split()[1:2] == ['device']]
 
 
+def entwickleroptionen_oeffnen():
+    """Die Seite mit dem Schalter aufmachen - er ist fast immer der Grund.
+
+    Das geht ohne adb, und darin liegt der Witz: `am` startet eine Activity als
+    Termux selbst, und eine Einstellungsseite zu oeffnen verlangt keine
+    Sonderrechte. Den Schalter dort *umzulegen* verlangt welche - deshalb endet
+    die Hilfe hier und nicht einen Schritt weiter.
+    """
+    try:
+        fertig = subprocess.run(
+            ['am', 'start', '-a', 'android.settings.APPLICATION_DEVELOPMENT_SETTINGS'],
+            capture_output=True, timeout=10)
+        return fertig.returncode == 0
+    except (FileNotFoundError, OSError, subprocess.SubprocessError):
+        return False
+
+
 def geraet_pruefen(selbst_verbinden=True):
     """Ein verbundenes Geraet, oder eine Meldung, die sagt, was fehlt.
 
@@ -228,11 +245,16 @@ def geraet_pruefen(selbst_verbinden=True):
             dabei = angeschlossen()
     if not dabei:
         if in_termux():
+            geoeffnet = entwickleroptionen_oeffnen()
             sys.exit('Kein Geraet - und auch nichts gefunden, womit sich verbinden liesse.\n'
                      'Fast immer heisst das: "Debugging ueber WLAN" ist aus. Android\n'
-                     'schaltet es bei jedem Neustart ab.\n'
-                     '  Entwickleroptionen -> Debugging ueber WLAN einschalten,\n'
-                     '  dann denselben Befehl noch einmal.\n'
+                     'schaltet es beim Neustart ab, beim Verlassen des WLANs und nach\n'
+                     'laengerer Untaetigkeit.\n' +
+                     ('  Die Entwickleroptionen sind gerade aufgegangen: dort "Debugging\n'
+                      '  ueber WLAN" einschalten, zurueck zu Termux, denselben Befehl.\n'
+                      if geoeffnet else
+                      '  Entwickleroptionen -> Debugging ueber WLAN einschalten,\n'
+                      '  dann denselben Befehl noch einmal.\n') +
                      'Falls dieses Telefon noch nie gekoppelt wurde: dort auf "Geraet mit\n'
                      'Kopplungscode koppeln" tippen und einmalig --einrichten CODE aufrufen.')
         sys.exit('Kein Geraet. `adb devices` zeigt nichts Verbundenes - Kabel dran, '

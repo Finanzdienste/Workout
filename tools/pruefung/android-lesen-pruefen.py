@@ -442,6 +442,43 @@ try:
 finally:
     lesen.adb = echtes_adb
 
+# --- 13. Wenn gar nichts geht, wenigstens die richtige Seite aufmachen -
+# Dreimal in Folge war der Grund derselbe: der Schalter "Debugging ueber WLAN".
+# Die Seite dorthin laesst sich ohne adb oeffnen - `am` startet eine Activity
+# als Termux selbst. Den Schalter umlegen kann das nicht, und genau da hoert
+# die Hilfe auf; behaupten darf sie es also auch nicht.
+echte_ports = lesen.offene_ports
+echtes_oeffnen = lesen.entwickleroptionen_oeffnen
+versucht = []
+try:
+    lesen.adb = lambda *a, **k: 'List of devices attached\n'
+    lesen.offene_ports = lambda *a, **k: []
+    lesen.entwickleroptionen_oeffnen = lambda: versucht.append(True) or True
+    os.environ['TERMUX_VERSION'] = '0.118'
+    try:
+        lesen.geraet_pruefen()
+        pruefe(False, 'ohne alles bricht es ab')
+    except SystemExit as fehlschlag:
+        pruefe('Debugging ueber WLAN' in str(fehlschlag),
+               'ohne alles wird der Schalter genannt, nicht ein Netzwerkfehler')
+        pruefe('gerade aufgegangen' in str(fehlschlag),
+               'und es wird nur behauptet, was auch getan wurde')
+    pruefe(versucht == [True], 'die Entwickleroptionen werden einmal aufgemacht')
+
+    # Laesst sich die Seite nicht oeffnen, darf der Text das nicht behaupten.
+    lesen.entwickleroptionen_oeffnen = lambda: False
+    try:
+        lesen.geraet_pruefen()
+        pruefe(False, 'ohne alles bricht es ab')
+    except SystemExit as fehlschlag:
+        pruefe('gerade aufgegangen' not in str(fehlschlag),
+               'geht sie nicht auf, steht stattdessen der Weg von Hand da')
+finally:
+    lesen.adb = echtes_adb
+    lesen.offene_ports = echte_ports
+    lesen.entwickleroptionen_oeffnen = echtes_oeffnen
+    os.environ.pop('TERMUX_VERSION', None)
+
 print()
 if fehler:
     sys.exit(f'{fehler} Pruefung(en) fehlgeschlagen.')
