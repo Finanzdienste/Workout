@@ -87,4 +87,59 @@ check(mitCouch.length === 2 && mitCouch.includes('thrust') && mitCouch.includes(
   'genau die beiden Hüftstreckungen bekommen eine Bank');
 check(RIG.headR > 0, 'der Kopfradius steht zur Verfügung – daran hängt die Höhe der Auflage');
 
+/* --- 5. Bodenpresse: über der Brust, Ellbogen am Boden -------------------- *
+ *
+ * Diese Prüfung fehlte, und das ist der Grund, warum die Stellung monatelang
+ * falsch dastehen konnte, während 53 Prüfungen grün meldeten. Gemessen wurde
+ * bisher, dass die Figur auf dem Boden sitzt und dass die Gelenke erreichbar
+ * sind – nicht, ob die Bewegung die Übung trifft.
+ *
+ *     „Animationen sind noch immer falsch."
+ *
+ * Zwei Zahlen entscheiden es, beide aus solve() und beide in Körperlängen. Die
+ * Schulter liegt bei x −0.42, die Brust bei −0.28, der Kopf bei −0.63:
+ *
+ *   Hand x unten   Wo die Last am tiefsten Punkt steht. Vorher −0.586 bei der
+ *                  Stange und −0.537 bei den Kurzhanteln – beides zwischen
+ *                  Schulter und Kopf. Das ist ein Überzug, keine Presse.
+ *   Ellbogen y     Der Boden ist bei dieser Übung der Anschlag; unten liegt der
+ *                  Oberarm auf. Vorher schwebte er 0.19 bis 0.25 darüber.
+ */
+const presseMuster = ['press', 'pressbar'];
+presseMuster.forEach((name) => {
+  const spec = PATTERNS[name];
+  const unten = skelett(spec, 0);
+  const oben = skelett(spec, 1);
+  const schulterX = unten.shoulderL[0];
+  const brustX = unten.chest[0];
+  const kopfX = unten.head[0];
+  console.log(`     ${name}: Hand unten x=${unten.handL[0].toFixed(3)} `
+    + `Ellbogen y=${unten.elbowL[1].toFixed(3)} · Hand oben x=${oben.handL[0].toFixed(3)} `
+    + `y=${oben.handL[1].toFixed(3)} · Schulter x=${schulterX.toFixed(3)} Brust x=${brustX.toFixed(3)}`);
+
+  // Über der Brust heißt: zwischen Brust und Schulter, nicht dahinter.
+  check(unten.handL[0] > schulterX + 0.05,
+    `${name}: unten steht die Last über der Brust, nicht hinter der Schulter `
+    + `(${unten.handL[0].toFixed(3)} gegen Schulter ${schulterX.toFixed(3)})`);
+  check(unten.handL[0] > kopfX + 0.25,
+    `${name}: und mit Abstand zum Kopf (${kopfX.toFixed(3)})`);
+
+  // Der Boden ist der Anschlag – sonst ist es kein Bodendrücken.
+  const ellHoehe = unten.elbowL[1] - Math.min(...Object.values(unten).map((q) => q[1]));
+  check(ellHoehe < 0.08,
+    `${name}: unten liegt der Oberarm am Boden (Ellbogen ${ellHoehe.toFixed(3)} darüber)`);
+
+  // Oben über der Schulter, Arm lang.
+  check(Math.abs(oben.handL[0] - schulterX) < 0.06,
+    `${name}: oben steht sie über der Schulter (${oben.handL[0].toFixed(3)})`);
+  check(oben.handL[1] > unten.handL[1] + 0.2,
+    `${name}: und deutlich höher als unten (${oben.handL[1].toFixed(3)} gegen ${unten.handL[1].toFixed(3)})`);
+
+  // Die Griffweite ändert sich nicht – sonst schrumpft die Stange im Ablauf.
+  if (name === 'pressbar') {
+    check(Math.abs(Math.abs(oben.handL[2]) - Math.abs(unten.handL[2])) < 0.03,
+      `${name}: die Griffweite bleibt gleich (${unten.handL[2].toFixed(3)} → ${oben.handL[2].toFixed(3)})`);
+  }
+});
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

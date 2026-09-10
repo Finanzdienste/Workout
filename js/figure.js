@@ -219,11 +219,35 @@ export const PATTERNS = {
       { tilt: -16, arm: A(64, 42, 80), leg: L(0, 6, 4) },
     ],
   },
+  /*
+   * Bodenpresse, Kurzhanteln.
+   *
+   * **Was falsch war, und es war beides in der unteren Stellung.** Nachgerechnet
+   * mit solve(), Maße in Körperlängen ab Boden; die Schulter liegt bei x −0.42,
+   * die Brust bei −0.28, der Kopf bei −0.63:
+   *
+   *              Hand x    Hand y   Ellbogen y
+   *   vorher      −0.537    0.242      0.191
+   *   jetzt       −0.282    0.231      0.039
+   *
+   * Erstens wanderten die Hanteln bis x −0.54 – das liegt zwischen Schulter und
+   * Kopf, nicht über der Brust. Was da gezeichnet war, ist ein Überzug, keine
+   * Presse. Zweitens schwebte der Ellbogen 0,19 über dem Boden. Gerade der Boden
+   * ist bei dieser Übung der Punkt: Er begrenzt die Bewegung, der Oberarm liegt
+   * unten auf. Ein Ellbogen in der Luft zeigt eine Übung, die es nicht gibt.
+   *
+   * Die obere Stellung stimmte und ist bis auf eine Nachkommastelle dieselbe
+   * geblieben.
+   */
   press: {
-    label: 'Drücken im Liegen', lie: 'supine', view: [20, -30],
+    // Flacher als vorher (war 20/−30). Mit dem steilen Blick von oben verschwand
+    // in der unteren Stellung die nahe Hantel hinter dem Rumpf, und übrig blieb
+    // ein einarmiges Drücken. Bei 25/−12 stehen beide Ellbogen sichtbar am
+    // Boden – nachgesehen an gerenderten Bildern, nicht geschätzt.
+    label: 'Drücken im Liegen', lie: 'supine', view: [25, -12],
     poses: [
-      { arm: A(72, 42, 92), leg: L(56, 9, 100) },
-      { arm: A(90, 10, 4), leg: L(56, 9, 100) },
+      { arm: A(10, 33, 104), leg: L(56, 9, 100) },
+      { arm: A(90, 10, 0), leg: L(56, 9, 100) },
     ],
   },
   pressbar: {
@@ -238,10 +262,30 @@ export const PATTERNS = {
     // die Hände genau an den Scheiben – so greift niemand eine Stange. 15°
     // ergibt gut anderthalb Schulterbreiten, also den üblichen Bankdrückgriff,
     // und lässt links und rechts ein Stück Stange stehen.
-    label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [35, -10],
+    // Derselbe Fehler wie beim Kurzhantelmuster, und derselbe Beleg – die
+    // Stange lag unten bei x −0.586, also *hinter* der Schulter (−0.42) und
+    // fast am Kopf (−0.63), bei einem Ellbogen 0,25 über dem Boden:
+    //
+    //              Hand x    Hand y   Ellbogen y   Griff z
+    //   vorher      −0.586    0.293      0.251      0.350
+    //   jetzt       −0.279    0.252      0.041      0.350
+    //
+    // Die Griffweite bleibt bei 0,350 – die Rechnung im Absatz darüber gilt
+    // unverändert, und oben wie unten steht dieselbe Zahl. Was sich geändert
+    // hat, ist allein, wohin die Stange fährt: über die Brust statt über den
+    // Kopf, mit dem Oberarm auf dem Boden.
+    // Der Blickwinkel ist mit der Stellung zurückgegangen, von yaw 35 auf 20.
+    // Die 35 waren dafür da, dass die Stange „quer im Bild liegt statt schräg
+    // durch den Brustkorb" – nötig war das, solange sie unten hinter der
+    // Schulter stand und dabei den Rumpf kreuzte. Über der Brust tut sie das
+    // nicht mehr. Nachgesehen an gerenderten Bildern bei 20/35/50/62: Ab 35
+    // schneidet die nahe Scheibe in der unteren Stellung durch den Kopf, bei 50
+    // quer durchs Gesicht. Bei 20 bleibt er frei, um den Preis, dass die Stange
+    // stärker verkürzt erscheint – das ist der billigere Preis.
+    label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [20, -10],
     poses: [
-      { arm: A(74, 15, 96), leg: L(56, 9, 100) },
-      { arm: A(88, 15, 6), leg: L(56, 9, 100) },
+      { arm: A(9, 15, 110), leg: L(56, 9, 100) },
+      { arm: A(90, 14, 0), leg: L(56, 9, 100) },
     ],
   },
   row: {
