@@ -1017,7 +1017,8 @@
   "bwShares": {
    "abs": 1.0
   },
-  "equip": null
+  "equip": null,
+  "anfaenger": "liegendes-knieheben"
  },
  "band-pull-apart": {
   "group": "Schulter",
@@ -1298,6 +1299,46 @@
   "bwShares": {
    "rearDelts": 1.0,
    "traps": 0.9
+  },
+  "equip": null
+ },
+ "liegendes-knieheben": {
+  "group": "Bauch",
+  "tier": 3,
+  "name": "Knieheben im Liegen",
+  "reps": "10–20",
+  "bwName": "Knieheben im Liegen",
+  "bwReps": "10–20",
+  "dbEquip": "ohne Gerät",
+  "bwEquip": "ohne Gerät",
+  "dbCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
+  "bwCue": "Identisch – hier gibt es ohnehin kein Gewicht.",
+  "detail": [
+   [
+    "Warum im Liegen",
+    "Die hängende Fassung ist die stärkere Übung – aber nur für den, dessen Griff sie überlebt. Wer nach zwei Wiederholungen loslässt, hat den Unterarm trainiert und den Bauch nicht. Im Liegen fällt der Griff als Begrenzer weg, und man arbeitet sofort im gewünschten Bereich. Dieselbe Bewegung, dieselbe Muskulatur, nur ohne das Nadelöhr."
+   ],
+   [
+    "Hände unter das Gesäß",
+    "Sie kippen das Becken leicht an und nehmen dem unteren Rücken das Hohlkreuz. Ohne sie zieht der Hüftbeuger die Lendenwirbelsäule nach vorn, und der Bauch tut immer weniger, je tiefer die Beine gehen."
+   ],
+   [
+    "Das Einrollen",
+    "Knie anheben ist Hüftbeuger. Der Bauch kommt erst, wenn das Becken vom Boden abhebt und sich einrollt – ein kurzes Stück, ohne Schwung. Wer die Beine nur hoch und runter pendelt, macht die Übung an der Bauchmuskulatur vorbei."
+   ]
+  ],
+  "dbRest": 120,
+  "bwRest": 120,
+  "dbWeight": null,
+  "dbStep": null,
+  "weightNote": null,
+  "dbPattern": "kneeraisefloor",
+  "dbShares": {
+   "abs": 1.0
+  },
+  "bwPattern": "kneeraisefloor",
+  "bwShares": {
+   "abs": 1.0
   },
   "equip": null
  }

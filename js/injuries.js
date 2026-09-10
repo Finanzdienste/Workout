@@ -85,7 +85,7 @@ export const INJURIES = [
       'liegende-trizepsstrecker',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['aussenrotation', 'schulterblatt'],
   },
   {
@@ -116,7 +116,7 @@ export const INJURIES = [
     // Ersatz ist das Rudern, nicht der Obergriff: Pull-ups drehen den Unterarm
     // zwar nicht nach außen, hängen ihn aber gestreckt an die Stange – und
     // genau dieser Zug reizt die Sehne ebenfalls.
-    swap: { 'chin-ups': 'einarmiges-kh-rudern', 'inverted-row': 'einarmiges-kh-rudern' },
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'chin-ups': 'einarmiges-kh-rudern', 'inverted-row': 'einarmiges-kh-rudern' },
     care: ['aussenrotation', 'brustdehnung', 'beugerDehnen'],
   },
 
@@ -132,7 +132,7 @@ export const INJURIES = [
       'haengendes-knieheben',
       'inverted-row'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: [
       'streckerExzentrik', 'streckerDehnen', 'fingerstrecker', 'handgelenkMobil',
     ],
@@ -147,7 +147,7 @@ export const INJURIES = [
       'haengendes-knieheben',
       'inverted-row'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['beugerExzentrik', 'beugerDehnen', 'handgelenkMobil'],
   },
   {
@@ -190,7 +190,7 @@ export const INJURIES = [
       'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
     ],
-    swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
   },
   {
@@ -203,7 +203,7 @@ export const INJURIES = [
       'haengendes-knieheben',
       'inverted-row'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['streckerDehnen', 'fingerstrecker', 'handgelenkMobil'],
   },
   {
@@ -216,7 +216,7 @@ export const INJURIES = [
       'haengendes-knieheben',
       'inverted-row'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['fingerstrecker', 'handgelenkMobil'],
   },
 
@@ -246,7 +246,7 @@ export const INJURIES = [
       'sitzendes-schulterdruecken', 'haengendes-knieheben',
       'inverted-row', 'pike-liegestuetze', 'reverse-snow-angel'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['kinnZurueck', 'schulterkreisen', 'atmung'],
   },
   {

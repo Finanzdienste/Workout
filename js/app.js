@@ -39,7 +39,7 @@ import {
 } from './gewichte.js';
 import { RASTER, STANGE_LABEL, erreichbar, normSatz, stangeZaehlt } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, workoutByNo } from './plan.js';
+import { WEEK_SESSIONS, activeInjuries, anfaengerStatt, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, lebenStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
 import { abbruch, ausgelassen, vorneListe, vorneUm } from './muster.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
@@ -1249,6 +1249,7 @@ function renderFocus() {
       ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
       ${kgNotiz(it)}
       ${aufwaermZeile(it, mode, n)}`}
+    ${anfaengerZeile(it)}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -2121,6 +2122,7 @@ function renderDashboard() {
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
+        ${anfaengerZeile(it)}
         ${weightRow}
         ${wdhRow(it, mode)}
         <div class="ex-sets">${setBtns}</div>
@@ -2847,6 +2849,25 @@ function scheibenAendern(wie) {
  * Sie steht nur, solange von der Übung noch nichts abgehakt ist. Danach ist das
  * Aufwärmen vorbei, und eine Ansage, die überholt ist, ist eine Ansage zu viel.
  */
+/**
+ * „Statt Hängendes Knieheben" – wenn die Anfängerstufe getauscht hat.
+ *
+ * Ein Tausch, den niemand sieht, ist eine App, die etwas anderes tut als sie
+ * sagt. Dieselbe Regel wie in js/muster.js: gerechnet wird automatisch,
+ * angezeigt wird immer. Wer die schwerere Fassung will, stellt die Erfahrung
+ * unter Mehr eine Stufe höher – das steht im Satz mit drin, sonst wäre der
+ * Hinweis eine Sackgasse.
+ */
+function anfaengerZeile(it) {
+  const statt = anfaengerStatt(it);
+  if (!statt) return '';
+  const alt = EX_BY_ID.get(statt);
+  if (!alt) return '';
+  return `<div class="aufwaerm">Statt ${esc(alt.db.name)}
+    <span class="muted">– die Anfängerfassung. Höhere Erfahrungsstufe unter Mehr
+    bringt die schwerere zurück.</span></div>`;
+}
+
 function aufwaermZeile(it, mode, n) {
   if (!store.getState().aufwaermen) return '';
   if ((store.peekSets(n, mode, it.id) || []).some((s) => s.done)) return '';

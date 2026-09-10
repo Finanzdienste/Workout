@@ -164,10 +164,51 @@ export function injuryNotes(n) {
  * schon Nachgetragenes enthält. Sonst wächst der Rückstand an sich selbst.
  * Nach außen geht exOf(), nicht diese Funktion.
  */
+/**
+ * Übungen, die auf der Anfängerstufe durch ihre einfachere Fassung ersetzt sind.
+ *
+ * Die Erfahrungsstufe hat bisher nur an zwei Schrauben gedreht: Startgewichte
+ * skalieren und Satzzahlen setzen. Beides hilft nichts, wo die Übung selbst das
+ * Nadelöhr ist:
+ *
+ *     „Beim hängenden Beinheben merk ich eigentlich nur die Arme und muss nach
+ *      zwei Wiederholungen abbrechen … Dann brauch ich als Anfänger halt einfach
+ *      ne andere Übung und zwar anscheinend die Boden Variante. Das soll nicht
+ *      nur im Text stehen sondern wenn man Anfänger ausgewählt hat soll auch nur
+ *      die Boden Variante kommen."
+ *
+ * Der Hinweis stand seit jeher im Katalogtext. Ein Rat, den man erst aufklappen
+ * muss, ändert aber nichts an dem, was auf dem Bildschirm steht – und zwei
+ * Wiederholungen an der Stange sind kein halbes Training, sondern keins.
+ *
+ * **Warum das hier steht und nicht in resolve():** Getauscht wird die *Übung*,
+ * nicht ihre Darstellung. Ab hier rechnen Protokoll, Fortschritt, Wochenvolumen
+ * und Zeitschätzung von selbst mit der richtigen – genau wie beim Tausch durch
+ * den Verletzungsfilter, der eine Zeile weiter oben passiert.
+ *
+ * **Warum die Anteile gleich sein müssen:** Die Wochenziele je Muskelgruppe
+ * hängen am Plan. Ein Ersatz mit anderen Anteilen verschöbe sie stillschweigend
+ * für jeden Anfänger. tests/test-anfaenger.mjs prüft das für jedes Paar.
+ */
+function anfaengerFassung(ex) {
+  if ((store.getState().level || 'geuebt') !== 'anfaenger') return ex;
+  let getauscht = false;
+  const raus = ex.map((it) => {
+    const ersatz = (EX_BY_ID.get(it.id) || {}).anfaenger;
+    if (!ersatz || !EX_BY_ID.has(ersatz)) return it;
+    getauscht = true;
+    return { ...it, id: ersatz, statt: it.id };
+  });
+  return getauscht ? raus : ex;
+}
+
+/** Wurde diese Übung wegen der Anfängerstufe getauscht? Dann wofür. */
+export const anfaengerStatt = (item) => item && item.statt;
+
 export function exBasis(w, mode) {
   if (istCustom(w.n)) return w.ex;
   const m = mode || store.workoutMode(w.n);
-  const geplant = adjustedPlan()[w.n - 1] || w.ex;
+  const geplant = anfaengerFassung(adjustedPlan()[w.n - 1] || w.ex);
   // Der Modus bestimmt die Satzzahl, die Erfahrung skaliert sie. Beides muss
   // hier passieren und nicht erst beim Anzeigen: Ab workoutByNo() reicht die
   // App nur noch `sets` weiter, und wer dort die falsche Zahl hineingibt,
@@ -372,6 +413,11 @@ export function resolve(item, mode) {
     // Muss mitwandern: Ab hier sieht die Anzeige nur noch das, was hier steht,
     // und eine Einheit, die kommentarlos wächst, ist eine Zumutung.
     nach: item.nach || 0,
+    // Wofür diese Übung eingesprungen ist, wenn die Anfängerstufe getauscht hat.
+    // Muss mitwandern wie `nach`: Ab hier sieht die Anzeige nur noch das, was
+    // hier steht – und ein stiller Tausch wäre genau die Sorte Änderung, die
+    // diese App nicht macht.
+    statt: item.statt || null,
     name: v.name, reps: stufe.reps, equip: v.equip, cue: v.cue, rest: stufe.rest,
     pattern: v.pattern, muscles: v.muscles,
     // Die ausführliche Erklärung hängt an der Übung, nicht an der Variante:

@@ -224,6 +224,13 @@ def main():
             'weightNote': m['weightNote'],
             'equip': m['equip'],
             'tier': m['tier'],
+            # Womit diese Uebung auf der Anfaengerstufe ersetzt wird, falls
+            # ueberhaupt. Die Erfahrungsstufe hat bisher nur Startgewichte
+            # skaliert und Satzzahlen gesetzt; wo die Uebung selbst das
+            # Nadeloehr ist, hilft beides nicht. Siehe anfaengerFassung() in
+            # js/plan.js. Nur ausgeben, wo es eins gibt - ein Feld, das ueberall
+            # null ist, blaeht js/data.js um 30 Zeilen und sagt nichts.
+            **({'anfaenger': m['anfaenger']} if m.get('anfaenger') else {}),
             'detail': m.get('detail', []),
             'db': {'name': m['name'], 'reps': m['reps'], 'equip': m['dbEquip'],
                    'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],

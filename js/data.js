@@ -1403,6 +1403,7 @@ export const EXERCISES = [
     "weightNote": null,
     "equip": null,
     "tier": 3,
+    "anfaenger": "liegendes-knieheben",
     "detail": [
       [
         "Schultern aktiv",
@@ -1834,6 +1835,59 @@ export const EXERCISES = [
       "muscles": [
         "rearDelts",
         "traps"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "liegendes-knieheben",
+    "group": "Bauch",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": null,
+    "tier": 3,
+    "detail": [
+      [
+        "Warum im Liegen",
+        "Die hängende Fassung ist die stärkere Übung – aber nur für den, dessen Griff sie überlebt. Wer nach zwei Wiederholungen loslässt, hat den Unterarm trainiert und den Bauch nicht. Im Liegen fällt der Griff als Begrenzer weg, und man arbeitet sofort im gewünschten Bereich. Dieselbe Bewegung, dieselbe Muskulatur, nur ohne das Nadelöhr."
+      ],
+      [
+        "Hände unter das Gesäß",
+        "Sie kippen das Becken leicht an und nehmen dem unteren Rücken das Hohlkreuz. Ohne sie zieht der Hüftbeuger die Lendenwirbelsäule nach vorn, und der Bauch tut immer weniger, je tiefer die Beine gehen."
+      ],
+      [
+        "Das Einrollen",
+        "Knie anheben ist Hüftbeuger. Der Bauch kommt erst, wenn das Becken vom Boden abhebt und sich einrollt – ein kurzes Stück, ohne Schwung. Wer die Beine nur hoch und runter pendelt, macht die Übung an der Bauchmuskulatur vorbei."
+      ]
+    ],
+    "db": {
+      "name": "Knieheben im Liegen",
+      "reps": "10–20",
+      "equip": "ohne Gerät",
+      "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
+      "rest": 120,
+      "pattern": "kneeraisefloor",
+      "shares": {
+        "abs": 1.0
+      },
+      "muscles": [
+        "abs"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Knieheben im Liegen",
+      "reps": "10–20",
+      "equip": "ohne Gerät",
+      "cue": "Identisch – hier gibt es ohnehin kein Gewicht.",
+      "rest": 120,
+      "pattern": "kneeraisefloor",
+      "shares": {
+        "abs": 1.0
+      },
+      "muscles": [
+        "abs"
       ],
       "stufen": {}
     }

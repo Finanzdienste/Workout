@@ -2979,6 +2979,7 @@ const EXERCISES = [
     "weightNote": null,
     "equip": null,
     "tier": 3,
+    "anfaenger": "liegendes-knieheben",
     "detail": [
       [
         "Schultern aktiv",
@@ -3410,6 +3411,59 @@ const EXERCISES = [
       "muscles": [
         "rearDelts",
         "traps"
+      ],
+      "stufen": {}
+    }
+  },
+  {
+    "id": "liegendes-knieheben",
+    "group": "Bauch",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": null,
+    "tier": 3,
+    "detail": [
+      [
+        "Warum im Liegen",
+        "Die hängende Fassung ist die stärkere Übung – aber nur für den, dessen Griff sie überlebt. Wer nach zwei Wiederholungen loslässt, hat den Unterarm trainiert und den Bauch nicht. Im Liegen fällt der Griff als Begrenzer weg, und man arbeitet sofort im gewünschten Bereich. Dieselbe Bewegung, dieselbe Muskulatur, nur ohne das Nadelöhr."
+      ],
+      [
+        "Hände unter das Gesäß",
+        "Sie kippen das Becken leicht an und nehmen dem unteren Rücken das Hohlkreuz. Ohne sie zieht der Hüftbeuger die Lendenwirbelsäule nach vorn, und der Bauch tut immer weniger, je tiefer die Beine gehen."
+      ],
+      [
+        "Das Einrollen",
+        "Knie anheben ist Hüftbeuger. Der Bauch kommt erst, wenn das Becken vom Boden abhebt und sich einrollt – ein kurzes Stück, ohne Schwung. Wer die Beine nur hoch und runter pendelt, macht die Übung an der Bauchmuskulatur vorbei."
+      ]
+    ],
+    "db": {
+      "name": "Knieheben im Liegen",
+      "reps": "10–20",
+      "equip": "ohne Gerät",
+      "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
+      "rest": 120,
+      "pattern": "kneeraisefloor",
+      "shares": {
+        "abs": 1.0
+      },
+      "muscles": [
+        "abs"
+      ],
+      "stufen": {}
+    },
+    "bw": {
+      "name": "Knieheben im Liegen",
+      "reps": "10–20",
+      "equip": "ohne Gerät",
+      "cue": "Identisch – hier gibt es ohnehin kein Gewicht.",
+      "rest": 120,
+      "pattern": "kneeraisefloor",
+      "shares": {
+        "abs": 1.0
+      },
+      "muscles": [
+        "abs"
       ],
       "stufen": {}
     }
@@ -4103,6 +4157,40 @@ const PATTERNS = {
     poses: [
       { arm: A(184, 17, 6), leg: L(4, 6, 14) },
       { arm: A(184, 17, 6), leg: L(96, 6, 108) },
+    ],
+  },
+  kneeraisefloor: {
+    /*
+     * Knieheben im Liegen – die Bodenfassung des hängenden Kniehebens.
+     *
+     * Sie gibt es, weil die hängende Fassung fast immer am Griff endet und
+     * nicht am Bauch:
+     *
+     *     „Beim hängenden Beinheben merk ich eigentlich nur die Arme und muss
+     *      nach zwei Wiederholungen abbrechen, weils halt so in den Fingern
+     *      schmerzt."
+     *
+     * Gerechnet, nicht geschätzt (Maße in Körperlängen, Hüfte im Ursprung, x
+     * längs, y hoch):
+     *
+     *                Knie          Knöchel
+     *   Start    x 0.24 y 0.36   x 0.54 y 0.07   Füße stehen am Boden
+     *   Ende     x −0.18 y 0.39  x 0.23 y 0.43   Knie über dem Bauch, Füße frei
+     *
+     * Das negative x am Ende ist der Punkt: Die Knie kommen über die Hüfte
+     * hinaus Richtung Brust, und genau dieses letzte Stück ist das Einrollen
+     * des Beckens – die Arbeit, um die es geht. Ein Ende bei x über null wäre
+     * bloß angehobenes Bein.
+     *
+     * Die Arme liegen längs am Körper (arm.p 0, wie bei legcurl): Beim
+     * Knieheben im Liegen schiebt man die Hände unter das Gesäß, und alles
+     * andere sähe aus, als hielte man sich irgendwo fest – das ist bei dieser
+     * Fassung gerade nicht der Fall.
+     */
+    label: 'Knieheben im Liegen', lie: 'supine', view: [20, -30],
+    poses: [
+      { arm: A(0, 17, 6), leg: L(56, 9, 100) },
+      { arm: A(0, 17, 6), leg: L(115, 9, 110) },
     ],
   },
   pullapart: {
@@ -5457,7 +5545,7 @@ const INJURIES = [
       'liegende-trizepsstrecker',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['aussenrotation', 'schulterblatt'],
   },
   {
@@ -5488,7 +5576,7 @@ const INJURIES = [
     // Ersatz ist das Rudern, nicht der Obergriff: Pull-ups drehen den Unterarm
     // zwar nicht nach außen, hängen ihn aber gestreckt an die Stange – und
     // genau dieser Zug reizt die Sehne ebenfalls.
-    swap: { 'chin-ups': 'einarmiges-kh-rudern', 'inverted-row': 'einarmiges-kh-rudern' },
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'chin-ups': 'einarmiges-kh-rudern', 'inverted-row': 'einarmiges-kh-rudern' },
     care: ['aussenrotation', 'brustdehnung', 'beugerDehnen'],
   },
 
@@ -5504,7 +5592,7 @@ const INJURIES = [
       'haengendes-knieheben',
       'inverted-row'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: [
       'streckerExzentrik', 'streckerDehnen', 'fingerstrecker', 'handgelenkMobil',
     ],
@@ -5519,7 +5607,7 @@ const INJURIES = [
       'haengendes-knieheben',
       'inverted-row'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['beugerExzentrik', 'beugerDehnen', 'handgelenkMobil'],
   },
   {
@@ -5562,7 +5650,7 @@ const INJURIES = [
       'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
     ],
-    swap: { 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
   },
   {
@@ -5575,7 +5663,7 @@ const INJURIES = [
       'haengendes-knieheben',
       'inverted-row'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['streckerDehnen', 'fingerstrecker', 'handgelenkMobil'],
   },
   {
@@ -5588,7 +5676,7 @@ const INJURIES = [
       'haengendes-knieheben',
       'inverted-row'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['fingerstrecker', 'handgelenkMobil'],
   },
 
@@ -5618,7 +5706,7 @@ const INJURIES = [
       'sitzendes-schulterdruecken', 'haengendes-knieheben',
       'inverted-row', 'pike-liegestuetze', 'reverse-snow-angel'
     ],
-    swap: {},
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['kinnZurueck', 'schulterkreisen', 'atmung'],
   },
   {
@@ -9417,10 +9505,51 @@ function injuryNotes(n) {
  * schon Nachgetragenes enthält. Sonst wächst der Rückstand an sich selbst.
  * Nach außen geht exOf(), nicht diese Funktion.
  */
+/**
+ * Übungen, die auf der Anfängerstufe durch ihre einfachere Fassung ersetzt sind.
+ *
+ * Die Erfahrungsstufe hat bisher nur an zwei Schrauben gedreht: Startgewichte
+ * skalieren und Satzzahlen setzen. Beides hilft nichts, wo die Übung selbst das
+ * Nadelöhr ist:
+ *
+ *     „Beim hängenden Beinheben merk ich eigentlich nur die Arme und muss nach
+ *      zwei Wiederholungen abbrechen … Dann brauch ich als Anfänger halt einfach
+ *      ne andere Übung und zwar anscheinend die Boden Variante. Das soll nicht
+ *      nur im Text stehen sondern wenn man Anfänger ausgewählt hat soll auch nur
+ *      die Boden Variante kommen."
+ *
+ * Der Hinweis stand seit jeher im Katalogtext. Ein Rat, den man erst aufklappen
+ * muss, ändert aber nichts an dem, was auf dem Bildschirm steht – und zwei
+ * Wiederholungen an der Stange sind kein halbes Training, sondern keins.
+ *
+ * **Warum das hier steht und nicht in resolve():** Getauscht wird die *Übung*,
+ * nicht ihre Darstellung. Ab hier rechnen Protokoll, Fortschritt, Wochenvolumen
+ * und Zeitschätzung von selbst mit der richtigen – genau wie beim Tausch durch
+ * den Verletzungsfilter, der eine Zeile weiter oben passiert.
+ *
+ * **Warum die Anteile gleich sein müssen:** Die Wochenziele je Muskelgruppe
+ * hängen am Plan. Ein Ersatz mit anderen Anteilen verschöbe sie stillschweigend
+ * für jeden Anfänger. tests/test-anfaenger.mjs prüft das für jedes Paar.
+ */
+function anfaengerFassung(ex) {
+  if ((store.getState().level || 'geuebt') !== 'anfaenger') return ex;
+  let getauscht = false;
+  const raus = ex.map((it) => {
+    const ersatz = (EX_BY_ID.get(it.id) || {}).anfaenger;
+    if (!ersatz || !EX_BY_ID.has(ersatz)) return it;
+    getauscht = true;
+    return { ...it, id: ersatz, statt: it.id };
+  });
+  return getauscht ? raus : ex;
+}
+
+/** Wurde diese Übung wegen der Anfängerstufe getauscht? Dann wofür. */
+const anfaengerStatt = (item) => item && item.statt;
+
 function exBasis(w, mode) {
   if (istCustom(w.n)) return w.ex;
   const m = mode || store.workoutMode(w.n);
-  const geplant = adjustedPlan()[w.n - 1] || w.ex;
+  const geplant = anfaengerFassung(adjustedPlan()[w.n - 1] || w.ex);
   // Der Modus bestimmt die Satzzahl, die Erfahrung skaliert sie. Beides muss
   // hier passieren und nicht erst beim Anzeigen: Ab workoutByNo() reicht die
   // App nur noch `sets` weiter, und wer dort die falsche Zahl hineingibt,
@@ -9625,6 +9754,11 @@ function resolve(item, mode) {
     // Muss mitwandern: Ab hier sieht die Anzeige nur noch das, was hier steht,
     // und eine Einheit, die kommentarlos wächst, ist eine Zumutung.
     nach: item.nach || 0,
+    // Wofür diese Übung eingesprungen ist, wenn die Anfängerstufe getauscht hat.
+    // Muss mitwandern wie `nach`: Ab hier sieht die Anzeige nur noch das, was
+    // hier steht – und ein stiller Tausch wäre genau die Sorte Änderung, die
+    // diese App nicht macht.
+    statt: item.statt || null,
     name: v.name, reps: stufe.reps, equip: v.equip, cue: v.cue, rest: stufe.rest,
     pattern: v.pattern, muscles: v.muscles,
     // Die ausführliche Erklärung hängt an der Übung, nicht an der Variante:
@@ -11751,6 +11885,7 @@ function renderFocus() {
       ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
       ${kgNotiz(it)}
       ${aufwaermZeile(it, mode, n)}`}
+    ${anfaengerZeile(it)}
 
     <div class="focus-sets">
       ${sets.map((s, idx) => `
@@ -12623,6 +12758,7 @@ function renderDashboard() {
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
+        ${anfaengerZeile(it)}
         ${weightRow}
         ${wdhRow(it, mode)}
         <div class="ex-sets">${setBtns}</div>
@@ -13349,6 +13485,25 @@ function scheibenAendern(wie) {
  * Sie steht nur, solange von der Übung noch nichts abgehakt ist. Danach ist das
  * Aufwärmen vorbei, und eine Ansage, die überholt ist, ist eine Ansage zu viel.
  */
+/**
+ * „Statt Hängendes Knieheben" – wenn die Anfängerstufe getauscht hat.
+ *
+ * Ein Tausch, den niemand sieht, ist eine App, die etwas anderes tut als sie
+ * sagt. Dieselbe Regel wie in js/muster.js: gerechnet wird automatisch,
+ * angezeigt wird immer. Wer die schwerere Fassung will, stellt die Erfahrung
+ * unter Mehr eine Stufe höher – das steht im Satz mit drin, sonst wäre der
+ * Hinweis eine Sackgasse.
+ */
+function anfaengerZeile(it) {
+  const statt = anfaengerStatt(it);
+  if (!statt) return '';
+  const alt = EX_BY_ID.get(statt);
+  if (!alt) return '';
+  return `<div class="aufwaerm">Statt ${esc(alt.db.name)}
+    <span class="muted">– die Anfängerfassung. Höhere Erfahrungsstufe unter Mehr
+    bringt die schwerere zurück.</span></div>`;
+}
+
 function aufwaermZeile(it, mode, n) {
   if (!store.getState().aufwaermen) return '';
   if ((store.peekSets(n, mode, it.id) || []).some((s) => s.done)) return '';

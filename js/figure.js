@@ -406,6 +406,40 @@ export const PATTERNS = {
       { arm: A(184, 17, 6), leg: L(96, 6, 108) },
     ],
   },
+  kneeraisefloor: {
+    /*
+     * Knieheben im Liegen – die Bodenfassung des hängenden Kniehebens.
+     *
+     * Sie gibt es, weil die hängende Fassung fast immer am Griff endet und
+     * nicht am Bauch:
+     *
+     *     „Beim hängenden Beinheben merk ich eigentlich nur die Arme und muss
+     *      nach zwei Wiederholungen abbrechen, weils halt so in den Fingern
+     *      schmerzt."
+     *
+     * Gerechnet, nicht geschätzt (Maße in Körperlängen, Hüfte im Ursprung, x
+     * längs, y hoch):
+     *
+     *                Knie          Knöchel
+     *   Start    x 0.24 y 0.36   x 0.54 y 0.07   Füße stehen am Boden
+     *   Ende     x −0.18 y 0.39  x 0.23 y 0.43   Knie über dem Bauch, Füße frei
+     *
+     * Das negative x am Ende ist der Punkt: Die Knie kommen über die Hüfte
+     * hinaus Richtung Brust, und genau dieses letzte Stück ist das Einrollen
+     * des Beckens – die Arbeit, um die es geht. Ein Ende bei x über null wäre
+     * bloß angehobenes Bein.
+     *
+     * Die Arme liegen längs am Körper (arm.p 0, wie bei legcurl): Beim
+     * Knieheben im Liegen schiebt man die Hände unter das Gesäß, und alles
+     * andere sähe aus, als hielte man sich irgendwo fest – das ist bei dieser
+     * Fassung gerade nicht der Fall.
+     */
+    label: 'Knieheben im Liegen', lie: 'supine', view: [20, -30],
+    poses: [
+      { arm: A(0, 17, 6), leg: L(56, 9, 100) },
+      { arm: A(0, 17, 6), leg: L(115, 9, 110) },
+    ],
+  },
   pullapart: {
     // Arme vorn auf Schulterhöhe, dann zur Seite auseinander. Der Rumpf bleibt
     // stehen – zieht er mit, wird daraus ein Rudern.
