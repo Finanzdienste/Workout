@@ -582,6 +582,10 @@ export const EXERCISES = [
         "Die Wellen drehen die Handgelenke leicht nach innen. Das ist bequemer als die gerade Stange und trifft den Bizeps kaum anders."
       ],
       [
+        "Handgelenk",
+        "Ein abknickendes Handgelenk ist kein Zeichen von dünnen Gelenken, sondern fast immer eine Frage von Griff und Last – und in dieser Reihenfolge zu beheben.\n\nErstens der Griff: Die Stange gehört quer über den Handballen, in einer Linie mit den Unterarmknochen, nicht in die Finger. Rutscht sie in die Finger, hat das Handgelenk einen Hebel gegen sich und muss die Last mit den Streckern halten – es knickt nach hinten weg. Bei der SZ-Stange die *innere* Flanke der Welle greifen, die zur Mitte hin ansteigt; dort steht die Hand von selbst leicht gedreht, und genau dafür gibt es die Wellen.\n\nZweitens die Last: Knickt das Handgelenk trotz sauberem Griff ab, ist der Satz zu Ende. Das Handgelenk ist dann der Begrenzer, nicht der Bizeps – und weiterzumachen ist der kurze Weg zu genau der Überlastung, die unter Verletzungen als „Handgelenksüberlastung\" steht. Lieber zwei Kilo weniger und zehn saubere Wiederholungen.\n\nDrittens, und erst dann: Der Umfang des Handgelenks ist Knochen und ändert sich nicht. Der Unterarm dagegen schon. Was ihn dicker macht, steht unter Verletzungen bei den Pflegeübungen – Handgelenkstrecken und -beugen mit langsamem Ablassen, 3 × 15 je Seite. Wer den Reiz lieber in der Übung selbst hätte: Hammercurls mit Kurzhanteln halten das Handgelenk neutral und treffen Brachialis und Brachioradialis, also genau die beiden Muskeln, die einen Unterarm füllen."
+      ],
+      [
         "Ellenbogen am Körper",
         "Sie bleiben, wo sie sind. Wandern sie nach vorn, wird daraus ein Heben aus der Schulter – der Bizeps macht dann nur noch die halbe Arbeit."
       ],
@@ -594,7 +598,7 @@ export const EXERCISES = [
       "name": "SZ-Curls",
       "reps": "8–15",
       "equip": "SZ-Stange",
-      "cue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung.",
+      "cue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung. Handgelenk gerade halten – knickt es unter Last nach hinten ab, liegt die Stange zu weit in den Fingern oder das Gewicht ist zu hoch.",
       "rest": 120,
       "pattern": "curl",
       "shares": {
