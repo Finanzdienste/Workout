@@ -392,6 +392,56 @@ try:
 finally:
     lesen.adb = echtes_adb
 
+# --- 12. Die App selbst nach vorn holen --------------------------------
+# Der fuenfte Lauf tippte fuenf Namen an, aber vorher musste ein Mensch Tinder
+# aufmachen. Bis dahin steht Termux vorn, und dann wird absichtlich nichts
+# gelesen - der Durchgang faengt also mit Handarbeit an.
+for echt in ('Aurélie', 'Juli', 'Rina'):
+    pruefe(lesen.als_name(echt) == echt,
+           f'{echt!r} ist ein Name (aus dem fuenften Lauf aussortiert)')
+
+vorhanden = {'com.tinder', 'com.bumble.app', 'co.hinge.app'}
+gestartet = []
+
+
+def adb_mit_start(*args, **kw):
+    if args[:3] == ('shell', 'pm', 'list'):
+        return args[4] + '\n' if args[4] in vorhanden else ''
+    if args[:2] == ('shell', 'monkey'):
+        gestartet.append(args)
+        return 'Events injected: 1'
+    return ''
+
+
+try:
+    lesen.adb = adb_mit_start
+    pruefe(lesen.erste_installierte() == 'tinder',
+           'sind alle drei da, wird die erste genommen')
+    vorhanden = {'co.hinge.app'}
+    pruefe(lesen.erste_installierte() == 'hinge', 'sonst die, die da ist')
+    vorhanden = set()
+    pruefe(lesen.erste_installierte() is None,
+           'und ohne eine davon wird nichts erfunden')
+
+    # Eine App, die es nicht gibt, wird nicht gestartet - sonst haengt das
+    # Programm an einem Fehler, den `monkey` nur auf stderr erwaehnt.
+    pruefe(lesen.app_starten('tinder') is False, 'was nicht installiert ist, wird nicht gestartet')
+    pruefe(gestartet == [], 'und es wird auch nichts versucht')
+
+    vorhanden = {'com.tinder'}
+    pruefe(lesen.app_starten('tinder') is True, 'was da ist, wird gestartet')
+    pruefe(gestartet[0][:5] == ('shell', 'monkey', '-p', 'com.tinder', '-c'),
+           'ueber das Paket, nicht ueber einen Klassennamen')
+    pruefe('android.intent.category.LAUNCHER' in gestartet[0],
+           'und ueber die Launcher-Kategorie, die jede Fassung ueberlebt')
+
+    # Im Trockenlauf wird angekuendigt, nicht getan.
+    gestartet.clear()
+    pruefe(lesen.app_starten('tinder', trocken=True) is True, 'im Trockenlauf ebenso …')
+    pruefe(gestartet == [], '… aber ohne dass wirklich etwas geoeffnet wird')
+finally:
+    lesen.adb = echtes_adb
+
 print()
 if fehler:
     sys.exit(f'{fehler} Pruefung(en) fehlgeschlagen.')

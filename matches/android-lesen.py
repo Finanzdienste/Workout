@@ -463,6 +463,53 @@ def vordergrund():
     return 'andere'
 
 
+def installiert(paket):
+    """Ist diese App ueberhaupt auf dem Telefon?"""
+    try:
+        return paket in adb('shell', 'pm', 'list', 'packages', paket)
+    except SystemExit:
+        return False
+
+
+def app_starten(app, trocken=False):
+    """Die App selbst nach vorn holen, statt darauf zu warten.
+
+    Gestartet wird ueber die Launcher-Kategorie und nicht ueber einen festen
+    Klassennamen: Wie die Startseite einer App intern heisst, aendert sich mit
+    jeder Fassung - dass sie die Startseite ist, aendert sich nicht.
+
+    Wo die App danach steht, ist offen: meist auf dem Bildschirm, den sie
+    zuletzt hatte. Deshalb ist das eine Erleichterung und keine Garantie - die
+    Match-Liste muss unter Umstaenden trotzdem einmal von Hand geoeffnet werden.
+    """
+    paket = PAKET_VON.get(app)
+    if not paket:
+        return False
+    if trocken:
+        print(f'  [trocken] {APPS.get(app, app)} oeffnen')
+        return True
+    if not installiert(paket):
+        print(f'  {APPS.get(app, app)} ist auf diesem Telefon nicht installiert.')
+        return False
+    print(f'  {APPS.get(app, app)} wird geoeffnet …')
+    try:
+        adb('shell', 'monkey', '-p', paket, '-c',
+            'android.intent.category.LAUNCHER', '1')
+    except SystemExit:
+        print(f'  {APPS.get(app, app)} liess sich nicht oeffnen.')
+        return False
+    time.sleep(2)
+    return True
+
+
+def erste_installierte():
+    """Welche der drei Apps liegt auf diesem Telefon? Die erste gewinnt."""
+    for kuerzel in ('tinder', 'bumble', 'hinge'):
+        if installiert(PAKET_VON[kuerzel]):
+            return kuerzel
+    return None
+
+
 def bildschirm():
     """Den Textbaum des gerade sichtbaren Bildschirms holen."""
     # `exec-out` statt `dump` plus `pull`: Das spart die Datei auf dem Telefon.
@@ -530,6 +577,7 @@ einen Namen traegt, der hier fehlt, wird uebersprungen - das Programm sagt es
 dann, statt still an ihm vorbeizugehen, und die Liste laesst sich ergaenzen.
 """
 VORNAMEN = set('''
+aurélie aurelie juli rina
 anna anne annika antonia amelie alina alexandra alicia amina angelina ann annalena
 antonella ariana asia astrid aylin ayse barbara bianca birgit brigitte carla carlotta
 carmen caro carolin caroline catharina cathrin celina charlotte chiara christin
@@ -870,6 +918,14 @@ def schauen(app, sekunden, ruhe, fahren=False, trocken=False, port=None):
               'und Hinge nacheinander, in beliebiger Reihenfolge.')
     else:
         print(f'Zusehen. Geh auf dem Telefon durch deine {app.capitalize()}-Matches.')
+    # Beim Fahren die App selbst nach vorn holen. Ohne das faengt jeder
+    # Durchgang damit an, dass ein Mensch die richtige App aufmacht - und bis
+    # dahin liest das Programm gar nichts, weil vorn Termux steht.
+    if fahren:
+        gewuenscht = app if app in PAKET_VON else erste_installierte()
+        if gewuenscht and vordergrund() != gewuenscht:
+            app_starten(gewuenscht, trocken)
+
     print('Wichtig: die Profile oeffnen. Die Entfernung steht dort, nicht in der Liste.')
     print('Beenden mit Strg+C, oder es hoert von selbst auf, wenn '
           f'{ruhe} Sekunden lang nichts Neues kommt.\n')
@@ -996,7 +1052,7 @@ def abzug(ziel):
     with open(ziel, 'w', encoding='utf-8') as datei:
         datei.write(xml)
     stuecke = texte(xml)
-    print(f'{ziel}: {len(stuecke)} Textstuecke.')
+    print(f'{ziel}: {len(stuecke)} Textstuecke. Vorn steht {APPS.get(vordergrund())}.')
     for s in stuecke[:60]:
         km = kilometer(s['text'])
         name = als_name(s['text'])
@@ -1010,7 +1066,9 @@ def main():
     zerleger.add_argument('--app', choices=['auto', 'tinder', 'bumble', 'hinge', 'andere'],
                           default='auto',
                           help='auto (Standard): je Zeile die App nehmen, die gerade vorn ist')
-    zerleger.add_argument('--abzug', metavar='DATEI', help='den Bildschirm einmal abziehen')
+    zerleger.add_argument('--abzug', nargs='?', const='abzug.xml', metavar='DATEI',
+                          help='den Bildschirm einmal abziehen und zeigen, was der Leser '
+                               'dort sieht; ohne Angabe nach abzug.xml')
     zerleger.add_argument('--takt', type=float, default=2.0, help='Sekunden zwischen zwei Blicken')
     zerleger.add_argument('--ruhe', type=float, default=90.0, help='Sekunden ohne Neues bis Schluss')
     zerleger.add_argument('--einrichten', metavar='CODE',
