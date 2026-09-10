@@ -41,6 +41,13 @@ jobs:
       - name: Pläne passen noch zu ihren Eingaben
         run: python3 tools/pruefung/plan-frisch.py
 
+      # An ein Telefon mit offener Dating-App kommt hier niemand heran – weder
+      # im Ablauf noch beim Bauen. Ungeprüft bliebe damit ausgerechnet der Teil,
+      # der raten muss: Was auf einem Bildschirm ist ein Vorname, was eine
+      # Entfernung, und welche beiden gehören zusammen.
+      - name: Der Bildschirmleser trifft die richtigen Paare
+        run: python3 tools/pruefung/android-lesen-pruefen.py
+
       # Die Rechenschicht darf nicht wieder an der Anzeige hängen, und ein
       # neues Modul muss in beiden Listen stehen – im Bündel und im
       # Offline-Vorrat. Beides geht sonst still kaputt: js/ics.js fehlte
@@ -57,8 +64,9 @@ jobs:
           pip install --quiet openpyxl
           python3 tools/build-data.py
           python3 tools/build-single.py
-          git diff --exit-code -- js/data.js dist/workout.html \
-            || { echo "::error::js/data.js oder dist/workout.html ist nicht neu erzeugt worden."; exit 1; }
+          python3 tools/build-matches-single.py
+          git diff --exit-code -- js/data.js dist/workout.html dist/matches.html \
+            || { echo "::error::js/data.js, dist/workout.html oder dist/matches.html ist nicht neu erzeugt worden."; exit 1; }
 
   klicken:
     name: Browsertests
