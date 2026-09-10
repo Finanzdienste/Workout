@@ -73,16 +73,25 @@ Zwei Arten zu laufen
 ueber das WLAN-Debugging selbst bedienen: adb laeuft in Termux und verbindet
 sich auf 127.0.0.1. Das Galaxy S21 kann das.
 
-1. F-Droid -> Termux. Darin: `pkg install android-tools python`
-2. Entwickleroptionen -> **WLAN-Debugging** einschalten.
-3. Dort *Geraet mit Kopplungscode koppeln* antippen. Es erscheint ein
-   sechsstelliger Code. In Termux, nur mit dem Code:
+1. F-Droid -> Termux. Darin: `pkg install android-tools python curl`
+2. Dieses Programm holen - direkt, nicht ueber den Browser in die Downloads,
+   sonst liegt irgendwann eine alte Fassung da und wirft Fehler, die laengst
+   behoben sind:
 
-       python3 android-lesen.py --einrichten CODE
+       curl -sSL -o ~/android-lesen.py https://raw.githubusercontent.com/Finanzdienste/Workout/main/matches/android-lesen.py
+
+3. Entwickleroptionen -> **WLAN-Debugging** einschalten. Steht das Telefon
+   dort schon unter "Gekoppelte Geraete", ist Schritt 4 erledigt.
+4. Dort *Geraet mit Kopplungscode koppeln* antippen. Der Dialog zeigt einen
+   sechsstelligen Code; getippt wird der **in Termux**, hinter --einrichten,
+   waehrend der Dialog offen stehen bleibt (geteilter Bildschirm - Android
+   schliesst ihn sonst, und mit ihm sterben Port und Code):
+
+       python3 ~/android-lesen.py --einrichten CODE
 
    Das ist **einmalig**. Die Kopplung ueberlebt Neustarts; sie steht danach
    unter "Gekoppelte Geraete".
-4. Danach nichts mehr. Der Verbindungsport aendert sich zwar bei jedem
+5. Danach nichts mehr. Der Verbindungsport aendert sich zwar bei jedem
    Neustart und bei jedem Ein- und Ausschalten des WLAN-Debuggings - aber er
    wird gesucht, nicht abgetippt: Wer `--schauen` oder `--fahren` aufruft und
    nicht verbunden ist, wird von selbst verbunden.
@@ -91,7 +100,7 @@ sich auf 127.0.0.1. Das Galaxy S21 kann das.
    schaltet ihn bei jedem Neustart des Telefons ab, und daran laesst sich von
    aussen nichts aendern - es ist genau der Schalter, der fremden Zugriff
    erlaubt. Als Kachel in den Schnelleinstellungen ist es ein Tipp.
-5. `termux-wake-lock`, damit Termux im Hintergrund weiterlaeuft, waehrend du in
+6. `termux-wake-lock`, damit Termux im Hintergrund weiterlaeuft, waehrend du in
    Bumble bist. Dann `--schauen` oder `--fahren` wie sonst.
 
 Herauskommt eine Datei im selben Format wie beim Browser-Mitleser, die die

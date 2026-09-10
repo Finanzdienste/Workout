@@ -149,23 +149,33 @@ Seit Android 11 kann ein Gerät sich über das **WLAN-Debugging selbst bedienen*
 `adb` läuft in Termux und verbindet sich auf `127.0.0.1`. Damit braucht der
 ganze Weg keinen Rechner und kein Kabel mehr.
 
-1. F-Droid → Termux. Darin: `pkg install android-tools python`, dann
+1. F-Droid → Termux. Darin: `pkg install android-tools python curl`, dann
    `termux-setup-storage` (sonst landet die Datei in den App-Daten, wo der
    Browser nicht herankommt).
-2. Entwickleroptionen → **WLAN-Debugging** einschalten.
-3. Termux und die Einstellungen im **geteilten Bildschirm** nebeneinander legen
+2. Das Programm holen — nicht über den Browser in die Downloads, sondern
+   direkt, weil sonst irgendwann eine alte Fassung im Verzeichnis liegt und
+   Fehler wirft, die längst behoben sind:
+
+       curl -sSL -o ~/android-lesen.py https://raw.githubusercontent.com/Finanzdienste/Workout/main/matches/android-lesen.py
+
+   Dieselbe Zeile holt später auch jede neuere Fassung.
+3. Entwickleroptionen → **WLAN-Debugging** einschalten.
+4. Steht dieses Telefon auf demselben Bildschirm schon unter **Gekoppelte
+   Geräte**, sind die Schritte 5 und 6 erledigt — weiter bei 7.
+5. Termux und die Einstellungen im **geteilten Bildschirm** nebeneinander legen
    (Zuletzt-verwendet → auf das Termux-Symbol → *In geteilter Bildschirmansicht
    öffnen*). Das ist nötig, weil Android den Kopplungsdialog schließt, sobald
    man ihn verlässt — und mit ihm sterben Port und Code.
-4. *Gerät mit Kopplungscode koppeln* antippen und den sechsstelligen Code
-   eintippen:
+6. *Gerät mit Kopplungscode koppeln* antippen. Der Dialog zeigt einen
+   sechsstelligen Code; der wird **in Termux getippt**, hinter `--einrichten`,
+   während der Dialog offen stehen bleibt:
 
-       python3 android-lesen.py --einrichten 096656
+       python3 ~/android-lesen.py --einrichten 096656
 
    Den Port braucht es nicht: Das Programm läuft auf demselben Gerät, also kann
    es die offenen Ports auf `127.0.0.1` selbst abzählen und den Kopplungsdienst
    darunter finden. Nur den Code kann kein Programm lesen.
-5. `termux-wake-lock`, dann — jedes Mal derselbe eine Befehl:
+7. `termux-wake-lock`, dann — jedes Mal derselbe eine Befehl:
 
        python3 android-lesen.py --fahren --server
 
@@ -176,12 +186,12 @@ ganze Weg keinen Rechner und kein Kabel mehr.
 
 #### Was davon beim nächsten Mal wieder anfällt
 
-Die Schritte 1, 3 und 4 sind einmalig; die Kopplung überlebt Neustarts und
+Die Schritte 1, 5 und 6 sind einmalig; die Kopplung überlebt Neustarts und
 steht danach unter *Gekoppelte Geräte*. Was der Kopplungsdialog anzeigt, ist
 dagegen jedes Mal neu und nur Sekunden gültig — das ist die Kopplung selbst
-nicht.
+nicht. Schritt 2 fällt nur an, wenn es eine neuere Fassung gibt.
 
-Bleibt Schritt 2, der Schalter **Debugging über WLAN**. Der geht öfter aus, als
+Bleibt Schritt 3, der Schalter **Debugging über WLAN**. Der geht öfter aus, als
 man denkt: bei jedem Neustart, bei jedem Abschalten des WLANs, und nach längerer
 Untätigkeit. Als Kachel in den Schnelleinstellungen ist es ein Tipp
 (Schnelleinstellungen → Bearbeiten → *WLAN-Debugging*), und das ist der Weg, den
