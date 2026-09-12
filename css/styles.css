@@ -284,6 +284,26 @@ button { font: inherit; color: inherit; }
   color: var(--accent);
 }
 .kg-step:active { transform: scale(.95); }
+/* Was eine Scheibengroesse an der Stange bringt. Umbricht in eine eigene Zeile
+   (flex-basis 100%), damit sie die Eingabefelder nicht schmaler macht. */
+.scheiben-hint, .scheiben-warn {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  line-height: 1.4;
+  margin-top: -2px;
+}
+.scheiben-hint { color: var(--muted); }
+.scheiben-warn { color: var(--warn, #e0a33e); font-weight: 600; }
+/* Die Sprungweite unter dem Zeichen. Klein und gedaempft: Sie soll da sein,
+   wenn man sie sucht, und nicht mit dem + um die Aufmerksamkeit streiten. */
+.kg-step-d {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 1;
+  margin-top: 3px;
+  opacity: .7;
+}
 .kg-main {
   flex: 1;
   min-width: 0;
@@ -689,6 +709,7 @@ button { font: inherit; color: inherit; }
 .scheiben-satz > .lbl { margin-bottom: 6px; }
 .scheiben-zeile {
   display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  flex-wrap: wrap;   /* damit der Hinweis darunter passt, statt zu quetschen */
 }
 .scheiben-zeile .kg-val { font-size: 17px; width: 3.2em; flex: none; }
 .scheiben-mal { font-size: 12.5px; color: var(--muted); font-weight: 600; }

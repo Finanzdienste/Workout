@@ -2739,7 +2739,30 @@ function roherSatz() {
 const feldWert = (v) => (typeof v === 'number' && Number.isFinite(v) ? fmtNum(v) : '');
 
 /** Eine Zeile „Größe × Stück" für eine Scheibengröße. */
+/**
+ * Eine Zeile des Scheibensatzes – und was diese Größe wirklich bringt.
+ *
+ *     „Ich will 20 kg machen aber wenn ich bei 16 auf plus drück dann geht er
+ *      direkt hier hin."
+ *
+ * Zwischen 16 und 21,5 liegt nichts, weil der eingetragene Satz nichts
+ * dazwischen hergibt – aber das stand nirgends. Schlimmer noch: Eine Größe, von
+ * der zu wenige da sind, wurde stumm übergangen. Für die Langhantel braucht es
+ * zwei Scheiben je Stufe, für beide Kurzhanteln vier; wer eine Größe einzeln
+ * einträgt, hat sie eingetragen und sie zählt trotzdem nicht.
+ *
+ * Deshalb steht jetzt an jeder Zeile, was sie leistet: „+10 kg an der Stange"
+ * – oder eben, dass es für ein Paar nicht reicht.
+ */
 function scheibenZeile(i, kg, anzahl) {
+  const n = Number(anzahl) || 0;
+  const wert = Number(kg) || 0;
+  const paare = Math.floor(n / 2);
+  const hinweis = !wert || !n ? ''
+    : paare < 1
+      ? '<span class="scheiben-warn">nur einzeln – eine Stange braucht zwei</span>'
+      : `<span class="scheiben-hint">+${esc(fmtNum(wert * 2))} kg je Paar${
+          n >= 4 ? ` · ${paare} Paare` : ''}</span>`;
   return `
     <div class="scheiben-zeile">
       <input type="text" inputmode="decimal" class="kg-val" value="${esc(feldWert(kg))}"
@@ -2750,6 +2773,7 @@ function scheibenZeile(i, kg, anzahl) {
       <span class="scheiben-mal">Stück</span>
       <button type="button" class="btn btn-mini" data-act="scheiben-weg"
               data-i="${i}" aria-label="Diese Größe entfernen">✕</button>
+      ${hinweis}
     </div>`;
 }
 
@@ -3087,6 +3111,18 @@ function aufwaermZeile(it, mode, n) {
  * Fünferschritten je Hand. Steht auf dem Knopf „2,5 Kilo mehr" und es werden
  * fünf, ist der Knopf gelogen.
  */
+/**
+ * Ein − oder + an der Gewichtszeile – mit der Sprungweite darauf.
+ *
+ *     „Ich will 20 kg machen aber wenn ich bei 16 auf plus drück dann geht er
+ *      direkt hier hin [21,5]."
+ *
+ * Die Zahl stand schon immer im aria-label, also genau dort, wo man sie nicht
+ * sieht. Sichtbar stand nur „+", und damit sah ein Schritt von 0,5 kg aus wie
+ * einer von 5,5 – bis man ihn gedrückt hatte. Jetzt steht sie unter dem
+ * Zeichen: Wer +5,5 liest, weiß vorher, dass dazwischen nichts liegt, und
+ * warum – sein Scheibensatz gibt es nicht her.
+ */
 function kgKnopf(it, richtung) {
   const jetzt = workingWeight(it.id);
   const ziel = naechstesGewicht(it.id, richtung);
@@ -3096,7 +3132,8 @@ function kgKnopf(it, richtung) {
     : `${fmtNum(d)} Kilo ${wort}`;
   return `<button type="button" class="kg-step${richtung > 0 ? ' kg-plus' : ''}"
           data-act="weight-step" data-ex="${it.id}" data-dir="${richtung}"
-          ${d < 0.01 ? 'disabled' : ''} aria-label="${esc(label)}">${richtung > 0 ? '+' : '−'}</button>`;
+          ${d < 0.01 ? 'disabled' : ''} aria-label="${esc(label)}">${richtung > 0 ? '+' : '−'}${
+            d < 0.01 ? '' : `<span class="kg-step-d">${esc(fmtNum(d))}</span>`}</button>`;
 }
 
 /**

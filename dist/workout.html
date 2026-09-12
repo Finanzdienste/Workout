@@ -294,6 +294,26 @@ button { font: inherit; color: inherit; }
   color: var(--accent);
 }
 .kg-step:active { transform: scale(.95); }
+/* Was eine Scheibengroesse an der Stange bringt. Umbricht in eine eigene Zeile
+   (flex-basis 100%), damit sie die Eingabefelder nicht schmaler macht. */
+.scheiben-hint, .scheiben-warn {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  line-height: 1.4;
+  margin-top: -2px;
+}
+.scheiben-hint { color: var(--muted); }
+.scheiben-warn { color: var(--warn, #e0a33e); font-weight: 600; }
+/* Die Sprungweite unter dem Zeichen. Klein und gedaempft: Sie soll da sein,
+   wenn man sie sucht, und nicht mit dem + um die Aufmerksamkeit streiten. */
+.kg-step-d {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 1;
+  margin-top: 3px;
+  opacity: .7;
+}
 .kg-main {
   flex: 1;
   min-width: 0;
@@ -699,6 +719,7 @@ button { font: inherit; color: inherit; }
 .scheiben-satz > .lbl { margin-bottom: 6px; }
 .scheiben-zeile {
   display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  flex-wrap: wrap;   /* damit der Hinweis darunter passt, statt zu quetschen */
 }
 .scheiben-zeile .kg-val { font-size: 17px; width: 3.2em; flex: none; }
 .scheiben-mal { font-size: 12.5px; color: var(--muted); font-weight: 600; }
@@ -9418,12 +9439,41 @@ const stepOf = (exId) => {
  * Kurzhanteln in Fünferschritten je Hand, ob ihm das passt oder nicht. Genau
  * das soll die Zahl auch zeigen.
  */
+/**
+ * Wie weit ein Schritt mindestens gehen muss – gemessen am aktuellen Gewicht.
+ *
+ *     „Ich will 20 kg machen aber wenn ich bei 16 auf plus drück dann geht er
+ *      direkt hier hin [21,5]."
+ *
+ * Die Schrittweite aus dem Katalog ist eine absolute Zahl: 5 kg für alles an
+ * der Langhantel. Sie ist auf das *typische* Arbeitsgewicht der Übung geeicht –
+ * beim Langhantelrudern 35 kg, da sind 5 kg ein knappes Siebtel. Bei 16,5 kg
+ * sind dieselben 5 kg **dreißig Prozent**, und der Knopf sprang über 17,5 und 19
+ * hinweg, obwohl beide aufsteckbar gewesen wären.
+ *
+ * Deshalb ist die Mindestweite jetzt relativ: **fünf Prozent des aktuellen
+ * Gewichts**, gedeckelt durch die Schrittweite der Übung und nach unten durch
+ * ein halbes Kilo begrenzt, damit aus einem Schritt kein Krümel wird. Fünf
+ * Prozent, weil das die Größenordnung ist, in der im Krafttraining tatsächlich
+ * gesteigert wird – 2,5 kg auf 50 kg. Gerechnet an Beispielen:
+ *
+ *     bei 17,5 kg, Schritt 5    mindestens 0,88  →  19 statt 21,5
+ *     bei 40 kg,   Schritt 5    mindestens 2,0   →  42,5 statt 45
+ *     bei 6 kg,    Schritt 1    mindestens 0,5   →  7,  wie bisher
+ *
+ * Der Deckel bleibt wichtig: Bei einem feinen Scheibensatz läge sonst alle
+ * 1,25 kg eine Stufe, und bei 40 kg wären das drei Prozent – ein Schritt, der
+ * keiner ist.
+ */
+const mindestSchritt = (jetzt, schritt) =>
+  Math.min(schritt, Math.max(0.5, jetzt * 0.05));
+
 function naechstesGewicht(exId, richtung) {
   const ex = EX_BY_ID.get(exId);
   const jetzt = workingWeight(exId) || 0;
   const schritt = stepOf(exId);
   if (!ex || !gepflegt(ex.equip, meinSatz())) return Math.max(0, jetzt + richtung * schritt);
-  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), schritt);
+  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), mindestSchritt(jetzt, schritt));
   return n === null ? jetzt : n;
 }
 
@@ -14167,7 +14217,30 @@ function roherSatz() {
 const feldWert = (v) => (typeof v === 'number' && Number.isFinite(v) ? fmtNum(v) : '');
 
 /** Eine Zeile „Größe × Stück" für eine Scheibengröße. */
+/**
+ * Eine Zeile des Scheibensatzes – und was diese Größe wirklich bringt.
+ *
+ *     „Ich will 20 kg machen aber wenn ich bei 16 auf plus drück dann geht er
+ *      direkt hier hin."
+ *
+ * Zwischen 16 und 21,5 liegt nichts, weil der eingetragene Satz nichts
+ * dazwischen hergibt – aber das stand nirgends. Schlimmer noch: Eine Größe, von
+ * der zu wenige da sind, wurde stumm übergangen. Für die Langhantel braucht es
+ * zwei Scheiben je Stufe, für beide Kurzhanteln vier; wer eine Größe einzeln
+ * einträgt, hat sie eingetragen und sie zählt trotzdem nicht.
+ *
+ * Deshalb steht jetzt an jeder Zeile, was sie leistet: „+10 kg an der Stange"
+ * – oder eben, dass es für ein Paar nicht reicht.
+ */
 function scheibenZeile(i, kg, anzahl) {
+  const n = Number(anzahl) || 0;
+  const wert = Number(kg) || 0;
+  const paare = Math.floor(n / 2);
+  const hinweis = !wert || !n ? ''
+    : paare < 1
+      ? '<span class="scheiben-warn">nur einzeln – eine Stange braucht zwei</span>'
+      : `<span class="scheiben-hint">+${esc(fmtNum(wert * 2))} kg je Paar${
+          n >= 4 ? ` · ${paare} Paare` : ''}</span>`;
   return `
     <div class="scheiben-zeile">
       <input type="text" inputmode="decimal" class="kg-val" value="${esc(feldWert(kg))}"
@@ -14178,6 +14251,7 @@ function scheibenZeile(i, kg, anzahl) {
       <span class="scheiben-mal">Stück</span>
       <button type="button" class="btn btn-mini" data-act="scheiben-weg"
               data-i="${i}" aria-label="Diese Größe entfernen">✕</button>
+      ${hinweis}
     </div>`;
 }
 
@@ -14515,6 +14589,18 @@ function aufwaermZeile(it, mode, n) {
  * Fünferschritten je Hand. Steht auf dem Knopf „2,5 Kilo mehr" und es werden
  * fünf, ist der Knopf gelogen.
  */
+/**
+ * Ein − oder + an der Gewichtszeile – mit der Sprungweite darauf.
+ *
+ *     „Ich will 20 kg machen aber wenn ich bei 16 auf plus drück dann geht er
+ *      direkt hier hin [21,5]."
+ *
+ * Die Zahl stand schon immer im aria-label, also genau dort, wo man sie nicht
+ * sieht. Sichtbar stand nur „+", und damit sah ein Schritt von 0,5 kg aus wie
+ * einer von 5,5 – bis man ihn gedrückt hatte. Jetzt steht sie unter dem
+ * Zeichen: Wer +5,5 liest, weiß vorher, dass dazwischen nichts liegt, und
+ * warum – sein Scheibensatz gibt es nicht her.
+ */
 function kgKnopf(it, richtung) {
   const jetzt = workingWeight(it.id);
   const ziel = naechstesGewicht(it.id, richtung);
@@ -14524,7 +14610,8 @@ function kgKnopf(it, richtung) {
     : `${fmtNum(d)} Kilo ${wort}`;
   return `<button type="button" class="kg-step${richtung > 0 ? ' kg-plus' : ''}"
           data-act="weight-step" data-ex="${it.id}" data-dir="${richtung}"
-          ${d < 0.01 ? 'disabled' : ''} aria-label="${esc(label)}">${richtung > 0 ? '+' : '−'}</button>`;
+          ${d < 0.01 ? 'disabled' : ''} aria-label="${esc(label)}">${richtung > 0 ? '+' : '−'}${
+            d < 0.01 ? '' : `<span class="kg-step-d">${esc(fmtNum(d))}</span>`}</button>`;
 }
 
 /**

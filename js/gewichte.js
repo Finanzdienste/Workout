@@ -345,12 +345,41 @@ export const stepOf = (exId) => {
  * Kurzhanteln in Fünferschritten je Hand, ob ihm das passt oder nicht. Genau
  * das soll die Zahl auch zeigen.
  */
+/**
+ * Wie weit ein Schritt mindestens gehen muss – gemessen am aktuellen Gewicht.
+ *
+ *     „Ich will 20 kg machen aber wenn ich bei 16 auf plus drück dann geht er
+ *      direkt hier hin [21,5]."
+ *
+ * Die Schrittweite aus dem Katalog ist eine absolute Zahl: 5 kg für alles an
+ * der Langhantel. Sie ist auf das *typische* Arbeitsgewicht der Übung geeicht –
+ * beim Langhantelrudern 35 kg, da sind 5 kg ein knappes Siebtel. Bei 16,5 kg
+ * sind dieselben 5 kg **dreißig Prozent**, und der Knopf sprang über 17,5 und 19
+ * hinweg, obwohl beide aufsteckbar gewesen wären.
+ *
+ * Deshalb ist die Mindestweite jetzt relativ: **fünf Prozent des aktuellen
+ * Gewichts**, gedeckelt durch die Schrittweite der Übung und nach unten durch
+ * ein halbes Kilo begrenzt, damit aus einem Schritt kein Krümel wird. Fünf
+ * Prozent, weil das die Größenordnung ist, in der im Krafttraining tatsächlich
+ * gesteigert wird – 2,5 kg auf 50 kg. Gerechnet an Beispielen:
+ *
+ *     bei 17,5 kg, Schritt 5    mindestens 0,88  →  19 statt 21,5
+ *     bei 40 kg,   Schritt 5    mindestens 2,0   →  42,5 statt 45
+ *     bei 6 kg,    Schritt 1    mindestens 0,5   →  7,  wie bisher
+ *
+ * Der Deckel bleibt wichtig: Bei einem feinen Scheibensatz läge sonst alle
+ * 1,25 kg eine Stufe, und bei 40 kg wären das drei Prozent – ein Schritt, der
+ * keiner ist.
+ */
+const mindestSchritt = (jetzt, schritt) =>
+  Math.min(schritt, Math.max(0.5, jetzt * 0.05));
+
 export function naechstesGewicht(exId, richtung) {
   const ex = EX_BY_ID.get(exId);
   const jetzt = workingWeight(exId) || 0;
   const schritt = stepOf(exId);
   if (!ex || !gepflegt(ex.equip, meinSatz())) return Math.max(0, jetzt + richtung * schritt);
-  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), schritt);
+  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), mindestSchritt(jetzt, schritt));
   return n === null ? jetzt : n;
 }
 
