@@ -157,7 +157,27 @@ for k in sorted(META):
         if not re.search(flach(muss), fname):
             veraltet.append((k, name, wort))
 
-print(f'{len(META)} Übungen geprüft: Haltung, Gerät, Schlüssel.\n')
+# --- Steht der Hinweis fuer sich? --------------------------------------
+#
+#     "Hier steht identisch. Aber identisch zu was? Mich interessiert hier ja
+#      nicht ein Vergleich zur Hantelübung oder so sondern einfach nur diese
+#      eine losgelöste Übung."
+#
+# Neun Bodyweight-Hinweise fingen mit "Identisch." an und meinten damit die
+# Hantelfassung derselben Uebung. Auf dem Bildschirm steht aber immer nur eine
+# von beiden: Wer im Bodyweight-Modus trainiert, sieht den Hantel-Hinweis nie
+# und bekam als Anleitung das Wort "Identisch". Ein Hinweis, der auf etwas
+# verweist, das nicht danebensteht, ist keiner.
+#
+# Geprueft wird der Anfang - dort steht so ein Rueckverweis, wenn es ihn gibt.
+# Ein "wie oben" mitten im Text meint meistens die Zeile davor und ist in
+# Ordnung.
+VERWEIS = re.compile(r'^\s*(identisch|wie (oben|beidbeinig|bei der|in der|vorher|beschrieben)|'
+                     r'dasselbe|das gleiche|siehe oben)\b', re.I)
+lose = [(k, f, e[f][:60]) for k, e in sorted(META.items()) for f in ('dbCue', 'bwCue')
+        if VERWEIS.match(e.get(f, ''))]
+
+print(f'{len(META)} Übungen geprüft: Haltung, Gerät, Schlüssel, Hinweis für sich.\n')
 if befunde:
     print(f'{len(befunde)} Unstimmigkeit(en):')
     for k, was, text in befunde:
@@ -174,4 +194,13 @@ if veraltet:
     print('  Das ist kein Fehler: An den Schlüsseln hängen die eingetragenen')
     print('  Gewichte und jeder protokollierte Satz, sie bleiben deshalb stehen.')
 
-sys.exit(1 if befunde else 0)
+if lose:
+    print(f'\n{len(lose)} Hinweis(e) verweisen auf die andere Variante, statt die Übung '
+          f'selbst zu beschreiben:')
+    for k, f, anfang in lose:
+        print(f'  {k:32s} {f}: „{anfang}…"')
+    print('  Auf dem Bildschirm steht immer nur eine Variante. Ausschreiben.')
+else:
+    print('Jeder Hinweis beschreibt seine eigene Übung, ohne Verweis auf die andere Variante.')
+
+sys.exit(1 if befunde or lose else 0)

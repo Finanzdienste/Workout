@@ -126,7 +126,7 @@ export const EXERCISES = [
       "name": "Sliding Leg Curl",
       "reps": "8–15",
       "equip": "Handtuch, glatter Boden",
-      "cue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s). Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
+      "cue": "Rücken am Boden, Fersen auf je einem Handtuch. Hüfte oben halten und die Fersen langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken, etwa drei Sekunden. Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
       "rest": 120,
       "pattern": "legcurl",
       "shares": {
@@ -271,7 +271,7 @@ export const EXERCISES = [
       "name": "Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange (+ Stuhl)",
-      "cue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen.",
+      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zu schwer? Negativ-Wiederholungen: von einem Stuhl aus oben starten und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen und nur so viel abnehmen, wie nötig ist.",
       "rest": 180,
       "pattern": "pullup",
       "shares": {
@@ -748,7 +748,7 @@ export const EXERCISES = [
       "name": "Einbeiniger Sliding Leg Curl",
       "reps": "6–12 je Bein",
       "equip": "Slider/Handtuch",
-      "cue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
+      "cue": "Rücken am Boden, eine Ferse auf einem Slider, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf dabei nicht absacken und nicht zur Seite kippen.",
       "rest": 120,
       "pattern": "legcurl1",
       "shares": {
@@ -770,7 +770,7 @@ export const EXERCISES = [
       "name": "Einbeiniger Sliding Leg Curl",
       "reps": "6–12 je Bein",
       "equip": "Handtuch, glatter Boden",
-      "cue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
+      "cue": "Rücken am Boden, eine Ferse auf einem Handtuch, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen – ohne dass die Hüfte absackt oder zur Seite kippt. Ist das Herausschieben zu schwer: hinaus einbeinig, zurück mit beiden Beinen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
       "rest": 120,
       "pattern": "legcurl1",
       "shares": {
@@ -1183,7 +1183,7 @@ export const EXERCISES = [
       "name": "Pull-ups",
       "reps": "4–10",
       "equip": "Klimmzugstange (+ Stuhl)",
-      "cue": "Identisch, ohne Zusatzgewicht. Noch keine ganze schaffst du? Negative: hochspringen und 5 Sekunden ablassen. Oder Füße auf einem Stuhl abstützen und nur so viel abnehmen, wie nötig ist. Drei bis vier Wochen, dann geht die erste freie.",
+      "cue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Schulterblätter zuerst nach unten ziehen, Brust zur Stange, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als im Untergriff. Noch keine ganze? Negative: hochspringen und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen. Drei bis vier Wochen, dann geht die erste freie.",
       "rest": 180,
       "pattern": "pullupwide",
       "shares": {
@@ -1670,7 +1670,7 @@ export const EXERCISES = [
       "name": "Inverted Row",
       "reps": "8–20",
       "equip": "Klimmzugstange tief oder Tischkante",
-      "cue": "Identisch, nur ohne Rucksack. Geht die Klimmzugstange nicht tief genug, tut es eine stabile Tischkante: darunterlegen, Kante fassen, ziehen. Zu schwer? Knie anwinkeln und die Füße näher heranstellen – das nimmt Last weg, ohne die Bewegung zu verändern.",
+      "cue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Geht die Klimmzugstange nicht tief genug, tut es eine stabile Tischkante: darunterlegen, Kante fassen, ziehen. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter. Zu schwer? Knie anwinkeln und die Füße näher heranstellen; das nimmt Last weg, ohne die Bewegung zu verändern.",
       "rest": 150,
       "pattern": "invrow",
       "shares": {
@@ -1743,7 +1743,7 @@ export const EXERCISES = [
       "name": "Einbeiniges Kreuzheben",
       "reps": "10–20 je Bein",
       "equip": "ohne",
-      "cue": "Identisch, ohne Gewicht. Die Arme hängen oder greifen nach vorn. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
+      "cue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen oder greifen nach vorn. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
       "rest": 120,
       "pattern": "hinge1",
       "shares": {
@@ -1814,7 +1814,7 @@ export const EXERCISES = [
       "name": "Pike-Liegestütze",
       "reps": "6–15",
       "equip": "ohne",
-      "cue": "Identisch. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
+      "cue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
       "rest": 150,
       "pattern": "pike",
       "shares": {
@@ -1950,7 +1950,7 @@ export const EXERCISES = [
       "name": "Reverse Snow Angel",
       "reps": "10–20",
       "equip": "ohne",
-      "cue": "Identisch. Kein Gerät, keine Zusatzlast – der Reiz kommt aus der Zeit unter Spannung. Vier Sekunden hin, vier zurück, und die Arme bleiben oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen – beides nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
+      "cue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen; beides nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
       "rest": 90,
       "pattern": "snowangel",
       "shares": {
@@ -2007,7 +2007,7 @@ export const EXERCISES = [
       "name": "Knieheben im Liegen",
       "reps": "10–20",
       "equip": "ohne Gerät",
-      "cue": "Identisch – hier gibt es ohnehin kein Gewicht.",
+      "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
       "rest": 120,
       "pattern": "kneeraisefloor",
       "shares": {

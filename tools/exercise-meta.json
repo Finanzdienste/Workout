@@ -91,7 +91,7 @@
   "dbEquip": "Slider/Handtuch",
   "bwEquip": "Handtuch, glatter Boden",
   "dbCue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
-  "bwCue": "Identisch. Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken (3 s). Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
+  "bwCue": "Rücken am Boden, Fersen auf je einem Handtuch. Hüfte oben halten und die Fersen langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken, etwa drei Sekunden. Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
   "detail": [
    [
     "Untergrund",
@@ -136,8 +136,8 @@
   "tier": 2,
   "dbEquip": "Slider/Handtuch",
   "bwEquip": "Handtuch, glatter Boden",
-  "dbCue": "Wie beidbeinig, aber nur ein Fuß am Boden. Das freie Bein angewinkelt in der Luft halten.",
-  "bwCue": "Identisch. Wenn das Herausschieben zu schwer ist: exzentrisch einbeinig, konzentrisch mit beiden Beinen zurück. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
+  "dbCue": "Rücken am Boden, eine Ferse auf einem Slider, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf dabei nicht absacken und nicht zur Seite kippen.",
+  "bwCue": "Rücken am Boden, eine Ferse auf einem Handtuch, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen – ohne dass die Hüfte absackt oder zur Seite kippt. Ist das Herausschieben zu schwer: hinaus einbeinig, zurück mit beiden Beinen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
   "detail": [
    [
     "Aufteilen, wenn es zu schwer ist",
@@ -397,7 +397,7 @@
   "dbEquip": "Klimmzugstange + Rucksack",
   "bwEquip": "Klimmzugstange (+ Stuhl)",
   "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Schaffst du noch keine 5? Dann ist eine einzelne Wiederholung ein Maximalversuch und kein Trainingssatz: Negative (von einem Stuhl aus starten, 5 s ablassen) oder Füße auf einem Stuhl abstützen, bis du im Bereich 5–10 arbeitest. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Wasserflaschen, Bücher, Kurzhanteln) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
-  "bwCue": "Identisch. Zu schwer? Negativ-Wiederholungen (5 s ablassen) oder Füße auf einem Stuhl abstützen.",
+  "bwCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zu schwer? Negativ-Wiederholungen: von einem Stuhl aus oben starten und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen und nur so viel abnehmen, wie nötig ist.",
   "detail": [
    [
     "Griff",
@@ -459,7 +459,7 @@
   "dbEquip": "Klimmzugstange + Rucksack",
   "bwEquip": "Klimmzugstange (+ Stuhl)",
   "dbCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Noch keine 4? Dann Negative (hochspringen, 5 s ablassen) oder Füße auf einem Stuhl, bis der Bereich steht – einzelne Maximalversuche bringen für den Aufbau wenig. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
-  "bwCue": "Identisch, ohne Zusatzgewicht. Noch keine ganze schaffst du? Negative: hochspringen und 5 Sekunden ablassen. Oder Füße auf einem Stuhl abstützen und nur so viel abnehmen, wie nötig ist. Drei bis vier Wochen, dann geht die erste freie.",
+  "bwCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Schulterblätter zuerst nach unten ziehen, Brust zur Stange, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als im Untergriff. Noch keine ganze? Negative: hochspringen und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen. Drei bis vier Wochen, dann geht die erste freie.",
   "detail": [
    [
     "Griff",
@@ -1068,7 +1068,7 @@
   "dbEquip": "Klimmzugstange tief + Rucksack",
   "bwEquip": "Klimmzugstange tief oder Tischkante",
   "dbCue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter, Knie angewinkelt leichter. Zusatzlast kommt in den Rucksack auf die Brust.",
-  "bwCue": "Identisch, nur ohne Rucksack. Geht die Klimmzugstange nicht tief genug, tut es eine stabile Tischkante: darunterlegen, Kante fassen, ziehen. Zu schwer? Knie anwinkeln und die Füße näher heranstellen – das nimmt Last weg, ohne die Bewegung zu verändern.",
+  "bwCue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Geht die Klimmzugstange nicht tief genug, tut es eine stabile Tischkante: darunterlegen, Kante fassen, ziehen. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter. Zu schwer? Knie anwinkeln und die Füße näher heranstellen; das nimmt Last weg, ohne die Bewegung zu verändern.",
   "detail": [
    [
     "Warum sie im Plan steht",
@@ -1118,7 +1118,7 @@
   "dbEquip": "Kurzhantel",
   "bwEquip": "ohne",
   "dbCue": "Eine Kurzhantel in der Hand der freien Seite. Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden. Zurück über das Gesäß, nicht über den unteren Rücken.",
-  "bwCue": "Identisch, ohne Gewicht. Die Arme hängen oder greifen nach vorn. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
+  "bwCue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen oder greifen nach vorn. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
   "detail": [
    [
     "Eine Hantel reicht",
@@ -1166,7 +1166,7 @@
   "bwName": "Pike-Liegestütze",
   "bwReps": "6–15",
   "dbCue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Je senkrechter der Oberkörper, desto mehr Schulter und desto weniger Brust. Füße auf einem Hocker machen es deutlich schwerer.",
-  "bwCue": "Identisch. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
+  "bwCue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
   "detail": [
    [
     "Wozu ohne Hanteln drücken",
@@ -1266,7 +1266,7 @@
   "dbEquip": "ohne",
   "bwEquip": "ohne",
   "dbCue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen.",
-  "bwCue": "Identisch. Kein Gerät, keine Zusatzlast – der Reiz kommt aus der Zeit unter Spannung. Vier Sekunden hin, vier zurück, und die Arme bleiben oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen – beides nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
+  "bwCue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen; beides nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
   "detail": [
    [
     "Wofür",
@@ -1312,7 +1312,7 @@
   "dbEquip": "ohne Gerät",
   "bwEquip": "ohne Gerät",
   "dbCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
-  "bwCue": "Identisch – hier gibt es ohnehin kein Gewicht.",
+  "bwCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
   "detail": [
    [
     "Warum im Liegen",
