@@ -89,6 +89,14 @@ const DEFAULT_STATE = {
   // gilt das Nein nicht mehr – siehe reifeUebungen() in js/gewichte.js.
   steigerungNein: {},
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)
+  // Geräte, die gerade *nicht* da sind – IDs aus GERAETE in js/vorrat.js.
+  //
+  // Abgewählt statt angewählt, und das ist der ganze Trick: Ein leeres Feld
+  // heißt „alles da". Wer die App seit Monaten benutzt, merkt vom Vorrat
+  // deshalb nichts, und eine Sicherung ohne dieses Feld schaltet nicht
+  // versehentlich den halben Plan ab. Entstanden bei den Eltern, ohne Bänder
+  // und ohne Klimmzugstange.
+  fehlt: [],
   friends: {},           // zuletzt geschickter Stand anderer: { id: { n, w, s, kg, r, p, d, am } }
   customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}] }]
   session: null,         // laufendes Training: { n }

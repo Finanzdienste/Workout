@@ -16,6 +16,7 @@ import { addDays, daysBetween, plural, todayISO } from './dates.js';
 import { applyInjuries } from './injuries.js';
 import { esc } from './text.js';
 import { ruestOrderStabil } from './gewichte.js';
+import { vorratFassung, vorratVollstaendig } from './vorrat.js';
 import { satzZahl } from './stufen.js';
 
 /**
@@ -202,23 +203,63 @@ function anfaengerFassung(ex) {
   return getauscht ? raus : ex;
 }
 
-/** Wurde diese Übung wegen der Anfängerstufe getauscht? Dann wofür. */
-export const anfaengerStatt = (item) => item && item.statt;
+/**
+ * Wofür diese Übung eingesprungen ist – und warum.
+ *
+ * Zwei Filter tauschen inzwischen Übungen aus: die Erfahrungsstufe und der
+ * Gerätevorrat. Beide schreiben `statt` an den Eintrag, `stattWarum`
+ * unterscheidet sie. Ohne Angabe ist es die Stufe – so war es zuerst, und die
+ * Einträge aus anfaengerFassung() tragen bis heute nur `statt`.
+ */
+export const ersatzGrund = (item) => (item && item.statt
+  ? { statt: item.statt, warum: item.stattWarum || 'stufe' } : null);
 
-export function exBasis(w, mode) {
-  if (istCustom(w.n)) return w.ex;
+/**
+ * Was an einem Plantag am Vorrat scheitert – getauscht oder weggefallen.
+ *
+ * Anders als bei den Verletzungen hängt das am Modus: Im Bodyweight-Modus
+ * braucht keine Übung eine Kurzhantel, im Hantel-Modus keine ein Band, wo eine
+ * Hantel danebenliegt. Deshalb wird es hier gerechnet und nicht in
+ * adjustedPlan(), das den Modus gar nicht kennt.
+ */
+export function vorratNotiz(w, mode) {
+  if (istCustom(w.n) || vorratVollstaendig()) return { getauscht: [], weg: [] };
   const m = mode || store.workoutMode(w.n);
+  const r = vorratFassung(gestufteSaetze(w, m), m);
+  return { getauscht: r.getauscht, weg: r.weg };
+}
+
+/**
+ * Der Plantag mit den Satzzahlen, die hier gelten – Verletzungen und
+ * Erfahrungsstufe schon eingerechnet, der Vorrat noch nicht.
+ *
+ * Der Modus bestimmt die Satzzahl, die Erfahrung skaliert sie. Beides muss hier
+ * passieren und nicht erst beim Anzeigen: Ab workoutByNo() reicht die App nur
+ * noch `sets` weiter, und wer dort die falsche Zahl hineingibt, bekommt sie in
+ * der Fortschrittsanzeige, im Protokoll und in der Statistik wieder heraus.
+ * Siehe bw_saetze() in tools/build-plan.py.
+ *
+ * **Vor dem Vorrat und nicht danach:** Was wegfällt, soll mit den Sätzen
+ * wegfallen, die es an diesem Tag wirklich gehabt hätte. Sonst nennte
+ * vorratNotiz() für einen Anfänger im Bodyweight-Modus einen Verlust, den es in
+ * dieser Höhe nie gab.
+ */
+function gestufteSaetze(w, m) {
+  // Erst die Stufe, dann der Vorrat. Die Anfängerfassung einer Übung braucht
+  // oft weniger Gerät – das hängende Knieheben die Klimmzugstange, das liegende
+  // nichts. Andersherum fiele sie weg, statt getauscht zu werden.
   const geplant = anfaengerFassung(adjustedPlan()[w.n - 1] || w.ex);
-  // Der Modus bestimmt die Satzzahl, die Erfahrung skaliert sie. Beides muss
-  // hier passieren und nicht erst beim Anzeigen: Ab workoutByNo() reicht die
-  // App nur noch `sets` weiter, und wer dort die falsche Zahl hineingibt,
-  // bekommt sie in der Fortschrittsanzeige, im Protokoll und in der Statistik
-  // wieder heraus. Siehe bw_saetze() in tools/build-plan.py.
-  const items = geplant.map((it) => {
+  return geplant.map((it) => {
     const roh = m === 'bw' && it.bwSets ? it.bwSets : it.sets;
     const sets = satzZahl(roh);
     return sets === it.sets ? it : { ...it, sets };
   });
+}
+
+export function exBasis(w, mode) {
+  if (istCustom(w.n)) return w.ex;
+  const m = mode || store.workoutMode(w.n);
+  const items = vorratFassung(gestufteSaetze(w, m), m).items;
   // Nur bei den Hanteln: Im Bodyweight-Modus gibt es nichts umzubauen, und die
   // Reihenfolge soll dann die des Plans bleiben.
   return m === 'db' ? ruestOrderStabil(items, w.n, 'db') : items;
@@ -418,6 +459,7 @@ export function resolve(item, mode) {
     // hier steht – und ein stiller Tausch wäre genau die Sorte Änderung, die
     // diese App nicht macht.
     statt: item.statt || null,
+    stattWarum: item.stattWarum || null,
     name: v.name, reps: stufe.reps, equip: v.equip, cue: v.cue, rest: stufe.rest,
     pattern: v.pattern, muscles: v.muscles,
     // Die ausführliche Erklärung hängt an der Übung, nicht an der Variante:

@@ -117,6 +117,70 @@ def parse_block(text, has_title):
     return out
 
 
+# --- Aus dem Geraetetext wird eine pruefbare Angabe ---------------------
+#
+# `dbEquip`/`bwEquip` sind Fliesstext fuer den Menschen: "Kurzhanteln oder
+# SZ-Stange", "Klimmzugstange tief oder Tischkante". Die App kann daran nicht
+# entscheiden, ob eine Uebung gerade moeglich ist - dafuer braucht sie Schluessel.
+#
+# WARUM EINE TABELLE UND KEINE MUSTERSUCHE: Ein /band/i faende auch
+# "Handtuch"-Faelle nicht und "Tischkante" nicht als Ausweg. Vor allem aber
+# schwiege es bei einem neuen Text. Eine Tabelle mit Volltreffer bricht den Bau
+# ab, sobald in exercise-meta.json ein Geraet auftaucht, das hier nicht steht -
+# und das ist genau der Moment, in dem jemand entscheiden muss, ob man es
+# abwaehlen koennen soll.
+#
+# Ein Eintrag ist eine Liste von Alternativgruppen (UND ueber ODER):
+# ["kurzhantel|sz"] heisst "Kurzhanteln oder SZ-Stange", [] heisst "braucht
+# nichts, was fehlen koennte".
+#
+# NICHT AUFGEFUEHRT SIND MOEBEL: Stuhl, Erhoehung, Handtuch, Buch, Tischkante,
+# Polster, Rucksack. Wer keinen Stuhl hat, hat andere Sorgen; und ein Rucksack
+# ist ueberall. Was hier fehlt, gilt als immer vorhanden - deshalb steht auch
+# "Klimmzugstange tief oder Tischkante" auf [], die Uebung geht ohne Stange.
+GERAET_AUS_TEXT = {
+    'Kurzhantel': ['kurzhantel'],
+    'Kurzhanteln': ['kurzhantel'],
+    'Kurzhantel + Erhöhung': ['kurzhantel'],
+    'Kurzhantel oder Scheibe': ['kurzhantel'],
+    'Kurzhanteln oder SZ-Stange': ['kurzhantel|sz'],
+    'SZ-Stange': ['sz'],
+    'Langhantel': ['langhantel'],
+    'Langhantel + Polster': ['langhantel'],
+    'Loop-Band': ['band'],
+    'Loop-Band + Stuhl': ['band'],
+    'Loop-Band (Face Pull: + Klimmzugstange)': ['band'],
+    'Klimmzugstange': ['stange'],
+    'Klimmzugstange (+ Stuhl)': ['stange'],
+    'Klimmzugstange + Rucksack': ['stange'],
+    'Klimmzugstange tief + Rucksack': ['stange'],
+    'Klimmzugstange tief oder Tischkante': [],
+    'Slider/Handtuch': [],
+    'Handtuch, glatter Boden': [],
+    'Stuhl- oder Sofakante': [],
+    'Stuhl oder feste Kiste': [],
+    'Stufe oder dickes Buch': [],
+    'Erhöhung': [],
+    'Erhöhung (Buch/Keil)': [],
+    'Rucksack': [],
+    'Ohne Gerät': [],
+    'ohne Gerät': [],
+    'ohne': [],
+    'Ohne Gerät (optional zwei Bücherstapel)': [],
+}
+
+
+def braucht(text, wo):
+    if text not in GERAET_AUS_TEXT:
+        sys.exit(f'{wo}: unbekanntes Geraet {text!r}. Eintragen in GERAET_AUS_TEXT '
+                 f'(tools/build-data.py) - und dabei entscheiden, ob man es in den '
+                 f'Einstellungen abwaehlen koennen soll.')
+    # Die Alternativgruppe bleibt ein String mit Strich statt einer
+    # verschachtelten Liste: So steht in js/data.js eine Zeile je Uebung und
+    # nicht vier. Getrennt wird beim Pruefen, siehe erfuellt() in js/vorrat.js.
+    return list(GERAET_AUS_TEXT[text])
+
+
 def muscles(shares):
     """Muskeln nach Anteil, der größte zuerst.
 
@@ -243,6 +307,14 @@ def main():
         }
         print(f'{key}: nicht in der Excel, aus exercise-meta.json übernommen')
 
+    # Was eine Variante an Geraet braucht - in beiden Schleifen oben zugleich,
+    # und deshalb hier einmal fuer alle. Ein drittes `'braucht': ...` in einem
+    # der beiden Katalogliterale waere die Stelle, an der eine spaeter
+    # hinzugefuegte Uebung das Feld still nicht haette.
+    for key, e in catalog.items():
+        for variante in ('db', 'bw'):
+            e[variante]['braucht'] = braucht(e[variante]['equip'],
+                                             f'{key}.{variante}Equip')
 
     # Der Trainingsplan darf komplett aus tools/plan.json kommen: Termine,
     # Auswahl und Satzzahlen. Die Excel bleibt Quelle für die Übungen selbst –

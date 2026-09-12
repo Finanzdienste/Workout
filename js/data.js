@@ -46,7 +46,10 @@ export const EXERCISES = [
         "abs",
         "hamstringsHip"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "1½-Wdh. Bodyweight Squat",
@@ -67,7 +70,8 @@ export const EXERCISES = [
         "abs",
         "hamstringsHip"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -115,7 +119,8 @@ export const EXERCISES = [
         "hamstringsHip",
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     },
     "bw": {
       "name": "Sliding Leg Curl",
@@ -136,7 +141,8 @@ export const EXERCISES = [
         "hamstringsHip",
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -182,7 +188,8 @@ export const EXERCISES = [
         "triceps",
         "frontDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     },
     "bw": {
       "name": "Langsame Liegestütze (3 s ablassen)",
@@ -201,7 +208,8 @@ export const EXERCISES = [
         "triceps",
         "frontDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -254,7 +262,10 @@ export const EXERCISES = [
           "reps": "1–3",
           "rest": 120
         }
-      }
+      },
+      "braucht": [
+        "stange"
+      ]
     },
     "bw": {
       "name": "Chin-ups",
@@ -280,7 +291,10 @@ export const EXERCISES = [
           "reps": "1–3",
           "rest": 120
         }
-      }
+      },
+      "braucht": [
+        "stange"
+      ]
     }
   },
   {
@@ -322,7 +336,10 @@ export const EXERCISES = [
         "traps",
         "frontDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Sitzendes Band-Seitheben",
@@ -341,7 +358,10 @@ export const EXERCISES = [
         "frontDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     }
   },
   {
@@ -383,7 +403,10 @@ export const EXERCISES = [
       "muscles": [
         "triceps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel|sz"
+      ]
     },
     "bw": {
       "name": "Überkopf-Trizepsstrecker am Band",
@@ -398,7 +421,10 @@ export const EXERCISES = [
       "muscles": [
         "triceps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     }
   },
   {
@@ -440,7 +466,10 @@ export const EXERCISES = [
       "muscles": [
         "calves"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Einbeiniges Wadenheben",
@@ -455,7 +484,8 @@ export const EXERCISES = [
       "muscles": [
         "calves"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -489,7 +519,10 @@ export const EXERCISES = [
       "muscles": [
         "calves"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Wadenheben mit gebeugtem Knie",
@@ -504,7 +537,8 @@ export const EXERCISES = [
       "muscles": [
         "calves"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -546,7 +580,10 @@ export const EXERCISES = [
         "glutes",
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Fersenerhöhter 1½-Wdh. Bodyweight Squat",
@@ -565,7 +602,8 @@ export const EXERCISES = [
         "glutes",
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -607,7 +645,10 @@ export const EXERCISES = [
       "muscles": [
         "biceps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "sz"
+      ]
     },
     "bw": {
       "name": "Band-Curls",
@@ -622,7 +663,10 @@ export const EXERCISES = [
       "muscles": [
         "biceps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     }
   },
   {
@@ -660,7 +704,10 @@ export const EXERCISES = [
       "muscles": [
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Crunches",
@@ -675,7 +722,8 @@ export const EXERCISES = [
       "muscles": [
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -715,7 +763,8 @@ export const EXERCISES = [
         "abs",
         "hamstringsHip"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     },
     "bw": {
       "name": "Einbeiniger Sliding Leg Curl",
@@ -736,7 +785,8 @@ export const EXERCISES = [
         "abs",
         "hamstringsHip"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -776,7 +826,8 @@ export const EXERCISES = [
         "triceps",
         "sideDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     },
     "bw": {
       "name": "Füße-erhöhte Liegestütze",
@@ -797,7 +848,8 @@ export const EXERCISES = [
         "triceps",
         "sideDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -847,7 +899,10 @@ export const EXERCISES = [
         "triceps",
         "frontDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "langhantel"
+      ]
     },
     "bw": {
       "name": "Liegestütze",
@@ -866,7 +921,8 @@ export const EXERCISES = [
         "triceps",
         "frontDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -914,7 +970,10 @@ export const EXERCISES = [
         "traps",
         "rearDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "langhantel"
+      ]
     },
     "bw": {
       "name": "Vorgebeugtes Band-Rudern",
@@ -935,7 +994,10 @@ export const EXERCISES = [
         "traps",
         "rearDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     }
   },
   {
@@ -979,7 +1041,10 @@ export const EXERCISES = [
         "glutes",
         "hamstringsHip"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "langhantel"
+      ]
     },
     "bw": {
       "name": "Einbeiniger Hip Thrust",
@@ -996,7 +1061,8 @@ export const EXERCISES = [
         "glutes",
         "hamstringsHip"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -1036,7 +1102,10 @@ export const EXERCISES = [
         "rearDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Vorgebeugtes Band-Reverse-Fly",
@@ -1053,7 +1122,10 @@ export const EXERCISES = [
         "rearDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     }
   },
   {
@@ -1102,7 +1174,10 @@ export const EXERCISES = [
           "reps": "1–3",
           "rest": 120
         }
-      }
+      },
+      "braucht": [
+        "stange"
+      ]
     },
     "bw": {
       "name": "Pull-ups",
@@ -1128,7 +1203,10 @@ export const EXERCISES = [
           "reps": "1–3",
           "rest": 120
         }
-      }
+      },
+      "braucht": [
+        "stange"
+      ]
     }
   },
   {
@@ -1170,7 +1248,10 @@ export const EXERCISES = [
         "traps",
         "frontDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     },
     "bw": {
       "name": "Band-Seitheben",
@@ -1189,7 +1270,10 @@ export const EXERCISES = [
         "traps",
         "frontDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     }
   },
   {
@@ -1233,7 +1317,10 @@ export const EXERCISES = [
         "sideDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Band-Schulterdrücken",
@@ -1254,7 +1341,10 @@ export const EXERCISES = [
         "sideDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     }
   },
   {
@@ -1304,7 +1394,10 @@ export const EXERCISES = [
         "glutes",
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "langhantel"
+      ]
     },
     "bw": {
       "name": "Einbeiniges Kreuzheben (Standwaage)",
@@ -1323,7 +1416,8 @@ export const EXERCISES = [
         "glutes",
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -1371,7 +1465,10 @@ export const EXERCISES = [
         "hamstringsHip",
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Split Squat ohne Gewicht",
@@ -1392,7 +1489,8 @@ export const EXERCISES = [
         "hamstringsHip",
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -1435,7 +1533,10 @@ export const EXERCISES = [
       "muscles": [
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "stange"
+      ]
     },
     "bw": {
       "name": "Hängendes Knieheben",
@@ -1450,7 +1551,10 @@ export const EXERCISES = [
       "muscles": [
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "stange"
+      ]
     }
   },
   {
@@ -1486,7 +1590,10 @@ export const EXERCISES = [
         "rearDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     },
     "bw": {
       "name": "Band-Pull-Apart",
@@ -1503,7 +1610,10 @@ export const EXERCISES = [
         "rearDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
     }
   },
   {
@@ -1551,7 +1661,10 @@ export const EXERCISES = [
         "biceps",
         "rearDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "stange"
+      ]
     },
     "bw": {
       "name": "Inverted Row",
@@ -1572,7 +1685,8 @@ export const EXERCISES = [
         "biceps",
         "rearDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -1620,7 +1734,10 @@ export const EXERCISES = [
         "abs",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Einbeiniges Kreuzheben",
@@ -1641,7 +1758,8 @@ export const EXERCISES = [
         "abs",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -1689,7 +1807,8 @@ export const EXERCISES = [
         "sideDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     },
     "bw": {
       "name": "Pike-Liegestütze",
@@ -1710,7 +1829,8 @@ export const EXERCISES = [
         "sideDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -1756,7 +1876,10 @@ export const EXERCISES = [
         "triceps",
         "frontDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
     },
     "bw": {
       "name": "Enge Liegestütze",
@@ -1775,7 +1898,8 @@ export const EXERCISES = [
         "triceps",
         "frontDelts"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -1819,7 +1943,8 @@ export const EXERCISES = [
         "rearDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     },
     "bw": {
       "name": "Reverse Snow Angel",
@@ -1836,7 +1961,8 @@ export const EXERCISES = [
         "rearDelts",
         "traps"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   },
   {
@@ -1874,7 +2000,8 @@ export const EXERCISES = [
       "muscles": [
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     },
     "bw": {
       "name": "Knieheben im Liegen",
@@ -1889,7 +2016,8 @@ export const EXERCISES = [
       "muscles": [
         "abs"
       ],
-      "stufen": {}
+      "stufen": {},
+      "braucht": []
     }
   }
 ];

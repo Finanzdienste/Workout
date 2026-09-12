@@ -39,12 +39,13 @@ import {
 } from './gewichte.js';
 import { RASTER, STANGE_LABEL, erreichbar, normSatz, stangeZaehlt } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { WEEK_SESSIONS, activeInjuries, anfaengerStatt, catchUpPlan, completedMode, defaultWorkoutNo, effDate, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, workoutByNo } from './plan.js';
+import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, lebenStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
 import { abbruch, ausgelassen, vorneListe, vorneUm } from './muster.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
 import { kannPush, pushEinrichten, pushStand } from './push.js';
+import { GERAETE, bandFarbe, ersatzFuer, fehlt, nichtMoeglich, setzeVorrat, vorratVollstaendig } from './vorrat.js';
 
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
@@ -1042,6 +1043,10 @@ const ui = {
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
   openInjury: new Set(),
+  // Welche Seite des Geräte-Vorrats offen steht: 'bw' oder 'db'. Fängt bei dem
+  // Modus an, in dem gerade trainiert wird – wer mit Hanteln arbeitet, sucht
+  // die Hanteln.
+  vorratSeite: store.getState().mode === 'bw' ? 'bw' : 'db',
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
@@ -1269,6 +1274,7 @@ function renderFocus() {
 
     ${i === w.ex.length - 1 ? careBlock(n) : ''}
     ${sessionButtons(n, mode)}
+    ${vorratNote(w, mode)}
     ${injuryNote(w, mode)}
   `;
 
@@ -1545,6 +1551,7 @@ function renderOverview() {
           : `<button type="button" class="ov-nav" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>→</button>`}
       </div>
     </section>
+    ${vorratNote(w, mode)}
     ${injuryNote(w, mode)}
   `;
 
@@ -2152,6 +2159,7 @@ function renderDashboard() {
       Der Umschalter oben wechselt zwischen der Hantel-Variante aus dem Plan und dem
       Bodyweight-Äquivalent. Beide Varianten werden getrennt protokolliert.
     </p>
+    ${vorratNote(w, mode)}
     ${injuryNote(w, mode)}
   `);
 
@@ -2767,6 +2775,145 @@ function scheibenVorschau(equip, was, satz) {
     + `${liste.length > 14 ? ' …' : ''} kg${RASTER[equip].stange ? rechnung : ''}</div>`;
 }
 
+/* ------------------------------------------------------------------ *
+ * Was gerade da ist
+ *
+ *     „Ich bin bei meinen Eltern wo ich nichts hab. Also auch keine Bänder und
+ *      Klimmzugstange. Kann ich das irgendwo angeben?"
+ *
+ * Aufgeteilt wie das Training selbst, auf Ansage:
+ *
+ *     „Lass doch in den Einstellungen im Equipment Bereich zwischen bodyweight
+ *      und Hanteln wechseln können. Und bei bodyweight kann man dann Band rot
+ *      und gelb und Klimmzugstange ankreuzen und bei Hanteln ist dann ‚alles
+ *      aus bodyweight +' und dann halt die Hantel Auflistung."
+ *
+ * Der Umschalter ist dabei kein zweiter Modus-Schalter: Er wechselt nur, welche
+ * Liste man gerade sieht. Angehakt bleibt beides – Bänder und Stange zählen in
+ * beiden Modi, die Hanteln nur im Hantel-Modus, weil im Bodyweight-Modus keine
+ * Übung eine braucht.
+ *
+ * Was das Abwählen kostet, steht darunter und wird nicht beschönigt: Ohne Band
+ * und Stange bleiben im Bodyweight-Modus Muskelgruppen ohne jede Übung.
+ * ------------------------------------------------------------------ */
+function vorratZeile(g) {
+  const da = !fehlt().includes(g.id);
+  return `
+    <div class="switch-row">
+      <div>
+        <div class="lbl">${esc(g.label)}</div>
+        <div class="hint">${esc(g.hint)}</div>
+      </div>
+      <button type="button" class="toggle" aria-pressed="${da}" data-act="toggle-vorrat"
+              data-v="${g.id}" aria-label="${esc(g.label)} vorhanden"></button>
+    </div>`;
+}
+
+/**
+ * Was vom Wochenvolumen übrig bleibt, je Muskelgruppe – und was nicht.
+ *
+ * Gerechnet wird am Plan und nicht am Katalog, und das ist der Unterschied
+ * zwischen einer beruhigenden und einer wahren Zahl. Gemessen, als es hier noch
+ * anders stand: Ohne Band und Klimmzugstange meldete die App „Rücken ist
+ * gedeckt", weil es im Katalog das Inverted Row an der Tischkante gibt. Im
+ * Bodyweight-Plan bleiben davon **0,0 von 10 Sätzen** je Woche übrig. Eine
+ * Übung, die es gäbe, ist kein Volumen.
+ *
+ * Der Verlust kommt allein aus dem, was ersatzlos wegfällt: Ein Tausch trifft
+ * dieselben Anteile und kostet deshalb nichts – das ist die Bedingung, unter der
+ * überhaupt getauscht wird (siehe js/vorrat.js). Über den ganzen Plan und auf
+ * eine Woche umgelegt, damit die Zahl nicht am heutigen Tag hängt.
+ */
+function vorratBilanz(seite) {
+  const weg = {};
+  const bleibt = {};
+  const zu = (acc, id, sets) => {
+    const ex = EX_BY_ID.get(id);
+    if (!ex) return;
+    Object.entries(ex[seite].shares).forEach(([m, s]) => {
+      acc[m] = (acc[m] || 0) + sets * s;
+    });
+  };
+  PLAN.forEach((w) => {
+    exBasis(w, seite).forEach((it) => zu(bleibt, it.id, it.sets));
+    vorratNotiz(w, seite).weg.forEach((d) => zu(weg, d.id, d.sets));
+  });
+  return Object.entries(weg)
+    .map(([m, v]) => ({
+      m,
+      weg: v / PLAN_WEEKS,
+      bleibt: (bleibt[m] || 0) / PLAN_WEEKS,
+      ziel: targetOf(m),
+    }))
+    .filter((x) => x.weg >= 0.3)
+    .sort((a, b) => a.bleibt / a.ziel - b.bleibt / b.ziel);
+}
+
+// Ab wann eine Gruppe nicht mehr „etwas weniger", sondern weg ist. Ein Drittel
+// des Ziels ist die Grenze, ab der Trainingsreize nachweislich nichts mehr
+// halten – darunter steht die Warnung, darüber die nüchterne Zahl.
+const VORRAT_KRITISCH = 0.34;
+
+/** Was der Vorrat gerade kostet – in Übungen und in Muskelgruppen. */
+function vorratFolgen(seite) {
+  if (vorratVollstaendig()) {
+    return `<div class="small muted" style="margin-top:10px">Alles angehakt – der Plan
+      läuft, wie er gerechnet ist.</div>`;
+  }
+  const raus = nichtMoeglich(seite);
+  const nm = (id) => resolve({ id, sets: 0 }, seite).name;
+  const getauscht = [];
+  const weg = [];
+  raus.forEach((id) => {
+    const zu = ersatzFuer(id, seite);
+    if (zu) getauscht.push(`${nm(id)} → ${nm(zu)}`);
+    else weg.push(nm(id));
+  });
+  const bilanz = vorratBilanz(seite);
+  const kritisch = bilanz.filter((k) => k.bleibt < k.ziel * VORRAT_KRITISCH)
+    .map((k) => MUSCLE_LABEL[k.m] || k.m);
+  const wo = seite === 'bw' ? 'Im Bodyweight-Modus' : 'Im Hantel-Modus';
+  return `
+    <div class="small muted" style="margin-top:10px"><b>${esc(wo)} heißt das:</b>
+      ${raus.length ? `${plural(raus.length, 'Übung fällt', 'Übungen fallen')} aus dem Plan.`
+        : 'nichts – keine Übung dieses Modus braucht, was fehlt.'}</div>
+    ${getauscht.length ? `<div class="small muted">Getauscht: ${esc(getauscht.join(' · '))}
+      <span class="muted">– gleiche Muskelanteile, die Wochenrechnung bleibt also
+      stehen.</span></div>` : ''}
+    ${weg.length ? `<div class="small muted">Ersatzlos weg: ${esc(weg.join(' · '))}</div>` : ''}
+    ${bilanz.length ? `<div class="small muted" style="margin-top:6px">Je Woche bleiben dann:
+      ${bilanz.map((k) => `${esc(MUSCLE_LABEL[k.m] || k.m)}
+        <b>${k.bleibt.toFixed(1)}</b> <span class="muted">statt ${k.ziel.toFixed(0)}</span>`)
+        .join(' · ')} Sätze.</div>` : ''}
+    ${kritisch.length ? `<div class="small muted" style="margin-top:6px">⚠️ Damit bleibt für
+      <b>${esc(kritisch.join(', '))}</b> so gut wie nichts übrig – das ist kein Training
+      dieser ${kritisch.length > 1 ? 'Gruppen' : 'Gruppe'} mehr, sondern eine Pause davon.
+      Für ein Wochenende ist das egal, über Monate nicht.</div>` : ''}`;
+}
+
+function vorratKarte() {
+  const seite = ui.vorratSeite === 'bw' ? 'bw' : 'db';
+  const weg = fehlt();
+  return `
+    <div class="section-title">Was da ist${weg.length ? ` · ${weg.length} fehlt` : ''}</div>
+    <div class="card">
+      <div class="small muted">Was hier nicht angehakt ist, taucht im Plan nicht auf – die
+        App tauscht, wo es eine Übung mit denselben Muskelanteilen gibt, und lässt den Rest
+        weg statt ihn dir hinzustellen. Zum Wiedereinschalten, wenn du zurück bist.</div>
+      <div class="btn-row nav" style="margin-top:10px">
+        ${[['bw', '🤸 Bodyweight'], ['db', '🏋️ Hanteln']].map(([k, label]) => `
+          <button type="button" class="btn ${seite === k ? 'btn-primary' : ''}"
+                  aria-pressed="${seite === k}" data-act="vorrat-seite" data-v="${k}">${label}</button>`).join('')}
+      </div>
+      ${seite === 'db' ? `<div class="small muted" style="margin-top:10px">Alles aus
+        Bodyweight zählt hier mit – auch der Hantelplan hat Übungen am Band und an der
+        Stange. Dazu:</div>` : ''}
+      ${GERAETE.filter((g) => g.seite === seite).map(vorratZeile).join('')}
+      ${vorratFolgen(seite)}
+    </div>
+    ${seite === 'db' ? scheibenKarte() : ''}`;
+}
+
 function scheibenKarte() {
   const satz = roherSatz();
   const geprueft = meinSatz();
@@ -2858,14 +3005,25 @@ function scheibenAendern(wie) {
  * unter Mehr eine Stufe höher – das steht im Satz mit drin, sonst wäre der
  * Hinweis eine Sackgasse.
  */
+/**
+ * „Statt X" – wofür diese Übung eingesprungen ist.
+ *
+ * Zwei Filter tauschen: die Erfahrungsstufe und der Gerätevorrat. Beide sagen
+ * es hier, und beide nennen den Weg zurück – ein Tausch, den man nicht
+ * rückgängig machen kann, weil man nicht weiß, wo er herkommt, wäre keiner.
+ */
 function anfaengerZeile(it) {
-  const statt = anfaengerStatt(it);
-  if (!statt) return '';
-  const alt = EX_BY_ID.get(statt);
+  const grund = ersatzGrund(it);
+  if (!grund) return '';
+  const alt = EX_BY_ID.get(grund.statt);
   if (!alt) return '';
-  return `<div class="aufwaerm">Statt ${esc(alt.db.name)}
-    <span class="muted">– die Anfängerfassung. Höhere Erfahrungsstufe unter Mehr
-    bringt die schwerere zurück.</span></div>`;
+  return grund.warum === 'vorrat'
+    ? `<div class="aufwaerm">Statt ${esc(alt.db.name)}
+        <span class="muted">– dafür fehlt gerade das Gerät. Unter Mehr → Was da ist
+        wieder anhaken.</span></div>`
+    : `<div class="aufwaerm">Statt ${esc(alt.db.name)}
+        <span class="muted">– die Anfängerfassung. Höhere Erfahrungsstufe unter Mehr
+        bringt die schwerere zurück.</span></div>`;
 }
 
 function aufwaermZeile(it, mode, n) {
@@ -2980,8 +3138,17 @@ function gruppeLabel(it, mode) {
  */
 function bandRow(it) {
   if (!amBand(it)) return '';
-  const cur = store.bandOf(it.id) === 'rot' ? 'rot' : 'gelb';
+  // Nicht store.bandOf() direkt: Wer das rote Band zu Hause gelassen hat, soll
+  // nicht eine Farbe angezeigt bekommen, die er nicht dabei hat. Der
+  // gespeicherte Wunsch bleibt stehen und ist zu Hause wieder da – siehe
+  // bandFarbe() in js/vorrat.js.
+  const cur = bandFarbe(it.id);
+  const nurEins = GERAETE.some((g) => g.seite === 'bw' && g.id.startsWith('band-')
+    && fehlt().includes(g.id));
   const knopf = (farbe, seite) => {
+    // Ein Knopf, der auf ein Band umstellt, das gerade nicht da ist, verspricht
+    // etwas, das die App nicht halten kann.
+    if (nurEins) return '';
     const [, label, wie] = BAENDER.find(([k]) => k === farbe);
     const dran = cur === farbe;
     return `
@@ -3438,6 +3605,30 @@ function swapConflicts(act) {
     });
   });
   return out;
+}
+
+/**
+ * Kurzfassung fürs Training: was heute am fehlenden Gerät scheitert.
+ *
+ * Steht neben dem Verletzungshinweis und sieht bewusst genauso aus – es ist
+ * derselbe Fall: Der Plan zeigt heute etwas anderes als das, was geschrieben
+ * steht, und wer das erst beim Vergleichen mit der Statistik merkt, ist zu Recht
+ * verärgert.
+ */
+function vorratNote(w, mode) {
+  if (vorratVollstaendig()) return '';
+  const { getauscht, weg } = vorratNotiz(w, mode);
+  if (!getauscht.length && !weg.length) return '';
+  const nm = (id) => resolve({ id, sets: 0 }, mode).name;
+  const zeilen = getauscht.map((s) => `${esc(nm(s.from))} → ${esc(nm(s.to))}`)
+    .concat(weg.map((d) => `${esc(nm(d.id))} fällt aus`));
+  const namen = GERAETE.filter((g) => fehlt().includes(g.id)).map((g) => g.label);
+  return `
+    <div class="card injury-note">
+      <div class="inj-note-head">🎒 Nicht da: ${esc(namen.join(', '))}</div>
+      <div class="small muted">Heute deshalb: ${zeilen.join(' · ')}</div>
+      <button type="button" class="btn btn-ghost btn-sm" data-act="go-tab" data-tab="settings">Vorrat ändern</button>
+    </div>`;
 }
 
 /** Kurzfassung fürs Training: was heute anders ist. */
@@ -4672,7 +4863,7 @@ function renderSettings() {
     </div>
 
     ${koerperKarte()}
-    ${scheibenKarte()}
+    ${vorratKarte()}
 
     <div class="section-title">Töne und Hinweise</div>
     <div class="card">
@@ -5901,6 +6092,22 @@ view.addEventListener('click', (e) => {
       store.setSetting('aufwaermen', !store.getState().aufwaermen);
       render();
       break;
+    case 'vorrat-seite':
+      ui.vorratSeite = t.dataset.v === 'bw' ? 'bw' : 'db';
+      render();
+      break;
+    case 'toggle-vorrat': {
+      const id = t.dataset.v;
+      const da = fehlt().includes(id);
+      setzeVorrat(id, da);
+      // Die Rüst-Reihenfolge hängt an den Übungen der Einheit, und die ändern
+      // sich hier gerade. Wie beim Verletzungsfilter also verwerfen, sonst
+      // stünde die Reihenfolge einer Einheit da, die es so nicht mehr gibt.
+      ruestCache.clear();
+      render();
+      toast(da ? 'Wieder dabei' : 'Fällt aus dem Plan');
+      break;
+    }
     case 'scheiben-plus': {
       // Eine leere Zeile wäre nach normSatz() sofort wieder weg (0 kg zählt
       // nicht). Deshalb kommt eine Größe dazu, die es noch nicht gibt.
