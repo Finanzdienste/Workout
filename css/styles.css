@@ -985,6 +985,10 @@ button { font: inherit; color: inherit; }
 .fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
 .fig-ground { fill: var(--line); opacity: .55; }
 .fig-bench { fill: #4a5468; }
+/* Das Handtuch unter der Ferse beim Sliding Leg Curl. Heller als die Bank und
+   ohne Rand: Es soll als Tuch auf dem Boden lesbar sein und nicht als Klotz,
+   auf dem der Fuss steht. */
+.fig-towel { fill: #6b7689; opacity: .85; }
 .fig-bench-leg { stroke: #3b4354; stroke-linecap: round; }
 
 /* ---------- Pausentimer ---------- */

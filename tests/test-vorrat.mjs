@@ -245,13 +245,18 @@ for (let k = 0; zielN && k < 25; k++) {
   await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
   await page.waitForTimeout(200);
 }
+// Auf der Startansicht steht der Hinweis bewusst nicht – sie ist eine
+// Bildschirmseite ohne Scrollen. Er steht dort, wo die Übungen stehen.
 const uebersicht = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-check(/Nicht da: Band, gelb, Band, rot, Klimmzugstange/.test(uebersicht),
-  `über der Einheit steht, was fehlt (Workout ${zielN})`);
+check(!/Nicht da:/.test(uebersicht),
+  `die Startansicht bleibt frei von der Vorrats-Karte (Workout ${zielN})`);
 await page.locator('[data-act="start-session"]').first().click();
 await page.waitForTimeout(500);
 await page.locator('[data-act="focus-list"]').first().click();
 await page.waitForTimeout(500);
+const mitListe = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(/Nicht da: Band, gelb, Band, rot, Klimmzugstange/.test(mitListe),
+  'bei den Übungen steht, was fehlt');
 const liste = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 console.log('     im Training:', (/Statt [^–]{0,60}–[^.]{0,60}/.exec(liste) || ['(keine Statt-Zeile)'])[0].trim());
 check(/Statt .{3,40}dafür fehlt gerade das Gerät/.test(liste),

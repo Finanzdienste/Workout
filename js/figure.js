@@ -160,13 +160,40 @@ export const PATTERNS = {
     ],
   },
   legcurl: {
-    // Rücken am Boden, Hüfte oben, Fersen ziehen heran
-    label: 'Beinbeuger', lie: 'supine', view: [20, -30],
+    /*
+     * Rücken am Boden, Hüfte oben, Fersen schieben auf dem Handtuch weg.
+     *
+     *     „Die Animation sieht noch immer komisch aus. Es sieht so aus als
+     *      wären die Füße iwie erhöht?"
+     *
+     * Waren sie auch. Nachgemessen (tools/pose.mjs, Maße in Körperlängen über
+     * dem Boden):
+     *
+     *              Schulter   Hüfte    Knie     Fuß
+     *   vorher        0.07     0.22    0.39    0.48   ← Ferse über dem Knie
+     *   nachher       0.10     0.29    0.41    0.00
+     *
+     * Der Fuß lag höher als das Knie und höher als die Hüfte – die Figur
+     * schwebte mit angezogenen Beinen in der Luft, und genau so sah sie aus.
+     * Bei einer Übung, deren ganzer Witz das Rutschen auf dem Boden ist, ist
+     * das nicht ein Schönheitsfehler, sondern eine falsche Anleitung.
+     *
+     * Jetzt liegt die Ferse auf dem Boden (0.000 in beiden Stellungen) und
+     * wandert von x 0.48 auf x 0.82 – das Wegschieben ist die Bewegung, die man
+     * sieht. Die Hüfte bleibt oben, wie der Hinweis es verlangt: Sie sackt von
+     * 0.29 nur auf 0.24 ab, statt sich mitzusenken.
+     *
+     * Gesucht wurden die Winkel gegen diese Zielmaße, nicht nach Augenmaß.
+     *
+     * Dazu ein Handtuch unter jeder Ferse (slider) – ohne es bliebe offen,
+     * worauf da gerutscht wird.
+     */
+    label: 'Beinbeuger', lie: 'supine', view: [20, -30], slider: true,
     poses: [
       // arm.p 0: die Arme liegen längs am Körper. Mit Beugung schwebten sie
       // sichtbar über dem Rumpf.
-      { tilt: 20, arm: A(0, 17, 6), leg: L(4, 6, 12) },
-      { tilt: 30, arm: A(0, 17, 6), leg: L(18, 6, 94) },
+      { tilt: 27, arm: A(0, 17, 6), leg: L(-10, 6, 98) },
+      { tilt: 22, arm: A(0, 17, 6), leg: L(-34, 6, 8) },
     ],
   },
   thrust: {
@@ -525,11 +552,14 @@ export const PATTERNS = {
     ],
   },
   legcurl1: {
-    // Einbeinig: das freie Bein bleibt angewinkelt in der Luft
-    label: 'Beinbeuger einbeinig', lie: 'supine', view: [20, -30],
+    // Einbeinig: das freie Bein bleibt angewinkelt in der Luft. Das Standbein
+    // bekommt dieselben Winkel wie bei `legcurl` – es ist dieselbe Bewegung,
+    // und dort sind sie gegen Zielmaße gesucht. Das Handtuch liegt nur unter
+    // der arbeitenden Ferse.
+    label: 'Beinbeuger einbeinig', lie: 'supine', view: [20, -30], slider: 'R',
     poses: [
-      { tilt: 20, arm: A(0, 17, 6), legR: L(4, 6, 12), legL: L(62, 10, 92) },
-      { tilt: 30, arm: A(0, 17, 6), legR: L(18, 6, 94), legL: L(62, 10, 92) },
+      { tilt: 27, arm: A(0, 17, 6), legR: L(-10, 6, 98), legL: L(20, 12, 100) },
+      { tilt: 22, arm: A(0, 17, 6), legR: L(-34, 6, 8), legL: L(20, 12, 100) },
     ],
   },
   thrust1: {
@@ -1066,6 +1096,41 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
           width: w.toFixed(1), height: h.toFixed(1), rx: (w * 0.28).toFixed(1),
           class: 'fig-pack',
         }),
+      });
+    }
+
+    if (spec.slider) {
+      /*
+       * Ein Handtuch unter jeder Ferse.
+       *
+       *     „Die ganzen Zusatz-Sachen wie Handtücher usw können ja echt auch
+       *      animiert werden wenn das was bringt."
+       *
+       * Hier bringt es etwas, und zwar mehr als Deko: Die Übung besteht darin,
+       * dass die Ferse auf dem Boden *rutscht*. Ohne etwas unter dem Fuß ist
+       * eine gleitende Ferse von einer gehobenen nicht zu unterscheiden – und
+       * genau das war die Rückmeldung zu dieser Figur. Das Handtuch wandert
+       * mit, also zeigt es die Strecke, um die es geht.
+       *
+       * `slider: 'R' | 'L'` legt nur unter eine Ferse – die einbeinige Fassung.
+       *
+       * Flach und breiter als der Fuß, damit es ein Tuch bleibt und kein Klotz
+       * wird: Ein Kasten hier hieße „Ferse erhöht", also das Gegenteil.
+       */
+      const seiten = spec.slider === 'R' || spec.slider === 'L' ? [spec.slider] : ['L', 'R'];
+      seiten.forEach((s2) => {
+        const ank = j[`ankle${s2}`];
+        const y = -0.62 + 0.008;   // hauchdünn über dem Boden, nie darunter
+        const ecke = (sx, sz) => P([ank[0] + sx * 0.115, y, ank[2] + sz * 0.085]);
+        const quad = [ecke(-1, -1), ecke(1, -1), ecke(1, 1), ecke(-1, 1)];
+        parts.push({
+          // Hinter den Fuß sortiert: Das Tuch liegt unter ihm, nicht auf ihm.
+          z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length - 0.08,
+          node: el('polygon', {
+            points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+            class: 'fig-towel',
+          }),
+        });
       });
     }
 

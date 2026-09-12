@@ -32,11 +32,16 @@ await page.goto(EINZEL, { waitUntil: 'networkidle' });
  * Er steht deshalb über dem Startknopf und nicht mehr in den Einstellungen.
  */
 const modus = async (m) => {
-  // Über die Übersicht, denn dort steht der Umschalter. Neu laden ist der
-  // kürzeste Weg dorthin: ui.listView überlebt kein Neuladen.
-  await page.reload({ waitUntil: 'networkidle' });
+  // In der Einzeldatei gibt es keine Module zum Importieren – alles liegt in
+  // einem einzigen Gültigkeitsbereich, an den von außen niemand herankommt.
+  // Also über die Oberfläche, so wie ein Mensch es täte: Mehr, Knopf, zurück.
+  // Das prüft nebenbei mit, dass der Weg dorthin überhaupt existiert.
+  await page.locator('.tab[data-tab="settings"]').click();
+  await page.waitForTimeout(200);
   const schalter = page.locator(`[data-act="set-modus"][data-v="${m}"]`);
   if (await schalter.count()) { await schalter.first().click(); await page.waitForTimeout(250); }
+  await page.locator('.tab[data-tab="dashboard"]').click();
+  await page.waitForTimeout(250);
   const liste = page.locator('[data-act="show-list"]');
   if (await liste.count()) { await liste.click(); await page.waitForTimeout(250); }
 };

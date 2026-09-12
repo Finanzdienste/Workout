@@ -97,18 +97,25 @@ const gespeichert = await page.evaluate(() => JSON.parse(localStorage.getItem('w
 check(gespeichert.includes('handgelenk-reizung'), 'Auswahl ist gespeichert');
 
 // --- Übersteht das Neuladen (gilt für kommende Trainings) ---
-// Die App bleibt beim Neuladen im Tab; fürs Training zurück aufs Dashboard.
+// Die App bleibt beim Neuladen im Tab; fürs Training zurück aufs Dashboard und
+// von dort in die Übungsliste. Auf der Startansicht steht der Hinweis bewusst
+// nicht mehr: *„Hier beim Dashboard soll man nicht scrollen können sondern
+// alles soll direkt aufm Bildschirm angezeigt werden."* Er steht dort, wo die
+// Übungen stehen, die er betrifft.
 await page.reload({ waitUntil: 'networkidle' });
 await page.locator('.tab[data-tab="dashboard"]').click();
 await page.waitForTimeout(200);
-check(await page.locator('.injury-note').count() === 1, 'Hinweis steht im Training');
+check(await page.locator('.injury-note').count() === 0,
+  'die Startansicht bleibt frei – eine Bildschirmseite, ohne Scrollen');
+await page.locator('[data-act="show-list"]').first().click();
+await page.waitForTimeout(300);
+check(await page.locator('.injury-note').count() === 1, 'Hinweis steht bei den Übungen');
 const note = (await page.locator('.injury-note').textContent()).replace(/\s+/g, ' ');
 console.log('     Hinweis:', note.trim().slice(0, 120));
 check(note.includes('Handgelenk'), 'Hinweis nennt die Beschwerde');
 
 // --- Gesperrte Übung taucht nirgends mehr auf ---
-await page.locator('[data-act="show-list"]').click();
-await page.waitForTimeout(200);
+// Die Liste steht schon offen – der Hinweis oben wurde dort geprüft.
 const namen = await page.locator('.ex-name').allTextContents();
 console.log('     heute:', namen.join(' | '));
 const gesperrt = await page.evaluate(async () => {

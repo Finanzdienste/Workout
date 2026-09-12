@@ -1354,8 +1354,10 @@ function startBlock(n, mode, prog) {
       </button>`}`;
   }
 
+  // Ein Knopf, nicht zwei. Welche Variante gilt, steht darunter – gewechselt
+  // wird sie unter Mehr. Die Wahl gehört nicht an die Stelle, an der man
+  // loslegen will: Wer trainieren geht, hat sie längst getroffen.
   return `
-    ${modusWahl(n, mode)}
     <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session"
             aria-label="Workout starten (${esc(MODE_LABEL[mode])})">
       ▶︎ Start
@@ -1364,33 +1366,38 @@ function startBlock(n, mode, prog) {
 }
 
 /**
- * Hanteln oder Bodyweight – für diese eine Einheit.
+ * Hanteln oder Bodyweight – unter Mehr, als Wahl zwischen zwei Dingen.
  *
- * Stand vorher unter Mehr als „Standardmodus: Bodyweight", und das war die
- * falsche Stelle und der falsche Begriff:
+ * Hieß bis vor Kurzem „Standardmodus: Bodyweight" und war ein Schalter, der an
+ * oder aus steht. Beides war falsch:
  *
  *     „‚Standardmodus' kann raus. Hier schaltet man immer zwischen Hanteln und
  *      bodyweight hin und her je nachdem was man grad hat und so. Nichts davon
  *      ist Standard."
  *
- * Stimmt. Die Wahl hängt nicht am Menschen, sondern am Tag – wer beim Training
- * steht, weiß gerade dann, was danebenliegt. Deshalb steht sie jetzt über dem
- * Startknopf, gilt für die Einheit, die man ansieht, und wird nebenbei zum
- * Ausgangspunkt für die nächste (setWorkoutMode merkt beides).
+ * Also zwei Knöpfe statt eines Schalters – zwei gleichrangige Arten zu
+ * trainieren, keine Abweichung von einer Norm. Und ohne das Wort: Was hier
+ * steht, gilt ab sofort und nicht „normalerweise".
  *
- * **Bis zum ersten abgehakten Satz.** Danach nicht mehr: Das Protokoll führt
- * beide Varianten getrennt, und mitten im Training die Übungen auszutauschen
- * wäre das Gegenteil von hilfreich. Der Umschalter verschwindet dann, statt
- * grau dazustehen – ein Knopf, der nichts tut, ist eine Frage ohne Antwort.
+ * **Die offene Einheit wechselt mit**, sofern noch kein Satz steht. Ein
+ * Umschalter, der nur „ab dem nächsten Mal" wirkt, während vorn unverändert die
+ * alte Variante steht, sähe kaputt aus. Was schon läuft, bleibt dagegen, wie es
+ * ist – mitten im Training die Übungen auszutauschen wäre das Gegenteil von
+ * hilfreich, und das Protokoll führt beide Varianten getrennt.
  */
-function modusWahl(n, mode) {
-  if (store.isStarted(n)) return '';
+function modusKarte(mode) {
   return `
-    <div class="btn-row nav" style="margin-bottom:8px" role="group" aria-label="Variante wählen">
-      ${['db', 'bw'].map((m) => `
-        <button type="button" class="btn ${m === mode ? 'btn-primary' : ''}"
-                aria-pressed="${m === mode}" data-act="set-modus" data-v="${m}">
-          ${MODE_ICON[m]} ${esc(MODE_LABEL[m])}</button>`).join('')}
+    <div class="section-title">Womit trainierst du</div>
+    <div class="card">
+      <div class="small muted">Beide Fassungen stehen im selben Plan und treffen dieselben
+        Muskelgruppen – nur mit dem, was gerade da ist. Umgestellt wird hier, so oft du
+        willst; die nächste Einheit übernimmt es sofort, eine begonnene bleibt, wie sie ist.</div>
+      <div class="btn-row nav" style="margin-top:10px" role="group" aria-label="Variante wählen">
+        ${['db', 'bw'].map((m) => `
+          <button type="button" class="btn ${m === mode ? 'btn-primary' : ''}"
+                  aria-pressed="${m === mode}" data-act="set-modus" data-v="${m}">
+            ${MODE_ICON[m]} ${esc(MODE_LABEL[m])}</button>`).join('')}
+      </div>
     </div>`;
 }
 
@@ -1475,9 +1482,12 @@ function renderOverview() {
         <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
           <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.erledigt ? ' · abgeschlossen' : ''}</div>` : ''}
-        ${nachSumme(items) ? `<div class="small muted" style="margin-top:8px">
-          ↩︎ ${esc(plural(nachSumme(items), 'Satz', 'Sätze'))} aus dieser Woche nachgeholt – diese Woche
-          ist etwas liegen geblieben, und das Wochenpensum je Muskelgruppe geht so wieder auf.</div>` : ''}
+        <!-- Hier stand: "↩ 2 Sätze aus dieser Woche nachgeholt – diese Woche ist
+             etwas liegen geblieben …". Raus auf Zuruf, und ohne Verlust: An
+             jeder betroffenen Übung steht in der Liste weiterhin "+1
+             nachgeholt", also dort, wo man sie auch macht. Drei Zeilen
+             Buchhaltung vor dem Start waren dagegen genau das, was diese
+             Ansicht nicht sein soll. -->
       </header>
 
       <div class="ov-body" id="bodyMap"></div>
@@ -1505,8 +1515,17 @@ function renderOverview() {
           : `<button type="button" class="ov-nav" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>→</button>`}
       </div>
     </section>
-    ${vorratNote(w, mode)}
-    ${injuryNote(w, mode)}
+    <!-- Hier standen die Karten "Nicht da: …" und "Rücksicht auf: …". Beide
+         hingen unter der Startansicht und machten aus der einen Bildschirmseite
+         eine gescrollte:
+
+             "Dieses nicht da unten kann weg. Hier beim Dashboard soll man nicht
+              scrollen können sondern alles soll direkt aufm Bildschirm
+              angezeigt werden."
+
+         Sie sind nicht verschwunden, sondern stehen in der Übungsliste und im
+         Training – dort, wo ohnehin gescrollt wird und wo der Tausch an der
+         einzelnen Übung sichtbar ist ("Statt Pull-ups …"). -->
   `;
 
   const host = document.getElementById('bodyMap');
@@ -4608,6 +4627,8 @@ function renderSettings() {
       </button>
     </div>
 
+    ${modusKarte(s.mode === 'bw' ? 'bw' : 'db')}
+
     <div class="section-title">Pause zwischen den Sätzen</div>
     <div class="card">
       <div class="stat-v">${s.useExerciseRest
@@ -5730,12 +5751,14 @@ view.addEventListener('click', (e) => {
       go('dashboard');
       break;
     case 'set-modus': {
-      // Gilt fuer die Einheit, die gerade zu sehen ist - und setzt zugleich den
-      // Ausgangspunkt fuer die naechste (setWorkoutMode schreibt beides). Was
-      // schon laeuft, ruehrt der Umschalter nicht an; modusWahl() zeigt ihn
-      // dort gar nicht erst.
-      const n = ui.workoutNo;
-      if (!store.isStarted(n)) store.setWorkoutMode(n, t.dataset.v === 'bw' ? 'bw' : 'db');
+      const neu = t.dataset.v === 'bw' ? 'bw' : 'db';
+      store.setMode(neu);
+      // Und die Einheit, die gerade ansteht, gleich mit – sofern sie noch nicht
+      // angefangen ist. Ein Umschalter, der nur „ab dem nächsten Mal" wirkt,
+      // während vorn unverändert die alte Variante steht, sähe kaputt aus. Was
+      // schon läuft, bleibt dagegen, wie es ist.
+      const offen = ui.workoutNo;
+      if (!store.isStarted(offen)) store.setWorkoutMode(offen, neu);
       render();
       break;
     }
