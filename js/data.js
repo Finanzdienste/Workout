@@ -11,6 +11,10 @@ export const EXERCISES = [
     "tier": 1,
     "detail": [
       [
+        "Was eine 1½-Wiederholung ist",
+        "Eineinhalb Bewegungen, die zusammen als eine zählen: tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch. Bei 15 Wiederholungen machst du diesen Viererzyklus fünfzehnmal. Der Grund ist der fehlende Hebel: Ohne Zusatzgewicht wird eine Kniebeuge irgendwann zu leicht, und statt Eisen aufzulegen, das nicht da ist, verlängert man die Zeit in dem Bereich, der wirklich arbeitet – unten. Gezählt wird nur, was ganz oben endet; die halbe Aufwärtsbewegung ist Teil der Wiederholung und keine eigene."
+      ],
+      [
         "Wie du die Hantel hältst",
         "Senkrecht vor der Brust, die Handflächen tragen die obere Scheibe wie einen Becher, die Ellenbogen zeigen nach unten. Das Gewicht vorn wirkt wie ein Gegengewicht – deshalb kommst du damit aufrechter und tiefer als ohne."
       ],
@@ -55,7 +59,7 @@ export const EXERCISES = [
       "name": "1½-Wdh. Bodyweight Squat",
       "reps": "12–25",
       "equip": "Ohne Gerät",
-      "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch. Das zählt als EINE Wiederholung. Tempo bewusst langsam.",
+      "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Der Sinn: Der untere Bereich ist der schwerste, und den durchläufst du damit doppelt so oft. Zu schwer? Erst die halbe Zahl an Wiederholungen, oder ohne die Zwischenstufe absolvieren und sie dazunehmen, wenn die Tiefe steht.",
       "rest": 150,
       "pattern": "squatbw",
       "shares": {
@@ -551,6 +555,10 @@ export const EXERCISES = [
     "tier": 1,
     "detail": [
       [
+        "Warum 1½-Wiederholungen",
+        "Tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch – das zusammen ist eine Wiederholung. Der untere Bereich ist der schwerste, und ihn durchläufst du so doppelt so oft, ohne Gewicht zu brauchen. Mit erhöhten Fersen trifft das zusätzlich den vorderen Oberschenkel, weil das Knie weiter nach vorn darf."
+      ],
+      [
         "Womit erhöhen",
         "Zwei bis vier Zentimeter reichen: eine Hantelscheibe, ein festes Buch, eine Türschwelle. Nur die Ferse steht erhöht, der Ballen bleibt auf dem Boden."
       ],
@@ -589,7 +597,7 @@ export const EXERCISES = [
       "name": "Fersenerhöhter 1½-Wdh. Bodyweight Squat",
       "reps": "12–25",
       "equip": "Erhöhung (Buch/Keil)",
-      "cue": "Fersen erhöht, gleiche 1½-Technik. Betont den vorderen Oberschenkel deutlich stärker.",
+      "cue": "Fersen 2–4 cm erhöht, nur die Ferse, der Ballen bleibt am Boden. Dann 1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Die Erhöhung lässt das Knie weiter über die Zehen wandern und betont den vorderen Oberschenkel deutlich stärker. Zu schwer? Erst die halbe Zahl an Wiederholungen, oder ohne die Zwischenstufe absolvieren und sie erst dazunehmen, wenn die Tiefe steht.",
       "rest": 150,
       "pattern": "squatbw",
       "shares": {

@@ -174,8 +174,23 @@ for k in sorted(META):
 # Ordnung.
 VERWEIS = re.compile(r'^\s*(identisch|wie (oben|beidbeinig|bei der|in der|vorher|beschrieben)|'
                      r'dasselbe|das gleiche|siehe oben)\b', re.I)
+
+# Und dieselbe Sache mitten im Satz. Gefunden an dieser Frage:
+#
+#     "Was ist ein 1 1/2 Wdh Bodyweight Squat?"
+#
+# Auf der Karte stand "Fersen erhoeht, gleiche 1½-Technik" - erklaert war die
+# Technik auf einer *anderen* Uebung, die an dem Tag gar nicht dranstand. Das
+# ist derselbe Fehler wie ein "Identisch." am Anfang, nur schwerer zu sehen.
+#
+# Eng gefasst, damit Vergleiche nicht mitgefangen werden: "haelt die Scheibe wie
+# einen Becher" und "kippt wie eine Wippe" sind Bilder und keine Verweise.
+VERWEIS_IM_SATZ = re.compile(
+    r'\b(gleiche[rsn]?\s+[\w½-]+-?technik|dieselbe\s+technik|gleiche\s+ausf(ü|ue)hrung'
+    r'|wie\s+(bei|in)\s+(der|dem|den)\s|wie\s+oben\s+beschrieben|siehe\s+dort)\b', re.I)
+
 lose = [(k, f, e[f][:60]) for k, e in sorted(META.items()) for f in ('dbCue', 'bwCue')
-        if VERWEIS.match(e.get(f, ''))]
+        if VERWEIS.match(e.get(f, '')) or VERWEIS_IM_SATZ.search(e.get(f, ''))]
 
 print(f'{len(META)} Übungen geprüft: Haltung, Gerät, Schlüssel, Hinweis für sich.\n')
 if befunde:
