@@ -555,6 +555,23 @@ button { font: inherit; color: inherit; }
 .bar-val { font-size: 12px; color: var(--muted); text-align: right; }
 
 /* ---------- Fokus-Ansicht ---------- */
+/* Eine Bildschirmseite bis zu den Satzknoepfen: Kopf, Fortschritt, Figur,
+   Name, Gewicht, Knoepfe. Die Figur bekommt, was uebrig bleibt - der Rest
+   nimmt, was er braucht. Hinweis und Erklaerung stehen darunter und duerfen
+   scrollen. */
+.fo {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: calc(100vh - 130px);
+  min-height: calc(100dvh - 130px);
+}
+.fo .focus-fig {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 130px;
+}
+.fo .focus-sets { margin-bottom: 10px; }
 .focus-top {
   display: flex;
   align-items: center;
@@ -1010,6 +1027,11 @@ button { font: inherit; color: inherit; }
    ohne Rand: Es soll als Tuch auf dem Boden lesbar sein und nicht als Klotz,
    auf dem der Fuss steht. */
 .fig-towel { fill: #6b7689; opacity: .85; }
+/* Der Keil unter der Ferse. Heller als die Bank, weil er klein ist: Zwei bis
+   vier Zentimeter sind in einer Figur von Kopf bis Fuss wenige Pixel, und was
+   man nicht sieht, erklaert nichts. Ein hoeherer Keil waere die bequeme
+   Loesung und eine falsche Anleitung. */
+.fig-keil { fill: #8b97ab; }
 .fig-bench-leg { stroke: #3b4354; stroke-linecap: round; }
 
 /* ---------- Pausentimer ---------- */

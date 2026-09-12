@@ -1141,7 +1141,24 @@ function renderFocus() {
   const kg = it.weight === null ? null : workingWeight(it.id);
   const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
 
+  /*
+   * Alles, was man zum Abhaken braucht, auf einer Bildschirmseite.
+   *
+   *     „Es wäre auch schön wenn hier alles was zu sehen ist auf einer Seite
+   *      ist."
+   *
+   * Die Satzknöpfe standen unter der Kante – ausgerechnet das, wofür man die
+   * Ansicht öffnet. Deshalb ist der obere Teil jetzt eine feste Seite: Kopf,
+   * Fortschritt, Figur, Name, Gewicht, Satzknöpfe. Die Figur nimmt, was
+   * dazwischen übrig bleibt, statt auf 270 Pixeln zu bestehen.
+   *
+   * Was *nicht* mit hineingezwungen wird: Hinweistext, die ausführliche
+   * Erklärung, der Weg zur nächsten Übung. Das liest man einmal und dann nicht
+   * mehr; es darf darunter stehen. Eine Seite, auf die alles passt, gäbe es
+   * ohnehin nicht – ein Hinweistext ist manchmal sechs Zeilen lang.
+   */
   view.innerHTML = `
+    <section class="fo">
     <div class="focus-top">
       <button type="button" class="back-link" data-act="focus-list">☰ Übersicht</button>
       <span class="focus-count">
@@ -1189,6 +1206,7 @@ function renderFocus() {
                 aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
                 data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
     </div>
+    </section>
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
     ${detailBlock(it)}

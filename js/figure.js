@@ -622,6 +622,47 @@ export const PATTERNS = {
       { lean: 30, arm: A(118, 10, 12), leg: L(100, 9, 118) },
     ],
   },
+  /*
+   * Fersenerhöht – und man sieht es auch.
+   *
+   *     „Hier sieht man ja auch gar keinen Gegenstand dass die Ferse iwie
+   *      erhöht ist oder so."
+   *
+   * Stimmt: Beide Goblet Squats liefen auf demselben Bewegungsbild. Die
+   * fersenerhöhte Fassung *ist* aber eine andere Übung – das Schienbein darf
+   * weiter nach vorn kippen, das Knie über die Zehen wandern, und davon lebt
+   * sie. Zwei identische Bilder unter zwei verschiedenen Namen sind schlimmer
+   * als gar keins: Sie behaupten, es sei dasselbe.
+   *
+   * Zwei Dinge machen den Unterschied sichtbar:
+   *
+   *   `heel`  hebt alles außer den Zehen. Genau das ist die Geometrie einer
+   *           erhöhten Ferse – dieselbe Mechanik wie beim Wadenheben, nur
+   *           andersherum gelesen: Dort steigt der Körper, hier steht er auf
+   *           einem Keil.
+   *   `keil`  zeichnet den Keil darunter. Ohne ihn stünde die Figur auf
+   *           Zehenspitzen, und das wäre eine dritte Übung.
+   *
+   * Die Beugung geht dabei etwas tiefer als ohne Keil (leg.k 118 → 126): Mehr
+   * Tiefe ist der Grund, warum man die Fersen überhaupt erhöht.
+   */
+  squatheel: {
+    // Mehr von der Seite als die freie Kniebeuge (Vorgabe yaw 25): Ein Keil
+    // unter der Ferse steht von vorn gesehen hochkant hinter dem Fuß und ist
+    // damit genau das, was er nicht sein soll – unsichtbar.
+    label: 'Kniebeuge, Fersen erhöht', keil: true, view: [62, -4],
+    poses: [
+      { lean: 6, arm: A(26, -18, 130, 32), leg: L(2, 5, 4), heel: 0.16 },
+      { lean: 20, arm: A(34, -18, 126, 32), leg: L(104, 9, 126), heel: 0.16 },
+    ],
+  },
+  squatheelbw: {
+    label: 'Kniebeuge ohne Gewicht, Fersen erhöht', keil: true, view: [62, -4],
+    poses: [
+      { lean: 6, arm: A(22, 10, 16), leg: L(2, 5, 4), heel: 0.16 },
+      { lean: 26, arm: A(118, 10, 12), leg: L(104, 9, 126), heel: 0.16 },
+    ],
+  },
   invrow: {
     // Unter einer niedrigen Stange, Körper gerade, Brust zur Stange. Die Hände
     // bleiben an der Stange, der Körper dreht sich um die Fersen nach oben.
@@ -1097,6 +1138,52 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
           class: 'fig-pack',
         }),
       });
+    }
+
+    if (spec.keil) {
+      /*
+       * Ein flacher Keil unter beiden Fersen.
+       *
+       * Er sitzt hinten, nicht vorn – das ist der ganze Unterschied zum Klotz
+       * beim Wadenheben (spec.step), der unter dem Ballen liegt. Oben endet er
+       * knapp unter dem Knöchel, vorn läuft er auf halber Fußlänge aus: Der
+       * Ballen bleibt unten, sonst wäre es keine erhöhte Ferse, sondern ein
+       * Podest.
+       *
+       * **Der Fuß zeigt in die Tiefe, nicht zur Seite.** Nachgemessen an der
+       * Stellung (Maße in Körperlängen): Knöchel z 0.00, Zeh z 0.15 – die
+       * Fußlänge liegt in z, die x-Achse trennt nur linkes und rechtes Bein.
+       * Ein erster Versuch hat den Keil in x aufgespannt und damit einen
+       * Streifen von 1,3 Zentimetern Länge gezeichnet, der hinter den Füßen
+       * verschwand.
+       */
+      const ankR = j.ankleR; const ankL = j.ankleL;
+      const zeh = midOf(j.toeL, j.toeR);
+      const ank = midOf(ankL, ankR);
+      const boden = -0.62;
+      const top = Math.max(boden + 0.012, ank[1] - 0.018);
+      const lang = Math.max(0.05, zeh[2] - ank[2]);      // Fußlänge in der Tiefe
+      const hinten = ank[2] - lang * 0.45;
+      const vorn = ank[2] + lang * 0.5;
+      const links = Math.min(ankL[0], ankR[0]) - 0.075;
+      const rechts = Math.max(ankL[0], ankR[0]) + 0.075;
+      const ecke = (x, z2, y) => P([x, y, z2]);
+      const face = (quad, dz = 0) => parts.push({
+        z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length + dz,
+        node: el('polygon', {
+          points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+          class: 'fig-keil',
+        }),
+      });
+      // Oberseite, Vorderkante, beide Seiten – die Rückwand bleibt weg.
+      face([ecke(links, hinten, top), ecke(rechts, hinten, top),
+        ecke(rechts, vorn, top), ecke(links, vorn, top)], -0.02);
+      face([ecke(links, vorn, top), ecke(rechts, vorn, top),
+        ecke(rechts, vorn, boden), ecke(links, vorn, boden)], -0.02);
+      face([ecke(links, hinten, top), ecke(links, vorn, top),
+        ecke(links, vorn, boden), ecke(links, hinten, boden)], -0.02);
+      face([ecke(rechts, hinten, top), ecke(rechts, vorn, top),
+        ecke(rechts, vorn, boden), ecke(rechts, hinten, boden)], -0.02);
     }
 
     if (spec.slider) {

@@ -577,7 +577,7 @@ export const EXERCISES = [
       "equip": "Kurzhantel + Erhöhung",
       "cue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
       "rest": 150,
-      "pattern": "squat",
+      "pattern": "squatheel",
       "shares": {
         "quads": 1.0,
         "glutes": 0.45,
@@ -599,7 +599,7 @@ export const EXERCISES = [
       "equip": "Erhöhung (Buch/Keil)",
       "cue": "Fersen 2–4 cm erhöht, nur die Ferse, der Ballen bleibt am Boden. Dann 1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Die Erhöhung lässt das Knie weiter über die Zehen wandern und betont den vorderen Oberschenkel deutlich stärker. Zu schwer? Erst die halbe Zahl an Wiederholungen, oder ohne die Zwischenstufe absolvieren und sie erst dazunehmen, wenn die Tiefe steht.",
       "rest": 150,
-      "pattern": "squatbw",
+      "pattern": "squatheelbw",
       "shares": {
         "quads": 1.0,
         "glutes": 0.45,

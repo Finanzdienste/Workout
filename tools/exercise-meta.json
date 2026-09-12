@@ -79,13 +79,13 @@
   "dbWeight": 20,
   "dbStep": 2.5,
   "weightNote": "eine Hantel",
-  "dbPattern": "squat",
+  "dbPattern": "squatheel",
   "dbShares": {
    "quads": 1.0,
    "glutes": 0.45,
    "abs": 0.3
   },
-  "bwPattern": "squatbw",
+  "bwPattern": "squatheelbw",
   "bwShares": {
    "quads": 1.0,
    "glutes": 0.45,
