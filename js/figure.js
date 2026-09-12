@@ -1204,20 +1204,43 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
        * Flach und breiter als der Fuß, damit es ein Tuch bleibt und kein Klotz
        * wird: Ein Kasten hier hieße „Ferse erhöht", also das Gegenteil.
        */
-      const seiten = spec.slider === 'R' || spec.slider === 'L' ? [spec.slider] : ['L', 'R'];
-      seiten.forEach((s2) => {
-        const ank = j[`ankle${s2}`];
-        const y = -0.62 + 0.008;   // hauchdünn über dem Boden, nie darunter
-        const ecke = (sx, sz) => P([ank[0] + sx * 0.115, y, ank[2] + sz * 0.085]);
-        const quad = [ecke(-1, -1), ecke(1, -1), ecke(1, 1), ecke(-1, 1)];
-        parts.push({
-          // Hinter den Fuß sortiert: Das Tuch liegt unter ihm, nicht auf ihm.
-          z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length - 0.08,
-          node: el('polygon', {
-            points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
-            class: 'fig-towel',
-          }),
-        });
+      /*
+       * **Ein Tuch, nicht zwei.**
+       *
+       *     „Hier sind iwie zwei Ebenen unter den Füßen. Eigentlich sollte hier
+       *      ja n Handtuch sein."
+       *
+       * Genau das war es: zwei getrennte Flächen, eine je Ferse. Beide liegen
+       * auf demselben Boden, stehen aber – weil die Füße unterschiedlich weit
+       * weg sind – auf verschiedenen Höhen im Bild. Zwei graue Flecken auf zwei
+       * Höhen liest niemand als „zwei Handtücher auf einem Boden", sondern als
+       * zwei Stufen.
+       *
+       * Eine durchgehende Fläche unter beiden Fersen hat dieses Problem nicht:
+       * Sie hat eine Kante, und die liegt sichtbar flach. Beim einbeinigen Curl
+       * (slider: 'R') bleibt es bei der einen arbeitenden Ferse.
+       *
+       * Waagerecht, nicht an der Sohle ausgerichtet: Die Füße stehen wirklich
+       * auf dem Boden – nachgemessen 0,001 Körperlängen darüber –, die Neigung
+       * der Figur ist die Brücke und nicht ein schräger Raum. Ein an der Sohle
+       * ausgerichtetes Tuch stand deshalb hochkant und war ein Strich.
+       */
+      const einbein = spec.slider === 'R' || spec.slider === 'L';
+      const ank = einbein ? j[`ankle${spec.slider}`] : midOf(j.ankleL, j.ankleR);
+      const zeh = einbein ? j[`toe${spec.slider}`] : midOf(j.toeL, j.toeR);
+      const y = -0.62 + 0.006;   // hauchdünn über dem Boden, nie darunter
+      const lang = Math.max(0.12, Math.abs(zeh[0] - ank[0]) + 0.1);
+      const breit = einbein ? 0.11 : Math.abs(j.ankleL[2] - j.ankleR[2]) / 2 + 0.11;
+      const zc = einbein ? ank[2] : (j.ankleL[2] + j.ankleR[2]) / 2;
+      const ecke = (sx, sz) => P([ank[0] + sx * lang * 0.5, y, zc + sz * breit]);
+      const quad = [ecke(-1, -1), ecke(1, -1), ecke(1, 1), ecke(-1, 1)];
+      parts.push({
+        // Hinter den Fuß sortiert: Das Tuch liegt unter ihm, nicht auf ihm.
+        z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length - 0.1,
+        node: el('polygon', {
+          points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+          class: 'fig-towel',
+        }),
       });
     }
 

@@ -1418,8 +1418,9 @@ function modusKarte(mode) {
     <div class="section-title">Womit trainierst du</div>
     <div class="card">
       <div class="small muted">Beide Fassungen stehen im selben Plan und treffen dieselben
-        Muskelgruppen – nur mit dem, was gerade da ist. Umgestellt wird hier, so oft du
-        willst; die nächste Einheit übernimmt es sofort, eine begonnene bleibt, wie sie ist.</div>
+        Muskelgruppen – nur mit dem, was gerade da ist. Umgestellt wird hier, so oft du willst,
+        <b>auch mitten im Training</b>: Die App führt für jede Variante ein eigenes Protokoll,
+        abgehakte Sätze der anderen bleiben stehen und sind beim Zurückschalten wieder da.</div>
       <div class="btn-row nav" style="margin-top:10px" role="group" aria-label="Variante wählen">
         ${['db', 'bw'].map((m) => `
           <button type="button" class="btn ${m === mode ? 'btn-primary' : ''}"
@@ -2156,8 +2157,9 @@ function renderDashboard() {
       <button type="button" class="btn btn-danger" data-act="reset-workout">Zurücksetzen</button>
     </div>
     <p class="small muted" style="margin-top:14px">
-      Hantel-Variante oder Bodyweight-Äquivalent wählst du in der Übersicht über dem
-      Startknopf, solange kein Satz steht. Beide werden getrennt protokolliert.
+      Hantel-Variante oder Bodyweight-Äquivalent wählst du unter Mehr → Womit trainierst du –
+      auch mitten im Training. Beide werden getrennt protokolliert, es geht also nichts
+      verloren.
     </p>
     ${vorratNote(w, mode)}
     ${injuryNote(w, mode)}
@@ -5871,15 +5873,34 @@ view.addEventListener('click', (e) => {
       go('dashboard');
       break;
     case 'set-modus': {
+      /*
+       * Umschalten geht immer – auch mitten in einer Einheit.
+       *
+       *     „Es muss die Möglichkeit geben innerhalb eines Workouts auch in den
+       *      Einstellungen was ändern zu können. Das bisher trainierte muss
+       *      dann trotzdem gemerkt werden."
+       *
+       * Beides stimmt, und das Zweite war nie in Gefahr: Das Protokoll führt
+       * die Varianten getrennt (`log[n].db` und `log[n].bw`). Ein Wechsel
+       * schreibt nur, *welche* gerade gilt; abgehakte Sätze der anderen bleiben
+       * unangetastet und stehen beim Zurückschalten wieder da.
+       *
+       * Gesperrt war der Wechsel trotzdem, sobald ein Satz stand – aus Sorge,
+       * jemandem mitten im Training die Übungen unter den Fingern wegzuziehen.
+       * Die Sorge war berechtigt, die Sperre die falsche Antwort: Wer bei
+       * Übung 3 merkt, dass die Hantel nicht reicht, will umstellen können und
+       * nicht die Einheit abbrechen. Was er bis dahin gemacht hat, zählt
+       * weiter.
+       */
       const neu = t.dataset.v === 'bw' ? 'bw' : 'db';
       store.setMode(neu);
-      // Und die Einheit, die gerade ansteht, gleich mit – sofern sie noch nicht
-      // angefangen ist. Ein Umschalter, der nur „ab dem nächsten Mal" wirkt,
-      // während vorn unverändert die alte Variante steht, sähe kaputt aus. Was
-      // schon läuft, bleibt dagegen, wie es ist.
-      const offen = ui.workoutNo;
-      if (!store.isStarted(offen)) store.setWorkoutMode(offen, neu);
+      store.setWorkoutMode(ui.workoutNo, neu);
+      // Die Fokusansicht zeigt eine Übung an ihrer Position; die andere
+      // Variante hat dieselbe Zahl Übungen, aber wer gerade bei Nummer 5 stand,
+      // soll dort auch wieder landen. Das tut sie von selbst – ui.focusIdx
+      // bleibt stehen und wird beim Zeichnen begrenzt.
       render();
+      toast(`${MODE_LABEL[neu]} – Abgehaktes bleibt gespeichert`);
       break;
     }
     case 'set-rest':

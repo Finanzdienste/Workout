@@ -269,6 +269,34 @@ console.log('     im Training:', (/Statt [^–]{0,60}–[^.]{0,60}/.exec(liste) 
 check(/Statt .{3,40}dafür fehlt gerade das Gerät/.test(liste),
   'und an der Übung steht, wofür sie eingesprungen ist – ein stiller Tausch wäre keiner');
 
+// --- 6. Umstellen mitten im Training, ohne Verlust ----------------------
+//
+//     „Es muss die Möglichkeit geben innerhalb eines Workouts auch in den
+//      Einstellungen was ändern zu können. Das bisher trainierte muss dann
+//      trotzdem gemerkt werden."
+//
+// Das Protokoll führt die Varianten getrennt. Ein Wechsel schreibt nur, welche
+// gerade gilt – abgehakte Sätze der anderen bleiben stehen.
+const mitten = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { workoutByNo } = await import('./js/plan.js');
+  const n = 1;
+  store.setWorkoutMode(n, 'bw');
+  const ex = workoutByNo(n, 'bw').ex[0];
+  store.updateSet(n, 'bw', ex.id, ex.sets, 0, { done: true });
+  const vorher = store.getSets(n, 'bw', ex.id, ex.sets).filter((x) => x.done).length;
+  store.setWorkoutMode(n, 'db');          // mitten im Training umgestellt
+  const beiDb = store.workoutMode(n);
+  store.setWorkoutMode(n, 'bw');
+  const nachher = store.getSets(n, 'bw', ex.id, ex.sets).filter((x) => x.done).length;
+  return { vorher, beiDb, nachher, gestartet: store.isStarted(n) };
+});
+console.log('     Wechsel:', JSON.stringify(mitten));
+check(mitten.gestartet, 'die Einheit gilt als begonnen');
+check(mitten.beiDb === 'db', 'der Wechsel greift auch dann');
+check(mitten.vorher === 1 && mitten.nachher === 1,
+  'und der abgehakte Satz steht danach unverändert da');
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
