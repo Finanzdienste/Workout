@@ -112,6 +112,41 @@ check(nachgeholt.every((x) => /\+1 nachgeholt/.test(x.meta)),
 const kopf = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/nachgeholt/.test(kopf), 'es steht auch im Kopf der Einheit, nicht nur an der Übung');
 
+// --- 2b. Und im Training, nicht nur in der Liste ------------------------
+//
+//     „Kann's sein dass ein dritter Fersenerhöhter Goblet Squat kam weil ich
+//      Supersatz angeklickt hab? Eigentlich waren ja nur zwei geplant."
+//
+// War es nicht – es war Nacharbeit. Aber in der Fokusansicht stand nur
+// „3 Sätze", und dann sucht man den Grund da, wo man zuletzt etwas umgestellt
+// hat. Der Hinweis muss dort stehen, wo man die Sätze abhakt.
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(500);
+let gefunden = false;
+for (let k = 0; k < 8 && !gefunden; k++) {
+  const m = (await page.locator('.focus-meta').first().textContent()
+    .catch(() => '') || '').replace(/\s+/g, ' ');
+  if (/nachgeholt/.test(m)) { gefunden = true; console.log('     im Training:', m); break; }
+  const weiter = page.locator('[data-act="focus-step"][data-d="1"]:not([disabled])');
+  if (!(await weiter.count())) break;
+  await weiter.first().click();
+  await page.waitForTimeout(250);
+}
+check(gefunden, 'auch im Training steht an der Übung, dass ein Satz nachgeholt wird');
+
+// Und der Supersatz ändert daran nichts – er ordnet um, er rechnet nicht.
+const summen = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  const { exOf } = await import('./js/plan.js');
+  return [false, true].map((su) => {
+    store.setSetting('supersatz', su);
+    return exOf(PLAN[1], 'db').reduce((a, x) => a + x.sets, 0);
+  });
+});
+check(summen[0] === summen[1],
+  `mit und ohne Supersatz dieselbe Satzzahl (${summen.join(' / ')})`);
+
 // --- 3. Nicht über die Wochengrenze -------------------------------------
 // Vier Einheiten sind eine Woche. Was in Einheit 1 fehlt, darf Einheit 5 nicht
 // mehr belasten: Volumen wirkt dann, wenn es anfällt, nicht drei Wochen später.

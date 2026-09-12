@@ -12764,7 +12764,15 @@ function renderFocus() {
     <div class="focus-fig" id="focusFig"></div>
 
     <h2 class="focus-name">${esc(it.name)}</h2>
-    <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</div>
+    <!-- „+1 nachgeholt" gehört hierher und stand nur in der Übungsliste:
+         *„Kann's sein dass ein dritter Fersenerhöhter Goblet Squat kam weil ich
+         Supersatz angeklickt hab? Eigentlich waren ja nur zwei geplant."* Der
+         dritte Satz war Nacharbeit aus derselben Woche, aber in dieser Ansicht
+         stand nur „3 Sätze" – und dann sucht man den Grund da, wo man zuletzt
+         etwas umgestellt hat. Der Supersatz ändert keine einzige Satzzahl; er
+         ordnet nur um. -->
+    <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}${
+      it.nach ? ` · <b>+${it.nach} nachgeholt</b>` : ''}</div>
     ${(() => {
       // Im Wechsel muss dastehen, mit wem – sonst wirkt der Sprung zur nächsten
       // Übung wie ein Fehler statt wie der Plan.
