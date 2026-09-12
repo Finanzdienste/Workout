@@ -15,11 +15,9 @@
 # bleibt der Push still – das ist der Preis. Oefter zu senden wuerde ihn
 # vervielfachen, ohne etwas zu verbessern.
 #
-# ZEITZONE: Die Zeiten unten sind UTC und auf Sommerzeit (MESZ) gerechnet. Im
-# Winter kommt der Push eine Stunde frueher als eingestellt. Das ist Absicht und
-# harmlos: Der Push ist die Uhr, das Handy prueft nur noch, *ob* etwas ansteht –
-# nicht, ob die Minute stimmt. Eine Erinnerung eine Stunde zu frueh ist besser
-# als eine, die eine Zeitpruefung verschluckt hat.
+# ZEITZONE: Die Zeit unten ist UTC. Der Push ist die Uhr, das Handy prueft nur
+# noch, *ob* etwas ansteht – nicht, ob die Minute stimmt. Eine Erinnerung eine
+# Stunde zu frueh ist besser als eine, die eine Zeitpruefung verschluckt hat.
 #
 # EINRICHTEN: In der App unter Mehr → „Push einrichten" antippen. Sie zeigt
 # einen Textblock. Den als Secret PUSH_KONFIG hinterlegen:
@@ -32,16 +30,38 @@ name: Erinnerung ans Handy schicken
 # spaeter – gemessen an den ersten beiden Laeufen dieses Ablaufs: 3 h 47 min und
 # 4 h 37 min zu spaet. Zur vollen Stunde ist die Schlange am laengsten, weil dort
 # fast alle stehen; deshalb steht unten eine krumme Minute. Das ist kein
-# Versprechen, nur die billigste Verbesserung, die es gibt. Frueher zu senden
-# waere die falsche Antwort – eine Erinnerung um 14 Uhr ist schlechter als eine
-# um 17.
+# Versprechen, nur die billigste Verbesserung, die es gibt.
+#
+# Gegen den Verzug hilft nicht, ihn ausrechnen zu wollen, sondern ihn
+# einzupreisen: Es wird nachts gesendet, damit die Meldung morgens *dasteht*.
+# Siehe den Block bei `schedule:`.
 
 on:
   schedule:
-    # Werktags 16:00 MESZ – nach der Arbeit.
-    - cron: '7 14 * * 1-5'
-    # Samstag und Sonntag 6:30 MESZ – vor dem Tag.
-    - cron: '37 4 * * 6,0'
+    # Einmal taeglich, kurz nach Mitternacht UTC. Auf Ansage:
+    #
+    #     "Wenn an dem Tag n Workout ist, kommt ab 00:00 ne Nachricht. Dann
+    #      ists ja relativ wahrscheinlich dass es um 06:00 oder so dann da ist.
+    #      Und vorher ist mein Handy ja aus. Da stoerts mich eh nicht."
+    #
+    # Das dreht die Logik um, und zwar richtig: Statt eine Uhrzeit zu treffen,
+    # die GitHub ohnehin nicht haelt, wird so frueh gesendet, dass die Meldung
+    # *da ist*, wenn der Tag anfaengt. Gemessen an den bisherigen Laeufen
+    # (3 h 31 min und 3 h 35 min Verzug) landet sie damit zwischen 02:30 und
+    # 06:00 Ortszeit - schlafend also, und morgens steht sie da.
+    #
+    # WARUM 00:23 UTC UND NICHT 22:00 UTC: 22:00 UTC waere Mitternacht in der
+    # Sommerzeit, im Winter aber 23:00 des VORTAGS. Der Service Worker
+    # vergleicht `zettel.tag <= heute`; ein Push am Abend davor liefe in den
+    # Zweig "steht heute nichts an" und zeigte nichts. Nach Mitternacht UTC
+    # kann das in keiner Jahreszeit passieren.
+    #
+    # WARUM JEDEN TAG UND NICHT NUR AN PLANTAGEN: Der Absender kennt den Plan
+    # nicht - und er verschiebt sich. Wer eine Einheit ausfallen laesst, bei dem
+    # rueckt sie nach (catchUpPlan), und der naechste Termin liegt dann auf einem
+    # Wochentag, den ein fester Zeitplan hier nie getroffen haette. Der Push ist
+    # ein Klopfen; *ob* etwas erscheint, entscheidet allein das Geraet.
+    - cron: '23 0 * * *'
   workflow_dispatch:
 
 permissions:

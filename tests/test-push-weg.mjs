@@ -54,9 +54,17 @@ check(/TTL:\s*3600/.test(yml),
   'und mit einer Stunde Haltbarkeit: später ist die Erinnerung ohnehin sinnlos');
 // Zur vollen Stunde ist die Warteschlange bei GitHub am längsten. Gemessen an
 // den ersten beiden Läufen: 3 h 47 min und 4 h 37 min zu spät.
-const crons = [...yml.matchAll(/cron:\s*'(\d+)\s/g)].map((m) => Number(m[1]));
-check(crons.length >= 2 && crons.every((m) => m !== 0),
-  `keine Sendung zur vollen Stunde (Minuten: ${crons.join(', ')})`);
+const crons = [...yml.matchAll(/cron:\s*'(\d+)\s+(\d+)\s/g)]
+  .map((m) => ({ min: Number(m[1]), std: Number(m[2]) }));
+check(crons.length >= 1 && crons.every((c) => c.min !== 0),
+  `keine Sendung zur vollen Stunde (Minuten: ${crons.map((c) => c.min).join(', ')})`);
+// Und nach Mitternacht UTC, nicht davor. Der Verzug ist der Grund, warum hier
+// überhaupt so früh gesendet wird – die Meldung soll *dastehen*, wenn der Tag
+// anfängt. 22:00 UTC wäre in der Sommerzeit Mitternacht, im Winter aber 23:00
+// des Vortags: Der Worker vergleicht `zettel.tag <= heute` und zeigte dann
+// nichts. Nach 00:00 UTC kann das in keiner Jahreszeit passieren.
+check(crons.length >= 1 && crons.every((c) => c.std <= 2),
+  `gesendet wird kurz nach Mitternacht UTC (Stunden: ${crons.map((c) => c.std).join(', ')})`);
 
 // --- 2. Der Worker ------------------------------------------------------
 await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null,
