@@ -179,6 +179,30 @@ function load() {
       // will, ändert ihn unter Mehr in einer Zeile.
       if (!state.name) state.name = 'Tobi';
     }
+    /*
+     * Ein Aufstieg, der als „schon dagewesen" gebucht ist, obwohl er nie
+     * stattgefunden hat.
+     *
+     * `aufstiege` merkt sich vollzogene Schritte, damit die App niemanden
+     * zweimal hochstuft. Eingetragen wurde bis eben aber auch, wer seine Stufe
+     * *selbst* wählte – und das tut jeder genau einmal, bei der Einrichtung.
+     * Wer dort „Anfänger" antippte, hatte damit den einzigen Aufstieg, den es
+     * für ihn gibt, im selben Moment verbraucht: Die App hätte ihn nie
+     * hochgestuft, egal wie lange er trainiert.
+     *
+     *     „Wenn die App mich bisher noch nicht hochgestuft hat, bin ich ja
+     *      anscheinend noch Anfänger."
+     *
+     * Eben nicht. Deshalb hier die Heilung, und sie ist eindeutig: Ein Eintrag
+     * über der eigenen Stufe kann kein vollzogener Aufstieg sein – dann stünde
+     * die Stufe dort. Er kommt weg, und ab dem nächsten abgehakten Satz zählt
+     * die App wieder mit.
+     */
+    const RANG = ['anfaenger', 'geuebt', 'fortgeschritten'];
+    if (Array.isArray(state.aufstiege)) {
+      const meine = RANG.indexOf(state.level || 'geuebt');
+      state.aufstiege = state.aufstiege.filter((k) => RANG.indexOf(k) <= meine);
+    }
     return state;
   } catch {
     return clone(DEFAULT_STATE);

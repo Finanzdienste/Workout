@@ -318,24 +318,26 @@ check(await page.locator('[data-act="start-session"]').count() > 0,
   'und die App läuft weiter, statt leer zu bleiben');
 check(errs.length === 0, `ohne Fehler in der Konsole${errs.length ? ': ' + errs.join(' | ') : ''}`);
 
-// --- 8. Eine Wahl von Hand bleibt eine Wahl -----------------------------
-// Seit über alles Trainierte gerechnet wird, sind die Schwellen für jemanden
-// mit Vorgeschichte längst überschritten. Wer sich nach einer langen Pause
-// bewusst zurückstellt, stünde beim nächsten Laden sonst wieder oben.
-await setze({ greeted: true, name: 'T', level: 'geuebt', log: {},
+// --- 8. Die Stufe gehört der App, nicht der Meinung ---------------------
+//
+//     „Die App sollte einen ja selbst auf Grundlage der Gewichte,
+//      Wiederholungen, Anzahl absolvierter Trainings usw irgendwann hochstufen.
+//      Selbst sollte man diese Einstufung ja nie verändern."
+//
+// Unter Mehr steht sie deshalb nur noch da. Und ein Stand, der auf Anfänger
+// steht, obwohl eine ganze Runde im Protokoll liegt, wird beim Laden
+// hochgestuft, statt unten zu bleiben – vorher hätte ihn die Buchung in
+// `aufstiege` für immer festgehalten.
+await setze({ greeted: true, name: 'T', level: 'anfaenger', aufstiege: ['geuebt'], log: {},
   rounds: [{ finishedOn: '2026-01-01', log: ganze, focus: 'standard' }] });
 await page.reload({ waitUntil: 'networkidle' });
 await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(300);
-await page.locator('[data-act="set-level"][data-v="anfaenger"]').first().click();
-await page.waitForTimeout(300);
+check(await page.locator('[data-act="set-level"]').count() === 0,
+  'unter Mehr gibt es keine Knöpfe mehr, um die Stufe zu setzen');
 s = await lies();
-check(s.level === 'anfaenger', `von Hand auf Anfänger zurückgestellt (${s.level})`);
-await page.reload({ waitUntil: 'networkidle' });
-await page.waitForTimeout(400);
-s = await lies();
-check(s.level === 'anfaenger',
-  `und das hält auch nach dem Neuladen (${s.level})`);
+check(s.level === 'geuebt',
+  `eine ganze Runde im Protokoll stuft von selbst hoch (${s.level})`);
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

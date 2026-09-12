@@ -272,10 +272,12 @@ function aufstiegHinweis() {
           Runden, nicht nur die laufende – ein Neustart oder ein Wechsel des Fokus wirft
           dich nicht zurück.</div>` : ''}
       </div>
+      <!-- Kein „Bei Anfänger bleiben" mehr daneben. Ein Knopf, der die Messung
+           überstimmt, macht aus der Stufe wieder eine Meinung über sich selbst:
+           *„Selbst sollte man diese Einstufung ja nie verändern."* Der Hinweis
+           sagt, was passiert ist; wegtippen kann man ihn, umstoßen nicht. -->
       <div class="btn-row nav" style="margin-top:10px">
         <button type="button" class="btn btn-primary" data-act="aufstieg-ok">Passt</button>
-        <button type="button" class="btn btn-ghost" data-act="aufstieg-zurueck">
-          Bei ${esc(name(a.von))} bleiben</button>
       </div>
     </div>`;
 }
@@ -2299,11 +2301,71 @@ function standAlter(f) {
  * Workouts", und dann stuft die App bei 60 hoch – wer die Zahl, gegen die
  * gerechnet wird, nirgends sehen kann, hält das für einen Fehler.
  */
-function gesamtKarte() {
+/**
+ * Die Erfahrungsstufe – zum Ansehen, nicht zum Einstellen.
+ *
+ *     „Die App sollte einen ja selbst auf Grundlage der Gewichte,
+ *      Wiederholungen, Anzahl absolvierter Trainings usw irgendwann hochstufen.
+ *      Selbst sollte man diese Einstufung ja nie verändern."
+ *
+ * Das ist die richtige Trennung, und vorher war sie nicht gezogen: Unter Mehr
+ * standen drei Knöpfe, mit denen man sich jederzeit selbst hochstufen konnte –
+ * und damit war die Stufe eine Meinung über sich und keine Messung. Wer sich
+ * hochstuft, bekommt mehr Sätze, als er gerade verträgt; wer sich herunterstuft,
+ * trainiert zu wenig und merkt es nicht.
+ *
+ * Gewählt wird sie deshalb genau einmal, bei der Einrichtung, als
+ * Selbsteinschätzung zum Start. Danach gehört sie der App: pruefeAufstieg()
+ * zählt Einheiten, Sätze und bewegte Tonnen und stellt um, wenn alles drei
+ * steht. Was hier bleibt, ist die Auskunft – wo man steht, was das für den Plan
+ * heißt, und wie weit es noch ist.
+ */
+function erfahrungStand() {
   const s = store.getState();
-  if (!(s.rounds || []).length) return '';
+  const key = s.level || 'geuebt';
+  const eintrag = LEVELS.find(([k]) => k === key) || LEVELS[1];
+  const saetze = SAETZE_JE_STUFE[key] || 3;
+  const schritt = offenerAufstieg();
+  return `
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-v">${esc(eintrag[1])}</div>
+        <div class="stat-l">${esc(plural(saetze, 'Satz', 'Sätze'))} je Übung</div></div>
+    </div>
+    <div class="small muted" style="margin-top:10px">${esc(eintrag[2])}</div>
+    <div class="small muted" style="margin-top:10px">Die Stufe skaliert Startgewichte
+      <em>und</em> Sätze je Übung. Übungen, Pausen und die Verteilung über die Woche bleiben,
+      wie sie sind – jede Muskelgruppe behält ihren Anteil, nur die Höhe ändert sich.
+      Eingestellte Gewichte rührt sie nie an.</div>
+    ${aufstiegBalken()}
+    <div class="small muted" style="margin-top:12px">${schritt
+      ? 'Hochgestuft wird von selbst, sobald alles davon steht – einstellen kannst und '
+        + 'sollst du das nicht: Eine Stufe ist etwas, das man sich ertrainiert, keine '
+        + 'Einstellung. Gewählt hast du sie einmal bei der Einrichtung, danach zählt die App.'
+      : ((s.aufstiege || []).length && key !== 'fortgeschritten'
+        ? 'Der nächste Schritt war schon einmal dran. Die App stuft von selbst nicht noch '
+          + 'einmal hoch.'
+        : 'Du stehst auf der höchsten Stufe – hier kommt nichts mehr dazu.')}</div>`;
+}
+
+/**
+ * Wie weit es bis zur nächsten Stufe noch ist.
+ *
+ * Stand bisher nur in gesamtKarte(), und die zeigt sich erst nach einer
+ * *abgeschlossenen Runde* – also nach 84 Einheiten. Ein Anfänger in seiner
+ * ersten Runde, und damit genau der, um den es geht, hat diese Balken nie
+ * gesehen:
+ *
+ *     „Wenn die App mich bisher noch nicht hochgestuft hat, bin ich ja
+ *      anscheinend noch Anfänger."
+ *
+ * Richtig – aber dann muss auch dastehen, wie weit es noch ist. Sonst ist die
+ * Stufe eine Zahl, die irgendwann von selbst umspringt, und bis dahin weiß
+ * niemand, ob sie überhaupt noch kommt.
+ */
+function aufstiegBalken() {
   const g = gesamtStats();
   const schritt = offenerAufstieg();
+  if (!schritt) return '';
   const name = (k) => (LEVELS.find(([key]) => key === k) || [])[1] || k;
   const zeile = (wert, ziel, was) => {
     const pct = Math.min(100, Math.round((wert / ziel) * 100));
@@ -2320,6 +2382,22 @@ function gesamtKarte() {
   // trainiert, wird an ihr auch nicht gemessen (siehe pruefeAufstieg()).
   const mitGewichten = g.db >= g.bw;
   return `
+    <div class="small muted" style="margin-top:14px">Bis <b>${esc(name(schritt.nach))}</b> –
+      alle ${mitGewichten ? 'drei' : 'beide'} müssen voll sein${
+        mitGewichten ? '' : '; die Tonnage zählt bei dir nicht mit, weil du ohne Gewichte trainierst'}:</div>
+    <div class="bars" style="margin-top:8px">
+      ${zeile(g.einheiten, schritt.einheiten, 'Einheiten')}
+      ${zeile(g.saetze, schritt.saetze, 'Sätze')}
+      ${mitGewichten ? zeile(g.volumen / 1000, schritt.tonnen, 'Tonnen') : ''}
+    </div>`;
+}
+
+function gesamtKarte() {
+  const s = store.getState();
+  if (!(s.rounds || []).length) return '';
+  const g = gesamtStats();
+  const schritt = offenerAufstieg();
+  return `
     <div class="section-title">Insgesamt trainiert</div>
     <div class="card">
       <div class="stat-grid">
@@ -2330,14 +2408,7 @@ function gesamtKarte() {
         <i>diesem</i> Plan – hier stehen alle ${plural(g.runden + 1, 'Runde', 'Runden')} zusammen.
         Ein Neustart oder ein Wechsel des Trainingsfokus fängt den Plan neu an; gezählt wird
         weiter.</div>
-      ${schritt ? `
-        <div class="small muted" style="margin-top:14px">Bis <b>${esc(name(schritt.nach))}</b> –
-          alle drei müssen voll sein${mitGewichten ? '' : ', die Tonnage zählt bei dir nicht mit'}:</div>
-        <div class="bars" style="margin-top:8px">
-          ${zeile(g.einheiten, schritt.einheiten, 'Einheiten')}
-          ${zeile(g.saetze, schritt.saetze, 'Sätze')}
-          ${mitGewichten ? zeile(g.volumen / 1000, schritt.tonnen, 'Tonnen') : ''}
-        </div>`
+      ${schritt ? aufstiegBalken()
         : `<div class="small muted" style="margin-top:12px">${
             (s.aufstiege || []).length && s.level !== 'fortgeschritten'
               ? 'Der nächste Schritt war schon einmal dran und wurde zurückgestellt – die App '
@@ -4689,21 +4760,7 @@ function renderSettings() {
 
     <div class="section-title">Erfahrung</div>
     <div class="card">
-      <div class="small muted">Der Plan ist für jemanden gerechnet, der seit einer Weile
-        trainiert. Die Stufe rechnet ihn auf die eigene Erfahrung um: Startgewichte
-        <em>und</em> Sätze je Übung. Übungen, Pausen und die Verteilung über die Woche
-        bleiben, wie sie sind – jede Muskelgruppe behält ihren Anteil, nur die Höhe ändert
-        sich. Was du selbst eingestellt hast, bleibt ohnehin stehen, und abgehakte Sätze
-        werden beim Wechsel nicht gelöscht.</div>
-      <div class="fokus-liste">
-        ${LEVELS.map(([key, name, hint, faktor]) => `
-          <button type="button" class="fokus-btn ${(s.level || 'geuebt') === key ? 'on' : ''}"
-                  aria-pressed="${(s.level || 'geuebt') === key}" data-act="set-level" data-v="${key}">
-            <span class="lbl">${esc(name)}${(s.level || 'geuebt') === key ? ' ✓' : ''}</span>
-            <span class="hint">${esc(hint)}</span>
-            <span class="fokus-zahl">${esc(levelBeispiel(faktor, key))}</span>
-          </button>`).join('')}
-      </div>
+      ${erfahrungStand()}
     </div>
 
     <div class="section-title" id="fokus-wahl">Trainingsfokus</div>
@@ -5909,20 +5966,28 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'set-level': {
+      /*
+       * Die Selbsteinschätzung bei der Einrichtung – die einzige Stelle, an der
+       * die Stufe noch von Hand gesetzt wird.
+       *
+       * **Hier stand ein Fehler mit Folgen.** Vorher wurde der nächste Aufstieg
+       * bei jeder Wahl gleich als „schon dagewesen" gebucht, damit eine bewusste
+       * Rückstufung nicht beim nächsten Laden wieder überschrieben wird. Nur:
+       * Dieselbe Aktion bediente die Einrichtung. Wer dort „Anfänger" antippte,
+       * verbrauchte im selben Moment den einzigen Aufstieg, den es für ihn gibt
+       * – die App hätte ihn nie hochgestuft, egal wie lange er trainiert.
+       *
+       *     „Wenn die App mich bisher noch nicht hochgestuft hat, bin ich ja
+       *      anscheinend noch Anfänger."
+       *
+       * Die Buchung ist weg, und sie wird auch nicht mehr gebraucht: Seit die
+       * Stufe unter Mehr nicht mehr einstellbar ist, gibt es keine spätere
+       * Rückstufung, die sich gegen die Messung stellen könnte. Wer bei der
+       * Einrichtung wählt, hat noch nichts trainiert – die Schwellen sind dann
+       * ohnehin nicht erreicht. Bestehende Stände heilt load() in js/store.js.
+       */
       store.setSetting('level', t.dataset.v);
-      // Von Hand gewählt ist von Hand gewählt: Der Hinweis eines automatischen
-      // Aufstiegs hat sich damit erledigt, auch wenn er noch offen stand.
       store.setSetting('aufstieg', null);
-      // Und die App stuft von dieser Stufe aus nicht mehr selbst hoch. Ohne das
-      // wäre die Wahl keine: Seit der Aufstieg über *alles* Trainierte rechnet,
-      // sind die Schwellen für jemanden mit Vorgeschichte längst überschritten –
-      // wer sich nach einer langen Pause bewusst auf Anfänger zurückstellt,
-      // stünde beim nächsten Laden wieder auf Geübt. Denselben Weg geht
-      // 'aufstieg-zurueck'.
-      const offen = offenerAufstieg();
-      if (offen) {
-        store.setSetting('aufstiege', [...(store.getState().aufstiege || []), offen.nach]);
-      }
       render();
       toast('Startgewichte umgerechnet – eingestellte Gewichte bleiben');
       break;
@@ -5944,16 +6009,6 @@ view.addEventListener('click', (e) => {
       render();
       document.getElementById('fokus-wahl')?.scrollIntoView({ block: 'start' });
       break;
-    case 'aufstieg-zurueck': {
-      const a = store.getState().aufstieg;
-      // Der Schritt bleibt in `aufstiege` stehen – wer zurückstellt, soll nicht
-      // nach der nächsten Einheit dieselbe Meldung wieder bekommen.
-      if (a) store.setSetting('level', a.von);
-      store.setSetting('aufstieg', null);
-      render();
-      toast('Bleibt, wie es war');
-      break;
-    }
     case 'set-theme':
       store.setSetting('theme', t.dataset.v);
       render();

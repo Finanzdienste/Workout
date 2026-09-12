@@ -111,9 +111,38 @@ export const satzZahl = (n) => Math.max(1, Math.round(n * satzFaktor()));
  * Knopf zum Zurückstellen daneben. Jeder Schritt kommt genau einmal: Wer
  * zurückstellt, bleibt unten, bis er selbst etwas anderes will.
  * ------------------------------------------------------------------ */
+/*
+ * **Die Satzschwellen standen zu hoch, und zwar auf eine tückische Art.**
+ *
+ *     „Wenn die App mich bisher noch nicht hochgestuft hat, bin ich ja
+ *      anscheinend noch Anfänger."
+ *
+ * Stimmte nicht – die Schwelle hing am Fokus. 700 Sätze setzen rund 11,7 Sätze
+ * je Einheit voraus; das liefern drei der vier Pläne auf der Anfängerstufe,
+ * Cut aber nur 9,5. Nachgemessen über die eingecheckten Pläne, Sätze nach
+ * 60 Einheiten auf der Anfängerstufe:
+ *
+ *     Aufbau            690 / 699 (db/bw)
+ *     Bauch, Beine, Po  682 / 693
+ *     Oberkörper        678 / 688
+ *     Cut               568 / 575   ← unter 700
+ *
+ * Wer Cut trainiert, brauchte damit **73 bis 74 Einheiten statt 60**. Und das
+ * Perfide daran: Die Satzzahl ist gerade deshalb kleiner, *weil* er noch
+ * Anfänger ist – die Stufe verlängerte sich selbst. Beim zweiten Schritt war
+ * es schlimmer: 3400 Sätze gegen 2844, die Cut in 200 Einheiten auf der Stufe
+ * „Geübt" liefert – rund 240 Einheiten statt 200.
+ *
+ * Die Einheitenzahl ist das Tor, so war es gemeint. Die Sätze sollen nur
+ * verhindern, dass 60 halb abgebrochene Einheiten so viel zählen wie 60 ganze.
+ * Deshalb stehen sie jetzt knapp *unter* dem, was der volumenärmste Plan in
+ * der vorgesehenen Zahl von Einheiten liefert: 540 unter 568, 2700 unter 2844.
+ * Halbe Einheiten fängt das weiter ab – 60 zur Hälfte abgehakte Einheiten sind
+ * rund 284 Sätze und damit weit unter 540.
+ */
 export const AUFSTIEGE = [
-  { von: 'anfaenger', nach: 'geuebt', einheiten: 60, saetze: 700, tonnen: 30 },
-  { von: 'geuebt', nach: 'fortgeschritten', einheiten: 200, saetze: 3400, tonnen: 200 },
+  { von: 'anfaenger', nach: 'geuebt', einheiten: 60, saetze: 540, tonnen: 30 },
+  { von: 'geuebt', nach: 'fortgeschritten', einheiten: 200, saetze: 2700, tonnen: 200 },
 ];
 
 /** Der nächste Schritt, wenn es einen gibt und er noch nicht dran war. */
