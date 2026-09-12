@@ -254,80 +254,6 @@ function steigerungHinweis(n, items) {
     </div>`;
 }
 
-/* ------------------------------------------------------------------ *
- * Körpergewicht
- *
- * Eine Zahl, ein Feld, ein Verlauf. Keine Maße, keine Erinnerung ans Wiegen,
- * keine Zielvorgabe – wer abnehmen will, weiß das selbst, und eine App, die es
- * täglich anmerkt, wird weggetippt.
- *
- * Gebraucht wird sie an genau zwei Stellen: bei Klimmzügen und Dips steht damit
- * in der Gewichtszeile, was wirklich hängt, und im Kaloriendefizit lässt sich
- * ein Hantelgewicht, das sich hält, richtig einordnen.
- * ------------------------------------------------------------------ */
-
-/**
- * Wohin es geht – über die letzten vier Wochen, in Kilo je Woche.
- *
- * Zwei Punkte am Rand statt einer Regression: Der erste Eintrag, der mindestens
- * vier Wochen zurückliegt (oder sonst der älteste), gegen den jüngsten. Eine
- * Ausgleichsgerade wäre genauer und hier nicht ehrlicher – Körpergewicht
- * schwankt am Tag um mehr, als es in der Woche wandert.
- *
- * Gibt null zurück, solange die Spanne zu kurz ist, um etwas zu sagen.
- */
-function koerperTrend() {
-  const l = store.koerperListe();
-  if (l.length < 2) return null;
-  const jung = l[l.length - 1];
-  const grenze = addDays(jung.on, -28);
-  const alt = l.filter((x) => x.on <= grenze).pop() || l[0];
-  const tage = daysBetween(alt.on, jung.on);
-  if (!Number.isFinite(tage) || tage < 7) return null;
-  return { proWoche: ((jung.kg - alt.kg) / tage) * 7, von: alt, bis: jung, tage };
-}
-
-/** Ein Satz unter der Kurve – oder nichts. */
-function koerperTrendZeile() {
-  const t = koerperTrend();
-  if (!t) return '';
-  const p = t.proWoche;
-  const richtung = Math.abs(p) < 0.05 ? 'hältst du dein Gewicht'
-    : p < 0 ? `verlierst du ${fmtNum(Math.abs(Math.round(p * 10) / 10))} kg die Woche`
-      : `nimmst du ${fmtNum(Math.round(p * 10) / 10)} kg die Woche zu`;
-  return `<div class="small muted" style="margin-top:6px">Über
-    ${esc(plural(t.tage, 'Tag', 'Tage'))} gerechnet ${esc(richtung)}.
-    ${p < -0.1 ? 'Im Defizit ist ein Hantelgewicht, das sich hält, ein Erfolg – '
-      + 'nicht der Stillstand, nach dem es aussieht.' : ''}</div>`;
-}
-
-/** Die Eingabe – unter Mehr, nie im Training. */
-function koerperKarte() {
-  const jetzt = store.koerperJetzt();
-  const heute = todayISO();
-  const vonHeute = jetzt && jetzt.on === heute ? jetzt : null;
-  const vorher = store.koerperListe().filter((x) => x.on !== heute).pop();
-  return `
-    <div class="section-title">Dein Gewicht</div>
-    <div class="card">
-      <div class="scheiben-zeile">
-        <input type="text" inputmode="decimal" class="kg-val"
-               value="${vonHeute ? esc(fmtNum(vonHeute.kg)) : ''}"
-               placeholder="—" data-act="koerper-input"
-               aria-label="Dein Körpergewicht heute in Kilogramm">
-        <span class="scheiben-mal">kg${vorher
-          ? ` · zuletzt ${esc(fmtNum(vorher.kg))} kg am ${esc(fmtDate(vorher.on))}` : ''}</span>
-      </div>
-      <div class="small muted" style="margin-top:8px">Ein Wert je Tag; tippst du heute noch
-        einmal, ersetzt er den von heute. Das Feld leer zu räumen löscht den heutigen Eintrag
-        wieder. Der Verlauf steht in der Statistik.</div>
-      <div class="small muted" style="margin-top:6px">Zwei Dinge hängen daran: Bei Klimmzügen
-        und Dips steht damit in der Gewichtszeile, was wirklich hängt – und im Defizit lässt
-        sich ein Hantelgewicht, das sich hält, richtig einordnen.
-        <b>Bleibt in diesem Browser, geht in jede Sicherung und in keine Meldung.</b></div>
-    </div>`;
-}
-
 function aufstiegHinweis() {
   const a = store.getState().aufstieg;
   if (!a) return '';
@@ -1252,7 +1178,6 @@ function renderFocus() {
         ${kgKnopf(it, 1)}
       </div>
       ${anders ? `<div class="kg-next focus-next">${esc(anders)}</div>` : ''}
-      ${kgNotiz(it)}
       ${aufwaermZeile(it, mode, n)}`}
     ${anfaengerZeile(it)}
 
@@ -2115,7 +2040,6 @@ function renderDashboard() {
         ${kgKnopf(it, 1)}
       </div>
       ${anders ? `<div class="kg-next">${esc(anders)}</div>` : ''}
-      ${kgNotiz(it)}
       ${aufwaermZeile(it, mode, n)}`;
 
     parts.push(`
@@ -2510,11 +2434,6 @@ function renderStats() {
     <div class="section-title">Wochenvolumen</div>
     <div id="volWeek"></div>
 
-    ${store.koerperListe().length > 1 ? `
-    <div class="section-title">Dein Gewicht</div>
-    <div class="spark-grid" id="sparkKoerper"></div>
-    ${koerperTrendZeile()}` : ''}
-
     <div class="section-title">Gewicht je Übung</div>
     <div class="spark-grid" id="sparkEx"></div>
 
@@ -2554,16 +2473,6 @@ function renderStats() {
     [...perExercise.entries()].sort((a, b) => b[1].length - a[1].length),
     (id) => EX_BY_ID.get(id).db.name, 'kg', kgFmt,
     'Sobald du mit Hanteln trainierst, steht hier der Verlauf je Übung.');
-
-  // Über dieselbe geprüfte Liste wie alles andere. kgFmt ruft toFixed – ein
-  // importierter Eintrag mit kg: null wäre dort ein TypeError und machte die
-  // ganze Statistik schwarz. koerperListe() filtert das an der Quelle.
-  const kw = store.koerperListe();
-  if (kw.length > 1) {
-    fill('sparkKoerper',
-      [['koerper', kw.map((x) => ({ label: fmtDate(x.on), value: x.kg }))]],
-      () => 'Körpergewicht', 'kg', kgFmt, '');
-  }
 
   renderWeeklyVolume();
 
@@ -3044,31 +2953,6 @@ function aufwaermZeile(it, mode, n) {
  * Fünferschritten je Hand. Steht auf dem Knopf „2,5 Kilo mehr" und es werden
  * fünf, ist der Knopf gelogen.
  */
-/**
- * Was bei Klimmzügen wirklich hängt.
- *
- * Im Feld steht 0, und das ist richtig: 0 kg *Zusatzgewicht*. Gehoben werden
- * trotzdem über achtzig Kilo, und ohne das eingetragene Körpergewicht kann die
- * App das nicht sagen. Mit ihm ist es eine Zeile.
- *
- * **Nur, wo der Körper wirklich frei hängt.** Eine ausgeschriebene Liste mit
- * zwei Einträgen statt eines Katalogfeldes – bei Liegestützen läge der Anteil
- * bei etwa zwei Dritteln und beim schrägen Rudern noch tiefer, je nach Winkel.
- * Eine Zahl dafür wäre erfunden, und erfundene Genauigkeit ist schlimmer als
- * keine Angabe.
- */
-const HAENGT_FREI = new Set(['chin-ups', 'pull-ups']);
-
-function kgNotiz(it) {
-  if (!HAENGT_FREI.has(it.id)) return '';
-  const k = store.koerperJetzt();
-  if (!k) return '';
-  const zusatz = workingWeight(it.id) || 0;
-  return `<div class="kg-next">Am Griff hängen ${esc(fmtNum(Math.round((k.kg + zusatz) * 10) / 10))} kg
-    <span class="muted">– ${esc(fmtNum(k.kg))} kg Körpergewicht${zusatz
-      ? ` plus ${esc(fmtNum(zusatz))} kg` : ''}.</span></div>`;
-}
-
 function kgKnopf(it, richtung) {
   const jetzt = workingWeight(it.id);
   const ziel = naechstesGewicht(it.id, richtung);
@@ -4862,7 +4746,6 @@ function renderSettings() {
       ${s.supersatz ? superVorschau() : ''}
     </div>
 
-    ${koerperKarte()}
     ${vorratKarte()}
 
     <div class="section-title">Töne und Hinweise</div>
@@ -6326,13 +6209,6 @@ view.addEventListener('input', (e) => {
     if (!Number.isNaN(kg)) store.setWeight(t.dataset.ex, kg);
   } else if (t.dataset.act === 'custom-name') {
     if (ui.customDraft) ui.customDraft.name = t.value.slice(0, 32);
-  } else if (t.dataset.act === 'koerper-input') {
-    // Im INPUT-Zweig, nicht im Klick-switch: 'erinnerung-zeit' stand jahrelang
-    // im falschen und wurde nie ausgelöst. Leeres Feld heißt löschen – ohne das
-    // gäbe es keinen Weg zurück, weil bei jedem Zeichen gespeichert wird.
-    const roh = t.value.trim().replace(',', '.');
-    const kg = roh === '' ? null : parseFloat(roh);
-    if (roh === '' || (Number.isFinite(kg) && kg >= 30 && kg <= 300)) store.setKoerper(kg);
   } else if (t.dataset.act === 'name-input') {
     store.setSetting('name', t.value.trim().slice(0, 24));
   } else if (t.dataset.act === 'set-input') {
