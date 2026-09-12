@@ -65,8 +65,8 @@ export const INJURIES = [
       + 'Drücken am Boden mit kurzem Weg geht meist, Heben über Schulterhöhe nicht.',
     avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze',
       'sitzendes-schulterdruecken', 'liegende-trizepsstrecker',
-      'pike-liegestuetze'
-    ],
+      'pike-liegestuetze',
+      'flaschen-seitheben'],
     swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press', 'pike-liegestuetze': 'floor-press' },
     care: [
       'aussenrotation', 'wandengel', 'brustdehnung', 'schulterblatt', 'sleeper',
@@ -83,8 +83,8 @@ export const INJURIES = [
       'floor-press', 'reverse-fly', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
       'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
       'liegende-trizepsstrecker',
-      'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
-    ],
+      'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel',
+      'flaschen-seitheben'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['aussenrotation', 'schulterblatt'],
   },
@@ -111,8 +111,8 @@ export const INJURIES = [
       + 'nach außen dreht – Curls und Klimmzüge im Untergriff also.',
     avoid: ['sz-curls', 'chin-ups',
       'haengendes-knieheben', 'pull-ups',
-      'inverted-row'
-    ],
+      'inverted-row',
+      'rucksack-curls'],
     // Ersatz ist das Rudern, nicht der Obergriff: Pull-ups drehen den Unterarm
     // zwar nicht nach außen, hängen ihn aber gestreckt an die Stange – und
     // genau dieser Zug reizt die Sehne ebenfalls.
@@ -130,8 +130,8 @@ export const INJURIES = [
       + 'Drücken belastet ihn kaum.',
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
       'haengendes-knieheben',
-      'inverted-row'
-    ],
+      'inverted-row',
+      'rucksack-curls'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: [
       'streckerExzentrik', 'streckerDehnen', 'fingerstrecker', 'handgelenkMobil',
@@ -145,8 +145,8 @@ export const INJURIES = [
       + 'Griff das Problem, dazu jede kräftige Beugung im Ellenbogen.',
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
       'haengendes-knieheben',
-      'inverted-row'
-    ],
+      'inverted-row',
+      'rucksack-curls'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['beugerExzentrik', 'beugerDehnen', 'handgelenkMobil'],
   },
@@ -188,8 +188,8 @@ export const INJURIES = [
       'reverse-fly', 'sitzendes-seitheben', 'band-seitheben', 'liegende-trizepsstrecker', 'sz-curls',
       'gewichtete-crunches',
       'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
-      'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel'
-    ],
+      'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel',
+      'flaschen-seitheben', 'rucksack-curls'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
   },
@@ -201,8 +201,8 @@ export const INJURIES = [
       + 'Speichenseite. Alles, was fest gegriffen wird, zieht daran.',
     avoid: ['chin-ups', 'pull-ups', 'einarmiges-kh-rudern', 'sz-curls',
       'haengendes-knieheben',
-      'inverted-row'
-    ],
+      'inverted-row',
+      'rucksack-curls'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['streckerDehnen', 'fingerstrecker', 'handgelenkMobil'],
   },
@@ -229,8 +229,8 @@ export const INJURIES = [
       + 'bei Übungen, in denen der Kopf gegen die Schwerkraft gehalten wird.',
     avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'band-seitheben',
       'sitzendes-schulterdruecken',
-      'pike-liegestuetze', 'reverse-snow-angel'
-    ],
+      'pike-liegestuetze', 'reverse-snow-angel',
+      'flaschen-seitheben'],
     swap: { 'sitzendes-seitheben': 'floor-press' },
     care: ['kinnZurueck', 'nackenSeite', 'schulterkreisen', 'brustdehnung'],
   },
@@ -244,8 +244,8 @@ export const INJURIES = [
     avoid: ['gewichtete-crunches', 'sitzendes-seitheben', 'band-seitheben', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
       'reverse-fly',
       'sitzendes-schulterdruecken', 'haengendes-knieheben',
-      'inverted-row', 'pike-liegestuetze', 'reverse-snow-angel'
-    ],
+      'inverted-row', 'pike-liegestuetze', 'reverse-snow-angel',
+      'flaschen-seitheben'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['kinnZurueck', 'schulterkreisen', 'atmung'],
   },

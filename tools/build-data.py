@@ -163,6 +163,11 @@ GERAET_AUS_TEXT = {
     'Erhöhung': [],
     'Erhöhung (Buch/Keil)': [],
     'Rucksack': [],
+    # Zwei gefuellte Flaschen sind kein Geraet, sondern der Kuehlschrank. Sie
+    # stehen hier, weil die seitliche Schulter sonst als einzige Gruppe ganz
+    # leer ausgeht - gemessen: 1,8 statt 10 Saetzen je Woche ohne Band und
+    # Hanteln. Siehe flaschen-seitheben.
+    'zwei volle Flaschen': [],
     'Ohne Gerät': [],
     'ohne Gerät': [],
     'ohne': [],

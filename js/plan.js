@@ -244,6 +244,10 @@ export function vorratNotiz(w, mode) {
  * vorratNotiz() für einen Anfänger im Bodyweight-Modus einen Verlust, den es in
  * dieser Höhe nie gab.
  */
+export function planSaetze(w, mode) {
+  return istCustom(w.n) ? w.ex : gestufteSaetze(w, mode || store.workoutMode(w.n));
+}
+
 function gestufteSaetze(w, m) {
   // Erst die Stufe, dann der Vorrat. Die Anfängerfassung einer Übung braucht
   // oft weniger Gerät – das hängende Knieheben die Klimmzugstange, das liegende

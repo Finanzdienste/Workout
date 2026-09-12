@@ -2019,6 +2019,124 @@ export const EXERCISES = [
       "stufen": {},
       "braucht": []
     }
+  },
+  {
+    "id": "flaschen-seitheben",
+    "group": "Schulter",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": null,
+    "tier": 3,
+    "detail": [
+      [
+        "Warum überhaupt Flaschen",
+        "Weil die seitliche Schulter sonst leer ausgeht. Sie ist die eine Muskelgruppe, für die es ohne jeden Widerstand keine brauchbare Körpergewichtsübung gibt: Sie hat keine Rolle beim Drücken, Ziehen oder Stützen, in der sie die Hauptarbeit täte. Gemessen an diesem Plan bleiben ohne Band und Hanteln 1,8 von 10 Sätzen je Woche für sie übrig – mit dieser Übung wieder die vollen 10. Eine 1,5-Liter-Flasche wiegt 1,5 kg, und genau in dieser Größenordnung wird Seitheben ohnehin gemacht. Wer sie für zu leicht hält, hat es mit 20 sauberen Wiederholungen noch nicht versucht."
+      ],
+      [
+        "Der Hebel ist das Gewicht",
+        "Bei gestrecktem Arm sitzt die Last am längsten Hebel, den dieser Muskel hat – deshalb reichen hier Gewichte, die man sonst nirgends ernst nehmen würde. Umgekehrt gilt dasselbe: Wer die Arme anwinkelt, macht die Übung sofort deutlich leichter, ohne etwas abstellen zu müssen. Das ist die feinere Einstellung als die nächste Flaschengröße."
+      ],
+      [
+        "Bis waagerecht, nicht höher",
+        "Über der Waagerechten übernimmt der Nacken. Das fühlt sich nach mehr an und ist weniger: Die seitliche Schulter hat dort schon aufgehört zu arbeiten, und der Trapez nimmt ihr die letzten Grad ab. Wer den Nacken hochziehen spürt, ist zu hoch oder zu schwer."
+      ]
+    ],
+    "db": {
+      "name": "Seitheben mit Flaschen",
+      "reps": "12–20",
+      "equip": "zwei volle Flaschen",
+      "cue": "Je eine gefüllte Flasche in die Hand, Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung aus der Hüfte. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+      "rest": 120,
+      "pattern": "lateralstand",
+      "shares": {
+        "sideDelts": 1.0,
+        "frontDelts": 0.15,
+        "traps": 0.2
+      },
+      "muscles": [
+        "sideDelts",
+        "traps",
+        "frontDelts"
+      ],
+      "stufen": {},
+      "braucht": []
+    },
+    "bw": {
+      "name": "Seitheben mit Flaschen",
+      "reps": "12–20",
+      "equip": "zwei volle Flaschen",
+      "cue": "Je eine gefüllte Flasche in die Hand, Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung aus der Hüfte. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+      "rest": 120,
+      "pattern": "lateralstand",
+      "shares": {
+        "sideDelts": 1.0,
+        "frontDelts": 0.15,
+        "traps": 0.2
+      },
+      "muscles": [
+        "sideDelts",
+        "traps",
+        "frontDelts"
+      ],
+      "stufen": {},
+      "braucht": []
+    }
+  },
+  {
+    "id": "rucksack-curls",
+    "group": "Bizeps",
+    "weight": 5,
+    "step": 1,
+    "weightNote": "im Rucksack",
+    "equip": "backpack",
+    "tier": 3,
+    "detail": [
+      [
+        "Warum ein Rucksack",
+        "Weil der Bizeps ohne Zugwiderstand sonst nichts abbekommt. Klimmzüge und Rudern treffen ihn mit, aber nie als Hauptmuskel – und ohne Stange und ohne Band fällt beides weg. Ein Rucksack mit vier Taschenbüchern wiegt zwei bis drei Kilo, mit Schulbüchern schnell acht; das ist ein ernstes Curl-Gewicht und lässt sich buchweise feiner einstellen als jede Hantel."
+      ],
+      [
+        "Die Schlaufen, nicht der Griff",
+        "Beide Hände in die Trageschlaufen, Handflächen nach oben – so hängt die Last unter den Händen und der Bizeps arbeitet in seiner eigentlichen Aufgabe, dem Beugen bei aufgedrehtem Unterarm. Am oberen Tragegriff gehalten wird daraus ein Hammercurl, der mehr den Unterarm trifft."
+      ],
+      [
+        "Ellenbogen am Rumpf",
+        "Wandern sie nach vorn, übernimmt die vordere Schulter den ersten Teil der Bewegung. Das sieht nach mehr Weg aus und ist weniger Arbeit für den Muskel, um den es geht. Ein Punkt an der Wand im Rücken hilft: Berühren die Ellenbogen sie nicht mehr, ist der Satz zu Ende."
+      ]
+    ],
+    "db": {
+      "name": "Rucksack-Curls",
+      "reps": "10–20",
+      "equip": "Rucksack",
+      "cue": "Rucksack mit Büchern füllen, beide Hände in die Trageschlaufen, Handflächen nach oben. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich, Oberkörper still. Langsam ablassen, kein Schwung. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
+      "rest": 120,
+      "pattern": "curl",
+      "shares": {
+        "biceps": 1.0
+      },
+      "muscles": [
+        "biceps"
+      ],
+      "stufen": {},
+      "braucht": []
+    },
+    "bw": {
+      "name": "Rucksack-Curls",
+      "reps": "10–20",
+      "equip": "Rucksack",
+      "cue": "Rucksack mit Büchern füllen, beide Hände in die Trageschlaufen, Handflächen nach oben. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich, Oberkörper still. Langsam ablassen, kein Schwung. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
+      "rest": 120,
+      "pattern": "curl",
+      "shares": {
+        "biceps": 1.0
+      },
+      "muscles": [
+        "biceps"
+      ],
+      "stufen": {},
+      "braucht": []
+    }
   }
 ];
 

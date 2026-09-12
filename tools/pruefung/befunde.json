@@ -34,11 +34,13 @@
   },
   "ohne_saetze": [
    "einbeiniges-kreuzheben",
+   "flaschen-seitheben",
    "inverted-row",
    "kurzhantel-bodenpresse",
    "liegendes-knieheben",
    "pike-liegestuetze",
-   "reverse-snow-angel"
+   "reverse-snow-angel",
+   "rucksack-curls"
   ]
  },
  "bbp/db": {
@@ -76,11 +78,13 @@
   },
   "ohne_saetze": [
    "einbeiniges-kreuzheben",
+   "flaschen-seitheben",
    "inverted-row",
    "kurzhantel-bodenpresse",
    "liegendes-knieheben",
    "pike-liegestuetze",
-   "reverse-snow-angel"
+   "reverse-snow-angel",
+   "rucksack-curls"
   ]
  },
  "cut/bw": {
@@ -118,12 +122,14 @@
   },
   "ohne_saetze": [
    "einbeiniges-kreuzheben",
+   "flaschen-seitheben",
    "goblet-squat",
    "inverted-row",
    "kurzhantel-bodenpresse",
    "liegendes-knieheben",
    "pike-liegestuetze",
-   "reverse-snow-angel"
+   "reverse-snow-angel",
+   "rucksack-curls"
   ]
  },
  "cut/db": {
@@ -161,12 +167,14 @@
   },
   "ohne_saetze": [
    "einbeiniges-kreuzheben",
+   "flaschen-seitheben",
    "goblet-squat",
    "inverted-row",
    "kurzhantel-bodenpresse",
    "liegendes-knieheben",
    "pike-liegestuetze",
-   "reverse-snow-angel"
+   "reverse-snow-angel",
+   "rucksack-curls"
   ]
  },
  "oberkoerper/bw": {
@@ -204,12 +212,14 @@
   },
   "ohne_saetze": [
    "einbeiniges-kreuzheben",
+   "flaschen-seitheben",
    "goblet-squat",
    "inverted-row",
    "kurzhantel-bodenpresse",
    "liegendes-knieheben",
    "pike-liegestuetze",
-   "reverse-snow-angel"
+   "reverse-snow-angel",
+   "rucksack-curls"
   ]
  },
  "oberkoerper/db": {
@@ -247,12 +257,14 @@
   },
   "ohne_saetze": [
    "einbeiniges-kreuzheben",
+   "flaschen-seitheben",
    "goblet-squat",
    "inverted-row",
    "kurzhantel-bodenpresse",
    "liegendes-knieheben",
    "pike-liegestuetze",
-   "reverse-snow-angel"
+   "reverse-snow-angel",
+   "rucksack-curls"
   ]
  },
  "standard/bw": {
@@ -290,11 +302,13 @@
   },
   "ohne_saetze": [
    "einbeiniges-kreuzheben",
+   "flaschen-seitheben",
    "inverted-row",
    "kurzhantel-bodenpresse",
    "liegendes-knieheben",
    "pike-liegestuetze",
-   "reverse-snow-angel"
+   "reverse-snow-angel",
+   "rucksack-curls"
   ]
  },
  "standard/db": {
@@ -332,11 +346,13 @@
   },
   "ohne_saetze": [
    "einbeiniges-kreuzheben",
+   "flaschen-seitheben",
    "inverted-row",
    "kurzhantel-bodenpresse",
    "liegendes-knieheben",
    "pike-liegestuetze",
-   "reverse-snow-angel"
+   "reverse-snow-angel",
+   "rucksack-curls"
   ]
  }
 }

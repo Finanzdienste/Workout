@@ -31,10 +31,10 @@ const check = (cond, msg) => {
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 /**
- * Modus umschalten – seit der Umschalter oben weg ist, geht das über die
- * Einstellung. „Dass man sowohl oben als auch in der Mitte unterscheiden kann
- * ist unnötig": Gewählt wird jetzt an einer Stelle, und die Startansicht sagt
- * nur noch, was gilt.
+ * Modus umschalten – über den Store, weil diese Tests ihn ohnehin dabei haben.
+ * In der App steht der Umschalter über dem Startknopf und gilt für die Einheit,
+ * die man ansieht: *„Hier schaltet man immer zwischen Hanteln und bodyweight hin
+ * und her je nachdem was man grad hat. Nichts davon ist Standard."*
  */
 const modus = async (m) => {
   await page.evaluate(async (ziel) => {

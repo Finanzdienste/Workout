@@ -26,8 +26,10 @@ const KEY = 'workout.state.v1';
 const KEY_RUNDEN = 'workout.rounds.v1';
 
 const DEFAULT_STATE = {
-  mode: 'db',            // global default: 'db' (Hanteln) | 'bw' (Bodyweight)
-  keepModePerWorkout: true,
+  // Die zuletzt gewaehlte Variante: 'db' (Hanteln) | 'bw' (Bodyweight). Kein
+  // Standard, sondern ein Ausgangspunkt - eine Einheit, die noch keine eigene
+  // Wahl hat, faengt damit an. Siehe modusWahl() in js/app.js.
+  mode: 'db',
   shift: 0,              // Tage, um die der noch offene Plan verschoben ist
   useExerciseRest: true, // Pause je Übung statt einer festen Länge
   restSeconds: 90,       // feste Pause, wenn useExerciseRest aus ist; 0 = keine
@@ -303,11 +305,18 @@ export function setMode(mode) {
   emit();
 }
 
-/** Modus, in dem ein konkretes Workout bearbeitet wird. */
+/**
+ * Modus, in dem ein konkretes Workout bearbeitet wird.
+ *
+ * Die eigene Wahl der Einheit gilt immer, wenn es eine gibt. Frueher hing das
+ * an einem Schalter `keepModePerWorkout`, der zu einem globalen „Standardmodus"
+ * gehoerte - beide sind weg: *„Hier schaltet man immer zwischen Hanteln und
+ * bodyweight hin und her je nachdem was man grad hat. Nichts davon ist
+ * Standard."* Ohne Standard braucht es auch keinen Schalter, der ihn ueberstimmt.
+ */
 export function workoutMode(n) {
   const entry = state.log[n];
-  if (state.keepModePerWorkout && entry && entry.mode) return entry.mode;
-  return state.mode;
+  return (entry && entry.mode) || state.mode;
 }
 
 export function setWorkoutMode(n, mode) {

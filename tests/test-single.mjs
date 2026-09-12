@@ -24,29 +24,23 @@ const check = (cond, msg) => {
 await page.goto(EINZEL, { waitUntil: 'networkidle' });
 
 /**
- * Modus umschalten – seit der Umschalter oben weg ist, geht das über die
- * Einstellung. „Dass man sowohl oben als auch in der Mitte unterscheiden kann
- * ist unnötig": Gewählt wird jetzt an einer Stelle, und die Startansicht sagt
- * nur noch, was gilt.
+ * Modus umschalten – über den Umschalter an der Einheit selbst.
+ *
+ *     „Hier schaltet man immer zwischen Hanteln und bodyweight hin und her je
+ *      nachdem was man grad hat und so. Nichts davon ist Standard."
+ *
+ * Er steht deshalb über dem Startknopf und nicht mehr in den Einstellungen.
  */
 const modus = async (m) => {
-  // In der Einzeldatei gibt es keine Module zum Importieren – alles liegt in
-  // einem einzigen Gültigkeitsbereich, an den von außen niemand herankommt.
-  // Also über die Oberfläche, so wie ein Mensch es täte: Mehr, Schalter,
-  // zurück. Das prüft nebenbei mit, dass der Weg dorthin überhaupt existiert.
-  const willBw = m === 'bw';
-  await page.locator('.tab[data-tab="settings"]').click();
-  await page.waitForTimeout(200);
-  const schalter = page.locator('[data-act="toggle-default-mode"]');
-  if ((await schalter.getAttribute('aria-pressed')) !== String(willBw)) {
-    await schalter.click();
-    await page.waitForTimeout(200);
-  }
-  await page.locator('.tab[data-tab="dashboard"]').click();
-  await page.waitForTimeout(250);
+  // Über die Übersicht, denn dort steht der Umschalter. Neu laden ist der
+  // kürzeste Weg dorthin: ui.listView überlebt kein Neuladen.
+  await page.reload({ waitUntil: 'networkidle' });
+  const schalter = page.locator(`[data-act="set-modus"][data-v="${m}"]`);
+  if (await schalter.count()) { await schalter.first().click(); await page.waitForTimeout(250); }
   const liste = page.locator('[data-act="show-list"]');
   if (await liste.count()) { await liste.click(); await page.waitForTimeout(250); }
 };
+
 // Pausentimer stoert diese Tests nur - hier geht es um anderes. Und greeted:
 // ohne das steht hier die Willkommensseite, die es beim ersten Start gibt.
 await page.evaluate(() => { const k='workout.state.v1'; const s=JSON.parse(localStorage.getItem(k)||'{}'); s.restSeconds=0; s.greeted=true; localStorage.setItem(k, JSON.stringify(s)); });

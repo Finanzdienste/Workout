@@ -237,7 +237,13 @@ check(JSON.stringify(wieder) === JSON.stringify(vorher), 'Plan ist danach wieder
 const geschwister = {
   Kniebeuge: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'split-squat'],
   Hueftstreck: ['hip-thrust', 'rumaenisches-kreuzheben'],
-  Ueberkopf: ['sitzendes-seitheben', 'band-seitheben', 'sitzendes-schulterdruecken'],
+  // Das Seitheben mit Flaschen gehört dazu: Es ist dieselbe Bewegung mit einer
+  // Wasserflasche statt Band oder Hantel. Wessen Schulter beim Heben klemmt,
+  // dem klemmt sie auch mit 1,5 Kilo.
+  Ueberkopf: ['sitzendes-seitheben', 'band-seitheben', 'flaschen-seitheben',
+    'sitzendes-schulterdruecken'],
+  // Dasselbe für die Curls: SZ-Stange oder Rucksack ändert am Ellenbogen nichts.
+  Curl: ['sz-curls', 'rucksack-curls'],
   Haengen: ['chin-ups', 'pull-ups', 'haengendes-knieheben'],
   HintereSchulter: ['reverse-fly', 'band-pull-apart'],
   Druecken: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press'],

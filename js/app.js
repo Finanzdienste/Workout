@@ -39,13 +39,13 @@ import {
 } from './gewichte.js';
 import { RASTER, STANGE_LABEL, erreichbar, normSatz, stangeZaehlt } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, vorratNotiz, workoutByNo } from './plan.js';
+import { WEEK_SESSIONS, activeInjuries, planSaetze, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, gesamtStats, lebenStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
 import { abbruch, ausgelassen, vorneListe, vorneUm } from './muster.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
 import { kannPush, pushEinrichten, pushStand } from './push.js';
-import { GERAETE, bandFarbe, ersatzFuer, fehlt, nichtMoeglich, setzeVorrat, vorratVollstaendig } from './vorrat.js';
+import { GERAETE, bandFarbe, ersatzFuer, ersatzGenau, fehlt, nichtMoeglich, setzeVorrat, vorratVollstaendig } from './vorrat.js';
 
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
@@ -1354,15 +1354,44 @@ function startBlock(n, mode, prog) {
       </button>`}`;
   }
 
-  // Ein Knopf, nicht zwei. Welche Variante gilt, steht darunter – gewechselt
-  // wird sie unter Mehr. Die Wahl gehört nicht an die Stelle, an der man
-  // loslegen will: Wer trainieren geht, hat sie längst getroffen.
   return `
+    ${modusWahl(n, mode)}
     <button type="button" class="btn btn-primary btn-block btn-start" data-act="start-session"
             aria-label="Workout starten (${esc(MODE_LABEL[mode])})">
       ▶︎ Start
       <span class="start-modus">${MODE_ICON[mode]} ${esc(MODE_LABEL[mode])}</span>
     </button>`;
+}
+
+/**
+ * Hanteln oder Bodyweight – für diese eine Einheit.
+ *
+ * Stand vorher unter Mehr als „Standardmodus: Bodyweight", und das war die
+ * falsche Stelle und der falsche Begriff:
+ *
+ *     „‚Standardmodus' kann raus. Hier schaltet man immer zwischen Hanteln und
+ *      bodyweight hin und her je nachdem was man grad hat und so. Nichts davon
+ *      ist Standard."
+ *
+ * Stimmt. Die Wahl hängt nicht am Menschen, sondern am Tag – wer beim Training
+ * steht, weiß gerade dann, was danebenliegt. Deshalb steht sie jetzt über dem
+ * Startknopf, gilt für die Einheit, die man ansieht, und wird nebenbei zum
+ * Ausgangspunkt für die nächste (setWorkoutMode merkt beides).
+ *
+ * **Bis zum ersten abgehakten Satz.** Danach nicht mehr: Das Protokoll führt
+ * beide Varianten getrennt, und mitten im Training die Übungen auszutauschen
+ * wäre das Gegenteil von hilfreich. Der Umschalter verschwindet dann, statt
+ * grau dazustehen – ein Knopf, der nichts tut, ist eine Frage ohne Antwort.
+ */
+function modusWahl(n, mode) {
+  if (store.isStarted(n)) return '';
+  return `
+    <div class="btn-row nav" style="margin-bottom:8px" role="group" aria-label="Variante wählen">
+      ${['db', 'bw'].map((m) => `
+        <button type="button" class="btn ${m === mode ? 'btn-primary' : ''}"
+                aria-pressed="${m === mode}" data-act="set-modus" data-v="${m}">
+          ${MODE_ICON[m]} ${esc(MODE_LABEL[m])}</button>`).join('')}
+    </div>`;
 }
 
 /**
@@ -1525,7 +1554,7 @@ function renderWelcome() {
       <p class="small">Ein fertiger Trainingsplan: Übungen, Sätze, Wiederholungen, Pausen –
         und zu jeder Übung eine vorgeführte Bewegung, die sich drehen lässt. Trainieren kannst
         du mit <strong>Hanteln</strong> oder als <strong>Bodyweight</strong>-Variante ganz ohne
-        Geräte; der Umschalter oben wechselt jederzeit.</p>
+        Geräte; umgeschaltet wird über dem Startknopf, für jede Einheit neu.</p>
       <p class="small">Die App läuft offline und braucht kein Konto. Was du einträgst, bleibt
         auf diesem Gerät – bis du selbst etwas verschickst: Für den Vergleich unter
         <em>Statistik</em> schickst du deinen Stand als Link, und wer ihn bekommt, sieht die
@@ -2080,8 +2109,8 @@ function renderDashboard() {
       <button type="button" class="btn btn-danger" data-act="reset-workout">Zurücksetzen</button>
     </div>
     <p class="small muted" style="margin-top:14px">
-      Der Umschalter oben wechselt zwischen der Hantel-Variante aus dem Plan und dem
-      Bodyweight-Äquivalent. Beide Varianten werden getrennt protokolliert.
+      Hantel-Variante oder Bodyweight-Äquivalent wählst du in der Übersicht über dem
+      Startknopf, solange kein Satz steht. Beide werden getrennt protokolliert.
     </p>
     ${vorratNote(w, mode)}
     ${injuryNote(w, mode)}
@@ -2734,7 +2763,7 @@ function vorratZeile(g) {
  * eine Woche umgelegt, damit die Zahl nicht am heutigen Tag hängt.
  */
 function vorratBilanz(seite) {
-  const weg = {};
+  const soll = {};
   const bleibt = {};
   const zu = (acc, id, sets) => {
     const ex = EX_BY_ID.get(id);
@@ -2744,18 +2773,24 @@ function vorratBilanz(seite) {
     });
   };
   PLAN.forEach((w) => {
+    planSaetze(w, seite).forEach((it) => zu(soll, it.id, it.sets));
     exBasis(w, seite).forEach((it) => zu(bleibt, it.id, it.sets));
-    vorratNotiz(w, seite).weg.forEach((d) => zu(weg, d.id, d.sets));
   });
-  return Object.entries(weg)
-    .map(([m, v]) => ({
+  // Verglichen wird mit dem, was *dieser* Plan vorsieht, und nicht mit TARGET.
+  // Zwei Gruende: Nacken und vordere Schulter haben gar kein eigenes Ziel – ihr
+  // Wert faellt aus den uebrigen Gleichungen, und `TARGET[m] ?? 10` waere dort
+  // eine erfundene Zahl. Und die Erfahrungsstufe skaliert die Saetze, das Ziel
+  // aber nicht in derselben Rechnung. Der Plan selbst weiss es genauer.
+  return [...new Set([...Object.keys(soll), ...Object.keys(bleibt)])]
+    .map((m) => ({
       m,
-      weg: v / PLAN_WEEKS,
+      soll: (soll[m] || 0) / PLAN_WEEKS,
       bleibt: (bleibt[m] || 0) / PLAN_WEEKS,
-      ziel: targetOf(m),
     }))
-    .filter((x) => x.weg >= 0.3)
-    .sort((a, b) => a.bleibt / a.ziel - b.bleibt / b.ziel);
+    // Aufgefuehrt wird, was spuerbar danebenliegt – in beide Richtungen. Ein
+    // Ersatz auf denselben Hauptmuskel schiebt Nebenanteile auch nach oben.
+    .filter((x) => Math.abs(x.bleibt - x.soll) >= Math.max(0.5, x.soll * 0.12))
+    .sort((a, b) => a.bleibt / (a.soll || 1) - b.bleibt / (b.soll || 1));
 }
 
 // Ab wann eine Gruppe nicht mehr „etwas weniger", sondern weg ist. Ein Drittel
@@ -2771,28 +2806,36 @@ function vorratFolgen(seite) {
   }
   const raus = nichtMoeglich(seite);
   const nm = (id) => resolve({ id, sets: 0 }, seite).name;
-  const getauscht = [];
+  // Getrennt aufgeführt, und das ist keine Kosmetik: Ein Tausch mit denselben
+  // Anteilen kostet nichts, einer auf denselben Hauptmuskel verschiebt die
+  // Nebenanteile. Beides „getauscht" zu nennen wäre die bequemere und die
+  // falsche Auskunft.
+  const genau = [];
+  const nah = [];
   const weg = [];
   raus.forEach((id) => {
     const zu = ersatzFuer(id, seite);
-    if (zu) getauscht.push(`${nm(id)} → ${nm(zu)}`);
-    else weg.push(nm(id));
+    if (!zu) weg.push(nm(id));
+    else (ersatzGenau(id, zu, seite) ? genau : nah).push(`${nm(id)} → ${nm(zu)}`);
   });
   const bilanz = vorratBilanz(seite);
-  const kritisch = bilanz.filter((k) => k.bleibt < k.ziel * VORRAT_KRITISCH)
+  const kritisch = bilanz.filter((k) => k.bleibt < k.soll * VORRAT_KRITISCH)
     .map((k) => MUSCLE_LABEL[k.m] || k.m);
   const wo = seite === 'bw' ? 'Im Bodyweight-Modus' : 'Im Hantel-Modus';
   return `
     <div class="small muted" style="margin-top:10px"><b>${esc(wo)} heißt das:</b>
       ${raus.length ? `${plural(raus.length, 'Übung fällt', 'Übungen fallen')} aus dem Plan.`
         : 'nichts – keine Übung dieses Modus braucht, was fehlt.'}</div>
-    ${getauscht.length ? `<div class="small muted">Getauscht: ${esc(getauscht.join(' · '))}
+    ${genau.length ? `<div class="small muted">Eins zu eins getauscht: ${esc(genau.join(' · '))}
       <span class="muted">– gleiche Muskelanteile, die Wochenrechnung bleibt also
       stehen.</span></div>` : ''}
+    ${nah.length ? `<div class="small muted">Ersetzt: ${esc(nah.join(' · '))}
+      <span class="muted">– derselbe Hauptmuskel, aber nicht dieselbe Übung. Die
+      Nebenanteile verschieben sich; wie weit, steht gleich darunter.</span></div>` : ''}
     ${weg.length ? `<div class="small muted">Ersatzlos weg: ${esc(weg.join(' · '))}</div>` : ''}
     ${bilanz.length ? `<div class="small muted" style="margin-top:6px">Je Woche bleiben dann:
       ${bilanz.map((k) => `${esc(MUSCLE_LABEL[k.m] || k.m)}
-        <b>${k.bleibt.toFixed(1)}</b> <span class="muted">statt ${k.ziel.toFixed(0)}</span>`)
+        <b>${k.bleibt.toFixed(1)}</b> <span class="muted">statt ${k.soll.toFixed(1)}</span>`)
         .join(' · ')} Sätze.</div>` : ''}
     ${kritisch.length ? `<div class="small muted" style="margin-top:6px">⚠️ Damit bleibt für
       <b>${esc(kritisch.join(', '))}</b> so gut wie nichts übrig – das ist kein Training
@@ -2806,9 +2849,10 @@ function vorratKarte() {
   return `
     <div class="section-title">Was da ist${weg.length ? ` · ${weg.length} fehlt` : ''}</div>
     <div class="card">
-      <div class="small muted">Was hier nicht angehakt ist, taucht im Plan nicht auf – die
-        App tauscht, wo es eine Übung mit denselben Muskelanteilen gibt, und lässt den Rest
-        weg statt ihn dir hinzustellen. Zum Wiedereinschalten, wenn du zurück bist.</div>
+      <div class="small muted">Was hier nicht angehakt ist, taucht im Plan nicht auf. Die App
+        sucht dann eine Übung, die denselben Muskel trifft und mit dem geht, was da ist –
+        und lässt den Rest weg, statt ihn dir hinzustellen. Was das an Wochenvolumen
+        verschiebt, steht unten. Zum Wiedereinschalten, wenn du zurück bist.</div>
       <div class="btn-row nav" style="margin-top:10px">
         ${[['bw', '🤸 Bodyweight'], ['db', '🏋️ Hanteln']].map(([k, label]) => `
           <button type="button" class="btn ${seite === k ? 'btn-primary' : ''}"
@@ -4564,24 +4608,6 @@ function renderSettings() {
       </button>
     </div>
 
-    <div class="section-title">Einstellungen</div>
-    <div class="card">
-      <div class="switch-row">
-        <div>
-          <div class="lbl">Standardmodus: Bodyweight</div>
-          <div class="hint">Neue Workouts starten ohne Zusatzgewicht.</div>
-        </div>
-        <button type="button" class="toggle" aria-pressed="${s.mode === 'bw'}" data-act="toggle-default-mode" aria-label="Standardmodus Bodyweight"></button>
-      </div>
-      <div class="switch-row">
-        <div>
-          <div class="lbl">Modus je Workout merken</div>
-          <div class="hint">Ein einmal gewähltes Workout behält seinen Modus, auch wenn du global umschaltest.</div>
-        </div>
-        <button type="button" class="toggle" aria-pressed="${s.keepModePerWorkout}" data-act="toggle-keep-mode" aria-label="Modus je Workout merken"></button>
-      </div>
-    </div>
-
     <div class="section-title">Pause zwischen den Sätzen</div>
     <div class="card">
       <div class="stat-v">${s.useExerciseRest
@@ -5458,8 +5484,8 @@ view.addEventListener('click', (e) => {
         toast('Heute fällt alles weg – nichts zu starten');
         break;
       }
-      // Die Variante wird beim Starten gewählt, nicht während des Trainings:
-      // Der Umschalter oben ist zwischen zwei Sätzen nur eine Falle.
+      // Die Variante wird vor dem Starten gewählt, nicht während des Trainings:
+      // ein Umschalter zwischen zwei Sätzen ist nur eine Falle.
       if (t.dataset.mode) store.setWorkoutMode(n, t.dataset.mode);
       // Liegt der Termin dieser Einheit noch in der Zukunft, rückt der Plan
       // jetzt vor – ungefragt und ohne Anzeige. Dafür gab es früher einen
@@ -5703,24 +5729,16 @@ view.addEventListener('click', (e) => {
       ui.listView = false;
       go('dashboard');
       break;
-    case 'toggle-default-mode': {
-      const neu = store.getState().mode === 'bw' ? 'db' : 'bw';
-      store.setMode(neu);
-      // Und die Einheit, die gerade ansteht, gleich mit – sofern sie noch nicht
-      // angefangen ist. Seit der Umschalter oben weg ist, ist das hier der
-      // einzige Weg: Ein Schalter, der nur „ab dem nächsten Mal" wirkt, während
-      // vorn unverändert die alte Variante steht, sähe kaputt aus. Was schon
-      // läuft, bleibt dagegen, wie es ist – mitten im Training die Übungen
-      // auszutauschen wäre das Gegenteil von hilfreich.
-      const offen = ui.workoutNo;
-      if (!store.isStarted(offen)) store.setWorkoutMode(offen, neu);
+    case 'set-modus': {
+      // Gilt fuer die Einheit, die gerade zu sehen ist - und setzt zugleich den
+      // Ausgangspunkt fuer die naechste (setWorkoutMode schreibt beides). Was
+      // schon laeuft, ruehrt der Umschalter nicht an; modusWahl() zeigt ihn
+      // dort gar nicht erst.
+      const n = ui.workoutNo;
+      if (!store.isStarted(n)) store.setWorkoutMode(n, t.dataset.v === 'bw' ? 'bw' : 'db');
       render();
       break;
     }
-    case 'toggle-keep-mode':
-      store.setSetting('keepModePerWorkout', !store.getState().keepModePerWorkout);
-      render();
-      break;
     case 'set-rest':
       initAudio();
       store.setSetting('restSeconds', Number(t.dataset.sec));

@@ -37,7 +37,7 @@ const probe = await page.evaluate(async () => {
 });
 console.log('     Probe-Übung:', probe.name, `(Einheiten ${probe.wo.join(', ')})`, '→', probe.muscles.join(', '));
 await page.evaluate(({ id, wo }) => {
-  const s = { mode: 'db', keepModePerWorkout: true, autoShift: false, shift: 0,
+  const s = { mode: 'db', autoShift: false, shift: 0,
               useExerciseRest: false, restSeconds: 0, sound: false, rest: null,
               weights: {}, session: null, log: {} };
   const kg = ['20', '22,5', '25'];

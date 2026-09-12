@@ -20,20 +20,28 @@
  *    von dieser Datei deshalb nichts, und eine eingelesene Sicherung ohne das
  *    Feld schaltet nicht versehentlich den halben Plan ab.
  *
- * 2. **Ersatz nur bei identischen Muskelanteilen.** Die Wochenziele je
- *    Muskelgruppe hängen an den Anteilen der Übungen, die wirklich dastehen.
- *    Ein Ersatz mit anderen Anteilen verschöbe sie still – und weil die Anteile
- *    gleich sind, kann ein Tausch auch die 48-Stunden-Regel nicht brechen: Er
- *    trifft genau dieselben Muskeln wie das, was er ersetzt. Findet sich kein
- *    solcher Ersatz, fällt die Übung weg. Lieber eine Lücke, die dasteht, als
- *    eine, die zugerechnet wird.
+ * 2. **Ersatz in zwei Stufen: erst gleiche Anteile, dann gleicher
+ *    Hauptmuskel.** Siehe ersatzFuer(). Die erste Stufe kostet gar nichts, die
+ *    zweite ist der Unterschied zwischen einem Training und einer Lücke:
  *
- * 3. **Gesagt wird, was es kostet.** Ohne Band und Stange bleibt im
- *    Bodyweight-Plan für Rücken, Bizeps und die Schultern fast nichts übrig.
- *    Das ist keine Kleinigkeit, die man wegkonfigurieren kann, und die App
- *    behauptet deshalb nicht, der Plan sei danach derselbe. Ausgerechnet wird es
- *    in vorratBilanz() (js/app.js) – am Plan und nicht am Katalog, weil eine
- *    Übung, die es gäbe, kein Volumen ist.
+ *        „Falls es irgendeinen Weg gibt (zB durch neue Übungen) auch bei full
+ *         bodyweight also auch ohne Bänder und so möglichst die
+ *         Zielmuskelgruppen dieser Einheit zu treffen dann können wir das gern
+ *         machen."
+ *
+ *    Gemessen, im Bodyweight-Plan ohne Bänder und ohne Klimmzugstange, in
+ *    Sätzen je Woche: Rücken von 0,0 auf 7,4 · Bizeps von 0,0 auf 8,0 ·
+ *    seitliche Schulter von 0,3 auf 8,4 · hintere Schulter von 0,0 auf 9,2.
+ *    Möglich wurde das durch die zweite Stufe und durch zwei Übungen mehr im
+ *    Katalog – Seitheben mit zwei gefüllten Flaschen und Curls mit einem mit
+ *    Büchern gefüllten Rucksack. Für diese beiden Muskelgruppen kennt der
+ *    Katalog sonst keine Übung, die ganz ohne Widerstand von außen auskommt.
+ *
+ * 3. **Gesagt wird, was es kostet.** Nichts davon ist umsonst: Wo der Ersatz
+ *    einen eigenen Schwerpunkt mitbringt, verschiebt er Volumen dorthin. Die
+ *    App behauptet deshalb nicht, der Plan sei danach derselbe. Ausgerechnet
+ *    wird es in vorratBilanz() (js/app.js) – am Plan und nicht am Katalog, weil
+ *    eine Übung, die es gäbe, kein Volumen ist.
  */
 import { EXERCISES } from './data.js';
 import { EX_BY_ID } from './uebung.js';
@@ -157,21 +165,102 @@ function anteilGruppen(mode) {
   return map;
 }
 
+/** Der Muskel, um den es bei dieser Übung geht – der mit dem größten Anteil. */
+function hauptmuskel(shares) {
+  return Object.entries(shares).sort((a, b) => b[1] - a[1])[0][0];
+}
+
+/**
+ * Wie gut zwei Übungen einander decken: die Summe der gemeinsamen Anteile.
+ *
+ * Kein Winkel, keine Norm – die Anteile sind selbst schon eine Angabe „wie viel
+ * von dieser Übung kommt bei diesem Muskel an". Das Minimum je Muskel ist
+ * genau der Teil, den beide liefern, und die Summe darüber ist damit eine Zahl
+ * in derselben Einheit wie das, worum es geht.
+ */
+function deckung(a, b) {
+  return Object.entries(a).reduce((s, [m, v]) => s + Math.min(v, b[m] || 0), 0);
+}
+
 /**
  * Ersatz für eine Übung, die gerade nicht geht – oder null.
  *
- * Angehakte Beschwerden gelten auch hier: Der Verletzungsfilter läuft vorher
- * und hat seine Sperren gezogen; ein Ersatz, der eine davon zurückholte, wäre
+ * **Zwei Stufen, und die zweite ist der Grund, warum ohne Geräte überhaupt noch
+ * etwas geht:**
+ *
+ * 1. *Dieselben Anteile.* Der saubere Fall: Die Wochenrechnung bleibt Ziffer
+ *    für Ziffer stehen. Im Katalog gibt es davon eine Handvoll Paare.
+ *
+ * 2. *Derselbe Hauptmuskel.* Sonst stünde für einen ganzen Plan ohne Band und
+ *    Stange bei Rücken, Nacken und hinterer Schulter eine Null – gemessen, nicht
+ *    vermutet. Dabei kennt der Katalog Übungen, die das können und die nur
+ *    deshalb nicht im Plan stehen, weil der Plan mit Geräten rechnet: das
+ *    Inverted Row an der Tischkante, den Reverse Snow Angel, die Pike-
+ *    Liegestütze.
+ *
+ *        „Falls es irgendeinen Weg gibt, auch bei full bodyweight also auch
+ *         ohne Bänder und so möglichst die Zielmuskelgruppen dieser Einheit zu
+ *         treffen, dann können wir das gern machen."
+ *
+ *    Gibt es. Verlangt wird, dass der Ersatz den Hauptmuskel der alten Übung
+ *    mindestens zur Hälfte trifft. Bevorzugt wird, wo es das gibt, eine Übung,
+ *    bei der dieser Muskel auch der eigene Hauptmuskel ist; sonst die mit der
+ *    größten Deckung. Die Hauptlast bleibt damit, wo sie war, und mit ihr die
+ *    48-Stunden-Regel, die an ihr hängt.
+ *
+ *    **Ehrlich dazu:** Wo der Ersatz einen eigenen Schwerpunkt mitbringt,
+ *    verschiebt er auch etwas hin. Ohne Band gibt es keine Trizeps-Isolation
+ *    mehr, also kommen enge Liegestütze – und mit ihnen Brust, die an dem Tag
+ *    nicht geplant war: 11,9 statt 10,0 Sätzen je Woche. Das rechnet
+ *    vorratBilanz() aus und die Einstellungsseite schreibt es hin. Eine stille
+ *    Verschiebung wäre etwas anderes als eine ausgewiesene.
+ *
+ * `belegt` sind die Übungen, die in dieser Einheit schon stehen. Auf Stufe 2
+ * werden sie übersprungen: Zwei Zeilen zusammenzulegen ist bei gleichen
+ * Anteilen eine Buchung, bei ungleichen eine Übung mit acht Sätzen.
+ *
+ * Angehakte Beschwerden gelten auch hier: Der Verletzungsfilter läuft vorher und
+ * hat seine Sperren gezogen; ein Ersatz, der eine davon zurückholte, wäre
  * schlimmer als die Lücke.
  */
-export function ersatzFuer(exId, mode) {
+export function ersatzFuer(exId, mode, belegt = new Set()) {
   const ex = EX_BY_ID.get(exId);
   if (!ex) return null;
   const gesperrt = blocked(store.getState().injuries || []);
-  const key = JSON.stringify(Object.entries(ex[mode].shares).sort());
-  const kandidaten = anteilGruppen(mode).get(key) || [];
-  return kandidaten.find((id) => id !== exId && !gesperrt.has(id)
-    && uebungGeht(id, mode)) || null;
+  const frei = (id) => id !== exId && !gesperrt.has(id) && uebungGeht(id, mode);
+
+  const anteile = ex[mode].shares;
+  const key = JSON.stringify(Object.entries(anteile).sort());
+  const genau = (anteilGruppen(mode).get(key) || []).find(frei);
+  if (genau) return genau;
+
+  const haupt = hauptmuskel(anteile);
+  const naechster = EXERCISES
+    .filter((e) => frei(e.id) && !belegt.has(e.id) && (e[mode].shares[haupt] || 0) >= 0.5)
+    .map((e) => ({
+      id: e.id,
+      // Ist der gesuchte Muskel auch der, um den es bei der Ersatzübung geht?
+      // Das ist der saubere Fall und gewinnt vor allem anderen. Sonst bringt
+      // der Ersatz seinen eigenen Hauptmuskel mit – enge Liegestütze statt
+      // Trizepsdrücken am Band bringen Brust mit, die an dem Tag nicht geplant
+      // war. Besser als eine Lücke, aber nicht dasselbe, und deshalb erst,
+      // wenn es nichts Besseres gibt. Was dabei herauskommt, steht in
+      // vorratBilanz() – ohne Band und Stange etwa Brust 11,9 statt 10,0.
+      eigener: hauptmuskel(e[mode].shares) === haupt ? 1 : 0,
+      anteil: e[mode].shares[haupt],
+      deckung: deckung(anteile, e[mode].shares),
+    }))
+    .sort((a, b) => b.eigener - a.eigener || b.anteil - a.anteil || b.deckung - a.deckung)[0];
+  return naechster ? naechster.id : null;
+}
+
+/** Trifft der Ersatz genau dieselben Anteile, oder nur denselben Hauptmuskel? */
+export function ersatzGenau(vonId, zuId, mode) {
+  const a = EX_BY_ID.get(vonId);
+  const b = EX_BY_ID.get(zuId);
+  if (!a || !b) return false;
+  return JSON.stringify(Object.entries(a[mode].shares).sort())
+    === JSON.stringify(Object.entries(b[mode].shares).sort());
 }
 
 /**
@@ -190,11 +279,16 @@ export function vorratFassung(items, mode) {
   const out = [];
   const getauscht = [];
   const weg = [];
+  // Was in dieser Einheit schon steht – samt dem, was noch kommt. Der Ersatz
+  // soll nicht ausgerechnet die Übung sein, die zwei Zeilen weiter unten
+  // ohnehin dransteht.
+  const belegt = new Set(items.map((x) => x.id));
   items.forEach((it) => {
     // Kopiert, nicht durchgereicht: Unten werden Sätze zusammengelegt, und das
     // träfe sonst den zwischengespeicherten Plan selbst.
     if (uebungGeht(it.id, mode)) { out.push({ ...it }); return; }
-    const zu = ersatzFuer(it.id, mode);
+    const zu = ersatzFuer(it.id, mode, belegt);
+    if (zu) belegt.add(zu);
     if (!zu) { weg.push({ id: it.id, sets: it.sets }); return; }
     getauscht.push({ from: it.id, to: zu, sets: it.sets });
     const schon = out.find((x) => x.id === zu);

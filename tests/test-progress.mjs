@@ -112,7 +112,7 @@ const bw = await page.evaluate(async () => {
   const soll = (n) => PLAN[n].ex.find((x) => x.id === pick.id).sets;
   const sets = (n) => Array.from({ length: soll(n) }, () => ({ w: '', r: '', done: true }));
   localStorage.setItem('workout.state.v1', JSON.stringify({
-    restSeconds: 0, mode: 'bw', keepModePerWorkout: false,
+    restSeconds: 0, mode: 'bw',
     log: {
       1: { db: {}, bw: { [pick.id]: sets(0) }, mode: 'bw', startedOn: '2026-08-19' },
       2: { db: {}, bw: { [pick.id]: sets(1) }, mode: 'bw', startedOn: '2026-08-21' },
