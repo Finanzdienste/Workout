@@ -188,8 +188,15 @@ console.log('     Einheit:', JSON.stringify(einheit));
 check(!!einheit, 'es gibt eine betroffene Einheit');
 check(einheit && einheit.wegNochDa.length === 0,
   'was wegfällt, steht auch nicht mehr in exOf() – Protokoll und Bilanz sehen dasselbe');
-check(einheit && einheit.jetzt < einheit.geplant,
-  `die Einheit ist kürzer als geplant (${einheit && einheit.jetzt} statt ${einheit && einheit.geplant})`);
+// Und sie ist *nicht* kürzer geworden. Das war sie einmal, und es war ein
+// Fehler in ersatzFuer(): Ein Ersatz wird übersprungen, wenn er in derselben
+// Einheit schon steht. An Tagen mit zwei Zugübungen oder zwei Seitheben gab es
+// aber nur einen Kandidaten – die zweite fiel ersatzlos weg. Nachgezählt über
+// einen Aufbau-Durchlauf: 28 von 28 weggefallenen Übungen hätten einen Ersatz
+// gehabt, der nur belegt war. Seit es je Bewegung einen zweiten gibt
+// (Rucksack-Rudern, sitzendes Flaschen-Seitheben), bleibt die Einheit ganz.
+check(einheit && einheit.jetzt === einheit.geplant,
+  `die Einheit bleibt vollständig (${einheit && einheit.jetzt} von ${einheit && einheit.geplant} Übungen)`);
 
 // --- 5. Und man sieht es ------------------------------------------------
 await page.evaluate(async () => {

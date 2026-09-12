@@ -248,7 +248,11 @@ const geschwister = {
   // Wasserflasche statt Band oder Hantel. Wessen Schulter beim Heben klemmt,
   // dem klemmt sie auch mit 1,5 Kilo.
   Ueberkopf: ['sitzendes-seitheben', 'band-seitheben', 'flaschen-seitheben',
-    'sitzendes-schulterdruecken'],
+    'sitzendes-flaschen-seitheben', 'sitzendes-schulterdruecken'],
+  // Waagerechtes Ziehen: Wessen Ellenbogen oder Schulter beim Rudern streikt,
+  // dem hilft es nicht, dass der Widerstand aus einem Rucksack statt aus einem
+  // Band kommt.
+  Rudern: ['einarmiges-kh-rudern', 'rucksack-rudern'],
   // Dasselbe für die Curls: SZ-Stange oder Rucksack ändert am Ellenbogen nichts.
   Curl: ['sz-curls', 'rucksack-curls'],
   Haengen: ['chin-ups', 'pull-ups', 'haengendes-knieheben'],

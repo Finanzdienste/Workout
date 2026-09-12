@@ -2145,6 +2145,132 @@ export const EXERCISES = [
       "stufen": {},
       "braucht": []
     }
+  },
+  {
+    "id": "rucksack-rudern",
+    "group": "Rücken",
+    "weight": 8,
+    "step": 1,
+    "weightNote": "im Rucksack",
+    "equip": "backpack",
+    "tier": 1,
+    "detail": [
+      [
+        "Warum es diese Übung gibt",
+        "Weil ein Zug ohne Stange und ohne Band sonst nur einmal geht. Der Plan hat an manchen Tagen zwei Zugübungen; ohne Ausrüstung blieb davon eine übrig, und die zweite fiel ersatzlos weg – gemessen 18-mal über einen Durchlauf. Das Rudern mit dem Rucksack ist die zweite waagerechte Zugbewegung, die überall geht, und es trifft dieselben Muskeln in denselben Anteilen wie das Rudern am Band."
+      ],
+      [
+        "Der Rücken, nicht die Hüfte",
+        "Die Position ist die des Kreuzhebens am oberen Punkt: Knie leicht gebeugt, Hüfte hinten, Rücken gerade, Blick schräg nach unten. Diese Position hältst du – bewegt wird nur der Arm. Geht der Oberkörper bei jeder Wiederholung mit hoch, ist der Rucksack zu schwer."
+      ],
+      [
+        "Ellenbogen am Körper",
+        "Dicht geführt trifft es den Latissimus; weit abgespreizt wandert die Last in die hintere Schulter. Beides ist eine Übung, aber nur eine davon ist diese."
+      ]
+    ],
+    "db": {
+      "name": "Rucksack-Rudern",
+      "reps": "10–20",
+      "equip": "Rucksack",
+      "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
+      "rest": 120,
+      "pattern": "rowbar",
+      "shares": {
+        "lats": 1.0,
+        "biceps": 0.5,
+        "traps": 0.5,
+        "rearDelts": 0.35
+      },
+      "muscles": [
+        "lats",
+        "biceps",
+        "traps",
+        "rearDelts"
+      ],
+      "stufen": {},
+      "braucht": []
+    },
+    "bw": {
+      "name": "Rucksack-Rudern",
+      "reps": "10–20",
+      "equip": "Rucksack",
+      "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
+      "rest": 120,
+      "pattern": "rowbar",
+      "shares": {
+        "lats": 1.0,
+        "biceps": 0.5,
+        "traps": 0.5,
+        "rearDelts": 0.35
+      },
+      "muscles": [
+        "lats",
+        "biceps",
+        "traps",
+        "rearDelts"
+      ],
+      "stufen": {},
+      "braucht": []
+    }
+  },
+  {
+    "id": "sitzendes-flaschen-seitheben",
+    "group": "Schulter",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": null,
+    "tier": 3,
+    "detail": [
+      [
+        "Sitzend oder stehend",
+        "Der Plan kennt beides, und der Unterschied ist keine Laune: Im Sitzen kann man nicht aus den Beinen nachhelfen, das Gewicht muss die Schulter allein heben. Deshalb gibt es die Flaschenfassung auch zweimal – für die Tage, an denen zwei Seitheben im Plan stehen, und damit das zweite nicht ersatzlos wegfällt."
+      ],
+      [
+        "Bis waagerecht, nicht höher",
+        "Über der Waagerechten übernimmt der Nacken. Das fühlt sich nach mehr an und ist weniger: Die seitliche Schulter hat dort schon aufgehört zu arbeiten."
+      ]
+    ],
+    "db": {
+      "name": "Sitzendes Seitheben mit Flaschen",
+      "reps": "12–20",
+      "equip": "zwei volle Flaschen",
+      "cue": "Auf einen Stuhl setzen, je eine gefüllte Flasche in die Hand. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung. Sitzend, weil so weder Beine noch Rumpf nachhelfen können. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+      "rest": 120,
+      "pattern": "lateral",
+      "shares": {
+        "sideDelts": 1.0,
+        "frontDelts": 0.15,
+        "traps": 0.2
+      },
+      "muscles": [
+        "sideDelts",
+        "traps",
+        "frontDelts"
+      ],
+      "stufen": {},
+      "braucht": []
+    },
+    "bw": {
+      "name": "Sitzendes Seitheben mit Flaschen",
+      "reps": "12–20",
+      "equip": "zwei volle Flaschen",
+      "cue": "Auf einen Stuhl setzen, je eine gefüllte Flasche in die Hand. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung. Sitzend, weil so weder Beine noch Rumpf nachhelfen können. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+      "rest": 120,
+      "pattern": "lateral",
+      "shares": {
+        "sideDelts": 1.0,
+        "frontDelts": 0.15,
+        "traps": 0.15
+      },
+      "muscles": [
+        "sideDelts",
+        "frontDelts",
+        "traps"
+      ],
+      "stufen": {},
+      "braucht": []
+    }
   }
 ];
 

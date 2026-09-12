@@ -40,7 +40,9 @@
    "liegendes-knieheben",
    "pike-liegestuetze",
    "reverse-snow-angel",
-   "rucksack-curls"
+   "rucksack-curls",
+   "rucksack-rudern",
+   "sitzendes-flaschen-seitheben"
   ]
  },
  "bbp/db": {
@@ -84,7 +86,9 @@
    "liegendes-knieheben",
    "pike-liegestuetze",
    "reverse-snow-angel",
-   "rucksack-curls"
+   "rucksack-curls",
+   "rucksack-rudern",
+   "sitzendes-flaschen-seitheben"
   ]
  },
  "cut/bw": {
@@ -129,7 +133,9 @@
    "liegendes-knieheben",
    "pike-liegestuetze",
    "reverse-snow-angel",
-   "rucksack-curls"
+   "rucksack-curls",
+   "rucksack-rudern",
+   "sitzendes-flaschen-seitheben"
   ]
  },
  "cut/db": {
@@ -174,7 +180,9 @@
    "liegendes-knieheben",
    "pike-liegestuetze",
    "reverse-snow-angel",
-   "rucksack-curls"
+   "rucksack-curls",
+   "rucksack-rudern",
+   "sitzendes-flaschen-seitheben"
   ]
  },
  "oberkoerper/bw": {
@@ -219,7 +227,9 @@
    "liegendes-knieheben",
    "pike-liegestuetze",
    "reverse-snow-angel",
-   "rucksack-curls"
+   "rucksack-curls",
+   "rucksack-rudern",
+   "sitzendes-flaschen-seitheben"
   ]
  },
  "oberkoerper/db": {
@@ -264,7 +274,9 @@
    "liegendes-knieheben",
    "pike-liegestuetze",
    "reverse-snow-angel",
-   "rucksack-curls"
+   "rucksack-curls",
+   "rucksack-rudern",
+   "sitzendes-flaschen-seitheben"
   ]
  },
  "standard/bw": {
@@ -308,7 +320,9 @@
    "liegendes-knieheben",
    "pike-liegestuetze",
    "reverse-snow-angel",
-   "rucksack-curls"
+   "rucksack-curls",
+   "rucksack-rudern",
+   "sitzendes-flaschen-seitheben"
   ]
  },
  "standard/db": {
@@ -352,7 +366,9 @@
    "liegendes-knieheben",
    "pike-liegestuetze",
    "reverse-snow-angel",
-   "rucksack-curls"
+   "rucksack-curls",
+   "rucksack-rudern",
+   "sitzendes-flaschen-seitheben"
   ]
  }
 }

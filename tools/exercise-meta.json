@@ -1433,5 +1433,91 @@
    "biceps": 1.0
   },
   "equip": "backpack"
+ },
+ "rucksack-rudern": {
+  "group": "Rücken",
+  "tier": 1,
+  "name": "Rucksack-Rudern",
+  "reps": "10–20",
+  "bwName": "Rucksack-Rudern",
+  "bwReps": "10–20",
+  "dbEquip": "Rucksack",
+  "bwEquip": "Rucksack",
+  "dbCue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
+  "bwCue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
+  "detail": [
+   [
+    "Warum es diese Übung gibt",
+    "Weil ein Zug ohne Stange und ohne Band sonst nur einmal geht. Der Plan hat an manchen Tagen zwei Zugübungen; ohne Ausrüstung blieb davon eine übrig, und die zweite fiel ersatzlos weg – gemessen 18-mal über einen Durchlauf. Das Rudern mit dem Rucksack ist die zweite waagerechte Zugbewegung, die überall geht, und es trifft dieselben Muskeln in denselben Anteilen wie das Rudern am Band."
+   ],
+   [
+    "Der Rücken, nicht die Hüfte",
+    "Die Position ist die des Kreuzhebens am oberen Punkt: Knie leicht gebeugt, Hüfte hinten, Rücken gerade, Blick schräg nach unten. Diese Position hältst du – bewegt wird nur der Arm. Geht der Oberkörper bei jeder Wiederholung mit hoch, ist der Rucksack zu schwer."
+   ],
+   [
+    "Ellenbogen am Körper",
+    "Dicht geführt trifft es den Latissimus; weit abgespreizt wandert die Last in die hintere Schulter. Beides ist eine Übung, aber nur eine davon ist diese."
+   ]
+  ],
+  "dbRest": 120,
+  "bwRest": 120,
+  "dbWeight": 8,
+  "dbStep": 1,
+  "weightNote": "im Rucksack",
+  "dbPattern": "rowbar",
+  "dbShares": {
+   "lats": 1.0,
+   "biceps": 0.5,
+   "traps": 0.5,
+   "rearDelts": 0.35
+  },
+  "bwPattern": "rowbar",
+  "bwShares": {
+   "lats": 1.0,
+   "biceps": 0.5,
+   "traps": 0.5,
+   "rearDelts": 0.35
+  },
+  "equip": "backpack"
+ },
+ "sitzendes-flaschen-seitheben": {
+  "group": "Schulter",
+  "tier": 3,
+  "name": "Sitzendes Seitheben mit Flaschen",
+  "reps": "12–20",
+  "bwName": "Sitzendes Seitheben mit Flaschen",
+  "bwReps": "12–20",
+  "dbEquip": "zwei volle Flaschen",
+  "bwEquip": "zwei volle Flaschen",
+  "dbCue": "Auf einen Stuhl setzen, je eine gefüllte Flasche in die Hand. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung. Sitzend, weil so weder Beine noch Rumpf nachhelfen können. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+  "bwCue": "Auf einen Stuhl setzen, je eine gefüllte Flasche in die Hand. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung. Sitzend, weil so weder Beine noch Rumpf nachhelfen können. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+  "detail": [
+   [
+    "Sitzend oder stehend",
+    "Der Plan kennt beides, und der Unterschied ist keine Laune: Im Sitzen kann man nicht aus den Beinen nachhelfen, das Gewicht muss die Schulter allein heben. Deshalb gibt es die Flaschenfassung auch zweimal – für die Tage, an denen zwei Seitheben im Plan stehen, und damit das zweite nicht ersatzlos wegfällt."
+   ],
+   [
+    "Bis waagerecht, nicht höher",
+    "Über der Waagerechten übernimmt der Nacken. Das fühlt sich nach mehr an und ist weniger: Die seitliche Schulter hat dort schon aufgehört zu arbeiten."
+   ]
+  ],
+  "dbRest": 120,
+  "bwRest": 120,
+  "dbWeight": null,
+  "dbStep": null,
+  "weightNote": null,
+  "dbPattern": "lateral",
+  "dbShares": {
+   "sideDelts": 1.0,
+   "frontDelts": 0.15,
+   "traps": 0.2
+  },
+  "bwPattern": "lateral",
+  "bwShares": {
+   "sideDelts": 1.0,
+   "frontDelts": 0.15,
+   "traps": 0.15
+  },
+  "equip": null
  }
 }
