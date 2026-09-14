@@ -58,8 +58,9 @@ const titel = await page.evaluate(async () => {
 console.log('     Titel:', JSON.stringify(titel));
 check(!!titel, 'es gibt einen Titel');
 check(!/ von \d+/.test(titel || ''), `ohne „von 84" (${titel})`);
-check(/^Workout \d+ · \d+ Übungen?$/.test(titel || ''),
-  'stattdessen die Nummer und der Umfang der Einheit');
+check(!/Workout/.test(titel || ''), `und ohne laufende Nummer (${titel})`);
+check(/^\d+ Übungen?$/.test(titel || ''),
+  'stattdessen der Umfang der Einheit');
 
 // --- 2. Der laufende Worker --------------------------------------------
 await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null,
@@ -78,7 +79,7 @@ const lauf = await worker.evaluate(async () => {
   const echteClients = self.clients.matchAll.bind(self.clients);
   self.clients.matchAll = () => Promise.resolve([]);
   const heute = heuteISO();
-  const nutzlast = { art: 'erinnerung', titel: 'Workout 7 · 6 Übungen' };
+  const nutzlast = { art: 'erinnerung', titel: '6 Übungen' };
 
   /** Ein Ereignis schicken und seine Zusagen abwarten. Gibt zurück, was dabei
    *  angezeigt wurde. */
@@ -102,7 +103,7 @@ const lauf = await worker.evaluate(async () => {
 
   // a) Die Meldung selbst.
   gezeigt.length = 0;
-  await erinnerungZeigen('Workout 7 · 6 Übungen');
+  await erinnerungZeigen('6 Übungen');
   ergebnis.meldung = gezeigt.slice();
 
   // b) Weggewischt kommt sie zurück – aber nur, wenn sie von heute ist und
@@ -146,7 +147,7 @@ const lauf = await worker.evaluate(async () => {
     return gezeigt.slice();
   };
   await merkSchreiben({ an: true, tag: heute, zeigenAb: 1, wegAm: null,
-                        titel: 'Workout 7 · 6 Übungen' });
+                        titel: '6 Übungen' });
   ergebnis.beimWeggehen = await nachricht('erinnerung-wieder');
   // Aber nicht nach „Heute nicht", und nicht vor der eingestellten Uhrzeit.
   await merkSchreiben({ wegAm: heute });
@@ -185,7 +186,7 @@ check(!m.icon,
 check(/badge-96/.test(m.badge || ''),
   `das kleine ist eine eigene Datei (${m.badge}) – icon-192.png ist deckend und `
   + 'käme als weisser Kasten in der Statusleiste an');
-check(m.titel === 'Training steht an' && m.body === 'Workout 7 · 6 Übungen',
+check(m.titel === 'Training steht an' && m.body === '6 Übungen',
   'Titel und Text stehen richtig');
 check((m.actions || []).some((a) => a.action === 'heute-nicht'),
   'sie hat einen ausdrücklichen Ausgang: „Heute nicht"');
@@ -195,7 +196,7 @@ check(m.data && m.data.art === 'erinnerung',
 // --- 4. Weggewischt kommt sie zurück ------------------------------------
 console.log('     Nach dem Wischen:', JSON.stringify(lauf.nachWischen[0]));
 check(lauf.nachWischen.length === 1, `die Meldung steht wieder da (${lauf.nachWischen.length})`);
-check(lauf.nachWischen[0] && lauf.nachWischen[0].body === 'Workout 7 · 6 Übungen',
+check(lauf.nachWischen[0] && lauf.nachWischen[0].body === '6 Übungen',
   'mit demselben Text');
 
 check(lauf.nachTraining.length === 0,

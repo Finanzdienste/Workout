@@ -1,10 +1,14 @@
 /**
- * Die Einordnung des Tages.
+ * Die Einordnung des Tages – und wo sie *nicht* steht.
  *
- * Anlass: *„heute wieder nur fünf übungen - optimal?"* – dieselbe Frage wie
- * *„würdest du sagen dass der heutige tag mit 4 Übungen optimal ist?"*. In der
- * Kopfzeile stand eine Zahl ohne Maßstab; jetzt steht dahinter, ob dieser Tag
- * für diesen Fokus kurz, normal oder lang ist.
+ * Anlass: *„heute wieder nur fünf übungen - optimal?"*, davor *„würdest du sagen
+ * dass der heutige tag mit 4 Übungen optimal ist?"*. Die Kopfzeile nennt Zahlen
+ * ohne Maßstab; ob fünf viel ist, weiß nur, wer die anderen 83 Einheiten daneben
+ * legen kann.
+ *
+ * In der Kopfzeile stand dafür kurz ein Wort – „kurzer Tag". Raus auf Zuruf:
+ * *„Das Wort 'kurzer Tag' soll weg."* Geblieben ist die Auskunft dort, wo sie
+ * hingehört: über der Übungsliste, mit Zahlen statt mit einem Urteil.
  *
  * Geprüft wird gegen die *rohen* Plandaten, nicht gegen die Rechnung der App:
  * Die Häufigkeitstabelle wird hier aus js/data.js neu gebaut. Sonst prüfte der
@@ -53,10 +57,9 @@ const soll = await page.evaluate(async () => {
   const tab = new Map();
   PLAN.forEach((w) => tab.set(w.ex.length, (tab.get(w.ex.length) || 0) + 1));
   const sortiert = [...tab.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
-  const norm = sortiert[0][0];
   const groessen = [...tab.keys()].sort((a, b) => a - b);
   return {
-    norm,
+    norm: sortiert[0][0],
     haeufig: sortiert[0][1],
     summe: PLAN.length,
     kleinste: groessen[0],
@@ -64,10 +67,7 @@ const soll = await page.evaluate(async () => {
     tage: PLAN.map((w) => ({
       n: w.n,
       len: w.ex.length,
-      wort: w.ex.length === norm ? 'normaler Tag'
-        : (w.ex.length < norm ? 'kurzer Tag' : 'langer Tag'),
-      dbGleich: new Set(w.ex.map((x) => x.sets)).size === 1,
-      bwGleich: new Set(w.ex.map((x) => x.bwSets ?? x.sets)).size === 1,
+      dbSumme: w.ex.reduce((a, x) => a + x.sets, 0),
       bwSumme: w.ex.reduce((a, x) => a + (x.bwSets ?? x.sets), 0),
     })),
   };
@@ -76,25 +76,20 @@ console.log(`     Cut: ${soll.kleinste} bis ${soll.groesste} Übungen, `
   + `${soll.haeufig} von ${soll.summe} mit ${soll.norm}`);
 check(soll.kleinste !== soll.groesste, 'der Plan hat überhaupt verschieden lange Einheiten');
 
-// --- Hantel-Variante: das Wort stimmt, die Satzzahl ist weg ---
-const gesehen = new Set();
-for (let i = 0; i < 8; i++) {
+// --- Die Kopfzeile nennt Zahlen und kein Urteil ---
+for (let i = 0; i < 6; i++) {
   const n = await nummer();
   const t = await kopf();
   const tag = soll.tage[n - 1];
-  check(t.includes(tag.wort), `Workout ${n} (${tag.len} Übungen): „${t}"`);
-  gesehen.add(tag.wort);
-  // Im Plan hat jede Übung dieselbe Satzzahl – dann ist "15 Sätze" nur
-  // "5 Übungen" mal drei und steht nicht mehr da.
-  check(tag.dbGleich === !/\d+ Sätze/.test(t),
-    `  Satzzahl ${tag.dbGleich ? 'weggelassen' : 'genannt'}, weil die Übungen `
-    + `${tag.dbGleich ? 'gleich viele' : 'verschieden viele'} Sätze haben`);
+  check(t === `Hanteln · ${tag.len} Übungen · ${tag.dbSumme} Sätze`,
+    `Workout ${n}: „${t}"`);
+  check(!/(kurzer|normaler|langer) Tag/.test(t),
+    '  kein „kurzer Tag" in der Kopfzeile – das Wort ist raus');
   const weiter = page.locator('[data-act="nav-workout"][data-delta="1"]:not([disabled])');
   if (!(await weiter.count())) break;
   await weiter.click();
   await page.waitForTimeout(150);
 }
-check(gesehen.size >= 2, `beide Größen kamen vor (${[...gesehen].join(', ')})`);
 
 // --- Zurück auf Workout 1 ---
 for (let i = 0; i < 8; i++) {
@@ -105,32 +100,22 @@ for (let i = 0; i < 8; i++) {
 }
 check(await nummer() === 1, 'wieder bei Workout 1');
 
-// --- Bodyweight: da weicht die Satzzahl je Übung ab, also steht sie wieder da ---
+// --- Bodyweight: eigene Satzzahlen, dieselbe Form ---
 await modus('bw');
-let gemischt = 0;
-let uniform = 0;
-for (let i = 0; i < 8; i++) {
+for (let i = 0; i < 4; i++) {
   const n = await nummer();
   const t = await kopf();
   const tag = soll.tage[n - 1];
-  check(t.startsWith('Bodyweight'), `Workout ${n} nennt die Variante: „${t}"`);
-  if (tag.bwGleich) {
-    uniform++;
-    check(!/\d+ Sätze/.test(t), `  Workout ${n}: gleiche Satzzahlen, keine Summe`);
-  } else {
-    gemischt++;
-    check(t.includes(`${tag.bwSumme} Sätze`),
-      `  Workout ${n}: abweichende Satzzahlen, Summe ${tag.bwSumme} genannt`);
-  }
+  check(t === `Bodyweight · ${tag.len} Übungen · ${tag.bwSumme} Sätze`,
+    `Workout ${n} im Bodyweight: „${t}"`);
   const weiter = page.locator('[data-act="nav-workout"][data-delta="1"]:not([disabled])');
   if (!(await weiter.count())) break;
   await weiter.click();
   await page.waitForTimeout(150);
 }
-console.log(`     Bodyweight: ${gemischt} Einheiten mit gemischten, ${uniform} mit gleichen Satzzahlen`);
 await modus('db');
 
-// --- Die Erklärung steht über der Liste, nicht in der Startansicht ---
+// --- Die Einordnung steht über der Liste, nicht in der Startansicht ---
 check(await page.locator('.tag-note').count() === 0,
   'keine Erklärzeile in der Startansicht');
 const ueberhang = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
@@ -138,7 +123,7 @@ check(ueberhang < 40, `Startansicht passt weiter auf einen Bildschirm (${ueberha
 
 await page.locator('[data-act="show-list"]').click();
 await page.waitForTimeout(200);
-check(await page.locator('.tag-note').count() === 1, 'über der Liste steht die Erklärung');
+check(await page.locator('.tag-note').count() === 1, 'über der Liste steht die Einordnung');
 const notiz = (await page.locator('.tag-note').textContent()).replace(/\s+/g, ' ').trim();
 console.log('     ' + notiz);
 check(notiz.includes(`${soll.kleinste} bis ${soll.groesste} Übungen`),
@@ -146,9 +131,9 @@ check(notiz.includes(`${soll.kleinste} bis ${soll.groesste} Übungen`),
 check(notiz.includes(`${soll.haeufig} von ${soll.summe} mit ${soll.norm}`),
   'und wie viele Einheiten die häufige Größe haben');
 check(/Woche/.test(notiz), 'und dass das Pensum je Woche feststeht');
-// Keine Behauptung über die Trainingslehre: Die Zeile ordnet ein, sie bewertet
-// nicht. "optimal" war die Frage, nicht die Antwort.
+// Zahlen, kein Urteil: „optimal" war die Frage, nicht die Antwort.
 check(!/optimal|genug|reicht|ideal/i.test(notiz), 'ohne „optimal" und ohne Note');
+check(!/(kurzer|normaler|langer) Tag/.test(notiz), 'und ohne das Wort, das raus sollte');
 await page.screenshot({ path: `${SHOT}/95-tagesgroesse.png`, fullPage: true });
 
 // --- Anderer Fokus, andere Spanne ---
@@ -175,9 +160,7 @@ console.log('     ' + notizStd);
 check(notizStd.includes(`${sollStd.kleinste} bis ${sollStd.groesste} Übungen`),
   'die Tabelle wird beim Fokuswechsel neu gerechnet');
 
-// --- Eigenes Workout: kein Plan, also keine Einordnung – aber die Satzzahl ---
-// Ohne Plan gibt es nichts, woran sich "kurzer Tag" messen ließe. Dann darf die
-// Zeile nicht einfach um eine Angabe kürzer sein: Die Summe bleibt stehen.
+// --- Eigenes Workout: kein Plan, also keine Einordnung ---
 await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(150);
 await page.locator('[data-act="go-tab"][data-tab="custom"]').click();
@@ -194,13 +177,11 @@ await page.locator('[data-act="custom-save"]').click();
 await page.waitForTimeout(400);
 const eigen = await kopf();
 console.log('     ' + eigen);
-check(!/(kurzer|normaler|langer) Tag/.test(eigen),
-  `eigenes Workout wird nicht eingeordnet: „${eigen}"`);
-check(/\d+ Sätze/.test(eigen), 'dafür steht die Satzzahl weiter da');
+check(/\d+ Übungen · \d+ Sätze/.test(eigen), `eigenes Workout nennt Umfang und Sätze: „${eigen}"`);
 await page.locator('[data-act="show-list"]').click();
 await page.waitForTimeout(200);
 check(await page.locator('.tag-note').count() === 0,
-  'und über der Liste steht keine Erklärzeile zu einem Plan, den es hier nicht gibt');
+  'und über der Liste steht keine Einordnung zu einem Plan, den es hier nicht gibt');
 
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);

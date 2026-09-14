@@ -103,7 +103,17 @@ jobs:
             // eine erfundene Adresse ist keine Auskunft, sondern eine falsche.)
             webpush.setVapidDetails(
               "https://finanzdienste.github.io/Workout/", k.oeffentlich, k.privat);
-            // Ohne Nutzlast: Der Push ist ein Klopfen, kein Inhalt.
+            // Die Nutzlast ist die Absendezeit und sonst nichts.
+            //
+            // Sie geht in die eine Richtung, die nichts verraet: vom Absender
+            // zum Geraet. Gebraucht wird sie, weil "es kam nichts an" und "es
+            // kam an und lag elf Stunden im Handy" von aussen gleich aussehen -
+            // genau dieser Fall am 14.09.: losgeschickt 07:06 Ortszeit,
+            // erschienen 18:08. Ohne einen Zeitstempel im Push kann das Geraet
+            // diese Spanne nicht messen, und dann wird geraten statt gemessen.
+            // Der Service Worker legt sie auf den Merkzettel, die App zeigt sie
+            // unter Mehr. Was angezeigt wird, entscheidet weiterhin allein das
+            // Geraet.
             //
             // urgency "high", und das ist der Kern der Sache: Ohne Angabe
             // sendet web-push mit "normal", und ein Android im Doze-Modus
@@ -116,7 +126,8 @@ jobs:
             //
             // TTL bleibt bei einer Stunde: Ist das Handy laenger aus, ist die
             // Erinnerung an dem Tag ohnehin sinnlos geworden.
-            webpush.sendNotification(k.abo, null, { TTL: 3600, urgency: "high" })
+            webpush.sendNotification(k.abo, JSON.stringify({ los: Date.now() }),
+                                     { TTL: 3600, urgency: "high" })
               .then((r) => console.log("gesendet, Status " + r.statusCode))
               .catch((e) => {
                 const s = e && e.statusCode;

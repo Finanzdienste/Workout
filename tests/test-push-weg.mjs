@@ -89,12 +89,19 @@ const lauf = await worker.evaluate(async () => {
   self.navigator.setAppBadge = () => Promise.resolve();
   const heute = heuteISO();
 
-  /** Ein Push schicken und abwarten, was daraus wurde. */
-  const klopfen = async () => {
+  /**
+   * Ein Push schicken und abwarten, was daraus wurde.
+   *
+   * `los` ist die Absendezeit aus der Nutzlast. Sie darf fehlen: Ein Push aus
+   * einer aelteren Fassung des Ablaufs traegt keine, und die Erinnerung darf
+   * daran nicht haengen.
+   */
+  const klopfen = async (los) => {
     gezeigt.length = 0;
     const warten = [];
     const ev = new Event('push');
     ev.waitUntil = (p) => warten.push(p);
+    if (los !== undefined) ev.data = { json: () => ({ los }) };
     self.dispatchEvent(ev);
     await Promise.all(warten);
     return { gezeigt: gezeigt.slice(), zettel: await merkLesen() };
@@ -106,7 +113,7 @@ const lauf = await worker.evaluate(async () => {
   // a) Geschlossene App, heute steht etwas an: Das ist der Fall, um den es geht.
   self.clients.matchAll = () => Promise.resolve([]);
   await merkSchreiben({ an: true, tag: heute, zeigenAb: Date.now() + 3600000,
-                        gemeldet: null, wegAm: null, titel: 'Workout 7 · 6 Übungen',
+                        gemeldet: null, wegAm: null, titel: '6 Übungen',
                         weckArt: null, weckGrund: null });
   ergebnis.zu = await klopfen();
   ergebnis.vorher = vorher;
@@ -137,6 +144,13 @@ const lauf = await worker.evaluate(async () => {
                         zeigenAb: Date.now() + 6 * 3600000 });
   ergebnis.zuFrueh = await klopfen();
 
+  // g) Mit Absendezeit: Der Abstand zu `geweckt` ist die Zeit, die die Meldung
+  //    unterwegs war. Genau diese Spanne war am 14.09. die ganze Frage -
+  //    gesendet 07:06, erschienen 18:08.
+  await merkSchreiben({ an: true, tag: heute, gemeldet: null,
+                        zeigenAb: Date.now() - 1000, losUm: null });
+  ergebnis.mitZeit = await klopfen(vorher - 11 * 3600000);
+
   self.clients.matchAll = echteClients;
   return ergebnis;
 });
@@ -144,7 +158,7 @@ const lauf = await worker.evaluate(async () => {
 console.log('     Push bei geschlossener App:', JSON.stringify(lauf.zu.gezeigt));
 check(lauf.zu.gezeigt.length === 1,
   'ein Push bei geschlossener App zeigt die Erinnerung – darum geht die ganze Übung');
-check((lauf.zu.gezeigt[0] || {}).body === 'Workout 7 · 6 Übungen',
+check((lauf.zu.gezeigt[0] || {}).body === '6 Übungen',
   'mit dem, was auf dem Merkzettel steht – der Push selbst trägt keinen Text');
 check(lauf.zu.zettel.weckArt === 'push',
   `vermerkt wird, wodurch geweckt wurde (${lauf.zu.zettel.weckArt})`);
@@ -174,6 +188,17 @@ check(lauf.aus.zettel.weckArt === 'push',
 check(lauf.zuFrueh.gezeigt.length === 1,
   'der Push prüft die Uhrzeit nicht – zur Winterzeit käme sonst gar nichts');
 
+// Ein Push ohne Nutzlast hinterlässt keine Absendezeit und funktioniert
+// trotzdem – sonst hinge die Erinnerung an der Fassung des Ablaufs.
+check(lauf.zu.zettel.losUm === null,
+  `ohne Nutzlast bleibt die Absendezeit leer (${lauf.zu.zettel.losUm})`);
+console.log('     unterwegs:',
+  Math.round((lauf.mitZeit.zettel.geweckt - lauf.mitZeit.zettel.losUm) / 60000), 'min');
+check(lauf.mitZeit.zettel.losUm === lauf.vorher - 11 * 3600000,
+  'mit Nutzlast steht die Absendezeit auf dem Merkzettel');
+check(lauf.mitZeit.zettel.geweckt - lauf.mitZeit.zettel.losUm >= 11 * 3600000,
+  'und der Abstand zum Aufwachen ist die Zeit, die die Meldung unterwegs war');
+
 // --- 3. Die App sagt es im Klartext -------------------------------------
 //
 // Nur ein Zeitstempel ist keine Auskunft. Ob der Weckruf um 16 Uhr kam oder erst
@@ -191,8 +216,12 @@ await page.evaluate(async () => {
 await page.waitForTimeout(500);
 await page.evaluate(async () => {
   const { schreibeMerkzettel } = await import('./js/merkzettel.js');
-  await schreibeMerkzettel({ geweckt: Date.now() - 5 * 3600000, weckArt: 'push',
-                             weckGrund: 'offen' });
+  const jetzt = Date.now();
+  await schreibeMerkzettel({ geweckt: jetzt - 5 * 3600000, weckArt: 'push',
+                             weckGrund: 'offen',
+                             // Elf Stunden vor dem Aufwachen losgeschickt – der
+                             // Fall vom 14.09.
+                             losUm: jetzt - 16 * 3600000 });
 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(600);
@@ -205,6 +234,9 @@ check(!!stand && /heute um \d{1,2}:\d{2} Uhr/.test(stand),
   `die Anzeige nennt die Uhrzeit, nicht nur den Tag (${stand})`);
 check(!!stand && /Push/.test(stand), 'und wodurch geweckt wurde');
 check(!!stand && /App war offen/.test(stand), 'und warum nichts kam');
+check(!!stand && /unterwegs 11 h 0 min festgehalten/.test(stand),
+  `und wie lange die Meldung unterwegs war (${stand}) – ohne diese Spanne sieht `
+  + '„kam nicht an" genauso aus wie „kam an und lag im Handy"');
 
 // --- 4. Ohne periodicSync – also in Firefox ----------------------------
 //

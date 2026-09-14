@@ -140,15 +140,23 @@ check(/function geheimnisURL\(\)[\s\S]{0,400}github\.com\/login\?return_to=/.tes
   'und die App baut die Adresse wirklich so – nicht nur diese Prüfung');
 
 // --- 4. Der Ablauf bei GitHub sendet nichts Inhaltliches ---------------
-// Geprüft an der Datei selbst: Ein Push mit Nutzlast wäre ein Push, der etwas
-// über dieses Gerät verrät.
+// Geprüft an der Datei selbst. Die Nutzlast ist die eine Ausnahme und geht in
+// die harmlose Richtung: die Absendezeit, vom Absender zum Gerät. Sie steht da,
+// weil sonst „kam nicht an" und „kam an und lag elf Stunden im Handy" von außen
+// gleich aussehen. Alles andere wäre ein Push, der etwas über dieses Gerät
+// verrät – und genau das hält diese Prüfung fest.
 // Über ROOT statt über einen relativen Pfad: Der Läufer startet die Tests
 // nicht zwingend aus dem Projektverzeichnis.
 const path = await import('node:path');
 const yml = await (await import('node:fs/promises'))
   .readFile(path.join(ROOT, '.github/workflows/push-erinnerung.yml'), 'utf8');
-check(/sendNotification\(k\.abo, null/.test(yml),
-  'der Ablauf schickt keine Nutzlast – nur ein Klopfen');
+const nutzlast = (yml.match(/sendNotification\(k\.abo,\s*([^,]*),/) || [])[1] || '';
+console.log('     Nutzlast:', nutzlast.trim());
+check(/^JSON\.stringify\(\{ los: Date\.now\(\) \}\)$/.test(nutzlast.trim()),
+  `die Nutzlast ist die Absendezeit und sonst nichts (${nutzlast.trim()})`);
+// Nichts aus dem Zustand des Geräts: kein Titel, keine Übungszahl, kein Datum.
+check(!/sendNotification\(k\.abo,[^)]*\b(titel|tag|abo\.|workout|uebung)/i.test(yml),
+  'nichts über das Training und nichts über das Gerät');
 check(/PUSH_KONFIG/.test(yml), 'und liest die Einrichtung aus einem Secret');
 check(/web-push@\d+\.\d+\.\d+/.test(yml),
   'mit fester Fassung der Bibliothek, damit er nicht eines Morgens still ausfällt');

@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v154';
+const VERSION = 'v155';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -242,13 +242,22 @@ const heuteISO = () => {
  * genommen wurde, mitsamt Uhrzeit; die App zeigt es unter Mehr im Klartext.
  * Das kostet vier Zeilen und ersetzt Raten durch Nachsehen.
  */
-async function erinnern(zeitPruefen) {
+async function erinnern(zeitPruefen, losUm) {
   const zettel = await merkLesen();
   const heute = heuteISO();
   const art = zeitPruefen ? 'sync' : 'push';
   // Der Weckruf selbst wird immer vermerkt, auch wenn nichts zu melden ist.
   // Das ist der Messwert: Er sagt, ob der Weg ueberhaupt traegt.
-  const notiz = (grund) => merkSchreiben({ geweckt: Date.now(), weckArt: art, weckGrund: grund });
+  //
+  // `losUm` ist die Absendezeit aus der Nutzlast des Pushes (siehe
+  // .github/workflows/push-erinnerung.yml). Der Abstand zu `geweckt` ist die
+  // Zeit, die die Meldung unterwegs war - und das ist die Zahl, die den Fall
+  // vom 14.09. entscheidet: gesendet 07:06, erschienen 18:08. Nicht der
+  // Absender war spaet, das Handy hat gehalten. Ohne diese beiden Zeitstempel
+  // nebeneinander sieht das aus wie "der Push kommt nicht an".
+  const notiz = (grund) => merkSchreiben({
+    geweckt: Date.now(), weckArt: art, weckGrund: grund, losUm: losUm || null,
+  });
 
   if (!zettel.an) return notiz('aus');
   if (zettel.gemeldet === heute) return notiz('schon');   // heute schon gemeldet
@@ -345,7 +354,12 @@ self.addEventListener('periodicsync', (event) => {
  * oefter zu senden, sondern an Ruhetagen etwas Nuetzliches zu zeigen.
  */
 self.addEventListener('push', (event) => {
-  event.waitUntil(erinnern(false));
+  // Die Nutzlast ist die Absendezeit und sonst nichts - siehe erinnern(). Sie
+  // darf fehlen: Ein Push aus einer aelteren Fassung des Ablaufs traegt keine,
+  // und daran soll die Erinnerung nicht haengen.
+  let los = null;
+  try { los = (event.data && event.data.json() || {}).los || null; } catch { los = null; }
+  event.waitUntil(erinnern(false, los));
 });
 
 /* ------------------------------------------------------------------ *

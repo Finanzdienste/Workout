@@ -3345,24 +3345,18 @@ function tagesGroesse(w, mode, anzahl) {
 /**
  * Die Kopfzeile der Einheit: Variante, Umfang, Einordnung.
  *
- * Die Satzzahl stand hier immer und war meistens Rechnerei: Im Plan hat jede
- * Übung dieselbe Satzzahl, "15 Sätze" ist dann nur "5 Übungen" mal drei. Sie
- * bleibt genau dort, wo sie das nicht ist – die Bodyweight-Fassung weicht bei 17
- * von 84 Cut-Einheiten je Übung ab (bis zu 66 von 84 bei BBP), und die
- * Nacharbeit legt einzeln drauf. Dann ist die Summe eine eigene Auskunft.
- *
- * Und beim eigenen Workout bleibt sie auch: Dort gibt es keinen Plan, an dem
- * sich ein "kurzer Tag" messen ließe, also wäre die Zeile sonst um eine Angabe
- * kürzer statt um eine bessere.
+ * Hier stand kurzzeitig auch die Einordnung des Tages – "kurzer Tag", "normaler
+ * Tag". Raus auf Zuruf: *„Das Wort 'kurzer Tag' soll weg."* Und das ist richtig
+ * so. In der Kopfzeile steht, was dieser Tag *ist*; wie er sich zu den anderen
+ * 83 verhält, ist eine Einordnung und keine Angabe – die gehört eine Ebene
+ * tiefer, über die Übungsliste, wo sie mit Zahlen dasteht (tagNotiz).
  */
 function tagKopf(w, mode, items) {
-  const teile = [MODE_LABEL[mode], `${items.length} Übungen`];
-  const gr = tagesGroesse(w, mode, items.length);
-  if (!gr || !items.every((x) => x.sets === items[0].sets)) {
-    teile.push(`${items.reduce((a, x) => a + x.sets, 0)} Sätze`);
-  }
-  if (gr) teile.push(gr);
-  return teile.join(' · ');
+  return [
+    MODE_LABEL[mode],
+    `${items.length} Übungen`,
+    `${items.reduce((a, x) => a + x.sets, 0)} Sätze`,
+  ].join(' · ');
 }
 
 /**
@@ -5318,6 +5312,28 @@ const WECK_GRUND = {
 };
 
 /**
+ * Wie lange der Push unterwegs war – vom Absenden bis zum Aufwachen hier.
+ *
+ * Anlass: *„Außerdem hab ich heute gar keine Push Nachricht bekommen. Erst als
+ * ich die app selbst geöffnet hab."* Losgeschickt wurde er um 07:06, erschienen
+ * ist er um 18:08 – elf Stunden dazwischen, und die lagen nicht am Absender.
+ * Von außen sah beides gleich aus: „kommt nicht an" und „kommt an und wird vom
+ * Handy festgehalten". Seit der Push seine Absendezeit mitbringt, steht die
+ * Spanne hier, und damit ist es keine Vermutung mehr.
+ *
+ * Unter einer Viertelstunde steht nichts: Dann hat der Weg getragen, und eine
+ * Zahl, die nur bestätigt, was ohnehin funktioniert, ist Buchhaltung.
+ */
+function unterwegs(z) {
+  if (!z.losUm || !z.geweckt || z.weckArt !== 'push') return '';
+  const min = Math.round((z.geweckt - z.losUm) / 60000);
+  if (min < 15) return '';
+  const std = Math.floor(min / 60);
+  const rest = min % 60;
+  return ` · unterwegs ${std ? `${std} h ${rest} min` : `${rest} min`} festgehalten`;
+}
+
+/**
  * Wann hat der Browser den Service Worker zuletzt geweckt?
  *
  * Die ehrliche Zahl zu dieser Funktion. Ob der Push ankommt und ob periodicsync
@@ -5348,6 +5364,7 @@ function weckStandZeigen() {
       : z.weckArt === 'sync' ? 'der Browser von selbst' : null;
     host.textContent = `Zuletzt geweckt: ${wann}`
       + (art ? ` durch ${art}` : '')
+      + unterwegs(z)
       + (WECK_GRUND[z.weckGrund] ? ` · ${WECK_GRUND[z.weckGrund]}` : '')
       + (z.gemeldet ? ` · zuletzt erinnert am ${fmtDate(z.gemeldet)}` : '');
   });

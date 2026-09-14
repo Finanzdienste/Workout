@@ -71,9 +71,14 @@ Beine, Po" drei, und die häufigste ist der Normalfall:
 | Bauch, Beine, Po | 5, 6 oder 7 | 6 (55 von 84) |
 | Cut | 4 oder 5 | 5 (62 von 84) |
 
-Daraus wird ein Wort hinter der Übungszahl: **kurzer Tag**, **normaler Tag**,
-**langer Tag**. Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall,
-und der Tag mit vier ist der kurze von zweiundzwanzig.
+Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall, und der Tag mit
+vier ist der kurze von zweiundzwanzig.
+
+In der Kopfzeile stand dafür kurz ein Wort – „kurzer Tag", „normaler Tag". Raus
+auf Zuruf: *„Das Wort 'kurzer Tag' soll weg."* Und zu Recht: Dort steht, was
+dieser Tag **ist** (Variante, Übungen, Sätze); wie er sich zu den anderen 83
+verhält, ist eine Einordnung und keine Angabe. Die gehört eine Ebene tiefer und
+mit Zahlen statt mit einem Urteil.
 
 Was dort ausdrücklich *nicht* steht, ist „optimal". Das wäre eine Behauptung über
 die Trainingslehre, die eine Kopfzeile nicht belegen kann. Welche Einheit dieser
@@ -90,11 +95,12 @@ sondern die Bauweise des Generators: `tools/build-plan.py` legt das Volumen je
 Gruppe und Woche zuerst fest und verteilt es erst danach auf die Termine
 (`split()`, Kriterium `imbalance`). Ein kurzer Tag ist deshalb kein fehlender Tag.
 
-Die Satzzahl ist aus der Kopfzeile verschwunden, wo sie Rechnerei war: Im Plan hat
-jede Übung dieselbe Satzzahl, `15 Sätze` ist dann nur `5 Übungen` mal drei. Sie
-steht weiter da, wo sie das nicht ist – die Bodyweight-Fassung weicht je Übung ab
-(17 von 84 Cut-Einheiten, 66 von 84 bei „Bauch, Beine, Po"), und die Nacharbeit
-legt einzeln drauf. Dann ist die Summe eine eigene Auskunft.
+Die Satzzahl steht weiterhin in der Kopfzeile. Sie war mit der Einordnung daneben
+kurz weggefallen, weil sie im Plan meist Rechnerei ist – `15 Sätze` ist dann nur
+`5 Übungen` mal drei. Ohne das Wort daneben wäre die Zeile aber schlicht um eine
+Angabe kürzer, und in der Bodyweight-Fassung (die je Übung abweicht: 17 von 84
+Cut-Einheiten, 66 von 84 bei „Bauch, Beine, Po") und bei Nacharbeit ist die Summe
+ohnehin eine eigene Auskunft.
 
 ### Körperkarte
 
@@ -564,12 +570,37 @@ richtigen Zeit etwas losschickt.
 Den Job macht `.github/workflows/push-erinnerung.yml`. Das ist kein Server,
 sondern ein zeitgesteuerter Ablauf, wie es hier ohnehin schon einen gibt.
 
-**Der Push trägt nichts.** Kein Text, keine Daten — ein leeres Klopfen. Erst das
-Gerät liest den Merkzettel und entscheidet, ob eine Meldung erscheint und was
-drinsteht. Es verlässt kein Trainingsdatum das Handy; wer den Wecker betreibt,
-erfährt nicht einmal, ob an dem Tag etwas anstand. Das ist sauberer als der
-übliche Weg, bei dem der Absender den Text mitschickt und damit wissen muss,
-was los ist.
+**Der Push trägt nur seine eigene Absendezeit.** Keinen Text, keine
+Trainingsdaten. Erst das Gerät liest den Merkzettel und entscheidet, ob eine
+Meldung erscheint und was drinsteht. Es verlässt kein Trainingsdatum das Handy;
+wer den Wecker betreibt, erfährt nicht einmal, ob an dem Tag etwas anstand. Das
+ist sauberer als der übliche Weg, bei dem der Absender den Text mitschickt und
+damit wissen muss, was los ist.
+
+Die Absendezeit ist die eine Ausnahme, und sie geht in die harmlose Richtung —
+vom Absender zum Gerät. Sie steht da, weil ohne sie zwei sehr verschiedene Fälle
+von außen gleich aussehen:
+
+> „Außerdem hab ich heute gar keine Push Nachricht bekommen. Erst als ich die app
+> selbst geöffnet hab."
+
+Nachgesehen im Ablaufprotokoll: Der Push ging am 14.09. um 05:06 UTC raus
+(07:06 Ortszeit, Status 201), erschienen ist er laut Bildschirmfoto um 18:08.
+Elf Stunden dazwischen — nicht der Absender war spät, das Handy hat die Meldung
+festgehalten (Doze bzw. die Akku-Optimierung für Chrome; `urgency: high` allein
+reicht dagegen nicht). Ohne einen Zeitstempel im Push kann das Gerät diese Spanne
+nicht messen, und dann wird geraten statt gemessen. Jetzt legt der Service Worker
+sie auf den Merkzettel, und unter *Mehr* steht neben „zuletzt geweckt" die Zeile
+*„unterwegs 11 h 0 min festgehalten"*. Ein Push ohne Nutzlast (aus einer älteren
+Fassung des Ablaufs) funktioniert unverändert weiter; `tests/test-push-weg.mjs`
+prüft beide Fälle.
+
+**Der Ablauf feuert nicht, wann dort steht.** Gemessen an den bisherigen Läufen
+kommt er 3 h 47 min bis 4 h 43 min zu spät los — zeitgesteuerte Abläufe bei
+GitHub stehen in einer gemeinsamen Warteschlange. `23 0 * * *` heißt in der
+Praxis also „irgendwann zwischen 03:00 und 05:30 UTC". Das ist der Grund für die
+krumme Minute, und es ist der Grund, warum die Erinnerung nachts losgeschickt
+wird statt zur Zielzeit.
 
 **Die Schlüssel entstehen im Browser.** VAPID braucht ein Schlüsselpaar; es wird
 auf dem Gerät erzeugt (`js/push.js`, WebCrypto) und verlässt es einmal, als

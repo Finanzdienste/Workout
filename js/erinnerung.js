@@ -77,7 +77,12 @@ export function erinnerungsStand(zeiten, heute = todayISO()) {
     nummer: n,
     // Kein „von 84": *„Die app geht ja unendlich."* Stimmt – am Ende der Runde
     // beginnt der Plan von selbst wieder bei 1. Statt der Gesamtzahl steht
-    // deshalb da, was heute ansteht, und das ist die nützlichere Auskunft.
-    titel: `Workout ${n} · ${plural(w.ex.length, 'Übung', 'Übungen')}`,
+    // deshalb da, was heute ansteht.
+    //
+    // Und keine laufende Nummer mehr: *„'Workout 3' soll weg."* Sie sagt in
+    // einer Meldung auch nichts – wer auf das Handy schaut, will wissen, was
+    // ihn erwartet, nicht die Ordnungszahl des Termins. Übrig bleibt der
+    // Umfang, und der ist die Auskunft.
+    titel: plural(w.ex.length, 'Übung', 'Übungen'),
   };
 }
