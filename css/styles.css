@@ -581,6 +581,17 @@ button { font: inherit; color: inherit; }
 }
 .focus-count { font-size: 12.5px; color: var(--muted); font-weight: 600; text-align: right; }
 
+/* Die Einordnung des Tages: eine Zeile über der Liste, nicht in der
+   Startansicht. Leise gesetzt – sie antwortet auf eine Frage, die man nicht
+   jedes Mal stellt. */
+.tag-note {
+  margin: -2px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.tag-note b { font-weight: 700; color: var(--text); }
+
 /* Zwei Startknöpfe: die Variante wird beim Starten gewählt, nicht danach. */
 /* Nebeneinander, nicht untereinander: Die Startansicht soll auf einen
    Bildschirm passen, und die Körperkarte darüber braucht den Platz. */

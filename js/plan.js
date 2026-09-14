@@ -260,6 +260,23 @@ function gestufteSaetze(w, m) {
   });
 }
 
+/**
+ * Wie viele Übungen eine Einheit hat – ohne die Reihenfolge festzuschreiben.
+ *
+ * exBasis() sortiert im Hantel-Modus nach Rüstaufwand und merkt sich das
+ * Ergebnis (ruestCache), damit die Karten unter dem Finger nicht springen. Wer
+ * bloß zählen will, darf diesen Merkzettel nicht füllen: Sonst stünde die
+ * Reihenfolge aller 84 Einheiten fest, sobald eine Ansicht einmal gezeichnet
+ * wurde – festgeschrieben mit den Gewichten von genau diesem Augenblick, statt
+ * mit denen vom ersten Ansehen der Einheit. Die Länge hängt an Stufe,
+ * Verletzungen und Vorrat, nicht an der Reihenfolge.
+ */
+export function tagLaenge(w, mode) {
+  if (istCustom(w.n)) return w.ex.length;
+  const m = mode || store.workoutMode(w.n);
+  return vorratFassung(gestufteSaetze(w, m), m).items.length;
+}
+
 export function exBasis(w, mode) {
   if (istCustom(w.n)) return w.ex;
   const m = mode || store.workoutMode(w.n);

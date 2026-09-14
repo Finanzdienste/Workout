@@ -52,6 +52,50 @@ tiefer, wenn man es braucht:
    Erreichbar über *Übungen & Gewichte* oder aus dem laufenden Training.
 3. **Fokus-Ansicht** – eine Übung groß, während trainiert wird.
 
+### Kurzer Tag, normaler Tag
+
+In der Kopfzeile stand `Hanteln · 5 Übungen · 15 Sätze`. Beides sind Zahlen ohne
+Maßstab, und genau daran ist dieselbe Frage dreimal aufgelaufen: *„Heute hab ich
+ja 3 mal Schulter. Sicher dass das optimal ist?"*, *„würdest du sagen dass der
+heutige tag mit 4 Übungen optimal ist?"*, *„heute wieder nur fünf übungen –
+optimal?"*. Ob fünf viel oder wenig ist, weiß nur, wer die anderen 83 Einheiten
+daneben legen kann. Die kennt die App, der Nutzer nicht.
+
+Jetzt legt sie sie daneben. Jeder Fokus hat genau zwei Größen von Einheit, „Bauch,
+Beine, Po" drei, und die häufigste ist der Normalfall:
+
+| Fokus | Übungen je Einheit | häufigste Größe |
+|---|---|---|
+| Aufbau | 5 oder 6 | 6 (61 von 84) |
+| Oberkörper | 5 oder 6 | 6 (57 von 84) |
+| Bauch, Beine, Po | 5, 6 oder 7 | 6 (55 von 84) |
+| Cut | 4 oder 5 | 5 (62 von 84) |
+
+Daraus wird ein Wort hinter der Übungszahl: **kurzer Tag**, **normaler Tag**,
+**langer Tag**. Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall,
+und der Tag mit vier ist der kurze von zweiundzwanzig.
+
+Was dort ausdrücklich *nicht* steht, ist „optimal". Das wäre eine Behauptung über
+die Trainingslehre, die eine Kopfzeile nicht belegen kann. Welche Einheit dieser
+Plan für normal hält, kann sie belegen – sie zählt nach, mit `tagLaenge()` und
+damit mit Verletzungen, Stufe und Geräte-Vorrat: Wer die Klimmzugstange zu Hause
+gelassen hat, hat andere Einheiten, und dann ist auch die Vergleichsgruppe eine
+andere.
+
+Über der Übungsliste – nicht in der Startansicht, die auf eine Bildschirmseite
+passen soll – steht der Satz dazu: *„Einheiten in diesem Fokus: 4 bis 5 Übungen,
+62 von 84 mit 5. Das Pensum je Muskelgruppe steht für die Woche fest; der Plan
+verteilt es auf die Einheiten."* Der zweite Halbsatz ist keine Trainingslehre,
+sondern die Bauweise des Generators: `tools/build-plan.py` legt das Volumen je
+Gruppe und Woche zuerst fest und verteilt es erst danach auf die Termine
+(`split()`, Kriterium `imbalance`). Ein kurzer Tag ist deshalb kein fehlender Tag.
+
+Die Satzzahl ist aus der Kopfzeile verschwunden, wo sie Rechnerei war: Im Plan hat
+jede Übung dieselbe Satzzahl, `15 Sätze` ist dann nur `5 Übungen` mal drei. Sie
+steht weiter da, wo sie das nicht ist – die Bodyweight-Fassung weicht je Übung ab
+(17 von 84 Cut-Einheiten, 66 von 84 bei „Bauch, Beine, Po"), und die Nacharbeit
+legt einzeln drauf. Dann ist die Summe eine eigene Auskunft.
+
 ### Körperkarte
 
 `js/body.js` zeichnet Vorder- und Rückansicht **aus einem Skelett**, nicht aus

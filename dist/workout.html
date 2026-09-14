@@ -591,6 +591,17 @@ button { font: inherit; color: inherit; }
 }
 .focus-count { font-size: 12.5px; color: var(--muted); font-weight: 600; text-align: right; }
 
+/* Die Einordnung des Tages: eine Zeile über der Liste, nicht in der
+   Startansicht. Leise gesetzt – sie antwortet auf eine Frage, die man nicht
+   jedes Mal stellt. */
+.tag-note {
+  margin: -2px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.tag-note b { font-weight: 700; color: var(--text); }
+
 /* Zwei Startknöpfe: die Variante wird beim Starten gewählt, nicht danach. */
 /* Nebeneinander, nicht untereinander: Die Startansicht soll auf einen
    Bildschirm passen, und die Körperkarte darüber braucht den Platz. */
@@ -10529,6 +10540,23 @@ function gestufteSaetze(w, m) {
   });
 }
 
+/**
+ * Wie viele Übungen eine Einheit hat – ohne die Reihenfolge festzuschreiben.
+ *
+ * exBasis() sortiert im Hantel-Modus nach Rüstaufwand und merkt sich das
+ * Ergebnis (ruestCache), damit die Karten unter dem Finger nicht springen. Wer
+ * bloß zählen will, darf diesen Merkzettel nicht füllen: Sonst stünde die
+ * Reihenfolge aller 84 Einheiten fest, sobald eine Ansicht einmal gezeichnet
+ * wurde – festgeschrieben mit den Gewichten von genau diesem Augenblick, statt
+ * mit denen vom ersten Ansehen der Einheit. Die Länge hängt an Stufe,
+ * Verletzungen und Vorrat, nicht an der Reihenfolge.
+ */
+function tagLaenge(w, mode) {
+  if (istCustom(w.n)) return w.ex.length;
+  const m = mode || store.workoutMode(w.n);
+  return vorratFassung(gestufteSaetze(w, m), m).items.length;
+}
+
 function exBasis(w, mode) {
   if (istCustom(w.n)) return w.ex;
   const m = mode || store.workoutMode(w.n);
@@ -13063,7 +13091,6 @@ function renderOverview() {
   else when = `vor ${-diff} Tagen`;
 
   const items = w.ex.map((item) => resolve(item, mode));
-  const totalSets = items.reduce((a, x) => a + x.sets, 0);
   const muscles = new Set(items.flatMap((it) => it.muscles));
   // In den Daten steht der zuerst beanspruchte Muskel vorn. Daraus zwei
   // Stufen: was heute wirklich dran ist, und was nur mitarbeitet.
@@ -13118,7 +13145,7 @@ function renderOverview() {
              nichts – es stand nur da und sah nach einem Rückstand aus, den es
              nicht gibt. Wer die Zahl wirklich sucht, findet sie unter
              Mehr → Termine. -->
-        <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
+        <div class="hero-sub">${tagKopf(w, mode, items)}</div>
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
           <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.erledigt ? ' · abgeschlossen' : ''}</div>` : ''}
         <!-- Hier stand: "↩ 2 Sätze aus dieser Woche nachgeholt – diese Woche ist
@@ -13653,7 +13680,6 @@ function renderDashboard() {
   else when = `vor ${-diff} Tagen`;
 
   const items = w.ex.map((item) => resolve(item, mode));
-  const totalSets = items.reduce((a, x) => a + x.sets, 0);
 
   const parts = [];
 
@@ -13666,7 +13692,7 @@ function renderDashboard() {
     <section class="card">
       <div class="hero-eyebrow">${w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n}`}</div>
       <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
-      <div class="hero-sub">${MODE_LABEL[mode]} · ${items.length} Übungen · ${totalSets} Sätze</div>
+      <div class="hero-sub">${tagKopf(w, mode, items)}</div>
       <div class="hero-badges">
         <span class="badge accent">${mode === 'db' ? '🏋️ Hantel-Variante' : '🤸 Bodyweight-Variante'}</span>
         ${prog.erledigt ? '<span class="badge done">✓ Abgeschlossen</span>'
@@ -13694,7 +13720,8 @@ function renderDashboard() {
   parts.push(`<div class="focus-top">
       <button type="button" class="back-link" data-act="${store.getState().session ? 'focus-back' : 'hide-list'}">‹ Zurück</button>
       <span class="focus-count">${w.ex.length} Übungen · ${prog.done}/${prog.total} Sätze</span>
-    </div>`);
+    </div>
+    ${tagNotiz(w, mode, items)}`);
 
   items.forEach((it, i) => {
     const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
@@ -14890,6 +14917,115 @@ function repsLabel(it, mode) {
   const plus = mode === 'bw' ? store.bwPlusOf(it.id) : 0;
   if (!plus) return it.reps;
   return String(it.reps).replace(/\d+/g, (d) => String(Number(d) + plus));
+}
+
+/* ------------------------------------------------------------------ *
+ * Wie groß dieser Tag ist
+ *
+ * Anlass: "heute wieder nur fünf übungen - optimal?" – und davor "würdest du
+ * sagen dass der heutige tag mit 4 Übungen optimal ist?" und "Heute hab ich ja
+ * 3 mal Schulter. Sicher dass das optimal ist?". Dreimal dieselbe Frage, und
+ * beantwortet hat sie bisher niemand: In der Kopfzeile stand "5 Übungen · 15
+ * Sätze", also zwei Zahlen ohne Maßstab. Ob fünf viel ist, weiß nur, wer die
+ * anderen 83 Einheiten daneben legen kann. Die kennt die App, der Nutzer nicht.
+ *
+ * Also legt sie sie daneben. Jeder Fokus hat genau zwei Größen von Einheit,
+ * BBP drei – Aufbau 5/6, Cut 4/5, Oberkörper 5/6, BBP 5/6/7 –, und die
+ * häufigste ist der Normalfall: 61 von 84 im Aufbau, 62 von 84 im Cut. Daraus
+ * wird ein Wort: "normaler Tag", "kurzer Tag", "langer Tag". Gemessen am
+ * eigenen Plan und an nichts sonst.
+ *
+ * Das ist bewusst keine Bewertung des Trainings. "Optimal" wäre eine Behauptung
+ * über die Trainingslehre, die diese Zeile nicht belegen kann; welche Einheit
+ * der Plan hier für normal hält, kann sie belegen – sie zählt nach. Und genau
+ * das war die Frage hinter der Frage: "nur fünf" ist im Cut der Normalfall und
+ * kein Ausfall.
+ *
+ * Gezählt wird mit tagLaenge(), also mit Verletzungen und Vorrat: Wer die
+ * Klimmzugstange zu Hause gelassen hat, hat andere Einheiten, und dann muss die
+ * Vergleichsgruppe dieselben sein. Die Nacharbeit bleibt draußen – sie hängt am
+ * Protokoll und wandert, während die Tabelle für alle 84 Einheiten gilt.
+ *
+ * Einmal gerechnet und dann gemerkt: 84-mal exBasis() ist nichts, was in jede
+ * Bildschirmausgabe gehört. Der Schlüssel führt alles mit, was die Größen
+ * verschiebt – Fokus, Variante, Stufe, Verletzungen, Vorrat.
+ */
+let groessenCache = null;
+
+function groessenTabelle(mode) {
+  const st = store.getState();
+  const key = [st.focus, mode, st.level, activeInjuries().join(','), fehlt().join(',')].join('|');
+  if (groessenCache && groessenCache.key === key) return groessenCache.tab;
+  const tab = new Map();
+  PLAN.forEach((x) => {
+    if (istCustom(x.n)) return;
+    const k = tagLaenge(x, mode);
+    tab.set(k, (tab.get(k) || 0) + 1);
+  });
+  groessenCache = { key, tab };
+  return tab;
+}
+
+/** Kurz, normal oder lang – gemessen an den übrigen Einheiten dieses Fokus. */
+function tagesGroesse(w, mode, anzahl) {
+  if (w.custom) return null;
+  const tab = groessenTabelle(mode);
+  // Alle Einheiten gleich lang: Dann gibt es nichts einzuordnen, und ein "normaler
+  // Tag" an jedem einzelnen Tag wäre eine Zeile, die nie etwas anderes sagt.
+  if (tab.size < 2) return null;
+  // Häufigste Größe zuerst; bei Gleichstand die kleinere, damit die seltenere
+  // große Einheit die ist, die auffällt.
+  const norm = [...tab.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+  if (anzahl === norm) return 'normaler Tag';
+  return anzahl < norm ? 'kurzer Tag' : 'langer Tag';
+}
+
+/**
+ * Die Kopfzeile der Einheit: Variante, Umfang, Einordnung.
+ *
+ * Die Satzzahl stand hier immer und war meistens Rechnerei: Im Plan hat jede
+ * Übung dieselbe Satzzahl, "15 Sätze" ist dann nur "5 Übungen" mal drei. Sie
+ * bleibt genau dort, wo sie das nicht ist – die Bodyweight-Fassung weicht bei 17
+ * von 84 Cut-Einheiten je Übung ab (bis zu 66 von 84 bei BBP), und die
+ * Nacharbeit legt einzeln drauf. Dann ist die Summe eine eigene Auskunft.
+ *
+ * Und beim eigenen Workout bleibt sie auch: Dort gibt es keinen Plan, an dem
+ * sich ein "kurzer Tag" messen ließe, also wäre die Zeile sonst um eine Angabe
+ * kürzer statt um eine bessere.
+ */
+function tagKopf(w, mode, items) {
+  const teile = [MODE_LABEL[mode], `${items.length} Übungen`];
+  const gr = tagesGroesse(w, mode, items.length);
+  if (!gr || !items.every((x) => x.sets === items[0].sets)) {
+    teile.push(`${items.reduce((a, x) => a + x.sets, 0)} Sätze`);
+  }
+  if (gr) teile.push(gr);
+  return teile.join(' · ');
+}
+
+/**
+ * Und einmal ausgeschrieben, wo Platz dafür ist: warum die Tage verschieden
+ * lang sind.
+ *
+ * Nicht in der Startansicht – die soll auf einen Bildschirm passen ("Hier beim
+ * dashboard soll man nicht scrollen können"). Sondern über der Übungsliste,
+ * also dort, wo man die Übungen zählt und die Frage aufkommt.
+ *
+ * Der zweite Satz ist keine Trainingslehre, sondern die Bauweise des Plans:
+ * tools/build-plan.py legt das Volumen je Muskelgruppe und Woche fest und
+ * verteilt es erst danach auf die Einheiten (split(), Kriterium `imbalance`).
+ * Ein kurzer Tag ist deshalb kein fehlender Tag.
+ */
+function tagNotiz(w, mode, items) {
+  if (!tagesGroesse(w, mode, items.length)) return '';
+  const tab = groessenTabelle(mode);
+  const groessen = [...tab.keys()].sort((a, b) => a - b);
+  const norm = [...tab.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+  const summe = [...tab.values()].reduce((a, b) => a + b, 0);
+  return `<p class="tag-note">Einheiten in diesem Fokus: ${groessen[0]} bis ${
+    groessen[groessen.length - 1]} Übungen, ${norm[1]} von ${summe} mit ${norm[0]}.
+    Das Pensum je Muskelgruppe steht für die <b>Woche</b> fest; der Plan verteilt
+    es auf die Einheiten.</p>`;
 }
 
 /* ------------------------------------------------------------------ *
