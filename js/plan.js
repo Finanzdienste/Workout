@@ -367,11 +367,39 @@ export function offenInWoche(w) {
     const x = PLAN[i];
     const mx = fertigOhneNacharbeit(x.n);
     if (!mx) continue;   // noch offen – das ist kein Rückstand, das ist Zukunft
-    const log = (store.getState().log[x.n] || {})[mx] || {};
+    const eintrag = store.getState().log[x.n] || {};
+    // Ohne Stempel: ein Stand aus der Zeit vor dieser Rechnung. Dann bleibt die
+    // Einheit draußen, statt an der heutigen Satzzahl gemessen zu werden – die
+    // App erfindet lieber keinen Rückstand, als einen zu behaupten, den sie
+    // nicht belegen kann.
+    if (!eintrag.soll) continue;
+    const log = eintrag[mx] || {};
     exBasis(x, mx).forEach((it) => {
-      const arr = log[it.id];
-      const done = Array.isArray(arr) ? arr.slice(0, it.sets).filter((s) => s.done).length : 0;
-      const offen = it.sets - done;
+      const arr = Array.isArray(log[it.id]) ? log[it.id] : [];
+      const done = arr.slice(0, it.sets).filter((s) => s.done).length;
+      // Gemessen wird an der Satzzahl, die an *diesem* Tag galt, nicht an der
+      // von heute. Das ist der ganze Punkt:
+      //
+      //     "Aber heute ist doch erst Dienstag? Montag stand ein Training an,
+      //      Dienstag nicht."
+      //
+      // Vorher stand hier die heutige Zahl. Als die Anfaengerstufe von zwei auf
+      // drei Saetze ging, wurde damit jede vorher sauber zu Ende trainierte
+      // Einheit derselben Woche rueckwirkend um einen Satz je Uebung zu kurz -
+      // und die Nacharbeit legte den erfundenen Rueckstand als "+1 nachgeholt"
+      // auf die naechste Einheit.
+      //
+      // Am Speicher allein ist das nicht zu erkennen: getSets() fuellt die
+      // Satzliste beim blossen Ansehen auf die heutige Zahl auf, ein leerer
+      // dritter Satz sieht danach aus wie einer, den jemand ausgelassen hat.
+      // Und die *Stufe* zu merken reicht auch nicht - "Anfaenger" hiess gestern
+      // zwei Saetze und heute drei. Also steht die Zahl selbst im Protokoll
+      // (`soll`, siehe getSets() in js/store.js).
+      //
+      // Eine Uebung ohne Eintrag hat keine Zahl: Sie stand da und wurde gar
+      // nicht angefasst, also zaehlt sie ganz als offen.
+      const soll = eintrag.soll[it.id];
+      const offen = (soll === undefined ? it.sets : Math.min(soll, it.sets)) - done;
       if (offen <= 0) return;
       const shares = EX_BY_ID.get(it.id)[mx].shares;
       Object.entries(shares).forEach(([mus, share]) => {

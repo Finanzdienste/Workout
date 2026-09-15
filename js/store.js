@@ -357,9 +357,28 @@ function ensure(n) {
 
 /** Satz-Array für eine Übung in einem Workout; legt es bei Bedarf an. */
 export function getSets(n, mode, exId, setCount) {
-  const bucket = ensure(n)[mode];
+  const e = ensure(n);
+  const bucket = e[mode];
   let arr = bucket[exId];
-  if (!Array.isArray(arr)) arr = bucket[exId] = [];
+  if (!Array.isArray(arr)) {
+    arr = bucket[exId] = [];
+    // Wie viele Sätze diese Übung an diesem Tag hatte – einmal festgehalten,
+    // in dem Augenblick, in dem die App sich entscheidet.
+    //
+    // Ohne diese Zahl misst die Nacharbeit eine vergangene Einheit an der
+    // Satzzahl von *heute*, und die ändert sich: Sie hängt an der
+    // Erfahrungsstufe, und was eine Stufe bedeutet, kann sich ebenfalls ändern
+    // ("Anfänger" hieß gestern zwei Sätze und heute drei). Beides machte jede
+    // fertig trainierte Einheit derselben Woche rückwirkend zu kurz, und die
+    // Nacharbeit erfand einen Rückstand, den es nie gab. Eine Einstellung darf
+    // keine Arbeit erzeugen. Siehe offenInWoche() in js/plan.js.
+    //
+    // Am Speicher allein ist das nicht abzulesen: Die Zeile unten füllt die
+    // Satzliste beim bloßen Ansehen auf die heutige Zahl auf, und ein leerer
+    // dritter Satz sieht danach aus wie einer, den jemand ausgelassen hat.
+    if (!e.soll) e.soll = {};
+    if (e.soll[exId] === undefined) e.soll[exId] = setCount;
+  }
   // Ein Satz ist: benutztes Gewicht, abgehakt, und – wenn beantwortet – wie er
   // gelaufen ist (`wie`, siehe updateSet). Ein Feld `r` für Wiederholungen
   // stand hier jahrelang mit drin und wurde **nie beschrieben**: leer angelegt,
@@ -556,7 +575,12 @@ export function peekSets(n, mode, exId) {
 export function updateSet(n, mode, exId, setCount, index, patch) {
   const arr = getSets(n, mode, exId, setCount);
   Object.assign(arr[index], patch);
-  ensure(n).mode = mode;
+  const e = ensure(n);
+  // Beim Antippen zählt, was gerade auf dem Bildschirm steht: Wer die Stufe
+  // mitten in einer Einheit wechselt, trainiert ab da die neue Satzzahl.
+  if (!e.soll) e.soll = {};
+  e.soll[exId] = setCount;
+  e.mode = mode;
   syncStartedOn(n);
   persist();
   emit();

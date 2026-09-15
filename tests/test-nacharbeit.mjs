@@ -43,8 +43,9 @@ const protokoll = (von, bis, auslassen) => page.evaluate(async ([a, b, weg]) => 
   const { PLAN } = await import('./js/data.js');
   const log = {};
   PLAN.slice(a, b).forEach((w) => {
-    const e = { mode: 'db', done: 'db', db: {} };
+    const e = { mode: 'db', done: 'db', soll: {}, db: {} };
     w.ex.slice(0, Math.max(1, w.ex.length - weg)).forEach((it) => {
+      e.soll[it.id] = it.sets;
       e.db[it.id] = Array.from({ length: it.sets }, () => ({ w: '20', r: '', done: true }));
     });
     log[w.n] = e;
@@ -191,6 +192,71 @@ const sieben = await einheit(7);
 const basis = sieben.map((x) => Number((x.meta.match(/^(\d+) ×/) || [])[1] || 0));
 console.log('     Sätze je Übung in Einheit 7:', basis.join(', '));
 check(basis.every((n) => n >= 3), `Geübt bleibt bei drei Sätzen je Übung (${basis.join(',')})`);
+
+// --- 6. Eine Einstellung erzeugt keine Arbeit ---------------------------
+//
+//     "Aber heute ist doch erst Dienstag? Montag stand ein Training an,
+//      Dienstag nicht."
+//
+// Die Frage fuehrte auf einen echten Fehler. `offenInWoche` verglich das
+// Protokoll einer fertigen Einheit mit der *heutigen* Satzzahl - und die haengt
+// an der Erfahrungsstufe. Als die Anfaengerstufe von zwei auf drei Saetze ging,
+// war damit jede vorher sauber zu Ende trainierte Einheit derselben Woche
+// rueckwirkend um einen Satz je Uebung zu kurz. Die App erfand einen Rueckstand,
+// den es nie gab, und legte ihn als "+1 nachgeholt" auf die naechste Einheit.
+//
+// Hier steht der Fall nach: zwei Einheiten, vollstaendig trainiert mit zwei
+// Saetzen je Uebung, danach die Stufe auf Geuebt. Nichts darf nachzuholen sein.
+const zweiSaetze = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const log = {};
+  PLAN.slice(0, 2).forEach((w) => {
+    // `soll` ist der Stempel, den getSets() beim Anlegen setzt: An dem Tag
+    // hatte jede Uebung zwei Saetze, und alle zwei stehen.
+    const e = { mode: 'db', done: 'db', soll: {}, db: {} };
+    w.ex.forEach((it) => {
+      e.soll[it.id] = 2;
+      e.db[it.id] = Array.from({ length: 2 }, () => ({ w: '20', done: true }));
+    });
+    log[w.n] = e;
+  });
+  return log;
+});
+// Gesaet wird ueber addInitScript und nicht ueber localStorage: Die App
+// schreibt ihren Zustand beim Verlassen der Seite noch einmal weg, und dieser
+// Nachzuegler ueberholt jedes von Hand gesetzte localStorage - beim ersten
+// Anlauf genau so passiert, der Test las danach den Stand des vorigen Blocks.
+// Ein Init-Skript laeuft vor dem App-Code und gewinnt deshalb immer.
+const saen = (log) => page.addInitScript((z) => {
+  localStorage.setItem('workout.state.v1', JSON.stringify(z));
+}, { greeted: true, name: 'T', shift: 0, level: 'geuebt', log });
+await saen(zweiSaetze);
+const dritte = await einheit(3);
+console.log('     Einheit 3 nach dem Stufenwechsel:', dritte.map((x) => x.meta).join(' | '));
+check(dritte.length > 0, `die dritte Einheit steht (${dritte.length} Übungen)`);
+check(!dritte.some((x) => /nachgeholt/.test(x.meta)),
+  'ein Stufenwechsel erzeugt keinen Rückstand aus fertig trainierten Einheiten');
+
+// Und der echte Fall bleibt erhalten: Wer wirklich Sätze offen lässt, bekommt
+// sie nachgetragen – hier eine Einheit, in der ein Satz je Übung fehlt.
+const einerFehlt = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const log = {};
+  PLAN.slice(0, 2).forEach((w) => {
+    const e = { mode: 'db', done: 'db', soll: {}, db: {} };
+    w.ex.forEach((it) => {
+      e.soll[it.id] = 3;
+      e.db[it.id] = Array.from({ length: 3 }, (_, i) => ({ w: '20', done: i < 2 }));
+    });
+    log[w.n] = e;
+  });
+  return log;
+});
+await saen(einerFehlt);
+const dritteEcht = await einheit(3);
+console.log('     mit echtem Rückstand:', dritteEcht.map((x) => x.meta).join(' | '));
+check(dritteEcht.some((x) => /nachgeholt/.test(x.meta)),
+  'ein wirklich offener Satz wird weiterhin nachgetragen');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

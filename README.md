@@ -3229,6 +3229,38 @@ ehrlichere Lesart: Wer neu ist, braucht eine Last, die er beherrscht, und eine
 Bewegung, die er kann, nicht ein Drittel weniger Reiz. Fortgeschritten legt
 weiterhin ein Drittel zu; dort ist mehr Volumen der Reiz, der fehlt.
 
+#### Und der Folgefehler, den diese Änderung ausgelöst hat
+
+> „Aber heute ist doch erst Dienstag? Montag stand ein Training an, Dienstag
+> nicht. Das heißt eigentlich müsste man doch am Dienstag einfach 1:1 das Montag
+> Training nachholen oder nicht?"
+
+Das Nachholen selbst stimmte: Eine **nicht begonnene** Einheit verfällt nie, der
+ganze Restplan rückt nach, bis sie auf heute fällt (`catchUpPlan()`), und die
+Abstände zwischen den Einheiten bleiben erhalten. Dienstag ist dann Montags
+Einheit, Übung für Übung.
+
+Das „+1 nachgeholt" daneben kam aber woanders her — und war zum Teil erfunden.
+`offenInWoche()` verglich das Protokoll einer bereits fertigen Einheit mit der
+**heutigen** Satzzahl. Solange die sich nie ändert, geht das gut. Sie ändert sich
+aber: Als die Anfängerstufe von zwei auf drei Sätze ging, war damit jede vorher
+sauber zu Ende trainierte Einheit derselben Woche rückwirkend um einen Satz je
+Übung zu kurz. Die App erfand einen Rückstand, den es nie gab, und legte ihn auf
+die nächste Einheit. **Eine Einstellung darf keine Arbeit erzeugen.**
+
+Am Speicher allein ist das nicht zu erkennen: `getSets()` füllt die Satzliste
+beim bloßen Ansehen auf die heutige Zahl auf, und ein leerer dritter Satz sieht
+danach aus wie einer, den jemand ausgelassen hat. Die Stufe zu merken reicht
+ebenfalls nicht — „Anfänger" hieß gestern zwei Sätze und heute drei. Also steht
+die **Zahl selbst** im Protokoll: `getSets()` stempelt beim Anlegen einer
+Satzliste, wie viele Sätze diese Übung an diesem Tag hatte (`soll`), und
+`offenInWoche()` misst daran.
+
+Einträge ohne Stempel stammen aus der Zeit davor und liefern **keinen**
+Rückstand: Die App erfindet lieber keinen, als einen zu behaupten, den sie nicht
+belegen kann. `tests/test-nacharbeit.mjs` prüft beide Seiten — der Stufenwechsel
+erzeugt nichts, ein wirklich offener Satz wird weiterhin nachgetragen.
+
 Was bleibt: `gezaehlteReps()` versteht ein `wie` weiterhin, wenn es dasteht.
 Sätze, die in den Tagen dazwischen abgehakt wurden, behalten ihre Zahl;
 rückwirkend Volumen abzuziehen wäre schlechter als eine Verzweigung, die selten
