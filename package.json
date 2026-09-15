@@ -4,11 +4,13 @@
   "type": "module",
   "description": "Nur für die Tests. Die App selbst hat keine Abhängigkeiten und keinen Bauschritt – index.html im Browser öffnen genügt.",
   "scripts": {
+    "lint": "eslint js sw.js tests",
     "test": "node tests/lauf.mjs",
     "test:plan": "python3 tools/pruefung/plan-pruefen.py",
     "serve": "node tests/server.mjs 8099"
   },
   "devDependencies": {
+    "eslint": "9.39.5",
     "playwright": "1.56.1"
   }
 }

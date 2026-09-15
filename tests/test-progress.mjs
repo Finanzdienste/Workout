@@ -71,8 +71,6 @@ const test = await page.evaluate(async () => {
 await page.reload({ waitUntil: 'networkidle' });
 await page.locator('[data-act="show-list"]').click();
 await page.waitForTimeout(250);
-const kartenIndex = async (name) => page.evaluate((n) => [...document.querySelectorAll('.ex')]
-  .findIndex((e) => e.querySelector('.ex-name').textContent.trim() === n), name);
 const karteVon = async (name) => {
   const i = await page.evaluate((n) => [...document.querySelectorAll('.ex')]
     .findIndex((e) => e.querySelector('.ex-name').textContent.trim() === n), name);

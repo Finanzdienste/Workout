@@ -50,9 +50,6 @@ function rotZ(v, deg) {
 }
 
 /** Punkt zwischen zwei projizierten Punkten. */
-const mixPt = (p, q, f) => ({
-  x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, z: p.z + (q.z - p.z) * f,
-});
 
 const A = (p = 0, a = 0, e = 0, i = 0) => ({ p, a, e, i });
 const L = (p = 0, a = 0, k = 0) => ({ p, a, k });
@@ -904,7 +901,6 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
 
   const draw = (t) => {
     lastT = t;
-    const pose = blend(t);
     const j = skeleton(t);
 
     scene.textContent = '';

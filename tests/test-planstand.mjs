@@ -73,7 +73,6 @@ check(abdruck(original) === staende.standard,
 
 // --- 3. Bei der Einführung passiert nichts -----------------------------
 const einfuehrung = await page.evaluate(async () => {
-  const store = await import('./js/store.js');
   const { PLAN } = await import('./js/data.js');
   const log = {};
   PLAN.slice(0, 3).forEach((w) => {

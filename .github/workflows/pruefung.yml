@@ -71,6 +71,15 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Der Linter zuerst, und ohne eigenen Job: Er braucht dieselben
+      # Abhängigkeiten, läuft in Sekunden, und wenn er etwas findet, ist es
+      # meist etwas, das die Browsertests gar nicht sehen können – beim ersten
+      # Lauf war es linkKopieren(), eine Funktion, die dreimal aufgerufen wurde
+      # und nirgends stand.
+      - name: Linter
+        run: npx eslint js sw.js tests
+
       # Nur Chromium: die App ist für das Handy gebaut, und drei Browser
       # herunterzuladen kostet mehr Zeit als der ganze Testlauf.
       - run: npx playwright install --with-deps chromium

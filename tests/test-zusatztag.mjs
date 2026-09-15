@@ -45,12 +45,6 @@ const protokoll = (von, bis, auslassen = 0) => page.evaluate(async ([a, b, weg])
   return log;
 }, [von, bis, auslassen]);
 
-const zurStatistik = async () => {
-  await page.locator('.tab[data-tab="stats"]').click();
-  await page.waitForTimeout(500);
-  return (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-};
-
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 // Der Plan rückt beim Laden auf heute nach. Damit die erste Woche wirklich in
@@ -115,9 +109,7 @@ check(await page.locator('[data-act="back-to-plan"]').count() === 1,
 // --- 4. Die Einheit selbst ----------------------------------------------
 const angelegt = await page.evaluate(async () => {
   const store = await import('./js/store.js');
-  const daten = await import('./js/data.js');
   const c = store.customs()[0];
-  const byId = new Map(daten.EXERCISES.map((e) => [e.id, e]));
   return {
     anzahl: c.ex.length,
     saetze: c.ex.reduce((a, x) => a + x.sets, 0),

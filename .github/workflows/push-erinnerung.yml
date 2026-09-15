@@ -1,4 +1,4 @@
-# Klopft einmal am Tag ans Handy, damit die Erinnerung auch bei geschlossener
+# Klopft zweimal am Tag ans Handy, damit die Erinnerung auch bei geschlossener
 # App ankommt.
 #
 # Web Push braucht kein eigenes Serverchen – nur jemanden, der zur richtigen
@@ -10,10 +10,12 @@
 # eine Meldung erscheint und was drinsteht (siehe sw.js). Wer diesen Ablauf
 # betreibt, erfaehrt nicht einmal, ob an dem Tag ueberhaupt etwas anstand.
 #
-# WARUM NUR EINMAL AM TAG: Chrome will, dass ein Push etwas anzeigt, und blendet
-# sonst irgendwann von sich aus „im Hintergrund aktualisiert" ein. An Ruhetagen
-# bleibt der Push still – das ist der Preis. Oefter zu senden wuerde ihn
-# vervielfachen, ohne etwas zu verbessern.
+# WARUM ZWEIMAL: Angezeigt wird trotzdem hoechstens einmal am Tag - das
+# entscheidet das Geraet (erinnern() in sw.js, Zweig "heute schon gemeldet").
+# Der zweite Versuch ist kein zweiter Hinweis, sondern ein zweiter Anlauf gegen
+# Android: Ein Push, der ankommt, waehrend das Handy in der Tasche liegt, wird
+# festgehalten - am 14.09. elf Stunden lang. Naeheres beim zweiten cron unten,
+# samt dem Preis dafuer.
 #
 # ZEITZONE: Die Zeit unten ist UTC. Der Push ist die Uhr, das Handy prueft nur
 # noch, *ob* etwas ansteht – nicht, ob die Minute stimmt. Eine Erinnerung eine
@@ -62,6 +64,31 @@ on:
     # Wochentag, den ein fester Zeitplan hier nie getroffen haette. Der Push ist
     # ein Klopfen; *ob* etwas erscheint, entscheidet allein das Geraet.
     - cron: '23 0 * * *'
+    # UND EIN ZWEITER VERSUCH AM VORMITTAG.
+    #
+    # Gemessen am 14.09.: Der Push ging um 05:06 UTC raus (07:06 Ortszeit),
+    # angekommen ist er auf dem Geraet, angezeigt hat Android ihn um 18:08 -
+    # elf Stunden spaeter, beim naechsten Entsperren. Das ist Doze: Ein Handy,
+    # das in der Tasche liegt, sammelt Nachrichten ein. `urgency: high` steht
+    # schon drin und hat nicht gereicht.
+    #
+    # Was ein Absender dagegen tun kann, ist genau eines: es zu einer Zeit
+    # versuchen, zu der das Geraet *benutzt* wird. Ein Push, der ankommt,
+    # waehrend der Bildschirm an ist, erscheint sofort. 04:37 UTC plus dem
+    # gemessenen Verzug von rund viereinhalb Stunden landet gegen 11:00
+    # Ortszeit - Vormittag, Handy in Benutzung.
+    #
+    # DER PREIS, und er ist echt: An einem Ruhetag sind das jetzt zwei stille
+    # Pushes statt einem, und an einem Trainingstag einer (der zweite laeuft in
+    # den Zweig "heute schon gemeldet"). Chrome mag stille Pushes nicht und
+    # blendet nach einer Weile von sich aus "im Hintergrund aktualisiert" ein -
+    # genau die zweite Meldung, ueber die hier schon einmal gestolpert wurde.
+    # Sollte sie wieder auftauchen, gehoert dieser zweite Eintrag wieder raus.
+    #
+    # Die eigentliche Abhilfe liegt nicht hier, sondern am Geraet:
+    # Einstellungen -> Apps -> Chrome -> Akku -> uneingeschraenkt. Das steht
+    # auch in der App unter Mehr.
+    - cron: '37 4 * * *'
   workflow_dispatch:
 
 permissions:
@@ -124,10 +151,22 @@ jobs:
             // "high" umgeht Doze; das ist die einzige Stellschraube, die der
             // Absender ueberhaupt hat. Der Rest liegt am Geraet.
             //
-            // TTL bleibt bei einer Stunde: Ist das Handy laenger aus, ist die
-            // Erinnerung an dem Tag ohnehin sinnlos geworden.
+            // TTL: zwoelf Stunden statt einer.
+            //
+            // Eine Stunde war unter der Annahme gewaehlt, dass kurz nach
+            // Mitternacht gesendet wird. Gesendet wird aber irgendwann bis
+            // 05:30 UTC (die Warteschlange bei GitHub), und ein Handy, das
+            // nachts aus ist, bekommt den Push dann gar nicht mehr: Der
+            // Push-Dienst wirft ihn nach Ablauf der TTL weg. Zwoelf Stunden
+            // decken eine Nacht plus den halben Tag ab.
+            //
+            // Das ist ungefaehrlich, weil nicht der Absender entscheidet, ob
+            // etwas erscheint, sondern das Geraet: erinnern() in sw.js prueft
+            // beim Aufwachen das Datum (zettel.tag <= heute) und ob heute
+            // schon gemeldet wurde. Ein spaet zugestellter Push zeigt also
+            // entweder die richtige Erinnerung oder gar nichts.
             webpush.sendNotification(k.abo, JSON.stringify({ los: Date.now() }),
-                                     { TTL: 3600, urgency: "high" })
+                                     { TTL: 43200, urgency: "high" })
               .then((r) => console.log("gesendet, Status " + r.statusCode))
               .catch((e) => {
                 const s = e && e.statusCode;

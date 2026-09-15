@@ -102,7 +102,6 @@ check(r.abbruch === null,
 
 // --- 5. Nach vorn geholt: die Reihenfolge ändert sich wirklich ----------
 const reihenfolge = await page.evaluate(async ([id]) => {
-  const store = await import('./js/store.js');
   const { ruestCache } = await import('./js/gewichte.js');
   const { exOf } = await import('./js/plan.js');
   const { PLAN } = await import('./js/data.js');

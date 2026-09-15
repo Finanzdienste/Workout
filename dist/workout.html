@@ -4241,9 +4241,6 @@ function rotZ(v, deg) {
 }
 
 /** Punkt zwischen zwei projizierten Punkten. */
-const mixPt = (p, q, f) => ({
-  x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, z: p.z + (q.z - p.z) * f,
-});
 
 const A = (p = 0, a = 0, e = 0, i = 0) => ({ p, a, e, i });
 const L = (p = 0, a = 0, k = 0) => ({ p, a, k });
@@ -5095,7 +5092,6 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
 
   const draw = (t) => {
     lastT = t;
-    const pose = blend(t);
     const j = skeleton(t);
 
     scene.textContent = '';
@@ -7809,10 +7805,6 @@ const DEFAULT_STATE = {
   supersatz: false,
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
-  // Übungen, bei denen ein Steigerungsvorschlag abgelehnt wurde, mit dem
-  // Gewicht, bei dem das geschah: { exId: kg }. Ändert sich das Arbeitsgewicht,
-  // gilt das Nein nicht mehr – siehe reifeUebungen() in js/gewichte.js.
-  steigerungNein: {},
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)
   // Geräte, die gerade *nicht* da sind – IDs aus GERAETE in js/vorrat.js.
   //
@@ -8806,10 +8798,10 @@ function stufenWerte(v) {
 
 const LEVELS = [
   ['anfaenger', 'Anfänger', 'Neu im Krafttraining oder lange raus. Startgewichte auf der '
-    + 'Hälfte und zwei Sätze je Übung statt drei: Wer neu anfängt, wächst schon bei wenig '
-    + 'Volumen – die ersten Wochen entscheidet die Technik, nicht die Scheibe.', 0.5],
+    + 'Hälfte und, wo es sie gibt, die einfachere Fassung der Übung – die ersten Wochen '
+    + 'entscheidet die Technik, nicht die Scheibe. Die Sätze bleiben die des Plans.', 0.5],
   ['geuebt', 'Geübt', 'Du weißt, wie sich ein sauberer Satz anfühlt, und trainierst schon '
-    + 'eine Weile. Startgewichte und drei Sätze je Übung passen so.', 1],
+    + 'eine Weile. Startgewichte und Sätze wie im Plan.', 1],
   ['fortgeschritten', 'Fortgeschritten', 'Jahre im Training, die Technik sitzt. Startgewichte '
     + 'um die Hälfte höher und vier Sätze je Übung – dein Reiz liegt weiter oben.', 1.5],
 ];
@@ -8839,24 +8831,43 @@ const levelFaktor = () => {
 /**
  * Sätze je Übung nach Erfahrung.
  *
- * Die Stufe skalierte lange nur die Startgewichte. Dabei ist das *Volumen* die
- * Größe, die sich zwischen Anfänger und Fortgeschrittenem am deutlichsten
- * unterscheidet: Wer neu anfängt, wächst schon bei drei bis fünf Sätzen je
- * Muskel und Woche fast maximal – die Dosis-Wirkungs-Kurve ist dort oben flach.
- * Mehr bringt kaum etwas und kostet das, woran es bei Anfängern wirklich hängt:
- * saubere Technik in den letzten Sätzen, erträglicher Muskelkater, und eine
- * Einheit, die man ein halbes Jahr lang durchhält.
+ * Anfänger stand hier lange auf **zwei** Sätzen, mit einer Begründung, die für
+ * sich genommen stimmt: Wer neu anfängt, wächst schon bei drei bis fünf Sätzen
+ * je Muskel und Woche fast maximal. Nur ist das eine Aussage über *Sätze je
+ * Muskel und Woche* – und was dabei herauskam, lag darunter. Nachgemessen im
+ * Cut-Plan, gewichtete Sätze je Muskelgruppe und Woche:
+ *
+ *                         zwei Sätze    drei Sätze
+ *   Beinbeuger (Knie)         2,0          3,0
+ *   Beinbeuger (Hüfte)        3,3          5,0
+ *   Schulter vorn             4,0          5,9
+ *   Oberschenkel, Waden       4,0          6,0
+ *   Rest                   4,7 – 6,0    7,0 – 9,0
+ *   je Woche gesamt            38           57
+ *
+ * Fünf von vierzehn Gruppen lagen also an oder unter der Untergrenze, die
+ * derselbe Absatz selbst nennt. Der Faktor war als Schonung gemeint und war in
+ * der Rechnung eine Kürzung unter die Wirkschwelle – gerade in den Gruppen, die
+ * ohnehin die wenigsten Sätze haben.
+ *
+ * Also heißt Anfänger jetzt: **leichtere Startgewichte und die einfachere
+ * Fassung der Übung** (siehe levelFaktor() und anfaengerFassung() in
+ * js/plan.js), aber dieselben Sätze wie im Plan. Das ist auch die ehrlichere
+ * Lesart der Stufe: Wer neu ist, braucht eine Last, die er beherrscht, und eine
+ * Bewegung, die er kann – nicht ein Drittel weniger Reiz.
+ *
+ * Fortgeschritten legt weiterhin zu: Dort ist mehr Volumen der Reiz, der fehlt.
  *
  * Skaliert wird **gleichmäßig über alle Übungen**. Das ist der Grund, warum es
- * die exakte Rechnung des Generators nicht kaputt macht: Bekommt jede Übung
- * zwei Drittel ihrer Sätze, bekommt auch jede Muskelgruppe exakt zwei Drittel
- * ihres Ziels. Die Verteilung bleibt dieselbe, nur die Höhe ändert sich – und
- * targetOf() rechnet mit demselben Faktor, damit "Soll gegen Ist" weiter stimmt.
+ * die exakte Rechnung des Generators nicht kaputt macht: Bekommt jede Übung ein
+ * Drittel mehr Sätze, bekommt auch jede Muskelgruppe exakt ein Drittel mehr –
+ * die Verteilung bleibt dieselbe, nur die Höhe ändert sich, und targetOf()
+ * rechnet mit demselben Faktor, damit "Soll gegen Ist" weiter stimmt.
  *
  * Eigene Workouts bleiben außen vor: Was jemand selbst zusammenstellt, hat er
  * so gemeint (siehe exOf()).
  */
-const SAETZE_JE_STUFE = { anfaenger: 2, geuebt: 3, fortgeschritten: 4 };
+const SAETZE_JE_STUFE = { anfaenger: 3, geuebt: 3, fortgeschritten: 4 };
 
 const satzFaktor = () => (SAETZE_JE_STUFE[store.getState().level || 'geuebt'] || 3) / 3;
 
@@ -9621,201 +9632,26 @@ function naechstesGewicht(exId, richtung) {
 }
 
 /* ------------------------------------------------------------------ *
- * Wann ein Gewicht reif ist
+ * Was hier einmal stand: "Wann ein Gewicht reif ist"
  *
- * Die App hat nie ein Arbeitsgewicht angehoben. `weights` wurde ausschließlich
- * von Hand gepflegt, und der „Aufstieg" in js/stufen.js ist die Erfahrungs-
- * stufe – der ändert Satzzahlen, keine Kilo. Ein Plan ohne Progression ist
- * Erhaltung.
+ * Rund 180 Zeilen, die ausrechneten, wann die App zum Steigern raten sollte -
+ * Serien voller Termine beim selben Gewicht, ein Deckel gegen zu grosse
+ * Spruenge, ein gemerktes Nein je Uebung. Raus auf Ansage:
  *
- * **Womit gerechnet wird, und womit nicht.** Im Protokoll steht je Satz genau
- * zweierlei: das benutzte Gewicht und ob er abgehakt ist (js/store.js, getSets).
- * Kein Wiederholungsfeld – `r` gab es, es wurde nie beschrieben und ist raus.
- * Keine Anstrengung – die Satzfrage stand einmal im Training und wurde auf
- * Ansage entfernt (siehe den Kommentarblock in js/app.js). Damit bleibt genau
- * ein Signal, und es ist ein schwaches: *alle Sätze standen, beim selben
- * Gewicht, mehrmals hintereinander.*
+ *     "Es sollen nie Steigerungsvorschlaege kommen. Egal wann."
  *
- * Das ist weniger, als eine klassische doppelte Progression hätte. Es ist aber
- * das, was wirklich dasteht – und ein Vorschlag aus erfundenen Daten wäre
- * schlimmer als keiner. Deshalb sagt der Hinweis in der Oberfläche selbst
- * dazu, worauf er beruht: „Wie schwer die Sätze waren, weiß die App nicht –
- * nur, dass alle standen."
+ * Das ist die saubere Loesung und nicht die faule. Das Signal war von Anfang an
+ * duenn: Im Protokoll steht je Satz nur das Gewicht und ein Haken - keine
+ * Wiederholungen (ausdruecklich so gewollt: "das ist mit Absicht, Wiederholungen
+ * will ich nicht tracken"), keine Anstrengung. "Alle Saetze standen" kann nicht
+ * zwischen "gerade so geschafft" und "viel zu leicht" unterscheiden. Wer die
+ * Wiederholungen spuert, weiss es besser als jede Rechnung ueber Haken - und
+ * der + Knopf an der Gewichtszeile steht ja da.
  *
- * **Was hier bewusst nicht passiert: von selbst etwas ändern.** Dieselbe Regel
- * wie in js/muster.js. Gerechnet wird hier, entschieden wird von Hand.
+ * Mit rausgegangen: STEIGERUNG_*, protokollEinheiten(), auftritte(), serie(),
+ * reifeUebungen() und die Einstellung steigerungNein. Code, der nie wieder
+ * laufen kann, ist keine Reserve, sondern Ballast.
  * ------------------------------------------------------------------ */
-
-/** Wie viele volle Termine ein Schritt braucht. */
-const STEIGERUNG_REIF = 3;
-
-/**
- * Bei kleinen Übungen einer mehr.
- *
- * 2,5 kg auf eine Kniebeuge sind ein Achtel, auf eine Seitheben-Kurzhantel über
- * vierzig Prozent. Wo der kleinstmögliche Schritt prozentual groß ausfällt, darf
- * er länger auf sich warten lassen.
- */
-const STEIGERUNG_REIF_GROSS = 4;
-
-/** Ab wann ein Schritt „groß" ist: ein Sechstel des Arbeitsgewichts. */
-const STEIGERUNG_GROSS = 0.15;
-
-/**
- * Und ab wann er gar nicht mehr angeboten wird.
- *
- * Mit grobem Eisen kann der nächste erreichbare Wert weit springen – wer nur
- * 5er-Scheiben hat, geht bei beiden Kurzhanteln in Zehnerschritten je Hand. Ein
- * Sprung, den die App selbst als unbaubar groß erkennt, ist kein Angebot,
- * sondern eine Zumutung; dann schweigt sie, und der + Knopf steht ja weiter da.
- */
-const STEIGERUNG_DECKEL = 0.35;
-
-/** Wie viele Vorschläge höchstens auf einmal dastehen. */
-const STEIGERUNG_ZEILEN = 2;
-
-/**
- * Alle protokollierten Einheiten, jüngste zuerst – über Runden hinweg.
- *
- * Nicht nur `state.log`: wechsleFokus() schiebt das laufende Protokoll in die
- * Ablage und holt eine frühere Runde des Zielfokus zurück. Wer nur das Log
- * liest, dem reißt bei jedem Fokuswechsel die Reihe – derselbe Fehler, den
- * lebenStats() in js/bilanz.js schon einmal repariert hat.
- *
- * Eigene Einheiten bleiben draußen, wie in js/muster.js: Ein Zusatztag, den die
- * App selbst angelegt hat, soll keine Steigerung mitbelegen, um die niemand
- * gebeten hat.
- */
-function protokollEinheiten() {
-  const s = store.getState();
-  const raus = [];
-  // Dieselbe Zeile wie istCustom() in js/plan.js, und sie steht hier statt
-  // eines Imports: js/plan.js importiert dieses Modul (ruestOrderStabil), ein
-  // Import zurück wäre ein Zyklus – und tools/pruefung/schichten.py prüft genau
-  // darauf. Eine Kennung ist eine eigene Einheit, wenn sie mit 'c' beginnt.
-  const eigene = (n) => typeof n === 'string' && n.startsWith('c');
-  const sammeln = (log, ersatzTag) => {
-    Object.entries(log || {}).forEach(([n, e]) => {
-      if (!e || eigene(n)) return;
-      raus.push({ tag: e.startedOn || ersatzTag || '', e });
-    });
-  };
-  // `r &&`, und das ist kein Vorsichtsritual: tests/test-gesamt.mjs schiebt der
-  // App absichtlich beschädigte Stände unter, und ein `rounds: [null]` steht in
-  // einer alten oder halb geschriebenen Sicherung schneller, als man denkt. Ohne
-  // die Prüfung war es kein leerer Verlauf, sondern eine leere App.
-  (s.rounds || []).forEach((r) => { if (r) sammeln(r.log, r.finishedOn); });
-  sammeln(s.log, null);
-  return raus.filter((x) => x.tag).sort((a, b) => (a.tag < b.tag ? 1 : a.tag > b.tag ? -1 : 0));
-}
-
-/**
- * Was eine Übung in den protokollierten Einheiten gemacht hat, jüngste zuerst.
- *
- * Jeder Eintrag ist `{ tag, kg, voll }`. Einheiten, in denen für diese Übung
- * **kein einziger Haken** steht, kommen gar nicht vor – und das ist die
- * wichtigste Einzelentscheidung hier.
- *
- * Der Grund: getSets() legt beim Rendern für jede Übung der Einheit ein volles
- * Satz-Array an, auch für eine, die man nur angesehen und dann übersprungen
- * hat. Wer bloß `every(done)` prüft, wertet einen ausgefallenen Termin als
- * Fehlversuch und bricht die Reihe. Dass Übungen regelmäßig ausfallen, ist
- * keine Spekulation – js/muster.js existiert genau dafür. Also: „Eine Einheit,
- * in der nichts steht, ist keine ausgelassene Übung, sondern ein ausgefallener
- * Tag."
- *
- * Das Gewicht eines Auftritts ist das **kleinste** der abgehakten Sätze, nicht
- * das erste: Wer nach dem ersten Satz von 40 auf 35 heruntergeht, hat 35
- * gehalten. Heruntergehen ist ausdrücklich vorgesehen (siehe doneWeightNote).
- */
-function auftritte(exId, grenze = 12) {
-  const raus = [];
-  protokollEinheiten().some(({ tag, e }) => {
-    const arr = (e.db || {})[exId];
-    if (!Array.isArray(arr) || !arr.length) return false;
-    const fertig = arr.filter((s) => s && s.done);
-    if (!fertig.length) return false;             // angesehen, nicht gemacht
-    const kilos = fertig
-      .map((s) => parseFloat(String(s.w).replace(',', '.')))
-      .filter((x) => Number.isFinite(x) && x > 0);
-    if (!kilos.length) return false;              // ohne Zusatzlast – siehe unten
-    raus.push({ tag, kg: Math.min(...kilos), voll: arr.every((s) => s && s.done) });
-    return raus.length >= grenze;
-  });
-  return raus;
-}
-
-/**
- * Wie oft zuletzt hintereinander alles stand, beim selben Gewicht.
- *
- * Gibt `{ mal, kg, seit }` oder null. Gezählt wird von der jüngsten Einheit
- * rückwärts, und abgebrochen wird beim ersten Auftritt, der nicht voll war oder
- * ein anderes Gewicht trug.
- *
- * `voll` heißt `arr.every(done)` über das gespeicherte Array, nicht gegen die
- * *heutige* Satzzahl. Das ist die dokumentierte Falle aus js/store.js: getSets()
- * kürzt nur leere Sätze am Ende, „eine Einstellung darf keine Trainingsgeschichte
- * wegräumen". Ein damals volles Dreier-Array bleibt für immer 3/3 – auch nach
- * einem Stufenaufstieg, und auch für abgelegte Runden, deren Plan gar nicht
- * geladen ist.
- *
- * Zwei Dinge lassen die Reihe absichtlich reißen, ohne dass etwas kaputt ist:
- * ein Stufenaufstieg (er verlängert die Satzzahl, und die nächste Einheit ist
- * erst mit mehr Sätzen wieder voll) und jede Änderung des Arbeitsgewichts von
- * Hand. Beides sind falsche Neins – die richtige Seite des Fehlers.
- */
-function serie(exId) {
-  const liste = auftritte(exId);
-  if (!liste.length) return null;
-  const kg = liste[0].kg;
-  let mal = 0;
-  for (const a of liste) {
-    if (!a.voll || Math.abs(a.kg - kg) > 1e-9) break;
-    mal += 1;
-  }
-  return mal ? { mal, kg, seit: liste[mal - 1].tag } : null;
-}
-
-/**
- * Welche der übergebenen Übungen reif für einen Schritt sind.
- *
- * Übergeben wird die Liste der Übungen einer Einheit (die aufgelösten `it`),
- * damit hier nichts über den Plan gewusst werden muss.
- *
- * Draußen bleiben:
- *   * Übungen ohne Zusatzlast. chin-ups, pull-ups und inverted-row stehen mit
- *     Gewicht 0 im Katalog; ein Haken sagt dort nichts über die Last, und ihr
- *     eigener Katalogtext sagt „Zusatzgewicht erst, wenn 10 saubere stehen" –
- *     ob zehn saubere stehen, misst die App nicht.
- *   * Übungen, bei denen der Vorschlag schon abgelehnt wurde und sich seither
- *     am Arbeitsgewicht nichts geändert hat.
- *   * Sprünge über STEIGERUNG_DECKEL.
- */
-function reifeUebungen(items) {
-  const nein = store.getState().steigerungNein || {};
-  const raus = [];
-  (items || []).forEach((it) => {
-    const ex = EX_BY_ID.get(it.id);
-    if (!ex || !ex.weight) return;
-    const jetzt = workingWeight(it.id);
-    if (!Number.isFinite(jetzt) || jetzt <= 0) return;
-    if (Number.isFinite(nein[it.id]) && Math.abs(nein[it.id] - jetzt) < 1e-9) return;
-    const s = serie(it.id);
-    if (!s || Math.abs(s.kg - jetzt) > 1e-9) return;
-    const ziel = naechstesGewicht(it.id, 1);
-    if (!Number.isFinite(ziel) || ziel <= jetzt) return;
-    const anteil = (ziel - jetzt) / jetzt;
-    if (anteil > STEIGERUNG_DECKEL) return;
-    // Die Einteilung „groß/klein" rechnet am *laufenden* Arbeitsgewicht, nicht
-    // am Katalogwert. Sie wandert deshalb mit: Seitheben 6 → 7 kg sind 16,7 %
-    // und brauchen vier Termine, später 12 → 13 kg nur noch 8,3 % und drei.
-    // Das ist gewollt – der Sprung wird ja auch wirklich leichter.
-    const reif = anteil > STEIGERUNG_GROSS ? STEIGERUNG_REIF_GROSS : STEIGERUNG_REIF;
-    if (s.mal < reif) return;
-    raus.push({ id: it.id, name: (it.name || ex.id), jetzt, ziel, mal: s.mal, seit: s.seit });
-  });
-  return raus.sort((a, b) => b.mal - a.mal || a.name.localeCompare(b.name));
-}
 
 /** „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt. */
 function ladeText(exId, kg) {
@@ -11844,58 +11680,17 @@ function speicherWarnung() {
     Dann die Seite direkt im Browser öffnen.</div>`;
 }
 
-/** Der Hinweis auf dem Dashboard, bis er weggetippt wird. */
-/**
- * „Diese Gewichte stehen" – der einzige Ort, an dem die App zum Steigern rät.
+/*
+ * Hier stand "Diese Gewichte stehen" - der eine Ort, an dem die App zum Steigern
+ * riet. Raus, und zwar ganz:
  *
- * **Wo er nicht steht, und das ist der wichtigere Teil:** nicht in renderFocus,
- * nicht unter der Gewichtszeile, nicht zwischen zwei Sätzen, nicht in
- * ruestHint, nicht als Meldung nach dem Abschluss. Im Training wird trainiert.
- * Die Satzfrage stand einmal mitten drin und ist auf Ansage geflogen; das hier
- * ist die Fassung, die aus dieser Entscheidung folgt.
+ *     "Es sollen nie Steigerungsvorschlaege kommen. Egal wann."
  *
- * Drei Sperren, jede aus einem eigenen Grund:
- *
- *   Laufende Einheit   renderDashboard ist nicht nur die Vorschau, sondern im
- *                      Listenmodus auch die laufende Trainingsansicht. Ohne
- *                      diese Sperre stünden die Knöpfe mitten im Satz da.
- *   Nur die fällige    ui.workoutNo folgt dem Blättern, nicht dem Kalender. Wer
- *                      vorspult, soll keine Gewichte für einen Termin in drei
- *                      Wochen setzen.
- *   Cut               *„Im Cut-Fokus ganz schweigen."* Der Cut-Plan sagt in
- *                      dieser App selbst: „Im Defizit hält die Last die
- *                      Muskeln, nicht das Volumen." Ein Hinweis, der dabei zum
- *                      Steigern rät, widerspricht dem eigenen Text. Es hängt am
- *                      Fokus und nicht an der Waage – die App verhält sich nie
- *                      unbemerkt anders, weil sie eine Zahl gesehen hat.
+ * Vorher war der Hinweis nur im Cut-Fokus gesperrt, und diese Sperre stand auf
+ * einer Begruendung, die einer Pruefung nicht standgehalten hat. Jetzt gibt es
+ * die Frage nicht mehr: Gesteigert wird von Hand, am + der Gewichtszeile. Die
+ * Rechnung dahinter ist in js/gewichte.js mit entfallen - siehe den Block dort.
  */
-function steigerungHinweis(n, items) {
-  const s = store.getState();
-  if (s.focus === 'cut') return '';
-  if (s.session && s.session.n === n) return '';
-  if (n !== defaultWorkoutNo()) return '';
-  const reif = reifeUebungen(items).slice(0, STEIGERUNG_ZEILEN);
-  if (!reif.length) return '';
-  const malWort = ['', 'einmal', 'zweimal', 'dreimal', 'viermal', 'fünfmal', 'sechsmal'];
-  return `
-    <div class="notice">
-      <strong>Diese Gewichte stehen</strong>
-      ${reif.map((r) => `
-        <div class="small" style="margin-top:8px">${esc(r.name)}:
-          ${esc(malWort[Math.min(r.mal, 6)] || `${r.mal}-mal`)} zuletzt alle Sätze bei
-          ${esc(fmtNum(r.jetzt))} kg, seit dem ${esc(fmtDate(r.seit))}.</div>
-        <div class="btn-row">
-          <button type="button" class="btn btn-primary" data-act="steigern"
-                  data-ex="${esc(r.id)}" data-name="${esc(r.name)}"
-                  >auf ${esc(fmtNum(r.ziel))} kg</button>
-          <button type="button" class="btn btn-ghost" data-act="steigern-nein"
-                  data-ex="${esc(r.id)}" data-name="${esc(r.name)}"
-                  >bleibt bei ${esc(fmtNum(r.jetzt))} kg</button>
-        </div>`).join('')}
-      <div class="small muted" style="margin-top:8px">Wie schwer die Sätze waren, weiß die
-        App nicht – nur, dass alle standen. War das Gewicht noch schwer genug, bleib dabei.</div>
-    </div>`;
-}
 
 function aufstiegHinweis() {
   const a = store.getState().aufstieg;
@@ -11903,14 +11698,20 @@ function aufstiegHinweis() {
   const name = (k) => (LEVELS.find(([key]) => key === k) || [])[1] || k;
   const vorher = SAETZE_JE_STUFE[a.von] || 3;
   const jetzt = SAETZE_JE_STUFE[a.nach] || 3;
+  // Seit die Anfängerstufe die Sätze nicht mehr kürzt, ändert der erste
+  // Aufstieg die Satzzahl gar nicht mehr – "3 statt 3 Sätze" wäre Unsinn. Dann
+  // steht da, was sich wirklich ändert: die schwerere Fassung der Übung.
+  const was = jetzt === vorher
+    ? 'Die Satzzahl bleibt; wo es von einer Übung eine leichtere Anfängerfassung gab, '
+      + 'steht ab jetzt die reguläre im Plan.'
+    : `Ab jetzt stehen ${jetzt} statt ${vorher} Sätze je Übung im Plan.`;
   return `
     <div class="notice aufstieg" style="margin:0 0 12px">
       <strong>Aufgestiegen: ${esc(name(a.nach))}</strong>
       <div class="small" style="margin-top:6px">
         Insgesamt ${a.einheiten} Einheiten${a.tonnen ? ` und ${fmtNum(a.tonnen)} Tonnen bewegt` : ''} –
-        das ist keine Anfängerlast mehr. Ab jetzt stehen ${jetzt} statt ${vorher} Sätze je
-        Übung im Plan; Übungen, Pausen und die Verteilung über die Woche bleiben, wie sie
-        sind. Deine eingetragenen Gewichte rührt das nicht an.
+        das ist keine Anfängerlast mehr. ${was} Übungen, Pausen und die Verteilung über die
+        Woche bleiben sonst, wie sie sind. Deine eingetragenen Gewichte rührt das nicht an.
         ${store.getState().rounds.length ? `<div style="margin-top:6px">Gezählt über alle
           Runden, nicht nur die laufende – ein Neustart oder ein Wechsel des Fokus wirft
           dich nicht zurück.</div>` : ''}
@@ -13086,7 +12887,6 @@ function renderOverview() {
   const today = todayISO();
   const date = effDate(w);
   const diff = daysBetween(today, date);
-  const shift = store.getState().shift;
 
   let when;
   if (diff === 0) when = 'Heute';
@@ -13108,7 +12908,6 @@ function renderOverview() {
     <section class="ov">
       ${umzugHinweis()}
       ${aufstiegHinweis()}
-      ${steigerungHinweis(n, items)}
       ${speicherWarnung()}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
            Frage, ob eine neue Kalenderdatei erzeugt werden soll. Beides raus,
@@ -13673,7 +13472,6 @@ function renderDashboard() {
   const today = todayISO();
   const date = effDate(w);
   const diff = daysBetween(today, date);
-  const shift = store.getState().shift;
   const sess = store.getState().session;
   const session = sess && sess.n === n ? sess : null;
 
@@ -14897,6 +14695,39 @@ function bandRow(it) {
 }
 
 /**
+ * Einen Link in die Zwischenablage legen.
+ *
+ * Diese Funktion gab es nicht. Drei Stellen riefen sie trotzdem auf - "Link
+ * kopieren" unter Mehr, und die beiden Teilen-Knoepfe auf jedem Geraet ohne
+ * navigator.share (jeder Desktop-Firefox etwa). Alle drei liefen in einen
+ * ReferenceError, und "Link kopieren" tat nie etwas anderes als das. Gefunden
+ * hat es der Linter beim allerersten Lauf; kein Browsertest war je dort.
+ *
+ * Mit Rueckfalltuer: navigator.clipboard gibt es nur im sicheren Kontext, und
+ * ohne ihn ist ein markiertes Feld immer noch besser als nichts.
+ */
+function linkKopieren(url) {
+  const gut = () => toast('Link kopiert');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(gut).catch(() => zeigeLink(url));
+    return;
+  }
+  zeigeLink(url);
+}
+
+/** Letzte Rettung: den Link sichtbar hinstellen, markiert, zum Selbstkopieren. */
+function zeigeLink(url) {
+  const feld = document.createElement('input');
+  feld.value = url;
+  feld.setAttribute('readonly', '');
+  feld.style.cssText = 'position:fixed;left:8px;right:8px;bottom:72px;width:auto;z-index:99';
+  document.body.appendChild(feld);
+  feld.select();
+  toast('Kopieren ging nicht - der Link steht unten zum Markieren.');
+  setTimeout(() => feld.remove(), 15000);
+}
+
+/**
  * Ausführliche Erklärung zu einer Übung, aufklappbar.
  *
  * Der kurze Hinweis über der Bewegung sagt, was zu tun ist. Alles, was man
@@ -15775,7 +15606,6 @@ function renderInjuries() {
     .map((i) => ({ spot: i.spot, kind: i.kind }));
 
   // Auswirkungen über den ganzen Plan, nicht nur über heute
-  const block = blocked(act);
   const gone = [];
   const swapCount = new Map();
   let wegenPause = 0;
@@ -17324,36 +17154,6 @@ view.addEventListener('click', (e) => {
       // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
       const started = (store.peekSets(n, mode, id) || []).some((s) => s.done);
       toast(started ? `Ab dem nächsten Satz ${fmtNum(kg)} kg` : `${fmtNum(kg)} kg`);
-      break;
-    }
-    case 'steigern': {
-      // Genau das, was 'weight-step' tut, und kein ruestCache.clear() dabei:
-      // ruestOrderStabil() hält die Reihenfolge einer begonnenen Einheit
-      // ausdrücklich fest, damit die Karten beim Ändern eines Gewichts nicht
-      // unter dem Finger springen. Ein Aufstieg ist kein Grund, das zu brechen.
-      const id = t.dataset.ex;
-      const kg = store.setWeight(id, naechstesGewicht(id, 1));
-      // Ein früheres Nein für diese Übung ist erledigt – nicht wegen des
-      // Speichers, sondern damit die Sicherungsdatei lesbar bleibt: ein
-      // steigerungNein mit zwanzig längst gestiegenen Übungen sieht aus wie
-      // ein Fehler.
-      const nein = { ...(store.getState().steigerungNein || {}) };
-      delete nein[id];
-      store.setSetting('steigerungNein', nein);
-      render();
-      // toast() schreibt textContent – esc() wäre hier falsch und zeigte Entities.
-      toast(`${t.dataset.name || 'Gewicht'}: ab jetzt ${fmtNum(kg)} kg`);
-      break;
-    }
-    case 'steigern-nein': {
-      const id = t.dataset.ex;
-      const kg = workingWeight(id);
-      store.setSetting('steigerungNein', {
-        ...(store.getState().steigerungNein || {}), [id]: kg,
-      });
-      render();
-      toast(`${t.dataset.name || 'Gewicht'} bleibt bei ${fmtNum(kg)} kg`
-        + ' – kommt erst wieder, wenn du das Gewicht änderst');
       break;
     }
     case 'restart-plan': {

@@ -602,6 +602,29 @@ Praxis also „irgendwann zwischen 03:00 und 05:30 UTC". Das ist der Grund für 
 krumme Minute, und es ist der Grund, warum die Erinnerung nachts losgeschickt
 wird statt zur Zielzeit.
 
+**Zwei Konsequenzen daraus.** Erstens: Die Haltbarkeit (TTL) steht jetzt auf
+zwölf Stunden statt einer. Eine Stunde war unter der Annahme gewählt, dass kurz
+nach Mitternacht gesendet wird; wird tatsächlich erst um 05:00 UTC gesendet und
+ist das Handy dann noch aus, warf der Push-Dienst die Nachricht weg. Das ist
+ungefährlich, weil nicht der Absender entscheidet, ob etwas erscheint: Der
+Service Worker prüft beim Aufwachen das Datum und ob heute schon gemeldet wurde,
+also zeigt ein spät zugestellter Push entweder die richtige Erinnerung oder gar
+nichts.
+
+Zweitens: Es wird **zweimal** gesendet, `23 0` und `37 4` UTC. Angezeigt wird
+weiterhin höchstens einmal am Tag — der zweite Push läuft in den Zweig „heute
+schon gemeldet". Er ist kein zweiter Hinweis, sondern ein zweiter Anlauf gegen
+Doze: Mit dem gemessenen Verzug landet er gegen 11:00 Ortszeit, also zu einer
+Zeit, zu der das Handy benutzt wird, und ein Push, der bei eingeschaltetem
+Bildschirm ankommt, erscheint sofort.
+
+Der Preis ist echt und steht auch im Ablauf: An einem Ruhetag sind das zwei
+stille Pushes statt einem. Chrome mag stille Pushes nicht und blendet
+irgendwann von sich aus „im Hintergrund aktualisiert" ein — genau die zweite
+Meldung, über die hier schon einmal gestolpert wurde. Taucht sie wieder auf,
+gehört der zweite Eintrag wieder raus. **Die eigentliche Abhilfe liegt am
+Gerät:** *Einstellungen → Apps → Chrome → Akku → uneingeschränkt.*
+
 **Die Schlüssel entstehen im Browser.** VAPID braucht ein Schlüsselpaar; es wird
 auf dem Gerät erzeugt (`js/push.js`, WebCrypto) und verlässt es einmal, als
 Text, den man selbst als GitHub-Secret einfügt. Nicht über einen Dienst, nicht
@@ -2275,6 +2298,28 @@ herauskommt.
 
 ## Prüfen
 
+### Der Linter
+
+`npm run lint` (ESLint, Konfiguration in `eslint.config.mjs`). Er liest den Code,
+ohne ihn auszuführen, und findet damit die Sorte Fehler, die 1337 Browsertests
+nicht sehen können: eine Variable, die nach einem Umbau niemand mehr liest; ein
+`case` ohne `break`; eine Funktion, die in einem Zweig nichts zurückgibt.
+
+**Beim allerersten Lauf fand er einen echten:** `linkKopieren()` wurde an drei
+Stellen aufgerufen — „Link kopieren" unter *Mehr* und beide Teilen-Knöpfe auf
+jedem Gerät ohne `navigator.share` — und war **nirgends definiert**. Alle drei
+liefen in einen `ReferenceError`; „Link kopieren" hat nie etwas anderes getan.
+Kein Test war je an dieser Stelle. Dazu 58 kleinere Funde: vier ungenutzte
+Importe, zwei tote `shift`-Variablen, ein toter Helfer in `js/figure.js`.
+
+Bewusst **kein Stilregelwerk**: keine Zeilenlänge, keine Anführungszeichen,
+keine Kommaregeln. Ein Linter, der bei jedem Lauf zweihundert
+Formatierungswünsche meldet, wird nach einer Woche weggeklickt — und meldet die
+echten Funde dann an niemanden mehr. Was drinsteht, sind
+`js.configs.recommended` plus eine Handvoll Regeln, von denen jede hier schon
+einmal etwas kaputt gemacht hat. Er läuft in CI vor den Browsertests.
+
+
 Die App hat keinen Bauschritt, aber sie hat zwei Dinge, die stillschweigend
 kaputtgehen können: erzeugte Dateien und eine Mathematik. Beides wird bei jedem
 Push nachgerechnet.
@@ -3133,6 +3178,56 @@ hing an den Antworten; ohne sie weiß die App wieder nicht, wie schwer ein Satz
 war. Ein Vorschlag ohne diese Kenntnis wäre geraten, und geraten ist schlechter
 als still. Was aufs Eisen kommt, entscheidet weiter der, der darunter liegt —
 die Knöpfe dafür stehen über jedem Satz.
+
+### Und dann ganz: keine Steigerungsvorschläge mehr
+
+Später kam ein Vorschlag doch zurück — nicht aus Antworten, sondern aus dem
+einzigen Signal, das noch da war: *alle Sätze standen, beim selben Gewicht,
+mehrmals hintereinander*. Er ist wieder weg, diesmal restlos:
+
+> „Es sollen nie Steigerungsvorschläge kommen. Egal wann."
+
+Vorher war er nur im Cut-Fokus gesperrt — auf einer Begründung, die einer
+Prüfung nicht standgehalten hat. Jetzt gibt es die Frage nicht mehr. Mit
+rausgegangen sind rund 180 Zeilen: `STEIGERUNG_*`, `protokollEinheiten()`,
+`auftritte()`, `serie()`, `reifeUebungen()`, die beiden Knöpfe und die
+Einstellung `steigerungNein`. Code, der nie wieder laufen kann, ist keine
+Reserve, sondern Ballast; `tests/test-weights.mjs` hält am Quelltext fest, dass
+nichts davon zurückkommt.
+
+Das Signal war ohnehin dünn. Wiederholungen werden bewusst nicht protokolliert
+(*„das ist mit Absicht, Wiederholungen will ich nicht tracken"*), und „alle Sätze
+standen" unterscheidet nicht zwischen *gerade so geschafft* und *viel zu leicht*.
+Wer die Wiederholungen spürt, weiß es besser als jede Rechnung über Haken. Der
+`+` an der Gewichtszeile steht da.
+
+### Anfänger heißt leichter, nicht weniger
+
+Die Erfahrungsstufe hat die Satzzahl skaliert: Anfänger zwei statt drei Sätze je
+Übung. Die Begründung dafür stimmt für sich — wer neu anfängt, wächst schon bei
+drei bis fünf Sätzen je Muskel und Woche fast maximal. Nur ist das eine Aussage
+über *Sätze je Muskel und Woche*, und nachgemessen lag das Ergebnis darunter
+(Cut-Plan, gewichtete Sätze je Muskelgruppe und Woche):
+
+| Muskelgruppe | zwei Sätze | drei Sätze |
+| --- | --- | --- |
+| Beinbeuger (Knie) | **2,0** | 3,0 |
+| Beinbeuger (Hüfte) | **3,3** | 5,0 |
+| Schulter vorn | **4,0** | 5,9 |
+| Oberschenkel, Waden | **4,0** | 6,0 |
+| übrige zehn Gruppen | 4,7 – 6,0 | 7,0 – 9,0 |
+| **je Woche gesamt** | **38** | **57** |
+
+Fünf von vierzehn Gruppen lagen also an oder unter der Untergrenze, die derselbe
+Absatz selbst nennt — und zwar genau die Gruppen, die ohnehin am wenigsten
+bekommen. Als Schonung gemeint, in der Rechnung eine Kürzung unter die
+Wirkschwelle.
+
+Anfänger heißt deshalb jetzt: **halbe Startgewichte und, wo es sie gibt, die
+einfachere Fassung der Übung** — dieselben Sätze wie im Plan. Das ist auch die
+ehrlichere Lesart: Wer neu ist, braucht eine Last, die er beherrscht, und eine
+Bewegung, die er kann, nicht ein Drittel weniger Reiz. Fortgeschritten legt
+weiterhin ein Drittel zu; dort ist mehr Volumen der Reiz, der fehlt.
 
 Was bleibt: `gezaehlteReps()` versteht ein `wie` weiterhin, wenn es dasteht.
 Sätze, die in den Tagen dazwischen abgehakt wurden, behalten ihre Zahl;

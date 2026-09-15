@@ -27,10 +27,10 @@ import { plural } from './dates.js';
 
 export const LEVELS = [
   ['anfaenger', 'Anfänger', 'Neu im Krafttraining oder lange raus. Startgewichte auf der '
-    + 'Hälfte und zwei Sätze je Übung statt drei: Wer neu anfängt, wächst schon bei wenig '
-    + 'Volumen – die ersten Wochen entscheidet die Technik, nicht die Scheibe.', 0.5],
+    + 'Hälfte und, wo es sie gibt, die einfachere Fassung der Übung – die ersten Wochen '
+    + 'entscheidet die Technik, nicht die Scheibe. Die Sätze bleiben die des Plans.', 0.5],
   ['geuebt', 'Geübt', 'Du weißt, wie sich ein sauberer Satz anfühlt, und trainierst schon '
-    + 'eine Weile. Startgewichte und drei Sätze je Übung passen so.', 1],
+    + 'eine Weile. Startgewichte und Sätze wie im Plan.', 1],
   ['fortgeschritten', 'Fortgeschritten', 'Jahre im Training, die Technik sitzt. Startgewichte '
     + 'um die Hälfte höher und vier Sätze je Übung – dein Reiz liegt weiter oben.', 1.5],
 ];
@@ -60,24 +60,43 @@ export const levelFaktor = () => {
 /**
  * Sätze je Übung nach Erfahrung.
  *
- * Die Stufe skalierte lange nur die Startgewichte. Dabei ist das *Volumen* die
- * Größe, die sich zwischen Anfänger und Fortgeschrittenem am deutlichsten
- * unterscheidet: Wer neu anfängt, wächst schon bei drei bis fünf Sätzen je
- * Muskel und Woche fast maximal – die Dosis-Wirkungs-Kurve ist dort oben flach.
- * Mehr bringt kaum etwas und kostet das, woran es bei Anfängern wirklich hängt:
- * saubere Technik in den letzten Sätzen, erträglicher Muskelkater, und eine
- * Einheit, die man ein halbes Jahr lang durchhält.
+ * Anfänger stand hier lange auf **zwei** Sätzen, mit einer Begründung, die für
+ * sich genommen stimmt: Wer neu anfängt, wächst schon bei drei bis fünf Sätzen
+ * je Muskel und Woche fast maximal. Nur ist das eine Aussage über *Sätze je
+ * Muskel und Woche* – und was dabei herauskam, lag darunter. Nachgemessen im
+ * Cut-Plan, gewichtete Sätze je Muskelgruppe und Woche:
+ *
+ *                         zwei Sätze    drei Sätze
+ *   Beinbeuger (Knie)         2,0          3,0
+ *   Beinbeuger (Hüfte)        3,3          5,0
+ *   Schulter vorn             4,0          5,9
+ *   Oberschenkel, Waden       4,0          6,0
+ *   Rest                   4,7 – 6,0    7,0 – 9,0
+ *   je Woche gesamt            38           57
+ *
+ * Fünf von vierzehn Gruppen lagen also an oder unter der Untergrenze, die
+ * derselbe Absatz selbst nennt. Der Faktor war als Schonung gemeint und war in
+ * der Rechnung eine Kürzung unter die Wirkschwelle – gerade in den Gruppen, die
+ * ohnehin die wenigsten Sätze haben.
+ *
+ * Also heißt Anfänger jetzt: **leichtere Startgewichte und die einfachere
+ * Fassung der Übung** (siehe levelFaktor() und anfaengerFassung() in
+ * js/plan.js), aber dieselben Sätze wie im Plan. Das ist auch die ehrlichere
+ * Lesart der Stufe: Wer neu ist, braucht eine Last, die er beherrscht, und eine
+ * Bewegung, die er kann – nicht ein Drittel weniger Reiz.
+ *
+ * Fortgeschritten legt weiterhin zu: Dort ist mehr Volumen der Reiz, der fehlt.
  *
  * Skaliert wird **gleichmäßig über alle Übungen**. Das ist der Grund, warum es
- * die exakte Rechnung des Generators nicht kaputt macht: Bekommt jede Übung
- * zwei Drittel ihrer Sätze, bekommt auch jede Muskelgruppe exakt zwei Drittel
- * ihres Ziels. Die Verteilung bleibt dieselbe, nur die Höhe ändert sich – und
- * targetOf() rechnet mit demselben Faktor, damit "Soll gegen Ist" weiter stimmt.
+ * die exakte Rechnung des Generators nicht kaputt macht: Bekommt jede Übung ein
+ * Drittel mehr Sätze, bekommt auch jede Muskelgruppe exakt ein Drittel mehr –
+ * die Verteilung bleibt dieselbe, nur die Höhe ändert sich, und targetOf()
+ * rechnet mit demselben Faktor, damit "Soll gegen Ist" weiter stimmt.
  *
  * Eigene Workouts bleiben außen vor: Was jemand selbst zusammenstellt, hat er
  * so gemeint (siehe exOf()).
  */
-export const SAETZE_JE_STUFE = { anfaenger: 2, geuebt: 3, fortgeschritten: 4 };
+export const SAETZE_JE_STUFE = { anfaenger: 3, geuebt: 3, fortgeschritten: 4 };
 
 export const satzFaktor = () => (SAETZE_JE_STUFE[store.getState().level || 'geuebt'] || 3) / 3;
 

@@ -50,21 +50,35 @@ const yml = await readFile(
   path.join(ROOT, '.github', 'workflows', 'push-erinnerung.yml'), 'utf8');
 check(/urgency:\s*["']high["']/.test(yml),
   'der Absender schickt mit urgency „high" – sonst hält Android ihn zurück');
-check(/TTL:\s*3600/.test(yml),
-  'und mit einer Stunde Haltbarkeit: später ist die Erinnerung ohnehin sinnlos');
+// Haltbarkeit: zwölf Stunden. Eine Stunde war unter der Annahme gewählt, dass
+// kurz nach Mitternacht gesendet wird – gesendet wird aber irgendwann bis 05:30
+// UTC, und ein Handy, das nachts aus ist, bekam den Push dann gar nicht mehr.
+// Ungefährlich, weil das Gerät beim Aufwachen ohnehin Datum und „heute schon
+// gemeldet" prüft.
+check(/TTL:\s*43200/.test(yml),
+  'und mit zwölf Stunden Haltbarkeit, damit ein ausgeschaltetes Handy ihn nicht verliert');
 // Zur vollen Stunde ist die Warteschlange bei GitHub am längsten. Gemessen an
 // den ersten beiden Läufen: 3 h 47 min und 4 h 37 min zu spät.
 const crons = [...yml.matchAll(/cron:\s*'(\d+)\s+(\d+)\s/g)]
   .map((m) => ({ min: Number(m[1]), std: Number(m[2]) }));
 check(crons.length >= 1 && crons.every((c) => c.min !== 0),
   `keine Sendung zur vollen Stunde (Minuten: ${crons.map((c) => c.min).join(', ')})`);
-// Und nach Mitternacht UTC, nicht davor. Der Verzug ist der Grund, warum hier
-// überhaupt so früh gesendet wird – die Meldung soll *dastehen*, wenn der Tag
-// anfängt. 22:00 UTC wäre in der Sommerzeit Mitternacht, im Winter aber 23:00
-// des Vortags: Der Worker vergleicht `zettel.tag <= heute` und zeigte dann
-// nichts. Nach 00:00 UTC kann das in keiner Jahreszeit passieren.
-check(crons.length >= 1 && crons.every((c) => c.std <= 2),
-  `gesendet wird kurz nach Mitternacht UTC (Stunden: ${crons.map((c) => c.std).join(', ')})`);
+// Und nach Mitternacht UTC, nicht davor. 22:00 UTC wäre in der Sommerzeit
+// Mitternacht, im Winter aber 23:00 des Vortags: Der Worker vergleicht
+// `zettel.tag <= heute` und zeigte dann nichts. Nach 00:00 UTC kann das in
+// keiner Jahreszeit passieren – und vor 12:00 UTC, damit auch der zweite
+// Versuch am selben Tag landet.
+check(crons.length >= 1 && crons.every((c) => c.std >= 0 && c.std < 12),
+  `gesendet wird nach Mitternacht UTC und vor Mittag (Stunden: ${crons.map((c) => c.std).join(', ')})`);
+// Zwei Versuche am Tag: einer in der Nacht, einer am Vormittag. Angezeigt wird
+// trotzdem höchstens einmal – das entscheidet erinnern() im Worker, Zweig
+// „heute schon gemeldet", und genau das prüft dieser Test weiter unten.
+// Der zweite ist der Anlauf gegen Doze: Am 14.09. lag die Meldung elf Stunden
+// im Handy, bis sie beim Entsperren erschien.
+check(crons.length === 2,
+  `zwei Versuche am Tag (${crons.map((c) => `${c.std}:${String(c.min).padStart(2, '0')}`).join(', ')})`);
+check(Math.abs(crons[0].std - crons[1].std) >= 3,
+  'und sie liegen weit genug auseinander, um verschiedene Tageszeiten zu treffen');
 
 // --- 2. Der Worker ------------------------------------------------------
 await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null,

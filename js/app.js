@@ -23,7 +23,7 @@ import * as store from './store.js';
 import { todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD } from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
-import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, applyInjuries, blocked, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
+import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, blocked, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
 import { sparkPanel } from './chart.js';
 import { buildICS } from './ics.js';
 import { CONFIG, hatServer } from './config.js';
@@ -33,14 +33,14 @@ import { esc, fmtNum } from './text.js';
 import { EX_BY_ID, plannedReps, stufenWerte } from './uebung.js';
 import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, offenerAufstieg, satzFaktor, satzZahl } from './stufen.js';
 import {
-  STEIGERUNG_ZEILEN, aufwaermsaetze, doneWeightNote, meinSatz, naechstesGewicht,
-  reifeUebungen, ruestCache, ruestHint,
-  vorgezogen, workingWeight,
+  aufwaermsaetze, doneWeightNote, meinSatz, naechstesGewicht,
+  ruestCache, ruestHint,
+  workingWeight,
 } from './gewichte.js';
 import { RASTER, STANGE_LABEL, erreichbar, normSatz, stangeZaehlt } from './scheiben.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { WEEK_SESSIONS, activeInjuries, planSaetze, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachSumme, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
-import { bilanzAus, gesamtStats, lebenStats, pruefeAufstieg, rundenBilanz, zahl } from './bilanz.js';
+import { WEEK_SESSIONS, activeInjuries, planSaetze, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
+import { bilanzAus, gesamtStats, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { abbruch, ausgelassen, vorneListe, vorneUm } from './muster.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
@@ -201,58 +201,17 @@ function speicherWarnung() {
     Dann die Seite direkt im Browser öffnen.</div>`;
 }
 
-/** Der Hinweis auf dem Dashboard, bis er weggetippt wird. */
-/**
- * „Diese Gewichte stehen" – der einzige Ort, an dem die App zum Steigern rät.
+/*
+ * Hier stand "Diese Gewichte stehen" - der eine Ort, an dem die App zum Steigern
+ * riet. Raus, und zwar ganz:
  *
- * **Wo er nicht steht, und das ist der wichtigere Teil:** nicht in renderFocus,
- * nicht unter der Gewichtszeile, nicht zwischen zwei Sätzen, nicht in
- * ruestHint, nicht als Meldung nach dem Abschluss. Im Training wird trainiert.
- * Die Satzfrage stand einmal mitten drin und ist auf Ansage geflogen; das hier
- * ist die Fassung, die aus dieser Entscheidung folgt.
+ *     "Es sollen nie Steigerungsvorschlaege kommen. Egal wann."
  *
- * Drei Sperren, jede aus einem eigenen Grund:
- *
- *   Laufende Einheit   renderDashboard ist nicht nur die Vorschau, sondern im
- *                      Listenmodus auch die laufende Trainingsansicht. Ohne
- *                      diese Sperre stünden die Knöpfe mitten im Satz da.
- *   Nur die fällige    ui.workoutNo folgt dem Blättern, nicht dem Kalender. Wer
- *                      vorspult, soll keine Gewichte für einen Termin in drei
- *                      Wochen setzen.
- *   Cut               *„Im Cut-Fokus ganz schweigen."* Der Cut-Plan sagt in
- *                      dieser App selbst: „Im Defizit hält die Last die
- *                      Muskeln, nicht das Volumen." Ein Hinweis, der dabei zum
- *                      Steigern rät, widerspricht dem eigenen Text. Es hängt am
- *                      Fokus und nicht an der Waage – die App verhält sich nie
- *                      unbemerkt anders, weil sie eine Zahl gesehen hat.
+ * Vorher war der Hinweis nur im Cut-Fokus gesperrt, und diese Sperre stand auf
+ * einer Begruendung, die einer Pruefung nicht standgehalten hat. Jetzt gibt es
+ * die Frage nicht mehr: Gesteigert wird von Hand, am + der Gewichtszeile. Die
+ * Rechnung dahinter ist in js/gewichte.js mit entfallen - siehe den Block dort.
  */
-function steigerungHinweis(n, items) {
-  const s = store.getState();
-  if (s.focus === 'cut') return '';
-  if (s.session && s.session.n === n) return '';
-  if (n !== defaultWorkoutNo()) return '';
-  const reif = reifeUebungen(items).slice(0, STEIGERUNG_ZEILEN);
-  if (!reif.length) return '';
-  const malWort = ['', 'einmal', 'zweimal', 'dreimal', 'viermal', 'fünfmal', 'sechsmal'];
-  return `
-    <div class="notice">
-      <strong>Diese Gewichte stehen</strong>
-      ${reif.map((r) => `
-        <div class="small" style="margin-top:8px">${esc(r.name)}:
-          ${esc(malWort[Math.min(r.mal, 6)] || `${r.mal}-mal`)} zuletzt alle Sätze bei
-          ${esc(fmtNum(r.jetzt))} kg, seit dem ${esc(fmtDate(r.seit))}.</div>
-        <div class="btn-row">
-          <button type="button" class="btn btn-primary" data-act="steigern"
-                  data-ex="${esc(r.id)}" data-name="${esc(r.name)}"
-                  >auf ${esc(fmtNum(r.ziel))} kg</button>
-          <button type="button" class="btn btn-ghost" data-act="steigern-nein"
-                  data-ex="${esc(r.id)}" data-name="${esc(r.name)}"
-                  >bleibt bei ${esc(fmtNum(r.jetzt))} kg</button>
-        </div>`).join('')}
-      <div class="small muted" style="margin-top:8px">Wie schwer die Sätze waren, weiß die
-        App nicht – nur, dass alle standen. War das Gewicht noch schwer genug, bleib dabei.</div>
-    </div>`;
-}
 
 function aufstiegHinweis() {
   const a = store.getState().aufstieg;
@@ -260,14 +219,20 @@ function aufstiegHinweis() {
   const name = (k) => (LEVELS.find(([key]) => key === k) || [])[1] || k;
   const vorher = SAETZE_JE_STUFE[a.von] || 3;
   const jetzt = SAETZE_JE_STUFE[a.nach] || 3;
+  // Seit die Anfängerstufe die Sätze nicht mehr kürzt, ändert der erste
+  // Aufstieg die Satzzahl gar nicht mehr – "3 statt 3 Sätze" wäre Unsinn. Dann
+  // steht da, was sich wirklich ändert: die schwerere Fassung der Übung.
+  const was = jetzt === vorher
+    ? 'Die Satzzahl bleibt; wo es von einer Übung eine leichtere Anfängerfassung gab, '
+      + 'steht ab jetzt die reguläre im Plan.'
+    : `Ab jetzt stehen ${jetzt} statt ${vorher} Sätze je Übung im Plan.`;
   return `
     <div class="notice aufstieg" style="margin:0 0 12px">
       <strong>Aufgestiegen: ${esc(name(a.nach))}</strong>
       <div class="small" style="margin-top:6px">
         Insgesamt ${a.einheiten} Einheiten${a.tonnen ? ` und ${fmtNum(a.tonnen)} Tonnen bewegt` : ''} –
-        das ist keine Anfängerlast mehr. Ab jetzt stehen ${jetzt} statt ${vorher} Sätze je
-        Übung im Plan; Übungen, Pausen und die Verteilung über die Woche bleiben, wie sie
-        sind. Deine eingetragenen Gewichte rührt das nicht an.
+        das ist keine Anfängerlast mehr. ${was} Übungen, Pausen und die Verteilung über die
+        Woche bleiben sonst, wie sie sind. Deine eingetragenen Gewichte rührt das nicht an.
         ${store.getState().rounds.length ? `<div style="margin-top:6px">Gezählt über alle
           Runden, nicht nur die laufende – ein Neustart oder ein Wechsel des Fokus wirft
           dich nicht zurück.</div>` : ''}
@@ -1443,7 +1408,6 @@ function renderOverview() {
   const today = todayISO();
   const date = effDate(w);
   const diff = daysBetween(today, date);
-  const shift = store.getState().shift;
 
   let when;
   if (diff === 0) when = 'Heute';
@@ -1465,7 +1429,6 @@ function renderOverview() {
     <section class="ov">
       ${umzugHinweis()}
       ${aufstiegHinweis()}
-      ${steigerungHinweis(n, items)}
       ${speicherWarnung()}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
            Frage, ob eine neue Kalenderdatei erzeugt werden soll. Beides raus,
@@ -2030,7 +1993,6 @@ function renderDashboard() {
   const today = todayISO();
   const date = effDate(w);
   const diff = daysBetween(today, date);
-  const shift = store.getState().shift;
   const sess = store.getState().session;
   const session = sess && sess.n === n ? sess : null;
 
@@ -3254,6 +3216,39 @@ function bandRow(it) {
 }
 
 /**
+ * Einen Link in die Zwischenablage legen.
+ *
+ * Diese Funktion gab es nicht. Drei Stellen riefen sie trotzdem auf - "Link
+ * kopieren" unter Mehr, und die beiden Teilen-Knoepfe auf jedem Geraet ohne
+ * navigator.share (jeder Desktop-Firefox etwa). Alle drei liefen in einen
+ * ReferenceError, und "Link kopieren" tat nie etwas anderes als das. Gefunden
+ * hat es der Linter beim allerersten Lauf; kein Browsertest war je dort.
+ *
+ * Mit Rueckfalltuer: navigator.clipboard gibt es nur im sicheren Kontext, und
+ * ohne ihn ist ein markiertes Feld immer noch besser als nichts.
+ */
+function linkKopieren(url) {
+  const gut = () => toast('Link kopiert');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(gut).catch(() => zeigeLink(url));
+    return;
+  }
+  zeigeLink(url);
+}
+
+/** Letzte Rettung: den Link sichtbar hinstellen, markiert, zum Selbstkopieren. */
+function zeigeLink(url) {
+  const feld = document.createElement('input');
+  feld.value = url;
+  feld.setAttribute('readonly', '');
+  feld.style.cssText = 'position:fixed;left:8px;right:8px;bottom:72px;width:auto;z-index:99';
+  document.body.appendChild(feld);
+  feld.select();
+  toast('Kopieren ging nicht - der Link steht unten zum Markieren.');
+  setTimeout(() => feld.remove(), 15000);
+}
+
+/**
  * Ausführliche Erklärung zu einer Übung, aufklappbar.
  *
  * Der kurze Hinweis über der Bewegung sagt, was zu tun ist. Alles, was man
@@ -4132,7 +4127,6 @@ function renderInjuries() {
     .map((i) => ({ spot: i.spot, kind: i.kind }));
 
   // Auswirkungen über den ganzen Plan, nicht nur über heute
-  const block = blocked(act);
   const gone = [];
   const swapCount = new Map();
   let wegenPause = 0;
@@ -5681,36 +5675,6 @@ view.addEventListener('click', (e) => {
       // Steht heute schon ein Satz, gilt die Änderung erst beim nächsten Mal.
       const started = (store.peekSets(n, mode, id) || []).some((s) => s.done);
       toast(started ? `Ab dem nächsten Satz ${fmtNum(kg)} kg` : `${fmtNum(kg)} kg`);
-      break;
-    }
-    case 'steigern': {
-      // Genau das, was 'weight-step' tut, und kein ruestCache.clear() dabei:
-      // ruestOrderStabil() hält die Reihenfolge einer begonnenen Einheit
-      // ausdrücklich fest, damit die Karten beim Ändern eines Gewichts nicht
-      // unter dem Finger springen. Ein Aufstieg ist kein Grund, das zu brechen.
-      const id = t.dataset.ex;
-      const kg = store.setWeight(id, naechstesGewicht(id, 1));
-      // Ein früheres Nein für diese Übung ist erledigt – nicht wegen des
-      // Speichers, sondern damit die Sicherungsdatei lesbar bleibt: ein
-      // steigerungNein mit zwanzig längst gestiegenen Übungen sieht aus wie
-      // ein Fehler.
-      const nein = { ...(store.getState().steigerungNein || {}) };
-      delete nein[id];
-      store.setSetting('steigerungNein', nein);
-      render();
-      // toast() schreibt textContent – esc() wäre hier falsch und zeigte Entities.
-      toast(`${t.dataset.name || 'Gewicht'}: ab jetzt ${fmtNum(kg)} kg`);
-      break;
-    }
-    case 'steigern-nein': {
-      const id = t.dataset.ex;
-      const kg = workingWeight(id);
-      store.setSetting('steigerungNein', {
-        ...(store.getState().steigerungNein || {}), [id]: kg,
-      });
-      render();
-      toast(`${t.dataset.name || 'Gewicht'} bleibt bei ${fmtNum(kg)} kg`
-        + ' – kommt erst wieder, wenn du das Gewicht änderst');
       break;
     }
     case 'restart-plan': {

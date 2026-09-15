@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v155';
+const VERSION = 'v156';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -276,7 +276,7 @@ async function erinnern(zeitPruefen, losUm) {
     self.navigator.setAppBadge(1).catch(() => {});
   }
   await notiz('gezeigt');
-  await merkSchreiben({ gemeldet: heute });
+  return merkSchreiben({ gemeldet: heute });
 }
 
 const ERINNERUNG_TAG = 'workout-erinnerung';
@@ -512,8 +512,11 @@ self.addEventListener('notificationclick', (event) => {
     }
     const liste = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of liste) {
-      if ('focus' in client) return client.focus();
+      if ('focus' in client) {
+        await client.focus();
+        return;
+      }
     }
-    return self.clients.openWindow('./');
+    await self.clients.openWindow('./');
   })());
 });

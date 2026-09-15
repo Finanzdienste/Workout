@@ -71,10 +71,6 @@ const DEFAULT_STATE = {
   supersatz: false,
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
-  // Übungen, bei denen ein Steigerungsvorschlag abgelehnt wurde, mit dem
-  // Gewicht, bei dem das geschah: { exId: kg }. Ändert sich das Arbeitsgewicht,
-  // gilt das Nein nicht mehr – siehe reifeUebungen() in js/gewichte.js.
-  steigerungNein: {},
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)
   // Geräte, die gerade *nicht* da sind – IDs aus GERAETE in js/vorrat.js.
   //

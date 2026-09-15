@@ -31,7 +31,10 @@ const saetzeJeUebung = async () => {
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 // --- 1. Die Stufe bestimmt die Satzzahl ---
-for (const [stufe, soll] of [['anfaenger', 2], ['geuebt', 3], ['fortgeschritten', 4]]) {
+// Anfänger bekommt die Sätze des Plans, nicht weniger: Die Kürzung auf zwei war
+// als Schonung gemeint und drückte fünf von vierzehn Muskelgruppen unter die
+// Wirkschwelle (Beinbeuger Knie 2,0 Sätze je Woche). Siehe js/stufen.js.
+for (const [stufe, soll] of [['anfaenger', 3], ['geuebt', 3], ['fortgeschritten', 4]]) {
   await stellen(stufe);
   const n = await saetzeJeUebung();
   check(n === soll, `${stufe}: ${n} Sätze je Übung (erwartet ${soll})`);
@@ -56,10 +59,17 @@ const sollA = await sollBrust('anfaenger');
 const sollG = await sollBrust('geuebt');
 const sollF = await sollBrust('fortgeschritten');
 check(sollA !== null && sollG !== null, `das Wochensoll steht in der Statistik (${sollA} / ${sollG})`);
-check(sollA < sollG && sollG < sollF,
-  `und wächst mit der Stufe: Anfänger ${sollA} < Geübt ${sollG} < Fortgeschritten ${sollF}`);
-check(Math.abs(sollA / sollG - 2 / 3) < 0.02,
-  `der Anfänger liegt bei zwei Dritteln (${(sollA / sollG).toFixed(2)})`);
+// Anfänger und Geübt liegen gleich: Die Anfängerstufe kürzt die Sätze nicht
+// mehr. Nachgemessen lagen damit fünf von vierzehn Muskelgruppen an oder unter
+// der Untergrenze, die js/stufen.js selbst nennt (Beinbeuger Knie 2,0 Sätze je
+// Woche). Anfänger heißt jetzt leichtere Gewichte und die einfachere Fassung
+// der Übung – nicht ein Drittel weniger Reiz.
+check(sollA === sollG,
+  `Anfänger und Geübt haben dasselbe Wochensoll (${sollA} / ${sollG})`);
+check(sollG < sollF,
+  `Fortgeschritten legt zu: ${sollG} < ${sollF}`);
+check(Math.abs(sollF / sollG - 4 / 3) < 0.02,
+  `und zwar um ein Drittel (${(sollF / sollG).toFixed(2)})`);
 
 // --- 3. Ein Stufenwechsel löscht keine abgehakten Sätze ---
 await stellen('geuebt');

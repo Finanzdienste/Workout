@@ -168,7 +168,11 @@ await page.evaluate(async () => {
   const store = await import('./js/store.js');
   store.resetAll();
   store.setSetting('greeted', true);
-  store.setSetting('level', 'anfaenger');
+  // Geübt → Fortgeschritten, nicht mehr Anfänger → Geübt: Die Anfängerstufe
+  // kürzt die Sätze seit Neuestem nicht mehr (siehe js/stufen.js), also ändert
+  // dieser Schritt die Satzzahl gar nicht. Der Fall, um den es hier geht, ist
+  // „die Stufe steigt und der Plan will mehr Sätze" – den gibt es weiter oben.
+  store.setSetting('level', 'geuebt');
 });
 await page.waitForTimeout(200);
 await page.evaluate(async () => {
@@ -192,23 +196,26 @@ const stand = async () => page.evaluate(async () => {
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
 
-const alsAnfaenger = await stand();
-console.log('     als Anfänger:', JSON.stringify(alsAnfaenger));
-check(alsAnfaenger.complete && alsAnfaenger.erledigt && alsAnfaenger.mode === 'db',
-  `mit zwei Sätzen je Übung ist die Einheit fertig (${alsAnfaenger.done}/${alsAnfaenger.total})`);
-
-await page.evaluate(async () => (await import('./js/store.js')).setSetting('level', 'geuebt'));
-await page.waitForTimeout(300);
 const alsGeuebt = await stand();
-console.log('     als Geübt:  ', JSON.stringify(alsGeuebt));
-check(alsGeuebt.total > alsAnfaenger.total,
-  `als Geübt sieht der Plan mehr Sätze vor (${alsAnfaenger.total} → ${alsGeuebt.total})`);
-check(alsGeuebt.erledigt === true && alsGeuebt.mode === 'db',
+console.log('     als Geübt:        ', JSON.stringify(alsGeuebt));
+check(alsGeuebt.complete && alsGeuebt.erledigt && alsGeuebt.mode === 'db',
+  `mit drei Sätzen je Übung ist die Einheit fertig (${alsGeuebt.done}/${alsGeuebt.total})`);
+
+await page.evaluate(async () => (await import('./js/store.js')).setSetting('level', 'fortgeschritten'));
+await page.waitForTimeout(300);
+const alsFort = await stand();
+console.log('     als Fortgeschritten:', JSON.stringify(alsFort));
+check(alsFort.total > alsGeuebt.total,
+  `als Fortgeschritten sieht der Plan mehr Sätze vor (${alsGeuebt.total} → ${alsFort.total})`);
+check(alsFort.erledigt === true && alsFort.mode === 'db',
   'der trainierte Tag bleibt trotzdem abgeschlossen – die Historie wird nicht umgeschrieben');
-check(alsGeuebt.complete === false,
+check(alsFort.complete === false,
   'und die Häkchen behaupten nichts anderes: es stehen wirklich nicht alle');
-check(alsGeuebt.done === alsAnfaenger.done,
+check(alsFort.done === alsGeuebt.done,
   'gezählt wird weiter, was tatsächlich abgehakt wurde');
+// Und zurück auf Geübt: Alles Folgende rechnet mit den Satzzahlen des Plans.
+await page.evaluate(async () => (await import('./js/store.js')).setSetting('level', 'geuebt'));
+await page.waitForTimeout(200);
 
 // --- Plan-Ende: es gibt keins ------------------------------------------------
 // „Der Plan soll unendlich laufen." Am Ende der 84 Einheiten stand bisher

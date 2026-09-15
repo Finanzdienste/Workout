@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { URL, SHOT } from './umgebung.mjs';
+import { URL, SHOT, ROOT } from './umgebung.mjs';
 
 
 const browser = await chromium.launch();
@@ -177,6 +177,28 @@ check((await state()).useExerciseRest === false, 'Pause je Übung abschaltbar');
 check(await page.locator('[data-act="set-rest"]').count() === 4, 'feste Längen erscheinen dann');
 await page.screenshot({ path: `${SHOT}/52-settings-rest.png`, fullPage: true });
 await page.locator('[data-act="toggle-ex-rest"]').click();
+
+// --- Kein Steigerungsvorschlag, nirgends und nie ---
+//
+//     "Es sollen nie Steigerungsvorschlaege kommen. Egal wann."
+//
+// Geprueft am Quelltext und nicht an einem Bildschirm: Ein Vorschlag haengt an
+// Bedingungen (volle Serie, faellige Einheit, kein frueheres Nein), die ein
+// Testlauf nur muehsam herstellt - und ein Test, der die Bedingung verfehlt,
+// besteht auch dann, wenn die Funktion wieder da waere. Was es nicht gibt,
+// kann nicht erscheinen.
+const quellen = await (async () => {
+  const fs = await import('node:fs/promises');
+  const path = await import('node:path');
+  const lies = (f) => fs.readFile(path.join(ROOT, f), 'utf8');
+  return { app: await lies('js/app.js'), gew: await lies('js/gewichte.js') };
+})();
+for (const [name, text] of Object.entries(quellen)) {
+  check(!/data-act="steigern/.test(text), `${name}: kein Knopf zum Steigern`);
+  check(!/function (steigerungHinweis|reifeUebungen|serie)\b/.test(text),
+    `${name}: die Rechnung dahinter ist mit raus`);
+}
+check(!/steigerungNein/.test(quellen.app), 'und das gemerkte Nein braucht es auch nicht mehr');
 
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);

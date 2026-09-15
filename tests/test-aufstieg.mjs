@@ -73,7 +73,12 @@ check(s.level === 'geuebt', `nach 70 Einheiten steht die Stufe auf Geübt (${s.l
 check(s.aufstiege.includes('geuebt'), 'der Schritt ist als erledigt vermerkt');
 const hinweis = (await page.locator('.notice.aufstieg').first().textContent()).replace(/\s+/g, ' ');
 check(/Aufgestiegen/.test(hinweis), `der Hinweis steht auf der Startseite (${hinweis.slice(0, 70)}…)`);
-check(/3 statt 2 Sätze/.test(hinweis), 'und sagt, was sich am Plan ändert');
+// Anfänger → Geübt ändert die Satzzahl seit Neuestem gar nicht mehr (die
+// Anfängerstufe kürzt sie nicht). "3 statt 3 Sätze" wäre Unsinn – also sagt der
+// Hinweis, was sich wirklich ändert: die schwerere Fassung der Übung.
+check(/Satzzahl bleibt/.test(hinweis) && /reguläre/.test(hinweis),
+  `und sagt, was sich am Plan ändert (${hinweis.slice(0, 120)}…)`);
+check(!/\d+ statt \d+ Sätze/.test(hinweis), 'ohne eine Satzzahl, die sich nicht ändert');
 
 // Der Plan zeigt die neue Satzzahl auch wirklich an.
 const auf = page.locator('[data-act="show-list"]');
