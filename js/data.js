@@ -1579,15 +1579,15 @@ export const EXERCISES = [
         "Die kleine Gegenübung zu allem Drücken: hintere Schulter und die Muskeln zwischen den Schulterblättern. Sie kostet fast nichts und hält die Schulter dort, wo sie hingehört."
       ],
       [
-        "Face Pull statt Pull-Apart",
-        "Ist dein Band lang genug, häng es über die Klimmzugstange und zieh zum Gesicht, Ellenbogen hoch. Das trifft dieselben Muskeln in einer noch etwas günstigeren Bahn."
+        "Nicht zu verwechseln mit dem Face Pull",
+        "Der Face Pull hängt am langen Band über der Klimmzugstange und zieht zum Gesicht. Er trifft dieselben Muskeln in einer etwas günstigeren Bahn und steht als eigene Übung im Katalog – hier geht es um das Auseinanderziehen vor dem Körper."
       ]
     ],
     "db": {
       "name": "Band-Pull-Apart",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
+      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "pullapart",
       "shares": {
@@ -1606,8 +1606,8 @@ export const EXERCISES = [
     "bw": {
       "name": "Band-Pull-Apart",
       "reps": "12–20",
-      "equip": "Loop-Band (Face Pull: + Klimmzugstange)",
-      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
+      "equip": "Loop-Band",
+      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "pullapart",
       "shares": {
@@ -2270,6 +2270,67 @@ export const EXERCISES = [
       ],
       "stufen": {},
       "braucht": []
+    }
+  },
+  {
+    "id": "face-pull",
+    "group": "Schulter",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": "band",
+    "tier": 3,
+    "detail": [
+      [
+        "Wozu",
+        "Die Gegenübung zu allem Drücken, in der günstigeren Bahn: hintere Schulter und die Muskeln zwischen den Schulterblättern, dazu die Außenrotation. Sie kostet fast nichts und hält die Schulter dort, wo sie hingehört."
+      ],
+      [
+        "Ellenbogen führen",
+        "Der häufigste Fehler ist, mit den Händen zu ziehen und die Ellenbogen hängen zu lassen – dann arbeitet der Bizeps. Die Ellenbogen gehen zuerst, hoch und nach außen; die Hände folgen nur."
+      ]
+    ],
+    "db": {
+      "name": "Face Pull",
+      "reps": "12–20",
+      "equip": "Loop-Band + Klimmzugstange",
+      "cue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band oder einem Schritt weiter zurück, leichter mit dem schwächeren Band oder näher an die Stange – die Bandstärke stellst du in der Übung selbst ein.",
+      "rest": 120,
+      "pattern": "facepull",
+      "shares": {
+        "rearDelts": 1.0,
+        "traps": 0.8
+      },
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ],
+      "stufen": {},
+      "braucht": [
+        "band",
+        "stange"
+      ]
+    },
+    "bw": {
+      "name": "Face Pull",
+      "reps": "12–20",
+      "equip": "Loop-Band + Klimmzugstange",
+      "cue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band oder einem Schritt weiter zurück, leichter mit dem schwächeren Band oder näher an die Stange – die Bandstärke stellst du in der Übung selbst ein.",
+      "rest": 120,
+      "pattern": "facepull",
+      "shares": {
+        "rearDelts": 1.0,
+        "traps": 0.8
+      },
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ],
+      "stufen": {},
+      "braucht": [
+        "band",
+        "stange"
+      ]
     }
   }
 ];

@@ -418,8 +418,23 @@ export const PATTERNS = {
     // aufrecht – kippt er mit, wird daraus optisch eine Kniebeuge.
     label: 'Ausfallschritt', view: [42, -6],
     poses: [
+      // Der Stand bleibt stehen, und das ist der ganze Punkt:
+      //
+      //     "Das hintere Bein bewegt sich immer mit. Aber solls ja eigentlich
+      //      nicht oder?"
+      //
+      // Nicht, nein. Nachgerechnet mit tools/pose.mjs war der Abstand zwischen
+      // den Zehen oben 0,62 Koerperlaengen und unten 1,03 - die Figur machte
+      // beim Absenken einen Ausfallschritt nach hinten. Jetzt bleibt er ueber
+      // die ganze Bewegung zwischen 0,62 und 0,65, die hintere Zehe zwischen
+      // 0,020 und 0,034 ueber dem Boden (steht also), und die Huefte sinkt von
+      // 0,845 auf 0,666. Gesenkt wird, nicht geschritten.
+      //
+      // Das hintere Knie geht dabei von 0,43 auf 0,23 ueber dem Boden, der
+      // hintere Oberschenkel von -18 Grad (nach hinten geneigt) auf +6, steht
+      // unten also fast senkrecht - genau so sieht ein Split Squat unten aus.
       { lean: 5, arm: A(5, 9, 4), legR: L(16, 6, 12), legL: L(-18, 7, 26) },
-      { lean: 9, arm: A(9, 9, 4), legR: L(62, 6, 74), legL: L(-30, 7, 106) },
+      { lean: 9, arm: A(9, 9, 4), legR: L(55, 6, 82), legL: L(6, 7, 86) },
     ],
   },
   kneeraise: {
@@ -473,6 +488,29 @@ export const PATTERNS = {
     poses: [
       { lean: 3, arm: A(86, 8, 8), leg: L(2, 5, 4) },
       { lean: 3, arm: A(8, 86, 8), leg: L(2, 5, 4) },
+    ],
+  },
+  facepull: {
+    /*
+     * Face Pull: Band ueber der Klimmzugstange, Zug zum Gesicht.
+     *
+     * Eine eigene Uebung und kein Zusatz im Text des Pull-Aparts:
+     *
+     *     "Hier sind wieder zwei Uebungen in einer? Jede Uebung soll wirklich
+     *      nur eine Uebung sein. Ohne Variationen usw."
+     *
+     * Der sichtbare Unterschied zum Pull-Apart ist die Zugrichtung: Dort haelt
+     * man das Band zwischen den Haenden und zieht nach aussen, hier haengt es
+     * von oben und man zieht zum Gesicht. Deshalb `band: 'bar'` - zwei Straenge
+     * von den Haenden senkrecht nach oben zur Stange.
+     *
+     * Unten: Arme nach vorn oben, fast gestreckt. Oben: Ellenbogen hoch und
+     * nach aussen, Haende neben den Schlaefen.
+     */
+    label: 'Face Pull', band: 'bar', ueberkopf: 0.95, ueberkopfZ: 0.58, view: [20, -8],
+    poses: [
+      { lean: 4, arm: A(96, 14, 12), leg: L(2, 5, 4) },
+      { lean: 4, arm: A(64, 58, 104), leg: L(2, 5, 4) },
     ],
   },
   curl: {
@@ -1093,7 +1131,22 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
           class: 'fig-band',
         }),
       });
-      if (spec.band === 'hands') {
+      if (spec.band === 'bar') {
+        // Von oben: Das Band haengt ueber der Klimmzugstange, je ein Strang zu
+        // jeder Hand. Senkrecht nach oben und nicht zur Stangenmitte - ein
+        // Band, das schraeg zieht, sieht aus, als haenge es irgendwo fest.
+        // Der Bauch geht leicht nach aussen, sonst liegt der Strang auf dem
+        // Unterarm.
+        ['L', 'R'].forEach((seite) => {
+          const hand = pts0[`hand${seite}`];
+          // Zur Stange, nicht senkrecht nach oben: Die Stange steht fest im
+          // Raum, die Haende wandern. Ein Strang, der immer senkrecht steht,
+          // haette die Stange mitwandern lassen - genau der Fehler, der beim
+          // Split Squat am hinteren Bein aufgefallen ist.
+          const oben = P([hand[0], spec.ueberkopf, spec.ueberkopfZ]);
+          bogen(P(hand), oben, { x: (seite === 'L' ? -1 : 1) * 3 * gearScale, y: 0 });
+        });
+      } else if (spec.band === 'hands') {
         const a = P(pts0.handL);
         const b = P(pts0.handR);
         const span = Math.hypot(a.x - b.x, a.y - b.y);
@@ -1341,6 +1394,23 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
           }),
         });
       }));
+    }
+
+    if (spec.ueberkopf !== undefined) {
+      // Die Stange, an der das Band haengt: waagerecht ueber den Haenden, auf
+      // der Hoehe, zu der die Baender laufen. Sie muss da sein - ein Band, das
+      // im Nichts endet, ist keine Auskunft, sondern ein Fehler im Bild.
+      // Fest im Raum, nicht an den Haenden: Die Stange haengt nicht am Sportler.
+      const mitte = [0, spec.ueberkopf, spec.ueberkopfZ];
+      const b1 = P(add(mitte, mul(sideAxis, -0.9)));
+      const b2 = P(add(mitte, mul(sideAxis, 0.9)));
+      parts.push({
+        z: (b1.z + b2.z) / 2 - 0.02,
+        node: el('line', {
+          x1: b1.x.toFixed(1), y1: b1.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
+          class: 'fig-bar-fixed',
+        }),
+      });
     }
 
     if (spec.bar) {

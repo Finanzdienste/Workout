@@ -149,7 +149,7 @@ GERAET_AUS_TEXT = {
     'Langhantel + Polster': ['langhantel'],
     'Loop-Band': ['band'],
     'Loop-Band + Stuhl': ['band'],
-    'Loop-Band (Face Pull: + Klimmzugstange)': ['band'],
+    'Loop-Band + Klimmzugstange': ['band', 'stange'],
     'Klimmzugstange': ['stange'],
     'Klimmzugstange (+ Stuhl)': ['stange'],
     'Klimmzugstange + Rucksack': ['stange'],

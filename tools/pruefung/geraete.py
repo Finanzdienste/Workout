@@ -189,8 +189,31 @@ VERWEIS_IM_SATZ = re.compile(
     r'\b(gleiche[rsn]?\s+[\w½-]+-?technik|dieselbe\s+technik|gleiche\s+ausf(ü|ue)hrung'
     r'|wie\s+(bei|in)\s+(der|dem|den)\s|wie\s+oben\s+beschrieben|siehe\s+dort)\b', re.I)
 
+# Und die dritte Sorte: eine *zweite Uebung* im Hinweis der ersten. Gefunden an
+# diesem Bildschirmfoto:
+#
+#     "Hier sind wieder zwei Uebungen in einer? Jede Uebung soll wirklich nur
+#      eine Uebung sein. Ohne Variationen usw. Jede kleinste Variation ist ne
+#      eigene Uebung."
+#
+# Beim Band-Pull-Apart stand: "Mit einem langen Band ueber der Klimmzugstange
+# wird daraus ein Face Pull - das ist die bessere Variante." Auf einer Karte
+# standen damit zwei Uebungen, und die empfohlene war die, die man nicht
+# abhaken konnte. Der Face Pull ist jetzt eine eigene Uebung mit eigener Figur.
+#
+# NICHT gemeint sind Erleichterungen und Erschwerungen derselben Bewegung -
+# "zu schwer? Fuesse naeher heran" ist keine zweite Uebung, sondern die
+# Skalierung, die weg-nach-unten.py sogar verlangt. Gesucht wird deshalb nur
+# das Muster "daraus wird X" bzw. "X statt dessen", das eine andere Uebung
+# benennt.
+ZWEITE_UEBUNG = re.compile(
+    r'\b(wird\s+daraus|daraus\s+wird|macht\s+daraus|ist\s+das\s+ein\s+\w+\s*-?\s*pull'
+    r'|die\s+bessere\s+Variante|besser(e|es)\s+Variante|alternativ\s+(macht|nimmt|geht)'
+    r'|statt\s*dessen\s+(macht|nimmt))\b', re.I)
+
 lose = [(k, f, e[f][:60]) for k, e in sorted(META.items()) for f in ('dbCue', 'bwCue')
-        if VERWEIS.match(e.get(f, '')) or VERWEIS_IM_SATZ.search(e.get(f, ''))]
+        if VERWEIS.match(e.get(f, '')) or VERWEIS_IM_SATZ.search(e.get(f, ''))
+        or ZWEITE_UEBUNG.search(e.get(f, ''))]
 
 print(f'{len(META)} Übungen geprüft: Haltung, Gerät, Schlüssel, Hinweis für sich.\n')
 if befunde:

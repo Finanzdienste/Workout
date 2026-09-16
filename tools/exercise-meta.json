@@ -1,1523 +1,1561 @@
 {
- "goblet-squat": {
-  "group": "Beine",
-  "tier": 1,
-  "dbEquip": "Kurzhantel",
-  "bwEquip": "Ohne Gerät",
-  "dbCue": "Hantel senkrecht vor der Brust halten, Ellenbogen zwischen den Knien führen. Tief absitzen, Rumpf aufrecht, Fersen am Boden.",
-  "bwCue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Der Sinn: Der untere Bereich ist der schwerste, und den durchläufst du damit doppelt so oft. Zu schwer? Erst die halbe Zahl an Wiederholungen, oder ohne die Zwischenstufe absolvieren und sie dazunehmen, wenn die Tiefe steht.",
-  "detail": [
-   [
-    "Was eine 1½-Wiederholung ist",
-    "Eineinhalb Bewegungen, die zusammen als eine zählen: tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch. Bei 15 Wiederholungen machst du diesen Viererzyklus fünfzehnmal. Der Grund ist der fehlende Hebel: Ohne Zusatzgewicht wird eine Kniebeuge irgendwann zu leicht, und statt Eisen aufzulegen, das nicht da ist, verlängert man die Zeit in dem Bereich, der wirklich arbeitet – unten. Gezählt wird nur, was ganz oben endet; die halbe Aufwärtsbewegung ist Teil der Wiederholung und keine eigene."
-   ],
-   [
-    "Wie du die Hantel hältst",
-    "Senkrecht vor der Brust, die Handflächen tragen die obere Scheibe wie einen Becher, die Ellenbogen zeigen nach unten. Das Gewicht vorn wirkt wie ein Gegengewicht – deshalb kommst du damit aufrechter und tiefer als ohne."
-   ],
-   [
-    "Tiefe",
-    "So tief, wie der Rücken gerade bleibt. Kippt das Becken unten nach hinten weg („butt wink\"), war es einen Zentimeter zu viel. Fersen bleiben am Boden; wenn nicht, hilft die erhöhte Variante."
-   ],
-   [
-    "Atmung",
-    "Oben einatmen, unten anhalten, auf dem Weg nach oben ausatmen. Nicht auf halber Strecke Luft holen."
-   ],
-   [
-    "Typische Fehler",
-    "Knie fallen nach innen – aktiv nach außen denken. Fersen heben. Das Gewicht driftet vom Körper weg und zieht dich nach vorn."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": 20,
-  "dbStep": 2.5,
-  "weightNote": "eine Hantel",
-  "dbPattern": "squat",
-  "dbShares": {
-   "quads": 1.0,
-   "glutes": 0.55,
-   "abs": 0.35,
-   "hamstringsHip": 0.15
+  "goblet-squat": {
+    "group": "Beine",
+    "tier": 1,
+    "dbEquip": "Kurzhantel",
+    "bwEquip": "Ohne Gerät",
+    "dbCue": "Hantel senkrecht vor der Brust halten, Ellenbogen zwischen den Knien führen. Tief absitzen, Rumpf aufrecht, Fersen am Boden.",
+    "bwCue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Der Sinn: Der untere Bereich ist der schwerste, und den durchläufst du damit doppelt so oft. Zu schwer? Erst die halbe Zahl an Wiederholungen, oder ohne die Zwischenstufe absolvieren und sie dazunehmen, wenn die Tiefe steht.",
+    "detail": [
+      [
+        "Was eine 1½-Wiederholung ist",
+        "Eineinhalb Bewegungen, die zusammen als eine zählen: tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch. Bei 15 Wiederholungen machst du diesen Viererzyklus fünfzehnmal. Der Grund ist der fehlende Hebel: Ohne Zusatzgewicht wird eine Kniebeuge irgendwann zu leicht, und statt Eisen aufzulegen, das nicht da ist, verlängert man die Zeit in dem Bereich, der wirklich arbeitet – unten. Gezählt wird nur, was ganz oben endet; die halbe Aufwärtsbewegung ist Teil der Wiederholung und keine eigene."
+      ],
+      [
+        "Wie du die Hantel hältst",
+        "Senkrecht vor der Brust, die Handflächen tragen die obere Scheibe wie einen Becher, die Ellenbogen zeigen nach unten. Das Gewicht vorn wirkt wie ein Gegengewicht – deshalb kommst du damit aufrechter und tiefer als ohne."
+      ],
+      [
+        "Tiefe",
+        "So tief, wie der Rücken gerade bleibt. Kippt das Becken unten nach hinten weg („butt wink\"), war es einen Zentimeter zu viel. Fersen bleiben am Boden; wenn nicht, hilft die erhöhte Variante."
+      ],
+      [
+        "Atmung",
+        "Oben einatmen, unten anhalten, auf dem Weg nach oben ausatmen. Nicht auf halber Strecke Luft holen."
+      ],
+      [
+        "Typische Fehler",
+        "Knie fallen nach innen – aktiv nach außen denken. Fersen heben. Das Gewicht driftet vom Körper weg und zieht dich nach vorn."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 20,
+    "dbStep": 2.5,
+    "weightNote": "eine Hantel",
+    "dbPattern": "squat",
+    "dbShares": {
+      "quads": 1.0,
+      "glutes": 0.55,
+      "abs": 0.35,
+      "hamstringsHip": 0.15
+    },
+    "bwPattern": "squatbw",
+    "bwShares": {
+      "quads": 1.0,
+      "glutes": 0.55,
+      "abs": 0.2,
+      "hamstringsHip": 0.15
+    },
+    "equip": "goblet"
   },
-  "bwPattern": "squatbw",
-  "bwShares": {
-   "quads": 1.0,
-   "glutes": 0.55,
-   "abs": 0.2,
-   "hamstringsHip": 0.15
+  "fersenerhoehter-goblet-squat": {
+    "group": "Beine",
+    "tier": 1,
+    "dbEquip": "Kurzhantel + Erhöhung",
+    "bwEquip": "Erhöhung (Buch/Keil)",
+    "dbCue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
+    "bwCue": "Fersen 2–4 cm erhöht, nur die Ferse, der Ballen bleibt am Boden. Dann 1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Die Erhöhung lässt das Knie weiter über die Zehen wandern und betont den vorderen Oberschenkel deutlich stärker. Zu schwer? Erst die halbe Zahl an Wiederholungen, oder ohne die Zwischenstufe absolvieren und sie erst dazunehmen, wenn die Tiefe steht.",
+    "detail": [
+      [
+        "Warum 1½-Wiederholungen",
+        "Tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch – das zusammen ist eine Wiederholung. Der untere Bereich ist der schwerste, und ihn durchläufst du so doppelt so oft, ohne Gewicht zu brauchen. Mit erhöhten Fersen trifft das zusätzlich den vorderen Oberschenkel, weil das Knie weiter nach vorn darf."
+      ],
+      [
+        "Womit erhöhen",
+        "Zwei bis vier Zentimeter reichen: eine Hantelscheibe, ein festes Buch, eine Türschwelle. Nur die Ferse steht erhöht, der Ballen bleibt auf dem Boden."
+      ],
+      [
+        "Was sich dadurch ändert",
+        "Das Schienbein darf weiter nach vorn kippen, das Knie wandert über die Zehen – erlaubt und hier erwünscht. Der Oberschenkel vorn bekommt mehr ab, der Rumpf bleibt aufrechter, und die Tiefe fällt leichter."
+      ],
+      [
+        "Typische Fehler",
+        "Zu hoch erhöhen – dann steht man auf den Ballen und die Balance geht verloren. Wackelige Unterlage; sie muss kippsicher sein."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 20,
+    "dbStep": 2.5,
+    "weightNote": "eine Hantel",
+    "dbPattern": "squatheel",
+    "dbShares": {
+      "quads": 1.0,
+      "glutes": 0.45,
+      "abs": 0.3
+    },
+    "bwPattern": "squatheelbw",
+    "bwShares": {
+      "quads": 1.0,
+      "glutes": 0.45,
+      "abs": 0.15
+    },
+    "equip": "goblet"
   },
-  "equip": "goblet"
- },
- "fersenerhoehter-goblet-squat": {
-  "group": "Beine",
-  "tier": 1,
-  "dbEquip": "Kurzhantel + Erhöhung",
-  "bwEquip": "Erhöhung (Buch/Keil)",
-  "dbCue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
-  "bwCue": "Fersen 2–4 cm erhöht, nur die Ferse, der Ballen bleibt am Boden. Dann 1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Die Erhöhung lässt das Knie weiter über die Zehen wandern und betont den vorderen Oberschenkel deutlich stärker. Zu schwer? Erst die halbe Zahl an Wiederholungen, oder ohne die Zwischenstufe absolvieren und sie erst dazunehmen, wenn die Tiefe steht.",
-  "detail": [
-   [
-    "Warum 1½-Wiederholungen",
-    "Tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch – das zusammen ist eine Wiederholung. Der untere Bereich ist der schwerste, und ihn durchläufst du so doppelt so oft, ohne Gewicht zu brauchen. Mit erhöhten Fersen trifft das zusätzlich den vorderen Oberschenkel, weil das Knie weiter nach vorn darf."
-   ],
-   [
-    "Womit erhöhen",
-    "Zwei bis vier Zentimeter reichen: eine Hantelscheibe, ein festes Buch, eine Türschwelle. Nur die Ferse steht erhöht, der Ballen bleibt auf dem Boden."
-   ],
-   [
-    "Was sich dadurch ändert",
-    "Das Schienbein darf weiter nach vorn kippen, das Knie wandert über die Zehen – erlaubt und hier erwünscht. Der Oberschenkel vorn bekommt mehr ab, der Rumpf bleibt aufrechter, und die Tiefe fällt leichter."
-   ],
-   [
-    "Typische Fehler",
-    "Zu hoch erhöhen – dann steht man auf den Ballen und die Balance geht verloren. Wackelige Unterlage; sie muss kippsicher sein."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": 20,
-  "dbStep": 2.5,
-  "weightNote": "eine Hantel",
-  "dbPattern": "squatheel",
-  "dbShares": {
-   "quads": 1.0,
-   "glutes": 0.45,
-   "abs": 0.3
+  "sliding-leg-curl": {
+    "group": "Beinbeuger",
+    "tier": 2,
+    "dbEquip": "Slider/Handtuch",
+    "bwEquip": "Handtuch, glatter Boden",
+    "dbCue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
+    "bwCue": "Rücken am Boden, Fersen auf je einem Handtuch. Hüfte oben halten und die Fersen langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken, etwa drei Sekunden. Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
+    "detail": [
+      [
+        "Untergrund",
+        "Auf Laminat oder Fliesen reichen zwei Handtücher oder Papierteller. Auf Teppich rutscht nichts – dort die Fersen auf die Stuhlkante legen und von dort langsam ausstrecken."
+      ],
+      [
+        "Die Hüfte ist der Punkt",
+        "Sie bleibt oben, die ganze Zeit. Sackt sie ab, während die Beine sich strecken, ist der Satz vorbei – dann macht der Rücken die Arbeit und nicht der Beinbeuger."
+      ],
+      [
+        "Tempo",
+        "Drei Sekunden hinaus, zügig zurück. Das Herausschieben ist der Teil, der wehtut, und der Teil, der wirkt."
+      ],
+      [
+        "Typische Fehler",
+        "Zu weit hinausschieben, bis die Hüfte fällt. Mit den Armen mitdrücken. Zu schnell arbeiten – hier gibt es kein Gewicht, nur Kontrolle."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "legcurl",
+    "dbShares": {
+      "hamstringsKnee": 1.0,
+      "hamstringsHip": 0.3,
+      "glutes": 0.5,
+      "abs": 0.3
+    },
+    "bwPattern": "legcurl",
+    "bwShares": {
+      "hamstringsKnee": 1.0,
+      "hamstringsHip": 0.3,
+      "glutes": 0.5,
+      "abs": 0.3
+    },
+    "equip": null
   },
-  "bwPattern": "squatheelbw",
-  "bwShares": {
-   "quads": 1.0,
-   "glutes": 0.45,
-   "abs": 0.15
+  "einbeiniger-sliding-leg-curl": {
+    "group": "Beinbeuger",
+    "tier": 2,
+    "dbEquip": "Slider/Handtuch",
+    "bwEquip": "Handtuch, glatter Boden",
+    "dbCue": "Rücken am Boden, eine Ferse auf einem Slider, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf dabei nicht absacken und nicht zur Seite kippen.",
+    "bwCue": "Rücken am Boden, eine Ferse auf einem Handtuch, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen – ohne dass die Hüfte absackt oder zur Seite kippt. Ist das Herausschieben zu schwer: hinaus einbeinig, zurück mit beiden Beinen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
+    "detail": [
+      [
+        "Aufteilen, wenn es zu schwer ist",
+        "Mit einem Bein hinausschieben, mit beiden zurückziehen. So bekommst du die schwere Phase einbeinig und schaffst trotzdem alle Wiederholungen."
+      ],
+      [
+        "Das freie Bein",
+        "Angewinkelt in der Luft halten, nicht abstützen und nicht mitschwingen. Die Hüfte bleibt waagerecht – sie darf nicht zur Seite kippen."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "legcurl1",
+    "dbShares": {
+      "hamstringsKnee": 1.0,
+      "hamstringsHip": 0.3,
+      "glutes": 0.5,
+      "abs": 0.35
+    },
+    "bwPattern": "legcurl1",
+    "bwShares": {
+      "hamstringsKnee": 1.0,
+      "hamstringsHip": 0.3,
+      "glutes": 0.5,
+      "abs": 0.35
+    },
+    "equip": null
   },
-  "equip": "goblet"
- },
- "sliding-leg-curl": {
-  "group": "Beinbeuger",
-  "tier": 2,
-  "dbEquip": "Slider/Handtuch",
-  "bwEquip": "Handtuch, glatter Boden",
-  "dbCue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
-  "bwCue": "Rücken am Boden, Fersen auf je einem Handtuch. Hüfte oben halten und die Fersen langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf nie absacken – das ist der eigentliche Reiz. Langsam ausstrecken, etwa drei Sekunden. Zu schwer? Weniger weit wegschieben; der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
-  "detail": [
-   [
-    "Untergrund",
-    "Auf Laminat oder Fliesen reichen zwei Handtücher oder Papierteller. Auf Teppich rutscht nichts – dort die Fersen auf die Stuhlkante legen und von dort langsam ausstrecken."
-   ],
-   [
-    "Die Hüfte ist der Punkt",
-    "Sie bleibt oben, die ganze Zeit. Sackt sie ab, während die Beine sich strecken, ist der Satz vorbei – dann macht der Rücken die Arbeit und nicht der Beinbeuger."
-   ],
-   [
-    "Tempo",
-    "Drei Sekunden hinaus, zügig zurück. Das Herausschieben ist der Teil, der wehtut, und der Teil, der wirkt."
-   ],
-   [
-    "Typische Fehler",
-    "Zu weit hinausschieben, bis die Hüfte fällt. Mit den Armen mitdrücken. Zu schnell arbeiten – hier gibt es kein Gewicht, nur Kontrolle."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "legcurl",
-  "dbShares": {
-   "hamstringsKnee": 1.0,
-   "hamstringsHip": 0.3,
-   "glutes": 0.5,
-   "abs": 0.3
+  "hip-thrust": {
+    "group": "Gesäß",
+    "tier": 1,
+    "dbEquip": "Langhantel + Polster",
+    "bwEquip": "Stuhl- oder Sofakante",
+    "dbCue": "Schulterblätter auf einer Bank/Couch, die fest an der Wand steht. Stange über die angewinkelten Beine bis auf die Hüftbeuge rollen, dickes Handtuch oder Matte darunter – ohne Polster ist bei 40 kg der Knochen die Grenze, nicht das Gesäß. Oben Gesäß fest anspannen, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
+    "bwCue": "Schulterblätter auf die Kante eines an die Wand geschobenen Stuhls oder Sofas, einbeinig, freies Bein angewinkelt. Oben Gesäß fest anspannen, Rippen unten lassen, 1–2 s halten – das ersetzt die fehlende Zusatzlast. Schwerer wird es mit dem Loop-Band über der Hüfte, Enden unter dem Standfuß: Die Bandspannung ist oben am größten, also dort, wo sonst die Hantel drückt.",
+    "detail": [
+      [
+        "Aufbau",
+        "Die Auflage muss an der Wand stehen, sonst wandert sie beim ersten Satz weg. Die Kante liegt unter den Schulterblättern, nicht im Nacken. Füße so weit vorn, dass die Schienbeine oben senkrecht stehen – zu nah, und es wird eine Quadrizepsübung; zu weit, und der Beinbeuger krampft."
+      ],
+      [
+        "Polster",
+        "Ein dickes Handtuch, eine gerollte Matte oder ein gekauftes Pad. Ohne ist bei 40 kg der Hüftknochen die Grenze, nicht das Gesäß – du hörst dann früher auf, als du müsstest."
+      ],
+      [
+        "Oben ist die Arbeit",
+        "Ein bis zwei Sekunden halten, Gesäß fest, Rippen unten. Der Körper bildet oben eine Linie von Knie bis Schulter; darüber hinaus ins Hohlkreuz zu drücken sieht nach mehr aus, kommt aber aus dem unteren Rücken."
+      ],
+      [
+        "Typische Fehler",
+        "Mit dem Kinn nach oben schauen (der Blick geht nach vorn, oben zu den Knien). Nur halb hochkommen. Die Stange auf dem Bauch statt auf der Hüftbeuge liegen haben."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 40,
+    "dbStep": 5,
+    "weightNote": "Stange gesamt",
+    "dbPattern": "thrust",
+    "dbShares": {
+      "glutes": 1.0,
+      "hamstringsHip": 0.5
+    },
+    "bwPattern": "thrust1",
+    "bwShares": {
+      "glutes": 1.0,
+      "hamstringsHip": 0.6
+    },
+    "equip": "hipbar"
   },
-  "bwPattern": "legcurl",
-  "bwShares": {
-   "hamstringsKnee": 1.0,
-   "hamstringsHip": 0.3,
-   "glutes": 0.5,
-   "abs": 0.3
+  "gewichtete-liegestuetze": {
+    "group": "Brust",
+    "tier": 1,
+    "dbEquip": "Rucksack",
+    "bwEquip": "Ohne Gerät (optional zwei Bücherstapel)",
+    "dbCue": "Rucksack auf den oberen Rücken, hoch zwischen die Schulterblätter, Gurte fest – rutscht er Richtung Becken, hebelt er dich hoch. Füllung: Wasserflaschen (1 l = 1 kg), Bücher oder die Kurzhanteln selbst. Körper bleibt eine Linie, Ellenbogen ca. 45°. Mehr Tiefe bringen zwei gleich hohe, kippsichere Auflagen unter den Händen – dicke Bücher oder niedrige Kisten; dann sinkt die Brust darunter. Auf Kurzhanteln nur, wenn sie sechseckig sind: runde Scheiben rollen unter Last weg.",
+    "bwCue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht. Mehr Tiefe bringen zwei gleich hohe Bücherstapel oder kippsichere Kisten unter den Händen.",
+    "detail": [
+      [
+        "Rucksack richtig packen",
+        "Hoch zwischen die Schulterblätter, Gurte straff. Rutscht er Richtung Becken, hebelt er dich hoch statt dich zu beschweren. Wasserflaschen sind praktisch: ein Liter ist ein Kilo, und du kannst in Halbliterschritten steigern."
+      ],
+      [
+        "Körperspannung",
+        "Kopf, Hüfte und Fersen bilden eine Linie – Gesäß und Bauch fest. Die häufigste Ursache für Schmerzen im unteren Rücken bei Liegestützen ist die durchhängende Hüfte, nicht das Gewicht."
+      ],
+      [
+        "Mehr Tiefe",
+        "Zwei gleich hohe, kippsichere Auflagen unter den Händen – dicke Bücher, niedrige Kisten, sechseckige Kurzhanteln. Runde Scheiben oder runde Hanteln rollen unter Last weg."
+      ],
+      [
+        "Typische Fehler",
+        "Ellenbogen rechtwinklig abspreizen statt 45 Grad. Nur den Kopf senken. Unten aufliegen und Schwung nehmen."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 8,
+    "dbStep": 1,
+    "weightNote": "im Rucksack",
+    "dbPattern": "pushup",
+    "dbShares": {
+      "chest": 1.0,
+      "triceps": 0.6,
+      "frontDelts": 0.45
+    },
+    "bwPattern": "pushup",
+    "bwShares": {
+      "chest": 1.0,
+      "triceps": 0.6,
+      "frontDelts": 0.45
+    },
+    "equip": "backpack"
   },
-  "equip": null
- },
- "einbeiniger-sliding-leg-curl": {
-  "group": "Beinbeuger",
-  "tier": 2,
-  "dbEquip": "Slider/Handtuch",
-  "bwEquip": "Handtuch, glatter Boden",
-  "dbCue": "Rücken am Boden, eine Ferse auf einem Slider, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf dabei nicht absacken und nicht zur Seite kippen.",
-  "bwCue": "Rücken am Boden, eine Ferse auf einem Handtuch, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen – ohne dass die Hüfte absackt oder zur Seite kippt. Ist das Herausschieben zu schwer: hinaus einbeinig, zurück mit beiden Beinen. Braucht glatten Boden – auf Teppich rutscht nichts; dort stattdessen die Fersen auf die Stuhlkante, Hüfte oben halten und langsam ausstrecken.",
-  "detail": [
-   [
-    "Aufteilen, wenn es zu schwer ist",
-    "Mit einem Bein hinausschieben, mit beiden zurückziehen. So bekommst du die schwere Phase einbeinig und schaffst trotzdem alle Wiederholungen."
-   ],
-   [
-    "Das freie Bein",
-    "Angewinkelt in der Luft halten, nicht abstützen und nicht mitschwingen. Die Hüfte bleibt waagerecht – sie darf nicht zur Seite kippen."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "legcurl1",
-  "dbShares": {
-   "hamstringsKnee": 1.0,
-   "hamstringsHip": 0.3,
-   "glutes": 0.5,
-   "abs": 0.35
+  "fuesse-erhoehte-liegestuetze": {
+    "group": "Brust (oben)",
+    "tier": 1,
+    "dbEquip": "Erhöhung",
+    "bwEquip": "Stuhl oder feste Kiste",
+    "dbCue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter. Schaffst du keine 8? Dann in die Gegenrichtung: Füße auf den Boden, und wenn das noch zu viel ist, die Hände erhöhen – auf eine Stuhlkante oder Treppenstufe. Je höher die Hände, desto leichter. Von dort Stufe für Stufe wieder herunter.",
+    "bwCue": "Füße auf einen Stuhl oder eine feste Kiste, Körper eine Linie, Ellenbogen ca. 45°. Je höher die Füße, desto mehr obere Brust und Schulter. Für mehr Reiz Füße höher stellen oder langsamer ablassen. Zu schwer? Füße auf den Boden, danach die Hände erhöhen (Stuhlkante, Treppenstufe) – je höher die Hände, desto leichter.",
+    "detail": [
+      [
+        "Wie hoch",
+        "Ein Stuhl oder eine Kiste, 40 bis 50 cm. Je höher die Füße, desto mehr Gewicht liegt auf den Armen und desto mehr arbeitet die obere Brust und die vordere Schulter."
+      ],
+      [
+        "Grenze",
+        "Ab etwa Hüfthöhe wird daraus ein senkrechtes Drücken – interessant für die Schulter, aber dann ist es keine Brustübung mehr."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "pushupfeet",
+    "dbShares": {
+      "chest": 1.0,
+      "frontDelts": 0.6,
+      "sideDelts": 0.1,
+      "triceps": 0.55
+    },
+    "bwPattern": "pushupfeet",
+    "bwShares": {
+      "chest": 1.0,
+      "frontDelts": 0.6,
+      "sideDelts": 0.1,
+      "triceps": 0.55
+    },
+    "equip": null
   },
-  "bwPattern": "legcurl1",
-  "bwShares": {
-   "hamstringsKnee": 1.0,
-   "hamstringsHip": 0.3,
-   "glutes": 0.5,
-   "abs": 0.35
+  "floor-press": {
+    "group": "Brust/Trizeps",
+    "tier": 1,
+    "dbEquip": "Langhantel",
+    "bwEquip": "Ohne Gerät",
+    "dbCue": "Rücken am Boden, Stange über der unteren Brust. Oberarme setzen unten kurz ab – das ist der Bewegungsstopp, nicht der Boden als Ablage. Handgelenke gerade über den Ellenbogen. Aufbau ohne Ständer: Stange neben dich legen, im Sitzen über die Oberschenkel rollen, mit ihr zurücklegen; zum Schluss denselben Weg zurück. Verschlüsse drauf, keine Stühle als Ablage – die kippen. Und hier wirklich eine Wiederholung in Reserve lassen: Ohne Ablage kommt die Stange nur über den Bauch wieder herunter, und dafür brauchst du Kraft.",
+    "bwCue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press.",
+    "detail": [
+      [
+        "Griff",
+        "Etwas weiter als schulterbreit, Daumen um die Stange – kein „Affengriff\" mit dem Daumen daneben, erst recht nicht über dem Gesicht. Das Handgelenk bleibt gerade, die Stange liegt auf dem Handballen über dem Unterarmknochen, nicht in den Fingern."
+      ],
+      [
+        "Aufbau ohne Ständer",
+        "Stange neben dich legen, dich davorsetzen, sie über die Oberschenkel rollen und mit ihr zusammen zurücklegen; die Beine ziehen die Stange dabei in Position. Zum Schluss denselben Weg zurück. Verschlüsse gehören drauf – kippt die Stange einmal, wandern sonst alle Scheiben auf einer Seite herunter."
+      ],
+      [
+        "Warum der Boden",
+        "Die Oberarme setzen unten kurz auf, damit die Schulter nicht weiter nach hinten fällt, als sie soll. Das ist der Bewegungsstopp – nicht die Ablage: Die Spannung bleibt, du legst die Stange nicht ab und drückst nicht aus der Ruhe wieder hoch."
+      ],
+      [
+        "Typische Fehler",
+        "Auf den Boden absacken lassen und mit Schwung hochprellen. Die Ellenbogen rechtwinklig abspreizen (45 Grad sind das Ziel). Den Kopf heben und die Stange dabei Richtung Gesicht wandern lassen."
+      ],
+      [
+        "Reserve lassen",
+        "Ohne Ständer gibt es keinen Ausstieg nach oben. Bleibt eine Wiederholung stecken, kommt die Stange über den Bauch bis zu den Hüften und von dort im Sitzen herunter – dafür brauchst du Kraft, also lass eine Wiederholung übrig."
+      ]
+    ],
+    "dbRest": 180,
+    "bwRest": 150,
+    "dbWeight": 40,
+    "dbStep": 5,
+    "weightNote": "Stange gesamt",
+    "dbPattern": "pressbar",
+    "dbShares": {
+      "chest": 1.0,
+      "triceps": 0.7,
+      "frontDelts": 0.35
+    },
+    "bwPattern": "pushup",
+    "bwShares": {
+      "chest": 1.0,
+      "triceps": 0.6,
+      "frontDelts": 0.45
+    },
+    "equip": "barbell"
   },
-  "equip": null
- },
- "hip-thrust": {
-  "group": "Gesäß",
-  "tier": 1,
-  "dbEquip": "Langhantel + Polster",
-  "bwEquip": "Stuhl- oder Sofakante",
-  "dbCue": "Schulterblätter auf einer Bank/Couch, die fest an der Wand steht. Stange über die angewinkelten Beine bis auf die Hüftbeuge rollen, dickes Handtuch oder Matte darunter – ohne Polster ist bei 40 kg der Knochen die Grenze, nicht das Gesäß. Oben Gesäß fest anspannen, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
-  "bwCue": "Schulterblätter auf die Kante eines an die Wand geschobenen Stuhls oder Sofas, einbeinig, freies Bein angewinkelt. Oben Gesäß fest anspannen, Rippen unten lassen, 1–2 s halten – das ersetzt die fehlende Zusatzlast. Schwerer wird es mit dem Loop-Band über der Hüfte, Enden unter dem Standfuß: Die Bandspannung ist oben am größten, also dort, wo sonst die Hantel drückt.",
-  "detail": [
-   [
-    "Aufbau",
-    "Die Auflage muss an der Wand stehen, sonst wandert sie beim ersten Satz weg. Die Kante liegt unter den Schulterblättern, nicht im Nacken. Füße so weit vorn, dass die Schienbeine oben senkrecht stehen – zu nah, und es wird eine Quadrizepsübung; zu weit, und der Beinbeuger krampft."
-   ],
-   [
-    "Polster",
-    "Ein dickes Handtuch, eine gerollte Matte oder ein gekauftes Pad. Ohne ist bei 40 kg der Hüftknochen die Grenze, nicht das Gesäß – du hörst dann früher auf, als du müsstest."
-   ],
-   [
-    "Oben ist die Arbeit",
-    "Ein bis zwei Sekunden halten, Gesäß fest, Rippen unten. Der Körper bildet oben eine Linie von Knie bis Schulter; darüber hinaus ins Hohlkreuz zu drücken sieht nach mehr aus, kommt aber aus dem unteren Rücken."
-   ],
-   [
-    "Typische Fehler",
-    "Mit dem Kinn nach oben schauen (der Blick geht nach vorn, oben zu den Knien). Nur halb hochkommen. Die Stange auf dem Bauch statt auf der Hüftbeuge liegen haben."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": 40,
-  "dbStep": 5,
-  "weightNote": "Stange gesamt",
-  "dbPattern": "thrust",
-  "dbShares": {
-   "glutes": 1.0,
-   "hamstringsHip": 0.5
+  "einarmiges-kh-rudern": {
+    "group": "Rücken",
+    "tier": 1,
+    "dbEquip": "Langhantel",
+    "bwEquip": "Loop-Band",
+    "dbCue": "Hüfte nach hinten, Rumpf etwa 60° vorgeneigt, Rücken flach und dort halten. Stange am Schienbein entlang zum Bauchnabel ziehen, Ellenbogen eng am Körper, oben die Schulterblätter zusammen. Nicht mit dem Rumpf hochreißen – die Neigung bleibt die ganze Zeit gleich. Zwischen den Sätzen abstellen, nicht fallen lassen.",
+    "bwCue": "Beide Füße auf das Band, hüftbreit, Enden in beiden Händen. Rumpf etwa 60° vorgeneigt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben die Schulterblätter zusammen. Vorher standen hier Inverted Rows unter einer niedrigen Stange – die gibt es unterwegs nicht. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
+    "detail": [
+      [
+        "Griff",
+        "Obergriff, etwas weiter als schulterbreit, für den breiten Rücken. Untergriff (Handflächen nach vorn) zieht den Ellenbogen enger am Körper vorbei, trifft mehr den unteren Rücken­anteil des Latissimus und nimmt den Bizeps stärker mit – als Abwechslung in Ordnung, aber dann bleibt es für den ganzen Satz dabei."
+      ],
+      [
+        "Die Neigung ist die Übung",
+        "Etwa 60 Grad, und die bleiben. Wer beim Ziehen den Rumpf mit hochreißt, macht daraus ein halbes Kreuzheben und nimmt dem Rücken genau die Spannung, um die es geht. Ein Blick in eine Fensterscheibe oder ein Video vom ersten Satz sagt mehr als jedes Gefühl."
+      ],
+      [
+        "Wohin die Stange zieht",
+        "Zum Bauchnabel, nicht zur Brust. Die Ellenbogen wandern nach hinten am Körper vorbei, oben ziehen die Schulterblätter zusammen. Eine Sekunde oben halten macht den Unterschied zwischen Ziehen und Schwingen."
+      ],
+      [
+        "Typische Fehler",
+        "Runder Rücken – dann arbeitet die Bandscheibe statt der Rücken. Zu viel Gewicht und dafür halbe Wiederholungen. Die Stange vom Körper weg nach vorn ziehen."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 35,
+    "dbStep": 5,
+    "weightNote": "Stange gesamt",
+    "dbPattern": "rowbar",
+    "dbShares": {
+      "lats": 1.0,
+      "biceps": 0.5,
+      "traps": 0.5,
+      "rearDelts": 0.35
+    },
+    "bwPattern": "rowbar",
+    "bwShares": {
+      "lats": 1.0,
+      "biceps": 0.5,
+      "traps": 0.5,
+      "rearDelts": 0.35
+    },
+    "equip": "barbell",
+    "bwName": "Vorgebeugtes Band-Rudern",
+    "bwReps": "10–20",
+    "name": "Langhantelrudern",
+    "reps": "8–12"
   },
-  "bwPattern": "thrust1",
-  "bwShares": {
-   "glutes": 1.0,
-   "hamstringsHip": 0.6
+  "chin-ups": {
+    "group": "Rücken/Bizeps",
+    "tier": 1,
+    "dbEquip": "Klimmzugstange + Rucksack",
+    "bwEquip": "Klimmzugstange (+ Stuhl)",
+    "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Schaffst du noch keine 5? Dann ist eine einzelne Wiederholung ein Maximalversuch und kein Trainingssatz: Negative (von einem Stuhl aus starten, 5 s ablassen) oder Füße auf einem Stuhl abstützen, bis du im Bereich 5–10 arbeitest. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Wasserflaschen, Bücher, Kurzhanteln) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
+    "bwCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zu schwer? Negativ-Wiederholungen: von einem Stuhl aus oben starten und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen und nur so viel abnehmen, wie nötig ist.",
+    "detail": [
+      [
+        "Griff",
+        "Untergriff, schulterbreit. Enger geht auf die Handgelenke, weiter nimmt dem Bizeps die Arbeit ab. Daumen um die Stange."
+      ],
+      [
+        "Aus dem vollen Hang",
+        "Unten die Arme ganz strecken, aber die Schultern aktiv lassen – zuerst die Schulterblätter nach unten ziehen, dann erst beugen die Arme. Wer aus dem passiven Hängen anreißt, belastet nur die Gelenkkapsel."
+      ],
+      [
+        "Wenn es noch nicht geht",
+        "Negativ-Wiederholungen: hochspringen oder von einem Stuhl aus starten und fünf Sekunden kontrolliert ablassen. Drei bis vier Wochen davon, dann kommt die erste freie. Bänder als Hilfe gehen auch, nehmen aber unten am meisten ab – also genau dort, wo es schwer ist."
+      ],
+      [
+        "Typische Fehler",
+        "Schwingen und mit den Beinen nachhelfen. Nur bis zur Nasenspitze kommen. Unten nicht ganz ausstrecken und so den halben Bewegungsweg verschenken."
+      ]
+    ],
+    "dbRest": 180,
+    "bwRest": 180,
+    "dbWeight": 0,
+    "dbStep": 1,
+    "weightNote": "im Rucksack",
+    "dbPattern": "pullup",
+    "dbShares": {
+      "lats": 1.0,
+      "biceps": 0.65,
+      "traps": 0.3,
+      "rearDelts": 0.15
+    },
+    "bwPattern": "pullup",
+    "bwShares": {
+      "lats": 1.0,
+      "biceps": 0.65,
+      "traps": 0.3,
+      "rearDelts": 0.15
+    },
+    "equip": "backpack",
+    "dbStufen": {
+      "anfaenger": {
+        "reps": "1–3",
+        "rest": 120
+      }
+    },
+    "bwStufen": {
+      "anfaenger": {
+        "reps": "1–3",
+        "rest": 120
+      }
+    }
   },
-  "equip": "hipbar"
- },
- "gewichtete-liegestuetze": {
-  "group": "Brust",
-  "tier": 1,
-  "dbEquip": "Rucksack",
-  "bwEquip": "Ohne Gerät (optional zwei Bücherstapel)",
-  "dbCue": "Rucksack auf den oberen Rücken, hoch zwischen die Schulterblätter, Gurte fest – rutscht er Richtung Becken, hebelt er dich hoch. Füllung: Wasserflaschen (1 l = 1 kg), Bücher oder die Kurzhanteln selbst. Körper bleibt eine Linie, Ellenbogen ca. 45°. Mehr Tiefe bringen zwei gleich hohe, kippsichere Auflagen unter den Händen – dicke Bücher oder niedrige Kisten; dann sinkt die Brust darunter. Auf Kurzhanteln nur, wenn sie sechseckig sind: runde Scheiben rollen unter Last weg.",
-  "bwCue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht. Mehr Tiefe bringen zwei gleich hohe Bücherstapel oder kippsichere Kisten unter den Händen.",
-  "detail": [
-   [
-    "Rucksack richtig packen",
-    "Hoch zwischen die Schulterblätter, Gurte straff. Rutscht er Richtung Becken, hebelt er dich hoch statt dich zu beschweren. Wasserflaschen sind praktisch: ein Liter ist ein Kilo, und du kannst in Halbliterschritten steigern."
-   ],
-   [
-    "Körperspannung",
-    "Kopf, Hüfte und Fersen bilden eine Linie – Gesäß und Bauch fest. Die häufigste Ursache für Schmerzen im unteren Rücken bei Liegestützen ist die durchhängende Hüfte, nicht das Gewicht."
-   ],
-   [
-    "Mehr Tiefe",
-    "Zwei gleich hohe, kippsichere Auflagen unter den Händen – dicke Bücher, niedrige Kisten, sechseckige Kurzhanteln. Runde Scheiben oder runde Hanteln rollen unter Last weg."
-   ],
-   [
-    "Typische Fehler",
-    "Ellenbogen rechtwinklig abspreizen statt 45 Grad. Nur den Kopf senken. Unten aufliegen und Schwung nehmen."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": 8,
-  "dbStep": 1,
-  "weightNote": "im Rucksack",
-  "dbPattern": "pushup",
-  "dbShares": {
-   "chest": 1.0,
-   "triceps": 0.6,
-   "frontDelts": 0.45
+  "pull-ups": {
+    "group": "Rücken/Bizeps",
+    "tier": 1,
+    "name": "Pull-ups",
+    "reps": "4–10",
+    "bwName": "Pull-ups",
+    "bwReps": "4–10",
+    "dbEquip": "Klimmzugstange + Rucksack",
+    "bwEquip": "Klimmzugstange (+ Stuhl)",
+    "dbCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Noch keine 4? Dann Negative (hochspringen, 5 s ablassen) oder Füße auf einem Stuhl, bis der Bereich steht – einzelne Maximalversuche bringen für den Aufbau wenig. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
+    "bwCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Schulterblätter zuerst nach unten ziehen, Brust zur Stange, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als im Untergriff. Noch keine ganze? Negative: hochspringen und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen. Drei bis vier Wochen, dann geht die erste freie.",
+    "detail": [
+      [
+        "Griff",
+        "Obergriff, etwa eine Handbreit weiter als die Schultern. Noch weiter macht die Bewegung kürzer, nicht besser, und drückt die Schulter in eine ungünstige Stellung."
+      ],
+      [
+        "Warum weniger gehen als bei Chin-ups",
+        "Der Bizeps steht im Obergriff schlechter und kann weniger beitragen – der Rücken macht mehr Arbeit. Zwei bis vier Wiederholungen Unterschied sind normal und kein Rückschritt."
+      ],
+      [
+        "Typische Fehler",
+        "Den Kopf nach vorn schieben, um über die Stange zu kommen. Die Schultern oben hochziehen, statt sie nach unten zu ziehen. Aus dem Hohlkreuz schwingen."
+      ]
+    ],
+    "dbRest": 180,
+    "bwRest": 180,
+    "dbWeight": 0,
+    "dbStep": 1,
+    "weightNote": "im Rucksack",
+    "dbPattern": "pullupwide",
+    "dbShares": {
+      "lats": 1.0,
+      "biceps": 0.4,
+      "traps": 0.35,
+      "rearDelts": 0.2
+    },
+    "bwPattern": "pullupwide",
+    "bwShares": {
+      "lats": 1.0,
+      "biceps": 0.4,
+      "traps": 0.35,
+      "rearDelts": 0.2
+    },
+    "equip": "backpack",
+    "dbStufen": {
+      "anfaenger": {
+        "reps": "1–3",
+        "rest": 120
+      }
+    },
+    "bwStufen": {
+      "anfaenger": {
+        "reps": "1–3",
+        "rest": 120
+      }
+    }
   },
-  "bwPattern": "pushup",
-  "bwShares": {
-   "chest": 1.0,
-   "triceps": 0.6,
-   "frontDelts": 0.45
+  "reverse-fly": {
+    "group": "Schulter (hinten)",
+    "tier": 3,
+    "dbEquip": "Kurzhanteln",
+    "bwEquip": "Loop-Band",
+    "dbCue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
+    "bwCue": "Auf das Band stellen, Enden überkreuz in die Hände, vorgebeugt wie mit den Hanteln. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt. Vorher standen hier Reverse Snow Angels – die führen die Arme bis über den Kopf und sind damit zu einem guten Teil Nacken statt hintere Schulter. Schwerer wird es mit dem nächststärkeren Band oder überkreuztem Griff.",
+    "detail": [
+      [
+        "Leicht ist hier richtig",
+        "Die hintere Schulter ist klein. Fünf Kilo je Hand sind nicht wenig, wenn die Bewegung wirklich aus dem Schulterblatt kommt. Sobald du schwingen musst, ist es zu schwer."
+      ],
+      [
+        "Ellenbogen",
+        "Leicht gebeugt und in diesem Winkel festgehalten. Öffnen sie sich beim Heben, wird daraus ein Trizeps-Kickback."
+      ],
+      [
+        "Daumen nach unten oder oben?",
+        "Daumen nach unten (Innenrotation) trifft die hintere Schulter etwas direkter, drückt aber die Schulter in die enge Stellung, in der es klemmen kann. Neutral – Handflächen zeigen zueinander – ist der bessere Standard."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": 5,
+    "dbStep": 1,
+    "weightNote": "je Hand",
+    "dbPattern": "reversefly",
+    "dbShares": {
+      "rearDelts": 1.0,
+      "traps": 0.6
+    },
+    "bwPattern": "reversefly",
+    "bwShares": {
+      "rearDelts": 1.0,
+      "traps": 0.6
+    },
+    "equip": "dumbbells",
+    "bwName": "Vorgebeugtes Band-Reverse-Fly",
+    "bwReps": "12–20"
   },
-  "equip": "backpack"
- },
- "fuesse-erhoehte-liegestuetze": {
-  "group": "Brust (oben)",
-  "tier": 1,
-  "dbEquip": "Erhöhung",
-  "bwEquip": "Stuhl oder feste Kiste",
-  "dbCue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter. Schaffst du keine 8? Dann in die Gegenrichtung: Füße auf den Boden, und wenn das noch zu viel ist, die Hände erhöhen – auf eine Stuhlkante oder Treppenstufe. Je höher die Hände, desto leichter. Von dort Stufe für Stufe wieder herunter.",
-  "bwCue": "Füße auf einen Stuhl oder eine feste Kiste, Körper eine Linie, Ellenbogen ca. 45°. Je höher die Füße, desto mehr obere Brust und Schulter. Für mehr Reiz Füße höher stellen oder langsamer ablassen. Zu schwer? Füße auf den Boden, danach die Hände erhöhen (Stuhlkante, Treppenstufe) – je höher die Hände, desto leichter.",
-  "detail": [
-   [
-    "Wie hoch",
-    "Ein Stuhl oder eine Kiste, 40 bis 50 cm. Je höher die Füße, desto mehr Gewicht liegt auf den Armen und desto mehr arbeitet die obere Brust und die vordere Schulter."
-   ],
-   [
-    "Grenze",
-    "Ab etwa Hüfthöhe wird daraus ein senkrechtes Drücken – interessant für die Schulter, aber dann ist es keine Brustübung mehr."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "pushupfeet",
-  "dbShares": {
-   "chest": 1.0,
-   "frontDelts": 0.6,
-   "sideDelts": 0.1,
-   "triceps": 0.55
+  "sitzendes-seitheben": {
+    "group": "Schulter",
+    "tier": 3,
+    "dbEquip": "Kurzhanteln",
+    "bwEquip": "Loop-Band + Stuhl",
+    "dbCue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
+    "bwCue": "Auf einen Stuhl setzen, Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind, langsam zurück. Sitzend, weil so weder Beine noch Rumpf nachhelfen können – genau wie beim sitzenden Seitheben mit Hanteln. Schwerer wird es mit dem nächststärkeren Band.",
+    "detail": [
+      [
+        "Warum sitzend",
+        "Im Stehen hilft fast jeder mit einem kleinen Stoß aus Hüfte und Knien nach. Sitzend geht das nicht, und die seitliche Schulter bekommt, was sie soll – dafür brauchst du weniger Gewicht als du denkst."
+      ],
+      [
+        "Bahn",
+        "Leicht vor der Körperlinie, nicht in einer Ebene mit dem Rücken. Bis Schulterhöhe, nicht höher: darüber übernimmt der Nacken."
+      ],
+      [
+        "Typische Fehler",
+        "Die Schultern zum Ohr ziehen. Die Hanteln nach oben werfen und fallen lassen. Zu weit hochheben."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": 6,
+    "dbStep": 1,
+    "weightNote": "je Hand",
+    "dbPattern": "lateral",
+    "dbShares": {
+      "sideDelts": 1.0,
+      "frontDelts": 0.15,
+      "traps": 0.2
+    },
+    "bwPattern": "lateral",
+    "bwShares": {
+      "sideDelts": 1.0,
+      "frontDelts": 0.15,
+      "traps": 0.15
+    },
+    "equip": "dumbbells",
+    "bwName": "Sitzendes Band-Seitheben",
+    "bwReps": "12–20"
   },
-  "bwPattern": "pushupfeet",
-  "bwShares": {
-   "chest": 1.0,
-   "frontDelts": 0.6,
-   "sideDelts": 0.1,
-   "triceps": 0.55
+  "band-seitheben": {
+    "group": "Schulter",
+    "tier": 3,
+    "name": "Band-Seitheben",
+    "reps": "12–20",
+    "bwName": "Band-Seitheben",
+    "bwReps": "12–20",
+    "dbEquip": "Loop-Band",
+    "bwEquip": "Loop-Band",
+    "dbCue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern dabei bewusst unten lassen und mit dem Ellenbogen führen, nicht mit der Hand: Zieht die Schulter zum Ohr, macht der Nacken die Arbeit statt der Seitendelta. Kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
+    "bwCue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
+    "detail": [
+      [
+        "Wenn du es im Nacken merkst",
+        "Das ist der häufigste Fehler bei dieser Übung und kein Zeichen, dass du sie falsch verstanden hast: Sobald der Widerstand zu groß wird, zieht der Körper die Schulter zum Ohr und der obere Trapez übernimmt. Drei Dinge helfen, in dieser Reihenfolge: leichteres Band (oder engerer Stand), Schultern aktiv nach unten ziehen, bevor der Arm losgeht, und oben bei waagerecht aufhören. Höher als Schulterhöhe ist die Seitendelta ohnehin fertig – ab da hebt nur noch der Nacken. Merkst du es danach immer noch, ist das Band für dich das falsche Gerät: Am Band ist der Zug oben am größten, genau da, wo das Hochziehen am nächsten liegt. Mit Kurzhanteln ist es umgekehrt."
+      ],
+      [
+        "Widerstand am richtigen Ort",
+        "Beim Band wächst der Zug nach oben, also genau dort, wo die seitliche Schulter stark ist. Bei der Hantel ist es umgekehrt – deshalb fühlen sich die beiden Varianten unterschiedlich an, obwohl sie dasselbe trainieren."
+      ],
+      [
+        "Stand",
+        "Breiter Stand auf dem Band macht es schwerer, ein Fuß leichter. Das ist die Feineinstellung, die hier das Gewicht ersetzt."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "lateralstand",
+    "dbShares": {
+      "sideDelts": 1.0,
+      "frontDelts": 0.15,
+      "traps": 0.2
+    },
+    "bwPattern": "lateralstand",
+    "bwShares": {
+      "sideDelts": 1.0,
+      "frontDelts": 0.15,
+      "traps": 0.2
+    },
+    "equip": "band"
   },
-  "equip": null
- },
- "floor-press": {
-  "group": "Brust/Trizeps",
-  "tier": 1,
-  "dbEquip": "Langhantel",
-  "bwEquip": "Ohne Gerät",
-  "dbCue": "Rücken am Boden, Stange über der unteren Brust. Oberarme setzen unten kurz ab – das ist der Bewegungsstopp, nicht der Boden als Ablage. Handgelenke gerade über den Ellenbogen. Aufbau ohne Ständer: Stange neben dich legen, im Sitzen über die Oberschenkel rollen, mit ihr zurücklegen; zum Schluss denselben Weg zurück. Verschlüsse drauf, keine Stühle als Ablage – die kippen. Und hier wirklich eine Wiederholung in Reserve lassen: Ohne Ablage kommt die Stange nur über den Bauch wieder herunter, und dafür brauchst du Kraft.",
-  "bwCue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press.",
-  "detail": [
-   [
-    "Griff",
-    "Etwas weiter als schulterbreit, Daumen um die Stange – kein „Affengriff\" mit dem Daumen daneben, erst recht nicht über dem Gesicht. Das Handgelenk bleibt gerade, die Stange liegt auf dem Handballen über dem Unterarmknochen, nicht in den Fingern."
-   ],
-   [
-    "Aufbau ohne Ständer",
-    "Stange neben dich legen, dich davorsetzen, sie über die Oberschenkel rollen und mit ihr zusammen zurücklegen; die Beine ziehen die Stange dabei in Position. Zum Schluss denselben Weg zurück. Verschlüsse gehören drauf – kippt die Stange einmal, wandern sonst alle Scheiben auf einer Seite herunter."
-   ],
-   [
-    "Warum der Boden",
-    "Die Oberarme setzen unten kurz auf, damit die Schulter nicht weiter nach hinten fällt, als sie soll. Das ist der Bewegungsstopp – nicht die Ablage: Die Spannung bleibt, du legst die Stange nicht ab und drückst nicht aus der Ruhe wieder hoch."
-   ],
-   [
-    "Typische Fehler",
-    "Auf den Boden absacken lassen und mit Schwung hochprellen. Die Ellenbogen rechtwinklig abspreizen (45 Grad sind das Ziel). Den Kopf heben und die Stange dabei Richtung Gesicht wandern lassen."
-   ],
-   [
-    "Reserve lassen",
-    "Ohne Ständer gibt es keinen Ausstieg nach oben. Bleibt eine Wiederholung stecken, kommt die Stange über den Bauch bis zu den Hüften und von dort im Sitzen herunter – dafür brauchst du Kraft, also lass eine Wiederholung übrig."
-   ]
-  ],
-  "dbRest": 180,
-  "bwRest": 150,
-  "dbWeight": 40,
-  "dbStep": 5,
-  "weightNote": "Stange gesamt",
-  "dbPattern": "pressbar",
-  "dbShares": {
-   "chest": 1.0,
-   "triceps": 0.7,
-   "frontDelts": 0.35
+  "liegende-trizepsstrecker": {
+    "group": "Trizeps",
+    "tier": 3,
+    "dbEquip": "Kurzhanteln oder SZ-Stange",
+    "bwEquip": "Loop-Band + Stuhl",
+    "dbCue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. Zwei Kurzhanteln – je eine pro Hand – hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Mit einer SZ-Stange beidhändig geht es auch, dann ist der Griff enger und das eingetragene Gewicht meint die ganze Stange. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
+    "bwCue": "Auf den Stuhl setzen, das Band unter beide Füße klemmen und die Enden hinter dem Kopf fassen. Oberarme senkrecht neben den Ohren, nur strecken – die Ellenbogen bleiben stehen. Über Kopf steht der lange Trizepskopf auf voller Länge; genau dort soll der Zug ankommen. Schwerer wird es mit dem nächststärkeren Band oder indem du das Band kürzer fasst.",
+    "detail": [
+      [
+        "Warum über Kopf",
+        "Der lange Trizepskopf läuft über das Schultergelenk. Nur mit dem Arm über dem Kopf steht er auf voller Länge unter Zug – das ist der Teil, den Drücken und Liegestütze nicht abdecken."
+      ],
+      [
+        "Ellenbogen",
+        "Sie bleiben stehen, neben den Ohren. Wandern sie nach außen oder nach vorn, hilft die Schulter mit und der Trizeps bekommt weniger."
+      ],
+      [
+        "Eine Hantel oder zwei",
+        "Zwei Kurzhanteln, je eine pro Hand, sind schonender für die Handgelenke als eine Hantel mit beiden Händen. Eine SZ-Stange geht auch – dann ist der Griff enger."
+      ],
+      [
+        "Typische Fehler",
+        "Ins Hohlkreuz ausweichen. Zu tief ablassen, bis es im Ellenbogen zwickt. Mit Schwung strecken."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": 8,
+    "dbStep": 1,
+    "weightNote": "je Hand",
+    "dbPattern": "tricepsoh",
+    "dbShares": {
+      "triceps": 1.0
+    },
+    "bwPattern": "tricepsoh",
+    "bwShares": {
+      "triceps": 1.0
+    },
+    "equip": "dumbbells",
+    "bwName": "Überkopf-Trizepsstrecker am Band",
+    "bwReps": "10–20",
+    "name": "Überkopf-Trizepsstrecker",
+    "reps": "8–12"
   },
-  "bwPattern": "pushup",
-  "bwShares": {
-   "chest": 1.0,
-   "triceps": 0.6,
-   "frontDelts": 0.45
+  "sz-curls": {
+    "group": "Bizeps",
+    "tier": 3,
+    "dbEquip": "SZ-Stange",
+    "bwEquip": "Loop-Band",
+    "dbCue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung. Handgelenk gerade halten – knickt es unter Last nach hinten ab, liegt die Stange zu weit in den Fingern oder das Gewicht ist zu hoch.",
+    "bwCue": "Band unter beide Füße, Enden in den Händen, Handflächen nach vorn. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Vorher standen hier enge supinierte Chin-ups – die trainieren aber vor allem den Rücken mit, und der ist an dem Tag schon bedient. Schwerer wird es mit breiterem Stand auf dem Band.",
+    "detail": [
+      [
+        "Warum die SZ-Stange",
+        "Die Wellen drehen die Handgelenke leicht nach innen. Das ist bequemer als die gerade Stange und trifft den Bizeps kaum anders."
+      ],
+      [
+        "Handgelenk",
+        "Ein abknickendes Handgelenk ist kein Zeichen von dünnen Gelenken, sondern fast immer eine Frage von Griff und Last – und in dieser Reihenfolge zu beheben.\n\nErstens der Griff: Die Stange gehört quer über den Handballen, in einer Linie mit den Unterarmknochen, nicht in die Finger. Rutscht sie in die Finger, hat das Handgelenk einen Hebel gegen sich und muss die Last mit den Streckern halten – es knickt nach hinten weg. Bei der SZ-Stange die *innere* Flanke der Welle greifen, die zur Mitte hin ansteigt; dort steht die Hand von selbst leicht gedreht, und genau dafür gibt es die Wellen.\n\nZweitens die Last: Knickt das Handgelenk trotz sauberem Griff ab, ist der Satz zu Ende. Das Handgelenk ist dann der Begrenzer, nicht der Bizeps – und weiterzumachen ist der kurze Weg zu genau der Überlastung, die unter Verletzungen als „Handgelenksüberlastung\" steht. Lieber zwei Kilo weniger und zehn saubere Wiederholungen.\n\nDrittens, und erst dann: Der Umfang des Handgelenks ist Knochen und ändert sich nicht. Der Unterarm dagegen schon. Was ihn dicker macht, steht unter Verletzungen bei den Pflegeübungen – Handgelenkstrecken und -beugen mit langsamem Ablassen, 3 × 15 je Seite. Wer den Reiz lieber in der Übung selbst hätte: Hammercurls mit Kurzhanteln halten das Handgelenk neutral und treffen Brachialis und Brachioradialis, also genau die beiden Muskeln, die einen Unterarm füllen."
+      ],
+      [
+        "Ellenbogen am Körper",
+        "Sie bleiben, wo sie sind. Wandern sie nach vorn, wird daraus ein Heben aus der Schulter – der Bizeps macht dann nur noch die halbe Arbeit."
+      ],
+      [
+        "Ablassen",
+        "Zwei bis drei Sekunden. Das Ablassen ist bei Curls der Teil, an dem der Muskel wächst, und der Teil, den fast alle abkürzen."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": 15,
+    "dbStep": 2.5,
+    "weightNote": "Stange gesamt",
+    "dbPattern": "curl",
+    "dbShares": {
+      "biceps": 1.0
+    },
+    "bwPattern": "curl",
+    "bwShares": {
+      "biceps": 1.0
+    },
+    "equip": "szbar",
+    "bwName": "Band-Curls",
+    "bwReps": "10–20"
   },
-  "equip": "barbell"
- },
- "einarmiges-kh-rudern": {
-  "group": "Rücken",
-  "tier": 1,
-  "dbEquip": "Langhantel",
-  "bwEquip": "Loop-Band",
-  "dbCue": "Hüfte nach hinten, Rumpf etwa 60° vorgeneigt, Rücken flach und dort halten. Stange am Schienbein entlang zum Bauchnabel ziehen, Ellenbogen eng am Körper, oben die Schulterblätter zusammen. Nicht mit dem Rumpf hochreißen – die Neigung bleibt die ganze Zeit gleich. Zwischen den Sätzen abstellen, nicht fallen lassen.",
-  "bwCue": "Beide Füße auf das Band, hüftbreit, Enden in beiden Händen. Rumpf etwa 60° vorgeneigt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben die Schulterblätter zusammen. Vorher standen hier Inverted Rows unter einer niedrigen Stange – die gibt es unterwegs nicht. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
-  "detail": [
-   [
-    "Griff",
-    "Obergriff, etwas weiter als schulterbreit, für den breiten Rücken. Untergriff (Handflächen nach vorn) zieht den Ellenbogen enger am Körper vorbei, trifft mehr den unteren Rücken­anteil des Latissimus und nimmt den Bizeps stärker mit – als Abwechslung in Ordnung, aber dann bleibt es für den ganzen Satz dabei."
-   ],
-   [
-    "Die Neigung ist die Übung",
-    "Etwa 60 Grad, und die bleiben. Wer beim Ziehen den Rumpf mit hochreißt, macht daraus ein halbes Kreuzheben und nimmt dem Rücken genau die Spannung, um die es geht. Ein Blick in eine Fensterscheibe oder ein Video vom ersten Satz sagt mehr als jedes Gefühl."
-   ],
-   [
-    "Wohin die Stange zieht",
-    "Zum Bauchnabel, nicht zur Brust. Die Ellenbogen wandern nach hinten am Körper vorbei, oben ziehen die Schulterblätter zusammen. Eine Sekunde oben halten macht den Unterschied zwischen Ziehen und Schwingen."
-   ],
-   [
-    "Typische Fehler",
-    "Runder Rücken – dann arbeitet die Bandscheibe statt der Rücken. Zu viel Gewicht und dafür halbe Wiederholungen. Die Stange vom Körper weg nach vorn ziehen."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": 35,
-  "dbStep": 5,
-  "weightNote": "Stange gesamt",
-  "dbPattern": "rowbar",
-  "dbShares": {
-   "lats": 1.0,
-   "biceps": 0.5,
-   "traps": 0.5,
-   "rearDelts": 0.35
+  "gewichtete-crunches": {
+    "group": "Bauch",
+    "tier": 4,
+    "dbEquip": "Kurzhantel oder Scheibe",
+    "bwEquip": "Ohne Gerät",
+    "dbCue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
+    "bwCue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer.",
+    "detail": [
+      [
+        "Wohin das Gewicht",
+        "Vor der Brust ist leichter, hinter dem Kopf schwerer – der Hebel ist länger. Anfangen mit vor der Brust, und erst wechseln, wenn 15 saubere Wiederholungen stehen."
+      ],
+      [
+        "Was sich bewegt",
+        "Nur die Brustwirbelsäule rollt ein, der untere Rücken bleibt am Boden. Wer die Hüfte beugt und den ganzen Oberkörper hochklappt, trainiert den Hüftbeuger."
+      ],
+      [
+        "Typische Fehler",
+        "Am Kopf ziehen. Schwung holen. Bis ganz nach oben kommen – die Bewegung ist kurz, das ist kein Fehler, sondern die Übung."
+      ]
+    ],
+    "dbRest": 90,
+    "bwRest": 90,
+    "dbWeight": 5,
+    "dbStep": 1.25,
+    "weightNote": "auf der Brust",
+    "dbPattern": "crunch",
+    "dbShares": {
+      "abs": 1.0
+    },
+    "bwPattern": "crunch",
+    "bwShares": {
+      "abs": 1.0
+    },
+    "equip": "plate"
   },
-  "bwPattern": "rowbar",
-  "bwShares": {
-   "lats": 1.0,
-   "biceps": 0.5,
-   "traps": 0.5,
-   "rearDelts": 0.35
+  "einbeiniges-stehendes-wadenheben": {
+    "group": "Waden",
+    "tier": 4,
+    "dbEquip": "Kurzhantel",
+    "bwEquip": "Stufe oder dickes Buch",
+    "dbCue": "Ballen auf ein dickes Buch, eine Türschwelle oder eine Stufe – Hauptsache, die Ferse kann darunter absinken. Ganz hoch auf den Ballen, oben 1 s halten. Das freie Bein hängt einfach locker hinten, es wird nirgends abgelegt; wer wackelt, hält sich mit der freien Hand an der Wand fest.",
+    "bwCue": "Fußballen auf eine Stufe oder ein dickes Buch, Ferse tief absenken – flach auf dem Boden fehlt genau der gedehnte Teil, auf den es hier ankommt. Ganz hoch auf den Ballen, oben 1 s halten. Ohne Gewicht dafür deutlich mehr Wiederholungen.",
+    "detail": [
+      [
+        "Die Dehnung unten zählt",
+        "Fußballen auf etwas Erhöhtes, die Ferse sinkt darunter. Ein dickes Buch reicht – es braucht keine Stufe, nur ein paar Zentimeter. Flach auf dem Boden fehlt genau der Teil, der die Wade wachsen lässt."
+      ],
+      [
+        "Wohin mit dem anderen Bein",
+        "Nirgendwo hin – es hängt hinten locker herunter, das Knie leicht gebeugt. Es wird nicht auf der Wade abgelegt und auch nicht angehoben: Beides kostet nur Gleichgewicht, und das brauchst du hier. Wenn du wackelst, ist die freie Hand an der Wand die Lösung, nicht eine andere Beinhaltung."
+      ],
+      [
+        "Tempo",
+        "Ganz hoch, oben eine Sekunde halten, langsam ablassen. Wippen bringt nichts – die Achillessehne federt dann, statt dass der Muskel arbeitet."
+      ],
+      [
+        "Gestreckt oder gebeugt",
+        "Mit gestrecktem Knie arbeitet der obere, sichtbare Wadenmuskel. Deshalb hier strecken – der gebeugte Teil hat seine eigene Übung."
+      ]
+    ],
+    "dbRest": 90,
+    "bwRest": 90,
+    "dbWeight": 12,
+    "dbStep": 2,
+    "weightNote": "eine Hantel",
+    "dbPattern": "calf1",
+    "dbShares": {
+      "calves": 1.0
+    },
+    "bwPattern": "calf1",
+    "bwShares": {
+      "calves": 1.0
+    },
+    "equip": "onehand"
   },
-  "equip": "barbell",
-  "bwName": "Vorgebeugtes Band-Rudern",
-  "bwReps": "10–20",
-  "name": "Langhantelrudern",
-  "reps": "8–12"
- },
- "chin-ups": {
-  "group": "Rücken/Bizeps",
-  "tier": 1,
-  "dbEquip": "Klimmzugstange + Rucksack",
-  "bwEquip": "Klimmzugstange (+ Stuhl)",
-  "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Schaffst du noch keine 5? Dann ist eine einzelne Wiederholung ein Maximalversuch und kein Trainingssatz: Negative (von einem Stuhl aus starten, 5 s ablassen) oder Füße auf einem Stuhl abstützen, bis du im Bereich 5–10 arbeitest. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Wasserflaschen, Bücher, Kurzhanteln) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
-  "bwCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zu schwer? Negativ-Wiederholungen: von einem Stuhl aus oben starten und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen und nur so viel abnehmen, wie nötig ist.",
-  "detail": [
-   [
-    "Griff",
-    "Untergriff, schulterbreit. Enger geht auf die Handgelenke, weiter nimmt dem Bizeps die Arbeit ab. Daumen um die Stange."
-   ],
-   [
-    "Aus dem vollen Hang",
-    "Unten die Arme ganz strecken, aber die Schultern aktiv lassen – zuerst die Schulterblätter nach unten ziehen, dann erst beugen die Arme. Wer aus dem passiven Hängen anreißt, belastet nur die Gelenkkapsel."
-   ],
-   [
-    "Wenn es noch nicht geht",
-    "Negativ-Wiederholungen: hochspringen oder von einem Stuhl aus starten und fünf Sekunden kontrolliert ablassen. Drei bis vier Wochen davon, dann kommt die erste freie. Bänder als Hilfe gehen auch, nehmen aber unten am meisten ab – also genau dort, wo es schwer ist."
-   ],
-   [
-    "Typische Fehler",
-    "Schwingen und mit den Beinen nachhelfen. Nur bis zur Nasenspitze kommen. Unten nicht ganz ausstrecken und so den halben Bewegungsweg verschenken."
-   ]
-  ],
-  "dbRest": 180,
-  "bwRest": 180,
-  "dbWeight": 0,
-  "dbStep": 1,
-  "weightNote": "im Rucksack",
-  "dbPattern": "pullup",
-  "dbShares": {
-   "lats": 1.0,
-   "biceps": 0.65,
-   "traps": 0.3,
-   "rearDelts": 0.15
+  "wadenheben-gebeugtes-knie": {
+    "group": "Waden (Soleus)",
+    "tier": 4,
+    "dbEquip": "Kurzhantel",
+    "bwEquip": "Ohne Gerät",
+    "dbCue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
+    "bwCue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
+    "detail": [
+      [
+        "Warum gebeugt",
+        "Der Zwillingsmuskel läuft über das Knie und ist bei gebeugtem Knie erschlafft. Was dann noch drückt, ist der Schollenmuskel darunter – der macht den Umfang der Wade und wird sonst nie direkt getroffen."
+      ],
+      [
+        "Winkel",
+        "Etwa 30 Grad Kniebeugung und dort halten. Beugt sich das Knie während des Satzes weiter, wird die Bewegung zur Mini-Kniebeuge."
+      ]
+    ],
+    "dbRest": 90,
+    "bwRest": 90,
+    "dbWeight": 12,
+    "dbStep": 2,
+    "weightNote": "eine Hantel",
+    "dbPattern": "calfbent",
+    "dbShares": {
+      "calves": 1.0
+    },
+    "bwPattern": "calfbent",
+    "bwShares": {
+      "calves": 1.0
+    },
+    "equip": "onehand"
   },
-  "bwPattern": "pullup",
-  "bwShares": {
-   "lats": 1.0,
-   "biceps": 0.65,
-   "traps": 0.3,
-   "rearDelts": 0.15
+  "sitzendes-schulterdruecken": {
+    "group": "Schulter",
+    "tier": 1,
+    "name": "Sitzendes Schulterdrücken",
+    "reps": "6–12",
+    "bwName": "Band-Schulterdrücken",
+    "bwReps": "8–15",
+    "dbEquip": "Kurzhanteln",
+    "bwEquip": "Loop-Band",
+    "dbCue": "Aufrecht sitzen, Rippen unten lassen. Hanteln von Schulterhöhe senkrecht nach oben, Ellenbogen leicht vor der Schulterachse. Oben nicht in den Rücken ausweichen.",
+    "bwCue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Vorher standen hier füße-erhöhte Pike Push-ups – die sind zu einem guten Teil Brust und treffen die seitliche Schulter kaum. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand darauf; leichter, indem du nur mit einem Fuß darauf stehst.",
+    "detail": [
+      [
+        "Wo die Hanteln starten",
+        "Auf Schulterhöhe, Handflächen nach vorn, Ellenbogen leicht vor der Schulterachse – nicht in einer Linie mit dem Rücken. Das schont das Gelenk und ist die stärkere Position."
+      ],
+      [
+        "Rippen unten",
+        "Der häufigste Fehler ist das Ausweichen ins Hohlkreuz, sobald es schwer wird. Bauch fest, Rippen nach unten ziehen; wenn das nicht mehr geht, ist der Satz zu Ende."
+      ],
+      [
+        "Hochbringen",
+        "Die Hanteln auf die Oberschenkel setzen, im Sitzen mit dem Knie nach oben stoßen und dabei die Schulter mitdrehen. Aus dem gestreckten Arm heraus hochzuwuchten kostet unnötig Kraft."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 180,
+    "dbWeight": 10,
+    "dbStep": 2,
+    "weightNote": "je Hand",
+    "dbPattern": "ohp",
+    "dbShares": {
+      "frontDelts": 1.0,
+      "sideDelts": 0.45,
+      "triceps": 0.6,
+      "traps": 0.3
+    },
+    "bwPattern": "ohpstand",
+    "bwShares": {
+      "frontDelts": 1.0,
+      "sideDelts": 0.45,
+      "triceps": 0.6,
+      "traps": 0.3
+    },
+    "equip": "dumbbells"
   },
-  "equip": "backpack",
-  "dbStufen": {
-   "anfaenger": {
-    "reps": "1–3",
-    "rest": 120
-   }
+  "rumaenisches-kreuzheben": {
+    "group": "Beine",
+    "tier": 1,
+    "name": "Rumänisches Kreuzheben",
+    "reps": "8–12",
+    "bwName": "Einbeiniges Kreuzheben (Standwaage)",
+    "bwReps": "8–15 je Bein",
+    "dbEquip": "Langhantel",
+    "bwEquip": "Ohne Gerät",
+    "dbCue": "Stange dicht am Bein, Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Schulterblätter fest. Nicht tiefer als die Dehnung erlaubt – die Stange kommt nicht auf den Boden, sondern bis etwa Schienbeinmitte und wieder hoch. Abgesetzt wird nur vor und nach dem Satz, kontrolliert.",
+    "bwCue": "Auf einem Bein, das freie Bein wandert nach hinten, bis Rumpf und Bein eine Linie bilden. Hüfte gerade halten, nicht zur Seite kippen.",
+    "detail": [
+      [
+        "Griff: Obergriff, beide Hände gleich",
+        "Beide Handflächen zeigen zum Körper. Der Mischgriff – eine Hand über, eine unter – hält zwar mehr, dreht aber Becken und Wirbelsäule leicht gegeneinander und zieht den Arm mit dem Untergriff in die Länge; bei gebeugtem Rumpf und 40 kg braucht es das nicht. Beidhändiger Untergriff ist die schlechteste Wahl: Der Bizeps steht dabei gestreckt unter Zug, und genau so reißt er. Wenn der Griff vor dem Beinbeuger aufgibt, ist das kein Grund für den Mischgriff, sondern für Kreide, einen Hakengriff (Daumen unter Zeige- und Mittelfinger) oder Zughilfen – oder für einen Satz mit weniger Gewicht."
+      ],
+      [
+        "Wie weit nach unten",
+        "Die Dehnung bestimmt die Tiefe, nicht der Boden. Sobald hinten am Oberschenkel nichts mehr nachgibt und der untere Rücken anfangen würde, sich zu runden, ist unten erreicht – bei den meisten irgendwo zwischen Knie und Schienbeinmitte. Wer weiter kommen will, arbeitet an der Beweglichkeit, nicht am Gewicht."
+      ],
+      [
+        "Atmung und Tempo",
+        "Oben einatmen und die Luft anhalten, während du hinuntergehst; das hält den Rumpf stabil. Ausatmen erst oben. Runter in zwei bis drei Sekunden, hoch zügig – die Bremsphase ist der Reiz."
+      ],
+      [
+        "Typische Fehler",
+        "Kniebeuge daraus machen (Knie wandern nach vorn, Hüfte nach unten statt nach hinten). Die Stange vom Bein weglaufen lassen – jeder Zentimeter Abstand ist Hebel für den unteren Rücken. Oben ins Hohlkreuz überstrecken, statt einfach aufrecht zu stehen."
+      ],
+      [
+        "In der Wohnung",
+        "Vor und nach dem Satz kontrolliert absetzen, nie fallen lassen. Eine Matte oder ein dickes Handtuch unter den Scheiben nimmt den Rest."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 40,
+    "dbStep": 5,
+    "weightNote": "Stange gesamt",
+    "dbPattern": "hinge",
+    "dbShares": {
+      "hamstringsHip": 1.0,
+      "glutes": 0.7,
+      "abs": 0.2
+    },
+    "bwPattern": "hinge1",
+    "bwShares": {
+      "hamstringsHip": 1.0,
+      "glutes": 0.75,
+      "abs": 0.3
+    },
+    "equip": "barbell"
   },
-  "bwStufen": {
-   "anfaenger": {
-    "reps": "1–3",
-    "rest": 120
-   }
+  "split-squat": {
+    "group": "Beine",
+    "tier": 1,
+    "name": "Split Squat",
+    "reps": "8–12 je Bein",
+    "bwName": "Split Squat ohne Gewicht",
+    "bwReps": "12–20 je Bein",
+    "dbEquip": "Kurzhanteln",
+    "bwEquip": "Ohne Gerät",
+    "dbCue": "Ein Bein weit vorn, das hintere Knie senkt sich Richtung Boden. Rumpf aufrecht, das Gewicht auf der ganzen vorderen Fußsohle. Hinteren Fuß erhöhen macht es schwerer.",
+    "bwCue": "Gleiche Stellung ohne Gewicht, dafür langsam: drei Sekunden ablassen, unten kurz halten.",
+    "detail": [
+      [
+        "Stand",
+        "Ein großer Schritt nach vorn, die Füße bleiben etwa hüftbreit auseinander – nicht auf einer Linie wie beim Seiltanz. Das vordere Schienbein steht am tiefsten Punkt fast senkrecht, das hintere Knie senkt sich unter die Hüfte."
+      ],
+      [
+        "Wo das Gewicht liegt",
+        "Auf der ganzen vorderen Fußsohle, Druck über die Ferse. Der hintere Fuß hält nur das Gleichgewicht."
+      ],
+      [
+        "Schwerer machen",
+        "Den hinteren Fuß auf einen Stuhl (bulgarisch) – das verlagert fast alles auf das vordere Bein. Oder pausieren: unten zwei Sekunden stehen bleiben."
+      ],
+      [
+        "Typische Fehler",
+        "Zu kurzer Schritt; dann wird es eine Kniebeuge auf einem Bein und das Knie bekommt alles ab. Mit dem Rumpf nach vorn kippen. Sich am hinteren Bein hochdrücken."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 10,
+    "dbStep": 2,
+    "weightNote": "je Hand",
+    "dbPattern": "splitsquat",
+    "dbShares": {
+      "quads": 1.0,
+      "glutes": 0.8,
+      "hamstringsHip": 0.3,
+      "abs": 0.25
+    },
+    "bwPattern": "splitsquat",
+    "bwShares": {
+      "quads": 1.0,
+      "glutes": 0.8,
+      "hamstringsHip": 0.3,
+      "abs": 0.15
+    },
+    "equip": "dumbbells"
+  },
+  "haengendes-knieheben": {
+    "group": "Bauch",
+    "tier": 3,
+    "name": "Hängendes Knieheben",
+    "reps": "8–15",
+    "bwName": "Hängendes Knieheben",
+    "bwReps": "8–15",
+    "dbEquip": "Klimmzugstange",
+    "bwEquip": "Klimmzugstange",
+    "dbCue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit. Schaffst du keine 8? Dann dieselbe Bewegung im Liegen: auf dem Rücken, Hände unter dem Gesäß, Knie anheben und das Becken einrollen. Damit bist du sofort im Bereich – an der Stange hört man meist wegen des Griffs auf, nicht wegen des Bauchs.",
+    "bwCue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit. Schaffst du keine 8? Dann dieselbe Bewegung im Liegen: auf dem Rücken, Hände unter dem Gesäß, Knie anheben und das Becken einrollen. Damit bist du sofort im Bereich – an der Stange hört man meist wegen des Griffs auf, nicht wegen des Bauchs.",
+    "detail": [
+      [
+        "Schultern aktiv",
+        "Unten die Schulterblätter nach unten ziehen, nicht passiv in der Kapsel hängen. Das schützt die Schulter und gibt dem Rumpf einen festen Punkt."
+      ],
+      [
+        "Die letzten Grad",
+        "Knie anheben reicht nicht – der Bauch arbeitet erst, wenn das Becken am Ende nach oben einrollt. Genau diesen Teil kürzen die meisten ab."
+      ],
+      [
+        "Wenn es noch nicht geht",
+        "Zwei Wiederholungen an der Stange sind kein Bauchtraining – meist ist der Griff zuerst am Ende, und der Bauch bekommt gar nicht genug ab. Dieselbe Bewegung im Liegen löst beides: auf dem Rücken, Hände unter dem Gesäß, Knie anheben und am Ende das Becken einrollen. Wer dort bei 15 sauberen ankommt, hängt sich wieder an die Stange. Zwischenschritt für den Griff allein: einfach hängen und die Zeit stoppen."
+      ],
+      [
+        "Typische Fehler",
+        "Schwingen und den Schwung mitnehmen. Nur die Beine pendeln lassen. Zu schnell ablassen."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "kneeraise",
+    "dbShares": {
+      "abs": 1.0
+    },
+    "bwPattern": "kneeraise",
+    "bwShares": {
+      "abs": 1.0
+    },
+    "equip": null,
+    "anfaenger": "liegendes-knieheben"
+  },
+  "band-pull-apart": {
+    "group": "Schulter",
+    "tier": 3,
+    "name": "Band-Pull-Apart",
+    "reps": "12–20",
+    "bwName": "Band-Pull-Apart",
+    "bwReps": "12–20",
+    "dbEquip": "Loop-Band",
+    "bwEquip": "Loop-Band",
+    "dbCue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
+    "bwCue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
+    "detail": [
+      [
+        "Wozu",
+        "Die kleine Gegenübung zu allem Drücken: hintere Schulter und die Muskeln zwischen den Schulterblättern. Sie kostet fast nichts und hält die Schulter dort, wo sie hingehört."
+      ],
+      [
+        "Nicht zu verwechseln mit dem Face Pull",
+        "Der Face Pull hängt am langen Band über der Klimmzugstange und zieht zum Gesicht. Er trifft dieselben Muskeln in einer etwas günstigeren Bahn und steht als eigene Übung im Katalog – hier geht es um das Auseinanderziehen vor dem Körper."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "pullapart",
+    "dbShares": {
+      "rearDelts": 1.0,
+      "traps": 0.7
+    },
+    "bwPattern": "pullapart",
+    "bwShares": {
+      "rearDelts": 1.0,
+      "traps": 0.7
+    },
+    "equip": "band"
+  },
+  "inverted-row": {
+    "group": "Rücken",
+    "tier": 1,
+    "name": "Inverted Row",
+    "reps": "8–15",
+    "bwName": "Inverted Row",
+    "bwReps": "8–20",
+    "dbEquip": "Klimmzugstange tief + Rucksack",
+    "bwEquip": "Klimmzugstange tief oder Tischkante",
+    "dbCue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter, Knie angewinkelt leichter. Zusatzlast kommt in den Rucksack auf die Brust.",
+    "bwCue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Geht die Klimmzugstange nicht tief genug, tut es eine stabile Tischkante: darunterlegen, Kante fassen, ziehen. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter. Zu schwer? Knie anwinkeln und die Füße näher heranstellen; das nimmt Last weg, ohne die Bewegung zu verändern.",
+    "detail": [
+      [
+        "Warum sie im Plan steht",
+        "Klimmzüge ziehen von oben, diese Übung von vorn. Das sind zwei verschiedene Richtungen für denselben Muskel, und der obere Rücken – Kapuzenmuskel, Rautenmuskeln, hintere Schulter – bekommt nur bei der waagerechten wirklich etwas ab. Wer nur senkrecht zieht, lässt genau den Teil aus, der beim Sitzen den ganzen Tag nachgibt."
+      ],
+      [
+        "Schwerer und leichter",
+        "Die Last hängt am Winkel, nicht am Eisen. Füße auf einem Stuhl: schwer. Fersen am Boden, Körper waagerecht: mittel. Knie angewinkelt, Füße nah: leicht. Damit lässt sich jede Wiederholungszahl treffen, ohne etwas aufzustecken."
+      ],
+      [
+        "Die Linie",
+        "Von Kopf bis Ferse gerade, Gesäß fest, Rippen unten. Sackt die Hüfte durch, zieht der Rücken schräg – und der Reiz landet in der Lendenwirbelsäule statt zwischen den Schulterblättern."
+      ],
+      [
+        "Typische Fehler",
+        "Nur den Kopf zur Stange strecken statt die Brust. Die Ellenbogen weit nach außen führen. Oben nicht bis zum Anschlag ziehen – die letzten Zentimeter sind die, in denen die Schulterblätter zusammenkommen."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 0,
+    "dbStep": 2.5,
+    "weightNote": "im Rucksack",
+    "dbPattern": "invrow",
+    "dbShares": {
+      "lats": 1.0,
+      "traps": 0.75,
+      "biceps": 0.5,
+      "rearDelts": 0.45
+    },
+    "bwPattern": "invrow",
+    "bwShares": {
+      "lats": 1.0,
+      "traps": 0.75,
+      "biceps": 0.5,
+      "rearDelts": 0.45
+    },
+    "equip": "backpack"
+  },
+  "einbeiniges-kreuzheben": {
+    "group": "Beine",
+    "tier": 2,
+    "name": "Einbeiniges Kreuzheben",
+    "reps": "8–12 je Bein",
+    "bwName": "Einbeiniges Kreuzheben",
+    "bwReps": "10–20 je Bein",
+    "dbEquip": "Kurzhantel",
+    "bwEquip": "ohne",
+    "dbCue": "Eine Kurzhantel in der Hand der freien Seite. Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden. Zurück über das Gesäß, nicht über den unteren Rücken.",
+    "bwCue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen oder greifen nach vorn. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
+    "detail": [
+      [
+        "Eine Hantel reicht",
+        "Das ist hier kein Behelf, sondern der Punkt: Mit dem Gewicht auf einer Seite muss der Rumpf gegen das Verdrehen halten. Und für den, der nur von jeder Scheibengröße zwei Stück hat, ist es die Hüftstreckung, die sich überhaupt beladen lässt – ein Paar Kurzhanteln braucht vier."
+      ],
+      [
+        "Die Wippe",
+        "Oberkörper und freies Bein bewegen sich gemeinsam, wie die beiden Enden eines Bretts über einem Drehpunkt. Wer das freie Bein hängen lässt und nur den Oberkörper senkt, verliert die Balance und den halben Bewegungsumfang."
+      ],
+      [
+        "Das Standknie",
+        "Leicht gebeugt und dann unverändert. Beugt es sich mit, wird aus der Hüftstreckung eine halbe Kniebeuge, und der Beinbeuger bekommt nichts mehr ab."
+      ],
+      [
+        "Typische Fehler",
+        "Die Schulter der Hantelseite fallen lassen – die Schultern bleiben parallel zum Boden. Zu tief gehen, bis der Rücken rund wird; die Dehnung hinten am Oberschenkel ist die Grenze, nicht der Boden."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": 12,
+    "dbStep": 2,
+    "weightNote": "eine Hantel",
+    "dbPattern": "hinge1",
+    "dbShares": {
+      "hamstringsHip": 1.0,
+      "glutes": 0.8,
+      "abs": 0.35,
+      "traps": 0.2
+    },
+    "bwPattern": "hinge1",
+    "bwShares": {
+      "hamstringsHip": 1.0,
+      "glutes": 0.85,
+      "abs": 0.4,
+      "traps": 0.15
+    },
+    "equip": "onehand"
+  },
+  "pike-liegestuetze": {
+    "group": "Schulter",
+    "tier": 2,
+    "name": "Pike-Liegestütze",
+    "reps": "6–15",
+    "bwName": "Pike-Liegestütze",
+    "bwReps": "6–15",
+    "dbCue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Je senkrechter der Oberkörper, desto mehr Schulter und desto weniger Brust. Füße auf einem Hocker machen es deutlich schwerer.",
+    "bwCue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
+    "detail": [
+      [
+        "Wozu ohne Hanteln drücken",
+        "Über Kopf zu drücken ist die eine Bewegung, für die es sonst zwingend Gewicht braucht. Diese Übung ersetzt es durch den Winkel: Je steiler der Oberkörper steht, desto mehr des eigenen Körpers liegt auf den Schultern. Damit gibt es auch ohne Hanteln ein Schulterdrücken, das schwer genug wird."
+      ],
+      [
+        "Der Weg des Kopfes",
+        "Der Scheitel geht nach vorn-unten, nicht senkrecht. Vor den Händen, nicht zwischen ihnen – dann arbeiten die Schultern in der Richtung, in der sie stark sind."
+      ],
+      [
+        "Handgelenke",
+        "Sie stehen hier steiler als beim Liegestütz. Tut es weh, die Hände etwas weiter nach vorn setzen oder auf Fäusten arbeiten."
+      ],
+      [
+        "Typische Fehler",
+        "Die Hüfte absinken lassen, bis daraus ein schräger Liegestütz wird. Den Kopf nur nicken statt die Arme zu beugen. Zu wenig tief – der Scheitel soll den Boden fast berühren."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "pike",
+    "dbShares": {
+      "frontDelts": 1.0,
+      "sideDelts": 0.4,
+      "triceps": 0.7,
+      "traps": 0.35
+    },
+    "bwPattern": "pike",
+    "bwShares": {
+      "frontDelts": 1.0,
+      "sideDelts": 0.4,
+      "triceps": 0.7,
+      "traps": 0.35
+    },
+    "equip": null,
+    "dbEquip": "ohne",
+    "bwEquip": "ohne"
+  },
+  "kurzhantel-bodenpresse": {
+    "group": "Brust",
+    "tier": 1,
+    "name": "Kurzhantel-Bodenpresse",
+    "reps": "8–15",
+    "bwName": "Enge Liegestütze",
+    "bwReps": "8–20",
+    "dbEquip": "Kurzhanteln",
+    "bwEquip": "ohne",
+    "dbCue": "Rücken am Boden, Knie angewinkelt, in jeder Hand eine Kurzhantel. Oberarme etwa 45 Grad vom Rumpf, bis die Ellenbogen den Boden berühren – dort kurz halten, dann drücken. Der Boden ist die Bremse: Er begrenzt die Tiefe und nimmt der Schulter den Bereich, in dem sie ungeschützt ist.",
+    "bwCue": "Liegestütze mit engem Handstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
+    "detail": [
+      [
+        "Warum am Boden und nicht auf der Bank",
+        "Ohne Bank fehlt der Teil der Bewegung, in dem der Oberarm hinter den Rumpf sinkt – und genau dort holt sich die Schulter beim Bankdrücken ihre Probleme. Der Boden setzt die Grenze da, wo sie hingehört. Was fehlt, ist etwas Bewegungsumfang; was bleibt, ist der Teil, der die Brust trifft."
+      ],
+      [
+        "Zwei Hanteln statt einer Stange",
+        "Jede Seite arbeitet für sich, die stärkere kann der schwächeren nichts abnehmen. Und die Hanteln lassen sich am Ende einfach neben dem Körper ablegen – eine Stange muss über der Brust irgendwo hin."
+      ],
+      [
+        "Der Halt unten",
+        "Die Ellenbogen berühren den Boden und ruhen dort einen Moment. Das nimmt den Schwung heraus; jede Wiederholung beginnt aus dem Stand, nicht aus dem Rückprall."
+      ],
+      [
+        "Typische Fehler",
+        "Die Ellenbogen ganz nach außen stellen (Schulter). Die Hanteln auf den Boden fallen lassen und von dort abfedern. Mit dem Rücken ein Hohlkreuz drücken, um mehr Weg zu bekommen."
+      ]
+    ],
+    "dbRest": 150,
+    "bwRest": 150,
+    "dbWeight": 12,
+    "dbStep": 2.5,
+    "weightNote": "je Hand",
+    "dbPattern": "press",
+    "dbShares": {
+      "chest": 1.0,
+      "triceps": 0.65,
+      "frontDelts": 0.4
+    },
+    "bwPattern": "pushup",
+    "bwShares": {
+      "chest": 1.0,
+      "triceps": 0.75,
+      "frontDelts": 0.4
+    },
+    "equip": "dumbbells"
+  },
+  "reverse-snow-angel": {
+    "group": "Schulter (hinten)",
+    "tier": 3,
+    "name": "Reverse Snow Angel",
+    "reps": "10–20",
+    "bwName": "Reverse Snow Angel",
+    "bwReps": "10–20",
+    "dbEquip": "ohne",
+    "bwEquip": "ohne",
+    "dbCue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen.",
+    "bwCue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen; beides nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
+    "detail": [
+      [
+        "Wofür",
+        "Hintere Schulter und die Muskeln zwischen den Schulterblättern – dieselbe Ecke wie Reverse Fly und Pull-Apart, aber über den vollen Weg von der Hüfte bis über den Kopf. Kein Gerät, kein Aufbau: Sie geht überall, auch am Ende einer Einheit, wenn nichts mehr hochzuheben ist."
+      ],
+      [
+        "Die Daumen",
+        "Nach oben gedreht die ganze Zeit. Dreht die Hand ein, rollt die Schulter mit nach vorn und der Muskel, um den es geht, macht Feierabend."
+      ],
+      [
+        "Der Nacken",
+        "Die Stirn bleibt unten, der Blick auf dem Boden. Den Kopf zu heben fühlt sich stärker an und verlagert die Arbeit in den Nacken – dieselbe Falle wie beim Seitheben."
+      ],
+      [
+        "Typische Fehler",
+        "Die Arme auf dem Boden ablegen und von dort neu starten. Zu schnell arbeiten. Ins Hohlkreuz gehen, statt Gesäß und Bauch fest zu lassen."
+      ]
+    ],
+    "dbRest": 90,
+    "bwRest": 90,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "snowangel",
+    "dbShares": {
+      "rearDelts": 1.0,
+      "traps": 0.9
+    },
+    "bwPattern": "snowangel",
+    "bwShares": {
+      "rearDelts": 1.0,
+      "traps": 0.9
+    },
+    "equip": null
+  },
+  "liegendes-knieheben": {
+    "group": "Bauch",
+    "tier": 3,
+    "name": "Knieheben im Liegen",
+    "reps": "10–20",
+    "bwName": "Knieheben im Liegen",
+    "bwReps": "10–20",
+    "dbEquip": "ohne Gerät",
+    "bwEquip": "ohne Gerät",
+    "dbCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
+    "bwCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
+    "detail": [
+      [
+        "Warum im Liegen",
+        "Die hängende Fassung ist die stärkere Übung – aber nur für den, dessen Griff sie überlebt. Wer nach zwei Wiederholungen loslässt, hat den Unterarm trainiert und den Bauch nicht. Im Liegen fällt der Griff als Begrenzer weg, und man arbeitet sofort im gewünschten Bereich. Dieselbe Bewegung, dieselbe Muskulatur, nur ohne das Nadelöhr."
+      ],
+      [
+        "Hände unter das Gesäß",
+        "Sie kippen das Becken leicht an und nehmen dem unteren Rücken das Hohlkreuz. Ohne sie zieht der Hüftbeuger die Lendenwirbelsäule nach vorn, und der Bauch tut immer weniger, je tiefer die Beine gehen."
+      ],
+      [
+        "Das Einrollen",
+        "Knie anheben ist Hüftbeuger. Der Bauch kommt erst, wenn das Becken vom Boden abhebt und sich einrollt – ein kurzes Stück, ohne Schwung. Wer die Beine nur hoch und runter pendelt, macht die Übung an der Bauchmuskulatur vorbei."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "kneeraisefloor",
+    "dbShares": {
+      "abs": 1.0
+    },
+    "bwPattern": "kneeraisefloor",
+    "bwShares": {
+      "abs": 1.0
+    },
+    "equip": null
+  },
+  "flaschen-seitheben": {
+    "group": "Schulter",
+    "tier": 3,
+    "name": "Seitheben mit Flaschen",
+    "reps": "12–20",
+    "bwName": "Seitheben mit Flaschen",
+    "bwReps": "12–20",
+    "dbEquip": "zwei volle Flaschen",
+    "bwEquip": "zwei volle Flaschen",
+    "dbCue": "Je eine gefüllte Flasche in die Hand, Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung aus der Hüfte. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+    "bwCue": "Je eine gefüllte Flasche in die Hand, Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung aus der Hüfte. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+    "detail": [
+      [
+        "Warum überhaupt Flaschen",
+        "Weil die seitliche Schulter sonst leer ausgeht. Sie ist die eine Muskelgruppe, für die es ohne jeden Widerstand keine brauchbare Körpergewichtsübung gibt: Sie hat keine Rolle beim Drücken, Ziehen oder Stützen, in der sie die Hauptarbeit täte. Gemessen an diesem Plan bleiben ohne Band und Hanteln 1,8 von 10 Sätzen je Woche für sie übrig – mit dieser Übung wieder die vollen 10. Eine 1,5-Liter-Flasche wiegt 1,5 kg, und genau in dieser Größenordnung wird Seitheben ohnehin gemacht. Wer sie für zu leicht hält, hat es mit 20 sauberen Wiederholungen noch nicht versucht."
+      ],
+      [
+        "Der Hebel ist das Gewicht",
+        "Bei gestrecktem Arm sitzt die Last am längsten Hebel, den dieser Muskel hat – deshalb reichen hier Gewichte, die man sonst nirgends ernst nehmen würde. Umgekehrt gilt dasselbe: Wer die Arme anwinkelt, macht die Übung sofort deutlich leichter, ohne etwas abstellen zu müssen. Das ist die feinere Einstellung als die nächste Flaschengröße."
+      ],
+      [
+        "Bis waagerecht, nicht höher",
+        "Über der Waagerechten übernimmt der Nacken. Das fühlt sich nach mehr an und ist weniger: Die seitliche Schulter hat dort schon aufgehört zu arbeiten, und der Trapez nimmt ihr die letzten Grad ab. Wer den Nacken hochziehen spürt, ist zu hoch oder zu schwer."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "lateralstand",
+    "dbShares": {
+      "sideDelts": 1.0,
+      "frontDelts": 0.15,
+      "traps": 0.2
+    },
+    "bwPattern": "lateralstand",
+    "bwShares": {
+      "sideDelts": 1.0,
+      "frontDelts": 0.15,
+      "traps": 0.2
+    },
+    "equip": null
+  },
+  "rucksack-curls": {
+    "group": "Bizeps",
+    "tier": 3,
+    "name": "Rucksack-Curls",
+    "reps": "10–20",
+    "bwName": "Rucksack-Curls",
+    "bwReps": "10–20",
+    "dbEquip": "Rucksack",
+    "bwEquip": "Rucksack",
+    "dbCue": "Rucksack mit Büchern füllen, beide Hände in die Trageschlaufen, Handflächen nach oben. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich, Oberkörper still. Langsam ablassen, kein Schwung. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
+    "bwCue": "Rucksack mit Büchern füllen, beide Hände in die Trageschlaufen, Handflächen nach oben. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich, Oberkörper still. Langsam ablassen, kein Schwung. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
+    "detail": [
+      [
+        "Warum ein Rucksack",
+        "Weil der Bizeps ohne Zugwiderstand sonst nichts abbekommt. Klimmzüge und Rudern treffen ihn mit, aber nie als Hauptmuskel – und ohne Stange und ohne Band fällt beides weg. Ein Rucksack mit vier Taschenbüchern wiegt zwei bis drei Kilo, mit Schulbüchern schnell acht; das ist ein ernstes Curl-Gewicht und lässt sich buchweise feiner einstellen als jede Hantel."
+      ],
+      [
+        "Die Schlaufen, nicht der Griff",
+        "Beide Hände in die Trageschlaufen, Handflächen nach oben – so hängt die Last unter den Händen und der Bizeps arbeitet in seiner eigentlichen Aufgabe, dem Beugen bei aufgedrehtem Unterarm. Am oberen Tragegriff gehalten wird daraus ein Hammercurl, der mehr den Unterarm trifft."
+      ],
+      [
+        "Ellenbogen am Rumpf",
+        "Wandern sie nach vorn, übernimmt die vordere Schulter den ersten Teil der Bewegung. Das sieht nach mehr Weg aus und ist weniger Arbeit für den Muskel, um den es geht. Ein Punkt an der Wand im Rücken hilft: Berühren die Ellenbogen sie nicht mehr, ist der Satz zu Ende."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": 5,
+    "dbStep": 1,
+    "weightNote": "im Rucksack",
+    "dbPattern": "curl",
+    "dbShares": {
+      "biceps": 1.0
+    },
+    "bwPattern": "curl",
+    "bwShares": {
+      "biceps": 1.0
+    },
+    "equip": "backpack"
+  },
+  "rucksack-rudern": {
+    "group": "Rücken",
+    "tier": 1,
+    "name": "Rucksack-Rudern",
+    "reps": "10–20",
+    "bwName": "Rucksack-Rudern",
+    "bwReps": "10–20",
+    "dbEquip": "Rucksack",
+    "bwEquip": "Rucksack",
+    "dbCue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
+    "bwCue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
+    "detail": [
+      [
+        "Warum es diese Übung gibt",
+        "Weil ein Zug ohne Stange und ohne Band sonst nur einmal geht. Der Plan hat an manchen Tagen zwei Zugübungen; ohne Ausrüstung blieb davon eine übrig, und die zweite fiel ersatzlos weg – gemessen 18-mal über einen Durchlauf. Das Rudern mit dem Rucksack ist die zweite waagerechte Zugbewegung, die überall geht, und es trifft dieselben Muskeln in denselben Anteilen wie das Rudern am Band."
+      ],
+      [
+        "Der Rücken, nicht die Hüfte",
+        "Die Position ist die des Kreuzhebens am oberen Punkt: Knie leicht gebeugt, Hüfte hinten, Rücken gerade, Blick schräg nach unten. Diese Position hältst du – bewegt wird nur der Arm. Geht der Oberkörper bei jeder Wiederholung mit hoch, ist der Rucksack zu schwer."
+      ],
+      [
+        "Ellenbogen am Körper",
+        "Dicht geführt trifft es den Latissimus; weit abgespreizt wandert die Last in die hintere Schulter. Beides ist eine Übung, aber nur eine davon ist diese."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": 8,
+    "dbStep": 1,
+    "weightNote": "im Rucksack",
+    "dbPattern": "rowbar",
+    "dbShares": {
+      "lats": 1.0,
+      "biceps": 0.5,
+      "traps": 0.5,
+      "rearDelts": 0.35
+    },
+    "bwPattern": "rowbar",
+    "bwShares": {
+      "lats": 1.0,
+      "biceps": 0.5,
+      "traps": 0.5,
+      "rearDelts": 0.35
+    },
+    "equip": "backpack"
+  },
+  "sitzendes-flaschen-seitheben": {
+    "group": "Schulter",
+    "tier": 3,
+    "name": "Sitzendes Seitheben mit Flaschen",
+    "reps": "12–20",
+    "bwName": "Sitzendes Seitheben mit Flaschen",
+    "bwReps": "12–20",
+    "dbEquip": "zwei volle Flaschen",
+    "bwEquip": "zwei volle Flaschen",
+    "dbCue": "Auf einen Stuhl setzen, je eine gefüllte Flasche in die Hand. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung. Sitzend, weil so weder Beine noch Rumpf nachhelfen können. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+    "bwCue": "Auf einen Stuhl setzen, je eine gefüllte Flasche in die Hand. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung. Sitzend, weil so weder Beine noch Rumpf nachhelfen können. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
+    "detail": [
+      [
+        "Sitzend oder stehend",
+        "Der Plan kennt beides, und der Unterschied ist keine Laune: Im Sitzen kann man nicht aus den Beinen nachhelfen, das Gewicht muss die Schulter allein heben. Deshalb gibt es die Flaschenfassung auch zweimal – für die Tage, an denen zwei Seitheben im Plan stehen, und damit das zweite nicht ersatzlos wegfällt."
+      ],
+      [
+        "Bis waagerecht, nicht höher",
+        "Über der Waagerechten übernimmt der Nacken. Das fühlt sich nach mehr an und ist weniger: Die seitliche Schulter hat dort schon aufgehört zu arbeiten."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "lateral",
+    "dbShares": {
+      "sideDelts": 1.0,
+      "frontDelts": 0.15,
+      "traps": 0.2
+    },
+    "bwPattern": "lateral",
+    "bwShares": {
+      "sideDelts": 1.0,
+      "frontDelts": 0.15,
+      "traps": 0.15
+    },
+    "equip": null
+  },
+  "face-pull": {
+    "group": "Schulter",
+    "tier": 3,
+    "name": "Face Pull",
+    "reps": "12–20",
+    "bwName": "Face Pull",
+    "bwReps": "12–20",
+    "dbEquip": "Loop-Band + Klimmzugstange",
+    "bwEquip": "Loop-Band + Klimmzugstange",
+    "dbCue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band oder einem Schritt weiter zurück, leichter mit dem schwächeren Band oder näher an die Stange – die Bandstärke stellst du in der Übung selbst ein.",
+    "bwCue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band oder einem Schritt weiter zurück, leichter mit dem schwächeren Band oder näher an die Stange – die Bandstärke stellst du in der Übung selbst ein.",
+    "detail": [
+      [
+        "Wozu",
+        "Die Gegenübung zu allem Drücken, in der günstigeren Bahn: hintere Schulter und die Muskeln zwischen den Schulterblättern, dazu die Außenrotation. Sie kostet fast nichts und hält die Schulter dort, wo sie hingehört."
+      ],
+      [
+        "Ellenbogen führen",
+        "Der häufigste Fehler ist, mit den Händen zu ziehen und die Ellenbogen hängen zu lassen – dann arbeitet der Bizeps. Die Ellenbogen gehen zuerst, hoch und nach außen; die Hände folgen nur."
+      ]
+    ],
+    "dbRest": 120,
+    "bwRest": 120,
+    "dbWeight": null,
+    "dbStep": null,
+    "weightNote": null,
+    "dbPattern": "facepull",
+    "dbShares": {
+      "rearDelts": 1.0,
+      "traps": 0.8
+    },
+    "bwPattern": "facepull",
+    "bwShares": {
+      "rearDelts": 1.0,
+      "traps": 0.8
+    },
+    "equip": "band"
   }
- },
- "pull-ups": {
-  "group": "Rücken/Bizeps",
-  "tier": 1,
-  "name": "Pull-ups",
-  "reps": "4–10",
-  "bwName": "Pull-ups",
-  "bwReps": "4–10",
-  "dbEquip": "Klimmzugstange + Rucksack",
-  "bwEquip": "Klimmzugstange (+ Stuhl)",
-  "dbCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Noch keine 4? Dann Negative (hochspringen, 5 s ablassen) oder Füße auf einem Stuhl, bis der Bereich steht – einzelne Maximalversuche bringen für den Aufbau wenig. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
-  "bwCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Schulterblätter zuerst nach unten ziehen, Brust zur Stange, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als im Untergriff. Noch keine ganze? Negative: hochspringen und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen. Drei bis vier Wochen, dann geht die erste freie.",
-  "detail": [
-   [
-    "Griff",
-    "Obergriff, etwa eine Handbreit weiter als die Schultern. Noch weiter macht die Bewegung kürzer, nicht besser, und drückt die Schulter in eine ungünstige Stellung."
-   ],
-   [
-    "Warum weniger gehen als bei Chin-ups",
-    "Der Bizeps steht im Obergriff schlechter und kann weniger beitragen – der Rücken macht mehr Arbeit. Zwei bis vier Wiederholungen Unterschied sind normal und kein Rückschritt."
-   ],
-   [
-    "Typische Fehler",
-    "Den Kopf nach vorn schieben, um über die Stange zu kommen. Die Schultern oben hochziehen, statt sie nach unten zu ziehen. Aus dem Hohlkreuz schwingen."
-   ]
-  ],
-  "dbRest": 180,
-  "bwRest": 180,
-  "dbWeight": 0,
-  "dbStep": 1,
-  "weightNote": "im Rucksack",
-  "dbPattern": "pullupwide",
-  "dbShares": {
-   "lats": 1.0,
-   "biceps": 0.4,
-   "traps": 0.35,
-   "rearDelts": 0.2
-  },
-  "bwPattern": "pullupwide",
-  "bwShares": {
-   "lats": 1.0,
-   "biceps": 0.4,
-   "traps": 0.35,
-   "rearDelts": 0.2
-  },
-  "equip": "backpack",
-  "dbStufen": {
-   "anfaenger": {
-    "reps": "1–3",
-    "rest": 120
-   }
-  },
-  "bwStufen": {
-   "anfaenger": {
-    "reps": "1–3",
-    "rest": 120
-   }
-  }
- },
- "reverse-fly": {
-  "group": "Schulter (hinten)",
-  "tier": 3,
-  "dbEquip": "Kurzhanteln",
-  "bwEquip": "Loop-Band",
-  "dbCue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
-  "bwCue": "Auf das Band stellen, Enden überkreuz in die Hände, vorgebeugt wie mit den Hanteln. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt. Vorher standen hier Reverse Snow Angels – die führen die Arme bis über den Kopf und sind damit zu einem guten Teil Nacken statt hintere Schulter. Schwerer wird es mit dem nächststärkeren Band oder überkreuztem Griff.",
-  "detail": [
-   [
-    "Leicht ist hier richtig",
-    "Die hintere Schulter ist klein. Fünf Kilo je Hand sind nicht wenig, wenn die Bewegung wirklich aus dem Schulterblatt kommt. Sobald du schwingen musst, ist es zu schwer."
-   ],
-   [
-    "Ellenbogen",
-    "Leicht gebeugt und in diesem Winkel festgehalten. Öffnen sie sich beim Heben, wird daraus ein Trizeps-Kickback."
-   ],
-   [
-    "Daumen nach unten oder oben?",
-    "Daumen nach unten (Innenrotation) trifft die hintere Schulter etwas direkter, drückt aber die Schulter in die enge Stellung, in der es klemmen kann. Neutral – Handflächen zeigen zueinander – ist der bessere Standard."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": 5,
-  "dbStep": 1,
-  "weightNote": "je Hand",
-  "dbPattern": "reversefly",
-  "dbShares": {
-   "rearDelts": 1.0,
-   "traps": 0.6
-  },
-  "bwPattern": "reversefly",
-  "bwShares": {
-   "rearDelts": 1.0,
-   "traps": 0.6
-  },
-  "equip": "dumbbells",
-  "bwName": "Vorgebeugtes Band-Reverse-Fly",
-  "bwReps": "12–20"
- },
- "sitzendes-seitheben": {
-  "group": "Schulter",
-  "tier": 3,
-  "dbEquip": "Kurzhanteln",
-  "bwEquip": "Loop-Band + Stuhl",
-  "dbCue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
-  "bwCue": "Auf einen Stuhl setzen, Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind, langsam zurück. Sitzend, weil so weder Beine noch Rumpf nachhelfen können – genau wie beim sitzenden Seitheben mit Hanteln. Schwerer wird es mit dem nächststärkeren Band.",
-  "detail": [
-   [
-    "Warum sitzend",
-    "Im Stehen hilft fast jeder mit einem kleinen Stoß aus Hüfte und Knien nach. Sitzend geht das nicht, und die seitliche Schulter bekommt, was sie soll – dafür brauchst du weniger Gewicht als du denkst."
-   ],
-   [
-    "Bahn",
-    "Leicht vor der Körperlinie, nicht in einer Ebene mit dem Rücken. Bis Schulterhöhe, nicht höher: darüber übernimmt der Nacken."
-   ],
-   [
-    "Typische Fehler",
-    "Die Schultern zum Ohr ziehen. Die Hanteln nach oben werfen und fallen lassen. Zu weit hochheben."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": 6,
-  "dbStep": 1,
-  "weightNote": "je Hand",
-  "dbPattern": "lateral",
-  "dbShares": {
-   "sideDelts": 1.0,
-   "frontDelts": 0.15,
-   "traps": 0.2
-  },
-  "bwPattern": "lateral",
-  "bwShares": {
-   "sideDelts": 1.0,
-   "frontDelts": 0.15,
-   "traps": 0.15
-  },
-  "equip": "dumbbells",
-  "bwName": "Sitzendes Band-Seitheben",
-  "bwReps": "12–20"
- },
- "band-seitheben": {
-  "group": "Schulter",
-  "tier": 3,
-  "name": "Band-Seitheben",
-  "reps": "12–20",
-  "bwName": "Band-Seitheben",
-  "bwReps": "12–20",
-  "dbEquip": "Loop-Band",
-  "bwEquip": "Loop-Band",
-  "dbCue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern dabei bewusst unten lassen und mit dem Ellenbogen führen, nicht mit der Hand: Zieht die Schulter zum Ohr, macht der Nacken die Arbeit statt der Seitendelta. Kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
-  "bwCue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
-  "detail": [
-   [
-    "Wenn du es im Nacken merkst",
-    "Das ist der häufigste Fehler bei dieser Übung und kein Zeichen, dass du sie falsch verstanden hast: Sobald der Widerstand zu groß wird, zieht der Körper die Schulter zum Ohr und der obere Trapez übernimmt. Drei Dinge helfen, in dieser Reihenfolge: leichteres Band (oder engerer Stand), Schultern aktiv nach unten ziehen, bevor der Arm losgeht, und oben bei waagerecht aufhören. Höher als Schulterhöhe ist die Seitendelta ohnehin fertig – ab da hebt nur noch der Nacken. Merkst du es danach immer noch, ist das Band für dich das falsche Gerät: Am Band ist der Zug oben am größten, genau da, wo das Hochziehen am nächsten liegt. Mit Kurzhanteln ist es umgekehrt."
-   ],
-   [
-    "Widerstand am richtigen Ort",
-    "Beim Band wächst der Zug nach oben, also genau dort, wo die seitliche Schulter stark ist. Bei der Hantel ist es umgekehrt – deshalb fühlen sich die beiden Varianten unterschiedlich an, obwohl sie dasselbe trainieren."
-   ],
-   [
-    "Stand",
-    "Breiter Stand auf dem Band macht es schwerer, ein Fuß leichter. Das ist die Feineinstellung, die hier das Gewicht ersetzt."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "lateralstand",
-  "dbShares": {
-   "sideDelts": 1.0,
-   "frontDelts": 0.15,
-   "traps": 0.2
-  },
-  "bwPattern": "lateralstand",
-  "bwShares": {
-   "sideDelts": 1.0,
-   "frontDelts": 0.15,
-   "traps": 0.2
-  },
-  "equip": "band"
- },
- "liegende-trizepsstrecker": {
-  "group": "Trizeps",
-  "tier": 3,
-  "dbEquip": "Kurzhanteln oder SZ-Stange",
-  "bwEquip": "Loop-Band + Stuhl",
-  "dbCue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. Zwei Kurzhanteln – je eine pro Hand – hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Mit einer SZ-Stange beidhändig geht es auch, dann ist der Griff enger und das eingetragene Gewicht meint die ganze Stange. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
-  "bwCue": "Auf den Stuhl setzen, das Band unter beide Füße klemmen und die Enden hinter dem Kopf fassen. Oberarme senkrecht neben den Ohren, nur strecken – die Ellenbogen bleiben stehen. Über Kopf steht der lange Trizepskopf auf voller Länge; genau dort soll der Zug ankommen. Schwerer wird es mit dem nächststärkeren Band oder indem du das Band kürzer fasst.",
-  "detail": [
-   [
-    "Warum über Kopf",
-    "Der lange Trizepskopf läuft über das Schultergelenk. Nur mit dem Arm über dem Kopf steht er auf voller Länge unter Zug – das ist der Teil, den Drücken und Liegestütze nicht abdecken."
-   ],
-   [
-    "Ellenbogen",
-    "Sie bleiben stehen, neben den Ohren. Wandern sie nach außen oder nach vorn, hilft die Schulter mit und der Trizeps bekommt weniger."
-   ],
-   [
-    "Eine Hantel oder zwei",
-    "Zwei Kurzhanteln, je eine pro Hand, sind schonender für die Handgelenke als eine Hantel mit beiden Händen. Eine SZ-Stange geht auch – dann ist der Griff enger."
-   ],
-   [
-    "Typische Fehler",
-    "Ins Hohlkreuz ausweichen. Zu tief ablassen, bis es im Ellenbogen zwickt. Mit Schwung strecken."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": 8,
-  "dbStep": 1,
-  "weightNote": "je Hand",
-  "dbPattern": "tricepsoh",
-  "dbShares": {
-   "triceps": 1.0
-  },
-  "bwPattern": "tricepsoh",
-  "bwShares": {
-   "triceps": 1.0
-  },
-  "equip": "dumbbells",
-  "bwName": "Überkopf-Trizepsstrecker am Band",
-  "bwReps": "10–20",
-  "name": "Überkopf-Trizepsstrecker",
-  "reps": "8–12"
- },
- "sz-curls": {
-  "group": "Bizeps",
-  "tier": 3,
-  "dbEquip": "SZ-Stange",
-  "bwEquip": "Loop-Band",
-  "dbCue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung. Handgelenk gerade halten – knickt es unter Last nach hinten ab, liegt die Stange zu weit in den Fingern oder das Gewicht ist zu hoch.",
-  "bwCue": "Band unter beide Füße, Enden in den Händen, Handflächen nach vorn. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Vorher standen hier enge supinierte Chin-ups – die trainieren aber vor allem den Rücken mit, und der ist an dem Tag schon bedient. Schwerer wird es mit breiterem Stand auf dem Band.",
-  "detail": [
-   [
-    "Warum die SZ-Stange",
-    "Die Wellen drehen die Handgelenke leicht nach innen. Das ist bequemer als die gerade Stange und trifft den Bizeps kaum anders."
-   ],
-   [
-    "Handgelenk",
-    "Ein abknickendes Handgelenk ist kein Zeichen von dünnen Gelenken, sondern fast immer eine Frage von Griff und Last – und in dieser Reihenfolge zu beheben.\n\nErstens der Griff: Die Stange gehört quer über den Handballen, in einer Linie mit den Unterarmknochen, nicht in die Finger. Rutscht sie in die Finger, hat das Handgelenk einen Hebel gegen sich und muss die Last mit den Streckern halten – es knickt nach hinten weg. Bei der SZ-Stange die *innere* Flanke der Welle greifen, die zur Mitte hin ansteigt; dort steht die Hand von selbst leicht gedreht, und genau dafür gibt es die Wellen.\n\nZweitens die Last: Knickt das Handgelenk trotz sauberem Griff ab, ist der Satz zu Ende. Das Handgelenk ist dann der Begrenzer, nicht der Bizeps – und weiterzumachen ist der kurze Weg zu genau der Überlastung, die unter Verletzungen als „Handgelenksüberlastung\" steht. Lieber zwei Kilo weniger und zehn saubere Wiederholungen.\n\nDrittens, und erst dann: Der Umfang des Handgelenks ist Knochen und ändert sich nicht. Der Unterarm dagegen schon. Was ihn dicker macht, steht unter Verletzungen bei den Pflegeübungen – Handgelenkstrecken und -beugen mit langsamem Ablassen, 3 × 15 je Seite. Wer den Reiz lieber in der Übung selbst hätte: Hammercurls mit Kurzhanteln halten das Handgelenk neutral und treffen Brachialis und Brachioradialis, also genau die beiden Muskeln, die einen Unterarm füllen."
-   ],
-   [
-    "Ellenbogen am Körper",
-    "Sie bleiben, wo sie sind. Wandern sie nach vorn, wird daraus ein Heben aus der Schulter – der Bizeps macht dann nur noch die halbe Arbeit."
-   ],
-   [
-    "Ablassen",
-    "Zwei bis drei Sekunden. Das Ablassen ist bei Curls der Teil, an dem der Muskel wächst, und der Teil, den fast alle abkürzen."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": 15,
-  "dbStep": 2.5,
-  "weightNote": "Stange gesamt",
-  "dbPattern": "curl",
-  "dbShares": {
-   "biceps": 1.0
-  },
-  "bwPattern": "curl",
-  "bwShares": {
-   "biceps": 1.0
-  },
-  "equip": "szbar",
-  "bwName": "Band-Curls",
-  "bwReps": "10–20"
- },
- "gewichtete-crunches": {
-  "group": "Bauch",
-  "tier": 4,
-  "dbEquip": "Kurzhantel oder Scheibe",
-  "bwEquip": "Ohne Gerät",
-  "dbCue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
-  "bwCue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer.",
-  "detail": [
-   [
-    "Wohin das Gewicht",
-    "Vor der Brust ist leichter, hinter dem Kopf schwerer – der Hebel ist länger. Anfangen mit vor der Brust, und erst wechseln, wenn 15 saubere Wiederholungen stehen."
-   ],
-   [
-    "Was sich bewegt",
-    "Nur die Brustwirbelsäule rollt ein, der untere Rücken bleibt am Boden. Wer die Hüfte beugt und den ganzen Oberkörper hochklappt, trainiert den Hüftbeuger."
-   ],
-   [
-    "Typische Fehler",
-    "Am Kopf ziehen. Schwung holen. Bis ganz nach oben kommen – die Bewegung ist kurz, das ist kein Fehler, sondern die Übung."
-   ]
-  ],
-  "dbRest": 90,
-  "bwRest": 90,
-  "dbWeight": 5,
-  "dbStep": 1.25,
-  "weightNote": "auf der Brust",
-  "dbPattern": "crunch",
-  "dbShares": {
-   "abs": 1.0
-  },
-  "bwPattern": "crunch",
-  "bwShares": {
-   "abs": 1.0
-  },
-  "equip": "plate"
- },
- "einbeiniges-stehendes-wadenheben": {
-  "group": "Waden",
-  "tier": 4,
-  "dbEquip": "Kurzhantel",
-  "bwEquip": "Stufe oder dickes Buch",
-  "dbCue": "Ballen auf ein dickes Buch, eine Türschwelle oder eine Stufe – Hauptsache, die Ferse kann darunter absinken. Ganz hoch auf den Ballen, oben 1 s halten. Das freie Bein hängt einfach locker hinten, es wird nirgends abgelegt; wer wackelt, hält sich mit der freien Hand an der Wand fest.",
-  "bwCue": "Fußballen auf eine Stufe oder ein dickes Buch, Ferse tief absenken – flach auf dem Boden fehlt genau der gedehnte Teil, auf den es hier ankommt. Ganz hoch auf den Ballen, oben 1 s halten. Ohne Gewicht dafür deutlich mehr Wiederholungen.",
-  "detail": [
-   [
-    "Die Dehnung unten zählt",
-    "Fußballen auf etwas Erhöhtes, die Ferse sinkt darunter. Ein dickes Buch reicht – es braucht keine Stufe, nur ein paar Zentimeter. Flach auf dem Boden fehlt genau der Teil, der die Wade wachsen lässt."
-   ],
-   [
-    "Wohin mit dem anderen Bein",
-    "Nirgendwo hin – es hängt hinten locker herunter, das Knie leicht gebeugt. Es wird nicht auf der Wade abgelegt und auch nicht angehoben: Beides kostet nur Gleichgewicht, und das brauchst du hier. Wenn du wackelst, ist die freie Hand an der Wand die Lösung, nicht eine andere Beinhaltung."
-   ],
-   [
-    "Tempo",
-    "Ganz hoch, oben eine Sekunde halten, langsam ablassen. Wippen bringt nichts – die Achillessehne federt dann, statt dass der Muskel arbeitet."
-   ],
-   [
-    "Gestreckt oder gebeugt",
-    "Mit gestrecktem Knie arbeitet der obere, sichtbare Wadenmuskel. Deshalb hier strecken – der gebeugte Teil hat seine eigene Übung."
-   ]
-  ],
-  "dbRest": 90,
-  "bwRest": 90,
-  "dbWeight": 12,
-  "dbStep": 2,
-  "weightNote": "eine Hantel",
-  "dbPattern": "calf1",
-  "dbShares": {
-   "calves": 1.0
-  },
-  "bwPattern": "calf1",
-  "bwShares": {
-   "calves": 1.0
-  },
-  "equip": "onehand"
- },
- "wadenheben-gebeugtes-knie": {
-  "group": "Waden (Soleus)",
-  "tier": 4,
-  "dbEquip": "Kurzhantel",
-  "bwEquip": "Ohne Gerät",
-  "dbCue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
-  "bwCue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
-  "detail": [
-   [
-    "Warum gebeugt",
-    "Der Zwillingsmuskel läuft über das Knie und ist bei gebeugtem Knie erschlafft. Was dann noch drückt, ist der Schollenmuskel darunter – der macht den Umfang der Wade und wird sonst nie direkt getroffen."
-   ],
-   [
-    "Winkel",
-    "Etwa 30 Grad Kniebeugung und dort halten. Beugt sich das Knie während des Satzes weiter, wird die Bewegung zur Mini-Kniebeuge."
-   ]
-  ],
-  "dbRest": 90,
-  "bwRest": 90,
-  "dbWeight": 12,
-  "dbStep": 2,
-  "weightNote": "eine Hantel",
-  "dbPattern": "calfbent",
-  "dbShares": {
-   "calves": 1.0
-  },
-  "bwPattern": "calfbent",
-  "bwShares": {
-   "calves": 1.0
-  },
-  "equip": "onehand"
- },
- "sitzendes-schulterdruecken": {
-  "group": "Schulter",
-  "tier": 1,
-  "name": "Sitzendes Schulterdrücken",
-  "reps": "6–12",
-  "bwName": "Band-Schulterdrücken",
-  "bwReps": "8–15",
-  "dbEquip": "Kurzhanteln",
-  "bwEquip": "Loop-Band",
-  "dbCue": "Aufrecht sitzen, Rippen unten lassen. Hanteln von Schulterhöhe senkrecht nach oben, Ellenbogen leicht vor der Schulterachse. Oben nicht in den Rücken ausweichen.",
-  "bwCue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Vorher standen hier füße-erhöhte Pike Push-ups – die sind zu einem guten Teil Brust und treffen die seitliche Schulter kaum. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand darauf; leichter, indem du nur mit einem Fuß darauf stehst.",
-  "detail": [
-   [
-    "Wo die Hanteln starten",
-    "Auf Schulterhöhe, Handflächen nach vorn, Ellenbogen leicht vor der Schulterachse – nicht in einer Linie mit dem Rücken. Das schont das Gelenk und ist die stärkere Position."
-   ],
-   [
-    "Rippen unten",
-    "Der häufigste Fehler ist das Ausweichen ins Hohlkreuz, sobald es schwer wird. Bauch fest, Rippen nach unten ziehen; wenn das nicht mehr geht, ist der Satz zu Ende."
-   ],
-   [
-    "Hochbringen",
-    "Die Hanteln auf die Oberschenkel setzen, im Sitzen mit dem Knie nach oben stoßen und dabei die Schulter mitdrehen. Aus dem gestreckten Arm heraus hochzuwuchten kostet unnötig Kraft."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 180,
-  "dbWeight": 10,
-  "dbStep": 2,
-  "weightNote": "je Hand",
-  "dbPattern": "ohp",
-  "dbShares": {
-   "frontDelts": 1.0,
-   "sideDelts": 0.45,
-   "triceps": 0.6,
-   "traps": 0.3
-  },
-  "bwPattern": "ohpstand",
-  "bwShares": {
-   "frontDelts": 1.0,
-   "sideDelts": 0.45,
-   "triceps": 0.6,
-   "traps": 0.3
-  },
-  "equip": "dumbbells"
- },
- "rumaenisches-kreuzheben": {
-  "group": "Beine",
-  "tier": 1,
-  "name": "Rumänisches Kreuzheben",
-  "reps": "8–12",
-  "bwName": "Einbeiniges Kreuzheben (Standwaage)",
-  "bwReps": "8–15 je Bein",
-  "dbEquip": "Langhantel",
-  "bwEquip": "Ohne Gerät",
-  "dbCue": "Stange dicht am Bein, Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Schulterblätter fest. Nicht tiefer als die Dehnung erlaubt – die Stange kommt nicht auf den Boden, sondern bis etwa Schienbeinmitte und wieder hoch. Abgesetzt wird nur vor und nach dem Satz, kontrolliert.",
-  "bwCue": "Auf einem Bein, das freie Bein wandert nach hinten, bis Rumpf und Bein eine Linie bilden. Hüfte gerade halten, nicht zur Seite kippen.",
-  "detail": [
-   [
-    "Griff: Obergriff, beide Hände gleich",
-    "Beide Handflächen zeigen zum Körper. Der Mischgriff – eine Hand über, eine unter – hält zwar mehr, dreht aber Becken und Wirbelsäule leicht gegeneinander und zieht den Arm mit dem Untergriff in die Länge; bei gebeugtem Rumpf und 40 kg braucht es das nicht. Beidhändiger Untergriff ist die schlechteste Wahl: Der Bizeps steht dabei gestreckt unter Zug, und genau so reißt er. Wenn der Griff vor dem Beinbeuger aufgibt, ist das kein Grund für den Mischgriff, sondern für Kreide, einen Hakengriff (Daumen unter Zeige- und Mittelfinger) oder Zughilfen – oder für einen Satz mit weniger Gewicht."
-   ],
-   [
-    "Wie weit nach unten",
-    "Die Dehnung bestimmt die Tiefe, nicht der Boden. Sobald hinten am Oberschenkel nichts mehr nachgibt und der untere Rücken anfangen würde, sich zu runden, ist unten erreicht – bei den meisten irgendwo zwischen Knie und Schienbeinmitte. Wer weiter kommen will, arbeitet an der Beweglichkeit, nicht am Gewicht."
-   ],
-   [
-    "Atmung und Tempo",
-    "Oben einatmen und die Luft anhalten, während du hinuntergehst; das hält den Rumpf stabil. Ausatmen erst oben. Runter in zwei bis drei Sekunden, hoch zügig – die Bremsphase ist der Reiz."
-   ],
-   [
-    "Typische Fehler",
-    "Kniebeuge daraus machen (Knie wandern nach vorn, Hüfte nach unten statt nach hinten). Die Stange vom Bein weglaufen lassen – jeder Zentimeter Abstand ist Hebel für den unteren Rücken. Oben ins Hohlkreuz überstrecken, statt einfach aufrecht zu stehen."
-   ],
-   [
-    "In der Wohnung",
-    "Vor und nach dem Satz kontrolliert absetzen, nie fallen lassen. Eine Matte oder ein dickes Handtuch unter den Scheiben nimmt den Rest."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": 40,
-  "dbStep": 5,
-  "weightNote": "Stange gesamt",
-  "dbPattern": "hinge",
-  "dbShares": {
-   "hamstringsHip": 1.0,
-   "glutes": 0.7,
-   "abs": 0.2
-  },
-  "bwPattern": "hinge1",
-  "bwShares": {
-   "hamstringsHip": 1.0,
-   "glutes": 0.75,
-   "abs": 0.3
-  },
-  "equip": "barbell"
- },
- "split-squat": {
-  "group": "Beine",
-  "tier": 1,
-  "name": "Split Squat",
-  "reps": "8–12 je Bein",
-  "bwName": "Split Squat ohne Gewicht",
-  "bwReps": "12–20 je Bein",
-  "dbEquip": "Kurzhanteln",
-  "bwEquip": "Ohne Gerät",
-  "dbCue": "Ein Bein weit vorn, das hintere Knie senkt sich Richtung Boden. Rumpf aufrecht, das Gewicht auf der ganzen vorderen Fußsohle. Hinteren Fuß erhöhen macht es schwerer.",
-  "bwCue": "Gleiche Stellung ohne Gewicht, dafür langsam: drei Sekunden ablassen, unten kurz halten.",
-  "detail": [
-   [
-    "Stand",
-    "Ein großer Schritt nach vorn, die Füße bleiben etwa hüftbreit auseinander – nicht auf einer Linie wie beim Seiltanz. Das vordere Schienbein steht am tiefsten Punkt fast senkrecht, das hintere Knie senkt sich unter die Hüfte."
-   ],
-   [
-    "Wo das Gewicht liegt",
-    "Auf der ganzen vorderen Fußsohle, Druck über die Ferse. Der hintere Fuß hält nur das Gleichgewicht."
-   ],
-   [
-    "Schwerer machen",
-    "Den hinteren Fuß auf einen Stuhl (bulgarisch) – das verlagert fast alles auf das vordere Bein. Oder pausieren: unten zwei Sekunden stehen bleiben."
-   ],
-   [
-    "Typische Fehler",
-    "Zu kurzer Schritt; dann wird es eine Kniebeuge auf einem Bein und das Knie bekommt alles ab. Mit dem Rumpf nach vorn kippen. Sich am hinteren Bein hochdrücken."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": 10,
-  "dbStep": 2,
-  "weightNote": "je Hand",
-  "dbPattern": "splitsquat",
-  "dbShares": {
-   "quads": 1.0,
-   "glutes": 0.8,
-   "hamstringsHip": 0.3,
-   "abs": 0.25
-  },
-  "bwPattern": "splitsquat",
-  "bwShares": {
-   "quads": 1.0,
-   "glutes": 0.8,
-   "hamstringsHip": 0.3,
-   "abs": 0.15
-  },
-  "equip": "dumbbells"
- },
- "haengendes-knieheben": {
-  "group": "Bauch",
-  "tier": 3,
-  "name": "Hängendes Knieheben",
-  "reps": "8–15",
-  "bwName": "Hängendes Knieheben",
-  "bwReps": "8–15",
-  "dbEquip": "Klimmzugstange",
-  "bwEquip": "Klimmzugstange",
-  "dbCue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit. Schaffst du keine 8? Dann dieselbe Bewegung im Liegen: auf dem Rücken, Hände unter dem Gesäß, Knie anheben und das Becken einrollen. Damit bist du sofort im Bereich – an der Stange hört man meist wegen des Griffs auf, nicht wegen des Bauchs.",
-  "bwCue": "An der Stange hängen, Schultern aktiv nach unten ziehen. Knie anheben und das Becken am Ende einrollen – nicht schwingen, die letzten Grad machen die Arbeit. Schaffst du keine 8? Dann dieselbe Bewegung im Liegen: auf dem Rücken, Hände unter dem Gesäß, Knie anheben und das Becken einrollen. Damit bist du sofort im Bereich – an der Stange hört man meist wegen des Griffs auf, nicht wegen des Bauchs.",
-  "detail": [
-   [
-    "Schultern aktiv",
-    "Unten die Schulterblätter nach unten ziehen, nicht passiv in der Kapsel hängen. Das schützt die Schulter und gibt dem Rumpf einen festen Punkt."
-   ],
-   [
-    "Die letzten Grad",
-    "Knie anheben reicht nicht – der Bauch arbeitet erst, wenn das Becken am Ende nach oben einrollt. Genau diesen Teil kürzen die meisten ab."
-   ],
-   [
-    "Wenn es noch nicht geht",
-    "Zwei Wiederholungen an der Stange sind kein Bauchtraining – meist ist der Griff zuerst am Ende, und der Bauch bekommt gar nicht genug ab. Dieselbe Bewegung im Liegen löst beides: auf dem Rücken, Hände unter dem Gesäß, Knie anheben und am Ende das Becken einrollen. Wer dort bei 15 sauberen ankommt, hängt sich wieder an die Stange. Zwischenschritt für den Griff allein: einfach hängen und die Zeit stoppen."
-   ],
-   [
-    "Typische Fehler",
-    "Schwingen und den Schwung mitnehmen. Nur die Beine pendeln lassen. Zu schnell ablassen."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "kneeraise",
-  "dbShares": {
-   "abs": 1.0
-  },
-  "bwPattern": "kneeraise",
-  "bwShares": {
-   "abs": 1.0
-  },
-  "equip": null,
-  "anfaenger": "liegendes-knieheben"
- },
- "band-pull-apart": {
-  "group": "Schulter",
-  "tier": 3,
-  "name": "Band-Pull-Apart",
-  "reps": "12–20",
-  "bwName": "Band-Pull-Apart",
-  "bwReps": "12–20",
-  "dbEquip": "Loop-Band",
-  "bwEquip": "Loop-Band (Face Pull: + Klimmzugstange)",
-  "dbCue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
-  "bwCue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
-  "detail": [
-   [
-    "Wozu",
-    "Die kleine Gegenübung zu allem Drücken: hintere Schulter und die Muskeln zwischen den Schulterblättern. Sie kostet fast nichts und hält die Schulter dort, wo sie hingehört."
-   ],
-   [
-    "Face Pull statt Pull-Apart",
-    "Ist dein Band lang genug, häng es über die Klimmzugstange und zieh zum Gesicht, Ellenbogen hoch. Das trifft dieselben Muskeln in einer noch etwas günstigeren Bahn."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "pullapart",
-  "dbShares": {
-   "rearDelts": 1.0,
-   "traps": 0.7
-  },
-  "bwPattern": "pullapart",
-  "bwShares": {
-   "rearDelts": 1.0,
-   "traps": 0.7
-  },
-  "equip": "band"
- },
- "inverted-row": {
-  "group": "Rücken",
-  "tier": 1,
-  "name": "Inverted Row",
-  "reps": "8–15",
-  "bwName": "Inverted Row",
-  "bwReps": "8–20",
-  "dbEquip": "Klimmzugstange tief + Rucksack",
-  "bwEquip": "Klimmzugstange tief oder Tischkante",
-  "dbCue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter, Knie angewinkelt leichter. Zusatzlast kommt in den Rucksack auf die Brust.",
-  "bwCue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Geht die Klimmzugstange nicht tief genug, tut es eine stabile Tischkante: darunterlegen, Kante fassen, ziehen. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter. Zu schwer? Knie anwinkeln und die Füße näher heranstellen; das nimmt Last weg, ohne die Bewegung zu verändern.",
-  "detail": [
-   [
-    "Warum sie im Plan steht",
-    "Klimmzüge ziehen von oben, diese Übung von vorn. Das sind zwei verschiedene Richtungen für denselben Muskel, und der obere Rücken – Kapuzenmuskel, Rautenmuskeln, hintere Schulter – bekommt nur bei der waagerechten wirklich etwas ab. Wer nur senkrecht zieht, lässt genau den Teil aus, der beim Sitzen den ganzen Tag nachgibt."
-   ],
-   [
-    "Schwerer und leichter",
-    "Die Last hängt am Winkel, nicht am Eisen. Füße auf einem Stuhl: schwer. Fersen am Boden, Körper waagerecht: mittel. Knie angewinkelt, Füße nah: leicht. Damit lässt sich jede Wiederholungszahl treffen, ohne etwas aufzustecken."
-   ],
-   [
-    "Die Linie",
-    "Von Kopf bis Ferse gerade, Gesäß fest, Rippen unten. Sackt die Hüfte durch, zieht der Rücken schräg – und der Reiz landet in der Lendenwirbelsäule statt zwischen den Schulterblättern."
-   ],
-   [
-    "Typische Fehler",
-    "Nur den Kopf zur Stange strecken statt die Brust. Die Ellenbogen weit nach außen führen. Oben nicht bis zum Anschlag ziehen – die letzten Zentimeter sind die, in denen die Schulterblätter zusammenkommen."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": 0,
-  "dbStep": 2.5,
-  "weightNote": "im Rucksack",
-  "dbPattern": "invrow",
-  "dbShares": {
-   "lats": 1.0,
-   "traps": 0.75,
-   "biceps": 0.5,
-   "rearDelts": 0.45
-  },
-  "bwPattern": "invrow",
-  "bwShares": {
-   "lats": 1.0,
-   "traps": 0.75,
-   "biceps": 0.5,
-   "rearDelts": 0.45
-  },
-  "equip": "backpack"
- },
- "einbeiniges-kreuzheben": {
-  "group": "Beine",
-  "tier": 2,
-  "name": "Einbeiniges Kreuzheben",
-  "reps": "8–12 je Bein",
-  "bwName": "Einbeiniges Kreuzheben",
-  "bwReps": "10–20 je Bein",
-  "dbEquip": "Kurzhantel",
-  "bwEquip": "ohne",
-  "dbCue": "Eine Kurzhantel in der Hand der freien Seite. Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden. Zurück über das Gesäß, nicht über den unteren Rücken.",
-  "bwCue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen oder greifen nach vorn. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
-  "detail": [
-   [
-    "Eine Hantel reicht",
-    "Das ist hier kein Behelf, sondern der Punkt: Mit dem Gewicht auf einer Seite muss der Rumpf gegen das Verdrehen halten. Und für den, der nur von jeder Scheibengröße zwei Stück hat, ist es die Hüftstreckung, die sich überhaupt beladen lässt – ein Paar Kurzhanteln braucht vier."
-   ],
-   [
-    "Die Wippe",
-    "Oberkörper und freies Bein bewegen sich gemeinsam, wie die beiden Enden eines Bretts über einem Drehpunkt. Wer das freie Bein hängen lässt und nur den Oberkörper senkt, verliert die Balance und den halben Bewegungsumfang."
-   ],
-   [
-    "Das Standknie",
-    "Leicht gebeugt und dann unverändert. Beugt es sich mit, wird aus der Hüftstreckung eine halbe Kniebeuge, und der Beinbeuger bekommt nichts mehr ab."
-   ],
-   [
-    "Typische Fehler",
-    "Die Schulter der Hantelseite fallen lassen – die Schultern bleiben parallel zum Boden. Zu tief gehen, bis der Rücken rund wird; die Dehnung hinten am Oberschenkel ist die Grenze, nicht der Boden."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": 12,
-  "dbStep": 2,
-  "weightNote": "eine Hantel",
-  "dbPattern": "hinge1",
-  "dbShares": {
-   "hamstringsHip": 1.0,
-   "glutes": 0.8,
-   "abs": 0.35,
-   "traps": 0.2
-  },
-  "bwPattern": "hinge1",
-  "bwShares": {
-   "hamstringsHip": 1.0,
-   "glutes": 0.85,
-   "abs": 0.4,
-   "traps": 0.15
-  },
-  "equip": "onehand"
- },
- "pike-liegestuetze": {
-  "group": "Schulter",
-  "tier": 2,
-  "name": "Pike-Liegestütze",
-  "reps": "6–15",
-  "bwName": "Pike-Liegestütze",
-  "bwReps": "6–15",
-  "dbCue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Je senkrechter der Oberkörper, desto mehr Schulter und desto weniger Brust. Füße auf einem Hocker machen es deutlich schwerer.",
-  "bwCue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
-  "detail": [
-   [
-    "Wozu ohne Hanteln drücken",
-    "Über Kopf zu drücken ist die eine Bewegung, für die es sonst zwingend Gewicht braucht. Diese Übung ersetzt es durch den Winkel: Je steiler der Oberkörper steht, desto mehr des eigenen Körpers liegt auf den Schultern. Damit gibt es auch ohne Hanteln ein Schulterdrücken, das schwer genug wird."
-   ],
-   [
-    "Der Weg des Kopfes",
-    "Der Scheitel geht nach vorn-unten, nicht senkrecht. Vor den Händen, nicht zwischen ihnen – dann arbeiten die Schultern in der Richtung, in der sie stark sind."
-   ],
-   [
-    "Handgelenke",
-    "Sie stehen hier steiler als beim Liegestütz. Tut es weh, die Hände etwas weiter nach vorn setzen oder auf Fäusten arbeiten."
-   ],
-   [
-    "Typische Fehler",
-    "Die Hüfte absinken lassen, bis daraus ein schräger Liegestütz wird. Den Kopf nur nicken statt die Arme zu beugen. Zu wenig tief – der Scheitel soll den Boden fast berühren."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "pike",
-  "dbShares": {
-   "frontDelts": 1.0,
-   "sideDelts": 0.4,
-   "triceps": 0.7,
-   "traps": 0.35
-  },
-  "bwPattern": "pike",
-  "bwShares": {
-   "frontDelts": 1.0,
-   "sideDelts": 0.4,
-   "triceps": 0.7,
-   "traps": 0.35
-  },
-  "equip": null,
-  "dbEquip": "ohne",
-  "bwEquip": "ohne"
- },
- "kurzhantel-bodenpresse": {
-  "group": "Brust",
-  "tier": 1,
-  "name": "Kurzhantel-Bodenpresse",
-  "reps": "8–15",
-  "bwName": "Enge Liegestütze",
-  "bwReps": "8–20",
-  "dbEquip": "Kurzhanteln",
-  "bwEquip": "ohne",
-  "dbCue": "Rücken am Boden, Knie angewinkelt, in jeder Hand eine Kurzhantel. Oberarme etwa 45 Grad vom Rumpf, bis die Ellenbogen den Boden berühren – dort kurz halten, dann drücken. Der Boden ist die Bremse: Er begrenzt die Tiefe und nimmt der Schulter den Bereich, in dem sie ungeschützt ist.",
-  "bwCue": "Liegestütze mit engem Handstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
-  "detail": [
-   [
-    "Warum am Boden und nicht auf der Bank",
-    "Ohne Bank fehlt der Teil der Bewegung, in dem der Oberarm hinter den Rumpf sinkt – und genau dort holt sich die Schulter beim Bankdrücken ihre Probleme. Der Boden setzt die Grenze da, wo sie hingehört. Was fehlt, ist etwas Bewegungsumfang; was bleibt, ist der Teil, der die Brust trifft."
-   ],
-   [
-    "Zwei Hanteln statt einer Stange",
-    "Jede Seite arbeitet für sich, die stärkere kann der schwächeren nichts abnehmen. Und die Hanteln lassen sich am Ende einfach neben dem Körper ablegen – eine Stange muss über der Brust irgendwo hin."
-   ],
-   [
-    "Der Halt unten",
-    "Die Ellenbogen berühren den Boden und ruhen dort einen Moment. Das nimmt den Schwung heraus; jede Wiederholung beginnt aus dem Stand, nicht aus dem Rückprall."
-   ],
-   [
-    "Typische Fehler",
-    "Die Ellenbogen ganz nach außen stellen (Schulter). Die Hanteln auf den Boden fallen lassen und von dort abfedern. Mit dem Rücken ein Hohlkreuz drücken, um mehr Weg zu bekommen."
-   ]
-  ],
-  "dbRest": 150,
-  "bwRest": 150,
-  "dbWeight": 12,
-  "dbStep": 2.5,
-  "weightNote": "je Hand",
-  "dbPattern": "press",
-  "dbShares": {
-   "chest": 1.0,
-   "triceps": 0.65,
-   "frontDelts": 0.4
-  },
-  "bwPattern": "pushup",
-  "bwShares": {
-   "chest": 1.0,
-   "triceps": 0.75,
-   "frontDelts": 0.4
-  },
-  "equip": "dumbbells"
- },
- "reverse-snow-angel": {
-  "group": "Schulter (hinten)",
-  "tier": 3,
-  "name": "Reverse Snow Angel",
-  "reps": "10–20",
-  "bwName": "Reverse Snow Angel",
-  "bwReps": "10–20",
-  "dbEquip": "ohne",
-  "bwEquip": "ohne",
-  "dbCue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen.",
-  "bwCue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen; beides nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
-  "detail": [
-   [
-    "Wofür",
-    "Hintere Schulter und die Muskeln zwischen den Schulterblättern – dieselbe Ecke wie Reverse Fly und Pull-Apart, aber über den vollen Weg von der Hüfte bis über den Kopf. Kein Gerät, kein Aufbau: Sie geht überall, auch am Ende einer Einheit, wenn nichts mehr hochzuheben ist."
-   ],
-   [
-    "Die Daumen",
-    "Nach oben gedreht die ganze Zeit. Dreht die Hand ein, rollt die Schulter mit nach vorn und der Muskel, um den es geht, macht Feierabend."
-   ],
-   [
-    "Der Nacken",
-    "Die Stirn bleibt unten, der Blick auf dem Boden. Den Kopf zu heben fühlt sich stärker an und verlagert die Arbeit in den Nacken – dieselbe Falle wie beim Seitheben."
-   ],
-   [
-    "Typische Fehler",
-    "Die Arme auf dem Boden ablegen und von dort neu starten. Zu schnell arbeiten. Ins Hohlkreuz gehen, statt Gesäß und Bauch fest zu lassen."
-   ]
-  ],
-  "dbRest": 90,
-  "bwRest": 90,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "snowangel",
-  "dbShares": {
-   "rearDelts": 1.0,
-   "traps": 0.9
-  },
-  "bwPattern": "snowangel",
-  "bwShares": {
-   "rearDelts": 1.0,
-   "traps": 0.9
-  },
-  "equip": null
- },
- "liegendes-knieheben": {
-  "group": "Bauch",
-  "tier": 3,
-  "name": "Knieheben im Liegen",
-  "reps": "10–20",
-  "bwName": "Knieheben im Liegen",
-  "bwReps": "10–20",
-  "dbEquip": "ohne Gerät",
-  "bwEquip": "ohne Gerät",
-  "dbCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
-  "bwCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben und am Ende das Becken einrollen – die letzten Grad machen die Arbeit, nicht das Anheben. Zu schwer? Ein Bein nach dem anderen, oder die Füße aufgestellt lassen und nur das Becken einrollen.",
-  "detail": [
-   [
-    "Warum im Liegen",
-    "Die hängende Fassung ist die stärkere Übung – aber nur für den, dessen Griff sie überlebt. Wer nach zwei Wiederholungen loslässt, hat den Unterarm trainiert und den Bauch nicht. Im Liegen fällt der Griff als Begrenzer weg, und man arbeitet sofort im gewünschten Bereich. Dieselbe Bewegung, dieselbe Muskulatur, nur ohne das Nadelöhr."
-   ],
-   [
-    "Hände unter das Gesäß",
-    "Sie kippen das Becken leicht an und nehmen dem unteren Rücken das Hohlkreuz. Ohne sie zieht der Hüftbeuger die Lendenwirbelsäule nach vorn, und der Bauch tut immer weniger, je tiefer die Beine gehen."
-   ],
-   [
-    "Das Einrollen",
-    "Knie anheben ist Hüftbeuger. Der Bauch kommt erst, wenn das Becken vom Boden abhebt und sich einrollt – ein kurzes Stück, ohne Schwung. Wer die Beine nur hoch und runter pendelt, macht die Übung an der Bauchmuskulatur vorbei."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "kneeraisefloor",
-  "dbShares": {
-   "abs": 1.0
-  },
-  "bwPattern": "kneeraisefloor",
-  "bwShares": {
-   "abs": 1.0
-  },
-  "equip": null
- },
- "flaschen-seitheben": {
-  "group": "Schulter",
-  "tier": 3,
-  "name": "Seitheben mit Flaschen",
-  "reps": "12–20",
-  "bwName": "Seitheben mit Flaschen",
-  "bwReps": "12–20",
-  "dbEquip": "zwei volle Flaschen",
-  "bwEquip": "zwei volle Flaschen",
-  "dbCue": "Je eine gefüllte Flasche in die Hand, Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung aus der Hüfte. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
-  "bwCue": "Je eine gefüllte Flasche in die Hand, Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung aus der Hüfte. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
-  "detail": [
-   [
-    "Warum überhaupt Flaschen",
-    "Weil die seitliche Schulter sonst leer ausgeht. Sie ist die eine Muskelgruppe, für die es ohne jeden Widerstand keine brauchbare Körpergewichtsübung gibt: Sie hat keine Rolle beim Drücken, Ziehen oder Stützen, in der sie die Hauptarbeit täte. Gemessen an diesem Plan bleiben ohne Band und Hanteln 1,8 von 10 Sätzen je Woche für sie übrig – mit dieser Übung wieder die vollen 10. Eine 1,5-Liter-Flasche wiegt 1,5 kg, und genau in dieser Größenordnung wird Seitheben ohnehin gemacht. Wer sie für zu leicht hält, hat es mit 20 sauberen Wiederholungen noch nicht versucht."
-   ],
-   [
-    "Der Hebel ist das Gewicht",
-    "Bei gestrecktem Arm sitzt die Last am längsten Hebel, den dieser Muskel hat – deshalb reichen hier Gewichte, die man sonst nirgends ernst nehmen würde. Umgekehrt gilt dasselbe: Wer die Arme anwinkelt, macht die Übung sofort deutlich leichter, ohne etwas abstellen zu müssen. Das ist die feinere Einstellung als die nächste Flaschengröße."
-   ],
-   [
-    "Bis waagerecht, nicht höher",
-    "Über der Waagerechten übernimmt der Nacken. Das fühlt sich nach mehr an und ist weniger: Die seitliche Schulter hat dort schon aufgehört zu arbeiten, und der Trapez nimmt ihr die letzten Grad ab. Wer den Nacken hochziehen spürt, ist zu hoch oder zu schwer."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "lateralstand",
-  "dbShares": {
-   "sideDelts": 1.0,
-   "frontDelts": 0.15,
-   "traps": 0.2
-  },
-  "bwPattern": "lateralstand",
-  "bwShares": {
-   "sideDelts": 1.0,
-   "frontDelts": 0.15,
-   "traps": 0.2
-  },
-  "equip": null
- },
- "rucksack-curls": {
-  "group": "Bizeps",
-  "tier": 3,
-  "name": "Rucksack-Curls",
-  "reps": "10–20",
-  "bwName": "Rucksack-Curls",
-  "bwReps": "10–20",
-  "dbEquip": "Rucksack",
-  "bwEquip": "Rucksack",
-  "dbCue": "Rucksack mit Büchern füllen, beide Hände in die Trageschlaufen, Handflächen nach oben. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich, Oberkörper still. Langsam ablassen, kein Schwung. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
-  "bwCue": "Rucksack mit Büchern füllen, beide Hände in die Trageschlaufen, Handflächen nach oben. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich, Oberkörper still. Langsam ablassen, kein Schwung. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
-  "detail": [
-   [
-    "Warum ein Rucksack",
-    "Weil der Bizeps ohne Zugwiderstand sonst nichts abbekommt. Klimmzüge und Rudern treffen ihn mit, aber nie als Hauptmuskel – und ohne Stange und ohne Band fällt beides weg. Ein Rucksack mit vier Taschenbüchern wiegt zwei bis drei Kilo, mit Schulbüchern schnell acht; das ist ein ernstes Curl-Gewicht und lässt sich buchweise feiner einstellen als jede Hantel."
-   ],
-   [
-    "Die Schlaufen, nicht der Griff",
-    "Beide Hände in die Trageschlaufen, Handflächen nach oben – so hängt die Last unter den Händen und der Bizeps arbeitet in seiner eigentlichen Aufgabe, dem Beugen bei aufgedrehtem Unterarm. Am oberen Tragegriff gehalten wird daraus ein Hammercurl, der mehr den Unterarm trifft."
-   ],
-   [
-    "Ellenbogen am Rumpf",
-    "Wandern sie nach vorn, übernimmt die vordere Schulter den ersten Teil der Bewegung. Das sieht nach mehr Weg aus und ist weniger Arbeit für den Muskel, um den es geht. Ein Punkt an der Wand im Rücken hilft: Berühren die Ellenbogen sie nicht mehr, ist der Satz zu Ende."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": 5,
-  "dbStep": 1,
-  "weightNote": "im Rucksack",
-  "dbPattern": "curl",
-  "dbShares": {
-   "biceps": 1.0
-  },
-  "bwPattern": "curl",
-  "bwShares": {
-   "biceps": 1.0
-  },
-  "equip": "backpack"
- },
- "rucksack-rudern": {
-  "group": "Rücken",
-  "tier": 1,
-  "name": "Rucksack-Rudern",
-  "reps": "10–20",
-  "bwName": "Rucksack-Rudern",
-  "bwReps": "10–20",
-  "dbEquip": "Rucksack",
-  "bwEquip": "Rucksack",
-  "dbCue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
-  "bwCue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
-  "detail": [
-   [
-    "Warum es diese Übung gibt",
-    "Weil ein Zug ohne Stange und ohne Band sonst nur einmal geht. Der Plan hat an manchen Tagen zwei Zugübungen; ohne Ausrüstung blieb davon eine übrig, und die zweite fiel ersatzlos weg – gemessen 18-mal über einen Durchlauf. Das Rudern mit dem Rucksack ist die zweite waagerechte Zugbewegung, die überall geht, und es trifft dieselben Muskeln in denselben Anteilen wie das Rudern am Band."
-   ],
-   [
-    "Der Rücken, nicht die Hüfte",
-    "Die Position ist die des Kreuzhebens am oberen Punkt: Knie leicht gebeugt, Hüfte hinten, Rücken gerade, Blick schräg nach unten. Diese Position hältst du – bewegt wird nur der Arm. Geht der Oberkörper bei jeder Wiederholung mit hoch, ist der Rucksack zu schwer."
-   ],
-   [
-    "Ellenbogen am Körper",
-    "Dicht geführt trifft es den Latissimus; weit abgespreizt wandert die Last in die hintere Schulter. Beides ist eine Übung, aber nur eine davon ist diese."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": 8,
-  "dbStep": 1,
-  "weightNote": "im Rucksack",
-  "dbPattern": "rowbar",
-  "dbShares": {
-   "lats": 1.0,
-   "biceps": 0.5,
-   "traps": 0.5,
-   "rearDelts": 0.35
-  },
-  "bwPattern": "rowbar",
-  "bwShares": {
-   "lats": 1.0,
-   "biceps": 0.5,
-   "traps": 0.5,
-   "rearDelts": 0.35
-  },
-  "equip": "backpack"
- },
- "sitzendes-flaschen-seitheben": {
-  "group": "Schulter",
-  "tier": 3,
-  "name": "Sitzendes Seitheben mit Flaschen",
-  "reps": "12–20",
-  "bwName": "Sitzendes Seitheben mit Flaschen",
-  "bwReps": "12–20",
-  "dbEquip": "zwei volle Flaschen",
-  "bwEquip": "zwei volle Flaschen",
-  "dbCue": "Auf einen Stuhl setzen, je eine gefüllte Flasche in die Hand. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung. Sitzend, weil so weder Beine noch Rumpf nachhelfen können. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
-  "bwCue": "Auf einen Stuhl setzen, je eine gefüllte Flasche in die Hand. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern unten lassen, mit dem Ellenbogen führen, kein Schwung. Sitzend, weil so weder Beine noch Rumpf nachhelfen können. Zu schwer? Arme stärker anwinkeln, das verkürzt den Hebel deutlich. Schwerer wird es mit der größeren Flasche.",
-  "detail": [
-   [
-    "Sitzend oder stehend",
-    "Der Plan kennt beides, und der Unterschied ist keine Laune: Im Sitzen kann man nicht aus den Beinen nachhelfen, das Gewicht muss die Schulter allein heben. Deshalb gibt es die Flaschenfassung auch zweimal – für die Tage, an denen zwei Seitheben im Plan stehen, und damit das zweite nicht ersatzlos wegfällt."
-   ],
-   [
-    "Bis waagerecht, nicht höher",
-    "Über der Waagerechten übernimmt der Nacken. Das fühlt sich nach mehr an und ist weniger: Die seitliche Schulter hat dort schon aufgehört zu arbeiten."
-   ]
-  ],
-  "dbRest": 120,
-  "bwRest": 120,
-  "dbWeight": null,
-  "dbStep": null,
-  "weightNote": null,
-  "dbPattern": "lateral",
-  "dbShares": {
-   "sideDelts": 1.0,
-   "frontDelts": 0.15,
-   "traps": 0.2
-  },
-  "bwPattern": "lateral",
-  "bwShares": {
-   "sideDelts": 1.0,
-   "frontDelts": 0.15,
-   "traps": 0.15
-  },
-  "equip": null
- }
 }

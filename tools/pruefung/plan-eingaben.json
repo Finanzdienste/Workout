@@ -56,6 +56,11 @@
       "erzeugt_mit": null,
       "jetzt": "neu im Katalog",
       "grund": "Zwei Uebungen dazu, wieder nur als Tauschziel des Geraete-Vorrats und nicht fuer die Plaene: Rudern mit einem mit Buechern gefuellten Rucksack und sitzendes Seitheben mit zwei Flaschen. Der Anlass ist gemessen und war ein Fehler in js/vorrat.js, nicht ein Mangel an Uebungen: Ein Ersatz wird uebersprungen, wenn er in derselben Einheit schon steht (sonst entstuende eine Uebung mit acht Saetzen). An Tagen mit *zwei* Zugübungen oder *zwei* Seitheben gab es aber nur einen verfuegbaren Kandidaten - die zweite fiel dann ersatzlos weg. Nachgezaehlt ueber einen Aufbau-Durchlauf ohne Baender und Klimmzugstange: 28 von 28 weggefallenen Uebungen haetten einen Ersatz gehabt, der nur belegt war. Mit dem zweiten Kandidaten je Bewegung schliessen sich alle Unterdeckungen: Ruecken, Bizeps und seitliche Schulter liegen in allen vier Fokussen wieder auf Plan. Die Muskelanteile sind Ziffer fuer Ziffer dieselben wie beim Band-Rudern bzw. beim sitzenden Band-Seitheben, der Tausch verschiebt die Wochenziele also nicht. In den Plaenen stehen sie nicht - wer Baender und Stange hat, soll sie benutzen."
+    },
+    "face-pull": {
+      "erzeugt_mit": null,
+      "jetzt": "neu im Katalog",
+      "grund": "Der Face Pull war bis v160 kein eigener Eintrag, sondern ein Satz im Hinweis des Band-Pull-Aparts: \"Mit einem langen Band ueber der Klimmzugstange wird daraus ein Face Pull - das ist die bessere Variante.\" Damit standen zwei Uebungen auf einer Karte, und die empfohlene war die, die man nicht abhaken konnte. Auf Ansage: \"Jede Uebung soll wirklich nur eine Uebung sein. Ohne Variationen usw. Jede kleinste Variation ist ne eigene Uebung.\" Er hat jetzt eigene Anteile (rearDelts 1,0, traps 0,8), eigenes Geraet (Band + Klimmzugstange) und eine eigene Figur mit der Stange ueber dem Kopf. In den Plaenen steht er noch nicht: Die eingecheckten Plaene sind ohne ihn erzeugt worden, und sie deswegen neu zu wuerfeln waere eine Aenderung an allen 84 Einheiten fuer eine Uebung. Er ist damit ein Tauschziel wie die uebrigen zehn Katalogeintraege ausserhalb der Plaene - beim naechsten Neulauf des Generators entscheidet sich, ob er hineingehoert."
     }
   },
   "felder": {

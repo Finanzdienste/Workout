@@ -3213,15 +3213,15 @@ const EXERCISES = [
         "Die kleine Gegenübung zu allem Drücken: hintere Schulter und die Muskeln zwischen den Schulterblättern. Sie kostet fast nichts und hält die Schulter dort, wo sie hingehört."
       ],
       [
-        "Face Pull statt Pull-Apart",
-        "Ist dein Band lang genug, häng es über die Klimmzugstange und zieh zum Gesicht, Ellenbogen hoch. Das trifft dieselben Muskeln in einer noch etwas günstigeren Bahn."
+        "Nicht zu verwechseln mit dem Face Pull",
+        "Der Face Pull hängt am langen Band über der Klimmzugstange und zieht zum Gesicht. Er trifft dieselben Muskeln in einer etwas günstigeren Bahn und steht als eigene Übung im Katalog – hier geht es um das Auseinanderziehen vor dem Körper."
       ]
     ],
     "db": {
       "name": "Band-Pull-Apart",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
+      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "pullapart",
       "shares": {
@@ -3240,8 +3240,8 @@ const EXERCISES = [
     "bw": {
       "name": "Band-Pull-Apart",
       "reps": "12–20",
-      "equip": "Loop-Band (Face Pull: + Klimmzugstange)",
-      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Mit einem langen Band über der Klimmzugstange wird daraus ein Face Pull – zum Gesicht ziehen, Ellenbogen hoch; das ist die bessere Variante, wenn dein Band lang genug ist. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
+      "equip": "Loop-Band",
+      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "pullapart",
       "shares": {
@@ -3904,6 +3904,67 @@ const EXERCISES = [
       ],
       "stufen": {},
       "braucht": []
+    }
+  },
+  {
+    "id": "face-pull",
+    "group": "Schulter",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": "band",
+    "tier": 3,
+    "detail": [
+      [
+        "Wozu",
+        "Die Gegenübung zu allem Drücken, in der günstigeren Bahn: hintere Schulter und die Muskeln zwischen den Schulterblättern, dazu die Außenrotation. Sie kostet fast nichts und hält die Schulter dort, wo sie hingehört."
+      ],
+      [
+        "Ellenbogen führen",
+        "Der häufigste Fehler ist, mit den Händen zu ziehen und die Ellenbogen hängen zu lassen – dann arbeitet der Bizeps. Die Ellenbogen gehen zuerst, hoch und nach außen; die Hände folgen nur."
+      ]
+    ],
+    "db": {
+      "name": "Face Pull",
+      "reps": "12–20",
+      "equip": "Loop-Band + Klimmzugstange",
+      "cue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band oder einem Schritt weiter zurück, leichter mit dem schwächeren Band oder näher an die Stange – die Bandstärke stellst du in der Übung selbst ein.",
+      "rest": 120,
+      "pattern": "facepull",
+      "shares": {
+        "rearDelts": 1.0,
+        "traps": 0.8
+      },
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ],
+      "stufen": {},
+      "braucht": [
+        "band",
+        "stange"
+      ]
+    },
+    "bw": {
+      "name": "Face Pull",
+      "reps": "12–20",
+      "equip": "Loop-Band + Klimmzugstange",
+      "cue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band oder einem Schritt weiter zurück, leichter mit dem schwächeren Band oder näher an die Stange – die Bandstärke stellst du in der Übung selbst ein.",
+      "rest": 120,
+      "pattern": "facepull",
+      "shares": {
+        "rearDelts": 1.0,
+        "traps": 0.8
+      },
+      "muscles": [
+        "rearDelts",
+        "traps"
+      ],
+      "stufen": {},
+      "braucht": [
+        "band",
+        "stange"
+      ]
     }
   }
 ];
@@ -4609,8 +4670,23 @@ const PATTERNS = {
     // aufrecht – kippt er mit, wird daraus optisch eine Kniebeuge.
     label: 'Ausfallschritt', view: [42, -6],
     poses: [
+      // Der Stand bleibt stehen, und das ist der ganze Punkt:
+      //
+      //     "Das hintere Bein bewegt sich immer mit. Aber solls ja eigentlich
+      //      nicht oder?"
+      //
+      // Nicht, nein. Nachgerechnet mit tools/pose.mjs war der Abstand zwischen
+      // den Zehen oben 0,62 Koerperlaengen und unten 1,03 - die Figur machte
+      // beim Absenken einen Ausfallschritt nach hinten. Jetzt bleibt er ueber
+      // die ganze Bewegung zwischen 0,62 und 0,65, die hintere Zehe zwischen
+      // 0,020 und 0,034 ueber dem Boden (steht also), und die Huefte sinkt von
+      // 0,845 auf 0,666. Gesenkt wird, nicht geschritten.
+      //
+      // Das hintere Knie geht dabei von 0,43 auf 0,23 ueber dem Boden, der
+      // hintere Oberschenkel von -18 Grad (nach hinten geneigt) auf +6, steht
+      // unten also fast senkrecht - genau so sieht ein Split Squat unten aus.
       { lean: 5, arm: A(5, 9, 4), legR: L(16, 6, 12), legL: L(-18, 7, 26) },
-      { lean: 9, arm: A(9, 9, 4), legR: L(62, 6, 74), legL: L(-30, 7, 106) },
+      { lean: 9, arm: A(9, 9, 4), legR: L(55, 6, 82), legL: L(6, 7, 86) },
     ],
   },
   kneeraise: {
@@ -4664,6 +4740,29 @@ const PATTERNS = {
     poses: [
       { lean: 3, arm: A(86, 8, 8), leg: L(2, 5, 4) },
       { lean: 3, arm: A(8, 86, 8), leg: L(2, 5, 4) },
+    ],
+  },
+  facepull: {
+    /*
+     * Face Pull: Band ueber der Klimmzugstange, Zug zum Gesicht.
+     *
+     * Eine eigene Uebung und kein Zusatz im Text des Pull-Aparts:
+     *
+     *     "Hier sind wieder zwei Uebungen in einer? Jede Uebung soll wirklich
+     *      nur eine Uebung sein. Ohne Variationen usw."
+     *
+     * Der sichtbare Unterschied zum Pull-Apart ist die Zugrichtung: Dort haelt
+     * man das Band zwischen den Haenden und zieht nach aussen, hier haengt es
+     * von oben und man zieht zum Gesicht. Deshalb `band: 'bar'` - zwei Straenge
+     * von den Haenden senkrecht nach oben zur Stange.
+     *
+     * Unten: Arme nach vorn oben, fast gestreckt. Oben: Ellenbogen hoch und
+     * nach aussen, Haende neben den Schlaefen.
+     */
+    label: 'Face Pull', band: 'bar', ueberkopf: 0.95, ueberkopfZ: 0.58, view: [20, -8],
+    poses: [
+      { lean: 4, arm: A(96, 14, 12), leg: L(2, 5, 4) },
+      { lean: 4, arm: A(64, 58, 104), leg: L(2, 5, 4) },
     ],
   },
   curl: {
@@ -5284,7 +5383,22 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
           class: 'fig-band',
         }),
       });
-      if (spec.band === 'hands') {
+      if (spec.band === 'bar') {
+        // Von oben: Das Band haengt ueber der Klimmzugstange, je ein Strang zu
+        // jeder Hand. Senkrecht nach oben und nicht zur Stangenmitte - ein
+        // Band, das schraeg zieht, sieht aus, als haenge es irgendwo fest.
+        // Der Bauch geht leicht nach aussen, sonst liegt der Strang auf dem
+        // Unterarm.
+        ['L', 'R'].forEach((seite) => {
+          const hand = pts0[`hand${seite}`];
+          // Zur Stange, nicht senkrecht nach oben: Die Stange steht fest im
+          // Raum, die Haende wandern. Ein Strang, der immer senkrecht steht,
+          // haette die Stange mitwandern lassen - genau der Fehler, der beim
+          // Split Squat am hinteren Bein aufgefallen ist.
+          const oben = P([hand[0], spec.ueberkopf, spec.ueberkopfZ]);
+          bogen(P(hand), oben, { x: (seite === 'L' ? -1 : 1) * 3 * gearScale, y: 0 });
+        });
+      } else if (spec.band === 'hands') {
         const a = P(pts0.handL);
         const b = P(pts0.handR);
         const span = Math.hypot(a.x - b.x, a.y - b.y);
@@ -5532,6 +5646,23 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
           }),
         });
       }));
+    }
+
+    if (spec.ueberkopf !== undefined) {
+      // Die Stange, an der das Band haengt: waagerecht ueber den Haenden, auf
+      // der Hoehe, zu der die Baender laufen. Sie muss da sein - ein Band, das
+      // im Nichts endet, ist keine Auskunft, sondern ein Fehler im Bild.
+      // Fest im Raum, nicht an den Haenden: Die Stange haengt nicht am Sportler.
+      const mitte = [0, spec.ueberkopf, spec.ueberkopfZ];
+      const b1 = P(add(mitte, mul(sideAxis, -0.9)));
+      const b2 = P(add(mitte, mul(sideAxis, 0.9)));
+      parts.push({
+        z: (b1.z + b2.z) / 2 - 0.02,
+        node: el('line', {
+          x1: b1.x.toFixed(1), y1: b1.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
+          class: 'fig-bar-fixed',
+        }),
+      });
     }
 
     if (spec.bar) {
@@ -6151,7 +6282,7 @@ const INJURIES = [
       + 'Hier gehört ein Arzt drauf, nicht ein Trainingsplan.',
     avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze', 'gewichtete-liegestuetze',
       'floor-press', 'reverse-fly', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
-      'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
+      'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart', 'face-pull',
       'liegende-trizepsstrecker',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel',
       'flaschen-seitheben',
@@ -6260,7 +6391,7 @@ const INJURIES = [
       'fuesse-erhoehte-liegestuetze', 'floor-press', 'einarmiges-kh-rudern', 'chin-ups', 'pull-ups',
       'reverse-fly', 'sitzendes-seitheben', 'band-seitheben', 'liegende-trizepsstrecker', 'sz-curls',
       'gewichtete-crunches',
-      'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart',
+      'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart', 'face-pull',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel',
       'flaschen-seitheben', 'rucksack-curls',
       'rucksack-rudern', 'sitzendes-flaschen-seitheben'],
