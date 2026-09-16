@@ -61,6 +61,16 @@
       "erzeugt_mit": null,
       "jetzt": "neu im Katalog",
       "grund": "Der Face Pull war bis v160 kein eigener Eintrag, sondern ein Satz im Hinweis des Band-Pull-Aparts: \"Mit einem langen Band ueber der Klimmzugstange wird daraus ein Face Pull - das ist die bessere Variante.\" Damit standen zwei Uebungen auf einer Karte, und die empfohlene war die, die man nicht abhaken konnte. Auf Ansage: \"Jede Uebung soll wirklich nur eine Uebung sein. Ohne Variationen usw. Jede kleinste Variation ist ne eigene Uebung.\" Er hat jetzt eigene Anteile (rearDelts 1,0, traps 0,8), eigenes Geraet (Band + Klimmzugstange) und eine eigene Figur mit der Stange ueber dem Kopf. In den Plaenen steht er noch nicht: Die eingecheckten Plaene sind ohne ihn erzeugt worden, und sie deswegen neu zu wuerfeln waere eine Aenderung an allen 84 Einheiten fuer eine Uebung. Er ist damit ein Tauschziel wie die uebrigen zehn Katalogeintraege ausserhalb der Plaene - beim naechsten Neulauf des Generators entscheidet sich, ob er hineingehoert."
+    },
+    "trizeps-strecken-stange": {
+      "erzeugt_mit": null,
+      "jetzt": "neu im Katalog",
+      "grund": "Zwei Uebungen dazu, und wieder nicht fuer die Plaene, sondern damit zwei Muskelgruppen mehr als eine eigene Uebung haben: Trizepsstrecken an der Stange und Beckenheben. Der Anlass ist gemessen (tests/test-katalog.mjs): Genau eine Uebung im Katalog hatte den Trizeps als Hauptmuskel (der Ueberkopf-Trizepsstrecker) und genau eine das Gesaess (der Hip Thrust). Wer eine davon abwaehlt oder wegen einer Verletzung auslaesst, trainiert die Gruppe danach nur noch nebenbei beim Druecken bzw. beim Kreuzheben - die zweitbeste Uebung bringt jeweils ihren eigenen Hauptmuskel mit. Die Muskelanteile sind Ziffer fuer Ziffer dieselben wie beim Vorbild, der Tausch verschiebt die Wochenziele also nicht. In den Plaenen stehen sie nicht, und das ist nachgerechnet und nicht vermutet: Ein voller Cut-Lauf mit dem erweiterten Katalog gibt beiden null Auftritte - bei gleichen Anteilen bleibt der Generator bei der Uebung, die schon dasteht. Genau dafuer sind sie da: als Ersatz, wenn die erste ausfaellt."
+    },
+    "beckenheben": {
+      "erzeugt_mit": null,
+      "jetzt": "neu im Katalog",
+      "grund": "Zwei Uebungen dazu, und wieder nicht fuer die Plaene, sondern damit zwei Muskelgruppen mehr als eine eigene Uebung haben: Trizepsstrecken an der Stange und Beckenheben. Der Anlass ist gemessen (tests/test-katalog.mjs): Genau eine Uebung im Katalog hatte den Trizeps als Hauptmuskel (der Ueberkopf-Trizepsstrecker) und genau eine das Gesaess (der Hip Thrust). Wer eine davon abwaehlt oder wegen einer Verletzung auslaesst, trainiert die Gruppe danach nur noch nebenbei beim Druecken bzw. beim Kreuzheben - die zweitbeste Uebung bringt jeweils ihren eigenen Hauptmuskel mit. Die Muskelanteile sind Ziffer fuer Ziffer dieselben wie beim Vorbild, der Tausch verschiebt die Wochenziele also nicht. In den Plaenen stehen sie nicht, und das ist nachgerechnet und nicht vermutet: Ein voller Cut-Lauf mit dem erweiterten Katalog gibt beiden null Auftritte - bei gleichen Anteilen bleibt der Generator bei der Uebung, die schon dasteht. Genau dafuer sind sie da: als Ersatz, wenn die erste ausfaellt."
     }
   },
   "felder": {

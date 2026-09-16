@@ -17,6 +17,8 @@
  *      hat, hat nichts gewechselt.
  *   3. Ändert er sich wirklich, wandert der laufende Verlauf in die Ablage –
  *      und Statistik, Kalender und Trainingstage überleben das.
+ *   4. Und die App sagt es. Eine Runde, die beim Öffnen wortlos auf null
+ *      springt, ist von einem Datenverlust nicht zu unterscheiden.
  */
 import { chromium } from 'playwright';
 import { URL, ROOT } from './umgebung.mjs';
@@ -121,6 +123,23 @@ check(s.runden === 1, 'der alte Verlauf liegt in der Ablage, nicht im Müll');
 check(s.stand === staende.standard, 'und der neue Stand ist vermerkt');
 check(s.saetze > 0, `die Statistik zählt weiter (${s.saetze} Sätze)`);
 check(s.tage.includes('2026-09-01'), 'und der Trainingstag steht weiter da');
+
+// Und es steht auch da. Eine Runde, die wortlos auf null springt, sieht aus wie
+// ein Datenverlust – der Hinweis ist der Unterschied zwischen „umgebaut" und
+// „kaputt".
+const hinweis = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+console.log('     ' + (hinweis.match(/Der Plan wurde überarbeitet.{0,150}/) || ['(kein Hinweis)'])[0]);
+check(/Der Plan wurde überarbeitet/.test(hinweis),
+  'das Dashboard sagt, dass der Plan ein anderer ist');
+check(/3 Einheiten/.test(hinweis),
+  'und wie viele Einheiten dabei in die Ablage gewandert sind');
+check(/Gewichte, Bänder, Erfahrungsstufe und die Statistik bleiben/.test(hinweis),
+  'und was dabei *nicht* verloren geht');
+await page.locator('[data-act="umbau-ok"]').click();
+await page.waitForTimeout(300);
+check(!/Der Plan wurde überarbeitet/.test(
+  (await page.locator('#view').textContent()).replace(/\s+/g, ' ')),
+  'weggetippt ist er weg');
 
 // --- 5. Und danach ist Ruhe --------------------------------------------
 await page.reload({ waitUntil: 'networkidle' });

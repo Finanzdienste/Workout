@@ -53,6 +53,27 @@ export const KIND_LABEL = {
  * ist er mitgekommen – sofern das Ziel in derselben Regel nicht selbst gesperrt
  * ist. Die Ableitung irrt eher in Richtung „lieber nicht": Eine Übung zu viel
  * auszulassen kostet ein paar Sätze, eine zu wenig kostet Wochen.
+ *
+ * Zwei weitere kamen später dazu, und bei ihnen läuft die Ableitung einmal in
+ * die andere Richtung:
+ *
+ *   Trizepsstrecken an der Stange   wie der Überkopf-Trizepsstrecker (Ellenbogen
+ *                                   streckt gegen Last) plus Inverted Row
+ *                                   (derselbe Griff an derselben Kante)
+ *                                   – **außer** beim Schulter-Impingement: Dort
+ *                                   fällt das Vorbild wegen der Überkopfstellung
+ *                                   aus, die es hier nicht gibt. Statt zu erben,
+ *                                   springt sie dort für das Vorbild ein.
+ *   Beckenheben                     wie der Hip Thrust (dieselbe Hüftstreckung)
+ *                                   – **außer** bei ISG-Blockade und
+ *                                   Beinbeugerzerrung: Beide Regeln führen das
+ *                                   Beckenheben selbst unter care als Übung zum
+ *                                   Kräftigen auf. Was eine Regel empfiehlt,
+ *                                   kann sie nicht zugleich verbieten; dort
+ *                                   ersetzt es den Hip Thrust.
+ *
+ * Beide Ausnahmen sind derselbe Gedanke: Eine abgeleitete Sperre gilt nur,
+ * solange der Grund des Vorbilds auch für die neue Übung gilt.
  */
 export const INJURIES = [
   /* ---------------- Schulter ---------------- */
@@ -68,7 +89,12 @@ export const INJURIES = [
       'pike-liegestuetze',
       'flaschen-seitheben',
       'sitzendes-flaschen-seitheben'],
-    swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press', 'pike-liegestuetze': 'floor-press' },
+    // Der Überkopf-Trizepsstrecker fällt aus, weil der Arm dabei über dem Kopf
+    // steht – genau der Bogen, der weh tut. An der niedrigen Kante bleibt er
+    // darunter, also steht hier ein Tausch statt einer Lücke: Sonst verlöre der
+    // Trizeps seine einzige eigene Übung.
+    swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press',
+      'pike-liegestuetze': 'floor-press', 'liegende-trizepsstrecker': 'trizeps-strecken-stange' },
     care: [
       'aussenrotation', 'wandengel', 'brustdehnung', 'schulterblatt', 'sleeper',
     ],
@@ -83,7 +109,7 @@ export const INJURIES = [
     avoid: ['sitzendes-seitheben', 'band-seitheben', 'fuesse-erhoehte-liegestuetze', 'gewichtete-liegestuetze',
       'floor-press', 'reverse-fly', 'chin-ups', 'pull-ups', 'einarmiges-kh-rudern',
       'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart', 'face-pull',
-      'liegende-trizepsstrecker',
+      'liegende-trizepsstrecker', 'trizeps-strecken-stange',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel',
       'flaschen-seitheben',
       'rucksack-rudern', 'sitzendes-flaschen-seitheben'],
@@ -98,7 +124,7 @@ export const INJURIES = [
       + 'wenn der Arm quer vor dem Körper zusammengeführt wird – also beim Drücken '
       + 'und bei allem, was die Schultern nach vorn zieht.',
     avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press',
-      'liegende-trizepsstrecker',
+      'liegende-trizepsstrecker', 'trizeps-strecken-stange',
       'pike-liegestuetze', 'kurzhantel-bodenpresse'
     ],
     swap: { 'fuesse-erhoehte-liegestuetze': 'reverse-fly', 'pike-liegestuetze': 'reverse-fly' },
@@ -132,7 +158,7 @@ export const INJURIES = [
       + 'Drücken belastet ihn kaum.',
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
       'haengendes-knieheben',
-      'inverted-row',
+      'inverted-row', 'trizeps-strecken-stange',
       'rucksack-curls',
       'rucksack-rudern'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
@@ -148,7 +174,7 @@ export const INJURIES = [
       + 'Griff das Problem, dazu jede kräftige Beugung im Ellenbogen.',
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
       'haengendes-knieheben',
-      'inverted-row',
+      'inverted-row', 'trizeps-strecken-stange',
       'rucksack-curls',
       'rucksack-rudern'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
@@ -160,7 +186,8 @@ export const INJURIES = [
     area: 'Ellenbogen', spot: 'elbow', kind: 'reizung',
     text: 'Der Schleimbeutel an der Ellenbogenspitze schwillt an und drückt. Direkter '
       + 'Druck auf den Ellenbogen und volle Streckung gegen Widerstand sind unangenehm.',
-    avoid: ['liegende-trizepsstrecker', 'gewichtete-liegestuetze', 'floor-press',
+    avoid: ['liegende-trizepsstrecker', 'trizeps-strecken-stange',
+      'gewichtete-liegestuetze', 'floor-press',
       'kurzhantel-bodenpresse'
     ],
     swap: { 'gewichtete-liegestuetze': 'reverse-fly' },
@@ -193,7 +220,7 @@ export const INJURIES = [
       'gewichtete-crunches',
       'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart', 'face-pull',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel',
-      'flaschen-seitheben', 'rucksack-curls',
+      'flaschen-seitheben', 'rucksack-curls', 'trizeps-strecken-stange',
       'rucksack-rudern', 'sitzendes-flaschen-seitheben'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
@@ -306,7 +333,11 @@ export const INJURIES = [
       'rumaenisches-kreuzheben',
       'einbeiniges-kreuzheben'
     ],
-    swap: { 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+    // Das Beckenheben bleibt drin – es steht drei Zeilen tiefer als Übung zum
+    // Kräftigen. Eine Regel, die dieselbe Bewegung zugleich verbietet und
+    // empfiehlt, wäre keine Vorsicht, sondern ein Widerspruch: Der Unterschied
+    // zum Hip Thrust ist die Last und der halbe Weg, und genau der ist gemeint.
+    swap: { 'hip-thrust': 'beckenheben', 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['vogelhund', 'piriformis', 'glutebridge', 'huefte9090'],
   },
@@ -355,7 +386,7 @@ export const INJURIES = [
       + 'Bauchpresse vergrößert sie – schwere Übungen im Stand und alles mit '
       + 'angehaltenem Atem fallen weg, bis das operiert ist.',
     avoid: ['goblet-squat', 'fersenerhoehter-goblet-squat', 'gewichtete-crunches',
-      'hip-thrust', 'einarmiges-kh-rudern',
+      'hip-thrust', 'beckenheben', 'einarmiges-kh-rudern',
       'split-squat', 'rumaenisches-kreuzheben',
       'inverted-row', 'einbeiniges-kreuzheben', 'reverse-snow-angel',
       'rucksack-rudern'],
@@ -458,7 +489,9 @@ export const INJURIES = [
       'rumaenisches-kreuzheben',
       'einbeiniges-kreuzheben'
     ],
-    swap: {},
+    // Auch hier steht das Beckenheben unten bei den Übungen zum Kräftigen –
+    // siehe ISG-Blockade. Es ersetzt den Hip Thrust, statt zu verschwinden.
+    swap: { 'hip-thrust': 'beckenheben' },
     care: ['beinbeugerIso', 'beinbeugerDehnen', 'glutebridge'],
   },
   {

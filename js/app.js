@@ -371,9 +371,47 @@ function planWechsel() {
     return false;
   }
   const hatVerlauf = Object.keys(s.log || {}).length > 0;
-  if (hatVerlauf) store.restartPlan(0, rundenBilanz());
+  if (hatVerlauf) {
+    // **Und gesagt wird es auch.** Vorher wanderte die Runde wortlos in die
+    // Ablage: Wer die App das nächste Mal öffnete, stand bei Workout 1, mit
+    // anderen Übungen, und nichts erklärte, warum. Der Fokuswechsel eine Etage
+    // höher hat seinen Hinweis von Anfang an gehabt; dieser Fall ist derselbe
+    // Vorgang, nur ohne dass jemand darauf getippt hätte – also braucht er ihn
+    // erst recht.
+    const einheiten = Object.keys(s.log).length;
+    store.restartPlan(0, rundenBilanz());
+    store.setSetting('planUmbau', { einheiten, fokus: (PLANS[fokus] || {}).name || fokus });
+  }
   store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
   return hatVerlauf;
+}
+
+/**
+ * Der Hinweis zum überarbeiteten Plan – bis er weggetippt wird.
+ *
+ * Er sagt drei Dinge, und zwar in dieser Reihenfolge: dass der Plan ein anderer
+ * ist, was mit dem Bisherigen passiert ist, und was *nicht* verloren geht. Die
+ * dritte Zeile ist die wichtigste: Eine zurückgesetzte Runde sieht aus wie ein
+ * Datenverlust, und sie ist keiner.
+ */
+function umbauHinweis() {
+  const u = store.getState().planUmbau;
+  if (!u) return '';
+  return `
+    <div class="notice aufstieg" style="margin:0 0 12px">
+      <strong>Der Plan wurde überarbeitet</strong>
+      <div class="small" style="margin-top:6px">
+        Hinter den Workout-Nummern von „${esc(u.fokus)}" stehen jetzt andere Übungen –
+        deine ${u.einheiten === 1 ? 'eine Einheit' : `${u.einheiten} Einheiten`} aus der
+        laufenden Runde zeigen darauf nicht mehr. Sie liegen deshalb vollständig unter
+        <i>Mehr → Daten</i>, und die neue Runde fängt bei eins an.
+        <b>Deine Gewichte, Bänder, Erfahrungsstufe und die Statistik bleiben, wie sie
+        sind</b> – die rechnen über alle Runden.
+      </div>
+      <div class="btn-row nav" style="margin-top:10px">
+        <button type="button" class="btn btn-primary" data-act="umbau-ok">Verstanden</button>
+      </div>
+    </div>`;
 }
 
 /** Der Hinweis dazu auf dem Dashboard, bis er weggetippt wird. */
@@ -1462,6 +1500,7 @@ function renderOverview() {
   view.innerHTML = `
     <section class="ov">
       ${umzugHinweis()}
+      ${umbauHinweis()}
       ${aufstiegHinweis()}
       ${speicherWarnung()}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
@@ -2042,6 +2081,7 @@ function renderDashboard() {
   const parts = [];
 
   parts.push(umzugHinweis());
+  parts.push(umbauHinweis());
   parts.push(aufstiegHinweis());
 
   if (!store.canPersist()) parts.push(speicherWarnung());
@@ -6336,6 +6376,10 @@ view.addEventListener('click', (e) => {
       break;
     case 'umzug-ok':
       store.setSetting('fokusUmzug', null);
+      render();
+      break;
+    case 'umbau-ok':
+      store.setSetting('planUmbau', null);
       render();
       break;
     case 'umzug-waehlen':

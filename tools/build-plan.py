@@ -330,7 +330,10 @@ WEEKS = 21               # Wochen im Plan – Vielfaches von GRAIN, siehe oben
 # Höher ginge es ohnehin nicht sinnvoll: Die Erfahrungsstufe skaliert diesen
 # Wert mit (siehe satzZahl() in js/app.js), und bei fünf oder sechs stünden
 # Fortgeschrittene bei sieben bis acht Sätzen derselben Übung am Stück.
-PER_SET = (3, 3)         # Sätze je Auftritt einer Übung
+# Über die Umgebung einstellbar, damit sich der Tausch zwischen Wochenbalance
+# und Länge der Einheiten nachmessen lässt, ohne die Datei zu ändern – siehe
+# APP weiter unten:  WK_PER_SET=2,3 python3 tools/build-plan.py cut --report
+PER_SET = tuple(int(x) for x in os.environ.get('WK_PER_SET', '3,3').split(','))
 # Körnung: Bei fester Satzzahl bewegt sich alles in Dreierschritten.
 GRAIN = PER_SET[0] if PER_SET[0] == PER_SET[1] else 1
 PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
@@ -907,11 +910,24 @@ HARD = 10 ** 9           # Zuschlag ab MAX_REL Abweichung
 # **Nachgemessen ist der Hebel trotzdem stumpf.** Drei volle Läufe von „Cut"
 # mit 5·10⁴, 1·10⁵ und 2·10⁵ endeten alle bei derselben schlechtesten Woche
 # (29 % vom Ziel), denselben 27 benutzten Übungen und derselben Häufigkeit
-# ganz oben; unterschiedlich waren nur Kleinigkeiten weiter unten in der
-# Liste. Der Grund steht in spread(): Zwischen den Anläufen entscheidet
-# zuerst die Zahl der Auftritte und erst danach die Abweichung. Was pen()
-# innerhalb eines Anlaufs abwägt, überstimmt diese Rangfolge am Ende wieder.
-# Wer die Wochen wirklich ruhiger haben will, muss dort ansetzen, nicht hier.
+# ganz oben; unterschiedlich waren nur Kleinigkeiten weiter unten in der Liste.
+#
+# Ein vierter Lauf mit vertauschter Rangfolge in spread() – erst Abweichung,
+# dann Auftritte – änderte daran ebenfalls nichts: wieder 29 %, wieder 391
+# Auftritte. Die Vermutung, die Rangfolge überstimme pen(), war falsch.
+#
+# **Die Grenze ist die Körnung.** Ein Auftritt hat drei Sätze, also bewegt sich
+# jede Wochensumme in Dreierschritten. Eine Gruppe mit Ziel 7 bekommt 6 oder 9 –
+# 14 % zu wenig oder 29 % zu viel. Genau 29 % misst der Bericht, und genau die
+# Gruppen mit Ziel 7 stehen dort oben. Ein fünfter Lauf mit PER_SET=(2,3), also
+# Körnung 1, kam auf 11 % schlechteste Woche – und auf 6,98 statt 4,65 Übungen
+# je Einheit, bevor die Aufteilung auf die Tage überhaupt scheiterte. Das ist
+# kein Tausch, den man macht: eine ruhigere Woche gegen anderthalb Übungen mehr
+# an jedem Trainingstag.
+#
+# Die Wochenabweichung ist damit dort, wo sie bei Dreiersätzen hingehört. Wer
+# sie kleiner haben will, muss die Ziele auf Vielfache von drei legen – also die
+# Dosis ändern, nicht den Suchlauf.
 #
 # Über die Umgebung einstellbar, damit sich das nachmessen lässt, ohne die
 # Datei zu ändern: WK_APP=50000 python3 tools/build-plan.py cut --report
@@ -1151,8 +1167,8 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
         eng = sum(spacing(row, weeks) for row in rows)
         got = (hart, auftritte, alle, aus, eng)
         if best is None or got < best[0]:
-            best = (got, [list(c) for c in col])
-    (hart, auftritte, alle, aus, eng), per_week = best
+            best = (got, [list(c) for c in col], (hart, auftritte, alle, aus))
+    _, per_week, (hart, auftritte, alle, aus) = best
     return per_week, (hart, auftritte, alle[0], aus)
 
 

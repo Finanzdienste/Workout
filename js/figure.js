@@ -234,6 +234,33 @@ export const PATTERNS = {
       { tilt: 0, arm: A(0, 17, 8), leg: L(0, 8, 90) },
     ],
   },
+  bridge: {
+    /*
+     * Dasselbe Aufrichten der Hüfte, nur ohne Bank: Schultern bleiben am Boden.
+     *
+     * Der Unterschied zum Hip Thrust ist genau einer, und er steht in den
+     * Maßen (tools/pose.mjs, Körperlängen über dem Boden):
+     *
+     *              Schulter   Hüfte    Knie     Fuß   Schienbein
+     *   Hip Thrust    0.40     0.14→0.42  0.41   0.00
+     *   Beckenheben   0.07     0.10→0.30  0.40   0.00
+     *
+     * Die Schultern liegen, statt auf einer Kante aufzuliegen, und die Hüfte
+     * kommt entsprechend weniger hoch – kürzerer Weg, dafür ohne Möbel. Genau
+     * das ist der Grund, warum die Übung im Katalog steht: Sie braucht nichts
+     * als den Boden.
+     *
+     * Die Füße stehen in beiden Stellungen an derselben Stelle (x 0.45).
+     * Gesucht wurden die Winkel gegen diese Zielmaße, nicht nach Augenmaß –
+     * ohne die Bedingung wanderte der Fuß um eine Fußlänge nach vorn, und die
+     * Figur sah aus, als schöbe sie sich vom Boden weg.
+     */
+    label: 'Beckenheben', lie: 'supine', view: [16, -8], plateAt: 'hip',
+    poses: [
+      { tilt: 3, arm: A(0, 17, 8), leg: L(40, 8, 114) },
+      { tilt: 28, arm: A(0, 17, 8), leg: L(-12, 8, 102) },
+    ],
+  },
   pushup: {
     label: 'Liegestütz', lie: 'prone',
     poses: [
@@ -708,8 +735,28 @@ export const PATTERNS = {
     ],
   },
   tricepsbar: {
-    // Schräg stehend, Hände auf einer niedrigen Stange. Nur der Ellenbogen
-    // arbeitet, der Kopf senkt sich unter die Stange.
+    /*
+     * Schräg stehend, Hände auf einer niedrigen Kante. Nur der Ellenbogen
+     * arbeitet, der Kopf senkt sich unter die Kante.
+     *
+     * Das Muster lag lange ungenutzt herum – gezeichnet, aber von keiner Übung
+     * benutzt. Seit trizeps-strecken-stange steht es im Katalog, und dabei
+     * wurde nachgemessen, wie hoch die Kante hier eigentlich ist (Körperlängen
+     * über dem Boden):
+     *
+     *              Kante    Hüfte  Schulter    Kopf
+     *   oben        0.42     0.66     0.93     1.07
+     *   unten       0.41     0.52     0.72     0.82
+     *
+     * 0.42 ist nicht Hüfthöhe, sondern Oberschenkelhöhe – und damit ziemlich
+     * genau die Tischkante: 75 cm bei 1,80 m Körpergröße sind 0.42. Der Hinweis
+     * der Übung sagt deshalb „Tischkante", nicht „hüfthoch". Die Zeichnung
+     * folgt nicht dem Text, der Text folgt der Messung.
+     *
+     * `barY` verschiebt dabei nur die ganze Figur mit; der Boden wird an ihrem
+     * tiefsten Punkt gezeichnet. Die Höhe der Kante über dem Boden steckt
+     * allein in den Winkeln.
+     */
     label: 'Trizeps an der Stange', anchor: 'bar', barY: 0.02, bar: true,
     // leg.p spiegelt lean: nur so bleibt der Körper eine gerade Linie von den
     // Fersen bis zum Kopf. Mit senkrechten Beinen wurde daraus ein Hüftknick.
@@ -1165,7 +1212,15 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // Scheibe oder Hantel auf der Brust (Crunches). Sie liegt weiter vorn als
       // die Unterarme, sonst verschwindet sie dahinter – bei 0.155 blieb von
       // ihr ein weißer Keil zwischen den Armen übrig, aus jedem Blickwinkel.
-      const q = P(add(j.chest, mul(frontAxis, 0.26)));
+      //
+      // `plateAt: 'hip'` legt sie stattdessen auf die Hüftbeuge – beim
+      // Beckenheben liegt sie dort und nirgends sonst, und der Hinweis sagt das
+      // auch so. Das ist eine Eigenschaft der Bewegung, nicht des Geräts:
+      // getragen wird in beiden Fällen dieselbe Scheibe, und `equip` entscheidet
+      // in drei weiteren Tabellen über Auf- und Abbau. Ein eigener Gerätename
+      // nur fürs Zeichnen hätte die alle mitgeschleppt.
+      const hoch = spec.plateAt === 'hip';
+      const q = P(add(hoch ? j.hipC : j.chest, mul(frontAxis, hoch ? 0.16 : 0.26)));
       parts.push({
         z: q.z + 0.01,
         node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (5.4 * gearScale * q.k).toFixed(1), class: 'fig-plate' }),

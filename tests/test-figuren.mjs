@@ -12,7 +12,7 @@
  * sich darauf, dass man alles gesehen hat.
  */
 import { chromium } from 'playwright';
-import { URL, ROOT } from './umgebung.mjs';
+import { URL, ROOT, SHOT } from './umgebung.mjs';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 900, height: 1200 } });
@@ -80,7 +80,7 @@ check(stehend.druecken === 'ohpstand',
 check(stehend.hantelDruecken === 'ohp',
   `die Hantelfassung sitzt weiterhin – sie heißt ja auch so (${stehend.hantelDruecken})`);
 
-await page.screenshot({ path: '.testlauf/figuren.png', fullPage: true });
+await page.screenshot({ path: `${SHOT}/figuren.png`, fullPage: true });
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

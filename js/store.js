@@ -127,6 +127,9 @@ const DEFAULT_STATE = {
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
   // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/app.js.
   fokusUmzug: null,
+  // Dasselbe eine Etage tiefer: Der Fokus bleibt, aber der *Inhalt* des Plans
+  // ist ein anderer geworden. Siehe planWechsel() in js/app.js.
+  planUmbau: null,
   // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn }
   //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
   //   done abgehakt

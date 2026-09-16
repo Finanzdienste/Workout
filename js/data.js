@@ -2332,6 +2332,130 @@ export const EXERCISES = [
         "stange"
       ]
     }
+  },
+  {
+    "id": "trizeps-strecken-stange",
+    "group": "Trizeps",
+    "weight": null,
+    "step": null,
+    "weightNote": null,
+    "equip": null,
+    "tier": 3,
+    "detail": [
+      [
+        "Warum sie im Plan steht",
+        "Der Trizeps hatte im Katalog genau eine Übung, die ihn zum Hauptmuskel hat – den Überkopf-Trizepsstrecker. Wer den abwählt oder nicht machen kann, trainiert ihn nur noch nebenbei beim Drücken. Diese hier braucht nichts als eine Kante und trifft ihn direkt."
+      ],
+      [
+        "Die Oberarme stehen still",
+        "Das ist die ganze Übung. Wandern die Ellenbogen nach vorn, wird daraus ein schräger Liegestütz und die Brust übernimmt. Die Oberarme zeigen die ganze Zeit in dieselbe Richtung, nur der Unterarm klappt auf und zu."
+      ],
+      [
+        "Schwerer und leichter",
+        "Die Last hängt am Winkel, nicht am Eisen. Füße weiter weg, Körper flacher: schwerer. Eine höhere Kante, Körper aufrechter: leichter. Damit lässt sich jede Wiederholungszahl treffen, ohne etwas aufzustecken."
+      ],
+      [
+        "Typische Fehler",
+        "Aus der Hüfte einknicken statt eine Linie zu halten. Nur halb beugen. Die Hände zu eng greifen – das belastet das Handgelenk, ohne dem Trizeps mehr zu geben."
+      ]
+    ],
+    "db": {
+      "name": "Trizepsstrecken an der Stange",
+      "reps": "8–15",
+      "equip": "Klimmzugstange tief oder Tischkante",
+      "cue": "Eine feste Kante etwa auf Höhe der Oberschenkel – Tischkante, Fensterbank oder die tief eingehängte Klimmzugstange. Hände schulterbreit darauf, einen Schritt zurück, Körper von Ferse bis Kopf eine schräge Linie. Nur die Ellenbogen beugen, bis der Kopf unter die Kante kommt – die Oberarme bleiben, wo sie sind. Dann strecken. Je tiefer die Kante und je flacher du stehst, desto schwerer.",
+      "rest": 120,
+      "pattern": "tricepsbar",
+      "shares": {
+        "triceps": 1.0
+      },
+      "muscles": [
+        "triceps"
+      ],
+      "stufen": {},
+      "braucht": []
+    },
+    "bw": {
+      "name": "Trizepsstrecken an der Stange",
+      "reps": "10–20",
+      "equip": "Klimmzugstange tief oder Tischkante",
+      "cue": "Eine feste Kante etwa auf Höhe der Oberschenkel – Tischkante, Fensterbank oder die tief eingehängte Klimmzugstange. Hände schulterbreit darauf, einen Schritt zurück, Körper von Ferse bis Kopf eine schräge Linie. Nur die Ellenbogen beugen, bis der Kopf unter die Kante kommt – die Oberarme bleiben, wo sie sind. Zu schwer? Eine höhere Kante nehmen und aufrechter stehen; das nimmt Last weg, ohne die Bewegung zu verändern.",
+      "rest": 120,
+      "pattern": "tricepsbar",
+      "shares": {
+        "triceps": 1.0
+      },
+      "muscles": [
+        "triceps"
+      ],
+      "stufen": {},
+      "braucht": []
+    }
+  },
+  {
+    "id": "beckenheben",
+    "group": "Gesäß",
+    "weight": 12,
+    "step": 2,
+    "weightNote": "auf der Hüfte",
+    "equip": "plate",
+    "tier": 2,
+    "detail": [
+      [
+        "Wozu, wenn es den Hip Thrust gibt",
+        "Der Hip Thrust braucht eine Kante, die an der Wand steht, und ein Polster. Das Beckenheben braucht den Boden. Der Weg ist kürzer und die Last geringer – dafür geht es überall, und es war die einzige Gesäßübung, die im Katalog gefehlt hat: ohne sie stand das Gesäß allein am Hip Thrust."
+      ],
+      [
+        "Die Fersen nah",
+        "Je weiter die Füße vorn stehen, desto mehr zieht die Oberschenkelrückseite und desto weniger arbeitet das Gesäß. Fersen dicht ans Gesäß, Schienbeine oben etwa senkrecht – dann kommt der Zug von hinten oben."
+      ],
+      [
+        "Oben ist die Arbeit",
+        "Ein bis zwei Sekunden halten, Gesäß fest, Rippen unten. Der Körper bildet oben eine Linie von Knie bis Schulter; weiter ins Hohlkreuz zu drücken sieht nach mehr aus, kommt aber aus dem unteren Rücken."
+      ],
+      [
+        "Typische Fehler",
+        "Mit den Fersen wegdrücken statt mit dem Gesäß anzuheben. Den Kopf mitheben. Unten ganz ablegen und die Spannung verlieren – der nächste Weg fängt dann wieder bei null an."
+      ]
+    ],
+    "db": {
+      "name": "Beckenheben",
+      "reps": "10–15",
+      "equip": "Kurzhantel oder Scheibe",
+      "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen so nah, dass du sie mit den Fingerspitzen fast berührst. Kurzhantel oder Scheibe quer auf die Hüftbeuge, Handtuch darunter. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen.",
+      "rest": 120,
+      "pattern": "bridge",
+      "shares": {
+        "glutes": 1.0,
+        "hamstringsHip": 0.5
+      },
+      "muscles": [
+        "glutes",
+        "hamstringsHip"
+      ],
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
+    },
+    "bw": {
+      "name": "Beckenheben",
+      "reps": "15–25",
+      "equip": "ohne Gerät",
+      "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es mit dem Loop-Band über der Hüfte, Enden unter den Füßen, oder einbeinig.",
+      "rest": 120,
+      "pattern": "bridge",
+      "shares": {
+        "glutes": 1.0,
+        "hamstringsHip": 0.5
+      },
+      "muscles": [
+        "glutes",
+        "hamstringsHip"
+      ],
+      "stufen": {},
+      "braucht": []
+    }
   }
 ];
 
