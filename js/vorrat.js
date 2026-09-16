@@ -84,7 +84,7 @@ export function fehlt() {
   return Array.isArray(roh) ? roh.filter((id) => GERAET_IDS.has(id)) : [];
 }
 
-/** Fehlt überhaupt etwas? Der Normalfall ist nein, und dann tut diese Datei nichts. */
+/** Fehlt überhaupt ein Gerät? */
 export const vorratVollstaendig = () => fehlt().length === 0;
 
 export function setzeVorrat(id, da) {
@@ -92,6 +92,45 @@ export function setzeVorrat(id, da) {
   const liste = fehlt().filter((x) => x !== id);
   if (!da) liste.push(id);
   store.setSetting('fehlt', liste.sort());
+}
+
+/* ------------------------------------------------------------------ *
+ * Einzelne Übungen abwählen
+ *
+ *     „Mach bei den Einstellungen ne Übersicht in der man sich alle Übungen
+ *      nach Muskelgruppen sortiert anzeigen lassen kann. Jede Übung soll man
+ *      aktivieren und deaktivieren können. Der Plan soll sich natürlich
+ *      entsprechend anpassen sodass man trotzdem alle Muskelgruppen optimal
+ *      trainiert."
+ *
+ * Der zweite Satz ist der Punkt, und er war schon gebaut: Genau das tut diese
+ * Datei seit dem Geräte-Vorrat. Eine Übung, die nicht geht, wird ersetzt – erst
+ * durch eine mit denselben Anteilen, dann durch eine mit demselben Hauptmuskel;
+ * was übrig bleibt, steht als Verlust in vorratBilanz(). Ob eine Übung nicht
+ * geht, weil das Band fehlt oder weil jemand sie nicht mag, ändert daran nichts.
+ *
+ * Deshalb hängt das Abwählen an derselben Stelle: uebungGeht() sagt nein, und
+ * der Rest folgt von selbst.
+ *
+ * Gespeichert wird wieder das *Abgewählte*, nicht das Angewählte. Ein leeres
+ * `ausUebungen: []` heißt „alle da", und eine Sicherung ohne das Feld schaltet
+ * nichts ab. Neue Übungen im Katalog sind damit automatisch an.
+ */
+
+/** Welche Übungen abgewählt sind – bereinigt um Unbekanntes. */
+export function ausUebungen() {
+  const roh = store.getState().ausUebungen;
+  return Array.isArray(roh) ? roh.filter((id) => EX_BY_ID.has(id)) : [];
+}
+
+/** Ist überhaupt nichts abgewählt – weder Gerät noch Übung? */
+export const nichtsAbgewaehlt = () => fehlt().length === 0 && ausUebungen().length === 0;
+
+export function setzeUebung(exId, an) {
+  if (!EX_BY_ID.has(exId)) return;
+  const liste = ausUebungen().filter((x) => x !== exId);
+  if (!an) liste.push(exId);
+  store.setSetting('ausUebungen', liste.sort());
 }
 
 /**
@@ -121,6 +160,9 @@ export function erfuellt(braucht) {
 export function uebungGeht(exId, mode) {
   const ex = EX_BY_ID.get(exId);
   if (!ex) return true;
+  // Abgewählt zählt wie fehlendes Gerät: Der Plan ersetzt sie, statt sie
+  // einfach wegzulassen – siehe den Block über ausUebungen().
+  if (ausUebungen().includes(exId)) return false;
   return erfuellt((ex[mode] || {}).braucht);
 }
 
@@ -275,7 +317,7 @@ export function ersatzGenau(vonId, zuId, mode) {
  * was js/muster.js im Kopf ausschließt.
  */
 export function vorratFassung(items, mode) {
-  if (vorratVollstaendig()) return { items, getauscht: [], weg: [] };
+  if (nichtsAbgewaehlt()) return { items, getauscht: [], weg: [] };
   const out = [];
   const getauscht = [];
   const weg = [];

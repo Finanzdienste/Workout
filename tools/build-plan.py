@@ -66,6 +66,7 @@ import itertools
 import json
 import math
 import pathlib
+import os
 import random
 import re
 import sys
@@ -886,7 +887,35 @@ def start(total, weeks, rnd):
 
 
 HARD = 10 ** 9           # Zuschlag ab MAX_REL Abweichung
-APP = 2 * 10 ** 5        # Zuschlag je Auftritt einer Übung
+# Zuschlag je Auftritt einer Übung – die eine Schraube, an der Wochenbalance
+# und Länge der Einheiten gegeneinander stehen.
+#
+#     „mach möglichst wenig Lücken im wochendurchschnitt und Abweichung je
+#      Woche auch möglichst gering"
+#
+# Rechnerisch ist der Umtauschkurs genau bestimmt: Die Abweichungsstrafe ist
+# (rel · REF)**4 mit REF = 10 · UNIT = 200. Ein zusätzlicher Auftritt kostet
+# APP. Gleichstand herrscht dort, wo (rel · 200)**4 = APP ist:
+#
+#     APP = 2·10⁵   ->   rel ≈ 10,6 %
+#     APP = 1·10⁵   ->   rel ≈  8,9 %
+#     APP = 5·10⁴   ->   rel ≈  7,5 %
+#
+# Unterhalb dieser Grenze nimmt der Suchlauf die Abweichung hin, oberhalb kauft
+# er sich mit einem Auftritt mehr heraus.
+#
+# **Nachgemessen ist der Hebel trotzdem stumpf.** Drei volle Läufe von „Cut"
+# mit 5·10⁴, 1·10⁵ und 2·10⁵ endeten alle bei derselben schlechtesten Woche
+# (29 % vom Ziel), denselben 27 benutzten Übungen und derselben Häufigkeit
+# ganz oben; unterschiedlich waren nur Kleinigkeiten weiter unten in der
+# Liste. Der Grund steht in spread(): Zwischen den Anläufen entscheidet
+# zuerst die Zahl der Auftritte und erst danach die Abweichung. Was pen()
+# innerhalb eines Anlaufs abwägt, überstimmt diese Rangfolge am Ende wieder.
+# Wer die Wochen wirklich ruhiger haben will, muss dort ansetzen, nicht hier.
+#
+# Über die Umgebung einstellbar, damit sich das nachmessen lässt, ohne die
+# Datei zu ändern: WK_APP=50000 python3 tools/build-plan.py cut --report
+APP = int(os.environ.get('WK_APP', 2 * 10 ** 5))
 # Zuschlag je Woche, in der eine Übung aus ihrer Schranke fällt – siehe band().
 # Zum Vergleich: Eine Gruppe mit Ziel 10, die in einer Woche drei Sätze
 # danebenliegt, kostet 1,3·10⁷. Eine Ausnahme ist also teurer als fast jede

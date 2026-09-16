@@ -45,7 +45,7 @@ import { abbruch, ausgelassen, vorneListe, vorneUm } from './muster.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
 import { kannPush, pushEinrichten, pushStand } from './push.js';
-import { GERAETE, bandFarbe, ersatzFuer, ersatzGenau, fehlt, nichtMoeglich, setzeVorrat, vorratVollstaendig } from './vorrat.js';
+import { GERAETE, ausUebungen, bandFarbe, erfuellt, ersatzFuer, ersatzGenau, fehlt, nichtMoeglich, nichtsAbgewaehlt, setzeUebung, setzeVorrat } from './vorrat.js';
 
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
@@ -2949,7 +2949,7 @@ const VORRAT_KRITISCH = 0.34;
 
 /** Was der Vorrat gerade kostet – in Übungen und in Muskelgruppen. */
 function vorratFolgen(seite) {
-  if (vorratVollstaendig()) {
+  if (nichtsAbgewaehlt()) {
     return `<div class="small muted" style="margin-top:10px">Alles angehakt – der Plan
       läuft, wie er gerechnet ist.</div>`;
   }
@@ -3842,18 +3842,26 @@ function swapConflicts(act) {
  * verärgert.
  */
 function vorratNote(w, mode) {
-  if (vorratVollstaendig()) return '';
+  if (nichtsAbgewaehlt()) return '';
   const { getauscht, weg } = vorratNotiz(w, mode);
   if (!getauscht.length && !weg.length) return '';
   const nm = (id) => resolve({ id, sets: 0 }, mode).name;
   const zeilen = getauscht.map((s) => `${esc(nm(s.from))} → ${esc(nm(s.to))}`)
     .concat(weg.map((d) => `${esc(nm(d.id))} fällt aus`));
   const namen = GERAETE.filter((g) => fehlt().includes(g.id)).map((g) => g.label);
+  const aus = ausUebungen().length;
+  // Zwei Gründe, ein Kasten: Fehlendes Gerät und abgewählte Übung wirken
+  // gleich, also steht auch beides in derselben Zeile – aber benannt, damit
+  // niemand nach einem Band sucht, das er gar nicht vermisst.
+  const kopf = [
+    namen.length ? `Nicht da: ${namen.join(', ')}` : '',
+    aus ? `${plural(aus, 'Übung', 'Übungen')} abgewählt` : '',
+  ].filter(Boolean).join(' · ');
   return `
     <div class="card injury-note">
-      <div class="inj-note-head">🎒 Nicht da: ${esc(namen.join(', '))}</div>
+      <div class="inj-note-head">🎒 ${esc(kopf)}</div>
       <div class="small muted">Heute deshalb: ${zeilen.join(' · ')}</div>
-      <button type="button" class="btn btn-ghost btn-sm" data-act="go-tab" data-tab="settings">Vorrat ändern</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-act="go-tab" data-tab="settings">Ändern</button>
     </div>`;
 }
 
@@ -4883,6 +4891,99 @@ function adminOeffnen(pass) {
   });
 }
 
+/* ------------------------------------------------------------------ *
+ * Alle Übungen, nach Muskelgruppen, einzeln an- und abwählbar
+ *
+ *     „Mach bei den Einstellungen ne Übersicht in der man sich alle Übungen
+ *      nach Muskelgruppen sortiert anzeigen lassen kann. Jede Übung soll man
+ *      aktivieren und deaktivieren können. Der Plan soll sich natürlich
+ *      entsprechend anpassen sodass man trotzdem alle Muskelgruppen optimal
+ *      trainiert."
+ *
+ * Der zweite Satz war schon gebaut, nur für einen anderen Anlass: Seit dem
+ * Geräte-Vorrat ersetzt der Plan jede Übung, die nicht geht – erst durch eine
+ * mit denselben Anteilen, dann durch eine mit demselben Hauptmuskel. Ob sie
+ * nicht geht, weil das Band fehlt oder weil jemand sie nicht mag, ist der
+ * Rechnung gleich. Deshalb hängt das Abwählen an genau derselben Stelle
+ * (uebungGeht() in js/vorrat.js) und nicht an einer zweiten Mechanik daneben.
+ *
+ * **Sortiert nach der Gruppe, die die Übung wirklich meint**, nicht nach ihrer
+ * Katalogüberschrift: Der Hauptmuskel ist der mit dem höchsten Anteil, und
+ * genau danach fragt jemand, der hier sucht. Dieselbe Regel wie in
+ * gruppeLabel() eine Ebene weiter oben.
+ *
+ * **Was es kostet, steht dabei.** Unter jeder abgewählten Übung steht, wodurch
+ * der Plan sie ersetzt – oder dass es keinen Ersatz gibt. Und ganz oben die
+ * Wochenbilanz, dieselbe wie beim Vorrat: Eine Abwahl, deren Preis man erst
+ * drei Wochen später in der Statistik sieht, wäre die Sorte stiller Änderung,
+ * die diese App nicht macht.
+ */
+function uebungsListe() {
+  const mode = store.getState().mode === 'bw' ? 'bw' : 'db';
+  const aus = new Set(ausUebungen());
+  const gesperrt = blocked(activeInjuries());
+
+  // Je Muskelgruppe die Übungen, die ihn am stärksten treffen.
+  const nach = new Map();
+  EXERCISES.forEach((ex) => {
+    const sh = (ex[mode] || {}).shares || {};
+    let top = null;
+    Object.keys(sh).forEach((m) => { if (!top || sh[m] > sh[top]) top = m; });
+    if (!top) return;
+    if (!nach.has(top)) nach.set(top, []);
+    nach.get(top).push(ex);
+  });
+  const gruppen = [...nach.keys()]
+    .sort((a, b) => (MUSCLE_LABEL[a] || a).localeCompare(MUSCLE_LABEL[b] || b));
+
+  const nm = (id) => resolve({ id, sets: 0 }, mode).name;
+  const zeile = (ex) => {
+    const an = !aus.has(ex.id);
+    const sperre = gesperrt.has(ex.id);
+    const ohneGeraet = an && !erfuellt((ex[mode] || {}).braucht);
+    // Der Ersatz wird gegen den *ganzen* Plan gerechnet und nicht gegen eine
+    // einzelne Einheit: Hier steht die Regel, nicht der Tag.
+    const zu = !an ? ersatzFuer(ex.id, mode) : null;
+    return `
+      <div class="ex-an ${an ? '' : 'aus'}">
+        <button type="button" class="ex-an-btn" data-act="toggle-uebung" data-ex="${esc(ex.id)}"
+                role="switch" aria-checked="${an}"
+                aria-label="${esc(nm(ex.id))} ${an ? 'abwählen' : 'anwählen'}">
+          <span class="ex-an-box">${an ? '✓' : ''}</span>
+          <span class="ex-an-name">${esc(nm(ex.id))}</span>
+          <span class="ex-an-geraet">${esc((ex[mode] || {}).equip || '')}</span>
+        </button>
+        ${!an ? `<div class="ex-an-folge">${zu
+          ? `Der Plan nimmt stattdessen <b>${esc(nm(zu))}</b>${
+              ersatzGenau(ex.id, zu, mode) ? ' – gleiche Muskelanteile.' : ' – derselbe Hauptmuskel, andere Nebenanteile.'}`
+          : 'Kein Ersatz im Katalog – die Sätze fallen ersatzlos weg.'}</div>` : ''}
+        ${sperre ? '<div class="ex-an-folge">Durch eine angehakte Verletzung ohnehin gesperrt.</div>' : ''}
+        ${ohneGeraet ? '<div class="ex-an-folge">Geht gerade nicht – das Gerät steht auf „nicht da".</div>' : ''}
+      </div>`;
+  };
+
+  return `
+    <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
+    <div class="section-title">Übungen</div>
+    <div class="card">
+      <div class="small muted">Alle ${EXERCISES.length} Übungen des Katalogs, sortiert nach dem
+        Muskel, den sie am stärksten treffen. Was du abwählst, ersetzt der Plan – durch eine
+        Übung mit denselben Anteilen, sonst durch eine mit demselben Hauptmuskel. Gezeigt wird
+        die ${esc(MODE_LABEL[mode])}-Fassung; umstellen kannst du das eine Karte weiter oben
+        unter <i>Mehr</i>.</div>
+      ${vorratFolgen(mode)}
+    </div>
+    ${gruppen.map((g) => `
+      <div class="section-title">${esc(MUSCLE_LABEL[g] || g)}</div>
+      <div class="card ex-an-liste">
+        ${nach.get(g).sort((a, b) => nm(a.id).localeCompare(nm(b.id))).map(zeile).join('')}
+      </div>`).join('')}`;
+}
+
+function renderUebungen() {
+  view.innerHTML = uebungsListe();
+}
+
 function renderSettings() {
   const s = store.getState();
   const act = activeInjuries().length;
@@ -4897,6 +4998,11 @@ function renderSettings() {
         <span class="kachel-i">🧩</span>
         <span><span class="lbl">Eigenes Workout${store.customs().length ? ` · ${store.customs().length}` : ''}</span>
         <span class="hint">Eine Einheit selbst zusammenstellen – neben dem Plan, nicht darin.</span></span>
+      </button>
+      <button type="button" class="kachel" data-act="go-tab" data-tab="uebungen">
+        <span class="kachel-i">📋</span>
+        <span><span class="lbl">Übungen${ausUebungen().length ? ` · ${ausUebungen().length} aus` : ''}</span>
+        <span class="hint">Alle Übungen nach Muskelgruppen – einzeln an- und abwählbar.</span></span>
       </button>
       <button type="button" class="kachel" data-act="go-tab" data-tab="injuries">
         <span class="kachel-i">🩹</span>
@@ -5465,6 +5571,7 @@ const RENDERERS = {
   admin: renderAdmin,
   stats: renderStats,
   injuries: renderInjuries,
+  uebungen: renderUebungen,
   settings: renderSettings,
 };
 
@@ -5596,6 +5703,16 @@ view.addEventListener('click', (e) => {
     case 'go-injuries':
       go('injuries');
       break;
+    case 'toggle-uebung': {
+      const id = t.dataset.ex;
+      const an = ausUebungen().includes(id);
+      setzeUebung(id, an);
+      // ruestCache leeren: Die Reihenfolge einer Einheit hängt an ihren Übungen,
+      // und die ändern sich hier.
+      ruestCache.clear();
+      render();
+      break;
+    }
     case 'go-tab':
       go(t.dataset.tab);
       break;

@@ -25,7 +25,7 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['js/**/*.js', 'tests/**/*.mjs', 'sw.js'],
+    files: ['js/**/*.js', 'tests/**/*.mjs', 'tools/**/*.mjs', 'sw.js'],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',
@@ -139,7 +139,7 @@ export default [
   },
   {
     // Die Prüfskripte laufen in Node und dürfen dessen Globals benutzen.
-    files: ['tests/**/*.mjs'],
+    files: ['tests/**/*.mjs', 'tools/**/*.mjs'],
     languageOptions: {
       globals: {
         process: 'readonly',

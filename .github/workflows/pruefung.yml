@@ -78,7 +78,7 @@ jobs:
       # Lauf war es linkKopieren(), eine Funktion, die dreimal aufgerufen wurde
       # und nirgends stand.
       - name: Linter
-        run: npx eslint js sw.js tests
+        run: npm run lint
 
       # Nur Chromium: die App ist für das Handy gebaut, und drei Browser
       # herunterzuladen kostet mehr Zeit als der ganze Testlauf.

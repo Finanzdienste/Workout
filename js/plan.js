@@ -16,7 +16,7 @@ import { addDays, daysBetween, plural, todayISO } from './dates.js';
 import { applyInjuries } from './injuries.js';
 import { esc } from './text.js';
 import { ruestOrderStabil } from './gewichte.js';
-import { vorratFassung, vorratVollstaendig } from './vorrat.js';
+import { nichtsAbgewaehlt, vorratFassung } from './vorrat.js';
 import { satzZahl } from './stufen.js';
 
 /**
@@ -223,7 +223,7 @@ export const ersatzGrund = (item) => (item && item.statt
  * adjustedPlan(), das den Modus gar nicht kennt.
  */
 export function vorratNotiz(w, mode) {
-  if (istCustom(w.n) || vorratVollstaendig()) return { getauscht: [], weg: [] };
+  if (istCustom(w.n) || nichtsAbgewaehlt()) return { getauscht: [], weg: [] };
   const m = mode || store.workoutMode(w.n);
   const r = vorratFassung(gestufteSaetze(w, m), m);
   return { getauscht: r.getauscht, weg: r.weg };

@@ -1492,3 +1492,50 @@ textarea.io {
   font-size: 12.5px; font-weight: 700; opacity: .75;
   margin-top: 2px; letter-spacing: .2px;
 }
+
+/* ------------------------------------------------------------------ *
+ * Die Übungsliste unter Mehr: alle Übungen, einzeln an- und abwählbar.
+ * Eine Zeile je Übung, das Kästchen links wie bei einer Liste zum Abhaken –
+ * abgewählt heißt blass und durchgestrichen, damit man beim Überfliegen sieht,
+ * was fehlt, ohne jede Zeile zu lesen.
+ * ------------------------------------------------------------------ */
+.ex-an-liste { padding: 4px 0; }
+.ex-an + .ex-an { border-top: 1px solid var(--line); }
+.ex-an-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.ex-an-box {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--line);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.ex-an.aus .ex-an-box { background: none; border-color: var(--line); }
+.ex-an-name { flex: 1 1 auto; font-size: 14px; font-weight: 600; }
+.ex-an.aus .ex-an-name { color: var(--muted); text-decoration: line-through; }
+.ex-an-geraet { flex: 0 0 auto; font-size: 11.5px; color: var(--muted); text-align: right; }
+.ex-an-folge {
+  padding: 0 12px 10px 44px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.ex-an-folge b { color: var(--text); }

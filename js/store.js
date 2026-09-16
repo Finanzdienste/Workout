@@ -72,6 +72,11 @@ const DEFAULT_STATE = {
   rest: null,            // laufende Pause: { endsAt, total, next }
   weights: {},           // Arbeitsgewicht je Übung in kg, vom Nutzer gepflegt
   bands: {},             // Bandstärke je Übung: 'gelb' (leicht) oder 'rot' (schwer)
+  // Übungen, die abgewählt sind. Wie `fehlt` eine Liste des *Abgewählten*: Ein
+  // leeres Feld heißt „alle da", und neue Übungen im Katalog sind automatisch
+  // an. Der Plan ersetzt sie wie eine Übung, deren Gerät fehlt – siehe
+  // js/vorrat.js.
+  ausUebungen: [],
   // Geräte, die gerade *nicht* da sind – IDs aus GERAETE in js/vorrat.js.
   //
   // Abgewählt statt angewählt, und das ist der ganze Trick: Ein leeres Feld
