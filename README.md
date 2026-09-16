@@ -3438,29 +3438,64 @@ asynchrone Funktionen aus verschiedenen Modulen wären durchgerutscht.
 aber als `input`, nicht als Klick: Wer die Zeit umstellte, sah die neue Zahl im
 Feld — gespeichert war die alte. Steht jetzt beim Rest der Texteingaben.
 
-### Aufsteigen, ohne daran zu denken
+### Die Stufe ist, was du hebst
 
 Eine Einstellung, die man einmal trifft und dann vergisst, ist genau dann
-schädlich, wenn sie mit der Zeit falsch wird. Wer als Anfänger anfängt und ein
-Jahr durchhält, trainiert danach immer noch auf zwei Sätzen je Übung, weil ihm
-niemand gesagt hat, dass die Zahl inzwischen zu klein ist. Die App weiß es
-aber – sie zählt ohnehin mit.
+schädlich, wenn sie mit der Zeit falsch wird. Also stuft die App selbst hoch.
+Die Frage ist nur, woran sie das misst.
 
-| Schritt | Einheiten | Sätze | Tonnage |
-| --- | --- | --- | --- |
-| Anfänger → Geübt | 60 | 700 | 30 t |
-| Geübt → Fortgeschritten | 200 | 3400 | 200 t |
+Lange waren es **Einheiten, Sätze und Tonnage** — 60 Termine, 540 Sätze, 30 t.
+Alle drei sind Ansammlung: Wer oft genug da war, stieg auf. Der Einwand dagegen
+war knapp und richtig:
 
-Alle drei Bedingungen zusammen, denn jede einzelne lässt sich zu leicht
-erfüllen. **Einheiten**, weil Erfahrung vor allem Zeit unter der Hantel ist –
-60 sind bei vier pro Woche rund ein Vierteljahr. **Sätze**, damit halbe
-Einheiten nicht so viel zählen wie ganze. **Tonnage** (Kilo × Wiederholungen,
-aufsummiert), weil das der einzige Teil ist, der *Fortschritt* misst statt nur
-Anwesenheit.
+> „Wenn ich nach 10 Jahren noch immer nur eine Liegestütze kann, bin ich noch
+> immer Anfänger. Und wenn ich ohne jemals trainiert zu haben hundert kann, bin
+> ich vermutlich schon geübt."
 
-Die Tonnage gilt nur für den, der mit Gewichten trainiert. Im Bodyweight-Modus
-gibt es keine Kilo zu zählen, und jemanden deswegen ewig auf Anfänger stehen zu
-lassen, wäre eine Strafe für die Wahl der Variante.
+**Woran jetzt gemessen wird — und warum das keine erfundene Zahl ist.** Der
+Katalog nennt für jede der 20 Gewichtsübungen ein Startgewicht (Goblet Squat
+20 kg, Floor Press 40 kg, SZ-Curls 15 kg …). Es gilt für *Geübt*; die Stufen
+skalieren es mit **0,5 / 1 / 1,5**. Das ist eine Aussage, die diese App ohnehin
+trifft und bei der Einrichtung anzeigt: so schwer fängt jemand auf dieser Stufe
+an.
+
+Also wird sie umgedreht. Wer beim Goblet Squat 20 kg bewegt, hebt dort so viel,
+wie ein Geübter *anfängt* — Verhältnis 1,0. Der **Median** über alle Übungen mit
+eigener Angabe ist die Kennzahl, und die Schwellen sind dieselben 0,5 / 1 / 1,5.
+Keine neue Skala, keine geschätzten Standards: die Zahlen, die schon da waren,
+in die andere Richtung gelesen.
+
+Gezählt wird nur, was der Nutzer **selbst eingestellt** hat. Das voreingestellte
+Startgewicht steht nicht in `weights` — sonst käme bei jedem exakt der Faktor
+seiner eigenen Stufe heraus, und die Messung wäre ein Spiegel der Einstellung.
+
+**Bodyweight zählt mit.** Dort gibt es keine Kilo, aber den Aufschlag auf den
+geplanten Wiederholungsbereich (`bwPlus`). Wer bei 8–20 Liegestützen +20
+eingestellt hat, macht das Doppelte — Verhältnis 2,0. Damit trifft der Fall aus
+dem Zitat zu: hundert Liegestütze liegen weit über *Geübt*, ganz ohne eine
+einzige protokollierte Einheit.
+
+Drei Bremsen: **mindestens vier Übungen** brauchen eine eigene Angabe, sonst
+sagt die Zahl nichts und die App sagt stattdessen, wie viele fehlen. Der
+**Median** statt des Schnitts, damit eine einzelne Ausreißer-Übung die
+Einstufung nicht kippt. Und **ein Schritt auf einmal** — zwei Stufen in einem
+Sprung wären eine Verdopplung der Satzzahl von einem Tag auf den anderen.
+**Abgestuft wird nie**; ein verletzungsbedingt gesenktes Gewicht darf niemanden
+zurückwerfen.
+
+**Was diese Rechnung nicht kann, und das gehört dazu:** Kraftstandards sind
+normalerweise auf das Körpergewicht bezogen — 40 kg Kreuzheben heißen bei 60 und
+bei 100 Kilo nicht dasselbe. Das Körpergewicht ist auf ausdrücklichen Wunsch
+komplett aus der App, und ohne Server kommt es auch aus keiner anderen App
+hierher. Die absoluten Kilo sind deshalb gröber als ein richtiger Standard. Sie
+sind trotzdem die bessere Grundlage als eine Anwesenheitsliste.
+
+**Die Beglückwünschung** steht als Kasten auf der Startseite („🎉 Glückwunsch —
+du bist jetzt Geübt") und nennt die Zahl, die sie ausgelöst hat. Dazu kommt eine
+Meldung im Benachrichtigungsbereich, damit sie auch der findet, der die App
+gleich nach dem letzten Satz zuklappt — aber nur, wenn die Erlaubnis dafür schon
+erteilt ist. Danach zu fragen, weil jemand gerade aufgestiegen ist, wäre eine
+Frage zur Unzeit.
 
 Passiert es, wird die Stufe **umgestellt** – das ist der Punkt, der Arbeit
 spart – und ein Hinweis auf der Startseite sagt, was sich dadurch ändert, mit

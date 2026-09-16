@@ -103,71 +103,100 @@ export const satzFaktor = () => (SAETZE_JE_STUFE[store.getState().level || 'geue
 export const satzZahl = (n) => Math.max(1, Math.round(n * satzFaktor()));
 
 /* ------------------------------------------------------------------ *
- * Aufsteigen, ohne daran zu denken
+ * Die Stufe ist, was du hebst
  *
- * Die Stufe war bisher eine Einstellung, die man einmal trifft und dann
- * vergisst – und genau das ist der Fehler. Wer als Anfänger anfängt und ein
- * Jahr durchhält, trainiert danach immer noch auf zwei Sätzen je Übung, weil
- * ihm niemand gesagt hat, dass die Zahl inzwischen zu klein ist. Die App weiß
- * es aber: Sie zählt mit.
+ * Vorher zählte sie Fleiß: 60 Einheiten, 540 Sätze, 30 Tonnen. Alle drei sind
+ * Ansammlung – wer oft genug da war, stieg auf. Das misst Anwesenheit und nicht
+ * Können, und der Einwand dagegen war knapp und richtig:
  *
- * **Woran gemessen wird.** An drei Dingen zusammen, denn jedes einzelne lässt
- * sich zu leicht erfüllen:
+ *     "Wenn ich nach 10 Jahren noch immer nur eine Liegestütze kann, bin ich
+ *      noch immer Anfänger. Und wenn ich ohne jemals trainiert zu haben hundert
+ *      kann, bin ich vermutlich schon geübt."
  *
- *   Einheiten   Erfahrung ist vor allem Zeit unter der Hantel. 60 Einheiten
- *               sind bei vier pro Woche rund ein Vierteljahr.
- *   Sätze       Damit halbe Einheiten nicht so viel zählen wie ganze.
- *   Tonnage     Kilo mal Wiederholungen, aufsummiert. Das ist der Teil, der
- *               *Fortschritt* misst statt nur Anwesenheit: Wer schwerer wird,
- *               kommt schneller ans Ziel.
+ * **Woran jetzt gemessen wird, und warum das keine erfundene Zahl ist.** Der
+ * Katalog nennt für jede Gewichtsübung ein Startgewicht – Goblet Squat 20 kg,
+ * Floor Press 40 kg, SZ-Curls 15 kg. Es gilt für "Geübt"; die Stufen skalieren
+ * es mit 0,5 / 1 / 1,5 (siehe LEVELS). Das ist eine Aussage, die diese App
+ * ohnehin trifft: *So schwer fängt jemand auf dieser Stufe an.*
  *
- * Die Tonnage gilt nur für den, der mit Gewichten trainiert. Im
- * Bodyweight-Modus gibt es keine Kilo zu zählen, und jemanden deswegen ewig auf
- * Anfänger stehen zu lassen, wäre eine Strafe für die Wahl der Variante.
+ * Also wird sie umgedreht. Wer beim Goblet Squat 20 kg bewegt, hebt dort so
+ * viel, wie ein Geübter *anfängt* – Verhältnis 1,0. Der Median über alle
+ * Übungen, bei denen etwas Eigenes eingetragen ist, ist die Kennzahl, und die
+ * Schwellen sind dieselben 0,5 / 1 / 1,5. Keine neue Skala, keine geschätzten
+ * Standards: die Zahlen, die schon da waren, in die andere Richtung gelesen.
  *
- * **Was dann passiert.** Die Stufe wird umgestellt – das ist der Punkt, der
- * Arbeit spart – und ein Hinweis sagt, was sich dadurch ändert, mit einem
- * Knopf zum Zurückstellen daneben. Jeder Schritt kommt genau einmal: Wer
- * zurückstellt, bleibt unten, bis er selbst etwas anderes will.
+ * **Bodyweight zählt mit.** Dort gibt es keine Kilo, aber den Aufschlag auf den
+ * geplanten Wiederholungsbereich (`bwPlus`). Wer bei 8–20 Liegestützen +20
+ * eingestellt hat, macht das Doppelte des Bereichs – Verhältnis 2,0. Damit
+ * trifft der Fall aus dem Zitat zu: hundert Liegestütze sind weit über Geübt,
+ * ganz ohne eine einzige protokollierte Einheit.
+ *
+ * **Der Median, nicht der Schnitt.** Eine einzelne Übung, bei der jemand
+ * ungewöhnlich stark oder schwach ist, soll die Einstufung nicht kippen. Und
+ * mindestens LEISTUNG_MIN Übungen müssen eine eigene Angabe haben, sonst sagt
+ * die Zahl nichts.
+ *
+ * **Was diese Rechnung nicht kann, und das gehört dazu:** Kraftstandards sind
+ * normalerweise auf das Körpergewicht bezogen – 40 kg Kreuzheben heißen bei 60
+ * und bei 100 Kilo Körpergewicht nicht dasselbe. Das Körpergewicht ist auf
+ * ausdrücklichen Wunsch komplett aus der App ("Dein Gewicht kann vollständig
+ * raus"), und ohne Server kommt es auch aus keiner anderen App hierher. Die
+ * absoluten Kilo sind deshalb gröber als ein richtiger Standard. Sie sind
+ * trotzdem die bessere Grundlage als eine Anwesenheitsliste.
+ *
+ * **Abgestuft wird nie.** Wer einmal oben ist, bleibt oben; ein verletzungs-
+ * bedingt gesenktes Gewicht darf niemanden zurückwerfen.
  * ------------------------------------------------------------------ */
-/*
- * **Die Satzschwellen standen zu hoch, und zwar auf eine tückische Art.**
- *
- *     „Wenn die App mich bisher noch nicht hochgestuft hat, bin ich ja
- *      anscheinend noch Anfänger."
- *
- * Stimmte nicht – die Schwelle hing am Fokus. 700 Sätze setzen rund 11,7 Sätze
- * je Einheit voraus; das liefern drei der vier Pläne auf der Anfängerstufe,
- * Cut aber nur 9,5. Nachgemessen über die eingecheckten Pläne, Sätze nach
- * 60 Einheiten auf der Anfängerstufe:
- *
- *     Aufbau            690 / 699 (db/bw)
- *     Bauch, Beine, Po  682 / 693
- *     Oberkörper        678 / 688
- *     Cut               568 / 575   ← unter 700
- *
- * Wer Cut trainiert, brauchte damit **73 bis 74 Einheiten statt 60**. Und das
- * Perfide daran: Die Satzzahl ist gerade deshalb kleiner, *weil* er noch
- * Anfänger ist – die Stufe verlängerte sich selbst. Beim zweiten Schritt war
- * es schlimmer: 3400 Sätze gegen 2844, die Cut in 200 Einheiten auf der Stufe
- * „Geübt" liefert – rund 240 Einheiten statt 200.
- *
- * Die Einheitenzahl ist das Tor, so war es gemeint. Die Sätze sollen nur
- * verhindern, dass 60 halb abgebrochene Einheiten so viel zählen wie 60 ganze.
- * Deshalb stehen sie jetzt knapp *unter* dem, was der volumenärmste Plan in
- * der vorgesehenen Zahl von Einheiten liefert: 540 unter 568, 2700 unter 2844.
- * Halbe Einheiten fängt das weiter ab – 60 zur Hälfte abgehakte Einheiten sind
- * rund 284 Sätze und damit weit unter 540.
- */
-export const AUFSTIEGE = [
-  { von: 'anfaenger', nach: 'geuebt', einheiten: 60, saetze: 540, tonnen: 30 },
-  { von: 'geuebt', nach: 'fortgeschritten', einheiten: 200, saetze: 2700, tonnen: 200 },
-];
 
-/** Der nächste Schritt, wenn es einen gibt und er noch nicht dran war. */
-export function offenerAufstieg() {
+/** So viele Übungen brauchen eine eigene Angabe, sonst wird nicht gemessen. */
+export const LEISTUNG_MIN = 4;
+
+export const RANG = ['anfaenger', 'geuebt', 'fortgeschritten'];
+
+/** Die obere Grenze einer Wiederholungsangabe: "8–20" ergibt 20. */
+const obereGrenze = (reps) => {
+  const zahlen = String(reps || '').match(/\d+/g);
+  return zahlen && zahlen.length ? Number(zahlen[zahlen.length - 1]) : 0;
+};
+
+/**
+ * Was die eingetragenen Gewichte und Wiederholungen über die Stufe sagen.
+ *
+ * Gezählt wird nur, was der Nutzer selbst eingestellt hat: `weights` und
+ * `bwPlus` werden ausschließlich von Hand geschrieben. Das voreingestellte
+ * Startgewicht einer Übung steht *nicht* darin – sonst käme bei jedem sofort
+ * genau der Faktor seiner eigenen Stufe heraus, und die Messung wäre ein
+ * Spiegel der Einstellung.
+ */
+export function leistungsStand() {
   const s = store.getState();
-  const schritt = AUFSTIEGE.find((a) => a.von === (s.level || 'geuebt'));
-  if (!schritt) return null;
-  return (s.aufstiege || []).includes(schritt.nach) ? null : schritt;
+  const werte = [];
+  EX_BY_ID.forEach((ex, id) => {
+    const kg = Number((s.weights || {})[id]);
+    if (ex.weight > 0 && Number.isFinite(kg) && kg > 0) {
+      werte.push({ id, v: kg / ex.weight, wie: 'kg', ist: kg, soll: ex.weight });
+      return;
+    }
+    const plus = Number((s.bwPlus || {})[id]);
+    const oben = obereGrenze(ex.bw && ex.bw.reps);
+    if (Number.isFinite(plus) && plus > 0 && oben > 0) {
+      werte.push({ id, v: (oben + plus) / oben, wie: 'wdh', ist: oben + plus, soll: oben });
+    }
+  });
+  if (werte.length < LEISTUNG_MIN) {
+    return { n: werte.length, fehlt: LEISTUNG_MIN - werte.length, verhaeltnis: null, stufe: null };
+  }
+  const sortiert = werte.map((x) => x.v).sort((a, b) => a - b);
+  const m = sortiert.length;
+  const median = m % 2 ? sortiert[(m - 1) / 2] : (sortiert[m / 2 - 1] + sortiert[m / 2]) / 2;
+  // Von oben nach unten: die höchste Stufe, deren Faktor erreicht ist.
+  const treffer = LEVELS.slice().reverse().find(([, , , faktor]) => median >= faktor);
+  return { n: m, fehlt: 0, verhaeltnis: median, stufe: (treffer && treffer[0]) || 'anfaenger' };
 }
+
+/** Die nächsthöhere Stufe, wenn es eine gibt. */
+export function naechsteStufe(von) {
+  const i = RANG.indexOf(von || 'geuebt');
+  return i >= 0 && i < RANG.length - 1 ? RANG[i + 1] : null;
+}
+

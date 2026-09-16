@@ -31,7 +31,7 @@ import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
 import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './audio.js';
 import { esc, fmtNum } from './text.js';
 import { EX_BY_ID, plannedReps, stufenWerte } from './uebung.js';
-import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, offenerAufstieg, satzFaktor, satzZahl } from './stufen.js';
+import { LEVELS, SAETZE_JE_STUFE, leistungsStand, levelBeispiel, naechsteStufe, satzFaktor, satzZahl } from './stufen.js';
 import {
   aufwaermsaetze, doneWeightNote, meinSatz, naechstesGewicht,
   ruestCache, ruestHint,
@@ -226,16 +226,21 @@ function aufstiegHinweis() {
     ? 'Die Satzzahl bleibt; wo es von einer Übung eine leichtere Anfängerfassung gab, '
       + 'steht ab jetzt die reguläre im Plan.'
     : `Ab jetzt stehen ${jetzt} statt ${vorher} Sätze je Übung im Plan.`;
+  // Womit es verdient wurde. Seit der Aufstieg an den Gewichten hängt und nicht
+  // mehr an Einheiten und Tonnen, steht hier die Zahl, die ihn ausgelöst hat –
+  // und ein alter Stand, der noch Einheiten mitbringt, darf sie behalten.
+  const grund = a.verhaeltnis
+    ? `Über ${esc(plural(a.uebungen || 0, 'Übung', 'Übungen'))} hebst du im Median das
+       <b>${esc(fmtNum(a.verhaeltnis))}-fache</b> dessen, womit jemand auf dieser Stufe
+       anfängt.`
+    : `Insgesamt ${a.einheiten} Einheiten${a.tonnen ? ` und ${fmtNum(a.tonnen)} Tonnen bewegt` : ''}.`;
   return `
     <div class="notice aufstieg" style="margin:0 0 12px">
-      <strong>Aufgestiegen: ${esc(name(a.nach))}</strong>
+      <strong>🎉 Glückwunsch – du bist jetzt ${esc(name(a.nach))}</strong>
       <div class="small" style="margin-top:6px">
-        Insgesamt ${a.einheiten} Einheiten${a.tonnen ? ` und ${fmtNum(a.tonnen)} Tonnen bewegt` : ''} –
-        das ist keine Anfängerlast mehr. ${was} Übungen, Pausen und die Verteilung über die
-        Woche bleiben sonst, wie sie sind. Deine eingetragenen Gewichte rührt das nicht an.
-        ${store.getState().rounds.length ? `<div style="margin-top:6px">Gezählt über alle
-          Runden, nicht nur die laufende – ein Neustart oder ein Wechsel des Fokus wirft
-          dich nicht zurück.</div>` : ''}
+        ${grund} Das ist keine ${esc(name(a.von))}-Last mehr. ${was} Übungen, Pausen und die
+        Verteilung über die Woche bleiben sonst, wie sie sind. Deine eingetragenen Gewichte
+        rührt das nicht an.
       </div>
       <!-- Kein „Bei Anfänger bleiben" mehr daneben. Ein Knopf, der die Messung
            überstimmt, macht aus der Stufe wieder eine Meinung über sich selbst:
@@ -245,6 +250,35 @@ function aufstiegHinweis() {
         <button type="button" class="btn btn-primary" data-act="aufstieg-ok">Passt</button>
       </div>
     </div>`;
+}
+
+/**
+ * Der Aufstieg auch als Meldung im Benachrichtigungsbereich.
+ *
+ *     "Mach's so, dass man zum optimalen Zeitpunkt aufsteigt. Mit
+ *      Benachrichtigung und Beglückwünschung."
+ *
+ * Die Beglückwünschung steht oben in der App. Diese hier ist der Teil, der
+ * liegen bleibt: Wer die App gleich nach dem letzten Satz zuklappt, hat den
+ * Kasten vielleicht nur gestreift – die Meldung findet er abends noch in der
+ * Leiste.
+ *
+ * Ohne erteilte Erlaubnis passiert schlicht nichts, und das ist richtig so:
+ * Danach zu fragen, weil jemand gerade aufgestiegen ist, wäre eine Frage zur
+ * Unzeit. Wer die Erinnerung eingerichtet hat, hat sie ohnehin.
+ */
+function aufstiegMelden(nach) {
+  try {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (!navigator.serviceWorker || !navigator.serviceWorker.ready) return;
+    const name = (LEVELS.find(([k]) => k === nach) || [])[1] || nach;
+    navigator.serviceWorker.ready.then((reg) => reg.showNotification('Aufgestiegen 🎉', {
+      body: `Du bist jetzt ${name}. Die App hat es an deinen Gewichten gemessen.`,
+      badge: './badge-96.png',
+      tag: 'workout-aufstieg',
+      data: { art: 'aufstieg' },
+    })).catch(() => {});
+  } catch { /* Meldungen sind Beiwerk – sie dürfen nichts umwerfen. */ }
 }
 
 /* ------------------------------------------------------------------ *
@@ -2314,7 +2348,9 @@ function erfahrungStand() {
   const key = s.level || 'geuebt';
   const eintrag = LEVELS.find(([k]) => k === key) || LEVELS[1];
   const saetze = SAETZE_JE_STUFE[key] || 3;
-  const schritt = offenerAufstieg();
+  const stand = leistungsStand();
+  const nach = naechsteStufe(key);
+  const name = (k) => (LEVELS.find(([kk]) => kk === k) || [])[1] || k;
   return `
     <div class="stat-grid">
       <div class="stat"><div class="stat-v">${esc(eintrag[1])}</div>
@@ -2326,58 +2362,63 @@ function erfahrungStand() {
       wie sie sind – jede Muskelgruppe behält ihren Anteil, nur die Höhe ändert sich.
       Eingestellte Gewichte rührt sie nie an.</div>
     ${aufstiegBalken()}
-    <div class="small muted" style="margin-top:12px">${schritt
-      ? 'Hochgestuft wird von selbst, sobald alles davon steht – einstellen kannst und '
-        + 'sollst du das nicht: Eine Stufe ist etwas, das man sich ertrainiert, keine '
-        + 'Einstellung. Gewählt hast du sie einmal bei der Einrichtung, danach zählt die App.'
-      : ((s.aufstiege || []).length && key !== 'fortgeschritten'
-        ? 'Der nächste Schritt war schon einmal dran. Die App stuft von selbst nicht noch '
-          + 'einmal hoch.'
-        : 'Du stehst auf der höchsten Stufe – hier kommt nichts mehr dazu.')}</div>`;
+    <div class="small muted" style="margin-top:12px">${nach
+      ? 'Hochgestuft wird von selbst, sobald du es hebst – einstellen kannst und sollst du '
+        + 'das nicht: Eine Stufe ist etwas, das man sich ertrainiert, keine Einstellung. '
+        + 'Gewählt hast du sie einmal bei der Einrichtung, danach misst die App.'
+      : 'Du stehst auf der höchsten Stufe – hier kommt nichts mehr dazu.'}</div>
+    ${nach && stand.verhaeltnis !== null ? `<div class="small muted" style="margin-top:8px">
+      Gemessen an ${esc(plural(stand.n, 'Übung', 'Übungen'))} mit eigener Angabe. Auf
+      <b>${esc(name(nach))}</b> steht es, wenn der Median dort
+      ${esc(fmtNum((LEVELS.find(([k]) => k === nach) || [])[3] || 1))} erreicht.</div>` : ''}`;
 }
 
 /**
- * Wie weit es bis zur nächsten Stufe noch ist.
+ * Wie weit es bis zur nächsten Stufe noch ist – ein Balken statt drei.
  *
- * Stand bisher nur in gesamtKarte(), und die zeigt sich erst nach einer
- * *abgeschlossenen Runde* – also nach 84 Einheiten. Ein Anfänger in seiner
- * ersten Runde, und damit genau der, um den es geht, hat diese Balken nie
- * gesehen:
+ * Vorher standen hier Einheiten, Sätze und Tonnen nebeneinander, und alle drei
+ * mussten voll sein. Das misst Anwesenheit; gemessen wird jetzt, was auf der
+ * Hantel liegt (leistungsStand() in js/stufen.js). Der Balken zeigt denselben
+ * Median, an dem die App entscheidet – keine zweite Rechnung daneben.
  *
- *     „Wenn die App mich bisher noch nicht hochgestuft hat, bin ich ja
+ * Er steht auch dann da, wenn noch nicht genug eingetragen ist: Dann sagt er
+ * genau das, statt zu schweigen.
+ *
+ *     "Wenn die App mich bisher noch nicht hochgestuft hat, bin ich ja
  *      anscheinend noch Anfänger."
  *
- * Richtig – aber dann muss auch dastehen, wie weit es noch ist. Sonst ist die
- * Stufe eine Zahl, die irgendwann von selbst umspringt, und bis dahin weiß
- * niemand, ob sie überhaupt noch kommt.
+ * Richtig – aber dann muss auch dastehen, woran das liegt.
  */
 function aufstiegBalken() {
-  const g = gesamtStats();
-  const schritt = offenerAufstieg();
-  if (!schritt) return '';
-  const name = (k) => (LEVELS.find(([key]) => key === k) || [])[1] || k;
-  const zeile = (wert, ziel, was) => {
-    const pct = Math.min(100, Math.round((wert / ziel) * 100));
+  const s = store.getState();
+  const nach = naechsteStufe(s.level || 'geuebt');
+  if (!nach) return '';
+  const ziel = (LEVELS.find(([k]) => k === nach) || [])[3] || 1;
+  const name = (LEVELS.find(([k]) => k === nach) || [])[1] || nach;
+  const stand = leistungsStand();
+
+  if (stand.verhaeltnis === null) {
     return `
+      <div class="small muted" style="margin-top:14px">Bis <b>${esc(name)}</b>: Die App misst
+        an dem, was du wirklich bewegst – an den Gewichten und Wiederholungen, die du selbst
+        eingestellt hast. Dafür fehlen noch
+        ${esc(plural(stand.fehlt, 'Übung', 'Übungen'))}; bisher
+        ${stand.n === 1 ? 'steht eine' : `stehen ${esc(String(stand.n))}`} mit eigener
+        Angabe.</div>`;
+  }
+  const pct = Math.min(100, Math.round((stand.verhaeltnis / ziel) * 100));
+  return `
+    <div class="small muted" style="margin-top:14px">Bis <b>${esc(name)}</b> – gemessen an
+      ${esc(plural(stand.n, 'Übung', 'Übungen'))} mit eigener Angabe:</div>
+    <div class="bars" style="margin-top:8px">
       <div class="bar-row">
         <div>
-          <div class="bar-name">${esc(was)}</div>
+          <div class="bar-name">Was du hebst, im Verhältnis zum Startgewicht</div>
           <div class="bar-track"><i style="width:${pct}%"></i></div>
         </div>
-        <div class="bar-val">${fmtNum(Math.round(wert))} / ${fmtNum(ziel)}</div>
-      </div>`;
-  };
-  // Die Tonnage zählt nur der Hantel-Modus – wer überwiegend ohne Gewichte
-  // trainiert, wird an ihr auch nicht gemessen (siehe pruefeAufstieg()).
-  const mitGewichten = g.db >= g.bw;
-  return `
-    <div class="small muted" style="margin-top:14px">Bis <b>${esc(name(schritt.nach))}</b> –
-      alle ${mitGewichten ? 'drei' : 'beide'} müssen voll sein${
-        mitGewichten ? '' : '; die Tonnage zählt bei dir nicht mit, weil du ohne Gewichte trainierst'}:</div>
-    <div class="bars" style="margin-top:8px">
-      ${zeile(g.einheiten, schritt.einheiten, 'Einheiten')}
-      ${zeile(g.saetze, schritt.saetze, 'Sätze')}
-      ${mitGewichten ? zeile(g.volumen / 1000, schritt.tonnen, 'Tonnen') : ''}
+        <div class="bar-val">${esc(fmtNum(Math.round(stand.verhaeltnis * 100) / 100))}
+          / ${esc(fmtNum(ziel))}</div>
+      </div>
     </div>`;
 }
 
@@ -2385,7 +2426,6 @@ function gesamtKarte() {
   const s = store.getState();
   if (!(s.rounds || []).length) return '';
   const g = gesamtStats();
-  const schritt = offenerAufstieg();
   return `
     <div class="section-title">Insgesamt trainiert</div>
     <div class="card">
@@ -2397,14 +2437,8 @@ function gesamtKarte() {
         <i>diesem</i> Plan – hier stehen alle ${plural(g.runden + 1, 'Runde', 'Runden')} zusammen.
         Ein Neustart oder ein Wechsel des Trainingsfokus fängt den Plan neu an; gezählt wird
         weiter.</div>
-      ${schritt ? aufstiegBalken()
-        : `<div class="small muted" style="margin-top:12px">${
-            (s.aufstiege || []).length && s.level !== 'fortgeschritten'
-              ? 'Der nächste Schritt war schon einmal dran und wurde zurückgestellt – die App '
-                + 'stuft dich nicht noch einmal von selbst hoch. Umstellen kannst du jederzeit '
-                + 'unter <i>Mehr → Erfahrung</i>.'
-              : 'Du stehst auf der höchsten Erfahrungsstufe – hier kommt nichts mehr dazu.'}
-           </div>`}
+      ${aufstiegBalken() || `<div class="small muted" style="margin-top:12px">Du stehst auf
+        der höchsten Erfahrungsstufe – hier kommt nichts mehr dazu.</div>`}
     </div>`;
 }
 
@@ -5620,6 +5654,7 @@ view.addEventListener('click', (e) => {
         ui.listView = false;
         if (store.getState().rest) endRest(false);
         const gestiegen = pruefeAufstieg();
+        if (gestiegen) aufstiegMelden(store.getState().level);
         const zusatz = pruefeZusatztag();
         if (zusatz) ui.workoutNo = naechsteEinheit();
         sound('done');
@@ -5751,6 +5786,7 @@ view.addEventListener('click', (e) => {
       // Erst nach markDone: Die Einheit, die gerade fertig geworden ist, soll
       // mitzählen. Sonst käme der Aufstieg immer eine Einheit zu spät.
       const gestiegen = pruefeAufstieg();
+      if (gestiegen) aufstiegMelden(store.getState().level);
       // Nach der letzten Einheit einer Woche entscheidet sich, ob etwas
       // liegen geblieben ist – also hier und nicht erst beim nächsten Start.
       const zusatz = pruefeZusatztag();

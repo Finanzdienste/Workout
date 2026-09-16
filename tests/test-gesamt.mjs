@@ -81,65 +81,47 @@ const lies = () => page.evaluate(async () => {
 
 await page.goto(URL, { waitUntil: 'networkidle' });
 
-// Die Schwellen kommen aus der App, nicht aus dem Gedächtnis dieses Tests.
-const SCHWELLE = { einheiten: 60, saetze: 700, tonnen: 30 };
-console.log(`     Schwelle Anfänger → Geübt: ${SCHWELLE.einheiten} Einheiten, `
-  + `${SCHWELLE.saetze} Sätze, ${SCHWELLE.tonnen} t`);
-
-// --- 1. Getrennt zu wenig, zusammen genug ------------------------------
-// 35 Einheiten in der Ablage, 35 in der laufenden Runde. Keine der beiden
-// Zahlen reicht für sich; 70 reichen. Genau das war der Fehler.
+// --- 1. Die Ablage zählt für die Statistik, nicht für die Stufe --------
+//
+// Dieser Block prüfte einmal, dass 35 Einheiten in der Ablage plus 35 in der
+// laufenden Runde zusammen hochstufen. Die Schwelle gibt es nicht mehr: Die
+// Stufe hängt seit Neuestem an den Gewichten, nicht an der Zahl der Termine
+// (siehe js/stufen.js und tests/test-leistung.mjs). Geblieben ist die Frage
+// dahinter – ob ein Fokuswechsel die Geschichte wegwirft.
 const alteRunde = await protokoll(0, 35);
 const laufend = await protokoll(0, 35);
-
-await setze({ greeted: true, name: 'T', level: 'anfaenger', log: laufend });
-await page.reload({ waitUntil: 'networkidle' });
-let s = await lies();
-check(s.level === 'anfaenger', `35 Einheiten allein stufen nicht hoch (${s.level})`);
 
 await setze({ greeted: true, name: 'T', level: 'anfaenger', log: laufend,
   rounds: [{ finishedOn: '2026-01-01', log: alteRunde, focus: 'standard' }] });
 await page.reload({ waitUntil: 'networkidle' });
-s = await lies();
-check(s.level === 'geuebt', `35 + 35 aus der Ablage stufen hoch (${s.level})`);
-check(s.aufstiege.includes('geuebt'), 'und der Schritt ist vermerkt');
-
-const hinweis = (await page.locator('.notice.aufstieg').first().textContent()).replace(/\s+/g, ' ');
-console.log('     Hinweis:', hinweis.slice(0, 100).trim(), '…');
-check(/Insgesamt 70 Einheiten/.test(hinweis),
-  'der Hinweis nennt die Gesamtzahl, nicht die der laufenden Runde');
-check(/über alle Runden/i.test(hinweis), 'und sagt dazu, dass die Ablage mitzählt');
+let s = await lies();
+check(s.level === 'anfaenger',
+  `70 Einheiten ohne eingetragene Gewichte stufen nicht hoch (${s.level})`);
+check(!s.aufstieg, 'und lösen keinen Glückwunsch aus');
+check(s.runden === 1 && s.log === 35,
+  `die Ablage bleibt neben der laufenden Runde stehen (${s.runden} Runde, ${s.log} Einheiten)`);
 
 // --- 2. Eine abgebrochene Einheit ist keine Einheit --------------------
 // Der Grund, warum die Bilanz beim Ablegen entsteht und nicht beim Auswerten:
 // Ein Protokoll speichert nur die *angetippten* Übungen. Wer vorzeitig
 // aufhört, hinterlässt ein Log, in dem alles abgehakt ist – nur eben weniger.
-//
-// Es fehlt bewusst nur *eine* Übung je Einheit. Damit liegen die Sätze weit
-// über ihrer Schwelle, und die Prüfung hängt allein an der Frage, ob eine
-// unvollständige Einheit als Einheit zählt.
+// Gezählt wird das in der Statistik, und dort muss es stimmen.
 const angebrochen = await protokoll(0, 84, { auslassen: 1, markiere: false });
 await setze({ greeted: true, name: 'T', level: 'anfaenger', log: {},
   rounds: [{ finishedOn: '2026-01-01', log: angebrochen, focus: 'standard' }] });
 await page.reload({ waitUntil: 'networkidle' });
 const abgebrochen = await page.evaluate(async () => {
-  const s = (await import('./js/store.js')).getState();
-  return { level: s.level, saetze: Object.values(s.rounds[0].log)
-    .reduce((a, e) => a + Object.values(e.db || {}).reduce((b, arr) => b + arr.length, 0), 0) };
+  const st = (await import('./js/store.js')).getState();
+  const { bilanzAus } = await import('./js/bilanz.js');
+  return { level: st.level, einheiten: bilanzAus(st.rounds[0]).einheiten,
+    saetze: Object.values(st.rounds[0].log)
+      .reduce((a, e) => a + Object.values(e.db || {}).reduce((b, arr) => b + arr.length, 0), 0) };
 });
-console.log(`     ${abgebrochen.saetze} Sätze in der Ablage – Schwelle ist ${SCHWELLE.saetze}`);
-check(abgebrochen.saetze > SCHWELLE.saetze,
-  'die Sätze allein reichen längst – es hängt wirklich an den Einheiten');
+console.log(`     ${abgebrochen.saetze} Sätze, aber nur ${abgebrochen.einheiten} volle Einheiten`);
+check(abgebrochen.einheiten === 0,
+  `84 angebrochene Einheiten zählen als keine (${abgebrochen.einheiten})`);
 check(abgebrochen.level === 'anfaenger',
-  `84 angebrochene Einheiten stufen nicht hoch (${abgebrochen.level})`);
-
-// Dieselben Einheiten, aber vollständig: jetzt schon.
-const ganze = await protokoll(0, 70, { markiere: false });
-await setze({ greeted: true, name: 'T', level: 'anfaenger', log: {},
-  rounds: [{ finishedOn: '2026-01-01', log: ganze, focus: 'standard' }] });
-await page.reload({ waitUntil: 'networkidle' });
-s = await lies();
-check(s.level === 'geuebt', `70 vollständige stufen hoch (${s.level})`);
+  `und stufen nicht hoch (${abgebrochen.level})`);
 
 // --- 3. Der automatische Umzug darf die Geschichte nicht wegwerfen -----
 //
@@ -186,10 +168,12 @@ check(nachUmzug.plan === 'Cut' && nachUmzug.focus === 'cut',
   `umgezogen auf Cut (${nachUmzug.plan})`);
 check(nachUmzug.bilanz && nachUmzug.bilanz.einheiten === 96,
   `alle 96 Einheiten sind erhalten (${nachUmzug.bilanz && nachUmzug.bilanz.einheiten})`);
-check(nachUmzug.bilanz && nachUmzug.bilanz.saetze > SCHWELLE.saetze,
+check(nachUmzug.bilanz && nachUmzug.bilanz.saetze > 800,
   `und ihre Sätze auch (${nachUmzug.bilanz && nachUmzug.bilanz.saetze})`);
-check(nachUmzug.level === 'geuebt',
-  `der Umzug kostet den fälligen Aufstieg nicht (${nachUmzug.level})`);
+// Die Stufe hängt nicht mehr an dieser Bilanz – aber die eingetragenen
+// Gewichte, an denen sie hängt, überleben den Umzug ebenso.
+check(nachUmzug.level === 'anfaenger',
+  `ohne eingetragene Gewichte bleibt die Stufe, wo sie war (${nachUmzug.level})`);
 
 // Dieselbe Runde, aber angebrochen: dann zählt sie auch hier nicht.
 const kurzHalb = await page.evaluate(async () => {
@@ -265,17 +249,18 @@ check(nachWechsel.bilanz && nachWechsel.bilanz.einheiten === 58,
   `und zwar die richtige (${nachWechsel.bilanz && nachWechsel.bilanz.einheiten} Einheiten)`);
 console.log('     Bilanz:', JSON.stringify(nachWechsel.bilanz));
 
-// Zwei weitere Einheiten im neuen Plan – zusammen 60, also die Schwelle.
+// Und die Stufe hängt weiter an den Gewichten, quer über den Fokuswechsel:
+// `weights` gehört dem, der trainiert, nicht dem Plan.
 await page.evaluate(async () => {
   const store = await import('./js/store.js');
-  const { PLAN } = await import('./js/data.js');
-  PLAN.slice(0, 2).forEach((w) => store.completeWorkout(w.n, 'db',
-    w.ex.map((x) => ({ id: x.id, sets: x.sets, w: 20 }))));
+  const { EXERCISES } = await import('./js/data.js');
+  EXERCISES.filter((e) => e.weight > 0).slice(0, 8)
+    .forEach((e) => store.setWeight(e.id, e.weight * 1.1));
 });
 await page.reload({ waitUntil: 'networkidle' });
 s = await lies();
 check(s.level === 'geuebt',
-  `zwei Einheiten im neuen Plan schließen die Lücke zu 60 (${s.level})`);
+  `die Gewichte überleben den Fokuswechsel und stufen hoch (${s.level})`);
 
 // --- 6. Es steht sichtbar da -------------------------------------------
 await page.locator('.tab[data-tab="stats"]').click();
@@ -328,8 +313,14 @@ check(errs.length === 0, `ohne Fehler in der Konsole${errs.length ? ': ' + errs.
 // steht, obwohl eine ganze Runde im Protokoll liegt, wird beim Laden
 // hochgestuft, statt unten zu bleiben – vorher hätte ihn die Buchung in
 // `aufstiege` für immer festgehalten.
+const starkeGewichte = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  const w = {};
+  EXERCISES.filter((e) => e.weight > 0).slice(0, 8).forEach((e) => { w[e.id] = e.weight * 1.1; });
+  return w;
+});
 await setze({ greeted: true, name: 'T', level: 'anfaenger', aufstiege: ['geuebt'], log: {},
-  rounds: [{ finishedOn: '2026-01-01', log: ganze, focus: 'standard' }] });
+  weights: starkeGewichte });
 await page.reload({ waitUntil: 'networkidle' });
 await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(300);
@@ -337,7 +328,7 @@ check(await page.locator('[data-act="set-level"]').count() === 0,
   'unter Mehr gibt es keine Knöpfe mehr, um die Stufe zu setzen');
 s = await lies();
 check(s.level === 'geuebt',
-  `eine ganze Runde im Protokoll stuft von selbst hoch (${s.level})`);
+  `Gewichte über der Messlatte stufen von selbst hoch (${s.level})`);
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

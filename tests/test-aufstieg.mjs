@@ -29,6 +29,11 @@ const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { 
  * Gebaut wird er aus dem echten Plan, nicht aus erfundenen Übungs-IDs: Die
  * Statistik zählt nur, was auch im Plan steht, und ein Test mit erfundenen IDs
  * würde bei jeder Planänderung still zu null Sätzen werden.
+ *
+ * Die Einheiten lösen den Aufstieg nicht mehr aus – das tun die Arbeitsgewichte
+ * (siehe tests/test-leistung.mjs). Sie stehen hier trotzdem, weil dieser Test
+ * das Drumherum prüft: dass die Stufe sich nicht überstimmen lässt, dass die
+ * Einrichtung sie nicht blockiert, und dass ein alter Stand geheilt wird.
  */
 const stand = (n, { level = 'anfaenger', kg = 20, modus = 'db', ...rest } = {}) => page.evaluate(
   async ([anzahl, stufe, gewicht, m, extra]) => {
@@ -49,6 +54,19 @@ const stand = (n, { level = 'anfaenger', kg = 20, modus = 'db', ...rest } = {}) 
   }, [n, level, kg, modus, rest],
 );
 
+/**
+ * Arbeitsgewichte als Vielfaches der Startgewichte aus dem Katalog.
+ *
+ * `faktor` 1,1 heißt: überall zehn Prozent über dem, womit ein Geübter
+ * anfängt – also über der Schwelle. 0,4 heißt deutlich darunter.
+ */
+const gewichte = (faktor) => page.evaluate(async (f) => {
+  const { EXERCISES } = await import('./js/data.js');
+  const w = {};
+  EXERCISES.filter((e) => e.weight > 0).slice(0, 8).forEach((e) => { w[e.id] = e.weight * f; });
+  return w;
+}, faktor);
+
 const lies = () => page.evaluate(async () => {
   const s = (await import('./js/store.js')).getState();
   return { level: s.level, aufstiege: s.aufstiege || [], aufstieg: s.aufstieg };
@@ -56,23 +74,23 @@ const lies = () => page.evaluate(async () => {
 
 await page.goto(URL, { waitUntil: 'networkidle' });
 
-// --- 1. Zu früh passiert nichts ---------------------------------------
-// 20 Einheiten sind ein gutes Vierteljahr entfernt von der Schwelle.
-await stand(20);
+// --- 1. Anwesenheit allein stuft nicht hoch ----------------------------
+// 70 vollständig abgehakte Einheiten – nach der alten Regel ein sicherer
+// Aufstieg. Die Gewichte liegen bei 40 % der Messlatte.
+await stand(70, { weights: await gewichte(0.4) });
 await page.reload({ waitUntil: 'networkidle' });
 let s = await lies();
-check(s.level === 'anfaenger', `nach 20 Einheiten immer noch Anfänger (${s.level})`);
+check(s.level === 'anfaenger', `70 Einheiten mit leichten Gewichten bleiben Anfänger (${s.level})`);
 check(!s.aufstieg, 'und kein Hinweis');
 
-// --- 2. Über der Schwelle wird umgestellt ------------------------------
-// 70 Einheiten mit vollen Sätzen und 20 kg: über allen drei Schwellen.
-await stand(70);
+// --- 2. Die Gewichte stellen um ----------------------------------------
+await stand(70, { weights: await gewichte(1.1) });
 await page.reload({ waitUntil: 'networkidle' });
 s = await lies();
-check(s.level === 'geuebt', `nach 70 Einheiten steht die Stufe auf Geübt (${s.level})`);
+check(s.level === 'geuebt', `zehn Prozent über der Messlatte steht die Stufe auf Geübt (${s.level})`);
 check(s.aufstiege.includes('geuebt'), 'der Schritt ist als erledigt vermerkt');
 const hinweis = (await page.locator('.notice.aufstieg').first().textContent()).replace(/\s+/g, ' ');
-check(/Aufgestiegen/.test(hinweis), `der Hinweis steht auf der Startseite (${hinweis.slice(0, 70)}…)`);
+check(/Glückwunsch/.test(hinweis), `der Hinweis steht auf der Startseite (${hinweis.slice(0, 70)}…)`);
 // Anfänger → Geübt ändert die Satzzahl seit Neuestem gar nicht mehr (die
 // Anfängerstufe kürzt sie nicht). "3 statt 3 Sätze" wäre Unsinn – also sagt der
 // Hinweis, was sich wirklich ändert: die schwerere Fassung der Übung.
@@ -113,12 +131,25 @@ check(/Geübt/.test(text) && /3 Sätze je Übung/.test(text),
   'mit dem, was sie für den Plan heißt');
 
 // --- 4. Bodyweight zählt genauso --------------------------------------
-// Dort gibt es keine Kilo. Wer deswegen ewig auf Anfänger stünde, würde für
+// Dort gibt es keine Kilo, sondern den Aufschlag auf den Wiederholungsbereich.
+// Wer ohne Gewichte trainiert und deswegen ewig auf Anfänger stünde, würde für
 // die Wahl seiner Variante bestraft.
-await stand(70, { modus: 'bw' });
+const plus = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  const obere = (r) => {
+    const z = String(r || '').match(/\d+/g);
+    return z && z.length ? Number(z[z.length - 1]) : 0;
+  };
+  const w = {};
+  EXERCISES.filter((e) => !(e.weight > 0) && obere(e.bw && e.bw.reps) > 0).slice(0, 6)
+    .forEach((e) => { w[e.id] = obere(e.bw.reps); });
+  return w;
+});
+await stand(0, { modus: 'bw', bwPlus: plus });
 await page.reload({ waitUntil: 'networkidle' });
 s = await lies();
-check(s.level === 'geuebt', `70 Bodyweight-Einheiten stufen ebenfalls hoch (${s.level})`);
+check(s.level === 'geuebt',
+  `der doppelte Wiederholungsbereich stuft ebenfalls hoch (${s.level})`);
 
 // --- 5. Die Einrichtung blockiert den Aufstieg nicht mehr ---------------
 //

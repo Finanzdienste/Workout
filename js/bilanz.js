@@ -9,7 +9,7 @@
 import * as store from './store.js';
 import { EX_BY_ID, gezaehlteReps, stufenWerte } from './uebung.js';
 import { FOKUS_ERSATZ, PLANS } from './data.js';
-import { offenerAufstieg } from './stufen.js';
+import { RANG, leistungsStand, naechsteStufe } from './stufen.js';
 import { sammleStats } from './plan.js';
 import { todayISO } from './dates.js';
 
@@ -244,31 +244,37 @@ export function gesamtStats() {
 /**
  * Prüfen und gegebenenfalls hochstufen. Gibt zurück, ob etwas passiert ist.
  *
- * Wird nach jeder abgeschlossenen Einheit aufgerufen und einmal beim Start –
- * Letzteres, damit auch eine eingelesene Sicherung sofort richtig einsortiert
- * wird und nicht erst beim nächsten Training.
+ * Gemessen wird an den eingetragenen Gewichten und Wiederholungen, nicht an
+ * Einheiten, Sätzen und Tonnen – siehe leistungsStand() in js/stufen.js. Der
+ * Grund steht dort ausführlich; kurz: Die alten drei Schwellen zählten
+ * Anwesenheit.
  *
- * Gerechnet wird über *alles* Trainierte, nicht über die laufende Runde: siehe
- * gesamtStats().
+ * Aufgerufen wird das nach jeder abgeschlossenen Einheit und einmal beim Start.
+ * Letzteres, damit auch eine eingelesene Sicherung sofort richtig einsortiert
+ * wird – und damit jemand, der seine Gewichte von Hand hochgestellt hat, nicht
+ * bis zum nächsten Training auf die Einstufung wartet.
+ *
+ * **Nur nach oben, und nur einen Schritt auf einmal.** Zwei Stufen in einem
+ * Sprung wären eine Verdopplung der Satzzahl von einem Tag auf den anderen.
  */
 export function pruefeAufstieg() {
-  const schritt = offenerAufstieg();
-  if (!schritt) return false;
-  const st = gesamtStats();
-  const mitGewichten = st.db >= st.bw;
-  if (st.einheiten < schritt.einheiten) return false;
-  if (st.saetze < schritt.saetze) return false;
-  if (mitGewichten && st.volumen < schritt.tonnen * 1000) return false;
-
   const s = store.getState();
-  store.setSetting('aufstiege', [...(s.aufstiege || []), schritt.nach]);
+  const jetzt = s.level || 'geuebt';
+  const stand = leistungsStand();
+  if (!stand.stufe) return false;
+  if (RANG.indexOf(stand.stufe) <= RANG.indexOf(jetzt)) return false;
+  const nach = naechsteStufe(jetzt);
+  if (!nach) return false;
+
+  store.setSetting('aufstiege', [...(s.aufstiege || []), nach]);
   store.setSetting('aufstieg', {
-    von: schritt.von,
-    nach: schritt.nach,
+    von: jetzt,
+    nach,
     am: todayISO(),
-    einheiten: st.einheiten,
-    tonnen: Math.round(st.volumen / 1000),
+    verhaeltnis: Math.round(stand.verhaeltnis * 100) / 100,
+    uebungen: stand.n,
   });
-  store.setSetting('level', schritt.nach);
+  store.setSetting('level', nach);
   return true;
 }
+
