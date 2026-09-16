@@ -17,8 +17,19 @@ page.on('dialog', (d) => d.accept().catch(() => {}));
 let fails = 0;
 const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { fails++; process.exitCode = 1; } };
 
+/**
+ * Einen Stand setzen, der das Neuladen wirklich überlebt.
+ *
+ * Über addInitScript und nicht über localStorage: Die App schreibt ihren
+ * Zustand beim Verlassen der Seite noch einmal weg – seit die Trainingsuhr
+ * dabei immer anhält, auch wirklich jedes Mal. Ein von Hand gesetzter
+ * localStorage wird davon überholt, und dann stand hier die Stufe, der Tab und
+ * die laufende Einheit des vorigen Durchlaufs. Ein Init-Skript läuft vor dem
+ * App-Code und gewinnt deshalb immer. Dieselbe Falle wie in
+ * tests/test-nacharbeit.mjs.
+ */
 const stellen = async (level, focus = 'standard') => {
-  await page.evaluate(([l, f]) => localStorage.setItem('workout.state.v1',
+  await page.addInitScript(([l, f]) => localStorage.setItem('workout.state.v1',
     JSON.stringify({ greeted: true, name: 'T', level: l, focus: f })), [level, focus]);
   await page.reload({ waitUntil: 'networkidle' });
 };
@@ -50,7 +61,7 @@ const sollBrust = async (stufe) => {
   await page.locator('.focus-set').first().click();
   await page.waitForTimeout(150);
   await page.locator('.tab[data-tab="stats"]').click();
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(500);
   const t = (await page.locator('#volWeek').textContent()).replace(/\s+/g, ' ');
   const m = t.match(/Brust [\d,]+\/([\d,]+)/);
   return m ? Number(m[1].replace(',', '.')) : null;
@@ -84,7 +95,11 @@ const vorher = await page.evaluate(async () => {
 check(vorher === 3, `drei Sätze abgehakt (${vorher})`);
 
 await page.evaluate(async () => (await import('./js/store.js')).setSetting('level', 'anfaenger'));
-await page.reload({ waitUntil: 'networkidle' });
+// Ohne Neuladen: Die Init-Skripte von stellen() saeen bei jedem Seitenaufbau
+// einen frischen Stand, und der haette genau das Protokoll weggeraeumt, um das
+// es hier geht. Die App zeichnet nach einer Bedienung ohnehin neu.
+await page.locator('.tab[data-tab="dashboard"]').click();
+await page.waitForTimeout(250);
 await saetzeJeUebung();
 const nachher = await page.evaluate(async () => {
   const s = (await import('./js/store.js')).getState();

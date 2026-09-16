@@ -511,7 +511,7 @@ function bucheZeit() {
   state.clock = { ...c, gebucht: gesamt };
 }
 
-/** Uhr anhalten – App im Hintergrund und keine Pause, oder Training beendet. */
+/** Uhr anhalten – App im Hintergrund oder Training beendet. */
 export function clockStop() {
   const c = state.clock;
   if (!c || c.since === null) return;
@@ -525,6 +525,30 @@ export function clockStart() {
   const c = state.clock;
   if (!state.session || !c || c.since !== null) return;
   state.clock = { ...c, since: Date.now() };
+  persist();
+}
+
+/**
+ * Nachträglich Zeit gutschreiben, die zum Training gehört.
+ *
+ * Es gibt genau einen Fall: Wer die App mitten in einer Pause verlässt, dessen
+ * Pause läuft weiter – sie gehört zum Training, auch wenn man dabei nicht aufs
+ * Handy schaut. Der Rest der Abwesenheit gehört nicht dazu.
+ *
+ *     „Die Zeit geht iwie immer weiter wenn ich aus der app rausgeh"
+ *
+ * Und so war es: Solange eine Pause lief, hielt die Uhr beim Verlassen gar
+ * nicht an – auch nicht, wenn die Pause zwei Minuten später abgelaufen war und
+ * das Handy noch eine halbe Stunde in der Tasche lag. Jetzt hält sie immer an,
+ * und beim Zurückkommen wird genau die Pause nachgetragen, die währenddessen
+ * noch offen war.
+ */
+export function clockCredit(ms) {
+  const c = state.clock;
+  const dazu = Math.max(0, Math.round(Number(ms) || 0));
+  if (!c || !dazu) return;
+  state.clock = { ...c, spent: c.spent + dazu };
+  bucheZeit();
   persist();
 }
 

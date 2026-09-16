@@ -76,6 +76,50 @@ await page.waitForTimeout(300);
 check(!(await page.locator('.stat-grid').first().textContent()).includes('Zeit im Training'),
   'wer noch nie trainiert hat, sieht die Kachel nicht');
 
+// --- Weggehen hält die Uhr an, auch während einer Pause -----------------
+//
+//     „Die Zeit geht iwie immer weiter wenn ich aus der app rausgeh"
+//
+// Und so war es: Solange eine Pause lief, hielt die Uhr beim Verlassen gar
+// nicht an. Nach einem abgehakten Satz läuft fast immer eine – wer danach das
+// Handy weglegte, sammelte jede Minute als Trainingszeit ein. Jetzt hält sie
+// immer an; nachgetragen wird nur, was beim Verschwinden noch Pause war.
+await page.evaluate(() => localStorage.setItem('workout.state.v1',
+  JSON.stringify({ greeted: true, name: 'T', restSeconds: 60, useExerciseRest: false })));
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(600);
+await page.locator('.focus-set').first().click();   // startet die Pause
+await page.waitForTimeout(600);
+const pauseLaeuft = await page.evaluate(async () => !!(await import('./js/store.js')).getState().rest);
+check(pauseLaeuft, 'nach dem Satz läuft eine Pause');
+
+const vorWeg = await page.evaluate(async () =>
+  (await import('./js/store.js')).sessionSeconds());
+await page.evaluate(() => {
+  window.__hidden = true;
+  document.dispatchEvent(new Event('visibilitychange'));
+});
+await page.waitForTimeout(2500);
+const imWeg = await page.evaluate(async () =>
+  (await import('./js/store.js')).sessionSeconds());
+check(imWeg === vorWeg,
+  `während die App weg ist, steht die Uhr (${vorWeg} -> ${imWeg} s)`);
+
+await page.evaluate(() => {
+  window.__hidden = false;
+  document.dispatchEvent(new Event('visibilitychange'));
+});
+await page.waitForTimeout(300);
+const zurueck = await page.evaluate(async () =>
+  (await import('./js/store.js')).sessionSeconds());
+console.log(`     vor dem Weggehen ${vorWeg} s, weg ${imWeg} s, zurück ${zurueck} s`);
+check(zurueck >= vorWeg + 2 && zurueck <= vorWeg + 4,
+  `die abgelaufene Pause wird nachgetragen, der Rest nicht (${zurueck} s)`);
+await page.locator('[data-act="finish-session"]').first().click();
+await page.waitForTimeout(300);
+
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();

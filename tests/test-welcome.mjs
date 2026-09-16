@@ -156,7 +156,25 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(2500);
 const lauf5 = await page.evaluate(async () => (await import('./js/store.js')).sessionSeconds());
-check(lauf5 > lauf4, `während der Pause zählt sie auch im Hintergrund weiter (${lauf4} -> ${lauf5} s)`);
+// Hier stand: "während der Pause zählt sie auch im Hintergrund weiter". Der
+// Gedanke stimmte – die Pause gehört zum Training –, die Umsetzung nicht:
+//
+//     „Die Zeit geht iwie immer weiter wenn ich aus der app rausgeh"
+//
+// Die Uhr hielt für die *ganze* Abwesenheit nicht an, und nach einem abgehakten
+// Satz läuft fast immer eine Pause. Jetzt hält sie immer an; beim Zurückkommen
+// wird nachgetragen, was beim Verschwinden noch Pause war – siehe
+// tests/test-zeit.mjs, wo genau das nachgerechnet wird.
+check(lauf5 === lauf4,
+  `im Hintergrund steht die Uhr, auch während einer Pause (${lauf4} -> ${lauf5} s)`);
+await page.evaluate(() => {
+  window.__hidden = false;
+  document.dispatchEvent(new Event('visibilitychange'));
+});
+await page.waitForTimeout(300);
+const lauf6 = await page.evaluate(async () => (await import('./js/store.js')).sessionSeconds());
+check(lauf6 > lauf5,
+  `und beim Zurückkommen kommt die Pause dazu (${lauf5} -> ${lauf6} s)`);
 
 // Der ganze Lauf über: kein einziger Aufruf nach draußen. „Tom" hat den
 // Einstieg abgeschlossen, einen Namen eingetragen und trainiert – und bleibt

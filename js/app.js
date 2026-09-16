@@ -6565,17 +6565,39 @@ view.addEventListener('input', (e) => {
 // Bleibt die App über Mitternacht offen, muss der Plan beim Zurückkommen
 // nachgezogen werden – sonst steht dort weiter das Datum von gestern.
 let lastSeenDay = todayISO();
+/*
+ * Die Trainingsuhr, während die App weg ist.
+ *
+ *     „Die Zeit geht iwie immer weiter wenn ich aus der app rausgeh"
+ *
+ * Sie hielt an – außer wenn gerade eine Pause lief. Der Gedanke dahinter
+ * stimmt: Die Pause gehört zum Training, auch wenn man dabei nicht aufs Handy
+ * schaut. Nur hielt die Uhr dann für die *ganze* Abwesenheit nicht an, und nach
+ * einem abgehakten Satz läuft fast immer eine Pause. Wer danach das Handy
+ * weglegte, sammelte jede Minute davon als Trainingszeit ein.
+ *
+ * Jetzt hält sie immer an, und beim Zurückkommen wird genau der Teil
+ * nachgetragen, der noch Pause war: höchstens so lange, wie die Pause beim
+ * Verschwinden noch offen hatte.
+ */
+let wegSeit = 0;
+let pauseOffen = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') {
-    // Die Trainingsuhr steht, solange die App weg ist – es sei denn, es läuft
-    // eine Pause. Die gehört zum Training, auch wenn man dabei aufs Handy
-    // verzichtet.
-    if (!store.getState().rest) store.clockStop();
+    const r = store.getState().rest;
+    wegSeit = Date.now();
+    pauseOffen = r ? Math.max(0, r.endsAt - wegSeit) : 0;
+    store.clockStop();
     // Ab hier zaehlt der Worker sichtbar mit – die Seite friert gleich ein.
     swSichtbar(false);
     store.flush();
     erinnerungNachlegen();
     return;
+  }
+  if (wegSeit) {
+    if (pauseOffen) store.clockCredit(Math.min(Date.now() - wegSeit, pauseOffen));
+    wegSeit = 0;
+    pauseOffen = 0;
   }
   store.clockStart();
   // Wer wieder davorsitzt, sieht die Leiste in der App – die Meldung in der
@@ -6597,7 +6619,9 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('pagehide', () => {
-  if (!store.getState().rest) store.clockStop();
+  // Hier ohne Gutschrift: Die Seite verschwindet, und beim nächsten Laden
+  // rechnet clockResync() die Lücke ohnehin heraus.
+  store.clockStop();
   store.flush();
 });
 
