@@ -1259,6 +1259,18 @@ def clash(slot, dset, direkt, tight, prev):
     return slot == 0 and bool(prev & dset)
 
 
+# Ab wie vielen Tagen ohne Reiz eine Gruppe im Tagesaufteiler etwas kostet.
+#
+# Acht Tage, und die Zahl ist nicht gegriffen: Bei vier Terminen in sieben Tagen
+# ist eine Woche der natürliche Takt, in dem jede Gruppe wiederkommt. Alles
+# darunter zu bestrafen hieße, den Aufteiler gegen die Wochenverteilung
+# arbeiten zu lassen – die entscheidet, *wie viel* eine Gruppe je Woche
+# bekommt, und manche bekommen eben nur einen Auftritt. Was darüber liegt, ist
+# dagegen immer ein Platzierungsfehler: Die Gruppe kam in beiden Wochen vor,
+# nur ganz am Rand. Siehe split().
+MAX_LUECKE = 8
+
+
 def direct_groups(ex, shares):
     """Muskelgruppen, für die eine Übung *da* ist – Anteil ab DIRECT.
 
@@ -1269,7 +1281,8 @@ def direct_groups(ex, shares):
     return frozenset(m for m, s in shares[ex].items() if s >= DIRECT)
 
 
-def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(), prev=frozenset(), roles=None):
+def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(), prev=frozenset(),
+          roles=None, zuletzt=None, termine=()):
     """Aufteilung mit möglichst gleich langen und gleich gemischten Einheiten.
 
     `used` sind die bereits vergebenen Zusammenstellungen; eine Wiederholung
@@ -1286,6 +1299,14 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
     unmittelbar davor, falls auch dieser Abstand zu kurz ist – beides als
     Rückversicherung, damit die Bedingung auch dann hält, wenn WEEK oder die
     Abstände einmal anders stehen.
+
+    `zuletzt` sagt, an welchem Tag jede Gruppe zuletzt direkt drankam – aus den
+    Wochen davor –, `termine` sind die Tage dieses Blocks. Ohne beides sah diese
+    Funktion immer nur ihre eigene Woche: Sie verteilte knappe Gruppen sauber
+    auf verschiedene Tage und merkte nicht, wenn dabei eine Gruppe ans Ende der
+    einen und ans Ende der nächsten Woche rutschte. Im neu gerechneten Cut-Plan
+    standen so elf Tage zwischen zwei Reizen für die hintere Schulter, bei einem
+    Wochenschnitt, der exakt auf dem Ziel lag.
 
     Zurück kommt (Einheiten, Konflikte): Konflikte > 0 heißt, dass sich die
     Bedingung in dieser Woche nicht einhalten ließ.
@@ -1375,6 +1396,20 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
                         auftritte[m] += 1
             selten = sum(1 for m, slots in tage.items()
                          if len(slots) < 2 <= auftritte[m])
+            # Und wie lange war es her? `tage` sagt, an welchen Tagen dieses
+            # Blocks eine Gruppe drankommt; `zuletzt` sagt, wann sie davor zum
+            # letzten Mal dran war. Gezählt werden die Tage über MAX_LUECKE
+            # hinaus, aufsummiert über alle Gruppen – nicht die Zahl der
+            # Verstöße: Eine Gruppe mit vierzehn Tagen Pause wiegt schwerer als
+            # zwei mit neun, und genau so soll die Suche auch entscheiden.
+            luecke = 0
+            if zuletzt and termine:
+                for m, slots in tage.items():
+                    vorher = zuletzt.get(m)
+                    if vorher is None:
+                        continue
+                    abstand = (termine[min(slots)] - vorher).days
+                    luecke += max(0, abstand - MAX_LUECKE)
             # Wie viele Geräte je Tag aufgebaut werden müssen. Zwei Übungen an
             # derselben Stange sind ein Aufbau, verteilt auf zwei Tage sind es
             # zwei – bei gleichem Volumen.
@@ -1387,7 +1422,11 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
             # schlechtere Tausch: Umgebaut wird zwischendurch, gewartet wird die
             # ganze Zeit.
             ruest = sum(len({geraet[ex] for ex, _ in d if geraet.get(ex)}) for d in day)
-            got = (doppelt, selten, laengste, imbalance, ruest, count, round(mix, 6))
+            # Die Lücke steht hinter `selten` und vor der Länge der Einheiten:
+            # Sie ist derselbe Fehler wie eine Gruppe, die zweimal am selben Tag
+            # steht – nur über die Wochengrenze hinweg – und wiegt damit
+            # schwerer als eine Einheit, die eine Übung länger ist.
+            got = (doppelt, selten, luecke, laengste, imbalance, ruest, count, round(mix, 6))
             if best is None or got < best[0]:
                 best = (got, day, direkt)
         if best is not None:
@@ -1474,6 +1513,9 @@ def main():
     used = set()
     offen = 0            # Wochen, in denen die Erholungsbedingung nicht aufging
     prev = frozenset()   # direkt trainierte Gruppen der letzten Einheit davor
+    # Wann jede Gruppe zuletzt direkt drankam. Ohne dieses Gedächtnis sieht der
+    # Tagesaufteiler nur seine eigene Woche – siehe MAX_LUECKE und split().
+    zuletzt = {}
     for k, w in enumerate(per_week):
         block = day[k * WEEK:(k + 1) * WEEK]
         # Welche Einheiten dieses Blocks liegen zu dicht beieinander? Bei vier
@@ -1494,7 +1536,7 @@ def main():
             roles[a], roles[b] = roles[a] or half[0], roles[b] or half[1]
         eng_prev = prev if eng_am_anfang else frozenset()
         sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd, SPLITS, used,
-                                             geraet, tight, eng_prev, roles)
+                                             geraet, tight, eng_prev, roles, zuletzt, block)
         # Ging es nicht auf, kostet ein zweiter Anlauf nur für diese eine Woche
         # ein paar Sekunden – und die Erholungsbedingung ist der Punkt, an dem
         # der ganze Plan hängt. Vorher fiel sie hier still weg: bei zehn Sätzen
@@ -1506,9 +1548,12 @@ def main():
                 break
             sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd,
                                                  SPLITS * faktor, used, geraet, tight, eng_prev,
-                                                 roles)
+                                                 roles, zuletzt, block)
         offen += 1 if konflikte else 0
         prev = frozenset(direkt[-1])
+        for slot, gruppen_am_tag in enumerate(direkt):
+            for m in gruppen_am_tag:
+                zuletzt[m] = block[slot]
         for d, sess in zip(block, sess_list):
             sess.sort(key=lambda x: rang(x[0]))
             plan.append({'date': d.isoformat(), 'ex': [{'id': e, 'sets': s} for e, s in sess]})
