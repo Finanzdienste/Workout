@@ -2527,7 +2527,19 @@ function renderStats() {
   view.innerHTML = `
     <div class="section-title">Überblick</div>
     <div class="stat-grid">
-      <div class="stat"><div class="stat-v">${workoutsDone}<span class="muted" style="font-size:15px">/${PLAN.length}</span></div><div class="stat-l">Workouts erledigt</div></div>
+      <!-- „Hab doch schon viel mehr als zwei Workouts gemacht" – und das stimmte.
+           Die Kachel zählt gegen die 84 Einheiten *dieser* Runde; wer den Fokus
+           gewechselt hat, dessen frühere Einheiten liegen in der Ablage und
+           standen nur ganz unten unter „Insgesamt trainiert". Daneben „6
+           Trainingstage" und „59 Sätze", die über alle Runden zählen – die
+           Kachel las sich dadurch wie ein Widerspruch. Sie sagt jetzt selbst,
+           worauf sie sich bezieht, und die Gesamtzahl steht direkt daneben
+           statt zwei Abschnitte tiefer. -->
+      <div class="stat"><div class="stat-v">${workoutsDone}<span class="muted" style="font-size:15px">/${PLAN.length}</span></div>
+        <div class="stat-l">Workouts ${store.getState().rounds.length ? 'in dieser Runde' : 'erledigt'}</div></div>
+      ${store.getState().rounds.length ? `<div class="stat">
+        <div class="stat-v">${leben.einheiten}</div>
+        <div class="stat-l">Einheiten insgesamt <span class="muted">über alle Runden</span></div></div>` : ''}
       <div class="stat"><div class="stat-v">${streak}</div><div class="stat-l">Serie in Folge</div></div>
       <div class="stat"><div class="stat-v">${setsDone}</div><div class="stat-l">Sätze abgehakt${
         customSets ? ` <span class="muted">(${customSets} eigene)</span>` : ''}</div></div>

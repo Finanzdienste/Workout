@@ -96,6 +96,49 @@ await page.screenshot({ path: `${SHOT}/95-stats.png`, fullPage: true });
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);
 
+// --- Die Kachel sagt, worauf sie sich bezieht ---------------------------
+//
+//     „Hab doch schon viel mehr als zwei Workouts gemacht"
+//
+// Und das stimmte: „2/84 Workouts erledigt" zählt gegen die 84 Einheiten
+// *dieser* Runde. Wer den Fokus gewechselt hat, dessen frühere Einheiten liegen
+// in der Ablage – daneben standen „6 Trainingstage" und „59 Sätze", die über
+// alle Runden zählen, und die Kachel las sich wie ein Widerspruch.
+await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const runde = {};
+  PLAN.slice(0, 4).forEach((w) => {
+    const e = { mode: 'db', done: 'db', soll: {}, db: {} };
+    w.ex.forEach((it) => {
+      e.soll[it.id] = it.sets;
+      e.db[it.id] = Array.from({ length: it.sets }, () => ({ w: '20', done: true }));
+    });
+    runde[w.n] = e;
+  });
+  const jetzt = {};
+  PLAN.slice(0, 2).forEach((w) => {
+    const e = { mode: 'db', done: 'db', soll: {}, db: {} };
+    w.ex.forEach((it) => {
+      e.soll[it.id] = it.sets;
+      e.db[it.id] = Array.from({ length: it.sets }, () => ({ w: '20', done: true }));
+    });
+    jetzt[w.n] = e;
+  });
+  localStorage.setItem('workout.state.v1', JSON.stringify({
+    greeted: true, name: 'T', log: jetzt,
+    rounds: [{ finishedOn: '2026-01-01', log: runde, focus: 'standard' }],
+  }));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.tab[data-tab="stats"]').click();
+await page.waitForTimeout(400);
+const kacheln = (await page.locator('.stat').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim());
+console.log('     ' + kacheln.slice(0, 3).join(' | '));
+check(kacheln.some((t) => /2\/84 Workouts in dieser Runde/.test(t)),
+  'mit einer Runde in der Ablage heißt die Kachel „in dieser Runde"');
+check(kacheln.some((t) => /^6 Einheiten insgesamt/.test(t)),
+  'und die Gesamtzahl über alle Runden steht direkt daneben');
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();
