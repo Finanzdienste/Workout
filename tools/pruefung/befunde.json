@@ -33,6 +33,7 @@
    "triceps": 2.24
   },
   "ohne_saetze": [
+   "beckenheben",
    "einbeiniges-kreuzheben",
    "face-pull",
    "flaschen-seitheben",
@@ -43,7 +44,8 @@
    "reverse-snow-angel",
    "rucksack-curls",
    "rucksack-rudern",
-   "sitzendes-flaschen-seitheben"
+   "sitzendes-flaschen-seitheben",
+   "trizeps-strecken-stange"
   ]
  },
  "bbp/db": {
@@ -80,6 +82,7 @@
    "triceps": 2.24
   },
   "ohne_saetze": [
+   "beckenheben",
    "einbeiniges-kreuzheben",
    "face-pull",
    "flaschen-seitheben",
@@ -90,7 +93,8 @@
    "reverse-snow-angel",
    "rucksack-curls",
    "rucksack-rudern",
-   "sitzendes-flaschen-seitheben"
+   "sitzendes-flaschen-seitheben",
+   "trizeps-strecken-stange"
   ]
  },
  "cut/bw": {
@@ -127,6 +131,7 @@
    "triceps": 2.43
   },
   "ohne_saetze": [
+   "beckenheben",
    "einbeiniges-kreuzheben",
    "face-pull",
    "flaschen-seitheben",
@@ -138,7 +143,8 @@
    "reverse-snow-angel",
    "rucksack-curls",
    "rucksack-rudern",
-   "sitzendes-flaschen-seitheben"
+   "sitzendes-flaschen-seitheben",
+   "trizeps-strecken-stange"
   ]
  },
  "cut/db": {
@@ -175,6 +181,7 @@
    "triceps": 2.43
   },
   "ohne_saetze": [
+   "beckenheben",
    "einbeiniges-kreuzheben",
    "face-pull",
    "flaschen-seitheben",
@@ -186,7 +193,8 @@
    "reverse-snow-angel",
    "rucksack-curls",
    "rucksack-rudern",
-   "sitzendes-flaschen-seitheben"
+   "sitzendes-flaschen-seitheben",
+   "trizeps-strecken-stange"
   ]
  },
  "oberkoerper/bw": {
@@ -223,6 +231,7 @@
    "triceps": 2.9
   },
   "ohne_saetze": [
+   "beckenheben",
    "einbeiniges-kreuzheben",
    "face-pull",
    "flaschen-seitheben",
@@ -234,7 +243,8 @@
    "reverse-snow-angel",
    "rucksack-curls",
    "rucksack-rudern",
-   "sitzendes-flaschen-seitheben"
+   "sitzendes-flaschen-seitheben",
+   "trizeps-strecken-stange"
   ]
  },
  "oberkoerper/db": {
@@ -271,6 +281,7 @@
    "triceps": 2.9
   },
   "ohne_saetze": [
+   "beckenheben",
    "einbeiniges-kreuzheben",
    "face-pull",
    "flaschen-seitheben",
@@ -282,7 +293,8 @@
    "reverse-snow-angel",
    "rucksack-curls",
    "rucksack-rudern",
-   "sitzendes-flaschen-seitheben"
+   "sitzendes-flaschen-seitheben",
+   "trizeps-strecken-stange"
   ]
  },
  "standard/bw": {
@@ -319,6 +331,7 @@
    "triceps": 2.95
   },
   "ohne_saetze": [
+   "beckenheben",
    "einbeiniges-kreuzheben",
    "face-pull",
    "flaschen-seitheben",
@@ -329,7 +342,8 @@
    "reverse-snow-angel",
    "rucksack-curls",
    "rucksack-rudern",
-   "sitzendes-flaschen-seitheben"
+   "sitzendes-flaschen-seitheben",
+   "trizeps-strecken-stange"
   ]
  },
  "standard/db": {
@@ -366,6 +380,7 @@
    "triceps": 2.95
   },
   "ohne_saetze": [
+   "beckenheben",
    "einbeiniges-kreuzheben",
    "face-pull",
    "flaschen-seitheben",
@@ -376,7 +391,8 @@
    "reverse-snow-angel",
    "rucksack-curls",
    "rucksack-rudern",
-   "sitzendes-flaschen-seitheben"
+   "sitzendes-flaschen-seitheben",
+   "trizeps-strecken-stange"
   ]
  }
 }
