@@ -1,5 +1,5 @@
 {
-  "hinweis": "Erzeugt von tools/pruefung/plan-frisch.py – der Stand der Eingaben, aus denen tools/plan*.json erzeugt wurden. Unter \"hingenommen\" stehen Abweichungen, die bewusst so bleiben; alles andere laesst die Pruefung nicht durch.",
+  "hinweis": "Erzeugt von tools/pruefung/plan-frisch.py – der Stand der Eingaben, aus denen tools/plan*.json erzeugt wurden. Unter \"hingenommen\" stehen Abweichungen, die bewusst so bleiben; alles andere laesst die Pruefung nicht durch. ACHTUNG: tools/plan.json (Fokus \"Aufbau\") ist aelter als die drei anderen. Er liess sich am 17.09.2026 nicht neu erzeugen - die exakte Suche in tools/build-plan.py findet fuer ihn keine Loesung mehr, obwohl der ausgelieferte Plan selbst beweist, dass es eine gibt. Die Eintraege unter \"hingenommen\" beschreiben deshalb weiter Abweichungen, die fuer die anderen drei Plaene nicht mehr gelten.",
   "fingerabdruck": "926438adffdba8da",
   "hingenommen": {
     "sz-curls.equip": {

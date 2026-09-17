@@ -349,9 +349,19 @@ PER_EX_WEEK = (1, 9)
 EXACT_LIMIT = 4000       # so viele Plansummen je Block reichen zur Auswahl
 # Und so viele Knoten darf die Suche dafuer anfassen. Ohne diese Grenze hatte
 # sie nur eine Obergrenze fuer die Funde und keine fuer die Arbeit - siehe
-# exact(). Zehn Millionen sind rund zwoelf Minuten je Block; der teuerste Lauf,
-# der vorher durchlief, brauchte weniger als ein Zehntel davon.
-EXACT_NODES = int(os.environ.get('WK_NODES', 10 ** 7))
+# exact().
+#
+# Die Zahl ist gemessen, nicht geschaetzt. Was die Laeufe wirklich brauchen,
+# steht seither in jedem Bericht:
+#
+#     bbp             97 Tausend Knoten
+#     oberkoerper      3,4 Millionen
+#     cut            205 Millionen
+#
+# Zwischen der guenstigsten und der teuersten Variante liegen also drei
+# Groessenordnungen. Eine halbe Milliarde laesst der teuersten das Doppelte
+# Luft und bricht trotzdem nach gut einer Stunde ab statt nach zehn.
+EXACT_NODES = int(os.environ.get('WK_NODES', 5 * 10 ** 8))
 SCREEN = 50              # davon werden die besten probeweise verteilt
 SCREEN_RESTARTS = 2      # Anläufe je Probe
 SCREEN_ROUNDS = 90000    # Schritte je Probe
