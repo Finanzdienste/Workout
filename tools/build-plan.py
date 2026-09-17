@@ -347,6 +347,11 @@ PER_WEEK = PER_SET[1] * WEEK   # mehr geht in einer Woche gar nicht
 # den Schnitt über alle Wochen, nicht die einzelne Woche – dafür sorgt band().
 PER_EX_WEEK = (1, 9)
 EXACT_LIMIT = 4000       # so viele Plansummen je Block reichen zur Auswahl
+# Und so viele Knoten darf die Suche dafuer anfassen. Ohne diese Grenze hatte
+# sie nur eine Obergrenze fuer die Funde und keine fuer die Arbeit - siehe
+# exact(). Zehn Millionen sind rund zwoelf Minuten je Block; der teuerste Lauf,
+# der vorher durchlief, brauchte weniger als ein Zehntel davon.
+EXACT_NODES = int(os.environ.get('WK_NODES', 10 ** 7))
 SCREEN = 50              # davon werden die besten probeweise verteilt
 SCREEN_RESTARTS = 2      # Anläufe je Probe
 SCREEN_ROUNDS = 90000    # Schritte je Probe
@@ -681,7 +686,7 @@ def bw_verteilen(plan, gesamt):
     return plan
 
 
-def exact(block, shares, weeks, values, limit, rnd):
+def exact(block, shares, weeks, values, limit, rnd, budget=EXACT_NODES):
     """Alle Satzzahlen eines Blocks, die jede Zielgruppe exakt treffen.
 
     Tiefensuche mit zwei Abkürzungen. Steht in einer Gleichung nur noch eine
@@ -692,6 +697,19 @@ def exact(block, shares, weeks, values, limit, rnd):
 
     Gruppen ohne Ziel (GOAL[m] is None) bekommen keine Gleichung. Sie werden
     hinterher nur noch gegen CAP geprüft – siehe capped().
+
+    **Dazu ein Knotenbudget**, und das ist keine Vorsicht auf Verdacht. Die
+    Suche hatte eine Obergrenze für die *Funde* (`limit`) und keine für die
+    *Arbeit*. Solange Lösungen dicht liegen, fällt das nicht auf – bei „Cut"
+    stehen die viertausend nach einer knappen Stunde. Bei „Aufbau" mit seinen
+    höheren Zielen liegen sie dünner: Derselbe Lauf hing zehn Stunden bei 100 %
+    CPU in dieser Funktion, ohne eine einzige Zeile auszugeben. Ein Werkzeug,
+    das entweder in einer Viertelstunde fertig ist oder nie, ist keines.
+
+    Zurück kommen die gefundenen Lösungen und ob das Budget gereicht hat. Ein
+    Abbruch ist kein Fehler: Die Auswahl in totals() nimmt ohnehin nur die
+    besten SCREEN davon, und ob sie aus viertausend oder aus vierhundert
+    ausgewählt hat, steht im Bericht.
     """
     groups = [m for m in sorted({m for i in block for m in shares[i]})
               if GOAL.get(m) is not None]
@@ -700,8 +718,13 @@ def exact(block, shares, weeks, values, limit, rnd):
     allowed = set(values)
     fair = PER_SET[1] * weeks     # drei Sätze pro Woche als neutraler Anker
     out = []
+    knoten = 0
 
     def rec(val):
+        nonlocal knoten
+        knoten += 1
+        if knoten > budget:
+            return
         while True:
             again = False
             for goal, eq in eqs:
@@ -747,7 +770,7 @@ def exact(block, shares, weeks, values, limit, rnd):
             rec({**val, pick: v})
 
     rec({})
-    return out
+    return out, (knoten <= budget, knoten)
 
 
 # Die Bodyweight-Anteile. Sie stehen nicht in den Gleichungen – die rechnen mit
@@ -828,13 +851,24 @@ def totals(ids, shares, groups, weeks, rnd, streng=True):
     """
     values = [0] + [v for v in range(PER_EX_WEEK[0] * weeks, PER_EX_WEEK[1] * weeks + 1)
                     if v % GRAIN == 0]
-    total, variants = {}, []
+    total, variants, vollstaendig = {}, [], []
     for block in parts(ids, shares, groups):
-        found = exact(block, shares, weeks, values, EXACT_LIMIT, rnd)
+        found, (ganz, knoten) = exact(block, shares, weeks, values, EXACT_LIMIT, rnd)
+        vollstaendig.append((ganz, knoten))
         if not found:
+            # Zwei sehr verschiedene Fälle, und sie auseinanderzuhalten ist der
+            # Grund, warum exact() das Budget mit zurückgibt: Wer den Baum ganz
+            # abgesucht hat und nichts fand, weiß, dass es für diese Wochenzahl
+            # nichts gibt – der nächste Versuch mit einer Woche mehr ist dann
+            # richtig. Wer nur aufgehört hat, weiß gar nichts, und eine Woche
+            # mehr wäre eine Antwort auf eine Frage, die niemand gestellt hat.
+            if not ganz:
+                sys.exit(f'Das Knotenbudget ({EXACT_NODES}) war aufgebraucht, bevor für '
+                         f'{weeks} Wochen eine einzige exakte Lösung dastand. Mehr Budget: '
+                         f'WK_NODES=... python3 tools/build-plan.py ...')
             if streng:
                 sys.exit(f'Keine exakte Lösung für {weeks} Wochen')
-            return None, None
+            return None, (None, None)
         variants.append(len(found))
 
         def balance(sol):
@@ -860,7 +894,7 @@ def totals(ids, shares, groups, weeks, rnd, streng=True):
             if best is None or got < best[0]:
                 best = (got, sol)
         total.update(best[1])
-    return [total[i] for i in ids], variants
+    return [total[i] for i in ids], (variants, vollstaendig)
 
 
 # ------------------------------------------------------------------ #
@@ -1472,7 +1506,7 @@ def main():
     rnd = random.Random(7)
     vol = Volume(shares, ids, groups)
     for weeks in range(WEEKS, WEEKS + 12):
-        total, variants = totals(ids, shares, groups, weeks, rnd, streng=False)
+        total, (variants, vollstaendig) = totals(ids, shares, groups, weeks, rnd, streng=False)
         if total is not None:
             break
     else:
@@ -1483,6 +1517,13 @@ def main():
     day = dates(weeks)
     print(f'exakte Plansummen: {"·".join(map(str, variants))} Lösungen je Block, '
           f'ausgewogenste gewählt ({min(total)}–{max(total)} Sätze je Übung)')
+    print('   Knoten in der exakten Suche: '
+          + ' · '.join(f'{n:,}'.replace(',', '.') + ('' if ganz else ' (Budget!)')
+                       for ganz, n in vollstaendig))
+    if not all(ganz for ganz, _ in vollstaendig):
+        # Nicht verschweigen: Die Auswahl hat dann nur einen Ausschnitt gesehen.
+        # Wo das steht, steht auch, wie man mehr bekommt.
+        print(f'   Budget {EXACT_NODES:,} Knoten erschöpft – mehr mit WK_NODES'.replace(',', '.'))
 
     per_week, (hart, auftritte, worst, aus) = spread(total, vol, weeks, rnd,
                                                      RESTARTS, SPREAD_ROUNDS)
