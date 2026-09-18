@@ -20,6 +20,19 @@ import { nichtsAbgewaehlt, vorratFassung } from './vorrat.js';
 import { satzZahl } from './stufen.js';
 
 /**
+ * Wie viele Wochen ein ganzer Durchlauf dauert.
+ *
+ * Aus den Terminen gerechnet und nicht gezählt: Wer 84 Einheiten durch vier
+ * teilt, bekommt 21 – aber nur, solange niemand einen Tag verschiebt.
+ */
+export const PLAN_WEEKS = (() => {
+  const span = daysBetween(PLAN[0].date, PLAN[PLAN.length - 1].date);
+  // Die letzte Einheit endet nicht am Wochenende: eine Lücke dazurechnen,
+  // sonst kommt bei 80 Einheiten in 139 Tagen 19,9 statt 20 heraus.
+  return Math.max(1, Math.round((span * PLAN.length) / Math.max(1, PLAN.length - 1) / 7));
+})();
+
+/**
  * Tatsächlicher Termin einer Einheit.
  *
  * Bereits begonnene Einheiten bleiben auf dem Tag, an dem trainiert wurde –

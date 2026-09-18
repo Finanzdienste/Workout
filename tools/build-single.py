@@ -44,6 +44,9 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            'js/plan.js', 'js/muster.js', 'js/bilanz.js', 'js/erinnerung.js',
            'js/merkzettel.js',
            'js/push.js',
+           # Ansichten zuletzt: Sie haengen an der Rechenschicht, nie umgekehrt.
+           'js/anzeige.js', 'js/ansicht-scheiben.js', 'js/ansicht-kalender.js',
+           'js/ansicht-vorrat.js', 'js/ansicht-statistik.js',
            'js/app.js']
 
 # DOTALL, weil eine Importzeile ueber mehrere Zeilen gehen darf:

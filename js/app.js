@@ -30,22 +30,31 @@ import { CONFIG, hatServer } from './config.js';
 import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
 import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './audio.js';
 import { esc, fmtNum } from './text.js';
-import { EX_BY_ID, plannedReps, stufenWerte } from './uebung.js';
-import { LEVELS, SAETZE_JE_STUFE, leistungsStand, levelBeispiel, naechsteStufe, satzFaktor, satzZahl } from './stufen.js';
+import { MODE_ICON, MODE_LABEL, repsLabel } from './anzeige.js';
 import {
-  aufwaermsaetze, doneWeightNote, meinSatz, naechstesGewicht,
+  calMonthNow, calendarCell, calendarDetail, dayState, fruehereTage,
+} from './ansicht-kalender.js';
+import { EX_BY_ID } from './uebung.js';
+import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, satzFaktor, satzZahl } from './stufen.js';
+import {
+  aufwaermsaetze, doneWeightNote, naechstesGewicht,
   ruestCache, ruestHint,
   workingWeight,
 } from './gewichte.js';
-import { RASTER, STANGE_LABEL, erreichbar, normSatz, stangeZaehlt } from './scheiben.js';
+import { normSatz } from './scheiben.js';
+import { roherSatz } from './ansicht-scheiben.js';
+import { uebungsListe, vorratKarte } from './ansicht-vorrat.js';
+import {
+  erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
+} from './ansicht-statistik.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { WEEK_SESSIONS, activeInjuries, planSaetze, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
-import { bilanzAus, gesamtStats, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
-import { abbruch, ausgelassen, vorneListe, vorneUm } from './muster.js';
+import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
+import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
+import { vorneUm } from './muster.js';
 import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
 import { kannPush, pushEinrichten, pushStand } from './push.js';
-import { GERAETE, ausUebungen, bandFarbe, erfuellt, ersatzFuer, ersatzGenau, fehlt, nichtMoeglich, nichtsAbgewaehlt, setzeUebung, setzeVorrat } from './vorrat.js';
+import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat } from './vorrat.js';
 
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
@@ -53,10 +62,7 @@ import { GERAETE, ausUebungen, bandFarbe, erfuellt, ersatzFuer, ersatzGenau, feh
 
 const view = document.getElementById('view');
 const tabbar = document.getElementById('tabbar');
-const MODE_ICON = { db: '🏋️', bw: '🤸' };
 const toastEl = document.getElementById('toast');
-
-const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
 
 /**
  * Läuft die App als dist/workout.html, also als eine einzige Datei?
@@ -2210,80 +2216,11 @@ function renderDashboard() {
   });
 }
 
-/** Letzter protokollierter Eintrag derselben Übung im selben Modus. */
-function lastLoggedFor(exId, mode, beforeN) {
-  for (let i = PLAN.length - 1; i >= 0; i--) {
-    const w = PLAN[i];
-    if (w.n >= beforeN) continue;
-    const item = exOf(w, mode).find((x) => x.id === exId);
-    if (!item) continue;
-    const arr = store.peekSets(w.n, mode, exId);
-    if (!arr) continue;
-    const filled = arr.filter((s) => s.w !== '');
-    if (!filled.length) continue;
-    return { n: w.n, text: filled.map((s) => s.w).join(' · ') };
-  }
-  return null;
-}
 
 /* ------------------------------------------------------------------ *
  * Statistik
  * ------------------------------------------------------------------ */
 
-/**
- * Zeitreihen aus dem Protokoll: je Übung das benutzte Gewicht, je
- * Muskelgruppe das Volumen (Gewicht × geplante Wdh. × Sätze) einer Einheit.
- *
- * Nur abgehakte Sätze zählen, und nur die Hantel-Variante trägt Kilo bei –
- * Bodyweight-Einheiten haben schlicht kein Gewicht, das man summieren könnte.
- */
-function progressSeries() {
-  const perExercise = new Map();
-  const perMuscle = new Map();
-
-  // Alle Einheiten, in denen etwas steht – die abgelegten zuerst, dann die des
-  // laufenden Plans. Eine abgelegte Einheit kennt ihren Plan nicht mehr; ihr
-  // Tag steht im Protokoll (startedOn), sonst zählt der Tag, an dem die Runde
-  // weggelegt wurde. Ohne die Ablage bräche jede Kurve beim Fokuswechsel ab –
-  // und genau die Kurven zeigen, dass es vorangeht.
-  const einheiten = [];
-  (store.getState().rounds || []).forEach((r) => {
-    Object.values(r.log || {}).forEach((e) => {
-      if (e) einheiten.push({ tag: e.startedOn || r.finishedOn || '', e });
-    });
-  });
-  einheiten.sort((a, b) => (a.tag < b.tag ? -1 : (a.tag > b.tag ? 1 : 0)));
-  const log = store.getState().log;
-  PLAN.forEach((w) => { if (log[w.n]) einheiten.push({ tag: effDate(w), e: log[w.n] }); });
-
-  einheiten.forEach(({ tag, e }) => {
-    const day = tag ? fmtDate(tag) : '';
-    const muscleDay = new Map();
-
-    Object.entries(e.db || {}).forEach(([id, arr]) => {
-      const ex = EX_BY_ID.get(id);
-      if (!ex || !Array.isArray(arr)) return;
-      const done = arr.filter((x) => x && x.done && x.w !== '');
-      if (!done.length) return;
-
-      const kg = parseFloat(String(done[0].w).replace(',', '.'));
-      if (Number.isNaN(kg) || kg <= 0) return;
-
-      if (!perExercise.has(id)) perExercise.set(id, []);
-      perExercise.get(id).push({ label: day, value: kg });
-
-      const vol = kg * plannedReps(stufenWerte(ex.db).reps) * done.length;
-      ex.db.muscles.forEach((m) => muscleDay.set(m, (muscleDay.get(m) || 0) + vol));
-    });
-
-    muscleDay.forEach((vol, m) => {
-      if (!perMuscle.has(m)) perMuscle.set(m, []);
-      perMuscle.get(m).push({ label: day, value: vol });
-    });
-  });
-
-  return { perExercise, perMuscle };
-}
 
 /**
  * Vergleich mit den Freunden, die einem ihren Stand geschickt haben.
@@ -2369,118 +2306,9 @@ function standAlter(f) {
  *
  *     „Die App sollte einen ja selbst auf Grundlage der Gewichte,
  *      Wiederholungen, Anzahl absolvierter Trainings usw irgendwann hochstufen.
- *      Selbst sollte man diese Einstufung ja nie verändern."
- *
- * Das ist die richtige Trennung, und vorher war sie nicht gezogen: Unter Mehr
- * standen drei Knöpfe, mit denen man sich jederzeit selbst hochstufen konnte –
- * und damit war die Stufe eine Meinung über sich und keine Messung. Wer sich
- * hochstuft, bekommt mehr Sätze, als er gerade verträgt; wer sich herunterstuft,
- * trainiert zu wenig und merkt es nicht.
- *
- * Gewählt wird sie deshalb genau einmal, bei der Einrichtung, als
- * Selbsteinschätzung zum Start. Danach gehört sie der App: pruefeAufstieg()
- * zählt Einheiten, Sätze und bewegte Tonnen und stellt um, wenn alles drei
- * steht. Was hier bleibt, ist die Auskunft – wo man steht, was das für den Plan
- * heißt, und wie weit es noch ist.
- */
-function erfahrungStand() {
-  const s = store.getState();
-  const key = s.level || 'geuebt';
-  const eintrag = LEVELS.find(([k]) => k === key) || LEVELS[1];
-  const saetze = SAETZE_JE_STUFE[key] || 3;
-  const stand = leistungsStand();
-  const nach = naechsteStufe(key);
-  const name = (k) => (LEVELS.find(([kk]) => kk === k) || [])[1] || k;
-  return `
-    <div class="stat-grid">
-      <div class="stat"><div class="stat-v">${esc(eintrag[1])}</div>
-        <div class="stat-l">${esc(plural(saetze, 'Satz', 'Sätze'))} je Übung</div></div>
-    </div>
-    <div class="small muted" style="margin-top:10px">${esc(eintrag[2])}</div>
-    <div class="small muted" style="margin-top:10px">Die Stufe skaliert Startgewichte
-      <em>und</em> Sätze je Übung. Übungen, Pausen und die Verteilung über die Woche bleiben,
-      wie sie sind – jede Muskelgruppe behält ihren Anteil, nur die Höhe ändert sich.
-      Eingestellte Gewichte rührt sie nie an.</div>
-    ${aufstiegBalken()}
-    <div class="small muted" style="margin-top:12px">${nach
-      ? 'Hochgestuft wird von selbst, sobald du es hebst – einstellen kannst und sollst du '
-        + 'das nicht: Eine Stufe ist etwas, das man sich ertrainiert, keine Einstellung. '
-        + 'Gewählt hast du sie einmal bei der Einrichtung, danach misst die App.'
-      : 'Du stehst auf der höchsten Stufe – hier kommt nichts mehr dazu.'}</div>
-    ${nach && stand.verhaeltnis !== null ? `<div class="small muted" style="margin-top:8px">
-      Gemessen an ${esc(plural(stand.n, 'Übung', 'Übungen'))} mit eigener Angabe. Auf
-      <b>${esc(name(nach))}</b> steht es, wenn der Median dort
-      ${esc(fmtNum((LEVELS.find(([k]) => k === nach) || [])[3] || 1))} erreicht.</div>` : ''}`;
-}
 
 /**
  * Wie weit es bis zur nächsten Stufe noch ist – ein Balken statt drei.
- *
- * Vorher standen hier Einheiten, Sätze und Tonnen nebeneinander, und alle drei
- * mussten voll sein. Das misst Anwesenheit; gemessen wird jetzt, was auf der
- * Hantel liegt (leistungsStand() in js/stufen.js). Der Balken zeigt denselben
- * Median, an dem die App entscheidet – keine zweite Rechnung daneben.
- *
- * Er steht auch dann da, wenn noch nicht genug eingetragen ist: Dann sagt er
- * genau das, statt zu schweigen.
- *
- *     "Wenn die App mich bisher noch nicht hochgestuft hat, bin ich ja
- *      anscheinend noch Anfänger."
- *
- * Richtig – aber dann muss auch dastehen, woran das liegt.
- */
-function aufstiegBalken() {
-  const s = store.getState();
-  const nach = naechsteStufe(s.level || 'geuebt');
-  if (!nach) return '';
-  const ziel = (LEVELS.find(([k]) => k === nach) || [])[3] || 1;
-  const name = (LEVELS.find(([k]) => k === nach) || [])[1] || nach;
-  const stand = leistungsStand();
-
-  if (stand.verhaeltnis === null) {
-    return `
-      <div class="small muted" style="margin-top:14px">Bis <b>${esc(name)}</b>: Die App misst
-        an dem, was du wirklich bewegst – an den Gewichten und Wiederholungen, die du selbst
-        eingestellt hast. Dafür fehlen noch
-        ${esc(plural(stand.fehlt, 'Übung', 'Übungen'))}; bisher
-        ${stand.n === 1 ? 'steht eine' : `stehen ${esc(String(stand.n))}`} mit eigener
-        Angabe.</div>`;
-  }
-  const pct = Math.min(100, Math.round((stand.verhaeltnis / ziel) * 100));
-  return `
-    <div class="small muted" style="margin-top:14px">Bis <b>${esc(name)}</b> – gemessen an
-      ${esc(plural(stand.n, 'Übung', 'Übungen'))} mit eigener Angabe:</div>
-    <div class="bars" style="margin-top:8px">
-      <div class="bar-row">
-        <div>
-          <div class="bar-name">Was du hebst, im Verhältnis zum Startgewicht</div>
-          <div class="bar-track"><i style="width:${pct}%"></i></div>
-        </div>
-        <div class="bar-val">${esc(fmtNum(Math.round(stand.verhaeltnis * 100) / 100))}
-          / ${esc(fmtNum(ziel))}</div>
-      </div>
-    </div>`;
-}
-
-function gesamtKarte() {
-  const s = store.getState();
-  if (!(s.rounds || []).length) return '';
-  const g = gesamtStats();
-  return `
-    <div class="section-title">Insgesamt trainiert</div>
-    <div class="card">
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-v">${g.einheiten}</div><div class="stat-l">Einheiten
-          <span class="muted">über alle Pläne</span></div></div>
-      </div>
-      <div class="small muted" style="margin-top:10px">Oben steht der Fortschritt in
-        <i>diesem</i> Plan – hier stehen alle ${plural(g.runden + 1, 'Runde', 'Runden')} zusammen.
-        Ein Neustart oder ein Wechsel des Trainingsfokus fängt den Plan neu an; gezählt wird
-        weiter.</div>
-      ${aufstiegBalken() || `<div class="small muted" style="margin-top:12px">Du stehst auf
-        der höchsten Erfahrungsstufe – hier kommt nichts mehr dazu.</div>`}
-    </div>`;
-}
 
 /**
  * Der Überblick zählt über den Plan hinaus.
@@ -2495,52 +2323,6 @@ function gesamtKarte() {
  * rückwärts. Beides in einen Gesamtwert zu mischen ergäbe nichts – zwei Pläne
  * haben nicht dieselben Einheiten.
  */
-/**
- * Was das Protokoll über die Gewohnheiten sagt – und was man dagegen tun kann.
- *
- * Steht in der Statistik und nicht auf dem Dashboard: Es ist eine Auswertung,
- * kein Auftrag für heute. Und sie steht nur da, wenn es etwas zu sagen gibt –
- * eine Karte, die in der Hälfte der Fälle „alles gut" meldet, wird nicht
- * gelesen, sie wird überblättert.
- */
-function musterKarte() {
-  const ab = abbruch();
-  const weg = ausgelassen();
-  if (!ab && !weg.length) return '';
-  const vorn = vorneListe();
-  return `
-    <div class="section-title">Was dir im Protokoll auffällt</div>
-    <div class="card">
-      ${ab ? `<div class="small">In ${plural(ab.kurz, 'Einheit', 'Einheiten')} von
-        ${ab.einheiten} hast du vor dem Ende aufgehört – meist nach Übung
-        <b>${ab.bis} von ${ab.von}</b>. Das ist kein Problem einer einzelnen Übung,
-        sondern der Länge: Was hinten steht, kommt nicht dran. Entweder die Einheit
-        kürzen (Erfahrungsstufe eine Stufe zurück, unter <i>Mehr</i>) oder das
-        Wichtige nach vorn holen.</div>` : ''}
-
-      ${weg.length ? `
-        <div class="small" style="${ab ? 'margin-top:12px' : ''}">Diese Übungen fallen
-          regelmäßig aus – jeweils gezählt über die Einheiten, in denen sie überhaupt
-          dran waren:</div>
-        <div class="muster-liste">
-          ${weg.map((x) => `
-            <div class="muster-zeile">
-              <div>
-                <div class="lbl">${esc(x.name)}</div>
-                <div class="hint">${x.weg} von ${x.dran} Mal übergangen</div>
-              </div>
-              <button type="button" class="btn btn-sm ${vorn.includes(x.id) ? '' : 'btn-primary'}"
-                      data-act="muster-vorne" data-ex="${esc(x.id)}">
-                ${vorn.includes(x.id) ? 'steht vorn ✓' : 'nach vorn'}
-              </button>
-            </div>`).join('')}
-        </div>
-        <div class="small muted" style="margin-top:10px">„Nach vorn" heißt: Diese Übung
-          steht ab sofort am Anfang der Einheit, vor der Bündelung nach Gerät. Das kostet
-          womöglich einen zusätzlichen Umbau – eine Übung, die ausfällt, bringt aber null
-          Sätze, und das ist der teurere Preis.</div>` : ''}
-    </div>`;
-}
 
 function renderStats() {
   const { workoutsDone, streak, upcoming, customSets } = sammleStats();
@@ -2764,356 +2546,7 @@ function superVorschau() {
     </div>`;
 }
 
-/* ------------------------------------------------------------------ *
- * Was hier rumliegt: Stangen und Scheiben
- *
- * Ohne diese Angaben rechnet die App mit freien Zahlen und schlägt Gewichte
- * vor, die sich nicht einstellen lassen – „6 kg je Hand" mit einer 1,5-kg-
- * Stange und 1,25er-Scheiben ist so ein Fall. Mit ihnen rastet jeder Vorschlag
- * auf etwas Aufsteckbares ein, und der Umbauhinweis sagt zusätzlich, welche
- * Scheiben auf welche Seite gehören.
- *
- * Eingetragen wird, was da ist, nicht was gebraucht wird: **ein** Vorrat an
- * Scheiben – die passen ja überall drauf – und je Stange ihr Leergewicht. Der
- * Rest ist Rechnen.
- * ------------------------------------------------------------------ */
 
-/**
- * Der Satz, wie er gespeichert ist – ungeordnet und ungeprüft.
- *
- * Die Eingabefelder müssen daraus gefüllt werden, nicht aus meinSatz(): Das
- * sortiert und wirft Unbrauchbares weg, und beides mitten im Tippen. Wer „2,5"
- * eintippt, hätte nach der „2" eine andere Zeilennummer, und der nächste
- * Tastendruck landete in der falschen Zeile. Gerechnet wird weiter mit der
- * geprüften Fassung; angezeigt wird, was dasteht.
- */
-function roherSatz() {
-  const s = store.getState().scheiben;
-  // Ein alter Stand mit zwei getrennten Listen wird beim ersten Ansehen
-  // zusammengelegt – normSatz() kann das, hier reicht der Blick darauf, ob es
-  // die neue Form ist.
-  if (!s || !Array.isArray(s.scheiben)) return meinSatz();
-  // Über STANGE_LABEL, nicht über eine getippte Liste. Hier standen kh und lh
-  // ausgeschrieben – aus der Zeit, als es nur zwei Stangen gab. Mit der
-  // SZ-Stange wurde daraus ein Datenverlust: scheibenAendern() nimmt genau
-  // dieses Objekt und schreibt es zurück (siehe unten), und was hier nicht
-  // aufgezählt ist, ist danach weg. Ein eingetragenes SZ-Leergewicht überlebte
-  // damit den nächsten Tipp auf irgendeine Scheibenzeile nicht, und das
-  // Eingabefeld war ohnehin von Anfang an leer.
-  //
-  // Eine Liste, die dieselben Schlüssel noch einmal aufzählt, ist genau die
-  // Sorte Wissen, die beim nächsten Zuwachs vergessen wird. Deshalb keine.
-  return {
-    stange: Object.fromEntries(Object.keys(STANGE_LABEL).map((k) =>
-      [k, typeof s.stange?.[k] === 'number' ? s.stange[k] : null])),
-    scheiben: s.scheiben.filter(Array.isArray).map((z) => [z[0], z[1]]),
-  };
-}
-
-/** Zahl fürs Eingabefeld – auch dann, wenn dort gerade Unsinn steht. */
-const feldWert = (v) => (typeof v === 'number' && Number.isFinite(v) ? fmtNum(v) : '');
-
-/** Eine Zeile „Größe × Stück" für eine Scheibengröße. */
-/**
- * Eine Zeile des Scheibensatzes – und was diese Größe wirklich bringt.
- *
- *     „Ich will 20 kg machen aber wenn ich bei 16 auf plus drück dann geht er
- *      direkt hier hin."
- *
- * Zwischen 16 und 21,5 liegt nichts, weil der eingetragene Satz nichts
- * dazwischen hergibt – aber das stand nirgends. Schlimmer noch: Eine Größe, von
- * der zu wenige da sind, wurde stumm übergangen. Für die Langhantel braucht es
- * zwei Scheiben je Stufe, für beide Kurzhanteln vier; wer eine Größe einzeln
- * einträgt, hat sie eingetragen und sie zählt trotzdem nicht.
- *
- * Deshalb steht jetzt an jeder Zeile, was sie leistet: „+10 kg an der Stange"
- * – oder eben, dass es für ein Paar nicht reicht.
- */
-function scheibenZeile(i, kg, anzahl) {
-  const n = Number(anzahl) || 0;
-  const wert = Number(kg) || 0;
-  const paare = Math.floor(n / 2);
-  const hinweis = !wert || !n ? ''
-    : paare < 1
-      ? '<span class="scheiben-warn">nur einzeln – eine Stange braucht zwei</span>'
-      : `<span class="scheiben-hint">+${esc(fmtNum(wert * 2))} kg je Paar${
-          n >= 4 ? ` · ${paare} Paare` : ''}</span>`;
-  return `
-    <div class="scheiben-zeile">
-      <input type="text" inputmode="decimal" class="kg-val" value="${esc(feldWert(kg))}"
-             data-act="scheiben-kg" data-i="${i}" aria-label="Scheibengewicht in Kilo">
-      <span class="scheiben-mal">kg ×</span>
-      <input type="text" inputmode="numeric" class="kg-val" value="${esc(feldWert(anzahl))}"
-             data-act="scheiben-n" data-i="${i}" aria-label="Anzahl Scheiben">
-      <span class="scheiben-mal">Stück</span>
-      <button type="button" class="btn btn-mini" data-act="scheiben-weg"
-              data-i="${i}" aria-label="Diese Größe entfernen">✕</button>
-      ${hinweis}
-    </div>`;
-}
-
-/**
- * Die Vorschau: was sich mit dem Eingetragenen wirklich einstellen lässt.
- *
- * Sie ist der eigentliche Beleg, dass die Eingabe stimmt. Wer hier seine
- * gewohnten Gewichte wiederfindet, hat richtig eingetragen; wer eine Liste aus
- * krummen Zahlen sieht, hat sich vertippt. Deshalb steht sie direkt darunter
- * und nicht in einem Hilfetext.
- *
- * Der wichtigste Fall ist der leere: Wer von jeder Größe nur zwei Scheiben hat,
- * kann damit **kein Paar Kurzhanteln** bestücken – dafür braucht es vier. Dann
- * bleibt nur die leere Stange, und hier stand vorher „0 kg". Eine Null ohne
- * Begründung sieht aus wie ein Fehler der App; deshalb steht jetzt der Grund da.
- */
-function scheibenVorschau(equip, was, satz) {
-  const liste = erreichbar(equip, satz);
-  if (!liste) return '';
-  // Zwei Rechnungen, und welche gilt, hängt daran, ob ein Leergewicht
-  // eingetragen ist:
-  //
-  //   kein Leergewicht   Scheibengewicht. Der Normalfall und die Vorgabe:
-  //                      *„Wenn bei ner Übung aber 4kg steht mein ich damit 4kg
-  //                      Scheibengewicht gesamt."* Da ist nichts zu mahnen –
-  //                      hier stand einmal „trag ihr Leergewicht ein, sonst sind
-  //                      alle Zahlen zu klein", und das war schlicht die falsche
-  //                      Annahme über das, was die Zahl bedeutet.
-  //   Leergewicht steht  Gesamtgewicht. Auch in Ordnung, nur eine andere
-  //                      Rechnung – und dann sagt die Zeile das dazu, damit die
-  //                      Liste nicht plötzlich woanders anfängt und keiner weiß,
-  //                      warum.
-  // Der Mangel zuerst. Vorher stand die Zahlenzeile vorn, und weil die eine
-  // erreichbare Möglichkeit die leere Stange ist, fing sie mit einer 0 an: „Beide
-  // Kurzhanteln, je Hand: 0 kg plus Stange". Formal richtig, gelesen aber als
-  // Fehler der App – der Grund stand in einem Zweig, der nie erreicht wurde.
-  if (liste.length <= 1) {
-    const grund = equip === 'dumbbells'
-      ? ' – für ein Paar braucht eine Stufe vier Scheiben derselben Größe, zwei je Hantel. '
-        + 'Davon hast du keine Größe viermal.'
-      : ' – für eine Stufe braucht es zwei Scheiben derselben Größe.';
-    return `<div class="hint">${esc(was)}: <strong>nichts aufzustecken</strong>${grund}
-      <span class="muted">Hier rechnet die App weiter in festen Schritten.</span></div>`;
-  }
-  const gezeigt = liste.slice(0, 14).map((w) => fmtNum(w)).join(' · ');
-  const rechnung = stangeZaehlt(satz, equip)
-    ? ` <span class="muted">– mit dem Leergewicht der
-        ${esc(STANGE_LABEL[RASTER[equip].stange])}.</span>`
-    : ' <span class="muted">– Scheibengewicht, die Stange zählt nicht mit.</span>';
-  return `<div class="hint"><strong>${esc(was)}:</strong> ${esc(gezeigt)}`
-    + `${liste.length > 14 ? ' …' : ''} kg${RASTER[equip].stange ? rechnung : ''}</div>`;
-}
-
-/* ------------------------------------------------------------------ *
- * Was gerade da ist
- *
- *     „Ich bin bei meinen Eltern wo ich nichts hab. Also auch keine Bänder und
- *      Klimmzugstange. Kann ich das irgendwo angeben?"
- *
- * Aufgeteilt wie das Training selbst, auf Ansage:
- *
- *     „Lass doch in den Einstellungen im Equipment Bereich zwischen bodyweight
- *      und Hanteln wechseln können. Und bei bodyweight kann man dann Band rot
- *      und gelb und Klimmzugstange ankreuzen und bei Hanteln ist dann ‚alles
- *      aus bodyweight +' und dann halt die Hantel Auflistung."
- *
- * Der Umschalter ist dabei kein zweiter Modus-Schalter: Er wechselt nur, welche
- * Liste man gerade sieht. Angehakt bleibt beides – Bänder und Stange zählen in
- * beiden Modi, die Hanteln nur im Hantel-Modus, weil im Bodyweight-Modus keine
- * Übung eine braucht.
- *
- * Was das Abwählen kostet, steht darunter und wird nicht beschönigt: Ohne Band
- * und Stange bleiben im Bodyweight-Modus Muskelgruppen ohne jede Übung.
- * ------------------------------------------------------------------ */
-function vorratZeile(g) {
-  const da = !fehlt().includes(g.id);
-  return `
-    <div class="switch-row">
-      <div>
-        <div class="lbl">${esc(g.label)}</div>
-        <div class="hint">${esc(g.hint)}</div>
-      </div>
-      <button type="button" class="toggle" aria-pressed="${da}" data-act="toggle-vorrat"
-              data-v="${g.id}" aria-label="${esc(g.label)} vorhanden"></button>
-    </div>`;
-}
-
-/**
- * Was vom Wochenvolumen übrig bleibt, je Muskelgruppe – und was nicht.
- *
- * Gerechnet wird am Plan und nicht am Katalog, und das ist der Unterschied
- * zwischen einer beruhigenden und einer wahren Zahl. Gemessen, als es hier noch
- * anders stand: Ohne Band und Klimmzugstange meldete die App „Rücken ist
- * gedeckt", weil es im Katalog das Inverted Row an der Tischkante gibt. Im
- * Bodyweight-Plan bleiben davon **0,0 von 10 Sätzen** je Woche übrig. Eine
- * Übung, die es gäbe, ist kein Volumen.
- *
- * Der Verlust kommt allein aus dem, was ersatzlos wegfällt: Ein Tausch trifft
- * dieselben Anteile und kostet deshalb nichts – das ist die Bedingung, unter der
- * überhaupt getauscht wird (siehe js/vorrat.js). Über den ganzen Plan und auf
- * eine Woche umgelegt, damit die Zahl nicht am heutigen Tag hängt.
- */
-function vorratBilanz(seite) {
-  const soll = {};
-  const bleibt = {};
-  const zu = (acc, id, sets) => {
-    const ex = EX_BY_ID.get(id);
-    if (!ex) return;
-    Object.entries(ex[seite].shares).forEach(([m, s]) => {
-      acc[m] = (acc[m] || 0) + sets * s;
-    });
-  };
-  PLAN.forEach((w) => {
-    planSaetze(w, seite).forEach((it) => zu(soll, it.id, it.sets));
-    exBasis(w, seite).forEach((it) => zu(bleibt, it.id, it.sets));
-  });
-  // Verglichen wird mit dem, was *dieser* Plan vorsieht, und nicht mit TARGET.
-  // Zwei Gruende: Nacken und vordere Schulter haben gar kein eigenes Ziel – ihr
-  // Wert faellt aus den uebrigen Gleichungen, und `TARGET[m] ?? 10` waere dort
-  // eine erfundene Zahl. Und die Erfahrungsstufe skaliert die Saetze, das Ziel
-  // aber nicht in derselben Rechnung. Der Plan selbst weiss es genauer.
-  return [...new Set([...Object.keys(soll), ...Object.keys(bleibt)])]
-    .map((m) => ({
-      m,
-      soll: (soll[m] || 0) / PLAN_WEEKS,
-      bleibt: (bleibt[m] || 0) / PLAN_WEEKS,
-    }))
-    // Aufgefuehrt wird, was spuerbar danebenliegt – in beide Richtungen. Ein
-    // Ersatz auf denselben Hauptmuskel schiebt Nebenanteile auch nach oben.
-    .filter((x) => Math.abs(x.bleibt - x.soll) >= Math.max(0.5, x.soll * 0.12))
-    .sort((a, b) => a.bleibt / (a.soll || 1) - b.bleibt / (b.soll || 1));
-}
-
-// Ab wann eine Gruppe nicht mehr „etwas weniger", sondern weg ist. Ein Drittel
-// des Ziels ist die Grenze, ab der Trainingsreize nachweislich nichts mehr
-// halten – darunter steht die Warnung, darüber die nüchterne Zahl.
-const VORRAT_KRITISCH = 0.34;
-
-/** Was der Vorrat gerade kostet – in Übungen und in Muskelgruppen. */
-function vorratFolgen(seite) {
-  if (nichtsAbgewaehlt()) {
-    return `<div class="small muted" style="margin-top:10px">Alles angehakt – der Plan
-      läuft, wie er gerechnet ist.</div>`;
-  }
-  const raus = nichtMoeglich(seite);
-  const nm = (id) => resolve({ id, sets: 0 }, seite).name;
-  // Getrennt aufgeführt, und das ist keine Kosmetik: Ein Tausch mit denselben
-  // Anteilen kostet nichts, einer auf denselben Hauptmuskel verschiebt die
-  // Nebenanteile. Beides „getauscht" zu nennen wäre die bequemere und die
-  // falsche Auskunft.
-  const genau = [];
-  const nah = [];
-  const weg = [];
-  raus.forEach((id) => {
-    const zu = ersatzFuer(id, seite);
-    if (!zu) weg.push(nm(id));
-    else (ersatzGenau(id, zu, seite) ? genau : nah).push(`${nm(id)} → ${nm(zu)}`);
-  });
-  const bilanz = vorratBilanz(seite);
-  const kritisch = bilanz.filter((k) => k.bleibt < k.soll * VORRAT_KRITISCH)
-    .map((k) => MUSCLE_LABEL[k.m] || k.m);
-  const wo = seite === 'bw' ? 'Im Bodyweight-Modus' : 'Im Hantel-Modus';
-  return `
-    <div class="small muted" style="margin-top:10px"><b>${esc(wo)} heißt das:</b>
-      ${raus.length ? `${plural(raus.length, 'Übung fällt', 'Übungen fallen')} aus dem Plan.`
-        : 'nichts – keine Übung dieses Modus braucht, was fehlt.'}</div>
-    ${genau.length ? `<div class="small muted">Eins zu eins getauscht: ${esc(genau.join(' · '))}
-      <span class="muted">– gleiche Muskelanteile, die Wochenrechnung bleibt also
-      stehen.</span></div>` : ''}
-    ${nah.length ? `<div class="small muted">Ersetzt: ${esc(nah.join(' · '))}
-      <span class="muted">– derselbe Hauptmuskel, aber nicht dieselbe Übung. Die
-      Nebenanteile verschieben sich; wie weit, steht gleich darunter.</span></div>` : ''}
-    ${weg.length ? `<div class="small muted">Ersatzlos weg: ${esc(weg.join(' · '))}</div>` : ''}
-    ${bilanz.length ? `<div class="small muted" style="margin-top:6px">Je Woche bleiben dann:
-      ${bilanz.map((k) => `${esc(MUSCLE_LABEL[k.m] || k.m)}
-        <b>${k.bleibt.toFixed(1)}</b> <span class="muted">statt ${k.soll.toFixed(1)}</span>`)
-        .join(' · ')} Sätze.</div>` : ''}
-    ${kritisch.length ? `<div class="small muted" style="margin-top:6px">⚠️ Damit bleibt für
-      <b>${esc(kritisch.join(', '))}</b> so gut wie nichts übrig – das ist kein Training
-      dieser ${kritisch.length > 1 ? 'Gruppen' : 'Gruppe'} mehr, sondern eine Pause davon.
-      Für ein Wochenende ist das egal, über Monate nicht.</div>` : ''}`;
-}
-
-function vorratKarte() {
-  const seite = ui.vorratSeite === 'bw' ? 'bw' : 'db';
-  const weg = fehlt();
-  return `
-    <div class="section-title">Was da ist${weg.length ? ` · ${weg.length} fehlt` : ''}</div>
-    <div class="card">
-      <div class="small muted">Was hier nicht angehakt ist, taucht im Plan nicht auf. Die App
-        sucht dann eine Übung, die denselben Muskel trifft und mit dem geht, was da ist –
-        und lässt den Rest weg, statt ihn dir hinzustellen. Was das an Wochenvolumen
-        verschiebt, steht unten. Zum Wiedereinschalten, wenn du zurück bist.</div>
-      <div class="btn-row nav" style="margin-top:10px">
-        ${[['bw', '🤸 Bodyweight'], ['db', '🏋️ Hanteln']].map(([k, label]) => `
-          <button type="button" class="btn ${seite === k ? 'btn-primary' : ''}"
-                  aria-pressed="${seite === k}" data-act="vorrat-seite" data-v="${k}">${label}</button>`).join('')}
-      </div>
-      ${seite === 'db' ? `<div class="small muted" style="margin-top:10px">Alles aus
-        Bodyweight zählt hier mit – auch der Hantelplan hat Übungen am Band und an der
-        Stange. Dazu:</div>` : ''}
-      ${GERAETE.filter((g) => g.seite === seite).map(vorratZeile).join('')}
-      ${vorratFolgen(seite)}
-    </div>
-    ${seite === 'db' ? scheibenKarte() : ''}`;
-}
-
-function scheibenKarte() {
-  const satz = roherSatz();
-  const geprueft = meinSatz();
-  return `
-    <div class="section-title">Was bei dir rumliegt</div>
-    <div class="card">
-      <div class="small muted">Ein Vorrat für alles: Scheiben passen ja überall drauf.
-        Trag hier ein, welche du hast und wie viele – und was die leeren Stangen wiegen.
-        Dann schlägt die App nur noch Gewichte vor, die sich damit auch einstellen lassen,
-        und sagt beim Umbauen dazu, welche Scheiben draufkommen.
-        ${geprueft.scheiben.length ? '' : ' Solange hier nichts steht, rechnet sie in festen '
-          + 'Schritten weiter – und die treffen manchmal daneben.'}</div>
-
-      <div class="scheiben-satz">
-        <div class="lbl">Scheiben</div>
-        ${satz.scheiben.map(([kg, n], i) => scheibenZeile(i, kg, n)).join('')}
-        <button type="button" class="btn btn-block" data-act="scheiben-plus">
-          Scheibengröße hinzufügen</button>
-      </div>
-
-      <div class="scheiben-satz">
-        <div class="lbl">Stangen, leer</div>
-        ${Object.keys(STANGE_LABEL).map((k) => `
-          <div class="scheiben-zeile">
-            <input type="text" inputmode="decimal" class="kg-val"
-                   value="${esc(feldWert(satz.stange[k]))}"
-                   placeholder="zählt nicht mit"
-                   data-act="scheiben-stange" data-satz="${k}"
-                   aria-label="Gewicht der leeren ${esc(STANGE_LABEL[k])}">
-            <span class="scheiben-mal">kg · ${esc(STANGE_LABEL[k])}</span>
-          </div>`).join('')}
-        <div class="small muted" style="margin-top:6px"><b>Leer lassen ist der Normalfall.</b>
-          Dann meint jede Zahl an einer Übung das Scheibengewicht, und du musst beim
-          Aufbauen nichts abziehen. Nur wer Gesamtgewichte will, trägt hier etwas ein –
-          dann rechnet die App die Stange überall mit.</div>
-      </div>
-
-      ${geprueft.scheiben.length ? `
-      <div class="scheiben-satz">
-        <div class="lbl">Damit einstellbar</div>
-        ${scheibenVorschau('dumbbells', 'Beide Kurzhanteln, je Hand', geprueft)}
-        ${scheibenVorschau('goblet', 'Eine Kurzhantel', geprueft)}
-        ${/* Nur, wenn es sie gibt. Eine SZ-Stange hat nicht jeder, und eine
-              Zeile „SZ-Stange: 0 kg plus Stange – trag ihr Leergewicht ein"
-              wäre eine Mahnung, etwas einzutragen, das gar nicht existiert.
-              Das Eingabefeld oben steht trotzdem da: Dort sagt man, dass man
-              eine hat. */
-          geprueft.stange.sz === null ? '' : scheibenVorschau('szbar', 'SZ-Stange', geprueft)}
-        ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
-      </div>` : ''}
-
-      <div class="small muted" style="margin-top:10px">Für <strong>beide</strong> Kurzhanteln
-        zählen vier Scheiben einer Größe als ein Schritt – zwei je Hantel, eine je Seite.
-        Deshalb springt das Gewicht je Hand manchmal weiter, als dir lieb ist: Das liegt nicht
-        an der App, sondern am Eisen. Der Rucksack bleibt außen vor, da passt ohnehin alles
-        rein.</div>
-    </div>`;
-}
 
 /**
  * Den Satz ändern und speichern.
@@ -3353,13 +2786,6 @@ function detailBlock(it) {
     ${offen ? `<div class="detail">${it.detail.map(([titel, text]) => `
       <div class="detail-h">${esc(titel)}</div>
       <p>${esc(text)}</p>`).join('')}</div>` : ''}`;
-}
-
-/** Wiederholungsbereich um den Bodyweight-Aufschlag verschoben. */
-function repsLabel(it, mode) {
-  const plus = mode === 'bw' ? store.bwPlusOf(it.id) : 0;
-  if (!plus) return it.reps;
-  return String(it.reps).replace(/\d+/g, (d) => String(Number(d) + plus));
 }
 
 /* ------------------------------------------------------------------ *
@@ -3845,13 +3271,6 @@ function renderWeeklyVolume() {
  * ------------------------------------------------------------------ */
 
 /** Wochen im Plan, aus den Terminen abgeleitet. */
-const PLAN_WEEKS = (() => {
-  const span = daysBetween(PLAN[0].date, PLAN[PLAN.length - 1].date);
-  // Die letzte Einheit endet nicht am Wochenende: eine Lücke dazurechnen,
-  // sonst kommt bei 80 Einheiten in 139 Tagen 19,9 statt 20 heraus.
-  return Math.max(1, Math.round((span * PLAN.length) / Math.max(1, PLAN.length - 1) / 7));
-})();
-
 /**
  * Ersatz, der wegen einer zweiten Beschwerde nicht greift.
  *
@@ -3994,157 +3413,6 @@ function careCard(c) {
     </div>`;
 }
 
-/* ------------------------------------------------------------------ *
- * Kalender
- *
- * Der Plan steht als Liste von Einheiten da, aber gelebt wird er in Tagen:
- * Wann war ich dran, wann war ich es nicht, was kommt. Gezeigt wird deshalb
- * ein gewöhnliches Monatsraster – und zwar mit den *tatsächlichen* Terminen
- * aus effDate(), nicht mit den Plandaten, sonst stimmt nach dem ersten
- * verpassten Tag nichts mehr.
- * ------------------------------------------------------------------ */
-
-
-/** Zustand eines Kalendertags. Reihenfolge zählt: erledigt schlägt alles. */
-function dayState(w, iso, today) {
-  if (!w) return null;
-  const done = completedMode(w.n);
-  if (done) return { kind: 'done', mode: done };
-  const angefangen = store.isStarted(w.n);
-  if (iso < today) return { kind: angefangen ? 'part' : 'miss', mode: store.workoutMode(w.n) };
-  return { kind: angefangen ? 'part' : 'plan', mode: store.workoutMode(w.n) };
-}
-
-const KIND_TEXT = { done: 'trainiert', part: 'angefangen', miss: 'ausgefallen', plan: 'geplant' };
-
-/**
- * Tage, an denen unter einem anderen Plan trainiert wurde.
- *
- * Der Kalender zeichnet den Plan: PLAN.forEach, effDate, fertig. Nach einem
- * Fokuswechsel steht darin nur noch der neue Plan – *„anscheinend hat er damit
- * vergessen dass ich gestern und vorgestern trainiert hab."* Vergessen war
- * nichts, die Tage stehen im abgelegten Protokoll; sie wurden nur nicht mehr
- * gezeigt. Ein Trainingstag gehört aber dem Tag, nicht dem Plan.
- *
- * Welche Übungen es waren, weiß der Kalender nicht mehr – der Plan dazu ist
- * nicht geladen. Gezeigt werden deshalb Tag, Modus und die Zahl der Sätze.
- */
-function fruehereTage() {
-  const map = new Map();
-  (store.getState().rounds || []).forEach((r) => {
-    Object.values(r.log || {}).forEach((e) => {
-      if (!e || !e.startedOn) return;
-      const proModus = { db: 0, bw: 0 };
-      ['db', 'bw'].forEach((m) => {
-        Object.values(e[m] || {}).forEach((arr) => {
-          if (Array.isArray(arr)) arr.forEach((s) => { if (s && s.done) proModus[m] += 1; });
-        });
-      });
-      const saetze = proModus.db + proModus.bw;
-      if (!saetze) return;
-      const da = map.get(e.startedOn)
-        || { saetze: 0, einheiten: 0, mode: e.done || (proModus.bw > proModus.db ? 'bw' : 'db') };
-      da.saetze += saetze;
-      da.einheiten += 1;
-      map.set(e.startedOn, da);
-    });
-  });
-  return map;
-}
-
-function calendarCell(iso, month, today, byDate, sel, frueher) {
-  const ws = byDate.get(iso) || [];
-  const st = dayState(ws[0], iso, today);
-  // Der laufende Plan hat Vorrang: Steht heute eine Einheit an, ist das die
-  // Auskunft, und nicht das, was vor einem Fokuswechsel an diesem Tag war.
-  const alt = st ? null : (frueher && frueher.get(iso)) || null;
-  const cls = ['cal-cell'];
-  if (iso.slice(0, 7) !== month.slice(0, 7)) cls.push('out');
-  if (iso === today) cls.push('today');
-  if (iso === sel) cls.push('sel');
-  if (st) cls.push(st.kind, st.mode);
-  else if (alt) cls.push('done', 'frueher', alt.mode);
-  const tag = Number(iso.slice(8));
-  // Ohne Einheit ist der Tag kein Knopf: nichts anzuzeigen, nichts zu tippen.
-  if (!st && !alt) return `<div class="${cls.join(' ')}"><span class="cal-num">${tag}</span></div>`;
-  const anzahl = st ? ws.length : alt.einheiten;
-  const modus = st ? st.mode : alt.mode;
-  const mehr = anzahl > 1 ? ` (+${anzahl - 1})` : '';
-  return `
-    <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
-            aria-pressed="${iso === sel}"
-            aria-label="${esc(fmtDate(iso, true))}: ${plural(anzahl, 'Einheit', 'Einheiten')} ${
-              esc(st ? KIND_TEXT[st.kind] : 'trainiert, früherer Plan')}, ${esc(MODE_LABEL[modus])}">
-      <span class="cal-num">${tag}</span>
-      <span class="cal-mark">${st && st.kind === 'miss' ? '·' : MODE_ICON[modus]}${mehr}</span>
-    </button>`;
-}
-
-/** Die angetippte Einheit im Detail: Übungen, Sätze, Modus. */
-function calendarDetail(iso, byDate, today, frueher) {
-  const ws = byDate.get(iso) || [];
-  const alt = ws.length ? null : (frueher && frueher.get(iso)) || null;
-  if (alt) {
-    return `
-      <div class="card cal-detail">
-        <div class="cal-det-head">
-          <div>
-            <div class="lbl">${plural(alt.einheiten, 'Einheit', 'Einheiten')} · trainiert</div>
-            <div class="hint">${esc(fmtDate(iso, true))} · ${plural(alt.saetze, 'Satz', 'Sätze')}</div>
-          </div>
-          <span class="chip ${alt.mode}">${MODE_ICON[alt.mode]} ${esc(MODE_LABEL[alt.mode])}</span>
-        </div>
-        <div class="small muted">Aus einem früheren Trainingsplan. Die Übungen dazu stehen in
-          dem Plan, der damals galt – die Sätze und Kilo zählen in der Statistik weiter mit.</div>
-      </div>`;
-  }
-  if (!ws.length) {
-    return `<div class="card muted small">Kein Training an diesem Tag. Tippe einen
-      markierten Tag an, um die Einheit zu sehen.</div>`;
-  }
-  // Zwei Einheiten an einem Tag gibt es wirklich – etwa wenn zwei an
-  // demselben Tag nachgetragen werden. Dann stehen beide da.
-  return ws.map((w) => calendarWorkout(w, iso, today)).join('');
-}
-
-function calendarWorkout(w, iso, today) {
-  const st = dayState(w, iso, today);
-  const mode = st.mode;
-  const items = exOf(w, mode).map((it) => resolve(it, mode));
-  const saetze = items.reduce((a, x) => a + x.sets, 0);
-  const kopf = KIND_TEXT[st.kind];
-  const prog = progressOf(w.n, mode);
-
-  return `
-    <div class="card cal-detail">
-      <div class="cal-det-head">
-        <div>
-          <div class="lbl">Workout ${w.n} · ${esc(kopf)}</div>
-          <div class="hint">${esc(fmtDate(iso, true))} · ${plural(items.length, 'Übung', 'Übungen')} ·
-            ${plural(saetze, 'Satz', 'Sätze')}</div>
-        </div>
-        <span class="chip ${mode}">${MODE_ICON[mode]} ${esc(MODE_LABEL[mode])}</span>
-      </div>
-      ${st.kind === 'part' ? `<div class="hint">${prog.done} von ${prog.total} Sätzen stehen.</div>` : ''}
-      <ul class="cal-list">
-        ${items.map((it) => `
-          <li>
-            <span class="cal-ex">${esc(it.name)}</span>
-            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, mode))}</span>
-          </li>`).join('')}
-      </ul>
-      <button type="button" class="btn btn-sm" data-act="cal-open" data-n="${w.n}">
-        ${st.kind === 'done' ? 'Im Dashboard ansehen' : 'Zu dieser Einheit'}
-      </button>
-    </div>`;
-}
-
-/** Gezeigter Monat: gewählter, sonst der der nächsten offenen Einheit. */
-function calMonthNow() {
-  if (ui.calMonth) return ui.calMonth;
-  const naechste = PLAN.find((w) => !completedMode(w.n));
-  return monthStart(naechste ? effDate(naechste) : todayISO());
-}
 
 function renderCalendar() {
   const today = todayISO();
@@ -4153,7 +3421,7 @@ function renderCalendar() {
     const d = effDate(w);
     byDate.set(d, (byDate.get(d) || []).concat(w));
   });
-  const month = calMonthNow();
+  const month = calMonthNow(ui.calMonth);
   const sel = ui.calDay;
   const tage = monthGrid(month);
   const frueher = fruehereTage();
@@ -4931,94 +4199,6 @@ function adminOeffnen(pass) {
   });
 }
 
-/* ------------------------------------------------------------------ *
- * Alle Übungen, nach Muskelgruppen, einzeln an- und abwählbar
- *
- *     „Mach bei den Einstellungen ne Übersicht in der man sich alle Übungen
- *      nach Muskelgruppen sortiert anzeigen lassen kann. Jede Übung soll man
- *      aktivieren und deaktivieren können. Der Plan soll sich natürlich
- *      entsprechend anpassen sodass man trotzdem alle Muskelgruppen optimal
- *      trainiert."
- *
- * Der zweite Satz war schon gebaut, nur für einen anderen Anlass: Seit dem
- * Geräte-Vorrat ersetzt der Plan jede Übung, die nicht geht – erst durch eine
- * mit denselben Anteilen, dann durch eine mit demselben Hauptmuskel. Ob sie
- * nicht geht, weil das Band fehlt oder weil jemand sie nicht mag, ist der
- * Rechnung gleich. Deshalb hängt das Abwählen an genau derselben Stelle
- * (uebungGeht() in js/vorrat.js) und nicht an einer zweiten Mechanik daneben.
- *
- * **Sortiert nach der Gruppe, die die Übung wirklich meint**, nicht nach ihrer
- * Katalogüberschrift: Der Hauptmuskel ist der mit dem höchsten Anteil, und
- * genau danach fragt jemand, der hier sucht. Dieselbe Regel wie in
- * gruppeLabel() eine Ebene weiter oben.
- *
- * **Was es kostet, steht dabei.** Unter jeder abgewählten Übung steht, wodurch
- * der Plan sie ersetzt – oder dass es keinen Ersatz gibt. Und ganz oben die
- * Wochenbilanz, dieselbe wie beim Vorrat: Eine Abwahl, deren Preis man erst
- * drei Wochen später in der Statistik sieht, wäre die Sorte stiller Änderung,
- * die diese App nicht macht.
- */
-function uebungsListe() {
-  const mode = store.getState().mode === 'bw' ? 'bw' : 'db';
-  const aus = new Set(ausUebungen());
-  const gesperrt = blocked(activeInjuries());
-
-  // Je Muskelgruppe die Übungen, die ihn am stärksten treffen.
-  const nach = new Map();
-  EXERCISES.forEach((ex) => {
-    const sh = (ex[mode] || {}).shares || {};
-    let top = null;
-    Object.keys(sh).forEach((m) => { if (!top || sh[m] > sh[top]) top = m; });
-    if (!top) return;
-    if (!nach.has(top)) nach.set(top, []);
-    nach.get(top).push(ex);
-  });
-  const gruppen = [...nach.keys()]
-    .sort((a, b) => (MUSCLE_LABEL[a] || a).localeCompare(MUSCLE_LABEL[b] || b));
-
-  const nm = (id) => resolve({ id, sets: 0 }, mode).name;
-  const zeile = (ex) => {
-    const an = !aus.has(ex.id);
-    const sperre = gesperrt.has(ex.id);
-    const ohneGeraet = an && !erfuellt((ex[mode] || {}).braucht);
-    // Der Ersatz wird gegen den *ganzen* Plan gerechnet und nicht gegen eine
-    // einzelne Einheit: Hier steht die Regel, nicht der Tag.
-    const zu = !an ? ersatzFuer(ex.id, mode) : null;
-    return `
-      <div class="ex-an ${an ? '' : 'aus'}">
-        <button type="button" class="ex-an-btn" data-act="toggle-uebung" data-ex="${esc(ex.id)}"
-                role="switch" aria-checked="${an}"
-                aria-label="${esc(nm(ex.id))} ${an ? 'abwählen' : 'anwählen'}">
-          <span class="ex-an-box">${an ? '✓' : ''}</span>
-          <span class="ex-an-name">${esc(nm(ex.id))}</span>
-          <span class="ex-an-geraet">${esc((ex[mode] || {}).equip || '')}</span>
-        </button>
-        ${!an ? `<div class="ex-an-folge">${zu
-          ? `Der Plan nimmt stattdessen <b>${esc(nm(zu))}</b>${
-              ersatzGenau(ex.id, zu, mode) ? ' – gleiche Muskelanteile.' : ' – derselbe Hauptmuskel, andere Nebenanteile.'}`
-          : 'Kein Ersatz im Katalog – die Sätze fallen ersatzlos weg.'}</div>` : ''}
-        ${sperre ? '<div class="ex-an-folge">Durch eine angehakte Verletzung ohnehin gesperrt.</div>' : ''}
-        ${ohneGeraet ? '<div class="ex-an-folge">Geht gerade nicht – das Gerät steht auf „nicht da".</div>' : ''}
-      </div>`;
-  };
-
-  return `
-    <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
-    <div class="section-title">Übungen</div>
-    <div class="card">
-      <div class="small muted">Alle ${EXERCISES.length} Übungen des Katalogs, sortiert nach dem
-        Muskel, den sie am stärksten treffen. Was du abwählst, ersetzt der Plan – durch eine
-        Übung mit denselben Anteilen, sonst durch eine mit demselben Hauptmuskel. Gezeigt wird
-        die ${esc(MODE_LABEL[mode])}-Fassung; umstellen kannst du das eine Karte weiter oben
-        unter <i>Mehr</i>.</div>
-      ${vorratFolgen(mode)}
-    </div>
-    ${gruppen.map((g) => `
-      <div class="section-title">${esc(MUSCLE_LABEL[g] || g)}</div>
-      <div class="card ex-an-liste">
-        ${nach.get(g).sort((a, b) => nm(a.id).localeCompare(nm(b.id))).map(zeile).join('')}
-      </div>`).join('')}`;
-}
 
 function renderUebungen() {
   view.innerHTML = uebungsListe();
@@ -5203,7 +4383,7 @@ function renderSettings() {
       ${s.supersatz ? superVorschau() : ''}
     </div>
 
-    ${vorratKarte()}
+    ${vorratKarte(ui.vorratSeite)}
 
     <div class="section-title">Töne und Hinweise</div>
     <div class="card">
@@ -5757,7 +4937,7 @@ view.addEventListener('click', (e) => {
       go(t.dataset.tab);
       break;
     case 'cal-month':
-      ui.calMonth = addMonths(calMonthNow(), Number(t.dataset.d));
+      ui.calMonth = addMonths(calMonthNow(ui.calMonth), Number(t.dataset.d));
       render();
       break;
     case 'cal-today':
