@@ -135,6 +135,27 @@ check(/3 Einheiten/.test(hinweis),
   'und wie viele Einheiten dabei in die Ablage gewandert sind');
 check(/Gewichte, Bänder, Erfahrungsstufe und die Statistik bleiben/.test(hinweis),
   'und was dabei *nicht* verloren geht');
+// Und die neue Runde fängt *heute* an.
+//
+//     „Workout liegt in der Vergangenheit? Das weiteste in der Vergangenheit
+//      was ein Workout bei dashboard ja liegen kann ist heute"
+//
+// Der Umzug setzt die Verschiebung auf null, und die Plandaten stehen fest in
+// js/data.js – die erste Einheit trägt den 24. August. Das Nachrücken lief zu
+// diesem Zeitpunkt längst; auf dem Dashboard stand „vor 25 Tagen · Workout 1".
+const wann = await page.evaluate(async () => {
+  const { effDate, firstOpen } = await import('./js/plan.js');
+  const { todayISO } = await import('./js/dates.js');
+  return { termin: effDate(firstOpen()), heute: todayISO() };
+});
+console.log(`     erste offene Einheit: ${wann.termin} (heute ${wann.heute})`);
+check(wann.termin === wann.heute,
+  `die neue Runde beginnt heute und nicht am Plandatum (${wann.termin})`);
+const kopf = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(!/vor \d+ Tagen/.test(kopf),
+  `und das Dashboard sagt nicht, die nächste Einheit sei vorbei${
+    (kopf.match(/vor \d+ Tagen/) || [''])[0] ? ': ' + kopf.match(/vor \d+ Tagen/)[0] : ''}`);
+
 await page.locator('[data-act="umbau-ok"]').click();
 await page.waitForTimeout(300);
 check(!/Der Plan wurde überarbeitet/.test(

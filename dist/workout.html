@@ -18996,10 +18996,12 @@ if (ui.standAngebot) {
 // Stand dieses Gerät auf einem Fokus, den es nicht mehr gibt? Dann jetzt
 // umschreiben – js/data.js hat den Nachfolger schon geladen, hier zieht der
 // gespeicherte Wert nach.
+let neuAngefangen = false;
 if (fokusUmzug()) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;
+  neuAngefangen = true;
 }
 // Und danach: Hat sich der *Inhalt* des Plans geändert, ohne dass der Fokus ein
 // anderer wäre? Dann zeigt jeder alte Eintrag auf eine andere Übung, und der
@@ -19009,7 +19011,28 @@ if (planWechsel()) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;
+  neuAngefangen = true;
 }
+/*
+ * Eine neu begonnene Runde fängt heute an – nicht am Plandatum.
+ *
+ *     „Workout liegt in der Vergangenheit? Das weiteste in der Vergangenheit
+ *      was ein Workout bei dashboard ja liegen kann ist heute"
+ *
+ * Genau so ist es gedacht, und genau das war kaputt. Beide Umzüge oben setzen
+ * die Verschiebung auf null zurück (restartPlan), und die Plandaten stehen fest
+ * in js/data.js – die erste Einheit trägt den 24. August. Das Nachrücken, das
+ * daraus sonst „heute" macht, war zu diesem Zeitpunkt längst gelaufen:
+ * catchUpPlan() steht dreißig Zeilen weiter oben. Auf dem Dashboard stand
+ * danach „vor 25 Tagen · Workout 1".
+ *
+ * Deshalb hier und nicht in restartPlan(): Der Speicher kennt keine Plandaten,
+ * und er soll sie auch nicht kennen – die Rechnung dazu steht in js/plan.js.
+ *
+ * shiftToToday() statt catchUpPlan(), weil es in beide Richtungen zieht: Ein
+ * Plan, dessen Termine in der Zukunft liegen, würde sonst dort stehen bleiben.
+ */
+if (neuAngefangen) store.setShift(shiftToToday());
 // Auch beim Start prüfen, nicht nur nach einer Einheit: Eine eingelesene
 // Sicherung bringt womöglich ein halbes Jahr Training mit, und das soll sofort
 // in der richtigen Stufe landen statt erst nach dem nächsten Training.
