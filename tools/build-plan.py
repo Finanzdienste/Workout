@@ -62,6 +62,7 @@ sofern exercise-meta.json nichts Eigenes setzt – hier wird nur bestimmt, welch
 
 import collections
 import datetime
+import fractions
 import itertools
 import json
 import math
@@ -696,6 +697,186 @@ def bw_verteilen(plan, gesamt):
     return plan
 
 
+def nullbasis(block, shares, weeks):
+    """Kurze ganzzahlige Vektoren, die jede Zielgleichung unverändert lassen.
+
+    Addiert man einen davon auf eine exakte Lösung, kommt wieder eine exakte
+    heraus – das ist die Definition. Interessant ist, *wie* sie aussehen: Der
+    kürzeste tauscht einen Satz Crunches gegen einen Satz hängendes Knieheben,
+    der nächste sitzendes gegen stehendes Seitheben. Übungen mit demselben
+    Muskelprofil sind für die Gleichungen austauschbar, und genau das steht
+    hier als Vektor. Sie sind nicht ausgedacht, sondern fallen aus der
+    Zeilenstufenform heraus.
+
+    **Warum das den Generator rettet.** Das System hat 31 Unbekannte und 10
+    Gleichungen: 21 Übungen darf man frei wählen, die restlichen 10 sind damit
+    bestimmt. Die Tiefensuche in exact() weiß das nicht – sie probiert alle 31
+    durch und hofft, dass am Ende zehn Gleichungen aufgehen. Beim Aufbau-Plan
+    lief sie dafür zehn Stunden ohne einen einzigen Fund. Von einer bekannten
+    Lösung aus stehen mit diesen Vektoren in einer Sekunde über tausend da.
+
+    Gerechnet wird in Brüchen, nicht in Gleitkomma: Ein Vektor, der die
+    Gleichung nur fast unverändert lässt, ist keiner.
+    """
+    groups = [m for m in sorted({m for i in block for m in shares[i]})
+              if GOAL.get(m) is not None]
+    n = len(block)
+    A = [[fractions.Fraction(round(shares[i].get(m, 0) * UNIT)) for i in block] for m in groups]
+
+    # Zeilenstufenform. Die Pivotspalten sind die Übungen, die sich aus den
+    # übrigen ausrechnen lassen; der Rest ist frei.
+    M = [row[:] for row in A]
+    piv, r = [], 0
+    for c in range(n):
+        s = next((k for k in range(r, len(M)) if M[k][c]), None)
+        if s is None:
+            continue
+        M[r], M[s] = M[s], M[r]
+        f = M[r][c]
+        M[r] = [x / f for x in M[r]]
+        for k in range(len(M)):
+            if k != r and M[k][c]:
+                g = M[k][c]
+                M[k] = [x - g * y for x, y in zip(M[k], M[r])]
+        piv.append(c)
+        r += 1
+        if r == len(M):
+            break
+
+    basis = []
+    for c in (c for c in range(n) if c not in piv):
+        v = [0] * n
+        nenner = [M[r][c].denominator for r in range(len(piv)) if M[r][c]]
+        teiler = math.lcm(*nenner) if nenner else 1
+        v[c] = teiler
+        for r, p in enumerate(piv):
+            if M[r][c]:
+                v[p] = int(-M[r][c] * teiler)
+        g = math.gcd(*[abs(x) for x in v if x]) or 1
+        basis.append([x // g for x in v])
+
+    # Kürzen: Ein Vektor, der zwei Sätze zwischen sechs Übungen verschiebt,
+    # führt aus dem erlaubten Bereich heraus, bevor er irgendwo ankommt. Paarweise
+    # Differenzen bringen die Basis auf die kurzen, dünn besetzten Vektoren
+    # herunter – das ist keine echte Gitterreduktion, kostet aber nichts und
+    # reicht: Was übrig bleibt, tauscht meist zwischen zwei oder drei Übungen.
+    norm = lambda v: sum(x * x for x in v)          # noqa: E731
+    for _ in range(60):
+        besser = False
+        for i in range(len(basis)):
+            for j in range(len(basis)):
+                if i == j:
+                    continue
+                for s in (1, -1):
+                    kand = [a + s * b for a, b in zip(basis[i], basis[j])]
+                    if any(kand) and norm(kand) < norm(basis[i]):
+                        basis[i] = kand
+                        besser = True
+        if not besser:
+            break
+    basis.sort(key=norm)
+    return basis
+
+
+def freiraeumen(block, shares, weeks, values, rnd, start, verboten, schritte=2000000):
+    """Eine exakte Lösung ohne die Notnagel-Übungen – ausgehend von einer mit.
+
+    Der Fall ist echt und war der Anlass: Im ausgelieferten Cut stehen 39 Sätze
+    Rucksack-Curls, im Oberkörper 174 Sätze improvisierter Übungen. `nurErsatz`
+    hält sie aus künftigen Plänen heraus, aber der einzige Startpunkt, den es
+    gibt, enthält sie – und ohne Startpunkt findet der Generator nichts.
+
+    Also wird zuerst geräumt: dieselben Nullvektoren, nur mit einem Ziel statt
+    ohne. Jeder Schritt, der die Sätze auf den verbotenen Übungen senkt, wird
+    genommen; Schritte, die nichts ändern, mit kleiner Wahrscheinlichkeit, damit
+    die Suche aus einer Ebene wieder herausfindet. Das geht, weil es zu jeder
+    improvisierten Übung eine mit identischem Muskelprofil gibt – der kürzeste
+    Nullvektor tauscht genau zwischen den beiden.
+
+    Kommt nichts heraus, ist das eine Antwort und kein Fehler: Dann gibt es zu
+    diesen Zielen keine Lösung ohne die Notnägel, und das gehört gesagt statt
+    umgangen.
+    """
+    erlaubt = set(values)
+    basis = nullbasis(block, shares, weeks)
+    kurz = basis[:max(8, len(basis) // 2)] or basis
+    x = [start.get(i, 0) for i in block]
+    weg = [k for k, i in enumerate(block) if i in verboten]
+    last = lambda v: sum(v[k] for k in weg)          # noqa: E731
+    schritt = [k * GRAIN for k in (1, -1, 2, -2, 3, -3)]
+    jetzt = last(x)
+    for _ in range(schritte):
+        if not jetzt:
+            return dict(zip(block, x))
+        v = kurz[rnd.randrange(len(kurz))]
+        kand = [a + rnd.choice(schritt) * b for a, b in zip(x, v)]
+        if any(w not in erlaubt for w in kand):
+            continue
+        neu = last(kand)
+        if neu < jetzt or (neu == jetzt and rnd.random() < 0.3):
+            x, jetzt = kand, neu
+    return None
+
+
+def wandern(block, shares, weeks, values, limit, rnd, start, schritte=400000):
+    """Von einer bekannten exakten Lösung aus durch den Nullraum laufen.
+
+    Der Weg, nachdem drei andere gemessen gescheitert sind, und sie stehen hier,
+    damit niemand sie noch einmal geht:
+
+      * **Zufällig frei wählen, Rest ausrechnen.** 52.000 Versuche je Sekunde,
+        in 200.000 kein Treffer – die zehn ausgerechneten Werte müssen alle
+        gleichzeitig auf einem Vielfachen von drei im erlaubten Bereich landen.
+      * **Viele kurze Anläufe der Tiefensuche.** 60 Anläufe à 300.000 Knoten,
+        18 Millionen Knoten, kein Treffer. Der Zufall in exact() entscheidet nur
+        Gleichstände in der Wertereihenfolge, nicht die Reihenfolge der Übungen.
+      * **Die Untergrenze lockern** (auch 3 statt mindestens 21 Sätze je Übung,
+        damit mehr Lösungen dicht liegen): je 3 Millionen Knoten für vier
+        Lockerungen, kein Treffer.
+
+    Was trägt, ist der Startpunkt. Von einer Lösung aus sind die Nachbarn fast
+    alle wieder Lösungen; hier stehen nach einer Sekunde über tausend
+    verschiedene da.
+
+    **Der Preis, und er ist echt:** Der Generator braucht dafür eine Lösung, die
+    er nicht selbst gefunden hat – den ausgelieferten Plan. Ändert sich ein
+    Ziel, ist der keine Lösung mehr, und dann steht wieder nichts da. main()
+    prüft das und sagt es; geraten wird nicht.
+    """
+    erlaubt = set(values)
+    x = [start.get(i, 0) for i in block]
+    basis = nullbasis(block, shares, weeks)
+    if not basis:
+        return [dict(zip(block, x))] if capped(dict(zip(block, x)), shares, weeks) else []
+
+    # Nur die kürzesten Vektoren: Die langen führen fast immer aus dem erlaubten
+    # Bereich heraus, jeder Versuch mit ihnen ist verworfene Arbeit.
+    kurz = basis[:max(8, len(basis) // 2)]
+    schritt = [k * GRAIN for k in (1, -1, 2, -2, 3, -3)]
+    gefunden, reihe = {}, []
+    if capped(dict(zip(block, x)), shares, weeks):
+        gefunden[tuple(x)] = None
+        reihe.append(dict(zip(block, x)))
+
+    for _ in range(schritte):
+        if len(reihe) >= limit:
+            break
+        v = kurz[rnd.randrange(len(kurz))]
+        k = rnd.choice(schritt)
+        kand = [a + k * b for a, b in zip(x, v)]
+        if any(w not in erlaubt for w in kand):
+            continue
+        x = kand
+        t = tuple(x)
+        if t in gefunden:
+            continue
+        sol = dict(zip(block, x))
+        gefunden[t] = None
+        if capped(sol, shares, weeks):
+            reihe.append(sol)
+    return reihe
+
+
 def exact(block, shares, weeks, values, limit, rnd, budget=EXACT_NODES):
     """Alle Satzzahlen eines Blocks, die jede Zielgruppe exakt treffen.
 
@@ -842,7 +1023,7 @@ def klumpen(sol, block, shares):
     return round(schlimmst * 20)
 
 
-def totals(ids, shares, groups, weeks, rnd, streng=True):
+def totals(ids, shares, groups, weeks, rnd, streng=True, start=None):
     """Sätze je Übung über den ganzen Plan, exakt 10·W für jede Gruppe.
 
     Exakt sind viele Lösungen; brauchbar sind es weniger. Erst werden die
@@ -858,12 +1039,30 @@ def totals(ids, shares, groups, weeks, rnd, streng=True):
 
     Die Blöcke hängen über keine Gruppe zusammen, also lässt sich das je Block
     getrennt beurteilen.
+
+    **Woher die Lösungen kommen, hängt an `start`.** Liegt für einen Block eine
+    bekannte Lösung vor, läuft wandern() von ihr aus durch den Nullraum; das ist
+    der Weg, der beim Aufbau-Plan überhaupt erst wieder etwas findet. Sonst
+    bleibt die Tiefensuche exact(), die ohne Vorlage auskommt – und bei den
+    kleinen Blöcken (zwei Waden-Übungen, eine Gleichung) in Millisekunden fertig
+    ist.
     """
     values = [0] + [v for v in range(PER_EX_WEEK[0] * weeks, PER_EX_WEEK[1] * weeks + 1)
                     if v % GRAIN == 0]
     total, variants, vollstaendig = {}, [], []
     for block in parts(ids, shares, groups):
-        found, (ganz, knoten) = exact(block, shares, weeks, values, EXACT_LIMIT, rnd)
+        hat_start = start is not None and all(start.get(i, 0) in set(values) for i in block)
+        if hat_start:
+            gleich = [m for m in sorted({m for i in block for m in shares[i]})
+                      if GOAL.get(m) is not None]
+            passt = all(sum(round(shares[i].get(m, 0) * UNIT) * start.get(i, 0) for i in block)
+                        == GOAL[m] * weeks for m in gleich)
+            hat_start = passt
+        if hat_start:
+            found = wandern(block, shares, weeks, values, EXACT_LIMIT, rnd, start)
+            ganz, knoten = True, None
+        else:
+            found, (ganz, knoten) = exact(block, shares, weeks, values, EXACT_LIMIT, rnd)
         vollstaendig.append((ganz, knoten))
         if not found:
             # Zwei sehr verschiedene Fälle, und sie auseinanderzuhalten ist der
@@ -1486,6 +1685,64 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
 
 # ------------------------------------------------------------------ #
 
+def startpunkt(meta, shares, groups, ids, rnd):
+    """Der ausgelieferte Plan als Startpunkt für die Wanderung – oder None.
+
+    **Das ist ein Umweg, und er steht hier offen statt versteckt.** Der
+    Generator liest seine eigene letzte Ausgabe. Schön ist das nicht; die
+    Alternative war, dass er gar nichts mehr findet – siehe wandern() für die
+    drei gemessenen Fehlversuche.
+
+    Gefährlich ist es nicht, und zwar aus einem Grund, der nachprüfbar ist: Der
+    Startpunkt wird nicht geglaubt, sondern gegen die *heutigen* Gleichungen
+    gerechnet (totals(), `passt`). Stimmt er nicht mehr – weil ein Ziel, ein
+    Muskelanteil oder die Wochenzahl sich geändert hat –, wird er verworfen und
+    es läuft wieder die Tiefensuche. Der alte Plan kann also nichts
+    hereinschmuggeln, was die Ziele von heute nicht hergeben.
+
+    Was er *nicht* kann: eine Lösung finden, wo es noch keine gibt. Wer ein Ziel
+    ändert, steht wieder vor der Suche, die beim Aufbau-Plan zehn Stunden ohne
+    Fund lief. Das ist die offene Stelle; sie ist kleiner als vorher, aber sie
+    ist da.
+    """
+    if not OUT.exists():
+        return None
+    try:
+        alt = json.loads(OUT.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    ist = collections.Counter()
+    for e in alt.get('plan', []):
+        for it in e.get('ex', []):
+            ist[it['id']] += it.get('sets', 0)
+    if not ist:
+        return None
+
+    # Die Notnagel-Übungen stehen im alten Plan noch drin (Cut: 39 Sätze
+    # Rucksack-Curls, Oberkörper: 174 Sätze improvisiert). Ohne Räumung wäre der
+    # Startpunkt für den verkleinerten Katalog keine Lösung, und die Wanderung
+    # käme nie in Gang.
+    verboten = {k for k in shares if meta[k].get('nurErsatz')} & set(ist)
+    if not verboten:
+        return dict(ist)
+    voll = list(ids) + sorted(verboten)
+    values = [0] + [v for v in range(PER_EX_WEEK[0] * WEEKS, PER_EX_WEEK[1] * WEEKS + 1)
+                    if v % GRAIN == 0]
+    for block in parts(voll, shares, groups):
+        if not (set(block) & verboten):
+            continue
+        frei = freiraeumen(block, shares, WEEKS, values, rnd, ist, verboten)
+        if frei is None:
+            print('   Notnagel-Übungen lassen sich aus dem alten Plan nicht '
+                  'herausrechnen – ohne Startpunkt weiter')
+            return None
+        summe = sum(ist[i] for i in block if i in verboten)
+        print(f'   Startpunkt geräumt: {summe} Sätze improvisierter Übungen '
+              f'auf richtige umgelegt')
+        ist.update({i: frei[i] - ist[i] for i in block})
+    return dict(ist)
+
+
 def main():
     meta = json.loads(META.read_text(encoding='utf-8'))
     shares = {k: v['dbShares'] for k, v in meta.items()}
@@ -1535,8 +1792,10 @@ def main():
     geraet = {k: (GERAET.get(v['equip']) if v['dbWeight'] else None) for k, v in meta.items()}
     rnd = random.Random(7)
     vol = Volume(shares, ids, groups)
+    start = startpunkt(meta, shares, groups, ids, rnd)
     for weeks in range(WEEKS, WEEKS + 12):
-        total, (variants, vollstaendig) = totals(ids, shares, groups, weeks, rnd, streng=False)
+        total, (variants, vollstaendig) = totals(ids, shares, groups, weeks, rnd,
+                                                 streng=False, start=start)
         if total is not None:
             break
     else:
@@ -1548,7 +1807,8 @@ def main():
     print(f'exakte Plansummen: {"·".join(map(str, variants))} Lösungen je Block, '
           f'ausgewogenste gewählt ({min(total)}–{max(total)} Sätze je Übung)')
     print('   Knoten in der exakten Suche: '
-          + ' · '.join(f'{n:,}'.replace(',', '.') + ('' if ganz else ' (Budget!)')
+          + ' · '.join('Nullraum' if n is None
+                       else f'{n:,}'.replace(',', '.') + ('' if ganz else ' (Budget!)')
                        for ganz, n in vollstaendig))
     if not all(ganz for ganz, _ in vollstaendig):
         # Nicht verschweigen: Die Auswahl hat dann nur einen Ausschnitt gesehen.

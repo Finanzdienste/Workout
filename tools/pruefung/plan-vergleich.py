@@ -10,7 +10,7 @@ geworden ist. Wer nur die eine Haelfte sieht, schreibt den Stand entweder blind
 neu oder wirft einen besseren Plan weg.
 
 Dieses Skript zeigt beide Haelften nebeneinander, je Variante und Modus:
-Frequenz, groesster Abstand, ausgefallene Uebungen. Es ist ein Bericht und kein
+Frequenz, groesster Abstand, staerkste Woche, ausgefallene Uebungen. Es ist ein Bericht und kein
 Tor – es gibt immer 0 zurueck.
 """
 import json
@@ -47,6 +47,9 @@ for variante in pp.VARIANTEN:
             aa, na = alt['abstand_max'].get(g), neu['abstand'][g][1]
             if aa is not None and na is not None and aa != na:
                 zeilen.append((na < aa, f'  groesster Abstand {name}: {aa} -> {na} Tage'))
+            aw, nw = alt.get('woche_max', {}).get(g), round(neu['woche_max'][g], 2)
+            if aw is not None and abs(aw - nw) >= 0.01:
+                zeilen.append((nw < aw, f'  staerkste Woche {name}: {aw} -> {nw} Saetze'))
         raus = sorted(set(neu['ohne_saetze']) - set(alt.get('ohne_saetze', [])))
         rein = sorted(set(alt.get('ohne_saetze', [])) - set(neu['ohne_saetze']))
         for i in raus:

@@ -125,6 +125,18 @@ def messen(variante, modus):
         'frequenz': {m: statistics.mean(frequenz[m]) for m in gruppen},
         'abstand': abstand,
         'spitze': spitze,
+        # Die staerkste Woche je Gruppe. Der Schnitt trifft sein Ziel exakt –
+        # die einzelne Woche schwankt darum herum, und *wie weit* stand bisher
+        # nirgends. Gemessen am ausgelieferten Aufbau-Plan: Schulter vorn 12,2
+        # bei einem Schnitt von 9,2, Brust und Ruecken 12,0 bei 10,0.
+        #
+        # Ein hartes Tor kann das nicht werden, und das ist keine Bequemlichkeit,
+        # sondern Arithmetik: Mehrere Gruppen haben ein Ziel, das *gleich* der
+        # Obergrenze ist (Brust, Ruecken, Bizeps, Trizeps je 10 bei CAP 10). Jede
+        # Woche unter der Grenze hiesse fuer sie: jede Woche exakt 10,00 – bei
+        # Dreierschritten in den Saetzen gibt es das nicht. Deshalb laeuft die
+        # Zahl gegen den Vergleichsstand: Sie darf sinken und nicht steigen.
+        'woche_max': {m: max(volumen[m]) for m in gruppen},
         'ohne_saetze': sorted(i for i in META if not saetze[i]),
     }
 
@@ -174,6 +186,7 @@ def weiche_werte(m):
     return {
         'frequenz': {g: round(m['frequenz'][g], 2) for g in m['gruppen']},
         'abstand_max': {g: m['abstand'][g][1] for g in m['gruppen']},
+        'woche_max': {g: round(m['woche_max'][g], 2) for g in m['gruppen']},
         'ohne_saetze': m['ohne_saetze'],
     }
 
@@ -189,6 +202,13 @@ def vergleiche(alt, neu):
         vorher = alt.get('abstand_max', {}).get(g)
         if vorher is not None and wert is not None and wert > vorher:
             fehler.append(f'{NAMEN.get(g, g)}: größter Abstand gewachsen ({vorher} → {wert} Tage)')
+    for g, wert in neu['woche_max'].items():
+        vorher = alt.get('woche_max', {}).get(g)
+        # Fuenf Hundertstel Spielraum wie bei der Frequenz: Rundung soll kein
+        # Tor ausloesen, eine echte Verschlechterung schon.
+        if vorher is not None and wert > vorher + 0.05:
+            fehler.append(f'{NAMEN.get(g, g)}: staerkste Woche gestiegen '
+                          f'({vorher} → {wert} Saetze)')
     neue = set(neu['ohne_saetze']) - set(alt.get('ohne_saetze', []))
     for i in sorted(neue):
         fehler.append(f'{i}: fällt neuerdings ganz aus dem Plan')
@@ -197,14 +217,15 @@ def vergleiche(alt, neu):
 
 def bericht(v, modus, m):
     print(f'\n=== {v} / {modus} · {m["wochen"]} Wochen ===')
-    print(f'{"Gruppe":<22}{"Ziel":>6}{"Ø":>7}{"direkt":>8}{"Freq":>7}{"Abstand":>10}{"Spitzentag":>12}')
+    print(f'{"Gruppe":<22}{"Ziel":>6}{"Ø":>7}{"direkt":>8}{"Freq":>7}{"Abstand":>10}'
+          f'{"Spitzentag":>12}{"stärkste Wo":>13}')
     for g in m['gruppen']:
         ziel = m['ziele'].get(g)
         klein, gross = m['abstand'][g]
         spanne = f'{klein}–{gross}d' if klein is not None else '–'
         print(f'{NAMEN.get(g, g):<22}{(f"{ziel:.0f}" if ziel is not None else "–"):>6}'
               f'{m["schnitt"][g]:>7.2f}{m["direkt"][g]:>8.1f}{m["frequenz"][g]:>7.2f}{spanne:>10}'
-              f'{m["spitze"][g]:>12.2f}')
+              f'{m["spitze"][g]:>12.2f}{m["woche_max"][g]:>13.2f}')
     if m['ohne_saetze']:
         # Kein Mangel, sondern eine Entscheidung. Der Katalog ist breiter als der
         # Plan, und das soll er sein: Diese Uebungen stehen fuer eigene Workouts
