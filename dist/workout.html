@@ -4827,13 +4827,35 @@ const PATTERNS = {
     ],
   },
   ohp: {
-    // Sitzend aus der Ablage senkrecht nach oben. Die Abspreizung bleibt unter
-    // 90°, weil der Ellenbogen nur in der Längsebene beugt – ganz zur Seite
-    // abgespreizt wäre von der Beugung nichts zu sehen.
+    // Sitzend von Schulterhöhe senkrecht nach oben.
+    //
+    // **Warum `i` hier stehen muss, und was ohne es herauskam.** Der Ellenbogen
+    // beugt in dieser Figur nur in der Längsebene (rotX), die Abspreizung liegt
+    // in der Frontalebene (rotZ). Ist der Oberarm weit abgespreizt, zeigt er
+    // fast genau entlang der x-Achse – und eine Drehung *um* diese Achse
+    // bewegt ihn nicht mehr. Die Beugung war damit unsichtbar, der Unterarm
+    // blieb in der Verlängerung des Oberarms, und gezeichnet wurde: unten
+    // beide Arme waagerecht ausgestreckt, die Hände 0,66 Körperlängen weit
+    // draußen, oben ein Y. Das ist ein Seitheben mit anschließendem Y-Press,
+    // und mit Gewicht in dieser Haltung sieht es nicht nur ungesund aus:
+    //
+    //     „Sieht iwie nicht so gesund aus"
+    //
+    // `i` dreht den Unterarm in der Frontalebene, also genau dort, wo er sich
+    // bewegen soll. Bei i=90 steht er senkrecht auf dem abgespreizten Oberarm –
+    // die Hand liegt über dem Ellenbogen statt neben ihm. Das ist die
+    // Startposition, die der Hinweis der Übung seit jeher beschreibt:
+    // „Hanteln von Schulterhöhe senkrecht nach oben."
+    //
+    // Nachgerechnet (tools/pose.mjs, Schulter liegt bei 0,42):
+    //   unten  Ellenbogen 0,37 – knapp unter der Schulter, Hand 0,61 darüber
+    //   oben   Hand 0,92, nach innen gewandert – über dem Kopf, nicht daneben
+    // Dazwischen steigt die Hand durchgehend. p=26 unten stellt den Ellenbogen
+    // leicht vor die Schulterachse, wie es der Hinweis verlangt.
     label: 'Schulterdrücken', seat: true,
     poses: [
-      { lean: 4, arm: A(10, 58, 104), leg: L(88, 8, 92) },
-      { lean: 4, arm: A(6, 166, 8), leg: L(88, 8, 92) },
+      { lean: 4, arm: A(26, 78, 0, 90), leg: L(88, 8, 92) },
+      { lean: 4, arm: A(6, 166, 8, 0), leg: L(88, 8, 92) },
     ],
   },
   hinge: {
@@ -5015,12 +5037,13 @@ const PATTERNS = {
     ],
   },
   // Und dasselbe fürs Drücken. „Auf das Band stellen" heißt stehen, auch wenn
-  // die Hantelfassung derselben Übung sitzt.
+  // die Hantelfassung derselben Übung sitzt. Winkel wie bei `ohp`, samt der
+  // Unterarmdrehung `i` – derselbe Fehler stand hier zweimal.
   ohpstand: {
     label: 'Schulterdrücken im Stehen',
     poses: [
-      { lean: 2, arm: A(10, 58, 104), leg: L(4, 4, 4) },
-      { lean: 2, arm: A(6, 166, 8), leg: L(4, 4, 4) },
+      { lean: 2, arm: A(26, 78, 0, 90), leg: L(4, 4, 4) },
+      { lean: 2, arm: A(6, 166, 8, 0), leg: L(4, 4, 4) },
     ],
   },
   reversefly: {
