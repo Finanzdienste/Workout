@@ -1,0 +1,183 @@
+# Klopft zweimal am Tag ans Handy, damit die Erinnerung auch bei geschlossener
+# App ankommt.
+#
+# Web Push braucht kein eigenes Serverchen – nur jemanden, der zur richtigen
+# Zeit etwas losschickt. Das ist hier: ein zeitgesteuerter Ablauf, den es
+# ohnehin gibt.
+#
+# WAS GESENDET WIRD: nichts. Der Push traegt keinen Text und keine Daten, er ist
+# ein reines Klopfen. Erst das Handy liest seinen Merkzettel und entscheidet, ob
+# eine Meldung erscheint und was drinsteht (siehe sw.js). Wer diesen Ablauf
+# betreibt, erfaehrt nicht einmal, ob an dem Tag ueberhaupt etwas anstand.
+#
+# WARUM ZWEIMAL: Angezeigt wird trotzdem hoechstens einmal am Tag - das
+# entscheidet das Geraet (erinnern() in sw.js, Zweig "heute schon gemeldet").
+# Der zweite Versuch ist kein zweiter Hinweis, sondern ein zweiter Anlauf gegen
+# Android: Ein Push, der ankommt, waehrend das Handy in der Tasche liegt, wird
+# festgehalten - am 14.09. elf Stunden lang. Naeheres beim zweiten cron unten,
+# samt dem Preis dafuer.
+#
+# ZEITZONE: Die Zeit unten ist UTC. Der Push ist die Uhr, das Handy prueft nur
+# noch, *ob* etwas ansteht – nicht, ob die Minute stimmt. Eine Erinnerung eine
+# Stunde zu frueh ist besser als eine, die eine Zeitpruefung verschluckt hat.
+#
+# EINRICHTEN: In der App unter Mehr → „Push einrichten" antippen. Sie zeigt
+# einen Textblock. Den als Secret PUSH_KONFIG hinterlegen:
+# Settings → Secrets and variables → Actions → New repository secret.
+
+name: Erinnerung ans Handy schicken
+
+# WANN ER WIRKLICH LAEUFT: nicht dann, wann hier steht. Zeitgesteuerte Ablaeufe
+# bei GitHub stehen in einer gemeinsamen Warteschlange und starten unter Last
+# spaeter – gemessen an den ersten beiden Laeufen dieses Ablaufs: 3 h 47 min und
+# 4 h 37 min zu spaet. Zur vollen Stunde ist die Schlange am laengsten, weil dort
+# fast alle stehen; deshalb steht unten eine krumme Minute. Das ist kein
+# Versprechen, nur die billigste Verbesserung, die es gibt.
+#
+# Gegen den Verzug hilft nicht, ihn ausrechnen zu wollen, sondern ihn
+# einzupreisen: Es wird nachts gesendet, damit die Meldung morgens *dasteht*.
+# Siehe den Block bei `schedule:`.
+
+on:
+  schedule:
+    # Einmal taeglich, kurz nach Mitternacht UTC. Auf Ansage:
+    #
+    #     "Wenn an dem Tag n Workout ist, kommt ab 00:00 ne Nachricht. Dann
+    #      ists ja relativ wahrscheinlich dass es um 06:00 oder so dann da ist.
+    #      Und vorher ist mein Handy ja aus. Da stoerts mich eh nicht."
+    #
+    # Das dreht die Logik um, und zwar richtig: Statt eine Uhrzeit zu treffen,
+    # die GitHub ohnehin nicht haelt, wird so frueh gesendet, dass die Meldung
+    # *da ist*, wenn der Tag anfaengt. Gemessen an den bisherigen Laeufen
+    # (3 h 31 min und 3 h 35 min Verzug) landet sie damit zwischen 02:30 und
+    # 06:00 Ortszeit - schlafend also, und morgens steht sie da.
+    #
+    # WARUM 00:23 UTC UND NICHT 22:00 UTC: 22:00 UTC waere Mitternacht in der
+    # Sommerzeit, im Winter aber 23:00 des VORTAGS. Der Service Worker
+    # vergleicht `zettel.tag <= heute`; ein Push am Abend davor liefe in den
+    # Zweig "steht heute nichts an" und zeigte nichts. Nach Mitternacht UTC
+    # kann das in keiner Jahreszeit passieren.
+    #
+    # WARUM JEDEN TAG UND NICHT NUR AN PLANTAGEN: Der Absender kennt den Plan
+    # nicht - und er verschiebt sich. Wer eine Einheit ausfallen laesst, bei dem
+    # rueckt sie nach (catchUpPlan), und der naechste Termin liegt dann auf einem
+    # Wochentag, den ein fester Zeitplan hier nie getroffen haette. Der Push ist
+    # ein Klopfen; *ob* etwas erscheint, entscheidet allein das Geraet.
+    - cron: '23 0 * * *'
+    # UND EIN ZWEITER VERSUCH AM VORMITTAG.
+    #
+    # Gemessen am 14.09.: Der Push ging um 05:06 UTC raus (07:06 Ortszeit),
+    # angekommen ist er auf dem Geraet, angezeigt hat Android ihn um 18:08 -
+    # elf Stunden spaeter, beim naechsten Entsperren. Das ist Doze: Ein Handy,
+    # das in der Tasche liegt, sammelt Nachrichten ein. `urgency: high` steht
+    # schon drin und hat nicht gereicht.
+    #
+    # Was ein Absender dagegen tun kann, ist genau eines: es zu einer Zeit
+    # versuchen, zu der das Geraet *benutzt* wird. Ein Push, der ankommt,
+    # waehrend der Bildschirm an ist, erscheint sofort. 04:37 UTC plus dem
+    # gemessenen Verzug von rund viereinhalb Stunden landet gegen 11:00
+    # Ortszeit - Vormittag, Handy in Benutzung.
+    #
+    # DER PREIS, und er ist echt: An einem Ruhetag sind das jetzt zwei stille
+    # Pushes statt einem, und an einem Trainingstag einer (der zweite laeuft in
+    # den Zweig "heute schon gemeldet"). Chrome mag stille Pushes nicht und
+    # blendet nach einer Weile von sich aus "im Hintergrund aktualisiert" ein -
+    # genau die zweite Meldung, ueber die hier schon einmal gestolpert wurde.
+    # Sollte sie wieder auftauchen, gehoert dieser zweite Eintrag wieder raus.
+    #
+    # Die eigentliche Abhilfe liegt nicht hier, sondern am Geraet:
+    # Einstellungen -> Apps -> Chrome -> Akku -> uneingeschraenkt. Das steht
+    # auch in der App unter Mehr.
+    - cron: '37 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  klopfen:
+    name: Einmal klopfen
+    runs-on: ubuntu-latest
+    steps:
+      # Node 24, nicht 20: GitHub hat 20 abgekuendigt und zwingt Laeufe ohnehin
+      # schon auf 24 – im Lauf vom 09.09. stand die Warnung zweimal im Protokoll.
+      # Solange dort eine abgekuendigte Fassung steht, ist dieser Ablauf einer,
+      # der eines Morgens ohne Zutun nicht mehr sendet. Genau das soll er nicht
+      # sein; deshalb steht die Fassung ueberhaupt fest.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Push senden
+        env:
+          KONFIG: ${{ secrets.PUSH_KONFIG }}
+        run: |
+          if [ -z "$KONFIG" ]; then
+            echo "::notice::Kein PUSH_KONFIG hinterlegt – nichts zu senden. Einrichten in der App unter Mehr."
+            exit 0
+          fi
+          # Feste Fassung: Ein Ablauf, der sich stillschweigend aktualisiert, ist
+          # der, der eines Morgens ohne Zutun nicht mehr sendet.
+          npm install --no-save web-push@3.6.7 >/dev/null 2>&1
+          node -e '
+            const webpush = require("web-push");
+            const k = JSON.parse(process.env.KONFIG);
+            // Der VAPID-Betreff sagt dem Push-Dienst, wer da sendet – falls
+            // etwas schiefgeht, weiss er, wen er sperrt. Eine Adresse gehoert
+            // dort nicht hin: Dieses Repo ist oeffentlich. Die Seite der App
+            // ist eine gueltige Angabe und verraet nichts, was nicht ohnehin
+            // im Browser steht. (Vorher stand hier mailto:...@example.invalid;
+            // eine erfundene Adresse ist keine Auskunft, sondern eine falsche.)
+            webpush.setVapidDetails(
+              "https://finanzdienste.github.io/Workout/", k.oeffentlich, k.privat);
+            // Die Nutzlast ist die Absendezeit und sonst nichts.
+            //
+            // Sie geht in die eine Richtung, die nichts verraet: vom Absender
+            // zum Geraet. Gebraucht wird sie, weil "es kam nichts an" und "es
+            // kam an und lag elf Stunden im Handy" von aussen gleich aussehen -
+            // genau dieser Fall am 14.09.: losgeschickt 07:06 Ortszeit,
+            // erschienen 18:08. Ohne einen Zeitstempel im Push kann das Geraet
+            // diese Spanne nicht messen, und dann wird geraten statt gemessen.
+            // Der Service Worker legt sie auf den Merkzettel, die App zeigt sie
+            // unter Mehr. Was angezeigt wird, entscheidet weiterhin allein das
+            // Geraet.
+            //
+            // urgency "high", und das ist der Kern der Sache: Ohne Angabe
+            // sendet web-push mit "normal", und ein Android im Doze-Modus
+            // sammelt solche Nachrichten, statt sie zuzustellen. Zugestellt
+            // werden sie dann beim naechsten Wartungsfenster – oder wenn das
+            // Geraet wieder benutzt wird. Genau das war die Beobachtung: *„Die
+            // push Nachricht kam erst als ich die app geoeffnet hab."* Nur
+            // "high" umgeht Doze; das ist die einzige Stellschraube, die der
+            // Absender ueberhaupt hat. Der Rest liegt am Geraet.
+            //
+            // TTL: zwoelf Stunden statt einer.
+            //
+            // Eine Stunde war unter der Annahme gewaehlt, dass kurz nach
+            // Mitternacht gesendet wird. Gesendet wird aber irgendwann bis
+            // 05:30 UTC (die Warteschlange bei GitHub), und ein Handy, das
+            // nachts aus ist, bekommt den Push dann gar nicht mehr: Der
+            // Push-Dienst wirft ihn nach Ablauf der TTL weg. Zwoelf Stunden
+            // decken eine Nacht plus den halben Tag ab.
+            //
+            // Das ist ungefaehrlich, weil nicht der Absender entscheidet, ob
+            // etwas erscheint, sondern das Geraet: erinnern() in sw.js prueft
+            // beim Aufwachen das Datum (zettel.tag <= heute) und ob heute
+            // schon gemeldet wurde. Ein spaet zugestellter Push zeigt also
+            // entweder die richtige Erinnerung oder gar nichts.
+            webpush.sendNotification(k.abo, JSON.stringify({ los: Date.now() }),
+                                     { TTL: 43200, urgency: "high" })
+              .then((r) => console.log("gesendet, Status " + r.statusCode))
+              .catch((e) => {
+                const s = e && e.statusCode;
+                if (s === 404 || s === 410) {
+                  // Der Push-Dienst kennt diese Anmeldung nicht mehr. Das
+                  // passiert, wenn die App neu installiert oder der Speicher
+                  // geleert wurde – dann hilft nur, in der App neu einzurichten.
+                  console.log("::warning::Die Anmeldung ist abgelaufen (Status " + s + "). In der App unter Mehr neu einrichten und PUSH_KONFIG ersetzen.");
+                  process.exit(0);
+                }
+                console.log("::warning::Senden fehlgeschlagen: " + (e && e.message));
+                process.exit(0);
+              });
+          '

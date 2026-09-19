@@ -9,25 +9,24 @@
  * IndexedDB kann beides. Deshalb liegt hier ein winziger Zettel mit dem, was
  * der Worker wissen muss – nicht der Zustand, nur die fertige Antwort:
  *
- *     an          soll der Punkt am Symbol überhaupt erscheinen?
- *     tag         an welchem Tag die nächste Einheit fällig ist ('' = keine)
+ *     an          ist die Erinnerung überhaupt eingeschaltet?
+ *     zeigenAb    Zeitstempel: Wacht der Worker danach auf, erinnert er.
+ *     titel       was in der Meldung stehen soll
+ *     gemeldet    an welchem Tag zuletzt gemeldet wurde – gegen Doppelmeldungen
  *     geweckt     wann der Browser den Worker zuletzt geweckt hat
- *     weckGrund   was der Worker daraufhin getan hat, siehe punktSetzen() in sw.js
+ *     weckArt     wodurch: 'push' (der Wecker von außen) oder 'sync' (Chromes
+ *                 eigenes, unzuverlässiges Aufwachen)
+ *     weckGrund   was der Worker daraufhin getan hat, siehe erinnern() in sw.js
  *
- * Die letzten beiden sind der ehrliche Teil. Ob Chrome den Worker überhaupt
- * weckt, hängt an seiner Laune und lässt sich weder versprechen noch hier
- * nachprüfen – ein Testlauf kann periodicsync nicht auslösen, und was auf einem
- * fremden Handy passiert, sehe ich hier ohnehin nicht. Also behauptet die App
- * nichts, sondern schreibt auf, wann es zuletzt passiert ist und was daraufhin
- * geschah. Steht da nach einer Woche nichts, trägt der Weg auf diesem Gerät
- * nicht; steht da etwas mit einem Grund daneben, lag es an der Entscheidung
- * hier. Das sind zwei ganz verschiedene Baustellen, und sie sehen von außen
- * gleich aus.
- *
- * Ältere Zettel tragen noch `zeigenAb`, `titel`, `gemeldet`, `wegAm` und
- * `weckArt` – Reste der Meldung in der Statusleiste, die es bis v171 gab.
- * Sie werden nicht mehr gelesen und nicht eigens gelöscht: Ein Zettel, der ein
- * Feld zu viel hat, tut niemandem weh.
+ * Die letzten drei sind der ehrliche Teil. Ob Chrome den Worker überhaupt weckt,
+ * hängt an seiner Laune und lässt sich weder versprechen noch hier nachprüfen –
+ * ein Testlauf kann periodicsync nicht auslösen, und was auf einem fremden Handy
+ * passiert, sehe ich hier ohnehin nicht. Also behauptet die App nichts, sondern
+ * schreibt auf, wann es zuletzt passiert ist, wodurch, und warum daraufhin
+ * gemeldet wurde oder eben nicht. Steht da nach einer Woche nichts, weiß man,
+ * dass der Push nicht ankommt; steht da etwas mit einem Grund daneben, weiß man,
+ * dass er ankommt und die Entscheidung hier falsch war. Das sind zwei ganz
+ * verschiedene Baustellen, und sie sehen von außen gleich aus.
  */
 
 const DB = 'workout.merk';

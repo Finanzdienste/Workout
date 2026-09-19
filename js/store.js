@@ -46,13 +46,10 @@ const DEFAULT_STATE = {
   sound: true,           // Töne: Pausenende, Start, Übung fertig, Workout komplett
   soundSets: true,       // zusätzlich ein kurzer Ton bei jedem abgehakten Satz
   notify: false,         // Systemhinweis am Pausenende, wenn die App im Hintergrund ist
-  // Punkt am App-Symbol, solange die Einheit von heute offen ist: { an }.
-  // Voreingestellt an – ein Punkt klingelt nicht, er steht nur da. Die früheren
-  // Uhrzeiten (werktags/wochenende) sind mit der Meldung in der Statusleiste
-  // weggefallen; ein Punkt gilt für den Tag, nicht für die Minute. Alte
-  // Sicherungen dürfen sie weiter enthalten, gelesen wird nur noch `an`.
-  // Siehe js/erinnerung.js.
-  erinnerung: { an: true },
+  // Erinnerung am Trainingstag: { an, werktags, wochenende }, Uhrzeiten "HH:MM".
+  // Getrennte Zeiten, weil der Tag anders läuft: unter der Woche nach der
+  // Arbeit, am Wochenende früh. Siehe js/erinnerung.js.
+  erinnerung: { an: false, werktags: '16:00', wochenende: '06:30' },
   // Welche Stangen und Scheiben es hier gibt: { lh: {stange, scheiben}, kh: … }.
   // null heißt „nicht eingetragen" – dann rechnet die App mit freien Schritten
   // wie früher, statt sich einen Scheibensatz auszudenken. Siehe js/scheiben.js.

@@ -153,6 +153,7 @@ export default [
         merkLesen: 'readonly',
         merkSchreiben: 'readonly',
         erinnerungZeigen: 'readonly',
+        erinnern: 'readonly',
         OfflineAudioContext: 'readonly',
       },
     },
