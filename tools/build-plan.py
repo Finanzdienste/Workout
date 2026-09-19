@@ -1490,7 +1490,27 @@ def main():
     meta = json.loads(META.read_text(encoding='utf-8'))
     shares = {k: v['dbShares'] for k, v in meta.items()}
     BW_SHARES.update({k: v['bwShares'] for k, v in meta.items()})
-    ids = list(shares)
+    # `nurErsatz` haelt vier Uebungen aus den Plaenen heraus, und das ist keine
+    # Feinheit, sondern eine Entscheidung, die bisher nur als Fliesstext in
+    # tools/pruefung/plan-eingaben.json stand:
+    #
+    #     "Wer Baender und Stange hat, soll sie benutzen - eine Wasserflasche
+    #      ist der Notnagel und nicht die bessere Uebung."
+    #
+    # Seitheben mit zwei Flaschen, Curls und Rudern mit einem Rucksack: Sie
+    # stehen im Katalog, weil ohne Baender und Klimmzugstange sonst ganze
+    # Muskelgruppen leer ausgingen (js/vorrat.js tauscht auf sie). Fuer den
+    # *Plan* sind sie schlechter als das, was sie ersetzen - weniger Last,
+    # unhandlicher Griff, kein sauberer Gewichtsschritt.
+    #
+    # Ungeschrieben hielt die Regel nicht. Beim Neulauf vom 17.09. wanderten
+    # sie in die Plaene: 39 Saetze Rucksack-Curls neben 39 Saetzen SZ-Curls im
+    # Cut, 174 Saetze improvisierte Uebungen im Oberkoerper. Aufgefallen ist es
+    # nicht der Pruefung, sondern beim Training - "Wieso soll ich Rucksack
+    # Curls statt normalen curls machen?". Bei gleichen Muskelanteilen sieht
+    # der Generator keinen Unterschied; er kann ihn nicht sehen, wenn ihm
+    # niemand einen nennt.
+    ids = [k for k in shares if not meta[k].get('nurErsatz')]
     groups = sorted({m for sh in shares.values() for m in sh})
     # Reihenfolge in der Einheit. Vorher war es die Summe aller Muskelanteile –
     # eine Hilfsgröße, die meistens stimmte und manchmal daneben lag: der Hip

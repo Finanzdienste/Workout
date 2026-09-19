@@ -352,6 +352,8 @@ export const PATTERNS = {
     ],
   },
   rowbar: {
+    // Wie beim Curl: Mit Rucksack wird er gehalten, nicht getragen.
+    packAt: 'hand',
     // Beidarmig vorgebeugt an der Langhantel. Dieselbe Rumpfneigung wie beim
     // einarmigen Rudern – nur stützt sich hier nichts ab, beide Arme ziehen.
     // Genau das ist auch der Unterschied für den unteren Rücken: Er hält die
@@ -541,6 +543,9 @@ export const PATTERNS = {
     ],
   },
   curl: {
+    // Ein Rucksack an den Trageschlaufen hängt in den Händen, nicht am Rücken –
+    // siehe die Zeichnung des Geräts weiter unten.
+    packAt: 'hand',
     label: 'Bizeps-Curl',
     poses: [
       { lean: 3, arm: A(4, 8, 6), leg: L(2, 5, 4) },
@@ -1231,9 +1236,23 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // Person nicht auf den eigenen Rücken. Ein Rucksack schon, und er sieht
       // auch anders aus: ein Kasten, keine Scheibe.
       // Mitte zwischen Brust und Becken: auf Brusthöhe säße er im Nacken.
-      const q = P(add(midOf(j.chest, j.hipC), mul(frontAxis, -0.12)));
-      const w = 7.6 * gearScale * q.k;
-      const h = 9.0 * gearScale * q.k;
+      //
+      // **Getragen oder gehalten** – derselbe Rucksack, zwei ganz verschiedene
+      // Übungen. Bei Liegestützen, Klimmzügen und der Inverted Row hat man ihn
+      // an: Er ist Zusatzlast am Körper. Bei Curls und Rudern hält man ihn an
+      // den Trageschlaufen, und dann gehört er in die Hände. Hier lag er auch
+      // dort auf dem Rücken, und das war nicht nur schief, es war die falsche
+      // Anleitung: *„Wieso ist der Rucksack am Rücken?"* Der Hinweis der Übung
+      // sagt seit jeher „beide Hände in die Trageschlaufen".
+      //
+      // `packAt: 'hand'` steht am Muster, nicht an der Übung: Ob der Rucksack
+      // getragen oder gehalten wird, entscheidet die Bewegung.
+      const halten = spec.packAt === 'hand';
+      const q = P(halten
+        ? add(midOf(j.handL, j.handR), mul(frontAxis, 0.10))
+        : add(midOf(j.chest, j.hipC), mul(frontAxis, -0.12)));
+      const w = (halten ? 6.4 : 7.6) * gearScale * q.k;
+      const h = (halten ? 7.6 : 9.0) * gearScale * q.k;
       parts.push({
         z: q.z + 0.01,
         node: el('rect', {

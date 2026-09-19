@@ -1392,7 +1392,8 @@
       "frontDelts": 0.15,
       "traps": 0.2
     },
-    "equip": null
+    "equip": null,
+    "nurErsatz": true
   },
   "rucksack-curls": {
     "group": "Bizeps",
@@ -1432,7 +1433,8 @@
     "bwShares": {
       "biceps": 1.0
     },
-    "equip": "backpack"
+    "equip": "backpack",
+    "nurErsatz": true
   },
   "rucksack-rudern": {
     "group": "Rücken",
@@ -1478,7 +1480,8 @@
       "traps": 0.5,
       "rearDelts": 0.35
     },
-    "equip": "backpack"
+    "equip": "backpack",
+    "nurErsatz": true
   },
   "sitzendes-flaschen-seitheben": {
     "group": "Schulter",
@@ -1518,7 +1521,8 @@
       "frontDelts": 0.15,
       "traps": 0.15
     },
-    "equip": null
+    "equip": null,
+    "nurErsatz": true
   },
   "face-pull": {
     "group": "Schulter",
