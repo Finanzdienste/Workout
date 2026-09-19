@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v169';
+const VERSION = 'v170';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -66,6 +66,10 @@ const SHELL = [
   // als Schablone nimmt: nur der Alphakanal zaehlt, und icon-192.png ist
   // durchgehend deckend – in der Statusleiste stand ein weisser Kasten.
   './badge-96.png',
+  // Der Rueckfall fuer die Statusleiste: Nimmt Android den `badge` nicht,
+  // zeichnet es das App-Symbol als Schablone - und icon-192.png ist deckend,
+  // also ein Kasten. Siehe icon-monochrome.svg.
+  './icon-monochrome-512.png',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',

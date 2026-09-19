@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Workout">
+  <!--
+    Das einfarbige App-Symbol – für die Statusleiste, nicht für den Startbildschirm.
+
+    **Wozu es da ist.** Eine Systemmeldung hat zwei Symbole: das kleine in der
+    Statusleiste und das große in der aufgezogenen Meldung. Für das kleine gibt
+    sw.js `badge: badge-96.png` mit. Nimmt Android den nicht – und es nimmt ihn
+    auf manchen Geräten nicht –, fällt es auf das Symbol der installierten App
+    zurück. Das ist icon-192.png, und das ist durchgehend deckend: Android
+    zeichnet den Alphakanal als Schablone, und eine Schablone ohne Löcher ist
+    ein Kasten. („Das Zeichen oben ist aktuell nur n weisser Kasten." – später:
+    „Oben ist sone Glocke aber besser wäre ein Workout Symbol.")
+
+    Mit `purpose: monochrome` im Manifest hat Android für genau diesen Rückfall
+    eine Form statt einer Fläche.
+
+    **Warum größer als in badge.svg.** Dort füllt die Hantel die Breite fast
+    ganz aus, weil die Datei nur für dieses eine Symbol da ist. Ein
+    Manifest-Symbol wird dagegen beschnitten – Android rechnet mit einer
+    Schutzzone, außerhalb derer alles wegfallen darf. Die Hantel sitzt deshalb
+    in den mittleren zwei Dritteln und ist dafür dicker: Was übrig bleibt, wenn
+    ein Gerät rundherum beschneidet, ist immer noch eine Hantel.
+  -->
+  <g fill="#fff">
+    <!-- Griff -->
+    <rect x="186" y="228" width="140" height="56" rx="28"/>
+    <!-- innere Scheiben -->
+    <rect x="150" y="166" width="58" height="180" rx="26"/>
+    <rect x="304" y="166" width="58" height="180" rx="26"/>
+    <!-- äußere Verschlüsse -->
+    <rect x="106" y="202" width="48" height="108" rx="22"/>
+    <rect x="358" y="202" width="48" height="108" rx="22"/>
+  </g>
+</svg>
