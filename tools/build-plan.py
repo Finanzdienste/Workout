@@ -362,7 +362,17 @@ EXACT_LIMIT = 4000       # so viele Plansummen je Block reichen zur Auswahl
 # Groessenordnungen. Eine halbe Milliarde laesst der teuersten das Doppelte
 # Luft und bricht trotzdem nach gut einer Stunde ab statt nach zehn.
 EXACT_NODES = int(os.environ.get('WK_NODES', 5 * 10 ** 8))
-SCREEN = 50              # davon werden die besten probeweise verteilt
+# Wie viele der gefundenen Plansummen probeweise auf Wochen verteilt werden.
+#
+# Fuenfzig war die richtige Zahl, solange die Suche froh sein musste, ueberhaupt
+# etwas zu finden. Seit wandern() in Sekunden viertausend Loesungen liefert, ist
+# die Auswahl der Engpass und nicht mehr die Suche: Ein Neulauf mit 50 gab beim
+# bbp-Plan 6 bessere gegen 29 schlechtere Zahlen - kein Fortschritt, sondern ein
+# Muenzwurf. Die Probe kostet Zeit (SCREEN_RESTARTS x SCREEN_ROUNDS je Kandidat),
+# deshalb steht sie als Schalter da statt fest:
+#
+#     WK_SCREEN=200 python3 tools/build-plan.py standard
+SCREEN = int(os.environ.get('WK_SCREEN', 50))
 SCREEN_RESTARTS = 2      # Anläufe je Probe
 SCREEN_ROUNDS = 90000    # Schritte je Probe
 RESTARTS = 16            # Anläufe beim Verteilen auf die Wochen
