@@ -62,7 +62,6 @@ sofern exercise-meta.json nichts Eigenes setzt – hier wird nur bestimmt, welch
 
 import collections
 import datetime
-import fractions
 import itertools
 import json
 import math
@@ -705,8 +704,8 @@ def nullbasis(block, shares, weeks):
     kürzeste tauscht einen Satz Crunches gegen einen Satz hängendes Knieheben,
     der nächste sitzendes gegen stehendes Seitheben. Übungen mit demselben
     Muskelprofil sind für die Gleichungen austauschbar, und genau das steht
-    hier als Vektor. Sie sind nicht ausgedacht, sondern fallen aus der
-    Zeilenstufenform heraus.
+    hier als Vektor. Sie sind nicht ausgedacht, sondern fallen aus der Rechnung
+    heraus.
 
     **Warum das den Generator rettet.** Das System hat 31 Unbekannte und 10
     Gleichungen: 21 Übungen darf man frei wählen, die restlichen 10 sind damit
@@ -715,45 +714,56 @@ def nullbasis(block, shares, weeks):
     lief sie dafür zehn Stunden ohne einen einzigen Fund. Von einer bekannten
     Lösung aus stehen mit diesen Vektoren in einer Sekunde über tausend da.
 
-    Gerechnet wird in Brüchen, nicht in Gleitkomma: Ein Vektor, der die
-    Gleichung nur fast unverändert lässt, ist keiner.
+    **Ganzzahlig gerechnet, nicht hochskaliert**, und das ist der Unterschied
+    zwischen einer Basis und einem Ausschnitt. Der erste Entwurf nahm die
+    Vektoren der Zeilenstufenform über den Brüchen und multiplizierte jeden mit
+    dem Hauptnenner. Das ergibt zwar lauter gültige Nullvektoren, aber nicht
+    alle: Zwischen sz-Curls und Rucksack-Curls kam so nur ein Tausch im Block
+    von siebzehn Sätzen heraus, und aus 39 Sätzen wird man mit Siebzehnerschritten
+    nie null. Der Tausch eines einzelnen Satzes existiert – er lag nur nicht im
+    aufgespannten Gitter.
+
+    Gerechnet wird deshalb über die Hermite-Normalform: An die transponierte
+    Matrix kommt die Einheitsmatrix, dann wird ganzzahlig eliminiert (Euklid
+    statt Division). Zeilen, deren linker Teil zu null wird, tragen rechts einen
+    Kern-Vektor – und diese Vektoren spannen das ganze Gitter auf, nicht nur
+    einen Teil davon.
     """
     groups = [m for m in sorted({m for i in block for m in shares[i]})
               if GOAL.get(m) is not None]
-    n = len(block)
-    A = [[fractions.Fraction(round(shares[i].get(m, 0) * UNIT)) for i in block] for m in groups]
+    n, g = len(block), len(groups)
+    # Zeile je Übung: links ihre Spalte aus A, rechts der Einheitsvektor.
+    M = [[round(shares[i].get(m, 0) * UNIT) for m in groups]
+         + [1 if k == c else 0 for k in range(n)]
+         for c, i in enumerate(block)]
 
-    # Zeilenstufenform. Die Pivotspalten sind die Übungen, die sich aus den
-    # übrigen ausrechnen lassen; der Rest ist frei.
-    M = [row[:] for row in A]
-    piv, r = [], 0
-    for c in range(n):
-        s = next((k for k in range(r, len(M)) if M[k][c]), None)
-        if s is None:
-            continue
-        M[r], M[s] = M[s], M[r]
-        f = M[r][c]
-        M[r] = [x / f for x in M[r]]
-        for k in range(len(M)):
-            if k != r and M[k][c]:
-                g = M[k][c]
-                M[k] = [x - g * y for x, y in zip(M[k], M[r])]
-        piv.append(c)
-        r += 1
-        if r == len(M):
-            break
+    zeile = 0
+    for spalte in range(g):
+        while True:
+            nz = [r for r in range(zeile, n) if M[r][spalte]]
+            if len(nz) <= 1:
+                if nz:
+                    M[zeile], M[nz[0]] = M[nz[0]], M[zeile]
+                break
+            # Der kleinste Eintrag räumt die anderen aus – der Euklidische
+            # Algorithmus, nur auf ganzen Zeilen statt auf zwei Zahlen.
+            p = min(nz, key=lambda r: abs(M[r][spalte]))
+            for r in nz:
+                if r == p:
+                    continue
+                q = M[r][spalte] // M[p][spalte]
+                if q:
+                    M[r] = [a - q * b for a, b in zip(M[r], M[p])]
+        if any(M[r][spalte] for r in range(zeile, n)):
+            zeile += 1
 
     basis = []
-    for c in (c for c in range(n) if c not in piv):
-        v = [0] * n
-        nenner = [M[r][c].denominator for r in range(len(piv)) if M[r][c]]
-        teiler = math.lcm(*nenner) if nenner else 1
-        v[c] = teiler
-        for r, p in enumerate(piv):
-            if M[r][c]:
-                v[p] = int(-M[r][c] * teiler)
-        g = math.gcd(*[abs(x) for x in v if x]) or 1
-        basis.append([x // g for x in v])
+    for row in M:
+        if any(row[:g]):
+            continue
+        v = row[g:]
+        teiler = math.gcd(*[abs(x) for x in v if x]) or 1
+        basis.append([x // teiler for x in v])
 
     # Kürzen: Ein Vektor, der zwei Sätze zwischen sechs Übungen verschiebt,
     # führt aus dem erlaubten Bereich heraus, bevor er irgendwo ankommt. Paarweise
@@ -793,24 +803,51 @@ def freiraeumen(block, shares, weeks, values, rnd, start, verboten, schritte=200
     improvisierten Übung eine mit identischem Muskelprofil gibt – der kürzeste
     Nullvektor tauscht genau zwischen den beiden.
 
+    **Zwei Dinge, an denen der erste Entwurf gescheitert ist**, beide gemessen
+    am Cut und am Oberkörper:
+
+      * *Unterwegs darf mehr erlaubt sein als am Ziel.* Die erlaubten Satzzahlen
+        springen von 0 auf 21 – eine Übung steht entweder gar nicht im Plan oder
+        mindestens einmal die Woche. Wer nur über erlaubte Zwischenstände läuft,
+        kommt bis 21 und dort nicht weiter: Der nächste Dreierschritt wäre 18.
+        Unterwegs zählt deshalb nur „Vielfaches der Körnung und nicht negativ";
+        geprüft wird am Ende.
+      * *Der letzte Sprung muss gezielt sein.* Von 21 auf 0 sind es sieben
+        Schritte auf einmal. Deshalb wird zu einer verbotenen Übung gezielt der
+        Vielfache gesucht, der sie genau auf null bringt, statt darauf zu hoffen.
+
     Kommt nichts heraus, ist das eine Antwort und kein Fehler: Dann gibt es zu
     diesen Zielen keine Lösung ohne die Notnägel, und das gehört gesagt statt
     umgangen.
     """
     erlaubt = set(values)
+    deckel = max(values)
     basis = nullbasis(block, shares, weeks)
     kurz = basis[:max(8, len(basis) // 2)] or basis
     x = [start.get(i, 0) for i in block]
     weg = [k for k, i in enumerate(block) if i in verboten]
     last = lambda v: sum(v[k] for k in weg)          # noqa: E731
+    # Unterwegs reicht „Vielfaches der Körnung, nicht negativ, nicht über dem
+    # Deckel" – siehe oben. Am Ziel gilt wieder die volle Regel.
+    frei = lambda v: all(0 <= w <= deckel and w % GRAIN == 0 for w in v)   # noqa: E731
     schritt = [k * GRAIN for k in (1, -1, 2, -2, 3, -3)]
     jetzt = last(x)
     for _ in range(schritte):
-        if not jetzt:
+        if not jetzt and all(w in erlaubt for w in x):
             return dict(zip(block, x))
+        # Jeder zehnte Schritt zielt: eine verbotene Übung ganz auf null.
+        if jetzt and rnd.random() < 0.1:
+            j = rnd.choice([k for k in weg if x[k]])
+            treffer = [v for v in basis if v[j] and x[j] % v[j] == 0]
+            if treffer:
+                v = rnd.choice(treffer)
+                kand = [a - (x[j] // v[j]) * b for a, b in zip(x, v)]
+                if frei(kand) and last(kand) < jetzt:
+                    x, jetzt = kand, last(kand)
+                    continue
         v = kurz[rnd.randrange(len(kurz))]
         kand = [a + rnd.choice(schritt) * b for a, b in zip(x, v)]
-        if any(w not in erlaubt for w in kand):
+        if not frei(kand):
             continue
         neu = last(kand)
         if neu < jetzt or (neu == jetzt and rnd.random() < 0.3):
