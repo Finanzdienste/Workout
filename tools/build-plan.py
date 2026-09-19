@@ -846,7 +846,13 @@ def freiraeumen(block, shares, weeks, values, rnd, start, verboten, schritte=200
                     x, jetzt = kand, last(kand)
                     continue
         v = kurz[rnd.randrange(len(kurz))]
-        kand = [a + rnd.choice(schritt) * b for a, b in zip(x, v)]
+        # Der Faktor muss **vor** der Schleife stehen. Stand er darin, bekam
+        # jede Übung einen eigenen Zufallsfaktor – das ist kein Vielfaches des
+        # Nullvektors mehr, sondern Rauschen, und die Gleichungen gingen dabei
+        # verloren (gemessen: Bauch 8460 statt 3780). Gemerkt hat es erst die
+        # Prüfung in totals(), die den Startpunkt verworfen hat.
+        k = rnd.choice(schritt)
+        kand = [a + k * b for a, b in zip(x, v)]
         if not frei(kand):
             continue
         neu = last(kand)
