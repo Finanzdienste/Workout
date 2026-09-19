@@ -43,7 +43,6 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            # muster.js nach plan.js: Es liest exOf() und resolve() von dort.
            'js/plan.js', 'js/muster.js', 'js/bilanz.js', 'js/erinnerung.js',
            'js/merkzettel.js',
-           'js/push.js',
            # Ansichten zuletzt: Sie haengen an der Rechenschicht, nie umgekehrt.
            'js/anzeige.js', 'js/ansicht-scheiben.js', 'js/ansicht-kalender.js',
            'js/ansicht-vorrat.js', 'js/ansicht-statistik.js',
@@ -59,7 +58,7 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
 # das nicht: Sie sucht nach const/let/var/function/class, nicht nach Importen.
 IMPORT_RE = re.compile(r'^\s*import\s.+?;\s*$', re.MULTILINE | re.DOTALL)
 # 'async function' gehoert mit in die Aufzaehlung. Ohne es blieben sieben
-# Funktionen (melden, pushStand, liesMerkzettel, ...) mit ihrem export-Wort im
+# Funktionen (melden, liesMerkzettel, schreibeMerkzettel, ...) mit ihrem export-Wort im
 # Buendel stehen - erlaubt in einem Modulskript, aber an der
 # Namenskollisionspruefung vorbei: Zwei gleichnamige asynchrone Funktionen aus
 # verschiedenen Modulen waeren durchgerutscht.
