@@ -289,6 +289,18 @@ TARGET = VARIANTEN[VARIANTE]['ziele']
 CAP = VARIANTEN[VARIANTE]['cap']
 if VARIANTE != 'standard':
     OUT = ROOT / 'tools' / f'plan-{VARIANTE}.json'
+# Ein eigenes Ziel je Lauf, damit mehrere Startwerte gleichzeitig rechnen
+# koennen. Ohne das schreiben drei parallele Laeufe derselben Variante in
+# dieselbe Datei - der letzte gewinnt, und wer waehrenddessen liest, bekommt
+# einen halben Plan. Genau das ist beim ersten Versuch passiert.
+#
+#     WK_OUT=/tmp/cut-11.json WK_SEED=11 python3 tools/build-plan.py cut
+#
+# Der Startpunkt (startpunkt()) wird weiterhin aus OUT gelesen: Wer woanders
+# hinschreibt, will trotzdem vom ausgelieferten Plan aus suchen.
+START_AUS = OUT
+if os.environ.get('WK_OUT'):
+    OUT = pathlib.Path(os.environ['WK_OUT'])
 #
 # Die Obergrenze bindet in Wahrheit nur eine Gruppe: den Nacken. Er bekommt
 # keinen einzigen eigenen Satz – kein Shrug, nichts –, sondern sammelt aus
@@ -1758,10 +1770,10 @@ def startpunkt(meta, shares, groups, ids, rnd):
     Fund lief. Das ist die offene Stelle; sie ist kleiner als vorher, aber sie
     ist da.
     """
-    if not OUT.exists():
+    if not START_AUS.exists():
         return None
     try:
-        alt = json.loads(OUT.read_text(encoding='utf-8'))
+        alt = json.loads(START_AUS.read_text(encoding='utf-8'))
     except (OSError, ValueError):
         return None
     ist = collections.Counter()
@@ -1843,7 +1855,13 @@ def main():
     # Gerät je Übung – ohne Gewicht ist nichts aufzubauen (Klimmzüge stehen mit
     # 0 kg im Rucksack, Band und Bodyweight ohnehin).
     geraet = {k: (GERAET.get(v['equip']) if v['dbWeight'] else None) for k, v in meta.items()}
-    rnd = random.Random(7)
+    # Der Startwert steht fest, damit derselbe Lauf dasselbe ergibt – und ist
+    # trotzdem ein Schalter (WK_SEED). Das Ziel ist verrauscht: Zwei Läufe mit
+    # verschiedenen Startwerten liefern verschieden gute Pläne, und beim Cut lag
+    # zwischen zwei Stichproben der größte Abstand einer Zielgruppe bei 5 und
+    # bei 12 Tagen. Wer einen Plan neu rechnet, sollte mehrere Startwerte
+    # nehmen und den besten behalten, statt den ersten zu glauben.
+    rnd = random.Random(int(os.environ.get('WK_SEED', 7)))
     vol = Volume(shares, ids, groups)
     start = startpunkt(meta, shares, groups, ids, rnd)
     for weeks in range(WEEKS, WEEKS + 12):
