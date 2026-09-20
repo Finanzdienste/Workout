@@ -2103,7 +2103,14 @@ def main():
                                'rest': {'days': REST_DAYS, 'direct': DIRECT},
                                'plan': plan},
                               ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
-    print(f'\n{OUT.relative_to(ROOT)} geschrieben')
+    # relative_to() wirft, sobald WK_OUT aus dem Repo herauszeigt – und das ist
+    # der Normalfall beim Sammeln mehrerer Startwerte. Der Plan stand dann längst
+    # auf der Platte, der Lauf endete trotzdem mit Fehlercode.
+    try:
+        wo = OUT.relative_to(ROOT)
+    except ValueError:
+        wo = OUT
+    print(f'\n{wo} geschrieben')
 
 
 if __name__ == '__main__':
