@@ -674,8 +674,15 @@ button { font: inherit; color: inherit; }
 
 /* Die zwei Uhrzeiten der Erinnerung, nebeneinander. */
 .zeit-row { display: flex; gap: 10px; margin-top: 10px; }
-.zeit { flex: 1 1 0; display: flex; flex-direction: column; gap: 4px; }
+/* min-width: 0 ist hier kein Feinschliff, sondern der Unterschied zwischen
+   „passt" und „steht 11 px ueber dem Rand". Ein Flex-Element schrumpft von
+   sich aus nicht unter die Inhaltsbreite seines Kindes, und ein Textfeld
+   bringt rund zwanzig Zeichen als Mindestbreite mit. Bei den Uhrzeit-Feldern
+   fiel das nie auf, weil die schmal sind; beim Namensfeld der Termine sofort.
+   Gefunden von tests/test-weights.mjs, nicht mit dem Auge. */
+.zeit { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .zeit input {
+  width: 100%; box-sizing: border-box;
   padding: 10px; font: inherit; color: var(--text);
   background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: 10px;
 }

@@ -50,6 +50,11 @@ const DEFAULT_STATE = {
   // Getrennte Zeiten, weil der Tag anders läuft: unter der Woche nach der
   // Arbeit, am Wochenende früh. Siehe js/erinnerung.js.
   erinnerung: { an: false, werktags: '16:00', wochenende: '06:30' },
+  // Tage, an denen etwas anderes ansteht: [{ datum, name, schont }]. `schont`
+  // ist einer der Körbe aus js/termine.js. Am Termintag und am Tag davor fallen
+  // die betroffenen Übungen aus der Einheit – siehe dort, auch zu dem Preis:
+  // Die Woche verfehlt dann ihr Ziel für diese Gruppen.
+  termine: [],
   // Welche Stangen und Scheiben es hier gibt: { lh: {stange, scheiben}, kh: … }.
   // null heißt „nicht eingetragen" – dann rechnet die App mit freien Schritten
   // wie früher, statt sich einen Scheibensatz auszudenken. Siehe js/scheiben.js.

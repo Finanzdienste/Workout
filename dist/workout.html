@@ -684,8 +684,15 @@ button { font: inherit; color: inherit; }
 
 /* Die zwei Uhrzeiten der Erinnerung, nebeneinander. */
 .zeit-row { display: flex; gap: 10px; margin-top: 10px; }
-.zeit { flex: 1 1 0; display: flex; flex-direction: column; gap: 4px; }
+/* min-width: 0 ist hier kein Feinschliff, sondern der Unterschied zwischen
+   „passt" und „steht 11 px ueber dem Rand". Ein Flex-Element schrumpft von
+   sich aus nicht unter die Inhaltsbreite seines Kindes, und ein Textfeld
+   bringt rund zwanzig Zeichen als Mindestbreite mit. Bei den Uhrzeit-Feldern
+   fiel das nie auf, weil die schmal sind; beim Namensfeld der Termine sofort.
+   Gefunden von tests/test-weights.mjs, nicht mit dem Auge. */
+.zeit { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .zeit input {
+  width: 100%; box-sizing: border-box;
   padding: 10px; font: inherit; color: var(--text);
   background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: 10px;
 }
@@ -8216,6 +8223,11 @@ const DEFAULT_STATE = {
   // Getrennte Zeiten, weil der Tag anders läuft: unter der Woche nach der
   // Arbeit, am Wochenende früh. Siehe js/erinnerung.js.
   erinnerung: { an: false, werktags: '16:00', wochenende: '06:30' },
+  // Tage, an denen etwas anderes ansteht: [{ datum, name, schont }]. `schont`
+  // ist einer der Körbe aus js/termine.js. Am Termintag und am Tag davor fallen
+  // die betroffenen Übungen aus der Einheit – siehe dort, auch zu dem Preis:
+  // Die Woche verfehlt dann ihr Ziel für diese Gruppen.
+  termine: [],
   // Welche Stangen und Scheiben es hier gibt: { lh: {stange, scheiben}, kh: … }.
   // null heißt „nicht eingetragen" – dann rechnet die App mit freien Schritten
   // wie früher, statt sich einen Scheibensatz auszudenken. Siehe js/scheiben.js.
@@ -10672,6 +10684,120 @@ function nichtMoeglich(mode) {
   return EXERCISES.filter((e) => !uebungGeht(e.id, mode)).map((e) => e.id);
 }
 
+/* ===== js/termine.js ===== */
+/*
+ * Termine: Tage, an denen etwas anderes ansteht.
+ *
+ *     „dass man auswählen kann dass man an nem bestimmten Kalendertag was
+ *      vorhat zb 02.06. Padel und dass man dadurch automatisch am Tag davor
+ *      keine Beine trainiert"
+ *
+ * **Warum das etwas bringt, und warum nur am Tag davor.** Der Muskelkater nach
+ * schweren Kniebeugen ist nicht am Abend am schlimmsten, sondern nach 24 bis 48
+ * Stunden – genau dann, wenn am nächsten Tag Padel wäre. Sprint, Sprung und
+ * seitliches Abstoppen leiden messbar. Zwei Tage vorher zu schonen wäre
+ * übervorsichtig und kostete ein zweites Mal Volumen; am Tag selbst ist es
+ * ohnehin klar. Deshalb gilt der Schutz für **den Termintag und den Tag davor**
+ * und sonst für keinen.
+ *
+ * **Was es kostet, und das steht hier, weil es sonst niemand sagt.** Die
+ * betroffenen Übungen fallen aus der Einheit, ersatzlos. Die Woche verfehlt
+ * damit ihr Ziel für diese Gruppen – der ganze Plan ist darauf gebaut, jedes
+ * Wochenziel im Schnitt exakt zu treffen, und ein Termin bricht das für eine
+ * Woche auf. Das ist der Preis; die App zeigt ihn an, statt ihn zu verschweigen.
+ *
+ * **Warum kein Ersatz.** Bei einer Verletzung wird getauscht: Wer nicht
+ * drücken kann, rudert. Hier ginge das nicht sinnvoll – ein Ersatz für die
+ * Kniebeuge, der die Beine nicht trifft, ist keine Beinübung mehr, sondern
+ * zusätzliches Volumen für eine Gruppe, die ihr Ziel schon hat. Weglassen ist
+ * ehrlicher als umverteilen.
+ *
+ * **Was es ausdrücklich nicht tut: den Plan verschieben.** Die Termine der
+ * Einheiten bleiben, wo sie sind. Wer die Einheit lieber vorzieht, kann das von
+ * Hand – dafür gibt es den Plan und die Verschiebung. Ein Termin, der den
+ * halben Restplan um Tage rückt, wäre eine viel größere Wirkung, als das
+ * Anhaken erwarten lässt.
+ */
+
+
+
+
+/**
+ * Was ein Termin beansprucht – und welche Muskelgruppen deshalb geschont
+ * werden.
+ *
+ * Bewusst drei grobe Körbe statt vierzehn Häkchen: Wer am Dienstag Padel
+ * spielt, weiß, dass die Beine drankommen, und nicht, ob der Beinbeuger an der
+ * Hüfte oder am Knie mehr leidet. Die Aufteilung folgt den Gruppen, die
+ * js/data.js ohnehin führt.
+ */
+const TERMIN_ARTEN = {
+  beine: {
+    label: 'Beine',
+    hinweis: 'Padel, Fußball, Laufen, Skifahren',
+    gruppen: ['quads', 'hamstringsKnee', 'hamstringsHip', 'glutes', 'calves'],
+  },
+  oberkoerper: {
+    label: 'Oberkörper',
+    hinweis: 'Klettern, Bouldern, Schwimmen, Umzug',
+    gruppen: ['chest', 'lats', 'frontDelts', 'sideDelts', 'rearDelts', 'traps',
+              'biceps', 'triceps'],
+  },
+  alles: {
+    label: 'Alles',
+    hinweis: 'Wettkampf, langer Wandertag',
+    gruppen: null,        // null heißt: jede Gruppe, siehe geschont()
+  },
+};
+
+/** Die eingetragenen Termine, immer als Liste und immer sortiert. */
+function termine() {
+  const t = store.getState().termine;
+  return Array.isArray(t)
+    ? t.filter((x) => x && x.datum).slice().sort((a, b) => a.datum.localeCompare(b.datum))
+    : [];
+}
+
+/**
+ * Welche Gruppen an einem bestimmten Tag geschont werden – und wessentwegen.
+ *
+ * Gibt `{ gruppen, namen }` zurück; `gruppen` ist leer, wenn nichts ansteht.
+ * Mehrere Termine an benachbarten Tagen zählen zusammen: Wer Samstag Padel und
+ * Sonntag klettert, schont am Freitag die Beine und am Samstag beides.
+ */
+function geschont(iso) {
+  const gruppen = new Set();
+  const namen = [];
+  termine().forEach((t) => {
+    // Der Termintag selbst und der Tag davor.
+    if (iso !== t.datum && iso !== addDays(t.datum, -1)) return;
+    const art = TERMIN_ARTEN[t.schont] || TERMIN_ARTEN.beine;
+    if (art.gruppen === null) EXERCISES.forEach((e) => directOf(e.id).forEach((m) => gruppen.add(m)));
+    else art.gruppen.forEach((m) => gruppen.add(m));
+    namen.push(t.name || art.label);
+  });
+  return { gruppen, namen };
+}
+
+/**
+ * Die Übungen einer Einheit, die wegen eines Termins wegfallen.
+ *
+ * Maßgeblich ist der *direkte* Reiz (directOf): Ein Drücken, das den Trizeps
+ * mit 0,6 trifft, zählt als Trizeps-Übung; die 0,3 Nacken beim Rudern nicht.
+ * Sonst fiele bei „Oberkörper schonen" praktisch die ganze Einheit weg.
+ */
+function faelltAus(items, iso) {
+  const { gruppen, namen } = geschont(iso);
+  if (!gruppen.size) return { items, dropped: [], namen: [] };
+  const dropped = [];
+  const bleibt = [];
+  items.forEach((it) => {
+    if (directOf(it.id).some((m) => gruppen.has(m))) dropped.push({ ...it, reason: 'termin' });
+    else bleibt.push(it);
+  });
+  return { items: dropped.length ? bleibt : items, dropped, namen };
+}
+
 /* ===== js/plan.js ===== */
 /*
  * Der Plan: Termine, Übungen je Einheit, Nacharbeit, Fortschritt.
@@ -10684,6 +10810,7 @@ function nichtMoeglich(mode) {
  * entscheiden. Alles danach – Protokoll, Fortschritt, Wochenvolumen,
  * Zeitschätzung – rechnet mit dem, was von dort kommt.
  */
+
 
 
 
@@ -10805,19 +10932,28 @@ store.subscribe(() => { planCache.key = null; });
 
 function adjustedPlan() {
   const act = activeInjuries();
+  const term = termine();
   // Der Schlüssel nennt nur, was die Anpassung selbst bestimmt. Die Termine
   // hängen zusätzlich daran, wann tatsächlich trainiert wurde – deshalb wird
   // der Zwischenstand bei jeder Zustandsänderung verworfen (siehe oben),
   // statt hier eine Signatur über den ganzen Verlauf zu bilden.
-  const key = `${act.join(',')}|${store.getState().shift}`;
+  const key = `${act.join(',')}|${store.getState().shift}|${term.length}`;
   if (planCache.key === key) return planCache.list;
 
   const list = [];
   const notes = [];
   PLAN.forEach((w, i) => {
-    if (!act.length) {
+    if (!act.length && !term.length) {
       list.push(w.ex);
-      notes.push({ dropped: [], swapped: [] });
+      notes.push({ dropped: [], swapped: [], termin: [] });
+      return;
+    }
+    if (!act.length) {
+      // Nur Termine, keine Beschwerden: Der teure Teil oben (Nachbartage,
+      // Tabuliste, Ersatzsuche) hat dann nichts zu tun.
+      const t = faelltAus(w.ex, effDate(w));
+      list.push(t.items);
+      notes.push({ dropped: t.dropped, swapped: [], termin: t.namen });
       return;
     }
     const eng = (a, b) => a && b && Math.abs(daysBetween(effDate(a), effDate(b))) < REST.days;
@@ -10828,8 +10964,12 @@ function adjustedPlan() {
       .filter((e) => directOf(e.id).some((m) => meide.has(m)))
       .map((e) => e.id));
     const r = applyInjuries(w.ex, act, taboo);
-    list.push(r.items);
-    notes.push({ dropped: r.dropped, swapped: r.swapped });
+    // Termine kommen *nach* den Verletzungen: Was ohnehin schon getauscht ist,
+    // wird an seiner neuen Stelle geprüft. Ein Ersatz, der die geschonte Gruppe
+    // trifft, fällt dann genauso weg wie das Original.
+    const t = faelltAus(r.items, effDate(w));
+    list.push(t.items);
+    notes.push({ dropped: r.dropped.concat(t.dropped), swapped: r.swapped, termin: t.namen });
   });
   planCache.key = key;
   planCache.list = list;
@@ -10840,7 +10980,7 @@ function adjustedPlan() {
 /** Was an einem Plantag getauscht wurde und was wegfiel. */
 function injuryNotes(n) {
   adjustedPlan();
-  return planCache.notes[n - 1] || { dropped: [], swapped: [] };
+  return planCache.notes[n - 1] || { dropped: [], swapped: [], termin: [] };
 }
 
 /**
@@ -13060,6 +13200,7 @@ function musterKarte() {
 
 
 
+
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
  * überall dasselbe. Der Wechsel lädt die Seite neu, siehe 'set-focus'. */
@@ -14006,6 +14147,10 @@ const ui = {
   // gespeicherten Zustand nichts zu suchen – von dort käme er in jede Sicherung.
   pushText: '',
   adminLaeuft: false,
+  // Welcher Korb beim Eintragen eines Termins gilt. Nur im Arbeitsspeicher:
+  // Das ist die Auswahl eines Formulars, kein Zustand, den man wiederfinden
+  // will – beim nächsten Öffnen steht wieder „Beine" da, der häufigste Fall.
+  terminArt: 'beine',
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
   openInjury: new Set(),
@@ -14267,6 +14412,7 @@ function renderFocus() {
     ${sessionButtons(n, mode)}
     ${vorratNote(w, mode)}
     ${injuryNote(w, mode)}
+    ${terminNote(w, mode)}
   `;
 
   const host = document.getElementById('focusFig');
@@ -15199,6 +15345,7 @@ function renderDashboard() {
     </p>
     ${vorratNote(w, mode)}
     ${injuryNote(w, mode)}
+    ${terminNote(w, mode)}
   `);
 
   view.innerHTML = parts.join('');
@@ -16319,6 +16466,50 @@ function vorratNote(w, mode) {
     </div>`;
 }
 
+/**
+ * Was ein eingetragener Termin heute aus der Einheit nimmt.
+ *
+ * Eine eigene Karte und nicht die Verletzungs-Karte: Es ist keine Beschwerde,
+ * und die Begründung ist eine andere. Wer morgen Padel spielt, soll lesen,
+ * *warum* die Kniebeugen fehlen – sonst sieht es aus, als hätte die App etwas
+ * vergessen.
+ */
+function terminNote(w, mode) {
+  const { dropped, termin } = injuryNotes(w.n);
+  const weg = dropped.filter((d) => d.reason === 'termin');
+  if (!termin.length || !weg.length) return '';
+  const nm = (id) => resolve({ id, sets: 0 }, mode).name;
+  return `
+    <div class="card injury-note">
+      <div class="inj-note-head">📅 Rücksicht auf: ${esc(termin.join(', '))}</div>
+      <div class="small muted">Heute fällt deshalb weg:
+        ${weg.map((d) => esc(nm(d.id))).join(' · ')}</div>
+      <div class="small muted" style="margin-top:6px">Die Woche liegt damit unter
+        ihrem Ziel für diese Gruppen – das ist der Preis und keine Panne.</div>
+      <button type="button" class="btn btn-ghost btn-sm" data-act="go-tab"
+              data-tab="settings">Termine ändern</button>
+    </div>`;
+}
+
+/** Die eingetragenen Termine als Liste, mit einem Weg, sie wieder loszuwerden. */
+function terminListe() {
+  const liste = termine();
+  if (!liste.length) {
+    return '<div class="small muted" style="margin-top:8px">Noch nichts eingetragen.</div>';
+  }
+  return `<div style="margin-top:10px">${liste.map((t, i) => `
+    <div class="switch-row">
+      <div>
+        <div class="lbl">${esc(t.name || (TERMIN_ARTEN[t.schont] || {}).label || 'Termin')}</div>
+        <div class="hint">${esc(fmtDate(t.datum))} · schont
+          ${esc((TERMIN_ARTEN[t.schont] || TERMIN_ARTEN.beine).label)}${
+  t.datum < todayISO() ? ' · vorbei' : ''}</div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" data-act="termin-weg"
+              data-i="${i}" aria-label="Termin entfernen">Entfernen</button>
+    </div>`).join('')}</div>`;
+}
+
 /** Kurzfassung fürs Training: was heute anders ist. */
 function injuryNote(w, mode) {
   const act = activeInjuries();
@@ -17421,6 +17612,34 @@ function renderSettings() {
         <b>Medien-Lautstärke</b> – die Wippe stellt am Handy die Klingel, solange nichts
         spielt. Tipp auf „Töne anhören" und drück <i>währenddessen</i> die Wippe nach
         oben; dann regelst du den richtigen Kanal.</div>` : ''}
+    </div>
+
+    <div class="section-title">Termine</div>
+    <div class="card">
+      <div class="small muted">Tage, an denen etwas anderes ansteht. Am Termintag und
+        <b>am Tag davor</b> fallen die betroffenen Übungen aus der Einheit – der
+        Muskelkater nach schweren Beinen ist nach 24 bis 48 Stunden am schlimmsten,
+        also genau dann.</div>
+      ${terminListe()}
+      <div class="zeit-row" style="margin-top:10px">
+        <label class="zeit"><span class="lbl">Wann</span>
+          <input type="date" id="terminDatum" min="${esc(todayISO())}"></label>
+        <label class="zeit"><span class="lbl">Was</span>
+          <input type="text" id="terminName" maxlength="24" placeholder="Padel"></label>
+      </div>
+      <div class="btn-row" style="margin-top:8px">
+        ${Object.entries(TERMIN_ARTEN).map(([k, a]) => `
+          <button type="button" class="btn ${ui.terminArt === k ? 'btn-primary' : 'btn-ghost'}"
+                  data-act="termin-art" data-v="${k}">${esc(a.label)}</button>`).join('')}
+      </div>
+      <div class="small muted" style="margin-top:6px">${esc(
+        (TERMIN_ARTEN[ui.terminArt] || TERMIN_ARTEN.beine).hinweis)}</div>
+      <div class="btn-row" style="margin-top:8px">
+        <button type="button" class="btn btn-block" data-act="termin-neu">Termin eintragen</button>
+      </div>
+      <div class="small muted" style="margin-top:8px">Der Plan verschiebt sich dadurch
+        <b>nicht</b>. Die Übungen fallen weg, und die Woche liegt dann unter ihrem Ziel
+        für diese Gruppen. Wer lieber die ganze Einheit vorzieht, macht das im Plan.</div>
     </div>
 
     <div class="section-title">Erinnerung am Trainingstag</div>
@@ -18607,6 +18826,38 @@ view.addEventListener('click', (e) => {
       ui.pushText = '';
       render();
       break;
+    case 'termin-art':
+      ui.terminArt = TERMIN_ARTEN[t.dataset.v] ? t.dataset.v : 'beine';
+      render();
+      break;
+    case 'termin-neu': {
+      // Datum und Name werden direkt aus den Feldern gelesen und nicht
+      // mitgeschrieben: Ein halb getippter Name soll keinen Neuaufbau auslösen
+      // und dabei den Fokus mitnehmen.
+      const datum = (document.getElementById('terminDatum') || {}).value || '';
+      const name = ((document.getElementById('terminName') || {}).value || '').trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+        toast('Erst ein Datum wählen');
+        break;
+      }
+      // Ein Tag, ein Termin: Zwei Einträge am selben Datum wären zwei Zeilen mit
+      // derselben Wirkung, und die zweite würde die erste nur überdecken.
+      const liste = termine().filter((x) => x.datum !== datum);
+      liste.push({ datum, name: name.slice(0, 24), schont: ui.terminArt });
+      store.setSetting('termine', liste);
+      render();
+      toast(`${name || TERMIN_ARTEN[ui.terminArt].label} am ${fmtDate(datum)} eingetragen`);
+      break;
+    }
+    case 'termin-weg': {
+      const liste = termine();
+      const weg = liste[Number(t.dataset.i)];
+      if (!weg) break;
+      store.setSetting('termine', liste.filter((x) => x !== weg));
+      render();
+      toast('Termin entfernt');
+      break;
+    }
     case 'toggle-erinnerung': {
       const e = erinnerungAn();
       store.setSetting('erinnerung', { ...e, an: !e.an });

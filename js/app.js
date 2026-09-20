@@ -55,6 +55,7 @@ import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
 import { kannPush, pushEinrichten, pushStand } from './push.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat } from './vorrat.js';
+import { TERMIN_ARTEN, termine } from './termine.js';
 
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
@@ -1002,6 +1003,10 @@ const ui = {
   // gespeicherten Zustand nichts zu suchen – von dort käme er in jede Sicherung.
   pushText: '',
   adminLaeuft: false,
+  // Welcher Korb beim Eintragen eines Termins gilt. Nur im Arbeitsspeicher:
+  // Das ist die Auswahl eines Formulars, kein Zustand, den man wiederfinden
+  // will – beim nächsten Öffnen steht wieder „Beine" da, der häufigste Fall.
+  terminArt: 'beine',
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
   openInjury: new Set(),
@@ -1263,6 +1268,7 @@ function renderFocus() {
     ${sessionButtons(n, mode)}
     ${vorratNote(w, mode)}
     ${injuryNote(w, mode)}
+    ${terminNote(w, mode)}
   `;
 
   const host = document.getElementById('focusFig');
@@ -2195,6 +2201,7 @@ function renderDashboard() {
     </p>
     ${vorratNote(w, mode)}
     ${injuryNote(w, mode)}
+    ${terminNote(w, mode)}
   `);
 
   view.innerHTML = parts.join('');
@@ -3315,6 +3322,50 @@ function vorratNote(w, mode) {
     </div>`;
 }
 
+/**
+ * Was ein eingetragener Termin heute aus der Einheit nimmt.
+ *
+ * Eine eigene Karte und nicht die Verletzungs-Karte: Es ist keine Beschwerde,
+ * und die Begründung ist eine andere. Wer morgen Padel spielt, soll lesen,
+ * *warum* die Kniebeugen fehlen – sonst sieht es aus, als hätte die App etwas
+ * vergessen.
+ */
+function terminNote(w, mode) {
+  const { dropped, termin } = injuryNotes(w.n);
+  const weg = dropped.filter((d) => d.reason === 'termin');
+  if (!termin.length || !weg.length) return '';
+  const nm = (id) => resolve({ id, sets: 0 }, mode).name;
+  return `
+    <div class="card injury-note">
+      <div class="inj-note-head">📅 Rücksicht auf: ${esc(termin.join(', '))}</div>
+      <div class="small muted">Heute fällt deshalb weg:
+        ${weg.map((d) => esc(nm(d.id))).join(' · ')}</div>
+      <div class="small muted" style="margin-top:6px">Die Woche liegt damit unter
+        ihrem Ziel für diese Gruppen – das ist der Preis und keine Panne.</div>
+      <button type="button" class="btn btn-ghost btn-sm" data-act="go-tab"
+              data-tab="settings">Termine ändern</button>
+    </div>`;
+}
+
+/** Die eingetragenen Termine als Liste, mit einem Weg, sie wieder loszuwerden. */
+function terminListe() {
+  const liste = termine();
+  if (!liste.length) {
+    return '<div class="small muted" style="margin-top:8px">Noch nichts eingetragen.</div>';
+  }
+  return `<div style="margin-top:10px">${liste.map((t, i) => `
+    <div class="switch-row">
+      <div>
+        <div class="lbl">${esc(t.name || (TERMIN_ARTEN[t.schont] || {}).label || 'Termin')}</div>
+        <div class="hint">${esc(fmtDate(t.datum))} · schont
+          ${esc((TERMIN_ARTEN[t.schont] || TERMIN_ARTEN.beine).label)}${
+  t.datum < todayISO() ? ' · vorbei' : ''}</div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" data-act="termin-weg"
+              data-i="${i}" aria-label="Termin entfernen">Entfernen</button>
+    </div>`).join('')}</div>`;
+}
+
 /** Kurzfassung fürs Training: was heute anders ist. */
 function injuryNote(w, mode) {
   const act = activeInjuries();
@@ -4417,6 +4468,34 @@ function renderSettings() {
         <b>Medien-Lautstärke</b> – die Wippe stellt am Handy die Klingel, solange nichts
         spielt. Tipp auf „Töne anhören" und drück <i>währenddessen</i> die Wippe nach
         oben; dann regelst du den richtigen Kanal.</div>` : ''}
+    </div>
+
+    <div class="section-title">Termine</div>
+    <div class="card">
+      <div class="small muted">Tage, an denen etwas anderes ansteht. Am Termintag und
+        <b>am Tag davor</b> fallen die betroffenen Übungen aus der Einheit – der
+        Muskelkater nach schweren Beinen ist nach 24 bis 48 Stunden am schlimmsten,
+        also genau dann.</div>
+      ${terminListe()}
+      <div class="zeit-row" style="margin-top:10px">
+        <label class="zeit"><span class="lbl">Wann</span>
+          <input type="date" id="terminDatum" min="${esc(todayISO())}"></label>
+        <label class="zeit"><span class="lbl">Was</span>
+          <input type="text" id="terminName" maxlength="24" placeholder="Padel"></label>
+      </div>
+      <div class="btn-row" style="margin-top:8px">
+        ${Object.entries(TERMIN_ARTEN).map(([k, a]) => `
+          <button type="button" class="btn ${ui.terminArt === k ? 'btn-primary' : 'btn-ghost'}"
+                  data-act="termin-art" data-v="${k}">${esc(a.label)}</button>`).join('')}
+      </div>
+      <div class="small muted" style="margin-top:6px">${esc(
+        (TERMIN_ARTEN[ui.terminArt] || TERMIN_ARTEN.beine).hinweis)}</div>
+      <div class="btn-row" style="margin-top:8px">
+        <button type="button" class="btn btn-block" data-act="termin-neu">Termin eintragen</button>
+      </div>
+      <div class="small muted" style="margin-top:8px">Der Plan verschiebt sich dadurch
+        <b>nicht</b>. Die Übungen fallen weg, und die Woche liegt dann unter ihrem Ziel
+        für diese Gruppen. Wer lieber die ganze Einheit vorzieht, macht das im Plan.</div>
     </div>
 
     <div class="section-title">Erinnerung am Trainingstag</div>
@@ -5603,6 +5682,38 @@ view.addEventListener('click', (e) => {
       ui.pushText = '';
       render();
       break;
+    case 'termin-art':
+      ui.terminArt = TERMIN_ARTEN[t.dataset.v] ? t.dataset.v : 'beine';
+      render();
+      break;
+    case 'termin-neu': {
+      // Datum und Name werden direkt aus den Feldern gelesen und nicht
+      // mitgeschrieben: Ein halb getippter Name soll keinen Neuaufbau auslösen
+      // und dabei den Fokus mitnehmen.
+      const datum = (document.getElementById('terminDatum') || {}).value || '';
+      const name = ((document.getElementById('terminName') || {}).value || '').trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+        toast('Erst ein Datum wählen');
+        break;
+      }
+      // Ein Tag, ein Termin: Zwei Einträge am selben Datum wären zwei Zeilen mit
+      // derselben Wirkung, und die zweite würde die erste nur überdecken.
+      const liste = termine().filter((x) => x.datum !== datum);
+      liste.push({ datum, name: name.slice(0, 24), schont: ui.terminArt });
+      store.setSetting('termine', liste);
+      render();
+      toast(`${name || TERMIN_ARTEN[ui.terminArt].label} am ${fmtDate(datum)} eingetragen`);
+      break;
+    }
+    case 'termin-weg': {
+      const liste = termine();
+      const weg = liste[Number(t.dataset.i)];
+      if (!weg) break;
+      store.setSetting('termine', liste.filter((x) => x !== weg));
+      render();
+      toast('Termin entfernt');
+      break;
+    }
     case 'toggle-erinnerung': {
       const e = erinnerungAn();
       store.setSetting('erinnerung', { ...e, an: !e.an });

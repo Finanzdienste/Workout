@@ -40,6 +40,9 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            # vorrat.js vor plan.js: exBasis() filtert damit, was gerade an
            # Geraet fehlt.
            'js/vorrat.js',
+           # termine.js vor plan.js: adjustedPlan() fragt dort nach, was an
+           # einem Datum geschont wird.
+           'js/termine.js',
            # muster.js nach plan.js: Es liest exOf() und resolve() von dort.
            'js/plan.js', 'js/muster.js', 'js/bilanz.js', 'js/erinnerung.js',
            'js/merkzettel.js',
@@ -71,9 +74,23 @@ EXPORTED_NAME_RE = re.compile(
     rf'^\s*export\s+{DEKL}\s+([A-Za-z_$][\w$]*)', re.MULTILINE)
 
 
+# Ein umbenannter Import ("import { A as B }") laesst sich hier nicht
+# aufloesen: Die Importzeile faellt weg, und der neue Name B entsteht nie.
+# Gefunden, nachdem genau das passiert war - die Einzeldatei startete, brach
+# beim Rendern der Mehr-Seite mit "TERMIN_ARTEN is not defined" ab, und zwei
+# Pruefungen schlugen an Stellen fehl, die nichts damit zu tun hatten. Lieber
+# hier abbrechen und den Namen im Modul gerade ziehen.
+ALIAS_RE = re.compile(r'^\s*import\s*\{[^}]*\bas\b[^}]*\}\s*from', re.MULTILINE | re.DOTALL)
+
+
 def strip_module_syntax(src, path):
     if 'export {' in src or 'export default' in src or 'export *' in src:
         sys.exit(f'{path}: nur benannte Inline-Exporte werden unterstuetzt')
+    treffer = ALIAS_RE.search(src)
+    if treffer:
+        zeile = src[:treffer.start()].count('\n') + 1
+        sys.exit(f'{path}:{zeile}: umbenannter Import (\'as\') - im Buendel gibt es '
+                 f'den neuen Namen nicht. Das Modul soll den Namen tragen, den es braucht.')
     return EXPORT_RE.sub(r'\1', IMPORT_RE.sub('', src)).strip()
 
 

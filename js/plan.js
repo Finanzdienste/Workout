@@ -14,6 +14,7 @@ import { EXERCISES, PLAN, REST } from './data.js';
 import { EX_BY_ID, directOf, directSets, gezaehlteReps, stufenWerte } from './uebung.js';
 import { addDays, daysBetween, plural, todayISO } from './dates.js';
 import { applyInjuries } from './injuries.js';
+import { faelltAus, termine } from './termine.js';
 import { esc } from './text.js';
 import { ruestOrderStabil } from './gewichte.js';
 import { nichtsAbgewaehlt, vorratFassung } from './vorrat.js';
@@ -131,19 +132,28 @@ store.subscribe(() => { planCache.key = null; });
 
 export function adjustedPlan() {
   const act = activeInjuries();
+  const term = termine();
   // Der Schlüssel nennt nur, was die Anpassung selbst bestimmt. Die Termine
   // hängen zusätzlich daran, wann tatsächlich trainiert wurde – deshalb wird
   // der Zwischenstand bei jeder Zustandsänderung verworfen (siehe oben),
   // statt hier eine Signatur über den ganzen Verlauf zu bilden.
-  const key = `${act.join(',')}|${store.getState().shift}`;
+  const key = `${act.join(',')}|${store.getState().shift}|${term.length}`;
   if (planCache.key === key) return planCache.list;
 
   const list = [];
   const notes = [];
   PLAN.forEach((w, i) => {
-    if (!act.length) {
+    if (!act.length && !term.length) {
       list.push(w.ex);
-      notes.push({ dropped: [], swapped: [] });
+      notes.push({ dropped: [], swapped: [], termin: [] });
+      return;
+    }
+    if (!act.length) {
+      // Nur Termine, keine Beschwerden: Der teure Teil oben (Nachbartage,
+      // Tabuliste, Ersatzsuche) hat dann nichts zu tun.
+      const t = faelltAus(w.ex, effDate(w));
+      list.push(t.items);
+      notes.push({ dropped: t.dropped, swapped: [], termin: t.namen });
       return;
     }
     const eng = (a, b) => a && b && Math.abs(daysBetween(effDate(a), effDate(b))) < REST.days;
@@ -154,8 +164,12 @@ export function adjustedPlan() {
       .filter((e) => directOf(e.id).some((m) => meide.has(m)))
       .map((e) => e.id));
     const r = applyInjuries(w.ex, act, taboo);
-    list.push(r.items);
-    notes.push({ dropped: r.dropped, swapped: r.swapped });
+    // Termine kommen *nach* den Verletzungen: Was ohnehin schon getauscht ist,
+    // wird an seiner neuen Stelle geprüft. Ein Ersatz, der die geschonte Gruppe
+    // trifft, fällt dann genauso weg wie das Original.
+    const t = faelltAus(r.items, effDate(w));
+    list.push(t.items);
+    notes.push({ dropped: r.dropped.concat(t.dropped), swapped: r.swapped, termin: t.namen });
   });
   planCache.key = key;
   planCache.list = list;
@@ -166,7 +180,7 @@ export function adjustedPlan() {
 /** Was an einem Plantag getauscht wurde und was wegfiel. */
 export function injuryNotes(n) {
   adjustedPlan();
-  return planCache.notes[n - 1] || { dropped: [], swapped: [] };
+  return planCache.notes[n - 1] || { dropped: [], swapped: [], termin: [] };
 }
 
 /**
