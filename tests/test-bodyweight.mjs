@@ -28,10 +28,27 @@ page.on('dialog', (d) => d.accept().catch(() => {}));
 let fails = 0;
 const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { fails++; process.exitCode = 1; } };
 
+// Bis zu welcher Einheit vorab abgeschlossen wird, damit das Dashboard die
+// *gesuchte* zeigt. Das Dashboard zeigt immer die erste offene Einheit;
+// `lastWorkout` liest es gar nicht. Im alten Plan lag die Übung mit
+// abweichender Bodyweight-Satzzahl zufällig in Einheit 1, deshalb fiel das nie
+// auf – mit dem neuen steht sie in Einheit 2, und gezählt wurde in einer
+// Einheit, in der sie nicht vorkommt.
+let zielEinheit = 1;
+
 const frisch = async (extra = {}) => {
   await page.evaluate((e) => localStorage.setItem('workout.state.v1',
     JSON.stringify({ greeted: true, name: 'T', level: 'geuebt', ...e })), extra);
   await page.reload({ waitUntil: 'networkidle' });
+  if (zielEinheit > 1) {
+    await page.evaluate(async (nn) => {
+      const s = await import('./js/store.js');
+      const { PLANS } = await import('./js/data.js');
+      PLANS.standard.plan.filter((w) => w.n < nn).forEach((w) => s.completeWorkout(
+        w.n, 'db', w.ex.map((x) => ({ id: x.id, sets: x.sets }))));
+    }, zielEinheit);
+    await page.reload({ waitUntil: 'networkidle' });
+  }
 };
 
 await page.goto(URL, { waitUntil: 'networkidle' });
@@ -103,6 +120,15 @@ const fall = await page.evaluate(async () => {
   return null;
 });
 check(!!fall, `eine Übung mit unterschiedlicher Satzzahl gefunden (${JSON.stringify(fall)})`);
+
+// `lastWorkout` allein reichte nie, und es hat nur so ausgesehen: Das
+// Dashboard zeigt immer die erste *offene* Einheit. Im alten Plan lag die
+// gesuchte Übung zufällig in der ersten, mit dem neuen steht sie in der
+// zweiten – gezählt wurde dann in Einheit 1, wo sie nicht vorkommt, und heraus
+// kam "0 Satzknöpfe". Der Test hing damit an einer Eigenschaft des Plans, die
+// nie jemand zugesagt hat.
+zielEinheit = fall.n;
+await frisch();
 
 const knoepfe = async (n, modus, id) => {
   await page.evaluate(async ([nn, m]) => {

@@ -283,8 +283,7 @@ export function ruestOrder(items) {
   let out = bauen();
   for (let runde = 0; runde < geladen.length; runde++) {
     const paar = vorgezogen(out);
-    if (!paar) break;
-    // Festsetzen lässt sich nur, was überhaupt verschoben wurde. Drei Fälle,
+    if (!paar) break;    // Festsetzen lässt sich nur, was überhaupt verschoben wurde. Drei Fälle,
     // in dieser Reihenfolge:
     //   1. die kleine Übung ist nach vorn gerutscht – sie bleibt stehen;
     //   2. sie stand schon immer da (Beinbeuger ohne Gewicht), und die schwere
@@ -299,7 +298,28 @@ export function ruestOrder(items) {
     fest.add(g.i);
     out = bauen();
   }
-  return out;
+  // **Und wenn danach immer noch eine Isolation vor einer Grundübung steht,
+  // gilt der Plan.**
+  //
+  // Das Festsetzen kann nicht jeden Fall lösen, und der Grund ist die Bauart:
+  // Sortiert werden nur Übungen *mit* Gewicht, und zwar untereinander auf ihren
+  // eigenen Plätzen. Steht eine Übung ohne Gewicht dazwischen, bleibt sie, wo
+  // sie ist – und keine Vertauschung der geladenen bringt eine von ihnen noch
+  // davor.
+  //
+  // Gemessen an Einheit 9 des Aufbau-Plans: Schulterdrücken, Floor Press und
+  // Hip Thrust sind geladen und liegen auf den Plätzen 0, 1, 2 – der Beinbeuger
+  // ohne Zusatzlast auf Platz 3, der Reverse Fly auf 5. Damit hat die
+  // Sortierung die Plätze {0,1,2,5} zu vergeben; der Hip Thrust sortiert als
+  // vierter und landet auf 5, also hinter dem Beinbeuger. Beide treffen das
+  // Gesäß direkt. Zwei Runden Festsetzen ändern die Reihenfolge der Sortierung
+  // und nicht die Plätze – der Konflikt bleibt.
+  //
+  // Dann ist die Plan-Reihenfolge die richtige Antwort: Sie ist nach Stufe
+  // sortiert und damit konfliktfrei. Der Preis ist ein Aufbau mehr in dieser
+  // einen Einheit, und der ist kleiner als eine Isolation, die den Muskel für
+  // die schwere Übung danach vorermüdet.
+  return vorgezogen(out) ? items : out;
 }
 
 /** Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist. */

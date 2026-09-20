@@ -105,15 +105,33 @@ check(await wert() === komma(20), '"−" nimmt es zurück');
 const bw = await page.evaluate(async () => {
   const { PLAN, EXERCISES } = await import('./js/data.js');
   const byId = new Map(EXERCISES.map((e) => [e.id, e]));
-  const inBoth = PLAN[0].ex.filter((a) => PLAN[1].ex.some((b) => b.id === a.id));
-  const pick = inBoth[0];
+  // Eine Übung aus der ersten Einheit, die irgendwo *später* noch einmal
+  // vorkommt – und diese zweite Einheit dazu. Vorher standen hier fest PLAN[0]
+  // und PLAN[1]; das hielt, solange die beiden ersten Einheiten sich eine
+  // Übung teilten, und beim ersten Neulauf war der Schnitt leer. Die Prüfung
+  // braucht zwei Auftritte derselben Übung, nicht zwei bestimmte Einheiten.
+  //
+  // Und ausdrücklich keine Band-Übung: Dort steht in der Zeile die Bandstärke
+  // und nicht der Wiederholungsbereich, die beiden Knöpfe tun also etwas
+  // anderes. Auch das hielt vorher nur zufällig.
+  let pick = null;
+  let zweit = -1;
+  PLAN[0].ex.some((a) => {
+    const bwv = byId.get(a.id).bw;
+    if (/Band/i.test(bwv.equip || '')) return false;
+    const i = PLAN.findIndex((w, k) => k > 0 && w.ex.some((b) => b.id === a.id));
+    if (i < 0) return false;
+    pick = a;
+    zweit = i;
+    return true;
+  });
   const soll = (n) => PLAN[n].ex.find((x) => x.id === pick.id).sets;
   const sets = (n) => Array.from({ length: soll(n) }, () => ({ w: '', r: '', done: true }));
   localStorage.setItem('workout.state.v1', JSON.stringify({
     restSeconds: 0, mode: 'bw',
     log: {
-      1: { db: {}, bw: { [pick.id]: sets(0) }, mode: 'bw', startedOn: '2026-08-19' },
-      2: { db: {}, bw: { [pick.id]: sets(1) }, mode: 'bw', startedOn: '2026-08-21' },
+      [PLAN[0].n]: { db: {}, bw: { [pick.id]: sets(0) }, mode: 'bw', startedOn: '2026-08-19' },
+      [PLAN[zweit].n]: { db: {}, bw: { [pick.id]: sets(zweit) }, mode: 'bw', startedOn: '2026-08-21' },
     },
   }));
   return { id: pick.id, name: byId.get(pick.id).bw.name, reps: byId.get(pick.id).bw.reps };

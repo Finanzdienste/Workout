@@ -57,11 +57,18 @@ check(fremde.length === 0, `alle Überschriften sind Muskelgruppen der App${
 // --- 2. Abwählen wirkt auf den Plan --------------------------------------
 // Genommen wird eine Übung, die im Plan wirklich vorkommt – sonst prüft der
 // Test eine Abwahl ohne Wirkung.
+// Die häufigste Übung – aber nur unter denen, die in der *angezeigten* Einheit
+// stehen. Prüfung 5 weiter unten liest den Hinweis auf dem Dashboard, und das
+// zeigt die erste offene Einheit. Ohne diese Einschränkung hing der Test daran,
+// dass die häufigste Übung des Plans zufällig auch in Einheit 1 vorkommt; beim
+// ersten Neulauf war das nicht mehr so, und der Hinweis fehlte zu Recht.
 const opfer = await page.evaluate(async () => {
   const { PLAN } = await import('./js/data.js');
   const zaehl = new Map();
   PLAN.forEach((w) => w.ex.forEach((it) => zaehl.set(it.id, (zaehl.get(it.id) || 0) + 1)));
-  const [id, n] = [...zaehl.entries()].sort((a, b) => b[1] - a[1])[0];
+  const heute = new Set(PLAN[0].ex.map((it) => it.id));
+  const [id, n] = [...zaehl.entries()].filter(([x]) => heute.has(x))
+    .sort((a, b) => b[1] - a[1])[0];
   return { id, n };
 });
 console.log(`     abgewählt wird ${opfer.id} (${opfer.n} Auftritte im Plan)`);

@@ -2,7 +2,7 @@
   "hinweis": "Erzeugt von tools/pruefung/plan-frisch.py – je Variante der Stand der Eingaben, aus denen ihre Plandatei erzeugt wurde. Unter \"hingenommen\" stehen Abweichungen, die bewusst so bleiben; alles andere laesst die Pruefung nicht durch.",
   "plaene": {
     "standard": {
-      "fingerabdruck": "926438adffdba8da",
+      "fingerabdruck": "fa832faee55dd577",
       "hingenommen": {
         "sz-curls.equip": {
           "erzeugt_mit": "barbell",
@@ -104,6 +104,19 @@
           "equip": "band",
           "dbWeight": null
         },
+        "beckenheben": {
+          "dbShares": {
+            "glutes": 1.0,
+            "hamstringsHip": 0.5
+          },
+          "bwShares": {
+            "glutes": 1.0,
+            "hamstringsHip": 0.5
+          },
+          "tier": 2,
+          "equip": "plate",
+          "dbWeight": 12
+        },
         "chin-ups": {
           "dbShares": {
             "lats": 1.0,
@@ -155,6 +168,23 @@
           "equip": null,
           "dbWeight": null
         },
+        "einbeiniges-kreuzheben": {
+          "dbShares": {
+            "hamstringsHip": 1.0,
+            "glutes": 0.8,
+            "abs": 0.35,
+            "traps": 0.2
+          },
+          "bwShares": {
+            "hamstringsHip": 1.0,
+            "glutes": 0.85,
+            "abs": 0.4,
+            "traps": 0.15
+          },
+          "tier": 2,
+          "equip": "onehand",
+          "dbWeight": 12
+        },
         "einbeiniges-stehendes-wadenheben": {
           "dbShares": {
             "calves": 1.0
@@ -165,6 +195,19 @@
           "tier": 4,
           "equip": "onehand",
           "dbWeight": 12
+        },
+        "face-pull": {
+          "dbShares": {
+            "rearDelts": 1.0,
+            "traps": 0.8
+          },
+          "bwShares": {
+            "rearDelts": 1.0,
+            "traps": 0.8
+          },
+          "tier": 3,
+          "equip": "band",
+          "dbWeight": null
         },
         "fersenerhoehter-goblet-squat": {
           "dbShares": {
@@ -180,6 +223,21 @@
           "tier": 1,
           "equip": "goblet",
           "dbWeight": 20
+        },
+        "flaschen-seitheben": {
+          "dbShares": {
+            "sideDelts": 1.0,
+            "frontDelts": 0.15,
+            "traps": 0.2
+          },
+          "bwShares": {
+            "sideDelts": 1.0,
+            "frontDelts": 0.15,
+            "traps": 0.2
+          },
+          "tier": 3,
+          "equip": null,
+          "dbWeight": null
         },
         "floor-press": {
           "dbShares": {
@@ -280,6 +338,38 @@
           "equip": "hipbar",
           "dbWeight": 40
         },
+        "inverted-row": {
+          "dbShares": {
+            "lats": 1.0,
+            "traps": 0.75,
+            "biceps": 0.5,
+            "rearDelts": 0.45
+          },
+          "bwShares": {
+            "lats": 1.0,
+            "traps": 0.75,
+            "biceps": 0.5,
+            "rearDelts": 0.45
+          },
+          "tier": 1,
+          "equip": "backpack",
+          "dbWeight": 0
+        },
+        "kurzhantel-bodenpresse": {
+          "dbShares": {
+            "chest": 1.0,
+            "triceps": 0.65,
+            "frontDelts": 0.4
+          },
+          "bwShares": {
+            "chest": 1.0,
+            "triceps": 0.75,
+            "frontDelts": 0.4
+          },
+          "tier": 1,
+          "equip": "dumbbells",
+          "dbWeight": 12
+        },
         "liegende-trizepsstrecker": {
           "dbShares": {
             "triceps": 1.0
@@ -290,6 +380,34 @@
           "tier": 3,
           "equip": "dumbbells",
           "dbWeight": 8
+        },
+        "liegendes-knieheben": {
+          "dbShares": {
+            "abs": 1.0
+          },
+          "bwShares": {
+            "abs": 1.0
+          },
+          "tier": 3,
+          "equip": null,
+          "dbWeight": null
+        },
+        "pike-liegestuetze": {
+          "dbShares": {
+            "frontDelts": 1.0,
+            "sideDelts": 0.4,
+            "triceps": 0.7,
+            "traps": 0.35
+          },
+          "bwShares": {
+            "frontDelts": 1.0,
+            "sideDelts": 0.4,
+            "triceps": 0.7,
+            "traps": 0.35
+          },
+          "tier": 2,
+          "equip": null,
+          "dbWeight": null
         },
         "pull-ups": {
           "dbShares": {
@@ -321,6 +439,47 @@
           "equip": "dumbbells",
           "dbWeight": 5
         },
+        "reverse-snow-angel": {
+          "dbShares": {
+            "rearDelts": 1.0,
+            "traps": 0.9
+          },
+          "bwShares": {
+            "rearDelts": 1.0,
+            "traps": 0.9
+          },
+          "tier": 3,
+          "equip": null,
+          "dbWeight": null
+        },
+        "rucksack-curls": {
+          "dbShares": {
+            "biceps": 1.0
+          },
+          "bwShares": {
+            "biceps": 1.0
+          },
+          "tier": 3,
+          "equip": "backpack",
+          "dbWeight": 5
+        },
+        "rucksack-rudern": {
+          "dbShares": {
+            "lats": 1.0,
+            "biceps": 0.5,
+            "traps": 0.5,
+            "rearDelts": 0.35
+          },
+          "bwShares": {
+            "lats": 1.0,
+            "biceps": 0.5,
+            "traps": 0.5,
+            "rearDelts": 0.35
+          },
+          "tier": 1,
+          "equip": "backpack",
+          "dbWeight": 8
+        },
         "rumaenisches-kreuzheben": {
           "dbShares": {
             "hamstringsHip": 1.0,
@@ -335,6 +494,21 @@
           "tier": 1,
           "equip": "barbell",
           "dbWeight": 40
+        },
+        "sitzendes-flaschen-seitheben": {
+          "dbShares": {
+            "sideDelts": 1.0,
+            "frontDelts": 0.15,
+            "traps": 0.2
+          },
+          "bwShares": {
+            "sideDelts": 1.0,
+            "frontDelts": 0.15,
+            "traps": 0.15
+          },
+          "tier": 3,
+          "equip": null,
+          "dbWeight": null
         },
         "sitzendes-schulterdruecken": {
           "dbShares": {
@@ -410,8 +584,19 @@
             "biceps": 1.0
           },
           "tier": 3,
-          "equip": "barbell",
+          "equip": "szbar",
           "dbWeight": 15
+        },
+        "trizeps-strecken-stange": {
+          "dbShares": {
+            "triceps": 1.0
+          },
+          "bwShares": {
+            "triceps": 1.0
+          },
+          "tier": 3,
+          "equip": null,
+          "dbWeight": null
         },
         "wadenheben-gebeugtes-knie": {
           "dbShares": {

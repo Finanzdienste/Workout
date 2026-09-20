@@ -14,7 +14,7 @@
   "quads": 6,
   "rearDelts": 7,
   "sideDelts": 7,
-  "traps": 9.5643,
+  "traps": 9.4214,
   "triceps": 7
  },
  "derived": [
@@ -36,22 +36,22 @@
      "bwSets": 3
     },
     {
-     "id": "sitzendes-schulterdruecken",
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "fersenerhoehter-goblet-squat",
+     "id": "face-pull",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "reverse-fly",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einbeiniges-stehendes-wadenheben",
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -61,22 +61,27 @@
    "date": "2026-08-26",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
+     "id": "fersenerhoehter-goblet-squat",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "band-seitheben",
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -91,17 +96,17 @@
      "bwSets": 3
     },
     {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
+     "id": "einbeiniger-sliding-leg-curl",
      "sets": 3,
      "bwSets": 3
     }
@@ -116,14 +121,9 @@
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
-    },
-    {
-     "id": "liegende-trizepsstrecker",
-     "sets": 3,
-     "bwSets": 2
     },
     {
      "id": "gewichtete-crunches",
@@ -141,27 +141,22 @@
    "date": "2026-08-31",
    "ex": [
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "fersenerhoehter-goblet-squat",
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 4
+    },
+    {
+     "id": "reverse-fly",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -169,31 +164,6 @@
   },
   {
    "date": "2026-09-02",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "liegende-trizepsstrecker",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 4
-    }
-   ]
-  },
-  {
-   "date": "2026-09-04",
    "ex": [
     {
      "id": "goblet-squat",
@@ -211,6 +181,36 @@
      "bwSets": 3
     },
     {
+     "id": "pike-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-04",
+   "ex": [
+    {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
@@ -221,12 +221,12 @@
    "date": "2026-09-05",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "sitzendes-schulterdruecken",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
@@ -246,19 +246,19 @@
    "date": "2026-09-07",
    "ex": [
     {
-     "id": "sitzendes-schulterdruecken",
+     "id": "hip-thrust",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "haengendes-knieheben",
      "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3,
-     "bwSets": 3
+     "bwSets": 4
     },
     {
      "id": "reverse-fly",
@@ -266,7 +266,7 @@
      "bwSets": 3
     },
     {
-     "id": "rucksack-curls",
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -281,17 +281,17 @@
      "bwSets": 3
     },
     {
-     "id": "hip-thrust",
-     "sets": 3,
-     "bwSets": 2
-    },
-    {
      "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -321,7 +321,12 @@
      "bwSets": 3
     },
     {
-     "id": "face-pull",
+     "id": "reverse-snow-angel",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -336,19 +341,19 @@
      "bwSets": 3
     },
     {
-     "id": "pike-liegestuetze",
+     "id": "sitzendes-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "band-seitheben",
+     "id": "liegende-trizepsstrecker",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "gewichtete-crunches",
      "sets": 3,
-     "bwSets": 4
+     "bwSets": 3
     },
     {
      "id": "einbeiniges-stehendes-wadenheben",
@@ -361,52 +366,17 @@
    "date": "2026-09-14",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "kurzhantel-bodenpresse",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 4
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-16",
-   "ex": [
-    {
      "id": "goblet-squat",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "reverse-snow-angel",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -418,15 +388,40 @@
    ]
   },
   {
-   "date": "2026-09-18",
+   "date": "2026-09-16",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "sitzendes-schulterdruecken",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "fersenerhoehter-goblet-squat",
+     "id": "sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 4
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-18",
+   "ex": [
+    {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
@@ -446,22 +441,22 @@
    "date": "2026-09-19",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "pike-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "liegende-trizepsstrecker",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -471,27 +466,27 @@
    "date": "2026-09-21",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "hip-thrust",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sliding-leg-curl",
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "face-pull",
+     "id": "einbeiniger-sliding-leg-curl",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "gewichtete-crunches",
+     "id": "reverse-fly",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -506,194 +501,19 @@
      "bwSets": 3
     },
     {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "kurzhantel-bodenpresse",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-25",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-pull-apart",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-26",
-   "ex": [
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-28",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-30",
-   "ex": [
-    {
-     "id": "hip-thrust",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "reverse-snow-angel",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "gewichtete-crunches",
      "sets": 3,
-     "bwSets": 4
-    }
-   ]
-  },
-  {
-   "date": "2026-10-02",
-   "ex": [
-    {
-     "id": "pull-ups",
-     "sets": 3,
      "bwSets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "reverse-fly",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-03",
-   "ex": [
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "liegende-trizepsstrecker",
-     "sets": 3,
-     "bwSets": 2
     },
     {
      "id": "wadenheben-gebeugtes-knie",
@@ -703,10 +523,65 @@
    ]
   },
   {
-   "date": "2026-10-05",
+   "date": "2026-09-25",
    "ex": [
     {
      "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "face-pull",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-26",
+   "ex": [
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 4
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-28",
+   "ex": [
+    {
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -733,7 +608,7 @@
    ]
   },
   {
-   "date": "2026-10-07",
+   "date": "2026-09-30",
    "ex": [
     {
      "id": "goblet-squat",
@@ -741,47 +616,12 @@
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "reverse-fly",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-09",
-   "ex": [
-    {
-     "id": "goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "face-pull",
+     "id": "reverse-snow-angel",
      "sets": 3,
      "bwSets": 3
     },
@@ -789,76 +629,6 @@
      "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-10",
-   "ex": [
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 4
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-12",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-14",
-   "ex": [
-    {
-     "id": "goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 4
     },
     {
      "id": "wadenheben-gebeugtes-knie",
@@ -868,7 +638,7 @@
    ]
   },
   {
-   "date": "2026-10-16",
+   "date": "2026-10-02",
    "ex": [
     {
      "id": "goblet-squat",
@@ -886,19 +656,129 @@
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "reverse-fly",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "rucksack-curls",
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
    ]
   },
   {
-   "date": "2026-10-17",
+   "date": "2026-10-03",
+   "ex": [
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-05",
+   "ex": [
+    {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-07",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 4
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-09",
+   "ex": [
+    {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-10",
    "ex": [
     {
      "id": "sitzendes-schulterdruecken",
@@ -916,7 +796,67 @@
      "bwSets": 3
     },
     {
-     "id": "liegende-trizepsstrecker",
+     "id": "gewichtete-crunches",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-12",
+   "ex": [
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 4
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-kreuzheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -928,7 +868,172 @@
    ]
   },
   {
+   "date": "2026-10-16",
+   "ex": [
+    {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "hip-thrust",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-17",
+   "ex": [
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
    "date": "2026-10-19",
+   "ex": [
+    {
+     "id": "sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pike-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "face-pull",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-21",
+   "ex": [
+    {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-23",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-snow-angel",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-24",
+   "ex": [
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 4
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-26",
    "ex": [
     {
      "id": "kurzhantel-bodenpresse",
@@ -946,122 +1051,7 @@
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "reverse-fly",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-21",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-23",
-   "ex": [
-    {
-     "id": "goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "hip-thrust",
-     "sets": 3,
-     "bwSets": 2
-    },
-    {
-     "id": "reverse-snow-angel",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-24",
-   "ex": [
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pike-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-26",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
      "sets": 3,
      "bwSets": 3
     },
@@ -1086,17 +1076,12 @@
      "bwSets": 3
     },
     {
-     "id": "face-pull",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -1111,17 +1096,17 @@
      "bwSets": 3
     },
     {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pull-ups",
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-fly",
      "sets": 3,
      "bwSets": 3
     }
@@ -1131,27 +1116,27 @@
    "date": "2026-10-31",
    "ex": [
     {
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "gewichtete-crunches",
      "sets": 3,
-     "bwSets": 4
+     "bwSets": 3
     },
     {
-     "id": "einbeiniges-stehendes-wadenheben",
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3,
      "bwSets": 3
     }
@@ -1161,7 +1146,7 @@
    "date": "2026-11-02",
    "ex": [
     {
-     "id": "goblet-squat",
+     "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
@@ -1176,12 +1161,12 @@
      "bwSets": 3
     },
     {
-     "id": "reverse-snow-angel",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -1196,37 +1181,7 @@
      "bwSets": 3
     },
     {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 4
-    }
-   ]
-  },
-  {
-   "date": "2026-11-06",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einarmiges-kh-rudern",
+     "id": "sitzendes-schulterdruecken",
      "sets": 3,
      "bwSets": 3
     },
@@ -1236,7 +1191,42 @@
      "bwSets": 3
     },
     {
+     "id": "reverse-fly",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-06",
+   "ex": [
+    {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-snow-angel",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -1253,7 +1243,7 @@
     {
      "id": "haengendes-knieheben",
      "sets": 3,
-     "bwSets": 3
+     "bwSets": 4
     },
     {
      "id": "sitzendes-seitheben",
@@ -1266,7 +1256,7 @@
      "bwSets": 3
     },
     {
-     "id": "einbeiniges-stehendes-wadenheben",
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3,
      "bwSets": 3
     }
@@ -1276,7 +1266,7 @@
    "date": "2026-11-09",
    "ex": [
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1291,12 +1281,7 @@
      "bwSets": 3
     },
     {
-     "id": "reverse-fly",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -1311,17 +1296,12 @@
      "bwSets": 3
     },
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -1341,12 +1321,17 @@
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "face-pull",
      "sets": 3,
      "bwSets": 3
     },
@@ -1366,14 +1351,19 @@
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "gewichtete-crunches",
+     "id": "haengendes-knieheben",
      "sets": 3,
-     "bwSets": 4
+     "bwSets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
     },
     {
      "id": "wadenheben-gebeugtes-knie",
@@ -1386,12 +1376,17 @@
    "date": "2026-11-16",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sliding-leg-curl",
+     "id": "einbeiniger-sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-fly",
      "sets": 3,
      "bwSets": 3
     },
@@ -1416,22 +1411,22 @@
      "bwSets": 3
     },
     {
-     "id": "hip-thrust",
-     "sets": 3,
-     "bwSets": 2
-    },
-    {
      "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "gewichtete-crunches",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einbeiniges-stehendes-wadenheben",
+     "id": "reverse-snow-angel",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
      "sets": 3,
      "bwSets": 3
     }
@@ -1452,11 +1447,6 @@
     },
     {
      "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "face-pull",
      "sets": 3,
      "bwSets": 3
     },
@@ -1483,17 +1473,17 @@
     {
      "id": "haengendes-knieheben",
      "sets": 3,
-     "bwSets": 3
+     "bwSets": 4
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "liegende-trizepsstrecker",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
-     "bwSets": 2
+     "bwSets": 3
     }
    ]
   },
@@ -1501,19 +1491,14 @@
    "date": "2026-11-23",
    "ex": [
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "sliding-leg-curl",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
+     "id": "haengendes-knieheben",
      "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pike-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
+     "bwSets": 4
     },
     {
      "id": "reverse-fly",
@@ -1521,7 +1506,12 @@
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -1536,32 +1526,7 @@
      "bwSets": 3
     },
     {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 4
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-27",
-   "ex": [
-    {
-     "id": "goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "inverted-row",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -1576,7 +1541,37 @@
      "bwSets": 3
     },
     {
-     "id": "rucksack-curls",
+     "id": "reverse-fly",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-27",
+   "ex": [
+    {
+     "id": "hip-thrust",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -1586,17 +1581,22 @@
    "date": "2026-11-28",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "band-seitheben",
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
      "sets": 3,
      "bwSets": 3
     },
@@ -1611,27 +1611,27 @@
    "date": "2026-11-30",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "sitzendes-schulterdruecken",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einbeiniger-sliding-leg-curl",
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "sliding-leg-curl",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "reverse-snow-angel",
+     "id": "reverse-fly",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "band-seitheben",
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -1651,12 +1651,12 @@
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "pike-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "gewichtete-crunches",
      "sets": 3,
      "bwSets": 3
     },
@@ -1686,12 +1686,7 @@
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
+     "id": "face-pull",
      "sets": 3,
      "bwSets": 3
     }
@@ -1701,24 +1696,19 @@
    "date": "2026-12-05",
    "ex": [
     {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 4
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
     },
     {
      "id": "einbeiniges-stehendes-wadenheben",
@@ -1731,27 +1721,47 @@
    "date": "2026-12-07",
    "ex": [
     {
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniger-sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-09",
+   "ex": [
+    {
      "id": "goblet-squat",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sliding-leg-curl",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "face-pull",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -1763,7 +1773,7 @@
    ]
   },
   {
-   "date": "2026-12-09",
+   "date": "2026-12-11",
    "ex": [
     {
      "id": "pull-ups",
@@ -1781,37 +1791,7 @@
      "bwSets": 3
     },
     {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-11",
-   "ex": [
-    {
-     "id": "hip-thrust",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-pull-apart",
+     "id": "reverse-snow-angel",
      "sets": 3,
      "bwSets": 3
     },
@@ -1826,24 +1806,24 @@
    "date": "2026-12-12",
    "ex": [
     {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "liegende-trizepsstrecker",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 4
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3,
+     "bwSets": 3
     }
    ]
   },
@@ -1852,6 +1832,11 @@
    "ex": [
     {
      "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1866,7 +1851,227 @@
      "bwSets": 3
     },
     {
-     "id": "reverse-snow-angel",
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-16",
+   "ex": [
+    {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "hip-thrust",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-18",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-19",
+   "ex": [
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-21",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 4
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-23",
+   "ex": [
+    {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-fly",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-25",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fersenerhoehter-goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-26",
+   "ex": [
+    {
+     "id": "sitzendes-schulterdruecken",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-28",
+   "ex": [
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-fly",
      "sets": 3,
      "bwSets": 3
     },
@@ -1878,7 +2083,7 @@
    ]
   },
   {
-   "date": "2026-12-16",
+   "date": "2026-12-30",
    "ex": [
     {
      "id": "goblet-squat",
@@ -1908,231 +2113,6 @@
    ]
   },
   {
-   "date": "2026-12-18",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "reverse-fly",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-19",
-   "ex": [
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-21",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sliding-leg-curl",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "face-pull",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-23",
-   "ex": [
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "fersenerhoehter-goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 4
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-25",
-   "ex": [
-    {
-     "id": "goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "hip-thrust",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-pull-apart",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-26",
-   "ex": [
-    {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "kurzhantel-bodenpresse",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-28",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniger-sliding-leg-curl",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-30",
-   "ex": [
-    {
-     "id": "goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "face-pull",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 4
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
    "date": "2027-01-01",
    "ex": [
     {
@@ -2141,12 +2121,17 @@
      "bwSets": 3
     },
     {
+     "id": "pull-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "einbeiniges-kreuzheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "reverse-fly",
+     "id": "face-pull",
      "sets": 3,
      "bwSets": 3
     },
@@ -2166,7 +2151,12 @@
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 4
+    },
+    {
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -2176,7 +2166,7 @@
      "bwSets": 3
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -2186,7 +2176,17 @@
    "date": "2027-01-04",
    "ex": [
     {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "sitzendes-schulterdruecken",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
@@ -2196,42 +2196,7 @@
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "reverse-snow-angel",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2027-01-06",
-   "ex": [
-    {
-     "id": "goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rucksack-curls",
      "sets": 3,
      "bwSets": 3
     },
@@ -2243,15 +2208,15 @@
    ]
   },
   {
-   "date": "2027-01-08",
+   "date": "2027-01-06",
    "ex": [
     {
-     "id": "goblet-squat",
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "fersenerhoehter-goblet-squat",
      "sets": 3,
      "bwSets": 3
     },
@@ -2261,7 +2226,42 @@
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "face-pull",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2027-01-08",
+   "ex": [
+    {
+     "id": "hip-thrust",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-snow-angel",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -2271,19 +2271,24 @@
    "date": "2027-01-09",
    "ex": [
     {
-     "id": "sitzendes-schulterdruecken",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "gewichtete-crunches",
+     "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 4
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
     },
     {
      "id": "einbeiniges-stehendes-wadenheben",
@@ -2306,11 +2311,6 @@
      "bwSets": 3
     },
     {
-     "id": "pike-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
@@ -2326,12 +2326,17 @@
    "date": "2027-01-13",
    "ex": [
     {
+     "id": "goblet-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -2341,12 +2346,7 @@
      "bwSets": 3
     },
     {
-     "id": "reverse-fly",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3,
      "bwSets": 3
     }
@@ -2356,17 +2356,17 @@
    "date": "2027-01-15",
    "ex": [
     {
-     "id": "goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "reverse-fly",
      "sets": 3,
      "bwSets": 3
     },
@@ -2381,22 +2381,22 @@
    "date": "2027-01-16",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "gewichtete-crunches",
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 4
     },
     {
-     "id": "wadenheben-gebeugtes-knie",
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
      "sets": 3,
      "bwSets": 3
     }

@@ -67,8 +67,19 @@ check(tag !== null, `eine Einheit mit Chin-ups gefunden (Workout ${tag})`);
 
 const meta = async (level) => {
   await stellen(level);
+  // Alles davor abschliessen, sonst zeigt das Dashboard eine andere Einheit:
+  // Es nimmt immer die erste offene und liest `lastWorkout` gar nicht. Im alten
+  // Plan standen die Chin-ups in Einheit 1, deshalb fiel das nie auf.
   await page.evaluate(async ([n]) => {
-    (await import('./js/store.js')).setSetting('lastWorkout', n);
+    const s = await import('./js/store.js');
+    const { PLAN } = await import('./js/data.js');
+    const { exOf } = await import('./js/plan.js');
+    // exOf und nicht w.ex: Auf der Anfängerstufe stehen andere Satzzahlen, und
+    // mit den Plan-Zahlen gilt die Einheit als begonnen, aber nicht als fertig
+    // – das Dashboard bliebe bei Einheit 1 stehen.
+    PLAN.filter((w) => w.n < n).forEach((w) => s.completeWorkout(
+      w.n, 'db', exOf(w, 'db').map((x) => ({ id: x.id, sets: x.sets }))));
+    s.setSetting('lastWorkout', n);
   }, [tag]);
   await page.reload({ waitUntil: 'networkidle' });
   const auf = page.locator('[data-act="show-list"]');

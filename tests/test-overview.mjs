@@ -85,7 +85,20 @@ await page.waitForTimeout(200);
 const legend2 = await page.locator('.bm-legend span').allTextContents();
 console.log('     Workout 2:', legend2.join(', '));
 check(legend2.join() !== legend.join(), 'andere Einheit -> andere Hervorhebung');
-check(legend2.includes('Bizeps'), '  Workout 2 hat SZ-Curls -> Bizeps');
+// Auch hier aus dem Plan abgeleitet und nicht festgenagelt. Vorher stand hier
+// „Workout 2 hat SZ-Curls -> Bizeps" – richtig, solange der Plan das so
+// vorsah, und beim ersten Neulauf falsch. Geprüft gehört die Regel (die
+// Hervorhebung folgt den Übungen der Einheit), nicht das Beispiel.
+const erwartetZwei = await page.evaluate(async () => {
+  const { PLAN, EXERCISES } = await import('./js/data.js');
+  const { MUSCLE_LABEL } = await import('./js/body.js');
+  const byId = new Map(EXERCISES.map((e) => [e.id, e]));
+  return [...new Set(PLAN[1].ex.flatMap((it) => byId.get(it.id).db.muscles))]
+    .map((m) => MUSCLE_LABEL[m] || m);
+});
+for (const m of erwartetZwei) {
+  check(legend2.includes(m), `  Workout 2: ${m} ausgewiesen`);
+}
 await page.locator('[data-act="nav-workout"][data-delta="-1"]').click();
 
 // --- Liste ist eine Ebene tiefer erreichbar ---

@@ -1348,7 +1348,8 @@
     "bwShares": {
       "abs": 1.0
     },
-    "equip": null
+    "equip": null,
+    "nurErsatz": true
   },
   "flaschen-seitheben": {
     "group": "Schulter",
@@ -1604,7 +1605,8 @@
     "bwShares": {
       "triceps": 1.0
     },
-    "equip": null
+    "equip": null,
+    "nurErsatz": true
   },
   "beckenheben": {
     "group": "Gesäß",
@@ -1650,6 +1652,7 @@
       "glutes": 1.0,
       "hamstringsHip": 0.5
     },
-    "equip": "plate"
+    "equip": "plate",
+    "nurErsatz": true
   }
 }
