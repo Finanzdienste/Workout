@@ -164,6 +164,54 @@ check(schmal.width >= 38, `Zellen auch bei 360 px groß genug (${Math.round(schm
 const overflow2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow2 === 0, `auch bei 360 px kein Überlauf (${overflow2}px)`);
 
+// --- Trainiert unter einem früheren Plan ---------------------------------
+//
+//     „Irgendwie klassifiziert er das was ich tatsächlich die letzten Wochen
+//      trainiert hab nur als angefangen"
+//
+// Nach einem Plan-Wechsel liegt das Protokoll in der abgelegten Runde. Diese
+// Tage wurden gestrichelt gezeichnet – und gestrichelt heißt in diesem
+// Kalender „ausgefallen"; der einzige Unterschied war die Rahmenfarbe. Die
+// Zusammenfassung zählte sie ausserdem nicht als trainiert, sondern nannte sie
+// als Nachsatz. Aus sechs Trainings wurde damit „0 trainiert".
+await page.setViewportSize({ width: 414, height: 896 });
+await page.evaluate(() => {
+  const heute = new Date();
+  const tag = (n) => {
+    const d = new Date(heute.getFullYear(), heute.getMonth(), n);
+    const z = (x) => String(x).padStart(2, '0');
+    return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+  };
+  const log = {};
+  [3, 5, 8].forEach((n, i) => {
+    log[i + 1] = { startedOn: tag(n), done: 'db',
+                   db: { 'chin-ups': [{ done: true }, { done: true }, { done: true }] }, bw: {} };
+  });
+  localStorage.setItem('workout.rounds.v1', JSON.stringify([{ log }]));
+  localStorage.setItem('workout.state.v1', JSON.stringify(
+    { greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {} }));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(250);
+await page.locator('[data-act="go-tab"][data-tab="calendar"], .tab[data-tab="calendar"]').first().click();
+await page.waitForTimeout(400);
+
+const alteZellen = await page.evaluate(() => [...document.querySelectorAll('.cal-cell.frueher')]
+  .map((e) => ({ stil: getComputedStyle(e).borderStyle, gefuellt: getComputedStyle(e).backgroundColor })));
+console.log('     frühere Tage:', JSON.stringify(alteZellen));
+check(alteZellen.length === 3, `drei Tage aus dem früheren Plan (${alteZellen.length})`);
+check(alteZellen.every((z) => z.stil !== 'dashed'),
+  'sie sind nicht gestrichelt – gestrichelt heißt hier „ausgefallen"');
+check(alteZellen.every((z) => !/rgba\(0, 0, 0, 0\)|transparent/.test(z.gefuellt)),
+  'und sie sind gefüllt, sehen also aus wie Trainingstage');
+
+const zusammenAlt = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(/3 trainiert/.test(zusammenAlt),
+  `die Zusammenfassung zählt sie als trainiert (${(zusammenAlt.match(/\d+ Einheiten[^·]*·[^·]*/) || ['?'])[0]})`);
+check(/aus einem früheren Plan/.test(zusammenAlt),
+  'und sagt trotzdem, woher sie stammen – Herkunft ist kein Abzug');
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();
