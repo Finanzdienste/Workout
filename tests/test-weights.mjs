@@ -168,15 +168,40 @@ await page.waitForTimeout(250);
 check((await state()).session === null, 'Session beendet');
 check(await page.locator('[data-act="start-session"]').count() === 1, 'Startknopf ist wieder da');
 
-// --- Feste Pause als Alternative ---
+// --- Die Pause: eine Wahl aus dreien --------------------------------------
+//
+//     „Wieso sind das eigentlich zwei verschiedene Schalter? Eigentlich sind
+//      das doch die gleichen oder nicht"
+//
+// Waren sie nicht, sahen aber so aus: zwei Kippschalter für drei Zustände,
+// die sich gegenseitig umgelegt haben. Jetzt drei Knöpfe, einer davon aktiv –
+// und geprüft wird, dass jeder Knopf genau seinen Zustand herstellt.
 await page.locator('.tab[data-tab="settings"]').click();
 await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-await page.locator('[data-act="toggle-ex-rest"]').click();
+check(await page.locator('[data-act="set-pause"]').count() === 3, 'drei Knöpfe, ein Schalter');
+check(await page.locator('[data-act="toggle-ex-rest"], [data-act="toggle-rest-off"]').count() === 0,
+  'und keine zwei Kippschalter mehr daneben');
+
+await page.locator('[data-act="set-pause"][data-v="fest"]').click();
 await page.waitForTimeout(250);
-check((await state()).useExerciseRest === false, 'Pause je Übung abschaltbar');
-check(await page.locator('[data-act="set-rest"]').count() === 4, 'feste Längen erscheinen dann');
+const festStand = await state();
+check(festStand.useExerciseRest === false && festStand.restSeconds > 0,
+  `feste Länge: je Übung aus, Länge gesetzt (${festStand.restSeconds}s)`);
+check(await page.locator('[data-act="set-rest"]').count() === 4, 'die Längen erscheinen dann');
 await page.screenshot({ path: `${SHOT}/52-settings-rest.png`, fullPage: true });
-await page.locator('[data-act="toggle-ex-rest"]').click();
+
+await page.locator('[data-act="set-pause"][data-v="aus"]').click();
+await page.waitForTimeout(250);
+const ausStand = await state();
+check(ausStand.useExerciseRest === false && ausStand.restSeconds === 0,
+  'aus: kein Timer, keine Länge');
+check(await page.locator('[data-act="set-rest"]').count() === 0, 'und keine Längen zur Auswahl');
+
+await page.locator('[data-act="set-pause"][data-v="je"]').click();
+await page.waitForTimeout(250);
+check((await state()).useExerciseRest === true, 'und zurück auf die Pause je Übung');
+check(await page.locator('[data-act="set-pause"][data-v="je"][aria-pressed="true"]').count() === 1,
+  'der gewählte Knopf ist als gewählt ausgewiesen');
 
 // --- Kein Steigerungsvorschlag, nirgends und nie ---
 //

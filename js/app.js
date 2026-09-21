@@ -1471,6 +1471,64 @@ function modusKarte(mode) {
 }
 
 /**
+ * Die Pause: eine Einstellung mit drei Werten, nicht zwei Schalter.
+ *
+ *     „Wieso sind das eigentlich zwei verschiedene Schalter? Eigentlich sind
+ *      das doch die gleichen oder nicht"
+ *
+ * Fast. Es waren zwei Schalter für *drei* Zustände – je Übung, feste Länge,
+ * aus –, und die beiden hingen aneinander: „Pause abschalten" an schaltete
+ * „Pause je Übung" mit aus, und „Pause je Übung" aus schaltete die Pause
+ * nicht ab, sondern auf eine feste Länge um. Zwei Kippschalter, die sich
+ * gegenseitig umlegen, sehen zu Recht aus wie derselbe Schalter zweimal.
+ *
+ * Drei Werte gehören in eine Reihe mit drei Knöpfen – dieselbe Form, in der
+ * eine Zeile höher Hanteln und Bodyweight stehen. Dann ist auch ohne Text zu
+ * sehen, dass es eine einzige Entscheidung ist und welcher Wert gerade gilt.
+ *
+ * Gespeichert wird weiter in `useExerciseRest` und `restSeconds`; an den
+ * beiden Feldern hängen der Timer, die Sicherung und die Tests. Was sich
+ * ändert, ist nur, wie man sie stellt.
+ */
+function pausenKarte(s) {
+  const wahl = s.useExerciseRest ? 'je' : (s.restSeconds ? 'fest' : 'aus');
+  const fest = `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min`;
+  const ARTEN = [
+    ['je', '⏱️ Je Übung', '0:45 – 2:30 min'],
+    ['fest', '⏲️ Feste Länge', fest],
+    ['aus', '🚫 Aus', 'Aus'],
+  ];
+  const erklaerung = {
+    je: 'Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen – 2:30 beim '
+      + 'Squat, 0:45 bei Crunches. Die Längen stehen in der Übung selbst.',
+    fest: 'Dieselbe Pause nach jedem Satz, egal welche Übung.',
+    aus: 'Kein Timer, kein Ton – Sätze nur abhaken.',
+  };
+  return `
+    <div class="card">
+      <div class="stat-v">${esc((ARTEN.find(([k]) => k === wahl) || [])[2] || 'Aus')}</div>
+      <div class="small muted" style="margin-top:2px">${wahl === 'aus'
+        ? 'Abgehakt wird weiter ganz normal – es läuft nur nichts mit.'
+        : 'Läuft automatisch, sobald du einen Satz abhakst – außer nach dem letzten Satz '
+          + 'einer Übung. Am Ende kommt ein Signalton.'}</div>
+      <div class="btn-row nav" style="margin-top:10px" role="group" aria-label="Pause wählen">
+        ${ARTEN.map(([k, label]) => `
+          <button type="button" class="btn ${k === wahl ? 'btn-primary' : ''}"
+                  aria-pressed="${k === wahl}" data-act="set-pause" data-v="${k}">
+            ${esc(label)}</button>`).join('')}
+      </div>
+      <div class="small muted" style="margin-top:10px">${esc(erklaerung[wahl])}</div>
+      ${wahl === 'fest' ? `
+      <div class="btn-row nav" style="margin-top:10px" role="group" aria-label="Länge wählen">
+        ${[60, 90, 120, 180].map((sec) => `
+          <button type="button" class="btn ${s.restSeconds === sec ? 'btn-primary' : ''}"
+                  aria-pressed="${s.restSeconds === sec}"
+                  data-act="set-rest" data-sec="${sec}">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</button>`).join('')}
+      </div>` : ''}
+    </div>`;
+}
+
+/**
  * Startansicht: was heute ansteht, welche Muskelgruppen drankommen, los.
  * Die einzelnen Übungen liegen eine Ebene tiefer – vor dem Training will man
  * sie nicht abhaken, sondern nur wissen, was kommt.
@@ -4283,36 +4341,7 @@ function renderSettings() {
     ${modusKarte(s.mode === 'bw' ? 'bw' : 'db')}
 
     <div class="section-title">Pause zwischen den Sätzen</div>
-    <div class="card">
-      <div class="stat-v">${s.useExerciseRest
-        ? '0:45 – 2:30 min'
-        : (s.restSeconds ? `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min` : 'Aus')}</div>
-      <div class="small muted" style="margin-top:2px">
-        Läuft automatisch, sobald du einen Satz abhakst – außer nach dem letzten Satz
-        einer Übung. Am Ende kommt ein Signalton.
-      </div>
-      <div class="switch-row" style="margin-top:10px">
-        <div>
-          <div class="lbl">Pause je Übung</div>
-          <div class="hint">Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen –
-            2:30 beim Squat, 0:45 bei Crunches. Aus schaltet auf eine feste Länge um.</div>
-        </div>
-        <button type="button" class="toggle" aria-pressed="${s.useExerciseRest}" data-act="toggle-ex-rest" aria-label="Pause je Übung"></button>
-      </div>
-      ${s.useExerciseRest ? '' : `
-      <div class="btn-row nav">
-        ${[60, 90, 120, 180].map((sec) => `
-          <button type="button" class="btn ${s.restSeconds === sec ? 'btn-primary' : ''}"
-                  data-act="set-rest" data-sec="${sec}">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</button>`).join('')}
-      </div>`}
-      <div class="switch-row">
-        <div>
-          <div class="lbl">Pause abschalten</div>
-          <div class="hint">Kein Timer, kein Ton – Sätze nur abhaken.</div>
-        </div>
-        <button type="button" class="toggle" aria-pressed="${!s.useExerciseRest && !s.restSeconds}" data-act="toggle-rest-off" aria-label="Pause abschalten"></button>
-      </div>
-    </div>
+    ${pausenKarte(s)}
 
     ${hatServer() ? `<div class="section-title">Nutzung teilen</div>
     ${shareKarte(true)}` : ''}
@@ -5809,15 +5838,15 @@ view.addEventListener('click', (e) => {
       toast('Start · Satz · Übung fertig · fertig machen · Pause vorbei · Workout komplett');
       break;
     }
-    case 'toggle-ex-rest':
-      store.setSetting('useExerciseRest', !store.getState().useExerciseRest);
-      render();
-      break;
-    case 'toggle-rest-off': {
-      const off = !store.getState().useExerciseRest && !store.getState().restSeconds;
-      store.setSetting('useExerciseRest', off);
-      store.setSetting('restSeconds', off ? 90 : 0);
-      if (store.getState().rest) endRest(false);
+    // Eine Wahl aus dreien. Die beiden gespeicherten Felder bleiben, wie sie
+    // waren – siehe pausenKarte(): „fest" merkt sich die zuletzt gewählte
+    // Länge, und nur wenn keine dasteht, kommt die Voreinstellung 90 s.
+    case 'set-pause': {
+      const wahl = t.dataset.v;
+      store.setSetting('useExerciseRest', wahl === 'je');
+      if (wahl === 'aus') store.setSetting('restSeconds', 0);
+      if (wahl === 'fest' && !store.getState().restSeconds) store.setSetting('restSeconds', 90);
+      if (wahl === 'aus' && store.getState().rest) endRest(false);
       render();
       break;
     }

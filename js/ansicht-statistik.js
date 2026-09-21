@@ -11,7 +11,7 @@
 import * as store from './store.js';
 import { PLAN } from './data.js';
 import { EX_BY_ID, plannedReps, stufenWerte } from './uebung.js';
-import { LEVELS, SAETZE_JE_STUFE, leistungsStand, naechsteStufe } from './stufen.js';
+import { LEISTUNG_MIN, LEVELS, SAETZE_JE_STUFE, leistungsStand, naechsteStufe } from './stufen.js';
 import { esc, fmtNum } from './text.js';
 import { fmtDate, plural } from './dates.js';
 import { effDate, exOf } from './plan.js';
@@ -133,8 +133,10 @@ export function erfahrungStand() {
         + 'Gewählt hast du sie einmal bei der Einrichtung, danach misst die App.'
       : 'Du stehst auf der höchsten Stufe – hier kommt nichts mehr dazu.'}</div>
     ${nach && stand.verhaeltnis !== null ? `<div class="small muted" style="margin-top:8px">
-      Gemessen an ${esc(plural(stand.n, 'Übung', 'Übungen'))} mit eigener Angabe. Auf
-      <b>${esc(name(nach))}</b> steht es, wenn der Median dort
+      Gemessen an <b>allen</b> ${esc(plural(stand.n, 'Übung', 'Übungen'))}, bei denen du selbst
+      ein Gewicht oder Zusatzwiederholungen eingetragen hast – zurzeit ${esc(String(stand.n))}.
+      Trägst du bei einer weiteren etwas ein, zählt sie mit; ${esc(String(LEISTUNG_MIN))} müssen
+      es mindestens sein. Auf <b>${esc(name(nach))}</b> steht es, wenn der Median dort
       ${esc(fmtNum((LEVELS.find(([k]) => k === nach) || [])[3] || 1))} erreicht.</div>` : ''}`;
 }
 
@@ -172,8 +174,13 @@ export function aufstiegBalken() {
         Angabe.</div>`;
   }
   const pct = Math.min(100, Math.round((stand.verhaeltnis / ziel) * 100));
+  // „Hat es nen Sinn dass sich hier auf exakt 7 Übungen beschränkt wird?" –
+  // beschränkt wird gar nichts, die Zahl ist seine eigene: so viele Übungen
+  // haben eine eingetragene Angabe. Deshalb steht jetzt „deinen", nicht bloß
+  // die nackte Zahl; eine Obergrenze gibt es nicht, nur die Untergrenze
+  // LEISTUNG_MIN.
   return `
-    <div class="small muted" style="margin-top:14px">Bis <b>${esc(name)}</b> – gemessen an
+    <div class="small muted" style="margin-top:14px">Bis <b>${esc(name)}</b> – gemessen an deinen
       ${esc(plural(stand.n, 'Übung', 'Übungen'))} mit eigener Angabe:</div>
     <div class="bars" style="margin-top:8px">
       <div class="bar-row">
