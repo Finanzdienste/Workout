@@ -1401,21 +1401,18 @@ textarea.io {
    nicht trennen kann, sieht hier trotzdem drei verschiedene Kacheln. */
 .cal-cell.done { background: var(--accent); border-color: var(--accent); color: #10131a; font-weight: 700; }
 .cal-cell.done.bw { background: var(--accent-2); border-color: var(--accent-2); }
-/* Trainiert, aber unter einem früheren Plan: derselbe Tag, blasser gezeichnet.
-   Voll eingefärbt sähe er aus wie eine Einheit dieses Plans – und die ist es
-   nicht; die Übungen dazu stehen nicht mehr zur Verfügung.
+/* Ein Tag aus einem früheren Plan trägt zusätzlich .frueher – aber bewusst
+   *ohne* eigene Regel. Er soll aussehen wie jeder andere Trainingstag; die
+   Klasse ist nur der Griff für die Detailansicht und für den Test, der beide
+   Kacheln Merkmal für Merkmal vergleicht.
 
-   **Gestrichelt darf er aber nicht sein**, und das war er bis v176. In diesem
-   Kalender heißt gestrichelt „ausgefallen" (.cal-cell.miss weiter unten) – der
-   einzige Unterschied war die Rahmenfarbe. Nach dem Plan-Wechsel standen damit
-   sechs Tage da, an denen wirklich trainiert wurde, und sahen aus wie sechs
-   verpasste: *„Irgendwie klassifiziert er das was ich tatsächlich die letzten
-   Wochen trainiert hab nur als angefangen."* Ein Tag, an dem trainiert wurde,
-   muss aussehen wie ein Trainingstag. Blasser ja, gestrichelt nein. */
-.cal-cell.done.frueher { background: rgba(255, 122, 69, .38); color: var(--text);
-  border-color: var(--accent); border-style: solid; font-weight: 700; }
-.cal-cell.done.frueher.bw { border-color: var(--accent-2);
-  background: rgba(78, 161, 255, .38); }
+   Vorgeschichte: bis v176 war er gestrichelt, also optisch „ausgefallen"
+   (.cal-cell.miss weiter unten) – *„Irgendwie klassifiziert er das was ich
+   tatsächlich die letzten Wochen trainiert hab nur als angefangen."* v177
+   machte ihn blass-orange und damit immer noch zu einer eigenen Sorte Tag:
+   *„Mach keine Unterscheidung in trainiert früherer Plan und trainiert. Das
+   soll anzeigetechnisch exakt das gleiche sein."* Trainiert ist trainiert.
+   Aus welchem Plan, steht nur noch im Detail unter der Kachel. */
 /* Die Aufwärmzeile: gedämpft und ohne Rahmen. Sie ist eine Ansage vor der
    Arbeit, kein Teil davon – sähe sie aus wie ein Satz, würde danach gesucht,
    wo man sie abhakt. */
@@ -1445,7 +1442,6 @@ textarea.io {
 .cal-legend .dot.done { background: var(--accent); border-color: var(--accent); }
 .cal-legend .dot.part { background: rgba(255, 122, 69, .16); border-color: var(--accent); }
 .cal-legend .dot.plan { background: var(--bg-elev-2); }
-.cal-legend .dot.done.frueher { background: rgba(255, 122, 69, .38); border-color: var(--accent); }
 .cal-legend .dot.miss { border-style: dashed; }
 
 .cal-detail { margin-top: 12px; }

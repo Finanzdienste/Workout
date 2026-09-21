@@ -3479,11 +3479,10 @@ function renderCalendar() {
   });
   // Aus früheren Plänen, an Tagen ohne Einheit im laufenden.
   //
-  // Sie zählen in die Summe und in „trainiert" hinein, und das ist eine
-  // Korrektur: Vorher standen sie nur als Nachsatz daneben, und nach dem
-  // Plan-Wechsel las sich der ganze Monat als „0 trainiert" – obwohl an sechs
-  // Tagen trainiert worden war. Dass sie aus einem anderen Plan stammen, bleibt
-  // dabei stehen; es ist eine Herkunft und kein Abzug.
+  // Sie zählen in die Summe und in „trainiert" hinein, ohne eigenen Nachsatz:
+  // *„Mach keine Unterscheidung in trainiert früherer Plan und trainiert."*
+  // Vorher las sich der Monat nach einem Plan-Wechsel als „0 trainiert",
+  // obwohl an sechs Tagen trainiert worden war.
   const altImMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7)
     && !(byDate.get(d) || []).length && frueher.has(d))
     .reduce((a, d) => a + frueher.get(d).einheiten, 0);
@@ -3505,7 +3504,6 @@ function renderCalendar() {
       <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher)).join('')}</div>
       <div class="cal-legend">
         <span><i class="dot done"></i> trainiert</span>
-        ${altImMonat ? '<span><i class="dot done frueher"></i> trainiert, früherer Plan</span>' : ''}
         <span><i class="dot part"></i> angefangen</span>
         <span><i class="dot plan"></i> geplant</span>
         <span><i class="dot miss"></i> ausgefallen</span>
@@ -3514,7 +3512,6 @@ function renderCalendar() {
         ${plural(imMonat.length + altImMonat, 'Einheit', 'Einheiten')} in diesem Monat ·
         ${zaehl.done + altImMonat} trainiert${zaehl.done + altImMonat
           ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
-          altImMonat ? `, davon ${altImMonat} aus einem früheren Plan` : ''}${
           zaehl.miss ? ` · ${zaehl.miss} ausgefallen` : ''}${
           zaehl.plan ? ` · ${zaehl.plan} offen` : ''}
       </div>

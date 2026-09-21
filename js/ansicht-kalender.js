@@ -77,6 +77,9 @@ export function calendarCell(iso, month, today, byDate, sel, frueher) {
   if (iso === today) cls.push('today');
   if (iso === sel) cls.push('sel');
   if (st) cls.push(st.kind, st.mode);
+  // 'frueher' trägt keine eigene Darstellung mehr (siehe css/styles.css) – die
+  // Kachel ist eine trainierte wie jede andere. Die Klasse bleibt als Merkmal
+  // für die Detailansicht und den Test stehen.
   else if (alt) cls.push('done', 'frueher', alt.mode);
   const tag = Number(iso.slice(8));
   // Ohne Einheit ist der Tag kein Knopf: nichts anzuzeigen, nichts zu tippen.
@@ -88,7 +91,7 @@ export function calendarCell(iso, month, today, byDate, sel, frueher) {
     <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
             aria-pressed="${iso === sel}"
             aria-label="${esc(fmtDate(iso, true))}: ${plural(anzahl, 'Einheit', 'Einheiten')} ${
-              esc(st ? KIND_TEXT[st.kind] : 'trainiert, früherer Plan')}, ${esc(MODE_LABEL[modus])}">
+              esc(st ? KIND_TEXT[st.kind] : KIND_TEXT.done)}, ${esc(MODE_LABEL[modus])}">
       <span class="cal-num">${tag}</span>
       <span class="cal-mark">${st && st.kind === 'miss' ? '·' : MODE_ICON[modus]}${mehr}</span>
     </button>`;

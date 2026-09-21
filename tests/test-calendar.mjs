@@ -174,6 +174,9 @@ check(overflow2 === 0, `auch bei 360 px kein Überlauf (${overflow2}px)`);
 // Kalender „ausgefallen"; der einzige Unterschied war die Rahmenfarbe. Die
 // Zusammenfassung zählte sie ausserdem nicht als trainiert, sondern nannte sie
 // als Nachsatz. Aus sechs Trainings wurde damit „0 trainiert".
+//
+// Seit v178 gibt es die Sonderbehandlung gar nicht mehr: gleiche Kachel,
+// gleiche Legende, gleiche Zählung.
 await page.setViewportSize({ width: 414, height: 896 });
 await page.evaluate(() => {
   const heute = new Date();
@@ -197,20 +200,48 @@ await page.waitForTimeout(250);
 await page.locator('[data-act="go-tab"][data-tab="calendar"], .tab[data-tab="calendar"]').first().click();
 await page.waitForTimeout(400);
 
-const alteZellen = await page.evaluate(() => [...document.querySelectorAll('.cal-cell.frueher')]
-  .map((e) => ({ stil: getComputedStyle(e).borderStyle, gefuellt: getComputedStyle(e).backgroundColor })));
+// Verglichen wird nicht „sieht ungefähr aus wie trainiert", sondern Merkmal
+// für Merkmal gegen dieselbe Kachel ohne .frueher:
+//
+//     „Mach keine Unterscheidung in trainiert früherer Plan und trainiert.
+//      Das soll anzeigetechnisch exakt das gleiche sein"
+//
+// Die Kopie hängt im selben Raster, erbt also alles von der Umgebung; bleibt
+// ein Unterschied, kommt er aus einer Regel auf .frueher. Genau die soll es
+// nicht mehr geben. Ein eigener trainierter Tag aus dem laufenden Plan wäre
+// als Vergleich unzuverlässig – ob im gezeigten Monat einer liegt, hängt vom
+// Kalenderdatum des Testlaufs ab.
+const MERKMALE = ['backgroundColor', 'borderColor', 'borderStyle', 'borderWidth',
+  'color', 'fontWeight', 'opacity', 'boxShadow', 'borderRadius'];
+const alteZellen = await page.evaluate((props) => [...document.querySelectorAll('.cal-cell.frueher')]
+  .map((e) => {
+    const kopie = e.cloneNode(true);
+    kopie.classList.remove('frueher', 'sel', 'today');
+    e.parentNode.insertBefore(kopie, e.nextSibling);
+    const lies = (el) => Object.fromEntries(props.map((p) => [p, getComputedStyle(el)[p]]));
+    const hier = lies(e);
+    const dort = lies(kopie);
+    kopie.remove();
+    return {
+      label: e.getAttribute('aria-label'),
+      abweichung: props.filter((p) => hier[p] !== dort[p]).map((p) => `${p}: ${hier[p]} statt ${dort[p]}`),
+      gefuellt: hier.backgroundColor,
+    };
+  }), MERKMALE);
 console.log('     frühere Tage:', JSON.stringify(alteZellen));
 check(alteZellen.length === 3, `drei Tage aus dem früheren Plan (${alteZellen.length})`);
-check(alteZellen.every((z) => z.stil !== 'dashed'),
-  'sie sind nicht gestrichelt – gestrichelt heißt hier „ausgefallen"');
+check(alteZellen.every((z) => !z.abweichung.length),
+  `sie sehen aus wie jeder trainierte Tag (${alteZellen.flatMap((z) => z.abweichung).join('; ') || 'kein Unterschied'})`);
 check(alteZellen.every((z) => !/rgba\(0, 0, 0, 0\)|transparent/.test(z.gefuellt)),
-  'und sie sind gefüllt, sehen also aus wie Trainingstage');
+  'und sind gefüllt – gestrichelt-leer hieße hier „ausgefallen"');
+check(alteZellen.every((z) => / trainiert,/.test(z.label) && !/Plan/.test(z.label)),
+  `auch vorgelesen heißen sie schlicht trainiert (${alteZellen[0] ? alteZellen[0].label : '–'})`);
 
 const zusammenAlt = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/3 trainiert/.test(zusammenAlt),
   `die Zusammenfassung zählt sie als trainiert (${(zusammenAlt.match(/\d+ Einheiten[^·]*·[^·]*/) || ['?'])[0]})`);
-check(/aus einem früheren Plan/.test(zusammenAlt),
-  'und sagt trotzdem, woher sie stammen – Herkunft ist kein Abzug');
+check(!/früherer Plan|früheren Plan/.test(zusammenAlt),
+  'und macht keinen Nachsatz daraus – weder in der Legende noch in der Zeile darunter');
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

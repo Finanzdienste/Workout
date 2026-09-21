@@ -147,8 +147,13 @@ await page.evaluate(async () => (await import('./js/store.js')).setSetting('tab'
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
 const kalender = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-check(/früheren Plan/.test(kalender),
-  'der Kalender weist die Tage aus einem früheren Plan aus');
+// Gezählt wie jeder andere Trainingstag, und ohne Nachsatz: *„Mach keine
+// Unterscheidung in trainiert früherer Plan und trainiert."*
+check(/2 trainiert/.test(kalender),
+  `der Kalender zählt die Tage aus dem früheren Plan als trainiert (${
+    (kalender.match(/\d+ Einheiten[^·]*·[^·]*/) || ['?'])[0].trim()})`);
+check(!/früherer Plan|früheren Plan/.test(kalender),
+  'ohne sie gesondert auszuweisen');
 const marken = await page.locator('.cal-cell.frueher').count();
 check(marken === 2, `beide Tage sind markiert (${marken})`);
 

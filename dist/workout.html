@@ -1411,21 +1411,18 @@ textarea.io {
    nicht trennen kann, sieht hier trotzdem drei verschiedene Kacheln. */
 .cal-cell.done { background: var(--accent); border-color: var(--accent); color: #10131a; font-weight: 700; }
 .cal-cell.done.bw { background: var(--accent-2); border-color: var(--accent-2); }
-/* Trainiert, aber unter einem früheren Plan: derselbe Tag, blasser gezeichnet.
-   Voll eingefärbt sähe er aus wie eine Einheit dieses Plans – und die ist es
-   nicht; die Übungen dazu stehen nicht mehr zur Verfügung.
+/* Ein Tag aus einem früheren Plan trägt zusätzlich .frueher – aber bewusst
+   *ohne* eigene Regel. Er soll aussehen wie jeder andere Trainingstag; die
+   Klasse ist nur der Griff für die Detailansicht und für den Test, der beide
+   Kacheln Merkmal für Merkmal vergleicht.
 
-   **Gestrichelt darf er aber nicht sein**, und das war er bis v176. In diesem
-   Kalender heißt gestrichelt „ausgefallen" (.cal-cell.miss weiter unten) – der
-   einzige Unterschied war die Rahmenfarbe. Nach dem Plan-Wechsel standen damit
-   sechs Tage da, an denen wirklich trainiert wurde, und sahen aus wie sechs
-   verpasste: *„Irgendwie klassifiziert er das was ich tatsächlich die letzten
-   Wochen trainiert hab nur als angefangen."* Ein Tag, an dem trainiert wurde,
-   muss aussehen wie ein Trainingstag. Blasser ja, gestrichelt nein. */
-.cal-cell.done.frueher { background: rgba(255, 122, 69, .38); color: var(--text);
-  border-color: var(--accent); border-style: solid; font-weight: 700; }
-.cal-cell.done.frueher.bw { border-color: var(--accent-2);
-  background: rgba(78, 161, 255, .38); }
+   Vorgeschichte: bis v176 war er gestrichelt, also optisch „ausgefallen"
+   (.cal-cell.miss weiter unten) – *„Irgendwie klassifiziert er das was ich
+   tatsächlich die letzten Wochen trainiert hab nur als angefangen."* v177
+   machte ihn blass-orange und damit immer noch zu einer eigenen Sorte Tag:
+   *„Mach keine Unterscheidung in trainiert früherer Plan und trainiert. Das
+   soll anzeigetechnisch exakt das gleiche sein."* Trainiert ist trainiert.
+   Aus welchem Plan, steht nur noch im Detail unter der Kachel. */
 /* Die Aufwärmzeile: gedämpft und ohne Rahmen. Sie ist eine Ansage vor der
    Arbeit, kein Teil davon – sähe sie aus wie ein Satz, würde danach gesucht,
    wo man sie abhakt. */
@@ -1455,7 +1452,6 @@ textarea.io {
 .cal-legend .dot.done { background: var(--accent); border-color: var(--accent); }
 .cal-legend .dot.part { background: rgba(255, 122, 69, .16); border-color: var(--accent); }
 .cal-legend .dot.plan { background: var(--bg-elev-2); }
-.cal-legend .dot.done.frueher { background: rgba(255, 122, 69, .38); border-color: var(--accent); }
 .cal-legend .dot.miss { border-style: dashed; }
 
 .cal-detail { margin-top: 12px; }
@@ -12577,6 +12573,9 @@ function calendarCell(iso, month, today, byDate, sel, frueher) {
   if (iso === today) cls.push('today');
   if (iso === sel) cls.push('sel');
   if (st) cls.push(st.kind, st.mode);
+  // 'frueher' trägt keine eigene Darstellung mehr (siehe css/styles.css) – die
+  // Kachel ist eine trainierte wie jede andere. Die Klasse bleibt als Merkmal
+  // für die Detailansicht und den Test stehen.
   else if (alt) cls.push('done', 'frueher', alt.mode);
   const tag = Number(iso.slice(8));
   // Ohne Einheit ist der Tag kein Knopf: nichts anzuzeigen, nichts zu tippen.
@@ -12588,7 +12587,7 @@ function calendarCell(iso, month, today, byDate, sel, frueher) {
     <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
             aria-pressed="${iso === sel}"
             aria-label="${esc(fmtDate(iso, true))}: ${plural(anzahl, 'Einheit', 'Einheiten')} ${
-              esc(st ? KIND_TEXT[st.kind] : 'trainiert, früherer Plan')}, ${esc(MODE_LABEL[modus])}">
+              esc(st ? KIND_TEXT[st.kind] : KIND_TEXT.done)}, ${esc(MODE_LABEL[modus])}">
       <span class="cal-num">${tag}</span>
       <span class="cal-mark">${st && st.kind === 'miss' ? '·' : MODE_ICON[modus]}${mehr}</span>
     </button>`;
@@ -16653,11 +16652,10 @@ function renderCalendar() {
   });
   // Aus früheren Plänen, an Tagen ohne Einheit im laufenden.
   //
-  // Sie zählen in die Summe und in „trainiert" hinein, und das ist eine
-  // Korrektur: Vorher standen sie nur als Nachsatz daneben, und nach dem
-  // Plan-Wechsel las sich der ganze Monat als „0 trainiert" – obwohl an sechs
-  // Tagen trainiert worden war. Dass sie aus einem anderen Plan stammen, bleibt
-  // dabei stehen; es ist eine Herkunft und kein Abzug.
+  // Sie zählen in die Summe und in „trainiert" hinein, ohne eigenen Nachsatz:
+  // *„Mach keine Unterscheidung in trainiert früherer Plan und trainiert."*
+  // Vorher las sich der Monat nach einem Plan-Wechsel als „0 trainiert",
+  // obwohl an sechs Tagen trainiert worden war.
   const altImMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7)
     && !(byDate.get(d) || []).length && frueher.has(d))
     .reduce((a, d) => a + frueher.get(d).einheiten, 0);
@@ -16679,7 +16677,6 @@ function renderCalendar() {
       <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher)).join('')}</div>
       <div class="cal-legend">
         <span><i class="dot done"></i> trainiert</span>
-        ${altImMonat ? '<span><i class="dot done frueher"></i> trainiert, früherer Plan</span>' : ''}
         <span><i class="dot part"></i> angefangen</span>
         <span><i class="dot plan"></i> geplant</span>
         <span><i class="dot miss"></i> ausgefallen</span>
@@ -16688,7 +16685,6 @@ function renderCalendar() {
         ${plural(imMonat.length + altImMonat, 'Einheit', 'Einheiten')} in diesem Monat ·
         ${zaehl.done + altImMonat} trainiert${zaehl.done + altImMonat
           ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
-          altImMonat ? `, davon ${altImMonat} aus einem früheren Plan` : ''}${
           zaehl.miss ? ` · ${zaehl.miss} ausgefallen` : ''}${
           zaehl.plan ? ` · ${zaehl.plan} offen` : ''}
       </div>
