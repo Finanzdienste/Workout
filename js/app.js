@@ -3417,7 +3417,11 @@ function terminListe() {
         <div class="lbl">${esc(t.name || (TERMIN_ARTEN[t.schont] || {}).label || 'Termin')}</div>
         <div class="hint">${esc(fmtDate(t.datum))} · schont
           ${esc((TERMIN_ARTEN[t.schont] || TERMIN_ARTEN.beine).label)}${
-  t.datum < todayISO() ? ' · vorbei' : ''}</div>
+  // „vorbei" erst, wenn auch der Tag danach herum ist – sonst stünde am Tag
+  // nach dem Termin „vorbei" an einem Eintrag, der die heutige Einheit
+  // gerade kürzt.
+  addDays(t.datum, 1) < todayISO() ? ' · vorbei'
+    : (t.datum < todayISO() ? ' · wirkt noch heute' : '')}</div>
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-act="termin-weg"
               data-i="${i}" aria-label="Termin entfernen">Entfernen</button>
@@ -4508,14 +4512,16 @@ function renderSettings() {
 
     <div class="section-title">Termine</div>
     <div class="card">
-      <div class="small muted">Tage, an denen etwas anderes ansteht. Am Termintag und
-        <b>am Tag davor</b> fallen die betroffenen Übungen aus der Einheit – der
-        Muskelkater nach schweren Beinen ist nach 24 bis 48 Stunden am schlimmsten,
-        also genau dann.</div>
+      <div class="small muted">Tage, an denen etwas anderes ansteht. <b>Am Tag davor, am
+        Termintag und am Tag danach</b> fallen die betroffenen Übungen aus der Einheit.
+        Muskelkater hat sein Maximum nach 24 bis 48 Stunden – vorher würden schwere Beine
+        dem Termin schaden, danach schadet der Termin dem Training.</div>
+      <div class="small muted" style="margin-top:6px">Vergangene Tage darfst du nachtragen:
+        Was gestern war, wirkt auf heute.</div>
       ${terminListe()}
       <div class="zeit-row" style="margin-top:10px">
         <label class="zeit"><span class="lbl">Wann</span>
-          <input type="date" id="terminDatum" min="${esc(todayISO())}"></label>
+          <input type="date" id="terminDatum" min="${esc(addDays(todayISO(), -14))}"></label>
         <label class="zeit"><span class="lbl">Was</span>
           <input type="text" id="terminName" maxlength="24" placeholder="Padel"></label>
       </div>

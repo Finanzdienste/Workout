@@ -5,13 +5,32 @@
  *      vorhat zb 02.06. Padel und dass man dadurch automatisch am Tag davor
  *      keine Beine trainiert"
  *
- * **Warum das etwas bringt, und warum nur am Tag davor.** Der Muskelkater nach
- * schweren Kniebeugen ist nicht am Abend am schlimmsten, sondern nach 24 bis 48
- * Stunden – genau dann, wenn am nächsten Tag Padel wäre. Sprint, Sprung und
- * seitliches Abstoppen leiden messbar. Zwei Tage vorher zu schonen wäre
- * übervorsichtig und kostete ein zweites Mal Volumen; am Tag selbst ist es
- * ohnehin klar. Deshalb gilt der Schutz für **den Termintag und den Tag davor**
- * und sonst für keinen.
+ * **Warum das etwas bringt.** Der Muskelkater nach schweren Kniebeugen ist
+ * nicht am Abend am schlimmsten, sondern nach 24 bis 48 Stunden – genau dann,
+ * wenn am nächsten Tag Padel wäre. Sprint, Sprung und seitliches Abstoppen
+ * leiden messbar. Zwei Tage vorher zu schonen wäre übervorsichtig und kostete
+ * ein zweites Mal Volumen; am Tag selbst ist es ohnehin klar.
+ *
+ * **Und der Tag danach, seit v181.**
+ *
+ *     „Ich hab gestern 1,5h padel gemacht. Kannst das irgendwo eintragen und
+ *      die Übungen usw entsprechend anpassen? Oder spielt padel gestern keinen
+ *      Einfluss auf Workout heute?"
+ *
+ * Er spielt einen. Dieselbe Rechnung, nur andersherum gelesen: Anderthalb
+ * Stunden Padel sind vor allem Abbremsen und Richtungswechsel, also exzentrische
+ * Last auf Quadrizeps, Beinbeuger und Waden. Deren Muskelkater hat sein
+ * Maximum ebenfalls nach 24 bis 48 Stunden – am Tag danach. Bis v180 sah die
+ * App genau daran vorbei: Ein Termin schützte den Wettkampf vor dem Training,
+ * aber nicht das Training vor dem Wettkampf. Der Schutz gilt deshalb jetzt für
+ * **den Tag davor, den Termintag und den Tag danach**.
+ *
+ * Drei Tage statt zwei sind ein Drittel mehr Ausfall, und das ist kein
+ * Rundungsfehler: Wer wöchentlich spielt, verliert damit regelmäßig Beinvolumen.
+ * Die Gegenrechnung: Auf müden, schweren Beinen schwer zu beugen bringt wenig
+ * Anpassung und trägt ein erhöhtes Risiko – gerade am Beinbeuger. Wem es nach
+ * einem bestimmten Termin gut geht, der löscht ihn; er ist eine Eintragung und
+ * keine Vorschrift.
  *
  * **Was es kostet, und das steht hier, weil es sonst niemand sagt.** Die
  * betroffenen Übungen fallen aus der Einheit, ersatzlos. Die Woche verfehlt
@@ -83,8 +102,8 @@ export function geschont(iso) {
   const gruppen = new Set();
   const namen = [];
   termine().forEach((t) => {
-    // Der Termintag selbst und der Tag davor.
-    if (iso !== t.datum && iso !== addDays(t.datum, -1)) return;
+    // Der Tag davor, der Termintag selbst und der Tag danach.
+    if (iso !== t.datum && iso !== addDays(t.datum, -1) && iso !== addDays(t.datum, 1)) return;
     const art = TERMIN_ARTEN[t.schont] || TERMIN_ARTEN.beine;
     if (art.gruppen === null) EXERCISES.forEach((e) => directOf(e.id).forEach((m) => gruppen.add(m)));
     else art.gruppen.forEach((m) => gruppen.add(m));
