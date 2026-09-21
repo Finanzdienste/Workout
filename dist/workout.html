@@ -4993,11 +4993,31 @@ const PATTERNS = {
      *
      * Unten: Arme nach vorn oben, fast gestreckt. Oben: Ellenbogen hoch und
      * nach aussen, Haende neben den Schlaefen.
+     *
+     * **Der Ellenbogen muss ueber `i` gebeugt werden, nicht ueber `e`.** Das
+     * ist derselbe Fehler, der beim Schulterdruecken aufgefallen ist (siehe
+     * `ohp` weiter oben): `e` beugt in der Laengsebene, die Abspreizung liegt
+     * in der Frontalebene. Ist der Oberarm weit abgespreizt, zeigt er fast
+     * entlang der x-Achse, und eine Beugung *um* diese Achse klappt den
+     * Unterarm nach aussen statt nach oben. Gezeichnet wurde damit:
+     *
+     *     „Irgendwie sieht die Animation bei face pull falsch aus"
+     *
+     * Nachgerechnet (tools/pose.mjs, Schulter bei 0,42, Kopf bei 0,63):
+     *   alt  A(64, 58, 104)  Ellenbogen 0,44 – Hand 0,66 *weiter draussen als
+     *                        der Ellenbogen*, auf Brusthoehe. Also kein Zug
+     *                        zum Gesicht, sondern ein breites Auseinander-
+     *                        ziehen mit fast gestreckten Armen.
+     *   neu  A(8, 84, 4, 120) Ellenbogen 0,48 auf Schulterhoehe (y 0,39), Hand
+     *                        0,38 – nach innen gewandert – auf Kopfhoehe
+     *                        (y 0,62). Ellenbogenwinkel 60 statt 131 Grad.
+     * Das ist die Form, die der Hinweis der Uebung seit jeher beschreibt:
+     * Ellenbogen hoch und nach aussen, Haende neben den Schlaefen.
      */
     label: 'Face Pull', band: 'bar', ueberkopf: 0.95, ueberkopfZ: 0.58, view: [20, -8],
     poses: [
-      { lean: 4, arm: A(96, 14, 12), leg: L(2, 5, 4) },
-      { lean: 4, arm: A(64, 58, 104), leg: L(2, 5, 4) },
+      { lean: 4, arm: A(104, 12, 8), leg: L(2, 5, 4) },
+      { lean: 4, arm: A(8, 84, 4, 120), leg: L(2, 5, 4) },
     ],
   },
   curl: {

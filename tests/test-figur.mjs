@@ -142,4 +142,81 @@ presseMuster.forEach((name) => {
   }
 });
 
-console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
+/* --- 5. Abgespreizter Arm: die Beugung muss nach innen gehen -------------- */
+//
+//     „Irgendwie sieht die Animation bei face pull falsch aus"
+//
+// Zum zweiten Mal dieselbe Falle. Der Ellenbogen beugt in dieser Figur nur in
+// der Längsebene (arm.e, rotX); die Abspreizung liegt in der Frontalebene
+// (arm.a, rotZ). Zeigt der Oberarm weit abgespreizt fast entlang der x-Achse,
+// dreht eine Beugung *um* diese Achse den Unterarm nicht nach oben zum Kopf,
+// sondern weiter nach außen. Beim Schulterdrücken kam so ein Seitheben heraus,
+// beim Face Pull ein breites Auseinanderziehen.
+//
+// Der Prüfstein ist in beiden Fällen derselbe und braucht keine Übungskunde:
+// Ist der Arm abgespreizt *und* gebeugt, muss der Unterarm mehr nach oben als
+// nach außen gehen. Geht er mehr nach außen, ist er in der falschen Ebene
+// geklappt. Dafür gibt es arm.i, das in der Frontalebene dreht.
+//
+//   alt  facepull t=1   Ellenbogen 0,44 → Hand 0,66:  0,21 nach außen,
+//                       0,13 nach oben. Also nach außen geklappt.
+//   neu  facepull t=1   Ellenbogen 0,48 → Hand 0,38: 0,10 nach *innen*,
+//                       0,23 nach oben.
+//
+// Geprüft wird nur, wo die Übung einen gebeugten Arm verlangt: beim Face Pull
+// am Ende, beim Schulterdrücken am Anfang. Das Band-Auseinanderziehen steht
+// bewusst nicht in der Liste – dort ist der Arm gestreckt, und dann *soll* die
+// Hand weiter draußen liegen als der Ellenbogen.
+[['facepull', 1], ['ohp', 0], ['ohpstand', 0]].forEach(([name, t]) => {
+  const spec = PATTERNS[name];
+  if (!spec) { check(false, `${name}: Muster fehlt`); return; }
+  const j = skelett(spec, t);
+  const raus = j.elbowR[0] - j.shoulderR[0];
+  const nachAussen = j.handR[0] - j.elbowR[0];
+  const nachOben = j.handR[1] - j.elbowR[1];
+  check(raus > 0.15, `${name} t=${t}: der Oberarm ist abgespreizt (${raus.toFixed(3)})`);
+  check(nachOben > Math.abs(nachAussen),
+    `${name} t=${t}: der Unterarm geht nach oben, nicht nach außen `
+    + `(${nachOben.toFixed(3)} hoch gegen ${nachAussen.toFixed(3)} seitlich)`);
+});
+
+/* --- 6. Face Pull: Ellenbogen hoch, Hände am Kopf ------------------------- */
+//
+// Der Hinweis der Übung sagt, wie das Ende aussieht: „Ellenbogen hoch und nach
+// außen, Hände enden neben den Schläfen." Genau das wird hier nachgerechnet –
+// vorher endete die Hand 0,66 draußen auf Brusthöhe, also weder hoch noch am
+// Kopf, und der Arm war dabei fast gestreckt.
+{
+  const anfang = skelett(PATTERNS.facepull, 0);
+  const ende = skelett(PATTERNS.facepull, 1);
+  const winkel = (j) => {
+    const u = [0, 1, 2].map((i) => j.elbowR[i] - j.shoulderR[i]);
+    const f = [0, 1, 2].map((i) => j.handR[i] - j.elbowR[i]);
+    const len = (v) => Math.hypot(...v) || 1;
+    const cos = u.reduce((s, x, i) => s + x * f[i], 0) / (len(u) * len(f));
+    return 180 - (Math.acos(Math.max(-1, Math.min(1, cos))) * 180) / Math.PI;
+  };
+  console.log('     Face Pull Ende:', JSON.stringify({
+    ellenbogen: ende.elbowR.map((v) => +v.toFixed(3)),
+    hand: ende.handR.map((v) => +v.toFixed(3)),
+    winkel: +winkel(ende).toFixed(0),
+  }));
+  // Anfang: Arme zum Band hin gestreckt, nach vorn.
+  check(winkel(anfang) > 150,
+    `Face Pull: unten ist der Arm fast gestreckt (${winkel(anfang).toFixed(0)}°)`);
+  check(anfang.handR[2] > anfang.shoulderR[2] + 0.3,
+    `Face Pull: und die Hände stehen weit vorn am Band (z ${anfang.handR[2].toFixed(3)})`);
+  // Ende: Ellenbogen auf Schulterhöhe, Hand auf Kopfhöhe, Arm gebeugt.
+  check(Math.abs(ende.elbowR[1] - ende.shoulderR[1]) < 0.08,
+    `Face Pull: oben steht der Ellenbogen auf Schulterhöhe `
+    + `(${ende.elbowR[1].toFixed(3)} gegen ${ende.shoulderR[1].toFixed(3)})`);
+  check(Math.abs(ende.handR[1] - ende.head[1]) < 0.09,
+    `Face Pull: die Hand endet auf Kopfhöhe (${ende.handR[1].toFixed(3)} gegen ${ende.head[1].toFixed(3)})`);
+  check(winkel(ende) < 90,
+    `Face Pull: und der Arm ist dabei deutlich gebeugt (${winkel(ende).toFixed(0)}°)`);
+  check(ende.handR[1] > anfang.handR[1],
+    `Face Pull: die Hand geht nach oben, nicht nach unten `
+    + `(${anfang.handR[1].toFixed(3)} → ${ende.handR[1].toFixed(3)})`);
+}
+
+console.log(`\n${fails ? fails + " FEHLER" : "alle Prüfungen bestanden"}`);
