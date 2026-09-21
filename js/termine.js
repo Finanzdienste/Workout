@@ -11,7 +11,20 @@
  * leiden messbar. Zwei Tage vorher zu schonen wäre übervorsichtig und kostete
  * ein zweites Mal Volumen; am Tag selbst ist es ohnehin klar.
  *
- * **Und der Tag danach, seit v181.**
+ * **Seit v182 sagt die Aktivität selbst, was sie trifft.**
+ *
+ *     „Ich will das nicht selbst anklicken müssen. … Ich will nur sagen was
+ *      ich an welchem tag gemacht hab. Der Rest soll automatisch passieren"
+ *
+ * Die drei Körbe unten – Beine, Oberkörper, alles – waren eine Frage an den
+ * Nutzer, die die App beantworten kann: In welchen Korb gehört Padel? Seit
+ * v182 steht die Antwort in js/aktivitaeten.js, für rund fünfzig Aktivitäten
+ * und je vierzehn Muskelgruppen, mit einem Satz Begründung pro Zeile. Der
+ * Termin trägt jetzt eine Aktivität und eine Dauer; welche Gruppen an welchem
+ * Tag ausfallen, rechnet der Katalog. TERMIN_ARTEN steht nur noch für
+ * Einträge da, die vor v182 angelegt wurden.
+ *
+ * **Der Tag danach, seit v181.**
  *
  *     „Ich hab gestern 1,5h padel gemacht. Kannst das irgendwo eintragen und
  *      die Übungen usw entsprechend anpassen? Oder spielt padel gestern keinen
@@ -54,15 +67,15 @@ import { EXERCISES } from './data.js';
 import { addDays } from './dates.js';
 import * as store from './store.js';
 import { directOf } from './uebung.js';
+import { AKT_BY_ID, gruppenAm } from './aktivitaeten.js';
 
 /**
- * Was ein Termin beansprucht – und welche Muskelgruppen deshalb geschont
- * werden.
+ * Die drei groben Körbe von vor v182 – nur noch für alte Einträge.
  *
- * Bewusst drei grobe Körbe statt vierzehn Häkchen: Wer am Dienstag Padel
- * spielt, weiß, dass die Beine drankommen, und nicht, ob der Beinbeuger an der
- * Hüfte oder am Knie mehr leidet. Die Aufteilung folgt den Gruppen, die
- * js/data.js ohnehin führt.
+ * Neue Termine tragen eine Aktivität aus js/aktivitaeten.js und brauchen das
+ * hier nicht. Gelöscht wird es trotzdem nicht: Im Speicher eines Geräts, das
+ * länger nicht aktualisiert hat, stehen Einträge in dieser Form, und die
+ * sollen weiter wirken statt stillschweigend zu verschwinden.
  */
 export const TERMIN_ARTEN = {
   beine: {
@@ -102,14 +115,52 @@ export function geschont(iso) {
   const gruppen = new Set();
   const namen = [];
   termine().forEach((t) => {
-    // Der Tag davor, der Termintag selbst und der Tag danach.
-    if (iso !== t.datum && iso !== addDays(t.datum, -1) && iso !== addDays(t.datum, 1)) return;
-    const art = TERMIN_ARTEN[t.schont] || TERMIN_ARTEN.beine;
-    if (art.gruppen === null) EXERCISES.forEach((e) => directOf(e.id).forEach((m) => gruppen.add(m)));
-    else art.gruppen.forEach((m) => gruppen.add(m));
-    namen.push(t.name || art.label);
+    // Wie viele Tage liegt der betrachtete Tag hinter dem Termin? −1 ist der
+    // Tag davor, 0 der Termintag, +1 und +2 danach.
+    const tage = [-1, 0, 1, 2].find((d) => iso === addDays(t.datum, d));
+    if (tage === undefined) return;
+    const treffer = terminGruppen(t, tage);
+    if (!treffer.length) return;
+    treffer.forEach((m) => gruppen.add(m));
+    namen.push(t.name || terminLabel(t));
   });
   return { gruppen, namen };
+}
+
+/**
+ * Die Gruppen eines einzelnen Termins an einem Tagesversatz.
+ *
+ * Zwei Formen liegen im Speicher nebeneinander, und das bleibt so:
+ *
+ *   `{ aktivitaet, minuten }`  die heutige. Die Gruppen kommen aus dem
+ *                              Katalog in js/aktivitaeten.js – Padel weiß
+ *                              selbst, dass es Kniestrecker und Waden trifft.
+ *   `{ schont: 'beine' }`      die alte mit drei Körben. Wer sie vor v182
+ *                              eingetragen hat, soll sie nicht neu anlegen
+ *                              müssen; sie wirkt weiter wie bisher, nur eben
+ *                              ohne Abstufung nach Tag.
+ */
+function terminGruppen(t, tage) {
+  if (t.aktivitaet && AKT_BY_ID.has(t.aktivitaet)) {
+    return gruppenAm(t.aktivitaet, t.minuten, tage);
+  }
+  // Die alte Form kannte nur „Tag davor und Termintag"; der Tag danach kam
+  // mit v181 dazu. Zwei Tage danach gab es nie und kommt hier auch nicht.
+  if (tage === 2) return [];
+  const art = TERMIN_ARTEN[t.schont] || TERMIN_ARTEN.beine;
+  if (art.gruppen === null) {
+    const alle = new Set();
+    EXERCISES.forEach((e) => directOf(e.id).forEach((m) => alle.add(m)));
+    return [...alle];
+  }
+  return art.gruppen;
+}
+
+/** Wie ein Termin heißt, wenn kein Name eingetragen wurde. */
+export function terminLabel(t) {
+  const a = t.aktivitaet && AKT_BY_ID.get(t.aktivitaet);
+  if (a) return a.name;
+  return (TERMIN_ARTEN[t.schont] || TERMIN_ARTEN.beine).label;
 }
 
 /**

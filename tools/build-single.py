@@ -40,6 +40,9 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            # vorrat.js vor plan.js: exBasis() filtert damit, was gerade an
            # Geraet fehlt.
            'js/vorrat.js',
+           # aktivitaeten.js vor termine.js: Der Katalog sagt, welche Gruppen
+           # eine Aktivitaet an welchem Tag trifft; termine.js fragt ihn.
+           'js/aktivitaeten.js',
            # termine.js vor plan.js: adjustedPlan() fragt dort nach, was an
            # einem Datum geschont wird.
            'js/termine.js',

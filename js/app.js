@@ -55,7 +55,8 @@ import { erinnerungsStand, minuten } from './erinnerung.js';
 import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
 import { kannPush, pushEinrichten, pushStand } from './push.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat } from './vorrat.js';
-import { TERMIN_ARTEN, termine } from './termine.js';
+import { termine, terminLabel } from './termine.js';
+import { AKTIVITAETEN, AKT_BY_ID, familien, gruppenAm, nachwirkung } from './aktivitaeten.js';
 
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
@@ -1003,10 +1004,14 @@ const ui = {
   // gespeicherten Zustand nichts zu suchen – von dort käme er in jede Sicherung.
   pushText: '',
   adminLaeuft: false,
-  // Welcher Korb beim Eintragen eines Termins gilt. Nur im Arbeitsspeicher:
-  // Das ist die Auswahl eines Formulars, kein Zustand, den man wiederfinden
-  // will – beim nächsten Öffnen steht wieder „Beine" da, der häufigste Fall.
-  terminArt: 'beine',
+  // Das Formular für „Sport außerhalb des Plans". Nur im Arbeitsspeicher: Das
+  // ist eine Eingabe, kein Zustand, den man wiederfinden will – beim nächsten
+  // Öffnen steht wieder „Heute" da und keine Aktivität.
+  terminArt: 'beine',      // nur noch für alte Einträge, siehe js/termine.js
+  terminDatum: '',         // leer heißt heute
+  terminAkt: '',           // gewählte Aktivität aus js/aktivitaeten.js
+  terminMin: 0,            // 0 heißt: die übliche Dauer dieser Aktivität
+  terminSuche: '',
   customDraft: null,       // Entwurf im Baukasten für eigene Workouts
   setupStep: 0,            // Schritt im Einstieg: Name, Farbe, Fokus
   openInjury: new Set(),
@@ -1624,13 +1629,7 @@ function renderOverview() {
       ${items.length ? `
         ${startBlock(n, mode, prog)}
 `
-      : `<div class="card empty-day">
-          <b>Heute bleibt nichts übrig.</b> Die angehakten Beschwerden sperren
-          jede Übung dieser Einheit, und für keine gibt es einen Ersatz, der
-          nicht auch weh täte. Das ist kein Fehler – nur ein Tag, an dem
-          Krafttraining nicht dran ist.
-          <button type="button" class="btn btn-ghost btn-sm" data-act="go-injuries">Verletzungen ansehen</button>
-        </div>`}
+      : leererTag(n)}
 
       <div class="ov-foot">
         ${w.custom ? `<button type="button" class="ov-nav" data-act="back-to-plan" aria-label="Zurück zum Plan">↩</button>`
@@ -3405,27 +3404,171 @@ function terminNote(w, mode) {
     </div>`;
 }
 
+/**
+ * Der Tag, an dem nichts übrig bleibt – und woran das liegt.
+ *
+ * Die Karte gab es schon, sie nannte aber immer nur die Verletzungen als
+ * Grund. Seit es Aktivitäten gibt, kann eine Einheit auch deshalb leer sein,
+ * weil vorgestern vier Stunden Ski gefahren wurde – und dann führt „die
+ * angehakten Beschwerden sperren jede Übung" in die Irre, weil man in einer
+ * leeren Verletzungsliste nach einem Fehler sucht. Hier steht der Grund, der
+ * tatsächlich zutrifft.
+ */
+function leererTag(n) {
+  const { dropped, termin } = injuryNotes(n);
+  const wegenTermin = dropped.filter((d) => d.reason === 'termin').length;
+  const wegenKoerper = dropped.length - wegenTermin;
+  const grund = wegenTermin && wegenKoerper
+    ? `${esc(termin.join(', '))} und die angehakten Beschwerden sperren zusammen jede Übung dieser Einheit`
+    : (wegenTermin
+      ? `Nach ${esc(termin.join(', '))} ist jede Muskelgruppe dieser Einheit noch im Muskelkater`
+      : 'Die angehakten Beschwerden sperren jede Übung dieser Einheit, und für '
+        + 'keine gibt es einen Ersatz, der nicht auch weh täte');
+  return `
+    <div class="card empty-day">
+      <b>Heute bleibt nichts übrig.</b> ${grund}. Das ist kein Fehler – nur ein
+      Tag, an dem Krafttraining nicht dran ist.
+      ${wegenTermin
+    ? '<button type="button" class="btn btn-ghost btn-sm" data-act="go-tab" data-tab="settings">Eintrag ändern</button>'
+    : '<button type="button" class="btn btn-ghost btn-sm" data-act="go-injuries">Verletzungen ansehen</button>'}
+    </div>`;
+}
+
+/**
+ * Eintragen in drei Tipps: Tag, Aktivität, fertig.
+ *
+ *     „Ich will das nicht selbst anklicken müssen. … Ich will nur sagen was
+ *      ich an welchem tag gemacht hab. Der Rest soll automatisch passieren"
+ *
+ * Deshalb steht der Tag als Knopfreihe da (Heute/Gestern/Vorgestern deckt fast
+ * alles ab, das Datumsfeld bleibt für den Rest), die Aktivität kommt aus einer
+ * durchsuchbaren Liste, und die Dauer ist mit dem üblichen Wert der Aktivität
+ * vorbelegt. Wer nichts an der Dauer ändert, tippt zweimal.
+ *
+ * Was dabei herauskommt, steht *vor* dem Eintragen da und nicht erst danach:
+ * welche Gruppen an welchem Tag ausfallen und warum diese. Nichts soll
+ * unbemerkt passieren – am wenigsten etwas, das die App selbst ausgerechnet hat.
+ */
+function aktivitaetWahl() {
+  const heute = todayISO();
+  const datum = ui.terminDatum || heute;
+  const akt = AKT_BY_ID.get(ui.terminAkt) || null;
+  const minuten = ui.terminMin || (akt ? akt.typisch : 60);
+  const TAGE = [['Heute', heute], ['Gestern', addDays(heute, -1)], ['Vorgestern', addDays(heute, -2)]];
+  const DAUERN = [30, 45, 60, 90, 120, 180, 240];
+
+  return `
+    <div class="lbl" style="margin-top:14px">Wann</div>
+    <div class="btn-row nav" style="margin-top:6px" role="group" aria-label="Tag wählen">
+      ${TAGE.map(([label, iso]) => `
+        <button type="button" class="btn ${datum === iso ? 'btn-primary' : ''}"
+                aria-pressed="${datum === iso}" data-act="termin-tag" data-v="${iso}">${label}</button>`).join('')}
+    </div>
+    <label class="zeit" style="margin-top:6px; display:block"><span class="lbl">anderer Tag</span>
+      <input type="date" id="terminDatum" value="${esc(datum)}"
+             min="${esc(addDays(heute, -30))}" data-act="termin-datum"></label>
+
+    <div class="lbl" style="margin-top:14px">Was</div>
+    <input type="search" id="terminSuche" class="such-feld" placeholder="Suchen – z. B. Padel"
+           value="${esc(ui.terminSuche || '')}" data-act="termin-suche"
+           aria-label="Aktivität suchen">
+    <div class="akt-liste">${aktivitaetListe()}</div>
+
+    ${akt ? `
+      <div class="lbl" style="margin-top:14px">Wie lange</div>
+      <div class="btn-row nav" style="margin-top:6px" role="group" aria-label="Dauer wählen">
+        ${DAUERN.map((m) => `
+          <button type="button" class="btn ${minuten === m ? 'btn-primary' : ''}"
+                  aria-pressed="${minuten === m}" data-act="termin-dauer" data-v="${m}">${
+  m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h` : `${m} min`}</button>`).join('')}
+      </div>
+      ${aktivitaetVorschau(akt, minuten, datum)}
+      <div class="btn-row" style="margin-top:10px">
+        <button type="button" class="btn btn-primary btn-block" data-act="termin-neu">
+          ${esc(akt.name)} eintragen</button>
+      </div>`
+    : '<div class="small muted" style="margin-top:8px">Such dir oben eine Aktivität aus.</div>'}`;
+}
+
+/** Die Auswahlliste, nach Familien gruppiert und über das Suchfeld gefiltert. */
+function aktivitaetListe() {
+  const q = (ui.terminSuche || '').trim().toLowerCase();
+  const passt = (a) => !q || a.name.toLowerCase().includes(q) || a.familie.toLowerCase().includes(q);
+  const treffer = AKTIVITAETEN.filter(passt);
+  if (!treffer.length) {
+    return `<div class="small muted">Nichts gefunden. ${AKTIVITAETEN.length} Aktivitäten
+      stehen zur Wahl – vielleicht heißt sie hier anders.</div>`;
+  }
+  return familien().map((f) => {
+    const drin = treffer.filter((a) => a.familie === f);
+    if (!drin.length) return '';
+    return `
+      <div class="akt-familie">${esc(f)}</div>
+      <div class="btn-row">
+        ${drin.map((a) => `
+          <button type="button" class="btn btn-sm ${ui.terminAkt === a.id ? 'btn-primary' : ''}"
+                  aria-pressed="${ui.terminAkt === a.id}"
+                  data-act="termin-akt" data-v="${esc(a.id)}">${esc(a.name)}</button>`).join('')}
+      </div>`;
+  }).join('');
+}
+
+/**
+ * Was der Eintrag bewirken wird – bevor er gemacht wird.
+ *
+ * Zeigt Tag für Tag, welche Gruppen ausfallen, dazu den Satz aus dem Katalog,
+ * der erklärt, warum gerade diese. Kommt nichts über die Schwelle, steht das
+ * genauso da: „ändert an deinem Plan nichts" ist eine Auskunft und kein Fehler.
+ */
+function aktivitaetVorschau(akt, minuten, datum) {
+  const heute = todayISO();
+  const TAGE = [[-1, 'am Tag davor'], [0, 'am Tag selbst'],
+                [1, 'am Tag danach'], [2, 'zwei Tage danach']];
+  // Nur Tage, an denen noch etwas ausfallen *kann*. Wer gestern gespielt hat,
+  // dem nützt „am Tag selbst fällt aus" nichts mehr – der Tag ist herum, und
+  // eine Zeile, die nichts mehr ändert, liest sich wie eine, die es tut.
+  const zeilen = TAGE.map(([d, label]) => {
+    const tag = addDays(datum, d);
+    if (tag < heute) return '';
+    const g = gruppenAm(akt.id, minuten, d);
+    if (!g.length) return '';
+    return `<li><b>${esc(label)}</b> (${esc(fmtDate(tag))}): ${
+      g.map((m) => esc(MUSCLE_LABEL[m] || m)).sort().join(', ')}</li>`;
+  }).filter(Boolean);
+  return `
+    <div class="card akt-vorschau" style="margin-top:10px">
+      <div class="lbl">Das fällt dann aus</div>
+      ${zeilen.length ? `<ul class="akt-tage">${zeilen.join('')}</ul>`
+    : '<div class="small muted">Nichts mehr – das ändert an deinem Plan nichts.</div>'}
+      <div class="small muted" style="margin-top:8px">${esc(akt.warum)}</div>
+    </div>`;
+}
+
 /** Die eingetragenen Termine als Liste, mit einem Weg, sie wieder loszuwerden. */
 function terminListe() {
   const liste = termine();
   if (!liste.length) {
     return '<div class="small muted" style="margin-top:8px">Noch nichts eingetragen.</div>';
   }
-  return `<div style="margin-top:10px">${liste.map((t, i) => `
+  return `<div style="margin-top:10px">${liste.map((t, i) => {
+    const akt = t.aktivitaet && AKT_BY_ID.get(t.aktivitaet);
+    // Wie lange der Eintrag noch etwas tut: der letzte Tag, an dem er greift.
+    const letzter = addDays(t.datum, akt ? nachwirkung(t.aktivitaet, t.minuten) : 1);
+    const stand = letzter < todayISO() ? ' · vorbei'
+      : (t.datum < todayISO() ? ' · wirkt noch' : '');
+    const dauer = akt && t.minuten
+      ? ` · ${t.minuten >= 60 ? `${Math.floor(t.minuten / 60)}:${String(t.minuten % 60).padStart(2, '0')} h` : `${t.minuten} min`}`
+      : '';
+    return `
     <div class="switch-row">
       <div>
-        <div class="lbl">${esc(t.name || (TERMIN_ARTEN[t.schont] || {}).label || 'Termin')}</div>
-        <div class="hint">${esc(fmtDate(t.datum))} · schont
-          ${esc((TERMIN_ARTEN[t.schont] || TERMIN_ARTEN.beine).label)}${
-  // „vorbei" erst, wenn auch der Tag danach herum ist – sonst stünde am Tag
-  // nach dem Termin „vorbei" an einem Eintrag, der die heutige Einheit
-  // gerade kürzt.
-  addDays(t.datum, 1) < todayISO() ? ' · vorbei'
-    : (t.datum < todayISO() ? ' · wirkt noch heute' : '')}</div>
+        <div class="lbl">${esc(t.name || terminLabel(t))}</div>
+        <div class="hint">${esc(fmtDate(t.datum))}${esc(dauer)}${esc(stand)}</div>
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-act="termin-weg"
-              data-i="${i}" aria-label="Termin entfernen">Entfernen</button>
-    </div>`).join('')}</div>`;
+              data-i="${i}" aria-label="Eintrag entfernen">Entfernen</button>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 /** Kurzfassung fürs Training: was heute anders ist. */
@@ -4510,32 +4653,15 @@ function renderSettings() {
         oben; dann regelst du den richtigen Kanal.</div>` : ''}
     </div>
 
-    <div class="section-title">Termine</div>
+    <div class="section-title">Sport außerhalb des Plans</div>
     <div class="card">
-      <div class="small muted">Tage, an denen etwas anderes ansteht. <b>Am Tag davor, am
-        Termintag und am Tag danach</b> fallen die betroffenen Übungen aus der Einheit.
-        Muskelkater hat sein Maximum nach 24 bis 48 Stunden – vorher würden schwere Beine
-        dem Termin schaden, danach schadet der Termin dem Training.</div>
-      <div class="small muted" style="margin-top:6px">Vergangene Tage darfst du nachtragen:
-        Was gestern war, wirkt auf heute.</div>
+      <div class="small muted">Sag, <b>was</b> du <b>wann</b> gemacht hast – den Rest rechnet
+        die App. Jede Aktivität weiß, welche Muskelgruppen sie trifft und wie lange sie
+        nachwirkt; die betroffenen Übungen fallen dann aus der Einheit. Vergangene Tage
+        darfst du nachtragen, das ist sogar der Normalfall.</div>
       ${terminListe()}
-      <div class="zeit-row" style="margin-top:10px">
-        <label class="zeit"><span class="lbl">Wann</span>
-          <input type="date" id="terminDatum" min="${esc(addDays(todayISO(), -14))}"></label>
-        <label class="zeit"><span class="lbl">Was</span>
-          <input type="text" id="terminName" maxlength="24" placeholder="Padel"></label>
-      </div>
-      <div class="btn-row" style="margin-top:8px">
-        ${Object.entries(TERMIN_ARTEN).map(([k, a]) => `
-          <button type="button" class="btn ${ui.terminArt === k ? 'btn-primary' : 'btn-ghost'}"
-                  data-act="termin-art" data-v="${k}">${esc(a.label)}</button>`).join('')}
-      </div>
-      <div class="small muted" style="margin-top:6px">${esc(
-        (TERMIN_ARTEN[ui.terminArt] || TERMIN_ARTEN.beine).hinweis)}</div>
-      <div class="btn-row" style="margin-top:8px">
-        <button type="button" class="btn btn-block" data-act="termin-neu">Termin eintragen</button>
-      </div>
-      <div class="small muted" style="margin-top:8px">Der Plan verschiebt sich dadurch
+      ${aktivitaetWahl()}
+      <div class="small muted" style="margin-top:10px">Der Plan verschiebt sich dadurch
         <b>nicht</b>. Die Übungen fallen weg, und die Woche liegt dann unter ihrem Ziel
         für diese Gruppen. Wer lieber die ganze Einheit vorzieht, macht das im Plan.</div>
     </div>
@@ -5724,27 +5850,38 @@ view.addEventListener('click', (e) => {
       ui.pushText = '';
       render();
       break;
-    case 'termin-art':
-      ui.terminArt = TERMIN_ARTEN[t.dataset.v] ? t.dataset.v : 'beine';
+    case 'termin-tag':
+      ui.terminDatum = t.dataset.v;
+      render();
+      break;
+    case 'termin-akt':
+      // Nochmal auf dieselbe tippen wählt sie ab – sonst gibt es keinen Weg
+      // zurück, wenn man sich vertippt hat.
+      ui.terminAkt = ui.terminAkt === t.dataset.v ? '' : t.dataset.v;
+      ui.terminMin = 0;
+      render();
+      break;
+    case 'termin-dauer':
+      ui.terminMin = Number(t.dataset.v) || 0;
       render();
       break;
     case 'termin-neu': {
-      // Datum und Name werden direkt aus den Feldern gelesen und nicht
-      // mitgeschrieben: Ein halb getippter Name soll keinen Neuaufbau auslösen
-      // und dabei den Fokus mitnehmen.
-      const datum = (document.getElementById('terminDatum') || {}).value || '';
-      const name = ((document.getElementById('terminName') || {}).value || '').trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
-        toast('Erst ein Datum wählen');
+      const datum = ui.terminDatum || todayISO();
+      const akt = AKT_BY_ID.get(ui.terminAkt);
+      if (!akt) {
+        toast('Erst eine Aktivität wählen');
         break;
       }
-      // Ein Tag, ein Termin: Zwei Einträge am selben Datum wären zwei Zeilen mit
-      // derselben Wirkung, und die zweite würde die erste nur überdecken.
+      // Ein Tag, ein Eintrag: Zwei am selben Datum wären zwei Zeilen, von denen
+      // die zweite die erste nur überdeckt.
       const liste = termine().filter((x) => x.datum !== datum);
-      liste.push({ datum, name: name.slice(0, 24), schont: ui.terminArt });
+      liste.push({ datum, name: akt.name, aktivitaet: akt.id, minuten: ui.terminMin || akt.typisch });
       store.setSetting('termine', liste);
+      ui.terminAkt = '';
+      ui.terminMin = 0;
+      ui.terminSuche = '';
       render();
-      toast(`${name || TERMIN_ARTEN[ui.terminArt].label} am ${fmtDate(datum)} eingetragen`);
+      toast(`${akt.name} am ${fmtDate(datum)} eingetragen`);
       break;
     }
     case 'termin-weg': {
@@ -6033,6 +6170,19 @@ view.addEventListener('input', (e) => {
     // Feld ersetzen und den Fokus mitnehmen, mitten im Wort.
     const kg = parseFloat(t.value.replace(',', '.'));
     scheibenAendern((s) => { s.stange[t.dataset.satz] = Number.isNaN(kg) ? null : kg; });
+  } else if (t.dataset.act === 'termin-suche') {
+    // Nur die Trefferliste neu zeichnen, nicht die ganze Ansicht: Ein render()
+    // ersetzt das Suchfeld und nimmt den Fokus mitten im Wort mit – derselbe
+    // Fehler, der beim Scheibenfeld schon einmal drinstand.
+    ui.terminSuche = t.value;
+    const liste = view.querySelector('.akt-liste');
+    if (liste) liste.innerHTML = aktivitaetListe();
+  } else if (t.dataset.act === 'termin-datum') {
+    // Hier darf gerendert werden: Das Datumsfeld ist nach der Auswahl fertig,
+    // und die Vorschau darunter muss die neuen Tage zeigen.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(t.value)) return;
+    ui.terminDatum = t.value;
+    render();
   } else if (t.dataset.act === 'scheiben-kg' || t.dataset.act === 'scheiben-n') {
     const zahl = parseFloat(t.value.replace(',', '.'));
     if (Number.isNaN(zahl)) return;

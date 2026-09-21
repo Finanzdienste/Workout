@@ -8,6 +8,13 @@
  * Geprüft wird beides: dass die richtigen Übungen wegfallen, und dass sie an
  * jedem anderen Tag stehen bleiben. Das zweite ist das wichtigere – ein Schalter,
  * der mehr wegnimmt als angekündigt, ist schlimmer als keiner.
+ *
+ * Die Abschnitte 2 bis 6 arbeiten bewusst weiter mit der **alten** Form
+ * `{ schont: 'beine' }`. Seit v182 trägt ein Eintrag eine Aktivität aus dem
+ * Katalog, aber im Speicher eines Geräts, das länger nicht aktualisiert hat,
+ * steht noch die alte – und die soll weiter wirken, statt stillschweigend zu
+ * verschwinden. Was der Katalog kann, prüft tests/test-aktivitaeten.mjs; wie
+ * beides zusammenkommt, Abschnitt 8.
  */
 import { chromium } from 'playwright';
 import { URL } from './umgebung.mjs';
@@ -148,63 +155,113 @@ const ohne = await page.evaluate(async (l) => {
 check(lage.beine.every((id) => ohne.includes(id)) && lage.andere.every((id) => ohne.includes(id)),
   'ohne Termin steht die Einheit unverändert da');
 
-// --- 7. Die Bedienung ---------------------------------------------------
+// --- 7. Die Bedienung: was, wann, fertig --------------------------------
+//
+//     „Ich will das nicht selbst anklicken müssen. … Ich will nur sagen was
+//      ich an welchem tag gemacht hab. Der Rest soll automatisch passieren"
+//
+// Drei Körbe zum Selbstauswählen gibt es nicht mehr. Die Eingabe ist: Tag
+// antippen, Aktivität antippen, eintragen – die Dauer steht schon mit dem
+// üblichen Wert da. Geprüft wird genau dieser Weg.
+await page.evaluate(async () => (await import('./js/store.js')).setSetting('termine', []));
 await page.locator('.tab[data-tab="settings"]').click();
-await page.waitForTimeout(300);
+await page.waitForTimeout(400);
 const text = () => page.locator('#view').textContent().then((t) => t.replace(/\s+/g, ' '));
-check(/Termine/.test(await text()), 'der Abschnitt steht unter Mehr');
-check(/Tag davor/.test(await text()), 'und sagt, dass der Tag davor gemeint ist');
-check(/Tag danach/.test(await text()), 'und der Tag danach auch');
-check(/unter ihrem Ziel/.test(await text()),
-  'und dass die Woche dafür unter ihrem Ziel liegt – der Preis steht dabei');
+check(/Sport außerhalb des Plans/.test(await text()), 'der Abschnitt steht unter Mehr');
+check(await page.locator('[data-act="termin-art"]').count() === 0,
+  'die drei Körbe sind weg – die Aktivität sagt selbst, was sie trifft');
 
-// Nachtragen muss gehen: Wer gestern gespielt hat, will es heute eintragen.
-// Das Feld hatte min=heute und nahm ein vergangenes Datum gar nicht erst an.
+// Der Tag: drei Knöpfe für die drei Fälle, die fast immer reichen.
+const tage = await page.locator('[data-act="termin-tag"]').allTextContents();
+console.log('     Tag-Knöpfe:', tage.join(' · '));
+check(tage.length === 3 && /Gestern/.test(tage.join(' ')),
+  'Heute, Gestern, Vorgestern stehen als Knopf da');
+
+// Die Suche filtert, ohne den Fokus zu verlieren – sonst tippt man einmal und
+// muss danach jedes Zeichen neu anklicken.
+await page.locator('#terminSuche').fill('pad');
+await page.waitForTimeout(250);
+const treffer = await page.locator('[data-act="termin-akt"]').allTextContents();
+console.log('     Treffer für "pad":', treffer.join(' · '));
+check(treffer.includes('Padel'), 'die Suche findet Padel');
+check(treffer.length < 6, `und zeigt nicht den ganzen Katalog (${treffer.length})`);
+check(await page.evaluate(() => document.activeElement && document.activeElement.id) === 'terminSuche',
+  'das Suchfeld behält dabei den Fokus');
+
+// Auswählen: Vorschau und Dauer erscheinen, die Dauer ist vorbelegt.
+await page.locator('[data-act="termin-akt"][data-v="padel"]').click();
+await page.waitForTimeout(300);
+check(await page.locator('[data-act="termin-dauer"][aria-pressed="true"]').count() === 1,
+  'eine Dauer ist vorausgewählt – man muss sie nicht antippen');
+const vorschau = (await page.locator('.akt-vorschau').textContent()).replace(/\s+/g, ' ');
+console.log('     Vorschau:', vorschau.trim().slice(0, 150));
+check(/Das fällt dann aus/.test(vorschau) && /Oberschenkel/.test(vorschau),
+  'die Vorschau sagt vor dem Eintragen, welche Gruppen ausfallen');
+check(/Abbremsen/.test(vorschau), 'und warum gerade diese – der Satz aus dem Katalog steht dabei');
+
+// Gestern eintragen, der Fall aus dem Zitat.
+await page.locator('[data-act="termin-tag"]').nth(1).click();
+await page.waitForTimeout(250);
+await page.locator('[data-act="termin-neu"]').click();
+await page.waitForTimeout(400);
 const gestern = await page.evaluate(async () => {
   const { todayISO, addDays } = await import('./js/dates.js');
   return addDays(todayISO(), -1);
 });
-const minWert = await page.locator('#terminDatum').getAttribute('min');
-check(minWert < gestern, `gestern liegt im erlaubten Bereich (min=${minWert})`);
-await page.locator('#terminDatum').fill(gestern);
-await page.locator('#terminName').fill('Padel');
-await page.locator('[data-act="termin-neu"]').click();
-await page.waitForTimeout(400);
-const nachtrag = await page.evaluate(() =>
+const eintrag = await page.evaluate(() =>
   JSON.parse(localStorage.getItem('workout.state.v1')).termine);
-check(nachtrag.length === 1 && nachtrag[0].datum === gestern,
-  `ein vergangener Tag lässt sich nachtragen (${JSON.stringify(nachtrag)})`);
-// Und er steht nicht als „vorbei" da, solange er die heutige Einheit kürzt.
-// Gelesen wird die Zeile des Termins und nicht die ganze Ansicht – weiter
-// unten steht der Ton „Pause vorbei", und der hat damit nichts zu tun.
+console.log('     eingetragen:', JSON.stringify(eintrag));
+check(eintrag.length === 1 && eintrag[0].datum === gestern,
+  'der Eintrag steht auf gestern');
+check(eintrag[0].aktivitaet === 'padel' && eintrag[0].minuten === 90,
+  `mit Aktivität und Dauer (${eintrag[0].aktivitaet}, ${eintrag[0].minuten} min)`);
+
+// Und er gilt als wirksam, nicht als vorbei. Gelesen wird die Zeile des
+// Eintrags und nicht die ganze Ansicht – weiter unten steht der Ton „Pause
+// vorbei", und der hat damit nichts zu tun.
 const zeile = (await page.locator('[data-act="termin-weg"]').first()
   .locator('xpath=../div').textContent()).replace(/\s+/g, ' ');
 console.log('     Zeile:', zeile.trim());
-check(/wirkt noch heute/.test(zeile) && !/vorbei/.test(zeile),
-  `und gilt als wirksam, nicht als vorbei (${zeile.trim()})`);
-await page.locator('[data-act="termin-weg"]').first().click();
-await page.waitForTimeout(400);
+check(/wirkt noch/.test(zeile) && !/vorbei/.test(zeile),
+  `gestern gilt als wirksam, nicht als vorbei (${zeile.trim()})`);
 
-await page.locator('#terminDatum').fill('2027-06-02');
-await page.locator('#terminName').fill('Padel');
-await page.locator('[data-act="termin-neu"]').click();
-await page.waitForTimeout(400);
-const nachKlick = await page.evaluate(() =>
-  JSON.parse(localStorage.getItem('workout.state.v1')).termine);
-console.log('     eingetragen:', JSON.stringify(nachKlick));
-check(nachKlick.length === 1 && nachKlick[0].datum === '2027-06-02' && nachKlick[0].name === 'Padel',
-  'der Knopf trägt ihn ein');
-// Stand beim ersten Lauf nicht drin: ui.terminArt war undefiniert, das Feld fiel
-// beim Speichern weg, und es wirkte nur, weil überall auf „Beine" zurückgefallen
-// wird. Ein Feld, das aus Versehen fehlt, ist kein Verhalten.
-check(nachKlick[0].schont === 'beine', `mit dem gewählten Korb (${nachKlick[0].schont})`);
-check(/Padel/.test(await text()), 'und er steht danach in der Liste');
+// --- 8. Und das Ergebnis im Plan ---------------------------------------
+const heuteWeg = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { effDate, exOf, injuryNotes } = await import('./js/plan.js');
+  const { todayISO } = await import('./js/dates.js');
+  const heute = todayISO();
+  const w = PLAN.find((x) => effDate(x) === heute) || PLAN[0];
+  return { n: w.n, ids: exOf(w, 'db').map((it) => it.id),
+           weg: injuryNotes(w.n).dropped.map((d) => d.id),
+           namen: injuryNotes(w.n).termin };
+});
+console.log('     heute:', JSON.stringify(heuteWeg));
+check(heuteWeg.namen.length === 0 || heuteWeg.namen.includes('Padel'),
+  'wenn heute etwas ausfällt, dann wegen Padel');
 
 await page.locator('[data-act="termin-weg"]').first().click();
 await page.waitForTimeout(400);
 const nachWeg = await page.evaluate(() =>
   JSON.parse(localStorage.getItem('workout.state.v1')).termine);
 check(nachWeg.length === 0, 'und „Entfernen" nimmt ihn wieder heraus');
+
+// --- 9. Alte Einträge wirken weiter -------------------------------------
+//
+// Auf einem Gerät, das länger nicht aktualisiert hat, steht die alte Form im
+// Speicher. Sie darf nicht stillschweigend aufhören zu wirken.
+const alt = await page.evaluate(async (l) => {
+  const store = await import('./js/store.js');
+  const { exOf } = await import('./js/plan.js');
+  const { PLAN } = await import('./js/data.js');
+  store.setSetting('termine', [{ datum: l.datum, name: 'Altes Padel', schont: 'beine' }]);
+  return exOf(PLAN.find((x) => x.n === l.n), 'db').map((it) => it.id);
+}, lage);
+check(lage.beine.every((id) => !alt.includes(id)),
+  'ein Eintrag in der alten Form schont weiterhin die Beine');
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(300);
+check(/Altes Padel/.test(await text()), 'und steht weiter in der Liste');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
