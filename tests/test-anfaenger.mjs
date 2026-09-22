@@ -295,6 +295,57 @@ check(/8–15/.test(meta) && /Klimmzugstange/.test(meta),
 check(await page.locator('.ex-fassung [data-dir="1"][disabled]').count() === 1,
   'und jetzt ist + gesperrt statt −');
 
+// --- 7. Der Gerätefilter hat Vorrang, und die Zeile weiß das ------------
+//
+// Gefunden beim Nachsehen, nicht gemeldet – und es war ein echter Fehler der
+// ersten Fassung: `statt` schreiben *beide* Filter, die Stufe und der
+// Gerätevorrat. Ohne Klimmzugstange steht statt des hängenden Kniehebens die
+// Gewichtete Crunches im Plan, und die Fassungszeile ritt auf diesem Ergebnis
+// mit: „Leicht · ohne Gerät" unter einer Crunch-Karte, darunter „Schwerer:
+// Hängendes Knieheben – dieselbe Bewegung", und ein + das nichts tat, weil
+// der Gerätefilter danach läuft und sofort zurücktauscht.
+const ohneStange = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('level', 'geuebt');
+  store.setSetting('fassung', { 'haengendes-knieheben': 'haengendes-knieheben' });
+  store.setSetting('fehlt', ['stange']);
+  store.setSetting('tab', 'dashboard');
+  const { PLAN } = await import('./js/data.js');
+  const { exOf } = await import('./js/plan.js');
+  const w = PLAN.find((x) => exOf(x, 'db').some((it) => it.statt === 'haengendes-knieheben'));
+  const it = w && exOf(w, 'db').find((x) => x.statt === 'haengendes-knieheben');
+  return it ? { id: it.id, warum: it.stattWarum } : null;
+});
+console.log('     ohne Stange:', JSON.stringify(ohneStange));
+check(ohneStange && ohneStange.warum === 'vorrat',
+  'ohne Klimmzugstange springt der Gerätefilter ein, trotz eigener Wahl');
+
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+await page.locator('[data-act="show-list"]').first().click();
+await page.waitForTimeout(400);
+check(await page.locator('.ex-fassung').count() === 0,
+  'und an dieser Karte steht keine Fassungszeile – sie gehört nicht zu dieser Übung');
+
+// Und andersherum: Steht die leichte Fassung da, weil die Stufe es so will,
+// darf das + nicht auf eine Übung zeigen, deren Gerät fehlt.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('level', 'anfaenger');
+  store.setSetting('fassung', {});
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+await page.locator('[data-act="show-list"]').first().click();
+await page.waitForTimeout(400);
+const gesperrt = page.locator('.ex-fassung [data-dir="1"]');
+check(await gesperrt.count() === 1 && await gesperrt.first().isDisabled(),
+  'ohne Klimmzugstange ist + gesperrt statt wirkungslos');
+const sagt = await gesperrt.first().getAttribute('aria-label');
+console.log('     + sagt:', sagt);
+check(/fehlt/.test(sagt || ''), `und sagt, woran es liegt (${sagt})`);
+await page.evaluate(async () => (await import('./js/store.js')).setSetting('fehlt', []));
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

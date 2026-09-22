@@ -51,7 +51,7 @@ import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
 import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
-import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat } from './vorrat.js';
+import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat, uebungGeht } from './vorrat.js';
 import { termine, terminLabel } from './termine.js';
 import { AKTIVITAETEN, AKT_BY_ID, familien, gruppenAm, nachwirkung } from './aktivitaeten.js';
 
@@ -214,7 +214,7 @@ function aufstiegHinweis() {
  *
  * Ohne erteilte Erlaubnis passiert schlicht nichts, und das ist richtig so:
  * Danach zu fragen, weil jemand gerade aufgestiegen ist, wäre eine Frage zur
- * Unzeit. Wer die Erinnerung eingerichtet hat, hat sie ohnehin.
+ * Unzeit. Wer den Hinweis am Pausenende erlaubt hat, hat sie ohnehin.
  */
 function aufstiegMelden(nach) {
   try {
@@ -930,15 +930,10 @@ const ui = {
   standZurueck: null,      // Name, dem man seinen Stand noch zurückschicken wollte
   adminDaten: null,        // geladene Zeilen der Betreiber-Übersicht
   adminFehler: '',
-  // Der Einrichtungstext für Web Push, solange er angezeigt wird. Bewusst nur
-  // im Arbeitsspeicher: Er enthält den privaten Schlüssel und hat im
-  // gespeicherten Zustand nichts zu suchen – von dort käme er in jede Sicherung.
-  pushText: '',
   adminLaeuft: false,
   // Das Formular für „Sport außerhalb des Plans". Nur im Arbeitsspeicher: Das
   // ist eine Eingabe, kein Zustand, den man wiederfinden will – beim nächsten
   // Öffnen steht wieder „Heute" da und keine Aktivität.
-  terminArt: 'beine',      // nur noch für alte Einträge, siehe js/termine.js
   terminDatum: '',         // leer heißt heute
   terminAkt: '',           // gewählte Aktivität aus js/aktivitaeten.js
   terminMin: 0,            // 0 heißt: die übliche Dauer dieser Aktivität
@@ -2129,7 +2124,7 @@ function renderDashboard() {
         </div>
         ${anfaengerZeile(it)}
         ${weightRow}
-        ${fassungRow(it)}
+        ${fassungRow(it, mode)}
         ${wdhRow(it, mode)}
         <div class="ex-sets">${setBtns}</div>
         <div class="ex-body">
@@ -2582,7 +2577,16 @@ function anfaengerZeile(it) {
  * gerade gezeigten. Sonst hieße „ich will die schwere" beim nächsten Öffnen
  * „ich will die, die gerade dasteht", und der Schalter kippte mit sich selbst.
  */
-function fassungRow(it) {
+function fassungRow(it, mode) {
+  // Nicht bei einem Tausch wegen fehlenden Geräts. `statt` schreiben beide
+  // Filter, und ohne diese Zeile ritt die Fassungswahl auf dem Ergebnis des
+  // falschen mit: Ohne Klimmzugstange steht statt des hängenden Kniehebens
+  // die *Gewichtete Crunches* im Plan – und darunter stand dann „Leicht ·
+  // ohne Gerät" und „Schwerer: Hängendes Knieheben – dieselbe Bewegung".
+  // Crunches sind weder die leichte Fassung noch dieselbe Bewegung, und das +
+  // versprach einen Wechsel, den der Gerätefilter sofort wieder einkassierte.
+  const grund = ersatzGrund(it);
+  if (grund && grund.warum === 'vorrat') return '';
   const f = fassungen(it);
   if (!f) return '';
   const schwer = EX_BY_ID.get(f.schwer);
@@ -2591,13 +2595,17 @@ function fassungRow(it) {
   const obenDran = f.jetzt === f.schwer;
   const andere = obenDran ? leicht : schwer;
   const knopf = (richtung) => {
-    const geht = richtung > 0 ? !obenDran : obenDran;
     const ziel = richtung > 0 ? schwer : leicht;
+    // Und ein Knopf auf eine Fassung, deren Gerät gerade fehlt, verspricht
+    // ebenfalls etwas, das nicht kommt: Der Gerätefilter läuft danach und
+    // tauscht sie wieder weg.
+    const moeglich = uebungGeht(ziel.id, mode);
+    const geht = (richtung > 0 ? !obenDran : obenDran) && moeglich;
+    const warum = !moeglich ? `${ziel.db.name} geht gerade nicht – ${ziel.db.equip} fehlt`
+      : (geht ? `Auf ${ziel.db.name} wechseln` : `${ziel.db.name} ist eingestellt`);
     return `<button type="button" class="kg-step${richtung > 0 ? ' kg-plus' : ''}"
             data-act="fassung-step" data-ex="${esc(f.plan)}" data-dir="${richtung}"
-            ${geht ? '' : 'disabled'}
-            aria-label="${esc(geht ? `Auf ${ziel.db.name} wechseln`
-    : `${ziel.db.name} ist eingestellt`)}">${richtung > 0 ? '+' : '−'}</button>`;
+            ${geht ? '' : 'disabled'} aria-label="${esc(warum)}">${richtung > 0 ? '+' : '−'}</button>`;
   };
   // Was die beiden unterscheidet, steht im Katalog und wird nicht hier
   // erfunden: der Name und das, was man dafür braucht. Damit trägt die Zeile
@@ -2613,7 +2621,8 @@ function fassungRow(it) {
       ${knopf(1)}
     </div>
     <div class="kg-next">${obenDran ? 'Leichter' : 'Schwerer'}: ${esc(andere.db.name)}
-      – dieselbe Bewegung, ${esc(andere.db.equip)}.</div>`;
+      – dieselbe Bewegung, ${esc(andere.db.equip)}.${uebungGeht(andere.id, mode) ? ''
+    : ' <span class="muted">Steht gerade nicht zur Wahl – unter Mehr → Was da ist anhaken.</span>'}</div>`;
 }
 
 function aufwaermZeile(it, mode, n) {
@@ -6190,13 +6199,10 @@ store.subscribe(() => {
 });
 
 /*
- * Merkzettel und Symbolzahl nachziehen, sobald sich etwas ändert.
+ * Den Punkt am App-Symbol nachziehen, sobald sich etwas ändert.
  *
- * Muss an *jeder* Änderung hängen und nicht nur am Trainingsende: Der Zettel
- * ist das Einzige, was der Service Worker später zu sehen bekommt, und wenn die
- * App zugeht, rechnet niemand mehr etwas nach. Ein abgehakter letzter Satz, ein
- * verschobener Plan, eine geänderte Uhrzeit – alles drei ändert, wann als
- * Nächstes erinnert werden soll.
+ * An *jeder* Änderung und nicht nur am Trainingsende: Ein abgehakter letzter
+ * Satz und ein nachgerückter Plan ändern beide, ob noch etwas offen ist.
  */
 store.subscribe(() => { erinnerungPflegen(); });
 erinnerungPflegen();
