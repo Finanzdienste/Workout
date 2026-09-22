@@ -519,173 +519,42 @@ bräuchte es einen Server, der eine Push-Nachricht schickt – die App hat keine
 und soll keinen haben. Für die *eine* Meldung, die auch bei geschlossener App
 kommen soll, gibt es einen anderen Weg, siehe unten.
 
-### Erinnerung am Trainingstag
+### Keine Erinnerung am Trainingstag
 
-Der Wunsch: an einem Trainingstag in der Statusleiste sehen, dass etwas ansteht,
-ohne die App zu öffnen. Der naheliegende Weg wäre der Kalenderexport — und der
-ist hier falsch. Der Plan **rückt nach**, wenn ein Termin verstreicht. Wer oft
-aussetzt, hat exportierte Termine dauernd an den falschen Tagen und müsste neu
-exportieren und die alten löschen. Was bleibt, muss dem Plan von selbst folgen.
+Hier stand die längste Abhandlung dieses Dokuments: eine Meldung „Training
+steht an", geweckt über `periodicsync` und über Web Push von einem
+zeitgesteuerten Ablauf bei GitHub, dazu ein Merkzettel in IndexedDB, VAPID-
+Schlüssel, die im Browser entstehen, zwei einstellbare Uhrzeiten und eine
+Anzeige, wann der Worker zuletzt geweckt wurde. Seit v183 gibt es davon nichts
+mehr:
 
-Drei Teile, und nur der erste ist verlässlich:
+> „Mach auch die einmalige Push Nachricht morgens weg. Pausen usw sollen aber
+> natürlich immer noch mit angezeigt werden"
 
-| | was es tut | wie sicher |
-| --- | --- | --- |
-| **Punkt am App-Symbol** | ein Punkt, solange eine Einheit offen ist | **auf Android gar nicht**, siehe unten |
-| **Merkzettel** (`js/merkzettel.js`) | sagt dem Service Worker, was ansteht | zuverlässig |
-| **`periodicsync`** (`sw.js`) | weckt den Worker, der dann meldet | **Chrome entscheidet, ob und wann** |
+**Warum der ganze Weg und nicht nur die Meldung.** Web Push läuft unter
+`userVisibleOnly`: Chrome erwartet, dass jeder zugestellte Push etwas anzeigt,
+und blendet sonst irgendwann von sich aus *„im Hintergrund aktualisiert"* ein.
+Ein stiller Push wäre also keine stille Lösung, sondern eine fremde Meldung an
+derselben Stelle. Bleibt der Weg bestehen und wird nur die eigene Meldung
+entfernt, steht am Ende genau das da, was weg sollte.
 
-**Einmal am Tag, und wegwischbar.** Bis v171 galt das Gegenteil: *„Außerdem kann
-ichs wegwischen aber es soll fest sein."* Weggewischt wurde die Meldung erneut
-gezeigt (`notificationclose`), und wer die App nur kurz öffnete, bekam sie beim
-Verlassen wieder hingelegt (Nachricht `erinnerung-wieder`). Seit v173 ist beides
-raus, ebenfalls auf Ansage: *„ne einmalige Push Nachricht, die ich weg wischen
-kann."* Was „einmal am Tag" jetzt trägt, ist allein der Vermerk `gemeldet` im
-Merkzettel — der zweite Push des Tages läuft in den Zweig „heute schon
-gemeldet". Der Knopf *Heute nicht* ist damit überflüssig und raus: Wischen tut
-dasselbe.
+Entfernt wurden deshalb `js/push.js`, `js/erinnerung.js`, `js/merkzettel.js`,
+`.github/workflows/push-erinnerung.yml`, beide Ereignisse im Service Worker und
+der ganze Abschnitt unter *Mehr*. `tests/test-keine-erinnerung.mjs` hält das
+fest — und prüft in derselben Datei, dass der Nachbar stehen geblieben ist.
 
-**Der Punkt am Symbol hängt auf Android an der Meldung, nicht an der App.**
-Chrome für Android stellt `navigator.setAppBadge` gar nicht bereit; der Punkt,
-den WhatsApp dort zeigt, ist Androids eigener Punkt für eine ungelesene Meldung.
-Liegt die Erinnerung im Schacht, ist er da — wird sie weggewischt, ist er mit
-weg. Das lässt sich nicht trennen, und *„wegwischen, aber der Punkt bleibt"*
-ist deshalb nicht baubar. Die `setAppBadge`-Zeilen in `js/app.js` und `sw.js`
-tragen auf dem Rechner, wo die App installiert ist; dort steht ein Punkt und
-keine `1` (`setAppBadge()` ohne Zahl).
+**Was ausdrücklich bleibt: alles rund um die Pause.** Die laufende Pause in der
+Statusleiste, der Signalton und die Vibration am Ende, der Tipp auf die
+Meldung, der die App nach vorn holt. Das hängt an einer Nachricht der Seite an
+den Service Worker (`pause-start`) und nicht am Push-Dienst; es war nie Teil
+dieses Abschnitts. Geprüft von `tests/test-pause-worker.mjs`, unverändert vor
+und nach dem Ausbau.
 
-Der dritte Teil ist der eigentliche, und er ist der wackelige. Eine Webseite
-kann sich nicht selbst um 16:00 aufwecken; die Browser-Schnittstelle für
-zeitgesteuerte lokale Meldungen (`TimestampTrigger`) ist nie über einen Versuch
-hinausgekommen. `periodicsync` ist das, was es stattdessen gibt: Chrome weckt
-den Service Worker gelegentlich, wenn die App installiert ist und benutzt wird.
-Das angegebene Intervall ist ein **Wunsch, keine Zusage**.
-
-**Deshalb wird hier nichts behauptet, sondern gemessen.** Jeder Weckruf wird mit
-Zeitstempel im Merkzettel vermerkt, auch wenn nichts zu melden war, und unter
-*Mehr* steht, wann es zuletzt geklappt hat. Bleibt die Zeile eine Woche leer,
-trägt der Weg auf diesem Gerät nicht — und man weiß es, statt sich darauf zu
-verlassen.
-
-**Warum der Worker nichts rechnet.** Ein Service Worker kommt an `localStorage`
-nicht heran; er läuft ohne Fenster. Also rechnet die App aus, *ab wann* erinnert
-werden soll, und legt nur diesen einen Zeitstempel in IndexedDB ab. Der Worker
-vergleicht eine Zahl, mehr nicht. Das ist Absicht: Was im Worker steht, lässt
-sich nicht testen — `periodicsync` von außen auszulösen geht nicht —, was in
-`js/erinnerung.js` steht dagegen schon, und `tests/test-erinnerung.mjs` tut es.
-Die Entscheidungen des Workers selbst prüft `tests/test-erinnerung-meldung.mjs`
-im echten Worker, samt der beiden Wege, die es nicht mehr gibt.
-
-Die Uhrzeiten sind getrennt einstellbar, weil der Tag anders läuft: unter der
-Woche nach der Arbeit, am Wochenende früh. Maßgeblich ist der Wochentag des
-**fälligen Termins**, nicht der von heute — liegt die nächste Einheit auf
-Samstag, gilt die Wochenendzeit, auch wenn heute Mittwoch ist.
-
-#### Und der zuverlässige Weg: Web Push
-
-`periodicsync` ist ein Vielleicht. Web Push ist es nicht — der Push-Dienst des
-Browserherstellers stellt zu, ob die App läuft oder nicht, ob das Handy im
-Standby ist oder nicht. Was dafür fehlt, ist **nur eine Uhr**: jemand, der zur
-richtigen Zeit etwas losschickt.
-
-Den Job macht `.github/workflows/push-erinnerung.yml`. Das ist kein Server,
-sondern ein zeitgesteuerter Ablauf, wie es hier ohnehin schon einen gibt.
-
-**Der Push trägt nur seine eigene Absendezeit.** Keinen Text, keine
-Trainingsdaten. Erst das Gerät liest den Merkzettel und entscheidet, ob eine
-Meldung erscheint und was drinsteht. Es verlässt kein Trainingsdatum das Handy;
-wer den Wecker betreibt, erfährt nicht einmal, ob an dem Tag etwas anstand. Das
-ist sauberer als der übliche Weg, bei dem der Absender den Text mitschickt und
-damit wissen muss, was los ist.
-
-Die Absendezeit ist die eine Ausnahme, und sie geht in die harmlose Richtung —
-vom Absender zum Gerät. Sie steht da, weil ohne sie zwei sehr verschiedene Fälle
-von außen gleich aussehen:
-
-> „Außerdem hab ich heute gar keine Push Nachricht bekommen. Erst als ich die app
-> selbst geöffnet hab."
-
-Nachgesehen im Ablaufprotokoll: Der Push ging am 14.09. um 05:06 UTC raus
-(07:06 Ortszeit, Status 201), erschienen ist er laut Bildschirmfoto um 18:08.
-Elf Stunden dazwischen — nicht der Absender war spät, das Handy hat die Meldung
-festgehalten (Doze bzw. die Akku-Optimierung für Chrome; `urgency: high` allein
-reicht dagegen nicht). Ohne einen Zeitstempel im Push kann das Gerät diese Spanne
-nicht messen, und dann wird geraten statt gemessen. Jetzt legt der Service Worker
-sie auf den Merkzettel, und unter *Mehr* steht neben „zuletzt geweckt" die Zeile
-*„unterwegs 11 h 0 min festgehalten"*. Ein Push ohne Nutzlast (aus einer älteren
-Fassung des Ablaufs) funktioniert unverändert weiter; `tests/test-push-weg.mjs`
-prüft beide Fälle.
-
-**Der Ablauf feuert nicht, wann dort steht.** Gemessen an den bisherigen Läufen
-kommt er 3 h 47 min bis 4 h 43 min zu spät los — zeitgesteuerte Abläufe bei
-GitHub stehen in einer gemeinsamen Warteschlange. `23 0 * * *` heißt in der
-Praxis also „irgendwann zwischen 03:00 und 05:30 UTC". Das ist der Grund für die
-krumme Minute, und es ist der Grund, warum die Erinnerung nachts losgeschickt
-wird statt zur Zielzeit.
-
-**Zwei Konsequenzen daraus.** Erstens: Die Haltbarkeit (TTL) steht jetzt auf
-zwölf Stunden statt einer. Eine Stunde war unter der Annahme gewählt, dass kurz
-nach Mitternacht gesendet wird; wird tatsächlich erst um 05:00 UTC gesendet und
-ist das Handy dann noch aus, warf der Push-Dienst die Nachricht weg. Das ist
-ungefährlich, weil nicht der Absender entscheidet, ob etwas erscheint: Der
-Service Worker prüft beim Aufwachen das Datum und ob heute schon gemeldet wurde,
-also zeigt ein spät zugestellter Push entweder die richtige Erinnerung oder gar
-nichts.
-
-Zweitens: Es wird **zweimal** gesendet, `23 0` und `37 4` UTC. Angezeigt wird
-weiterhin höchstens einmal am Tag — der zweite Push läuft in den Zweig „heute
-schon gemeldet". Er ist kein zweiter Hinweis, sondern ein zweiter Anlauf gegen
-Doze: Mit dem gemessenen Verzug landet er gegen 11:00 Ortszeit, also zu einer
-Zeit, zu der das Handy benutzt wird, und ein Push, der bei eingeschaltetem
-Bildschirm ankommt, erscheint sofort.
-
-Der Preis ist echt und steht auch im Ablauf: An einem Ruhetag sind das zwei
-stille Pushes statt einem. Chrome mag stille Pushes nicht und blendet
-irgendwann von sich aus „im Hintergrund aktualisiert" ein — genau die zweite
-Meldung, über die hier schon einmal gestolpert wurde. Taucht sie wieder auf,
-gehört der zweite Eintrag wieder raus. **Die eigentliche Abhilfe liegt am
-Gerät:** *Einstellungen → Apps → Chrome → Akku → uneingeschränkt.*
-
-**Die Schlüssel entstehen im Browser.** VAPID braucht ein Schlüsselpaar; es wird
-auf dem Gerät erzeugt (`js/push.js`, WebCrypto) und verlässt es einmal, als
-Text, den man selbst als GitHub-Secret einfügt. Nicht über einen Dienst, nicht
-über eine Konsole, nicht durch fremde Hände. Der private Teil liegt in einem
-eigenen `localStorage`-Schlüssel und **nicht** im Zustand der App — sonst käme
-er in jede Sicherung, in den geteilten Stand und in die Meldung an den
-Rückkanal. `tests/test-push.mjs` prüft genau das, an allen drei Stellen.
-
-Drei Entscheidungen, die im ersten Entwurf anders waren und falsch:
-
-| erst gedacht | warum es nicht ging |
-| --- | --- |
-| stündlich klopfen | Chrome bestraft Pushes, die nichts anzeigen — an Ruhetagen wären das zwei Dutzend am Tag |
-| das Handy prüft auch beim Push die Uhrzeit | zur Winterzeit trifft der Push eine Stunde früher ein, die Prüfung hätte ihn verworfen — und es wäre gar nichts gekommen |
-| Cron bestimmt die Minute | tut er auch, aber nur grob: Der Push **ist** die Uhr, das Gerät fragt nur noch, *ob* etwas ansteht |
-
-Deshalb: **ein Push am Tag**, werktags 16:00, am Wochenende 6:30 (MESZ; im
-Winter eine Stunde früher, und das ist harmlos). An Ruhetagen bleibt er still —
-das ist der Preis, und wenn Chrome ihn anmerkt, ist die Lehre nicht, öfter zu
-senden, sondern an Ruhetagen etwas Nützliches zu zeigen.
-
-**Einrichten**, einmalig: In der App unter *Mehr* auf „Zuverlässig machen"
-tippen, den Textblock kopieren und bei GitHub unter *Settings → Secrets and
-variables → Actions* als `PUSH_KONFIG` einfügen. Läuft die Anmeldung irgendwann
-ab — nach einer Neuinstallation oder geleertem Speicher —, meldet der Ablauf das
-als Warnung, statt still nichts mehr zu tun.
-
-**Was auch hier nicht geprüft ist:** dass ein Push wirklich ankommt. Dafür
-bräuchte es einen echten Push-Dienst, eine installierte App und einen Absender;
-nichts davon gibt es in einem Testlauf. Gemessen wird es trotzdem — „zuletzt
-geweckt" unter *Mehr* zählt beide Wege mit.
-
-Gespeichert wird der **Endzeitpunkt** der Pause, nicht die Restdauer. Dadurch
-stimmt die Anzeige auch, wenn das Handy zwischendurch gesperrt war, und eine
-laufende Pause übersteht sogar einen Neustart der Seite.
-
-Da Wiederholungen nicht mehr erfasst werden, rechnet die Statistik mit dem
-geplanten Wert – der unteren Grenze des Bereichs, also eher zu niedrig als zu
-hoch. Die betroffenen Kennzahlen sind entsprechend als „ca." und „geplant"
-ausgewiesen.
+**Und der Punkt am App-Symbol?** Übrig geblieben sind acht Zeilen in
+`js/app.js`: Steht eine Einheit offen und ist ihr Termin da, ruft die App
+`navigator.setAppBadge()`. Auf dem Rechner trägt das. **Auf Android nicht** —
+Chrome stellt `setAppBadge` dort gar nicht bereit, und der Punkt auf dem Handy
+entstand bisher allein aus der liegenden Meldung. Mit der Meldung ist er weg.
 
 ### Wochenvolumen: Soll gegen Ist
 
@@ -2182,9 +2051,6 @@ js/stufen.js            Erfahrungsstufen: Startgewichte, Sätze, Aufstieg
 js/gewichte.js          Arbeitsgewichte und die Reihenfolge beim Umbauen
 js/plan.js              Termine, Übungen je Einheit, Nacharbeit, Fortschritt
 js/bilanz.js            Was insgesamt geleistet wurde, über Runden hinweg
-js/erinnerung.js        Wann am Trainingstag erinnert wird
-js/merkzettel.js        Der Zettel, den auch der Service Worker liest
-js/push.js              Web Push einrichten – Schlüssel und Anmeldung
 js/app.js               Rendering der fünf Tabs und Event-Handling
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
@@ -3457,7 +3323,10 @@ asynchrone Funktionen aus verschiedenen Modulen wären durchgerutscht.
 
 `erinnerung-zeit` hing im Klick-Verteiler. Ein Zeitfeld meldet eine neue Uhrzeit
 aber als `input`, nicht als Klick: Wer die Zeit umstellte, sah die neue Zahl im
-Feld — gespeichert war die alte. Steht jetzt beim Rest der Texteingaben.
+Feld — gespeichert war die alte. Wurde beim Rest der Texteingaben eingereiht und
+ist mit der Erinnerung selbst wieder verschwunden (v183). Die Lehre daran gilt
+weiter und steht deshalb noch hier: Ein Eingabefeld, dessen Wert sich nicht
+durch Klicken ändert, gehört nicht in den Klick-Verteiler.
 
 ### Die Stufe ist, was du hebst
 

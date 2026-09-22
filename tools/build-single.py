@@ -47,9 +47,7 @@ MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.
            # einem Datum geschont wird.
            'js/termine.js',
            # muster.js nach plan.js: Es liest exOf() und resolve() von dort.
-           'js/plan.js', 'js/muster.js', 'js/bilanz.js', 'js/erinnerung.js',
-           'js/merkzettel.js',
-           'js/push.js',
+           'js/plan.js', 'js/muster.js', 'js/bilanz.js',
            # Ansichten zuletzt: Sie haengen an der Rechenschicht, nie umgekehrt.
            'js/anzeige.js', 'js/ansicht-scheiben.js', 'js/ansicht-kalender.js',
            'js/ansicht-vorrat.js', 'js/ansicht-statistik.js',

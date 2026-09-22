@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v182';
+const VERSION = 'v183';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -59,9 +59,6 @@ const SHELL = [
   './js/aktivitaeten.js',
   './js/plan.js',
   './js/bilanz.js',
-  './js/erinnerung.js',
-  './js/merkzettel.js',
-  './js/push.js',
   './icon.svg',
   './badge.svg',
   // Das kleine Symbol der Meldungen. Eigene Datei, weil Android den `badge`
@@ -153,203 +150,27 @@ self.addEventListener('fetch', (event) => {
 });
 
 /* ------------------------------------------------------------------ *
- * Erinnerung am Trainingstag
+ * Was hier NICHT mehr steht: die Erinnerung am Trainingstag
  *
- * Die App kann sich nicht selbst um 16:00 aufwecken – dafuer braeuchte es
- * einen Server, der eine Nachricht schickt. Was der Browser stattdessen
- * anbietet, ist `periodicsync`: Er weckt diesen Worker gelegentlich auf, wenn
- * die App installiert ist und regelmaessig benutzt wird.
+ *     „Mach auch die einmalige Push Nachricht morgens weg. Pausen usw sollen
+ *      aber natuerlich immer noch mit angezeigt werden"
  *
- * **Gelegentlich** ist woertlich zu nehmen. Wann und ob ueberhaupt, entscheidet
- * Chrome; das angegebene Intervall ist ein Wunsch, keine Zusage. Deshalb wird
- * hier nichts versprochen: Jeder Weckruf wird mit Zeitstempel im Merkzettel
- * vermerkt, und die App zeigt unter Mehr, wann es zuletzt geklappt hat. Steht
- * da nach einer Woche nichts, weiss man, dass der Weg nicht traegt.
+ * Bis v182 stand hier die Meldung „Training steht an", geweckt durch
+ * `periodicsync` und durch Web Push von einem zeitgesteuerten Ablauf bei
+ * GitHub. Sie ist ersatzlos weg, und mit ihr der ganze Weg dorthin: der
+ * Merkzettel in IndexedDB, beide Ereignisse, der Wecker, die VAPID-Schluessel.
  *
- * Gerechnet wird hier absichtlich nichts. Welche Einheit ansteht, ob sie schon
- * gemacht ist, welche Uhrzeit fuer welchen Wochentag gilt – das steht alles in
- * js/erinnerung.js und ist dort geprueft. Hier wird eine Zahl verglichen.
- * ------------------------------------------------------------------ */
-
-const MERK_DB = 'workout.merk';
-const MERK_LADEN = 'zettel';
-const MERK_SCHLUESSEL = 'erinnerung';
-
-// Dieselben paar Zeilen wie in js/merkzettel.js. Doppelt, weil es nicht anders
-// geht: Dieser Worker ist ein klassisches Skript und kann kein ES-Modul laden.
-// Die Alternative waere ein Modul-Worker – den kennt Firefox erst seit Kurzem,
-// und dafuer die Offline-Faehigkeit aufs Spiel zu setzen, lohnt fuer 15 Zeilen
-// nicht.
-function merkOeffnen() {
-  return new Promise((ok, fehler) => {
-    const a = indexedDB.open(MERK_DB, 1);
-    a.onupgradeneeded = () => {
-      if (!a.result.objectStoreNames.contains(MERK_LADEN)) {
-        a.result.createObjectStore(MERK_LADEN);
-      }
-    };
-    a.onsuccess = () => ok(a.result);
-    a.onerror = () => fehler(a.error);
-  });
-}
-
-async function merkLesen() {
-  try {
-    const db = await merkOeffnen();
-    return await new Promise((ok) => {
-      const a = db.transaction(MERK_LADEN, 'readonly').objectStore(MERK_LADEN).get(MERK_SCHLUESSEL);
-      a.onsuccess = () => ok(a.result || {});
-      a.onerror = () => ok({});
-    });
-  } catch {
-    return {};
-  }
-}
-
-async function merkSchreiben(felder) {
-  try {
-    const alt = await merkLesen();
-    const db = await merkOeffnen();
-    await new Promise((ok) => {
-      const a = db.transaction(MERK_LADEN, 'readwrite').objectStore(MERK_LADEN)
-        .put({ ...alt, ...felder }, MERK_SCHLUESSEL);
-      a.onsuccess = () => ok();
-      a.onerror = () => ok();
-    });
-  } catch { /* gesperrt – dann eben nicht */ }
-}
-
-const heuteISO = () => {
-  const d = new Date();
-  const z = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
-};
-
-/*
- * `zeitPruefen` trennt die beiden Ausloeser, und das ist keine Feinheit:
- *
- *   periodicsync  Chrome weckt, wann es will – womoeglich um 9 Uhr frueh. Ohne
- *                 die Zeitpruefung kaeme die Erinnerung zur Unzeit.
- *   push          Der Absender weckt zur richtigen Zeit; die Uhrzeit ist damit
- *                 schon entschieden. Hier trotzdem zu pruefen war ein Fehler im
- *                 ersten Entwurf: Zur Winterzeit trifft der Push eine Stunde
- *                 vor der eingestellten Uhrzeit ein, die Pruefung haette ihn
- *                 verworfen – und es waere an dem Tag gar nichts gekommen.
- */
-/*
- * Und warum jeder Ausgang einen Namen hat.
- *
- * *„Die push Nachricht kam erst als ich die app geoeffnet hab."* Dafuer gibt es
- * zwei voellig verschiedene Ursachen, und von aussen sehen sie gleich aus:
- *
- *   Der Push kam nicht an     Android hat ihn im Doze-Modus zurueckgehalten und
- *                             beim Entsperren nachgeliefert. Zu beheben beim
- *                             Absender (urgency) und in den Akku-Einstellungen.
- *   Der Push kam an           …und dieser Code hat entschieden, nichts zu
- *                             zeigen. Zu beheben hier.
- *
- * Ohne Aufschreiben laesst sich das nicht auseinanderhalten – ich kann auf
- * seinem Handy nichts nachmessen. Also vermerkt jeder Ausgang, *warum* er
- * genommen wurde, mitsamt Uhrzeit; die App zeigt es unter Mehr im Klartext.
- * Das kostet vier Zeilen und ersetzt Raten durch Nachsehen.
- */
-async function erinnern(zeitPruefen, losUm) {
-  const zettel = await merkLesen();
-  const heute = heuteISO();
-  const art = zeitPruefen ? 'sync' : 'push';
-  // Der Weckruf selbst wird immer vermerkt, auch wenn nichts zu melden ist.
-  // Das ist der Messwert: Er sagt, ob der Weg ueberhaupt traegt.
-  //
-  // `losUm` ist die Absendezeit aus der Nutzlast des Pushes (siehe
-  // .github/workflows/push-erinnerung.yml). Der Abstand zu `geweckt` ist die
-  // Zeit, die die Meldung unterwegs war - und das ist die Zahl, die den Fall
-  // vom 14.09. entscheidet: gesendet 07:06, erschienen 18:08. Nicht der
-  // Absender war spaet, das Handy hat gehalten. Ohne diese beiden Zeitstempel
-  // nebeneinander sieht das aus wie "der Push kommt nicht an".
-  const notiz = (grund) => merkSchreiben({
-    geweckt: Date.now(), weckArt: art, weckGrund: grund, losUm: losUm || null,
-  });
-
-  if (!zettel.an) return notiz('aus');
-  if (zettel.gemeldet === heute) return notiz('schon');   // heute schon gemeldet
-  if (zeitPruefen) {
-    if (!zettel.zeigenAb || Date.now() < zettel.zeigenAb) return notiz('frueh');
-  } else if (!zettel.tag || zettel.tag > heute) {
-    return notiz('kein-tag');                             // erst an einem spaeteren Tag faellig
-  }
-
-  // Ist die App gerade offen, braucht es keine Meldung – dann sieht er es ja.
-  const offen = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  if (offen.some((c) => c.visibilityState === 'visible')) return notiz('offen');
-
-  await erinnerungZeigen(zettel.titel);
-  if (self.navigator && self.navigator.setAppBadge) {
-    // Ohne Zahl: ein Punkt, keine Eins. Auf Android bewirkt das nichts –
-    // dort kommt der Punkt ohnehin von der Meldung selbst.
-    self.navigator.setAppBadge().catch(() => {});
-  }
-  await notiz('gezeigt');
-  return merkSchreiben({ gemeldet: heute });
-}
-
-const ERINNERUNG_TAG = 'workout-erinnerung';
-
-/**
- * Die Meldung selbst.
- *
- * **Ein Symbol, nicht zwei.** Vorher standen `icon` und `badge` beide auf
- * icon-192.png. Android zeigt daraufhin dieselbe Hantel zweimal nebeneinander –
- * links das kleine Symbol, rechts das grosse. Uebrig bleibt `badge`; das grosse
- * traegt nichts bei, was das kleine nicht schon sagt.
- *
- * **Wegwischbar, und das ist neu.** Bis v171 kam sie nach dem Wischen zurueck:
- * *„Mach so dass ich es nicht weg wischen kann."* Jetzt gilt das Gegenteil, auf
- * Ansage: *„ne einmalige Push Nachricht, die ich weg wischen kann"*. Einmal am
- * Tag, und wer wischt, hat sie weg – der Vermerk `gemeldet` verhindert, dass
- * der zweite Push des Tages sie nachschiebt. Der Knopf „Heute nicht" ist damit
- * ueberfluessig geworden und raus: Wischen tut dasselbe und ist der kuerzere
- * Weg.
- *
- * `requireInteraction` bleibt stehen und hilft auf Android nicht (Chrome kennt
- * das Feld dort nicht); auf dem Rechner sorgt es dafuer, dass sie nicht nach
- * ein paar Sekunden von selbst verschwindet.
- */
-function erinnerungZeigen(titel) {
-  return self.registration.showNotification('Training steht an', {
-    body: titel || 'Dein nächstes Workout wartet.',
-    badge: './badge-96.png',
-    tag: ERINNERUNG_TAG,
-    requireInteraction: true,
-    data: { art: 'erinnerung', titel: titel || '' },
-  });
-}
-
-self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'workout-erinnerung') event.waitUntil(erinnern(true));
-});
-
-/*
- * Web Push – derselbe Entscheid, nur zuverlaessig ausgeloest.
- *
- * Der Push kommt von einem zeitgesteuerten Ablauf bei GitHub und **traegt
- * nichts**: kein Text, keine Daten, nur ein Klopfen. Was angezeigt wird und ob
- * ueberhaupt, entscheidet allein dieses Geraet anhand des Merkzettels. Wer den
- * Wecker betreibt, erfaehrt nicht einmal, ob heute etwas anstand.
- *
- * Chrome verlangt bei `userVisibleOnly` im Grundsatz, dass jeder Push etwas
+ * **Warum nicht nur die Meldung, sondern der ganze Weg.** Web Push laeuft unter
+ * `userVisibleOnly`: Chrome erwartet, dass jeder zugestellte Push etwas
  * anzeigt, und blendet sonst irgendwann von sich aus „im Hintergrund
- * aktualisiert" ein. Deshalb kommt genau **ein** Push am Tag, und an
- * Ruhetagen bleibt er still. Sollte Chrome das anmerken, ist die Lehre nicht,
- * oefter zu senden, sondern an Ruhetagen etwas Nuetzliches zu zeigen.
- */
-self.addEventListener('push', (event) => {
-  // Die Nutzlast ist die Absendezeit und sonst nichts - siehe erinnern(). Sie
-  // darf fehlen: Ein Push aus einer aelteren Fassung des Ablaufs traegt keine,
-  // und daran soll die Erinnerung nicht haengen.
-  let los = null;
-  try { los = (event.data && event.data.json() || {}).los || null; } catch { los = null; }
-  event.waitUntil(erinnern(false, los));
-});
+ * aktualisiert" ein. Ein stiller Push waere also keine stille Loesung, sondern
+ * eine fremde Meldung an derselben Stelle. Bleibt der Weg bestehen und wird nur
+ * die Meldung entfernt, steht am Ende genau das da, was weg sollte.
+ *
+ * **Was bleibt, ist alles rund um die Pause** – `pause-start`, die laufende
+ * Uhr, „Pause vorbei". Die haengt an einer Nachricht der Seite und nicht am
+ * Push-Dienst; sie war nie Teil dieses Abschnitts und ist es auch jetzt nicht.
+ * ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ *
  * Die laufende Pause – hier statt in der Seite

@@ -51,9 +51,6 @@ import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
 import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
-import { erinnerungsStand, minuten } from './erinnerung.js';
-import { liesMerkzettel, schreibeMerkzettel } from './merkzettel.js';
-import { kannPush, pushEinrichten, pushStand } from './push.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat } from './vorrat.js';
 import { termine, terminLabel } from './termine.js';
 import { AKTIVITAETEN, AKT_BY_ID, familien, gruppenAm, nachwirkung } from './aktivitaeten.js';
@@ -82,109 +79,43 @@ const toastEl = document.getElementById('toast');
 const EINZELDATEI = !document.querySelector('script[src$="js/app.js"]');
 
 /* ------------------------------------------------------------------ *
- * Erinnerung am Trainingstag
+ * Der Punkt am App-Symbol
  *
- * Drei Teile, und nur der erste ist verlässlich:
+ *     „Mach auch die einmalige Push Nachricht morgens weg. Pausen usw sollen
+ *      aber natürlich immer noch mit angezeigt werden"
  *
- *   1. Die Zahl am App-Symbol. Steht eine Einheit offen, kommt eine 1 aufs
- *      Symbol; ist sie gemacht, verschwindet sie. Sie bleibt auch stehen,
- *      wenn die App zu ist – ändern kann sie sich aber nur, während die App
- *      läuft oder der Worker geweckt wird.
- *   2. Der Merkzettel für den Service Worker. Siehe js/merkzettel.js.
- *   3. Die Anmeldung bei periodicsync. Ob Chrome den Worker dann wirklich
- *      weckt, entscheidet Chrome – deshalb wird es nicht behauptet, sondern
- *      gemessen (siehe erinnerungsZeile()).
+ * Damit ist die Erinnerung am Trainingstag weg – Meldung, Uhrzeiten,
+ * periodicsync, Web Push, Merkzettel, der Wecker bei GitHub. Warum der ganze
+ * Weg und nicht nur die Meldung, steht in sw.js.
+ *
+ * Übrig bleiben diese paar Zeilen: Steht eine Einheit offen und ist ihr Termin
+ * da, trägt das App-Symbol einen Punkt. Das ist der Rest der Ansage von
+ * damals, *„so wie bei WhatsApp"*, und er kommt ohne Meldung aus.
+ *
+ * **Auf Android passiert hier nichts**, und das ist keine Nachlässigkeit:
+ * Chrome stellt setAppBadge dort gar nicht bereit. Auf dem Handy entstand der
+ * Punkt bisher allein aus der Meldung – die ist jetzt weg, und damit auch er.
+ * Diese Zeilen tragen auf dem Rechner, wo die App installiert ist.
  * ------------------------------------------------------------------ */
 
-/** Die Einstellung, immer vollständig – auch aus einer alten Sicherung. */
-function erinnerungAn() {
-  const e = store.getState().erinnerung || {};
-  return {
-    an: !!e.an,
-    werktags: minuten(e.werktags) === null ? '16:00' : e.werktags,
-    wochenende: minuten(e.wochenende) === null ? '06:30' : e.wochenende,
-  };
-}
-
-/**
- * Kann der Browser den Worker von sich aus wecken? (periodicSync)
- *
- * Das kann nur Chrome, und auch dort nur, wenn es gerade will. Es ist der
- * *schwächere* der beiden Wege – siehe kannErinnern().
- */
-const kannWecken = () => 'serviceWorker' in navigator
-  && typeof window.ServiceWorkerRegistration === 'function'
-  && 'periodicSync' in window.ServiceWorkerRegistration.prototype;
-
-/**
- * Kann diese App überhaupt an einen Trainingstag erinnern?
- *
- * Zwei Wege führen dahin, und sie sind unabhängig voneinander:
- *
- *   periodicSync   Der Browser weckt von selbst. Nur Chrome, unzuverlässig.
- *   Web Push       Ein Wecker von außen klopft. Chrome *und* Firefox.
- *
- * Hier stand jahrelang nur der erste, und das war ein handfester Fehler: In
- * Firefox ist periodicSync nicht vorhanden, der Schalter war deshalb gesperrt,
- * im Merkzettel stand `an: false` – und jeder ankommende Push lief in
- * erinnern() sofort in den Zweig „aus". Der Wecker klopfte, und die App
- * antwortete, sie sei abgeschaltet. Von außen sah das aus, als käme kein Push.
- *
- *     „Mein Handy erkennt die app immer noch nicht als eigenständig sondern
- *      Firefox"
- *
- * Ein Schalter, der wegen einer Chrome-Funktion gesperrt ist, obwohl der
- * Firefox-Weg danebenliegt und funktioniert, sperrt die Funktion aus dem
- * falschen Grund.
- */
-const kannErinnern = () => kannWecken() || kannPush();
-
-/**
- * Merkzettel und Symbol nachziehen. Läuft nach jeder Zustandsänderung – der
- * Zettel muss stimmen, wenn die App zugeht, denn danach rechnet niemand mehr.
- */
 async function erinnerungPflegen() {
-  const zeiten = erinnerungAn();
-  const stand = erinnerungsStand(zeiten);
-  const offen = !!stand;
+  // Fällig heißt: Es gibt eine offene Einheit, und ihr Termin ist nicht mehr in
+  // der Zukunft. Ein Punkt drei Tage vorher wäre kein Hinweis, sondern
+  // Dauerzustand.
+  let faellig = false;
+  try {
+    const n = defaultWorkoutNo();
+    const w = n ? workoutByNo(n) : null;
+    faellig = !!w && !completedMode(w.n) && effDate(w) <= todayISO();
+  } catch { faellig = false; }
 
-  // Der Punkt am Symbol: nur wenn eine Einheit fällig *und* ihr Termin nicht in
-  // der Zukunft liegt. Ein Punkt drei Tage vorher wäre keine Erinnerung,
-  // sondern Dauerzustand.
-  //
-  // Ohne Zahl – `setAppBadge()` zeigt einen Punkt, `setAppBadge(1)` eine Eins.
-  // Gewünscht war der Punkt, *„so wie bei WhatsApp"*, und eine Eins zählte hier
-  // ohnehin nichts.
-  //
-  // **Auf Android passiert hier nichts**, und das ist keine Nachlässigkeit:
-  // Chrome stellt setAppBadge dort gar nicht bereit. Der Punkt am Symbol
-  // entsteht auf dem Handy allein aus der Meldung unten – liegt sie im
-  // Benachrichtigungsschacht, ist er da; wird sie weggewischt, ist er weg.
-  // Diese Zeilen tragen auf dem Rechner, wo die App installiert ist.
   try {
     if (navigator.setAppBadge) {
-      const faelligHeute = offen && stand.tag <= todayISO();
-      if (zeiten.an && faelligHeute) await navigator.setAppBadge();
+      // Ohne Zahl – setAppBadge() zeigt einen Punkt, setAppBadge(1) eine Eins.
+      if (faellig) await navigator.setAppBadge();
       else if (navigator.clearAppBadge) await navigator.clearAppBadge();
     }
   } catch { /* nicht unterstützt – dann eben nicht */ }
-
-  await schreibeMerkzettel({
-    an: zeiten.an && offen,
-    zeigenAb: offen ? stand.zeigenAb : 0,
-    // Der Tag zusätzlich zum Zeitpunkt: Der Push kommt zur richtigen Uhrzeit
-    // und fragt nur noch, *ob* etwas ansteht – siehe erinnern() in sw.js.
-    tag: offen ? stand.tag : '',
-    titel: offen ? stand.titel : '',
-  });
-
-  if (!zeiten.an || !kannWecken()) return;
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    // Vier Stunden ist ein Wunsch, keine Zusage – Chrome hält sich nicht daran.
-    // Kürzer anzufragen bringt nichts, länger würde Tage verschenken.
-    await reg.periodicSync.register('workout-erinnerung', { minInterval: 4 * 60 * 60 * 1000 });
-  } catch { /* Erlaubnis fehlt oder die App ist nicht installiert */ }
 }
 
 /**
@@ -2077,35 +2008,6 @@ function eisenAusAdresse() {
 
 /** Kurzschlüssel eines Freundes: gleicher Name, gleicher Eintrag. */
 const freundId = (name) => name.trim().toLowerCase().slice(0, 24);
-
-/**
- * Die GitHub-Seite, auf der das Secret für den Push hinterlegt wird – oder null.
- *
- * Der Weg dorthin heißt *Settings → Secrets and variables → Actions → New
- * repository secret*, und das sind auf einem Handy vier Menüs in einer Ansicht,
- * die für einen Bildschirm dreimal so breit gebaut ist. Die Adresse führt in
- * einem Schritt hin.
- *
- * Abgeleitet aus der eigenen Adresse, nicht eingetragen: Wer diese App irgendwo
- * anders hinstellt, bekommt seinen eigenen Verweis. Steht sie nicht auf
- * GitHub Pages, gibt es keinen – dann bleibt die Wegbeschreibung stehen.
- *
- * **Der Umweg über /login ist der eigentliche Trick.** Direkt aufgerufen
- * antwortet GitHub auf eine Einstellungsseite mit *404 – Didn't find anything
- * here*, wenn man nicht angemeldet ist. Nicht mit „keine Berechtigung": Wer
- * nichts sehen darf, soll nicht einmal erfahren, dass es die Seite gibt. Das
- * ist als Auskunft richtig und als Wegweiser fatal – der erste Versuch endete
- * genau dort, und die Seite sah aus, als sei der Link kaputt. `/login` mit
- * `return_to` führt Angemeldete unverändert durch und alle anderen erst durch
- * die Anmeldung und dann ans Ziel.
- */
-function geheimnisURL() {
-  const konto = /^([^.]+)\.github\.io$/.exec(location.hostname);
-  const repo = location.pathname.split('/').filter(Boolean)[0];
-  if (!konto || !repo || repo.includes('.')) return null;
-  const ziel = `/${konto[1]}/${repo}/settings/secrets/actions/new`;
-  return `https://github.com/login?return_to=${encodeURIComponent(ziel)}`;
-}
 
 /** Adresse der App zum Weitergeben – ohne Anker und ohne Suchteil. */
 function appURL() {
@@ -4666,67 +4568,20 @@ function renderSettings() {
         für diese Gruppen. Wer lieber die ganze Einheit vorzieht, macht das im Plan.</div>
     </div>
 
-    <div class="section-title">Erinnerung am Trainingstag</div>
-    <div class="card">
-      <div class="switch-row">
-        <div>
-          <div class="lbl">Erinnern, wenn ein Training ansteht</div>
-          <div class="hint">Eine Meldung in der Statusleiste an Tagen, an denen eine
-            Einheit offen ist – auch wenn die App zu ist. Einmal am Tag, und wegwischen
-            beendet sie für diesen Tag. Solange sie liegt, trägt das App-Symbol einen
-            Punkt; auf Android ist das <i>ihr</i> Punkt, mit dem Wischen ist er mit weg.
-            ${kannErinnern() ? (kannWecken() ? '' : '<b>In diesem Browser geht das nur über '
-              + 'Push</b> – er weckt sich nicht von selbst. Richte es unten ein, sonst bleibt '
-              + 'der Schalter wirkungslos.')
-              : '<strong>Dieser Browser kann das nicht.</strong> Es braucht Meldungen und einen '
-                + 'Service Worker.'}</div>
-        </div>
-        <button type="button" class="toggle" aria-pressed="${erinnerungAn().an}"
-                data-act="toggle-erinnerung" aria-label="Erinnerung am Trainingstag"
-                ${kannErinnern() ? '' : 'disabled'}></button>
-      </div>
-      ${erinnerungAn().an ? `
-      <div class="zeit-row">
-        <label class="zeit"><span class="lbl">Mo–Fr ab</span>
-          <input type="time" value="${esc(erinnerungAn().werktags)}"
-                 data-act="erinnerung-zeit" data-wann="werktags"></label>
-        <label class="zeit"><span class="lbl">Sa/So ab</span>
-          <input type="time" value="${esc(erinnerungAn().wochenende)}"
-                 data-act="erinnerung-zeit" data-wann="wochenende"></label>
-      </div>
-      <div class="small muted" id="weckStand">wird nachgesehen…</div>` : ''}
-      <div class="small muted" style="margin-top:8px">${kannWecken()
-        ? 'Ohne Push hängt das daran, ob der Browser von selbst aufwacht – und das '
-          + 'entscheidet er. Deshalb steht oben, wann es zuletzt geklappt hat.'
-        : 'Dieser Browser wacht nicht von selbst auf; hier trägt allein der Push. '
-          + 'Er hängt am Browser, nicht am Gerät – wer die App in einem anderen Browser '
-          + 'geöffnet hat, muss ihn hier neu einrichten.'}</div>
-      <div class="btn-row" style="margin-top:10px">
-        <button type="button" class="btn btn-block" data-act="push-einrichten"
-                ${kannPush() ? '' : 'disabled'}>Zuverlässig machen (Push einrichten)</button>
-      </div>
-      <div class="small muted" id="pushStand" style="margin-top:6px"></div>
-      ${ui.pushText ? `
-      <div class="notice" style="margin-top:10px">
-        <strong>Fast fertig – ein Mal einfügen.</strong>
-        <div class="small" style="margin-top:6px">${geheimnisURL()
-          ? `<a href="${esc(geheimnisURL())}" target="_blank" rel="noopener">Diese Seite bei GitHub
-             öffnen</a> – sie ist schon die richtige. Bist du dort nicht angemeldet, kommt erst
-             die Anmeldung und danach das Ziel.`
-          : 'Auf GitHub im Workout-Repo: <i>Settings → Secrets and variables → Actions → '
-            + 'New repository secret</i>.'}
-          Name <code>PUSH_KONFIG</code>, und da unten hinein:</div>
-        <textarea class="io" readonly style="margin-top:8px;height:120px"
-                  id="pushKonfig">${esc(ui.pushText)}</textarea>
-        <div class="btn-row">
-          <button type="button" class="btn btn-primary" data-act="push-kopieren">Kopieren</button>
-          <button type="button" class="btn btn-ghost" data-act="push-fertig">Fertig</button>
-        </div>
-        <div class="small muted" style="margin-top:8px">Darin steckt der private Schlüssel
-          dieses Geräts. Er gehört in das Secret und sonst nirgendwohin – nicht in eine
-          Nachricht, nicht in die Zwischenablage von jemand anderem.</div>
-      </div>` : ''}
-    </div>
+    <!-- Hier stand „Erinnerung am Trainingstag": ein Schalter, zwei Uhrzeiten,
+         ein Knopf „Zuverlässig machen (Push einrichten)" samt Anleitung für das
+         GitHub-Secret. Alles raus, auf Ansage:
+
+           „Mach auch die einmalige Push Nachricht morgens weg. Pausen usw
+            sollen aber natürlich immer noch mit angezeigt werden"
+
+         Und zwar der ganze Weg und nicht nur die Meldung – siehe sw.js. Ein
+         Web Push, der nichts anzeigt, ist unter userVisibleOnly keine stille
+         Lösung: Chrome blendet dann irgendwann selbst „im Hintergrund
+         aktualisiert" ein, und damit stünde wieder eine Meldung da.
+
+         Was mit der Pause zu tun hat, ist davon unberührt und steht weiter
+         unter „Ton und Vibration". -->
 
     <!-- Hier stand die Plan-Verschiebung: +9 Tage, "Nächste Einheit auf
          heute", ±1 Tag, "Auf Original". Alles raus, auf Ansage: "Das mit dem
@@ -4849,8 +4704,6 @@ function renderSettings() {
   `;
 
   showVersion();
-  weckStandZeigen();
-  pushStandZeigen();
   tonStandZeigen();
 }
 
@@ -4871,108 +4724,6 @@ function tonStandZeigen() {
   const wort = { aus: 'noch nicht angefordert', laeuft: 'läuft', schlaeft: 'angehalten' };
   host.textContent = `Tonkanal: ${wort[t.zustand]} · ${t.gespielt === 1
     ? '1 Ton losgeschickt' : `${t.gespielt} Töne losgeschickt`}, seit die App offen ist.`;
-}
-
-/** Steht die Push-Anmeldung? Kurz und ohne Versprechen. */
-function pushStandZeigen() {
-  const host = document.getElementById('pushStand');
-  if (!host) return;
-  if (!kannPush()) { host.textContent = 'Dieser Browser kann kein Web Push.'; return; }
-  pushStand().then((p) => {
-    if (!document.body.contains(host)) return;
-    if (!p.angemeldet) {
-      host.textContent = 'Noch nicht eingerichtet – ohne das bleibt es beim Vielleicht.';
-      return;
-    }
-    // Der Rest liegt am Handy, und das steht hier, weil es sonst niemand sagt:
-    // Android hält Push-Nachrichten für gedrosselte Apps zurück und liefert sie
-    // erst beim Entsperren nach. Von außen sieht das aus, als käme die Meldung
-    // „erst beim Öffnen der App".
-    host.innerHTML = 'Angemeldet. Ob wirklich etwas ankommt, siehst du oben an '
-      + '„zuletzt geweckt" – da steht seit Neuestem auch die Uhrzeit.'
-      + '<div style="margin-top:6px">Kommt die Meldung erst, wenn du das Handy '
-      + 'entsperrst, hält Android sie zurück. Dagegen hilft nur eine Einstellung '
-      + 'am Gerät: <i>Einstellungen → Apps → Chrome → Akku</i> auf '
-      + '<i>uneingeschränkt</i> (bei Xiaomi/Redmi zusätzlich <i>Autostart</i> '
-      + 'erlauben und im Task-Manager das Schloss setzen).</div>';
-  });
-}
-
-/**
- * Was der Worker beim letzten Weckruf getan hat – im Klartext.
- *
- * Zu jedem Grund aus erinnern() in sw.js ein Satz. Der Unterschied, um den es
- * geht: „gezeigt" heißt, der Weg trägt und die Meldung ist wirklich erschienen;
- * alles andere heißt, der Weckruf kam an und *dieser Code* hat entschieden,
- * nichts zu zeigen – und dann steht hier, warum. Gar keine Zeile heißt: Es kam
- * nichts an, und die Ursache liegt nicht in der App.
- */
-const WECK_GRUND = {
-  gezeigt: 'Meldung erschienen',
-  offen: 'nichts gezeigt – die App war offen',
-  schon: 'nichts gezeigt – an dem Tag war schon erinnert worden',
-  aus: 'nichts gezeigt – die Erinnerung war aus',
-  frueh: 'nichts gezeigt – es war noch vor der eingestellten Uhrzeit',
-  'kein-tag': 'nichts gezeigt – es stand nichts an',
-};
-
-/**
- * Wie lange der Push unterwegs war – vom Absenden bis zum Aufwachen hier.
- *
- * Anlass: *„Außerdem hab ich heute gar keine Push Nachricht bekommen. Erst als
- * ich die app selbst geöffnet hab."* Losgeschickt wurde er um 07:06, erschienen
- * ist er um 18:08 – elf Stunden dazwischen, und die lagen nicht am Absender.
- * Von außen sah beides gleich aus: „kommt nicht an" und „kommt an und wird vom
- * Handy festgehalten". Seit der Push seine Absendezeit mitbringt, steht die
- * Spanne hier, und damit ist es keine Vermutung mehr.
- *
- * Unter einer Viertelstunde steht nichts: Dann hat der Weg getragen, und eine
- * Zahl, die nur bestätigt, was ohnehin funktioniert, ist Buchhaltung.
- */
-function unterwegs(z) {
-  if (!z.losUm || !z.geweckt || z.weckArt !== 'push') return '';
-  const min = Math.round((z.geweckt - z.losUm) / 60000);
-  if (min < 15) return '';
-  const std = Math.floor(min / 60);
-  const rest = min % 60;
-  return ` · unterwegs ${std ? `${std} h ${rest} min` : `${rest} min`} festgehalten`;
-}
-
-/**
- * Wann hat der Browser den Service Worker zuletzt geweckt?
- *
- * Die ehrliche Zahl zu dieser Funktion. Ob der Push ankommt und ob periodicsync
- * auf einem bestimmten Handy trägt, lässt sich weder versprechen noch hier
- * nachprüfen – ein Testlauf kann die Ereignisse nicht auslösen. Also steht hier,
- * was wirklich passiert ist, und nicht, was passieren soll.
- *
- * Mit Uhrzeit, nicht nur mit Tag: *„Die push Nachricht kam erst als ich die app
- * geöffnet hab."* Ob der Weckruf um 16 Uhr kam oder um 21 Uhr beim Entsperren,
- * ist genau die Frage – und „heute" beantwortet sie nicht.
- */
-function weckStandZeigen() {
-  const host = document.getElementById('weckStand');
-  if (!host) return;
-  liesMerkzettel().then((z) => {
-    if (!document.body.contains(host)) return;
-    if (!z.geweckt) {
-      host.textContent = 'Noch nie geweckt worden – das kann ein paar Tage dauern.';
-      return;
-    }
-    const d = new Date(z.geweckt);
-    const tage = Math.floor((Date.now() - z.geweckt) / 86400000);
-    const uhr = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} Uhr`;
-    const wann = tage === 0 ? `heute um ${uhr}`
-      : tage === 1 ? `gestern um ${uhr}`
-        : `vor ${tage} Tagen, ${uhr}`;
-    const art = z.weckArt === 'push' ? 'Push'
-      : z.weckArt === 'sync' ? 'der Browser von selbst' : null;
-    host.textContent = `Zuletzt geweckt: ${wann}`
-      + (art ? ` durch ${art}` : '')
-      + unterwegs(z)
-      + (WECK_GRUND[z.weckGrund] ? ` · ${WECK_GRUND[z.weckGrund]}` : '')
-      + (z.gemeldet ? ` · zuletzt erinnert am ${fmtDate(z.gemeldet)}` : '');
-  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -5831,25 +5582,6 @@ view.addEventListener('click', (e) => {
       if (on) playSound('set');
       break;
     }
-    case 'push-einrichten':
-      pushEinrichten()
-        .then((r) => { ui.pushText = r.text; render(); })
-        .catch((e) => toast(e && e.message ? e.message : 'Hat nicht geklappt.'));
-      break;
-    case 'push-kopieren': {
-      const feld = document.getElementById('pushKonfig');
-      if (feld) {
-        feld.select();
-        navigator.clipboard.writeText(feld.value)
-          .then(() => toast('Kopiert – jetzt bei GitHub als PUSH_KONFIG einfügen.'))
-          .catch(() => toast('Kopieren ging nicht – von Hand markieren.'));
-      }
-      break;
-    }
-    case 'push-fertig':
-      ui.pushText = '';
-      render();
-      break;
     case 'termin-tag':
       ui.terminDatum = t.dataset.v;
       render();
@@ -5891,13 +5623,6 @@ view.addEventListener('click', (e) => {
       store.setSetting('termine', liste.filter((x) => x !== weg));
       render();
       toast('Termin entfernt');
-      break;
-    }
-    case 'toggle-erinnerung': {
-      const e = erinnerungAn();
-      store.setSetting('erinnerung', { ...e, an: !e.an });
-      erinnerungPflegen();
-      render();
       break;
     }
     case 'toggle-supersatz':
@@ -6156,15 +5881,6 @@ view.addEventListener('input', (e) => {
     const mode = store.workoutMode(n);
     const item = workoutByNo(n, mode).ex.find((x) => x.id === t.dataset.ex);
     store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value });
-  } else if (t.dataset.act === 'erinnerung-zeit') {
-    // Stand jahrelang im Klick-Zweig und wurde damit nie ausgelöst: Ein
-    // Zeitfeld meldet eine neue Uhrzeit als "input", nicht als Klick. Wer die
-    // Zeit umstellte, sah die neue Zahl im Feld – gespeichert war die alte.
-    // Ein leeres oder unsinniges Feld lässt die bisherige Zeit stehen, statt
-    // die Erinnerung still auf Mitternacht zu schieben.
-    if (minuten(t.value) === null) return;
-    store.setSetting('erinnerung', { ...erinnerungAn(), [t.dataset.wann]: t.value });
-    erinnerungPflegen();
   } else if (t.dataset.act === 'scheiben-stange') {
     // Beim Tippen still speichern, ohne neu zu rendern: Ein render() würde das
     // Feld ersetzen und den Fokus mitnehmen, mitten im Wort.
