@@ -61,11 +61,14 @@ DATEIEN = {
 # darüber, was gesund ist; sie ist die Grenze, ab der ein neuer Plan schlechter
 # wäre als der jetzige.
 #
-# **Sie ist zu hoch, und das steht hier, damit es nicht vergessen wird.** Ein
-# mit dem Gitterweg neu gerechneter Aufbau-Plan kommt auf +2,00 in beiden Modi
-# – und +2,00 ist für die Gruppen mit Ziel == Grenze das rechnerische Optimum
-# (siehe Kopf). Sobald neu erzeugte Pläne ausgeliefert werden, gehört diese
-# Zahl auf 2,5 herunter. Vorher wäre sie ein Tor, das den eigenen Plan sperrt.
+# **Sie bleibt vorerst so hoch, und der Grund ist gemessen.** Ein mit dem
+# Gitterweg neu gerechneter Aufbau-Plan kommt auf +2,00 in beiden Modi – das
+# rechnerische Optimum für Gruppen mit Ziel == Grenze (siehe Kopf). Der Preis
+# dafür sind 108 Verschlechterungen an anderer Stelle: Frequenzen fallen,
+# größte Abstände wachsen, bei der vorderen Schulter von 7 auf 19 Tage. Die
+# neuen Pläne sind auf diese eine Zahl besser und auf alles andere schlechter,
+# und deshalb bleiben die alten. Diese Schranke sinkt erst, wenn ein neuer Plan
+# beides zugleich kann.
 SCHRANKE = 4.0
 
 # Und wie viele Gruppenwochen überhaupt darüber liegen dürfen, als Anteil.

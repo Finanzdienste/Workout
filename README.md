@@ -1174,6 +1174,25 @@ vorher allesamt an der Tiefensuche gescheitert wären; schlechtester Fall 17
 Sekunden. Wer ein Wochenziel ändert, bekommt jetzt einen Plan, statt vor zehn
 Stunden Rechenzeit ohne Ergebnis zu stehen.
 
+**Wo er nicht trägt.** Die 25 waren Verschiebungen um ein, zwei Sätze an je
+einer Gruppe – Ziele in der Nachbarschaft der ausgelieferten. Auf dem vollen
+Katalog mit 35 Übungen und einem ganz anderen Zielsatz findet `landepunkt()`
+nichts, und ein Anlauf kostet dort rund 19 Sekunden. Das ist kein Beweis, dass
+es nichts gibt – der Weg ist eine Heuristik, keine Entscheidung. `exact()`
+bleibt deshalb als Rückfall stehen.
+
+**Und er macht die Pläne nicht besser.** Das ist der wichtigste Befund und der
+unangenehmste. Alle vier Varianten wurden mit dem Gitterweg neu gerechnet und
+gegen den Vergleichsstand geprüft (`plan-pruefen.py`): **108 Verschlechterungen**.
+Darunter „Schulter vorn" mit einem größten Abstand von 7 auf 19 Tage und einer
+Frequenz von 2,14 auf 0,48 pro Woche. Auf die Wochenobergrenze gesehen waren
+die neuen Pläne besser (+2,00 statt +3,90); auf alles andere gesehen deutlich
+schlechter. Der Gitterweg ist ein Gewinn an *Fähigkeit* – er kann überhaupt
+suchen –, nicht automatisch einer an Qualität: Er findet einen anderen exakten
+Punkt, und die Auswahl darunter entscheidet der zweite Schritt. Die
+ausgelieferten Pläne bleiben, wie sie sind. Zum zweiten Mal gilt: **neu
+erzeugen ist die falsche Antwort.**
+
 Zwei Details, beide teuer gelernt:
 
 * **Die Körnung steckt im Gitter, nicht in der Prüfung.** Gerechnet wird mit

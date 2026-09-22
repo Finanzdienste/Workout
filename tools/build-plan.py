@@ -956,6 +956,15 @@ def landepunkt(block, shares, weeks, rnd, runden=60, schritte=4000):
     auch 25 von 25 künstlich verschobenen Zielsätzen, die vorher allesamt an
     der Tiefensuche gescheitert wären. Schlechtester Fall 17 Sekunden.
 
+    **Wo er nicht trägt, und das gehört dazu.** Die 25 waren Verschiebungen um
+    einen oder zwei Sätze an je einer Gruppe – also Ziele in der Nachbarschaft
+    der ausgelieferten. Auf dem vollen Katalog mit 35 Übungen und einem
+    Zielsatz weit weg davon (die Kandidatenliste in tools/pruefung/machbar.py)
+    findet er nichts, und ein Anlauf kostet dort rund 19 Sekunden. Das ist kein
+    Beweis, dass es nichts gibt – landepunkt() ist eine Heuristik, keine
+    Entscheidung. Deshalb bleibt exact() als Rückfall stehen, und machbar.py
+    fragt das Gitter nur kurz (runden=2), bevor es die Tiefensuche anwirft.
+
     **Warum Plateaulauf und nicht bloß Abstieg.** Der erste Entwurf nahm nur
     echte Verbesserungen und blieb reproduzierbar bei Abstand 1 stehen: ein
     einziger Wert knapp außerhalb, und kein einzelner Kernvektor bringt ihn

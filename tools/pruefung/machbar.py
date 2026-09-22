@@ -97,7 +97,17 @@ def probiere(ziele, wochen=range(21, 33)):
             # der Gitterweg nichts, heißt das nicht „es gibt nichts" – auch er
             # ist eine Heuristik –, deshalb kommt die Tiefensuche danach noch
             # einmal dran und darf ihr Budget verbrauchen.
-            if bp.landepunkt(block, shares, w, rnd) is not None:
+            #
+            # **Kurz gehalten, und das ist hier wichtiger als anderswo.** Im
+            # Generator darf landepunkt() sechzig Anläufe nehmen; dort ist jede
+            # gefundene Lösung Gold wert. Hier ist er nur eine Vorfrage, und
+            # gemessen kostet ein Anlauf auf dem vollen Katalog (35 Übungen,
+            # Zielsatz weit weg vom ausgelieferten) rund 19 Sekunden – mal
+            # sechzig Anläufe, mal zwölf Wochenzahlen, mal zwanzig Kandidaten
+            # wäre das Skript damit langsamer als vorher, nicht schneller. Zwei
+            # Anläufe: Wo das Gitter dicht besetzt ist, trifft er sofort; wo
+            # nicht, übernimmt die Tiefensuche wie eh und je.
+            if bp.landepunkt(block, shares, w, rnd, runden=2) is not None:
                 continue
             if rest <= 0:
                 return None, False
