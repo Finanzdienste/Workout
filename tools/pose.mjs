@@ -24,7 +24,16 @@ const mix = (x, y, t) => x + (y - x) * t;
 const mixA = (x = A(), y = A(), t) => A(mix(x.p, y.p, t), mix(x.a, y.a, t), mix(x.e, y.e, t), mix(x.i || 0, y.i || 0, t));
 const mixL = (x = L(), y = L(), t) => L(mix(x.p, y.p, t), mix(x.a, y.a, t), mix(x.k, y.k, t));
 
-/** Dieselbe Mischung wie in mountFigure(). */
+/**
+ * Dieselbe Mischung wie in mountFigure().
+ *
+ * **Zwei Fassungen derselben Rechnung, und sie müssen übereinstimmen.** Ein
+ * neues Feld, das nur in einer steht, fällt in der anderen still weg: `becken`
+ * stand zuerst nur in js/figure.js, und dieses Skript meldete daraufhin für
+ * jede Stellung dieselbe Höhe – Hüfte, Schulter und Kopf alle auf Null, als
+ * bewege sich nichts. Nicht die Figur war falsch, sondern die Nachrechnung.
+ * Wer hier ein Feld ergänzt, ergänzt es dort auch, und umgekehrt.
+ */
 function blend(spec, t) {
   const [a, b] = spec.poses;
   return {
@@ -32,6 +41,7 @@ function blend(spec, t) {
     lean: mix(a.lean || 0, b.lean || 0, t),
     tilt: mix(a.tilt || 0, b.tilt || 0, t),
     heel: mix(a.heel || 0, b.heel || 0, t),
+    becken: mix(a.becken || 0, b.becken || 0, t),
     armL: mixA(a.armL || a.arm, b.armL || b.arm, t),
     armR: mixA(a.armR || a.arm, b.armR || b.arm, t),
     legL: mixL(a.legL || a.leg, b.legL || b.leg, t),

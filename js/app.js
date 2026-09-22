@@ -2571,72 +2571,65 @@ function anfaengerZeile(it) {
 }
 
 /**
- * Leichtere oder schwerere Fassung – mit denselben zwei Knöpfen wie die Kilo.
+ * Die anderen Übungen für dieselben Muskeln – zum Antippen.
  *
- *     „Lass machen dass wenn man bei knieheben im Liegen auf + drückt man
- *      automatisch zu knieheben an der Stange kommt. Also die Übung sozusagen
- *      umgewandelt wird. Genauso natürlich bei minus anders herum"
+ *     „Gibt es nicht mehr bauchübungen auf der Welt als die beiden?"
  *
- * Bei einer Übung ohne Zusatzlast stand an dieser Stelle bisher nichts: kein
- * Gewicht, kein Band, im Hantel-Modus auch keine Wiederholungszahl. Die
- * leichtere Fassung gab es zwar – sie kam über die Erfahrungsstufe –, aber
- * ändern ließ sie sich nur unter *Mehr*, für alle Übungen auf einmal, an einer
- * Einstellung, die ausdrücklich keine sein soll.
+ * Gibt es, und drei standen längst im Katalog. Bis v187 waren hier zwei
+ * Knöpfe, − und +, gebaut auf dem Katalogfeld `anfaenger`: genau ein Paar aus
+ * leicht und schwer, und auch das nur beim Knieheben. Dabei hat der Katalog
+ * **sieben** Gruppen, in denen mehrere Übungen dieselben Muskelanteile haben –
+ * beim Seitheben sind es vier. In keiner davon ließ sich tauschen.
  *
- * Hier ist die Steigerung der Wechsel der Übung, also gehört er dorthin, wo
- * sonst die Steigerung steht. Die Zeile sieht aus wie die Gewichtszeile, weil
- * sie dasselbe tut.
+ * Jetzt steht die ganze Gruppe da, die gewählte hervorgehoben. Wo der Katalog
+ * eine Rangfolge kennt, steht sie als Zusatz dran („leichter", „schwerer"); wo
+ * nicht, steht das Gerät – geraten wird nichts.
  *
- * Gespeichert wird unter der Übung, **wie sie im Plan steht** – nicht unter der
- * gerade gezeigten. Sonst hieße „ich will die schwere" beim nächsten Öffnen
- * „ich will die, die gerade dasteht", und der Schalter kippte mit sich selbst.
+ * **Warum das die Wochenrechnung nicht anfasst:** Zur Wahl steht nur, was
+ * *exakt* dieselben Muskelanteile hat, und zwar in beiden Modi. Was sich
+ * ändert, ist die Ausführung, nicht die Rechnung. Der Tausch ist damit so
+ * neutral wie der zwischen zwei Bandfarben.
+ *
+ * Gespeichert wird unter der Übung, **wie sie im Plan steht** – nicht unter
+ * der gerade gezeigten. Sonst hieße „ich will die Crunches" beim nächsten
+ * Öffnen „ich will die, die gerade dasteht", und die Wahl kippte mit sich
+ * selbst.
  */
 function fassungRow(it, mode) {
   // Nicht bei einem Tausch wegen fehlenden Geräts. `statt` schreiben beide
-  // Filter, und ohne diese Zeile ritt die Fassungswahl auf dem Ergebnis des
-  // falschen mit: Ohne Klimmzugstange steht statt des hängenden Kniehebens
-  // die *Gewichtete Crunches* im Plan – und darunter stand dann „Leicht ·
-  // ohne Gerät" und „Schwerer: Hängendes Knieheben – dieselbe Bewegung".
-  // Crunches sind weder die leichte Fassung noch dieselbe Bewegung, und das +
-  // versprach einen Wechsel, den der Gerätefilter sofort wieder einkassierte.
+  // Filter, und ohne diese Zeile ritte die Wahl auf dem Ergebnis des falschen
+  // mit: Ohne Klimmzugstange steht statt des hängenden Kniehebens die
+  // Gewichtete Crunches im Plan – und darunter stünde eine Auswahl, die zu
+  // dieser Übung gar nicht gehört.
   const grund = ersatzGrund(it);
   if (grund && grund.warum === 'vorrat') return '';
   const f = fassungen(it);
   if (!f) return '';
-  const schwer = EX_BY_ID.get(f.schwer);
-  const leicht = EX_BY_ID.get(f.leicht);
-  if (!schwer || !leicht) return '';
-  const obenDran = f.jetzt === f.schwer;
-  const andere = obenDran ? leicht : schwer;
-  const knopf = (richtung) => {
-    const ziel = richtung > 0 ? schwer : leicht;
-    // Und ein Knopf auf eine Fassung, deren Gerät gerade fehlt, verspricht
-    // ebenfalls etwas, das nicht kommt: Der Gerätefilter läuft danach und
-    // tauscht sie wieder weg.
-    const moeglich = uebungGeht(ziel.id, mode);
-    const geht = (richtung > 0 ? !obenDran : obenDran) && moeglich;
-    const warum = !moeglich ? `${ziel.db.name} geht gerade nicht – ${ziel.db.equip} fehlt`
-      : (geht ? `Auf ${ziel.db.name} wechseln` : `${ziel.db.name} ist eingestellt`);
-    return `<button type="button" class="kg-step${richtung > 0 ? ' kg-plus' : ''}"
-            data-act="fassung-step" data-ex="${esc(f.plan)}" data-dir="${richtung}"
-            ${geht ? '' : 'disabled'} aria-label="${esc(warum)}">${richtung > 0 ? '+' : '−'}</button>`;
+  const seite = mode === 'bw' ? 'bw' : 'db';
+  const WIE = { leichter: 'leichter', schwerer: 'schwerer' };
+  const knopf = ({ id, wie }) => {
+    const ex = EX_BY_ID.get(id);
+    if (!ex) return '';
+    const dran = id === f.jetzt;
+    // Ein Knopf auf eine Übung, deren Gerät fehlt, verspricht etwas, das nicht
+    // kommt: Der Gerätefilter läuft danach und tauscht sie wieder weg.
+    const moeglich = uebungGeht(id, mode);
+    const zusatz = moeglich ? (WIE[wie] || ex[seite].equip) : 'Gerät fehlt';
+    return `
+      <button type="button" class="btn btn-sm fassung-btn${dran ? ' btn-primary' : ''}"
+              data-act="fassung-waehlen" data-ex="${esc(f.plan)}" data-v="${esc(id)}"
+              ${dran || !moeglich ? 'disabled' : ''} aria-pressed="${dran}"
+              aria-label="${esc(moeglich ? `Auf ${ex[seite].name} wechseln`
+    : `${ex[seite].name} geht gerade nicht – ${ex[seite].equip} fehlt`)}">
+        <span class="fassung-name">${esc(ex[seite].name)}</span>
+        <span class="fassung-wie">${esc(zusatz)}</span>
+      </button>`;
   };
-  // Was die beiden unterscheidet, steht im Katalog und wird nicht hier
-  // erfunden: der Name und das, was man dafür braucht. Damit trägt die Zeile
-  // auch für jedes Paar, das später dazukommt.
-  const jetzt = obenDran ? schwer : leicht;
   return `
-    <div class="ex-weight ex-fassung">
-      ${knopf(-1)}
-      <div class="kg-main">
-        <span class="kg-val kg-fest">${obenDran ? 'Schwer' : 'Leicht'}</span>
-        <span class="kg-unit">${esc(jetzt.db.equip)}</span>
-      </div>
-      ${knopf(1)}
-    </div>
-    <div class="kg-next">${obenDran ? 'Leichter' : 'Schwerer'}: ${esc(andere.db.name)}
-      – dieselbe Bewegung, ${esc(andere.db.equip)}.${uebungGeht(andere.id, mode) ? ''
-    : ' <span class="muted">Steht gerade nicht zur Wahl – unter Mehr → Was da ist anhaken.</span>'}</div>`;
+    <div class="ex-fassung">
+      <div class="lbl">Dieselben Muskeln, andere Übung</div>
+      <div class="btn-row">${f.liste.map(knopf).join('')}</div>
+    </div>`;
 }
 
 function aufwaermZeile(it, mode, n) {
@@ -5131,13 +5124,13 @@ view.addEventListener('click', (e) => {
       render();
       break;
     }
-    case 'fassung-step': {
-      // Gespeichert wird die *Ziel*-Übung unter der Plan-Übung. Auf +: die
-      // schwere, das ist die Plan-Übung selbst; auf −: die leichtere.
+    case 'fassung-waehlen': {
+      // Gespeichert wird die gewählte Übung unter der *Plan*-Übung – siehe
+      // fassungRow(). js/plan.js lässt nur zu, was dieselben Muskelanteile
+      // hat; eine Wahl, die das nicht erfüllt, wirkt gar nicht.
       const plan = t.dataset.ex;
-      const leicht = (EX_BY_ID.get(plan) || {}).anfaenger;
-      if (!leicht) break;
-      const ziel = Number(t.dataset.dir) > 0 ? plan : leicht;
+      const ziel = t.dataset.v;
+      if (!plan || !EX_BY_ID.has(ziel)) break;
       store.setSetting('fassung', { ...(store.getState().fassung || {}), [plan]: ziel });
       ui.openEx.add(ziel);
       render();

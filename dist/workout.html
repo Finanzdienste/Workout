@@ -337,12 +337,21 @@ button { font: inherit; color: inherit; }
 .kg-val:focus { outline: none; border-bottom-color: var(--accent); }
 /* Derselbe Platz, aber nichts zum Hineinschreiben: der Wiederholungsbereich. */
 .kg-fest { width: auto; border-bottom-color: transparent; white-space: nowrap; }
-/* Die Fassungszeile trägt ein Wort statt einer Zahl. In 24 px – der Größe, die
-   für „16,5" gedacht ist – lief „Schwere Fassung" quer über beide Knöpfe. Hier
-   steht ein Wort, und es darf kürzer treten. */
-.ex-fassung .kg-val { font-size: 17px; letter-spacing: .01em; }
-.ex-fassung .kg-unit { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ex-fassung .kg-main { min-width: 0; }
+/* Die Auswahl gleichwertiger Übungen. Zwei Zeilen je Knopf: der Name, und
+   darunter klein, was ihn unterscheidet – „leichter", „schwerer" oder das
+   Gerät. Umbrechend, weil beim Seitheben vier zur Wahl stehen. */
+.ex-fassung { padding: 0 14px 10px; }
+.ex-fassung > .lbl { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.ex-fassung .btn-row { flex-wrap: wrap; gap: 6px; }
+.fassung-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  line-height: 1.25; text-align: left; padding: 7px 11px;
+}
+/* Die gewählte ist gesperrt, soll aber nicht ausgegraut wirken – sie ist die
+   Antwort auf die Frage, nicht ein nicht verfügbarer Knopf. */
+.fassung-btn.btn-primary[disabled] { opacity: 1; }
+.fassung-name { font-size: 13px; font-weight: 650; }
+.fassung-wie { font-size: 11px; opacity: .75; font-weight: 600; }
 .kg-unit { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .kg-next {
   margin: -4px 14px 10px;
@@ -4612,6 +4621,39 @@ function solve(pose) {
     });
   }
 
+  /*
+   * Das Becken einrollen – die Bewegung, um die es beim Knieheben geht.
+   *
+   *     „Knieheben im Liegen merk ich fast nur in den Beinen und fast garnicht
+   *      im Bauch"
+   *
+   * Er hatte recht, und die Zeichnung war mitschuldig: Sie zeigte bis v188 die
+   * Beine kreisen und den Rumpf unbewegt liegen – also genau das, was er
+   * beschreibt. Beine anheben ist Hüftbeugung und läuft an der Bauchmuskulatur
+   * vorbei; der Bauch arbeitet erst, wenn sich das Becken hinten einrollt und
+   * das Gesäß vom Boden abhebt. Eine Figur, die das nicht zeigt, bringt die
+   * Übung falsch bei.
+   *
+   * Der Rig hat dafür keinen Wirbel – der Rumpf ist ein starres Stück von der
+   * Hüfte zum Kopf. Gedreht wird deshalb der *ganze* Körper um die Schulter:
+   * Die Hüfte schwingt nach vorn, der Kopf nach hinten. Beim Hinsetzen auf den
+   * Boden (skeleton() legt den tiefsten Punkt auf die Null) landet dann der
+   * Kopf unten und die Hüfte oben – und das ist genau das Bild, das entstehen
+   * soll: Schultern und Kopf bleiben liegen, das Becken hebt ab.
+   *
+   * Positive Werte rollen ein. Gerechnet wird vor dem Hinlegen, in der
+   * aufrechten Achse; dort ist „nach vorn" +z, und daraus wird beim Hinlegen
+   * „nach oben".
+   */
+  if (pose.becken) {
+    const p = shoulderMid;
+    Object.keys(joints).forEach((k) => {
+      const v = rotX([joints[k][0] - p[0], joints[k][1] - p[1], joints[k][2] - p[2]],
+                     -pose.becken);
+      joints[k] = [v[0] + p[0], v[1] + p[1], v[2] + p[2]];
+    });
+  }
+
   // Hinlegen. Früher wurde die stehende Figur mit zwei Winkeln (roll/tilt)
   // schräg gedreht, bis sie aus einem bestimmten Blickwinkel lag – aus jedem
   // anderen sah sie umgekippt aus. Jetzt ist es eine echte Lage: die Längsachse
@@ -5022,8 +5064,8 @@ const PATTERNS = {
      */
     label: 'Knieheben im Liegen', lie: 'supine', view: [20, -30],
     poses: [
-      { arm: A(0, 17, 6), leg: L(56, 9, 100) },
-      { arm: A(0, 17, 6), leg: L(115, 9, 110) },
+      { arm: A(0, 17, 6), leg: L(50, 9, 95) },
+      { arm: A(0, 17, 6), leg: L(98, 9, 105), becken: 15 },
     ],
   },
   pullapart: {
@@ -5478,6 +5520,7 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       lean: mix(a.lean || 0, b.lean || 0),
       tilt: mix(a.tilt || 0, b.tilt || 0),
       heel: mix(a.heel || 0, b.heel || 0),
+      becken: mix(a.becken || 0, b.becken || 0),
       armL: mixA(a.armL || a.arm, b.armL || b.arm),
       armR: mixA(a.armR || a.arm, b.armR || b.arm),
       legL: mixL(a.legL || a.leg, b.legL || b.leg),
@@ -11768,12 +11811,14 @@ function anfaengerFassung(ex) {
   let getauscht = false;
   const raus = ex.map((it) => {
     const ersatz = (EX_BY_ID.get(it.id) || {}).anfaenger;
-    if (!ersatz || !EX_BY_ID.has(ersatz)) return it;
-    // Eine eigene Wahl schlägt die Stufe, in beide Richtungen: Wer auf + tippt,
-    // bekommt die schwerere auch als Anfänger, wer auf − tippt, die leichtere
-    // auch als Geübter. Siehe fassungWaehlen() in js/app.js.
-    const eigene = wahl[it.id];
-    const ziel = eigene === it.id || eigene === ersatz ? eigene : (anfaenger ? ersatz : it.id);
+    const gleich = anteilsgleich().get(it.id) || [];
+    // Eine eigene Wahl schlägt die Stufe, in beide Richtungen: Wer die
+    // schwerere wählt, bekommt sie auch als Anfänger, wer die leichtere wählt,
+    // auch als Geübter. Erlaubt ist alles mit denselben Muskelanteilen – mehr
+    // nicht, sonst verschöbe die Wahl still die Wochenziele.
+    const eigene = gleich.includes(wahl[it.id]) ? wahl[it.id] : null;
+    if (!eigene && (!ersatz || !EX_BY_ID.has(ersatz))) return it;
+    const ziel = eigene || (anfaenger && ersatz ? ersatz : it.id);
     if (ziel === it.id) return it;
     getauscht = true;
     return { ...it, id: ziel, statt: it.id, stattWarum: eigene ? 'fassung' : 'stufe' };
@@ -11799,12 +11844,67 @@ function anfaengerFassung(ex) {
  * wird: Sonst hieße „ich will die schwere" beim nächsten Öffnen „ich will die,
  * die gerade dasteht", und der Schalter kippte mit sich selbst.
  */
+/**
+ * Alle Übungen mit genau denselben Muskelanteilen – in *beiden* Modi.
+ *
+ * Gerechnet beim ersten Bedarf und dann gemerkt: Der Katalog ändert sich zur
+ * Laufzeit nicht.
+ *
+ * **In beiden Modi, und das ist keine Kleinigkeit.** Das Seitheben zerfällt im
+ * Hantel-Modus in eine Klasse von vier und im Bodyweight-Modus in zwei
+ * Klassen von zwei – wer nur einen Modus prüft, bietet einen Tausch an, der im
+ * anderen die Wochenziele verschiebt. Verlangt wird deshalb Gleichheit in
+ * beiden.
+ */
+let anteilsgleichCache = null;
+
+function anteilsgleich() {
+  if (anteilsgleichCache) return anteilsgleichCache;
+  const map = new Map();
+  EXERCISES.forEach((e) => {
+    const key = JSON.stringify([Object.entries(e.db.shares).sort(),
+                                Object.entries(e.bw.shares).sort()]);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(e.id);
+  });
+  anteilsgleichCache = new Map();
+  map.forEach((ids) => ids.forEach((id) => anteilsgleichCache.set(id, ids)));
+  return anteilsgleichCache;
+}
+
+/**
+ * Die Übungen, zwischen denen man an dieser Stelle wählen darf.
+ *
+ *     „Gibt es nicht mehr bauchübungen auf der Welt als die beiden?"
+ *
+ * Gibt es, und drei davon stehen längst im Katalog – wählen konnte man sie
+ * nur nicht. Bis v187 gab es hier ein Paar aus leicht und schwer, gebaut auf
+ * dem Katalogfeld `anfaenger`; damit standen genau zwei Übungen zur Wahl, und
+ * auch die nur beim Knieheben. Dabei gibt es **sieben** Gruppen im Katalog,
+ * in denen mehrere Übungen dieselben Muskelanteile haben – Seitheben sogar
+ * vier. In keiner davon konnte man tauschen.
+ *
+ * Maßstab ist die Gleichheit der Anteile und nicht die Ähnlichkeit der
+ * Bewegung. Das ist die harte Bedingung: Nur so bleibt die Wochenrechnung
+ * Ziffer für Ziffer stehen, egal was gewählt wird. Was sich ändert, ist die
+ * Ausführung – und genau darum geht es.
+ *
+ * `wie` sagt, wo eine Übung im Verhältnis zur Plan-Übung steht, soweit der
+ * Katalog es weiß (`anfaenger`): 'leichter', 'schwerer' oder null für „anders,
+ * nicht leichter oder schwerer". Geraten wird nichts.
+ */
 function fassungen(item) {
   if (!item) return null;
   const plan = item.statt || item.id;
-  const leicht = (EX_BY_ID.get(plan) || {}).anfaenger;
-  if (!leicht || !EX_BY_ID.has(leicht)) return null;
-  return { plan, schwer: plan, leicht, jetzt: item.id };
+  const alle = anteilsgleich().get(plan);
+  if (!alle || alle.length < 2) return null;
+  const leichter = (EX_BY_ID.get(plan) || {}).anfaenger;
+  const liste = alle.map((id) => ({
+    id,
+    wie: id === leichter ? 'leichter'
+      : ((EX_BY_ID.get(id) || {}).anfaenger === plan ? 'schwerer' : null),
+  }));
+  return { plan, jetzt: item.id, liste };
 }
 
 /**
@@ -16305,72 +16405,65 @@ function anfaengerZeile(it) {
 }
 
 /**
- * Leichtere oder schwerere Fassung – mit denselben zwei Knöpfen wie die Kilo.
+ * Die anderen Übungen für dieselben Muskeln – zum Antippen.
  *
- *     „Lass machen dass wenn man bei knieheben im Liegen auf + drückt man
- *      automatisch zu knieheben an der Stange kommt. Also die Übung sozusagen
- *      umgewandelt wird. Genauso natürlich bei minus anders herum"
+ *     „Gibt es nicht mehr bauchübungen auf der Welt als die beiden?"
  *
- * Bei einer Übung ohne Zusatzlast stand an dieser Stelle bisher nichts: kein
- * Gewicht, kein Band, im Hantel-Modus auch keine Wiederholungszahl. Die
- * leichtere Fassung gab es zwar – sie kam über die Erfahrungsstufe –, aber
- * ändern ließ sie sich nur unter *Mehr*, für alle Übungen auf einmal, an einer
- * Einstellung, die ausdrücklich keine sein soll.
+ * Gibt es, und drei standen längst im Katalog. Bis v187 waren hier zwei
+ * Knöpfe, − und +, gebaut auf dem Katalogfeld `anfaenger`: genau ein Paar aus
+ * leicht und schwer, und auch das nur beim Knieheben. Dabei hat der Katalog
+ * **sieben** Gruppen, in denen mehrere Übungen dieselben Muskelanteile haben –
+ * beim Seitheben sind es vier. In keiner davon ließ sich tauschen.
  *
- * Hier ist die Steigerung der Wechsel der Übung, also gehört er dorthin, wo
- * sonst die Steigerung steht. Die Zeile sieht aus wie die Gewichtszeile, weil
- * sie dasselbe tut.
+ * Jetzt steht die ganze Gruppe da, die gewählte hervorgehoben. Wo der Katalog
+ * eine Rangfolge kennt, steht sie als Zusatz dran („leichter", „schwerer"); wo
+ * nicht, steht das Gerät – geraten wird nichts.
  *
- * Gespeichert wird unter der Übung, **wie sie im Plan steht** – nicht unter der
- * gerade gezeigten. Sonst hieße „ich will die schwere" beim nächsten Öffnen
- * „ich will die, die gerade dasteht", und der Schalter kippte mit sich selbst.
+ * **Warum das die Wochenrechnung nicht anfasst:** Zur Wahl steht nur, was
+ * *exakt* dieselben Muskelanteile hat, und zwar in beiden Modi. Was sich
+ * ändert, ist die Ausführung, nicht die Rechnung. Der Tausch ist damit so
+ * neutral wie der zwischen zwei Bandfarben.
+ *
+ * Gespeichert wird unter der Übung, **wie sie im Plan steht** – nicht unter
+ * der gerade gezeigten. Sonst hieße „ich will die Crunches" beim nächsten
+ * Öffnen „ich will die, die gerade dasteht", und die Wahl kippte mit sich
+ * selbst.
  */
 function fassungRow(it, mode) {
   // Nicht bei einem Tausch wegen fehlenden Geräts. `statt` schreiben beide
-  // Filter, und ohne diese Zeile ritt die Fassungswahl auf dem Ergebnis des
-  // falschen mit: Ohne Klimmzugstange steht statt des hängenden Kniehebens
-  // die *Gewichtete Crunches* im Plan – und darunter stand dann „Leicht ·
-  // ohne Gerät" und „Schwerer: Hängendes Knieheben – dieselbe Bewegung".
-  // Crunches sind weder die leichte Fassung noch dieselbe Bewegung, und das +
-  // versprach einen Wechsel, den der Gerätefilter sofort wieder einkassierte.
+  // Filter, und ohne diese Zeile ritte die Wahl auf dem Ergebnis des falschen
+  // mit: Ohne Klimmzugstange steht statt des hängenden Kniehebens die
+  // Gewichtete Crunches im Plan – und darunter stünde eine Auswahl, die zu
+  // dieser Übung gar nicht gehört.
   const grund = ersatzGrund(it);
   if (grund && grund.warum === 'vorrat') return '';
   const f = fassungen(it);
   if (!f) return '';
-  const schwer = EX_BY_ID.get(f.schwer);
-  const leicht = EX_BY_ID.get(f.leicht);
-  if (!schwer || !leicht) return '';
-  const obenDran = f.jetzt === f.schwer;
-  const andere = obenDran ? leicht : schwer;
-  const knopf = (richtung) => {
-    const ziel = richtung > 0 ? schwer : leicht;
-    // Und ein Knopf auf eine Fassung, deren Gerät gerade fehlt, verspricht
-    // ebenfalls etwas, das nicht kommt: Der Gerätefilter läuft danach und
-    // tauscht sie wieder weg.
-    const moeglich = uebungGeht(ziel.id, mode);
-    const geht = (richtung > 0 ? !obenDran : obenDran) && moeglich;
-    const warum = !moeglich ? `${ziel.db.name} geht gerade nicht – ${ziel.db.equip} fehlt`
-      : (geht ? `Auf ${ziel.db.name} wechseln` : `${ziel.db.name} ist eingestellt`);
-    return `<button type="button" class="kg-step${richtung > 0 ? ' kg-plus' : ''}"
-            data-act="fassung-step" data-ex="${esc(f.plan)}" data-dir="${richtung}"
-            ${geht ? '' : 'disabled'} aria-label="${esc(warum)}">${richtung > 0 ? '+' : '−'}</button>`;
+  const seite = mode === 'bw' ? 'bw' : 'db';
+  const WIE = { leichter: 'leichter', schwerer: 'schwerer' };
+  const knopf = ({ id, wie }) => {
+    const ex = EX_BY_ID.get(id);
+    if (!ex) return '';
+    const dran = id === f.jetzt;
+    // Ein Knopf auf eine Übung, deren Gerät fehlt, verspricht etwas, das nicht
+    // kommt: Der Gerätefilter läuft danach und tauscht sie wieder weg.
+    const moeglich = uebungGeht(id, mode);
+    const zusatz = moeglich ? (WIE[wie] || ex[seite].equip) : 'Gerät fehlt';
+    return `
+      <button type="button" class="btn btn-sm fassung-btn${dran ? ' btn-primary' : ''}"
+              data-act="fassung-waehlen" data-ex="${esc(f.plan)}" data-v="${esc(id)}"
+              ${dran || !moeglich ? 'disabled' : ''} aria-pressed="${dran}"
+              aria-label="${esc(moeglich ? `Auf ${ex[seite].name} wechseln`
+    : `${ex[seite].name} geht gerade nicht – ${ex[seite].equip} fehlt`)}">
+        <span class="fassung-name">${esc(ex[seite].name)}</span>
+        <span class="fassung-wie">${esc(zusatz)}</span>
+      </button>`;
   };
-  // Was die beiden unterscheidet, steht im Katalog und wird nicht hier
-  // erfunden: der Name und das, was man dafür braucht. Damit trägt die Zeile
-  // auch für jedes Paar, das später dazukommt.
-  const jetzt = obenDran ? schwer : leicht;
   return `
-    <div class="ex-weight ex-fassung">
-      ${knopf(-1)}
-      <div class="kg-main">
-        <span class="kg-val kg-fest">${obenDran ? 'Schwer' : 'Leicht'}</span>
-        <span class="kg-unit">${esc(jetzt.db.equip)}</span>
-      </div>
-      ${knopf(1)}
-    </div>
-    <div class="kg-next">${obenDran ? 'Leichter' : 'Schwerer'}: ${esc(andere.db.name)}
-      – dieselbe Bewegung, ${esc(andere.db.equip)}.${uebungGeht(andere.id, mode) ? ''
-    : ' <span class="muted">Steht gerade nicht zur Wahl – unter Mehr → Was da ist anhaken.</span>'}</div>`;
+    <div class="ex-fassung">
+      <div class="lbl">Dieselben Muskeln, andere Übung</div>
+      <div class="btn-row">${f.liste.map(knopf).join('')}</div>
+    </div>`;
 }
 
 function aufwaermZeile(it, mode, n) {
@@ -18865,13 +18958,13 @@ view.addEventListener('click', (e) => {
       render();
       break;
     }
-    case 'fassung-step': {
-      // Gespeichert wird die *Ziel*-Übung unter der Plan-Übung. Auf +: die
-      // schwere, das ist die Plan-Übung selbst; auf −: die leichtere.
+    case 'fassung-waehlen': {
+      // Gespeichert wird die gewählte Übung unter der *Plan*-Übung – siehe
+      // fassungRow(). js/plan.js lässt nur zu, was dieselben Muskelanteile
+      // hat; eine Wahl, die das nicht erfüllt, wirkt gar nicht.
       const plan = t.dataset.ex;
-      const leicht = (EX_BY_ID.get(plan) || {}).anfaenger;
-      if (!leicht) break;
-      const ziel = Number(t.dataset.dir) > 0 ? plan : leicht;
+      const ziel = t.dataset.v;
+      if (!plan || !EX_BY_ID.has(ziel)) break;
       store.setSetting('fassung', { ...(store.getState().fassung || {}), [plan]: ziel });
       ui.openEx.add(ziel);
       render();

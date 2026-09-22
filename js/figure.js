@@ -116,6 +116,39 @@ export function solve(pose) {
     });
   }
 
+  /*
+   * Das Becken einrollen – die Bewegung, um die es beim Knieheben geht.
+   *
+   *     „Knieheben im Liegen merk ich fast nur in den Beinen und fast garnicht
+   *      im Bauch"
+   *
+   * Er hatte recht, und die Zeichnung war mitschuldig: Sie zeigte bis v188 die
+   * Beine kreisen und den Rumpf unbewegt liegen – also genau das, was er
+   * beschreibt. Beine anheben ist Hüftbeugung und läuft an der Bauchmuskulatur
+   * vorbei; der Bauch arbeitet erst, wenn sich das Becken hinten einrollt und
+   * das Gesäß vom Boden abhebt. Eine Figur, die das nicht zeigt, bringt die
+   * Übung falsch bei.
+   *
+   * Der Rig hat dafür keinen Wirbel – der Rumpf ist ein starres Stück von der
+   * Hüfte zum Kopf. Gedreht wird deshalb der *ganze* Körper um die Schulter:
+   * Die Hüfte schwingt nach vorn, der Kopf nach hinten. Beim Hinsetzen auf den
+   * Boden (skeleton() legt den tiefsten Punkt auf die Null) landet dann der
+   * Kopf unten und die Hüfte oben – und das ist genau das Bild, das entstehen
+   * soll: Schultern und Kopf bleiben liegen, das Becken hebt ab.
+   *
+   * Positive Werte rollen ein. Gerechnet wird vor dem Hinlegen, in der
+   * aufrechten Achse; dort ist „nach vorn" +z, und daraus wird beim Hinlegen
+   * „nach oben".
+   */
+  if (pose.becken) {
+    const p = shoulderMid;
+    Object.keys(joints).forEach((k) => {
+      const v = rotX([joints[k][0] - p[0], joints[k][1] - p[1], joints[k][2] - p[2]],
+                     -pose.becken);
+      joints[k] = [v[0] + p[0], v[1] + p[1], v[2] + p[2]];
+    });
+  }
+
   // Hinlegen. Früher wurde die stehende Figur mit zwei Winkeln (roll/tilt)
   // schräg gedreht, bis sie aus einem bestimmten Blickwinkel lag – aus jedem
   // anderen sah sie umgekippt aus. Jetzt ist es eine echte Lage: die Längsachse
@@ -526,8 +559,8 @@ export const PATTERNS = {
      */
     label: 'Knieheben im Liegen', lie: 'supine', view: [20, -30],
     poses: [
-      { arm: A(0, 17, 6), leg: L(56, 9, 100) },
-      { arm: A(0, 17, 6), leg: L(115, 9, 110) },
+      { arm: A(0, 17, 6), leg: L(50, 9, 95) },
+      { arm: A(0, 17, 6), leg: L(98, 9, 105), becken: 15 },
     ],
   },
   pullapart: {
@@ -982,6 +1015,7 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       lean: mix(a.lean || 0, b.lean || 0),
       tilt: mix(a.tilt || 0, b.tilt || 0),
       heel: mix(a.heel || 0, b.heel || 0),
+      becken: mix(a.becken || 0, b.becken || 0),
       armL: mixA(a.armL || a.arm, b.armL || b.arm),
       armR: mixA(a.armR || a.arm, b.armR || b.arm),
       legL: mixL(a.legL || a.leg, b.legL || b.leg),

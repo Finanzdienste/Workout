@@ -169,7 +169,7 @@ check(!/Hängendes Knieheben 2 ×|Hängendes Knieheben \d/.test(text),
 // Einstellung, die man gar nicht stellen soll.
 check(/Hängendes Knieheben/.test(text),
   'die schwerere Fassung wird beim Namen genannt – ein stiller Tausch wäre keiner');
-check(await page.locator('.ex-fassung [data-dir="1"]:not([disabled])').count() >= 1,
+check(await page.locator('.ex-fassung [data-act="fassung-waehlen"]:not([disabled])').count() >= 1,
   'und der Weg zurück steht als Knopf daneben');
 
 // --- 5. Die Ersatzübung ist dem Verletzungsfilter bekannt ---------------
@@ -272,19 +272,28 @@ await page.waitForTimeout(400);
 const karte = page.locator('.ex').filter({ hasText: 'Knieheben' }).first();
 await karte.locator('.ex-head').click();
 await page.waitForTimeout(300);
-check(await page.locator('.ex-fassung').count() === 1, 'die Fassungszeile steht an der Übung');
-check(await page.locator('.ex-fassung [data-dir="-1"][disabled]').count() === 1,
-  'bei der leichten Fassung ist − gesperrt');
-check(await page.locator('.ex-fassung [data-dir="1"]:not([disabled])').count() === 1,
-  'und + ist offen');
-const hinweis = (await karte.locator('.kg-next').first().textContent()).replace(/\s+/g, ' ');
-console.log('     Hinweis:', hinweis.trim());
-check(/Hängendes Knieheben/.test(hinweis),
-  'die Zeile darunter nennt die andere Fassung beim Namen');
+// Gezählt wird *in dieser Karte* und nicht auf der Seite: Seit v188 hat jede
+// Übung mit gleichwertigen Alternativen so eine Auswahl, und in dieser Einheit
+// sind das vier. Ein ungebundener Selektor zählte neun Knöpfe statt drei.
+check(await karte.locator('.ex-fassung').count() === 1, 'die Auswahl steht an der Übung');
+// Beim Bauch sind es drei Übungen mit identischen Anteilen. Die gewählte ist
+// gesperrt – ein Knopf auf die Übung, die schon dasteht, verspricht eine
+// Änderung, die nicht kommt.
+const wahlKnoepfe = karte.locator('.ex-fassung [data-act="fassung-waehlen"]');
+const namen = await karte.locator('.ex-fassung .fassung-name').allTextContents();
+console.log('     zur Wahl:', namen.map((n) => n.trim()).join(' | '));
+check(await wahlKnoepfe.count() === 3,
+  `alle drei Bauchübungen stehen zur Wahl (${await wahlKnoepfe.count()})`);
+check(await karte.locator('.ex-fassung [aria-pressed="true"]').count() === 1,
+  'genau eine ist als gewählt ausgewiesen');
+check(await karte.locator('.ex-fassung [aria-pressed="true"][disabled]').count() === 1,
+  'und die gewählte ist gesperrt');
+check(namen.some((n) => /Hängendes Knieheben/.test(n)) && namen.some((n) => /Crunches/.test(n)),
+  'die anderen beiden stehen mit Namen daneben');
 
 // Und nach dem Tippen steht wirklich die andere Übung da – mit ihrem eigenen
 // Wiederholungsbereich, nicht nur mit einem anderen Namen.
-await page.evaluate(() => document.querySelector('.ex-fassung [data-dir="1"]').click());
+await karte.locator('.ex-fassung [data-v="haengendes-knieheben"]').click();
 await page.waitForTimeout(400);
 const danach = (await karte.locator('.ex-name').textContent()).trim();
 const meta = (await karte.locator('.ex-meta').textContent()).replace(/\s+/g, ' ');
@@ -292,8 +301,8 @@ console.log('     nach dem Tippen:', danach, '·', meta.trim());
 check(danach === 'Hängendes Knieheben', 'nach + steht die hängende Fassung in der Karte');
 check(/8–15/.test(meta) && /Klimmzugstange/.test(meta),
   'samt ihrem eigenen Bereich und ihrem eigenen Gerät');
-check(await page.locator('.ex-fassung [data-dir="1"][disabled]').count() === 1,
-  'und jetzt ist + gesperrt statt −');
+check(await karte.locator('.ex-fassung [data-v="haengendes-knieheben"][disabled]').count() === 1,
+  'und jetzt ist die hängende gesperrt statt der liegenden');
 
 // --- 7. Der Gerätefilter hat Vorrang, und die Zeile weiß das ------------
 //
@@ -324,8 +333,9 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
 await page.locator('[data-act="show-list"]').first().click();
 await page.waitForTimeout(400);
-check(await page.locator('.ex-fassung').count() === 0,
-  'und an dieser Karte steht keine Fassungszeile – sie gehört nicht zu dieser Übung');
+check(await page.locator('.ex').filter({ hasText: 'Crunches' }).first()
+  .locator('.ex-fassung').count() === 0,
+  'und an dieser Karte steht keine Auswahl – der Tausch gehört nicht zu dieser Übung');
 
 // Und andersherum: Steht die leichte Fassung da, weil die Stufe es so will,
 // darf das + nicht auf eine Übung zeigen, deren Gerät fehlt.
@@ -338,9 +348,10 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
 await page.locator('[data-act="show-list"]').first().click();
 await page.waitForTimeout(400);
-const gesperrt = page.locator('.ex-fassung [data-dir="1"]');
+const gesperrt = page.locator('.ex').filter({ hasText: 'Knieheben' }).first()
+  .locator('.ex-fassung [data-v="haengendes-knieheben"]');
 check(await gesperrt.count() === 1 && await gesperrt.first().isDisabled(),
-  'ohne Klimmzugstange ist + gesperrt statt wirkungslos');
+  'ohne Klimmzugstange ist die hängende gesperrt statt wirkungslos');
 const sagt = await gesperrt.first().getAttribute('aria-label');
 console.log('     + sagt:', sagt);
 check(/fehlt/.test(sagt || ''), `und sagt, woran es liegt (${sagt})`);

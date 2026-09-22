@@ -225,12 +225,14 @@ function anfaengerFassung(ex) {
   let getauscht = false;
   const raus = ex.map((it) => {
     const ersatz = (EX_BY_ID.get(it.id) || {}).anfaenger;
-    if (!ersatz || !EX_BY_ID.has(ersatz)) return it;
-    // Eine eigene Wahl schlägt die Stufe, in beide Richtungen: Wer auf + tippt,
-    // bekommt die schwerere auch als Anfänger, wer auf − tippt, die leichtere
-    // auch als Geübter. Siehe fassungWaehlen() in js/app.js.
-    const eigene = wahl[it.id];
-    const ziel = eigene === it.id || eigene === ersatz ? eigene : (anfaenger ? ersatz : it.id);
+    const gleich = anteilsgleich().get(it.id) || [];
+    // Eine eigene Wahl schlägt die Stufe, in beide Richtungen: Wer die
+    // schwerere wählt, bekommt sie auch als Anfänger, wer die leichtere wählt,
+    // auch als Geübter. Erlaubt ist alles mit denselben Muskelanteilen – mehr
+    // nicht, sonst verschöbe die Wahl still die Wochenziele.
+    const eigene = gleich.includes(wahl[it.id]) ? wahl[it.id] : null;
+    if (!eigene && (!ersatz || !EX_BY_ID.has(ersatz))) return it;
+    const ziel = eigene || (anfaenger && ersatz ? ersatz : it.id);
     if (ziel === it.id) return it;
     getauscht = true;
     return { ...it, id: ziel, statt: it.id, stattWarum: eigene ? 'fassung' : 'stufe' };
@@ -256,12 +258,67 @@ function anfaengerFassung(ex) {
  * wird: Sonst hieße „ich will die schwere" beim nächsten Öffnen „ich will die,
  * die gerade dasteht", und der Schalter kippte mit sich selbst.
  */
+/**
+ * Alle Übungen mit genau denselben Muskelanteilen – in *beiden* Modi.
+ *
+ * Gerechnet beim ersten Bedarf und dann gemerkt: Der Katalog ändert sich zur
+ * Laufzeit nicht.
+ *
+ * **In beiden Modi, und das ist keine Kleinigkeit.** Das Seitheben zerfällt im
+ * Hantel-Modus in eine Klasse von vier und im Bodyweight-Modus in zwei
+ * Klassen von zwei – wer nur einen Modus prüft, bietet einen Tausch an, der im
+ * anderen die Wochenziele verschiebt. Verlangt wird deshalb Gleichheit in
+ * beiden.
+ */
+let anteilsgleichCache = null;
+
+function anteilsgleich() {
+  if (anteilsgleichCache) return anteilsgleichCache;
+  const map = new Map();
+  EXERCISES.forEach((e) => {
+    const key = JSON.stringify([Object.entries(e.db.shares).sort(),
+                                Object.entries(e.bw.shares).sort()]);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(e.id);
+  });
+  anteilsgleichCache = new Map();
+  map.forEach((ids) => ids.forEach((id) => anteilsgleichCache.set(id, ids)));
+  return anteilsgleichCache;
+}
+
+/**
+ * Die Übungen, zwischen denen man an dieser Stelle wählen darf.
+ *
+ *     „Gibt es nicht mehr bauchübungen auf der Welt als die beiden?"
+ *
+ * Gibt es, und drei davon stehen längst im Katalog – wählen konnte man sie
+ * nur nicht. Bis v187 gab es hier ein Paar aus leicht und schwer, gebaut auf
+ * dem Katalogfeld `anfaenger`; damit standen genau zwei Übungen zur Wahl, und
+ * auch die nur beim Knieheben. Dabei gibt es **sieben** Gruppen im Katalog,
+ * in denen mehrere Übungen dieselben Muskelanteile haben – Seitheben sogar
+ * vier. In keiner davon konnte man tauschen.
+ *
+ * Maßstab ist die Gleichheit der Anteile und nicht die Ähnlichkeit der
+ * Bewegung. Das ist die harte Bedingung: Nur so bleibt die Wochenrechnung
+ * Ziffer für Ziffer stehen, egal was gewählt wird. Was sich ändert, ist die
+ * Ausführung – und genau darum geht es.
+ *
+ * `wie` sagt, wo eine Übung im Verhältnis zur Plan-Übung steht, soweit der
+ * Katalog es weiß (`anfaenger`): 'leichter', 'schwerer' oder null für „anders,
+ * nicht leichter oder schwerer". Geraten wird nichts.
+ */
 export function fassungen(item) {
   if (!item) return null;
   const plan = item.statt || item.id;
-  const leicht = (EX_BY_ID.get(plan) || {}).anfaenger;
-  if (!leicht || !EX_BY_ID.has(leicht)) return null;
-  return { plan, schwer: plan, leicht, jetzt: item.id };
+  const alle = anteilsgleich().get(plan);
+  if (!alle || alle.length < 2) return null;
+  const leichter = (EX_BY_ID.get(plan) || {}).anfaenger;
+  const liste = alle.map((id) => ({
+    id,
+    wie: id === leichter ? 'leichter'
+      : ((EX_BY_ID.get(id) || {}).anfaenger === plan ? 'schwerer' : null),
+  }));
+  return { plan, jetzt: item.id, liste };
 }
 
 /**
