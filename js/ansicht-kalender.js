@@ -15,9 +15,15 @@
 import * as store from './store.js';
 import { PLAN } from './data.js';
 import { esc } from './text.js';
-import { fmtDate, monthStart, plural, todayISO } from './dates.js';
+import { addDays, fmtDate, monthStart, plural, todayISO } from './dates.js';
 import { completedMode, effDate, exOf, progressOf, resolve } from './plan.js';
 import { MODE_ICON, MODE_LABEL, repsLabel } from './anzeige.js';
+import { termine, terminLabel } from './termine.js';
+import { AKT_BY_ID, gruppenAm } from './aktivitaeten.js';
+import { MUSCLE_LABEL } from './body.js';
+
+/** Ein Zeichen für „hier war Sport, aber nicht aus dem Plan". */
+export const AKT_ICON = '🤾';
 
 /** Zustand eines Kalendertags. Reihenfolge zählt: erledigt schlägt alles. */
 export function dayState(w, iso, today) {
@@ -66,12 +72,37 @@ export function fruehereTage() {
   return map;
 }
 
-export function calendarCell(iso, month, today, byDate, sel, frueher) {
+/**
+ * Sport außerhalb des Plans, nach Tag – für den Kalender.
+ *
+ *     „Die sonstigen Sachen die ich hatte, zb padel, soll man auch im Kalender
+ *      sehen"
+ *
+ * Die Einträge lagen bisher nur unter *Mehr* und wirkten auf den Plan, ohne im
+ * Kalender vorzukommen. Der Kalender zeigt aber, was an einem Tag war – und
+ * anderthalb Stunden Padel waren an dem Tag.
+ */
+export function aktivitaetTage() {
+  const map = new Map();
+  termine().forEach((t) => {
+    if (!t || !t.datum) return;
+    const da = map.get(t.datum) || [];
+    da.push(t);
+    map.set(t.datum, da);
+  });
+  return map;
+}
+
+export function calendarCell(iso, month, today, byDate, sel, frueher, akt) {
   const ws = byDate.get(iso) || [];
   const st = dayState(ws[0], iso, today);
   // Der laufende Plan hat Vorrang: Steht heute eine Einheit an, ist das die
   // Auskunft, und nicht das, was vor einem Fokuswechsel an diesem Tag war.
   const alt = st ? null : (frueher && frueher.get(iso)) || null;
+  // Aktivitäten sind eine eigene Ebene und keine dritte Sorte Tag: An einem
+  // Tag kann beides gewesen sein – vormittags Padel, abends die Einheit. Sie
+  // ersetzen deshalb nichts, sondern kommen als Streifen dazu.
+  const sport = (akt && akt.get(iso)) || [];
   const cls = ['cal-cell'];
   if (iso.slice(0, 7) !== month.slice(0, 7)) cls.push('out');
   if (iso === today) cls.push('today');
@@ -81,9 +112,25 @@ export function calendarCell(iso, month, today, byDate, sel, frueher) {
   // Kachel ist eine trainierte wie jede andere. Die Klasse bleibt als Merkmal
   // für die Detailansicht und den Test stehen.
   else if (alt) cls.push('done', 'frueher', alt.mode);
+  if (sport.length) cls.push('akt');
   const tag = Number(iso.slice(8));
-  // Ohne Einheit ist der Tag kein Knopf: nichts anzuzeigen, nichts zu tippen.
-  if (!st && !alt) return `<div class="${cls.join(' ')}"><span class="cal-num">${tag}</span></div>`;
+  // Ohne Einheit und ohne Sport ist der Tag kein Knopf: nichts anzuzeigen,
+  // nichts zu tippen.
+  if (!st && !alt && !sport.length) {
+    return `<div class="${cls.join(' ')}"><span class="cal-num">${tag}</span></div>`;
+  }
+  const namen = sport.map((t) => t.name || terminLabel(t)).join(', ');
+  if (!st && !alt) {
+    // Nur Sport an diesem Tag. Die Kachel bleibt ungefüllt – trainiert wurde
+    // nach dem Plan nicht –, trägt aber den Streifen und lässt sich antippen.
+    return `
+      <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
+              aria-pressed="${iso === sel}"
+              aria-label="${esc(fmtDate(iso, true))}: ${esc(namen)}">
+        <span class="cal-num">${tag}</span>
+        <span class="cal-mark">${AKT_ICON}</span>
+      </button>`;
+  }
   const anzahl = st ? ws.length : alt.einheiten;
   const modus = st ? st.mode : alt.mode;
   const mehr = anzahl > 1 ? ` (+${anzahl - 1})` : '';
@@ -91,18 +138,71 @@ export function calendarCell(iso, month, today, byDate, sel, frueher) {
     <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
             aria-pressed="${iso === sel}"
             aria-label="${esc(fmtDate(iso, true))}: ${plural(anzahl, 'Einheit', 'Einheiten')} ${
-              esc(st ? KIND_TEXT[st.kind] : KIND_TEXT.done)}, ${esc(MODE_LABEL[modus])}">
+              esc(st ? KIND_TEXT[st.kind] : KIND_TEXT.done)}, ${esc(MODE_LABEL[modus])}${
+              sport.length ? ` · ${esc(namen)}` : ''}">
       <span class="cal-num">${tag}</span>
       <span class="cal-mark">${st && st.kind === 'miss' ? '·' : MODE_ICON[modus]}${mehr}</span>
     </button>`;
 }
 
+/**
+ * Ein Tag Sport außerhalb des Plans, im Detail.
+ *
+ * Zeigt, was der Katalog über die Aktivität weiß – und vor allem, was sie am
+ * Plan bewirkt hat: welche Gruppen an welchem Tag deshalb ausfallen. Wer im
+ * Kalender auf Padel tippt, will genau das wissen und nicht noch einmal unter
+ * Mehr nachsehen müssen.
+ */
+export function calendarAktivitaet(iso, sport) {
+  const heute = todayISO();
+  const TAGE = [[-1, 'am Tag davor'], [0, 'am Tag selbst'],
+                [1, 'am Tag danach'], [2, 'zwei Tage danach']];
+  return sport.map((t) => {
+    const a = t.aktivitaet && AKT_BY_ID.get(t.aktivitaet);
+    const dauer = t.minuten
+      ? (t.minuten >= 60
+        ? `${Math.floor(t.minuten / 60)}:${String(t.minuten % 60).padStart(2, '0')} h`
+        : `${t.minuten} min`)
+      : '';
+    const zeilen = a ? TAGE.map(([d, label]) => {
+      const tag = addDays(iso, d);
+      const g = gruppenAm(a.id, t.minuten, d);
+      if (!g.length) return '';
+      const wann = tag < heute ? `${fmtDate(tag)}, vorbei` : fmtDate(tag);
+      return `<li><b>${esc(label)}</b> (${esc(wann)}): ${
+        g.map((m) => esc(MUSCLE_LABEL[m] || m)).sort().join(', ')}</li>`;
+    }).filter(Boolean) : [];
+    return `
+      <div class="card cal-detail">
+        <div class="cal-det-head">
+          <div>
+            <div class="lbl">${esc(t.name || terminLabel(t))}</div>
+            <div class="hint">${esc(fmtDate(iso, true))}${dauer ? ` · ${esc(dauer)}` : ''}${
+              a ? ` · ${esc(a.familie)}` : ''}</div>
+          </div>
+          <span class="chip akt">${AKT_ICON} Sport</span>
+        </div>
+        ${zeilen.length ? `<div class="lbl" style="margin-top:8px">Das fällt deshalb aus</div>
+          <ul class="akt-tage">${zeilen.join('')}</ul>`
+    : '<div class="small muted">Ändert am Trainingsplan nichts.</div>'}
+        ${a ? `<div class="small muted" style="margin-top:8px">${esc(a.warum)}</div>` : ''}
+        <button type="button" class="btn btn-sm" data-act="go-tab" data-tab="settings">Eintrag ändern</button>
+      </div>`;
+  }).join('');
+}
+
 /** Die angetippte Einheit im Detail: Übungen, Sätze, Modus. */
-export function calendarDetail(iso, byDate, today, frueher) {
+export function calendarDetail(iso, byDate, today, frueher, akt) {
   const ws = byDate.get(iso) || [];
+  const sport = (akt && akt.get(iso)) || [];
+  // Der Sport steht oben: Wer im Kalender auf einen orangen Streifen tippt,
+  // hat ihn gemeint. Die Einheit desselben Tages kommt darunter, sie geht
+  // dabei nicht verloren.
+  const vorn = sport.length ? calendarAktivitaet(iso, sport) : '';
+  if (vorn && !ws.length && !(frueher && frueher.get(iso))) return vorn;
   const alt = ws.length ? null : (frueher && frueher.get(iso)) || null;
   if (alt) {
-    return `
+    return vorn + `
       <div class="card cal-detail">
         <div class="cal-det-head">
           <div>
@@ -121,7 +221,7 @@ export function calendarDetail(iso, byDate, today, frueher) {
   }
   // Zwei Einheiten an einem Tag gibt es wirklich – etwa wenn zwei an
   // demselben Tag nachgetragen werden. Dann stehen beide da.
-  return ws.map((w) => calendarWorkout(w, iso, today)).join('');
+  return vorn + ws.map((w) => calendarWorkout(w, iso, today)).join('');
 }
 
 export function calendarWorkout(w, iso, today) {

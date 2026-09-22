@@ -243,6 +243,86 @@ check(/3 trainiert/.test(zusammenAlt),
 check(!/früherer Plan|früheren Plan/.test(zusammenAlt),
   'und macht keinen Nachsatz daraus – weder in der Legende noch in der Zeile darunter');
 
+
+// --- Sport außerhalb des Plans im Kalender ------------------------------
+//
+//     „Die sonstigen Sachen die ich hatte, zb padel, soll man auch im
+//      Kalender sehen"
+//
+// Die Einträge lagen bisher nur unter Mehr und wirkten auf den Plan, ohne im
+// Kalender vorzukommen. Der Kalender zeigt aber, was an einem Tag war.
+//
+// Der Punkt, an dem so etwas schiefgeht, ist der Tag, an dem *beides* war:
+// vormittags Padel, abends die Einheit. Sport ist deshalb keine fünfte Sorte
+// Tag, sondern eine eigene Ebene – ein Streifen, der sich über jede der vier
+// Kacheln legt. Genau das wird hier geprüft.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  const { effDate } = await import('./js/plan.js');
+  const { addDays, todayISO } = await import('./js/dates.js');
+  localStorage.removeItem('workout.rounds.v1');
+  localStorage.setItem('workout.state.v1', JSON.stringify(
+    { greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {} }));
+  store.completeWorkout(PLAN[0].n, 'db', PLAN[0].ex.map((x) => ({ id: x.id, sets: x.sets })));
+  store.setSetting('termine', [
+    // Einer auf dem Tag der abgeschlossenen Einheit, einer auf einem Tag ohne.
+    { datum: effDate(PLAN[0]), name: 'Schwimmen', aktivitaet: 'schwimmen', minuten: 45 },
+    { datum: addDays(todayISO(), -1), name: 'Padel', aktivitaet: 'padel', minuten: 90 },
+  ]);
+});
+await page.reload({ waitUntil: 'networkidle' });
+await zumKalender();
+await page.waitForTimeout(400);
+for (let i = 0; i < 3 && !(await page.locator('.cal-cell.akt').count()); i++) {
+  await page.locator('[data-act="cal-month"][data-d="-1"]').click();
+  await page.waitForTimeout(200);
+}
+const mitSport = await page.locator('.cal-cell.akt').count();
+const auchTrainiert = await page.locator('.cal-cell.akt.done').count();
+console.log('     Kacheln mit Sport:', mitSport, '· davon auch trainiert:', auchTrainiert);
+check(mitSport === 2, `beide Sporttage sind markiert (${mitSport})`);
+check(auchTrainiert === 1,
+  'und der Tag mit Einheit *und* Sport trägt beides – Sport ersetzt keinen Zustand');
+
+// Der Streifen ist wirklich da und nicht nur eine Klasse.
+const streifen = await page.evaluate(() => {
+  const e = document.querySelector('.cal-cell.akt');
+  const s = getComputedStyle(e, '::after');
+  return { inhalt: s.content, hoehe: s.height, farbe: s.backgroundColor };
+});
+console.log('     Streifen:', JSON.stringify(streifen));
+check(streifen.inhalt === '""' && parseFloat(streifen.hoehe) > 0,
+  `der Streifen wird gezeichnet (${streifen.hoehe})`);
+check(!/rgba\(0, 0, 0, 0\)|transparent/.test(streifen.farbe),
+  `und hat eine eigene Farbe (${streifen.farbe})`);
+
+// Die Zusammenfassung nennt ihn, ohne ihn als Einheit zu zählen.
+const zeile = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+console.log('     Zeile:', (zeile.match(/\d+ Einheiten[^·]*(·[^·]*){0,4}/) || ['?'])[0].trim());
+check(/2 Tage anderer Sport/.test(zeile), 'die Zusammenfassung nennt beide Tage');
+check(/Padel/.test(zeile) && /Schwimmen/.test(zeile), 'mit den Namen');
+check(/1 Einheit(en)? in diesem Monat/.test(zeile) || /^(?!.*2 Einheiten).*$/.test(zeile),
+  'und zählt den Sport nicht als Einheit mit');
+
+// Antippen erklärt, was der Eintrag am Plan bewirkt hat.
+await page.locator('.cal-cell.akt:not(.done)').first().click();
+await page.waitForTimeout(400);
+const detail = (await page.locator('.cal-detail').first().textContent()).replace(/\s+/g, ' ');
+console.log('     Detail:', detail.slice(0, 120).trim());
+check(/Padel/.test(detail), 'das Detail nennt die Aktivität');
+check(/1:30 h/.test(detail), 'mit der Dauer');
+check(/Das fällt deshalb aus/.test(detail) && /Oberschenkel/.test(detail),
+  'und sagt, welche Gruppen deshalb ausfallen');
+check(/Abbremsen/.test(detail), 'samt der Begründung aus dem Katalog');
+
+// Und der Tag mit beidem zeigt beides: erst den Sport, dann die Einheit.
+await page.locator('.cal-cell.akt.done').first().click();
+await page.waitForTimeout(400);
+const beides = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(/Schwimmen/.test(beides), 'am Tag mit beidem steht der Sport da');
+check(/Workout \d+ · trainiert/.test(beides), 'und die Einheit ebenfalls');
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();

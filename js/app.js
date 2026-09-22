@@ -32,7 +32,7 @@ import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './au
 import { esc, fmtNum } from './text.js';
 import { MODE_ICON, MODE_LABEL, repsLabel } from './anzeige.js';
 import {
-  calMonthNow, calendarCell, calendarDetail, dayState, fruehereTage,
+  AKT_ICON, aktivitaetTage, calMonthNow, calendarCell, calendarDetail, dayState, fruehereTage,
 } from './ansicht-kalender.js';
 import { EX_BY_ID } from './uebung.js';
 import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, satzFaktor, satzZahl } from './stufen.js';
@@ -1457,6 +1457,20 @@ function pausenKarte(s) {
                   data-act="set-rest" data-sec="${sec}">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}</button>`).join('')}
       </div>` : ''}
     </div>`;
+}
+
+/**
+ * Die Namen des Monats, gekürzt.
+ *
+ * Wer viel nebenher macht, hätte sonst eine Zeile mit acht Sportarten unter
+ * dem Kalender stehen. Drei und eine Zahl sagen dasselbe in einer Zeile; die
+ * vollständige Liste steht in den Kacheln, und antippen erklärt jede.
+ */
+function aktNamen(namen) {
+  const eindeutig = [...new Set(namen)];
+  return eindeutig.length <= 3
+    ? eindeutig.join(', ')
+    : `${eindeutig.slice(0, 3).join(', ')} +${eindeutig.length - 3}`;
 }
 
 /**
@@ -3641,6 +3655,7 @@ function renderCalendar() {
   const sel = ui.calDay;
   const tage = monthGrid(month);
   const frueher = fruehereTage();
+  const akt = aktivitaetTage();
 
   // Gezählt werden Einheiten, nicht Tage – an einem Tag können zwei stehen.
   const imMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7))
@@ -3663,6 +3678,10 @@ function renderCalendar() {
   tage.filter((d) => d.slice(0, 7) === month.slice(0, 7)
     && !(byDate.get(d) || []).length && frueher.has(d))
     .forEach((d) => { proModus[frueher.get(d).mode] += frueher.get(d).einheiten; });
+  // Sport außerhalb des Plans zählt nicht als Einheit – er ist keine. Er steht
+  // als eigener Nachsatz, mit den Namen, damit man ihn auch ohne Antippen sieht.
+  const imMonatAkt = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7) && akt.has(d))
+    .flatMap((d) => akt.get(d).map((t) => t.name || terminLabel(t)));
 
   view.innerHTML = `
     <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
@@ -3675,25 +3694,28 @@ function renderCalendar() {
         <button type="button" class="cal-nav" data-act="cal-month" data-d="1" aria-label="Nächster Monat">›</button>
       </div>
       <div class="cal-grid cal-head">${WEEK_HEAD.map((d) => `<div>${d}</div>`).join('')}</div>
-      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher)).join('')}</div>
+      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher, akt)).join('')}</div>
       <div class="cal-legend">
         <span><i class="dot done"></i> trainiert</span>
         <span><i class="dot part"></i> angefangen</span>
         <span><i class="dot plan"></i> geplant</span>
         <span><i class="dot miss"></i> ausgefallen</span>
+        ${imMonatAkt.length ? `<span><i class="dot akt"></i> ${esc(AKT_ICON)} anderer Sport</span>` : ''}
       </div>
       <div class="small muted">
         ${plural(imMonat.length + altImMonat, 'Einheit', 'Einheiten')} in diesem Monat ·
         ${zaehl.done + altImMonat} trainiert${zaehl.done + altImMonat
           ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
           zaehl.miss ? ` · ${zaehl.miss} ausgefallen` : ''}${
-          zaehl.plan ? ` · ${zaehl.plan} offen` : ''}
+          zaehl.plan ? ` · ${zaehl.plan} offen` : ''}${
+          imMonatAkt.length ? ` · ${plural(imMonatAkt.length, 'Tag', 'Tage')} anderer Sport (${
+            esc(aktNamen(imMonatAkt))})` : ''}
       </div>
       ${month.slice(0, 7) === today.slice(0, 7) ? '' : `
         <button type="button" class="btn btn-sm" data-act="cal-today">Zu heute</button>`}
     </div>
 
-    ${calendarDetail(sel, byDate, today, frueher)}
+    ${calendarDetail(sel, byDate, today, frueher, akt)}
 
     <div class="small muted">
       Die Termine sind die tatsächlichen: verpasste Tage rücken den Restplan
