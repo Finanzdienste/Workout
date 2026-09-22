@@ -68,7 +68,15 @@ await page.waitForTimeout(120);
 const dortige = await page.locator('.ex-name').allTextContents();
 const ohne = dortige.findIndex((t) => t.includes(heute.ohne));
 check(ohne >= 0, `${heute.ohne} in Workout ${heute.ohneNr + 1} gefunden`);
-check(await ex(ohne).locator('.kg-val').count() === 0, `${heute.ohne} ohne Gewichtszeile`);
+// Geprüft wird das Kilo-*Feld*, nicht die Zeile an sich. An derselben Stelle
+// steht bei manchen Übungen etwas anderes: die Bandfarbe, der
+// Wiederholungsbereich, seit v184 die Wahl der Fassung (leicht/schwer). Das
+// sind Steigerungen ohne Gewicht und gehören genau dorthin – was hier nicht
+// stehen darf, ist ein Feld, in das man Kilo einträgt.
+check(await ex(ohne).locator('[data-act="weight-input"]').count() === 0,
+  `${heute.ohne} ohne Gewichtsfeld`);
+check(await ex(ohne).locator('[data-act="weight-step"]').count() === 0,
+  'und ohne Kilo-Knöpfe');
 for (let i = 0; i < heute.ohneNr; i++) {
   await page.locator('[data-act="hide-list"]').click();
   await page.waitForTimeout(60);

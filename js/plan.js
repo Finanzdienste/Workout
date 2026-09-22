@@ -219,24 +219,58 @@ export function injuryNotes(n) {
  * für jeden Anfänger. tests/test-anfaenger.mjs prüft das für jedes Paar.
  */
 function anfaengerFassung(ex) {
-  if ((store.getState().level || 'geuebt') !== 'anfaenger') return ex;
+  const s = store.getState();
+  const anfaenger = (s.level || 'geuebt') === 'anfaenger';
+  const wahl = s.fassung || {};
   let getauscht = false;
   const raus = ex.map((it) => {
     const ersatz = (EX_BY_ID.get(it.id) || {}).anfaenger;
     if (!ersatz || !EX_BY_ID.has(ersatz)) return it;
+    // Eine eigene Wahl schlägt die Stufe, in beide Richtungen: Wer auf + tippt,
+    // bekommt die schwerere auch als Anfänger, wer auf − tippt, die leichtere
+    // auch als Geübter. Siehe fassungWaehlen() in js/app.js.
+    const eigene = wahl[it.id];
+    const ziel = eigene === it.id || eigene === ersatz ? eigene : (anfaenger ? ersatz : it.id);
+    if (ziel === it.id) return it;
     getauscht = true;
-    return { ...it, id: ersatz, statt: it.id };
+    return { ...it, id: ziel, statt: it.id, stattWarum: eigene ? 'fassung' : 'stufe' };
   });
   return getauscht ? raus : ex;
 }
 
 /**
+ * Die beiden Fassungen einer Übung: leicht und schwer.
+ *
+ *     „Lass machen dass wenn man bei knieheben im Liegen auf + drückt man
+ *      automatisch zu knieheben an der Stange kommt. Also die Übung sozusagen
+ *      umgewandelt wird. Genauso natürlich bei minus anders herum"
+ *
+ * Die Beziehung steht seit jeher im Katalog: `anfaenger` nennt zu einer Übung
+ * die leichtere Ausführung derselben Bewegung. Sie war nur nicht anfassbar –
+ * getauscht wurde allein über die Erfahrungsstufe unter *Mehr*, und die gilt
+ * für alles auf einmal und ist ausdrücklich keine Einstellung, sondern etwas,
+ * das die App misst.
+ *
+ * `id` ist hier immer die Übung, wie sie **im Plan** steht – also die schwere.
+ * Daran hängt die Wahl, damit sie nicht davon abhängt, was gerade angezeigt
+ * wird: Sonst hieße „ich will die schwere" beim nächsten Öffnen „ich will die,
+ * die gerade dasteht", und der Schalter kippte mit sich selbst.
+ */
+export function fassungen(item) {
+  if (!item) return null;
+  const plan = item.statt || item.id;
+  const leicht = (EX_BY_ID.get(plan) || {}).anfaenger;
+  if (!leicht || !EX_BY_ID.has(leicht)) return null;
+  return { plan, schwer: plan, leicht, jetzt: item.id };
+}
+
+/**
  * Wofür diese Übung eingesprungen ist – und warum.
  *
- * Zwei Filter tauschen inzwischen Übungen aus: die Erfahrungsstufe und der
- * Gerätevorrat. Beide schreiben `statt` an den Eintrag, `stattWarum`
- * unterscheidet sie. Ohne Angabe ist es die Stufe – so war es zuerst, und die
- * Einträge aus anfaengerFassung() tragen bis heute nur `statt`.
+ * Drei Filter tauschen inzwischen Übungen aus: die eigene Wahl an der Übung
+ * selbst, die Erfahrungsstufe und der Gerätevorrat. Alle schreiben `statt` an
+ * den Eintrag, `stattWarum` unterscheidet sie. Ohne Angabe ist es die Stufe –
+ * so war es zuerst, und alte Einträge tragen bis heute nur `statt`.
  */
 export const ersatzGrund = (item) => (item && item.statt
   ? { statt: item.statt, warum: item.stattWarum || 'stufe' } : null);

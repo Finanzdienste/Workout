@@ -161,10 +161,16 @@ console.log(`     Workout ${zielN}, Liste:`,
 check(/Knieheben im Liegen/.test(text), 'im Training steht die Bodenfassung');
 check(!/Hängendes Knieheben 2 ×|Hängendes Knieheben \d/.test(text),
   'und die hängende nicht als eigene Übung daneben');
-check(/Statt Hängendes Knieheben/.test(text),
-  'darunter steht, wofür sie eingesprungen ist – ein stiller Tausch wäre keiner');
-check(/Erfahrungsstufe/.test(text),
-  'mit dem Weg zurück zur schwereren Fassung');
+// Der Tausch muss sichtbar sein und einen Weg zurück haben. Bis v183 war das
+// eine Zeile „Statt Hängendes Knieheben – die Anfängerfassung. Höhere
+// Erfahrungsstufe unter Mehr bringt die schwerere zurück." Beides steht
+// weiterhin da, nur besser: Die andere Fassung wird beim Namen genannt, und
+// der Weg zurück ist ein Knopf an der Übung statt eines Verweises auf eine
+// Einstellung, die man gar nicht stellen soll.
+check(/Hängendes Knieheben/.test(text),
+  'die schwerere Fassung wird beim Namen genannt – ein stiller Tausch wäre keiner');
+check(await page.locator('.ex-fassung [data-dir="1"]:not([disabled])').count() >= 1,
+  'und der Weg zurück steht als Knopf daneben');
 
 // --- 5. Die Ersatzübung ist dem Verletzungsfilter bekannt ---------------
 //
@@ -182,6 +188,112 @@ console.log('     tauschen:', filter.tauschen.length, '· meiden:', filter.meide
 check(filter.tauschen.length === filter.meiden.length && filter.tauschen.length >= 8,
   `jede Regel, die die hängende Fassung meidet, tauscht jetzt auf die liegende `
   + `(${filter.tauschen.length} von ${filter.meiden.length})`);
+
+// --- 6. Und der Wechsel an der Übung selbst -----------------------------
+//
+//     „Lass machen dass wenn man bei knieheben im Liegen auf + drückt man
+//      automatisch zu knieheben an der Stange kommt. Also die Übung sozusagen
+//      umgewandelt wird. Genauso natürlich bei minus anders herum"
+//
+// Die Beziehung gab es schon, anfassbar war sie nicht: Getauscht wurde allein
+// über die Erfahrungsstufe unter Mehr – für alle Übungen auf einmal, an einer
+// Einstellung, die ausdrücklich keine sein soll. Jetzt stehen dieselben zwei
+// Knöpfe an der Übung, an denen sonst die Kilo hängen.
+//
+// Der Kern dieses Abschnitts ist Punkt drei: Die eigene Wahl muss die Stufe
+// schlagen, und zwar in *beide* Richtungen. Ein Schalter, der nur nach unten
+// wirkt, wäre auf der Anfängerstufe wirkungslos – also genau dort, wo man ihn
+// braucht.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('level', 'anfaenger');
+  store.setSetting('fassung', {});
+});
+const wahl = async (ziel) => page.evaluate(async (z) => {
+  const store = await import('./js/store.js');
+  store.setSetting('fassung', z ? { 'haengendes-knieheben': z } : {});
+  const { PLAN } = await import('./js/data.js');
+  const { exOf } = await import('./js/plan.js');
+  const w = PLAN.find((x) => exOf(x, 'db').some((it) => /knieheben/.test(it.id)));
+  const it = exOf(w, 'db').find((x) => /knieheben/.test(x.id));
+  return { id: it.id, statt: it.statt || null, warum: it.stattWarum || null };
+}, ziel);
+
+const ohneWahl = await wahl(null);
+console.log('     ohne Wahl (Anfänger):', JSON.stringify(ohneWahl));
+check(ohneWahl.id === 'liegendes-knieheben',
+  'ohne eigene Wahl entscheidet weiter die Stufe');
+
+const nachPlus = await wahl('haengendes-knieheben');
+console.log('     nach +:', JSON.stringify(nachPlus));
+check(nachPlus.id === 'haengendes-knieheben',
+  'auf + kommt die hängende Fassung – auch auf der Anfängerstufe');
+check(!nachPlus.statt, 'und sie steht als sie selbst da, nicht als Ersatz für etwas');
+
+const nachMinus = await wahl('liegendes-knieheben');
+console.log('     nach −:', JSON.stringify(nachMinus));
+check(nachMinus.id === 'liegendes-knieheben', 'auf − wieder die liegende');
+check(nachMinus.warum === 'fassung',
+  `und der Grund ist jetzt die eigene Wahl, nicht die Stufe (${nachMinus.warum})`);
+
+// Dasselbe von oben: Als Geübter muss − ebenso greifen.
+const alsGeuebter = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('level', 'geuebt');
+  const { PLAN } = await import('./js/data.js');
+  const { exOf } = await import('./js/plan.js');
+  const holen = () => {
+    const w = PLAN.find((x) => exOf(x, 'db').some((it) => /knieheben/.test(it.id)));
+    return exOf(w, 'db').find((x) => /knieheben/.test(x.id)).id;
+  };
+  store.setSetting('fassung', {});
+  const ohne = holen();
+  store.setSetting('fassung', { 'haengendes-knieheben': 'liegendes-knieheben' });
+  return { ohne, mit: holen() };
+});
+console.log('     als Geübter:', JSON.stringify(alsGeuebter));
+check(alsGeuebter.ohne === 'haengendes-knieheben', 'ein Geübter bekommt sonst die hängende');
+check(alsGeuebter.mit === 'liegendes-knieheben',
+  'und darf sich trotzdem für die liegende entscheiden');
+
+// Die Knöpfe selbst: einer aktiv, einer gesperrt, und die Zeile sagt, was der
+// andere wäre. Ein Knopf, der auf die Fassung umstellt, die schon dasteht,
+// verspricht eine Änderung, die nicht kommt.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('level', 'anfaenger');
+  store.setSetting('fassung', {});
+  store.setSetting('tab', 'dashboard');
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(400);
+await page.locator('[data-act="show-list"]').first().click();
+await page.waitForTimeout(400);
+const karte = page.locator('.ex').filter({ hasText: 'Knieheben' }).first();
+await karte.locator('.ex-head').click();
+await page.waitForTimeout(300);
+check(await page.locator('.ex-fassung').count() === 1, 'die Fassungszeile steht an der Übung');
+check(await page.locator('.ex-fassung [data-dir="-1"][disabled]').count() === 1,
+  'bei der leichten Fassung ist − gesperrt');
+check(await page.locator('.ex-fassung [data-dir="1"]:not([disabled])').count() === 1,
+  'und + ist offen');
+const hinweis = (await karte.locator('.kg-next').first().textContent()).replace(/\s+/g, ' ');
+console.log('     Hinweis:', hinweis.trim());
+check(/Hängendes Knieheben/.test(hinweis),
+  'die Zeile darunter nennt die andere Fassung beim Namen');
+
+// Und nach dem Tippen steht wirklich die andere Übung da – mit ihrem eigenen
+// Wiederholungsbereich, nicht nur mit einem anderen Namen.
+await page.evaluate(() => document.querySelector('.ex-fassung [data-dir="1"]').click());
+await page.waitForTimeout(400);
+const danach = (await karte.locator('.ex-name').textContent()).trim();
+const meta = (await karte.locator('.ex-meta').textContent()).replace(/\s+/g, ' ');
+console.log('     nach dem Tippen:', danach, '·', meta.trim());
+check(danach === 'Hängendes Knieheben', 'nach + steht die hängende Fassung in der Karte');
+check(/8–15/.test(meta) && /Klimmzugstange/.test(meta),
+  'samt ihrem eigenen Bereich und ihrem eigenen Gerät');
+check(await page.locator('.ex-fassung [data-dir="1"][disabled]').count() === 1,
+  'und jetzt ist + gesperrt statt −');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();

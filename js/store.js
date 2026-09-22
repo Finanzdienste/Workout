@@ -39,6 +39,11 @@ const DEFAULT_STATE = {
   lastShare: null,       // { on, ok, msg } – wann zuletzt gemeldet wurde und was schiefging
   tabs: ['stats'],       // frei wählbare Reiter unten; Dashboard und Mehr stehen immer
   level: 'geuebt',       // Erfahrung: anfaenger | geuebt | fortgeschritten – skaliert die Startgewichte
+  // Eigene Wahl der Fassung je Übung: { <Plan-Übung>: <gewählte Übung> }.
+  // Schlägt die Erfahrungsstufe, in beide Richtungen – siehe
+  // anfaengerFassung() in js/plan.js. Der Schlüssel ist immer die Übung, wie
+  // sie im Plan steht, nie die gerade angezeigte.
+  fassung: {},
   focus: 'standard',     // Trainingsfokus – welche Planvariante gilt (siehe js/data.js)
   theme: 'orange',       // Farbdesign: orange | rosa | blau | gruen | violett
   name: '',              // Anzeigename – steht nur in diesem Browser, kein Konto

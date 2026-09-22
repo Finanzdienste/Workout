@@ -48,7 +48,7 @@ import {
   erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
 } from './ansicht-statistik.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
+import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat } from './vorrat.js';
@@ -2129,6 +2129,7 @@ function renderDashboard() {
         </div>
         ${anfaengerZeile(it)}
         ${weightRow}
+        ${fassungRow(it)}
         ${wdhRow(it, mode)}
         <div class="ex-sets">${setBtns}</div>
         <div class="ex-body">
@@ -2549,13 +2550,70 @@ function anfaengerZeile(it) {
   if (!grund) return '';
   const alt = EX_BY_ID.get(grund.statt);
   if (!alt) return '';
-  return grund.warum === 'vorrat'
-    ? `<div class="aufwaerm">Statt ${esc(alt.db.name)}
+  if (grund.warum === 'vorrat') {
+    return `<div class="aufwaerm">Statt ${esc(alt.db.name)}
         <span class="muted">– dafür fehlt gerade das Gerät. Unter Mehr → Was da ist
-        wieder anhaken.</span></div>`
-    : `<div class="aufwaerm">Statt ${esc(alt.db.name)}
-        <span class="muted">– die Anfängerfassung. Höhere Erfahrungsstufe unter Mehr
-        bringt die schwerere zurück.</span></div>`;
+        wieder anhaken.</span></div>`;
+  }
+  // Bei Stufe und eigener Wahl steht die Auskunft jetzt in fassungRow() – dort
+  // stehen auch die Knöpfe, mit denen man es ändert. Eine zweite Zeile darüber
+  // würde dasselbe zweimal sagen.
+  return '';
+}
+
+/**
+ * Leichtere oder schwerere Fassung – mit denselben zwei Knöpfen wie die Kilo.
+ *
+ *     „Lass machen dass wenn man bei knieheben im Liegen auf + drückt man
+ *      automatisch zu knieheben an der Stange kommt. Also die Übung sozusagen
+ *      umgewandelt wird. Genauso natürlich bei minus anders herum"
+ *
+ * Bei einer Übung ohne Zusatzlast stand an dieser Stelle bisher nichts: kein
+ * Gewicht, kein Band, im Hantel-Modus auch keine Wiederholungszahl. Die
+ * leichtere Fassung gab es zwar – sie kam über die Erfahrungsstufe –, aber
+ * ändern ließ sie sich nur unter *Mehr*, für alle Übungen auf einmal, an einer
+ * Einstellung, die ausdrücklich keine sein soll.
+ *
+ * Hier ist die Steigerung der Wechsel der Übung, also gehört er dorthin, wo
+ * sonst die Steigerung steht. Die Zeile sieht aus wie die Gewichtszeile, weil
+ * sie dasselbe tut.
+ *
+ * Gespeichert wird unter der Übung, **wie sie im Plan steht** – nicht unter der
+ * gerade gezeigten. Sonst hieße „ich will die schwere" beim nächsten Öffnen
+ * „ich will die, die gerade dasteht", und der Schalter kippte mit sich selbst.
+ */
+function fassungRow(it) {
+  const f = fassungen(it);
+  if (!f) return '';
+  const schwer = EX_BY_ID.get(f.schwer);
+  const leicht = EX_BY_ID.get(f.leicht);
+  if (!schwer || !leicht) return '';
+  const obenDran = f.jetzt === f.schwer;
+  const andere = obenDran ? leicht : schwer;
+  const knopf = (richtung) => {
+    const geht = richtung > 0 ? !obenDran : obenDran;
+    const ziel = richtung > 0 ? schwer : leicht;
+    return `<button type="button" class="kg-step${richtung > 0 ? ' kg-plus' : ''}"
+            data-act="fassung-step" data-ex="${esc(f.plan)}" data-dir="${richtung}"
+            ${geht ? '' : 'disabled'}
+            aria-label="${esc(geht ? `Auf ${ziel.db.name} wechseln`
+    : `${ziel.db.name} ist eingestellt`)}">${richtung > 0 ? '+' : '−'}</button>`;
+  };
+  // Was die beiden unterscheidet, steht im Katalog und wird nicht hier
+  // erfunden: der Name und das, was man dafür braucht. Damit trägt die Zeile
+  // auch für jedes Paar, das später dazukommt.
+  const jetzt = obenDran ? schwer : leicht;
+  return `
+    <div class="ex-weight ex-fassung">
+      ${knopf(-1)}
+      <div class="kg-main">
+        <span class="kg-val kg-fest">${obenDran ? 'Schwer' : 'Leicht'}</span>
+        <span class="kg-unit">${esc(jetzt.db.equip)}</span>
+      </div>
+      ${knopf(1)}
+    </div>
+    <div class="kg-next">${obenDran ? 'Leichter' : 'Schwerer'}: ${esc(andere.db.name)}
+      – dieselbe Bewegung, ${esc(andere.db.equip)}.</div>`;
 }
 
 function aufwaermZeile(it, mode, n) {
@@ -5040,6 +5098,19 @@ view.addEventListener('click', (e) => {
       // Bodyweight: die Steigerung sind die Wiederholungen, nicht die Kilo.
       store.addBwPlus(t.dataset.ex, Number(t.dataset.d));
       render();
+      break;
+    }
+    case 'fassung-step': {
+      // Gespeichert wird die *Ziel*-Übung unter der Plan-Übung. Auf +: die
+      // schwere, das ist die Plan-Übung selbst; auf −: die leichtere.
+      const plan = t.dataset.ex;
+      const leicht = (EX_BY_ID.get(plan) || {}).anfaenger;
+      if (!leicht) break;
+      const ziel = Number(t.dataset.dir) > 0 ? plan : leicht;
+      store.setSetting('fassung', { ...(store.getState().fassung || {}), [plan]: ziel });
+      ui.openEx.add(ziel);
+      render();
+      toast(`${(EX_BY_ID.get(ziel) || {}).db.name}`);
       break;
     }
     case 'weight-step': {
