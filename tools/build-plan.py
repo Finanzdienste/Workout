@@ -295,10 +295,6 @@ if VARIANTE != 'standard':
 # einen halben Plan. Genau das ist beim ersten Versuch passiert.
 #
 #     WK_OUT=/tmp/cut-11.json WK_SEED=11 python3 tools/build-plan.py cut
-#
-# Der Startpunkt (startpunkt()) wird weiterhin aus OUT gelesen: Wer woanders
-# hinschreibt, will trotzdem vom ausgelieferten Plan aus suchen.
-START_AUS = OUT
 if os.environ.get('WK_OUT'):
     OUT = pathlib.Path(os.environ['WK_OUT'])
 #
@@ -417,6 +413,24 @@ GERAET = {
 UNIT = 20
 GOAL = {m: (None if t is None else t * UNIT) for m, t in TARGET.items()}
 CAP_U = CAP * UNIT
+
+# Eine Obergrenze, die unter dem eigenen Ziel liegt, ist keine.
+#
+# Gemessen aufgefallen und nicht vermutet: Im Bauch-Beine-Po-Plan steht das
+# Gesäß auf Ziel 15 bei einer Obergrenze von 12. Der Plan *muss* also im Schnitt
+# 15 Sätze pro Woche liefern und liegt damit in 21 von 21 Wochen über seiner
+# eigenen Grenze, um bis zu 4,35 Sätze. Das ist kein Rundungsrest der Körnung,
+# sondern ein Widerspruch in den Vorgaben: Zwei Zahlen, die einander
+# ausschließen, und die Rechnung dazwischen kann nur eine von beiden erfüllen.
+#
+# Aufgelöst wird er hier und nicht durch das Verstellen einer Zahl: Wer für eine
+# Gruppe ein Ziel setzt, hat damit auch gesagt, dass sie so viel abbekommen
+# soll – die Grenze für *diese* Gruppe ist dann mindestens ihr Ziel. Für alle
+# anderen bleibt CAP, wie es war. Eine globale Anhebung auf 15 hätte dagegen
+# auch Nacken und vorderer Schulter drei Sätze mehr erlaubt, die niemand
+# bestellt hat.
+CAP_FUER = {m: max(CAP_U, GOAL.get(m) or 0) for m in TARGET}
+CAP_VON = lambda m: CAP_FUER.get(m, CAP_U)      # noqa: E731
 
 LABEL = {
     'quads': 'Oberschenkel', 'glutes': 'Gesäß',
@@ -718,6 +732,55 @@ def bw_verteilen(plan, gesamt):
     return plan
 
 
+def hermite(block, shares, skala=1):
+    """Die ganzzahlige Elimination, auf der beide Gitterwege stehen.
+
+    Aufgestellt wird [A^T | I]: links je Übung ihre Spalte aus der
+    Koeffizientenmatrix, rechts der Einheitsvektor. Dann wird mit ganzzahligen
+    Zeilenoperationen eliminiert – Euklid auf ganzen Zeilen statt Division –,
+    und die rechte Hälfte führt Buch darüber.
+
+    Danach gilt für jede Zeile r: `M[r][links] == A · M[r][rechts]`. Daraus
+    fallen beide Antworten heraus, die der Generator braucht:
+
+      * Zeilen mit linker Null tragen rechts einen **Kernvektor** – etwas, das
+        man addieren darf, ohne eine Gleichung zu verändern (nullbasis()).
+      * Die übrigen Zeilen stehen in Stufenform und lassen sich rückwärts
+        auflösen, bis rechts eine **Partikulärlösung** steht – irgendein Punkt,
+        der alle Gleichungen exakt trifft (partikulaer()).
+
+    `skala` multipliziert die linke Seite. Mit skala=GRAIN rechnet man in
+    Dreierschritten: Was dabei herauskommt, ist automatisch durch drei teilbar,
+    und die Körnung muss nicht nachträglich erzwungen werden.
+    """
+    groups = [m for m in sorted({m for i in block for m in shares[i]})
+              if GOAL.get(m) is not None]
+    n, g = len(block), len(groups)
+    M = [[round(shares[i].get(m, 0) * UNIT) * skala for m in groups]
+         + [1 if k == c else 0 for k in range(n)]
+         for c, i in enumerate(block)]
+
+    zeile, pivots = 0, []
+    for spalte in range(g):
+        while True:
+            nz = [r for r in range(zeile, n) if M[r][spalte]]
+            if len(nz) <= 1:
+                if nz:
+                    M[zeile], M[nz[0]] = M[nz[0]], M[zeile]
+                break
+            p = min(nz, key=lambda r: abs(M[r][spalte]))
+            for r in nz:
+                if r == p:
+                    continue
+                q = M[r][spalte] // M[p][spalte]
+                if q:
+                    M[r] = [a - q * b for a, b in zip(M[r], M[p])]
+        if any(M[r][spalte] for r in range(zeile, n)):
+            pivots.append((zeile, spalte))
+            zeile += 1
+    return M, groups, pivots, g
+
+
 def nullbasis(block, shares, weeks):
     """Kurze ganzzahlige Vektoren, die jede Zielgleichung unverändert lassen.
 
@@ -751,34 +814,7 @@ def nullbasis(block, shares, weeks):
     Kern-Vektor – und diese Vektoren spannen das ganze Gitter auf, nicht nur
     einen Teil davon.
     """
-    groups = [m for m in sorted({m for i in block for m in shares[i]})
-              if GOAL.get(m) is not None]
-    n, g = len(block), len(groups)
-    # Zeile je Übung: links ihre Spalte aus A, rechts der Einheitsvektor.
-    M = [[round(shares[i].get(m, 0) * UNIT) for m in groups]
-         + [1 if k == c else 0 for k in range(n)]
-         for c, i in enumerate(block)]
-
-    zeile = 0
-    for spalte in range(g):
-        while True:
-            nz = [r for r in range(zeile, n) if M[r][spalte]]
-            if len(nz) <= 1:
-                if nz:
-                    M[zeile], M[nz[0]] = M[nz[0]], M[zeile]
-                break
-            # Der kleinste Eintrag räumt die anderen aus – der Euklidische
-            # Algorithmus, nur auf ganzen Zeilen statt auf zwei Zahlen.
-            p = min(nz, key=lambda r: abs(M[r][spalte]))
-            for r in nz:
-                if r == p:
-                    continue
-                q = M[r][spalte] // M[p][spalte]
-                if q:
-                    M[r] = [a - q * b for a, b in zip(M[r], M[p])]
-        if any(M[r][spalte] for r in range(zeile, n)):
-            zeile += 1
-
+    M, groups, _, g = hermite(block, shares)
     basis = []
     for row in M:
         if any(row[:g]):
@@ -810,76 +846,185 @@ def nullbasis(block, shares, weeks):
     return basis
 
 
-def freiraeumen(block, shares, weeks, values, rnd, start, verboten, schritte=2000000):
-    """Eine exakte Lösung ohne die Notnagel-Übungen – ausgehend von einer mit.
+def partikulaer(block, shares, weeks, skala=1):
+    """Irgendein ganzzahliger Punkt, der jede Zielgleichung exakt trifft.
 
-    Der Fall ist echt und war der Anlass: Im ausgelieferten Cut stehen 39 Sätze
-    Rucksack-Curls, im Oberkörper 174 Sätze improvisierter Übungen. `nurErsatz`
-    hält sie aus künftigen Plänen heraus, aber der einzige Startpunkt, den es
-    gibt, enthält sie – und ohne Startpunkt findet der Generator nichts.
+    Ohne Rücksicht auf Grenzen – und das ist wörtlich zu nehmen: Beim
+    Aufbau-Plan liegt er zwischen −92.000 und +146.000 Sätzen je Übung, beim
+    Cut-Plan bei ±18 Millionen. Als Plan ist das Unsinn; als *Startpunkt* ist
+    es genau das, was jahrelang gefehlt hat. Die Gleichungen stimmen, und von
+    hier aus führt der Kern (nullbasis()) zu jedem anderen Punkt, der sie
+    ebenfalls trifft – auch zu denen im erlaubten Bereich.
 
-    Also wird zuerst geräumt: dieselben Nullvektoren, nur mit einem Ziel statt
-    ohne. Jeder Schritt, der die Sätze auf den verbotenen Übungen senkt, wird
-    genommen; Schritte, die nichts ändern, mit kleiner Wahrscheinlichkeit, damit
-    die Suche aus einer Ebene wieder herausfindet. Das geht, weil es zu jeder
-    improvisierten Übung eine mit identischem Muskelprofil gibt – der kürzeste
-    Nullvektor tauscht genau zwischen den beiden.
-
-    **Zwei Dinge, an denen der erste Entwurf gescheitert ist**, beide gemessen
-    am Cut und am Oberkörper:
-
-      * *Unterwegs darf mehr erlaubt sein als am Ziel.* Die erlaubten Satzzahlen
-        springen von 0 auf 21 – eine Übung steht entweder gar nicht im Plan oder
-        mindestens einmal die Woche. Wer nur über erlaubte Zwischenstände läuft,
-        kommt bis 21 und dort nicht weiter: Der nächste Dreierschritt wäre 18.
-        Unterwegs zählt deshalb nur „Vielfaches der Körnung und nicht negativ";
-        geprüft wird am Ende.
-      * *Der letzte Sprung muss gezielt sein.* Von 21 auf 0 sind es sieben
-        Schritte auf einmal. Deshalb wird zu einer verbotenen Übung gezielt der
-        Vielfache gesucht, der sie genau auf null bringt, statt darauf zu hoffen.
-
-    Kommt nichts heraus, ist das eine Antwort und kein Fehler: Dann gibt es zu
-    diesen Zielen keine Lösung ohne die Notnägel, und das gehört gesagt statt
-    umgangen.
+    Gerechnet wird rückwärts durch die Stufenform aus hermite(): Für jede
+    Pivotspalte steht fest, wie oft ihre Zeile genommen werden muss. Geht eine
+    Division nicht auf, liegt die rechte Seite gar nicht im Gitter – dann gibt
+    es für diese Ziele **keine** ganzzahlige Lösung, und das ist eine Antwort
+    und kein Fehlschlag. Zurück kommt dann None.
     """
-    erlaubt = set(values)
-    deckel = max(values)
-    basis = nullbasis(block, shares, weeks)
-    kurz = basis[:max(8, len(basis) // 2)] or basis
-    x = [start.get(i, 0) for i in block]
-    weg = [k for k, i in enumerate(block) if i in verboten]
-    last = lambda v: sum(v[k] for k in weg)          # noqa: E731
-    # Unterwegs reicht „Vielfaches der Körnung, nicht negativ, nicht über dem
-    # Deckel" – siehe oben. Am Ziel gilt wieder die volle Regel.
-    frei = lambda v: all(0 <= w <= deckel and w % GRAIN == 0 for w in v)   # noqa: E731
-    schritt = [k * GRAIN for k in (1, -1, 2, -2, 3, -3)]
-    jetzt = last(x)
-    for _ in range(schritte):
-        if not jetzt and all(w in erlaubt for w in x):
-            return dict(zip(block, x))
-        # Jeder zehnte Schritt zielt: eine verbotene Übung ganz auf null.
-        if jetzt and rnd.random() < 0.1:
-            j = rnd.choice([k for k in weg if x[k]])
-            treffer = [v for v in basis if v[j] and x[j] % v[j] == 0]
-            if treffer:
-                v = rnd.choice(treffer)
-                kand = [a - (x[j] // v[j]) * b for a, b in zip(x, v)]
-                if frei(kand) and last(kand) < jetzt:
-                    x, jetzt = kand, last(kand)
-                    continue
-        v = kurz[rnd.randrange(len(kurz))]
-        # Der Faktor muss **vor** der Schleife stehen. Stand er darin, bekam
-        # jede Übung einen eigenen Zufallsfaktor – das ist kein Vielfaches des
-        # Nullvektors mehr, sondern Rauschen, und die Gleichungen gingen dabei
-        # verloren (gemessen: Bauch 8460 statt 3780). Gemerkt hat es erst die
-        # Prüfung in totals(), die den Startpunkt verworfen hat.
-        k = rnd.choice(schritt)
-        kand = [a + k * b for a, b in zip(x, v)]
-        if not frei(kand):
+    M, groups, pivots, g = hermite(block, shares, skala)
+    x, rest = [0] * len(block), [GOAL[m] * weeks for m in groups]
+    for r, c in pivots:
+        if rest[c] % M[r][c]:
+            return None
+        z = rest[c] // M[r][c]
+        if z:
+            rest = [a - z * h for a, h in zip(rest, M[r][:g])]
+            x = [a + z * u for a, u in zip(x, M[r][g:])]
+    return None if any(rest) else x
+
+
+def _babai(x0, basis, ziel):
+    """Der Gitterpunkt auf x0 + Kern, der `ziel` am nächsten liegt.
+
+    Ohne diesen Schritt käme man von der Partikulärlösung nie an: Sie liegt
+    hunderttausende Sätze daneben, und ein Abstieg in Dreierschritten braucht
+    dafür hunderttausend Schritte. Hier wird stattdessen das reelle
+    Ausgleichsproblem gelöst und jeder Koeffizient gerundet – ein Zug, der aus
+    ±146.000 einen Punkt in der Nähe des erlaubten Bereichs macht.
+
+    Gerundet wird in Gleitkomma, und das ist unbedenklich: Die Koeffizienten
+    sind ganze Zahlen, und was dabei herauskommt, liegt exakt auf dem Gitter,
+    egal wie gut gerundet wurde. Eine schlechte Rundung kostet Suchzeit, sie
+    kann keine falsche Lösung erzeugen.
+    """
+    m = len(basis)
+    gram = [[sum(a * b for a, b in zip(basis[i], basis[j])) for j in range(m)] for i in range(m)]
+    rhs = [sum(v * (z - x) for v, z, x in zip(basis[i], ziel, x0)) for i in range(m)]
+    A = [row[:] + [rhs[i]] for i, row in enumerate(gram)]
+    for c in range(m):
+        p = max(range(c, m), key=lambda r: abs(A[r][c]))
+        if abs(A[p][c]) < 1e-9:
             continue
-        neu = last(kand)
-        if neu < jetzt or (neu == jetzt and rnd.random() < 0.3):
-            x, jetzt = kand, neu
+        A[c], A[p] = A[p], A[c]
+        for r in range(m):
+            if r == c or abs(A[r][c]) < 1e-12:
+                continue
+            f = A[r][c] / A[c][c]
+            A[r] = [a - f * b for a, b in zip(A[r], A[c])]
+    k = [round(A[c][m] / A[c][c]) if abs(A[c][c]) > 1e-9 else 0 for c in range(m)]
+    x = list(x0)
+    for i in range(m):
+        if k[i]:
+            x = [a + k[i] * b for a, b in zip(x, basis[i])]
+    return x
+
+
+def _daneben(v, lo, hi):
+    """Wie weit ein Wert vom Erlaubten weg ist: entweder 0 oder zwischen lo und hi."""
+    if v == 0 or lo <= v <= hi:
+        return 0
+    if v < 0:
+        return -v
+    if v < lo:
+        return min(v, lo - v)
+    return v - hi
+
+
+def _drueber(block, shares, x, weeks):
+    """Wie viel über der Obergrenze, bei den Gruppen ohne eigenes Ziel."""
+    got = {}
+    for i, n in zip(block, x):
+        for m, sh in shares[i].items():
+            if GOAL.get(m) is None:
+                got[m] = got.get(m, 0) + n * round(sh * UNIT)
+    return sum(max(0, v - CAP_U * weeks) for v in got.values())
+
+
+def landepunkt(block, shares, weeks, rnd, runden=60, schritte=4000):
+    """Eine erlaubte exakte Lösung, ohne jede Vorlage – oder None.
+
+    **Das ist die Antwort auf die längste offene Stelle dieses Generators.**
+    Die Tiefensuche exact() probiert alle Übungen durch und hofft, dass am Ende
+    zehn Gleichungen aufgehen; beim Aufbau-Plan lief sie dafür zehn Stunden
+    ohne einen einzigen Fund. Seither brauchte der Generator den ausgelieferten
+    Plan als Startpunkt und konnte damit nichts finden, was nicht schon
+    dastand – wer ein Ziel änderte, stand wieder vor den zehn Stunden.
+
+    Der Weg hier dreht die Reihenfolge um. Statt im erlaubten Bereich nach
+    einer exakten Lösung zu suchen, wird **zuerst exakt gerechnet und dann in
+    den Bereich gewandert**:
+
+      1. partikulaer() liefert einen Punkt, der jede Gleichung trifft. Er liegt
+         irgendwo bei ±100.000 Sätzen – das macht nichts.
+      2. _babai() rückt ihn in einem Zug in die Nähe des erlaubten Bereichs.
+      3. Von dort läuft eine lokale Suche entlang der Kernvektoren. Jeder
+         Schritt lässt die Gleichungen unverändert; gesucht wird nur noch der
+         Weg über die Grenzen.
+
+    Gemessen: alle vier Varianten unter zwei Sekunden, und – das ist der Punkt –
+    auch 25 von 25 künstlich verschobenen Zielsätzen, die vorher allesamt an
+    der Tiefensuche gescheitert wären. Schlechtester Fall 17 Sekunden.
+
+    **Warum Plateaulauf und nicht bloß Abstieg.** Der erste Entwurf nahm nur
+    echte Verbesserungen und blieb reproduzierbar bei Abstand 1 stehen: ein
+    einziger Wert knapp außerhalb, und kein einzelner Kernvektor bringt ihn
+    hinein, ohne anderswo genauso viel zu zerstören. Gleich gute Züge
+    zuzulassen löst das – die Suche läuft das Plateau entlang, bis eine Stelle
+    kommt, von der es weitergeht.
+
+    **Die Körnung steckt im Gitter, nicht in der Prüfung.** Gerechnet wird mit
+    `skala=GRAIN`, also in Dreierblöcken; was herauskommt, ist durch drei
+    teilbar, weil es gar nicht anders sein kann. Der erste Entwurf prüfte die
+    Teilbarkeit hinterher und fand lauter Lösungen mit 26 und 37 Sätzen.
+    """
+    x0 = partikulaer(block, shares, weeks, GRAIN)
+    if x0 is None:
+        return None
+    basis = nullbasis(block, shares, weeks)
+    if not basis:
+        x = [v * GRAIN for v in x0]
+        sol = dict(zip(block, x))
+        werte = [0] + [v for v in range(PER_EX_WEEK[0] * weeks, PER_EX_WEEK[1] * weeks + 1)
+                       if v % GRAIN == 0]
+        return sol if all(v in werte for v in x) and capped(sol, shares, weeks) else None
+
+    lo = PER_EX_WEEK[0] * weeks // GRAIN
+    hi = PER_EX_WEEK[1] * weeks // GRAIN
+    mitte = (lo + hi) // 2
+    schritt = (1, -1, 2, -2, 3, -3, 5, -5, 7, -7)
+
+    def fehler(y):
+        return (sum(_daneben(v, lo, hi) for v in y)
+                + _drueber(block, shares, [v * GRAIN for v in y], weeks) / UNIT)
+
+    for versuch in range(runden):
+        ziel = [mitte] * len(x0) if not versuch else [rnd.randrange(0, hi + 1) for _ in x0]
+        x = _babai(x0, basis, ziel)
+        f = fehler(x)
+        seit = 0
+        for _ in range(schritte):
+            if not f:
+                return dict(zip(block, [v * GRAIN for v in x]))
+            beste, zuege = f, []
+            for v in basis:
+                for k in schritt:
+                    kand = [a + k * b for a, b in zip(x, v)]
+                    g = fehler(kand)
+                    if g < beste:
+                        beste, zuege = g, [kand]
+                    elif g == beste and g <= f:
+                        zuege.append(kand)
+            if zuege and (beste < f or seit < 30):
+                x = zuege[rnd.randrange(len(zuege))]
+                seit = 0 if beste < f else seit + 1
+                f = beste
+                continue
+            # Festgefahren: ein zufälliger Stoß, statt alles neu zu würfeln.
+            #
+            # `k` steht bewusst *vor* der Klammer. Innerhalb hätte jede Übung
+            # ihren eigenen Zufallsfaktor bekommen, und aus dem Kernvektor wäre
+            # keiner mehr geworden – die Gleichungen wären still kaputtgegangen
+            # und die Prüfung weiter unten hätte eine Lösung gemeldet, die
+            # keine ist. Genau dieser Fehler stand schon einmal in dieser Datei
+            # (siehe totals(), Auswahl der Schrittweite).
+            v = basis[rnd.randrange(len(basis))]
+            k = rnd.choice(schritt)
+            x = [a + k * b for a, b in zip(x, v)]
+            f = fehler(x)
+            seit = 0
+        if not f:
+            return dict(zip(block, [v * GRAIN for v in x]))
     return None
 
 
@@ -903,10 +1048,12 @@ def wandern(block, shares, weeks, values, limit, rnd, start, schritte=400000):
     alle wieder Lösungen; hier stehen nach einer Sekunde über tausend
     verschiedene da.
 
-    **Der Preis, und er ist echt:** Der Generator braucht dafür eine Lösung, die
-    er nicht selbst gefunden hat – den ausgelieferten Plan. Ändert sich ein
-    Ziel, ist der keine Lösung mehr, und dann steht wieder nichts da. main()
-    prüft das und sagt es; geraten wird nicht.
+    **Woher der Startpunkt kommt, war lange der wunde Punkt.** Bis v185 war es
+    der ausgelieferte Plan: Der Generator las seine eigene letzte Ausgabe und
+    konnte damit nichts finden, was nicht schon dastand. Wer ein Ziel änderte,
+    stand wieder vor der Tiefensuche, die oben zehn Stunden lief. Seit v186
+    rechnet landepunkt() den Startpunkt selbst, in unter zwei Sekunden, ohne
+    jede Vorlage – und das Lesen der eigenen Ausgabe ist ersatzlos gelöscht.
     """
     erlaubt = set(values)
     x = [start.get(i, 0) for i in block]
@@ -1123,10 +1270,22 @@ def totals(ids, shares, groups, weeks, rnd, streng=True, start=None):
             passt = all(sum(round(shares[i].get(m, 0) * UNIT) * start.get(i, 0) for i in block)
                         == GOAL[m] * weeks for m in gleich)
             hat_start = passt
+        if not hat_start:
+            # Kein Startpunkt von außen: einen rechnen. Das ist seit v185 der
+            # Normalfall und nicht mehr die Notlage – siehe landepunkt().
+            sitz = landepunkt(block, shares, weeks, rnd)
+            if sitz is not None:
+                start = {**(start or {}), **sitz}
+                hat_start = True
         if hat_start:
             found = wandern(block, shares, weeks, values, EXACT_LIMIT, rnd, start)
             ganz, knoten = True, None
         else:
+            # Der letzte Rückfall. Er greift nur noch, wenn das Gitter gar
+            # keinen Punkt hergibt – dann sind die Ziele ganzzahlig nicht
+            # erreichbar, und auch die Tiefensuche wird nichts finden. Sie
+            # steht hier, weil „gar nichts gefunden" und „nichts gesucht"
+            # zwei verschiedene Auskünfte sind.
             found, (ganz, knoten) = exact(block, shares, weeks, values, EXACT_LIMIT, rnd)
         vollstaendig.append((ganz, knoten))
         if not found:
@@ -1331,6 +1490,23 @@ def miss(x, goal):
 
 def pen(week_vol, week_sets, goals, bands):
     """Strafe einer Woche.
+
+    **Was hier bewusst NICHT steht: eine eigene Strafe für die Obergrenze.**
+    Naheliegend wäre sie: miss() zählt für eine Gruppe mit Ziel jede Abweichung
+    gleich, in beide Richtungen – 13 Sätze Brust bei Ziel 10 kosten so viel wie
+    7. Für ein Ziel ist das richtig, für eine Obergrenze falsch. Also einmal
+    gebaut, quadratisch gewichtet, und den Aufbau-Plan damit neu gerechnet:
+
+        ausgeliefert              db +2.15 (23 % der Gruppenwochen darüber)
+                                  bw +3.90 (27 %)
+        Gitter, ohne cap-Strafe   db +2.00 (19 %)   bw +2.00 (19 %)
+        Gitter + cap-Strafe       db +2.00 (18 %)   bw +2.45 (17 %)
+
+    Der Gewinn kam vom Gitterweg in Schritt 1 – von besseren *Plansummen* –,
+    nicht von der Strafe in Schritt 2. Die Strafe verschob nur, wie oft eine
+    Woche knapp darüber liegt, und machte den schlechtesten Wert im
+    Bodyweight-Modus sogar größer. Eine Änderung, die die Messung nicht trägt,
+    kommt wieder raus; nachgesehen wird sie von tools/pruefung/wochen-cap.py.
 
     Gewogen wird **im Verhältnis zum Ziel der Gruppe**, nicht in Sätzen. Ein
     Satz zu wenig ist bei den Waden (Ziel 4) ein Viertel des Wochenpensums, bei
@@ -1750,64 +1926,6 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
 
 # ------------------------------------------------------------------ #
 
-def startpunkt(meta, shares, groups, ids, rnd):
-    """Der ausgelieferte Plan als Startpunkt für die Wanderung – oder None.
-
-    **Das ist ein Umweg, und er steht hier offen statt versteckt.** Der
-    Generator liest seine eigene letzte Ausgabe. Schön ist das nicht; die
-    Alternative war, dass er gar nichts mehr findet – siehe wandern() für die
-    drei gemessenen Fehlversuche.
-
-    Gefährlich ist es nicht, und zwar aus einem Grund, der nachprüfbar ist: Der
-    Startpunkt wird nicht geglaubt, sondern gegen die *heutigen* Gleichungen
-    gerechnet (totals(), `passt`). Stimmt er nicht mehr – weil ein Ziel, ein
-    Muskelanteil oder die Wochenzahl sich geändert hat –, wird er verworfen und
-    es läuft wieder die Tiefensuche. Der alte Plan kann also nichts
-    hereinschmuggeln, was die Ziele von heute nicht hergeben.
-
-    Was er *nicht* kann: eine Lösung finden, wo es noch keine gibt. Wer ein Ziel
-    ändert, steht wieder vor der Suche, die beim Aufbau-Plan zehn Stunden ohne
-    Fund lief. Das ist die offene Stelle; sie ist kleiner als vorher, aber sie
-    ist da.
-    """
-    if not START_AUS.exists():
-        return None
-    try:
-        alt = json.loads(START_AUS.read_text(encoding='utf-8'))
-    except (OSError, ValueError):
-        return None
-    ist = collections.Counter()
-    for e in alt.get('plan', []):
-        for it in e.get('ex', []):
-            ist[it['id']] += it.get('sets', 0)
-    if not ist:
-        return None
-
-    # Die Notnagel-Übungen stehen im alten Plan noch drin (Cut: 39 Sätze
-    # Rucksack-Curls, Oberkörper: 174 Sätze improvisiert). Ohne Räumung wäre der
-    # Startpunkt für den verkleinerten Katalog keine Lösung, und die Wanderung
-    # käme nie in Gang.
-    verboten = {k for k in shares if meta[k].get('nurErsatz')} & set(ist)
-    if not verboten:
-        return dict(ist)
-    voll = list(ids) + sorted(verboten)
-    values = [0] + [v for v in range(PER_EX_WEEK[0] * WEEKS, PER_EX_WEEK[1] * WEEKS + 1)
-                    if v % GRAIN == 0]
-    for block in parts(voll, shares, groups):
-        if not (set(block) & verboten):
-            continue
-        frei = freiraeumen(block, shares, WEEKS, values, rnd, ist, verboten)
-        if frei is None:
-            print('   Notnagel-Übungen lassen sich aus dem alten Plan nicht '
-                  'herausrechnen – ohne Startpunkt weiter')
-            return None
-        summe = sum(ist[i] for i in block if i in verboten)
-        print(f'   Startpunkt geräumt: {summe} Sätze improvisierter Übungen '
-              f'auf richtige umgelegt')
-        ist.update({i: frei[i] - ist[i] for i in block})
-    return dict(ist)
-
-
 def main():
     meta = json.loads(META.read_text(encoding='utf-8'))
     shares = {k: v['dbShares'] for k, v in meta.items()}
@@ -1863,10 +1981,9 @@ def main():
     # nehmen und den besten behalten, statt den ersten zu glauben.
     rnd = random.Random(int(os.environ.get('WK_SEED', 7)))
     vol = Volume(shares, ids, groups)
-    start = startpunkt(meta, shares, groups, ids, rnd)
     for weeks in range(WEEKS, WEEKS + 12):
         total, (variants, vollstaendig) = totals(ids, shares, groups, weeks, rnd,
-                                                 streng=False, start=start)
+                                                 streng=False)
         if total is not None:
             break
     else:

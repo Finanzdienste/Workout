@@ -92,6 +92,13 @@ def probiere(ziele, wochen=range(21, 33)):
                        if v % bp.GRAIN == 0]
         ok = True
         for block in bp.parts(ids, shares, groups):
+            # Seit v186 zuerst über das Gitter: partikulaer() + landepunkt()
+            # antworten in Sekunden, wo die Tiefensuche Stunden braucht. Findet
+            # der Gitterweg nichts, heißt das nicht „es gibt nichts" – auch er
+            # ist eine Heuristik –, deshalb kommt die Tiefensuche danach noch
+            # einmal dran und darf ihr Budget verbrauchen.
+            if bp.landepunkt(block, shares, w, rnd) is not None:
+                continue
             if rest <= 0:
                 return None, False
             found, (ganz, knoten) = bp.exact(block, shares, w, werte, LOESUNGEN, rnd, rest)

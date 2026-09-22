@@ -34,6 +34,12 @@ jobs:
       - name: Übung, Gerät und Zeichnung passen zusammen
         run: python3 tools/pruefung/geraete.py
 
+      # Die Obergrenze war jahrelang nur ein Durchschnitt: capped() prüft die
+      # Plansumme gegen CAP × Wochen, die einzelne Woche hat nie jemand
+      # nachgesehen. Trainiert wird aber Woche für Woche.
+      - name: Keine Woche weit über ihrer Obergrenze
+        run: python3 tools/pruefung/wochen-cap.py
+
       # Ein Plan-Lauf dauert eine Viertelstunde je Variante – „neu erzeugen und
       # vergleichen" wie bei den anderen erzeugten Dateien geht hier nicht. Statt
       # dessen wird geprüft, ob sich die *Eingaben* seit dem letzten Lauf geändert

@@ -1120,13 +1120,9 @@ Tagen addieren, bleiben die Wochentage fest.
 `tools/build-plan.py` rechnet in drei Schritten:
 
 1. **Plansummen.** Wie viele Sätze bekommt jede Übung über den ganzen Plan?
-   Das ist ein Gleichungssystem mit elf Zeilen und siebzehn Unbekannten – der
-   Nacken hat keine, er wird nur gedeckelt –,
-   gelöst per Tiefensuche: steht in einer Gleichung nur noch eine Übung offen,
-   ist ihr Wert bestimmt; stehen mehrere offen, muss der Rest durch den größten
-   gemeinsamen Teiler ihrer Anteile teilbar sein. Das schneidet den Suchbaum so
-   früh ab, dass alle Lösungen in unter einer Sekunde dastehen. Zufallssuche
-   findet hier übrigens *nichts* – die exakten Punkte liegen zu dünn.
+   Das ist ein Gleichungssystem mit zehn Zeilen und achtundzwanzig Unbekannten –
+   der Nacken hat keine, er wird nur gedeckelt. Gelöst wird es **über das
+   Gitter**, nicht durch Suchen; wie und warum, steht gleich unten.
 2. **Verteilung auf die Wochen.** Die Summen stehen fest, verschoben werden nur
    Sätze zwischen Wochen. Der Schnitt bleibt damit zwangsläufig exakt. Bewertet
    wird in drei Stufen, streng nacheinander: kein ganzer Satz Abweichung, dann
@@ -1142,6 +1138,106 @@ Tagen addieren, bleiben die Wochentage fest.
 Gerechnet wird durchweg in Zwanzigsteln eines Satzes – alle Anteile sind
 Vielfache von 0,05, damit ist „exakt" wirklich exakt und nicht bis auf
 Rundungsfehler.
+
+#### Erst rechnen, dann wandern
+
+Der erste Schritt war jahrelang die offene Stelle dieses Generators, und der
+Weg dorthin ist es wert, aufgeschrieben zu werden.
+
+Die naheliegende Lösung ist eine **Tiefensuche**: alle achtundzwanzig Übungen
+durchprobieren und hoffen, dass am Ende zehn Gleichungen aufgehen. Bei den
+kleinen Blöcken – zwei Waden-Übungen, eine Gleichung – ist das in Millisekunden
+fertig. Beim großen Block des Aufbau-Plans lief sie **zehn Stunden ohne einen
+einzigen Fund**. Drei weitere Wege sind ebenso gemessen gescheitert: zufällig
+frei wählen und den Rest ausrechnen (52.000 Versuche je Sekunde, in 200.000
+kein Treffer), viele kurze Anläufe der Tiefensuche (18 Millionen Knoten, kein
+Treffer), die Untergrenze lockern (12 Millionen Knoten, kein Treffer).
+
+Der Grund ist einfach: Die exakten Punkte liegen viel zu dünn. Zehn Werte
+müssen *gleichzeitig* auf einem Vielfachen von drei im erlaubten Bereich
+landen, und wer im Bereich sucht, findet sie nicht.
+
+Also **andersherum**. Statt im erlaubten Bereich nach etwas Exaktem zu suchen,
+wird zuerst exakt gerechnet und dann in den Bereich gewandert:
+
+| | |
+| --- | --- |
+| `hermite()` | Ganzzahlige Elimination von `[A^T \| I]`. Danach gilt für jede Zeile `links == A · rechts` – daraus fallen beide folgenden Antworten heraus. |
+| `partikulaer()` | Rückwärts durch die Stufenform: **irgendein** Punkt, der jede Gleichung trifft. Er liegt beim Aufbau-Plan zwischen −92.000 und +146.000 Sätzen je Übung, beim Cut bei ±18 Millionen. Als Plan ist das Unsinn, als Startpunkt ist es alles. |
+| `nullbasis()` | Die Kernvektoren: was man addieren darf, ohne eine Gleichung zu ändern. Der kürzeste tauscht einen Satz Crunches gegen einen Satz hängendes Knieheben. |
+| `_babai()` | Rückt die Partikulärlösung in **einem Zug** in die Nähe des erlaubten Bereichs – das reelle Ausgleichsproblem lösen, Koeffizienten runden. |
+| `landepunkt()` | Von dort eine lokale Suche entlang der Kernvektoren. Jeder Schritt lässt die Gleichungen unverändert; gesucht wird nur noch der Weg über die Grenzen. |
+
+Gemessen: **alle vier Varianten unter zwei Sekunden**. Und – das ist der
+eigentliche Punkt – auch 25 von 25 künstlich verschobenen Zielsätzen, die
+vorher allesamt an der Tiefensuche gescheitert wären; schlechtester Fall 17
+Sekunden. Wer ein Wochenziel ändert, bekommt jetzt einen Plan, statt vor zehn
+Stunden Rechenzeit ohne Ergebnis zu stehen.
+
+Zwei Details, beide teuer gelernt:
+
+* **Die Körnung steckt im Gitter, nicht in der Prüfung.** Gerechnet wird mit
+  `skala=GRAIN`, also in Dreierblöcken; was herauskommt, ist durch drei
+  teilbar, weil es gar nicht anders sein kann. Der erste Entwurf prüfte die
+  Teilbarkeit hinterher und fand lauter Lösungen mit 26 und 37 Sätzen.
+* **Plateaulauf statt reinem Abstieg.** Wer nur echte Verbesserungen nimmt,
+  bleibt reproduzierbar bei Abstand 1 stehen: ein einziger Wert knapp
+  außerhalb, und kein einzelner Kernvektor bringt ihn hinein, ohne anderswo
+  genauso viel zu zerstören. Gleich gute Züge zuzulassen löst das.
+
+**Damit ist die Krücke weg.** Bis v185 las der Generator seine eigene letzte
+Ausgabe als Startpunkt – er konnte nichts finden, was nicht schon dastand.
+`startpunkt()` und `freiraeumen()` sind ersatzlos gelöscht; der Generator steht
+auf eigenen Füßen. Im Bericht steht dann `Nullraum · Nullraum` statt einer
+Knotenzahl.
+
+#### Die Obergrenze war nie eine Wochengrenze
+
+`capped()` prüft die Plansumme gegen `CAP × Wochen` – also den **Durchschnitt**.
+Ob eine einzelne Woche darüber liegt, hat bis v186 niemand nachgesehen, und der
+Plan wird nicht im Schnitt trainiert, sondern Woche für Woche. Nachgemessen:
+
+| | |
+| --- | --- |
+| vordere Schulter (Aufbau, bw) | bis **13,90** bei Grenze 10, in 7 von 21 Wochen |
+| Brust (Aufbau, bw) | bis **13,00** bei Grenze 10, in 8 von 21 Wochen |
+| Gesäß (bbp) | bis **16,35** bei Grenze 12, in **21 von 21** Wochen |
+
+Der letzte Fall war kein Rundungsrest, sondern ein Widerspruch in den Vorgaben:
+Im Bauch-Beine-Po-Plan steht das Gesäß auf **Ziel 15 bei Grenze 12**. Der Plan
+*muss* im Schnitt 15 liefern und liegt damit zwangsläufig über seiner eigenen
+Grenze. Zwei Zahlen, die einander ausschließen.
+
+Aufgelöst wird das nicht durch Verstellen einer Zahl, sondern durch die
+Bedeutung: Wer für eine Gruppe ein Ziel setzt, hat damit gesagt, dass sie so
+viel abbekommen soll – ihre Grenze ist dann mindestens ihr Ziel (`CAP_FUER`).
+Für alle anderen bleibt `CAP`, wie es war; eine globale Anhebung auf 15 hätte
+auch Nacken und vorderer Schulter drei Sätze mehr erlaubt, die niemand
+bestellt hat.
+
+**Was bleibt, ist die Körnung, und die ist rechnerisch erzwungen.** Brust,
+Rücken, Bizeps und Trizeps stehen im Aufbau-Plan alle auf Ziel 10 bei Grenze
+10. Der Schnitt muss exakt 10,00 treffen, gearbeitet wird in Dreiersätzen –
+also gibt es nur 9 und 12. Aus `9a + 12b = 210` und `a + b = 21` folgt `b = 7`:
+genau sieben Wochen bei 12, vierzehn bei 9. Der ausgelieferte Plan trifft das
+auf den Satz genau. Für diese Gruppen ist **+2,00 das Optimum**, nicht ein
+Versäumnis.
+
+Nachgesehen wird das ab v186 von `tools/pruefung/wochen-cap.py`, mit einer
+Schranke statt eines Nullwerts – eine Prüfung, die null verlangt, wäre ein
+Verbot des Plans.
+
+**Was dabei nicht geholfen hat, und das gehört dazu:** eine eigene Strafe für
+die Obergrenze in der Wochenverteilung. Naheliegend, gebaut, gemessen:
+
+    ausgeliefert              db +2,15 (23 % der Gruppenwochen darüber)
+                              bw +3,90 (27 %)
+    Gitter, ohne cap-Strafe   db +2,00 (19 %)   bw +2,00 (19 %)
+    Gitter + cap-Strafe       db +2,00 (18 %)   bw +2,45 (17 %)
+
+Der Gewinn kam vom Gitterweg in Schritt 1 – von besseren *Plansummen* –, nicht
+von der Strafe in Schritt 2. Die machte den schlechtesten Wert im
+Bodyweight-Modus sogar größer. Sie ist deshalb wieder raus.
 
 **Was die Ziele bewirken.** Die Gleichungen lassen weniger Spielraum, als man
 denkt – wer eine Zahl ändert, sieht es an ganz anderer Stelle:
