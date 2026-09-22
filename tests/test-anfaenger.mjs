@@ -357,6 +357,44 @@ console.log('     + sagt:', sagt);
 check(/fehlt/.test(sagt || ''), `und sagt, woran es liegt (${sagt})`);
 await page.evaluate(async () => (await import('./js/store.js')).setSetting('fehlt', []));
 
+// --- 8. Der Bizeps hat dieselbe Auswahl ---------------------------------
+//
+// Gemeldet: „SZ curls tun echt in den unterarmen iwie weh. Ich spür den
+// Knochen iwie ganz stark oder so." Der Hinweistext der SZ-Curls empfahl
+// Hammercurls schon beim Namen – nur gab es sie im Katalog nicht. Jetzt gibt
+// es sie, und weil die Anteile identisch sind, stehen sie ohne weiteres Zutun
+// in derselben Auswahl. Geprüft wird beides: dass sie da sind, und dass der
+// Tausch die Wochenmengen nicht anfasst.
+const curlWahl = await page.evaluate(async () => {
+  const { fassungen } = await import('./js/plan.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const ids = fassungen({ id: 'sz-curls' }).liste.map((x) => x.id);
+  return {
+    ids,
+    anteile: ids.map((id) => JSON.stringify(EX_BY_ID.get(id).db.shares)),
+    equip: ids.map((id) => EX_BY_ID.get(id).db.equip),
+  };
+});
+console.log('     Curl-Auswahl:', curlWahl.ids.join(' | '));
+check(curlWahl.ids.includes('hammer-curls'),
+  'die Hammercurls stehen an der SZ-Curl-Karte zur Wahl');
+check(new Set(curlWahl.anteile).size === 1,
+  `und alle drei haben dieselben Anteile (${curlWahl.anteile[0]}) – der Tausch verschiebt keine Wochenmenge`);
+check(new Set(curlWahl.equip).size === curlWahl.equip.length,
+  `jede mit eigenem Gerät (${curlWahl.equip.join(', ')}) – sonst wäre es keine Ausweichmöglichkeit`);
+
+// Das Bewegungsbild muss sich unterscheiden, sonst ist der Tausch unsichtbar.
+// Bei zwei Curls liegt der Unterschied allein in der Hand, und die hat ein
+// Strichmännchen nicht – sichtbar wird er nur an der Lage der Hantel.
+const bilder = await page.evaluate(async () => {
+  const { PATTERNS } = await import('./js/figure.js');
+  return { curl: !!PATTERNS.curl, hammer: !!PATTERNS.hammercurl,
+    laengs: !!PATTERNS.hammercurl?.hantelLaengs, quer: !!PATTERNS.curl?.hantelLaengs };
+});
+check(bilder.curl && bilder.hammer, 'beide Curls haben ein eigenes Bewegungsbild');
+check(bilder.laengs && !bilder.quer,
+  'und die Hantel liegt beim Hammercurl längs, beim gewöhnlichen quer');
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

@@ -137,10 +137,15 @@ export const INJURIES = [
     text: 'Die lange Bizepssehne läuft durch eine Rinne am Oberarmkopf. Sie reibt bei '
       + 'Zug mit gestrecktem Arm und bei allem, was den Unterarm gegen Widerstand '
       + 'nach außen dreht – Curls und Klimmzüge im Untergriff also.',
+    // Der Hammercurl steht mit auf der Liste, obwohl er den Unterarm gerade
+    // *nicht* nach außen dreht. Das Aufdrehen reizt am stärksten, es ist aber
+    // nicht die einzige Last: Der Bizeps zieht über dieselbe Sehne, ob die
+    // Hand dabei gedreht ist oder nicht. Er ist hier der mildere von beiden
+    // Curls und trotzdem keiner, den man auf eine gereizte Sehne legt.
     avoid: ['sz-curls', 'chin-ups',
       'haengendes-knieheben', 'pull-ups',
       'inverted-row',
-      'rucksack-curls'],
+      'rucksack-curls', 'hammer-curls'],
     // Ersatz ist das Rudern, nicht der Obergriff: Pull-ups drehen den Unterarm
     // zwar nicht nach außen, hängen ihn aber gestreckt an die Stange – und
     // genau dieser Zug reizt die Sehne ebenfalls.
@@ -159,7 +164,7 @@ export const INJURIES = [
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
       'haengendes-knieheben',
       'inverted-row', 'trizeps-strecken-stange',
-      'rucksack-curls',
+      'rucksack-curls', 'hammer-curls',
       'rucksack-rudern'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: [
@@ -175,7 +180,7 @@ export const INJURIES = [
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
       'haengendes-knieheben',
       'inverted-row', 'trizeps-strecken-stange',
-      'rucksack-curls',
+      'rucksack-curls', 'hammer-curls',
       'rucksack-rudern'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['beugerExzentrik', 'beugerDehnen', 'handgelenkMobil'],
@@ -220,7 +225,7 @@ export const INJURIES = [
       'gewichtete-crunches',
       'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart', 'face-pull',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel',
-      'flaschen-seitheben', 'rucksack-curls', 'trizeps-strecken-stange',
+      'flaschen-seitheben', 'rucksack-curls', 'hammer-curls', 'trizeps-strecken-stange',
       'rucksack-rudern', 'sitzendes-flaschen-seitheben'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
@@ -231,10 +236,13 @@ export const INJURIES = [
     area: 'Handgelenk', spot: 'wrist', kind: 'reizung',
     text: 'De Quervain: die Sehnen zum Daumen laufen durch ein zu enges Fach an der '
       + 'Speichenseite. Alles, was fest gegriffen wird, zieht daran.',
+    // De Quervain trifft die Speichenseite, und dort liegt beim Hammergriff
+    // der Daumen oben unter der ganzen Last. Er ist hier nicht der sanftere
+    // Curl, sondern der unangenehmere.
     avoid: ['chin-ups', 'pull-ups', 'einarmiges-kh-rudern', 'sz-curls',
       'haengendes-knieheben',
       'inverted-row',
-      'rucksack-curls',
+      'rucksack-curls', 'hammer-curls',
       'rucksack-rudern'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['streckerDehnen', 'fingerstrecker', 'handgelenkMobil'],

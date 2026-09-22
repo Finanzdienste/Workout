@@ -73,6 +73,11 @@
           "erzeugt_mit": null,
           "jetzt": "neu im Katalog",
           "grund": "Zwei Uebungen dazu, und wieder nicht fuer die Plaene, sondern damit zwei Muskelgruppen mehr als eine eigene Uebung haben: Trizepsstrecken an der Stange und Beckenheben. Der Anlass ist gemessen (tests/test-katalog.mjs): Genau eine Uebung im Katalog hatte den Trizeps als Hauptmuskel (der Ueberkopf-Trizepsstrecker) und genau eine das Gesaess (der Hip Thrust). Wer eine davon abwaehlt oder wegen einer Verletzung auslaesst, trainiert die Gruppe danach nur noch nebenbei beim Druecken bzw. beim Kreuzheben - die zweitbeste Uebung bringt jeweils ihren eigenen Hauptmuskel mit. Die Muskelanteile sind Ziffer fuer Ziffer dieselben wie beim Vorbild, der Tausch verschiebt die Wochenziele also nicht. Ob und wo sie in einem Plan steht, rechnet plan-frisch.py bei jedem Lauf selbst aus und schreibt es neben den Schluessel - im Text stand es frueher und war nach dem Neulauf vom 17.09. bei zehn von vierzehn Eintraegen falsch. Genau dafuer sind sie da: als Ersatz, wenn die erste ausfaellt."
+        },
+        "hammer-curls": {
+          "erzeugt_mit": null,
+          "jetzt": "neu im Katalog",
+          "grund": "Hammercurls neu im Katalog, und ausdruecklich nicht fuer die Plaene: nurErsatz, also nur als Tauschziel an der Uebungskarte. Der Anlass ist eine Rueckmeldung zum Training - die SZ-Stange tat im Unterarm weh, \"man spuert den Knochen\". Eine Stange bindet beide Haende an dieselbe feste Drehung; zwei Kurzhanteln lassen jedem Unterarm die seine, und der Hammergriff stellt ihn in die Mittelstellung. Der Hinweistext der SZ-Curls empfahl genau das schon seit Langem beim Namen ('Hammercurls mit Kurzhanteln halten das Handgelenk neutral') - nur gab es die Uebung nicht, die er empfahl.\n\nDie Anteile sind identisch zu sz-curls und rucksack-curls ({biceps: 1.0} auf beiden Seiten), und das ist der Grund, warum die Plaene hier nichts merken: Der Tausch verschiebt keine einzige Wochenmenge. Brachialis und Brachioradialis bekommen beim Hammergriff mehr ab, aber die App kennt keine Gruppe fuer den Unterarm - eine erfundene Gruppe waere eine Zahl, die nichts misst."
         }
       },
       "felder": {
@@ -613,7 +618,13 @@
     },
     "bbp": {
       "fingerabdruck": "fa832faee55dd577",
-      "hingenommen": {},
+      "hingenommen": {
+        "hammer-curls": {
+          "erzeugt_mit": null,
+          "jetzt": "neu im Katalog",
+          "grund": "Hammercurls neu im Katalog, und ausdruecklich nicht fuer die Plaene: nurErsatz, also nur als Tauschziel an der Uebungskarte. Der Anlass ist eine Rueckmeldung zum Training - die SZ-Stange tat im Unterarm weh, \"man spuert den Knochen\". Eine Stange bindet beide Haende an dieselbe feste Drehung; zwei Kurzhanteln lassen jedem Unterarm die seine, und der Hammergriff stellt ihn in die Mittelstellung. Der Hinweistext der SZ-Curls empfahl genau das schon seit Langem beim Namen ('Hammercurls mit Kurzhanteln halten das Handgelenk neutral') - nur gab es die Uebung nicht, die er empfahl.\n\nDie Anteile sind identisch zu sz-curls und rucksack-curls ({biceps: 1.0} auf beiden Seiten), und das ist der Grund, warum die Plaene hier nichts merken: Der Tausch verschiebt keine einzige Wochenmenge. Brachialis und Brachioradialis bekommen beim Hammergriff mehr ab, aber die App kennt keine Gruppe fuer den Unterarm - eine erfundene Gruppe waere eine Zahl, die nichts misst."
+        }
+      },
       "felder": {
         "band-pull-apart": {
           "dbShares": {
@@ -1152,7 +1163,13 @@
     },
     "cut": {
       "fingerabdruck": "fa832faee55dd577",
-      "hingenommen": {},
+      "hingenommen": {
+        "hammer-curls": {
+          "erzeugt_mit": null,
+          "jetzt": "neu im Katalog",
+          "grund": "Hammercurls neu im Katalog, und ausdruecklich nicht fuer die Plaene: nurErsatz, also nur als Tauschziel an der Uebungskarte. Der Anlass ist eine Rueckmeldung zum Training - die SZ-Stange tat im Unterarm weh, \"man spuert den Knochen\". Eine Stange bindet beide Haende an dieselbe feste Drehung; zwei Kurzhanteln lassen jedem Unterarm die seine, und der Hammergriff stellt ihn in die Mittelstellung. Der Hinweistext der SZ-Curls empfahl genau das schon seit Langem beim Namen ('Hammercurls mit Kurzhanteln halten das Handgelenk neutral') - nur gab es die Uebung nicht, die er empfahl.\n\nDie Anteile sind identisch zu sz-curls und rucksack-curls ({biceps: 1.0} auf beiden Seiten), und das ist der Grund, warum die Plaene hier nichts merken: Der Tausch verschiebt keine einzige Wochenmenge. Brachialis und Brachioradialis bekommen beim Hammergriff mehr ab, aber die App kennt keine Gruppe fuer den Unterarm - eine erfundene Gruppe waere eine Zahl, die nichts misst."
+        }
+      },
       "felder": {
         "band-pull-apart": {
           "dbShares": {
@@ -1691,7 +1708,13 @@
     },
     "oberkoerper": {
       "fingerabdruck": "fa832faee55dd577",
-      "hingenommen": {},
+      "hingenommen": {
+        "hammer-curls": {
+          "erzeugt_mit": null,
+          "jetzt": "neu im Katalog",
+          "grund": "Hammercurls neu im Katalog, und ausdruecklich nicht fuer die Plaene: nurErsatz, also nur als Tauschziel an der Uebungskarte. Der Anlass ist eine Rueckmeldung zum Training - die SZ-Stange tat im Unterarm weh, \"man spuert den Knochen\". Eine Stange bindet beide Haende an dieselbe feste Drehung; zwei Kurzhanteln lassen jedem Unterarm die seine, und der Hammergriff stellt ihn in die Mittelstellung. Der Hinweistext der SZ-Curls empfahl genau das schon seit Langem beim Namen ('Hammercurls mit Kurzhanteln halten das Handgelenk neutral') - nur gab es die Uebung nicht, die er empfahl.\n\nDie Anteile sind identisch zu sz-curls und rucksack-curls ({biceps: 1.0} auf beiden Seiten), und das ist der Grund, warum die Plaene hier nichts merken: Der Tausch verschiebt keine einzige Wochenmenge. Brachialis und Brachioradialis bekommen beim Hammergriff mehr ab, aber die App kennt keine Gruppe fuer den Unterarm - eine erfundene Gruppe waere eine Zahl, die nichts misst."
+        }
+      },
       "felder": {
         "band-pull-apart": {
           "dbShares": {

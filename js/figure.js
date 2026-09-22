@@ -627,6 +627,25 @@ export const PATTERNS = {
       { lean: 3, arm: A(12, 8, 126), leg: L(2, 5, 4) },   // oben auf Brusthöhe, nicht am Kinn
     ],
   },
+  hammercurl: {
+    // Dieselbe Bewegung wie `curl`, und deshalb dieselben Winkel – der
+    // Unterschied steckt allein in der Hand. Beim Hammercurl zeigen die
+    // Handflächen zueinander, die Hantel liegt also längs zum Körper statt
+    // quer. Genau das ist der Punkt der Übung: Der Unterarm bleibt in der
+    // Mittelstellung zwischen Auf- und Zudrehen, und das Handgelenk muss
+    // unter Last nichts halten, was es nicht von selbst tut.
+    //
+    // Die Winkel der Figur können das nicht zeigen – ein Strichmännchen hat
+    // keine Handfläche. Sichtbar wird es nur an der Hantel, und darum steht
+    // hier `hantelLaengs`. Ohne die Kennzeichnung sähe das Bild aus wie das
+    // der SZ-Curls, und der Tausch, um den es hier geht, wäre unsichtbar.
+    hantelLaengs: true,
+    label: 'Hammercurl',
+    poses: [
+      { lean: 3, arm: A(4, 8, 6), leg: L(2, 5, 4) },
+      { lean: 3, arm: A(12, 8, 126), leg: L(2, 5, 4) },
+    ],
+  },
   triceps: {
     // Oberarm bleibt senkrecht stehen, nur der Ellenbogen arbeitet
     label: 'Trizeps-Strecken', lie: 'supine', view: [20, -30],
@@ -1221,7 +1240,14 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     if (equip === 'dumbbells') {
       // 0.085 waren 19 cm – so kurz, dass sich die beiden Scheiben aus den
       // meisten Blickwinkeln zu einem einzigen Fleck überdeckten.
-      [pts0.handL, pts0.handR].forEach((h) => barAt(h, sideAxis, 0.13, 3.4));
+      //
+      // Quer zum Körper liegt die Hantel bei aufgedrehtem Unterarm – so hält
+      // man sie beim Seitheben, beim Drücken, beim gewöhnlichen Curl. Zeigen
+      // die Handflächen dagegen zueinander (Hammercurl), liegt sie längs,
+      // also in Blickrichtung. Das ist der einzige sichtbare Unterschied
+      // zwischen den beiden Curls, und ohne ihn wären es zwei gleiche Bilder.
+      const achse = spec.hantelLaengs ? frontAxis : sideAxis;
+      [pts0.handL, pts0.handR].forEach((h) => barAt(h, achse, 0.13, 3.4));
     } else if (equip === 'onehand') {
       barAt(pts0.handR, sideAxis, 0.13, 3.4);
     } else if (equip === 'goblet') {

@@ -3048,6 +3048,69 @@ const EXERCISES = [
     }
   },
   {
+    "id": "hammer-curls",
+    "group": "Bizeps",
+    "weight": 8,
+    "step": 1,
+    "weightNote": "je Hand",
+    "equip": "dumbbells",
+    "tier": 3,
+    "detail": [
+      [
+        "Wofür der Hammergriff da ist",
+        "Eine Stange bindet beide Hände an dieselbe Drehung, und die bleibt über den ganzen Weg dieselbe – bei der SZ-Stange leicht aufgedreht, bei der geraden ganz. Der Unterarm hätte unterwegs gern etwas anderes, kann aber nicht: Die Stange hält ihn fest, weil die andere Hand am selben Rohr hängt.\n\nMit zwei Kurzhanteln fällt diese Kopplung weg. Der Hammergriff stellt den Unterarm in die Mittelstellung zwischen Auf- und Zudrehen – die Stellung, in der Speiche und Elle parallel nebeneinander liegen statt übereinander. Wer an der SZ-Stange etwas im Unterarm oder am Handgelenk spürt, das sich eher nach Knochen als nach Muskel anfühlt, probiert sinnvollerweise zuerst das hier."
+      ],
+      [
+        "Was er trifft",
+        "Denselben Muskel, und noch zwei dazu. Der Bizeps beugt den Ellenbogen in jeder Handstellung; in der Mittelstellung kommen Brachialis und Brachioradialis stärker dazu, und das sind die beiden, die einen Unterarm füllen. In den Wochenmengen dieser App zählt er deshalb genau wie die SZ-Curls – die App kennt keine eigene Gruppe für den Unterarm, und so zu tun, als wäre der Tausch eine andere Belastung, wäre eine Zahl, die nichts misst."
+      ],
+      [
+        "Ellenbogen am Rumpf",
+        "Wandern sie nach vorn, wird aus dem Beugen ein Heben aus der Schulter. Das sieht nach mehr Weg aus und ist weniger Arbeit für den Muskel, um den es geht. Ein Punkt an der Wand im Rücken hilft: Berühren die Ellenbogen sie nicht mehr, ist der Satz zu Ende."
+      ],
+      [
+        "Ablassen",
+        "Zwei bis drei Sekunden, wie bei jedem Curl. Das Ablassen ist der Teil, an dem der Muskel wächst, und der Teil, den fast alle abkürzen."
+      ]
+    ],
+    "db": {
+      "name": "Hammercurls",
+      "reps": "10–20",
+      "equip": "Kurzhanteln",
+      "cue": "Kurzhanteln neben den Oberschenkeln, Handflächen zeigen zueinander – Daumen oben, und das bleibt so. Ellenbogen am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, zwei bis drei Sekunden ablassen. Dreht sich die Hand unterwegs auf, ist das Gewicht zu hoch: Die neutrale Stellung ist hier nicht Geschmackssache, sie ist der Grund für die Übung.",
+      "rest": 120,
+      "pattern": "hammercurl",
+      "shares": {
+        "biceps": 1.0
+      },
+      "muscles": [
+        "biceps"
+      ],
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
+    },
+    "bw": {
+      "name": "Band-Hammercurls",
+      "reps": "10–20",
+      "equip": "Loop-Band",
+      "cue": "Band unter beide Füße, Enden in den Händen, Handflächen zeigen zueinander. Ellenbogen am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Schwerer wird es mit breiterem Stand auf dem Band.",
+      "rest": 120,
+      "pattern": "curl",
+      "shares": {
+        "biceps": 1.0
+      },
+      "muscles": [
+        "biceps"
+      ],
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
+    }
+  },
+  {
     "id": "sitzendes-schulterdruecken",
     "group": "Schulter",
     "weight": 10,
@@ -5132,6 +5195,25 @@ const PATTERNS = {
       { lean: 3, arm: A(12, 8, 126), leg: L(2, 5, 4) },   // oben auf Brusthöhe, nicht am Kinn
     ],
   },
+  hammercurl: {
+    // Dieselbe Bewegung wie `curl`, und deshalb dieselben Winkel – der
+    // Unterschied steckt allein in der Hand. Beim Hammercurl zeigen die
+    // Handflächen zueinander, die Hantel liegt also längs zum Körper statt
+    // quer. Genau das ist der Punkt der Übung: Der Unterarm bleibt in der
+    // Mittelstellung zwischen Auf- und Zudrehen, und das Handgelenk muss
+    // unter Last nichts halten, was es nicht von selbst tut.
+    //
+    // Die Winkel der Figur können das nicht zeigen – ein Strichmännchen hat
+    // keine Handfläche. Sichtbar wird es nur an der Hantel, und darum steht
+    // hier `hantelLaengs`. Ohne die Kennzeichnung sähe das Bild aus wie das
+    // der SZ-Curls, und der Tausch, um den es hier geht, wäre unsichtbar.
+    hantelLaengs: true,
+    label: 'Hammercurl',
+    poses: [
+      { lean: 3, arm: A(4, 8, 6), leg: L(2, 5, 4) },
+      { lean: 3, arm: A(12, 8, 126), leg: L(2, 5, 4) },
+    ],
+  },
   triceps: {
     // Oberarm bleibt senkrecht stehen, nur der Ellenbogen arbeitet
     label: 'Trizeps-Strecken', lie: 'supine', view: [20, -30],
@@ -5726,7 +5808,14 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     if (equip === 'dumbbells') {
       // 0.085 waren 19 cm – so kurz, dass sich die beiden Scheiben aus den
       // meisten Blickwinkeln zu einem einzigen Fleck überdeckten.
-      [pts0.handL, pts0.handR].forEach((h) => barAt(h, sideAxis, 0.13, 3.4));
+      //
+      // Quer zum Körper liegt die Hantel bei aufgedrehtem Unterarm – so hält
+      // man sie beim Seitheben, beim Drücken, beim gewöhnlichen Curl. Zeigen
+      // die Handflächen dagegen zueinander (Hammercurl), liegt sie längs,
+      // also in Blickrichtung. Das ist der einzige sichtbare Unterschied
+      // zwischen den beiden Curls, und ohne ihn wären es zwei gleiche Bilder.
+      const achse = spec.hantelLaengs ? frontAxis : sideAxis;
+      [pts0.handL, pts0.handR].forEach((h) => barAt(h, achse, 0.13, 3.4));
     } else if (equip === 'onehand') {
       barAt(pts0.handR, sideAxis, 0.13, 3.4);
     } else if (equip === 'goblet') {
@@ -6741,10 +6830,15 @@ const INJURIES = [
     text: 'Die lange Bizepssehne läuft durch eine Rinne am Oberarmkopf. Sie reibt bei '
       + 'Zug mit gestrecktem Arm und bei allem, was den Unterarm gegen Widerstand '
       + 'nach außen dreht – Curls und Klimmzüge im Untergriff also.',
+    // Der Hammercurl steht mit auf der Liste, obwohl er den Unterarm gerade
+    // *nicht* nach außen dreht. Das Aufdrehen reizt am stärksten, es ist aber
+    // nicht die einzige Last: Der Bizeps zieht über dieselbe Sehne, ob die
+    // Hand dabei gedreht ist oder nicht. Er ist hier der mildere von beiden
+    // Curls und trotzdem keiner, den man auf eine gereizte Sehne legt.
     avoid: ['sz-curls', 'chin-ups',
       'haengendes-knieheben', 'pull-ups',
       'inverted-row',
-      'rucksack-curls'],
+      'rucksack-curls', 'hammer-curls'],
     // Ersatz ist das Rudern, nicht der Obergriff: Pull-ups drehen den Unterarm
     // zwar nicht nach außen, hängen ihn aber gestreckt an die Stange – und
     // genau dieser Zug reizt die Sehne ebenfalls.
@@ -6763,7 +6857,7 @@ const INJURIES = [
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
       'haengendes-knieheben',
       'inverted-row', 'trizeps-strecken-stange',
-      'rucksack-curls',
+      'rucksack-curls', 'hammer-curls',
       'rucksack-rudern'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: [
@@ -6779,7 +6873,7 @@ const INJURIES = [
     avoid: ['chin-ups', 'pull-ups', 'sz-curls', 'einarmiges-kh-rudern',
       'haengendes-knieheben',
       'inverted-row', 'trizeps-strecken-stange',
-      'rucksack-curls',
+      'rucksack-curls', 'hammer-curls',
       'rucksack-rudern'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['beugerExzentrik', 'beugerDehnen', 'handgelenkMobil'],
@@ -6824,7 +6918,7 @@ const INJURIES = [
       'gewichtete-crunches',
       'split-squat', 'sitzendes-schulterdruecken', 'haengendes-knieheben', 'band-pull-apart', 'face-pull',
       'inverted-row', 'pike-liegestuetze', 'kurzhantel-bodenpresse', 'reverse-snow-angel',
-      'flaschen-seitheben', 'rucksack-curls', 'trizeps-strecken-stange',
+      'flaschen-seitheben', 'rucksack-curls', 'hammer-curls', 'trizeps-strecken-stange',
       'rucksack-rudern', 'sitzendes-flaschen-seitheben'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
@@ -6835,10 +6929,13 @@ const INJURIES = [
     area: 'Handgelenk', spot: 'wrist', kind: 'reizung',
     text: 'De Quervain: die Sehnen zum Daumen laufen durch ein zu enges Fach an der '
       + 'Speichenseite. Alles, was fest gegriffen wird, zieht daran.',
+    // De Quervain trifft die Speichenseite, und dort liegt beim Hammergriff
+    // der Daumen oben unter der ganzen Last. Er ist hier nicht der sanftere
+    // Curl, sondern der unangenehmere.
     avoid: ['chin-ups', 'pull-ups', 'einarmiges-kh-rudern', 'sz-curls',
       'haengendes-knieheben',
       'inverted-row',
-      'rucksack-curls',
+      'rucksack-curls', 'hammer-curls',
       'rucksack-rudern'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['streckerDehnen', 'fingerstrecker', 'handgelenkMobil'],

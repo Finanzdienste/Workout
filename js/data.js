@@ -1285,6 +1285,69 @@ export const EXERCISES = [
     }
   },
   {
+    "id": "hammer-curls",
+    "group": "Bizeps",
+    "weight": 8,
+    "step": 1,
+    "weightNote": "je Hand",
+    "equip": "dumbbells",
+    "tier": 3,
+    "detail": [
+      [
+        "Wofür der Hammergriff da ist",
+        "Eine Stange bindet beide Hände an dieselbe Drehung, und die bleibt über den ganzen Weg dieselbe – bei der SZ-Stange leicht aufgedreht, bei der geraden ganz. Der Unterarm hätte unterwegs gern etwas anderes, kann aber nicht: Die Stange hält ihn fest, weil die andere Hand am selben Rohr hängt.\n\nMit zwei Kurzhanteln fällt diese Kopplung weg. Der Hammergriff stellt den Unterarm in die Mittelstellung zwischen Auf- und Zudrehen – die Stellung, in der Speiche und Elle parallel nebeneinander liegen statt übereinander. Wer an der SZ-Stange etwas im Unterarm oder am Handgelenk spürt, das sich eher nach Knochen als nach Muskel anfühlt, probiert sinnvollerweise zuerst das hier."
+      ],
+      [
+        "Was er trifft",
+        "Denselben Muskel, und noch zwei dazu. Der Bizeps beugt den Ellenbogen in jeder Handstellung; in der Mittelstellung kommen Brachialis und Brachioradialis stärker dazu, und das sind die beiden, die einen Unterarm füllen. In den Wochenmengen dieser App zählt er deshalb genau wie die SZ-Curls – die App kennt keine eigene Gruppe für den Unterarm, und so zu tun, als wäre der Tausch eine andere Belastung, wäre eine Zahl, die nichts misst."
+      ],
+      [
+        "Ellenbogen am Rumpf",
+        "Wandern sie nach vorn, wird aus dem Beugen ein Heben aus der Schulter. Das sieht nach mehr Weg aus und ist weniger Arbeit für den Muskel, um den es geht. Ein Punkt an der Wand im Rücken hilft: Berühren die Ellenbogen sie nicht mehr, ist der Satz zu Ende."
+      ],
+      [
+        "Ablassen",
+        "Zwei bis drei Sekunden, wie bei jedem Curl. Das Ablassen ist der Teil, an dem der Muskel wächst, und der Teil, den fast alle abkürzen."
+      ]
+    ],
+    "db": {
+      "name": "Hammercurls",
+      "reps": "10–20",
+      "equip": "Kurzhanteln",
+      "cue": "Kurzhanteln neben den Oberschenkeln, Handflächen zeigen zueinander – Daumen oben, und das bleibt so. Ellenbogen am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, zwei bis drei Sekunden ablassen. Dreht sich die Hand unterwegs auf, ist das Gewicht zu hoch: Die neutrale Stellung ist hier nicht Geschmackssache, sie ist der Grund für die Übung.",
+      "rest": 120,
+      "pattern": "hammercurl",
+      "shares": {
+        "biceps": 1.0
+      },
+      "muscles": [
+        "biceps"
+      ],
+      "stufen": {},
+      "braucht": [
+        "kurzhantel"
+      ]
+    },
+    "bw": {
+      "name": "Band-Hammercurls",
+      "reps": "10–20",
+      "equip": "Loop-Band",
+      "cue": "Band unter beide Füße, Enden in den Händen, Handflächen zeigen zueinander. Ellenbogen am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Schwerer wird es mit breiterem Stand auf dem Band.",
+      "rest": 120,
+      "pattern": "curl",
+      "shares": {
+        "biceps": 1.0
+      },
+      "muscles": [
+        "biceps"
+      ],
+      "stufen": {},
+      "braucht": [
+        "band"
+      ]
+    }
+  },
+  {
     "id": "sitzendes-schulterdruecken",
     "group": "Schulter",
     "weight": 10,
