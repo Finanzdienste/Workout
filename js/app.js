@@ -48,7 +48,7 @@ import {
   erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
 } from './ansicht-statistik.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
+import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachbarn, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat, uebungGeht } from './vorrat.js';
@@ -2604,32 +2604,51 @@ function fassungRow(it, mode) {
   const grund = ersatzGrund(it);
   if (grund && grund.warum === 'vorrat') return '';
   const f = fassungen(it);
-  if (!f) return '';
+  const n = nachbarn(it);
+  if (!f && !n) return '';
   const seite = mode === 'bw' ? 'bw' : 'db';
   const WIE = { leichter: 'leichter', schwerer: 'schwerer' };
-  const knopf = ({ id, wie }) => {
+  const plan = (f || n).plan;
+  const jetzt = (f || n).jetzt;
+  const knopf = ({ id, wie, kosten }) => {
     const ex = EX_BY_ID.get(id);
     if (!ex) return '';
-    const dran = id === f.jetzt;
+    const dran = id === jetzt;
     // Ein Knopf auf eine Übung, deren Gerät fehlt, verspricht etwas, das nicht
     // kommt: Der Gerätefilter läuft danach und tauscht sie wieder weg.
     const moeglich = uebungGeht(id, mode);
-    const zusatz = moeglich ? (WIE[wie] || ex[seite].equip) : 'Gerät fehlt';
+    // Der Preis steht am Knopf und nicht in einer Fußnote: Er ist klein, aber
+    // er ist nicht null, und „nichts darf unbemerkt passieren" gilt auch für
+    // anderthalb Sätze Trapez.
+    const preis = kosten
+      ? `${kosten.delta > 0 ? '+' : '−'}${Math.abs(kosten.delta).toFixed(2).replace('.', ',')} `
+        + `${MUSCLE_LABEL[kosten.gruppe] || kosten.gruppe}/Woche`
+      : null;
+    const zusatz = moeglich ? (preis || WIE[wie] || ex[seite].equip) : 'Gerät fehlt';
+    const sagt = moeglich
+      ? (preis ? `Auf ${ex[seite].name} wechseln – verschiebt ${preis}`
+        : `Auf ${ex[seite].name} wechseln`)
+      : `${ex[seite].name} geht gerade nicht – ${ex[seite].equip} fehlt`;
     return `
       <button type="button" class="btn btn-sm fassung-btn${dran ? ' btn-primary' : ''}"
-              data-act="fassung-waehlen" data-ex="${esc(f.plan)}" data-v="${esc(id)}"
+              data-act="fassung-waehlen" data-ex="${esc(plan)}" data-v="${esc(id)}"
               ${dran || !moeglich ? 'disabled' : ''} aria-pressed="${dran}"
-              aria-label="${esc(moeglich ? `Auf ${ex[seite].name} wechseln`
-    : `${ex[seite].name} geht gerade nicht – ${ex[seite].equip} fehlt`)}">
+              aria-label="${esc(sagt)}">
         <span class="fassung-name">${esc(ex[seite].name)}</span>
         <span class="fassung-wie">${esc(zusatz)}</span>
       </button>`;
   };
-  return `
-    <div class="ex-fassung">
+  // Zwei Reihen, und die Trennung ist der Punkt. Oben steht, was umsonst ist:
+  // dieselben Anteile, dieselbe Wochenrechnung. Unten steht, was etwas kostet.
+  // Beides in eine Reihe zu werfen hieße, genau den Unterschied zu
+  // verschweigen, auf den es ankommt.
+  const oben = f ? `
       <div class="lbl">Dieselben Muskeln, andere Übung</div>
-      <div class="btn-row">${f.liste.map(knopf).join('')}</div>
-    </div>`;
+      <div class="btn-row">${f.liste.map(knopf).join('')}</div>` : '';
+  const unten = n ? `
+      <div class="lbl lbl-nah">Fast dasselbe – und was es je Woche verschiebt</div>
+      <div class="btn-row">${n.liste.map(knopf).join('')}</div>` : '';
+  return `<div class="ex-fassung">${oben}${unten}</div>`;
 }
 
 function aufwaermZeile(it, mode, n) {

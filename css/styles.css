@@ -332,6 +332,10 @@ button { font: inherit; color: inherit; }
    Gerät. Umbrechend, weil beim Seitheben vier zur Wahl stehen. */
 .ex-fassung { padding: 0 14px 10px; }
 .ex-fassung > .lbl { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+/* Die zweite Reihe kostet etwas, und das soll man sehen, bevor man tippt: eine
+   eigene Überschrift mit Abstand darüber, damit sie nicht wie eine Fortsetzung
+   der ersten wirkt. */
+.ex-fassung > .lbl-nah { margin-top: 12px; }
 .ex-fassung .btn-row { flex-wrap: wrap; gap: 6px; }
 .fassung-btn {
   display: flex; flex-direction: column; align-items: flex-start; gap: 1px;

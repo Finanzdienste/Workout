@@ -610,8 +610,32 @@ export const PATTERNS = {
      *                        (y 0,62). Ellenbogenwinkel 60 statt 131 Grad.
      * Das ist die Form, die der Hinweis der Uebung seit jeher beschreibt:
      * Ellenbogen hoch und nach aussen, Haende neben den Schlaefen.
+     *
+     * **Und der Anker gehoert nicht ueber den Kopf.** Gemeldet:
+     *
+     *     „Face pull check ich iwie nicht so. Ausserdem ist die klimmzugstange
+     *      ja ganz weit oben eigentlich angebracht. Sicher dass face pull da
+     *      die Optimale Uebung ist?"
+     *
+     * Die Frage war berechtigt, und das Bild gab ihr recht. Mit ueberkopf 0.95
+     * ueber einer Hand auf 0.54 stieg das Band am Start mit **82 Grad** an,
+     * also praktisch senkrecht: Gezeichnet war ein Zug von ganz oben, und das
+     * ist ein Latzug und kein Face Pull. Ein Face Pull will das Band etwa aus
+     * Gesichtshoehe, waagerecht ins Gesicht gezogen - steht seit v190 auch im
+     * Hinweis der Uebung.
+     *
+     * Gemessen mit dem Anker auf Kopfhoehe (0.68) und weiter vorn (0.85):
+     *   t=0  Hand [0.32 0.54 0.52]  Band steigt 23 Grad
+     *   t=1  Hand [0.38 0.62 0.03]  Band steigt  4 Grad
+     * Die Arme selbst blieben, wie sie waren - sie stimmten. Ellenbogen am
+     * Ende auf Schulterhoehe (y 0.39) weit aussen (x 0.48), Hand neben der
+     * Schlaefe (y 0.62, Kopf 0.63).
+     *
+     * Weiter vorn heisst hier: einen Schritt zurueckgetreten. Das ist der
+     * erste der drei Wege, die der Hinweis nennt, und der einzige, der sich
+     * zeichnen laesst, ohne die Stange woanders hinzuhaengen.
      */
-    label: 'Face Pull', band: 'bar', ueberkopf: 0.95, ueberkopfZ: 0.58, view: [20, -8],
+    label: 'Face Pull', band: 'bar', ueberkopf: 0.68, ueberkopfZ: 0.85, view: [20, -8],
     poses: [
       { lean: 4, arm: A(104, 12, 8), leg: L(2, 5, 4) },
       { lean: 4, arm: A(8, 84, 4, 120), leg: L(2, 5, 4) },

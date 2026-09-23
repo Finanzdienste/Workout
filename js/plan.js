@@ -230,7 +230,15 @@ function anfaengerFassung(ex) {
     // schwerere wählt, bekommt sie auch als Anfänger, wer die leichtere wählt,
     // auch als Geübter. Erlaubt ist alles mit denselben Muskelanteilen – mehr
     // nicht, sonst verschöbe die Wahl still die Wochenziele.
-    const eigene = gleich.includes(wahl[it.id]) ? wahl[it.id] : null;
+    // Seit v190 zählt neben der Gleichheit auch die Nachbarschaft: fast
+    // anteilsgleiche Übungen stehen in einer zweiten Reihe zur Wahl, und was
+    // sie je Woche verschieben, steht am Knopf. Erlaubt ist also, was in
+    // *einer* der beiden Listen steht – alles andere bleibt abgewiesen, sonst
+    // könnte eine alte oder von Hand gesetzte Wahl still einen beliebigen
+    // Tausch durchsetzen.
+    const nah = nachbarschaft().get(it.id) || [];
+    const gewaehlt = wahl[it.id];
+    const eigene = (gleich.includes(gewaehlt) || nah.includes(gewaehlt)) ? gewaehlt : null;
     if (!eigene && (!ersatz || !EX_BY_ID.has(ersatz))) return it;
     const ziel = eigene || (anfaenger && ersatz ? ersatz : it.id);
     if (ziel === it.id) return it;
@@ -319,6 +327,133 @@ export function fassungen(item) {
       : ((EX_BY_ID.get(id) || {}).anfaenger === plan ? 'schwerer' : null),
   }));
   return { plan, jetzt: item.id, liste };
+}
+
+/**
+ * Fast anteilsgleiche Übungen – und was ein Wechsel wirklich kostet.
+ *
+ * Die harte Bedingung von fassungen() ist Gleichheit auf die Ziffer. Sie hat
+ * einen Preis, und zwei Rückmeldungen haben ihn sichtbar gemacht:
+ *
+ *     „Langhantelrudern merk ich iwie am meisten im unteren rücken."
+ *     „Face pull check ich iwie nicht so. Außerdem ist die klimmzugstange ja
+ *      ganz weit oben eigentlich angebracht."
+ *
+ * In beiden Fällen steht die mechanisch passende Antwort längst im Katalog –
+ * die Inverted Row hängt den Rumpf als steifes Brett zwischen Hände und Fersen,
+ * statt ihn vorgebeugt gegen eine Langhantel zu halten; der Reverse Snow Angel
+ * und das Band-Pull-Apart brauchen überhaupt keinen Ankerpunkt. Angeboten wurde
+ * keine davon, weil die Anteile um Kleinigkeiten abweichen: bei der Inverted Row
+ * um 0.25 Trapez und 0.10 hintere Schulter, beim Snow Angel um 0.10 Trapez.
+ *
+ * Diese Nachbarschaft wird jetzt gezeigt, aber getrennt von der freien Wahl und
+ * **mit dem Preis daran**. Der Preis ist gerechnet, nicht geschätzt: Für jede
+ * Woche des Plans wird die Differenz aus Sätzen mal Anteilen gebildet und die
+ * stärkste betroffene Gruppe genannt. Gemessen liegt sie zwischen 0.30 und 1.50
+ * Sätzen je Woche – klein, aber nicht null, und deshalb gehört sie an den Knopf
+ * und nicht in eine Fußnote.
+ *
+ * NACHBAR_ABSTAND ist der Abstand in der Summe aller vierzehn Gruppen (L1).
+ * Bei 0.35
+ * liegen genau die Nachbarschaften darin, die eine echte Ausweichbewegung sind:
+ * Rudern ↔ Inverted Row, Face Pull ↔ Snow Angel ↔ Pull-Apart, Chin-ups ↔
+ * Pull-ups, die drei Pressen, Hip Thrust ↔ Beckenheben. Ab 0.45 kippt es –
+ * dort steht Kreuzheben neben einbeinigem Kreuzheben und der Goblet Squat neben
+ * dem Split Squat, und das sind keine Fassungen mehr, sondern andere Übungen.
+ */
+const NACHBAR_ABSTAND = 0.35;
+
+let nachbarCache = null;
+
+function abstand(a, b, seite) {
+  const sa = a[seite].shares;
+  const sb = b[seite].shares;
+  return [...new Set([...Object.keys(sa), ...Object.keys(sb)])]
+    .reduce((s, g) => s + Math.abs((sa[g] || 0) - (sb[g] || 0)), 0);
+}
+
+function nachbarschaft() {
+  if (nachbarCache) return nachbarCache;
+  nachbarCache = new Map();
+  EXERCISES.forEach((a) => {
+    const gleich = anteilsgleich().get(a.id) || [];
+    const nah = EXERCISES.filter((b) => b.id !== a.id && !gleich.includes(b.id)
+      && Math.max(abstand(a, b, 'db'), abstand(a, b, 'bw')) <= NACHBAR_ABSTAND + 1e-9)
+      .map((b) => b.id);
+    if (nah.length) nachbarCache.set(a.id, nah);
+  });
+  return nachbarCache;
+}
+
+/**
+ * Was der Tausch von `von` auf `nach` je Woche an Sätzen verschiebt.
+ *
+ * Gerechnet über den geschriebenen Plan und nicht über eine Beispielwoche: Die
+ * Übung steht nicht in jeder Woche gleich oft, und eine Zahl, die das
+ * unterschlägt, wäre für die Hälfte der Wochen falsch. Zurück kommt die
+ * stärkste betroffene Gruppe mit ihrer *größten* Wochendifferenz – wer wissen
+ * will, was ihn erwartet, will die schlimmste Woche wissen, nicht den Schnitt.
+ */
+export function tauschKosten(von, nach) {
+  const a = EX_BY_ID.get(von);
+  const b = EX_BY_ID.get(nach);
+  if (!a || !b) return null;
+  // Die stärkste Woche je Modus. Der Plan steht in Einheiten, nicht in Wochen –
+  // gruppiert wird über den Abstand zum ersten Plantag, damit es keine Rolle
+  // spielt, auf welchen Wochentag der Plan fällt.
+  const saetzeJe = (feld) => {
+    const proWoche = new Map();
+    PLAN.forEach((w) => {
+      const n = w.ex.reduce((s, it) => s + (it.id === von ? (it[feld] ?? it.sets ?? 0) : 0), 0);
+      if (!n) return;
+      const kw = Math.floor(daysBetween(PLAN[0].date, w.date) / 7);
+      proWoche.set(kw, (proWoche.get(kw) || 0) + n);
+    });
+    return Math.max(0, ...proWoche.values());
+  };
+  // **Der schlimmere der beiden Modi, nicht der gerade gewählte.** Die Wahl
+  // bleibt stehen, wenn zwischen Hantel und Körpergewicht umgeschaltet wird –
+  // eine Zahl für den gerade sichtbaren Modus wäre nach einem Umschalten falsch,
+  // ohne dass irgendetwas am Knopf sich ändert. Und es gibt Paare, die im einen
+  // Modus anteilsgleich sind und im anderen nicht (Hip Thrust und Beckenheben):
+  // Dort stünde sonst "verschiebt nichts" an einem Tausch, der im anderen Modus
+  // sehr wohl etwas verschiebt.
+  let best = null;
+  [['db', 'sets'], ['bw', 'bwSets']].forEach(([seite, feld]) => {
+    const saetze = saetzeJe(feld);
+    if (!saetze) return;
+    const je = {};
+    [...new Set([...Object.keys(a[seite].shares), ...Object.keys(b[seite].shares)])]
+      .forEach((g) => {
+        const d = (b[seite].shares[g] || 0) - (a[seite].shares[g] || 0);
+        if (Math.abs(d) > 1e-9) je[g] = Math.round(d * saetze * 100) / 100;
+      });
+    const paare = Object.entries(je).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]));
+    if (!paare.length) return;
+    const [gruppe, delta] = paare[0];
+    if (!best || Math.abs(delta) > Math.abs(best.delta)) {
+      best = { gruppe, delta, gruppen: je, modus: seite };
+    }
+  });
+  return best;
+}
+
+/**
+ * Die Nachbarn einer Übung, jeder mit seinem gemessenen Preis.
+ *
+ * Getrennt von fassungen(): Was dort steht, ist umsonst; was hier steht, kostet
+ * etwas. Die beiden in eine Liste zu werfen hieße, den Unterschied zu
+ * verschweigen, auf den es ankommt.
+ */
+export function nachbarn(item) {
+  if (!item) return null;
+  const plan = item.statt || item.id;
+  const nah = nachbarschaft().get(plan);
+  if (!nah || !nah.length) return null;
+  const liste = nah
+    .map((id) => ({ id, kosten: tauschKosten(plan, id) }))
+    .filter((x) => x.kosten);
+  return liste.length ? { plan, jetzt: item.id, liste } : null;
 }
 
 /**
