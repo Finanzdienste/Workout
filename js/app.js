@@ -2840,21 +2840,22 @@ function schmerzBlock(it) {
     const key = `${it.id}|${s.ort}`;
     const offen = ui.openSchmerz.has(key);
     const ids = (s.verletzung || []).filter((v) => injuryById(v));
-    const schon = ids.filter((v) => act.includes(v));
+    // Kein Zweig für „steht schon unter Beschwerden". Der wäre nie zu sehen,
+    // und das ist kein Zufall, sondern folgt aus der Sache: Jede Beschwerde,
+    // auf die ein Schmerz-Eintrag zeigt, sperrt genau diese Übung – das prüft
+    // tests/test-schmerz.mjs. Ist sie angehakt, steht die Übung nicht mehr da,
+    // deren Karte den Hinweis tragen würde. Eine erste Fassung hatte den Zweig
+    // trotzdem, und er war schlicht toter Code.
     const knoepfe = offen ? ids.filter((v) => !act.includes(v)).map((v) => `
         <button type="button" class="btn btn-ghost btn-sm" data-act="schmerz-anhaken" data-inj="${esc(v)}">
           „${esc(injuryById(v).name)}" anhaken
         </button>`).join('') : '';
-    const steht = offen && schon.length
-      ? `<p class="schmerz-an">Unter Beschwerden angehakt: ${
-        esc(schon.map((v) => injuryById(v).name).join(', '))}. Der Plan ist entsprechend angepasst.</p>`
-      : '';
     return `
       <button type="button" class="schmerz-h ${offen ? 'on' : ''}" data-act="toggle-schmerz"
               data-k="${esc(key)}" aria-expanded="${offen}">
         ${esc(s.ort)}<span class="chev">▼</span>
       </button>
-      ${offen ? `<div class="schmerz-b"><p>${esc(s.text)}</p>${steht}
+      ${offen ? `<div class="schmerz-b"><p>${esc(s.text)}</p>
         ${knoepfe ? `<div class="btn-row">${knoepfe}</div>` : ''}</div>` : ''}`;
   };
   return `<div class="ex-schmerz">

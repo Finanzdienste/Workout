@@ -198,6 +198,33 @@ check(alt.nachbarn === 'undefined' && alt.kosten === 'undefined',
 check(await page.locator('.lbl-nah').count() === 0,
   'und an keiner Karte steht noch eine zweite Auswahlreihe');
 
+// --- 6. Kein Hinweis „steht schon unter Beschwerden" -------------------
+//
+// Nicht vergessen, sondern unmöglich: Jede Beschwerde, auf die ein
+// Schmerz-Eintrag zeigt, sperrt genau diese Übung (Abschnitt 1). Ist sie
+// angehakt, steht die Übung nicht mehr da, deren Karte den Hinweis tragen
+// würde. Eine erste Fassung hatte ihn trotzdem – toter Code, gefunden beim
+// Nachsehen und nicht durch einen Fehler. Diese Prüfung hält fest, dass die
+// Lage wirklich so ist, damit ihn niemand gutgläubig wieder einbaut.
+const beideAn = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  const { exOf } = await import('./js/plan.js');
+  const { EXERCISES } = await import('./js/data.js');
+  const mit = EXERCISES.filter((e) => (e.schmerz || []).some((x) => (x.verletzung || []).length));
+  mit.forEach((e) => (e.schmerz || []).forEach((x) => (x.verletzung || [])
+    .forEach((v) => store.toggleInjury(v, true))));
+  const sichtbar = new Set();
+  PLAN.forEach((w) => ['db', 'bw'].forEach((m) => exOf(w, m)
+    .forEach((it) => sichtbar.add(it.id))));
+  const raus = mit.filter((e) => sichtbar.has(e.id)).map((e) => e.id);
+  store.clearInjuries();
+  return { geprueft: mit.length, trotzdemDa: raus };
+});
+console.log('     alle Beschwerden an:', beideAn.geprueft, 'Übungen mit Knopf geprüft');
+check(beideAn.trotzdemDa.length === 0,
+  `mit allen angehakt steht keine davon mehr im Plan (${beideAn.trotzdemDa.join(', ') || 'keine'})`);
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
