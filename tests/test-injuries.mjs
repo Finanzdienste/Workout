@@ -253,8 +253,9 @@ const geschwister = {
   // dem hilft es nicht, dass der Widerstand aus einem Rucksack statt aus einem
   // Band kommt.
   Rudern: ['einarmiges-kh-rudern', 'rucksack-rudern'],
-  // Dasselbe für die Curls: SZ-Stange oder Rucksack ändert am Ellenbogen nichts.
-  Curl: ['sz-curls', 'rucksack-curls'],
+  // Dasselbe für die Curls: SZ-Stange, Rucksack oder Kurzhanteln ändert am
+  // Ellenbogen nichts – gezogen wird über den Griff, und der ist überall einer.
+  Curl: ['sz-curls', 'rucksack-curls', 'hammer-curls'],
   Haengen: ['chin-ups', 'pull-ups', 'haengendes-knieheben'],
   HintereSchulter: ['reverse-fly', 'band-pull-apart'],
   Druecken: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze', 'floor-press'],
@@ -273,6 +274,20 @@ const erlaubt = new Set([
   'handgelenk-reizung|Druecken', 'hws-bandscheibe|HintereSchulter',
   'lws-bandscheibe|HintereSchulter', 'laeuferknie|Kniebeuge', 'sprunggelenk|Kniebeuge',
   'lws-bandscheibe|Hueftstreck', 'hexenschuss|Hueftstreck',
+  // Derselbe Schnitt beim überlasteten Strecker: Das Kreuzheben hält den Rumpf
+  // als Hebel gegen die Last, der Hip Thrust legt den Rücken auf den Boden. Er
+  // ist dort der benannte Ersatz für beide Kreuzheben, nicht ein vergessener
+  // Eintrag.
+  'rueckenstrecker|Hueftstreck',
+  // Und bei der Handgelenksüberlastung trennt die Curl-Familie sich genau an
+  // dem, worum es geht. Gemeldet war: „SZ curls tun echt in den unterarmen iwie
+  // weh. Ich spür den Knochen iwie ganz stark oder so." Die Ursache ist der fest
+  // aufgedrehte Unterarm – an der Stange koppelt eine Hand die andere, am
+  // Rucksackgriff liegen beide Handflächen nach oben. Beide fallen deshalb weg.
+  // Der Hammercurl fällt nicht weg, er ist der Ausweg: Handflächen zueinander,
+  // jeder Unterarm in seiner Mittelstellung. Ihn hier mitzusperren hieße, die
+  // Lösung mit dem Problem zu verbieten.
+  'handgelenk-reizung|Curl',
 ]);
 const halbe = await page.evaluate(async (arg) => {
   const { INJURIES } = await import('./js/injuries.js');

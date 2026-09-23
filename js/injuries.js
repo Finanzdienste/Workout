@@ -203,11 +203,19 @@ export const INJURIES = [
     name: 'Handgelenksüberlastung',
     area: 'Handgelenk', spot: 'wrist', kind: 'reizung',
     text: 'Schmerz, wenn das Handgelenk unter Last nach hinten abknickt – genau die '
-      + 'Stellung beim Liegestütz. Mit gerader Hand am Griff geht es meist gut.',
+      + 'Stellung beim Liegestütz. Mit gerader Hand am Griff geht es meist gut. '
+      + 'Dazu gehört, was den Unterarm fest aufgedreht hält: An einer Stange hängen '
+      + 'beide Hände in derselben Drehung, und ändern kann sie keine.',
+    // Gemeldet: „SZ curls tun echt in den unterarmen iwie weh. Ich spür den
+    // Knochen iwie ganz stark oder so." Die SZ-Curls standen hier nicht, und
+    // das war eine Luecke: Eine Stange koppelt beide Haende an eine feste
+    // Drehung ueber den ganzen Weg. Der Ausweg ist keine Lücke, sondern der
+    // Hammercurl – zwei Kurzhanteln, Handflaechen zueinander, jeder Unterarm
+    // frei. Anteile identisch, die Wochenrechnung merkt nichts.
     avoid: ['gewichtete-liegestuetze', 'fuesse-erhoehte-liegestuetze',
-      'pike-liegestuetze'
+      'pike-liegestuetze', 'sz-curls', 'rucksack-curls'
     ],
-    swap: { 'gewichtete-liegestuetze': 'floor-press', 'fuesse-erhoehte-liegestuetze': 'floor-press', 'pike-liegestuetze': 'floor-press' },
+    swap: { 'gewichtete-liegestuetze': 'floor-press', 'fuesse-erhoehte-liegestuetze': 'floor-press', 'pike-liegestuetze': 'floor-press', 'sz-curls': 'hammer-curls', 'rucksack-curls': 'hammer-curls' },
     care: [
       'handgelenkMobil', 'streckerDehnen', 'beugerDehnen', 'fingerstrecker',
     ],
@@ -291,6 +299,35 @@ export const INJURIES = [
       'rucksack-rudern', 'sitzendes-flaschen-seitheben'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben',},
     care: ['kinnZurueck', 'schulterkreisen', 'atmung'],
+  },
+  {
+    // Gemeldet: „Langhantelrudern merk ich iwie am meisten im unteren rücken."
+    // Dafuer gab es hier bislang nur den Hexenschuss und den Bandscheiben-
+    // vorfall, und beides waere die falsche Auskunft gewesen: Wer einen
+    // ueberlasteten Strecker als Vorfall anhakt, verliert das halbe
+    // Unterkoerperprogramm wegen einer Diagnose, die er nicht hat. Der
+    // Unterschied steht im Text und ist der, auf den es ankommt: Ein
+    // ueberlasteter Muskel meldet sich breit und beim Halten, ein Nerv meldet
+    // sich spitz und zieht ins Bein.
+    //
+    // Gesperrt wird deshalb nur, was den Rumpf *vorgebeugt gegen Last* haelt.
+    // Die Inverted Row bleibt ausdruecklich drin und springt fuers Rudern ein:
+    // Dort haengt der Koerper als Brett zwischen Haenden und Fersen, der
+    // Strecker haelt mit, aber er haelt keinen Hebel mit Gewicht am Ende.
+    id: 'rueckenstrecker',
+    name: 'Überlasteter unterer Rücken',
+    area: 'unterer Rücken', spot: 'lowerBack', kind: 'reizung',
+    text: 'Der Streckerzug längs der Wirbelsäule ist überarbeitet, nicht verletzt. '
+      + 'Typisch ist ein breites Ziehen beidseits der Wirbelsäule beim Halten – '
+      + 'vorgebeugtes Rudern, Kreuzheben, alles, was den Rumpf gegen Last aufrecht '
+      + 'hält. Zieht es dagegen spitz ins Gesäß oder ins Bein, ist es das hier nicht, '
+      + 'und ein Trainingsplan ist dann die falsche Adresse.',
+    avoid: ['einarmiges-kh-rudern', 'rumaenisches-kreuzheben', 'einbeiniges-kreuzheben',
+      'rucksack-rudern'],
+    swap: { 'einarmiges-kh-rudern': 'inverted-row',
+      'rucksack-rudern': 'inverted-row',
+      'rumaenisches-kreuzheben': 'hip-thrust', 'einbeiniges-kreuzheben': 'hip-thrust' },
+    care: ['katzeKuh', 'deadBug', 'vogelhund', 'hueftbeuger'],
   },
   {
     id: 'lws-bandscheibe',

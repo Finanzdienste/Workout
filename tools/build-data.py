@@ -242,6 +242,11 @@ def main():
                     # an der Übung und nicht an der Variante: Griff, Aufbau und
                     # typische Fehler sind in beiden Fassungen dieselben.
                     'detail': m.get('detail', []),
+                    # Was tun, wenn bei dieser Uebung etwas weh tut. Je Eintrag
+                    # eine Koerperstelle, der Text dazu und - wo es eine gibt -
+                    # die Beschwerde, unter der es hingehoert, wenn es dabei
+                    # bleibt. Nur ausgeben, wo es welche gibt.
+                    **({'schmerz': m['schmerz']} if m.get('schmerz') else {}),
                     # Name und Wiederholungen kommen aus der Excel – es sei
                     # denn, exercise-meta.json setzt eigene. Nötig geworden, als
                     # aus dem liegenden ein Überkopf-Trizepsstrecker wurde: Der
@@ -301,6 +306,7 @@ def main():
             # null ist, blaeht js/data.js um 30 Zeilen und sagt nichts.
             **({'anfaenger': m['anfaenger']} if m.get('anfaenger') else {}),
             'detail': m.get('detail', []),
+            **({'schmerz': m['schmerz']} if m.get('schmerz') else {}),
             'db': {'name': m['name'], 'reps': m['reps'], 'equip': m['dbEquip'],
                    'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],
                    'shares': m['dbShares'], 'muscles': muscles(m['dbShares']),

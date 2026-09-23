@@ -244,6 +244,15 @@
         "Ellenbogen rechtwinklig abspreizen statt 45 Grad. Nur den Kopf senken. Unten aufliegen und Schwung nehmen."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Handgelenk",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer zwei Kurzhanteln hat: Auf den Griffen stützen stellt das Handgelenk gerade, und das Problem ist weg.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ]
+      }
+    ],
     "dbRest": 150,
     "bwRest": 150,
     "dbWeight": 8,
@@ -370,13 +379,18 @@
         "Zum Bauchnabel, nicht zur Brust. Die Ellenbogen wandern nach hinten am Körper vorbei, oben ziehen die Schulterblätter zusammen. Eine Sekunde oben halten macht den Unterschied zwischen Ziehen und Schwingen."
       ],
       [
-        "Wenn du es im unteren Rücken spürst",
-        "Etwas davon gehört dazu. Einen vorgebeugten Rumpf gegen eine geladene Stange zu halten, ist Arbeit für den Streckerzug längs der Wirbelsäule, und die ganze Zeit über, nicht nur beim Ziehen. Dass sich das meldet, ist normal.\n\nWenn es dort am *meisten* brennt, ist es trotzdem ein Zeichen: Dann ist der Halt der Begrenzer und nicht der Latissimus. Der Satz endet, bevor der Muskel fertig ist, um den es geht. In der Reihenfolge abarbeiten:\n\nErstens das Gewicht. Es wird meistens danach gewählt, was man *ziehen* kann – begrenzt ist aber das *Halten*, und das ist eine andere Zahl. Zwei bis fünf Kilo weniger, und die letzte Wiederholung sieht aus wie die erste.\n\nZweitens, woher die Neigung kommt. Sie kommt aus der Hüfte: Gesäß nach hinten schieben, bis der Rumpf von selbst vorkippt, Brustkorb groß. Wer sich stattdessen aus dem Kreuz nach vorn beugt, lässt die Lendenwirbelsäule die Neigung machen statt die Hüfte – dann steht sie die ganze Zeit in einer Stellung, in der sie nichts zu suchen hat. Mit dem Gesäß eine Wand suchen hilft; berührt sie sie, ist die Hüfte weit genug hinten.\n\nDrittens die Länge des Satzes. Acht bis zwölf Wiederholungen heißt eine halbe Minute vorgebeugt am Stück. Die Stange zwischen den Wiederholungen kurz abzusetzen und neu anzuspannen macht daraus mehrere kurze Hälte und verändert am Reiz für den Rücken nichts.\n\nUnd wenn es dabei bleibt: Die Inverted Row steht in der zweiten Reihe der Auswahl. Dort hängt der Körper als steifes Brett zwischen Händen und Fersen – der untere Rücken hält mit, aber er hält keinen vorgebeugten Hebel mit Gewicht an dessen Ende. Was das je Woche verschiebt, steht am Knopf."
-      ],
-      [
         "Typische Fehler",
         "Runder Rücken – dann arbeitet die Bandscheibe statt der Rücken. Zu viel Gewicht und dafür halbe Wiederholungen. Die Stange vom Körper weg nach vorn ziehen."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Unterer Rücken",
+        "text": "Etwas davon gehört dazu. Einen vorgebeugten Rumpf gegen eine geladene Stange zu halten, ist Arbeit für den Streckerzug längs der Wirbelsäule, und die ganze Zeit über, nicht nur beim Ziehen. Dass sich das meldet, ist normal.\n\nWenn es dort am meisten brennt, ist es trotzdem ein Zeichen: Dann ist der Halt der Begrenzer und nicht der Latissimus. Der Satz endet, bevor der Muskel fertig ist, um den es geht. In der Reihenfolge abarbeiten:\n\nErstens das Gewicht. Es wird meistens danach gewählt, was man ziehen kann – begrenzt ist aber das Halten, und das ist eine andere Zahl. Zwei bis fünf Kilo weniger, und die letzte Wiederholung sieht aus wie die erste.\n\nZweitens, woher die Neigung kommt. Sie kommt aus der Hüfte: Gesäß nach hinten schieben, bis der Rumpf von selbst vorkippt, Brustkorb groß. Wer sich stattdessen aus dem Kreuz nach vorn beugt, lässt die Lendenwirbelsäule die Neigung machen statt die Hüfte – dann steht sie die ganze Zeit in einer Stellung, in der sie nichts zu suchen hat. Mit dem Gesäß eine Wand suchen hilft; berührt sie sie, ist die Hüfte weit genug hinten.\n\nDrittens die Länge des Satzes. Acht bis zwölf Wiederholungen heißt eine halbe Minute vorgebeugt am Stück. Die Stange zwischen den Wiederholungen kurz abzusetzen und neu anzuspannen macht daraus mehrere kurze Hälte und verändert am Reiz für den Rücken nichts.\n\nUnd wenn es dabei bleibt – über mehrere Einheiten, oder schon beim Aufstehen – dann ist es keine Tagesform mehr: unten anhaken. Dann tritt die Inverted Row an diese Stelle, und zwar überall im Plan. Dort hängt der Körper als steifes Brett zwischen Händen und Fersen: Der untere Rücken hält mit, aber er hält keinen vorgebeugten Hebel mit Gewicht am Ende.",
+        "verletzung": [
+          "rueckenstrecker"
+        ]
+      }
     ],
     "dbRest": 150,
     "bwRest": 150,
@@ -702,10 +716,6 @@
         "Die Wellen drehen die Handgelenke leicht nach innen. Das ist bequemer als die gerade Stange und trifft den Bizeps kaum anders."
       ],
       [
-        "Handgelenk",
-        "Ein abknickendes Handgelenk ist kein Zeichen von dünnen Gelenken, sondern fast immer eine Frage von Griff und Last – und in dieser Reihenfolge zu beheben.\n\nErstens der Griff: Die Stange gehört quer über den Handballen, in einer Linie mit den Unterarmknochen, nicht in die Finger. Rutscht sie in die Finger, hat das Handgelenk einen Hebel gegen sich und muss die Last mit den Streckern halten – es knickt nach hinten weg. Bei der SZ-Stange die *innere* Flanke der Welle greifen, die zur Mitte hin ansteigt; dort steht die Hand von selbst leicht gedreht, und genau dafür gibt es die Wellen.\n\nZweitens die Last: Knickt das Handgelenk trotz sauberem Griff ab, ist der Satz zu Ende. Das Handgelenk ist dann der Begrenzer, nicht der Bizeps – und weiterzumachen ist der kurze Weg zu genau der Überlastung, die unter Verletzungen als „Handgelenksüberlastung\" steht. Lieber zwei Kilo weniger und zehn saubere Wiederholungen.\n\nDrittens, und erst dann: Der Umfang des Handgelenks ist Knochen und ändert sich nicht. Der Unterarm dagegen schon. Was ihn dicker macht, steht unter Verletzungen bei den Pflegeübungen – Handgelenkstrecken und -beugen mit langsamem Ablassen, 3 × 15 je Seite. Wer den Reiz lieber in der Übung selbst hätte: Hammercurls mit Kurzhanteln halten das Handgelenk neutral und treffen Brachialis und Brachioradialis, also genau die beiden Muskeln, die einen Unterarm füllen."
-      ],
-      [
         "Ellenbogen am Körper",
         "Sie bleiben, wo sie sind. Wandern sie nach vorn, wird daraus ein Heben aus der Schulter – der Bizeps macht dann nur noch die halbe Arbeit."
       ],
@@ -713,6 +723,23 @@
         "Ablassen",
         "Zwei bis drei Sekunden. Das Ablassen ist bei Curls der Teil, an dem der Muskel wächst, und der Teil, den fast alle abkürzen."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Handgelenk oder Unterarm",
+        "text": "Ein abknickendes Handgelenk ist kein Zeichen von dünnen Gelenken, sondern fast immer eine Frage von Griff und Last – und in dieser Reihenfolge zu beheben.\n\nErstens der Griff: Die Stange gehört quer über den Handballen, in einer Linie mit den Unterarmknochen, nicht in die Finger. Rutscht sie in die Finger, hat das Handgelenk einen Hebel gegen sich und muss die Last mit den Streckern halten – es knickt nach hinten weg. Bei der SZ-Stange die innere Flanke der Welle greifen, die zur Mitte hin ansteigt; dort steht die Hand von selbst leicht gedreht, und genau dafür gibt es die Wellen.\n\nZweitens die Last: Knickt das Handgelenk trotz sauberem Griff ab, ist der Satz zu Ende. Das Handgelenk ist dann der Begrenzer, nicht der Bizeps – und weiterzumachen ist der kurze Weg zu genau der Überlastung, die unter Verletzungen als „Handgelenksüberlastung\" steht. Lieber zwei Kilo weniger und zehn saubere Wiederholungen.\n\nDrittens, und erst dann: Der Umfang des Handgelenks ist Knochen und ändert sich nicht. Der Unterarm dagegen schon. Was ihn dicker macht, steht unter Verletzungen bei den Pflegeübungen – Handgelenkstrecken und -beugen mit langsamem Ablassen, 3 × 15 je Seite. Wer den Reiz lieber in der Übung selbst hätte: Hammercurls mit Kurzhanteln halten das Handgelenk neutral und treffen Brachialis und Brachioradialis, also genau die beiden Muskeln, die einen Unterarm füllen.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ]
+      },
+      {
+        "ort": "Ellenbogen",
+        "text": "Am Ellenbogen sitzen die Ansätze der Hand-Muskeln, und ein Curl zieht über den Griff an beiden. Außen ist es der Tennisarm, innen der Golferarm – beides Reizungen, keine Risse, und beide werden schlimmer, wenn man sie wegtrainieren will.\n\nZuerst das Naheliegende: weniger Gewicht, lockerer greifen (die Stange muss nicht erwürgt werden), und das Ablassen langsam statt fallen lassen. Bleibt es über ein paar Einheiten, ist es keine Tagesform mehr. Dann hier anhaken – die App nimmt dann alles aus dem Plan, was über den Griff zieht, und legt die Pflegeübungen daneben, die dafür etwas bringen.",
+        "verletzung": [
+          "tennisarm",
+          "golferarm"
+        ]
+      }
     ],
     "dbRest": 120,
     "bwRest": 120,
@@ -909,6 +936,15 @@
         "Die Hanteln auf die Oberschenkel setzen, im Sitzen mit dem Knie nach oben stoßen und dabei die Schulter mitdrehen. Aus dem gestreckten Arm heraus hochzuwuchten kostet unnötig Kraft."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Schulter",
+        "text": "Über Kopf zu drücken ist die Bewegung, bei der es unter dem Schulterdach am engsten wird. Meldet sich die Schulter auf dem Weg nach oben – grob zwischen Schulterhöhe und Ohrhöhe – und oben wieder nicht, ist das der klassische Reizbogen.\n\nWas oft reicht: die Ellenbogen nicht quer nach außen, sondern etwa 30 Grad nach vorn stellen, und die Hanteln nicht ganz zusammenführen. Schulterblätter vorher nach unten ziehen, nicht hochziehen lassen.\n\nTut es weh statt eng zu werden, oder bleibt es über Einheiten hinweg: hier anhaken. Dann fällt alles Überkopf weg und wird durch Drücken am Boden ersetzt, das unter dem Bogen bleibt.",
+        "verletzung": [
+          "schulter-impingement"
+        ]
+      }
+    ],
     "dbRest": 150,
     "bwRest": 180,
     "dbWeight": 10,
@@ -962,6 +998,15 @@
         "In der Wohnung",
         "Vor und nach dem Satz kontrolliert absetzen, nie fallen lassen. Eine Matte oder ein dickes Handtuch unter den Scheiben nimmt den Rest."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Unterer Rücken",
+        "text": "Der untere Rücken arbeitet hier – das ist nicht der Fehler, das ist die Übung. Er hält die Wirbelsäule gerade, während die Hüfte klappt. Ein Ziehen danach ist also erst einmal normal.\n\nNicht normal ist, wenn er während des Satzes nachgibt. Zwei Proben: Rundet der Rücken sich unten ein, war die Stange tiefer als die Beweglichkeit reicht – der Weg endet dort, wo der Rücken gerade bleibt, und das ist bei den meisten über dem Knie. Und wandern die Knie beim Absenken nach vorn, wird daraus eine Kniebeuge; die Hüfte muss nach hinten, die Schienbeine bleiben fast senkrecht.\n\nWenn es über Tage bleibt oder schon beim Aufstehen da ist, hier anhaken. Dann tritt der Hip Thrust an diese Stelle: dieselbe Hüftstreckung, aber der Rücken liegt an und hält nichts.",
+        "verletzung": [
+          "rueckenstrecker"
+        ]
+      }
     ],
     "dbRest": 150,
     "bwRest": 150,
@@ -1376,10 +1421,6 @@
         "Dann arbeitet der Hüftbeuger und nicht der Bauch, und das ist der Normalfall bei dieser Übung – nicht die Ausnahme. Die Beine anzuheben ist Hüftbeugung; sie läuft komplett an der Bauchmuskulatur vorbei. Der Bauch kommt erst ins Spiel, wenn sich das Becken am Ende nach hinten einrollt und das Gesäß abhebt. Das sind wenige Zentimeter, und sie sind die Übung. Probe: Füße aufgestellt lassen, Knie gar nicht bewegen, nur das Becken einrollen. Spürst du es dort, hast du die richtige Bewegung gefunden und kannst die Beine nach und nach dazunehmen."
       ],
       [
-        "Wenn der Rücken sich dabei anspannt",
-        "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von *angespannt* ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
-      ],
-      [
         "Hände unter das Gesäß",
         "Sie kippen das Becken leicht an und nehmen dem unteren Rücken das Hohlkreuz. Ohne sie zieht der Hüftbeuger die Lendenwirbelsäule nach vorn, und der Bauch tut immer weniger, je tiefer die Beine gehen."
       ],
@@ -1387,6 +1428,12 @@
         "Warum überhaupt im Liegen",
         "Die hängende Fassung ist die stärkere Übung – aber nur für den, dessen Griff sie überlebt. Wer nach zwei Wiederholungen loslässt, hat den Unterarm trainiert und den Bauch nicht. Im Liegen fällt der Griff als Begrenzer weg. Dass dafür der Hüftbeuger als neuer Begrenzer auftaucht, ist der Preis – siehe oben, und er lässt sich wegnehmen."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Rücken beim Einrollen",
+        "text": "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von „angespannt“ ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
+      }
     ],
     "dbRest": 120,
     "bwRest": 120,
@@ -1596,7 +1643,7 @@
       ],
       [
         "Wie hoch die Stange hängt",
-        "Das ist bei dieser Übung keine Nebensache, sondern entscheidet, ob es überhaupt ein Face Pull ist. Das Band soll etwa aus Gesichts- bis Brusthöhe kommen und waagerecht ins Gesicht gezogen werden. Dann zieht der Ellenbogen nach hinten-außen, und genau das ist die Arbeit der hinteren Schulter.\n\nHängt die Klimmzugstange weit über dem Kopf – und die meisten sitzen im Türrahmen ganz oben – kommt das Band von schräg oben. Aus dem Zug ins Gesicht wird ein Zug nach unten, und den macht der Latissimus, nicht die hintere Schulter. Die Übung fühlt sich dann nach nichts an, und das ist keine Einbildung: Sie trainiert etwas anderes als das, wofür sie im Plan steht.\n\nDrei Wege, in dieser Reihenfolge:\n\nWeiter weg stellen. Je weiter du zurückgehst, desto flacher läuft das Band. Das ist der billigste Weg und reicht oft – aber nur, wenn das Band lang genug ist und die Hände am Ende wirklich neben den Schläfen ankommen und nicht vor der Brust.\n\nTiefer anhängen. Türklinke, Heizungsrohr, ein schweres Tischbein – alles auf Brusthöhe ist besser als eine Stange auf zwei Metern. Das Band muss nicht an der Klimmzugstange hängen, es steht nur so im Hinweis, weil das der übliche feste Punkt ist.\n\nOder eine Übung nehmen, die gar keinen Punkt braucht. Das Band-Pull-Apart hältst du zwischen beiden Händen, der Reverse Snow Angel braucht nur den Boden. Beide treffen dieselbe hintere Schulter; sie stehen in der zweiten Reihe der Auswahl, mit dem Unterschied je Woche am Knopf."
+        "Das ist bei dieser Übung keine Nebensache, sondern entscheidet, ob es überhaupt ein Face Pull ist. Das Band soll etwa aus Gesichts- bis Brusthöhe kommen und waagerecht ins Gesicht gezogen werden. Dann zieht der Ellenbogen nach hinten-außen, und genau das ist die Arbeit der hinteren Schulter.\n\nHängt die Klimmzugstange weit über dem Kopf – und die meisten sitzen im Türrahmen ganz oben – kommt das Band von schräg oben. Aus dem Zug ins Gesicht wird ein Zug nach unten, und den macht der Latissimus, nicht die hintere Schulter. Die Übung fühlt sich dann nach nichts an, und das ist keine Einbildung: Sie trainiert etwas anderes als das, wofür sie im Plan steht.\n\nDrei Wege, in dieser Reihenfolge:\n\nWeiter weg stellen. Je weiter du zurückgehst, desto flacher läuft das Band. Das ist der billigste Weg und reicht oft – aber nur, wenn das Band lang genug ist und die Hände am Ende wirklich neben den Schläfen ankommen und nicht vor der Brust.\n\nTiefer anhängen. Türklinke, Heizungsrohr, ein schweres Tischbein – alles auf Brusthöhe ist besser als eine Stange auf zwei Metern. Das Band muss nicht an der Klimmzugstange hängen, es steht nur so im Hinweis, weil das der übliche feste Punkt ist.\n\nOder eine Übung nehmen, die gar keinen Punkt braucht. Das Band-Pull-Apart hältst du zwischen beiden Händen, der Reverse Snow Angel braucht nur den Boden. Beide treffen dieselbe hintere Schulter und stehen im Katalog – in den Plan kommen sie über die Beschwerden, nicht über eine Auswahl an dieser Karte."
       ],
       [
         "Ellenbogen führen",

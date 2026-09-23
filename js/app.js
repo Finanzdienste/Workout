@@ -48,7 +48,7 @@ import {
   erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
 } from './ansicht-statistik.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, nachbarn, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
+import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat, uebungGeht } from './vorrat.js';
@@ -926,6 +926,7 @@ const ui = {
   workoutNo: naechsteEinheit(),
   openEx: new Set(),
   openDetail: new Set(),   // Übungen, deren ausführliche Erklärung offen steht
+  openSchmerz: new Set(), // aufgeklappte Schmerzstellen, je "<übung>|<ort>"
   standAngebot: null,      // Stand, den jemand per Link geschickt hat
   standZurueck: null,      // Name, dem man seinen Stand noch zurückschicken wollte
   adminDaten: null,        // geladene Zeilen der Betreiber-Übersicht
@@ -1187,6 +1188,7 @@ function renderFocus() {
     </section>
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
+    ${schmerzBlock(it)}
     ${detailBlock(it)}
 
     <div class="btn-row nav">
@@ -2145,6 +2147,7 @@ function renderDashboard() {
           ${open ? `<div class="ex-fig" data-pattern="${esc(it.pattern)}"
                data-weight="${it.weight !== null}" data-gear="${esc(it.gear || '')}"></div>` : ''}
           <div class="cue">${esc(it.cue)}</div>
+          ${schmerzBlock(it)}
           ${detailBlock(it)}
           <div class="ex-facts">
             <span>Pause ${Math.floor(restFor(it) / 60)}:${String(restFor(it) % 60).padStart(2, '0')} min</span>
@@ -2604,51 +2607,32 @@ function fassungRow(it, mode) {
   const grund = ersatzGrund(it);
   if (grund && grund.warum === 'vorrat') return '';
   const f = fassungen(it);
-  const n = nachbarn(it);
-  if (!f && !n) return '';
+  if (!f) return '';
   const seite = mode === 'bw' ? 'bw' : 'db';
   const WIE = { leichter: 'leichter', schwerer: 'schwerer' };
-  const plan = (f || n).plan;
-  const jetzt = (f || n).jetzt;
-  const knopf = ({ id, wie, kosten }) => {
+  const knopf = ({ id, wie }) => {
     const ex = EX_BY_ID.get(id);
     if (!ex) return '';
-    const dran = id === jetzt;
+    const dran = id === f.jetzt;
     // Ein Knopf auf eine Übung, deren Gerät fehlt, verspricht etwas, das nicht
     // kommt: Der Gerätefilter läuft danach und tauscht sie wieder weg.
     const moeglich = uebungGeht(id, mode);
-    // Der Preis steht am Knopf und nicht in einer Fußnote: Er ist klein, aber
-    // er ist nicht null, und „nichts darf unbemerkt passieren" gilt auch für
-    // anderthalb Sätze Trapez.
-    const preis = kosten
-      ? `${kosten.delta > 0 ? '+' : '−'}${Math.abs(kosten.delta).toFixed(2).replace('.', ',')} `
-        + `${MUSCLE_LABEL[kosten.gruppe] || kosten.gruppe}/Woche`
-      : null;
-    const zusatz = moeglich ? (preis || WIE[wie] || ex[seite].equip) : 'Gerät fehlt';
-    const sagt = moeglich
-      ? (preis ? `Auf ${ex[seite].name} wechseln – verschiebt ${preis}`
-        : `Auf ${ex[seite].name} wechseln`)
-      : `${ex[seite].name} geht gerade nicht – ${ex[seite].equip} fehlt`;
+    const zusatz = moeglich ? (WIE[wie] || ex[seite].equip) : 'Gerät fehlt';
     return `
       <button type="button" class="btn btn-sm fassung-btn${dran ? ' btn-primary' : ''}"
-              data-act="fassung-waehlen" data-ex="${esc(plan)}" data-v="${esc(id)}"
+              data-act="fassung-waehlen" data-ex="${esc(f.plan)}" data-v="${esc(id)}"
               ${dran || !moeglich ? 'disabled' : ''} aria-pressed="${dran}"
-              aria-label="${esc(sagt)}">
+              aria-label="${esc(moeglich ? `Auf ${ex[seite].name} wechseln`
+    : `${ex[seite].name} geht gerade nicht – ${ex[seite].equip} fehlt`)}">
         <span class="fassung-name">${esc(ex[seite].name)}</span>
         <span class="fassung-wie">${esc(zusatz)}</span>
       </button>`;
   };
-  // Zwei Reihen, und die Trennung ist der Punkt. Oben steht, was umsonst ist:
-  // dieselben Anteile, dieselbe Wochenrechnung. Unten steht, was etwas kostet.
-  // Beides in eine Reihe zu werfen hieße, genau den Unterschied zu
-  // verschweigen, auf den es ankommt.
-  const oben = f ? `
+  return `
+    <div class="ex-fassung">
       <div class="lbl">Dieselben Muskeln, andere Übung</div>
-      <div class="btn-row">${f.liste.map(knopf).join('')}</div>` : '';
-  const unten = n ? `
-      <div class="lbl lbl-nah">Fast dasselbe – und was es je Woche verschiebt</div>
-      <div class="btn-row">${n.liste.map(knopf).join('')}</div>` : '';
-  return `<div class="ex-fassung">${oben}${unten}</div>`;
+      <div class="btn-row">${f.liste.map(knopf).join('')}</div>
+    </div>`;
 }
 
 function aufwaermZeile(it, mode, n) {
@@ -2824,6 +2808,61 @@ function zeigeLink(url) {
  * einmal wissen will und dann nicht mehr – welcher Griff, wie der Aufbau geht,
  * was schiefgeht –, steht hier darunter und nimmt zugeklappt eine Zeile weg.
  */
+/**
+ * „Wenn etwas weh tut" – der Weg von einer Stelle am Körper zu einer Folge.
+ *
+ *     „Viel mehr soll man bestimmte Schmerzen oder so die man bei bestimmten
+ *      Übungen hat unter Krankheiten abhaken können bzw es soll bei der Übung
+ *      ein Erklärungstext stehen was man machen soll wenn man schmerzen in
+ *      bestimmten Bereichen hat. Wenn da rauskommt dass die Übung einfach
+ *      nicht für einen geeignet ist dann soll sie natürlich ganz raus"
+ *
+ * Genau diese drei Schritte, in dieser Reihenfolge: **Wo** tut es weh, **was**
+ * ist dann zu tun, und **wenn das nichts hilft**, gehört es unter Beschwerden.
+ * Von dort greift die Maschinerie, die es seit jeher gibt – js/injuries.js mit
+ * avoid, swap und care.
+ *
+ * Bis v190 stand hier stattdessen eine Auswahl ähnlicher Übungen. Die war die
+ * falsche Antwort auf dieselbe Frage, und zwar aus zwei Gründen: Sie ließ den
+ * Nutzer entscheiden, was die App besser weiß, und sie galt nur für diese eine
+ * Übung statt für jede, die dieselbe Stelle belastet.
+ *
+ * Der Knopf hakt die Beschwerde an und macht damit **mehr**, als diese Übung zu
+ * tauschen. Deshalb steht am Knopf, was er anhakt, und nicht „Übung tauschen".
+ * Ist sie schon angehakt, sagt die Zeile das und der Knopf ist weg; abgehakt
+ * wird unter Beschwerden, nicht hier – sonst gäbe es zwei Orte für dieselbe
+ * Entscheidung, und einer von beiden wäre irgendwann der falsche.
+ */
+function schmerzBlock(it) {
+  if (!it.schmerz || !it.schmerz.length) return '';
+  const act = store.getState().injuries || [];
+  const zeile = (s) => {
+    const key = `${it.id}|${s.ort}`;
+    const offen = ui.openSchmerz.has(key);
+    const ids = (s.verletzung || []).filter((v) => injuryById(v));
+    const schon = ids.filter((v) => act.includes(v));
+    const knoepfe = offen ? ids.filter((v) => !act.includes(v)).map((v) => `
+        <button type="button" class="btn btn-ghost btn-sm" data-act="schmerz-anhaken" data-inj="${esc(v)}">
+          „${esc(injuryById(v).name)}" anhaken
+        </button>`).join('') : '';
+    const steht = offen && schon.length
+      ? `<p class="schmerz-an">Unter Beschwerden angehakt: ${
+        esc(schon.map((v) => injuryById(v).name).join(', '))}. Der Plan ist entsprechend angepasst.</p>`
+      : '';
+    return `
+      <button type="button" class="schmerz-h ${offen ? 'on' : ''}" data-act="toggle-schmerz"
+              data-k="${esc(key)}" aria-expanded="${offen}">
+        ${esc(s.ort)}<span class="chev">▼</span>
+      </button>
+      ${offen ? `<div class="schmerz-b"><p>${esc(s.text)}</p>${steht}
+        ${knoepfe ? `<div class="btn-row">${knoepfe}</div>` : ''}</div>` : ''}`;
+  };
+  return `<div class="ex-schmerz">
+      <div class="lbl">Wenn etwas weh tut</div>
+      ${it.schmerz.map(zeile).join('')}
+    </div>`;
+}
+
 function detailBlock(it) {
   if (!it.detail || !it.detail.length) return '';
   const offen = ui.openDetail.has(it.id);
@@ -4991,6 +5030,24 @@ view.addEventListener('click', (e) => {
   const mode = store.workoutMode(n);
 
   switch (act) {
+    case 'toggle-schmerz': {
+      const k = t.dataset.k;
+      if (ui.openSchmerz.has(k)) ui.openSchmerz.delete(k); else ui.openSchmerz.add(k);
+      render();
+      break;
+    }
+    case 'schmerz-anhaken': {
+      // Nur an, nie aus. Abgehakt wird unter Beschwerden – hier stünde sonst
+      // ein Schalter, der an einer einzelnen Übung etwas wegnimmt, das für
+      // den ganzen Plan gilt, und das wäre eine Zusage, die er nicht hält.
+      const id = t.dataset.inj;
+      const inj = injuryById(id);
+      if (!inj) break;
+      store.toggleInjury(id, true);
+      render();
+      toast(`🩹 ${inj.name} angehakt – der Plan ist angepasst`);
+      break;
+    }
     case 'toggle-injury': {
       const id = t.dataset.inj;
       const on = t.getAttribute('aria-pressed') !== 'true';
