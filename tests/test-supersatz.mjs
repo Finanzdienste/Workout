@@ -211,6 +211,58 @@ const pause = await page.evaluate(() => !!JSON.parse(
 check(pause === false,
   'und ohne Pause davor – der Partner war noch nicht dran, es gibt nichts zu warten');
 
+// --- Supersätze kosten keine Umbauten ---------------------------------------
+//
+// Gefunden bei der Durchsicht der App: Eine Kurzhantel und ein Kurzhantel-Paar
+// galten als verschiedene Geräte, laufen aber über dieselben Griffe. Im
+// Wechsel hieß das: zwischen jedem Satz umbauen. Über die 84 Einheiten des
+// Aufbau-Plans waren es mit Supersätzen 404 Umbauten statt 296.
+//
+// Gezählt wird Satz für Satz: Jedes Mal, wenn eine Stange ein anderes Gewicht
+// braucht als zuletzt, ist das ein Umbau.
+const STANGE = { kh2: 'kh', kh1: 'kh', lh: 'lh', sz: 'sz', ruck: 'ruck' };
+for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
+  // Über den Speicher der App, nicht an ihm vorbei: Beim Neuladen schreibt sie
+  // ihren Stand zurück und überschriebe ein direkt gesetztes `focus`.
+  await page.evaluate(async (f) => {
+    const s = await import('./js/store.js');
+    s.setSetting('focus', f);
+    s.setSetting('greeted', true);
+    s.flush();
+  }, fokus);
+  await page.reload({ waitUntil: 'networkidle' });
+  const geladen = await page.evaluate(async () => (await import('./js/data.js')).FOCUS.name);
+  check(geladen && geladen === (await page.evaluate(async (f) => (await import('./js/data.js')).PLANS[f].name, fokus)),
+    `${fokus}: der Plan dieses Fokus ist geladen (${geladen})`);
+  const r = await page.evaluate(async (stange) => {
+    const P = await import('./js/plan.js');
+    const S = await import('./js/supersatz.js');
+    const G = await import('./js/gewichte.js');
+    const { PLAN } = await import('./js/data.js');
+    const zaehle = (folge) => {
+      const stand = {};
+      let z = 0;
+      folge.forEach((id) => {
+        const a = G.setupOf(id, G.workingWeight(id));
+        if (!a) return;
+        const k = a.fam + '|' + a.kg;
+        if (stand[stange[a.fam]] !== k) { z++; stand[stange[a.fam]] = k; }
+      });
+      return z;
+    };
+    let aus = 0;
+    let an = 0;
+    PLAN.forEach((w) => {
+      const items = P.workoutByNo(w.n, 'db').ex.map((x) => P.resolve(x, 'db'));
+      aus += zaehle(items.flatMap((it) => Array(it.sets).fill(it.id)));
+      an += zaehle(S.paare(items, 'db').flatMap((g) => S.schritte(g).map((x) => x.id)));
+    });
+    return { aus, an };
+  }, STANGE);
+  check(r.an <= r.aus + 2,
+    `${fokus}: Supersätze kosten keine zusätzlichen Umbauten (ohne ${r.aus}, mit ${r.an})`);
+}
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

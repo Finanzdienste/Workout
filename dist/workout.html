@@ -11238,8 +11238,22 @@ function direkteMuskeln(id, mode) {
  */
 const geraet = (id) => {
   const ex = EX_BY_ID.get(id);
-  return (ex && RUEST_FAM[ex.equip]) || null;
+  return (ex && STANGE[RUEST_FAM[ex.equip]]) || null;
 };
+
+/**
+ * Welche *Stange* ein Aufbau belegt – nicht welche Gerätefamilie.
+ *
+ * Gefunden bei der Durchsicht der App: Eine Kurzhantel (Goblet, einarmiges
+ * Kreuzheben) und ein Kurzhantel-Paar sind zwei Familien, laufen aber über
+ * dieselben Griffe – die App kennt genau ein Paar. Gepaart wurde nach Familie,
+ * also durften sie im Wechsel laufen, und zwischen jedem Satz war umzubauen:
+ * 12 kg an einer Hantel gegen 5 kg an beiden. Gezählt über die 84 Einheiten
+ * des Aufbau-Plans stiegen die Umbauten mit eingeschalteten Supersätzen damit
+ * von 296 auf 404, obwohl der Hinweis unter Mehr verspricht, dass beide
+ * Aufbauten stehen bleiben.
+ */
+const STANGE = { lh: 'lh', sz: 'sz', kh1: 'kh', kh2: 'kh', ruck: 'ruck' };
 
 /** Dürfen diese beiden im Wechsel laufen? */
 function passtZusammen(a, b, mode) {

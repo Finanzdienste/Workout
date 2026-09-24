@@ -29,11 +29,22 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 
 let geprueft = 0;
 for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
-  await page.evaluate((f) => {
-    localStorage.clear();
-    localStorage.setItem('workout.state.v1', JSON.stringify({ greeted: true, focus: f, level: 'geuebt' }));
+  // Über den Speicher der App: Beim Neuladen schreibt sie ihren Stand zurück
+  // und überschriebe ein direkt gesetztes `focus` – dann prüfte die Schleife
+  // viermal denselben Plan, ohne es zu merken.
+  await page.evaluate(async (f) => {
+    const s = await import('./js/store.js');
+    s.setSetting('greeted', true);
+    s.setSetting('level', 'geuebt');
+    s.setSetting('focus', f);
+    s.flush();
   }, fokus);
   await page.reload({ waitUntil: 'networkidle' });
+  const geladen = await page.evaluate(async (f) => {
+    const d = await import('./js/data.js');
+    return d.FOCUS === d.PLANS[f];
+  }, fokus);
+  check(geladen, `${fokus}: der Plan dieses Fokus ist geladen`);
   const r = await page.evaluate(async () => {
     const store = await import('./js/store.js');
     const { PLAN, EXERCISES } = await import('./js/data.js');
