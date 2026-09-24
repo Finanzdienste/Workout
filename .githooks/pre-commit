@@ -1,0 +1,10 @@
+#!/bin/sh
+# Schneller Schutz vor dem, was sonst erst CI merkt – unter zehn Sekunden.
+# Die Browsertests laufen hier nicht; dafür gibt es `npm run pruefen`.
+# Aktiviert über "prepare" in package.json (läuft bei npm ci / npm install).
+set -e
+cd "$(git rev-parse --show-toplevel)"
+sh tools/pruefung/erzeugt.sh
+npx --no-install eslint js sw.js tests tools >/dev/null || { echo "✗ Linter (npm run lint)" >&2; exit 1; }
+python3 tools/pruefung/schichten.py >/dev/null || { echo "✗ tools/pruefung/schichten.py" >&2; exit 1; }
+echo "✓ vor dem Commit: Bau, Linter, Schichten"

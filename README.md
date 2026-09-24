@@ -2300,6 +2300,26 @@ herauskommt.
 
 ## Prüfen
 
+### Vor dem Commit und vor dem Push
+
+Zwei Stufen, damit „lokal grün" dasselbe heißt wie „in CI grün":
+
+- **Bei jedem Commit** läuft `.githooks/pre-commit` (unter zehn Sekunden): Bau
+  von `js/data.js` und `dist/workout.html` samt Prüfung, ob sie aus den jetzigen
+  Quellen stammen, dazu Linter und Schichten. Aktiviert wird der Hook über
+  `prepare` in `package.json`, also bei jedem `npm ci` von selbst.
+- **Vor dem Push** `npm run pruefen`: genau die Schritte aus
+  `.github/workflows/pruefung.yml`, in derselben Reihenfolge, inklusive aller
+  Browsertests.
+
+Der Anlass waren drei rote CI-Läufe an einem Tag, alle gleicher Bauart. Zweimal
+wurde nach dem Bauen noch eine Quelle geändert – einmal nur ein Kommentar
+umbrochen –, und einmal scheiterte der Bau an einer Namenskollision im Bündel
+und ließ die alte Datei liegen. Der letzte Fall ist der tückische: Ein Vergleich
+„vorher gleich nachher" meldete *stabil*, weil beide Läufe am selben Fehler
+scheiterten. `tools/pruefung/erzeugt.sh` prüft deshalb zuerst den Rückgabewert
+des Baus und erst dann den Vergleich.
+
 ### Der Linter
 
 `npm run lint` (ESLint, Konfiguration in `eslint.config.mjs`). Er liest den Code,

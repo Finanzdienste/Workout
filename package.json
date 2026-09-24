@@ -7,7 +7,9 @@
     "lint": "eslint js sw.js tests tools",
     "test": "node tests/lauf.mjs",
     "test:plan": "python3 tools/pruefung/plan-pruefen.py",
-    "serve": "node tests/server.mjs 8099"
+    "serve": "node tests/server.mjs 8099",
+    "pruefen": "sh tools/pruefung/alles.sh",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
     "eslint": "9.39.5",
