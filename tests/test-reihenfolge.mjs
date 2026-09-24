@@ -6,6 +6,7 @@
  * Training vor sich hat, nicht die im Plan.
  */
 import { chromium } from 'playwright';
+import { readFileSync } from 'node:fs';
 import { URL } from './umgebung.mjs';
 
 const EINHEITEN = 84;
@@ -96,6 +97,51 @@ const roh = await page.evaluate(async () => {
 });
 const ohne = roh.reduce((s, l) => s + ruesten(l), 0);
 check(jetzt <= ohne, `Rüstvorgänge: ${jetzt} sortiert gegen ${ohne} in der Plan-Reihenfolge`);
+
+// --- 3. Alle vier Pläne gegen einen festgehaltenen Stand ------------------
+// Weniger Scheibenwechsel ist „ultra wichtig" – geprüft wurde bisher aber nur,
+// dass die Sortierung im Standardplan nicht schlechter ist als gar keine.
+// Eine Änderung an Startgewichten, Geräten oder ruestOrder() konnte die
+// anderen drei Pläne verschlechtern, ohne dass etwas anschlug (gefunden bei
+// der Durchsicht der App). Jetzt: je Plan die Rüstvorgänge je Einheit, mit der
+// Rechnung der App selbst (setupOf, wie ruestHint sie zählt), gegen
+// tests/ruestaufwand-stand.json. Schlechter schlägt an; besser heißt: den Stand
+// dort nachziehen, damit er hält.
+const STAND = JSON.parse(readFileSync(new globalThis.URL('./ruestaufwand-stand.json', import.meta.url), 'utf8'));
+const gemessen = {};
+for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
+  await page.evaluate(async (f) => {
+    const s = await import('./js/store.js');
+    s.setSetting('focus', f);
+    s.flush();
+  }, fokus);
+  await page.reload({ waitUntil: 'networkidle' });
+  gemessen[fokus] = await page.evaluate(async (f) => {
+    const d = await import('./js/data.js');
+    const { exOf } = await import('./js/plan.js');
+    const { setupOf, workingWeight } = await import('./js/gewichte.js');
+    if (d.FOCUS !== d.PLANS[f]) return null;
+    let n = 0;
+    d.PLAN.forEach((w) => {
+      let vorher = null;
+      exOf(w, 'db').forEach((it) => {
+        const cur = setupOf(it.id, workingWeight(it.id));
+        if (!cur) return;
+        if (!vorher || vorher.fam !== cur.fam || Math.abs(vorher.kg - cur.kg) > 0.01) n += 1;
+        vorher = cur;
+      });
+    });
+    return +(n / d.PLAN.length).toFixed(3);
+  }, fokus);
+}
+console.log('     Rüstvorgänge je Einheit:', JSON.stringify(gemessen), ' Stand:', JSON.stringify(STAND));
+Object.entries(gemessen).forEach(([f, wert]) => {
+  check(wert !== null && typeof STAND[f] === 'number' && wert <= STAND[f] + 0.005,
+    `${f}: ${wert} Rüstvorgänge je Einheit, nicht mehr als festgehalten (${STAND[f]})`);
+  if (wert !== null && STAND[f] - wert > 0.01) {
+    console.log(`     ${f} ist besser geworden – tests/ruestaufwand-stand.json auf ${wert} nachziehen`);
+  }
+});
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

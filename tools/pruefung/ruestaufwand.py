@@ -18,7 +18,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 EX = {e['id']: e for e in json.loads(
     re.search(r'export const EXERCISES = (\[.*?\n\]);', (ROOT / 'js/data.js').read_text(), re.S).group(1))}
-FAM = {'barbell': 'lh', 'hipbar': 'lh', 'dumbbells': 'kh2',
+FAM = {'barbell': 'lh', 'hipbar': 'lh', 'szbar': 'sz', 'dumbbells': 'kh2',
        'goblet': 'kh1', 'onehand': 'kh1', 'plate': 'kh1', 'backpack': 'ruck'}
 
 

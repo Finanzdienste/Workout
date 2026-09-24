@@ -3677,6 +3677,11 @@ weiter offline und ohne Konto läuft.
   dazu eine Zufallszahl als Kennung des Geräts. Keine Uhrzeiten (der Server
   vermerkt nur den Tag der letzten Meldung), keine Adressen, nichts von
   außerhalb dieser App. Dieselbe Aufzählung steht wortgleich in der App.
+* **Wer es speichert.** Die Tabelle liegt bei Supabase. Wie jeder Dienst im
+  Netz sieht Supabase bei jeder Meldung die IP-Adresse des Geräts; in die
+  Tabelle geschrieben wird sie nicht. Das steht seit v203 auch im Text in der
+  App – vorher hieß es dort nur „keine Adressen", und das ließ offen, dass ein
+  Dritter beteiligt ist. Gefunden bei der Durchsicht der App.
 
 ### Die Übersicht zählte hauptsächlich sich selbst
 
@@ -4107,9 +4112,13 @@ Fehlschlag auf den Zwischenspeicher zurück, damit eine neue Fassung sofort
 ankommt, sobald Empfang besteht. Übrige Dateien kommen sofort aus dem
 Zwischenspeicher und werden im Hintergrund erneuert.
 
-Wichtig beim Ändern: `VERSION` in `sw.js` hochzählen, wenn Dateien aus der
-Liste `SHELL` dazukommen oder wegfallen – daran hängt das Aufräumen alter
-Zwischenspeicher.
+Wichtig beim Ändern: `VERSION` in `sw.js` hochzählen, **sobald sich eine Datei
+aus der Liste `SHELL` ändert** – nicht nur, wenn eine dazukommt oder wegfällt,
+wie hier früher stand. Übrige Dateien kommen aus dem Zwischenspeicher; bleibt
+die Version stehen, läuft beim ersten Öffnen nach einem Update ein frisches
+`index.html` mit einem alten `app.js`. `tools/pruefung/versionspflicht.py`
+prüft das gegen den ausgelieferten Stand – im Commit-Haken, in
+`npm run pruefen` und in CI.
 
 ### Das Symbol auf dem Startbildschirm
 

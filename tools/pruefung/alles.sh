@@ -9,6 +9,7 @@ python3 tools/pruefung/geraete.py >/dev/null
 python3 tools/pruefung/wochen-cap.py >/dev/null
 python3 tools/pruefung/plan-frisch.py >/dev/null
 python3 tools/pruefung/schichten.py >/dev/null
+python3 tools/pruefung/versionspflicht.py
 echo "✓ Tore"
 sh tools/pruefung/erzeugt.sh
 npx --no-install eslint js sw.js tests tools

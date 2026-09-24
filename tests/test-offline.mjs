@@ -1,6 +1,22 @@
+/*
+ * Die App geht ohne Netz auf, mit allem, was eingetragen ist.
+ *
+ * **Das Netz ist hier wirklich weg.** Vorher schaltete der Test nur
+ * ctx.setOffline(true) – und die Abrufe des Service Workers gehen daran vorbei:
+ * gemessen bei der Durchsicht der App, 31 Anfragen am Server, während die Seite
+ * „offline" meldete. Grün wäre der Test damit auch mit leerem Offline-Vorrat
+ * gewesen. Jetzt läuft die App über einen eigenen Server, und für den Teil
+ * ohne Netz wird der abgeschaltet.
+ */
 import { chromium } from 'playwright';
-import { URL, SHOT, profil } from './umgebung.mjs';
+import { SHOT, profil } from './umgebung.mjs';
 import { rmSync } from 'node:fs';
+import { starte } from './server.mjs';
+
+const PORT = 8145;
+const URL = `http://127.0.0.1:${PORT}/index.html`;
+let server = await starte(PORT, 0);
+const serverZu = () => new Promise((ok) => { server.closeAllConnections?.(); server.close(() => ok()); });
 
 // Frisches Profil: ein Zwischenspeicher aus dem letzten Lauf gehört einer
 // älteren Fassung, und der erste Aufruf danach ist eine Aktualisierung – das
@@ -61,7 +77,10 @@ check(cached.some((p) => p.endsWith('/js/data.js')), 'Plandaten im Zwischenspeic
 check(cached.some((p) => p.endsWith('/css/styles.css')), 'Styling im Zwischenspeicher');
 
 // --- Netz weg ---
+await serverZu();
 await ctx.setOffline(true);
+const erreichbar = await fetch(URL).then(() => true, () => false);
+check(!erreichbar, 'der Server ist wirklich aus – nicht nur als „offline" gemeldet');
 await reloadToList('load');
 
 check(await page.locator('.ex').count() === LEN, 'App rendert ohne Netz');
@@ -83,6 +102,7 @@ check(await page.locator('.set-btn.on').count() === 2, 'offline eingetragener Sa
 await page.screenshot({ path: `${SHOT}/30-offline.png` });
 
 // --- Netz zurück ---
+server = await starte(PORT, 0);
 await ctx.setOffline(false);
 await reloadToList();
 check(await page.locator('.ex').count() === LEN, 'nach Rückkehr des Netzes weiterhin in Ordnung');
@@ -91,3 +111,4 @@ check(await page.locator('.set-btn.on').count() === 2, 'Eintragungen unveränder
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await ctx.close();
+server.close();

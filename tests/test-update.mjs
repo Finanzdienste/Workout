@@ -5,17 +5,33 @@
  * dann eine neue Version ausliefern und die App wieder öffnen. Danach muss
  * alles aus derselben Fassung stammen.
  *
- * Ausgeliefert wird dabei über Port 8100 – der Server dort setzt wie GitHub
- * Pages eine Haltbarkeit von zehn Minuten. Genau daran ist es in der Praxis
- * gescheitert: ein gewöhnliches fetch() im Service Worker bekam die alte
- * Fassung aus dem Browser-Zwischenspeicher und legte sie als frisch ab.
+ * Ausgeliefert wird dabei mit einer Haltbarkeit von zehn Minuten, wie GitHub
+ * Pages es tut. Genau daran ist es in der Praxis gescheitert: ein gewöhnliches
+ * fetch() im Service Worker bekam die alte Fassung aus dem Browser-
+ * Zwischenspeicher und legte sie als frisch ab.
+ *
+ * **Auf einer Kopie.** Der Test schreibt eine neue Fassung von app.js und sw.js.
+ * Früher tat er das im Projekt selbst und schrieb im `finally` zurück – das
+ * läuft bei Strg+C nicht, und die Testmarke samt 'vTEST' blieb in den Quellen
+ * (nachgewiesen bei der Durchsicht der App). Jetzt liegt die App dafür in einem
+ * eigenen Verzeichnis mit eigenem Server, und das Projekt wird nie angefasst.
  */
 import { chromium } from 'playwright';
-import { UPDATE_URL, ROOT, profil } from './umgebung.mjs';
-import { readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { ROOT, profil } from './umgebung.mjs';
+import { cpSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { starte } from './server.mjs';
 
-const SW = `${ROOT}/sw.js`;
-const APP = `${ROOT}/js/app.js`;
+const KOPIE = mkdtempSync(path.join(tmpdir(), 'workout-update-'));
+const WEG = new Set(['node_modules', '.git', '.testlauf', 'tests', 'tools', 'dist']);
+cpSync(ROOT, KOPIE, { recursive: true, filter: (q) => !WEG.has(path.relative(ROOT, q).split(path.sep)[0]) });
+const PORT = 8144;
+const server = await starte(PORT, 600, KOPIE);
+const UPDATE_URL = `http://127.0.0.1:${PORT}/index.html`;
+
+const SW = `${KOPIE}/sw.js`;
+const APP = `${KOPIE}/js/app.js`;
 const swOrig = readFileSync(SW, 'utf8');
 const appOrig = readFileSync(APP, 'utf8');
 
@@ -61,9 +77,9 @@ try {
   check(await page.locator('.tab').count() === 3, 'Oberfläche steht');
   check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
 } finally {
-  writeFileSync(APP, appOrig);
-  writeFileSync(SW, swOrig);
   await ctx.close();
+  server.close();
+  rmSync(KOPIE, { recursive: true, force: true });
 }
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

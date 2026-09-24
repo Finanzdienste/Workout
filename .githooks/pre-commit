@@ -7,4 +7,5 @@ cd "$(git rev-parse --show-toplevel)"
 sh tools/pruefung/erzeugt.sh
 npx --no-install eslint js sw.js tests tools >/dev/null || { echo "✗ Linter (npm run lint)" >&2; exit 1; }
 python3 tools/pruefung/schichten.py >/dev/null || { echo "✗ tools/pruefung/schichten.py" >&2; exit 1; }
-echo "✓ vor dem Commit: Bau, Linter, Schichten"
+python3 tools/pruefung/versionspflicht.py >/dev/null || { python3 tools/pruefung/versionspflicht.py >&2; exit 1; }
+echo "✓ vor dem Commit: Bau, Linter, Schichten, Version"

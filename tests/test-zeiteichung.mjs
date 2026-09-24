@@ -123,6 +123,43 @@ await page.waitForTimeout(400);
 const stats2 = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(/gedeckelt|Vertrauensbereich/.test(stats2), 'und die App sagt, dass sie gedeckelt hat');
 
+// --- 6. Vorzeitig beendet oder mit Supersätzen: zählt nicht -------------
+// Gefunden bei der Durchsicht: Sechs Einheiten, jeweils nach der Hälfte der
+// Sätze „abgeschlossen", standen mit ihrer kurzen Uhrzeit gegen die volle
+// Formel – und die Karten zeigten halb so lange Einheiten, „gemessen".
+const halb = await protokoll(6, 0.45);
+Object.values(halb).forEach((e) => {
+  Object.values(e.db).forEach((saetze) => saetze.forEach((x, i) => { if (i > 0) x.done = false; }));
+});
+await setze({ greeted: true, name: 'T', level: 'geuebt', shift: 0, log: halb });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+zeilen = await fokusZeilen();
+console.log('     nach sechs halben Einheiten:', zeilen[0]);
+check(zeilen.every((z) => /ca\. /.test(z)) && !zeilen.some((z) => /gemessen/.test(z)),
+  'vorzeitig beendete Einheiten eichen nichts – es bleibt bei der Schätzung');
+
+const superEinheiten = await protokoll(6, 0.6);
+Object.values(superEinheiten).forEach((e) => { e.super = true; });
+await setze({ greeted: true, name: 'T', level: 'geuebt', shift: 0, log: superEinheiten });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+zeilen = await fokusZeilen();
+check(zeilen.every((z) => /ca\. /.test(z)),
+  'Einheiten mit Supersätzen auch nicht – die Formel kennt keine');
+
+// Und markDone merkt sich, ob Supersätze an waren.
+const vermerkt = await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  s.setSetting('supersatz', true);
+  s.markDone(80, 'db');
+  const a = !!s.getState().log[80].super;
+  s.setSetting('supersatz', false);
+  s.markDone(80, 'db');
+  return [a, !!s.getState().log[80].super];
+});
+check(vermerkt[0] === true && vermerkt[1] === false, `die Einheit vermerkt, ob Supersätze an waren (${vermerkt})`);
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

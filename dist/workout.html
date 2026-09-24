@@ -9716,27 +9716,48 @@ let storageOk = (() => {
   }
 })();
 
+/*
+ * Die Ablage hat ihren eigenen Fehlerstand.
+ *
+ * Gefunden bei der Durchsicht der App: Scheiterte das Schreiben der Ablage
+ * (Speicher voll), setzte schreibeRunden() die Warnung – und das nächste
+ * write() des Hauptschlüssels, der ohne das gerade abgelegte Protokoll kleiner
+ * war und passte, nahm sie 120 ms später wieder weg. Nach dem Neuladen war die
+ * Runde weg, ein halbes Jahr Training, und niemand war gewarnt worden.
+ *
+ * Jetzt: restartPlan() und wechsleFokus() rollen zurück, wenn die Ablage nicht
+ * geschrieben werden kann, und dieser Fehler bleibt stehen, bis ein Schreiben
+ * der Ablage gelingt – write() rührt ihn nicht an.
+ */
+let rundenFehler = null;
+// Liegt die Ablage noch im Hauptschlüssel (alte Fassung) und ließ sie sich
+// nicht umziehen, muss write() sie dort lassen – sonst wäre sie weg.
+let rundenImHaupt = false;
+
 /** false, wenn der Browser nichts speichern kann – Eintragungen sind flüchtig. */
-function canPersist() { return storageOk; }
+function canPersist() { return storageOk && !rundenFehler; }
 
 /** 'gesperrt', 'voll' oder null – siehe warumNicht(). */
-function speicherGrund() { return storageOk ? null : speicherFehler; }
+function speicherGrund() { return !storageOk ? speicherFehler : rundenFehler; }
+
+/** Eintragungen werden gespeichert, nur die Ablage einer Runde ging nicht. */
+function ablageKlemmt() { return storageOk && !!rundenFehler; }
 
 // Kam die Ablage aus dem Hauptschlüssel, muss sie **sofort** in ihren eigenen –
 // nicht erst beim nächsten abgehakten Satz. Dazwischen hätte der Hauptschlüssel
 // sie beim ersten write() verloren, während der neue noch leer wäre.
 if (wandert) {
-  schreibeRunden();
+  if (!schreibeRunden()) rundenImHaupt = true;
   persist();
 }
 
 function write() {
   saveTimer = null;
-  const vorher = storageOk;
+  const vorher = canPersist();
   try {
     // Ohne die Ablage – die steht in KEY_RUNDEN und ändert sich fast nie.
     const { rounds, ...schlank } = state;
-    localStorage.setItem(KEY, JSON.stringify(schlank));
+    localStorage.setItem(KEY, JSON.stringify(rundenImHaupt ? state : schlank));
     storageOk = true;
     speicherFehler = null;
   } catch (e) {
@@ -9748,17 +9769,42 @@ function write() {
   // diese Meldung stünde die Warnung einen verlorenen Satz zu spät da; und
   // wäre nur das Scheitern gemeldet, bliebe sie nach dem Aufräumen kleben, bis
   // von selbst etwas anderes neu zeichnet. Wer darauf reagiert: js/app.js.
-  if (storageOk !== vorher) emit();
+  if (canPersist() !== vorher) emit();
 }
 
-/** Die Ablage schreiben. Nur aufrufen, wo sie sich wirklich ändert. */
+/** Die Ablage schreiben. Nur aufrufen, wo sie sich wirklich ändert. true, wenn es ging. */
 function schreibeRunden() {
   try {
     localStorage.setItem(KEY_RUNDEN, JSON.stringify(state.rounds || []));
+    rundenFehler = null;
+    rundenImHaupt = false;
+    return true;
   } catch (e) {
-    storageOk = false;
-    speicherFehler = warumNicht(e);
+    rundenFehler = warumNicht(e);
+    return false;
   }
+}
+
+/**
+ * Eine Änderung, die die Ablage betrifft, nur ganz oder gar nicht.
+ * `aendern` schreibt am Zustand; gelingt danach das Ablegen nicht, kommt der
+ * vorherige Zustand zurück, und es bleibt beim Fehler. Rückgabe: ob es ging.
+ */
+function mitAblage(aendern) {
+  const vorher = {
+    log: state.log, rounds: state.rounds, shift: state.shift, focus: state.focus,
+    session: state.session, clock: state.clock, rest: state.rest,
+  };
+  state.rounds = [...(state.rounds || [])];
+  aendern();
+  if (!schreibeRunden()) {
+    Object.assign(state, vorher);
+    emit();
+    return false;
+  }
+  persist();
+  emit();
+  return true;
 }
 
 function persist() {
@@ -10136,6 +10182,11 @@ function toggleCare(n, key) {
 function markDone(n, mode) {
   const e = ensure(n);
   e.done = mode;
+  // Mit Supersätzen dauert eine Einheit rund 40 % kürzer, und die
+  // Zeitformel kennt keine – die Eichung (zeitEichung in js/app.js) lässt
+  // solche Einheiten deshalb aus. Dafür muss sie wissen, welche es waren.
+  if (state.supersatz) e.super = true;
+  else delete e.super;
   syncStartedOn(n);
   persist();
   emit();
@@ -10248,24 +10299,23 @@ function markBackup(done) {
  * Übung aufgehört hat. Ohne diesen Vermerk müsste der Stufenaufstieg raten.
  */
 function restartPlan(shiftDays, bilanz) {
-  if (Object.keys(state.log).length) {
-    // Der Fokus gehört dazu: Ein Protokoll ist nach Workout-Nummer abgelegt,
-    // und Workout 3 im Beinplan hat andere Übungen als Workout 3 im
-    // ausgewogenen. Ohne diesen Vermerk ließe sich ein Verlauf in einen Plan
-    // zurückholen, in den er nicht gehört.
-    state.rounds.push({
-      finishedOn: todayISO(), log: state.log, focus: state.focus,
-      ...(bilanz ? { bilanz } : {}),
-    });
-  }
-  state.log = {};
-  state.session = null;
-  state.clock = null;
-  state.rest = null;
-  state.shift = Math.round(Number(shiftDays) || 0);
-  schreibeRunden();
-  persist();
-  emit();
+  return mitAblage(() => {
+    if (Object.keys(state.log).length) {
+      // Der Fokus gehört dazu: Ein Protokoll ist nach Workout-Nummer abgelegt,
+      // und Workout 3 im Beinplan hat andere Übungen als Workout 3 im
+      // ausgewogenen. Ohne diesen Vermerk ließe sich ein Verlauf in einen Plan
+      // zurückholen, in den er nicht gehört.
+      state.rounds.push({
+        finishedOn: todayISO(), log: state.log, focus: state.focus,
+        ...(bilanz ? { bilanz } : {}),
+      });
+    }
+    state.log = {};
+    state.session = null;
+    state.clock = null;
+    state.rest = null;
+    state.shift = Math.round(Number(shiftDays) || 0);
+  });
 }
 
 /**
@@ -10297,24 +10347,22 @@ function restartPlan(shiftDays, bilanz) {
 function wechsleFokus(key, bilanz, startShift) {
   const alt = state.focus || 'standard';
   if (key === alt) return false;
-  if (Object.keys(state.log).length) {
-    state.rounds.push({
-      finishedOn: todayISO(), log: state.log, focus: alt, shift: state.shift,
-      ...(bilanz ? { bilanz } : {}),
-    });
-  }
-  const zurueck = letzteRunde(key);
-  if (zurueck) state.rounds = state.rounds.filter((r) => r !== zurueck);
-  state.log = (zurueck && zurueck.log) || {};
-  state.shift = Math.round(Number(zurueck ? zurueck.shift : startShift) || 0);
-  state.session = null;
-  state.clock = null;
-  state.rest = null;
-  state.focus = key;
-  schreibeRunden();
-  persist();
-  emit();
-  return true;
+  return mitAblage(() => {
+    if (Object.keys(state.log).length) {
+      state.rounds.push({
+        finishedOn: todayISO(), log: state.log, focus: alt, shift: state.shift,
+        ...(bilanz ? { bilanz } : {}),
+      });
+    }
+    const zurueck = letzteRunde(key);
+    if (zurueck) state.rounds = state.rounds.filter((r) => r !== zurueck);
+    state.log = (zurueck && zurueck.log) || {};
+    state.shift = Math.round(Number(zurueck ? zurueck.shift : startShift) || 0);
+    state.session = null;
+    state.clock = null;
+    state.rest = null;
+    state.focus = key;
+  });
 }
 
 /**
@@ -10350,15 +10398,14 @@ function letzteRunde(key) {
 function restoreRound() {
   const runde = restorable();
   if (!runde) return false;
-  state.rounds = state.rounds.filter((r) => r !== runde);
-  const zurueck = runde.log || {};
-  Object.keys(zurueck).forEach((n) => {
-    if (!state.log[n]) state.log[n] = zurueck[n];
+  return mitAblage(() => {
+    state.rounds = state.rounds.filter((r) => r !== runde);
+    const zurueck = runde.log || {};
+    state.log = { ...state.log };
+    Object.keys(zurueck).forEach((n) => {
+      if (!state.log[n]) state.log[n] = zurueck[n];
+    });
   });
-  schreibeRunden();
-  persist();
-  emit();
-  return true;
 }
 
 /**
@@ -10444,7 +10491,9 @@ function importJSON(text) {
     localStorage.setItem(KEY_VOR_IMPORT, JSON.stringify({ am: new Date().toISOString(), stand: state }));
   } catch { /* kein Platz – dann eben ohne Rückweg */ }
   state = fresh;
-  schreibeRunden();
+  // Passt die eingelesene Ablage nicht in ihren Schlüssel, bleibt sie im
+  // Hauptschlüssel – sonst schriebe write() den Stand ohne sie.
+  if (!schreibeRunden()) rundenImHaupt = true;
   persist();
   emit();
 }
@@ -10480,7 +10529,7 @@ function resetAll() {
   emit();
 }
 
-const store = { addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, flush, getSets, getState, importJSON, isStarted, markBackup, markDone, markIcs, normStand, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, speicherGrund, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
+const store = { ablageKlemmt, addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, flush, getSets, getState, importJSON, isStarted, markBackup, markDone, markIcs, normStand, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, speicherGrund, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
 
 /* ===== js/text.js ===== */
 /*
@@ -15208,8 +15257,15 @@ function gesamtKarte() {
 function musterKarte() {
   const ab = abbruch();
   const weg = ausgelassen();
-  if (!ab && !weg.length) return '';
   const vorn = vorneListe();
+  // Nach vorn Geholte, die gerade nicht (mehr) als ausgelassen auffallen –
+  // meist genau deshalb, weil „nach vorn" gewirkt hat. Sie standen vorher
+  // nirgends mehr, und der Knopf zum Zurückstellen verschwand mit der Karte:
+  // eine dauerhafte, unsichtbare Änderung der Reihenfolge, die jede Einheit
+  // einen Umbau mehr kostet. Gefunden bei der Durchsicht der App.
+  const nurVorn = vorn.filter((id) => !weg.some((x) => x.id === id) && EX_BY_ID.has(id));
+  if (!ab && !weg.length && !nurVorn.length) return '';
+  const nameVon = (id) => { const e = EX_BY_ID.get(id); return (e && e.db && e.db.name) || id; };
   return `
     <div class="section-title">Was dir im Protokoll auffällt</div>
     <div class="card">
@@ -15217,7 +15273,7 @@ function musterKarte() {
         ${ab.einheiten} hast du vor dem Ende aufgehört – meist nach Übung
         <b>${ab.bis} von ${ab.von}</b>. Das ist kein Problem einer einzelnen Übung,
         sondern der Länge: Was hinten steht, kommt nicht dran. Entweder die Einheit
-        kürzen (Erfahrungsstufe eine Stufe zurück, unter <i>Mehr</i>) oder das
+        kürzen (Fokus <i>Cut</i> unter <i>Mehr</i>: weniger Sätze je Einheit) oder das
         Wichtige nach vorn holen.</div>` : ''}
 
       ${weg.length ? `
@@ -15241,6 +15297,18 @@ function musterKarte() {
           steht ab sofort am Anfang der Einheit, vor der Bündelung nach Gerät. Das kostet
           womöglich einen zusätzlichen Umbau – eine Übung, die ausfällt, bringt aber null
           Sätze, und das ist der teurere Preis.</div>` : ''}
+
+      ${nurVorn.length ? `
+        <div class="small" style="${ab || weg.length ? 'margin-top:12px' : ''}">Von dir nach vorn
+          geholt – sie stehen am Anfang jeder Einheit, vor der Bündelung nach Gerät:</div>
+        <div class="muster-liste">
+          ${nurVorn.map((id) => `
+            <div class="muster-zeile">
+              <div class="lbl">${esc(nameVon(id))}</div>
+              <button type="button" class="btn btn-sm" data-act="muster-vorne" data-ex="${esc(id)}">
+                wieder einreihen</button>
+            </div>`).join('')}
+        </div>` : ''}
     </div>`;
 }
 
@@ -15376,6 +15444,14 @@ async function erinnerungPflegen() {
 function speicherWarnung() {
   const grund = store.speicherGrund();
   if (!grund) return '';
+  if (store.ablageKlemmt()) {
+    return `<div class="notice warn">⚠️ <b>Der Speicher dieses Browsers ist voll.</b>
+      Die abgeschlossene Runde ließ sich nicht ablegen, deshalb fängt der Plan noch nicht
+      von vorn an – verloren ist nichts, und Eintragungen werden weiter gespeichert.
+      Jetzt sichern, dann unter <i>Mehr → Daten</i> aufräumen.
+      <button type="button" class="btn btn-block" data-act="backup-now"
+              style="margin-top:10px">Jetzt sichern</button></div>`;
+  }
   if (grund === 'voll') {
     return `<div class="notice warn">⚠️ <b>Der Speicher dieses Browsers ist voll.</b>
       Was du gerade einträgst, wird <b>nicht</b> gespeichert – der bisherige Stand liegt
@@ -15517,7 +15593,9 @@ function fokusUmzug() {
   // bilanzAus() nimmt den Fokus der Runde als Ausgangspunkt und kommt deshalb
   // auf die richtigen Zahlen. Es bekommt hier eine Runde gereicht, die es so
   // gleich noch einmal sieht – dieselbe Rechnung, nur eben rechtzeitig.
-  store.wechsleFokus(ziel.nach, bilanzAus({ log: s.log, focus: alt }), frischerStart());
+  // Passt die Ablage nicht mehr in den Speicher, bleibt alles, wie es ist –
+  // beim nächsten Start wird es wieder versucht.
+  if (!store.wechsleFokus(ziel.nach, bilanzAus({ log: s.log, focus: alt }), frischerStart())) return false;
   store.setSetting('fokusUmzug', {
     von: ziel.name, nach: PLANS[ziel.nach].name, am: todayISO(), abgelegt: hatteVerlauf,
   });
@@ -15566,7 +15644,9 @@ function planWechsel() {
     // Vorgang, nur ohne dass jemand darauf getippt hätte – also braucht er ihn
     // erst recht.
     const einheiten = Object.keys(s.log).length;
-    store.restartPlan(0, rundenBilanz());
+    // Ging das Ablegen nicht (Speicher voll), bleibt der Stand unverändert und
+    // der Plan-Stand unvermerkt: Beim nächsten Start wird es wieder versucht.
+    if (!store.restartPlan(0, rundenBilanz())) return false;
     store.setSetting('planUmbau', { einheiten, fokus: (PLANS[fokus] || {}).name || fokus });
   }
   store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
@@ -16520,7 +16600,7 @@ function rundeWeiter() {
   const letzte = PLAN[PLAN.length - 1];
   const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
   const ab = addDays(store.startedOn(letzte.n) || effDate(letzte), abstand);
-  store.restartPlan(daysBetween(PLAN[0].date, ab), rundenBilanz());
+  if (!store.restartPlan(daysBetween(PLAN[0].date, ab), rundenBilanz())) return false;
   ui.workoutNo = PLAN[0].n;
   ui.focus = false;
   ui.listView = false;
@@ -17082,7 +17162,9 @@ function shareKarte(ausfuehrlich = false) {
             Freunden du übernommen hast. Dazu eine Zufallszahl, an der dein Gerät
             wiedererkannt wird. Er hat die App gebaut und sieht daran, ob sie benutzt wird
             und was hakt. Sonst geht nichts raus: keine Uhrzeiten, keine Adressen, nichts
-            von außerhalb dieser App.</div>
+            von außerhalb dieser App. Gespeichert wird bei Supabase, einem Datenbankdienst;
+            der sieht dabei technisch bedingt die IP-Adresse deines Geräts – in die Tabelle
+            geschrieben wird sie nicht.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-share"
                 aria-label="Nutzung teilen"></button>
@@ -19475,9 +19557,15 @@ function dauerLautFormel(items, mode) {
 /**
  * Der gemessene Faktor zwischen echter und geschätzter Dauer – oder null.
  *
- * Gezählt werden nur abgeschlossene Einheiten mit erfasster Zeit. Verglichen
- * werden Summen und nicht Einzelwerte: Eine Einheit, bei der die App im
- * Hintergrund lag, zieht so nicht den ganzen Schnitt.
+ * Gezählt werden nur Einheiten, in denen jeder Satz abgehakt ist, mit
+ * erfasster Zeit und ohne Supersätze. Vorher zählte jede abgeschlossene – auch
+ * „Abschließen (4/18)" –, und deren kurze Uhrzeit stand gegen die volle Formel:
+ * Nach ein paar vorzeitig beendeten Einheiten zeigten die Fokus-Karten bis zur
+ * Hälfte zu kurze Einheiten, als „gemessen". Supersätze kürzen die Einheit um
+ * rund 40 %, und die Formel kennt keine. Gefunden bei der Durchsicht der App.
+ *
+ * Verglichen werden Summen und nicht Einzelwerte: Eine Einheit, bei der die App
+ * im Hintergrund lag, zieht so nicht den ganzen Schnitt.
  */
 function zeitEichung() {
   const log = store.getState().log;
@@ -19487,7 +19575,8 @@ function zeitEichung() {
   PLAN.forEach((w) => {
     const e = log[w.n];
     const m = completedMode(w.n);
-    if (!e || !m || !(e.secs > 0)) return;
+    if (!e || !m || !(e.secs > 0) || e.super) return;
+    if (!progressOf(w.n, m).complete) return;
     const soll = dauerLautFormel(exOf(w, m), m);
     if (soll <= 0) return;
     echt += e.secs;
@@ -20565,7 +20654,11 @@ view.addEventListener('click', (e) => {
       // Auch nach vorn: Liegt der Excel-Termin in der Zukunft, fängt die neue
       // Runde trotzdem heute an und nicht irgendwann.
       const target = daysBetween(PLAN[0].date, todayISO());
-      store.restartPlan(target, rundenBilanz());
+      if (!store.restartPlan(target, rundenBilanz())) {
+        toast('Speicher voll – die Runde ließ sich nicht ablegen. Erst sichern und aufräumen.');
+        render();
+        break;
+      }
       ui.workoutNo = PLAN[0].n;
       ui.focus = false;
       ui.listView = false;
@@ -20904,7 +20997,11 @@ view.addEventListener('click', (e) => {
       const laeuft = Object.keys(store.getState().log).length && store.getState().greeted;
       // Keine Rückfrage mehr: Der Wechsel nimmt nichts weg. Der Verlauf des
       // alten Fokus wartet, der des neuen kommt zurück – siehe wechsleFokus().
-      store.wechsleFokus(key, laeuft ? rundenBilanz() : null, frischerStart());
+      if (!store.wechsleFokus(key, laeuft ? rundenBilanz() : null, frischerStart())) {
+        toast('Speicher voll – der Verlauf ließ sich nicht ablegen. Erst sichern und aufräumen.');
+        render();
+        break;
+      }
       // Der Plan steckt beim Laden in Hunderten von Zeilen; ein Wechsel mitten
       // im Betrieb hieße, dass die halbe App noch mit dem alten rechnet.
       if (store.getState().greeted) location.reload();

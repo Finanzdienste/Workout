@@ -138,6 +138,14 @@ async function erinnerungPflegen() {
 function speicherWarnung() {
   const grund = store.speicherGrund();
   if (!grund) return '';
+  if (store.ablageKlemmt()) {
+    return `<div class="notice warn">⚠️ <b>Der Speicher dieses Browsers ist voll.</b>
+      Die abgeschlossene Runde ließ sich nicht ablegen, deshalb fängt der Plan noch nicht
+      von vorn an – verloren ist nichts, und Eintragungen werden weiter gespeichert.
+      Jetzt sichern, dann unter <i>Mehr → Daten</i> aufräumen.
+      <button type="button" class="btn btn-block" data-act="backup-now"
+              style="margin-top:10px">Jetzt sichern</button></div>`;
+  }
   if (grund === 'voll') {
     return `<div class="notice warn">⚠️ <b>Der Speicher dieses Browsers ist voll.</b>
       Was du gerade einträgst, wird <b>nicht</b> gespeichert – der bisherige Stand liegt
@@ -279,7 +287,9 @@ function fokusUmzug() {
   // bilanzAus() nimmt den Fokus der Runde als Ausgangspunkt und kommt deshalb
   // auf die richtigen Zahlen. Es bekommt hier eine Runde gereicht, die es so
   // gleich noch einmal sieht – dieselbe Rechnung, nur eben rechtzeitig.
-  store.wechsleFokus(ziel.nach, bilanzAus({ log: s.log, focus: alt }), frischerStart());
+  // Passt die Ablage nicht mehr in den Speicher, bleibt alles, wie es ist –
+  // beim nächsten Start wird es wieder versucht.
+  if (!store.wechsleFokus(ziel.nach, bilanzAus({ log: s.log, focus: alt }), frischerStart())) return false;
   store.setSetting('fokusUmzug', {
     von: ziel.name, nach: PLANS[ziel.nach].name, am: todayISO(), abgelegt: hatteVerlauf,
   });
@@ -328,7 +338,9 @@ function planWechsel() {
     // Vorgang, nur ohne dass jemand darauf getippt hätte – also braucht er ihn
     // erst recht.
     const einheiten = Object.keys(s.log).length;
-    store.restartPlan(0, rundenBilanz());
+    // Ging das Ablegen nicht (Speicher voll), bleibt der Stand unverändert und
+    // der Plan-Stand unvermerkt: Beim nächsten Start wird es wieder versucht.
+    if (!store.restartPlan(0, rundenBilanz())) return false;
     store.setSetting('planUmbau', { einheiten, fokus: (PLANS[fokus] || {}).name || fokus });
   }
   store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
@@ -1282,7 +1294,7 @@ function rundeWeiter() {
   const letzte = PLAN[PLAN.length - 1];
   const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
   const ab = addDays(store.startedOn(letzte.n) || effDate(letzte), abstand);
-  store.restartPlan(daysBetween(PLAN[0].date, ab), rundenBilanz());
+  if (!store.restartPlan(daysBetween(PLAN[0].date, ab), rundenBilanz())) return false;
   ui.workoutNo = PLAN[0].n;
   ui.focus = false;
   ui.listView = false;
@@ -1844,7 +1856,9 @@ function shareKarte(ausfuehrlich = false) {
             Freunden du übernommen hast. Dazu eine Zufallszahl, an der dein Gerät
             wiedererkannt wird. Er hat die App gebaut und sieht daran, ob sie benutzt wird
             und was hakt. Sonst geht nichts raus: keine Uhrzeiten, keine Adressen, nichts
-            von außerhalb dieser App.</div>
+            von außerhalb dieser App. Gespeichert wird bei Supabase, einem Datenbankdienst;
+            der sieht dabei technisch bedingt die IP-Adresse deines Geräts – in die Tabelle
+            geschrieben wird sie nicht.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-share"
                 aria-label="Nutzung teilen"></button>
@@ -4237,9 +4251,15 @@ function dauerLautFormel(items, mode) {
 /**
  * Der gemessene Faktor zwischen echter und geschätzter Dauer – oder null.
  *
- * Gezählt werden nur abgeschlossene Einheiten mit erfasster Zeit. Verglichen
- * werden Summen und nicht Einzelwerte: Eine Einheit, bei der die App im
- * Hintergrund lag, zieht so nicht den ganzen Schnitt.
+ * Gezählt werden nur Einheiten, in denen jeder Satz abgehakt ist, mit
+ * erfasster Zeit und ohne Supersätze. Vorher zählte jede abgeschlossene – auch
+ * „Abschließen (4/18)" –, und deren kurze Uhrzeit stand gegen die volle Formel:
+ * Nach ein paar vorzeitig beendeten Einheiten zeigten die Fokus-Karten bis zur
+ * Hälfte zu kurze Einheiten, als „gemessen". Supersätze kürzen die Einheit um
+ * rund 40 %, und die Formel kennt keine. Gefunden bei der Durchsicht der App.
+ *
+ * Verglichen werden Summen und nicht Einzelwerte: Eine Einheit, bei der die App
+ * im Hintergrund lag, zieht so nicht den ganzen Schnitt.
  */
 function zeitEichung() {
   const log = store.getState().log;
@@ -4249,7 +4269,8 @@ function zeitEichung() {
   PLAN.forEach((w) => {
     const e = log[w.n];
     const m = completedMode(w.n);
-    if (!e || !m || !(e.secs > 0)) return;
+    if (!e || !m || !(e.secs > 0) || e.super) return;
+    if (!progressOf(w.n, m).complete) return;
     const soll = dauerLautFormel(exOf(w, m), m);
     if (soll <= 0) return;
     echt += e.secs;
@@ -5327,7 +5348,11 @@ view.addEventListener('click', (e) => {
       // Auch nach vorn: Liegt der Excel-Termin in der Zukunft, fängt die neue
       // Runde trotzdem heute an und nicht irgendwann.
       const target = daysBetween(PLAN[0].date, todayISO());
-      store.restartPlan(target, rundenBilanz());
+      if (!store.restartPlan(target, rundenBilanz())) {
+        toast('Speicher voll – die Runde ließ sich nicht ablegen. Erst sichern und aufräumen.');
+        render();
+        break;
+      }
       ui.workoutNo = PLAN[0].n;
       ui.focus = false;
       ui.listView = false;
@@ -5666,7 +5691,11 @@ view.addEventListener('click', (e) => {
       const laeuft = Object.keys(store.getState().log).length && store.getState().greeted;
       // Keine Rückfrage mehr: Der Wechsel nimmt nichts weg. Der Verlauf des
       // alten Fokus wartet, der des neuen kommt zurück – siehe wechsleFokus().
-      store.wechsleFokus(key, laeuft ? rundenBilanz() : null, frischerStart());
+      if (!store.wechsleFokus(key, laeuft ? rundenBilanz() : null, frischerStart())) {
+        toast('Speicher voll – der Verlauf ließ sich nicht ablegen. Erst sichern und aufräumen.');
+        render();
+        break;
+      }
       // Der Plan steckt beim Laden in Hunderten von Zeilen; ein Wechsel mitten
       // im Betrieb hieße, dass die halbe App noch mit dem alten rechnet.
       if (store.getState().greeted) location.reload();

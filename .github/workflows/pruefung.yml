@@ -16,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Die Versionspflicht vergleicht mit dem Stand vor diesem Push.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -54,6 +57,12 @@ jobs:
       # endete in einem ReferenceError.
       - name: Module sind sauber geschichtet und vollständig gelistet
         run: python3 tools/pruefung/schichten.py
+
+      # Ändert sich eine Datei aus dem Offline-Vorrat, muss VERSION in sw.js
+      # hochgehen – sonst läuft beim ersten Öffnen nach dem Update eine Mischung
+      # aus alten und neuen Dateien. Stand in sw.js, prüfte niemand.
+      - name: VERSION hochgezählt, wo sich der Offline-Vorrat ändert
+        run: python3 tools/pruefung/versionspflicht.py "${{ github.event.before || github.event.pull_request.base.sha }}"
 
       # Die erzeugten Dateien noch einmal erzeugen. Kommt dabei etwas anderes
       # heraus als eingecheckt ist, wurde von Hand hineingeschrieben oder ein

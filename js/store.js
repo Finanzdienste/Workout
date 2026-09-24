@@ -339,27 +339,48 @@ let storageOk = (() => {
   }
 })();
 
+/*
+ * Die Ablage hat ihren eigenen Fehlerstand.
+ *
+ * Gefunden bei der Durchsicht der App: Scheiterte das Schreiben der Ablage
+ * (Speicher voll), setzte schreibeRunden() die Warnung – und das nächste
+ * write() des Hauptschlüssels, der ohne das gerade abgelegte Protokoll kleiner
+ * war und passte, nahm sie 120 ms später wieder weg. Nach dem Neuladen war die
+ * Runde weg, ein halbes Jahr Training, und niemand war gewarnt worden.
+ *
+ * Jetzt: restartPlan() und wechsleFokus() rollen zurück, wenn die Ablage nicht
+ * geschrieben werden kann, und dieser Fehler bleibt stehen, bis ein Schreiben
+ * der Ablage gelingt – write() rührt ihn nicht an.
+ */
+let rundenFehler = null;
+// Liegt die Ablage noch im Hauptschlüssel (alte Fassung) und ließ sie sich
+// nicht umziehen, muss write() sie dort lassen – sonst wäre sie weg.
+let rundenImHaupt = false;
+
 /** false, wenn der Browser nichts speichern kann – Eintragungen sind flüchtig. */
-export function canPersist() { return storageOk; }
+export function canPersist() { return storageOk && !rundenFehler; }
 
 /** 'gesperrt', 'voll' oder null – siehe warumNicht(). */
-export function speicherGrund() { return storageOk ? null : speicherFehler; }
+export function speicherGrund() { return !storageOk ? speicherFehler : rundenFehler; }
+
+/** Eintragungen werden gespeichert, nur die Ablage einer Runde ging nicht. */
+export function ablageKlemmt() { return storageOk && !!rundenFehler; }
 
 // Kam die Ablage aus dem Hauptschlüssel, muss sie **sofort** in ihren eigenen –
 // nicht erst beim nächsten abgehakten Satz. Dazwischen hätte der Hauptschlüssel
 // sie beim ersten write() verloren, während der neue noch leer wäre.
 if (wandert) {
-  schreibeRunden();
+  if (!schreibeRunden()) rundenImHaupt = true;
   persist();
 }
 
 function write() {
   saveTimer = null;
-  const vorher = storageOk;
+  const vorher = canPersist();
   try {
     // Ohne die Ablage – die steht in KEY_RUNDEN und ändert sich fast nie.
     const { rounds, ...schlank } = state;
-    localStorage.setItem(KEY, JSON.stringify(schlank));
+    localStorage.setItem(KEY, JSON.stringify(rundenImHaupt ? state : schlank));
     storageOk = true;
     speicherFehler = null;
   } catch (e) {
@@ -371,17 +392,42 @@ function write() {
   // diese Meldung stünde die Warnung einen verlorenen Satz zu spät da; und
   // wäre nur das Scheitern gemeldet, bliebe sie nach dem Aufräumen kleben, bis
   // von selbst etwas anderes neu zeichnet. Wer darauf reagiert: js/app.js.
-  if (storageOk !== vorher) emit();
+  if (canPersist() !== vorher) emit();
 }
 
-/** Die Ablage schreiben. Nur aufrufen, wo sie sich wirklich ändert. */
+/** Die Ablage schreiben. Nur aufrufen, wo sie sich wirklich ändert. true, wenn es ging. */
 function schreibeRunden() {
   try {
     localStorage.setItem(KEY_RUNDEN, JSON.stringify(state.rounds || []));
+    rundenFehler = null;
+    rundenImHaupt = false;
+    return true;
   } catch (e) {
-    storageOk = false;
-    speicherFehler = warumNicht(e);
+    rundenFehler = warumNicht(e);
+    return false;
   }
+}
+
+/**
+ * Eine Änderung, die die Ablage betrifft, nur ganz oder gar nicht.
+ * `aendern` schreibt am Zustand; gelingt danach das Ablegen nicht, kommt der
+ * vorherige Zustand zurück, und es bleibt beim Fehler. Rückgabe: ob es ging.
+ */
+function mitAblage(aendern) {
+  const vorher = {
+    log: state.log, rounds: state.rounds, shift: state.shift, focus: state.focus,
+    session: state.session, clock: state.clock, rest: state.rest,
+  };
+  state.rounds = [...(state.rounds || [])];
+  aendern();
+  if (!schreibeRunden()) {
+    Object.assign(state, vorher);
+    emit();
+    return false;
+  }
+  persist();
+  emit();
+  return true;
 }
 
 function persist() {
@@ -759,6 +805,11 @@ export function toggleCare(n, key) {
 export function markDone(n, mode) {
   const e = ensure(n);
   e.done = mode;
+  // Mit Supersätzen dauert eine Einheit rund 40 % kürzer, und die
+  // Zeitformel kennt keine – die Eichung (zeitEichung in js/app.js) lässt
+  // solche Einheiten deshalb aus. Dafür muss sie wissen, welche es waren.
+  if (state.supersatz) e.super = true;
+  else delete e.super;
   syncStartedOn(n);
   persist();
   emit();
@@ -871,24 +922,23 @@ export function markBackup(done) {
  * Übung aufgehört hat. Ohne diesen Vermerk müsste der Stufenaufstieg raten.
  */
 export function restartPlan(shiftDays, bilanz) {
-  if (Object.keys(state.log).length) {
-    // Der Fokus gehört dazu: Ein Protokoll ist nach Workout-Nummer abgelegt,
-    // und Workout 3 im Beinplan hat andere Übungen als Workout 3 im
-    // ausgewogenen. Ohne diesen Vermerk ließe sich ein Verlauf in einen Plan
-    // zurückholen, in den er nicht gehört.
-    state.rounds.push({
-      finishedOn: todayISO(), log: state.log, focus: state.focus,
-      ...(bilanz ? { bilanz } : {}),
-    });
-  }
-  state.log = {};
-  state.session = null;
-  state.clock = null;
-  state.rest = null;
-  state.shift = Math.round(Number(shiftDays) || 0);
-  schreibeRunden();
-  persist();
-  emit();
+  return mitAblage(() => {
+    if (Object.keys(state.log).length) {
+      // Der Fokus gehört dazu: Ein Protokoll ist nach Workout-Nummer abgelegt,
+      // und Workout 3 im Beinplan hat andere Übungen als Workout 3 im
+      // ausgewogenen. Ohne diesen Vermerk ließe sich ein Verlauf in einen Plan
+      // zurückholen, in den er nicht gehört.
+      state.rounds.push({
+        finishedOn: todayISO(), log: state.log, focus: state.focus,
+        ...(bilanz ? { bilanz } : {}),
+      });
+    }
+    state.log = {};
+    state.session = null;
+    state.clock = null;
+    state.rest = null;
+    state.shift = Math.round(Number(shiftDays) || 0);
+  });
 }
 
 /**
@@ -920,24 +970,22 @@ export function restartPlan(shiftDays, bilanz) {
 export function wechsleFokus(key, bilanz, startShift) {
   const alt = state.focus || 'standard';
   if (key === alt) return false;
-  if (Object.keys(state.log).length) {
-    state.rounds.push({
-      finishedOn: todayISO(), log: state.log, focus: alt, shift: state.shift,
-      ...(bilanz ? { bilanz } : {}),
-    });
-  }
-  const zurueck = letzteRunde(key);
-  if (zurueck) state.rounds = state.rounds.filter((r) => r !== zurueck);
-  state.log = (zurueck && zurueck.log) || {};
-  state.shift = Math.round(Number(zurueck ? zurueck.shift : startShift) || 0);
-  state.session = null;
-  state.clock = null;
-  state.rest = null;
-  state.focus = key;
-  schreibeRunden();
-  persist();
-  emit();
-  return true;
+  return mitAblage(() => {
+    if (Object.keys(state.log).length) {
+      state.rounds.push({
+        finishedOn: todayISO(), log: state.log, focus: alt, shift: state.shift,
+        ...(bilanz ? { bilanz } : {}),
+      });
+    }
+    const zurueck = letzteRunde(key);
+    if (zurueck) state.rounds = state.rounds.filter((r) => r !== zurueck);
+    state.log = (zurueck && zurueck.log) || {};
+    state.shift = Math.round(Number(zurueck ? zurueck.shift : startShift) || 0);
+    state.session = null;
+    state.clock = null;
+    state.rest = null;
+    state.focus = key;
+  });
 }
 
 /**
@@ -973,15 +1021,14 @@ function letzteRunde(key) {
 export function restoreRound() {
   const runde = restorable();
   if (!runde) return false;
-  state.rounds = state.rounds.filter((r) => r !== runde);
-  const zurueck = runde.log || {};
-  Object.keys(zurueck).forEach((n) => {
-    if (!state.log[n]) state.log[n] = zurueck[n];
+  return mitAblage(() => {
+    state.rounds = state.rounds.filter((r) => r !== runde);
+    const zurueck = runde.log || {};
+    state.log = { ...state.log };
+    Object.keys(zurueck).forEach((n) => {
+      if (!state.log[n]) state.log[n] = zurueck[n];
+    });
   });
-  schreibeRunden();
-  persist();
-  emit();
-  return true;
 }
 
 /**
@@ -1067,7 +1114,9 @@ export function importJSON(text) {
     localStorage.setItem(KEY_VOR_IMPORT, JSON.stringify({ am: new Date().toISOString(), stand: state }));
   } catch { /* kein Platz – dann eben ohne Rückweg */ }
   state = fresh;
-  schreibeRunden();
+  // Passt die eingelesene Ablage nicht in ihren Schlüssel, bleibt sie im
+  // Hauptschlüssel – sonst schriebe write() den Stand ohne sie.
+  if (!schreibeRunden()) rundenImHaupt = true;
   persist();
   emit();
 }

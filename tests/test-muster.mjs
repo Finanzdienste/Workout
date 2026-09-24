@@ -150,6 +150,35 @@ const sauber = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
 check(!/Was dir im Protokoll auffällt/.test(sauber),
   'ohne Befund steht sie nicht da – eine Karte, die immer „alles gut" meldet, liest niemand');
 
+// Der Rat beim Abbruch zeigt auf etwas, das es gibt: Die Erfahrungsstufe ist
+// seit einiger Zeit nicht mehr einstellbar, der Fokus Cut schon.
+check(/Fokus Cut/.test(text) && !/Erfahrungsstufe eine Stufe zurück/.test(text),
+  'der Rat beim Abbruch nennt den Fokus Cut, nicht die Stufe');
+
+// --- 7. Nach vorn Geholtes bleibt sichtbar und lässt sich zurückstellen ---
+// Gefunden bei der Durchsicht: Hatte „nach vorn" gewirkt, fiel die Übung nicht
+// mehr als ausgelassen auf, die Karte verschwand – und mit ihr der einzige
+// Knopf, der sie wieder einreiht. Die Reihenfolge blieb für immer verschoben.
+await page.evaluate(async ([id]) => {
+  const { vorneUm } = await import('./js/muster.js');
+  const store = await import('./js/store.js');
+  vorneUm(id);
+  store.flush();
+}, [opfer]);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(500);
+const mitVorn = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(/Von dir nach vorn geholt/.test(mitVorn),
+  'ohne sonstigen Befund steht die Karte trotzdem da, solange etwas nach vorn geholt ist');
+const knopf = page.locator('[data-act="muster-vorne"]', { hasText: 'wieder einreihen' });
+check(await knopf.count() === 1, 'mit einem Knopf „wieder einreihen"');
+await knopf.first().click();
+await page.waitForTimeout(400);
+const nachKlick = await page.evaluate(async () => (await import('./js/store.js')).getState().vorne || []);
+check(nachKlick.length === 0, 'ein Tipp, und sie steht wieder an ihrem Platz');
+check(!/Was dir im Protokoll auffällt/.test((await page.locator('#view').textContent())),
+  'und danach verschwindet die Karte wieder');
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

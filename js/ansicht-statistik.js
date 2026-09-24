@@ -226,8 +226,15 @@ export function gesamtKarte() {
 export function musterKarte() {
   const ab = abbruch();
   const weg = ausgelassen();
-  if (!ab && !weg.length) return '';
   const vorn = vorneListe();
+  // Nach vorn Geholte, die gerade nicht (mehr) als ausgelassen auffallen –
+  // meist genau deshalb, weil „nach vorn" gewirkt hat. Sie standen vorher
+  // nirgends mehr, und der Knopf zum Zurückstellen verschwand mit der Karte:
+  // eine dauerhafte, unsichtbare Änderung der Reihenfolge, die jede Einheit
+  // einen Umbau mehr kostet. Gefunden bei der Durchsicht der App.
+  const nurVorn = vorn.filter((id) => !weg.some((x) => x.id === id) && EX_BY_ID.has(id));
+  if (!ab && !weg.length && !nurVorn.length) return '';
+  const nameVon = (id) => { const e = EX_BY_ID.get(id); return (e && e.db && e.db.name) || id; };
   return `
     <div class="section-title">Was dir im Protokoll auffällt</div>
     <div class="card">
@@ -235,7 +242,7 @@ export function musterKarte() {
         ${ab.einheiten} hast du vor dem Ende aufgehört – meist nach Übung
         <b>${ab.bis} von ${ab.von}</b>. Das ist kein Problem einer einzelnen Übung,
         sondern der Länge: Was hinten steht, kommt nicht dran. Entweder die Einheit
-        kürzen (Erfahrungsstufe eine Stufe zurück, unter <i>Mehr</i>) oder das
+        kürzen (Fokus <i>Cut</i> unter <i>Mehr</i>: weniger Sätze je Einheit) oder das
         Wichtige nach vorn holen.</div>` : ''}
 
       ${weg.length ? `
@@ -259,5 +266,17 @@ export function musterKarte() {
           steht ab sofort am Anfang der Einheit, vor der Bündelung nach Gerät. Das kostet
           womöglich einen zusätzlichen Umbau – eine Übung, die ausfällt, bringt aber null
           Sätze, und das ist der teurere Preis.</div>` : ''}
+
+      ${nurVorn.length ? `
+        <div class="small" style="${ab || weg.length ? 'margin-top:12px' : ''}">Von dir nach vorn
+          geholt – sie stehen am Anfang jeder Einheit, vor der Bündelung nach Gerät:</div>
+        <div class="muster-liste">
+          ${nurVorn.map((id) => `
+            <div class="muster-zeile">
+              <div class="lbl">${esc(nameVon(id))}</div>
+              <button type="button" class="btn btn-sm" data-act="muster-vorne" data-ex="${esc(id)}">
+                wieder einreihen</button>
+            </div>`).join('')}
+        </div>` : ''}
     </div>`;
 }

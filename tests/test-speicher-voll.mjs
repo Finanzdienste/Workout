@@ -112,6 +112,64 @@ await page.waitForTimeout(700);
 check(await page.locator('.notice.warn').count() === 0,
   'nach dem Aufräumen ist sie wieder weg – sie klebt nicht');
 
+// --- Eine Runde ablegen, wenn der Platz dafür fehlt ---------------------
+// Gefunden bei der Durchsicht: restartPlan() schrieb die Ablage, scheiterte,
+// setzte die Warnung – und das nächste write() des Hauptschlüssels, jetzt ohne
+// das Protokoll und damit kleiner, gelang und nahm die Warnung wieder weg. Nach
+// dem Neuladen war die Runde verloren, ohne dass je etwas dastand.
+const vorRunde = await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  // Ein ordentlicher Verlauf, damit die Ablage merklich größer wird.
+  PLAN.slice(0, 40).forEach((w) => w.ex.forEach((it) => {
+    for (let i = 0; i < 3; i++) s.updateSet(w.n, 'db', it.id, 3, i, { done: true, w: '22.5' });
+  }));
+  s.flush();
+  return Object.keys(s.getState().log).length;
+});
+await page.evaluate(() => {
+  const block = (g) => 'x'.repeat(g);
+  [[64 * 1024, 500], [1024, 200], [32, 2000]].forEach(([g, max], k) => {
+    try { for (let n = 0; n < max; n++) localStorage.setItem(`ballast.r${k}.${n}`, block(g)); } catch { /* voll */ }
+  });
+});
+const ablage = await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  const ok = s.restartPlan(0, null);
+  return { ok, log: Object.keys(s.getState().log).length, runden: (s.getState().rounds || []).length };
+});
+await page.waitForTimeout(700);   // write() läuft 120 ms später
+const danach = await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  return { kann: s.canPersist(), grund: s.speicherGrund(), klemmt: s.ablageKlemmt() };
+});
+console.log(`     Ablage bei vollem Speicher: ${JSON.stringify(ablage)} · ${JSON.stringify(danach)}`);
+check(ablage.ok === false, 'restartPlan meldet, dass es nicht ging');
+check(ablage.log === vorRunde, `und der Verlauf bleibt, wo er war (${ablage.log} von ${vorRunde} Einheiten)`);
+check(danach.kann === false && danach.grund === 'voll' && danach.klemmt,
+  'die Warnung bleibt stehen, auch nachdem der Hauptschlüssel geschrieben wurde');
+const klemmText = (await page.locator('.notice.warn').allTextContents()).join(' ').replace(/\s+/g, ' ');
+check(/Runde ließ sich nicht ablegen/.test(klemmText) && /verloren ist nichts/.test(klemmText),
+  'und sagt, was los ist: die Runde wartet, nichts ist verloren');
+await page.reload({ waitUntil: 'networkidle' });
+const nachLaden = await page.evaluate(async () => Object.keys((await import('./js/store.js')).getState().log).length);
+check(nachLaden === vorRunde, `nach dem Neuladen ist der Verlauf noch da (${nachLaden})`);
+
+// Aufgeräumt geht es.
+await page.evaluate(() => {
+  Object.keys(localStorage).filter((k) => k.startsWith('ballast.')).forEach((k) => localStorage.removeItem(k));
+});
+const zweiter = await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  const ok = s.restartPlan(0, null);
+  // Der Hauptschlüssel wird 120 ms später geschrieben; erst danach ist klar,
+  // ob alles passt.
+  await new Promise((r) => setTimeout(r, 400));
+  return { ok, log: Object.keys(s.getState().log).length, runde: ((s.getState().rounds || []).slice(-1)[0] || {}).log, kann: s.canPersist() };
+});
+check(zweiter.ok && zweiter.log === 0 && Object.keys(zweiter.runde || {}).length === vorRunde && zweiter.kann,
+  'mit Platz geht die Runde in die Ablage, und die Warnung ist weg');
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

@@ -30,14 +30,15 @@ const TYPEN = {
   '.ico': 'image/x-icon',
 };
 
-export function starte(port, maxAge = 0) {
+/** `wurzel`: ein anderes Verzeichnis als das Projekt – test-update.mjs arbeitet auf einer Kopie. */
+export function starte(port, maxAge = 0, wurzel = ROOT) {
   const server = createServer((req, res) => {
     // Der Anfrageteil hinter ? und # gehört nicht zum Dateinamen.
     let rel = decodeURIComponent(req.url.split(/[?#]/)[0]);
     if (rel.endsWith('/')) rel += 'index.html';
     // Niemals aus dem Projekt heraus ausliefern.
-    const datei = path.join(ROOT, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));
-    if (!datei.startsWith(ROOT)) {
+    const datei = path.join(wurzel, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));
+    if (!datei.startsWith(wurzel)) {
       res.writeHead(403).end('verboten');
       return;
     }
