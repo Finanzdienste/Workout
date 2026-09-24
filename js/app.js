@@ -3027,9 +3027,19 @@ function plannedWeek(block) {
   const acc = {};
   block.forEach((w) => {
     const mode = completedMode(w.n) || store.workoutMode(w.n);
+    const soll = (store.getState().log[w.n] || {}).soll || {};
     exOf(w, mode).forEach((item) => {
+      // Für eine schon angefangene Übung gilt die Zahl von *dem* Tag, nicht die
+      // von heute. Sonst erfand ein Aufstieg (drei auf vier Sätze) für jede
+      // längst trainierte Einheit einen Satz Rückstand je Übung, und aus der
+      // Summe wurde ein ganzer „Zusatztag" für eine vollständige Woche –
+      // gemessen, bei der Durchsicht der App. Eine Einstellung darf keine
+      // Arbeit erzeugen. Kleiner als heute darf die Tageszahl die Planung
+      // machen, größer nicht: Was darüber hinausgeht, ist Nacharbeit, und die
+      // gehört der Woche, nicht dieser Übung.
+      const sets = soll[item.id] === undefined ? item.sets : Math.min(soll[item.id], item.sets);
       Object.entries(EX_BY_ID.get(item.id)[mode].shares).forEach(([mus, share]) => {
-        acc[mus] = (acc[mus] || 0) + item.sets * share;
+        acc[mus] = (acc[mus] || 0) + sets * share;
       });
     });
   });
@@ -3054,7 +3064,12 @@ function weeklyDone() {
       exOf(w, m).forEach((item) => {
         const arr = (entry[m] || {})[item.id];
         if (!Array.isArray(arr)) return;
-        const done = arr.slice(0, item.sets).filter((x) => x.done).length;
+        // Alle abgehakten Sätze, nicht nur die bis zur heutigen Satzzahl.
+        // Nachgeholte Sätze liegen über der Satzzahl der Übung – schnitt man
+        // sie hier ab, galt der Rückstand der Woche am Ende trotzdem als offen,
+        // und wer die Nacharbeit brav mitgemacht hatte, bekam für denselben
+        // Rückstand noch einen Zusatztag.
+        const done = arr.filter((x) => x.done).length;
         if (!done) return;
         any = true;
         Object.entries(EX_BY_ID.get(item.id)[m].shares).forEach(([mus, share]) => {

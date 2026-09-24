@@ -13,7 +13,7 @@ import * as store from './store.js';
 import { EXERCISES, PLAN, REST } from './data.js';
 import { EX_BY_ID, directOf, directSets, gezaehlteReps, stufenWerte } from './uebung.js';
 import { addDays, daysBetween, plural, todayISO } from './dates.js';
-import { applyInjuries } from './injuries.js';
+import { INJURIES, applyInjuries } from './injuries.js';
 import { faelltAus, termine } from './termine.js';
 import { esc } from './text.js';
 import { ruestOrderStabil } from './gewichte.js';
@@ -180,7 +180,18 @@ export function adjustedPlan() {
 /** Was an einem Plantag getauscht wurde und was wegfiel. */
 export function injuryNotes(n) {
   adjustedPlan();
-  return planCache.notes[n - 1] || { dropped: [], swapped: [], termin: [] };
+  const roh = planCache.notes[n - 1] || { dropped: [], swapped: [], termin: [] };
+  // Was protokolliert ist, ist weder ausgefallen noch getauscht worden – es
+  // steht wieder da (behalteProtokolliertes). Ohne diesen Filter hieß es an
+  // einer längst trainierten Einheit nach einem nachgetragenen Padel-Tag
+  // „Hip Thrust fällt aus", während daneben die drei abgehakten Sätze standen.
+  const da = protokolliert(n);
+  if (!da.size) return roh;
+  return {
+    ...roh,
+    dropped: roh.dropped.filter((d) => !da.has(d.id)),
+    swapped: roh.swapped.filter((x) => !da.has(x.from)),
+  };
 }
 
 /**
@@ -402,10 +413,95 @@ export function tagLaenge(w, mode) {
   return vorratFassung(gestufteSaetze(w, m), m).items.length;
 }
 
+/**
+ * Was schon trainiert ist, bleibt stehen.
+ *
+ * Gefunden bei der Durchsicht der ganzen App, und es war der schwerste Befund
+ * nach dem Sicherheitsloch: Der Plan einer Einheit wird bei jedem Anzeigen neu
+ * gerechnet – aus dem geschriebenen Plan, den *heutigen* Beschwerden, der
+ * *heutigen* Stufe, der *heutigen* Wahl und dem *heutigen* Gerätevorrat. Das
+ * galt auch für Einheiten, die längst trainiert waren. Gemessen: Woche 1
+ * vollständig abgehakt, danach „Tennisarm" angehakt – und die Einheit stand als
+ * 9 von 12 da, die Statistik zählte 9 statt 18 Sätze. „Gestern Padel"
+ * nachgetragen, und Hip Thrust und Wadenheben galten rückwirkend als
+ * ausgefallen, obwohl sie gemacht waren. Die Sätze lagen weiter im Protokoll,
+ * nur unter einer Übung, die der Plan nicht mehr kannte.
+ *
+ * Deshalb hier die Regel: **Jede Übung, zu der in dieser Einheit etwas
+ * protokolliert ist, steht wieder da** – an der Stelle der Übung, aus der sie
+ * geworden ist. Was noch nicht angefasst wurde, bleibt beweglich: Wer mitten
+ * in der Einheit eine Beschwerde anhakt, will, dass die *kommenden* Übungen
+ * getauscht werden, nicht die, die er gerade gemacht hat.
+ *
+ * Kein Schnappschuss, sondern gerechnet aus dem Protokoll, und das mit Absicht:
+ * So wirkt es auch für alle Wochen, die vor dieser Fassung trainiert wurden,
+ * und es gibt keine zweite Wahrheit, die mit der ersten auseinanderlaufen kann.
+ *
+ * „Aus der sie geworden ist" heißt: verwandt über die Wege, auf denen die App
+ * Übungen tauscht – gleiche Anteile, leichte/schwere Fassung, Ersatz einer
+ * Beschwerde –, und das über höchstens zwei Schritte (Beschwerde tauscht A auf
+ * B, eigene Wahl macht aus B ein C).
+ */
+let verwandtCache = null;
+function verwandte(id) {
+  if (!verwandtCache) {
+    const k = new Map();
+    const verbinde = (a, b) => {
+      if (!a || !b || a === b) return;
+      if (!k.has(a)) k.set(a, new Set());
+      if (!k.has(b)) k.set(b, new Set());
+      k.get(a).add(b);
+      k.get(b).add(a);
+    };
+    anteilsgleich().forEach((ids, a) => ids.forEach((b) => verbinde(a, b)));
+    EXERCISES.forEach((e) => verbinde(e.id, e.anfaenger));
+    INJURIES.forEach((inj) => Object.entries(inj.swap || {}).forEach(([a, b]) => verbinde(a, b)));
+    verwandtCache = k;
+  }
+  return verwandtCache.get(id) || new Set();
+}
+
+function protokolliert(n) {
+  const e = store.getState().log[n];
+  const ids = new Set();
+  if (!e) return ids;
+  ['db', 'bw'].forEach((m) => Object.entries(e[m] || {}).forEach(([id, arr]) => {
+    if (Array.isArray(arr) && arr.some((x) => x.done || !!x.w || !!x.wie)) ids.add(id);
+  }));
+  return ids;
+}
+
+function behalteProtokolliertes(n, items) {
+  const da = protokolliert(n);
+  if (!da.size) return items;
+  const fehlen = [...da].filter((id) => EX_BY_ID.has(id) && !items.some((it) => it.id === id));
+  if (!fehlen.length) return items;
+  const out = items.map((it) => ({ ...it }));
+  const nah = (it, x) => [it.id, it.statt, it.from].filter(Boolean).some((y) => y === x
+    || verwandte(y).has(x) || [...verwandte(y)].some((z) => verwandte(z).has(x)));
+  const soll = (store.getState().log[n] || {}).soll || {};
+  fehlen.forEach((x) => {
+    const ziel = out.find((it) => !da.has(it.id) && !it.gehalten && nah(it, x));
+    if (ziel) {
+      // Die Stelle behält ihre Satzzahl; nur die Übung ist die, die gemacht
+      // wurde. Ein Tauschvermerk („statt …") gehört nicht mehr dazu – das war
+      // ein Tausch, der für diesen Tag nie galt.
+      Object.assign(ziel, { id: x, gehalten: true, statt: null, stattWarum: null });
+      delete ziel.from;
+    } else {
+      // Gar keine Stelle mehr, etwa weil eine Beschwerde die Übung heute
+      // ersatzlos streicht: Sie kommt trotzdem wieder hinein. Gemacht ist gemacht.
+      const sets = soll[x] || 3;
+      out.push({ id: x, sets, bwSets: sets, gehalten: true });
+    }
+  });
+  return out;
+}
+
 export function exBasis(w, mode) {
   if (istCustom(w.n)) return w.ex;
   const m = mode || store.workoutMode(w.n);
-  const items = vorratFassung(gestufteSaetze(w, m), m).items;
+  const items = behalteProtokolliertes(w.n, vorratFassung(gestufteSaetze(w, m), m).items);
   // Nur bei den Hanteln: Im Bodyweight-Modus gibt es nichts umzubauen, und die
   // Reihenfolge soll dann die des Plans bleiben.
   return m === 'db' ? ruestOrderStabil(items, w.n, 'db') : items;

@@ -68,7 +68,14 @@ console.log('     Zähler:', zaehler);
 check(zaehler === '14/14', 'alle vierzehn Gruppen im Ziel');
 check((await page.locator('#volWeek').textContent()).includes('abgeschlossen'), 'Woche als abgeschlossen erkannt');
 
-// Eine Verletzung muss sich hier niederschlagen
+// Eine Verletzung, angehakt *nachdem* die Woche trainiert ist.
+//
+// Hier stand bis v194 das Gegenteil: Die Prüfung erwartete, dass die schon
+// gemachten Beinsätze nach „Kreuzband" aus der fertigen Woche verschwinden
+// und ihr Pensum sinkt. Das war genau der Fehler, den die Durchsicht der App
+// gefunden und ein zweiter Prüfer nachgestellt hat – eine Einstellung schrieb
+// die Trainingsgeschichte um. Richtig ist: Die trainierte Woche bleibt, wie
+// sie war, und die Verletzung wirkt auf das, was noch kommt.
 await page.evaluate(() => {
   const s = JSON.parse(localStorage.getItem('workout.state.v1'));
   s.injuries = ['kreuzband'];
@@ -77,18 +84,24 @@ await page.evaluate(() => {
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
 const mitVerletzung = await zeile();
-console.log('     mit Kreuzbandriss:', mitVerletzung.map((r) => `${r.name} ${r.ist}`).join(' · '));
-check(mitVerletzung.some((r) => r.ist < 1), 'gesperrte Beinübungen schlagen bis hierher durch');
-// "Im Ziel" misst jetzt, ob das Pensum der Woche geschafft wurde – und das
-// Pensum sinkt mit der Verletzung mit. Die Verletzung zeigt sich deshalb nicht
-// mehr an der Quote, sondern am Sollwert der betroffenen Gruppen: Was der Plan
-// für die Woche vorsieht, ist weniger geworden.
-const sollVorher = Object.fromEntries(werte.map((r) => [r.name, r.soll]));
-const gesunken = mitVerletzung.filter((r) => r.soll < sollVorher[r.name] - 0.05);
-console.log('     Pensum gesunken bei:', gesunken.map((r) => `${r.name} ${sollVorher[r.name]}→${r.soll}`).join(', ') || 'nirgends');
-check(gesunken.length > 0, 'die Verletzung senkt das Wochenpensum sichtbar');
+console.log('     mit Kreuzbandriss:', mitVerletzung.map((r) => `${r.name} ${r.ist}/${r.soll}`).join(' · '));
+const istVorher = Object.fromEntries(werte.map((r) => [r.name, r.ist]));
+const veraendert = mitVerletzung.filter((r) => Math.abs(r.ist - istVorher[r.name]) > 0.01);
+check(veraendert.length === 0,
+  `die trainierte Woche bleibt, wie sie war${veraendert.length ? ' – verändert: ' + veraendert.map((r) => r.name).join(', ') : ''}`);
 const nachher = parseInt(await page.locator('.vol-quote').textContent(), 10);
-check(nachher === 14, `wer sein (kleineres) Pensum schafft, steht weiter im Ziel (${nachher} von 14)`);
+check(nachher === 14, `und bleibt im Ziel (${nachher} von 14)`);
+// Die Verletzung wirkt trotzdem – auf die nächste, noch offene Woche.
+const kommend = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { exOf } = await import('./js/plan.js');
+  const { blocked } = await import('./js/injuries.js');
+  const gesperrt = blocked(['kreuzband']);
+  const ids = PLAN.slice(4, 8).flatMap((w) => exOf(w, 'db').map((x) => x.id));
+  return { gesperrt: ids.filter((id) => gesperrt.has(id)), n: ids.length };
+});
+check(kommend.n > 0 && kommend.gesperrt.length === 0,
+  `in der nächsten Woche steht keine gesperrte Übung mehr (${kommend.gesperrt.join(', ') || 'keine'})`);
 
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);
