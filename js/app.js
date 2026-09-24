@@ -1523,8 +1523,8 @@ function renderOverview() {
            weiterhin unter Mehr → Termine, für den, der ihn will. -->
       ${ui.standAngebot ? `<div class="notice">
         👋 <b>${esc(ui.standAngebot.n)}</b> hat dir seinen Stand geschickt:
-        ${ui.standAngebot.w} von ${ui.standAngebot.p} Einheiten, ${ui.standAngebot.s} Sätze${
-          ui.standAngebot.kg ? `, ${ui.standAngebot.kg.toLocaleString('de-DE')} kg Volumen` : ''}.
+        ${esc(ui.standAngebot.w)} von ${esc(ui.standAngebot.p)} Einheiten, ${esc(ui.standAngebot.s)} Sätze${
+          ui.standAngebot.kg ? `, ${esc(Number(ui.standAngebot.kg).toLocaleString('de-DE'))} kg Volumen` : ''}.
         <div class="btn-row nav" style="margin-top:10px">
           <button type="button" class="btn btn-primary" data-act="accept-stand">Zum Vergleich</button>
           <button type="button" class="btn btn-ghost" data-act="drop-stand">Verwerfen</button>
@@ -1630,8 +1630,8 @@ function renderWelcome() {
         'Worauf soll es hinauslaufen?'][schritt]}</h2>
     </header>
     ${ui.standAngebot && schritt === 0 ? `<div class="notice">👋 <b>${esc(ui.standAngebot.n)}</b> hat dir
-      den Link geschickt und seinen Stand mitgeschickt: ${ui.standAngebot.w} von
-      ${ui.standAngebot.p} Einheiten. Sobald du fertig eingerichtet hast, steht er in deinem
+      den Link geschickt und seinen Stand mitgeschickt: ${esc(ui.standAngebot.w)} von
+      ${esc(ui.standAngebot.p)} Einheiten. Sobald du fertig eingerichtet hast, steht er in deinem
       Vergleich.</div>` : ''}`;
 
   const seiten = [`
@@ -1956,7 +1956,9 @@ function codeZu(code) {
     const roh = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
     const bytes = Uint8Array.from(roh, (c) => c.charCodeAt(0));
     const obj = JSON.parse(new TextDecoder().decode(bytes));
-    return obj && obj.v === STAND_VERSION && typeof obj.n === 'string' ? obj : null;
+    // Nicht das Objekt selbst durchreichen: Es kommt aus einem fremden Link.
+    // normStand() lässt nur Zahlen, kurze Texte und Datumsangaben durch.
+    return obj && obj.v === STAND_VERSION ? store.normStand(obj) : null;
   } catch {
     return null;
   }
@@ -2224,9 +2226,9 @@ function vergleichKarte() {
               <div class="small muted">${esc([
                 f.f || '', letztesTraining(f), f.id === null ? '' : standAlter(f),
               ].filter(Boolean).join(' · '))}</div></td>
-            <td><b>${f.w}</b><span class="muted">/${f.p}</span></td>
-            <td>${f.s}</td>
-            <td>${f.r}</td>
+            <td><b>${esc(f.w)}</b><span class="muted">/${esc(f.p)}</span></td>
+            <td>${esc(f.s)}</td>
+            <td>${esc(f.r)}</td>
             <td>${f.id === null ? '' : `<button type="button" class="vgl-weg" data-act="remove-friend"
                    data-id="${esc(f.id)}" aria-label="${esc(f.n)} entfernen">✕</button>`}</td>
           </tr>`).join('')}</tbody>

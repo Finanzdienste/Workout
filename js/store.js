@@ -155,6 +155,53 @@ function clone(o) { return JSON.parse(JSON.stringify(o)); }
 // weiter unten deklarierte Variable wäre dort noch nicht initialisiert.
 let wandert = false;
 
+/**
+ * Ein geschickter Stand, auf genau seine Felder und Typen gebracht.
+ *
+ * Gefunden bei der Durchsicht der ganzen App, und es war das Schwerste auf der
+ * Liste: Ein Stand kommt aus einem Link, den *jemand anders* gebaut hat. Geprüft
+ * wurden nur `v` und `n`; die Zahlen `w`, `p`, `s` wanderten ungeprüft in die
+ * Seite und dann in den Speicher. Ein Link mit einem HTML-Schnipsel statt einer
+ * Zahl lief damit als Skript in der App – beim Öffnen, und nach dem Übernehmen
+ * bei jedem Öffnen der Statistik wieder.
+ *
+ * Deshalb hier und nicht an den Anzeigestellen: Was durch diese Funktion geht,
+ * sind Zahlen, kurze Zeichenketten und Datumsangaben, und sonst nichts. Sie läuft
+ * beim Dekodieren eines Links, beim Speichern eines Freundes, beim Laden und beim
+ * Einlesen einer Sicherung – damit auch ein schon gespeicherter Stand entschärft
+ * wird, der vor dieser Fassung hereinkam.
+ */
+const STAND_DATUM = /^\d{4}-\d{2}-\d{2}$/;
+const standZahl = (x) => (Number.isFinite(Number(x)) && Number(x) >= 0 ? Math.round(Number(x)) : 0);
+// Spitze Klammern haben in einem Namen oder Fokus nichts verloren. Angezeigt
+// wird ohnehin maskiert; das hier ist die zweite Sicherung, falls eine
+// künftige Anzeigestelle esc() vergisst.
+const standText = (x, max) => (typeof x === 'string' ? x.replace(/[<>]/g, '').slice(0, max) : '');
+export function normStand(roh) {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
+  const n = standText(roh.n, 40).trim();
+  if (!n) return null;
+  const out = {
+    v: standZahl(roh.v), n,
+    w: standZahl(roh.w), s: standZahl(roh.s), kg: standZahl(roh.kg), r: standZahl(roh.r), p: standZahl(roh.p),
+    d: STAND_DATUM.test(roh.d) ? roh.d : null,
+    f: standText(roh.f, 40),
+    z: STAND_DATUM.test(roh.z) ? roh.z : null,
+  };
+  if (STAND_DATUM.test(roh.am)) out.am = roh.am;
+  return out;
+}
+
+function normFreunde(freunde) {
+  const out = {};
+  if (!freunde || typeof freunde !== 'object' || Array.isArray(freunde)) return out;
+  Object.entries(freunde).forEach(([id, f]) => {
+    const g = normStand(f);
+    if (g && /^[\w-]{1,80}$/.test(id)) out[id] = g;
+  });
+  return out;
+}
+
 let state = load();
 const listeners = new Set();
 
@@ -168,6 +215,7 @@ function load() {
     // (siehe adminPassMerken in js/app.js) und nicht in eine Sicherungsdatei –
     // ein alter Stand wird deshalb beim Laden davon befreit.
     if ('adminPass' in state) delete state.adminPass;
+    state.friends = normFreunde(state.friends);
     // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
     // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
     // von Hand gesetzter (Sicherung, Tests). Sonst kommt sie aus ihrem eigenen
@@ -722,7 +770,9 @@ export function removeCustom(id) {
 /* Freunde. Kein Konto und kein Server – hier liegt nur, was jemand einem
  * geschickt hat, mit dem Tag, an dem es angekommen ist. */
 export function setFriend(id, stand) {
-  state.friends[id] = { ...stand, am: todayISO() };
+  const g = normStand(stand);
+  if (!g) return;
+  state.friends[id] = { ...g, am: todayISO() };
   persist();
   emit();
 }
@@ -975,6 +1025,7 @@ export function importJSON(text) {
   });
   if (typeof fresh.shift !== 'number' || !Number.isFinite(fresh.shift)) fresh.shift = 0;
   fresh.injuries = fresh.injuries.filter((x) => typeof x === 'string');
+  fresh.friends = normFreunde(fresh.friends);
   state = fresh;
   schreibeRunden();
   persist();
