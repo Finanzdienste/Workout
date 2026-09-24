@@ -24,6 +24,8 @@ const KEY = 'workout.state.v1';
  *
  * Nachgemessen wird das in tests/test-speicher.mjs, nicht nur behauptet. */
 const KEY_RUNDEN = 'workout.rounds.v1';
+// Der Stand direkt vor dem letzten Import, damit er sich zurückholen lässt.
+const KEY_VOR_IMPORT = 'workout.state.v1.vorImport';
 
 const DEFAULT_STATE = {
   // Die zuletzt gewaehlte Variante: 'db' (Hanteln) | 'bw' (Bodyweight). Kein
@@ -202,6 +204,29 @@ function normFreunde(freunde) {
   return out;
 }
 
+/**
+ * Eigene Workouts aus fremder Hand auf ihre Felder bringen.
+ *
+ * Eine Sicherung ist eine Datei, die man auch weitergibt – „Sicherung
+ * weitergeben" steht als Knopf in der App. Geprüft wurde bisher nur, dass
+ * `customs` eine Liste ist. Eine präparierte Kennung landete dann als
+ * Attribut in der Seite, und eine Liste mit fehlenden Feldern legte die
+ * Ansicht „Eigenes" ohne Fehlermeldung lahm. Gefunden bei der Durchsicht.
+ */
+function normCustoms(liste) {
+  if (!Array.isArray(liste)) return [];
+  return liste.map((c) => {
+    if (!c || typeof c !== 'object') return null;
+    const id = typeof c.id === 'string' && /^c[\w-]{1,40}$/.test(c.id) ? c.id : null;
+    if (!id) return null;
+    const ex = (Array.isArray(c.ex) ? c.ex : []).map((x) => (x && typeof x.id === 'string'
+      && /^[a-z0-9-]{1,60}$/.test(x.id)
+      ? { id: x.id, sets: Math.min(10, Math.max(1, Math.round(Number(x.sets)) || 3)) } : null))
+      .filter(Boolean);
+    return { id, name: standText(c.name, 60) || 'Eigenes Workout', ex };
+  }).filter(Boolean);
+}
+
 let state = load();
 const listeners = new Set();
 
@@ -216,6 +241,7 @@ function load() {
     // ein alter Stand wird deshalb beim Laden davon befreit.
     if ('adminPass' in state) delete state.adminPass;
     state.friends = normFreunde(state.friends);
+    state.customs = normCustoms(state.customs);
     // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
     // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
     // von Hand gesetzter (Sicherung, Tests). Sonst kommt sie aus ihrem eigenen
@@ -1026,10 +1052,45 @@ export function importJSON(text) {
   if (typeof fresh.shift !== 'number' || !Number.isFinite(fresh.shift)) fresh.shift = 0;
   fresh.injuries = fresh.injuries.filter((x) => typeof x === 'string');
   fresh.friends = normFreunde(fresh.friends);
+  fresh.customs = normCustoms(fresh.customs);
+  // Was an *diesem Gerät* hängt, kommt nicht aus der Datei. Vorher übernahm
+  // der Import auch `share`, `deviceId` und `lastShare`: Eine bewusst
+  // abgeschaltete Telemetrie war danach still wieder an, und zwei Geräte
+  // meldeten unter derselben Kennung. Die Zusage „abschaltbar" gilt auch über
+  // einen Umzug hinweg.
+  ['share', 'deviceId', 'lastShare'].forEach((k) => { fresh[k] = state[k]; });
+  // Der bisherige Stand wird beiseitegelegt, bevor er ersetzt wird – eine
+  // versehentlich gewählte ältere Sicherung kostete sonst ohne Rückweg alles
+  // seit damals. Klappt das nicht (Speicher voll), geht der Import trotzdem:
+  // Gefragt wurde vorher.
+  try {
+    localStorage.setItem(KEY_VOR_IMPORT, JSON.stringify({ am: new Date().toISOString(), stand: state }));
+  } catch { /* kein Platz – dann eben ohne Rückweg */ }
   state = fresh;
   schreibeRunden();
   persist();
   emit();
+}
+
+/** Gibt es einen Stand von vor dem letzten Import? { am } oder null. */
+export function vorImport() {
+  try {
+    const roh = localStorage.getItem(KEY_VOR_IMPORT);
+    return roh ? { am: JSON.parse(roh).am } : null;
+  } catch { return null; }
+}
+
+/** Den Stand von vor dem letzten Import zurückholen – einmal, dann ist er weg. */
+export function vorImportZurueck() {
+  const roh = localStorage.getItem(KEY_VOR_IMPORT);
+  if (!roh) return false;
+  const { stand } = JSON.parse(roh);
+  localStorage.removeItem(KEY_VOR_IMPORT);
+  importJSON(JSON.stringify(stand));
+  // importJSON hat eben den *eingelesenen* Stand beiseitegelegt; der ist
+  // hier nicht gefragt, sonst gäbe es ein endloses Hin und Her.
+  localStorage.removeItem(KEY_VOR_IMPORT);
+  return true;
 }
 
 export function resetAll() {

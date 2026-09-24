@@ -483,6 +483,37 @@ async function teileBackup() {
  * dauerhaft im DOM stehendes Feld behält die zuletzt gewählte Datei, und
  * zweimal dieselbe Datei zu wählen löst dann kein `change` mehr aus.
  */
+/**
+ * Eine Sicherung einlesen – mit Rückfrage, Rückweg und dem richtigen Plan.
+ *
+ * Drei Befunde der Durchsicht hingen hier: Der Import ersetzte den ganzen
+ * Verlauf ohne Frage und ohne Rückweg; ein Import mit anderem Fokus lief bis
+ * zum nächsten Neuladen gegen den alten Plan (der wird beim Start einmal
+ * gewählt), und wer weitertrainierte, schrieb Übungen des falschen Plans ins
+ * Protokoll; und die Telemetrie-Einstellung kam aus der Datei (das regelt
+ * jetzt importJSON selbst).
+ */
+function einlesen(text, meldung) {
+  const vorher = store.getState();
+  const hatVerlauf = Object.keys(vorher.log || {}).length > 0 || (vorher.rounds || []).length > 0;
+  if (hatVerlauf && !confirm('Die Sicherung ersetzt deinen ganzen jetzigen Verlauf. '
+    + 'Der jetzige Stand wird beiseitegelegt und lässt sich unter Mehr einmal zurückholen. Weiter?')) {
+    return;
+  }
+  const fokusVorher = vorher.focus;
+  store.importJSON(text);
+  ui.setupStep = 0;
+  if (store.getState().focus !== fokusVorher) {
+    // Der Plan wird beim Start gewählt; ohne Neuladen gälte bis dahin der alte.
+    store.flush();
+    sessionStorage.setItem('workout.nachImport', meldung);
+    location.reload();
+    return;
+  }
+  render();
+  toast(meldung);
+}
+
 function importBackupDatei() {
   const feld = document.createElement('input');
   feld.type = 'file';
@@ -493,14 +524,7 @@ function importBackupDatei() {
     const datei = feld.files && feld.files[0];
     if (!datei) return;
     datei.text()
-      .then((text) => {
-        store.importJSON(text);
-        // Nach dem Import gilt der eingelesene Stand – auch die Einrichtung,
-        // die gerade noch offen war.
-        ui.setupStep = 0;
-        render();
-        toast(`Eingelesen: ${datei.name}`);
-      })
+      .then((text) => einlesen(text, `Eingelesen: ${datei.name}`))
       .catch((err) => toast(`Import fehlgeschlagen: ${err.message}`));
   });
   feld.click();
@@ -4830,7 +4854,12 @@ function renderSettings() {
       </div>
       <div class="small muted" style="margin-top:8px">Umzug auf ein anderes Gerät oder in die
         installierte App: dort <i>Als Datei sichern</i>, hier <i>Datei laden</i>. Der eingelesene
-        Stand ersetzt den bisherigen vollständig.</div>
+        Stand ersetzt den bisherigen vollständig; der bisherige wird beiseitegelegt.</div>
+      ${store.vorImport() ? `<div class="btn-row">
+        <button type="button" class="btn" data-act="vor-import-zurueck">Stand von vor dem Import zurückholen</button>
+      </div>
+      <div class="small muted">Beiseitegelegt am ${esc(fmtDate(store.vorImport().am.slice(0, 10)))}.
+        Geht einmal – danach ist der beiseitegelegte Stand weg.</div>` : ''}
       <div class="btn-row" style="margin-top:10px">
         <button type="button" class="btn btn-danger" data-act="reset-all">Alle Daten löschen</button>
       </div>
@@ -5927,19 +5956,43 @@ view.addEventListener('click', (e) => {
     case 'import': {
       const io = document.getElementById('io');
       try {
-        store.importJSON(io.value);
-        render();
-        toast('Import erfolgreich');
+        einlesen(io.value, 'Import erfolgreich');
       } catch (err) {
         toast(`Import fehlgeschlagen: ${err.message}`);
       }
       break;
     }
+    case 'vor-import-zurueck':
+      if (confirm('Den Stand von vor dem letzten Import zurückholen? Der eingelesene Stand wird damit ersetzt.')) {
+        const f0 = store.getState().focus;
+        store.vorImportZurueck();
+        if (store.getState().focus !== f0) {
+          store.flush();
+          sessionStorage.setItem('workout.nachImport', 'Stand von vor dem Import ist zurück');
+          location.reload();
+        } else {
+          render();
+          toast('Stand von vor dem Import ist zurück');
+        }
+      }
+      break;
     case 'force-update': {
       // Notausgang, wenn eine alte Fassung im Zwischenspeicher klebt: Service
       // Worker abmelden, Zwischenspeicher leeren, neu laden. Der localStorage
       // bleibt, dort liegen die Trainingsdaten.
       (async () => {
+        // Erst nachsehen, ob der Server erreichbar ist. Ohne Netz räumte der
+        // Notausgang Worker und Zwischenspeicher ab und lud neu – und dann war
+        // bis zum nächsten Empfang gar keine App mehr da. Gefunden bei der
+        // Durchsicht der App: Wer im Studio ohne Netz denkt, die App hänge,
+        // tippt genau hier.
+        try {
+          const probe = await fetch(`./index.html?probe=${Date.now()}`, { cache: 'no-store' });
+          if (!probe.ok) throw new Error(String(probe.status));
+        } catch {
+          toast('Gerade keine Verbindung – ohne Netz würde das die App bis zum nächsten Empfang abschalten. Später noch einmal.');
+          return;
+        }
         try {
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
@@ -5963,7 +6016,13 @@ view.addEventListener('click', (e) => {
         // Erst die Zeile auf dem Server, dann den Speicher: Danach ist die
         // Kennung weg, mit der sie zu finden wäre – sie bliebe für immer
         // stehen, obwohl hier gerade alles gelöscht wird.
-        const id = meldetMit() ? store.getState().deviceId : null;
+        // Auch bei abgeschaltetem Teilen: Abschalten hält künftige Meldungen an,
+        // löscht aber nicht, was schon auf dem Server liegt. Vorher blieb die
+        // Zeile dann für immer stehen – die Kennung, mit der sie zu finden
+        // wäre, ist nach dem Löschen hier weg. `lastShare` sagt, ob überhaupt
+        // je etwas gemeldet wurde; ohne das gibt es auch nichts zu löschen.
+        const s0 = store.getState();
+        const id = s0.deviceId && (meldetMit() || s0.lastShare) ? s0.deviceId : null;
         if (id) loeschen(id);
         store.resetAll();
         ui.workoutNo = naechsteEinheit();
@@ -6225,6 +6284,29 @@ speicherFestnageln();
 // das ein Sprung innerhalb derselben Seite, sie lädt nicht neu, und ohne diesen
 // Horcher passierte schlicht nichts.
 window.addEventListener('hashchange', eisenAusAdresse);
+// Nach einem Import mit anderem Fokus wurde neu geladen – die Meldung dazu
+// kommt erst jetzt, sonst ginge sie mit dem Neuladen verloren.
+{
+  const nachImport = sessionStorage.getItem('workout.nachImport');
+  if (nachImport) {
+    sessionStorage.removeItem('workout.nachImport');
+    setTimeout(() => toast(nachImport), 400);
+  }
+}
+/*
+ * Zwei offene Fenster derselben App – installiert und als Browser-Tab, oder
+ * zweimal installiert – teilten sich den Speicher, aber nicht den Zustand:
+ * Jedes lud ihn einmal beim Start und schrieb ihn danach als Ganzes. Ein Tipp
+ * im veralteten Fenster überschrieb still ein ganzes Training aus dem anderen.
+ * Gefunden bei der Durchsicht der App, nachgestellt: sechs abgehakte Sätze in
+ * Fenster B, ein Tipp in Fenster A, danach null.
+ *
+ * Der Browser meldet jedem *anderen* Fenster, wenn der Speicher sich ändert.
+ * Dann lädt dieses neu und arbeitet mit dem, was jetzt dort steht.
+ */
+window.addEventListener('storage', (e) => {
+  if (e.key === 'workout.state.v1' || e.key === 'workout.rounds.v1') location.reload();
+});
 if (ui.standAngebot) {
   ui.tab = 'dashboard';
   ui.focus = false;

@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v196';
+const VERSION = 'v197';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -118,17 +118,28 @@ self.addEventListener('fetch', (event) => {
   // würde dann weiter alte Dateien ausliefern.
   const cached = (req) => caches.open(CACHE).then((c) => c.match(req));
 
+  // Nur eine gute Antwort ersetzt, was im Zwischenspeicher liegt. Vorher wurde
+  // beim Seitenaufruf *jede* Antwort abgelegt – eine 503 von GitHub Pages oder
+  // eine umgeleitete Seite ebenso. Danach lieferte der Worker genau diese
+  // Fehlerseite aus, auch ohne Netz, und die App ging im Keller nicht mehr auf,
+  // obwohl die Daten im Speicher lagen. Gefunden bei der Durchsicht der App.
+  const gut = (res) => res && res.ok && !res.redirected && res.type === 'basic';
+  const zuletztGut = () => cached(request).then((hit) => hit || cached('./index.html'));
+
   if (request.mode === 'navigate') {
     event.respondWith(
       fresh(request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
-          return res;
+          if (gut(res)) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(request, copy));
+            return res;
+          }
+          // Fehler- oder Umleitungsseite: lieber die letzte gute Fassung zeigen.
+          // Nur wenn es keine gibt, sieht man, was der Server geschickt hat.
+          return zuletztGut().then((hit) => hit || res);
         })
-        .catch(() => cached(request)
-          .then((hit) => hit || cached('./index.html'))
-          .then((hit) => hit || Response.error())),
+        .catch(() => zuletztGut().then((hit) => hit || Response.error())),
     );
     return;
   }
@@ -137,7 +148,7 @@ self.addEventListener('fetch', (event) => {
     cached(request).then((hit) => {
       const update = fresh(request)
         .then((res) => {
-          if (res && res.ok) {
+          if (gut(res)) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(request, copy));
           }
