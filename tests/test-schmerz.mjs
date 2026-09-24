@@ -64,9 +64,27 @@ const katalog = await page.evaluate(async () => {
       .map((s) => `${e.id}/${s.ort}`)),
   };
 });
-console.log('     Übungen mit Schmerz-Einträgen:', katalog.mitSchmerz.join(', '));
-check(katalog.mitSchmerz.length >= 5,
-  `mehrere Übungen haben Schmerz-Einträge (${katalog.mitSchmerz.length})`);
+console.log('     Übungen mit Schmerz-Einträgen:', katalog.mitSchmerz.length);
+
+// **Jede Übung, die im Plan steht, braucht einen.** Das ist die eigentliche
+// Regel und nicht eine Zahl: Ein Mechanismus, der bei vier von fünfundzwanzig
+// Übungen greift, ist keiner – wer beim Seitheben etwas spürt, findet dort
+// nichts und lernt, dass es sich nicht lohnt nachzusehen. Gemessen war der
+// Stand genau so, bevor die fehlenden geschrieben wurden.
+//
+// Deshalb schlägt dieses Tor an, wenn eine Übung neu in einen Plan kommt und
+// keinen Eintrag hat. Das ist beabsichtigt und keine Schikane: Eine Übung
+// aufzunehmen, ohne zu sagen, was zu tun ist wenn sie weh tut, ist halb fertig.
+const ohneEintrag = await page.evaluate(async () => {
+  const { PLAN, EXERCISES } = await import('./js/data.js');
+  const mit = new Set(EXERCISES.filter((e) => (e.schmerz || []).length).map((e) => e.id));
+  const drin = new Set();
+  PLAN.forEach((w) => w.ex.forEach((it) => drin.add(it.id)));
+  return [...drin].filter((id) => !mit.has(id));
+});
+check(ohneEintrag.length === 0,
+  `jede Übung im Plan hat einen Schmerz-Eintrag${ohneEintrag.length
+    ? ` – es fehlen: ${ohneEintrag.join(', ')}` : ` (${katalog.mitSchmerz.length} im Katalog)`}`);
 check(katalog.unvollstaendig.length === 0,
   `jeder Eintrag hat Stelle und einen Text, der etwas sagt (${katalog.unvollstaendig.join(', ') || 'alle'})`);
 katalog.zeilen.forEach((z) => {

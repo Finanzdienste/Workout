@@ -1635,7 +1635,15 @@ textarea.io {
   color: var(--fg); font: inherit; font-size: 14px; font-weight: 600;
   text-align: left; cursor: pointer;
 }
+/* Die Pfeile brauchen mehr Gewicht als `.ex.open .chev` weiter oben. Das dreht
+   *jeden* Pfeil in einer aufgeklappten Übungskarte – gemeint war der der Karte
+   selbst, getroffen werden auch die darin. Ohne diese beiden Zeilen zeigen
+   offene und zugeklappte Stellen denselben Pfeil, und der Pfeil sagt nichts
+   mehr. Derselbe Fehler steckte im Knopf „Mehr zur Ausführung"; er ist gleich
+   mit behoben. */
 .schmerz-h .chev { font-size: 10px; opacity: .55; transition: transform .15s; }
+.ex.open .schmerz-h .chev, .ex.open .detail-toggle .chev { transform: none; }
+.ex.open .schmerz-h.on .chev, .ex.open .detail-toggle.on .chev,
 .schmerz-h.on .chev { transform: rotate(180deg); }
 .schmerz-b { padding: 0 0 12px; }
 .schmerz-b p { margin: 0 0 10px; font-size: 14px; line-height: 1.55; white-space: pre-line; }

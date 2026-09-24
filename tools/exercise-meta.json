@@ -28,6 +28,26 @@
         "Knie fallen nach innen – aktiv nach außen denken. Fersen heben. Das Gewicht driftet vom Körper weg und zieht dich nach vorn."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Knie vorn",
+        "text": "Ein Ziehen direkt unter der Kniescheibe, am Sehnenstrang zum Schienbein: Das ist der typische Punkt bei allem, was das Knie unter Last beugt. Es meldet sich gern zu Beginn des Satzes und wird warm wieder besser – und genau das macht es tückisch, weil man weitermacht.\n\nDer Reihe nach: langsamer ablassen und unten nicht abfedern. Der Rückprall aus der tiefen Stellung ist die härteste Sekunde für die Sehne. Dann der Weg: Wer nur bis zur Parallele geht statt tiefer, nimmt viel heraus, ohne dass die Übung ihren Sinn verliert. Und weniger Gewicht, für ein paar Wochen.\n\nTut es beim Treppensteigen oder beim Aufstehen auch weh, ist es keine Tagesform: hier anhaken.",
+        "verletzung": [
+          "patellasehne"
+        ]
+      },
+      {
+        "ort": "Ferse hebt ab / Sprunggelenk",
+        "text": "Wenn die Fersen beim Tiefergehen abheben oder das Sprunggelenk vorn einklemmt, reicht die Beweglichkeit im Fuß nicht für diese Tiefe. Der Körper holt sich den Rest, indem er nach vorn kippt – und dann arbeitet der untere Rücken mit.\n\nDas Naheliegende zuerst: Fersen auf eine schmale Erhöhung, ein Brett oder zwei Hantelscheiben. Damit steht das Schienbein steiler und der Fuß muss weniger hergeben. Alternativ die Füße etwas weiter und die Zehen leicht nach außen.\n\nKlemmt es vorn im Gelenk statt hinten zu ziehen, oder ist das Sprunggelenk nach einem Umknicken noch nicht wieder wie vorher: hier anhaken. Dann tritt der fersenerhöhte Squat an diese Stelle.",
+        "verletzung": [
+          "sprunggelenk"
+        ]
+      },
+      {
+        "ort": "Unterer Rücken",
+        "text": "Der Rumpf hält hier eine Last vor der Brust, und je weiter er dabei nach vorn kippt, desto mehr trägt der untere Rücken. Ein Ziehen dort heißt meistens: Der Oberkörper ist unterwegs nach vorn gegangen.\n\nZwei Ursachen, beide behebbar. Erstens die Tiefe: Rundet sich der Rücken unten ein, war der Weg länger als die Beweglichkeit hergibt – dort endet die Wiederholung, nicht tiefer. Zweitens die Ellenbogen: Sie gehören nach innen an den Rumpf, nicht nach außen. Hängen sie außen, zieht die Hantel den Oberkörper nach vorn.\n\nHilft beides nicht, ist der Goblet Squat in dieser Form zu schwer – weniger Gewicht ist hier keine Niederlage, sondern die Übung."
+      }
+    ],
     "dbRest": 150,
     "bwRest": 150,
     "dbWeight": 20,
@@ -74,6 +94,19 @@
         "Zu hoch erhöhen – dann steht man auf den Ballen und die Balance geht verloren. Wackelige Unterlage; sie muss kippsicher sein."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Knie vorn",
+        "text": "Die erhöhte Ferse stellt das Schienbein steiler, und damit arbeitet das Knie über einen größeren Winkel als in der flachen Fassung. Das ist gewollt – der vordere Oberschenkel bekommt mehr ab – heißt aber auch: Wenn ein Knie empfindlich ist, meldet es sich hier eher als dort.\n\nEin Ziehen direkt unter der Kniescheibe, am Sehnenstrang zum Schienbein: Das ist der typische Punkt bei allem, was das Knie unter Last beugt. Es meldet sich gern zu Beginn des Satzes und wird warm wieder besser – und genau das macht es tückisch, weil man weitermacht.\n\nDer Reihe nach: langsamer ablassen und unten nicht abfedern. Der Rückprall aus der tiefen Stellung ist die härteste Sekunde für die Sehne. Dann der Weg: Wer nur bis zur Parallele geht statt tiefer, nimmt viel heraus, ohne dass die Übung ihren Sinn verliert. Und weniger Gewicht, für ein paar Wochen.\n\nTut es beim Treppensteigen oder beim Aufstehen auch weh, ist es keine Tagesform: hier anhaken.",
+        "verletzung": [
+          "patellasehne"
+        ]
+      },
+      {
+        "ort": "Unterer Rücken",
+        "text": "Der Rumpf hält hier eine Last vor der Brust, und je weiter er dabei nach vorn kippt, desto mehr trägt der untere Rücken. Ein Ziehen dort heißt meistens: Der Oberkörper ist unterwegs nach vorn gegangen.\n\nZwei Ursachen, beide behebbar. Erstens die Tiefe: Rundet sich der Rücken unten ein, war der Weg länger als die Beweglichkeit hergibt – dort endet die Wiederholung, nicht tiefer. Zweitens die Ellenbogen: Sie gehören nach innen an den Rumpf, nicht nach außen. Hängen sie außen, zieht die Hantel den Oberkörper nach vorn.\n\nHilft beides nicht, ist der Goblet Squat in dieser Form zu schwer – weniger Gewicht ist hier keine Niederlage, sondern die Übung."
+      }
+    ],
     "dbRest": 150,
     "bwRest": 150,
     "dbWeight": 20,
@@ -118,6 +151,15 @@
         "Zu weit hinausschieben, bis die Hüfte fällt. Mit den Armen mitdrücken. Zu schnell arbeiten – hier gibt es kein Gewicht, nur Kontrolle."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Beinbeuger",
+        "text": "Ein Krampf im Beinbeuger mitten im Satz ist bei dieser Übung eher die Regel als die Ausnahme, vor allem am Anfang. Der Muskel arbeitet hier über einen sehr langen Weg unter Spannung, und das kennt er aus dem Alltag nicht.\n\nWas hilft: die Füße weniger weit wegschieben, dafür die Hüfte oben halten. Der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Dazu vorher ein paar lockere Beckenheben zum Warmwerden und genug getrunken – ein Krampf ist oft schlicht ein Wasserstand.\n\nEtwas anderes ist ein plötzliches Reißen oder Stechen im Muskelbauch, meistens beim Zurückziehen. Das ist eine Zerrung, und die trainiert man nicht weg: hier anhaken.",
+        "verletzung": [
+          "hamstringzerrung"
+        ]
+      }
+    ],
     "dbRest": 120,
     "bwRest": 120,
     "dbWeight": null,
@@ -155,6 +197,15 @@
         "Das freie Bein",
         "Angewinkelt in der Luft halten, nicht abstützen und nicht mitschwingen. Die Hüfte bleibt waagerecht – sie darf nicht zur Seite kippen."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Beinbeuger",
+        "text": "Ein Krampf im Beinbeuger mitten im Satz ist bei dieser Übung eher die Regel als die Ausnahme, vor allem am Anfang. Der Muskel arbeitet hier über einen sehr langen Weg unter Spannung, und das kennt er aus dem Alltag nicht.\n\nWas hilft: die Füße weniger weit wegschieben, dafür die Hüfte oben halten. Der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Dazu vorher ein paar lockere Beckenheben zum Warmwerden und genug getrunken – ein Krampf ist oft schlicht ein Wasserstand.\n\nEtwas anderes ist ein plötzliches Reißen oder Stechen im Muskelbauch, meistens beim Zurückziehen. Das ist eine Zerrung, und die trainiert man nicht weg: hier anhaken.",
+        "verletzung": [
+          "hamstringzerrung"
+        ]
+      }
     ],
     "dbRest": 120,
     "bwRest": 120,
@@ -201,6 +252,19 @@
         "Typische Fehler",
         "Mit dem Kinn nach oben schauen (der Blick geht nach vorn, oben zu den Knien). Nur halb hochkommen. Die Stange auf dem Bauch statt auf der Hüftbeuge liegen haben."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Hüftknochen drückt",
+        "text": "Die Stange oder die Hantel liegt direkt auf den Beckenknochen, und das tut ohne Polster fast allen weh. Das ist kein Schaden und kein Zeichen von etwas – es ist Druck auf Knochen.\n\nEin zusammengerolltes Handtuch, eine Yogamatte doppelt gelegt oder ein dickes Kissen zwischen Last und Hüfte lösen es vollständig. Wer nichts zur Hand hat: Die Last etwas höher legen, näher an die Bauchdecke, nimmt schon einiges."
+      },
+      {
+        "ort": "Tief seitlich über dem Gesäß",
+        "text": "Ein Schmerz tief seitlich über der Gesäßhälfte, oft nur auf einer Seite: Dort sitzt das Kreuz-Darmbein-Gelenk. Kräftige Hüftstreckung reizt es, und der Hip Thrust ist genau das.\n\nErst die einfache Ursache: Schieben beide Seiten gleich? Wer unbewusst über ein Bein drückt, belastet das Gelenk einseitig. Füße gleich weit weg, gleich weit auseinander, und oben bewusst beide Gesäßhälften anspannen.\n\nSitzt der Punkt trotzdem fest, hier anhaken – dann tritt das Beckenheben ohne Zusatzlast an diese Stelle.",
+        "verletzung": [
+          "isg"
+        ]
+      }
     ],
     "dbRest": 150,
     "bwRest": 150,
@@ -289,6 +353,23 @@
         "Ab etwa Hüfthöhe wird daraus ein senkrechtes Drücken – interessant für die Schulter, aber dann ist es keine Brustübung mehr."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Handgelenk",
+        "text": "Mit erhöhten Füßen liegt mehr Gewicht auf den Händen als beim gewöhnlichen Liegestütz, und das Handgelenk steht dabei fast im rechten Winkel. Das ist die unbequemste Stellung, die es kennt.\n\nDer Reihe nach: Hände etwas weiter auseinander, Finger leicht nach außen gedreht. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer zwei Kurzhanteln hat, stützt sich auf deren Griffen ab: Damit steht das Handgelenk gerade und das Problem ist weg.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse, wo die Hand hält statt zu stützen.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ]
+      },
+      {
+        "ort": "Schulter vorn",
+        "text": "Je höher die Füße, desto schräger drückst du – und desto mehr Arbeit macht die vordere Schulter. Meldet sie sich vorn am Gelenk, sind es meist zwei Dinge: Die Ellenbogen stehen quer nach außen statt etwa 45 Grad zum Körper, und die Schulterblätter wandern beim Ablassen nach vorn, statt zusammen und nach unten zu bleiben.\n\nBeides lässt sich in einem Satz prüfen: Schulterblätter vor der ersten Wiederholung zusammenziehen und dort halten, Ellenbogen enger. Fühlt es sich danach in der Brust an statt vorn im Gelenk, war es die Führung.\n\nBleibt es, hier anhaken – je nachdem, ob es beim Heben klemmt oder oben am Schultereck drückt.",
+        "verletzung": [
+          "schulter-impingement",
+          "ac-gelenk"
+        ]
+      }
+    ],
     "dbRest": 150,
     "bwRest": 150,
     "dbWeight": null,
@@ -338,6 +419,22 @@
         "Reserve lassen",
         "Ohne Ständer gibt es keinen Ausstieg nach oben. Bleibt eine Wiederholung stecken, kommt die Stange über den Bauch bis zu den Hüften und von dort im Sitzen herunter – dafür brauchst du Kraft, also lass eine Wiederholung übrig."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Schulter",
+        "text": "Am Boden ist der Weg kurz, und genau dafür ist die Übung da: Der Ellenbogen kommt nicht tiefer als der Rumpf, die Schulter wird nicht überdehnt. Wenn trotzdem etwas drückt, sitzt es fast immer oben auf dem Schultereck – dort, wo Schlüsselbein und Schulterdach zusammenstoßen.\n\nWas hilft: die Ellenbogen nicht quer nach außen stellen, sondern etwa 45 Grad zum Körper, und oben die Hände nicht über der Mitte zusammenführen. Beides nimmt Druck von dem kleinen Gelenk.\n\nDrückt es weiter oder ist es beim Liegen schon da, hier anhaken.",
+        "verletzung": [
+          "ac-gelenk"
+        ]
+      },
+      {
+        "ort": "Ellenbogen",
+        "text": "Der Ellenbogen streckt hier gegen Last, und wenn dabei die Spitze selbst weh tut – nicht der Muskel darum, sondern der Knochenpunkt – dann ist meist der Schleimbeutel gereizt. Typisch ist, dass es auch beim Aufstützen auf einen Tisch drückt.\n\nErst das Naheliegende: Stopp die Bewegung kurz vor der vollen Streckung. Die letzten Grad bringen für die Brust nichts und sind genau der Teil, der drückt. Dazu weniger Gewicht und langsamer ablassen.\n\nIst der Punkt geschwollen oder warm, gehört es unter die Beschwerden – und in dem Fall ist auch ein Arzt keine schlechte Idee.",
+        "verletzung": [
+          "ellenbogen-bursitis"
+        ]
+      }
     ],
     "dbRest": 180,
     "bwRest": 150,
@@ -442,6 +539,29 @@
         "Schwingen und mit den Beinen nachhelfen. Nur bis zur Nasenspitze kommen. Unten nicht ganz ausstrecken und so den halben Bewegungsweg verschenken."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Ellenbogen außen",
+        "text": "An der Außenseite des Ellenbogens sitzen die Ansätze der Handstrecker, und jeder feste Griff zieht daran. Deshalb meldet sich der Punkt beim Ziehen und beim Festhalten, kaum beim Drücken – das ist der Tennisarm, eine Reizung und kein Riss.\n\nZuerst das Naheliegende: weniger Last, kürzere Sätze, und die Stange nicht erwürgen. Danach erst die Übung selbst. Wichtig ist vor allem, was man nicht tun sollte: Wegtrainieren macht es schlimmer, weil jeder weitere Zug an derselben Stelle zieht.\n\nBleibt der Punkt über ein paar Einheiten, hier anhaken. Dann fällt alles weg, was über den Griff zieht, und die Pflegeübungen kommen daneben – Handgelenkstrecken mit langsamem Ablassen ist dort das, was wirklich hilft.",
+        "verletzung": [
+          "tennisarm"
+        ]
+      },
+      {
+        "ort": "Ellenbogen innen",
+        "text": "Dasselbe an der Innenseite, am Ansatz der Handbeuger: der Golferarm. Hier reizt neben dem Griff auch jede kräftige Beugung im Ellenbogen – Klimmzüge im Untergriff sind die Lehrbuchbewegung dafür.\n\nErst Last und Griffkraft: weniger Gewicht, lockerer greifen, langsamer ablassen. Der Untergriff zieht stärker daran als der Obergriff; wenn du die Wahl hast, nimm für ein paar Wochen den Obergriff.\n\nHält es an, hier anhaken – dann fällt weg, was daran zieht, und die Pflegeübungen für die Beuger kommen dazu.",
+        "verletzung": [
+          "golferarm"
+        ]
+      },
+      {
+        "ort": "Schulter vorn",
+        "text": "Vorn an der Schulter, in der Rinne am Oberarmkopf, läuft die lange Bizepssehne. Sie reibt bei Zug mit gestrecktem Arm – also genau im vollen Hang, bevor die Bewegung anfängt.\n\nWas oft reicht: nicht aus dem toten Hang starten, sondern zuerst die Schulterblätter nach unten ziehen und erst dann ziehen. Damit hängt das Gelenk nicht mehr passiv am Band. Und am Ende nicht einfach loslassen, sondern kontrolliert ablassen.\n\nBleibt der Punkt vorn, hier anhaken. Dann übernimmt das Rudern: dieselbe Richtung, aber der Arm hängt nicht gestreckt an der Last.",
+        "verletzung": [
+          "bizepssehne"
+        ]
+      }
+    ],
     "dbRest": 180,
     "bwRest": 180,
     "dbWeight": 0,
@@ -500,6 +620,29 @@
         "Den Kopf nach vorn schieben, um über die Stange zu kommen. Die Schultern oben hochziehen, statt sie nach unten zu ziehen. Aus dem Hohlkreuz schwingen."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Ellenbogen außen",
+        "text": "An der Außenseite des Ellenbogens sitzen die Ansätze der Handstrecker, und jeder feste Griff zieht daran. Deshalb meldet sich der Punkt beim Ziehen und beim Festhalten, kaum beim Drücken – das ist der Tennisarm, eine Reizung und kein Riss.\n\nZuerst das Naheliegende: weniger Last, kürzere Sätze, und die Stange nicht erwürgen. Danach erst die Übung selbst. Wichtig ist vor allem, was man nicht tun sollte: Wegtrainieren macht es schlimmer, weil jeder weitere Zug an derselben Stelle zieht.\n\nBleibt der Punkt über ein paar Einheiten, hier anhaken. Dann fällt alles weg, was über den Griff zieht, und die Pflegeübungen kommen daneben – Handgelenkstrecken mit langsamem Ablassen ist dort das, was wirklich hilft.",
+        "verletzung": [
+          "tennisarm"
+        ]
+      },
+      {
+        "ort": "Ellenbogen innen",
+        "text": "Dasselbe an der Innenseite, am Ansatz der Handbeuger: der Golferarm. Hier reizt neben dem Griff auch jede kräftige Beugung im Ellenbogen – Klimmzüge im Untergriff sind die Lehrbuchbewegung dafür.\n\nErst Last und Griffkraft: weniger Gewicht, lockerer greifen, langsamer ablassen. Der Untergriff zieht stärker daran als der Obergriff; wenn du die Wahl hast, nimm für ein paar Wochen den Obergriff.\n\nHält es an, hier anhaken – dann fällt weg, was daran zieht, und die Pflegeübungen für die Beuger kommen dazu.",
+        "verletzung": [
+          "golferarm"
+        ]
+      },
+      {
+        "ort": "Schulter vorn",
+        "text": "Vorn an der Schulter, in der Rinne am Oberarmkopf, läuft die lange Bizepssehne. Sie reibt bei Zug mit gestrecktem Arm – also genau im vollen Hang, bevor die Bewegung anfängt.\n\nWas oft reicht: nicht aus dem toten Hang starten, sondern zuerst die Schulterblätter nach unten ziehen und erst dann ziehen. Damit hängt das Gelenk nicht mehr passiv am Band. Und am Ende nicht einfach loslassen, sondern kontrolliert ablassen.\n\nBleibt der Punkt vorn, hier anhaken. Dann übernimmt das Rudern: dieselbe Richtung, aber der Arm hängt nicht gestreckt an der Last.",
+        "verletzung": [
+          "bizepssehne"
+        ]
+      }
+    ],
     "dbRest": 180,
     "bwRest": 180,
     "dbWeight": 0,
@@ -554,6 +697,12 @@
         "Daumen nach unten (Innenrotation) trifft die hintere Schulter etwas direkter, drückt aber die Schulter in die enge Stellung, in der es klemmen kann. Neutral – Handflächen zeigen zueinander – ist der bessere Standard."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Nacken",
+        "text": "Dasselbe wie beim Band-Pull-Apart, und hier noch häufiger: Der Trapezmuskel zieht die Schultern hoch, statt dass die Schulterblätter zueinander wandern. Dann brennt der Nacken und die hintere Schulter bleibt kalt.\n\nWas hilft: leichteres Gewicht als man denkt – die hintere Schulter ist klein, und alles über ein paar Kilo macht hier jemand anders. Dazu die Arme nicht ganz strecken und oben nicht höher als bis auf Schulterhöhe.\n\nBleibt die Verspannung über Tage, gehört sie unter die Beschwerden – die Nackenverspannung steht dort als eigener Eintrag."
+      }
+    ],
     "dbRest": 120,
     "bwRest": 120,
     "dbWeight": 5,
@@ -593,6 +742,22 @@
         "Typische Fehler",
         "Die Schultern zum Ohr ziehen. Die Hanteln nach oben werfen und fallen lassen. Zu weit hochheben."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Schulter",
+        "text": "Seitheben ist die Bewegung, bei der es unter dem Schulterdach am ehesten eng wird: Der Arm fährt genau durch den Bogen, in dem der Raum am kleinsten ist. Ein Klemmen zwischen Schulterhöhe und darüber ist das typische Zeichen.\n\nDrei Dinge, die es oft lösen. Erstens: nicht über Schulterhöhe heben. Der Teil darüber bringt für die seitliche Schulter fast nichts und kostet den ganzen Ärger. Zweitens: die Daumen leicht nach oben statt die kleinen Finger – aus dem Eingießen wird ein Heben, und der Oberarmkopf dreht dabei weg statt hinein. Drittens: die Arme etwa 30 Grad nach vorn versetzt führen statt exakt zur Seite, in der Ebene des Schulterblatts.\n\nBleibt es trotzdem, oder tut es weh statt eng zu werden: hier anhaken. Dann fällt alles weg, was über den Bogen geht.",
+        "verletzung": [
+          "schulter-impingement"
+        ]
+      },
+      {
+        "ort": "Nacken",
+        "text": "Wenn der Nacken nach dem Seitheben brennt, hat der Trapezmuskel die Arbeit übernommen. Er zieht die Schulter nach oben, die seitliche Schulter hebt den Arm – wer beides gleichzeitig macht, trainiert den Nacken und nicht die Schulter.\n\nDie Probe ist einfach: Schultern bewusst nach unten ziehen und dort lassen, dann heben. Geht das Gewicht so nicht mehr hoch, war es zu schwer – und der Nacken hat vorher ausgeholfen. Zwei Kilo weniger sind hier fast immer die ganze Lösung.\n\nHält die Verspannung über Tage an oder zieht sie in den Kopf, gehört sie unter die Beschwerden: dann fällt alles weg, was die Schultern nach oben zieht.",
+        "verletzung": [
+          "nacken"
+        ]
+      }
     ],
     "dbRest": 120,
     "bwRest": 120,
@@ -640,6 +805,22 @@
         "Breiter Stand auf dem Band macht es schwerer, ein Fuß leichter. Das ist die Feineinstellung, die hier das Gewicht ersetzt."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Schulter",
+        "text": "Seitheben ist die Bewegung, bei der es unter dem Schulterdach am ehesten eng wird: Der Arm fährt genau durch den Bogen, in dem der Raum am kleinsten ist. Ein Klemmen zwischen Schulterhöhe und darüber ist das typische Zeichen.\n\nDrei Dinge, die es oft lösen. Erstens: nicht über Schulterhöhe heben. Der Teil darüber bringt für die seitliche Schulter fast nichts und kostet den ganzen Ärger. Zweitens: die Daumen leicht nach oben statt die kleinen Finger – aus dem Eingießen wird ein Heben, und der Oberarmkopf dreht dabei weg statt hinein. Drittens: die Arme etwa 30 Grad nach vorn versetzt führen statt exakt zur Seite, in der Ebene des Schulterblatts.\n\nBleibt es trotzdem, oder tut es weh statt eng zu werden: hier anhaken. Dann fällt alles weg, was über den Bogen geht.",
+        "verletzung": [
+          "schulter-impingement"
+        ]
+      },
+      {
+        "ort": "Nacken",
+        "text": "Wenn der Nacken nach dem Seitheben brennt, hat der Trapezmuskel die Arbeit übernommen. Er zieht die Schulter nach oben, die seitliche Schulter hebt den Arm – wer beides gleichzeitig macht, trainiert den Nacken und nicht die Schulter.\n\nDie Probe ist einfach: Schultern bewusst nach unten ziehen und dort lassen, dann heben. Geht das Gewicht so nicht mehr hoch, war es zu schwer – und der Nacken hat vorher ausgeholfen. Zwei Kilo weniger sind hier fast immer die ganze Lösung.\n\nHält die Verspannung über Tage an oder zieht sie in den Kopf, gehört sie unter die Beschwerden: dann fällt alles weg, was die Schultern nach oben zieht.",
+        "verletzung": [
+          "nacken"
+        ]
+      }
+    ],
     "dbRest": 120,
     "bwRest": 120,
     "dbWeight": null,
@@ -683,6 +864,22 @@
         "Typische Fehler",
         "Ins Hohlkreuz ausweichen. Zu tief ablassen, bis es im Ellenbogen zwickt. Mit Schwung strecken."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Schulter",
+        "text": "Der Oberarm steht hier senkrecht neben dem Ohr, und dort ist der Raum unter dem Schulterdach am engsten. Wenn sich die Schulter beim Halten meldet – nicht der Trizeps, sondern das Gelenk – dann ist es die Überkopfstellung und nicht die Übung an sich.\n\nZwei Dinge zuerst: Die Oberarme müssen nicht exakt senkrecht stehen, eine leichte Neigung nach vorn nimmt schon viel. Und die Rippen sollen unten bleiben – wer ins Hohlkreuz ausweicht, um weiter nach hinten zu kommen, holt sich den Rest aus der Schulter.\n\nBleibt es, hier anhaken. Dann tritt das Trizepsstrecken an der niedrigen Stange an diese Stelle: derselbe Muskel, aber der Arm bleibt unter dem Bogen, der weh tut.",
+        "verletzung": [
+          "schulter-impingement"
+        ]
+      },
+      {
+        "ort": "Ellenbogen",
+        "text": "Der Ellenbogen streckt hier gegen Last, und wenn dabei die Spitze selbst weh tut – nicht der Muskel darum, sondern der Knochenpunkt – dann ist meist der Schleimbeutel gereizt. Typisch ist, dass es auch beim Aufstützen auf einen Tisch drückt.\n\nErst das Naheliegende: Stopp die Bewegung kurz vor der vollen Streckung. Die letzten Grad bringen für die Brust nichts und sind genau der Teil, der drückt. Dazu weniger Gewicht und langsamer ablassen.\n\nIst der Punkt geschwollen oder warm, gehört es unter die Beschwerden – und in dem Fall ist auch ein Arzt keine schlechte Idee.",
+        "verletzung": [
+          "ellenbogen-bursitis"
+        ]
+      }
     ],
     "dbRest": 120,
     "bwRest": 120,
@@ -733,10 +930,16 @@
         ]
       },
       {
-        "ort": "Ellenbogen",
-        "text": "Am Ellenbogen sitzen die Ansätze der Hand-Muskeln, und ein Curl zieht über den Griff an beiden. Außen ist es der Tennisarm, innen der Golferarm – beides Reizungen, keine Risse, und beide werden schlimmer, wenn man sie wegtrainieren will.\n\nZuerst das Naheliegende: weniger Gewicht, lockerer greifen (die Stange muss nicht erwürgt werden), und das Ablassen langsam statt fallen lassen. Bleibt es über ein paar Einheiten, ist es keine Tagesform mehr. Dann hier anhaken – die App nimmt dann alles aus dem Plan, was über den Griff zieht, und legt die Pflegeübungen daneben, die dafür etwas bringen.",
+        "ort": "Ellenbogen außen",
+        "text": "An der Außenseite des Ellenbogens sitzen die Ansätze der Handstrecker. Ein Curl zieht über den Griff daran, und wenn sich der Punkt dort meldet, ist das der Tennisarm – eine Reizung, kein Riss.\n\nZuerst das Naheliegende: weniger Gewicht, lockerer greifen (die Stange muss nicht erwürgt werden), und das Ablassen langsam statt fallen lassen. Wichtig ist vor allem, was man nicht tun sollte: Wegtrainieren macht es schlimmer, weil jeder weitere Zug an derselben Stelle zieht.\n\nBleibt es über ein paar Einheiten, hier anhaken. Dann fällt alles weg, was über den Griff zieht, und die Pflegeübungen kommen daneben.",
         "verletzung": [
-          "tennisarm",
+          "tennisarm"
+        ]
+      },
+      {
+        "ort": "Ellenbogen innen",
+        "text": "Dasselbe an der Innenseite, am Ansatz der Handbeuger: der Golferarm. Hier reizt neben dem Griff auch jede kräftige Beugung im Ellenbogen – und ein Curl ist genau das, in Reinform.\n\nErst Last und Griffkraft: weniger Gewicht, lockerer greifen, langsamer ablassen. Auch hier gilt, dass Wegtrainieren die Sache verschlimmert.\n\nHält es an, hier anhaken – dann fällt weg, was daran zieht, und die Pflegeübungen für die Beuger kommen dazu.",
+        "verletzung": [
           "golferarm"
         ]
       }
@@ -824,6 +1027,19 @@
         "Am Kopf ziehen. Schwung holen. Bis ganz nach oben kommen – die Bewegung ist kurz, das ist kein Fehler, sondern die Übung."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Nacken",
+        "text": "Der Nacken ist die klassische Beschwerde beim Crunch, und die Ursache ist fast immer dieselbe: Der Kopf zieht sich nach vorn, statt vom Rumpf mitgenommen zu werden. Wer die Hände hinter dem Kopf verschränkt, zieht irgendwann daran.\n\nZwei Dinge lösen es. Erstens: eine Faust breit Abstand zwischen Kinn und Brustbein halten, den ganzen Satz über – dann kann der Kopf gar nicht nachgeben. Zweitens: die Hände an die Schläfen legen oder die Arme vor der Brust kreuzen statt sie hinter dem Kopf zu verschränken.\n\nHält die Verspannung über Tage an, hier anhaken.",
+        "verletzung": [
+          "nacken"
+        ]
+      },
+      {
+        "ort": "Unterer Rücken",
+        "text": "Beim Crunch hebt nur der obere Rumpf ab; die Lendenwirbelsäule bleibt am Boden. Meldet sie sich trotzdem, kommt die Bewegung meist aus der Hüfte – ein halbes Aufsetzen statt eines Einrollens, und das zieht am Rücken statt am Bauch.\n\nProbe: Füße aufstellen und die Fersen leicht Richtung Gesäß ziehen, dann nur so weit hochrollen, bis die Schulterblätter frei sind. Weiter ist nicht besser – der Teil darüber macht der Hüftbeuger.\n\nDrückt es dabei, ist die Zusatzlast zu hoch oder die Unterlage zu hart. Ein gefaltetes Handtuch unter dem Kreuz hilft mehr, als man denkt."
+      }
+    ],
     "dbRest": 90,
     "bwRest": 90,
     "dbWeight": 5,
@@ -864,6 +1080,22 @@
         "Mit gestrecktem Knie arbeitet der obere, sichtbare Wadenmuskel. Deshalb hier strecken – der gebeugte Teil hat seine eigene Übung."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Wade",
+        "text": "Ein Ziehen oder ein Krampf mitten in der Wade, oft nach den letzten Wiederholungen: Der Muskel arbeitet hier über einen kurzen Weg gegen viel Last, und er ist aus dem Alltag ans Gehen gewöhnt und nicht daran.\n\nWas hilft: unten nicht abfedern, sondern die Dehnung eine Sekunde halten, und oben nicht wegrollen. Dazu genug trinken – Wadenkrämpfe sind häufiger ein Wasserstand als ein Trainingsproblem.\n\nEin plötzliches, stechendes Reißen ist etwas anderes als ein Krampf, besonders wenn es danach beim Gehen weh tut. Das ist eine Zerrung: hier anhaken.",
+        "verletzung": [
+          "wadenzerrung"
+        ]
+      },
+      {
+        "ort": "Achillessehne",
+        "text": "Die Achillessehne trägt bei gestrecktem Knie die volle Last, und einbeinig ist das das Doppelte von beidbeinig. Ein Ziehen direkt über der Ferse, morgens beim ersten Schritt am schlimmsten, ist das typische Zeichen einer gereizten Sehne.\n\nZuerst: weniger tief. Der Teil unterhalb der Waagerechten bringt kaum mehr und belastet die Sehne am stärksten. Dann beidbeinig statt einbeinig, für ein paar Wochen.\n\nIst der Punkt morgens steif oder verdickt, hier anhaken – dann tritt das Wadenheben mit gebeugtem Knie an diese Stelle, bei dem die Sehne deutlich weniger trägt.",
+        "verletzung": [
+          "achillessehne"
+        ]
+      }
+    ],
     "dbRest": 90,
     "bwRest": 90,
     "dbWeight": 12,
@@ -895,6 +1127,15 @@
         "Winkel",
         "Etwa 30 Grad Kniebeugung und dort halten. Beugt sich das Knie während des Satzes weiter, wird die Bewegung zur Mini-Kniebeuge."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Wade",
+        "text": "Ein Ziehen oder ein Krampf mitten in der Wade, oft nach den letzten Wiederholungen: Der Muskel arbeitet hier über einen kurzen Weg gegen viel Last, und er ist aus dem Alltag ans Gehen gewöhnt und nicht daran.\n\nWas hilft: unten nicht abfedern, sondern die Dehnung eine Sekunde halten, und oben nicht wegrollen. Dazu genug trinken – Wadenkrämpfe sind häufiger ein Wasserstand als ein Trainingsproblem.\n\nEin plötzliches, stechendes Reißen ist etwas anderes als ein Krampf, besonders wenn es danach beim Gehen weh tut. Das ist eine Zerrung: hier anhaken.",
+        "verletzung": [
+          "wadenzerrung"
+        ]
+      }
     ],
     "dbRest": 90,
     "bwRest": 90,
@@ -1056,6 +1297,23 @@
         "Zu kurzer Schritt; dann wird es eine Kniebeuge auf einem Bein und das Knie bekommt alles ab. Mit dem Rumpf nach vorn kippen. Sich am hinteren Bein hochdrücken."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Knie vorn",
+        "text": "Ein Ziehen direkt unter der Kniescheibe, am Sehnenstrang zum Schienbein: Das ist der typische Punkt bei allem, was das Knie unter Last beugt. Es meldet sich gern zu Beginn des Satzes und wird warm wieder besser – und genau das macht es tückisch, weil man weitermacht.\n\nDer Reihe nach: langsamer ablassen und unten nicht abfedern. Der Rückprall aus der tiefen Stellung ist die härteste Sekunde für die Sehne. Dann der Weg: Wer nur bis zur Parallele geht statt tiefer, nimmt viel heraus, ohne dass die Übung ihren Sinn verliert. Und weniger Gewicht, für ein paar Wochen.\n\nTut es beim Treppensteigen oder beim Aufstehen auch weh, ist es keine Tagesform: hier anhaken.",
+        "verletzung": [
+          "patellasehne"
+        ]
+      },
+      {
+        "ort": "Hüfte vorn am hinteren Bein",
+        "text": "Am hinteren Bein zieht es vorn in der Hüfte – das ist meistens kein Schaden, sondern ein Dehngefühl im Hüftbeuger, und für viele das erste Mal, dass sie den überhaupt spüren. Es gehört in diese Position.\n\nUnangenehm wird es, wenn das Becken nach vorn kippt: Dann zieht die Dehnung an der Lendenwirbelsäule statt am Muskel. Gegenmittel ist das Gesäß der hinteren Seite – leicht anspannen, Becken aufrichten, und das Ziehen wandert dorthin, wo es hingehört.\n\nEin Klemmen oder Stechen tief in der Leistenfalte ist etwas anderes als eine Dehnung. Das gehört angesehen und nicht wegtrainiert."
+      },
+      {
+        "ort": "Gleichgewicht",
+        "text": "Wackeln ist kein Schmerz, aber es beendet Sätze genauso. Und es hat fast immer dieselbe Ursache: Die Füße stehen auf einer Linie wie auf einem Seil. Sie gehören hüftbreit auseinander, also zwei Spuren statt einer.\n\nReicht das nicht, nimm für die ersten Wochen eine Wand oder Stuhllehne zum Auflegen einer Hand. Das ist keine Schummelei: Das Bein arbeitet gleich viel, nur das Balancieren fällt weg – und trainiert werden soll hier der Oberschenkel und nicht das Gleichgewicht."
+      }
+    ],
     "dbRest": 150,
     "bwRest": 150,
     "dbWeight": 10,
@@ -1106,6 +1364,26 @@
         "Schwingen und den Schwung mitnehmen. Nur die Beine pendeln lassen. Zu schnell ablassen."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Griff hält nicht",
+        "text": "Der häufigste Grund, warum diese Übung nicht funktioniert, ist kein Schmerz: Die Hand lässt vor dem Bauch los. Dann hast du den Unterarm trainiert und den Bauch nicht.\n\nDas ist keine Formfrage und kein Grund, sich durchzubeißen. Stell die Erfahrungsstufe unter Mehr auf Anfänger – dann steht überall das Knieheben im Liegen statt der hängenden Fassung, und der Griff fällt als Begrenzer weg. Zurück geht es jederzeit."
+      },
+      {
+        "ort": "Finger",
+        "text": "Ein plötzlicher, stechender Schmerz an einem Fingerglied beim Hängen, oft mit einem hörbaren Knacken: Das ist ein Ringband, das Band, das die Beugesehne am Knochen hält. Danach tut jeder feste Griff weh.\n\nDas ist nichts, was sich durch Technik lösen lässt, und nichts, was man austrainiert. Hier anhaken – dann fällt alles weg, was am Griff hängt.",
+        "verletzung": [
+          "ringband"
+        ]
+      },
+      {
+        "ort": "Schulter vorn",
+        "text": "Vorn an der Schulter, in der Rinne am Oberarmkopf, läuft die lange Bizepssehne. Sie reibt bei Zug mit gestrecktem Arm – also genau im vollen Hang, bevor die Bewegung anfängt.\n\nWas oft reicht: nicht aus dem toten Hang starten, sondern zuerst die Schulterblätter nach unten ziehen und erst dann ziehen. Damit hängt das Gelenk nicht mehr passiv am Band. Und am Ende nicht einfach loslassen, sondern kontrolliert ablassen.\n\nBleibt der Punkt vorn, hier anhaken. Dann übernimmt das Rudern: dieselbe Richtung, aber der Arm hängt nicht gestreckt an der Last.",
+        "verletzung": [
+          "bizepssehne"
+        ]
+      }
+    ],
     "dbRest": 120,
     "bwRest": 120,
     "dbWeight": null,
@@ -1142,6 +1420,12 @@
         "Nicht zu verwechseln mit dem Face Pull",
         "Der Face Pull hängt am langen Band über der Klimmzugstange und zieht zum Gesicht. Er trifft dieselben Muskeln in einer etwas günstigeren Bahn und steht als eigene Übung im Katalog – hier geht es um das Auseinanderziehen vor dem Körper."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Nacken",
+        "text": "Brennt nach den Sätzen der Nacken statt der hinteren Schulter, hat der Trapezmuskel oben die Arbeit übernommen. Er zieht die Schultern zu den Ohren; gemeint ist hier aber, dass die Schulterblätter zueinander wandern.\n\nDie Probe: Schultern bewusst nach unten ziehen und dort lassen, dann das Band öffnen. Geht es so nicht mehr auf, ist das Band zu stark – ein schwächeres oder ein breiterer Griff, und der Nacken ist raus.\n\nDas Band-Pull-Apart ist eine leichte Übung. Wenn sie sich schwer anfühlt, ist fast immer der Widerstand falsch gewählt und nicht die Ausführung."
+      }
     ],
     "dbRest": 120,
     "bwRest": 120,
@@ -1188,6 +1472,26 @@
         "Typische Fehler",
         "Nur den Kopf zur Stange strecken statt die Brust. Die Ellenbogen weit nach außen führen. Oben nicht bis zum Anschlag ziehen – die letzten Zentimeter sind die, in denen die Schulterblätter zusammenkommen."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Ellenbogen außen",
+        "text": "An der Außenseite des Ellenbogens sitzen die Ansätze der Handstrecker, und jeder feste Griff zieht daran. Deshalb meldet sich der Punkt beim Ziehen und beim Festhalten, kaum beim Drücken – das ist der Tennisarm, eine Reizung und kein Riss.\n\nZuerst das Naheliegende: weniger Last, kürzere Sätze, und die Stange nicht erwürgen. Danach erst die Übung selbst. Wichtig ist vor allem, was man nicht tun sollte: Wegtrainieren macht es schlimmer, weil jeder weitere Zug an derselben Stelle zieht.\n\nBleibt der Punkt über ein paar Einheiten, hier anhaken. Dann fällt alles weg, was über den Griff zieht, und die Pflegeübungen kommen daneben – Handgelenkstrecken mit langsamem Ablassen ist dort das, was wirklich hilft.",
+        "verletzung": [
+          "tennisarm"
+        ]
+      },
+      {
+        "ort": "Ellenbogen innen",
+        "text": "Dasselbe an der Innenseite, am Ansatz der Handbeuger: der Golferarm. Hier reizt neben dem Griff auch jede kräftige Beugung im Ellenbogen – Klimmzüge im Untergriff sind die Lehrbuchbewegung dafür.\n\nErst Last und Griffkraft: weniger Gewicht, lockerer greifen, langsamer ablassen. Der Untergriff zieht stärker daran als der Obergriff; wenn du die Wahl hast, nimm für ein paar Wochen den Obergriff.\n\nHält es an, hier anhaken – dann fällt weg, was daran zieht, und die Pflegeübungen für die Beuger kommen dazu.",
+        "verletzung": [
+          "golferarm"
+        ]
+      },
+      {
+        "ort": "Unterer Rücken",
+        "text": "Hier soll der Körper ein steifes Brett sein, von den Schultern bis zu den Fersen. Wenn der untere Rücken sich meldet, hält er das Brett nicht mehr: Die Hüfte sackt ab, und die Lendenwirbelsäule geht dabei ins Hohlkreuz.\n\nDie Probe macht man mit dem Gesäß: fest anspannen, bevor die erste Wiederholung anfängt, und dort halten. Geht es dann nicht mehr hoch, war der Winkel zu schwer – Füße näher an die Stange oder Knie anwinkeln macht die Übung leichter, ohne dass der Rücken dafür bezahlt.\n\nMerkst du es erst am Satzende, ist der Satz dort zu Ende. Eine Wiederholung mit durchhängender Hüfte ist keine."
+      }
     ],
     "dbRest": 150,
     "bwRest": 150,
@@ -1239,6 +1543,15 @@
         "Die Schulter der Hantelseite fallen lassen – die Schultern bleiben parallel zum Boden. Zu tief gehen, bis der Rücken rund wird; die Dehnung hinten am Oberschenkel ist die Grenze, nicht der Boden."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Unterer Rücken",
+        "text": "Der untere Rücken hält hier die Wirbelsäule gerade, während die Hüfte klappt – auf einem Bein, also zusätzlich gegen das Verdrehen. Dass er arbeitet, ist die Übung.\n\nNicht in Ordnung ist es, wenn er während des Satzes nachgibt. Zwei Proben: Rundet sich der Rücken unten ein, war der Weg zu lang – er endet dort, wo der Rücken gerade bleibt. Und kippt die Hüfte zur Seite weg, fehlt die Stabilität im Standbein; dann lieber mit einer Hand an der Wand abstützen als schief arbeiten.\n\nBleibt es über Tage oder ist es schon beim Aufstehen da: hier anhaken. Dann übernimmt der Hip Thrust – dieselbe Hüftstreckung, aber der Rücken liegt an und hält nichts.",
+        "verletzung": [
+          "rueckenstrecker"
+        ]
+      }
+    ],
     "dbRest": 120,
     "bwRest": 120,
     "dbWeight": 12,
@@ -1286,6 +1599,22 @@
         "Typische Fehler",
         "Die Hüfte absinken lassen, bis daraus ein schräger Liegestütz wird. Den Kopf nur nicken statt die Arme zu beugen. Zu wenig tief – der Scheitel soll den Boden fast berühren."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Handgelenk",
+        "text": "Im Pike steht der Körper steil über den Händen, und dadurch knickt das Handgelenk stärker ab als beim gewöhnlichen Liegestütz. Es trägt dabei einen großen Teil des Gewichts.\n\nWas hilft: die Hände etwas weiter vorn aufsetzen, sodass der Winkel flacher wird, und über die Fingerknöchel drücken statt über den Handballen. Auf zwei Kurzhantelgriffen abgestützt steht das Handgelenk gerade.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ]
+      },
+      {
+        "ort": "Schulter",
+        "text": "Der Pike ist Drücken über Kopf, nur mit dem eigenen Gewicht. Meldet sich die Schulter auf dem Weg nach oben und oben wieder nicht, ist das der typische Reizbogen unter dem Schulterdach.\n\nZuerst: nicht so steil. Je weniger die Hüfte über den Schultern steht, desto weniger Last und desto weniger Überkopf. Und die Ellenbogen etwa 30 Grad nach vorn stellen statt quer nach außen.\n\nTut es weh statt eng zu werden, hier anhaken – dann fällt alles Überkopf weg und wird durch Drücken am Boden ersetzt.",
+        "verletzung": [
+          "schulter-impingement"
+        ]
+      }
     ],
     "dbRest": 150,
     "bwRest": 150,
@@ -1339,6 +1668,22 @@
         "Die Ellenbogen ganz nach außen stellen (Schulter). Die Hanteln auf den Boden fallen lassen und von dort abfedern. Mit dem Rücken ein Hohlkreuz drücken, um mehr Weg zu bekommen."
       ]
     ],
+    "schmerz": [
+      {
+        "ort": "Schulter",
+        "text": "Am Boden ist der Weg kurz, und genau dafür ist die Übung da: Der Ellenbogen kommt nicht tiefer als der Rumpf, die Schulter wird nicht überdehnt. Wenn trotzdem etwas drückt, sitzt es fast immer oben auf dem Schultereck – dort, wo Schlüsselbein und Schulterdach zusammenstoßen.\n\nWas hilft: die Ellenbogen nicht quer nach außen stellen, sondern etwa 45 Grad zum Körper, und oben die Hände nicht über der Mitte zusammenführen. Beides nimmt Druck von dem kleinen Gelenk.\n\nDrückt es weiter oder ist es beim Liegen schon da, hier anhaken.",
+        "verletzung": [
+          "ac-gelenk"
+        ]
+      },
+      {
+        "ort": "Ellenbogen",
+        "text": "Der Ellenbogen streckt hier gegen Last, und wenn dabei die Spitze selbst weh tut – nicht der Muskel darum, sondern der Knochenpunkt – dann ist meist der Schleimbeutel gereizt. Typisch ist, dass es auch beim Aufstützen auf einen Tisch drückt.\n\nErst das Naheliegende: Stopp die Bewegung kurz vor der vollen Streckung. Die letzten Grad bringen für die Brust nichts und sind genau der Teil, der drückt. Dazu weniger Gewicht und langsamer ablassen.\n\nIst der Punkt geschwollen oder warm, gehört es unter die Beschwerden – und in dem Fall ist auch ein Arzt keine schlechte Idee.",
+        "verletzung": [
+          "ellenbogen-bursitis"
+        ]
+      }
+    ],
     "dbRest": 150,
     "bwRest": 150,
     "dbWeight": 12,
@@ -1386,6 +1731,19 @@
         "Typische Fehler",
         "Die Arme auf dem Boden ablegen und von dort neu starten. Zu schnell arbeiten. Ins Hohlkreuz gehen, statt Gesäß und Bauch fest zu lassen."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Nacken",
+        "text": "Der Kopf bleibt bei dieser Übung unten – Stirn Richtung Boden, Blick nach unten. Wer stattdessen nach vorn schaut, streckt den Nacken über den ganzen Satz, und genau das brennt danach.\n\nEin zusammengelegtes Handtuch unter die Stirn, und die Sache ist meist erledigt. Die Arme heben, nicht den Kopf.\n\nHält die Verspannung an, hier anhaken.",
+        "verletzung": [
+          "nacken"
+        ]
+      },
+      {
+        "ort": "Unterer Rücken",
+        "text": "Gehoben werden die Arme, nicht der Oberkörper. Wenn sich der untere Rücken meldet, kommt die Bewegung aus dem Kreuz statt aus den Schulterblättern – ein halbes Rückenstrecken mit ausgestreckten Armen.\n\nProbe: Bauch und Gesäß leicht anspannen, Rippen am Boden lassen und nur die Arme wandern lassen. Der Weg wird dadurch kleiner und die Übung richtiger."
+      }
     ],
     "dbRest": 90,
     "bwRest": 90,
@@ -1649,6 +2007,12 @@
         "Ellenbogen führen",
         "Der häufigste Fehler ist, mit den Händen zu ziehen und die Ellenbogen hängen zu lassen – dann arbeitet der Bizeps. Die Ellenbogen gehen zuerst, hoch und nach außen; die Hände folgen nur."
       ]
+    ],
+    "schmerz": [
+      {
+        "ort": "Schulter vorn",
+        "text": "Wenn es beim Face Pull vorn an der Schulter zwickt statt hinten zu arbeiten, zieht meist der Ellenbogen zu tief. Er gehört auf Schulterhöhe oder darüber und wandert nach hinten-außen; hängt er nach unten, wird daraus ein Zug, bei dem der Oberarmkopf nach vorn rutscht.\n\nZweite Ursache ist die Anbringung: ein Band, das von weit über dem Kopf kommt, zieht dich in eine Stellung, die nichts mit der Übung zu tun hat. Dazu steht mehr unter Mehr zur Ausführung.\n\nMit leichterem Band und höherem Ellenbogen ist es in der Regel weg. Ist es das nicht, ist diese Übung nicht das richtige Werkzeug dafür."
+      }
     ],
     "dbRest": 120,
     "bwRest": 120,
