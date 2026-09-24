@@ -1197,6 +1197,18 @@ button { font: inherit; color: inherit; }
 /* Läuft eine Pause, darf die Leiste weder Toast noch Seiteninhalt verdecken. */
 body.resting .toast { bottom: calc(var(--tabbar-h) + var(--safe-b) + 86px); }
 body.resting .view { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 100px); }
+/* In der Fokusansicht reicht das Polster nicht: Dort wächst die Figur, bis
+   die Satz-Knöpfe genau am unteren Rand stehen – und dort liegt während der
+   Pause die Leiste. Gefunden bei der Durchsicht der App: Bei 360, 390 und 414
+   Pixel Breite traf ein Tipp auf die Mitte jedes Satz-Knopfs die Leiste statt
+   den Knopf. In der Pause wird die Figur deshalb um die Höhe der Leiste
+   kleiner; die Knöpfe stehen dann darüber. */
+body.resting .fo { min-height: calc(100dvh - 130px - var(--rest-h, 70px)); }
+/* Die Figur allein reicht dafür nicht: Ihre Zeichnung bekommt beim Einblenden
+   eine feste Höhe und hält damit den Rahmen offen. In der Pause nimmt sie
+   deshalb nur, was übrig bleibt, und die Zeichnung passt sich an. */
+body.resting .fo .focus-fig { flex: 1 1 0; min-height: 110px; overflow: hidden; }
+body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 
 .notice {
   background: color-mix(in srgb, var(--accent) 12%, var(--bg-elev));
