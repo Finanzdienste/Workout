@@ -12,11 +12,13 @@ export const EXERCISES = [
     "detail": [
       [
         "Was eine 1½-Wiederholung ist",
-        "Eineinhalb Bewegungen, die zusammen als eine zählen: tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch. Bei 15 Wiederholungen machst du diesen Viererzyklus fünfzehnmal. Der Grund ist der fehlende Hebel: Ohne Zusatzgewicht wird eine Kniebeuge irgendwann zu leicht, und statt Eisen aufzulegen, das nicht da ist, verlängert man die Zeit in dem Bereich, der wirklich arbeitet – unten. Gezählt wird nur, was ganz oben endet; die halbe Aufwärtsbewegung ist Teil der Wiederholung und keine eigene."
+        "Eineinhalb Bewegungen, die zusammen als eine zählen: tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch. Bei 15 Wiederholungen machst du diesen Viererzyklus fünfzehnmal. Der Grund ist der fehlende Hebel: Ohne Zusatzgewicht wird eine Kniebeuge irgendwann zu leicht, und statt Eisen aufzulegen, das nicht da ist, verlängert man die Zeit in dem Bereich, der wirklich arbeitet – unten. Gezählt wird nur, was ganz oben endet; die halbe Aufwärtsbewegung ist Teil der Wiederholung und keine eigene.",
+        "bw"
       ],
       [
         "Wie du die Hantel hältst",
-        "Senkrecht vor der Brust, die Handflächen tragen die obere Scheibe wie einen Becher, die Ellenbogen zeigen nach unten. Das Gewicht vorn wirkt wie ein Gegengewicht – deshalb kommst du damit aufrechter und tiefer als ohne."
+        "Senkrecht vor der Brust, die Handflächen tragen die obere Scheibe wie einen Becher, die Ellenbogen zeigen nach unten. Das Gewicht vorn wirkt wie ein Gegengewicht – deshalb kommst du damit aufrechter und tiefer als ohne.",
+        "db"
       ],
       [
         "Tiefe",
@@ -48,7 +50,8 @@ export const EXERCISES = [
       },
       {
         "ort": "Unterer Rücken",
-        "text": "Der Rumpf hält hier eine Last vor der Brust, und je weiter er dabei nach vorn kippt, desto mehr trägt der untere Rücken. Ein Ziehen dort heißt meistens: Der Oberkörper ist unterwegs nach vorn gegangen.\n\nZwei Ursachen, beide behebbar. Erstens die Tiefe: Rundet sich der Rücken unten ein, war der Weg länger als die Beweglichkeit hergibt – dort endet die Wiederholung, nicht tiefer. Zweitens die Ellenbogen: Sie gehören nach innen an den Rumpf, nicht nach außen. Hängen sie außen, zieht die Hantel den Oberkörper nach vorn.\n\nHilft beides nicht, ist der Goblet Squat in dieser Form zu schwer – weniger Gewicht ist hier keine Niederlage, sondern die Übung."
+        "text": "Der Rumpf hält hier eine Last vor der Brust, und je weiter er dabei nach vorn kippt, desto mehr trägt der untere Rücken. Ein Ziehen dort heißt meistens: Der Oberkörper ist unterwegs nach vorn gegangen.\n\nZwei Ursachen, beide behebbar. Erstens die Tiefe: Rundet sich der Rücken unten ein, war der Weg länger als die Beweglichkeit hergibt – dort endet die Wiederholung, nicht tiefer. Zweitens die Ellenbogen: Sie gehören nach innen an den Rumpf, nicht nach außen. Hängen sie außen, zieht die Hantel den Oberkörper nach vorn.\n\nHilft beides nicht, ist der Goblet Squat in dieser Form zu schwer – weniger Gewicht ist hier keine Niederlage, sondern die Übung.",
+        "modus": "db"
       }
     ],
     "db": {
@@ -189,7 +192,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Rucksack richtig packen",
-        "Hoch zwischen die Schulterblätter, Gurte straff. Rutscht er Richtung Becken, hebelt er dich hoch statt dich zu beschweren. Wasserflaschen sind praktisch: ein Liter ist ein Kilo, und du kannst in Halbliterschritten steigern."
+        "Hoch zwischen die Schulterblätter, Gurte straff. Rutscht er Richtung Becken, hebelt er dich hoch statt dich zu beschweren. Wasserflaschen sind praktisch: ein Liter ist ein Kilo, und du kannst in Halbliterschritten steigern.",
+        "db"
       ],
       [
         "Körperspannung",
@@ -464,7 +468,8 @@ export const EXERCISES = [
       ],
       [
         "Eine Hantel oder zwei",
-        "Zwei Kurzhanteln, je eine pro Hand, sind schonender für die Handgelenke als eine Hantel mit beiden Händen. Eine SZ-Stange geht auch – dann ist der Griff enger."
+        "Zwei Kurzhanteln, je eine pro Hand, sind schonender für die Handgelenke als eine Hantel mit beiden Händen. Eine SZ-Stange geht auch – dann ist der Griff enger.",
+        "db"
       ],
       [
         "Typische Fehler",
@@ -674,7 +679,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Warum 1½-Wiederholungen",
-        "Tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch – das zusammen ist eine Wiederholung. Der untere Bereich ist der schwerste, und ihn durchläufst du so doppelt so oft, ohne Gewicht zu brauchen. Mit erhöhten Fersen trifft das zusätzlich den vorderen Oberschenkel, weil das Knie weiter nach vorn darf."
+        "Tief absitzen, nur zur Hälfte hoch, wieder ganz tief, dann ganz hoch – das zusammen ist eine Wiederholung. Der untere Bereich ist der schwerste, und ihn durchläufst du so doppelt so oft, ohne Gewicht zu brauchen. Mit erhöhten Fersen trifft das zusätzlich den vorderen Oberschenkel, weil das Knie weiter nach vorn darf.",
+        "bw"
       ],
       [
         "Womit erhöhen",
@@ -699,7 +705,8 @@ export const EXERCISES = [
       },
       {
         "ort": "Unterer Rücken",
-        "text": "Der Rumpf hält hier eine Last vor der Brust, und je weiter er dabei nach vorn kippt, desto mehr trägt der untere Rücken. Ein Ziehen dort heißt meistens: Der Oberkörper ist unterwegs nach vorn gegangen.\n\nZwei Ursachen, beide behebbar. Erstens die Tiefe: Rundet sich der Rücken unten ein, war der Weg länger als die Beweglichkeit hergibt – dort endet die Wiederholung, nicht tiefer. Zweitens die Ellenbogen: Sie gehören nach innen an den Rumpf, nicht nach außen. Hängen sie außen, zieht die Hantel den Oberkörper nach vorn.\n\nHilft beides nicht, ist der Goblet Squat in dieser Form zu schwer – weniger Gewicht ist hier keine Niederlage, sondern die Übung."
+        "text": "Der Rumpf hält hier eine Last vor der Brust, und je weiter er dabei nach vorn kippt, desto mehr trägt der untere Rücken. Ein Ziehen dort heißt meistens: Der Oberkörper ist unterwegs nach vorn gegangen.\n\nZwei Ursachen, beide behebbar. Erstens die Tiefe: Rundet sich der Rücken unten ein, war der Weg länger als die Beweglichkeit hergibt – dort endet die Wiederholung, nicht tiefer. Zweitens die Ellenbogen: Sie gehören nach innen an den Rumpf, nicht nach außen. Hängen sie außen, zieht die Hantel den Oberkörper nach vorn.\n\nHilft beides nicht, ist der Goblet Squat in dieser Form zu schwer – weniger Gewicht ist hier keine Niederlage, sondern die Übung.",
+        "modus": "db"
       }
     ],
     "db": {
@@ -756,7 +763,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Warum die SZ-Stange",
-        "Die Wellen drehen die Handgelenke leicht nach innen. Das ist bequemer als die gerade Stange und trifft den Bizeps kaum anders."
+        "Die Wellen drehen die Handgelenke leicht nach innen. Das ist bequemer als die gerade Stange und trifft den Bizeps kaum anders.",
+        "db"
       ],
       [
         "Ellenbogen am Körper",
@@ -773,7 +781,8 @@ export const EXERCISES = [
         "text": "Ein abknickendes Handgelenk ist kein Zeichen von dünnen Gelenken, sondern fast immer eine Frage von Griff und Last – und in dieser Reihenfolge zu beheben.\n\nErstens der Griff: Die Stange gehört quer über den Handballen, in einer Linie mit den Unterarmknochen, nicht in die Finger. Rutscht sie in die Finger, hat das Handgelenk einen Hebel gegen sich und muss die Last mit den Streckern halten – es knickt nach hinten weg. Bei der SZ-Stange die innere Flanke der Welle greifen, die zur Mitte hin ansteigt; dort steht die Hand von selbst leicht gedreht, und genau dafür gibt es die Wellen.\n\nZweitens die Last: Knickt das Handgelenk trotz sauberem Griff ab, ist der Satz zu Ende. Das Handgelenk ist dann der Begrenzer, nicht der Bizeps – und weiterzumachen ist der kurze Weg zu genau der Überlastung, die unter Verletzungen als „Handgelenksüberlastung\" steht. Lieber zwei Kilo weniger und zehn saubere Wiederholungen.\n\nDrittens, und erst dann: Der Umfang des Handgelenks ist Knochen und ändert sich nicht. Der Unterarm dagegen schon. Was ihn dicker macht, steht unter Verletzungen bei den Pflegeübungen – Handgelenkstrecken und -beugen mit langsamem Ablassen, 3 × 15 je Seite. Wer den Reiz lieber in der Übung selbst hätte: Hammercurls mit Kurzhanteln halten das Handgelenk neutral und treffen Brachialis und Brachioradialis, also genau die beiden Muskeln, die einen Unterarm füllen.",
         "verletzung": [
           "handgelenk-reizung"
-        ]
+        ],
+        "modus": "db"
       },
       {
         "ort": "Ellenbogen außen",
@@ -838,7 +847,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Wohin das Gewicht",
-        "Vor der Brust ist leichter, hinter dem Kopf schwerer – der Hebel ist länger. Anfangen mit vor der Brust, und erst wechseln, wenn 15 saubere Wiederholungen stehen."
+        "Vor der Brust ist leichter, hinter dem Kopf schwerer – der Hebel ist länger. Anfangen mit vor der Brust, und erst wechseln, wenn 15 saubere Wiederholungen stehen.",
+        "db"
       ],
       [
         "Was sich bewegt",
@@ -1060,23 +1070,38 @@ export const EXERCISES = [
     "detail": [
       [
         "Griff",
-        "Etwas weiter als schulterbreit, Daumen um die Stange – kein „Affengriff\" mit dem Daumen daneben, erst recht nicht über dem Gesicht. Das Handgelenk bleibt gerade, die Stange liegt auf dem Handballen über dem Unterarmknochen, nicht in den Fingern."
+        "Etwas weiter als schulterbreit, Daumen um die Stange – kein „Affengriff\" mit dem Daumen daneben, erst recht nicht über dem Gesicht. Das Handgelenk bleibt gerade, die Stange liegt auf dem Handballen über dem Unterarmknochen, nicht in den Fingern.",
+        "db"
       ],
       [
         "Aufbau ohne Ständer",
-        "Stange neben dich legen, dich davorsetzen, sie über die Oberschenkel rollen und mit ihr zusammen zurücklegen; die Beine ziehen die Stange dabei in Position. Zum Schluss denselben Weg zurück. Verschlüsse gehören drauf – kippt die Stange einmal, wandern sonst alle Scheiben auf einer Seite herunter."
+        "Stange neben dich legen, dich davorsetzen, sie über die Oberschenkel rollen und mit ihr zusammen zurücklegen; die Beine ziehen die Stange dabei in Position. Zum Schluss denselben Weg zurück. Verschlüsse gehören drauf – kippt die Stange einmal, wandern sonst alle Scheiben auf einer Seite herunter.",
+        "db"
       ],
       [
         "Warum der Boden",
-        "Die Oberarme setzen unten kurz auf, damit die Schulter nicht weiter nach hinten fällt, als sie soll. Das ist der Bewegungsstopp – nicht die Ablage: Die Spannung bleibt, du legst die Stange nicht ab und drückst nicht aus der Ruhe wieder hoch."
+        "Die Oberarme setzen unten kurz auf, damit die Schulter nicht weiter nach hinten fällt, als sie soll. Das ist der Bewegungsstopp – nicht die Ablage: Die Spannung bleibt, du legst die Stange nicht ab und drückst nicht aus der Ruhe wieder hoch.",
+        "db"
       ],
       [
         "Typische Fehler",
-        "Auf den Boden absacken lassen und mit Schwung hochprellen. Die Ellenbogen rechtwinklig abspreizen (45 Grad sind das Ziel). Den Kopf heben und die Stange dabei Richtung Gesicht wandern lassen."
+        "Auf den Boden absacken lassen und mit Schwung hochprellen. Die Ellenbogen rechtwinklig abspreizen (45 Grad sind das Ziel). Den Kopf heben und die Stange dabei Richtung Gesicht wandern lassen.",
+        "db"
       ],
       [
         "Reserve lassen",
-        "Ohne Ständer gibt es keinen Ausstieg nach oben. Bleibt eine Wiederholung stecken, kommt die Stange über den Bauch bis zu den Hüften und von dort im Sitzen herunter – dafür brauchst du Kraft, also lass eine Wiederholung übrig."
+        "Ohne Ständer gibt es keinen Ausstieg nach oben. Bleibt eine Wiederholung stecken, kommt die Stange über den Bauch bis zu den Hüften und von dort im Sitzen herunter – dafür brauchst du Kraft, also lass eine Wiederholung übrig.",
+        "db"
+      ],
+      [
+        "Die Pause unten",
+        "Die Brust schwebt eine Handbreit über dem Boden, eine Sekunde lang, und die Spannung bleibt – nicht ablegen. Das ist derselbe Bewegungsstopp wie beim Floor Press mit der Stange: Aus der Pause gibt es keinen Schwung, jede Wiederholung beginnt aus der Kraft.",
+        "bw"
+      ],
+      [
+        "Typische Fehler",
+        "Die Hüfte durchhängen lassen – Kopf, Hüfte und Fersen bilden eine Linie. Die Ellenbogen rechtwinklig abspreizen statt etwa 45 Grad zum Körper. In der Pause auf dem Boden ablegen und die Spannung verlieren.",
+        "bw"
       ]
     ],
     "schmerz": [
@@ -1085,14 +1110,24 @@ export const EXERCISES = [
         "text": "Am Boden ist der Weg kurz, und genau dafür ist die Übung da: Der Ellenbogen kommt nicht tiefer als der Rumpf, die Schulter wird nicht überdehnt. Wenn trotzdem etwas drückt, sitzt es fast immer oben auf dem Schultereck – dort, wo Schlüsselbein und Schulterdach zusammenstoßen.\n\nWas hilft: die Ellenbogen nicht quer nach außen stellen, sondern etwa 45 Grad zum Körper, und oben die Hände nicht über der Mitte zusammenführen. Beides nimmt Druck von dem kleinen Gelenk.\n\nDrückt es weiter oder ist es beim Liegen schon da, hier anhaken.",
         "verletzung": [
           "ac-gelenk"
-        ]
+        ],
+        "modus": "db"
       },
       {
         "ort": "Ellenbogen",
         "text": "Der Ellenbogen streckt hier gegen Last, und wenn dabei die Spitze selbst weh tut – nicht der Muskel darum, sondern der Knochenpunkt – dann ist meist der Schleimbeutel gereizt. Typisch ist, dass es auch beim Aufstützen auf einen Tisch drückt.\n\nErst das Naheliegende: Stopp die Bewegung kurz vor der vollen Streckung. Die letzten Grad bringen für die Brust nichts und sind genau der Teil, der drückt. Dazu weniger Gewicht und langsamer ablassen.\n\nIst der Punkt geschwollen oder warm, gehört es unter die Beschwerden – und in dem Fall ist auch ein Arzt keine schlechte Idee.",
         "verletzung": [
           "ellenbogen-bursitis"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Handgelenk",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ],
+        "modus": "bw"
       }
     ],
     "db": {
@@ -1149,7 +1184,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Griff",
-        "Obergriff, etwas weiter als schulterbreit, für den breiten Rücken. Untergriff (Handflächen nach vorn) zieht den Ellenbogen enger am Körper vorbei, trifft mehr den unteren Rücken­anteil des Latissimus und nimmt den Bizeps stärker mit – als Abwechslung in Ordnung, aber dann bleibt es für den ganzen Satz dabei."
+        "Obergriff, etwas weiter als schulterbreit, für den breiten Rücken. Untergriff (Handflächen nach vorn) zieht den Ellenbogen enger am Körper vorbei, trifft mehr den unteren Rücken­anteil des Latissimus und nimmt den Bizeps stärker mit – als Abwechslung in Ordnung, aber dann bleibt es für den ganzen Satz dabei.",
+        "db"
       ],
       [
         "Die Neigung ist die Übung",
@@ -1157,11 +1193,13 @@ export const EXERCISES = [
       ],
       [
         "Wohin die Stange zieht",
-        "Zum Bauchnabel, nicht zur Brust. Die Ellenbogen wandern nach hinten am Körper vorbei, oben ziehen die Schulterblätter zusammen. Eine Sekunde oben halten macht den Unterschied zwischen Ziehen und Schwingen."
+        "Zum Bauchnabel, nicht zur Brust. Die Ellenbogen wandern nach hinten am Körper vorbei, oben ziehen die Schulterblätter zusammen. Eine Sekunde oben halten macht den Unterschied zwischen Ziehen und Schwingen.",
+        "db"
       ],
       [
         "Typische Fehler",
-        "Runder Rücken – dann arbeitet die Bandscheibe statt der Rücken. Zu viel Gewicht und dafür halbe Wiederholungen. Die Stange vom Körper weg nach vorn ziehen."
+        "Runder Rücken – dann arbeitet die Bandscheibe statt der Rücken. Zu viel Gewicht und dafür halbe Wiederholungen. Die Stange vom Körper weg nach vorn ziehen.",
+        "db"
       ]
     ],
     "schmerz": [
@@ -1170,7 +1208,16 @@ export const EXERCISES = [
         "text": "Etwas davon gehört dazu. Einen vorgebeugten Rumpf gegen eine geladene Stange zu halten, ist Arbeit für den Streckerzug längs der Wirbelsäule, und die ganze Zeit über, nicht nur beim Ziehen. Dass sich das meldet, ist normal.\n\nWenn es dort am meisten brennt, ist es trotzdem ein Zeichen: Dann ist der Halt der Begrenzer und nicht der Latissimus. Der Satz endet, bevor der Muskel fertig ist, um den es geht. In der Reihenfolge abarbeiten:\n\nErstens das Gewicht. Es wird meistens danach gewählt, was man ziehen kann – begrenzt ist aber das Halten, und das ist eine andere Zahl. Zwei bis fünf Kilo weniger, und die letzte Wiederholung sieht aus wie die erste.\n\nZweitens, woher die Neigung kommt. Sie kommt aus der Hüfte: Gesäß nach hinten schieben, bis der Rumpf von selbst vorkippt, Brustkorb groß. Wer sich stattdessen aus dem Kreuz nach vorn beugt, lässt die Lendenwirbelsäule die Neigung machen statt die Hüfte – dann steht sie die ganze Zeit in einer Stellung, in der sie nichts zu suchen hat. Mit dem Gesäß eine Wand suchen hilft; berührt sie sie, ist die Hüfte weit genug hinten.\n\nDrittens die Länge des Satzes. Acht bis zwölf Wiederholungen heißt eine halbe Minute vorgebeugt am Stück. Die Stange zwischen den Wiederholungen kurz abzusetzen und neu anzuspannen macht daraus mehrere kurze Hälte und verändert am Reiz für den Rücken nichts.\n\nUnd wenn es dabei bleibt – über mehrere Einheiten, oder schon beim Aufstehen – dann ist es keine Tagesform mehr: unten anhaken. Dann tritt die Inverted Row an diese Stelle, und zwar überall im Plan. Dort hängt der Körper als steifes Brett zwischen Händen und Fersen: Der untere Rücken hält mit, aber er hält keinen vorgebeugten Hebel mit Gewicht am Ende.",
         "verletzung": [
           "rueckenstrecker"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Unterer Rücken",
+        "text": "Auch mit dem Band hält der Rumpf die Neigung den ganzen Satz über, und das ist Arbeit für den Streckerzug längs der Wirbelsäule. Das Band zieht dabei weniger nach vorn als eine Stange – brennt es trotzdem vor allem im unteren Rücken, kommt die Neigung meist aus dem Kreuz statt aus der Hüfte.\n\nDie Probe: Gesäß nach hinten schieben, bis der Rumpf von selbst vorkippt, Brustkorb groß, Knie leicht gebeugt – erst dann ziehen. Und nicht tiefer neigen als nötig: Etwa 60 Grad reichen, flacher ist nicht besser.\n\nBleibt es über mehrere Einheiten, oder meldet es sich schon beim Aufstehen, dann ist es keine Tagesform mehr: unten anhaken. Dann tritt die Inverted Row an diese Stelle, und zwar überall im Plan.",
+        "verletzung": [
+          "rueckenstrecker"
+        ],
+        "modus": "bw"
       }
     ],
     "db": {
@@ -1237,7 +1284,8 @@ export const EXERCISES = [
       ],
       [
         "Polster",
-        "Ein dickes Handtuch, eine gerollte Matte oder ein gekauftes Pad. Ohne ist bei 40 kg der Hüftknochen die Grenze, nicht das Gesäß – du hörst dann früher auf, als du müsstest."
+        "Ein dickes Handtuch, eine gerollte Matte oder ein gekauftes Pad. Ohne ist bei 40 kg der Hüftknochen die Grenze, nicht das Gesäß – du hörst dann früher auf, als du müsstest.",
+        "db"
       ],
       [
         "Oben ist die Arbeit",
@@ -1245,20 +1293,31 @@ export const EXERCISES = [
       ],
       [
         "Typische Fehler",
-        "Mit dem Kinn nach oben schauen (der Blick geht nach vorn, oben zu den Knien). Nur halb hochkommen. Die Stange auf dem Bauch statt auf der Hüftbeuge liegen haben."
+        "Mit dem Kinn nach oben schauen (der Blick geht nach vorn, oben zu den Knien). Nur halb hochkommen. Die Stange auf dem Bauch statt auf der Hüftbeuge liegen haben.",
+        "db"
       ]
     ],
     "schmerz": [
       {
         "ort": "Hüftknochen drückt",
-        "text": "Die Stange oder die Hantel liegt direkt auf den Beckenknochen, und das tut ohne Polster fast allen weh. Das ist kein Schaden und kein Zeichen von etwas – es ist Druck auf Knochen.\n\nEin zusammengerolltes Handtuch, eine Yogamatte doppelt gelegt oder ein dickes Kissen zwischen Last und Hüfte lösen es vollständig. Wer nichts zur Hand hat: Die Last etwas höher legen, näher an die Bauchdecke, nimmt schon einiges."
+        "text": "Die Stange oder die Hantel liegt direkt auf den Beckenknochen, und das tut ohne Polster fast allen weh. Das ist kein Schaden und kein Zeichen von etwas – es ist Druck auf Knochen.\n\nEin zusammengerolltes Handtuch, eine Yogamatte doppelt gelegt oder ein dickes Kissen zwischen Last und Hüfte lösen es vollständig. Wer nichts zur Hand hat: Die Last etwas höher legen, näher an die Bauchdecke, nimmt schon einiges.",
+        "modus": "db"
       },
       {
         "ort": "Tief seitlich über dem Gesäß",
         "text": "Ein Schmerz tief seitlich über der Gesäßhälfte, oft nur auf einer Seite: Dort sitzt das Kreuz-Darmbein-Gelenk. Kräftige Hüftstreckung reizt es, und der Hip Thrust ist genau das.\n\nErst die einfache Ursache: Schieben beide Seiten gleich? Wer unbewusst über ein Bein drückt, belastet das Gelenk einseitig. Füße gleich weit weg, gleich weit auseinander, und oben bewusst beide Gesäßhälften anspannen.\n\nSitzt der Punkt trotzdem fest, hier anhaken – dann tritt das Beckenheben an diese Stelle – dieselbe Bewegung vom Boden aus, mit weniger Last.",
         "verletzung": [
           "isg"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Tief seitlich über dem Gesäß",
+        "text": "Ein Schmerz tief seitlich über der Gesäßhälfte, oft nur auf einer Seite: Dort sitzt das Kreuz-Darmbein-Gelenk. Kräftige Hüftstreckung reizt es, und einbeinig trägt eine Seite alles – kippt dabei das Becken zur Seite des freien Beins, arbeitet das Gelenk zusätzlich schief.\n\nErst die einfache Ursache: Bleibt das Becken oben waagerecht? Langsamer werden, oben halten und beide Hüftknochen bewusst auf einer Höhe lassen. Hilft das nicht, für ein paar Wochen mit beiden Füßen auf dem Boden arbeiten.\n\nSitzt der Punkt trotzdem fest, hier anhaken – dann tritt das Beckenheben an diese Stelle, dieselbe Bewegung vom Boden aus, mit weniger Last.",
+        "verletzung": [
+          "isg"
+        ],
+        "modus": "bw"
       }
     ],
     "db": {
@@ -1311,7 +1370,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Leicht ist hier richtig",
-        "Die hintere Schulter ist klein. Fünf Kilo je Hand sind nicht wenig, wenn die Bewegung wirklich aus dem Schulterblatt kommt. Sobald du schwingen musst, ist es zu schwer."
+        "Die hintere Schulter ist klein. Fünf Kilo je Hand sind nicht wenig, wenn die Bewegung wirklich aus dem Schulterblatt kommt. Sobald du schwingen musst, ist es zu schwer.",
+        "db"
       ],
       [
         "Ellenbogen",
@@ -1567,7 +1627,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Wofür der Hammergriff da ist",
-        "Eine Stange bindet beide Hände an dieselbe Drehung, und die bleibt über den ganzen Weg dieselbe – bei der SZ-Stange leicht aufgedreht, bei der geraden ganz. Der Unterarm hätte unterwegs gern etwas anderes, kann aber nicht: Die Stange hält ihn fest, weil die andere Hand am selben Rohr hängt.\n\nMit zwei Kurzhanteln fällt diese Kopplung weg. Der Hammergriff stellt den Unterarm in die Mittelstellung zwischen Auf- und Zudrehen – die Stellung, in der Speiche und Elle parallel nebeneinander liegen statt übereinander. Wer an der SZ-Stange etwas im Unterarm oder am Handgelenk spürt, das sich eher nach Knochen als nach Muskel anfühlt, probiert sinnvollerweise zuerst das hier."
+        "Eine Stange bindet beide Hände an dieselbe Drehung, und die bleibt über den ganzen Weg dieselbe – bei der SZ-Stange leicht aufgedreht, bei der geraden ganz. Der Unterarm hätte unterwegs gern etwas anderes, kann aber nicht: Die Stange hält ihn fest, weil die andere Hand am selben Rohr hängt.\n\nMit zwei Kurzhanteln fällt diese Kopplung weg. Der Hammergriff stellt den Unterarm in die Mittelstellung zwischen Auf- und Zudrehen – die Stellung, in der Speiche und Elle parallel nebeneinander liegen statt übereinander. Wer an der SZ-Stange etwas im Unterarm oder am Handgelenk spürt, das sich eher nach Knochen als nach Muskel anfühlt, probiert sinnvollerweise zuerst das hier.",
+        "db"
       ],
       [
         "Was er trifft",
@@ -1630,7 +1691,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Wo die Hanteln starten",
-        "Auf Schulterhöhe, Handflächen nach vorn, Ellenbogen leicht vor der Schulterachse – nicht in einer Linie mit dem Rücken. Das schont das Gelenk und ist die stärkere Position."
+        "Auf Schulterhöhe, Handflächen nach vorn, Ellenbogen leicht vor der Schulterachse – nicht in einer Linie mit dem Rücken. Das schont das Gelenk und ist die stärkere Position.",
+        "db"
       ],
       [
         "Rippen unten",
@@ -1638,7 +1700,8 @@ export const EXERCISES = [
       ],
       [
         "Hochbringen",
-        "Die Hanteln auf die Oberschenkel setzen, im Sitzen mit dem Knie nach oben stoßen und dabei die Schulter mitdrehen. Aus dem gestreckten Arm heraus hochzuwuchten kostet unnötig Kraft."
+        "Die Hanteln auf die Oberschenkel setzen, im Sitzen mit dem Knie nach oben stoßen und dabei die Schulter mitdrehen. Aus dem gestreckten Arm heraus hochzuwuchten kostet unnötig Kraft.",
+        "db"
       ]
     ],
     "schmerz": [
@@ -1710,7 +1773,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Griff: Obergriff, beide Hände gleich",
-        "Beide Handflächen zeigen zum Körper. Der Mischgriff – eine Hand über, eine unter – hält zwar mehr, dreht aber Becken und Wirbelsäule leicht gegeneinander und zieht den Arm mit dem Untergriff in die Länge; bei gebeugtem Rumpf und 40 kg braucht es das nicht. Beidhändiger Untergriff ist die schlechteste Wahl: Der Bizeps steht dabei gestreckt unter Zug, und genau so reißt er. Wenn der Griff vor dem Beinbeuger aufgibt, ist das kein Grund für den Mischgriff, sondern für Kreide, einen Hakengriff (Daumen unter Zeige- und Mittelfinger) oder Zughilfen – oder für einen Satz mit weniger Gewicht."
+        "Beide Handflächen zeigen zum Körper. Der Mischgriff – eine Hand über, eine unter – hält zwar mehr, dreht aber Becken und Wirbelsäule leicht gegeneinander und zieht den Arm mit dem Untergriff in die Länge; bei gebeugtem Rumpf und 40 kg braucht es das nicht. Beidhändiger Untergriff ist die schlechteste Wahl: Der Bizeps steht dabei gestreckt unter Zug, und genau so reißt er. Wenn der Griff vor dem Beinbeuger aufgibt, ist das kein Grund für den Mischgriff, sondern für Kreide, einen Hakengriff (Daumen unter Zeige- und Mittelfinger) oder Zughilfen – oder für einen Satz mit weniger Gewicht.",
+        "db"
       ],
       [
         "Wie weit nach unten",
@@ -1722,11 +1786,23 @@ export const EXERCISES = [
       ],
       [
         "Typische Fehler",
-        "Kniebeuge daraus machen (Knie wandern nach vorn, Hüfte nach unten statt nach hinten). Die Stange vom Bein weglaufen lassen – jeder Zentimeter Abstand ist Hebel für den unteren Rücken. Oben ins Hohlkreuz überstrecken, statt einfach aufrecht zu stehen."
+        "Kniebeuge daraus machen (Knie wandern nach vorn, Hüfte nach unten statt nach hinten). Die Stange vom Bein weglaufen lassen – jeder Zentimeter Abstand ist Hebel für den unteren Rücken. Oben ins Hohlkreuz überstrecken, statt einfach aufrecht zu stehen.",
+        "db"
       ],
       [
         "In der Wohnung",
-        "Vor und nach dem Satz kontrolliert absetzen, nie fallen lassen. Eine Matte oder ein dickes Handtuch unter den Scheiben nimmt den Rest."
+        "Vor und nach dem Satz kontrolliert absetzen, nie fallen lassen. Eine Matte oder ein dickes Handtuch unter den Scheiben nimmt den Rest.",
+        "db"
+      ],
+      [
+        "Die Wippe",
+        "Oberkörper und freies Bein bewegen sich gemeinsam, wie die beiden Enden eines Bretts über einem Drehpunkt. Wer das freie Bein hängen lässt und nur den Oberkörper senkt, verliert die Balance und den halben Bewegungsumfang.",
+        "bw"
+      ],
+      [
+        "Das Standknie",
+        "Leicht gebeugt und dann unverändert. Beugt es sich mit, wird aus der Hüftstreckung eine halbe Kniebeuge, und der Beinbeuger bekommt nichts mehr ab.",
+        "bw"
       ]
     ],
     "schmerz": [
@@ -1735,7 +1811,16 @@ export const EXERCISES = [
         "text": "Der untere Rücken arbeitet hier – das ist nicht der Fehler, das ist die Übung. Er hält die Wirbelsäule gerade, während die Hüfte klappt. Ein Ziehen danach ist also erst einmal normal.\n\nNicht normal ist, wenn er während des Satzes nachgibt. Zwei Proben: Rundet der Rücken sich unten ein, war die Stange tiefer als die Beweglichkeit reicht – der Weg endet dort, wo der Rücken gerade bleibt, und das ist bei den meisten über dem Knie. Und wandern die Knie beim Absenken nach vorn, wird daraus eine Kniebeuge; die Hüfte muss nach hinten, die Schienbeine bleiben fast senkrecht.\n\nWenn es über Tage bleibt oder schon beim Aufstehen da ist, hier anhaken. Dann tritt der Hip Thrust an diese Stelle: dieselbe Hüftstreckung, aber der Rücken liegt an und hält nichts.",
         "verletzung": [
           "rueckenstrecker"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Unterer Rücken",
+        "text": "Der untere Rücken hält hier die Wirbelsäule gerade, während die Hüfte klappt – auf einem Bein, also zusätzlich gegen das Verdrehen. Dass er arbeitet, ist die Übung.\n\nNicht in Ordnung ist es, wenn er während des Satzes nachgibt. Zwei Proben: Rundet sich der Rücken unten ein, war der Weg zu lang – er endet dort, wo der Rücken gerade bleibt. Und kippt die Hüfte zur Seite weg, fehlt die Stabilität im Standbein; dann lieber mit einer Hand an der Wand abstützen als schief arbeiten.\n\nBleibt es über Tage oder ist es schon beim Aufstehen da: hier anhaken. Dann übernimmt der Hip Thrust – dieselbe Hüftstreckung, aber der Rücken liegt an und hält nichts.",
+        "verletzung": [
+          "rueckenstrecker"
+        ],
+        "modus": "bw"
       }
     ],
     "db": {
@@ -2124,7 +2209,8 @@ export const EXERCISES = [
     "detail": [
       [
         "Eine Hantel reicht",
-        "Das ist hier kein Behelf, sondern der Punkt: Mit dem Gewicht auf einer Seite muss der Rumpf gegen das Verdrehen halten. Und für den, der nur von jeder Scheibengröße zwei Stück hat, ist es die Hüftstreckung, die sich überhaupt beladen lässt – ein Paar Kurzhanteln braucht vier."
+        "Das ist hier kein Behelf, sondern der Punkt: Mit dem Gewicht auf einer Seite muss der Rumpf gegen das Verdrehen halten. Und für den, der nur von jeder Scheibengröße zwei Stück hat, ist es die Hüftstreckung, die sich überhaupt beladen lässt – ein Paar Kurzhanteln braucht vier.",
+        "db"
       ],
       [
         "Die Wippe",
@@ -2293,19 +2379,33 @@ export const EXERCISES = [
     "detail": [
       [
         "Warum am Boden und nicht auf der Bank",
-        "Ohne Bank fehlt der Teil der Bewegung, in dem der Oberarm hinter den Rumpf sinkt – und genau dort holt sich die Schulter beim Bankdrücken ihre Probleme. Der Boden setzt die Grenze da, wo sie hingehört. Was fehlt, ist etwas Bewegungsumfang; was bleibt, ist der Teil, der die Brust trifft."
+        "Ohne Bank fehlt der Teil der Bewegung, in dem der Oberarm hinter den Rumpf sinkt – und genau dort holt sich die Schulter beim Bankdrücken ihre Probleme. Der Boden setzt die Grenze da, wo sie hingehört. Was fehlt, ist etwas Bewegungsumfang; was bleibt, ist der Teil, der die Brust trifft.",
+        "db"
       ],
       [
         "Zwei Hanteln statt einer Stange",
-        "Jede Seite arbeitet für sich, die stärkere kann der schwächeren nichts abnehmen. Und die Hanteln lassen sich am Ende einfach neben dem Körper ablegen – eine Stange muss über der Brust irgendwo hin."
+        "Jede Seite arbeitet für sich, die stärkere kann der schwächeren nichts abnehmen. Und die Hanteln lassen sich am Ende einfach neben dem Körper ablegen – eine Stange muss über der Brust irgendwo hin.",
+        "db"
       ],
       [
         "Der Halt unten",
-        "Die Ellenbogen berühren den Boden und ruhen dort einen Moment. Das nimmt den Schwung heraus; jede Wiederholung beginnt aus dem Stand, nicht aus dem Rückprall."
+        "Die Ellenbogen berühren den Boden und ruhen dort einen Moment. Das nimmt den Schwung heraus; jede Wiederholung beginnt aus dem Stand, nicht aus dem Rückprall.",
+        "db"
       ],
       [
         "Typische Fehler",
-        "Die Ellenbogen ganz nach außen stellen (Schulter). Die Hanteln auf den Boden fallen lassen und von dort abfedern. Mit dem Rücken ein Hohlkreuz drücken, um mehr Weg zu bekommen."
+        "Die Ellenbogen ganz nach außen stellen (Schulter). Die Hanteln auf den Boden fallen lassen und von dort abfedern. Mit dem Rücken ein Hohlkreuz drücken, um mehr Weg zu bekommen.",
+        "db"
+      ],
+      [
+        "Eng heißt schulterbreit",
+        "Die Hände stehen unter den Schultern statt weiter außen, und die Ellenbogen streifen beim Ablassen am Rumpf entlang. Das verschiebt die Arbeit von der Brust zum Trizeps – deshalb steht die Übung hier. Noch enger, mit den Händen zusammen, belastet vor allem die Handgelenke und bringt nicht mehr.",
+        "bw"
+      ],
+      [
+        "Typische Fehler",
+        "Die Ellenbogen doch nach außen fallen lassen, sobald es schwer wird. Die Hüfte durchhängen lassen. Nur den halben Weg nach unten gehen – die Brust kommt bis kurz über den Boden.",
+        "bw"
       ]
     ],
     "schmerz": [
@@ -2314,7 +2414,8 @@ export const EXERCISES = [
         "text": "Am Boden ist der Weg kurz, und genau dafür ist die Übung da: Der Ellenbogen kommt nicht tiefer als der Rumpf, die Schulter wird nicht überdehnt. Wenn trotzdem etwas drückt, sitzt es fast immer oben auf dem Schultereck – dort, wo Schlüsselbein und Schulterdach zusammenstoßen.\n\nWas hilft: die Ellenbogen nicht quer nach außen stellen, sondern etwa 45 Grad zum Körper, und oben die Hände nicht über der Mitte zusammenführen. Beides nimmt Druck von dem kleinen Gelenk.\n\nDrückt es weiter oder ist es beim Liegen schon da, hier anhaken.",
         "verletzung": [
           "ac-gelenk"
-        ]
+        ],
+        "modus": "db"
       },
       {
         "ort": "Ellenbogen",
@@ -2322,6 +2423,14 @@ export const EXERCISES = [
         "verletzung": [
           "ellenbogen-bursitis"
         ]
+      },
+      {
+        "ort": "Handgelenk",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ],
+        "modus": "bw"
       }
     ],
     "db": {

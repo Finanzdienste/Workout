@@ -238,9 +238,9 @@ def main():
                     # Isolation nicht vor eine Grunduebung am selben Muskel
                     # zieht (siehe ruestOrder in js/app.js).
                     'tier': m['tier'],
-                    # Ausführliche Erklärung, aufklappbar in der App. Sie hängt
-                    # an der Übung und nicht an der Variante: Griff, Aufbau und
-                    # typische Fehler sind in beiden Fassungen dieselben.
+                    # Ausführliche Erklärung, aufklappbar in der App. Ein
+                    # Abschnitt mit drittem Feld 'db' oder 'bw' gilt nur in
+                    # diesem Modus (js/plan.js, resolve); ohne in beiden.
                     'detail': m.get('detail', []),
                     # Was tun, wenn bei dieser Uebung etwas weh tut. Je Eintrag
                     # eine Koerperstelle, der Text dazu und - wo es eine gibt -

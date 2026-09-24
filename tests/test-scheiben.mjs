@@ -323,7 +323,7 @@ check(/Scheibengewicht, die Stange zählt nicht mit/.test(ohneStangeText),
   'und die Zeile sagt, welche der beiden Rechnungen gilt');
 check(!/plus Stange|zu klein|geschätzt/.test(ohneStangeText),
   'gemahnt und geschätzt wird nichts – leer lassen ist die Vorgabe, kein Versäumnis');
-check(/Leer lassen ist der Normalfall/.test(ohneStangeText),
+check(/Leer lassen \(–\) ist der Normalfall: Die Stange zählt nicht mit/.test(ohneStangeText),
   'das steht auch bei den Eingabefeldern selbst');
 
 // Wer Gesamtgewichte will, trägt ein Leergewicht ein. Dann zählt es überall mit,
@@ -478,6 +478,22 @@ page.once('dialog', (d) => d.accept());
 await page.goto(`${URL}#eisen=nicht-base64-und-kein-json`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
 check(errs.length === 0, 'ein kaputter Link wirft die App nicht um');
+
+// --- Der Zusatz hinter „kg" folgt der Einstellung -----------------------
+// „kg · Stange gesamt" an der Übung, „Scheibengewicht" unter Mehr: zwei Stellen,
+// die sich über dieselbe Zahl widersprachen. Jetzt sagt die Übung, was gilt.
+const notizen = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { gewichtNotiz } = await import('./js/gewichte.js');
+  store.setSetting('scheiben', { stange: { kh: null, sz: null, lh: null }, scheiben: [[2.5, 4]] });
+  const ohne = gewichtNotiz('floor-press');
+  store.setSetting('scheiben', { stange: { kh: null, sz: null, lh: 20 }, scheiben: [[2.5, 4]] });
+  return { ohne, mit: gewichtNotiz('floor-press'), sz: gewichtNotiz('sz-curls'), hand: gewichtNotiz('sitzendes-seitheben') };
+});
+check(notizen.ohne === 'Scheiben gesamt', `ohne Leergewicht: „kg · ${notizen.ohne}"`);
+check(notizen.mit === 'mit Stange' && notizen.sz === 'Scheiben gesamt',
+  `mit Langhantel-Leergewicht: „${notizen.mit}", die SZ-Stange ohne eigenes bleibt bei „${notizen.sz}"`);
+check(notizen.hand === 'je Hand', 'andere Zusätze bleiben, wie sie sind');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

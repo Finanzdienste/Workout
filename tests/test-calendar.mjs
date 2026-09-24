@@ -40,8 +40,11 @@ check(Math.abs(quadrat.width - quadrat.height) < 2, `Zellen sind quadratisch (${
 check(await page.locator('.cal-cell.done').count() === 0, 'ohne Verlauf nichts als trainiert markiert');
 check(await page.locator('.cal-cell.plan').count() > 0, 'geplante Tage markiert');
 check(await page.locator('.cal-cell.today').count() === 1, 'heute hervorgehoben');
-check((await page.locator('#view').textContent()).includes('Kein Training an diesem Tag'),
-  'ohne Auswahl ein Hinweis statt einer leeren Karte');
+// Ohne Auswahl ein neutraler Hinweis. Vorher stand hier „Kein Training an
+// diesem Tag" – auch wenn heute eine Einheit lag.
+const ohneAuswahl = await page.locator('#view').textContent();
+check(ohneAuswahl.includes('Tippe einen markierten Tag an') && !ohneAuswahl.includes('Kein Training an diesem Tag'),
+  'ohne Auswahl ein Hinweis statt einer leeren Karte – und keine Aussage über einen Tag');
 await page.screenshot({ path: `${SHOT}/cal-leer.png`, fullPage: true });
 
 // --- Monatswechsel ---

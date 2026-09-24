@@ -52,7 +52,10 @@ const kgs = await page.locator('.kg-val').evaluateAll((els) => els.map((e) => e.
 console.log('     Gewichte Workout 1:', kgs.join(' | '));
 check(kgs.length > 0 && kgs.every((v) => v !== ''), 'Startgewichte sind vorbelegt');
 check(await ex(idx).locator('.kg-val').inputValue() === fmt(heute.erst.kg), `${heute.erst.name} startet bei ${fmt(heute.erst.kg)} kg`);
-check((await ex(idx).locator('.kg-unit').textContent()).includes(heute.erst.note), 'Hinweis, wie das Gewicht gemeint ist');
+// „Stange gesamt" heißt ohne eingetragenes Leergewicht „Scheiben gesamt" –
+// dieselbe Zahl, die unter Mehr → Stangen als Scheibengewicht erklärt ist.
+const notiz = heute.erst.note === 'Stange gesamt' ? 'Scheiben gesamt' : heute.erst.note;
+check((await ex(idx).locator('.kg-unit').textContent()).includes(notiz), `Hinweis, wie das Gewicht gemeint ist (${notiz})`);
 
 // Übungen ohne Zusatzlast zeigen keine Gewichtszeile. Dafür zur ersten
 // Einheit blättern, die überhaupt eine solche Übung enthält.

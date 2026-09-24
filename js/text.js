@@ -21,3 +21,8 @@ export function esc(s) {
 export function fmtNum(n) {
   return Number.isInteger(n) ? String(n) : String(+n.toFixed(2)).replace('.', ',');
 }
+
+/** Eine Stelle hinter dem Komma, immer – für Mittelwerte wie „17,2 Sätze". */
+export function komma1(n) {
+  return n.toFixed(1).replace('.', ',');
+}

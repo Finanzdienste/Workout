@@ -856,39 +856,53 @@ export function injuryById(id) { return BY_ID.get(id) || null; }
  * keine Formel hergibt.
  */
 export const COMBOS = [
+  // `null` nennt, was dabei auf null Sätze fällt, `nullBw` was zusätzlich ohne
+  // Hanteln. tests/test-combos.mjs rechnet es für alle Pläne nach – der erste
+  // Text hier behauptete „vom Drücken bleibt nichts", und gerechnet blieb die
+  // Brust mit Hanteln voll auf Ziel.
   {
     when: ['schulter-impingement', 'handgelenk-reizung'],
-    text: 'Schulter und Handgelenk zusammen lassen vom Drücken nichts übrig: die '
-      + 'Schulter verbietet den erhöhten Liegestütz, das Handgelenk den flachen, '
-      + 'und der Floor Press ist der Ersatz für beide – er kann nicht gleichzeitig '
-      + 'Ersatz und Ausweg sein.',
+    null: ['sideDelts'],
+    nullBw: ['chest', 'frontDelts'],
+    text: 'Mit Hanteln bleibt das Drücken: Beide Liegestütze gehen auf den Floor Press, '
+      + 'die Brust bekommt ihre Sätze dort. Das Seitheben fällt aber ganz weg. Ohne '
+      + 'Hanteln bleibt vom Drücken nichts – der Floor Press ist dann selbst ein '
+      + 'Liegestütz, und den verbietet das Handgelenk.',
   },
   {
     when: ['tennisarm', 'golferarm'],
-    text: 'Beide Seiten des Ellenbogens gereizt heißt: kein Griff hält mehr etwas. '
-      + 'Damit fällt der komplette Zug weg – Rücken und Bizeps bekommen null Sätze.',
+    null: ['lats', 'biceps'],
+    text: 'Beide Seiten des Ellenbogens gereizt heißt: kein Griff hält mehr eine Last. '
+      + 'Damit fällt jeder schwere Zug weg – Latissimus und Bizeps bekommen null '
+      + 'Sätze. Übrig bleibt, was die hintere Schulter mit dem Band macht.',
   },
   {
     when: ['lws-bandscheibe', 'patellasehne'],
-    text: 'Rücken und Knie zusammen sperren die Kniebeuge doppelt, und der Hip Thrust '
-      + 'ist für beide der Ausweg. Ob er sich gut anfühlt, entscheidet die '
-      + 'Bandscheibe – wenn nicht, bleibt für die Oberschenkel nichts.',
+    null: ['quads'],
+    text: 'Rücken und Knie zusammen sperren jede Kniebeuge – die vorderen '
+      + 'Oberschenkel bekommen null Sätze. Das Gesäß bleibt über den Hip Thrust im '
+      + 'Plan; ob der sich gut anfühlt, entscheidet die Bandscheibe.',
   },
   {
     when: ['kreuzband', 'hamstringzerrung'],
-    text: 'Knie und Beinbeuger gleichzeitig: das gesamte Beintraining fällt aus, '
-      + 'inklusive Waden. Übrig bleibt reines Oberkörpertraining.',
+    null: ['quads', 'hamstringsKnee', 'calves'],
+    text: 'Knie und Beinbeuger gleichzeitig: Kniebeuge, Kreuzheben, Beinbeuger und '
+      + 'Waden fallen aus. Von den Beinen bleibt nur das Beckenheben, und das trägt '
+      + 'wenig – im Kern ist es dann Oberkörpertraining.',
   },
   {
     when: ['rotatorenmanschette', 'handgelenk-bruch'],
+    null: ['chest', 'triceps', 'frontDelts', 'sideDelts', 'rearDelts', 'lats', 'biceps'],
     text: 'Schulter und Hand zusammen: vom Oberkörper bleibt nichts übrig. In so einer '
       + 'Lage ist der Plan das kleinste Problem.',
   },
   {
     when: ['isg', 'huefte-fai'],
-    text: 'Becken und Hüfte zusammen nehmen sowohl die Kniebeuge als auch den Hip '
-      + 'Thrust – der eine ist der Ersatz des anderen. Für Gesäß und Oberschenkel '
-      + 'bleibt dann nur, was die Beinbeuger nebenbei mitnehmen.',
+    null: ['quads'],
+    text: 'Becken und Hüfte zusammen nehmen die Kniebeuge und den Hip Thrust – der '
+      + 'eine ist der Ersatz des anderen. Die vorderen Oberschenkel bekommen dann '
+      + 'nichts mehr, das Gesäß nur noch, was die übrigen Hüftübungen mitnehmen: '
+      + 'etwa die Hälfte.',
   },
 ];
 

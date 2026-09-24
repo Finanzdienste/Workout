@@ -549,7 +549,8 @@ export function exBasis(w, mode) {
  * Das ist wieder raus, auf ausdrücklichen Wunsch – die Erfahrungsstufe gehört
  * dem Nutzer, und eine App, die sie ungefragt senkt, nimmt ihm eine
  * Entscheidung ab, um die er nicht gebeten hat. Wer kürzere Einheiten will,
- * stellt die Stufe unter *Mehr → Erfahrung* selbst um.
+ * nimmt den Fokus Cut; die Stufe selbst ist seitdem eine Messung, keine
+ * Einstellung (erfahrungStand in js/ansicht-statistik.js).
  * ------------------------------------------------------------------ */
 
 // Vier Einheiten sind eine Woche. Steht bewusst hier oben und nicht bei der
@@ -777,13 +778,18 @@ export function resolve(item, mode) {
     stattWarum: item.stattWarum || null,
     name: v.name, reps: stufe.reps, equip: v.equip, cue: v.cue, rest: stufe.rest,
     pattern: v.pattern, muscles: v.muscles,
-    // Die ausführliche Erklärung hängt an der Übung, nicht an der Variante:
-    // Griff, Aufbau und typische Fehler sind in beiden Fassungen dieselben.
-    detail: ex.detail,
-    // Und dasselbe gilt für „was tun, wenn hier etwas weh tut": Wo es zieht,
-    // hängt an der Bewegung und nicht daran, ob eine Hantel oder ein Band die
-    // Last liefert.
-    schmerz: ex.schmerz || null,
+    // Die ausführliche Erklärung hängt an der Übung, gefiltert nach Modus.
+    // Hier stand, Griff, Aufbau und Fehler seien in beiden Fassungen dieselben.
+    // Oft stimmte das nicht: Bei „Enge Liegestütze" erklärte die Karte, warum
+    // zwei Hanteln besser sind als eine Stange, bei der Standwaage den Griff an
+    // der Langhantel. Ein Abschnitt mit drittem Feld 'db' oder 'bw' gilt nur
+    // dort; ohne gilt er in beiden.
+    detail: (ex.detail || []).filter((d) => !d[2] || d[2] === mode),
+    // Dasselbe für „was tun, wenn hier etwas weh tut", mit `modus`.
+    schmerz: (() => {
+      const s = (ex.schmerz || []).filter((x) => !x.modus || x.modus === mode);
+      return s.length ? s : null;
+    })(),
     // Zusatzgewicht gibt es nur in der Hantel-Variante und nur, wo die Übung
     // eines kennt – Chin-ups und Sliding Leg Curls etwa nicht.
     weight: mode === 'db' ? ex.weight : null,

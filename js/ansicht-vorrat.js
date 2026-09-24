@@ -31,7 +31,7 @@ import * as store from './store.js';
 import { EXERCISES, PLAN } from './data.js';
 import { EX_BY_ID } from './uebung.js';
 import { MUSCLE_LABEL } from './body.js';
-import { esc } from './text.js';
+import { esc, komma1 } from './text.js';
 import { plural } from './dates.js';
 import { blocked } from './injuries.js';
 import {
@@ -142,7 +142,7 @@ export function vorratFolgen(seite) {
     ${weg.length ? `<div class="small muted">Ersatzlos weg: ${esc(weg.join(' · '))}</div>` : ''}
     ${bilanz.length ? `<div class="small muted" style="margin-top:6px">Je Woche bleiben dann:
       ${bilanz.map((k) => `${esc(MUSCLE_LABEL[k.m] || k.m)}
-        <b>${k.bleibt.toFixed(1)}</b> <span class="muted">statt ${k.soll.toFixed(1)}</span>`)
+        <b>${komma1(k.bleibt)}</b> <span class="muted">statt ${komma1(k.soll)}</span>`)
         .join(' · ')} Sätze.</div>` : ''}
     ${kritisch.length ? `<div class="small muted" style="margin-top:6px">⚠️ Damit bleibt für
       <b>${esc(kritisch.join(', '))}</b> so gut wie nichts übrig – das ist kein Training

@@ -193,6 +193,13 @@ export function calendarAktivitaet(iso, sport) {
 
 /** Die angetippte Einheit im Detail: Übungen, Sätze, Modus. */
 export function calendarDetail(iso, byDate, today, frueher, akt) {
+  // Noch kein Tag angetippt: dann gibt es auch keinen Tag, über den sich etwas
+  // sagen ließe. Vorher stand hier „Kein Training an diesem Tag" – auch wenn
+  // heute eine Einheit lag.
+  if (!iso) {
+    return `<div class="card muted small">Tippe einen markierten Tag an, um die Einheit
+      zu sehen.</div>`;
+  }
   const ws = byDate.get(iso) || [];
   const sport = (akt && akt.get(iso)) || [];
   // Der Sport steht oben: Wer im Kalender auf einen orangen Streifen tippt,

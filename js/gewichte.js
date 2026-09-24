@@ -9,7 +9,7 @@ import * as store from './store.js';
 import { EX_BY_ID, repsBereich } from './uebung.js';
 import { esc, fmtNum } from './text.js';
 import { levelFaktor } from './stufen.js';
-import { belegungText, gepflegt, nachbar, normSatz, raste } from './scheiben.js';
+import { belegungText, gepflegt, nachbar, normSatz, raste, stangeZaehlt } from './scheiben.js';
 
 /** Der eingetragene Scheibensatz – oder ein leerer, wenn nichts eingetragen ist. */
 export const meinSatz = () => normSatz(store.getState().scheiben);
@@ -172,12 +172,28 @@ export const FAM_LABEL = {
   lh: 'Stange', sz: 'SZ-Stange', kh2: 'Kurzhanteln', kh1: 'Kurzhantel', ruck: 'Rucksack',
 };
 
+/**
+ * Der Zusatz hinter „kg" an einer Übung.
+ *
+ * „Stange gesamt" meinte: alles auf der Stange zusammen, nicht je Seite. Nur
+ * ist die Zahl ohne eingetragenes Leergewicht Scheibengewicht (js/scheiben.js),
+ * und unter Mehr → Stangen steht genau das – die Übung sagte das Gegenteil,
+ * und wer ihr glaubte, zog beim Aufbauen die Stange ab. Jetzt folgt der Zusatz
+ * der Einstellung: „Scheiben gesamt" oder, mit Leergewicht, „mit Stange".
+ */
+export function gewichtNotiz(exId) {
+  const ex = EX_BY_ID.get(exId);
+  if (!ex || !ex.weightNote) return '';
+  if (ex.weightNote !== 'Stange gesamt') return ex.weightNote;
+  return stangeZaehlt(meinSatz(), ex.equip) ? 'mit Stange' : 'Scheiben gesamt';
+}
+
 /** Was für eine Übung aufzubauen ist – oder null, wenn nichts zu schleppen ist. */
 export function setupOf(exId, kg) {
   const ex = EX_BY_ID.get(exId);
   const fam = ex && RUEST_FAM[ex.equip];
   if (!fam || !kg) return null;   // Klimmzüge stehen mit 0 kg im Rucksack: nichts zu tun
-  return { fam, kg, label: FAM_LABEL[fam], note: ex.weightNote };
+  return { fam, kg, label: FAM_LABEL[fam], note: gewichtNotiz(exId) };
 }
 
 /**

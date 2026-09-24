@@ -27,6 +27,20 @@ export const MODE_LABEL = { db: 'Hanteln', bw: 'Bodyweight' };
  * Auf jede Zahl im Text, nicht nur auf die erste: Sonst stünde „10–12" da, und
  * die obere Grenze wäre plötzlich die leichtere.
  */
+/**
+ * „10–20 je Bein" mit „Wdh." an der richtigen Stelle: vor dem Zusatz, nicht
+ * dahinter – sonst stand da „10–20 je Bein Wdh.". Als [Zahl, Zusatz], weil die
+ * Wiederholungsanzeige im Bodyweight-Modus beides getrennt setzt.
+ */
+export function wdhTeile(reps) {
+  const m = String(reps).match(/^(.*?)(?:\s+(je\s.+))?$/);
+  return [m[1], m[2] || ''];
+}
+export function mitWdh(reps) {
+  const [zahl, zusatz] = wdhTeile(reps);
+  return `${zahl} Wdh.${zusatz ? ' ' + zusatz : ''}`;
+}
+
 export function repsLabel(it, mode) {
   const plus = mode === 'bw' ? store.bwPlusOf(it.id) : 0;
   if (!plus) return it.reps;

@@ -627,6 +627,7 @@ button { font: inherit; color: inherit; }
 }
 .fokus-btn.on { border-color: var(--accent); }
 .fokus-btn .lbl { font-size: 15px; }
+.fokus-btn .fokus-anders { font-size: 12px; margin-top: 2px; }
 .fokus-zahl { font-size: 12px; color: var(--muted); font-weight: 600; }
 
 /* Farbwahl in den Einstellungen */
@@ -1623,9 +1624,12 @@ textarea.io {
   border-color: var(--accent);
 }
 .ex-an.aus .ex-an-box { background: none; border-color: var(--line); }
-.ex-an-name { flex: 1 1 auto; font-size: 14px; font-weight: 600; }
+.ex-an-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; }
 .ex-an.aus .ex-an-name { color: var(--muted); text-decoration: line-through; }
-.ex-an-geraet { flex: 0 0 auto; font-size: 11.5px; color: var(--muted); text-align: right; }
+/* Darf schrumpfen und umbrechen: „Klimmzugstange tief oder Tischkante" schob
+   die Seite bei 360 px Breite drei Pixel über den Rand. */
+.ex-an-geraet { flex: 0 1 auto; min-width: 0; max-width: 45%; font-size: 11.5px;
+  color: var(--muted); text-align: right; overflow-wrap: anywhere; }
 .ex-an-folge {
   padding: 0 12px 10px 44px;
   font-size: 12px;

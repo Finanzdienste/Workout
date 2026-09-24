@@ -29,15 +29,15 @@ import { buildICS } from './ics.js';
 import { CONFIG, hatServer } from './config.js';
 import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
 import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './audio.js';
-import { esc, fmtNum } from './text.js';
-import { MODE_ICON, MODE_LABEL, repsLabel } from './anzeige.js';
+import { esc, fmtNum, komma1 } from './text.js';
+import { MODE_ICON, MODE_LABEL, mitWdh, repsLabel, wdhTeile } from './anzeige.js';
 import {
   AKT_ICON, aktivitaetTage, calMonthNow, calendarCell, calendarDetail, dayState, fruehereTage,
 } from './ansicht-kalender.js';
 import { EX_BY_ID } from './uebung.js';
 import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, satzFaktor, satzZahl } from './stufen.js';
 import {
-  aufwaermsaetze, doneWeightNote, naechstesGewicht,
+  aufwaermsaetze, doneWeightNote, gewichtNotiz, naechstesGewicht,
   ruestCache, ruestHint,
   workingWeight,
 } from './gewichte.js';
@@ -1178,7 +1178,7 @@ function renderFocus() {
          stand nur „3 Sätze" – und dann sucht man den Grund da, wo man zuletzt
          etwas umgestellt hat. Der Supersatz ändert keine einzige Satzzahl; er
          ordnet nur um. -->
-    <div class="focus-meta">${it.sets} Sätze × ${esc(repsLabel(it, mode))} Wdh. · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}${
+    <div class="focus-meta">${it.sets} Sätze × ${esc(mitWdh(repsLabel(it, mode)))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}${
       it.nach ? ` · <b>+${it.nach} nachgeholt</b>` : ''}</div>
     ${(() => {
       // Im Wechsel muss dastehen, mit wem – sonst wirkt der Sprung zur nächsten
@@ -1194,7 +1194,7 @@ function renderFocus() {
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht in Kilo">
-          <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
+          <span class="kg-unit">kg${it.weightNote ? ` · ${esc(gewichtNotiz(it.id))}` : ''}</span>
         </div>
         ${kgKnopf(it, 1)}
       </div>
@@ -1598,10 +1598,10 @@ function renderOverview() {
 
       <div class="ov-foot">
         ${w.custom ? `<button type="button" class="ov-nav" data-act="back-to-plan" aria-label="Zurück zum Plan">↩</button>`
-          : `<button type="button" class="ov-nav" data-act="nav-workout" data-delta="-1" ${n === PLAN[0].n ? 'disabled' : ''}>←</button>`}
+          : `<button type="button" class="ov-nav" data-act="nav-workout" data-delta="-1" aria-label="Vorherige Einheit" ${n === PLAN[0].n ? 'disabled' : ''}>←</button>`}
         <button type="button" class="ov-nav wide" data-act="show-list">Übungen &amp; Gewichte</button>
         ${w.custom ? `<button type="button" class="ov-nav" data-act="go-tab" data-tab="custom" aria-label="Eigenes Workout bearbeiten">✎</button>`
-          : `<button type="button" class="ov-nav" data-act="nav-workout" data-delta="1" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>→</button>`}
+          : `<button type="button" class="ov-nav" data-act="nav-workout" data-delta="1" aria-label="Nächste Einheit" ${n === PLAN[PLAN.length - 1].n ? 'disabled' : ''}>→</button>`}
       </div>
     </section>
     <!-- Hier standen die Karten "Nicht da: …" und "Rücksicht auf: …". Beide
@@ -2148,7 +2148,7 @@ function renderDashboard() {
         <div class="kg-main">
           <input type="text" inputmode="decimal" class="kg-val" value="${fmtNum(kg)}"
                  data-act="weight-input" data-ex="${it.id}" aria-label="Gewicht ${esc(it.name)} in Kilo">
-          <span class="kg-unit">kg${it.weightNote ? ` · ${esc(it.weightNote)}` : ''}</span>
+          <span class="kg-unit">kg${it.weightNote ? ` · ${esc(gewichtNotiz(it.id))}` : ''}</span>
         </div>
         ${kgKnopf(it, 1)}
       </div>
@@ -2181,7 +2181,7 @@ function renderDashboard() {
           ${detailBlock(it)}
           <div class="ex-facts">
             <span>Pause ${Math.floor(restFor(it) / 60)}:${String(restFor(it) % 60).padStart(2, '0')} min</span>
-            <span>${it.sets} Sätze × ${esc(it.reps)} Wdh.</span>
+            <span>${it.sets} Sätze × ${esc(mitWdh(repsLabel(it, mode)))}</span>
             <span>${esc(it.equip)}</span>
           </div>
           ${prev ? `<div class="last-time">Zuletzt (Workout ${prev.n}): ${esc(prev.text)}</div>` : ''}
@@ -2485,13 +2485,14 @@ const amBand = (it) => /band/i.test(it.equip || '');
 function wdhRow(it, mode, extra = '') {
   if (mode !== 'bw') return '';
   const plus = store.bwPlusOf(it.id);
+  const [wdhZahl, wdhZusatz] = wdhTeile(repsLabel(it, mode));
   return `
     <div class="ex-weight ${extra}">
       <button type="button" class="kg-step" data-act="reps-step" data-ex="${it.id}" data-d="-1"
               ${plus ? '' : 'disabled'} aria-label="Eine Wiederholung weniger">−</button>
       <div class="kg-main">
-        <span class="kg-val kg-fest">${esc(repsLabel(it, mode))}</span>
-        <span class="kg-unit">Wdh.${plus ? ` · ${plus} mehr als im Plan` : ''}</span>
+        <span class="kg-val kg-fest">${esc(wdhZahl)}</span>
+        <span class="kg-unit">Wdh.${wdhZusatz ? ' ' + esc(wdhZusatz) : ''}${plus ? ` · ${plus} mehr als im Plan` : ''}</span>
       </div>
       <button type="button" class="kg-step kg-plus" data-act="reps-step" data-ex="${it.id}" data-d="1"
               aria-label="Eine Wiederholung mehr">+</button>
@@ -3902,15 +3903,17 @@ function renderInjuries() {
     ${hits.length ? `<section class="card">
       <div class="section-title" style="margin:0 0 8px">Was das pro Woche kostet</div>
       <table class="inj-table">
-        <thead><tr><th>Muskelgruppe</th><th>vorher</th><th>jetzt</th></tr></thead>
+        <thead><tr><th>Muskelgruppe</th><th>vorher</th><th>jetzt</th><th>Ziel</th></tr></thead>
         <tbody>${hits.map((x) => `<tr>
           <td>${esc(MUSCLE_LABEL[x.m] || x.m)}</td>
-          <td class="muted">${x.before.toFixed(1)}</td>
-          <td class="${x.after < x.before - 0.05 ? 'inj-loss' : 'inj-gain'}">${x.after.toFixed(1)}
-            <span class="small">(${x.diff > 0 ? '+' : '−'}${Math.abs(x.diff).toFixed(1)})</span></td>
+          <td class="muted">${komma1(x.before)}</td>
+          <td class="${x.after < x.before - 0.05 ? 'inj-loss' : 'inj-gain'}">${komma1(x.after)}
+            <span class="small">(${x.diff > 0 ? '+' : '−'}${komma1(Math.abs(x.diff))})</span></td>
+          <td class="muted">${(FOCUS.derived || []).includes(x.m) ? '–' : fmtNum(+targetOf(x.m).toFixed(1))}</td>
         </tr>`).join('')}</tbody>
       </table>
-      <div class="small muted" style="margin-top:8px">Sätze je Woche, Anteile eingerechnet. Ziel sind 10.</div>
+      <div class="small muted" style="margin-top:8px">Sätze je Woche, Anteile eingerechnet. Das Ziel ist dasselbe
+        wie in der Statistik; – heißt: kein eigenes Ziel, die Gruppe läuft bei anderen Übungen mit.</div>
     </section>` : ''}
 
     ${pflege.length ? `<section class="card">
@@ -3943,10 +3946,13 @@ function renderInjuries() {
       </div>
     </section>`;
 
+  // Nach Region gesammelt, in der Reihenfolge ihres ersten Auftretens – nicht
+  // nur benachbarte Einträge: Sonst stand „Leiste" zweimal da, mit „Hüfte"
+  // dazwischen.
   const areas = [];
   INJURIES.forEach((i) => {
-    const last = areas[areas.length - 1];
-    if (last && last.area === i.area) last.list.push(i);
+    const g = areas.find((a) => a.area === i.area);
+    if (g) g.list.push(i);
     else areas.push({ area: i.area, list: [i] });
   });
 
@@ -4152,12 +4158,38 @@ const FOKUS_TEXT = {
     + 'Rücken, Brust und seitliche Schulter. Die Beine laufen mit.',
   bbp: 'Gesäß, Beine und Bauch bekommen das meiste. Der Oberkörper bleibt drin, damit die '
     + 'Haltung nicht auf der Strecke bleibt – nur mit weniger Sätzen.',
-  oberkoerper: 'Brust, Rücken, Schultern und Arme. Beine und Gesäß nur als Grundlage, ein '
-    + 'Auftritt pro Woche.',
-  cut: 'Für Wochen im Kaloriendefizit: dieselben Übungen mit denselben Gewichten, nur weniger '
-    + 'Sätze. Im Defizit hält die Last die Muskeln, nicht das Volumen – und jede Gruppe kommt '
-    + 'weiter zweimal die Woche dran. Auch die Wahl, wenn einfach die Zeit knapp ist.',
+  oberkoerper: 'Brust, Rücken, Schultern und Arme. Die Beine nur als Grundlage, je ein '
+    + 'Termin pro Woche.',
+  // Hier stand „dieselben Übungen mit denselben Gewichten … jede Gruppe kommt
+  // weiter zweimal die Woche dran". Beides stimmte nicht: Der Cut hat eine
+  // eigene Auswahl (welche, steht jetzt gerechnet darunter), und die
+  // Beinbeuger kommen einmal die Woche dran (tools/pruefung/plan-pruefen.py
+  // --bericht). Gefunden bei der Durchsicht der App.
+  cut: 'Für Wochen im Kaloriendefizit, oder wenn einfach die Zeit knapp ist: weniger Sätze je '
+    + 'Einheit. Die meisten Gruppen kommen etwa zweimal die Woche dran, die Beinbeuger einmal.',
 };
+
+/**
+ * Welche Übungen ein Fokus anders hat als der Normalfall – gerechnet, nicht
+ * beschrieben.
+ * Eine Beschreibung von Hand war schon einmal falsch (siehe cut oben), und die
+ * Pläne werden neu gerechnet, ohne dass jemand die Karten liest.
+ */
+function fokusAnders(key) {
+  if (key === 'standard' || !PLANS.standard || !PLANS[key]) return '';
+  const ids = (p) => new Set(p.plan.flatMap((w) => w.ex.map((x) => x.id)));
+  const basis = ids(PLANS.standard);
+  const hier = ids(PLANS[key]);
+  const modus = store.getState().mode === 'bw' ? 'bw' : 'db';
+  const name = (id) => { const e = EX_BY_ID.get(id); return (e && e[modus] && e[modus].name) || id; };
+  const ohne = [...basis].filter((id) => !hier.has(id)).map(name);
+  const neu = [...hier].filter((id) => !basis.has(id)).map(name);
+  if (!ohne.length && !neu.length) return '';
+  return [
+    ohne.length ? `Fällt weg: ${ohne.join(', ')}.` : '',
+    neu.length ? `Kommt dazu: ${neu.join(', ')}.` : '',
+  ].filter(Boolean).join(' ');
+}
 
 /* Wie lange ein Satz selbst dauert – acht bis zwölf Wiederholungen mit
  * Aufstellen. Grob, aber die Pausen daneben sind der viel größere Posten. */
@@ -4269,7 +4301,7 @@ function fokusZeile(v) {
   // Wer schon gemessen hat, bekommt seine eigene Zahl statt der Formel.
   const eich = zeitEichung();
   const min = Math.round((sekunden * (eich ? eich.faktor : 1) / v.plan.length / 60) / 5) * 5;
-  return `${v.plan.length} Einheiten · ${proEinheit.toFixed(1)} Sätze je Einheit · `
+  return `${v.plan.length} Einheiten · ${komma1(proEinheit)} Sätze je Einheit · `
     + `${eich ? '' : 'ca. '}${min} min${eich ? ' (gemessen)' : ''}`;
 }
 
@@ -4280,6 +4312,7 @@ function fokusKarten(aktuell) {
             aria-pressed="${key === aktuell}" data-act="set-focus" data-v="${key}">
       <span class="lbl">${esc(v.name)}${key === aktuell ? ' ✓' : ''}</span>
       <span class="hint">${esc(FOKUS_TEXT[key] || '')}</span>
+      ${fokusAnders(key) ? `<span class="hint fokus-anders">${esc(fokusAnders(key))}</span>` : ''}
       <span class="fokus-zahl">${esc(fokusZeile(v))}</span>
     </button>`).join('');
 }
@@ -5380,7 +5413,7 @@ view.addEventListener('click', (e) => {
       // Verwerfen löscht alles zu diesem Workout in dieser Variante, nicht nur
       // die Sätze von heute – deshalb steht die Zahl in der Rückfrage.
       const ok = !prog.done || confirm(
-        `Training abbrechen und ${prog.done} abgehakte ${prog.done === 1 ? 'Satz' : 'Sätze'} verwerfen?`,
+        `Training abbrechen und ${prog.done === 1 ? 'den abgehakten Satz' : `${prog.done} abgehakte Sätze`} verwerfen?`,
       );
       if (!ok) break;
       store.resetWorkout(n, mode);

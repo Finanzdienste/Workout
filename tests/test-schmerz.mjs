@@ -38,19 +38,22 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 // --- 1. Der Katalog: jeder Eintrag ist vollständig und zeigt ins Leere ---
 const katalog = await page.evaluate(async () => {
   const { EXERCISES } = await import('./js/data.js');
-  const { INJURIES } = await import('./js/injuries.js');
+  const { INJURIES, gesperrt } = await import('./js/injuries.js');
   const inj = new Map(INJURIES.map((i) => [i.id, i]));
   const raus = [];
   EXERCISES.forEach((e) => {
     (e.schmerz || []).forEach((s) => {
       (s.verletzung || []).forEach((v) => {
+        // Ein Eintrag, der nur in einem Modus steht (`modus`), muss dort
+        // sperren; einer für beide in beiden.
+        const modi = s.modus ? [s.modus] : ['db', 'bw'];
         raus.push({
           ex: e.id,
-          ort: s.ort,
+          ort: s.ort + (s.modus ? ` (${s.modus})` : ''),
           inj: v,
           gibtEs: inj.has(v),
           // Der Kern: Die Beschwerde muss genau diese Übung sperren.
-          sperrt: !!(inj.get(v) || { avoid: [] }).avoid.includes(e.id),
+          sperrt: inj.has(v) && modi.every((m) => gesperrt([v], m).has(e.id)),
           ersatz: (inj.get(v) || { swap: {} }).swap[e.id] || null,
         });
       });
@@ -75,12 +78,21 @@ console.log('     Übungen mit Schmerz-Einträgen:', katalog.mitSchmerz.length);
 // Deshalb schlägt dieses Tor an, wenn eine Übung neu in einen Plan kommt und
 // keinen Eintrag hat. Das ist beabsichtigt und keine Schikane: Eine Übung
 // aufzunehmen, ohne zu sagen, was zu tun ist wenn sie weh tut, ist halb fertig.
+//
+// Je Modus: Seit Einträge nur in einem Modus gelten können, reicht es nicht,
+// dass die Übung irgendeinen hat – beim Floor Press galten alle nur für die
+// Stange, und die Liegestütze im Bodyweight-Modus standen ohne da.
 const ohneEintrag = await page.evaluate(async () => {
   const { PLAN, EXERCISES } = await import('./js/data.js');
-  const mit = new Set(EXERCISES.filter((e) => (e.schmerz || []).length).map((e) => e.id));
   const drin = new Set();
   PLAN.forEach((w) => w.ex.forEach((it) => drin.add(it.id)));
-  return [...drin].filter((id) => !mit.has(id));
+  const fehlt = [];
+  ['db', 'bw'].forEach((m) => {
+    const mit = new Set(EXERCISES.filter((e) => (e.schmerz || [])
+      .some((s) => !s.modus || s.modus === m)).map((e) => e.id));
+    drin.forEach((id) => { if (!mit.has(id)) fehlt.push(`${id} (${m})`); });
+  });
+  return fehlt;
 });
 check(ohneEintrag.length === 0,
   `jede Übung im Plan hat einen Schmerz-Eintrag${ohneEintrag.length
@@ -242,6 +254,35 @@ const beideAn = await page.evaluate(async () => {
 console.log('     alle Beschwerden an:', beideAn.geprueft, 'Übungen mit Knopf geprüft');
 check(beideAn.trotzdemDa.length === 0,
   `mit allen angehakt steht keine davon mehr im Plan (${beideAn.trotzdemDa.join(', ') || 'keine'})`);
+
+// --- Abschnitte je Modus -------------------------------------------------
+// Gefunden bei der Durchsicht: „Enge Liegestütze" erklärten, warum zwei Hanteln
+// besser sind als eine Stange, die Standwaage den Langhantelgriff, und der
+// Goblet Squat mit Hantel begann mit der Bodyweight-Technik 1½-Wiederholung.
+const abschnitte = await page.evaluate(async () => {
+  const { resolve } = await import('./js/plan.js');
+  const t = (id, m) => {
+    const r = resolve({ id, sets: 3 }, m);
+    return [...r.detail.map((d) => d[0]), ...(r.schmerz || []).map((x) => 'S:' + x.ort)].join(' | ');
+  };
+  return {
+    engeBw: t('kurzhantel-bodenpresse', 'bw'), engeDb: t('kurzhantel-bodenpresse', 'db'),
+    floorBw: t('floor-press', 'bw'), rdlBw: t('rumaenisches-kreuzheben', 'bw'),
+    gobletDb: t('goblet-squat', 'db'), gobletBw: t('goblet-squat', 'bw'),
+  };
+});
+console.log('     Enge Liegestütze (bw):', abschnitte.engeBw);
+check(!/Hanteln|Bank|Halt unten/.test(abschnitte.engeBw) && /Eng heißt/.test(abschnitte.engeBw),
+  'im Bodyweight-Modus erklären die engen Liegestütze keine Hanteln');
+check(/Zwei Hanteln/.test(abschnitte.engeDb) && !/Eng heißt/.test(abschnitte.engeDb),
+  'mit Hanteln dagegen die Bodenpresse, ohne Liegestütz-Abschnitt');
+check(!/Aufbau ohne Ständer|Reserve|Griff/.test(abschnitte.floorBw) && /Pause unten/.test(abschnitte.floorBw)
+  && /S:Handgelenk/.test(abschnitte.floorBw),
+  `Liegestütze statt Floor Press: eigene Abschnitte und der Handgelenk-Hinweis (${abschnitte.floorBw})`);
+check(!/Obergriff|Wohnung/.test(abschnitte.rdlBw) && /Wippe/.test(abschnitte.rdlBw),
+  `Standwaage: ohne Langhantelgriff, mit der Wippe (${abschnitte.rdlBw})`);
+check(!/1½/.test(abschnitte.gobletDb) && /1½/.test(abschnitte.gobletBw) && !/Hantel hältst/.test(abschnitte.gobletBw),
+  'Goblet Squat: 1½-Wiederholung nur ohne Hantel, Hantelhaltung nur mit');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();

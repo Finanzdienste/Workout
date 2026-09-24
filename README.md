@@ -384,9 +384,12 @@ keine Hilfe, sondern eine Behauptung. Wer es genau wissen will, weiß es selbst.
 
 `tools/exercise-meta.json` hält je Übung ein Startgewicht (`dbWeight`) und
 einen Hinweis, wie es gemeint ist (`weightNote`: „je Hand", „eine Hantel",
-„Zusatzgewicht", „Stange gesamt"). Übungen ohne Zusatzlast – Chin-ups, Sliding
-Leg Curls, Füße-erhöhte Liegestütze – tragen dort `null` und zeigen gar keine
-Gewichtszeile.
+„Zusatzgewicht", „Stange gesamt"). Übungen ohne Zusatzlast – Sliding Leg Curls,
+Füße-erhöhte Liegestütze – tragen dort `null` und zeigen gar keine
+Gewichtszeile. Chin-ups stehen mit 0 und „im Rucksack": ohne Zusatzlast, bis man
+etwas einpackt. „Stange gesamt" zeigt die App je nach Einstellung als „Scheiben
+gesamt" oder, mit eingetragenem Leergewicht, „mit Stange" (`gewichtNotiz` in
+`js/gewichte.js`).
 
 Die Startwerte sind Schätzungen für einen durchschnittlich trainierten
 Erwachsenen, kein Messwert. Sie sind als Ausgangspunkt gedacht und werden vom
@@ -410,16 +413,17 @@ App, wo `stepOf()` die einzige Stelle ist, die ihn kennt – die Knöpfe und ihr
 
 | Schritt | Übungen | warum |
 | --- | --- | --- |
-| 5 kg | Kreuzheben, Hip Thrust, Rudern | Langhantel: eine 2,5-kg-Scheibe je Seite |
-| 2,5 kg | Goblet Squats, SZ-Curls | schwer, beidhändig, gröbere Scheiben |
-| 2 kg | Floor Press, Wadenheben | je Hand gerechnet, also 2 kg pro Hantel |
-| 1,25 kg | gewichtete Liegestütze, Crunches | Zusatzgewicht auf dem Rücken |
-| 1 kg | Reverse Fly, Seitheben, Trizepsstrecker | kleine Muskeln, kleine Hanteln |
+| 5 kg | Rumänisches Kreuzheben, Hip Thrust, Floor Press, Langhantelrudern | Langhantel: eine 2,5-kg-Scheibe je Seite |
+| 2,5 kg | Goblet Squats, SZ-Curls, Kurzhantel-Bodenpresse | schwer, oder je Hand mit gröberen Scheiben |
+| 2 kg | Wadenheben, einbeiniges Kreuzheben, Schulterdrücken, Split Squat, Beckenheben | eine 1-kg-Scheibe je Seite |
+| 1,25 kg | Crunches | Scheibe auf der Brust |
+| 1 kg | gewichtete Liegestütze, Reverse Fly, Seitheben, Trizepsstrecker, Hammercurls, Rucksack-Übungen | kleine Muskeln, kleine Hanteln, ein Liter im Rucksack |
 
 Maßstab: kein Schritt über einem Viertel des Arbeitsgewichts. Der größte liegt
-bei 25 % (Reverse Fly, 1 von 4 kg), die meisten deutlich darunter. Bei den
-beiden Langhantelübungen sind es 12,5 % – wer 1,25-kg-Scheiben hat, setzt
-`dbStep` dort auf 2,5.
+bei 25 % (Crunches, 1,25 von 5 kg), danach 20 % (Reverse Fly, 1 von 5 kg), die
+meisten deutlich darunter. Bei den vier Langhantelübungen sind es 12,5 bis
+14 % – wer 1,25-kg-Scheiben hat, setzt `dbStep` dort auf 2,5. (Stand v201; die
+Zahlen stehen je Übung in `tools/exercise-meta.json`.)
 
 Gespeichert wird auf **Viertelkilo** gerundet, nicht auf halbe: sonst würde aus
 einem Schritt auf 21,25 kg still 21,5. Aus demselben Grund zeigt die App zwei
@@ -516,8 +520,8 @@ Timer im Vierteltakt prüft und rundet.
 
 Was auch das nicht kann: klingeln, wenn die App ganz geschlossen ist. Dafür
 bräuchte es einen Server, der eine Push-Nachricht schickt – die App hat keinen
-und soll keinen haben. Für die *eine* Meldung, die auch bei geschlossener App
-kommen soll, gibt es einen anderen Weg, siehe unten.
+und soll keinen haben. Den einen Weg, der dafür einmal gebaut war, gibt es nicht
+mehr – siehe den nächsten Abschnitt.
 
 ### Keine Erinnerung am Trainingstag
 
@@ -562,7 +566,7 @@ Der ganze Plan ist darauf gebaut, dass jede Muskelgruppe ihre Sätze pro Woche
 bekommt – und genau das war in der App nirgends nachzusehen. Verpasste
 Einheiten, abgebrochene Trainings und jede angehakte Verletzung verschieben die
 Zahl, unsichtbar. Oben in der Statistik steht deshalb die zuletzt begonnene
-Woche mit zwölf Balken gegen ihr jeweiliges Ziel, dazu die Woche davor als
+Woche mit einem Balken je Muskelgruppe gegen ihr jeweiliges Ziel, dazu die Woche davor als
 Vergleich.
 
 **Das Ziel kommt aus den erzeugten Daten**, nicht aus einer Konstante im
@@ -576,7 +580,7 @@ stand dort „0 Gruppen im Ziel · 0/12", wenn zwei der vier Einheiten noch offe
 waren – als Vorwurf für etwas, das gar nicht versäumt war: Vor der letzten
 Einheit *kann* keine Gruppe ihr Ziel erreichen. Jetzt heißt es „Woche 2 · 2 von
 4 Einheiten", und erst mit der letzten abgehakten Einheit springt die Karte auf
-die Zahl um, um die es geht. Die zwölf Balken darunter bleiben in beiden Fällen
+die Zahl um, um die es geht. Die Balken darunter bleiben in beiden Fällen
 dieselben.
 
 Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den jeweiligen
@@ -734,6 +738,9 @@ System. Die Einheit bleibt dieselbe Einheit, am selben Tag, mit denselben
 | Cut | 0,312 (Bauch −0,45) | 0,001 (Bauch −0,02) | 17 von 398 |
 | ~~Kurz und knapp~~ | 0,368 (Bauch −0,68) | **exakt** | 51 von 410 |
 | ~~Beine ernst gemeint~~ | 1,365 (Bauch −1,09) | 0,001 (Gesäß +0,02) | 34 von 531 |
+
+*Stand dieser Tabelle: vor der Neuberechnung der Pläne am 17. und 20.09. Die
+heutigen Zahlen misst `python3 tools/pruefung/bw-satzzahl.py`.*
 
 Der Lauf ging über alle sechs Varianten, die es damals gab; die beiden unteren
 sind inzwischen gestrichen (siehe *Zwei Pläne, die es nicht mehr gibt*) und
@@ -1752,7 +1759,7 @@ Ein eigener Tab, in dem sich anhaken lässt, was gerade weh tut. Die Auswahl
 bleibt stehen, bis der Haken wieder weg ist – sie gilt also für alle kommenden
 Trainings, nicht nur für heute.
 
-**31 Einträge** in `js/injuries.js`, nach Körperregion sortiert, von der
+**32 Einträge** in `js/injuries.js`, nach Körperregion sortiert, von der
 Schulter bis zur Achillessehne. Je Eintrag: eine kurze Beschreibung, welche
 Bewegung das Problem ist, welche Übungen deshalb gesperrt sind und wo es einen
 Ersatz gibt.
@@ -2506,6 +2513,15 @@ Das Ergebnis, am fertigen Plan gemessen:
 | Bodyweight-Abweichung (vor der eigenen Satzzahl) | 0,502 | **0,312** (die beste aller Varianten) |
 | Übungen im Plan | 24 von 24 | 23 von 24 – der einfache Goblet Squat fällt heraus |
 
+*Stand dieser Tabelle: der Cut, wie er damals gerechnet war. Seit der
+Neuberechnung am 17.09. hat er eine eigene Auswahl – ohne Floor Press mit
+Stange, Chin-ups, Rumänisches Kreuzheben, Split Squat und Band-Pull-Apart, dafür
+mit einbeinigem Kreuzheben, Kurzhantel-Bodenpresse, Inverted Row, Face Pull,
+Pike-Liegestützen und Reverse Snow Angels; die Beinbeuger kommen einmal die
+Woche dran. Die Karte in der App rechnet die Unterschiede selbst aus
+(`fokusAnders` in `js/app.js`), die Wochenzahlen stehen in
+`python3 tools/pruefung/plan-pruefen.py --bericht`.*
+
 Der fehlende Goblet Squat ist der eine Makel, und er ist verkraftbar: Der
 fersenerhöhte steht weiter im Plan, das Bewegungsmuster fehlt also nicht.
 
@@ -2562,6 +2578,8 @@ rund 72 Sätze die Woche – das ist der ausgewogene Plan, nicht ein kurzer.
 | Übungen je Einheit | 5,7 | 4,7 | **4,3** |
 | Bodyweight-Abweichung (vor der eigenen Satzzahl) | 0,502 | 0,312 | **0,368** |
 | Übungen im Plan | 24 von 24 | 23 von 24 | **24 von 24** |
+
+*Historischer Stand, siehe die Anmerkung zur Cut-Tabelle oben.*
 
 Waden, knienaher Beinbeuger und Hüftstreckung bleiben bei einem Termin pro
 Woche. Das ist eine Entscheidung, keine Panne: Die Löcher sind zu, die
@@ -2622,6 +2640,12 @@ Split Squat zurück, die Hüftstreckung bei 1,00 statt 0,00 Terminen. Kostet dre
 Sätze die Woche, und der Plan geht jetzt in 21 statt 24 Wochen auf. Draußen
 bleibt nur noch der einfache Goblet Squat – das Kniebeugemuster steht mit der
 fersenerhöhten Fassung im Plan, das Hüftmuster stand vorher mit gar nichts.
+
+*Das war der Stand damals. Seit der Neuberechnung am 20.09. steht der Goblet
+Squat wieder drin; dafür fehlen Schulterdrücken, Reverse Fly, der
+fersenerhöhte Goblet Squat und der einbeinige Leg Curl, und dazu kommen
+Kurzhantel-Bodenpresse, Inverted Row, Pike-Liegestütze, Face Pull und
+einbeiniges Kreuzheben. Die App rechnet das an der Fokus-Karte selbst aus.*
 
 ### Warum es „Beine ernst gemeint" gab
 
@@ -2886,8 +2910,9 @@ Zwei weitere Klippen, beide aus derselben Prüfung:
   gerechnet wird, sind die Schwellen für jemanden mit Vorgeschichte längst
   überschritten. Wer sich nach einer langen Pause bewusst auf Anfänger
   zurückstellt, stünde beim nächsten Laden wieder auf Geübt. `set-level`
-  vermerkt den Schritt deshalb als erledigt – denselben Weg geht der Knopf
-  *Bei Anfänger bleiben*.
+  vermerkt den Schritt deshalb als erledigt. (Einen Knopf *Bei Anfänger bleiben*
+  gab es auch einmal; er ist raus, seit die Stufe gemessen und nicht mehr
+  gewählt wird – siehe `erfahrungStand` in `js/ansicht-statistik.js`.)
 
 Gezählt werden dabei **Übungen, nicht Sätze**, und das ist kein Detail: Wie
 viele Sätze geplant waren, hängt an der Erfahrungsstufe – und die ändert sich
@@ -3005,8 +3030,9 @@ gesenkt und damit die Einheiten gekürzt. Das ist wieder raus, auf ausdrücklich
 Wunsch — und das Argument dagegen ist besser als meines dafür war: **Die
 Erfahrungsstufe gehört dem Nutzer.** Eine App, die sie ungefragt senkt, nimmt
 ihm eine Entscheidung ab, um die er nicht gebeten hat, und begründet sie
-ausgerechnet mit seinen schwächsten Wochen. Wer kürzere Einheiten will, stellt
-die Stufe unter *Mehr → Erfahrung* selbst um; dort steht sie schon immer.
+ausgerechnet mit seinen schwächsten Wochen. Wer kürzere Einheiten will, nimmt
+den Fokus *Cut*. Die Stufe selbst steht unter *Mehr → Erfahrung* nur noch zum
+Ansehen: Gewählt wird sie einmal bei der Einrichtung, danach misst die App.
 
 Was bleibt, ist die Zusage in der anderen Richtung: Der Plan wird nie hinter dem
 Rücken kleiner. `tests/test-nacharbeit.mjs` hält das mit einer eigenen Prüfung

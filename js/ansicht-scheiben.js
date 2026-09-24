@@ -173,12 +173,12 @@ export function scheibenKarte() {
           <div class="scheiben-zeile">
             <input type="text" inputmode="decimal" class="kg-val"
                    value="${esc(feldWert(satz.stange[k]))}"
-                   placeholder="zählt nicht mit"
+                   placeholder="–"
                    data-act="scheiben-stange" data-satz="${k}"
                    aria-label="Gewicht der leeren ${esc(STANGE_LABEL[k])}">
             <span class="scheiben-mal">kg · ${esc(STANGE_LABEL[k])}</span>
           </div>`).join('')}
-        <div class="small muted" style="margin-top:6px"><b>Leer lassen ist der Normalfall.</b>
+        <div class="small muted" style="margin-top:6px"><b>Leer lassen (–) ist der Normalfall:</b> Die Stange zählt nicht mit.
           Dann meint jede Zahl an einer Übung das Scheibengewicht, und du musst beim
           Aufbauen nichts abziehen. Nur wer Gesamtgewichte will, trägt hier etwas ein –
           dann rechnet die App die Stange überall mit.</div>
