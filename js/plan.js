@@ -571,17 +571,49 @@ export const NACH_JE_UEBUNG = 1;
  * Eine eigene Fassung, weil completedMode() über workoutByNo() an exOf() geht –
  * und exOf() fragt hier. Das wäre eine Endlosschleife.
  */
+/**
+ * Abgehakte Sätze einer Übung in einer Einheit – aus beiden Modi zusammen.
+ *
+ * Gefunden bei der Durchsicht der App: Wer mitten in der Einheit von Hanteln
+ * auf Bodyweight wechselt – der Knopf dafür steht über jeder Einheit –, hatte
+ * danach laut App nur die Hälfte trainiert. Gezählt wurde allein der Eimer des
+ * gerade gewählten Modus: 9 von 18, die Einheit endete nicht von selbst, die
+ * nächste bekam drei Sätze Nacharbeit für schon Gemachtes. Der Kommentar am
+ * Moduswechsel versprach das Gegenteil.
+ *
+ * Die Übung ist in beiden Modi dieselbe (nur ihre Ausführung nicht), also
+ * zählen die Sätze beider zusammen – gedeckelt auf die Satzzahl, damit
+ * dieselbe Übung zweimal gemacht nicht mehr als fertig heißt.
+ */
+export function saetzeErledigt(n, exId, bis) {
+  const e = store.getState().log[n];
+  if (!e) return 0;
+  const zahl = (m) => (((e[m] || {})[exId]) || []).filter((x) => x && x.done).length;
+  return Math.min(bis, zahl('db') + zahl('bw'));
+}
+
+/** Modi, in denen in dieser Einheit wirklich abgehakt wurde – der mit den meisten zuerst. */
+function modiMitSaetzen(st) {
+  const eigene = (m) => Object.values(st[m] || {})
+    .reduce((a, arr) => a + (Array.isArray(arr) ? arr.filter((x) => x && x.done).length : 0), 0);
+  return ['db', 'bw'].filter((m) => eigene(m) > 0).sort((a, b) => eigene(b) - eigene(a));
+}
+
 export function fertigOhneNacharbeit(n) {
   const st = store.getState().log[n];
   const w = PLAN[n - 1];
   if (!st || !w) return null;
-  for (const m of ['db', 'bw']) {
+  // Nur Modi, in denen auch wirklich trainiert wurde, und der mit den meisten
+  // eigenen Sätzen zuerst. Sonst hieße ein zu kurz abgehakter Hantel-Tag
+  // „fertig ohne Hanteln", nur weil der Bodyweight-Modus weniger Sätze
+  // verlangt – und ein ganz ohne Hanteln trainierter Tag „mit Hanteln", weil
+  // der zuerst geprüft wird.
+  for (const m of modiMitSaetzen(st)) {
     let total = 0;
     let done = 0;
     exBasis(w, m).forEach((it) => {
-      const arr = (st[m] || {})[it.id] || [];
       total += it.sets;
-      done += arr.slice(0, it.sets).filter((s) => s.done).length;
+      done += saetzeErledigt(n, it.id, it.sets);
     });
     if (total > 0 && done === total) return m;
   }
@@ -609,10 +641,8 @@ export function offenInWoche(w) {
     // App erfindet lieber keinen Rückstand, als einen zu behaupten, den sie
     // nicht belegen kann.
     if (!eintrag.soll) continue;
-    const log = eintrag[mx] || {};
     exBasis(x, mx).forEach((it) => {
-      const arr = Array.isArray(log[it.id]) ? log[it.id] : [];
-      const done = arr.slice(0, it.sets).filter((s) => s.done).length;
+      const done = saetzeErledigt(x.n, it.id, it.sets);
       // Gemessen wird an der Satzzahl, die an *diesem* Tag galt, nicht an der
       // von heute. Das ist der ganze Punkt:
       //
@@ -775,9 +805,8 @@ export function progressOf(n, mode) {
   let done = 0;
   let total = 0;
   w.ex.forEach((item) => {
-    const arr = store.peekSets(n, mode, item.id) || [];
     total += item.sets;
-    done += arr.slice(0, item.sets).filter((s) => s.done).length;
+    done += saetzeErledigt(n, item.id, item.sets);
   });
   // `complete` heißt weiterhin: jedes Häkchen steht. `erledigt` heißt: der Tag
   // ist trainiert. Meistens dasselbe, aber nicht immer, und der Unterschied
@@ -804,7 +833,10 @@ export function progressOf(n, mode) {
 export function completedMode(n) {
   const st = store.getState().log[n];
   if (!st) return null;
-  for (const m of ['db', 'bw']) {
+  // Nur Modi, in denen trainiert wurde (siehe fertigOhneNacharbeit): Seit die
+  // Sätze beider Modi zusammen zählen, wäre sonst jede Einheit „mit Hanteln"
+  // fertig, weil dieser Modus zuerst gefragt wird.
+  for (const m of modiMitSaetzen(st)) {
     if (progressOf(n, m).complete) return m;
   }
   // Von Hand abgeschlossen: "Abschließen" heißt, dass die Einheit fertig ist –

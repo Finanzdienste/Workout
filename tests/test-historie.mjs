@@ -104,6 +104,30 @@ check(mitten.done === 2, `und die zwei Sätze zählen weiter (${mitten.done})`);
 check(!mitten.ids.includes('sz-curls') && mitten.ids.includes('hammer-curls'),
   'die noch nicht angefasste wird trotzdem getauscht (SZ-Curls → Hammercurls)');
 
+// --- Moduswechsel mitten in der Einheit -----------------------------------
+// Drei Übungen mit Hanteln, dann umgeschaltet, drei ohne. Vorher zählte nur
+// der Eimer des gerade gewählten Modus: 9 von 18, und die nächste Einheit
+// bekam Nacharbeit für schon Gemachtes.
+const wechsel = await page.evaluate(async () => {
+  localStorage.clear();
+  const store = await import('./js/store.js');
+  const plan = await import('./js/plan.js');
+  const { PLAN } = await import('./js/data.js');
+  store.resetAll();
+  store.setSetting('greeted', true);
+  store.setSetting('level', 'geuebt');
+  const ex = plan.exOf(PLAN[0], 'db');
+  ex.forEach((it, k) => {
+    const m = k < 3 ? 'db' : 'bw';
+    if (k === 3) store.setWorkoutMode(1, 'bw');
+    for (let i = 0; i < it.sets; i++) store.updateSet(1, m, it.id, it.sets, i, { done: true, w: '10' });
+  });
+  const p = plan.progressOf(1, 'bw');
+  return { done: p.done, total: p.total, nach: [...(plan.nacharbeit(PLAN[1], 'bw') || [])].length };
+});
+check(wechsel.done === wechsel.total, `nach einem Moduswechsel zählen alle Sätze (${wechsel.done}/${wechsel.total})`);
+check(wechsel.nach === 0, `und die nächste Einheit bekommt keine Nacharbeit dafür (${wechsel.nach})`);
+
 // --- Und über die echte App: kein Zusatztag nach einem Aufstieg ------------
 await page.evaluate(async () => {
   localStorage.clear();

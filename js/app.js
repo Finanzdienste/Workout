@@ -48,7 +48,7 @@ import {
   erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
 } from './ansicht-statistik.js';
 import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
+import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, saetzeErledigt, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat, uebungGeht } from './vorrat.js';
@@ -988,8 +988,7 @@ const ui = {
 function firstOpenExercise(n, mode) {
   const w = workoutByNo(n, mode);
   const idx = w.ex.findIndex((item) => {
-    const arr = store.peekSets(n, mode, item.id) || [];
-    return arr.slice(0, item.sets).filter((s) => s.done).length < item.sets;
+    return saetzeErledigt(n, item.id, item.sets) < item.sets;
   });
   return idx === -1 ? w.ex.length - 1 : idx;
 }
@@ -2124,7 +2123,10 @@ function renderDashboard() {
     const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
     const doneCount = sets.filter((s) => s.done).length;
     const open = ui.openEx.has(it.id);
-    const complete = doneCount === it.sets;
+    // Sätze aus dem anderen Modus zählen mit (siehe saetzeErledigt) – und die
+    // Karte sagt es, sonst stünden leere Kästchen neben „fertig" im Kopf.
+    const anderswo = saetzeErledigt(n, it.id, it.sets) - doneCount;
+    const complete = doneCount + Math.max(0, anderswo) >= it.sets;
     const prev = lastLoggedFor(it.id, mode, n);
 
     // Satz-Knöpfe liegen bewusst außerhalb des aufklappbaren Bereichs: Abhaken
@@ -2169,6 +2171,8 @@ function renderDashboard() {
         ${fassungRow(it, mode)}
         ${wdhRow(it, mode)}
         <div class="ex-sets">${setBtns}</div>
+        ${anderswo > 0 ? `<div class="small muted ex-anderswo">${anderswo === 1 ? 'Ein Satz' : `${anderswo} Sätze`}
+          schon ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} gemacht – ${anderswo === 1 ? 'zählt' : 'zählen'} mit.</div>` : ''}
         <div class="ex-body">
           ${open ? `<div class="ex-fig" data-pattern="${esc(it.pattern)}"
                data-weight="${it.weight !== null}" data-gear="${esc(it.gear || '')}"></div>` : ''}
@@ -3086,6 +3090,20 @@ function weeklyDone() {
       // das Workout gerade steht.
       const m = completedMode(w.n) || store.workoutMode(w.n);
       exOf(w, m).forEach((item) => {
+        // Beide Modi, jeder mit seinen eigenen Anteilen: Wer mitten in der
+        // Einheit umschaltet, hat die Sätze davor trotzdem gemacht.
+        // Aber nur zum Auffüllen: Wer dieselbe Übung in beiden Modi ganz
+        // abhakt, hat sie einmal gemacht, nicht zweimal.
+        const hier = ((entry[m] || {})[item.id] || []).filter((x) => x && x.done).length;
+        ['db', 'bw'].filter((mm) => mm !== m).forEach((mm) => {
+          const dort = ((entry[mm] || {})[item.id] || []).filter((x) => x && x.done).length;
+          const anders = Math.min(dort, Math.max(0, item.sets - hier));
+          if (!anders) return;
+          any = true;
+          Object.entries(EX_BY_ID.get(item.id)[mm].shares).forEach(([mus, share]) => {
+            acc[mus] = (acc[mus] || 0) + anders * share;
+          });
+        });
         const arr = (entry[m] || {})[item.id];
         if (!Array.isArray(arr)) return;
         // Alle abgehakten Sätze, nicht nur die bis zur heutigen Satzzahl.

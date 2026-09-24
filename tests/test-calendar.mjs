@@ -178,6 +178,16 @@ check(overflow2 === 0, `auch bei 360 px kein Überlauf (${overflow2}px)`);
 // Seit v178 gibt es die Sonderbehandlung gar nicht mehr: gleiche Kachel,
 // gleiche Legende, gleiche Zählung.
 await page.setViewportSize({ width: 414, height: 896 });
+// Die Uhr steht ab hier auf dem 15. des laufenden Monats. Die drei Tage unten
+// liegen auf dem 3., 5. und 8. – am Monatsanfang lagen sie damit in der
+// Zukunft, und die Prüfung scheiterte an sechs von 31 Tagen, zuerst am
+// 1. Oktober. Gefunden bei der Durchsicht der App, nicht durch einen roten Lauf.
+{
+  const mitte = new Date();
+  mitte.setDate(15);
+  mitte.setHours(12, 0, 0, 0);
+  await page.clock.setFixedTime(mitte);
+}
 await page.evaluate(() => {
   const heute = new Date();
   const tag = (n) => {
