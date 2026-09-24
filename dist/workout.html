@@ -5197,6 +5197,219 @@ function solve(pose) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Stellung zwischen Start und Ende – und wo sie steht
+ *
+ * Bis v200 lag beides in mountFigure, und tools/pose.mjs hatte eine eigene
+ * Fassung davon. Die Durchsicht der App hat gezeigt, was das kostet: Die
+ * Kopie setzte jede Stellung auf ihren tiefsten Punkt und kannte den Griff an
+ * der Stange nicht, maß also etwas anderes als gezeichnet wurde. Messungen
+ * damit – auch die zum Face Pull – stimmten nicht, und die Bodenprüfung in
+ * tests/test-figur.mjs konnte gar nicht fehlschlagen. Jetzt gibt es eine
+ * Rechnung, und Zeichnung, Werkzeug und Test benutzen dieselbe.
+ * ------------------------------------------------------------------ */
+
+/** Die Stellung bei t (0 = Start, 1 = Ende), Winkel für Winkel gemischt. */
+function mische(spec, t) {
+  const [a, b] = spec.poses;
+  const mix = (x, y) => x + (y - x) * t;
+  const mixA = (x = A(), y = A()) => A(mix(x.p, y.p), mix(x.a, y.a), mix(x.e, y.e), mix(x.i || 0, y.i || 0));
+  const mixL = (x = L(), y = L()) => L(mix(x.p, y.p), mix(x.a, y.a), mix(x.k, y.k));
+  return {
+    lie: spec.lie,                       // Lage gilt fürs ganze Muster
+    stance: spec.stance,
+    lean: mix(a.lean || 0, b.lean || 0),
+    tilt: mix(a.tilt || 0, b.tilt || 0),
+    heel: mix(a.heel || 0, b.heel || 0),
+    becken: mix(a.becken || 0, b.becken || 0),
+    armL: mixA(a.armL || a.arm, b.armL || b.arm),
+    armR: mixA(a.armR || a.arm, b.armR || b.arm),
+    legL: mixL(a.legL || a.leg, b.legL || b.leg),
+    legR: mixL(a.legR || a.leg, b.legR || b.leg),
+  };
+}
+
+const BODEN = -0.62;
+const tiefster = (j, keys) => Math.min(...keys.map((k) => j[k][1]));
+const verschiebe = (j, d) => {
+  Object.keys(j).forEach((k) => { j[k] = [j[k][0] + d[0], j[k][1] + d[1], j[k][2] + d[2]]; });
+  return j;
+};
+const mitte = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2];
+const abstand = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+
+/**
+ * Die Nullstelle von g, die am nächsten bei 0 liegt – gesucht in ±weite.
+ *
+ * Nicht einfach halbieren: Die Kurven hier sind nicht überall monoton. Beim
+ * Pike steigt der Abstand Zehen–Hände mit der Vorbeuge erst und fällt dann
+ * wieder; eine Halbierung über den ganzen Bereich landete bei der falschen
+ * Nullstelle, und die Hände standen 0,4 über dem Boden. Also: in Schritten
+ * abtasten, den Vorzeichenwechsel nahe 0 nehmen und nur dort halbieren. Ohne
+ * Vorzeichenwechsel gilt die Stelle mit dem kleinsten Betrag.
+ */
+function naechsteNull(g, weite = 30, schritt = 1) {
+  let best = { x: 0, v: Math.abs(g(0)) };
+  let prev = null;
+  const kandidaten = [];
+  for (let x = -weite; x <= weite + 1e-9; x += schritt) {
+    const v = g(x);
+    if (Math.abs(v) < best.v) best = { x, v: Math.abs(v) };
+    if (prev && Math.sign(prev.v) !== Math.sign(v)) kandidaten.push([prev.x, x]);
+    prev = { x, v };
+  }
+  if (!kandidaten.length) return best.x;
+  kandidaten.sort((p, q) => Math.abs(p[0] + p[1]) - Math.abs(q[0] + q[1]));
+  let [lo, hi] = kandidaten[0];
+  const glo = g(lo) > 0;
+  for (let i = 0; i < 30; i++) {
+    const m = (lo + hi) / 2;
+    if ((g(m) > 0) === glo) lo = m; else hi = m;
+  }
+  return (lo + hi) / 2;
+}
+
+/** Lineares Gleichungssystem J·x = f, Gauß mit Spaltenpivot; null wenn singulär. */
+function loese(J, f) {
+  const n = f.length;
+  const M = J.map((z, r) => [...z, f[r]]);
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (Math.abs(M[p][c]) < 1e-12) return null;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const m = M[r][c] / M[c][c];
+      for (let k = c; k <= n; k++) M[r][k] -= m * M[c][k];
+    }
+  }
+  return M.map((z, r) => z[n] / z[r]);
+}
+
+/**
+ * Stütz auf Händen und Füßen: Liegestütz, Füße erhöht, Pike.
+ *
+ * Gefunden bei der Durchsicht der App: Beim Liegestütz sank der Körper nicht –
+ * die Neigung stand in beiden Stellungen fest, also hoben beim Beugen der Arme
+ * die *Hände* vom Boden ab (bis 0,21 über dem Boden), während Schultern und
+ * Kopf blieben, wo sie waren. Beim Pike dasselbe mit der Vorbeuge. Und die Hände
+ * glitten dabei seitlich über den Boden, weil die Arme beim Beugen weiter
+ * abspreizen.
+ *
+ * Statt die Winkel von Hand nachzustellen, bis es für zwei Stellungen passt,
+ * wird hier je Einzelbild gesucht:
+ *   - die Abspreizung der Arme, bei der die Griffweite die vom Start bleibt;
+ *   - die Neigung (bzw. beim Pike die Vorbeuge), bei der Hände und Zehen
+ *     zugleich unten sind – beim Liegestütz mit erhöhten Füßen: bei der die
+ *     Zehen so hoch über den Händen stehen wie am Start, also auf dem Kasten.
+ * Dann sinkt der Körper, weil er muss.
+ */
+function stuetz(spec, t) {
+  const pose = mische(spec, t);
+  const HAENDE = ['handL', 'handR'];
+  const ZEHEN = ['toeL', 'toeR'];
+  const start = solve(mische(spec, 0));
+  const breite0 = abstand(start.handL, start.handR);
+  // Griffweite halten: die Abspreizung beider Arme gleich verschieben.
+  const mitArm = (da) => ({
+    ...pose,
+    armL: { ...pose.armL, a: pose.armL.a + da },
+    armR: { ...pose.armR, a: pose.armR.a + da },
+  });
+  const da = t === 0 ? 0 : naechsteNull((d) => abstand(solve(mitArm(d)).handL, solve(mitArm(d)).handR) - breite0);
+  const p1 = mitArm(da);
+  // Höhe der Zehen über den Händen: beim Kasten so hoch wie am Start, sonst
+  // null – beide am Boden. Beim Pike standen die Hände schon am Start nicht
+  // auf (0,055 über dem Boden), also gilt dort nicht „wie am Start".
+  const ziel = spec.step ? tiefster(start, ZEHEN) - tiefster(start, HAENDE) : 0;
+  const feld = spec.stuetz === 'lean' ? 'lean' : 'tilt';
+  const g = (q) => { const j = solve(q); return (tiefster(j, ZEHEN) - tiefster(j, HAENDE)) - ziel; };
+  let q = p1;
+  q = { ...q, [feld]: q[feld] + naechsteNull((d) => g({ ...q, [feld]: q[feld] + d })) };
+  // Zusätzlich: Hände und Füße stehen, also bleibt ihr Abstand. Die Suchen
+  // oben halten nur die Höhe; dazwischen rutschten beim Pike die Zehen bis
+  // 0,19 über den Boden und beim Liegestütz 0,04 nach vorn und zurück. Neigung,
+  // zweiter Winkel und Abspreizung verändern alle drei Größen zugleich – zwei
+  // Suchen im Wechsel zogen sich gegenseitig weg (0,3 Rutschen). Also
+  // gemeinsam: Newton über drei Winkel und drei Bedingungen, mit gerechneter
+  // Ableitung und begrenzten Schritten. Der zweite Winkel ist beim Pike der
+  // Hüftwinkel (die Beine), beim Liegestütz die Schulter (die Arme): Dort ist
+  // der Körper ein Brett, und nur der Oberarm kann den Abstand ausgleichen.
+  const fuss = (j) => mitte(j.toeL, j.toeR);
+  const hand = (j) => mitte(j.handL, j.handR);
+  const flach = (u, v) => Math.hypot(u[0] - v[0], u[2] - v[2]);
+  const abst0 = flach(hand(start), fuss(start));
+  const glied = feld === 'lean' ? ['legL', 'legR'] : ['armL', 'armR'];
+  const stell = (x) => {
+    const r = { ...q, [feld]: q[feld] + x[0] };
+    glied.forEach((k) => { r[k] = { ...r[k], p: r[k].p + x[1] }; });
+    ['armL', 'armR'].forEach((k) => { r[k] = { ...r[k], a: r[k].a + x[2] }; });
+    return r;
+  };
+  const F = (x) => {
+    const q2 = stell(x);
+    const j = solve(q2);
+    return [g(q2), flach(hand(j), fuss(j)) - abst0, abstand(j.handL, j.handR) - breite0];
+  };
+  let x = [0, 0, 0];
+  for (let i = 0; i < 16; i++) {
+    const f = F(x);
+    if (f.every((v) => Math.abs(v) < 1e-5)) break;
+    const h = 0.05;
+    const spalten = [0, 1, 2].map((k) => {
+      const y = x.slice(); y[k] += h;
+      return F(y).map((v, r) => (v - f[r]) / h);
+    });
+    const J = [0, 1, 2].map((r) => spalten.map((c) => c[r]));
+    const dx = loese(J, f);
+    if (!dx) break;
+    const k = Math.min(1, 10 / Math.max(...dx.map(Math.abs), 1e-9));
+    x = x.map((v, n) => v - k * dx[n]);
+  }
+  q = stell(x);
+  return solve(q);
+}
+
+/**
+ * Skelett einer Stellung, auf den Boden gesetzt und an Ort und Stelle.
+ *
+ * Aufgesetzt wurde schon immer – der tiefste Punkt auf die Bodenhöhe. Neu ist
+ * das „an Ort und Stelle": Gefunden bei der Durchsicht der App rutschten bei
+ * Kniebeuge, Hüftbeuge und Trizeps an der Stange die Füße über den Boden
+ * (bei der Kniebeuge eine Fußlänge nach vorn und zurück), weil nur in der Höhe
+ * verschoben wurde und die Hüfte in der Waagerechten stehen blieb. Jetzt bleibt
+ * stehen, worauf der Körper steht: bei stehenden Figuren die Füße (beim
+ * einbeinigen Stand der Standfuß), beim Stütz die Hände.
+ */
+function skelett(spec, t) {
+  let j = spec.stuetz ? stuetz(spec, t) : solve(mische(spec, t));
+  // An der Stange festhalten. Beim Griff an eine Stange bleiben die Hände
+  // stehen und der Körper bewegt sich – andersherum wanderte die Stange mit
+  // den Händen mit, was sofort als Fehler auffällt.
+  if (spec.anchor === 'bar') {
+    const barY = spec.barY === undefined ? 0.52 : spec.barY;
+    const hand = mitte(j.handL, j.handR);
+    return verschiebe(j, [-hand[0], barY - hand[1], -hand[2]]);
+  }
+  j = verschiebe(j, [0, -Math.min(...Object.values(j).map((q) => q[1])) + BODEN, 0]);
+  // Was steht: beim Stütz die Hände, bei stehenden und sitzenden Figuren die
+  // Füße. Liegende Figuren ohne Stütz bleiben, wie sie sind – dort liegt der
+  // Rücken, und der Rücken ist lang genug, um nicht aufzufallen.
+  let fest = null;
+  if (spec.stuetz) fest = (x) => mitte(x.handL, x.handR);
+  else if (!spec.lie) {
+    const s = spec.stance || spec.poses[0].stance;
+    fest = s ? (x) => x[`toe${s}`] : (x) => mitte(x.toeL, x.toeR);
+  }
+  if (fest && t !== 0) {
+    const jetzt = fest(j);
+    const start = fest(skelett(spec, 0));
+    j = verschiebe(j, [start[0] - jetzt[0], 0, start[2] - jetzt[2]]);
+  }
+  return j;
+}
+
+/* ------------------------------------------------------------------ *
  * Stellungen – je Muster Start und Ende
  * ------------------------------------------------------------------ */
 
@@ -5325,12 +5538,20 @@ const PATTERNS = {
     ],
   },
   pushup: {
-    label: 'Liegestütz', lie: 'prone',
+    label: 'Liegestütz', lie: 'prone', stuetz: 'tilt',
     poses: [
-      // tilt senkt das Fußende, bis Hände und Zehen zugleich den Boden
-      // berühren – ohne das schweben die Füße in der Luft.
-      { tilt: -16, arm: A(90, 16, 4), leg: L(0, 6, 4) },
-      { tilt: -16, arm: A(64, 42, 80), leg: L(0, 6, 4) },
+      // Neigung, Schulterwinkel und Abspreizung rechnet stuetz() je Bild nach,
+      // damit Hände und Zehen stehen bleiben. Vorgegeben ist nur, wo die Hände
+      // aufsetzen (arm.p am Start) und wie weit die Ellbogen beugen (arm.e).
+      //
+      // arm.p 90 hieß: Arm senkrecht zum Rumpf, und weil der Rumpf schräg
+      // steht, setzten die Hände vor dem Kopf auf (0,155 vor der Schulter).
+      // Unten lagen die Unterarme dann fast flach (60° gegen die Senkrechte)
+      // – ein Unterarmstütz, kein Liegestütz. Mit 64 stehen die Hände unter
+      // der oberen Brust, unten neigt der Unterarm 30°, und mit der Beugung
+      // 100 statt 80 kommt die Brust tiefer (0,28 statt 0,34 über dem Boden).
+      { tilt: -16, arm: A(64, 16, 4), leg: L(0, 6, 4) },
+      { tilt: -16, arm: A(40, 42, 100), leg: L(0, 6, 4) },
     ],
   },
   /*
@@ -5458,12 +5679,20 @@ const PATTERNS = {
     // Umgekehrtes V: Hüfte ist der höchste Punkt, Hände und Füße am Boden,
     // der Kopf senkt sich zwischen die Hände. Die Arme zeigen senkrecht nach
     // unten, dafür muss arm.p der Rumpfneigung folgen (-p + lean = 0).
-    label: 'Überkopf-Drücken',
+    label: 'Überkopf-Drücken', stuetz: 'lean',
     poses: [
       // lean 146 legte den Kopf zwischen die Hände auf den Boden. Bei 126 ist
       // die Hüfte klar der höchste Punkt und der Kopf bleibt darüber.
-      { lean: 126, arm: A(132, 10, 4), leg: L(-30, 6, 10) },
-      { lean: 126, arm: A(112, 30, 76), leg: L(-30, 6, 10) },
+      // Nachgemessen bei der Durchsicht der App (v201): Mit lean 126 schwebten
+      // die Hände schon am Start 0,055 über dem Boden, und beim Beugen hoben sie
+      // bis 0,23 ab, während der Kopf stehen blieb – das Gegenteil der Übung.
+      // Gesucht und nicht geschätzt: Hände und Zehen am Boden, ihr Abstand in
+      // beiden Stellungen gleich (0,68), und der Kopf sinkt von 0,37 auf 0,11
+      // zwischen die Hände. Dafür schließt sich die Hüfte etwas (Bein -30 auf
+      // -40) und der Rumpf kippt weiter – so sieht ein Pike-Liegestütz aus.
+      // Zwischen den beiden Stellungen hält skelett() die Hände am Boden.
+      { lean: 134.5, arm: A(132, 10, 4), leg: L(-30, 6, 10) },
+      { lean: 171, arm: A(140, 30, 90), leg: L(-40, 6, 10) },
     ],
   },
   ohp: {
@@ -5521,7 +5750,9 @@ const PATTERNS = {
     // Einbeinig: das freie Bein steigt nach hinten, bis Rumpf und Bein eine
     // Linie bilden. stance nennt das Standbein. Dieselbe Hüfte nach hinten wie
     // oben, nur weniger – auf einem Bein geht das Gegengewicht ins Standbein.
-    label: 'Hüftbeuge einbeinig', stance: 'R', view: [38, -6],
+    // Die Hantel hängt in der freien Hand (gewichtHand), so wie der Hinweis es
+    // sagt – vorher hing sie immer rechts, hier also auf der Standseite.
+    label: 'Hüftbeuge einbeinig', stance: 'R', gewichtHand: 'L', view: [38, -6],
     poses: [
       { lean: 4, arm: A(4, 9, 4), legR: L(4, 5, 8), legL: L(-6, 7, 14) },
       { lean: 74, arm: A(74, 9, 4), legR: L(18, 5, 20), legL: L(-70, 7, 10) },
@@ -5648,24 +5879,27 @@ const PATTERNS = {
      *      die Optimale Uebung ist?"
      *
      * Die Frage war berechtigt, und das Bild gab ihr recht. Mit ueberkopf 0.95
-     * ueber einer Hand auf 0.54 stieg das Band am Start mit **82 Grad** an,
-     * also praktisch senkrecht: Gezeichnet war ein Zug von ganz oben, und das
+     * stieg das Band am Start mit **68 Grad** an (zuerst als 82 gemessen, mit
+     * der falschen Rechnung weiter unten), also steil von oben: Gezeichnet war ein Zug von ganz oben, und das
      * ist ein Latzug und kein Face Pull. Ein Face Pull will das Band etwa aus
      * Gesichtshoehe, waagerecht ins Gesicht gezogen - steht seit v190 auch im
      * Hinweis der Uebung.
      *
-     * Gemessen mit dem Anker auf Kopfhoehe (0.68) und weiter vorn (0.85):
-     *   t=0  Hand [0.32 0.54 0.52]  Band steigt 23 Grad
-     *   t=1  Hand [0.38 0.62 0.03]  Band steigt  4 Grad
-     * Die Arme selbst blieben, wie sie waren - sie stimmten. Ellenbogen am
-     * Ende auf Schulterhoehe (y 0.39) weit aussen (x 0.48), Hand neben der
-     * Schlaefe (y 0.62, Kopf 0.63).
+     * Gemessen mit dem Anker auf Kopfhoehe und weiter vorn (0.85) - und zwar
+     * beim zweiten Anlauf richtig. Der erste (v190) setzte 0.68 und maß mit
+     * einer eigenen Rechnung in tools/pose.mjs, in der die Huefte im Ursprung
+     * liegt. Gezeichnet wird aber in Bodenkoordinaten, und dort sind 0.68 die
+     * Schulterhoehe: Das Band fiel zur Stange ab (-21 Grad am Start), kam also
+     * von unten. Gefunden bei der Durchsicht der App. Seit v201 rechnen
+     * Zeichnung, Werkzeug und Test mit derselben skelett(), und damit:
+     *   Anker 0.89 (Kopf 0.893)  t=0 steigt 15 Grad, t=0.5 21 Grad, t=1 waagerecht
+     * Die Arme blieben, wie sie waren - sie stimmten.
      *
      * Weiter vorn heisst hier: einen Schritt zurueckgetreten. Das ist der
      * erste der drei Wege, die der Hinweis nennt, und der einzige, der sich
      * zeichnen laesst, ohne die Stange woanders hinzuhaengen.
      */
-    label: 'Face Pull', band: 'bar', ueberkopf: 0.68, ueberkopfZ: 0.85, view: [20, -8],
+    label: 'Face Pull', band: 'bar', ueberkopf: 0.89, ueberkopfZ: 0.85, view: [20, -8],
     poses: [
       { lean: 4, arm: A(104, 12, 8), leg: L(2, 5, 4) },
       { lean: 4, arm: A(8, 84, 4, 120), leg: L(2, 5, 4) },
@@ -5810,10 +6044,13 @@ const PATTERNS = {
   },
   pushupfeet: {
     // Füße erhöht: positiver tilt hebt das Fußende, dazu ein Kasten darunter
-    label: 'Liegestütz mit erhöhten Füßen', lie: 'prone', step: true,
+    label: 'Liegestütz mit erhöhten Füßen', lie: 'prone', step: true, stuetz: 'tilt',
     poses: [
-      { tilt: 8, arm: A(90, 16, 4), leg: L(0, 6, 4) },
-      { tilt: 8, arm: A(64, 42, 80), leg: L(0, 6, 4) },
+      // Arme wie beim Liegestütz, siehe dort – nur setzt arm.p hier bei 85
+      // an: Der Rumpf fällt zum Kopf hin ab, und mit 64 wie dort landeten die
+      // Hände unter dem Bauch (0,265 hinter der Schulter).
+      { tilt: 8, arm: A(85, 16, 4), leg: L(0, 6, 4) },
+      { tilt: 8, arm: A(40, 42, 100), leg: L(0, 6, 4) },
     ],
   },
   calfbent: {
@@ -6077,42 +6314,8 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
 
-  const [a, b] = spec.poses;
-  const blend = (t) => {
-    const mix = (x, y) => x + (y - x) * t;
-    const mixA = (x = A(), y = A()) => A(mix(x.p, y.p), mix(x.a, y.a), mix(x.e, y.e), mix(x.i || 0, y.i || 0));
-    const mixL = (x = L(), y = L()) => L(mix(x.p, y.p), mix(x.a, y.a), mix(x.k, y.k));
-    return {
-      lie: spec.lie,                       // Lage gilt fürs ganze Muster
-      stance: spec.stance,
-      lean: mix(a.lean || 0, b.lean || 0),
-      tilt: mix(a.tilt || 0, b.tilt || 0),
-      heel: mix(a.heel || 0, b.heel || 0),
-      becken: mix(a.becken || 0, b.becken || 0),
-      armL: mixA(a.armL || a.arm, b.armL || b.arm),
-      armR: mixA(a.armR || a.arm, b.armR || b.arm),
-      legL: mixL(a.legL || a.leg, b.legL || b.leg),
-      legR: mixL(a.legR || a.leg, b.legR || b.leg),
-    };
-  };
-
-  /** Skelett einer Stellung, schon auf den Boden gesetzt. */
-  const skeleton = (t) => {
-    const j = solve(blend(t));
-    // An der Stange festhalten oder auf den Boden setzen. Beim Griff an eine
-    // Stange bleiben die Hände stehen und der Körper bewegt sich – andersherum
-    // wanderte die Stange mit den Händen mit, was sofort als Fehler auffällt.
-    if (spec.anchor === 'bar') {
-      const barY = spec.barY === undefined ? 0.52 : spec.barY;
-      const hand = [0, 1, 2].map((i) => (j.handL[i] + j.handR[i]) / 2);
-      const d = [-hand[0], barY - hand[1], -hand[2]];
-      Object.keys(j).forEach((k) => { j[k] = [j[k][0] + d[0], j[k][1] + d[1], j[k][2] + d[2]]; });
-      return j;
-    }
-    const shift = -Math.min(...Object.values(j).map((q) => q[1])) - 0.62;
-    Object.keys(j).forEach((k) => { j[k] = [j[k][0], j[k][1] + shift, j[k][2]]; });
-    return j;
-  };
+  /** Skelett einer Stellung, schon auf den Boden gesetzt – siehe skelett(). */
+  const skeleton = (t) => skelett(spec, t);
 
   // Ausschnitt einmal für das ganze Muster festlegen, aus beiden Endstellungen.
   // Eine feste Größe ließ liegende Übungen klein in einem halbleeren Kasten
@@ -6122,8 +6325,12 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     const all = [skeleton(0), skeleton(1)].flatMap((j) => Object.values(j));
     const mid = [0, 1, 2].map((i) => (Math.min(...all.map((q) => q[i])) + Math.max(...all.map((q) => q[i]))) / 2);
     // Radius statt Rechteck: so ändert das Drehen die Größe nicht, und die
-    // Figur kann in keiner Lage über den Rand ragen.
-    const r = Math.max(...all.map((q) => Math.hypot(q[0] - mid[0], q[1] - mid[1], q[2] - mid[2])));
+    // Figur kann in keiner Lage über den Rand ragen. Der Kopf zählt mit seinem
+    // Radius, nicht nur mit dem Mittelpunkt – beim Liegestütz mit erhöhten
+    // Füßen ist er der äußerste Punkt und ragte halb aus dem Bild.
+    const weit = (q) => Math.hypot(q[0] - mid[0], q[1] - mid[1], q[2] - mid[2]);
+    const r = Math.max(...all.map(weit),
+      ...[skeleton(0), skeleton(1)].map((j) => weit(j.head) + RIG.headR));
     // Bodenhöhe einmal aus der Startstellung: bei einem Griff an die Stange
     // liegt der Körper nicht mehr fest auf dem Boden auf, der Boden darf aber
     // trotzdem nicht bei jedem Einzelbild auf und ab wandern.
@@ -6303,7 +6510,7 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       const achse = spec.hantelLaengs ? frontAxis : sideAxis;
       [pts0.handL, pts0.handR].forEach((h) => barAt(h, achse, 0.13, 3.4));
     } else if (equip === 'onehand') {
-      barAt(pts0.handR, sideAxis, 0.13, 3.4);
+      barAt(pts0[`hand${spec.gewichtHand || 'R'}`], sideAxis, 0.13, 3.4);
     } else if (equip === 'goblet') {
       // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten
       barAt(midOf(pts0.handL, pts0.handR), upAxis, 0.105, 4.4);
@@ -6787,8 +6994,12 @@ function tempo(u, effortAt1) {
 
 // Muster, bei denen Stellung 1 das Ende des Ablassens ist, nicht die
 // Anstrengung: dort läuft das Tempo andersherum.
-const LOWER_TO_1 = ['squat', 'squatbw', 'pushup', 'pushupfeet', 'pike', 'tricepsbar',
-  'hinge', 'hinge1', 'splitsquat'];
+//
+// Die Kniebeugen mit Keil und die Beinbeuger standen hier nicht, obwohl auch
+// bei ihnen Stellung 1 das Ende des Ablassens ist (unten; Beine gestreckt).
+// Sie gingen deshalb zügig in die Dehnung und langsam zurück – verkehrt herum.
+const LOWER_TO_1 = ['squat', 'squatbw', 'squatheel', 'squatheelbw', 'pushup', 'pushupfeet',
+  'pike', 'tricepsbar', 'hinge', 'hinge1', 'splitsquat', 'legcurl', 'legcurl1'];
 
 // Wie beim Beobachter oben abgesichert: Dieses Modul wird auch ausserhalb
 // eines Browsers geladen – tools/pose.mjs rechnet damit Stellungen nach.

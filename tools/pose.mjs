@@ -11,51 +11,22 @@
  *     node tools/pose.mjs thrust
  *     node tools/pose.mjs            (alle liegenden Muster)
  *
- * Alle Maße in Körperlängen, gemessen ab dem tiefsten Punkt der Stellung – dem
- * Boden. Genau so setzt js/figure.js die Figur auch hin.
+ * Alle Maße in Körperlängen über dem Boden, mit genau den Punkten, die
+ * js/figure.js auch zeichnet.
  */
 import { pathToFileURL } from 'node:url';
-import { PATTERNS, RIG, solve } from '../js/figure.js';
+import { PATTERNS, RIG, skelett } from '../js/figure.js';
 
-const A = (p = 0, a = 0, e = 0, i = 0) => ({ p, a, e, i });
-const L = (p = 0, a = 0, k = 0) => ({ p, a, k });
-
-const mix = (x, y, t) => x + (y - x) * t;
-const mixA = (x = A(), y = A(), t) => A(mix(x.p, y.p, t), mix(x.a, y.a, t), mix(x.e, y.e, t), mix(x.i || 0, y.i || 0, t));
-const mixL = (x = L(), y = L(), t) => L(mix(x.p, y.p, t), mix(x.a, y.a, t), mix(x.k, y.k, t));
-
-/**
- * Dieselbe Mischung wie in mountFigure().
+/*
+ * Das Skelett kommt aus js/figure.js selbst, nicht aus einer Nachrechnung.
  *
- * **Zwei Fassungen derselben Rechnung, und sie müssen übereinstimmen.** Ein
- * neues Feld, das nur in einer steht, fällt in der anderen still weg: `becken`
- * stand zuerst nur in js/figure.js, und dieses Skript meldete daraufhin für
- * jede Stellung dieselbe Höhe – Hüfte, Schulter und Kopf alle auf Null, als
- * bewege sich nichts. Nicht die Figur war falsch, sondern die Nachrechnung.
- * Wer hier ein Feld ergänzt, ergänzt es dort auch, und umgekehrt.
+ * Hier stand früher eine zweite Fassung der Mischung und des Aufsetzens auf
+ * den Boden, mit dem Hinweis, beide müssten übereinstimmen. Sie taten es nicht:
+ * Die Zeichnung hielt weder die Hände beim Liegestütz noch die Füße beim
+ * Stehen fest, und diese Rechnung wusste davon ebenso wenig. Seit figure.js
+ * die Kontaktpunkte selbst hält (skelett), gibt es nur noch eine Rechnung.
  */
-function blend(spec, t) {
-  const [a, b] = spec.poses;
-  return {
-    lie: spec.lie, stance: spec.stance,
-    lean: mix(a.lean || 0, b.lean || 0, t),
-    tilt: mix(a.tilt || 0, b.tilt || 0, t),
-    heel: mix(a.heel || 0, b.heel || 0, t),
-    becken: mix(a.becken || 0, b.becken || 0, t),
-    armL: mixA(a.armL || a.arm, b.armL || b.arm, t),
-    armR: mixA(a.armR || a.arm, b.armR || b.arm, t),
-    legL: mixL(a.legL || a.leg, b.legL || b.leg, t),
-    legR: mixL(a.legR || a.leg, b.legR || b.leg, t),
-  };
-}
-
-/** Skelett, auf den Boden gesetzt – wie skeleton() in js/figure.js. */
-export function skelett(spec, t) {
-  const j = solve(blend(spec, t));
-  const shift = -Math.min(...Object.values(j).map((q) => q[1])) - 0.62;
-  Object.keys(j).forEach((k) => { j[k] = [j[k][0], j[k][1] + shift, j[k][2]]; });
-  return j;
-}
+export { skelett };
 
 const BODEN = -0.62;
 const mitte = (a, b) => [0, 1, 2].map((i) => (a[i] + b[i]) / 2);

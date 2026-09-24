@@ -8,12 +8,13 @@
  * als „irgendwie schräg", nicht als „falsche Übung".
  *
  * Gemessen wird deshalb an den Gelenkpunkten, mit derselben Rechnung, die auch
- * zeichnet (tools/pose.mjs). Die Zahlen stehen in Körperlängen über dem Boden;
- * der Boden ist, wie in js/figure.js, der tiefste Punkt der Stellung.
+ * zeichnet (skelett() aus js/figure.js, über tools/pose.mjs). Die Zahlen stehen
+ * in Körperlängen über dem Boden.
  *
  * Kein Browser nötig: js/figure.js rechnet ohne DOM, und genau das ist der
  * Grund, warum diese Prüfung so billig ist.
  */
+import { readFileSync } from 'node:fs';
 import { PATTERNS, RIG } from '../js/figure.js';
 import { masse, skelett } from '../tools/pose.mjs';
 
@@ -71,7 +72,8 @@ const BODEN = -0.62;
 // skelett() setzt den tiefsten Punkt auf den Boden. Steckt trotzdem etwas
 // darunter, stimmt die Rechnung nicht – und liegt der tiefste Punkt in einer
 // Zwischenstellung woanders, hebt und senkt sich die ganze Figur beim Abspielen.
-Object.entries(PATTERNS).forEach(([name, spec]) => {
+// Ausgenommen, was an der Stange hängt: Dort halten die Hände, nicht der Boden.
+Object.entries(PATTERNS).filter(([, spec]) => spec.anchor !== 'bar').forEach(([name, spec]) => {
   const tiefsten = [0, 0.25, 0.5, 0.75, 1].map((t) => {
     const j = skelett(spec, t);
     return Math.min(...Object.values(j).map((q) => q[1]));
@@ -218,5 +220,120 @@ presseMuster.forEach((name) => {
     `Face Pull: die Hand geht nach oben, nicht nach unten `
     + `(${anfang.handR[1].toFixed(3)} → ${ende.handR[1].toFixed(3)})`);
 }
+
+/* --- 7. Was am Boden steht, bleibt stehen -------------------------------- */
+//
+// Die Durchsicht der App fand drei Figuren, die rutschten, während alle
+// Prüfungen oben grün waren – denn die prüften nur, dass *irgendetwas* den
+// Boden berührt, nicht was:
+//
+//   Liegestütz        die Hände wanderten 0,2 über den Boden, die Fußspitzen
+//                     hoben ab; gedrückt wurde optisch der Boden weg
+//   Pike Push-up      die Füße rutschten 0,34 nach vorn, der Kopf kam nie
+//                     tiefer als die Hüfte – ein Hüftknick, kein Drücken
+//   Stehende Übungen  die Füße zogen bei jeder Wiederholung mit
+//
+// Zeichnung, Werkzeug und diese Prüfung rechnen seit v201 mit derselben
+// skelett(), die die Kontaktpunkte festhält. Hier wird gemessen, dass sie es tut.
+const T = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
+const flach = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]);
+const mittel = (a, b) => [0, 1, 2].map((i) => (a[i] + b[i]) / 2);
+
+const stehend = Object.entries(PATTERNS).filter(([, s]) => !s.lie && s.anchor !== 'bar');
+stehend.forEach(([name, spec]) => {
+  const s = spec.stance || spec.poses[0].stance;
+  const fuss = (j) => (s ? j[`toe${s}`] : mittel(j.toeL, j.toeR));
+  const js = T.map((t) => skelett(spec, t));
+  const weg = Math.max(...js.map((j) => flach(fuss(j), fuss(js[0]))));
+  const hoch = Math.max(...js.map((j) => (s ? j[`toe${s}`][1] : Math.min(j.toeL[1], j.toeR[1])) - BODEN));
+  check(weg < 0.005 && hoch < 0.03,
+    `${name}: ${s ? 'der Standfuß' : 'die Füße'} bleibt am Boden stehen (wandert ${weg.toFixed(3)}, hebt ${hoch.toFixed(3)})`);
+});
+check(stehend.length >= 20, `alle stehenden Muster geprüft (${stehend.length})`);
+
+const stuetzend = Object.entries(PATTERNS).filter(([, s]) => s.stuetz);
+check(['pushup', 'pushupfeet', 'pike'].every((n) => PATTERNS[n].stuetz),
+  'Liegestütz, erhöhte Füße und Pike stützen sich ab');
+stuetzend.forEach(([name, spec]) => {
+  const js = T.map((t) => skelett(spec, t));
+  const hand = (j) => mittel(j.handL, j.handR);
+  const zeh = (j) => mittel(j.toeL, j.toeR);
+  const handWeg = Math.max(...js.map((j) => flach(hand(j), hand(js[0]))));
+  const handHoch = Math.max(...js.map((j) => Math.max(j.handL[1], j.handR[1]) - BODEN));
+  const zehWeg = Math.max(...js.map((j) => flach(zeh(j), zeh(js[0]))));
+  const zehHoch = js.map((j) => Math.min(j.toeL[1], j.toeR[1]) - BODEN);
+  const zehStreu = Math.max(...zehHoch) - Math.min(...zehHoch);
+  const griff = js.map((j) => Math.hypot(...[0, 1, 2].map((i) => j.handL[i] - j.handR[i])));
+  const griffStreu = Math.max(...griff) - Math.min(...griff);
+  check(handWeg < 0.005 && handHoch < 0.005,
+    `${name}: die Hände bleiben am Boden, wo sie sind (wandern ${handWeg.toFixed(3)}, heben ${handHoch.toFixed(3)})`);
+  check(zehWeg < 0.01 && zehStreu < 0.005,
+    `${name}: die Fußspitzen auch (wandern ${zehWeg.toFixed(3)}, Höhe ${zehHoch[0].toFixed(3)} ± ${zehStreu.toFixed(3)})`);
+  check(spec.step ? zehHoch[0] > 0.3 : zehHoch[0] < 0.005,
+    `${name}: ${spec.step ? 'auf dem Kasten' : 'am Boden'} (${zehHoch[0].toFixed(3)})`);
+  check(griffStreu < 0.01, `${name}: die Griffweite bleibt (${griff[0].toFixed(3)} ± ${griffStreu.toFixed(3)})`);
+  check(js[0].head[1] - js[T.length - 1].head[1] > 0.1,
+    `${name}: gedrückt wird der Kopf zum Boden (${(js[0].head[1] - BODEN).toFixed(2)} → ${(js[T.length - 1].head[1] - BODEN).toFixed(2)})`);
+});
+// Ein Liegestütz, kein Unterarmstütz: oben die Hände nicht vor dem Kopf,
+// unten der Unterarm eher steil als flach. Vorher 0,155 vor der Schulter und
+// unten 60° gegen die Senkrechte – das sah aus wie Ablegen auf die Unterarme.
+['pushup', 'pushupfeet'].forEach((name) => {
+  const oben = skelett(PATTERNS[name], 0);
+  const unten = skelett(PATTERNS[name], 1);
+  const vor = oben.shoulderR[0] - oben.handR[0];   // Kopf liegt bei −x
+  const unterarm = Math.abs(Math.atan2(unten.handR[0] - unten.elbowR[0],
+    unten.elbowR[1] - unten.handR[1]) * 180 / Math.PI);
+  check(vor < 0.03 && vor > -0.15,
+    `${name}: oben setzen die Hände unter Schulter oder Brust auf (${vor.toFixed(3)} vor der Schulter)`);
+  check(unterarm < 40, `${name}: unten steht der Unterarm eher steil (${unterarm.toFixed(0)}° gegen die Senkrechte)`);
+  // Mit den Füßen auf dem Kasten geht der Kopf voran nach unten, die Brust
+  // bleibt höher – dort zählt der Kopf.
+  const tief = name === 'pushup' ? unten.chest[1] : unten.head[1];
+  check(tief - BODEN < 0.3,
+    `${name}: und ${name === 'pushup' ? 'die Brust' : 'der Kopf'} kommt tief (${(tief - BODEN).toFixed(3)})`);
+});
+{
+  const unten = skelett(PATTERNS.pike, 1);
+  check(unten.head[1] < unten.hipC[1] - 0.4,
+    `Pike: unten steht der Kopf tief unter der Hüfte (${(unten.head[1] - BODEN).toFixed(2)} gegen ${(unten.hipC[1] - BODEN).toFixed(2)})`);
+}
+
+/* --- 8. Face Pull: das Band kommt etwa waagerecht ------------------------- */
+//
+// Gemessen, wie es gezeichnet wird: vom Handpunkt zur Stange bei
+// [x der Hand, ueberkopf, ueberkopfZ], in denselben Bodenkoordinaten.
+// Die erste Korrektur (v190) hatte in anderen Koordinaten gemessen und das
+// Band damit von unten kommen lassen (−21 Grad) – daher diese Prüfung.
+{
+  const spec = PATTERNS.facepull;
+  const band = (t) => {
+    const h = skelett(spec, t).handR;
+    return Math.atan2(spec.ueberkopf - h[1], spec.ueberkopfZ - h[2]) * 180 / Math.PI;
+  };
+  const w = [0, 0.5, 1].map(band);
+  console.log('     Face Pull Band:', w.map((x) => x.toFixed(0) + '°').join(' '));
+  check(w.every((x) => x > -8 && x < 30),
+    `Face Pull: das Band steigt nie steil an und kommt nie von unten (${w.map((x) => x.toFixed(0)).join(' / ')} Grad)`);
+  const kopf = skelett(spec, 0).head[1];
+  check(Math.abs(spec.ueberkopf - kopf) < 0.08,
+    `Face Pull: die Stange hängt auf Kopfhöhe (${spec.ueberkopf} gegen ${kopf.toFixed(3)})`);
+}
+
+/* --- 9. Tempo: langsam wird abgelassen ------------------------------------ */
+// Bei diesen Mustern ist Stellung 1 das Ende des Ablassens. Sie fehlten in der
+// Liste und liefen dadurch verkehrt: schnell in die Dehnung, langsam zurück.
+{
+  const quelle = readFileSync(new URL('../js/figure.js', import.meta.url), 'utf8');
+  const treffer = quelle.match(/const LOWER_TO_1 = \[([^\]]*)\]/);
+  const liste = treffer ? treffer[1] : '';
+  ['squatheel', 'squatheelbw', 'legcurl', 'legcurl1'].forEach((n) => {
+    check(liste.includes(`'${n}'`), `${n}: wird langsam abgelassen, nicht langsam angestrengt`);
+  });
+}
+
+/* --- 10. Einbeiniges Kreuzheben: Hantel in der freien Hand ---------------- */
+check(PATTERNS.hinge1.gewichtHand && PATTERNS.hinge1.gewichtHand !== PATTERNS.hinge1.stance,
+  'einbeiniges Kreuzheben: die Hantel hängt auf der freien Seite, wie der Hinweis sagt');
 
 console.log(`\n${fails ? fails + " FEHLER" : "alle Prüfungen bestanden"}`);
