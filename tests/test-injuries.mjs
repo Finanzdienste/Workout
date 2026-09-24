@@ -42,9 +42,15 @@ const daten = await page.evaluate(async () => {
     if (!SPOTS[i.spot]) bad.push(`${i.id}: Stelle ${i.spot} gibt es nicht`);
     if (!i.care || !i.care.length) bad.push(`${i.id}: keine Zusatzübungen`);
     i.avoid.forEach((x) => { if (!ids.has(x)) bad.push(`${i.id}: ${x} ist keine Übung`); });
+    [...(i.avoidBw || []), ...(i.avoidDb || [])].forEach((x) => {
+      if (!ids.has(x)) bad.push(`${i.id}: ${x} (nur in einem Modus gesperrt) ist keine Übung`);
+    });
     Object.entries(i.swap).forEach(([a, b]) => {
       if (!ids.has(b)) bad.push(`${i.id}: Ersatz ${b} ist keine Übung`);
-      if (!i.avoid.includes(a)) bad.push(`${i.id}: Ersatz für ${a}, das gar nicht gesperrt ist`);
+      // Gesperrt heißt: allgemein oder in einem Modus (avoidBw/avoidDb) – ein
+      // Ersatz für eine nur im Bodyweight-Modus gesperrte Übung ist keiner auf Vorrat.
+      const irgendwo = [...i.avoid, ...(i.avoidBw || []), ...(i.avoidDb || [])];
+      if (!irgendwo.includes(a)) bad.push(`${i.id}: Ersatz für ${a}, das gar nicht gesperrt ist`);
       if (i.avoid.includes(b)) bad.push(`${i.id}: Ersatz ${b} ist selbst gesperrt`);
     });
   });

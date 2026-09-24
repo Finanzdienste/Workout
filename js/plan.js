@@ -13,7 +13,7 @@ import * as store from './store.js';
 import { EXERCISES, PLAN, REST } from './data.js';
 import { EX_BY_ID, directOf, directSets, gezaehlteReps, stufenWerte } from './uebung.js';
 import { addDays, daysBetween, plural, todayISO } from './dates.js';
-import { INJURIES, applyInjuries } from './injuries.js';
+import { INJURIES, applyInjuries, gesperrt, modusTausch } from './injuries.js';
 import { faelltAus, termine } from './termine.js';
 import { esc } from './text.js';
 import { ruestOrderStabil } from './gewichte.js';
@@ -178,9 +178,16 @@ export function adjustedPlan() {
 }
 
 /** Was an einem Plantag getauscht wurde und was wegfiel. */
-export function injuryNotes(n) {
+export function injuryNotes(n, mode) {
   adjustedPlan();
-  const roh = planCache.notes[n - 1] || { dropped: [], swapped: [], termin: [] };
+  let roh = planCache.notes[n - 1] || { dropped: [], swapped: [], termin: [] };
+  // Mit Modus kommen die Sperren dazu, die nur in diesem Modus gelten – sonst
+  // fiele im Bodyweight-Modus eine Übung weg, und die Notiz sagte nichts dazu.
+  const w = PLAN[n - 1];
+  if (mode && w) {
+    const r = modusTausch(vorratFassung(gestufteSaetze(w, mode), mode).items, activeInjuries(), mode);
+    roh = { ...roh, dropped: roh.dropped.concat(r.dropped), swapped: roh.swapped.concat(r.swapped) };
+  }
   // Was protokolliert ist, ist weder ausgefallen noch getauscht worden – es
   // steht wieder da (behalteProtokolliertes). Ohne diesen Filter hieß es an
   // einer längst trainierten Einheit nach einem nachgetragenen Padel-Tag
@@ -229,8 +236,14 @@ export function injuryNotes(n) {
  * hängen am Plan. Ein Ersatz mit anderen Anteilen verschöbe sie stillschweigend
  * für jeden Anfänger. tests/test-anfaenger.mjs prüft das für jedes Paar.
  */
-function anfaengerFassung(ex) {
+function anfaengerFassung(ex, m) {
   const s = store.getState();
+  // Nichts hierher holen, was eine angehakte Beschwerde sperrt. Gefunden bei
+  // der Durchsicht der App: Wer einmal die Crunches als Fassung gewählt hatte
+  // und später eine Bauchmuskelzerrung anhakte, behielt die Crunches – samt dem
+  // Hinweis „der Plan ist angepasst". Die Beschwerde lief vorher, die Wahl
+  // danach, und die Wahl kannte keine Sperren. Zwanzig solcher Paare im Plan.
+  const tabu = gesperrt(s.injuries || [], m);
   const anfaenger = (s.level || 'geuebt') === 'anfaenger';
   const wahl = s.fassung || {};
   let getauscht = false;
@@ -248,9 +261,10 @@ function anfaengerFassung(ex) {
     // verträgt, hakt das unter Beschwerden an; dort entscheidet die App, was
     // wegfällt und was einspringt. Was hier bleibt, ist kein Ersatz, sondern
     // dieselbe Übung an einem anderen Gerät.
-    const eigene = gleich.includes(wahl[it.id]) ? wahl[it.id] : null;
-    if (!eigene && (!ersatz || !EX_BY_ID.has(ersatz))) return it;
-    const ziel = eigene || (anfaenger && ersatz ? ersatz : it.id);
+    const eigene = gleich.includes(wahl[it.id]) && !tabu.has(wahl[it.id]) ? wahl[it.id] : null;
+    const leicht = ersatz && EX_BY_ID.has(ersatz) && !tabu.has(ersatz) ? ersatz : null;
+    if (!eigene && !leicht) return it;
+    const ziel = eigene || (anfaenger && leicht ? leicht : it.id);
     if (ziel === it.id) return it;
     getauscht = true;
     return { ...it, id: ziel, statt: it.id, stattWarum: eigene ? 'fassung' : 'stufe' };
@@ -388,7 +402,7 @@ function gestufteSaetze(w, m) {
   // Erst die Stufe, dann der Vorrat. Die Anfängerfassung einer Übung braucht
   // oft weniger Gerät – das hängende Knieheben die Klimmzugstange, das liegende
   // nichts. Andersherum fiele sie weg, statt getauscht zu werden.
-  const geplant = anfaengerFassung(adjustedPlan()[w.n - 1] || w.ex);
+  const geplant = anfaengerFassung(adjustedPlan()[w.n - 1] || w.ex, m);
   return geplant.map((it) => {
     const roh = m === 'bw' && it.bwSets ? it.bwSets : it.sets;
     const sets = satzZahl(roh);
@@ -501,7 +515,8 @@ function behalteProtokolliertes(n, items) {
 export function exBasis(w, mode) {
   if (istCustom(w.n)) return w.ex;
   const m = mode || store.workoutMode(w.n);
-  const items = behalteProtokolliertes(w.n, vorratFassung(gestufteSaetze(w, m), m).items);
+  const vorher = vorratFassung(gestufteSaetze(w, m), m).items;
+  const items = behalteProtokolliertes(w.n, modusTausch(vorher, activeInjuries(), m).items);
   // Nur bei den Hanteln: Im Bodyweight-Modus gibt es nichts umzubauen, und die
   // Reihenfolge soll dann die des Plans bleiben.
   return m === 'db' ? ruestOrderStabil(items, w.n, 'db') : items;

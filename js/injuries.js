@@ -94,7 +94,11 @@ export const INJURIES = [
     // darunter, also steht hier ein Tausch statt einer Lücke: Sonst verlöre der
     // Trizeps seine einzige eigene Übung.
     swap: { 'sitzendes-seitheben': 'reverse-fly', 'fuesse-erhoehte-liegestuetze': 'floor-press',
-      'pike-liegestuetze': 'floor-press', 'liegende-trizepsstrecker': 'trizeps-strecken-stange' },
+      'pike-liegestuetze': 'floor-press', 'liegende-trizepsstrecker': 'trizeps-strecken-stange',
+      // Wie beim Pike: Drücken am Boden bleibt unter dem Bogen, der weh tut. Das
+      // Schulterdrücken fiel vorher ersatzlos weg, obwohl sein Schmerztext
+      // „wird durch Drücken am Boden ersetzt" sagte.
+      'sitzendes-schulterdruecken': 'floor-press' },
     care: [
       'aussenrotation', 'wandengel', 'brustdehnung', 'schulterblatt', 'sleeper',
     ],
@@ -149,7 +153,11 @@ export const INJURIES = [
     // Ersatz ist das Rudern, nicht der Obergriff: Pull-ups drehen den Unterarm
     // zwar nicht nach außen, hängen ihn aber gestreckt an die Stange – und
     // genau dieser Zug reizt die Sehne ebenfalls.
-    swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'chin-ups': 'einarmiges-kh-rudern', 'inverted-row': 'einarmiges-kh-rudern' },
+    swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'chin-ups': 'einarmiges-kh-rudern', 'inverted-row': 'einarmiges-kh-rudern',
+      // Die Pull-ups fielen hier ersatzlos weg, während ihr eigener Schmerztext
+      // „dann übernimmt das Rudern" versprach. Dasselbe Argument wie bei den
+      // Chin-ups: Rudern zieht in dieselbe Richtung, ohne gestreckt zu hängen.
+      'pull-ups': 'einarmiges-kh-rudern' },
     care: ['aussenrotation', 'brustdehnung', 'beugerDehnen'],
   },
 
@@ -219,6 +227,12 @@ export const INJURIES = [
     care: [
       'handgelenkMobil', 'streckerDehnen', 'beugerDehnen', 'fingerstrecker',
     ],
+    // Im Bodyweight-Modus sind Floor Press und Bodenpresse Liegestütze, und der
+    // Tausch oben landete damit genau in der Stellung, die hier verboten ist –
+    // rund 300 Sätze über den Oberkörper-Plan, und der Tab meldete einen Tausch.
+    // Einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht; also
+    // fällt es dort weg, und das ist ehrlicher als ein Ersatz, der auch weh tut.
+    avoidBw: ['floor-press', 'kurzhantel-bodenpresse'],
   },
   {
     id: 'handgelenk-bruch',
@@ -237,6 +251,13 @@ export const INJURIES = [
       'rucksack-rudern', 'sitzendes-flaschen-seitheben'],
     swap: { 'haengendes-knieheben': 'liegendes-knieheben', 'goblet-squat': 'hip-thrust', 'fersenerhoehter-goblet-squat': 'hip-thrust' },
     care: ['handgelenkMobil', 'fingerstrecker', 'schulterkreisen'],
+    // Mit Hanteln halten diese Übungen die Last in der Hand – Langhantel,
+    // Kurzhantel, die Stange auf der Hüfte. Ohne Hanteln brauchen dieselben
+    // Übungen die Hände nicht, deshalb gilt die Sperre nur dort. Vorher blieben
+    // sie in beiden Modi stehen, und die App schlug mit frischem Bruch eine
+    // 40-kg-Langhantel vor.
+    avoidDb: ['rumaenisches-kreuzheben', 'einbeiniges-kreuzheben', 'hip-thrust',
+      'beckenheben', 'wadenheben-gebeugtes-knie', 'einbeiniges-stehendes-wadenheben'],
   },
   {
     id: 'daumen-sehnenscheide',
@@ -463,9 +484,13 @@ export const INJURIES = [
       'split-squat',
       'einbeiniges-kreuzheben'
     ],
-    swap: { 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+    swap: { 'rumaenisches-kreuzheben': 'sliding-leg-curl', 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['adduktoren', 'huefte9090', 'glutebridge'],
+    // Im Bodyweight-Modus ist das Rumänische Kreuzheben eine einbeinige
+    // Standwaage – dieselbe Belastung, die hier beim einbeinigen Kreuzheben
+    // gesperrt ist. Mit der Langhantel steht man auf zwei Beinen.
+    avoidBw: ['rumaenisches-kreuzheben'],
   },
   {
     id: 'patellasehne',
@@ -488,8 +513,12 @@ export const INJURIES = [
       'split-squat',
       'einbeiniges-kreuzheben'
     ],
-    swap: { 'goblet-squat': 'hip-thrust', 'einbeiniger-sliding-leg-curl': 'hip-thrust', 'einbeiniges-kreuzheben': 'hip-thrust' },
+    swap: { 'rumaenisches-kreuzheben': 'hip-thrust', 'goblet-squat': 'hip-thrust', 'einbeiniger-sliding-leg-curl': 'hip-thrust', 'einbeiniges-kreuzheben': 'hip-thrust' },
     care: ['knieextension', 'wandsitz', 'glutebridge'],
+    // Im Bodyweight-Modus ist das Rumänische Kreuzheben eine einbeinige
+    // Standwaage – dieselbe Belastung, die hier beim einbeinigen Kreuzheben
+    // gesperrt ist. Mit der Langhantel steht man auf zwei Beinen.
+    avoidBw: ['rumaenisches-kreuzheben'],
   },
   {
     id: 'kreuzband',
@@ -506,6 +535,10 @@ export const INJURIES = [
     ],
     swap: {},
     care: ['knieextension', 'glutebridge', 'einbeinstand'],
+    // Im Bodyweight-Modus ist das Rumänische Kreuzheben eine einbeinige
+    // Standwaage – dieselbe Belastung, die hier beim einbeinigen Kreuzheben
+    // gesperrt ist. Mit der Langhantel steht man auf zwei Beinen.
+    avoidBw: ['rumaenisches-kreuzheben'],
   },
   {
     id: 'laeuferknie',
@@ -518,10 +551,14 @@ export const INJURIES = [
       'split-squat',
       'einbeiniges-kreuzheben'
     ],
-    swap: { 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
+    swap: { 'rumaenisches-kreuzheben': 'sliding-leg-curl', 'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
       'fersenerhoehter-goblet-squat': 'goblet-squat', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['piriformis', 'glutebridge', 'huefte9090', 'wandsitz'],
+    // Im Bodyweight-Modus ist das Rumänische Kreuzheben eine einbeinige
+    // Standwaage – dieselbe Belastung, die hier beim einbeinigen Kreuzheben
+    // gesperrt ist. Mit der Langhantel steht man auf zwei Beinen.
+    avoidBw: ['rumaenisches-kreuzheben'],
   },
   {
     id: 'hamstringzerrung',
@@ -570,10 +607,14 @@ export const INJURIES = [
       'split-squat',
       'einbeiniges-kreuzheben'
     ],
-    swap: { 'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
+    swap: { 'rumaenisches-kreuzheben': 'sliding-leg-curl', 'einbeiniges-stehendes-wadenheben': 'wadenheben-gebeugtes-knie',
       'einbeiniger-sliding-leg-curl': 'sliding-leg-curl',
       'goblet-squat': 'fersenerhoehter-goblet-squat', 'einbeiniges-kreuzheben': 'sliding-leg-curl' },
     care: ['fussABC', 'einbeinstand', 'wadeGestreckt', 'zehenheben'],
+    // Im Bodyweight-Modus ist das Rumänische Kreuzheben eine einbeinige
+    // Standwaage – dieselbe Belastung, die hier beim einbeinigen Kreuzheben
+    // gesperrt ist. Mit der Langhantel steht man auf zwei Beinen.
+    avoidBw: ['rumaenisches-kreuzheben'],
   },
   {
     id: 'schienbeinkante',
@@ -922,11 +963,87 @@ export function applyInjuries(items, active, taboo = EMPTY) {
       return;
     }
     swapped.push({ from: item.id, to, sets: item.sets });
-    const same = out.find((x) => x.id === to);
-    if (same) same.sets += item.sets;
-    else out.push({ id: to, sets: item.sets, from: item.id });
+    out.push({ ...item, id: to, from: item.id });
   });
-  return { items: out, dropped, swapped };
+  return { items: zusammenlegen(out), dropped, swapped };
+}
+
+/**
+ * Dieselbe Übung zweimal in einer Einheit wird eine, mit den Sätzen beider.
+ *
+ * Vorher wurde nur zusammengelegt, wenn das Tauschziel *vor* dem getauschten
+ * Eintrag stand. Kam es danach, stand die Übung doppelt da – gemessen mit
+ * Schulter-Impingement: zweimal Floor Press in Workout 3, zweimal Reverse Fly
+ * in Workout 2. Ein Tipp hakte dann beide Karten ab (sie teilen sich die
+ * Satzliste), und Zähler, Abschluss und Wochenvolumen stimmten nicht mehr.
+ *
+ * Und `bwSets` geht nicht mehr verloren: Der getauschte Eintrag bestand bisher
+ * nur aus id, sets und from, im Bodyweight-Modus galt dann die Hantel-Satzzahl.
+ */
+export function zusammenlegen(items) {
+  const out = [];
+  items.forEach((it) => {
+    const da = out.find((x) => x.id === it.id);
+    if (!da) { out.push({ ...it }); return; }
+    const bw = (x) => x.bwSets ?? x.sets ?? 0;
+    if (da.bwSets !== undefined || it.bwSets !== undefined) da.bwSets = bw(da) + bw(it);
+    da.sets = (da.sets || 0) + (it.sets || 0);
+  });
+  return out;
+}
+
+/**
+ * Sperren, die nur in einem Modus gelten.
+ *
+ * Die Sperrlisten hängen an der Übung, und eine Übung hat zwei Fassungen. Bei
+ * den meisten ist das dieselbe Bewegung; bei einigen nicht, und dort griffen
+ * die Sperren ins Leere – gefunden bei der Durchsicht der App:
+ *
+ *   Handgelenksüberlastung   tauschte Liegestütze auf die Floor Press – und die
+ *                            *ist* im Bodyweight-Modus ein Liegestütz. Rund 300
+ *                            Sätze über 21 Wochen in genau der Stellung, die der
+ *                            Eintrag verbietet, und der Tab meldete einen Tausch.
+ *   Kreuzband, Sprunggelenk  sperrten das einbeinige Kreuzheben, aber nicht das
+ *                            rumänische – dessen Bodyweight-Fassung ist eine
+ *                            einbeinige Standwaage.
+ *   Handgelenkbruch          ließ mit Hanteln Kreuzheben, Wadenheben mit
+ *                            Kurzhantel und den Hip Thrust mit Stange stehen –
+ *                            ohne Hanteln brauchen dieselben Übungen die Hände
+ *                            nicht.
+ *
+ * `avoidDb` und `avoidBw` am Eintrag nennen solche Übungen; gesperrt() liefert
+ * alles, was im jeweiligen Modus nicht geht.
+ */
+export function gesperrt(active, mode) {
+  const out = blocked(active);
+  const feld = mode === 'bw' ? 'avoidBw' : 'avoidDb';
+  active.forEach((id) => {
+    const inj = BY_ID.get(id);
+    ((inj && inj[feld]) || []).forEach((x) => out.add(x));
+  });
+  return out;
+}
+
+/** Die Modus-Sperren anwenden: tauschen, wo ein Ersatz im Modus geht, sonst streichen. */
+export function modusTausch(items, active, mode) {
+  const alle = gesperrt(active, mode);
+  const allgemein = blocked(active);
+  const dropped = [];
+  const swapped = [];
+  const out = [];
+  items.forEach((item) => {
+    if (!alle.has(item.id) || allgemein.has(item.id)) { out.push(item); return; }
+    let to = null;
+    for (const id of active) {
+      const inj = BY_ID.get(id);
+      const ziel = inj && inj.swap[item.id];
+      if (ziel && !alle.has(ziel)) { to = ziel; break; }
+    }
+    if (!to) { dropped.push({ ...item, reason: 'none' }); return; }
+    swapped.push({ from: item.id, to, sets: item.sets });
+    out.push({ ...item, id: to, from: item.id });
+  });
+  return { items: zusammenlegen(out), dropped, swapped };
 }
 
 /**

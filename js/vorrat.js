@@ -45,7 +45,7 @@
  */
 import { EXERCISES } from './data.js';
 import { EX_BY_ID } from './uebung.js';
-import { blocked } from './injuries.js';
+import { gesperrt } from './injuries.js';
 import * as store from './store.js';
 
 /**
@@ -268,8 +268,9 @@ function deckung(a, b) {
 export function ersatzFuer(exId, mode, belegt = new Set()) {
   const ex = EX_BY_ID.get(exId);
   if (!ex) return null;
-  const gesperrt = blocked(store.getState().injuries || []);
-  const frei = (id) => id !== exId && !gesperrt.has(id) && uebungGeht(id, mode);
+  // Mit Modus: Ein Ersatz, der nur im anderen Modus erlaubt ist, ist keiner.
+  const tabu = gesperrt(store.getState().injuries || [], mode);
+  const frei = (id) => id !== exId && !tabu.has(id) && uebungGeht(id, mode);
 
   const anteile = ex[mode].shares;
   const key = JSON.stringify(Object.entries(anteile).sort());

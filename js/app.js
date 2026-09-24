@@ -3627,7 +3627,7 @@ function terminListe() {
 function injuryNote(w, mode) {
   const act = activeInjuries();
   if (!act.length) return '';
-  const { dropped, swapped } = injuryNotes(w.n);
+  const { dropped, swapped } = injuryNotes(w.n, mode);
   const names = act.map((id) => (injuryById(id) || {}).name).filter(Boolean);
   const nm = (id) => resolve({ id, sets: 0 }, mode).name;
   const lines = [];

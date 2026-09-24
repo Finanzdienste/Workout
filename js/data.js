@@ -207,7 +207,7 @@ export const EXERCISES = [
     "schmerz": [
       {
         "ort": "Handgelenk",
-        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer zwei Kurzhanteln hat: Auf den Griffen stützen stellt das Handgelenk gerade, und das Problem ist weg.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
         "verletzung": [
           "handgelenk-reizung"
         ]
@@ -481,7 +481,7 @@ export const EXERCISES = [
       },
       {
         "ort": "Ellenbogen",
-        "text": "Der Ellenbogen streckt hier gegen Last, und wenn dabei die Spitze selbst weh tut – nicht der Muskel darum, sondern der Knochenpunkt – dann ist meist der Schleimbeutel gereizt. Typisch ist, dass es auch beim Aufstützen auf einen Tisch drückt.\n\nErst das Naheliegende: Stopp die Bewegung kurz vor der vollen Streckung. Die letzten Grad bringen für die Brust nichts und sind genau der Teil, der drückt. Dazu weniger Gewicht und langsamer ablassen.\n\nIst der Punkt geschwollen oder warm, gehört es unter die Beschwerden – und in dem Fall ist auch ein Arzt keine schlechte Idee.",
+        "text": "Der Ellenbogen streckt hier gegen Last, und wenn dabei die Spitze selbst weh tut – nicht der Muskel darum, sondern der Knochenpunkt – dann ist meist der Schleimbeutel gereizt. Typisch ist, dass es auch beim Aufstützen auf einen Tisch drückt.\n\nErst das Naheliegende: Stopp die Bewegung kurz vor der vollen Streckung. Die letzten Grad sind genau der Teil, der drückt; bis kurz davor arbeitet der Trizeps genauso. Dazu weniger Gewicht und langsamer ablassen.\n\nIst der Punkt geschwollen oder warm, gehört es unter die Beschwerden – und in dem Fall ist auch ein Arzt keine schlechte Idee.",
         "verletzung": [
           "ellenbogen-bursitis"
         ]
@@ -812,7 +812,7 @@ export const EXERCISES = [
       "name": "Band-Curls",
       "reps": "10–20",
       "equip": "Loop-Band",
-      "cue": "Band unter beide Füße, Enden in den Händen, Handflächen nach vorn. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Vorher standen hier enge supinierte Chin-ups – die trainieren aber vor allem den Rücken mit, und der ist an dem Tag schon bedient. Schwerer wird es mit breiterem Stand auf dem Band.",
+      "cue": "Band unter beide Füße, Enden in den Händen, Handflächen nach vorn. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Schwerer wird es mit breiterem Stand auf dem Band.",
       "rest": 120,
       "pattern": "curl",
       "shares": {
@@ -990,7 +990,7 @@ export const EXERCISES = [
     "schmerz": [
       {
         "ort": "Handgelenk",
-        "text": "Mit erhöhten Füßen liegt mehr Gewicht auf den Händen als beim gewöhnlichen Liegestütz, und das Handgelenk steht dabei fast im rechten Winkel. Das ist die unbequemste Stellung, die es kennt.\n\nDer Reihe nach: Hände etwas weiter auseinander, Finger leicht nach außen gedreht. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer zwei Kurzhanteln hat, stützt sich auf deren Griffen ab: Damit steht das Handgelenk gerade und das Problem ist weg.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse, wo die Hand hält statt zu stützen.",
+        "text": "Mit erhöhten Füßen liegt mehr Gewicht auf den Händen als beim gewöhnlichen Liegestütz, und das Handgelenk steht dabei fast im rechten Winkel. Das ist die unbequemste Stellung, die es kennt.\n\nDer Reihe nach: Hände etwas weiter auseinander, Finger leicht nach außen gedreht. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab: Damit steht das Handgelenk gerade. Runde Scheibenhanteln nicht – die rollen unter Last weg. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse, wo die Hand hält statt zu stützen.",
         "verletzung": [
           "handgelenk-reizung"
         ]
@@ -1201,7 +1201,7 @@ export const EXERCISES = [
       "name": "Vorgebeugtes Band-Rudern",
       "reps": "10–20",
       "equip": "Loop-Band",
-      "cue": "Beide Füße auf das Band, hüftbreit, Enden in beiden Händen. Rumpf etwa 60° vorgeneigt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben die Schulterblätter zusammen. Vorher standen hier Inverted Rows unter einer niedrigen Stange – die gibt es unterwegs nicht. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
+      "cue": "Beide Füße auf das Band, hüftbreit, Enden in beiden Händen. Rumpf etwa 60° vorgeneigt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben die Schulterblätter zusammen. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
       "rest": 150,
       "pattern": "rowbar",
       "shares": {
@@ -1255,7 +1255,7 @@ export const EXERCISES = [
       },
       {
         "ort": "Tief seitlich über dem Gesäß",
-        "text": "Ein Schmerz tief seitlich über der Gesäßhälfte, oft nur auf einer Seite: Dort sitzt das Kreuz-Darmbein-Gelenk. Kräftige Hüftstreckung reizt es, und der Hip Thrust ist genau das.\n\nErst die einfache Ursache: Schieben beide Seiten gleich? Wer unbewusst über ein Bein drückt, belastet das Gelenk einseitig. Füße gleich weit weg, gleich weit auseinander, und oben bewusst beide Gesäßhälften anspannen.\n\nSitzt der Punkt trotzdem fest, hier anhaken – dann tritt das Beckenheben ohne Zusatzlast an diese Stelle.",
+        "text": "Ein Schmerz tief seitlich über der Gesäßhälfte, oft nur auf einer Seite: Dort sitzt das Kreuz-Darmbein-Gelenk. Kräftige Hüftstreckung reizt es, und der Hip Thrust ist genau das.\n\nErst die einfache Ursache: Schieben beide Seiten gleich? Wer unbewusst über ein Bein drückt, belastet das Gelenk einseitig. Füße gleich weit weg, gleich weit auseinander, und oben bewusst beide Gesäßhälften anspannen.\n\nSitzt der Punkt trotzdem fest, hier anhaken – dann tritt das Beckenheben an diese Stelle – dieselbe Bewegung vom Boden aus, mit weniger Last.",
         "verletzung": [
           "isg"
         ]
@@ -1325,7 +1325,7 @@ export const EXERCISES = [
     "schmerz": [
       {
         "ort": "Nacken",
-        "text": "Dasselbe wie beim Band-Pull-Apart, und hier noch häufiger: Der Trapezmuskel zieht die Schultern hoch, statt dass die Schulterblätter zueinander wandern. Dann brennt der Nacken und die hintere Schulter bleibt kalt.\n\nWas hilft: leichteres Gewicht als man denkt – die hintere Schulter ist klein, und alles über ein paar Kilo macht hier jemand anders. Dazu die Arme nicht ganz strecken und oben nicht höher als bis auf Schulterhöhe.\n\nBleibt die Verspannung über Tage, gehört sie unter die Beschwerden – die Nackenverspannung steht dort als eigener Eintrag."
+        "text": "Dasselbe wie beim Band-Pull-Apart, und hier noch häufiger: Der Trapezmuskel zieht die Schultern hoch, statt dass die Schulterblätter zueinander wandern. Dann brennt der Nacken und die hintere Schulter bleibt kalt.\n\nWas hilft: leichteres Gewicht als man denkt – die hintere Schulter ist klein, und alles über ein paar Kilo macht hier jemand anders. Dazu die Arme nicht ganz strecken und oben nicht höher als bis auf Schulterhöhe.\n\nBleibt die Verspannung über Tage, ist sie kein Formfehler mehr. Unter Beschwerden steht die Nackenverspannung; sie nimmt vor allem das Seitheben und die Crunches heraus, der Reverse Fly bleibt – mit leichterem Gewicht ist er dort kein Problem."
       }
     ],
     "db": {
@@ -1352,7 +1352,7 @@ export const EXERCISES = [
       "name": "Vorgebeugtes Band-Reverse-Fly",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Auf das Band stellen, Enden überkreuz in die Hände, vorgebeugt wie mit den Hanteln. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt. Vorher standen hier Reverse Snow Angels – die führen die Arme bis über den Kopf und sind damit zu einem guten Teil Nacken statt hintere Schulter. Schwerer wird es mit dem nächststärkeren Band oder überkreuztem Griff.",
+      "cue": "Auf das Band stellen, Enden überkreuz in die Hände, vorgebeugt wie mit den Hanteln. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt. Schwerer wird es mit dem nächststärkeren Band oder überkreuztem Griff.",
       "rest": 120,
       "pattern": "reversefly",
       "shares": {
@@ -1678,7 +1678,7 @@ export const EXERCISES = [
       "name": "Band-Schulterdrücken",
       "reps": "8–15",
       "equip": "Loop-Band",
-      "cue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Vorher standen hier füße-erhöhte Pike Push-ups – die sind zu einem guten Teil Brust und treffen die seitliche Schulter kaum. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand darauf; leichter, indem du nur mit einem Fuß darauf stehst.",
+      "cue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand darauf; leichter, indem du nur mit einem Fuß darauf stehst.",
       "rest": 180,
       "pattern": "ohpstand",
       "shares": {
@@ -1901,7 +1901,7 @@ export const EXERCISES = [
     "schmerz": [
       {
         "ort": "Griff hält nicht",
-        "text": "Der häufigste Grund, warum diese Übung nicht funktioniert, ist kein Schmerz: Die Hand lässt vor dem Bauch los. Dann hast du den Unterarm trainiert und den Bauch nicht.\n\nDas ist keine Formfrage und kein Grund, sich durchzubeißen. Stell die Erfahrungsstufe unter Mehr auf Anfänger – dann steht überall das Knieheben im Liegen statt der hängenden Fassung, und der Griff fällt als Begrenzer weg. Zurück geht es jederzeit."
+        "text": "Der häufigste Grund, warum diese Übung nicht funktioniert, ist kein Schmerz: Die Hand lässt vor dem Bauch los. Dann hast du den Unterarm trainiert und den Bauch nicht.\n\nDas ist keine Formfrage und kein Grund, sich durchzubeißen. Oben an dieser Karte steht unter „Dieselben Muskeln, andere Übung“ das Knieheben im Liegen – einmal antippen, und es gilt für diese Übung im ganzen Plan. Dieselben Muskelanteile, also verschiebt sich an der Wochenrechnung nichts, und zurück geht es genauso."
       },
       {
         "ort": "Finger",
@@ -1912,7 +1912,7 @@ export const EXERCISES = [
       },
       {
         "ort": "Schulter vorn",
-        "text": "Vorn an der Schulter, in der Rinne am Oberarmkopf, läuft die lange Bizepssehne. Sie reibt bei Zug mit gestrecktem Arm – also genau im vollen Hang, bevor die Bewegung anfängt.\n\nWas oft reicht: nicht aus dem toten Hang starten, sondern zuerst die Schulterblätter nach unten ziehen und erst dann ziehen. Damit hängt das Gelenk nicht mehr passiv am Band. Und am Ende nicht einfach loslassen, sondern kontrolliert ablassen.\n\nBleibt der Punkt vorn, hier anhaken. Dann übernimmt das Rudern: dieselbe Richtung, aber der Arm hängt nicht gestreckt an der Last.",
+        "text": "Vorn an der Schulter, in der Rinne am Oberarmkopf, läuft die lange Bizepssehne. Sie reibt bei Zug mit gestrecktem Arm – also genau im vollen Hang, bevor die Bewegung anfängt.\n\nWas oft reicht: nicht aus dem toten Hang starten, sondern zuerst die Schulterblätter nach unten ziehen und erst dann ziehen. Damit hängt das Gelenk nicht mehr passiv am Band. Und am Ende nicht einfach loslassen, sondern kontrolliert ablassen.\n\nBleibt der Punkt vorn, hier anhaken. Dann tritt das Knieheben im Liegen an diese Stelle: derselbe Bauch, und die Schulter hängt an nichts.",
         "verletzung": [
           "bizepssehne"
         ]
@@ -2224,7 +2224,7 @@ export const EXERCISES = [
     "schmerz": [
       {
         "ort": "Handgelenk",
-        "text": "Im Pike steht der Körper steil über den Händen, und dadurch knickt das Handgelenk stärker ab als beim gewöhnlichen Liegestütz. Es trägt dabei einen großen Teil des Gewichts.\n\nWas hilft: die Hände etwas weiter vorn aufsetzen, sodass der Winkel flacher wird, und über die Fingerknöchel drücken statt über den Handballen. Auf zwei Kurzhantelgriffen abgestützt steht das Handgelenk gerade.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse.",
+        "text": "Im Pike steht der Körper steil über den Händen, und dadurch knickt das Handgelenk stärker ab als beim gewöhnlichen Liegestütz. Es trägt dabei einen großen Teil des Gewichts.\n\nWas hilft: die Hände etwas weiter vorn aufsetzen, sodass der Winkel flacher wird, und über die Fingerknöchel drücken statt über den Handballen. Auf den Fäusten oder auf Liegestützgriffen steht das Handgelenk gerade; auf Kurzhanteln nur, wenn sie sechseckig sind – runde rollen weg.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse.",
         "verletzung": [
           "handgelenk-reizung"
         ]
@@ -2350,7 +2350,7 @@ export const EXERCISES = [
       "name": "Enge Liegestütze",
       "reps": "8–20",
       "equip": "ohne",
-      "cue": "Liegestütze mit engem Handstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
+      "cue": "Liegestütze mit engem Handabstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
       "rest": 150,
       "pattern": "pushup",
       "shares": {
