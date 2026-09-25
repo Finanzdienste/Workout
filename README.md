@@ -3756,11 +3756,19 @@ Testleichen das Projekt versehentlich beschäftigt.
 **[`.github/workflows/rueckkanal-wach.yml`](.github/workflows/rueckkanal-wach.yml)**
 klopft montags und donnerstags einmal an. Zwei Dinge tut es ausdrücklich nicht:
 
-* **Keine Daten schreiben.** Der Aufruf geht an die Wurzel der
-  REST-Schnittstelle und liefert nur deren Schema. Ein Ping, der sich als Gerät
-  ausgäbe, wäre eine Lüge in der eigenen Statistik.
-* **Nicht rot werden.** Ein fehlgeschlagener Ping schreibt eine Warnung in den
-  Lauf und lässt ihn grün. Auf dem Spiel steht eine Übersicht — dafür jede Woche
+* **Keine Daten schreiben.** Ein Ping, der sich als Gerät ausgäbe, wäre eine
+  Lüge in der eigenen Statistik. Der Aufruf geht deshalb an `entferne()` mit der
+  Kennung `wachhalten-kein-geraet`, die kein Gerät haben kann (echte Kennungen
+  sind UUIDs aus Hexziffern). Die Datenbank führt ein DELETE aus, das null
+  Zeilen trifft, und antwortet 0. Käme etwas anderes zurück, schlägt der Lauf
+  an – das wäre ein echter Fehler.
+
+  *Vorher ging er an die Wurzel der REST-Schnittstelle und bekam sechsmal 200 –
+  und Supabase kündigte am 24.09. trotzdem die Pause an. Die Wurzel liefert nur
+  die Schnittstellenbeschreibung aus dem Zwischenspeicher von PostgREST und
+  fragt die Datenbank gar nicht. Ein grüner Lauf war also kein Beleg.*
+* **Nicht rot werden, wenn nur das Netz hakt.** Ein fehlgeschlagener Ping
+  schreibt eine Warnung in den Lauf und lässt ihn grün. Auf dem Spiel steht eine Übersicht — dafür jede Woche
   eine Fehlermail zu riskieren wäre schlimmer als die Pause, die verhindert
   werden soll.
 
