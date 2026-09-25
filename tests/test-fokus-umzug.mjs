@@ -62,7 +62,8 @@ const nach = await page.evaluate(async () => {
 check(nach.planName === 'Cut', `es läuft der benannte Nachfolger (${nach.planName})`);
 check(nach.focus === 'cut', `und der gespeicherte Fokus zieht nach (${nach.focus})`);
 check(nach.planLaenge === 84, `mit dessen 84 Einheiten statt der 96 von vorher (${nach.planLaenge})`);
-check(nach.ziele.abs === 9 && nach.ziele.hamstringsHip === 5,
+// Hüftstreckung 5,15 statt 5 seit dem Cut vom 25.09. – siehe tools/build-plan.py, 'cut'.
+check(nach.ziele.abs === 9 && nach.ziele.hamstringsHip === 5.15,
   `und dessen Zielen (Bauch ${nach.ziele.abs}, Hüftstreckung ${nach.ziele.hamstringsHip})`);
 
 check(!!nach.umzug, 'der Umzug ist vermerkt');

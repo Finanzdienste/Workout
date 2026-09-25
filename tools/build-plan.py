@@ -299,10 +299,22 @@ VARIANTEN = {
     # 5,15, hintere Schulter und Bizeps 7 → 6,95), gefunden mit demselben Löser
     # als die nächsten, die gehen. Die Oberkörperziele bleiben bei rund 7:
     # zwei Drittel des Aufbaus, genug zum Halten, solange die Lasten stehen.
+    #
+    # Dazu das Schulterdrücken mit zwei Sätzen je Woche. Ohne diese Zeile fiel
+    # es im ersten Lauf mit den fünf Grundübungen auf einen halben Satz je
+    # Woche, und die vordere Schulter – ohne eigenes Ziel, sie läuft mit – kam
+    # nur noch über Floor Press und Liegestütze dran. Zwei Sätze sind der
+    # kleinste Wert, mit dem sie ihre 8 aus dem Aufbau behält.
+    #
+    # Die Wochenmengen dieses Laufs kamen aus einem ausgewogenen Startpunkt
+    # (WK_START, unten), nicht aus dem Partikulärpunkt: Der Löser fand sonst
+    # zuerst einen Plan mit sechs Sätzen Waden und null Trizeps die Woche –
+    # exakt, aber schief.
     'cut': {
         'name': 'Cut',
         'pflicht': {'floor-press': 3, 'chin-ups': 3, 'rumaenisches-kreuzheben': 3,
-                    'einarmiges-kh-rudern': 3, 'goblet-squat': 3},
+                    'einarmiges-kh-rudern': 3, 'goblet-squat': 3,
+                    'sitzendes-schulterdruecken': 2},
         'ziele': {
             'chest': 7, 'lats': 7, 'sideDelts': 7, 'rearDelts': 6.95,
             'biceps': 6.95, 'triceps': 7, 'abs': 9,

@@ -61,18 +61,20 @@ heutige tag mit 4 Übungen optimal ist?"*, *„heute wieder nur fünf übungen �
 optimal?"*. Ob fünf viel oder wenig ist, weiß nur, wer die anderen 83 Einheiten
 daneben legen kann. Die kennt die App, der Nutzer nicht.
 
-Jetzt legt sie sie daneben. Jeder Fokus hat genau zwei Größen von Einheit, „Bauch,
-Beine, Po" drei, und die häufigste ist der Normalfall:
+Jetzt legt sie sie daneben. Jeder Fokus hat wenige Größen von Einheit – Aufbau
+und Oberkörper zwei, „Bauch, Beine, Po" drei, der Cut vier –, und die häufigste
+ist der Normalfall:
 
 | Fokus | Übungen je Einheit | häufigste Größe |
 |---|---|---|
 | Aufbau | 5 oder 6 | 6 (61 von 84) |
 | Oberkörper | 5 oder 6 | 6 (57 von 84) |
 | Bauch, Beine, Po | 5, 6 oder 7 | 6 (55 von 84) |
-| Cut | 4 oder 5 | 5 (62 von 84) |
+| Cut | 3 bis 6 | 5 (41 von 84) |
 
-Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall, und der Tag mit
-vier ist der kurze von zweiundzwanzig.
+Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall; 35 Tage haben
+vier Übungen, sieben haben sechs, ein einziger hat drei (Stand des Cut vom
+25.09., siehe [Der Cut vom 25.09.](#der-cut-vom-2509-fünf-feste-grundübungen)).
 
 In der Kopfzeile stand dafür kurz ein Wort – „kurzer Tag", „normaler Tag". Raus
 auf Zuruf: *„Das Wort 'kurzer Tag' soll weg."* Und zu Recht: Dort steht, was
@@ -100,7 +102,8 @@ kurz weggefallen, weil sie im Plan meist Rechnerei ist – `15 Sätze` ist dann 
 `5 Übungen` mal drei. Ohne das Wort daneben wäre die Zeile aber schlicht um eine
 Angabe kürzer, und in der Bodyweight-Fassung (die je Übung abweicht: 17 von 84
 Cut-Einheiten, 66 von 84 bei „Bauch, Beine, Po") und bei Nacharbeit ist die Summe
-ohnehin eine eigene Auskunft.
+ohnehin eine eigene Auskunft. *(17 von 84 war der Stand vor dem Cut vom 25.09.;
+seither sind es 22.)*
 
 ### Körperkarte
 
@@ -2497,6 +2500,9 @@ Woche bekommt genau die Sätze je Übung wie vorher, nur auf andere Einheiten.
 | Cut | 5 | 0 | 3,01 → 3,05 |
 | Oberkörper | 49 | 34 | 3,00 → 3,08 |
 
+*Die Cut-Zeile gilt für den Stand vom 17.09. Der Cut vom 25.09. (fünf feste
+Grundübungen, siehe unten) steht weiter bei null und bei 2,99 Rüstvorgängen.*
+
 **Null geht nicht überall, und das ist Arithmetik.** Im Oberkörper-Plan haben
 seitliche Schulter und Brust je 12 Sätze die Woche, also vier Auftritte, und die
 48-Stunden-Regel lässt eine Gruppe an höchstens drei der vier Tage zu. Ohne
@@ -2592,12 +2598,93 @@ Neuberechnung am 17.09. hat er eine eigene Auswahl – ohne Floor Press mit
 Stange, Chin-ups, Rumänisches Kreuzheben, Split Squat und Band-Pull-Apart, dafür
 mit einbeinigem Kreuzheben, Kurzhantel-Bodenpresse, Inverted Row, Face Pull,
 Pike-Liegestützen und Reverse Snow Angels; die Beinbeuger kommen einmal die
-Woche dran. Die Karte in der App rechnet die Unterschiede selbst aus
-(`fokusAnders` in `js/app.js`), die Wochenzahlen stehen in
-`python3 tools/pruefung/plan-pruefen.py --bericht`.*
+Woche dran. Seit dem 25.09. sind Floor Press, Chin-ups und Rumänisches
+Kreuzheben als Pflichtübungen zurück, siehe den nächsten Abschnitt. Die Karte
+in der App rechnet die Unterschiede selbst aus (`fokusAnders` in `js/app.js`),
+die Wochenzahlen stehen in `python3 tools/pruefung/plan-pruefen.py --bericht`.*
 
 Der fehlende Goblet Squat ist der eine Makel, und er ist verkraftbar: Der
 fersenerhöhte steht weiter im Plan, das Bewegungsmuster fehlt also nicht.
+
+### Der Cut vom 25.09.: fünf feste Grundübungen
+
+*„Wieso werden diese Übungen weggelassen?"* – gefragt zum Cut vom 17.09., in
+dem Floor Press, Chin-ups und Rumänisches Kreuzheben fehlten. Nicht mit
+Absicht: Weniger Sätze mussten für gleich viele Übungen reichen, und die
+Nebenkriterien des Lösers entschieden den Rest. Für einen Cut ist das verkehrt
+herum. Im Defizit halten die schweren Lasten die Muskeln; gekürzt gehört bei
+den Nebenübungen.
+
+Deshalb hat der Cut jetzt Pflichtübungen (`pflicht` in `tools/build-plan.py`,
+Sätze je Woche mindestens): Floor Press, Chin-ups, einarmiges
+Kurzhantel-Rudern, Rumänisches Kreuzheben und Goblet Squat mit je drei – eine
+je Bewegungsmuster: Drücken, Ziehen von oben, Ziehen von vorn, Hüftbeuge,
+Kniebeuge – und das sitzende Schulterdrücken mit zwei, weil die vordere
+Schulter kein eigenes Ziel hat und ohne diese Zeile auf einen halben Termin
+die Woche fiel.
+
+**Sechs Grundübungen gingen nicht, und das ist nachgerechnet, nicht vermutet.**
+Mit dem Hip Thrust als sechster hat der Cut zwischen 21 und 32 Wochen keine
+exakte Lösung: Hip Thrust, Kreuzheben und Goblet Squat treffen alle das Gesäß,
+und dessen Ziel von 8 reicht für drei Pflichtübungen nicht. Die kleinste
+Abweichung, die alle sechs hielte – Gesäß 9,6 und Hüftstreckung 5,85 – wäre
+mehr Beinvolumen als im Aufbau, im Defizit verkehrt. Der Hip Thrust bleibt
+also frei; er steht trotzdem im Plan (1,1 Sätze die Woche), die schwere
+Hüftstreckung trägt das Kreuzheben.
+
+Auch mit fünf ging es nicht exakt. Vier Ziele sind darum um eine Winzigkeit
+verschoben, gefunden mit einem ganzzahligen Löser (`scipy.optimize.milp`) als
+die nächsten, die aufgehen: Gesäß 8 → 7,9, Hüftstreckung 5 → 5,15, hintere
+Schulter und Bizeps 7 → 6,95. Die Oberkörperziele bleiben bei rund 7, zwei
+Drittel des Aufbaus.
+
+**Der Startpunkt entscheidet mit.** Der Generator beginnt an einem
+Partikulärpunkt der Gleichungen (`partikulaer()`) und wandert von dort zu
+ganzzahligen Lösungen (`wandern()`). Die erste, die er mit den Pflichtübungen
+fand, war exakt und schief: sechs Sätze Waden die Woche, null Trizeps.
+`tools/pruefung/startpunkt.py` rechnet deshalb vorher mit demselben Löser einen
+ausgewogenen Startpunkt – jede Übung möglichst nah an drei Sätzen die Woche,
+möglichst viele drin, Band und Rucksack als zweite Wahl, weil Hanteln und
+Stange im Haus sind – und der Generator nimmt ihn als `WK_START`. Der
+Startpunkt liegt als `tools/pruefung/cut-start.json` im Repo, damit der Lauf
+nachvollziehbar bleibt und nicht nur sein Ergebnis:
+
+    WK_START=tools/pruefung/cut-start.json WK_SEED=23 python3 tools/build-plan.py cut
+    WK_NUR_TAGE=1 WK_SPLITS=20000 WK_SEED=7 python3 tools/build-plan.py cut
+
+Erst die Mengen, dann nur die Tage noch einmal, gründlicher verteilt. Sieben
+Startwerte für den ersten Schritt und drei für den zweiten wurden gerechnet und
+an der Planprüfung, der Bewegungsregel und dem Rüstaufwand verglichen; genommen
+ist der mit den wenigsten Befunden.
+
+| | Cut vom 17.09. | Cut vom 25.09. |
+| --- | --- | --- |
+| Grundübungen | ohne Floor Press, Chin-ups, Kreuzheben | alle sechs, mit ihrem Minimum |
+| Sätze je Woche | 48–63 (Ø 55,9) | 51–60 (Ø 55,7) |
+| Sätze je Einheit | 12–18 (Ø 14,0) | 9–18 (Ø 13,9) |
+| Übungen je Einheit | 4–6 | 3–6 |
+| Übungen im Plan | 25 | 23 |
+| Rüstvorgänge je Einheit | 3,05 | 2,99 |
+| dieselbe Bewegung zweimal in einer Einheit | 0 | 0 |
+| vordere Schulter (mitlaufend, Sätze je Woche) | 6,7 | 8,0 |
+
+**Was es kostet, steht hier.** Herausgefallen sind einbeiniges Kreuzheben,
+Face Pull, gewichtete Liegestütze, liegende Trizepsstrecker und Pull-ups – die
+Pflichtübungen nehmen ihnen die Sätze, und mehr Sätze gibt es im Cut nicht. Die
+Planprüfung meldete zwanzig Verschiebungen, alle bewusst hingenommen: die
+seitliche Schulter mit 1,67 statt 1,9 Terminen je Woche, der Nacken mit 2,33
+statt 2,67, der Oberschenkel mit bis zu 7 statt 5 Tagen Abstand, die
+Hüftstreckung in der stärksten Woche mit 6,9 statt 5,85 Sätzen, ohne Hanteln
+Brust und vordere Schulter mit je einem Satz mehr in der stärksten Woche.
+
+Und die Einheiten sind ungleicher lang: eine einzige mit drei Übungen und neun
+Sätzen, sieben mit sechs und achtzehn, dazwischen die üblichen vier und fünf.
+Das ist kein Zufall des einen Laufs – alle sieben Startwerte und alle drei
+Tagesverteilungen enden bei 9 bis 18 Sätzen mit genau einer Neuner-Einheit.
+Woran es liegt, ist nicht nachgewiesen; die naheliegende Erklärung sind die
+sechs festen Übungen, die dem Tagesplaner an vier Tagen weniger Spielraum
+lassen. Die Karte in der App rechnet die Größen selbst aus (`tagLaenge()`),
+der Vergleich zum Aufbau steht in `fokusAnders()`.
 
 ### „Kurz und knapp" war ein Jahr lang kaputt
 
