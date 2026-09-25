@@ -36,6 +36,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 META = json.loads((ROOT / 'tools' / 'exercise-meta.json').read_text(encoding='utf-8'))
 FIG = (ROOT / 'js' / 'figure.js').read_text(encoding='utf-8')
 
+# Die Geräte, die man hebt – aus tools/build-data.py gelesen, nicht abgeschrieben.
+sys.path.insert(0, str(ROOT / 'tools'))
+MIT_LAST = __import__('importlib').import_module('build-data').MIT_LAST
+
 # Haltung je Bewegungsmuster, direkt aus js/figure.js gelesen statt hier
 # abgeschrieben – eine zweite Liste wäre die nächste Stelle zum Auseinanderlaufen.
 MUSTER = {}
@@ -120,6 +124,26 @@ for k, e in sorted(META.items()):
         text = e.get(f'{modus}Equip') or ''
         if re.search(r'\boder\b|/', text):
             melde(k, f'{modus}: Gerätetext stellt eine Wahl – „{text}"; eines festlegen', '')
+
+    # 6. Wo eine Last gehoben wird, steht, wie man sie allein hochnimmt und ablegt.
+    #
+    #     „Sag am besten bei jeder Übung auch immer wie man das Gewicht am
+    #      besten zuhause hochnimmt und ablegt wenn man alleine ist und so"
+    #
+    # Der Hinweis beschreibt die Bewegung; dass die Stange vorher am Boden
+    # liegt und nachher wieder dorthin muss – ohne Ständer, ohne zweite Person –
+    # stand nirgends. Verlangt für jedes gezeichnete Gerät, das man hebt
+    # (MIT_LAST in tools/build-data.py); Band und Klimmzugstange hebt niemand.
+    # Beide Wörter müssen vorkommen, sonst fehlt die Hälfte: Das Ablegen ist
+    # der Teil, bei dem man müde ist.
+    if gear in MIT_LAST:
+        text = e.get('dbHeben') or ''
+        if not text:
+            melde(k, f'db: Figur zeichnet „{gear}", aber kein dbHeben – wie kommt die Last hoch und wieder herunter?', '')
+        elif not (re.search(r'hochnehmen|heben|greifen|aufstehen|aufsetzen|hineinrollen|hinlegen|hinsetzen|zur schulter',
+                            text, re.I)
+                  and re.search(r'ablegen|abstellen|absetzen|abnehmen|zurück|boden', text, re.I)):
+            melde(k, 'db: dbHeben nennt Hochnehmen oder Ablegen nicht', text[:70])
 
 
 # 4. Schlüssel gegen Namen – eine Warnung, kein Fehler.

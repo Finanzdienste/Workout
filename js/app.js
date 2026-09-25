@@ -1273,6 +1273,7 @@ function renderFocus() {
     </section>
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
+    ${hebenBlock(it)}
     ${schmerzBlock(it)}
     ${detailBlock(it)}
 
@@ -2241,6 +2242,7 @@ function renderDashboard() {
           ${open ? `<div class="ex-fig" data-pattern="${esc(it.pattern)}"
                data-weight="${it.weight !== null}" data-gear="${esc(it.gear || '')}"></div>` : ''}
           <div class="cue">${esc(it.cue)}</div>
+          ${hebenBlock(it)}
           ${schmerzBlock(it)}
           ${detailBlock(it)}
           <div class="ex-facts">
@@ -2948,6 +2950,23 @@ function schmerzBlock(it) {
       <div class="lbl">Wenn etwas weh tut</div>
       ${it.schmerz.map(zeile).join('')}
     </div>`;
+}
+
+/*
+ * Wie man die Last allein zu Hause hochnimmt und ablegt.
+ *
+ *     „Sag am besten bei jeder Übung auch immer wie man das Gewicht am besten
+ *      zuhause hochnimmt und ablegt wenn man alleine ist und so"
+ *
+ * Immer sichtbar, nicht hinter „Mehr zur Ausführung": Der Hinweis beschreibt
+ * die Bewegung, aber die Stange liegt vorher auf dem Boden und muss nachher
+ * wieder dorthin – ohne Ständer, ohne zweite Person. Das ist der Teil, an dem
+ * man sich zu Hause verhebt, und er stand nirgends. Nur in der Hantel-Variante
+ * und nur, wo es eine Last gibt (heben() in tools/build-data.py).
+ */
+function hebenBlock(it) {
+  if (!it.heben) return '';
+  return `<div class="heben"><b>Hochnehmen und ablegen:</b> ${esc(it.heben)}</div>`;
 }
 
 function detailBlock(it) {

@@ -793,6 +793,9 @@ export function resolve(item, mode) {
     stattWarum: item.stattWarum || null,
     name: v.name, reps: stufe.reps, equip: v.equip, cue: v.cue, rest: stufe.rest,
     pattern: v.pattern, muscles: v.muscles,
+    // Wie man die Last allein zu Hause hochnimmt und ablegt – nur in der
+    // Hantel-Variante und nur, wo es eine gibt (tools/build-data.py, heben()).
+    heben: v.heben || null,
     // Die ausführliche Erklärung hängt an der Übung, gefiltert nach Modus.
     // Hier stand, Griff, Aufbau und Fehler seien in beiden Fassungen dieselben.
     // Oft stimmte das nicht: Bei „Enge Liegestütze" erklärte die Karte, warum

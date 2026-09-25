@@ -3346,6 +3346,34 @@ verlangt, wäre der Trizeps ohne Band und Stange nur noch nebenbei drangekommen
 `tools/pruefung/geraete.py` prüft seither, dass kein Gerätetext ein „oder"
 oder einen Schrägstrich enthält.
 
+### Hochnehmen und ablegen
+
+*„Sag am besten bei jeder Übung auch immer wie man das Gewicht am besten
+zuhause hochnimmt und ablegt wenn man alleine ist und so"*
+
+Der Hinweis beschreibt die Bewegung – aber die Stange liegt vorher auf dem
+Boden und muss nachher wieder dorthin, ohne Ständer und ohne zweite Person.
+Das ist der Teil, an dem man sich zu Hause verhebt, und er stand nirgends.
+Beim Floor Press stand er im Hinweis, versteckt hinter dem Griff.
+
+Jetzt hat jede Übung, bei der eine Last gehoben wird (`dbHeben` in
+`tools/exercise-meta.json`, 25 Übungen: Kurzhanteln, Lang- und SZ-Stange,
+Scheibe, Rucksack), einen eigenen Absatz **Hochnehmen und ablegen** direkt
+unter dem Hinweis – auf der Karte und in der Fokusansicht, immer sichtbar,
+nicht hinter *Mehr zur Ausführung*. Der Ton ist überall derselbe: mit den
+Beinen aus der Hocke, nicht mit dem Rücken; erst hinsetzen oder hinlegen,
+dann greifen; am Ende denselben Weg zurück und erst auf dem Boden loslassen.
+Dazu je Übung das Eigene: die Stange beim Floor Press und Hip Thrust über die
+gestreckten Füße hineinrollen und über die Oberschenkel ziehen, die Hanteln
+beim Schulterdrücken mit einem Schwung aus dem Knie zur Schulter, den Rucksack
+im Stehen anziehen und über die Knie in den Liegestütz.
+
+Band und Klimmzugstange haben keinen: Da wird nichts gehoben, das Anlegen
+steht im Hinweis. Ohne Hanteln gibt es keine Last, also auch keinen Absatz.
+`tools/pruefung/geraete.py` verlangt den Text für jedes gezeichnete Gerät aus
+`MIT_LAST` (`tools/build-data.py`) und dass Hochnehmen und Ablegen beide
+vorkommen – das Ablegen ist der Teil, bei dem man müde ist.
+
 ### Jede Übung muss einen Weg nach unten nennen
 
 Der Plan gibt Wiederholungsbereiche vor. Wer sie nicht erreicht, braucht eine

@@ -5,6 +5,7 @@
     "dbEquip": "Kurzhantel",
     "bwEquip": "Ohne Gerät",
     "dbCue": "Hantel senkrecht vor der Brust halten, Ellenbogen zwischen den Knien führen. Tief absitzen, Rumpf aufrecht, Fersen am Boden.",
+    "dbHeben": "Die Hantel steht senkrecht auf dem Boden zwischen den Füßen. In die Hocke, Rücken gerade, beide Hände unter die obere Scheibe und mit den Beinen aufstehen – das Hochnehmen ist die erste Kniebeuge. Am Ende genauso: in die Hocke, Hantel abstellen, dann erst loslassen. Nie im Stehen vorbeugen und sie mit dem Rücken heben.",
     "bwCue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Der Sinn: Der untere Bereich ist der schwerste, und den durchläufst du damit doppelt so oft. Zu schwer? Ohne die Zwischenstufe, und sie erst dazunehmen, wenn die Tiefe steht.",
     "detail": [
       [
@@ -79,6 +80,7 @@
     "dbEquip": "Kurzhantel + Hantelscheiben",
     "bwEquip": "festes Buch",
     "dbCue": "Fersen auf je einer Hantelscheibe, 2–4 cm hoch. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
+    "dbHeben": "Erst die Hantel, dann die Scheiben: Die Hantel steht senkrecht zwischen den Füßen, in die Hocke, beide Hände unter die obere Scheibe, mit den Beinen aufstehen. Dann mit der Hantel vor der Brust die Fersen auf die Scheiben stellen. Am Ende zuerst von den Scheiben herunter, dann in die Hocke und abstellen.",
     "bwCue": "Fersen auf je einem festen Buch, 2–4 cm hoch – nur die Ferse, der Ballen bleibt am Boden. Dann 1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Die Erhöhung lässt das Knie weiter über die Zehen wandern und betont den vorderen Oberschenkel deutlich stärker. Zu schwer? Ohne die Zwischenstufe, und sie erst dazunehmen, wenn die Tiefe steht.",
     "detail": [
       [
@@ -249,6 +251,7 @@
     "dbEquip": "Langhantel + Polster",
     "bwEquip": "Sofakante",
     "dbCue": "Schulterblätter auf der Sofakante, das Sofa fest an der Wand. Stange über die angewinkelten Beine bis auf die Hüftbeuge rollen, ein dick gefaltetes Handtuch darunter – ohne Polster ist bei 40 kg der Knochen die Grenze, nicht das Gesäß. Oben Gesäß fest anspannen, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
+    "dbHeben": "Die Stange mit Verschlüssen quer vor das Sofa legen. Auf den Boden setzen, Rücken an die Sofakante, Füße strecken und die Stange über die Schienbeine hineinrollen, dann über die Oberschenkel bis auf die Hüftbeuge ziehen; Handtuch darunter, dann erst die Schulterblätter auf die Kante schieben. Am Ende das Gesäß ganz ablegen, die Stange denselben Weg zurück über die Beine, aufstehen. Nie mit der Stange auf der Hüfte aufstehen wollen.",
     "bwCue": "Schulterblätter auf die Sofakante, das Sofa fest an der Wand, einbeinig, freies Bein angewinkelt. Oben Gesäß fest anspannen, Rippen unten lassen, 1–2 s halten – das ersetzt die fehlende Zusatzlast. Schwerer wird es mit dem Loop-Band über der Hüfte, Enden unter dem Standfuß: Die Bandspannung ist oben am größten, also dort, wo sonst die Hantel drückt.",
     "detail": [
       [
@@ -317,6 +320,7 @@
     "dbEquip": "Rucksack",
     "bwEquip": "Ohne Gerät (optional zwei Bücherstapel)",
     "dbCue": "Rucksack auf den oberen Rücken, hoch zwischen die Schulterblätter, Gurte fest – rutscht er Richtung Becken, hebelt er dich hoch. Füllung: Hantelscheiben, in ein Handtuch gewickelt – die wiegen genau, was draufsteht. Körper bleibt eine Linie, Ellenbogen ca. 45°. Mehr Tiefe bringen zwei gleich dicke Bücher unter den Händen; dann sinkt die Brust darunter.",
+    "dbHeben": "Rucksack im Stehen aufsetzen, beide Gurte fest, die Scheiben im Handtuch ganz unten, damit nichts wandert. Dann über die Knie in den Liegestütz – nicht aus dem Stand fallen lassen. Am Ende auf die Knie, aufstehen, abnehmen.",
     "bwCue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht. Mehr Tiefe bringen zwei gleich hohe Bücherstapel unter den Händen.",
     "detail": [
       [
@@ -427,7 +431,8 @@
     "tier": 1,
     "dbEquip": "Langhantel",
     "bwEquip": "Ohne Gerät",
-    "dbCue": "Rücken am Boden, Stange über der unteren Brust. Oberarme setzen unten kurz ab – das ist der Bewegungsstopp, nicht der Boden als Ablage. Handgelenke gerade über den Ellenbogen. Aufbau ohne Ständer: Stange neben dich legen, im Sitzen über die Oberschenkel rollen, mit ihr zurücklegen; zum Schluss denselben Weg zurück. Verschlüsse drauf, keine Stühle als Ablage – die kippen. Und hier wirklich eine Wiederholung in Reserve lassen: Ohne Ablage kommt die Stange nur über den Bauch wieder herunter, und dafür brauchst du Kraft.",
+    "dbCue": "Rücken am Boden, Stange über der unteren Brust. Oberarme setzen unten kurz ab – das ist der Bewegungsstopp, nicht der Boden als Ablage. Handgelenke gerade über den Ellenbogen. Und hier wirklich eine Wiederholung in Reserve lassen: Ohne Ablage kommt die Stange nur über den Bauch wieder herunter, und dafür brauchst du Kraft.",
+    "dbHeben": "Die Stange mit Verschlüssen quer auf den Boden. Dahinter hinsetzen, Füße strecken und die Stange über die Schienbeine hineinrollen, dann über die Oberschenkel bis auf den Schoß ziehen. Mit der Stange auf der Hüfte zurücklegen und sie mit einem Zug der Arme über den Bauch auf die untere Brust holen; von dort drücken. Am Ende: auf die untere Brust ablassen – die Oberarme liegen am Boden, hier kann sie nicht auf dich fallen –, über den Bauch zur Hüfte schieben, mit ihr aufsetzen, Beine herausziehen. Keine Stühle als Ablage, die kippen.",
     "bwCue": "Saubere Liegestütze mit kurzer Pause in der tiefsten Position – gleicher Bewegungsstopp wie beim Floor Press.",
     "detail": [
       [
@@ -521,6 +526,7 @@
     "dbEquip": "Langhantel",
     "bwEquip": "Loop-Band",
     "dbCue": "Hüfte nach hinten, Rumpf etwa 60° vorgeneigt, Rücken flach und dort halten. Stange am Schienbein entlang zum Bauchnabel ziehen, Ellenbogen eng am Körper, oben die Schulterblätter zusammen. Nicht mit dem Rumpf hochreißen – die Neigung bleibt die ganze Zeit gleich. Zwischen den Sätzen abstellen, nicht fallen lassen.",
+    "dbHeben": "Die Stange liegt am Boden vor den Füßen. Hüfte nach hinten, Knie beugen, Rücken flach, schulterbreit fassen und mit den Beinen zum Stand heben – ein Kreuzheben. Dann in die Rudervorlage absenken und dort bleiben. Am Ende aufrichten und mit geradem Rücken absetzen, Scheiben zuerst auf dem Boden. Zwischen den Sätzen liegt sie am Boden.",
     "bwCue": "Beide Füße auf das Band, hüftbreit, Enden in beiden Händen. Rumpf etwa 60° vorgeneigt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben die Schulterblätter zusammen. Schwerer wird es mit dem nächststärkeren Band.",
     "detail": [
       [
@@ -593,6 +599,7 @@
     "dbEquip": "Klimmzugstange + Rucksack",
     "bwEquip": "Klimmzugstange (+ Stuhl)",
     "dbCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Schaffst du noch keine 5? Dann ist eine einzelne Wiederholung ein Maximalversuch und kein Trainingssatz: Füße auf einem Stuhl abstützen und nur so viel mit den Beinen nachhelfen, dass du im Bereich 5–10 arbeitest. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Hantelscheiben, in ein Handtuch gewickelt) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
+    "dbHeben": "Rucksack im Stehen aufsetzen, Gurte fest, dann vom Stuhl aus an die Stange – nicht hochspringen, der Rucksack schwingt sonst. Am Ende zurück auf den Stuhl, dort erst loslassen, Rucksack abnehmen. Solange das Feld auf 0 steht, gibt es nichts zu tragen.",
     "bwCue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zu schwer? Die Füße auf einem Stuhl abstützen und nur so viel mit den Beinen nachhelfen, wie nötig ist – der ganze Weg bleibt, und die Hilfe wird von Woche zu Woche kleiner.",
     "detail": [
       [
@@ -679,6 +686,7 @@
     "dbEquip": "Klimmzugstange + Rucksack",
     "bwEquip": "Klimmzugstange (+ Stuhl)",
     "dbCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Noch keine 4? Dann die Füße auf einem Stuhl und mit den Beinen so viel nachhelfen, dass der Bereich steht – einzelne Maximalversuche bringen für den Aufbau wenig. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
+    "dbHeben": "Rucksack im Stehen aufsetzen, Gurte fest, dann vom Stuhl aus an die Stange – nicht hochspringen, der Rucksack schwingt sonst. Am Ende zurück auf den Stuhl, dort erst loslassen, Rucksack abnehmen. Solange das Feld auf 0 steht, gibt es nichts zu tragen.",
     "bwCue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Schulterblätter zuerst nach unten ziehen, Brust zur Stange, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als im Untergriff. Noch keine ganze? Die Füße auf einem Stuhl abstützen und mit den Beinen nur so viel nachhelfen, wie nötig ist. Drei bis vier Wochen, dann geht die erste freie.",
     "detail": [
       [
@@ -757,6 +765,7 @@
     "dbEquip": "Kurzhanteln",
     "bwEquip": "Loop-Band",
     "dbCue": "Vorgebeugt, leichte Gewichte. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt.",
+    "dbHeben": "Die Hanteln stehen vor den Füßen. Hüfte nach hinten, Knie weich, mit geradem Rücken beide greifen und in der Vorlage bleiben – das ist schon die Ausgangsstellung. Am Ende vor den Füßen abstellen, nicht fallen lassen, dann aufrichten.",
     "bwCue": "Auf das Band stellen, Enden überkreuz in die Hände, vorgebeugt wie mit den Hanteln. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt. Schwerer wird es mit dem nächststärkeren Band.",
     "detail": [
       [
@@ -805,6 +814,7 @@
     "dbEquip": "Kurzhanteln",
     "bwEquip": "Loop-Band + Stuhl",
     "dbCue": "Sitzend, kein Schwung. Bis Schulterhöhe anheben, kleiner Finger leicht höher, langsam senken.",
+    "dbHeben": "Erst hinsetzen, dann greifen: Die Hanteln stehen neben den Stuhlbeinen, eine nach der anderen mit geradem Rücken hochnehmen und neben den Oberschenkeln hängen lassen. Am Ende genauso zurück neben den Stuhl – nicht mit beiden zugleich zur Seite beugen.",
     "bwCue": "Auf einen Stuhl setzen, Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind, langsam zurück. Sitzend, weil so weder Beine noch Rumpf nachhelfen können – genau wie beim sitzenden Seitheben mit Hanteln. Schwerer wird es mit dem nächststärkeren Band.",
     "detail": [
       [
@@ -925,6 +935,7 @@
     "dbEquip": "Kurzhanteln",
     "bwEquip": "Loop-Band + Stuhl",
     "dbCue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. Zwei Kurzhanteln – je eine pro Hand – hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
+    "dbHeben": "Hinsetzen, Hanteln auf den Oberschenkeln. Eine nach der anderen mit einem Schwung aus dem Knie zur Schulter, dann beide nach oben drücken und von dort hinter den Kopf ablassen. Am Ende umgekehrt: nach oben strecken, zu den Schultern ablassen, auf die Oberschenkel, auf den Boden. Nie hinter dem Kopf loslassen.",
     "bwCue": "Auf den Stuhl setzen, das Band unter beide Füße klemmen und die Enden hinter dem Kopf fassen. Oberarme senkrecht neben den Ohren, nur strecken – die Ellenbogen bleiben stehen. Über Kopf steht der lange Trizepskopf auf voller Länge; genau dort soll der Zug ankommen. Schwerer wird es mit dem nächststärkeren Band.",
     "detail": [
       [
@@ -986,6 +997,7 @@
     "dbEquip": "SZ-Stange",
     "bwEquip": "Loop-Band",
     "dbCue": "Ellenbogen am Körper, Oberkörper still. Kontrolliert ablassen, kein Schwung. Handgelenk gerade halten – knickt es unter Last nach hinten ab, liegt die Stange zu weit in den Fingern oder das Gewicht ist zu hoch.",
+    "dbHeben": "Die Stange liegt vor den Füßen. Hüfte nach hinten, Knie beugen, Rücken gerade, im Untergriff fassen und mit den Beinen aufstehen. Am Ende genauso absetzen – nicht vorgebeugt mit rundem Rücken. Zwischen den Sätzen liegt sie am Boden.",
     "bwCue": "Band unter beide Füße, Enden in den Händen, Handflächen nach vorn. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Schwerer wird es mit breiterem Stand auf dem Band.",
     "detail": [
       [
@@ -1054,6 +1066,7 @@
     "dbEquip": "Kurzhanteln",
     "bwEquip": "Loop-Band",
     "dbCue": "Kurzhanteln neben den Oberschenkeln, Handflächen zeigen zueinander – Daumen oben, und das bleibt so. Ellenbogen am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, zwei bis drei Sekunden ablassen. Dreht sich die Hand unterwegs auf, ist das Gewicht zu hoch: Die neutrale Stellung ist hier nicht Geschmackssache, sie ist der Grund für die Übung.",
+    "dbHeben": "Die Hanteln stehen neben den Füßen. In die Hocke, beide greifen, mit den Beinen aufstehen. Am Ende in die Hocke und abstellen, nicht aus dem Stand fallen lassen.",
     "bwCue": "Band unter beide Füße, Enden in den Händen, Handflächen zeigen zueinander. Ellenbogen am Rumpf, nur der Unterarm bewegt sich. Oben kurz halten, langsam zurück. Schwerer wird es mit breiterem Stand auf dem Band.",
     "detail": [
       [
@@ -1097,6 +1110,7 @@
     "dbEquip": "Scheibe",
     "bwEquip": "Ohne Gerät",
     "dbCue": "Scheibe mit beiden Händen flach auf die Brust, Kinn locker. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
+    "dbHeben": "Erst hinlegen, dann die Scheibe: Sie liegt neben dir, mit beiden Händen auf die Brust ziehen. Am Ende neben dich ablegen und dann erst aufsetzen – nicht mit der Scheibe auf der Brust hochkommen.",
     "bwCue": "Ohne Gewicht, dafür mehr Wiederholungen und 2 s Halten in der Endposition. Arme über dem Kopf macht es schwerer.",
     "detail": [
       [
@@ -1147,6 +1161,7 @@
     "dbEquip": "Kurzhantel",
     "bwEquip": "Treppenstufe",
     "dbCue": "Ballen auf die unterste Treppenstufe, die Ferse sinkt frei darunter. Ganz hoch auf den Ballen, oben 1 s halten. Das freie Bein hängt einfach locker hinten, es wird nirgends abgelegt; wer wackelt, hält sich mit der freien Hand am Geländer fest.",
+    "dbHeben": "Die Hantel steht neben der Stufe. Mit geradem Rücken in die Hocke, greifen, aufstehen, dann erst auf die Stufe. Am Ende von der Stufe herunter, in die Hocke, abstellen.",
     "bwCue": "Fußballen auf die unterste Treppenstufe, Ferse tief absenken – flach auf dem Boden fehlt genau der gedehnte Teil, auf den es hier ankommt. Ganz hoch auf den Ballen, oben 1 s halten. Ohne Gewicht dafür deutlich mehr Wiederholungen.",
     "detail": [
       [
@@ -1203,6 +1218,7 @@
     "dbEquip": "Kurzhantel",
     "bwEquip": "Ohne Gerät",
     "dbCue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
+    "dbHeben": "Die Hantel steht neben dem Fuß. In die Hocke, greifen, mit den Beinen aufstehen. Am Ende in die Hocke und abstellen.",
     "bwCue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
     "detail": [
       [
@@ -1248,6 +1264,7 @@
     "dbEquip": "Kurzhanteln",
     "bwEquip": "Loop-Band",
     "dbCue": "Aufrecht sitzen, Rippen unten lassen. Hanteln von Schulterhöhe senkrecht nach oben, Ellenbogen leicht vor der Schulterachse. Oben nicht in den Rücken ausweichen.",
+    "dbHeben": "Hinsetzen, Hanteln auf den Oberschenkeln, die Enden auf den Knien. Eine nach der anderen mit einem Schwung aus dem Knie zur Schulter bringen. Am Ende zu den Schultern ablassen, dann eine nach der anderen zurück auf den Oberschenkel und auf den Boden – nicht seitlich fallen lassen.",
     "bwCue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Schwerer wird es mit dem nächststärkeren Band, leichter mit dem schwächeren.",
     "detail": [
       [
@@ -1306,6 +1323,7 @@
     "dbEquip": "Langhantel",
     "bwEquip": "Ohne Gerät",
     "dbCue": "Stange dicht am Bein, Knie fast gestreckt lassen und die Hüfte nach hinten schieben, bis es hinten am Oberschenkel zieht. Rücken gerade, Schulterblätter fest. Nicht tiefer als die Dehnung erlaubt – die Stange kommt nicht auf den Boden, sondern bis etwa Schienbeinmitte und wieder hoch. Abgesetzt wird nur vor und nach dem Satz, kontrolliert.",
+    "dbHeben": "Die Stange liegt am Boden. Das Hochnehmen ist ein Kreuzheben: Hüfte tiefer und Knie stärker gebeugt als in der Übung selbst, Rücken flach, mit den Beinen zum Stand. Von dort läuft die Übung. Am Ende mit gebeugten Knien und flachem Rücken bis auf den Boden absetzen, Scheiben zuerst. Nie oben loslassen.",
     "bwCue": "Auf einem Bein, das freie Bein wandert nach hinten, bis Rumpf und Bein eine Linie bilden. Hüfte gerade halten, nicht zur Seite kippen.",
     "detail": [
       [
@@ -1390,6 +1408,7 @@
     "dbEquip": "Kurzhanteln",
     "bwEquip": "Ohne Gerät",
     "dbCue": "Ein Bein weit vorn, das hintere Knie senkt sich Richtung Boden. Rumpf aufrecht, das Gewicht auf der ganzen vorderen Fußsohle. Hinteren Fuß erhöhen macht es schwerer.",
+    "dbHeben": "Die Hanteln stehen neben den Füßen. In die Hocke, beide greifen, mit den Beinen aufstehen – dann erst ein Bein nach hinten setzen. Am Ende die Füße wieder nebeneinander, in die Hocke, abstellen.",
     "bwCue": "Gleiche Stellung ohne Gewicht, dafür langsam: drei Sekunden ablassen, unten kurz halten.",
     "detail": [
       [
@@ -1567,6 +1586,7 @@
     "dbEquip": "Klimmzugstange tief + Rucksack",
     "bwEquip": "Klimmzugstange tief",
     "dbCue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter, Knie angewinkelt leichter. Zusatzlast kommt in den Rucksack auf die Brust.",
+    "dbHeben": "Rucksack im Stehen verkehrt herum auf die Brust, Gurte fest. Dann unter die Stange setzen, hinlegen, Stange fassen. Am Ende loslassen, aufsetzen, aufstehen, Rucksack abnehmen. Solange das Feld auf 0 steht, gibt es nichts zu tragen.",
     "bwCue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter. Zu schwer? Knie anwinkeln und die Füße näher heranstellen; das nimmt Last weg, ohne die Bewegung zu verändern.",
     "detail": [
       [
@@ -1638,6 +1658,7 @@
     "dbEquip": "Kurzhantel",
     "bwEquip": "ohne",
     "dbCue": "Eine Kurzhantel in der Hand der freien Seite. Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden. Zurück über das Gesäß, nicht über den unteren Rücken.",
+    "dbHeben": "Die Hantel steht vor dem Standbein. Auf beiden Beinen mit geradem Rücken in die Hocke, greifen, aufstehen, dann erst auf ein Bein. Am Ende auf beiden Beinen in die Hocke und abstellen.",
     "bwCue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen locker nach unten. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
     "detail": [
       [
@@ -1766,6 +1787,7 @@
     "dbEquip": "Kurzhanteln",
     "bwEquip": "ohne",
     "dbCue": "Rücken am Boden, Knie angewinkelt, in jeder Hand eine Kurzhantel. Oberarme etwa 45 Grad vom Rumpf, bis die Ellenbogen den Boden berühren – dort kurz halten, dann drücken. Der Boden ist die Bremse: Er begrenzt die Tiefe und nimmt der Schulter den Bereich, in dem sie ungeschützt ist.",
+    "dbHeben": "Hinsetzen, Hanteln auf den Oberschenkeln, dann mit ihnen zurücklegen – sie folgen auf die Brust. Am Ende zur Brust ablassen, Oberarme am Boden, und seitlich neben dich auf den Boden legen. Nicht über dem Gesicht loslassen, nicht mit gestreckten Armen aufsetzen.",
     "bwCue": "Liegestütze mit engem Handabstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
     "detail": [
       [
@@ -2009,6 +2031,7 @@
     "dbEquip": "Rucksack",
     "bwEquip": "Rucksack",
     "dbCue": "Rucksack mit Büchern füllen, beide Hände in die Trageschlaufen, Handflächen nach oben. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich, Oberkörper still. Langsam ablassen, kein Schwung. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
+    "dbHeben": "Der Rucksack steht vor den Füßen. In die Hocke, beide Schlaufen greifen, mit den Beinen aufstehen. Am Ende in die Hocke und abstellen.",
     "bwCue": "Rucksack mit Büchern füllen, beide Hände in die Trageschlaufen, Handflächen nach oben. Ellenbogen bleiben am Rumpf, nur der Unterarm bewegt sich, Oberkörper still. Langsam ablassen, kein Schwung. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
     "detail": [
       [
@@ -2051,6 +2074,7 @@
     "dbEquip": "Rucksack",
     "bwEquip": "Rucksack",
     "dbCue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
+    "dbHeben": "Der Rucksack steht vor den Füßen. Hüfte nach hinten, Knie beugen, Rücken flach, Schlaufen greifen und aufstehen; dann in die Vorlage. Am Ende aufrichten und mit geradem Rücken absetzen.",
     "bwCue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
     "detail": [
       [
@@ -2234,6 +2258,7 @@
     "dbEquip": "Scheibe",
     "bwEquip": "ohne Gerät",
     "dbCue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen so nah, dass du sie mit den Fingerspitzen fast berührst. Scheibe flach auf die Hüftbeuge, Handtuch darunter – sie liegt auf, eine Kurzhantel rollt. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen.",
+    "dbHeben": "Erst hinlegen, dann die Scheibe: Sie liegt neben der Hüfte, mit beiden Händen auf die Hüftbeuge ziehen. Am Ende zur Seite ablegen, dann erst aufsetzen.",
     "bwCue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es einbeinig.",
     "detail": [
       [

@@ -185,6 +185,22 @@ def braucht(text, wo):
     return list(GERAET_AUS_TEXT[text])
 
 
+# Geraete, die man hochnehmen und ablegen muss. Wo eine Uebung eines davon
+# zeichnet, verlangt tools/pruefung/geraete.py den Text dazu (dbHeben):
+#
+#     "Sag am besten bei jeder Uebung auch immer wie man das Gewicht am
+#      besten zuhause hochnimmt und ablegt wenn man alleine ist und so"
+#
+# Band und Klimmzugstange stehen nicht hier: Da wird nichts gehoben, das Anlegen
+# steht im Hinweis. Ohne Hanteln gibt es keine Last, also auch kein bwHeben.
+MIT_LAST = {'dumbbells', 'onehand', 'goblet', 'barbell', 'szbar', 'hipbar', 'plate', 'backpack'}
+
+
+def heben(m, modus):
+    text = m.get(f'{modus}Heben')
+    return {'heben': text} if text else {}
+
+
 def muscles(shares):
     """Muskeln nach Anteil, der größte zuerst.
 
@@ -255,6 +271,9 @@ def main():
                     'db': {'name': m.get('name') or db['name'],
                            'reps': m.get('reps') or db['reps'], 'equip': m['dbEquip'],
                            'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],
+                           # Wie man die Last allein zu Hause hochnimmt und
+                           # ablegt – nur wo es eine gibt (heben() unten).
+                           **heben(m, 'db'),
                            'shares': m['dbShares'], 'muscles': muscles(m['dbShares']),
                            # Eigene Wiederholungen und Pause je Erfahrungsstufe –
                            # nur dort nötig, wo sich die Last nicht herunterdrehen
@@ -308,6 +327,7 @@ def main():
             **({'schmerz': m['schmerz']} if m.get('schmerz') else {}),
             'db': {'name': m['name'], 'reps': m['reps'], 'equip': m['dbEquip'],
                    'cue': m['dbCue'], 'rest': m['dbRest'], 'pattern': m['dbPattern'],
+                   **heben(m, 'db'),
                    'shares': m['dbShares'], 'muscles': muscles(m['dbShares']),
                    'stufen': m.get('dbStufen', {})},
             'bw': {'name': m['bwName'], 'reps': m['bwReps'], 'equip': m['bwEquip'],
