@@ -2441,6 +2441,51 @@ Es löst nur die Gleichungen und sagt, wie viele direkte Sätze dabei
 herauskommen. Damit lässt sich ein untauglicher Zielsatz erkennen, bevor er
 Rechenzeit kostet.
 
+### Keine Bewegung zweimal in einer Einheit
+
+    „Wenn es optimal ist die selbe Übung zwei mal zu machen können wir es
+     machen. Wenn nicht dann nicht"
+
+Es ist nicht optimal. Sitzendes Seitheben und Band-Seitheben am selben Tag,
+Floor Press und Kurzhantel-Bodenpresse, Chin-ups und Pull-ups: zwei Fassungen
+derselben Bewegung bringen nicht mehr als dieselben Sätze einer Übung, und auf
+zwei Tage verteilt trifft jede einen frischen Muskel. Vorher standen solche
+Paare in 78 von 336 Einheiten der vier Pläne.
+
+Was als dieselbe Bewegung gilt, steht als `bewegung` in
+`tools/exercise-meta.json`, je Modus, wo es sich unterscheidet – ohne Hanteln
+werden Floor Press und gewichtete Liegestütze beide zu Liegestützen. Der
+Generator verteilt danach (`split()`, erstes Kriterium), und
+`tools/pruefung/bewegung.py` prüft es in CI.
+
+Neu verteilt wurden nur die Tage, nicht die Mengen (`WK_NUR_TAGE=1`): Jede
+Woche bekommt genau die Sätze je Übung wie vorher, nur auf andere Einheiten.
+
+| Plan | vorher | jetzt | Rüstvorgänge je Einheit |
+| --- | ---: | ---: | --- |
+| Aufbau | 21 | 8 | 3,52 → 3,55 |
+| Bauch, Beine, Po | 3 | 0 | 3,30 → 3,31 |
+| Cut | 5 | 0 | 3,01 → 3,05 |
+| Oberkörper | 49 | 34 | 3,00 → 3,08 |
+
+**Null geht nicht überall, und das ist Arithmetik.** Im Oberkörper-Plan haben
+seitliche Schulter und Brust je 12 Sätze die Woche, also vier Auftritte, und die
+48-Stunden-Regel lässt eine Gruppe an höchstens drei der vier Tage zu. Ohne
+Hanteln sind alle Brustübungen Liegestütze. Im Aufbau sind die restlichen acht
+dieselbe Lage: Floor Press und Füße-erhöhte Liegestütze, beide ohne Hanteln
+Liegestütze. Dort sind es sechs Sätze für eine Gruppe an einem Tag – nicht
+schlechter als eine Übung mit sechs Sätzen. `tools/pruefung/bewegung-stand.json`
+hält den erreichten Stand fest; mehr schlägt an.
+
+**Was es kostet, steht hier, damit es niemand später als Fehler findet:** etwas
+mehr Umbau (Tabelle oben – 2 Rüstvorgänge mehr über den ganzen Aufbau-Plan, 7 im
+Oberkörper), und die Planprüfung meldete kleine Verschiebungen, die bewusst
+hingenommen sind: im Aufbau der Nacken 2,24 statt 2,33 Termine je Woche, in
+„Bauch, Beine, Po" der Trizeps 2,43 statt 2,52 und ein bis zwei Tage mehr
+Abstand bei Gesäß und Oberschenkel, im Cut die vordere Schulter mit bis zu 12
+statt 9 Tagen Abstand. Nacken und vordere Schulter haben in diesen Plänen kein
+eigenes Ziel; sie laufen mit.
+
 ## Trainingsfokus
 
 Nicht jeder will dasselbe. Wer den Link weitergibt, gibt ihn an Menschen, die

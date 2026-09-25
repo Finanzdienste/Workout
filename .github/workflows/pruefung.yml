@@ -58,6 +58,11 @@ jobs:
       - name: Module sind sauber geschichtet und vollständig gelistet
         run: python3 tools/pruefung/schichten.py
 
+      # Zwei Fassungen derselben Bewegung am selben Tag bringen nicht mehr als
+      # eine – siehe tools/pruefung/bewegung.py.
+      - name: Keine Bewegung zweimal in einer Einheit
+        run: python3 tools/pruefung/bewegung.py
+
       # Ändert sich eine Datei aus dem Offline-Vorrat, muss VERSION in sw.js
       # hochgehen – sonst läuft beim ersten Öffnen nach dem Update eine Mischung
       # aus alten und neuen Dateien. Stand in sw.js, prüfte niemand.

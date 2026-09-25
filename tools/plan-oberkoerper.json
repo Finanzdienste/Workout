@@ -32,12 +32,47 @@
    "date": "2026-08-24",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "floor-press",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "pike-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-08-26",
+   "ex": [
+    {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -64,41 +99,6 @@
    ]
   },
   {
-   "date": "2026-08-26",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "floor-press",
-     "sets": 3,
-     "bwSets": 2
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
    "date": "2026-08-28",
    "ex": [
     {
@@ -112,7 +112,7 @@
      "bwSets": 3
     },
     {
-     "id": "band-seitheben",
+     "id": "sitzendes-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -132,17 +132,17 @@
    "date": "2026-08-29",
    "ex": [
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "hip-thrust",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pike-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -172,9 +172,9 @@
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "floor-press",
      "sets": 3,
-     "bwSets": 4
+     "bwSets": 3
     },
     {
      "id": "split-squat",
@@ -192,7 +192,7 @@
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "gewichtete-crunches",
      "sets": 3,
      "bwSets": 3
     }
@@ -202,17 +202,12 @@
    "date": "2026-09-02",
    "ex": [
     {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "floor-press",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -227,7 +222,12 @@
      "bwSets": 3
     },
     {
-     "id": "gewichtete-crunches",
+     "id": "band-pull-apart",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -237,12 +237,12 @@
    "date": "2026-09-04",
    "ex": [
     {
-     "id": "chin-ups",
+     "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "chin-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -267,9 +267,14 @@
    "date": "2026-09-05",
    "ex": [
     {
-     "id": "floor-press",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
-     "bwSets": 2
+     "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
+     "sets": 3,
+     "bwSets": 4
     },
     {
      "id": "hip-thrust",
@@ -287,11 +292,6 @@
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
      "bwSets": 3
@@ -302,12 +302,12 @@
    "date": "2026-09-07",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "chin-ups",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "chin-ups",
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
@@ -332,17 +332,47 @@
    "date": "2026-09-09",
    "ex": [
     {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "floor-press",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "rumaenisches-kreuzheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "rumaenisches-kreuzheben",
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-11",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -358,36 +388,6 @@
     },
     {
      "id": "band-pull-apart",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-11",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -432,12 +432,52 @@
    "date": "2026-09-14",
    "ex": [
     {
-     "id": "chin-ups",
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
+     "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-crunches",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "ex": [
+    {
      "id": "floor-press",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "split-squat",
      "sets": 3,
      "bwSets": 3
     },
@@ -455,46 +495,6 @@
      "id": "face-pull",
      "sets": 3,
      "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-09-16",
-   "ex": [
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "floor-press",
-     "sets": 3,
-     "bwSets": 2
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 2
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
     }
    ]
   },
@@ -507,17 +507,17 @@
      "bwSets": 3
     },
     {
+     "id": "chin-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     },
@@ -537,14 +537,9 @@
      "bwSets": 3
     },
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "floor-press",
      "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "split-squat",
-     "sets": 3,
-     "bwSets": 3
+     "bwSets": 2
     },
     {
      "id": "sliding-leg-curl",
@@ -555,6 +550,11 @@
      "id": "liegende-trizepsstrecker",
      "sets": 3,
      "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-stehendes-wadenheben",
+     "sets": 3,
+     "bwSets": 3
     }
    ]
   },
@@ -562,7 +562,7 @@
    "date": "2026-09-21",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
@@ -572,7 +572,7 @@
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "hip-thrust",
      "sets": 3,
      "bwSets": 3
     },
@@ -597,12 +597,17 @@
    "date": "2026-09-23",
    "ex": [
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "chin-ups",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "hip-thrust",
+     "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
@@ -620,11 +625,6 @@
      "id": "band-pull-apart",
      "sets": 3,
      "bwSets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3,
-     "bwSets": 3
     }
    ]
   },
@@ -632,12 +632,12 @@
    "date": "2026-09-25",
    "ex": [
     {
-     "id": "inverted-row",
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "chin-ups",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -662,11 +662,6 @@
    "date": "2026-09-26",
    "ex": [
     {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "floor-press",
      "sets": 3,
      "bwSets": 2
@@ -690,6 +685,11 @@
      "id": "liegende-trizepsstrecker",
      "sets": 3,
      "bwSets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3,
+     "bwSets": 3
     }
    ]
   },
@@ -697,19 +697,19 @@
    "date": "2026-09-28",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "chin-ups",
+     "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "einbeiniges-kreuzheben",
      "sets": 3,
-     "bwSets": 4
+     "bwSets": 2
     },
     {
      "id": "sitzendes-seitheben",
@@ -732,19 +732,24 @@
    "date": "2026-09-30",
    "ex": [
     {
+     "id": "chin-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "floor-press",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "rumaenisches-kreuzheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einbeiniges-kreuzheben",
+     "id": "pike-liegestuetze",
      "sets": 3,
-     "bwSets": 2
+     "bwSets": 3
     },
     {
      "id": "sitzendes-seitheben",
@@ -755,11 +760,6 @@
      "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3,
-     "bwSets": 3
     }
    ]
   },
@@ -767,12 +767,12 @@
    "date": "2026-10-02",
    "ex": [
     {
-     "id": "inverted-row",
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -797,22 +797,17 @@
    "date": "2026-10-03",
    "ex": [
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
+     "sets": 3,
+     "bwSets": 4
     },
     {
      "id": "goblet-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "rumaenisches-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pike-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -825,6 +820,11 @@
      "id": "liegende-trizepsstrecker",
      "sets": 3,
      "bwSets": 3
+    },
+    {
+     "id": "wadenheben-gebeugtes-knie",
+     "sets": 3,
+     "bwSets": 3
     }
    ]
   },
@@ -832,12 +832,17 @@
    "date": "2026-10-05",
    "ex": [
     {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "chin-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -862,12 +867,12 @@
    "date": "2026-10-07",
    "ex": [
     {
-     "id": "chin-ups",
+     "id": "floor-press",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "floor-press",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -882,12 +887,12 @@
      "bwSets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -897,17 +902,7 @@
    "date": "2026-10-09",
    "ex": [
     {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -918,6 +913,11 @@
     },
     {
      "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-pull-apart",
      "sets": 3,
      "bwSets": 3
     }
@@ -962,14 +962,9 @@
    "date": "2026-10-12",
    "ex": [
     {
-     "id": "chin-ups",
+     "id": "floor-press",
      "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
+     "bwSets": 2
     },
     {
      "id": "pull-ups",
@@ -982,7 +977,12 @@
      "bwSets": 2
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     },
@@ -997,19 +997,19 @@
    "date": "2026-10-14",
    "ex": [
     {
-     "id": "floor-press",
-     "sets": 3,
-     "bwSets": 2
-    },
-    {
-     "id": "pull-ups",
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "pike-liegestuetze",
+     "id": "chin-ups",
      "sets": 3,
      "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
+     "sets": 3,
+     "bwSets": 4
     },
     {
      "id": "band-seitheben",
@@ -1017,7 +1017,7 @@
      "bwSets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "sitzendes-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -1037,7 +1037,7 @@
      "bwSets": 3
     },
     {
-     "id": "band-seitheben",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1062,17 +1062,17 @@
    "date": "2026-10-17",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "goblet-squat",
      "sets": 3,
-     "bwSets": 4
+     "bwSets": 3
     },
     {
-     "id": "goblet-squat",
+     "id": "pike-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -1097,6 +1097,11 @@
    "date": "2026-10-19",
    "ex": [
     {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "floor-press",
      "sets": 3,
      "bwSets": 3
@@ -1117,11 +1122,6 @@
      "bwSets": 3
     },
     {
-     "id": "face-pull",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 3
@@ -1132,17 +1132,12 @@
    "date": "2026-10-21",
    "ex": [
     {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1157,7 +1152,7 @@
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "band-pull-apart",
      "sets": 3,
      "bwSets": 3
     }
@@ -1177,7 +1172,7 @@
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "sitzendes-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -1187,7 +1182,7 @@
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "face-pull",
      "sets": 3,
      "bwSets": 3
     }
@@ -1198,6 +1193,11 @@
    "ex": [
     {
      "id": "gewichtete-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
@@ -1227,40 +1227,10 @@
    "date": "2026-10-26",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "chin-ups",
      "sets": 3,
      "bwSets": 3
     },
-    {
-     "id": "pull-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-pull-apart",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "haengendes-knieheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-10-28",
-   "ex": [
     {
      "id": "gewichtete-liegestuetze",
      "sets": 3,
@@ -1270,11 +1240,6 @@
      "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 4
-    },
-    {
-     "id": "split-squat",
-     "sets": 3,
-     "bwSets": 3
     },
     {
      "id": "sitzendes-seitheben",
@@ -1290,11 +1255,16 @@
      "id": "band-pull-apart",
      "sets": 3,
      "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
+     "sets": 3,
+     "bwSets": 3
     }
    ]
   },
   {
-   "date": "2026-10-30",
+   "date": "2026-10-28",
    "ex": [
     {
      "id": "inverted-row",
@@ -1302,12 +1272,42 @@
      "bwSets": 3
     },
     {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "split-squat",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-pull-apart",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-10-30",
+   "ex": [
+    {
      "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "chin-ups",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1347,12 +1347,12 @@
      "bwSets": 3
     },
     {
-     "id": "liegende-trizepsstrecker",
+     "id": "gewichtete-crunches",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "gewichtete-crunches",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -1362,7 +1362,42 @@
    "date": "2026-11-02",
    "ex": [
     {
+     "id": "floor-press",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pull-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-pull-apart",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-04",
+   "ex": [
+    {
      "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -1377,47 +1412,12 @@
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-04",
-   "ex": [
-    {
-     "id": "chin-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "floor-press",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sz-curls",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-pull-apart",
+     "id": "sitzendes-seitheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -1432,7 +1432,7 @@
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "chin-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1442,7 +1442,7 @@
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     },
@@ -1456,11 +1456,6 @@
   {
    "date": "2026-11-07",
    "ex": [
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
     {
      "id": "floor-press",
      "sets": 3,
@@ -1485,36 +1480,6 @@
      "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-09",
-   "ex": [
-    {
-     "id": "floor-press",
-     "sets": 3,
-     "bwSets": 2
-    },
-    {
-     "id": "pull-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3,
-     "bwSets": 3
     },
     {
      "id": "wadenheben-gebeugtes-knie",
@@ -1524,7 +1489,7 @@
    ]
   },
   {
-   "date": "2026-11-11",
+   "date": "2026-11-09",
    "ex": [
     {
      "id": "inverted-row",
@@ -1532,17 +1497,17 @@
      "bwSets": 3
     },
     {
-     "id": "chin-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "floor-press",
      "sets": 3,
-     "bwSets": 3
+     "bwSets": 2
     },
     {
      "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
      "sets": 3,
      "bwSets": 3
     },
@@ -1559,10 +1524,40 @@
    ]
   },
   {
-   "date": "2026-11-13",
+   "date": "2026-11-11",
    "ex": [
     {
      "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "chin-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "floor-press",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-13",
+   "ex": [
+    {
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1573,6 +1568,11 @@
     },
     {
      "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     },
@@ -1607,12 +1607,12 @@
      "bwSets": 3
     },
     {
-     "id": "liegende-trizepsstrecker",
+     "id": "gewichtete-crunches",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "gewichtete-crunches",
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3,
      "bwSets": 3
     }
@@ -1622,17 +1622,12 @@
    "date": "2026-11-16",
    "ex": [
     {
-     "id": "floor-press",
-     "sets": 3,
-     "bwSets": 2
-    },
-    {
-     "id": "pull-ups",
+     "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "rumaenisches-kreuzheben",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1647,7 +1642,12 @@
      "bwSets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "band-pull-apart",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -1657,42 +1657,17 @@
    "date": "2026-11-18",
    "ex": [
     {
-     "id": "chin-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-pull-apart",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einbeiniges-stehendes-wadenheben",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-20",
-   "ex": [
-    {
      "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "floor-press",
+     "sets": 3,
+     "bwSets": 2
+    },
+    {
+     "id": "rumaenisches-kreuzheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -1708,6 +1683,31 @@
     },
     {
      "id": "band-pull-apart",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-20",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "chin-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -1742,7 +1742,7 @@
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -1772,14 +1772,9 @@
      "bwSets": 3
     },
     {
-     "id": "face-pull",
+     "id": "gewichtete-crunches",
      "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "wadenheben-gebeugtes-knie",
-     "sets": 3,
-     "bwSets": 3
+     "bwSets": 4
     }
    ]
   },
@@ -1808,6 +1803,11 @@
     },
     {
      "id": "liegende-trizepsstrecker",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "face-pull",
      "sets": 3,
      "bwSets": 3
     }
@@ -1867,9 +1867,9 @@
      "bwSets": 3
     },
     {
-     "id": "gewichtete-crunches",
+     "id": "wadenheben-gebeugtes-knie",
      "sets": 3,
-     "bwSets": 4
+     "bwSets": 3
     }
    ]
   },
@@ -1882,7 +1882,7 @@
      "bwSets": 3
     },
     {
-     "id": "chin-ups",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1897,12 +1897,12 @@
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "einbeiniges-stehendes-wadenheben",
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -1922,7 +1922,7 @@
      "bwSets": 3
     },
     {
-     "id": "kurzhantel-bodenpresse",
+     "id": "pike-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -1952,7 +1952,7 @@
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
+     "id": "chin-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -1962,7 +1962,7 @@
      "bwSets": 3
     },
     {
-     "id": "sz-curls",
+     "id": "band-pull-apart",
      "sets": 3,
      "bwSets": 3
     }
@@ -1977,12 +1977,12 @@
      "bwSets": 3
     },
     {
-     "id": "goblet-squat",
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "pike-liegestuetze",
+     "id": "goblet-squat",
      "sets": 3,
      "bwSets": 3
     },
@@ -1997,7 +1997,7 @@
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "einbeiniges-stehendes-wadenheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -2006,6 +2006,11 @@
   {
    "date": "2026-12-07",
    "ex": [
+    {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
     {
      "id": "floor-press",
      "sets": 3,
@@ -2017,7 +2022,7 @@
      "bwSets": 4
     },
     {
-     "id": "band-seitheben",
+     "id": "sitzendes-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -2027,7 +2032,7 @@
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 3
     }
@@ -2047,22 +2052,22 @@
      "bwSets": 4
     },
     {
-     "id": "split-squat",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "pike-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sitzendes-seitheben",
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-pull-apart",
      "sets": 3,
      "bwSets": 3
     }
@@ -2071,11 +2076,6 @@
   {
    "date": "2026-12-11",
    "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
     {
      "id": "einarmiges-kh-rudern",
      "sets": 3,
@@ -2112,12 +2112,12 @@
      "bwSets": 3
     },
     {
-     "id": "sliding-leg-curl",
+     "id": "split-squat",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "sliding-leg-curl",
      "sets": 3,
      "bwSets": 3
     },
@@ -2132,17 +2132,17 @@
    "date": "2026-12-14",
    "ex": [
     {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "floor-press",
      "sets": 3,
      "bwSets": 2
     },
     {
      "id": "rumaenisches-kreuzheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pike-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -2157,7 +2157,7 @@
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "gewichtete-crunches",
      "sets": 3,
      "bwSets": 3
     }
@@ -2167,12 +2167,7 @@
    "date": "2026-12-16",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "floor-press",
+     "id": "gewichtete-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -2182,17 +2177,27 @@
      "bwSets": 4
     },
     {
+     "id": "pull-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pike-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "sitzendes-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
-     "id": "sz-curls",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
+     "id": "band-pull-apart",
      "sets": 3,
      "bwSets": 3
     }
@@ -2212,17 +2217,12 @@
      "bwSets": 3
     },
     {
-     "id": "pull-ups",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     },
@@ -2237,7 +2237,7 @@
    "date": "2026-12-19",
    "ex": [
     {
-     "id": "gewichtete-liegestuetze",
+     "id": "floor-press",
      "sets": 3,
      "bwSets": 3
     },
@@ -2277,6 +2277,11 @@
      "bwSets": 3
     },
     {
+     "id": "floor-press",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
@@ -2287,14 +2292,9 @@
      "bwSets": 3
     },
     {
-     "id": "face-pull",
+     "id": "haengendes-knieheben",
      "sets": 3,
      "bwSets": 3
-    },
-    {
-     "id": "gewichtete-crunches",
-     "sets": 3,
-     "bwSets": 4
     }
    ]
   },
@@ -2302,7 +2302,7 @@
    "date": "2026-12-23",
    "ex": [
     {
-     "id": "inverted-row",
+     "id": "einarmiges-kh-rudern",
      "sets": 3,
      "bwSets": 3
     },
@@ -2317,17 +2317,17 @@
      "bwSets": 3
     },
     {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "sitzendes-seitheben",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "liegende-trizepsstrecker",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "face-pull",
      "sets": 3,
      "bwSets": 3
     }
@@ -2337,12 +2337,17 @@
    "date": "2026-12-25",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
+     "id": "inverted-row",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "chin-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -2367,11 +2372,6 @@
    "date": "2026-12-26",
    "ex": [
     {
-     "id": "floor-press",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 4
@@ -2387,9 +2387,9 @@
      "bwSets": 3
     },
     {
-     "id": "haengendes-knieheben",
+     "id": "gewichtete-crunches",
      "sets": 3,
-     "bwSets": 3
+     "bwSets": 4
     },
     {
      "id": "wadenheben-gebeugtes-knie",
@@ -2402,52 +2402,17 @@
    "date": "2026-12-28",
    "ex": [
     {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "floor-press",
      "sets": 3,
      "bwSets": 2
     },
     {
-     "id": "pull-ups",
+     "id": "split-squat",
      "sets": 3,
      "bwSets": 3
     },
     {
      "id": "pike-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-12-30",
-   "ex": [
-    {
-     "id": "floor-press",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "kurzhantel-bodenpresse",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "split-squat",
      "sets": 3,
      "bwSets": 3
     },
@@ -2458,6 +2423,41 @@
     },
     {
      "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-pull-apart",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-30",
+   "ex": [
+    {
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "chin-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "floor-press",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "einbeiniges-kreuzheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
      "sets": 3,
      "bwSets": 3
     },
@@ -2477,7 +2477,7 @@
      "bwSets": 3
     },
     {
-     "id": "chin-ups",
+     "id": "pull-ups",
      "sets": 3,
      "bwSets": 3
     },
@@ -2492,7 +2492,7 @@
      "bwSets": 3
     },
     {
-     "id": "band-pull-apart",
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -2507,7 +2507,7 @@
      "bwSets": 3
     },
     {
-     "id": "einbeiniges-kreuzheben",
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
     },
@@ -2542,52 +2542,17 @@
      "bwSets": 3
     },
     {
+     "id": "fuesse-erhoehte-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "floor-press",
      "sets": 3,
      "bwSets": 2
     },
     {
-     "id": "hip-thrust",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "pike-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2027-01-06",
-   "ex": [
-    {
-     "id": "kurzhantel-bodenpresse",
-     "sets": 3,
-     "bwSets": 4
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sitzendes-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "liegende-trizepsstrecker",
      "sets": 3,
      "bwSets": 3
     },
@@ -2604,7 +2569,7 @@
    ]
   },
   {
-   "date": "2027-01-08",
+   "date": "2027-01-06",
    "ex": [
     {
      "id": "einarmiges-kh-rudern",
@@ -2612,9 +2577,9 @@
      "bwSets": 3
     },
     {
-     "id": "chin-ups",
+     "id": "kurzhantel-bodenpresse",
      "sets": 3,
-     "bwSets": 3
+     "bwSets": 4
     },
     {
      "id": "pull-ups",
@@ -2622,7 +2587,42 @@
      "bwSets": 3
     },
     {
+     "id": "hip-thrust",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "pike-liegestuetze",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
      "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2027-01-08",
+   "ex": [
+    {
+     "id": "chin-ups",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sitzendes-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     },
@@ -2637,11 +2637,6 @@
    "date": "2027-01-09",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
      "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 3
@@ -2653,6 +2648,11 @@
     },
     {
      "id": "sliding-leg-curl",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "liegende-trizepsstrecker",
      "sets": 3,
      "bwSets": 3
     },
@@ -2672,7 +2672,12 @@
    "date": "2027-01-11",
    "ex": [
     {
-     "id": "floor-press",
+     "id": "einarmiges-kh-rudern",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "fuesse-erhoehte-liegestuetze",
      "sets": 3,
      "bwSets": 3
     },
@@ -2680,6 +2685,36 @@
      "id": "kurzhantel-bodenpresse",
      "sets": 3,
      "bwSets": 4
+    },
+    {
+     "id": "band-seitheben",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "sz-curls",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "band-pull-apart",
+     "sets": 3,
+     "bwSets": 3
+    }
+   ]
+  },
+  {
+   "date": "2027-01-13",
+   "ex": [
+    {
+     "id": "inverted-row",
+     "sets": 3,
+     "bwSets": 3
+    },
+    {
+     "id": "floor-press",
+     "sets": 3,
+     "bwSets": 3
     },
     {
      "id": "rumaenisches-kreuzheben",
@@ -2698,36 +2733,6 @@
     },
     {
      "id": "liegende-trizepsstrecker",
-     "sets": 3,
-     "bwSets": 3
-    }
-   ]
-  },
-  {
-   "date": "2027-01-13",
-   "ex": [
-    {
-     "id": "inverted-row",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "einarmiges-kh-rudern",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "floor-press",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "band-seitheben",
-     "sets": 3,
-     "bwSets": 3
-    },
-    {
-     "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
     }
@@ -2755,11 +2760,6 @@
      "id": "sz-curls",
      "sets": 3,
      "bwSets": 3
-    },
-    {
-     "id": "band-pull-apart",
-     "sets": 3,
-     "bwSets": 3
     }
    ]
   },
@@ -2767,7 +2767,7 @@
    "date": "2027-01-16",
    "ex": [
     {
-     "id": "fuesse-erhoehte-liegestuetze",
+     "id": "floor-press",
      "sets": 3,
      "bwSets": 3
     },

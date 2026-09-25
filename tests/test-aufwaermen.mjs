@@ -98,6 +98,23 @@ await page.evaluate(async () => {
 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
+// Die erste Einheit mit einer schweren Übung ansteuern. Vorher stand hier
+// stillschweigend Workout 1 – das hatte nur zufällig eine; nach der
+// Neuverteilung ohne doppelte Bewegungen nicht mehr.
+const bis = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { exOf } = await import('./js/plan.js');
+  const { aufwaermsaetze, workingWeight } = await import('./js/gewichte.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  return PLAN.findIndex((w) => exOf(w, 'db').some((it) => {
+    const ex = EX_BY_ID.get(it.id);
+    return aufwaermsaetze(ex, workingWeight(it.id), ex.db.reps).length > 0;
+  }));
+});
+for (let k = 0; k < bis; k++) {
+  await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+  await page.waitForTimeout(120);
+}
 // Die Übungsliste steht nicht auf dem Dashboard, sondern hinter dem Start –
 // vorher gibt es nichts, worüber eine Aufwärmzeile stehen könnte.
 await page.locator('[data-act="start-session"]').first().click();

@@ -271,8 +271,29 @@ VARIANTEN = {
     #
     # Die Beine stehen im ausgewogenen Plan schon auf Erhalt; sie noch weiter zu
     # senken hieße, unter den Erhalt zu gehen. Sie bleiben deshalb, wo sie sind.
+    #
+    # **Die Grundübungen bleiben drin** (`pflicht`, Sätze je Woche mindestens).
+    # Ohne diese Zeile fielen beim Neulauf vom 17.09. ausgerechnet Floor Press,
+    # Chin-ups und Rumänisches Kreuzheben heraus – nicht mit Absicht, sondern
+    # weil weniger Sätze für gleich viele Übungen reichen mussten und die
+    # Nebenkriterien den Rest entschieden. Für einen Cut ist das verkehrt herum:
+    # Im Defizit halten die schweren Lasten die Muskeln, gekürzt wird bei den
+    # Nebenübungen.
+    #
+    #     „Wieso werden diese Übungen weggelassen?"
+    #
+    # **Mit diesen Zielen geht es nicht exakt.** Nachgerechnet mit einem
+    # ganzzahligen Löser (scipy milp) über 21 bis 32 Wochen: Mit je drei Sätzen
+    # je Woche für Floor Press, Chin-ups, Rumänisches Kreuzheben, Hip Thrust,
+    # Rudern und Goblet Squat hat der Cut keine exakte Lösung – Hip Thrust,
+    # Kreuzheben und Goblet Squat treffen alle das Gesäß, und dessen Ziel (8)
+    # ist dafür zu knapp. Die kleinste Abweichung, die alle sechs hält: Gesäß
+    # 9,6 statt 8, Hüftstreckung 5,85 statt 5. Welche der beiden Richtungen –
+    # Ziele anheben oder Grundübungen weglassen –, entscheidet Tobi; bis dahin
+    # steht `pflicht` hier leer, und der Mechanismus wartet.
     'cut': {
         'name': 'Cut',
+        'pflicht': {},
         'ziele': {
             'chest': 7, 'lats': 7, 'sideDelts': 7, 'rearDelts': 7,
             'biceps': 7, 'triceps': 7, 'abs': 9,
@@ -287,6 +308,13 @@ if VARIANTE not in VARIANTEN:
     sys.exit(f'Unbekannte Variante {VARIANTE!r} – bekannt: {", ".join(VARIANTEN)}')
 TARGET = VARIANTEN[VARIANTE]['ziele']
 CAP = VARIANTEN[VARIANTE]['cap']
+# Mindestens so viele Sätze je Woche für diese Übungen – siehe 'cut'.
+PFLICHT = VARIANTEN[VARIANTE].get('pflicht', {})
+
+
+def pflicht_min(i, weeks):
+    """Untergrenze der Plansumme einer Übung (0, wenn sie keine hat)."""
+    return PFLICHT.get(i, 0) * weeks
 if VARIANTE != 'standard':
     OUT = ROOT / 'tools' / f'plan-{VARIANTE}.json'
 # Ein eigenes Ziel je Lauf, damit mehrere Startwerte gleichzeitig rechnen
@@ -295,6 +323,9 @@ if VARIANTE != 'standard':
 # einen halben Plan. Genau das ist beim ersten Versuch passiert.
 #
 #     WK_OUT=/tmp/cut-11.json WK_SEED=11 python3 tools/build-plan.py cut
+# Der eingecheckte Plan dieser Variante – Quelle für WK_NUR_TAGE, auch wenn
+# das Ergebnis woanders hingeht.
+QUELLE = OUT
 if os.environ.get('WK_OUT'):
     OUT = pathlib.Path(os.environ['WK_OUT'])
 #
@@ -385,7 +416,8 @@ SCREEN_RESTARTS = 2      # Anläufe je Probe
 SCREEN_ROUNDS = 90000    # Schritte je Probe
 RESTARTS = 16            # Anläufe beim Verteilen auf die Wochen
 SPREAD_ROUNDS = 400000   # Schritte je Anlauf
-SPLITS = 2000            # Versuche je Woche für die Aufteilung
+REIHUNG = os.environ.get('WK_REIHUNG', 'bewegung')
+SPLITS = int(os.environ.get('WK_SPLITS', 2000))   # Versuche je Woche für die Aufteilung
 
 # Rüstzeit. Zwischen zwei Übungen steht in der Wohnung nicht die Pause, sondern
 # der Umbau: Scheiben ab, andere drauf, Verschlüsse zu. Welche Geräte an einem
@@ -993,8 +1025,10 @@ def landepunkt(block, shares, weeks, rnd, runden=60, schritte=4000):
     mitte = (lo + hi) // 2
     schritt = (1, -1, 2, -2, 3, -3, 5, -5, 7, -7)
 
+    unten = [pflicht_min(i, weeks) // GRAIN for i in block]
+
     def fehler(y):
-        return (sum(_daneben(v, lo, hi) for v in y)
+        return (sum(_daneben(v, lo, hi) + max(0, u - v) for v, u in zip(y, unten))
                 + _drueber(block, shares, [v * GRAIN for v in y], weeks) / UNIT)
 
     for versuch in range(runden):
@@ -1085,7 +1119,7 @@ def wandern(block, shares, weeks, values, limit, rnd, start, schritte=400000):
         v = kurz[rnd.randrange(len(kurz))]
         k = rnd.choice(schritt)
         kand = [a + k * b for a, b in zip(x, v)]
-        if any(w not in erlaubt for w in kand):
+        if any(w not in erlaubt or w < pflicht_min(i, weeks) for i, w in zip(block, kand)):
             continue
         x = kand
         t = tuple(x)
@@ -1311,6 +1345,12 @@ def totals(ids, shares, groups, weeks, rnd, streng=True, start=None):
             if streng:
                 sys.exit(f'Keine exakte Lösung für {weeks} Wochen')
             return None, (None, None)
+        # Die Pflichtübungen: Was darunter liegt, fällt weg, bevor irgendetwas
+        # anderes entscheidet (siehe PFLICHT).
+        found = [sol for sol in found
+                 if all(sol.get(i, 0) >= pflicht_min(i, weeks) for i in block)]
+        if not found:
+            sys.exit(f'Keine exakte Lösung, die die Pflichtübungen hält: {", ".join(sorted(PFLICHT))}')
         variants.append(len(found))
 
         def balance(sol):
@@ -1775,7 +1815,7 @@ def direct_groups(ex, shares):
 
 
 def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(), prev=frozenset(),
-          roles=None, zuletzt=None, termine=()):
+          roles=None, zuletzt=None, termine=(), bew=None):
     """Aufteilung mit möglichst gleich langen und gleich gemischten Einheiten.
 
     `used` sind die bereits vergebenen Zusammenstellungen; eine Wiederholung
@@ -1800,6 +1840,19 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
     einen und ans Ende der nächsten Woche rutschte. Im neu gerechneten Cut-Plan
     standen so elf Tage zwischen zwei Reizen für die hintere Schulter, bei einem
     Wochenschnitt, der exakt auf dem Ziel lag.
+
+    `bew` ordnet jeder Übung ihre Bewegung zu, je Modus (`bewegung` in
+    exercise-meta.json). Zwei Übungen mit derselben Bewegung gehören nicht in
+    dieselbe Einheit:
+
+        „Wenn es optimal ist die selbe Übung zwei mal zu machen können wir es
+         machen. Wenn nicht dann nicht"
+
+    Es ist nicht optimal. Zwei Fassungen einer Bewegung an einem Tag bringen
+    nicht mehr als dieselben Sätze einer Übung; auf zwei Tage verteilt trifft
+    jede einen frischen Muskel. Gezählt wird je Modus – im Bodyweight-Modus
+    werden Floor Press und gewichtete Liegestütze beide zu Liegestützen. Das
+    Kriterium steht in der Rangfolge ganz vorn.
 
     Zurück kommt (Einheiten, Konflikte): Konflikte > 0 heißt, dass sich die
     Bedingung in dieser Woche nicht einhalten ließ.
@@ -1826,6 +1879,7 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
         for _ in range(tries):
             day = [[] for _ in range(sessions)]
             direkt = [set() for _ in range(sessions)]
+            bewtag = [set() for _ in range(sessions)]
             ok = True
             for k in sorted(range(len(ids)), key=lambda x: -week[x]):
                 if not week[k]:
@@ -1845,9 +1899,10 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
                 # machte. Für *alle* Gruppen zu gelten war dagegen zu viel des
                 # Guten; siehe `knapp` oben.
                 eng_dset = dset & knapp
+                meine = (bew or {}).get(ids[k], frozenset())
                 free = sorted(range(sessions),
-                              key=lambda s: (len(eng_dset & direkt[s]), len(day[s]),
-                                             sum(x[1] for x in day[s]), rnd.random()))
+                              key=lambda s: (len(meine & bewtag[s]), len(eng_dset & direkt[s]),
+                                             len(day[s]), sum(x[1] for x in day[s]), rnd.random()))
                 if streng:
                     free = [s for s in free
                             if (roles is None or roles[s] is None or dset <= roles[s])
@@ -1858,6 +1913,7 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
                 for slot, sets in zip(free, part):
                     day[slot].append((ids[k], sets))
                     direkt[slot] |= dset
+                    bewtag[slot] |= meine
             if not ok:
                 continue
             load = [sum(s for _, s in d) for d in day]
@@ -1919,7 +1975,14 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
             # Sie ist derselbe Fehler wie eine Gruppe, die zweimal am selben Tag
             # steht – nur über die Wochengrenze hinweg – und wiegt damit
             # schwerer als eine Einheit, die eine Übung länger ist.
-            got = (doppelt, selten, luecke, laengste, imbalance, ruest, count, round(mix, 6))
+            gleich = sum(1 for d in day for a in range(len(d)) for b in range(a + 1, len(d))
+                         if (bew or {}).get(d[a][0], frozenset()) & (bew or {}).get(d[b][0], frozenset()))
+            # WK_REIHUNG=pause: erst keine zu langen Pausen, dann keine doppelte
+            # Bewegung – für Pläne, in denen beides nicht zugleich geht.
+            if REIHUNG == 'pause':
+                got = (selten, luecke, gleich, doppelt, laengste, imbalance, ruest, count, round(mix, 6))
+            else:
+                got = (gleich, doppelt, selten, luecke, laengste, imbalance, ruest, count, round(mix, 6))
             if best is None or got < best[0]:
                 best = (got, day, direkt)
         if best is not None:
@@ -1990,47 +2053,83 @@ def main():
     # nehmen und den besten behalten, statt den ersten zu glauben.
     rnd = random.Random(int(os.environ.get('WK_SEED', 7)))
     vol = Volume(shares, ids, groups)
-    for weeks in range(WEEKS, WEEKS + 12):
+
+    def bewegungen(v):
+        b = v.get('bewegung')
+        if not b:
+            return frozenset()
+        if isinstance(b, str):
+            return frozenset({('db', b), ('bw', b)})
+        return frozenset((m, b[m]) for m in ('db', 'bw') if b.get(m))
+    bew = {k: bewegungen(v) for k, v in meta.items()}
+
+    # **Nur die Tage neu verteilen** (WK_NUR_TAGE=1). Plansummen und
+    # Wochenmengen kommen aus dem eingecheckten Plan und bleiben exakt, wie sie
+    # sind; neu gerechnet wird allein Schritt 3, die Aufteilung jeder Woche auf
+    # ihre Einheiten. Dafür reichen Sekunden statt einer Viertelstunde, und es
+    # geht auch da, wo Schritt 1 heute nicht mehr reproduzierbar ist (Aufbau).
+    nur_tage = os.environ.get('WK_NUR_TAGE') == '1'
+    if nur_tage:
+        alt = json.loads(QUELLE.read_text(encoding='utf-8'))['plan']
+        if len(alt) % WEEK:
+            sys.exit(f'{QUELLE} hat {len(alt)} Einheiten – kein Vielfaches von {WEEK}.')
+        weeks = len(alt) // WEEK
+        fremd = sorted({e['id'] for s in alt for e in s['ex']} - set(ids))
+        if fremd:
+            sys.exit(f'Im Plan stehen Übungen, die der Generator nicht kennt: {", ".join(fremd)}')
+        per_week = []
+        for k in range(weeks):
+            zaehl = collections.Counter()
+            for s in alt[k * WEEK:(k + 1) * WEEK]:
+                for e in s['ex']:
+                    zaehl[e['id']] += e['sets']
+            per_week.append([zaehl[i] for i in ids])
+        total = [sum(w[j] for w in per_week) for j in range(len(ids))]
+        day = [datetime.date.fromisoformat(s['date']) for s in alt]
+        print(f'nur die Tage neu: {weeks} Wochen und ihre Mengen aus {QUELLE.name} übernommen')
+    for weeks in (range(0) if nur_tage else range(WEEKS, WEEKS + 12)):
         total, (variants, vollstaendig) = totals(ids, shares, groups, weeks, rnd,
                                                  streng=False)
         if total is not None:
             break
     else:
-        sys.exit(f'Keine exakte Lösung zwischen {WEEKS} und {WEEKS + 11} Wochen – '
-                 'Ziele oder Anteile passen nicht zur Körnung.')
-    if weeks != WEEKS:
-        print(f'Wochenzahl auf {weeks} erhöht – mit {WEEKS} geht das Ziel nicht exakt auf')
-    day = dates(weeks)
-    print(f'exakte Plansummen: {"·".join(map(str, variants))} Lösungen je Block, '
-          f'ausgewogenste gewählt ({min(total)}–{max(total)} Sätze je Übung)')
-    print('   Knoten in der exakten Suche: '
-          + ' · '.join('Nullraum' if n is None
-                       else f'{n:,}'.replace(',', '.') + ('' if ganz else ' (Budget!)')
-                       for ganz, n in vollstaendig))
-    if not all(ganz for ganz, _ in vollstaendig):
-        # Nicht verschweigen: Die Auswahl hat dann nur einen Ausschnitt gesehen.
-        # Wo das steht, steht auch, wie man mehr bekommt.
-        print(f'   Budget {EXACT_NODES:,} Knoten erschöpft – mehr mit WK_NODES'.replace(',', '.'))
+        if not nur_tage:
+            sys.exit(f'Keine exakte Lösung zwischen {WEEKS} und {WEEKS + 11} Wochen – '
+                     'Ziele oder Anteile passen nicht zur Körnung.')
+    if not nur_tage:
+        if weeks != WEEKS:
+            print(f'Wochenzahl auf {weeks} erhöht – mit {WEEKS} geht das Ziel nicht exakt auf')
+        day = dates(weeks)
+        print(f'exakte Plansummen: {"·".join(map(str, variants))} Lösungen je Block, '
+              f'ausgewogenste gewählt ({min(total)}–{max(total)} Sätze je Übung)')
+        print('   Knoten in der exakten Suche: '
+              + ' · '.join('Nullraum' if n is None
+                           else f'{n:,}'.replace(',', '.') + ('' if ganz else ' (Budget!)')
+                           for ganz, n in vollstaendig))
+        if not all(ganz for ganz, _ in vollstaendig):
+            # Nicht verschweigen: Die Auswahl hat dann nur einen Ausschnitt gesehen.
+            # Wo das steht, steht auch, wie man mehr bekommt.
+            print(f'   Budget {EXACT_NODES:,} Knoten erschöpft – mehr mit WK_NODES'.replace(',', '.'))
 
-    per_week, (hart, auftritte, worst, aus) = spread(total, vol, weeks, rnd,
-                                                     RESTARTS, SPREAD_ROUNDS)
-    # Eine Abweichung über MAX_REL ist die eine Sache, die nicht vorkommen soll.
-    # Bleibt nach dem ersten Anlauf eine stehen, wird weitergesucht statt sie
-    # hinzunehmen: die Verteilung ist eine Suche, kein Beweis, und ein zweiter
-    # Anlauf mit anderem Zufall findet sie oft doch. Erst nach mehreren
-    # vergeblichen Versuchen gilt es als Eigenschaft der Plansummen.
-    for _ in range(3):
-        if not hart:
-            break
-        kandidat = spread(total, vol, weeks, rnd, RESTARTS, SPREAD_ROUNDS)
-        if kandidat[1][0] < hart:
-            per_week, (hart, auftritte, worst, aus) = kandidat
-            print(f'   nochmal verteilt: {hart} Gruppenwochen über {MAX_REL:.0%}')
-    print(f'auf {weeks} Wochen verteilt: {auftritte} Auftritte '
-          f'({auftritte / (weeks * WEEK):.2f} Übungen je Einheit), '
-          f'schlechteste Woche {worst:.0%} vom Ziel entfernt, '
-          f'{hart} Gruppenwochen über {MAX_REL:.0%}, '
-          f'{aus} Ausnahmen von der Wochenschranke')
+        per_week, (hart, auftritte, worst, aus) = spread(total, vol, weeks, rnd,
+                                                         RESTARTS, SPREAD_ROUNDS)
+        # Eine Abweichung über MAX_REL ist die eine Sache, die nicht vorkommen soll.
+        # Bleibt nach dem ersten Anlauf eine stehen, wird weitergesucht statt sie
+        # hinzunehmen: die Verteilung ist eine Suche, kein Beweis, und ein zweiter
+        # Anlauf mit anderem Zufall findet sie oft doch. Erst nach mehreren
+        # vergeblichen Versuchen gilt es als Eigenschaft der Plansummen.
+        for _ in range(3):
+            if not hart:
+                break
+            kandidat = spread(total, vol, weeks, rnd, RESTARTS, SPREAD_ROUNDS)
+            if kandidat[1][0] < hart:
+                per_week, (hart, auftritte, worst, aus) = kandidat
+                print(f'   nochmal verteilt: {hart} Gruppenwochen über {MAX_REL:.0%}')
+        print(f'auf {weeks} Wochen verteilt: {auftritte} Auftritte '
+              f'({auftritte / (weeks * WEEK):.2f} Übungen je Einheit), '
+              f'schlechteste Woche {worst:.0%} vom Ziel entfernt, '
+              f'{hart} Gruppenwochen über {MAX_REL:.0%}, '
+              f'{aus} Ausnahmen von der Wochenschranke')
 
     half, unwucht = sides(ids, shares, total, groups)
     print(f'Erholung: zwei Hälften mit {unwucht / 2 / weeks:+.1f} Sätzen Unterschied pro Woche – '
@@ -2064,7 +2163,7 @@ def main():
             roles[a], roles[b] = roles[a] or half[0], roles[b] or half[1]
         eng_prev = prev if eng_am_anfang else frozenset()
         sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd, SPLITS, used,
-                                             geraet, tight, eng_prev, roles, zuletzt, block)
+                                             geraet, tight, eng_prev, roles, zuletzt, block, bew=bew)
         # Ging es nicht auf, kostet ein zweiter Anlauf nur für diese eine Woche
         # ein paar Sekunden – und die Erholungsbedingung ist der Punkt, an dem
         # der ganze Plan hängt. Vorher fiel sie hier still weg: bei zehn Sätzen
@@ -2076,7 +2175,7 @@ def main():
                 break
             sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd,
                                                  SPLITS * faktor, used, geraet, tight, eng_prev,
-                                                 roles, zuletzt, block)
+                                                 roles, zuletzt, block, bew=bew)
         offen += 1 if konflikte else 0
         prev = frozenset(direkt[-1])
         for slot, gruppen_am_tag in enumerate(direkt):

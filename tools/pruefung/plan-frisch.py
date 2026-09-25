@@ -58,7 +58,8 @@ STAND = ROOT / 'tools' / 'pruefung' / 'plan-eingaben.json'
 #   dbShares/bwShares  die Muskelanteile – daraus kommen die Wochenmengen
 #   tier               die Reihenfolge innerhalb einer Einheit
 #   equip + dbWeight   das Geraet, nach dem Umbauten gebuendelt werden
-FELDER = ('dbShares', 'bwShares', 'tier', 'equip', 'dbWeight')
+#   bewegung           welche Uebungen nicht in dieselbe Einheit gehoeren
+FELDER = ('dbShares', 'bwShares', 'tier', 'equip', 'dbWeight', 'bewegung')
 
 # Je Variante ein eigener Stand, und das ist die Lehre aus dem 17.09.: Drei der
 # vier Plaene wurden neu erzeugt, der vierte nicht. Ein gemeinsamer

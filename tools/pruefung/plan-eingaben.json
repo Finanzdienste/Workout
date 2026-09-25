@@ -2,7 +2,7 @@
   "hinweis": "Erzeugt von tools/pruefung/plan-frisch.py – je Variante der Stand der Eingaben, aus denen ihre Plandatei erzeugt wurde. Unter \"hingenommen\" stehen Abweichungen, die bewusst so bleiben; alles andere laesst die Pruefung nicht durch.",
   "plaene": {
     "standard": {
-      "fingerabdruck": "fa832faee55dd577",
+      "fingerabdruck": "a06e9e765dc24da8",
       "hingenommen": {
         "sz-curls.equip": {
           "erzeugt_mit": "barbell",
@@ -92,7 +92,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "reverse-fly"
         },
         "band-seitheben": {
           "dbShares": {
@@ -107,7 +108,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "beckenheben": {
           "dbShares": {
@@ -120,7 +122,8 @@
           },
           "tier": 2,
           "equip": "plate",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": "hueftstreckung"
         },
         "chin-ups": {
           "dbShares": {
@@ -137,7 +140,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "klimmzug"
         },
         "einarmiges-kh-rudern": {
           "dbShares": {
@@ -154,7 +158,8 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 35
+          "dbWeight": 35,
+          "bewegung": "rudern"
         },
         "einbeiniger-sliding-leg-curl": {
           "dbShares": {
@@ -171,7 +176,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "beinbeuger"
         },
         "einbeiniges-kreuzheben": {
           "dbShares": {
@@ -188,7 +194,8 @@
           },
           "tier": 2,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": "kreuzheben"
         },
         "einbeiniges-stehendes-wadenheben": {
           "dbShares": {
@@ -199,7 +206,8 @@
           },
           "tier": 4,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": null
         },
         "face-pull": {
           "dbShares": {
@@ -212,7 +220,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "fersenerhoehter-goblet-squat": {
           "dbShares": {
@@ -227,7 +236,8 @@
           },
           "tier": 1,
           "equip": "goblet",
-          "dbWeight": 20
+          "dbWeight": 20,
+          "bewegung": "kniebeuge"
         },
         "flaschen-seitheben": {
           "dbShares": {
@@ -242,7 +252,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "floor-press": {
           "dbShares": {
@@ -257,7 +268,11 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": {
+            "db": "bodendruecken",
+            "bw": "liegestuetz"
+          }
         },
         "fuesse-erhoehte-liegestuetze": {
           "dbShares": {
@@ -274,7 +289,8 @@
           },
           "tier": 1,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "liegestuetz"
         },
         "gewichtete-crunches": {
           "dbShares": {
@@ -285,7 +301,8 @@
           },
           "tier": 4,
           "equip": "plate",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": null
         },
         "gewichtete-liegestuetze": {
           "dbShares": {
@@ -300,7 +317,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": "liegestuetz"
         },
         "goblet-squat": {
           "dbShares": {
@@ -317,7 +335,8 @@
           },
           "tier": 1,
           "equip": "goblet",
-          "dbWeight": 20
+          "dbWeight": 20,
+          "bewegung": "kniebeuge"
         },
         "haengendes-knieheben": {
           "dbShares": {
@@ -328,7 +347,20 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
+        },
+        "hammer-curls": {
+          "dbShares": {
+            "biceps": 1.0
+          },
+          "bwShares": {
+            "biceps": 1.0
+          },
+          "tier": 3,
+          "equip": "dumbbells",
+          "dbWeight": 8,
+          "bewegung": "curl"
         },
         "hip-thrust": {
           "dbShares": {
@@ -341,7 +373,8 @@
           },
           "tier": 1,
           "equip": "hipbar",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": "hueftstreckung"
         },
         "inverted-row": {
           "dbShares": {
@@ -358,7 +391,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "rudern"
         },
         "kurzhantel-bodenpresse": {
           "dbShares": {
@@ -373,7 +407,11 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": {
+            "db": "bodendruecken",
+            "bw": "liegestuetz"
+          }
         },
         "liegende-trizepsstrecker": {
           "dbShares": {
@@ -384,7 +422,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": null
         },
         "liegendes-knieheben": {
           "dbShares": {
@@ -395,7 +434,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "pike-liegestuetze": {
           "dbShares": {
@@ -412,7 +452,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "ueberkopfdruecken"
         },
         "pull-ups": {
           "dbShares": {
@@ -429,7 +470,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "klimmzug"
         },
         "reverse-fly": {
           "dbShares": {
@@ -442,7 +484,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": "reverse-fly"
         },
         "reverse-snow-angel": {
           "dbShares": {
@@ -455,7 +498,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "rucksack-curls": {
           "dbShares": {
@@ -466,7 +510,8 @@
           },
           "tier": 3,
           "equip": "backpack",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": "curl"
         },
         "rucksack-rudern": {
           "dbShares": {
@@ -483,7 +528,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": "rudern"
         },
         "rumaenisches-kreuzheben": {
           "dbShares": {
@@ -498,7 +544,8 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": "kreuzheben"
         },
         "sitzendes-flaschen-seitheben": {
           "dbShares": {
@@ -513,7 +560,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "sitzendes-schulterdruecken": {
           "dbShares": {
@@ -530,7 +578,8 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 10
+          "dbWeight": 10,
+          "bewegung": "ueberkopfdruecken"
         },
         "sitzendes-seitheben": {
           "dbShares": {
@@ -545,7 +594,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 6
+          "dbWeight": 6,
+          "bewegung": "seitheben"
         },
         "sliding-leg-curl": {
           "dbShares": {
@@ -562,7 +612,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "beinbeuger"
         },
         "split-squat": {
           "dbShares": {
@@ -579,7 +630,8 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 10
+          "dbWeight": 10,
+          "bewegung": null
         },
         "sz-curls": {
           "dbShares": {
@@ -590,7 +642,8 @@
           },
           "tier": 3,
           "equip": "szbar",
-          "dbWeight": 15
+          "dbWeight": 15,
+          "bewegung": "curl"
         },
         "trizeps-strecken-stange": {
           "dbShares": {
@@ -601,7 +654,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "wadenheben-gebeugtes-knie": {
           "dbShares": {
@@ -612,12 +666,13 @@
           },
           "tier": 4,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": null
         }
       }
     },
     "bbp": {
-      "fingerabdruck": "fa832faee55dd577",
+      "fingerabdruck": "a06e9e765dc24da8",
       "hingenommen": {
         "hammer-curls": {
           "erzeugt_mit": null,
@@ -637,7 +692,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "reverse-fly"
         },
         "band-seitheben": {
           "dbShares": {
@@ -652,7 +708,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "beckenheben": {
           "dbShares": {
@@ -665,7 +722,8 @@
           },
           "tier": 2,
           "equip": "plate",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": "hueftstreckung"
         },
         "chin-ups": {
           "dbShares": {
@@ -682,7 +740,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "klimmzug"
         },
         "einarmiges-kh-rudern": {
           "dbShares": {
@@ -699,7 +758,8 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 35
+          "dbWeight": 35,
+          "bewegung": "rudern"
         },
         "einbeiniger-sliding-leg-curl": {
           "dbShares": {
@@ -716,7 +776,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "beinbeuger"
         },
         "einbeiniges-kreuzheben": {
           "dbShares": {
@@ -733,7 +794,8 @@
           },
           "tier": 2,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": "kreuzheben"
         },
         "einbeiniges-stehendes-wadenheben": {
           "dbShares": {
@@ -744,7 +806,8 @@
           },
           "tier": 4,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": null
         },
         "face-pull": {
           "dbShares": {
@@ -757,7 +820,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "fersenerhoehter-goblet-squat": {
           "dbShares": {
@@ -772,7 +836,8 @@
           },
           "tier": 1,
           "equip": "goblet",
-          "dbWeight": 20
+          "dbWeight": 20,
+          "bewegung": "kniebeuge"
         },
         "flaschen-seitheben": {
           "dbShares": {
@@ -787,7 +852,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "floor-press": {
           "dbShares": {
@@ -802,7 +868,11 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": {
+            "db": "bodendruecken",
+            "bw": "liegestuetz"
+          }
         },
         "fuesse-erhoehte-liegestuetze": {
           "dbShares": {
@@ -819,7 +889,8 @@
           },
           "tier": 1,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "liegestuetz"
         },
         "gewichtete-crunches": {
           "dbShares": {
@@ -830,7 +901,8 @@
           },
           "tier": 4,
           "equip": "plate",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": null
         },
         "gewichtete-liegestuetze": {
           "dbShares": {
@@ -845,7 +917,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": "liegestuetz"
         },
         "goblet-squat": {
           "dbShares": {
@@ -862,7 +935,8 @@
           },
           "tier": 1,
           "equip": "goblet",
-          "dbWeight": 20
+          "dbWeight": 20,
+          "bewegung": "kniebeuge"
         },
         "haengendes-knieheben": {
           "dbShares": {
@@ -873,7 +947,20 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
+        },
+        "hammer-curls": {
+          "dbShares": {
+            "biceps": 1.0
+          },
+          "bwShares": {
+            "biceps": 1.0
+          },
+          "tier": 3,
+          "equip": "dumbbells",
+          "dbWeight": 8,
+          "bewegung": "curl"
         },
         "hip-thrust": {
           "dbShares": {
@@ -886,7 +973,8 @@
           },
           "tier": 1,
           "equip": "hipbar",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": "hueftstreckung"
         },
         "inverted-row": {
           "dbShares": {
@@ -903,7 +991,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "rudern"
         },
         "kurzhantel-bodenpresse": {
           "dbShares": {
@@ -918,7 +1007,11 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": {
+            "db": "bodendruecken",
+            "bw": "liegestuetz"
+          }
         },
         "liegende-trizepsstrecker": {
           "dbShares": {
@@ -929,7 +1022,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": null
         },
         "liegendes-knieheben": {
           "dbShares": {
@@ -940,7 +1034,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "pike-liegestuetze": {
           "dbShares": {
@@ -957,7 +1052,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "ueberkopfdruecken"
         },
         "pull-ups": {
           "dbShares": {
@@ -974,7 +1070,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "klimmzug"
         },
         "reverse-fly": {
           "dbShares": {
@@ -987,7 +1084,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": "reverse-fly"
         },
         "reverse-snow-angel": {
           "dbShares": {
@@ -1000,7 +1098,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "rucksack-curls": {
           "dbShares": {
@@ -1011,7 +1110,8 @@
           },
           "tier": 3,
           "equip": "backpack",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": "curl"
         },
         "rucksack-rudern": {
           "dbShares": {
@@ -1028,7 +1128,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": "rudern"
         },
         "rumaenisches-kreuzheben": {
           "dbShares": {
@@ -1043,7 +1144,8 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": "kreuzheben"
         },
         "sitzendes-flaschen-seitheben": {
           "dbShares": {
@@ -1058,7 +1160,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "sitzendes-schulterdruecken": {
           "dbShares": {
@@ -1075,7 +1178,8 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 10
+          "dbWeight": 10,
+          "bewegung": "ueberkopfdruecken"
         },
         "sitzendes-seitheben": {
           "dbShares": {
@@ -1090,7 +1194,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 6
+          "dbWeight": 6,
+          "bewegung": "seitheben"
         },
         "sliding-leg-curl": {
           "dbShares": {
@@ -1107,7 +1212,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "beinbeuger"
         },
         "split-squat": {
           "dbShares": {
@@ -1124,7 +1230,8 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 10
+          "dbWeight": 10,
+          "bewegung": null
         },
         "sz-curls": {
           "dbShares": {
@@ -1135,7 +1242,8 @@
           },
           "tier": 3,
           "equip": "szbar",
-          "dbWeight": 15
+          "dbWeight": 15,
+          "bewegung": "curl"
         },
         "trizeps-strecken-stange": {
           "dbShares": {
@@ -1146,7 +1254,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "wadenheben-gebeugtes-knie": {
           "dbShares": {
@@ -1157,12 +1266,13 @@
           },
           "tier": 4,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": null
         }
       }
     },
     "cut": {
-      "fingerabdruck": "fa832faee55dd577",
+      "fingerabdruck": "a06e9e765dc24da8",
       "hingenommen": {
         "hammer-curls": {
           "erzeugt_mit": null,
@@ -1182,7 +1292,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "reverse-fly"
         },
         "band-seitheben": {
           "dbShares": {
@@ -1197,7 +1308,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "beckenheben": {
           "dbShares": {
@@ -1210,7 +1322,8 @@
           },
           "tier": 2,
           "equip": "plate",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": "hueftstreckung"
         },
         "chin-ups": {
           "dbShares": {
@@ -1227,7 +1340,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "klimmzug"
         },
         "einarmiges-kh-rudern": {
           "dbShares": {
@@ -1244,7 +1358,8 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 35
+          "dbWeight": 35,
+          "bewegung": "rudern"
         },
         "einbeiniger-sliding-leg-curl": {
           "dbShares": {
@@ -1261,7 +1376,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "beinbeuger"
         },
         "einbeiniges-kreuzheben": {
           "dbShares": {
@@ -1278,7 +1394,8 @@
           },
           "tier": 2,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": "kreuzheben"
         },
         "einbeiniges-stehendes-wadenheben": {
           "dbShares": {
@@ -1289,7 +1406,8 @@
           },
           "tier": 4,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": null
         },
         "face-pull": {
           "dbShares": {
@@ -1302,7 +1420,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "fersenerhoehter-goblet-squat": {
           "dbShares": {
@@ -1317,7 +1436,8 @@
           },
           "tier": 1,
           "equip": "goblet",
-          "dbWeight": 20
+          "dbWeight": 20,
+          "bewegung": "kniebeuge"
         },
         "flaschen-seitheben": {
           "dbShares": {
@@ -1332,7 +1452,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "floor-press": {
           "dbShares": {
@@ -1347,7 +1468,11 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": {
+            "db": "bodendruecken",
+            "bw": "liegestuetz"
+          }
         },
         "fuesse-erhoehte-liegestuetze": {
           "dbShares": {
@@ -1364,7 +1489,8 @@
           },
           "tier": 1,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "liegestuetz"
         },
         "gewichtete-crunches": {
           "dbShares": {
@@ -1375,7 +1501,8 @@
           },
           "tier": 4,
           "equip": "plate",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": null
         },
         "gewichtete-liegestuetze": {
           "dbShares": {
@@ -1390,7 +1517,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": "liegestuetz"
         },
         "goblet-squat": {
           "dbShares": {
@@ -1407,7 +1535,8 @@
           },
           "tier": 1,
           "equip": "goblet",
-          "dbWeight": 20
+          "dbWeight": 20,
+          "bewegung": "kniebeuge"
         },
         "haengendes-knieheben": {
           "dbShares": {
@@ -1418,7 +1547,20 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
+        },
+        "hammer-curls": {
+          "dbShares": {
+            "biceps": 1.0
+          },
+          "bwShares": {
+            "biceps": 1.0
+          },
+          "tier": 3,
+          "equip": "dumbbells",
+          "dbWeight": 8,
+          "bewegung": "curl"
         },
         "hip-thrust": {
           "dbShares": {
@@ -1431,7 +1573,8 @@
           },
           "tier": 1,
           "equip": "hipbar",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": "hueftstreckung"
         },
         "inverted-row": {
           "dbShares": {
@@ -1448,7 +1591,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "rudern"
         },
         "kurzhantel-bodenpresse": {
           "dbShares": {
@@ -1463,7 +1607,11 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": {
+            "db": "bodendruecken",
+            "bw": "liegestuetz"
+          }
         },
         "liegende-trizepsstrecker": {
           "dbShares": {
@@ -1474,7 +1622,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": null
         },
         "liegendes-knieheben": {
           "dbShares": {
@@ -1485,7 +1634,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "pike-liegestuetze": {
           "dbShares": {
@@ -1502,7 +1652,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "ueberkopfdruecken"
         },
         "pull-ups": {
           "dbShares": {
@@ -1519,7 +1670,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "klimmzug"
         },
         "reverse-fly": {
           "dbShares": {
@@ -1532,7 +1684,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": "reverse-fly"
         },
         "reverse-snow-angel": {
           "dbShares": {
@@ -1545,7 +1698,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "rucksack-curls": {
           "dbShares": {
@@ -1556,7 +1710,8 @@
           },
           "tier": 3,
           "equip": "backpack",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": "curl"
         },
         "rucksack-rudern": {
           "dbShares": {
@@ -1573,7 +1728,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": "rudern"
         },
         "rumaenisches-kreuzheben": {
           "dbShares": {
@@ -1588,7 +1744,8 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": "kreuzheben"
         },
         "sitzendes-flaschen-seitheben": {
           "dbShares": {
@@ -1603,7 +1760,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "sitzendes-schulterdruecken": {
           "dbShares": {
@@ -1620,7 +1778,8 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 10
+          "dbWeight": 10,
+          "bewegung": "ueberkopfdruecken"
         },
         "sitzendes-seitheben": {
           "dbShares": {
@@ -1635,7 +1794,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 6
+          "dbWeight": 6,
+          "bewegung": "seitheben"
         },
         "sliding-leg-curl": {
           "dbShares": {
@@ -1652,7 +1812,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "beinbeuger"
         },
         "split-squat": {
           "dbShares": {
@@ -1669,7 +1830,8 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 10
+          "dbWeight": 10,
+          "bewegung": null
         },
         "sz-curls": {
           "dbShares": {
@@ -1680,7 +1842,8 @@
           },
           "tier": 3,
           "equip": "szbar",
-          "dbWeight": 15
+          "dbWeight": 15,
+          "bewegung": "curl"
         },
         "trizeps-strecken-stange": {
           "dbShares": {
@@ -1691,7 +1854,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "wadenheben-gebeugtes-knie": {
           "dbShares": {
@@ -1702,12 +1866,13 @@
           },
           "tier": 4,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": null
         }
       }
     },
     "oberkoerper": {
-      "fingerabdruck": "fa832faee55dd577",
+      "fingerabdruck": "a06e9e765dc24da8",
       "hingenommen": {
         "hammer-curls": {
           "erzeugt_mit": null,
@@ -1727,7 +1892,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "reverse-fly"
         },
         "band-seitheben": {
           "dbShares": {
@@ -1742,7 +1908,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "beckenheben": {
           "dbShares": {
@@ -1755,7 +1922,8 @@
           },
           "tier": 2,
           "equip": "plate",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": "hueftstreckung"
         },
         "chin-ups": {
           "dbShares": {
@@ -1772,7 +1940,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "klimmzug"
         },
         "einarmiges-kh-rudern": {
           "dbShares": {
@@ -1789,7 +1958,8 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 35
+          "dbWeight": 35,
+          "bewegung": "rudern"
         },
         "einbeiniger-sliding-leg-curl": {
           "dbShares": {
@@ -1806,7 +1976,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "beinbeuger"
         },
         "einbeiniges-kreuzheben": {
           "dbShares": {
@@ -1823,7 +1994,8 @@
           },
           "tier": 2,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": "kreuzheben"
         },
         "einbeiniges-stehendes-wadenheben": {
           "dbShares": {
@@ -1834,7 +2006,8 @@
           },
           "tier": 4,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": null
         },
         "face-pull": {
           "dbShares": {
@@ -1847,7 +2020,8 @@
           },
           "tier": 3,
           "equip": "band",
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "fersenerhoehter-goblet-squat": {
           "dbShares": {
@@ -1862,7 +2036,8 @@
           },
           "tier": 1,
           "equip": "goblet",
-          "dbWeight": 20
+          "dbWeight": 20,
+          "bewegung": "kniebeuge"
         },
         "flaschen-seitheben": {
           "dbShares": {
@@ -1877,7 +2052,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "floor-press": {
           "dbShares": {
@@ -1892,7 +2068,11 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": {
+            "db": "bodendruecken",
+            "bw": "liegestuetz"
+          }
         },
         "fuesse-erhoehte-liegestuetze": {
           "dbShares": {
@@ -1909,7 +2089,8 @@
           },
           "tier": 1,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "liegestuetz"
         },
         "gewichtete-crunches": {
           "dbShares": {
@@ -1920,7 +2101,8 @@
           },
           "tier": 4,
           "equip": "plate",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": null
         },
         "gewichtete-liegestuetze": {
           "dbShares": {
@@ -1935,7 +2117,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": "liegestuetz"
         },
         "goblet-squat": {
           "dbShares": {
@@ -1952,7 +2135,8 @@
           },
           "tier": 1,
           "equip": "goblet",
-          "dbWeight": 20
+          "dbWeight": 20,
+          "bewegung": "kniebeuge"
         },
         "haengendes-knieheben": {
           "dbShares": {
@@ -1963,7 +2147,20 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
+        },
+        "hammer-curls": {
+          "dbShares": {
+            "biceps": 1.0
+          },
+          "bwShares": {
+            "biceps": 1.0
+          },
+          "tier": 3,
+          "equip": "dumbbells",
+          "dbWeight": 8,
+          "bewegung": "curl"
         },
         "hip-thrust": {
           "dbShares": {
@@ -1976,7 +2173,8 @@
           },
           "tier": 1,
           "equip": "hipbar",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": "hueftstreckung"
         },
         "inverted-row": {
           "dbShares": {
@@ -1993,7 +2191,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "rudern"
         },
         "kurzhantel-bodenpresse": {
           "dbShares": {
@@ -2008,7 +2207,11 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": {
+            "db": "bodendruecken",
+            "bw": "liegestuetz"
+          }
         },
         "liegende-trizepsstrecker": {
           "dbShares": {
@@ -2019,7 +2222,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": null
         },
         "liegendes-knieheben": {
           "dbShares": {
@@ -2030,7 +2234,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "pike-liegestuetze": {
           "dbShares": {
@@ -2047,7 +2252,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "ueberkopfdruecken"
         },
         "pull-ups": {
           "dbShares": {
@@ -2064,7 +2270,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 0
+          "dbWeight": 0,
+          "bewegung": "klimmzug"
         },
         "reverse-fly": {
           "dbShares": {
@@ -2077,7 +2284,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": "reverse-fly"
         },
         "reverse-snow-angel": {
           "dbShares": {
@@ -2090,7 +2298,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "rucksack-curls": {
           "dbShares": {
@@ -2101,7 +2310,8 @@
           },
           "tier": 3,
           "equip": "backpack",
-          "dbWeight": 5
+          "dbWeight": 5,
+          "bewegung": "curl"
         },
         "rucksack-rudern": {
           "dbShares": {
@@ -2118,7 +2328,8 @@
           },
           "tier": 1,
           "equip": "backpack",
-          "dbWeight": 8
+          "dbWeight": 8,
+          "bewegung": "rudern"
         },
         "rumaenisches-kreuzheben": {
           "dbShares": {
@@ -2133,7 +2344,8 @@
           },
           "tier": 1,
           "equip": "barbell",
-          "dbWeight": 40
+          "dbWeight": 40,
+          "bewegung": "kreuzheben"
         },
         "sitzendes-flaschen-seitheben": {
           "dbShares": {
@@ -2148,7 +2360,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "seitheben"
         },
         "sitzendes-schulterdruecken": {
           "dbShares": {
@@ -2165,7 +2378,8 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 10
+          "dbWeight": 10,
+          "bewegung": "ueberkopfdruecken"
         },
         "sitzendes-seitheben": {
           "dbShares": {
@@ -2180,7 +2394,8 @@
           },
           "tier": 3,
           "equip": "dumbbells",
-          "dbWeight": 6
+          "dbWeight": 6,
+          "bewegung": "seitheben"
         },
         "sliding-leg-curl": {
           "dbShares": {
@@ -2197,7 +2412,8 @@
           },
           "tier": 2,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": "beinbeuger"
         },
         "split-squat": {
           "dbShares": {
@@ -2214,7 +2430,8 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 10
+          "dbWeight": 10,
+          "bewegung": null
         },
         "sz-curls": {
           "dbShares": {
@@ -2225,7 +2442,8 @@
           },
           "tier": 3,
           "equip": "szbar",
-          "dbWeight": 15
+          "dbWeight": 15,
+          "bewegung": "curl"
         },
         "trizeps-strecken-stange": {
           "dbShares": {
@@ -2236,7 +2454,8 @@
           },
           "tier": 3,
           "equip": null,
-          "dbWeight": null
+          "dbWeight": null,
+          "bewegung": null
         },
         "wadenheben-gebeugtes-knie": {
           "dbShares": {
@@ -2247,7 +2466,8 @@
           },
           "tier": 4,
           "equip": "onehand",
-          "dbWeight": 12
+          "dbWeight": 12,
+          "bewegung": null
         }
       }
     }
