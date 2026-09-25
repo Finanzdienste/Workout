@@ -60,7 +60,7 @@ export function vorratZeile(g) {
  * Gerechnet wird am Plan und nicht am Katalog, und das ist der Unterschied
  * zwischen einer beruhigenden und einer wahren Zahl. Gemessen, als es hier noch
  * anders stand: Ohne Band und Klimmzugstange meldete die App „Rücken ist
- * gedeckt", weil es im Katalog das Inverted Row an der Tischkante gibt. Im
+ * gedeckt", weil es im Katalog das Inverted Row gab, damals an der Tischkante. Im
  * Bodyweight-Plan bleiben davon **0,0 von 10 Sätzen** je Woche übrig. Eine
  * Übung, die es gäbe, ist kein Volumen.
  *

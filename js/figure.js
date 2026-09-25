@@ -1029,7 +1029,7 @@ export const PATTERNS = {
   },
   thrust1: {
     /*
-     * Dieselbe Übung auf einem Bein, auf der Stuhl- oder Sofakante – und
+     * Dieselbe Übung auf einem Bein, auf der Sofakante – und
      * deshalb dieselben Winkel für das Standbein wie bei `thrust`.
      *
      * Das freie Bein hält seine Richtung im *Raum*, nicht zum Rumpf: Beim

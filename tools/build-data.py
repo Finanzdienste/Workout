@@ -119,31 +119,31 @@ def parse_block(text, has_title):
 
 # --- Aus dem Geraetetext wird eine pruefbare Angabe ---------------------
 #
-# `dbEquip`/`bwEquip` sind Fliesstext fuer den Menschen: "Kurzhanteln oder
-# SZ-Stange", "Klimmzugstange tief oder Tischkante". Die App kann daran nicht
-# entscheiden, ob eine Uebung gerade moeglich ist - dafuer braucht sie Schluessel.
+# `dbEquip`/`bwEquip` sind Fliesstext fuer den Menschen: "Kurzhanteln",
+# "Klimmzugstange tief + Rucksack". Die App kann daran nicht entscheiden, ob
+# eine Uebung gerade moeglich ist - dafuer braucht sie Schluessel.
 #
 # WARUM EINE TABELLE UND KEINE MUSTERSUCHE: Ein /band/i faende auch
-# "Handtuch"-Faelle nicht und "Tischkante" nicht als Ausweg. Vor allem aber
-# schwiege es bei einem neuen Text. Eine Tabelle mit Volltreffer bricht den Bau
-# ab, sobald in exercise-meta.json ein Geraet auftaucht, das hier nicht steht -
-# und das ist genau der Moment, in dem jemand entscheiden muss, ob man es
-# abwaehlen koennen soll.
+# "Handtuch"-Faelle nicht. Vor allem aber schwiege es bei einem neuen Text.
+# Eine Tabelle mit Volltreffer bricht den Bau ab, sobald in exercise-meta.json
+# ein Geraet auftaucht, das hier nicht steht - und das ist genau der Moment, in
+# dem jemand entscheiden muss, ob man es abwaehlen koennen soll.
 #
 # Ein Eintrag ist eine Liste von Alternativgruppen (UND ueber ODER):
-# ["kurzhantel|sz"] heisst "Kurzhanteln oder SZ-Stange", [] heisst "braucht
-# nichts, was fehlen koennte".
+# ["band", "stange"] heisst "Band und Klimmzugstange", [] heisst "braucht
+# nichts, was fehlen koennte". Die ODER-Seite ("kurzhantel|sz") ist seit dem
+# 25.09. unbenutzt: Jeder Geraetetext nennt genau ein Geraet, kein "oder" -
+# siehe tools/pruefung/geraete.py.
 #
-# NICHT AUFGEFUEHRT SIND MOEBEL: Stuhl, Erhoehung, Handtuch, Buch, Tischkante,
+# NICHT AUFGEFUEHRT SIND MOEBEL: Stuhl, Sofa, Treppenstufe, Handtuch, Buch,
 # Polster, Rucksack. Wer keinen Stuhl hat, hat andere Sorgen; und ein Rucksack
-# ist ueberall. Was hier fehlt, gilt als immer vorhanden - deshalb steht auch
-# "Klimmzugstange tief oder Tischkante" auf [], die Uebung geht ohne Stange.
+# ist ueberall. Was hier fehlt, gilt als immer vorhanden.
 GERAET_AUS_TEXT = {
     'Kurzhantel': ['kurzhantel'],
     'Kurzhanteln': ['kurzhantel'],
-    'Kurzhantel + Erhöhung': ['kurzhantel'],
-    'Kurzhantel oder Scheibe': ['kurzhantel'],
-    'Kurzhanteln oder SZ-Stange': ['kurzhantel|sz'],
+    'Kurzhantel + Hantelscheiben': ['kurzhantel'],
+    # Die Scheibe kommt vom Kurzhantelsatz.
+    'Scheibe': ['kurzhantel'],
     'SZ-Stange': ['sz'],
     'Langhantel': ['langhantel'],
     'Langhantel + Polster': ['langhantel'],
@@ -153,15 +153,14 @@ GERAET_AUS_TEXT = {
     'Klimmzugstange': ['stange'],
     'Klimmzugstange (+ Stuhl)': ['stange'],
     'Klimmzugstange + Rucksack': ['stange'],
+    'Klimmzugstange tief': ['stange'],
     'Klimmzugstange tief + Rucksack': ['stange'],
-    'Klimmzugstange tief oder Tischkante': [],
-    'Slider/Handtuch': [],
+    'Tischkante': [],
     'Handtuch, glatter Boden': [],
-    'Stuhl- oder Sofakante': [],
-    'Stuhl oder feste Kiste': [],
-    'Stufe oder dickes Buch': [],
-    'Erhöhung': [],
-    'Erhöhung (Buch/Keil)': [],
+    'Sofakante': [],
+    'Stuhl': [],
+    'Treppenstufe': [],
+    'festes Buch': [],
     'Rucksack': [],
     # Zwei gefuellte Flaschen sind kein Geraet, sondern der Kuehlschrank. Sie
     # stehen hier, weil die seitliche Schulter sonst als einzige Gruppe ganz

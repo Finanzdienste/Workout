@@ -48,8 +48,8 @@ for m in re.finditer(r'^  ([a-z0-9]+): \{(.*?)^  \},', FIG, re.S | re.M):
                 if re.search(r"band: '([a-z]+)'", koerper) else None,
     }
 
-# Welches gezeichnete Gerät zu welchem Gerätetext passt. Mehrere erlaubt: Eine
-# Übung darf mit Kurzhantel *oder* Scheibe gehen, gezeichnet wird eine davon.
+# Welches gezeichnete Gerät zu welchem Gerätetext passt. Der Text nennt genau
+# ein Gerät (siehe 5.); die Zeichnung muss zu dem passen, das dort steht.
 PASST = {
     'barbell':   r'langhantel',
     # Eigene Stange, eigenes Leergewicht – siehe RASTER in js/scheiben.js.
@@ -104,6 +104,22 @@ for k, e in sorted(META.items()):
         text = (e.get('dbEquip') or '').lower()
         if text and not re.search(PASST[gear], text):
             melde(k, f'db: Figur zeichnet „{gear}", der Text sagt „{e.get("dbEquip")}"', '')
+
+    # 5. Der Gerätetext nennt genau ein Gerät.
+    #
+    #     „Mach nicht immer ODER sondern mach das optimale. Also hier zb nicht
+    #      SZ-Stange oder Kurzhantel"
+    #
+    # Acht Übungen stellten die Wahl dem Nutzer: Kurzhanteln oder SZ-Stange,
+    # Kurzhantel oder Scheibe, Stuhl oder Kiste, Stufe oder Buch, Klimmzugstange
+    # oder Tischkante. Die Wahl ist eine Entscheidung, und die gehört in den
+    # Katalog, mit Grund – nicht auf die Karte. Was die bessere Fassung ist,
+    # steht je Übung unter `detail`; hier wird nur geprüft, dass sie getroffen
+    # ist. Ein "/" ist dasselbe "oder" mit weniger Buchstaben.
+    for modus in ('db', 'bw'):
+        text = e.get(f'{modus}Equip') or ''
+        if re.search(r'\boder\b|/', text):
+            melde(k, f'{modus}: Gerätetext stellt eine Wahl – „{text}"; eines festlegen', '')
 
 
 # 4. Schlüssel gegen Namen – eine Warnung, kein Fehler.

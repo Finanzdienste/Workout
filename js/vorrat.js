@@ -64,7 +64,7 @@ import * as store from './store.js';
  * Bodyweight-Modus vorhanden" – die Übungen selbst sagen schon, was sie
  * brauchen, und im Bodyweight-Modus braucht keine eine Kurzhantel.
  *
- * Möbel stehen hier nicht: Stuhl, Erhöhung, Handtuch, Buch, Tischkante,
+ * Möbel stehen hier nicht: Stuhl, Sofa, Treppenstufe, Handtuch, Buch,
  * Rucksack. Siehe GERAET_AUS_TEXT in tools/build-data.py.
  */
 export const GERAETE = [
@@ -236,9 +236,10 @@ function deckung(a, b) {
  * 2. *Derselbe Hauptmuskel.* Sonst stünde für einen ganzen Plan ohne Band und
  *    Stange bei Rücken, Nacken und hinterer Schulter eine Null – gemessen, nicht
  *    vermutet. Dabei kennt der Katalog Übungen, die das können und die nur
- *    deshalb nicht im Plan stehen, weil der Plan mit Geräten rechnet: das
- *    Inverted Row an der Tischkante, den Reverse Snow Angel, die Pike-
- *    Liegestütze.
+ *    deshalb nicht im Plan stehen, weil der Plan mit Geräten rechnet: den
+ *    Reverse Snow Angel, die Pike-Liegestütze. (Das Inverted Row gehörte
+ *    dazu, solange es an der Tischkante ging; seit dem 25.09. nennt es nur
+ *    noch die tief eingehängte Klimmzugstange und braucht sie damit.)
  *
  *        „Falls es irgendeinen Weg gibt, auch bei full bodyweight also auch
  *         ohne Bänder und so möglichst die Zielmuskelgruppen dieser Einheit zu

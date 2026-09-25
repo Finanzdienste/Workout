@@ -31,7 +31,7 @@ console.log('     oben: ', JSON.stringify(Object.fromEntries(
   Object.entries(oben).map(([k, v]) => [k, +v.toFixed(3)]))));
 
 // Die Auflage: Die Schultern liegen etwa auf Schulterhöhe eines Stehenden über
-// dem Boden – das ist die Höhe einer Bank oder Sofakante – und zwar in beiden
+// dem Boden – das ist die Höhe der Sofakante – und zwar in beiden
 // Stellungen. Wandern sie, liegt die Figur nicht auf, sondern schwebt.
 check(unten.schulterH > 0.32 && oben.schulterH > 0.32,
   `die Schultern liegen erhöht (${unten.schulterH.toFixed(2)} / ${oben.schulterH.toFixed(2)})`);

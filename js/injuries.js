@@ -57,7 +57,7 @@ export const KIND_LABEL = {
  * Zwei weitere kamen später dazu, und bei ihnen läuft die Ableitung einmal in
  * die andere Richtung:
  *
- *   Trizepsstrecken an der Stange   wie der Überkopf-Trizepsstrecker (Ellenbogen
+ *   Trizepsstrecken an der Tischkante   wie der Überkopf-Trizepsstrecker (Ellenbogen
  *                                   streckt gegen Last) plus Inverted Row
  *                                   (derselbe Griff an derselben Kante)
  *                                   – **außer** beim Schulter-Impingement: Dort

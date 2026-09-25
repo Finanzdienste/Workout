@@ -102,7 +102,7 @@ const ohne = await page.evaluate(async () => {
 
   // Was der Plan vorsieht und was übrig bleibt – beides am Plan gerechnet,
   // nicht am Katalog. Genau hier stand die App zuerst falsch: Sie meldete
-  // „Rücken ist gedeckt", weil es das Inverted Row an der Tischkante gibt.
+  // „Rücken ist gedeckt", weil es das Inverted Row gab, damals an der Tischkante.
   const summe = (hol) => {
     const acc = {};
     PLAN.forEach((w) => hol(w).forEach((it) => {

@@ -43,7 +43,7 @@ export const EXERCISES = [
       },
       {
         "ort": "Ferse hebt ab / Sprunggelenk",
-        "text": "Wenn die Fersen beim Tiefergehen abheben oder das Sprunggelenk vorn einklemmt, reicht die Beweglichkeit im Fuß nicht für diese Tiefe. Der Körper holt sich den Rest, indem er nach vorn kippt – und dann arbeitet der untere Rücken mit.\n\nDas Naheliegende zuerst: Fersen auf eine schmale Erhöhung, ein Brett oder zwei Hantelscheiben. Damit steht das Schienbein steiler und der Fuß muss weniger hergeben. Alternativ die Füße etwas weiter und die Zehen leicht nach außen.\n\nKlemmt es vorn im Gelenk statt hinten zu ziehen, oder ist das Sprunggelenk nach einem Umknicken noch nicht wieder wie vorher: hier anhaken. Dann tritt der fersenerhöhte Squat an diese Stelle.",
+        "text": "Wenn die Fersen beim Tiefergehen abheben oder das Sprunggelenk vorn einklemmt, reicht die Beweglichkeit im Fuß nicht für diese Tiefe. Der Körper holt sich den Rest, indem er nach vorn kippt – und dann arbeitet der untere Rücken mit.\n\nDas Naheliegende zuerst: Fersen auf je eine Hantelscheibe. Damit steht das Schienbein steiler und der Fuß muss weniger hergeben. Dazu die Füße etwas weiter und die Zehen leicht nach außen.\n\nKlemmt es vorn im Gelenk statt hinten zu ziehen, oder ist das Sprunggelenk nach einem Umknicken noch nicht wieder wie vorher: hier anhaken. Dann tritt der fersenerhöhte Squat an diese Stelle.",
         "verletzung": [
           "sprunggelenk"
         ]
@@ -82,7 +82,7 @@ export const EXERCISES = [
       "name": "1½-Wdh. Bodyweight Squat",
       "reps": "12–25",
       "equip": "Ohne Gerät",
-      "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Der Sinn: Der untere Bereich ist der schwerste, und den durchläufst du damit doppelt so oft. Zu schwer? Erst die halbe Zahl an Wiederholungen, oder ohne die Zwischenstufe absolvieren und sie dazunehmen, wenn die Tiefe steht.",
+      "cue": "1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Der Sinn: Der untere Bereich ist der schwerste, und den durchläufst du damit doppelt so oft. Zu schwer? Ohne die Zwischenstufe, und sie erst dazunehmen, wenn die Tiefe steht.",
       "rest": 150,
       "pattern": "squatbw",
       "shares": {
@@ -112,7 +112,7 @@ export const EXERCISES = [
     "detail": [
       [
         "Untergrund",
-        "Auf Laminat oder Fliesen reichen zwei Handtücher oder Papierteller. Auf Teppich rutscht nichts – dort die Fersen auf die Stuhlkante legen und von dort langsam ausstrecken."
+        "Auf Laminat oder Fliesen reichen zwei Handtücher. Auf Teppich rutscht nichts – dort die Fersen auf die Stuhlkante legen und von dort langsam ausstrecken."
       ],
       [
         "Die Hüfte ist der Punkt",
@@ -139,8 +139,8 @@ export const EXERCISES = [
     "db": {
       "name": "Sliding Leg Curl",
       "reps": "8–15",
-      "equip": "Slider/Handtuch",
-      "cue": "Rücken am Boden, Fersen auf Slidern. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
+      "equip": "Handtuch, glatter Boden",
+      "cue": "Rücken am Boden, Fersen auf je einem Handtuch, glatter Boden. Hüfte oben halten und Fersen langsam wegschieben, dann kontrolliert heranziehen. Sackt die Hüfte ab oder kommst du nicht zurück, schiebe weniger weit weg – der halbe Weg mit hoher Hüfte ist mehr wert als der ganze mit durchhängendem Becken. Notfalls mit den Händen am Boden nachhelfen.",
       "rest": 120,
       "pattern": "legcurl",
       "shares": {
@@ -201,7 +201,7 @@ export const EXERCISES = [
       ],
       [
         "Mehr Tiefe",
-        "Zwei gleich hohe, kippsichere Auflagen unter den Händen – dicke Bücher, niedrige Kisten, sechseckige Kurzhanteln. Runde Scheiben oder runde Hanteln rollen unter Last weg."
+        "Zwei gleich dicke Bücher unter den Händen, kippsicher. Runde Hanteln und Scheiben nicht – die rollen unter Last weg."
       ],
       [
         "Typische Fehler",
@@ -221,7 +221,7 @@ export const EXERCISES = [
       "name": "Gewichtete Liegestütze",
       "reps": "8–15",
       "equip": "Rucksack",
-      "cue": "Rucksack auf den oberen Rücken, hoch zwischen die Schulterblätter, Gurte fest – rutscht er Richtung Becken, hebelt er dich hoch. Füllung: Wasserflaschen (1 l = 1 kg), Bücher oder die Kurzhanteln selbst. Körper bleibt eine Linie, Ellenbogen ca. 45°. Mehr Tiefe bringen zwei gleich hohe, kippsichere Auflagen unter den Händen – dicke Bücher oder niedrige Kisten; dann sinkt die Brust darunter. Auf Kurzhanteln nur, wenn sie sechseckig sind: runde Scheiben rollen unter Last weg.",
+      "cue": "Rucksack auf den oberen Rücken, hoch zwischen die Schulterblätter, Gurte fest – rutscht er Richtung Becken, hebelt er dich hoch. Füllung: Hantelscheiben, in ein Handtuch gewickelt – die wiegen genau, was draufsteht. Körper bleibt eine Linie, Ellenbogen ca. 45°. Mehr Tiefe bringen zwei gleich dicke Bücher unter den Händen; dann sinkt die Brust darunter.",
       "rest": 150,
       "pattern": "pushup",
       "shares": {
@@ -241,7 +241,7 @@ export const EXERCISES = [
       "name": "Langsame Liegestütze (3 s ablassen)",
       "reps": "8–20",
       "equip": "Ohne Gerät (optional zwei Bücherstapel)",
-      "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht. Mehr Tiefe bringen zwei gleich hohe Bücherstapel oder kippsichere Kisten unter den Händen.",
+      "cue": "3 Sekunden kontrolliert ablassen, kurz am Boden entspannen, explosiv hoch. Die Zeit unter Spannung ersetzt das Gewicht. Mehr Tiefe bringen zwei gleich hohe Bücherstapel unter den Händen.",
       "rest": 150,
       "pattern": "pushup",
       "shares": {
@@ -277,7 +277,7 @@ export const EXERCISES = [
       ],
       [
         "Wenn es noch nicht geht",
-        "Negativ-Wiederholungen: hochspringen oder von einem Stuhl aus starten und fünf Sekunden kontrolliert ablassen. Drei bis vier Wochen davon, dann kommt die erste freie. Bänder als Hilfe gehen auch, nehmen aber unten am meisten ab – also genau dort, wo es schwer ist."
+        "Füße auf einem Stuhl hinter dir, und mit den Beinen nur so viel nachhelfen, wie nötig ist: Der ganze Weg bleibt, die Hilfe wird von Woche zu Woche kleiner, und du bestimmst sie in jeder Wiederholung selbst. Drei bis vier Wochen davon, dann kommt die erste freie. Negative üben nur das Ablassen, und Bänder nehmen unten am meisten ab – also genau dort, wo es schwer ist."
       ],
       [
         "Typische Fehler",
@@ -311,7 +311,7 @@ export const EXERCISES = [
       "name": "Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange + Rucksack",
-      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Schaffst du noch keine 5? Dann ist eine einzelne Wiederholung ein Maximalversuch und kein Trainingssatz: Negative (von einem Stuhl aus starten, 5 s ablassen) oder Füße auf einem Stuhl abstützen, bis du im Bereich 5–10 arbeitest. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Wasserflaschen, Bücher, Kurzhanteln) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
+      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Schaffst du noch keine 5? Dann ist eine einzelne Wiederholung ein Maximalversuch und kein Trainingssatz: Füße auf einem Stuhl abstützen und nur so viel mit den Beinen nachhelfen, dass du im Bereich 5–10 arbeitest. Zusatzgewicht erst, wenn 10 saubere stehen – dann Rucksack auf den Rücken (Hantelscheiben, in ein Handtuch gewickelt) und in Kilo-Schritten hoch. Bis dahin bleibt das Feld auf 0.",
       "rest": 180,
       "pattern": "pullup",
       "shares": {
@@ -340,7 +340,7 @@ export const EXERCISES = [
       "name": "Chin-ups",
       "reps": "5–10",
       "equip": "Klimmzugstange (+ Stuhl)",
-      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zu schwer? Negativ-Wiederholungen: von einem Stuhl aus oben starten und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen und nur so viel abnehmen, wie nötig ist.",
+      "cue": "Untergriff, schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, kontrolliert ablassen. Zu schwer? Die Füße auf einem Stuhl abstützen und nur so viel mit den Beinen nachhelfen, wie nötig ist – der ganze Weg bleibt, und die Hilfe wird von Woche zu Woche kleiner.",
       "rest": 180,
       "pattern": "pullup",
       "shares": {
@@ -467,8 +467,8 @@ export const EXERCISES = [
         "Sie bleiben stehen, neben den Ohren. Wandern sie nach außen oder nach vorn, hilft die Schulter mit und der Trizeps bekommt weniger."
       ],
       [
-        "Eine Hantel oder zwei",
-        "Zwei Kurzhanteln, je eine pro Hand, sind schonender für die Handgelenke als eine Hantel mit beiden Händen. Eine SZ-Stange geht auch – dann ist der Griff enger.",
+        "Zwei Kurzhanteln, keine Stange",
+        "Je eine pro Hand: Jedes Handgelenk behält seine eigene Drehung, der Griff bleibt neutral, und der schwächere Arm kann sich nicht hinter dem stärkeren verstecken. Eine Stange bindet beide Hände an dieselbe feste Stellung – hinter dem Kopf ist das die unbequemere, und genau dort sitzt bei dieser Übung die Dehnung.",
         "db"
       ],
       [
@@ -495,8 +495,8 @@ export const EXERCISES = [
     "db": {
       "name": "Überkopf-Trizepsstrecker",
       "reps": "8–12",
-      "equip": "Kurzhanteln oder SZ-Stange",
-      "cue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. Zwei Kurzhanteln – je eine pro Hand – hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Mit einer SZ-Stange beidhändig geht es auch, dann ist der Griff enger und das eingetragene Gewicht meint die ganze Stange. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
+      "equip": "Kurzhanteln",
+      "cue": "Sitzend, Oberarme senkrecht neben den Ohren und dort stehen lassen. Zwei Kurzhanteln – je eine pro Hand – hinter dem Kopf ablassen, bis es hinten am Oberarm zieht, dann strecken. Rippen unten lassen, nicht ins Hohlkreuz ausweichen.",
       "rest": 120,
       "pattern": "tricepsoh",
       "shares": {
@@ -507,14 +507,14 @@ export const EXERCISES = [
       ],
       "stufen": {},
       "braucht": [
-        "kurzhantel|sz"
+        "kurzhantel"
       ]
     },
     "bw": {
       "name": "Überkopf-Trizepsstrecker am Band",
       "reps": "10–20",
       "equip": "Loop-Band + Stuhl",
-      "cue": "Auf den Stuhl setzen, das Band unter beide Füße klemmen und die Enden hinter dem Kopf fassen. Oberarme senkrecht neben den Ohren, nur strecken – die Ellenbogen bleiben stehen. Über Kopf steht der lange Trizepskopf auf voller Länge; genau dort soll der Zug ankommen. Schwerer wird es mit dem nächststärkeren Band oder indem du das Band kürzer fasst.",
+      "cue": "Auf den Stuhl setzen, das Band unter beide Füße klemmen und die Enden hinter dem Kopf fassen. Oberarme senkrecht neben den Ohren, nur strecken – die Ellenbogen bleiben stehen. Über Kopf steht der lange Trizepskopf auf voller Länge; genau dort soll der Zug ankommen. Schwerer wird es mit dem nächststärkeren Band.",
       "rest": 120,
       "pattern": "tricepsoh",
       "shares": {
@@ -540,11 +540,11 @@ export const EXERCISES = [
     "detail": [
       [
         "Die Dehnung unten zählt",
-        "Fußballen auf etwas Erhöhtes, die Ferse sinkt darunter. Ein dickes Buch reicht – es braucht keine Stufe, nur ein paar Zentimeter. Flach auf dem Boden fehlt genau der Teil, der die Wade wachsen lässt."
+        "Fußballen auf die Treppenstufe, die Ferse sinkt frei darunter: Die Kante ist breit genug für den ganzen Ballen, sie rutscht nicht, und das Geländer ist für die freie Hand da. Flach auf dem Boden fehlt genau der Teil, der die Wade wachsen lässt."
       ],
       [
         "Wohin mit dem anderen Bein",
-        "Nirgendwo hin – es hängt hinten locker herunter, das Knie leicht gebeugt. Es wird nicht auf der Wade abgelegt und auch nicht angehoben: Beides kostet nur Gleichgewicht, und das brauchst du hier. Wenn du wackelst, ist die freie Hand an der Wand die Lösung, nicht eine andere Beinhaltung."
+        "Nirgendwo hin – es hängt hinten locker herunter, das Knie leicht gebeugt. Es wird nicht auf der Wade abgelegt und auch nicht angehoben: Beides kostet nur Gleichgewicht, und das brauchst du hier. Wenn du wackelst, ist die freie Hand am Geländer die Lösung, nicht eine andere Beinhaltung."
       ],
       [
         "Tempo",
@@ -575,7 +575,7 @@ export const EXERCISES = [
       "name": "Einbeiniges stehendes Wadenheben",
       "reps": "10–20 je Bein",
       "equip": "Kurzhantel",
-      "cue": "Ballen auf ein dickes Buch, eine Türschwelle oder eine Stufe – Hauptsache, die Ferse kann darunter absinken. Ganz hoch auf den Ballen, oben 1 s halten. Das freie Bein hängt einfach locker hinten, es wird nirgends abgelegt; wer wackelt, hält sich mit der freien Hand an der Wand fest.",
+      "cue": "Ballen auf die unterste Treppenstufe, die Ferse sinkt frei darunter. Ganz hoch auf den Ballen, oben 1 s halten. Das freie Bein hängt einfach locker hinten, es wird nirgends abgelegt; wer wackelt, hält sich mit der freien Hand am Geländer fest.",
       "rest": 90,
       "pattern": "calf1",
       "shares": {
@@ -592,8 +592,8 @@ export const EXERCISES = [
     "bw": {
       "name": "Einbeiniges Wadenheben",
       "reps": "15–30 je Bein",
-      "equip": "Stufe oder dickes Buch",
-      "cue": "Fußballen auf eine Stufe oder ein dickes Buch, Ferse tief absenken – flach auf dem Boden fehlt genau der gedehnte Teil, auf den es hier ankommt. Ganz hoch auf den Ballen, oben 1 s halten. Ohne Gewicht dafür deutlich mehr Wiederholungen.",
+      "equip": "Treppenstufe",
+      "cue": "Fußballen auf die unterste Treppenstufe, Ferse tief absenken – flach auf dem Boden fehlt genau der gedehnte Teil, auf den es hier ankommt. Ganz hoch auf den Ballen, oben 1 s halten. Ohne Gewicht dafür deutlich mehr Wiederholungen.",
       "rest": 90,
       "pattern": "calf1",
       "shares": {
@@ -684,7 +684,13 @@ export const EXERCISES = [
       ],
       [
         "Womit erhöhen",
-        "Zwei bis vier Zentimeter reichen: eine Hantelscheibe, ein festes Buch, eine Türschwelle. Nur die Ferse steht erhöht, der Ballen bleibt auf dem Boden."
+        "Zwei bis vier Zentimeter: je eine Hantelscheibe unter der Ferse – flach, kippsicher, und sie liegt ohnehin daneben. Nur die Ferse steht erhöht, der Ballen bleibt auf dem Boden.",
+        "db"
+      ],
+      [
+        "Womit erhöhen",
+        "Zwei bis vier Zentimeter: ein festes Buch unter jeder Ferse, gleich dick auf beiden Seiten. Nur die Ferse steht erhöht, der Ballen bleibt auf dem Boden.",
+        "bw"
       ],
       [
         "Was sich dadurch ändert",
@@ -712,8 +718,8 @@ export const EXERCISES = [
     "db": {
       "name": "Fersenerhöhter Goblet Squat",
       "reps": "8–12",
-      "equip": "Kurzhantel + Erhöhung",
-      "cue": "Fersen 2–4 cm erhöht. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
+      "equip": "Kurzhantel + Hantelscheiben",
+      "cue": "Fersen auf je einer Hantelscheibe, 2–4 cm hoch. Dadurch mehr Quadrizeps und größere Tiefe. Knie darf über die Zehen wandern.",
       "rest": 150,
       "pattern": "squatheel",
       "shares": {
@@ -734,8 +740,8 @@ export const EXERCISES = [
     "bw": {
       "name": "Fersenerhöhter 1½-Wdh. Bodyweight Squat",
       "reps": "12–25",
-      "equip": "Erhöhung (Buch/Keil)",
-      "cue": "Fersen 2–4 cm erhöht, nur die Ferse, der Ballen bleibt am Boden. Dann 1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Die Erhöhung lässt das Knie weiter über die Zehen wandern und betont den vorderen Oberschenkel deutlich stärker. Zu schwer? Erst die halbe Zahl an Wiederholungen, oder ohne die Zwischenstufe absolvieren und sie erst dazunehmen, wenn die Tiefe steht.",
+      "equip": "festes Buch",
+      "cue": "Fersen auf je einem festen Buch, 2–4 cm hoch – nur die Ferse, der Ballen bleibt am Boden. Dann 1½-Wiederholungen: tief absitzen, nur zur Hälfte hoch, wieder tief, dann ganz hoch – das zusammen zählt als EINE Wiederholung. Tempo bewusst langsam. Die Erhöhung lässt das Knie weiter über die Zehen wandern und betont den vorderen Oberschenkel deutlich stärker. Zu schwer? Ohne die Zwischenstufe, und sie erst dazunehmen, wenn die Tiefe steht.",
       "rest": 150,
       "pattern": "squatheelbw",
       "shares": {
@@ -846,8 +852,8 @@ export const EXERCISES = [
     "tier": 4,
     "detail": [
       [
-        "Wohin das Gewicht",
-        "Vor der Brust ist leichter, hinter dem Kopf schwerer – der Hebel ist länger. Anfangen mit vor der Brust, und erst wechseln, wenn 15 saubere Wiederholungen stehen.",
+        "Warum die Scheibe vor der Brust",
+        "Die Scheibe liegt flach auf der Brust, die Hände halten sie ohne Kraft, und die Last bleibt über dem Bauch. Hinter dem Kopf zieht dasselbe Gewicht am Nacken, und eine Kurzhantel ist zu klobig, um sie ruhig an der Brust zu halten. Schwerer wird es über das Gewicht, nicht über den Hebel.",
         "db"
       ],
       [
@@ -875,8 +881,8 @@ export const EXERCISES = [
     "db": {
       "name": "Gewichtete Crunches",
       "reps": "10–20",
-      "equip": "Kurzhantel oder Scheibe",
-      "cue": "Gewicht vor der Brust oder hinter dem Kopf. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
+      "equip": "Scheibe",
+      "cue": "Scheibe mit beiden Händen flach auf die Brust, Kinn locker. Nur die Brustwirbelsäule einrollen, nicht die Hüfte beugen.",
       "rest": 90,
       "pattern": "crunch",
       "shares": {
@@ -937,8 +943,8 @@ export const EXERCISES = [
     "db": {
       "name": "Einbeiniger Sliding Leg Curl",
       "reps": "6–12 je Bein",
-      "equip": "Slider/Handtuch",
-      "cue": "Rücken am Boden, eine Ferse auf einem Slider, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf dabei nicht absacken und nicht zur Seite kippen.",
+      "equip": "Handtuch, glatter Boden",
+      "cue": "Rücken am Boden, eine Ferse auf einem Handtuch, glatter Boden, das andere Bein angewinkelt in der Luft. Hüfte oben halten und die Ferse langsam wegschieben, dann kontrolliert heranziehen. Die Hüfte darf dabei nicht absacken und nicht zur Seite kippen.",
       "rest": 120,
       "pattern": "legcurl1",
       "shares": {
@@ -990,7 +996,7 @@ export const EXERCISES = [
     "detail": [
       [
         "Wie hoch",
-        "Ein Stuhl oder eine Kiste, 40 bis 50 cm. Je höher die Füße, desto mehr Gewicht liegt auf den Armen und desto mehr arbeitet die obere Brust und die vordere Schulter."
+        "Ein Stuhl, 40 bis 50 cm Sitzhöhe: Die Höhe stimmt, die Sitzfläche trägt beide Füße, und er steht in jeder Wohnung. Je höher die Füße, desto mehr Gewicht liegt auf den Armen und desto mehr arbeitet die obere Brust und die vordere Schulter."
       ],
       [
         "Grenze",
@@ -1017,8 +1023,8 @@ export const EXERCISES = [
     "db": {
       "name": "Füße-erhöhte Liegestütze",
       "reps": "8–15",
-      "equip": "Erhöhung",
-      "cue": "Füße auf Bank/Stuhl. Je höher die Füße, desto mehr obere Brust und Schulter. Schaffst du keine 8? Dann in die Gegenrichtung: Füße auf den Boden, und wenn das noch zu viel ist, die Hände erhöhen – auf eine Stuhlkante oder Treppenstufe. Je höher die Hände, desto leichter. Von dort Stufe für Stufe wieder herunter.",
+      "equip": "Stuhl",
+      "cue": "Füße auf einen Stuhl, Körper eine Linie, Ellenbogen ca. 45°. Je höher die Füße, desto mehr obere Brust und Schulter. Schaffst du keine 8? Dann in die Gegenrichtung: Füße auf den Boden, und wenn das noch zu viel ist, die Hände auf eine Treppenstufe – je höher die Hände, desto leichter. Von dort Stufe für Stufe wieder herunter.",
       "rest": 150,
       "pattern": "pushupfeet",
       "shares": {
@@ -1039,8 +1045,8 @@ export const EXERCISES = [
     "bw": {
       "name": "Füße-erhöhte Liegestütze",
       "reps": "8–20",
-      "equip": "Stuhl oder feste Kiste",
-      "cue": "Füße auf einen Stuhl oder eine feste Kiste, Körper eine Linie, Ellenbogen ca. 45°. Je höher die Füße, desto mehr obere Brust und Schulter. Für mehr Reiz Füße höher stellen oder langsamer ablassen. Zu schwer? Füße auf den Boden, danach die Hände erhöhen (Stuhlkante, Treppenstufe) – je höher die Hände, desto leichter.",
+      "equip": "Stuhl",
+      "cue": "Füße auf einen Stuhl, Körper eine Linie, Ellenbogen ca. 45°. Je höher die Füße, desto mehr obere Brust und Schulter. Für mehr Reiz langsamer ablassen, drei Sekunden abwärts. Zu schwer? Füße auf den Boden, danach die Hände auf eine Treppenstufe – je höher die Hände, desto leichter.",
       "rest": 150,
       "pattern": "pushupfeet",
       "shares": {
@@ -1248,7 +1254,7 @@ export const EXERCISES = [
       "name": "Vorgebeugtes Band-Rudern",
       "reps": "10–20",
       "equip": "Loop-Band",
-      "cue": "Beide Füße auf das Band, hüftbreit, Enden in beiden Händen. Rumpf etwa 60° vorgeneigt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben die Schulterblätter zusammen. Schwerer wird es mit dem nächststärkeren Band oder kürzerem Griff.",
+      "cue": "Beide Füße auf das Band, hüftbreit, Enden in beiden Händen. Rumpf etwa 60° vorgeneigt, Rücken flach. Ellenbogen eng am Körper nach hinten ziehen, oben die Schulterblätter zusammen. Schwerer wird es mit dem nächststärkeren Band.",
       "rest": 150,
       "pattern": "rowbar",
       "shares": {
@@ -1280,11 +1286,11 @@ export const EXERCISES = [
     "detail": [
       [
         "Aufbau",
-        "Die Auflage muss an der Wand stehen, sonst wandert sie beim ersten Satz weg. Die Kante liegt unter den Schulterblättern, nicht im Nacken. Füße so weit vorn, dass die Schienbeine oben senkrecht stehen – zu nah, und es wird eine Quadrizepsübung; zu weit, und der Beinbeuger krampft."
+        "Das Sofa muss an der Wand stehen, sonst wandert es beim ersten Satz weg. Ein Stuhl kippt nach hinten, sobald die Hüfte hochdrückt; das Sofa steht, seine Kante ist gepolstert, und die Sitzhöhe von 40 bis 45 cm ist genau die, bei der die Oberschenkel oben waagerecht stehen. Die Kante liegt unter den Schulterblättern, nicht im Nacken. Füße so weit vorn, dass die Schienbeine oben senkrecht stehen – zu nah, und es wird eine Quadrizepsübung; zu weit, und der Beinbeuger krampft."
       ],
       [
         "Polster",
-        "Ein dickes Handtuch, eine gerollte Matte oder ein gekauftes Pad. Ohne ist bei 40 kg der Hüftknochen die Grenze, nicht das Gesäß – du hörst dann früher auf, als du müsstest.",
+        "Ein dick gefaltetes Handtuch, mehrmals gelegt. Ohne ist bei 40 kg der Hüftknochen die Grenze, nicht das Gesäß – du hörst dann früher auf, als du müsstest.",
         "db"
       ],
       [
@@ -1324,7 +1330,7 @@ export const EXERCISES = [
       "name": "Hip Thrust",
       "reps": "8–15",
       "equip": "Langhantel + Polster",
-      "cue": "Schulterblätter auf einer Bank/Couch, die fest an der Wand steht. Stange über die angewinkelten Beine bis auf die Hüftbeuge rollen, dickes Handtuch oder Matte darunter – ohne Polster ist bei 40 kg der Knochen die Grenze, nicht das Gesäß. Oben Gesäß fest anspannen, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
+      "cue": "Schulterblätter auf der Sofakante, das Sofa fest an der Wand. Stange über die angewinkelten Beine bis auf die Hüftbeuge rollen, ein dick gefaltetes Handtuch darunter – ohne Polster ist bei 40 kg der Knochen die Grenze, nicht das Gesäß. Oben Gesäß fest anspannen, Rippen unten lassen. Die Stange bleibt die ganze Zeit auf der Hüfte.",
       "rest": 150,
       "pattern": "thrust",
       "shares": {
@@ -1343,8 +1349,8 @@ export const EXERCISES = [
     "bw": {
       "name": "Einbeiniger Hip Thrust",
       "reps": "10–20 je Bein",
-      "equip": "Stuhl- oder Sofakante",
-      "cue": "Schulterblätter auf die Kante eines an die Wand geschobenen Stuhls oder Sofas, einbeinig, freies Bein angewinkelt. Oben Gesäß fest anspannen, Rippen unten lassen, 1–2 s halten – das ersetzt die fehlende Zusatzlast. Schwerer wird es mit dem Loop-Band über der Hüfte, Enden unter dem Standfuß: Die Bandspannung ist oben am größten, also dort, wo sonst die Hantel drückt.",
+      "equip": "Sofakante",
+      "cue": "Schulterblätter auf die Sofakante, das Sofa fest an der Wand, einbeinig, freies Bein angewinkelt. Oben Gesäß fest anspannen, Rippen unten lassen, 1–2 s halten – das ersetzt die fehlende Zusatzlast. Schwerer wird es mit dem Loop-Band über der Hüfte, Enden unter dem Standfuß: Die Bandspannung ist oben am größten, also dort, wo sonst die Hantel drückt.",
       "rest": 150,
       "pattern": "thrust1",
       "shares": {
@@ -1412,7 +1418,7 @@ export const EXERCISES = [
       "name": "Vorgebeugtes Band-Reverse-Fly",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Auf das Band stellen, Enden überkreuz in die Hände, vorgebeugt wie mit den Hanteln. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt. Schwerer wird es mit dem nächststärkeren Band oder überkreuztem Griff.",
+      "cue": "Auf das Band stellen, Enden überkreuz in die Hände, vorgebeugt wie mit den Hanteln. Arme fast gestreckt seitlich öffnen, Bewegung aus dem Schulterblatt. Schwerer wird es mit dem nächststärkeren Band.",
       "rest": 120,
       "pattern": "reversefly",
       "shares": {
@@ -1478,7 +1484,7 @@ export const EXERCISES = [
       "name": "Pull-ups",
       "reps": "4–10",
       "equip": "Klimmzugstange + Rucksack",
-      "cue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Noch keine 4? Dann Negative (hochspringen, 5 s ablassen) oder Füße auf einem Stuhl, bis der Bereich steht – einzelne Maximalversuche bringen für den Aufbau wenig. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
+      "cue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Brust zur Stange, Schulterblätter zuerst nach unten ziehen, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als bei Chin-ups. Noch keine 4? Dann die Füße auf einem Stuhl und mit den Beinen so viel nachhelfen, dass der Bereich steht – einzelne Maximalversuche bringen für den Aufbau wenig. Zusatzgewicht im Rucksack, sobald acht saubere stehen.",
       "rest": 180,
       "pattern": "pullupwide",
       "shares": {
@@ -1507,7 +1513,7 @@ export const EXERCISES = [
       "name": "Pull-ups",
       "reps": "4–10",
       "equip": "Klimmzugstange (+ Stuhl)",
-      "cue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Schulterblätter zuerst nach unten ziehen, Brust zur Stange, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als im Untergriff. Noch keine ganze? Negative: hochspringen und fünf Sekunden ablassen. Oder die Füße auf einem Stuhl abstützen. Drei bis vier Wochen, dann geht die erste freie.",
+      "cue": "Obergriff, etwas weiter als schulterbreit. Aus dem vollen Hang starten, Schulterblätter zuerst nach unten ziehen, Brust zur Stange, kontrolliert ablassen. Der weite Obergriff nimmt den Bizeps aus der Bewegung – der Rücken macht mehr, deshalb schaffst du hier weniger als im Untergriff. Noch keine ganze? Die Füße auf einem Stuhl abstützen und mit den Beinen nur so viel nachhelfen, wie nötig ist. Drei bis vier Wochen, dann geht die erste freie.",
       "rest": 180,
       "pattern": "pullupwide",
       "shares": {
@@ -1544,7 +1550,7 @@ export const EXERCISES = [
     "detail": [
       [
         "Wenn du es im Nacken merkst",
-        "Das ist der häufigste Fehler bei dieser Übung und kein Zeichen, dass du sie falsch verstanden hast: Sobald der Widerstand zu groß wird, zieht der Körper die Schulter zum Ohr und der obere Trapez übernimmt. Drei Dinge helfen, in dieser Reihenfolge: leichteres Band (oder engerer Stand), Schultern aktiv nach unten ziehen, bevor der Arm losgeht, und oben bei waagerecht aufhören. Höher als Schulterhöhe ist die Seitendelta ohnehin fertig – ab da hebt nur noch der Nacken. Merkst du es danach immer noch, ist das Band für dich das falsche Gerät: Am Band ist der Zug oben am größten, genau da, wo das Hochziehen am nächsten liegt. Mit Kurzhanteln ist es umgekehrt."
+        "Das ist der häufigste Fehler bei dieser Übung und kein Zeichen, dass du sie falsch verstanden hast: Sobald der Widerstand zu groß wird, zieht der Körper die Schulter zum Ohr und der obere Trapez übernimmt. Drei Dinge helfen, in dieser Reihenfolge: leichteres Band, Schultern aktiv nach unten ziehen, bevor der Arm losgeht, und oben bei waagerecht aufhören. Höher als Schulterhöhe ist die Seitendelta ohnehin fertig – ab da hebt nur noch der Nacken. Merkst du es danach immer noch, ist das Band für dich das falsche Gerät: Am Band ist der Zug oben am größten, genau da, wo das Hochziehen am nächsten liegt. Mit Kurzhanteln ist es umgekehrt."
       ],
       [
         "Widerstand am richtigen Ort",
@@ -1575,7 +1581,7 @@ export const EXERCISES = [
       "name": "Band-Seitheben",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern dabei bewusst unten lassen und mit dem Ellenbogen führen, nicht mit der Hand: Zieht die Schulter zum Ohr, macht der Nacken die Arbeit statt der Seitendelta. Kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
+      "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – und keinen Zentimeter höher. Schultern dabei bewusst unten lassen und mit dem Ellenbogen führen, nicht mit der Hand: Zieht die Schulter zum Ohr, macht der Nacken die Arbeit statt der Seitendelta. Kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band.",
       "rest": 120,
       "pattern": "lateralstand",
       "shares": {
@@ -1597,7 +1603,7 @@ export const EXERCISES = [
       "name": "Band-Seitheben",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand.",
+      "cue": "Loop-Band unter beide Füße, Enden in den Händen. Arme fast gestreckt zur Seite heben, bis sie waagerecht sind – kleine Finger leicht führend, kein Schwung aus der Hüfte. Beim Band steigt der Widerstand nach oben, also genau dort, wo die seitliche Schulter am stärksten ist; bei der Hantel ist es umgekehrt. Schwerer wird es mit dem nächststärkeren Band.",
       "rest": 120,
       "pattern": "lateralstand",
       "shares": {
@@ -1741,7 +1747,7 @@ export const EXERCISES = [
       "name": "Band-Schulterdrücken",
       "reps": "8–15",
       "equip": "Loop-Band",
-      "cue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Schwerer wird es mit dem nächststärkeren Band oder breiterem Stand darauf; leichter, indem du nur mit einem Fuß darauf stehst.",
+      "cue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Schwerer wird es mit dem nächststärkeren Band, leichter mit dem schwächeren.",
       "rest": 180,
       "pattern": "ohpstand",
       "shares": {
@@ -1773,7 +1779,7 @@ export const EXERCISES = [
     "detail": [
       [
         "Griff: Obergriff, beide Hände gleich",
-        "Beide Handflächen zeigen zum Körper. Der Mischgriff – eine Hand über, eine unter – hält zwar mehr, dreht aber Becken und Wirbelsäule leicht gegeneinander und zieht den Arm mit dem Untergriff in die Länge; bei gebeugtem Rumpf und 40 kg braucht es das nicht. Beidhändiger Untergriff ist die schlechteste Wahl: Der Bizeps steht dabei gestreckt unter Zug, und genau so reißt er. Wenn der Griff vor dem Beinbeuger aufgibt, ist das kein Grund für den Mischgriff, sondern für Kreide, einen Hakengriff (Daumen unter Zeige- und Mittelfinger) oder Zughilfen – oder für einen Satz mit weniger Gewicht.",
+        "Beide Handflächen zeigen zum Körper. Der Mischgriff – eine Hand über, eine unter – hält zwar mehr, dreht aber Becken und Wirbelsäule leicht gegeneinander und zieht den Arm mit dem Untergriff in die Länge; bei gebeugtem Rumpf und 40 kg braucht es das nicht. Beidhändiger Untergriff ist die schlechteste Wahl: Der Bizeps steht dabei gestreckt unter Zug, und genau so reißt er. Wenn der Griff vor dem Beinbeuger aufgibt, ist das kein Grund für den Mischgriff, sondern für einen Satz mit weniger Gewicht – der Griff wächst mit, wenn er jede Woche dranbleibt.",
         "db"
       ],
       [
@@ -1791,7 +1797,7 @@ export const EXERCISES = [
       ],
       [
         "In der Wohnung",
-        "Vor und nach dem Satz kontrolliert absetzen, nie fallen lassen. Eine Matte oder ein dickes Handtuch unter den Scheiben nimmt den Rest.",
+        "Vor und nach dem Satz kontrolliert absetzen, nie fallen lassen. Ein dickes Handtuch unter den Scheiben nimmt den Rest.",
         "db"
       ],
       [
@@ -2068,7 +2074,7 @@ export const EXERCISES = [
       "name": "Band-Pull-Apart",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
+      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band, leichter mit dem schwächeren – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "pullapart",
       "shares": {
@@ -2088,7 +2094,7 @@ export const EXERCISES = [
       "name": "Band-Pull-Apart",
       "reps": "12–20",
       "equip": "Loop-Band",
-      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band oder engerem Griff, leichter mit dem schwächeren oder weiterem Griff – die Bandstärke stellst du in der Übung selbst ein.",
+      "cue": "Arme vorn auf Schulterhöhe, Band gespannt. Nach außen ziehen, bis die Arme eine Linie bilden, Schulterblätter zusammen. Rumpf bleibt stehen, kein Schwung. Schwerer wird es mit dem nächststärkeren Band, leichter mit dem schwächeren – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "pullapart",
       "shares": {
@@ -2178,8 +2184,8 @@ export const EXERCISES = [
     "bw": {
       "name": "Inverted Row",
       "reps": "8–20",
-      "equip": "Klimmzugstange tief oder Tischkante",
-      "cue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Geht die Klimmzugstange nicht tief genug, tut es eine stabile Tischkante: darunterlegen, Kante fassen, ziehen. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter. Zu schwer? Knie anwinkeln und die Füße näher heranstellen; das nimmt Last weg, ohne die Bewegung zu verändern.",
+      "equip": "Klimmzugstange tief",
+      "cue": "Stange etwa hüfthoch, darunter legen, Fersen auf dem Boden. Körper von Kopf bis Ferse eine Linie, Gesäß fest. Brust zur Stange ziehen, Ellenbogen dicht am Körper, oben kurz halten. Je waagerechter der Körper, desto schwerer – Füße erhöht macht es härter. Zu schwer? Knie anwinkeln und die Füße näher heranstellen; das nimmt Last weg, ohne die Bewegung zu verändern.",
       "rest": 150,
       "pattern": "invrow",
       "shares": {
@@ -2195,7 +2201,9 @@ export const EXERCISES = [
         "rearDelts"
       ],
       "stufen": {},
-      "braucht": []
+      "braucht": [
+        "stange"
+      ]
     }
   },
   {
@@ -2262,7 +2270,7 @@ export const EXERCISES = [
       "name": "Einbeiniges Kreuzheben",
       "reps": "10–20 je Bein",
       "equip": "ohne",
-      "cue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen oder greifen nach vorn. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
+      "cue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen locker nach unten. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
       "rest": 120,
       "pattern": "hinge1",
       "shares": {
@@ -2300,7 +2308,7 @@ export const EXERCISES = [
       ],
       [
         "Handgelenke",
-        "Sie stehen hier steiler als beim Liegestütz. Tut es weh, die Hände etwas weiter nach vorn setzen oder auf Fäusten arbeiten."
+        "Sie stehen hier steiler als beim Liegestütz. Tut es weh, auf den Fäusten arbeiten – das stellt das Handgelenk gerade."
       ],
       [
         "Typische Fehler",
@@ -2519,7 +2527,7 @@ export const EXERCISES = [
       "name": "Reverse Snow Angel",
       "reps": "10–20",
       "equip": "ohne",
-      "cue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen.",
+      "cue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf.",
       "rest": 90,
       "pattern": "snowangel",
       "shares": {
@@ -2537,7 +2545,7 @@ export const EXERCISES = [
       "name": "Reverse Snow Angel",
       "reps": "10–20",
       "equip": "ohne",
-      "cue": "Bauchlage, Stirn auf dem Boden oder einem Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf, oder die Arme leicht angewinkelt führen; beides nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
+      "cue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf; das nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
       "rest": 90,
       "pattern": "snowangel",
       "shares": {
@@ -2757,7 +2765,7 @@ export const EXERCISES = [
       "name": "Rucksack-Rudern",
       "reps": "10–20",
       "equip": "Rucksack",
-      "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
+      "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
       "rest": 120,
       "pattern": "rowbar",
       "shares": {
@@ -2779,7 +2787,7 @@ export const EXERCISES = [
       "name": "Rucksack-Rudern",
       "reps": "10–20",
       "equip": "Rucksack",
-      "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger, oder eine Hand auf einem Stuhl abstützen und einarmig ziehen.",
+      "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
       "rest": 120,
       "pattern": "rowbar",
       "shares": {
@@ -2889,7 +2897,7 @@ export const EXERCISES = [
       "name": "Face Pull",
       "reps": "12–20",
       "equip": "Loop-Band + Klimmzugstange",
-      "cue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band oder einem Schritt weiter zurück, leichter mit dem schwächeren Band oder näher an die Stange – die Bandstärke stellst du in der Übung selbst ein.",
+      "cue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band, leichter mit dem schwächeren – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "facepull",
       "shares": {
@@ -2910,7 +2918,7 @@ export const EXERCISES = [
       "name": "Face Pull",
       "reps": "12–20",
       "equip": "Loop-Band + Klimmzugstange",
-      "cue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band oder einem Schritt weiter zurück, leichter mit dem schwächeren Band oder näher an die Stange – die Bandstärke stellst du in der Übung selbst ein.",
+      "cue": "Band über die Klimmzugstange hängen, beide Enden fassen, einen Schritt zurück. Zum Gesicht ziehen, Ellenbogen hoch und nach außen, Hände enden neben den Schläfen. Schulterblätter zusammen, Rumpf bleibt stehen. Schwerer wird es mit dem nächststärkeren Band, leichter mit dem schwächeren – die Bandstärke stellst du in der Übung selbst ein.",
       "rest": 120,
       "pattern": "facepull",
       "shares": {
@@ -2939,7 +2947,7 @@ export const EXERCISES = [
     "detail": [
       [
         "Warum sie im Plan steht",
-        "Der Trizeps hatte im Katalog genau eine Übung, die ihn zum Hauptmuskel hat – den Überkopf-Trizepsstrecker. Wer den abwählt oder nicht machen kann, trainiert ihn nur noch nebenbei beim Drücken. Diese hier braucht nichts als eine Kante und trifft ihn direkt."
+        "Der Trizeps hatte im Katalog genau eine Übung, die ihn zum Hauptmuskel hat – den Überkopf-Trizepsstrecker. Wer den abwählt oder nicht machen kann, trainiert ihn nur noch nebenbei beim Drücken. Diese hier braucht nichts als eine Tischkante und trifft ihn direkt."
       ],
       [
         "Die Oberarme stehen still",
@@ -2955,10 +2963,10 @@ export const EXERCISES = [
       ]
     ],
     "db": {
-      "name": "Trizepsstrecken an der Stange",
+      "name": "Trizepsstrecken an der Tischkante",
       "reps": "8–15",
-      "equip": "Klimmzugstange tief oder Tischkante",
-      "cue": "Eine feste Kante etwa auf Höhe der Oberschenkel – Tischkante, Fensterbank oder die tief eingehängte Klimmzugstange. Hände schulterbreit darauf, einen Schritt zurück, Körper von Ferse bis Kopf eine schräge Linie. Nur die Ellenbogen beugen, bis der Kopf unter die Kante kommt – die Oberarme bleiben, wo sie sind. Dann strecken. Je tiefer die Kante und je flacher du stehst, desto schwerer.",
+      "equip": "Tischkante",
+      "cue": "Eine feste Tischkante, etwa auf Höhe der Oberschenkel. Hände schulterbreit darauf, einen Schritt zurück, Körper von Ferse bis Kopf eine schräge Linie. Nur die Ellenbogen beugen, bis der Kopf unter die Kante kommt – die Oberarme bleiben, wo sie sind. Dann strecken. Je tiefer die Kante und je flacher du stehst, desto schwerer.",
       "rest": 120,
       "pattern": "tricepsbar",
       "shares": {
@@ -2971,10 +2979,10 @@ export const EXERCISES = [
       "braucht": []
     },
     "bw": {
-      "name": "Trizepsstrecken an der Stange",
+      "name": "Trizepsstrecken an der Tischkante",
       "reps": "10–20",
-      "equip": "Klimmzugstange tief oder Tischkante",
-      "cue": "Eine feste Kante etwa auf Höhe der Oberschenkel – Tischkante, Fensterbank oder die tief eingehängte Klimmzugstange. Hände schulterbreit darauf, einen Schritt zurück, Körper von Ferse bis Kopf eine schräge Linie. Nur die Ellenbogen beugen, bis der Kopf unter die Kante kommt – die Oberarme bleiben, wo sie sind. Zu schwer? Eine höhere Kante nehmen und aufrechter stehen; das nimmt Last weg, ohne die Bewegung zu verändern.",
+      "equip": "Tischkante",
+      "cue": "Eine feste Tischkante, etwa auf Höhe der Oberschenkel. Hände schulterbreit darauf, einen Schritt zurück, Körper von Ferse bis Kopf eine schräge Linie. Nur die Ellenbogen beugen, bis der Kopf unter die Kante kommt – die Oberarme bleiben, wo sie sind. Zu schwer? Eine höhere Kante nehmen und aufrechter stehen; das nimmt Last weg, ohne die Bewegung zu verändern.",
       "rest": 120,
       "pattern": "tricepsbar",
       "shares": {
@@ -3016,8 +3024,8 @@ export const EXERCISES = [
     "db": {
       "name": "Beckenheben",
       "reps": "10–15",
-      "equip": "Kurzhantel oder Scheibe",
-      "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen so nah, dass du sie mit den Fingerspitzen fast berührst. Kurzhantel oder Scheibe quer auf die Hüftbeuge, Handtuch darunter. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen.",
+      "equip": "Scheibe",
+      "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen so nah, dass du sie mit den Fingerspitzen fast berührst. Scheibe flach auf die Hüftbeuge, Handtuch darunter – sie liegt auf, eine Kurzhantel rollt. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen.",
       "rest": 120,
       "pattern": "bridge",
       "shares": {
@@ -3037,7 +3045,7 @@ export const EXERCISES = [
       "name": "Beckenheben",
       "reps": "15–25",
       "equip": "ohne Gerät",
-      "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es mit dem Loop-Band über der Hüfte, Enden unter den Füßen, oder einbeinig.",
+      "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es einbeinig.",
       "rest": 120,
       "pattern": "bridge",
       "shares": {

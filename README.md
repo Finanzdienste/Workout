@@ -2171,16 +2171,16 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 | Chin-ups | Chin-ups | Klimmzugstange (+ Stuhl) |
 | Sitzendes Seitheben | Sitzendes Band-Seitheben | Loop-Band + Stuhl |
 | Überkopf-Trizepsstrecker | Überkopf-Trizepsstrecker am Band | Loop-Band + Stuhl |
-| Einbeiniges stehendes Wadenheben | Einbeiniges Wadenheben | Stufe oder dickes Buch |
+| Einbeiniges stehendes Wadenheben | Einbeiniges Wadenheben | Treppenstufe |
 | Wadenheben gebeugtes Knie | Wadenheben mit gebeugtem Knie | Ohne Gerät |
-| Fersenerhöhter Goblet Squat | Fersenerhöhter 1½-Wdh. Bodyweight Squat | Erhöhung (Buch/Keil) |
+| Fersenerhöhter Goblet Squat | Fersenerhöhter 1½-Wdh. Bodyweight Squat | festes Buch |
 | SZ-Curls | Band-Curls | Loop-Band |
 | Gewichtete Crunches | Crunches | Ohne Gerät |
 | Einbeiniger Sliding Leg Curl | Einbeiniger Sliding Leg Curl | Handtuch, glatter Boden |
-| Füße-erhöhte Liegestütze | Füße-erhöhte Liegestütze | Stuhl oder feste Kiste |
+| Füße-erhöhte Liegestütze | Füße-erhöhte Liegestütze | Stuhl |
 | Floor Press | Liegestütze | Ohne Gerät |
 | Langhantelrudern | Vorgebeugtes Band-Rudern | Loop-Band |
-| Hip Thrust | Einbeiniger Hip Thrust | Stuhl- oder Sofakante |
+| Hip Thrust | Einbeiniger Hip Thrust | Sofakante |
 | Reverse Fly | Vorgebeugtes Band-Reverse-Fly | Loop-Band |
 | Pull-ups | Pull-ups | Klimmzugstange (+ Stuhl) |
 | Band-Seitheben | Band-Seitheben | Loop-Band |
@@ -3298,6 +3298,53 @@ Modul-Skript-Element durch den eingebetteten Inhalt.
 `tests/test-figuren.mjs` prüft, dass wirklich *jede* Übung darauf steht und jede
 eine gezeichnete Figur bekommt — eine Übersicht mit Lücken wäre schlimmer als
 keine, weil man sich darauf verlässt, alles gesehen zu haben.
+
+### Ein Gerät je Übung, kein „oder"
+
+*„Mach nicht immer ODER sondern mach das optimale. Also hier zb nicht SZ-Stange
+oder Kurzhantel"* – zum Überkopf-Trizepsstrecker, auf dessen Karte
+„Kurzhanteln oder SZ-Stange" stand. Acht Übungen stellten so eine Wahl:
+Kurzhanteln oder SZ-Stange, Kurzhantel oder Scheibe, Stuhl oder Kiste, Stufe
+oder Buch, Klimmzugstange oder Tischkante, Stuhl- oder Sofakante. Auf der
+Karte ist eine Wahl keine Auskunft, sondern eine Frage zurück an den, der
+gerade trainieren will.
+
+Jetzt steht je Übung genau eines, und der Grund dazu unter *Mehr zur
+Ausführung*:
+
+| Übung | war | ist | warum |
+| --- | --- | --- | --- |
+| Überkopf-Trizepsstrecker | Kurzhanteln oder SZ-Stange | **Kurzhanteln** | jedes Handgelenk behält seine Drehung, der schwächere Arm kann sich nicht verstecken; die Stange bindet beide Hände hinter dem Kopf an dieselbe Stellung |
+| Gewichtete Crunches, Beckenheben | Kurzhantel oder Scheibe | **Scheibe** | liegt flach auf, die Hände halten sie ohne Kraft; eine Kurzhantel ist klobig bzw. rollt |
+| Hip Thrust (ohne Hanteln) | Stuhl- oder Sofakante | **Sofakante** | kippt nicht, rutscht nicht, gepolstert, 40–45 cm hoch |
+| Füße-erhöhte Liegestütze | Stuhl oder feste Kiste | **Stuhl** | die Höhe stimmt, die Sitzfläche trägt beide Füße, steht in jeder Wohnung |
+| Einbeiniges Wadenheben | Stufe oder dickes Buch | **Treppenstufe** | breite Kante, rutscht nicht, Geländer für die freie Hand |
+| Inverted Row (ohne Hanteln) | Klimmzugstange tief oder Tischkante | **Klimmzugstange tief** | runder Griff, Höhe einstellbar – und mit Hanteln braucht die Übung die Stange ohnehin |
+| Trizepsstrecken an der Tischkante | Klimmzugstange tief oder Tischkante | **Tischkante** | die Übung gibt es nur als Ersatz für den, der kein Band hat – und der hat eine Tischkante |
+| Fersenerhöhter Goblet Squat | Erhöhung (Buch/Keil) | **Hantelscheiben** (ohne Hanteln: festes Buch) | flach, kippsicher, liegen ohnehin daneben |
+| Sliding Leg Curl | Slider/Handtuch | **Handtuch, glatter Boden** | Slider hat zu Hause niemand |
+
+Dieselbe Regel gilt in den Hinweisen, wo sie eine Wahl stellten: Der Rucksack
+wird mit Hantelscheiben gefüllt (in ein Handtuch gewickelt – sie wiegen, was
+draufsteht), nicht mit „Wasserflaschen, Büchern oder den Kurzhanteln"; beim
+Band heißt schwerer „das nächststärkere Band", nicht „oder breiterer Stand,
+oder kürzerer Griff" – das ist der Schritt, den die App kennt; und der Weg nach
+unten bei Klimmzügen sind die Füße auf dem Stuhl, nicht „Negative oder Füße
+auf dem Stuhl". Ein „oder" in einer Diagnose („knickt es ab, liegt die Stange
+zu weit in den Fingern oder das Gewicht ist zu hoch") ist keine Wahl und
+bleibt.
+
+**Was es kostet:** Das Inverted Row braucht jetzt die Klimmzugstange auch ohne
+Hanteln (`GERAET_AUS_TEXT` in `tools/build-data.py`, vorher `[]` wegen der
+Tischkante). Wer keine hat, bekommt es im Vorrat getauscht, wie jede andere
+Übung mit fehlendem Gerät; `tests/test-vorrat.mjs` prüft, dass der Tausch ein
+voller Ersatz bleibt. Beim Trizepsstrecken stand die Entscheidung anders herum:
+Es ist der Ersatz für den, der kein Band hat, und hätte es die Stange
+verlangt, wäre der Trizeps ohne Band und Stange nur noch nebenbei drangekommen
+– gemessen an genau diesem Test.
+
+`tools/pruefung/geraete.py` prüft seither, dass kein Gerätetext ein „oder"
+oder einen Schrägstrich enthält.
 
 ### Jede Übung muss einen Weg nach unten nennen
 
