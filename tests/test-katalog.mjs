@@ -15,9 +15,9 @@
  * Test rechnet deshalb für **jede** Übung nach, auf welchem der drei Wege sie
  * tatsächlich erreichbar ist:
  *
- *   1. Sie steht im Plan.
- *   2. Sie springt ein, wenn eine andere Übung abgewählt wird.
- *   3. Sie steht im Plan, wenn Geräte fehlen.
+ *   1. Sie steht in einem der vier Pläne.
+ *   2. Sie springt ein, wenn eine andere Übung abgewählt wird (im geladenen Plan).
+ *   3. Sie steht im geladenen Plan, wenn Geräte fehlen.
  *
  * Kein Weg, keine Daseinsberechtigung – dann gehört sie raus oder der Plan
  * muss sie benutzen. Gemessen am 16.09.2026: alle 35 sind erreichbar, neun der
@@ -36,13 +36,17 @@ const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { 
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const daten = await page.evaluate(async () => {
-  const { EXERCISES, PLAN } = await import('./js/data.js');
+  const { EXERCISES, PLAN, PLANS } = await import('./js/data.js');
   const vorrat = await import('./js/vorrat.js');
   const store = await import('./js/store.js');
   const alle = EXERCISES.map((e) => e.id);
 
+  // Weg 1 über alle vier Pläne: Wer den Cut wählt, sieht dessen Übungen –
+  // eine Übung, die nur dort steht, ist keine tote Last. Seit dem 25.09.
+  // braucht das Inverted Row auch ohne Hanteln die Klimmzugstange und ist
+  // damit im Aufbau ohne Gerät nicht mehr der Ersatz; im Cut steht es.
   const imPlan = new Set();
-  PLAN.forEach((w) => w.ex.forEach((it) => imPlan.add(it.id)));
+  Object.values(PLANS).forEach((p) => p.plan.forEach((w) => w.ex.forEach((it) => imPlan.add(it.id))));
 
   // Weg 2: jede Übung einzeln abwählen und aufschreiben, wer für sie einspringt.
   const ersatzVon = {};
