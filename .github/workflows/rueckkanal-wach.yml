@@ -90,6 +90,13 @@ jobs:
                      -d '{"geraet":"wachhalten-kein-geraet"}' \
                      "$URL/rest/v1/rpc/entferne" || echo 000)
             echo "Versuch $versuch: HTTP $code, Antwort $(cat antwort.txt 2>/dev/null)"
+            # 204 ohne Inhalt: die ältere Fassung von entferne() gibt nichts
+            # zurück (so steht es auch in js/telemetry.js). Ausgeführt hat die
+            # Datenbank den Aufruf trotzdem.
+            if [ "$code" = "204" ]; then
+              echo "Die Datenbank hat eine Anfrage ausgeführt (ältere entferne(), ohne Rückgabe) – das zählt als Aktivität."
+              exit 0
+            fi
             if [ "$code" = "200" ]; then
               if [ "$(tr -d '[:space:]' < antwort.txt)" != "0" ]; then
                 echo "::error::entferne() hat nicht 0 Zeilen gemeldet – das darf bei dieser Kennung nie passieren."
