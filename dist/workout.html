@@ -1082,6 +1082,9 @@ button { font: inherit; color: inherit; }
   stroke-linejoin: round;
 }
 
+/* Schatten-Auflage: dieselbe Form noch einmal in Schwarz, so durchsichtig, wie
+   das Glied weit weg ist. Ersetzt die halbdurchsichtigen Glieder von früher. */
+.fig-schatten { fill: #000; stroke: none; pointer-events: none; }
 .fig-plate { fill: #e8eaed; }
 .fig-bar { stroke: #e8eaed; stroke-linecap: round; }
 .fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
@@ -6541,7 +6544,25 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     // Tiefe als Helligkeit: was hinten liegt, wird etwas dunkler. Der
     // Maleralgorithmus allein sagt nur, was verdeckt – nicht, was weiter weg
     // ist; bei gedrehter Figur überlagern sich sonst gleich helle Glieder.
+    //
+    // **Als Auflage, nicht als Durchsichtigkeit.** Bis v206 wurde dafür die
+    // Deckkraft gesenkt – und ein Arm vor dem Rumpf ließ den Rumpf durch, der
+    // Rumpf ließ seine eigenen Kanten und die Wirbelsäule durch:
+    //
+    //     „Irgendwie ist der Oberkörper nur son Dreieck?"
+    //
+    // Jetzt ist jede Fläche deckend, und darüber liegt eine dunkle Fläche
+    // derselben Form, so durchsichtig, wie das Glied weit weg ist.
     const depth = (z) => (0.74 + 0.26 * Math.min(1, Math.max(0, (z + 0.9) / 1.8))).toFixed(3);
+    // Deckende Form plus Schatten-Auflage – siehe oben.
+    const deckend = (z, tag, attrs) => {
+      parts.push({ z, node: el(tag, attrs) });
+      const d = Number(depth(z));
+      if (d < 0.995) {
+        const { class: _c, ...rest } = attrs;
+        parts.push({ z: z + 0.0004, node: el(tag, { ...rest, class: 'fig-schatten', opacity: ((1 - d) * 0.9).toFixed(3) }) });
+      }
+    };
 
     /**
      * Gliedmaße als eine einzige Fläche: von w1 auf w2 verjüngt, an beiden
@@ -6563,32 +6584,34 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
         + ` L${f(to.x - nx * b)} ${f(to.y - ny * b)}`
         + ` A${f(b)} ${f(b)} 0 0 1 ${f(to.x + nx * b)} ${f(to.y + ny * b)} Z`;
       const z = (from.z + to.z) / 2;
-      parts.push({ z, node: el('path', { d, class: cls, opacity: depth(z) }) });
+      deckend(z, 'path', { d, class: cls });
     };
 
     // Rumpf als Körper mit Tiefe. Eine einzelne Fläche zwischen Schultern und
-    // Hüften war von der Seite papierdünn und hatte keine Taille. Drei Ringe
-    // (Schulter, Taille, Becken) aus je vier Ecken ergeben einen Rumpf, der aus
-    // jeder Richtung Volumen hat.
+    // Hüften war von der Seite papierdünn und hatte keine Taille. Ringe aus je
+    // vier Ecken ergeben einen Rumpf, der aus jeder Richtung Volumen hat.
+    //
+    // Vier Ringe statt drei, und die Taille weniger eng: Mit Schulter 0,200,
+    // Taille 0,125 und Becken 0,150 lief der Rumpf von vorn spitz zu – ein
+    // Dreieck mit Kopf. Jetzt Schulter 0,190, Brust 0,190, Taille 0,148,
+    // Becken 0,156: breit oben, ein wenig schmaler in der Mitte, kein Keil.
     const ring = (centre, w, d) => [[1, 1], [1, -1], [-1, -1], [-1, 1]]
       .map(([a2, b2]) => P(add(add(centre, mul(sideAxis, a2 * w)), mul(frontAxis, b2 * d))));
     const shoulderMid = midOf(j.shoulderL, j.shoulderR);
     const hipMid = midOf(j.hipL, j.hipR);
-    const waistMid = midOf(midOf(shoulderMid, hipMid), hipMid);   // 75 % Richtung Becken
-    const rings = [ring(shoulderMid, 0.200, 0.098), ring(waistMid, 0.125, 0.075), ring(hipMid, 0.150, 0.090)];
+    const zwischen = (f) => add(shoulderMid, mul(add(hipMid, mul(shoulderMid, -1)), f));
+    const rings = [ring(shoulderMid, 0.190, 0.096), ring(zwischen(0.35), 0.190, 0.102),
+      ring(zwischen(0.72), 0.148, 0.084), ring(hipMid, 0.156, 0.090)];
     const face = (quad) => {
       const z = quad.reduce((acc, q) => acc + q.z, 0) / quad.length;
-      parts.push({
-        z,
-        node: el('polygon', {
-          points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
-          class: 'fig-torso', opacity: depth(z),
-        }),
+      deckend(z, 'polygon', {
+        points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+        class: 'fig-torso',
       });
     };
     face(rings[0]);                                        // Schulterdeckel
-    face(rings[2]);                                        // Beckenboden
-    [0, 1].forEach((r) => [0, 1, 2, 3].forEach((c) => {
+    face(rings[3]);                                        // Beckenboden
+    [0, 1, 2].forEach((r) => [0, 1, 2, 3].forEach((c) => {
       const d2 = (c + 1) % 4;
       face([rings[r][c], rings[r][d2], rings[r + 1][d2], rings[r + 1][c]]);
     }));
@@ -6600,13 +6623,10 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       limb(pts[`elbow${s}`], pts[`hand${s}`], 2.5, 1.8);
       // Hand als eigener Ballen: sonst hört der Unterarm einfach auf und es
       // ist nicht zu sehen, dass die Figur etwas greift.
-      parts.push({
-        z: pts[`hand${s}`].z + 0.002,
-        node: el('circle', {
-          cx: pts[`hand${s}`].x.toFixed(1), cy: pts[`hand${s}`].y.toFixed(1),
-          r: (2.4 * gearScale * pts[`hand${s}`].k).toFixed(1),
-          class: 'fig-limb', opacity: depth(pts[`hand${s}`].z),
-        }),
+      deckend(pts[`hand${s}`].z + 0.002, 'circle', {
+        cx: pts[`hand${s}`].x.toFixed(1), cy: pts[`hand${s}`].y.toFixed(1),
+        r: (2.4 * gearScale * pts[`hand${s}`].k).toFixed(1),
+        class: 'fig-limb',
       });
       limb(pts[`hip${s}`], pts[`knee${s}`], 4.6, 3.1);
       limb(pts[`knee${s}`], pts[`ankle${s}`], 3.1, 1.9);
@@ -6616,14 +6636,11 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     // Kopf als Ei entlang der Rumpfachse statt als Kreis
     const headR = RIG.headR * 46 * gearScale * pts.head.k;
     const axis = Math.atan2(pts.head.y - pts.neck.y, pts.head.x - pts.neck.x) * 180 / Math.PI + 90;
-    parts.push({
-      z: pts.head.z + 0.001,
-      node: el('ellipse', {
-        cx: pts.head.x.toFixed(1), cy: pts.head.y.toFixed(1),
-        rx: (headR * 0.86).toFixed(1), ry: headR.toFixed(1),
-        transform: `rotate(${axis.toFixed(1)} ${pts.head.x.toFixed(1)} ${pts.head.y.toFixed(1)})`,
-        class: 'fig-head', opacity: depth(pts.head.z),
-      }),
+    deckend(pts.head.z + 0.001, 'ellipse', {
+      cx: pts.head.x.toFixed(1), cy: pts.head.y.toFixed(1),
+      rx: (headR * 0.86).toFixed(1), ry: headR.toFixed(1),
+      transform: `rotate(${axis.toFixed(1)} ${pts.head.x.toFixed(1)} ${pts.head.y.toFixed(1)})`,
+      class: 'fig-head',
     });
 
     // Gerät, ausgerichtet an den Achsen des Skeletts selbst

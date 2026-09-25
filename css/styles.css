@@ -1072,6 +1072,9 @@ button { font: inherit; color: inherit; }
   stroke-linejoin: round;
 }
 
+/* Schatten-Auflage: dieselbe Form noch einmal in Schwarz, so durchsichtig, wie
+   das Glied weit weg ist. Ersetzt die halbdurchsichtigen Glieder von früher. */
+.fig-schatten { fill: #000; stroke: none; pointer-events: none; }
 .fig-plate { fill: #e8eaed; }
 .fig-bar { stroke: #e8eaed; stroke-linecap: round; }
 .fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
