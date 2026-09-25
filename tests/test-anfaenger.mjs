@@ -169,8 +169,8 @@ check(!/Hängendes Knieheben 2 ×|Hängendes Knieheben \d/.test(text),
 // Einstellung, die man gar nicht stellen soll.
 check(/Hängendes Knieheben/.test(text),
   'die schwerere Fassung wird beim Namen genannt – ein stiller Tausch wäre keiner');
-check(await page.locator('.ex-fassung [data-act="fassung-waehlen"]:not([disabled])').count() >= 1,
-  'und der Weg zurück steht als Knopf daneben');
+check(await page.locator('.fassung-row [data-v="haengendes-knieheben"]:not([disabled])').count() >= 1,
+  'und der Weg zurück ist das + an der Übung');
 
 // --- 5. Die Ersatzübung ist dem Verletzungsfilter bekannt ---------------
 //
@@ -272,28 +272,24 @@ await page.waitForTimeout(400);
 const karte = page.locator('.ex').filter({ hasText: 'Knieheben' }).first();
 await karte.locator('.ex-head').click();
 await page.waitForTimeout(300);
-// Gezählt wird *in dieser Karte* und nicht auf der Seite: Seit v188 hat jede
-// Übung mit gleichwertigen Alternativen so eine Auswahl, und in dieser Einheit
-// sind das vier. Ein ungebundener Selektor zählte neun Knöpfe statt drei.
-check(await karte.locator('.ex-fassung').count() === 1, 'die Auswahl steht an der Übung');
-// Beim Bauch sind es drei Übungen mit identischen Anteilen. Die gewählte ist
-// gesperrt – ein Knopf auf die Übung, die schon dasteht, verspricht eine
-// Änderung, die nicht kommt.
-const wahlKnoepfe = karte.locator('.ex-fassung [data-act="fassung-waehlen"]');
-const namen = await karte.locator('.ex-fassung .fassung-name').allTextContents();
-console.log('     zur Wahl:', namen.map((n) => n.trim()).join(' | '));
-check(await wahlKnoepfe.count() === 3,
-  `alle drei Bauchübungen stehen zur Wahl (${await wahlKnoepfe.count()})`);
-check(await karte.locator('.ex-fassung [aria-pressed="true"]').count() === 1,
-  'genau eine ist als gewählt ausgewiesen');
-check(await karte.locator('.ex-fassung [aria-pressed="true"][disabled]').count() === 1,
-  'und die gewählte ist gesperrt');
-check(namen.some((n) => /Hängendes Knieheben/.test(n)) && namen.some((n) => /Crunches/.test(n)),
-  'die anderen beiden stehen mit Namen daneben');
+// Seit v206 keine Auswahl-Reihe mehr – „ich will generell keine Alternativen,
+// sondern höchstens nur statt + die schwerere Übungs-Version, ähnlich wie bei
+// den gelben und roten Bändern". Also − und + in der Gewichtszeile: − die
+// leichtere Ausführung, + die schwerere, nur wo der Katalog eine kennt.
+check(await karte.locator('.fassung-row').count() === 1, 'der Umschalter steht an der Übung');
+check(await karte.locator('.ex-fassung, .fassung-btn').count() === 0,
+  'und keine Liste anderer Übungen mehr');
+const minus = karte.locator('.fassung-row .kg-step:not(.kg-plus)');
+const plus = karte.locator('.fassung-row .kg-step.kg-plus');
+check(await minus.isDisabled(), 'leichter als die Bodenfassung gibt es nichts – das − ist aus');
+check(!(await plus.isDisabled()) && (await plus.getAttribute('data-v')) === 'haengendes-knieheben',
+  'das + führt zur hängenden Fassung');
+check(/leicht/.test(await karte.locator('.fassung-row .kg-val').textContent()),
+  'und die Zeile sagt „leicht"');
 
 // Und nach dem Tippen steht wirklich die andere Übung da – mit ihrem eigenen
 // Wiederholungsbereich, nicht nur mit einem anderen Namen.
-await karte.locator('.ex-fassung [data-v="haengendes-knieheben"]').click();
+await plus.click();
 await page.waitForTimeout(400);
 const danach = (await karte.locator('.ex-name').textContent()).trim();
 const meta = (await karte.locator('.ex-meta').textContent()).replace(/\s+/g, ' ');
@@ -301,8 +297,11 @@ console.log('     nach dem Tippen:', danach, '·', meta.trim());
 check(danach === 'Hängendes Knieheben', 'nach + steht die hängende Fassung in der Karte');
 check(/8–15/.test(meta) && /Klimmzugstange/.test(meta),
   'samt ihrem eigenen Bereich und ihrem eigenen Gerät');
-check(await karte.locator('.ex-fassung [data-v="haengendes-knieheben"][disabled]').count() === 1,
-  'und jetzt ist die hängende gesperrt statt der liegenden');
+check(await karte.locator('.fassung-row .kg-step.kg-plus').isDisabled()
+  && !(await karte.locator('.fassung-row .kg-step:not(.kg-plus)').isDisabled()),
+  'und jetzt ist das + aus und das − führt zurück');
+check(/schwer/.test(await karte.locator('.fassung-row .kg-val').textContent()),
+  'die Zeile sagt jetzt „schwer"');
 
 // --- 7. Der Gerätefilter hat Vorrang, und die Zeile weiß das ------------
 //
@@ -334,7 +333,7 @@ await page.waitForTimeout(400);
 await page.locator('[data-act="show-list"]').first().click();
 await page.waitForTimeout(400);
 check(await page.locator('.ex').filter({ hasText: 'Crunches' }).first()
-  .locator('.ex-fassung').count() === 0,
+  .locator('.fassung-row').count() === 0,
   'und an dieser Karte steht keine Auswahl – der Tausch gehört nicht zu dieser Übung');
 
 // Und andersherum: Steht die leichte Fassung da, weil die Stufe es so will,
@@ -349,7 +348,7 @@ await page.waitForTimeout(400);
 await page.locator('[data-act="show-list"]').first().click();
 await page.waitForTimeout(400);
 const gesperrt = page.locator('.ex').filter({ hasText: 'Knieheben' }).first()
-  .locator('.ex-fassung [data-v="haengendes-knieheben"]');
+  .locator('.fassung-row [data-v="haengendes-knieheben"]');
 check(await gesperrt.count() === 1 && await gesperrt.first().isDisabled(),
   'ohne Klimmzugstange ist die hängende gesperrt statt wirkungslos');
 const sagt = await gesperrt.first().getAttribute('aria-label');
@@ -357,31 +356,22 @@ console.log('     + sagt:', sagt);
 check(/fehlt/.test(sagt || ''), `und sagt, woran es liegt (${sagt})`);
 await page.evaluate(async () => (await import('./js/store.js')).setSetting('fehlt', []));
 
-// --- 8. Der Bizeps hat dieselbe Auswahl ---------------------------------
+// --- 8. Keine Auswahl mehr – die Hammercurls kommen über die Beschwerde ---
 //
-// Gemeldet: „SZ curls tun echt in den unterarmen iwie weh. Ich spür den
-// Knochen iwie ganz stark oder so." Der Hinweistext der SZ-Curls empfahl
-// Hammercurls schon beim Namen – nur gab es sie im Katalog nicht. Jetzt gibt
-// es sie, und weil die Anteile identisch sind, stehen sie ohne weiteres Zutun
-// in derselben Auswahl. Geprüft wird beides: dass sie da sind, und dass der
-// Tausch die Wochenmengen nicht anfasst.
+// Bis v205 standen an jeder Übung mit gleichen Anteilen alle Geschwister zur
+// Wahl, beim Seitheben vier. Das ist weg: Wer eine Übung nicht verträgt, hakt
+// das unter Beschwerden an. Die SZ-Curls werden bei Handgelenksüberlastung zu
+// Hammercurls (test-injuries prüft den Tausch), ein Umschalter steht dort nicht.
 const curlWahl = await page.evaluate(async () => {
   const { fassungen } = await import('./js/plan.js');
-  const { EX_BY_ID } = await import('./js/uebung.js');
-  const ids = fassungen({ id: 'sz-curls' }).liste.map((x) => x.id);
-  return {
-    ids,
-    anteile: ids.map((id) => JSON.stringify(EX_BY_ID.get(id).db.shares)),
-    equip: ids.map((id) => EX_BY_ID.get(id).db.equip),
-  };
+  const { INJURIES } = await import('./js/injuries.js');
+  const inj = INJURIES.find((i) => i.id === 'handgelenk-reizung');
+  return { reihe: fassungen({ id: 'sz-curls' }), tausch: inj && inj.swap['sz-curls'] };
 });
-console.log('     Curl-Auswahl:', curlWahl.ids.join(' | '));
-check(curlWahl.ids.includes('hammer-curls'),
-  'die Hammercurls stehen an der SZ-Curl-Karte zur Wahl');
-check(new Set(curlWahl.anteile).size === 1,
-  `und alle drei haben dieselben Anteile (${curlWahl.anteile[0]}) – der Tausch verschiebt keine Wochenmenge`);
-check(new Set(curlWahl.equip).size === curlWahl.equip.length,
-  `jede mit eigenem Gerät (${curlWahl.equip.join(', ')}) – sonst wäre es keine Ausweichmöglichkeit`);
+check(curlWahl.reihe === null,
+  'an den SZ-Curls steht kein Umschalter – Hammercurls sind keine leichtere Fassung');
+check(curlWahl.tausch === 'hammer-curls',
+  'die Hammercurls kommen über die Beschwerde, nicht über eine Auswahl');
 
 // Das Bewegungsbild muss sich unterscheiden, sonst ist der Tausch unsichtbar.
 // Bei zwei Curls liegt der Unterschied allein in der Hand, und die hat ein

@@ -327,21 +327,9 @@ button { font: inherit; color: inherit; }
 .kg-val:focus { outline: none; border-bottom-color: var(--accent); }
 /* Derselbe Platz, aber nichts zum Hineinschreiben: der Wiederholungsbereich. */
 .kg-fest { width: auto; border-bottom-color: transparent; white-space: nowrap; }
-/* Die Auswahl gleichwertiger Übungen. Zwei Zeilen je Knopf: der Name, und
-   darunter klein, was ihn unterscheidet – „leichter", „schwerer" oder das
-   Gerät. Umbrechend, weil beim Seitheben vier zur Wahl stehen. */
-.ex-fassung { padding: 0 14px 10px; }
-.ex-fassung > .lbl { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-.ex-fassung .btn-row { flex-wrap: wrap; gap: 6px; }
-.fassung-btn {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
-  line-height: 1.25; text-align: left; padding: 7px 11px;
-}
-/* Die gewählte ist gesperrt, soll aber nicht ausgegraut wirken – sie ist die
-   Antwort auf die Frage, nicht ein nicht verfügbarer Knopf. */
-.fassung-btn.btn-primary[disabled] { opacity: 1; }
-.fassung-name { font-size: 13px; font-weight: 650; }
-.fassung-wie { font-size: 11px; opacity: .75; font-weight: 600; }
+/* − und + für die Ausführung (leichter/schwerer), in derselben Zeile wie sonst
+   Gewicht oder Band. Unter dem Zeichen steht, was es tut. */
+.fassung-row .kg-step-d { font-size: 10px; letter-spacing: 0; }
 .kg-unit { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .kg-next {
   margin: -4px 14px 10px;
@@ -1551,9 +1539,17 @@ textarea.io {
 /* Band zwischen den Händen – kein Gerät mit Gewicht, deshalb schlank. */
 .fig-band { fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; }
 
-/* Rucksack auf dem Rücken – so hell wie die Scheiben, damit er sich vom Körper
-   abhebt, aber als Kasten statt als Scheibe erkennbar bleibt. */
+/* Rucksack – so hell wie die Scheiben, damit er sich vom Körper abhebt; die
+   Vordertasche etwas dunkler und die Träger als Linien, damit es ein Rucksack
+   ist und kein Klotz. */
 .fig-pack { fill: #e8eaed; }
+.fig-pack-tasche { fill: #c9ced6; }
+.fig-strap { fill: none; stroke: #d5d9df; stroke-linecap: round; }
+/* Finger und Daumen: Linien in Körperfarbe mit einem Rand in Hintergrundfarbe,
+   damit sie auch vor dem Rumpf zu sehen sind. */
+.fig-finger { stroke: var(--accent); fill: none; stroke-linecap: round; }
+.fig-finger-rand { stroke: var(--bg-elev); fill: none; stroke-linecap: round; }
+.fig.hurt-mode .fig-finger { stroke: #56607a; }
 
 /* Supersätze: der Wechselhinweis in der Fokus-Ansicht und die Vorschau unter
    Mehr. Bewusst leise – es ist eine Ansage über den Ablauf, keine Aufgabe. */

@@ -288,17 +288,26 @@ VARIANTEN = {
     # Rudern und Goblet Squat hat der Cut keine exakte Lösung – Hip Thrust,
     # Kreuzheben und Goblet Squat treffen alle das Gesäß, und dessen Ziel (8)
     # ist dafür zu knapp. Die kleinste Abweichung, die alle sechs hält: Gesäß
-    # 9,6 statt 8, Hüftstreckung 5,85 statt 5. Welche der beiden Richtungen –
-    # Ziele anheben oder Grundübungen weglassen –, entscheidet Tobi; bis dahin
-    # steht `pflicht` hier leer, und der Mechanismus wartet.
+    # 9,6 statt 8, Hüftstreckung 5,85 statt 5 – mehr Beinvolumen als im Aufbau,
+    # und das ist im Defizit verkehrt.
+    #
+    # Deshalb fünf feste Grundübungen, eine je Bewegungsmuster: Drücken (Floor
+    # Press), Ziehen von oben und von vorn (Chin-ups, Rudern), Hüftbeuge
+    # (Kreuzheben), Kniebeuge (Goblet Squat). Der Hip Thrust bleibt frei – die
+    # schwere Hüftstreckung trägt das Kreuzheben. Damit das exakt aufgeht, vier
+    # Ziele um eine Winzigkeit verschoben (Gesäß 8 → 7,9, Hüftstreckung 5 →
+    # 5,15, hintere Schulter und Bizeps 7 → 6,95), gefunden mit demselben Löser
+    # als die nächsten, die gehen. Die Oberkörperziele bleiben bei rund 7:
+    # zwei Drittel des Aufbaus, genug zum Halten, solange die Lasten stehen.
     'cut': {
         'name': 'Cut',
-        'pflicht': {},
+        'pflicht': {'floor-press': 3, 'chin-ups': 3, 'rumaenisches-kreuzheben': 3,
+                    'einarmiges-kh-rudern': 3, 'goblet-squat': 3},
         'ziele': {
-            'chest': 7, 'lats': 7, 'sideDelts': 7, 'rearDelts': 7,
-            'biceps': 7, 'triceps': 7, 'abs': 9,
+            'chest': 7, 'lats': 7, 'sideDelts': 7, 'rearDelts': 6.95,
+            'biceps': 6.95, 'triceps': 7, 'abs': 9,
             'frontDelts': None, 'traps': None,
-            'glutes': 8, 'quads': 6, 'hamstringsHip': 5, 'hamstringsKnee': 3, 'calves': 6,
+            'glutes': 7.9, 'quads': 6, 'hamstringsHip': 5.15, 'hamstringsKnee': 3, 'calves': 6,
         },
         'cap': 10,
     },
@@ -443,7 +452,7 @@ GERAET = {
 # exercise-meta.json sind Vielfache von 0,05, damit bleibt alles ganzzahlig und
 # "exakt" heißt wirklich exakt und nicht "bis auf Rundungsfehler".
 UNIT = 20
-GOAL = {m: (None if t is None else t * UNIT) for m, t in TARGET.items()}
+GOAL = {m: (None if t is None else round(t * UNIT)) for m, t in TARGET.items()}
 CAP_U = CAP * UNIT
 
 # Eine Obergrenze, die unter dem eigenen Ziel liegt, ist keine.
@@ -2087,9 +2096,12 @@ def main():
         total = [sum(w[j] for w in per_week) for j in range(len(ids))]
         day = [datetime.date.fromisoformat(s['date']) for s in alt]
         print(f'nur die Tage neu: {weeks} Wochen und ihre Mengen aus {QUELLE.name} übernommen')
+    # Ein Startpunkt von außen (WK_START, JSON {übung: Plansumme}), etwa aus
+    # einem ganzzahligen Löser. Von ihm aus läuft wandern() durch den Nullraum.
+    von = json.loads(pathlib.Path(os.environ['WK_START']).read_text()) if os.environ.get('WK_START') else None
     for weeks in (range(0) if nur_tage else range(WEEKS, WEEKS + 12)):
         total, (variants, vollstaendig) = totals(ids, shares, groups, weeks, rnd,
-                                                 streng=False)
+                                                 streng=False, start=von)
         if total is not None:
             break
     else:

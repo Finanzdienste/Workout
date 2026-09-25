@@ -341,6 +341,35 @@ Beine ohne Bank sähen aus, als säße die Figur in der Luft.
 `backpack` ein Rucksack auf dem Rücken, `band` ein Band zwischen den Händen,
 `null` kein Gerät.
 
+**Der Rucksack ist seit v206 einer.** Vorher stand er als aufrechtes Rechteck
+im Bild, egal wie der Körper lag – bei der Inverted Row quer zum Rumpf und auf
+der falschen Seite:
+
+> „Hier steht Rucksack auf Brust aber es ist ein merkwürdiges Rechteck und das
+> auf dem Rücken. Alles was an Hilfsmitteln usw dazu kommt soll vernünftig
+> visualisiert werden"
+
+Jetzt ist er eine Fläche im Raum, die dem Rumpf folgt, mit Vordertasche und
+zwei Trägern über die Schultern; bei der Inverted Row liegt er auf der Brust
+(`packAt: 'chest'`), bei Liegestützen und Klimmzügen auf dem Rücken, bei
+Rucksack-Curls und -Rudern in den Händen (`packAt: 'hand'`).
+
+**Und die Hände greifen.** Sie waren Ballen, und ein Ballen greift nicht:
+
+> „Man soll bei jeder Übung auch die Finger sehen können damit man sieht obs
+> Ober- oder Untergriff ist"
+
+Jedes greifende Muster nennt seit v206, wohin der Daumen zeigt (`daumen`:
+innen, außen, vorn, hinten, oben). Drei Finger liegen in Verlängerung des
+Unterarms um Stange, Hantel oder Band, der Daumen quer dazu – und das ist
+Anatomie, keine Konvention: Obergriff heißt eingedrehte Hand, Daumen zueinander;
+Untergriff Daumen nach außen; Hammergriff Daumen nach vorn. Chin-ups und
+Pull-ups unterscheiden sich damit im Bild, vorher taten sie es nicht.
+`hantelLaengs` legt die Kurzhantel dazu in Blickrichtung, wie sie bei neutralem
+Griff liegt – beim Seitheben lag sie vorher entlang des Arms, was keine Hantel
+je tut. `tests/test-figur.mjs` prüft, dass kein greifendes Muster ohne `daumen`
+ist.
+
 **Aus `backplate` wurde `backpack`**, und das war kein Schönheitsfehler: Die
 Figur trug eine Scheibe auf dem Rücken, die Gewichtsangabe hieß
 „Zusatzgewicht" – beides zeigt etwas, das man sich allein nicht auflegen kann.
@@ -3321,6 +3350,25 @@ einfachere Fassung der Übung** — dieselben Sätze wie im Plan. Das ist auch d
 ehrlichere Lesart: Wer neu ist, braucht eine Last, die er beherrscht, und eine
 Bewegung, die er kann, nicht ein Drittel weniger Reiz. Fortgeschritten legt
 weiterhin ein Drittel zu; dort ist mehr Volumen der Reiz, der fehlt.
+
+#### Die leichtere Fassung hat ein − und die schwerere ein +
+
+Von v187 bis v205 stand unter jeder Übung mit gleichen Muskelanteilen eine
+Reihe „Dieselben Muskeln, andere Übung" – beim Seitheben vier Knöpfe, darunter
+das Seitheben mit Flaschen:
+
+> „Wieso ist die Alternative zu Band-Seitheben Seitheben mit Flaschen? Außerdem
+> will ich generell keine Alternativen, sondern höchstens nur statt + die
+> schwerere Übungs-Version, ähnlich wie bei den gelben und roten Bändern"
+
+Die Reihe ist weg. Übrig ist, was der Katalog als leichter oder schwerer kennt
+(`anfaenger`), und das steht in derselben Zeile wie sonst Gewicht oder Band:
+− die leichtere Ausführung, + die schwerere. Beim Knieheben also − im Liegen,
++ hängend; wo es keine Stufen gibt, steht nichts. Eine eigene Wahl gilt nur
+noch in dieser Kette (`stufenKette()` in `js/plan.js`) – eine alte gespeicherte
+Wahl auf eine Geschwisterübung wirkt nicht mehr. Wer eine Übung nicht verträgt,
+hakt das unter Beschwerden an; die Flaschen und der Rucksack als Ersatz kommen
+nur noch über „Was da ist", wenn Band oder Stange fehlen.
 
 #### Und der Folgefehler, den diese Änderung ausgelöst hat
 

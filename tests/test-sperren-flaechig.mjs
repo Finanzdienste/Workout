@@ -51,28 +51,21 @@ for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
     const { exOf } = await import('./js/plan.js');
     const { INJURIES, gesperrt } = await import('./js/injuries.js');
 
-    // Drei Stände eigener Wahl: keine, jeweils die erste und jeweils die letzte
-    // gleichwertige Alternative. Mehr Kombinationen ändern an der Frage nichts:
-    // Entweder die Wahl kennt die Sperren, oder sie kennt sie nicht.
-    const klassen = new Map();
-    EXERCISES.forEach((e) => {
-      const k = JSON.stringify([Object.entries(e.db.shares).sort(), Object.entries(e.bw.shares).sort()]);
-      if (!klassen.has(k)) klassen.set(k, []);
-      klassen.get(k).push(e.id);
-    });
+    // Drei Stände eigener Wahl: keine, überall die leichtere und überall die
+    // schwerere Ausführung (mehr steht seit v206 nicht zur Wahl). Mehr
+    // Kombinationen ändern an der Frage nichts: Entweder die Wahl kennt die
+    // Sperren, oder sie kennt sie nicht.
     const wahl = (welche) => {
       const w = {};
-      klassen.forEach((ids) => {
-        if (ids.length < 2) return;
-        const ziel = welche === 'erste' ? ids[1] : ids[ids.length - 1];
-        ids.forEach((id) => { if (id !== ziel) w[id] = ziel; });
+      EXERCISES.forEach((e) => {
+        if (e.anfaenger) w[e.id] = welche === 'leicht' ? e.anfaenger : e.id;
       });
       return w;
     };
     const verstoesse = [];
     const doppelt = [];
     let n = 0;
-    for (const f of [{}, wahl('erste'), wahl('letzte')]) {
+    for (const f of [{}, wahl('leicht'), wahl('schwer')]) {
       store.setSetting('fassung', f);
       for (const inj of INJURIES) {
         store.setSetting('injuries', [inj.id]);

@@ -249,18 +249,19 @@ function anfaengerFassung(ex, m) {
   let getauscht = false;
   const raus = ex.map((it) => {
     const ersatz = (EX_BY_ID.get(it.id) || {}).anfaenger;
-    const gleich = anteilsgleich().get(it.id) || [];
     // Eine eigene Wahl schlägt die Stufe, in beide Richtungen: Wer die
     // schwerere wählt, bekommt sie auch als Anfänger, wer die leichtere wählt,
-    // auch als Geübter. Erlaubt ist alles mit denselben Muskelanteilen – mehr
-    // nicht, sonst verschöbe die Wahl still die Wochenziele.
-    // Zugelassen ist allein, was *exakt* dieselben Muskelanteile hat. Eine
-    // Zeit lang zählte auch eine Nachbarschaft fast gleicher Übungen dazu,
-    // mit dem Wochenpreis am Knopf – dazu kam die Ansage: „ich will nicht je
-    // Übung die Auswahl haben zwischen zwei Übungen". Wer eine Übung nicht
-    // verträgt, hakt das unter Beschwerden an; dort entscheidet die App, was
-    // wegfällt und was einspringt. Was hier bleibt, ist kein Ersatz, sondern
-    // dieselbe Übung an einem anderen Gerät.
+    // auch als Geübter. Zugelassen ist nur die Kette aus leichter und
+    // schwerer (`anfaenger`), nicht jede Übung mit denselben Anteilen:
+    //
+    //     „ich will generell keine Alternativen, sondern höchstens nur statt
+    //      + die schwerere Übungs-Version, ähnlich wie bei den gelben und
+    //      roten Bändern"
+    //
+    // Bis v205 zählte alles mit exakt gleichen Muskelanteilen dazu (beim
+    // Seitheben vier Übungen). Wer eine Übung nicht verträgt, hakt das unter
+    // Beschwerden an; dort entscheidet die App, was wegfällt und was einspringt.
+    const gleich = stufenKette(it.id);
     const eigene = gleich.includes(wahl[it.id]) && !tabu.has(wahl[it.id]) ? wahl[it.id] : null;
     const leicht = ersatz && EX_BY_ID.has(ersatz) && !tabu.has(ersatz) ? ersatz : null;
     if (!eigene && !leicht) return it;
@@ -342,15 +343,21 @@ function anteilsgleich() {
 export function fassungen(item) {
   if (!item) return null;
   const plan = item.statt || item.id;
-  const alle = anteilsgleich().get(plan);
-  if (!alle || alle.length < 2) return null;
-  const leichter = (EX_BY_ID.get(plan) || {}).anfaenger;
-  const liste = alle.map((id) => ({
-    id,
-    wie: id === leichter ? 'leichter'
-      : ((EX_BY_ID.get(id) || {}).anfaenger === plan ? 'schwerer' : null),
-  }));
-  return { plan, jetzt: item.id, liste };
+  const kette = stufenKette(item.id);
+  if (kette.length < 2) return null;
+  const leichter = (EX_BY_ID.get(item.id) || {}).anfaenger || null;
+  const schwerer = (EXERCISES.find((e) => e.anfaenger === item.id) || {}).id || null;
+  return { plan, jetzt: item.id, leichter: leichter && EX_BY_ID.has(leichter) ? leichter : null, schwerer };
+}
+
+/**
+ * Die Übung selbst, ihre leichtere und ihre schwerere Ausführung – soweit der
+ * Katalog sie kennt (`anfaenger`). Mehr steht nicht zur Wahl.
+ */
+export function stufenKette(id) {
+  const leichter = (EX_BY_ID.get(id) || {}).anfaenger;
+  const schwerer = (EXERCISES.find((e) => e.anfaenger === id) || {}).id;
+  return [id, leichter, schwerer].filter((x) => x && EX_BY_ID.has(x));
 }
 
 /**

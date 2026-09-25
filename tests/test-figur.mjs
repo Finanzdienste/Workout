@@ -336,4 +336,36 @@ stuetzend.forEach(([name, spec]) => {
 check(PATTERNS.hinge1.gewichtHand && PATTERNS.hinge1.gewichtHand !== PATTERNS.hinge1.stance,
   'einbeiniges Kreuzheben: die Hantel hängt auf der freien Seite, wie der Hinweis sagt');
 
+/* --- 11. Jede greifende Hand zeigt ihren Griff ---------------------------- */
+//
+//     „Man soll bei jeder Übung auch die Finger sehen können damit man sieht
+//      obs Ober- oder Untergriff ist"
+//
+// `daumen` am Muster zeichnet Finger und Daumen (js/figure.js). Geprüft wird,
+// dass kein Muster ohne auskommt, dessen Übung etwas greift – Stange, Hantel,
+// Band, Boden –, und dass Chin-ups und Pull-ups sich im Daumen unterscheiden:
+// Das ist der ganze sichtbare Unterschied zwischen den beiden.
+{
+  const { EXERCISES } = await import('../js/data.js');
+  const greift = /Stange|Hantel|Band|Rucksack|Scheibe/i;
+  const muss = new Set();
+  EXERCISES.forEach((e) => ['db', 'bw'].forEach((m) => {
+    const v = e[m];
+    if (greift.test(v.equip) || /pushup|pike/.test(v.pattern)) muss.add(v.pattern);
+  }));
+  // Crunches und Beckenheben halten die Scheibe auf dem Körper, sie greifen sie
+  // nicht; das Handtuch beim Leg Curl liegt unter der Ferse.
+  ['crunch', 'bridge', 'legcurl', 'legcurl1', 'thrust1', 'kneeraisefloor', 'snowangel'].forEach((k) => muss.delete(k));
+  const ohne = [...muss].filter((k) => PATTERNS[k] && !PATTERNS[k].daumen);
+  check(ohne.length === 0, `jedes greifende Muster sagt, wohin der Daumen zeigt${ohne.length ? ' – fehlt: ' + ohne.join(', ') : ` (${muss.size} Muster)`}`);
+  check(PATTERNS.pullup.daumen === 'aussen' && PATTERNS.pullupwide.daumen === 'innen',
+    'Chin-ups: Daumen außen (Untergriff), Pull-ups: Daumen innen (Obergriff)');
+  check(PATTERNS.curl.daumen === 'aussen' && PATTERNS.hammercurl.daumen === 'vorn',
+    'Curl im Untergriff, Hammercurl mit Daumen nach vorn');
+  const erlaubt = ['innen', 'aussen', 'vorn', 'hinten', 'oben', 'unten'];
+  const fremd = Object.entries(PATTERNS).filter(([, s]) => s.daumen && !erlaubt.includes(s.daumen)).map(([k]) => k);
+  check(fremd.length === 0, `nur bekannte Daumenrichtungen${fremd.length ? ': ' + fremd.join(', ') : ''}`);
+  check(PATTERNS.invrow.packAt === 'chest', 'bei der Inverted Row liegt der Rucksack auf der Brust');
+}
+
 console.log(`\n${fails ? fails + " FEHLER" : "alle Prüfungen bestanden"}`);

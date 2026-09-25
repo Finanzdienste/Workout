@@ -1986,7 +1986,7 @@ export const EXERCISES = [
     "schmerz": [
       {
         "ort": "Griff hält nicht",
-        "text": "Der häufigste Grund, warum diese Übung nicht funktioniert, ist kein Schmerz: Die Hand lässt vor dem Bauch los. Dann hast du den Unterarm trainiert und den Bauch nicht.\n\nDas ist keine Formfrage und kein Grund, sich durchzubeißen. Oben an dieser Karte steht unter „Dieselben Muskeln, andere Übung“ das Knieheben im Liegen – einmal antippen, und es gilt für diese Übung im ganzen Plan. Dieselben Muskelanteile, also verschiebt sich an der Wochenrechnung nichts, und zurück geht es genauso."
+        "text": "Der häufigste Grund, warum diese Übung nicht funktioniert, ist kein Schmerz: Die Hand lässt vor dem Bauch los. Dann hast du den Unterarm trainiert und den Bauch nicht.\n\nDas ist keine Formfrage und kein Grund, sich durchzubeißen. An dieser Karte steht ein − für die leichtere Ausführung, das Knieheben im Liegen – einmal antippen, und es gilt für diese Übung im ganzen Plan. Dieselben Muskelanteile, also verschiebt sich an der Wochenrechnung nichts, und zurück geht es genauso."
       },
       {
         "ort": "Finger",

@@ -383,6 +383,26 @@ export function skelett(spec, t) {
  * Stellungen – je Muster Start und Ende
  * ------------------------------------------------------------------ */
 
+/*
+ * `daumen` sagt, wohin der Daumen zeigt – und damit, wie gegriffen wird:
+ *
+ *     „Man soll bei jeder Übung auch die Finger sehen können damit man sieht
+ *      obs Ober- oder Untergriff ist"
+ *
+ *   innen    Obergriff: Handrücken zum Gesicht bzw. nach oben, Daumen zueinander
+ *   aussen   Untergriff: Handflächen zum Gesicht, Daumen nach außen
+ *   vorn     neutral bei hängenden Armen (Hammercurl, Hantel an der Seite,
+ *            Seitheben mit Handfläche nach unten)
+ *   hinten   neutral über Kopf (Trizeps hinter dem Kopf)
+ *   oben     neutral vor dem Körper
+ *
+ * Das ist Anatomie, keine Zeichenkonvention: Bei hängenden Armen und nach vorn
+ * gedrehten Handflächen stehen die Daumen außen; wer die Hand eindreht
+ * (Obergriff), dreht den Daumen nach innen. `finger: 'boden'` für Hände, die
+ * flach aufliegen – dort zeigen die Finger zum Kopf –, `finger: 'oben'` für den
+ * Griff unter die Goblet-Hantel. `hantelLaengs` legt die Kurzhantel in
+ * Blickrichtung, wie sie bei neutralem Griff liegt.
+ */
 export const PATTERNS = {
   // Ruhig stehende Figur ohne Bewegung – Grundlage für die Verletzungskarte.
   // Die Arme stehen etwas ab, sonst verschwindet die Schultermarke im Rumpf.
@@ -394,6 +414,7 @@ export const PATTERNS = {
     ],
   },
   squat: {
+    daumen: 'innen', finger: 'oben',
     label: 'Kniebeuge',
     poses: [
       // lean unten bewusst moderat: mit 42° klappte die Figur zusammen und der
@@ -440,6 +461,7 @@ export const PATTERNS = {
     ],
   },
   thrust: {
+    daumen: 'innen',
     /*
      * Schulterblätter auf der Bank, Füße am Boden, Hüfte auf und ab.
      *
@@ -508,6 +530,7 @@ export const PATTERNS = {
     ],
   },
   pushup: {
+    daumen: 'innen', finger: 'boden',
     label: 'Liegestütz', lie: 'prone', stuetz: 'tilt',
     poses: [
       // Neigung, Schulterwinkel und Abspreizung rechnet stuetz() je Bild nach,
@@ -545,6 +568,7 @@ export const PATTERNS = {
    * geblieben.
    */
   press: {
+    daumen: 'innen',
     // Flacher als vorher (war 20/−30). Mit dem steilen Blick von oben verschwand
     // in der unteren Stellung die nahe Hantel hinter dem Rumpf, und übrig blieb
     // ein einarmiges Drücken. Bei 25/−12 stehen beide Ellbogen sichtbar am
@@ -556,6 +580,7 @@ export const PATTERNS = {
     ],
   },
   pressbar: {
+    daumen: 'innen',
     // Dasselbe im Liegen, aber an der Stange: Die Abspreizung bleibt oben wie
     // unten gleich. Beim Kurzhantelmuster wandern die Hände oben zusammen –
     // mit einer Stange in beiden Händen sähe das aus, als würde sie schrumpfen.
@@ -594,6 +619,7 @@ export const PATTERNS = {
     ],
   },
   row: {
+    daumen: 'vorn', hantelLaengs: true,
     // Einarmig vorgebeugt: die andere Hand stützt sich ab
     label: 'Rudern',
     poses: [
@@ -606,6 +632,7 @@ export const PATTERNS = {
     ],
   },
   rowbar: {
+    daumen: 'innen',
     // Wie beim Curl: Mit Rucksack wird er gehalten, nicht getragen.
     packAt: 'hand',
     // Beidarmig vorgebeugt an der Langhantel. Dieselbe Rumpfneigung wie beim
@@ -623,6 +650,7 @@ export const PATTERNS = {
     ],
   },
   pullup: {
+    daumen: 'aussen',
     label: 'Klimmzug', anchor: 'bar', bar: true, float: true,
     // arm.p etwas über 180: die Arme greifen nach oben und leicht nach hinten,
     // damit der Kopf davor liegt und nicht dahinter verschwindet.
@@ -634,6 +662,7 @@ export const PATTERNS = {
     ],
   },
   pullupwide: {
+    daumen: 'innen',
     // Derselbe Zug im weiten Obergriff. Eigenes Muster, weil Chin-ups und
     // Pull-ups in derselben Einheit direkt untereinander stehen – zweimal
     // dieselbe Animation daneben sagt nichts über den Unterschied.
@@ -646,6 +675,7 @@ export const PATTERNS = {
     ],
   },
   pike: {
+    daumen: 'innen', finger: 'boden',
     // Umgekehrtes V: Hüfte ist der höchste Punkt, Hände und Füße am Boden,
     // der Kopf senkt sich zwischen die Hände. Die Arme zeigen senkrecht nach
     // unten, dafür muss arm.p der Rumpfneigung folgen (-p + lean = 0).
@@ -666,6 +696,7 @@ export const PATTERNS = {
     ],
   },
   ohp: {
+    daumen: 'innen',
     // Sitzend von Schulterhöhe senkrecht nach oben.
     //
     // **Warum `i` hier stehen muss, und was ohne es herauskam.** Der Ellenbogen
@@ -698,6 +729,7 @@ export const PATTERNS = {
     ],
   },
   hinge: {
+    daumen: 'innen',
     // Hüftbeuge: die Knie bleiben fast gestreckt, der Rumpf kippt nach vorn.
     // Die Arme hängen dabei lotrecht – dafür muss arm.p der Rumpfneigung
     // folgen (-p + lean = 0), sonst schwingen die Hanteln nach vorn weg.
@@ -717,6 +749,7 @@ export const PATTERNS = {
     ],
   },
   hinge1: {
+    daumen: 'vorn', hantelLaengs: true,
     // Einbeinig: das freie Bein steigt nach hinten, bis Rumpf und Bein eine
     // Linie bilden. stance nennt das Standbein. Dieselbe Hüfte nach hinten wie
     // oben, nur weniger – auf einem Bein geht das Gegengewicht ins Standbein.
@@ -729,6 +762,7 @@ export const PATTERNS = {
     ],
   },
   splitsquat: {
+    daumen: 'vorn', hantelLaengs: true,
     // Ein Bein vorn, eines hinten, beide Knie beugen. Der Rumpf bleibt
     // aufrecht – kippt er mit, wird daraus optisch eine Kniebeuge.
     label: 'Ausfallschritt', view: [42, -6],
@@ -753,6 +787,7 @@ export const PATTERNS = {
     ],
   },
   kneeraise: {
+    daumen: 'innen',
     // An der Stange hängend: nur die Beine arbeiten, die Arme bleiben oben.
     label: 'Knieheben', anchor: 'bar', bar: true, float: true,
     poses: [
@@ -795,6 +830,7 @@ export const PATTERNS = {
     ],
   },
   pullapart: {
+    daumen: 'innen',
     // Arme vorn auf Schulterhöhe, dann zur Seite auseinander. Der Rumpf bleibt
     // stehen – zieht er mit, wird daraus ein Rudern.
     // band: 'hands' – hier hält man das Band wirklich zwischen beiden Händen,
@@ -806,6 +842,7 @@ export const PATTERNS = {
     ],
   },
   facepull: {
+    daumen: 'innen',
     /*
      * Face Pull: Band ueber der Klimmzugstange, Zug zum Gesicht.
      *
@@ -876,6 +913,7 @@ export const PATTERNS = {
     ],
   },
   curl: {
+    daumen: 'aussen',
     // Ein Rucksack an den Trageschlaufen hängt in den Händen, nicht am Rücken –
     // siehe die Zeichnung des Geräts weiter unten.
     packAt: 'hand',
@@ -886,6 +924,7 @@ export const PATTERNS = {
     ],
   },
   hammercurl: {
+    daumen: 'vorn',
     // Dieselbe Bewegung wie `curl`, und deshalb dieselben Winkel – der
     // Unterschied steckt allein in der Hand. Beim Hammercurl zeigen die
     // Handflächen zueinander, die Hantel liegt also längs zum Körper statt
@@ -905,6 +944,7 @@ export const PATTERNS = {
     ],
   },
   triceps: {
+    daumen: 'innen',
     // Oberarm bleibt senkrecht stehen, nur der Ellenbogen arbeitet
     label: 'Trizeps-Strecken', lie: 'supine', view: [20, -30],
     poses: [
@@ -913,6 +953,7 @@ export const PATTERNS = {
     ],
   },
   tricepsoh: {
+    daumen: 'hinten',
     // Sitzend, Oberarme senkrecht neben den Ohren: Nur der Ellenbogen arbeitet,
     // die Schulter hält. Der lange Trizepskopf kreuzt sie mit – unten hinter dem
     // Kopf steht er auf voller Länge, und genau dort wächst er.
@@ -925,6 +966,7 @@ export const PATTERNS = {
     ],
   },
   lateral: {
+    daumen: 'vorn', hantelLaengs: true,
     // Sitzend: Hüfte und Knie rechtwinklig, dazu eine Bank unter dem Gesäß.
     // Ohne die stünde die Figur nur mit angewinkelten Beinen in der Luft.
     label: 'Seitheben', seat: true,
@@ -937,6 +979,7 @@ export const PATTERNS = {
   // steht. Sitzend gezeichnet lief das Band von den Händen hinunter zu Füßen,
   // die auf einer Bank ruhten: eine Verankerung, die es dort gar nicht gibt.
   lateralstand: {
+    daumen: 'vorn',
     label: 'Seitheben im Stehen',
     poses: [
       { lean: 2, arm: A(6, 10, 10), leg: L(4, 4, 4) },
@@ -947,6 +990,7 @@ export const PATTERNS = {
   // die Hantelfassung derselben Übung sitzt. Winkel wie bei `ohp`, samt der
   // Unterarmdrehung `i` – derselbe Fehler stand hier zweimal.
   ohpstand: {
+    daumen: 'innen',
     label: 'Schulterdrücken im Stehen',
     poses: [
       { lean: 2, arm: A(26, 78, 0, 90), leg: L(4, 4, 4) },
@@ -954,6 +998,7 @@ export const PATTERNS = {
     ],
   },
   reversefly: {
+    daumen: 'vorn', hantelLaengs: true,
     // Wie beim Pull-Apart: Das Band liegt zwischen den Händen, nicht unter dem Fuß.
     label: 'Reverse Fly', band: 'hands',
     poses: [
@@ -1004,6 +1049,7 @@ export const PATTERNS = {
     ],
   },
   calf1: {
+    daumen: 'vorn', hantelLaengs: true,
     // Ein Bein trägt, das andere hängt angewinkelt hinten
     label: 'Wadenheben einbeinig', stance: 'R', stufe: 'R',
     poses: [
@@ -1013,6 +1059,7 @@ export const PATTERNS = {
     ],
   },
   pushupfeet: {
+    daumen: 'innen', finger: 'boden',
     // Füße erhöht: positiver tilt hebt das Fußende, dazu ein Kasten darunter
     label: 'Liegestütz mit erhöhten Füßen', lie: 'prone', step: true, stuetz: 'tilt',
     poses: [
@@ -1024,6 +1071,7 @@ export const PATTERNS = {
     ],
   },
   calfbent: {
+    daumen: 'vorn', hantelLaengs: true,
     // Mit gebeugtem Knie: trifft den flachen Wadenmuskel statt der Zwillingswade.
     // Von vorn ist die Kniebeugung nicht zu sehen – der ganze Unterschied zur
     // Schwesterübung verschwindet dann. Deshalb von der Seite.
@@ -1070,6 +1118,7 @@ export const PATTERNS = {
    * Tiefe ist der Grund, warum man die Fersen überhaupt erhöht.
    */
   squatheel: {
+    daumen: 'innen', finger: 'oben',
     // Mehr von der Seite als die freie Kniebeuge (Vorgabe yaw 25): Ein Keil
     // unter der Ferse steht von vorn gesehen hochkant hinter dem Fuß und ist
     // damit genau das, was er nicht sein soll – unsichtbar.
@@ -1087,6 +1136,7 @@ export const PATTERNS = {
     ],
   },
   invrow: {
+    daumen: 'innen', packAt: 'chest',
     // Unter einer niedrigen Stange, Körper gerade, Brust zur Stange. Die Hände
     // bleiben an der Stange, der Körper dreht sich um die Fersen nach oben.
     label: 'Inverted Row', lie: 'supine', anchor: 'bar', barY: 0.04, bar: true,
@@ -1096,6 +1146,7 @@ export const PATTERNS = {
     ],
   },
   tricepsbar: {
+    daumen: 'innen',
     /*
      * Schräg stehend, Hände auf einer niedrigen Kante. Nur der Ellenbogen
      * arbeitet, der Kopf senkt sich unter die Kante.
@@ -1137,6 +1188,7 @@ export const PATTERNS = {
     ],
   },
   calf: {
+    daumen: 'vorn', hantelLaengs: true,
     label: 'Wadenheben',
     poses: [
       { lean: 2, arm: A(4, 8, 8), leg: L(2, 5, 4), heel: 0 },
@@ -1480,7 +1532,7 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       const achse = spec.hantelLaengs ? frontAxis : sideAxis;
       [pts0.handL, pts0.handR].forEach((h) => barAt(h, achse, 0.13, 3.4));
     } else if (equip === 'onehand') {
-      barAt(pts0[`hand${spec.gewichtHand || 'R'}`], sideAxis, 0.13, 3.4);
+      barAt(pts0[`hand${spec.gewichtHand || 'R'}`], spec.hantelLaengs ? frontAxis : sideAxis, 0.13, 3.4);
     } else if (equip === 'goblet') {
       // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten
       barAt(midOf(pts0.handL, pts0.handR), upAxis, 0.105, 4.4);
@@ -1565,35 +1617,112 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
         node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (5.4 * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
       });
     } else if (equip === 'backpack') {
-      // Rucksack auf dem oberen Rücken. Vorher lag hier eine Scheibe – die
-      // sieht man in jedem Trainingsvideo, nur bekommt man sie ohne zweite
-      // Person nicht auf den eigenen Rücken. Ein Rucksack schon, und er sieht
-      // auch anders aus: ein Kasten, keine Scheibe.
-      // Mitte zwischen Brust und Becken: auf Brusthöhe säße er im Nacken.
+      // Rucksack – auf dem Rücken, auf der Brust oder in den Händen.
+      //
+      // Vorher lag hier eine Scheibe – die sieht man in jedem Trainingsvideo,
+      // nur bekommt man sie ohne zweite Person nicht auf den eigenen Rücken.
+      // Ein Rucksack schon. Und er sah danach trotzdem nicht aus wie einer:
+      //
+      //     „Hier steht Rucksack auf Brust aber es ist ein merkwürdiges
+      //      Rechteck und das auf dem Rücken. Alles was an Hilfsmitteln usw
+      //      dazu kommt soll vernünftig visualisiert werden"
+      //
+      // Zweierlei war falsch. Der Kasten stand als aufrechtes Rechteck im
+      // Bild, egal wie der Körper lag – bei der Inverted Row also quer zum
+      // Rumpf. Jetzt ist er eine Fläche im Raum, die dem Rumpf folgt, mit
+      // Vordertasche und zwei Trägern über die Schultern. Und bei der
+      // Inverted Row liegt er auf der Brust (`packAt: 'chest'`), wie der
+      // Hinweis es sagt – wer auf dem Rücken liegt, kann ihn nur dort tragen.
       //
       // **Getragen oder gehalten** – derselbe Rucksack, zwei ganz verschiedene
       // Übungen. Bei Liegestützen, Klimmzügen und der Inverted Row hat man ihn
-      // an: Er ist Zusatzlast am Körper. Bei Curls und Rudern hält man ihn an
-      // den Trageschlaufen, und dann gehört er in die Hände. Hier lag er auch
-      // dort auf dem Rücken, und das war nicht nur schief, es war die falsche
-      // Anleitung: *„Wieso ist der Rucksack am Rücken?"* Der Hinweis der Übung
-      // sagt seit jeher „beide Hände in die Trageschlaufen".
-      //
-      // `packAt: 'hand'` steht am Muster, nicht an der Übung: Ob der Rucksack
-      // getragen oder gehalten wird, entscheidet die Bewegung.
+      // an. Bei Curls und Rudern hält man ihn an den Trageschlaufen, und dann
+      // gehört er in die Hände (`packAt: 'hand'`).
       const halten = spec.packAt === 'hand';
-      const q = P(halten
-        ? add(midOf(j.handL, j.handR), mul(frontAxis, 0.10))
-        : add(midOf(j.chest, j.hipC), mul(frontAxis, -0.12)));
-      const w = (halten ? 6.4 : 7.6) * gearScale * q.k;
-      const h = (halten ? 7.6 : 9.0) * gearScale * q.k;
-      parts.push({
-        z: q.z + 0.01,
-        node: el('rect', {
-          x: (q.x - w / 2).toFixed(1), y: (q.y - h / 2).toFixed(1),
-          width: w.toFixed(1), height: h.toFixed(1), rx: (w * 0.28).toFixed(1),
-          class: 'fig-pack',
-        }),
+      const brust = spec.packAt === 'chest';
+      const rumpf = midOf(j.chest, j.hipC);
+      const tiefe = brust ? 0.15 : -0.14;
+      const c3 = halten ? add(midOf(j.handL, j.handR), mul(frontAxis, 0.10)) : add(rumpf, mul(frontAxis, tiefe));
+      const bw = halten ? 0.13 : 0.17;
+      const bh = halten ? 0.15 : 0.21;
+      const ecke = (sx, sy) => P(add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, sy * bh / 2)));
+      const flaeche = (ecken, cls, dz) => {
+        const q = ecken.map(([sx, sy]) => ecke(sx, sy));
+        parts.push({
+          z: q.reduce((acc, e) => acc + e.z, 0) / q.length + dz,
+          node: el('polygon', { points: q.map((e) => `${e.x.toFixed(1)},${e.y.toFixed(1)}`).join(' '), class: cls }),
+        });
+      };
+      flaeche([[-1, 1], [1, 1], [1, -1], [-1, -1]], 'fig-pack', 0.01);
+      flaeche([[-0.72, -0.1], [0.72, -0.1], [0.72, -0.82], [-0.72, -0.82]], 'fig-pack-tasche', 0.014);
+      if (!halten) {
+        // Träger: vom oberen Rand über die Schulter auf die andere Seite des
+        // Rumpfs. Zwei Stücke mit eigener Tiefe, damit das Stück hinter dem
+        // Rumpf auch dahinter gezeichnet wird.
+        ['L', 'R'].forEach((seite) => {
+          const sx = seite === 'L' ? -0.55 : 0.55;
+          const oben3 = add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, bh / 2));
+          const schulter = add(j[`shoulder${seite}`], mul(upAxis, 0.035));
+          const drueben = add(add(j[`shoulder${seite}`], mul(frontAxis, -tiefe * 0.7)), mul(upAxis, -0.12));
+          [[oben3, schulter], [schulter, drueben]].forEach(([von, bis]) => {
+            const a2 = P(von); const b2 = P(bis);
+            parts.push({
+              z: (a2.z + b2.z) / 2 + 0.012,
+              node: el('line', {
+                x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
+                'stroke-width': (1.5 * gearScale * a2.k).toFixed(2), class: 'fig-strap',
+              }),
+            });
+          });
+        });
+      }
+    }
+
+    /*
+     * Daumen und Finger – damit man den Griff sieht.
+     *
+     * Die Hand war ein Ballen, und ein Ballen greift nicht. Jetzt: drei Finger
+     * in Verlängerung des Unterarms – sie liegen um die Stange, die Hantel, das
+     * Band – und der Daumen quer dazu, in der Richtung, die das Muster nennt
+     * (`daumen`, siehe oben bei PATTERNS). Am Klimmzug im Obergriff zeigen die
+     * Daumen zueinander, im Untergriff nach außen: Das ist der Unterschied
+     * zwischen Chin-ups und Pull-ups, und er war nicht zu sehen.
+     *
+     * Jeder Strich zweimal: erst breit in Hintergrundfarbe, dann in der Farbe
+     * des Körpers – sonst verschwinden die Finger, sobald die Hand vor dem
+     * Rumpf liegt.
+     */
+    if (spec.daumen) {
+      const weltOben = [0, 1, 0];
+      const haende = equip === 'onehand' ? [spec.gewichtHand || 'R'] : ['L', 'R'];
+      haende.forEach((seite) => {
+        const hand = j[`hand${seite}`];
+        const ell = j[`elbow${seite}`];
+        const innen = mul(sideAxis, seite === 'L' ? 1 : -1);
+        const t = ({ innen, aussen: mul(innen, -1), vorn: frontAxis, hinten: mul(frontAxis, -1),
+          oben: weltOben, unten: mul(weltOben, -1) })[spec.daumen] || innen;
+        let f = norm([hand[0] - ell[0], hand[1] - ell[1], hand[2] - ell[2]]);
+        if (spec.finger === 'boden') f = norm([upAxis[0], 0, upAxis[2]]);
+        else if (spec.finger === 'oben') f = upAxis;
+        const strich = (von, bis, breite) => {
+          const a2 = P(von); const b2 = P(bis);
+          const attrs = (w, cls, dz) => ({
+            x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
+            'stroke-width': (w * gearScale * a2.k).toFixed(2), class: cls, opacity: depth(a2.z),
+            _z: Math.max(a2.z, b2.z) + dz,
+          });
+          [attrs(breite + 1.1, 'fig-finger-rand', 0.03), attrs(breite, 'fig-finger', 0.031)].forEach((at) => {
+            const { _z, ...rest } = at;
+            parts.push({ z: _z, node: el('line', rest) });
+          });
+        };
+        // Drei Finger nebeneinander, von der Daumenseite weg gestaffelt.
+        [0.013, -0.008, -0.029].forEach((o) => {
+          const von = add(hand, mul(t, o));
+          strich(von, add(von, mul(f, 0.066)), 1.5);
+        });
+        const dvon = add(hand, mul(t, 0.02));
+        strich(dvon, add(dvon, add(mul(t, 0.046), mul(f, 0.016))), 1.7);
       });
     }
 
