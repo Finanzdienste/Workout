@@ -399,6 +399,14 @@ export function planSaetze(w, mode) {
 }
 
 function gestufteSaetze(w, m) {
+  // Festgeschrieben bei einem Planwechsel (planWechsel() in js/app.js): Diese
+  // Einheit war schon angefangen oder trainiert, und hinter ihrer Nummer steht
+  // im neuen Plan etwas anderes. Sie bleibt, wie sie war – samt der Satzzahl
+  // jenes Tages, deshalb hier vor der Stufe und ohne sie.
+  const fest = (store.getState().log[w.n] || {}).fest;
+  if (Array.isArray(fest) && fest.length) {
+    return fest.filter((it) => EX_BY_ID.has(it.id)).map((it) => ({ id: it.id, sets: it.sets, bwSets: it.sets }));
+  }
   // Erst die Stufe, dann der Vorrat. Die Anfängerfassung einer Übung braucht
   // oft weniger Gerät – das hängende Knieheben die Klimmzugstange, das liegende
   // nichts. Andersherum fiele sie weg, statt getauscht zu werden.

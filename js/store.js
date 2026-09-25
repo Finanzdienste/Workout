@@ -802,6 +802,24 @@ export function toggleCare(n, key) {
  * und in der Serie als trainiert zählen. Gespeichert wird die Variante, in der
  * abgeschlossen wurde; ein Zurücksetzen nimmt sie wieder zurück.
  */
+/**
+ * Einheiten auf ihre eigene Übungsliste festschreiben – siehe planWechsel()
+ * in js/app.js. `einheiten`: { [n]: [{ id, sets }] }. Was schon eine hat,
+ * behält sie: Festgeschrieben wird der Stand des Tages, an dem trainiert
+ * wurde, nicht der des zweiten Planwechsels danach.
+ */
+export function festschreiben(einheiten) {
+  let neu = 0;
+  Object.entries(einheiten).forEach(([n, liste]) => {
+    const e = state.log[n];
+    if (!e || e.fest || !liste.length) return;
+    e.fest = liste.map(({ id, sets }) => ({ id, sets }));
+    neu += 1;
+  });
+  if (neu) { persist(); emit(); }
+  return neu;
+}
+
 export function markDone(n, mode) {
   const e = ensure(n);
   e.done = mode;

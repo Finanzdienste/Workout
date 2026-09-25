@@ -307,9 +307,19 @@ function fokusUmzug() {
  *
  * Deshalb trägt jede Planvariante seit js/data.js einen Fingerabdruck ihrer
  * Inhalte. Stimmt er nicht mehr mit dem überein, unter dem der laufende Verlauf
- * entstanden ist, wandert dieser in die Ablage und der neue Plan fängt sauber
- * an. Verloren geht dabei nichts: Gewichte bleiben, Statistik, Kalender und
- * Trainingstage rechnen über alle Protokolle (siehe lebenStats()).
+ * entstanden ist, werden die Einheiten, die schon angefangen oder trainiert
+ * sind, auf das festgeschrieben, was im Protokoll steht (`fest`, siehe
+ * gestufteSaetze() in js/plan.js). Die übrigen bekommen den neuen Plan, und
+ * die Runde läuft weiter.
+ *
+ * Bis v204 wanderte stattdessen der ganze Verlauf in die Ablage, und die Runde
+ * fing bei eins an. Verloren ging dabei nichts, aber jede Verbesserung am Plan
+ * kostete einen Neustart – und damit war jede ein Grund, sie zu unterlassen.
+ *
+ * Aus dem Protokoll allein, nicht aus dem alten Plan: Der ist beim Laden schon
+ * ersetzt. Das Protokoll kennt die Liste trotzdem – beim ersten Anzeigen legt
+ * die App für jede Übung der Einheit einen Eintrag an und hält die Satzzahl
+ * dieses Tages in `soll` fest.
  *
  * Termine gehen in den Fingerabdruck nicht ein – die verschieben sich im
  * Betrieb ständig und ändern nichts an dem, was zu tun ist.
@@ -329,22 +339,44 @@ function planWechsel() {
     }
     return false;
   }
-  const hatVerlauf = Object.keys(s.log || {}).length > 0;
-  if (hatVerlauf) {
-    // **Und gesagt wird es auch.** Vorher wanderte die Runde wortlos in die
-    // Ablage: Wer die App das nächste Mal öffnete, stand bei Workout 1, mit
-    // anderen Übungen, und nichts erklärte, warum. Der Fokuswechsel eine Etage
-    // höher hat seinen Hinweis von Anfang an gehabt; dieser Fall ist derselbe
-    // Vorgang, nur ohne dass jemand darauf getippt hätte – also braucht er ihn
-    // erst recht.
-    const einheiten = Object.keys(s.log).length;
-    // Ging das Ablegen nicht (Speicher voll), bleibt der Stand unverändert und
-    // der Plan-Stand unvermerkt: Beim nächsten Start wird es wieder versucht.
-    if (!store.restartPlan(0, rundenBilanz())) return false;
-    store.setSetting('planUmbau', { einheiten, fokus: (PLANS[fokus] || {}).name || fokus });
-  }
+  const liste = festeListen(s.log || {}, s.mode);
+  const einheiten = store.festschreiben(liste);
+  // **Und gesagt wird es auch** – eine Einheit, die plötzlich andere Übungen
+  // zeigt, braucht einen Grund, den man lesen kann.
+  store.setSetting('planUmbau', { einheiten, fest: true, fokus: (PLANS[fokus] || {}).name || fokus });
   store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
-  return hatVerlauf;
+  return true;
+}
+
+/**
+ * Die Übungsliste jeder angefangenen oder trainierten Einheit, aus dem Protokoll.
+ *
+ * Nur Einheiten, in denen etwas passiert ist (abgehakt, Gewicht, Rückmeldung
+ * oder abgeschlossen). Bloß angesehene zählen nicht: Wer vorausblättert, legt
+ * dabei Einträge an, und die Einheit soll trotzdem den neuen Plan bekommen.
+ *
+ * Aus dem Modus, in dem am meisten abgehakt ist. Bei einer abgeschlossenen
+ * Einheit nur, was angefasst wurde – eine ausgelassene Übung wird sonst im
+ * Nachhinein zu einer offenen. Bei einer angefangenen alles, was dort stand:
+ * der Rest ist noch zu tun.
+ */
+function festeListen(log, grundModus) {
+  const aktiv = (x) => x && (x.done || x.w || x.wie);
+  const out = {};
+  Object.entries(log).forEach(([n, e]) => {
+    if (!e || e.fest) return;
+    const zahl = (m) => Object.values(e[m] || {})
+      .reduce((a, arr) => a + (Array.isArray(arr) ? arr.filter((x) => x && x.done).length : 0), 0);
+    const angefasst = (m) => Object.values(e[m] || {}).some((arr) => Array.isArray(arr) && arr.some(aktiv));
+    if (!e.done && !angefasst('db') && !angefasst('bw')) return;
+    let m = e.mode || grundModus || 'db';
+    if (zahl('db') || zahl('bw')) m = zahl('bw') > zahl('db') ? 'bw' : 'db';
+    const soll = e.soll || {};
+    out[n] = Object.entries(e[m] || {})
+      .filter(([id, arr]) => Array.isArray(arr) && EX_BY_ID.has(id) && (!e.done || arr.some(aktiv)))
+      .map(([id, arr]) => ({ id, sets: soll[id] || arr.length }));
+  });
+  return out;
 }
 
 /**
@@ -358,6 +390,23 @@ function planWechsel() {
 function umbauHinweis() {
   const u = store.getState().planUmbau;
   if (!u) return '';
+  if (u.fest) {
+    return `
+    <div class="notice aufstieg" style="margin:0 0 12px">
+      <strong>Der Plan wurde überarbeitet</strong>
+      <div class="small" style="margin-top:6px">
+        ${u.einheiten
+    ? `Deine ${u.einheiten === 1 ? 'angefangene oder trainierte Einheit bleibt' : `${u.einheiten} angefangenen oder trainierten Einheiten bleiben`}
+        genau so, wie du sie gemacht hast. `
+    : ''}Ab der nächsten offenen Einheit gelten in „${esc(u.fokus)}" die neuen Übungen,
+        und die Runde läuft einfach weiter. <b>Gewichte, Bänder, Erfahrungsstufe und
+        Statistik bleiben, wie sie sind.</b>
+      </div>
+      <div class="btn-row nav" style="margin-top:10px">
+        <button type="button" class="btn btn-primary" data-act="umbau-ok">Verstanden</button>
+      </div>
+    </div>`;
+  }
   return `
     <div class="notice aufstieg" style="margin:0 0 12px">
       <strong>Der Plan wurde überarbeitet</strong>
@@ -6403,14 +6452,13 @@ if (fokusUmzug()) {
   neuAngefangen = true;
 }
 // Und danach: Hat sich der *Inhalt* des Plans geändert, ohne dass der Fokus ein
-// anderer wäre? Dann zeigt jeder alte Eintrag auf eine andere Übung, und der
-// laufende Verlauf wandert in die Ablage. Nach fokusUmzug(), nicht davor – der
-// stellt erst fest, welcher Plan überhaupt gilt.
+// anderer wäre? Dann werden die angefangenen Einheiten festgeschrieben, und die
+// Runde läuft weiter – kein Neuanfang, also auch kein Verschieben auf heute.
+// Nach fokusUmzug(), nicht davor – der stellt erst fest, welcher Plan gilt.
 if (planWechsel()) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;
-  neuAngefangen = true;
 }
 /*
  * Eine neu begonnene Runde fängt heute an – nicht am Plandatum.

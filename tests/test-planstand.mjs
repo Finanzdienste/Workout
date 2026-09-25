@@ -15,10 +15,11 @@
  *      ist – hinge er daran, legte jeder verpasste Tag den Verlauf weg.
  *   2. Bei seiner Einführung passiert nichts. Wer keinen gespeicherten Stand
  *      hat, hat nichts gewechselt.
- *   3. Ändert er sich wirklich, wandert der laufende Verlauf in die Ablage –
- *      und Statistik, Kalender und Trainingstage überleben das.
- *   4. Und die App sagt es. Eine Runde, die beim Öffnen wortlos auf null
- *      springt, ist von einem Datenverlust nicht zu unterscheiden.
+ *   3. Ändert er sich wirklich, bleiben angefangene und trainierte Einheiten,
+ *      wie sie waren, und nur der Rest bekommt den neuen Plan. Die Runde läuft
+ *      weiter (bis v204 fing sie bei eins an).
+ *   4. Und die App sagt es. Eine Einheit, die plötzlich andere Übungen zeigt,
+ *      braucht einen Grund, den man lesen kann.
  */
 import { chromium } from 'playwright';
 import { URL, ROOT } from './umgebung.mjs';
@@ -100,74 +101,97 @@ check(s.imLog === einfuehrung, `der Verlauf bleibt liegen (${s.imLog} Einheiten)
 check(s.runden === 0, 'nichts wandert in die Ablage');
 check(s.stand === staende.standard, 'der Stand wird nur vermerkt – das ist der Anfang der Buchführung');
 
-// --- 4. Ein echter Wechsel legt den Verlauf weg -------------------------
-await page.evaluate(async () => {
-  const store = await import('./js/store.js');
-  // So sähe es aus, wenn der Plan unter dem laufenden Verlauf ausgetauscht
-  // worden wäre: gespeichert ist ein anderer Abdruck als der geladene.
-  store.setSetting('planStand', { standard: 'alterplan01' });
+// --- 4. Ein echter Wechsel schreibt fest, was angefangen ist ------------
+//
+// Bis v204 legte er den ganzen Verlauf in die Ablage, und die Runde fing bei
+// eins an. Jetzt: Was angefangen oder trainiert ist, bleibt genau so, wie es
+// war; alles andere bekommt den neuen Plan, und die Runde läuft weiter.
+//
+// Nachgestellt wird der echte Fall – ein Protokoll, dessen Einheiten *andere*
+// Übungen tragen als der geladene Plan: Einheit 1 fertig, Einheit 2 halb,
+// Einheit 5 nur angesehen (leere Einträge vom Vorausblättern).
+const fall = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const fremd = (k) => PLAN[k].ex.map((x) => x.id);
+  const alt1 = fremd(10);
+  const alt2 = fremd(11);
+  const alt5 = fremd(12);
+  const eintrag = (ids, bis) => {
+    const e = { mode: 'db', startedOn: '2026-09-01', db: {}, soll: {} };
+    ids.forEach((id, k) => {
+      e.db[id] = [0, 1, 2].map(() => ({ w: k < bis ? '20' : '', done: k < bis }));
+      e.soll[id] = 3;
+    });
+    return e;
+  };
+  const log = { 1: { ...eintrag(alt1, 99), done: 'db' }, 2: eintrag(alt2, 2), 5: eintrag(alt5, 0) };
+  log[2].startedOn = '2026-09-03';
+  delete log[5].startedOn;
+  localStorage.removeItem('workout.rounds.v1');
+  localStorage.setItem('workout.state.v1', JSON.stringify({
+    greeted: true, name: 'T', focus: 'standard', log, shift: 7,
+    planStand: { standard: 'alterplan01' },
+  }));
+  return { alt1, alt2, neu5: PLAN[4].ex.map((x) => x.id) };
 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(500);
 s = await page.evaluate(async () => {
   const store = await import('./js/store.js');
+  const { PLAN } = await import('./js/data.js');
+  const { exOf, progressOf, defaultWorkoutNo } = await import('./js/plan.js');
   const { lebenStats } = await import('./js/bilanz.js');
   const st = store.getState();
-  const l = lebenStats();
-  return { imLog: Object.keys(st.log || {}).length, runden: (st.rounds || []).length,
-           stand: (st.planStand || {}).standard, saetze: l.saetze, tage: [...l.tage] };
+  const ids = (n) => exOf(PLAN[n - 1], 'db').map((x) => x.id).sort().join(',');
+  return {
+    imLog: Object.keys(st.log || {}).length, runden: (st.rounds || []).length,
+    stand: (st.planStand || {}).standard, shift: st.shift,
+    e1: ids(1), e2: ids(2), e5: ids(5),
+    p1: progressOf(1, 'db'), p2: progressOf(2, 'db'),
+    offen: defaultWorkoutNo(), saetze: lebenStats().saetze,
+  };
 });
-console.log('     nach dem Wechsel:', JSON.stringify(s));
-check(s.imLog === 0, `der neue Plan fängt sauber an (${s.imLog} Einheiten im Protokoll)`);
-check(s.runden === 1, 'der alte Verlauf liegt in der Ablage, nicht im Müll');
-check(s.stand === staende.standard, 'und der neue Stand ist vermerkt');
-check(s.saetze > 0, `die Statistik zählt weiter (${s.saetze} Sätze)`);
-check(s.tage.includes('2026-09-01'), 'und der Trainingstag steht weiter da');
+const sortiert = (l) => [...l].sort().join(',');
+console.log('     nach dem Wechsel:', JSON.stringify({ ...s, e1: undefined, e2: undefined, e5: undefined }));
+check(s.runden === 0 && s.imLog === 3, `nichts wandert in die Ablage (${s.runden} Runden, ${s.imLog} Einheiten im Protokoll)`);
+check(s.stand === staende.standard, 'der neue Stand ist vermerkt');
+check(s.e1 === sortiert(fall.alt1) && s.p1.complete,
+  'die fertige Einheit zeigt die Übungen, die trainiert wurden, und bleibt fertig');
+check(s.e2 === sortiert(fall.alt2) && s.p2.done === 6 && !s.p2.complete,
+  `die angefangene behält ihre Liste samt dem, was noch fehlt (${s.p2.done}/${s.p2.total})`);
+check(s.e5 === sortiert(fall.neu5),
+  'eine bloß angesehene Einheit bekommt den neuen Plan');
+check(s.offen === 2, `weiter geht es mit der angefangenen Einheit, nicht bei eins (${s.offen})`);
+check(s.saetze === fall.alt1.length * 3 + 6, `die Statistik zählt jeden abgehakten Satz weiter (${s.saetze})`);
 
-// Und es steht auch da. Eine Runde, die wortlos auf null springt, sieht aus wie
-// ein Datenverlust – der Hinweis ist der Unterschied zwischen „umgebaut" und
-// „kaputt".
+// Und es steht auch da.
 const hinweis = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-console.log('     ' + (hinweis.match(/Der Plan wurde überarbeitet.{0,150}/) || ['(kein Hinweis)'])[0]);
-check(/Der Plan wurde überarbeitet/.test(hinweis),
-  'das Dashboard sagt, dass der Plan ein anderer ist');
-check(/3 Einheiten/.test(hinweis),
-  'und wie viele Einheiten dabei in die Ablage gewandert sind');
-check(/Gewichte, Bänder, Erfahrungsstufe und die Statistik bleiben/.test(hinweis),
-  'und was dabei *nicht* verloren geht');
-// Und die neue Runde fängt *heute* an.
-//
-//     „Workout liegt in der Vergangenheit? Das weiteste in der Vergangenheit
-//      was ein Workout bei dashboard ja liegen kann ist heute"
-//
-// Der Umzug setzt die Verschiebung auf null, und die Plandaten stehen fest in
-// js/data.js – die erste Einheit trägt den 24. August. Das Nachrücken lief zu
-// diesem Zeitpunkt längst; auf dem Dashboard stand „vor 25 Tagen · Workout 1".
-const wann = await page.evaluate(async () => {
-  const { effDate, firstOpen } = await import('./js/plan.js');
-  const { todayISO } = await import('./js/dates.js');
-  return { termin: effDate(firstOpen()), heute: todayISO() };
-});
-console.log(`     erste offene Einheit: ${wann.termin} (heute ${wann.heute})`);
-check(wann.termin === wann.heute,
-  `die neue Runde beginnt heute und nicht am Plandatum (${wann.termin})`);
-const kopf = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
-check(!/vor \d+ Tagen/.test(kopf),
-  `und das Dashboard sagt nicht, die nächste Einheit sei vorbei${
-    (kopf.match(/vor \d+ Tagen/) || [''])[0] ? ': ' + kopf.match(/vor \d+ Tagen/)[0] : ''}`);
-
+console.log('     ' + (hinweis.match(/Der Plan wurde überarbeitet.{0,160}/) || ['(kein Hinweis)'])[0]);
+check(/Der Plan wurde überarbeitet/.test(hinweis), 'das Dashboard sagt, dass der Plan ein anderer ist');
+check(/2 angefangenen oder trainierten Einheiten bleiben/.test(hinweis),
+  'und dass die zwei angefangenen Einheiten bleiben, wie sie waren');
+check(/Gewichte, Bänder, Erfahrungsstufe und Statistik bleiben/.test(hinweis),
+  'und was sonst *nicht* verloren geht');
 await page.locator('[data-act="umbau-ok"]').click();
 await page.waitForTimeout(300);
-check(!/Der Plan wurde überarbeitet/.test(
-  (await page.locator('#view').textContent()).replace(/\s+/g, ' ')),
+check(!/Der Plan wurde überarbeitet/.test((await page.locator('#view').textContent()).replace(/\s+/g, ' ')),
   'weggetippt ist er weg');
 
 // --- 5. Und danach ist Ruhe --------------------------------------------
+// Auch ein zweiter Planwechsel schreibt nichts um, was schon fest ist.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.setSetting('planStand', { standard: 'nochandersplan' });
+  store.flush();
+});
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
-const nochmal = await page.evaluate(async () => (await import('./js/store.js')).getState().rounds.length);
-check(nochmal === 1,
-  'ein zweites Laden legt nichts noch einmal weg – der Abdruck stimmt jetzt ja');
+const nochmal = await page.evaluate(async () => {
+  const st = (await import('./js/store.js')).getState();
+  return { runden: st.rounds.length, fest1: (st.log[1].fest || []).length, umbau: st.planUmbau };
+});
+check(nochmal.runden === 0 && nochmal.fest1 === fall.alt1.length,
+  'ein weiterer Wechsel legt nichts weg und schreibt nichts neu fest');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 await browser.close();
