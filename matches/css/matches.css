@@ -1,0 +1,185 @@
+/*
+ * Eigenes Blatt, gleiche Handschrift.
+ *
+ * Die Farbwerte stammen aus css/styles.css der Workout-App, damit sich die
+ * beiden Seiten auf demselben Gerät nicht wie zwei Fremde anfühlen. Der Akzent
+ * ist ein anderer – wer die eine Seite offen hat, soll auf den ersten Blick
+ * wissen, welche.
+ */
+:root {
+  --bg: #0f1115;
+  --bg-elev: #171a21;
+  --bg-elev-2: #1f232c;
+  --line: #2a2f3a;
+  --text: #e8eaed;
+  --muted: #9aa3b2;
+  --accent: #ff6fae;
+  --accent-2: #b98cff;
+  --ok: #3ecf8e;
+  --warn: #ffc46b;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(15, 17, 21, .93);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.brand { font-size: 19px; margin: 0; }
+.brand b { color: var(--accent); font-weight: 700; }
+.zaehler { color: var(--muted); font-size: 13px; }
+
+main { padding: 14px; max-width: 1100px; margin: 0 auto 60px; }
+
+.karte {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.karte > h2 {
+  font-size: 15px;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.reihe { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.feld { display: flex; flex-direction: column; gap: 4px; flex: 1 1 150px; min-width: 0; }
+.feld > span { font-size: 12px; color: var(--muted); }
+.feld--schmal { flex: 0 1 120px; }
+
+input, select, textarea {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 10px;
+  width: 100%;
+  min-width: 0;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.knopf {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.knopf:hover { border-color: var(--accent); }
+.knopf--haupt { background: var(--accent); border-color: var(--accent); color: #1a0d14; font-weight: 600; }
+.knopf--still { background: none; border-color: transparent; color: var(--muted); padding: 6px 8px; }
+.knopf--still:hover { color: var(--text); }
+
+/* ---------- Tabelle ---------- */
+.tabelle-rahmen { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
+th button {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: inherit; font: inherit; display: inline-flex; gap: 4px; align-items: center;
+}
+th button:hover { color: var(--text); }
+th[aria-sort] button { color: var(--accent); }
+tbody tr:hover { background: var(--bg-elev-2); }
+
+.km { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+.km--gerechnet { font-weight: 400; }
+.km--leer { color: var(--muted); font-weight: 400; }
+/* Woher die Zahl kommt, steht daneben – nicht in einer Legende, die niemand
+   liest. ~ heißt gerechnet, also Ortsmitte zu Ortsmitte. */
+.km small { color: var(--muted); font-weight: 400; font-size: 11px; display: block; }
+
+.name { font-weight: 600; }
+.name--geraten { font-weight: 400; color: var(--muted); font-style: italic; }
+/* Wo kein Name steht, steht ein Platzhalter – der darf nicht so aussehen wie
+   einer, der eingetragen wurde. */
+.name--leer { font-weight: 400; color: var(--muted); }
+.notiz { color: var(--muted); font-size: 12px; max-width: 34ch; }
+.ort { color: var(--muted); font-size: 12px; }
+
+.pille {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.pille--tinder { color: #ff7a45; border-color: #ff7a4555; }
+.pille--hinge  { color: #b98cff; border-color: #b98cff55; }
+.pille--bumble { color: #ffc46b; border-color: #ffc46b55; }
+.pille--andere { color: var(--muted); }
+
+.status-neu { color: var(--accent-2); }
+.status-geschrieben { color: var(--text); }
+.status-date { color: var(--ok); }
+.status-aus { color: var(--muted); text-decoration: line-through; }
+
+.leer { color: var(--muted); padding: 24px 4px; text-align: center; }
+.leer p { margin: 6px 0; }
+
+.hinweis {
+  border-left: 3px solid var(--warn);
+  background: #ffc46b12;
+  padding: 8px 12px;
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  color: #e9d7b7;
+  margin: 8px 0;
+}
+.hinweis--ruhig { border-color: var(--line); background: var(--bg-elev-2); color: var(--muted); }
+
+details.erklaerung { margin-top: 10px; font-size: 13px; color: var(--muted); }
+details.erklaerung summary { cursor: pointer; color: var(--accent-2); }
+details.erklaerung p { margin: 8px 0; }
+details.erklaerung li { margin: 4px 0; }
+
+.zeile-werkzeug { display: flex; gap: 2px; }
+
+@media (max-width: 620px) {
+  main { padding: 10px; }
+  /* Auf dem Handy passen nicht alle Spalten nebeneinander, und die Tabelle
+     seitlich schieben zu müssen, um die Frage zu beantworten, für die man sie
+     geöffnet hat, wäre der falsche Handel. Es bleiben: Entfernung, Name, App,
+     Stand – und die beiden Knöpfe rechts, denn Nachtragen ist auf dem Handy
+     der häufigste Handgriff überhaupt. Notiz, Nachrichtenzahl und Datum stehen
+     weiter in der Zeile, sichtbar über ✎ und in der CSV. Der Ort steht ohnehin
+     unter dem Namen. */
+  .notiz, .th-notiz, .sp-nachr, .sp-datum { display: none; }
+  th, td { padding: 8px 6px; }
+  /* Die letzten Pixel: Ohne das engere Maß steht das ✕ zur Hälfte außerhalb
+     des Schirms – ein Knopf, den man erst freischieben muss, ist keiner. */
+  td .knopf--still { padding: 4px 4px; }
+  .zeile-werkzeug { gap: 0; }
+  /* Ein Punkt kleiner. Gemessen, nicht geschätzt: mit 14 px stand die Tabelle
+     7 px über den Rand hinaus und musste geschoben werden. */
+  table { font-size: 13px; }
+}
