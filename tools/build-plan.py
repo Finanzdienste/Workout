@@ -1998,10 +1998,33 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
             # schwerer als eine Einheit, die eine Übung länger ist.
             gleich = sum(1 for d in day for a in range(len(d)) for b in range(a + 1, len(d))
                          if (bew or {}).get(d[a][0], frozenset()) & (bew or {}).get(d[b][0], frozenset()))
+            # Einheiten außerhalb der beiden Satzzahlen, zwischen denen der
+            # Wochenschnitt liegt (bei 51 Sätzen auf vier Tage: 12 und 15).
+            # `imbalance` allein verhindert das nicht: Es steht hinter
+            # `doppelt`, `selten` und `luecke`, und eine Neuner- neben einer
+            # Achtzehner-Einheit war denen jede Woche eine einmalige
+            # Zusammenstellung wert. Gezählt wird die Zahl der Sätze über oder
+            # unter der Spanne, nicht die Zahl der Ausreißer – zwei Sätze zu
+            # viel wiegen doppelt so schwer wie einer.
+            unten = int(target_sets // GRAIN) * GRAIN
+            oben = unten if unten == target_sets else unten + GRAIN
+            ausreisser = sum(max(0, unten - x) + max(0, x - oben) for x in load)
             # WK_REIHUNG=pause: erst keine zu langen Pausen, dann keine doppelte
             # Bewegung – für Pläne, in denen beides nicht zugleich geht.
+            # WK_REIHUNG=einheiten: gleich lange Einheiten direkt hinter der
+            # Bewegungsregel, noch vor der Einmaligkeit der Zusammenstellung:
+            #
+            #     „Wieso hast du es denn gemacht wenns ungleichere Einheiten
+            #      und damit schlechter ist?"
+            #
+            # WK_REIHUNG=einheiten2: dasselbe, aber hinter `selten` und `luecke`
+            # – falls die Gleichmäßigkeit die Frequenz kostet.
             if REIHUNG == 'pause':
                 got = (selten, luecke, gleich, doppelt, laengste, imbalance, ruest, count, round(mix, 6))
+            elif REIHUNG == 'einheiten':
+                got = (gleich, ausreisser, doppelt, selten, luecke, laengste, imbalance, ruest, count, round(mix, 6))
+            elif REIHUNG == 'einheiten2':
+                got = (gleich, selten, luecke, ausreisser, doppelt, laengste, imbalance, ruest, count, round(mix, 6))
             else:
                 got = (gleich, doppelt, selten, luecke, laengste, imbalance, ruest, count, round(mix, 6))
             if best is None or got < best[0]:
