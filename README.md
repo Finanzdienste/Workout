@@ -70,11 +70,11 @@ ist der Normalfall:
 | Aufbau | 5 oder 6 | 6 (61 von 84) |
 | Oberkörper | 5 oder 6 | 6 (57 von 84) |
 | Bauch, Beine, Po | 5, 6 oder 7 | 6 (55 von 84) |
-| Cut | 3 bis 6 | 5 (41 von 84) |
+| Cut | 4 bis 6 | 5 (48 von 84) |
 
-Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall; 35 Tage haben
-vier Übungen, sieben haben sechs, ein einziger hat drei (Stand des Cut vom
-25.09., siehe [Der Cut vom 25.09.](#der-cut-vom-2509-fünf-feste-grundübungen)).
+Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall; 33 Tage haben
+vier Übungen, drei haben sechs (Stand des Cut vom 26.09., siehe [Der Cut vom
+25.09.](#der-cut-vom-2509-fünf-feste-grundübungen)).
 
 In der Kopfzeile stand dafür kurz ein Wort – „kurzer Tag", „normaler Tag". Raus
 auf Zuruf: *„Das Wort 'kurzer Tag' soll weg."* Und zu Recht: Dort steht, was
@@ -103,7 +103,7 @@ kurz weggefallen, weil sie im Plan meist Rechnerei ist – `15 Sätze` ist dann 
 Angabe kürzer, und in der Bodyweight-Fassung (die je Übung abweicht: 17 von 84
 Cut-Einheiten, 66 von 84 bei „Bauch, Beine, Po") und bei Nacharbeit ist die Summe
 ohnehin eine eigene Auskunft. *(17 von 84 war der Stand vor dem Cut vom 25.09.;
-seither sind es 22.)*
+seither sind es 19.)*
 
 ### Körperkarte
 
@@ -2651,20 +2651,22 @@ nachvollziehbar bleibt und nicht nur sein Ergebnis:
 
     WK_START=tools/pruefung/cut-start.json WK_SEED=23 python3 tools/build-plan.py cut
     WK_NUR_TAGE=1 WK_SPLITS=20000 WK_SEED=7 python3 tools/build-plan.py cut
+    WK_NUR_TAGE=1 WK_REIHUNG=einheiten WK_SPLITS=20000 WK_SEED=7 python3 tools/build-plan.py cut
 
-Erst die Mengen, dann nur die Tage noch einmal, gründlicher verteilt. Sieben
-Startwerte für den ersten Schritt und drei für den zweiten wurden gerechnet und
-an der Planprüfung, der Bewegungsregel und dem Rüstaufwand verglichen; genommen
-ist der mit den wenigsten Befunden.
+Erst die Mengen, dann nur die Tage noch einmal, gründlicher verteilt, und am
+26.09. ein drittes Mal mit dem Kriterium `ausreisser` (siehe unten). Sieben
+Startwerte für den ersten Schritt und je drei für die weiteren wurden gerechnet
+und an der Planprüfung, der Bewegungsregel und dem Rüstaufwand verglichen;
+genommen ist der mit den wenigsten Befunden.
 
 | | Cut vom 17.09. | Cut vom 25.09. |
 | --- | --- | --- |
 | Grundübungen | ohne Floor Press, Chin-ups, Kreuzheben | alle sechs, mit ihrem Minimum |
 | Sätze je Woche | 48–63 (Ø 55,9) | 51–60 (Ø 55,7) |
-| Sätze je Einheit | 12–18 (Ø 14,0) | 9–18 (Ø 13,9) |
-| Übungen je Einheit | 4–6 | 3–6 |
+| Sätze je Einheit | 12–18 (Ø 14,0; 2 × 18) | 12–18 (Ø 13,9; 3 × 18) |
+| Übungen je Einheit | 4–6 | 4–6 |
 | Übungen im Plan | 25 | 23 |
-| Rüstvorgänge je Einheit | 3,05 | 2,99 |
+| Rüstvorgänge je Einheit | 3,05 | 3,00 |
 | dieselbe Bewegung zweimal in einer Einheit | 0 | 0 |
 | vordere Schulter (mitlaufend, Sätze je Woche) | 6,7 | 8,0 |
 
@@ -2677,14 +2679,29 @@ statt 2,67, der Oberschenkel mit bis zu 7 statt 5 Tagen Abstand, die
 Hüftstreckung in der stärksten Woche mit 6,9 statt 5,85 Sätzen, ohne Hanteln
 Brust und vordere Schulter mit je einem Satz mehr in der stärksten Woche.
 
-Und die Einheiten sind ungleicher lang: eine einzige mit drei Übungen und neun
-Sätzen, sieben mit sechs und achtzehn, dazwischen die üblichen vier und fünf.
-Das ist kein Zufall des einen Laufs – alle sieben Startwerte und alle drei
-Tagesverteilungen enden bei 9 bis 18 Sätzen mit genau einer Neuner-Einheit.
-Woran es liegt, ist nicht nachgewiesen; die naheliegende Erklärung sind die
-sechs festen Übungen, die dem Tagesplaner an vier Tagen weniger Spielraum
-lassen. Die Karte in der App rechnet die Größen selbst aus (`tagLaenge()`),
-der Vergleich zum Aufbau steht in `fokusAnders()`.
+**Die Einheiten waren zuerst ungleicher – und das war ein Fehler, kein Preis.**
+Der Lauf vom 25.09. hatte eine Einheit mit drei Übungen und neun Sätzen und
+sieben mit sechs und achtzehn; alle zehn Startwerte endeten so. Ich habe das
+dokumentiert statt behoben:
+
+*„Wieso hast du es denn gemacht wenns ungleichere Einheiten und damit
+schlechter ist?"*
+
+Zu Recht. Die Ursache saß in der Rangfolge des Tagesplaners (`split()`):
+`imbalance` steht dort hinter `doppelt`, `selten` und `luecke`, und eine
+Neuner- neben einer Achtzehner-Einheit war denen jede Woche eine einmalige
+Zusammenstellung wert. Neu ist das Kriterium `ausreisser` – Sätze über oder
+unter den beiden Satzzahlen, zwischen denen der Wochenschnitt liegt (bei 51
+Sätzen auf vier Tage: 12 und 15) – und `WK_REIHUNG=einheiten` stellt es direkt
+hinter die Bewegungsregel. Nur die Tage wurden neu verteilt, die Mengen und die
+festen Übungen blieben. Sechs Läufe (zwei Rangfolgen, drei Startwerte) enden
+alle gleich: **33 Einheiten mit 12, 48 mit 15, 3 mit 18 Sätzen**, keine mit 9.
+Die drei Achtzehner liegen in den drei Wochen mit 60 Sätzen, jeweils am
+Montag; der Samstag dieser Wochen folgt einen Tag auf den Freitag, dort lässt
+die 48-Stunden-Regel nur vier Übungen zu, und die fünfte muss auf einen
+anderen Tag. Kosten: Bizeps 2,52 statt 2,62 Termine je Woche, Rücken 2,19 statt
+2,24, Rüstvorgänge 3,00 statt 2,99. Die Karte in der App rechnet die Größen
+selbst aus (`tagLaenge()`), der Vergleich zum Aufbau steht in `fokusAnders()`.
 
 ### „Kurz und knapp" war ein Jahr lang kaputt
 
