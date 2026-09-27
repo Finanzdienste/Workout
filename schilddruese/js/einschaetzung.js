@@ -104,7 +104,9 @@ function aufzaehlung(namen) {
 }
 
 /** Hat der Befund eine Praxis-Entscheidung (F8)? Dann gilt deren Einschätzung (L3f). */
-export const praxisHatErklaert = (befund) => ['bleibt', 'geaendert', 'nachmessen'].includes(befund.praxis);
+export const praxisHatErklaert = (befund) => ['bleibt', 'geaendert', 'nachmessen'].includes(befund.praxis)
+  // R1: nur eine Angabe nach der Blutabnahme kann sich auf diesen Befund beziehen
+  && (!befund.praxisAm || befund.praxisAm >= befund.datum);
 
 /** Biotin im Spiel (L5d): beim Befund angegeben oder als Mittel eingetragen. */
 const biotinImSpiel = (befund, stand) => befund.biotin === 'ja' || stand.mittel.includes('biotin');
@@ -170,12 +172,17 @@ const TEXT_RAND = 'Ohne den Bereich Ihres Labors lässt sich dieser Wert nicht s
  * in mU/l), dann Laborbereich vom Befund (auch einseitig), dann Orientierung.
  */
 export function einordnen(key, w, { ziel = null } = {}) {
-  const leer = { lage: null, genau: null, quelle: null, von: null, bis: null, std: null, umgerechnet: false, sehrNiedrig: false, grund: 'fehlt', text: '' };
+  const leer = { lage: null, genau: null, quelle: null, von: null, bis: null, std: null, umgerechnet: false, sehrNiedrig: false, grund: 'fehlt', text: '', zusatz: '' };
   if (!w || typeof w.wert !== 'number') return leer;
   const std = inStandard(key, w);
   const umgerechnet = std !== null && Math.abs(std - w.wert) > 1e-9;
   const basis = { ...leer, std, umgerechnet, grund: null };
-  const mit = (lage, genau, quelle, von, bis, extra = {}) => ({ ...basis, lage, genau, quelle, von, bis, text: LAGE_TEXT[genau], ...extra });
+  // `zusatz`: was bei der Anzeige dazugehört (L1) – Orientierung, Rand.
+  const mit = (lage, genau, quelle, von, bis, extra = {}) => ({
+    ...basis, lage, genau, quelle, von, bis, text: LAGE_TEXT[genau],
+    zusatz: quelle === 'orientierung' ? (genau.startsWith('rand') ? `${TEXT_ORIENTIERUNG} ${TEXT_RAND}` : TEXT_ORIENTIERUNG) : '',
+    ...extra,
+  });
 
   // Persönlicher Zielbereich (P2): TSH gegen das Ziel, „knapp" wie beim Labor.
   if (ziel && key === 'tsh' && std !== null) {
@@ -261,7 +268,7 @@ export function musterBestimmen(befund, stand) {
 
   let code;
   let variante = '';
-  if ((T === 'unter' || tLab.lage === 'unter') && F === 'unter') code = 'g2';     // R11: auch bei Ziel
+  if ((T === 'unter' || tLab.lage === 'unter') && F === 'unter') { code = 'g2'; if (ergebnis.ziel || zielNiedrig) variante = 'r11'; } // R11: auch bei Ziel
   else if (T === 'ueber' && F === 'unter') code = 'b';
   else if (T === 'ueber' && F === 'ueber') code = 'f';
   else if (T === 'ueber') {
@@ -362,7 +369,10 @@ export function befundEinschaetzen(befund, stand, heute) {
   if (m.tLab.quelle === 'labor' && m.tLab.std === null && befund.tsh) {
     hinweise.push('TSH: Die Einheit kennt die App nicht. Eingeordnet wird deshalb nur gegen den Bereich vom Befund; die festen Schwellen für sehr hohe oder sehr niedrige Werte gelten nur in mU/l (auch µU/ml oder mIE/l).');
   }
-  if ((m.f3.lage === 'unter' || m.f3.genau === 'rand-unter') && !m.t3) hinweise.push('Unter L-Thyroxin liegt fT3 oft im unteren Bereich. Das ist meist normal und für die Einstellung wenig aussagekräftig.');
+  if ((m.f3.lage === 'unter' || m.f3.genau === 'rand-unter') && !m.t3) {
+    hinweise.push('Unter L-Thyroxin liegt fT3 oft im unteren Bereich. Das ist meist normal und für die Einstellung wenig aussagekräftig.');
+    regeln.push('L1b');
+  }
 
   const leer = {
     befund, muster: null, gruppe: null, ziel: false, text: '', richtung: null, werte, hinweise, stufe: 'keine', stufeLabor: 'keine',
@@ -379,6 +389,7 @@ export function befundEinschaetzen(befund, stand, heute) {
   regeln.push(code.startsWith('z2') ? 'L2z2' : `L2${code}`);
   if (m.ziel) regeln.push('L2z1');
   if (m.variante === 'aus-d') regeln.push('R7');
+  if (m.variante === 'r11') regeln.push('R11');
   const tag = befund.datum;
   const alt = alterAm(stand, tag);
   const rs = risiko(stand, tag);
@@ -400,12 +411,13 @@ export function befundEinschaetzen(befund, stand, heute) {
   if (code === 'e1' && m.variante === 'aus-d' && rs) stufe = mindestens(stufe, 'zeitnah');
   if (code === 'h' && m.fDeutlichUeber && !vorher && !biotin) stufe = mindestens(stufe, 'zeitnah');
   if (code === 't') {
-    if (tsh !== null && tsh < 0.1) stufe = mindestens(stufe, rs ? 'tage' : 'zeitnah');     // R8
+    if (tsh !== null && tsh < 0.1) { stufe = mindestens(stufe, rs ? 'tage' : 'zeitnah'); if (rs) regeln.push('R8'); }
     if (m.f3.lage === 'ueber') stufe = mindestens(stufe, 'tage');
   }
   if (code === 'z2b' && m.fDeutlichUeber) stufe = mindestens(stufe, 'tage');
   if (code === 'z3') {
-    if (tsh !== null && tsh < 0.1) stufe = mindestens(stufe, 'zeitnah');
+    // Ohne Zielbereich nach Krebs: immer „zeitnah" (L3b) – der Zielbereich soll bald geklärt werden.
+    stufe = mindestens(stufe, 'zeitnah');
     if (m.variante === 'ft4-ueber') stufe = mindestens(stufe, m.fDeutlichUeber ? 'tage' : 'zeitnah');
   }
 
@@ -425,7 +437,7 @@ export function befundEinschaetzen(befund, stand, heute) {
   if (m.fDeutlichUnter && orientFt4 && !l3a.includes('ft4-deutlich-unter')) regeln.push('R6');
 
   // R12: TSH < 0,1 im Zielbereich bei Alter/Herz nicht unter „zeitnah"
-  if (m.ziel && m.tZ.lage === 'im' && tsh !== null && tsh < 0.1 && (ab65(stand, tag) || stand.profil.herz === 'ja')) {
+  if ((m.ziel ? m.tZ.lage === 'im' : m.zielNiedrig) && tsh !== null && tsh < 0.1 && (ab65(stand, tag) || stand.profil.herz === 'ja')) {
     stufe = mindestens(stufe, 'zeitnah');
     regeln.push('R12');
   }
@@ -473,6 +485,7 @@ export function befundEinschaetzen(befund, stand, heute) {
 
   const praxisErklaert = praxisHatErklaert(befund);
   if (praxisErklaert) regeln.push('L3f-praxis');
+  regeln.push({ tage: 'L3a', zeitnah: 'L3b', termin: 'L3c', keine: 'L3d' }[stufe]);
 
   return {
     ...leer,
@@ -832,7 +845,9 @@ export function beschwerdenAuswerten(stand, heute) {
   const add = (id, stufe, text) => { texte.push({ id, stufe, text }); regeln.push(id); };
 
   // W5 über das Befinden – vor allem anderen
-  if (g14.has('lebensmuede')) add('W5', 'heute', W5_TEXT);
+  // W5 hat die Stufe 112 (Regelwerk 1, offen 15) – der Text bietet aber
+  // zuerst die Telefonseelsorge an; 112 gilt bei akuter Gefahr.
+  if (g14.has('lebensmuede')) add('W5', 'notruf', W5_TEXT);
   else if (g14.has('stimmung')) add('W5b', 'keine', 'Wenn die Stimmung sehr schlecht ist: Telefonseelsorge 0800 111 0 111 (rund um die Uhr, kostenlos).');
 
   // S4 – Puls und Herzklopfen
@@ -846,7 +861,11 @@ export function beschwerdenAuswerten(stand, heute) {
     if (tshTief) {
       add('S4ii', alt65 || stand.profil.herz === 'ja' ? 'heute' : 'tage', 'Herzklopfen zusammen mit einem niedrigen TSH-Wert kann bedeuten, dass zu viel Schilddrüsenhormon im Körper ist. Bitte rufen Sie in den nächsten Tagen in der Praxis an – im Alter oder bei Herzkrankheit noch heute. Bei Herzrasen mit Schwindel, Atemnot oder Brustschmerz: sofort 112. Bitte die Tabletten nicht eigenmächtig weglassen.');
     } else {
-      add('R3', 'termin', 'Wenn Sie seit Tagen Herzklopfen haben: Bitte rufen Sie heute in der Praxis an, außerhalb der Sprechzeiten 116 117. Gehen Sie dazu kurz den Warnzeichen-Check durch.');
+      // R3: An mehreren Tagen eingetragen heißt „seit Tagen" – dann heute anrufen.
+      const tage = new Set(stand.befinden.filter((b) => b.datum >= tageWeiter(heute, -13) && b.datum <= heute && b.beschwerden.includes('herz')).map((b) => b.datum)).size;
+      add('R3', tage >= 2 ? 'heute' : 'termin', tage >= 2
+        ? 'Sie haben an mehreren Tagen Herzklopfen eingetragen. Bitte rufen Sie heute in der Praxis an, außerhalb der Sprechzeiten 116 117. Gehen Sie dazu kurz den Warnzeichen-Check durch.'
+        : 'Wenn Sie seit Tagen Herzklopfen haben: Bitte rufen Sie heute in der Praxis an, außerhalb der Sprechzeiten 116 117. Gehen Sie dazu kurz den Warnzeichen-Check durch.');
     }
   }
 
@@ -949,7 +968,7 @@ export function warnzeichenAuswerten(ja, stand) {
     const gift = giftnotrufAnruf(stand);
     abschnitte.push({ id: 'W4a', stufe: 'notruf', text: `Bitte rufen Sie jetzt den Giftnotruf an${gift === TEL_112 ? ' – oder, weil kein Bundesland eingetragen ist, 112' : ''}. Halten Sie die Packung bereit. Bei Beschwerden wie Herzrasen, Brustschmerz, Atemnot oder Verwirrtheit: sofort 112.`, anrufe: gift === TEL_112 ? [TEL_112] : [gift, TEL_112] });
   }
-  if (in_('w5')) abschnitte.push({ id: 'W5', stufe: 'heute', text: W5_TEXT, anrufe: [...TEL_SEELSORGE, TEL_112] });
+  if (in_('w5')) abschnitte.push({ id: 'W5', stufe: 'notruf', text: W5_TEXT, anrufe: [...TEL_SEELSORGE, TEL_112] });
   if (!in_('w4a') && in_('w2h')) {
     abschnitte.push({ id: 'W2h', stufe: 'heute', text: 'Bitte rufen Sie heute noch in der Praxis an. Außerhalb der Sprechzeiten: Ärztlicher Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.', anrufe: [TEL_116] });
   }
@@ -1149,6 +1168,17 @@ export function warnHeute(stand, heute) {
 }
 
 /**
+ * Die Kopfzeile des Gesamtbilds. Kommt die 112-Stufe nur von W5 (seelische
+ * Not), steht oben nicht „Bitte rufen Sie jetzt 112 an", sondern das Angebot,
+ * heute mit jemandem zu sprechen – 112 steht im Text für akute Gefahr.
+ */
+export function kopfFuer(stufe, teile) {
+  const nurW5 = stufe === 'notruf' && teile.filter((t) => t.stufe === 'notruf').every((t) => t.id === 'W5');
+  if (nurW5) return { titel: 'Bitte sprechen Sie heute mit jemandem', text: 'Telefonseelsorge 0800 111 0 111 oder 0800 111 0 222 – rund um die Uhr, kostenlos. Wenn Sie in Gefahr sind, sich etwas anzutun: sofort 112.' };
+  return { titel: STUFEN[stufe].titel, text: STUFEN[stufe].text };
+}
+
+/**
  * Alles zusammen: eine Stufe oben, darunter die Teile. Die Praxis-Angabe zu
  * einem Befund ersetzt nur die Laborstufe – Beschwerden und Warnzeichen, die
  * später dazukommen, bleiben sichtbar (R1).
@@ -1156,7 +1186,8 @@ export function warnHeute(stand, heute) {
 export function gesamtbild(stand, heute) {
   const warn = warnHeute(stand, heute);
   if (!aktiv(stand)) {
-    return { aktiv: false, stufe: warn ? warn.stufe : 'keine', befund: null, beschwerden: null, warnHeute: warn, kontrolle: [], teile: [] };
+    const s = warn ? warn.stufe : 'keine';
+    return { aktiv: false, stufe: s, kopf: kopfFuer(s, warn ? warn.abschnitte : []), befund: null, beschwerden: null, warnHeute: warn, kontrolle: [], teile: [] };
   }
   const befund = letzterBefund(stand, heute);
   const beschwerden = beschwerdenAuswerten(stand, heute);
@@ -1172,7 +1203,7 @@ export function gesamtbild(stand, heute) {
   // W5 steht immer oben, ganz gleich, welche Stufe sonst gilt.
   teile.sort((a, b) => (b.id === 'W5') - (a.id === 'W5') || STUFEN[b.stufe].rang - STUFEN[a.stufe].rang);
   const stufe = hoechste(...teile.map((t) => t.stufe));
-  return { aktiv: true, stufe, befund, beschwerden, warnHeute: warn, kontrolle, teile };
+  return { aktiv: true, stufe, kopf: kopfFuer(stufe, teile), befund, beschwerden, warnHeute: warn, kontrolle, teile };
 }
 
 // ---------------------------------------------------------------- Bericht (B1)

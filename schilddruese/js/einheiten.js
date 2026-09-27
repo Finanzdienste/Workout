@@ -81,7 +81,7 @@ const zahl = (n) => zahlText(n, 3);
  * Grenzen je Wert und Einheit: [unten, oben, Hinweis bei zu klein, Hinweis
  * bei zu groß]. Ein Hinweis heißt: Das sieht nach einer verwechselten Einheit
  * aus – dann ist der Wert „unplausibel" und wird ohne Laborbereich nicht
- * eingeordnet.
+ * eingeordnet. '?' heißt: unplausibel, aber ohne Vorschlag für die Einheit.
  */
 const GRENZEN = {
   tsh: { 'mU/l': [0.01, 50, null, null] },
@@ -92,7 +92,7 @@ const GRENZEN = {
   },
   ft3: {
     'pmol/l': [1, 30, 'pg/ml', null],
-    'pg/ml': [0.65, 20, null, 'pmol/l'],
+    'pg/ml': [0.65, 20, '?', null],
   },
   hb: { 'g/dl': [3, 25, null, 'g/l'], 'g/l': [30, 250, 'g/dl', null], 'mmol/l': [2, 15, null, 'g/dl'] },
   ferritin: { 'ng/ml': [1, 5000, null, null], 'µg/l': [1, 5000, null, null] },
@@ -119,11 +119,13 @@ export function pruefeWert(key, w) {
     const [unten, oben, sonstKlein, sonstGross] = g;
     // „< 0,01" vom Befund zählt als 0,01 und ist kein Tippfehler.
     const zuKlein = w.wert < unten && !(key === 'tsh' && w.unter && w.wert >= 0.01);
+    const vorschlag = (e2) => (e2 === '?' ? `${frage} Der Wert passt nicht gut zu dieser Einheit.`
+      : `${frage} Der Wert passt nicht gut zu dieser Einheit – steht auf dem Befund vielleicht „${e2}"?`);
     if (zuKlein) {
-      ergebnis.rueckfrage = sonstKlein ? `${frage} Der Wert passt nicht gut zu dieser Einheit – steht auf dem Befund vielleicht „${sonstKlein}"?` : frage;
+      ergebnis.rueckfrage = sonstKlein ? vorschlag(sonstKlein) : frage;
       ergebnis.unplausibel = Boolean(sonstKlein);
     } else if (w.wert > oben) {
-      ergebnis.rueckfrage = sonstGross ? `${frage} Der Wert passt nicht gut zu dieser Einheit – steht auf dem Befund vielleicht „${sonstGross}"?` : frage;
+      ergebnis.rueckfrage = sonstGross ? vorschlag(sonstGross) : frage;
       ergebnis.unplausibel = Boolean(sonstGross);
     }
   }
