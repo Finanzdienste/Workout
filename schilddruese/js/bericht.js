@@ -26,6 +26,61 @@ function stufeText(s) {
   return { gut: 'gut', mittel: 'mittel', schlecht: 'schlecht' }[s] || s;
 }
 
+/*
+ * Ein Wert so, wie er auf dem Befund steht: „< 0,01" mit dem Zeichen, ein
+ * einseitiger Bereich als „ab 20" oder „bis 5". Vorher fehlte das „<", ein
+ * Bereich nur mit Obergrenze fehlte ganz, und einer nur mit Untergrenze stand
+ * als „20––" da (B49, B56).
+ */
+function wertText(name, w) {
+  const v = w.von !== null && w.von !== undefined;
+  const b = w.bis !== null && w.bis !== undefined;
+  const bereich = v && b ? ` (Labor ${zahlText(w.von)}–${zahlText(w.bis)})` : v ? ` (Labor ab ${zahlText(w.von)})` : b ? ` (Labor bis ${zahlText(w.bis)})` : '';
+  return `${name} ${w.unter ? '< ' : ''}${zahlText(w.wert)} ${w.einheit}${bereich}`;
+}
+
+/*
+ * RW2 B1: Der Bericht enthält die Antworten auf F1–F8 und Q1–Q5. Die Zeile
+ * „Angaben zur Abnahme" aus dem Kern nennt F1–F7, die Packung und Q1; hier
+ * kommen Q2 (nüchtern), Q3 (Abstände), Q5 (versehentlich mehr) und F8 (was
+ * die Praxis gesagt hat) dazu – gerade „einmal viele Tabletten auf einmal"
+ * muss die Ärztin lesen (B45, B65). Dazu Q4 im Profil.
+ */
+const ANTWORT = { ja: 'ja', nein: 'nein', unbekannt: 'weiß nicht', '': 'nicht beantwortet' };
+const Q2 = { ja: 'ja', abends: 'abends, mit der Praxis abgesprochen', nein: 'nein', unbekannt: 'weiß nicht', '': 'nicht beantwortet' };
+const Q5 = { nein: 'nein', einmal: 'ja, einmal viele Tabletten auf einmal', tage: 'ja, über Tage zu viel oder eine andere Stärke', unbekannt: 'weiß nicht', '': 'nicht beantwortet' };
+const F8 = { bleibt: 'Dosis bleibt', geaendert: 'Dosis wird geändert', nachmessen: 'erst nachmessen', nochnicht: 'noch nichts gesagt', '': 'nicht beantwortet' };
+
+function weitereAngaben(l, mitDatum) {
+  const teile = [
+    `nüchtern mit Wasser: ${Q2[l.einnahmeArt || ''] || l.einnahmeArt}`,
+    l.abstandOk ? `Abstände eingehalten: ${ANTWORT[l.abstandOk] || l.abstandOk}` : null,
+    `versehentlich mehr genommen: ${Q5[l.verwechselt || ''] || l.verwechselt}`,
+    `Praxis zu diesem Wert: ${F8[l.praxis || ''] || l.praxis}${l.praxis && l.praxisAm ? ` (angegeben ${datumKurz(l.praxisAm)})` : ''}`,
+  ].filter(Boolean);
+  return `  Weitere Angaben${mitDatum ? ` zum Befund vom ${datumKurz(l.datum)}` : ''} (Angabe): ${teile.join('; ')}.`;
+}
+
+/** Die Zeilen des Kerns (Einschätzung der App) mit den Antworten, die dort fehlen. */
+function einschaetzungZeilen(stand, heute) {
+  const z = [];
+  const p = stand.profil;
+  // Dieselben Befunde, die berichtZeilen() beschreibt: die letzten drei bis heute, neueste zuerst.
+  const befunde = stand.labor.filter((l) => l.datum <= heute).slice(-3).reverse();
+  let n = 0;
+  ez.berichtZeilen(stand, heute).forEach((x) => {
+    z.push(x);
+    if (x.startsWith('Profil (Angabe)') && (p.hypophyseOderNiedrig || ['andere', 'unbekannt', ''].includes(p.ursache))) {
+      z.push(`  Ursache in der Hirnanhangdrüse oder TSH bewusst niedrig (Angabe): ${ANTWORT[p.hypophyseOderNiedrig || '']}.`);
+    }
+    if (x.startsWith('  Angaben zur Abnahme') && befunde[n]) z.push(weitereAngaben(befunde[n++], false));
+  });
+  // Ändert sich die Zeile im Kern, gehen die Antworten nicht still verloren –
+  // dann stehen sie mit Datum am Ende des Abschnitts.
+  befunde.slice(n).forEach((l) => z.push(weitereAngaben(l, true)));
+  return z;
+}
+
 export function berichtText(stand, heute) {
   const z = [];
   z.push(`Schilddrüse – Bericht vom ${datumKurz(heute)}${stand.profil.name ? ` (${stand.profil.name})` : ''}`);
@@ -68,10 +123,7 @@ export function berichtText(stand, heute) {
   if (labor.length) {
     labor.forEach((l) => {
       const d = sp.dosisAm(l.datum);
-      const werte = [...sp.LABORWERTE, ...sp.WEITERE_WERTE].filter(([k]) => l[k]).map(([k, name]) => {
-        const w = l[k];
-        return `${name} ${zahlText(w.wert)} ${w.einheit}${w.von !== null ? ` (Labor ${zahlText(w.von)}–${zahlText(w.bis)})` : ''}`;
-      });
+      const werte = [...sp.LABORWERTE, ...sp.WEITERE_WERTE].filter(([k]) => l[k]).map(([k, name]) => wertText(name, l[k]));
       const tag = sp.tagesdosis(d);
       z.push(`${datumKurz(l.datum)}: ${werte.join(', ')}${tag !== null ? ` – Dosis damals ${zahlText(tag, 1)} µg am Tag` : ''}${l.notiz ? ` – ${l.notiz}` : ''}`);
     });
@@ -120,9 +172,11 @@ export function berichtText(stand, heute) {
   }
   z.push('');
 
-  // Einschätzung der App (RW1 B1, RW2 B1/B2) – nur bei bestätigter Behandlung
+  // Einschätzung der App (RW1 B1, RW2 B1/B2) – nur bei bestätigter Behandlung.
+  // Den Pflichttext unter einer Richtung liefert dosisBerichtZeilen() selbst
+  // („Der Patientin dazu gezeigt: …") – hier nicht noch einmal anhängen.
   if (ez.aktiv(stand)) {
-    ez.berichtZeilen(stand, heute).forEach((x) => z.push(x));
+    einschaetzungZeilen(stand, heute).forEach((x) => z.push(x));
     dosisBerichtZeilen(stand, heute).forEach((x) => z.push(x));
     z.push('');
   }

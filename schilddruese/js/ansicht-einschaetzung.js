@@ -19,6 +19,7 @@ import { datumKurz, datumInWorten, zahlText, uhrText } from './datum.js';
 import { esc } from './text.js';
 import * as sp from './speicher.js';
 import * as ez from './einschaetzung.js';
+import { gesamtbildMitDosis } from './dosis.js';
 import { STANDARD } from './einheiten.js';
 
 // ---------------------------------------------------------------- Stufen
@@ -62,10 +63,38 @@ export function telHref(nummer) {
 
 export function anrufKnopf(nummer, text, { notruf = false, breit = false } = {}) {
   const klasse = ['knopf', notruf ? 'knopf-notruf' : 'knopf-anruf', breit ? 'knopf-breit' : ''].filter(Boolean).join(' ');
-  return `<a class="${klasse}" href="${esc(telHref(nummer))}"><span aria-hidden="true">📞</span> ${esc(text)}</a>`;
+  // Der Text in einem eigenen span: Als namenloses Flex-Kind konnte er nicht
+  // schmaler werden als sein längstes Wort und lief bei „sehr groß" über den Knopf.
+  return `<a class="${klasse}" href="${esc(telHref(nummer))}"><span aria-hidden="true">📞</span> <span class="knopf-text">${esc(text)}</span></a>`;
 }
 
 const SEELSORGE = [['08001110111', 'Telefonseelsorge 0800 111 0 111'], ['08001110222', 'Telefonseelsorge 0800 111 0 222']];
+
+/** Eine Reihe Anruf-Knöpfe aus [{ nummer, text }] – 112 rot, die anderen als Anruf. */
+export function anrufReihe(anrufe, { breit = false } = {}) {
+  if (!anrufe || !anrufe.length) return '';
+  return `<div class="knopf-reihe anruf-reihe">${anrufe.map((a) => anrufKnopf(a.nummer, a.text, { notruf: a.nummer === '112', breit })).join('')}</div>`;
+}
+
+/*
+ * Die Nummern, die ein Text aus dem Kern nennt, als Anrufe – für Teile des
+ * Gesamtbilds, die keine eigene Liste `anrufe` mitbringen (etwa der Befund
+ * nur mit fT4 mit dem 112-Satz). Dieselbe Reihenfolge wie im Kern: zuerst
+ * die Telefonseelsorge, dann Giftnotruf, Bereitschaftsdienst, 112.
+ */
+export function anrufeImText(text, stand) {
+  const t = String(text || '');
+  const a = [];
+  if (/Telefonseelsorge/.test(t)) {
+    // Nennt der Text eine der beiden Nummern, nur diese – sonst beide.
+    const genannt = SEELSORGE.filter(([, tx]) => t.includes(tx.replace('Telefonseelsorge ', '')));
+    (genannt.length ? genannt : SEELSORGE).forEach(([nummer, tx]) => a.push({ nummer, text: tx }));
+  }
+  if (/Giftnotruf/.test(t) && stand) a.push(ez.giftnotrufAnruf(stand));
+  if (/116 ?117/.test(t)) a.push({ nummer: '116117', text: 'Bereitschaftsdienst 116 117' });
+  if (/(^|[^\d,.])112([^\d,]|$)/.test(t)) a.push({ nummer: '112', text: '112 anrufen' });
+  return a.filter((x, i) => a.findIndex((y) => y.nummer === x.nummer) === i);
+}
 
 /*
  * Anruf-Knöpfe zu den Texten aus js/einschaetzung.js, die eine Nummer nennen.
@@ -78,12 +107,23 @@ const ANRUFE_ZU = {
   S4: [['116117', 'Bereitschaftsdienst 116 117'], ['112', '112 anrufen']],
   S4ii: [['112', '112 anrufen']],
   R3: [['116117', 'Bereitschaftsdienst 116 117']],
+  // „Ungewollt abgenommen" (W2t): der Text nennt 116 117 für den Fall, dass
+  // die Praxis geschlossen ist – dann auch als Knopf.
+  W2t: [['116117', 'Bereitschaftsdienst 116 117']],
 };
 const MIT_CHECK = ['S4ii', 'R3'];
 
-/** Die Knöpfe unter einem Text aus beschwerdenAuswerten. */
-export function beschwerdeKnoepfe(id) {
-  const anrufe = (ANRUFE_ZU[id] || []).map(([n, t]) => anrufKnopf(n, t, { notruf: n === '112' }));
+/**
+ * Die Knöpfe unter einem Text aus beschwerdenAuswerten. Mit `text` kommt
+ * jede Nummer dazu, die der Text sonst noch nennt – der Text zu Herzklopfen
+ * an mehreren Tagen (S4ii) nennt inzwischen auch 116 117. 112 steht zuletzt:
+ * zuerst die Nummer für den Anlass, dann die für den Notfall.
+ */
+export function beschwerdeKnoepfe(id, text = '') {
+  const liste = (ANRUFE_ZU[id] || []).map(([nummer, t]) => ({ nummer, text: t }));
+  anrufeImText(text, null).forEach((a) => { if (!liste.some((x) => x.nummer === a.nummer)) liste.push(a); });
+  liste.sort((a, b) => (a.nummer === '112') - (b.nummer === '112'));
+  const anrufe = liste.map((a) => anrufKnopf(a.nummer, a.text, { notruf: a.nummer === '112' }));
   if (MIT_CHECK.includes(id)) anrufe.push('<button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Warnzeichen prüfen</button>');
   return anrufe.length ? `<div class="knopf-reihe anruf-reihe">${anrufe.join('')}</div>` : '';
 }
@@ -92,6 +132,10 @@ export function beschwerdeKnoepfe(id) {
  * W0 – die Notfallleiste oben auf „Heute". Kompakt, aber nicht versteckt:
  * der eine Satz, der große 112-Knopf, darunter die drei anderen Nummern.
  * Wer akut krank ist, füllt keinen Fragebogen aus.
+ *
+ * Ohne Bundesland steht beim Giftnotruf 112 (P5: „Ohne Angabe: 112
+ * anzeigen"). Vorher stand dort nur ein Knopf ins Profil – wer im Notfall
+ * darauf tippte, landete in einem Formular statt am Telefon.
  */
 export function notfallLeiste(stand) {
   const gift = sp.giftnotruf(stand.profil.bundesland);
@@ -101,9 +145,9 @@ export function notfallLeiste(stand) {
       <a class="knopf knopf-notruf knopf-breit" href="tel:112"><span aria-hidden="true">📞</span> 112 anrufen</a>
       <p class="notfall-nummern">
         <span>Ärztlicher Bereitschaftsdienst <a class="nummer" href="tel:116117">116 117</a></span>
-        <span>Giftnotruf ${gift
+        <span class="giftnotruf">Giftnotruf ${gift
     ? `<a class="nummer" href="${esc(telHref(gift))}">${esc(gift)}</a>`
-    : '<button type="button" class="nummer" data-act="seite" data-seite="profil">Bundesland eintragen</button>'}</span>
+    : '<a class="nummer" href="tel:112">112</a> <button type="button" class="nummer-zusatz" data-act="seite" data-seite="profil">Bundesland eintragen</button>'}</span>
         <span>Telefonseelsorge <a class="nummer" href="tel:08001110111">0800 111 0 111</a></span>
       </p>
     </section>`;
@@ -262,17 +306,34 @@ function notfallSatz(n) {
   return `<div class="notfall-satz" role="note"><p>${esc(n.text)}</p>${anrufKnopf('112', '112 anrufen', { notruf: true })}</div>`;
 }
 
-/** Die freiwilligen weiteren Werte mit ihren Texten, der Hinweis einmal darunter. */
+/*
+ * Die freiwilligen weiteren Werte mit ihren Texten, der Hinweis einmal
+ * darunter. Hat ein Wert eine eigene Frist (E13: Vitamin D über 100 → in den
+ * nächsten Tagen, Hb niedrig → ein bis zwei Wochen), steht sie als Schild
+ * dabei – vorher stand nur der Text, und oben hieß es „Kein besonderer Anlass".
+ */
 function weitereBlock(l, stand) {
   const liste = ez.weitereWerte(l, stand);
   if (!liste.length) return '';
   return `
     <div class="weitere-werte">
       ${liste.map((x) => `
-        <div class="befund-wert"><b>${esc(x.name)}</b><span class="zahl">${esc(`${x.wert.unter ? '< ' : ''}${zahlText(x.wert.wert)} ${x.wert.einheit}`)}</span></div>
+        <div class="befund-wert" data-weiterer="${esc(x.key)}"><b>${esc(x.name)}</b><span class="zahl">${esc(`${x.wert.unter ? '< ' : ''}${zahlText(x.wert.wert)} ${x.wert.einheit}`)}</span></div>
+        ${rang(x.stufe) > 0 ? `<p class="frist klein">${stufeSchild(x.stufe)}</p>` : ''}
         ${x.texte.map((t) => `<p class="klein">${esc(t)}</p>`).join('')}`).join('')}
       <p class="klein gedaempft">${esc(ez.WEITERE_HINWEIS)}</p>
     </div>`;
+}
+
+/*
+ * R12: „Gilt Ihr Zielbereich noch?" – mit dem Weg, die Bestätigung der
+ * Praxis festzuhalten. Vorher gab es ihn nicht: Wer den Bereich unverändert
+ * speicherte, behielt das alte Datum, und die Frage blieb für immer stehen.
+ */
+function zusatzZeile(z) {
+  const knopf = z.id === 'R12'
+    ? '<br><button type="button" class="knopf knopf-klein" data-act="ziel-bestaetigt" style="margin-top:.4rem">Die Praxis hat den Zielbereich bestätigt</button>' : '';
+  return `<p class="klein" data-zusatz="${esc(z.id)}">${esc(z.text)}${knopf}</p>`;
 }
 
 /**
@@ -283,6 +344,11 @@ function weitereBlock(l, stand) {
  * gegen Selbsthandlung, Notfallsatz und Fußnote – ohne Erklärungen, Verlauf
  * und Angaben. Der Satz gegen Selbsthandlung (Grundsatz 2) und ein
  * Notfallsatz 1 oder 2 fehlen nie, wo es eine Einschätzung gibt.
+ *
+ * Auch ein Befund ohne Muster hat eine Einschätzung, wenn fT4 sie trägt
+ * (e.ohneMuster, etwa nur fT4 5 pmol/l): Frist, Satz gegen Selbsthandlung
+ * und der 112-Satz. Vorher stand dort nur „deutlich unter dem Bereich" ohne
+ * Frist – die Dringlichkeit fehlte ganz.
  */
 export function befundKarte(l, stand, heute, { kurz = false, aendern = false, dosisKnopf = false } = {}) {
   const e = ez.befundEinschaetzen(l, stand, heute);
@@ -298,16 +364,16 @@ export function befundKarte(l, stand, heute, { kurz = false, aendern = false, do
   teile.push(werteZeilen(e));
   hinweiseOhneDoppelte(e).forEach((h) => teile.push(`<p class="klein hinweis-zeile">${esc(h)}</p>`));
 
-  if (aktiv && e.muster) {
+  if (aktiv && (e.muster || e.ohneMuster)) {
     const stufe = e.praxisErklaert ? 'keine' : e.stufe;
     const frist = e.praxisErklaert ? e.praxisText : e.stufeText;
     const notfall = kurz && e.notfall.satz === 3 ? '' : notfallSatz(e.notfall);
     teile.push(`
-      <div class="einschaetzung ${STUFE_KLASSE[stufe]}" data-muster="${esc(e.muster)}" data-stufe="${esc(e.stufe)}">
+      <div class="einschaetzung ${STUFE_KLASSE[stufe]}"${e.muster ? ` data-muster="${esc(e.muster)}"` : ' data-ohne-muster="ja"'} data-stufe="${esc(e.stufe)}">
         <p class="einschaetzung-text">${esc(e.text)}</p>
         <p class="frist">${stufeSchild(stufe)} <strong>${esc(frist)}</strong></p>
         ${e.gegenSelbst ? `<p class="gegen-selbst">${esc(e.gegenSelbst)}</p>` : ''}
-        ${kurz ? '' : e.zusaetze.map((z) => `<p class="klein">${esc(z.text)}</p>`).join('')}
+        ${kurz ? '' : e.zusaetze.map(zusatzZeile).join('')}
         ${!kurz && e.erklaerungen.length ? `<p class="klein zwischen"><strong>Mögliche Erklärungen aus Ihren Einträgen:</strong></p><ul class="klein">${e.erklaerungen.map((x) => `<li>${esc(x.text)}</li>`).join('')}</ul>` : ''}
         ${kurz ? '' : e.verlauf.map((v) => `<p class="klein">${esc(v.text)}</p>`).join('')}
         ${notfall}
@@ -329,13 +395,13 @@ export function befundKarte(l, stand, heute, { kurz = false, aendern = false, do
 /** Ein Text aus beschwerdenAuswerten als Hinweis-Karte, mit Anruf-Knöpfen. */
 export function beschwerdeKarte(t) {
   if (t.id === 'W5b') {
-    return `<div class="hinweis-karte" data-regel="W5b"><span class="ri" aria-hidden="true">💬</span><div><p class="klein">${esc(t.text)}</p>${beschwerdeKnoepfe('W5b')}</div></div>`;
+    return `<div class="hinweis-karte" data-regel="W5b"><span class="ri" aria-hidden="true">💬</span><div><p class="klein">${esc(t.text)}</p>${beschwerdeKnoepfe('W5b', t.text)}</div></div>`;
   }
   return `
     <div class="karte ${hinweisKlasse(t.stufe)} beschwerde-karte" data-regel="${esc(t.id)}">
       ${stufeZeile(t.stufe)}
       <p>${esc(t.text)}</p>
-      ${beschwerdeKnoepfe(t.id)}
+      ${beschwerdeKnoepfe(t.id, t.text)}
     </div>`;
 }
 
@@ -348,7 +414,7 @@ export function w5Karte(text, { alert = false } = {}) {
   return `
     <div class="karte gefahr w5-karte" data-regel="W5"${alert ? ' role="alert"' : ''}>
       <p>${esc(text)}</p>
-      ${beschwerdeKnoepfe('W5')}
+      ${beschwerdeKnoepfe('W5', text)}
     </div>`;
 }
 
@@ -368,44 +434,81 @@ function gesamtbildSeite(stand, heute) {
   if (!ez.aktiv(stand)) {
     return { titel, html: `${p6Karte()}${links()}<p class="klein gedaempft" style="margin-top:1rem">${esc(ez.FUSSZEILE)}</p>` };
   }
-  const g = ez.gesamtbild(stand, heute);
+  // Mit der Dosis-Karte und ihren Hinweisen (js/dosis.js): eine Stufe für
+  // „Heute" und diese Seite. Vorher stand hier „Kein besonderer Anlass",
+  // während die Dosis-Karte „Heute anrufen – Giftnotruf" sagte (B40, B61),
+  // oder nach einer eigenmächtig verdoppelten Dosis (B9).
+  const g = gesamtbildMitDosis(stand, heute);
   const teile = [];
 
   // W5 zuerst, ganz gleich, welche Stufe sonst gilt.
   const w5 = g.beschwerden.texte.find((t) => t.id === 'W5');
   if (w5) teile.push(w5Karte(w5.text));
 
+  // Nennt der Kopf eine Nummer („… Bereitschaftsdienst 116 117", „jetzt 112"),
+  // ist sie anrufbar – außer bei W5: Die Karte darüber hat die Knöpfe schon.
   teile.push(`
     <div class="karte stufe-karte ${STUFE_KLASSE[g.stufe]}" data-stufe="${esc(g.stufe)}">
       <p class="stufe-zeile">${stufeSchild(g.stufe, g.kopf.titel)}</p>
       <p class="gross-text">${esc(g.kopf.text)}</p>
+      ${w5 && /Telefonseelsorge/.test(g.kopf.text) ? '' : anrufReihe(anrufeImText(g.kopf.text, stand))}
     </div>`);
 
-  // Im Einzelnen: Warnzeichen von heute, der Befund, die Kontrollen. Die
-  // Beschwerden haben ihren eigenen Abschnitt weiter unten.
+  // Im Einzelnen: Warnzeichen von heute, die Befunde, die weiteren Werte,
+  // Kontrollen und die Dosis-Karte. Jeder Teil, der die Stufe oben trägt,
+  // steht hier mit seinem Grund – sonst stünde oben eine Frist ohne Erklärung.
+  // Die Beschwerden haben ihren eigenen Abschnitt weiter unten.
   const einzeln = [];
+  const mitAnruf = (html, anrufe) => `${html}${anrufReihe(anrufe)}`;
   if (g.warnHeute) {
     g.warnHeute.abschnitte.forEach((a) => einzeln.push({
       stufe: a.stufe,
       titel: ez.kopfFuer(a.stufe, [a]).titel,
-      html: `<p class="klein gedaempft">Warnzeichen-Check von heute${g.warnHeute.check.uhr ? `, ${esc(uhrText(g.warnHeute.check.uhr))}` : ''}:</p><p>${esc(a.text)}</p>${a.anrufe.length ? `<div class="knopf-reihe anruf-reihe">${a.anrufe.map((x) => anrufKnopf(x.nummer, x.text, { notruf: x.nummer === '112' })).join('')}</div>` : ''}`,
+      html: mitAnruf(`<p class="klein gedaempft">Warnzeichen-Check von heute${g.warnHeute.check.uhr ? `, ${esc(uhrText(g.warnHeute.check.uhr))}` : ''}:</p><p>${esc(a.text)}</p>`, a.anrufe),
     }));
   }
-  g.teile.filter((t) => t.quelle === 'befund').forEach((t) => einzeln.push({
-    stufe: t.stufe,
-    html: `<p class="klein gedaempft">Letzter Befund vom ${esc(datumKurz(g.befund.befund.datum))}:</p><p>${esc(t.text)}</p>`,
-  }));
-  g.teile.filter((t) => t.quelle === 'kontrolle').forEach((t) => einzeln.push({ stufe: t.stufe, html: `<p>${esc(t.text)}</p>` }));
+  g.teile.forEach((t) => {
+    if (t.quelle === 'befund') {
+      einzeln.push({ stufe: t.stufe, regel: t.id, html: `<p class="klein gedaempft">Letzter Befund vom ${esc(datumKurz(g.befund.befund.datum))}:</p><p>${esc(t.text)}</p>` });
+    } else if (t.quelle === 'befund-ohne-muster') {
+      // Der Text nennt das Datum selbst („Befund vom …: …").
+      einzeln.push({ stufe: t.stufe, regel: t.id, html: mitAnruf(`<p>${esc(t.text)}</p>`, anrufeImText(t.text, stand)) });
+    } else if (t.quelle === 'weitere') {
+      einzeln.push({ stufe: t.stufe, regel: t.id, html: `<p class="klein gedaempft">Befund vom ${esc(datumKurz(t.datum))}:</p><p>${esc(t.text)}</p>` });
+    } else if (t.quelle === 'kontrolle') {
+      einzeln.push({ stufe: t.stufe, regel: t.id, html: mitAnruf(`<p>${esc(t.text)}</p>`, anrufeImText(t.text, stand)) });
+    } else if (t.quelle === 'dosis' && t.id === 'dosis') {
+      einzeln.push({
+        stufe: t.stufe,
+        regel: t.id,
+        html: mitAnruf(`<p class="klein gedaempft">Dosis-Karte:</p><p>${esc(t.text)}</p>`, t.anrufe)
+          + '<div class="knopf-reihe"><button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis-karte">Dosis-Karte ansehen</button></div>',
+      });
+    } else if (t.quelle === 'dosis') {
+      // Eine Frage (W-D4) wird auf „Heute" beantwortet – hier nur der Verweis dorthin.
+      einzeln.push({
+        stufe: t.stufe,
+        regel: t.id,
+        html: t.mitFrage
+          ? `<p>${esc(t.text)}</p><p class="klein gedaempft">Die Frage dazu beantworten Sie auf „Heute".</p><div class="knopf-reihe"><button type="button" class="knopf knopf-klein" data-act="reiter" data-reiter="heute">Zu „Heute"</button></div>`
+          : mitAnruf(`<p>${esc(t.text)}</p>`, t.anrufe),
+      });
+    }
+  });
   einzeln.sort((a, b) => rang(b.stufe) - rang(a.stufe));
   if (einzeln.length) {
     teile.push('<h2 class="abschnitt">Im Einzelnen</h2>');
-    einzeln.forEach((x) => teile.push(`<div class="karte teil-karte ${hinweisKlasse(x.stufe)}">${stufeZeile(x.stufe, x.titel)}${x.html}</div>`));
+    einzeln.forEach((x) => teile.push(`<div class="karte teil-karte ${hinweisKlasse(x.stufe)}"${x.regel ? ` data-regel="${esc(x.regel)}"` : ''}>${stufeZeile(x.stufe, x.titel)}${x.html}</div>`));
   }
 
   teile.push('<h2 class="abschnitt">Letzter Laborbefund</h2>');
+  if (g.ohneMuster) {
+    // Der jüngere Befund ohne Muster (nur fT4) zuerst – er trägt die Stufe mit.
+    teile.push(`<div class="karte">${befundKarte(g.ohneMuster.befund, stand, heute)}</div>`);
+  }
   if (g.befund) {
     teile.push(`<div class="karte">${befundKarte(g.befund.befund, stand, heute, { dosisKnopf: true })}</div>`);
-  } else {
+  } else if (!g.ohneMuster) {
     teile.push('<div class="karte"><p class="gedaempft">Noch kein Befund, den die App einordnen kann. Mit TSH (und am besten fT4) vom nächsten Befund, samt Bereich des Labors, sagt sie mehr.</p><div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="labor">Befund eintragen</button></div></div>');
   }
 
@@ -523,16 +626,21 @@ function abstandSeite(stand) {
 /*
  * Nach dem Speichern des Befindens, wenn es nicht warten kann: eine
  * Notfall-Notiz (R2) zeigt den 112-Text groß, „nicht mehr leben möchten" den
- * Text W5 mit den Nummern, Puls und Herzklopfen die Texte S4/R3.
+ * Text W5 mit den Nummern, Puls und Herzklopfen die Texte S4/R3, „ungewollt
+ * abgenommen" den Text W2t (in den nächsten Tagen anrufen) – ungewollter
+ * Gewichtsverlust ist im Alter ein Warnzeichen.
  */
 function befindenHinweisSeite(param, stand, heute) {
   const b = stand.befinden.find((x) => x.id === param);
   const teile = [];
   if (b && ez.notfallWorte(b.notiz)) teile.push(w1Karte(stand));
   if (b && b.beschwerden.includes('lebensmuede')) teile.push(w5Karte(ez.W5_TEXT, { alert: true }));
-  if (b && (b.beschwerden.includes('puls') || b.beschwerden.includes('herz'))) {
+  const ids = [];
+  if (b && (b.beschwerden.includes('puls') || b.beschwerden.includes('herz'))) ids.push('S4', 'S4ii', 'R3');
+  if (b && b.beschwerden.includes('abnahme')) ids.push('W2t');
+  if (ids.length) {
     ez.beschwerdenAuswerten(stand, heute).texte
-      .filter((t) => ['S4', 'S4ii', 'R3'].includes(t.id))
+      .filter((t) => ids.includes(t.id))
       .forEach((t) => teile.push(beschwerdeKarte(t)));
   }
   teile.push(`<p class="gedaempft" style="margin:.4rem 0">Ihr Befinden ist gespeichert${b ? ` (${esc(datumInWorten(b.datum))})` : ''}.</p>

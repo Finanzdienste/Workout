@@ -15,12 +15,12 @@
 import { datumInWorten, datumKurz, tageWeiter, uhrText, relativ, tageZwischen } from './datum.js';
 import { esc } from './text.js';
 import * as ez from './einschaetzung.js';
-import { dosisHinweise } from './dosis.js';
+import { gesamtbildMitDosis } from './dosis.js';
 import {
   dosisText, aktuelleDosis, naechsteDosis, einnahme, naechsterTermin, vorratReicht, zaehltAb,
 } from './speicher.js';
 import {
-  notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang,
+  notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang, anrufReihe,
 } from './ansicht-einschaetzung.js';
 import { dosisVerweis } from './ansicht-dosis.js';
 
@@ -62,11 +62,12 @@ function kernHinweis(h) {
   // Nach „Ja" auf die Frage nach einer Erhöhung: erst der Warnzeichen-Check.
   const check = h.id === 'W-D4' && !h.frage && h.stufe === 'heute'
     ? '<div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Warnzeichen prüfen</button></div>' : '';
+  // Nennt der Hinweis eine Nummer (X3 mit „Sofort 112 …"), ist sie anrufbar.
   return `
     <div class="karte kern-hinweis ${hinweisKlasse(h.stufe)}" data-regel="${esc(h.id)}">
       ${stufeZeile(h.stufe)}
       <p>${esc(h.text)}</p>
-      ${warn}${frage}${check}
+      ${warn}${frage}${check}${anrufReihe(h.anrufe)}
     </div>`;
 }
 
@@ -80,11 +81,16 @@ function hinweise(stand, heute) {
   const liste = [];
   const add = (stufe, html, oben = false) => liste.push({ stufe, html, oben });
   const aktiv = ez.aktiv(stand);
+  // Eine Rechnung für alles, was die Einschätzung betrifft: das Gesamtbild
+  // mit Dosis-Karte und Dosis-Hinweisen (js/dosis.js). So nennt „Heute" dieselbe
+  // Stufe wie die Seite „Einschätzung" und die Dosis-Karte (B40, B61).
+  const gm = aktiv ? gesamtbildMitDosis(stand, heute) : null;
 
-  // Seelische Not und Herz aus dem Befinden – das sind Warnzeichen, keine
-  // Einschätzung, und stehen deshalb auch ohne P6-Haken da.
+  // Seelische Not, Herz und ungewollter Gewichtsverlust aus dem Befinden –
+  // das sind Warnzeichen (W5, S4, R3, W2t), keine Einschätzung, und stehen
+  // deshalb auch ohne P6-Haken da.
   ez.beschwerdenAuswerten(stand, heute).texte
-    .filter((t) => ['W5', 'W5b', 'S4', 'S4ii', 'R3'].includes(t.id))
+    .filter((t) => ['W5', 'W5b', 'S4', 'S4ii', 'R3', 'W2t'].includes(t.id))
     .forEach((t) => add(t.stufe, t.id === 'W5' ? w5Karte(t.text) : beschwerdeKarte(t), t.id === 'W5'));
 
   // Stärke fehlt (beim Einrichten leer gelassen): daran erinnern, bis sie da ist.
@@ -148,39 +154,28 @@ function hinweise(stand, heute) {
 
   // Was die Rechenkerne für heute sagen: Kontrollen, Nachfragen nach einer
   // Dosisänderung, Wechselwirkungen. Nur bei bestätigter Behandlung (P6).
-  const kern = aktiv ? [...ez.kontrolleHinweise(stand, heute), ...dosisHinweise(stand, heute)] : [];
+  // Die Kontrollen aus dem Gesamtbild: Dort fällt L7d weg, wenn die
+  // Dosis-Karte an dieselbe Kontrolle erinnert (D6c) – sonst stand sie doppelt da.
+  // Eine eigene Erinnerung „vor N Wochen geändert" gibt es hier nicht mehr:
+  // Sie kam auch ohne P6 und ohne den Text vor der Blutabnahme (B47) – die
+  // Kontrolle nach einer Dosisänderung meldet allein D6c.
+  const kern = gm ? [...gm.teile.filter((t) => t.quelle === 'kontrolle'), ...gm.dosisHinweise] : [];
   kern.forEach((h) => add(h.stufe, kernHinweis(h)));
 
-  // Nach einer Dosisänderung wird meist nach 6–8 Wochen kontrolliert. Nur eine
-  // Erinnerung an diese Regel, keine Empfehlung: ab der vierten Woche, solange
-  // weder ein neuer Laborwert noch ein Termin eingetragen ist – und nur, wenn
-  // die Dosis-Karte nicht schon selbst an die Kontrolle erinnert (D6c).
-  const geltende = aktuelleDosis(heute);
-  if (geltende && stand.dosen.indexOf(geltende) >= 1 && !termin && !kern.some((h) => h.id === 'D6c')) {
-    const seit = tageZwischen(geltende.ab, heute);
-    const laborDanach = stand.labor.some((l) => l.datum >= geltende.ab);
-    if (seit >= 28 && seit <= 70 && !laborDanach) {
-      add('termin', `
-        <div class="hinweis-karte"><span class="ri" aria-hidden="true">🩸</span>
-          <div>Die Dosis wurde vor ${Math.floor(seit / 7)} Wochen geändert. Üblich ist eine Blutkontrolle etwa 6 bis 8 Wochen danach – falls noch kein Termin ausgemacht ist, bei der Praxis nachfragen.
-          ${kleinerKnopf('termin', 'Termin eintragen')}</div>
-        </div>`);
-    }
-  }
-
-  if (aktiv) {
+  if (gm) {
     // Die Einschätzung: nur ihre Stufe in Worten und der Weg dorthin.
-    const g = ez.gesamtbild(stand, heute);
+    const g = gm;
+    const befundAm = g.ohneMuster ? g.ohneMuster.befund.datum : g.befund ? g.befund.befund.datum : null;
     if (rang(g.stufe) >= rang('termin')) {
       add(g.stufe, `
         <div class="karte einschaetzung-verweis ${STUFE_KLASSE[g.stufe]}" data-stufe="${esc(g.stufe)}">
           <p class="klein gedaempft">Einschätzung</p>
           <p class="stufe-zeile">${stufeSchild(g.stufe, g.kopf.titel)}</p>
-          ${g.befund ? `<p class="klein">Nach dem Befund vom ${esc(datumKurz(g.befund.befund.datum))} und Ihren übrigen Einträgen.</p>` : ''}
+          ${befundAm ? `<p class="klein">Nach dem Befund vom ${esc(datumKurz(befundAm))} und Ihren übrigen Einträgen.</p>` : '<p class="klein">Nach Ihren Einträgen.</p>'}
           <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="gesamtbild" style="margin-top:.5rem">Einschätzung ansehen</button>
         </div>`);
     }
-    const d = dosisVerweis(stand, heute);
+    const d = dosisVerweis(stand, heute, g.dosis);
     if (d) {
       add(d.stufe, `
         <div class="karte dosis-verweis" data-stufe="${esc(d.stufe)}">
@@ -249,14 +244,21 @@ export function heuteAnsicht(stand, heute, jetztUhr) {
   const dosis = dosisText(aktuelleDosis(heute));
   const naechste = naechsteDosis(heute);
   const anrede = stand.profil.name ? `Guten Tag, ${esc(stand.profil.name)}.` : '';
-  return `
-    ${notfallLeiste(stand)}
+  const kopf = `
     <p class="heute-datum">${esc(datumInWorten(heute))}</p>
     <p class="heute-dosis">${anrede ? `${anrede} ` : ''}${dosis
     ? esc(dosis)
     : 'Noch keine Dosis eingetragen. <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis">Dosis eintragen</button>'}</p>
-    ${naechste ? `<p class="hinweis-karte" style="display:block"><strong>Ab ${esc(datumInWorten(naechste.ab))}:</strong> ${esc(dosisText(naechste))}</p>` : ''}
-    ${tabletteKnopf(stand, heute, jetztUhr)}
+    ${naechste ? `<p class="hinweis-karte" style="display:block"><strong>Ab ${esc(datumInWorten(naechste.ab))}:</strong> ${esc(dosisText(naechste))}</p>` : ''}`;
+  const knopf = tabletteKnopf(stand, heute, jetztUhr);
+  // Bei Schrift „sehr groß" füllten Notfallleiste, Datum und Dosis den ersten
+  // Bildschirm (360 × 740) – der Knopf, für den man die App jeden Morgen
+  // öffnet, lag darunter. Dann steht er direkt unter der Leiste, Datum und
+  // Dosis folgen. Die Leiste selbst bleibt oben (W0).
+  const knopfZuerst = stand.einstellungen.schrift === 'sehr-gross';
+  return `
+    ${notfallLeiste(stand)}
+    ${knopfZuerst ? `${knopf}<div style="height:.6rem"></div>${kopf}` : `${kopf}${knopf}`}
     <div style="height:.8rem"></div>
     ${hinweise(stand, heute)}
     ${befinden(stand, heute)}`;

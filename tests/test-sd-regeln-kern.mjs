@@ -1522,6 +1522,303 @@ fall('Entscheidung 17: nur ein Warnzeichen-Check von HEUTE zählt im Gesamtbild'
   check('Gesamtbild: W1 von gestern → nicht notruf', gestern.stufe !== 'notruf', `ist ${gestern.stufe}`);
 });
 
+// ================================================================ Nachprüfung: Befunde aus dem Review (B1–B20, B44, B51, B53)
+//
+// Je Befund mindestens ein Fall, der vor der Korrektur scheiterte. Die Namen
+// tragen die Nummer aus der Review-Liste, damit sich ein Rückfall zuordnen lässt.
+
+const teilIds = (g) => (g && Array.isArray(g.teile) ? g.teile.map((x) => `${x.id}:${x.stufe}`) : []);
+
+// ---- B1: „ungewollt abgenommen" im Befinden führt zusätzlich zu W2t (RW1 S1), Stufe tage.
+pruefeBeschwerden({ name: 'B1 abnahme allein → W2t, Stufe tage', befinden: [bf(B_TAG, 'abnahme')], stufe: 'tage', regeln: ['W2t'], texte: ['in den nächsten Tagen', '116 117'] });
+pruefeBeschwerden({ name: 'B1 abnahme zählt weiter als Punkt (zusätzlich, nicht statt)', befinden: [bf(B_TAG, 'waerme', 'abnahme', 'schwitzen')], richtung: 'viel', pv: 3, regeln: ['W2t', 'S2'] });
+fall('B1 Gesamtbild mit TSH 2,0 und abnahme → tage', () => {
+  const g = ez.gesamtbild(baue({ tsh: t(2), ft4: f4(15), befinden: [bf(B_TAG, 'abnahme')] }), HEUTE);
+  check('B1 Gesamtbild: Stufe tage', g.stufe === 'tage', `ist ${g.stufe}; ${teilIds(g).join(', ')}`);
+});
+
+// ---- B2: Befund nur mit fT4 – musterunabhängige L3a/L3e greifen, das Gesamtbild übergeht ihn nicht.
+pruefeFall({
+  name: 'B2 nur fT4 5 pmol/l (12–22): Stufe tage, Satz 1', tsh: null, ft4: f4(5),
+  muster: null, stufe: 'tage', notfall: 1, regeln: ['L3a', 'L3e1'], texte: ['Ohne TSH-Wert', 'deutlich unter'],
+  pruef: (E) => [
+    ['ohneMuster = true', E.ohneMuster === true, `ist ${E.ohneMuster}`],
+    ['Satz gegen Selbsthandlung', typeof E.gegenSelbst === 'string' && enthaelt(E.gegenSelbst, 'wie verordnet'), `ist ${E.gegenSelbst}`],
+    ['Frist-Satz „nächsten Tagen"', enthaelt(E.stufeText, 'nächsten Tagen'), E.stufeText],
+  ],
+});
+pruefeFall({ name: 'B2 nur fT4 40 pmol/l (12–22): mindestens zeitnah', tsh: null, ft4: f4(40), muster: null, stufeMin: 'zeitnah', notfall: 3, pruef: (E) => [['ohneMuster', E.ohneMuster === true, `ist ${E.ohneMuster}`]] });
+pruefeFall({ name: 'B2 nur fT4 7 ohne Bereich (R6): zeitnah, kein Satz 1', tsh: null, ft4: f4O(7), muster: null, stufe: 'zeitnah', notfallNicht: 1, regeln: ['R6'] });
+pruefeFall({ name: 'B2 nur fT4 15 im Bereich: wie bisher kein Anlass', tsh: null, ft4: f4(15), muster: null, stufe: 'keine', texte: ['wichtigste Wert'] });
+pruefeFall({ name: 'B2 TSH in unbekannter Einheit ohne Bereich + fT4 5: Stufe tage', tsh: tO(2, 'xyz'), ft4: f4(5), muster: null, stufe: 'tage', notfall: 1 });
+fall('B2 Gesamtbild: neuerer Befund nur mit fT4 5 übergeht nicht den älteren „Kein Anlass"', () => {
+  const s = baue({ vor: [V('2026-03-01', t(2), { ft4: f4(15) })], tsh: null, ft4: f4(5) });
+  const g = ez.gesamtbild(s, HEUTE);
+  const teil = g.teile.find((x) => x.id === 'befund-ohne-tsh');
+  check('B2 Gesamtbild: Stufe tage', g.stufe === 'tage', `ist ${g.stufe}; ${teilIds(g).join(', ')}`);
+  check('B2 Gesamtbild: Teil befund-ohne-tsh mit quelle befund-ohne-muster', !!teil && teil.quelle === 'befund-ohne-muster' && teil.stufe === 'tage', JSON.stringify(teil));
+  check('B2 Gesamtbild: Teil nennt den 112-Satz', !!teil && enthaelt(teil.text, '112'), teil && teil.text);
+  check('B2 letzterBefund bleibt der Befund mit Muster', !!g.befund && g.befund.befund.datum === '2026-03-01', JSON.stringify(g.befund && g.befund.befund.datum));
+  check('B2 gesamtbild.ohneMuster ist die Einschätzung des neuen Befunds', !!g.ohneMuster && g.ohneMuster.befund.datum === BEFUND_TAG, JSON.stringify(g.ohneMuster && g.ohneMuster.befund.datum));
+});
+fall('B2 Gesamtbild: ein noch neueres unauffälliges fT4 hebt den Teil wieder auf', () => {
+  const s = baue({ vor: [V('2026-03-01', t(2), { ft4: f4(15) }), V('2026-08-01', null, { ft4: f4(5) })], tsh: null, ft4: f4(15) });
+  const g = ez.gesamtbild(s, HEUTE);
+  check('B2 kein Teil befund-ohne-tsh', !g.teile.some((x) => x.id === 'befund-ohne-tsh'), teilIds(g).join(', '));
+});
+fall('B2 Gesamtbild ohne jeden Befund mit Muster stürzt nicht ab', () => {
+  const g = ez.gesamtbild(baue({ tsh: null, ft4: f4(5) }), HEUTE);
+  check('B2 ohne Muster-Befund: Stufe tage, befund null', g.stufe === 'tage' && g.befund === null, `ist ${g.stufe}, befund ${g.befund}`);
+});
+
+// ---- B3 / B51: einseitiger oder bestätigt ungewöhnlicher TSH-Bereich ergibt nie still Muster a.
+pruefeFall({ name: 'B3 TSH 0,05 nur „bis 4,0" → e3 mit Satz gegen Selbsthandlung', tsh: t(0.05, null, 4.0), ft4: f4(15), muster: 'e3', stufe: 'tage', verboten: ['derzeit passt'], pruef: (E) => [['gegenSelbst', !!E.gegenSelbst, `ist ${E.gegenSelbst}`]] });
+pruefeFall({ name: 'B3 TSH 25 nur „ab 0,4" → c3, Satz 1', tsh: t(25, 0.4, null), ft4: f4(15), muster: 'c3', stufe: 'tage', notfall: 1, verboten: ['derzeit passt'] });
+pruefeFall({ name: 'B3 TSH 0,08 bei bestätigtem Bereich 0,05–4,0 → e3 (feste Schwelle)', tsh: t(0.08, 0.05, 4.0), ft4: f4(15), befund: { bestaetigt: true }, muster: 'e3', stufe: 'tage', verboten: ['derzeit passt'], texte: ['unter 0,1'] });
+pruefeFall({ name: 'B3 TSH 12 bei bestätigtem Bereich 0,4–15 → c3 (feste Schwelle)', tsh: t(12, 0.4, 15), ft4: f4(15), befund: { bestaetigt: true }, muster: 'c3', stufe: 'tage' });
+pruefeFall({ name: 'B3 feste Schwelle nicht gegen ein Zahlen-Ziel (L2z1): Ziel 0,05–0,5, TSH 0,08 → a', profil: ZIEL(0.05, 0.5), tsh: t(0.08, 0.05, 4.0), ft4: f4(15), befund: { bestaetigt: true }, muster: 'a' });
+pruefeFall({ name: 'B3 zielNiedrig + bestätigter Bereich 0,01–4,0, TSH 0,05 → z2a statt z2c', profil: NIEDRIG, tsh: t(0.05, 0.01, 4.0), ft4: f4(15), befund: { bestaetigt: true }, muster: 'z2a' });
+fall('B3 TSH 0,05 nur „bis 4,0": Beschwerden zu viel → S3 „passen", L7d nach 100 Tagen', () => {
+  const s = baue({ tsh: t(0.05, null, 4.0), ft4: f4(15), befinden: VIEL3 });
+  const b = ez.beschwerdenAuswerten(s, HEUTE);
+  check('B3 S3 nicht „lagen zuletzt im Bereich"', !enthaelt(textListe(b.texte), 'lagen zuletzt im Bereich'), auszug(textListe(b.texte)));
+  check('B3 S3 „passen zum letzten Laborwert"', enthaelt(textListe(b.texte), 'passen zum letzten Laborwert'), auszug(textListe(b.texte)));
+  const alt = baue({ tsh: t(0.05, null, 4.0), ft4: f4(15), datum: plus(HEUTE, -100) });
+  check('B3 L7d nach 100 Tagen', ez.kontrolleHinweise(alt, HEUTE).some((h) => h.id === 'L7d'), JSON.stringify(ids(ez.kontrolleHinweise(alt, HEUTE))));
+});
+[
+  ['B51 TSH 8, nur „ab 0,27" → über (Orientierung)', t(8, 0.27, null), { lage: 'ueber', quelle: 'orientierung' }],
+  ['B51 TSH 4,3, nur „ab 0,27" → am oberen Rand (im)', t(4.3, 0.27, null), { lage: 'im', genau: 'rand-ueber' }],
+  ['B51 TSH 0,28, nur „ab 0,27" → im Bereich (die Grenze vom Befund gilt)', t(0.28, 0.27, null), { lage: 'im', genau: 'im' }],
+  ['B51 TSH 0,2, nur „ab 0,27" → unter, gegen das Labor', t(0.2, 0.27, null), { lage: 'unter', quelle: 'labor' }],
+  ['B51 TSH 0,25, nur „bis 4,2" → unter (Orientierung)', t(0.25, null, 4.2), { lage: 'unter', quelle: 'orientierung' }],
+  ['B51 TSH 4,4, nur „bis 4,5" → im (die Grenze vom Befund gilt)', t(4.4, null, 4.5), { lage: 'im' }],
+  ['B51 TSH 5, nur „bis 4,2" → über, gegen das Labor', t(5, null, 4.2), { lage: 'ueber', quelle: 'labor' }],
+  ['B51 TSH 8 in unbekannter Einheit, nur „ab 0,27" → nur gegen die Grenze', t(8, 0.27, null, 'xyz'), { lage: 'im', quelle: 'labor' }],
+].forEach(([name, w, soll]) => fall(name, () => {
+  const e = ez.einordnen('tsh', w);
+  Object.entries(soll).forEach(([k, v]) => check(`${name}: ${k} = ${v}`, e[k] === v, `ist ${e[k]}`));
+}));
+pruefeFall({
+  name: 'B51 TSH 8 mit „ab 0,27" (zweite Grenze verworfen) → c2 statt a, mit Hinweis', tsh: t(8, 0.27, null), ft4: f4(15),
+  muster: 'c2', stufe: 'termin', verboten: ['derzeit passt'], texte: ['beide ein', 'nicht der Bereich Ihres Labors'],
+});
+
+// ---- B4 / R1: Der Praxis-Vorrang gilt nur mit Datum und ohne später eingetragene Beschwerde.
+fall('B4 Praxis „bleibt" am 21.09., danach Zu-viel-Beschwerden → Gesamtbild bleibt tage', () => {
+  const s = baue({ ...PRAXIS_BASIS, befund: { praxis: 'bleibt', praxisAm: '2026-09-21' }, befinden: [bf('2026-09-25', 'schwitzen', 'zittern', 'waerme')] });
+  const E = ez.befundEinschaetzen(s.labor.find((x) => x.id === 'ziel'), s, HEUTE);
+  const g = ez.gesamtbild(s, HEUTE);
+  check('B4 praxisErklaert false', E.praxisErklaert === false, `ist ${E.praxisErklaert}`);
+  check('B4 Zusatz R1 erklärt, warum', E.zusaetze.some((z) => z.id === 'R1' && enthaelt(z.text, 'neue Beschwerden')), JSON.stringify(ids(E.zusaetze)));
+  check('B4 Gesamtbild tage', g.stufe === 'tage', `ist ${g.stufe}`);
+  check('B4 Befund-Teil ohne Praxis-Satz', !g.teile.some((x) => x.quelle === 'befund' && enthaelt(x.text, 'schon erklärt')), teilIds(g).join(', '));
+});
+fall('B4 Praxis „bleibt" ohne Datum (alte Stände) → Stufe bleibt sichtbar', () => {
+  const s = baue({ ...PRAXIS_BASIS, befund: { praxis: 'bleibt', praxisAm: null } });
+  const E = ez.befundEinschaetzen(s.labor.find((x) => x.id === 'ziel'), s, HEUTE);
+  check('B4 ohne Datum: praxisErklaert false', E.praxisErklaert === false, `ist ${E.praxisErklaert}`);
+  check('B4 ohne Datum: Gesamtbild tage', ez.gesamtbild(s, HEUTE).stufe === 'tage', `ist ${ez.gesamtbild(s, HEUTE).stufe}`);
+  check('B4 ohne Datum: Zusatz bittet um das Datum', E.zusaetze.some((z) => z.id === 'R1' && enthaelt(z.text, 'Datum')), JSON.stringify(E.zusaetze));
+});
+fall('B4 Beschwerde VOR dem Gespräch → Praxis-Vorrang gilt weiter', () => {
+  const s = baue({ ...PRAXIS_BASIS, befund: { praxis: 'bleibt', praxisAm: '2026-09-21' }, befinden: [bf('2026-09-18', 'schwitzen', 'zittern', 'waerme')] });
+  const E = ez.befundEinschaetzen(s.labor.find((x) => x.id === 'ziel'), s, HEUTE);
+  check('B4 vorher: praxisErklaert true', E.praxisErklaert === true, `ist ${E.praxisErklaert}`);
+});
+
+// ---- B5: zielNiedrig, TSH im Laborbereich – auch mit auffälligem fT4 gilt L2z2 C (zeitnah).
+[
+  ['B5 zielNiedrig, TSH 2,0 + fT4 11 → z2c zeitnah', f4(11), 'zeitnah'],
+  ['B5 zielNiedrig, TSH 2,0 + fT4 24 → z2c zeitnah', f4(24), 'zeitnah'],
+  ['B5 zielNiedrig, TSH 2,0 + fT4 9 (deutlich unter) → z2c tage', f4(9), 'tage'],
+].forEach(([name, ft4, stufe]) => pruefeFall({ name, profil: { ...NIEDRIG, ...KREBS }, tsh: t(2), ft4, muster: 'z2c', stufe, verboten: ['ohne Bedeutung', 'meist unbedenklich'], texte: ['fT4 liegt zudem'] }));
+
+// ---- B6: Werte genau auf den Grenzen UG × 0,8 / × 0,9, OG × 1,1 / × 1,2 (Gleitkomma).
+[
+  ['B6 fT4 9,6 bei 12–22 = UG × 0,8 → unter, nicht deutlich', 'ft4', f4(9.6), 'unter'],
+  ['B6 fT4 0,64 ng/dl bei 0,8–1,8 → unter, nicht deutlich', 'ft4', f4(0.64, 0.8, 1.8, 'ng/dl'), 'unter'],
+  ['B6 fT4 28,8 bei 12–24 = OG × 1,2 → über, nicht deutlich', 'ft4', f4(28.8, 12, 24), 'ueber'],
+  ['B6 TSH 0,36 bei 0,4–4,0 = UG × 0,9 → knapp unter', 'tsh', t(0.36), 'knapp-unter'],
+  ['B6 TSH 0,243 bei 0,27–4,2 → knapp unter', 'tsh', t(0.243, 0.27, 4.2), 'knapp-unter'],
+  ['B6 TSH 4,62 bei 0,27–4,2 = OG × 1,1 → knapp über', 'tsh', t(4.62, 0.27, 4.2), 'knapp-ueber'],
+].forEach(([name, key, w, genau]) => fall(name, () => {
+  const e = ez.einordnen(key, w);
+  check(`${name}: genau ${genau}`, e.genau === genau, `ist ${e.genau}`);
+}));
+fall('B6 Zielbereich 0,4–2,0: TSH 0,36 = von × 0,9 → knapp unter', () => {
+  const e = ez.einordnen('tsh', t(0.36), { ziel: { von: 0.4, bis: 2.0 } });
+  check('B6 Ziel: knapp unter', e.genau === 'knapp-unter', `ist ${e.genau}`);
+});
+pruefeFall({ name: 'B6 TSH 2,0 + fT4 9,6 (12–22) → g1 termin ohne 112-Satz', tsh: t(2), ft4: f4(9.6), muster: 'g1', stufe: 'termin', notfall: 3 });
+pruefeFall({ name: 'B6 TSH 0,36 (0,4–4,0), 78 J. → e1 termin', profil: { geburtsjahr: J[78] }, tsh: t(0.36), ft4: f4(15), muster: 'e1', stufe: 'termin' });
+
+// ---- B7: Verlauf am Zielbereich messen (Grundsatz 4) – ein Anstieg über das Ziel heißt nicht „jetzt im Bereich".
+pruefeFall({
+  name: 'B7 Ziel 0,1–0,5: TSH 0,2 → 1,2 „gestiegen … zu wenig Hormon"', profil: ZIEL(0.1, 0.5), vor: [V('2026-03-01', t(0.2))], tsh: t(1.2),
+  muster: 'c2', regeln: ['L6'], texte: ['gestiegen', 'zu wenig Hormon'], verboten: ['jetzt im Bereich'],
+});
+pruefeFall({
+  name: 'B7 Ziel 0,1–0,5: TSH 0,3 → 0,05 „gesunken" statt „etwa gleich"', profil: ZIEL(0.1, 0.5), vor: [V('2026-03-01', t(0.3))], tsh: t(0.05),
+  muster: 'e3', texte: ['gesunken'], verboten: ['etwa gleich'],
+});
+pruefeFall({
+  name: 'B7 zielNiedrig: TSH 0,05 → 2,0 „gestiegen" mit Übersetzung', profil: NIEDRIG, vor: [V('2026-03-01', t(0.05))], tsh: t(2),
+  muster: 'z2c', texte: ['gestiegen', 'zu wenig Hormon'], verboten: ['jetzt im Bereich'],
+});
+pruefeFall({
+  name: 'B7 Ziel 0,1–0,5: TSH 0,8 → 0,3 „jetzt im Zielbereich"', profil: ZIEL(0.1, 0.5), vor: [V('2026-03-01', t(0.8))], tsh: t(0.3),
+  muster: 'a', texte: ['jetzt im Zielbereich'],
+});
+
+// ---- B8: Herzklopfen an mehreren Tagen + niedriges TSH → heute (nicht niedriger als ohne Befund).
+[
+  ['B8 60 J., Herzklopfen an 3 Tagen + e2 → heute', t(0.2)],
+  ['B8 60 J., Herzklopfen an 3 Tagen + e3 → heute', t(0.05)],
+].forEach(([name, tsh]) => pruefeBeschwerden({
+  name, profil: { geburtsjahr: 1966 }, befund: { tsh },
+  befinden: [bf(plus(HEUTE, -5), 'herz'), bf(plus(HEUTE, -3), 'herz'), bf(plus(HEUTE, -1), 'herz')],
+  stufe: 'heute', regeln: ['S4ii'], texte: ['mehreren Tagen', 'heute in der Praxis', 'niedrigen TSH-Wert'], verboten: ['in den nächsten Tagen'],
+}));
+pruefeBeschwerden({ name: 'B8 Herzklopfen einmal + e2, 60 J. → weiter tage', profil: { geburtsjahr: 1966 }, befund: { tsh: t(0.2) }, befinden: [bf(B_TAG, 'herz')], stufe: 'tage' });
+
+// ---- B9: gesamtbild nimmt die Dosis-Hinweise auf (Schnittstelle „dosis", eine Gesamteinschätzung).
+fall('B9 gesamtbild mit Dosis-Hinweis X3 (tage) → Stufe tage, Teil quelle dosis', () => {
+  const s = baue({ tsh: t(2), ft4: f4(15) });
+  const dosis = [{ id: 'X3', stufe: 'tage', text: 'Rufen Sie heute oder morgen die Praxis an.', frage: null }, { id: 'WW1', stufe: 'zeitnah', text: 'INR kontrollieren lassen.' }];
+  const g = ez.gesamtbild(s, HEUTE, { dosis });
+  check('B9 Stufe tage', g.stufe === 'tage', `ist ${g.stufe}`);
+  check('B9 Feld dosis mit zwei Einträgen', Array.isArray(g.dosis) && g.dosis.length === 2, JSON.stringify(g.dosis));
+  check('B9 Teil X3 mit quelle dosis', g.teile.some((x) => x.id === 'X3' && x.quelle === 'dosis' && x.stufe === 'tage'), teilIds(g).join(', '));
+  check('B9 ohne Dosis-Hinweise wie bisher keine', ez.gesamtbild(s, HEUTE).stufe === 'keine', `ist ${ez.gesamtbild(s, HEUTE).stufe}`);
+  const wd4 = ez.gesamtbild(s, HEUTE, { dosis: [{ id: 'W-D4', stufe: 'heute', text: 'Bitte heute anrufen.' }] });
+  check('B9 W-D4 heute → Gesamtbild heute', wd4.stufe === 'heute', `ist ${wd4.stufe}`);
+  const kaputt = ez.gesamtbild(s, HEUTE, { dosis: [{ id: 'X', stufe: 'unsinn', text: 'x' }, null] });
+  check('B9 unbekannte Stufe stürzt nicht ab', kaputt.stufe === 'keine', `ist ${kaputt.stufe}`);
+});
+
+// ---- B10: M1/WW3 – „am einfachsten mittags" nur, wenn mittags schon 4 Stunden nach der Tablette liegt.
+[
+  ['B10 Tablette 07:00: mittags oder abends', '07:00', true],
+  ['B10 Tablette 11:00: nicht mittags', '11:00', false],
+  ['B10 Tablette 13:00: nicht mittags', '13:00', false],
+].forEach(([name, uhr, mittags]) => fall(name, () => {
+  const p = plan(name, { uhr, mittel: ['kalzium', 'eisen'] });
+  ['kalzium', 'eisen'].forEach((k) => {
+    const x = eintrag(p, k);
+    check(`${name} (${k}): ${mittags ? 'mit' : 'ohne'} „mittags"`, !!x && enthaelt(x.text, 'mittags') === mittags, x && x.text);
+  });
+}));
+
+// ---- B11: Satz gegen Selbsthandlung (Grundsatz 2) unter jeder Beschwerde-Richtung (S2).
+pruefeBeschwerden({ name: 'B11 S2 zu wenig: fester Satz gegen Selbsthandlung', befinden: WENIG3, richtung: 'wenig', texte: ['wie verordnet', 'nichts weglassen', 'nichts an den Tabletten'] });
+pruefeBeschwerden({ name: 'B11 S2 zu viel: fester Satz gegen Selbsthandlung', befinden: VIEL3, richtung: 'viel', texte: ['wie verordnet', 'nichts weglassen'] });
+
+// ---- B12: Behandlungsgrund Hirnanhangdrüse – die Stufe kommt aus fT4, nicht aus TSH (RW2 P1).
+const HYPO = { ursache: 'hypophyse' };
+pruefeFall({ name: 'B12 Hypophyse: TSH 0,05 + fT4 16 → keine „zu viel Hormon"-Stufe', profil: HYPO, tsh: t(0.05), ft4: f4(16), stufe: 'keine', texte: ['entscheidend ist fT4'], verboten: ['zu viel Schilddrüsenhormon', 'Hirnanhangdrüse'], ohneRegeln: ['L3a', 'L4b'] });
+pruefeFall({ name: 'B12 Hypophyse: TSH 1,0 + fT4 10,5 → mindestens zeitnah', profil: HYPO, tsh: t(1), ft4: f4(10.5), stufeMin: 'zeitnah', texte: ['zu wenig Schilddrüsenhormon'], verboten: ['ohne Bedeutung'] });
+pruefeFall({ name: 'B12 Hypophyse: TSH 1,0 ohne fT4 → termin, fT4 erfragen', profil: HYPO, tsh: t(1), stufe: 'termin', texte: ['fT4 bestimmt'], verboten: ['wichtigste Wert', 'derzeit passt'] });
+pruefeFall({ name: 'B12 Hypophyse: fT4 8 (deutlich unter) → tage, Satz 1', profil: HYPO, tsh: t(0.3), ft4: f4(8), stufe: 'tage', notfall: 1 });
+pruefeFall({ name: 'B12 Hypophyse ohne TSH, fT4 15 → ohne „wichtigste Wert"', profil: HYPO, tsh: null, ft4: f4(15), muster: null, stufe: 'keine', texte: ['entscheidend ist fT4'], verboten: ['wichtigste Wert'] });
+pruefeFall({ name: 'B12 Hypophyse: TSH 15 bleibt tage (feste Schwelle)', profil: HYPO, tsh: t(15), ft4: f4(15), stufe: 'tage' });
+
+// ---- B13: bestätigter sehr hoher Wert mit Laborbereich wird eingeordnet (E13: „bis dahin keine Einordnung").
+[
+  ['B13 Vitamin D 210 ng/ml bestätigt, 30–100 → tage', { ...ww('vitd', 210, 'ng/ml', 30, 100), bestaetigt: true }, 'tage', ['sehr hoch']],
+  ['B13 Vitamin D 210 ng/ml nicht bestätigt → keine Einordnung', ww('vitd', 210, 'ng/ml', 30, 100), 'keine', ['passt nicht zur gewählten Einheit']],
+  ['B13 Vitamin D 210 ng/ml bestätigt ohne Bereich → Bitte um den Bereich', { ...ww('vitd', 210, 'ng/ml'), bestaetigt: true }, 'keine', ['Bereich vom Befund']],
+].forEach(([name, befund, stufe, texte]) => fall(name, () => {
+  const s = baue({ tsh: t(2), befund });
+  const e = ez.weitereWerte(s.labor.find((x) => x.id === 'ziel'), s).find((x) => x.key === 'vitd');
+  check(`${name}: Stufe ${stufe}`, !!e && e.stufe === stufe, JSON.stringify(e));
+  texte.forEach((x) => check(`${name}: Text „${x}"`, !!e && enthaelt(e.texte, x), e && e.texte.join(' | ')));
+}));
+
+// ---- B14: P3 – Präparat unbekannt oder offen: in Muster e den T3-Hinweis nennen.
+[['B14 Präparat unbekannt, e2', 'unbekannt', t(0.2)], ['B14 Präparat offen, e3', '', t(0.05)], ['B14 Präparat offen, e1', '', t(0.37)]]
+  .forEach(([name, praeparatArt, tsh]) => pruefeFall({ name, profil: { praeparatArt }, tsh, ft4: f4(15), texte: ['T3-Anteil'], regeln: ['P3'] }));
+pruefeFall({ name: 'B14 nur L-Thyroxin, e2: kein P3', tsh: t(0.2), ft4: f4(15), ohneRegeln: ['P3'] });
+
+// ---- B15: E13c B12 in pg/ml gegen die pg/ml-Schwellen (200 / 400).
+[
+  ['B15 B12 200 pg/ml → Graubereich', 200, 'termin'], ['B15 B12 203 pg/ml → Graubereich', 203, 'termin'],
+  ['B15 B12 199 pg/ml → zeitnah', 199, 'zeitnah'], ['B15 B12 401 pg/ml → keine', 401, 'keine'], ['B15 B12 406 pg/ml → keine', 406, 'keine'],
+].forEach(([name, wert, stufe]) => fall(name, () => {
+  const s = baue({ tsh: t(2), befund: ww('b12', wert, 'pg/ml') });
+  const e = ez.weitereWerte(s.labor.find((x) => x.id === 'ziel'), s).find((x) => x.key === 'b12');
+  check(`${name}: Stufe ${stufe}`, !!e && e.stufe === stufe, `ist ${e && e.stufe}`);
+}));
+
+// ---- B16: W4b beruhigt nicht unter dem Giftnotruf (W4a) oder bei „über Tage zu viele".
+[
+  ['B16 mehrere + eine_zuviel', ['mehrere', 'eine_zuviel']],
+  ['B16 packung + eine_zuviel', ['packung', 'eine_zuviel']],
+  ['B16 zuviele + eine_zuviel', ['zuviele', 'eine_zuviel']],
+].forEach(([name, ja]) => fall(name, () => {
+  const r = warn(name, ja);
+  check(`${name}: kein W4b`, !abschnittIds(r).includes('W4b'), JSON.stringify(abschnittIds(r)));
+  check(`${name}: kein „unbedenklich"`, !enthaelt(warnTexte(r), 'unbedenklich'), auszug(warnTexte(r)));
+}));
+fall('B16 eine_zuviel allein → W4b bleibt', () => {
+  check('B16 W4b allein', abschnittIds(warn('B16 allein', ['eine_zuviel'])).includes('W4b'));
+});
+
+// ---- B17: g2 (R11/L2z3) bei TSH < 0,1 – Ausnahmen von L3a gelten auch hier; Krebs ohne Ziel: Ziel erfragen.
+pruefeFall({ name: 'B17 zielNiedrig, TSH 0,08 + fT4 10,5 → g2 zeitnah', profil: NIEDRIG, tsh: t(0.08), ft4: f4(10.5), muster: 'g2', stufe: 'zeitnah', ohneRegeln: ['L3a'] });
+pruefeFall({ name: 'B17 Krebs ohne Ziel, TSH 0,08 + fT4 10,5 → g2 zeitnah mit Bitte um Zielbereich', profil: KREBS, tsh: t(0.08), ft4: f4(10.5), muster: 'g2', stufe: 'zeitnah', regeln: ['L2z3'], texte: ['Zielbereich'] });
+pruefeFall({ name: 'B17 Zahlen-Ziel 0,5–2,0, TSH 0,08 (unter dem Ziel) + fT4 10,5 → g2 tage (L2z1)', profil: ZIEL(0.5, 2.0), tsh: t(0.08), ft4: f4(10.5), muster: 'g2', stufe: 'tage' });
+
+// ---- B18: R12 hebt Muster a an → Begründung statt „passt"; R12-Zusatz ohne eigene Frist.
+pruefeFall({
+  name: 'B18 Ziel 0,05–0,5, TSH 0,08, 78 J. → a zeitnah mit Begründung', profil: { ...ZIEL(0.05, 0.5), geburtsjahr: J[78] }, tsh: t(0.08), ft4: f4(15),
+  muster: 'a', stufe: 'zeitnah', regeln: ['R12', 'R12b'], texte: ['Herz und Knochen'], verboten: ['derzeit passt'],
+  pruef: (E) => [['Satz gegen Selbsthandlung', !!E.gegenSelbst, `ist ${E.gegenSelbst}`]],
+});
+pruefeFall({ name: 'B18 veraltetes Ziel unter Stufe tage: R12 ohne „nächsten Termin"', profil: ZIEL(0.1, 0.5, '2025-01-01'), tsh: t(0.05), ft4: f4(15), muster: 'e3', stufe: 'tage', regeln: ['R12'], verboten: ['nächsten Termin'] });
+
+// ---- B19: F1 (Zielbereich erfragen), solange kein Zahlen-Ziel eingetragen ist – auch bei zielNiedrig.
+fall('B19 zielNiedrig ohne Zahlen: F1 vorgeschlagen', () => {
+  const liste = ez.fragenVorschlaege(baue({ profil: { ...NIEDRIG, ...KREBS }, tsh: t(2) }), HEUTE);
+  check('B19 F1 „Zielbereich"', enthaelt(liste, 'Zielbereich'), auszug(liste));
+});
+
+// ---- B20: Der erste Dosis-Eintrag (Einrichtungstag nach dem Befund) ist keine Dosisänderung (Entscheidung 3).
+pruefeBeschwerden({
+  name: 'B20 einzige Dosis ab Einrichtung nach dem Befund → S3 bleibt', befund: { tsh: t(0.2), datum: '2026-08-30' },
+  dosen: [{ id: 'd1', ab: '2026-09-10', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1 }], befinden: VIEL3,
+  regeln: ['S3'], texte: ['passen zum letzten Laborwert'],
+});
+
+// ---- B44: Stufen der weiteren Werte zählen im Gesamtbild (E13e Tage, E13f zeitnah).
+fall('B44 Vitamin D 120 ng/ml und Hb 9,5 g/dl → Gesamtbild tage', () => {
+  const s = baue({ tsh: t(2.1), ft4: f4(15), befund: { ...ww('vitd', 120, 'ng/ml'), ...ww('hb', 9.5, 'g/dl', 12, 16) } });
+  const g = ez.gesamtbild(s, HEUTE);
+  check('B44 Stufe tage', g.stufe === 'tage', `ist ${g.stufe}; ${teilIds(g).join(', ')}`);
+  check('B44 Teil Vitamin D (quelle weitere, tage)', g.teile.some((x) => x.id === 'E13-vitd' && x.quelle === 'weitere' && x.stufe === 'tage'), teilIds(g).join(', '));
+  check('B44 Teil Hb (zeitnah)', g.teile.some((x) => x.id === 'E13-hb' && x.stufe === 'zeitnah'), teilIds(g).join(', '));
+  check('B44 Feld weitere', Array.isArray(g.weitere) && g.weitere.length === 2, JSON.stringify(g.weitere));
+});
+fall('B44 weitere Werte bleiben auch bei Praxis-Angabe zum TSH', () => {
+  const s = baue({ tsh: t(2.1), befund: { ...ww('vitd', 120, 'ng/ml'), praxis: 'bleibt', praxisAm: '2026-09-22' } });
+  check('B44 Praxis: Stufe tage', ez.gesamtbild(s, HEUTE).stufe === 'tage', `ist ${ez.gesamtbild(s, HEUTE).stufe}`);
+});
+fall('B44 ein neuerer unauffälliger Wert ersetzt den alten', () => {
+  const s = baue({ vor: [V('2026-09-01', t(2), ww('vitd', 120, 'ng/ml'))], tsh: t(2), befund: ww('vitd', 40, 'ng/ml') });
+  const g = ez.gesamtbild(s, HEUTE);
+  check('B44 kein Vitamin-D-Teil', !g.teile.some((x) => x.id === 'E13-vitd'), teilIds(g).join(', '));
+});
+
+// ---- B53: Warnzeichen-Checks werden nicht nach Anzahl 50 gekappt (Bericht: 90 Tage, Entscheidung 17).
+fall('B53 60 tägliche Checks bleiben beim Laden erhalten, samt Brustschmerz-Check', () => {
+  const w = [];
+  for (let i = 59; i >= 0; i--) w.push({ id: `w${i}`, datum: plus(HEUTE, -i), uhr: '08:00', ja: i === 55 ? ['brust'] : [] });
+  const s = baue({ ohneBefund: true, warnzeichen: w });
+  check('B53 alle 60 Checks', s.warnzeichen.length === 60, `ist ${s.warnzeichen.length}`);
+  const z = ez.berichtZeilen(s, HEUTE).filter((x) => x.startsWith('Warnzeichen-Check'));
+  check('B53 Bericht nennt den Brustschmerz-Check', z.some((x) => enthaelt(x, 'Brust')), `${z.length} Zeilen`);
+});
+
 // ================================================================ Globale Eigenschaften über alle Fälle
 
 // MEHRDEUTIG: Grundsatz 1/11 verbietet „Tablette(n) mehr/weniger". Nicht als Aufforderung gelten

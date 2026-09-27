@@ -21,7 +21,7 @@ import { verlaufAnsicht, verlaufSeite } from './ansicht-verlauf.js';
 import { mehrAnsicht, mehrSeite } from './ansicht-mehr.js';
 import { formular, absenden, eintragLoeschen } from './ansicht-formulare.js';
 import { einschaetzungSeite } from './ansicht-einschaetzung.js';
-import { dosisSeite, PRAXIS_BESTAETIGUNG } from './ansicht-dosis.js';
+import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS } from './ansicht-dosis.js';
 import { fragenVorschlaege } from './einschaetzung.js';
 import { dosisHinweise } from './dosis.js';
 import { willkommenAnsicht, willkommenWeiter, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
@@ -34,6 +34,27 @@ const $reiter = document.getElementById('reiterleiste');
 const $meldung = document.getElementById('meldung');
 
 /*
+ * Mit welchem Reiter die App öffnet: immer „Heute" – dort stehen die
+ * Notfallnummern (W0), der Knopf für die Tablette und was heute ansteht.
+ * Vorher kam der Reiter aus dem gespeicherten Stand: Wer zuletzt unter „Mehr"
+ * den Bericht gelesen hatte, sah Tage später beim Öffnen nur die Liste unter
+ * „Mehr" (B64). Gemerkt wird der Reiter nur für ein Neuladen am selben Tag
+ * (etwa nach einer neuen Fassung), in der Sitzung des Browsers.
+ */
+const REITER_MERK = 'schilddruese.reiter';
+const REITER = ['heute', 'verlauf', 'mehr'];
+function reiterBeimStart() {
+  try {
+    const m = JSON.parse(sessionStorage.getItem(REITER_MERK) || 'null');
+    if (m && m.tag === heuteISO() && REITER.includes(m.tab)) return m.tab;
+  } catch { /* ohne Sitzungsspeicher eben „Heute" */ }
+  return 'heute';
+}
+function reiterMerken(tab) {
+  try { sessionStorage.setItem(REITER_MERK, JSON.stringify({ tab, tag: heuteISO() })); } catch { /* egal */ }
+}
+
+/*
  * Was gerade zu sehen ist: ein Reiter, und darüber womöglich eine Seite
  * (ein Formular, eine Liste, ein Wissenskapitel). „Zurück", „Abbrechen" und
  * „Löschen" führen dorthin, woher man kam – aus „Alle Laborwerte" in einen
@@ -42,7 +63,7 @@ const $meldung = document.getElementById('meldung');
  * mal dorthin.
  */
 const ui = {
-  tab: sp.getStand().tab,
+  tab: reiterBeimStart(),
   seite: null,        // { name, param } oder null
   stapel: [],         // die Seiten darunter, zu denen „Zurück" führt
   schritt: 1,         // Willkommen: welcher Schritt
@@ -134,6 +155,7 @@ function render() {
     $kopf.innerHTML = '<h1 class="marke"><img src="icon.svg" alt="">Schilddrüse</h1>';
   }
 
+  kopfHoeheMerken();
   $ansicht.innerHTML = speicherWarnung() + html;
   // Vorleseprogramme nennen beim Fokus den Namen des Bereichs – bei einer
   // offenen Seite ihren Titel, nicht den Reiter darunter.
@@ -145,11 +167,24 @@ function render() {
   });
 }
 
+/*
+ * Der Kopf klebt oben. Springt die Seite zu einer Stelle (neue Frage auf der
+ * Dosis-Karte, der 112-Text nach „JETZT", ein Feld mit Fehler), lag deren
+ * Anfang vorher unter dem Kopf – nach der letzten Frage sah man weder die Stufe
+ * noch den Anfang der Richtung (B60). Die Höhe des Kopfs geht deshalb als
+ * --kopf-h an scroll-padding-top (css/styles.css); sie wächst mit der Schrift.
+ */
+function kopfHoeheMerken() {
+  const kopf = $kopf.closest('.kopf') || $kopf;
+  document.documentElement.style.setProperty('--kopf-h', `${kopf.offsetHeight}px`);
+}
+window.addEventListener('resize', kopfHoeheMerken);
+
 function zeigeReiter(tab) {
   ui.tab = tab;
   ui.seite = null;
   ui.stapel = [];
-  if (sp.getStand().tab !== tab) sp.aendern((s) => { s.tab = tab; });
+  reiterMerken(tab);
   window.scrollTo(0, 0);
   render();
   $ansicht.focus({ preventScroll: true });
@@ -424,9 +459,18 @@ function aktion(el) {
       });
       if (wert === 'geaendert') zeigeSeite('dosis', 'praxis', { ersetzen: true });
       else zurueck();
-      meldung(PRAXIS_BESTAETIGUNG);
+      meldung(wert === 'geaendert' ? PRAXIS_NEUE_DOSIS : PRAXIS_BESTAETIGUNG);
       break;
     }
+    case 'ziel-bestaetigt':
+      // R12: Die Praxis hat den Zielbereich bestätigt – das Datum wird neu,
+      // der Zielbereich selbst bleibt. Ohne Zielbereich gibt es nichts zu bestätigen.
+      sp.aendern((s) => {
+        if (s.profil.zielVon !== null || s.profil.zielNiedrig === 'ja') s.profil.zielAm = heute;
+      });
+      render();
+      meldung('Vermerkt: Die Praxis hat den Zielbereich heute bestätigt.');
+      break;
     case 'notfall-jetzt': {
       // R2: sofort der 112-Text, ohne zu speichern und ohne die Eingaben zu verlieren.
       const huelle = document.getElementById('notfall-jetzt-huelle');
@@ -557,6 +601,40 @@ function aktion(el) {
 }
 
 /*
+ * Welche Felder eine Frage setzen darf, mit den Antworten, die es gibt (wie
+ * in speicher.normStand). Vorher genügte „das Feld steht schon als Text da":
+ * Ein Befund, der in dieser Sitzung angelegt wurde, hatte `verwechselt` noch
+ * nicht – das legt normStand erst beim nächsten Laden an. Die Antwort auf Q5
+ * fiel still weg, die Meldung sagte trotzdem „gespeichert", die Frage kam
+ * immer wieder, und „einmal viele Tabletten" brachte nie den Giftnotruf (B39).
+ */
+const JNW_ANTWORT = ['ja', 'nein', 'unbekannt'];
+const BEFUND_ANTWORTEN = {
+  vorAbnahme: JNW_ANTWORT,
+  biotin: JNW_ANTWORT,
+  krank: JNW_ANTWORT,
+  kortison: JNW_ANTWORT,
+  kontrastmittel: JNW_ANTWORT,
+  mittelGeaendert: JNW_ANTWORT,
+  einnahmeGeaendert: JNW_ANTWORT,
+  packung: JNW_ANTWORT,
+  abstandOk: JNW_ANTWORT,
+  vergessen: ['nein', 'einzelne', 'mehrere', 'unbekannt'],
+  einnahmeArt: ['ja', 'abends', 'nein', 'unbekannt'],
+  verwechselt: ['einmal', 'tage', 'nein', 'unbekannt'],
+  praxis: ['bleibt', 'geaendert', 'nachmessen', 'nochnicht'],
+};
+const PROFIL_ANTWORTEN = {
+  krebs: JNW_ANTWORT,
+  kortison: JNW_ANTWORT,
+  hypophyseOderNiedrig: JNW_ANTWORT,
+  herz: JNW_ANTWORT,
+  osteoporose: JNW_ANTWORT,
+  diabetes: JNW_ANTWORT,
+  zielNiedrig: JNW_ANTWORT,
+};
+
+/*
  * Eine Frage der Dosis-Karte oder von „Heute" beantworten. Wohin die Antwort
  * gehört, sagt die Frage selbst (js/dosis.js): an den Befund, ins Profil
  * oder als Nachfrage mit Datum. Danach zeichnet die Karte neu – mit der
@@ -564,29 +642,53 @@ function aktion(el) {
  * ein Vorleseprogramm die neue Frage vorliest und nicht einen gleich
  * beschrifteten Knopf.
  */
-const BEFUND_NICHT = ['id', 'datum', 'notiz', 'laborName', 'abnahmeUhr', 'tabletteUhr'];
-
 function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
-  if (!/^[a-z0-9_]{1,20}$/i.test(wert || '') || !/^[A-Za-z0-9_]{1,30}$/.test(feld || '')) return;
-  sp.aendern((s) => {
-    if (ziel === 'befund') {
-      const b = s.labor.find((l) => l.id === bezug);
-      if (!b || typeof b[feld] !== 'string' || BEFUND_NICHT.includes(feld)) return;
-      b[feld] = wert;
-      if (feld === 'praxis') b.praxisAm = heute;
-    } else if (ziel === 'profil') {
-      if (typeof s.profil[feld] !== 'string') return;
-      s.profil[feld] = wert;
-    } else if (ziel === 'nachfrage') {
-      s.nachfragen.push({ id: sp.kennung(), art: feld.toLowerCase(), bezug: String(bezug || '').slice(0, 40), antwort: wert, am: heute });
-    }
-  });
+  let geschrieben = false;
+  if (/^[a-z0-9_]{1,20}$/i.test(wert || '') && /^[A-Za-z0-9_]{1,30}$/.test(feld || '')) {
+    sp.aendern((s) => {
+      if (ziel === 'befund') {
+        const b = s.labor.find((l) => l.id === bezug);
+        if (!b || !(BEFUND_ANTWORTEN[feld] || []).includes(wert)) return;
+        b[feld] = wert;
+        if (feld === 'praxis') b.praxisAm = heute;
+        geschrieben = true;
+      } else if (ziel === 'profil') {
+        if (!(PROFIL_ANTWORTEN[feld] || []).includes(wert)) return;
+        s.profil[feld] = wert;
+        geschrieben = true;
+      } else if (ziel === 'nachfrage') {
+        s.nachfragen.push({ id: sp.kennung(), art: feld.toLowerCase(), bezug: String(bezug || '').slice(0, 40), antwort: wert, am: heute });
+        geschrieben = true;
+      }
+    });
+  }
+  // Nicht still neu zeichnen, als wäre alles gut: Die Frage stünde sonst
+  // einfach wieder da, und niemand wüsste warum.
+  if (!geschrieben) {
+    render();
+    meldung('Die Antwort ließ sich nicht speichern. Bitte laden Sie die Seite neu und antworten Sie noch einmal.');
+    return;
+  }
+  // F8 „Die Dosis wird geändert" auf der Dosis-Karte: wie „Die Praxis hat
+  // entschieden → Neue Dosis eintragen" gleich das Formular, mit „auf
+  // Anweisung der Praxis: ja". Ohne den Eintrag gab es weder die Erinnerung
+  // an die Kontrolle (D6c) noch INR (WW1) oder Blutzucker (WW2) (B27, B46).
+  // Die Karte bleibt darunter liegen – nach dem Speichern geht es zu ihr zurück.
+  if (ziel === 'befund' && feld === 'praxis' && wert === 'geaendert') {
+    zeigeSeite('dosis', 'praxis');
+    meldung(PRAXIS_NEUE_DOSIS);
+    return;
+  }
   render();
-  meldung('Antwort gespeichert');
   const karte = document.getElementById('dosis-karte');
   if (karte) {
+    // Auf der Dosis-Karte zeichnet sich die Karte sichtbar neu – mit der
+    // nächsten Frage oder der Richtung. Die Meldung unten deckte dort sonst
+    // sekundenlang Zeilen des Pflichttexts ab (B60).
     karte.scrollIntoView({ block: 'start' });
     karte.focus({ preventScroll: true });
+  } else {
+    meldung('Antwort gespeichert');
   }
 }
 
@@ -654,13 +756,18 @@ function rueckfrageSchliessen(bestaetigt) {
   }
 }
 
-/** Fehler am Feld zeigen, ohne die Eingaben zu verlieren. */
+/**
+ * Fehler am Feld zeigen, ohne die Eingaben zu verlieren. Ein Fehler ist ein
+ * Text – oder { text, knopf: { seite, param, text } }, wenn der Weg zur Lösung
+ * auf einer anderen Seite liegt (etwa: den vorhandenen Eintrag öffnen).
+ */
 function zeigeFehler(form, fehler) {
   if (!form) return;
   form.querySelectorAll('.feld-fehler').forEach((f) => f.remove());
   form.querySelectorAll('.feld.fehlt').forEach((f) => f.classList.remove('fehlt'));
   let erstes = null;
-  Object.entries(fehler || {}).forEach(([name, text]) => {
+  Object.entries(fehler || {}).forEach(([name, eintrag]) => {
+    const { text, knopf } = typeof eintrag === 'string' ? { text: eintrag, knopf: null } : eintrag;
     const feld = form.querySelector(`[name="${name}"]`);
     const huelle = feld ? feld.closest('.feld') : form.querySelector(`[data-feld="${name}"]`);
     const ziel = huelle || form;
@@ -669,6 +776,16 @@ function zeigeFehler(form, fehler) {
     p.className = 'feld-fehler';
     p.setAttribute('role', 'alert');
     p.textContent = text;
+    if (knopf) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'knopf knopf-klein';
+      b.dataset.act = 'seite';
+      b.dataset.seite = knopf.seite;
+      if (knopf.param) b.dataset.param = knopf.param;
+      b.textContent = knopf.text;
+      p.append(document.createElement('br'), b);
+    }
     ziel.appendChild(p);
     if (!erstes) erstes = feld || ziel;
   });
@@ -803,12 +920,23 @@ function einnahmezeitSetzen(wert) {
 
 // Neuer Tag, neuer Bildschirm: Wer die App abends offen liegen lässt, sieht
 // morgens sonst noch den Haken von gestern.
+// An einem neuen Tag geht es zurück zu „Heute" (B64) – außer mitten in einem
+// Formular, dessen Eingaben sonst verloren gingen.
 let gezeigterTag = heuteISO();
 function tagPruefen() {
   const jetzt = heuteISO();
   if (jetzt !== gezeigterTag) {
     gezeigterTag = jetzt;
-    if (!ui.seite) render();
+    const einrichten = !sp.getStand().profil.begruesst;
+    const imFormular = ui.seite && $ansicht.querySelector('form[data-formular]');
+    if (!einrichten && !imFormular) {
+      ui.seite = null;
+      ui.stapel = [];
+      ui.tab = 'heute';
+      reiterMerken('heute');
+      window.scrollTo(0, 0);
+      render();
+    }
   }
   tablettenHinweis();
 }

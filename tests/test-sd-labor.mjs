@@ -123,6 +123,11 @@ await page.fill('input[name=datum]', plus(TAG, -1));
 await page.fill('input[name=tsh_wert]', '2,5');
 await page.fill('input[name=tsh_bis]', '4,2');
 await page.click('button[type=submit]');
+// Gewollt geändert (Durchsicht B51, RW2 L3): Beim TSH fragt die App nach,
+// ob der Befund wirklich nur eine Grenze nennt – meist ist die zweite beim
+// Abschreiben weggefallen. Bestätigt, wird gespeichert wie bisher.
+check((await page.locator('dialog.rueckfrage').innerText()).includes('nur eine Grenze'), 'TSH mit nur einer Grenze: erst eine Rückfrage');
+await page.click('dialog.rueckfrage [data-act="befund-bestaetigen"]');
 s = await gespeichert();
 const einseitig = s.labor.find((x) => x.datum === plus(TAG, -1));
 check(einseitig && einseitig.tsh.von === null && einseitig.tsh.bis === 4.2, `nur die obere Grenze eingetragen: gespeichert (${JSON.stringify(einseitig && einseitig.tsh)})`);

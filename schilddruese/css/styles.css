@@ -61,6 +61,10 @@
 
 /* Schriftgröße: die Wurzel, und alles in rem folgt. */
 html { font-size: 20px; }
+/* Der Kopf klebt oben. Ein Sprung zu einer Stelle (neue Frage der
+   Dosis-Karte, der 112-Text nach „JETZT") landet unter ihm, nicht dahinter –
+   js/app.js misst seine Höhe als --kopf-h, sie wächst mit der Schrift. */
+html { scroll-padding-top: calc(var(--kopf-h, 4.5rem) + .5rem); }
 :root[data-schrift="normal"] { font-size: 18px; }
 :root[data-schrift="sehr-gross"] { font-size: 23px; }
 
@@ -317,9 +321,12 @@ body.ohne-leiste .ansicht { padding-bottom: calc(var(--safe-b) + 1.6rem); }
 .bereich-reihe input { flex: 1 1 0; min-width: 0; }
 body.ohne-leiste .meldung { bottom: calc(var(--safe-b) + 1rem); }
 
-/* Laborwert: Wert, Einheit, Bereich in einer Karte */
-.laborwert-kopf { display: flex; align-items: baseline; justify-content: space-between; }
-.laborwert-name { font-weight: 800; font-size: 1.1rem; }
+/* Laborwert: Wert, Einheit, Bereich in einer Karte. Bei „sehr groß" ragte die
+   Einheitenauswahl neben einem langen Namen („CRP (Entzündungswert)") über
+   den Kartenrand – dann rutscht sie in die nächste Zeile. */
+.laborwert-kopf { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: .3rem; }
+.laborwert-name { font-weight: 800; font-size: 1.1rem; min-width: 0; }
+.laborwert-kopf select { max-width: 100%; }
 
 /* ---------- Laborwerte als Karten ----------
    Eine Tabelle mit Datum, drei Werten und Dosis ist bei großer Schrift auf
@@ -393,6 +400,11 @@ table.werte td.zahl, table.werte th.zahl { text-align: right; }
 .hinweis-karte.gefahr { background: var(--gefahr-hell); border-color: var(--gefahr); }
 .hinweis-karte.ok { background: var(--ok-hell); border-color: var(--ok); }
 .hinweis-karte .ri { font-size: 1.3rem; flex: none; }
+/* Der Inhalt neben dem Zeichen darf schmaler werden als sein längstes Wort:
+   Ohne min-width: 0 lief die 112-Liste unter „Wann anrufen, wann 112" bei
+   „sehr groß" über den roten Rand („Körpertemperatur", „Unterversorgung"). */
+.hinweis-karte > div { min-width: 0; hyphens: auto; }
+.hinweis-karte ul { padding-left: 1.1rem; }
 
 .meldung {
   position: fixed;
@@ -530,7 +542,17 @@ a.knopf { text-decoration: none; }
   color: var(--akzent); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer;
   min-height: 2.5rem;
 }
-.anruf-reihe .knopf { flex: 1 1 12rem; }
+/* Anruf-Knöpfe umbrechen ihre Beschriftung, statt über den Kartenrand zu
+   ragen („Telefonseelsorge 0800 111 0 111" bei „sehr groß"). */
+.anruf-reihe .knopf { flex: 1 1 12rem; min-width: 0; max-width: 100%; white-space: normal; }
+/* „Bereitschaftsdienst" allein ist bei „sehr groß" so breit wie ein Knopf in
+   einer Liste. Dann fällt das Hörer-Zeichen weg (es ist nur Schmuck, die
+   Nummer steht im Text), und der Knopf wird innen schmaler; reicht es immer
+   noch nicht, bricht das Wort um, statt über den Rand zu laufen. */
+.knopf-text { min-width: 0; }
+.anruf-reihe .knopf { hyphens: auto; }
+:root[data-schrift="sehr-gross"] .anruf-reihe .knopf { padding-left: .5rem; padding-right: .5rem; }
+:root[data-schrift="sehr-gross"] .anruf-reihe .knopf > [aria-hidden="true"] { display: none; }
 
 /* ---------- W0: Notfallleiste oben auf „Heute" ---------- */
 .notfall-leiste {
@@ -550,6 +572,22 @@ a.knopf { text-decoration: none; }
   background: none; border: 0; padding: 0; font-size: inherit; font-family: inherit; cursor: pointer;
   text-decoration: underline; text-underline-offset: 2px;
 }
+/* Ohne Bundesland: neben 112 klein der Weg ins Profil – kein Notfallknopf. */
+.notfall-nummern .nummer-zusatz {
+  display: inline-flex; align-items: center; min-height: 44px;
+  background: none; border: 0; padding: 0 .2rem; font: inherit; font-size: .9em; cursor: pointer;
+  color: var(--akzent); text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* Bei „sehr groß" füllte die Leiste allein zwei Drittel des Bildschirms
+   (360 × 740), der Knopf für die Tablette lag darunter. Dieselben Nummern,
+   dichter gesetzt; js/ansicht-heute.js stellt den Knopf dann direkt darunter. */
+:root[data-schrift="sehr-gross"] .notfall-leiste { padding: .4rem .55rem .15rem; }
+:root[data-schrift="sehr-gross"] .notfall-text { font-size: .76rem; line-height: 1.25; margin-bottom: .3rem; }
+:root[data-schrift="sehr-gross"] .notfall-leiste .knopf-notruf { min-height: 2.3rem; font-size: 1rem; padding-top: .25rem; padding-bottom: .25rem; }
+:root[data-schrift="sehr-gross"] .notfall-nummern { font-size: .76rem; margin-top: .1rem; }
+:root[data-schrift="sehr-gross"] .notfall-nummern .nummer { min-height: 44px; }
+:root[data-schrift="sehr-gross"] .notfall-nummern > span { column-gap: .3rem; row-gap: 0; }
 
 /* Notfallzeile oben im Befinden (R2) und die große 112-Karte */
 .notfall-zeile { border: 2px solid var(--gefahr); border-radius: 14px; padding: .7rem .8rem; margin-bottom: 1rem; background: var(--gefahr-hell); }

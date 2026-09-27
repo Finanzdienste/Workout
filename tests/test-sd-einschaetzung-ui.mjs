@@ -46,9 +46,13 @@ const leiste = page.locator('#ansicht .notfall-leiste');
 check(await leiste.count() === 1, 'W0: die Notfallleiste steht auf „Heute"');
 check(await page.evaluate(() => document.querySelector('#ansicht').firstElementChild.classList.contains('notfall-leiste')
   || document.querySelector('#ansicht .notfall-leiste') === document.querySelector('#ansicht > *:not(.hinweis-karte)')), '… ganz oben');
-check(await leiste.locator('a[href="tel:112"]').count() === 1, '… mit 112 als Anruf-Knopf');
+check(await leiste.locator('a.knopf-notruf[href="tel:112"]').count() === 1, '… mit 112 als großem Anruf-Knopf');
 check(await leiste.locator('a[href="tel:116117"]').count() === 1 && await leiste.locator('a[href="tel:08001110111"]').count() === 1, '… und Bereitschaftsdienst und Telefonseelsorge als Anruf');
-check(await leiste.locator('[data-seite="profil"]').innerText() === 'Bundesland eintragen', 'ohne Bundesland: „Bundesland eintragen" statt einer Giftnotruf-Nummer');
+// Gewollt geändert (Durchsicht B48, RW1 P5 „Ohne Angabe: 112 anzeigen"):
+// Ohne Bundesland steht beim Giftnotruf 112 als Anruf – vorher nur ein Knopf
+// ins Profil. Der Weg zum Bundesland bleibt klein daneben.
+check(await leiste.locator('.giftnotruf a[href="tel:112"]').count() === 1, 'ohne Bundesland: beim Giftnotruf 112 als Anruf');
+check(await leiste.locator('[data-seite="profil"]').innerText() === 'Bundesland eintragen', '… und daneben „Bundesland eintragen"');
 check((await leiste.innerText()).includes('Brustschmerz, starker Atemnot, Ohnmacht, Lähmung, Sprachstörung oder plötzlicher Verwirrtheit'), 'der Satz, wann 112');
 
 check(await page.locator('#ansicht #p6').count() === 1, 'P6: ohne Bestätigung steht die Karte mit dem P6-Text auf „Heute"');

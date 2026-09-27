@@ -12,7 +12,7 @@
  * prüft und speichert. Beide werden in js/app.js nur über den Namen
  * angesprochen; ein Name, den es hier nicht gibt, liefert null.
  */
-import { heuteISO, tageWeiter, istISO, istUhr, zahlAus, datumInWorten, uhrText, jetztUhr } from './datum.js';
+import { heuteISO, tageWeiter, istISO, istUhr, zahlAus, datumInWorten, datumKurz, uhrText, jetztUhr } from './datum.js';
 import { esc } from './text.js';
 import * as sp from './speicher.js';
 import * as ez from './einschaetzung.js';
@@ -102,14 +102,37 @@ function dosisFormular(id, stand, heute) {
   };
 }
 
+/**
+ * Dieselbe Tablette in derselben Menge – kein Wechsel, nur ein zweiter
+ * Eintrag (wie aenderungsArt 'doppelt' in js/dosis.js).
+ */
+function gleicheDosis(a, b) {
+  const name = (x) => String(x.praeparat || '').trim().toLowerCase();
+  return name(a) === name(b) && a.mikrogramm === b.mikrogramm && a.tabletten === b.tabletten;
+}
+
 function dosisAbsenden(id, f, heute) {
+  const stand = sp.getStand();
   const fehler = {};
   const mikrogramm = zahlAus(f.get('mikrogramm'));
   if (mikrogramm === null || mikrogramm <= 0) fehler.mikrogramm = 'Bitte die Stärke in µg eintragen, z. B. 75.';
   else if (mikrogramm < 5 || mikrogramm > 400) fehler.mikrogramm = 'Bitte prüfen: Übliche Stärken liegen zwischen 12,5 und 300 µg. Steht eine andere Zahl auf der Packung, prüfen Sie die Einheit.';
+  const da = id ? stand.dosen.find((d) => d.id === id) : null;
+  const andere = stand.dosen.filter((d) => d !== da);
   const ab = f.get('ab');
   if (!istISO(ab)) fehler.ab = 'Bitte ein Datum wählen.';
   else if (ab > tageWeiter(heute, 365)) fehler.ab = 'Das Datum liegt weit in der Zukunft.';
+  // Eine Dosis, die erst künftig beginnt, ohne eine, die heute gilt: Dann
+  // zählte keine Einnahme, der Bericht sagte „Noch keine Einnahmen erfasst",
+  // und die Dosis-Karte verlangte eine Dosis, die eingetragen ist (B54).
+  // Ein künftiger Tag gilt nur für eine geplante Änderung.
+  else if (ab > heute && !andere.some((d) => d.ab <= heute)) fehler.ab = 'Bitte tragen Sie den Tag ein, seit dem Sie diese Tablette nehmen – ungefähr genügt. Ein Tag in der Zukunft geht nur für eine geplante Änderung.';
+  // Ab der zweiten Dosis zählt, ob die Praxis sie angeordnet hat (Bericht,
+  // Hinweise B2 und X3). Offen gelassen hieß es bisher still „unbekannt" –
+  // und „unbekannt" darf nicht als „nein" gelten (B23). Deshalb Pflicht.
+  const mitQuelle = da ? stand.dosen.indexOf(da) >= 1 : stand.dosen.length >= 1;
+  const quelle = f.get('praxis');
+  if (mitQuelle && quelle !== 'ja' && quelle !== 'nein') fehler.praxis = 'Bitte „Ja" oder „Nein" wählen: Hat die Praxis diese Dosis angeordnet?';
   if (Object.keys(fehler).length) return { ok: false, fehler };
   const eintrag = {
     praeparat: String(f.get('praeparat') || '').trim().slice(0, 80),
@@ -117,13 +140,43 @@ function dosisAbsenden(id, f, heute) {
     tabletten: zahlAus(f.get('tabletten')) || 1,
     ab,
     notiz: String(f.get('notiz') || '').trim().slice(0, 300),
-    praxis: f.get('praxis') === 'ja' ? true : f.get('praxis') === 'nein' ? false : null,
+    praxis: quelle === 'ja' ? true : quelle === 'nein' ? false : null,
   };
+  /*
+   * Ein neuer Eintrag, der genau dem davor oder danach gleicht, ist keine
+   * Änderung – sähe aber so aus: „Ihre Dosis wurde geändert", Kontrolle nach
+   * 6–8 Wochen, bei TSH 0,08 gar „Kein besonderer Anlass" (B59, B32). Meist
+   * stimmt nur der Beginn des vorhandenen Eintrags nicht (beim Einrichten
+   * blieb „Seit wann?" auf heute). Dann dort „Gilt ab" ändern.
+   */
+  if (!da) {
+    const vorher = [...andere].reverse().find((d) => d.ab <= ab);
+    const danach = andere.find((d) => d.ab > ab);
+    const gleich = vorher && gleicheDosis(vorher, eintrag) ? vorher : danach && gleicheDosis(danach, eintrag) ? danach : null;
+    if (gleich) {
+      const text = gleich === danach
+        ? `Genau diese Dosis ist schon ab ${datumKurz(gleich.ab)} eingetragen. Nehmen Sie sie schon seit dem ${datumKurz(ab)}, ändern Sie beim vorhandenen Eintrag „Gilt ab" – ein zweiter gleicher Eintrag sähe aus wie eine Änderung der Dosis.`
+        : `Genau diese Dosis ist schon seit dem ${datumKurz(gleich.ab)} eingetragen. Ein zweiter gleicher Eintrag sähe aus wie eine Änderung der Dosis. Stimmt der Tag nicht, ändern Sie „Gilt ab" beim vorhandenen Eintrag.`;
+      return { ok: false, fehler: { ab: { text, knopf: { seite: 'dosis', param: gleich.id, text: 'Vorhandenen Eintrag ändern' } } } };
+    }
+  }
   sp.aendern((s) => {
-    const da = id ? s.dosen.find((d) => d.id === id) : null;
-    if (da) Object.assign(da, eintrag);
-    else s.dosen.push({ id: sp.kennung(), ...eintrag });
+    const alt = id ? s.dosen.find((d) => d.id === id) : null;
+    // Steht auf der Dosis-Karte „Nein, ich nehme etwas anderes", ist dieser
+    // Eintrag die Berichtigung – keine neue Anordnung. Das bleibt am Eintrag
+    // stehen, auch wenn die Antwort gleich wegfällt; sonst hielte die Karte
+    // ihn bei „Auf Anweisung der Praxis: Ja" für eine beschlossene Änderung
+    // und meldete „Kein besonderer Anlass" (Nachprüfung zu B26).
+    const berichtigung = s.nachfragen.some((n) => n.art === 'dosis_stimmt' && /^nein/.test(n.antwort));
+    if (alt) Object.assign(alt, eintrag, berichtigung ? { berichtigung: true } : {});
+    else s.dosen.push({ id: sp.kennung(), ...eintrag, berichtigung });
     s.dosen.sort((a, b) => a.ab.localeCompare(b.ab));
+    // X3 (1) „Nein, ich nehme etwas anderes": Mit dem Eintrag ist die
+    // Aufforderung erfüllt. Die Antwort fällt weg, und die Dosis-Karte fragt
+    // mit der eingetragenen Dosis neu. Ein Datumsvergleich genügt nicht –
+    // der berichtigte Eintrag beginnt oft vor der Antwort, und alte Antworten
+    // „nein" nennen keine Menge (B26, B63).
+    s.nachfragen = s.nachfragen.filter((n) => !(n.art === 'dosis_stimmt' && /^nein/.test(n.antwort)));
   });
   return { ok: true, meldung: 'Dosis gespeichert' };
 }
@@ -135,6 +188,93 @@ function wertAus(roh) {
   const t = String(roh || '').trim();
   const unter = /^[<＜]/.test(t);
   return { wert: zahlAus(unter ? t.replace(/^[<＜]\s*/, '') : t), unter };
+}
+
+/*
+ * Eine Grenze des Bereichs, so wie sie auf dem Befund steht: „0,27",
+ * „< 4,2", „bis 4,2", „4,2 mU/l", „> 20" – oder beide in einem Feld,
+ * „0,27 – 4,20". Vorher lief das Feld nur durch zahlAus, und was es nicht
+ * lesen konnte, wurde still zu „keine Grenze": Aus „< 4,2" wurde ein
+ * einseitiger Bereich, und TSH 8 galt als „im Bereich" (B51).
+ *
+ * → { leer } | { von } | { bis } | { zahl } (Richtung aus dem Feld) |
+ *   { von, bis } | { fehler }. Eine Grenze ist nie negativ – ein Strich
+ * davor heißt „bis", einer dahinter „ab" (wie auf manchen Befunden „– 4,2").
+ */
+const ZAHL_RE = '(\\d+(?:[.,]\\d+)?|[.,]\\d+)';
+function grenzeLesen(roh) {
+  let t = String(roh ?? '').trim().replace(/[–—−]/g, '-').replace(/\s+/g, ' ');
+  if (!t) return { leer: true };
+  // Eine angehängte Einheit („4,2 mU/l", „5,7 %") fällt weg – die Einheit steht im Menü darüber.
+  t = t.replace(/\s*[A-Za-zµμ%][A-Za-zµμ%/.\d]*$/u, '').trim();
+  let m = new RegExp(`^${ZAHL_RE} ?(?:-|bis) ?${ZAHL_RE}$`, 'i').exec(t);
+  if (m) return { von: zahlAus(m[1]), bis: zahlAus(m[2]) };
+  m = new RegExp(`^(?:<=?|≤|＜|-|bis|unter) ?${ZAHL_RE}$`, 'i').exec(t);
+  if (m) return { bis: zahlAus(m[1]) };
+  m = new RegExp(`^(?:>=?|≥|＞|ab|über|ueber) ?${ZAHL_RE}$`, 'i').exec(t) || new RegExp(`^${ZAHL_RE} ?-$`).exec(t);
+  if (m) return { von: zahlAus(m[1]) };
+  m = new RegExp(`^${ZAHL_RE}$`).exec(t);
+  if (m) return { zahl: zahlAus(m[1]) };
+  return { fehler: true };
+}
+
+/**
+ * Beide Felder zusammen: { von, bis, fehler: { feld: text } }. Was in „von"
+ * als „< 4,2" steht, ist die obere Grenze – so, wie es gemeint ist. Stehen
+ * für dieselbe Grenze zwei verschiedene Zahlen da, fragt das Feld nach.
+ */
+function bereichAus(key, name, vonRoh, bisRoh) {
+  const a = grenzeLesen(vonRoh);
+  const b = grenzeLesen(bisRoh);
+  const fehler = {};
+  const beispiel = key === 'tsh' ? 'z. B. 0,27 und 4,20' : 'z. B. 12 und 22';
+  if (a.fehler) fehler[`${key}_von`] = `${name}: Bitte nur die Zahl vom Befund eintragen, ${beispiel}.`;
+  if (b.fehler) fehler[`${key}_bis`] = `${name}: Bitte nur die Zahl vom Befund eintragen, ${beispiel}.`;
+  const von = [a.von ?? a.zahl, b.von].filter((x) => x !== undefined && x !== null);
+  const bis = [a.bis, b.bis ?? b.zahl].filter((x) => x !== undefined && x !== null);
+  if (new Set(von).size > 1 || new Set(bis).size > 1) fehler[`${key}_von`] = `${name}: Bitte prüfen – für den Bereich stehen zwei verschiedene Angaben da.`;
+  return { von: von.length ? von[0] : null, bis: bis.length ? bis[0] : null, fehler };
+}
+
+/*
+ * Ein Befund je Abnahmetag. Wird ein nachgereichter Wert (etwa fT4) als
+ * eigener Befund am selben Tag eingetragen, rechnete die Einschätzung nur mit
+ * einem der beiden – TSH 7 und fT4 5 ergaben dann nicht Muster b mit „in den
+ * nächsten Tagen" und dem 112-Satz (B52). Jetzt kommt der neue Eintrag zum
+ * vorhandenen dazu: leere Werte und offene Fragen werden gefüllt. Sagen beide
+ * bei derselben Angabe Verschiedenes, wird nichts still überschrieben.
+ *
+ * → { zusammen, widerspruch: [Namen] }
+ */
+const FRAGEN_FELDER = ['vorAbnahme', 'biotin', 'krank', 'kortison', 'kontrastmittel', 'mittelGeaendert', 'einnahmeGeaendert', 'packung', 'abstandOk', 'vergessen', 'einnahmeArt', 'praxis'];
+function befundeZusammen(alt, neu) {
+  const zusammen = {};
+  const widerspruch = [];
+  [...sp.LABORWERTE, ...sp.WEITERE_WERTE].forEach(([key, name]) => {
+    const a = alt[key];
+    const n = neu[key];
+    if (!n || !a) { zusammen[key] = a || n || null; return; }
+    const gleich = a.wert === n.wert && a.einheit === n.einheit && a.unter === n.unter
+      && (a.von === null || n.von === null || a.von === n.von) && (a.bis === null || n.bis === null || a.bis === n.bis);
+    if (!gleich) { widerspruch.push(name.replace(/ \(.*\)$/, '')); zusammen[key] = a; return; }
+    zusammen[key] = { ...a, von: a.von ?? n.von, bis: a.bis ?? n.bis };
+  });
+  FRAGEN_FELDER.forEach((k) => {
+    if (neu[k] && alt[k] && neu[k] !== alt[k]) {
+      const frage = BEFUND_FRAGEN.find((q) => q.feld === k);
+      widerspruch.push(frage ? frage.kurz : k);
+    }
+    zusammen[k] = alt[k] || neu[k] || '';
+  });
+  zusammen.praxisAm = alt.praxis ? alt.praxisAm : neu.praxisAm;
+  ['abnahmeUhr', 'tabletteUhr', 'laborName'].forEach((k) => {
+    if (neu[k] && alt[k] && neu[k] !== alt[k]) widerspruch.push({ abnahmeUhr: 'Uhrzeit der Abnahme', tabletteUhr: 'Uhrzeit der Tablette', laborName: 'Name des Labors' }[k]);
+    zusammen[k] = alt[k] || neu[k] || '';
+  });
+  zusammen.notiz = [alt.notiz, neu.notiz].filter(Boolean).filter((x, i, l) => l.indexOf(x) === i).join(' · ').slice(0, 300);
+  zusammen.verwechselt = alt.verwechselt || '';
+  zusammen.datum = alt.datum;
+  return { zusammen, widerspruch };
 }
 
 const WERT_PLATZ = { tsh: 'z. B. 2,1', ft4: 'z. B. 15,2', ft3: 'z. B. 4,8' };
@@ -239,6 +379,10 @@ function laborAbsenden(id, f, heute) {
     praxis,
     // Das Datum der Praxis-Angabe: neu gesetzt, wenn sie sich ändert.
     praxisAm: praxis ? (da && da.praxis === praxis && da.praxisAm ? da.praxisAm : heute) : null,
+    // Q5 steht nicht im Formular, sondern auf der Dosis-Karte – das Feld muss
+    // trotzdem von Anfang an da sein. Vorher legte es erst normStand beim
+    // nächsten Laden an, und bis dahin ließ sich Q5 nicht beantworten (B39).
+    verwechselt: da && typeof da.verwechselt === 'string' ? da.verwechselt : '',
   };
   ['vorAbnahme', 'biotin', 'krank', 'kortison', 'kontrastmittel', 'mittelGeaendert', 'einnahmeGeaendert', 'packung', 'abstandOk']
     .forEach((k) => { eintrag[k] = auswahl(f.get(k), JNW_WERTE); });
@@ -249,11 +393,12 @@ function laborAbsenden(id, f, heute) {
   [...sp.LABORWERTE, ...sp.WEITERE_WERTE].forEach(([key, name]) => {
     const rohWert = String(f.get(`${key}_wert`) || '').trim();
     const { wert, unter } = wertAus(rohWert);
-    const von = zahlAus(f.get(`${key}_von`));
-    const bis = zahlAus(f.get(`${key}_bis`));
+    const bereich = bereichAus(key, name.replace(/ \(.*\)$/, ''), f.get(`${key}_von`), f.get(`${key}_bis`));
+    const { von, bis } = bereich;
     if (rohWert && wert === null) fehler[`${key}_wert`] = `${name}: Bitte eine Zahl eintragen, z. B. 2,1.`;
     if (wert === null) { eintrag[key] = null; return; }
     if (wert < 0) fehler[`${key}_wert`] = `${name}: Der Wert kann nicht negativ sein.`;
+    Object.assign(fehler, bereich.fehler);
     // Ein Bereich darf einseitig sein („< 116") – so, wie er auf dem Befund steht.
     if (von !== null && bis !== null && von >= bis) fehler[`${key}_von`] = `${name}: „von" muss kleiner sein als „bis".`;
     einer = true;
@@ -262,21 +407,53 @@ function laborAbsenden(id, f, heute) {
   if (!einer && !Object.keys(fehler).length) fehler.tsh_wert = 'Bitte mindestens einen Wert eintragen.';
   if (Object.keys(fehler).length) return { ok: false, fehler };
 
+  // Ein Befund je Abnahmetag (B52): Ein neuer Eintrag kommt zum vorhandenen
+  // dazu. Wird ein vorhandener Befund auf einen belegten Tag verlegt, nicht –
+  // dann hilft nur, den anderen zu öffnen. Bleibt sein Tag, wie er war, lässt
+  // er sich ändern wie bisher (auch wenn ein älterer Stand zwei an einem Tag hat).
+  const amTag = stand.labor.find((l) => l.datum === datum && l.id !== id && (!da || da.datum !== datum)) || null;
+  let ziel = eintrag;
+  if (amTag) {
+    const oeffnen = { seite: 'labor', param: amTag.id, text: `Befund vom ${datumKurz(datum)} öffnen` };
+    if (id) return { ok: false, fehler: { datum: { text: `Für den ${datumKurz(datum)} gibt es schon einen Befund. Tragen Sie die Werte bitte dort ein – oder wählen Sie ein anderes Datum.`, knopf: oeffnen } } };
+    const { zusammen, widerspruch } = befundeZusammen(amTag, eintrag);
+    if (widerspruch.length) {
+      return { ok: false, fehler: { datum: { text: `Für den ${datumKurz(datum)} gibt es schon einen Befund, und er sagt bei ${widerspruch.join(', ')} etwas anderes. Bitte prüfen Sie den vorhandenen Befund und ändern Sie ihn dort.`, knopf: oeffnen } } };
+    }
+    ziel = zusammen;
+  }
+  const bezug = amTag || da;
+
   // Plausibilität (js/einheiten.js): Fehler verhindern das Speichern,
-  // Rückfragen brauchen ein ausdrückliches „Ja, stimmt".
-  const pruefung = befundPruefen({ id: id || '', ...eintrag }, stand, heute);
+  // Rückfragen brauchen ein ausdrückliches „Ja, stimmt". Beim Zusammenführen
+  // fragt die App nicht noch einmal, was beim vorhandenen Befund schon bestätigt war.
+  const pruefung = befundPruefen({ id: bezug ? bezug.id : '', ...ziel }, stand, heute);
   if (pruefung.fehler.length) return { ok: false, fehler: { oben: pruefung.fehler.join(' ') } };
+  const schonBestaetigt = amTag && amTag.bestaetigt ? befundPruefen(amTag, stand, heute).rueckfragen : [];
+  const kernFragen = pruefung.rueckfragen.filter((r) => !schonBestaetigt.includes(r));
+  const rueckfragen = [...kernFragen];
+  // RW2 L3: TSH braucht beide Grenzen. Steht nur eine da, nachfragen – meist
+  // ist die zweite beim Abschreiben weggefallen. Nur hier in der Oberfläche:
+  // Als Rückfrage im Kern (befundPruefen) machte sie den Befund „unplausibel",
+  // und die Dosis-Karte sperrte zusätzlich mit D0.3. Schon so gespeichert und
+  // unverändert: nicht noch einmal.
+  const t = ziel.tsh;
+  const tshAlt = bezug && bezug.tsh;
+  if (t && (t.von === null) !== (t.bis === null) && !(tshAlt && tshAlt.von === t.von && tshAlt.bis === t.bis)) {
+    rueckfragen.push('TSH: Es ist nur eine Grenze des Bereichs eingetragen. Auf den meisten Befunden stehen beide (z. B. 0,27–4,20) – dann tragen Sie bitte beide ein, sonst kann die App TSH nur eingeschränkt einordnen.');
+  }
   const bestaetigt = f.get('bestaetigt') === 'ja';
-  if (pruefung.rueckfragen.length && !bestaetigt) return { ok: false, rueckfragen: pruefung.rueckfragen };
-  eintrag.bestaetigt = pruefung.rueckfragen.length > 0;
+  if (rueckfragen.length && !bestaetigt) return { ok: false, rueckfragen };
+  // „bestätigt" meint die Rückfragen des Kerns (plausibel()), nicht die nach der zweiten Grenze.
+  ziel.bestaetigt = Boolean(amTag && amTag.bestaetigt) || kernFragen.length > 0;
 
   sp.aendern((s) => {
-    const alt = id ? s.labor.find((l) => l.id === id) : null;
-    if (alt) Object.assign(alt, eintrag);
-    else s.labor.push({ id: sp.kennung(), ...eintrag });
+    const alt = bezug ? s.labor.find((l) => l.id === bezug.id) : null;
+    if (alt) Object.assign(alt, ziel);
+    else s.labor.push({ id: sp.kennung(), ...ziel });
     s.labor.sort((a, b) => a.datum.localeCompare(b.datum));
   });
-  return { ok: true, meldung: 'Laborwerte gespeichert', danach: { name: 'labor-liste' } };
+  return { ok: true, meldung: amTag ? `Zum Befund vom ${datumKurz(datum)} hinzugefügt` : 'Laborwerte gespeichert', danach: { name: 'labor-liste' } };
 }
 
 // ---------------------------------------------------------------- Gewicht
@@ -359,8 +536,12 @@ function befindenFormular(id, stand, heute) {
   };
 }
 
-/** Beschwerden, nach denen die App sofort etwas sagt – oder eine Notfall-Notiz. */
-const SOFORT = ['lebensmuede', 'puls', 'herz'];
+/*
+ * Beschwerden, nach denen die App sofort etwas sagt – oder eine
+ * Notfall-Notiz. „Ungewollt abgenommen" gehört dazu (W2t: in den nächsten
+ * Tagen anrufen) – ungewollter Gewichtsverlust ist im Alter ein Warnzeichen.
+ */
+const SOFORT = ['lebensmuede', 'puls', 'herz', 'abnahme'];
 
 function befindenAbsenden(id, f, heute) {
   const fehler = {};
@@ -610,8 +791,9 @@ function profilFormular(id, stand, heute) {
               <input type="text" inputmode="decimal" name="zielBis" value="${esc(zahlFeld(p.zielBis))}" placeholder="bis" aria-label="Zielbereich bis (mU/l)" autocomplete="off">
               <span>mU/l</span>
             </div>
-            <span class="hinweis">Er hat in der App Vorrang vor dem Bereich des Labors und vor den Altersregeln.${p.zielAm ? ` Eingetragen am ${esc(datumInWorten(p.zielAm, { jahr: true }))}.` : ''}</span>
+            <span class="hinweis">Er hat in der App Vorrang vor dem Bereich des Labors und vor den Altersregeln.${p.zielAm ? ` Eingetragen oder bestätigt am ${esc(datumInWorten(p.zielAm, { jahr: true }))}.` : ''}</span>
           </div>
+          ${ziel || p.zielNiedrig === 'ja' ? '<label class="haken haken-breit" style="margin-bottom:.9rem"><input type="checkbox" name="zielBestaetigt">Die Praxis hat mir diesen Zielbereich gerade bestätigt</label>' : ''}
           ${wahlFrage('zielNiedrig', p.zielNiedrig, 'Hat Ihre Ärztin gesagt, dass Ihr TSH bewusst niedrig gehalten werden soll?')}
         </fieldset>
 
@@ -667,8 +849,12 @@ function profilAbsenden(id, f, heute) {
     const von = zielRoh ? zielVon : null;
     const bis = zielRoh ? zielBis : null;
     const niedrig = jnw('zielNiedrig');
-    // Ein Zielbereich altert still – mit Datum, wann er eingetragen wurde.
-    if (von !== p.zielVon || bis !== p.zielBis || niedrig !== p.zielNiedrig) p.zielAm = von !== null || niedrig === 'ja' ? heute : null;
+    // Ein Zielbereich altert still – mit Datum, wann er eingetragen oder
+    // zuletzt von der Praxis bestätigt wurde. Vorher ließ sich eine
+    // Bestätigung nicht festhalten, und „Gilt Ihr Zielbereich noch?" blieb
+    // für immer stehen (B55).
+    const bestaetigt = f.get('zielBestaetigt') === 'on';
+    if (von !== p.zielVon || bis !== p.zielBis || niedrig !== p.zielNiedrig || bestaetigt) p.zielAm = von !== null || niedrig === 'ja' ? heute : null;
     p.zielVon = von;
     p.zielBis = bis;
     p.zielNiedrig = niedrig;

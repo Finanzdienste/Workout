@@ -21,6 +21,7 @@
  * deshalb ohne esc(); nur was aus einem anderen Modul kommt, wird entschärft.
  */
 import { esc } from './text.js';
+import * as sp from './speicher.js';
 import { VOR_ABNAHME } from './dosis.js';
 
 /** E14: auch im Formular „Über mich & weitere Mittel". */
@@ -224,7 +225,8 @@ export const KAPITEL = [
       <p>Ärztlicher Bereitschaftsdienst: <strong>116 117</strong>.</p>
       <p><a class="knopf knopf-breit" href="tel:116117">116 117 anrufen</a></p>
       <h2>Zu viele Tabletten genommen</h2>
-      <p>Arzt oder Giftnotruf. Der Giftnotruf ist in Deutschland regional organisiert, zum Beispiel Berlin 030 19240. Tragen Sie unter „Über mich" Ihr Bundesland ein, dann steht Ihre Nummer oben auf „Heute".</p>
+      <p>Arzt oder Giftnotruf. Der Giftnotruf ist in Deutschland regional organisiert.</p>
+      <!--giftnotruf-->
       <h2>In den nächsten Tagen die Praxis anrufen</h2>
       <ul>
         <li>neue, anhaltende Beschwerden aus „Anzeichen: zu wenig oder zu viel"</li>
@@ -279,4 +281,25 @@ export const KAPITEL = [
 
 export function kapitel(id) {
   return KAPITEL.find((k) => k.id === id) || null;
+}
+
+/*
+ * Der Giftnotruf im Kapitel „Wann anrufen, wann 112": die Nummer fürs
+ * eingetragene Bundesland als Knopf. Vorher stand dort nur „zum Beispiel
+ * Berlin 030 19240" – wer in Bayern wohnt, las die falsche Nummer (B67).
+ * Ohne Bundesland: 112 (RW1 P5) – der Knopf steht oben im Kapitel.
+ */
+function giftnotrufAbsatz(stand) {
+  const land = stand ? sp.BUNDESLAENDER.find(([k]) => k === stand.profil.bundesland) : null;
+  if (!land) {
+    return '<p>Ohne eingetragenes Bundesland kennt die App Ihre Giftnotruf-Nummer nicht – dann rufen Sie 112 an. Tragen Sie unter „Über mich" Ihr Bundesland ein, dann steht die Nummer hier und oben auf „Heute". <button type="button" class="knopf-link" data-act="seite" data-seite="profil">Bundesland eintragen</button></p>';
+  }
+  const nummer = land[2];
+  return `<p>Für ${esc(land[1])}: <strong>${esc(nummer)}</strong>.</p>
+      <p><a class="knopf knopf-breit knopf-anruf" href="tel:${esc(nummer.replace(/[^\d+]/g, ''))}">Giftnotruf ${esc(nummer)} anrufen</a></p>`;
+}
+
+/** Das HTML eines Kapitels – mit dem, was vom eingetragenen Stand abhängt. */
+export function kapitelHtml(k, stand) {
+  return k.html.replace('<!--giftnotruf-->', giftnotrufAbsatz(stand));
 }

@@ -75,8 +75,8 @@ export function willkommenAnsicht(schritt, stand, heute) {
         </label>
         ${tablettenWahl(d.tabletten)}
         <label class="feld"><span>Seit wann ungefähr?</span>
-          <input type="date" name="ab" value="${esc(d.ab)}">
-          <span class="hinweis">Wenn unbekannt: heute lassen. Ab diesem Tag zählt die App die Einnahmen.</span>
+          <input type="date" name="ab" value="${esc(d.ab)}" max="${esc(heute)}">
+          <span class="hinweis">Wenn Sie es nicht genau wissen: ungefähr schätzen – nur wenn Sie heute neu beginnen, heute lassen. Damit ordnet die App Ihre Laborwerte der richtigen Dosis zu.</span>
         </label>
         <div class="formular-fuss">
           <button type="button" class="knopf knopf-haupt knopf-breit" data-act="willkommen-weiter">Weiter</button>
@@ -127,6 +127,10 @@ export function willkommenWeiter(schritt, form, heute) {
     else if (mikrogramm !== null && (mikrogramm < 5 || mikrogramm > 400)) fehler.mikrogramm = 'Bitte prüfen: Übliche Stärken liegen zwischen 12,5 und 300 µg. Steht eine andere Zahl auf der Packung, prüfen Sie die Einheit.';
     let ab = f.get('ab');
     if (!istISO(ab)) ab = heute;
+    // Ein Tag in der Zukunft (Jahr vertippt) ließ keine Einnahme zählen, der
+    // Bericht sagte „Noch keine Einnahmen erfasst", und die Dosis-Karte
+    // verlangte eine Dosis, die schon eingetragen war (B54).
+    else if (ab > heute) fehler.ab = 'Dieser Tag liegt in der Zukunft. Bitte den Tag eintragen, seit dem Sie die Tablette nehmen – ungefähr genügt.';
     if (Object.keys(fehler).length) return { ok: false, fehler };
     const eintrag = {
       praeparat: String(f.get('praeparat') || '').trim().slice(0, 80),

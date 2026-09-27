@@ -96,6 +96,22 @@ function kopf(name) {
   ];
 }
 
+/*
+ * Was in der Erinnerung steht, richtet sich nach der Uhrzeit: Wer die
+ * Tablette nach Absprache mit der Praxis abends nimmt (RW2 E15), bekam um
+ * 22 Uhr „Frühstück frühestens eine halbe Stunde später" – und nichts über den
+ * Abstand zur letzten Mahlzeit (B57). Abends gilt deshalb der Satz aus M3
+ * (ab 17 Uhr wie „Was braucht Abstand?"), tagsüber ein neutraler – kein Rat,
+ * danach nichts mehr zu essen: Mittags hieße das, das Abendessen wegzulassen.
+ */
+const MORGENS = 'Nüchtern, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später.';
+const TAGSUEBER = 'Mit einem Glas Wasser, jeden Tag zur gleichen Zeit. Essen und andere Mittel mit Abstand – siehe „Was braucht Abstand?" in der App.';
+const ABENDS = 'Mit einem Glas Wasser, frühestens 2 bis 3 Stunden nach der letzten Mahlzeit – jeden Tag gleich, so wie mit der Praxis besprochen.';
+export const erinnerungText = (uhr) => {
+  const h = Number(String(uhr).slice(0, 2));
+  return h >= 17 ? ABENDS : h >= 11 ? TAGSUEBER : MORGENS;
+};
+
 /**
  * Die tägliche Erinnerung: ein Termin ab `abISO` um `uhr`, jeden Tag, mit
  * Alarm zur vollen Zeit. Fünfzehn Minuten lang – ein Kalender ohne Dauer
@@ -114,7 +130,7 @@ export function erinnerungICS({ abISO, uhr, text = 'Schilddrüsentablette nehmen
     `DTEND:${ende}`,
     'RRULE:FREQ=DAILY',
     falten(`SUMMARY:${entschaerfen(text)}`),
-    falten(`DESCRIPTION:${entschaerfen(notiz || 'Nüchtern, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später.')}`),
+    falten(`DESCRIPTION:${entschaerfen(notiz || erinnerungText(uhr))}`),
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
     falten(`DESCRIPTION:${entschaerfen(text)}`),

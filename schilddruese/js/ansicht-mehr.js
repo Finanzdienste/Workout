@@ -9,7 +9,7 @@ import { datumInWorten, datumKurz, relativ, uhrText, tageZwischen } from './datu
 import { esc, mehrzahl } from './text.js';
 import * as sp from './speicher.js';
 import { berichtText } from './bericht.js';
-import { KAPITEL, kapitel } from './wissen.js';
+import { KAPITEL, kapitel, kapitelHtml } from './wissen.js';
 
 const zeile = (seite, titel, unter, param = null, ri = '') => `
   <button type="button" class="zeile" data-act="seite" data-seite="${seite}"${param ? ` data-param="${esc(param)}"` : ''}>
@@ -132,7 +132,7 @@ function wissenSeite() {
   };
 }
 
-function kapitelSeite(id) {
+function kapitelSeite(id, stand) {
   const k = kapitel(id);
   if (!k) return null;
   const i = KAPITEL.indexOf(k);
@@ -140,7 +140,7 @@ function kapitelSeite(id) {
   return {
     titel: k.titel,
     html: `
-      <article class="karte wissen">${k.html}</article>
+      <article class="karte wissen">${kapitelHtml(k, stand)}</article>
       <p class="klein gedaempft">Im Zweifel: Ihre Ärztin, Ihr Arzt oder die Apotheke. Diese App ersetzt keine ärztliche Beratung.</p>
       ${weiter ? `<div class="knopf-reihe"><button type="button" class="knopf knopf-breit" data-act="seite" data-seite="wissen-kapitel" data-param="${weiter.id}">Weiter: ${esc(weiter.titel)} ›</button></div>` : ''}`,
   };
@@ -263,7 +263,7 @@ export function mehrSeite(name, param, stand, heute) {
     case 'fragen': return fragenSeite(stand);
     case 'termine': return termineSeite(stand, heute);
     case 'wissen': return wissenSeite();
-    case 'wissen-kapitel': return kapitelSeite(param);
+    case 'wissen-kapitel': return kapitelSeite(param, stand);
     case 'erinnerung': return erinnerungSeite(stand);
     case 'darstellung': return darstellungSeite(stand);
     case 'sicherung': return sicherungSeite(stand, heute);

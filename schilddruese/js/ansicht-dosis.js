@@ -19,7 +19,7 @@ import { datumKurz, zahlText } from './datum.js';
 import { esc } from './text.js';
 import * as ez from './einschaetzung.js';
 import { dosisRichtung } from './dosis.js';
-import { stufeSchild, STUFE_KLASSE, p6Karte, beschwerdeKnoepfe, anrufKnopf } from './ansicht-einschaetzung.js';
+import { stufeSchild, STUFE_KLASSE, p6Karte, beschwerdeKnoepfe, anrufKnopf, anrufReihe, rang } from './ansicht-einschaetzung.js';
 
 const PRAXIS_WAHL = [
   ['bleibt', 'Die Dosis bleibt so'],
@@ -27,9 +27,20 @@ const PRAXIS_WAHL = [
   ['nachmessen', 'Erst nachmessen'],
 ];
 export const PRAXIS_BESTAETIGUNG = 'Gut. Es gilt, was die Praxis gesagt hat. Die App zeigt zu diesem Befund keine Richtung mehr und erinnert Sie an die Kontrolle.';
+/*
+ * „Die Dosis wird geändert": Die Erinnerung an die Kontrolle hängt am neuen
+ * Dosis-Eintrag (D6c) – bevor er da ist, darf die Meldung sie nicht versprechen.
+ */
+export const PRAXIS_NEUE_DOSIS = 'Gut. Bitte tragen Sie jetzt die neue Dosis ein, die die Praxis festgelegt hat – dann erinnert die App an die Kontrolle.';
 
-/** Anruf-Knöpfe unter einem Grund, der eine Nummer nennt: seelische Not, Notruf. */
+/*
+ * Anruf-Knöpfe unter einem Grund. Jeder Grund bringt seine Nummern mit
+ * (js/dosis.js: g.anrufe) – den Giftnotruf fürs eingetragene Bundesland, die
+ * Telefonseelsorge, 116 117, 112. Vorher gab es Knöpfe nur bei W5 und bei der
+ * Stufe 112: „Rufen Sie heute noch den Giftnotruf an" stand ohne Nummer da.
+ */
 function grundKnoepfe(g) {
+  if (g.anrufe && g.anrufe.length) return anrufReihe(g.anrufe);
   if (g.id === 'W5') return beschwerdeKnoepfe('W5');
   if (g.stufe === 'notruf') return `<div class="knopf-reihe">${anrufKnopf('112', '112 anrufen', { notruf: true, breit: true })}</div>`;
   return '';
@@ -78,21 +89,30 @@ function dosisKarteSeite(stand, heute) {
   const b = k.befund;
   const entschieden = ['bleibt', 'geaendert', 'nachmessen'].includes(b.praxis);
   const teile = [];
-  if (entschieden && b.praxisAm === heute) {
+  // Die Bestätigung verspricht die Erinnerung an die Kontrolle – nicht, solange
+  // die neue Dosis noch einzutragen ist (aktionParam 'praxis'): Dann gibt es
+  // die Erinnerung noch nicht (B27).
+  if (entschieden && b.praxisAm === heute && k.aktionParam !== 'praxis') {
     teile.push(`<div class="hinweis-karte ok" role="status"><span class="ri" aria-hidden="true">✓</span><div>${esc(PRAXIS_BESTAETIGUNG)}</div></div>`);
   }
+  // Nummern, die Kopf, Texte, Frage oder die 112-Zeichen nennen, aber kein
+  // Grund – etwa 116 117 aus „Heute anrufen" oder 112 aus W-D2 –, als eigene
+  // Knopfreihe unter der Warnzeile: Jede genannte Nummer ist anrufbar.
+  const inGruenden = new Set(k.gruende.flatMap((g) => (g.anrufe || []).map((a) => a.nummer)));
+  const uebrige = (k.anrufe || []).filter((a) => !inGruenden.has(a.nummer));
   teile.push(`
     <div class="karte dosis-karte ${STUFE_KLASSE[k.stufe]}" id="dosis-karte" tabindex="-1" data-richtung="${esc(k.richtung)}" data-stufe="${esc(k.stufe)}">
-      <p class="stufe-zeile">${stufeSchild(k.stufe, ez.kopfFuer(k.stufe, k.gruende).titel)}</p>
+      <p class="stufe-zeile">${stufeSchild(k.stufe, k.kopf ? k.kopf.titel : ez.kopfFuer(k.stufe, k.gruende).titel)}</p>
       <p class="dosis-titel">${esc(k.titel)}</p>
       ${k.frage ? frageBlock(k.frage, stand) : ''}
       ${k.texte.map((t) => `<p class="dosis-text">${esc(t)}</p>`).join('')}
       ${k.gruende.length ? `<ul class="gruende">${k.gruende.map((g) => `<li data-grund="${esc(g.id)}">${esc(g.text)}${grundKnoepfe(g)}</li>`).join('')}</ul>` : ''}
       ${k.schritt && !k.texte.some((t) => t.includes(k.schritt)) ? `<p class="dosis-text schritt">${esc(k.schritt)}</p>` : ''}
       ${k.warnzeichen ? `<p class="warnzeichen-zeile" role="note">${esc(k.warnzeichen)}</p>` : ''}
+      ${anrufReihe(uebrige)}
       <p class="pflicht">${esc(k.pflicht)}</p>
       ${k.hinweise.map((h) => `<p class="klein">${esc(h)}</p>`).join('')}
-      ${k.aktion === 'dosis' ? '<div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="dosis">Dosis eintragen</button></div>' : ''}
+      ${k.aktion === 'dosis' ? `<div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="dosis" data-param="${esc(k.aktionParam || '')}">${esc(k.aktionText || 'Dosis eintragen')}</button></div>` : ''}
       <div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="praxis-entschieden" data-param="${esc(b.id)}">Die Praxis hat entschieden</button></div>
       <p class="klein gedaempft grundlage">${esc(k.grundlage)}</p>
     </div>`);
@@ -130,15 +150,23 @@ export function dosisSeite(name, param, stand, heute) {
  * Für „Heute": ein Verweis auf die Karte, wenn sie eine Richtung oder eine
  * offene Frage hat – ohne die Richtung selbst zu nennen (Grundsatz 8: nie
  * ohne den Pflichttext). null, wenn nichts ansteht.
+ *
+ * Auch ohne Richtung, wenn ein Grund der Karte dringlicher ist als der Befund
+ * selbst (Q5 „einmal viele Tabletten": heute, X3 „selbst geändert": in den
+ * nächsten Tagen) – dort stehen die Nummern. Die Gründe aus dem Befinden und
+ * dem Warnzeichen-Check (W…) stehen auf „Heute" schon selbst.
+ *
+ * `k`: die Karte, wenn sie schon gerechnet ist (gesamtbildMitDosis().dosis).
  */
-export function dosisVerweis(stand, heute) {
+export function dosisVerweis(stand, heute, k = undefined) {
   if (!ez.aktiv(stand)) return null;
-  const k = dosisRichtung(stand, heute);
-  if (!k) return null;
-  const richtung = k.richtung === 'mehr' || k.richtung === 'weniger';
-  if (!richtung && !k.frage) return null;
-  const text = k.frage
-    ? `Zu Ihrem Befund vom ${datumKurz(k.befund.datum)} hat die Dosis-Karte eine Frage an Sie.`
-    : `Zu Ihrem Befund vom ${datumKurz(k.befund.datum)} gibt es eine Einschätzung zur Dosis. Bitte lesen Sie sie ganz – und rufen Sie vor jeder Änderung die Praxis an.`;
-  return { stufe: k.stufe, text };
+  const karte = k === undefined ? dosisRichtung(stand, heute) : k;
+  if (!karte) return null;
+  const am = datumKurz(karte.befund.datum);
+  const richtung = karte.richtung === 'mehr' || karte.richtung === 'weniger';
+  const wichtig = karte.gruende.some((g) => g.stufe && !g.id.startsWith('W') && rang(g.stufe) > rang(karte.einschaetzung.stufeLabor));
+  if (karte.frage) return { stufe: karte.stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte eine Frage an Sie.` };
+  if (richtung) return { stufe: karte.stufe, text: `Zu Ihrem Befund vom ${am} gibt es eine Einschätzung zur Dosis. Bitte lesen Sie sie ganz – und rufen Sie vor jeder Änderung die Praxis an.` };
+  if (wichtig) return { stufe: karte.stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte einen wichtigen Hinweis. Bitte lesen Sie ihn dort.` };
+  return null;
 }

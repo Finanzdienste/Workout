@@ -330,6 +330,32 @@ function liste(roh, jeEintrag, feld = 'datum') {
     .filter(Boolean);
 }
 
+/*
+ * Zwei Befunde vom selben Abnahmetag sind meist ein Befund, in zwei Schritten
+ * eingetragen (erst TSH, später fT4). Getrennt fiele das fT4 aus Muster und
+ * Dosis-Karte heraus (B52). Das Formular verhindert neue Doppelungen; hier
+ * werden vorhandene zusammengeführt – aber nur, wenn sich kein Wert
+ * widerspricht. Fragen und Notizen ergänzen sich, das Erste gewinnt.
+ */
+const WERTE_KEYS = () => [...LABORWERTE, ...WEITERE_WERTE].map(([k]) => k);
+function zusammenfuehren(labor) {
+  const ergebnis = [];
+  labor.forEach((l) => {
+    const da = ergebnis.find((x) => x.datum === l.datum);
+    const widerspruch = da && WERTE_KEYS().some((k) => da[k] && l[k]
+      && (da[k].wert !== l[k].wert || da[k].einheit !== l[k].einheit));
+    if (!da || widerspruch) { ergebnis.push(l); return; }
+    Object.keys(l).forEach((k) => {
+      if (k === 'id' || k === 'datum') return;
+      if (k === 'notiz') { da.notiz = [da.notiz, l.notiz].filter(Boolean).join(' · ').slice(0, 300); return; }
+      if (k === 'bestaetigt') { da.bestaetigt = da.bestaetigt || l.bestaetigt; return; }
+      const leer = da[k] === null || da[k] === undefined || da[k] === '';
+      if (leer) da[k] = l[k];
+    });
+  });
+  return ergebnis;
+}
+
 /**
  * Jeden gelesenen Stand in die Form bringen, mit der die App rechnet.
  * Unbekannte Felder fallen weg, kaputte Werte werden zu ihrem Standard.
@@ -394,6 +420,10 @@ export function normStand(roh) {
       tabletten: zahlAus(d.tabletten) > 0 ? zahlAus(d.tabletten) : 1,
       notiz: text(d.notiz, 300),
       praxis: typeof d.praxis === 'boolean' ? d.praxis : null,
+      // Eingetragen nach „Nein, ich nehme etwas anderes" auf der Dosis-Karte:
+      // keine Änderung der Dosis, sondern eine Berichtigung dessen, was die App
+      // wusste. Sie zählt nie als angeordnete Änderung (D0.5).
+      berichtigung: bool(d.berichtigung),
     };
   }, 'ab').sort((a, b) => a.ab.localeCompare(b.ab));
 
@@ -443,6 +473,7 @@ export function normStand(roh) {
     };
     return [...LABORWERTE, ...WEITERE_WERTE].some(([k]) => eintrag[k]) ? eintrag : null;
   }).sort((a, b) => a.datum.localeCompare(b.datum));
+  s.labor = zusammenfuehren(s.labor);
 
   s.befinden = liste(roh.befinden, (b) => ({
     datum: b.datum,
@@ -478,11 +509,17 @@ export function normStand(roh) {
     && typeof n.bezug === 'string' && n.bezug.length <= 40 && typeof n.antwort === 'string' && /^[a-z0-9_]{1,20}$/.test(n.antwort)
     ? { art: n.art, bezug: n.bezug, antwort: n.antwort, am: n.am } : null), 'am').slice(-80);
 
+  // Der Arztbericht listet die Checks der letzten 90 Tage (Entscheidung 17).
+  // Wer bei Herzklopfen täglich prüft (W-D1), hat schnell mehr als 50 – eine
+  // Grenze von 50 löschte so beim nächsten Start still ältere Checks, auch
+  // einen mit Brustschmerz. Die Grenze schützt nur noch den Speicher und ist
+  // in 90 Tagen nicht zu erreichen (über zehn Checks an jedem Tag). Bewusst
+  // nach Anzahl, nicht nach Alter: ein Alter hinge an der Uhr des Geräts.
   s.warnzeichen = liste(roh.warnzeichen, (w) => ({
     datum: w.datum,
     uhr: istUhr(w.uhr) ? w.uhr : '',
     ja: Array.isArray(w.ja) ? [...new Set(w.ja.filter((k) => typeof k === 'string' && /^[a-z0-9_]{1,30}$/.test(k)))].slice(0, 30) : [],
-  })).sort((a, b) => `${a.datum}${a.uhr}`.localeCompare(`${b.datum}${b.uhr}`)).slice(-50);
+  })).sort((a, b) => `${a.datum}${a.uhr}`.localeCompare(`${b.datum}${b.uhr}`)).slice(-1000);
 
   if (roh.vorrat && typeof roh.vorrat === 'object' && istISO(roh.vorrat.stand)) {
     const tabletten = zahlAus(roh.vorrat.tabletten);
