@@ -21,6 +21,22 @@ const feldDatum = (name, wert, titel = 'Datum', hinweis = '') => `
     ${hinweis ? `<span class="hinweis">${hinweis}</span>` : ''}
   </label>`;
 
+/**
+ * Tabletten am Tag. Eine gespeicherte Menge, die nicht in der Liste steht
+ * (aus einer Sicherung, etwa ¾), kommt als eigene, gewählte Möglichkeit dazu –
+ * sonst wählte der Browser still die erste, und ein bloßes „Speichern" machte
+ * aus ¾ eine ½ Tablette.
+ */
+export function tablettenWahl(aktuell) {
+  const liste = [[0.5, '½ Tablette'], [1, '1 Tablette'], [1.5, '1½ Tabletten'], [2, '2 Tabletten']];
+  if (!liste.some(([w]) => w === aktuell)) liste.push([aktuell, `${String(aktuell).replace('.', ',')} Tabletten`]);
+  return `<label class="feld"><span>Tabletten am Tag</span>
+    <select name="tabletten">
+      ${liste.map(([w, t]) => `<option value="${w}" ${aktuell === w ? 'selected' : ''}>${t}</option>`).join('')}
+    </select>
+  </label>`;
+}
+
 /** Eine gespeicherte Zahl zurück ins Eingabefeld: 2.1 → „2,1", nichts → leer. */
 const zahlFeld = (wert) => (wert === null || wert === undefined ? '' : String(wert).replace('.', ','));
 
@@ -60,12 +76,8 @@ function dosisFormular(id, stand, heute) {
         ${!da && letzte ? `<div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Die bisherige Dosis (${esc(sp.dosisText(letzte))}) bleibt im Verlauf stehen. Hier kommt die neue dazu, so wie die Ärztin sie verordnet hat.</div></div>` : ''}
         ${feldText('praeparat', d.praeparat, 'Präparat', { platzhalter: 'z. B. L-Thyroxin Henning', hinweis: 'So, wie es auf der Packung steht. Ein Herstellerwechsel ist auch eine Änderung.' })}
         ${feldZahl('mikrogramm', d.mikrogramm, 'Stärke in µg (Mikrogramm)', { platzhalter: 'z. B. 75', hinweis: 'Die Zahl auf der Packung, z. B. 50, 75 oder 100.' })}
-        <label class="feld"><span>Tabletten am Tag</span>
-          <select name="tabletten">
-            ${[[0.5, '½ Tablette'], [1, '1 Tablette'], [1.5, '1½ Tabletten'], [2, '2 Tabletten']].map(([w, t]) => `<option value="${w}" ${d.tabletten === w ? 'selected' : ''}>${t}</option>`).join('')}
-          </select>
-        </label>
-        ${feldDatum('ab', d.ab, 'Gilt ab', 'Der Tag, ab dem diese Dosis genommen wird.')}
+        ${tablettenWahl(d.tabletten)}
+        ${feldDatum('ab', d.ab, 'Gilt ab', 'Der Tag, ab dem diese Dosis genommen wird. Liegt er in der Zukunft, nennt „Heute" bis dahin weiter die bisherige Dosis.')}
         ${feldText('notiz', d.notiz, 'Notiz (freiwillig)', { platzhalter: 'z. B. nach Laborkontrolle im März' })}
         ${fuss('dosis', id)}
       </form>`,
@@ -105,9 +117,16 @@ function laborFormular(id, stand, heute) {
   const l = da || { datum: heute, tsh: null, ft4: null, ft3: null, notiz: '' };
   const werte = sp.LABORWERTE.map(([key, name, einheiten]) => {
     const w = l[key];
-    // Einheit und Bereich vom letzten Mal vorbelegen – das Labor ist meist dasselbe.
-    const vorlage = w || (letzter && letzter[key]) || null;
-    const einheit = vorlage ? vorlage.einheit : einheiten[0];
+    // Die Einheit vom letzten Mal vorbelegen (sichtbar, zum Bestätigen), den
+    // Bereich aber nicht: Kommt der Befund von einem anderen Labor, stünde
+    // sonst still der alte Bereich darunter – und mit ng/dl statt pmol/l ein
+    // scheinbar zwölfmal zu niedriger Wert. Der alte Bereich steht nur als
+    // Platzhalter da.
+    const vorher = (letzter && letzter[key]) || null;
+    const vorlage = w || null;
+    const einheit = w ? w.einheit : vorher ? vorher.einheit : einheiten[0];
+    const platzVon = vorher && vorher.von !== null ? `z. B. ${zahlFeld(vorher.von)}` : 'von';
+    const platzBis = vorher && vorher.bis !== null ? `z. B. ${zahlFeld(vorher.bis)}` : 'bis';
     return `
       <div class="karte" data-feld="${key}">
         <div class="laborwert-kopf"><span class="laborwert-name">${name}</span>
@@ -118,9 +137,9 @@ function laborFormular(id, stand, heute) {
         ${feldZahl(`${key}_wert`, w ? w.wert : null, 'Wert', { platzhalter: key === 'tsh' ? 'z. B. 2,1' : 'z. B. 15,2' })}
         <div class="feld" data-feld="${key}_von"><span>Bereich laut Befund</span>
           <div class="bereich-reihe">
-            <input type="text" inputmode="decimal" name="${key}_von" value="${esc(zahlFeld(vorlage ? vorlage.von : null))}" placeholder="von" aria-label="${name}: Bereich von" autocomplete="off">
+            <input type="text" inputmode="decimal" name="${key}_von" value="${esc(zahlFeld(vorlage ? vorlage.von : null))}" placeholder="${esc(platzVon)}" aria-label="${name}: Bereich von" autocomplete="off">
             <span aria-hidden="true">–</span>
-            <input type="text" inputmode="decimal" name="${key}_bis" value="${esc(zahlFeld(vorlage ? vorlage.bis : null))}" placeholder="bis" aria-label="${name}: Bereich bis" autocomplete="off">
+            <input type="text" inputmode="decimal" name="${key}_bis" value="${esc(zahlFeld(vorlage ? vorlage.bis : null))}" placeholder="${esc(platzBis)}" aria-label="${name}: Bereich bis" autocomplete="off">
           </div>
         </div>
       </div>`;
@@ -129,7 +148,7 @@ function laborFormular(id, stand, heute) {
     titel: da ? 'Laborwert ändern' : 'Laborwerte eintragen',
     html: `
       <form data-formular="labor" ${id ? `data-id="${esc(id)}"` : ''} novalidate>
-        <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Vom Befund abschreiben, so wie es dort steht – auch den Bereich des Labors, denn jedes Labor hat eigene Grenzen. Nicht jeder Wert ist jedes Mal dabei; leere Felder sind in Ordnung.</div></div>
+        <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Vom Befund abschreiben, so wie es dort steht – auch die Einheit und den Bereich des Labors, denn jedes Labor hat eigene Grenzen. Nicht jeder Wert ist jedes Mal dabei; leere Felder sind in Ordnung.</div></div>
         ${feldDatum('datum', l.datum, 'Datum der Blutabnahme')}
         ${werte}
         ${feldText('notiz', l.notiz, 'Notiz (freiwillig)', { platzhalter: 'z. B. Tablette erst nach der Abnahme genommen', lang: true })}
@@ -196,6 +215,9 @@ function gewichtAbsenden(id, f, heute) {
   if (Object.keys(fehler).length) return { ok: false, fehler };
   sp.aendern((s) => {
     const da = id ? s.gewicht.find((g) => g.id === id) : s.gewicht.find((g) => g.datum === datum);
+    // Ein Eintrag je Tag: Wird ein Eintrag auf einen Tag verlegt, für den es
+    // schon einen gibt, ersetzt er ihn.
+    s.gewicht = s.gewicht.filter((g) => g === da || g.datum !== datum);
     if (da) Object.assign(da, { datum, kg });
     else s.gewicht.push({ id: sp.kennung(), datum, kg });
     s.gewicht.sort((a, b) => a.datum.localeCompare(b.datum));
@@ -213,8 +235,8 @@ function befindenFormular(id, stand, heute) {
     html: `
       <form data-formular="befinden" ${da ? `data-id="${esc(da.id)}"` : ''} novalidate>
         ${feldDatum('datum', b.datum)}
-        <div class="feld" data-feld="stufe"><span>Wie geht es Ihnen?</span>
-          <div class="wahl" role="radiogroup">
+        <div class="feld" data-feld="stufe"><span id="frage-stufe">Wie geht es Ihnen?</span>
+          <div class="wahl" role="radiogroup" aria-labelledby="frage-stufe">
             ${[['gut', 'Gut'], ['mittel', 'Mittel'], ['schlecht', 'Schlecht']].map(([w, t]) => `
               <label class="knopf" style="cursor:pointer"><input type="radio" name="stufe" value="${w}" ${b.stufe === w ? 'checked' : ''} class="sr-only">${t}</label>`).join('')}
           </div>
@@ -243,6 +265,7 @@ function befindenAbsenden(id, f, heute) {
   const notiz = String(f.get('notiz') || '').trim().slice(0, 500);
   sp.aendern((s) => {
     const da = id ? s.befinden.find((b) => b.id === id) : s.befinden.find((b) => b.datum === datum);
+    s.befinden = s.befinden.filter((b) => b === da || b.datum !== datum);
     if (da) Object.assign(da, { datum, stufe, beschwerden, notiz });
     else s.befinden.push({ id: sp.kennung(), datum, stufe, beschwerden, notiz });
     s.befinden.sort((a, b) => a.datum.localeCompare(b.datum));
@@ -357,7 +380,8 @@ function vorratAbsenden(id, f, heute) {
   if (!istISO(stand)) fehler.stand = 'Bitte ein Datum wählen.';
   else if (stand > heute) fehler.stand = 'Das Datum liegt in der Zukunft.';
   if (Object.keys(fehler).length) return { ok: false, fehler };
-  sp.aendern((s) => { s.vorrat = { tabletten: Math.round(tabletten), stand }; });
+  // Auf halbe Tabletten genau – bei ½ oder 1½ am Tag bleiben halbe übrig.
+  sp.aendern((s) => { s.vorrat = { tabletten: Math.round(tabletten * 2) / 2, stand }; });
   return { ok: true, meldung: 'Vorrat gespeichert' };
 }
 
@@ -372,8 +396,8 @@ function einnahmeFormular(id, stand, heute) {
     html: `
       <form data-formular="einnahme" novalidate>
         ${feldDatum('datum', tag, 'Welcher Tag?')}
-        <div class="feld" data-feld="status"><span>Was war an dem Tag?</span>
-          <div class="zeilen" role="radiogroup">
+        <div class="feld" data-feld="status"><span id="frage-status">Was war an dem Tag?</span>
+          <div class="zeilen" role="radiogroup" aria-labelledby="frage-status">
             ${[['genommen', 'Tablette genommen'], ['nicht', 'Nicht genommen'], ['unbekannt', 'Weiß ich nicht mehr']].map(([w, t]) => `
               <label class="zeile" style="cursor:pointer"><input type="radio" name="status" value="${w}" ${status === w ? 'checked' : ''} style="width:1.4rem;height:1.4rem;accent-color:var(--akzent)"><span class="zeile-text"><span class="zeile-titel">${t}</span></span></label>`).join('')}
           </div>

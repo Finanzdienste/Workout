@@ -17,7 +17,8 @@ delete einnahmen[plus(TAG, -20)];
 const stand = standMit(plus(TAG, -200), {
   profil: { name: 'Mama', begruesst: true },
   dosen: [
-    { id: 'd1', ab: plus(TAG, -200), praeparat: 'L-Thyroxin Henning', mikrogramm: 50, tabletten: 1, notiz: '' },
+    // 1½ Tabletten zu 50 µg: am Tag 75 µg. Der Bericht muss die Tagesdosis nennen.
+    { id: 'd1', ab: plus(TAG, -200), praeparat: 'L-Thyroxin Henning', mikrogramm: 50, tabletten: 1.5, notiz: '' },
     { id: 'd2', ab: plus(TAG, -45), praeparat: 'L-Thyroxin Henning', mikrogramm: 75, tabletten: 1, notiz: 'nach Kontrolle' },
   ],
   einnahmen,
@@ -45,15 +46,16 @@ console.log(text.split('\n').map((z) => `     | ${z}`).join('\n'));
 
 check(text.startsWith(`Schilddrüse – Bericht vom ${kurz(TAG)} (Mama)`), 'Kopfzeile mit Datum und Anrede');
 check(text.includes(`Aktuell: L-Thyroxin Henning 75 µg, 1 Tablette am Tag, seit ${kurz(plus(TAG, -45))} (nach Kontrolle)`), 'aktuelle Dosis mit Datum und Notiz');
-check(text.includes(`Davor: L-Thyroxin Henning 50 µg, 1 Tablette am Tag, ab ${kurz(plus(TAG, -200))}`), 'die Dosis davor');
-// 56 Tage bis einschließlich heute: heute kein Eintrag, vor 20 Tagen keiner, 3 Tage nicht genommen.
-check(text.includes('Letzte 8 Wochen: an 51 von 56 Tagen genommen, an 3 Tagen nicht genommen, 2 Tage ohne Eintrag.'), 'Einnahmen der letzten acht Wochen richtig gezählt');
-// Letzte 28 Tage: heute und vor 20 Tagen ohne Eintrag, vor 3 und 17 Tagen nicht genommen.
-check(text.includes('Davon letzte 4 Wochen: an 24 von 28 Tagen genommen.'), 'und die der letzten vier Wochen');
+check(text.includes(`Davor: L-Thyroxin Henning 50 µg, 1½ Tabletten am Tag – zusammen 75 µg, ab ${kurz(plus(TAG, -200))}`), 'die Dosis davor, mit 1½ Tabletten und der Menge am Tag');
+// Heute ist noch nichts eingetragen – dann zählen die 56 Tage bis gestern:
+// vor 20 Tagen kein Eintrag, vor 3, 17 und 40 Tagen nicht genommen.
+check(text.includes('Letzte 8 Wochen: an 52 von 56 Tagen genommen, an 3 Tagen nicht genommen, 1 Tag ohne Eintrag.'), 'Einnahmen der letzten acht Wochen richtig gezählt – der heutige Tag vor der Tablette ist keine Lücke');
+// Die 28 Tage bis gestern: vor 20 Tagen ohne Eintrag, vor 3 und 17 Tagen nicht genommen.
+check(text.includes('Davon letzte 4 Wochen: an 25 von 28 Tagen genommen.'), 'und die der letzten vier Wochen');
 check(text.includes(`Nicht genommen am: ${kurz(plus(TAG, -3))}, ${kurz(plus(TAG, -17))}, ${kurz(plus(TAG, -40))}`), 'die Tage ohne Tablette mit Datum');
-check(text.includes(`${kurz(plus(TAG, -2))}: TSH 2,4 mU/l (Labor 0,27–4,2) – Dosis damals 75 µg – Tablette nach der Abnahme`), 'neuester Laborwert mit Bereich, damaliger Dosis und Notiz');
-check(text.includes(`${kurz(plus(TAG, -50))}: TSH 5,8 mU/l (Labor 0,27–4,2), fT4 12,1 pmol/l (Labor 12–22) – Dosis damals 50 µg`), 'älterer Laborwert mit der Dosis von damals (50 µg)');
-check(text.includes(`69,9 kg am ${kurz(plus(TAG, -1))}; vor etwa drei Monaten 71,2 kg`), 'Gewicht jetzt und vor drei Monaten');
+check(text.includes(`${kurz(plus(TAG, -2))}: TSH 2,4 mU/l (Labor 0,27–4,2) – Dosis damals 75 µg am Tag – Tablette nach der Abnahme`), 'neuester Laborwert mit Bereich, damaliger Dosis und Notiz');
+check(text.includes(`${kurz(plus(TAG, -50))}: TSH 5,8 mU/l (Labor 0,27–4,2), fT4 12,1 pmol/l (Labor 12–22) – Dosis damals 75 µg am Tag`), 'älterer Laborwert mit der Tagesdosis von damals: 1½ × 50 = 75 µg, nicht die Stärke 50');
+check(text.includes(`69,9 kg am ${kurz(plus(TAG, -1))}; davor 71,2 kg am ${kurz(plus(TAG, -120))}`), 'Gewicht jetzt und davor – mit Datum statt „vor etwa drei Monaten"');
 check(text.includes('2 Einträge: 1× mittel, 1× schlecht.'), 'Befinden zusammengefasst, ohne Nullen');
 check(text.includes('müde, erschöpft (2×)'), 'häufigste Beschwerde mit Anzahl');
 check(text.includes('Kann die Müdigkeit an der Dosis liegen?'), 'offene Frage steht drin');

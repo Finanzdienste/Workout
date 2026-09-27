@@ -24,10 +24,16 @@ await page.waitForTimeout(200);
 check(!page.url().includes('?'), 'die Eingabetaste lädt die Seite nicht mit den Eingaben in der Adresse neu');
 check((await page.locator('.schritte').innerText()).includes('Schritt 2'), 'die Eingabetaste führt zu Schritt 2');
 
-// Pflichtfeld Stärke.
+// Stärke: nicht schätzen. Leer ist erlaubt, Unsinn nicht.
+check((await page.locator('#ansicht').innerText()).includes('bitte nicht schätzen'), 'die Seite bittet, die Stärke nicht zu schätzen');
+await page.fill('input[name=mikrogramm]', 'fünfundsiebzig');
 await page.click('[data-act="willkommen-weiter"]');
-check((await page.locator('.feld-fehler').allInnerTexts()).some((t) => t.includes('Stärke')), 'ohne Stärke geht es nicht weiter, und das Feld sagt warum');
+check((await page.locator('.feld-fehler').allInnerTexts()).some((t) => t.includes('Zahl')), 'Text statt Zahl: das Feld sagt warum');
 check((await page.locator('.schritte').innerText()).includes('Schritt 2'), '… und die Seite bleibt bei Schritt 2');
+await page.fill('input[name=mikrogramm]', '');
+await page.click('[data-act="willkommen-weiter"]');
+check((await page.locator('.schritte').innerText()).includes('Schritt 3'), 'leer gelassen geht es weiter – die Packung ist nicht immer zur Hand');
+await page.click('[data-act="willkommen-zurueck"]');
 await page.fill('input[name=mikrogramm]', '0,075');
 await page.click('[data-act="willkommen-weiter"]');
 check((await page.locator('.feld-fehler').allInnerTexts()).some((t) => t.includes('prüfen')), 'Milligramm statt Mikrogramm (0,075) wird bemerkt');

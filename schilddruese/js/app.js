@@ -30,24 +30,34 @@ const $meldung = document.getElementById('meldung');
 
 /*
  * Was gerade zu sehen ist: ein Reiter, und darüber womöglich eine Seite
- * (ein Formular, eine Liste, ein Wissenskapitel). „Zurück" schließt die
- * Seite und zeigt wieder den Reiter – tiefer geht es nie, damit man sich
- * nicht verläuft.
+ * (ein Formular, eine Liste, ein Wissenskapitel). „Zurück", „Abbrechen" und
+ * „Löschen" führen dorthin, woher man kam – aus „Alle Laborwerte" in einen
+ * Befund und zurück in die Liste, nicht bis zum Reiter. Sonst muss man die
+ * Liste nach jedem Eintrag neu suchen, und derselbe Knopf führt mal hierhin,
+ * mal dorthin.
  */
 const ui = {
   tab: sp.getStand().tab,
   seite: null,        // { name, param } oder null
+  stapel: [],         // die Seiten darunter, zu denen „Zurück" führt
   schritt: 1,         // Willkommen: welcher Schritt
-  danach: null,       // nach dem Speichern eines Formulars: wohin
 };
 
 const REITER_TITEL = { heute: 'Heute', verlauf: 'Verlauf', mehr: 'Mehr' };
 
+/*
+ * Eine kurze Meldung unten. Die Dauer richtet sich nach der Länge: Wer
+ * langsam liest oder gerade zur Tablettenschachtel schaut, soll den Satz
+ * noch sehen – mindestens fünf Sekunden, dazu gut eine Drittelsekunde je
+ * Wort. Was wichtig bleibt (etwa „nicht doppelt nehmen"), steht zusätzlich
+ * dauerhaft auf der Seite und nicht nur hier.
+ */
 let meldungTimer = null;
-export function meldung(text, dauer = 2600) {
+export function meldung(text) {
   $meldung.textContent = text;
   $meldung.classList.add('zeigen');
   clearTimeout(meldungTimer);
+  const dauer = 5000 + text.split(/\s+/).length * 350;
   meldungTimer = setTimeout(() => $meldung.classList.remove('zeigen'), dauer);
 }
 
@@ -103,7 +113,8 @@ function render() {
 
   // Kopf: die Marke, oder „Zurück" mit dem Titel der Seite.
   if (titel && !willkommen) {
-    $kopf.innerHTML = `<button type="button" class="kopf-zurueck" data-act="zurueck" aria-label="Zurück zu ${esc(REITER_TITEL[ui.tab])}">‹ Zurück</button><span class="kopf-titel">${esc(titel)}</span>`;
+    const ziel = ui.stapel.length ? seiteInhalt(ui.stapel[ui.stapel.length - 1], stand, heute).titel : REITER_TITEL[ui.tab];
+    $kopf.innerHTML = `<button type="button" class="kopf-zurueck" data-act="zurueck" aria-label="Zurück zu ${esc(ziel)}">‹ Zurück</button><span class="kopf-titel" id="seitentitel">${esc(titel)}</span>`;
   } else if (willkommen) {
     $kopf.innerHTML = `<h1 class="marke"><img src="icon.svg" alt="">Schilddrüse</h1><span class="kopf-titel gedaempft" style="margin-left:auto">${esc(titel)}</span>`;
   } else {
@@ -111,7 +122,9 @@ function render() {
   }
 
   $ansicht.innerHTML = speicherWarnung() + html;
-  $ansicht.setAttribute('aria-labelledby', `reiter-${ui.tab}`);
+  // Vorleseprogramme nennen beim Fokus den Namen des Bereichs – bei einer
+  // offenen Seite ihren Titel, nicht den Reiter darunter.
+  $ansicht.setAttribute('aria-labelledby', titel && !willkommen ? 'seitentitel' : `reiter-${ui.tab}`);
   $reiter.hidden = willkommen;
   document.body.classList.toggle('ohne-leiste', willkommen);
   $reiter.querySelectorAll('.reiter').forEach((b) => {
@@ -122,13 +135,20 @@ function render() {
 function zeigeReiter(tab) {
   ui.tab = tab;
   ui.seite = null;
+  ui.stapel = [];
   if (sp.getStand().tab !== tab) sp.aendern((s) => { s.tab = tab; });
   window.scrollTo(0, 0);
   render();
   $ansicht.focus({ preventScroll: true });
 }
 
-function zeigeSeite(name, param = null) {
+/**
+ * Eine Seite öffnen. Aus einer anderen Seite heraus merkt sie sich, woher
+ * man kam; `ersetzen` tauscht die aktuelle aus (nach dem Speichern eines
+ * Formulars soll „Zurück" nicht wieder ins Formular führen).
+ */
+function zeigeSeite(name, param = null, { ersetzen = false } = {}) {
+  if (ui.seite && !ersetzen) ui.stapel.push(ui.seite);
   ui.seite = { name, param };
   window.scrollTo(0, 0);
   render();
@@ -136,9 +156,18 @@ function zeigeSeite(name, param = null) {
 }
 
 function zurueck() {
-  ui.seite = null;
+  ui.seite = ui.stapel.pop() || null;
   window.scrollTo(0, 0);
   render();
+  $ansicht.focus({ preventScroll: true });
+}
+
+/** Nach dem Speichern: dorthin, wohin das Formular will – oder zurück. */
+function nachDemSpeichern(danach) {
+  if (!danach) { zurueck(); return; }
+  const unten = ui.stapel[ui.stapel.length - 1];
+  if (unten && unten.name === danach.name) { zurueck(); return; }
+  zeigeSeite(danach.name, danach.param || null, { ersetzen: true });
 }
 
 // ---------------------------------------------------------------- Dateien
@@ -183,10 +212,17 @@ function sicherungLaden(datei) {
   if (!datei) return;
   const leser = new FileReader();
   leser.onload = () => {
-    const ergebnis = sp.importJSON(String(leser.result || ''));
+    let ergebnis;
+    try {
+      ergebnis = sp.importJSON(String(leser.result || ''));
+    } catch {
+      // Was normStand nicht abfängt, darf nicht still im Nichts enden.
+      ergebnis = { ok: false, grund: 'Die Datei ließ sich nicht einlesen. Es wurde nichts geändert.' };
+    }
     if (ergebnis.ok) {
       meldung('Sicherung eingelesen');
       ui.seite = null;
+      ui.stapel = [];
       ui.tab = 'heute';
       ui.schritt = 1;
       // Eine Sicherung stammt von jemandem, der schon eingerichtet war –
@@ -229,8 +265,9 @@ async function berichtKopieren() {
 /*
  * Der Systemhinweis „Tablette noch nicht genommen".
  *
- * Ehrlich gesagt: Das funktioniert nur, solange die App offen ist oder der
- * Browser sie im Hintergrund noch am Leben hält. Ohne Server gibt es keinen
+ * Ehrlich gesagt: Das funktioniert nur, solange die App auf dem Bildschirm
+ * offen ist – im Hintergrund hält iOS die Seite sofort an, Android nach
+ * wenigen Minuten, und setInterval steht dann still. Ohne Server gibt es keinen
  * Weckruf – ein Service Worker wacht nicht von selbst um sieben Uhr auf.
  * Deshalb ist die Kalenderdatei der verlässliche Weg (siehe js/ics.js), und
  * das hier nur die Ergänzung für den Fall, dass die App ohnehin offen liegt.
@@ -317,7 +354,7 @@ function aktion(el) {
     case 'gestern-nicht':
       sp.einnahmeSetzen(tageWeiter(heute, -1), null);
       render();
-      meldung('Eingetragen. Nicht doppelt nehmen – heute wie gewohnt.', 4000);
+      meldung('Eingetragen. Nicht doppelt nehmen – heute wie gewohnt.');
       break;
     case 'einnahme-setzen': {
       // Aus der Einnahmen-Liste: ein Tag umschalten.
@@ -356,8 +393,10 @@ function aktion(el) {
       break;
     }
     case 'frage-loeschen':
+      if (!window.confirm('Diese Frage wirklich löschen?')) break;
       sp.aendern((s) => { s.fragen = s.fragen.filter((x) => x.id !== el.dataset.id); });
       render();
+      meldung('Frage gelöscht');
       break;
     case 'schrift':
       sp.aendern((s) => { s.einstellungen.schrift = el.dataset.wert; });
@@ -396,6 +435,9 @@ function aktion(el) {
       document.getElementById('sicherungDatei')?.click();
       break;
     case 'sicherung-zurueck':
+      // Zurückholen ersetzt alles, was seit dem Einlesen eingetragen wurde –
+      // „zurückholen" klingt aber nach „meine Daten wiederherstellen".
+      if (!window.confirm('Den Stand von vor dem Einlesen zurückholen? Alles, was seitdem eingetragen wurde, geht dabei verloren.')) break;
       if (sp.importZurueck()) { meldung('Vorheriger Stand ist wieder da'); render(); } else meldung('Kein vorheriger Stand vorhanden');
       break;
     case 'alles-loeschen':
@@ -403,6 +445,7 @@ function aktion(el) {
         && window.confirm('Letzte Frage: Alles löschen? Das lässt sich nur mit einer Sicherung rückgängig machen.')) {
         sp.allesLoeschen();
         ui.seite = null;
+        ui.stapel = [];
         ui.tab = 'heute';
         ui.schritt = 1;
         render();
@@ -423,21 +466,31 @@ function aktion(el) {
       const ergebnis = willkommenWeiter(ui.schritt, form, heute);
       if (!ergebnis.ok) { zeigeFehler(form, ergebnis.fehler); break; }
       if (ui.schritt >= WILLKOMMEN_SCHRITTE) {
-        sp.aendern((s) => { s.profil.begruesst = true; });
+        sp.aendern((s) => {
+          s.profil.begruesst = true;
+          if (!s.profil.seit) s.profil.seit = heute;
+        });
         ui.schritt = 1;
         ui.tab = 'heute';
         window.scrollTo(0, 0);
         render();
+        $ansicht.focus({ preventScroll: true });
         meldung('Fertig eingerichtet');
       } else {
         ui.schritt++;
         window.scrollTo(0, 0);
         render();
+        $ansicht.focus({ preventScroll: true });
       }
       break;
     }
     case 'willkommen-zurueck':
-      if (ui.schritt > 1) { ui.schritt--; window.scrollTo(0, 0); render(); }
+      if (ui.schritt > 1) {
+        ui.schritt--;
+        window.scrollTo(0, 0);
+        render();
+        $ansicht.focus({ preventScroll: true });
+      }
       break;
     default:
       break;
@@ -478,8 +531,32 @@ document.addEventListener('click', (e) => {
   if (!el) return;
   // Ein Knopf im Formular darf es nicht abschicken.
   if (el.tagName === 'BUTTON' && !el.getAttribute('type')) el.setAttribute('type', 'button');
+  const merkmal = fokusMerkmal(el);
   aktion(el);
+  fokusZurueck(merkmal);
 });
+
+/*
+ * Nach einem Tipp zeichnet die App die Ansicht neu – und der Knopf, der den
+ * Fokus hatte, ist ein anderer Knoten. Ohne diese beiden Funktionen stand der
+ * Fokus danach auf <body>: Ein Vorleseprogramm verlor die Stelle und sagte
+ * nichts an, wer mit der Tastatur bedient, fing oben neu an. Wo die Aktion
+ * selbst den Fokus setzt (neue Seite, Zurück), bleibt es dabei.
+ */
+function fokusMerkmal(el) {
+  const d = el.dataset;
+  const teile = [`[data-act="${d.act}"]`];
+  ['stufe', 'wert', 'tag', 'id', 'seite', 'param'].forEach((k) => {
+    if (d[k] !== undefined) teile.push(`[data-${k}="${CSS.escape(d[k])}"]`);
+  });
+  return teile.join('');
+}
+
+function fokusZurueck(merkmal) {
+  if (document.activeElement && document.activeElement !== document.body) return;
+  const ziel = document.querySelector(merkmal) || $ansicht;
+  ziel.focus({ preventScroll: true });
+}
 
 document.addEventListener('submit', (e) => {
   const form = e.target;
@@ -494,8 +571,7 @@ document.addEventListener('submit', (e) => {
   }
   const ergebnis = absenden(form.dataset.formular, form.dataset.id || null, form, heuteISO());
   if (!ergebnis.ok) { zeigeFehler(form, ergebnis.fehler); return; }
-  if (ergebnis.danach) zeigeSeite(ergebnis.danach.name, ergebnis.danach.param || null);
-  else zurueck();
+  nachDemSpeichern(ergebnis.danach);
   meldung(ergebnis.meldung || 'Gespeichert');
 });
 
@@ -503,6 +579,14 @@ document.addEventListener('change', (e) => {
   if (e.target.id === 'sicherungDatei') {
     sicherungLaden(e.target.files && e.target.files[0]);
     e.target.value = '';
+  }
+  // Einnahme nachtragen: Wechselt der Tag, zeigt das Formular den Stand
+  // dieses Tages. Vorher blieb die Auswahl des alten Tages stehen und sah aus
+  // wie der gespeicherte Stand des neuen – ein „Speichern" überschrieb dann
+  // einen Haken, den die Nutzerin nur ansehen wollte.
+  if (e.target.name === 'datum' && e.target.form && e.target.form.dataset.formular === 'einnahme' && istISO(e.target.value)) {
+    zeigeSeite('einnahme', e.target.value, { ersetzen: true });
+    return;
   }
   // Uhrzeit der Erinnerung: sofort übernehmen, ohne Speichern-Knopf.
   if (e.target.name === 'erinnerung' && e.target.form && e.target.form.dataset.sofort === 'erinnerung') {
@@ -529,8 +613,21 @@ function tagPruefen() {
 }
 setInterval(tagPruefen, 60000);
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') tagPruefen();
-  else sp.sofortSchreiben();
+  if (document.visibilityState === 'visible') {
+    // Eine zweite Instanz (Browser-Tab neben der installierten App) kann
+    // inzwischen geschrieben haben – deren Einträge zuerst übernehmen, sonst
+    // überschreibt der nächste Tipp hier sie mit dem alten Stand.
+    if (sp.neuLesen() && !ui.seite) render();
+    tagPruefen();
+  } else {
+    sp.sofortSchreiben();
+  }
+});
+// Dasselbe, während beide offen sind: Der Browser meldet fremde Schreibvorgänge.
+window.addEventListener('storage', (e) => {
+  if (e.key !== sp.SCHLUESSEL) return;
+  // Mitten in einem Formular nicht neu zeichnen – die Eingaben gingen verloren.
+  if (sp.neuLesen() && !ui.seite) render();
 });
 window.addEventListener('pagehide', () => sp.sofortSchreiben());
 
@@ -548,9 +645,14 @@ sp.abonnieren(() => {
 
 // Offline-Betrieb, nur über http(s) – unter file:// gibt es keine Service Worker.
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  // Nach einer neuen Fassung einmal neu laden – nur, wenn vorher schon ein
-  // Worker die Seite hatte, und nur einmal je Sitzung. Begründung in ../js/app.js.
-  const hatteWorker = !!navigator.serviceWorker.controller;
+  // Nach einer neuen Fassung einmal neu laden – nur, wenn vorher schon *der
+  // eigene* Worker die Seite hatte, und nur einmal je Sitzung. Begründung in
+  // ../js/app.js. Der Worker der Workout-App eine Ebene höher steuert beim
+  // allerersten Besuch womöglich auch diese Seite; dann ist die Übernahme
+  // durch den eigenen keine neue Fassung, und ein Neuladen risse die
+  // Nutzerin mitten aus dem Einrichten.
+  const eigenerWorker = new URL('./sw.js', location.href).href;
+  const hatteWorker = navigator.serviceWorker.controller?.scriptURL === eigenerWorker;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hatteWorker) return;
     try {

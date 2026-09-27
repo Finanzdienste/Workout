@@ -13,8 +13,10 @@ import { datumKurz, zahlText } from './datum.js';
 import { esc } from './text.js';
 
 const B = 320;   // Breite der Zeichenfläche (viewBox)
-const H = 120;   // Höhe
-const RAND = { links: 44, rechts: 12, oben: 12, unten: 24 };
+const H = 140;   // Höhe
+// Links und unten Platz für Beschriftungen in lesbarer Größe (siehe
+// .verlauf-achse: 15 Einheiten, auf 360 px gut 13 Pixel).
+const RAND = { links: 50, rechts: 12, oben: 12, unten: 30 };
 
 /**
  * @param {object} o
@@ -57,9 +59,9 @@ export function verlaufslinie({ punkte, einheit = '', bereich = null, titel = ''
     teile.push(`<circle cx="${f(x(i))}" cy="${f(y(p.wert))}" r="4" class="verlauf-punkt"/>`);
   });
 
-  teile.push(`<text x="${RAND.links}" y="${H - 6}" class="verlauf-achse">${esc(datumKurz(punkte[0].datum))}</text>`);
+  teile.push(`<text x="${RAND.links}" y="${H - 8}" class="verlauf-achse">${esc(datumKurz(punkte[0].datum))}</text>`);
   if (punkte.length > 1) {
-    teile.push(`<text x="${B - RAND.rechts}" y="${H - 6}" class="verlauf-achse" text-anchor="end">${esc(datumKurz(punkte[punkte.length - 1].datum))}</text>`);
+    teile.push(`<text x="${B - RAND.rechts}" y="${H - 8}" class="verlauf-achse" text-anchor="end">${esc(datumKurz(punkte[punkte.length - 1].datum))}</text>`);
   }
   teile.push('</svg>');
   return teile.join('');

@@ -129,7 +129,11 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil((async () => {
-    const liste = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // Nur Fenster dieser App: Im selben Ursprung liegt die Workout-App, und
+    // matchAll() liefert deren Fenster mit – der Hinweis zur Tablette holte
+    // sonst womöglich das Training nach vorn.
+    const liste = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .filter((c) => c.url.startsWith(self.registration.scope));
     for (const client of liste) {
       if ('focus' in client) {
         await client.focus();

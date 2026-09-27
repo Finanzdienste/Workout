@@ -11,7 +11,7 @@
 import { datumInWorten, tageWeiter, uhrText, relativ, tageZwischen } from './datum.js';
 import { esc } from './text.js';
 import {
-  dosisText, aktuelleDosis, einnahme, naechsterTermin, vorratReicht,
+  dosisText, aktuelleDosis, naechsteDosis, einnahme, naechsterTermin, vorratReicht, zaehltAb,
 } from './speicher.js';
 
 const STUFEN = [['gut', 'Gut'], ['mittel', 'Mittel'], ['schlecht', 'Schlecht']];
@@ -42,9 +42,31 @@ function tabletteKnopf(stand, heute, jetztUhr) {
 
 function hinweise(stand, heute) {
   const teile = [];
+  // Stärke fehlt (beim Einrichten leer gelassen): daran erinnern, bis sie da ist.
+  const geltend = aktuelleDosis(heute);
+  if (geltend && geltend.mikrogramm === null) {
+    teile.push(`
+      <div class="hinweis-karte warn"><span class="ri" aria-hidden="true">💊</span>
+        <div><strong>Die Stärke der Tablette fehlt noch.</strong> Sie steht auf der Packung, z. B. „75 µg".
+        <br><button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis" data-param="${esc(geltend.id)}" style="margin-top:.4rem">Stärke eintragen</button></div>
+      </div>`);
+  }
+
+  // Gestern bewusst nicht genommen, heute noch nichts abgehakt: Der eine Satz,
+  // der vor einer doppelten Tablette schützt, steht hier dauerhaft – nicht nur
+  // ein paar Sekunden als Meldung.
+  if (einnahme(tageWeiter(heute, -1)) === null && einnahme(heute) === undefined) {
+    teile.push(`
+      <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span>
+        <div>Gestern keine Tablette. <strong>Heute wie gewohnt eine – nicht doppelt.</strong></div>
+      </div>`);
+  }
+
+  // Nur fragen, wenn gestern schon zählte – am Tag nach dem Einrichten gibt
+  // es kein „gestern", das man hätte abhaken können.
   const gestern = tageWeiter(heute, -1);
-  const dosis = aktuelleDosis();
-  if (dosis && dosis.ab <= gestern && einnahme(gestern) === undefined) {
+  const ab = zaehltAb();
+  if (ab && ab <= gestern && einnahme(gestern) === undefined) {
     teile.push(`
       <div class="karte" id="gestern">
         <h2>Gestern nicht eingetragen</h2>
@@ -73,8 +95,11 @@ function hinweise(stand, heute) {
   // Erinnerung an diese Regel, keine Empfehlung: Sie erscheint erst ab der
   // vierten Woche, nur solange weder ein neuer Laborwert noch ein Termin
   // eingetragen ist, und sagt nichts über die Dosis selbst.
-  if (stand.dosen.length >= 2 && !termin) {
-    const letzte = stand.dosen[stand.dosen.length - 1];
+  const geltende = aktuelleDosis(heute);
+  if (geltende && stand.dosen.indexOf(geltende) >= 1 && !termin) {
+    // Die heute gültige Dosis, nicht die zuletzt eingetragene: Ist schon eine
+    // künftige eingetragen, soll die Erinnerung an die laufende nicht fehlen.
+    const letzte = geltende;
     const seit = tageZwischen(letzte.ab, heute);
     const laborDanach = stand.labor.some((l) => l.datum >= letzte.ab);
     if (seit >= 28 && seit <= 70 && !laborDanach) {
@@ -132,13 +157,15 @@ function befinden(stand, heute) {
  * @param {string} jetztUhr „HH:MM"
  */
 export function heuteAnsicht(stand, heute, jetztUhr) {
-  const dosis = dosisText();
+  const dosis = dosisText(aktuelleDosis(heute));
+  const naechste = naechsteDosis(heute);
   const anrede = stand.profil.name ? `Guten Tag, ${esc(stand.profil.name)}.` : '';
   return `
     <p class="heute-datum">${esc(datumInWorten(heute))}</p>
     <p class="heute-dosis">${anrede ? `${anrede} ` : ''}${dosis
     ? esc(dosis)
     : 'Noch keine Dosis eingetragen. <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis">Dosis eintragen</button>'}</p>
+    ${naechste ? `<p class="hinweis-karte" style="display:block"><strong>Ab ${esc(datumInWorten(naechste.ab))}:</strong> ${esc(dosisText(naechste))}</p>` : ''}
     ${tabletteKnopf(stand, heute, jetztUhr)}
     <div style="height:.8rem"></div>
     ${hinweise(stand, heute)}

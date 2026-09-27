@@ -79,6 +79,7 @@ export default [
         IntersectionObserver: 'readonly',
         matchMedia: 'readonly',
         getComputedStyle: 'readonly',
+        CSS: 'readonly',
         structuredClone: 'readonly',
         history: 'readonly',
         Notification: 'readonly',

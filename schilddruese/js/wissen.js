@@ -59,6 +59,7 @@ export const KAPITEL = [
         <li>Magenmittel gegen Sodbrennen (Antazida), Sucralfat</li>
         <li>Soja-Produkte (Sojamilch, Tofu, Sojaeiweiß)</li>
         <li>Ballaststoff-Präparate wie Flohsamen, Kleie, Leinsamen</li>
+        <li>Colestyramin und ähnliche Mittel gegen Cholesterin oder Gallensäure – hier 4 bis 5 Stunden; ebenso Phosphatbinder wie Sevelamer</li>
       </ul>
       <p>Reines Vitamin D ohne Kalzium stört nicht. Kleine Mengen Soja im Alltag, mit Abstand zur Tablette, sind unproblematisch. Wer viel Soja isst, damit anfängt oder aufhört, sagt es der Ärztin.</p>
       <h2>Mindestens 30, besser 60 Minuten Abstand</h2>
@@ -71,7 +72,7 @@ export const KAPITEL = [
       <h2>Biotin vor der Blutabnahme</h2>
       <p>Biotin (Vitamin B7 oder H, oft hoch dosiert in Mitteln für Haare, Haut und Nägel) verfälscht die Laborwerte: Sie sehen dann fälschlich nach zu viel Hormon aus. Vor der Blutabnahme pausieren – bei Haar-Haut-Nägel-Präparaten mindestens 3 Tage – und die Praxis informieren. Übliche Multivitamine mit wenigen Mikrogramm stören nicht.</p>
       <h2>Andere Medikamente</h2>
-      <p>Manche Medikamente verändern den Bedarf oder die Wirkung, zum Beispiel Östrogene (Pille, Hormonersatz), einige Epilepsiemittel, das Herzmittel Amiodaron oder Colestyramin. Umgekehrt verstärkt L-Thyroxin Blutverdünner wie Marcumar; nach einer Dosisänderung sollte dann der INR-Wert früher kontrolliert werden. Bei Diabetes kann sich der Blutzucker ändern.</p>
+      <p>Manche Medikamente verändern den Bedarf oder die Wirkung, zum Beispiel Östrogene (Pille, Hormonersatz), einige Epilepsiemittel oder das Herzmittel Amiodaron. Umgekehrt verstärkt L-Thyroxin Blutverdünner wie Marcumar; nach einer Dosisänderung sollte dann der INR-Wert früher kontrolliert werden. Bei Diabetes kann sich der Blutzucker ändern.</p>
       <div class="merke">Jedes neue Medikament und jedes Nahrungsergänzungsmittel der Ärztin oder in der Apotheke nennen.</div>`,
   },
   {
@@ -86,10 +87,10 @@ export const KAPITEL = [
       <h2>fT4</h2>
       <p>fT4 ist das freie Thyroxin – das Hormon, das in der Tablette steckt. Einheiten: pmol/l oder ng/dl (1 ng/dl entspricht 12,87 pmol/l).</p>
       <h2>fT3</h2>
-      <p>fT3 ist die aktive Form, die der Körper aus T4 bildet. Einheiten: pmol/l oder pg/ml. Unter L-Thyroxin wird es zur Kontrolle meist nicht gebraucht, und ein fT3 im unteren Normbereich ist dabei normal.</p>
+      <p>fT3 ist die aktive Form, die der Körper aus T4 bildet. Einheiten: pmol/l oder pg/ml. Unter L-Thyroxin wird es zur Kontrolle meist nicht gebraucht; ein fT3 im unteren Bereich kommt dabei häufig vor.</p>
       <h2>Der Bereich des Labors</h2>
       <p>Jedes Labor hat eigene Grenzen, je nach Messverfahren. Deshalb gibt diese App <strong>keine Normwerte vor</strong>, sondern übernimmt den Bereich, der auf Ihrem Befund steht. Im höheren Alter liegt die obere TSH-Grenze oft etwas höher, und bei älteren Menschen wird häufig bewusst ein etwas höherer TSH-Wert angestrebt, weil zu viel Hormon Herz und Knochen belastet. Den persönlichen Zielbereich legt die Ärztin fest.</p>
-      <div class="merke">Ein Wert knapp außerhalb des Bereichs ist kein Grund zur Sorge und keine Aufforderung, etwas zu ändern. Die App zeigt die Werte deshalb ohne Ampel und ohne „zu hoch" oder „zu niedrig" – die Bewertung übernimmt die Ärztin.</div>
+      <div class="merke">Ein Wert außerhalb des Bereichs ist keine Aufforderung, selbst etwas zu ändern. Die Ärztin sieht ihn sich an und entscheidet – auch darüber, ob überhaupt etwas zu tun ist. Die App zeigt die Werte deshalb ohne Ampel und ohne „zu hoch" oder „zu niedrig".</div>
       <h2>Warum Werte schwanken</h2>
       <p>TSH ist nachts und früh morgens am höchsten, nachmittags am niedrigsten, und nach dem Essen etwas niedriger als nüchtern. Kleine Unterschiede zwischen zwei Messungen sind normal. Am besten immer unter gleichen Bedingungen abnehmen lassen: morgens, nüchtern.</p>
       <p>Wenig Aussagekraft hat ein einzelner Wert kurz nach einer Dosisänderung, während einer schweren Erkrankung oder unter Biotin.</p>`,

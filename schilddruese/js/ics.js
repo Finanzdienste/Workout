@@ -21,20 +21,46 @@ function entschaerfen(text) {
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
-    .replace(/\r?\n/g, '\\n');
+    // Auch ein einzelnes CR: Manche Leser werten es als Zeilenende.
+    .replace(/\r\n|\r|\n/g, '\\n');
 }
 
-/** Zeilen auf 75 Zeichen umbrechen – der Standard verlangt es, manche Kalender verschlucken sonst den Rest. */
+/**
+ * Zeilen auf 75 Oktette umbrechen – der Standard verlangt es, manche Kalender
+ * verschlucken sonst den Rest.
+ *
+ * Oktette, nicht Zeichen: „ü" sind in UTF-8 zwei. Und nur zwischen ganzen
+ * Zeichen: Ein Emoji besteht in JavaScript aus zwei Hälften, und an der
+ * Grenze durchgeschnitten wurden daraus zwei Ersatzzeichen.
+ */
+const kodierer = new TextEncoder();
 function falten(zeile) {
-  if (zeile.length <= 75) return zeile;
-  const teile = [zeile.slice(0, 75)];
-  let rest = zeile.slice(75);
-  while (rest.length > 74) {
-    teile.push(` ${rest.slice(0, 74)}`);
-    rest = rest.slice(74);
+  const teile = [];
+  let aktuell = '';
+  let laenge = 0;
+  for (const zeichen of zeile) {
+    const n = kodierer.encode(zeichen).length;
+    const grenze = teile.length ? 74 : 75;   // Folgezeilen beginnen mit einem Leerzeichen
+    if (laenge + n > grenze) {
+      teile.push(aktuell);
+      aktuell = '';
+      laenge = 0;
+    }
+    aktuell += zeichen;
+    laenge += n;
   }
-  if (rest) teile.push(` ${rest}`);
-  return teile.join(NL);
+  teile.push(aktuell);
+  return teile.map((t, i) => (i ? ` ${t}` : t)).join(NL);
+}
+
+/*
+ * SEQUENCE steigt mit jeder neu erzeugten Datei (Minuten seit 2024). Ein
+ * Kalender, der die UID auswertet, nimmt dann die neue Fassung statt der
+ * alten. Verlassen kann man sich darauf nicht – siehe den Hinweis unter
+ * „Erinnerung", den alten Termin vorher zu löschen.
+ */
+function folge() {
+  return String(Math.max(1, Math.floor((Date.now() - Date.UTC(2024, 0, 1)) / 60000)));
 }
 
 /**
@@ -83,7 +109,7 @@ export function erinnerungICS({ abISO, uhr, text = 'Schilddrüsentablette nehmen
     'BEGIN:VEVENT',
     'UID:tablette@schilddruese.local',
     `DTSTAMP:${jetztUTC()}`,
-    'SEQUENCE:1',
+    `SEQUENCE:${folge()}`,
     `DTSTART:${start}`,
     `DTEND:${ende}`,
     'RRULE:FREQ=DAILY',
@@ -112,7 +138,7 @@ export function terminICS({ id, datum, uhr, titel, notiz = '' }) {
     'BEGIN:VEVENT',
     `UID:termin-${id}@schilddruese.local`,
     `DTSTAMP:${jetztUTC()}`,
-    'SEQUENCE:1',
+    `SEQUENCE:${folge()}`,
     `DTSTART:${stempel(datum, beginn)}`,
     `DTEND:${stempel(datum, beginn, 60)}`,
     falten(`SUMMARY:${entschaerfen(titel)}`),

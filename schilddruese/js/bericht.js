@@ -24,11 +24,13 @@ export function berichtText(stand, heute) {
   z.push('');
 
   // Dosis
-  const dosis = sp.aktuelleDosis();
+  const dosis = sp.aktuelleDosis(heute);
   z.push('DOSIS');
   if (dosis) {
-    z.push(`Aktuell: ${sp.dosisText(dosis)}, seit ${datumKurz(dosis.ab)}${dosis.notiz ? ` (${dosis.notiz})` : ''}`);
-    const fruehere = stand.dosen.slice(0, -1).slice(-3).reverse();
+    z.push(`Aktuell: ${sp.dosisText(dosis)}, ${dosis.ab > heute ? 'ab' : 'seit'} ${datumKurz(dosis.ab)}${dosis.notiz ? ` (${dosis.notiz})` : ''}`);
+    stand.dosen.filter((d) => d.ab > heute && d !== dosis)
+      .forEach((d) => z.push(`Geplant ab ${datumKurz(d.ab)}: ${sp.dosisText(d)}${d.notiz ? ` (${d.notiz})` : ''}`));
+    const fruehere = stand.dosen.filter((d) => d.ab < dosis.ab).slice(-3).reverse();
     fruehere.forEach((d) => z.push(`Davor: ${sp.dosisText(d)}, ab ${datumKurz(d.ab)}`));
     z.push(`Einnahmezeit: etwa ${uhrText(stand.einstellungen.erinnerung)}, nüchtern`);
   } else {
@@ -44,7 +46,7 @@ export function berichtText(stand, heute) {
     const teile = [`an ${b8.genommen} von ${mehrzahl(b8.tage, 'Tag', 'Tagen')} genommen`];
     if (b8.ausgelassen) teile.push(`an ${mehrzahl(b8.ausgelassen, 'Tag', 'Tagen')} nicht genommen`);
     if (b8.unbekannt) teile.push(`${mehrzahl(b8.unbekannt, 'Tag', 'Tage')} ohne Eintrag`);
-    z.push(`${b8.tage < 56 ? `Seit ${datumKurz(tageWeiter(heute, 1 - b8.tage))}` : 'Letzte 8 Wochen'}: ${teile.join(', ')}.`);
+    z.push(`${b8.tage < 56 ? `Seit ${datumKurz(tageWeiter(b8.bis, 1 - b8.tage))}` : 'Letzte 8 Wochen'}: ${teile.join(', ')}.`);
     if (b8.tage > 28) z.push(`Davon letzte 4 Wochen: an ${b4.genommen} von ${mehrzahl(b4.tage, 'Tag', 'Tagen')} genommen.`);
     if (b8.ausgelassenTage.length) z.push(`Nicht genommen am: ${b8.ausgelassenTage.map(datumKurz).join(', ')}`);
   } else {
@@ -62,7 +64,8 @@ export function berichtText(stand, heute) {
         const w = l[k];
         return `${name} ${zahlText(w.wert)} ${w.einheit}${w.von !== null ? ` (Labor ${zahlText(w.von)}–${zahlText(w.bis)})` : ''}`;
       });
-      z.push(`${datumKurz(l.datum)}: ${werte.join(', ')}${d && d.mikrogramm !== null ? ` – Dosis damals ${zahlText(d.mikrogramm, 1)} µg` : ''}${l.notiz ? ` – ${l.notiz}` : ''}`);
+      const tag = sp.tagesdosis(d);
+      z.push(`${datumKurz(l.datum)}: ${werte.join(', ')}${tag !== null ? ` – Dosis damals ${zahlText(tag, 1)} µg am Tag` : ''}${l.notiz ? ` – ${l.notiz}` : ''}`);
     });
   } else {
     z.push('Keine Laborwerte eingetragen.');
@@ -73,9 +76,13 @@ export function berichtText(stand, heute) {
   z.push('GEWICHT');
   if (stand.gewicht.length) {
     const letzt = stand.gewicht[stand.gewicht.length - 1];
-    const grenze = tageWeiter(heute, -90);
+    // Zum Vergleich der jüngste Wert, der mindestens zwei Monate vor dem
+    // letzten liegt – mit seinem Datum und ohne „vor etwa drei Monaten": Lag
+    // er in Wahrheit 15 Monate zurück, las sich der Unterschied sonst wie ein
+    // schneller Gewichtsverlust, im Alter ein Warnzeichen.
+    const grenze = tageWeiter(letzt.datum, -60);
     const aelter = [...stand.gewicht].reverse().find((g) => g.datum <= grenze);
-    z.push(`${zahlText(letzt.kg, 1)} kg am ${datumKurz(letzt.datum)}${aelter ? `; vor etwa drei Monaten ${zahlText(aelter.kg, 1)} kg (${datumKurz(aelter.datum)})` : ''}`);
+    z.push(`${zahlText(letzt.kg, 1)} kg am ${datumKurz(letzt.datum)}${aelter ? `; davor ${zahlText(aelter.kg, 1)} kg am ${datumKurz(aelter.datum)}` : ''}`);
   } else {
     z.push('Kein Gewicht eingetragen.');
   }

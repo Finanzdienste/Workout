@@ -15,13 +15,15 @@ Browser des Handys.
 
 | Bereich | Inhalt |
 | --- | --- |
-| **Heute** | Datum in Worten, Präparat und Dosis, der große Knopf „Tablette genommen?". Darunter nur, was zutrifft: gestern nichts eingetragen, ein Termin in den nächsten zwei Wochen, Blutkontrolle nach einer Dosisänderung, Vorrat geht zur Neige, lange keine Sicherung. Ganz unten „Wie geht es Ihnen heute?" mit drei Knöpfen. |
-| **Verlauf** | Laborwerte (TSH, fT4, fT3) je Befund mit dem Bereich des Labors und der Dosis, die damals galt; Verlaufslinie ab zwei Werten. Dosis mit Verlauf. Einnahmen der letzten vier Wochen als Raster zum Antippen und Nachtragen. Gewicht. Befinden mit Beschwerden. |
+| **Heute** | Datum in Worten, die heute gültige Dosis, der große Knopf „Tablette genommen?". Darunter nur, was zutrifft: eine schon eingetragene künftige Dosis („Ab Montag: …"), die Stärke fehlt noch, gestern nichts eingetragen, gestern nicht genommen („heute wie gewohnt – nicht doppelt"), ein Termin in den nächsten zwei Wochen, Blutkontrolle nach einer Dosisänderung, Vorrat geht zur Neige, lange keine Sicherung. Ganz unten „Wie geht es Ihnen heute?" mit drei Knöpfen. |
+| **Verlauf** | Laborwerte (TSH, fT4, fT3) je Befund mit dem Bereich des Labors und der Tagesdosis, die damals galt; Verlaufslinie ab zwei Werten in derselben Einheit. Dosis mit Verlauf („aktuell", „geplant"). Einnahmen der letzten vier Wochen als Kalender mit ✓ ✗ ? zum Antippen und Nachtragen. Gewicht. Befinden mit Beschwerden. |
 | **Mehr** | Bericht für den Arzttermin (teilen, kopieren, drucken), eigene Fragen für den Termin, Termine (mit Kalenderdatei), Wissen in neun Kapiteln, Erinnerung, Tablettenvorrat, Schrift und Farben, Sicherung, „Über diese App" mit „Alles löschen". |
 
 Beim allerersten Öffnen drei Schritte: Anrede, Tablette (Präparat, Stärke in
-µg, Tabletten am Tag, seit wann), Einnahmezeit. Wer ein neues Handy hat, kann
-schon dort eine Sicherung einlesen.
+µg, Tabletten am Tag, seit wann), Einnahmezeit. Die Stärke darf leer bleiben,
+wenn die Packung nicht zur Hand ist – geschätzt wäre schlimmer; „Heute"
+erinnert dann daran. Wer ein neues Handy hat, kann schon dort eine Sicherung
+einlesen.
 
 ## Was sie ausdrücklich nicht tut
 
@@ -42,9 +44,10 @@ schon dort eine Sicherung einlesen.
   dem iPhone nicht vorhanden. Die App sagt das beim Einrichten und unter
   „Erinnerung" – und bietet stattdessen eine **Kalenderdatei** mit einem
   täglichen Termin samt Alarm an. Die klingelt zuverlässig, weil der Kalender
-  des Handys klingelt. Ist die App offen oder im Hintergrund noch am Leben,
-  meldet sie sich nach der Einnahmezeit einmal zusätzlich (Systemhinweis, nach
-  Erlaubnis).
+  des Handys klingelt. Ist die App gerade auf dem Bildschirm offen, meldet sie
+  sich nach der Einnahmezeit einmal zusätzlich (Systemhinweis, nach
+  Erlaubnis). Im Hintergrund halten iOS und Android die Seite meist an – dann
+  kommt nichts, und so steht es auch in der App.
 
 ## Woher das Wissen stammt
 
@@ -101,6 +104,16 @@ Objekt heißt genommen, `null` heißt bewusst nicht genommen, ein fehlender Tag
 heißt unbekannt. „Zurücknehmen" eines Hakens macht aus dem Tag „unbekannt",
 nicht „nicht genommen".
 
+**Gezählt wird ab dem Einrichten** (`profil.seit`), nicht ab der ersten Dosis:
+Wer beim Einrichten „seit März" angibt, hätte sonst am ersten Tag „an 0 von 28
+Tagen genommen" im Bericht. Der laufende Tag zählt erst, wenn für ihn etwas
+eingetragen ist – morgens vor der Tablette ist er keine Lücke.
+
+**Die Dosis gilt ab ihrem Datum.** Eine im Voraus eingetragene Dosis („ab
+Montag 100 µg") erscheint bis dahin nur als Ankündigung; „Heute", Bericht und
+Vorrat rechnen mit der heute gültigen. Im Bericht und neben den Laborwerten
+steht die **Tagesdosis** (Stärke × Tabletten), nicht die Stärke allein.
+
 Drei Regeln aus der Workout-App, hier von Anfang an:
 
 - **Nichts geht still verloren.** Kann der Browser nicht speichern (privates
@@ -110,8 +123,15 @@ Drei Regeln aus der Workout-App, hier von Anfang an:
   einer neueren Fassung wird abgelehnt.
 - **Gelesenes wird entschärft.** `normStand()` bringt jeden Stand – aus dem
   Speicher wie aus einer Sicherungsdatei – in die erwartete Form; unbekannte
-  Felder fallen weg, kaputte Werte werden zu ihrem Standard. Die Sicherung der
-  Workout-App wird als fremd erkannt und nicht als leerer Stand eingelesen.
+  Felder fallen weg, kaputte Werte werden zu ihrem Standard, Einträge ohne
+  Datum oder ohne einen lesbaren Wert fallen heraus, Kennungen mit fremden
+  Zeichen werden ersetzt. Die Sicherung der Workout-App wird als fremd erkannt
+  und nicht als leerer Stand eingelesen.
+- **Zwei offene Fenster** (ein Browser-Tab neben der installierten App) lesen
+  den Stand neu, sobald das andere schreibt oder sie wieder nach vorn kommen –
+  sonst überschriebe das ältere die Einträge des neueren.
+- **„Stand vor dem Einlesen zurückholen"** fragt nach und steht nur am Tag des
+  Einlesens und zwei Tage danach da; auf einem neuen Handy gar nicht.
 
 ## Gestaltung
 
@@ -119,7 +139,10 @@ Für eine ältere Nutzerin: Grundschrift 20 px (wählbar 18 / 20 / 23 px), alle
 Maße in rem, damit Knöpfe und Abstände mitwachsen; jeder Knopf mindestens 44 px
 hoch, der Tabletten-Knopf über 100 px; hell als Standard, dunkel wählbar;
 Kontrast mindestens 4,5 : 1 in beiden. Text statt Symbol, keine Wischgesten,
-keine versteckten Menüs; höchstens eine Seite tief, „Zurück" oben links.
+keine versteckten Menüs. „Zurück" oben links sagt, wohin es geht, und führt
+dorthin, woher man kam – aus einem Befund in die Liste, nicht bis zum Reiter.
+Nach jedem Tipp bleibt der Fokus auf dem getippten Knopf bzw. auf der neuen
+Seite, damit Vorleseprogramme die Stelle nicht verlieren.
 Geprüft in `tests/test-sd-darstellung.mjs` auf 360 × 740 über alle Seiten und
 alle drei Schriftgrößen.
 
@@ -140,11 +163,35 @@ alle drei Schriftgrößen.
 | `js/diagramm.js` | Verlaufslinie ohne Bibliothek |
 | `js/datum.js`, `js/text.js` | Datum, Zahlen mit Komma, HTML entschärfen |
 
-Tests: `tests/test-sd-*.mjs` (neun Dateien), gemeinsame Helfer in
+Tests: `tests/test-sd-*.mjs` (elf Dateien), gemeinsame Helfer in
 `tests/sd-hilfe.mjs`. Sie laufen mit allen anderen:
 
     node tests/lauf.mjs sd-      # nur die Schilddrüse
     npm run lint                 # prüft schilddruese/ mit
+
+## Durchsicht vor dem Mergen
+
+Fünf Prüfer (Logik, medizinische Texte, Barrierefreiheit, Offline-Betrieb,
+Datensicherheit) haben die App durchgesehen; jeder Befund wurde von einem
+zweiten gegengeprüft. 41 Befunde, 27 bestätigt, alle behoben – dazu einige
+der verworfenen, wo der Fix klein und eindeutig richtig war. Die wichtigsten:
+
+- „Dosis damals 50 µg" nannte bei 1½ Tabletten die Stärke statt der
+  Tagesdosis von 75 µg – genau die Zahl, mit der eine Ärztin weiterrechnet.
+- Eine im Voraus eingetragene Dosis erschien sofort als heutige.
+- Eine neu erzeugte Kalenderdatei legt in manchen Handy-Kalendern einen
+  zweiten täglichen Alarm an, statt den alten zu ersetzen – die App sagt
+  jetzt, den alten Termin zuerst zu löschen.
+- Der Worker der Workout-App löschte beim Aktualisieren den Vorrat dieser App
+  und beantwortete ihre Seitenaufrufe, solange ihr eigener Worker fehlte –
+  offline mit der Workout-App. Er lässt `schilddruese/` jetzt in Ruhe
+  (`../sw.js`).
+- Das Einnahme-Raster war 18 Pixel breit und unterschied nur über Rot/Grün.
+
+Festgehalten in `tests/test-sd-bedienung.mjs` und den übrigen Tests. Der
+Offline-Test hält dafür seinen eigenen Server an: Playwrights
+Offline-Schalter schneidet die Anfragen eines Service Workers nicht ab, und
+die Prüfung war vorher auch mit leerem Vorrat grün.
 
 ## Offene Punkte
 
@@ -157,3 +204,11 @@ Tests: `tests/test-sd-*.mjs` (neun Dateien), gemeinsame Helfer in
   Die Nummer des eigenen Bundeslands ließe sich als Einstellung ergänzen.
 - **Gegenlesen:** siehe oben – die Wissenstexte einmal von einer Ärztin oder
   Apothekerin prüfen lassen.
+- **Notausgang der Workout-App** („App neu laden" unter Mehr dort) meldet alle
+  Service Worker des Ursprungs ab und leert alle Vorräte – auch die dieser
+  App. Die Daten bleiben erhalten; offline geht diese App erst wieder nach
+  dem nächsten Öffnen mit Netz. Das zu ändern hieße, die Workout-App samt
+  Bündel anzufassen; es ist ein ausdrücklicher Knopfdruck dort.
+- **Kalender und UID:** Manche Kalender werten die feste UID beim Import aus
+  und ersetzen den Termin, viele nicht. Deshalb der Hinweis, den alten Termin
+  vorher zu löschen.

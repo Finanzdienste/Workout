@@ -12,6 +12,7 @@
 import { istISO, istUhr, zahlAus } from './datum.js';
 import { esc } from './text.js';
 import * as sp from './speicher.js';
+import { tablettenWahl } from './ansicht-formulare.js';
 
 export const WILLKOMMEN_SCHRITTE = 3;
 
@@ -52,7 +53,7 @@ export function willkommenAnsicht(schritt, stand, heute) {
       <form novalidate>
         <p class="schritte">Schritt 2 von 3</p>
         <h2 class="willkommen-titel">Welche Tablette nehmen Sie?</h2>
-        <p class="gedaempft" style="margin-bottom:.9rem">Steht auf der Packung. Wenn Sie es gerade nicht wissen: Stärke schätzen und später unter „Verlauf" berichtigen.</p>
+        <p class="gedaempft" style="margin-bottom:.9rem">Steht auf der Packung. Ist die Packung gerade nicht zur Hand, die Stärke leer lassen – bitte nicht schätzen. „Heute" erinnert dann daran, sie nachzutragen.</p>
         <label class="feld"><span>Präparat</span>
           <input type="text" name="praeparat" value="${esc(d.praeparat)}" placeholder="z. B. L-Thyroxin Henning" autocomplete="off">
         </label>
@@ -60,11 +61,7 @@ export function willkommenAnsicht(schritt, stand, heute) {
           <input type="text" inputmode="decimal" name="mikrogramm" value="${d.mikrogramm === null ? '' : esc(String(d.mikrogramm).replace('.', ','))}" placeholder="z. B. 75" autocomplete="off">
           <span class="hinweis">Die Zahl auf der Packung: 25, 50, 75, 100, 125 …</span>
         </label>
-        <label class="feld"><span>Tabletten am Tag</span>
-          <select name="tabletten">
-            ${[[0.5, '½ Tablette'], [1, '1 Tablette'], [1.5, '1½ Tabletten'], [2, '2 Tabletten']].map(([w, t]) => `<option value="${w}" ${d.tabletten === w ? 'selected' : ''}>${t}</option>`).join('')}
-          </select>
-        </label>
+        ${tablettenWahl(d.tabletten)}
         <label class="feld"><span>Seit wann ungefähr?</span>
           <input type="date" name="ab" value="${esc(d.ab)}">
           <span class="hinweis">Wenn unbekannt: heute lassen. Ab diesem Tag zählt die App die Einnahmen.</span>
@@ -105,9 +102,11 @@ export function willkommenWeiter(schritt, form, heute) {
   }
   if (schritt === 2) {
     const fehler = {};
-    const mikrogramm = zahlAus(f.get('mikrogramm'));
-    if (mikrogramm === null || mikrogramm <= 0) fehler.mikrogramm = 'Bitte die Stärke in µg eintragen, z. B. 75.';
-    else if (mikrogramm < 5 || mikrogramm > 400) fehler.mikrogramm = 'Bitte prüfen: Übliche Stärken liegen zwischen 12,5 und 300 µg.';
+    const roh = String(f.get('mikrogramm') || '').trim();
+    const mikrogramm = zahlAus(roh);
+    // Leer ist erlaubt (Packung nicht zur Hand) – geschätzt wäre schlimmer.
+    if (roh && (mikrogramm === null || mikrogramm <= 0)) fehler.mikrogramm = 'Bitte die Stärke als Zahl eintragen, z. B. 75 – oder leer lassen.';
+    else if (mikrogramm !== null && (mikrogramm < 5 || mikrogramm > 400)) fehler.mikrogramm = 'Bitte prüfen: Übliche Stärken liegen zwischen 12,5 und 300 µg. Steht eine andere Zahl auf der Packung, prüfen Sie die Einheit.';
     let ab = f.get('ab');
     if (!istISO(ab)) ab = heute;
     if (Object.keys(fehler).length) return { ok: false, fehler };

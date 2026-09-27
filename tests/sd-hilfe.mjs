@@ -29,7 +29,8 @@ export function plus(iso, n) {
 /** „27.09.2026" aus „2026-09-27". */
 export const kurz = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
-function uhrStellen() {
+/** Feste Uhr aus __testtag/__testzeit – als Init-Skript für einen Browserkontext. */
+export function uhrStellen() {
   let tag = null;
   let zeit = null;
   try {

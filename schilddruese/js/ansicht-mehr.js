@@ -169,12 +169,12 @@ function erinnerungSeite(stand) {
           <li><strong>Android:</strong> die heruntergeladene Datei antippen, den Kalender wählen, „Speichern".</li>
           <li><strong>iPhone:</strong> „Zum Kalender hinzufügen" antippen.</li>
         </ul>
-        <p class="klein gedaempft">Ändert sich die Uhrzeit, die Datei einfach neu erzeugen – der Kalender ersetzt den alten Termin. Auch ein täglicher Wecker im Handy tut es.</p>
+        <p class="klein gedaempft"><strong>Ändert sich die Uhrzeit:</strong> zuerst den alten Termin „Schilddrüsentablette nehmen" im Kalender löschen (alle Wiederholungen), dann die neue Datei öffnen. Viele Handy-Kalender ersetzen ihn nicht von selbst – dann gäbe es zwei tägliche Erinnerungen. Auch ein täglicher Wecker im Handy tut es.</p>
       </div>
 
       <div class="karte">
         <h2>Zusätzlich: Hinweis, solange die App offen ist</h2>
-        <p class="gedaempft">Liegt die App offen oder im Hintergrund, meldet sie sich nach der Einnahmezeit einmal am Tag, wenn noch nichts abgehakt ist. Ist sie geschlossen, kommt nichts – darauf also nicht verlassen.</p>
+        <p class="gedaempft">Ist die App gerade auf dem Bildschirm offen, meldet sie sich nach der Einnahmezeit einmal am Tag, wenn noch nichts abgehakt ist. Im Hintergrund oder geschlossen kommt auf den meisten Handys nichts – darauf also nicht verlassen, dafür ist der Kalender da.</p>
         ${hinweis}
       </div>`,
   };
@@ -212,8 +212,7 @@ function darstellungSeite(stand) {
 }
 
 function sicherungSeite(stand, heute) {
-  let vorImport = false;
-  try { vorImport = !!localStorage.getItem(`${sp.SCHLUESSEL}.vorImport`); } catch { /* ohne Speicher keine Rücklage */ }
+  const vorImport = !!sp.rueckholbar(heute);
   return {
     titel: 'Sicherung',
     html: `

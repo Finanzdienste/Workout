@@ -18,8 +18,11 @@ const ics = await page.evaluate(async () => {
     spaet: m.erinnerungICS({ abISO: '2026-12-31', uhr: '23:50' }),
     termin: m.terminICS({ id: 'abc', datum: '2026-04-02', uhr: '23:30', titel: 'Blutabnahme; Praxis, Dr. Meier', notiz: 'nüchtern\nBefunde mitbringen' }),
     ohneZeit: m.terminICS({ id: 'x', datum: '2026-04-02', uhr: '', titel: 'Arzttermin' }),
+    lang: m.terminICS({ id: 'y', datum: '2026-04-02', uhr: '09:00', titel: 'Arzttermin Schilddrüse – Praxis Dr. Müller-Lüdenscheidt, Überweisung',
+      notiz: `${'a'.repeat(62)}😊 ok, danach Blutabnahme im Erdgeschoß – nüchtern kommen\rZweite Zeile` }),
   };
 });
+const oktette = (z) => new TextEncoder().encode(z).length;
 const zeilen = (t) => t.split('\r\n');
 check(ics.taeglich.includes('DTSTART:20260310T064500') && ics.taeglich.includes('DTEND:20260310T070000'), 'Beginn 6:45, Ende eine Viertelstunde später');
 check(ics.taeglich.includes('RRULE:FREQ=DAILY'), 'täglich wiederholt');
@@ -33,6 +36,11 @@ check(ics.termin.includes('Blutabnahme\\; Praxis\\, Dr. Meier'), 'Semikolon und 
 check(ics.termin.includes('nüchtern\\nBefunde'), 'Zeilenumbruch in der Notiz ist maskiert');
 check(ics.termin.includes('TRIGGER:-P1D') && ics.termin.includes('TRIGGER:-PT1H'), 'Termin: Erinnerung am Vortag und eine Stunde vorher');
 check(ics.ohneZeit.includes('DTSTART:20260402T090000'), 'Termin ohne Uhrzeit steht um 9 Uhr');
+check(zeilen(ics.lang).every((z) => oktette(z) <= 75), `mit Umlauten: keine Zeile über 75 Oktette (längste ${Math.max(...zeilen(ics.lang).map(oktette))})`);
+const entfaltet = ics.lang.replace(/\r\n /g, '');
+check(entfaltet.includes('😊') && !entfaltet.includes('\uFFFD') && !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(entfaltet), 'ein Emoji an der Umbruchstelle bleibt ganz');
+check(!/\r(?!\n)/.test(ics.lang), 'ein einzelnes CR in der Notiz wird maskiert, nicht durchgereicht');
+check(Number(ics.taeglich.match(/SEQUENCE:(\d+)/)[1]) > 1, 'SEQUENCE steigt mit der Zeit – eine neue Datei ist die neuere Fassung');
 
 // Über die Oberfläche: Uhrzeit ändern, Datei holen.
 await page.click('#reiter-mehr');
@@ -53,6 +61,7 @@ const inhalt = await (async () => {
 })();
 check(inhalt.includes(`DTSTART:${TAG.replace(/-/g, '')}T062000`), 'die Datei nimmt die eingestellte Zeit (6:20) ab heute');
 check((await page.locator('#ansicht').innerText()).includes('nicht von selbst melden'), 'die Seite sagt ehrlich, warum es den Kalender braucht');
+check((await page.locator('#ansicht').innerText()).includes('zuerst den alten Termin'), 'bei geänderter Uhrzeit: erst den alten Termin löschen – sonst zwei tägliche Alarme');
 
 // Termin anlegen und in den Kalender.
 await page.click('#reiter-mehr');

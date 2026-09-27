@@ -65,7 +65,9 @@ check(text.includes('Dosis damals 75 µg'), 'daneben die Dosis, die am Tag der A
 
 // Ein älterer Befund: andere Dosis damals, sortiert.
 await neu();
-check(await page.inputValue('input[name=tsh_von]') === '0,4', 'der Bereich des letzten Befunds ist vorbelegt – das Labor ist meist dasselbe');
+check(await page.inputValue('input[name=tsh_von]') === '' && (await page.getAttribute('input[name=tsh_von]', 'placeholder')) === 'z. B. 0,4',
+  'der Bereich wird nicht still vom letzten Befund übernommen – er steht nur als Platzhalter da');
+check(await page.inputValue('select[name=tsh_einheit]') === 'mU/l', 'die Einheit ist vom letzten Befund vorbelegt und sichtbar');
 await page.fill('input[name=datum]', plus(TAG, -60));
 await page.fill('input[name=tsh_wert]', '6,3');
 await page.click('button[type=submit]');

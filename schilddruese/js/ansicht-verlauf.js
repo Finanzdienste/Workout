@@ -16,7 +16,7 @@ import { esc, mehrzahl } from './text.js';
 import * as sp from './speicher.js';
 import { verlaufslinie } from './diagramm.js';
 
-const WT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const WT_KOPF = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 function bereichText(w) {
   return w && w.von !== null ? `Bereich ${zahlText(w.von)}–${zahlText(w.bis)}` : '';
@@ -40,7 +40,7 @@ function laborKarten(labor, alle = false) {
       <div class="befund">
         <div class="befund-kopf">
           <span class="befund-datum">${esc(datumKurz(l.datum))}</span>
-          <span class="gedaempft klein">${dosis && dosis.mikrogramm !== null ? `Dosis damals ${esc(zahlText(dosis.mikrogramm, 1))} µg` : ''}</span>
+          <span class="gedaempft klein">${sp.tagesdosis(dosis) !== null ? `Dosis damals ${esc(zahlText(sp.tagesdosis(dosis), 1))} µg am Tag` : ''}</span>
         </div>
         ${werte}
         ${alle && l.notiz ? `<p class="klein gedaempft">${esc(l.notiz)}</p>` : ''}
@@ -49,33 +49,57 @@ function laborKarten(labor, alle = false) {
   }).join('');
 }
 
+/*
+ * Nur Werte in derselben Einheit wie der neueste: fT4 in ng/dl und in pmol/l
+ * auf einer Achse sähe aus wie ein zwölffacher Sprung, und der ältere Punkt
+ * läge weit unter dem Streifen – das würde als „zu niedrig" gelesen.
+ * Einheiten werden dabei ohne Groß-/Kleinschreibung verglichen (ng/dl, ng/dL).
+ */
 function laborDiagramm(labor, key, name) {
-  const punkte = labor.filter((l) => l[key]).map((l) => ({ datum: l.datum, wert: l[key].wert }));
-  if (punkte.length < 2) return '';
-  const letzter = labor.filter((l) => l[key]).pop();
+  const mitWert = labor.filter((l) => l[key]);
+  if (mitWert.length < 2) return '';
+  const letzter = mitWert[mitWert.length - 1];
+  const einheit = (letzter[key].einheit || '').toLowerCase();
+  const gleich = mitWert.filter((l) => (l[key].einheit || '').toLowerCase() === einheit);
+  if (gleich.length < 2) return '';
+  const punkte = gleich.map((l) => ({ datum: l.datum, wert: l[key].wert }));
   const bereich = letzter[key].von !== null ? [letzter[key].von, letzter[key].bis] : null;
+  const fehlen = mitWert.length - gleich.length;
   return `<h3>${name} im Verlauf</h3>${verlaufslinie({ punkte, einheit: letzter[key].einheit, bereich, titel: name })}
-    <p class="klein gedaempft">${bereich ? 'Der helle Streifen ist der Bereich des Labors laut letztem Befund.' : 'Ohne Bereich des Labors – beim nächsten Eintrag mit abschreiben.'}</p>`;
+    <p class="klein gedaempft">${bereich ? 'Der helle Streifen ist der Bereich des Labors laut letztem Befund.' : 'Ohne Bereich des Labors – beim nächsten Eintrag mit abschreiben.'}${fehlen ? ` ${fehlen === 1 ? 'Ein Wert steht' : `${fehlen} Werte stehen`} in einer anderen Einheit und ${fehlen === 1 ? 'ist' : 'sind'} deshalb nicht eingezeichnet.` : ''}</p>`;
 }
 
 /** Die letzten 28 Tage als Reihe: genommen, nicht genommen, unbekannt. */
+/*
+ * Die letzten Wochen als Kalender: sieben Spalten, Montag zuerst, je Tag das
+ * Datum und ein Zeichen – ✓ genommen, ✗ nicht genommen, ? kein Eintrag. Das
+ * Zeichen trägt die Bedeutung, die Farbe nur zusätzlich; Rot und Grün allein
+ * unterscheidet nicht jeder. Vorher waren es vierzehn Spalten mit dem
+ * Anfangsbuchstaben des Wochentags (zweimal „D", zweimal „S"), 18 Pixel breit
+ * – zu klein, um mit dem Finger sicher den richtigen Tag zu treffen.
+ */
+const ZEICHEN = { ja: '✓', nein: '✗', offen: '?', leer: '' };
+
 function einnahmenReihe(stand, heute, tage = 28) {
-  const erste = stand.dosen.length ? stand.dosen[0].ab : null;
-  const zellen = [];
-  for (let i = tage - 1; i >= 0; i--) {
-    const tag = tageWeiter(heute, -i);
+  const erste = sp.zaehltAb();
+  const beginn = tageWeiter(heute, 1 - tage);
+  const montag = tageWeiter(beginn, -((new Date(`${beginn}T12:00:00`).getDay() + 6) % 7));
+  const zellen = WT_KOPF.map((w) => `<span class="tag-kopf" aria-hidden="true">${w}</span>`);
+  for (let tag = montag; tag <= heute; tag = tageWeiter(tag, 1)) {
+    if (tag < beginn) { zellen.push('<span class="tag-platz"></span>'); continue; }
     const e = stand.einnahmen[tag];
     const vorher = erste && tag < erste;
     const klasse = vorher ? 'leer' : e ? 'ja' : e === null ? 'nein' : 'offen';
-    const text = vorher ? 'vor der ersten Dosis' : e ? 'genommen' : e === null ? 'nicht genommen' : 'kein Eintrag';
-    zellen.push(`<button type="button" class="tag ${klasse}" data-act="seite" data-seite="einnahme" data-param="${tag}" aria-label="${esc(datumKurz(tag))}: ${text}" title="${esc(datumKurz(tag))}: ${text}">${WT[new Date(`${tag}T12:00:00`).getDay()][0]}</button>`);
+    const text = vorher ? 'noch nicht erfasst' : e ? 'genommen' : e === null ? 'nicht genommen' : 'kein Eintrag';
+    zellen.push(`<button type="button" class="tag ${klasse}" data-act="seite" data-seite="einnahme" data-param="${tag}" aria-label="${esc(datumInWorten(tag))}: ${text}"><span class="tag-zahl">${Number(tag.slice(8))}</span><span class="tag-zeichen" aria-hidden="true">${ZEICHEN[klasse]}</span></button>`);
   }
   return `<div class="tage" role="group" aria-label="Einnahmen der letzten ${tage} Tage">${zellen.join('')}</div>
-    <p class="klein gedaempft"><span class="tag-legende ja"></span> genommen · <span class="tag-legende nein"></span> nicht genommen · <span class="tag-legende offen"></span> kein Eintrag. Antippen zum Nachtragen.</p>`;
+    <p class="klein gedaempft">✓ genommen · ✗ nicht genommen · ? kein Eintrag. Einen Tag antippen, um ihn nachzutragen.</p>`;
 }
 
 export function verlaufAnsicht(stand, heute) {
-  const dosis = sp.aktuelleDosis();
+  const dosis = sp.aktuelleDosis(heute);
+  const naechste = sp.naechsteDosis(heute);
   const labor = stand.labor;
   const gewicht = stand.gewicht;
   const bilanz = sp.einnahmeBilanz(28, heute);
@@ -96,10 +120,11 @@ export function verlaufAnsicht(stand, heute) {
     <h2 class="abschnitt">Dosis</h2>
     <div class="karte">
       ${dosis
-    ? `<p class="gross">${esc(sp.dosisText(dosis))}</p><p class="gedaempft">seit ${esc(datumInWorten(dosis.ab, { wochentag: false, jahr: true }))}${dosis.notiz ? ` · ${esc(dosis.notiz)}` : ''}</p>`
+    ? `<p class="gross">${esc(sp.dosisText(dosis))}</p><p class="gedaempft">${dosis.ab > heute ? 'ab' : 'seit'} ${esc(datumInWorten(dosis.ab, { wochentag: false, jahr: true }))}${dosis.notiz ? ` · ${esc(dosis.notiz)}` : ''}</p>`
     : '<p class="gedaempft">Noch keine Dosis eingetragen.</p>'}
+      ${naechste ? `<p style="margin-top:.5rem"><strong>Ab ${esc(datumInWorten(naechste.ab))}:</strong> ${esc(sp.dosisText(naechste))}</p>` : ''}
       <div class="knopf-reihe">
-        <button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="dosis">${dosis ? 'Dosis geändert' : 'Dosis eintragen'}</button>
+        <button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="dosis">${dosis ? 'Neue Dosis eintragen' : 'Dosis eintragen'}</button>
         ${stand.dosen.length ? '<button type="button" class="knopf" data-act="seite" data-seite="dosis-liste">Verlauf</button>' : ''}
       </div>
     </div>
@@ -154,12 +179,12 @@ export function verlaufSeite(name, param, stand, heute) {
     case 'dosis-liste':
       return {
         titel: 'Dosis im Verlauf',
-        html: `<div class="zeilen">${[...stand.dosen].reverse().map((d, i) => `
+        html: `<div class="zeilen">${[...stand.dosen].reverse().map((d) => `
           <button type="button" class="zeile" data-act="seite" data-seite="dosis" data-param="${esc(d.id)}">
-            <span class="zeile-text"><span class="zeile-titel">${esc(sp.dosisText(d))}${i === 0 ? ' · aktuell' : ''}</span>
+            <span class="zeile-text"><span class="zeile-titel">${esc(sp.dosisText(d))}${d === sp.aktuelleDosis(heute) ? ' · aktuell' : d.ab > heute ? ' · geplant' : ''}</span>
             <span class="zeile-unter">ab ${esc(datumKurz(d.ab))}${d.notiz ? ` · ${esc(d.notiz)}` : ''}</span></span><span class="zeile-pfeil" aria-hidden="true">›</span>
           </button>`).join('')}</div>
-          <div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="dosis">Dosis geändert</button></div>`,
+          <div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="dosis">Neue Dosis eintragen</button></div>`,
       };
     case 'gewicht-liste':
       return {
