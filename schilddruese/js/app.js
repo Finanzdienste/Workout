@@ -4,8 +4,9 @@
  * Für eine Nutzerin, die morgens eine Tablette nimmt und beim Arzttermin
  * wissen will, was seit dem letzten Mal war. Die App hakt die Einnahme ab,
  * hält Dosis, Laborwerte, Gewicht und Befinden fest und schreibt daraus den
- * Bericht für den Termin. Sie deutet nichts und empfiehlt nichts – das bleibt
- * bei der Ärztin.
+ * Bericht für den Termin. Sie ordnet Werte und Beschwerden nach festen Regeln
+ * ein (js/einschaetzung.js) und nennt auf der Dosis-Karte eine Richtung
+ * (js/dosis.js) – eine neue Dosis rechnet sie nie aus; die legt die Ärztin fest.
  *
  * Aufbau: js/speicher.js hält den Zustand, die ansicht-*.js liefern HTML als
  * Text, und diese Datei setzt beides zusammen: welcher Reiter, welche Seite
@@ -20,7 +21,9 @@ import { verlaufAnsicht, verlaufSeite } from './ansicht-verlauf.js';
 import { mehrAnsicht, mehrSeite } from './ansicht-mehr.js';
 import { formular, absenden, eintragLoeschen } from './ansicht-formulare.js';
 import { einschaetzungSeite } from './ansicht-einschaetzung.js';
+import { dosisSeite, PRAXIS_BESTAETIGUNG } from './ansicht-dosis.js';
 import { fragenVorschlaege } from './einschaetzung.js';
+import { dosisHinweise } from './dosis.js';
 import { willkommenAnsicht, willkommenWeiter, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
 import { berichtText } from './bericht.js';
 import { erinnerungICS, terminICS } from './ics.js';
@@ -87,6 +90,7 @@ function seiteInhalt(seite, stand, heute) {
     || verlaufSeite(seite.name, seite.param, stand, heute)
     || mehrSeite(seite.name, seite.param, stand, heute)
     || einschaetzungSeite(seite.name, seite.param, stand, heute)
+    || dosisSeite(seite.name, seite.param, stand, heute)
     || { titel: 'Nicht gefunden', html: '<div class="karte"><p>Diese Seite gibt es nicht.</p></div>' };
 }
 
@@ -106,6 +110,12 @@ function render() {
     const s = seiteInhalt(ui.seite, stand, heute);
     html = s.html;
     titel = s.titel;
+    // Die Dosis-Karte kann sich merken lassen, dass sie etwas gezeigt hat –
+    // einmal; beim nächsten Zeichnen liefert sie dafür nichts mehr.
+    if (s.merken) {
+      const m = s.merken;
+      sp.aendern((st) => { st.nachfragen.push({ id: sp.kennung(), art: m.art, bezug: m.bezug, antwort: m.antwort, am: heute }); });
+    }
   } else if (ui.tab === 'verlauf') {
     html = verlaufAnsicht(stand, heute);
   } else if (ui.tab === 'mehr') {
@@ -395,6 +405,44 @@ function aktion(el) {
       render();
       break;
     }
+    case 'behandelt':
+      // P6: bestätigt, dass eine Unterfunktion mit Tabletten behandelt wird.
+      sp.aendern((s) => { s.profil.behandelt = true; });
+      render();
+      meldung('Eingeschaltet: Die App ordnet Ihre Werte jetzt ein.');
+      break;
+    case 'frage-antwort':
+      frageBeantworten(el.dataset, heute);
+      break;
+    case 'praxis-entscheid': {
+      // D6b: Die Entscheidung der Praxis gilt – mit Datum am Befund.
+      const wert = el.dataset.wert;
+      if (!['bleibt', 'geaendert', 'nachmessen'].includes(wert)) break;
+      sp.aendern((s) => {
+        const b = s.labor.find((l) => l.id === el.dataset.id);
+        if (b) { b.praxis = wert; b.praxisAm = heute; }
+      });
+      if (wert === 'geaendert') zeigeSeite('dosis', 'praxis', { ersetzen: true });
+      else zurueck();
+      meldung(PRAXIS_BESTAETIGUNG);
+      break;
+    }
+    case 'notfall-jetzt': {
+      // R2: sofort der 112-Text, ohne zu speichern und ohne die Eingaben zu verlieren.
+      const huelle = document.getElementById('notfall-jetzt-huelle');
+      const karte = document.getElementById('notfall-jetzt');
+      if (!huelle || !karte) break;
+      huelle.hidden = false;
+      karte.scrollIntoView({ block: 'start' });
+      karte.focus({ preventScroll: true });
+      break;
+    }
+    case 'befund-bestaetigen':
+      rueckfrageSchliessen(true);
+      break;
+    case 'befund-korrigieren':
+      rueckfrageSchliessen(false);
+      break;
     case 'fragen-uebernehmen': {
       const neu = fragenVorschlaege(stand, heute).filter((t) => !stand.fragen.some((f) => f.text === t));
       sp.aendern((s) => { neu.forEach((t) => s.fragen.push({ id: sp.kennung(), text: t, erledigt: false })); });
@@ -433,6 +481,8 @@ function aktion(el) {
       herunterladen(`termin-${t.datum}.ics`, terminICS({
         id: t.id, datum: t.datum, uhr: t.uhr, titel: t.wo ? `${titel} – ${t.wo}` : titel,
         notiz: [t.blutabnahme || t.art === 'labor' ? 'Tablette wie mit der Praxis besprochen – meist erst nach der Blutabnahme.' : '', t.notiz].filter(Boolean).join('\n'),
+        blutabnahme: t.art === 'labor' || t.blutabnahme,
+        biotin: stand.mittel.includes('biotin'),
       }), 'text/calendar');
       meldung('Kalenderdatei erzeugt', 3000);
       break;
@@ -503,6 +553,104 @@ function aktion(el) {
       break;
     default:
       break;
+  }
+}
+
+/*
+ * Eine Frage der Dosis-Karte oder von „Heute" beantworten. Wohin die Antwort
+ * gehört, sagt die Frage selbst (js/dosis.js): an den Befund, ins Profil
+ * oder als Nachfrage mit Datum. Danach zeichnet die Karte neu – mit der
+ * nächsten Frage oder der Richtung –, und der Fokus steht auf der Karte, damit
+ * ein Vorleseprogramm die neue Frage vorliest und nicht einen gleich
+ * beschrifteten Knopf.
+ */
+const BEFUND_NICHT = ['id', 'datum', 'notiz', 'laborName', 'abnahmeUhr', 'tabletteUhr'];
+
+function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
+  if (!/^[a-z0-9_]{1,20}$/i.test(wert || '') || !/^[A-Za-z0-9_]{1,30}$/.test(feld || '')) return;
+  sp.aendern((s) => {
+    if (ziel === 'befund') {
+      const b = s.labor.find((l) => l.id === bezug);
+      if (!b || typeof b[feld] !== 'string' || BEFUND_NICHT.includes(feld)) return;
+      b[feld] = wert;
+      if (feld === 'praxis') b.praxisAm = heute;
+    } else if (ziel === 'profil') {
+      if (typeof s.profil[feld] !== 'string') return;
+      s.profil[feld] = wert;
+    } else if (ziel === 'nachfrage') {
+      s.nachfragen.push({ id: sp.kennung(), art: feld.toLowerCase(), bezug: String(bezug || '').slice(0, 40), antwort: wert, am: heute });
+    }
+  });
+  render();
+  meldung('Antwort gespeichert');
+  const karte = document.getElementById('dosis-karte');
+  if (karte) {
+    karte.scrollIntoView({ block: 'start' });
+    karte.focus({ preventScroll: true });
+  }
+}
+
+/*
+ * Die Rückfrage beim Befund (einheiten.befundPruefen): ein Dialog im Stil der
+ * App mit den ungewöhnlichen Werten. „Ja, stimmt" speichert mit Bestätigung,
+ * „Korrigieren" führt zurück ins Formular – die Eingaben bleiben stehen.
+ */
+let rueckfrage = null;   // { dialog, form }
+
+function rueckfrageZeigen(form, fragen) {
+  rueckfrageSchliessen(null);
+  const dialog = document.createElement('dialog');
+  dialog.className = 'rueckfrage';
+  dialog.setAttribute('aria-labelledby', 'rueckfrage-titel');
+  const h = document.createElement('h2');
+  h.id = 'rueckfrage-titel';
+  h.textContent = 'Bitte prüfen';
+  const ul = document.createElement('ul');
+  fragen.forEach((t) => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+  const p = document.createElement('p');
+  p.textContent = 'Steht es genau so auf dem Befund?';
+  const reihe = document.createElement('div');
+  reihe.className = 'knopf-reihe';
+  [['befund-bestaetigen', 'Ja, stimmt', 'knopf knopf-haupt'], ['befund-korrigieren', 'Korrigieren', 'knopf']].forEach(([act, text, klasse]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = klasse;
+    b.dataset.act = act;
+    b.textContent = text;
+    reihe.appendChild(b);
+  });
+  dialog.append(h, ul, p, reihe);
+  // Escape heißt „Korrigieren".
+  dialog.addEventListener('cancel', (e) => { e.preventDefault(); rueckfrageSchliessen(false); });
+  document.body.appendChild(dialog);
+  rueckfrage = { dialog, form };
+  if (dialog.showModal) dialog.showModal(); else dialog.setAttribute('open', '');
+  reihe.querySelector('button').focus();
+}
+
+/** true: bestätigt speichern · false: zurück ins Formular · null: nur schließen. */
+function rueckfrageSchliessen(bestaetigt) {
+  if (!rueckfrage) return;
+  const { dialog, form } = rueckfrage;
+  rueckfrage = null;
+  if (dialog.open && dialog.close) dialog.close();
+  dialog.remove();
+  if (bestaetigt === true && form.isConnected) {
+    let feld = form.querySelector('input[name="bestaetigt"]');
+    if (!feld) {
+      feld = document.createElement('input');
+      feld.type = 'hidden';
+      feld.name = 'bestaetigt';
+      form.appendChild(feld);
+    }
+    feld.value = 'ja';
+    form.requestSubmit();
+  } else if (bestaetigt === false && form.isConnected) {
+    const erstes = form.querySelector('input[name$="_wert"]');
+    if (erstes) {
+      erstes.scrollIntoView({ block: 'center' });
+      erstes.focus({ preventScroll: true });
+    }
   }
 }
 
@@ -579,9 +727,26 @@ document.addEventListener('submit', (e) => {
     return;
   }
   const ergebnis = absenden(form.dataset.formular, form.dataset.id || null, form, heuteISO());
+  if (!ergebnis.ok && ergebnis.rueckfragen) { rueckfrageZeigen(form, ergebnis.rueckfragen); return; }
   if (!ergebnis.ok) { zeigeFehler(form, ergebnis.fehler); return; }
   nachDemSpeichern(ergebnis.danach);
   meldung(ergebnis.meldung || 'Gespeichert');
+});
+
+/*
+ * Die Eingabetaste in den Willkommensschritten: „Weiter". Ein Formular ohne
+ * Absende-Knopf schickt sie nur ab, solange es genau ein Textfeld hat – seit
+ * Schritt 1 auch nach dem Geburtsjahr fragt, sind es zwei, und die Taste tat
+ * sonst nichts.
+ */
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.target.tagName !== 'INPUT' || ['checkbox', 'radio'].includes(e.target.type)) return;
+  const form = e.target.form;
+  if (!form || form.dataset.formular) return;
+  const weiter = form.querySelector('[data-act="willkommen-weiter"]');
+  if (!weiter) return;
+  e.preventDefault();
+  aktion(weiter);
 });
 
 document.addEventListener('change', (e) => {
@@ -600,12 +765,39 @@ document.addEventListener('change', (e) => {
   // Uhrzeit der Erinnerung: sofort übernehmen, ohne Speichern-Knopf.
   if (e.target.name === 'erinnerung' && e.target.form && e.target.form.dataset.sofort === 'erinnerung') {
     const wert = e.target.value;
-    if (/^\d{2}:\d{2}$/.test(wert)) {
-      sp.aendern((s) => { s.einstellungen.erinnerung = wert; });
-      meldung(`Einnahmezeit: ${wert.replace(/^0/, '')} Uhr`);
-    }
+    if (/^\d{2}:\d{2}$/.test(wert)) einnahmezeitSetzen(wert);
   }
 });
+
+/*
+ * Die Einnahmezeit ändern. Um mehr als drei Stunden verschoben, zählt das als
+ * Wechsel (E15): Es kann den Wert verändern, und die Dosis-Karte fragt dann
+ * nach. Ein Wechsel je Tag – beim Tippen einer Uhrzeit entstehen Zwischen-
+ * stände (erst 02:00, dann 22:00), die sonst jeder für sich zählten; kommt
+ * die Zeit am selben Tag zurück, verschwindet er wieder.
+ */
+function minutenAbstand(a, b) {
+  const m = (u) => Number(u.slice(0, 2)) * 60 + Number(u.slice(3));
+  const d = Math.abs(m(a) - m(b));
+  return Math.min(d, 1440 - d);
+}
+
+function einnahmezeitSetzen(wert) {
+  const heute = heuteISO();
+  let weit = false;
+  sp.aendern((s) => {
+    const vorher = s.einstellungen.erinnerung;
+    s.einstellungen.erinnerung = wert;
+    const schon = s.uhrWechsel.find((u) => u.am === heute);
+    const von = schon ? schon.von : vorher;
+    weit = minutenAbstand(von, wert) > 180;
+    if (schon && !weit) s.uhrWechsel = s.uhrWechsel.filter((u) => u !== schon);
+    else if (schon) schon.nach = wert;
+    else if (weit) s.uhrWechsel.push({ id: sp.kennung(), am: heute, von, nach: wert });
+  });
+  const e15 = weit ? dosisHinweise(sp.getStand(), heute).find((h) => h.id === 'E15') : null;
+  meldung(e15 ? e15.text : `Einnahmezeit: ${wert.replace(/^0/, '')} Uhr`);
+}
 
 // ---------------------------------------------------------------- Start
 

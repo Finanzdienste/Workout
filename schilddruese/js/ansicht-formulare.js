@@ -17,6 +17,7 @@ import { esc } from './text.js';
 import * as sp from './speicher.js';
 import * as ez from './einschaetzung.js';
 import { befundPruefen } from './einheiten.js';
+import { E14_TEXT, E16_TEXT } from './wissen.js';
 import { wahlFrage, JNW_WAHL, BEFUND_FRAGEN, w1Karte } from './ansicht-einschaetzung.js';
 
 const feldDatum = (name, wert, titel = 'Datum', hinweis = '') => `
@@ -68,13 +69,6 @@ const fuss = (art, id, { speichern = 'Speichern', loeschen = true } = {}) => `
   </div>`;
 
 // ---------------------------------------------------------------- Dosis
-
-/*
- * E16 (Regelwerk 2), mit dem Zusatz des roten Teams: „geteilt" nur, wenn die
- * Praxis es so verordnet hat – wer auf Anordnung eine halbe Tablette nimmt,
- * soll aus „nicht teilen" nicht lesen, jetzt die ganze zu nehmen.
- */
-const E16_TEXT = 'Die Tabletten gibt es in vielen Stärken, auch in Schritten von 12,5 µg. Nehmen Sie Ihre Tablette genau wie verordnet, auch geteilt, wenn die Praxis es so verordnet hat. Teilen Sie nicht zusätzlich und nehmen Sie nicht abwechselnd verschiedene Stärken, wenn die Praxis es nicht so gesagt hat. Schauen Sie bei jeder neuen Packung auf die Stärke (µg) und den Hersteller. Ist etwas anders als bisher, fragen Sie in der Apotheke nach und tragen Sie es in der App ein. Auch ein Wechsel ist ein Grund für eine Kontrolle nach 6 bis 8 Wochen.';
 
 /**
  * `id`: die Dosis zum Ändern – oder „praxis" für eine neue Dosis aus „Die
@@ -563,7 +557,6 @@ export function jahrAus(roh, heute) {
 /** „4 Stunden", „5 Stunden", „60 Minuten" aus den Minuten in ABSTAND_MITTEL. */
 const abstandText = (min) => (min % 60 === 0 && min >= 120 ? `${min / 60} Stunden` : `${min} Minuten`);
 
-const TEXT_E14 = 'Vorsicht bei Mitteln „für die Schilddrüse" aus Internet, Drogerie oder Reformhaus: Manche enthalten viel Jod, Biotin oder sogar echtes Schilddrüsenhormon (z. B. „Thyroid", „Schilddrüsenextrakt"). Das kann zu einer Überdosis führen oder die Laborwerte verfälschen. Auch Mittel für Haare, Haut und Nägel und Vitamin-B-Komplexe enthalten oft Biotin. Zeigen Sie neue Mittel vor dem ersten Einnehmen in der Apotheke oder Praxis und tragen Sie sie in der App ein.';
 
 /** Ein Mittel zum Ankreuzen – bei Aufnahmehemmern mit der Frage nach dem Abstand (P7). */
 function mittelZeile([k, name], stand) {
@@ -643,7 +636,7 @@ function profilFormular(id, stand, heute) {
             ${sp.MITTEL.map((m) => mittelZeile(m, stand)).join('')}
           </div>
           <p class="hinweis" style="margin-top:.6rem">Die App sagt dann unter „Was braucht Abstand?", ab welcher Uhrzeit was in Ordnung ist.</p>
-          <p class="klein" style="margin-top:.6rem">${esc(TEXT_E14)}</p>
+          <p class="klein" style="margin-top:.6rem">${esc(E14_TEXT)}</p>
         </fieldset>
         ${fuss('profil', null, { loeschen: false })}
       </form>`,

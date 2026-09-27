@@ -19,7 +19,7 @@ import { datumKurz, zahlText } from './datum.js';
 import { esc } from './text.js';
 import * as ez from './einschaetzung.js';
 import { dosisRichtung } from './dosis.js';
-import { stufeSchild, STUFE_KLASSE, p6Karte } from './ansicht-einschaetzung.js';
+import { stufeSchild, STUFE_KLASSE, p6Karte, beschwerdeKnoepfe, anrufKnopf } from './ansicht-einschaetzung.js';
 
 const PRAXIS_WAHL = [
   ['bleibt', 'Die Dosis bleibt so'],
@@ -27,6 +27,13 @@ const PRAXIS_WAHL = [
   ['nachmessen', 'Erst nachmessen'],
 ];
 export const PRAXIS_BESTAETIGUNG = 'Gut. Es gilt, was die Praxis gesagt hat. Die App zeigt zu diesem Befund keine Richtung mehr und erinnert Sie an die Kontrolle.';
+
+/** Anruf-Knöpfe unter einem Grund, der eine Nummer nennt: seelische Not, Notruf. */
+function grundKnoepfe(g) {
+  if (g.id === 'W5') return beschwerdeKnoepfe('W5');
+  if (g.stufe === 'notruf') return `<div class="knopf-reihe">${anrufKnopf('112', '112 anrufen', { notruf: true, breit: true })}</div>`;
+  return '';
+}
 
 /** Die offene Frage der Karte, mit einem Knopf je Antwort. */
 function frageBlock(f, stand) {
@@ -76,11 +83,11 @@ function dosisKarteSeite(stand, heute) {
   }
   teile.push(`
     <div class="karte dosis-karte ${STUFE_KLASSE[k.stufe]}" id="dosis-karte" tabindex="-1" data-richtung="${esc(k.richtung)}" data-stufe="${esc(k.stufe)}">
-      <p class="stufe-zeile">${stufeSchild(k.stufe)}</p>
+      <p class="stufe-zeile">${stufeSchild(k.stufe, ez.kopfFuer(k.stufe, k.gruende).titel)}</p>
       <p class="dosis-titel">${esc(k.titel)}</p>
       ${k.frage ? frageBlock(k.frage, stand) : ''}
       ${k.texte.map((t) => `<p class="dosis-text">${esc(t)}</p>`).join('')}
-      ${k.gruende.length ? `<ul class="gruende">${k.gruende.map((g) => `<li data-grund="${esc(g.id)}">${esc(g.text)}</li>`).join('')}</ul>` : ''}
+      ${k.gruende.length ? `<ul class="gruende">${k.gruende.map((g) => `<li data-grund="${esc(g.id)}">${esc(g.text)}${grundKnoepfe(g)}</li>`).join('')}</ul>` : ''}
       ${k.schritt && !k.texte.some((t) => t.includes(k.schritt)) ? `<p class="dosis-text schritt">${esc(k.schritt)}</p>` : ''}
       ${k.warnzeichen ? `<p class="warnzeichen-zeile" role="note">${esc(k.warnzeichen)}</p>` : ''}
       <p class="pflicht">${esc(k.pflicht)}</p>

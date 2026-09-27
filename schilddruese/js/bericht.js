@@ -7,13 +7,20 @@
  * gültigen Dosis, Gewicht, Befinden, andere Medikamente und die notierten
  * Fragen. Als schlichter Text, damit er in jede Nachricht passt.
  *
- * Was nicht drinsteht: eine Bewertung. Der Bericht sagt, was war – was daraus
- * folgt, sagt die Ärztin.
+ * Der Hauptteil sagt, was war. Was die App daraus nach festen Regeln
+ * einordnet, steht getrennt darunter im Abschnitt „EINSCHÄTZUNG DER APP" –
+ * gekennzeichnet, woher jede Angabe stammt (Angabe der Patientin, vom Befund
+ * übertragen, von der App berechnet), mit der zuletzt gezeigten Dosis-Karte.
+ * Nur bei bestätigter Behandlung (P6); was daraus folgt, sagt die Ärztin.
  */
 import { datumKurz, zahlText, tageWeiter, uhrText } from './datum.js';
 import * as sp from './speicher.js';
 import { mehrzahl } from './text.js';
 import * as ez from './einschaetzung.js';
+import { dosisBerichtZeilen } from './dosis.js';
+
+/** B2 (Regelwerk 2): ob eine Dosis auf Anweisung der Praxis eingetragen wurde. */
+const quelle = (d) => (d.praxis === true ? ' – auf Anweisung der Praxis: ja' : d.praxis === false ? ' – auf Anweisung der Praxis: nein' : '');
 
 function stufeText(s) {
   return { gut: 'gut', mittel: 'mittel', schlecht: 'schlecht' }[s] || s;
@@ -28,11 +35,11 @@ export function berichtText(stand, heute) {
   const dosis = sp.aktuelleDosis(heute);
   z.push('DOSIS');
   if (dosis) {
-    z.push(`Aktuell: ${sp.dosisText(dosis)}, ${dosis.ab > heute ? 'ab' : 'seit'} ${datumKurz(dosis.ab)}${dosis.notiz ? ` (${dosis.notiz})` : ''}`);
+    z.push(`Aktuell: ${sp.dosisText(dosis)}, ${dosis.ab > heute ? 'ab' : 'seit'} ${datumKurz(dosis.ab)}${dosis.notiz ? ` (${dosis.notiz})` : ''}${quelle(dosis)}`);
     stand.dosen.filter((d) => d.ab > heute && d !== dosis)
-      .forEach((d) => z.push(`Geplant ab ${datumKurz(d.ab)}: ${sp.dosisText(d)}${d.notiz ? ` (${d.notiz})` : ''}`));
+      .forEach((d) => z.push(`Geplant ab ${datumKurz(d.ab)}: ${sp.dosisText(d)}${d.notiz ? ` (${d.notiz})` : ''}${quelle(d)}`));
     const fruehere = stand.dosen.filter((d) => d.ab < dosis.ab).slice(-3).reverse();
-    fruehere.forEach((d) => z.push(`Davor: ${sp.dosisText(d)}, ab ${datumKurz(d.ab)}`));
+    fruehere.forEach((d) => z.push(`Davor: ${sp.dosisText(d)}, ab ${datumKurz(d.ab)}${quelle(d)}`));
     z.push(`Einnahmezeit: etwa ${uhrText(stand.einstellungen.erinnerung)}, nüchtern`);
   } else {
     z.push('Keine Dosis eingetragen.');
@@ -113,21 +120,10 @@ export function berichtText(stand, heute) {
   }
   z.push('');
 
-  // Einschätzung der App
-  const letzter = ez.letzterBefund(stand);
-  const beschwerden = ez.beschwerdenMuster(stand, heute);
-  if (letzter || beschwerden.richtung) {
-    z.push('EINSCHÄTZUNG DER APP (automatisch nach festen Regeln, ersetzt keine ärztliche Beurteilung)');
-    if (letzter) {
-      const e = letzter.einschaetzung;
-      z.push(`Befund ${datumKurz(letzter.befund.datum)}: ${e.titel} ${ez.STUFEN[e.dringlichkeit].text}`);
-      e.zusaetze.forEach((x) => z.push(`– ${x}`));
-      e.erklaerungen.forEach((x) => z.push(`– Mögliche Erklärung: ${x}`));
-      if (e.verlauf) z.push(`– ${e.verlauf}`);
-    }
-    const dosis = ez.dosisRichtung(stand, heute);
-    if (dosis) z.push(`Dosis: ${dosis.titel}${dosis.gruende.length ? ` ${dosis.gruende.join(' ')}` : ''}`);
-    if (beschwerden.text && beschwerden.eintraege) z.push(`Beschwerden: ${beschwerden.text}${beschwerden.abgleich ? ` ${beschwerden.abgleich}` : ''}`);
+  // Einschätzung der App (RW1 B1, RW2 B1/B2) – nur bei bestätigter Behandlung
+  if (ez.aktiv(stand)) {
+    ez.berichtZeilen(stand, heute).forEach((x) => z.push(x));
+    dosisBerichtZeilen(stand, heute).forEach((x) => z.push(x));
     z.push('');
   }
 
@@ -139,6 +135,6 @@ export function berichtText(stand, heute) {
     z.push('');
   }
 
-  z.push('Aufgezeichnet mit der App „Schilddrüse". Ihre Einordnung folgt festen Regeln, ersetzt keine ärztliche Beratung und nennt keine Dosis.');
+  z.push('Aufgezeichnet mit der App „Schilddrüse". Ihre Einordnung folgt festen Regeln, ersetzt keine ärztliche Beratung und rechnet keine neue Dosis aus.');
   return z.join('\n');
 }

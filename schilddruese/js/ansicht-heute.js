@@ -20,7 +20,7 @@ import {
   dosisText, aktuelleDosis, naechsteDosis, einnahme, naechsterTermin, vorratReicht, zaehltAb,
 } from './speicher.js';
 import {
-  notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, STUFE_KLASSE, rang,
+  notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang,
 } from './ansicht-einschaetzung.js';
 import { dosisVerweis } from './ansicht-dosis.js';
 
@@ -63,8 +63,8 @@ function kernHinweis(h) {
   const check = h.id === 'W-D4' && !h.frage && h.stufe === 'heute'
     ? '<div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Warnzeichen prüfen</button></div>' : '';
   return `
-    <div class="karte kern-hinweis ${STUFE_KLASSE[h.stufe] || ''}" data-regel="${esc(h.id)}">
-      <p class="stufe-zeile">${stufeSchild(h.stufe)}</p>
+    <div class="karte kern-hinweis ${hinweisKlasse(h.stufe)}" data-regel="${esc(h.id)}">
+      ${stufeZeile(h.stufe)}
       <p>${esc(h.text)}</p>
       ${warn}${frage}${check}
     </div>`;
@@ -175,7 +175,7 @@ function hinweise(stand, heute) {
       add(g.stufe, `
         <div class="karte einschaetzung-verweis ${STUFE_KLASSE[g.stufe]}" data-stufe="${esc(g.stufe)}">
           <p class="klein gedaempft">Einschätzung</p>
-          <p class="stufe-zeile">${stufeSchild(g.stufe)}</p>
+          <p class="stufe-zeile">${stufeSchild(g.stufe, g.kopf.titel)}</p>
           ${g.befund ? `<p class="klein">Nach dem Befund vom ${esc(datumKurz(g.befund.befund.datum))} und Ihren übrigen Einträgen.</p>` : ''}
           <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="gesamtbild" style="margin-top:.5rem">Einschätzung ansehen</button>
         </div>`);

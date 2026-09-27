@@ -12,9 +12,30 @@
  * geht, steht immer dasselbe – das entscheidet die Ärztin. Kein Satz hier
  * darf dazu taugen, eine Tablette mehr oder weniger zu nehmen.
  *
+ * Das Kapitel „Ernährung und Alltag" übernimmt die Texte E1–E16 aus dem
+ * Regelwerk 2 (Dosisrichtung und Ernährung) mit den Korrekturen des roten
+ * Teams; den Absatz vor der Blutabnahme liefert js/dosis.js (VOR_ABNAHME),
+ * damit er überall gleich lautet.
+ *
  * Die Texte sind HTML, von Hand geschrieben und ohne Eingaben von außen –
- * deshalb ohne esc().
+ * deshalb ohne esc(); nur was aus einem anderen Modul kommt, wird entschärft.
  */
+import { esc } from './text.js';
+import { VOR_ABNAHME } from './dosis.js';
+
+/** E14: auch im Formular „Über mich & weitere Mittel". */
+export const E14_TEXT = 'Vorsicht bei Mitteln „für die Schilddrüse" aus Internet, Drogerie oder Reformhaus: Manche enthalten viel Jod, Biotin oder sogar echtes Schilddrüsenhormon (z. B. „Thyroid", „Schilddrüsenextrakt"). Das kann zu einer Überdosis führen oder die Laborwerte verfälschen. Auch Mittel für Haare, Haut und Nägel und Vitamin-B-Komplexe enthalten oft Biotin. Zeigen Sie neue Mittel vor dem ersten Einnehmen in der Apotheke oder Praxis und tragen Sie sie in der App ein.';
+
+/*
+ * E16, mit dem Zusatz des roten Teams: „geteilt" nur, wenn die Praxis es so
+ * verordnet hat – wer auf Anordnung eine halbe Tablette nimmt, soll aus
+ * „nicht teilen" nicht lesen, jetzt die ganze zu nehmen. Auch im
+ * Dosis-Formular.
+ */
+export const E16_TEXT = 'Die Tabletten gibt es in vielen Stärken, auch in Schritten von 12,5 µg. Nehmen Sie Ihre Tablette genau wie verordnet, auch geteilt, wenn die Praxis es so verordnet hat. Teilen Sie nicht zusätzlich und nehmen Sie nicht abwechselnd verschiedene Stärken, wenn die Praxis es nicht so gesagt hat. Schauen Sie bei jeder neuen Packung auf die Stärke (µg) und den Hersteller. Ist etwas anders als bisher, fragen Sie in der Apotheke nach und tragen Sie es in der App ein. Auch ein Wechsel ist ein Grund für eine Kontrolle nach 6 bis 8 Wochen.';
+
+/** BE1 (Regelwerk 2): Beschwerden und die Dosis. */
+const BE1_TEXT = 'Ihre Beschwerden helfen der Praxis beim Einordnen. Für die Dosis richtet sich die App nur nach Ihrem TSH-Wert. Beschwerden allein sind kein Grund, mehr oder weniger zu nehmen.';
 
 export const KAPITEL = [
   {
@@ -29,7 +50,7 @@ export const KAPITEL = [
       <p>Statt morgens geht auch abends vor dem Schlafengehen, mindestens 3, besser 4 Stunden nach der letzten Mahlzeit. Danach nichts mehr essen und außer Wasser nichts trinken. Das wirkt mindestens genauso gut.</p>
       <p>Ein Wechsel zwischen morgens und abends aber nur nach Absprache mit der Ärztin – und etwa 6 bis 8 Wochen danach die Blutwerte kontrollieren lassen.</p>
       <h2>Die Dosis</h2>
-      <p>Nach einem Laborwert sagt die App unter „Mehr → Was sagen meine Werte?", ob er eher für mehr, für weniger oder für die gleiche Dosis spricht. Die neue Menge legt die Ärztin fest – vor jeder Änderung bitte kurz die Praxis anrufen; die neue Stärke braucht ohnehin ein Rezept. Auch das Weglassen oder Hinzunehmen einzelner Tabletten ist eine Dosisänderung.</p>
+      <p>Nach einem Laborwert sagt die App auf der Dosis-Karte (unter „Mehr"), ob der TSH-Wert eher für mehr, für weniger oder für die gleiche Dosis spricht – als Richtung mit der Schrittgröße, die Ärztinnen üblicherweise wählen, nie als neue Tagesdosis. Die neue Menge legt die Ärztin fest: Vor jeder Änderung bitte die Praxis anrufen und bis dahin genau wie bisher weiternehmen. Auch das Weglassen oder Hinzunehmen einzelner Tabletten ist eine Dosisänderung.</p>
       <h2>Aufbewahren</h2>
       <p>Trocken, vor Licht geschützt, nicht über 25 °C – also nicht im Badezimmer und nicht im Auto. Am besten in der Originalpackung.</p>`,
   },
@@ -72,17 +93,55 @@ export const KAPITEL = [
       <h2>Biotin vor der Blutabnahme</h2>
       <p>Biotin (Vitamin B7 oder H, oft hoch dosiert in Mitteln für Haare, Haut und Nägel) verfälscht die Laborwerte: Sie sehen dann fälschlich nach zu viel Hormon aus. Vor der Blutabnahme pausieren – bei Haar-Haut-Nägel-Präparaten mindestens 3 Tage – und die Praxis informieren. Übliche Multivitamine mit wenigen Mikrogramm stören nicht.</p>
       <h2>Andere Medikamente</h2>
-      <p>Manche Medikamente verändern den Bedarf oder die Wirkung, zum Beispiel Östrogene (Pille, Hormonersatz), einige Epilepsiemittel oder das Herzmittel Amiodaron. Umgekehrt verstärkt L-Thyroxin Blutverdünner wie Marcumar; nach einer Dosisänderung sollte dann der INR-Wert früher kontrolliert werden. Bei Diabetes kann sich der Blutzucker ändern.</p>
+      <p>Manche Medikamente verändern den Bedarf oder die Wirkung, zum Beispiel Östrogen als Tablette (Hormonersatz) – als Pflaster, Gel oder Spray kaum –, einige Epilepsiemittel oder das Herzmittel Amiodaron. Umgekehrt verstärkt L-Thyroxin Blutverdünner wie Marcumar; nach einer Dosisänderung sollte dann der INR-Wert früher kontrolliert werden. Bei Diabetes kann sich der Blutzucker ändern.</p>
       <div class="merke">Jedes neue Medikament und jedes Nahrungsergänzungsmittel der Ärztin oder in der Apotheke nennen.</div>`,
+  },
+  {
+    id: 'ernaehrung',
+    titel: 'Ernährung und Alltag',
+    kurz: 'Ist die Tablette das Einzige, was zählt? Jod, Selen, Gewicht, Bewegung',
+    html: `
+      <h2>Ist die Tablette das Einzige, was zählt?</h2>
+      <p>Die Tablette ersetzt das Hormon, das Ihre Schilddrüse nicht mehr genug bildet. Keine Ernährung und kein Nahrungsergänzungsmittel kann das ersetzen. Lassen Sie die Tablette deshalb nie weg, auch nicht bei gesunder Ernährung oder mit Naturmitteln. Für die Dosis zählen nur die Tablette und Ihr TSH-Wert. Die Ernährung spielt trotzdem eine Rolle: Sie beeinflusst, wie gut die Tablette aufgenommen wird. Deshalb zählen Abstand und Gleichmäßigkeit. Und Themen wie Cholesterin, Blutzucker, Vitamin B12, Eisen und Knochen hängen mit der Schilddrüse zusammen – dazu mehr in den folgenden Abschnitten.</p>
+      <h2>Jod und Seefisch</h2>
+      <p>Jodsalz im Haushalt und Seefisch ein- bis zweimal pro Woche sind auch bei Hashimoto in Ordnung. Meiden Sie hochdosierte Jodtabletten, Algen, Kelp und Algentabletten, denn sie können sehr viel Jod enthalten. Achten Sie bei Multivitamin-Präparaten auf den Jodgehalt und fragen Sie in der Apotheke. Vor einer Untersuchung mit Kontrastmittel (z. B. CT oder Herzkatheter) sagen Sie, dass Sie eine Schilddrüsenerkrankung haben.</p>
+      <h2>Selen</h2>
+      <p>Ein Nutzen von Selen für Ihre Dosis oder den Verlauf ist nicht belegt. Selen kann Antikörperwerte etwas senken, an der nötigen Tablettendosis ändert das nichts. Nehmen Sie Selenpräparate nur nach Rücksprache und nie mehr als empfohlen. Zu viel Selen schadet, zum Beispiel mit Haarausfall, brüchigen Nägeln oder Nervenbeschwerden. Paranüsse: höchstens 1 bis 2 Stück am Tag.</p>
+      <h2>Abstand und Gleichmäßigkeit</h2>
+      <p>Kaffee, Tee, Milch und Frühstück: erst 30 bis 60 Minuten nach der Tablette. Kalzium-, Eisen- und Magnesiumpräparate, Mittel gegen Sodbrennen, Soja- und Ballaststoffpräparate: 4 Stunden Abstand. Ihr persönlicher Plan steht unter „Was braucht Abstand?". Genauso wichtig: Machen Sie es jeden Tag gleich, denn Ihre Dosis ist auf Ihre Gewohnheiten eingestellt. Wenn Sie Ihre Ernährung stark umstellen, zum Beispiel neu täglich Soja, viel Kleie, Leinsamen oder Flohsamen, oder ein neues Kalziumpräparat beginnen: Sagen Sie es der Praxis und lassen Sie nach 6 bis 8 Wochen TSH kontrollieren.</p>
+      <h2>Glutenfrei?</h2>
+      <p>Glutenfreie Ernährung hilft nur bei nachgewiesener Zöliakie. Bei Hashimoto kommt Zöliakie etwas häufiger vor. Sprechen Sie es an bei anhaltendem Durchfall oder Blähungen, ungewolltem Abnehmen, Blutarmut oder Eisenmangel, oder wenn Ihr TSH trotz regelmäßiger, richtiger Einnahme immer wieder zu hoch ist. Wichtig: Essen Sie vor einem Bluttest auf Zöliakie <strong>nicht</strong> glutenfrei, sonst fällt der Test fälschlich unauffällig aus.</p>
+      <h2>Zucker und Diabetes</h2>
+      <p>Zucker hat keinen besonderen Einfluss auf die Schilddrüse. Wie für alle gilt: in Maßen. Wenn Sie Diabetes haben und Insulin oder Tabletten gegen Zucker nehmen: Messen Sie in den Wochen nach jeder Änderung der Schilddrüsendosis öfter. Mehr Schilddrüsenhormon kann den Zucker erhöhen, weniger kann ihn senken. Achten Sie besonders nach einer Verringerung auf Unterzucker: Zittern, Schwitzen, Heißhunger, Verwirrtheit. Bei starkem Durst, häufigem Wasserlassen oder ungewolltem Abnehmen lassen Sie den Blutzucker prüfen.</p>
+      <h2>Gewicht</h2>
+      <p>Eine unbehandelte Unterfunktion kann ein paar Kilo ausmachen, vieles davon Wasser. Ist sie gut eingestellt, gelten die normalen Regeln fürs Gewicht. L-Thyroxin ist kein Mittel zum Abnehmen: Nehmen Sie nie mehr Tabletten, um abzunehmen – das belastet Herz und Knochen. Wenn sich Ihr Gewicht um mehr als etwa 5 kg ändert, sagen Sie es bei der nächsten Kontrolle, denn dann kann sich der Bedarf ändern. Bei ungewolltem Abnehmen oder schneller Zunahme mit geschwollenen Beinen rufen Sie in den nächsten Tagen die Praxis an. Bei plötzlicher Atemnot: 112.</p>
+      <h2>Cholesterin</h2>
+      <p>Eine Unterfunktion erhöht das LDL-Cholesterin; mit guter Einstellung sinkt es oft wieder. Ein hohes LDL ist aber kein Grund, selbst mehr Tablette zu nehmen. Welcher LDL-Wert für Sie richtig ist, hängt von Herz, Gefäßen, Blutdruck, Diabetes und Alter ab – das legt die Ärztin fest. Einen Cholesterinsenker (Statin) bitte nicht selbst absetzen, nur weil die Schilddrüse jetzt eingestellt ist. Muskelschmerzen unter einem Statin sagen Sie der Praxis.</p>
+      <h2>Müde trotz guter Werte: B12 und Eisen</h2>
+      <p>Bei Hashimoto kommt eine chronische Entzündung der Magenschleimhaut häufiger vor. Sie kann zu Vitamin-B12- und Eisenmangel führen und die Aufnahme der Tablette verschlechtern. Magenschutzmittel und Metformin können den B12-Mangel verstärken. Wenn Sie trotz guter Schilddrüsenwerte müde sind oder Kribbeln, Taubheit in Händen oder Füßen, Gangunsicherheit oder Vergesslichkeit bemerken, lassen Sie Blutbild, B12 und Ferritin prüfen – bei Kribbeln, Taubheit oder Gangunsicherheit innerhalb von ein bis zwei Wochen. Eisentabletten brauchen 4 Stunden Abstand zur Schilddrüsentablette.</p>
+      <h2>Vitamin D</h2>
+      <p>Ein Einfluss von Vitamin D auf die Schilddrüse ist nicht belegt. Im Alter ist es für die Knochen oft sinnvoll; häufig werden 800 bis 1000 Einheiten am Tag empfohlen – klären Sie die Menge mit der Ärztin. Nehmen Sie keine hochdosierten Präparate (z. B. 20.000 Einheiten) auf eigene Faust. Achtung: Viele Vitamin-D-Präparate enthalten auch Kalzium. Dann brauchen sie 4 Stunden Abstand zur Schilddrüsentablette.</p>
+      <h2>Kohl, Brokkoli und Co.</h2>
+      <p>Kohl, Brokkoli, Rettich und ähnliches Gemüse sind in normalen Mengen unbedenklich, gekocht ohnehin. Da die Tablette das Hormon liefert, spielen sie praktisch keine Rolle.</p>
+      <h2>Bewegung</h2>
+      <p>Bewegung hilft gegen Müdigkeit und tut Gewicht, Knochen, Gleichgewicht und Stimmung gut. Steigern Sie langsam. Bei Herzklopfen oder innerer Unruhe lassen Sie das erst ärztlich klären. <strong>Bei Schmerzen oder Engegefühl in der Brust, Herzrasen mit Schwindel oder Atemnot während der Bewegung: sofort aufhören und 112 anrufen.</strong></p>
+      <h2>Mittel „für die Schilddrüse"</h2>
+      <p>${E14_TEXT}</p>
+      <h2>Die Tablette abends?</h2>
+      <p>Manche Menschen nehmen die Tablette abends vor dem Schlafen, mindestens 3 Stunden nach der letzten Mahlzeit. Das ist möglich, aber nur nach Rücksprache mit der Praxis und dann jeden Tag gleich. Ein Wechsel der Uhrzeit kann den Wert verändern. Lassen Sie danach nach 6 bis 8 Wochen kontrollieren.</p>
+      <h2>Stärken und Packungen</h2>
+      <p>${E16_TEXT}</p>
+      <h2>Vor der Blutabnahme</h2>
+      <div class="merke">${esc(VOR_ABNAHME)}</div>`,
   },
   {
     id: 'labor',
     titel: 'Laborwerte verstehen',
-    kurz: 'TSH, fT4, fT3 – und warum die App nichts bewertet',
+    kurz: 'TSH, fT4, fT3 – und wie die App sie einordnet',
     html: `
       <h2>TSH</h2>
       <p>TSH ist der Botenstoff, mit dem die Hirnanhangdrüse die Schilddrüse antreibt, und der wichtigste Wert für die Einstellung. Bekommt der Körper zu wenig Schilddrüsenhormon, <strong>steigt</strong> TSH; bekommt er zu viel, <strong>sinkt</strong> TSH. TSH reagiert sehr empfindlich – schon kleine Änderungen lassen ihn deutlich schwanken.</p>
-      <p>Einheit: mU/l. Die Schreibweisen mIU/l und µIU/ml bedeuten dasselbe und haben denselben Zahlenwert.</p>
+      <p>Einheit: mU/l. Die Schreibweisen mIE/l, mIU/l, µU/ml und µIU/ml bedeuten dasselbe und haben denselben Zahlenwert.</p>
       <p class="klein gedaempft">Liegt die Ursache der Unterfunktion ausnahmsweise in der Hirnanhangdrüse selbst (selten), richtet sich die Ärztin nach fT4 statt nach TSH.</p>
       <h2>fT4</h2>
       <p>fT4 ist das freie Thyroxin – das Hormon, das in der Tablette steckt. Einheiten: pmol/l oder ng/dl (1 ng/dl entspricht 12,87 pmol/l).</p>
@@ -90,7 +149,7 @@ export const KAPITEL = [
       <p>fT3 ist die aktive Form, die der Körper aus T4 bildet. Einheiten: pmol/l oder pg/ml. Unter L-Thyroxin wird es zur Kontrolle meist nicht gebraucht; ein fT3 im unteren Bereich kommt dabei häufig vor.</p>
       <h2>Der Bereich des Labors</h2>
       <p>Jedes Labor hat eigene Grenzen, je nach Messverfahren. Deshalb übernimmt die App den <strong>Bereich von Ihrem Befund</strong>. Fehlt er, nimmt sie übliche Orientierungswerte und sagt das ausdrücklich dazu. Im höheren Alter liegt die obere TSH-Grenze oft etwas höher, und bei älteren Menschen wird häufig bewusst ein etwas höherer TSH-Wert angestrebt, weil zu viel Hormon Herz und Knochen belastet. Den persönlichen Zielbereich legt die Ärztin fest.</p>
-      <div class="merke">Unter „Mehr → Was sagen meine Werte?" ordnet die App jeden Befund ein: über, im oder unter dem Bereich, welches Muster TSH und fT4 zusammen ergeben, wie dringend das ist und was in Ihren eigenen Einträgen eine Erklärung sein könnte. Ein Wert außerhalb des Bereichs ist trotzdem keine Aufforderung, sofort selbst etwas zu ändern – erst mit der Praxis sprechen.</div>
+      <div class="merke">Unter jedem Befund und unter „Mehr → Einschätzung" ordnet die App die Werte ein: über, im oder unter dem Bereich, welches Muster TSH und fT4 zusammen ergeben, wie dringend das ist und was in Ihren eigenen Einträgen eine Erklärung sein könnte. Ein Wert außerhalb des Bereichs ist trotzdem keine Aufforderung, sofort selbst etwas zu ändern – erst mit der Praxis sprechen.</div>
       <h2>Warum Werte schwanken</h2>
       <p>TSH ist nachts und früh morgens am höchsten, nachmittags am niedrigsten, und nach dem Essen etwas niedriger als nüchtern. Kleine Unterschiede zwischen zwei Messungen sind normal. Am besten immer unter gleichen Bedingungen abnehmen lassen: morgens, nüchtern.</p>
       <p>Wenig Aussagekraft hat ein einzelner Wert kurz nach einer Dosisänderung, während einer schweren Erkrankung oder unter Biotin.</p>`,
@@ -141,6 +200,7 @@ export const KAPITEL = [
       </ul>
       <p>Bei älteren Menschen fehlen die typischen Zeichen oft. Dann können ungewollter Gewichtsverlust, ein unregelmäßiger Puls, Schwäche oder neue Verwirrtheit die einzigen Hinweise sein.</p>
       <div class="merke"><strong>Beides ist ein Grund für ein Gespräch mit der Ärztin – nie ein Grund, die Dosis selbst zu ändern.</strong></div>
+      <p>${BE1_TEXT}</p>
       <p>Dauerhaft zu viel Hormon erhöht – besonders im Alter und bei Frauen nach den Wechseljahren – das Risiko für Vorhofflimmern und Knochenschwund, auch wenn man sich dabei gut fühlt. „Lieber etwas mehr" ist deshalb keine gute Idee. L-Thyroxin ist auch kein Mittel zum Abnehmen.</p>
       <p>Nach einer Dosisänderung bessern sich Beschwerden erst nach einigen Wochen bis wenigen Monaten. Bleiben Beschwerden trotz guter Werte, sucht die Ärztin nach anderen Ursachen.</p>`,
   },
@@ -164,7 +224,7 @@ export const KAPITEL = [
       <p>Ärztlicher Bereitschaftsdienst: <strong>116 117</strong>.</p>
       <p><a class="knopf knopf-breit" href="tel:116117">116 117 anrufen</a></p>
       <h2>Zu viele Tabletten genommen</h2>
-      <p>Arzt oder Giftnotruf. Der Giftnotruf ist in Deutschland regional organisiert, zum Beispiel Berlin 030 19240.</p>
+      <p>Arzt oder Giftnotruf. Der Giftnotruf ist in Deutschland regional organisiert, zum Beispiel Berlin 030 19240. Tragen Sie unter „Über mich" Ihr Bundesland ein, dann steht Ihre Nummer oben auf „Heute".</p>
       <h2>In den nächsten Tagen die Praxis anrufen</h2>
       <ul>
         <li>neue, anhaltende Beschwerden aus „Anzeichen: zu wenig oder zu viel"</li>
@@ -202,7 +262,13 @@ export const KAPITEL = [
     kurz: 'Grenzen, Datenschutz, Sicherung',
     html: `
       <p>Die App ist eine Alltagshilfe: Sie hilft beim Abhaken der Tablette, speichert Dosis, Laborwerte, Gewicht und Beschwerden, ordnet sie ein und schreibt daraus einen Bericht für den Arzttermin.</p>
-      <div class="merke">Sie <strong>ordnet Werte und Beschwerden nach festen Regeln ein</strong> und sagt, wohin sie deuten – auch, ob ein Laborwert eher für mehr oder weniger Tablette spricht. Sie <strong>rechnet keine neue Dosis</strong> aus und <strong>ersetzt keinen Arztbesuch</strong>: vor jeder Änderung kurz die Praxis anrufen. Die Regeln haben unabhängige Prüfer gegengelesen, aber keine Ärztin. Sie ist kein Medizinprodukt.</div>
+      <div class="merke">Sie <strong>ordnet Werte und Beschwerden nach festen Regeln ein</strong>: wo ein Wert zum Bereich liegt, welches Muster TSH und fT4 zusammen ergeben, wie dringend das ist und was in Ihren Einträgen eine Erklärung sein könnte. Die <strong>Dosis-Karte</strong> sagt, ob der letzte TSH-Wert eher für mehr, weniger oder gleich viel spricht, und nennt die Schrittgröße, die Ärztinnen üblicherweise wählen. Sie <strong>rechnet keine neue Dosis</strong> aus und <strong>ersetzt keinen Arztbesuch</strong>: Vor jeder Änderung bitte die Praxis anrufen – die neue Menge legt die Ärztin fest.</div>
+      <p>Die Einschätzung gilt nur für Erwachsene mit einer bekannten, behandelten Unterfunktion. Hat die Praxis Ihnen einen Wert schon erklärt, gilt deren Einschätzung.</p>
+      <h2>Woher die Regeln stammen</h2>
+      <p>Die Regeln stehen in zwei Regelwerken: eines für Laborwerte, Beschwerden, Warnzeichen und Wechselwirkungen, eines für die Dosis-Karte und die Ernährung. Jedes haben drei unabhängige Prüfer mit verschiedenem Blick (Hormone, Labor, Arzneimittel und Patientensicherheit) gegengelesen, danach hat ein „rotes Team" sie an Fallbeispielen angegriffen. <strong>Offen gesagt: Alle Prüfer waren KI-Agenten, keine Ärztinnen.</strong> Bitte lassen Sie die App deshalb vor dem Gebrauch einmal von Ihrer Ärztin oder Apothekerin ansehen und tragen Sie den TSH-Zielbereich ein, den sie Ihnen nennt.</p>
+      <p>Sie ist kein Medizinprodukt, sondern nur für den eigenen, privaten Gebrauch gedacht – bitte geben Sie sie nicht an andere weiter.</p>
+      <h2>Beschwerden</h2>
+      <p>${BE1_TEXT}</p>
       <h2>Ihre Daten</h2>
       <p>Alles, was Sie eintragen, bleibt <strong>nur auf diesem Handy</strong>, im Speicher des Browsers. Es gibt kein Konto und keinen Server, und nichts wird verschickt – außer Sie teilen selbst den Bericht oder eine Sicherung.</p>
       <p>Das heißt auch: Bei einem neuen Handy, beim Löschen der Browserdaten oder wenn der Browser aufräumt, sind die Daten weg. Deshalb ab und zu unter „Mehr → Sicherung" eine Sicherungsdatei speichern.</p>

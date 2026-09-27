@@ -1,18 +1,22 @@
 /*
  * Willkommen – die drei Schritte beim allerersten Öffnen.
  *
- * 1. Was die App ist, und was nicht. Anrede (freiwillig).
+ * 1. Was die App ist, und was nicht. Für wen ihre Einschätzung gilt (P6) –
+ *    mit dem Haken, der sie einschaltet. Anrede und Geburtsjahr (freiwillig).
  * 2. Präparat, Stärke, Tabletten am Tag, seit wann.
  * 3. Einnahmezeit – und die ehrliche Erklärung, wie Erinnern hier geht.
  *
  * Kein Schritt ist ein Verhör: Alles außer der Stärke lässt sich leer
  * lassen, und alles lässt sich später unter „Mehr" ändern. Wer die App für
- * die Mutter einrichtet, ist damit in zwei Minuten durch.
+ * die Mutter einrichtet, ist damit in zwei Minuten durch. Das Geburtsjahr
+ * steht trotzdem gut sichtbar da: Ohne es rechnet die App vorsichtiger, und
+ * das soll man wissen, bevor man es leer lässt.
  */
 import { istISO, istUhr, zahlAus } from './datum.js';
 import { esc } from './text.js';
 import * as sp from './speicher.js';
-import { tablettenWahl } from './ansicht-formulare.js';
+import { P6_TEXT } from './einschaetzung.js';
+import { tablettenWahl, jahrAus } from './ansicht-formulare.js';
 
 export const WILLKOMMEN_SCHRITTE = 3;
 
@@ -33,8 +37,16 @@ export function willkommenAnsicht(schritt, stand, heute) {
           <p>Alles bleibt auf diesem Handy. Kein Konto, kein Internet nötig.</p>
         </div>
         <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Die App ordnet Ihre Laborwerte und Beschwerden ein und sagt, ob ein Wert eher für mehr oder weniger Tablette spricht. Sie ersetzt keinen Arztbesuch: Vor jeder Änderung der Dosis bitte kurz die Praxis anrufen.</div></div>
+        <div class="karte p6-karte">
+          <p>${esc(P6_TEXT)}</p>
+          <label class="haken haken-breit" style="margin-top:.7rem"><input type="checkbox" name="behandelt" ${stand.profil.behandelt ? 'checked' : ''}>Ich werde wegen einer Schilddrüsen-Unterfunktion mit Tabletten behandelt</label>
+        </div>
         <label class="feld"><span>Wie dürfen wir Sie ansprechen? (freiwillig)</span>
           <input type="text" name="name" value="${esc(stand.profil.name)}" placeholder="z. B. Frau Müller oder Vorname" autocomplete="off">
+        </label>
+        <label class="feld"><span>In welchem Jahr sind Sie geboren?</span>
+          <input type="text" inputmode="numeric" name="geburtsjahr" value="${esc(stand.profil.geburtsjahr ? String(stand.profil.geburtsjahr) : '')}" placeholder="z. B. 1952" autocomplete="off">
+          <span class="hinweis">Freiwillig. Im Alter gelten für TSH oft andere Zielwerte – ohne Geburtsjahr rechnet die App vorsichtiger.</span>
         </label>
         <div class="formular-fuss">
           <button type="button" class="knopf knopf-haupt knopf-breit" data-act="willkommen-weiter">Weiter</button>
@@ -97,7 +109,13 @@ export function willkommenWeiter(schritt, form, heute) {
   const f = new FormData(form);
   if (schritt === 1) {
     const name = String(f.get('name') || '').trim().slice(0, 60);
-    sp.aendern((s) => { s.profil.name = name; });
+    const j = jahrAus(f.get('geburtsjahr'), heute);
+    if (!j.ok) return { ok: false, fehler: { geburtsjahr: j.fehler } };
+    sp.aendern((s) => {
+      s.profil.name = name;
+      s.profil.geburtsjahr = j.jahr;
+      s.profil.behandelt = f.get('behandelt') === 'on';
+    });
     return { ok: true };
   }
   if (schritt === 2) {

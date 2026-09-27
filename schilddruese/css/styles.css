@@ -123,6 +123,7 @@ p + p { margin-top: .6rem; }
 
 /* ---------- Ansicht ---------- */
 .ansicht {
+  overflow-wrap: break-word;   /* ein langes Wort bei sehr großer Schrift bricht, statt die Seite zu verbreitern */
   max-width: 40rem;
   margin: 0 auto;
   padding: 1rem .9rem calc(var(--tabbar-h) + var(--safe-b) + 1.6rem);
@@ -509,3 +510,199 @@ details.weitere > summary {
 }
 details.weitere[open] > summary { margin-bottom: .6rem; }
 .weitere-werte { margin-top: .5rem; padding-top: .4rem; border-top: 1px dashed var(--linie); }
+
+/* ======================================================================
+   Einschätzung, Dosis-Karte, Warnzeichen, Notfall
+   Alles, was eine Stufe oder Lage zeigt, sagt sie in Worten; die Farben
+   (nur Tokens von oben) kommen dazu und wechseln mit hell/dunkel.
+   ====================================================================== */
+
+:root { --auf-gefahr: #ffffff; --info-hell: var(--akzent-hell); }
+:root[data-farbe="dunkel"] { --auf-gefahr: #1a0806; }
+
+/* Links, die wie Knöpfe aussehen (tel:), und Knöpfe, die wie Links aussehen. */
+a.knopf { text-decoration: none; }
+.knopf-notruf { background: var(--gefahr); border-color: var(--gefahr); color: var(--auf-gefahr); }
+.knopf-anruf { border-color: var(--akzent); color: var(--akzent-dunkel); }
+:root[data-farbe="dunkel"] .knopf-anruf { color: var(--akzent); }
+.knopf-link {
+  border: 0; background: none; padding: .2rem 0; margin: 0;
+  color: var(--akzent); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer;
+  min-height: 2.5rem;
+}
+.anruf-reihe .knopf { flex: 1 1 12rem; }
+
+/* ---------- W0: Notfallleiste oben auf „Heute" ---------- */
+.notfall-leiste {
+  border: 2px solid var(--gefahr);
+  background: var(--gefahr-hell);
+  border-radius: var(--radius);
+  padding: .55rem .7rem .3rem;
+  margin: 0 0 .6rem;
+}
+.notfall-text { font-size: .88rem; line-height: 1.3; margin-bottom: .4rem; }
+.notfall-leiste .knopf-notruf { min-height: 2.7rem; font-size: 1.05rem; padding-top: .4rem; padding-bottom: .4rem; }
+.notfall-nummern { display: flex; flex-wrap: wrap; gap: 0 .8rem; margin-top: .2rem; font-size: .85rem; line-height: 1.15; }
+.notfall-nummern > span { display: inline-flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
+.notfall-nummern .nummer {
+  display: inline-flex; align-items: center; min-height: max(2.2rem, 44px);
+  color: var(--gefahr); font-weight: 800; white-space: nowrap;
+  background: none; border: 0; padding: 0; font-size: inherit; font-family: inherit; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* Notfallzeile oben im Befinden (R2) und die große 112-Karte */
+.notfall-zeile { border: 2px solid var(--gefahr); border-radius: 14px; padding: .7rem .8rem; margin-bottom: 1rem; background: var(--gefahr-hell); }
+.notfall-zeile p { font-size: .95rem; }
+.notfall-zeile .knopf-reihe { margin-top: .6rem; }
+.notfall-zeile .knopf-gefahr { background: var(--karte); }
+.notruf-karte .gross { color: var(--gefahr); }
+.notruf-karte:focus { outline: 3px solid var(--gefahr); outline-offset: 2px; }
+
+/* ---------- Stufe in Worten ---------- */
+.stufe-zeile { margin-bottom: .35rem; }
+.stufe-schild {
+  display: inline-block; font-weight: 800; font-size: .95rem; line-height: 1.3;
+  padding: .15rem .6rem; border-radius: 999px; border: 2px solid var(--linie); background: var(--karte);
+}
+.stufe-schild.stufe-notruf, .stufe-schild.stufe-heute, .stufe-schild.stufe-tage { border-color: var(--gefahr); color: var(--gefahr); }
+.stufe-schild.stufe-zeitnah { border-color: var(--warn); color: var(--warn); }
+.stufe-schild.stufe-termin { border-color: var(--akzent); color: var(--akzent-dunkel); }
+.stufe-schild.stufe-keine { border-color: var(--ok); color: var(--ok); }
+:root[data-farbe="dunkel"] .stufe-schild.stufe-termin { color: var(--akzent); }
+.karte.info { border-color: var(--akzent); }
+.einschaetzung.info { border-left-color: var(--akzent); }
+.gross-text { font-size: 1.1rem; font-weight: 600; }
+
+/* ---------- Befund: Werte und Einschätzung ---------- */
+.wert { padding: .15rem 0 .3rem; border-bottom: 1px dashed var(--linie); }
+.wert:last-of-type { border-bottom: 0; }
+.lage-zeile { font-size: .9rem; text-align: right; margin: 0; }
+.lage-zeile .lage { white-space: normal; }
+.bereich.rechts { text-align: right; }
+.hinweis-zeile { color: var(--gedaempft); margin-top: .35rem; }
+.einschaetzung p + p, .einschaetzung ul + p { margin-top: .45rem; }
+.einschaetzung-text { font-weight: 400; }
+.frist { margin-top: .5rem; }
+.frist .stufe-schild { margin-right: .3rem; }
+.gegen-selbst { font-weight: 600; }
+.zwischen { margin-top: .6rem; }
+.fussnote { margin-top: .6rem; }
+.angaben { margin-top: .5rem; }
+.notfall-satz {
+  margin-top: .6rem; padding: .5rem .7rem; border-radius: 10px;
+  border: 2px solid var(--gefahr); background: var(--karte); color: var(--gefahr); font-weight: 700;
+}
+.notfall-satz .knopf { margin-top: .4rem; }
+.notfall-klein { margin-top: .5rem; }
+.karte .p6-karte { margin: .8rem 0 0; }
+.p6-karte { border-style: dashed; }
+.liste { padding-left: 1.2rem; margin: .2rem 0; }
+.liste li { margin-bottom: .3rem; }
+
+/* ---------- Dosis-Karte ----------
+   Grundsatz 8: Der Titel ist nie größer als der Pflichttext. Beide in
+   derselben Größe, der Titel nur fett; der Pflichttext steht immer da. */
+.dosis-karte:focus { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.dosis-titel { font-size: 1rem; font-weight: 800; margin-top: .3rem; }
+.dosis-text { font-size: 1rem; margin-top: .55rem; }
+.pflicht {
+  font-size: 1rem; margin-top: .8rem; padding: .6rem .7rem;
+  border-left: 4px solid var(--text); background: var(--karte); border-radius: 0 10px 10px 0;
+}
+.warnzeichen-zeile {
+  margin-top: .7rem; padding: .5rem .7rem; border-radius: 10px;
+  border: 2px solid var(--gefahr); color: var(--gefahr); background: var(--karte); font-weight: 800;
+}
+.gruende { padding-left: 1.2rem; margin: .6rem 0 0; }
+.gruende li { margin-bottom: .5rem; }
+.grundlage { margin-top: .8rem; }
+.dosis-frage { margin-top: .6rem; padding: .7rem; border: 2px solid var(--akzent); border-radius: 12px; background: var(--karte); }
+.dosis-frage-text { font-weight: 700; margin-bottom: .6rem; }
+.antworten { display: flex; flex-direction: column; gap: .5rem; }
+.antworten .knopf { width: 100%; justify-content: flex-start; text-align: left; }
+.antworten.zwei { flex-direction: row; flex-wrap: wrap; margin-top: .6rem; }
+.antworten.zwei .knopf { flex: 1 1 6rem; justify-content: center; }
+.antworten .knopf[aria-pressed="true"] { border-color: var(--akzent); background: var(--akzent-hell); }
+.jahr-form .feld { margin-bottom: .6rem; }
+
+/* ---------- Ja / Nein / Weiß nicht als große Flächen ---------- */
+.wahl-frage > span:first-child { font-weight: 700; }
+.wahl-flaechen { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .4rem; }
+.wahl-flaeche {
+  flex: 1 1 5.5rem; display: flex; align-items: center; gap: .5rem;
+  min-height: 2.9rem; padding: .45rem .7rem; cursor: pointer;
+  border: 2px solid var(--linie); border-radius: 12px; background: var(--karte); font-weight: 600;
+}
+.wahl-flaeche input { width: 1.35rem; height: 1.35rem; margin: 0; flex: none; accent-color: var(--akzent); }
+.wahl-flaeche:has(input:checked) { border-color: var(--akzent); background: var(--akzent-hell); }
+.wahl-flaeche:focus-within { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.feld-unter { margin: .6rem 0 0; }
+.wahl-frage[data-feld="vorAbnahme"]:not(:has(input[value="ja"]:checked)) .feld-unter { display: none; }
+.wahl-frage:not(:has(input[value="ja"]:checked)) .nur-bei-ja { display: none; }
+.warn-text { color: var(--warn); font-weight: 600; }
+
+/* ---------- Formulare in Abschnitten ---------- */
+fieldset.fragen-block, fieldset.profil-teil { border: 0; padding: 0; margin: 1.2rem 0 .4rem; min-width: 0; }
+fieldset.fragen-block > legend, fieldset.profil-teil > legend {
+  font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--gedaempft); font-weight: 700;
+  padding: 0; margin-bottom: .6rem;
+}
+.haken-breit { display: flex; width: 100%; border-radius: 14px; align-items: flex-start; padding: .55rem .8rem; }
+.haken-breit input { margin-top: .15rem; flex: none; }
+.mittel-liste { display: flex; flex-direction: column; gap: .5rem; }
+.mittel-zeile .hinweis { margin: .3rem .2rem 0; }
+.mittel-abstand { margin: .4rem 0 .3rem 1.2rem; padding-left: .7rem; border-left: 3px solid var(--akzent); }
+.mittel-abstand .feld { margin-bottom: .2rem; }
+.mittel-zeile:not(:has(input[name="mittel"]:checked)) .mittel-abstand { display: none; }
+/* Die Frage nach Hirnanhangdrüse oder bewusst niedrigem TSH nur bei offenem Grund. */
+form:has(select[name="ursache"] option:checked:is([value="hashimoto"], [value="op"], [value="radiojod"], [value="hypophyse"])) .nur-offene-ursache { display: none; }
+
+/* ---------- Rückfrage beim Befund ---------- */
+dialog.rueckfrage {
+  border: 2px solid var(--warn); border-radius: var(--radius); background: var(--karte); color: var(--text);
+  padding: 1rem; width: min(34rem, calc(100vw - 1.6rem)); max-height: calc(100vh - 2rem); overflow: auto;
+}
+dialog.rueckfrage::backdrop { background: rgba(0, 0, 0, .55); }
+dialog.rueckfrage h2 { font-size: 1.2rem; margin-bottom: .5rem; }
+dialog.rueckfrage ul { padding-left: 1.2rem; margin: .3rem 0 .7rem; }
+dialog.rueckfrage li { margin-bottom: .4rem; }
+
+/* ---------- Warnzeichen-Check ---------- */
+.warn-gruppe { border: 2px solid var(--linie); border-radius: var(--radius); padding: .5rem .7rem .7rem; margin: 0 0 1rem; background: var(--karte); min-width: 0; }
+.warn-gruppe.gefahr { border-color: var(--gefahr); }
+.warn-gruppe > legend { font-weight: 800; padding: 0 .3rem; }
+.warn-gruppe.gefahr > legend { color: var(--gefahr); }
+.warn-frage {
+  display: flex; align-items: center; gap: .7rem; cursor: pointer;
+  padding: .55rem .2rem; min-height: 3rem; border-bottom: 1px solid var(--linie);
+}
+.warn-frage:last-child { border-bottom: 0; }
+.warn-haken { display: flex; flex-direction: column; align-items: center; flex: none; gap: .1rem; }
+.warn-frage input { width: 1.9rem; height: 1.9rem; margin: 0; accent-color: var(--gefahr); }
+.warn-ja { font-weight: 800; font-size: .8rem; line-height: 1; }
+.warn-frage-text { hyphens: auto; }
+.warn-frage-text { flex: 1; min-width: 0; }
+.warn-frage:has(input:checked) { background: var(--gefahr-hell); }
+.warn-frage:focus-within { outline: 3px solid var(--akzent); outline-offset: 1px; }
+
+/* ---------- Was braucht Abstand? ---------- */
+.abstand-eintrag h2 { font-size: 1.05rem; }
+.abstand-eintrag.wichtig { border: 2px solid var(--warn); background: var(--warn-hell); }
+.wichtig-marke { font-weight: 800; color: var(--warn); text-transform: uppercase; font-size: .8rem; letter-spacing: .06em; }
+.abstand-uhr { font-weight: 800; font-size: 1.15rem; margin: .1rem 0 .3rem; }
+
+/* ---------- Gesamtbild und Verweise auf „Heute" ---------- */
+.w5-karte p { font-weight: 600; }
+.links { margin-top: .4rem; }
+.einschaetzung-verweis .klein.gedaempft { text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+.teil-karte p + p { margin-top: .3rem; }
+p.hinweis, fieldset .hinweis { color: var(--gedaempft); font-size: .9rem; }
+p.hinweis.warn-text { color: var(--warn); }
+/* Häkchen und Auswahlpunkte in einem Feld sind keine Textfelder: Ohne das
+   bekamen sie Breite, Höhe und Rahmen der Eingabefelder und wurden zu
+   großen leeren Kästen. */
+.feld input[type="checkbox"], .feld input[type="radio"]:not(.sr-only) {
+  width: 1.3rem; height: 1.3rem; min-height: 0; padding: 0; border: 0; flex: none; margin: 0;
+}
+.feld .wahl-flaeche input[type="radio"] { width: 1.35rem; height: 1.35rem; }

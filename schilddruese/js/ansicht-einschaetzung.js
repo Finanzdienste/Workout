@@ -29,10 +29,24 @@ const STUFE_ZEICHEN = { notruf: '🚑', heute: '📞', tage: '📞', zeitnah: '�
 
 export const rang = (stufe) => (ez.STUFEN[stufe] || ez.STUFEN.keine).rang;
 
-/** „In den nächsten Tagen anrufen" – die Stufe als kleines Schild in Worten. */
-export function stufeSchild(stufe) {
+/**
+ * Die Zeile mit dem Stufen-Schild über einem einzelnen Hinweis – bei „kein
+ * besonderer Anlass" keine: Ein grünes „Kein besonderer Anlass" über einem
+ * Hinweis läse sich wie eine Entwarnung.
+ */
+export function stufeZeile(stufe, titel = null) {
+  return rang(stufe) > 0 ? `<p class="stufe-zeile">${stufeSchild(stufe, titel)}</p>` : '';
+}
+export const hinweisKlasse = (stufe) => (rang(stufe) > 0 ? STUFE_KLASSE[stufe] : '');
+
+/**
+ * „In den nächsten Tagen anrufen" – die Stufe als kleines Schild in Worten.
+ * `titel` ersetzt den Standardtitel, wo der Kern einen eigenen liefert
+ * (ez.kopfFuer: bei seelischer Not ein Gesprächsangebot statt „Sofort 112").
+ */
+export function stufeSchild(stufe, titel = null) {
   const s = ez.STUFEN[stufe] || ez.STUFEN.keine;
-  return `<span class="stufe-schild stufe-${esc(stufe)}"><span aria-hidden="true">${STUFE_ZEICHEN[stufe] || ''}</span> ${esc(s.titel)}</span>`;
+  return `<span class="stufe-schild stufe-${esc(stufe)}"><span aria-hidden="true">${STUFE_ZEICHEN[stufe] || ''}</span> ${esc(titel || s.titel)}</span>`;
 }
 
 // ---------------------------------------------------------------- Anrufen
@@ -210,6 +224,19 @@ function lageZeile(o, einheit) {
   return `<p class="lage-zeile"><span class="lage lage-${esc(o.lage)}">${esc(ez.LAGE_TEXT[o.genau] || o.text)}</span> <span class="bereich">(${esc(QUELLE[o.quelle] || '')}${bereich ? ` ${esc(bereich)}` : ''})</span></p>`;
 }
 
+/*
+ * Der Zusatz des Kerns zu einem Wert (einordnen().zusatz): „übliche
+ * Orientierung" steht schon in der Lage-Zeile; gezeigt wird er, wenn er mehr
+ * sagt – am Rand des üblichen Bereichs die Bitte, den Laborbereich einzutragen.
+ */
+const zusatzZeigen = (o) => Boolean(o.zusatz) && o.quelle === 'orientierung' && String(o.genau).startsWith('rand');
+
+/** Die Hinweise zum Befund ohne das, was schon beim Wert steht. */
+function hinweiseOhneDoppelte(e) {
+  const zusaetze = e.werte.map((w) => w.einordnung.zusatz).filter(Boolean);
+  return e.hinweise.filter((h) => !zusaetze.some((z) => z.includes(h) || z.includes(h.replace(/^[^:]{1,15}: /, ''))));
+}
+
 /** Je Wert: Originalwert mit Einheit, Lage in Worten, umgerechnet wo gerechnet. */
 function werteZeilen(e) {
   return e.werte.map(({ key, name, wert: w, einordnung: o, ziel }) => {
@@ -221,6 +248,7 @@ function werteZeilen(e) {
         ${um ? `<p class="bereich rechts">${esc(um)}</p>` : ''}
         ${lageZeile(o, w.einheit)}
         ${ziel && ziel.quelle === 'ziel' ? lageZeile(ziel, w.einheit) : ''}
+        ${zusatzZeigen(o) ? `<p class="klein hinweis-zeile">${esc(o.zusatz)}</p>` : ''}
       </div>`;
   }).join('');
 }
@@ -268,7 +296,7 @@ export function befundKarte(l, stand, heute, { kurz = false, aendern = false, do
       <span class="gedaempft klein">${tag !== null ? `Dosis damals ${esc(zahlText(tag, 1))} µg am Tag` : ''}</span>
     </div>`);
   teile.push(werteZeilen(e));
-  e.hinweise.forEach((h) => teile.push(`<p class="klein hinweis-zeile">${esc(h)}</p>`));
+  hinweiseOhneDoppelte(e).forEach((h) => teile.push(`<p class="klein hinweis-zeile">${esc(h)}</p>`));
 
   if (aktiv && e.muster) {
     const stufe = e.praxisErklaert ? 'keine' : e.stufe;
@@ -304,17 +332,21 @@ export function beschwerdeKarte(t) {
     return `<div class="hinweis-karte" data-regel="W5b"><span class="ri" aria-hidden="true">💬</span><div><p class="klein">${esc(t.text)}</p>${beschwerdeKnoepfe('W5b')}</div></div>`;
   }
   return `
-    <div class="karte ${STUFE_KLASSE[t.stufe] || ''} beschwerde-karte" data-regel="${esc(t.id)}">
-      <p class="stufe-zeile">${stufeSchild(t.stufe)}</p>
+    <div class="karte ${hinweisKlasse(t.stufe)} beschwerde-karte" data-regel="${esc(t.id)}">
+      ${stufeZeile(t.stufe)}
       <p>${esc(t.text)}</p>
       ${beschwerdeKnoepfe(t.id)}
     </div>`;
 }
 
-/** W5 steht immer ganz oben – mit den Nummern als Knöpfe. */
-export function w5Karte(text) {
+/**
+ * W5 steht immer ganz oben – mit den Nummern als Knöpfe. `alert` nur direkt
+ * nach dem Eintragen: Auf „Heute" stünde sonst bei jedem Neuzeichnen eine
+ * Durchsage an.
+ */
+export function w5Karte(text, { alert = false } = {}) {
   return `
-    <div class="karte gefahr w5-karte" data-regel="W5" role="alert">
+    <div class="karte gefahr w5-karte" data-regel="W5"${alert ? ' role="alert"' : ''}>
       <p>${esc(text)}</p>
       ${beschwerdeKnoepfe('W5')}
     </div>`;
@@ -337,7 +369,6 @@ function gesamtbildSeite(stand, heute) {
     return { titel, html: `${p6Karte()}${links()}<p class="klein gedaempft" style="margin-top:1rem">${esc(ez.FUSSZEILE)}</p>` };
   }
   const g = ez.gesamtbild(stand, heute);
-  const s = ez.STUFEN[g.stufe];
   const teile = [];
 
   // W5 zuerst, ganz gleich, welche Stufe sonst gilt.
@@ -346,8 +377,8 @@ function gesamtbildSeite(stand, heute) {
 
   teile.push(`
     <div class="karte stufe-karte ${STUFE_KLASSE[g.stufe]}" data-stufe="${esc(g.stufe)}">
-      <p class="stufe-zeile">${stufeSchild(g.stufe)}</p>
-      <p class="gross-text">${esc(s.text)}</p>
+      <p class="stufe-zeile">${stufeSchild(g.stufe, g.kopf.titel)}</p>
+      <p class="gross-text">${esc(g.kopf.text)}</p>
     </div>`);
 
   // Im Einzelnen: Warnzeichen von heute, der Befund, die Kontrollen. Die
@@ -356,6 +387,7 @@ function gesamtbildSeite(stand, heute) {
   if (g.warnHeute) {
     g.warnHeute.abschnitte.forEach((a) => einzeln.push({
       stufe: a.stufe,
+      titel: ez.kopfFuer(a.stufe, [a]).titel,
       html: `<p class="klein gedaempft">Warnzeichen-Check von heute${g.warnHeute.check.uhr ? `, ${esc(uhrText(g.warnHeute.check.uhr))}` : ''}:</p><p>${esc(a.text)}</p>${a.anrufe.length ? `<div class="knopf-reihe anruf-reihe">${a.anrufe.map((x) => anrufKnopf(x.nummer, x.text, { notruf: x.nummer === '112' })).join('')}</div>` : ''}`,
     }));
   }
@@ -367,7 +399,7 @@ function gesamtbildSeite(stand, heute) {
   einzeln.sort((a, b) => rang(b.stufe) - rang(a.stufe));
   if (einzeln.length) {
     teile.push('<h2 class="abschnitt">Im Einzelnen</h2>');
-    einzeln.forEach((x) => teile.push(`<div class="karte teil-karte ${STUFE_KLASSE[x.stufe]}"><p class="stufe-zeile">${stufeSchild(x.stufe)}</p>${x.html}</div>`));
+    einzeln.forEach((x) => teile.push(`<div class="karte teil-karte ${hinweisKlasse(x.stufe)}">${stufeZeile(x.stufe, x.titel)}${x.html}</div>`));
   }
 
   teile.push('<h2 class="abschnitt">Letzter Laborbefund</h2>');
@@ -428,7 +460,7 @@ function warnFormular(stand) {
         <fieldset class="warn-gruppe ${klasse}">
           <legend id="warn-gruppe-${i}">${esc(titel)}</legend>
           ${liste.map((f) => `
-            <label class="warn-frage"><input type="checkbox" name="warn" value="${esc(f.key)}"><span class="warn-ja" aria-hidden="true">Ja</span><span class="warn-text">${esc(f.text)}</span></label>`).join('')}
+            <label class="warn-frage"><span class="warn-haken"><input type="checkbox" name="warn" value="${esc(f.key)}"><span class="warn-ja" aria-hidden="true">Ja</span></span><span class="warn-frage-text">${esc(f.text)}</span></label>`).join('')}
         </fieldset>`;
   }).join('')}
       <div class="formular-fuss"><button type="submit" class="knopf knopf-haupt knopf-breit">Auswerten</button></div>
@@ -449,14 +481,18 @@ function warnErgebnis(param, stand) {
         <div class="knopf-reihe">${a.anrufe.map((x) => anrufKnopf(x.nummer, x.text, { notruf: true, breit: true })).join('')}</div>
       </div>`;
   }
+  // Die Stufe je Abschnitt in Worten – bei seelischer Not mit dem Titel des
+  // Kerns (ein Gesprächsangebot, nicht „Sofort 112").
+  const kopf = ez.kopfFuer(r.stufe, r.abschnitte);
   const karten = r.abschnitte.map((a) => `
-    <div class="karte ${STUFE_KLASSE[a.stufe]} warn-abschnitt" data-regel="${esc(a.id)}"${a.stufe === 'notruf' ? ' role="alert"' : ''}>
-      <p class="stufe-zeile">${stufeSchild(a.stufe)}</p>
+    <div class="karte ${hinweisKlasse(a.stufe)} warn-abschnitt" data-regel="${esc(a.id)}"${a.stufe === 'notruf' ? ' role="alert"' : ''}>
+      ${stufeZeile(a.stufe, ez.kopfFuer(a.stufe, [a]).titel)}
       <p>${esc(a.text)}</p>
       ${a.anrufe.length ? `<div class="knopf-reihe anruf-reihe">${a.anrufe.map((x) => anrufKnopf(x.nummer, x.text, { notruf: x.nummer === '112', breit: true })).join('')}</div>` : ''}
     </div>`).join('');
   const nichts = r.abschnitte.length === 1 && r.abschnitte[0].id === 'W3';
   return `
+    ${r.abschnitte.length > 1 ? `<p class="stufe-zeile ergebnis-kopf">Zusammen: ${stufeSchild(r.stufe, kopf.titel)}</p>` : ''}
     ${karten}
     ${nichts ? '<div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="frage">Frage notieren</button></div>' : ''}
     <p class="klein gedaempft" style="margin-top:.8rem">Gespeichert am ${esc(datumInWorten(check.datum))}${check.uhr ? `, ${esc(uhrText(check.uhr))}` : ''}. Ändert sich etwas plötzlich, den Check einfach noch einmal machen.</p>`;
@@ -493,7 +529,7 @@ function befindenHinweisSeite(param, stand, heute) {
   const b = stand.befinden.find((x) => x.id === param);
   const teile = [];
   if (b && ez.notfallWorte(b.notiz)) teile.push(w1Karte(stand));
-  if (b && b.beschwerden.includes('lebensmuede')) teile.push(w5Karte(ez.W5_TEXT));
+  if (b && b.beschwerden.includes('lebensmuede')) teile.push(w5Karte(ez.W5_TEXT, { alert: true }));
   if (b && (b.beschwerden.includes('puls') || b.beschwerden.includes('herz'))) {
     ez.beschwerdenAuswerten(stand, heute).texte
       .filter((t) => ['S4', 'S4ii', 'R3'].includes(t.id))

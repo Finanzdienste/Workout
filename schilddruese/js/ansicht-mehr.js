@@ -31,10 +31,11 @@ export function mehrAnsicht(stand, heute) {
   return `
     <h2 class="abschnitt">Einschätzung</h2>
     <div class="zeilen">
-      ${zeile('gesamtbild', 'Was sagen meine Werte?', 'Laborwerte, Beschwerden und Einnahme eingeordnet', null, '🔎')}
+      ${zeile('gesamtbild', 'Einschätzung: Was sagen meine Werte?', 'Laborwerte, Beschwerden und Kontrollen eingeordnet', null, '🔎')}
+      ${zeile('dosis-karte', 'Dosis-Karte: mehr oder weniger?', 'Was der letzte TSH-Wert für die Dosis bedeutet – vor jeder Änderung die Praxis anrufen', null, '⚖️')}
       ${zeile('warnzeichen', 'Warnzeichen prüfen', 'Geht es Ihnen gerade schlecht? In einer Minute wissen, was zu tun ist', null, '🚨')}
       ${zeile('abstand', 'Was braucht Abstand?', stand.mittel.length ? `Uhrzeiten für ${mehrzahl(stand.mittel.length, 'Mittel', 'Mittel')}` : 'Kaffee, Kalzium, Eisen – ab wann in Ordnung', null, '⏱️')}
-      ${zeile('profil', 'Über mich & weitere Mittel', stand.profil.geburtsjahr || stand.mittel.length ? 'Angaben ändern' : 'Alter und weitere Mittel für genauere Einschätzungen', null, '👤')}
+      ${zeile('profil', 'Über mich & weitere Mittel', stand.profil.geburtsjahr || stand.mittel.length ? 'Angaben ändern' : 'Alter, Behandlung, Bundesland und weitere Mittel', null, '👤')}
     </div>
 
     <h2 class="abschnitt">Zum Arzttermin</h2>
@@ -66,7 +67,7 @@ function berichtSeite(stand, heute) {
   return {
     titel: 'Bericht',
     html: `
-      <p class="gedaempft" style="margin-bottom:.8rem">Zum Zeigen im Sprechzimmer, zum Vorlesen oder zum Weiterschicken. Die App bewertet darin nichts.</p>
+      <p class="gedaempft" style="margin-bottom:.8rem">Zum Zeigen im Sprechzimmer, zum Vorlesen oder zum Weiterschicken. Was die App selbst eingeordnet hat, steht darin gekennzeichnet in einem eigenen Abschnitt.</p>
       <div class="knopf-reihe" style="margin:0 0 .8rem">
         <button type="button" class="knopf knopf-haupt" data-act="bericht-teilen">Teilen</button>
         <button type="button" class="knopf" data-act="bericht-kopieren">Kopieren</button>
