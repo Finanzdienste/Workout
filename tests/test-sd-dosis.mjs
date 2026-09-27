@@ -29,6 +29,12 @@ await page.click('[data-seite="dosis"]');
 check((await ansichtText(page)).includes('bleibt im Verlauf'), 'das Formular sagt, dass die bisherige Dosis im Verlauf bleibt');
 await page.fill('input[name=mikrogramm]', '100');
 await page.fill('input[name=ab]', montag);
+// Gewollt geändert (Durchsicht B23): Ab der zweiten Dosis muss „Auf
+// Anweisung der Praxis?" beantwortet sein – offen gelassen galt still als
+// „unbekannt", und davon hängen die Hinweise B2 und X3 ab.
+await page.click('button[type=submit]');
+check((await page.locator('[data-feld="praxis"] .feld-fehler').count()) === 1, 'ohne Angabe zur Praxis wird nicht gespeichert – das Feld sagt warum');
+await page.check('input[name=praxis][value=ja]');
 await page.click('button[type=submit]');
 let s = await gespeichert();
 check(s.dosen.length === 2 && s.dosen[1].mikrogramm === 100 && s.dosen[1].ab === montag, 'die neue Dosis ist mit ihrem Datum gespeichert');
@@ -55,32 +61,46 @@ await page.click('#reiter-heute');
 text = await ansichtText(page);
 check(text.includes('L-Thyroxin 100 µg, 1 Tablette am Tag') && !text.includes('Ab Montag'), 'ab Montag nennt „Heute" 100 µg, ohne Ankündigung');
 
-// Fünf Wochen später: Hinweis auf die Blutkontrolle.
+// Gewollt geändert (Durchsicht B47): „Heute" hat keine eigene Erinnerung
+// „vor N Wochen geändert" mehr. Sie kam auch ohne bestätigte Behandlung (P6)
+// und ohne den Text vor der Blutabnahme, und neben D6c stand sie doppelt. Die
+// Kontrolle nach einer Dosisänderung meldet allein D6c (js/dosis.js) – nur
+// mit P6, ohne Geburtsjahr nach 8 Wochen (wie D0.6).
 await uhr(plus(montag, 35), '06:00');
 await page.click('#reiter-heute');
 text = await ansichtText(page);
-check(text.includes('vor 5 Wochen geändert') && text.includes('6 bis 8 Wochen'), 'fünf Wochen nach der Änderung: Hinweis auf die übliche Blutkontrolle');
-check(!/erhöh|senk|zu hoch|zu niedrig/i.test(text), '… ohne jede Aussage über die Dosis selbst');
+check(!text.includes('Wochen geändert') && !text.includes('Kontrolle fällig'), 'ohne bestätigte Behandlung (P6): keine Erinnerung an die Kontrolle');
+await page.evaluate((key) => {
+  const st = JSON.parse(localStorage.getItem(key));
+  st.profil.behandelt = true;
+  localStorage.setItem(key, JSON.stringify(st));
+}, 'schilddruese.stand.v1');
+await uhr(plus(montag, 56), '06:00');
+await page.click('#reiter-heute');
+const d6c = page.locator('#ansicht [data-regel="D6c"]');
+check(await d6c.count() === 1 && (await d6c.innerText()).includes('Jetzt ist die Kontrolle fällig') && (await d6c.innerText()).includes('Vor der Blutabnahme'),
+  'mit P6, acht Wochen nach der Änderung: Hinweis auf die Kontrolle, mit dem, was vor der Blutabnahme gilt');
+check(!/erhöh|senk|zu hoch|zu niedrig/i.test(await d6c.innerText()), '… ohne jede Aussage über die Dosis selbst');
 
 // Mit einem Laborwert nach der Änderung verschwindet er.
 await page.evaluate(({ key, datum }) => {
   const st = JSON.parse(localStorage.getItem(key));
   st.labor.push({ id: 'l9', datum, tsh: { wert: 2, einheit: 'mU/l', von: 0.4, bis: 4 }, ft4: null, ft3: null, notiz: '' });
   localStorage.setItem(key, JSON.stringify(st));
-}, { key: 'schilddruese.stand.v1', datum: plus(montag, 34) });
-await uhr(plus(montag, 35), '06:00');
+}, { key: 'schilddruese.stand.v1', datum: plus(montag, 55) });
+await uhr(plus(montag, 56), '06:00');
 await page.click('#reiter-heute');
-check(!(await ansichtText(page)).includes('6 bis 8 Wochen'), 'ist danach ein Laborwert eingetragen, verschwindet der Hinweis');
+check(await page.locator('#ansicht [data-regel="D6c"]').count() === 0, 'ist danach ein Laborwert eingetragen, verschwindet der Hinweis');
 
-// Neun Wochen nach der Änderung ohne Labor: kein Dauerhinweis mehr.
+// Zwölf Wochen nach der Änderung ohne Labor: kein täglicher Hinweis mehr.
 await page.evaluate((key) => {
   const st = JSON.parse(localStorage.getItem(key));
   st.labor = [];
   localStorage.setItem(key, JSON.stringify(st));
 }, 'schilddruese.stand.v1');
-await uhr(plus(montag, 75), '06:00');
+await uhr(plus(montag, 85), '06:00');
 await page.click('#reiter-heute');
-check(!(await ansichtText(page)).includes('6 bis 8 Wochen'), 'nach zehn Wochen drängt der Hinweis nicht mehr');
+check(await page.locator('#ansicht [data-regel="D6c"]').count() === 0, 'nach zwölf Wochen drängt der Hinweis nicht mehr täglich');
 
 s = await gespeichert();
 check(s.profil.seit === plus(TAG, -3), 'der Einrichtungstag bleibt beim Speichern erhalten');
