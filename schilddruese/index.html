@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de" data-schrift="gross" data-farbe="hell">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c6a86">
+<meta name="description" content="Tägliche Schilddrüsentablette abhaken, Dosis und Laborwerte festhalten, Zusammenfassung für den Arzttermin. Alles bleibt auf dem Handy.">
+<title>Schilddrüse</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="kopf">
+  <div class="kopf-in" id="kopf">
+    <h1 class="marke"><img src="icon.svg" alt="">Schilddrüse</h1>
+  </div>
+</header>
+
+<main id="ansicht" class="ansicht" role="tabpanel" tabindex="-1" aria-labelledby="reiter-heute"></main>
+
+<!-- Drei Reiter, mit Wort und Bild. Sie stehen fest im HTML, damit die App
+     auch mit einem Skript aus einem älteren Zwischenspeicher eine Navigation
+     hat – dieselbe Vorsicht wie in der Workout-App. -->
+<nav class="reiterleiste" id="reiterleiste" role="tablist" aria-label="Bereiche">
+  <button type="button" class="reiter" id="reiter-heute" data-reiter="heute" role="tab" aria-controls="ansicht"><span class="ri" aria-hidden="true">☀️</span><span>Heute</span></button>
+  <button type="button" class="reiter" id="reiter-verlauf" data-reiter="verlauf" role="tab" aria-controls="ansicht"><span class="ri" aria-hidden="true">📈</span><span>Verlauf</span></button>
+  <button type="button" class="reiter" id="reiter-mehr" data-reiter="mehr" role="tab" aria-controls="ansicht"><span class="ri" aria-hidden="true">☰</span><span>Mehr</span></button>
+</nav>
+
+<div class="meldung" id="meldung" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
