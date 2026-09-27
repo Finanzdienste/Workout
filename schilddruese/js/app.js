@@ -657,7 +657,14 @@ function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
         s.profil[feld] = wert;
         geschrieben = true;
       } else if (ziel === 'nachfrage') {
-        s.nachfragen.push({ id: sp.kennung(), art: feld.toLowerCase(), bezug: String(bezug || '').slice(0, 40), antwort: wert, am: heute });
+        const art = feld.toLowerCase();
+        const zu = String(bezug || '').slice(0, 40);
+        // Eine Antwort „Nein, ich nehme etwas anderes" zu einem früheren Befund
+        // ist mit der Antwort zum neuen erledigt. Blieb sie liegen, machte sie
+        // die nächste Dosisänderung zur „Berichtigung" – ohne Kontrolle und
+        // ohne Nachfrage nach einer Erhöhung (C17).
+        if (art === 'dosis_stimmt') s.nachfragen = s.nachfragen.filter((n) => !(n.art === 'dosis_stimmt' && n.bezug !== zu && /^nein/.test(n.antwort)));
+        s.nachfragen.push({ id: sp.kennung(), art, bezug: zu, antwort: wert, am: heute });
         geschrieben = true;
       }
     });
@@ -941,12 +948,35 @@ function tagPruefen() {
   tablettenHinweis();
 }
 setInterval(tagPruefen, 60000);
+
+/*
+ * Eine zweite Instanz (Browser-Tab neben der installierten App) kann
+ * inzwischen geschrieben haben – deren Einträge zuerst übernehmen, sonst
+ * überschreibt der nächste Tipp hier sie mit dem alten Stand. Mitten in einem
+ * Formular nicht neu zeichnen – die Eingaben gingen verloren.
+ *
+ * Hat die andere Instanz alles gelöscht, liefert neuLesen() den leeren Stand
+ * (C19). Dann auch hier zurück zum Anfang, selbst aus einer offenen Seite:
+ * Sonst stand dort weiter, was es nicht mehr gibt, und nach dem Einrichten
+ * öffnete sich wieder die alte Seite.
+ */
+function fremdeAenderung() {
+  const warEingerichtet = sp.getStand().profil.begruesst;
+  if (!sp.neuLesen()) return;
+  if (warEingerichtet && !sp.getStand().profil.begruesst) {
+    ui.seite = null;
+    ui.stapel = [];
+    ui.tab = 'heute';
+    ui.schritt = 1;
+    window.scrollTo(0, 0);
+    render();
+  } else if (!ui.seite) {
+    render();
+  }
+}
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    // Eine zweite Instanz (Browser-Tab neben der installierten App) kann
-    // inzwischen geschrieben haben – deren Einträge zuerst übernehmen, sonst
-    // überschreibt der nächste Tipp hier sie mit dem alten Stand.
-    if (sp.neuLesen() && !ui.seite) render();
+    fremdeAenderung();
     tagPruefen();
   } else {
     sp.sofortSchreiben();
@@ -954,46 +984,29 @@ document.addEventListener('visibilitychange', () => {
 });
 // Dasselbe, während beide offen sind: Der Browser meldet fremde Schreibvorgänge.
 window.addEventListener('storage', (e) => {
-  if (e.key !== sp.SCHLUESSEL) return;
-  // Mitten in einem Formular nicht neu zeichnen – die Eingaben gingen verloren.
-  if (sp.neuLesen() && !ui.seite) render();
+  if (e.key === sp.SCHLUESSEL) fremdeAenderung();
 });
 window.addEventListener('pagehide', () => sp.sofortSchreiben());
 
 // Gezeichnet wird von jeder Aktion selbst. Hier nur der eine Fall, den keine
 // Aktion sieht: Das Speichern läuft 120 ms verzögert, und scheitert es (oder
 // klappt es wieder), muss die Warnung unter „Heute" sofort erscheinen bzw.
-// verschwinden – nicht erst beim nächsten Tipp.
+// verschwinden – nicht erst beim nächsten Tipp. Ebenso, wenn sich nur der
+// Grund ändert („privates Fenster?" → „Speicher voll"): Vorher blieb der
+// falsche Text stehen, und der Rat zur Sicherung fehlte (C20).
 let konnteSpeichern = sp.kannSpeichern();
+let grundVorher = sp.speicherGrund();
 sp.abonnieren(() => {
-  if (sp.kannSpeichern() !== konnteSpeichern) {
+  if (sp.kannSpeichern() !== konnteSpeichern || sp.speicherGrund() !== grundVorher) {
     konnteSpeichern = sp.kannSpeichern();
+    grundVorher = sp.speicherGrund();
     render();
   }
 });
 
-// Offline-Betrieb, nur über http(s) – unter file:// gibt es keine Service Worker.
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  // Nach einer neuen Fassung einmal neu laden – nur, wenn vorher schon *der
-  // eigene* Worker die Seite hatte, und nur einmal je Sitzung. Begründung in
-  // ../js/app.js. Der Worker der Workout-App eine Ebene höher steuert beim
-  // allerersten Besuch womöglich auch diese Seite; dann ist die Übernahme
-  // durch den eigenen keine neue Fassung, und ein Neuladen risse die
-  // Nutzerin mitten aus dem Einrichten.
-  const eigenerWorker = new URL('./sw.js', location.href).href;
-  const hatteWorker = navigator.serviceWorker.controller?.scriptURL === eigenerWorker;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hatteWorker) return;
-    try {
-      if (sessionStorage.getItem('schilddruese.neugeladen')) return;
-      sessionStorage.setItem('schilddruese.neugeladen', '1');
-    } catch { return; }
-    location.reload();
-  });
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => { /* dann ohne Offline-Betrieb */ });
-  });
-}
+// Offline-Betrieb (Service Worker) und das Neuladen nach einem Update stehen
+// als klassisches Skript in index.html – sie müssen auch laufen, wenn dieses
+// Modul gar nicht erst startet (C18).
 
 render();
 speicherFestnageln();

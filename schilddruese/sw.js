@@ -17,7 +17,7 @@
  * auf ein altes app.js.
  */
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `schilddruese-${VERSION}`;
 
 const SHELL = [

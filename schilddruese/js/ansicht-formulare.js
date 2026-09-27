@@ -18,6 +18,7 @@ import * as sp from './speicher.js';
 import * as ez from './einschaetzung.js';
 import { befundPruefen } from './einheiten.js';
 import { E14_TEXT, E16_TEXT } from './wissen.js';
+import { dosisBefund } from './dosis.js';
 import { wahlFrage, JNW_WAHL, BEFUND_FRAGEN, w1Karte } from './ansicht-einschaetzung.js';
 
 const feldDatum = (name, wert, titel = 'Datum', hinweis = '') => `
@@ -167,7 +168,15 @@ function dosisAbsenden(id, f, heute) {
     // stehen, auch wenn die Antwort gleich wegfällt; sonst hielte die Karte
     // ihn bei „Auf Anweisung der Praxis: Ja" für eine beschlossene Änderung
     // und meldete „Kein besonderer Anlass" (Nachprüfung zu B26).
-    const berichtigung = s.nachfragen.some((n) => n.art === 'dosis_stimmt' && /^nein/.test(n.antwort));
+    // Aber nur die jüngste Antwort zum Befund, um den es jetzt geht, und nur,
+    // solange danach noch nichts eingetragen ist. Vorher genügte irgendeine
+    // liegengebliebene Antwort „Nein", auch zu einem früheren Befund: Die
+    // nächste echte Änderung – auch eine der Praxis – galt Monate später als
+    // Berichtigung, ohne Kontrolle (D6c) und ohne Nachfrage nach einer
+    // Erhöhung (W-D4) (C17).
+    const befund = dosisBefund(s, heute);
+    const antwort = befund ? [...s.nachfragen].reverse().find((n) => n.art === 'dosis_stimmt' && n.bezug === befund.id) : null;
+    const berichtigung = Boolean(antwort && /^nein/.test(antwort.antwort) && !s.dosen.some((d) => d !== alt && d.ab >= antwort.am));
     if (alt) Object.assign(alt, eintrag, berichtigung ? { berichtigung: true } : {});
     else s.dosen.push({ id: sp.kennung(), ...eintrag, berichtigung });
     s.dosen.sort((a, b) => a.ab.localeCompare(b.ab));
@@ -237,6 +246,15 @@ function bereichAus(key, name, vonRoh, bisRoh) {
 }
 
 /*
+ * Die Fragen kommen aus speicher.js (FRAGEN_FELDER) – dieselbe Liste, mit der
+ * normStand beim Laden zwei Einträge eines Tages zusammenführt. Vorher hatte
+ * das Formular eine eigene ohne Q5 („versehentlich mehr genommen"), und beide
+ * Wege konnten auseinanderlaufen (C14). Q5 steht nicht im Formular – ihr Name
+ * für die Meldung steht deshalb hier.
+ */
+const FRAGE_KURZ = { verwechselt: 'versehentlich mehr genommen' };
+
+/*
  * Ein Befund je Abnahmetag. Wird ein nachgereichter Wert (etwa fT4) als
  * eigener Befund am selben Tag eingetragen, rechnete die Einschätzung nur mit
  * einem der beiden – TSH 7 und fT4 5 ergaben dann nicht Muster b mit „in den
@@ -246,7 +264,6 @@ function bereichAus(key, name, vonRoh, bisRoh) {
  *
  * → { zusammen, widerspruch: [Namen] }
  */
-const FRAGEN_FELDER = ['vorAbnahme', 'biotin', 'krank', 'kortison', 'kontrastmittel', 'mittelGeaendert', 'einnahmeGeaendert', 'packung', 'abstandOk', 'vergessen', 'einnahmeArt', 'praxis'];
 function befundeZusammen(alt, neu) {
   const zusammen = {};
   const widerspruch = [];
@@ -259,10 +276,10 @@ function befundeZusammen(alt, neu) {
     if (!gleich) { widerspruch.push(name.replace(/ \(.*\)$/, '')); zusammen[key] = a; return; }
     zusammen[key] = { ...a, von: a.von ?? n.von, bis: a.bis ?? n.bis };
   });
-  FRAGEN_FELDER.forEach((k) => {
+  sp.FRAGEN_FELDER.forEach((k) => {
     if (neu[k] && alt[k] && neu[k] !== alt[k]) {
       const frage = BEFUND_FRAGEN.find((q) => q.feld === k);
-      widerspruch.push(frage ? frage.kurz : k);
+      widerspruch.push(frage ? frage.kurz : FRAGE_KURZ[k] || k);
     }
     zusammen[k] = alt[k] || neu[k] || '';
   });
@@ -272,7 +289,6 @@ function befundeZusammen(alt, neu) {
     zusammen[k] = alt[k] || neu[k] || '';
   });
   zusammen.notiz = [alt.notiz, neu.notiz].filter(Boolean).filter((x, i, l) => l.indexOf(x) === i).join(' · ').slice(0, 300);
-  zusammen.verwechselt = alt.verwechselt || '';
   zusammen.datum = alt.datum;
   return { zusammen, widerspruch };
 }
@@ -411,7 +427,12 @@ function laborAbsenden(id, f, heute) {
   // dazu. Wird ein vorhandener Befund auf einen belegten Tag verlegt, nicht –
   // dann hilft nur, den anderen zu öffnen. Bleibt sein Tag, wie er war, lässt
   // er sich ändern wie bisher (auch wenn ein älterer Stand zwei an einem Tag hat).
-  const amTag = stand.labor.find((l) => l.datum === datum && l.id !== id && (!da || da.datum !== datum)) || null;
+  // Hat ein älterer Stand zwei Einträge an diesem Tag (etwa ein berichtigter
+  // TSH), kommt der neue Wert zum ZULETZT eingetragenen: Mit ihm rechnet die
+  // Auswertung, und dorthin führt normStand zusammen. Vorher landete ein
+  // nachgereichtes fT4 beim überholten ersten Eintrag und fehlte in jeder
+  // Einschätzung – „Heute" blieb bei „Beim nächsten Termin" (C15).
+  const amTag = [...stand.labor].reverse().find((l) => l.datum === datum && l.id !== id && (!da || da.datum !== datum)) || null;
   let ziel = eintrag;
   if (amTag) {
     const oeffnen = { seite: 'labor', param: amTag.id, text: `Befund vom ${datumKurz(datum)} öffnen` };
@@ -496,6 +517,14 @@ function gewichtAbsenden(id, f, heute) {
 // ---------------------------------------------------------------- Befinden
 
 /*
+ * Punkte aus früheren Fassungen („trockene Haut oder Haarausfall", C22)
+ * bietet das Formular nicht neu an. Hat ein alter Eintrag einen, steht er
+ * beim Bearbeiten angehakt mit seinem alten Text da – vorher fiel er beim
+ * Speichern still weg, weil das Formular ihn nicht kannte.
+ */
+const alteBeschwerden = (b) => sp.ALTE_BESCHWERDEN.filter(([k]) => b && b.beschwerden.includes(k));
+
+/*
  * Oben eine feste Notfallzeile (R2): Wer beim Ausfüllen Brustschmerz hat,
  * findet in der Beschwerdeliste nichts Passendes und schreibt es vielleicht
  * in die Notiz. Der Knopf „JETZT" zeigt sofort den 112-Text, ohne dass etwas
@@ -526,7 +555,7 @@ function befindenFormular(id, stand, heute) {
         </div>
         <div class="feld"><span id="frage-beschwerden">Was macht sich bemerkbar?</span>
           <div class="haken-liste" role="group" aria-labelledby="frage-beschwerden">
-            ${sp.BESCHWERDEN.map(([k, t]) => `<label class="haken"><input type="checkbox" name="beschwerden" value="${k}" ${b.beschwerden.includes(k) ? 'checked' : ''}>${esc(t)}</label>`).join('')}
+            ${[...sp.BESCHWERDEN, ...alteBeschwerden(b)].map(([k, t]) => `<label class="haken"><input type="checkbox" name="beschwerden" value="${esc(k)}" ${b.beschwerden.includes(k) ? 'checked' : ''}>${esc(t)}</label>`).join('')}
           </div>
           <span class="hinweis">Alles freiwillig. Solche Beschwerden haben oft andere Gründe – deshalb gehört das ins Gespräch mit der Ärztin, nicht in eine eigene Dosisänderung.</span>
         </div>
@@ -551,7 +580,10 @@ function befindenAbsenden(id, f, heute) {
   const stufe = ['gut', 'mittel', 'schlecht'].includes(f.get('stufe')) ? f.get('stufe') : null;
   if (!stufe) fehler.stufe = 'Bitte Gut, Mittel oder Schlecht wählen.';
   if (Object.keys(fehler).length) return { ok: false, fehler };
-  const beschwerden = f.getAll('beschwerden').filter((k) => sp.BESCHWERDEN.some(([x]) => x === k));
+  // Ein alter Punkt bleibt nur, wo er schon stand – neu wählen lässt er sich nicht.
+  const vorher = id ? sp.getStand().befinden.find((b) => b.id === id) : sp.getStand().befinden.find((b) => b.datum === datum);
+  const alt = alteBeschwerden(vorher).map(([k]) => k);
+  const beschwerden = f.getAll('beschwerden').filter((k) => sp.BESCHWERDEN.some(([x]) => x === k) || alt.includes(k));
   const notiz = String(f.get('notiz') || '').trim().slice(0, 500);
   let gespeichert = null;
   sp.aendern((s) => {

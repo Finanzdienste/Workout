@@ -16,7 +16,7 @@
  *      gelesenen Stand – aus dem Speicher wie aus einer Datei – in die Form,
  *      mit der der Rest der App rechnet.
  */
-import { heuteISO, istISO, istUhr, zahlAus } from './datum.js';
+import { heuteISO, istISO, istUhr, zahlAus, zahlText } from './datum.js';
 
 export const SCHLUESSEL = 'schilddruese.stand.v1';
 /*
@@ -44,9 +44,7 @@ export function kennung() {
 /**
  * Bekannte Beschwerden für das Befinden – Schlüssel und Anzeigetext. Wie sie
  * zählen (zu wenig, zu viel, keins von beiden), steht in js/einschaetzung.js.
- * „trockene Haut, Haarausfall" war früher ein Punkt – trockene Haut passt zu
- * zu wenig Hormon, Haarausfall zu beidem; der alte Schlüssel wird beim Lesen
- * zu „trockene Haut".
+ * „trockene Haut, Haarausfall" war früher ein Punkt – siehe ALTE_BESCHWERDEN.
  */
 export const BESCHWERDEN = [
   ['muede', 'müde, erschöpft'],
@@ -69,6 +67,24 @@ export const BESCHWERDEN = [
   ['konzentration', 'Konzentration fällt schwer'],
   ['schmerzen', 'Muskel- oder Gelenkschmerzen'],
 ];
+
+/*
+ * Beschwerden aus früheren Fassungen, die das Befinden-Formular nicht mehr
+ * anbietet. „trockene Haut, Haarausfall" war ein Punkt und meinte das eine
+ * ODER das andere. Beim Lesen wurde daraus früher „trockene Haut" – dann
+ * nannte der Arztbericht eine Beschwerde, die so nie angegeben wurde, und sie
+ * zählte als Punkt für „zu wenig Hormon", auch wenn nur Haarausfall gemeint
+ * war (der zu beidem passt). Jetzt bleibt der alte Eintrag, was er war: mit
+ * seinem Text, ohne Punkt für eine Richtung (C22).
+ */
+export const ALTE_BESCHWERDEN = [
+  ['haut', 'trockene Haut oder Haarausfall (frühere Angabe)'],
+];
+
+/** Der Anzeigetext einer Beschwerde – auch einer aus einer früheren Fassung. */
+export function beschwerdeName(k) {
+  return ([...BESCHWERDEN, ...ALTE_BESCHWERDEN].find(([id]) => id === k) || [k, k])[1];
+}
 
 /*
  * Weitere Mittel, die mit L-Thyroxin zusammenspielen: Schlüssel und Name. In
@@ -290,6 +306,16 @@ const bool = (v, sonst = false) => (typeof v === 'boolean' ? v : sonst);
 const wahl = (v, erlaubt, sonst) => (erlaubt.includes(v) ? v : sonst);
 /** Ja/Nein/Weiß-nicht; eine Zwischenfassung speicherte true/false. */
 const jnw = (v) => (v === true ? 'ja' : v === false ? 'nein' : wahl(v, JNW, ''));
+/*
+ * Biotin und „Tablette vor der Abnahme" waren in derselben Zwischenfassung
+ * nur Haken – und ihr normStand schrieb false in jeden Befund, auch in einen
+ * aus Fassung 1, bei dem nie gefragt worden war. false heißt hier also „kein
+ * Haken", nicht „nein". Als 'nein' übersprang die Dosis-Karte die Fragen F1
+ * und F2 und nannte eine Richtung, und der Arztbericht wies „Biotin: nein"
+ * als Angabe der Patientin aus (C16). Offen ('') fragt die Karte noch einmal –
+ * schlimmstenfalls einmal zu viel.
+ */
+const haken = (v) => (v === true ? 'ja' : v === false ? '' : wahl(v, JNW, ''));
 
 /*
  * Ein Laborwert: { wert, einheit, von, bis, unter }. Der Bereich darf
@@ -331,27 +357,100 @@ function liste(roh, jeEintrag, feld = 'datum') {
 }
 
 /*
+ * Die Fragen zur Blutabnahme in einem Befund (ohne die Uhrzeiten). Auch das
+ * Befund-Formular führt mit ihnen zwei Einträge eines Tages zusammen.
+ */
+export const FRAGEN_FELDER = ['vorAbnahme', 'biotin', 'krank', 'kortison', 'kontrastmittel', 'mittelGeaendert', 'einnahmeGeaendert',
+  'packung', 'abstandOk', 'vergessen', 'einnahmeArt', 'verwechselt', 'praxis'];
+
+/**
+ * Sagen zwei Einträge beim selben Wert Verschiedenes – Zahl, Einheit oder
+ * „<"? Dann weiß nur der Befund, welcher stimmt. Der Bereich zählt hier nicht.
+ */
+export function wertWiderspruch(a, b) {
+  return Boolean(a && b) && (a.wert !== b.wert || a.einheit !== b.einheit || Boolean(a.unter) !== Boolean(b.unter));
+}
+
+/*
  * Zwei Befunde vom selben Abnahmetag sind meist ein Befund, in zwei Schritten
  * eingetragen (erst TSH, später fT4). Getrennt fiele das fT4 aus Muster und
  * Dosis-Karte heraus (B52). Das Formular verhindert neue Doppelungen; hier
- * werden vorhandene zusammengeführt – aber nur, wenn sich kein Wert
- * widerspricht. Fragen und Notizen ergänzen sich, das Erste gewinnt.
+ * werden vorhandene zusammengeführt.
+ *
+ * Widersprechen sich zwei Werte (TSH 7 und 7,5), bleiben die Einträge
+ * getrennt, und die Einschätzung sagt es dazu. Ein weiterer Eintrag des
+ * Tages kommt dann zum ZULETZT eingetragenen – mit ihm rechnet die
+ * Auswertung (letzterBefund, dosisBefund). Vorher landete ein nachgereichtes
+ * fT4 beim ersten, überholten Eintrag und fehlte in jeder Einschätzung (C15).
+ *
+ * Sonst wird zusammengeführt, aber nichts still entschieden (C14). Vorher
+ * gewann still die erste Angabe: Ein „Biotin: ja" hinter einem „nein" ging
+ * verloren, und die Dosis-Karte nannte eine Richtung, die Biotin sperrt.
+ *   - Verschiedene Antworten auf eine Frage: Sie ist wieder offen, die
+ *     Dosis-Karte stellt sie neu (Entscheidung 6).
+ *   - Verschiedene Bereiche zum selben Wert: Es gilt der spätere (wie bei der
+ *     Auswertung), der andere steht in der Notiz. Den Bereich zu leeren hieße,
+ *     nach der Orientierung einzuordnen – ein Hb unter beiden Bereichen
+ *     verlöre seine Frist. Getrennt ließe das fT4 wieder aus dem Muster fallen.
+ *   - Verschiedene Uhrzeiten oder Labornamen: Die erste Angabe bleibt, die
+ *     zweite steht in der Notiz. Eine unsichere Uhrzeit der Tablette gilt gar
+ *     nicht – sie entscheidet mit, ob fT4 an der Tablette liegen kann (L5c).
  */
-const WERTE_KEYS = () => [...LABORWERTE, ...WEITERE_WERTE].map(([k]) => k);
+const WERTE = () => [...LABORWERTE, ...WEITERE_WERTE];
+const ZEIT_FELDER = { abnahmeUhr: 'Uhrzeit der Abnahme', tabletteUhr: 'Uhrzeit der Tablette', laborName: 'Labor' };
+const bereichText = (w) => `${w.von !== null ? zahlText(w.von, 3) : '…'}–${w.bis !== null ? zahlText(w.bis, 3) : '…'}`;
+const verschieden = (a, b) => a !== null && b !== null && a !== b;
+
 function zusammenfuehren(labor) {
   const ergebnis = [];
+  // Je Ziel-Eintrag die Felder, die wegen eines Widerspruchs geleert wurden –
+  // ein dritter Eintrag desselben Tages darf sie nicht still wieder füllen.
+  const geleert = new Map();
   labor.forEach((l) => {
-    const da = ergebnis.find((x) => x.datum === l.datum);
-    const widerspruch = da && WERTE_KEYS().some((k) => da[k] && l[k]
-      && (da[k].wert !== l[k].wert || da[k].einheit !== l[k].einheit));
-    if (!da || widerspruch) { ergebnis.push(l); return; }
-    Object.keys(l).forEach((k) => {
-      if (k === 'id' || k === 'datum') return;
-      if (k === 'notiz') { da.notiz = [da.notiz, l.notiz].filter(Boolean).join(' · ').slice(0, 300); return; }
-      if (k === 'bestaetigt') { da.bestaetigt = da.bestaetigt || l.bestaetigt; return; }
-      const leer = da[k] === null || da[k] === undefined || da[k] === '';
-      if (leer) da[k] = l[k];
+    const da = [...ergebnis].reverse().find((x) => x.datum === l.datum);
+    if (!da || WERTE().some(([k]) => wertWiderspruch(da[k], l[k]))) { ergebnis.push(l); return; }
+    const zweite = [];
+    WERTE().forEach(([k, name]) => {
+      const a = da[k];
+      const b = l[k];
+      if (!b) return;
+      if (!a) { da[k] = b; return; }
+      const von = b.von ?? a.von;
+      const bis = b.bis ?? a.bis;
+      if (verschieden(a.von, b.von) || verschieden(a.bis, b.bis) || (von !== null && bis !== null && von >= bis)) {
+        zweite.push(`Bereich für ${name.replace(/ \(.*\)$/, '')} auch ${bereichText(a)}`);
+        da[k] = { ...a, von: b.von, bis: b.bis };
+      } else {
+        da[k] = { ...a, von, bis };
+      }
     });
+    if (!geleert.has(da)) geleert.set(da, new Set());
+    const offen = geleert.get(da);
+    FRAGEN_FELDER.filter((k) => k !== 'praxis').forEach((k) => {
+      if (offen.has(k)) return;
+      if (da[k] && l[k] && da[k] !== l[k]) { da[k] = ''; offen.add(k); } else if (!da[k]) da[k] = l[k];
+    });
+    // Die Angabe der Praxis gehört mit ihrem Datum zusammen (R1).
+    if (offen.has('praxis')) { /* widersprüchlich – bleibt offen */ } else if (da.praxis && l.praxis && da.praxis !== l.praxis) { da.praxis = ''; da.praxisAm = null; offen.add('praxis'); } else if (!da.praxis && l.praxis) { da.praxis = l.praxis; da.praxisAm = l.praxisAm; }
+    else if (da.praxis && !da.praxisAm) da.praxisAm = l.praxis === da.praxis ? l.praxisAm : null;
+    Object.entries(ZEIT_FELDER).forEach(([k, name]) => {
+      if (offen.has(k)) {
+        if (l[k]) zweite.push(`${name} auch ${l[k]}`);
+      } else if (da[k] && l[k] && da[k] !== l[k]) {
+        zweite.push(k === 'tabletteUhr' ? `${name} ${da[k]} oder ${l[k]}` : `${name} auch ${l[k]}`);
+        if (k === 'tabletteUhr') { da[k] = ''; offen.add(k); }
+      } else if (!da[k]) da[k] = l[k];
+    });
+    da.bestaetigt = da.bestaetigt || l.bestaetigt;
+    // Felder, die oben nicht vorkommen: leere ergänzen, wie bisher. Die
+    // oben bewusst geleerten (eine Frage wieder offen) bleiben leer.
+    const oben = new Set(['id', 'datum', 'notiz', 'praxisAm', ...WERTE().map(([k]) => k), ...FRAGEN_FELDER, ...Object.keys(ZEIT_FELDER)]);
+    Object.keys(l).filter((k) => !oben.has(k)).forEach((k) => {
+      if (da[k] === null || da[k] === undefined || da[k] === '') da[k] = l[k];
+    });
+    const zusatz = zweite.length ? `Zwei Einträge vom selben Tag zusammengeführt – bitte mit dem Befund vergleichen: ${zweite.join('; ')}.` : '';
+    const eigene = [da.notiz, l.notiz].filter(Boolean).filter((x, i, alle) => alle.indexOf(x) === i).join(' · ');
+    da.notiz = [eigene.slice(0, zusatz ? Math.max(0, 297 - zusatz.length) : 300), zusatz].filter(Boolean).join(' · ').slice(0, 300);
   });
   return ergebnis;
 }
@@ -387,11 +486,15 @@ export function normStand(roh) {
   s.profil.zielAm = istISO(p.zielAm) && (s.profil.zielVon !== null || s.profil.zielNiedrig === 'ja') ? p.zielAm : null;
   s.profil.bundesland = wahl(p.bundesland, BUNDESLAENDER.map(([k]) => k), '');
   s.profil.behandelt = bool(p.behandelt);
-  s.profil.mittelErfasst = bool(p.mittelErfasst);
 
   // Mittel: der alte Schlüssel „oestrogen" wird zur Tablette – das war die
   // häufigere Form – und die App fragt einmal nach, ob es nicht ein Pflaster ist.
   const rohMittel = Array.isArray(roh.mittel) ? roh.mittel : [];
+  // Eine schon gespeicherte Liste ist kein Ersteintrag mehr. Eine
+  // Zwischenfassung speicherte Mittel, kannte das Feld aber nicht – danach
+  // galt ein beim ersten Speichern neu angekreuztes Mittel nicht als
+  // „begonnen", und die Erinnerung an die Kontrolle (L7b) fehlte (C21).
+  s.profil.mittelErfasst = bool(p.mittelErfasst) || rohMittel.length > 0;
   s.profil.oestrogenPruefen = bool(p.oestrogenPruefen) || rohMittel.includes('oestrogen');
   s.mittel = [...new Set(rohMittel.map((k) => (k === 'oestrogen' ? 'oestrogen_tablette' : k))
     .filter((k) => MITTEL.some(([m]) => m === k)))];
@@ -445,9 +548,9 @@ export function normStand(roh) {
       // eine schwere Krankheit oder Kortison verschieben die Werte für Wochen.
       // Offene Fragen stellt die Dosis-Karte, bevor sie eine Richtung nennt.
       abnahmeUhr: istUhr(l.abnahmeUhr) ? l.abnahmeUhr : '',
-      vorAbnahme: jnw(l.vorAbnahme),        // Tablette am Abnahmetag vorher genommen
+      vorAbnahme: haken(l.vorAbnahme),      // Tablette am Abnahmetag vorher genommen
       tabletteUhr: istUhr(l.tabletteUhr) ? l.tabletteUhr : '',
-      biotin: jnw(l.biotin),                // in der Woche davor Biotin
+      biotin: haken(l.biotin),              // in der Woche davor Biotin
       krank: jnw(l.krank),                  // 6 Wochen davor schwer krank, Krankenhaus, Operation
       kortison: jnw(l.kortison),            // 6 Wochen davor Kortison als Tablette oder Spritze
       kontrastmittel: jnw(l.kontrastmittel), // 8 Wochen davor Kontrastmittel
@@ -479,8 +582,7 @@ export function normStand(roh) {
     datum: b.datum,
     stufe: wahl(b.stufe, ['gut', 'mittel', 'schlecht'], 'mittel'),
     beschwerden: Array.isArray(b.beschwerden)
-      ? [...new Set(b.beschwerden.map((k) => (k === 'haut' ? 'trockenhaut' : k))
-        .filter((k) => BESCHWERDEN.some(([id]) => id === k)))] : [],
+      ? [...new Set(b.beschwerden.filter((k) => [...BESCHWERDEN, ...ALTE_BESCHWERDEN].some(([id]) => id === k)))] : [],
     notiz: text(b.notiz, 500),
   })).sort((a, b) => a.datum.localeCompare(b.datum));
 
@@ -538,23 +640,44 @@ let stand = leererStand();
 let speicherFehler = null;   // 'gesperrt' | 'voll' | null
 let speicherOk = true;
 
+/*
+ * Warum das Schreiben scheitert: „voll" oder „gesperrt" (privates Fenster).
+ * Ein älteres Safari meldet im privaten Fenster denselben Fehler wie bei
+ * vollem Speicher – seine Grenze ist dort 0. Ein voller Speicher hat aber
+ * Inhalt (unseren Stand oder den der Workout-App nebenan), ein privates
+ * Fenster mit Grenze 0 nicht. Deshalb galt früher bei der Probe beim Start
+ * immer „gesperrt" – und ein schon beim Start voller Speicher hieß
+ * „privates Fenster?", ohne den Rat zur Sicherung (C20).
+ */
 function warumNicht(fehler) {
   const name = fehler && (fehler.name || '');
   const code = fehler && fehler.code;
-  return (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED'
-    || code === 22 || code === 1014) ? 'voll' : 'gesperrt';
+  const grenze = name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED' || code === 22 || code === 1014;
+  if (!grenze) return 'gesperrt';
+  try {
+    return localStorage.length > 0 ? 'voll' : 'gesperrt';
+  } catch {
+    return 'gesperrt';
+  }
 }
 
 try {
   localStorage.setItem(`${SCHLUESSEL}.probe`, '1');
   localStorage.removeItem(`${SCHLUESSEL}.probe`);
-} catch {
+} catch (e) {
   speicherOk = false;
-  speicherFehler = 'gesperrt';
+  speicherFehler = warumNicht(e);
 }
 
 /** Ein gespeicherter Stand aus einer neueren Fassung – wird nicht angefasst. */
 let neuererStand = false;
+
+/** „Alles löschen" einer Instanz – siehe allesLoeschen(). */
+const GELOESCHT = `${SCHLUESSEL}.geloescht`;
+let bekannteLoeschung = null;
+try {
+  bekannteLoeschung = localStorage.getItem(GELOESCHT);
+} catch { /* kein Speicher – dann gibt es auch kein fremdes Löschen */ }
 
 try {
   const roh = localStorage.getItem(SCHLUESSEL);
@@ -580,6 +703,7 @@ function schreiben() {
   timer = null;
   if (neuererStand) return;  // siehe oben – nie einen neueren Stand überschreiben
   const vorher = kannSpeichern();
+  const grundVorher = speicherGrund();
   try {
     localStorage.setItem(SCHLUESSEL, JSON.stringify(stand));
     speicherOk = true;
@@ -588,7 +712,8 @@ function schreiben() {
     speicherOk = false;
     speicherFehler = warumNicht(e);
   }
-  if (kannSpeichern() !== vorher) melden();
+  // Auch ein anderer Grund ist eine Meldung wert: Die Warnung nennt ihn (C20).
+  if (kannSpeichern() !== vorher || speicherGrund() !== grundVorher) melden();
 }
 
 function merken() {
@@ -606,7 +731,15 @@ export function neuLesen() {
   if (timer !== null || neuererStand) return false;
   try {
     const roh = localStorage.getItem(SCHLUESSEL);
-    if (!roh || roh === JSON.stringify(stand)) return false;
+    if (!roh) {
+      // Nur ein vermerktes Löschen einer anderen Instanz leert den Stand hier (C19).
+      const loeschung = localStorage.getItem(GELOESCHT);
+      if (!loeschung || loeschung === bekannteLoeschung) return false;
+      bekannteLoeschung = loeschung;
+      stand = leererStand();
+      return true;
+    }
+    if (roh === JSON.stringify(stand)) return false;
     const daten = JSON.parse(roh);
     if (daten && typeof daten.version === 'number' && daten.version > VERSION) {
       neuererStand = true;
@@ -897,12 +1030,37 @@ export function importZurueck() {
   }
 }
 
+/*
+ * Alles löschen. Eine zweite offene Instanz (ein Browser-Tab neben der
+ * installierten App) muss es übernehmen: Sonst behielt sie ihren Stand,
+ * zeigte ihn weiter und schrieb ihn beim nächsten Tipp zurück – das Löschen
+ * war rückgängig gemacht (C19). Ein fehlender Schlüssel allein heißt dort
+ * aber nicht „gelöscht": Wo nie geschrieben werden konnte (Speicher
+ * gesperrt), fehlt er immer, und der Stand im Arbeitsspeicher ist der
+ * einzige. Deshalb steht das Löschen mit einer eigenen Kennung unter einem
+ * Nebenschlüssel; neuLesen() übernimmt es nur bei einer Kennung, die diese
+ * Instanz noch nicht kennt.
+ */
 export function allesLoeschen() {
+  clearTimeout(timer);
+  timer = null;
   stand = leererStand();
   neuererStand = false;
+  bekannteLoeschung = kennung();
+  const vermerken = () => {
+    try {
+      localStorage.setItem(GELOESCHT, bekannteLoeschung);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const vermerkt = vermerken();
   try {
     localStorage.removeItem(SCHLUESSEL);
     localStorage.removeItem(`${SCHLUESSEL}.vorImport`);
   } catch { /* dann bleibt es beim nächsten Schreiben leer */ }
+  // War der Speicher voll, ist jetzt Platz für den Vermerk.
+  if (!vermerkt) vermerken();
   melden();
 }

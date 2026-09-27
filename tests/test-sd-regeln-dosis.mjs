@@ -1472,6 +1472,203 @@ const FAELLE = [
     },
     erwartet: { regel: 'D0.5', stufe: 'keine' },
   },
+
+  // ================================================================ Review Runde 2 (C1–C17): Regressionsfälle
+  // C1 / C6 – RW2 Grundsatz 1 (a), W-D1, RW1 L3f und Entscheidung 17: Der
+  // Warnzeichen-Check von heute zählt immer, nicht nur, wenn Herzklopfen oder
+  // Müdigkeit im Befinden ihn verlangt haben. Ohne Befinden-Eintrag stand
+  // sonst nach „große Menge auf einmal" eine Richtung mit „Beim nächsten Termin".
+  {
+    name: 'C1 Check heute „große Menge auf einmal", kein Befinden (c2, 76 J.): nur Notruf, Giftnotruf anrufbar',
+    stand: { profil: { geburtsjahr: geb(76) }, befund: bef(7.5, 14), warnzeichen: [wc(0, ['packung'])] },
+    erwartet: {
+      ohneRichtung: true, stufe: 'notruf', regel: 'W4a', ohne: [/genau wie bisher weiter/],
+      extra: [['Giftnotruf Bayern anrufbar', (r) => r.anrufe.some((a) => a.nummer === '08919240')], ['kein „Ein paar Tage Warten"', (r) => !/Ein paar Tage Warten/.test(alles(r))]],
+    },
+  },
+  {
+    name: 'C6 Check heute mit Brustschmerz, kein Befinden (e2, 78 J.): nur Notruf, 112 anrufbar',
+    stand: { profil: { geburtsjahr: geb(78) }, befund: bef(0.2, 18), warnzeichen: [wc(0, [W_112])] },
+    erwartet: { ohneRichtung: true, stufe: 'notruf', regel: 'W1', extra: [['112 anrufbar', (r) => r.anrufe.some((a) => a.nummer === '112')]] },
+  },
+  {
+    name: 'C1 Check heute mit Brustschmerz, kein Befinden (Muster d): kein „weniger" mit „in den nächsten Tagen"',
+    stand: { befund: bef(0.05, 30), warnzeichen: [wc(0, [W_112])] },
+    erwartet: { ohneRichtung: true, stufe: 'notruf', regel: 'W1' },
+  },
+  {
+    name: 'C6 Check heute nur „lebensmüde", kein Befinden (Muster a): Gesprächsangebot, Seelsorge anrufbar',
+    stand: { befund: bef(2), warnzeichen: [wc(0, ['lebensmuede'])] },
+    erwartet: {
+      ohneRichtung: true, stufe: 'notruf', regel: ['W5', 'X2'],
+      extra: [
+        ['Kopf „Bitte sprechen Sie heute mit jemandem"', (r) => /sprechen Sie heute mit jemandem/.test(str(r.kopf && r.kopf.titel))],
+        ['Telefonseelsorge anrufbar', (r) => r.anrufe.some((a) => a.nummer === '08001110111')],
+      ],
+    },
+  },
+  {
+    name: 'C1 Check heute „lebensmüde", kein Befinden, TSH 0,2: kein „weniger", W5 auf der Karte',
+    stand: { profil: { geburtsjahr: geb(76) }, befund: bef(0.2, 20), warnzeichen: [wc(0, ['lebensmuede'])] },
+    erwartet: { ohneRichtung: true, stufe: 'notruf', regel: 'W5', text: [/Telefonseelsorge/] },
+  },
+  {
+    name: 'C1 Check heute mit Stufe Tage, kein Befinden (Muster a): Richtung bleibt, Karte mindestens Tage (W-D1)',
+    stand: { befund: bef(2), warnzeichen: [wc(0, [W_TAGE])] },
+    erwartet: { richtung: 'gleich', stufe: 'tage', text: [/Warnzeichen-Check von heute/] },
+  },
+  {
+    name: 'C1 Check heute „Nichts davon", kein Befinden (c2, 76 J.): Richtung unverändert, kein Satz zum Check',
+    stand: { profil: { geburtsjahr: geb(76) }, befund: bef(7.5, 14), warnzeichen: [wc(0)] },
+    erwartet: { richtung: 'mehr', regel: 'D2b', stufe: 'termin', ohne: [/Warnzeichen-Check von heute/] },
+  },
+
+  // C3 – „Über mehrere Tage versehentlich zu viele Tabletten" im Check ist
+  // dieselbe Angabe wie Q5 „über Tage zu viel" (RW2 D5, rot-2 X15, B28):
+  // keine Richtung, „verordnete Stärke", nie „genau wie bisher weiter".
+  ...[
+    ['Muster b (70 J.), müde', { profil: { geburtsjahr: geb(70) }, befund: bef(12, 9), befinden: [bf(0, ['muede'])] }],
+    ['Muster c2 (76 J.), Herzklopfen', { profil: { geburtsjahr: geb(76) }, befund: bef(7.5, 14), befinden: [bf(0, ['herz'])] }],
+    ['Muster d, Herzklopfen', { befund: bef(0.2, 24), befinden: [bf(0, ['herz'])] }],
+    ['Muster e2, kein Befinden', { befund: bef(0.2, 20) }],
+    ['Muster c2 (76 J.), kein Befinden', { profil: { geburtsjahr: geb(76) }, befund: bef(7.5, 14) }],
+  ].map(([was, s]) => ({
+    name: `C3 Check heute „über Tage zu viele Tabletten", ${was}: keine Richtung, kein „wie bisher"`,
+    stand: { ...s, warnzeichen: [wc(0, ['zuviele'])] },
+    erwartet: {
+      richtung: 'klaeren', stufeMin: 'heute', regel: 'W2h', ohneRegel: 'Q5', text: [/verordnete Stärke/], ohne: [/genau wie bisher/],
+      extra: [['116 117 anrufbar', (r) => r.anrufe.some((a) => a.nummer === '116117')]],
+    },
+  })),
+
+  // C5 – RW1 L3f: Unter „Heute anrufen" steht D6 ohne „auch am Wochenende …
+  // Ein paar Tage Warten schaden nicht"; bis Stufe Tage bleibt D6 wörtlich.
+  {
+    name: 'C5 74 J., Muster e2, Herzklopfen an zwei Tagen: Pflichttext ohne „Ein paar Tage Warten"',
+    stand: { profil: { geburtsjahr: geb(74) }, befund: bef(0.2, 18), befinden: [bf(-1, ['herz']), bf(0, ['herz'])], warnzeichen: [wc(0)] },
+    erwartet: {
+      richtung: 'weniger', stufe: 'heute', pflicht: 'lang',
+      extra: [
+        ['Pflichttext ohne „Ein paar Tage Warten" und ohne „Wochenende"', (r) => !/Ein paar Tage Warten|Wochenende/.test(str(r.pflicht))],
+        ['Pflichttext: „… genau wie bisher weiter." ohne „,."', (r) => /nehmen Sie Ihre Tablette genau wie bisher weiter\. Nehmen Sie keine/.test(str(r.pflicht)) && !/,\./.test(str(r.pflicht))],
+      ],
+    },
+  },
+  {
+    name: 'C5 Gegenprobe Muster b (Stufe Tage): D6 wörtlich mit „Ein paar Tage Warten"',
+    stand: { befund: bef(12, 9) },
+    erwartet: { richtung: 'mehr', stufe: 'tage', pflicht: 'lang', extra: [['D6 wörtlich mit „auch am Wochenende … Ein paar Tage Warten schaden nicht."', (r) => /weiter, auch am Wochenende oder wenn die Praxis Urlaub hat\. Ein paar Tage Warten schaden nicht\./.test(str(r.pflicht))]] },
+  },
+
+  // C7 – rot-2 X3 (4), RW2 B2, RW1 L3f: Eine eingetragene eigene Änderung
+  // („Auf Anweisung der Praxis: Nein") steht auf der Karte wie auf „Heute".
+  {
+    name: 'C7 75 µg × 1 → × 2 ohne Praxis nach dem Befund (c2, 72 J.): Tage, bisherige Menge, W-D2',
+    stand: {
+      profil: { geburtsjahr: geb(72) }, befund: bef(7.2, 14),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -3), 75, { tabletten: 2, praxis: false })],
+    },
+    erwartet: {
+      keineRichtung: true, stufe: 'tage', regel: ['D0.5', 'X3'], warnzeichen: true, text: [/bisherige Menge/, /heute oder morgen/],
+      ohne: [/Eine neue Einschätzung gibt es mit dem Kontrollwert/, /genau wie bisher weiter/],
+    },
+  },
+  {
+    name: 'C7 75 → 88 µg ohne Praxis nach dem Befund: B2, Tage',
+    stand: { befund: bef(7.2, 14), dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -2), 88, { praxis: false })] },
+    erwartet: { keineRichtung: true, stufe: 'tage', regel: 'B2', text: [/in den nächsten Tagen/], ohne: [/Eine neue Einschätzung gibt es mit dem Kontrollwert/, /genau wie bisher weiter/] },
+  },
+  {
+    name: 'C7 „selbst geändert" gemeldet, 75 → 150 µg: D0.5 ohne „Kontrollwert … nach der Änderung"',
+    stand: {
+      befund: bef(7.2, 14, { datum: plus(HEUTE, -30) }), dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -2), 150, { praxis: null })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -28)), nachfrage14('b1', HEUTE, 'selbst')],
+    },
+    erwartet: { keineRichtung: true, stufeMin: 'tage', regel: 'X3', warnzeichen: true, text: [/bisherige Menge/, /klärt der Anruf/], ohne: [/Eine neue Einschätzung gibt es mit dem Kontrollwert/] },
+  },
+
+  // C4 – RW2 Grundsatz 6, D6b: Nach „selbst geändert" und danach „Die Praxis
+  // hat entschieden" gilt die Praxis – X3 bleibt ohne Frist, kein „anrufen".
+  {
+    name: 'C4 „selbst geändert", danach Praxis „bleibt so": keine Frist, kein „anrufen" im Kopf',
+    stand: {
+      befund: bef(7.5, 14, { datum: plus(HEUTE, -40), praxis: 'bleibt', praxisAm: HEUTE }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -20), 88, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -35)), nachfrage14('b1', plus(HEUTE, -20), 'selbst')],
+    },
+    erwartet: {
+      keineRichtung: true, stufe: 'keine', regel: 'X3', ohne: [/in den nächsten Tagen/, /heute oder morgen/],
+      extra: [['Kopf ohne „anrufen"', (r) => !/anrufen/.test(str(r.kopf && r.kopf.titel))], ['X3 ohne Stufe', (r) => r.gruende.some((g) => g.id === 'X3' && !g.stufe)]],
+    },
+  },
+  {
+    name: 'C4 dasselbe 30 Tage später: weiter ohne Frist',
+    heute: plus(HEUTE, 30),
+    stand: {
+      befund: bef(7.5, 14, { datum: plus(HEUTE, -40), praxis: 'bleibt', praxisAm: HEUTE }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -20), 88, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -35)), nachfrage14('b1', plus(HEUTE, -20), 'selbst')],
+    },
+    erwartet: { keineRichtung: true, stufeMax: 'termin', ohne: [/in den nächsten Tagen/] },
+  },
+  {
+    name: 'C4 großer eigener Schritt, danach Praxis „bleibt so": bisherige Menge ohne Frist, W-D2 bleibt',
+    stand: {
+      befund: bef(7.5, 14, { datum: plus(HEUTE, -40), praxis: 'bleibt', praxisAm: HEUTE }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -20), 150, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -35)), nachfrage14('b1', plus(HEUTE, -20), 'selbst')],
+    },
+    erwartet: { keineRichtung: true, stufe: 'keine', warnzeichen: true, text: [/bisherige Menge/], ohne: [/heute oder morgen/, /in den nächsten Tagen/] },
+  },
+  {
+    name: 'C4 ohne Entscheidung der Praxis: weiter mindestens Tage',
+    stand: {
+      befund: bef(7.5, 14, { datum: plus(HEUTE, -40) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -20), 88, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -35)), nachfrage14('b1', plus(HEUTE, -20), 'selbst')],
+    },
+    erwartet: { keineRichtung: true, stufeMin: 'tage', regel: 'X3', text: [/in den nächsten Tagen/] },
+  },
+
+  // C2 – rot-2 X3 (2), RW2 D0.5: „Ja, mit der Praxis gesprochen" und dann
+  // „Noch nichts entschieden" gibt die Richtung für 14 Tage frei – vorher kam
+  // die 14-Tage-Frage sofort und endlos wieder.
+  ...[[0, false], [13, false], [14, true]].map(([tag, frage]) => ({
+    name: `C2 „mit der Praxis gesprochen" → „Noch nichts entschieden", Tag ${tag}: ${frage ? 'wieder die 14-Tage-Frage' : 'die Richtung'}`,
+    heute: plus(HEUTE, tag),
+    stand: {
+      befund: bef(7.5, 14, { datum: plus(HEUTE, -31), praxis: 'nochnicht', praxisAm: HEUTE }),
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -20)), nachfrage14('b1', HEUTE, 'praxis')],
+    },
+    erwartet: frage ? { frage: 'nach14', keineRichtung: true } : { richtung: 'mehr', frage: false },
+  })),
+
+  // C8 – RW2 W-D4, RW1 L3f: „Ja" auf die Nachfrage nach einer Erhöhung hebt
+  // auch die Karte – nicht grün „Kein besonderer Anlass" unter „Heute anrufen".
+  {
+    name: 'C8 Erhöhung auf Anweisung, W-D4 heute „Ja": Karte „Heute anrufen"',
+    stand: {
+      befund: bef(6.8, 14, { datum: plus(HEUTE, -40) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -15), 88)],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -38)), { id: 'wd4', art: 'wd4', bezug: 'd2-14', antwort: 'ja', am: HEUTE }],
+    },
+    erwartet: {
+      keineRichtung: true, stufe: 'heute', regel: ['D0.5', 'W-D4'], text: [/heute noch/, /Warnzeichen-Check/], ohne: [/heute oder morgen/],
+      extra: [['Kopf „Heute anrufen"', (r) => /Heute anrufen/.test(str(r.kopf && r.kopf.titel))], ['116 117 anrufbar', (r) => r.anrufe.some((a) => a.nummer === '116117')]],
+    },
+  },
+
+  // C17 – eine alte Antwort „Nein, ich nehme etwas anderes" macht eine
+  // spätere Änderung der Praxis nicht zur Berichtigung (kein „Gilt ab").
+  {
+    name: 'C17 Marke „berichtigung" aus alter Antwort, Befund mit „Ja", Praxis „geändert": Änderung, kein „Gilt ab"',
+    stand: {
+      befund: bef(6.5, 13, { datum: plus(HEUTE, -33), praxis: 'geaendert', praxisAm: plus(HEUTE, -30) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -26), 100, { berichtigung: true })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -32))],
+    },
+    erwartet: { keineRichtung: true, regel: 'D0.5', stufe: 'keine', ohne: [/Gilt ab/] },
+  },
 ];
 
 // ================================================================ Tabelle: dosisHinweise
@@ -1607,6 +1804,59 @@ const HINWEIS_FAELLE = [
     stand: () => vollständigerStand({ befund: { datum: plus(HEUTE, -10) }, dosen: [dosis('d0', '2024-03-01', 75), dosis('d1', HEUTE, 75)] }),
     nicht: [H.D6C],
   },
+
+  // ---------------------------------------------------------------- Review Runde 2: Regressionsfälle
+  // C8 – Grundsatz 4 (feste Fristen): Unter „Heute anrufen" nicht „heute oder morgen".
+  {
+    name: 'C8 W-D4 heute mit „Ja" beantwortet (Erhöhung): „heute noch", 116 117 anrufbar',
+    stand: () => vollständigerStand({
+      befund: { datum: HB }, dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -15), 88)],
+      nachfragen: [dosisStimmt('b1', plus(HB, 2)), { id: 'wd4', art: 'wd4', bezug: 'd2-14', antwort: 'ja', am: HEUTE }],
+    }),
+    extra: [['W-D4 „heute" mit „heute noch", ohne „heute oder morgen", 116 117 anrufbar', (l) => l.some((h) => h.id === 'W-D4' && h.stufe === 'heute'
+      && /heute noch/.test(h.text) && !/heute oder morgen/.test(h.text) && h.anrufe.some((a) => a.nummer === '116117'))]],
+  },
+  // C4 – RW2 Grundsatz 6, D6b: Hat die Praxis nach der eigenen Änderung
+  // entschieden, fordert „Heute" nicht mehr zum Anruf deswegen auf.
+  {
+    name: 'C4 eigene Änderung vor 3 Tagen, danach Praxis „bleibt so": kein B2/X3 auf „Heute"',
+    stand: () => hStand({ am: plus(HEUTE, -3), nach: 150, praxis: false, befund: { datum: plus(HEUTE, -20), praxis: 'bleibt', praxisAm: HEUTE } }),
+    nicht: [H.B2, H.X34],
+  },
+  {
+    name: 'C4 Gegenprobe: Praxis entschied vor der eigenen Änderung – X3(4) bleibt',
+    stand: () => hStand({ am: plus(HEUTE, -3), nach: 150, praxis: false, befund: { datum: plus(HEUTE, -20), praxis: 'bleibt', praxisAm: plus(HEUTE, -10) } }),
+    hat: [mit(H.X34, { stufeMin: 'tage' })],
+  },
+  // C17 – Die Marke „berichtigung" aus einer alten Antwort „Nein" macht eine
+  // Änderung der Praxis nicht zur Berichtigung: Kontrolle (D6c), W-D4, WW1/WW2 bleiben.
+  ...[
+    ['mit „Ja" zum Befund vorher', [dosisStimmt('b1', plus(HB, 1))], { praxis: 'nochnicht', praxisAm: plus(HB, 1) }],
+    ['ohne „Ja" (F8 „geändert" sperrt die Frage)', [], { praxis: 'geaendert', praxisAm: plus(HB, 3) }],
+  ].flatMap(([was, nachfragen, praxis]) => {
+    const st = () => vollständigerStand({
+      mittel: ['marcumar'], profil: { diabetes: 'ja' },
+      befund: { datum: HB, tsh: tsh(6.5), ...praxis },
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -14), 100, { berichtigung: true })],
+      nachfragen,
+    });
+    return [
+      {
+        name: `C17 Marke „berichtigung" aus alter Antwort, ${was}, Tag 14: W-D4, WW1 ohne „berichtigt", kein X3b`,
+        stand: st, hat: [H.WD4A, mit(H.WW1, { ohne: [/berichtigt/] })],
+        extra: [['kein X3b', (l) => !l.some((h) => h.id === 'X3b')]],
+      },
+      { name: `C17 dieselbe Lage, ${was}, Tag 56: D6c`, heute: plus(HEUTE, 42), stand: st, hat: [H.D6C] },
+    ];
+  }),
+  {
+    name: 'C17 Gegenprobe: echte Berichtigung (kein „Ja", Praxis „noch nicht"): X3b, keine W-D4',
+    stand: () => vollständigerStand({
+      befund: { datum: HB, tsh: tsh(6.5) }, dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -14), 100, { berichtigung: true })], nachfragen: [],
+    }),
+    nicht: [H.WD4A],
+    extra: [['X3b', (l) => l.some((h) => h.id === 'X3b')]],
+  },
 ];
 
 function pruefeHinweisFall(f) {
@@ -1700,6 +1950,44 @@ const GESAMT_FAELLE = [
     name: 'P6 nicht aktiv: keine Dosis-Teile',
     stand: () => vollständigerStand({ profil: { behandelt: false, ursache: '' }, befund: bef(8) }),
     extra: [['dosis null, keine Teile mit quelle dosis', (g) => g.dosis === null && g.teile.every((t) => t.quelle !== 'dosis')]],
+  },
+
+  // ---------------------------------------------------------------- Review Runde 2: Regressionsfälle
+  // C1 / C6 – dieselbe Lage, dieselbe Dringlichkeit auf Karte und „Heute".
+  ...[['packung', 'große Menge auf einmal'], [W_112, 'Brustschmerz'], ['lebensmuede', 'lebensmüde']].map(([key, was]) => ({
+    name: `C1 Check heute „${was}" ohne Befinden: Karte und Gesamtbild 112`,
+    stand: () => vollständigerStand({ profil: { geburtsjahr: geb(76) }, befund: bef(7.5, 14), warnzeichen: [wc(0, [key])] }),
+    stufe: 'notruf', extra: [['Karte 112 ohne Richtung', (g) => g.dosis && g.dosis.stufe === 'notruf' && g.dosis.richtung === 'klaeren']],
+  })),
+  // C7 – eigene Verdopplung: Karte und „Heute" nennen dieselbe Stufe.
+  {
+    name: 'C7 75 µg × 1 → × 2 ohne Praxis nach dem Befund: Karte und Gesamtbild Tage',
+    stand: () => vollständigerStand({
+      profil: { geburtsjahr: geb(72) }, befund: bef(7.2, 14),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -3), 75, { tabletten: 2, praxis: false })],
+    }),
+    stufe: 'tage', teile: ['X3', 'dosis'], extra: [['Karte Tage', (g) => g.dosis && g.dosis.stufe === 'tage']],
+  },
+  // C8 – „Ja" auf W-D4 nach einer Erhöhung: Karte nicht „Kein besonderer Anlass".
+  {
+    name: 'C8 W-D4 heute „Ja": Karte und Gesamtbild heute',
+    stand: () => vollständigerStand({
+      befund: bef(6.8, 14, { datum: plus(HEUTE, -40) }), dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -15), 88)],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -38)), { id: 'wd4', art: 'wd4', bezug: 'd2-14', antwort: 'ja', am: HEUTE }],
+    }),
+    stufe: 'heute', extra: [['Karte heute', (g) => g.dosis && g.dosis.stufe === 'heute']],
+  },
+  // C11 – B37 vollständig: L7d und D6c meinen dieselbe Kontrolle, auch vor Tag 91 nach der Änderung.
+  {
+    name: 'C11 Befund vor 100 Tagen (c2), Änderung vor 60 Tagen: nur D6c, mit der Stufe von L7d',
+    stand: () => vollständigerStand({
+      profil: { geburtsjahr: geb(76) }, befund: bef(7, 15, { datum: plus(HEUTE, -100) }), dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -60), 88)],
+    }),
+    teile: ['D6c'], nichtTeile: ['L7d'], stufeMin: 'zeitnah',
+    extra: [
+      ['ohne die Dosis-Hinweise stünde L7d da', (g, stand) => ez.gesamtbild(stand, HEUTE).teile.some((t) => t.id === 'L7d')],
+      ['D6c auf „Heute" (dosisHinweise) mindestens zeitnah', (g) => g.dosisHinweise.some((h) => h.id === 'D6c' && rang(h.stufe) >= RANG.zeitnah)],
+    ],
   },
 ];
 const GESAMT_ERGEBNISSE = [];
@@ -1835,6 +2123,23 @@ global('Notfallnummern: jede genannte Nummer steht in anrufe', karten,
   (x) => Array.isArray(x.r.anrufe) && NUMMERN.every(([m, passt]) => !m.test([kern(x.r), str(x.r.warnzeichen), ...frageTexte(x.r)].join('\n')) || x.r.anrufe.some(passt)),
   (x) => `${x.name}: anrufe=${JSON.stringify(x.r.anrufe)}`);
 global('Form: kopf { titel, text } passt zur Stufe', karten, (x) => x.r.kopf && str(x.r.kopf.titel).length > 0 && str(x.r.kopf.text).length > 0);
+// Der Warnzeichen-Check von heute gilt immer (Review C1, C6; RW2 Grundsatz 1a,
+// W-D1; RW1 W1–W5, L3f): 112-Zeichen (W1, W4a, W5) → nur die 112-Anzeige,
+// keine Richtung; sonst liegt die Karte nie unter seiner Stufe (W2h „heute",
+// W2t Tage). Die Gruppen stehen in WARNFRAGEN, die Stufen im Regeltext.
+const CHECK_STUFE = { w1: 'notruf', w4a: 'notruf', w5: 'notruf', w2h: 'heute', w2t: 'tage' };
+const checkStufe = (x) => {
+  const c = [...(x.stand.warnzeichen || [])].reverse().find((w) => w.datum === x.heute);
+  const gruppen = c ? WARNFRAGEN.filter((f) => c.ja.includes(f.key)).map((f) => f.gruppe) : [];
+  return gruppen.reduce((s, g) => (rang(CHECK_STUFE[g] || 'keine') > rang(s) ? CHECK_STUFE[g] : s), 'keine');
+};
+global('W-D1: Check von heute mit 112-Zeichen → Karte 112, keine Richtung', karten.filter((x) => checkStufe(x) === 'notruf'),
+  (x) => x.r.stufe === 'notruf' && x.r.richtung === 'klaeren', (x) => `${x.name}: ${x.r.richtung}/${x.r.stufe}`);
+global('W-D1: Karte nie unter der Stufe des Checks von heute', karten, (x) => rang(x.r.stufe) >= rang(checkStufe(x)),
+  (x) => `${x.name}: Karte ${x.r.stufe}, Check ${checkStufe(x)}`);
+// L3f (Review C5): Unter „Heute anrufen" sagt D6 nicht „Ein paar Tage Warten schaden nicht".
+global('D6 unter Stufe heute ohne „Ein paar Tage Warten"', mitRichtung.filter((x) => rang(x.r.stufe) >= RANG.heute),
+  (x) => !/Ein paar Tage Warten|Wochenende/.test(str(x.r.pflicht)), (x) => `${x.name}: ${x.r.stufe}`);
 // Das Gesamtbild liegt nie unter der Karte (Review B40, B61).
 global('Gesamtbild: nie unter der Dosis-Karte', GESAMT_ERGEBNISSE.filter((x) => x.g.dosis), (x) => rang(x.g.stufe) >= rang(x.g.dosis.stufe),
   (x) => `${x.name}: ${x.g.stufe} < ${x.g.dosis.stufe}`);

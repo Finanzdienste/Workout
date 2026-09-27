@@ -13,7 +13,8 @@
  * Die Prüfung war damit grün, egal was im Vorrat lag. Deshalb startet dieser
  * Test seinen eigenen Server und hält ihn an.
  */
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { createServer } from 'node:http';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { standMit, plus, SCHLUESSEL, uhrStellen } from './sd-hilfe.mjs';
@@ -113,5 +114,85 @@ await page.goto(`${BASIS}/index.html`, { waitUntil: 'load' }).catch(() => {});
 check(await page.title() === 'Workout', 'und die Workout-App daneben ebenso – keiner hat den Vorrat des anderen geräumt');
 
 check(fehler.length === 0, `keine Fehler in der Seite${fehler.length ? `: ${fehler.slice(0, 2).join(' | ')}` : ''}`);
+
+// --- Update aus einem unvollständigen Vorrat (C18)
+/*
+ * Der Worker einer Zwischenfassung hatte nicht alle Module im Vorrat. Beim
+ * ersten Öffnen nach dem Update kam das fehlende frisch vom Server, die
+ * übrigen alt aus dem Vorrat – sie passten nicht zusammen, die App startete
+ * nicht. Das Neuladen nach dem Update stand im Modul, das nicht lief: leere
+ * Seite ohne Notfallleiste bis zum nächsten Öffnen.
+ *
+ * Nachgestellt mit einem eigenen Server: einmal laden, dem Vorrat ein Modul
+ * nehmen, dann liefert der Server einen neuen Worker (mit Verzögerung, wie
+ * im Netz) und beim ersten Abruf dieses Modul in einer Fassung, die nicht zu
+ * den übrigen passt.
+ */
+const UPDATE_PORT = 8113;
+const lage = { update: false, unpassend: 0 };
+const TYPEN = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png' };
+const updateServer = createServer((req, res) => {
+  let rel = decodeURIComponent(req.url.split(/[?#]/)[0]);
+  if (rel.endsWith('/')) rel += 'index.html';
+  const datei = path.join(ROOT, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));
+  let inhalt;
+  try {
+    if (!datei.startsWith(ROOT) || statSync(datei).isDirectory()) throw new Error('nicht da');
+    inhalt = readFileSync(datei, rel.endsWith('.js') ? 'utf8' : null);
+  } catch {
+    res.writeHead(404).end();
+    return;
+  }
+  const senden = () => {
+    res.writeHead(200, { 'content-type': TYPEN[path.extname(datei)] || 'application/octet-stream', 'cache-control': 'no-store' });
+    res.end(inhalt);
+  };
+  if (lage.update && rel === '/schilddruese/sw.js') {
+    inhalt = inhalt.replace(/const VERSION = '([^']+)'/, "const VERSION = '$1-neu'");
+    setTimeout(senden, 1500);
+    return;
+  }
+  if (lage.update && rel === '/schilddruese/js/dosis.js' && !lage.unpassend) {
+    lage.unpassend++;
+    inhalt = `import { gibtEsNicht } from './einschaetzung.js';\n${inhalt}`;
+  }
+  senden();
+});
+await new Promise((ok) => updateServer.listen(UPDATE_PORT, '127.0.0.1', ok));
+const uctx = await browser.newContext({ viewport: { width: 360, height: 740 }, locale: 'de-DE' });
+await uctx.addInitScript(uhrStellen);
+const upage = await uctx.newPage();
+const startFehler = [];
+upage.on('pageerror', (e) => startFehler.push(e.message));
+await upage.goto(`http://127.0.0.1:${UPDATE_PORT}/schilddruese/index.html`, { waitUntil: 'networkidle' });
+await upage.evaluate(({ key, st, tag }) => {
+  localStorage.setItem('__testtag', tag);
+  localStorage.setItem(key, JSON.stringify(st));
+}, { key: SCHLUESSEL, st: standMit(plus(TAG, -3)), tag: TAG });
+await upage.evaluate(() => navigator.serviceWorker.ready);
+await upage.reload({ waitUntil: 'networkidle' });
+const genommen = await upage.evaluate(async () => {
+  const name = (await caches.keys()).find((k) => k.startsWith('schilddruese-'));
+  return (await caches.open(name)).delete('./js/dosis.js');
+});
+check(genommen && await upage.evaluate(() => Boolean(navigator.serviceWorker.controller)), 'C18: der eigene Worker steuert die Seite, seinem Vorrat fehlt ein Modul');
+lage.update = true;
+await upage.reload({ waitUntil: 'load' });
+await upage.waitForTimeout(500);
+const festeLeiste = upage.locator('#ansicht .notfall-leiste');
+check(startFehler.length > 0 && await upage.locator('.tablette').count() === 0, `C18: das frische Modul passt nicht zu den alten – die App startet nicht (${(startFehler[0] || 'kein Fehler').slice(0, 60)})`);
+check(await festeLeiste.isVisible() && await festeLeiste.locator('a[href="tel:112"]').count() >= 1 && await festeLeiste.locator('a[href="tel:116117"]').count() === 1,
+  'C18: … die Notfallleiste steht trotzdem da (W0)');
+let gestartet = false;
+for (let i = 0; i < 60 && !gestartet; i++) {
+  await upage.waitForTimeout(250);
+  gestartet = await upage.locator('.tablette').isVisible().catch(() => false);
+}
+check(gestartet && lage.unpassend === 1, 'C18: sobald der neue Worker übernimmt, lädt die Seite einmal neu – und die App ist da');
+check((await upage.evaluate(() => caches.keys())).some((k) => k.endsWith('-neu')), '… jetzt aus dem Vorrat des neuen Workers');
+await uctx.close();
+updateServer.closeAllConnections();
+updateServer.close();
+
 await browser.close();
 process.exit(fails || !oks ? 1 : 0);

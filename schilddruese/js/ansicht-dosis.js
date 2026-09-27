@@ -40,10 +40,14 @@ export const PRAXIS_NEUE_DOSIS = 'Gut. Bitte tragen Sie jetzt die neue Dosis ein
  * Stufe 112: „Rufen Sie heute noch den Giftnotruf an" stand ohne Nummer da.
  */
 function grundKnoepfe(g) {
-  if (g.anrufe && g.anrufe.length) return anrufReihe(g.anrufe);
+  // Schickt der Grund zum Check („Bitte gehen Sie den Warnzeichen-Check
+  // durch", W-D4 nach „Ja"), führt ein Knopf dorthin – wie auf „Heute" (C8).
+  const check = /Warnzeichen-Check durch/.test(g.text)
+    ? '<div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Warnzeichen prüfen</button></div>' : '';
+  if (g.anrufe && g.anrufe.length) return anrufReihe(g.anrufe) + check;
   if (g.id === 'W5') return beschwerdeKnoepfe('W5');
   if (g.stufe === 'notruf') return `<div class="knopf-reihe">${anrufKnopf('112', '112 anrufen', { notruf: true, breit: true })}</div>`;
-  return '';
+  return check;
 }
 
 /** Die offene Frage der Karte, mit einem Knopf je Antwort. */
@@ -89,6 +93,31 @@ function dosisKarteSeite(stand, heute) {
   const b = k.befund;
   const entschieden = ['bleibt', 'geaendert', 'nachmessen'].includes(b.praxis);
   const teile = [];
+  const inGruenden = new Set(k.gruende.flatMap((g) => (g.anrufe || []).map((a) => a.nummer)));
+  const uebrige = (k.anrufe || []).filter((a) => !inGruenden.has(a.nummer));
+  const kopfTitel = k.kopf ? k.kopf.titel : ez.kopfFuer(k.stufe, k.gruende).titel;
+  const gruendeListe = k.gruende.length ? `<ul class="gruende">${k.gruende.map((g) => `<li data-grund="${esc(g.id)}">${esc(g.text)}${grundKnoepfe(g)}</li>`).join('')}</ul>` : '';
+
+  /*
+   * Stufe 112 – ein Check von heute mit 112- oder Giftnotruf-Zeichen oder
+   * „lebensmüde" (W-D1, X2): Die Karte zeigt nur den Notfall mit seinen
+   * Nummern (RW1 W1: „alle anderen Auswertungen ausblenden"). Pflichttext,
+   * „Die Praxis hat entschieden" und die Grundlage gehören zur Dosis, und um
+   * die geht es erst danach. Vorher stand unter „Bitte rufen Sie jetzt den
+   * Giftnotruf an" noch „Das ist eine Einschätzung aus Ihrem Laborwert …"
+   * (C1, C6).
+   */
+  if (k.stufe === 'notruf') {
+    teile.push(`
+      <div class="karte dosis-karte ${STUFE_KLASSE.notruf} dosis-notruf" id="dosis-karte" tabindex="-1" data-richtung="${esc(k.richtung)}" data-stufe="notruf">
+        <p class="stufe-zeile">${stufeSchild('notruf', kopfTitel)}</p>
+        <p class="dosis-titel">${esc(k.titel)}</p>
+        ${k.texte.map((t) => `<p class="dosis-text">${esc(t)}</p>`).join('')}
+        ${gruendeListe}
+        ${anrufReihe(uebrige)}
+      </div>`);
+    return { titel, html: teile.join('') };
+  }
   // Die Bestätigung verspricht die Erinnerung an die Kontrolle – nicht, solange
   // die neue Dosis noch einzutragen ist (aktionParam 'praxis'): Dann gibt es
   // die Erinnerung noch nicht (B27).
@@ -98,15 +127,13 @@ function dosisKarteSeite(stand, heute) {
   // Nummern, die Kopf, Texte, Frage oder die 112-Zeichen nennen, aber kein
   // Grund – etwa 116 117 aus „Heute anrufen" oder 112 aus W-D2 –, als eigene
   // Knopfreihe unter der Warnzeile: Jede genannte Nummer ist anrufbar.
-  const inGruenden = new Set(k.gruende.flatMap((g) => (g.anrufe || []).map((a) => a.nummer)));
-  const uebrige = (k.anrufe || []).filter((a) => !inGruenden.has(a.nummer));
   teile.push(`
     <div class="karte dosis-karte ${STUFE_KLASSE[k.stufe]}" id="dosis-karte" tabindex="-1" data-richtung="${esc(k.richtung)}" data-stufe="${esc(k.stufe)}">
-      <p class="stufe-zeile">${stufeSchild(k.stufe, k.kopf ? k.kopf.titel : ez.kopfFuer(k.stufe, k.gruende).titel)}</p>
+      <p class="stufe-zeile">${stufeSchild(k.stufe, kopfTitel)}</p>
       <p class="dosis-titel">${esc(k.titel)}</p>
       ${k.frage ? frageBlock(k.frage, stand) : ''}
       ${k.texte.map((t) => `<p class="dosis-text">${esc(t)}</p>`).join('')}
-      ${k.gruende.length ? `<ul class="gruende">${k.gruende.map((g) => `<li data-grund="${esc(g.id)}">${esc(g.text)}${grundKnoepfe(g)}</li>`).join('')}</ul>` : ''}
+      ${gruendeListe}
       ${k.schritt && !k.texte.some((t) => t.includes(k.schritt)) ? `<p class="dosis-text schritt">${esc(k.schritt)}</p>` : ''}
       ${k.warnzeichen ? `<p class="warnzeichen-zeile" role="note">${esc(k.warnzeichen)}</p>` : ''}
       ${anrufReihe(uebrige)}
@@ -157,14 +184,19 @@ export function dosisSeite(name, param, stand, heute) {
  * dem Warnzeichen-Check (W…) stehen auf „Heute" schon selbst.
  *
  * `k`: die Karte, wenn sie schon gerechnet ist (gesamtbildMitDosis().dosis).
+ * `schonDa`: Kennungen der Dosis-Hinweise, die „Heute" selbst zeigt. Seit die
+ * Karte X3 und B2 zur eigenen Änderung mit derselben Stufe trägt wie „Heute"
+ * (C7), stand dort sonst unter „Das ist mehr als ein üblicher Schritt …" noch
+ * einmal „… hat die Dosis-Karte einen wichtigen Hinweis" – derselbe Anlass
+ * zweimal.
  */
-export function dosisVerweis(stand, heute, k = undefined) {
+export function dosisVerweis(stand, heute, k = undefined, schonDa = new Set()) {
   if (!ez.aktiv(stand)) return null;
   const karte = k === undefined ? dosisRichtung(stand, heute) : k;
   if (!karte) return null;
   const am = datumKurz(karte.befund.datum);
   const richtung = karte.richtung === 'mehr' || karte.richtung === 'weniger';
-  const wichtig = karte.gruende.some((g) => g.stufe && !g.id.startsWith('W') && rang(g.stufe) > rang(karte.einschaetzung.stufeLabor));
+  const wichtig = karte.gruende.some((g) => g.stufe && !g.id.startsWith('W') && !schonDa.has(g.id) && rang(g.stufe) > rang(karte.einschaetzung.stufeLabor));
   if (karte.frage) return { stufe: karte.stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte eine Frage an Sie.` };
   if (richtung) return { stufe: karte.stufe, text: `Zu Ihrem Befund vom ${am} gibt es eine Einschätzung zur Dosis. Bitte lesen Sie sie ganz – und rufen Sie vor jeder Änderung die Praxis an.` };
   if (wichtig) return { stufe: karte.stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte einen wichtigen Hinweis. Bitte lesen Sie ihn dort.` };

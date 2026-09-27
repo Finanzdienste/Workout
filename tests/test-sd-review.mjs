@@ -8,7 +8,7 @@
  * (tests/test-sd-regeln-*.mjs); hier geht es darum, dass die Oberfläche zeigt
  * und speichert, was der Kern liefert.
  */
-import { oeffne, standMit, plus, kurz, ansichtText, SCHLUESSEL } from './sd-hilfe.mjs';
+import { oeffne, standMit, plus, kurz, ansichtText, SCHLUESSEL, SD_URL, uhrStellen } from './sd-hilfe.mjs';
 
 const TAG = '2026-09-27';
 
@@ -36,7 +36,7 @@ function stand({ profil = {}, ...mehr } = {}) {
 }
 
 // Der erste Stand hat „Mehr" als zuletzt benutzten Reiter gespeichert (B64).
-const { page, check, gespeichert, ende } = await oeffne({
+const { browser, ctx, page, check, gespeichert, ende } = await oeffne({
   viewport: { width: 360, height: 740 }, tag: TAG, zeit: '09:00', stand: { ...stand(), tab: 'mehr' },
 });
 
@@ -534,5 +534,311 @@ await page.fill('input[name=ab]', plus(TAG, 30));
 await page.click('[data-act="willkommen-weiter"]');
 check((await page.locator('.feld-fehler').allInnerTexts()).some((x) => x.includes('Zukunft')), 'B54: ein Beginn in der Zukunft wird beim Einrichten gemeldet');
 check((await page.locator('.schritte').innerText()).includes('Schritt 2'), '… und die Einrichtung bleibt bei Schritt 2');
+
+
+// ================================================================ Runde 2
+//
+// Befunde aus der zweiten Durchsicht (C…). Jeder Fall scheiterte vor der
+// Korrektur. Die Regeln dahinter prüfen tests/test-sd-regeln-*.mjs; hier
+// zählt, was auf dem Bildschirm steht und was gespeichert wird.
+
+const dosis = (id, ab, mikrogramm, praxis, tabletten = 1) => ({ id, ab, praeparat: 'L-Thyroxin', mikrogramm, tabletten, notiz: '', praxis });
+const checkHeute = (ja) => [{ id: 'wz', datum: TAG, uhr: '08:50', ja }];
+
+// ---------------------------------------------------------------- C1, C6: Check von heute auf der Dosis-Karte
+
+// Den Check von sich aus gemacht, ohne Herzklopfen im Befinden: „große Menge
+// auf einmal". Vorher zeigte die Karte „mehr" mit „Beim nächsten Termin … Ein
+// paar Tage Warten schaden nicht", während „Heute" „Sofort 112" sagte.
+await laden(stand({
+  labor: [befund('b1', plus(TAG, -10), { tsh: w(7.5, 'mU/l', 0.4, 4), ft4: w(14, 'pmol/l', 12, 22) })],
+  nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: plus(TAG, -2) }],
+  warnzeichen: checkHeute(['packung']),
+}));
+await mehrSeite('dosis-karte');
+let dk = page.locator('#dosis-karte');
+check(await dk.getAttribute('data-stufe') === 'notruf' && await dk.getAttribute('data-richtung') === 'klaeren',
+  `C1/C6: Check „große Menge auf einmal": die Karte steht auf „Sofort 112", ohne Richtung (${await dk.getAttribute('data-stufe')}, ${await dk.getAttribute('data-richtung')})`);
+check(await dk.locator('li[data-grund="W4a"] a[href="tel:022819240"]').count() === 1 && await dk.locator('a[href="tel:112"]').count() >= 1,
+  'C1/C6: … mit dem Giftnotruf fürs Bundesland (NRW) und 112 als Anruf');
+const dkText = await dk.innerText();
+check(await dk.locator('.pflicht').count() === 0 && !dkText.includes('Ein paar Tage Warten') && !dkText.includes('Einschätzung aus Ihrem Laborwert'),
+  'C1/C6: … nur der Notfall – kein Pflichttext zur Dosis darunter');
+check(await dk.locator('[data-seite="praxis-entschieden"]').count() === 0 && await dk.locator('.grundlage').count() === 0,
+  'C1/C6: … ohne „Die Praxis hat entschieden" und ohne Grundlage');
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht .einschaetzung-verweis').getAttribute('data-stufe') === 'notruf' && await page.locator('#ansicht .dosis-verweis').count() === 0,
+  'C1/C6: „Heute" sagt „Sofort 112" und verweist nicht mehr auf eine „Einschätzung zur Dosis"');
+
+// Nur „lebensmüde" im Check (C6, B43): das Gesprächsangebot mit allen Nummern,
+// die der Text nennt – auch 116 117 (C12).
+await laden(stand({
+  labor: [befund('b1', plus(TAG, -10), { tsh: w(0.2, 'mU/l', 0.4, 4), ft4: w(20, 'pmol/l', 12, 22) })],
+  warnzeichen: checkHeute(['lebensmuede']),
+}));
+await mehrSeite('dosis-karte');
+dk = page.locator('#dosis-karte');
+check((await dk.locator('.stufe-schild').innerText()).includes('Bitte sprechen Sie heute mit jemandem') && await dk.getAttribute('data-richtung') === 'klaeren',
+  `C6: Check nur mit „lebensmüde": Gesprächsangebot statt „Kein besonderer Anlass" oder einer Richtung (${(await dk.locator('.stufe-schild').innerText()).trim()})`);
+check(await dk.locator('a[href="tel:08001110111"]').count() >= 1 && await dk.locator('a[href="tel:116117"]').count() >= 1 && await dk.locator('.pflicht').count() === 0,
+  'C6: … Telefonseelsorge und 116 117 als Anruf, kein Pflichttext');
+
+// ---------------------------------------------------------------- C12: 116 117 auf dem Ergebnis des Checks
+
+await page.click('#reiter-heute');
+await page.click('#befinden [data-seite="warnzeichen"]');
+await page.check('input[name=warn][value=lebensmuede]');
+await page.click('form[data-formular="warnzeichen"] button[type=submit]');
+const w5 = page.locator('#ansicht .warn-abschnitt[data-regel="W5"]');
+check((await w5.innerText()).includes('116 117') && await w5.locator('a[href="tel:116117"]').count() === 1,
+  'C12: der W5-Text nennt 116 117 – auf dem Ergebnis ist die Nummer jetzt anrufbar');
+await mehrSeite('gesamtbild');
+check(await page.locator('#ansicht .teil-karte[data-regel="W5"] a[href="tel:116117"]').count() === 1, 'C12: … und im Gesamtbild unter „Im Einzelnen"');
+
+// ---------------------------------------------------------------- C9: „Nichts davon" nach „heute anrufen"
+
+// Herzklopfen an zwei Tagen (R3 „heute"): Die Karte auf „Heute" schickt zum
+// Check. Wer dort nichts ankreuzt, las vorher „Beim nächsten Termin … Übrige
+// Beschwerden beim nächsten Termin ansprechen".
+await laden(stand({
+  labor: [befund('b1', plus(TAG, -10), { tsh: w(5.5, 'mU/l', 0.4, 4) })],
+  befinden: [{ id: 'h1', datum: plus(TAG, -1), stufe: 'mittel', beschwerden: ['herz'], notiz: '' }, { id: 'h2', datum: TAG, stufe: 'mittel', beschwerden: ['herz'], notiz: '' }],
+}));
+await page.click('#reiter-heute');
+await page.click('#ansicht [data-regel="R3"] [data-seite="warnzeichen"]');
+await page.click('form[data-formular="warnzeichen"] button[type=submit]');
+const ergebnis = await ansichtText(page);
+const zusammen = page.locator('#ansicht .ergebnis-kopf');
+check(await zusammen.count() === 1 && (await zusammen.innerText()).includes('Heute anrufen'), `C9: „Nichts davon": oben „Zusammen: Heute anrufen" (${await zusammen.count() ? (await zusammen.innerText()).trim() : 'fehlt'})`);
+check(!ergebnis.includes('Beim nächsten Termin') && !ergebnis.includes('beim nächsten Termin ansprechen'), 'C9: … und nirgends „beim nächsten Termin"');
+check(await page.locator('#ansicht .beschwerde-karte[data-regel="R3"]').count() === 1, 'C9: … die Karte aus dem Befinden, die zum Check geschickt hat, steht darüber');
+check(await page.locator('#ansicht [data-regel="W3"] a[href="tel:116117"]').count() === 1, 'C9: … „Nichts davon" nennt jetzt die heutige Frist – 116 117 als Anruf');
+check(await page.locator('#ansicht [data-seite="warnzeichen"]').count() === 0, 'C9: … ohne „Warnzeichen prüfen" – der Check ist ja gemacht');
+
+// ---------------------------------------------------------------- C8: „Ja" nach einer Erhöhung
+
+await laden(stand({
+  labor: [befund('b1', plus(TAG, -40), { tsh: w(6.8, 'mU/l', 0.4, 4) }, { praxis: 'geaendert', praxisAm: plus(TAG, -16) })],
+  dosen: [dosis('d1', plus(TAG, -400), 75, null), dosis('d2', plus(TAG, -15), 88, true)],
+}));
+await page.click('#reiter-heute');
+await page.click('#ansicht [data-regel="W-D4"] [data-act="frage-antwort"][data-wert="ja"]');
+const wd4 = page.locator('#ansicht [data-regel="W-D4"]');
+check((await wd4.innerText()).includes('Heute anrufen') && await wd4.locator('a[href="tel:116117"]').count() === 1,
+  'C8: nach „Ja" sagt „Heute" „Heute anrufen" – der Text nennt 116 117, und die Nummer ist anrufbar');
+await mehrSeite('dosis-karte');
+dk = page.locator('#dosis-karte');
+const wd4Grund = dk.locator('li[data-grund="W-D4"]');
+check(await dk.getAttribute('data-stufe') === 'heute' && !(await dk.locator('.stufe-schild').innerText()).includes('Kein besonderer Anlass'),
+  `C8: die Dosis-Karte sagt dasselbe – „Heute anrufen" statt grün „Kein besonderer Anlass" (${await dk.getAttribute('data-stufe')})`);
+check(await wd4Grund.count() === 1 && await wd4Grund.locator('a[href="tel:116117"]').count() === 1 && await wd4Grund.locator('[data-seite="warnzeichen"]').count() === 1,
+  'C8: … mit dem Grund, 116 117 als Anruf und dem Weg zum Warnzeichen-Check');
+
+// ---------------------------------------------------------------- C7: dieselbe eigene Änderung nicht zweimal auf „Heute"
+
+await laden(stand({
+  dosen: [dosis('d1', plus(TAG, -400), 75, null), dosis('d2', plus(TAG, -3), 150, false)],
+  labor: [befund('b1', plus(TAG, -20), { tsh: w(7.2, 'mU/l', 0.4, 4) })],
+}));
+await mehrSeite('dosis-karte');
+check(await page.locator('#dosis-karte').getAttribute('data-stufe') === 'tage' && await page.locator('#dosis-karte li[data-grund="X3"]').count() === 1,
+  'C7: die Dosis-Karte nennt die eigene Verdopplung wie „Heute" – „In den nächsten Tagen anrufen" mit X3');
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"]').count() === 1 && await page.locator('#ansicht .dosis-verweis').count() === 0,
+  'C7: „Heute" zeigt X3 einmal – ohne zusätzlich „die Dosis-Karte hat einen wichtigen Hinweis" zum selben Anlass');
+
+// ---------------------------------------------------------------- C10: weitere Werte im Kopf der Befund-Karte
+
+await laden(stand({
+  labor: [befund('b1', plus(TAG, -7), { tsh: w(2.0, 'mU/l', 0.4, 4), ft4: w(16, 'pmol/l', 12, 22), vitd: w(120, 'ng/ml', 30, 100), hb: w(9.5, 'g/dl', 12, 16) })],
+}));
+await page.click('#reiter-verlauf');
+const kopfFrist = page.locator('#ansicht .befund[data-befund="b1"] .einschaetzung .frist');
+check((await kopfFrist.innerText()).includes('In den nächsten Tagen anrufen') && !(await kopfFrist.innerText()).includes('Kein besonderer Anlass'),
+  `C10: TSH und fT4 unauffällig, Vitamin D 120: der Kopf der Befund-Karte sagt „In den nächsten Tagen anrufen", nicht grün „Kein besonderer Anlass" (${(await kopfFrist.innerText()).slice(0, 60)}…)`);
+check((await kopfFrist.innerText()).includes('Vitamin D'), 'C10: … und sagt, woher die Frist kommt');
+await mehrSeite('gesamtbild');
+const teilBefund = page.locator('#ansicht .teil-karte[data-regel="befund"]');
+check((await teilBefund.innerText()).includes(`Schilddrüsenwerte vom ${kurz(plus(TAG, -7))}`) && !(await teilBefund.innerText()).includes('Letzter Befund vom'),
+  'C10: im Gesamtbild heißt der Teil „Schilddrüsenwerte vom …" – nicht „Letzter Befund vom …: Kein besonderer Anlass" unter dem Vitamin D');
+
+// ---------------------------------------------------------------- C13: ein neuerer Befund nur mit fT4
+
+await laden(stand({
+  labor: [befund('b1', plus(TAG, -120), { tsh: w(0.3, 'mU/l', 0.4, 4), ft4: w(20, 'pmol/l', 12, 22) }),
+    befund('b2', plus(TAG, -5), { ft4: w(5, 'pmol/l', 12, 22) })],
+}));
+await mehrSeite('gesamtbild');
+check((await page.locator('#ansicht .teil-karte[data-regel="befund"]').innerText()).includes(`Letzter Befund mit TSH vom ${kurz(plus(TAG, -120))}`),
+  'C13: der ältere Befund heißt „Letzter Befund mit TSH vom …" – der neuere ohne TSH steht darüber');
+await page.click('#reiter-heute');
+const l7d = page.locator('#ansicht [data-regel="L7d"]');
+check(await l7d.count() === 1 && (await l7d.innerText()).includes('TSH nicht neu bestimmt') && !(await l7d.innerText()).includes('seitdem wurde nicht neu kontrolliert'),
+  'C13: „Heute" sagt „TSH nicht neu bestimmt" statt „seitdem wurde nicht neu kontrolliert"');
+
+// ---------------------------------------------------------------- C15: nachgereichtes fT4 bei zwei Einträgen eines Tages
+
+// Ein älterer Stand: TSH 7 und – als neuer Eintrag berichtigt – TSH 7,5 am selben Tag.
+await laden(stand({
+  labor: [befund('b1', plus(TAG, -3), { tsh: w(7, 'mU/l', 0.4, 4) }), befund('b2', plus(TAG, -3), { tsh: w(7.5, 'mU/l', 0.4, 4) })],
+}));
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="labor"]');
+await page.fill('input[name=datum]', plus(TAG, -3));
+await page.fill('input[name=ft4_wert]', '5');
+await page.fill('input[name=ft4_von]', '12');
+await page.fill('input[name=ft4_bis]', '22');
+await page.click('form[data-formular="labor"] button[type=submit]');
+if (await page.locator('dialog.rueckfrage').count()) await page.click('[data-act="befund-bestaetigen"]');
+s = await gespeichert();
+const b1 = s.labor.find((l) => l.id === 'b1');
+const b2 = s.labor.find((l) => l.id === 'b2');
+check(b2 && b2.ft4 && b2.ft4.wert === 5 && b1 && !b1.ft4, `C15: das fT4 kommt zum zuletzt eingetragenen Befund des Tages (b1: ${b1 && b1.ft4 ? 'fT4' : '–'}, b2: ${b2 && b2.ft4 ? 'fT4' : '–'})`);
+await page.click('#reiter-verlauf');
+check(await page.locator('#ansicht .befund[data-befund="b2"] .einschaetzung[data-muster="b"]').count() === 1, 'C15: TSH 7,5 und fT4 5 ergeben zusammen Muster b');
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht .einschaetzung-verweis').getAttribute('data-stufe') === 'tage', 'C15: „Heute" sagt „In den nächsten Tagen anrufen"');
+
+// ---------------------------------------------------------------- C22: der alte Punkt „trockene Haut, Haarausfall"
+
+await laden(stand({
+  labor: [befund('b1', plus(TAG, -10), { tsh: w(2, 'mU/l', 0.4, 4) })],
+  befinden: [{ id: 'bh', datum: plus(TAG, -2), stufe: 'mittel', beschwerden: ['haut', 'frieren'], notiz: '' }],
+}));
+const altName = 'trockene Haut oder Haarausfall (frühere Angabe)';
+await page.click('#reiter-verlauf');
+check((await ansichtText(page)).includes(altName), 'C22: der Verlauf nennt den alten Punkt mit seinem Namen – vorher fehlte er');
+await mehrSeite('gesamtbild');
+check((await ansichtText(page)).includes(`Eingetragen in den letzten vier Wochen: ${altName}`), 'C22: das Gesamtbild nennt ihn beim Namen, nicht „haut"');
+await mehrSeite('bericht');
+check((await page.locator('#berichtText').innerText()).includes(`${altName} (1×)`), 'C22: der Bericht nennt, was angegeben wurde – nicht „trockene Haut"');
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="befinden-liste"]');
+await page.click('#ansicht [data-seite="befinden"][data-param="bh"]');
+check(await page.isChecked('input[name=beschwerden][value=haut]'), 'C22: beim Bearbeiten steht der alte Punkt angehakt da');
+await page.click('form[data-formular="befinden"] button[type=submit]');
+s = await gespeichert();
+check(s.befinden.find((b) => b.id === 'bh').beschwerden.includes('haut'), 'C22: … und bleibt beim Speichern erhalten');
+await page.click('#reiter-heute');
+await page.click('[data-act="befinden"][data-stufe="gut"]');
+await page.click('#befinden [data-seite="befinden"]');
+check(await page.locator('input[name=beschwerden][value=haut]').count() === 0, 'C22: neu angeboten wird er nicht');
+
+// ---------------------------------------------------------------- C17: eine alte Antwort „Nein" macht keine Berichtigung
+
+// „Nein, ich nehme etwas anderes" zum Befund vom März blieb liegen; zum
+// Befund vom August gilt „Ja", und die Praxis hat die Dosis geändert.
+const c17 = () => stand({
+  mittel: ['marcumar'],
+  labor: [befund('b0', plus(TAG, -200), { tsh: w(5, 'mU/l', 0.4, 4) }), befund('b1', plus(TAG, -33), { tsh: w(7, 'mU/l', 0.4, 4) }, { praxis: 'geaendert', praxisAm: plus(TAG, -27) })],
+  nachfragen: [{ id: 'n0', art: 'dosis_stimmt', bezug: 'b0', antwort: 'nein_75', am: plus(TAG, -190) },
+    { id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: plus(TAG, -30) }],
+});
+await laden(c17());
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="dosis"]');
+await page.fill('input[name=mikrogramm]', '100');
+await page.fill('input[name=ab]', plus(TAG, -5));
+await page.check('input[name=praxis][value=ja]');
+await page.click('form[data-formular="dosis"] button[type=submit]');
+s = await gespeichert();
+const neueDosis = s.dosen.find((d) => d.mikrogramm === 100);
+check(neueDosis && !neueDosis.berichtigung, `C17: die Änderung der Praxis wird nicht als „Berichtigung" gespeichert (berichtigung = ${neueDosis && neueDosis.berichtigung})`);
+await page.click('#reiter-heute');
+const ww1 = page.locator('#ansicht [data-regel="WW1"]');
+check(await ww1.count() === 1 && !(await ww1.innerText()).includes('berichtigt'), 'C17: „Heute" nennt sie als Änderung (INR, WW1) – nicht „Sie haben berichtigt"');
+// Die Antwort zum neuen Befund räumt die alte „Nein" zu einem früheren weg.
+await laden(stand({
+  labor: [befund('b0', plus(TAG, -200), { tsh: w(5, 'mU/l', 0.4, 4) }), befund('b1', plus(TAG, -10), { tsh: w(7, 'mU/l', 0.4, 4) })],
+  nachfragen: [c17().nachfragen[0]],
+}));
+await mehrSeite('dosis-karte');
+const c17Fragen = await kartenFragen({ X3: 'ja' });
+s = await gespeichert();
+check(!s.nachfragen.some((n) => n.bezug === 'b0' && /^nein/.test(n.antwort)) && s.nachfragen.some((n) => n.bezug === 'b1' && n.antwort === 'ja'),
+  `C17: „Ja" zum neuen Befund – die alte Antwort „Nein" zum früheren bleibt nicht liegen (${c17Fragen.join(' → ')})`);
+
+// ---------------------------------------------------------------- C19: „Alles löschen" neben einer zweiten Instanz
+
+await laden(stand({ labor: [befund('b1', plus(TAG, -10), { tsh: w(2, 'mU/l', 0.4, 4) })] }));
+await page.click('#reiter-heute');
+const zweite = await ctx.newPage();
+await zweite.goto(SD_URL, { waitUntil: 'networkidle' });
+await zweite.click('#reiter-mehr');
+await zweite.click('#ansicht [data-seite="dosis-karte"]');
+check(await zweite.locator('#dosis-karte').count() === 1, 'C19: die zweite Instanz (ein Tab neben der App) zeigt gerade die Dosis-Karte');
+await page.click('#reiter-mehr');
+await page.click('[data-seite="ueber"]');
+await page.click('[data-act="alles-loeschen"]');
+await zweite.waitForTimeout(300);
+check(await zweite.locator('.willkommen-titel').count() === 1, 'C19: nach „Alles löschen" in der einen zeigt auch die andere die Willkommensseite');
+// Vorher zeigte sie weiter die Dosis-Karte – und ein Tipp auf „Heute" und
+// die Tablette schrieb alles zurück.
+if (await zweite.locator('#reiter-heute').isVisible()) {
+  await zweite.click('#reiter-heute');
+  if (await zweite.locator('.tablette').count()) await zweite.click('.tablette');
+}
+await zweite.waitForTimeout(300);
+const nachLoeschen = await page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), SCHLUESSEL);
+check(!nachLoeschen || !nachLoeschen.labor || nachLoeschen.labor.length === 0, 'C19: … und schreibt die gelöschten Daten nicht zurück');
+await zweite.close();
+
+// ---------------------------------------------------------------- C20, C18: in einem eigenen Browserkontext
+
+/*
+ * Ein Speicher, der beim Schreiben scheitert – wie ein voller oder ein
+ * gesperrter. `__speicher` im Speicher (oder window.__speicherModus) sagt
+ * wie; gelesen wird weiter.
+ */
+function speicherScheitert() {
+  // Über das Objekt selbst statt über `Storage` – wie in sd-hilfe.mjs.
+  const proto = Object.getPrototypeOf(window.localStorage);
+  const echt = proto.setItem;
+  proto.setItem = function setItem(k, v) {
+    if (this === window.localStorage && !String(k).startsWith('__')) {
+      const art = window.__speicherModus || window.localStorage.getItem('__speicher');
+      if (art) throw new DOMException('Speicher', art === 'voll' ? 'QuotaExceededError' : 'SecurityError');
+    }
+    return echt.call(this, k, v);
+  };
+}
+const eigen = await browser.newContext({ viewport: { width: 360, height: 740 }, locale: 'de-DE' });
+await eigen.addInitScript(uhrStellen);
+await eigen.addInitScript(speicherScheitert);
+const sp2 = await eigen.newPage();
+await sp2.goto(SD_URL, { waitUntil: 'networkidle' });
+await sp2.evaluate(({ key, st, t }) => {
+  localStorage.setItem('__testtag', t);
+  localStorage.setItem(key, JSON.stringify(st));
+  localStorage.setItem('__speicher', 'voll');
+}, { key: SCHLUESSEL, st: stand(), t: TAG });
+await sp2.reload({ waitUntil: 'networkidle' });
+const warnung = () => sp2.locator('#ansicht .hinweis-karte.gefahr[role="alert"]').first().innerText().catch(() => '');
+check((await warnung()).includes('Speicher des Browsers ist voll') && (await warnung()).includes('Sicherung'),
+  `C20: schon beim Start voller Speicher: „Speicher voll" mit dem Rat zur Sicherung – nicht „privates Fenster?" (${(await warnung()).slice(0, 50)}…)`);
+await sp2.evaluate(() => localStorage.setItem('__speicher', 'gesperrt'));
+await sp2.reload({ waitUntil: 'networkidle' });
+check((await warnung()).includes('privates Fenster'), 'C20: gesperrter Speicher: „privates Fenster?"');
+await sp2.evaluate(() => { window.__speicherModus = 'voll'; });
+await sp2.click('.tablette');
+await sp2.waitForTimeout(400);
+check((await warnung()).includes('Speicher des Browsers ist voll'), `C20: ändert sich der Grund mitten in der Sitzung, ändert sich die Warnung sofort (${(await warnung()).slice(0, 50)}…)`);
+await eigen.close();
+
+// C18: Startet die App nicht (hier ein Modul, das nicht zu den anderen passt,
+// wie nach einem Update aus einem unvollständigen Vorrat), stehen die
+// Notfallnummern trotzdem da. Ohne Service Worker, damit die Umleitung greift.
+const ohneWorker = await browser.newContext({ viewport: { width: 360, height: 740 }, locale: 'de-DE', serviceWorkers: 'block' });
+const kaputt = await ohneWorker.newPage();
+const startFehler = [];
+kaputt.on('pageerror', (e) => startFehler.push(e.message));
+await kaputt.route('**/schilddruese/js/einschaetzung.js', (r) => r.fulfill({ contentType: 'text/javascript; charset=utf-8', body: 'export const alt = 1;\n' }));
+await kaputt.goto(SD_URL, { waitUntil: 'networkidle' });
+await kaputt.waitForTimeout(300);
+const leiste0 = kaputt.locator('#ansicht .notfall-leiste');
+check(startFehler.length > 0, `C18: das unpassende Modul hält die App an (${(startFehler[0] || 'kein Fehler').slice(0, 70)})`);
+check(await leiste0.isVisible() && await leiste0.locator('a[href="tel:112"]').count() >= 1 && await leiste0.locator('a[href="tel:116117"]').count() === 1
+  && await leiste0.locator('a[href="tel:08001110111"]').count() === 1, 'C18: … die Notfallleiste mit 112, 116 117 und Telefonseelsorge steht trotzdem da (W0)');
+await ohneWorker.close();
 
 await ende();

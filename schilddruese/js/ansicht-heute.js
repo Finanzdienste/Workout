@@ -20,7 +20,7 @@ import {
   dosisText, aktuelleDosis, naechsteDosis, einnahme, naechsterTermin, vorratReicht, zaehltAb,
 } from './speicher.js';
 import {
-  notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang, anrufReihe,
+  notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang, anrufReihe, anrufeImText,
 } from './ansicht-einschaetzung.js';
 import { dosisVerweis } from './ansicht-dosis.js';
 
@@ -53,7 +53,7 @@ function tabletteKnopf(stand, heute, jetztUhr) {
 const kleinerKnopf = (seite, text, param = null) => `<br><button type="button" class="knopf knopf-klein" data-act="seite" data-seite="${seite}"${param ? ` data-param="${esc(param)}"` : ''} style="margin-top:.4rem">${text}</button>`;
 
 /** Ein Hinweis aus dem Rechenkern als Karte – mit Stufe in Worten. */
-function kernHinweis(h) {
+function kernHinweis(h, stand) {
   const frage = h.frage ? `
     <div class="antworten zwei">
       ${h.frage.optionen.map(([w, t]) => `<button type="button" class="knopf antwort" data-act="frage-antwort" data-ziel="${esc(h.frage.ziel)}" data-feld="${esc(h.frage.feld)}" data-bezug="${esc(h.frage.bezug)}" data-wert="${esc(w)}">${esc(t)}</button>`).join('')}
@@ -63,11 +63,15 @@ function kernHinweis(h) {
   const check = h.id === 'W-D4' && !h.frage && h.stufe === 'heute'
     ? '<div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Warnzeichen prüfen</button></div>' : '';
   // Nennt der Hinweis eine Nummer (X3 mit „Sofort 112 …"), ist sie anrufbar.
+  // Die Kontroll-Hinweise des Kerns bringen keine Liste mit – etwa der zu zwei
+  // Einträgen eines Tages (L0b-doppelt), der mit der Stufe „heute" 116 117
+  // nennt (C12): dann die Nummern aus dem Text, wie im Gesamtbild.
+  const anrufe = h.anrufe || anrufeImText(h.text, stand);
   return `
     <div class="karte kern-hinweis ${hinweisKlasse(h.stufe)}" data-regel="${esc(h.id)}">
       ${stufeZeile(h.stufe)}
       <p>${esc(h.text)}</p>
-      ${warn}${frage}${check}${anrufReihe(h.anrufe)}
+      ${warn}${frage}${check}${anrufReihe(anrufe)}
     </div>`;
 }
 
@@ -160,7 +164,7 @@ function hinweise(stand, heute) {
   // Sie kam auch ohne P6 und ohne den Text vor der Blutabnahme (B47) – die
   // Kontrolle nach einer Dosisänderung meldet allein D6c.
   const kern = gm ? [...gm.teile.filter((t) => t.quelle === 'kontrolle'), ...gm.dosisHinweise] : [];
-  kern.forEach((h) => add(h.stufe, kernHinweis(h)));
+  kern.forEach((h) => add(h.stufe, kernHinweis(h, stand)));
 
   if (gm) {
     // Die Einschätzung: nur ihre Stufe in Worten und der Weg dorthin.
@@ -175,7 +179,7 @@ function hinweise(stand, heute) {
           <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="gesamtbild" style="margin-top:.5rem">Einschätzung ansehen</button>
         </div>`);
     }
-    const d = dosisVerweis(stand, heute, g.dosis);
+    const d = dosisVerweis(stand, heute, g.dosis, new Set(g.dosisHinweise.map((h) => h.id)));
     if (d) {
       add(d.stufe, `
         <div class="karte dosis-verweis" data-stufe="${esc(d.stufe)}">

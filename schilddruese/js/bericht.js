@@ -162,8 +162,10 @@ export function berichtText(stand, heute) {
     const verteilung = [['gut', anzahl.gut], ['mittel', anzahl.mittel], ['schlecht', anzahl.schlecht]]
       .filter(([, n]) => n).map(([t, n]) => `${n}× ${t}`).join(', ');
     z.push(`${mehrzahl(befinden.length, 'Eintrag', 'Einträge')}: ${verteilung}.`);
+    // Mit den Namen früherer Fassungen: Der alte Punkt „trockene Haut,
+    // Haarausfall" heißt, was er war – nicht „trockene Haut" (C22, RW1 B1).
     const haeufig = Object.entries(beschwerden).sort((a, b) => b[1] - a[1]).slice(0, 5)
-      .map(([k, n]) => `${(sp.BESCHWERDEN.find(([id]) => id === k) || [k, k])[1]} (${n}×)`);
+      .map(([k, n]) => `${sp.beschwerdeName(k)} (${n}×)`);
     if (haeufig.length) z.push(`Häufigste Beschwerden: ${haeufig.join(', ')}`);
     const notizen = befinden.filter((x) => x.notiz).slice(-3);
     notizen.forEach((x) => z.push(`${datumKurz(x.datum)} (${stufeText(x.stufe)}): ${x.notiz}`));

@@ -118,13 +118,15 @@ const MIT_CHECK = ['S4ii', 'R3'];
  * jede Nummer dazu, die der Text sonst noch nennt – der Text zu Herzklopfen
  * an mehreren Tagen (S4ii) nennt inzwischen auch 116 117. 112 steht zuletzt:
  * zuerst die Nummer für den Anlass, dann die für den Notfall.
+ * `ohneCheck`: auf dem Ergebnis des Checks – dort führte „Warnzeichen prüfen"
+ * nur in den Check zurück, den die Nutzerin gerade gemacht hat.
  */
-export function beschwerdeKnoepfe(id, text = '') {
+export function beschwerdeKnoepfe(id, text = '', { ohneCheck = false } = {}) {
   const liste = (ANRUFE_ZU[id] || []).map(([nummer, t]) => ({ nummer, text: t }));
   anrufeImText(text, null).forEach((a) => { if (!liste.some((x) => x.nummer === a.nummer)) liste.push(a); });
   liste.sort((a, b) => (a.nummer === '112') - (b.nummer === '112'));
   const anrufe = liste.map((a) => anrufKnopf(a.nummer, a.text, { notruf: a.nummer === '112' }));
-  if (MIT_CHECK.includes(id)) anrufe.push('<button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Warnzeichen prüfen</button>');
+  if (MIT_CHECK.includes(id) && !ohneCheck) anrufe.push('<button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Warnzeichen prüfen</button>');
   return anrufe.length ? `<div class="knopf-reihe anruf-reihe">${anrufe.join('')}</div>` : '';
 }
 
@@ -365,13 +367,24 @@ export function befundKarte(l, stand, heute, { kurz = false, aendern = false, do
   hinweiseOhneDoppelte(e).forEach((h) => teile.push(`<p class="klein hinweis-zeile">${esc(h)}</p>`));
 
   if (aktiv && (e.muster || e.ohneMuster)) {
-    const stufe = e.praxisErklaert ? 'keine' : e.stufe;
-    const frist = e.praxisErklaert ? e.praxisText : e.stufeText;
+    /*
+     * Schild und Satz kommen aus e.kopf: die höchste Frist des ganzen
+     * Befunds, samt der weiteren Werte (C10). Vorher stand hier grün „Kein
+     * besonderer Anlass" – und in derselben Karte darunter Vitamin D mit
+     * „In den nächsten Tagen anrufen". Ohne weitere Werte mit höherer Frist
+     * ist es dasselbe wie vorher (Stufe des Befunds, bei erklärtem Befund
+     * „keine" mit dem Satz der Praxis). data-stufe bleibt die Stufe aus TSH
+     * und fT4 – an ihr hängen Dosis-Karte und Gesamtbild.
+     */
+    const kopf = e.kopf || { stufe: e.praxisErklaert ? 'keine' : e.stufe, text: e.praxisErklaert ? e.praxisText : e.stufeText };
+    const stufe = kopf.stufe;
+    const frist = kopf.text;
     const notfall = kurz && e.notfall.satz === 3 ? '' : notfallSatz(e.notfall);
     teile.push(`
-      <div class="einschaetzung ${STUFE_KLASSE[stufe]}"${e.muster ? ` data-muster="${esc(e.muster)}"` : ' data-ohne-muster="ja"'} data-stufe="${esc(e.stufe)}">
+      <div class="einschaetzung ${STUFE_KLASSE[stufe]}"${e.muster ? ` data-muster="${esc(e.muster)}"` : ' data-ohne-muster="ja"'} data-stufe="${esc(e.stufe)}" data-kopf-stufe="${esc(stufe)}">
         <p class="einschaetzung-text">${esc(e.text)}</p>
         <p class="frist">${stufeSchild(stufe)} <strong>${esc(frist)}</strong></p>
+        ${anrufReihe(anrufeImText(frist, stand))}
         ${e.gegenSelbst ? `<p class="gegen-selbst">${esc(e.gegenSelbst)}</p>` : ''}
         ${kurz ? '' : e.zusaetze.map(zusatzZeile).join('')}
         ${!kurz && e.erklaerungen.length ? `<p class="klein zwischen"><strong>Mögliche Erklärungen aus Ihren Einträgen:</strong></p><ul class="klein">${e.erklaerungen.map((x) => `<li>${esc(x.text)}</li>`).join('')}</ul>` : ''}
@@ -392,8 +405,8 @@ export function befundKarte(l, stand, heute, { kurz = false, aendern = false, do
 
 // ---------------------------------------------------------------- Texte aus den Beschwerden
 
-/** Ein Text aus beschwerdenAuswerten als Hinweis-Karte, mit Anruf-Knöpfen. */
-export function beschwerdeKarte(t) {
+/** Ein Text aus beschwerdenAuswerten als Hinweis-Karte, mit Anruf-Knöpfen. `ohneCheck` siehe beschwerdeKnoepfe. */
+export function beschwerdeKarte(t, { ohneCheck = false } = {}) {
   if (t.id === 'W5b') {
     return `<div class="hinweis-karte" data-regel="W5b"><span class="ri" aria-hidden="true">💬</span><div><p class="klein">${esc(t.text)}</p>${beschwerdeKnoepfe('W5b', t.text)}</div></div>`;
   }
@@ -401,7 +414,7 @@ export function beschwerdeKarte(t) {
     <div class="karte ${hinweisKlasse(t.stufe)} beschwerde-karte" data-regel="${esc(t.id)}">
       ${stufeZeile(t.stufe)}
       <p>${esc(t.text)}</p>
-      ${beschwerdeKnoepfe(t.id, t.text)}
+      ${beschwerdeKnoepfe(t.id, t.text, { ohneCheck })}
     </div>`;
 }
 
@@ -463,18 +476,25 @@ function gesamtbildSeite(stand, heute) {
   if (g.warnHeute) {
     g.warnHeute.abschnitte.forEach((a) => einzeln.push({
       stufe: a.stufe,
+      regel: a.id,
       titel: ez.kopfFuer(a.stufe, [a]).titel,
       html: mitAnruf(`<p class="klein gedaempft">Warnzeichen-Check von heute${g.warnHeute.check.uhr ? `, ${esc(uhrText(g.warnHeute.check.uhr))}` : ''}:</p><p>${esc(a.text)}</p>`, a.anrufe),
     }));
   }
   g.teile.forEach((t) => {
     if (t.quelle === 'befund') {
-      einzeln.push({ stufe: t.stufe, regel: t.id, html: `<p class="klein gedaempft">Letzter Befund vom ${esc(datumKurz(g.befund.befund.datum))}:</p><p>${esc(t.text)}</p>` });
+      // Die Beschriftung kommt aus dem Kern: „Schilddrüsenwerte vom …", wenn
+      // weitere Werte desselben Befunds dringender sind (C10), „Letzter Befund
+      // mit TSH vom …", wenn danach einer nur mit fT4 kam (C13). Vorher stand
+      // immer „Letzter Befund vom …" – auch über „Kein besonderer Anlass"
+      // direkt unter dem Vitamin D desselben Befunds mit „in den nächsten Tagen".
+      const beschriftung = t.beschriftung || `Letzter Befund vom ${datumKurz(g.befund.befund.datum)}`;
+      einzeln.push({ stufe: t.stufe, regel: t.id, html: mitAnruf(`<p class="klein gedaempft">${esc(beschriftung)}:</p><p>${esc(t.text)}</p>`, anrufeImText(t.text, stand)) });
     } else if (t.quelle === 'befund-ohne-muster') {
       // Der Text nennt das Datum selbst („Befund vom …: …").
       einzeln.push({ stufe: t.stufe, regel: t.id, html: mitAnruf(`<p>${esc(t.text)}</p>`, anrufeImText(t.text, stand)) });
     } else if (t.quelle === 'weitere') {
-      einzeln.push({ stufe: t.stufe, regel: t.id, html: `<p class="klein gedaempft">Befund vom ${esc(datumKurz(t.datum))}:</p><p>${esc(t.text)}</p>` });
+      einzeln.push({ stufe: t.stufe, regel: t.id, html: mitAnruf(`<p class="klein gedaempft">Befund vom ${esc(datumKurz(t.datum))}:</p><p>${esc(t.text)}</p>`, anrufeImText(t.text, stand)) });
     } else if (t.quelle === 'kontrolle') {
       einzeln.push({ stufe: t.stufe, regel: t.id, html: mitAnruf(`<p>${esc(t.text)}</p>`, anrufeImText(t.text, stand)) });
     } else if (t.quelle === 'dosis' && t.id === 'dosis') {
@@ -515,7 +535,8 @@ function gesamtbildSeite(stand, heute) {
   teile.push('<h2 class="abschnitt">Beschwerden</h2>');
   const bTexte = g.beschwerden.texte.filter((t) => t.id !== 'W5');
   if (g.beschwerden.genannt.length) {
-    const namen = g.beschwerden.genannt.map((k) => (sp.BESCHWERDEN.find(([id]) => id === k) || [k, k])[1]);
+    // Mit den Namen früherer Fassungen („trockene Haut oder Haarausfall", C22).
+    const namen = g.beschwerden.genannt.map(sp.beschwerdeName);
     teile.push(`<p class="klein gedaempft" style="margin-bottom:.5rem">Eingetragen in den letzten vier Wochen: ${esc(namen.join(', '))}.</p>`);
   }
   if (bTexte.length) bTexte.forEach((t) => teile.push(beschwerdeKarte(t)));
@@ -571,10 +592,19 @@ function warnFormular(stand) {
     </form>`;
 }
 
-function warnErgebnis(param, stand) {
+/*
+ * Das Ergebnis eines Checks. Ein Check von heute rechnet das Befinden von
+ * heute mit (ez.checkAuswerten): Hat eine Karte mit „Bitte rufen Sie heute
+ * … an" (R3, S4, S4ii, W2t) zum Check geschickt, stehen ihre Texte hier
+ * über dem Ergebnis, „Zusammen" nennt die höhere Stufe, und „Nichts davon"
+ * (W3) sagt nicht mehr „beim nächsten Termin". Vorher las sich genau die
+ * Seite, auf die die Nutzerin geschickt worden war, wie eine Entwarnung für
+ * den heutigen Anruf (C9).
+ */
+function warnErgebnis(param, stand, heute) {
   const check = stand.warnzeichen.find((w) => w.id === param);
   if (!check) return '<div class="karte"><p>Dieser Check ist nicht mehr gespeichert.</p><div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Check noch einmal</button></div></div>';
-  const r = ez.warnzeichenAuswerten(check.ja, stand);
+  const r = ez.checkAuswerten(check, stand, heute);
   // W1: nur der 112-Abschnitt, groß – alles andere würde jetzt nur ablenken.
   if (r.abschnitte.length && r.abschnitte[0].id === 'W1') {
     const a = r.abschnitte[0];
@@ -586,16 +616,22 @@ function warnErgebnis(param, stand) {
   }
   // Die Stufe je Abschnitt in Worten – bei seelischer Not mit dem Titel des
   // Kerns (ein Gesprächsangebot, nicht „Sofort 112").
-  const kopf = ez.kopfFuer(r.stufe, r.abschnitte);
+  const befinden = r.befinden || [];
+  const kopf = ez.kopfFuer(r.stufe, [...befinden, ...r.abschnitte]);
+  // Die Texte aus dem Befinden ohne „Warnzeichen prüfen" – der Check ist gemacht.
+  const ausBefinden = befinden.map((t) => beschwerdeKarte(t, { ohneCheck: true })).join('');
   const karten = r.abschnitte.map((a) => `
     <div class="karte ${hinweisKlasse(a.stufe)} warn-abschnitt" data-regel="${esc(a.id)}"${a.stufe === 'notruf' ? ' role="alert"' : ''}>
       ${stufeZeile(a.stufe, ez.kopfFuer(a.stufe, [a]).titel)}
       <p>${esc(a.text)}</p>
       ${a.anrufe.length ? `<div class="knopf-reihe anruf-reihe">${a.anrufe.map((x) => anrufKnopf(x.nummer, x.text, { notruf: x.nummer === '112', breit: true })).join('')}</div>` : ''}
     </div>`).join('');
-  const nichts = r.abschnitte.length === 1 && r.abschnitte[0].id === 'W3';
+  // „Frage notieren" passt zu „Übrige Beschwerden beim nächsten Termin
+  // ansprechen" – nicht, wenn das Befinden einen Anruf verlangt.
+  const nichts = r.abschnitte.length === 1 && r.abschnitte[0].id === 'W3' && !befinden.length;
   return `
-    ${r.abschnitte.length > 1 ? `<p class="stufe-zeile ergebnis-kopf">Zusammen: ${stufeSchild(r.stufe, kopf.titel)}</p>` : ''}
+    ${befinden.length || r.abschnitte.length > 1 ? `<p class="stufe-zeile ergebnis-kopf">Zusammen: ${stufeSchild(r.stufe, kopf.titel)}</p>` : ''}
+    ${ausBefinden}
     ${karten}
     ${nichts ? '<div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="frage">Frage notieren</button></div>' : ''}
     <p class="klein gedaempft" style="margin-top:.8rem">Gespeichert am ${esc(datumInWorten(check.datum))}${check.uhr ? `, ${esc(uhrText(check.uhr))}` : ''}. Ändert sich etwas plötzlich, den Check einfach noch einmal machen.</p>`;
@@ -656,7 +692,7 @@ export function einschaetzungSeite(name, param, stand, heute) {
     case 'befinden-hinweis': return befindenHinweisSeite(param, stand, heute);
     case 'gesamtbild': return gesamtbildSeite(stand, heute);
     case 'warnzeichen': return { titel: 'Warnzeichen prüfen', html: warnFormular(stand) };
-    case 'warnzeichen-ergebnis': return { titel: 'Ergebnis', html: warnErgebnis(param, stand) };
+    case 'warnzeichen-ergebnis': return { titel: 'Ergebnis', html: warnErgebnis(param, stand, heute) };
     case 'abstand': return abstandSeite(stand);
     default: return null;
   }

@@ -239,11 +239,11 @@ alle drei Schriftgrößen.
 
 | Datei | Zweck |
 | --- | --- |
-| `index.html` | Seite mit Kopf, Ansicht und Reiterleiste |
+| `index.html` | Seite mit Kopf, Ansicht und Reiterleiste; eine feste Notfallleiste, die beim Start ersetzt wird, und ein kleines klassisches Skript für Service Worker und Neuladen nach einem Update – beides läuft auch, wenn die Module nicht starten |
 | `sw.js` | Offline-Vorrat. **VERSION hochzählen**, wenn sich eine Datei aus `SHELL` ändert |
 | `manifest.webmanifest`, `icon*` | Installierbar; PNGs aus `icon.svg` über `node tools/schilddruese-icons.mjs` |
 | `css/styles.css` | Gestaltung, Farbwelten, Schriftgrößen |
-| `js/app.js` | Reiter, Seiten, Aktionen (`data-act`), Sicherung, Hinweise, Service Worker |
+| `js/app.js` | Reiter, Seiten, Aktionen (`data-act`), Sicherung, Hinweise |
 | `js/speicher.js` | Zustand, Normalisierung, Speichern, Sicherung, Abfragen (Dosis am Tag, Einnahmebilanz, Vorrat, Mittel setzen) |
 | `js/einheiten.js` | Einheiten vereinheitlichen, Plausibilität beim Eintragen |
 | `js/einschaetzung.js` | Einordnung, Muster, Stufen, Erklärungen, Beschwerden, Warnzeichen, Abstände, Kontrollen, Gesamtbild, Berichtszeilen |

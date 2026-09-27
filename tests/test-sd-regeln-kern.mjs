@@ -1819,6 +1819,380 @@ fall('B53 60 tägliche Checks bleiben beim Laden erhalten, samt Brustschmerz-Che
   check('B53 Bericht nennt den Brustschmerz-Check', z.some((x) => enthaelt(x, 'Brust')), `${z.length} Zeilen`);
 });
 
+// ================================================================ Runde 2 (C9–C22)
+//
+// Befunde der zweiten Review-Runde, soweit sie den Kern und den Speicher
+// betreffen. Jeder Fall hier scheiterte vor der Korrektur.
+
+/** Der Warnzeichen-Check von heute ohne ein einziges Kreuz („Nichts davon"). */
+const NICHTS_HEUTE = [{ id: 'wz-heute', datum: HEUTE, uhr: '09:00', ja: [] }];
+const w3Von = (r) => (r && Array.isArray(r.abschnitte) ? r.abschnitte.find((a) => a.id === 'W3') : null);
+
+// ---- C9: „Nichts davon" nennt nicht „beim nächsten Termin", wenn das Befinden
+// selbst anrufen lässt und zum Check geschickt hat (R3, S4, S4ii, W2t; L3f).
+[
+  ['C9 R3: Herzklopfen an zwei Tagen, TSH 5,5', { tsh: t(5.5) }, [bf(plus(HEUTE, -1), 'herz'), bf(HEUTE, 'herz')], 'R3', 'heute'],
+  ['C9 S4: Puls unregelmäßig', { tsh: t(2) }, [bf(HEUTE, 'puls')], 'S4', 'heute'],
+  ['C9 S4ii: Herzklopfen an zwei Tagen + TSH 0,2', { tsh: t(0.2) }, [bf(plus(HEUTE, -1), 'herz'), bf(HEUTE, 'herz')], 'S4ii', 'heute'],
+  ['C9 W2t: ungewollt abgenommen', { tsh: t(2) }, [bf(HEUTE, 'abnahme')], 'W2t', 'tage'],
+].forEach(([name, labor, befinden, id, stufe]) => fall(name, () => {
+  const s = baue({ profil: { geburtsjahr: J[78], herz: 'ja' }, ...labor, ft4: f4(15), befinden, warnzeichen: NICHTS_HEUTE });
+  const r = ez.warnHeute(s, HEUTE);
+  sammle('warnzeichenAuswerten', name, texteVon(r, ['check']));
+  const w3 = w3Von(r);
+  check(`${name}: Stufe ${stufe}`, !!r && r.stufe === stufe, `ist ${r && r.stufe}`);
+  check(`${name}: Stufe des Checks allein bleibt termin`, !!r && r.stufeCheck === 'termin', `ist ${r && r.stufeCheck}`);
+  check(`${name}: der Text ${id} steht beim Ergebnis`, !!r && Array.isArray(r.befinden) && r.befinden.some((x) => x.id === id), JSON.stringify(r && ids(r.befinden)));
+  check(`${name}: W3 trägt ${stufe}`, !!w3 && w3.stufe === stufe, JSON.stringify(w3 && w3.stufe));
+  check(`${name}: W3 ohne „nächsten Termin"`, !!w3 && !enthaelt(w3.text, 'nächsten Termin'), w3 && w3.text);
+  check(`${name}: W3 weiter gegen falsche Sicherheit`, !!w3 && enthaelt(w3.text, 'kein Warnzeichen') && enthaelt(w3.text, 'schlechter'), w3 && w3.text);
+  if (stufe === 'heute') {
+    check(`${name}: 116 117 aus dem W3-Text ist anrufbar`, !!w3 && enthaelt(w3.text, '116 117') && w3.anrufe.some((a) => a.nummer === '116117'), JSON.stringify(w3 && w3.anrufe));
+  }
+  const g = ez.gesamtbild(s, HEUTE);
+  const niedriger = g.teile.filter((x) => x.quelle === 'warnzeichen' && rang(x.stufe) < rang(stufe));
+  check(`${name}: im Gesamtbild kein Check-Teil unter ${stufe}`, niedriger.length === 0, teilIds(g).join(', '));
+}));
+fall('C9 ein älterer Check bleibt, wie er war', () => {
+  const s = baue({ tsh: t(2), befinden: [bf(HEUTE, 'puls')], warnzeichen: [{ id: 'wz-alt', datum: plus(HEUTE, -2), uhr: '09:00', ja: [] }] });
+  const r = ez.checkAuswerten(s.warnzeichen[0], s, HEUTE);
+  check('C9 alt: Stufe termin', r.stufe === 'termin', `ist ${r.stufe}`);
+  check('C9 alt: ohne Texte aus dem Befinden', Array.isArray(r.befinden) && r.befinden.length === 0, JSON.stringify(r.befinden));
+  check('C9 alt: W3 wie im Regelwerk', enthaelt(w3Von(r).text, 'Übrige Beschwerden beim nächsten Termin'), w3Von(r).text);
+  const ohne = ez.warnzeichenAuswerten([], s);
+  check('C9 ohne Tag (Dosis-Karte): Stufe termin, W3 unverändert', ohne.stufe === 'termin' && w3Von(ohne).stufe === 'termin', `ist ${ohne.stufe}`);
+});
+fall('C9 ohne P6: Gesamtbild nimmt die Stufe aus W3 mit', () => {
+  const s = baue({ profil: { behandelt: false, ursache: '' }, ohneBefund: true, befinden: [bf(HEUTE, 'puls')], warnzeichen: NICHTS_HEUTE });
+  const g = ez.gesamtbild(s, HEUTE);
+  check('C9 ohne P6: nicht aktiv', g.aktiv === false, `ist ${g.aktiv}`);
+  check('C9 ohne P6: Stufe heute', g.stufe === 'heute', `ist ${g.stufe}`);
+});
+fall('C9 mit P6: viele Beschwerden (S2b) heben W3 auf „ein bis zwei Wochen"', () => {
+  const s = baue({ tsh: t(2), befinden: [bf(HEUTE, 'muede', 'frieren', 'schlaf', 'konzentration', 'schmerzen')], warnzeichen: NICHTS_HEUTE });
+  const r = ez.warnHeute(s, HEUTE);
+  check('C9 S2b: Stufe zeitnah', r.stufe === 'zeitnah', `ist ${r.stufe}`);
+  check('C9 S2b: W3 ohne „nächsten Termin"', !enthaelt(w3Von(r).text, 'nächsten Termin'), w3Von(r).text);
+});
+fall('C9 W4b mit Herzklopfen an zwei Tagen: W4b bleibt, das Befinden steht dabei', () => {
+  const s = baue({ tsh: t(5.5), befinden: [bf(plus(HEUTE, -1), 'herz'), bf(HEUTE, 'herz')], warnzeichen: [{ id: 'wz', datum: HEUTE, uhr: '09:00', ja: ['eine_zuviel'] }] });
+  const r = ez.warnHeute(s, HEUTE);
+  check('C9 W4b: Stufe heute', r.stufe === 'heute', `ist ${r.stufe}`);
+  check('C9 W4b: Abschnitt W4b bleibt termin', r.abschnitte.some((a) => a.id === 'W4b' && a.stufe === 'termin'), JSON.stringify(ids(r.abschnitte)));
+  check('C9 W4b: R3 beim Ergebnis', r.befinden.some((x) => x.id === 'R3'), JSON.stringify(ids(r.befinden)));
+});
+
+// ---- C10: Eine Befund-Karte, deren weitere Werte eine höhere Frist haben,
+// trägt nicht „Kein besonderer Anlass" als Kopf (E13e/f, Grundsatz 5, L3f).
+const C10_WEITERE = { ...ww('vitd', 120, 'ng/ml', 30, 100), ...ww('hb', 9.5, 'g/dl', 12, 16) };
+fall('C10 Muster a mit Vitamin D 120 und Hb 9,5 → Kopf „In den nächsten Tagen anrufen"', () => {
+  const { E, s } = einschaetzung({ name: 'C10 a + Vitamin D', tsh: t(2), ft4: f4(16), befund: C10_WEITERE });
+  check('C10: Stufe aus TSH/fT4 bleibt keine (Dosis-Karte, L7d)', E.stufe === 'keine', `ist ${E.stufe}`);
+  check('C10: stufeGesamt tage', E.stufeGesamt === 'tage', `ist ${E.stufeGesamt}`);
+  check('C10: Kopf tage', !!E.kopf && E.kopf.stufe === 'tage' && E.kopf.titel === 'In den nächsten Tagen anrufen', JSON.stringify(E.kopf));
+  check('C10: Kopf ohne „Kein besonderer Anlass"', !!E.kopf && !enthaelt(E.kopf.text, 'Kein besonderer Anlass'), E.kopf && E.kopf.text);
+  check('C10: Kopf nennt Vitamin D und die Frist', !!E.kopf && enthaelt(E.kopf.text, 'Vitamin D') && enthaelt(E.kopf.text, 'in den nächsten Tagen'), E.kopf && E.kopf.text);
+  check('C10: Kopf sagt, dass die Schilddrüsenwerte keinen Anlass geben', !!E.kopf && enthaelt(E.kopf.text, 'Schilddrüsenwerte'), E.kopf && E.kopf.text);
+  check('C10: Kopf nennt den anhebenden Wert', !!E.kopf && JSON.stringify(E.kopf.weitere) === '["vitd"]', JSON.stringify(E.kopf && E.kopf.weitere));
+  const g = ez.gesamtbild(s, HEUTE);
+  const b = g.teile.find((x) => x.quelle === 'befund');
+  check('C10 Gesamtbild: Stufe tage', g.stufe === 'tage', `ist ${g.stufe}`);
+  check('C10 Gesamtbild: Befund-Teil ohne „Kein besonderer Anlass"', !!b && !enthaelt(b.text, 'Kein besonderer Anlass'), b && b.text);
+  check('C10 Gesamtbild: Befund-Teil als „Schilddrüsenwerte vom …" beschriftet', !!b && b.beschriftung === 'Schilddrüsenwerte vom 20.09.2026' && b.nurSchilddruese === true, JSON.stringify(b));
+  const z = ez.berichtZeilen(s, HEUTE).find((x) => x.includes('Einordnung (App)')) || '';
+  check('C10 Bericht: Stufe der Schilddrüsenwerte und insgesamt', enthaelt(z, 'Kein besonderer Anlass') && enthaelt(z, 'Vitamin D') && enthaelt(z, 'insgesamt „In den nächsten Tagen anrufen"'), z);
+});
+fall('C10 ohne weitere Werte: Kopf wie die Stufe', () => {
+  const { E, s } = einschaetzung({ name: 'C10 c2 allein', tsh: t(6), ft4: f4(15) });
+  check('C10 allein: Kopf = Stufe und Fristsatz', !!E.kopf && E.kopf.stufe === E.stufe && E.kopf.text === E.stufeText && E.stufeGesamt === E.stufe, JSON.stringify(E.kopf));
+  const b = ez.gesamtbild(s, HEUTE).teile.find((x) => x.quelle === 'befund');
+  check('C10 allein: „Letzter Befund vom …" und der Fristsatz', !!b && b.beschriftung === 'Letzter Befund vom 20.09.2026' && b.text === E.stufeText, JSON.stringify(b));
+});
+fall('C10 Muster c1 (termin) mit Hb 9,5 (zeitnah) → Kopf zeitnah, nennt Hb und die Schilddrüsenwerte', () => {
+  const { E } = einschaetzung({ name: 'C10 c1 + Hb', tsh: t(4.3), ft4: f4(15), befund: ww('hb', 9.5, 'g/dl', 12, 16) });
+  check('C10 c1: Stufe termin, Kopf zeitnah', E.stufe === 'termin' && !!E.kopf && E.kopf.stufe === 'zeitnah', `${E.stufe} / ${JSON.stringify(E.kopf)}`);
+  check('C10 c1: Kopf ohne „nächsten Termin"', !enthaelt(E.kopf.text, 'nächsten Termin'), E.kopf.text);
+  check('C10 c1: Kopf nennt Hämoglobin und die Schilddrüsenwerte', enthaelt(E.kopf.text, 'Hämoglobin') && enthaelt(E.kopf.text, 'Schilddrüsenwerte'), E.kopf.text);
+});
+fall('C10 Praxis hat erklärt, Vitamin D 120 → Kopf tage, Praxis-Satz nur für die Schilddrüsenwerte', () => {
+  const { E } = einschaetzung({ name: 'C10 Praxis', tsh: t(6), ft4: f4(15), befund: { ...ww('vitd', 120, 'ng/ml', 30, 100), praxis: 'bleibt', praxisAm: '2026-09-22' } });
+  check('C10 Praxis: praxisErklaert', E.praxisErklaert === true, `ist ${E.praxisErklaert}`);
+  check('C10 Praxis: Kopf tage', !!E.kopf && E.kopf.stufe === 'tage', JSON.stringify(E.kopf));
+  check('C10 Praxis: Kopf mit Praxis-Satz und Vitamin D', enthaelt(E.kopf.text, 'Praxis hat Ihnen die Schilddrüsenwerte') && enthaelt(E.kopf.text, 'Vitamin D'), E.kopf.text);
+});
+fall('C10 über alle bisherigen Einschätzungen: der Kopf nennt nie weniger als die Stufe', () => {
+  const mit = ALLE_E.filter((x) => x.E && (x.E.muster || x.E.ohneMuster));
+  check(`C10 global: Einschätzungen (${mit.length})`, mit.length > 150, `nur ${mit.length}`);
+  const falsch = mit.filter((x) => !x.E.kopf || rang(x.E.kopf.stufe) < rang(x.E.praxisErklaert ? 'keine' : x.E.stufe) || x.E.kopf.stufe !== x.E.stufeGesamt);
+  check('C10 global: Kopf ≥ Stufe, stufeGesamt = Kopf', falsch.length === 0, falsch.slice(0, 5).map((x) => x.name).join(' | '));
+});
+
+// ---- C11 (Kern-Teil): L7d nach einer Dosisänderung unterstellt nicht, es sei nichts geschehen.
+fall('C11 Befund c2 vor 100 Tagen, Dosis danach von der Praxis geändert → L7d sagt es', () => {
+  const s = baue({ ohneBefund: true, vor: [B('2026-06-19', t(7))], dosen: [D1, { id: 'd2', ab: '2026-07-29', praeparat: 'L-Thyroxin', mikrogramm: 88, tabletten: 1, praxis: true }] });
+  const l7d = ez.kontrolleHinweise(s, HEUTE).find((h) => h.id === 'L7d');
+  sammle('kontrolleHinweise', 'C11', l7d ? [l7d.text] : []);
+  check('C11: L7d bleibt (sonst fehlte nach Tag 183 jede Erinnerung)', !!l7d && l7d.stufe === 'zeitnah', JSON.stringify(l7d));
+  check('C11: L7d nennt die Dosisänderung', !!l7d && enthaelt(l7d.text, 'Dosis geändert') && enthaelt(l7d.text, 'TSH'), l7d && l7d.text);
+  check('C11: nicht „seitdem wurde nicht neu kontrolliert"', !!l7d && !enthaelt(l7d.text, 'nicht neu kontrolliert'), l7d && l7d.text);
+});
+fall('C11 eine Berichtigung ist keine Dosisänderung', () => {
+  const s = baue({ ohneBefund: true, vor: [B('2026-06-19', t(7))], dosen: [D1, { id: 'd2', ab: '2026-07-29', praeparat: 'L-Thyroxin', mikrogramm: 88, tabletten: 1, berichtigung: true }] });
+  const l7d = ez.kontrolleHinweise(s, HEUTE).find((h) => h.id === 'L7d');
+  check('C11 Berichtigung: L7d ohne „Dosis geändert"', !!l7d && !enthaelt(l7d.text, 'Dosis geändert'), l7d && l7d.text);
+});
+
+// ---- C12: W5 aus dem Check nennt 116 117 – der Knopf dazu fehlt nicht.
+fall('C12 Check „lebensmüde": 116 117 anrufbar wie beim W5 aus dem Befinden', () => {
+  const r = warn('C12', ['lebensmuede']);
+  const w5 = r.abschnitte.find((a) => a.id === 'W5');
+  const nr = w5 ? w5.anrufe.map((a) => a.nummer) : [];
+  check('C12: der Text nennt 116 117', !!w5 && enthaelt(w5.text, '116 117'), w5 && w5.text);
+  check('C12: Knöpfe Seelsorge, 116 117 und 112', ['08001110111', '08001110222', '116117', '112'].every((n) => nr.includes(n)), JSON.stringify(nr));
+});
+
+// ---- C13: Ein neuerer Befund nur mit fT4 – L7d und die Beschriftung stimmen.
+fall('C13 Befund e2 am 30.05., am 22.09. nur fT4 5 → „TSH nicht neu bestimmt", „Letzter Befund mit TSH"', () => {
+  const s = baue({ ohneBefund: true, vor: [B('2026-05-30', t(0.3)), { id: 'nurft4', datum: '2026-09-22', ft4: f4(5) }] });
+  const l7d = ez.kontrolleHinweise(s, HEUTE).find((h) => h.id === 'L7d');
+  sammle('kontrolleHinweise', 'C13', l7d ? [l7d.text] : []);
+  check('C13: L7d bleibt zeitnah (TSH fehlt wirklich)', !!l7d && l7d.stufe === 'zeitnah', JSON.stringify(l7d));
+  check('C13: L7d „TSH nicht neu bestimmt"', !!l7d && enthaelt(l7d.text, 'TSH nicht neu bestimmt'), l7d && l7d.text);
+  check('C13: nicht „seitdem wurde nicht neu kontrolliert"', !!l7d && !enthaelt(l7d.text, 'nicht neu kontrolliert'), l7d && l7d.text);
+  const g = ez.gesamtbild(s, HEUTE);
+  const b = g.teile.find((x) => x.quelle === 'befund');
+  check('C13 Gesamtbild: „Letzter Befund mit TSH vom 30.05.2026"', !!b && b.beschriftung === 'Letzter Befund mit TSH vom 30.05.2026', JSON.stringify(b && b.beschriftung));
+  check('C13 Gesamtbild: der fT4-Befund zählt weiter (tage)', g.stufe === 'tage', `ist ${g.stufe}`);
+});
+
+// ---- C14: normStand führt Befunde eines Tages zusammen, ohne still zu entscheiden.
+const FRAGEN_NEIN = { krank: 'nein', kortison: 'nein', kontrastmittel: 'nein', mittelGeaendert: 'nein', einnahmeGeaendert: 'nein', packung: 'nein' };
+fall('C14 Biotin „nein" und „ja" am selben Tag → ein Befund, Biotin wieder offen', () => {
+  const s = baue({ ohneBefund: true, vor: [
+    { id: 'a', datum: BEFUND_TAG, tsh: t(0.04, 0.27, 4.2), ...FRAGEN_NEIN, biotin: 'nein' },
+    { id: 'b', datum: BEFUND_TAG, ft4: f4(27), ...FRAGEN_NEIN, biotin: 'ja' },
+  ] });
+  const tag = s.labor.filter((l) => l.datum === BEFUND_TAG);
+  check('C14 Biotin: ein Befund mit TSH und fT4 (B52)', tag.length === 1 && !!tag[0].tsh && !!tag[0].ft4, JSON.stringify(tag.map((l) => l.id)));
+  check('C14 Biotin: offen statt „nein"', tag.length === 1 && tag[0].biotin === '', `ist ${tag[0] && tag[0].biotin}`);
+  check('C14 Biotin: übereinstimmende Antworten bleiben', tag.length === 1 && tag[0].krank === 'nein', `ist ${tag[0] && tag[0].krank}`);
+});
+fall('C14 zwei Bereiche für dasselbe TSH, Tablette „nein"/„ja" → später Bereich, Notiz, Frage offen', () => {
+  const s = baue({ ohneBefund: true, vor: [
+    { id: 'a', datum: BEFUND_TAG, tsh: t(4.1, 0.4, 4.0), vorAbnahme: 'nein', abnahmeUhr: '08:00', notiz: 'nüchtern' },
+    { id: 'b', datum: BEFUND_TAG, tsh: t(4.1, 0.27, 4.2), vorAbnahme: 'ja', tabletteUhr: '06:30', abnahmeUhr: '09:15' },
+  ] });
+  const tag = s.labor.filter((l) => l.datum === BEFUND_TAG);
+  const l = tag[0] || {};
+  check('C14 Bereich: ein Befund', tag.length === 1, `${tag.length} Befunde`);
+  check('C14 Bereich: es gilt der spätere (0,27–4,2)', !!l.tsh && l.tsh.von === 0.27 && l.tsh.bis === 4.2, JSON.stringify(l.tsh));
+  check('C14 Bereich: der andere steht in der Notiz, die eigene bleibt', enthaelt(l.notiz, '0,4–4') && enthaelt(l.notiz, 'nüchtern'), l.notiz);
+  check('C14 Tablette vorher: „nein"/„ja" → offen', l.vorAbnahme === '', `ist ${l.vorAbnahme}`);
+  check('C14 Uhrzeit der Abnahme: erste bleibt, zweite in der Notiz', l.abnahmeUhr === '08:00' && enthaelt(l.notiz, '09:15'), `${l.abnahmeUhr} / ${l.notiz}`);
+});
+fall('C14 zwei Uhrzeiten der Tablette, zwei Praxis-Angaben → beide offen', () => {
+  const s = baue({ ohneBefund: true, vor: [
+    { id: 'a', datum: BEFUND_TAG, tsh: t(6), tabletteUhr: '06:30', praxis: 'bleibt', praxisAm: '2026-09-21' },
+    { id: 'b', datum: BEFUND_TAG, ft4: f4(15), tabletteUhr: '07:10', praxis: 'geaendert', praxisAm: '2026-09-22' },
+  ] });
+  const l = s.labor.find((x) => x.datum === BEFUND_TAG) || {};
+  check('C14 Tablette: Uhrzeit offen, beide in der Notiz', l.tabletteUhr === '' && enthaelt(l.notiz, '06:30') && enthaelt(l.notiz, '07:10'), `${l.tabletteUhr} / ${l.notiz}`);
+  check('C14 Praxis: offen, ohne Datum', l.praxis === '' && l.praxisAm === null, `${l.praxis} / ${l.praxisAm}`);
+});
+fall('C14 ohne Widerspruch ergänzen sich die Angaben wie bisher', () => {
+  const s = baue({ ohneBefund: true, vor: [
+    { id: 'a', datum: BEFUND_TAG, tsh: t(6, 0.4, null), biotin: 'nein', praxis: 'bleibt', praxisAm: '2026-09-21' },
+    { id: 'b', datum: BEFUND_TAG, tsh: t(6, null, 4.0), ft4: f4(15), vorAbnahme: 'nein', abnahmeUhr: '08:00' },
+  ] });
+  const l = s.labor.find((x) => x.datum === BEFUND_TAG) || {};
+  check('C14 ergänzt: Bereich aus beiden Hälften', !!l.tsh && l.tsh.von === 0.4 && l.tsh.bis === 4.0, JSON.stringify(l.tsh));
+  check('C14 ergänzt: Fragen, Uhrzeit, Praxis mit Datum', l.biotin === 'nein' && l.vorAbnahme === 'nein' && l.abnahmeUhr === '08:00' && l.praxis === 'bleibt' && l.praxisAm === '2026-09-21',
+    JSON.stringify([l.biotin, l.vorAbnahme, l.abnahmeUhr, l.praxis, l.praxisAm]));
+  check('C14 ergänzt: keine Notiz', l.notiz === '', l.notiz);
+});
+
+// ---- C15: Drei Einträge an einem Tag mit berichtigtem TSH – das fT4 kommt zum
+// zuletzt eingetragenen, mit dem die Auswertung rechnet.
+fall('C15 TSH 7, TSH 7,5, dann fT4 5 am selben Tag → Muster b, Stufe tage', () => {
+  const s = baue({ ohneBefund: true, vor: [
+    { id: 'a', datum: BEFUND_TAG, tsh: t(7) }, { id: 'b', datum: BEFUND_TAG, tsh: t(7.5) }, { id: 'c', datum: BEFUND_TAG, ft4: f4(5) },
+  ] });
+  const b = s.labor.find((l) => l.id === 'b');
+  check('C15: das fT4 steht beim zuletzt eingetragenen TSH', !!b && !!b.ft4 && b.ft4.wert === 5, JSON.stringify(s.labor.map((l) => [l.id, l.tsh && l.tsh.wert, l.ft4 && l.ft4.wert])));
+  const e = ez.letzterBefund(s, HEUTE);
+  check('C15: letzter Befund Muster b, Stufe tage, Notfallsatz 1', !!e && e.muster === 'b' && e.stufe === 'tage' && e.notfall.satz === 1, e && `${e.muster}/${e.stufe}/${e.notfall.satz}`);
+  check('C15: Gesamtbild tage', ez.gesamtbild(s, HEUTE).stufe === 'tage', `ist ${ez.gesamtbild(s, HEUTE).stufe}`);
+  ['a', 'b'].forEach((id) => {
+    const h = ez.befundEinschaetzen(s.labor.find((l) => l.id === id), s, HEUTE).hinweise;
+    check(`C15: Befund-Karte ${id} nennt die zwei Einträge`, enthaelt(h, 'zwei Einträge') && enthaelt(h, 'TSH'), auszug(h));
+  });
+  const k = ez.kontrolleHinweise(s, HEUTE).find((x) => x.id === 'L0b-doppelt');
+  check('C15: „Heute" nennt die zwei Einträge (ohne eigene Frist)', !!k && k.stufe === 'keine' && enthaelt(k.text, 'löschen Sie den falschen'), JSON.stringify(k));
+});
+fall('C15 schon falsch gespeichert (fT4 beim ersten Eintrag) → „Heute" vorsichtshalber tage', () => {
+  const s = baue({ ohneBefund: true, vor: [{ id: 'a', datum: BEFUND_TAG, tsh: t(7), ft4: f4(5) }, { id: 'b', datum: BEFUND_TAG, tsh: t(7.5) }] });
+  const k = ez.kontrolleHinweise(s, HEUTE).find((x) => x.id === 'L0b-doppelt');
+  sammle('kontrolleHinweise', 'C15', k ? [k.text] : []);
+  check('C15 alt: Hinweis mit Stufe tage', !!k && k.stufe === 'tage', JSON.stringify(k));
+  check('C15 alt: der Hinweis nennt die Frist', !!k && enthaelt(k.text, 'in den nächsten Tagen'), k && k.text);
+  const g = ez.gesamtbild(s, HEUTE);
+  check('C15 alt: Gesamtbild tage statt termin', g.stufe === 'tage', `ist ${g.stufe}; ${teilIds(g).join(', ')}`);
+});
+fall('C15 verglichen wird nur, worin sich die Einträge widersprechen', () => {
+  // Vitamin D nur im ersten Eintrag zählt im Gesamtbild ohnehin – der Hinweis zum TSH hebt nichts an.
+  const nurTsh = baue({ ohneBefund: true, vor: [{ id: 'a', datum: BEFUND_TAG, tsh: t(2), ...ww('vitd', 120, 'ng/ml', 30, 100) }, { id: 'b', datum: BEFUND_TAG, tsh: t(2.5) }] });
+  const k1 = ez.kontrolleHinweise(nurTsh, HEUTE).find((x) => x.id === 'L0b-doppelt');
+  check('C15 TSH-Widerspruch, Vitamin D nur einmal: Hinweis ohne eigene Frist', !!k1 && k1.stufe === 'keine' && !enthaelt(k1.text, 'dringender'), JSON.stringify(k1));
+  check('C15 TSH-Widerspruch: Gesamtbild trotzdem tage (Vitamin D)', ez.gesamtbild(nurTsh, HEUTE).stufe === 'tage', `ist ${ez.gesamtbild(nurTsh, HEUTE).stufe}`);
+  // Zwei Vitamin-D-Werte: Das Gesamtbild nimmt den späteren (40) – nach dem anderen (120) wäre es tage.
+  const vitd = baue({ ohneBefund: true, vor: [{ id: 'a', datum: BEFUND_TAG, tsh: t(2), ...ww('vitd', 120, 'ng/ml', 30, 100) }, { id: 'b', datum: BEFUND_TAG, tsh: t(2), ...ww('vitd', 40, 'ng/ml', 30, 100) }] });
+  const k2 = ez.kontrolleHinweise(vitd, HEUTE).find((x) => x.id === 'L0b-doppelt');
+  check('C15 Vitamin-D-Widerspruch: Hinweis tage, nennt Vitamin D', !!k2 && k2.stufe === 'tage' && enthaelt(k2.text, 'Vitamin D'), JSON.stringify(k2));
+});
+fall('C15 ein Befund je Tag: kein Hinweis', () => {
+  const s = baue({ tsh: t(7), ft4: f4(5) });
+  check('C15 einzeln: kein L0b-doppelt', !ez.kontrolleHinweise(s, HEUTE).some((x) => x.id === 'L0b-doppelt'));
+});
+
+// ---- C16: Biotin und „Tablette vorher" aus der Zwischenfassung (Haken, false) sind offen, nicht „nein".
+fall('C16 Befundfragen als Haken: false → offen, true → ja; andere Fragen unverändert', () => {
+  const s = baue({ ohneBefund: true, vor: [
+    { id: 'a', datum: '2026-05-30', tsh: t(0.04, 0.27, 4.2), biotin: false, vorAbnahme: false, krank: false },
+    { id: 'b', datum: BEFUND_TAG, tsh: t(2), biotin: true, vorAbnahme: true },
+  ] });
+  const a = s.labor.find((l) => l.id === 'a');
+  const b = s.labor.find((l) => l.id === 'b');
+  check('C16: Biotin false → offen', a.biotin === '', `ist ${a.biotin}`);
+  check('C16: Tablette vorher false → offen', a.vorAbnahme === '', `ist ${a.vorAbnahme}`);
+  check('C16: true → ja', b.biotin === 'ja' && b.vorAbnahme === 'ja', `${b.biotin} / ${b.vorAbnahme}`);
+  check('C16: andere Fragen wie bisher (false → nein)', a.krank === 'nein', `ist ${a.krank}`);
+  const z = ez.berichtZeilen(s, HEUTE).join(' | ');
+  check('C16: Bericht ohne „Biotin: nein"', !enthaelt(z, 'Biotin: nein'), auszug(z.split(' | ').filter((x) => enthaelt(x, 'Biotin'))));
+});
+
+// ---- C21: Eine schon gespeicherte Mittelliste ist kein Ersteintrag.
+fall('C21 Mittel aus der Zwischenfassung ohne mittelErfasst → gilt als erfasst', () => {
+  const s = normStand({ version: 2, profil: { ...BASIS_PROFIL }, mittel: ['kalzium', 'oestrogen'] });
+  check('C21: mittelErfasst true', s.profil.mittelErfasst === true, `ist ${s.profil.mittelErfasst}`);
+  check('C21: ohne Mittel bleibt es false', normStand({ version: 2, profil: { ...BASIS_PROFIL } }).profil.mittelErfasst === false);
+});
+
+// ---- C22: Die alte Beschwerde „trockene Haut, Haarausfall" bleibt, was sie war.
+fall('C22 alter Schlüssel „haut" → eigener Text, kein Punkt für „zu wenig"', () => {
+  const s = baue({ ohneBefund: true, befinden: [bf(HEUTE, 'haut', 'frieren', 'verstopfung')] });
+  check('C22: Schlüssel bleibt „haut"', JSON.stringify(s.befinden[0].beschwerden) === '["haut","frieren","verstopfung"]', JSON.stringify(s.befinden[0].beschwerden));
+  const r = ez.beschwerdenAuswerten(s, HEUTE);
+  check('C22: 2 Punkte zu wenig, keine Richtung', nahe(r.punkteWenig, 2) && r.richtung === null, `${r.punkteWenig} / ${r.richtung}`);
+  const z = ez.berichtZeilen(s, HEUTE).find((x) => x.startsWith('Beschwerden')) || '';
+  check('C22: Bericht nennt „trockene Haut oder Haarausfall"', enthaelt(z, 'trockene Haut oder Haarausfall'), z);
+});
+
+// ---- C19–C21 im laufenden Speicher: je eine eigene Instanz von speicher.js
+// (eigene Adresse ⇒ eigener Modulzustand) über einem nachgebauten localStorage.
+function speicherAttrappe(inhalt = {}) {
+  const daten = new Map(Object.entries(inhalt));
+  return {
+    daten,
+    fehler: null, // Name des Fehlers, den setItem wirft – oder null
+    get length() { return daten.size; },
+    key(i) { return [...daten.keys()][i] ?? null; },
+    getItem(k) { return daten.has(k) ? daten.get(k) : null; },
+    setItem(k, v) {
+      if (this.fehler) throw Object.assign(new Error(this.fehler), { name: this.fehler });
+      daten.set(k, String(v));
+    },
+    removeItem(k) { daten.delete(k); },
+  };
+}
+let instanzen = 0;
+const instanz = () => import(`../schilddruese/js/speicher.js?runde2-${++instanzen}`);
+const SCHLUESSEL_SD = 'schilddruese.stand.v1';
+const MIT_DATEN = () => JSON.stringify({ version: 2, profil: { ...BASIS_PROFIL, name: 'Mama' }, dosen: [D1], labor: [{ id: 'l1', datum: BEFUND_TAG, tsh: t(2) }] });
+const hatteLocalStorage = Object.prototype.hasOwnProperty.call(globalThis, 'localStorage');
+const vorherLocalStorage = globalThis.localStorage;
+
+// ---- C19: „Alles löschen" in einer Instanz – die zweite schreibt es nicht zurück.
+try {
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: MIT_DATEN() });
+  const A = await instanz();
+  const Bi = await instanz();
+  fall('C19 „Alles löschen" in A, dann ein Tipp in B → bleibt gelöscht', () => {
+    check('C19: B hat die Daten', Bi.getStand().labor.length === 1 && Bi.getStand().profil.name === 'Mama');
+    A.allesLoeschen();
+    check('C19: der Schlüssel selbst ist weg (wie bisher)', globalThis.localStorage.getItem(SCHLUESSEL_SD) === null);
+    check('C19: B übernimmt das Löschen', Bi.neuLesen() === true && Bi.getStand().labor.length === 0 && Bi.getStand().profil.name === '',
+      JSON.stringify({ labor: Bi.getStand().labor.length, name: Bi.getStand().profil.name }));
+    Bi.einnahmeSetzen(HEUTE, { uhr: '07:00' });
+    Bi.sofortSchreiben();
+    const roh = JSON.parse(globalThis.localStorage.getItem(SCHLUESSEL_SD) || '{}');
+    check('C19: im Speicher keine alten Daten', (roh.labor || []).length === 0 && (roh.profil || {}).name === '' && (roh.dosen || []).length === 0,
+      JSON.stringify({ labor: (roh.labor || []).length, name: (roh.profil || {}).name }));
+  });
+  // Wo nie geschrieben werden konnte, fehlt der Schlüssel immer – das ist
+  // kein Löschen (sonst leerte jeder Wechsel zurück in die App den einzigen Stand).
+  globalThis.localStorage = speicherAttrappe();
+  globalThis.localStorage.fehler = 'SecurityError';
+  const C = await instanz();
+  fall('C19 Speicher gesperrt: neuLesen leert den Stand im Arbeitsspeicher nicht', () => {
+    C.einnahmeSetzen(HEUTE, { uhr: '07:00' });
+    C.sofortSchreiben();
+    check('C19 gesperrt: neuLesen ändert nichts', C.neuLesen() === false && !!C.einnahme(HEUTE), JSON.stringify(C.einnahme(HEUTE)));
+  });
+} catch (e) {
+  check('C19 (läuft ohne Absturz)', false, e && e.message);
+}
+
+// ---- C20: Speicher schon beim Start voll → „voll", nicht „privates Fenster?"; ein neuer Grund wird gemeldet.
+try {
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: MIT_DATEN() });
+  globalThis.localStorage.fehler = 'QuotaExceededError';
+  const V = await instanz();
+  fall('C20 Speicher beim Start voll', () => {
+    check('C20: Daten geladen', V.getStand().labor.length === 1);
+    check('C20: Grund „voll"', V.speicherGrund() === 'voll', `ist ${V.speicherGrund()}`);
+  });
+  // Altes Safari im privaten Fenster: derselbe Fehler, aber nichts im Speicher.
+  globalThis.localStorage = speicherAttrappe();
+  globalThis.localStorage.fehler = 'QuotaExceededError';
+  const P = await instanz();
+  fall('C20 privates Fenster (Grenze 0) bleibt „gesperrt"', () => {
+    check('C20 privat: Grund „gesperrt"', P.speicherGrund() === 'gesperrt', `ist ${P.speicherGrund()}`);
+  });
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: MIT_DATEN() });
+  const W = await instanz();
+  fall('C20 wechselt der Grund, erfährt es die Ansicht', () => {
+    const gemeldet = [];
+    W.abonnieren(() => gemeldet.push(W.speicherGrund()));
+    globalThis.localStorage.fehler = 'SecurityError';
+    W.einnahmeSetzen(HEUTE, { uhr: '07:00' });
+    W.sofortSchreiben();
+    globalThis.localStorage.fehler = 'QuotaExceededError';
+    W.einnahmeSetzen(HEUTE, { uhr: '07:05' });
+    gemeldet.length = 0;
+    W.sofortSchreiben();
+    check('C20: nach dem zweiten Fehler Grund „voll"', W.speicherGrund() === 'voll', `ist ${W.speicherGrund()}`);
+    check('C20: der neue Grund wurde gemeldet', gemeldet.includes('voll'), JSON.stringify(gemeldet));
+  });
+} catch (e) {
+  check('C20 (läuft ohne Absturz)', false, e && e.message);
+}
+
+// ---- C21 im laufenden Speicher: das beim ersten Speichern neu angekreuzte Mittel zählt als begonnen (L7b).
+try {
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: JSON.stringify({ version: 2, profil: { ...BASIS_PROFIL }, dosen: [D1], mittel: ['kalzium', 'oestrogen'], labor: [{ id: 'l1', datum: '2026-06-01', tsh: t(2) }] }) });
+  const M = await instanz();
+  fall('C21 Magenschutz beim ersten Speichern nach dem Update neu → L7b nach 6 Wochen', () => {
+    M.mittelSetzen(['kalzium', 'oestrogen_tablette', 'ppi'], {}, '2026-08-01');
+    const w = M.getStand().mittelWechsel;
+    check('C21: Beginn Magenschutz vermerkt', w.some((x) => x.key === 'ppi' && x.art === 'beginn'), JSON.stringify(w));
+    check('C21: L7b am 15.09.', ez.kontrolleHinweise(M.getStand(), '2026-09-15').some((h) => h.id === 'L7b'), JSON.stringify(ids(ez.kontrolleHinweise(M.getStand(), '2026-09-15'))));
+  });
+} catch (e) {
+  check('C21 im Speicher (läuft ohne Absturz)', false, e && e.message);
+}
+if (hatteLocalStorage) globalThis.localStorage = vorherLocalStorage;
+else delete globalThis.localStorage;
+
 // ================================================================ Globale Eigenschaften über alle Fälle
 
 // MEHRDEUTIG: Grundsatz 1/11 verbietet „Tablette(n) mehr/weniger". Nicht als Aufforderung gelten

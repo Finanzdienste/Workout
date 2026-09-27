@@ -149,7 +149,7 @@ export function verlaufAnsicht(stand, heute) {
     <h2 class="abschnitt">Befinden</h2>
     <div class="karte">
       ${letztesBefinden
-    ? `<p><strong>${esc(relativ(letztesBefinden.datum, heute))}: ${STUFE[letztesBefinden.stufe]}</strong>${letztesBefinden.beschwerden.length ? ` · ${esc(letztesBefinden.beschwerden.map((k) => (sp.BESCHWERDEN.find(([id]) => id === k) || [])[1]).filter(Boolean).join(', '))}` : ''}</p>`
+    ? `<p><strong>${esc(relativ(letztesBefinden.datum, heute))}: ${STUFE[letztesBefinden.stufe]}</strong>${letztesBefinden.beschwerden.length ? ` · ${esc(letztesBefinden.beschwerden.map(sp.beschwerdeName).join(', '))}` : ''}</p>`
     : '<p class="gedaempft">Noch kein Eintrag. Die Frage dazu steht unter „Heute".</p>'}
       <div class="knopf-reihe">
         <button type="button" class="knopf" data-act="seite" data-seite="befinden">Heute eintragen</button>
@@ -197,7 +197,7 @@ export function verlaufSeite(name, param, stand, heute) {
         html: `<div class="zeilen">${[...stand.befinden].reverse().map((b) => `
           <button type="button" class="zeile" data-act="seite" data-seite="befinden" data-param="${esc(b.id)}">
             <span class="zeile-text"><span class="zeile-titel">${esc(datumInWorten(b.datum))}: ${STUFEN_TEXT[b.stufe]}</span>
-            <span class="zeile-unter">${esc([b.beschwerden.map((k) => (sp.BESCHWERDEN.find(([id]) => id === k) || [])[1]).filter(Boolean).join(', '), b.notiz].filter(Boolean).join(' · ') || 'keine Beschwerden angegeben')}</span></span><span class="zeile-pfeil" aria-hidden="true">›</span>
+            <span class="zeile-unter">${esc([b.beschwerden.map(sp.beschwerdeName).join(', '), b.notiz].filter(Boolean).join(' · ') || 'keine Beschwerden angegeben')}</span></span><span class="zeile-pfeil" aria-hidden="true">›</span>
           </button>`).join('')}</div>`,
       };
     case 'einnahmen-liste': {

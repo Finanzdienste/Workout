@@ -579,6 +579,12 @@ a.knopf { text-decoration: none; }
   color: var(--akzent); text-decoration: underline; text-underline-offset: 2px;
 }
 
+/* Der Satz unter der festen Leiste in index.html (C18): nur, wenn die App
+   nach einigen Sekunden noch nicht gestartet ist – sonst ersetzt sie ihn,
+   bevor er erscheint. Ohne Zeitgeber und ohne Neuladen, nur ein Hinweis. */
+.start-hinweis { visibility: hidden; animation: start-hinweis 0s 6s forwards; margin-top: .6rem; }
+@keyframes start-hinweis { to { visibility: visible; } }
+
 /* Bei „sehr groß" füllte die Leiste allein zwei Drittel des Bildschirms
    (360 × 740), der Knopf für die Tablette lag darunter. Dieselben Nummern,
    dichter gesetzt; js/ansicht-heute.js stellt den Knopf dann direkt darunter. */

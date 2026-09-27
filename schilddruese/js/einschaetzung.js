@@ -452,6 +452,44 @@ const PRAXIS_NICHT = {
   beschwerde: 'Die Praxis hat Ihnen diesen Befund schon erklärt. Seitdem haben Sie neue Beschwerden eingetragen – deshalb zeigt die App ihre Einschätzung wieder. Bitte sprechen Sie die Beschwerden an.',
 };
 
+/*
+ * Der Kopf der Befund-Karte (C10): Schild und Satz über der Einschätzung.
+ *
+ * Die Stufe des Befunds (stufe, stufeLabor) kommt nur aus TSH und fT4
+ * (L3a–d). Daran hängen Dosis-Karte, L7d und das Gesamtbild, und die weiteren
+ * Werte ändern nichts an der Schilddrüsendosis – deshalb bleibt sie, wie sie
+ * ist. Hat aber ein weiterer Wert desselben Befunds eine höhere Frist (E13:
+ * Vitamin D über 100 → in den nächsten Tagen), stand über der Karte grün
+ * „Kein besonderer Anlass" und darunter „In den nächsten Tagen anrufen".
+ * Der Kopf nennt deshalb die höchste Frist des ganzen Befunds und sagt, woher
+ * sie kommt: eine Stufe je Befund (Grundsatz 5), und kein Satz darunter nennt
+ * eine niedrigere (L3f). Die Praxis-Angabe betrifft nur TSH und fT4.
+ *
+ * → { stufeGesamt, kopf: { stufe, titel, text, weitere: [Schlüssel der Werte, die ihn anheben] } }
+ */
+function befundKopf(stufe, frist, praxis, weitere) {
+  const gezeigt = praxis ? 'keine' : stufe;
+  const oben = hoechste(gezeigt, ...weitere.map((x) => x.stufe));
+  if (oben === gezeigt) return { stufeGesamt: gezeigt, kopf: { stufe: gezeigt, titel: STUFEN[gezeigt].titel, text: frist, weitere: [] } };
+  const hoch = weitere.filter((x) => x.stufe === oben);
+  const namen = aufzaehlung(hoch.map((x) => x.name));
+  const schilddruese = praxis ? 'Die Praxis hat Ihnen die Schilddrüsenwerte schon erklärt.'
+    : gezeigt === 'keine' ? 'Die Schilddrüsenwerte geben keinen besonderen Anlass.' : '';
+  // Eine eigene Frist der Schilddrüsenwerte (Termin, zeitnah) wäre hier die
+  // niedrigere – sie steht nicht da, nur die Bitte, beides zusammen anzusprechen.
+  const text = schilddruese
+    ? `${schilddruese} Für ${namen} gilt aber: ${STUFEN[oben].text}`
+    : `Für ${namen} gilt: ${STUFEN[oben].text} Sprechen Sie dabei auch die Schilddrüsenwerte an.`;
+  return { stufeGesamt: oben, kopf: { stufe: oben, titel: STUFEN[oben].titel, text, weitere: hoch.map((x) => x.key) } };
+}
+
+/** Die Werte [Schlüssel, Name], bei denen ein anderer Eintrag desselben Abnahmetags etwas anderes sagt (C15). */
+function doppelteWerte(befund, stand) {
+  return [...sp.LABORWERTE, ...sp.WEITERE_WERTE]
+    .filter(([k]) => befund[k] && stand.labor.some((l) => l.id !== befund.id && l.datum === befund.datum && sp.wertWiderspruch(l[k], befund[k])))
+    .map(([k, name]) => [k, name.replace(/ \(.*\)$/, '')]);
+}
+
 /**
  * Die ganze Einschätzung eines Befunds – nur aus Laborwerten und den Angaben
  * zum Befund. Beschwerden und Warnzeichen kommen im Gesamtbild dazu.
@@ -487,12 +525,26 @@ export function befundEinschaetzen(befund, stand, heute) {
     hinweise.push('Unter L-Thyroxin liegt fT3 oft im unteren Bereich. Das ist meist normal und für die Einstellung wenig aussagekräftig.');
     regeln.push('L1b');
   }
+  // C15: Ein älterer Stand kann für einen Abnahmetag zwei Einträge mit
+  // verschiedenen Werten haben – etwa einen Tippfehler, der als neuer Eintrag
+  // berichtigt wurde (das Formular lässt das inzwischen nicht mehr zu).
+  // normStand führt sie deshalb nicht zusammen, und die Auswertung rechnet mit
+  // dem zuletzt eingetragenen. Welcher stimmt, weiß nur der Befund – ohne
+  // diesen Hinweis fiele nie auf, dass einer falsch ist.
+  const doppelt = doppelteWerte(befund, stand).map(([, name]) => name);
+  if (doppelt.length) {
+    hinweise.push(`Für den ${kurz(befund.datum)} gibt es zwei Einträge mit verschiedenen Werten (${aufzaehlung(doppelt)}). Bitte vergleichen Sie beide mit dem Befund und löschen Sie den falschen.`);
+  }
+  const weitere = weitereWerte(befund, stand);
 
   const leer = {
     befund, muster: null, gruppe: null, ziel: false, text: '', richtung: null, werte, hinweise, stufe: 'keine', stufeLabor: 'keine',
     stufeText: '', praxisErklaert: false, praxisText: null, gegenSelbst: null, notfall: { satz: 3, text: NOTFALL[3] },
     zusaetze: [], erklaerungen: [], verlauf: [], fragen: [], regeln, plausibel: plausibel(befund, stand), fussnote: FUSSZEILE,
     ohneMuster: false, hypophyse,
+    // Ohne Einschätzung aus TSH/fT4 zeigt die Karte keinen Kopf; die weiteren
+    // Werte tragen ihre Frist dann selbst (siehe befundKopf).
+    stufeGesamt: hoechste(...weitere.map((x) => x.stufe)), kopf: null,
   };
   const praxis = praxisGilt(befund, stand, heute);
   const praxisZusatz = praxis.grund ? [{ id: 'R1', text: PRAXIS_NICHT[praxis.grund] }] : [];
@@ -529,6 +581,7 @@ export function befundEinschaetzen(befund, stand, heute) {
       stufeText: BEFUND_STUFE[stufe],
       praxisErklaert: praxis.gilt,
       praxisText: praxis.gilt ? PRAXIS_TEXT : null,
+      ...befundKopf(stufe, praxis.gilt ? PRAXIS_TEXT : BEFUND_STUFE[stufe], praxis.gilt, weitere),
       gegenSelbst: stufe === 'keine' ? null : GEGEN_SELBST,
       notfall: { satz, text: NOTFALL[satz] },
       zusaetze: praxisZusatz,
@@ -694,6 +747,7 @@ export function befundEinschaetzen(befund, stand, heute) {
     stufeText: BEFUND_STUFE[stufe] || STUFEN[stufe].text,
     praxisErklaert: praxis.gilt,
     praxisText: praxis.gilt ? PRAXIS_TEXT : null,
+    ...befundKopf(stufe, praxis.gilt ? PRAXIS_TEXT : BEFUND_STUFE[stufe] || STUFEN[stufe].text, praxis.gilt, weitere),
     // Grundsatz 2: außer bei Muster a – hat a aber eine Frist (R12), gilt der Satz auch dort.
     gegenSelbst: code === 'a' && stufe === 'keine' ? null : GEGEN_SELBST,
     notfall: { satz, text: NOTFALL[satz] },
@@ -1041,7 +1095,11 @@ export function weitereWerte(befund, stand) {
 
 // ---------------------------------------------------------------- Beschwerden (S1–S4)
 
-/* S1: Gewichte je Seite. Neutral: Konzentration, Haarausfall, Schlaf, Gewicht. */
+/*
+ * S1: Gewichte je Seite. Neutral: Konzentration, Haarausfall, Schlaf,
+ * Gewicht – und der alte Punkt „trockene Haut oder Haarausfall" (C22): Er
+ * meinte das eine oder das andere, und Haarausfall passt zu beidem.
+ */
 export const GEWICHT_WENIG = { frieren: 1, verstopfung: 1, trockenhaut: 1, gesicht: 1, muede: 0.5, stimmung: 0.5, schmerzen: 0.5 };
 export const GEWICHT_VIEL = { schwitzen: 1, herz: 1, zittern: 1, waerme: 1, abnahme: 1, durchfall: 0.5 };
 const IM_ALTER_NICHT = ['muede', 'stimmung', 'schmerzen'];
@@ -1098,9 +1156,11 @@ export function beschwerdenAuswerten(stand, heute) {
     } else if (tshTief) {
       add('S4ii', alt65 || stand.profil.herz === 'ja' ? 'heute' : 'tage', 'Herzklopfen zusammen mit einem niedrigen TSH-Wert kann bedeuten, dass zu viel Schilddrüsenhormon im Körper ist. Bitte rufen Sie in den nächsten Tagen in der Praxis an – im Alter oder bei Herzkrankheit noch heute. Bei Herzrasen mit Schwindel, Atemnot oder Brustschmerz: sofort 112. Bitte die Tabletten nicht eigenmächtig weglassen.');
     } else {
+      // Wer den Check heute schon gemacht hat, wird nicht noch einmal dorthin geschickt.
+      const zumCheck = stand.warnzeichen.some((w) => w.datum === heute) ? '' : ' Gehen Sie dazu kurz den Warnzeichen-Check durch.';
       add('R3', tage >= 2 ? 'heute' : 'termin', tage >= 2
-        ? 'Sie haben an mehreren Tagen Herzklopfen eingetragen. Bitte rufen Sie heute in der Praxis an, außerhalb der Sprechzeiten 116 117. Gehen Sie dazu kurz den Warnzeichen-Check durch.'
-        : 'Wenn Sie seit Tagen Herzklopfen haben: Bitte rufen Sie heute in der Praxis an, außerhalb der Sprechzeiten 116 117. Gehen Sie dazu kurz den Warnzeichen-Check durch.');
+        ? `Sie haben an mehreren Tagen Herzklopfen eingetragen. Bitte rufen Sie heute in der Praxis an, außerhalb der Sprechzeiten 116 117.${zumCheck}`
+        : `Wenn Sie seit Tagen Herzklopfen haben: Bitte rufen Sie heute in der Praxis an, außerhalb der Sprechzeiten 116 117.${zumCheck}`);
     }
   }
 
@@ -1201,22 +1261,77 @@ export function giftnotrufAnruf(stand) {
   return n ? { nummer: n.replace(/\s/g, ''), text: `Giftnotruf ${n}` } : TEL_112;
 }
 
-/** Auswertung des Checks: die höchste Stufe und je Gruppe ein Abschnitt. */
-export function warnzeichenAuswerten(ja, stand) {
+const W3_TEXT = 'Nach Ihren Angaben liegt kein Warnzeichen vor. Die App kann aber nicht alles erkennen: Wenn Sie sich deutlich schlechter fühlen als sonst, rufen Sie die Praxis an – auch wenn hier nichts angezeigt wird. Übrige Beschwerden beim nächsten Termin ansprechen. Wenn es schlimmer wird, machen Sie den Check noch einmal.';
+/** W3, wenn das Befinden selbst eine Frist hat: Sie steht da, nicht „beim nächsten Termin". */
+const w3MitBefinden = (stufe) => `Im Check haben Sie kein Warnzeichen angekreuzt. Für Ihre eingetragenen Beschwerden gilt aber weiter: ${STUFEN[stufe].text} Wenn Sie sich deutlich schlechter fühlen oder es schlimmer wird, machen Sie den Check noch einmal.`;
+
+/*
+ * Die Texte aus dem Befinden, die selbst zum Anruf auffordern und zum Check
+ * schicken (R3: „Gehen Sie dazu kurz den Warnzeichen-Check durch", S4, S4ii,
+ * W2t) – mit P6 auch S2b, das dann im Gesamtbild steht. Sie stehen auch ohne
+ * P6-Haken auf „Heute". W5 nicht: Die Frage danach steht im Check selbst,
+ * und seine Antwort ist neuer.
+ */
+const BEFINDEN_ZUM_CHECK = ['S4', 'S4ii', 'R3', 'W2t'];
+
+/**
+ * Auswertung des Checks: die Stufe und je Gruppe ein Abschnitt.
+ *
+ * `heute` – nur für einen Check von heute übergeben (siehe checkAuswerten):
+ * Dann zählen die Texte aus dem Befinden mit, die zum Check geschickt haben.
+ * Vorher antwortete „Nichts davon" darauf mit „Beim nächsten Termin …
+ * Übrige Beschwerden beim nächsten Termin ansprechen", während die Karte,
+ * die zum Check geschickt hatte, „heute anrufen" verlangte (C9, L3f). Dann:
+ *   - `befinden`: diese Texte [{ id, stufe, text }], soweit sie über der
+ *     Stufe des Checks liegen – die Ansicht zeigt sie über den Abschnitten,
+ *   - `stufe`: die höchste aus Check und diesen Texten,
+ *   - W3 nennt statt „beim nächsten Termin" die Frist aus dem Befinden und
+ *     trägt deren Stufe (samt 116 117 als Anruf, wenn der Satz sie nennt).
+ * `stufeCheck` ist immer die Stufe des Checks allein. Ohne `heute` ist
+ * `stufe` dasselbe und `befinden` leer – so rechnet die Dosis-Karte (W-D1).
+ */
+export function warnzeichenAuswerten(ja, stand, heute = null) {
   const gewaehlt = warnfragenFuer(stand).filter((f) => ja.includes(f.key));
   const in_ = (g) => gewaehlt.some((f) => f.gruppe === g);
-  if (in_('w1')) {
-    return {
-      stufe: 'notruf',
-      abschnitte: [{ id: 'W1', stufe: 'notruf', text: 'Bitte rufen Sie jetzt 112 an. Im Zweifel lieber 112. Wenn Sie nicht selbst anrufen können, bitten Sie Angehörige oder Nachbarn.', anrufe: [TEL_112] }],
-    };
+  const abschnitte = in_('w1')
+    ? [{ id: 'W1', stufe: 'notruf', text: 'Bitte rufen Sie jetzt 112 an. Im Zweifel lieber 112. Wenn Sie nicht selbst anrufen können, bitten Sie Angehörige oder Nachbarn.', anrufe: [TEL_112] }]
+    : checkAbschnitte(ja, stand, in_);
+  const stufeCheck = hoechste(...abschnitte.map((a) => a.stufe));
+  if (!heute) return { stufe: stufeCheck, stufeCheck, abschnitte, befinden: [] };
+
+  const pfade = [...BEFINDEN_ZUM_CHECK, ...(aktiv(stand) ? ['S2b'] : [])];
+  const befinden = beschwerdenAuswerten(stand, heute).texte
+    .filter((t) => pfade.includes(t.id) && STUFEN[t.stufe].rang > STUFEN[stufeCheck].rang)
+    .map(({ id, stufe: s, text }) => ({ id, stufe: s, text }));
+  const stufe = hoechste(stufeCheck, ...befinden.map((t) => t.stufe));
+  const w3 = abschnitte.find((a) => a.id === 'W3');
+  if (w3 && befinden.length) {
+    w3.stufe = stufe;
+    w3.text = w3MitBefinden(stufe);
+    // Der Satz der Stufe „heute" nennt den Bereitschaftsdienst – dann ist er anrufbar.
+    if (/116 117/.test(w3.text)) w3.anrufe = [TEL_116];
   }
+  return { stufe, stufeCheck, abschnitte, befinden };
+}
+
+/**
+ * Ein gespeicherter Check, ausgewertet für die Anzeige: Nur ein Check von
+ * heute rechnet das Befinden von heute mit – ein älterer bleibt, wie er war.
+ */
+export function checkAuswerten(check, stand, heute) {
+  return warnzeichenAuswerten(check.ja, stand, check.datum === heute ? heute : null);
+}
+
+/** Die Abschnitte des Checks ohne W1 (W1 blendet alles andere aus). */
+function checkAbschnitte(ja, stand, in_) {
   const abschnitte = [];
   if (in_('w4a')) {
     const gift = giftnotrufAnruf(stand);
     abschnitte.push({ id: 'W4a', stufe: 'notruf', text: `Bitte rufen Sie jetzt den Giftnotruf an${gift === TEL_112 ? ' – oder, weil kein Bundesland eingetragen ist, 112' : ''}. Halten Sie die Packung bereit. Bei Beschwerden wie Herzrasen, Brustschmerz, Atemnot oder Verwirrtheit: sofort 112.`, anrufe: gift === TEL_112 ? [TEL_112] : [gift, TEL_112] });
   }
-  if (in_('w5')) abschnitte.push({ id: 'W5', stufe: 'notruf', text: W5_TEXT, anrufe: [...TEL_SEELSORGE, TEL_112] });
+  // C12: Der Text nennt abends und am Wochenende den Bereitschaftsdienst –
+  // gerade dann muss er anrufbar sein, wie bei W5 aus dem Befinden.
+  if (in_('w5')) abschnitte.push({ id: 'W5', stufe: 'notruf', text: W5_TEXT, anrufe: [...TEL_SEELSORGE, TEL_116, TEL_112] });
   if (!in_('w4a') && in_('w2h')) {
     abschnitte.push({ id: 'W2h', stufe: 'heute', text: 'Bitte rufen Sie heute noch in der Praxis an. Außerhalb der Sprechzeiten: Ärztlicher Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.', anrufe: [TEL_116] });
   }
@@ -1231,11 +1346,9 @@ export function warnzeichenAuswerten(ja, stand) {
     if (stand.profil.praeparatArt === 't3' || stand.profil.herz === 'ja') t += ' Wenn heute Herzklopfen oder Unruhe auftreten, rufen Sie die Praxis an.';
     abschnitte.push({ id: 'W4b', stufe: 'termin', text: t, anrufe: [] });
   }
-  if (!abschnitte.length) {
-    abschnitte.push({ id: 'W3', stufe: 'termin', text: 'Nach Ihren Angaben liegt kein Warnzeichen vor. Die App kann aber nicht alles erkennen: Wenn Sie sich deutlich schlechter fühlen als sonst, rufen Sie die Praxis an – auch wenn hier nichts angezeigt wird. Übrige Beschwerden beim nächsten Termin ansprechen. Wenn es schlimmer wird, machen Sie den Check noch einmal.', anrufe: [] });
-  }
+  if (!abschnitte.length) abschnitte.push({ id: 'W3', stufe: 'termin', text: W3_TEXT, anrufe: [] });
   abschnitte.sort((a, b) => STUFEN[b.stufe].rang - STUFEN[a.stufe].rang);
-  return { stufe: hoechste(...abschnitte.map((a) => a.stufe)), abschnitte };
+  return abschnitte;
 }
 
 // ---------------------------------------------------------------- Abstand (M1–M14)
@@ -1379,8 +1492,53 @@ export function kontrolleHinweise(stand, heute) {
     : ['b', 'c2', 'c3', 'd', 'e2', 'e3', 'f', 'g2'].includes(e.muster) || (e.muster === 'h' && e.mInfo.fDeutlichUeber));
   if (letzter && tageZwischen(letzter.befund.datum, heute) > 90 && auffaellig(letzter)
     && !stand.labor.some((l) => l.tsh && l.datum > letzter.befund.datum && l.datum <= heute)) {
-    add('L7d', 'zeitnah', 'Ihr letzter Befund war auffällig, und seitdem wurde nicht neu kontrolliert. Bitte fragen Sie in der Praxis, wann kontrolliert werden soll.');
+    // „Seitdem wurde nicht neu kontrolliert" stimmt nicht immer so: Kam danach
+    // ein Befund nur mit fT4, stand der Satz neben „vor 5 Tagen gemessen"
+    // (C13). Wurde die Dosis danach geändert, klang „auffällig … nicht neu
+    // kontrolliert", als sei nichts geschehen (C11). Die Erinnerung bleibt –
+    // TSH fehlt ja wirklich –, der Satz sagt dann genau das.
+    const d = letzter.befund.datum;
+    const danachOhneTsh = stand.labor.some((l) => l.datum > d && l.datum <= heute);
+    const damals = sp.tagesdosis(dosisAmIn(stand, d));
+    const dosisGeaendert = stand.dosen.some((x, i) => i > 0 && !x.berichtigung && x.ab > d && x.ab <= heute
+      && sp.tagesdosis(x) !== null && sp.tagesdosis(x) !== damals);
+    add('L7d', 'zeitnah', dosisGeaendert || danachOhneTsh
+      ? `Seit Ihrem auffälligen Befund vom ${kurz(d)} ${dosisGeaendert ? 'wurde die Dosis geändert, TSH aber nicht neu bestimmt' : 'wurde TSH nicht neu bestimmt'}. Bitte fragen Sie in der Praxis, wann TSH kontrolliert werden soll.`
+      : 'Ihr letzter Befund war auffällig, und seitdem wurde nicht neu kontrolliert. Bitte fragen Sie in der Praxis, wann kontrolliert werden soll.');
   }
+
+  // C15 – zwei Einträge eines Abnahmetags mit verschiedenen Werten (aus
+  // älteren Ständen; das Formular lässt das nicht mehr zu). Die Auswertung
+  // rechnet mit dem zuletzt eingetragenen, die Befund-Karte sagt es bei
+  // beiden. Hier steht es für die Tage, auf denen die Einschätzung beruht –
+  // sonst fiele es nur auf, wer die ältere Karte im Verlauf aufschlägt. Wäre
+  // nach dem anderen Eintrag die Frist höher, gilt vorsichtshalber sie: Wurde
+  // ein nachgereichtes fT4 beim falschen Eintrag gespeichert, blieb „Heute"
+  // sonst bei „Beim nächsten Termin", obwohl TSH und fT4 zusammen „in den
+  // nächsten Tagen anrufen" hießen.
+  // Verglichen wird nur, worin sich die Einträge widersprechen: TSH, fT4 und
+  // fT3 über die Stufe des Befunds, ein weiterer Wert über seine eigene –
+  // ein Vitamin D, das nur in einem der beiden steht, zählt im Gesamtbild ohnehin.
+  // Mit dem zuletzt eingetragenen rechnet die Auswertung; normStand führt
+  // spätere Werte des Tages in ihn zusammen.
+  const abDoppelt = letzter ? letzter.befund.datum : tageWeiter(heute, -90);
+  [...new Set(stand.labor.filter((l) => l.datum >= abDoppelt && l.datum <= heute).map((l) => l.datum))].forEach((tag) => {
+    const eintraege = stand.labor.filter((l) => l.datum === tag);
+    const doppelt = eintraege.flatMap((l) => doppelteWerte(l, stand));
+    if (!doppelt.length) return;
+    const namen = [...new Set(doppelt.map(([, name]) => name))];
+    const keys = doppelt.map(([k]) => k);
+    const schilddruese = sp.LABORWERTE.some(([k]) => keys.includes(k));
+    const stufen = eintraege.map((l) => {
+      const e = befundEinschaetzen(l, stand, heute);
+      return hoechste(schilddruese && !e.praxisErklaert ? e.stufeLabor : 'keine',
+        ...weitereWerte(l, stand).filter((x) => keys.includes(x.key)).map((x) => x.stufe));
+    });
+    const oben = hoechste(...stufen);
+    const hoeher = STUFEN[oben].rang > STUFEN[stufen[stufen.length - 1]].rang;
+    add('L0b-doppelt', hoeher ? oben : 'keine', `Für den ${kurz(tag)} gibt es zwei Einträge mit verschiedenen Werten (${aufzaehlung(namen)}). Die App rechnet mit dem zuletzt eingetragenen. Bitte vergleichen Sie beide mit dem Befund und löschen Sie den falschen.${
+      hoeher ? ` Nach dem anderen Eintrag wäre es dringender – bis das geklärt ist, gilt vorsichtshalber: ${STUFEN[oben].text}` : ''}`);
+  });
 
   // L8 – ungewollter Gewichtsverlust
   if (gw.length >= 2) {
@@ -1426,10 +1584,14 @@ export function fragenVorschlaege(stand, heute) {
 
 // ---------------------------------------------------------------- Gesamtbild (L3f)
 
-/** Der Warnzeichen-Check von heute – oder null. */
+/**
+ * Der Warnzeichen-Check von heute – oder null. Mit den Beschwerden von heute
+ * ausgewertet (C9): „Nichts davon" sagt dann nicht „beim nächsten Termin",
+ * wenn das Befinden „heute anrufen" verlangt.
+ */
 export function warnHeute(stand, heute) {
   const w = [...stand.warnzeichen].reverse().find((x) => x.datum === heute);
-  return w ? { ...warnzeichenAuswerten(w.ja, stand), check: w } : null;
+  return w ? { ...checkAuswerten(w, stand, heute), check: w } : null;
 }
 
 /**
@@ -1438,7 +1600,13 @@ export function warnHeute(stand, heute) {
  * heute mit jemandem zu sprechen – 112 steht im Text für akute Gefahr.
  */
 export function kopfFuer(stufe, teile) {
-  const nurW5 = stufe === 'notruf' && teile.filter((t) => t.stufe === 'notruf').every((t) => t.id === 'W5');
+  const notruf = teile.filter((t) => t.stufe === 'notruf');
+  const nurW5 = stufe === 'notruf' && notruf.every((t) => t.id === 'W5');
+  // Nach „große Menge Tabletten auf einmal" (W4a) ist der Giftnotruf der
+  // erste Anruf – die Kopfzeile sagt das, 112 steht für Beschwerden dabei.
+  if (stufe === 'notruf' && notruf.length && notruf.every((t) => t.id === 'W4a')) {
+    return { titel: 'Jetzt den Giftnotruf anrufen', text: 'Bitte rufen Sie jetzt den Giftnotruf an – die Nummer steht darunter. Bei Herzrasen, Brustschmerz, Atemnot oder Verwirrtheit: sofort 112.' };
+  }
   if (nurW5) return { titel: 'Bitte sprechen Sie heute mit jemandem', text: 'Telefonseelsorge 0800 111 0 111 oder 0800 111 0 222 – rund um die Uhr, kostenlos. Wenn Sie in Gefahr sind, sich etwas anzutun: sofort 112.' };
   return { titel: STUFEN[stufe].titel, text: STUFEN[stufe].text };
 }
@@ -1507,8 +1675,10 @@ function weitereTeile(stand, heute, letzter) {
 export function gesamtbild(stand, heute, { dosis = [] } = {}) {
   const warn = warnHeute(stand, heute);
   if (!aktiv(stand)) {
+    // Mit den Texten aus dem Befinden, die auch ohne P6 gelten (C9): Trägt
+    // W3 deren Stufe, trägt sie auch der Kopf.
     const s = warn ? warn.stufe : 'keine';
-    return { aktiv: false, stufe: s, kopf: kopfFuer(s, warn ? warn.abschnitte : []), befund: null, ohneMuster: null, beschwerden: null, warnHeute: warn, kontrolle: [], weitere: [], dosis: [], teile: [] };
+    return { aktiv: false, stufe: s, kopf: kopfFuer(s, warn ? [...warn.befinden, ...warn.abschnitte] : []), befund: null, ohneMuster: null, beschwerden: null, warnHeute: warn, kontrolle: [], weitere: [], dosis: [], teile: [] };
   }
   const befund = letzterBefund(stand, heute);
   const ohneMuster = befundOhneMuster(stand, heute, befund);
@@ -1521,10 +1691,28 @@ export function gesamtbild(stand, heute, { dosis = [] } = {}) {
   if (warn) warn.abschnitte.forEach((a) => teile.push({ id: a.id, stufe: a.stufe, text: a.text, quelle: 'warnzeichen' }));
   if (befund) {
     const s = befund.praxisErklaert ? 'keine' : befund.stufeLabor;
-    teile.push({ id: 'befund', stufe: s, text: befund.praxisErklaert ? PRAXIS_TEXT : befund.stufeText, quelle: 'befund' });
+    const d = kurz(befund.befund.datum);
+    // C10: Tragen weitere Werte eine höhere Frist, gilt dieser Teil nur für
+    // TSH und fT4 – und sagt das. Vorher folgte auf „Befund vom 20.09.:
+    // Vitamin D … in den nächsten Tagen anrufen" direkt „Letzter Befund vom
+    // 20.09.: Kein besonderer Anlass".
+    const nurSchilddruese = weitere.some((w) => STUFEN[w.stufe].rang > STUFEN[s].rang);
+    let text = befund.praxisErklaert ? PRAXIS_TEXT : befund.stufeText;
+    if (nurSchilddruese) {
+      text = befund.praxisErklaert ? 'Die Praxis hat Ihnen die Schilddrüsenwerte schon erklärt. Halten Sie sich an das, was dort besprochen wurde.'
+        : s === 'keine' ? 'Die Schilddrüsenwerte geben keinen besonderen Anlass.' : `Zu den Schilddrüsenwerten: ${befund.stufeText}`;
+    }
+    // C13: Gibt es danach einen Befund ohne Muster (nur fT4), ist dieser nicht
+    // mehr „der letzte Befund" – die Beschriftung sagt, welcher er ist.
+    const danach = stand.labor.filter((l) => l.datum > befund.befund.datum && l.datum <= heute);
+    const beschriftung = danach.length
+      ? `${danach.every((l) => !l.tsh) ? 'Letzter Befund mit TSH' : 'Letzter auswertbarer Befund'} vom ${d}`
+      : `${nurSchilddruese ? 'Schilddrüsenwerte' : 'Letzter Befund'} vom ${d}`;
+    teile.push({ id: 'befund', stufe: s, text, quelle: 'befund', beschriftung, nurSchilddruese });
   }
   if (ohneMuster) {
-    // Eigene Quelle: Die Ansicht beschriftet Teile mit „befund" als „Letzter Befund vom …".
+    // Eigene Quelle: Der Text nennt das Datum selbst; Teile mit „befund"
+    // tragen ihre Beschriftung in `beschriftung` (siehe oben).
     const text = [`Befund vom ${kurz(ohneMuster.befund.datum)}: ${ohneMuster.text}`, ohneMuster.stufeText,
       ohneMuster.notfall.satz !== 3 ? ohneMuster.notfall.text : ''].filter(Boolean).join(' ');
     teile.push({ id: 'befund-ohne-tsh', stufe: ohneMuster.stufe, text, quelle: 'befund-ohne-muster', datum: ohneMuster.befund.datum });
@@ -1603,7 +1791,11 @@ export function berichtZeilen(stand, heute) {
       const ersetzt = e.praxisErklaert ? ' – für die Patientin ersetzt durch die Angabe, dass die Praxis den Befund erklärt hat' : '';
       const grundlage = e.muster ? `Muster ${e.muster}${e.ziel ? ' (am persönlichen Zielbereich)' : ''}` : 'kein Muster (TSH fehlt oder ist nicht einzuordnen)';
       // Beim Behandlungsgrund Hirnanhangdrüse kommt die Stufe aus fT4 (RW2 P1).
-      z.push(`  Einordnung (App): ${grundlage}, Stufe „${STUFEN[e.stufeLabor].titel}"${e.hypophyse || e.ohneMuster ? ' nach fT4' : ''}${ersetzt}.`);
+      // C10: Die Stufe hier gilt für TSH und fT4. Hebt ein weiterer Wert den
+      // Befund an, steht das dabei – wie im Kopf der Befund-Karte.
+      const mitWeiteren = e.kopf && e.kopf.weitere.length
+        ? `; mit ${aufzaehlung(weitereWerte(l, stand).filter((x) => e.kopf.weitere.includes(x.key)).map((x) => x.name))} insgesamt „${STUFEN[e.stufeGesamt].titel}"` : '';
+      z.push(`  Einordnung (App): ${grundlage}, Stufe „${STUFEN[e.stufeLabor].titel}"${e.hypophyse || e.ohneMuster ? ' nach fT4' : ''}${ersetzt}${mitWeiteren}.`);
       e.erklaerungen.forEach((x2) => z.push(`  – ${x2.text}`));
       e.verlauf.forEach((x2) => z.push(`  – ${x2.text}`));
       e.zusaetze.forEach((x2) => z.push(`  – ${x2.text}`));
@@ -1615,7 +1807,7 @@ export function berichtZeilen(stand, heute) {
 
   const b = beschwerdenAuswerten(stand, heute);
   if (b.genannt.length) {
-    z.push(`Beschwerden der letzten 28 Tage (Angabe): ${b.genannt.map((k) => (sp.BESCHWERDEN.find(([id]) => id === k) || [k, k])[1]).join(', ')}. Auswertung (App): ${b.richtung === 'wenig' ? 'könnten zu zu wenig Hormon passen' : b.richtung === 'viel' ? 'könnten zu zu viel Hormon passen' : 'kein klares Muster'} (Punkte zu wenig ${zahl(b.punkteWenig)}, zu viel ${zahl(b.punkteViel)}).`);
+    z.push(`Beschwerden der letzten 28 Tage (Angabe): ${b.genannt.map(sp.beschwerdeName).join(', ')}. Auswertung (App): ${b.richtung === 'wenig' ? 'könnten zu zu wenig Hormon passen' : b.richtung === 'viel' ? 'könnten zu zu viel Hormon passen' : 'kein klares Muster'} (Punkte zu wenig ${zahl(b.punkteWenig)}, zu viel ${zahl(b.punkteViel)}).`);
   }
   const ab = tageWeiter(heute, -89);
   const checks = stand.warnzeichen.filter((w) => w.datum >= ab && w.datum <= heute);
