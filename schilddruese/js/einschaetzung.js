@@ -111,13 +111,17 @@ const biotinImSpiel = (befund, stand) => befund.biotin === 'ja' || stand.mittel.
 
 /**
  * Einnahmen in den 42 Tagen vor der Abnahme: erfasst (genommen oder bewusst
- * nicht), nicht genommen, ohne Eintrag.
+ * nicht), nicht genommen, ohne Eintrag. `ab`: Tage davor zählen als nicht
+ * erfasst – für die Dosis-Karte (D0.7) zählen nur Einträge ab dem Einrichten,
+ * nachgetragene Tage aus der Erinnerung sind dafür zu unsicher.
  */
-export function einnahmenVor(befund, stand, tage = 42) {
+export function einnahmenVor(befund, stand, tage = 42, ab = null) {
   let erfasst = 0;
   let nicht = 0;
   for (let i = 1; i <= tage; i++) {
-    const x = stand.einnahmen[tageWeiter(befund.datum, -i)];
+    const tag = tageWeiter(befund.datum, -i);
+    if (ab && tag < ab) continue;
+    const x = stand.einnahmen[tag];
     if (x === null) { nicht++; erfasst++; } else if (x) erfasst++;
   }
   return { erfasst, nicht, genommen: erfasst - nicht, unbekannt: tage - erfasst, tage };

@@ -119,31 +119,33 @@ export function dosisRichtung(stand, heute) {
 
   const karte = (x) => {
     const richtung = x.richtung || 'klaeren';
-    const hinweise = [];
-    if (richtung !== 'klaeren' || x.frage) {
-      if (alt === null) hinweise.push('Bitte tragen Sie im Profil Ihr Geburtsjahr ein. Bis dahin rechnet die App vorsichtig.');
-      if (['unbekannt', ''].includes(p.herz)) hinweise.push('Solange nicht angegeben ist, ob Sie eine Herzerkrankung haben, rechnet die App vorsichtig so, als hätten Sie eine.');
+    // P5, P3: fehlende Angaben stehen auf jeder Richtungskarte – im Text,
+    // nicht in einer Randnotiz.
+    const texte = [...(x.texte || (richtung === 'klaeren' && !x.frage ? [KLAEREN_SATZ] : []))];
+    if (richtung !== 'klaeren') {
+      if (alt === null) texte.push('Bitte tragen Sie im Profil Ihr Geburtsjahr ein. Bis dahin rechnet die App vorsichtig.');
+      if (['unbekannt', ''].includes(p.herz)) texte.push('Solange nicht angegeben ist, ob Sie eine Herzerkrankung haben, rechnet die App vorsichtig so, als hätten Sie eine.');
     }
     let stufe = hoechste(x.stufe || 'keine', stufeWarn, ...gruende.map((g) => g.stufe).filter(Boolean));
     if (x.stufeFest) stufe = hoechste(x.stufeFest, stufeWarn);
-    const merken = (richtung === 'mehr' || richtung === 'weniger') && !nachfrage(stand, 'richtung', befund.id)
-      ? { art: 'richtung', bezug: befund.id, antwort: richtung } : null;
     return {
       richtung,
       titel: x.titel || KOPF_KLAEREN,
-      texte: x.texte || (richtung === 'klaeren' && !x.frage ? [KLAEREN_SATZ] : []),
+      texte,
       schritt: x.schritt || null,
       pflicht: richtung === 'mehr' || richtung === 'weniger' ? D6_LANG : D6_KURZ,
       gruende,
       frage: x.frage || null,
       aktion: x.aktion || null,
-      hinweise,
+      hinweise: [],
       stufe,
       warnzeichen: x.warnzeichen || null,
       grundlage,
       befund,
       einschaetzung: e,
-      merken,
+      // Früher schrieb die Ansicht hier den ersten Anzeigetag mit; die
+      // 14-Tage-Rückfrage (X3) zählt jetzt ab der Antwort auf die Dosisfrage.
+      merken: null,
       regeln: [...new Set([...regeln, ...(x.regeln || [])])],
     };
   };
@@ -158,7 +160,8 @@ export function dosisRichtung(stand, heute) {
   const wd3 = gruppe === 'b' && ((tsh !== null && tsh > 20) || muedeB);
   if (unruhe.length || wd3) {
     const seit = unruhe.length ? unruhe.map((k) => g14.get(k)).sort()[0] : tag;
-    const check = [...stand.warnzeichen].reverse().find((w) => w.datum >= seit);
+    // Nur ein Check von heute zählt – Beschwerden können sich über Nacht ändern.
+    const check = [...stand.warnzeichen].reverse().find((w) => w.datum >= seit && w.datum === heute);
     const id = unruhe.length ? 'W-D1' : 'W-D3';
     regeln.push(id);
     if (!check) {
@@ -264,7 +267,6 @@ export function dosisRichtung(stand, heute) {
   }
 
   // X3 (2): Nach 14 Tagen fragt die Karte, ob inzwischen etwas passiert ist.
-  const gezeigt = nachfrage(stand, 'richtung', befund.id);
   const nach14 = nachfrage(stand, 'nach14', befund.id);
   if (nach14 && nach14.antwort === 'selbst') {
     grund('X3', 'Sie haben angegeben, selbst etwas an der Dosis geändert zu haben. Bitte tragen Sie ein, was Sie jetzt nehmen, und sagen Sie es der Praxis in den nächsten Tagen. Eine neue Einschätzung gibt es mit dem nächsten Kontrollwert.', 'tage');
@@ -301,8 +303,8 @@ export function dosisRichtung(stand, heute) {
     // X6 – Geburtsjahr bei Muster c
     if (gruppe === 'c' && alt === null) offen({ id: 'X6', text: 'In welchem Jahr sind Sie geboren? Im Alter wird ein etwas höherer TSH-Wert oft bewusst hingenommen – ohne Ihr Alter gibt die App hier keine Richtung.', optionen: null, ziel: 'profil', feld: 'geburtsjahr', typ: 'jahr' });
     // Q4 – Hirnanhangdrüse oder bewusst niedrig (d/e bei offenem Grund)
-    if (['d', 'e'].includes(gruppe) && ['andere', 'unbekannt', ''].includes(p.ursache) && p.zielNiedrig !== 'nein') {
-      if (!p.hypophyseOderNiedrig) offen(pFrage('Q4', 'hypophyseOderNiedrig', 'Hat Ihnen eine Ärztin einmal gesagt, dass die Ursache in der Hirnanhangdrüse liegt oder dass Ihr TSH bewusst niedrig gehalten werden soll?'));
+    if (['d', 'e'].includes(gruppe) && ['andere', 'unbekannt', ''].includes(p.ursache)) {
+      if (!p.hypophyseOderNiedrig && p.zielNiedrig !== 'nein') offen(pFrage('Q4', 'hypophyseOderNiedrig', 'Hat Ihnen eine Ärztin einmal gesagt, dass die Ursache in der Hirnanhangdrüse liegt oder dass Ihr TSH bewusst niedrig gehalten werden soll?'));
       else if (blockJaWeissNicht(p.hypophyseOderNiedrig)) grund('D0.14', 'Wenn die Ursache in der Hirnanhangdrüse liegt oder TSH bewusst niedrig gehalten werden soll, sagt TSH wenig über die richtige Dosis. Deshalb gibt die App keine Richtung. Besprechen Sie jeden Wert mit der Praxis.');
     }
     // F2 / D0.9 – Biotin (jedes Muster)
@@ -329,7 +331,7 @@ export function dosisRichtung(stand, heute) {
     }
     // D0.7 – Einnahme (b, c)
     if (gruppe === 'b' || gruppe === 'c') {
-      const x = einnahmenVor(befund, stand);
+      const x = einnahmenVor(befund, stand, 42, stand.profil.seit);
       const schluss = ' Vergessene Tabletten erhöhen TSH. Nehmen Sie die Tablette jetzt jeden Tag und lassen Sie in 6 bis 8 Wochen neu messen – sonst wäre eine höhere Dosis später zu viel.';
       if (x.nicht >= 3 || (x.erfasst >= 1 && x.genommen / x.erfasst < 0.9)) {
         grund('D0.7', `In den sechs Wochen vor der Abnahme wurde die Tablette an ${x.nicht} ${x.nicht === 1 ? 'Tag' : 'Tagen'} nicht genommen.${schluss}`);
@@ -363,7 +365,10 @@ export function dosisRichtung(stand, heute) {
       }
     }
     // X3 (2) – Richtung nur 14 Tage ohne Rückfrage
-    if (gezeigt && tageZwischen(gezeigt.am, heute) > 14 && (!nach14 || (nach14.antwort === 'nein' && tageZwischen(nach14.am, heute) > 14))) {
+    // Die Richtung gilt 14 Tage ab der Antwort auf die Dosisfrage – dann wird
+    // nachgefragt, bevor sie wieder erscheint. „Noch nicht" gibt weitere 14 Tage.
+    const anker = nach14 && nach14.antwort === 'nein' ? nach14 : stimmt && stimmt.antwort === 'ja' ? stimmt : null;
+    if (anker && tageZwischen(anker.am, heute) >= 14) {
       offen({ id: 'X3-14', text: 'Haben Sie inzwischen mit der Praxis über diesen Wert gesprochen oder selbst etwas an der Dosis geändert?', optionen: [['praxis', 'Ja, mit der Praxis gesprochen'], ['selbst', 'Ich habe selbst etwas geändert'], ['nein', 'Nein, noch nicht']], ziel: 'nachfrage', feld: 'nach14', bezug: befund.id });
     }
   }
@@ -436,7 +441,7 @@ export function dosisRichtung(stand, heute) {
       });
     }
     // X7 – über 80 mit Herzkrankheit im Graubereich: keine Richtung
-    if (alt !== null && alt >= 80 && p.herz === 'ja' && tsh <= 10) {
+    if (alt !== null && alt >= 80 && herzVorsicht && tsh <= 10) {
       return karte({
         richtung: 'klaeren', titel: KOPF_KLAEREN, stufe: 'termin', regeln: ['X7'],
         texte: ['Ihr TSH ist etwas erhöht. Über 80 und mit einer Herzerkrankung ist ein TSH unter 10 oft die gewollte Einstellung. Ob etwas geändert wird, sollte die Praxis entscheiden – sprechen Sie es beim nächsten Termin an.', KLAEREN_SATZ],
@@ -571,7 +576,7 @@ export function dosisHinweise(stand, heute) {
     if (letzte.praxis === false && n >= 0 && n <= 14) {
       const schritt = tdNeu !== null && tdAlt !== null ? Math.abs(tdNeu - tdAlt) : 0;
       if (schritt > 25 || (tdAlt && schritt / tdAlt > 0.25)) {
-        add('X3', 'tage', 'Das ist mehr als ein üblicher Schritt. Rufen Sie heute oder morgen die Praxis an und nehmen Sie bis dahin wieder Ihre bisherige Menge.', { warnzeichen: WD2 });
+        add('X3', 'tage', `Das ist mehr als ein üblicher Schritt. Rufen Sie heute oder morgen die Praxis an und nehmen Sie bis dahin wieder Ihre bisherige Menge. ${WD2}`, { warnzeichen: WD2 });
       } else {
         add('B2', 'tage', 'Bitte sagen Sie Ihrer Praxis in den nächsten Tagen, dass Sie die Dosis geändert haben. Lassen Sie nach 6 bis 8 Wochen kontrollieren.');
       }
