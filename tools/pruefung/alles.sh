@@ -13,6 +13,6 @@ python3 tools/pruefung/bewegung.py >/dev/null
 python3 tools/pruefung/versionspflicht.py
 echo "✓ Tore"
 sh tools/pruefung/erzeugt.sh
-npx --no-install eslint js sw.js tests tools
+npx --no-install eslint js sw.js tests tools schilddruese
 echo "✓ Linter"
 node tests/lauf.mjs

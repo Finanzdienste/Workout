@@ -1,0 +1,465 @@
+/*
+ * Gestaltung der Schilddrüsen-App.
+ *
+ * Für eine ältere Nutzerin, die die App allein auf dem Handy benutzt. Daraus
+ * folgt fast alles hier: große Schrift (Grundgröße 20 px, verstellbar bis
+ * 23 px), Knöpfe ab 56 px Höhe, Text statt Symbol, hell als Standard und ein
+ * Kontrast, der auch bei Sonne auf dem Balkon reicht. Farbe trägt nie allein
+ * eine Bedeutung – neben jedem Grün steht ein Wort.
+ *
+ * Alle Größen in rem: Die Schriftgröße unter „Mehr" ändert die Wurzel, und
+ * damit wächst alles mit, auch Abstände und Knöpfe.
+ */
+
+:root {
+  --bg: #f4f6f9;
+  --karte: #ffffff;
+  --karte-2: #eef2f6;
+  --linie: #d5dce5;
+  --text: #17202a;
+  --gedaempft: #4f5d6a;
+  --akzent: #1c6a86;
+  --akzent-dunkel: #145066;
+  --akzent-hell: #e4f1f6;
+  --auf-akzent: #ffffff;
+  --ok: #1d7a45;
+  --ok-hell: #e2f4e8;
+  --warn: #8a5200;
+  --warn-hell: #fff1d6;
+  --gefahr: #b3261e;
+  --gefahr-hell: #fbe7e5;
+  --radius: 16px;
+  --tabbar-h: 72px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --schatten: 0 1px 2px rgba(23, 32, 42, .06);
+}
+
+:root[data-farbe="dunkel"] {
+  --bg: #0f1418;
+  --karte: #171e25;
+  --karte-2: #202932;
+  --linie: #2c3843;
+  --text: #eaeff4;
+  --gedaempft: #a7b3be;
+  --akzent: #62bcd8;
+  --akzent-dunkel: #8fd2e6;
+  --akzent-hell: #17313b;
+  --auf-akzent: #08191f;
+  --ok: #5fd08c;
+  --ok-hell: #16301f;
+  --warn: #f2b85a;
+  --warn-hell: #3a2a0d;
+  --gefahr: #ff8a80;
+  --gefahr-hell: #3d1a17;
+  --schatten: none;
+}
+
+/* Schriftgröße: die Wurzel, und alles in rem folgt. */
+html { font-size: 20px; }
+:root[data-schrift="normal"] { font-size: 18px; }
+:root[data-schrift="sehr-gross"] { font-size: 23px; }
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overscroll-behavior-y: contain;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+p + p { margin-top: .6rem; }
+
+/* ---------- Kopf ---------- */
+.kopf {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--karte);
+  border-bottom: 1px solid var(--linie);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.kopf-in {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: .6rem .8rem;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  min-height: 3rem;
+}
+.marke {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.marke img { width: 1.6rem; height: 1.6rem; border-radius: .4rem; }
+.kopf-zurueck {
+  white-space: nowrap;
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--akzent);
+  font-weight: 700;
+  padding: .5rem .6rem .5rem 0;
+  min-height: 2.8rem;
+  cursor: pointer;
+}
+.kopf-titel { font-size: 1.05rem; font-weight: 700; min-width: 0; line-height: 1.2; }
+
+/* ---------- Ansicht ---------- */
+.ansicht {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem .9rem calc(var(--tabbar-h) + var(--safe-b) + 1.6rem);
+}
+
+.abschnitt {
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--gedaempft);
+  font-weight: 700;
+  margin: 1.4rem 0 .5rem;
+}
+.abschnitt:first-child { margin-top: .2rem; }
+
+.karte {
+  background: var(--karte);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: .8rem;
+  box-shadow: var(--schatten);
+}
+.karte h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: .4rem; }
+.karte h3 { font-size: 1rem; font-weight: 700; margin: .8rem 0 .3rem; }
+.karte.ok { border-color: var(--ok); background: var(--ok-hell); }
+.karte.warn { border-color: var(--warn); background: var(--warn-hell); }
+.karte.gefahr { border-color: var(--gefahr); background: var(--gefahr-hell); }
+
+.gross { font-size: 1.35rem; font-weight: 700; line-height: 1.25; }
+.gedaempft { color: var(--gedaempft); }
+.klein { font-size: .9rem; }
+.mitte { text-align: center; }
+.zahl { font-variant-numeric: tabular-nums; }
+
+/* ---------- Heute ---------- */
+.heute-datum {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: .2rem;
+}
+.heute-dosis { color: var(--gedaempft); margin-bottom: 1rem; }
+
+/* Der eine große Knopf. Hoch genug, um ihn ohne Hinsehen zu treffen. */
+.tablette {
+  width: 100%;
+  min-height: 6.4rem;
+  border: 2px solid var(--akzent);
+  background: var(--akzent);
+  color: var(--auf-akzent);
+  border-radius: var(--radius);
+  padding: 1rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.25;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  box-shadow: 0 2px 0 var(--akzent-dunkel);
+}
+.tablette:active { transform: translateY(1px); box-shadow: none; }
+.tablette small { font-size: .9rem; font-weight: 500; opacity: .92; }
+.tablette.genommen {
+  background: var(--ok-hell);
+  border-color: var(--ok);
+  color: var(--ok);
+  box-shadow: none;
+  cursor: default;
+}
+.tablette.faellig { background: var(--warn); border-color: var(--warn); }
+:root[data-farbe="dunkel"] .tablette.faellig { color: #1a1206; }
+
+/* ---------- Knöpfe ---------- */
+.knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 2.9rem;         /* ≥ 56 px bei 20 px Grundschrift */
+  border: 2px solid var(--linie);
+  background: var(--karte);
+  color: var(--text);
+  border-radius: 14px;
+  padding: .6rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.2;
+}
+.knopf:active { transform: translateY(1px); }
+.knopf:disabled { opacity: .45; cursor: default; }
+.knopf-haupt { background: var(--akzent); border-color: var(--akzent); color: var(--auf-akzent); }
+.knopf-leise { background: transparent; }
+.knopf-gefahr { color: var(--gefahr); border-color: var(--gefahr); background: transparent; }
+.knopf-breit { width: 100%; display: flex; }
+.knopf-reihe { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .8rem; }
+.knopf-reihe .knopf { flex: 1 1 8rem; }
+/* Auch der kleine Knopf bleibt bei „normal" (18 px) über 44 px hoch. */
+.knopf-klein { min-height: 2.5rem; padding: .3rem .8rem; font-size: .95rem; }
+
+/* Eine Liste aus großen, antippbaren Zeilen (unter „Mehr" und „Verlauf"). */
+.zeilen { display: flex; flex-direction: column; gap: .5rem; }
+.zeile {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  width: 100%;
+  min-height: 3.4rem;
+  background: var(--karte);
+  border: 1px solid var(--linie);
+  border-radius: 14px;
+  padding: .7rem .9rem;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--schatten);
+}
+.zeile-text { flex: 1; min-width: 0; }
+.zeile-titel { font-weight: 700; display: block; }
+.zeile-unter { color: var(--gedaempft); font-size: .9rem; display: block; }
+.zeile-pfeil { color: var(--gedaempft); font-size: 1.2rem; flex: none; }
+
+/* ---------- Auswahlknöpfe (Befinden) ---------- */
+.wahl { display: flex; gap: .5rem; }
+/* Drei Knöpfe nebeneinander passen bei großer Schrift auf 360 px nicht:
+   „Schlecht" allein ist breiter als ein Drittel. Statt das Wort zu trennen,
+   rutscht der letzte Knopf in eine zweite Zeile und nimmt sie ganz ein. */
+.wahl { flex-wrap: wrap; }
+.wahl .knopf { flex: 1 1 auto; min-width: 4.2rem; padding-left: .6rem; padding-right: .6rem; }
+/* Die Auswahl im Formular ist ein verstecktes Optionsfeld im Knopf. Ohne
+   eigenen Bezugsrahmen lag es absolut irgendwo rechts außerhalb und machte
+   die Seite breiter als den Bildschirm – bei 360 px um 100 px. */
+.wahl label.knopf { position: relative; }
+.wahl label.knopf:focus-within { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.wahl .knopf[aria-pressed="true"],
+.wahl label.knopf:has(input:checked) { background: var(--akzent-hell); border-color: var(--akzent); color: var(--akzent-dunkel); }
+:root[data-farbe="dunkel"] .wahl .knopf[aria-pressed="true"],
+:root[data-farbe="dunkel"] .wahl label.knopf:has(input:checked) { color: var(--akzent); }
+.zeile:has(input:checked) { border-color: var(--akzent); background: var(--akzent-hell); }
+
+.haken-liste { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+.haken {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 2.6rem;
+  padding: .4rem .8rem;
+  border: 2px solid var(--linie);
+  border-radius: 999px;
+  background: var(--karte);
+  cursor: pointer;
+  font-size: .95rem;
+}
+.haken input { width: 1.2rem; height: 1.2rem; margin: 0; accent-color: var(--akzent); }
+.haken:has(input:checked) { border-color: var(--akzent); background: var(--akzent-hell); }
+
+/* ---------- Formulare ---------- */
+.feld { display: block; margin-bottom: .9rem; }
+.feld > span { display: block; font-weight: 700; margin-bottom: .3rem; }
+.feld .hinweis { font-weight: 400; color: var(--gedaempft); font-size: .9rem; display: block; margin-top: .25rem; }
+.feld input, .feld select, .feld textarea {
+  width: 100%;
+  min-height: 2.9rem;
+  border: 2px solid var(--linie);
+  border-radius: 12px;
+  background: var(--karte);
+  padding: .5rem .7rem;
+  font-size: 1.05rem;
+}
+.feld textarea { min-height: 5rem; resize: vertical; }
+.feld input:focus, .feld select:focus, .feld textarea:focus, .knopf:focus-visible, .zeile:focus-visible, .tablette:focus-visible, .reiter:focus-visible {
+  outline: 3px solid var(--akzent);
+  outline-offset: 2px;
+}
+.feld-reihe { display: flex; gap: .6rem; }
+.feld-reihe .feld { flex: 1; min-width: 0; }
+.feld-fehler { color: var(--gefahr); font-weight: 600; margin-top: .3rem; font-size: .95rem; }
+.feld.fehlt input { border-color: var(--gefahr); }
+/* „Speichern" steht am Ende des Formulars, nicht klebend am unteren Rand: Bei
+   großer Schrift nahm ein klebender Fuß mit zwei Knöpfen ein Drittel des
+   Bildschirms ein und verdeckte genau die Felder, die man gerade ausfüllt. */
+.formular-fuss { padding: .6rem 0 .2rem; margin-top: .4rem; }
+/* Während der Willkommensschritte gibt es keine Reiterleiste – dann wird
+   unten kein Platz für sie freigehalten. */
+body.ohne-leiste .ansicht { padding-bottom: calc(var(--safe-b) + 1.6rem); }
+.bereich-reihe { display: flex; align-items: center; gap: .5rem; }
+.bereich-reihe input { flex: 1 1 0; min-width: 0; }
+body.ohne-leiste .meldung { bottom: calc(var(--safe-b) + 1rem); }
+
+/* Laborwert: Wert, Einheit, Bereich in einer Karte */
+.laborwert-kopf { display: flex; align-items: baseline; justify-content: space-between; }
+.laborwert-name { font-weight: 800; font-size: 1.1rem; }
+
+/* ---------- Laborwerte als Karten ----------
+   Eine Tabelle mit Datum, drei Werten und Dosis ist bei großer Schrift auf
+   360 px breiter als der Bildschirm. Je Befund eine Karte, je Wert eine Zeile. */
+.befund { border-top: 1px solid var(--linie); padding: .7rem 0; }
+.befund:first-child { border-top: 0; padding-top: 0; }
+.befund-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; margin-bottom: .3rem; }
+.befund-datum { font-weight: 800; }
+.befund-wert { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; padding: .15rem 0; }
+.befund-wert b { min-width: 2.6rem; }
+.befund-wert .zahl { font-weight: 700; margin-left: auto; text-align: right; }
+.befund-wert .bereich { display: inline; margin-left: .4rem; }
+
+/* ---------- Tabellen ---------- */
+table.werte { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.werte th, table.werte td { text-align: left; padding: .5rem .3rem; border-bottom: 1px solid var(--linie); vertical-align: top; }
+table.werte th { font-size: .85rem; color: var(--gedaempft); font-weight: 700; }
+table.werte td.zahl, table.werte th.zahl { text-align: right; }
+.bereich { color: var(--gedaempft); font-size: .85rem; display: block; }
+
+/* ---------- Verlaufslinie ---------- */
+.verlauf-svg { display: block; width: 100%; height: auto; margin: .4rem 0; }
+.verlauf-bereich { fill: var(--akzent); opacity: .12; }
+.verlauf-linie { fill: none; stroke: var(--akzent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.verlauf-punkt { fill: var(--akzent); stroke: var(--karte); stroke-width: 2; }
+.verlauf-achse { font-size: 10px; fill: var(--gedaempft); }
+
+/* ---------- Reiter unten ---------- */
+.reiterleiste[hidden] { display: none; }
+.reiterleiste {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 30;
+  display: flex;
+  background: var(--karte);
+  border-top: 1px solid var(--linie);
+  padding-bottom: var(--safe-b);
+}
+.reiter {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--gedaempft);
+  font-size: .9rem;
+  font-weight: 700;
+  height: var(--tabbar-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .15rem;
+  cursor: pointer;
+  border-top: 3px solid transparent;
+}
+.reiter .ri { font-size: 1.4rem; line-height: 1; }
+.reiter[aria-selected="true"] { color: var(--akzent); border-top-color: var(--akzent); }
+:root[data-farbe="dunkel"] .reiter[aria-selected="true"] { color: var(--akzent); }
+
+/* ---------- Hinweise ---------- */
+.hinweis-karte {
+  border-radius: 14px;
+  padding: .8rem 1rem;
+  margin-bottom: .8rem;
+  border: 1px solid var(--linie);
+  background: var(--akzent-hell);
+  display: flex;
+  gap: .7rem;
+  align-items: flex-start;
+}
+.hinweis-karte.warn { background: var(--warn-hell); border-color: var(--warn); }
+.hinweis-karte.gefahr { background: var(--gefahr-hell); border-color: var(--gefahr); }
+.hinweis-karte.ok { background: var(--ok-hell); border-color: var(--ok); }
+.hinweis-karte .ri { font-size: 1.3rem; flex: none; }
+
+.meldung {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tabbar-h) + var(--safe-b) + 1rem);
+  transform: translate(-50%, .6rem);
+  background: var(--text);
+  color: var(--bg);
+  padding: .5rem 1rem;
+  border-radius: 999px;
+  font-size: .9rem;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  z-index: 40;
+  max-width: 92vw;
+  text-align: center;
+}
+.meldung.zeigen { opacity: 1; transform: translate(-50%, 0); }
+
+/* Vorleseprogramme lesen es, sonst sieht es niemand. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- Wissen ---------- */
+.wissen h2 { font-size: 1.25rem; margin: 1.2rem 0 .5rem; }
+.wissen h2:first-child { margin-top: 0; }
+.wissen p { margin: 0 0 .7rem; }
+.wissen ul { padding-left: 1.2rem; margin: 0 0 .8rem; }
+.wissen li { margin-bottom: .35rem; }
+.wissen .merke { border-left: 4px solid var(--akzent); padding: .5rem .8rem; background: var(--akzent-hell); border-radius: 0 12px 12px 0; margin: .6rem 0 .9rem; }
+
+/* ---------- Bericht ---------- */
+.bericht { white-space: pre-wrap; font-size: 1rem; line-height: 1.5; }
+
+/* ---------- Willkommen ---------- */
+.willkommen-titel { font-size: 1.5rem; font-weight: 800; line-height: 1.2; margin-bottom: .6rem; }
+.schritte { color: var(--gedaempft); font-size: .9rem; font-weight: 700; margin-bottom: .6rem; }
+
+/* Bewegung nur, wenn niemand widerspricht. */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* Druck: der Bericht auf Papier, ohne Leiste und Kopf. */
+@media print {
+  .kopf, .reiterleiste, .knopf, .meldung { display: none !important; }
+  .ansicht { padding: 0; max-width: none; }
+  body { background: #fff; color: #000; }
+  .karte { border-color: #999; box-shadow: none; }
+}
+
+/* ---------- Einnahmen der letzten Wochen ---------- */
+.tage { display: grid; grid-template-columns: repeat(14, 1fr); gap: 3px; margin: .5rem 0; }
+.tag {
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 6px;
+  font-size: .7rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  color: var(--gedaempft);
+  background: var(--karte-2);
+  min-width: 0;
+}
+.tag.ja { background: var(--ok); color: #fff; }
+.tag.nein { background: var(--gefahr); color: #fff; }
+.tag.offen { background: var(--karte-2); border: 1px dashed var(--linie); }
+.tag.leer { background: transparent; color: transparent; cursor: default; }
+:root[data-farbe="dunkel"] .tag.ja, :root[data-farbe="dunkel"] .tag.nein { color: #0f1418; }
+.tag-legende { display: inline-block; width: .9rem; height: .9rem; border-radius: 4px; vertical-align: -2px; background: var(--karte-2); border: 1px dashed var(--linie); }
+.tag-legende.ja { background: var(--ok); border: 0; }
+.tag-legende.nein { background: var(--gefahr); border: 0; }

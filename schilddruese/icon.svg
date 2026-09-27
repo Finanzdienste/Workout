@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Schilddrüse">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a8aa8"/>
+      <stop offset="1" stop-color="#1b5f78"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Die Schilddrüse als Schmetterling: zwei nach außen geneigte Lappen,
+       oben schmal, unten breit, in der Mitte durch den Isthmus verbunden.
+       Groß und ruhig, damit sie auch als kleines Symbol lesbar bleibt. -->
+  <g fill="#ffffff">
+    <path d="M236 150 C 236 112, 190 96, 158 124 C 108 168, 96 268, 132 322 C 158 362, 214 356, 236 316 C 246 296, 246 176, 236 150 Z"/>
+    <path d="M276 150 C 276 112, 322 96, 354 124 C 404 168, 416 268, 380 322 C 354 362, 298 356, 276 316 C 266 296, 266 176, 276 150 Z"/>
+    <rect x="226" y="186" width="60" height="46" rx="20"/>
+  </g>
+  <!-- Der Haken: das, was die App jeden Morgen abnimmt – „genommen". Als
+       eigene Marke unten rechts, damit er die Drüse nicht überdeckt. -->
+  <circle cx="392" cy="392" r="72" fill="#2fbf7f"/>
+  <path d="M356 394 L 382 420 L 430 366" fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

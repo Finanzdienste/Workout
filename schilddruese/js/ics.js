@@ -1,0 +1,134 @@
+/*
+ * Kalenderdatei (iCalendar/.ics) – der verlässliche Weg zur Erinnerung.
+ *
+ * Die App hat keinen Server, und ohne Server gibt es keinen Weckruf: Ein
+ * Service Worker wacht nicht von selbst um sieben Uhr auf, und auf dem iPhone
+ * schon gar nicht. Was zuverlässig jeden Morgen klingelt, ist der Kalender
+ * des Handys. Deshalb erzeugt die App einen wiederkehrenden Termin mit Alarm,
+ * den man einmal in den Kalender legt – danach erinnert das Handy, nicht die
+ * App.
+ *
+ * Die Uhrzeit steht ohne Zeitzone da („floating"): 7:00 heißt 7:00, egal ob
+ * Sommer- oder Winterzeit. Feste Kennungen (UID) sorgen dafür, dass ein
+ * zweiter Import denselben Termin ersetzt statt ihn zu verdoppeln.
+ */
+import { zweistellig } from './datum.js';
+
+const NL = '\r\n';
+
+function entschaerfen(text) {
+  return String(text)
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
+}
+
+/** Zeilen auf 75 Zeichen umbrechen – der Standard verlangt es, manche Kalender verschlucken sonst den Rest. */
+function falten(zeile) {
+  if (zeile.length <= 75) return zeile;
+  const teile = [zeile.slice(0, 75)];
+  let rest = zeile.slice(75);
+  while (rest.length > 74) {
+    teile.push(` ${rest.slice(0, 74)}`);
+    rest = rest.slice(74);
+  }
+  if (rest) teile.push(` ${rest}`);
+  return teile.join(NL);
+}
+
+/**
+ * 2026-09-26 + „07:00" (+ Minuten) → 20260926T070000.
+ *
+ * Über ein Date gerechnet und nicht an den Ziffern: Ein Termin um 23:50 mit
+ * einer Viertelstunde Dauer endet am nächsten Tag um 00:05 – an den Ziffern
+ * gerechnet stand dort 00:05 desselben Tages, also vor dem Beginn, und
+ * manche Kalender verwerfen einen solchen Termin still.
+ */
+function stempel(iso, hhmm, plusMinuten = 0) {
+  const [j, mo, t] = iso.split('-').map(Number);
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(j, mo - 1, t, h, m + plusMinuten);
+  return `${d.getFullYear()}${zweistellig(d.getMonth() + 1)}${zweistellig(d.getDate())}`
+    + `T${zweistellig(d.getHours())}${zweistellig(d.getMinutes())}00`;
+}
+
+function jetztUTC() {
+  const d = new Date();
+  return `${d.getUTCFullYear()}${zweistellig(d.getUTCMonth() + 1)}${zweistellig(d.getUTCDate())}`
+    + `T${zweistellig(d.getUTCHours())}${zweistellig(d.getUTCMinutes())}${zweistellig(d.getUTCSeconds())}Z`;
+}
+
+function kopf(name) {
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Schilddruese//Erinnerung//DE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${entschaerfen(name)}`,
+  ];
+}
+
+/**
+ * Die tägliche Erinnerung: ein Termin ab `abISO` um `uhr`, jeden Tag, mit
+ * Alarm zur vollen Zeit. Fünfzehn Minuten lang – ein Kalender ohne Dauer
+ * zeigt manchen Termin gar nicht.
+ */
+export function erinnerungICS({ abISO, uhr, text = 'Schilddrüsentablette nehmen', notiz = '' }) {
+  const z = kopf('Schilddrüse');
+  const start = stempel(abISO, uhr);
+  const ende = stempel(abISO, uhr, 15);
+  z.push(
+    'BEGIN:VEVENT',
+    'UID:tablette@schilddruese.local',
+    `DTSTAMP:${jetztUTC()}`,
+    'SEQUENCE:1',
+    `DTSTART:${start}`,
+    `DTEND:${ende}`,
+    'RRULE:FREQ=DAILY',
+    falten(`SUMMARY:${entschaerfen(text)}`),
+    falten(`DESCRIPTION:${entschaerfen(notiz || 'Nüchtern, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später.')}`),
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    falten(`DESCRIPTION:${entschaerfen(text)}`),
+    'TRIGGER:PT0M',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  );
+  return z.join(NL) + NL;
+}
+
+/**
+ * Ein einzelner Termin (Arzt, Blutabnahme) mit Erinnerung einen Tag und eine
+ * Stunde vorher. `id` ist die Kennung des Termins in der App – derselbe Termin
+ * zweimal exportiert ersetzt sich im Kalender. Ohne Uhrzeit steht er um 9 Uhr.
+ */
+export function terminICS({ id, datum, uhr, titel, notiz = '' }) {
+  const z = kopf('Schilddrüse');
+  const beginn = uhr || '09:00';
+  z.push(
+    'BEGIN:VEVENT',
+    `UID:termin-${id}@schilddruese.local`,
+    `DTSTAMP:${jetztUTC()}`,
+    'SEQUENCE:1',
+    `DTSTART:${stempel(datum, beginn)}`,
+    `DTEND:${stempel(datum, beginn, 60)}`,
+    falten(`SUMMARY:${entschaerfen(titel)}`),
+    falten(`DESCRIPTION:${entschaerfen(notiz)}`),
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    falten(`DESCRIPTION:${entschaerfen(`Morgen: ${titel}`)}`),
+    'TRIGGER:-P1D',
+    'END:VALARM',
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    falten(`DESCRIPTION:${entschaerfen(titel)}`),
+    'TRIGGER:-PT1H',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  );
+  return z.join(NL) + NL;
+}
