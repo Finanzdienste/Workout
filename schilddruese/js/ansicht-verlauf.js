@@ -15,6 +15,7 @@ import { datumKurz, datumInWorten, tageWeiter, zahlText, uhrText, relativ } from
 import { esc, mehrzahl } from './text.js';
 import * as sp from './speicher.js';
 import { verlaufslinie } from './diagramm.js';
+import { befundBlock } from './ansicht-einschaetzung.js';
 
 const WT_KOPF = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -43,6 +44,8 @@ function laborKarten(labor, alle = false) {
           <span class="gedaempft klein">${sp.tagesdosis(dosis) !== null ? `Dosis damals ${esc(zahlText(sp.tagesdosis(dosis), 1))} µg am Tag` : ''}</span>
         </div>
         ${werte}
+        ${befundBlock(l, sp.getStand(), { kurz: !alle })}
+        ${weitereWerte(l)}
         ${alle && l.notiz ? `<p class="klein gedaempft">${esc(l.notiz)}</p>` : ''}
         ${alle ? `<button type="button" class="knopf knopf-klein" data-act="seite" data-seite="labor" data-param="${esc(l.id)}" aria-label="Laborwerte vom ${esc(datumKurz(l.datum))} ändern" style="margin-top:.4rem">Ändern</button>` : ''}
       </div>`;
@@ -55,6 +58,17 @@ function laborKarten(labor, alle = false) {
  * läge weit unter dem Streifen – das würde als „zu niedrig" gelesen.
  * Einheiten werden dabei ohne Groß-/Kleinschreibung verglichen (ng/dl, ng/dL).
  */
+/** Die weiteren Werte eines Befunds, eingeordnet nur gegen den Bereich vom Befund. */
+function weitereWerte(l) {
+  const da = sp.WEITERE_WERTE.filter(([k]) => l[k]);
+  if (!da.length) return '';
+  return `<div class="weitere-werte">${da.map(([k, name]) => {
+    const w = l[k];
+    const lage = w.von === null ? '' : w.wert < w.von ? 'unter dem Bereich' : w.wert > w.bis ? 'über dem Bereich' : 'im Bereich';
+    return `<div class="befund-wert"><b>${esc(name)}</b><span class="zahl">${esc(zahlText(w.wert))} ${esc(w.einheit)}</span>${lage ? `<span class="lage lage-${lage.startsWith('im') ? 'im' : 'ueber'}">${lage}</span>` : ''}</div>`;
+  }).join('')}</div>`;
+}
+
 function laborDiagramm(labor, key, name) {
   const mitWert = labor.filter((l) => l[key]);
   if (mitWert.length < 2) return '';
@@ -114,6 +128,7 @@ export function verlaufAnsicht(stand, heute) {
       <div class="knopf-reihe">
         <button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="labor">Laborwerte eintragen</button>
         ${labor.length ? `<button type="button" class="knopf" data-act="seite" data-seite="labor-liste">${labor.length > 3 ? 'Alle anzeigen' : 'Ändern'}</button>` : ''}
+        ${labor.length ? '<button type="button" class="knopf" data-act="seite" data-seite="gesamtbild">Einschätzung</button>' : ''}
       </div>
     </div>
 

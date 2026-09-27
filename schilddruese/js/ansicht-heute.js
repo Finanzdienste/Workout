@@ -10,6 +10,7 @@
  */
 import { datumInWorten, tageWeiter, uhrText, relativ, tageZwischen } from './datum.js';
 import { esc } from './text.js';
+import { heuteHinweise } from './ansicht-einschaetzung.js';
 import {
   dosisText, aktuelleDosis, naechsteDosis, einnahme, naechsterTermin, vorratReicht, zaehltAb,
 } from './speicher.js';
@@ -122,6 +123,8 @@ function hinweise(stand, heute) {
       </div>`);
   }
 
+  teile.push(heuteHinweise(stand, heute));
+
   const reicht = vorratReicht(heute);
   if (reicht !== null && reicht <= 14) {
     teile.push(`
@@ -144,6 +147,7 @@ function befinden(stand, heute) {
         ${STUFEN.map(([id, name]) => `<button type="button" class="knopf" data-act="befinden" data-stufe="${id}" aria-pressed="${gewaehlt === id}">${name}</button>`).join('')}
       </div>
       <p class="klein gedaempft" style="margin-top:.6rem">
+        <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="warnzeichen" style="margin:.2rem 0 .4rem">Geht es Ihnen gerade schlecht? Warnzeichen prüfen</button><br>
         ${eintrag
     ? `Eingetragen${eintrag.beschwerden.length ? ` · ${eintrag.beschwerden.length} ${eintrag.beschwerden.length === 1 ? 'Beschwerde' : 'Beschwerden'}` : ''}. <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="befinden" data-param="${esc(eintrag.id)}">Beschwerden angeben</button>`
     : 'Freiwillig. Beschwerden lassen sich danach genauer angeben.'}

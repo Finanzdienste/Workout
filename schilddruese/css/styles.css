@@ -473,3 +473,39 @@ table.werte td.zahl, table.werte th.zahl { text-align: right; }
 .tag.nein { background: var(--gefahr-hell); border-color: var(--gefahr); color: var(--gefahr); }
 .tag.offen { border: 2px dashed var(--linie); color: var(--gedaempft); }
 .tag.leer { background: transparent; color: var(--gedaempft); opacity: .6; }
+
+/* ---------- Einschätzung ----------
+   Die Aussage steht immer in Worten; die Farbe des Rands kommt nur dazu. */
+.einschaetzung {
+  margin-top: .6rem;
+  padding: .6rem .8rem;
+  border-left: 4px solid var(--akzent);
+  background: var(--akzent-hell);
+  border-radius: 0 12px 12px 0;
+}
+.einschaetzung.ok { border-left-color: var(--ok); background: var(--ok-hell); }
+.einschaetzung.warn { border-left-color: var(--warn); background: var(--warn-hell); }
+.einschaetzung.gefahr { border-left-color: var(--gefahr); background: var(--gefahr-hell); }
+.einschaetzung-titel { font-weight: 800; }
+.einschaetzung-was { font-weight: 600; margin-top: .2rem; }
+.einschaetzung ul { padding-left: 1.1rem; margin: .2rem 0 .4rem; }
+.lage { font-size: .85rem; font-weight: 700; white-space: nowrap; }
+.lage-ueber, .lage-unter { color: var(--warn); }
+.lage-im { color: var(--ok); }
+.lage-keine { color: var(--gedaempft); }
+.befund-wert .lage { margin-left: .5rem; }
+
+/* Weitere Werte im Laborformular: aufklappbar, damit das Formular für den
+   üblichen Fall (TSH, fT4) kurz bleibt. */
+details.weitere { margin: 0 0 .9rem; }
+details.weitere > summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: .7rem .9rem;
+  border: 2px solid var(--linie);
+  border-radius: 12px;
+  background: var(--karte);
+  min-height: 2.9rem;
+}
+details.weitere[open] > summary { margin-bottom: .6rem; }
+.weitere-werte { margin-top: .5rem; padding-top: .4rem; border-top: 1px dashed var(--linie); }

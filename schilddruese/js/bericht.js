@@ -13,6 +13,7 @@
 import { datumKurz, zahlText, tageWeiter, uhrText } from './datum.js';
 import * as sp from './speicher.js';
 import { mehrzahl } from './text.js';
+import * as ez from './einschaetzung.js';
 
 function stufeText(s) {
   return { gut: 'gut', mittel: 'mittel', schlecht: 'schlecht' }[s] || s;
@@ -60,7 +61,7 @@ export function berichtText(stand, heute) {
   if (labor.length) {
     labor.forEach((l) => {
       const d = sp.dosisAm(l.datum);
-      const werte = sp.LABORWERTE.filter(([k]) => l[k]).map(([k, name]) => {
+      const werte = [...sp.LABORWERTE, ...sp.WEITERE_WERTE].filter(([k]) => l[k]).map(([k, name]) => {
         const w = l[k];
         return `${name} ${zahlText(w.wert)} ${w.einheit}${w.von !== null ? ` (Labor ${zahlText(w.von)}–${zahlText(w.bis)})` : ''}`;
       });
@@ -112,6 +113,24 @@ export function berichtText(stand, heute) {
   }
   z.push('');
 
+  // Einschätzung der App
+  const letzter = ez.letzterBefund(stand);
+  const beschwerden = ez.beschwerdenMuster(stand, heute);
+  if (letzter || beschwerden.richtung) {
+    z.push('EINSCHÄTZUNG DER APP (automatisch nach festen Regeln, ersetzt keine ärztliche Beurteilung)');
+    if (letzter) {
+      const e = letzter.einschaetzung;
+      z.push(`Befund ${datumKurz(letzter.befund.datum)}: ${e.titel} ${ez.STUFEN[e.dringlichkeit].text}`);
+      e.zusaetze.forEach((x) => z.push(`– ${x}`));
+      e.erklaerungen.forEach((x) => z.push(`– Mögliche Erklärung: ${x}`));
+      if (e.verlauf) z.push(`– ${e.verlauf}`);
+    }
+    const dosis = ez.dosisRichtung(stand, heute);
+    if (dosis) z.push(`Dosis: ${dosis.titel}${dosis.gruende.length ? ` ${dosis.gruende.join(' ')}` : ''}`);
+    if (beschwerden.text && beschwerden.eintraege) z.push(`Beschwerden: ${beschwerden.text}${beschwerden.abgleich ? ` ${beschwerden.abgleich}` : ''}`);
+    z.push('');
+  }
+
   // Fragen
   const fragen = stand.fragen.filter((f) => !f.erledigt);
   if (fragen.length) {
@@ -120,6 +139,6 @@ export function berichtText(stand, heute) {
     z.push('');
   }
 
-  z.push('Aufgezeichnet mit der App „Schilddrüse". Die App bewertet keine Werte und ersetzt keine ärztliche Beratung.');
+  z.push('Aufgezeichnet mit der App „Schilddrüse". Ihre Einordnung folgt festen Regeln, ersetzt keine ärztliche Beratung und nennt keine Dosis.');
   return z.join('\n');
 }

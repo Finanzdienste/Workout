@@ -17,7 +17,7 @@
  * auf ein altes app.js.
  */
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `schilddruese-${VERSION}`;
 
 const SHELL = [
@@ -37,6 +37,8 @@ const SHELL = [
   './js/ansicht-mehr.js',
   './js/ansicht-formulare.js',
   './js/ansicht-willkommen.js',
+  './js/einschaetzung.js',
+  './js/ansicht-einschaetzung.js',
   './icon.svg',
   './icon-192.png',
   './icon-512.png',

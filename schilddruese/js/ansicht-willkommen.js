@@ -32,7 +32,7 @@ export function willkommenAnsicht(schritt, stand, heute) {
           </ul>
           <p>Alles bleibt auf diesem Handy. Kein Konto, kein Internet nötig.</p>
         </div>
-        <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Die App stellt keine Diagnose, bewertet keine Werte und empfiehlt keine Dosis. Das bleibt bei Ihrer Ärztin oder Ihrem Arzt.</div></div>
+        <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Die App ordnet Ihre Laborwerte und Beschwerden ein und sagt, ob ein Wert eher für mehr oder weniger Tablette spricht. Sie ersetzt keinen Arztbesuch: Vor jeder Änderung der Dosis bitte kurz die Praxis anrufen.</div></div>
         <label class="feld"><span>Wie dürfen wir Sie ansprechen? (freiwillig)</span>
           <input type="text" name="name" value="${esc(stand.profil.name)}" placeholder="z. B. Frau Müller oder Vorname" autocomplete="off">
         </label>

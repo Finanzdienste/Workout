@@ -19,6 +19,8 @@ import { heuteAnsicht } from './ansicht-heute.js';
 import { verlaufAnsicht, verlaufSeite } from './ansicht-verlauf.js';
 import { mehrAnsicht, mehrSeite } from './ansicht-mehr.js';
 import { formular, absenden, eintragLoeschen } from './ansicht-formulare.js';
+import { einschaetzungSeite } from './ansicht-einschaetzung.js';
+import { fragenVorschlaege } from './einschaetzung.js';
 import { willkommenAnsicht, willkommenWeiter, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
 import { berichtText } from './bericht.js';
 import { erinnerungICS, terminICS } from './ics.js';
@@ -84,6 +86,7 @@ function seiteInhalt(seite, stand, heute) {
   return formular(seite.name, seite.param, stand, heute)
     || verlaufSeite(seite.name, seite.param, stand, heute)
     || mehrSeite(seite.name, seite.param, stand, heute)
+    || einschaetzungSeite(seite.name, seite.param, stand, heute)
     || { titel: 'Nicht gefunden', html: '<div class="karte"><p>Diese Seite gibt es nicht.</p></div>' };
 }
 
@@ -390,6 +393,12 @@ function aktion(el) {
         if (f) f.erledigt = !f.erledigt;
       });
       render();
+      break;
+    }
+    case 'fragen-uebernehmen': {
+      const neu = fragenVorschlaege(stand, heute).filter((t) => !stand.fragen.some((f) => f.text === t));
+      sp.aendern((s) => { neu.forEach((t) => s.fragen.push({ id: sp.kennung(), text: t, erledigt: false })); });
+      meldung(neu.length ? `${neu.length === 1 ? 'Eine Frage' : `${neu.length} Fragen`} zu „Meine Fragen" hinzugefügt` : 'Die Fragen stehen schon unter „Meine Fragen"');
       break;
     }
     case 'frage-loeschen':

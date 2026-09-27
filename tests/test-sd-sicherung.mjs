@@ -22,7 +22,15 @@ const stand = standMit(plus(TAG, -40), {
 });
 
 const { page, check, dialoge, gespeichert, ende } = await oeffne({ tag: TAG, stand });
-const vergleich = (s) => JSON.stringify({ d: s.dosen, e: s.einnahmen, l: s.labor, f: s.fragen, n: s.profil.name });
+// Verglichen wird der Inhalt, nicht die Form: Beim ersten Speichern ergänzt
+// die App neue Felder (Fassung 2), die im vorbelegten Stand noch fehlen.
+const vergleich = (s) => JSON.stringify({
+  d: s.dosen.map((x) => [x.ab, x.mikrogramm, x.tabletten]),
+  e: s.einnahmen,
+  l: s.labor.map((x) => [x.datum, x.tsh && x.tsh.wert, x.tsh && x.tsh.von, x.tsh && x.tsh.bis]),
+  f: s.fragen.map((x) => [x.text, x.erledigt]),
+  n: s.profil.name,
+});
 const vorher = await gespeichert();
 
 // Speichern.
@@ -34,7 +42,7 @@ check(download.suggestedFilename() === `schilddruese-sicherung-${TAG}.json`, `Da
 const datei = path.join(ABLAGE, 'sd-sicherung.json');
 await download.saveAs(datei);
 const inhalt = JSON.parse(readFileSync(datei, 'utf8'));
-check(inhalt.app === 'schilddruese' && inhalt.version === 1, 'die Datei trägt App-Namen und Version');
+check(inhalt.app === 'schilddruese' && inhalt.version === 2, 'die Datei trägt App-Namen und Version');
 check(vergleich(inhalt) === vergleich(vorher), 'die Datei enthält Dosis, Einnahmen, Laborwerte und Fragen');
 let s = await gespeichert();
 check(s.letzteSicherung === TAG, 'das Datum der letzten Sicherung wird gemerkt');
@@ -61,7 +69,7 @@ writeFileSync(fremd, JSON.stringify({ mode: 'db', log: {}, rounds: [] }));
 const kaputt = path.join(ABLAGE, 'sd-kaputt.json');
 writeFileSync(kaputt, '{ das ist kein JSON');
 const neuer = path.join(ABLAGE, 'sd-neuer.json');
-writeFileSync(neuer, JSON.stringify({ ...inhalt, version: 2 }));
+writeFileSync(neuer, JSON.stringify({ ...inhalt, version: 99 }));
 
 await page.click('#reiter-mehr');
 await page.click('[data-seite="sicherung"]');
@@ -91,7 +99,7 @@ s = await gespeichert();
 check(vergleich(s) === vergleich(mitHaken), '„Stand vor dem Einlesen zurückholen" bringt den heutigen Haken wieder');
 
 // Ein Stand aus einer neueren Fassung im Speicher: wird nie überschrieben.
-await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ version: 2, neu: 'nicht anfassen' })), SCHLUESSEL);
+await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ version: 99, neu: 'nicht anfassen' })), SCHLUESSEL);
 await page.reload({ waitUntil: 'networkidle' });
 check((await ansichtText(page)).includes('neueren Fassung'), 'Daten aus einer neueren Fassung: die App warnt');
 const knopf = page.locator('[data-act="willkommen-weiter"], [data-act="tablette"]').first();

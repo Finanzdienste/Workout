@@ -28,10 +28,10 @@ check(/4 Stunden/.test(alles) && /Kalzium/.test(alles) && /Eisen/.test(alles), '
 check(/Biotin/.test(alles), 'Biotin vor der Blutabnahme');
 check(/6 bis 8 Wochen/.test(alles), 'Kontrolle 6 bis 8 Wochen nach Dosisänderung');
 check(/erst <strong>nach<\/strong> der Abnahme|erst nach der Abnahme/.test(kapitel.map((k) => k.html).join('')), 'Tablette am Tag der Blutabnahme meist erst danach');
-check(/keine Normwerte vor/.test(alles), 'Laborwerte: die App gibt keine Normwerte vor');
+check(/Bereich von Ihrem Befund/.test(alles) && /Orientierungswerte/.test(alles), 'Laborwerte: Bereich vom Befund, sonst ausdrücklich Orientierungswerte');
 check(/Vorhofflimmern/.test(alles) && /Knochenschwund/.test(alles), 'Risiko von zu viel Hormon wird genannt');
 check(/kein Mittel zum Abnehmen/.test(alles), 'L-Thyroxin ist kein Mittel zum Abnehmen');
-check(/keine Dosis/.test(alles) && /kein Medizinprodukt/.test(alles), '„Über die App": keine Dosis, kein Medizinprodukt');
+check(/rechnet keine neue Dosis/.test(alles) && /ersetzt keinen Arztbesuch/.test(alles) && /kein Medizinprodukt/.test(alles), '„Über die App": keine neue Dosis, kein Arztersatz, kein Medizinprodukt');
 
 // Alle Kapitel öffnen sich; jedes verweist auf die Ärztin.
 for (const k of kapitel) {

@@ -61,7 +61,7 @@ check(text.includes('müde, erschöpft (2×)'), 'häufigste Beschwerde mit Anzah
 check(text.includes('Kann die Müdigkeit an der Dosis liegen?'), 'offene Frage steht drin');
 check(!text.includes('schon besprochene'), 'besprochene Frage nicht');
 check(!/zu hoch|zu niedrig|erhöht|auffällig|undefined|NaN|null|Tag\(e\)/.test(text), 'keine Bewertung und kein Rechenrest (undefined, NaN, „Tag(e)")');
-check(text.includes('bewertet keine Werte'), 'am Ende der Hinweis, dass die App nichts bewertet');
+check(text.includes('ersetzt keine ärztliche Beratung'), 'am Ende der Hinweis, dass die Einordnung keine ärztliche Beratung ersetzt');
 
 // Kopieren landet in der Zwischenablage.
 await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);

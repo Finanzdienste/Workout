@@ -114,8 +114,8 @@ function dosisAbsenden(id, f, heute) {
 function laborFormular(id, stand, heute) {
   const da = id ? stand.labor.find((l) => l.id === id) : null;
   const letzter = stand.labor.length ? stand.labor[stand.labor.length - 1] : null;
-  const l = da || { datum: heute, tsh: null, ft4: null, ft3: null, notiz: '' };
-  const werte = sp.LABORWERTE.map(([key, name, einheiten]) => {
+  const l = da || { datum: heute, tsh: null, ft4: null, ft3: null, notiz: '', vorAbnahme: null, biotin: false };
+  const karte = ([key, name, einheiten]) => {
     const w = l[key];
     // Die Einheit vom letzten Mal vorbelegen (sichtbar, zum Bestätigen), den
     // Bereich aber nicht: Kommt der Befund von einem anderen Labor, stünde
@@ -134,7 +134,7 @@ function laborFormular(id, stand, heute) {
             ${[...new Set([...einheiten, einheit].filter(Boolean))].map((e) => `<option value="${esc(e)}" ${e === einheit ? 'selected' : ''}>${esc(e)}</option>`).join('')}
           </select>
         </div>
-        ${feldZahl(`${key}_wert`, w ? w.wert : null, 'Wert', { platzhalter: key === 'tsh' ? 'z. B. 2,1' : 'z. B. 15,2' })}
+        ${feldZahl(`${key}_wert`, w ? w.wert : null, 'Wert', { platzhalter: key === 'tsh' ? 'z. B. 2,1' : key === 'ft4' || key === 'ft3' ? 'z. B. 15,2' : 'vom Befund' })}
         <div class="feld" data-feld="${key}_von"><span>Bereich laut Befund</span>
           <div class="bereich-reihe">
             <input type="text" inputmode="decimal" name="${key}_von" value="${esc(zahlFeld(vorlage ? vorlage.von : null))}" placeholder="${esc(platzVon)}" aria-label="${name}: Bereich von" autocomplete="off">
@@ -143,7 +143,15 @@ function laborFormular(id, stand, heute) {
           </div>
         </div>
       </div>`;
-  }).join('');
+  };
+  const werte = sp.LABORWERTE.map(karte).join('');
+  const weitereDa = sp.WEITERE_WERTE.some(([k]) => l[k]);
+  const weitere = `
+    <details class="weitere" ${weitereDa ? 'open' : ''}>
+      <summary>Weitere Werte (freiwillig): Cholesterin, Blutzucker, B12, Eisen, Vitamin D</summary>
+      <p class="klein gedaempft" style="margin:.4rem 0 .6rem">Stehen sie auf demselben Befund, gleich mit abschreiben – sie kommen dann mit in den Bericht.</p>
+      ${sp.WEITERE_WERTE.map(karte).join('')}
+    </details>`;
   return {
     titel: da ? 'Laborwert ändern' : 'Laborwerte eintragen',
     html: `
@@ -151,7 +159,13 @@ function laborFormular(id, stand, heute) {
         <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Vom Befund abschreiben, so wie es dort steht – auch die Einheit und den Bereich des Labors, denn jedes Labor hat eigene Grenzen. Nicht jeder Wert ist jedes Mal dabei; leere Felder sind in Ordnung.</div></div>
         ${feldDatum('datum', l.datum, 'Datum der Blutabnahme')}
         ${werte}
-        ${feldText('notiz', l.notiz, 'Notiz (freiwillig)', { platzhalter: 'z. B. Tablette erst nach der Abnahme genommen', lang: true })}
+        ${weitere}
+        <div class="feld"><span>Am Tag der Blutabnahme</span>
+          <label class="haken" style="margin:.2rem 0 .5rem"><input type="checkbox" name="vorAbnahme" ${l.vorAbnahme ? 'checked' : ''}>Tablette schon <strong>vor</strong> der Abnahme genommen</label>
+          <label class="haken"><input type="checkbox" name="biotin" ${l.biotin ? 'checked' : ''}>In den Tagen davor Biotin genommen (Haar-, Haut-, Nägel-Mittel)</label>
+          <span class="hinweis">Beides verändert, wie die Werte zu lesen sind – die Einschätzung berücksichtigt es.</span>
+        </div>
+        ${feldText('notiz', l.notiz, 'Notiz (freiwillig)', { platzhalter: 'z. B. anderes Labor als sonst', lang: true })}
         ${fuss('labor', id)}
       </form>`,
   };
@@ -162,9 +176,14 @@ function laborAbsenden(id, f, heute) {
   const datum = f.get('datum');
   if (!istISO(datum)) fehler.datum = 'Bitte ein Datum wählen.';
   else if (datum > heute) fehler.datum = 'Das Datum liegt in der Zukunft.';
-  const eintrag = { datum, notiz: String(f.get('notiz') || '').trim().slice(0, 300) };
+  const eintrag = {
+    datum,
+    notiz: String(f.get('notiz') || '').trim().slice(0, 300),
+    vorAbnahme: f.get('vorAbnahme') === 'on',
+    biotin: f.get('biotin') === 'on',
+  };
   let einer = false;
-  sp.LABORWERTE.forEach(([key, name]) => {
+  [...sp.LABORWERTE, ...sp.WEITERE_WERTE].forEach(([key, name]) => {
     const rohWert = String(f.get(`${key}_wert`) || '').trim();
     const wert = zahlAus(rohWert);
     const von = zahlAus(f.get(`${key}_von`));
@@ -424,6 +443,54 @@ function einnahmeAbsenden(id, f, heute) {
   return { ok: true, meldung: 'Einnahme nachgetragen', danach: { name: 'einnahmen-liste' } };
 }
 
+// ---------------------------------------------------------------- Über mich
+
+function profilFormular(id, stand, heute) {
+  const p = stand.profil;
+  return {
+    titel: 'Über mich & weitere Mittel',
+    html: `
+      <form data-formular="profil" novalidate>
+        <p class="gedaempft" style="margin-bottom:.9rem">Alles freiwillig. Je mehr hier steht, desto genauer kann die App Ihre Werte und Beschwerden einordnen – und desto genauer sagt sie, was wann Abstand zur Tablette braucht.</p>
+        <label class="feld"><span>Geburtsjahr</span>
+          <input type="text" inputmode="numeric" name="geburtsjahr" value="${esc(p.geburtsjahr ? String(p.geburtsjahr) : '')}" placeholder="z. B. 1952" autocomplete="off">
+          <span class="hinweis">Im Alter gelten für TSH oft andere Zielwerte.</span>
+        </label>
+        <label class="feld"><span>Ursache der Unterfunktion</span>
+          <select name="ursache">${sp.URSACHEN.map(([k, t]) => `<option value="${k}" ${p.ursache === k ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+        </label>
+        <label class="feld"><span>Herzkrankheit (z. B. Herzrhythmusstörung, Herzschwäche, verengte Herzkranzgefäße)?</span>
+          <select name="herz">
+            ${[['', 'bitte wählen'], ['nein', 'nein'], ['ja', 'ja'], ['unbekannt', 'weiß ich nicht']].map(([k, t]) => `<option value="${k}" ${p.herz === k ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </label>
+        <div class="feld"><span id="frage-mittel">Was nehmen Sie sonst noch regelmäßig?</span>
+          <div class="haken-liste" role="group" aria-labelledby="frage-mittel">
+            ${sp.MITTEL.map(([k, t]) => `<label class="haken"><input type="checkbox" name="mittel" value="${k}" ${stand.mittel.includes(k) ? 'checked' : ''}>${esc(t)}</label>`).join('')}
+          </div>
+          <span class="hinweis">Die App sagt dann unter „Mehr → Was braucht Abstand?", ab welcher Uhrzeit was in Ordnung ist.</span>
+        </div>
+        ${fuss('profil', null, { loeschen: false })}
+      </form>`,
+  };
+}
+
+function profilAbsenden(id, f, heute) {
+  const roh = String(f.get('geburtsjahr') || '').trim();
+  const jahr = zahlAus(roh);
+  const jetzt = Number(heute.slice(0, 4));
+  if (roh && (jahr === null || !Number.isInteger(jahr) || jahr < 1900 || jahr > jetzt - 10)) {
+    return { ok: false, fehler: { geburtsjahr: 'Bitte das Geburtsjahr vierstellig eintragen, z. B. 1952 – oder leer lassen.' } };
+  }
+  sp.aendern((s) => {
+    s.profil.geburtsjahr = jahr;
+    s.profil.ursache = sp.URSACHEN.some(([k]) => k === f.get('ursache')) ? f.get('ursache') : '';
+    s.profil.herz = ['ja', 'nein', 'unbekannt', ''].includes(f.get('herz')) ? f.get('herz') : '';
+    s.mittel = f.getAll('mittel').filter((k) => sp.MITTEL.some(([m]) => m === k));
+  });
+  return { ok: true, meldung: 'Gespeichert' };
+}
+
 // ---------------------------------------------------------------- Anrede
 
 function anredeAbsenden(id, f) {
@@ -438,6 +505,14 @@ const FORMULARE = {
   // Die Anrede steht als Formular auf der Seite „Darstellung" (js/ansicht-mehr.js)
   // und hat deshalb keine eigene Seite – nur das Absenden.
   anrede: [() => null, anredeAbsenden],
+  profil: [profilFormular, profilAbsenden],
+  // Der Warnzeichen-Check hat seine Seite in js/ansicht-einschaetzung.js;
+  // hier nur das Auswerten – es wird nichts gespeichert.
+  warnzeichen: [() => null, (id, f) => ({
+    ok: true,
+    meldung: 'Ausgewertet',
+    danach: { name: 'warnzeichen-ergebnis', param: f.getAll('warn').join(',') || '-' },
+  })],
   dosis: [dosisFormular, dosisAbsenden],
   labor: [laborFormular, laborAbsenden],
   gewicht: [gewichtFormular, gewichtAbsenden],

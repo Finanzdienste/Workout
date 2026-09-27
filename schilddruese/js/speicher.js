@@ -19,7 +19,15 @@
 import { heuteISO, istISO, istUhr, zahlAus } from './datum.js';
 
 export const SCHLUESSEL = 'schilddruese.stand.v1';
-export const VERSION = 1;
+/*
+ * Fassung 2 (Einschätzung): Profil mit Geburtsjahr, Ursache und Herz, die
+ * Liste weiterer Mittel, und je Befund, ob die Tablette vor der Abnahme
+ * genommen wurde und ob Biotin im Spiel war. Alles nur Ergänzungen – ein
+ * Stand der Fassung 1 wird beim Lesen einfach ergänzt. Hochgezählt, damit
+ * eine noch zwischengespeicherte ältere App diese Felder nicht beim nächsten
+ * Speichern stillschweigend verwirft (siehe neuererStand).
+ */
+export const VERSION = 2;
 
 function tageWeiterLokal(iso, n) {
   const d = new Date(`${iso}T12:00:00`);
@@ -48,6 +56,55 @@ export const BESCHWERDEN = [
   ['schmerzen', 'Muskel- oder Gelenkschmerzen'],
 ];
 
+/*
+ * Weitere Mittel, die mit L-Thyroxin zusammenspielen. Schlüssel, Name, und in
+ * welcher Weise – die Regeln dazu stehen in js/einschaetzung.js.
+ */
+export const MITTEL = [
+  ['kalzium', 'Kalzium (auch mit Vitamin D)'],
+  ['eisen', 'Eisen'],
+  ['magnesium', 'Magnesium'],
+  ['multimineral', 'Multivitamin mit Mineralien'],
+  ['antazida', 'Mittel gegen Sodbrennen (Antazida, z. B. Maaloxan, Rennie)'],
+  ['ppi', 'Magenschutz (z. B. Pantoprazol, Omeprazol)'],
+  ['sucralfat', 'Sucralfat'],
+  ['soja', 'Sojaprodukte (Sojamilch, Tofu)'],
+  ['ballaststoffe', 'Ballaststoff-Präparat (Flohsamen, Leinsamen, Kleie)'],
+  ['colestyramin', 'Colestyramin (gegen Cholesterin oder Gallensäure)'],
+  ['kaffee', 'Kaffee oder Tee am Morgen'],
+  ['oestrogen', 'Östrogen (Hormonersatz, Pille)'],
+  ['biotin', 'Biotin (Haar-, Haut- und Nägel-Mittel)'],
+  ['marcumar', 'Blutverdünner Marcumar / Phenprocoumon'],
+  ['diabetes', 'Diabetes-Tabletten oder Insulin'],
+  ['amiodaron', 'Amiodaron (Herzrhythmus)'],
+  ['jod', 'Jodtabletten, Algen, Kelp'],
+  ['bisphosphonat', 'Knochenmittel zum Nüchtern-Einnehmen (z. B. Alendronat)'],
+  ['selen', 'Selen'],
+];
+
+export const URSACHEN = [
+  ['', 'bitte wählen'],
+  ['hashimoto', 'Hashimoto'],
+  ['op', 'Schilddrüse (ganz oder teilweise) entfernt'],
+  ['radiojod', 'nach Radiojod-Behandlung'],
+  ['andere', 'andere Ursache'],
+  ['unbekannt', 'weiß ich nicht'],
+];
+
+/*
+ * Weitere Werte, die bei Schilddrüsenunterfunktion oft mitbestimmt werden:
+ * Cholesterin steigt bei Unterversorgung, der Blutzucker verschiebt sich bei
+ * Dosisänderungen, und bei Hashimoto kommen B12- und Eisenmangel häufiger
+ * vor. Freiwillig; eingeordnet wird nur gegen den Bereich vom Befund.
+ */
+export const WEITERE_WERTE = [
+  ['ldl', 'LDL-Cholesterin', ['mg/dl', 'mmol/l']],
+  ['hba1c', 'HbA1c (Langzeit-Blutzucker)', ['%', 'mmol/mol']],
+  ['b12', 'Vitamin B12', ['pg/ml', 'pmol/l']],
+  ['ferritin', 'Ferritin (Eisenspeicher)', ['ng/ml', 'µg/l']],
+  ['vitd', 'Vitamin D (25-OH)', ['ng/ml', 'nmol/l']],
+];
+
 export const LABORWERTE = [
   // Schlüssel, Name, übliche Einheiten (die erste ist vorbelegt)
   ['tsh', 'TSH', ['mU/l', 'µU/ml']],
@@ -65,7 +122,15 @@ function leererStand() {
       // Einträge, weil es die App nicht gab – die Tage zählen deshalb nicht
       // als „ohne Eintrag", auch wenn die Dosis schon seit Jahren gilt.
       seit: null,
+      // Für die Einschätzung, alles freiwillig: Im Alter gelten oft andere
+      // Zielwerte, und ob eine Herzkrankheit besteht, ändert, wie dringend
+      // „zu viel Hormon" ist.
+      geburtsjahr: null,
+      ursache: '',          // siehe URSACHEN
+      herz: '',             // ja | nein | unbekannt | '' (nicht angegeben)
     },
+    // Weitere Mittel als Schlüssel aus MITTEL.
+    mittel: [],
     einstellungen: {
       erinnerung: '07:00',  // Uhrzeit der Tablette – Hinweis in der App und Kalenderdatei
       schrift: 'gross',     // normal | gross | sehr-gross
@@ -154,6 +219,11 @@ export function normStand(roh) {
   s.profil.name = text(p.name, 60);
   s.profil.begruesst = bool(p.begruesst);
   s.profil.seit = istISO(p.seit) ? p.seit : null;
+  const jahr = zahlAus(p.geburtsjahr);
+  s.profil.geburtsjahr = jahr !== null && Number.isInteger(jahr) && jahr >= 1900 && jahr <= 2020 ? jahr : null;
+  s.profil.ursache = wahl(p.ursache, URSACHEN.map(([k]) => k), '');
+  s.profil.herz = wahl(p.herz, ['ja', 'nein', 'unbekannt', ''], '');
+  s.mittel = Array.isArray(roh.mittel) ? [...new Set(roh.mittel.filter((k) => MITTEL.some(([m]) => m === k)))] : [];
   const e = roh.einstellungen || {};
   s.einstellungen.erinnerung = istUhr(e.erinnerung) ? e.erinnerung : '07:00';
   s.einstellungen.schrift = wahl(e.schrift, ['normal', 'gross', 'sehr-gross'], 'gross');
@@ -180,8 +250,15 @@ export function normStand(roh) {
   }
 
   s.labor = liste(roh.labor, (l) => {
-    const eintrag = { datum: l.datum, tsh: normWert(l.tsh), ft4: normWert(l.ft4), ft3: normWert(l.ft3), notiz: text(l.notiz, 300) };
-    return eintrag.tsh || eintrag.ft4 || eintrag.ft3 ? eintrag : null;
+    const eintrag = {
+      datum: l.datum, tsh: normWert(l.tsh), ft4: normWert(l.ft4), ft3: normWert(l.ft3), notiz: text(l.notiz, 300),
+      ...Object.fromEntries(WEITERE_WERTE.map(([k]) => [k, normWert(l[k])])),
+      // Tablette am Tag der Abnahme schon vorher genommen: true, false oder
+      // null (nicht angegeben). Biotin in den Tagen davor: true/false.
+      vorAbnahme: typeof l.vorAbnahme === 'boolean' ? l.vorAbnahme : null,
+      biotin: bool(l.biotin),
+    };
+    return [...LABORWERTE, ...WEITERE_WERTE].some(([k]) => eintrag[k]) ? eintrag : null;
   }).sort((a, b) => a.datum.localeCompare(b.datum));
 
   s.befinden = liste(roh.befinden, (b) => ({
@@ -455,6 +532,12 @@ export function einnahmeBilanz(tage = 28, bis = heuteISO()) {
     else bilanz.unbekannt++;
   }
   return bilanz;
+}
+
+/** Alter in ganzen Jahren am Tag `tag` (nur aus dem Jahr, also ± 1) – oder null. */
+export function alter(tag = heuteISO()) {
+  const j = stand.profil.geburtsjahr;
+  return j ? Number(tag.slice(0, 4)) - j : null;
 }
 
 /** Der nächste Termin ab heute, oder null. */

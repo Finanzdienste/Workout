@@ -29,6 +29,14 @@ export function mehrAnsicht(stand, heute) {
   const termin = sp.naechsterTermin(heute);
   const reicht = sp.vorratReicht(heute);
   return `
+    <h2 class="abschnitt">Einschätzung</h2>
+    <div class="zeilen">
+      ${zeile('gesamtbild', 'Was sagen meine Werte?', 'Laborwerte, Beschwerden und Einnahme eingeordnet', null, '🔎')}
+      ${zeile('warnzeichen', 'Warnzeichen prüfen', 'Geht es Ihnen gerade schlecht? In einer Minute wissen, was zu tun ist', null, '🚨')}
+      ${zeile('abstand', 'Was braucht Abstand?', stand.mittel.length ? `Uhrzeiten für ${mehrzahl(stand.mittel.length, 'Mittel', 'Mittel')}` : 'Kaffee, Kalzium, Eisen – ab wann in Ordnung', null, '⏱️')}
+      ${zeile('profil', 'Über mich & weitere Mittel', stand.profil.geburtsjahr || stand.mittel.length ? 'Angaben ändern' : 'Alter und weitere Mittel für genauere Einschätzungen', null, '👤')}
+    </div>
+
     <h2 class="abschnitt">Zum Arzttermin</h2>
     <div class="zeilen">
       ${zeile('bericht', 'Bericht für den Arzttermin', 'Dosis, Einnahmen, Laborwerte, Befinden – zum Zeigen oder Schicken', null, '📄')}

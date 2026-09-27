@@ -29,7 +29,7 @@ export const KAPITEL = [
       <p>Statt morgens geht auch abends vor dem Schlafengehen, mindestens 3, besser 4 Stunden nach der letzten Mahlzeit. Danach nichts mehr essen und außer Wasser nichts trinken. Das wirkt mindestens genauso gut.</p>
       <p>Ein Wechsel zwischen morgens und abends aber nur nach Absprache mit der Ärztin – und etwa 6 bis 8 Wochen danach die Blutwerte kontrollieren lassen.</p>
       <h2>Die Dosis</h2>
-      <p>Wie viel Sie nehmen, legt allein Ihre Ärztin oder Ihr Arzt fest. Auch das Weglassen oder Hinzunehmen einzelner Tabletten ist eine Dosisänderung.</p>
+      <p>Nach einem Laborwert sagt die App unter „Mehr → Was sagen meine Werte?", ob er eher für mehr, für weniger oder für die gleiche Dosis spricht. Die neue Menge legt die Ärztin fest – vor jeder Änderung bitte kurz die Praxis anrufen; die neue Stärke braucht ohnehin ein Rezept. Auch das Weglassen oder Hinzunehmen einzelner Tabletten ist eine Dosisänderung.</p>
       <h2>Aufbewahren</h2>
       <p>Trocken, vor Licht geschützt, nicht über 25 °C – also nicht im Badezimmer und nicht im Auto. Am besten in der Originalpackung.</p>`,
   },
@@ -89,8 +89,8 @@ export const KAPITEL = [
       <h2>fT3</h2>
       <p>fT3 ist die aktive Form, die der Körper aus T4 bildet. Einheiten: pmol/l oder pg/ml. Unter L-Thyroxin wird es zur Kontrolle meist nicht gebraucht; ein fT3 im unteren Bereich kommt dabei häufig vor.</p>
       <h2>Der Bereich des Labors</h2>
-      <p>Jedes Labor hat eigene Grenzen, je nach Messverfahren. Deshalb gibt diese App <strong>keine Normwerte vor</strong>, sondern übernimmt den Bereich, der auf Ihrem Befund steht. Im höheren Alter liegt die obere TSH-Grenze oft etwas höher, und bei älteren Menschen wird häufig bewusst ein etwas höherer TSH-Wert angestrebt, weil zu viel Hormon Herz und Knochen belastet. Den persönlichen Zielbereich legt die Ärztin fest.</p>
-      <div class="merke">Ein Wert außerhalb des Bereichs ist keine Aufforderung, selbst etwas zu ändern. Die Ärztin sieht ihn sich an und entscheidet – auch darüber, ob überhaupt etwas zu tun ist. Die App zeigt die Werte deshalb ohne Ampel und ohne „zu hoch" oder „zu niedrig".</div>
+      <p>Jedes Labor hat eigene Grenzen, je nach Messverfahren. Deshalb übernimmt die App den <strong>Bereich von Ihrem Befund</strong>. Fehlt er, nimmt sie übliche Orientierungswerte und sagt das ausdrücklich dazu. Im höheren Alter liegt die obere TSH-Grenze oft etwas höher, und bei älteren Menschen wird häufig bewusst ein etwas höherer TSH-Wert angestrebt, weil zu viel Hormon Herz und Knochen belastet. Den persönlichen Zielbereich legt die Ärztin fest.</p>
+      <div class="merke">Unter „Mehr → Was sagen meine Werte?" ordnet die App jeden Befund ein: über, im oder unter dem Bereich, welches Muster TSH und fT4 zusammen ergeben, wie dringend das ist und was in Ihren eigenen Einträgen eine Erklärung sein könnte. Ein Wert außerhalb des Bereichs ist trotzdem keine Aufforderung, sofort selbst etwas zu ändern – erst mit der Praxis sprechen.</div>
       <h2>Warum Werte schwanken</h2>
       <p>TSH ist nachts und früh morgens am höchsten, nachmittags am niedrigsten, und nach dem Essen etwas niedriger als nüchtern. Kleine Unterschiede zwischen zwei Messungen sind normal. Am besten immer unter gleichen Bedingungen abnehmen lassen: morgens, nüchtern.</p>
       <p>Wenig Aussagekraft hat ein einzelner Wert kurz nach einer Dosisänderung, während einer schweren Erkrankung oder unter Biotin.</p>`,
@@ -201,8 +201,8 @@ export const KAPITEL = [
     titel: 'Was diese App kann – und was nicht',
     kurz: 'Grenzen, Datenschutz, Sicherung',
     html: `
-      <p>Die App ist eine Alltagshilfe: Sie hilft beim Abhaken der Tablette, speichert Dosis, Laborwerte, Gewicht und Beschwerden und schreibt daraus einen Bericht für den Arzttermin.</p>
-      <div class="merke">Sie <strong>bewertet keine Werte</strong>, stellt <strong>keine Diagnose</strong>, empfiehlt oder berechnet <strong>keine Dosis</strong> und ersetzt keinen Arztbesuch. Sie ist kein Medizinprodukt.</div>
+      <p>Die App ist eine Alltagshilfe: Sie hilft beim Abhaken der Tablette, speichert Dosis, Laborwerte, Gewicht und Beschwerden, ordnet sie ein und schreibt daraus einen Bericht für den Arzttermin.</p>
+      <div class="merke">Sie <strong>ordnet Werte und Beschwerden nach festen Regeln ein</strong> und sagt, wohin sie deuten – auch, ob ein Laborwert eher für mehr oder weniger Tablette spricht. Sie <strong>rechnet keine neue Dosis</strong> aus und <strong>ersetzt keinen Arztbesuch</strong>: vor jeder Änderung kurz die Praxis anrufen. Die Regeln haben unabhängige Prüfer gegengelesen, aber keine Ärztin. Sie ist kein Medizinprodukt.</div>
       <h2>Ihre Daten</h2>
       <p>Alles, was Sie eintragen, bleibt <strong>nur auf diesem Handy</strong>, im Speicher des Browsers. Es gibt kein Konto und keinen Server, und nichts wird verschickt – außer Sie teilen selbst den Bericht oder eine Sicherung.</p>
       <p>Das heißt auch: Bei einem neuen Handy, beim Löschen der Browserdaten oder wenn der Browser aufräumt, sind die Daten weg. Deshalb ab und zu unter „Mehr → Sicherung" eine Sicherungsdatei speichern.</p>
