@@ -7,80 +7,59 @@
  * der Dosis, die damals galt – das ist die Zeile, die im Sprechzimmer sonst
  * mühsam aus der Akte zusammengesucht wird.
  *
- * Was hier nirgends steht: „zu hoch", „zu niedrig", eine Ampel. Der Bereich
- * des Labors wird gezeigt, wie er auf dem Befund steht; ob ein Wert für diese
- * Nutzerin richtig ist, entscheidet ihre Ärztin.
+ * Unter jedem Befund steht seine Einordnung (js/ansicht-einschaetzung.js):
+ * je Wert die Lage in Worten und woher der Bereich stammt, darunter – bei
+ * bestätigter Behandlung – Muster, Frist und mögliche Erklärungen. Eine
+ * Ampel ohne Worte gibt es nicht.
  */
 import { datumKurz, datumInWorten, tageWeiter, zahlText, uhrText, relativ } from './datum.js';
 import { esc, mehrzahl } from './text.js';
 import * as sp from './speicher.js';
+import * as ez from './einschaetzung.js';
+import { inStandard, grenzeInStandard, STANDARD } from './einheiten.js';
 import { verlaufslinie } from './diagramm.js';
-import { befundBlock } from './ansicht-einschaetzung.js';
+import { befundKarte, p6Karte } from './ansicht-einschaetzung.js';
 
 const WT_KOPF = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-function bereichText(w) {
-  return w && w.von !== null ? `Bereich ${zahlText(w.von)}–${zahlText(w.bis)}` : '';
-}
-
 /**
  * Die Laborwerte, neueste zuerst: je Befund eine Karte mit Datum, der damals
- * gültigen Dosis und je Wert einer Zeile samt Bereich des Labors.
- * `alle`: die vollständige Liste mit Knopf zum Ändern, sonst die letzten drei.
+ * gültigen Dosis, je Wert der Lage und der Einschätzung darunter.
+ * `alle`: die vollständige Liste mit Knopf zum Ändern. Sonst die letzten drei
+ * – der neueste ausführlich, die beiden davor kurz.
  */
-function laborKarten(labor, alle = false) {
-  const befunde = [...labor].reverse().slice(0, alle ? undefined : 3);
-  return befunde.map((l) => {
-    const dosis = sp.dosisAm(l.datum);
-    const werte = sp.LABORWERTE.filter(([k]) => l[k]).map(([k, name]) => `
-      <div class="befund-wert"><b>${name}</b>
-        <span class="zahl">${esc(zahlText(l[k].wert))} ${esc(l[k].einheit)}</span>
-      </div>
-      ${l[k].von !== null ? `<div class="bereich" style="text-align:right">${esc(bereichText(l[k]))}</div>` : ''}`).join('');
-    return `
-      <div class="befund">
-        <div class="befund-kopf">
-          <span class="befund-datum">${esc(datumKurz(l.datum))}</span>
-          <span class="gedaempft klein">${sp.tagesdosis(dosis) !== null ? `Dosis damals ${esc(zahlText(sp.tagesdosis(dosis), 1))} µg am Tag` : ''}</span>
-        </div>
-        ${werte}
-        ${befundBlock(l, sp.getStand(), { kurz: !alle })}
-        ${weitereWerte(l)}
-        ${alle && l.notiz ? `<p class="klein gedaempft">${esc(l.notiz)}</p>` : ''}
-        ${alle ? `<button type="button" class="knopf knopf-klein" data-act="seite" data-seite="labor" data-param="${esc(l.id)}" aria-label="Laborwerte vom ${esc(datumKurz(l.datum))} ändern" style="margin-top:.4rem">Ändern</button>` : ''}
-      </div>`;
-  }).join('');
+function laborKarten(stand, heute, alle = false) {
+  const befunde = [...stand.labor].reverse().slice(0, alle ? undefined : 3);
+  const neuesterMitTsh = befunde.find((l) => l.tsh && l.datum <= heute);
+  return befunde.map((l, i) => befundKarte(l, stand, heute, {
+    kurz: !alle && i > 0,
+    aendern: alle,
+    dosisKnopf: l === neuesterMitTsh,
+  })).join('');
 }
 
 /*
- * Nur Werte in derselben Einheit wie der neueste: fT4 in ng/dl und in pmol/l
- * auf einer Achse sähe aus wie ein zwölffacher Sprung, und der ältere Punkt
- * läge weit unter dem Streifen – das würde als „zu niedrig" gelesen.
- * Einheiten werden dabei ohne Groß-/Kleinschreibung verglichen (ng/dl, ng/dL).
+ * Die Kurve rechnet jeden Wert in die Standardeinheit um (mU/l = µU/ml =
+ * mIE/l; fT4 ng/dl → pmol/l) – so liegen Befunde aus verschiedenen Laboren
+ * auf einer Achse, statt dass ein Wechsel der Schreibweise wie ein
+ * zwölffacher Sprung aussieht. Werte in einer Einheit, die die App nicht
+ * kennt, fehlen – mit einem Satz, warum.
  */
-/** Die weiteren Werte eines Befunds, eingeordnet nur gegen den Bereich vom Befund. */
-function weitereWerte(l) {
-  const da = sp.WEITERE_WERTE.filter(([k]) => l[k]);
-  if (!da.length) return '';
-  return `<div class="weitere-werte">${da.map(([k, name]) => {
-    const w = l[k];
-    const lage = w.von === null ? '' : w.wert < w.von ? 'unter dem Bereich' : w.wert > w.bis ? 'über dem Bereich' : 'im Bereich';
-    return `<div class="befund-wert"><b>${esc(name)}</b><span class="zahl">${esc(zahlText(w.wert))} ${esc(w.einheit)}</span>${lage ? `<span class="lage lage-${lage.startsWith('im') ? 'im' : 'ueber'}">${lage}</span>` : ''}</div>`;
-  }).join('')}</div>`;
-}
-
 function laborDiagramm(labor, key, name) {
   const mitWert = labor.filter((l) => l[key]);
   if (mitWert.length < 2) return '';
-  const letzter = mitWert[mitWert.length - 1];
-  const einheit = (letzter[key].einheit || '').toLowerCase();
-  const gleich = mitWert.filter((l) => (l[key].einheit || '').toLowerCase() === einheit);
-  if (gleich.length < 2) return '';
-  const punkte = gleich.map((l) => ({ datum: l.datum, wert: l[key].wert }));
-  const bereich = letzter[key].von !== null ? [letzter[key].von, letzter[key].bis] : null;
-  const fehlen = mitWert.length - gleich.length;
-  return `<h3>${name} im Verlauf</h3>${verlaufslinie({ punkte, einheit: letzter[key].einheit, bereich, titel: name })}
-    <p class="klein gedaempft">${bereich ? 'Der helle Streifen ist der Bereich des Labors laut letztem Befund.' : 'Ohne Bereich des Labors – beim nächsten Eintrag mit abschreiben.'}${fehlen ? ` ${fehlen === 1 ? 'Ein Wert steht' : `${fehlen} Werte stehen`} in einer anderen Einheit und ${fehlen === 1 ? 'ist' : 'sind'} deshalb nicht eingezeichnet.` : ''}</p>`;
+  const rechenbar = mitWert.filter((l) => inStandard(key, l[key]) !== null);
+  if (rechenbar.length < 2) return '';
+  const punkte = rechenbar.map((l) => ({ datum: l.datum, wert: Math.round(inStandard(key, l[key]) * 1000) / 1000 }));
+  const letzter = rechenbar[rechenbar.length - 1][key];
+  const von = grenzeInStandard(key, letzter, 'von');
+  const bis = grenzeInStandard(key, letzter, 'bis');
+  const bereich = von !== null && bis !== null ? [von, bis] : null;
+  const einheit = STANDARD[key];
+  const umgerechnet = rechenbar.some((l) => l[key].einheit !== einheit);
+  const fehlen = mitWert.length - rechenbar.length;
+  return `<h3>${name} im Verlauf</h3>${verlaufslinie({ punkte, einheit, bereich, titel: name })}
+    <p class="klein gedaempft">${bereich ? 'Der helle Streifen ist der Bereich des Labors laut letztem Befund.' : 'Ohne vollständigen Bereich des Labors – beim nächsten Eintrag mit abschreiben.'}${umgerechnet ? ` Alle Werte in ${esc(einheit)} umgerechnet.` : ''}${fehlen ? ` ${fehlen === 1 ? 'Ein Wert steht' : `${fehlen} Werte stehen`} in einer Einheit, die die App nicht kennt, und ${fehlen === 1 ? 'ist' : 'sind'} deshalb nicht eingezeichnet.` : ''}</p>`;
 }
 
 /** Die letzten 28 Tage als Reihe: genommen, nicht genommen, unbekannt. */
@@ -123,7 +102,8 @@ export function verlaufAnsicht(stand, heute) {
   return `
     <h2 class="abschnitt">Laborwerte</h2>
     <div class="karte">
-      ${labor.length ? laborKarten(labor) : '<p class="gedaempft">Noch keine Laborwerte. Beim nächsten Befund: TSH, fT4 und fT3 mit dem Bereich des Labors abschreiben.</p>'}
+      ${labor.length ? laborKarten(stand, heute) : '<p class="gedaempft">Noch keine Laborwerte. Beim nächsten Befund: TSH, fT4 und fT3 mit dem Bereich des Labors abschreiben.</p>'}
+      ${labor.length && !ez.aktiv(stand) ? p6Karte() : ''}
       ${laborDiagramm(labor, 'tsh', 'TSH')}
       <div class="knopf-reihe">
         <button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="labor">Laborwerte eintragen</button>
@@ -186,7 +166,8 @@ export function verlaufSeite(name, param, stand, heute) {
     case 'labor-liste':
       return {
         titel: 'Alle Laborwerte',
-        html: `<div class="karte">${stand.labor.length ? laborKarten(stand.labor, true) : '<p class="gedaempft">Noch keine Laborwerte.</p>'}
+        html: `<div class="karte">${stand.labor.length ? laborKarten(stand, heute, true) : '<p class="gedaempft">Noch keine Laborwerte.</p>'}
+          ${stand.labor.length && !ez.aktiv(stand) ? p6Karte() : ''}
           ${laborDiagramm(stand.labor, 'tsh', 'TSH')}${laborDiagramm(stand.labor, 'ft4', 'fT4')}${laborDiagramm(stand.labor, 'ft3', 'fT3')}
           <div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="labor">Laborwerte eintragen</button></div>
           </div>`,
@@ -197,7 +178,7 @@ export function verlaufSeite(name, param, stand, heute) {
         html: `<div class="zeilen">${[...stand.dosen].reverse().map((d) => `
           <button type="button" class="zeile" data-act="seite" data-seite="dosis" data-param="${esc(d.id)}">
             <span class="zeile-text"><span class="zeile-titel">${esc(sp.dosisText(d))}${d === sp.aktuelleDosis(heute) ? ' · aktuell' : d.ab > heute ? ' · geplant' : ''}</span>
-            <span class="zeile-unter">ab ${esc(datumKurz(d.ab))}${d.notiz ? ` · ${esc(d.notiz)}` : ''}</span></span><span class="zeile-pfeil" aria-hidden="true">›</span>
+            <span class="zeile-unter">ab ${esc(datumKurz(d.ab))}${d.praxis === true ? ' · auf Anweisung der Praxis' : d.praxis === false ? ' · nicht auf Anweisung der Praxis' : ''}${d.notiz ? ` · ${esc(d.notiz)}` : ''}</span></span><span class="zeile-pfeil" aria-hidden="true">›</span>
           </button>`).join('')}</div>
           <div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="dosis">Neue Dosis eintragen</button></div>`,
       };
