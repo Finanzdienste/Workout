@@ -2,435 +2,1256 @@
  * Einschätzung – die App ordnet ein, so weit das verantwortbar ist.
  *
  * Auf Wunsch: „Es soll wirklich so weit wie möglich auch Diagnose sein."
- * Deshalb liest die App ihre Daten jetzt nicht mehr nur vor, sondern sagt,
- * was sie bedeuten können: ob ein Wert im Bereich des Labors liegt, welches
- * Muster TSH und fT4 zusammen ergeben, wie dringend das ist, was in den
- * eigenen Daten eine Erklärung sein könnte, wozu die Beschwerden passen, und
- * was bei Warnzeichen zu tun ist.
+ * Deshalb liest die App ihre Daten nicht nur vor, sondern sagt, was sie
+ * bedeuten können: wo ein Wert liegt, welches Muster TSH und fT4 zusammen
+ * ergeben, wie dringend das ist, was in den eigenen Daten eine Erklärung
+ * sein könnte, wozu die Beschwerden passen und was bei Warnzeichen zu tun ist.
  *
- * Die Grenze, die bleibt: keine Dosis. Die App sagt nie „nehmen Sie mehr"
- * oder „weniger" und rechnet keine Menge aus. Sie sagt, in welche Richtung
- * ein Muster deutet, und dass die Ärztin entscheidet – eine selbst geänderte
- * Dosis kann im Alter Vorhofflimmern oder Knochenschwund auslösen, und die
- * Ärztin kennt Herz, andere Medikamente und den persönlichen Zielbereich.
+ * Ob man mehr oder weniger nehmen soll, sagt die Dosis-Karte (js/dosis.js) –
+ * auch das auf ausdrücklichen Wunsch, als Richtung mit der üblichen
+ * Schrittgröße und immer mit dem Rat, zuerst die Praxis anzurufen. Alle
+ * Texte hier bleiben ohne Mengenangaben: Sie ordnen ein, die Karte rät.
  *
- * Die Regeln stammen aus einem Regelwerk, das drei unabhängige Prüfer
+ * Die Regeln stammen aus zwei Regelwerken, die je drei unabhängige Prüfer
  * (Endokrinologie, Labormedizin, Pharmazie/Patientensicherheit) gegengelesen
- * und ein „rotes Team" an Fallbeispielen durchgespielt hat. Siehe
- * schilddruese/README.md, Abschnitt „Einschätzung".
+ * und ein „rotes Team" an Fallbeispielen angegriffen hat; die Regel-IDs im
+ * Code (L2c2, S4, W2h, …) verweisen darauf. Siehe schilddruese/README.md.
  *
- * Reine Rechnung, keine Anzeige: Die Ansichten holen sich hier Ergebnisse
- * und setzen sie in Text um. Dadurch lässt sich jede Regel im Test prüfen.
+ * Reine Rechnung, keine Anzeige: Alles rechnet nur mit dem übergebenen Stand
+ * und Tag. So lässt sich jede Regel im Test prüfen, und die Ansicht zeigt
+ * genau das, was sie übergibt.
  */
-import { tageWeiter, tageZwischen, zahlText } from './datum.js';
+import { tageWeiter, tageZwischen, zahlText, datumKurz } from './datum.js';
 import * as sp from './speicher.js';
+import { inStandard, normEinheit, pruefeWert, plausibel } from './einheiten.js';
 
-// ---------------------------------------------------------------- Labor
-
-/**
- * Orientierungsbereiche für Werte ohne eingetragenen Bereich – deutlich als
- * solche gekennzeichnet. Einheiten klein geschrieben verglichen.
- */
-export const ORIENTIERUNG = {
-  tsh: { 'mu/l': [0.4, 4.0], 'µu/ml': [0.4, 4.0], 'miu/l': [0.4, 4.0], 'µiu/ml': [0.4, 4.0] },
-  ft4: { 'pmol/l': [12, 22], 'ng/dl': [0.9, 1.7] },
-  ft3: { 'pmol/l': [3.1, 6.8], 'pg/ml': [2.0, 4.4] },
-};
-
-/**
- * Ein Wert gegen seinen Bereich: { lage: 'unter'|'im'|'ueber', quelle:
- * 'labor'|'orientierung', von, bis } – oder null, wenn es keinen Bereich gibt.
- */
-export function einordnen(key, w) {
-  if (!w) return null;
-  let von = w.von;
-  let bis = w.bis;
-  let quelle = 'labor';
-  if (von === null || bis === null) {
-    const o = (ORIENTIERUNG[key] || {})[(w.einheit || '').toLowerCase()];
-    if (!o) return null;
-    [von, bis] = o;
-    quelle = 'orientierung';
-  }
-  const lage = w.wert < von ? 'unter' : w.wert > bis ? 'ueber' : 'im';
-  return { lage, quelle, von, bis };
-}
-
-/** TSH in mU/l – die Schwellen für die Dringlichkeit gelten in dieser Einheit. */
-function tshMU(w) {
-  if (!w) return null;
-  const e = (w.einheit || '').toLowerCase();
-  return ['mu/l', 'µu/ml', 'miu/l', 'µiu/ml', 'uu/ml', 'uiu/ml'].includes(e) ? w.wert : null;
-}
-
-export const MUSTER = {
-  a: { titel: 'Die Werte liegen im Bereich des Labors.', richtung: 'passend' },
-  b: { titel: 'Muster: deutlich zu wenig Schilddrüsenhormon.', richtung: 'wenig' },
-  c: { titel: 'Muster: eher etwas zu wenig Schilddrüsenhormon.', richtung: 'wenig' },
-  d: { titel: 'Muster: zu viel Schilddrüsenhormon.', richtung: 'viel' },
-  e: { titel: 'Muster: eher etwas zu viel Schilddrüsenhormon.', richtung: 'viel' },
-  f: { titel: 'Ungewöhnliches Muster: TSH und fT4 sind beide erhöht.', richtung: 'unklar' },
-  g: { titel: 'Ungewöhnliches Muster: fT4 ist niedrig, ohne dass TSH erhöht ist.', richtung: 'unklar' },
-  h: { titel: 'fT4 liegt über dem Bereich, TSH im Bereich.', richtung: 'unklar' },
-};
-
-/** Das Muster eines Befunds aus TSH und fT4 – oder null ohne einordenbares TSH/fT4. */
-export function muster(befund) {
-  const t = einordnen('tsh', befund.tsh);
-  const f = einordnen('ft4', befund.ft4);
-  if (!t && !f) return null;
-  const tl = t ? t.lage : null;
-  const fl = f ? f.lage : null;
-  if (tl === 'ueber' && fl === 'unter') return 'b';
-  if (tl === 'ueber' && fl === 'ueber') return 'f';
-  if (tl === 'ueber') return 'c';
-  if (tl === 'unter' && fl === 'ueber') return 'd';
-  if (fl === 'unter') return 'g';
-  if (tl === 'unter') return 'e';
-  if (fl === 'ueber') return 'h';
-  return 'a';
-}
+// ---------------------------------------------------------------- Stufen
 
 export const STUFEN = {
-  notruf: { rang: 4, text: 'Jetzt 112 anrufen.' },
-  tage: { rang: 3, text: 'In den nächsten Tagen die Praxis anrufen – nicht bis zum nächsten Routinetermin warten.' },
-  zeitnah: { rang: 2, text: 'Zeitnah mit der Praxis besprechen, innerhalb von ein bis zwei Wochen.' },
-  termin: { rang: 1, text: 'Beim nächsten Termin ansprechen.' },
-  keine: { rang: 0, text: 'Kein besonderer Anlass.' },
+  notruf: { rang: 5, titel: 'Sofort 112', text: 'Bitte rufen Sie jetzt 112 an.' },
+  heute: { rang: 4, titel: 'Heute anrufen', text: 'Bitte rufen Sie heute noch in der Praxis an. Außerhalb der Sprechzeiten: Ärztlicher Bereitschaftsdienst 116 117.' },
+  tage: { rang: 3, titel: 'In den nächsten Tagen anrufen', text: 'Bitte rufen Sie in den nächsten Tagen in der Praxis an. Warten Sie nicht bis zum nächsten Routinetermin.' },
+  zeitnah: { rang: 2, titel: 'In ein bis zwei Wochen', text: 'Bitte besprechen Sie das in den nächsten ein bis zwei Wochen mit der Praxis.' },
+  termin: { rang: 1, titel: 'Beim nächsten Termin', text: 'Bitte beim nächsten Termin ansprechen.' },
+  keine: { rang: 0, titel: 'Kein besonderer Anlass', text: 'Kein besonderer Anlass. Wenn Sie Beschwerden haben, sprechen Sie sie trotzdem an.' },
 };
 
-const hoeher = (a, b) => (STUFEN[a].rang >= STUFEN[b].rang ? a : b);
+/** Die höchste der Stufen (L3f): notruf > heute > tage > zeitnah > termin > keine. */
+export function hoechste(...stufen) {
+  return stufen.filter((s) => STUFEN[s]).reduce((a, b) => (STUFEN[b].rang > STUFEN[a].rang ? b : a), 'keine');
+}
+const mindestens = (stufe, boden) => hoechste(stufe, boden);
+
+/** Die Frist-Sätze unter einem Befund (L3a–L3d). */
+const BEFUND_STUFE = {
+  tage: 'Bitte rufen Sie in den nächsten Tagen in der Praxis an – falls sich die Praxis nicht schon bei Ihnen gemeldet hat. Warten Sie nicht bis zum nächsten Routinetermin. Die Praxis hat den Befund meist schon gesehen.',
+  zeitnah: 'Bitte besprechen Sie den Befund in den nächsten ein bis zwei Wochen mit der Praxis.',
+  termin: 'Bitte beim nächsten Termin ansprechen.',
+  keine: 'Kein besonderer Anlass. Wenn Sie Beschwerden haben, sprechen Sie sie trotzdem an.',
+};
+
+export const FUSSZEILE = 'Automatische Einschätzung der App – sie ersetzt keine ärztliche Beurteilung. Wenn die Praxis Ihnen den Wert schon erklärt hat, gilt deren Einschätzung.';
 
 /*
- * Alles hier rechnet mit dem übergebenen Stand, nie mit dem gespeicherten:
- * So lässt sich jede Regel mit einem beliebigen Stand prüfen, und die Ansicht
- * zeigt genau das, was sie übergibt.
+ * Der feste Satz gegen Selbsthandlung (Grundsatz 2). „Auch geteilt": Wer auf
+ * Anordnung eine halbe Tablette nimmt, soll aus „nichts teilen" nicht lesen,
+ * jetzt die ganze zu nehmen.
  */
-const alterAm = (stand, tag) => (stand.profil.geburtsjahr ? Number(tag.slice(0, 4)) - stand.profil.geburtsjahr : null);
-function dosisAmIn(stand, tag) {
+export const GEGEN_SELBST = 'Bitte nehmen Sie die Tabletten bis zum Gespräch weiter genau wie verordnet – auch geteilt, wenn die Praxis es so verordnet hat. Nichts weglassen, nichts zusätzlich teilen, nichts dazunehmen.';
+
+export const P6_TEXT = 'Die Einschätzungen dieser App gelten nur für Erwachsene mit einer bekannten, behandelten Schilddrüsen-Unterfunktion. Sie ersetzen nicht die Beurteilung durch Ihre Ärztin. Die App rechnet nie eine neue Dosis aus. Wenn die Praxis Ihnen einen Wert schon erklärt hat, gilt deren Einschätzung.';
+
+export const PRAXIS_TEXT = 'Die Praxis hat Ihnen diesen Befund schon erklärt. Halten Sie sich an das, was dort besprochen wurde. Wenn Sie unsicher sind, fragen Sie ruhig noch einmal nach.';
+
+export const NOTFALL = {
+  1: 'Wichtig: Bei ungewohnt starker Schläfrigkeit, neuer Verwirrtheit oder starkem Auskühlen sofort 112 anrufen.',
+  2: 'Wichtig: Bei Herzrasen mit Schwindel, Atemnot oder Brustschmerz sofort 112 anrufen.',
+  3: 'Wenn es Ihnen akut schlecht geht: Warnzeichen-Check oder 112.',
+};
+
+/** P6: Die Regeln gelten nur bei bekannter, behandelter Unterfunktion. */
+export function aktiv(stand) {
+  return Boolean(stand.profil.behandelt || stand.profil.ursache);
+}
+
+// ---------------------------------------------------------------- Hilfen
+
+const kurz = (iso) => datumKurz(iso);
+const zahl = (n) => zahlText(n, 2);
+
+export function alterAm(stand, tag) {
+  return stand.profil.geburtsjahr ? Number(tag.slice(0, 4)) - stand.profil.geburtsjahr : null;
+}
+/* Schutzregeln rechnen ohne Geburtsjahr mit dem höheren Alter (R14). */
+const ab65 = (stand, tag) => { const a = alterAm(stand, tag); return a === null || a >= 65; };
+const ab70 = (stand, tag) => { const a = alterAm(stand, tag); return a === null || a >= 70; };
+/** L4b: Alter ab 65 (oder unbekannt), Herzkrankheit oder Osteoporose. */
+const risiko = (stand, tag) => ab65(stand, tag) || stand.profil.herz === 'ja' || stand.profil.osteoporose === 'ja';
+
+/** Die Dosis, die an `tag` galt. */
+export function dosisAmIn(stand, tag) {
   let d = null;
   for (const x of stand.dosen) if (x.ab <= tag) d = x;
   return d;
 }
 
-/**
- * Die ganze Einschätzung eines Befunds.
- *
- * @returns {{ muster, titel, richtung, werte, dringlichkeit, zusaetze: string[],
- *   erklaerungen: string[], verlauf: string|null, fragen: string[] } | null}
- */
-export function befundEinschaetzen(befund, stand = sp.getStand()) {
-  const code = muster(befund);
-  if (!code) return null;
-  const m = MUSTER[code];
-  const alter = alterAm(stand, befund.datum);
-  const tsh = tshMU(befund.tsh);
-  const werte = sp.LABORWERTE.filter(([k]) => befund[k]).map(([k, name]) => ({ key: k, name, ...(einordnen(k, befund[k]) || {}), wert: befund[k] }));
-  const zusaetze = [];
-  const fragen = [];
-
-  let dringlichkeit = { a: 'keine', b: 'zeitnah', c: 'termin', d: 'zeitnah', e: 'termin', f: 'zeitnah', g: 'zeitnah', h: 'termin' }[code];
-  if (tsh !== null && (tsh > 10 || tsh < 0.1)) dringlichkeit = hoeher('tage', dringlichkeit);
-
-  // Alter: etwas höheres TSH wird oft bewusst hingenommen; zu viel belastet Herz und Knochen.
-  if (code === 'c' && alter !== null && alter >= 70 && tsh !== null && tsh <= (alter >= 80 ? 7 : 6)) {
-    zusaetze.push('Im Alter wird ein etwas höherer TSH-Wert oft bewusst hingenommen – mit der Ärztin klären, welcher Zielbereich für Sie gilt.');
-  }
-  if ((code === 'd' || code === 'e') && ((alter !== null && alter >= 65) || stand.profil.herz === 'ja')) {
-    zusaetze.push('Dauerhaft zu viel Hormon belastet gerade im Alter und bei Herzkrankheit Herz und Knochen – deshalb ansprechen, auch wenn Sie sich gut fühlen.');
-    if (code === 'e') dringlichkeit = hoeher('zeitnah', dringlichkeit);
-  }
-  if (code === 'h') zusaetze.push('Das kommt häufig vor, wenn die Tablette kurz vor der Blutabnahme genommen wurde.');
-  if (code === 'g') zusaetze.push('Das kann auf eine Störung der Hirnanhangdrüse oder eine Messstörung hindeuten und gehört ärztlich angesehen.');
-  if (code === 'f') zusaetze.push('Das sieht man oft, wenn Tabletten eine Weile unregelmäßig genommen wurden und dann kurz vor der Abnahme wieder – auch Messstörungen kommen vor.');
-
-  const erklaerungen = erklaerungenFuer(befund, code, stand);
-  const verlauf = verlaufText(befund, stand);
-
-  // Fragen für die Ärztin
-  if (code === 'b' || code === 'c') fragen.push(`Mein TSH lag am ${kurz(befund.datum)} über dem Bereich – soll die Dosis angepasst oder erst noch einmal kontrolliert werden?`);
-  if (code === 'd' || code === 'e') fragen.push(`Mein TSH lag am ${kurz(befund.datum)} unter dem Bereich – ist das für mich so gewollt, auch mit Blick auf Herz und Knochen?`);
-  if (code === 'f' || code === 'g' || code === 'h') fragen.push(`Die Werte vom ${kurz(befund.datum)} passen nicht ins übliche Muster – sollten sie wiederholt werden?`);
-
-  return { muster: code, titel: m.titel, richtung: m.richtung, werte, dringlichkeit, zusaetze, erklaerungen, verlauf, fragen };
+export function mittelName(k) {
+  return (sp.MITTEL.find(([m]) => m === k) || [k, k])[1];
+}
+const kurzName = (k) => mittelName(k).replace(/ \(.*\)$/, '');
+function aufzaehlung(namen) {
+  return namen.length > 1 ? `${namen.slice(0, -1).join(', ')} und ${namen[namen.length - 1]}` : namen[0] || '';
 }
 
-const kurz = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+/** Hat der Befund eine Praxis-Entscheidung (F8)? Dann gilt deren Einschätzung (L3f). */
+export const praxisHatErklaert = (befund) => ['bleibt', 'geaendert', 'nachmessen'].includes(befund.praxis);
 
-/** Was in den eigenen Daten eine Erklärung sein könnte. */
-function erklaerungenFuer(befund, code, stand) {
+/** Biotin im Spiel (L5d): beim Befund angegeben oder als Mittel eingetragen. */
+const biotinImSpiel = (befund, stand) => befund.biotin === 'ja' || stand.mittel.includes('biotin');
+
+/**
+ * Einnahmen in den 42 Tagen vor der Abnahme: erfasst (genommen oder bewusst
+ * nicht), nicht genommen, ohne Eintrag.
+ */
+export function einnahmenVor(befund, stand, tage = 42) {
+  let erfasst = 0;
+  let nicht = 0;
+  for (let i = 1; i <= tage; i++) {
+    const x = stand.einnahmen[tageWeiter(befund.datum, -i)];
+    if (x === null) { nicht++; erfasst++; } else if (x) erfasst++;
+  }
+  return { erfasst, nicht, genommen: erfasst - nicht, unbekannt: tage - erfasst, tage };
+}
+
+// ---------------------------------------------------------------- Einordnen (L0a, L1, L1b)
+
+/*
+ * Übliche Orientierung ohne Laborbereich, je kanonischer Einheit. „rand" ist
+ * die Pufferzone: Darin zählt ein Wert als im Bereich, weil die Bereiche der
+ * Messverfahren – gerade beim fT4 – weit auseinanderliegen. „sehr" (R6): erst
+ * darunter darf ein fT4 ohne Laborbereich allein dringlich werden.
+ */
+const ORIENTIERUNG = {
+  tsh: { 'mU/l': { im: [0.4, 4.0], rand: [0.3, 4.5] } },
+  ft4: {
+    'pmol/l': { im: [12, 22], rand: [10, 24], deutlich: [8, 26], sehr: 6 },
+    'ng/dl': { im: [0.93, 1.71], rand: [0.78, 1.86], deutlich: [0.62, 2.0], sehr: 0.47 },
+    'ng/l': { im: [9.3, 17.1], rand: [7.8, 18.6], deutlich: [6.2, 20], sehr: 4.7 },
+  },
+  ft3: {
+    'pmol/l': { im: [3.1, 6.8], rand: [2.8, 7.0] },
+    'pg/ml': { im: [2.0, 4.4], rand: [1.8, 4.6] },
+  },
+};
+
+export const LAGE_TEXT = {
+  'deutlich-unter': 'deutlich unter dem Bereich',
+  unter: 'unter dem Bereich',
+  'knapp-unter': 'knapp unter dem Bereich',
+  'rand-unter': 'im Bereich, am unteren Rand',
+  im: 'im Bereich',
+  'rand-ueber': 'im Bereich, am oberen Rand',
+  'knapp-ueber': 'knapp über dem Bereich',
+  ueber: 'über dem Bereich',
+  'deutlich-ueber': 'deutlich über dem Bereich',
+};
+
+const TEXT_EINHEIT = 'Diese Einheit kennt die App nicht. Bitte tragen Sie den Bereich vom Befund ein (steht meist neben dem Wert) – dann kann die App den Wert einordnen.';
+const TEXT_UNPLAUSIBEL = 'Der Wert passt nicht zur gewählten Einheit. Bitte prüfen Sie die Einheit oder tragen Sie den Bereich vom Befund ein – bis dahin ordnet die App ihn nicht ein.';
+const TEXT_ORIENTIERUNG = 'Übliche Orientierung, nicht der Bereich Ihres Labors.';
+const TEXT_RAND = 'Ohne den Bereich Ihres Labors lässt sich dieser Wert nicht sicher einordnen – er liegt am Rand des üblichen Bereichs. Bitte tragen Sie den Bereich vom Befund ein (steht meist neben dem Wert).';
+
+/**
+ * Ein Wert gegen seinen Bereich. Vorrang: persönlicher Zielbereich (nur TSH,
+ * in mU/l), dann Laborbereich vom Befund (auch einseitig), dann Orientierung.
+ */
+export function einordnen(key, w, { ziel = null } = {}) {
+  const leer = { lage: null, genau: null, quelle: null, von: null, bis: null, std: null, umgerechnet: false, sehrNiedrig: false, grund: 'fehlt', text: '' };
+  if (!w || typeof w.wert !== 'number') return leer;
+  const std = inStandard(key, w);
+  const umgerechnet = std !== null && Math.abs(std - w.wert) > 1e-9;
+  const basis = { ...leer, std, umgerechnet, grund: null };
+  const mit = (lage, genau, quelle, von, bis, extra = {}) => ({ ...basis, lage, genau, quelle, von, bis, text: LAGE_TEXT[genau], ...extra });
+
+  // Persönlicher Zielbereich (P2): TSH gegen das Ziel, „knapp" wie beim Labor.
+  if (ziel && key === 'tsh' && std !== null) {
+    if (std < ziel.von) return mit('unter', std >= ziel.von * 0.9 ? 'knapp-unter' : 'unter', 'ziel', ziel.von, ziel.bis);
+    if (std > ziel.bis) return mit('ueber', std <= ziel.bis * 1.1 && std <= ziel.bis + 0.5 ? 'knapp-ueber' : 'ueber', 'ziel', ziel.von, ziel.bis);
+    return mit('im', 'im', 'ziel', ziel.von, ziel.bis);
+  }
+
+  const hatVon = w.von !== null && w.von !== undefined;
+  const hatBis = w.bis !== null && w.bis !== undefined;
+  if (hatVon || hatBis) {
+    // Gegen den Bereich vom Befund – in der Einheit, in der beides dasteht.
+    const x = w.wert;
+    if (hatVon && x < w.von) {
+      const genau = key === 'ft4' && x < w.von * 0.8 ? 'deutlich-unter' : x >= w.von * 0.9 ? 'knapp-unter' : 'unter';
+      return mit('unter', genau, 'labor', hatVon ? w.von : null, hatBis ? w.bis : null);
+    }
+    if (hatBis && x > w.bis) {
+      const knapp = x <= w.bis * 1.1 && (key !== 'tsh' || x <= w.bis + 0.5);
+      const genau = key === 'ft4' && x > w.bis * 1.2 ? 'deutlich-ueber' : knapp ? 'knapp-ueber' : 'ueber';
+      return mit('ueber', genau, 'labor', hatVon ? w.von : null, hatBis ? w.bis : null);
+    }
+    return mit('im', 'im', 'labor', hatVon ? w.von : null, hatBis ? w.bis : null);
+  }
+
+  // Ohne Bereich: nur mit bekannter Einheit und plausiblem Wert (L0a, R5).
+  if (pruefeWert(key, w).unplausibel) return { ...basis, grund: 'unplausibel', text: TEXT_UNPLAUSIBEL };
+  const einheit = normEinheit(key, w.einheit);
+  const o = einheit && ORIENTIERUNG[key] && ORIENTIERUNG[key][einheit];
+  if (!o) return { ...basis, grund: 'einheit', text: TEXT_EINHEIT };
+  const x = w.wert;
+  const sehrNiedrig = o.sehr !== undefined && x < o.sehr;
+  const [von, bis] = o.im;
+  if (x < o.rand[0]) return mit('unter', o.deutlich && x < o.deutlich[0] ? 'deutlich-unter' : 'unter', 'orientierung', von, bis, { sehrNiedrig });
+  if (x < von) return mit('im', 'rand-unter', 'orientierung', von, bis);
+  if (x <= bis) return mit('im', 'im', 'orientierung', von, bis);
+  if (x <= o.rand[1]) return mit('im', 'rand-ueber', 'orientierung', von, bis);
+  return mit('ueber', o.deutlich && x > o.deutlich[1] ? 'deutlich-ueber' : 'ueber', 'orientierung', von, bis);
+}
+
+/** Der persönliche Zielbereich als { von, bis } – oder null. */
+export function zielBereich(stand) {
+  const p = stand.profil;
+  return p.zielVon !== null && p.zielBis !== null ? { von: p.zielVon, bis: p.zielBis } : null;
+}
+
+// ---------------------------------------------------------------- Muster (L2)
+
+const MUSTER_GRUPPE = {
+  a: 'a', b: 'b', c1: 'c', c2: 'c', c3: 'c', d: 'd', e1: 'e', e2: 'e', e3: 'e', f: 'f', g1: 'g', g2: 'g', h: 'h', t: 't', z2a: 'z', z2b: 'z', z2c: 'z', z3: 'z',
+};
+const MUSTER_RICHTUNG = {
+  a: 'passend', b: 'wenig', c: 'wenig', d: 'viel', e: 'viel', t: 'viel', f: 'unklar', g: 'unklar', h: 'unklar',
+};
+
+/**
+ * Das Muster aus TSH und fT4. fT3 fließt nicht ein (L1b), außer beim
+ * T3-Präparat (L2t). Rückgabe mit den Einordnungen, die es bestimmt haben.
+ */
+export function musterBestimmen(befund, stand) {
+  const p = stand.profil;
+  const ziel = zielBereich(stand);
+  const zielNiedrig = !ziel && p.zielNiedrig === 'ja';
+  const krebsOhneZiel = p.krebs === 'ja' && !ziel && !zielNiedrig;
+  const t3 = p.praeparatArt === 't3';
+  const tLab = einordnen('tsh', befund.tsh);
+  // Das Ziel steht in mU/l – bei unbekannter TSH-Einheit gilt der Laborbereich.
+  const tZiel = ziel ? einordnen('tsh', befund.tsh, { ziel }) : null;
+  const tZ = tZiel && tZiel.quelle === 'ziel' ? tZiel : tLab;
+  const f = einordnen('ft4', befund.ft4);
+  const f3 = einordnen('ft3', befund.ft3);
+  const tsh = tLab.std;
+  const ergebnis = { code: null, variante: '', tLab, tZ, f, f3, tsh, ziel: tZ.quelle === 'ziel' ? ziel : null, zielNiedrig, krebsOhneZiel, t3 };
+  if (!tZ.lage) return ergebnis;
+
+  const T = tZ.lage;
+  const tKnapp = tZ.genau === 'knapp-unter' || tZ.genau === 'knapp-ueber';
+  const F = f.lage;
+  const fDeutlichUeber = f.genau === 'deutlich-ueber';
+  const fDeutlichUnter = f.genau === 'deutlich-unter';
+  // Feste Schwellen gelten nur in mU/l – und bei einem Ziel nur außerhalb.
+  const sehrNiedrig = tsh !== null && tsh < 0.1 && (!ergebnis.ziel || T === 'unter');
+
+  let code;
+  let variante = '';
+  if ((T === 'unter' || tLab.lage === 'unter') && F === 'unter') code = 'g2';     // R11: auch bei Ziel
+  else if (T === 'ueber' && F === 'unter') code = 'b';
+  else if (T === 'ueber' && F === 'ueber') code = 'f';
+  else if (T === 'ueber') {
+    if (tsh !== null && tsh > 10) code = 'c3';
+    else if (zielNiedrig) code = 'z2c';
+    else code = tKnapp ? 'c1' : 'c2';
+  } else if (T === 'unter') {
+    if (F === 'ueber') {
+      if (zielNiedrig) code = 'z2b';
+      else if (krebsOhneZiel) { code = 'z3'; variante = 'ft4-ueber'; }
+      else if (tKnapp && !fDeutlichUeber) { code = 'e1'; variante = 'aus-d'; } // R7
+      else code = 'd';
+    } else if (zielNiedrig) code = 'z2a';
+    else if (krebsOhneZiel) code = 'z3';
+    else if (t3) code = 't';
+    else if (sehrNiedrig) code = 'e3';
+    else code = tKnapp ? 'e1' : 'e2';
+  } else if (F === 'unter') code = t3 || !fDeutlichUnter ? 'g1' : 'g2';
+  else if (F === 'ueber') code = 'h';
+  else code = zielNiedrig ? 'z2c' : 'a';
+  return { ...ergebnis, code, variante, fDeutlichUeber, fDeutlichUnter, sehrNiedrig };
+}
+
+function musterText(m, befund, stand) {
+  const { code, ziel, tLab, f } = m;
+  const ohneFt4 = !f.lage;
+  const zielText = ziel ? `${zahl(ziel.von)}–${zahl(ziel.bis)} mU/l` : '';
+  switch (code) {
+    case 'a': {
+      let t;
+      if (ziel) {
+        t = tLab.lage === 'im' || !tLab.lage
+          ? `Der TSH-Wert liegt in dem Zielbereich, den Ihre Ärztin für Sie genannt hat (${zielText}).`
+          : `Der TSH-Wert liegt außerhalb des Bereichs des Labors, aber in dem Zielbereich, den Ihre Ärztin für Sie genannt hat (${zielText}).`;
+      } else {
+        t = tLab.quelle === 'orientierung' || f.quelle === 'orientierung'
+          ? 'Die Werte liegen im üblichen Bereich (Orientierung, nicht Ihr Labor).'
+          : 'Die Werte liegen im Bereich des Labors.';
+      }
+      t += ' Das spricht dafür, dass die Tabletten-Einstellung derzeit passt.';
+      if (ohneFt4) t += ' Beurteilt wurde nur der TSH-Wert – unter der Tablette ist er meist der wichtigste Wert.';
+      return t;
+    }
+    case 'b': return 'Muster: deutlich zu wenig Schilddrüsenhormon im Blut. Ein hoher TSH-Wert bedeutet, dass der Körper mehr Hormon anfordert. Häufige Gründe sind vergessene Tabletten, die Einnahme zusammen mit Essen oder anderen Mitteln oder ein veränderter Bedarf. Ob die Dosis angepasst wird, entscheidet Ihre Ärztin.';
+    case 'c1': return 'Der TSH-Wert liegt knapp über dem Bereich. Das ist oft nur eine Schwankung – TSH ist zum Beispiel morgens höher als nachmittags.';
+    case 'c2': return 'Muster: eher etwas zu wenig Schilddrüsenhormon. Ein erhöhter TSH-Wert bedeutet, dass der Körper etwas mehr Hormon anfordert. Ein einzelner leicht erhöhter Wert ist oft nur eine Schwankung. Ob kontrolliert oder die Dosis angepasst wird, entscheidet Ihre Ärztin.';
+    case 'c3': return `Muster: zu wenig Schilddrüsenhormon${ohneFt4 ? '' : ' – auch wenn fT4 noch im Bereich liegt'}. Ein deutlich erhöhter TSH-Wert zeigt, dass der Körper klar mehr Hormon anfordert. Ob die Dosis angepasst wird, entscheidet Ihre Ärztin.`;
+    case 'd': return 'Muster: zu viel Schilddrüsenhormon im Blut. Ein niedriger TSH-Wert zusammen mit einem hohen fT4 bedeutet, dass mehr Hormon da ist, als der Körper braucht. Ob die Dosis angepasst wird, entscheidet Ihre Ärztin. Bitte lassen Sie die Tabletten nicht eigenmächtig weg, sondern rufen Sie die Praxis an.';
+    case 'e1': return m.variante === 'aus-d'
+      ? 'Der TSH-Wert liegt knapp unter dem Bereich, fT4 etwas darüber. Das ist oft ohne Bedeutung – besonders, wenn die Tablette vor der Blutabnahme genommen wurde.'
+      : 'Der TSH-Wert liegt knapp unter dem Bereich. Das ist oft ohne Bedeutung.';
+    case 'e2': return 'Muster: eher etwas zu viel Schilddrüsenhormon. Ein niedriger TSH-Wert bedeutet, dass der Körper eher mehr Hormon hat, als er anfordert. Ob die Dosis angepasst wird, entscheidet Ihre Ärztin.';
+    case 'e3': return `Muster: zu viel Schilddrüsenhormon${ohneFt4 ? '' : ' – auch wenn fT4 im Bereich liegt'}. Ein sehr niedriger TSH-Wert zeigt, dass der Körper deutlich mehr Hormon hat, als er anfordert. Ob die Dosis angepasst wird, entscheidet Ihre Ärztin. Bitte lassen Sie die Tabletten nicht eigenmächtig weg, sondern rufen Sie die Praxis an.`;
+    case 'f': return 'Ungewöhnliches Muster: TSH und fT4 sind beide erhöht. Häufigste Gründe: Die Tablette wurde in den Wochen davor unregelmäßig genommen und kurz vor der Blutabnahme wieder regelmäßig genommen oder nachgeholt – oder die Dosis wurde erst vor Kurzem erhöht (TSH sinkt langsamer, als fT4 steigt). Selten stört etwas die Messung oder es liegt eine andere Hormonstörung vor. Oft wird der Wert wiederholt. Bitte mit der Praxis besprechen.';
+    case 'g1': return 'fT4 etwas niedrig, TSH im Bereich. Das kommt unter Tabletten vor und ist oft ohne Bedeutung – besonders bei Präparaten mit T3-Anteil (z. B. Novothyral, Prothyrid, Thybon) oder bei bestimmten Mitteln (z. B. Carbamazepin, Phenytoin).';
+    case 'g2': return 'Ungewöhnliches Muster, das Ihre Ärztin abklären sollte. Mögliche Gründe sind ein Präparat mit T3-Anteil, eine vor Kurzem gesenkte Dosis, eine schwere andere Erkrankung, bestimmte Medikamente, Besonderheiten der Messung oder selten eine andere Hormonstörung.';
+    case 'h': return `Unter L-Thyroxin liegt fT4 häufig etwas über dem Bereich, besonders wenn die Tablette vor der Blutabnahme genommen wurde. Für die Einstellung zählt vor allem der TSH-Wert, und der liegt im Bereich.${m.fDeutlichUeber ? '' : ' Das ist meist unbedenklich.'}`;
+    case 't': {
+      let t = 'Bei Präparaten mit T3-Anteil liegt der TSH-Wert oft niedrig. Bitte mit Ihrer Ärztin klären, ob das bei Ihnen so gewollt ist.';
+      if (m.tsh !== null && m.tsh < 0.1) t += ' Ein so niedriger Wert ist auch bei T3-haltigen Präparaten meist nicht beabsichtigt.';
+      if (m.f3.lage === 'ueber') t += ' fT3 ist ebenfalls erhöht – das passt zu zu viel Schilddrüsenhormon. Bitte lassen Sie die Tabletten nicht eigenmächtig weg, sondern rufen Sie die Praxis an.';
+      else if (!befund.ft3) t += ' fT3 wurde nicht gemessen – ob wirklich zu viel Hormon im Körper ist, lässt sich deshalb nicht sagen.';
+      return t;
+    }
+    case 'z2a': return 'Ihre Ärztin möchte den TSH-Wert bewusst niedrig halten. Der niedrige Wert kann deshalb so gewollt sein – bitte mit der Praxis abgleichen.';
+    case 'z2b': return 'Ihre Ärztin möchte den TSH-Wert niedrig halten. fT4 liegt aber über dem Bereich – bitte mit der Praxis abgleichen.';
+    case 'z2c': return 'Der TSH-Wert liegt höher, als es bei einer gewollten Senkung meist angestrebt wird. Bitte mit der Praxis abgleichen.';
+    case 'z3': return `Nach Schilddrüsenkrebs wird der TSH-Wert oft bewusst niedrig gehalten. Ob das bei Ihnen so ist, weiß nur Ihre Ärztin. Bitte fragen Sie nach Ihrem persönlichen Zielbereich und tragen Sie ihn im Profil ein. Tabletten bis dahin weiter genau wie verordnet.${m.variante === 'ft4-ueber' ? ' Ein niedriger TSH-Wert zusammen mit einem hohen fT4 bedeutet aber, dass mehr Hormon da ist, als der Körper braucht.' : ''}`;
+    default: return '';
+  }
+}
+
+// ---------------------------------------------------------------- Befund einschätzen
+
+/**
+ * Die ganze Einschätzung eines Befunds – nur aus Laborwerten und den Angaben
+ * zum Befund. Beschwerden und Warnzeichen kommen im Gesamtbild dazu.
+ */
+export function befundEinschaetzen(befund, stand, heute) {
+  const m = musterBestimmen(befund, stand);
+  const regeln = [];
+  const hinweise = [];
+  const werte = sp.LABORWERTE.filter(([k]) => befund[k]).map(([key, name]) => {
+    const einordnung = key === 'tsh' ? m.tLab : key === 'ft4' ? m.f : m.f3;
+    return { key, name, wert: befund[key], einordnung, ziel: key === 'tsh' && m.ziel ? m.tZ : null };
+  });
+
+  // Hinweise zur Einordnung der einzelnen Werte (L0a, L1, L1b, R5, R6)
+  werte.forEach(({ key, name, einordnung: e }) => {
+    if (e.grund === 'einheit') hinweise.push(`${name}: ${TEXT_EINHEIT}`);
+    if (e.grund === 'unplausibel') hinweise.push(`${name}: ${TEXT_UNPLAUSIBEL}`);
+    if (e.quelle === 'orientierung' && (e.genau === 'rand-unter' || e.genau === 'rand-ueber')) hinweise.push(`${name}: ${TEXT_RAND}`);
+    else if (e.quelle === 'orientierung' && key === 'ft4' && e.lage !== 'im') {
+      hinweise.push('fT4: Die Bereiche für fT4 unterscheiden sich je nach Labor stark. Bitte tragen Sie den Bereich vom Befund ein – erst dann ist die Einordnung sicher.');
+    }
+  });
+  if (werte.some((w) => w.einordnung.quelle === 'orientierung')) hinweise.push(TEXT_ORIENTIERUNG);
+  if (m.tLab.quelle === 'labor' && m.tLab.std === null && befund.tsh) {
+    hinweise.push('TSH: Die Einheit kennt die App nicht. Eingeordnet wird deshalb nur gegen den Bereich vom Befund; die festen Schwellen für sehr hohe oder sehr niedrige Werte gelten nur in mU/l (auch µU/ml oder mIE/l).');
+  }
+  if ((m.f3.lage === 'unter' || m.f3.genau === 'rand-unter') && !m.t3) hinweise.push('Unter L-Thyroxin liegt fT3 oft im unteren Bereich. Das ist meist normal und für die Einstellung wenig aussagekräftig.');
+
+  const leer = {
+    befund, muster: null, gruppe: null, ziel: false, text: '', richtung: null, werte, hinweise, stufe: 'keine', stufeLabor: 'keine',
+    stufeText: '', praxisErklaert: false, praxisText: null, gegenSelbst: null, notfall: { satz: 3, text: NOTFALL[3] },
+    zusaetze: [], erklaerungen: [], verlauf: [], fragen: [], regeln, plausibel: plausibel(befund, stand), fussnote: FUSSZEILE,
+  };
+  if (!m.code) {
+    if (befund.tsh && !m.tLab.lage) regeln.push('L0a');
+    return { ...leer, text: befund.tsh ? 'Der TSH-Wert lässt sich so nicht einordnen – siehe Hinweis.' : 'Ohne TSH-Wert ergibt sich kein Muster. Unter der Tablette ist TSH meist der wichtigste Wert.' };
+  }
+
+  const { code } = m;
+  const gruppe = MUSTER_GRUPPE[code];
+  regeln.push(code.startsWith('z2') ? 'L2z2' : `L2${code}`);
+  if (m.ziel) regeln.push('L2z1');
+  if (m.variante === 'aus-d') regeln.push('R7');
+  const tag = befund.datum;
+  const alt = alterAm(stand, tag);
+  const rs = risiko(stand, tag);
+  const f = m.f;
+  const orientFt4 = f.quelle === 'orientierung';
+  const zusaetze = [];
+
+  // Grundstufe je Muster (L3b–L3d; Muster b immer „tage", Entscheidung 8)
+  let stufe = {
+    a: 'keine', b: 'tage', c1: 'termin', c2: 'termin', c3: 'tage', d: 'tage', e1: 'termin', e2: 'termin', e3: 'tage', f: 'zeitnah',
+    g1: 'termin', g2: 'zeitnah', h: 'termin', t: 'termin', z2a: 'termin', z2b: 'zeitnah', z2c: 'zeitnah', z3: 'termin',
+  }[code];
+
+  const vorher = befund.vorAbnahme === 'ja';
+  const biotin = biotinImSpiel(befund, stand);
+  const tsh = m.tsh;
+
+  // Sonderfälle der Muster
+  if (code === 'e1' && m.variante === 'aus-d' && rs) stufe = mindestens(stufe, 'zeitnah');
+  if (code === 'h' && m.fDeutlichUeber && !vorher && !biotin) stufe = mindestens(stufe, 'zeitnah');
+  if (code === 't') {
+    if (tsh !== null && tsh < 0.1) stufe = mindestens(stufe, rs ? 'tage' : 'zeitnah');     // R8
+    if (m.f3.lage === 'ueber') stufe = mindestens(stufe, 'tage');
+  }
+  if (code === 'z2b' && m.fDeutlichUeber) stufe = mindestens(stufe, 'tage');
+  if (code === 'z3') {
+    if (tsh !== null && tsh < 0.1) stufe = mindestens(stufe, 'zeitnah');
+    if (m.variante === 'ft4-ueber') stufe = mindestens(stufe, m.fDeutlichUeber ? 'tage' : 'zeitnah');
+  }
+
+  // L3a – feste Schwellen und fT4 deutlich außerhalb
+  const l3a = [];
+  if (tsh !== null && tsh > 10) l3a.push('tsh>10');
+  if (m.sehrNiedrig && !['t', 'z2a', 'z2b', 'z2c', 'z3'].includes(code)) l3a.push('tsh<0,1');
+  if (m.fDeutlichUeber && (m.tZ.lage === 'unter' || m.tZ.lage === 'ueber') && code !== 'e1') {
+    if (!orientFt4 || (tsh !== null && tsh > 10)) l3a.push('ft4-deutlich-ueber');
+  }
+  if (m.fDeutlichUnter && !(code === 'g1' && m.t3)) {
+    // R6: ohne Laborbereich allein höchstens „zeitnah"
+    if (!orientFt4 || f.sehrNiedrig || (tsh !== null && tsh > 10)) l3a.push('ft4-deutlich-unter');
+    else stufe = mindestens(stufe, 'zeitnah');
+  }
+  if (l3a.length) { stufe = mindestens(stufe, 'tage'); regeln.push('L3a'); }
+  if (m.fDeutlichUnter && orientFt4 && !l3a.includes('ft4-deutlich-unter')) regeln.push('R6');
+
+  // R12: TSH < 0,1 im Zielbereich bei Alter/Herz nicht unter „zeitnah"
+  if (m.ziel && m.tZ.lage === 'im' && tsh !== null && tsh < 0.1 && (ab65(stand, tag) || stand.profil.herz === 'ja')) {
+    stufe = mindestens(stufe, 'zeitnah');
+    regeln.push('R12');
+  }
+
+  // L4b – Alter, Herz, Knochen bei zu viel Hormon
+  const ohneZiel = !m.ziel && stand.profil.zielNiedrig !== 'ja';
+  if (ohneZiel && rs && (['d', 'e2', 'e3', 't'].includes(code) || (code === 'e1' && m.variante === 'aus-d'))) {
+    if (code === 'e2' || code === 't') stufe = mindestens(stufe, 'zeitnah');
+    zusaetze.push({ id: 'L4b', text: 'Gerade im Alter kann dauerhaft zu viel Schilddrüsenhormon Herz (zum Beispiel Herzrhythmusstörungen wie Vorhofflimmern) und Knochen belasten – deshalb bald ansprechen. Bitte die Tabletten nicht eigenmächtig weglassen oder teilen.' });
+    regeln.push('L4b');
+  }
+
+  // Verlauf (L6) vor L4a – dort zählt, ob TSH gestiegen ist
+  const verlaufInfo = verlaufRechnen(befund, stand);
+
+  // L4a – im Alter wird ein etwas höheres TSH oft hingenommen
+  if (alt !== null && alt >= 70 && ohneZiel && (code === 'c1' || code === 'c2') && tsh !== null
+    && tsh <= (alt >= 80 ? 7 : 6) && verlaufInfo.tsh !== 'gestiegen') {
+    zusaetze.push({ id: 'L4a', text: 'Im Alter wird ein etwas höherer TSH-Wert oft bewusst hingenommen. Fragen Sie Ihre Ärztin, welcher Zielbereich für Sie gilt.' });
+    regeln.push('L4a');
+  }
+
+  // R12: veralteter Zielbereich
+  if (m.ziel && (!stand.profil.zielAm || tageZwischen(stand.profil.zielAm, heute) > 365)) {
+    zusaetze.push({ id: 'R12', text: 'Gilt Ihr Zielbereich noch? Er wurde vor über einem Jahr oder ohne Datum eingetragen – ein Zielbereich kann sich mit der Zeit ändern. Bitte beim nächsten Termin bestätigen lassen.' });
+  }
+
+  // L3e – der gezielte Notfallsatz
+  let satz = 3;
+  const fSehrTief = m.fDeutlichUnter && (!orientFt4 || f.sehrNiedrig || (tsh !== null && tsh > 10));
+  if (fSehrTief || (tsh !== null && tsh > 20)) satz = 1;
+  else if (code === 'd' || code === 'e3' || (code === 't' && (m.f3.lage === 'ueber' || (tsh !== null && tsh < 0.1 && rs)))) satz = 2;
+  if (satz !== 3) regeln.push(`L3e${satz}`);
+
+  // Text, bei Muster am Ziel mit Kennzeichnung (L2z1)
+  let text = musterText(m, befund, stand);
+  if (code === 'd' && (vorher || biotin)) text += ' Ein Teil kann an der Messung liegen – der niedrige TSH-Wert bleibt aber wichtig.';
+  if (m.ziel && code !== 'a' && m.tZ.lage !== 'im') text += ` (Gemessen an Ihrem persönlichen Zielbereich von ${zahl(m.ziel.von)} bis ${zahl(m.ziel.bis)} mU/l.)`;
+
+  const erklaerungen = erklaerungenFuer(befund, m, stand);
+  erklaerungen.forEach((e) => regeln.push(e.id));
+  const verlauf = verlaufTexte(befund, stand, verlaufInfo, stufe, tsh);
+  verlauf.forEach((v) => regeln.push(v.id));
+  zusaetze.forEach((z) => { if (!regeln.includes(z.id)) regeln.push(z.id); });
+
+  const praxisErklaert = praxisHatErklaert(befund);
+  if (praxisErklaert) regeln.push('L3f-praxis');
+
+  return {
+    ...leer,
+    muster: code,
+    gruppe,
+    ziel: Boolean(m.ziel),
+    text,
+    richtung: MUSTER_RICHTUNG[gruppe] || (code === 'z2c' ? 'wenig' : 'viel'),
+    stufe,
+    stufeLabor: stufe,
+    stufeText: BEFUND_STUFE[stufe] || STUFEN[stufe].text,
+    praxisErklaert,
+    praxisText: praxisErklaert ? PRAXIS_TEXT : null,
+    gegenSelbst: code === 'a' ? null : GEGEN_SELBST,
+    notfall: { satz, text: NOTFALL[satz] },
+    zusaetze,
+    erklaerungen,
+    verlauf,
+    regeln: [...new Set(regeln)],
+    mInfo: m,
+  };
+}
+
+// ---------------------------------------------------------------- Erklärungen (L5)
+
+const GRUPPE_A = ['kalzium', 'eisen', 'magnesium', 'multimineral', 'antazida', 'sucralfat', 'soja', 'ballaststoffe', 'kaffee', 'phosphatbinder', 'orlistat', 'raloxifen'];
+
+function erklaerungenFuer(befund, m, stand) {
+  const { code } = m;
+  const gruppe = MUSTER_GRUPPE[code];
   const e = [];
-  const wenig = ['b', 'c', 'f'].includes(code);
-  const viel = ['d', 'e', 'f', 'h'].includes(code);
+  const tag = befund.datum;
+  const imFenster = (d, fenster = 42) => d <= tag && tageZwischen(d, tag) < fenster;
 
-  // Dosis oder Präparat in den 6 Wochen davor geändert
-  const aenderung = stand.dosen.find((d, i) => i > 0 && d.ab <= befund.datum && tageZwischen(d.ab, befund.datum) < 42);
-  if (aenderung && code !== 'a') e.push(`Die Dosis wurde am ${kurz(aenderung.ab)} geändert, weniger als sechs Wochen vor der Abnahme – der Wert hat sich womöglich noch nicht eingependelt.`);
+  // L5a – etwas wurde weniger als 6 Wochen vorher geändert
+  const dosisNeu = stand.dosen.some((d, i) => i > 0 && imFenster(d.ab));
+  const mittelNeu = stand.mittelWechsel.some((w) => imFenster(w.am));
+  if (dosisNeu || mittelNeu || befund.packung === 'ja' || befund.mittelGeaendert === 'ja') {
+    e.push({ id: 'L5a', text: 'Die Dosis, das Präparat oder ein anderes Mittel wurde weniger als 6 Wochen vor der Blutabnahme geändert. Der Wert hat sich womöglich noch nicht eingependelt – das dauert etwa 6–8 Wochen. Ihre Ärztin wird das berücksichtigen.' });
+  }
 
-  // Vergessene Tabletten in den 6 Wochen davor
-  if (wenig) {
-    let nicht = 0;
-    let erfasst = 0;
-    for (let i = 1; i <= 42; i++) {
-      const tag = tageWeiter(befund.datum, -i);
-      const x = stand.einnahmen[tag];
-      if (x === null) { nicht++; erfasst++; } else if (x) erfasst++;
+  // L5b – vergessene Tabletten (nur b, c, f); R9: eigene Angabe zählt auch
+  if (['b', 'c', 'f'].includes(gruppe)) {
+    const x = einnahmenVor(befund, stand);
+    const ausDaten = x.erfasst >= 28 && (x.nicht >= 3 || x.genommen / x.erfasst < 0.9);
+    const zusatzF = gruppe === 'f' ? ' Wenn die Tablette vor der Blutabnahme wieder regelmäßig genommen oder nachgeholt wurde, kann das dieses Muster erklären.' : '';
+    const schluss = ' Vergessene Tabletten können dazu beitragen, dass der TSH-Wert steigt – das ist häufig und kein Vorwurf. Wie Sie mit vergessenen Tabletten umgehen sollen, fragen Sie bitte Ihre Ärztin.';
+    if (ausDaten) {
+      e.push({ id: 'L5b', text: `In den 6 Wochen vor der Blutabnahme wurde die Tablette an ${x.nicht} von ${x.erfasst} erfassten Tagen nicht genommen.${schluss}${zusatzF}` });
+    } else if (befund.vergessen === 'mehrere') {
+      e.push({ id: 'L5b', text: `Sie haben angegeben, in den 6 Wochen vor der Blutabnahme an mehreren Tagen Tabletten vergessen oder ausgelassen zu haben.${schluss}${zusatzF}` });
+    } else if (x.erfasst < 28) {
+      e.push({ id: 'L5b3', text: 'Die Einnahme wurde in dieser Zeit zu selten eingetragen, um etwas darüber zu sagen.' });
     }
-    if (nicht >= 3 || (erfasst >= 14 && (erfasst - nicht) / erfasst < 0.9)) {
-      e.push(`In den sechs Wochen vor der Abnahme war die Tablette an ${nicht} ${nicht === 1 ? 'Tag' : 'Tagen'} nicht genommen – vergessene Tabletten können TSH erhöhen.`);
-    }
   }
-  if (befund.vorAbnahme && viel) e.push('Die Tablette war vor der Abnahme genommen – fT4 kann dadurch höher ausfallen, TSH kaum.');
-  if ((befund.biotin || stand.mittel.includes('biotin')) && (viel || code === 'a')) {
-    e.push('Biotin verfälscht die Messung: TSH erscheint zu niedrig, fT4 zu hoch. Den Wert mit Vorsicht lesen und ansprechen, ob er ohne Biotin wiederholt werden soll.');
-  }
-  const aufnahme = ['ppi', 'kalzium', 'eisen', 'magnesium', 'antazida', 'soja', 'ballaststoffe', 'colestyramin', 'kaffee', 'sucralfat', 'multimineral']
-    .filter((k) => stand.mittel.includes(k));
-  if (wenig && aufnahme.length) {
-    e.push(`${namen(aufnahme)} ${aufnahme.length === 1 ? 'kann' : 'können'} die Aufnahme der Tablette verringern und so TSH erhöhen – vor allem ohne genügend Abstand (siehe „Was braucht Abstand?").`);
-  }
-  if (wenig && stand.mittel.includes('oestrogen')) e.push('Östrogen kann den Bedarf an Schilddrüsenhormon erhöhen.');
-  const direkt = ['amiodaron', 'jod'].filter((k) => stand.mittel.includes(k));
-  if (code !== 'a' && direkt.length) e.push(`${namen(direkt)} ${direkt.length === 1 ? 'beeinflusst' : 'beeinflussen'} die Schilddrüse direkt – der Schilddrüsenpraxis sagen.`);
 
-  // Andere Einheit als beim vorigen Befund
-  const vorher = [...stand.labor].reverse().find((l) => l.datum < befund.datum && l.tsh);
-  if (vorher && befund.tsh && (vorher.tsh.einheit || '').toLowerCase() !== (befund.tsh.einheit || '').toLowerCase()) {
-    e.push('Andere Einheit als beim letzten Befund – die Werte nicht direkt vergleichen.');
+  // L5c – Tablette vor der Abnahme
+  if (befund.vorAbnahme === 'ja') {
+    const erklaert = ['d', 'f', 'h', 'z2b'].includes(code) || m.variante === 'aus-d';
+    const teile = [];
+    if (erklaert) teile.push('Die Tablette wurde am Tag der Blutabnahme vorher genommen. Der fT4-Wert kann dadurch einige Stunden lang etwas höher ausfallen. Der TSH-Wert wird dadurch kaum verändert und bleibt aussagekräftig.');
+    if (erklaert && m.t3) teile.push('Bei Präparaten mit T3-Anteil kann auch fT3 deutlich höher ausfallen.');
+    teile.push('Tipp für das nächste Mal: Am Tag der Blutabnahme die Tablette erst nach der Abnahme nehmen – außer die Praxis sagt etwas anderes.');
+    e.push({ id: 'L5c', text: teile.join(' ') });
   }
+
+  // L5d – Biotin (alle Muster)
+  if (biotinImSpiel(befund, stand)) {
+    const grund = 'Biotin (Vitamin B7, oft in Haar-, Haut- und Nägel-Mitteln und Vitamin-B-Komplexen) kann bei manchen Labortests die Messung verfälschen: TSH erscheint zu niedrig, fT4 und fT3 zu hoch.';
+    let zusatz;
+    if (['d', 'e', 'h', 't'].includes(gruppe) || ['z2a', 'z2b', 'z3'].includes(code)) zusatz = 'Das kann aussehen wie zu viel Hormon. Bitte sagen Sie es der Praxis – oft wird der Wert nach einer Biotin-Pause wiederholt.';
+    else if (gruppe === 'a' || gruppe === 'c' || code === 'z2c') zusatz = 'Dadurch kann ein zu hoher TSH-Wert verdeckt sein. Bitte sagen Sie es der Praxis.';
+    else if (gruppe === 'f') zusatz = 'Das kann das erhöhte fT4 erklären, nicht aber das erhöhte TSH.';
+    else zusatz = 'Bitte sagen Sie es der Praxis.';
+    const falls = befund.biotin === 'ja' ? '' : 'Falls Sie in den Tagen vor der Blutabnahme Biotin genommen haben: ';
+    e.push({ id: 'L5d', text: `${falls}${grund} ${zusatz}` });
+  }
+
+  // L5e – Mittel aus dem Profil
+  const mt = stand.mittel;
+  const saetze = [];
+  const hat = (k) => mt.includes(k);
+  if (['b', 'c'].includes(gruppe)) {
+    const a = GRUPPE_A.filter((k) => hat(k) && stand.mittelAbstand[k] !== 'ja');
+    a.forEach((k) => saetze.push(`${kurzName(k)} kann die Aufnahme der Tablette verringern, wenn es zu nah an der Tablette genommen wird – dann kann der TSH-Wert steigen.`));
+    if (hat('ppi')) saetze.push('Magenschutz kann die Aufnahme der Tablette verringern – auch mit Abstand.');
+    if (hat('colestyramin')) saetze.push('Colestyramin und ähnliche Mittel können die Aufnahme der Tablette verringern.');
+    ['oestrogen_tablette', 'tamoxifen', 'raloxifen', 'enzyminduktor'].filter(hat)
+      .forEach((k) => saetze.push(`${kurzName(k)} kann den Bedarf an Schilddrüsenhormon erhöhen.`));
+    if (hat('lithium')) saetze.push('Lithium kann den TSH-Wert erhöhen.');
+  }
+  if (gruppe === 'g' && hat('enzyminduktor')) saetze.push(`${kurzName('enzyminduktor')} kann den Bedarf an Schilddrüsenhormon erhöhen und fT4 senken.`);
+  if (['d', 'e', 'g', 't'].includes(gruppe) || ['z2a', 'z2b', 'z3'].includes(code)) {
+    if (stand.profil.kortison === 'ja' || befund.kortison === 'ja') saetze.push('Kortison kann den TSH-Wert senken.');
+    if (hat('metformin')) saetze.push('Metformin kann den TSH-Wert senken.');
+  }
+  ['amiodaron', 'jod', 'krebsmittel'].filter(hat)
+    .forEach((k) => saetze.push(`${kurzName(k)} kann die Schilddrüse direkt beeinflussen – die Werte können sich dadurch auch später noch ändern.`));
+  if (saetze.length) {
+    saetze.push('Bitte setzen Sie kein Mittel eigenmächtig ab, sondern sprechen Sie es an.');
+    e.push({ id: 'L5e', text: saetze.join(' ') });
+  }
+
+  // L5g – schwere Krankheit, Kortison, Kontrastmittel (nicht bei a)
+  if (code !== 'a' && (befund.krank === 'ja' || befund.kortison === 'ja' || befund.kontrastmittel === 'ja')) {
+    e.push({ id: 'L5g', text: 'Sie waren in den Wochen vor der Blutabnahme schwer krank oder im Krankenhaus oder haben Kortison oder Kontrastmittel bekommen. Das kann die Schilddrüsenwerte vorübergehend verändern. Ihre Ärztin beurteilt, ob der Wert später wiederholt werden soll.' });
+  }
+
+  // L5h – Abnahme am Nachmittag
+  if (befund.abnahmeUhr && befund.abnahmeUhr >= '12:00' && ['c1', 'e1', 'e2'].includes(code)) {
+    e.push({ id: 'L5h', text: 'Die Blutabnahme war am Nachmittag. Der TSH-Wert ist nachmittags oft etwas niedriger als morgens.' });
+  }
+
+  // Reihenfolge (L3f): a, b, c, d, g, e, f, h – mit Vorrang
+  const ordnung = ['L5a', 'L5b', 'L5b3', 'L5c', 'L5d', 'L5g', 'L5e', 'L5f', 'L5h'];
+  e.sort((x, y) => ordnung.indexOf(x.id) - ordnung.indexOf(y.id));
+  const nachVorn = (id) => { const i = e.findIndex((x) => x.id === id); if (i > 0) e.unshift(...e.splice(i, 1)); };
+  if (m.variante === 'aus-d') nachVorn('L5c');
+  if (code === 'b') nachVorn('L5b');
+  if (['d', 'e', 'h', 'f', 't'].includes(gruppe)) nachVorn('L5d');
   return e;
 }
 
-function namen(keys) {
-  const n = keys.map((k) => (sp.MITTEL.find(([m]) => m === k) || [k, k])[1].replace(/ \(.*\)$/, ''));
-  return n.length > 1 ? `${n.slice(0, -1).join(', ')} und ${n[n.length - 1]}` : n[0];
+// ---------------------------------------------------------------- Verlauf (L5f, L6, L6b)
+
+/** Der letzte frühere Befund mit diesem Wert. */
+function vorigerMit(befund, stand, key) {
+  return [...stand.labor].reverse().find((l) => l.id !== befund.id && l.datum < befund.datum && l[key]) || null;
 }
-
-/** TSH im Vergleich zum vorigen Befund in derselben Einheit. */
-function verlaufText(befund, stand) {
-  if (!befund.tsh) return null;
-  const vorher = [...stand.labor].reverse().find((l) => l.datum < befund.datum && l.tsh
-    && (l.tsh.einheit || '').toLowerCase() === (befund.tsh.einheit || '').toLowerCase());
-  if (!vorher) return null;
-  const a = vorher.tsh.wert;
-  const b = befund.tsh.wert;
-  const rel = a > 0 ? (b - a) / a : 0;
-  const wort = rel > 0.25 ? 'gestiegen' : rel < -0.25 ? 'gesunken' : 'etwa gleich geblieben';
-  const dA = sp.tagesdosis(dosisAmIn(stand, vorher.datum));
-  const dB = sp.tagesdosis(dosisAmIn(stand, befund.datum));
-  const dosis = dA !== null && dB !== null && dA !== dB
-    ? ` Dazwischen wurde die Dosis von ${zahlText(dA, 1)} auf ${zahlText(dB, 1)} µg am Tag geändert.`
-    : dA !== null && dA === dB ? ' Die Dosis war dazwischen gleich.' : '';
-  return `TSH ist seit dem ${kurz(vorher.datum)} ${wort}: von ${zahlText(a)} auf ${zahlText(b)}.${dosis}`;
-}
-
-/** Der jüngste Befund mit Einschätzung – oder null. */
-export function letzterBefund(stand = sp.getStand()) {
-  for (let i = stand.labor.length - 1; i >= 0; i--) {
-    const e = befundEinschaetzen(stand.labor[i], stand);
-    if (e) return { befund: stand.labor[i], einschaetzung: e };
-  }
-  return null;
-}
-
-/** Kontrolle fällig? Text oder null. */
-export function kontrolleFaellig(stand, heute) {
-  if (!stand.dosen.length) return null;
-  const letzter = stand.labor.length ? stand.labor[stand.labor.length - 1].datum : null;
-  if (!letzter) return null;
-  const tage = tageZwischen(letzter, heute);
-  if (tage > 365) return `Der letzte Laborwert ist über ein Jahr alt (${kurz(letzter)}). Bei stabiler Einstellung wird etwa alle 6 bis 12 Monate kontrolliert – einen Termin ausmachen.`;
-  return null;
-}
-
-// ---------------------------------------------------------------- Beschwerden
-
-export const ZU_WENIG = ['muede', 'frieren', 'verstopfung', 'haut', 'stimmung', 'konzentration', 'schmerzen'];
-export const ZU_VIEL = ['schwitzen', 'herz', 'durchfall', 'schlaf'];
 
 /**
- * Wozu passen die Beschwerden der letzten 4 Wochen?
- * { richtung: 'wenig'|'viel'|null, wenig, viel, eintraege, text, abgleich }
+ * Sind zwei Befunde vergleichbar (L5f)? Gleiche umrechenbare Einheit, kein
+ * anderes Labor, Bereichsgrenzen nicht mehr als 10 % verschieden.
  */
-export function beschwerdenMuster(stand, heute) {
-  const ab = tageWeiter(heute, -27);
-  const eintraege = stand.befinden.filter((b) => b.datum >= ab && b.datum <= heute);
-  let wenig = 0;
-  let viel = 0;
-  eintraege.forEach((b) => b.beschwerden.forEach((k) => {
-    if (ZU_WENIG.includes(k)) wenig++;
-    if (ZU_VIEL.includes(k)) viel++;
-  }));
-  let richtung = null;
-  if (wenig >= 3 && wenig >= 2 * viel) richtung = 'wenig';
-  else if (viel >= 3 && viel >= 2 * wenig) richtung = 'viel';
-  const text = !eintraege.length ? null
-    : richtung === 'wenig' ? 'Ihre Beschwerden der letzten vier Wochen passen eher zu zu wenig Schilddrüsenhormon.'
-      : richtung === 'viel' ? 'Ihre Beschwerden der letzten vier Wochen passen eher zu zu viel Schilddrüsenhormon.'
-        : (wenig + viel) ? 'Ihre Beschwerden der letzten vier Wochen ergeben kein klares Muster.' : 'In den letzten vier Wochen keine typischen Beschwerden eingetragen.';
-  let abgleich = null;
-  const letzter = letzterBefund(stand);
-  if (richtung && letzter && tageZwischen(letzter.befund.datum, heute) <= 92) {
-    const r = letzter.einschaetzung.richtung;
-    if (r === richtung) abgleich = 'Das passt zum letzten Laborwert.';
-    else if (r === 'passend') abgleich = 'Der letzte Laborwert lag im Bereich – dann sucht die Ärztin eher nach anderen Ursachen.';
-    else abgleich = 'Das passt nicht zum letzten Laborwert – gut, das beim Termin anzusprechen.';
+export function vergleichbar(a, b, key) {
+  const wa = a[key];
+  const wb = b[key];
+  if (!wa || !wb) return false;
+  if (inStandard(key, wa) === null || inStandard(key, wb) === null) return false;
+  const na = (a.laborName || '').trim().toLowerCase();
+  const nb = (b.laborName || '').trim().toLowerCase();
+  if (na && nb && na !== nb) return false;
+  for (const g of ['von', 'bis']) {
+    if (wa[g] !== null && wb[g] !== null && wa[g] !== undefined && wb[g] !== undefined) {
+      const ga = inStandard(key, { wert: wa[g], einheit: wa.einheit });
+      const gb = inStandard(key, { wert: wb[g], einheit: wb.einheit });
+      if (ga !== null && gb !== null && gb > 0 && Math.abs(ga - gb) / gb > 0.1) return false;
+    }
   }
-  return { richtung, wenig, viel, eintraege: eintraege.length, text, abgleich };
+  return true;
 }
 
-// ---------------------------------------------------------------- Warnzeichen
-
-export const WARN_NOTRUF = [
-  ['brust', 'Schmerzen oder Engegefühl in der Brust'],
-  ['herzrasen', 'Plötzlich starkes Herzrasen oder Herzstolpern mit Schwindel'],
-  ['atem', 'Atemnot'],
-  ['ohnmacht', 'Ohnmacht oder kurz weggetreten'],
-  ['laehmung', 'Plötzliche Lähmung einer Seite, hängender Mundwinkel oder Sprachstörung'],
-  ['verwirrt', 'Extreme Schläfrigkeit, Verwirrtheit, sehr kalt und langsamer Atem'],
-];
-export const WARN_PRAXIS = [
-  ['unruhe', 'Seit Tagen Herzklopfen, Zittern oder innere Unruhe'],
-  ['durchfall', 'Mehrere Tage Durchfall oder Erbrechen'],
-  ['ueberdosis', 'Versehentlich mehrere Tabletten zu viel genommen'],
-  ['abnahme', 'Ungewollt abgenommen'],
-  ['muede', 'Seit Wochen neue, starke Müdigkeit oder Frieren'],
-];
-
-/** Auswertung des Warnzeichen-Checks: { stufe: 'notruf'|'tage'|'termin', grund: string[] } */
-export function warnzeichenAuswerten(antworten) {
-  const ja = (liste) => liste.filter(([k]) => antworten.includes(k)).map(([, t]) => t);
-  const notruf = ja(WARN_NOTRUF);
-  if (notruf.length) return { stufe: 'notruf', grund: notruf };
-  const praxis = ja(WARN_PRAXIS);
-  if (praxis.length) return { stufe: 'tage', grund: praxis };
-  return { stufe: 'termin', grund: [] };
+function verlaufRechnen(befund, stand) {
+  const info = { tsh: null, vorher: null, vergleichbar: false, ft4: null, vorherFt4: null };
+  const v = vorigerMit(befund, stand, 'tsh');
+  if (v && befund.tsh) {
+    info.vorher = v;
+    info.vergleichbar = vergleichbar(v, befund, 'tsh');
+    if (info.vergleichbar) {
+      const a = inStandard('tsh', v.tsh);
+      const b = inStandard('tsh', befund.tsh);
+      const la = einordnen('tsh', v.tsh).lage;
+      const lb = einordnen('tsh', befund.tsh).lage;
+      const gestiegen = (b >= a * 1.5 && b - a >= 0.5) || (la === 'unter' && (lb === 'im' || lb === 'ueber')) || (la === 'im' && lb === 'ueber');
+      const gesunken = (b <= a / 1.5 && a - b >= 0.5) || (la === 'ueber' && (lb === 'im' || lb === 'unter')) || (la === 'im' && lb === 'unter');
+      info.tsh = gestiegen ? 'gestiegen' : gesunken ? 'gesunken' : 'gleich';
+      info.a = a; info.b = b; info.la = la; info.lb = lb;
+    }
+  }
+  const vf = vorigerMit(befund, stand, 'ft4');
+  if (vf && befund.ft4 && vergleichbar(vf, befund, 'ft4')) {
+    const a = inStandard('ft4', vf.ft4);
+    const b = inStandard('ft4', befund.ft4);
+    info.vorherFt4 = vf;
+    info.ft4 = b >= a * 1.2 ? 'gestiegen' : b <= a * 0.8 ? 'gesunken' : 'gleich';
+  }
+  return info;
 }
 
-// ---------------------------------------------------------------- Abstand
+function wertMitEinheit(a, b) {
+  return a.einheit === b.einheit
+    ? `von ${zahl(a.wert)} auf ${zahl(b.wert)} ${b.einheit}`
+    : `von ${zahl(a.wert)} ${a.einheit} auf ${zahl(b.wert)} ${b.einheit}`;
+}
 
-const ABSTAND = {
-  kalzium: 240, eisen: 240, magnesium: 240, multimineral: 240, antazida: 240, sucralfat: 240, soja: 240, ballaststoffe: 240,
-  colestyramin: 300,
-  kaffee: 60,
-};
+function verlaufTexte(befund, stand, info, stufe, tsh) {
+  const t = [];
+  const v = info.vorher;
+  if (v && !info.vergleichbar) {
+    const la = einordnen('tsh', v.tsh);
+    const lb = einordnen('tsh', befund.tsh);
+    const lage = (e) => (e.lage ? LAGE_TEXT[e.lage] : 'ohne Einordnung');
+    t.push({ id: 'L5f', text: `Anderes Labor oder anderer Test als beim letzten Mal – die Werte nur eingeschränkt vergleichen. Die App vergleicht deshalb nur, wo der Wert jeweils im Bereich lag: am ${kurz(v.datum)} ${lage(la)}, jetzt ${lage(lb)}.` });
+  } else if (v && info.tsh) {
+    const { la, lb } = info;
+    const werte = wertMitEinheit(v.tsh, befund.tsh);
+    let s;
+    if (lb === 'im' && la !== 'im' && la) {
+      s = `TSH liegt jetzt im Bereich (am ${kurz(v.datum)} ${la === 'unter' ? 'unter' : 'über'} dem Bereich): ${werte}.`;
+    } else if (info.tsh === 'gestiegen') {
+      s = `TSH ist seit dem ${kurz(v.datum)} gestiegen: ${werte}.`;
+      if (lb !== 'im') s += ' Ein steigender TSH-Wert bedeutet: Der Körper meldet eher zu wenig Hormon.';
+    } else if (info.tsh === 'gesunken') {
+      s = `TSH ist seit dem ${kurz(v.datum)} gesunken: ${werte}.`;
+      if (lb !== 'im') s += ' Ein sinkender TSH-Wert bedeutet: eher mehr Hormon im Körper.';
+    } else {
+      s = `TSH ist etwa gleich geblieben (${zahl(v.tsh.wert)} → ${zahl(befund.tsh.wert)} ${befund.tsh.einheit}).`;
+      const schwelle = tsh !== null && (tsh < 0.1 || tsh > 10);
+      if (STUFEN[stufe].rang <= STUFEN.termin.rang && !schwelle) s += ' Schwankungen dieser Größe sind normal.';
+    }
+    const dA = dosisAmIn(stand, v.datum);
+    const dB = dosisAmIn(stand, befund.datum);
+    if (dA && dB) {
+      const geaendert = stand.dosen.some((d) => d.ab > v.datum && d.ab <= befund.datum && sp.tagesdosis(d) !== sp.tagesdosis(dA));
+      s += geaendert ? ' Dazwischen wurde die Dosis geändert.' : ' Die Dosis war in dieser Zeit gleich.';
+    }
+    if (v.abnahmeUhr && befund.abnahmeUhr) {
+      const min = (u) => Number(u.slice(0, 2)) * 60 + Number(u.slice(3));
+      if (Math.abs(min(v.abnahmeUhr) - min(befund.abnahmeUhr)) > 240) s += ' Die Blutabnahmen waren zu unterschiedlichen Tageszeiten – TSH schwankt über den Tag.';
+    }
+    t.push({ id: 'L6', text: s });
+  }
+  if (info.ft4) {
+    const vf = info.vorherFt4;
+    const wort = { gestiegen: 'gestiegen', gesunken: 'gesunken', gleich: 'etwa gleich geblieben' }[info.ft4];
+    let s = `fT4 ist seit dem ${kurz(vf.datum)} ${wort}: ${wertMitEinheit(vf.ft4, befund.ft4)}.`;
+    const ja = (x) => x === 'ja';
+    if (['ja', 'nein'].includes(vf.vorAbnahme) && ['ja', 'nein'].includes(befund.vorAbnahme) && ja(vf.vorAbnahme) !== ja(befund.vorAbnahme)) {
+      s += ' Die Tablette wurde nur bei einer der beiden Blutabnahmen vorher genommen – fT4 ist deshalb nur eingeschränkt vergleichbar.';
+    }
+    t.push({ id: 'L6b', text: s });
+  }
+  return t;
+}
 
-const HINWEIS = {
-  ppi: 'Kein zeitlicher Abstand hilft – wichtig ist, dass die Ärztin davon weiß. Beim Beginnen oder Absetzen die Werte kontrollieren lassen. Den Magenschutz nicht wegen der Schilddrüse selbst absetzen.',
-  oestrogen: 'Kann den Bedarf erhöhen. Beim Beginnen oder Absetzen die Werte kontrollieren lassen.',
-  biotin: 'Verfälscht die Laborwerte: vor jeder Blutabnahme mindestens 3 Tage pausieren (hoch dosiert bis zu einer Woche) und der Praxis sagen.',
-  marcumar: 'Nach jeder Dosisänderung der Schilddrüsentablette den INR-Wert früher kontrollieren lassen.',
-  diabetes: 'Nach einer Dosisänderung der Schilddrüsentablette kann sich der Blutzucker ändern – öfter messen.',
-  amiodaron: 'Beeinflusst die Schilddrüse direkt – mit der Schilddrüsenpraxis abstimmen.',
-  jod: 'Große Mengen Jod können die Schilddrüse beeinflussen – nur nach Rücksprache.',
-  bisphosphonat: 'Muss ebenfalls nüchtern genommen werden – nicht zusammen mit der Schilddrüsentablette. Mit der Ärztin klären, wie beides zeitlich getrennt wird.',
-  selen: 'Ein Nutzen ist nicht belegt – nur nach Rücksprache.',
-};
+/** Der jüngste Befund mit Muster – als Einschätzung, oder null. */
+export function letzterBefund(stand, heute) {
+  for (let i = stand.labor.length - 1; i >= 0; i--) {
+    if (stand.labor[i].datum > heute) continue;
+    const e = befundEinschaetzen(stand.labor[i], stand, heute);
+    if (e.muster) return e;
+  }
+  return null;
+}
+
+/** Der jüngste Befund mit einem TSH-Wert (auch ohne Einordnung) – oder null. */
+function letzterMitTsh(stand, heute) {
+  return [...stand.labor].reverse().find((l) => l.tsh && l.datum <= heute) || null;
+}
+
+// ---------------------------------------------------------------- Weitere Werte (E13, L9)
+
+export const WEITERE_HINWEIS = 'Der Laborbereich ist nicht Ihr persönlicher Zielwert – den legt die Ärztin fest. Diese Werte ändern nichts an Ihrer Schilddrüsendosis.';
+
+export function hatDiabetes(stand) {
+  return stand.mittel.includes('diabetes') || stand.mittel.includes('metformin') || stand.profil.diabetes === 'ja';
+}
+
+/** Einordnung der freiwilligen Werte eines Befunds. */
+export function weitereWerte(befund, stand) {
+  const liste = [];
+  sp.WEITERE_WERTE.forEach(([key, name]) => {
+    const w = befund[key];
+    if (!w) return;
+    const texte = [];
+    let stufe = 'keine';
+    const std = inStandard(key, w);
+    const p = pruefeWert(key, w);
+    const unter = w.von !== null && w.von !== undefined && w.wert < w.von;
+    const ueber = w.bis !== null && w.bis !== undefined && w.wert > w.bis;
+    if (p.unplausibel) {
+      texte.push('Der Wert passt nicht zur gewählten Einheit – bitte prüfen. Bis dahin ordnet die App ihn nicht ein.');
+      liste.push({ key, name, wert: w, stufe, texte });
+      return;
+    }
+    switch (key) {
+      case 'hb':
+        if (unter) { stufe = 'zeitnah'; texte.push('Der Wert spricht für eine Blutarmut. Besprechen Sie ihn innerhalb von ein bis zwei Wochen mit der Praxis.'); }
+        else if (ueber) { stufe = 'termin'; texte.push('Hämoglobin liegt über dem Bereich des Labors. Bitte ansprechen, falls die Praxis es noch nicht mit Ihnen besprochen hat.'); }
+        break;
+      case 'ferritin': {
+        const crp = befund.crp;
+        const crpHoch = crp && crp.bis !== null && crp.bis !== undefined && crp.wert > crp.bis;
+        if (std !== null && std < 30) { stufe = 'zeitnah'; texte.push('Der Wert spricht für Eisenmangel, auch wenn das Labor „im Bereich" schreibt. Besprechen Sie ihn innerhalb von ein bis zwei Wochen mit der Praxis, denn die Ursache sollte geklärt werden.'); }
+        else if (std !== null && std <= 100 && crpHoch) texte.push('Bei einer Entzündung kann Ferritin trotz Eisenmangel normal wirken.');
+        else if ((std !== null && std > 400) || ueber) { stufe = 'termin'; texte.push('Der Wert ist erhöht. Sprechen Sie ihn beim nächsten Termin an.'); }
+        break;
+      }
+      case 'b12':
+        if (unter || (std !== null && std < 150)) { stufe = 'zeitnah'; texte.push('Der Wert spricht für einen Vitamin-B12-Mangel. Besprechen Sie ihn innerhalb von ein bis zwei Wochen mit der Praxis.'); }
+        else if (std !== null && std <= 300) { stufe = 'termin'; texte.push('Ein Wert im unteren Bereich schließt einen Mangel nicht sicher aus. Bei Beschwerden wie Müdigkeit, Kribbeln oder Gangunsicherheit ansprechen; dann kann ein genauerer Test (Holo-TC oder MMA) sinnvoll sein.'); }
+        break;
+      case 'vitd':
+        if (std !== null) {
+          if (std < 12) { stufe = 'termin'; texte.push('Der Wert zeigt einen Vitamin-D-Mangel. Sprechen Sie ihn beim nächsten Termin an.'); }
+          else if (std < 20) { stufe = 'termin'; texte.push('Der Wert ist knapp. Fragen Sie beim nächsten Termin, ob Sie Vitamin D nehmen sollen.'); }
+          else if (std <= 100) texte.push('Der Wert ist ausreichend, auch wenn das Labor einen höheren Bereich angibt.');
+          else { stufe = 'tage'; texte.push('Der Wert ist sehr hoch. Nehmen Sie Ihr Vitamin-D-Präparat bis zur Rücksprache nicht weiter und rufen Sie in den nächsten Tagen die Praxis an.'); }
+          texte.push('Der Wert schwankt mit der Jahreszeit.');
+        }
+        break;
+      case 'hba1c':
+        if (std !== null) {
+          if (hatDiabetes(stand)) texte.push('Ihr Zielwert ist persönlich, im Alter oft 7 bis 8 % (53 bis 64 mmol/mol). Fragen Sie die Praxis, welcher für Sie gilt.');
+          else if (std >= 6.5) { stufe = 'zeitnah'; texte.push('Der Wert ist erhöht und kann auf Diabetes hindeuten. Besprechen Sie ihn innerhalb von ein bis zwei Wochen mit der Praxis.'); }
+          else if (std >= 5.7) { stufe = 'termin'; texte.push('Der Wert ist leicht erhöht. Sprechen Sie ihn beim nächsten Termin an.'); }
+          texte.push('Blutarmut, Eisen- oder B12-Mangel und Nierenerkrankungen können den Wert verfälschen.');
+        }
+        break;
+      case 'ldl':
+        texte.push('Ihr persönlicher Zielwert hängt von Herz, Gefäßen, Diabetes und Alter ab. Fragen Sie die Praxis danach. Ein hohes LDL ist kein Grund, mehr Schilddrüsentablette zu nehmen.');
+        break;
+      case 'crp':
+        if (ueber) { stufe = 'termin'; texte.push('Der Entzündungswert ist erhöht. Dann sind Ferritin und manche anderen Werte schwerer zu beurteilen. Wenn Sie sich krank fühlen, sprechen Sie mit der Praxis.'); }
+        break;
+      case 'natrium':
+        if (unter || ueber) { stufe = 'termin'; texte.push(`Natrium liegt ${unter ? 'unter' : 'über'} dem Bereich des Labors. Bitte ansprechen, falls die Praxis es noch nicht mit Ihnen besprochen hat.`); }
+        break;
+      default:
+    }
+    liste.push({ key, name, wert: w, stufe, texte, auffaellig: stufe !== 'keine' });
+  });
+  return liste;
+}
+
+// ---------------------------------------------------------------- Beschwerden (S1–S4)
+
+/* S1: Gewichte je Seite. Neutral: Konzentration, Haarausfall, Schlaf, Gewicht. */
+export const GEWICHT_WENIG = { frieren: 1, verstopfung: 1, trockenhaut: 1, gesicht: 1, muede: 0.5, stimmung: 0.5, schmerzen: 0.5 };
+export const GEWICHT_VIEL = { schwitzen: 1, herz: 1, zittern: 1, waerme: 1, abnahme: 1, durchfall: 0.5 };
+const IM_ALTER_NICHT = ['muede', 'stimmung', 'schmerzen'];
+const EIGENE_PFADE = ['puls', 'lebensmuede'];
+
+export const W5_TEXT = 'Danke, dass Sie das angeben. Bitte bleiben Sie damit nicht allein und sprechen Sie heute noch mit jemandem darüber: Telefonseelsorge 0800 111 0 111 oder 0800 111 0 222 (rund um die Uhr, kostenlos, anonym), Ihre Hausarztpraxis oder abends und am Wochenende der Bereitschaftsdienst 116 117. Wenn Sie in Gefahr sind, sich etwas anzutun: sofort 112.';
+
+function genanntIn(stand, heute, tage) {
+  const ab = tageWeiter(heute, -(tage - 1));
+  const s = new Set();
+  stand.befinden.filter((b) => b.datum >= ab && b.datum <= heute).forEach((b) => b.beschwerden.forEach((k) => s.add(k)));
+  return s;
+}
+
+/** Wozu passen die Beschwerden? Dazu die eigenen Pfade für Puls und seelische Not. */
+export function beschwerdenAuswerten(stand, heute) {
+  const g28 = genanntIn(stand, heute, 28);
+  const g14 = genanntIn(stand, heute, 14);
+  const alt70 = ab70(stand, heute);
+  const alt65 = ab65(stand, heute);
+  const gewicht = (k, tabelle) => (alt70 && IM_ALTER_NICHT.includes(k) ? 0 : tabelle[k] || 0);
+  let punkteWenig = 0;
+  let punkteViel = 0;
+  g28.forEach((k) => { punkteWenig += gewicht(k, GEWICHT_WENIG); punkteViel += gewicht(k, GEWICHT_VIEL); });
+  const richtung = punkteWenig >= 3 && punkteViel <= 1 ? 'wenig' : punkteViel >= 3 && punkteWenig <= 1 ? 'viel' : null;
+  const gezaehlt = [...g28].filter((k) => !EIGENE_PFADE.includes(k));
+  const texte = [];
+  const regeln = [];
+  const add = (id, stufe, text) => { texte.push({ id, stufe, text }); regeln.push(id); };
+
+  // W5 über das Befinden – vor allem anderen
+  if (g14.has('lebensmuede')) add('W5', 'heute', W5_TEXT);
+  else if (g14.has('stimmung')) add('W5b', 'keine', 'Wenn die Stimmung sehr schlecht ist: Telefonseelsorge 0800 111 0 111 (rund um die Uhr, kostenlos).');
+
+  // S4 – Puls und Herzklopfen
+  const letzter = letzterBefund(stand, heute);
+  const frisch = letzter && tageZwischen(letzter.befund.datum, heute) <= 90;
+  if (g14.has('puls')) {
+    add('S4', 'heute', 'Ein neu unregelmäßiger Puls oder Herzstolpern sollte ärztlich angeschaut werden – möglich ist zum Beispiel Vorhofflimmern, auch wenn Ihr Schilddrüsenwert passt. Bitte rufen Sie heute oder in den nächsten Tagen in der Praxis an, außerhalb der Sprechzeiten 116 117. Mit Schwindel, Atemnot, Brustschmerz oder Ohnmacht: sofort 112.');
+  }
+  if (g14.has('herz')) {
+    const tshTief = frisch && (['d', 'e2', 'e3', 't', 'z2a', 'z2b', 'z3'].includes(letzter.muster) || (letzter.mInfo.tsh !== null && letzter.mInfo.tsh < 0.1));
+    if (tshTief) {
+      add('S4ii', alt65 || stand.profil.herz === 'ja' ? 'heute' : 'tage', 'Herzklopfen zusammen mit einem niedrigen TSH-Wert kann bedeuten, dass zu viel Schilddrüsenhormon im Körper ist. Bitte rufen Sie in den nächsten Tagen in der Praxis an – im Alter oder bei Herzkrankheit noch heute. Bei Herzrasen mit Schwindel, Atemnot oder Brustschmerz: sofort 112. Bitte die Tabletten nicht eigenmächtig weglassen.');
+    } else {
+      add('R3', 'termin', 'Wenn Sie seit Tagen Herzklopfen haben: Bitte rufen Sie heute in der Praxis an, außerhalb der Sprechzeiten 116 117. Gehen Sie dazu kurz den Warnzeichen-Check durch.');
+    }
+  }
+
+  // S2 – Richtung
+  if (gezaehlt.length) {
+    const kopf = richtung === 'wenig' ? 'Ihre Beschwerden könnten dazu passen, dass zu wenig Schilddrüsenhormon im Körper ist.'
+      : richtung === 'viel' ? 'Ihre Beschwerden könnten dazu passen, dass zu viel Schilddrüsenhormon im Körper ist.'
+        : 'Aus Ihren Beschwerden ergibt sich kein klares Muster.';
+    let s = `${kopf} Ob die Schilddrüse der Grund ist, zeigt nur eine Blutabnahme – solche Beschwerden haben im Alter sehr oft andere Gründe. Bitte ändern Sie nichts an den Tabletten, sondern sprechen Sie die Beschwerden an.`;
+    const tshFrisch = letzterMitTsh(stand, heute);
+    if (!tshFrisch || tageZwischen(tshFrisch.datum, heute) > 90) s += ' Fragen Sie in der Praxis, ob eine Blutabnahme sinnvoll ist.';
+    add('S2', 'termin', s);
+  }
+  // S1 – Hinweis im Alter
+  if (alt65 && (g28.has('muede') || g28.has('schmerzen'))) add('S1', 'keine', 'Hinweis: Im Alter zeigt sich zu viel Schilddrüsenhormon oft nicht als Unruhe, sondern als Schwäche, Müdigkeit oder Gewichtsverlust.');
+  // S2b – viele Beschwerden
+  if (gezaehlt.length >= 5) add('S2b', 'zeitnah', 'Sie haben zurzeit viele Beschwerden. Bitte vereinbaren Sie in den nächsten ein bis zwei Wochen einen Termin, damit die Ursache geklärt wird.');
+
+  // S3 – Abgleich mit dem letzten Befund
+  if (frisch && !stand.dosen.some((d) => d.ab > letzter.befund.datum && d.ab <= heute)) {
+    const r = letzter.gruppe;
+    const wenigLabor = ['b', 'c'].includes(r);
+    const vielLabor = ['d', 'e'].includes(r);
+    if ((richtung === 'wenig' && wenigLabor) || (richtung === 'viel' && vielLabor)) add('S3', 'termin', 'Ihre Beschwerden passen zum letzten Laborwert. Bitte sprechen Sie beides zusammen an.');
+    else if ((richtung === 'wenig' && vielLabor) || (richtung === 'viel' && wenigLabor)) add('S3', 'termin', 'Ihre Beschwerden passen nicht zum letzten Laborwert. Das spricht eher für andere Ursachen – bitte ansprechen.');
+    else if (r === 'a' && (punkteWenig + punkteViel) > 0) {
+      let s = 'Ihre Schilddrüsenwerte lagen zuletzt im Bereich. Dann liegt die Ursache der Beschwerden oft woanders, zum Beispiel bei Blutarmut, Eisen- oder Vitamin-B12-Mangel, Vitamin-D-Mangel, Blutzucker, Schlaf, Stimmung oder anderen Medikamenten. Die Beschwerden sind trotzdem ernst zu nehmen – bitte sprechen Sie sie an.';
+      const auff = weitereWerte(letzter.befund, stand).filter((x) => x.auffaellig).map((x) => x.name);
+      if (auff.length) s += ` Auffällig war zuletzt: ${aufzaehlung(auff)}.`;
+      add('S3', 'termin', s);
+    }
+  }
+
+  const stufe = hoechste(...texte.map((t) => t.stufe));
+  return { punkteWenig, punkteViel, richtung, anzahl: gezaehlt.length, genannt: [...g28], genannt14: [...g14], texte, stufe, regeln };
+}
+
+/** R2: Notfallwörter in einer Notiz – dann zeigt die App sofort den 112-Text. */
+export function notfallWorte(text) {
+  return /brust|atemnot|luftnot|keine luft|ohnm[aä]cht|bewusstlos|l[äa]e?hm|verwirr|schlaganfall|sprachst[öo]|herzinfarkt|kollab/i.test(String(text || ''));
+}
+
+// ---------------------------------------------------------------- Warnzeichen (W0–W5)
+
+export const WARNFRAGEN = [
+  { key: 'brust', gruppe: 'w1', text: 'Schmerzen oder Engegefühl in der Brust' },
+  { key: 'herzrasen', gruppe: 'w1', text: 'Plötzliches starkes Herzrasen oder Herzstolpern mit Schwindel' },
+  { key: 'atemnot', gruppe: 'w1', text: 'Plötzliche oder starke Atemnot, auch in Ruhe' },
+  { key: 'ohnmacht', gruppe: 'w1', text: 'Ohnmacht (kurz bewusstlos)' },
+  { key: 'schlaganfall', gruppe: 'w1', text: 'Hängender Mundwinkel, Schwäche in Arm oder Bein einer Körperseite, plötzliche Sprach- oder Sehstörung' },
+  { key: 'schlaefrig', gruppe: 'w1', text: 'Ungewohnt starke Schläfrigkeit, kaum wach zu halten' },
+  { key: 'verwirrt', gruppe: 'w1', text: 'Plötzliche, neue Verwirrtheit' },
+  { key: 'kalt', gruppe: 'w1', text: 'Körpertemperatur unter 35 °C oder starkes Auskühlen' },
+  { key: 'fieber', gruppe: 'w1', text: 'Hohes Fieber zusammen mit Herzrasen und starker Unruhe oder Verwirrtheit' },
+  { key: 'blutung', gruppe: 'w1', text: 'Starke Blutung, die nicht aufhört' },
+  { key: 'packung', gruppe: 'w4a', text: 'Auf einmal eine große Menge Schilddrüsen-Tabletten eingenommen (z. B. eine halbe oder ganze Packung)' },
+  { key: 'mehrere', gruppe: 'w4a', text: 'Heute mehr als eine Tablette zu viel auf einmal genommen' },
+  { key: 'lebensmuede', gruppe: 'w5', text: 'So niedergeschlagen, dass Sie manchmal nicht mehr leben möchten' },
+  { key: 'herzklopfen', gruppe: 'w2h', text: 'Herzklopfen seit Tagen oder Puls neu unregelmäßig' },
+  { key: 'puls', gruppe: 'w2h', text: 'Ruhepuls mehrmals über 100 oder unter 50 Schläge pro Minute (falls gemessen)' },
+  { key: 'erbrechen', gruppe: 'w2h', text: 'Erbrechen länger als einen Tag oder Durchfall über mehrere Tage' },
+  { key: 'zuviele', gruppe: 'w2h', text: 'Über mehrere Tage versehentlich zu viele Schilddrüsen-Tabletten genommen' },
+  { key: 'keine_tabletten', gruppe: 'w2h', text: 'Keine Schilddrüsen-Tabletten mehr im Haus' },
+  { key: 'blutungszeichen', gruppe: 'w2h', text: 'Blutungszeichen: Nasenbluten, das nicht aufhört, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund', nurWenn: 'marcumar' },
+  { key: 'unruhe', gruppe: 'w2t', text: 'Zittern oder innere Unruhe seit Tagen' },
+  { key: 'abnahme', gruppe: 'w2t', text: 'Ungewollt abgenommen – mehr als 5 % des Gewichts in wenigen Monaten (z. B. 3 kg bei 60 kg)' },
+  { key: 'muede_frieren', gruppe: 'w2t', text: 'Neue starke Müdigkeit oder ständiges Frieren seit Wochen' },
+  { key: 'hals', gruppe: 'w2t', text: 'Neue Schwellung am Hals, Schluckbeschwerden oder Heiserkeit seit Wochen' },
+  { key: 'schwellung', gruppe: 'w2t', text: 'Neu deutlich geschwollene Beine oder geschwollenes Gesicht' },
+  { key: 'eine_zuviel', gruppe: 'w4b', text: 'Heute versehentlich genau eine Tablette zu viel genommen (einmalig)' },
+];
+
+/** Die Fragen des Checks, die für diesen Stand gelten (Blutungszeichen nur mit Marcumar). */
+export function warnfragenFuer(stand) {
+  return WARNFRAGEN.filter((f) => !f.nurWenn || stand.mittel.includes(f.nurWenn));
+}
+
+const TEL_112 = { nummer: '112', text: '112 anrufen' };
+const TEL_116 = { nummer: '116117', text: 'Bereitschaftsdienst 116 117' };
+const TEL_SEELSORGE = [{ nummer: '08001110111', text: 'Telefonseelsorge 0800 111 0 111' }, { nummer: '08001110222', text: 'Telefonseelsorge 0800 111 0 222' }];
+
+/** Der Giftnotruf fürs Bundesland – ohne Angabe 112. */
+export function giftnotrufAnruf(stand) {
+  const n = sp.giftnotruf(stand.profil.bundesland);
+  return n ? { nummer: n.replace(/\s/g, ''), text: `Giftnotruf ${n}` } : TEL_112;
+}
+
+/** Auswertung des Checks: die höchste Stufe und je Gruppe ein Abschnitt. */
+export function warnzeichenAuswerten(ja, stand) {
+  const gewaehlt = warnfragenFuer(stand).filter((f) => ja.includes(f.key));
+  const in_ = (g) => gewaehlt.some((f) => f.gruppe === g);
+  if (in_('w1')) {
+    return {
+      stufe: 'notruf',
+      abschnitte: [{ id: 'W1', stufe: 'notruf', text: 'Bitte rufen Sie jetzt 112 an. Im Zweifel lieber 112. Wenn Sie nicht selbst anrufen können, bitten Sie Angehörige oder Nachbarn.', anrufe: [TEL_112] }],
+    };
+  }
+  const abschnitte = [];
+  if (in_('w4a')) {
+    const gift = giftnotrufAnruf(stand);
+    abschnitte.push({ id: 'W4a', stufe: 'notruf', text: `Bitte rufen Sie jetzt den Giftnotruf an${gift === TEL_112 ? ' – oder, weil kein Bundesland eingetragen ist, 112' : ''}. Halten Sie die Packung bereit. Bei Beschwerden wie Herzrasen, Brustschmerz, Atemnot oder Verwirrtheit: sofort 112.`, anrufe: gift === TEL_112 ? [TEL_112] : [gift, TEL_112] });
+  }
+  if (in_('w5')) abschnitte.push({ id: 'W5', stufe: 'heute', text: W5_TEXT, anrufe: [...TEL_SEELSORGE, TEL_112] });
+  if (!in_('w4a') && in_('w2h')) {
+    abschnitte.push({ id: 'W2h', stufe: 'heute', text: 'Bitte rufen Sie heute noch in der Praxis an. Außerhalb der Sprechzeiten: Ärztlicher Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.', anrufe: [TEL_116] });
+  }
+  if (!in_('w4a') && !in_('w2h') && in_('w2t')) {
+    abschnitte.push({ id: 'W2t', stufe: 'tage', text: 'Bitte rufen Sie in den nächsten Tagen in der Praxis an. Wenn es nicht warten kann und die Praxis geschlossen ist: 116 117.', anrufe: [TEL_116] });
+  }
+  if (in_('w4b')) {
+    let t = 'Eine einzelne versehentlich doppelte Tablette ist in der Regel unbedenklich. Nehmen Sie die nächste Tablette wie gewohnt und erwähnen Sie es beim nächsten Kontakt mit der Praxis. Bitte lassen Sie deshalb keine Tablette weg.';
+    if (stand.profil.praeparatArt === 't3' || stand.profil.herz === 'ja') t += ' Wenn heute Herzklopfen oder Unruhe auftreten, rufen Sie die Praxis an.';
+    abschnitte.push({ id: 'W4b', stufe: 'termin', text: t, anrufe: [] });
+  }
+  if (!abschnitte.length) {
+    abschnitte.push({ id: 'W3', stufe: 'termin', text: 'Nach Ihren Angaben liegt kein Warnzeichen vor. Die App kann aber nicht alles erkennen: Wenn Sie sich deutlich schlechter fühlen als sonst, rufen Sie die Praxis an – auch wenn hier nichts angezeigt wird. Übrige Beschwerden beim nächsten Termin ansprechen. Wenn es schlimmer wird, machen Sie den Check noch einmal.', anrufe: [] });
+  }
+  abschnitte.sort((a, b) => STUFEN[b.stufe].rang - STUFEN[a.stufe].rang);
+  return { stufe: hoechste(...abschnitte.map((a) => a.stufe)), abschnitte };
+}
+
+// ---------------------------------------------------------------- Abstand (M1–M14)
 
 function plusMinuten(hhmm, min) {
   const [h, m] = hhmm.split(':').map(Number);
-  const t = (h * 60 + m + min) % (24 * 60);
-  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+  const t = h * 60 + m + min;
+  return t >= 24 * 60 ? null : `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
 }
+const uhr = (hhmm) => `${Number(hhmm.slice(0, 2))}:${hhmm.slice(3)} Uhr`;
+
+const M1_MITTEL = ['kalzium', 'eisen', 'magnesium', 'multimineral', 'antazida', 'sucralfat', 'phosphatbinder', 'orlistat', 'soja', 'ballaststoffe'];
+/** Mittel mit Abstandsfrage (P7): Aufnahmehemmer, Colestyramin, Kaffee. */
+export const ABSTAND_MITTEL = { ...Object.fromEntries(M1_MITTEL.map((k) => [k, 240])), colestyramin: 300, kaffee: 60 };
 
 /**
- * Persönlicher Plan: je gewähltem Mittel { key, name, ab: 'HH:MM'|null, text }.
- * Frühstück, Kaffee, Milch stehen immer dabei.
+ * Der persönliche Plan: je Mittel ein Eintrag, dazu immer Frühstück (M3) und
+ * Kontrastmittel (M9). Kalzium und Knochenmittel zuerst (WW3).
  */
 export function abstandPlan(stand) {
-  const t = stand.einstellungen.erinnerung;
-  const plan = [{
-    key: 'fruehstueck', name: 'Frühstück, Milch, Saft', ab: plusMinuten(t, 30),
-    text: `frühestens ${plusMinuten(t, 30)} Uhr, besser ab ${plusMinuten(t, 60)} Uhr`,
-  }];
-  stand.mittel.forEach((k) => {
-    const name = (sp.MITTEL.find(([m]) => m === k) || [k, k])[1];
-    if (ABSTAND[k]) {
-      const ab = plusMinuten(t, ABSTAND[k]);
-      const text = k === 'kaffee' ? `frühestens ${plusMinuten(t, 30)} Uhr, besser ab ${ab} Uhr`
-        : k === 'colestyramin' ? `frühestens ${ab} Uhr (4 bis 5 Stunden nach der Tablette)`
-          : `frühestens ${ab} Uhr (4 Stunden nach der Tablette)`;
-      plan.push({ key: k, name, ab, text });
-    } else if (HINWEIS[k]) {
-      plan.push({ key: k, name, ab: null, text: HINWEIS[k] });
-    }
+  const T = stand.einstellungen.erinnerung;
+  const abend = T >= '17:00';
+  const ungewoehnlich = T >= '10:00' && T < '17:00';
+  const hat = (k) => stand.mittel.includes(k);
+  const plan = [];
+  const add = (id, key, name, ab, text, wichtig = false) => plan.push({ id, key, name, ab, text, wichtig });
+
+  // M3 – Frühstück, immer
+  if (abend) {
+    add('M3', 'fruehstueck', 'Essen und Trinken', null, 'Wenn Ihre Ärztin die Einnahme am Abend festgelegt hat: die Tablette frühestens 2–3 Stunden nach der letzten Mahlzeit nehmen, nur mit einem Glas Wasser.');
+  } else {
+    let t = `Die Schilddrüsen-Tablette nüchtern nur mit einem Glas Wasser nehmen. Frühstück, Kaffee, Tee, Milch und Saft erst nach 30 Minuten, besser nach 60 Minuten – also ab ${uhr(plusMinuten(T, 30))}, besser ab ${uhr(plusMinuten(T, 60))}.`;
+    if (hat('kaffee')) t += ' Bei Kaffee sind 60 Minuten besser.';
+    if (ungewoehnlich) t += ' Ihre Einnahmezeit ist ungewöhnlich – stimmen Sie die Abstände bitte mit Praxis oder Apotheke ab.';
+    add('M3', 'fruehstueck', 'Frühstück, Kaffee, Milch, Saft', plusMinuten(T, 30), t);
+  }
+
+  const abstand = (k, stunden) => {
+    const name = kurzName(k);
+    if (abend) return `Sie nehmen die Schilddrüsen-Tablette abends. Dann ${name} morgens oder mittags, mindestens ${stunden} Stunden vorher.`;
+    const ab = plusMinuten(T, stunden * 60);
+    if (!ab || ab >= '22:00') return `${name}: vor der Tablette nehmen, mindestens ${stunden} Stunden vorher.`;
+    return null;
+  };
+
+  // WW3 – Kalzium und Knochenmittel oben und hervorgehoben
+  if (hat('kalzium')) {
+    const t = abstand('kalzium', 4) || `Wichtig: Kalzium-Vitamin-D-Tabletten für die Knochen brauchen 4 Stunden Abstand zur Schilddrüsen-Tablette – in beide Richtungen. Bei Ihrer Einnahmezeit also frühestens ab ${uhr(plusMinuten(T, 240))}, am einfachsten mittags oder abends. Wenn das in Ihrem Tagesablauf schwierig ist, sprechen Sie mit Praxis oder Apotheke einen Zeitplan ab.`;
+    add('M1', 'kalzium', mittelName('kalzium'), abend ? null : plusMinuten(T, 240), t, true);
+  }
+  if (hat('bisphosphonat')) {
+    add('M10', 'bisphosphonat', mittelName('bisphosphonat'), null, 'Knochenmittel zum Nüchtern-Einnehmen (z. B. Alendronat): nicht zusammen mit der Schilddrüsen-Tablette nehmen. Bitte mit Ärztin oder Apotheke klären, wie beides zeitlich getrennt wird – bei wöchentlicher Einnahme meist nur an diesem einen Tag nötig. Die Kalzium-Tablette, die oft dazugehört, braucht ebenfalls Abstand (siehe Kalzium).', true);
+  }
+  if (hat('kaffee')) {
+    add('M3k', 'kaffee', mittelName('kaffee'), abend ? null : plusMinuten(T, 30), abend ? 'Kaffee oder Tee: nicht zusammen mit der Tablette, nur Wasser.' : `Kaffee oder Tee: frühestens ab ${uhr(plusMinuten(T, 30))}, besser ab ${uhr(plusMinuten(T, 60))}.`);
+  }
+  M1_MITTEL.filter((k) => k !== 'kalzium' && hat(k)).forEach((k) => {
+    const t = abstand(k, 4) || `${kurzName(k)}: mindestens 4 Stunden Abstand zur Schilddrüsen-Tablette – in beide Richtungen. Bei Ihrer Einnahmezeit also frühestens ab ${uhr(plusMinuten(T, 240))}, am einfachsten mittags oder abends. Wenn das in Ihrem Tagesablauf schwierig ist, sprechen Sie mit Praxis oder Apotheke einen Zeitplan ab.`;
+    add('M1', k, mittelName(k), abend ? null : plusMinuten(T, 240), t);
   });
-  return plan;
+  if (hat('raloxifen')) add('M1b', 'raloxifen', mittelName('raloxifen'), null, 'Raloxifen: möglichst zu einer ganz anderen Tageszeit als die Schilddrüsen-Tablette nehmen (etwa 12 Stunden Abstand) – bitte mit der Ärztin klären. Es kann außerdem den Bedarf an Schilddrüsenhormon erhöhen; bei Beginn oder Absetzen etwa 6–8 Wochen später TSH kontrollieren lassen.');
+  if (hat('colestyramin')) {
+    const t = abstand('colestyramin', 5) || `${kurzName('colestyramin')} kann die Aufnahme der Schilddrüsen-Tablette stark verringern. Mindestens 4–5 Stunden nach der Schilddrüsen-Tablette nehmen – die App rechnet mit 5 Stunden: frühestens ab ${uhr(plusMinuten(T, 300))}.`;
+    add('M2', 'colestyramin', mittelName('colestyramin'), abend ? null : plusMinuten(T, 300), t);
+  }
+  if (hat('ppi')) add('M4', 'ppi', mittelName('ppi'), null, 'Magenschutz (z. B. Pantoprazol, Omeprazol, Famotidin) verringert die Magensäure – dadurch wird die Schilddrüsen-Tablette schlechter aufgenommen. Ein zeitlicher Abstand hilft hier nicht. Weiß Ihre Ärztin, dass Sie beides nehmen? Bitte den Magenschutz nicht eigenmächtig absetzen. Etwa 6–8 Wochen nach Beginn oder Absetzen sollte TSH kontrolliert werden.');
+  ['oestrogen_tablette', 'tamoxifen'].filter(hat).forEach((k) => add('M5', k, mittelName(k), null, `${k === 'tamoxifen' ? 'Tamoxifen' : 'Östrogen als Tablette'} kann den Bedarf an Schilddrüsenhormon erhöhen. Etwa 6–8 Wochen (bis 12 Wochen) nach Beginn oder Absetzen sollte TSH kontrolliert werden.`));
+  if (hat('oestrogen_haut')) add('M5', 'oestrogen_haut', mittelName('oestrogen_haut'), null, 'Östrogen als Pflaster, Gel oder Spray beeinflusst die Schilddrüsen-Tablette kaum.');
+  if (hat('biotin')) add('M6', 'biotin', mittelName('biotin'), null, 'Biotin (auch in Haar-, Haut- und Nägel-Mitteln und Vitamin-B-Komplexen) kann Laborwerte verfälschen. Vor jeder Blutabnahme mindestens 3 Tage weglassen, bei hoch dosierten Präparaten bis zu 1 Woche. Sagen Sie der Praxis, dass Sie Biotin nehmen. Wurde Biotin ärztlich verordnet, die Pause nur nach Rücksprache.');
+  if (hat('marcumar')) add('M7', 'marcumar', mittelName('marcumar'), null, 'Marcumar/Phenprocoumon: Mehr Schilddrüsenhormon verstärkt die Blutverdünnung. Nach jeder Dosisänderung oder jedem Präparatwechsel der Schilddrüsen-Tablette die Gerinnung (INR) früher kontrollieren lassen, etwa innerhalb von 1–2 Wochen – bitte die Praxis informieren, die Ihren Marcumar-Ausweis führt. Bei Blutungszeichen (Nasenbluten, das nicht aufhört, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund) heute die Praxis anrufen, bei starker Blutung 112.');
+  if (hatDiabetes(stand)) add('M8', hat('diabetes') ? 'diabetes' : 'metformin', 'Diabetes-Mittel', null, 'Diabetes-Mittel oder Insulin: Nach einer Dosisänderung der Schilddrüsen-Tablette den Blutzucker in den folgenden Wochen häufiger messen und Auffälligkeiten Ihrer Diabetes-Praxis melden.');
+  ['amiodaron', 'jod', 'lithium', 'krebsmittel'].filter(hat).forEach((k) => add('M9', k, mittelName(k), null, `${kurzName(k)} kann die Schilddrüse direkt beeinflussen. Bitte mit der Praxis abstimmen, die Ihre Schilddrüse behandelt – Kontrollen sind hier besonders wichtig.${k === 'jod' ? ' Algen- und Kelp-Präparate besser meiden.' : ''}`));
+  if (hat('selen')) add('M11', 'selen', mittelName('selen'), null, 'Selen: Ein Nutzen für das Befinden oder die Einstellung ist nicht belegt, und zu viel Selen kann schaden. Bitte nur nach Rücksprache mit Ihrer Ärztin.');
+  if (hat('digitalis')) add('M12', 'digitalis', mittelName('digitalis'), null, 'Herzmittel Digoxin oder Digitoxin: Die Wirkung hängt von der Schilddrüsen-Einstellung ab. Nach jeder Änderung der Schilddrüsen-Dosis bitte die Praxis informieren, die das Herzmittel verordnet.');
+  if (hat('enzyminduktor')) add('M13', 'enzyminduktor', mittelName('enzyminduktor'), null, 'Carbamazepin, Phenytoin, Phenobarbital oder Rifampicin können den Bedarf an Schilddrüsenhormon erhöhen. Bei Beginn oder Absetzen etwa 6–8 Wochen später TSH kontrollieren lassen. Bitte nichts eigenmächtig absetzen.');
+  if (stand.profil.kortison === 'ja') add('M14', 'kortison', 'Kortison', null, 'Kortison in höherer Dosis kann den TSH-Wert senken. Das ist wichtig, damit Ihre Laborwerte richtig eingeordnet werden – bitte der Praxis sagen, die Ihre Schilddrüse behandelt.');
+  if (hat('metformin')) add('M14', 'metformin', mittelName('metformin'), null, 'Metformin kann den TSH-Wert senken. Das ist wichtig, damit Ihre Laborwerte richtig eingeordnet werden – bitte der Praxis sagen, die Ihre Schilddrüse behandelt.');
+  add('M9', 'kontrastmittel', 'Kontrastmittel', null, 'Vor Untersuchungen mit jodhaltigem Kontrastmittel (z. B. CT, Herzkatheter) sagen Sie bitte, dass Sie eine Schilddrüsenerkrankung haben.');
+
+  // Hervorgehobene zuerst, sonst in der Reihenfolge oben
+  return [...plan.filter((p) => p.wichtig), ...plan.filter((p) => !p.wichtig)];
 }
 
-// ---------------------------------------------------------------- Gesamtbild
+// ---------------------------------------------------------------- Kontrollen (L0d, L7, L8, E7)
 
-/** Fragen für die Ärztin aus allem zusammen – ohne Doppelungen. */
+const L7B_MITTEL = ['ppi', 'oestrogen_tablette', 'tamoxifen', 'raloxifen', 'kalzium', 'eisen', 'enzyminduktor', 'lithium', 'amiodaron'];
+
+export function kontrolleHinweise(stand, heute) {
+  const h = [];
+  const add = (id, stufe, text) => h.push({ id, stufe, text });
+  const tshBefund = letzterMitTsh(stand, heute);
+
+  // L0d – vor der Blutabnahme
+  stand.termine.filter((t) => t.art === 'labor' || t.blutabnahme).forEach((t) => {
+    const n = tageZwischen(heute, t.datum);
+    if (n === 1) add('L0d', 'keine', 'Morgen ist Blutabnahme. Bitte nehmen Sie die Schilddrüsen-Tablette morgen erst NACH der Blutabnahme – außer die Praxis hat etwas anderes gesagt. Die Blutabnahme möglichst morgens.');
+    if (n === 0) add('L0d', 'keine', 'Heute ist Blutabnahme. Bitte nehmen Sie die Schilddrüsen-Tablette erst NACH der Blutabnahme – außer die Praxis hat etwas anderes gesagt.');
+    if (stand.mittel.includes('biotin') && n >= 1 && n <= 3) {
+      add('L0d-biotin', 'keine', `${n === 3 ? 'Bitte lassen Sie Biotin ab heute bis zur Blutabnahme weg.' : 'Bitte lassen Sie Biotin bis zur Blutabnahme weg.'} Wurde Biotin ärztlich verordnet, fragen Sie vorher in der Praxis.`);
+    }
+  });
+
+  // L7a – letzte Kontrolle über ein Jahr her
+  if (tshBefund && tageZwischen(tshBefund.datum, heute) > 365) {
+    add('L7a', 'termin', 'Die letzte Kontrolle der Schilddrüsenwerte ist über ein Jahr her. Bei stabiler Einstellung wird meist alle 6–12 Monate kontrolliert – fragen Sie in der Praxis nach einem Termin.');
+  } else if (!tshBefund && stand.profil.seit && tageZwischen(stand.profil.seit, heute) > 60) {
+    add('L7a', 'termin', 'In der App ist noch kein TSH-Wert eingetragen. Bei stabiler Einstellung wird meist alle 6–12 Monate kontrolliert – tragen Sie den letzten Befund ein oder fragen Sie in der Praxis nach einem Termin.');
+  }
+
+  // L7b – 6–8 Wochen nach Beginn oder Ende eines Mittels (Dosis: siehe js/dosis.js, D6c)
+  const wechsel = [...stand.mittelWechsel].reverse().find((w) => L7B_MITTEL.includes(w.key)
+    && tageZwischen(w.am, heute) >= 42 && tageZwischen(w.am, heute) <= 183
+    && !stand.labor.some((l) => l.tsh && l.datum > w.am));
+  if (wechsel) {
+    add('L7b', 'termin', `Etwa 6–8 Wochen nach ${wechsel.art === 'beginn' ? 'Beginn' : 'Ende'} von ${kurzName(wechsel.key)} wird meist der TSH-Wert kontrolliert. Fragen Sie in der Praxis, ob eine Blutabnahme geplant ist.`);
+  }
+
+  // L7c / E7 – Gewicht seit der letzten Blutabnahme
+  const gw = stand.gewicht;
+  if (tshBefund && gw.length) {
+    const naechster = gw.map((g) => ({ g, abstand: Math.abs(tageZwischen(g.datum, tshBefund.datum)) }))
+      .filter((x) => x.abstand <= 30).sort((a, b) => a.abstand - b.abstand)[0];
+    const jetzt = gw[gw.length - 1];
+    if (naechster && jetzt.datum > naechster.g.datum && Math.abs(jetzt.kg - naechster.g.kg) >= 5) {
+      add('L7c', 'termin', `Ihr Gewicht hat sich seit der letzten Blutabnahme um ${zahl(Math.abs(jetzt.kg - naechster.g.kg))} kg verändert. Das kann den Bedarf an Schilddrüsenhormon verändern – bitte bei der nächsten Gelegenheit ansprechen.`);
+    }
+  }
+
+  // L7d – auffälliger letzter Befund, seit über 90 Tagen nicht kontrolliert
+  const letzter = letzterBefund(stand, heute);
+  if (letzter && tageZwischen(letzter.befund.datum, heute) > 90
+    && (['b', 'c2', 'c3', 'd', 'e2', 'e3', 'f', 'g2'].includes(letzter.muster) || (letzter.muster === 'h' && letzter.mInfo.fDeutlichUeber))
+    && !stand.labor.some((l) => l.tsh && l.datum > letzter.befund.datum && l.datum <= heute)) {
+    add('L7d', 'zeitnah', 'Ihr letzter Befund war auffällig, und seitdem wurde nicht neu kontrolliert. Bitte fragen Sie in der Praxis, wann kontrolliert werden soll.');
+  }
+
+  // L8 – ungewollter Gewichtsverlust
+  if (gw.length >= 2) {
+    const jetzt = gw[gw.length - 1];
+    if (tageZwischen(jetzt.datum, heute) <= 60) {
+      const davor = gw.filter((g) => g.datum < jetzt.datum && tageZwischen(g.datum, jetzt.datum) <= 183);
+      const hoch = davor.reduce((a, b) => (b.kg > (a ? a.kg : -1) ? b : a), null);
+      if (hoch && (hoch.kg - jetzt.kg) / hoch.kg >= 0.05) {
+        add('L8', 'tage', `Ihr Gewicht ist seit dem ${kurz(hoch.datum)} um ${zahl(hoch.kg - jetzt.kg)} kg gesunken. Wenn Sie nicht abnehmen wollten, rufen Sie bitte in den nächsten Tagen in der Praxis an.`);
+      }
+    }
+  }
+  return h;
+}
+
+// ---------------------------------------------------------------- Fragen für die Ärztin (B2)
+
 export function fragenVorschlaege(stand, heute) {
   const f = [];
-  const letzter = letzterBefund(stand);
-  if (letzter && tageZwischen(letzter.befund.datum, heute) <= 180) f.push(...letzter.einschaetzung.fragen);
-  const b = beschwerdenMuster(stand, heute);
-  if (b.richtung && (!letzter || letzter.einschaetzung.richtung === 'passend')) f.push('Können meine Beschwerden an der Schilddrüse liegen – oder woran sonst?');
-  if (stand.mittel.includes('bisphosphonat')) f.push('Wie nehme ich das Knochenmittel und die Schilddrüsentablette, ohne dass sie sich stören?');
-  if (stand.mittel.includes('biotin')) f.push('Soll ich Biotin vor der nächsten Blutabnahme pausieren?');
+  const p = stand.profil;
+  const e = letzterBefund(stand, heute);
+  const frisch = e && tageZwischen(e.befund.datum, heute) <= 180;
+  const zielAlt = zielBereich(stand) && (!p.zielAm || tageZwischen(p.zielAm, heute) > 365);
+  if ((!zielBereich(stand) && p.zielNiedrig !== 'ja') || zielAlt) f.push('Welcher TSH-Zielbereich gilt für mich?');
+  f.push('Wann soll der Wert das nächste Mal kontrolliert werden?');
+  if (frisch) {
+    if (['b', 'c'].includes(e.gruppe)) f.push('Mein TSH liegt über dem Bereich – soll die Dosis angepasst werden, oder erst kontrolliert?');
+    if (['d', 'e', 't'].includes(e.gruppe)) f.push('Mein TSH liegt unter dem Bereich – ist das in meinem Alter so gewollt?');
+    if (['f', 'h'].includes(e.gruppe) || e.regeln.includes('L5c') || e.regeln.includes('L5d')) f.push('Kann die Tablette vor der Blutabnahme oder Biotin den Wert beeinflusst haben – soll er wiederholt werden?');
+    if (e.gruppe === 'g') f.push('Nehme ich ein Präparat mit T3-Anteil, oder muss der niedrige fT4-Wert weiter abgeklärt werden?');
+    if (e.regeln.includes('L5b')) f.push('Wie soll ich mit vergessenen Tabletten umgehen?');
+  }
+  const b = beschwerdenAuswerten(stand, heute);
+  const tsh = letzterMitTsh(stand, heute);
+  if (b.richtung && (!tsh || tageZwischen(tsh.datum, heute) > 90)) f.push('Können meine Beschwerden an der Schilddrüse liegen – ist eine Blutabnahme sinnvoll?');
+  if (stand.mittel.length) f.push('Muss eines meiner anderen Mittel zeitlich anders genommen werden?');
   return [...new Set(f)];
 }
 
-// ---------------------------------------------------------------- Dosisrichtung
+// ---------------------------------------------------------------- Gesamtbild (L3f)
 
-/*
- * Ob der jüngste Befund eher für mehr, weniger oder gleich viel spricht.
- *
- * Ausdrücklicher Wunsch: „die app soll auch sagen ob man mehr oder weniger
- * nehmen soll". Sie sagt es – als Richtung mit den üblichen Schrittgrößen,
- * nicht als neue Tagesdosis, und mit dem Rat, vorher kurz die Praxis
- * anzurufen: Die neue Stärke braucht ohnehin ein Rezept, und nach jeder
- * Änderung wird nach 6 bis 8 Wochen kontrolliert.
- *
- * Keine Richtung, sondern „erst klären", wenn der Befund dafür nicht taugt:
- * kurz nach einer Änderung, nach vergessenen Tabletten, unter Biotin, bei
- * ungewöhnlichem Muster, zu altem Befund, Amiodaron oder TSH in fremder
- * Einheit. Genau dort würde eine Richtung am ehesten in die Irre führen.
+/** Der Warnzeichen-Check von heute – oder null. */
+export function warnHeute(stand, heute) {
+  const w = [...stand.warnzeichen].reverse().find((x) => x.datum === heute);
+  return w ? { ...warnzeichenAuswerten(w.ja, stand), check: w } : null;
+}
+
+/**
+ * Alles zusammen: eine Stufe oben, darunter die Teile. Die Praxis-Angabe zu
+ * einem Befund ersetzt nur die Laborstufe – Beschwerden und Warnzeichen, die
+ * später dazukommen, bleiben sichtbar (R1).
  */
-export function dosisRichtung(stand, heute) {
-  const letzter = letzterBefund(stand);
-  if (!letzter) return null;
-  const { befund, einschaetzung: e } = letzter;
-  const alter = alterAm(stand, befund.datum);
-  const herz = stand.profil.herz === 'ja';
-  const tsh = tshMU(befund.tsh);
-  const gruende = [];
-
-  if (tageZwischen(befund.datum, heute) > 183) gruende.push('Der letzte Befund ist älter als sechs Monate – für eine Aussage zur Dosis braucht es einen aktuellen.');
-  if (tsh === null && befund.tsh) gruende.push('TSH steht in einer Einheit, für die die Regeln nicht gelten.');
-  if (!befund.tsh) gruende.push('Für eine Aussage zur Dosis braucht es einen TSH-Wert.');
-  if (['f', 'g', 'h'].includes(e.muster)) gruende.push('Das Muster ist ungewöhnlich – erst ärztlich klären, ob der Befund wiederholt werden soll.');
-  const aenderung = stand.dosen.find((d, i) => i > 0 && d.ab <= befund.datum && tageZwischen(d.ab, befund.datum) < 42);
-  if (aenderung) gruende.push('Die Dosis wurde weniger als sechs Wochen vor der Abnahme geändert – der Wert hat sich noch nicht eingependelt. Kontrolle etwa 6 bis 8 Wochen nach der Änderung.');
-  let nicht = 0;
-  for (let i = 1; i <= 42; i++) if (stand.einnahmen[tageWeiter(befund.datum, -i)] === null) nicht++;
-  if (nicht >= 3 && ['b', 'c'].includes(e.muster)) gruende.push(`In den sechs Wochen davor wurde die Tablette an ${nicht} Tagen nicht genommen – erst einige Wochen regelmäßig nehmen, dann erneut messen.`);
-  if (befund.biotin || stand.mittel.includes('biotin')) gruende.push('Biotin verfälscht TSH und fT4 – den Wert ohne Biotin wiederholen lassen.');
-  if (stand.mittel.includes('amiodaron')) gruende.push('Unter Amiodaron gehört jede Dosisfrage in die Hand der Schilddrüsenpraxis.');
-
-  if (gruende.length) return { richtung: 'klaeren', titel: 'Aus diesem Befund lässt sich nichts zur Dosis ableiten.', gruende, befund };
-
-  const vorsichtig = herz || (alter !== null && alter >= 70);
-  const schritte = vorsichtig ? 'nur in kleinen Schritten (12,5 µg) und ärztlich begleitet' : 'Üblich sind Schritte von 12,5 bis 25 µg am Tag.';
-  let r;
-  switch (e.muster) {
-    case 'a': r = { richtung: 'gleich', titel: 'Der Wert spricht dafür, die Dosis so zu lassen.' }; break;
-    case 'b': r = { richtung: 'mehr', titel: `Der Wert spricht deutlich für eine höhere Dosis${vorsichtig ? ' – ' : '. '}${schritte}` }; break;
-    case 'c':
-      if (alter !== null && alter >= 70 && tsh <= (alter >= 80 ? 7 : 6)) r = { richtung: 'gleich', titel: 'Der Wert spricht eher dafür, die Dosis so zu lassen – im Alter ist ein etwas höheres TSH oft so gewollt.' };
-      else r = { richtung: 'mehr', titel: `Der Wert spricht für eine etwas höhere Dosis${vorsichtig ? ' – ' : '. '}${schritte}` };
-      break;
-    case 'd': r = { richtung: 'weniger', titel: `Der Wert spricht für eine niedrigere Dosis. ${vorsichtig ? 'Gerade im Alter oder bei Herzkrankheit bald ansprechen.' : 'Üblich sind Schritte von 12,5 bis 25 µg am Tag.'}` }; break;
-    case 'e': r = { richtung: 'weniger', titel: `Der Wert spricht für eine etwas niedrigere Dosis. ${vorsichtig || (alter !== null && alter >= 65) ? 'Gerade im Alter belastet zu viel Hormon Herz und Knochen.' : 'Üblich sind Schritte von 12,5 bis 25 µg am Tag.'}` }; break;
-    default: return null;
+export function gesamtbild(stand, heute) {
+  const warn = warnHeute(stand, heute);
+  if (!aktiv(stand)) {
+    return { aktiv: false, stufe: warn ? warn.stufe : 'keine', befund: null, beschwerden: null, warnHeute: warn, kontrolle: [], teile: [] };
   }
-  return {
-    ...r,
-    befund,
-    gruende: [],
-    rat: r.richtung === 'gleich'
-      ? 'Beschwerden allein sind kein Grund, die Dosis zu ändern.'
-      : 'Ändern Sie die Dosis erst nach einem kurzen Anruf in der Praxis – die neue Stärke braucht ohnehin ein Rezept, und die Ärztin legt die neue Menge fest. Nach jeder Änderung wird nach 6 bis 8 Wochen kontrolliert. Nie eine zweite Tablette „zum Ausgleich".',
-  };
+  const befund = letzterBefund(stand, heute);
+  const beschwerden = beschwerdenAuswerten(stand, heute);
+  const kontrolle = kontrolleHinweise(stand, heute);
+  const teile = [];
+  if (warn) warn.abschnitte.forEach((a) => teile.push({ id: a.id, stufe: a.stufe, text: a.text, quelle: 'warnzeichen' }));
+  if (befund) {
+    const s = befund.praxisErklaert ? 'keine' : befund.stufeLabor;
+    teile.push({ id: 'befund', stufe: s, text: befund.praxisErklaert ? PRAXIS_TEXT : befund.stufeText, quelle: 'befund' });
+  }
+  beschwerden.texte.forEach((t) => teile.push({ ...t, quelle: 'beschwerden' }));
+  kontrolle.forEach((k) => teile.push({ ...k, quelle: 'kontrolle' }));
+  // W5 steht immer oben, ganz gleich, welche Stufe sonst gilt.
+  teile.sort((a, b) => (b.id === 'W5') - (a.id === 'W5') || STUFEN[b.stufe].rang - STUFEN[a.stufe].rang);
+  const stufe = hoechste(...teile.map((t) => t.stufe));
+  return { aktiv: true, stufe, befund, beschwerden, warnHeute: warn, kontrolle, teile };
+}
+
+// ---------------------------------------------------------------- Bericht (B1)
+
+const JNW_TEXT = { ja: 'ja', nein: 'nein', unbekannt: 'weiß nicht', '': 'nicht beantwortet' };
+
+function wertZeile(key, name, w, e) {
+  if (!w) return null;
+  const std = inStandard(key, w);
+  const bereich = w.von !== null || w.bis !== null
+    ? ` (Labor ${w.von !== null ? zahl(w.von) : '…'}–${w.bis !== null ? zahl(w.bis) : '…'})`
+    : e && e.quelle === 'orientierung' ? ` (ohne Laborbereich; Orientierung ${zahl(e.von)}–${zahl(e.bis)})` : ' (ohne Laborbereich)';
+  const um = std !== null && Math.abs(std - w.wert) > 1e-9 && key !== 'tsh' ? `, umgerechnet ${zahl(std)} ${key === 'tsh' ? 'mU/l' : 'pmol/l'}` : '';
+  return `${name} ${w.unter ? '< ' : ''}${zahl(w.wert)} ${w.einheit}${um}${bereich}${e && e.lage ? ` – ${LAGE_TEXT[e.genau]}` : ''}`;
+}
+
+/** Die Zeilen des Abschnitts „Einschätzung der App" im Arztbericht. */
+export function berichtZeilen(stand, heute) {
+  const z = [];
+  const p = stand.profil;
+  z.push(`EINSCHÄTZUNG DER APP (automatisch erstellt, ersetzt keine ärztliche Beurteilung) – Stand ${kurz(heute)}.`);
+  z.push('Grundlage: Angaben der Patientin und von ihr übertragene Befunde. Kennzeichnung: (Angabe) = Angabe der Patientin, (Befund) = vom Befund übertragen, (App) = von der App berechnet.');
+  const alter = alterAm(stand, heute);
+  const ziel = zielBereich(stand);
+  z.push(`Profil (Angabe): ${[
+    alter !== null ? `Alter etwa ${alter} Jahre` : 'Alter nicht angegeben',
+    `Behandlungsgrund: ${p.ursache ? sp.URSACHEN.find(([k]) => k === p.ursache)[1] : 'nicht angegeben'}`,
+    `Schilddrüsenkrebs: ${JNW_TEXT[p.krebs]}`,
+    `Präparat: ${(sp.PRAEPARATE.find(([k]) => k === p.praeparatArt) || ['', 'nicht angegeben'])[1]}`,
+    ziel ? `TSH-Zielbereich laut Ärztin ${zahl(ziel.von)}–${zahl(ziel.bis)} mU/l${p.zielAm ? ` (eingetragen ${kurz(p.zielAm)})` : ''}` : 'kein TSH-Zielbereich eingetragen',
+    `TSH bewusst niedrig: ${JNW_TEXT[p.zielNiedrig]}`,
+    `Herzerkrankung: ${JNW_TEXT[p.herz]}`,
+    `Osteoporose: ${JNW_TEXT[p.osteoporose]}`,
+    `Kortison dauerhaft: ${JNW_TEXT[p.kortison]}`,
+    `Diabetes: ${hatDiabetes(stand) ? 'ja' : JNW_TEXT[p.diabetes]}`,
+  ].join('; ')}.`);
+  if (stand.mittel.length) {
+    z.push(`Weitere Mittel (Angabe): ${stand.mittel.map((k) => `${kurzName(k)}${ABSTAND_MITTEL[k] ? ` (Abstand eingehalten: ${JNW_TEXT[stand.mittelAbstand[k] || '']})` : ''}`).join('; ')}.`);
+  }
+
+  // Die letzten drei Befunde
+  stand.labor.filter((l) => l.datum <= heute).slice(-3).reverse().forEach((l) => {
+    const e = befundEinschaetzen(l, stand, heute);
+    const w = sp.LABORWERTE.map(([k, name]) => wertZeile(k, name, l[k], e.werte.find((x) => x.key === k)?.einordnung)).filter(Boolean);
+    z.push(`Befund vom ${kurz(l.datum)} (Befund): ${w.join('; ')}${l.laborName ? `; Labor: ${l.laborName}` : ''}.`);
+    const fragen = [
+      l.abnahmeUhr ? `Abnahme ${uhr(l.abnahmeUhr)}` : null,
+      `Tablette vorher: ${JNW_TEXT[l.vorAbnahme]}${l.tabletteUhr ? ` (${uhr(l.tabletteUhr)})` : ''}`,
+      `Biotin: ${JNW_TEXT[l.biotin]}`,
+      `krank/Krankenhaus: ${JNW_TEXT[l.krank]}`,
+      `Kortison: ${JNW_TEXT[l.kortison]}`,
+      `Kontrastmittel: ${JNW_TEXT[l.kontrastmittel]}`,
+      `Mittel geändert: ${JNW_TEXT[l.mittelGeaendert]}`,
+      `Einnahme geändert: ${JNW_TEXT[l.einnahmeGeaendert]}`,
+      `andere Packung: ${JNW_TEXT[l.packung]}`,
+      l.vergessen ? `vergessen: ${{ nein: 'nein', einzelne: 'einzelne Tage', mehrere: 'mehrere Tage', unbekannt: 'weiß nicht' }[l.vergessen]}` : null,
+    ].filter(Boolean);
+    z.push(`  Angaben zur Abnahme (Angabe): ${fragen.join('; ')}.`);
+    const x = einnahmenVor(l, stand);
+    z.push(x.erfasst >= 28
+      ? `  Einnahme in den 42 Tagen davor (App): an ${x.erfasst} Tagen erfasst, davon ${x.nicht} nicht genommen; ${x.unbekannt} Tage ohne Eintrag (unbekannt).`
+      : `  Einnahme in den 42 Tagen davor (App): zu wenig erfasst (${x.erfasst} Tage erfasst, ${x.unbekannt} Tage ohne Eintrag – unbekannt).`);
+    if (e.muster) {
+      const ersetzt = e.praxisErklaert ? ' – für die Patientin ersetzt durch die Angabe, dass die Praxis den Befund erklärt hat' : '';
+      z.push(`  Einordnung (App): Muster ${e.muster}${e.ziel ? ' (am persönlichen Zielbereich)' : ''}, Stufe „${STUFEN[e.stufeLabor].titel}"${ersetzt}.`);
+      e.erklaerungen.forEach((x2) => z.push(`  – ${x2.text}`));
+      e.verlauf.forEach((x2) => z.push(`  – ${x2.text}`));
+      e.zusaetze.forEach((x2) => z.push(`  – ${x2.text}`));
+    } else if (e.hinweise.length) {
+      z.push(`  Einordnung (App): keine – ${e.hinweise.join(' ')}`);
+    }
+    weitereWerte(l, stand).forEach((ww) => z.push(`  ${ww.name} ${zahl(ww.wert.wert)} ${ww.wert.einheit}${ww.texte.length ? ` – ${ww.texte[0]}` : ''}`));
+  });
+
+  const b = beschwerdenAuswerten(stand, heute);
+  if (b.genannt.length) {
+    z.push(`Beschwerden der letzten 28 Tage (Angabe): ${b.genannt.map((k) => (sp.BESCHWERDEN.find(([id]) => id === k) || [k, k])[1]).join(', ')}. Auswertung (App): ${b.richtung === 'wenig' ? 'könnten zu zu wenig Hormon passen' : b.richtung === 'viel' ? 'könnten zu zu viel Hormon passen' : 'kein klares Muster'} (Punkte zu wenig ${zahl(b.punkteWenig)}, zu viel ${zahl(b.punkteViel)}).`);
+  }
+  const ab = tageWeiter(heute, -89);
+  const checks = stand.warnzeichen.filter((w) => w.datum >= ab && w.datum <= heute);
+  checks.forEach((c) => {
+    const namen = c.ja.map((k) => (WARNFRAGEN.find((f) => f.key === k) || { text: k }).text);
+    z.push(`Warnzeichen-Check vom ${kurz(c.datum)}${c.uhr ? ` ${uhr(c.uhr)}` : ''} (Angabe): ${namen.length ? namen.join('; ') : 'nichts angekreuzt'}.`);
+  });
+  return z;
 }

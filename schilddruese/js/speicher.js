@@ -20,12 +20,13 @@ import { heuteISO, istISO, istUhr, zahlAus } from './datum.js';
 
 export const SCHLUESSEL = 'schilddruese.stand.v1';
 /*
- * Fassung 2 (Einschätzung): Profil mit Geburtsjahr, Ursache und Herz, die
- * Liste weiterer Mittel, und je Befund, ob die Tablette vor der Abnahme
- * genommen wurde und ob Biotin im Spiel war. Alles nur Ergänzungen – ein
- * Stand der Fassung 1 wird beim Lesen einfach ergänzt. Hochgezählt, damit
- * eine noch zwischengespeicherte ältere App diese Felder nicht beim nächsten
- * Speichern stillschweigend verwirft (siehe neuererStand).
+ * Fassung 2 (Einschätzung): Profil mit Geburtsjahr, Behandlungsgrund,
+ * Präparatart, persönlichem Zielbereich, Herz, Knochen und Bundesland; die
+ * weiteren Mittel mit Abstand und Wechseln; je Befund die Fragen zur
+ * Blutabnahme; die Warnzeichen-Checks. Alles nur Ergänzungen – ein Stand der
+ * Fassung 1 wird beim Lesen einfach ergänzt. Hochgezählt, damit eine noch
+ * zwischengespeicherte ältere App diese Felder nicht beim nächsten Speichern
+ * stillschweigend verwirft (siehe neuererStand).
  */
 export const VERSION = 2;
 
@@ -40,46 +41,71 @@ export function kennung() {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 }
 
-/** Bekannte Beschwerden für das Befinden – Schlüssel und Anzeigetext. */
+/**
+ * Bekannte Beschwerden für das Befinden – Schlüssel und Anzeigetext. Wie sie
+ * zählen (zu wenig, zu viel, keins von beiden), steht in js/einschaetzung.js.
+ * „trockene Haut, Haarausfall" war früher ein Punkt – trockene Haut passt zu
+ * zu wenig Hormon, Haarausfall zu beidem; der alte Schlüssel wird beim Lesen
+ * zu „trockene Haut".
+ */
 export const BESCHWERDEN = [
   ['muede', 'müde, erschöpft'],
-  ['frieren', 'friere leicht'],
+  ['frieren', 'friere leicht, auch wenn andere es warm finden'],
   ['schwitzen', 'schwitze, innerlich unruhig'],
   ['herz', 'Herzklopfen'],
+  ['puls', 'Puls unregelmäßig oder Herzstolpern'],
+  ['zittern', 'Zittern der Hände'],
+  ['waerme', 'Wärme schlecht vertragen'],
   ['verstopfung', 'Verstopfung'],
   ['durchfall', 'Durchfall'],
-  ['haut', 'trockene Haut, Haarausfall'],
+  ['trockenhaut', 'trockene Haut'],
+  ['haarausfall', 'Haarausfall'],
+  ['gesicht', 'geschwollene Lider oder geschwollenes Gesicht'],
+  ['abnahme', 'ungewollt abgenommen'],
+  ['gewicht', 'Gewicht verändert'],
   ['stimmung', 'gedrückte Stimmung'],
+  ['lebensmuede', 'so niedergeschlagen, dass ich manchmal nicht mehr leben möchte'],
   ['schlaf', 'schlecht geschlafen'],
   ['konzentration', 'Konzentration fällt schwer'],
-  ['gewicht', 'Gewicht verändert'],
   ['schmerzen', 'Muskel- oder Gelenkschmerzen'],
 ];
 
 /*
- * Weitere Mittel, die mit L-Thyroxin zusammenspielen. Schlüssel, Name, und in
- * welcher Weise – die Regeln dazu stehen in js/einschaetzung.js.
+ * Weitere Mittel, die mit L-Thyroxin zusammenspielen: Schlüssel und Name. In
+ * welcher Weise, steht in js/einschaetzung.js. „Östrogen" war früher ein
+ * Punkt – als Tablette erhöht es den Bedarf, als Pflaster kaum; ein alter
+ * Eintrag wird zur Tablette und die App fragt einmal nach.
  */
 export const MITTEL = [
-  ['kalzium', 'Kalzium (auch mit Vitamin D)'],
+  ['kalzium', 'Kalzium, auch Kalzium mit Vitamin D (Knochen-Tabletten)'],
   ['eisen', 'Eisen'],
   ['magnesium', 'Magnesium'],
   ['multimineral', 'Multivitamin mit Mineralien'],
-  ['antazida', 'Mittel gegen Sodbrennen (Antazida, z. B. Maaloxan, Rennie)'],
-  ['ppi', 'Magenschutz (z. B. Pantoprazol, Omeprazol)'],
-  ['sucralfat', 'Sucralfat'],
+  ['antazida', 'Mittel gegen Sodbrennen zum Lutschen oder Trinken (z. B. Maaloxan, Rennie)'],
+  ['ppi', 'Magenschutz (z. B. Pantoprazol, Omeprazol, Famotidin)'],
+  ['sucralfat', 'Sucralfat (Magenschutz)'],
+  ['phosphatbinder', 'Phosphatbinder bei Nierenschwäche (Sevelamer, Lanthan, Aluminium)'],
+  ['orlistat', 'Orlistat (Abnehmmittel)'],
   ['soja', 'Sojaprodukte (Sojamilch, Tofu)'],
   ['ballaststoffe', 'Ballaststoff-Präparat (Flohsamen, Leinsamen, Kleie)'],
-  ['colestyramin', 'Colestyramin (gegen Cholesterin oder Gallensäure)'],
+  ['colestyramin', 'Colestyramin, Colesevelam oder Colestipol (Cholesterin, Gallensäure)'],
   ['kaffee', 'Kaffee oder Tee am Morgen'],
-  ['oestrogen', 'Östrogen (Hormonersatz, Pille)'],
-  ['biotin', 'Biotin (Haar-, Haut- und Nägel-Mittel)'],
-  ['marcumar', 'Blutverdünner Marcumar / Phenprocoumon'],
-  ['diabetes', 'Diabetes-Tabletten oder Insulin'],
-  ['amiodaron', 'Amiodaron (Herzrhythmus)'],
-  ['jod', 'Jodtabletten, Algen, Kelp'],
+  ['oestrogen_tablette', 'Östrogen als Tablette (Hormonersatz)'],
+  ['oestrogen_haut', 'Östrogen als Pflaster, Gel oder Spray'],
+  ['raloxifen', 'Raloxifen (Knochenmittel)'],
+  ['tamoxifen', 'Tamoxifen (nach Brustkrebs)'],
   ['bisphosphonat', 'Knochenmittel zum Nüchtern-Einnehmen (z. B. Alendronat)'],
+  ['biotin', 'Biotin (Haar-, Haut- und Nägel-Mittel, Vitamin-B-Komplex)'],
   ['selen', 'Selen'],
+  ['jod', 'Jodtabletten, Algen, Kelp'],
+  ['marcumar', 'Blutverdünner Marcumar / Phenprocoumon'],
+  ['digitalis', 'Herzmittel Digoxin oder Digitoxin'],
+  ['amiodaron', 'Amiodaron (Herzrhythmus)'],
+  ['diabetes', 'Diabetes-Tabletten oder Insulin'],
+  ['metformin', 'Metformin (Diabetes)'],
+  ['lithium', 'Lithium'],
+  ['enzyminduktor', 'Carbamazepin, Phenytoin, Phenobarbital oder Rifampicin'],
+  ['krebsmittel', 'Krebsmittel (Tyrosinkinase-Hemmer, Immuntherapie)'],
 ];
 
 export const URSACHEN = [
@@ -87,28 +113,77 @@ export const URSACHEN = [
   ['hashimoto', 'Hashimoto'],
   ['op', 'Schilddrüse (ganz oder teilweise) entfernt'],
   ['radiojod', 'nach Radiojod-Behandlung'],
+  ['hypophyse', 'Erkrankung der Hirnanhangdrüse'],
   ['andere', 'andere Ursache'],
   ['unbekannt', 'weiß ich nicht'],
 ];
 
+/** Welche Schilddrüsen-Tablette: nur T4, mit T3-Anteil, weiß nicht. */
+export const PRAEPARATE = [
+  ['t4', 'nur L-Thyroxin (z. B. L-Thyroxin, Euthyrox)'],
+  ['t3', 'mit T3-Anteil (z. B. Novothyral, Prothyrid, Thybon)'],
+  ['unbekannt', 'weiß ich nicht'],
+];
+
+/*
+ * Bundesland → Giftnotruf. Die Giftinformationszentren sind nach Ländern
+ * aufgeteilt; ohne Angabe zeigt die App 112.
+ */
+export const BUNDESLAENDER = [
+  ['BW', 'Baden-Württemberg', '0761 19240'],
+  ['BY', 'Bayern', '089 19240'],
+  ['BE', 'Berlin', '030 19240'],
+  ['BB', 'Brandenburg', '030 19240'],
+  ['HB', 'Bremen', '0551 19240'],
+  ['HH', 'Hamburg', '0551 19240'],
+  ['HE', 'Hessen', '06131 19240'],
+  ['MV', 'Mecklenburg-Vorpommern', '0361 730730'],
+  ['NI', 'Niedersachsen', '0551 19240'],
+  ['NW', 'Nordrhein-Westfalen', '0228 19240'],
+  ['RP', 'Rheinland-Pfalz', '06131 19240'],
+  ['SL', 'Saarland', '06841 19240'],
+  ['SN', 'Sachsen', '0361 730730'],
+  ['ST', 'Sachsen-Anhalt', '0361 730730'],
+  ['SH', 'Schleswig-Holstein', '0551 19240'],
+  ['TH', 'Thüringen', '0361 730730'],
+];
+
+/** Die Giftnotruf-Nummer fürs Bundesland – oder null ohne Angabe. */
+export function giftnotruf(bundesland) {
+  const b = BUNDESLAENDER.find(([k]) => k === bundesland);
+  return b ? b[2] : null;
+}
+
 /*
  * Weitere Werte, die bei Schilddrüsenunterfunktion oft mitbestimmt werden:
  * Cholesterin steigt bei Unterversorgung, der Blutzucker verschiebt sich bei
- * Dosisänderungen, und bei Hashimoto kommen B12- und Eisenmangel häufiger
- * vor. Freiwillig; eingeordnet wird nur gegen den Bereich vom Befund.
+ * Dosisänderungen, bei Hashimoto kommen B12- und Eisenmangel häufiger vor,
+ * und Blutarmut oder ein niedriges Natrium erklären Müdigkeit oft besser als
+ * die Schilddrüse. Freiwillig; eingeordnet wird nur gegen den Bereich vom
+ * Befund – feste Orientierungswerte gibt es hier bewusst nicht.
  */
 export const WEITERE_WERTE = [
-  ['ldl', 'LDL-Cholesterin', ['mg/dl', 'mmol/l']],
-  ['hba1c', 'HbA1c (Langzeit-Blutzucker)', ['%', 'mmol/mol']],
-  ['b12', 'Vitamin B12', ['pg/ml', 'pmol/l']],
+  ['hb', 'Hämoglobin (Blutfarbstoff)', ['g/dl', 'g/l', 'mmol/l']],
   ['ferritin', 'Ferritin (Eisenspeicher)', ['ng/ml', 'µg/l']],
+  ['b12', 'Vitamin B12', ['pg/ml', 'pmol/l']],
   ['vitd', 'Vitamin D (25-OH)', ['ng/ml', 'nmol/l']],
+  ['natrium', 'Natrium', ['mmol/l']],
+  ['hba1c', 'HbA1c (Langzeit-Blutzucker)', ['%', 'mmol/mol']],
+  ['ldl', 'LDL-Cholesterin', ['mg/dl', 'mmol/l']],
+  ['crp', 'CRP (Entzündungswert)', ['mg/l', 'mg/dl']],
 ];
 
+/** Antworten auf Ja/Nein-Fragen: '' heißt „noch nicht beantwortet", 'unbekannt' „weiß nicht". */
+export const JNW = ['ja', 'nein', 'unbekannt', ''];
+
+/*
+ * Schlüssel, Name, Einheiten zur Auswahl (die erste ist vorbelegt). Beim
+ * TSH meinen alle dieselbe Größe mit demselben Zahlenwert – deutsche Labore
+ * schreiben oft „mIE/l". Umgerechnet wird in js/einschaetzung.js.
+ */
 export const LABORWERTE = [
-  // Schlüssel, Name, übliche Einheiten (die erste ist vorbelegt)
-  ['tsh', 'TSH', ['mU/l', 'µU/ml']],
-  ['ft4', 'fT4', ['pmol/l', 'ng/dl']],
+  ['tsh', 'TSH', ['mU/l', 'mIE/l', 'µU/ml', 'mIU/l', 'µIU/ml']],
+  ['ft4', 'fT4', ['pmol/l', 'ng/dl', 'ng/l']],
   ['ft3', 'fT3', ['pmol/l', 'pg/ml']],
 ];
 
@@ -122,15 +197,52 @@ function leererStand() {
       // Einträge, weil es die App nicht gab – die Tage zählen deshalb nicht
       // als „ohne Eintrag", auch wenn die Dosis schon seit Jahren gilt.
       seit: null,
-      // Für die Einschätzung, alles freiwillig: Im Alter gelten oft andere
-      // Zielwerte, und ob eine Herzkrankheit besteht, ändert, wie dringend
-      // „zu viel Hormon" ist.
-      geburtsjahr: null,
+      // Für die Einschätzung, alles freiwillig. Nicht angegeben heißt
+      // immer „weiß nicht", nie „nein".
+      geburtsjahr: null,    // im Alter gelten oft andere Zielwerte
       ursache: '',          // siehe URSACHEN
-      herz: '',             // ja | nein | unbekannt | '' (nicht angegeben)
+      // Die Ja/Nein-Fragen: ja | nein | unbekannt („weiß nicht") | '' (offen).
+      krebs: '',            // je wegen Schilddrüsenkrebs behandelt – dann soll TSH oft niedrig sein
+      praeparatArt: '',     // t4 | t3 | unbekannt | '' – siehe PRAEPARATE
+      herz: '',             // Vorhofflimmern, andere Rhythmusstörung, Herzschwäche, Herzkranzgefäße
+      osteoporose: '',
+      kortison: '',         // dauerhaft Kortison-Tabletten oder Nebennierenschwäche
+      diabetes: '',
+      schwanger: '',        // nur gefragt, wenn das Alter unter 55 liegt
+      // Der persönliche TSH-Zielbereich, wenn die Ärztin ihn genannt hat
+      // (mU/l). Er hat Vorrang vor dem Bereich des Labors und vor den
+      // Altersregeln – mit Datum, weil ein Ziel still veraltet.
+      zielVon: null,
+      zielBis: null,
+      zielNiedrig: '',      // „Meine Ärztin möchte den TSH-Wert bewusst niedrig halten"
+      zielAm: null,         // wann der Zielbereich eingetragen oder bestätigt wurde
+      // „Hat Ihnen eine Ärztin gesagt, dass die Ursache in der Hirnanhangdrüse
+      // liegt oder dass Ihr TSH bewusst niedrig gehalten werden soll?" – nur
+      // gefragt, wenn der Behandlungsgrund offen ist.
+      hypophyseOderNiedrig: '',
+      bundesland: '',       // für die Giftnotruf-Nummer – siehe BUNDESLAENDER
+      // Bestätigt: wegen einer Unterfunktion mit Tabletten in Behandlung.
+      // Nur dafür gelten die Regeln der Einschätzung.
+      behandelt: false,
+      oestrogenPruefen: false, // alter Eintrag „Östrogen" – Tablette oder Pflaster?
+      // Die Mittel wurden schon einmal gespeichert. Erst danach gilt ein neu
+      // angekreuztes Mittel als „neu begonnen" – beim ersten Eintragen nimmt
+      // man die meisten schon seit Jahren.
+      mittelErfasst: false,
     },
     // Weitere Mittel als Schlüssel aus MITTEL.
     mittel: [],
+    // Je Mittel, das Abstand zur Tablette braucht: ja | nein | unbekannt.
+    mittelAbstand: {},
+    // Beginn und Ende eines Mittels, das den Bedarf verändert – für die
+    // Erinnerung an die Kontrolle nach 6–8 Wochen: [{ id, key, art: beginn|ende, am }]
+    mittelWechsel: [],
+    // Wann die Einnahmezeit um mehr als drei Stunden verschoben wurde – auch
+    // das kann den Wert verändern: [{ id, am, von, nach }]
+    uhrWechsel: [],
+    // Antworten auf die Nachfragen nach einer Dosisänderung und auf der
+    // Dosis-Karte: [{ id, art, bezug, antwort, am }] – siehe js/dosis.js
+    nachfragen: [],
     einstellungen: {
       erinnerung: '07:00',  // Uhrzeit der Tablette – Hinweis in der App und Kalenderdatei
       schrift: 'gross',     // normal | gross | sehr-gross
@@ -138,15 +250,21 @@ function leererStand() {
       hinweisTablette: true, // Systemhinweis, wenn die App offen ist und die Tablette fehlt
     },
     // Die Dosis, wie sie auf der Packung steht, ab wann. Die neueste gilt.
-    dosen: [],              // [{ id, ab, praeparat, mikrogramm, tabletten, notiz }]
+    // praxis: auf Anweisung der Praxis eingetragen (true/false/null).
+    dosen: [],              // [{ id, ab, praeparat, mikrogramm, tabletten, notiz, praxis }]
     // Einnahmen je Tag: { uhr } genommen, null bewusst „nicht genommen",
     // fehlender Tag „unbekannt" – der Unterschied zählt im Arztbericht.
     einnahmen: {},
-    labor: [],              // [{ id, datum, tsh, ft4, ft3, notiz }] – je Wert { wert, einheit, von, bis } oder null
+    // Befunde: [{ id, datum, tsh, ft4, ft3, …WEITERE_WERTE, notiz, und die
+    // Fragen zur Blutabnahme (siehe normStand) }] – je Wert { wert, einheit, von, bis } oder null
+    labor: [],
     befinden: [],           // [{ id, datum, stufe: gut|mittel|schlecht, beschwerden: [], notiz }]
     gewicht: [],            // [{ id, datum, kg }]
     termine: [],            // [{ id, datum, uhr, art: arzt|labor|sonst, wo, blutabnahme, notiz }]
     fragen: [],             // Fragen für den nächsten Arzttermin: [{ id, text, erledigt }]
+    // Warnzeichen-Checks mit den Fragen, die mit Ja beantwortet wurden – für
+    // die Gesamteinschätzung und den Bericht: [{ id, datum, uhr, ja: [] }]
+    warnzeichen: [],
     vorrat: null,           // { tabletten, stand } – Packungsvorrat, oder null
     tab: 'heute',
     letzteSicherung: null,  // ISO-Tag der letzten gespeicherten Sicherung
@@ -170,19 +288,24 @@ function eigeneKennung(v) {
 }
 const bool = (v, sonst = false) => (typeof v === 'boolean' ? v : sonst);
 const wahl = (v, erlaubt, sonst) => (erlaubt.includes(v) ? v : sonst);
+/** Ja/Nein/Weiß-nicht; eine Zwischenfassung speicherte true/false. */
+const jnw = (v) => (v === true ? 'ja' : v === false ? 'nein' : wahl(v, JNW, ''));
 
+/*
+ * Ein Laborwert: { wert, einheit, von, bis, unter }. Der Bereich darf
+ * einseitig sein („< 116", „> 20") – beim TSH braucht die Einschätzung zwar
+ * beide Grenzen, aber abschreiben soll man, was auf dem Befund steht. Eine
+ * Untergrenze über der Obergrenze ist ein Tippfehler; dann gilt keiner.
+ * `unter`: auf dem Befund stand „< 0,01" – gespeichert wird die Grenze.
+ */
 function normWert(roh) {
   if (!roh || typeof roh !== 'object') return null;
   const wert = zahlAus(roh.wert);
-  if (wert === null) return null;
-  const von = zahlAus(roh.von);
-  const bis = zahlAus(roh.bis);
-  return {
-    wert,
-    einheit: text(roh.einheit, 20),
-    von: von !== null && bis !== null && von <= bis ? von : null,
-    bis: von !== null && bis !== null && von <= bis ? bis : null,
-  };
+  if (wert === null || wert < 0) return null;
+  let von = zahlAus(roh.von);
+  let bis = zahlAus(roh.bis);
+  if (von !== null && bis !== null && von >= bis) { von = null; bis = null; }
+  return { wert, einheit: text(roh.einheit, 20), von, bis, unter: bool(roh.unter) };
 }
 
 /**
@@ -222,8 +345,40 @@ export function normStand(roh) {
   const jahr = zahlAus(p.geburtsjahr);
   s.profil.geburtsjahr = jahr !== null && Number.isInteger(jahr) && jahr >= 1900 && jahr <= 2020 ? jahr : null;
   s.profil.ursache = wahl(p.ursache, URSACHEN.map(([k]) => k), '');
-  s.profil.herz = wahl(p.herz, ['ja', 'nein', 'unbekannt', ''], '');
-  s.mittel = Array.isArray(roh.mittel) ? [...new Set(roh.mittel.filter((k) => MITTEL.some(([m]) => m === k)))] : [];
+  // Eine Zwischenfassung führte Krebs als Behandlungsgrund.
+  s.profil.krebs = p.ursache === 'krebs' ? 'ja' : wahl(p.krebs, JNW, '');
+  s.profil.praeparatArt = wahl(p.praeparatArt, ['t4', 't3', 'unbekannt', ''], '');
+  ['herz', 'osteoporose', 'kortison', 'diabetes', 'schwanger', 'hypophyseOderNiedrig'].forEach((k) => {
+    s.profil[k] = wahl(p[k], JNW, '');
+  });
+  const zielVon = zahlAus(p.zielVon);
+  const zielBis = zahlAus(p.zielBis);
+  if (zielVon !== null && zielBis !== null && zielVon >= 0.01 && zielVon < zielBis && zielBis <= 10) {
+    s.profil.zielVon = zielVon;
+    s.profil.zielBis = zielBis;
+  }
+  s.profil.zielNiedrig = jnw(p.zielNiedrig);
+  s.profil.zielAm = istISO(p.zielAm) && (s.profil.zielVon !== null || s.profil.zielNiedrig === 'ja') ? p.zielAm : null;
+  s.profil.bundesland = wahl(p.bundesland, BUNDESLAENDER.map(([k]) => k), '');
+  s.profil.behandelt = bool(p.behandelt);
+  s.profil.mittelErfasst = bool(p.mittelErfasst);
+
+  // Mittel: der alte Schlüssel „oestrogen" wird zur Tablette – das war die
+  // häufigere Form – und die App fragt einmal nach, ob es nicht ein Pflaster ist.
+  const rohMittel = Array.isArray(roh.mittel) ? roh.mittel : [];
+  s.profil.oestrogenPruefen = bool(p.oestrogenPruefen) || rohMittel.includes('oestrogen');
+  s.mittel = [...new Set(rohMittel.map((k) => (k === 'oestrogen' ? 'oestrogen_tablette' : k))
+    .filter((k) => MITTEL.some(([m]) => m === k)))];
+  // Kortison stand eine Zeit lang in der Liste der Mittel; jetzt ist es eine
+  // eigene Frage, weil sie auch die Nebennierenschwäche einschließt.
+  if (rohMittel.includes('kortison') && !s.profil.kortison) s.profil.kortison = 'ja';
+  if (roh.mittelAbstand && typeof roh.mittelAbstand === 'object' && !Array.isArray(roh.mittelAbstand)) {
+    Object.entries(roh.mittelAbstand).forEach(([k, v]) => {
+      if (MITTEL.some(([m]) => m === k) && ['ja', 'nein', 'unbekannt'].includes(v)) s.mittelAbstand[k] = v;
+    });
+  }
+  s.mittelWechsel = liste(roh.mittelWechsel, (w) => (MITTEL.some(([m]) => m === w.key) && ['beginn', 'ende'].includes(w.art)
+    ? { key: w.key, art: w.art, am: w.am } : null), 'am').sort((a, b) => a.am.localeCompare(b.am)).slice(-60);
   const e = roh.einstellungen || {};
   s.einstellungen.erinnerung = istUhr(e.erinnerung) ? e.erinnerung : '07:00';
   s.einstellungen.schrift = wahl(e.schrift, ['normal', 'gross', 'sehr-gross'], 'gross');
@@ -238,6 +393,7 @@ export function normStand(roh) {
       mikrogramm: mikrogramm !== null && mikrogramm > 0 ? mikrogramm : null,
       tabletten: zahlAus(d.tabletten) > 0 ? zahlAus(d.tabletten) : 1,
       notiz: text(d.notiz, 300),
+      praxis: typeof d.praxis === 'boolean' ? d.praxis : null,
     };
   }, 'ab').sort((a, b) => a.ab.localeCompare(b.ab));
 
@@ -253,10 +409,37 @@ export function normStand(roh) {
     const eintrag = {
       datum: l.datum, tsh: normWert(l.tsh), ft4: normWert(l.ft4), ft3: normWert(l.ft3), notiz: text(l.notiz, 300),
       ...Object.fromEntries(WEITERE_WERTE.map(([k]) => [k, normWert(l[k])])),
-      // Tablette am Tag der Abnahme schon vorher genommen: true, false oder
-      // null (nicht angegeben). Biotin in den Tagen davor: true/false.
-      vorAbnahme: typeof l.vorAbnahme === 'boolean' ? l.vorAbnahme : null,
-      biotin: bool(l.biotin),
+      // Die Fragen zur Blutabnahme – alle freiwillig, ja | nein | unbekannt
+      // | '' (offen). Ohne sie lassen sich manche Muster nicht sicher deuten:
+      // Eine Tablette vor der Abnahme hebt fT4, Biotin verfälscht die Messung,
+      // eine schwere Krankheit oder Kortison verschieben die Werte für Wochen.
+      // Offene Fragen stellt die Dosis-Karte, bevor sie eine Richtung nennt.
+      abnahmeUhr: istUhr(l.abnahmeUhr) ? l.abnahmeUhr : '',
+      vorAbnahme: jnw(l.vorAbnahme),        // Tablette am Abnahmetag vorher genommen
+      tabletteUhr: istUhr(l.tabletteUhr) ? l.tabletteUhr : '',
+      biotin: jnw(l.biotin),                // in der Woche davor Biotin
+      krank: jnw(l.krank),                  // 6 Wochen davor schwer krank, Krankenhaus, Operation
+      kortison: jnw(l.kortison),            // 6 Wochen davor Kortison als Tablette oder Spritze
+      kontrastmittel: jnw(l.kontrastmittel), // 8 Wochen davor Kontrastmittel
+      mittelGeaendert: jnw(l.mittelGeaendert), // 8 Wochen davor ein Mittel begonnen oder abgesetzt
+      einnahmeGeaendert: jnw(l.einnahmeGeaendert), // Frühstück, Kaffee oder Uhrzeit verschoben
+      packung: jnw(l.packung ?? l.hersteller), // 8 Wochen davor andere Packung: Name, Hersteller, Stärke
+      // Tabletten in den 6 Wochen davor vergessen: nein | einzelne | mehrere
+      // | unbekannt | ''. Die Einnahmen in der App zeigen das nur, wenn sie
+      // gepflegt wurden.
+      vergessen: wahl(l.vergessen, ['nein', 'einzelne', 'mehrere', 'unbekannt', ''], ''),
+      // Nüchtern mit Wasser, 30–60 Minuten vor Frühstück und Kaffee?
+      einnahmeArt: wahl(l.einnahmeArt, ['ja', 'abends', 'nein', 'unbekannt', ''], ''),
+      abstandOk: jnw(l.abstandOk),          // Abstände aus „Was braucht Abstand?" eingehalten
+      verwechselt: wahl(l.verwechselt, ['einmal', 'tage', 'nein', 'unbekannt', ''], ''), // versehentlich mehr genommen
+      laborName: text(l.laborName, 60),
+      // Was die Praxis zu diesem Wert gesagt hat – und wann:
+      // bleibt | geaendert | nachmessen | nochnicht | ''.
+      praxis: wahl(l.praxis, ['bleibt', 'geaendert', 'nachmessen', 'nochnicht', ''],
+        l.erklaert === true ? 'bleibt' : ''),
+      praxisAm: istISO(l.praxisAm) ? l.praxisAm : null,
+      // Ein ungewöhnlicher Wert (Komma, Einheit) wurde ausdrücklich bestätigt.
+      bestaetigt: bool(l.bestaetigt),
     };
     return [...LABORWERTE, ...WEITERE_WERTE].some(([k]) => eintrag[k]) ? eintrag : null;
   }).sort((a, b) => a.datum.localeCompare(b.datum));
@@ -265,7 +448,8 @@ export function normStand(roh) {
     datum: b.datum,
     stufe: wahl(b.stufe, ['gut', 'mittel', 'schlecht'], 'mittel'),
     beschwerden: Array.isArray(b.beschwerden)
-      ? b.beschwerden.filter((k) => BESCHWERDEN.some(([id]) => id === k)) : [],
+      ? [...new Set(b.beschwerden.map((k) => (k === 'haut' ? 'trockenhaut' : k))
+        .filter((k) => BESCHWERDEN.some(([id]) => id === k)))] : [],
     notiz: text(b.notiz, 500),
   })).sort((a, b) => a.datum.localeCompare(b.datum));
 
@@ -287,6 +471,18 @@ export function normStand(roh) {
     ? roh.fragen.filter((f) => f && typeof f.text === 'string' && f.text.trim())
       .map((f) => ({ id: eigeneKennung(f.id), text: text(f.text, 300), erledigt: bool(f.erledigt) }))
     : [];
+
+  s.uhrWechsel = liste(roh.uhrWechsel, (u) => (istUhr(u.von) && istUhr(u.nach)
+    ? { am: u.am, von: u.von, nach: u.nach } : null), 'am').sort((a, b) => a.am.localeCompare(b.am)).slice(-20);
+  s.nachfragen = liste(roh.nachfragen, (n) => (typeof n.art === 'string' && /^[a-z0-9_]{1,30}$/.test(n.art)
+    && typeof n.bezug === 'string' && n.bezug.length <= 40 && typeof n.antwort === 'string' && /^[a-z0-9_]{1,20}$/.test(n.antwort)
+    ? { art: n.art, bezug: n.bezug, antwort: n.antwort, am: n.am } : null), 'am').slice(-80);
+
+  s.warnzeichen = liste(roh.warnzeichen, (w) => ({
+    datum: w.datum,
+    uhr: istUhr(w.uhr) ? w.uhr : '',
+    ja: Array.isArray(w.ja) ? [...new Set(w.ja.filter((k) => typeof k === 'string' && /^[a-z0-9_]{1,30}$/.test(k)))].slice(0, 30) : [],
+  })).sort((a, b) => `${a.datum}${a.uhr}`.localeCompare(`${b.datum}${b.uhr}`)).slice(-50);
 
   if (roh.vorrat && typeof roh.vorrat === 'object' && istISO(roh.vorrat.stand)) {
     const tabletten = zahlAus(roh.vorrat.tabletten);
@@ -538,6 +734,28 @@ export function einnahmeBilanz(tage = 28, bis = heuteISO()) {
 export function alter(tag = heuteISO()) {
   const j = stand.profil.geburtsjahr;
   return j ? Number(tag.slice(0, 4)) - j : null;
+}
+
+/**
+ * Die Liste der weiteren Mittel ersetzen. Ab dem zweiten Speichern wird jedes
+ * neu angekreuzte oder weggenommene Mittel mit Datum vermerkt – daraus
+ * erinnert die App an die Kontrolle 6–8 Wochen nach Beginn oder Ende.
+ */
+export function mittelSetzen(neu, abstand = {}, heute = heuteISO()) {
+  aendern((s) => {
+    const vorher = new Set(s.mittel);
+    const danach = [...new Set(neu.filter((k) => MITTEL.some(([m]) => m === k)))];
+    if (s.profil.mittelErfasst) {
+      danach.filter((k) => !vorher.has(k)).forEach((key) => s.mittelWechsel.push({ id: kennung(), key, art: 'beginn', am: heute }));
+      [...vorher].filter((k) => !danach.includes(k)).forEach((key) => s.mittelWechsel.push({ id: kennung(), key, art: 'ende', am: heute }));
+    }
+    s.mittel = danach;
+    s.mittelAbstand = Object.fromEntries(Object.entries(abstand)
+      .filter(([k, v]) => danach.includes(k) && ['ja', 'nein', 'unbekannt'].includes(v)));
+    s.profil.mittelErfasst = true;
+    // Das Formular zeigt die Rückfrage zum alten „Östrogen" – gespeichert ist beantwortet.
+    s.profil.oestrogenPruefen = false;
+  });
 }
 
 /** Der nächste Termin ab heute, oder null. */

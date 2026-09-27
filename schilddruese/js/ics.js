@@ -130,10 +130,17 @@ export function erinnerungICS({ abISO, uhr, text = 'Schilddrüsentablette nehmen
  * Ein einzelner Termin (Arzt, Blutabnahme) mit Erinnerung einen Tag und eine
  * Stunde vorher. `id` ist die Kennung des Termins in der App – derselbe Termin
  * zweimal exportiert ersetzt sich im Kalender. Ohne Uhrzeit steht er um 9 Uhr.
+ *
+ * Vor einer Blutabnahme sagt die Erinnerung am Vortag, was zählt: Tablette
+ * erst danach. Wer Biotin nimmt, wird drei Tage vorher an die Pause erinnert –
+ * beides verhindert die häufigsten Scheinbefunde.
  */
-export function terminICS({ id, datum, uhr, titel, notiz = '' }) {
+export function terminICS({ id, datum, uhr, titel, notiz = '', blutabnahme = false, biotin = false }) {
   const z = kopf('Schilddrüse');
   const beginn = uhr || '09:00';
+  const vortag = blutabnahme
+    ? `Morgen: ${titel}. Die Schilddrüsen-Tablette morgen erst NACH der Blutabnahme nehmen – außer die Praxis hat etwas anderes gesagt.`
+    : `Morgen: ${titel}`;
   z.push(
     'BEGIN:VEVENT',
     `UID:termin-${id}@schilddruese.local`,
@@ -143,9 +150,20 @@ export function terminICS({ id, datum, uhr, titel, notiz = '' }) {
     `DTEND:${stempel(datum, beginn, 60)}`,
     falten(`SUMMARY:${entschaerfen(titel)}`),
     falten(`DESCRIPTION:${entschaerfen(notiz)}`),
+  );
+  if (blutabnahme && biotin) {
+    z.push(
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      falten(`DESCRIPTION:${entschaerfen('In drei Tagen ist Blutabnahme: Bitte Biotin ab heute weglassen. Wurde Biotin ärztlich verordnet, vorher in der Praxis fragen.')}`),
+      'TRIGGER:-P3D',
+      'END:VALARM',
+    );
+  }
+  z.push(
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
-    falten(`DESCRIPTION:${entschaerfen(`Morgen: ${titel}`)}`),
+    falten(`DESCRIPTION:${entschaerfen(vortag)}`),
     'TRIGGER:-P1D',
     'END:VALARM',
     'BEGIN:VALARM',
