@@ -1074,10 +1074,13 @@ button { font: inherit; color: inherit; }
    hin verjüngen und je nach Tiefe abdunkeln. Die Trennlinie in Hintergrundfarbe
    hält sie auseinander – in der tiefen Hocke lag sonst alles als ein Klumpen
    übereinander. Der Rumpf bleibt ohne, seine Flächen gehören zusammen. */
-.fig-limb, .fig-spine, .fig-torso, .fig-head {
+.fig-limb, .fig-spine, .fig-torso, .fig-head, .fig-gusset {
   fill: var(--accent);
   stroke: none;
 }
+/* fig-gusset statt fig-torso: dieselbe Fläche (Farbe, ohne Rand), aber als
+   Pfad gezeichnet (limb()), nicht als Vieleck. test-rotate.mjs liest jedes
+   .fig-torso als Vieleck mit `points` – ein Pfad mit `d` ließ das brechen. */
 .fig-limb, .fig-spine, .fig-head {
   stroke: var(--bg-elev);
   stroke-width: .9;
@@ -1088,6 +1091,9 @@ button { font: inherit; color: inherit; }
    das Glied weit weg ist. Ersetzt die halbdurchsichtigen Glieder von früher. */
 .fig-schatten { fill: #000; stroke: none; pointer-events: none; }
 .fig-plate { fill: #e8eaed; }
+/* Die Kante der Hantelscheibe unterm Fuß (squatheel) – dieselbe Scheibe, nur
+   dunkler, wie die Seite jeder Scheibe im Schlagschatten. */
+.fig-plate-seite { fill: #b7bcc4; }
 .fig-bar { stroke: #e8eaed; stroke-linecap: round; }
 .fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
 .fig-ground { fill: var(--line); opacity: .55; }

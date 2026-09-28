@@ -1084,10 +1084,13 @@ button { font: inherit; color: inherit; }
    hin verjüngen und je nach Tiefe abdunkeln. Die Trennlinie in Hintergrundfarbe
    hält sie auseinander – in der tiefen Hocke lag sonst alles als ein Klumpen
    übereinander. Der Rumpf bleibt ohne, seine Flächen gehören zusammen. */
-.fig-limb, .fig-spine, .fig-torso, .fig-head {
+.fig-limb, .fig-spine, .fig-torso, .fig-head, .fig-gusset {
   fill: var(--accent);
   stroke: none;
 }
+/* fig-gusset statt fig-torso: dieselbe Fläche (Farbe, ohne Rand), aber als
+   Pfad gezeichnet (limb()), nicht als Vieleck. test-rotate.mjs liest jedes
+   .fig-torso als Vieleck mit `points` – ein Pfad mit `d` ließ das brechen. */
 .fig-limb, .fig-spine, .fig-head {
   stroke: var(--bg-elev);
   stroke-width: .9;
@@ -1098,6 +1101,9 @@ button { font: inherit; color: inherit; }
    das Glied weit weg ist. Ersetzt die halbdurchsichtigen Glieder von früher. */
 .fig-schatten { fill: #000; stroke: none; pointer-events: none; }
 .fig-plate { fill: #e8eaed; }
+/* Die Kante der Hantelscheibe unterm Fuß (squatheel) – dieselbe Scheibe, nur
+   dunkler, wie die Seite jeder Scheibe im Schlagschatten. */
+.fig-plate-seite { fill: #b7bcc4; }
 .fig-bar { stroke: #e8eaed; stroke-linecap: round; }
 .fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
 .fig-ground { fill: var(--line); opacity: .55; }
@@ -6306,10 +6312,21 @@ const PATTERNS = {
    */
   squatheel: {
     daumen: 'innen', finger: 'oben',
-    // Mehr von der Seite als die freie Kniebeuge (Vorgabe yaw 25): Ein Keil
-    // unter der Ferse steht von vorn gesehen hochkant hinter dem Fuß und ist
-    // damit genau das, was er nicht sein soll – unsichtbar.
-    label: 'Kniebeuge, Fersen erhöht', keil: true, view: [62, -4],
+    // Mehr von der Seite als die freie Kniebeuge (Vorgabe yaw 25): Sonst
+    // steht die Erhöhung von vorn gesehen hochkant hinter dem Fuß und ist
+    // damit genau das, was sie nicht sein soll – unsichtbar.
+    //
+    // Zwei Hantelscheiben, kein Keil – seit dem 25.09. steht „Fersen auf je
+    // einer Hantelscheibe, 2–4 cm hoch" im Hinweis (siehe scheiben unten):
+    //
+    //     „Die Hantelscheibe auf dem Boden sieht noch nicht so hantelscheibig
+    //      aus"
+    //
+    // Ein einzelner Keil über beide Füße war weder eine Scheibe (rund, hell,
+    // metallisch) noch zwei (er saß als eine Brücke unter beiden Fersen
+    // zugleich) – er hatte dieselbe grau-blaue Farbe wie die Bank, also wie
+    // ein Möbelstück, nicht wie Eisen.
+    label: 'Kniebeuge, Fersen erhöht', fersenscheiben: true, view: [62, -4],
     poses: [
       { lean: 6, arm: A(26, -18, 130, 32), leg: L(2, 5, 4), heel: 0.16 },
       { lean: 20, arm: A(34, -18, 126, 32), leg: L(104, 9, 126), heel: 0.16 },
@@ -6664,6 +6681,18 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     limb(pts.neck, pts.head, 2.6, 2.2, 'fig-spine');   // Hals schließt die Lücke
 
     ['L', 'R'].forEach((s) => {
+      // Achsel-Steg: von der Brust zur Hand, nicht erst vom Schultergelenk.
+      // Der Arm hängt lotrecht (arm.p folgt der Rumpfneigung, siehe 'hinge'),
+      // der Rumpf selbst kippt bei starker Hüftbeuge aber weit nach vorn – der
+      // Arm läuft dadurch am Rumpf vorbei statt an ihm entlang, und zwischen
+      // beiden blieb ein Keil frei, den keine der beiden Flächen deckte:
+      //
+      //     „Sieht iwie komisch aus"
+      //
+      // Der Steg selbst bleibt unsichtbar – Arm und Rumpf liegen überall
+      // sonst schon aufeinander, er füllt nur die Stellen, an denen sie es
+      // nicht tun.
+      limb(pts.chest, pts[`hand${s}`], 4.2, 2.4, 'fig-gusset');
       limb(pts[`shoulder${s}`], pts[`elbow${s}`], 3.4, 2.5);
       limb(pts[`elbow${s}`], pts[`hand${s}`], 2.5, 1.8);
       // Hand als eigener Ballen: sonst hört der Unterarm einfach auf und es
@@ -6971,6 +7000,55 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
         ecke(links, vorn, boden), ecke(links, hinten, boden)], -0.02);
       face([ecke(rechts, hinten, top), ecke(rechts, vorn, top),
         ecke(rechts, vorn, boden), ecke(rechts, hinten, boden)], -0.02);
+    }
+
+    if (spec.fersenscheiben) {
+      /*
+       * Zwei Hantelscheiben, eine je Ferse – rund und hell, wie die Scheiben
+       * an der Stange (fig-plate), nicht wie das Möbelstück Bank (fig-keil).
+       * Rund heißt hier: ein Ring aus projizierten Punkten, genau wie der
+       * Schatten unter der ganzen Figur (siehe `fig-ground` weiter unten) –
+       * nur klein, je einer pro Fuß, und mit einer eigenen, dünnen Seite statt
+       * nur einer Fläche auf dem Boden. Zwei Ringe (oben und am Boden), nicht
+       * einer plus ein Pixelversatz: Nur so bleibt die Seite in derselben
+       * Perspektive wie der Rest der Figur.
+       */
+      const boden = -0.62;
+      ['L', 'R'].forEach((s) => {
+        const ank = j[`ankle${s}`];
+        const zeh = j[`toe${s}`];
+        const top = Math.max(boden + 0.014, ank[1] - 0.018);
+        const mx = ank[0];
+        const mz = ank[2] - Math.max(0.03, (zeh[2] - ank[2]) * 0.3);
+        const rx = 0.062; const rz = 0.068;
+        const oben = []; const unten = [];
+        for (let a = 0; a < 360; a += 30) {
+          const x2 = mx + Math.cos(rad(a)) * rx;
+          const z2 = mz + Math.sin(rad(a)) * rz;
+          oben.push(P([x2, top, z2]));
+          unten.push(P([x2, boden, z2]));
+        }
+        const z = oben.reduce((acc, q) => acc + q.z, 0) / oben.length;
+        // Seite zuerst (dahinter), dann die Deckfläche obenauf.
+        for (let i = 0; i < oben.length; i += 1) {
+          const n = (i + 1) % oben.length;
+          parts.push({
+            z: (oben[i].z + oben[n].z) / 2 - 0.001,
+            node: el('polygon', {
+              points: `${oben[i].x.toFixed(1)},${oben[i].y.toFixed(1)} ${oben[n].x.toFixed(1)},${oben[n].y.toFixed(1)} `
+                + `${unten[n].x.toFixed(1)},${unten[n].y.toFixed(1)} ${unten[i].x.toFixed(1)},${unten[i].y.toFixed(1)}`,
+              class: 'fig-plate-seite',
+            }),
+          });
+        }
+        parts.push({
+          z: z - 0.002,
+          node: el('polygon', {
+            points: oben.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
+            class: 'fig-plate',
+          }),
+        });
+      });
     }
 
     if (spec.slider) {
