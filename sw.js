@@ -101,7 +101,13 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      // Nur die eigenen alten Fassungen. Im selben Ursprung liegt auch der
+      // Vorrat der Schilddrüsen-App (schilddruese/sw.js); ohne den Filter ging
+      // der bei jeder neuen Workout-Fassung mit, und wer beide Apps auf einem
+      // Handy hat, stand mit der anderen danach offline vor einer leeren Seite.
+      .then((keys) => Promise.all(keys
+        .filter((k) => k.startsWith('workout-') && k !== CACHE)
+        .map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -112,6 +118,12 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  // Die Schilddrüsen-App im Unterordner hat ihren eigenen Worker und ihren
+  // eigenen Vorrat. Dieser hier lässt sie in Ruhe: Sonst beantwortete er ihre
+  // Seitenaufrufe, solange ihr Worker (noch) nicht registriert ist – offline,
+  // und bei /schilddruese ohne Schrägstrich (GitHub Pages leitet um) sogar
+  // mit Netz, jeweils mit der index.html *dieser* App.
+  if (url.pathname.startsWith(new URL('./schilddruese', self.location).pathname)) return;
 
   // Nur im Zwischenspeicher dieser Fassung nachsehen. caches.match() ohne
   // Angabe durchsucht *alle* – ein übrig gebliebener alter Zwischenspeicher

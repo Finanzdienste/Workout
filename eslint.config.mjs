@@ -25,7 +25,7 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['js/**/*.js', 'tests/**/*.mjs', 'tools/**/*.mjs', 'sw.js'],
+    files: ['js/**/*.js', 'tests/**/*.mjs', 'tools/**/*.mjs', 'sw.js', 'schilddruese/**/*.js'],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',
@@ -49,6 +49,7 @@ export default [
         Blob: 'readonly',
         File: 'readonly',
         FileReader: 'readonly',
+        FormData: 'readonly',
         Image: 'readonly',
         Audio: 'readonly',
         AudioContext: 'readonly',
@@ -78,6 +79,7 @@ export default [
         IntersectionObserver: 'readonly',
         matchMedia: 'readonly',
         getComputedStyle: 'readonly',
+        CSS: 'readonly',
         structuredClone: 'readonly',
         history: 'readonly',
         Notification: 'readonly',

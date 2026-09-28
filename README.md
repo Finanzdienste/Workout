@@ -8,6 +8,13 @@ Statische Web-App: kein Build, keine Abhängigkeiten, keine Server-Anbindung.
 `index.html` im Browser öffnen oder über GitHub Pages ausliefern. Alle
 protokollierten Sätze liegen lokal im `localStorage` des Geräts.
 
+> **Daneben, im selben Repository:** [`schilddruese/`](schilddruese/README.md)
+> – eine zweite, eigenständige App für den Alltag mit
+> Schilddrüsenunterfunktion (Tablette abhaken, Dosis und Laborwerte, Bericht
+> für den Arzttermin). Eigener Ordner, eigener Service Worker, eigene Tests
+> (`tests/test-sd-*.mjs`); sie teilt mit dieser App nur die Grundsätze und
+> die Testumgebung.
+
 ## Tabs
 
 Drei Reiter, nicht fünf: Kalender und Verletzungen ruft man selten und nie
