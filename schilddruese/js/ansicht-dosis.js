@@ -15,16 +15,28 @@
  * Deshalb nennt auch „Heute" die Richtung nicht, sondern verweist nur hierher:
  * Eine Richtung ohne Pflichttext darf es nirgends geben.
  */
-import { datumKurz, zahlText } from './datum.js';
+import { datumKurz, zahlText, rohText } from './datum.js';
 import { esc } from './text.js';
 import * as ez from './einschaetzung.js';
+import * as sp from './speicher.js';
 import { dosisRichtung } from './dosis.js';
-import { stufeSchild, STUFE_KLASSE, p6Karte, beschwerdeKnoepfe, anrufKnopf, anrufReihe, rang } from './ansicht-einschaetzung.js';
+import {
+  stufeSchild, STUFE_KLASSE, p6Karte, beschwerdeKnoepfe, anrufKnopf, anrufReihe, rang, BEFUND_FRAGEN, JNW_WAHL,
+} from './ansicht-einschaetzung.js';
 
+/*
+ * „Noch nichts entschieden" nimmt eine frühere Angabe zurück. Vorher gab es
+ * hier nur die drei Entscheidungen: Ein Fehltipp auf „Neue Dosis eintragen",
+ * danach „Abbrechen" im Formular, ließ den Befund als von der Praxis erklärt
+ * stehen – „Heute" schwieg zu TSH < 0,01, und zurück ging es nur über
+ * Verlauf → Ändern → Ändern → die Praxis-Frage im Befund (Runde 4: E1).
+ * js/app.js („praxis-entscheid") speichert 'nochnicht' wie die Frage F8.
+ */
 const PRAXIS_WAHL = [
   ['bleibt', 'Die Dosis bleibt so'],
   ['geaendert', 'Neue Dosis eintragen'],
   ['nachmessen', 'Erst nachmessen'],
+  ['nochnicht', 'Noch nichts entschieden'],
 ];
 export const PRAXIS_BESTAETIGUNG = 'Gut. Es gilt, was die Praxis gesagt hat. Die App zeigt zu diesem Befund keine Richtung mehr und erinnert Sie an die Kontrolle.';
 /*
@@ -32,6 +44,8 @@ export const PRAXIS_BESTAETIGUNG = 'Gut. Es gilt, was die Praxis gesagt hat. Die
  * Dosis-Eintrag (D6c) – bevor er da ist, darf die Meldung sie nicht versprechen.
  */
 export const PRAXIS_NEUE_DOSIS = 'Gut. Bitte tragen Sie jetzt die neue Dosis ein, die die Praxis festgelegt hat – dann erinnert die App an die Kontrolle.';
+/** Die Meldung nach „Noch nichts entschieden" (Runde 4: E1) – für js/app.js. */
+export const PRAXIS_NOCH_NICHT = 'Vermerkt: Die Praxis hat noch nichts entschieden. Die Dosis-Karte ordnet den Befund wieder selbst ein.';
 
 /*
  * Anruf-Knöpfe unter einem Grund. Jeder Grund bringt seine Nummern mit
@@ -74,6 +88,96 @@ function frageBlock(f, stand) {
       <p class="dosis-frage-text" id="dosis-frage-text">${esc(f.text)}</p>
       ${antworten}
     </div>`;
+}
+
+/*
+ * „Ihre Antworten zu diesem Befund" (Runde 4: E4). Die Karte stellt ihre
+ * Fragen einzeln und zeigte danach nie, was geantwortet wurde. Ein Fehltipp
+ * auf „Ja, einmal viele Tabletten auf einmal" ließ „Heute anrufen –
+ * Giftnotruf" wochenlang stehen, auch im Arztbericht; ein „Nein, ich nehme
+ * etwas anderes" sperrte die Karte, und der Weg zurück führte über einen
+ * Dosis-Eintrag, den kein Text nannte. Jetzt steht jede Antwort da, mit
+ * „ändern": Darunter erscheinen die übrigen Antworten als Knöpfe, und die
+ * speichern wie die Frage selbst (data-act="frage-antwort", js/app.js
+ * frageBeantworten – mit derselben Prüfung der Werte). Eine Antwort nur zu
+ * löschen hülfe nicht: Neben einem anderen Grund fragt die Karte nicht neu,
+ * und die Angabe bliebe offen.
+ *
+ * Eine eigene Karte direkt unter der Dosis-Karte, nicht in ihr: In der
+ * Karte ist nichts aufklappbar (Grundsatz 8 – der Pflichttext steht immer
+ * da), und Richtung und Pflichttext rücken nicht hinter eine lange Liste.
+ * Aufgeklappt, wenn eine Antwort der Karte gerade eine Frist oder Sperre
+ * auslöst (Q5 „einmal"/„über Tage", X3 „Nein" oder „selbst geändert"), sonst zu.
+ */
+const Q5_WAHL = [['nein', 'Nein'], ['einmal', 'Ja, einmal viele Tabletten auf einmal'], ['tage', 'Ja, über Tage zu viel oder eine andere Stärke'], ['unbekannt', 'Weiß nicht']];
+const NACH14_WAHL = [['praxis', 'Ja, mit der Praxis gesprochen'], ['selbst', 'Ich habe selbst etwas geändert'], ['nein', 'Nein, noch nicht']];
+const grossAnfang = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const letzteNachfrage = (stand, art, bezug) => [...stand.nachfragen].reverse().find((n) => n.art === art && n.bezug === bezug) || null;
+
+function antwortenBlock(b, stand, heute) {
+  const zeilen = [];
+  const zeile = ({ feld, ziel, kurz, wert, optionen }) => {
+    const gewaehlt = optionen.find(([w]) => w === wert);
+    const text = gewaehlt ? gewaehlt[1].replace(/^Ja: /, '') : wert;
+    const andere = optionen.filter(([w]) => w !== wert);
+    zeilen.push(`
+      <li class="antwort-zeile" data-antwort="${esc(feld)}">
+        <p><span class="gedaempft">${esc(kurz)}:</span> <strong>${esc(text)}</strong></p>
+        <details class="antwort-aendern">
+          <summary class="knopf knopf-klein" aria-label="${esc(`Antwort ändern: ${kurz}`)}">ändern</summary>
+          <div class="antworten">${andere.map(([w, t]) => `
+            <button type="button" class="knopf antwort" data-act="frage-antwort" data-ziel="${esc(ziel)}" data-feld="${esc(feld)}" data-bezug="${esc(b.id)}" data-wert="${esc(w)}">${esc(t)}</button>`).join('')}</div>
+        </details>
+      </li>`);
+  };
+  if (b.verwechselt) zeile({ feld: 'verwechselt', ziel: 'befund', kurz: 'Versehentlich mehr genommen', wert: b.verwechselt, optionen: Q5_WAHL });
+  // X3: „Nein" trägt die Menge, auf die es sich bezog (nein_75) – für die
+  // Gegenantwort die Menge von heute, wie die Frage auf der Karte.
+  const stimmt = letzteNachfrage(stand, 'dosis_stimmt', b.id);
+  const td = sp.tagesdosis(ez.dosisAmIn(stand, heute));
+  const ug = td !== null ? `${zahlText(td, 1)} µg` : null;
+  if (stimmt) {
+    const nein = /^nein/.test(stimmt.antwort);
+    zeile({
+      feld: 'dosis_stimmt', ziel: 'nachfrage', kurz: 'Dosis wie in der App eingetragen', wert: nein ? stimmt.antwort : 'ja',
+      optionen: [['ja', ug ? `Ja, genau ${ug} am Tag` : 'Ja'], [nein ? stimmt.antwort : td !== null ? `nein_${String(td).replace('.', '_')}` : 'nein', 'Nein, ich nehme etwas anderes']],
+    });
+  }
+  const nach14 = letzteNachfrage(stand, 'nach14', b.id);
+  if (nach14) zeile({ feld: 'nach14', ziel: 'nachfrage', kurz: 'Seitdem mit der Praxis gesprochen oder selbst geändert', wert: nach14.antwort, optionen: NACH14_WAHL });
+  BEFUND_FRAGEN.forEach((f) => {
+    if (!b[f.feld]) return;
+    zeile({ feld: f.feld, ziel: 'befund', kurz: grossAnfang(f.kurz), wert: b[f.feld], optionen: f.optionen || JNW_WAHL });
+  });
+  if (!zeilen.length) return '';
+  const offen = ['einmal', 'tage'].includes(b.verwechselt) || (stimmt && /^nein/.test(stimmt.antwort)) || (nach14 && nach14.antwort === 'selbst');
+  return `
+    <details class="karte antworten-block"${offen ? ' open' : ''}>
+      <summary>Ihre Antworten zu diesem Befund (${zeilen.length})</summary>
+      <p class="klein gedaempft">Stimmt eine Antwort nicht? Tippen Sie auf „ändern" und wählen Sie die richtige.</p>
+      <ul class="antwort-liste">${zeilen.join('')}</ul>
+    </details>`;
+}
+
+/*
+ * Die Knöpfe zu den Aktionen der Karte (js/dosis.js: k.aktionen). Neben der
+ * Dosis (D0.5, D0.16 …) verlangt die Karte auch Nachträge im Befund („Bitte
+ * tragen Sie beide Grenzen vom Befund ein", D0.1) und unter „Über mich"
+ * (Geburtsjahr, Herz, D0.13 „Weiß nicht" zu Krebs) – bisher ohne Knopf
+ * dorthin; der einzige war „Die Praxis hat entschieden" (Runde 4: E7).
+ * 'labor' öffnet den Befund (param: seine Kennung), 'profil' die Seite
+ * „Über mich & weitere Mittel". Der erste Knopf ist der Hauptknopf.
+ */
+const AKTION = {
+  dosis: { seite: 'dosis', text: 'Dosis eintragen' },
+  labor: { seite: 'labor', text: 'Befund ergänzen' },
+  profil: { seite: 'profil', text: 'Über mich öffnen' },
+};
+function aktionKnoepfe(k) {
+  const liste = (k.aktionen || (k.aktion ? [{ aktion: k.aktion, param: k.aktionParam, text: k.aktionText }] : []))
+    .filter((a) => AKTION[a.aktion]);
+  if (!liste.length) return '';
+  return `<div class="knopf-reihe">${liste.map((a, i) => `<button type="button" class="knopf${i ? '' : ' knopf-haupt'}" data-act="seite" data-seite="${AKTION[a.aktion].seite}" data-param="${esc(a.param || '')}">${esc(a.text || AKTION[a.aktion].text)}</button>`).join('')}</div>`;
 }
 
 function dosisKarteSeite(stand, heute) {
@@ -143,19 +247,23 @@ function dosisKarteSeite(stand, heute) {
       ${anrufReihe(uebrige)}
       <p class="pflicht">${esc(k.pflicht)}</p>
       ${k.hinweise.map((h) => `<p class="klein">${esc(h)}</p>`).join('')}
-      ${k.aktion === 'dosis' ? `<div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="dosis" data-param="${esc(k.aktionParam || '')}">${esc(k.aktionText || 'Dosis eintragen')}</button></div>` : ''}
+      ${aktionKnoepfe(k)}
       <div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="praxis-entschieden" data-param="${esc(b.id)}">Die Praxis hat entschieden</button></div>
       <p class="klein gedaempft grundlage">${esc(k.grundlage)}</p>
     </div>`);
+  teile.push(antwortenBlock(b, stand, heute));
   teile.push(`<p class="klein gedaempft">${esc(ez.FUSSZEILE)}</p>`);
   return { titel, html: teile.join(''), merken: k.merken || null };
 }
 
-/** D6b: Was hat die Praxis entschieden? Drei große Knöpfe. */
+/** D6b: Was hat die Praxis entschieden? Große Knöpfe – und „Noch nichts entschieden". */
 function praxisSeite(param, stand) {
   const b = stand.labor.find((l) => l.id === param);
   if (!b) return { titel: 'Die Praxis hat entschieden', html: '<div class="karte"><p>Diesen Befund gibt es nicht mehr.</p></div>' };
-  const tsh = b.tsh ? ` (TSH ${zahlText(b.tsh.wert)} ${b.tsh.einheit})` : '';
+  // Der Wert, wie er auf dem Befund steht: „< 0,01" mit Zeichen und
+  // ungerundet. Vorher stand hier „TSH 0,01 mIE/l" – ein Messwert statt
+  // „kleiner als" (Runde 4: E9, E21).
+  const tsh = b.tsh ? ` (TSH ${b.tsh.unter ? '< ' : ''}${rohText(b.tsh.wert)} ${b.tsh.einheit})` : '';
   return {
     titel: 'Die Praxis hat entschieden',
     html: `
@@ -163,7 +271,7 @@ function praxisSeite(param, stand) {
       <div class="antworten gross-antworten">
         ${PRAXIS_WAHL.map(([w, t]) => `<button type="button" class="knopf antwort" data-act="praxis-entscheid" data-id="${esc(b.id)}" data-wert="${esc(w)}" aria-pressed="${b.praxis === w}">${esc(t)}</button>`).join('')}
       </div>
-      <p class="klein gedaempft" style="margin-top:.8rem">Danach zeigt die App zu diesem Befund keine Richtung mehr. Bei „Neue Dosis eintragen" öffnet sich gleich das Formular für die neue Dosis.</p>
+      <p class="klein gedaempft" style="margin-top:.8rem">Hat die Praxis entschieden, zeigt die App zu diesem Befund keine Richtung mehr. Bei „Neue Dosis eintragen" öffnet sich gleich das Formular für die neue Dosis. „Noch nichts entschieden" nimmt eine frühere Angabe zurück.</p>
       <div class="knopf-reihe"><button type="button" class="knopf knopf-leise" data-act="zurueck">Abbrechen</button></div>`,
   };
 }
@@ -200,6 +308,9 @@ export function dosisSeite(name, param, stand, heute) {
  * „nehmen Sie bis dahin wieder Ihre bisherige Menge" ab Tag 15 nur noch auf
  * der Karte – und nichts auf „Heute" führte dorthin. Ohne Stufe (die Praxis
  * hat danach entschieden, C4) nicht: Dann gilt, was sie gesagt hat.
+ *
+ * → { stufe, text, knopf? } – `knopf` ({ seite, param, text }) steht neben
+ * „Dosis-Karte ansehen", wenn der Verweis selbst um einen Eintrag bittet.
  */
 export function dosisVerweis(stand, heute, k = undefined, schonDa = new Set()) {
   if (!ez.aktiv(stand)) return null;
@@ -222,6 +333,24 @@ export function dosisVerweis(stand, heute, k = undefined, schonDa = new Set()) {
   // sagt der Verweis beides, sonst läse sich „eine Frage" wie eine Nebensache.
   if (karte.frage) {
     return { stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte eine Frage an Sie${wichtige.length ? ' und einen wichtigen Hinweis. Bitte lesen Sie beides dort.' : '.'}` };
+  }
+  /*
+   * „Die Praxis hat entschieden: Die Dosis wird geändert", aber die neue Dosis
+   * fehlt (aktionParam 'praxis'). Die Karte bittet dann darum, „Heute" sagte
+   * nichts: ohne Richtung, ohne Frage und mit Stufe „keine" gab es keinen
+   * Verweis. Ein Fehltipp auf „Neue Dosis eintragen", danach „Abbrechen",
+   * ließ die App so monatelang zu TSH < 0,01 schweigen – und ohne den Eintrag
+   * erinnert sie nie an die Kontrolle (D6c). Jetzt steht die Bitte auf
+   * „Heute", mindestens „Beim nächsten Termin", mit dem Knopf zum Formular
+   * (Runde 4: E1). Stimmt die Angabe nicht, nimmt „Die Praxis hat
+   * entschieden → Noch nichts entschieden" sie zurück.
+   */
+  if ((karte.aktionen || [{ aktion: karte.aktion, param: karte.aktionParam }]).some((a) => a.aktion === 'dosis' && a.param === 'praxis')) {
+    return {
+      stufe: ez.hoechste('termin', stufe),
+      text: `Zu Ihrem Befund vom ${am}: Die Praxis hat Ihre Dosis geändert. Bitte tragen Sie die neue Dosis ein – dann erinnert die App an die Kontrolle.${wichtige.length ? ' Die Dosis-Karte hat dazu einen wichtigen Hinweis.' : ''}`,
+      knopf: { seite: 'dosis', param: 'praxis', text: 'Neue Dosis eintragen' },
+    };
   }
   if (richtung) return { stufe, text: `Zu Ihrem Befund vom ${am} gibt es eine Einschätzung zur Dosis. Bitte lesen Sie sie ganz – und rufen Sie vor jeder Änderung die Praxis an.` };
   if (wichtige.length && rang(stufe) > rang('keine')) return { stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte einen wichtigen Hinweis. Bitte lesen Sie ihn dort.` };

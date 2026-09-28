@@ -11,7 +11,7 @@
  * nach einer Verwechslung der Einheit aussieht (fT4 1,2 in „ng/l"), wird ohne
  * den Bereich vom Befund gar nicht eingeordnet – auch nach Bestätigung nicht.
  */
-import { zahlText } from './datum.js';
+import { rohText } from './datum.js';
 import * as sp from './speicher.js';
 
 /** Schreibweise vereinheitlichen: klein, ohne Leerzeichen, µ/μ/micro → u. */
@@ -75,7 +75,12 @@ export function grenzeInStandard(key, w, grenze) {
 
 // ---------------------------------------------------------------- Plausibilität
 
-const zahl = (n) => zahlText(n, 3);
+/*
+ * Die Rückfrage fragt, ob auf dem Befund wirklich diese Zahl steht – also
+ * genau die eingegebene, ungerundet. Mit drei Stellen fragte sie bei TSH
+ * 0,0004 „wirklich 0 mU/l?" (Runde 4: E21).
+ */
+const zahl = (n) => rohText(n);
 
 /*
  * Grenzen je Wert und Einheit: [unten, oben, Hinweis bei zu klein, Hinweis

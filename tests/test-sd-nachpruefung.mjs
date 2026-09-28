@@ -5,7 +5,8 @@
  * nachgestellt und dabei noch fünf Fehler gefunden, dazu zwei nur teilweise
  * behobene (B26, B52). Jeder Fall hier scheiterte vor der Korrektur. Unten
  * im Abschnitt „Runde 2" die Befunde der zweiten Review-Runde (C…), im
- * Abschnitt „Runde 3" die der dritten zur Dosis-Karte (D…).
+ * Abschnitt „Runde 3" die der dritten zur Dosis-Karte (D…), im Abschnitt
+ * „Runde 4" die der vierten (E…).
  *
  *     node tests/test-sd-nachpruefung.mjs
  *
@@ -13,12 +14,13 @@
  */
 // Als Namensraum: Fehlt ein Export (D6_HEUTE vor Runde 2), scheitern nur die
 // Prüfungen, die ihn brauchen – nicht die ganze Datei beim Laden.
+import { readFileSync } from 'node:fs';
 import * as dosisModul from '../schilddruese/js/dosis.js';
 import * as ez from '../schilddruese/js/einschaetzung.js';
 import { erinnerungText } from '../schilddruese/js/ics.js';
 import { normStand } from '../schilddruese/js/speicher.js';
 
-const { dosisRichtung, dosisHinweise, gesamtbildMitDosis, D6_LANG, D6_HEUTE } = dosisModul;
+const { dosisRichtung, dosisHinweise, gesamtbildMitDosis, dosisBerichtZeilen, D6_LANG, D6_HEUTE } = dosisModul;
 
 let fails = 0;
 function check(name, bedingung, detail = '') {
@@ -738,6 +740,175 @@ fall('R3-c', () => {
     b.frage && b.frage.id === 'X3-14' && b.texte.some((t) => /sofort 112/.test(t)) && b.warnzeichen === dosisModul.WD2 && b.anrufe.some((a) => a.nummer === '112'), lage(b));
   const dd = dosisRichtung(s(0.05, 25), '2026-04-01');
   check('R3-c Muster d unter der Frage: W-D2 bleibt', dd.frage && dd.frage.id === 'X3-14' && dd.warnzeichen === dosisModul.WD2, lage(dd));
+});
+
+// ================================================================ Runde 4
+/*
+ * Die Befunde der vierten Review-Runde zur Dosis-Karte (E16, E18, E30, E31,
+ * E33), so nachgestellt wie im Nachweis – über viele Tage hintereinander.
+ * Jeder Fall scheiterte vor der Korrektur (außer den Gegenproben).
+ */
+const R4 = { keine: 0, termin: 1, zeitnah: 2, tage: 3, heute: 4, notruf: 5 };
+const tshL = (wert) => ({ wert, einheit: 'mU/l', von: 0.27, bis: 4.2 });
+const tage = (von, bis) => { const l = []; for (let t = von; t <= bis; t = plus(t, 1)) l.push(t); return l; };
+/** Wie app.js render(): Die Karte merkt sich, welche Richtung sie gezeigt hat. */
+function zeigen(s, heute, mitTitel = true) {
+  const k = dosisRichtung(s, heute);
+  if (k && k.merken) {
+    const { titel, ...rest } = k.merken;
+    s.nachfragen.push({ id: `kg-${heute}`, ...rest, ...(mitTitel ? { titel } : {}), am: heute });
+  }
+  return k;
+}
+
+// E16 – RW2 B1: Der Bericht nennt die zuletzt gezeigte Richtungskarte mit
+// Datum, auch wenn die Karte heute die 14-Tage-Rückfrage stellt.
+fall('E16', () => {
+  const neu = () => stand({
+    profil: { geburtsjahr: 1958, herz: 'nein' }, befund: { datum: '2026-09-08', tsh: tshL(7.8), ft4: ft4(14) },
+    dosen: [d('d1', '2025-01-01', 100)], nachfragen: [ja('b1', '2026-09-10')],
+  });
+  const s = neu();
+  // Vor der ersten Anzeige: kein „der Patientin gezeigt", der Kopf nennt den Stand.
+  const vorher = dosisBerichtZeilen(s, '2026-09-12');
+  check('E16 Bericht vor der ersten Anzeige: „Stand 12.09.2026", „Dazu gehört der Pflichttext", nicht „der Patientin dazu gezeigt"',
+    /^Dosis-Karte der App, Stand 12\.09\.2026, zum Befund vom 08\.09\.2026/.test(vorher[0]) && vorher.some((z) => /Dazu gehört der Pflichttext: .*keine Anweisung/.test(z))
+    && !vorher.some((z) => /Patientin dazu gezeigt/.test(z)), vorher.slice(0, 2).join(' | '));
+  const k12 = zeigen(s, '2026-09-12');
+  check('E16 die Karte merkt sich die Richtung mit Titel', k12.merken && k12.merken.art === 'karte_gezeigt' && k12.merken.bezug === 'b1'
+    && k12.merken.antwort === 'mehr' && k12.merken.titel === k12.titel, JSON.stringify(k12.merken));
+  tage('2026-09-13', '2026-09-23').forEach((t) => zeigen(s, t));
+  const gemerkt = s.nachfragen.filter((n) => n.art === 'karte_gezeigt');
+  check('E16 gemerkt wird nur der Wechsel: ein Eintrag für zwölf Tage', gemerkt.length === 1 && gemerkt[0].am === '2026-09-12', JSON.stringify(gemerkt));
+  check('E16 am 12.09. „Der Patientin dazu gezeigt"', dosisBerichtZeilen(s, '2026-09-12').some((z) => /^ {2}Der Patientin dazu gezeigt: /.test(z)));
+  for (const heute of ['2026-09-24', '2026-09-30']) {
+    const k = zeigen(s, heute);
+    const z = dosisBerichtZeilen(s, heute);
+    const i = z.findIndex((x) => /^Zuletzt gezeigte Richtung der Dosis-Karte, zuerst angezeigt am 12\.09\.2026, zum Befund vom 08\.09\.2026 \(App\): Das spricht für eine Kontrolle oder einen kleinen Schritt nach oben\./.test(x));
+    check(`E16 ${heute}: Karte mit Rückfrage X3-14, der Bericht nennt die zuletzt gezeigte Richtung mit Datum und Pflichttext`,
+      k.frage && k.frage.id === 'X3-14' && /Stand /.test(z[0]) && /offene Frage/.test(z[0]) && i > 0 && /^ {2}Der Patientin dazu gezeigt: .*keine Anweisung/.test(z[i + 1] || ''), z.join(' | ').slice(0, 400));
+  }
+  // So wie app.js heute merkt (ohne Titel): die Richtung in Worten.
+  const o = neu();
+  zeigen(o, '2026-09-12', false);
+  const zo = dosisBerichtZeilen(o, '2026-09-24');
+  check('E16 gemerkt ohne Titel: „Richtung „mehr"" in Worten', zo.some((x) => /^Zuletzt gezeigte Richtung .*Richtung „mehr" – eine etwas höhere Dosis\./.test(x)), zo.join(' | ').slice(0, 300));
+  // Gegenprobe: Zeigt die Karte heute dieselbe Richtung, steht sie nicht zweimal da.
+  check('E16 Gegenprobe: dieselbe Richtung heute – keine zweite Zeile', !dosisBerichtZeilen(s, '2026-09-20').some((x) => /^Zuletzt gezeigte/.test(x)));
+  // Eine Frage merkt nichts.
+  check('E16 die Rückfrage (X3-14) merkt nichts', dosisRichtung(s, '2026-09-24').merken === null);
+  // Der gemerkte Eintrag übersteht Speichern und Laden.
+  const geladen = normStand(JSON.parse(JSON.stringify(s)));
+  check('E16 nach normStand bleibt der Titel', geladen.nachfragen.some((n) => n.art === 'karte_gezeigt' && n.titel === k12.titel));
+});
+
+// E18 – B31-Kette an der Altersgrenze 70: Der Kontrollwert, zu dem „Heute"
+// (D6c) schickt, wird auf der Karte nie als „weniger als 8 Wochen" verworfen.
+fall('E18', () => {
+  const schlecht = [];
+  for (let t = '2025-10-15'; t <= '2025-12-31'; t = plus(t, 3)) {
+    const s = stand({
+      profil: { geburtsjahr: 1956, herz: 'nein' }, befund: { datum: '2025-10-01', tsh: tsh(0.15), ft4: ft4(18), praxis: 'geaendert', praxisAm: '2025-10-05' },
+      dosen: [d('d1', '2024-01-01', 100), d('d2', t, 88)], nachfragen: [],
+    });
+    let n = 30;
+    while (n < 90 && !dosisHinweise(s, plus(t, n)).some((h) => h.id === 'D6c')) n++;
+    const tag = plus(t, n);
+    s.labor.push({ id: 'b2', datum: tag, tsh: tsh(1.8), ft4: ft4(15), ...FRAGEN });
+    s.nachfragen.push(ja('b2', plus(tag, 1)));
+    const k = dosisRichtung(s, plus(tag, 1));
+    if (k.gruende.some((g) => g.id === 'D0.6')) schlecht.push(`${t}: D6c ab Tag ${n}, Karte ${lage(k)}`);
+  }
+  check('E18 Änderungen Okt.–Dez. 2025 (Jahrgang 1956): der Wert zum Tag von D6c bekommt nie D0.6', schlecht.length === 0, schlecht.slice(0, 3).join(' | '));
+});
+
+// E30 – rot-2 X3 (4): Nach einer eigenen Erhöhung (75 → 125 µg) und einem
+// Herstellerwechsel zehn Tage später bleibt X3 Tag für Tag stehen, bis die
+// Praxis entscheidet oder ein Kontrollwert da ist.
+fall('E30', () => {
+  const s = stand({
+    profil: { geburtsjahr: 1948, herz: 'nein' }, befund: { datum: '2026-01-19', tsh: tshL(6.5), ft4: ft4(14) },
+    dosen: [d('d1', '2025-01-01', 75), d('d2', '2026-01-26', 125, { praxis: false }), d('d3', '2026-02-05', 125, { praxis: null, praeparat: 'Euthyrox' })],
+    nachfragen: [ja('b1', '2026-01-20')],
+  });
+  const ohne = tage('2026-01-26', '2026-04-30').filter((t) => {
+    const k = dosisRichtung(s, t);
+    const g = gesamtbildMitDosis(s, t);
+    return !(k.gruende.some((x) => x.id === 'X3' && x.stufe === 'tage') && k.warnzeichen === dosisModul.WD2 && R4[g.stufe] >= R4.tage);
+  });
+  check('E30 26.01.–30.04.: jeden Tag X3 (Tage) mit W-D2 auf der Karte, Gesamtbild mindestens Tage', ohne.length === 0, ohne.slice(0, 5).join(', '));
+  const heuteX3 = tage('2026-01-26', '2026-02-09').filter((t) => !dosisHinweise(s, t).some((h) => h.id === 'X3'));
+  check('E30 „Heute" nennt X3 die ersten 14 Tage, auch nach dem Euthyrox-Eintrag', heuteX3.length === 0, heuteX3.join(', '));
+  const wd4 = tage('2026-02-09', '2026-02-15').filter((t) => !dosisHinweise(s, t).some((h) => h.id === 'W-D4' && h.frage && h.frage.bezug === 'd2-14'));
+  check('E30 die W-D4-Frage nach der Erhöhung kommt an Tag 14–20', wd4.length === 0, wd4.join(', '));
+  // Erst ein Kontrollwert nach der Einpendelzeit (8 Wochen) beendet es.
+  s.labor.push({ id: 'b2', datum: '2026-03-25', tsh: tshL(2.5), ft4: ft4(16), ...FRAGEN });
+  s.nachfragen.push(ja('b2', '2026-03-26'));
+  check('E30 Gegenprobe: Kontrollwert 58 Tage nach der Änderung – kein X3 mehr', !dosisRichtung(s, '2026-03-27').gruende.some((x) => x.id === 'X3'), lage(dosisRichtung(s, '2026-03-27')));
+});
+
+// E31 – Q5 „einmal viele Tabletten" nach der Entscheidung der Praxis: kein
+// tägliches „Heute anrufen – Giftnotruf" bis zum nächsten Befund.
+fall('E31', () => {
+  const s = stand({
+    profil: { geburtsjahr: 1962, herz: 'nein' }, befund: { datum: '2026-09-24', tsh: tsh(0.05), ft4: ft4(30), verwechselt: 'einmal', praxis: 'bleibt', praxisAm: '2026-09-26' },
+    nachfragen: [ja('b1', '2026-09-25')],
+  });
+  const heute = tage('2026-09-26', '2027-01-31').filter((t) => {
+    const k = dosisRichtung(s, t);
+    return R4[k.stufe] >= R4.heute || R4[gesamtbildMitDosis(s, t).stufe] >= R4.heute || k.gruende.some((g) => /Giftnotruf/.test(g.text));
+  });
+  check('E31 nach „Die Dosis bleibt so" (26.09.) bis Ende Januar: nie „heute", nie der Giftnotruf', heute.length === 0, heute.slice(0, 5).join(', '));
+  const b = dosisBerichtZeilen(s, '2026-12-10').join('\n');
+  check('E31 der Bericht nennt Q5 ohne „heute noch den Giftnotruf"', /Grund Q5: Sie hatten angegeben/.test(b) && !/heute noch den Giftnotruf/.test(b), b.slice(0, 300));
+  // Gegenprobe: vor der Entscheidung der Praxis bleibt es akut.
+  const vor = stand({
+    profil: { geburtsjahr: 1962, herz: 'nein' }, befund: { datum: '2026-09-24', tsh: tsh(0.05), ft4: ft4(30), verwechselt: 'einmal' },
+    nachfragen: [ja('b1', '2026-09-25')],
+  });
+  const kv = dosisRichtung(vor, HEUTE);
+  check('E31 Gegenprobe ohne Entscheidung: heute mit Giftnotruf', kv.stufe === 'heute' && kv.gruende.some((g) => g.id === 'Q5' && /Giftnotruf/.test(g.text)), lage(kv));
+});
+
+// E33 – Was als Änderung zählt, steht an einer Stelle (js/einschaetzung.js):
+// Die Dosis-Karte hat keine eigenen Kopien mehr, die auseinanderlaufen können.
+fall('E33', () => {
+  const quelle = readFileSync(new URL('../schilddruese/js/dosis.js', import.meta.url), 'utf8');
+  check('E33 dosis.js hat keine eigenen Kopien von aenderungsArt, istBerichtigung, aenderungen',
+    !/function (aenderungsArt|istBerichtigung)\b|const aenderungen\s*=/.test(quelle));
+  check('E33 dosis.js importiert sie aus einschaetzung.js',
+    /import \{[^}]*\baenderungsArt\b[^}]*\bistBerichtigung\b[^}]*\baenderungen\b[^}]*\} from '\.\/einschaetzung\.js'/.test(quelle));
+  // Karte (D0.6) und Einschätzung (L5a) sagen zum selben Stand dasselbe.
+  const faelle = {
+    doppelt: [d('d1', '2025-01-01', 75), d('d2', '2026-09-14', 75, { praxis: null })],
+    berichtigt: [d('d1', '2025-01-01', 75), d('d2', '2026-09-14', 75), d('d3', '2026-09-14', 100, { berichtigung: true })],
+    echt: [d('d1', '2025-01-01', 75), d('d2', '2026-09-14', 100)],
+    praeparat: [d('d1', '2025-01-01', 75), d('d2', '2026-09-14', 75, { praeparat: 'Euthyrox' })],
+  };
+  for (const [name, dosen] of Object.entries(faelle)) {
+    const s = stand({ profil: { geburtsjahr: 1960, herz: 'nein' }, befund: { datum: '2026-09-24', tsh: tsh(7.5), ft4: ft4(13) }, dosen, nachfragen: [ja('b1', '2026-09-25')] });
+    const karte = dosisRichtung(s, HEUTE).gruende.some((g) => g.id === 'D0.6');
+    const einsch = ez.befundEinschaetzen(s.labor[0], s, HEUTE).erklaerungen.some((x) => x.id === 'L5a');
+    check(`E33 ${name}: Karte (D0.6) und Einschätzung (L5a) stimmen überein`, karte === einsch && karte === ['echt', 'praeparat'].includes(name), `D0.6 ${karte}, L5a ${einsch}`);
+  }
+});
+
+// ================================================================ Nachprüfung Runde 4
+// R4-a – Q5 „einmal" ohne Akutlage (nach der Entscheidung der Praxis, E31)
+// bleibt auch auf Karten früher Ausstiege stehen (D7, Check mit 112-Zeichen):
+// „Wusste die Praxis das nicht, sagen Sie es ihr" fiel dort weg.
+fall('R4-a', () => {
+  const s = (ue = {}) => stand({
+    profil: { geburtsjahr: 1990, herz: 'nein', schwanger: 'nein', ...(ue.profil || {}) },
+    befund: { datum: '2026-09-20', tsh: tsh(0.05), ft4: ft4(30), verwechselt: 'einmal', praxis: 'bleibt', praxisAm: '2026-09-22' },
+    nachfragen: [ja('b1', '2026-09-21')], warnzeichen: ue.warnzeichen || [],
+  });
+  const basis = dosisRichtung(s(), HEUTE);
+  check('R4-a Vorbedingung: Q5 ohne Stufe neben D0.5', basis.gruende.some((g) => g.id === 'Q5' && !g.stufe), lage(basis));
+  const d7 = dosisRichtung(s({ profil: { schwanger: 'ja' } }), HEUTE);
+  check('R4-a Schwangerschaft (D7): Q5 steht weiter auf der Karte', d7.gruende.some((g) => g.id === 'D7') && d7.gruende.some((g) => g.id === 'Q5'), lage(d7));
+  const w4 = dosisRichtung(s({ warnzeichen: [{ id: 'w1', datum: HEUTE, uhr: '09:00', ja: ['packung'] }] }), HEUTE);
+  check('R4-a Check mit „große Menge" (W4a): Q5 steht weiter auf der Karte', w4.stufe === 'notruf' && w4.gruende.some((g) => g.id === 'Q5'), lage(w4));
 });
 
 console.log(fails ? `\n${fails} gescheitert` : '\nalles grün');

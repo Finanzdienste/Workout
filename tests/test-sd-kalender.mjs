@@ -6,10 +6,10 @@
  * eingestellten Uhrzeit, nach Norm umbrochen – und ein Termin kurz vor
  * Mitternacht darf nicht vor seinem Beginn enden.
  */
-import { oeffne, standMit, plus } from './sd-hilfe.mjs';
+import { oeffne, standMit, plus, SD_URL } from './sd-hilfe.mjs';
 
 const TAG = '2026-03-10';
-const { page, check, gespeichert, ende } = await oeffne({ tag: TAG, stand: standMit(plus(TAG, -3)) });
+const { browser, page, check, gespeichert, ende } = await oeffne({ tag: TAG, stand: standMit(plus(TAG, -3)) });
 
 const ics = await page.evaluate(async () => {
   const m = await import('./js/ics.js');
@@ -77,5 +77,52 @@ await page.click('#reiter-heute');
 const heute = await page.locator('#ansicht').innerText();
 check(heute.includes('Blutabnahme in 5 Tagen, 8:00 Uhr'), '„Heute" kündigt die Blutabnahme an');
 check(heute.includes('erst danach'), '… mit dem Hinweis, die Tablette meist erst danach zu nehmen');
+
+// ---- Runde 4: E27 – die tägliche Erinnerung am Morgen nennt den Tag der
+// Blutabnahme (RW1 L0d). Sie kennt einen später angelegten Abnahmetag nicht,
+// deshalb allgemein – und nur morgens.
+const texte = await page.evaluate(async () => {
+  const m = await import('./js/ics.js');
+  return {
+    morgens: m.erinnerungText('06:45'), mittags: m.erinnerungText('12:00'), abends: m.erinnerungText('21:30'),
+    datei: m.erinnerungICS({ abISO: '2026-03-10', uhr: '06:45' }).replace(/\r\n /g, ''),
+  };
+});
+check(/Blutabnahme/.test(texte.morgens) && /erst nach der Abnahme/.test(texte.morgens) && /außer die Praxis/.test(texte.morgens),
+  `E27: morgens „Am Tag einer Blutabnahme … erst nach der Abnahme" (${texte.morgens})`);
+check(/Frühstück frühestens eine halbe Stunde später/.test(texte.morgens), 'E27: … und weiter der Satz zum Frühstück');
+check(!/Blutabnahme/.test(texte.mittags) && !/Blutabnahme/.test(texte.abends), 'E27: mittags und abends ohne diesen Satz');
+check(texte.datei.includes('DESCRIPTION:Nüchtern\\, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später. Am Tag einer Blutabnahme'),
+  'E27: die Kalenderdatei trägt den Satz in der Beschreibung des täglichen Termins');
+
+// ---- Runde 4: E29 – Zeitumstellung. Am 29.03.2026 gibt es in Deutschland
+// 2:00–2:59 nicht; die schwebende Uhrzeit darf trotzdem nicht auf 3:xx
+// rutschen (sonst klingelt die tägliche Erinnerung jeden Tag eine Stunde
+// später, und ein Termin um 2:30 hat die Dauer 0). Eigener Browserkontext in
+// der Zeitzone Berlin – die Uhr der übrigen Prüfungen bleibt, wie sie ist.
+const berlin = await browser.newContext({ timezoneId: 'Europe/Berlin', locale: 'de-DE' });
+const pb = await berlin.newPage();
+await pb.goto(SD_URL, { waitUntil: 'networkidle' });
+const um = await pb.evaluate(async () => {
+  const m = await import('./js/ics.js');
+  const zeiten = (t) => t.match(/DT(?:START|END):\d{8}T\d{6}/g);
+  return {
+    zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    luecke: new Date(2026, 2, 29, 2, 30).getHours(),
+    taeglich: zeiten(m.erinnerungICS({ abISO: '2026-03-29', uhr: '02:30' })),
+    termin: zeiten(m.terminICS({ id: 'u1', datum: '2026-03-29', uhr: '02:30', titel: 'Termin' })),
+    frueh: zeiten(m.terminICS({ id: 'u2', datum: '2026-03-29', uhr: '01:50', titel: 'Termin' })),
+    herbst: zeiten(m.erinnerungICS({ abISO: '2026-10-25', uhr: '02:30' })),
+    silvester: zeiten(m.erinnerungICS({ abISO: '2026-12-31', uhr: '23:50' })),
+  };
+});
+await berlin.close();
+const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+check(um.zone === 'Europe/Berlin' && um.luecke === 3, `E29: Prüfumgebung in Berlin, 2:30 am 29.03. gibt es dort nicht (${um.zone}, ${um.luecke} Uhr)`);
+check(gleich(um.taeglich, ['DTSTART:20260329T023000', 'DTEND:20260329T024500']), `E29: tägliche Erinnerung ab 29.03. um 2:30 bleibt 2:30 (${um.taeglich})`);
+check(gleich(um.termin, ['DTSTART:20260329T023000', 'DTEND:20260329T033000']), `E29: Termin am 29.03. um 2:30 dauert eine Stunde (${um.termin})`);
+check(gleich(um.frueh, ['DTSTART:20260329T015000', 'DTEND:20260329T025000']), `E29: Termin um 1:50 endet um 2:50, nicht 3:50 (${um.frueh})`);
+check(gleich(um.herbst, ['DTSTART:20261025T023000', 'DTEND:20261025T024500']), `E29: Umstellung im Herbst unverändert (${um.herbst})`);
+check(gleich(um.silvester, ['DTSTART:20261231T235000', 'DTEND:20270101T000500']), `E29: 23:50 endet weiter am nächsten Tag (${um.silvester})`);
 
 await ende();

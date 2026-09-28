@@ -103,6 +103,33 @@ function dosisFormular(id, stand, heute) {
   };
 }
 
+/*
+ * Die Stärke einer Tablette. Unter 5 oder über 400 µg ist sicher ein
+ * Tippfehler oder eine andere Einheit (0,075 mg) – das nimmt das Feld nicht.
+ * Dazwischen, aber außerhalb der üblichen 12,5 bis 300 µg, fragt die App
+ * nach, ebenso bei einem Sprung der Tagesdosis um mehr als die Hälfte. Ein
+ * Kommafehler wie „7,5" statt „75" ging vorher still durch: Beim Einrichten
+ * stand danach täglich „7,5 µg" auf „Heute", bei „Neue Dosis" wurde daraus
+ * eine Senkung um 90 % „auf Anweisung der Praxis". Die Meldung der harten
+ * Grenze nannte zudem 12,5 bis 300 µg, geprüft wurde 5 bis 400 (Runde 4: E10).
+ * Auch fürs Einrichten (js/ansicht-willkommen.js).
+ */
+export const STAERKE_GRENZE_TEXT = 'Bitte prüfen: Hier passen nur Stärken zwischen 5 und 400 µg (Mikrogramm). Steht auf der Packung „mg" (Milligramm): 0,1 mg sind 100 µg.';
+
+/** Die Rückfrage zu einer ungewöhnlichen Stärke – oder null. */
+export function staerkeUngewoehnlich(mikrogramm) {
+  if (mikrogramm === null || (mikrogramm >= 12.5 && mikrogramm <= 300)) return null;
+  return `${zahlFeld(mikrogramm)} µg ist eine ungewöhnliche Stärke. Übliche Stärken liegen zwischen 12,5 und 300 µg.`;
+}
+
+/**
+ * Was die Rückfrage (in js/app.js rueckfrageZeigen) unter die Punkte
+ * schreibt, und welches Feld „Korrigieren" ansteuert. Ohne eigenen Satz
+ * stünde dort „Steht es genau so auf dem Befund?" – gemeint ist die Packung.
+ */
+export const STAERKE_RUECKFRAGE = { satz: 'Steht die Zahl genau so auf der Packung?', feld: 'mikrogramm' };
+const SPRUNG_RUECKFRAGE = { satz: 'Stimmen Stärke und Tabletten am Tag genau so?', feld: 'mikrogramm' };
+
 /** Die Menge, auf die sich „Nein, ich nehme etwas anderes" bezog („nein_87_5" → 87,5) – wie neinDosis in js/dosis.js. */
 function neinMenge(antwort) {
   const m = /^nein_(\d+)(?:_(\d+))?$/.exec(antwort || '');
@@ -123,7 +150,7 @@ function dosisAbsenden(id, f, heute) {
   const fehler = {};
   const mikrogramm = zahlAus(f.get('mikrogramm'));
   if (mikrogramm === null || mikrogramm <= 0) fehler.mikrogramm = 'Bitte die Stärke in µg eintragen, z. B. 75.';
-  else if (mikrogramm < 5 || mikrogramm > 400) fehler.mikrogramm = 'Bitte prüfen: Übliche Stärken liegen zwischen 12,5 und 300 µg. Steht eine andere Zahl auf der Packung, prüfen Sie die Einheit.';
+  else if (mikrogramm < 5 || mikrogramm > 400) fehler.mikrogramm = STAERKE_GRENZE_TEXT;
   const da = id ? stand.dosen.find((d) => d.id === id) : null;
   const andere = stand.dosen.filter((d) => d !== da);
   const ab = f.get('ab');
@@ -156,8 +183,8 @@ function dosisAbsenden(id, f, heute) {
    * stimmt nur der Beginn des vorhandenen Eintrags nicht (beim Einrichten
    * blieb „Seit wann?" auf heute). Dann dort „Gilt ab" ändern.
    */
+  const vorher = [...andere].reverse().find((d) => d.ab <= ab);
   if (!da) {
-    const vorher = [...andere].reverse().find((d) => d.ab <= ab);
     const danach = andere.find((d) => d.ab > ab);
     const gleich = vorher && gleicheDosis(vorher, eintrag) ? vorher : danach && gleicheDosis(danach, eintrag) ? danach : null;
     if (gleich) {
@@ -165,6 +192,31 @@ function dosisAbsenden(id, f, heute) {
         ? `Genau diese Dosis ist schon ab ${datumKurz(gleich.ab)} eingetragen. Nehmen Sie sie schon seit dem ${datumKurz(ab)}, ändern Sie beim vorhandenen Eintrag „Gilt ab" – ein zweiter gleicher Eintrag sähe aus wie eine Änderung der Dosis.`
         : `Genau diese Dosis ist schon seit dem ${datumKurz(gleich.ab)} eingetragen. Ein zweiter gleicher Eintrag sähe aus wie eine Änderung der Dosis. Stimmt der Tag nicht, ändern Sie „Gilt ab" beim vorhandenen Eintrag.`;
       return { ok: false, fehler: { ab: { text, knopf: { seite: 'dosis', param: gleich.id, text: 'Vorhandenen Eintrag ändern' } } } };
+    }
+  }
+  /*
+   * Ungewöhnliche Stärke oder ein Sprung der Tagesdosis um mehr als die
+   * Hälfte gegenüber dem Eintrag davor: nachfragen wie beim Befund (Runde 4:
+   * E10). „Ja, stimmt" schickt das Formular mit bestaetigt=ja noch einmal ab.
+   * Ein Eintrag, dessen Stärke und Tablettenzahl gleich bleiben (nur die
+   * Notiz oder der Tag geändert), fragt nicht jedes Mal wieder.
+   */
+  const unveraendert = da && da.mikrogramm === eintrag.mikrogramm && da.tabletten === eintrag.tabletten;
+  // Die Stärke bis jetzt – vor dem Speichern gemerkt: Beim Ändern überschreibt
+  // sp.aendern den Eintrag `da` selbst.
+  const bisherMikrogramm = (da || vorher || { mikrogramm: eintrag.mikrogramm }).mikrogramm;
+  if (!unveraendert && f.get('bestaetigt') !== 'ja') {
+    const rueckfragen = [];
+    const staerke = staerkeUngewoehnlich(eintrag.mikrogramm);
+    if (staerke) rueckfragen.push(staerke);
+    const alt = sp.tagesdosis(vorher);
+    const neu = sp.tagesdosis(eintrag);
+    if (alt && neu && Math.abs(neu - alt) > alt / 2) {
+      rueckfragen.push(`Bisher ${zahlFeld(alt)} µg am Tag, jetzt ${zahlFeld(neu)} µg am Tag – das ist eine Änderung um mehr als die Hälfte.`);
+    }
+    if (rueckfragen.length) {
+      const art = rueckfragen.length === 1 && staerke ? STAERKE_RUECKFRAGE : SPRUNG_RUECKFRAGE;
+      return { ok: false, rueckfragen, rueckfrageSatz: art.satz, rueckfrageFeld: art.feld };
     }
   }
   sp.aendern((s) => {
@@ -203,19 +255,28 @@ function dosisAbsenden(id, f, heute) {
     s.nachfragen = s.nachfragen.filter((n) => !(n.art === 'dosis_stimmt' && /^nein/.test(n.antwort)));
   });
   /*
-   * Andere Stärke oder Tablettenzahl bei gezähltem Vorrat: bitte neu zählen
-   * (D13). Bei einer neuen Stärke gilt die gezählte Packung nicht mehr – das
-   * kann die App nicht verrechnen; „Heute" bittet dann auch selbst darum, mit
-   * Knopf (vorratAndereStaerke). Bei einer anderen Tablettenzahl rechnet sie
-   * zwar mit, aber nur ab dem Tag, der hier eingetragen ist.
+   * Andere Stärke bei gezähltem Vorrat: bitte neu zählen (D13). Bei einer
+   * neuen Stärke gilt die gezählte Packung nicht mehr – das kann die App nicht
+   * verrechnen; „Heute" bittet dann auch selbst darum, mit Knopf
+   * (vorratAndereStaerke).
+   *
+   * Nur bei anderer Stärke – und nur, wenn „Heute" an dem Tag auch darum
+   * bittet. Vorher kam die Meldung auch bei bloß anderer Tablettenzahl, die
+   * sp.vorratReicht() selbst abschnittsweise verrechnet: Wer ihr folgte und
+   * nachzählte, ließ „Gezählt am" auf dem alten Tag stehen, der Verbrauch
+   * seitdem zählte doppelt, und „Heute" meldete „aufgebraucht", obwohl noch
+   * Tabletten für Wochen da waren. Der Weg „Mehr → Tablettenvorrat" öffnet
+   * nach anderer Stärke jetzt ein leeres Formular mit heute (vorratFormular)
+   * (Runde 4: E32).
    */
-  const bisher = da || [...andere].reverse().find((d) => d.ab <= ab) || null;
-  if (stand.vorrat && bisher && (bisher.mikrogramm !== eintrag.mikrogramm || bisher.tabletten !== eintrag.tabletten)) {
+  const neuZaehlen = stand.vorrat && bisherMikrogramm !== eintrag.mikrogramm
+    && vorratAndereStaerke(sp.getStand(), ab > heute ? ab : heute);
+  if (neuZaehlen) {
     return {
       ok: true,
       meldung: ab > heute
-        ? `Dosis gespeichert. Bitte zählen Sie am ${datumKurz(ab)} Ihren Tablettenvorrat neu – unter „Mehr → Tablettenvorrat".`
-        : 'Dosis gespeichert. Bitte zählen Sie Ihren Tablettenvorrat neu – unter „Mehr → Tablettenvorrat".',
+        ? `Dosis gespeichert. Bitte zählen Sie am ${datumKurz(ab)} Ihren Tablettenvorrat neu – „Heute" erinnert Sie an dem Tag daran.`
+        : 'Dosis gespeichert. Bitte zählen Sie Ihren Tablettenvorrat neu – auf „Heute" unter „Vorrat neu zählen" oder unter „Mehr → Tablettenvorrat".',
     };
   }
   return { ok: true, meldung: 'Dosis gespeichert' };
@@ -280,10 +341,24 @@ function bereichAus(key, name, vonRoh, bisRoh) {
  * Die Fragen kommen aus speicher.js (FRAGEN_FELDER) – dieselbe Liste, mit der
  * normStand beim Laden zwei Einträge eines Tages zusammenführt. Vorher hatte
  * das Formular eine eigene ohne Q5 („versehentlich mehr genommen"), und beide
- * Wege konnten auseinanderlaufen (C14). Q5 steht nicht im Formular – ihr Name
- * für die Meldung steht deshalb hier.
+ * Wege konnten auseinanderlaufen (C14). Q5 steht nicht in BEFUND_FRAGEN – ihr
+ * Name für die Meldung steht deshalb hier.
  */
 const FRAGE_KURZ = { verwechselt: 'versehentlich mehr genommen' };
+
+/*
+ * Q5 im Formular – nur zum Ändern einer Antwort, die schon gegeben ist.
+ * Stellen soll die Frage weiter die Dosis-Karte, und nur dort, wo sie zählt
+ * (TSH niedrig, Muster d und e). Vorher ließ sich eine falsche Antwort gar
+ * nicht zurücknehmen: Ein Fehltipp auf „Ja, einmal viele Tabletten auf
+ * einmal" ließ „Heute anrufen – Giftnotruf" wochenlang stehen und stand so im
+ * Arztbericht; zurück ging es nur, indem man den ganzen Befund löschte. „Noch
+ * offen" nimmt die Antwort zurück, dann fragt die Karte neu (Runde 4: E4).
+ * Der Wortlaut wie auf der Karte (js/dosis.js, Q5).
+ */
+const Q5_FRAGE = 'Haben Sie vielleicht versehentlich mehr genommen oder eine Packung mit einer anderen Stärke bekommen?';
+const Q5_WAHL = [['nein', 'Nein'], ['einmal', 'Ja, einmal viele Tabletten auf einmal'], ['tage', 'Ja, über Tage zu viel oder eine andere Stärke'], ['unbekannt', 'Weiß nicht'], ['', 'Noch offen – die Dosis-Karte fragt noch einmal']];
+const Q5_WERTE = ['nein', 'einmal', 'tage', 'unbekannt'];
 
 /*
  * Ein Befund je Abnahmetag. Wird ein nachgereichter Wert (etwa fT4) als
@@ -373,7 +448,14 @@ function laborFormular(id, stand, heute) {
       <p class="klein gedaempft" style="margin:.4rem 0 .6rem">Stehen sie auf demselben Befund, gleich mit abschreiben – sie kommen dann mit in den Bericht. Steht nur eine Grenze da, nur diese eintragen.</p>
       ${sp.WEITERE_WERTE.map(karte).join('')}
     </details>`;
-  const fragen = BEFUND_FRAGEN.filter((q) => !q.nurMitAbstand || hatAbstand).map((q) => wahlFrage(q.feld, l[q.feld] || '', q.frage, {
+  // Q5 vor der Frage nach der Praxis – bei den anderen Fragen zur Einnahme.
+  // Die fünf Antworten untereinander: Nebeneinander stand „Ja, über Tage zu
+  // viel oder eine andere Stärke" bei „sehr groß" Wort für Wort in einer
+  // schmalen Spalte neben „Weiß nicht".
+  const q5 = da && Q5_WERTE.includes(da.verwechselt)
+    ? wahlFrage('verwechselt', da.verwechselt, Q5_FRAGE, { optionen: Q5_WAHL, hinweis: 'Ihre Antwort auf der Dosis-Karte. Stimmt sie nicht, ändern Sie sie hier.' })
+      .replace(/<label class="wahl-flaeche">/g, '<label class="wahl-flaeche" style="flex-basis:100%">') : '';
+  const fragen = BEFUND_FRAGEN.filter((q) => !q.nurMitAbstand || hatAbstand).map((q) => (q.feld === 'praxis' ? q5 : '') + wahlFrage(q.feld, l[q.feld] || '', q.frage, {
     optionen: q.optionen || JNW_WAHL,
     extra: q.feld === 'vorAbnahme'
       ? `<label class="feld feld-unter"><span>Wenn ja: um wie viel Uhr?</span><input type="time" name="tabletteUhr" value="${esc(l.tabletteUhr || '')}"></label>` : '',
@@ -426,10 +508,14 @@ function laborAbsenden(id, f, heute) {
     praxis,
     // Das Datum der Praxis-Angabe: neu gesetzt, wenn sie sich ändert.
     praxisAm: praxis ? (da && da.praxis === praxis && da.praxisAm ? da.praxisAm : heute) : null,
-    // Q5 steht nicht im Formular, sondern auf der Dosis-Karte – das Feld muss
-    // trotzdem von Anfang an da sein. Vorher legte es erst normStand beim
-    // nächsten Laden an, und bis dahin ließ sich Q5 nicht beantworten (B39).
-    verwechselt: da && typeof da.verwechselt === 'string' ? da.verwechselt : '',
+    // Q5 fragt die Dosis-Karte – das Feld muss trotzdem von Anfang an da
+    // sein. Vorher legte es erst normStand beim nächsten Laden an, und bis
+    // dahin ließ sich Q5 nicht beantworten (B39). Steht die Frage im Formular
+    // (eine Antwort zum Ändern), gilt, was dort gewählt ist – „Noch offen"
+    // nimmt sie zurück. Vorher wurde die alte Antwort bei jedem Speichern
+    // übernommen (Runde 4: E4).
+    verwechselt: f.has('verwechselt') ? auswahl(f.get('verwechselt'), Q5_WERTE)
+      : da && typeof da.verwechselt === 'string' ? da.verwechselt : '',
   };
   ['vorAbnahme', 'biotin', 'krank', 'kortison', 'kontrastmittel', 'mittelGeaendert', 'einnahmeGeaendert', 'packung', 'abstandOk']
     .forEach((k) => { eintrag[k] = auswahl(f.get(k), JNW_WERTE); });
@@ -611,15 +697,37 @@ function befindenAbsenden(id, f, heute) {
   const stufe = ['gut', 'mittel', 'schlecht'].includes(f.get('stufe')) ? f.get('stufe') : null;
   if (!stufe) fehler.stufe = 'Bitte Gut, Mittel oder Schlecht wählen.';
   if (Object.keys(fehler).length) return { ok: false, fehler };
+  const liste = sp.getStand().befinden;
+  const vorher = id ? liste.find((b) => b.id === id) : null;
+  /*
+   * Ein Eintrag je Tag – aber nie still auf Kosten eines anderen. Vorher
+   * überschrieb ein neuer Eintrag mit geändertem Datum den vorhandenen
+   * Eintrag dieses Tages, den das Formular nie gezeigt hatte, und ein
+   * verlegter Eintrag löschte ihn: Herzklopfen samt Notiz waren weg, und mit
+   * ihnen „Heute anrufen" (S4, S4ii, R3, W5). Jetzt wie beim Befund (B52):
+   * ablehnen, mit Knopf zum vorhandenen Eintrag. Bleibt ein Eintrag an seinem
+   * Tag, lässt er sich ändern wie bisher – auch wenn ein älterer Stand an
+   * diesem Tag zwei hat (Runde 4: E22).
+   */
+  const belegt = liste.find((b) => b.datum === datum && b.id !== id && (!vorher || vorher.datum !== datum));
+  if (belegt) {
+    return {
+      ok: false,
+      fehler: {
+        datum: {
+          text: `Für den ${datumKurz(datum)} gibt es schon einen Eintrag. Öffnen Sie ihn, um etwas zu ergänzen oder zu ändern – oder wählen Sie ein anderes Datum.`,
+          knopf: { seite: 'befinden', param: belegt.id, text: `Eintrag vom ${datumKurz(datum)} öffnen` },
+        },
+      },
+    };
+  }
   // Ein alter Punkt bleibt nur, wo er schon stand – neu wählen lässt er sich nicht.
-  const vorher = id ? sp.getStand().befinden.find((b) => b.id === id) : sp.getStand().befinden.find((b) => b.datum === datum);
   const alt = alteBeschwerden(vorher).map(([k]) => k);
   const beschwerden = f.getAll('beschwerden').filter((k) => sp.BESCHWERDEN.some(([x]) => x === k) || alt.includes(k));
   const notiz = String(f.get('notiz') || '').trim().slice(0, 500);
   let gespeichert = null;
   sp.aendern((s) => {
-    const da = id ? s.befinden.find((b) => b.id === id) : s.befinden.find((b) => b.datum === datum);
-    s.befinden = s.befinden.filter((b) => b === da || b.datum !== datum);
+    const da = id ? s.befinden.find((b) => b.id === id) : null;
     if (da) { Object.assign(da, { datum, stufe, beschwerden, notiz }); gespeichert = da.id; } else {
       gespeichert = sp.kennung();
       s.befinden.push({ id: gespeichert, datum, stufe, beschwerden, notiz });
@@ -730,12 +838,19 @@ export const vorratText = (reicht) => (reicht <= 0 ? 'aufgebraucht' : `reicht no
 /**
  * `id` 'neu': neu zählen (von „Heute" nach einer anderen Stärke) – leer und
  * mit heute als Tag. Sonst stand dort der alte Tag des Zählens, und wer ihn
- * nicht änderte, zählte die neue Packung rückwirkend.
+ * nicht änderte, zählte die neue Packung rückwirkend. Nach einer anderen
+ * Stärke gilt das auch ohne 'neu' (Runde 4: E32).
  */
 function vorratFormular(id, stand, heute) {
-  const v = stand.vorrat && id !== 'neu' ? stand.vorrat : { tabletten: null, stand: heute };
-  const reicht = sp.vorratReicht(heute);
   const andere = vorratAndereStaerke(stand, heute);
+  // Nach einer anderen Stärke auch ohne 'neu' – etwa über „Mehr →
+  // Tablettenvorrat", wohin die Meldung nach dem Speichern der Dosis schickt.
+  // Dort stand sonst der alte Tag des Zählens: Wer nur die Zahl änderte,
+  // speicherte sie mit dem alten Tag, und „Bitte neu zählen" blieb für immer
+  // stehen. Nur den Tag auf heute zu setzen genügte nicht – die alte Zahl
+  // würde beim bloßen Speichern auf heute verschoben (Runde 4: E32).
+  const v = stand.vorrat && id !== 'neu' && !andere ? stand.vorrat : { tabletten: null, stand: heute };
+  const reicht = sp.vorratReicht(heute);
   const aktuell = andere
     ? ` Seit dem ${datumKurz(andere.ab)} nehmen Sie eine andere Stärke (${zahlFeld(andere.mikrogramm)} µg) – bitte zählen Sie die Tabletten dieser Packung.`
     : reicht !== null ? ` Aktuell: ${vorratText(reicht)}.` : '';

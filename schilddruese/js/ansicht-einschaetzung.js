@@ -15,7 +15,7 @@
  * kein Muster und keine Dringlichkeit. Warnzeichen und Notrufnummern gelten
  * immer.
  */
-import { datumKurz, datumInWorten, zahlText, uhrText } from './datum.js';
+import { datumKurz, datumInWorten, zahlText, rohText, uhrText } from './datum.js';
 import { esc } from './text.js';
 import * as sp from './speicher.js';
 import * as ez from './einschaetzung.js';
@@ -138,6 +138,11 @@ export function beschwerdeKnoepfe(id, text = '', { ohneCheck = false } = {}) {
  * Ohne Bundesland steht beim Giftnotruf 112 (P5: „Ohne Angabe: 112
  * anzeigen"). Vorher stand dort nur ein Knopf ins Profil – wer im Notfall
  * darauf tippte, landete in einem Formular statt am Telefon.
+ *
+ * „Bundesland eintragen" trägt data-param="bundesland": Die Seite „Über
+ * mich" ist bei Schrift „sehr groß" über 9000 px hoch, die Auswahl stand gut
+ * sieben Bildschirme unter dem Anfang, und nichts führte dorthin (Runde 4:
+ * E8). js/app.js scrollt damit zur Auswahl und setzt den Fokus darauf.
  */
 export function notfallLeiste(stand) {
   const gift = sp.giftnotruf(stand.profil.bundesland);
@@ -149,7 +154,7 @@ export function notfallLeiste(stand) {
         <span>Ärztlicher Bereitschaftsdienst <a class="nummer" href="tel:116117">116 117</a></span>
         <span class="giftnotruf">Giftnotruf ${gift
     ? `<a class="nummer" href="${esc(telHref(gift))}">${esc(gift)}</a>`
-    : '<a class="nummer" href="tel:112">112</a> <button type="button" class="nummer-zusatz" data-act="seite" data-seite="profil">Bundesland eintragen</button>'}</span>
+    : '<a class="nummer" href="tel:112">112</a> <button type="button" class="nummer-zusatz" data-act="seite" data-seite="profil" data-param="bundesland">Bundesland eintragen</button>'}</span>
         <span>Telefonseelsorge <a class="nummer" href="tel:08001110111">0800 111 0 111</a></span>
       </p>
     </section>`;
@@ -254,12 +259,18 @@ function angabenZeile(l) {
 
 const QUELLE = { labor: 'Bereich Ihres Labors', orientierung: 'übliche Orientierung, nicht Ihr Labor', ziel: 'Ihr Zielbereich' };
 
+/*
+ * Grenzen und Werte, wie sie auf dem Befund stehen – ungerundet (rohText).
+ * Vorher wurde aus TSH 0,015 hier „0,02", aus einer Grenze 0,465 „0,47";
+ * nur das Formular zeigte die eingetragene Zahl (Runde 4: E21). Gerundet
+ * wird nur, was die App selbst rechnet („umgerechnet …", die Dosis).
+ */
 function bereichText(von, bis, einheit) {
   const v = von !== null && von !== undefined;
   const b = bis !== null && bis !== undefined;
-  if (v && b) return `${zahlText(von)}–${zahlText(bis)} ${einheit}`;
-  if (v) return `ab ${zahlText(von)} ${einheit}`;
-  if (b) return `bis ${zahlText(bis)} ${einheit}`;
+  if (v && b) return `${rohText(von)}–${rohText(bis)} ${einheit}`;
+  if (v) return `ab ${rohText(von)} ${einheit}`;
+  if (b) return `bis ${rohText(bis)} ${einheit}`;
   return '';
 }
 
@@ -286,7 +297,7 @@ function hinweiseOhneDoppelte(e) {
 /** Je Wert: Originalwert mit Einheit, Lage in Worten, umgerechnet wo gerechnet. */
 function werteZeilen(e) {
   return e.werte.map(({ key, name, wert: w, einordnung: o, ziel }) => {
-    const zahl = `${w.unter ? '< ' : ''}${zahlText(w.wert)} ${w.einheit}`;
+    const zahl = `${w.unter ? '< ' : ''}${rohText(w.wert)} ${w.einheit}`;
     const um = o.umgerechnet && o.std !== null ? `umgerechnet ${zahlText(o.std, key === 'ft4' || key === 'ft3' ? 1 : 2)} ${STANDARD[key] || ''}` : '';
     return `
       <div class="wert" data-wert="${esc(key)}">
@@ -313,16 +324,26 @@ function notfallSatz(n) {
  * darunter. Hat ein Wert eine eigene Frist (E13: Vitamin D über 100 → in den
  * nächsten Tagen, Hb niedrig → ein bis zwei Wochen), steht sie als Schild
  * dabei – vorher stand nur der Text, und oben hieß es „Kein besonderer Anlass".
+ *
+ * Der eingetragene Bereich steht als Text dabei, wie auf dem Befund – ohne
+ * Lage und ohne Farbe: Eingeordnet werden diese Werte nach E13, nicht nach
+ * dem Laborbereich (bei LDL etwa keine Wertung „im Bereich = gut"). Vorher
+ * zeigte die App ihn nirgends, direkt darüber stand aber „Der Laborbereich
+ * ist nicht Ihr persönlicher Zielwert" (Runde 4: E11).
  */
 function weitereBlock(l, stand) {
   const liste = ez.weitereWerte(l, stand);
   if (!liste.length) return '';
   return `
     <div class="weitere-werte">
-      ${liste.map((x) => `
-        <div class="befund-wert" data-weiterer="${esc(x.key)}"><b>${esc(x.name)}</b><span class="zahl">${esc(`${x.wert.unter ? '< ' : ''}${zahlText(x.wert.wert)} ${x.wert.einheit}`)}</span></div>
+      ${liste.map((x) => {
+    const bereich = bereichText(x.wert.von, x.wert.bis, x.wert.einheit);
+    return `
+        <div class="befund-wert" data-weiterer="${esc(x.key)}"><b>${esc(x.name)}</b><span class="zahl">${esc(`${x.wert.unter ? '< ' : ''}${rohText(x.wert.wert)} ${x.wert.einheit}`)}</span></div>
+        ${bereich ? `<p class="lage-zeile"><span class="bereich">(Bereich Ihres Labors ${esc(bereich)})</span></p>` : ''}
         ${rang(x.stufe) > 0 ? `<p class="frist klein">${stufeSchild(x.stufe)}</p>` : ''}
-        ${x.texte.map((t) => `<p class="klein">${esc(t)}</p>`).join('')}`).join('')}
+        ${x.texte.map((t) => `<p class="klein">${esc(t)}</p>`).join('')}`;
+  }).join('')}
       <p class="klein gedaempft">${esc(ez.WEITERE_HINWEIS)}</p>
     </div>`;
 }
@@ -603,6 +624,9 @@ function warnFormular(stand) {
  * Seite, auf die die Nutzerin geschickt worden war, wie eine Entwarnung für
  * den heutigen Anruf (C9).
  */
+const W3_TERMIN = 'Übrige Beschwerden beim nächsten Termin ansprechen.';
+const W3_WEITER = 'Für Ihren Befund gilt weiter, was in der Einschätzung steht.';
+
 function warnErgebnis(param, stand, heute) {
   const check = stand.warnzeichen.find((w) => w.id === param);
   if (!check) return '<div class="karte"><p>Dieser Check ist nicht mehr gespeichert.</p><div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Check noch einmal</button></div></div>';
@@ -620,19 +644,52 @@ function warnErgebnis(param, stand, heute) {
   // Kerns (ein Gesprächsangebot, nicht „Sofort 112").
   const befinden = r.befinden || [];
   const kopf = ez.kopfFuer(r.stufe, [...befinden, ...r.abschnitte]);
+  /*
+   * Was unabhängig vom Check gilt (Runde 4: E6). C9 hat nur das Befinden
+   * mitgerechnet; Befund und Dosis-Karte nicht. Mit Q5 „einmal viele
+   * Tabletten" (Giftnotruf, „Heute anrufen") oder TSH < 0,01 mit hohem fT4
+   * („In den nächsten Tagen") hieß ein Check ohne Kreuz in großer Schrift
+   * „Beim nächsten Termin … Übrige Beschwerden beim nächsten Termin
+   * ansprechen" – lesbar als Entwarnung, und gleich danach sagte „Heute"
+   * wieder die höhere Stufe (RW1 L3f). Liegt das Gesamtbild von heute höher,
+   * steht es deshalb oben, mit dem Weg dorthin; „Nichts davon" nennt dann
+   * keinen Termin, und „Frage notieren" fällt weg. Nur für den Check von
+   * heute und mit P6 – ohne P6 gibt es kein Gesamtbild.
+   */
+  const g = check.datum === heute && ez.aktiv(stand) ? gesamtbildMitDosis(stand, heute) : null;
+  const weiter = g && rang(g.stufe) > rang(r.stufe) ? g : null;
+  const entwarnung = (a) => weiter && a.id === 'W3' && a.text.includes(W3_TERMIN);
   // Die Texte aus dem Befinden ohne „Warnzeichen prüfen" – der Check ist gemacht.
   const ausBefinden = befinden.map((t) => beschwerdeKarte(t, { ohneCheck: true })).join('');
   const karten = r.abschnitte.map((a) => `
-    <div class="karte ${hinweisKlasse(a.stufe)} warn-abschnitt" data-regel="${esc(a.id)}"${a.stufe === 'notruf' ? ' role="alert"' : ''}>
-      ${stufeZeile(a.stufe, ez.kopfFuer(a.stufe, [a]).titel)}
-      <p>${esc(a.text)}</p>
+    <div class="karte ${entwarnung(a) ? '' : hinweisKlasse(a.stufe)} warn-abschnitt" data-regel="${esc(a.id)}"${a.stufe === 'notruf' ? ' role="alert"' : ''}>
+      ${entwarnung(a) ? '<p class="klein gedaempft">Im Warnzeichen-Check:</p>' : stufeZeile(a.stufe, ez.kopfFuer(a.stufe, [a]).titel)}
+      <p>${esc(entwarnung(a) ? a.text.replace(W3_TERMIN, W3_WEITER) : a.text)}</p>
       ${a.anrufe.length ? `<div class="knopf-reihe anruf-reihe">${a.anrufe.map((x) => anrufKnopf(x.nummer, x.text, { notruf: x.nummer === '112', breit: true })).join('')}</div>` : ''}
     </div>`).join('');
+  // Die Nummern zur Stufe, die gilt: die der Teile mit dieser Stufe (etwa der
+  // Giftnotruf zu Q5) und die, die der Satz selbst nennt – 112 zuletzt.
+  const weiterAnrufe = weiter
+    ? [...weiter.teile.filter((t) => t.stufe === weiter.stufe).flatMap((t) => t.anrufe || anrufeImText(t.text, stand)), ...anrufeImText(weiter.kopf.text, stand)]
+      .filter((x, i, alle) => alle.findIndex((y) => y.nummer === x.nummer) === i)
+      .sort((a, b) => (a.nummer === '112') - (b.nummer === '112'))
+    : [];
+  const weiterKarte = weiter ? `
+    <div class="karte stufe-karte ${STUFE_KLASSE[weiter.stufe]}" data-regel="gesamt" data-stufe="${esc(weiter.stufe)}">
+      <p class="klein gedaempft">Unabhängig vom Check gilt weiter:</p>
+      <p class="stufe-zeile">${stufeSchild(weiter.stufe, weiter.kopf.titel)}</p>
+      <p>${esc(weiter.kopf.text)}</p>
+      ${anrufReihe(weiterAnrufe)}
+      <div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="gesamtbild">Einschätzung ansehen</button></div>
+    </div>` : '';
   // „Frage notieren" passt zu „Übrige Beschwerden beim nächsten Termin
-  // ansprechen" – nicht, wenn das Befinden einen Anruf verlangt.
-  const nichts = r.abschnitte.length === 1 && r.abschnitte[0].id === 'W3' && !befinden.length;
+  // ansprechen" – nicht, wenn das Befinden oder das Gesamtbild einen Anruf verlangt.
+  const nichts = r.abschnitte.length === 1 && r.abschnitte[0].id === 'W3' && !befinden.length && !weiter;
+  // „Zusammen" fasst Check und Befinden zusammen – liegt das Gesamtbild
+  // höher, nennt die Karte oben die Stufe, die gilt, und „Zusammen" entfällt.
   return `
-    ${befinden.length || r.abschnitte.length > 1 ? `<p class="stufe-zeile ergebnis-kopf">Zusammen: ${stufeSchild(r.stufe, kopf.titel)}</p>` : ''}
+    ${weiterKarte}
+    ${!weiter && (befinden.length || r.abschnitte.length > 1) ? `<p class="stufe-zeile ergebnis-kopf">Zusammen: ${stufeSchild(r.stufe, kopf.titel)}</p>` : ''}
     ${ausBefinden}
     ${karten}
     ${nichts ? '<div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="frage">Frage notieren</button></div>' : ''}

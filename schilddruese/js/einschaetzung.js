@@ -21,7 +21,7 @@
  * und Tag. So lässt sich jede Regel im Test prüfen, und die Ansicht zeigt
  * genau das, was sie übergibt.
  */
-import { tageWeiter, tageZwischen, zahlText, datumKurz } from './datum.js';
+import { tageWeiter, tageZwischen, zahlText, rohText, datumKurz } from './datum.js';
 import * as sp from './speicher.js';
 import { inStandard, normEinheit, pruefeWert, plausibel } from './einheiten.js';
 
@@ -77,7 +77,15 @@ export function aktiv(stand) {
 // ---------------------------------------------------------------- Hilfen
 
 const kurz = (iso) => datumKurz(iso);
+/** Berechnete Zahlen (umgerechnet, kg, Punkte): auf zwei Stellen gerundet. */
 const zahl = (n) => zahlText(n, 2);
+/*
+ * Was vom Befund oder von der Ärztin abgeschrieben ist – Wert, Grenze,
+ * Zielbereich –, steht ungerundet da, mit „<", wenn der Befund es so sagt.
+ * Vorher wurde TSH 0,015 hier zu „0,02" (Runde 4: E21).
+ */
+const roh = (n) => rohText(n);
+const wertText = (w) => `${w.unter ? '< ' : ''}${rohText(w.wert)}`;
 
 export function alterAm(stand, tag) {
   return stand.profil.geburtsjahr ? Number(tag.slice(0, 4)) - stand.profil.geburtsjahr : null;
@@ -107,6 +115,75 @@ function aufzaehlung(namen) {
 export const praxisHatErklaert = (befund) => ['bleibt', 'geaendert', 'nachmessen'].includes(befund.praxis)
   // R1: nur eine Angabe nach der Blutabnahme kann sich auf diesen Befund beziehen
   && (!befund.praxisAm || befund.praxisAm >= befund.datum);
+
+/*
+ * Was als Änderung der Dosis zählt – hier, damit Einschätzung, Arztbericht
+ * und Dosis-Karte dieselbe Antwort geben. Die Korrektur D19 (Runde 3) hatte
+ * nur die Dosis-Karte umgestellt; L5a zählte weiter jeden Eintrag außer dem
+ * ersten. Bei einem doppelten Eintrag oder einer Berichtigung mit gleichem
+ * Beginn gab die Karte deshalb eine Richtung, während Einschätzung und
+ * Arztbericht behaupteten, die Dosis sei vor der Blutabnahme geändert worden
+ * und der Wert womöglich nicht eingependelt (Runde 4: E33). Die Logik ist
+ * genau die der Dosis-Karte (js/dosis.js); dosis.js kann sie von hier
+ * importieren – umgekehrt wäre der Import zirkulär.
+ */
+
+/**
+ * Was ein Dosis-Eintrag gegenüber dem vorigen ändert: 'dosis' (andere Menge am
+ * Tag – oder sie ist nicht bekannt), 'praeparat' (gleiche Menge, aber anderes
+ * Präparat, anderer Hersteller oder andere Stärke) oder 'doppelt' (alles
+ * gleich). Ein doppelter Eintrag entsteht leicht: Beim Einrichten gilt die
+ * Dosis „ab heute", und wer die Dosis später mit dem richtigen Beginn noch
+ * einmal einträgt, hat sie zweimal. Er ist keine Änderung, die der Praxis
+ * gemeldet oder kontrolliert werden müsste (RW2 Grundsatz: wahre Aussagen).
+ */
+export function aenderungsArt(d, vorher) {
+  const a = sp.tagesdosis(d);
+  const b = sp.tagesdosis(vorher);
+  if (a === null || b === null || a !== b) return 'dosis';
+  const name = (x) => String(x.praeparat || '').trim().toLowerCase();
+  return name(d) === name(vorher) && d.mikrogramm === vorher.mikrogramm && d.tabletten === vorher.tabletten ? 'doppelt' : 'praeparat';
+}
+
+/*
+ * Ist ein Eintrag mit der Marke „berichtigung" wirklich die Berichtigung nach
+ * „Nein, ich nehme etwas anderes"? Das Dosis-Formular setzt die Marke, sobald
+ * irgendwo eine Antwort „nein" liegt – auch eine alte zu einem früheren
+ * Befund. Dann würde die nächste echte, von der Praxis angeordnete Änderung
+ * zur „Berichtigung": keine Kontrolle (D6c), keine Nachfrage nach der
+ * Erhöhung (W-D4), „Sie haben berichtigt" bei INR und Blutzucker (C17).
+ *
+ * Nach „Ja" fragt die Karte zu einem Befund nie wieder, ob die Dosis stimmt.
+ * Steht zum Befund, der beim Beginn des Eintrags galt, schon vor diesem
+ * Beginn ein „Ja", kann das „Nein" nicht ihm gegolten haben – dann ist der
+ * Eintrag eine Änderung. Nach einer echten Berichtigung kommt ein „Ja" erst
+ * danach (die Karte fragt mit der neuen Menge neu). Gibt es einen späteren
+ * Befund, kann das „Nein" ihm gegolten haben (Eintrag rückdatiert): Dann
+ * bleibt es bei der Marke.
+ */
+export function istBerichtigung(stand, d, heute) {
+  if (!d || !d.berichtigung) return false;
+  if (stand.labor.some((l) => l.tsh && l.datum > d.ab && l.datum <= heute)) return true;
+  const b = [...stand.labor].reverse().find((l) => l.tsh && l.datum <= d.ab);
+  if (!b) return true;
+  // „Die Dosis wird geändert" (F8) sperrt die Karte (D0.5) – zu diesem Befund
+  // wurde danach nie gefragt, ob die Dosis stimmt. Ein Eintrag ab dieser
+  // Entscheidung ist die Änderung der Praxis, auch ohne „Ja" vorher.
+  if (b.praxis === 'geaendert' && praxisHatErklaert(b) && b.praxisAm <= d.ab) return false;
+  return !stand.nachfragen.some((n) => n.art === 'dosis_stimmt' && n.bezug === b.id && n.antwort === 'ja' && n.am < d.ab);
+}
+
+/*
+ * Jeder Dosis-Eintrag außer dem ersten ist eine Änderung (Dosis, Präparat,
+ * Hersteller) – außer einem doppelten (alles gleich wie der vorige, B59) und
+ * einer Berichtigung, die den vorigen Eintrag vom selben Tag ersetzt: Der
+ * galt keinen Tag, die Menge war von Anfang an eine andere (Runde 3: D19).
+ */
+export function aenderungen(stand, heute) {
+  return stand.dosen.filter((d, i, a) => i > 0
+    && aenderungsArt(d, a[i - 1]) !== 'doppelt'
+    && !(a[i - 1].ab === d.ab && istBerichtigung(stand, d, heute)));
+}
 
 /** Biotin im Spiel (L5d): beim Befund angegeben oder als Mittel eingetragen. */
 const biotinImSpiel = (befund, stand) => befund.biotin === 'ja' || stand.mittel.includes('biotin');
@@ -347,7 +424,7 @@ export function musterBestimmen(befund, stand) {
 function musterText(m, befund, stand, { passt = true } = {}) {
   const { code, ziel, tLab, f } = m;
   const ohneFt4 = !f.lage;
-  const zielText = ziel ? `${zahl(ziel.von)}–${zahl(ziel.bis)} mU/l` : '';
+  const zielText = ziel ? `${roh(ziel.von)}–${roh(ziel.bis)} mU/l` : '';
   switch (code) {
     case 'a': {
       let t;
@@ -427,10 +504,17 @@ function ft4Haelfte(f, w) {
 }
 
 /*
- * `stufe`: die Stufe des Befunds. Liegt sie über „Termin" (TSH über 10 als
- * feste Schwelle), nennt der Text weder „passt" noch „beim nächsten Termin" –
- * unter „In den nächsten Tagen anrufen" wäre beides eine niedrigere Frist
- * (L3f). `tshHoch`: Dann steht auch der Grund für diese Stufe da.
+ * `stufe`: die Stufe des Befunds aus TSH und fT4. „Passt" sagt der Text nur
+ * ohne Anlass (Stufe „keine") – nicht etwa bei TSH über 10 als fester
+ * Schwelle. `tshHoch`: Dann steht auch der Grund für diese Stufe da.
+ *
+ * Eine eigene Frist nennt der Text nicht – die Frist kommt nur aus der
+ * Stufe im Kopf der Karte (Entscheidung 10, L3f). Hier stand „Bitte fragen
+ * Sie beim nächsten Termin", geschützt nur über die Stufe aus TSH und fT4.
+ * Den Kopf hebt seit C10 aber auch ein weiterer Wert an (Vitamin D über 100
+ * → in den nächsten Tagen): Dann stand der Termin-Satz direkt über „In den
+ * nächsten Tagen anrufen … Sprechen Sie dabei auch die Schilddrüsenwerte an"
+ * (Runde 4: E20).
  */
 function hypophyseText(f, w, { stufe = 'keine', tshHoch = false } = {}) {
   if (!f.lage) return `${HYPO_TEXT} fT4 fehlt oder lässt sich nicht einordnen. Bitte fragen Sie die Praxis, ob fT4 bestimmt werden soll.`;
@@ -438,15 +522,14 @@ function hypophyseText(f, w, { stufe = 'keine', tshHoch = false } = {}) {
   if (f.lage === 'unter') return `${HYPO_TEXT} ${lage} Das kann bedeuten, dass zu wenig Schilddrüsenhormon im Körper ist. Ob die Dosis angepasst wird, entscheidet Ihre Ärztin.`;
   if (f.lage === 'ueber') return `${HYPO_TEXT} ${lage} Das kann bedeuten, dass zu viel Schilddrüsenhormon im Körper ist – oder die Tablette wurde kurz vor der Blutabnahme genommen. Ob die Dosis angepasst wird, entscheidet Ihre Ärztin.`;
   const haelfte = ft4Haelfte(f, w);
-  const wann = STUFEN[stufe].rang > STUFEN.termin.rang ? 'in der Praxis auch' : 'beim nächsten Termin';
   const tsh = tshHoch ? ' Der TSH-Wert ist deutlich erhöht – das sollte die Praxis ansehen.' : '';
   if (haelfte === 'oben') {
     return `${HYPO_TEXT} fT4 liegt im Bereich, in der oberen Hälfte.${stufe === 'keine' ? ' Das spricht dafür, dass die Tabletten-Einstellung derzeit passt.' : ''}${tsh}`;
   }
   // Nicht „Unterversorgung": Im höheren Alter lässt die Leitlinie (ETA 2018)
   // ein fT4 weiter unten eher zu – das Ziel legt die Ärztin fest.
-  if (haelfte === 'unten') return `${HYPO_TEXT} fT4 liegt im Bereich, aber in der unteren Hälfte.${tsh} Bei Ihrem Behandlungsgrund wird fT4 meist eher in der oberen Hälfte angestrebt; im höheren Alter oder bei Herzkrankheit legt die Ärztin das Ziel manchmal niedriger fest. Bitte fragen Sie ${wann}, welcher Bereich für Sie gilt.`;
-  return `${HYPO_TEXT} ${lage}${tsh} Welcher Teil des Bereichs für Sie richtig ist, sagt die Praxis – bitte fragen Sie ${wann} danach. Tragen Sie dazu den Bereich vom Befund mit beiden Grenzen ein, dann kann die App mehr sagen.`;
+  if (haelfte === 'unten') return `${HYPO_TEXT} fT4 liegt im Bereich, aber in der unteren Hälfte.${tsh} Bei Ihrem Behandlungsgrund wird fT4 meist eher in der oberen Hälfte angestrebt; im höheren Alter oder bei Herzkrankheit legt die Ärztin das Ziel manchmal niedriger fest. Bitte fragen Sie in der Praxis, welcher Bereich für Sie gilt.`;
+  return `${HYPO_TEXT} ${lage}${tsh} Welcher Teil des Bereichs für Sie richtig ist, sagt die Praxis – bitte fragen Sie dort danach. Tragen Sie dazu den Bereich vom Befund mit beiden Grenzen ein, dann kann die App mehr sagen.`;
 }
 
 /*
@@ -620,7 +703,7 @@ export function befundEinschaetzen(befund, stand, heute) {
     const { stufe, satz } = ft4;
     ft4.regeln.forEach((r) => regeln.push(r));
     const text = hypophyse ? hypophyseText(m.f, befund.ft4, { stufe }) : `${tshText} fT4 liegt ${LAGE_TEXT[m.f.genau]} – das sollte die Praxis sehen.`;
-    const erklaerungen = erklaerungenFuer(befund, m, stand);
+    const erklaerungen = erklaerungenFuer(befund, m, stand, heute);
     erklaerungen.forEach((e) => regeln.push(e.id));
     const verlauf = verlaufTexte(befund, stand, verlaufRechnen(befund, stand), stufe, m.tsh, { hypophyse });
     verlauf.forEach((v) => regeln.push(v.id));
@@ -779,10 +862,10 @@ export function befundEinschaetzen(befund, stand, heute) {
   else {
     text = musterText(m, befund, stand, { passt: !r12Angehoben });
     if (code === 'd' && (vorher || biotin)) text += ' Ein Teil kann an der Messung liegen – der niedrige TSH-Wert bleibt aber wichtig.';
-    if (m.ziel && code !== 'a' && m.tZ.lage !== 'im') text += ` (Gemessen an Ihrem persönlichen Zielbereich von ${zahl(m.ziel.von)} bis ${zahl(m.ziel.bis)} mU/l.)`;
+    if (m.ziel && code !== 'a' && m.tZ.lage !== 'im') text += ` (Gemessen an Ihrem persönlichen Zielbereich von ${roh(m.ziel.von)} bis ${roh(m.ziel.bis)} mU/l.)`;
   }
 
-  const erklaerungen = erklaerungenFuer(befund, m, stand);
+  const erklaerungen = erklaerungenFuer(befund, m, stand, heute);
   erklaerungen.forEach((e) => regeln.push(e.id));
   const verlauf = verlaufTexte(befund, stand, verlaufInfo, stufe, tsh, { hypophyse });
   verlauf.forEach((v) => regeln.push(v.id));
@@ -829,15 +912,18 @@ const GRUPPE_A = ['kalzium', 'eisen', 'magnesium', 'multimineral', 'antazida', '
 const L5A_MITTEL = [...new Set([...GRUPPE_A, 'colestyramin', 'ppi', 'oestrogen_tablette', 'tamoxifen', 'raloxifen', 'enzyminduktor',
   'lithium', 'amiodaron', 'jod', 'krebsmittel', 'metformin'])];
 
-function erklaerungenFuer(befund, m, stand) {
+function erklaerungenFuer(befund, m, stand, heute) {
   const { code } = m;
   const gruppe = MUSTER_GRUPPE[code];
   const e = [];
   const tag = befund.datum;
   const imFenster = (d, fenster = 42) => d <= tag && tageZwischen(d, tag) < fenster;
 
-  // L5a – etwas wurde weniger als 6 Wochen vorher geändert
-  const dosisNeu = stand.dosen.some((d, i) => i > 0 && imFenster(d.ab));
+  // L5a – etwas wurde weniger als 6 Wochen vorher geändert. Ein doppelter
+  // Eintrag und eine Berichtigung mit gleichem Beginn sind keine Änderung –
+  // wie auf der Dosis-Karte (Runde 4: E33). Ohne `heute` gilt der Tag der
+  // Blutabnahme: Dann zählt kein späterer Befund für istBerichtigung.
+  const dosisNeu = aenderungen(stand, heute || tag).some((d) => imFenster(d.ab));
   const mittelNeu = stand.mittelWechsel.some((w) => L5A_MITTEL.includes(w.key) && imFenster(w.am));
   if (dosisNeu || mittelNeu || befund.packung === 'ja' || befund.mittelGeaendert === 'ja') {
     e.push({ id: 'L5a', text: 'Die Dosis, das Präparat oder ein anderes Mittel wurde weniger als 6 Wochen vor der Blutabnahme geändert. Der Wert hat sich womöglich noch nicht eingependelt – das dauert etwa 6–8 Wochen. Ihre Ärztin wird das berücksichtigen.' });
@@ -993,8 +1079,8 @@ function verlaufRechnen(befund, stand) {
 
 function wertMitEinheit(a, b) {
   return a.einheit === b.einheit
-    ? `von ${zahl(a.wert)} auf ${zahl(b.wert)} ${b.einheit}`
-    : `von ${zahl(a.wert)} ${a.einheit} auf ${zahl(b.wert)} ${b.einheit}`;
+    ? `von ${wertText(a)} auf ${wertText(b)} ${b.einheit}`
+    : `von ${wertText(a)} ${a.einheit} auf ${wertText(b)} ${b.einheit}`;
 }
 
 /*
@@ -1027,7 +1113,7 @@ function verlaufTexte(befund, stand, info, stufe, tsh, { hypophyse = false } = {
       s = `TSH ist seit dem ${kurz(v.datum)} gesunken: ${werte}.`;
       if (uebersetzen) s += ' Ein sinkender TSH-Wert bedeutet: eher mehr Hormon im Körper.';
     } else {
-      s = `TSH ist etwa gleich geblieben (${zahl(v.tsh.wert)} → ${zahl(befund.tsh.wert)} ${befund.tsh.einheit}).`;
+      s = `TSH ist etwa gleich geblieben (${wertText(v.tsh)} → ${wertText(befund.tsh)} ${befund.tsh.einheit}).`;
       const schwelle = tsh !== null && (tsh < 0.1 || tsh > 10);
       if (STUFEN[stufe].rang <= STUFEN.termin.rang && !schwelle) s += ' Schwankungen dieser Größe sind normal.';
     }
@@ -1414,8 +1500,11 @@ function checkAbschnitte(ja, stand, in_) {
   // C12: Der Text nennt abends und am Wochenende den Bereitschaftsdienst –
   // gerade dann muss er anrufbar sein, wie bei W5 aus dem Befinden.
   if (in_('w5')) abschnitte.push({ id: 'W5', stufe: 'notruf', text: W5_TEXT, anrufe: [...TEL_SEELSORGE, TEL_116, TEL_112] });
+  // Der Text nennt auch 112 – dann ist sie anrufbar wie bei W1, W4a und W5.
+  // Vorher gab es nur den Knopf 116 117, auf der Ergebnisseite des Checks
+  // und in der Einschätzung ohne Notfallleiste (Runde 4: E19).
   if (!in_('w4a') && in_('w2h')) {
-    abschnitte.push({ id: 'W2h', stufe: 'heute', text: 'Bitte rufen Sie heute noch in der Praxis an. Außerhalb der Sprechzeiten: Ärztlicher Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.', anrufe: [TEL_116] });
+    abschnitte.push({ id: 'W2h', stufe: 'heute', text: 'Bitte rufen Sie heute noch in der Praxis an. Außerhalb der Sprechzeiten: Ärztlicher Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.', anrufe: [TEL_116, TEL_112] });
   }
   if (!in_('w4a') && !in_('w2h') && in_('w2t')) {
     abschnitte.push({ id: 'W2t', stufe: 'tage', text: 'Bitte rufen Sie in den nächsten Tagen in der Praxis an. Wenn es nicht warten kann und die Praxis geschlossen ist: 116 117.', anrufe: [TEL_116] });
@@ -1840,10 +1929,10 @@ function wertZeile(key, name, w, e) {
   if (!w) return null;
   const std = inStandard(key, w);
   const bereich = w.von !== null || w.bis !== null
-    ? ` (Labor ${w.von !== null ? zahl(w.von) : '…'}–${w.bis !== null ? zahl(w.bis) : '…'})`
+    ? ` (Labor ${w.von !== null ? roh(w.von) : '…'}–${w.bis !== null ? roh(w.bis) : '…'})`
     : e && e.quelle === 'orientierung' ? ` (ohne Laborbereich; Orientierung ${zahl(e.von)}–${zahl(e.bis)})` : ' (ohne Laborbereich)';
   const um = std !== null && Math.abs(std - w.wert) > 1e-9 && key !== 'tsh' ? `, umgerechnet ${zahl(std)} ${key === 'tsh' ? 'mU/l' : 'pmol/l'}` : '';
-  return `${name} ${w.unter ? '< ' : ''}${zahl(w.wert)} ${w.einheit}${um}${bereich}${e && e.lage ? ` – ${LAGE_TEXT[e.genau]}` : ''}`;
+  return `${name} ${wertText(w)} ${w.einheit}${um}${bereich}${e && e.lage ? ` – ${LAGE_TEXT[e.genau]}` : ''}`;
 }
 
 /** Die Zeilen des Abschnitts „Einschätzung der App" im Arztbericht. */
@@ -1859,7 +1948,7 @@ export function berichtZeilen(stand, heute) {
     `Behandlungsgrund: ${p.ursache ? sp.URSACHEN.find(([k]) => k === p.ursache)[1] : 'nicht angegeben'}`,
     `Schilddrüsenkrebs: ${JNW_TEXT[p.krebs]}`,
     `Präparat: ${(sp.PRAEPARATE.find(([k]) => k === p.praeparatArt) || ['', 'nicht angegeben'])[1]}`,
-    ziel ? `TSH-Zielbereich laut Ärztin ${zahl(ziel.von)}–${zahl(ziel.bis)} mU/l${p.zielAm ? ` (eingetragen ${kurz(p.zielAm)})` : ''}` : 'kein TSH-Zielbereich eingetragen',
+    ziel ? `TSH-Zielbereich laut Ärztin ${roh(ziel.von)}–${roh(ziel.bis)} mU/l${p.zielAm ? ` (eingetragen ${kurz(p.zielAm)})` : ''}` : 'kein TSH-Zielbereich eingetragen',
     `TSH bewusst niedrig: ${JNW_TEXT[p.zielNiedrig]}`,
     `Herzerkrankung: ${JNW_TEXT[p.herz]}`,
     `Osteoporose: ${JNW_TEXT[p.osteoporose]}`,
@@ -1907,7 +1996,7 @@ export function berichtZeilen(stand, heute) {
     } else if (e.hinweise.length) {
       z.push(`  Einordnung (App): keine – ${e.hinweise.join(' ')}`);
     }
-    weitereWerte(l, stand).forEach((ww) => z.push(`  ${ww.name} ${zahl(ww.wert.wert)} ${ww.wert.einheit}${ww.texte.length ? ` – ${ww.texte[0]}` : ''}`));
+    weitereWerte(l, stand).forEach((ww) => z.push(`  ${ww.name} ${wertText(ww.wert)} ${ww.wert.einheit}${ww.texte.length ? ` – ${ww.texte[0]}` : ''}`));
   });
 
   const b = beschwerdenAuswerten(stand, heute);

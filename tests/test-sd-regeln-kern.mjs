@@ -2366,6 +2366,246 @@ try {
 if (hatteLocalStorage) globalThis.localStorage = vorherLocalStorage;
 else delete globalThis.localStorage;
 
+// ================================================================ Runde 4 (E16, E19–E21, E23, E28, E33 – Kern-Teile)
+//
+// Befunde der vierten Review-Runde, soweit sie den Kern, den Speicher und die
+// Zahlen betreffen. Jeder Fall hier scheiterte vor der Korrektur.
+
+let dm = {};
+try {
+  dm = await import('../schilddruese/js/datum.js');
+} catch (e) {
+  check('Import schilddruese/js/datum.js', false, e && e.message);
+}
+
+// ---- E33: Ein doppelter Eintrag und eine Berichtigung mit gleichem Beginn sind
+// keine Dosisänderung – auch nicht für L5a in Einschätzung und Arztbericht
+// (wie auf der Dosis-Karte seit D19). Befund 24.09. mit TSH 7,5, heute 27.09.
+const E33_TAG = '2026-09-24';
+const E33_AB = '2026-09-14';
+const e33Dosis = (id, ab, mikrogramm, weiteres = {}) => ({ id, ab, praeparat: 'L-Thyroxin', mikrogramm, tabletten: 1, ...weiteres });
+const E33_FALL = (dosen, weiteres = {}) => ({ datum: E33_TAG, tsh: t(7.5), ft4: f4(13), dosen, ...weiteres });
+[
+  ['E33 doppelter Eintrag (75 µg seit 2024 und 75 µg ab 14.09.) → kein L5a', [D1, e33Dosis('d2', E33_AB, 75)]],
+  ['E33 Berichtigung mit gleichem Beginn (75 und 100 µg ab 14.09., Berichtigung) → kein L5a',
+    [D1, e33Dosis('d2', E33_AB, 75), e33Dosis('d3', E33_AB, 100, { berichtigung: true })]],
+  ['E33 Berichtigung des ersten Eintrags am Einrichtungstag → kein L5a',
+    [e33Dosis('d1', E33_AB, 75), e33Dosis('d2', E33_AB, 100, { berichtigung: true })], { profil: { seit: E33_AB } }],
+].forEach(([name, dosen, weiteres = {}]) => {
+  pruefeFall({ name, ...E33_FALL(dosen, weiteres), muster: 'c2', ohneRegeln: ['L5a'], verboten: ['eingependelt'] });
+  fall(`${name}: Arztbericht`, () => {
+    const s = baue(E33_FALL(dosen, weiteres));
+    const z = ez.berichtZeilen(s, HEUTE);
+    check(`${name}: Bericht ohne L5a-Satz`, !z.some((x) => enthaelt(x, 'eingependelt')), z.filter((x) => enthaelt(x, 'eingependelt')).join(' | '));
+    check(`${name}: aenderungen() leer`, typeof ez.aenderungen === 'function' && ez.aenderungen(s, HEUTE).length === 0,
+      typeof ez.aenderungen === 'function' ? JSON.stringify(ez.aenderungen(s, HEUTE).map((d) => d.id)) : 'aenderungen fehlt');
+  });
+});
+// Gegenprobe: eine echte Änderung, ein Präparatwechsel und eine Berichtigung
+// mit eigenem Beginn bleiben Änderungen – wie auf der Dosis-Karte (D0.6).
+[
+  ['E33 Gegenprobe: 75 → 100 µg ab 14.09. → L5a', dosisAb(E33_AB, 100)],
+  ['E33 Gegenprobe: Präparatwechsel ab 14.09. → L5a', dosisAb(E33_AB, 75, 'Euthyrox')],
+  ['E33 Gegenprobe: Berichtigung mit eigenem Beginn (ab 14.09.) → L5a', [D1, e33Dosis('d2', E33_AB, 100, { berichtigung: true })]],
+].forEach(([name, dosen]) => pruefeFall({ name, ...E33_FALL(dosen), muster: 'c2', regeln: ['L5a'], texte: ['eingependelt'] }));
+fall('E33 Kern exportiert aenderungsArt, istBerichtigung, aenderungen', () => {
+  check('E33 aenderungsArt vorhanden', typeof ez.aenderungsArt === 'function');
+  check('E33 istBerichtigung vorhanden', typeof ez.istBerichtigung === 'function');
+  if (typeof ez.aenderungsArt !== 'function' || typeof ez.istBerichtigung !== 'function') return;
+  check('E33 aenderungsArt: gleich → doppelt', ez.aenderungsArt(e33Dosis('x', E33_AB, 75), D1) === 'doppelt');
+  check('E33 aenderungsArt: anderer Name → praeparat', ez.aenderungsArt({ ...e33Dosis('x', E33_AB, 75), praeparat: 'Euthyrox' }, D1) === 'praeparat');
+  check('E33 aenderungsArt: andere Menge → dosis', ez.aenderungsArt(e33Dosis('x', E33_AB, 100), D1) === 'dosis');
+  const s = baue(E33_FALL([D1, e33Dosis('d2', E33_AB, 100, { berichtigung: true })]));
+  check('E33 istBerichtigung: späterer Befund → ja', ez.istBerichtigung(s, s.dosen[1], HEUTE) === true);
+  check('E33 istBerichtigung: ohne Marke → nein', ez.istBerichtigung(s, s.dosen[0], HEUTE) === false);
+});
+
+// ---- E19: W2h nennt 112 – dann ist 112 anrufbar (Ergebnisseite und Einschätzung).
+fragen('w2h').forEach((q) => fall(`E19 W2h ${q.key}: Knöpfe 116 117 und 112`, () => {
+  const r = warn(`E19 ${q.key}`, [q.key], q.nurWenn === 'marcumar' ? { mittel: ['marcumar'] } : {});
+  const w2h = (r.abschnitte || []).find((a) => a.id === 'W2h');
+  check(`E19 ${q.key}: Text nennt 112`, !!w2h && enthaelt(w2h.text, ': 112'), w2h && w2h.text);
+  const nr = w2h ? w2h.anrufe.map((x) => kompakt(x.nummer)) : [];
+  check(`E19 ${q.key}: 116 117 und 112 anrufbar, 112 zuletzt`, nr.includes('116117') && nr[nr.length - 1] === '112', JSON.stringify(nr));
+}));
+fall('E19 Gesamtbild mit Check „erbrechen" von heute: 112 anrufbar', () => {
+  const s = baue({ tsh: t(2), warnzeichen: [{ id: 'w1', datum: HEUTE, uhr: '09:00', ja: ['erbrechen'] }] });
+  const g = ez.gesamtbild(s, HEUTE);
+  const nr = ((g.warnHeute && g.warnHeute.abschnitte) || []).flatMap((a) => (a.anrufe || []).map((x) => kompakt(x.nummer)));
+  check('E19 Gesamtbild: Stufe heute', g.stufe === 'heute', `ist ${g.stufe}`);
+  check('E19 Gesamtbild: 112 unter den Anrufen des Checks', nr.includes('112'), JSON.stringify(nr));
+});
+
+// ---- E20: Hirnanhangdrüse – der Mustertext nennt keine eigene Frist. Hebt ein
+// weiterer Wert den Kopf an (Vitamin D 160 → in den nächsten Tagen), stand
+// „beim nächsten Termin" direkt über „In den nächsten Tagen anrufen".
+[
+  ['E20 Hypophyse fT4 14 (12–22, untere Hälfte) + Vitamin D 160', f4(14), 'termin'],
+  ['E20 Hypophyse fT4 14 ohne Laborbereich + Vitamin D 160', f4O(14), 'termin'],
+].forEach(([name, ft4, stufe]) => pruefeFall({
+  name, profil: HYPO, tsh: t(0.3), ft4, befund: ww('vitd', 160, 'ng/ml', 30, 100), stufe,
+  pruef: (E) => [
+    ['Kopf „In den nächsten Tagen anrufen"', !!E.kopf && E.kopf.stufe === 'tage', JSON.stringify(E.kopf)],
+    ['Mustertext ohne „nächsten Termin"', !enthaelt(E.text, 'nächsten Termin'), E.text],
+    ['Mustertext fragt in der Praxis', enthaelt(E.text, 'in der Praxis') || enthaelt(E.text, 'dort danach'), E.text],
+  ],
+}));
+pruefeFall({
+  name: 'E20 Hypophyse ohne TSH, fT4 14 (12–22) + Vitamin D 160', profil: HYPO, tsh: null, ft4: f4(14), muster: null,
+  befund: ww('vitd', 160, 'ng/ml', 30, 100),
+  pruef: (E) => [['Kopf tage', !!E.kopf && E.kopf.stufe === 'tage', JSON.stringify(E.kopf)], ['Mustertext ohne „nächsten Termin"', !enthaelt(E.text, 'nächsten Termin'), E.text]],
+});
+fall('E20 Global: kein Mustertext beim Behandlungsgrund Hirnanhangdrüse nennt eine eigene Frist', () => {
+  const hypo = ALLE_E.filter((x) => x.E && x.E.hypophyse && typeof x.E.text === 'string');
+  check(`E20: Hypophyse-Einschätzungen gesammelt (${hypo.length})`, hypo.length >= 10, `nur ${hypo.length}`);
+  const mitFrist = hypo.filter((x) => enthaelt(x.E.text, 'nächsten Termin'));
+  check('E20: keiner mit „nächsten Termin"', mitFrist.length === 0, mitFrist.slice(0, 4).map((x) => `${x.name}: ${x.E.text}`).join(' || '));
+});
+
+// ---- E21: Werte vom Befund ungerundet – TSH 0,015 ist nicht „0,02".
+fall('E21 rohText', () => {
+  check('E21 rohText vorhanden', typeof dm.rohText === 'function');
+  if (typeof dm.rohText !== 'function') return;
+  [[0.015, '0,015'], [1.125, '1,125'], [0.004, '0,004'], [0.0004, '0,0004'], [4.2, '4,2'], [12, '12'], [0.1 + 0.2, '0,3'], [1e-7, '0,0000001'], [null, '–'], [NaN, '–']]
+    .forEach(([n, soll]) => check(`E21 rohText(${n}) = „${soll}"`, dm.rohText(n) === soll, `ist „${dm.rohText(n)}"`));
+});
+fall('E21 Arztbericht: TSH 0,015 und fT4 1,125 ng/dl wie auf dem Befund', () => {
+  const s = baue({ tsh: t(0.015, 0.27, 4.2), ft4: f4(1.125, 0.93, 1.7, 'ng/dl'), befund: ww('vitd', 25.125, 'ng/ml', 30, 100) });
+  const z = ez.berichtZeilen(s, HEUTE).join(' | ');
+  ['TSH 0,015 mU/l (Labor 0,27–4,2)', 'fT4 1,125 ng/dl', '25,125 ng/ml'].forEach((x) => check(`E21 Bericht „${x}"`, enthaelt(z, x), auszug(z, 400)));
+  check('E21 Bericht ohne „0,02 mU/l" und „1,13 ng/dl"', !enthaelt(z, 'TSH 0,02') && !enthaelt(z, '1,13 ng/dl'), auszug(z, 400));
+});
+pruefeFall({
+  name: 'E21 Verlauf: TSH von 1,125 auf 6,875 mU/l', vor: [V('2026-06-01', t(1.125))], tsh: t(6.875), ft4: f4(14),
+  regeln: ['L6'], texte: ['von 1,125 auf 6,875 mU/l'],
+});
+pruefeFall({
+  name: 'E21 Verlauf: etwa gleich (2,125 → 2,135 mU/l)', vor: [V('2026-06-01', t(2.125))], tsh: t(2.135), ft4: f4(14),
+  regeln: ['L6'], texte: ['2,125 → 2,135 mU/l'],
+});
+pruefeFall({
+  name: 'E21 Verlauf: „< 0,01" bleibt „< 0,01"', vor: [V('2026-06-01', { ...t(0.01), unter: true })], tsh: t(2.5), ft4: f4(14),
+  regeln: ['L6'], texte: ['von < 0,01 auf 2,5 mU/l'],
+});
+pruefeFall({
+  name: 'E21 Zielbereich 0,125–1,375 mU/l ungerundet', profil: ZIEL(0.125, 1.375), tsh: t(0.9), ft4: f4(15),
+  muster: 'a', texte: ['0,125–1,375 mU/l'], verboten: ['0,13–1,38'],
+});
+fall('E21 Arztbericht: Zielbereich ungerundet', () => {
+  const z = ez.berichtZeilen(baue({ profil: ZIEL(0.125, 1.375), tsh: t(0.9) }), HEUTE).join(' | ');
+  check('E21 Bericht „0,125–1,375 mU/l"', enthaelt(z, 'Zielbereich laut Ärztin 0,125–1,375 mU/l'), auszug(z, 400));
+});
+fall('E21 Rückfrage zur Plausibilität nennt die eingegebene Zahl', () => {
+  const r = eh.pruefeWert('tsh', { wert: 0.0004, einheit: 'mU/l', von: null, bis: null });
+  check('E21 Rückfrage „wirklich 0,0004 mU/l"', !!r.rueckfrage && enthaelt(r.rueckfrage, 'wirklich 0,0004 mU/l'), r.rueckfrage);
+});
+
+// ---- E16 (Kern-Teil): normStand behält, welche Richtung die Dosis-Karte gezeigt hat.
+fall('E16 normStand: Nachfrage-Art „karte_gezeigt"', () => {
+  const lang = 'x'.repeat(300);
+  const s = normStand({
+    version: 2, profil: BASIS_PROFIL, dosen: [D1],
+    nachfragen: [
+      { id: 'n1', art: 'karte_gezeigt', bezug: 'b1', antwort: 'mehr', am: '2026-09-12', titel: '  Das spricht für eine Kontrolle oder einen kleinen Schritt nach oben.  ' },
+      { id: 'n2', art: 'karte_gezeigt', bezug: 'b1', antwort: 'weniger', am: '2026-09-13' },
+      { id: 'n3', art: 'karte_gezeigt', bezug: 'b1', antwort: 'gleich', am: '2026-09-14', titel: lang },
+      { id: 'n4', art: 'karte_gezeigt', bezug: 'b1', antwort: 'vielleicht', am: '2026-09-15' },
+      { id: 'n5', art: 'karte_gezeigt', bezug: 'b1', antwort: 'mehr', am: '2026-09-16', titel: 42 },
+      { id: 'n6', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: '2026-09-17', titel: 'gehört nicht hierher' },
+    ],
+  });
+  const n = (id) => s.nachfragen.find((x) => x.id === id);
+  check('E16: „mehr" mit Titel behalten', !!n('n1') && n('n1').antwort === 'mehr' && n('n1').titel === 'Das spricht für eine Kontrolle oder einen kleinen Schritt nach oben.', JSON.stringify(n('n1')));
+  check('E16: „weniger" ohne Titel behalten, ohne Feld titel', !!n('n2') && n('n2').antwort === 'weniger' && !('titel' in n('n2')), JSON.stringify(n('n2')));
+  check('E16: „gleich" behalten, Titel auf 200 Zeichen gekürzt', !!n('n3') && typeof n('n3').titel === 'string' && n('n3').titel.length === 200, JSON.stringify(n('n3')).slice(0, 120));
+  check('E16: keine Richtung („vielleicht") fällt weg', !n('n4'), JSON.stringify(n('n4')));
+  check('E16: Titel, der kein Text ist, fällt weg – der Eintrag bleibt', !!n('n5') && !('titel' in n('n5')), JSON.stringify(n('n5')));
+  check('E16: andere Nachfragen bekommen keinen Titel', !!n('n6') && !('titel' in n('n6')) && n('n6').antwort === 'ja', JSON.stringify(n('n6')));
+  check('E16: Datum und Bezug bleiben', !!n('n1') && n('n1').am === '2026-09-12' && n('n1').bezug === 'b1', JSON.stringify(n('n1')));
+});
+
+// ---- E23 und E28 im laufenden Speicher (je eine eigene Instanz von speicher.js).
+const E23_EINNAHMEN = einnahmen('2026-09-26', 200);
+const E23_VORHER = () => JSON.stringify({
+  version: 2, profil: { ...BASIS_PROFIL, name: 'Mama' }, dosen: [D1], einnahmen: E23_EINNAHMEN,
+  labor: [{ id: 'l1', datum: '2026-06-01', tsh: t(2) }, { id: 'l2', datum: '2026-09-15', tsh: t(0.08) }],
+});
+// Eine ältere Sicherung: 0 Befunde, 0 Einnahmen, begrüßt, eine Dosis.
+const e23Datei = (weiteres = {}) => JSON.stringify({
+  version: 2, app: 'schilddruese', exportiertAm: '2026-03-01T10:00:00.000Z', profil: { ...BASIS_PROFIL, name: 'Mama' },
+  dosen: [D1], einnahmen: {}, labor: [], befinden: [], gewicht: [], termine: [], fragen: [], ...weiteres,
+});
+const umfang = (s) => `${s.labor.length} Befunde, ${Object.keys(s.einnahmen).length} Einnahmen`;
+try {
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: E23_VORHER() });
+  const A = await instanz();
+  fall('E23 dieselbe Sicherung zweimal einlesen: der Stand von vorher bleibt zurückholbar', () => {
+    check('E23 sicherungPruefen vorhanden', typeof A.sicherungPruefen === 'function');
+    if (typeof A.sicherungPruefen === 'function') {
+      const p = A.sicherungPruefen(e23Datei());
+      check('E23 Prüfen: Datei lesbar', p.ok === true, JSON.stringify(p));
+      check('E23 Prüfen: Datum der Datei 01.03.2026', !!p.datei && p.datei.exportiertAm === '2026-03-01', JSON.stringify(p.datei));
+      check('E23 Prüfen: in der Datei 0 Befunde, keine Einnahme', !!p.datei && p.datei.befunde === 0 && p.datei.letzteEinnahme === null, JSON.stringify(p.datei));
+      check('E23 Prüfen: auf dem Handy 2 Befunde, Einnahmen bis 26.09.2026', !!p.handy && p.handy.hatDaten && p.handy.befunde === 2
+        && p.handy.letzteEinnahme === '2026-09-26' && p.handy.einnahmen === 200, JSON.stringify(p.handy));
+      check('E23 Prüfen: die Datei ist älter als die Daten hier', p.dateiAelter === true, JSON.stringify(p));
+      check('E23 Prüfen: noch nicht eingelesen', p.schonEingelesen === false, JSON.stringify(p));
+      check('E23 Prüfen ändert nichts', umfang(A.getStand()) === '2 Befunde, 200 Einnahmen', umfang(A.getStand()));
+      check('E23 Prüfen: fremde Datei wird abgelehnt', A.sicherungPruefen('{"mode":"db"}').ok === false);
+    }
+    const r1 = A.importJSON(e23Datei());
+    check('E23 1. Einlesen gelingt', r1.ok === true, JSON.stringify(r1));
+    // Was die App nach dem Einlesen von selbst ändert, macht den Stand nicht „neu".
+    A.aendern((s) => {
+      s.profil.begruesst = true;
+      s.dauerhaft = !s.dauerhaft;
+      s.letzteSicherung = '2026-03-01';
+      s.nachfragen.push({ id: 'kg1', art: 'karte_gezeigt', bezug: 'l2', antwort: 'mehr', am: '2026-09-27' });
+    });
+    if (typeof A.sicherungPruefen === 'function') check('E23 Prüfen danach: schon eingelesen', A.sicherungPruefen(e23Datei()).schonEingelesen === true);
+    const r2 = A.importJSON(e23Datei());
+    check('E23 2. Einlesen: „schon eingelesen", nichts ersetzt', r2.ok === false && r2.schonEingelesen === true && enthaelt(r2.grund, 'schon eingelesen'), JSON.stringify(r2));
+    check('E23 Zurückholen möglich', A.importZurueck() === true);
+    check('E23 Zurückgeholt: 2 Befunde, 200 Einnahmen', umfang(A.getStand()) === '2 Befunde, 200 Einnahmen', umfang(A.getStand()));
+  });
+  fall('E23 Fehlgriff und gleich danach die richtige Datei: der Stand von vor dem Fehlgriff bleibt', () => {
+    A.importJSON(e23Datei());                                      // Fehlgriff, Rücklage = 2 Befunde
+    const r = A.importJSON(e23Datei({ labor: [{ id: 'x1', datum: '2026-01-10', tsh: t(3) }] }));
+    check('E23 zweite, andere Datei eingelesen', r.ok === true && A.getStand().labor.length === 1, JSON.stringify(r));
+    A.importZurueck();
+    check('E23 zurückgeholt: der Stand vor dem Fehlgriff', umfang(A.getStand()) === '2 Befunde, 200 Einnahmen', umfang(A.getStand()));
+  });
+  fall('E23 Gegenprobe: nach einer eigenen Eintragung ersetzt das Einlesen die Rücklage wie bisher', () => {
+    A.importJSON(e23Datei());
+    A.einnahmeSetzen('2026-03-02', { uhr: '07:00' });
+    const r = A.importJSON(e23Datei());
+    check('E23 Einlesen nach eigener Eintragung gelingt', r.ok === true, JSON.stringify(r));
+    A.importZurueck();
+    check('E23 zurückgeholt: mit der eigenen Eintragung', '2026-03-02' in A.getStand().einnahmen, JSON.stringify(A.getStand().einnahmen));
+  });
+  A.sofortSchreiben();
+} catch (e) {
+  check('E23 im Speicher (läuft ohne Absturz)', false, e && e.message);
+}
+try {
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: JSON.stringify({ version: 2, profil: { ...BASIS_PROFIL }, dosen: [D1], dauerhaft: false }) });
+  const N = await instanz();
+  fall('E28 „dauerhaft" gehört zum Gerät', () => {
+    const r = N.importJSON(e23Datei({ dauerhaft: true }));
+    check('E28 Einlesen gelingt', r.ok === true, JSON.stringify(r));
+    check('E28 nach dem Einlesen gilt der Wert dieses Geräts (false)', N.getStand().dauerhaft === false, `ist ${N.getStand().dauerhaft}`);
+    N.aendern((s) => { s.dauerhaft = true; });
+    N.importJSON(e23Datei({ dauerhaft: false, labor: [{ id: 'x2', datum: '2026-01-10', tsh: t(3) }] }));
+    check('E28 … und umgekehrt (true bleibt true)', N.getStand().dauerhaft === true, `ist ${N.getStand().dauerhaft}`);
+    check('E28 die Sicherung enthält „dauerhaft" nicht', !('dauerhaft' in JSON.parse(N.exportJSON())), N.exportJSON().slice(0, 200));
+  });
+  N.sofortSchreiben();
+} catch (e) {
+  check('E28 im Speicher (läuft ohne Absturz)', false, e && e.message);
+}
+if (hatteLocalStorage) globalThis.localStorage = vorherLocalStorage;
+else delete globalThis.localStorage;
+
 // ================================================================ Globale Eigenschaften über alle Fälle
 
 // MEHRDEUTIG: Grundsatz 1/11 verbietet „Tablette(n) mehr/weniger". Nicht als Aufforderung gelten

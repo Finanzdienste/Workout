@@ -64,7 +64,12 @@
      und ein Neuladen risse die Nutzerin mitten aus dem Einrichten. Und nur
      einmal je Sitzung, damit ein kaputter Worker keine Schleife auslöst.
      Schrift und Farbe gleich aus dem Speicher, damit die Leiste oben nicht
-     erst hell aufblitzt. -->
+     erst hell aufblitzt.
+
+     Läuft die App schon, fragt das Skript sie vorher: Mitten in einem
+     Formular lud die Seite sonst ohne Rückfrage neu, und die halb
+     eingetragenen Laborwerte waren weg (Runde 4: E25). Dann wartet das
+     Neuladen, bis js/app.js eine Lage ohne offene Seite zeichnet. -->
 <script>
 (function () {
   try {
@@ -84,6 +89,12 @@
       sessionStorage.setItem('schilddruese.neugeladen', '1');
     } catch (x) {
       return;
+    }
+    var erlaubt = window.__schilddrueseNeuLadenErlaubt;
+    if (typeof erlaubt === 'function') {
+      try {
+        if (!erlaubt()) { window.__schilddrueseNeuLaden = true; return; }
+      } catch (x) { /* dann eben gleich */ }
     }
     location.reload();
   });

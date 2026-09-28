@@ -129,10 +129,17 @@ check(fehler.length === 0, `keine Fehler in der Seite${fehler.length ? `: ${fehl
  * den übrigen passt.
  */
 const UPDATE_PORT = 8113;
-const lage = { update: false, unpassend: 0 };
+/*
+ * Runde 4 (E25, E26) nutzt denselben Server weiter: `fassung` liefert einen
+ * Worker mit eigener VERSION, `fehlt` beantwortet eine Datei mit 503 (Abbruch
+ * im Mobilnetz), `aus` trennt jede Verbindung (kein Netz).
+ */
+const lage = { update: false, unpassend: 0, fassung: null, fehlt: null, aus: false };
 const TYPEN = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png' };
 const updateServer = createServer((req, res) => {
+  if (lage.aus) { req.socket.destroy(); return; }
   let rel = decodeURIComponent(req.url.split(/[?#]/)[0]);
+  if (lage.fehlt && rel === lage.fehlt) { res.writeHead(503, { 'content-type': 'text/plain' }).end('weg'); return; }
   if (rel.endsWith('/')) rel += 'index.html';
   const datei = path.join(ROOT, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));
   let inhalt;
@@ -147,6 +154,11 @@ const updateServer = createServer((req, res) => {
     res.writeHead(200, { 'content-type': TYPEN[path.extname(datei)] || 'application/octet-stream', 'cache-control': 'no-store' });
     res.end(inhalt);
   };
+  if (lage.fassung && rel === '/schilddruese/sw.js') {
+    inhalt = inhalt.replace(/const VERSION = '([^']+)'/, `const VERSION = '$1-${lage.fassung}'`);
+    setTimeout(senden, 300);
+    return;
+  }
   if (lage.update && rel === '/schilddruese/sw.js') {
     inhalt = inhalt.replace(/const VERSION = '([^']+)'/, "const VERSION = '$1-neu'");
     setTimeout(senden, 1500);
@@ -191,6 +203,101 @@ for (let i = 0; i < 60 && !gestartet; i++) {
 check(gestartet && lage.unpassend === 1, 'C18: sobald der neue Worker übernimmt, lädt die Seite einmal neu – und die App ist da');
 check((await upage.evaluate(() => caches.keys())).some((k) => k.endsWith('-neu')), '… jetzt aus dem Vorrat des neuen Workers');
 await uctx.close();
+
+// --- Runde 4: E25 – ein Update lädt nicht mitten im Formular neu
+/*
+ * Übernahm der neue Worker, lud index.html die Seite ohne Rückfrage neu –
+ * auf einem langsamen Netz 20 Sekunden nach dem Öffnen, mitten in den
+ * Laborwerten. Jetzt wartet das Neuladen, bis das Formular verlassen ist.
+ */
+lage.update = false;
+const SD_UPDATE = `http://127.0.0.1:${UPDATE_PORT}/schilddruese/index.html`;
+/** Ein eigener Kontext (eigener Vorrat, eigene Sitzung), die App mit Daten, vom eigenen Worker gesteuert. */
+async function mitWorker() {
+  const k = await browser.newContext({ viewport: { width: 360, height: 740 }, locale: 'de-DE' });
+  await k.addInitScript(uhrStellen);
+  const p = await k.newPage();
+  p.on('dialog', (d) => d.accept());
+  await p.goto(SD_UPDATE, { waitUntil: 'networkidle' });
+  await p.evaluate(({ key, st, tag }) => {
+    localStorage.setItem('__testtag', tag);
+    localStorage.setItem(key, JSON.stringify(st));
+  }, { key: SCHLUESSEL, st: standMit(plus(TAG, -3)), tag: TAG });
+  await p.evaluate(() => navigator.serviceWorker.ready);
+  await p.reload({ waitUntil: 'networkidle' });
+  return { k, p };
+}
+/** Das Update anstoßen – wie der Browser beim nächsten Öffnen. → 'activated' | 'redundant' | … */
+const updateAnstossen = (p) => p.evaluate(async () => {
+  const r = await navigator.serviceWorker.getRegistration();
+  return new Promise((fertig) => {
+    r.addEventListener('updatefound', () => {
+      const w = r.installing;
+      w.addEventListener('statechange', () => { if (w.state === 'activated' || w.state === 'redundant') fertig(w.state); });
+    });
+    r.update().catch(() => fertig('update-fehler'));
+    setTimeout(() => fertig('zeit'), 20000);
+  });
+}).catch((e) => `abgebrochen: ${e.message.split('\n')[0]}`);
+const wert = (p, sel) => p.evaluate((x) => { const el = document.querySelector(x); return el ? el.value : null; }, sel).catch(() => null);
+
+const e25 = await mitWorker();
+check(await e25.p.evaluate(() => Boolean(navigator.serviceWorker.controller)), 'E25: der eigene Worker steuert die Seite');
+await e25.p.click('#reiter-verlauf');
+await e25.p.click('#ansicht [data-seite="labor"]:not([data-param])');
+await e25.p.fill('input[name=tsh_wert]', '6,8');
+// Gezählt wird ein Laden der Seite – nicht die Schritte im Browserverlauf, die die App selbst macht.
+let e25Neu = 0;
+e25.p.on('load', () => { e25Neu++; });
+lage.fassung = 'e25';
+const e25Zustand = await updateAnstossen(e25.p);
+await e25.p.waitForTimeout(1500);
+check(e25Neu === 0 && await wert(e25.p, 'input[name=tsh_wert]') === '6,8',
+  `E25: das Update übernimmt (${e25Zustand}), die Seite lädt aber nicht mitten im Formular neu – TSH 6,8 steht noch da (${e25Neu} Neuladen)`);
+if (await e25.p.locator('form[data-formular="labor"] [data-act="zurueck"]').count()) await e25.p.click('form[data-formular="labor"] [data-act="zurueck"]');
+for (let i = 0; i < 40 && !e25Neu; i++) await e25.p.waitForTimeout(250);
+await e25.p.waitForTimeout(500);
+check(e25Neu === 1 && await e25.p.locator('#reiterleiste').isVisible() && (await e25.p.evaluate(() => caches.keys())).some((k) => k.endsWith('-e25')),
+  `E25: nach dem Verlassen des Formulars lädt sie einmal neu – mit der neuen Fassung (${e25Neu})`);
+await e25.k.close();
+
+// --- Runde 4: E26 – ein Update mit fehlender Datei lässt den alten Vorrat stehen
+/*
+ * Brach beim Update eine einzige Datei ab (hier js/dosis.js mit 503), ging
+ * die Installation trotzdem durch, und activate löschte den alten,
+ * vollständigen Vorrat. Ohne Netz startete die App danach nicht mehr.
+ */
+lage.fassung = null;
+const e26 = await mitWorker();
+const e26Vorrat = () => e26.p.evaluate(async () => {
+  const o = {};
+  for (const k of await caches.keys()) o[k] = (await (await caches.open(k)).keys()).length;
+  return o;
+});
+const e26Alt = Object.entries(await e26Vorrat()).find(([k]) => k.startsWith('schilddruese-'));
+check(e26Alt && e26Alt[1] >= shell.length - 1, `E26: vorher ein vollständiger Vorrat (${JSON.stringify(e26Alt)})`);
+lage.fassung = 'e26';
+lage.fehlt = '/schilddruese/js/dosis.js';
+const e26Zustand = await updateAnstossen(e26.p);
+await e26.p.waitForTimeout(500);
+const e26Nach = await e26Vorrat();
+check(e26Zustand === 'redundant' && e26Alt && e26Nach[e26Alt[0]] === e26Alt[1],
+  `E26: fehlt beim Update eine Datei, scheitert die Installation – der alte Vorrat bleibt vollständig (${e26Zustand}, ${JSON.stringify(e26Nach)})`);
+lage.fehlt = null;
+lage.aus = true;
+const e26Offline = await e26.k.newPage();
+const e26Fehler = [];
+e26Offline.on('pageerror', (e) => e26Fehler.push(e.message));
+await e26Offline.goto(SD_UPDATE, { waitUntil: 'load' }).catch(() => {});
+let e26Da = false;
+for (let i = 0; i < 20 && !e26Da; i++) {
+  await e26Offline.waitForTimeout(250);
+  e26Da = await e26Offline.locator('.tablette').isVisible().catch(() => false);
+}
+check(e26Da, `E26: ohne Netz startet die App danach wie gewohnt${e26Fehler.length ? ` (${e26Fehler[0].slice(0, 60)})` : ''}`);
+await e26.k.close();
+lage.aus = false;
+
 updateServer.closeAllConnections();
 updateServer.close();
 

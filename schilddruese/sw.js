@@ -17,7 +17,7 @@
  * auf ein altes app.js.
  */
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE = `schilddruese-${VERSION}`;
 
 const SHELL = [
@@ -56,14 +56,28 @@ const SHELL = [
  */
 const frisch = (eingabe) => fetch(new Request(eingabe, { cache: 'reload' }));
 
+/*
+ * Installiert wird nur ein vollständiger Vorrat. Vorher ging eine fehlende
+ * Datei still durch („eine fehlende Datei darf nicht die gesamte Installation
+ * scheitern lassen"), danach kamen trotzdem skipWaiting und das Aufräumen in
+ * activate: Brach beim Update im Mobilnetz eine einzige Datei ab, war der
+ * alte, vollständige Vorrat gelöscht, dem neuen fehlte ein Modul – und ohne
+ * Netz startete die App nicht mehr, nur die feste Notfallzeile blieb
+ * (Runde 4: E26). Jetzt scheitert die Installation. Der alte Worker bleibt
+ * mit seinem Vorrat, und der Browser versucht das Update beim nächsten
+ * Öffnen noch einmal. Dass jede Datei aus SHELL existiert, prüft
+ * tests/test-sd-offline.mjs – sonst bliebe jedes Update hängen.
+ *
+ * Nicht stattdessen beim Abruf in allen Vorräten suchen: Das mischte Module
+ * zweier Fassungen, genau der Fehler aus C18.
+ */
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE)
-      // Einzeln statt addAll: eine fehlende Datei darf nicht die gesamte
-      // Installation scheitern lassen.
-      .then((cache) => Promise.all(SHELL.map((url) => frisch(url)
-        .then((res) => (res && res.ok ? cache.put(url, res) : null))
-        .catch(() => null))))
+      .then((cache) => Promise.all(SHELL.map((url) => frisch(url).then((res) => {
+        if (!res || !res.ok) throw new Error(`${url}: ${res ? res.status : 'keine Antwort'}`);
+        return cache.put(url, res);
+      }))))
       .then(() => self.skipWaiting()),
   );
 });

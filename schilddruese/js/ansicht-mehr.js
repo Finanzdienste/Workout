@@ -90,17 +90,23 @@ function berichtSeite(stand, heute) {
   };
 }
 
+/*
+ * Der Knopf zum Abhaken zeigte nur „○" – was er tut, stand allein in der
+ * Beschreibung für Vorleseprogramme. Ein Tipp schob die Frage ohne ein Wort
+ * unter „Besprochen" ans Ende, als sei sie verschwunden (Runde 4: E14). Jetzt
+ * steht es auf dem Knopf, in der Reihe mit „Ändern" und „Löschen" – neben der
+ * Frage wäre bei „sehr groß" auf 360 px kaum Platz für ihren Text geblieben.
+ */
 function fragenSeite(stand) {
   const offen = stand.fragen.filter((f) => !f.erledigt);
   const erledigt = stand.fragen.filter((f) => f.erledigt);
   const liste = (fragen) => fragen.map((f) => `
-    <div class="karte" style="display:flex;gap:.7rem;align-items:flex-start">
-      <button type="button" class="knopf knopf-klein${f.erledigt ? '' : ' knopf-leise'}" data-act="frage-erledigt" data-id="${esc(f.id)}" aria-pressed="${f.erledigt}" aria-label="${f.erledigt ? 'Wieder offen' : 'Als besprochen abhaken'}">${f.erledigt ? '✓' : '○'}</button>
-      <div style="flex:1;min-width:0"><p>${esc(f.text)}</p>
-        <div class="knopf-reihe" style="margin-top:.4rem">
-          <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="frage" data-param="${esc(f.id)}">Ändern</button>
-          <button type="button" class="knopf knopf-klein knopf-gefahr" data-act="frage-loeschen" data-id="${esc(f.id)}">Löschen</button>
-        </div>
+    <div class="karte">
+      <p>${esc(f.text)}</p>
+      <div class="knopf-reihe" style="margin-top:.4rem">
+        <button type="button" class="knopf knopf-klein${f.erledigt ? '' : ' knopf-leise'}" data-act="frage-erledigt" data-id="${esc(f.id)}" aria-pressed="${f.erledigt}" aria-label="${f.erledigt ? 'Wieder offen' : 'Als besprochen abhaken'}"><span aria-hidden="true">${f.erledigt ? '✓' : '○'}</span> ${f.erledigt ? 'Besprochen' : 'Besprochen?'}</button>
+        <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="frage" data-param="${esc(f.id)}">Ändern</button>
+        <button type="button" class="knopf knopf-klein knopf-gefahr" data-act="frage-loeschen" data-id="${esc(f.id)}">Löschen</button>
       </div>
     </div>`).join('');
   return {

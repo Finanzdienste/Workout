@@ -70,13 +70,19 @@ function folge() {
  * einer Viertelstunde Dauer endet am nächsten Tag um 00:05 – an den Ziffern
  * gerechnet stand dort 00:05 desselben Tages, also vor dem Beginn, und
  * manche Kalender verwerfen einen solchen Termin still.
+ *
+ * In UTC gerechnet, obwohl die Zeit schwebend ist: UTC kennt keine
+ * Zeitumstellung. In der Zeitzone des Geräts gibt es am Tag der Umstellung
+ * auf Sommerzeit 2:00–2:59 nicht, JavaScript schob 2:30 auf 3:30 – eine an
+ * diesem Tag angelegte tägliche Erinnerung klingelte dann jeden Tag eine
+ * Stunde später, ein Termin um 2:30 hatte die Dauer 0 (Runde 4: E29).
  */
 function stempel(iso, hhmm, plusMinuten = 0) {
   const [j, mo, t] = iso.split('-').map(Number);
   const [h, m] = hhmm.split(':').map(Number);
-  const d = new Date(j, mo - 1, t, h, m + plusMinuten);
-  return `${d.getFullYear()}${zweistellig(d.getMonth() + 1)}${zweistellig(d.getDate())}`
-    + `T${zweistellig(d.getHours())}${zweistellig(d.getMinutes())}00`;
+  const d = new Date(Date.UTC(j, mo - 1, t, h, m + plusMinuten));
+  return `${d.getUTCFullYear()}${zweistellig(d.getUTCMonth() + 1)}${zweistellig(d.getUTCDate())}`
+    + `T${zweistellig(d.getUTCHours())}${zweistellig(d.getUTCMinutes())}00`;
 }
 
 function jetztUTC() {
@@ -108,7 +114,15 @@ function kopf(name) {
  * ATA-Leitlinie. Hier stand „frühestens 2 bis 3 Stunden" aus RW1 M3 – eine
  * Zahl unter der Leitlinie, ausgerechnet in der täglichen Erinnerung (D5).
  */
-const MORGENS = 'Nüchtern, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später.';
+/*
+ * Morgens auch der Tag der Blutabnahme (RW1 L0d): Der tägliche Termin sagte
+ * sonst auch an diesem Morgen „Schilddrüsentablette nehmen – Nüchtern …",
+ * und der Alarm eine Stunde vor der Abnahme nennt nur ihren Titel. Die
+ * Korrektur D16 (Runde 3) galt nur in der App (Runde 4: E27). Der tägliche
+ * Termin kennt einen später angelegten Abnahmetag nicht – deshalb allgemein
+ * und nur morgens: Tagsüber und abends liegt die Abnahme meist schon davor.
+ */
+const MORGENS = 'Nüchtern, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später. Am Tag einer Blutabnahme die Tablette erst nach der Abnahme nehmen – außer die Praxis hat etwas anderes gesagt.';
 const TAGSUEBER = 'Mit einem Glas Wasser, jeden Tag zur gleichen Zeit. Essen und andere Mittel mit Abstand – siehe „Was braucht Abstand?" in der App.';
 const ABENDS = 'Mit einem Glas Wasser, mindestens 3 Stunden nach der letzten Mahlzeit – jeden Tag gleich, so wie mit der Praxis besprochen.';
 export const erinnerungText = (uhr) => {

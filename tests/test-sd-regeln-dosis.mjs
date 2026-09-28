@@ -359,6 +359,21 @@ function pruefeFall(f) {
 }
 
 const Z = /Zöliakie/;
+
+/*
+ * Bausteine für die Fälle der Runde 4 (E30): eine eigene Erhöhung von 75 µg
+ * vor 40 Tagen („Auf Anweisung der Praxis: Nein"), zehn Tage danach
+ * dieselbe Menge als „Euthyrox" eingetragen (Herstellerwechsel, Rezept).
+ * 78 Jahre: Einpendelzeit 8 Wochen.
+ */
+const R4_AE = plus(HEUTE, -40);
+const r4Dosen = (nach, praxisWechsel) => [dosis('d1', DOSIS_AB, 75), dosis('d2', R4_AE, nach, { praxis: false }),
+  dosis('d3', plus(R4_AE, 10), nach, { praxis: praxisWechsel, praeparat: 'Euthyrox' })];
+const r4Stand = (dosen) => ({
+  profil: { geburtsjahr: geb(78) }, befund: bef(6.5, 14, { datum: plus(R4_AE, -7), praxisAm: plus(R4_AE, -6) }),
+  dosen, nachfragen: [dosisStimmt('b1', plus(R4_AE, -6))],
+});
+
 const FAELLE = [
   // ================================================================ Grundsatz 1 – Reihenfolge
   // (a) Warnzeichen (W-D1, W-D3) → (b) Schwangerschaft (D7) → (c) offene
@@ -695,7 +710,9 @@ const FAELLE = [
     stand: { profil: { krebs: 'ja', zielVon: 0.1, zielBis: 0.5 }, befund: bef(0.3) },
     erwartet: { richtung: 'klaeren', regel: 'D0.13' },
   },
-  { name: 'D0.13 Krebs weiß nicht', stand: { profil: { krebs: 'unbekannt' }, befund: bef(8) }, erwartet: { richtung: 'klaeren', regel: 'D0.13', text: [/im Profil/] } },
+  // Geändert (Runde 4: E7): „Profil" gibt es im Menü nicht, der Punkt heißt
+  // „Über mich" – der Text nennt den Weg, und ein Knopf führt hin.
+  { name: 'D0.13 Krebs weiß nicht', stand: { profil: { krebs: 'unbekannt' }, befund: bef(8) }, erwartet: { richtung: 'klaeren', regel: 'D0.13', text: [/unter „Mehr → Über mich"/] } },
   // MEHRDEUTIG: krebs = '' ist laut P2/D0.13 ein Sperrgrund; ob die Karte ihn
   // als D0.13 zeigt oder als Frage stellt, lässt der Text offen – eine
   // Richtung gibt es jedenfalls nicht.
@@ -959,7 +976,8 @@ const FAELLE = [
   { name: 'DV 65 J., TSH 12: kleiner Schritt', stand: { profil: { geburtsjahr: geb(65) }, befund: bef(12) }, erwartet: { richtung: 'mehr', schritt: 'klein', warnzeichen: true, text: [/kleinen Schritten/, /65/] } },
   { name: 'DV Herzkrankheit, TSH 12: kleiner Schritt', stand: { profil: { herz: 'ja' }, befund: bef(12) }, erwartet: { richtung: 'mehr', schritt: 'klein', warnzeichen: true, text: [/Herz(krankheit|erkrankung)/] } },
   { name: 'DV Herz weiß nicht, TSH 12: kleiner Schritt', stand: { profil: { herz: 'unbekannt' }, befund: bef(12) }, erwartet: { richtung: 'mehr', schritt: 'klein', warnzeichen: true } },
-  { name: 'DV Herz nicht angegeben, TSH 12: kleiner Schritt', stand: { profil: { herz: '' }, befund: bef(12) }, erwartet: { richtung: 'mehr', schritt: 'klein', warnzeichen: true, text: [/im Profil/] } },
+  // Geändert (Runde 4: E7): der Weg heißt „Mehr → Über mich" statt „im Profil".
+  { name: 'DV Herz nicht angegeben, TSH 12: kleiner Schritt', stand: { profil: { herz: '' }, befund: bef(12) }, erwartet: { richtung: 'mehr', schritt: 'klein', warnzeichen: true, text: [/unter „Mehr → Über mich"/] } },
   { name: 'DV Tagesdosis 50 µg: kleiner Schritt', stand: { befund: bef(8), dosen: [dosis('d1', DOSIS_AB, 50)] }, erwartet: { richtung: 'mehr', schritt: 'klein' } },
   { name: 'DV ½ × 100 µg = 50 µg am Tag: kleiner Schritt', stand: { befund: bef(8), dosen: [dosis('d1', DOSIS_AB, 100, { tabletten: 0.5 })] }, erwartet: { richtung: 'mehr', schritt: 'klein' } },
   { name: 'DV 2 × 25 µg = 50 µg am Tag: kleiner Schritt', stand: { befund: bef(8), dosen: [dosis('d1', DOSIS_AB, 25, { tabletten: 2 })] }, erwartet: { richtung: 'mehr', schritt: 'klein' } },
@@ -1869,6 +1887,167 @@ const FAELLE = [
     },
     erwartet: { keineRichtung: true, stufe: 'tage', regel: 'W-D4', text: [/bei Ihrem Anruf in der Praxis/], ohne: [/bei der Kontrolle an/] },
   },
+
+  // ================================================================ Review Runde 4 (E7, E17, E18, E21, E30, E31): Regressionsfälle
+  // Jeder Fall scheiterte vor der Korrektur (außer den Gegenproben).
+  //
+  // E30 – rot-2 X3 (4), RW2 B2: Eine eigene Änderung gilt, bis die Praxis
+  // danach entschieden hat oder ein Kontrollwert da ist – ein späterer
+  // Präparat- oder Herstellerwechsel mit derselben Menge klärt nichts.
+  ...[false, null].flatMap((pw) => [20, 40, 60].map((n) => ({
+    name: `E30 75 → 125 µg ohne Praxis, danach Euthyrox 125 (Praxis ${pw}), Tag ${n}: X3 mit Tage, bisherige Menge, W-D2`,
+    heute: plus(R4_AE, n),
+    stand: r4Stand(r4Dosen(125, pw)),
+    erwartet: {
+      keineRichtung: true, stufe: 'tage', regel: ['D0.5', 'X3'], warnzeichen: true, text: [/bisherige Menge/, /klärt der Anruf/],
+      ohne: [/Eine neue Einschätzung gibt es mit dem Kontrollwert/],
+    },
+  }))),
+  {
+    name: 'E30 75 → 125 µg ohne Praxis, danach 2 × 62,5 µg (ohne Praxis), Tag 20: X3 mit Tage',
+    heute: plus(R4_AE, 20),
+    stand: r4Stand([dosis('d1', DOSIS_AB, 75), dosis('d2', R4_AE, 125, { praxis: false }), dosis('d3', plus(R4_AE, 10), 62.5, { praxis: false, tabletten: 2 })]),
+    erwartet: { keineRichtung: true, stufe: 'tage', regel: 'X3', warnzeichen: true, text: [/bisherige Menge/] },
+  },
+  {
+    name: 'E30 Euthyrox 125 „Auf Anweisung der Praxis: Ja" nach eigener Erhöhung: X3 ohne Frist, W-D2 bleibt',
+    heute: plus(R4_AE, 20),
+    stand: r4Stand(r4Dosen(125, true)),
+    erwartet: {
+      keineRichtung: true, regel: 'X3', warnzeichen: true, text: [/Wusste die Praxis das bei ihrer Entscheidung nicht, nehmen Sie wieder Ihre bisherige Menge/],
+      ohne: [/heute oder morgen/, /in den nächsten Tagen/], extra: [['X3 ohne Stufe', (r) => r.gruende.some((g) => g.id === 'X3' && !g.stufe)]],
+    },
+  },
+  {
+    name: 'E30 kleine eigene Änderung 75 → 88 µg, danach Euthyrox 88, Tag 20: B2 mit Tage, „etwa 8 Wochen nach der Änderung"',
+    heute: plus(R4_AE, 20),
+    stand: r4Stand(r4Dosen(88, null)),
+    erwartet: { keineRichtung: true, stufe: 'tage', regel: 'B2', text: [/in den nächsten Tagen/, /etwa 8 Wochen nach der Änderung/] },
+  },
+  {
+    name: 'E30 Gegenprobe: TSH-Befund 60 Tage nach der eigenen Änderung – er zeigt, wie die Menge wirkt, kein X3',
+    heute: plus(R4_AE, 62),
+    stand: {
+      profil: { geburtsjahr: geb(78) }, vorbefunde: [vorbefund('b0', plus(R4_AE, -7), 6.5)], befund: bef(2, 15, { datum: plus(R4_AE, 60) }),
+      dosen: r4Dosen(125, null), nachfragen: [dosisStimmt('b0', plus(R4_AE, -6)), dosisStimmt('b1', plus(R4_AE, 61))],
+    },
+    erwartet: { ohneRegel: ['X3', 'B2'], ohne: [/bisherige Menge/] },
+  },
+  {
+    name: 'E30 W-D4 „Ja" nach der Erhöhung, danach Euthyrox eingetragen: die Karte nennt „seit der Erhöhung", heute',
+    heute: plus(R4_AE, 16),
+    stand: {
+      profil: { geburtsjahr: geb(78) }, befund: bef(6.5, 14, { datum: plus(R4_AE, -7), praxis: 'geaendert', praxisAm: plus(R4_AE, -2) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', R4_AE, 88), dosis('d3', plus(R4_AE, 15), 88, { praeparat: 'Euthyrox' })],
+      nachfragen: [dosisStimmt('b1', plus(R4_AE, -6)), { id: 'wd4', art: 'wd4', bezug: 'd2-14', antwort: 'ja', am: plus(R4_AE, 14) }],
+    },
+    erwartet: { keineRichtung: true, stufe: 'heute', regel: 'W-D4', text: [/seit der Erhöhung/], ohne: [/seit der Senkung/] },
+  },
+
+  // E31 – rot-2 X15, RW2 Grundsatz 6/D6b: „einmal viele Tabletten" (Q5) ist
+  // akut – aber nicht mehr nach der Entscheidung der Praxis zu diesem Wert,
+  // nach der von ihr angeordneten Dosis oder bei einem Befund über drei Monate.
+  ...[['bleibt', 0], ['geaendert', 0], ['bleibt', 74]].map(([praxis, spaeter]) => ({
+    name: `E31 Q5 „einmal", Praxis „${praxis}" nach der Abnahme${spaeter ? `, ${spaeter} Tage später` : ''}: kein Giftnotruf, nicht heute`,
+    heute: plus(HEUTE, spaeter),
+    stand: { profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal', praxis, praxisAm: plus(HEUTE, -1) }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] },
+    erwartet: {
+      ohneRichtung: true, stufe: 'keine', regel: ['D0.5', 'Q5'], text: [/Wusste die Praxis das bei ihrer Entscheidung nicht/, /sofort 112/], ohne: [/heute noch/, /Giftnotruf/],
+      extra: [['Q5 ohne Stufe', (r) => r.gruende.some((g) => g.id === 'Q5' && !g.stufe)], ['112 anrufbar', (r) => r.anrufe.some((a) => a.nummer === '112')]],
+    },
+  })),
+  {
+    name: 'E31 Q5 „einmal", danach die von der Praxis angeordnete Dosis eingetragen: kein Giftnotruf, nicht heute',
+    stand: {
+      profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -10), verwechselt: 'einmal' }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -5), 50)], nachfragen: [dosisStimmt('b1', plus(HEUTE, -9))],
+    },
+    erwartet: { ohneRichtung: true, regel: ['D0.5', 'Q5'], ohne: [/heute noch/, /Giftnotruf/], extra: [['Stufe unter heute', (r) => rang(r.stufe) < RANG.heute]] },
+  },
+  {
+    name: 'E31 Q5 „einmal", Befund 100 Tage alt, noch nichts entschieden: Stufe aus D0.4 (Tage), kein Giftnotruf',
+    stand: { profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -100), verwechselt: 'einmal' }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -99))] },
+    erwartet: { ohneRichtung: true, stufe: 'tage', regel: ['D0.4', 'Q5'], text: [/rufen Sie in den nächsten Tagen an/], ohne: [/heute noch/, /Giftnotruf/] },
+  },
+  {
+    name: 'E31 Gegenprobe: Q5 „einmal" allein, Befund 92 Tage alt: weiter heute mit Giftnotruf',
+    stand: { profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -92), verwechselt: 'einmal' }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -91))] },
+    erwartet: { ohneRichtung: true, stufe: 'heute', regel: 'Q5', text: [/heute noch den Giftnotruf/] },
+  },
+
+  // E17 (a) – eine Einpendelzeit je Änderung: Nach einer eigenen Änderung ab 70
+  // nennen D0.6 und B2 auf derselben Karte dieselbe Frist.
+  {
+    name: 'E17 eigene Änderung mit 75, Kontrollwert nach 45 Tagen: D0.6 und B2 nennen beide „etwa 8 Wochen"',
+    heute: '2026-09-28',
+    stand: {
+      profil: { geburtsjahr: 1951 }, vorbefunde: [vorbefund('b0', '2026-07-20', 5.9)], befund: bef(3.1, 14, { datum: '2026-09-24' }),
+      dosen: [dosis('d1', DOSIS_AB, 100), dosis('d2', '2026-08-10', 112, { praxis: false })],
+      nachfragen: [dosisStimmt('b0', '2026-07-22'), dosisStimmt('b1', '2026-09-25')],
+    },
+    erwartet: { keineRichtung: true, regel: ['D0.6', 'B2'], text: [/Lassen Sie etwa 8 Wochen nach der Änderung kontrollieren/], ohne: [/6 bis 8 Wochen/] },
+  },
+  {
+    name: 'E17 Packung gewechselt (F10 ja) mit 75: „Kontrolle etwa 8 Wochen nach dem Wechsel"',
+    stand: { profil: { geburtsjahr: geb(75) }, befund: bef(6.5, 14, { packung: 'ja' }) },
+    erwartet: { keineRichtung: true, regel: 'D0.6', text: [/Kontrolle etwa 8 Wochen nach dem Wechsel/] },
+  },
+  // E18 – Befund mit 69 im Dezember, Änderung mit 70 im Januar: D0.5 nennt
+  // dieselbe Einpendelzeit wie D6c auf „Heute".
+  {
+    name: 'E18 Befund mit 69, Änderung mit 70: D0.5 „Kontrollwert etwa 8 Wochen nach der Änderung"',
+    heute: '2026-03-10',
+    stand: {
+      profil: { geburtsjahr: 1956 }, befund: bef(0.15, 18, { datum: '2025-12-20' }),
+      dosen: [dosis('d1', '2025-01-01', 100), dosis('d2', '2026-01-08', 88)], nachfragen: [dosisStimmt('b1', '2025-12-21')],
+    },
+    erwartet: { keineRichtung: true, regel: 'D0.5', text: [/Kontrollwert etwa 8 Wochen nach der Änderung/], ohne: [/6 bis 8 Wochen nach der Änderung/] },
+  },
+
+  // E21 – RW1 B1: Werte und Grenzen so, wie sie auf dem Befund stehen.
+  {
+    name: 'E21 TSH 0,015 und fT4 1,125 ng/dl: die Grundlage zeigt beide ungerundet',
+    stand: { befund: bef(tsh(0.015, { von: 0.27, bis: 4.2 }), { wert: 1.125, einheit: 'ng/dl', von: 0.93, bis: 1.7 }) },
+    erwartet: {
+      extra: [['Grundlage „TSH 0,015 mU/l (… 0,27–4,2)", „fT4 1,125 ng/dl"', (r) => /TSH 0,015 mU\/l \(Bereich Ihres Labors 0,27–4,2\)/.test(r.grundlage)
+        && /fT4 1,125 ng\/dl/.test(r.grundlage)]],
+    },
+  },
+  {
+    name: 'E21 D0.17: der vorige Wert steht ungerundet und mit „<" da',
+    stand: { vorbefunde: [vorbefund('b0', plus(BEFUND, -90), 0.015, { tsh: tsh(0.015, { unter: true }) })], befund: bef(6.5, 14) },
+    erwartet: { keineRichtung: true, regel: 'D0.17', text: [/\(< 0,015 mU\/l\)/] },
+  },
+
+  // E7 – keine Sackgasse: Wer etwas nachtragen soll, bekommt den Knopf dorthin,
+  // und der Weg heißt wie im Menü („Über mich", nicht „Profil").
+  {
+    name: 'E7 D0.1 ohne TSH-Bereich: Knopf „Bereich im Befund ergänzen" zu diesem Befund',
+    stand: { befund: bef(tsh(5.8, { von: null, bis: null })) },
+    erwartet: {
+      keineRichtung: true, regel: 'D0.1',
+      extra: [['Aktion labor mit der Befund-id', (r) => r.aktion === 'labor' && r.aktionParam === 'b1' && r.aktionText === 'Bereich im Befund ergänzen'
+        && r.aktionen.length === 1 && r.aktionen[0].aktion === 'labor']],
+    },
+  },
+  {
+    name: 'E7 D0.13 Krebs „Weiß nicht": „unter Mehr → Über mich", Rat zur Praxis, Knopf „Über mich"',
+    stand: { profil: { krebs: 'unbekannt' }, befund: bef(8) },
+    erwartet: {
+      keineRichtung: true, regel: 'D0.13', text: [/fragen Sie beim nächsten Anruf in der Praxis/], ohne: [/im Profil/],
+      extra: [['Aktion profil', (r) => r.aktion === 'profil' && r.aktionen.some((a) => a.aktion === 'profil' && a.param === null)]],
+    },
+  },
+  {
+    name: 'E7 Richtung ohne Geburtsjahr: „unter Mehr → Über mich" mit Knopf',
+    stand: { profil: { geburtsjahr: null }, befund: bef(15, 10) },
+    erwartet: { richtung: 'mehr', text: [/Geburtsjahr unter „Mehr → Über mich"/], ohne: [/im Profil/], extra: [['Aktion profil', (r) => r.aktionen.some((a) => a.aktion === 'profil')]] },
+  },
+  {
+    name: 'E7 D0.1 und keine Dosis: zuerst „Dosis eintragen", daneben der Knopf zum Befund',
+    stand: { befund: bef(tsh(5.8, { von: null, bis: null })), dosen: [] },
+    erwartet: { keineRichtung: true, extra: [['erst dosis, dann labor', (r) => r.aktion === 'dosis' && r.aktionen.map((a) => a.aktion).join() === 'dosis,labor']] },
+  },
 ];
 
 // ================================================================ Tabelle: dosisHinweise
@@ -2105,6 +2284,70 @@ const HINWEIS_FAELLE = [
     stand: () => hStand({ am: plus(HEUTE, -42), mittel: ['diabetes'] }),
     hat: [mit(H.WW2, { stufe: 'zeitnah', text: [re(`bis zum ${kurz(HEUTE)}`)], ohne: [/in den nächsten 6 Wochen/] })],
   },
+  // ---------------------------------------------------------------- Review Runde 4: Regressionsfälle
+  // E30 – Ein Herstellerwechsel mit derselben Menge nach einer Änderung
+  // löscht weder „wieder die bisherige Menge" (X3) noch die Nachfragen nach
+  // der Erhöhung (W-D4); die Kontrolle (D6c) nennt beides.
+  {
+    name: 'E30 75 → 125 µg ohne Praxis, Euthyrox 125 an Tag 10, heute Tag 12: X3 mit bisheriger Menge',
+    stand: () => vollständigerStand({
+      befund: { datum: HB },
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -12), 125, { praxis: false }), dosis('d3', plus(HEUTE, -2), 125, { praxis: null, praeparat: 'Euthyrox' })],
+    }),
+    hat: [mit(H.X34, { stufe: 'tage', text: [/bisherige Menge/] })],
+  },
+  {
+    name: 'E30 W-D4-Frage 14 Tage nach der Erhöhung, auch nach dem Herstellerwechsel an Tag 10',
+    stand: () => vollständigerStand({
+      befund: { datum: HB }, dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -14), 88), dosis('d3', plus(HEUTE, -4), 88, { praeparat: 'Euthyrox' })],
+    }),
+    hat: [mit(H.WD4A, { stufe: 'termin' })],
+    extra: [['Bezug ist die Erhöhung (d2-14)', (l) => l.some((h) => h.id === 'W-D4' && h.frage && h.frage.bezug === 'd2-14')]],
+  },
+  {
+    name: 'E30 W-D4 „Ja" nach der Erhöhung, danach Euthyrox eingetragen: „heute noch anrufen" bleibt',
+    stand: () => vollständigerStand({
+      befund: { datum: HB }, dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -16), 88), dosis('d3', plus(HEUTE, -1), 88, { praeparat: 'Euthyrox' })],
+      nachfragen: [dosisStimmt('b1', plus(HB, 2)), { id: 'wd4', art: 'wd4', bezug: 'd2-14', antwort: 'ja', am: plus(HEUTE, -2) }],
+    }),
+    extra: [['W-D4 heute mit „heute noch"', (l) => l.some((h) => h.id === 'W-D4' && h.stufe === 'heute' && /heute noch/.test(h.text))]],
+  },
+  {
+    name: 'E30 D6c nach Erhöhung und Herstellerwechsel zehn Tage später: der Text nennt beides',
+    stand: () => vollständigerStand({
+      befund: { datum: HB }, dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -52), 88), dosis('d3', plus(HEUTE, -42), 88, { praeparat: 'Euthyrox' })],
+    }),
+    hat: [mit(H.D6C, { text: [re(`Ihre Dosis wurde am ${kurz(plus(HEUTE, -52))} geändert`), re(`am ${kurz(plus(HEUTE, -42))} haben Sie ein anderes Präparat`)] })],
+  },
+  // E17 (a) – B2 und P7 mit der Einpendelzeit der Änderung (ab 70 etwa 8 Wochen), wie D0.6 und D6c.
+  {
+    name: 'E17 B2 auf „Heute" nach eigener Änderung mit 75: „etwa 8 Wochen nach der Änderung"',
+    stand: () => hStand({ am: plus(HEUTE, -5), nach: 88, praxis: false, profil: { geburtsjahr: geb(75) } }),
+    hat: [mit(H.B2, { stufe: 'tage', text: [/etwa 8 Wochen nach der Änderung/], ohne: [/6 bis 8 Wochen/] })],
+  },
+  {
+    name: 'E17 B2 auf „Heute" mit 60: „6 bis 8 Wochen nach der Änderung" wie auf der Karte',
+    stand: () => hStand({ am: plus(HEUTE, -5), nach: 88, praxis: false }),
+    hat: [mit(H.B2, { stufe: 'tage', text: [/Lassen Sie 6 bis 8 Wochen nach der Änderung kontrollieren/] })],
+  },
+  {
+    name: 'E17 P7 mit 75: „etwa 8 Wochen nach dem Wechsel"',
+    stand: () => vollständigerStand({
+      profil: { geburtsjahr: geb(75) }, befund: { datum: HB }, dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -3), 75, { praeparat: 'Euthyrox' })],
+    }),
+    extra: [['P7 „etwa 8 Wochen nach dem Wechsel"', (l) => l.some((h) => h.id === 'P7' && /ob etwa 8 Wochen nach dem Wechsel kontrolliert/.test(h.text))]],
+  },
+  // E18 – Änderung mit 69 im Dezember, 70 ab Januar: D6c schickt nicht nach
+  // 6 Wochen zu einem Wert, den die Karte als „weniger als 8 Wochen" verwirft.
+  ...[['2026-01-22', false], ['2026-02-04', true]].map(([heute, faellig]) => ({
+    name: `E18 Änderung 10.12.2025 mit 69 (Jahrgang 1956), ${kurz(heute)}: D6c ${faellig ? 'fällig mit „etwa 8 Wochen"' : 'noch nicht (Tag 43)'}`,
+    heute,
+    stand: () => vollständigerStand({
+      profil: { geburtsjahr: 1956 }, befund: bef(0.15, 18, { datum: '2025-12-01', praxis: 'geaendert', praxisAm: '2025-12-05' }),
+      dosen: [dosis('d1', '2025-01-01', 100), dosis('d2', '2025-12-10', 88)], nachfragen: [],
+    }),
+    ...(faellig ? { hat: [mit(H.D6C, { text: [/etwa 8 Wochen danach/] })] } : { nicht: [H.D6C] }),
+  })),
 ];
 
 function pruefeHinweisFall(f) {
@@ -2299,6 +2542,24 @@ const GESAMT_FAELLE = [
     stand: () => vollständigerStand({ profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), warnzeichen: [wc(0, ['zuviele'])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] }),
     stufe: 'heute',
     extra: [['Teil der Karte: Giftnotruf, anrufbar', (g) => g.teile.some((t) => t.id === 'dosis' && /Giftnotruf/.test(t.text) && t.anrufe.some((a) => a.nummer === '08919240'))]],
+  },
+  // ---------------------------------------------------------------- Review Runde 4: Regressionsfälle
+  // E30 – dieselbe Lage, dieselbe Dringlichkeit: Der Herstellerwechsel senkt „Heute" nicht auf „Termin".
+  {
+    name: 'E30 75 → 125 µg ohne Praxis, danach Euthyrox, Tag 20: Gesamtbild Tage, der Teil der Karte nennt „bisherige Menge"',
+    heute: plus(R4_AE, 20),
+    stand: () => vollständigerStand(r4Stand(r4Dosen(125, null))),
+    stufe: 'tage', teile: ['dosis'],
+    extra: [['Teil der Karte: bisherige Menge', (g) => g.teile.some((t) => t.id === 'dosis' && /bisherige Menge/.test(t.text))]],
+  },
+  // E31 – nach der Entscheidung der Praxis kein tägliches „Heute anrufen" mehr.
+  {
+    name: 'E31 Q5 „einmal", Praxis „bleibt" nach der Abnahme: Gesamtbild nicht heute, kein Giftnotruf',
+    stand: () => vollständigerStand({
+      profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal', praxis: 'bleibt', praxisAm: plus(HEUTE, -1) }),
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))],
+    }),
+    extra: [['Stufe unter heute, kein Giftnotruf', (g) => rang(g.stufe) < RANG.heute && !g.teile.some((t) => /Giftnotruf/.test(t.text))]],
   },
 ];
 const GESAMT_ERGEBNISSE = [];

@@ -321,12 +321,14 @@ export function kapitel(id) {
  * vergessen?": die Nummer fürs eingetragene Bundesland als Knopf. Vorher
  * stand dort nur „zum Beispiel Berlin 030 19240" – wer in Bayern wohnt, las
  * die falsche Nummer (B67). Ohne Bundesland: 112 (RW1 P5) – der Knopf steht
- * im Kapitel selbst.
+ * im Kapitel selbst. „Bundesland eintragen" trägt data-param="bundesland",
+ * damit js/app.js zur Auswahl scrollt statt an den Anfang der langen Seite
+ * „Über mich" (Runde 4: E8).
  */
 function giftnotrufAbsatz(stand) {
   const land = stand ? sp.BUNDESLAENDER.find(([k]) => k === stand.profil.bundesland) : null;
   if (!land) {
-    return '<p>Ohne eingetragenes Bundesland kennt die App Ihre Giftnotruf-Nummer nicht – dann rufen Sie 112 an. Tragen Sie unter „Über mich" Ihr Bundesland ein, dann steht die Nummer hier und oben auf „Heute". <button type="button" class="knopf-link" data-act="seite" data-seite="profil">Bundesland eintragen</button></p>';
+    return '<p>Ohne eingetragenes Bundesland kennt die App Ihre Giftnotruf-Nummer nicht – dann rufen Sie 112 an. Tragen Sie unter „Über mich" Ihr Bundesland ein, dann steht die Nummer hier und oben auf „Heute". <button type="button" class="knopf-link" data-act="seite" data-seite="profil" data-param="bundesland">Bundesland eintragen</button></p>';
   }
   const nummer = land[2];
   return `<p>Für ${esc(land[1])}: <strong>${esc(nummer)}</strong>.</p>

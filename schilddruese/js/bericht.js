@@ -13,7 +13,7 @@
  * übertragen, von der App berechnet), mit der zuletzt gezeigten Dosis-Karte.
  * Nur bei bestätigter Behandlung (P6); was daraus folgt, sagt die Ärztin.
  */
-import { datumKurz, zahlText, tageWeiter, uhrText } from './datum.js';
+import { datumKurz, zahlText, rohText, tageWeiter, uhrText } from './datum.js';
 import * as sp from './speicher.js';
 import { mehrzahl } from './text.js';
 import * as ez from './einschaetzung.js';
@@ -30,13 +30,15 @@ function stufeText(s) {
  * Ein Wert so, wie er auf dem Befund steht: „< 0,01" mit dem Zeichen, ein
  * einseitiger Bereich als „ab 20" oder „bis 5". Vorher fehlte das „<", ein
  * Bereich nur mit Obergrenze fehlte ganz, und einer nur mit Untergrenze stand
- * als „20––" da (B49, B56).
+ * als „20––" da (B49, B56). Ungerundet: Unter „aus den Befunden
+ * abgeschrieben" stand TSH 0,015 als „0,02", fT4 1,125 als „1,13"
+ * (Runde 4: E21).
  */
 function wertText(name, w) {
   const v = w.von !== null && w.von !== undefined;
   const b = w.bis !== null && w.bis !== undefined;
-  const bereich = v && b ? ` (Labor ${zahlText(w.von)}–${zahlText(w.bis)})` : v ? ` (Labor ab ${zahlText(w.von)})` : b ? ` (Labor bis ${zahlText(w.bis)})` : '';
-  return `${name} ${w.unter ? '< ' : ''}${zahlText(w.wert)} ${w.einheit}${bereich}`;
+  const bereich = v && b ? ` (Labor ${rohText(w.von)}–${rohText(w.bis)})` : v ? ` (Labor ab ${rohText(w.von)})` : b ? ` (Labor bis ${rohText(w.bis)})` : '';
+  return `${name} ${w.unter ? '< ' : ''}${rohText(w.wert)} ${w.einheit}${bereich}`;
 }
 
 /*

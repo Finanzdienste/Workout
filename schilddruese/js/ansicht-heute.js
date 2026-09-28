@@ -20,7 +20,7 @@ import {
   dosisText, aktuelleDosis, naechsteDosis, einnahme, naechsterTermin, vorratReicht, zaehltAb,
 } from './speicher.js';
 import {
-  notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang, anrufReihe, anrufeImText,
+  notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang, anrufReihe, anrufeImText, anrufKnopf,
 } from './ansicht-einschaetzung.js';
 import { dosisVerweis } from './ansicht-dosis.js';
 import { vorratAndereStaerke } from './ansicht-formulare.js';
@@ -51,7 +51,16 @@ function tabletteKnopf(stand, heute, jetztUhr) {
    * noch die gewohnte Zeit, sondern wann es so weit ist.
    */
   const abnahme = ez.abnahmeHeute(stand, heute, jetztUhr);
-  const faellig = !abnahme && jetztUhr >= stand.einstellungen.erinnerung;
+  /*
+   * Ohne Uhrzeit weiß die App nicht, wann die Abnahme vorbei ist. Bis
+   * Mitternacht zu schweigen hieß: Wer die Tablette danach vergaß, wurde an
+   * dem Tag nicht mehr erinnert, und bei Einnahme am Abend fiel die gewohnte
+   * Erinnerung ganz weg – um 23 Uhr stand noch „Heute erst nach der
+   * Blutabnahme" (Runde 4: E34). Dann ab der gewohnten Zeit wieder gelb, der
+   * Satz darunter bleibt: erst nach der Abnahme. Mit Uhrzeit wie bisher bis
+   * zur Abnahme weder gelb noch die gewohnte Zeit (D16).
+   */
+  const faellig = (!abnahme || !abnahme.uhr) && jetztUhr >= stand.einstellungen.erinnerung;
   const unter = abnahme ? `Heute erst nach der Blutabnahme${abnahme.uhr ? ` (${esc(uhrText(abnahme.uhr))})` : ''} – dann hier antippen.`
     : faellig ? 'Noch nicht eingetragen – antippen, sobald genommen.' : `Nüchtern, mit Wasser · geplant ${esc(uhrText(stand.einstellungen.erinnerung))}`;
   return `
@@ -94,7 +103,9 @@ function kernHinweis(h, stand) {
  */
 function hinweise(stand, heute) {
   const liste = [];
-  const add = (stufe, html, oben = false) => liste.push({ stufe, html, oben });
+  // `regel`: die Kennung, damit derselbe Anlass aus zwei Quellen (W5 aus dem
+  // Befinden und aus dem Check) nur einmal dasteht.
+  const add = (stufe, html, oben = false, regel = null) => liste.push({ stufe, html, oben, regel });
   const aktiv = ez.aktiv(stand);
   // Eine Rechnung für alles, was die Einschätzung betrifft: das Gesamtbild
   // mit Dosis-Karte und Dosis-Hinweisen (js/dosis.js). So nennt „Heute" dieselbe
@@ -106,7 +117,7 @@ function hinweise(stand, heute) {
   // deshalb auch ohne P6-Haken da.
   ez.beschwerdenAuswerten(stand, heute).texte
     .filter((t) => ['W5', 'W5b', 'S4', 'S4ii', 'R3', 'W2t'].includes(t.id))
-    .forEach((t) => add(t.stufe, t.id === 'W5' ? w5Karte(t.text) : beschwerdeKarte(t), t.id === 'W5'));
+    .forEach((t) => add(t.stufe, t.id === 'W5' ? w5Karte(t.text) : beschwerdeKarte(t), t.id === 'W5', t.id));
 
   // Stärke fehlt (beim Einrichten leer gelassen): daran erinnern, bis sie da ist.
   const geltend = aktuelleDosis(heute);
@@ -192,12 +203,63 @@ function hinweise(stand, heute) {
     }
     const d = dosisVerweis(stand, heute, g.dosis, new Set(g.dosisHinweise.map((h) => h.id)));
     if (d) {
+      // Bittet der Verweis um einen Eintrag (die neue Dosis nach „Die Praxis
+      // hat entschieden", Runde 4: E1), führt ein Knopf direkt ins Formular.
+      const ansehen = '<button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis-karte"';
+      const knoepfe = d.knopf
+        ? `<div class="knopf-reihe"><button type="button" class="knopf knopf-klein knopf-haupt" data-act="seite" data-seite="${esc(d.knopf.seite)}" data-param="${esc(d.knopf.param || '')}">${esc(d.knopf.text)}</button>${ansehen}>Dosis-Karte ansehen</button></div>`
+        : `${ansehen} style="margin-top:.5rem">Dosis-Karte ansehen</button>`;
       add(d.stufe, `
         <div class="karte dosis-verweis" data-stufe="${esc(d.stufe)}">
           <p><strong>Dosis-Karte</strong></p>
           <p class="klein">${esc(d.text)}</p>
-          <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis-karte" style="margin-top:.5rem">Dosis-Karte ansehen</button>
+          ${knoepfe}
         </div>`);
+    }
+  }
+
+  /*
+   * Ohne P6-Haken gibt es keine Einschätzung und damit auch keinen Verweis –
+   * der Warnzeichen-Check von heute stand dann nur auf seiner Ergebnisseite.
+   * Nach „Zurück" sagte keine Seite mehr „Jetzt den Giftnotruf anrufen" oder
+   * „Heute anrufen", während dieselben Warnzeichen aus dem Befinden (W5, S4,
+   * R3, W2t) hier den ganzen Tag stehen. Warnzeichen hängen nicht an P6
+   * (Entscheidung „P6 sperrt … nicht Notfall, Warnzeichen") – also stehen
+   * die Abschnitte des Checks ab „In den nächsten Tagen" hier (Runde 4: E15).
+   * Bei W1 ist das nur der 112-Text (RW1 W1). „Nichts davon" (W3) und „genau
+   * eine zu viel" (W4b) nicht: Sie verlangen keinen Anruf, und die Texte aus
+   * dem Befinden stehen oben schon. Muster, Stufe, Befund und Dosis-Karte
+   * bleiben ohne P6 gesperrt. Mit P6 trägt der Verweis auf die Einschätzung
+   * den Check.
+   */
+  if (!aktiv) {
+    const w = ez.warnHeute(stand, heute);
+    const schon = new Set(liste.map((h) => h.regel));
+    if (w) {
+      w.abschnitte
+        .filter((a) => !['W3', 'W4b'].includes(a.id) && rang(a.stufe) >= rang('tage') && !schon.has(a.id))
+        .forEach((a) => {
+          const wann = `<p class="klein gedaempft">Warnzeichen-Check von heute${w.check.uhr ? `, ${esc(uhrText(w.check.uhr))}` : ''}:</p>`;
+          // W1 groß mit 112 wie auf der Ergebnisseite – ohne role="alert":
+          // „Heute" zeichnet oft neu, und jede Durchsage wiederholte sich.
+          if (a.id === 'W1') {
+            add('notruf', `
+              <div class="karte gefahr notruf-karte" data-regel="W1">${wann}
+                <p class="gross">${esc(a.text)}</p>
+                <div class="knopf-reihe">${a.anrufe.map((x) => anrufKnopf(x.nummer, x.text, { notruf: true, breit: true })).join('')}</div>
+              </div>`, true, 'W1');
+          } else if (a.id === 'W5') {
+            add(a.stufe, w5Karte(a.text), true, 'W5');
+          } else {
+            add(a.stufe, `
+              <div class="karte kern-hinweis ${hinweisKlasse(a.stufe)}" data-regel="${esc(a.id)}">
+                ${stufeZeile(a.stufe, ez.kopfFuer(a.stufe, [a]).titel)}
+                ${wann}
+                <p>${esc(a.text)}</p>
+                ${anrufReihe(a.anrufe)}
+              </div>`, false, a.id);
+          }
+        });
     }
   }
 

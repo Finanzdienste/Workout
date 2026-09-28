@@ -16,7 +16,7 @@
  *      gelesenen Stand – aus dem Speicher wie aus einer Datei – in die Form,
  *      mit der der Rest der App rechnet.
  */
-import { heuteISO, istISO, istUhr, tageZwischen, zahlAus, zahlText } from './datum.js';
+import { heuteISO, istISO, istUhr, tageZwischen, zahlAus, rohText, zuISO } from './datum.js';
 
 export const SCHLUESSEL = 'schilddruese.stand.v1';
 /*
@@ -398,7 +398,8 @@ export function wertWiderspruch(a, b) {
  */
 const WERTE = () => [...LABORWERTE, ...WEITERE_WERTE];
 const ZEIT_FELDER = { abnahmeUhr: 'Uhrzeit der Abnahme', tabletteUhr: 'Uhrzeit der Tablette', laborName: 'Labor' };
-const bereichText = (w) => `${w.von !== null ? zahlText(w.von, 3) : '…'}–${w.bis !== null ? zahlText(w.bis, 3) : '…'}`;
+// Die Grenzen, wie sie auf dem Befund stehen – ungerundet (Runde 4: E21).
+const bereichText = (w) => `${w.von !== null ? rohText(w.von) : '…'}–${w.bis !== null ? rohText(w.bis) : '…'}`;
 const verschieden = (a, b) => a !== null && b !== null && a !== b;
 
 function zusammenfuehren(labor) {
@@ -607,9 +608,20 @@ export function normStand(roh) {
 
   s.uhrWechsel = liste(roh.uhrWechsel, (u) => (istUhr(u.von) && istUhr(u.nach)
     ? { am: u.am, von: u.von, nach: u.nach } : null), 'am').sort((a, b) => a.am.localeCompare(b.am)).slice(-20);
-  s.nachfragen = liste(roh.nachfragen, (n) => (typeof n.art === 'string' && /^[a-z0-9_]{1,30}$/.test(n.art)
-    && typeof n.bezug === 'string' && n.bezug.length <= 40 && typeof n.antwort === 'string' && /^[a-z0-9_]{1,20}$/.test(n.antwort)
-    ? { art: n.art, bezug: n.bezug, antwort: n.antwort, am: n.am } : null), 'am').slice(-80);
+  // 'karte_gezeigt': welche Richtung die Dosis-Karte zu einem Befund gezeigt
+  // hat (bezug = Befund-ID, antwort mehr | weniger | gleich, am = Tag der
+  // Anzeige) – für „die zuletzt gezeigte Richtungskarte" im Arztbericht (RW2
+  // B1). Nur dafür ein kurzer Titel der Karte; eine andere Antwort ist keine
+  // Richtung und fällt weg (Runde 4: E16).
+  s.nachfragen = liste(roh.nachfragen, (n) => {
+    if (!(typeof n.art === 'string' && /^[a-z0-9_]{1,30}$/.test(n.art)
+      && typeof n.bezug === 'string' && n.bezug.length <= 40 && typeof n.antwort === 'string' && /^[a-z0-9_]{1,20}$/.test(n.antwort))) return null;
+    const eintrag = { art: n.art, bezug: n.bezug, antwort: n.antwort, am: n.am };
+    if (n.art !== 'karte_gezeigt') return eintrag;
+    if (!['mehr', 'weniger', 'gleich'].includes(n.antwort)) return null;
+    const titel = text(n.titel, 200).trim();
+    return titel ? { ...eintrag, titel } : eintrag;
+  }, 'am').slice(-80);
 
   // Der Arztbericht listet die Checks der letzten 90 Tage (Entscheidung 17).
   // Wer bei Herzklopfen täglich prüft (W-D1), hat schnell mehr als 50 – eine
@@ -987,16 +999,20 @@ export function vorratReicht(heute = heuteISO()) {
 
 // ---------------------------------------------------------------- Sicherung
 
+/*
+ * `dauerhaft` ist die Zusage des Browsers auf DIESEM Gerät
+ * (navigator.storage.persisted) und gehört nicht in die Sicherung. Mit ihr
+ * behauptete das neue Handy nach dem Einlesen „Der Browser hat zugesagt …",
+ * und der Tipp zum Startbildschirm fehlte – genau beim Umzug der Daten
+ * (Runde 4: E28). Beim Einlesen bleibt deshalb der Wert dieses Geräts.
+ */
 export function exportJSON() {
-  return JSON.stringify({ ...stand, exportiertAm: new Date().toISOString(), app: 'schilddruese' }, null, 2);
+  const { dauerhaft, ...rest } = stand;
+  return JSON.stringify({ ...rest, exportiertAm: new Date().toISOString(), app: 'schilddruese' }, null, 2);
 }
 
-/**
- * Eine Sicherung einlesen. Rückgabe { ok, grund }.
- * Der vorherige Stand bleibt unter einem Nebenschlüssel, bis das nächste
- * Einlesen ihn ersetzt – ein Fehlgriff lässt sich so zurückholen.
- */
-export function importJSON(textDaten) {
+/** Eine Sicherungsdatei lesen und prüfen, ohne etwas zu ändern. → { ok, grund, daten } */
+function sicherungLesen(textDaten) {
   let daten;
   try {
     daten = JSON.parse(textDaten);
@@ -1021,22 +1037,153 @@ export function importJSON(textDaten) {
   if (neuererStand) {
     return { ok: false, grund: 'Auf diesem Handy liegen Daten aus einer neueren Fassung der App. Bitte zuerst die App aktualisieren (Seite neu laden).' };
   }
+  return { ok: true, grund: '', daten };
+}
+
+/*
+ * Der Inhalt eines Stands, wie ihn eine Sicherung trägt – zum Vergleich beim
+ * Einlesen. Ohne das, was das Gerät oder die App von selbst einträgt: die
+ * Einstellungen, den Reiter, das Datum der letzten Sicherung, die Zusage des
+ * Browsers, den Haken „begrüßt" (setzt die App nach dem Einlesen selbst) und
+ * die Merkzettel der Dosis-Karte ('karte_gezeigt' – die schreibt schon das
+ * Anschauen). Sonst gälte ein Stand schon nach dem Öffnen einer Seite als
+ * „geändert", und der Schutz unten griffe nie. Ohne Kennungen: Ein Eintrag
+ * ohne gültige Kennung bekommt bei jedem Lesen eine neue. Einnahmen und
+ * Abstände nach Tag bzw. Mittel sortiert – die Reihenfolge sagt nichts.
+ */
+function inhaltVon(s) {
+  const ohneKennung = (eintraege) => eintraege.map(({ id, ...rest }) => rest);
+  const sortiert = (o) => Object.keys(o).sort().map((k) => [k, o[k]]);
+  const { begruesst, ...profil } = s.profil;
+  return JSON.stringify({
+    profil,
+    mittel: s.mittel,
+    mittelAbstand: sortiert(s.mittelAbstand),
+    mittelWechsel: ohneKennung(s.mittelWechsel),
+    uhrWechsel: ohneKennung(s.uhrWechsel),
+    nachfragen: ohneKennung(s.nachfragen.filter((n) => n.art !== 'karte_gezeigt')),
+    dosen: ohneKennung(s.dosen),
+    einnahmen: sortiert(s.einnahmen),
+    labor: ohneKennung(s.labor),
+    befinden: ohneKennung(s.befinden),
+    gewicht: ohneKennung(s.gewicht),
+    termine: ohneKennung(s.termine),
+    fragen: ohneKennung(s.fragen),
+    warnzeichen: ohneKennung(s.warnzeichen),
+    vorrat: s.vorrat,
+  });
+}
+
+/** Ein kurzer Fingerabdruck (FNV-1a und Länge) – die Rücklage soll nicht doppelt so groß werden. */
+function fingerabdruck(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${h.toString(36)}-${text.length}`;
+}
+
+/** Gibt es in diesem Stand etwas, das eine Rücklage wert ist? */
+const hatDaten = (s) => Boolean(s.profil.begruesst || s.dosen.length || Object.keys(s.einnahmen).length);
+
+export const SCHON_EINGELESEN = 'Diese Sicherung ist schon eingelesen. Auf diesem Handy wurde nichts geändert.';
+
+/*
+ * Umfang eines Stands für die Rückfrage vor dem Einlesen: Befunde, Tage mit
+ * Einnahme-Eintrag, der letzte davon (genommen oder bewusst nicht) und der
+ * jüngste Tag, an dem überhaupt etwas eingetragen wurde. Dosen und Termine
+ * zählen dafür nicht – sie dürfen in der Zukunft liegen.
+ */
+function umfangVon(s) {
+  const tage = Object.keys(s.einnahmen).sort();
+  const daten = [
+    ...tage, ...s.labor.map((l) => l.datum), ...s.befinden.map((b) => b.datum), ...s.gewicht.map((g) => g.datum),
+    ...s.warnzeichen.map((w) => w.datum), ...s.mittelWechsel.map((w) => w.am), ...s.uhrWechsel.map((u) => u.am),
+    ...s.nachfragen.filter((n) => n.art !== 'karte_gezeigt').map((n) => n.am), ...(s.vorrat ? [s.vorrat.stand] : []),
+  ].sort();
+  return {
+    hatDaten: hatDaten(s),
+    befunde: s.labor.length,
+    einnahmen: tage.length,
+    letzteEinnahme: tage.length ? tage[tage.length - 1] : null,
+    juengster: daten.length ? daten[daten.length - 1] : null,
+  };
+}
+
+/**
+ * Vor dem Einlesen: Was steht in der Datei, was auf diesem Handy? Für die
+ * Rückfrage, bevor eine Sicherung alles ersetzt – mit dem Datum der Datei
+ * und dem Hinweis, wenn sie älter ist als die Daten hier (Runde 4: E23).
+ * Ändert nichts.
+ * → { ok, grund, schonEingelesen, dateiAelter,
+ *     datei: { exportiertAm (ISO-Tag | null), befunde, einnahmen, letzteEinnahme, juengster, hatDaten },
+ *     handy: { hatDaten, befunde, einnahmen, letzteEinnahme, juengster } }
+ */
+export function sicherungPruefen(textDaten) {
+  const g = sicherungLesen(textDaten);
+  if (!g.ok) return { ok: false, grund: g.grund };
+  const neu = normStand(g.daten);
+  const zeit = typeof g.daten.exportiertAm === 'string' ? new Date(g.daten.exportiertAm) : null;
+  const datei = { ...umfangVon(neu), exportiertAm: zeit && !Number.isNaN(zeit.getTime()) ? zuISO(zeit) : null };
+  const handy = umfangVon(stand);
+  return {
+    ok: true,
+    grund: '',
+    schonEingelesen: Boolean(rueckholbar()) && inhaltVon(neu) === inhaltVon(stand),
+    dateiAelter: handy.hatDaten && handy.juengster !== null && (datei.juengster === null || datei.juengster < handy.juengster),
+    datei,
+    handy,
+  };
+}
+
+/**
+ * Eine Sicherung einlesen. Rückgabe { ok, grund, schonEingelesen }.
+ * Der vorherige Stand bleibt unter einem Nebenschlüssel – ein Fehlgriff
+ * lässt sich so zurückholen (siehe rueckholbar).
+ *
+ * Runde 4: E23. Wer dieselbe Sicherung zweimal einlas, verlor die Rücklage:
+ * Beim zweiten Mal wurde sie durch den Stand nach dem ersten Einlesen
+ * ersetzt, und „zurückholen" brachte nur noch die Sicherung selbst – die
+ * Befunde und Einnahmen von vorher waren weg. Deshalb:
+ *   - Entspricht die Datei dem Stand hier, während die Rücklage noch
+ *     rückholbar ist, wird nichts eingelesen und nichts ersetzt;
+ *     `schonEingelesen` sagt es der App.
+ *   - Ist der Stand seit dem letzten Einlesen unverändert (derselbe Inhalt wie
+ *     die damals eingelesene Datei), bleibt die rückholbare Rücklage von davor
+ *     stehen: Der jetzige Stand steckt ohnehin in jener Datei. So bleibt auch
+ *     nach einem Fehlgriff und dem richtigen Einlesen danach der Stand von
+ *     vor dem Fehlgriff zurückholbar.
+ */
+export function importJSON(textDaten) {
+  const g = sicherungLesen(textDaten);
+  if (!g.ok) return { ok: false, grund: g.grund, schonEingelesen: false };
+  const neu = normStand(g.daten);
+  const r = rueckholbar();
+  const inhaltJetzt = inhaltVon(stand);
+  const inhaltNeu = inhaltVon(neu);
+  if (r && inhaltNeu === inhaltJetzt) return { ok: false, grund: SCHON_EINGELESEN, schonEingelesen: true };
   // Die Rücklage nur, wenn es etwas zu sichern gibt – auf einem neuen Handy
   // ist der Stand davor leer, und ein Knopf, der ihn „zurückholt", wäre eine
-  // Falle. Mit Datum, damit der Knopf nicht wochenlang stehen bleibt.
-  const hatteDaten = stand.profil.begruesst || stand.dosen.length || Object.keys(stand.einnahmen).length;
+  // Falle. Mit Datum, damit der Knopf nicht wochenlang stehen bleibt, und mit
+  // dem Fingerabdruck des eingelesenen Inhalts für das nächste Einlesen.
+  const eingelesen = fingerabdruck(inhaltNeu);
   try {
-    if (hatteDaten) {
-      localStorage.setItem(`${SCHLUESSEL}.vorImport`, JSON.stringify({ am: heuteISO(), stand }));
+    if (r && r.eingelesen === fingerabdruck(inhaltJetzt)) {
+      localStorage.setItem(`${SCHLUESSEL}.vorImport`, JSON.stringify({ am: heuteISO(), stand: r.stand, eingelesen }));
+    } else if (hatDaten(stand)) {
+      localStorage.setItem(`${SCHLUESSEL}.vorImport`, JSON.stringify({ am: heuteISO(), stand, eingelesen }));
     } else {
       localStorage.removeItem(`${SCHLUESSEL}.vorImport`);
     }
   } catch { /* kein Platz für die Rücklage – dann eben ohne */ }
-  stand = normStand(daten);
+  const { dauerhaft } = stand;   // gehört zu diesem Gerät (E28, siehe exportJSON)
+  stand = neu;
+  stand.dauerhaft = dauerhaft;
   neuererStand = false;
   merken();
   melden();
-  return { ok: true, grund: '' };
+  return { ok: true, grund: '', schonEingelesen: false };
 }
 
 /**

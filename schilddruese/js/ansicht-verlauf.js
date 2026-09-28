@@ -50,15 +50,23 @@ function laborDiagramm(labor, key, name) {
   if (mitWert.length < 2) return '';
   const rechenbar = mitWert.filter((l) => inStandard(key, l[key]) !== null);
   if (rechenbar.length < 2) return '';
-  const punkte = rechenbar.map((l) => ({ datum: l.datum, wert: Math.round(inStandard(key, l[key]) * 1000) / 1000 }));
+  // Mit „<" und, wo nichts umgerechnet ist, dem Wert so, wie er auf dem
+  // Befund steht: Die Beschreibung für Vorleseprogramme nannte „< 0,01" als
+  // „0,01" und TSH 0,015 als „0,02" (Runde 4: E9, E21).
+  const punkte = rechenbar.map((l) => {
+    const std = inStandard(key, l[key]);
+    return { datum: l.datum, wert: Math.round(std * 1000) / 1000, unter: Boolean(l[key].unter), roh: Math.abs(std - l[key].wert) < 1e-9 };
+  });
   const letzter = rechenbar[rechenbar.length - 1][key];
   const von = grenzeInStandard(key, letzter, 'von');
   const bis = grenzeInStandard(key, letzter, 'bis');
   const bereich = von !== null && bis !== null ? [von, bis] : null;
+  // Nicht umgerechnete Grenzen stehen an der Achse wie auf dem Befund (Runde 4: E21).
+  const bereichRoh = Boolean(bereich) && Math.abs(von - letzter.von) < 1e-9 && Math.abs(bis - letzter.bis) < 1e-9;
   const einheit = STANDARD[key];
   const umgerechnet = rechenbar.some((l) => l[key].einheit !== einheit);
   const fehlen = mitWert.length - rechenbar.length;
-  return `<h3>${name} im Verlauf</h3>${verlaufslinie({ punkte, einheit, bereich, titel: name })}
+  return `<h3>${name} im Verlauf</h3>${verlaufslinie({ punkte, einheit, bereich, bereichRoh, titel: name })}
     <p class="klein gedaempft">${bereich ? 'Der helle Streifen ist der Bereich des Labors laut letztem Befund.' : 'Ohne vollständigen Bereich des Labors – beim nächsten Eintrag mit abschreiben.'}${umgerechnet ? ` Alle Werte in ${esc(einheit)} umgerechnet.` : ''}${fehlen ? ` ${fehlen === 1 ? 'Ein Wert steht' : `${fehlen} Werte stehen`} in einer Einheit, die die App nicht kennt, und ${fehlen === 1 ? 'ist' : 'sind'} deshalb nicht eingezeichnet.` : ''}</p>`;
 }
 
@@ -90,6 +98,26 @@ function einnahmenReihe(stand, heute, tage = 28) {
     <p class="klein gedaempft">✓ genommen · ✗ nicht genommen · ? kein Eintrag. Einen Tag antippen, um ihn nachzutragen.</p>`;
 }
 
+/*
+ * Noch kein Tag zählt: am Tag der Einrichtung, bevor die Tablette abgehakt
+ * ist (gezählt wird ab dem Einrichten, D0.7), oder wenn die erste Dosis erst
+ * künftig gilt. Dort stand „Sobald eine Dosis eingetragen ist, zählen die
+ * Tage hier mit" – direkt unter der gerade eingetragenen Dosis. Wer das las,
+ * hielt die Eingabe für verloren (Runde 4: E13).
+ */
+function einnahmenAb(heute) {
+  const ab = sp.zaehltAb();
+  if (!ab) return '<p class="gedaempft">Sobald eine Dosis eingetragen ist, zählen die Tage hier mit.</p>';
+  return `<p class="gedaempft">${ab > heute ? `Ab ${esc(datumInWorten(ab))}` : 'Ab heute'} zählt die App hier Ihre Einnahmen mit. Tippen Sie nach der Einnahme auf „Tablette genommen?".</p>`;
+}
+
+/*
+ * Die Übersicht. „Ändern" unter den Laborwerten öffnet bei genau einem
+ * Befund diesen direkt. Vorher führte es erst zu „Alle Laborwerte" mit
+ * demselben einen Befund, und erst das zweite „Ändern" öffnete das Formular –
+ * der Weg, den die Dosis-Karte zum Nachtragen des Bereichs verlangt (Runde 4:
+ * E7). Die Liste bleibt als „Alle anzeigen" erreichbar.
+ */
 export function verlaufAnsicht(stand, heute) {
   const dosis = sp.aktuelleDosis(heute);
   const naechste = sp.naechsteDosis(heute);
@@ -107,7 +135,8 @@ export function verlaufAnsicht(stand, heute) {
       ${laborDiagramm(labor, 'tsh', 'TSH')}
       <div class="knopf-reihe">
         <button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="labor">Laborwerte eintragen</button>
-        ${labor.length ? `<button type="button" class="knopf" data-act="seite" data-seite="labor-liste">${labor.length > 3 ? 'Alle anzeigen' : 'Ändern'}</button>` : ''}
+        ${labor.length === 1 ? `<button type="button" class="knopf" data-act="seite" data-seite="labor" data-param="${esc(labor[0].id)}" aria-label="Laborwerte vom ${esc(datumKurz(labor[0].datum))} ändern">Ändern</button>` : ''}
+        ${labor.length ? `<button type="button" class="knopf" data-act="seite" data-seite="labor-liste">${labor.length > 3 || labor.length === 1 ? 'Alle anzeigen' : 'Ändern'}</button>` : ''}
         ${labor.length ? '<button type="button" class="knopf" data-act="seite" data-seite="gesamtbild">Einschätzung</button>' : ''}
       </div>
     </div>
@@ -128,7 +157,7 @@ export function verlaufAnsicht(stand, heute) {
     <div class="karte">
       ${bilanz.tage
     ? `<p><strong>An ${bilanz.genommen} von ${mehrzahl(bilanz.tage, 'Tag', 'Tagen')}</strong> genommen${bilanz.ausgelassen ? `, an ${mehrzahl(bilanz.ausgelassen, 'Tag', 'Tagen')} nicht` : ''}${bilanz.unbekannt ? `, ${mehrzahl(bilanz.unbekannt, 'Tag', 'Tage')} ohne Eintrag` : ''} – in den letzten vier Wochen.</p>`
-    : '<p class="gedaempft">Sobald eine Dosis eingetragen ist, zählen die Tage hier mit.</p>'}
+    : einnahmenAb(heute)}
       ${einnahmenReihe(stand, heute)}
       <div class="knopf-reihe">
         <button type="button" class="knopf" data-act="seite" data-seite="einnahme">Tag nachtragen</button>

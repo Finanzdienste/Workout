@@ -14,17 +14,17 @@
  * Weiche unten – ohne Rahmenwerk, wie die Workout-App nebenan.
  */
 import * as sp from './speicher.js';
-import { heuteISO, jetztUhr, tageWeiter, istISO } from './datum.js';
-import { esc } from './text.js';
+import { heuteISO, jetztUhr, tageWeiter, istISO, datumKurz } from './datum.js';
+import { esc, mehrzahl } from './text.js';
 import { heuteAnsicht } from './ansicht-heute.js';
 import { verlaufAnsicht, verlaufSeite } from './ansicht-verlauf.js';
 import { mehrAnsicht, mehrSeite } from './ansicht-mehr.js';
 import { formular, absenden, eintragLoeschen } from './ansicht-formulare.js';
 import { einschaetzungSeite } from './ansicht-einschaetzung.js';
-import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS } from './ansicht-dosis.js';
+import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS, PRAXIS_NOCH_NICHT } from './ansicht-dosis.js';
 import { fragenVorschlaege, abnahmeHeute } from './einschaetzung.js';
 import { dosisHinweise } from './dosis.js';
-import { willkommenAnsicht, willkommenWeiter, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
+import { willkommenAnsicht, willkommenWeiter, willkommenEntwurf, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
 import { berichtText } from './bericht.js';
 import { erinnerungICS, terminICS } from './ics.js';
 
@@ -67,6 +67,12 @@ const ui = {
   seite: null,        // { name, param } oder null
   stapel: [],         // die Seiten darunter, zu denen „Zurück" führt
   schritt: 1,         // Willkommen: welcher Schritt
+  // Willkommen: was beim Tipp auf „Zurück" in einem Schritt stand, je Schritt
+  // (willkommenEntwurf). Ohne das war in Schritt 2 danach die Stärke leer und
+  // „Seit wann?" still wieder heute (Runde 4: E12).
+  entwurf: {},
+  formStand: null,    // die Felder des offenen Formulars beim Zeichnen (E5)
+  abgehakt: null,     // { tag, uhr } des Hakens von eben – für „Rückgängig" (E3)
 };
 
 const REITER_TITEL = { heute: 'Heute', verlauf: 'Verlauf', mehr: 'Mehr' };
@@ -79,12 +85,47 @@ const REITER_TITEL = { heute: 'Heute', verlauf: 'Verlauf', mehr: 'Mehr' };
  * dauerhaft auf der Seite und nicht nur hier.
  */
 let meldungTimer = null;
-export function meldung(text) {
+/*
+ * `optionen.knopf` ({ act, text }): ein Knopf in der Meldung, etwa
+ * „Rückgängig" nach „Tablette abgehakt" (Runde 4: E3). Die Meldung nimmt
+ * sonst keine Tipps an (pointer-events: none in css/styles.css) – mit Knopf
+ * nur, solange sie zu sehen ist. Ältere Aufrufe geben als zweites eine Dauer
+ * mit; die zählt nicht.
+ */
+export function meldung(text, optionen = null) {
+  const knopf = optionen && typeof optionen === 'object' ? optionen.knopf : null;
   $meldung.textContent = text;
+  if (knopf) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'knopf knopf-klein';
+    b.dataset.act = knopf.act;
+    b.textContent = knopf.text;
+    b.style.marginLeft = '.6rem';
+    $meldung.append(b);
+  }
+  $meldung.style.pointerEvents = knopf ? 'auto' : '';
+  $meldung.style.borderRadius = knopf ? '1.2rem' : '';
   $meldung.classList.add('zeigen');
   clearTimeout(meldungTimer);
   const dauer = 5000 + text.split(/\s+/).length * 350;
-  meldungTimer = setTimeout(() => $meldung.classList.remove('zeigen'), dauer);
+  meldungTimer = setTimeout(meldungZu, dauer);
+}
+
+// Die Meldung steht mit left: 50% fest unten – ohne feste Breite war sie
+// deshalb höchstens halb so breit wie der Bildschirm. Bei Schrift „sehr groß"
+// wurden längere Meldungen (etwa nach dem Abhaken einer Frage, Runde 4: E14)
+// ein schmaler Klecks über sieben Zeilen. So nimmt sie die Breite ihres Texts,
+// höchstens 92 % (max-width in css/styles.css).
+$meldung.style.width = 'max-content';
+
+function meldungZu() {
+  clearTimeout(meldungTimer);
+  $meldung.classList.remove('zeigen');
+  $meldung.style.pointerEvents = '';
+  $meldung.style.borderRadius = '';
+  // Ein unsichtbarer Knopf darf nicht mehr erreichbar sein – auch nicht mit der Tastatur.
+  $meldung.querySelectorAll('button').forEach((b) => b.remove());
 }
 
 /**
@@ -125,17 +166,24 @@ function render() {
   let titel = null;
   const willkommen = !stand.profil.begruesst;
   if (willkommen) {
-    html = willkommenAnsicht(ui.schritt, stand, heute);
+    // Ein Entwurf aus „Zurück" geht dem Stand vor (Runde 4: E12).
+    html = willkommenAnsicht(ui.schritt, stand, heute, ui.entwurf[ui.schritt] || null);
     titel = `Schritt ${ui.schritt} von ${WILLKOMMEN_SCHRITTE}`;
   } else if (ui.seite) {
     const s = seiteInhalt(ui.seite, stand, heute);
     html = s.html;
     titel = s.titel;
     // Die Dosis-Karte kann sich merken lassen, dass sie etwas gezeigt hat –
-    // einmal; beim nächsten Zeichnen liefert sie dafür nichts mehr.
+    // einmal; beim nächsten Zeichnen liefert sie dafür nichts mehr. Mit dem
+    // Titel der Karte: Der Bericht nennt so die zuletzt gezeigte Richtung in
+    // den Worten, die die Patientin gelesen hat (RW2 B1, Runde 4: E16).
+    // Der Titel ist danach Nutzerspeicher – jede Ansicht gibt ihn nur über esc() aus.
     if (s.merken) {
       const m = s.merken;
-      sp.aendern((st) => { st.nachfragen.push({ id: sp.kennung(), art: m.art, bezug: m.bezug, antwort: m.antwort, am: heute }); });
+      const titelText = typeof m.titel === 'string' ? m.titel.trim().slice(0, 200) : '';
+      sp.aendern((st) => {
+        st.nachfragen.push({ id: sp.kennung(), art: m.art, bezug: m.bezug, antwort: m.antwort, am: heute, ...(titelText ? { titel: titelText } : {}) });
+      });
     }
   } else if (ui.tab === 'verlauf') {
     html = verlaufAnsicht(stand, heute);
@@ -165,6 +213,19 @@ function render() {
   $reiter.querySelectorAll('.reiter').forEach((b) => {
     b.setAttribute('aria-selected', String(!willkommen && b.dataset.reiter === ui.tab && !ui.seite));
   });
+  // Was im Formular stand, als es gezeichnet wurde – daran misst verlassen(),
+  // ob etwas eingetippt und noch nicht gespeichert ist (Runde 4: E5).
+  ui.formStand = formStand();
+  // Ein Update hat während eines Formulars übernommen: jetzt neu laden, wo
+  // nichts mehr verloren geht (Runde 4: E25, siehe index.html). Dann ohne
+  // Schritt im Browserverlauf – der liefe sonst erst nach dem Neuladen.
+  if (window.__schilddrueseNeuLaden && neuLadenErlaubt()) {
+    window.__schilddrueseNeuLaden = false;
+    sp.sofortSchreiben();
+    location.reload();
+    return;
+  }
+  verlaufAbgleichen();
 }
 
 /*
@@ -185,6 +246,7 @@ function zeigeReiter(tab) {
   ui.seite = null;
   ui.stapel = [];
   reiterMerken(tab);
+  sperren();
   window.scrollTo(0, 0);
   render();
   $ansicht.focus({ preventScroll: true });
@@ -198,17 +260,155 @@ function zeigeReiter(tab) {
 function zeigeSeite(name, param = null, { ersetzen = false } = {}) {
   if (ui.seite && !ersetzen) ui.stapel.push(ui.seite);
   ui.seite = { name, param };
+  sperren();
+  window.scrollTo(0, 0);
+  render();
+  /*
+   * „Bundesland eintragen" (Notfallleiste, Wissen) öffnete „Über mich" ganz
+   * oben – die Auswahl stand bei Schrift „sehr groß" gut sieben Bildschirme
+   * tiefer, und oben stand nur „Alles freiwillig …" (Runde 4: E8). Jetzt steht
+   * sie in der Mitte und hat den Fokus.
+   */
+  const ziel = name === 'profil' && param === 'bundesland' ? $ansicht.querySelector('select[name="bundesland"]') : null;
+  if (ziel) {
+    ziel.scrollIntoView({ block: 'center' });
+    ziel.focus({ preventScroll: true });
+  } else {
+    $ansicht.focus({ preventScroll: true });
+  }
+}
+
+function zurueck() {
+  ui.seite = ui.stapel.pop() || null;
+  sperren();
   window.scrollTo(0, 0);
   render();
   $ansicht.focus({ preventScroll: true });
 }
 
-function zurueck() {
-  ui.seite = ui.stapel.pop() || null;
-  window.scrollTo(0, 0);
-  render();
-  $ansicht.focus({ preventScroll: true });
+// ---------------------------------------------------------------- Verlassen, Zurück-Taste
+
+/*
+ * Eine Seite verlassen – über „‹ Zurück", „Abbrechen", einen Reiter oder die
+ * Zurück-Taste des Handys. Vorher verwarf jeder dieser Wege ein halb
+ * ausgefülltes Formular ohne Rückfrage: TSH 3,8 und 0,27 abgetippt, einmal
+ * „Heute" angetippt, alles weg; „Herzerkrankung: Ja" in „Über mich" (bei
+ * Schrift „sehr groß" 5600 px über „Speichern") ebenso (Runde 4: E5).
+ * Verglichen wird mit dem Stand beim Zeichnen; wer nichts geändert hat, wird
+ * nicht gefragt. Nach dem Speichern (nachDemSpeichern) und nach „Löschen"
+ * fragt nichts – dort ist nichts verloren.
+ *
+ * Das Dosis-Formular nach „Die Dosis wird geändert" fragt stattdessen, ob die
+ * Praxis schon geändert hat (Runde 4: E1, praxisNachfrage).
+ */
+const VERWERFEN = 'Ihre Eingaben sind noch nicht gespeichert. Verwerfen und die Seite verlassen?';
+
+/** Die Felder des offenen Formulars als Text – oder null ohne Formular. */
+function formStand() {
+  const form = $ansicht.querySelector('form[data-formular]');
+  if (!form) return null;
+  return JSON.stringify([...new FormData(form)].map(([k, v]) => [k, typeof v === 'string' ? v : '']));
 }
+
+function eingabenGeaendert() {
+  const jetzt = formStand();
+  return jetzt !== null && jetzt !== ui.formStand;
+}
+
+function verlassen(weiter) {
+  const s = ui.seite;
+  if (s && s.praxisVorher && s.name === 'dosis' && s.param === 'praxis' && praxisNochGeaendert(s.praxisVorher)) {
+    praxisNachfrage(s.praxisVorher, weiter);
+    return;
+  }
+  if (eingabenGeaendert() && !window.confirm(VERWERFEN)) {
+    // Nach der Zurück-Taste steht die Seite so wieder im Verlauf des Browsers.
+    verlaufAbgleichen();
+    return;
+  }
+  weiter();
+}
+
+/*
+ * Die Zurück-Taste des Handys (Runde 4: E5). Die App legte für Seiten keine
+ * Einträge im Verlauf des Browsers an: Die Taste oder die Wischgeste
+ * verließ aus jedem Formular heraus die App, als installierte App wurde sie
+ * geschlossen – mit allem, was halb abgetippt war.
+ *
+ * Jetzt steht für jede offene Seite (und jeden Willkommensschritt nach dem
+ * ersten) ein Eintrag im Verlauf. Die Taste nimmt einen weg, und die App geht
+ * eine Seite zurück – mit derselben Rückfrage wie „‹ Zurück". Schließt die
+ * App Seiten selbst („‹ Zurück", Speichern, ein Reiter), nimmt sie die
+ * Einträge mit history.go() wieder weg; das popstate dazu kommt von ihr
+ * selbst und wird übergangen. Gezeichnet wird dabei sofort, nicht erst beim
+ * popstate. Einen Eintrag legt die App nur bei einem Tipp an: Chrome
+ * überspringt Einträge, die ohne Zutun entstehen.
+ */
+let verlaufTiefe = 0;     // wie viele eigene Einträge über dem der App liegen
+let eigeneSchritte = 0;   // so viele popstate kommen von history.go() der App
+
+function sollTiefe() {
+  const st = sp.getStand();
+  if (!st.profil.begruesst) return Math.max(0, ui.schritt - 1);
+  return ui.seite ? ui.stapel.length + 1 : 0;
+}
+
+function verlaufAbgleichen() {
+  const soll = sollTiefe();
+  if (soll === verlaufTiefe) return;
+  try {
+    if (soll > verlaufTiefe) {
+      for (let t = verlaufTiefe + 1; t <= soll; t++) history.pushState({ schilddruese: true, tiefe: t }, '');
+    } else {
+      eigeneSchritte++;
+      history.go(soll - verlaufTiefe);
+    }
+    verlaufTiefe = soll;
+  } catch { /* ohne Verlauf (etwa in einem eingebetteten Rahmen) wie bisher */ }
+}
+
+// Ein Eintrag aus der Zeit vor einem Neuladen gehört zu keiner offenen Seite
+// mehr: Die App startet auf einem Reiter. Sie geht deshalb auf ihren eigenen
+// Eintrag zurück – nur ersetzt, blieben darunter tote Einträge liegen, und
+// der erste Druck auf die Zurück-Taste bewirkte nichts (Nachprüfung zu E5,
+// auch nach dem aufgeschobenen Neuladen eines Updates, E25).
+try {
+  const alt = history.state && history.state.schilddruese ? Number(history.state.tiefe) || 0 : 0;
+  if (alt > 0) {
+    eigeneSchritte++;
+    history.go(-alt);
+  } else if (history.state && history.state.schilddruese) history.replaceState(null, '');
+} catch { /* egal */ }
+
+window.addEventListener('popstate', (e) => {
+  const neu = e.state && e.state.schilddruese ? Number(e.state.tiefe) || 0 : 0;
+  if (eigeneSchritte > 0) { eigeneSchritte--; return; }
+  if (neu > verlaufTiefe) {
+    // Vorwärts: Die Seite von damals gibt es nicht mehr – zurück, wo die App steht.
+    eigeneSchritte++;
+    history.go(verlaufTiefe - neu);
+    return;
+  }
+  if (neu === verlaufTiefe) return;
+  const schritte = verlaufTiefe - neu;
+  verlaufTiefe = neu;
+  // Eine offene Rückfrage: Die Taste heißt „nicht jetzt" – die Seite bleibt.
+  if (rueckfrage || auswahl) {
+    rueckfrageSchliessen(false);
+    auswahlFertig(null);
+    verlaufAbgleichen();
+    return;
+  }
+  if (!sp.getStand().profil.begruesst) {
+    willkommenZurueck(schritte);
+    return;
+  }
+  if (!ui.seite) return;
+  verlassen(() => {
+    for (let i = 1; i < schritte && ui.stapel.length; i++) ui.stapel.pop();
+    zurueck();
+  });
+});
 
 /** Nach dem Speichern: dorthin, wohin das Formular will – oder zurück. */
 function nachDemSpeichern(danach) {
@@ -217,6 +417,48 @@ function nachDemSpeichern(danach) {
   if (unten && unten.name === danach.name) { zurueck(); return; }
   zeigeSeite(danach.name, danach.param || null, { ersetzen: true });
 }
+
+// ---------------------------------------------------------------- Doppeltipp
+
+/*
+ * Nach einem Seiten- oder Reiterwechsel, nach dem Speichern und beim
+ * Abschluss der Einrichtung liegt unter dem Finger etwas anderes als eben.
+ * Ein ungeduldiger zweiter Tipp traf auf „Heute" bei Schrift „sehr groß" den
+ * großen Knopf „Tablette genommen?" und hakte die Tablette ab, bevor sie
+ * genommen war – am Einrichtungstag um 6:30 stand danach „✓ Tablette
+ * genommen" (Runde 4: E3). Für 0,6 Sekunden zählt deshalb kein zweiter Tipp
+ * an derselben Stelle: ein Finger oder Stift, oder der zweite Klick eines
+ * Doppelklicks (detail 2). Andere Stellen, ein einzelner Mausklick und die
+ * Tastatur (detail 0) bleiben frei – wer gezielt tippt, wird nicht aufgehalten.
+ */
+const SPERRE_MS = 600;
+const SPERRE_PX = 48;
+let letzterDruck = null;   // { x, y, t, finger } des letzten Fingers oder Mausdrucks
+let sperre = null;         // { x, y, bis }
+
+document.addEventListener('pointerdown', (e) => {
+  letzterDruck = { x: e.clientX, y: e.clientY, t: performance.now(), finger: e.pointerType !== 'mouse' };
+}, true);
+
+function sperren() {
+  const jetzt = performance.now();
+  sperre = letzterDruck && jetzt - letzterDruck.t < 1500 ? { x: letzterDruck.x, y: letzterDruck.y, bis: jetzt + SPERRE_MS } : null;
+}
+
+document.addEventListener('click', (e) => {
+  // Notrufnummern sind immer anrufbar: Auf der Seite nach „Auswerten" lag
+  // „112 anrufen" genau unter dem Finger, und ein Tipp 0,35 Sekunden später
+  // kam nie beim Link an – ein Anruf, der nicht zustande kommt, wiegt
+  // schwerer als ein versehentlich geöffnetes Wählfeld (Nachprüfung zu E3).
+  if (e.target && e.target.closest && e.target.closest('a[href^="tel:"]')) return;
+  if (!sperre || e.detail === 0) return;
+  if (performance.now() > sperre.bis) { sperre = null; return; }
+  if (Math.hypot(e.clientX - sperre.x, e.clientY - sperre.y) > SPERRE_PX) return;
+  if (!(letzterDruck && letzterDruck.finger) && e.detail < 2) return;
+  // Auch die Wirkung des Browsers (Absenden, Haken, Link) bleibt aus.
+  e.preventDefault();
+  e.stopImmediatePropagation();
+}, true);
 
 // ---------------------------------------------------------------- Dateien
 
@@ -256,23 +498,61 @@ async function sicherungSpeichern() {
   meldung('Sicherung gespeichert');
 }
 
+/*
+ * Vor dem Einlesen: Was ersetzt die Datei? Vorher ersetzte sie ohne ein Wort
+ * alles auf dem Handy, und wer dieselbe ältere Datei zweimal einlas, verlor
+ * die Rücklage – „zurückholen" brachte danach nur noch die Sicherung, die
+ * Befunde und Einnahmen von vorher waren weg (Runde 4: E23). Jetzt nennt die
+ * Rückfrage das Datum der Datei und den Umfang auf beiden Seiten, und sie
+ * sagt es, wenn die Datei älter ist. Ältere Dateien tragen kein Datum.
+ */
+const umfangText = (u) => `${u.befunde ? mehrzahl(u.befunde, 'Befund', 'Befunde') : 'keine Befunde'}, ${u.letzteEinnahme ? `Einnahmen bis ${datumKurz(u.letzteEinnahme)}` : 'keine Einnahmen'}`;
+
+function einlesenFrage(p) {
+  const kopf = p.datei.exportiertAm ? `Sicherung vom ${datumKurz(p.datei.exportiertAm)} einlesen?` : 'Sicherung einlesen? Die Datei nennt kein Datum.';
+  return [
+    kopf,
+    `Sie ersetzt alles auf diesem Handy (${umfangText(p.handy)}).`,
+    `In der Datei: ${umfangText(p.datei)}.`,
+    ...(p.dateiAelter ? ['Achtung: Die Datei ist älter als die Daten auf diesem Handy.'] : []),
+  ].join('\n\n');
+}
+
 function sicherungLaden(datei) {
   if (!datei) return;
   const leser = new FileReader();
   leser.onload = () => {
+    const text = String(leser.result || '');
+    const kaputt = { ok: false, grund: 'Die Datei ließ sich nicht einlesen. Es wurde nichts geändert.' };
+    let pruefung;
+    try {
+      pruefung = sp.sicherungPruefen(text);
+    } catch {
+      pruefung = kaputt;
+    }
+    if (!pruefung.ok) { window.alert(pruefung.grund); return; }
+    // Dieselbe Datei noch einmal: nichts ersetzen, und das deutlich sagen –
+    // nicht als kurze Meldung, die man übersieht und es wieder versucht.
+    if (pruefung.schonEingelesen) { window.alert(sp.SCHON_EINGELESEN); return; }
+    // Auf einem neuen Handy gibt es nichts zu ersetzen – dann ohne Rückfrage.
+    if (pruefung.handy.hatDaten && !window.confirm(einlesenFrage(pruefung))) {
+      meldung('Nicht eingelesen – auf diesem Handy bleibt alles, wie es war.');
+      return;
+    }
     let ergebnis;
     try {
-      ergebnis = sp.importJSON(String(leser.result || ''));
+      ergebnis = sp.importJSON(text);
     } catch {
       // Was normStand nicht abfängt, darf nicht still im Nichts enden.
-      ergebnis = { ok: false, grund: 'Die Datei ließ sich nicht einlesen. Es wurde nichts geändert.' };
+      ergebnis = kaputt;
     }
     if (ergebnis.ok) {
-      meldung('Sicherung eingelesen');
+      meldung(pruefung.datei.exportiertAm ? `Sicherung vom ${datumKurz(pruefung.datei.exportiertAm)} eingelesen` : 'Sicherung eingelesen');
       ui.seite = null;
       ui.stapel = [];
       ui.tab = 'heute';
       ui.schritt = 1;
+      ui.entwurf = {};
       // Eine Sicherung stammt von jemandem, der schon eingerichtet war –
       // auch wenn sie ausnahmsweise ohne diesen Haken gespeichert wurde.
       if (!sp.getStand().profil.begruesst && sp.aktuelleDosis()) sp.aendern((s) => { s.profil.begruesst = true; });
@@ -333,16 +613,27 @@ async function tablettenHinweis() {
    * Am Morgen einer Blutabnahme kommt die Tablette erst danach (RW1 L0d).
    * Der Hinweis „Nüchtern, mit einem Glas Wasser" sagte um 7 Uhr das
    * Gegenteil – wer ihm folgte, bekam ein erhöhtes fT4 (D16). Bis zur
-   * Uhrzeit der Abnahme (ohne Uhrzeit den ganzen Tag) also keiner. Gemerkt
-   * wird erst ein wirklich gezeigter Hinweis: Nach der Abnahme erinnert die
-   * App dann noch – der Minutentakt in tagPruefen() ruft hier wieder an.
+   * Uhrzeit der Abnahme also keiner. Gemerkt wird erst ein wirklich
+   * gezeigter Hinweis: Nach der Abnahme erinnert die App dann noch – der
+   * Minutentakt in tagPruefen() ruft hier wieder an.
+   *
+   * Ohne Uhrzeit weiß die App nicht, wann die Abnahme vorbei ist. Vorher
+   * schwieg der Hinweis dann den ganzen Tag: Wer die Tablette nach der
+   * Abnahme vergaß, wurde nicht mehr erinnert, und bei Einnahme am Abend fiel
+   * die Erinnerung ohne Grund weg (Runde 4: E34). Jetzt kommt er zur
+   * gewohnten Zeit – mit dem Satz, dass die Tablette erst nach der Abnahme
+   * kommt, statt „Nüchtern, mit einem Glas Wasser".
    */
-  if (abnahmeHeute(stand, heute, jetztUhr())) return;
+  const abnahme = abnahmeHeute(stand, heute, jetztUhr());
+  if (abnahme && abnahme.uhr) return;
   try {
     if (localStorage.getItem(HINWEIS_MERK) === heute) return;
     localStorage.setItem(HINWEIS_MERK, heute);
   } catch { return; }
-  const optionen = { body: 'Nüchtern, mit einem Glas Wasser – und danach hier abhaken.', tag: 'schilddruese-tablette', icon: './icon-192.png' };
+  const body = abnahme
+    ? 'Heute ist Blutabnahme: die Tablette erst nach der Abnahme nehmen – und danach hier abhaken.'
+    : 'Nüchtern, mit einem Glas Wasser – und danach hier abhaken.';
+  const optionen = { body, tag: 'schilddruese-tablette', icon: './icon-192.png' };
   try {
     const reg = navigator.serviceWorker ? await navigator.serviceWorker.getRegistration() : null;
     if (reg) await reg.showNotification('Schilddrüsentablette', optionen);
@@ -385,19 +676,43 @@ function aktion(el) {
   const heute = heuteISO();
   switch (act) {
     case 'zurueck':
-      zurueck();
+      // „‹ Zurück" und „Abbrechen": mit Rückfrage, wenn Eingaben verloren gingen (E5).
+      verlassen(zurueck);
       break;
     case 'seite':
+      // Aus einem Formular heraus – etwa „Eintrag vom … öffnen" unter einem
+      // belegten Datum – ist das Eingetippte beim Zurückkommen weg. Wie beim
+      // Zurück erst fragen (Nachprüfung zu E22/E5).
+      if (eingabenGeaendert() && !window.confirm(VERWERFEN)) break;
       zeigeSeite(el.dataset.seite, el.dataset.param || null);
       break;
     case 'reiter':
-      zeigeReiter(el.dataset.reiter);
+      verlassen(() => zeigeReiter(el.dataset.reiter));
       break;
-    case 'tablette':
-      sp.einnahmeSetzen(heute, { uhr: jetztUhr() });
+    case 'tablette': {
+      // Abhaken fragt nicht nach – ein Fehltipp lässt sich aber gleich in der
+      // Meldung zurücknehmen, ohne die Rückfrage von „Zurücknehmen" (Runde 4: E3).
+      const uhr = jetztUhr();
+      sp.einnahmeSetzen(heute, { uhr });
+      ui.abgehakt = { tag: heute, uhr };
       render();
-      meldung('Tablette abgehakt');
+      meldung('Tablette abgehakt', { knopf: { act: 'tablette-rueckgaengig', text: 'Rückgängig' } });
       break;
+    }
+    case 'tablette-rueckgaengig': {
+      // Nur der Haken von eben – steht inzwischen etwas anderes da (eine
+      // andere Uhrzeit, ein neuer Tag), bleibt es.
+      const a = ui.abgehakt;
+      const e = sp.einnahme(heute);
+      ui.abgehakt = null;
+      meldungZu();
+      if (a && a.tag === heute && e && e.uhr === a.uhr) {
+        sp.einnahmeSetzen(heute, undefined);
+        render();
+        meldung('Zurückgenommen – heute ist keine Tablette abgehakt.');
+      }
+      break;
+    }
     case 'tablette-zurueck':
       if (window.confirm('Den Haken für heute zurücknehmen?')) {
         sp.einnahmeSetzen(heute, undefined);
@@ -442,11 +757,15 @@ function aktion(el) {
     }
     case 'frage-erledigt': {
       const id = el.dataset.id;
+      let erledigt = null;
       sp.aendern((s) => {
         const f = s.fragen.find((x) => x.id === id);
-        if (f) f.erledigt = !f.erledigt;
+        if (f) { f.erledigt = !f.erledigt; erledigt = f.erledigt; }
       });
       render();
+      // Die Frage springt dabei ans Ende unter „Besprochen" – ohne ein Wort
+      // sah das aus, als sei sie verschwunden (Runde 4: E14).
+      if (erledigt !== null) meldung(erledigt ? 'Als besprochen markiert – steht jetzt unten unter „Besprochen"' : 'Wieder offen');
       break;
     }
     case 'behandelt':
@@ -460,15 +779,27 @@ function aktion(el) {
       break;
     case 'praxis-entscheid': {
       // D6b: Die Entscheidung der Praxis gilt – mit Datum am Befund.
+      // „Noch nichts entschieden" nimmt eine frühere Angabe zurück, mit Datum
+      // wie F8 „Noch nicht" (Runde 4: E1).
       const wert = el.dataset.wert;
-      if (!['bleibt', 'geaendert', 'nachmessen'].includes(wert)) break;
+      if (!['bleibt', 'geaendert', 'nachmessen', 'nochnicht'].includes(wert)) break;
+      let vorher = null;
       sp.aendern((s) => {
         const b = s.labor.find((l) => l.id === el.dataset.id);
-        if (b) { b.praxis = wert; b.praxisAm = heute; }
+        if (b) {
+          vorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm };
+          b.praxis = wert;
+          b.praxisAm = heute;
+        }
       });
-      if (wert === 'geaendert') zeigeSeite('dosis', 'praxis', { ersetzen: true });
-      else zurueck();
-      meldung(wert === 'geaendert' ? PRAXIS_NEUE_DOSIS : PRAXIS_BESTAETIGUNG);
+      if (wert === 'geaendert') {
+        zeigeSeite('dosis', 'praxis', { ersetzen: true });
+        // Für die Rückfrage beim Verlassen ohne Dosis (praxisNachfrage).
+        if (vorher) ui.seite.praxisVorher = vorher;
+      } else {
+        zurueck();
+      }
+      meldung(wert === 'geaendert' ? PRAXIS_NEUE_DOSIS : wert === 'nochnicht' ? PRAXIS_NOCH_NICHT : PRAXIS_BESTAETIGUNG);
       break;
     }
     case 'ziel-bestaetigt':
@@ -491,10 +822,14 @@ function aktion(el) {
       break;
     }
     case 'befund-bestaetigen':
-      rueckfrageSchliessen(true);
+      // Erst, wenn die Rückfrage wirklich zu sehen war (Runde 4: E2).
+      if (rueckfrage && rueckfrage.bereit) rueckfrageSchliessen(true);
       break;
     case 'befund-korrigieren':
       rueckfrageSchliessen(false);
+      break;
+    case 'auswahl':
+      if (auswahl && auswahl.bereit) auswahlFertig(el.dataset.wert);
       break;
     case 'fragen-uebernehmen': {
       const neu = fragenVorschlaege(stand, heute).filter((t) => !stand.fragen.some((f) => f.text === t));
@@ -530,11 +865,22 @@ function aktion(el) {
     case 'ics-termin': {
       const t = stand.termine.find((x) => x.id === el.dataset.id);
       if (!t) break;
-      const titel = t.art === 'labor' ? 'Blutabnahme Schilddrüse' : t.art === 'arzt' ? 'Arzttermin Schilddrüse' : 'Termin';
+      const abnahme = t.art === 'labor' || Boolean(t.blutabnahme);
+      /*
+       * Mit Blutabnahme steht die Tablette schon im Titel. Am Morgen der
+       * Abnahme klingelten um 7 Uhr „Schilddrüsentablette nehmen – Nüchtern,
+       * mit einem Glas Wasser" und „Blutabnahme Schilddrüse"; dass die
+       * Tablette warten muss, sagte nur die Erinnerung am Vortag. Der Alarm
+       * eine Stunde vorher zeigt nur den Titel – iOS ohnehin nur ihn, und
+       * Google Kalender übernimmt beim Einlesen keine eigenen Alarme (RW1
+       * L0d, Runde 4: E27).
+       */
+      const art = t.art === 'labor' ? 'Blutabnahme Schilddrüse' : t.art === 'arzt' ? 'Arzttermin Schilddrüse' : 'Termin';
+      const titel = !abnahme ? art : t.art === 'labor' ? `${art} – Tablette erst danach` : `${art} mit Blutabnahme – Tablette erst danach`;
       herunterladen(`termin-${t.datum}.ics`, terminICS({
         id: t.id, datum: t.datum, uhr: t.uhr, titel: t.wo ? `${titel} – ${t.wo}` : titel,
-        notiz: [t.blutabnahme || t.art === 'labor' ? 'Tablette wie mit der Praxis besprochen – meist erst nach der Blutabnahme.' : '', t.notiz].filter(Boolean).join('\n'),
-        blutabnahme: t.art === 'labor' || t.blutabnahme,
+        notiz: [abnahme ? 'Tablette wie mit der Praxis besprochen – meist erst nach der Blutabnahme.' : '', t.notiz].filter(Boolean).join('\n'),
+        blutabnahme: abnahme,
         biotin: stand.mittel.includes('biotin'),
       }), 'text/calendar');
       meldung('Kalenderdatei erzeugt', 3000);
@@ -560,6 +906,7 @@ function aktion(el) {
         ui.stapel = [];
         ui.tab = 'heute';
         ui.schritt = 1;
+        ui.entwurf = {};
         render();
         meldung('Alles gelöscht');
       }
@@ -576,13 +923,24 @@ function aktion(el) {
     case 'willkommen-weiter': {
       const form = el.closest('form');
       const ergebnis = willkommenWeiter(ui.schritt, form, heute);
+      // Eine ungewöhnliche Stärke („7,5" statt „75"): dieselbe Rückfrage wie
+      // beim Befund. „Ja, stimmt" schickt den Schritt mit bestaetigt=ja noch
+      // einmal ab (Runde 4: E10). `fehler` ist nur der Rückfall ohne Dialog.
+      if (!ergebnis.ok && ergebnis.rueckfragen) {
+        rueckfrageZeigen(form, ergebnis.rueckfragen, { satz: ergebnis.rueckfrageSatz, feld: ergebnis.rueckfrageFeld });
+        break;
+      }
       if (!ergebnis.ok) { zeigeFehler(form, ergebnis.fehler); break; }
+      // Gespeichert – ab jetzt gilt der Stand, nicht ein alter Entwurf.
+      delete ui.entwurf[ui.schritt];
+      sperren();
       if (ui.schritt >= WILLKOMMEN_SCHRITTE) {
         sp.aendern((s) => {
           s.profil.begruesst = true;
           if (!s.profil.seit) s.profil.seit = heute;
         });
         ui.schritt = 1;
+        ui.entwurf = {};
         ui.tab = 'heute';
         window.scrollTo(0, 0);
         render();
@@ -597,16 +955,30 @@ function aktion(el) {
       break;
     }
     case 'willkommen-zurueck':
-      if (ui.schritt > 1) {
-        ui.schritt--;
-        window.scrollTo(0, 0);
-        render();
-        $ansicht.focus({ preventScroll: true });
-      }
+      willkommenZurueck();
       break;
     default:
       break;
   }
+}
+
+/*
+ * Willkommen: einen Schritt zurück. „Zurück" speichert nichts – die Felder
+ * dieses Schritts bleiben als Entwurf, bis „Weiter" sie speichert. Vorher
+ * waren in Schritt 2 danach die Stärke leer und „Seit wann?" still wieder
+ * heute; wer nur die Stärke neu eintippte, hatte die Dosis ab heute
+ * (Runde 4: E12). Auch für die Zurück-Taste des Handys (E5).
+ */
+function willkommenZurueck(schritte = 1) {
+  if (ui.schritt <= 1) return;
+  const form = $ansicht.querySelector('form');
+  if (form) ui.entwurf[ui.schritt] = willkommenEntwurf(form);
+  rueckfrageSchliessen(null);
+  ui.schritt = Math.max(1, ui.schritt - schritte);
+  sperren();
+  window.scrollTo(0, 0);
+  render();
+  $ansicht.focus({ preventScroll: true });
 }
 
 /*
@@ -653,11 +1025,13 @@ const PROFIL_ANTWORTEN = {
  */
 function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
   let geschrieben = false;
+  let praxisVorher = null;
   if (/^[a-z0-9_]{1,20}$/i.test(wert || '') && /^[A-Za-z0-9_]{1,30}$/.test(feld || '')) {
     sp.aendern((s) => {
       if (ziel === 'befund') {
         const b = s.labor.find((l) => l.id === bezug);
         if (!b || !(BEFUND_ANTWORTEN[feld] || []).includes(wert)) return;
+        if (feld === 'praxis') praxisVorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm };
         b[feld] = wert;
         if (feld === 'praxis') b.praxisAm = heute;
         geschrieben = true;
@@ -692,6 +1066,8 @@ function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
   // Die Karte bleibt darunter liegen – nach dem Speichern geht es zu ihr zurück.
   if (ziel === 'befund' && feld === 'praxis' && wert === 'geaendert') {
     zeigeSeite('dosis', 'praxis');
+    // Verlässt sie das Formular ohne Dosis, fragt die App nach (Runde 4: E1).
+    if (praxisVorher) ui.seite.praxisVorher = praxisVorher;
     meldung(PRAXIS_NEUE_DOSIS);
     return;
   }
@@ -712,44 +1088,85 @@ function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
  * Die Rückfrage beim Befund (einheiten.befundPruefen): ein Dialog im Stil der
  * App mit den ungewöhnlichen Werten. „Ja, stimmt" speichert mit Bestätigung,
  * „Korrigieren" führt zurück ins Formular – die Eingaben bleiben stehen.
+ * Dieselbe Rückfrage bei einer ungewöhnlichen Stärke (Dosis, Einrichten):
+ * dann mit eigenem Satz („… auf der Packung?") und dem Feld, zu dem
+ * „Korrigieren" führt (Runde 4: E10).
+ *
+ * Die Knöpfe sind die ersten 0,6 Sekunden gesperrt, und der Fokus steht auf
+ * der Überschrift. Vorher lag „Ja, stimmt" bei Schrift „sehr groß" genau dort,
+ * wo eben „Speichern" war, schon mit Fokus: Ein ungeduldiger zweiter Tipp
+ * bestätigte TSH 0,21 statt 2,1 ungelesen, und die Karte leitete daraus eine
+ * Richtung ab (Runde 4: E2). Gesperrte Knöpfe nehmen keinen Tipp an – wer
+ * liest, merkt davon nichts.
  */
-let rueckfrage = null;   // { dialog, form }
+const FREIGABE_MS = 600;
+let rueckfrage = null;   // { dialog, form, feld, bereit }
+let auswahl = null;      // { dialog, wahl, bereit } – eine Rückfrage mit eigenen Antworten
 
-function rueckfrageZeigen(form, fragen) {
-  rueckfrageSchliessen(null);
+/** Den Dialog bauen und zeigen. knoepfe: [{ text, klasse, act, wert }] → der Dialog. */
+function dialogZeigen({ titel, punkte = [], satz = '', knoepfe, art, abbrechen }) {
   const dialog = document.createElement('dialog');
   dialog.className = 'rueckfrage';
+  if (art) dialog.dataset.frage = art;
   dialog.setAttribute('aria-labelledby', 'rueckfrage-titel');
   const h = document.createElement('h2');
   h.id = 'rueckfrage-titel';
-  h.textContent = 'Bitte prüfen';
-  const ul = document.createElement('ul');
-  fragen.forEach((t) => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
-  const p = document.createElement('p');
-  p.textContent = 'Steht es genau so auf dem Befund?';
+  h.tabIndex = -1;
+  h.textContent = titel;
+  dialog.append(h);
+  if (punkte.length) {
+    const ul = document.createElement('ul');
+    punkte.forEach((t) => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    dialog.append(ul);
+  }
+  if (satz) {
+    const p = document.createElement('p');
+    p.textContent = satz;
+    dialog.append(p);
+  }
   const reihe = document.createElement('div');
   reihe.className = 'knopf-reihe';
-  [['befund-bestaetigen', 'Ja, stimmt', 'knopf knopf-haupt'], ['befund-korrigieren', 'Korrigieren', 'knopf']].forEach(([act, text, klasse]) => {
+  const liste = knoepfe.map(({ text, klasse, act, wert }) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = klasse;
     b.dataset.act = act;
+    if (wert) b.dataset.wert = wert;
     b.textContent = text;
+    b.disabled = true;
     reihe.appendChild(b);
+    return b;
   });
-  dialog.append(h, ul, p, reihe);
-  // Escape heißt „Korrigieren".
-  dialog.addEventListener('cancel', (e) => { e.preventDefault(); rueckfrageSchliessen(false); });
+  dialog.append(reihe);
+  // Escape (und die Zurück-Taste, wo der Browser sie dem Dialog gibt) heißt „nicht so".
+  dialog.addEventListener('cancel', (e) => { e.preventDefault(); abbrechen(); });
   document.body.appendChild(dialog);
-  rueckfrage = { dialog, form };
   if (dialog.showModal) dialog.showModal(); else dialog.setAttribute('open', '');
-  reihe.querySelector('button').focus();
+  h.focus();
+  return { dialog, freigeben: (fertig) => setTimeout(() => { liste.forEach((b) => { b.disabled = false; }); fertig(); }, FREIGABE_MS) };
+}
+
+function rueckfrageZeigen(form, fragen, { satz = '', feld = '' } = {}) {
+  rueckfrageSchliessen(null);
+  const { dialog, freigeben } = dialogZeigen({
+    titel: 'Bitte prüfen',
+    punkte: fragen,
+    satz: satz || 'Steht es genau so auf dem Befund?',
+    knoepfe: [
+      { text: 'Ja, stimmt', klasse: 'knopf knopf-haupt', act: 'befund-bestaetigen' },
+      { text: 'Korrigieren', klasse: 'knopf', act: 'befund-korrigieren' },
+    ],
+    abbrechen: () => rueckfrageSchliessen(false),
+  });
+  const r = { dialog, form, feld, bereit: false };
+  rueckfrage = r;
+  freigeben(() => { r.bereit = true; });
 }
 
 /** true: bestätigt speichern · false: zurück ins Formular · null: nur schließen. */
 function rueckfrageSchliessen(bestaetigt) {
   if (!rueckfrage) return;
-  const { dialog, form } = rueckfrage;
+  const { dialog, form, feld: feldName } = rueckfrage;
   rueckfrage = null;
   if (dialog.open && dialog.close) dialog.close();
   dialog.remove();
@@ -764,12 +1181,91 @@ function rueckfrageSchliessen(bestaetigt) {
     feld.value = 'ja';
     form.requestSubmit();
   } else if (bestaetigt === false && form.isConnected) {
-    const erstes = form.querySelector('input[name$="_wert"]');
+    // „Korrigieren" führt zum Feld, um das es geht – bei der Stärke also
+    // dorthin, nicht zum ersten Laborwert.
+    const erstes = (feldName && form.querySelector(`[name="${CSS.escape(feldName)}"]`)) || form.querySelector('input[name$="_wert"]');
     if (erstes) {
       erstes.scrollIntoView({ block: 'center' });
       erstes.focus({ preventScroll: true });
     }
   }
+}
+
+/** Eine Rückfrage mit eigenen Antworten; `wahl(wert)` bekommt die Antwort, null bei Escape. */
+function auswahlZeigen({ titel, satz, knoepfe, art }, wahl) {
+  auswahlFertig(null);
+  const { dialog, freigeben } = dialogZeigen({
+    titel, satz, art, knoepfe: knoepfe.map(([wert, text, klasse]) => ({ text, klasse, act: 'auswahl', wert })), abbrechen: () => auswahlFertig(null),
+  });
+  const a = { dialog, wahl, bereit: false };
+  auswahl = a;
+  freigeben(() => { a.bereit = true; });
+}
+
+function auswahlFertig(wert) {
+  if (!auswahl) return;
+  const { dialog, wahl } = auswahl;
+  auswahl = null;
+  if (dialog.open && dialog.close) dialog.close();
+  dialog.remove();
+  wahl(wert || null);
+}
+
+/*
+ * „Neue Dosis eintragen" (Die Praxis hat entschieden) und F8 „Ja: Die Dosis
+ * wird geändert" speichern die Angabe sofort, erst danach öffnet sich das
+ * Formular. „Abbrechen" nahm sie nicht zurück: Nach einem Fehltipp galt der
+ * Befund als von der Praxis erklärt – „Heute" schwieg zu TSH < 0,01 und fT4
+ * 2,1 ng/dl monatelang, und ohne Dosis-Eintrag kam nie eine Erinnerung an die
+ * Kontrolle (Runde 4: E1). Wer dieses Formular ohne Dosis verlässt, wird
+ * deshalb gefragt. „Nein" stellt die Angabe von vorher wieder her; war dort
+ * nichts entschieden, gilt „Noch nichts entschieden" mit dem Datum von heute
+ * (wie F8 „Noch nicht"). Die Frage deckt auch ungespeicherte Eingaben ab
+ * („… noch nicht eingetragen"), und „Zurück zum Formular" bleibt.
+ */
+const PRAXIS_ENTSCHIEDEN = { bleibt: 'Die Dosis bleibt so', nachmessen: 'Erst nachmessen' };
+
+function praxisNochGeaendert(vorher) {
+  const b = sp.getStand().labor.find((l) => l.id === vorher.befund);
+  return Boolean(b && b.praxis === 'geaendert');
+}
+
+function praxisNachfrage(vorher, weiter) {
+  const entschieden = PRAXIS_ENTSCHIEDEN[vorher.praxis] || null;
+  auswahlZeigen({
+    art: 'praxis',
+    titel: 'Hat die Praxis Ihre Dosis schon geändert?',
+    satz: 'Die neue Dosis ist noch nicht eingetragen.',
+    knoepfe: [
+      ['spaeter', 'Ja – ich trage sie später ein', 'knopf knopf-breit'],
+      ['nein', entschieden ? `Nein – es gilt weiter: ${entschieden}` : 'Nein, noch nichts entschieden', 'knopf knopf-breit'],
+      ['bleiben', 'Zurück zum Formular', 'knopf knopf-leise knopf-breit'],
+    ],
+  }, (wahl) => {
+    if (wahl === 'spaeter') {
+      weiter();
+      meldung('Vermerkt: Die Praxis hat die Dosis geändert. Bitte tragen Sie die neue Dosis ein, sobald Sie sie kennen.');
+    } else if (wahl === 'nein') {
+      const heute = heuteISO();
+      const zurueckAuf = entschieden || vorher.praxis === 'nochnicht'
+        ? { praxis: vorher.praxis, praxisAm: vorher.praxisAm }
+        : { praxis: 'nochnicht', praxisAm: heute };
+      sp.aendern((s) => {
+        const b = s.labor.find((l) => l.id === vorher.befund);
+        if (b && b.praxis === 'geaendert') Object.assign(b, zurueckAuf);
+      });
+      weiter();
+      meldung(entschieden ? `Zurückgenommen – es gilt weiter: ${entschieden}.` : PRAXIS_NOCH_NICHT);
+    } else {
+      // Bleiben: Nach der Zurück-Taste steht die Seite wieder im Verlauf.
+      verlaufAbgleichen();
+      const feld = $ansicht.querySelector('form[data-formular="dosis"] [name="mikrogramm"]');
+      if (feld) {
+        feld.scrollIntoView({ block: 'center' });
+        feld.focus({ preventScroll: true });
+      }
+    }
+  });
 }
 
 /**
@@ -814,7 +1310,9 @@ function zeigeFehler(form, fehler) {
 document.addEventListener('click', (e) => {
   const reiter = e.target.closest('[data-reiter]');
   if (reiter && $reiter.contains(reiter)) {
-    zeigeReiter(reiter.dataset.reiter);
+    // Ein Reiter verlässt die offene Seite – mit Rückfrage, wenn Eingaben
+    // verloren gingen (Runde 4: E5).
+    verlassen(() => zeigeReiter(reiter.dataset.reiter));
     return;
   }
   const el = e.target.closest('[data-act]');
@@ -860,7 +1358,10 @@ document.addEventListener('submit', (e) => {
     return;
   }
   const ergebnis = absenden(form.dataset.formular, form.dataset.id || null, form, heuteISO());
-  if (!ergebnis.ok && ergebnis.rueckfragen) { rueckfrageZeigen(form, ergebnis.rueckfragen); return; }
+  if (!ergebnis.ok && ergebnis.rueckfragen) {
+    rueckfrageZeigen(form, ergebnis.rueckfragen, { satz: ergebnis.rueckfrageSatz, feld: ergebnis.rueckfrageFeld });
+    return;
+  }
   if (!ergebnis.ok) { zeigeFehler(form, ergebnis.fehler); return; }
   nachDemSpeichern(ergebnis.danach);
   meldung(ergebnis.meldung || 'Gespeichert');
@@ -938,6 +1439,16 @@ function einnahmezeitSetzen(wert) {
 // morgens sonst noch den Haken von gestern.
 // An einem neuen Tag geht es zurück zu „Heute" (B64) – außer mitten in einem
 // Formular, dessen Eingaben sonst verloren gingen.
+//
+// Und außer auf dem Ergebnis des Warnzeichen-Checks und der Seite „Wichtig"
+// nach dem Befinden: Wer den Check um 23:55 machte, sah „Jetzt den Giftnotruf
+// anrufen" bzw. „Sofort 112" um Mitternacht ohne Zutun durch „Heute" ersetzt,
+// wo ein Check von gestern nicht mehr zählt (Entscheidung 17) – ebenso nach
+// dem Anruf zurück in der App (Runde 4: E24). Entschieden wird nach dem Namen
+// der Seite, nicht nach einer Alarm-Karte im Bild: Die stehen auch auf
+// „Heute", und dort soll der Tageswechsel gerade stattfinden. Geschlossen
+// führt die Seite dann zu „Heute", nicht zurück in den Reiter von gestern.
+const TAGESWECHSEL_BLEIBT = ['warnzeichen-ergebnis', 'befinden-hinweis'];
 let gezeigterTag = heuteISO();
 function tagPruefen() {
   const jetzt = heuteISO();
@@ -945,13 +1456,22 @@ function tagPruefen() {
     gezeigterTag = jetzt;
     const einrichten = !sp.getStand().profil.begruesst;
     const imFormular = ui.seite && $ansicht.querySelector('form[data-formular]');
-    if (!einrichten && !imFormular) {
+    const bleiben = ui.seite && TAGESWECHSEL_BLEIBT.includes(ui.seite.name);
+    if (!einrichten && !imFormular && !bleiben) {
       ui.seite = null;
       ui.stapel = [];
       ui.tab = 'heute';
       reiterMerken('heute');
       window.scrollTo(0, 0);
       render();
+    } else if (!einrichten && bleiben) {
+      // Nicht neu zeichnen – die Nutzerin liest gerade oder wählt die Nummer.
+      ui.stapel = [];
+      ui.tab = 'heute';
+      reiterMerken('heute');
+      verlaufAbgleichen();
+      const knopf = $kopf.querySelector('.kopf-zurueck');
+      if (knopf) knopf.setAttribute('aria-label', `Zurück zu ${REITER_TITEL.heute}`);
     }
   }
   tablettenHinweis();
@@ -977,6 +1497,7 @@ function fremdeAenderung() {
     ui.stapel = [];
     ui.tab = 'heute';
     ui.schritt = 1;
+    ui.entwurf = {};
     window.scrollTo(0, 0);
     render();
   } else if (!ui.seite) {
@@ -1016,6 +1537,19 @@ sp.abonnieren(() => {
 // Offline-Betrieb (Service Worker) und das Neuladen nach einem Update stehen
 // als klassisches Skript in index.html – sie müssen auch laufen, wenn dieses
 // Modul gar nicht erst startet (C18).
+//
+// Das Neuladen kam ohne Rückfrage, auch mitten in einem Formular: Auf einem
+// langsamen Netz übernahm der neue Worker 20 Sekunden nach dem Öffnen, und
+// die halb eingetragenen Laborwerte waren weg (Runde 4: E25). Läuft die App,
+// fragt index.html deshalb hier nach, ob gerade neu geladen werden darf: nur
+// auf einem Reiter ohne offene Seite und außerhalb der Einrichtung – eine
+// offene Seite (Formular, Ergebnis des Checks) wäre sonst ohne Zutun weg.
+// Sonst wartet das Neuladen, bis render() eine solche Lage zeichnet. Startet
+// die App nicht, gibt es die Frage nicht, und es lädt wie bisher sofort neu.
+function neuLadenErlaubt() {
+  return Boolean(sp.getStand().profil.begruesst) && !ui.seite && !rueckfrage && !auswahl && !eingabenGeaendert();
+}
+window.__schilddrueseNeuLadenErlaubt = neuLadenErlaubt;
 
 render();
 speicherFestnageln();

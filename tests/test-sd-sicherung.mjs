@@ -113,4 +113,53 @@ await page.evaluate((k) => localStorage.setItem(k, '{kaputt'), SCHLUESSEL);
 await page.reload({ waitUntil: 'networkidle' });
 check(await page.locator('.willkommen-titel').isVisible(), 'kaputter Speicherinhalt: die App startet mit der Willkommensseite');
 
+// ---- Runde 4: E28 – „dauerhaft" ist die Zusage des Browsers auf DIESEM Gerät.
+check(!('dauerhaft' in inhalt), 'E28: die Sicherungsdatei enthält „dauerhaft" nicht');
+
+// ---- Runde 4: E23 – dieselbe (ältere) Sicherung zweimal eingelesen: Beim
+// zweiten Mal wurde die Rücklage durch den Stand nach dem ersten Einlesen
+// ersetzt, und „zurückholen" brachte die Befunde und Einnahmen nicht wieder.
+const mitDaten = standMit(plus(TAG, -60), {
+  profil: { name: 'Mama', begruesst: true },
+  einnahmen: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [plus(TAG, -i - 1), { uhr: '07:00' }])),
+  labor: [
+    { id: 'l1', datum: plus(TAG, -50), tsh: { wert: 2.4, einheit: 'mU/l', von: 0.27, bis: 4.2 }, ft4: null, ft3: null, notiz: '' },
+    { id: 'l2', datum: plus(TAG, -5), tsh: { wert: 0.08, einheit: 'mU/l', von: 0.27, bis: 4.2 }, ft4: null, ft3: null, notiz: '' },
+  ],
+});
+await page.evaluate(({ k, st }) => { localStorage.setItem(k, JSON.stringify(st)); localStorage.removeItem(`${k}.vorImport`); }, { k: SCHLUESSEL, st: mitDaten });
+await page.reload({ waitUntil: 'networkidle' });
+const dauerhaftHier = Boolean((await gespeichert()).dauerhaft);
+const aelter = path.join(ABLAGE, 'sd-sicherung-aelter.json');
+writeFileSync(aelter, JSON.stringify({
+  version: 2, app: 'schilddruese', exportiertAm: '2026-03-01T10:00:00.000Z', profil: { name: 'Mama', begruesst: true },
+  dosen: [{ id: 'd1', ab: plus(TAG, -60), praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '' }],
+  einnahmen: {}, labor: [], befinden: [], gewicht: [], termine: [], fragen: [], dauerhaft: !dauerhaftHier,
+}));
+const einlesen = async (datei2) => {
+  await page.click('#reiter-mehr');
+  await page.click('[data-seite="sicherung"]');
+  const n = dialoge.length;
+  await page.setInputFiles('#sicherungDatei', datei2);
+  await page.waitForTimeout(300);
+  return `${dialoge.slice(n).join(' | ')} | ${await page.locator('body').innerText()}`;
+};
+await einlesen(aelter);
+s = await gespeichert();
+check(s.labor.length === 0 && Object.keys(s.einnahmen).length === 0, 'E23: das erste Einlesen ersetzt den Stand (0 Befunde, 0 Einnahmen)');
+check(Boolean(s.dauerhaft) === dauerhaftHier, `E28: nach dem Einlesen gilt die Zusage dieses Geräts (${dauerhaftHier}), nicht die der Datei`);
+await page.click('#reiter-mehr');
+await page.click('[data-seite="sicherung"]');
+const hinweisDauerhaft = await ansichtText(page);
+check(dauerhaftHier ? hinweisDauerhaft.includes('hat zugesagt') : hinweisDauerhaft.includes('Zum Startbildschirm hinzufügen'), 'E28: die Seite „Sicherung" sagt, was für dieses Gerät gilt');
+const zweites = await einlesen(aelter);
+check(zweites.includes('schon eingelesen'), 'E23: das zweite Einlesen derselben Datei meldet „schon eingelesen"');
+s = await gespeichert();
+check(s.labor.length === 0, '… und ändert nichts');
+await page.click('#reiter-mehr');
+await page.click('[data-seite="sicherung"]');
+await page.click('[data-act="sicherung-zurueck"]');
+s = await gespeichert();
+check(s.labor.length === 2 && Object.keys(s.einnahmen).length === 30, `E23: „zurückholen" bringt die 2 Befunde und 30 Einnahmen wieder (${s.labor.length} / ${Object.keys(s.einnahmen).length})`);
+
 await ende();

@@ -24,17 +24,30 @@
  *
  * Wie in js/einschaetzung.js: reine Rechnung mit übergebenem Stand und Tag.
  */
-import { tageWeiter, tageZwischen, zahlText, datumKurz } from './datum.js';
+import { tageWeiter, tageZwischen, zahlText, rohText, datumKurz } from './datum.js';
 import * as sp from './speicher.js';
 import { normEinheit, inStandard, plausibel } from './einheiten.js';
+/*
+ * Was als Änderung der Dosis zählt (aenderungsArt, istBerichtigung,
+ * aenderungen), steht in js/einschaetzung.js: Einschätzung, Arztbericht und
+ * Dosis-Karte geben so dieselbe Antwort. Vorher hatte die Karte eigene
+ * Kopien, und nur sie zählten einen doppelten Eintrag oder eine Berichtigung
+ * mit gleichem Beginn nicht als Änderung (Runde 4: E33).
+ */
 import {
   befundEinschaetzen, dosisAmIn, alterAm, einnahmenVor, beschwerdenAuswerten, hatDiabetes, zielBereich,
   einordnen, hoechste, warnzeichenAuswerten, vergleichbar, W5_TEXT, praxisHatErklaert,
-  STUFEN, kopfFuer, giftnotrufAnruf, gesamtbild, WARNFRAGEN,
+  STUFEN, kopfFuer, giftnotrufAnruf, gesamtbild, WARNFRAGEN, aenderungsArt, istBerichtigung, aenderungen,
 } from './einschaetzung.js';
 
 const kurz = (iso) => datumKurz(iso);
-const zahl = (n) => zahlText(n, 2);
+/*
+ * Was vom Befund oder von der Ärztin abgeschrieben ist – Wert, Grenze,
+ * Zielbereich –, steht ungerundet da: Aus TSH 0,015 wurde in der Grundlage
+ * sonst „0,02", wie auf keinem Befund (Runde 4: E21). Gerundet wird nur
+ * Berechnetes (µg am Tag).
+ */
+const roh = (n) => rohText(n);
 const ug = (n) => `${zahlText(n, 1)} µg`;
 const rang = (s) => (STUFEN[s] ? STUFEN[s].rang : 0);
 /** Sätze zusammensetzen, leere Teile fallen weg. */
@@ -161,64 +174,19 @@ function einpendeln(stand, tag) {
   return a === null || a >= 70 ? 56 : 42;
 }
 const wochenText = (frist) => (frist === 56 ? 'etwa 8 Wochen' : '6 bis 8 Wochen');
-
 /*
- * Jeder Dosis-Eintrag außer dem ersten ist eine Änderung (Dosis, Präparat,
- * Hersteller) – außer einem doppelten (alles gleich wie der vorige, B59) und
- * einer Berichtigung, die den vorigen Eintrag vom selben Tag ersetzt: Der
- * galt keinen Tag, die Menge war von Anfang an eine andere. Wer nach „Nein,
- * ich nehme etwas anderes" über den Verlauf einen zweiten Eintrag anlegte,
- * statt den vorhandenen zu ändern, las sonst bis zur nächsten Kontrolle „Ihre
- * Dosis … wurde weniger als 8 Wochen vor der Abnahme geändert" (Runde 3: D19).
+ * Die Einpendelzeit einer Änderung ab `ab` – eine für alle Stellen, auf der
+ * sicheren Seite: 8 Wochen, sobald die Nutzerin im Einpendelfenster 70 wird.
+ * alterAm() rechnet nur mit dem Jahr. Die Kontrolle (D6c) und die eigene
+ * Änderung nahmen das Alter am Tag der Änderung, D0.5 und D0.6 das am
+ * Befundtag: Nach einer Änderung im Dezember mit 69 schickte „Heute" nach 6
+ * Wochen zur Kontrolle, und die Karte verwarf genau diesen Wert als „weniger
+ * als 8 Wochen" (Runde 4: E18). B2 und P7 nannten fest „6 bis 8 Wochen",
+ * D0.6 auf derselben Karte „etwa 8 Wochen" (Runde 4: E17).
  */
-const aenderungen = (stand, heute) => stand.dosen.filter((d, i, a) => i > 0
-  && aenderungsArt(d, a[i - 1]) !== 'doppelt'
-  && !(a[i - 1].ab === d.ab && istBerichtigung(stand, d, heute)));
-
-/**
- * Was ein Dosis-Eintrag gegenüber dem vorigen ändert: 'dosis' (andere Menge am
- * Tag – oder sie ist nicht bekannt), 'praeparat' (gleiche Menge, aber anderes
- * Präparat, anderer Hersteller oder andere Stärke) oder 'doppelt' (alles
- * gleich). Ein doppelter Eintrag entsteht leicht: Beim Einrichten gilt die
- * Dosis „ab heute", und wer die Dosis später mit dem richtigen Beginn noch
- * einmal einträgt, hat sie zweimal. Er ist keine Änderung, die der Praxis
- * gemeldet oder kontrolliert werden müsste (RW2 Grundsatz: wahre Aussagen).
- */
-function aenderungsArt(d, vorher) {
-  const a = sp.tagesdosis(d);
-  const b = sp.tagesdosis(vorher);
-  if (a === null || b === null || a !== b) return 'dosis';
-  const name = (x) => String(x.praeparat || '').trim().toLowerCase();
-  return name(d) === name(vorher) && d.mikrogramm === vorher.mikrogramm && d.tabletten === vorher.tabletten ? 'doppelt' : 'praeparat';
-}
-
-/*
- * Ist ein Eintrag mit der Marke „berichtigung" wirklich die Berichtigung nach
- * „Nein, ich nehme etwas anderes"? Das Dosis-Formular setzt die Marke, sobald
- * irgendwo eine Antwort „nein" liegt – auch eine alte zu einem früheren
- * Befund. Dann würde die nächste echte, von der Praxis angeordnete Änderung
- * zur „Berichtigung": keine Kontrolle (D6c), keine Nachfrage nach der
- * Erhöhung (W-D4), „Sie haben berichtigt" bei INR und Blutzucker (C17).
- *
- * Nach „Ja" fragt die Karte zu einem Befund nie wieder, ob die Dosis stimmt.
- * Steht zum Befund, der beim Beginn des Eintrags galt, schon vor diesem
- * Beginn ein „Ja", kann das „Nein" nicht ihm gegolten haben – dann ist der
- * Eintrag eine Änderung. Nach einer echten Berichtigung kommt ein „Ja" erst
- * danach (die Karte fragt mit der neuen Menge neu). Gibt es einen späteren
- * Befund, kann das „Nein" ihm gegolten haben (Eintrag rückdatiert): Dann
- * bleibt es bei der Marke.
- */
-function istBerichtigung(stand, d, heute) {
-  if (!d || !d.berichtigung) return false;
-  if (stand.labor.some((l) => l.tsh && l.datum > d.ab && l.datum <= heute)) return true;
-  const b = [...stand.labor].reverse().find((l) => l.tsh && l.datum <= d.ab);
-  if (!b) return true;
-  // „Die Dosis wird geändert" (F8) sperrt die Karte (D0.5) – zu diesem Befund
-  // wurde danach nie gefragt, ob die Dosis stimmt. Ein Eintrag ab dieser
-  // Entscheidung ist die Änderung der Praxis, auch ohne „Ja" vorher.
-  if (b.praxis === 'geaendert' && praxisHatErklaert(b) && b.praxisAm <= d.ab) return false;
-  return !stand.nachfragen.some((n) => n.art === 'dosis_stimmt' && n.bezug === b.id && n.antwort === 'ja' && n.am < d.ab);
-}
+const einpendelnAb = (stand, ab) => Math.max(einpendeln(stand, ab), einpendeln(stand, tageWeiter(ab, 56)));
+/** Liegt ein TSH-Befund vor, der nach der Einpendelzeit von `d` zeigt, wie die Menge wirkt? */
+const kontrollwertDa = (stand, d, heute) => stand.labor.some((l) => l.tsh && l.datum <= heute && tageZwischen(d.ab, l.datum) >= einpendelnAb(stand, d.ab));
 
 /** X3 (4): mehr als ein üblicher Schritt – über 25 µg oder über ein Viertel der bisherigen Menge am Tag. */
 function grosserSchritt(tdNeu, tdAlt) {
@@ -245,7 +213,18 @@ function praxisNachEigener(stand, heute, seit) {
  * damit beide dieselbe Änderung meinen. Ein doppelter Eintrag (alles gleich
  * wie der vorige) ist keine Änderung: Er löst weder „Ihre Schilddrüsendosis
  * wurde geändert" noch eine Kontrolle aus (B59).
- * → { letzte, vorige, art, berichtigt, tdNeu, tdAlt, mehr, weniger } | null
+ *
+ * `beginn` ist der Eintrag, mit dem die Menge am Tag von heute begann,
+ * `vorBeginn` der davor. Ein späterer Wechsel von Präparat, Hersteller oder
+ * Stärke bei gleicher Menge ändert daran nichts. Vorher zählte nur der
+ * jüngste Eintrag: Nach 75 → 125 µg („Auf Anweisung der Praxis: Nein") und
+ * danach „Euthyrox 125" fielen X3 mit „wieder Ihre bisherige Menge", W-D2,
+ * die Stufe Tage und die Nachfragen nach der Erhöhung (W-D4) weg, obwohl die
+ * Praxis nichts entschieden hatte (Runde 4: E30). Die Kontrolle (D6c), P7,
+ * INR und Blutzucker hängen weiter am jüngsten Eintrag (`letzte`).
+ * → { letzte, vorige, art, berichtigt, tdNeu, tdAlt, beginn, vorBeginn,
+ *     beginnBerichtigt, mehr, weniger } | null
+ *   `mehr`/`weniger`: die Menge seit `beginn` gegenüber der davor.
  */
 function letzteAenderung(stand, heute) {
   const bisHeute = stand.dosen.filter((d) => d.ab <= heute);
@@ -253,18 +232,43 @@ function letzteAenderung(stand, heute) {
   if (dosen.length < 2) return null;
   const letzte = dosen[dosen.length - 1];
   const vorige = dosen[dosen.length - 2];
-  const tdNeu = sp.tagesdosis(letzte);
-  const tdAlt = sp.tagesdosis(vorige);
+  let j = dosen.length - 1;
+  while (j > 0 && aenderungsArt(dosen[j], dosen[j - 1]) !== 'dosis') j--;
+  const beginn = j > 0 ? dosen[j] : null;
+  const vorBeginn = j > 0 ? dosen[j - 1] : null;
+  const mNeu = beginn ? sp.tagesdosis(beginn) : null;
+  const mAlt = vorBeginn ? sp.tagesdosis(vorBeginn) : null;
   return {
     letzte,
     vorige,
     art: aenderungsArt(letzte, vorige),
     berichtigt: istBerichtigung(stand, letzte, heute),
-    tdNeu,
-    tdAlt,
-    mehr: tdNeu !== null && tdAlt !== null && tdNeu > tdAlt,
-    weniger: tdNeu !== null && tdAlt !== null && tdNeu < tdAlt,
+    tdNeu: sp.tagesdosis(letzte),
+    tdAlt: sp.tagesdosis(vorige),
+    beginn,
+    vorBeginn,
+    beginnBerichtigt: Boolean(beginn) && istBerichtigung(stand, beginn, heute),
+    mehr: mNeu !== null && mAlt !== null && mNeu > mAlt,
+    weniger: mNeu !== null && mAlt !== null && mNeu < mAlt,
   };
+}
+
+/*
+ * Ein späterer Eintrag mit derselben Menge am Tag und „Auf Anweisung der
+ * Praxis: Ja" – etwa das neue Rezept für Euthyrox 125 nach einer eigenen
+ * Erhöhung auf 125 µg: Die Praxis hat von der Menge erfahren und sie
+ * verordnet. Das gilt wie ihre Entscheidung nach der eigenen Änderung
+ * (praxisNachEigener): Der Grund bleibt, nur ohne Frist (Runde 4: E30).
+ */
+function mengeBestaetigt(stand, d) {
+  const td = sp.tagesdosis(d);
+  const i = stand.dosen.indexOf(d);
+  if (td === null || i < 0) return false;
+  for (const x of stand.dosen.slice(i + 1)) {
+    if (sp.tagesdosis(x) !== td) return false;
+    if (x.praxis === true) return true;
+  }
+  return false;
 }
 
 /*
@@ -306,20 +310,25 @@ function zurueckGenommen(stand, d, heute) {
  * obwohl nichts geklärt war (Runde 3: D11). Wer dieselbe Änderung über die
  * 14-Tage-Frage meldete, behielt den Schutz – je nach Eingabeweg eine andere
  * Karte (C7).
+ *
+ * Maßgeblich ist der Eintrag, mit dem die Menge von heute begann (`beginn`),
+ * nicht der jüngste: Ein späterer Präparat- oder Herstellerwechsel mit
+ * derselben Menge klärt nichts (Runde 4: E30). Bestätigt ein solcher Eintrag
+ * „Auf Anweisung der Praxis: Ja" die Menge, gilt das wie die Entscheidung der
+ * Praxis – dann nennt die Karte den Grund ohne Frist (siehe dosisRichtung).
  * → { d, ab, gross, zurueck } | null – `ab`: seit wann die Änderung bekannt ist.
  */
 function eigeneAenderung(stand, heute) {
   const a = letzteAenderung(stand, heute);
-  if (!a || a.art !== 'dosis' || a.berichtigt) return null;
-  const d = a.letzte;
+  if (!a || !a.beginn || a.beginnBerichtigt) return null;
+  const d = a.beginn;
   const meldung = d.praxis === null ? selbstGemeldet(stand, d) : null;
   if (d.praxis !== false && !meldung) return null;
   const ab = meldung && meldung.am > d.ab ? meldung.am : d.ab;
-  if (ab > heute || praxisNachEigener(stand, heute, ab)) return null;
-  const frist = einpendeln(stand, d.ab);
-  if (stand.labor.some((l) => l.tsh && l.datum <= heute && tageZwischen(d.ab, l.datum) >= frist)) return null;
+  if (ab > heute || praxisNachEigener(stand, heute, ab) || mengeBestaetigt(stand, d)) return null;
+  if (kontrollwertDa(stand, d, heute)) return null;
   const zurueck = zurueckGenommen(stand, d, heute);
-  return { d, ab, gross: !zurueck && grosserSchritt(a.tdNeu, a.tdAlt), zurueck };
+  return { d, ab, gross: !zurueck && grosserSchritt(sp.tagesdosis(d), sp.tagesdosis(a.vorBeginn)), zurueck };
 }
 
 /*
@@ -359,13 +368,21 @@ const R3_EINMAL = 'Sie haben Herzklopfen eingetragen. Wenn es seit Tagen besteht
  * Die Karte zum jüngsten Befund mit TSH – oder null, wenn es keinen gibt.
  *
  * { richtung, titel, texte, schritt, pflicht, gruende: [{ id, text, stufe, anrufe }],
- *   frage, aktion: 'dosis'|null, aktionParam: null|'praxis'|<Dosis-id>, aktionText,
+ *   frage, aktion: 'dosis'|'labor'|'profil'|null, aktionParam, aktionText,
+ *   aktionen: [{ aktion, param, text }],
  *   hinweise, stufe, kopf: { titel, text }, anrufe: [{ nummer, text }],
  *   warnzeichen, grundlage, befund, einschaetzung, merken, regeln }
  *
- * aktion 'dosis' öffnet das Dosis-Formular: ohne aktionParam als neue Dosis,
- * mit 'praxis' als neue Dosis „auf Anweisung der Praxis", mit einer Dosis-id
- * zum Ändern dieses Eintrags.
+ * Jede Aktion ist ein Knopf zu einer Seite (data-seite = aktion, data-param =
+ * param). 'dosis' öffnet das Dosis-Formular: ohne param als neue Dosis, mit
+ * 'praxis' als neue Dosis „auf Anweisung der Praxis", mit einer Dosis-id zum
+ * Ändern dieses Eintrags. 'labor' öffnet den Befund (param: Befund-id) zum
+ * Ergänzen, 'profil' die Seite „Über mich". Höchstens eine je Art, 'dosis'
+ * zuerst; aktion/aktionParam/aktionText nennen die erste.
+ *
+ * merken: { art: 'karte_gezeigt', bezug: <Befund-id>, antwort: <Richtung>,
+ * titel } – nur an dem Tag, an dem die Karte eine Richtung zeigt, die zu
+ * diesem Befund noch nicht zuletzt gemerkt ist; sonst null.
  */
 export function dosisRichtung(stand, heute) {
   const befund = dosisBefund(stand, heute);
@@ -391,8 +408,9 @@ export function dosisRichtung(stand, heute) {
   /* `text` darf eine Funktion der Endstufe sein – siehe karte(). */
   const grund = (id, text, stufe = null, anrufe = []) => { gruende.push({ id, text, stufe, anrufe }); regeln.push(id); };
   const blockJaWeissNicht = (wert) => wert === 'ja' || wert === 'unbekannt';
-  let aktion = null;
-  const aktionSetzen = (param, text) => { if (!aktion) aktion = { param, text }; };
+  // Je Art ein Knopf, der erste gewinnt (Runde 4: E7 – vorher gab es nur 'dosis').
+  const aktionen = [];
+  const aktionSetzen = (param, text, art = 'dosis') => { if (!aktionen.some((x) => x.aktion === art)) aktionen.push({ aktion: art, param, text }); };
   // Gründe, unter denen „Nehmen Sie Ihre Tablette … genau wie bisher weiter"
   // falsch wäre: nach Überdosis, eigener Änderung, geänderter Anordnung (B28).
   let ohneWieBisher = false;
@@ -416,11 +434,11 @@ export function dosisRichtung(stand, heute) {
   pfade.forEach((t) => (t.id === 'R3' && rang(t.stufe) < rang('heute') ? setzeWarn(t.stufe, R3_EINMAL, true) : setzeWarn(t.stufe, pfadSatz(t))));
   const stufeHerz = hoechste(...pfade.map((t) => t.stufe));
 
-  // DG – die Grundlage steht auf jeder Karte
-  const bereich = (w) => (w.von !== null || w.bis !== null ? `${w.von !== null ? zahl(w.von) : '…'}–${w.bis !== null ? zahl(w.bis) : '…'}` : 'kein Bereich eingetragen');
+  // DG – die Grundlage steht auf jeder Karte. Werte und Grenzen wie auf dem Befund (Runde 4: E21).
+  const bereich = (w) => (w.von !== null || w.bis !== null ? `${w.von !== null ? roh(w.von) : '…'}–${w.bis !== null ? roh(w.bis) : '…'}` : 'kein Bereich eingetragen');
   // B21: Eine schon eingetragene künftige Dosis gehört zur Grundlage – sonst nennt die Karte nur die alte.
   const naechste = stand.dosen.find((d) => d.ab > heute && d !== dAkt && sp.tagesdosis(d) !== null);
-  const grundlage = `Grundlage: Befund vom ${kurz(tag)} – TSH ${befund.tsh.unter ? '< ' : ''}${zahl(befund.tsh.wert)} ${befund.tsh.einheit} (Bereich Ihres Labors ${bereich(befund.tsh)}${ziel ? `; Zielbereich Ihrer Ärztin ${zahl(ziel.von)}–${zahl(ziel.bis)} mU/l` : ''})${befund.ft4 ? `, fT4 ${befund.ft4.unter ? '< ' : ''}${zahl(befund.ft4.wert)} ${befund.ft4.einheit} (Bereich ${bereich(befund.ft4)})` : ''}. ${dAkt && td !== null ? `Ihre Dosis laut App: ${ug(td)} am Tag seit ${kurz(dAkt.ab)}${dAkt.praeparat ? ` (${dAkt.praeparat})` : ''}.` : 'Ihre Dosis ist in der App nicht vollständig eingetragen.'}${naechste && dAkt ? ` Ab ${kurz(naechste.ab)} ist eingetragen: ${ug(sp.tagesdosis(naechste))} am Tag.` : ''} Die App kennt Ihre übrigen Befunde nicht – die Entscheidung trifft die Praxis.`;
+  const grundlage = `Grundlage: Befund vom ${kurz(tag)} – TSH ${befund.tsh.unter ? '< ' : ''}${roh(befund.tsh.wert)} ${befund.tsh.einheit} (Bereich Ihres Labors ${bereich(befund.tsh)}${ziel ? `; Zielbereich Ihrer Ärztin ${roh(ziel.von)}–${roh(ziel.bis)} mU/l` : ''})${befund.ft4 ? `, fT4 ${befund.ft4.unter ? '< ' : ''}${roh(befund.ft4.wert)} ${befund.ft4.einheit} (Bereich ${bereich(befund.ft4)})` : ''}. ${dAkt && td !== null ? `Ihre Dosis laut App: ${ug(td)} am Tag seit ${kurz(dAkt.ab)}${dAkt.praeparat ? ` (${dAkt.praeparat})` : ''}.` : 'Ihre Dosis ist in der App nicht vollständig eingetragen.'}${naechste && dAkt ? ` Ab ${kurz(naechste.ab)} ist eingetragen: ${ug(sp.tagesdosis(naechste))} am Tag.` : ''} Die App kennt Ihre übrigen Befunde nicht – die Entscheidung trifft die Praxis.`;
 
   const karte = (x) => {
     const richtung = x.richtung || 'klaeren';
@@ -454,25 +472,51 @@ export function dosisRichtung(stand, heute) {
     const texte = (x.texte || (richtung === 'klaeren' && !x.frage ? [wieBisher ? KLAEREN_SATZ : KLAEREN_KURZ] : [])).map((t) => fertig(t)).filter(Boolean);
     // Kommt die höchste Stufe aus Befinden oder Check, sagt die Karte, warum – mit der Frist dieser Stufe.
     if (rang(stufeWarn) > rang(eigen) && warnSatz) texte.push(warnFertig ? warnSatz : satz(warnSatz, fristSatz(stufe)));
+    // Knöpfe dieser Karte; die Richtung selbst kann noch einen zu „Über mich" verlangen (unten).
+    const knoepfe = [...aktionen];
+    const zuProfil = () => { if (!knoepfe.some((y) => y.aktion === 'profil')) knoepfe.push({ aktion: 'profil', param: null, text: 'Über mich öffnen' }); };
     if (richtung !== 'klaeren') {
       // P5, P3: fehlende Angaben stehen auf jeder Richtungskarte – im Text, nicht in einer Randnotiz.
-      if (alt === null) texte.push('Bitte tragen Sie im Profil Ihr Geburtsjahr ein. Bis dahin rechnet die App vorsichtig.');
-      if (['unbekannt', ''].includes(p.herz)) texte.push('Solange nicht angegeben ist, ob Sie eine Herzerkrankung haben, rechnet die App vorsichtig so, als hätten Sie eine.');
+      // Mit dem Namen des Menüpunkts und einem Knopf dorthin: „Profil" gibt es
+      // im Menü nicht, er heißt „Über mich" (Runde 4: E7).
+      if (alt === null) {
+        texte.push('Bitte tragen Sie Ihr Geburtsjahr unter „Mehr → Über mich" ein. Bis dahin rechnet die App vorsichtig.');
+        zuProfil();
+      }
+      if (['unbekannt', ''].includes(p.herz)) {
+        texte.push('Solange nicht angegeben ist, ob Sie eine Herzerkrankung haben, rechnet die App vorsichtig so, als hätten Sie eine. Angeben können Sie es unter „Mehr → Über mich".');
+        zuProfil();
+      }
     }
+    const reihe = ['dosis', 'labor', 'profil'];
+    knoepfe.sort((m, n) => reihe.indexOf(m.aktion) - reihe.indexOf(n.aktion));
+    const a = knoepfe[0] || null;
     const kopf = kopfFuer(stufe, gruende);
     const warnzeichen = x.warnzeichen || null;
-    const a = x.aktion || aktion;
+    const titel = x.titel || KOPF_KLAEREN;
+    /*
+     * RW2 B1: Der Arztbericht nennt die zuletzt gezeigte Richtungskarte.
+     * Vorher merkte sich die App nie etwas (merken: null) – ab Tag 14 (X3-14)
+     * oder bei einer neuen Pflichtfrage stand im Bericht nur noch die Frage,
+     * nicht die Richtung, die die Patientin zwei Wochen lang gesehen hatte
+     * (Runde 4: E16). Gemerkt wird nur ein Wechsel der Richtung zu diesem
+     * Befund – sonst füllte jede Anzeige die Liste der Nachfragen.
+     */
+    const gezeigt = nachfrage(stand, 'karte_gezeigt', befund.id);
+    const merken = ['mehr', 'weniger', 'gleich'].includes(richtung) && !x.frage && (!gezeigt || gezeigt.antwort !== richtung)
+      ? { art: 'karte_gezeigt', bezug: befund.id, antwort: richtung, titel } : null;
     const k = {
       richtung,
-      titel: x.titel || KOPF_KLAEREN,
+      titel,
       texte,
       schritt: x.schritt || null,
       pflicht: richtung === 'mehr' || richtung === 'weniger' ? (rang(stufe) >= rang('heute') ? D6_HEUTE : D6_LANG) : D6_KURZ,
       gruende,
       frage: x.frage || null,
-      aktion: a ? 'dosis' : null,
+      aktion: a ? a.aktion : null,
       aktionParam: a ? a.param : null,
       aktionText: a ? a.text : null,
+      aktionen: knoepfe,
       hinweise: [],
       stufe,
       kopf,
@@ -481,9 +525,7 @@ export function dosisRichtung(stand, heute) {
       grundlage,
       befund,
       einschaetzung: e,
-      // Früher schrieb die Ansicht hier den ersten Anzeigetag mit; die
-      // 14-Tage-Rückfrage (X3) zählt jetzt ab der Antwort auf die Dosisfrage.
-      merken: null,
+      merken,
       regeln: [...new Set([...regeln, ...(x.regeln || [])])],
     };
     INNEN.set(k, { eigen, rest, ohneWieBisher, warnWD2 });
@@ -499,14 +541,15 @@ export function dosisRichtung(stand, heute) {
    * Dringlichkeit und tilgte den Rat von allen Bildschirmen (Runde 3: D17;
    * RW2 Grundsatz 5, RW1 L3f). Jetzt übernehmen sie die Gründe einer zweiten
    * Rechnung ohne das Warnsignal: alle mit Stufe, dazu die eigene Änderung
-   * (X3, B2) auch ohne Frist – ihr „wieder die bisherige Menge" schützt.
+   * (X3, B2) auch ohne Frist – ihr „wieder die bisherige Menge" schützt –
+   * und Q5 ohne Frist (E31: „Wusste die Praxis das nicht, sagen Sie es ihr").
    * Nicht die aus dem Check und dem Befinden (W1 … W5, die stehen selbst da)
    * und nichts neben W1: RW1 W1 blendet bei Brustschmerz alles andere aus.
    */
   const uebernehmen = (andere) => {
     if (!andere || gruende.some((g) => g.id === 'W1')) return null;
     andere.gruende
-      .filter((g) => (g.stufe || ['X3', 'B2'].includes(g.id)) && !/^W\d/.test(g.id) && !gruende.some((x) => x.id === g.id))
+      .filter((g) => (g.stufe || ['X3', 'B2', 'Q5'].includes(g.id)) && !/^W\d/.test(g.id) && !gruende.some((x) => x.id === g.id))
       .forEach((g) => {
         const roh = ROH.get(g) || { text: g.text, anrufe: g.anrufe };
         grund(g.id, roh.text, g.stufe, roh.anrufe);
@@ -643,7 +686,12 @@ export function dosisRichtung(stand, heute) {
   const lab = befund.tsh;
   const tshEinheit = normEinheit('tsh', lab.einheit);
   if (!tshEinheit) grund('D0.2', 'TSH steht in einer Einheit, für die die Regeln nicht gelten. Bitte prüfen Sie die Einheit auf dem Befund (üblich: mU/l, mIE/l oder µU/ml).');
-  if (!ziel && (lab.von === null || lab.bis === null)) grund('D0.1', 'Für eine Aussage zur Dosis braucht es den TSH-Bereich von Ihrem Labor. Bitte tragen Sie beide Grenzen vom Befund ein (z. B. 0,27–4,20). Mit einem allgemeinen Orientierungsbereich ordnet die App nur ein.');
+  if (!ziel && (lab.von === null || lab.bis === null)) {
+    grund('D0.1', 'Für eine Aussage zur Dosis braucht es den TSH-Bereich von Ihrem Labor. Bitte tragen Sie beide Grenzen vom Befund ein (z. B. 0,27–4,20). Mit einem allgemeinen Orientierungsbereich ordnet die App nur ein.');
+    // Ein Knopf direkt in diesen Befund – vorher gab es nur „Die Praxis hat
+    // entschieden", und der Weg über den Verlauf führte erst zu einer Liste (Runde 4: E7).
+    aktionSetzen(befund.id, 'Bereich im Befund ergänzen', 'labor');
+  }
   if (!plausibel(befund, stand)) grund('D0.3', 'Ein Wert in diesem Befund ist ungewöhnlich (z. B. Komma oder Einheit). Bitte bestätigen oder korrigieren Sie ihn in der Befund-Eingabe. Vorher gibt die App keine Richtung.');
 
   const stimmt = nachfrage(stand, 'dosis_stimmt', befund.id);
@@ -713,9 +761,12 @@ export function dosisRichtung(stand, heute) {
       grund('D0.1', `Ihr neuester Befund vom ${kurz(neuerOhneTsh.datum)} enthält nur fT4, und das liegt ${en.werte.find((w) => w.key === 'ft4').einordnung.text}. Solange dazu kein TSH-Wert da ist, gibt die App keine Richtung. Bitte besprechen Sie den Wert mit der Praxis.`, en.stufe);
     }
   }
-  const frist = einpendeln(stand, tag);
   if (dosisNach) {
     const x = nachher[nachher.length - 1];
+    // Die Einpendelzeit der jüngsten Änderung nach der Abnahme – nicht das
+    // Alter am Befundtag: Sonst nannte die Karte „6 bis 8 Wochen nach der
+    // Änderung" und „Heute" zur selben Kontrolle „etwa 8 Wochen" (Runde 4: E18).
+    const frist = einpendelnAb(stand, x.d.ab);
     const bisher = nachher.filter((y) => y.d.ab <= heute);
     const doppelt = nachher.every((y) => y.art === 'doppelt');
     const ohneMenge = nachher.every((y) => y.art !== 'dosis');
@@ -759,8 +810,12 @@ export function dosisRichtung(stand, heute) {
     }
     if (e.praxisErklaert) stufeFest = 'keine';
   }
-  const kurzVorher = aenderungen(stand, heute).find((d) => d.ab <= tag && tageZwischen(d.ab, tag) < frist);
+  // D0.6 mit der Einpendelzeit der Änderung selbst, wie D6c auf „Heute": Sonst
+  // schickte D6c nach 6 Wochen zur Kontrolle, und die Karte verwarf genau
+  // diesen Wert, wenn die Nutzerin im Jahr danach 70 wurde (B31; Runde 4: E18).
+  const kurzVorher = aenderungen(stand, heute).find((d) => d.ab <= tag && tageZwischen(d.ab, tag) < einpendelnAb(stand, d.ab));
   if (kurzVorher) {
+    const frist = einpendelnAb(stand, kurzVorher.ab);
     grund('D0.6', `Ihre Dosis oder Ihr Präparat wurde weniger als ${frist === 56 ? 8 : 6} Wochen vor der Abnahme geändert. Der Wert hat sich noch nicht eingependelt. Sinnvoll ist eine Kontrolle etwa ${frist === 56 ? '8' : '6 bis 8'} Wochen nach der Änderung.`);
   }
   const direkt = ['amiodaron', 'lithium', 'jod'].filter((k) => stand.mittel.includes(k));
@@ -809,7 +864,7 @@ export function dosisRichtung(stand, heute) {
   if (v && vergleichbar(v, befund, 'tsh') && !stand.dosen.some((d) => d.ab > v.datum && d.ab <= tag)) {
     const la = einordnen('tsh', v.tsh).lage;
     if ((la === 'ueber' && lage === 'unter') || (la === 'unter' && lage === 'ueber')) {
-      grund('D0.17', `Ihr voriger Wert vom ${kurz(v.datum)} lag bei gleicher Dosis auf der anderen Seite des Bereichs (${zahl(v.tsh.wert)} ${v.tsh.einheit}). Die beiden Werte widersprechen sich. Lassen Sie erst nachmessen, bevor etwas geändert wird.`);
+      grund('D0.17', `Ihr voriger Wert vom ${kurz(v.datum)} lag bei gleicher Dosis auf der anderen Seite des Bereichs (${v.tsh.unter ? '< ' : ''}${roh(v.tsh.wert)} ${v.tsh.einheit}). Die beiden Werte widersprechen sich. Lassen Sie erst nachmessen, bevor etwas geändert wird.`);
     }
   }
   /*
@@ -882,7 +937,8 @@ export function dosisRichtung(stand, heute) {
     } else if (eigen.gross) {
       grund('X3', (s) => `Sie haben angegeben, dass Sie die Dosis ab ${seit} ohne Anweisung der Praxis geändert haben. Das ist mehr als ein üblicher Schritt. Rufen Sie ${rang(s) >= rang('heute') ? 'heute noch' : 'heute oder morgen'} die Praxis an und nehmen Sie bis dahin wieder Ihre bisherige Menge.`, 'tage');
     } else {
-      grund('B2', (s) => `Sie haben angegeben, dass Sie die Dosis ab ${seit} ohne Anweisung der Praxis geändert haben. Bitte sagen Sie es der Praxis ${wann(hoechste(s, 'tage'))}. Lassen Sie 6 bis 8 Wochen nach der Änderung kontrollieren.`, 'tage');
+      // Die Frist der Kontrolle wie D0.6 und D6c: ab 70 „etwa 8 Wochen" (Runde 4: E17).
+      grund('B2', (s) => `Sie haben angegeben, dass Sie die Dosis ab ${seit} ohne Anweisung der Praxis geändert haben. Bitte sagen Sie es der Praxis ${wann(hoechste(s, 'tage'))}. Lassen Sie ${wochenText(einpendelnAb(stand, eigen.d.ab))} nach der Änderung kontrollieren.`, 'tage');
     }
   } else {
     /*
@@ -895,10 +951,15 @@ export function dosisRichtung(stand, heute) {
     // Auch eine eigene Änderung VOR der Blutabnahme gehört dazu – sonst fiel
     // der Schutz weg, sobald die Praxis zu diesem Befund entschied (Nachprüfung zu C4).
     const nachAbnahme = nachher.filter((y) => y.art === 'dosis' && y.d.praxis === false && !y.korrektur).pop();
-    const davor = aenderung && aenderung.art === 'dosis' && !aenderung.berichtigt
-      && (aenderung.letzte.praxis === false || selbstGemeldet(stand, aenderung.letzte)) ? aenderung.letzte : null;
+    // Der Beginn der heutigen Menge, nicht der jüngste Eintrag: Ein späterer
+    // Präparatwechsel mit derselben Menge ist keine neue Änderung (Runde 4: E30).
+    const davor = aenderung && aenderung.beginn && !aenderung.beginnBerichtigt
+      && (aenderung.beginn.praxis === false || selbstGemeldet(stand, aenderung.beginn)) ? aenderung.beginn : null;
     const eigeneD = nachAbnahme ? nachAbnahme.d : davor;
-    if (eigeneD && praxisNachEigener(stand, heute, eigeneD.ab)) {
+    // Die Menge später „Auf Anweisung der Praxis: Ja" noch einmal eingetragen
+    // (neues Rezept): wie ihre Entscheidung – bis ein Kontrollwert zeigt, wie sie wirkt.
+    const bestaetigt = Boolean(eigeneD) && mengeBestaetigt(stand, eigeneD) && !kontrollwertDa(stand, eigeneD, heute);
+    if (eigeneD && (praxisNachEigener(stand, heute, eigeneD.ab) || bestaetigt)) {
       const i = stand.dosen.indexOf(eigeneD);
       const gross = grosserSchritt(sp.tagesdosis(eigeneD), sp.tagesdosis(stand.dosen[i - 1])) && !zurueckGenommen(stand, eigeneD, heute);
       if (gross) warnWD2 = true;
@@ -961,9 +1022,27 @@ export function dosisRichtung(stand, heute) {
    * weiteren Pflichtfragen nach einem Sperrgrund" gilt für offene Fragen,
    * nicht für beantwortete dringliche.
    */
-  const q5Grund = () => {
+  /*
+   * Akut ist „einmal viele Tabletten" aber nur, solange nichts anderes den
+   * Befund beantwortet hat: nicht mehr nach der Entscheidung der Praxis zu
+   * diesem Wert, nach einer von ihr angeordneten neuen Dosis (D0.5) und nicht
+   * bei einem Befund über drei Monate (D0.4). Seit D18 stand dort sonst
+   * wochen- und monatelang „Heute anrufen – heute noch den Giftnotruf", direkt
+   * unter „Die Praxis hat zu diesem Wert schon entschieden", täglich bis zum
+   * nächsten TSH-Befund (Runde 4: E31). Dann nennt die Karte die Angabe ohne
+   * Stufe und ohne Frist – mit „sofort 112" bei Notfallzeichen. Neben Gründen,
+   * die erst nach der Antwort dazukamen (D0.18, Kortison, ein Check), bleibt
+   * der Giftnotruf (D18).
+   */
+  const q5Akut = tageZwischen(tag, heute) <= 92 && !(praxisSagt && befund.praxisAm && befund.praxisAm >= tag) && !echt;
+  const q5Grund = (akut = true) => {
     if (gruppe !== 'd' && gruppe !== 'e') return;
-    if (befund.verwechselt === 'einmal') {
+    if (befund.verwechselt === 'einmal' && !akut) {
+      grund('Q5', satz(praxisSagt || echt
+        ? 'Sie hatten angegeben, einmal viele Tabletten auf einmal genommen zu haben. Wusste die Praxis das bei ihrer Entscheidung nicht, sagen Sie es ihr.'
+        : 'Sie hatten zu diesem Befund angegeben, einmal viele Tabletten auf einmal genommen zu haben. Weiß die Praxis das noch nicht, sagen Sie es ihr.',
+      'Bei Brustschmerz, Herzrasen oder Atemnot: sofort 112.'));
+    } else if (befund.verwechselt === 'einmal') {
       // X15: der Giftnotruf fürs eingetragene Bundesland, mit Nummer und Knopf (ohne Bundesland 112, P5).
       const gift = giftnotrufAnruf(stand);
       const giftText = gift.nummer === '112' ? 'den Giftnotruf (ohne eingetragenes Bundesland: 112)' : `den ${gift.text}`;
@@ -974,7 +1053,7 @@ export function dosisRichtung(stand, heute) {
   };
 
   const hart = gruende.length > 0;
-  if (hart) q5Grund();
+  if (hart) q5Grund(q5Akut);
 
   // ---- 4. Offene Pflichtfragen (höchstens eine) und ihre Sperren
   let frage = null;
@@ -1000,7 +1079,11 @@ export function dosisRichtung(stand, heute) {
     }
     // P2 / D0.13 – Krebs
     if (!p.krebs) offen(pFrage('P2', 'krebs', 'Wurden Sie jemals wegen Schilddrüsenkrebs behandelt (Operation oder Radiojod)? Nach Schilddrüsenkrebs soll TSH oft bewusst niedrig sein – ein Rat zu „weniger" wäre dann falsch.'));
-    else if (p.krebs === 'unbekannt') grund('D0.13', 'Bitte geben Sie im Profil an, ob Sie je wegen Schilddrüsenkrebs behandelt wurden. Vorher gibt die App keine Richtung.');
+    else if (p.krebs === 'unbekannt') {
+      // Nach „Weiß nicht" hilft nur die Praxis weiter – und „Profil" heißt im Menü „Über mich" (Runde 4: E7).
+      grund('D0.13', 'Bitte geben Sie unter „Mehr → Über mich" an, ob Sie je wegen Schilddrüsenkrebs behandelt wurden. Wissen Sie es nicht, fragen Sie beim nächsten Anruf in der Praxis. Vorher gibt die App keine Richtung.');
+      aktionSetzen(null, 'Über mich öffnen', 'profil');
+    }
     // P9 / D0.14 – Kortison, Nebenniere
     if (!p.kortison) offen(pFrage('P9', 'kortison', 'Nehmen Sie dauerhaft Kortison als Tablette (z. B. Prednisolon, Hydrocortison) oder wurde bei Ihnen eine Nebennierenschwäche festgestellt?'));
     // X6 – Geburtsjahr bei Muster c
@@ -1027,7 +1110,8 @@ export function dosisRichtung(stand, heute) {
     if (!befund.kortison) offen(bFrage('F4', 'kortison', 'Haben Sie in den 6 Wochen vor der Abnahme Kortison als Tablette oder Spritze bekommen? (Spray und Salbe zählen nicht.)'));
     if (!befund.kontrastmittel) offen(bFrage('F5', 'kontrastmittel', 'Hatten Sie in den 8 Wochen vor der Abnahme eine Untersuchung mit Kontrastmittel, z. B. CT oder Herzkatheter?'));
     // X14 / F10 – andere Packung
-    if (blockJaWeissNicht(befund.packung)) grund('D0.6', 'Sie haben kurz vor der Abnahme eine Packung mit anderem Namen, Hersteller oder anderer Stärke bekommen. Der Wert hat sich womöglich noch nicht eingependelt. Sinnvoll ist eine Kontrolle etwa 6 bis 8 Wochen nach dem Wechsel.');
+    // Die Frist wie bei jeder anderen Änderung: ab 70 etwa 8 Wochen (Runde 4: E17).
+    if (blockJaWeissNicht(befund.packung)) grund('D0.6', `Sie haben kurz vor der Abnahme eine Packung mit anderem Namen, Hersteller oder anderer Stärke bekommen. Der Wert hat sich womöglich noch nicht eingependelt. Sinnvoll ist eine Kontrolle ${wochenText(einpendelnAb(stand, tag))} nach dem Wechsel.`);
     else if (!befund.packung) offen(bFrage('F10', 'packung', 'Haben Sie in den 8 Wochen vor der Abnahme eine Packung mit anderem Namen, Hersteller oder anderer Stärke bekommen?'));
     // F6/F7 / D0.8a – Mittel oder Einnahme geändert (b, c, d, e); E15: Uhrzeit verschoben zählt als ja
     if (['b', 'c', 'd', 'e'].includes(gruppe)) {
@@ -1128,7 +1212,7 @@ export function dosisRichtung(stand, heute) {
     : td <= 50 ? 'Ärztinnen verringern dann meist um 12,5 µg (Mikrogramm) am Tag.' : 'Ärztinnen verringern dann meist um 12,5 bis 25 µg (Mikrogramm) am Tag.';
   const warumKlein = () => {
     if (!vorsichtig) return '';
-    if (alt === null || ['unbekannt', ''].includes(p.herz)) return 'Weil Alter oder Herz im Profil fehlen, geht das nur in kleinen Schritten. ';
+    if (alt === null || ['unbekannt', ''].includes(p.herz)) return 'Weil unter „Über mich" das Geburtsjahr oder die Angabe zum Herzen fehlt, geht das nur in kleinen Schritten. ';
     if (p.herz === 'ja') return 'Weil Sie eine Herzerkrankung haben, geht das nur in kleinen Schritten. ';
     return 'Weil Sie über 65 sind, geht das nur in kleinen Schritten. ';
   };
@@ -1208,7 +1292,7 @@ export function dosisRichtung(stand, heute) {
       zusatz.push((s, eigen) => satz(`Ihr TSH ist zu hoch. Das spricht für eine etwas höhere Dosis. ${warumKlein()}${sMehr}`, fristHier(s, eigen, 'tage')));
     }
     if (vorUeber) {
-      zusatz.push(`Schon am ${kurz(vorUeber.datum)} lag Ihr TSH über dem Bereich (${zahl(vorUeber.tsh.wert)} ${vorUeber.tsh.einheit}). Zweimal erhöht spricht klarer für eine etwas höhere Dosis.`);
+      zusatz.push(`Schon am ${kurz(vorUeber.datum)} lag Ihr TSH über dem Bereich (${roh(vorUeber.tsh.wert)} ${vorUeber.tsh.einheit}). Zweimal erhöht spricht klarer für eine etwas höhere Dosis.`);
       stufe = hoechste(stufe, 'zeitnah');
     }
     if (graubereich) zusatz.push((s, eigen) => fristHier(s, eigen, 'tage'));
@@ -1307,7 +1391,8 @@ export function dosisHinweise(stand, heute) {
     const ausAenderung = seit === aenderungAm;
     // Nach einer Änderung ab 70 (oder ohne Geburtsjahr) 8 Wochen wie D0.6 –
     // sonst verwirft die Karte den Kontrollwert, zu dem D6c geschickt hat (B31).
-    const ab = ausAenderung ? einpendeln(stand, seit) : 42;
+    // Auch, wenn sie erst im Einpendelfenster 70 wird (Runde 4: E18).
+    const ab = ausAenderung ? einpendelnAb(stand, seit) : 42;
     const n = tageZwischen(seit, heute);
     const neuerBefund = stand.labor.some((l) => l.tsh && l.datum > seit && l.datum <= heute);
     /*
@@ -1322,9 +1407,14 @@ export function dosisHinweise(stand, heute) {
      */
     if (!neuerBefund && n >= ab) {
       // Der Text sagt, was war (B36): eine Änderung der Dosis, ein Präparatwechsel oder „erst nachmessen".
+      // Kam der Präparatwechsel, bevor sich eine neue Menge eingependelt hatte,
+      // nennt er beides – sonst läse es sich, als sei nur das Präparat neu (Runde 4: E30).
+      const b = aenderung && aenderung.beginn;
+      const mitMenge = art === 'praeparat' && b && !aenderung.beginnBerichtigt && tageZwischen(b.ab, seit) < einpendelnAb(stand, b.ab);
       const anfang = !ausAenderung ? `Die Praxis wollte nach Ihrem Befund vom ${kurz(nachmessen.datum)} nachmessen lassen.`
-        : art === 'praeparat' ? `Sie haben am ${kurz(seit)} ein anderes Präparat oder einen anderen Hersteller eingetragen.`
-          : `Ihre Dosis wurde am ${kurz(seit)} geändert.`;
+        : mitMenge ? `Ihre Dosis wurde am ${kurz(b.ab)} geändert, und am ${kurz(seit)} haben Sie ein anderes Präparat oder einen anderen Hersteller eingetragen.`
+          : art === 'praeparat' ? `Sie haben am ${kurz(seit)} ein anderes Präparat oder einen anderen Hersteller eingetragen.`
+            : `Ihre Dosis wurde am ${kurz(seit)} geändert.`;
       const zeigen = n <= ab + 28 || n % 7 === 0;
       // Nach drei Monaten ohne Kontrolle „zeitnah" wie L7d – es ist dieselbe Kontrolle (B37).
       add('D6c', n > 90 ? 'zeitnah' : 'termin', `${anfang} Jetzt ist die Kontrolle fällig (${wochenText(ab)} danach). Bis ein neuer Wert da ist, zeigt die App keine neue Richtung. ${VOR_ABNAHME}`,
@@ -1334,7 +1424,12 @@ export function dosisHinweise(stand, heute) {
 
   if (letzte) {
     const n = tageZwischen(letzte.ab, heute);
-    const { tdNeu, tdAlt, mehr, weniger } = aenderung;
+    const { tdNeu, tdAlt, mehr, weniger, beginn } = aenderung;
+    // W-D4 fragt nach der Änderung der Menge – auch wenn danach noch das
+    // Präparat gewechselt wurde. Vorher fielen die Nachfragen nach einer
+    // Erhöhung (Herzklopfen, Brustschmerz) mit dem Eintrag „Euthyrox 125" weg (Runde 4: E30).
+    const nMenge = beginn ? tageZwischen(beginn.ab, heute) : -1;
+    const mengeBerichtigt = !beginn || aenderung.beginnBerichtigt;
     /*
      * INR und Blutzucker stehen täglich da (die Stufe bleibt so stabil) – mit
      * Datum statt „in den nächsten 1 bis 2 Wochen": Die Frist rückte sonst
@@ -1347,9 +1442,9 @@ export function dosisHinweise(stand, heute) {
 
     // W-D4 – Nachfragen nach 14 und 28 Tagen
     const frage = (tag, text) => {
-      const bezug = `${letzte.id}-${tag}`;
+      const bezug = `${beginn.id}-${tag}`;
       const antwort = [...stand.nachfragen].reverse().find((x) => x.art === 'wd4' && x.bezug === bezug);
-      if (!antwort && n >= tag && n <= tag + 6) {
+      if (!antwort && nMenge >= tag && nMenge <= tag + 6) {
         add('W-D4', 'termin', text, { frage: { id: 'W-D4', text, optionen: [['ja', 'Ja'], ['nein', 'Nein']], ziel: 'nachfrage', feld: 'wd4', bezug } });
       } else if (antwort && antwort.antwort === 'ja' && tageZwischen(antwort.am, heute) <= 3) {
         // Unter „Heute anrufen" nicht „heute oder morgen" – derselbe Satz steht
@@ -1362,19 +1457,20 @@ export function dosisHinweise(stand, heute) {
     if (berichtigt && n >= 0 && n <= 14) {
       add('X3b', 'termin', 'Sie haben berichtigt, welche Menge Sie im Moment nehmen. Ist das nicht die Menge, die Ihre Praxis verordnet hat, rufen Sie bitte in den nächsten Tagen dort an und sagen Sie, was Sie nehmen.');
     }
-    if (mehr && !berichtigt) {
+    if (mehr && !mengeBerichtigt) {
       frage(14, `Seit Ihre Dosis erhöht wurde: Haben Sie Herzklopfen, Herzrasen, innere Unruhe, Zittern, schlechten Schlaf oder Schmerzen in der Brust bemerkt? ${WD4_112}`);
       frage(28, `Seit Ihre Dosis erhöht wurde: Haben Sie Herzklopfen, Herzrasen, innere Unruhe, Zittern, schlechten Schlaf oder Schmerzen in der Brust bemerkt? ${WD4_112}`);
     }
-    if (weniger && !berichtigt) frage(28, 'Seit Ihre Dosis verringert wurde: Sind Sie deutlich müder geworden oder frieren Sie mehr?');
+    if (weniger && !mengeBerichtigt) frage(28, 'Seit Ihre Dosis verringert wurde: Sind Sie deutlich müder geworden oder frieren Sie mehr?');
 
     // WW1 – Marcumar
     if (stand.mittel.includes('marcumar') && n >= 0 && n <= 14) {
       add('WW1', 'zeitnah', `${was} Weil Sie Marcumar (Phenprocoumon) nehmen, lassen Sie den INR-Wert bis spätestens ${kurz(tageWeiter(letzte.ab, 14))} kontrollieren. Achten Sie auf ungewöhnliche blaue Flecken, Zahnfleisch- oder Nasenbluten.`);
     }
-    // WW2 – Diabetes
+    // WW2 – Diabetes. Der Hinweis auf Unterzucker auch, wenn die Menge in
+    // diesen sechs Wochen gesenkt und danach nur das Präparat gewechselt wurde (Runde 4: E30).
     if (hatDiabetes(stand) && n >= 0 && n <= 42) {
-      add('WW2', 'zeitnah', `${was} Messen Sie Ihren Blutzucker bis zum ${kurz(tageWeiter(letzte.ab, 42))} öfter. Mehr Schilddrüsenhormon kann den Zucker erhöhen, weniger kann ihn senken.${weniger ? ' Achten Sie auf Unterzucker: Zittern, Schwitzen, Heißhunger, Verwirrtheit. Dann sofort etwas Zuckerhaltiges essen oder trinken und die Praxis informieren.' : ''}`);
+      add('WW2', 'zeitnah', `${was} Messen Sie Ihren Blutzucker bis zum ${kurz(tageWeiter(letzte.ab, 42))} öfter. Mehr Schilddrüsenhormon kann den Zucker erhöhen, weniger kann ihn senken.${weniger && nMenge <= 42 ? ' Achten Sie auf Unterzucker: Zittern, Schwitzen, Heißhunger, Verwirrtheit. Dann sofort etwas Zuckerhaltiges essen oder trinken und die Praxis informieren.' : ''}`);
     }
     // B2 / X3 (4) – nicht auf Anweisung der Praxis (eigeneAenderung). Eine
     // offene Quelle (null) heißt nicht „nein" – sonst hieße es nach einer
@@ -1391,12 +1487,13 @@ export function dosisHinweise(stand, heute) {
       } else if (eigen.gross) {
         add('X3', 'tage', `Das ist mehr als ein üblicher Schritt. Rufen Sie heute oder morgen die Praxis an und nehmen Sie bis dahin wieder Ihre bisherige Menge. ${WD2}`, { warnzeichen: WD2 });
       } else {
-        add('B2', 'tage', 'Bitte sagen Sie Ihrer Praxis in den nächsten Tagen, dass Sie die Dosis geändert haben. Lassen Sie nach 6 bis 8 Wochen kontrollieren.');
+        // Die Frist der Kontrolle wie auf der Karte und bei D6c (Runde 4: E17).
+        add('B2', 'tage', `Bitte sagen Sie Ihrer Praxis in den nächsten Tagen, dass Sie die Dosis geändert haben. Lassen Sie ${wochenText(einpendelnAb(stand, eigen.d.ab))} nach der Änderung kontrollieren.`);
       }
     }
     // P7 – anderes Präparat bei gleicher Menge
     if (vorige && !berichtigt && tdNeu === tdAlt && (letzte.praeparat || '') !== (vorige.praeparat || '') && n >= 0 && n <= 14) {
-      add('P7', 'termin', 'Sie haben ein anderes Präparat oder einen anderen Hersteller eingetragen. Auch das kann den Wert etwas verändern. Fragen Sie die Praxis, ob nach 6 bis 8 Wochen kontrolliert werden soll.');
+      add('P7', 'termin', `Sie haben ein anderes Präparat oder einen anderen Hersteller eingetragen. Auch das kann den Wert etwas verändern. Fragen Sie die Praxis, ob ${wochenText(einpendelnAb(stand, letzte.ab))} nach dem Wechsel kontrolliert werden soll.`);
     }
   }
 
@@ -1512,17 +1609,52 @@ export function gesamtbildMitDosis(stand, heute) {
   return { ...g, stufe, kopf: kopfFuer(stufe, teile), teile, dosis: karte, dosisHinweise: hinweise.filter((h) => !h.still) };
 }
 
-/** Die zuletzt gezeigte Karte für den Arztbericht (B1 aus Regelwerk 2). */
+/** Eine gemerkte Richtung ohne Titel (ältere Einträge) in Worten. */
+const RICHTUNG_WORTE = {
+  mehr: 'Richtung „mehr" – eine etwas höhere Dosis.',
+  weniger: 'Richtung „weniger" – eine etwas niedrigere Dosis.',
+  gleich: 'Richtung „gleich" – die Dosis so lassen.',
+};
+
+/**
+ * Die Dosis-Karte für den Arztbericht (B1 aus Regelwerk 2): die Karte von
+ * heute und die zuletzt gezeigte Richtungskarte.
+ *
+ * Vorher rechnete der Bericht nur die Karte von heute und nannte sie „vom
+ * <heute>", auch wenn sie nie geöffnet worden war. Stand heute eine Frage da
+ * (etwa ab Tag 14 die Rückfrage X3-14), fehlte die Richtung, die die
+ * Patientin zwei Wochen lang gesehen hatte (Runde 4: E16). Jetzt heißt die
+ * Kopfzeile „Stand <heute>", „Der Patientin dazu gezeigt" steht nur, wenn die
+ * App diese Richtung zu diesem Befund wirklich gezeigt hat (Nachfrage
+ * 'karte_gezeigt', gemerkt von der Karte), und zeigt die Karte heute keine
+ * oder eine andere Richtung, folgt die zuletzt gezeigte mit Datum.
+ */
 export function dosisBerichtZeilen(stand, heute) {
   const k = dosisRichtung(stand, heute);
   if (!k) return [];
   const titel = k.frage ? `offene Frage – ${k.frage.text}` : k.titel;
-  const z = [`Dosis-Karte der App vom ${kurz(heute)} zum Befund vom ${kurz(k.befund.datum)} (App): ${titel} Die App gibt nur eine Richtung, keine Dosis.`];
+  const z = [`Dosis-Karte der App, Stand ${kurz(heute)}, zum Befund vom ${kurz(k.befund.datum)} (App): ${titel} Die App gibt nur eine Richtung, keine Dosis.`];
+  const richtung = !k.frage && k.richtung !== 'klaeren' ? k.richtung : null;
+  const gezeigt = stand.nachfragen.filter((n) => n.art === 'karte_gezeigt' && n.am <= heute);
   // D6 / Grundsatz 8: Auch im Bericht steht die Richtung nie ohne Pflichttext –
   // die Nutzerin liest ihn in der App und beim Teilen mit (B41).
-  if (!k.frage && k.richtung !== 'klaeren') z.push(`  Der Patientin dazu gezeigt: ${k.pflicht}`);
+  if (richtung) {
+    const gesehen = gezeigt.some((n) => n.bezug === k.befund.id && n.antwort === richtung);
+    z.push(`  ${gesehen ? 'Der Patientin dazu gezeigt' : 'Dazu gehört der Pflichttext'}: ${k.pflicht}`);
+  }
   k.gruende.forEach((g) => z.push(`  Grund ${g.id}: ${g.text}`));
   if (k.schritt && !k.frage) z.push(`  ${k.schritt}`);
   z.push(`  ${k.grundlage}`);
+  const zuletzt = gezeigt.reduce((a, n) => (!a || n.am >= a.am ? n : a), null);
+  const vorher = zuletzt && (zuletzt.bezug !== k.befund.id || zuletzt.antwort !== richtung)
+    ? stand.labor.find((l) => l.id === zuletzt.bezug) : null;
+  if (vorher) {
+    // Gemerkt wird nur ein Wechsel der Richtung: Das Datum ist der erste Tag,
+    // an dem die Karte sie zeigte. Der Pflichttext damals war D6 lang oder –
+    // unter „Heute anrufen" – ohne „Ein paar Tage Warten"; hier steht, was
+    // in beiden stand.
+    z.push(`Zuletzt gezeigte Richtung der Dosis-Karte, zuerst angezeigt am ${kurz(zuletzt.am)}, zum Befund vom ${kurz(vorher.datum)} (App): ${zuletzt.titel || RICHTUNG_WORTE[zuletzt.antwort]} Die App gibt nur eine Richtung, keine Dosis.`);
+    z.push(`  Der Patientin dazu gezeigt: ${zuletzt.antwort === 'gleich' ? D6_KURZ : D6_HEUTE}`);
+  }
   return z;
 }
