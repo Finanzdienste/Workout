@@ -3011,6 +3011,144 @@ global('G17: die Frage nach dem Check hat die Stufe der Karte nach „Nichts dav
 }
 function ug6(n) { return `${String(n).replace('.', ',')} µg`; }
 
+// ================================================================ Runde 6 – Rest
+//
+// Die Restlücken nach der Nachprüfung der Runde 6: Stellen der Karte und von
+// „Heute", die noch jeden Dosis-Eintrag als Änderung zählten (G14, G15, G11),
+// die Deutung der W-D4-Antwort aus dem heutigen Datenstand und die Frist von
+// X3b ab „Gilt ab" statt ab dem Tag der Berichtigung. Jeder Fall scheiterte
+// vor der Korrektur, außer den Gegenproben.
+{
+  // G14-Rest: D0.17 „bei gleicher Dosis" heißt ohne Änderung dazwischen – ein
+  // doppelter Eintrag (alles gleich) ist keine. Vorher machte er aus der Sperre
+  // eine Richtung „weniger". Ein Präparatwechsel bleibt eine Änderung (RW2 D0.17).
+  const st = (zwischen) => vollständigerStand({
+    vorbefunde: [vorbefund('b0', plus(HEUTE, -200), 6.2)],
+    befund: bef(0.25, 15, { bestaetigt: true }),
+    dosen: [dosis('d1', DOSIS_AB, 100, { praxis: null }), ...(zwischen ? [dosis('d2', plus(HEUTE, -120), 100, zwischen)] : [])],
+  });
+  const nur = r6('G14-Rest nur ein Eintrag: D0.17', st(null));
+  check('G14-Rest Gegenprobe nur ein Eintrag: D0.17, keine Richtung', hatRegel(nur, 'D0.17') && nur.richtung === 'klaeren', info(nur));
+  const dopp = r6('G14-Rest doppelter Eintrag dazwischen', st({ praxis: true }));
+  check('G14-Rest doppelter Eintrag zwischen den Befunden: D0.17 bleibt, keine Richtung', hatRegel(dopp, 'D0.17') && dopp.richtung === 'klaeren', info(dopp));
+  const praep = r6('G14-Rest Präparatwechsel dazwischen', st({ praeparat: 'Euthyrox', praxis: true }));
+  check('G14-Rest Gegenprobe Präparatwechsel gleicher Menge: eine Änderung, kein D0.17 (RW2)', !hatRegel(praep, 'D0.17'), info(praep));
+  // vorUeber (D2b/D2c „Zweimal erhöht"): derselbe doppelte Eintrag senkte die Karte.
+  const zwei = (zwischen) => vollständigerStand({
+    vorbefunde: [vorbefund('b0', plus(HEUTE, -200), 5.5)], befund: bef(5.8),
+    dosen: [dosis('d1', DOSIS_AB, 75, { praxis: null }), ...(zwischen ? [dosis('d2', plus(HEUTE, -120), 75, zwischen)] : [])],
+  });
+  const zNur = r6('G14-Rest vorUeber nur ein Eintrag', zwei(null));
+  const zDopp = r6('G14-Rest vorUeber doppelter Eintrag', zwei({ praxis: true }));
+  check('G14-Rest vorUeber: mit doppeltem Eintrag dieselbe Karte wie ohne („Zweimal erhöht", zeitnah)',
+    zDopp.richtung === 'mehr' && zDopp.stufe === zNur.stufe && zNur.stufe === 'zeitnah' && /Zweimal erhöht/.test(kern(zDopp)), `${info(zNur)} | ${info(zDopp)}`);
+}
+
+{
+  // G15-Rest: 100 µg ab dem Tag X (angeordnet, nie genommen), am selben Tag
+  // berichtigt auf 75 µg („Auf Anweisung der Praxis: Ja", damit X3b die Karte
+  // nicht sperrt). Der ersetzte Eintrag galt keinen Tag: vorUeber bleibt, und
+  // D2d zählt ihn nicht als Erhöhung.
+  const X = plus(HEUTE, -100);
+  const ersetzt = [dosis('dC', X, 100), dosis('dB', X, 75, { berichtigung: true })];
+  const st = (dosen, tshV, tshB) => vollständigerStand({ vorbefunde: [vorbefund('b0', plus(HEUTE, -200), tshV)], befund: bef(tshB), dosen });
+  const wahr = r6('G15-Rest vorUeber Wahrheit (nur 75 µg)', st([dosis('d1', DOSIS_AB, 75, { praxis: null })], 5.5, 5.8));
+  const mit = r6('G15-Rest vorUeber mit ersetztem Eintrag', st([dosis('d1', DOSIS_AB, 75, { praxis: null }), ...ersetzt], 5.5, 5.8));
+  check('G15-Rest vorUeber: ein am selben Tag ersetzter Eintrag senkt die Karte nicht (mehr, zeitnah, „Zweimal erhöht")',
+    mit.richtung === 'mehr' && mit.stufe === wahr.stufe && wahr.stufe === 'zeitnah' && /Zweimal erhöht/.test(kern(mit)), `${info(wahr)} | ${info(mit)}`);
+  // D2d: 50 → 75 µg vor 300 Tagen, dann 100 µg ersetzt – nur eine Erhöhung im Jahr.
+  const d2d = r6('G15-Rest D2d mit ersetztem Eintrag', st([dosis('d0', DOSIS_AB, 50, { praxis: null }), dosis('d1', plus(HEUTE, -300), 75), ...ersetzt], 9, 9.5));
+  check('G15-Rest D2d: der ersetzte Eintrag ist keine zweite Erhöhung – kein „schon mehrfach erhöht", Richtung D2c',
+    !hatRegel(d2d, 'D2d') && hatRegel(d2d, 'D2c') && !/mehrfach erhöht/.test(kern(d2d)), info(d2d));
+  const d2dEcht = r6('G15-Rest D2d Gegenprobe: zwei echte Erhöhungen', st([dosis('d0', DOSIS_AB, 50, { praxis: null }), dosis('d1', plus(HEUTE, -300), 75), dosis('d2', X, 100)], 9, 9.5));
+  check('G15-Rest D2d Gegenprobe: zwei echte Erhöhungen im Jahr – D2d', hatRegel(d2dEcht, 'D2d'), info(d2dEcht));
+}
+
+{
+  // G11-Rest: Die Berichtigung (75 µg, „Auf Anweisung: Nein") ersetzt nach
+  // ihrem „Gilt ab" die angeordneten, nie genommenen 100 µg (`statt`). Die
+  // 100 µg waren trotzdem die jüngste Änderung: „Heute" fragte an Tag 14 nach
+  // Herzklopfen „seit Ihre Dosis erhöht wurde", verlangte INR und eine Kontrolle.
+  const st = (weiteres = {}) => vollständigerStand({
+    mittel: ['marcumar'],
+    befund: bef(6.5, 15, { datum: plus(HEUTE, -10) }),
+    dosen: [dosis('d1', '2024-05-14', 75, { praxis: null }), dosis('dB', '2024-05-14', 75, { praxis: false, berichtigung: true, statt: 'dC', ...weiteres }), dosis('dC', plus(HEUTE, -14), 100)],
+  });
+  const h = dosisHinweise(st(), HEUTE);
+  check('G11-Rest: keine W-D4-Frage zu den nie genommenen 100 µg', !h.some((x) => x.id === 'W-D4'), hinweisInfo(h));
+  check('G11-Rest: kein INR-Hinweis „Ihre Schilddrüsendosis wurde … geändert" (WW1), keine Kontrolle (D6c)', !h.some((x) => ['WW1', 'D6c', 'P7'].includes(x.id)), hinweisInfo(h));
+  const k = r6('G11-Rest Karte nach „Gilt ab" auf den wahren Beginn', st());
+  check('G11-Rest: die Grundlage nennt 75 µg seit dem wahren Beginn', /Ihre Dosis laut App: 75 µg am Tag seit 14\.05\.2024/.test(k.grundlage), k.grundlage.slice(-160));
+  // Gegenprobe: dieselbe Erhöhung, wirklich genommen – Frage und INR bleiben.
+  const echt = dosisHinweise(vollständigerStand({ mittel: ['marcumar'], befund: bef(6.5, 15, { datum: plus(HEUTE, -10) }), dosen: [dosis('d1', '2024-05-14', 75, { praxis: null }), dosis('dC', plus(HEUTE, -14), 100)] }), HEUTE);
+  check('G11-Rest Gegenprobe: die echte Erhöhung behält W-D4-Frage und WW1', echt.some((x) => x.id === 'W-D4' && x.frage) && echt.some((x) => x.id === 'WW1'), hinweisInfo(echt));
+}
+
+{
+  // W-D4-Art: Die Tag-14-Frage ist immer die nach einer Erhöhung. Wird davor
+  // ein Eintrag nachgetragen (selbst 125 µg) oder die Stärke des früheren
+  // berichtigt, sah die 100-µg-Erhöhung jetzt wie eine Senkung aus: „müder seit
+  // der Senkung", Termin statt „Heute anrufen".
+  const st = (dosen, antwort = { bezug: 'd1-14' }) => vollständigerStand({
+    befund: bef(6.8, 15, { datum: plus(HEUTE, -30), praxis: 'geaendert', praxisAm: plus(HEUTE, -20) }),
+    dosen, nachfragen: [dosisStimmt('b1', plus(HEUTE, -29)), { id: 'w1', art: 'wd4', antwort: 'ja', am: plus(HEUTE, -1), ...antwort }],
+  });
+  const d1 = dosis('d1', plus(HEUTE, -15), 100);
+  for (const [was, dosen] of [
+    ['nachgetragen: selbst 125 µg davor', [dosis('d0', DOSIS_AB, 75, { praxis: null }), dosis('dX', plus(HEUTE, -35), 125, { praxis: false }), d1]],
+    ['die Stärke davor berichtigt auf 125 µg', [dosis('d0', DOSIS_AB, 125, { praxis: null }), d1]],
+  ]) {
+    const s = st(dosen);
+    const k = r6(`W-D4-Art ${was}`, s);
+    const w = dosisHinweise(s, HEUTE).find((x) => x.id === 'W-D4' && !x.frage);
+    check(`W-D4-Art ${was}: „Ja" auf die Tag-14-Frage bleibt „seit der Erhöhung", heute`,
+      !!w && w.stufe === 'heute' && k.stufe === 'heute' && k.gruende.some((g) => g.id === 'W-D4' && /seit der Erhöhung/.test(g.text)) && !/seit der Senkung/.test(kern(k)), `${info(k)} | ${JSON.stringify(w)}`);
+  }
+  // Die gespeicherte Art gilt – auch nach 28 Tagen, wo die Daten es nicht mehr sagen.
+  const d28 = [dosis('d0', DOSIS_AB, 75, { praxis: null }), dosis('dX', plus(HEUTE, -40), 125, { praxis: false }), dosis('d1', plus(HEUTE, -29), 100)];
+  const erh = dosisHinweise(st(d28, { bezug: 'd1-28', aenderung: 'erhoehung' }), HEUTE).find((x) => x.id === 'W-D4' && !x.frage);
+  check('W-D4-Art Tag 28, gespeichert „Erhöhung": heute, obwohl die Einträge jetzt eine Senkung zeigen', !!erh && erh.stufe === 'heute', JSON.stringify(erh));
+  const senk = dosisHinweise(st([dosis('d0', DOSIS_AB, 125, { praxis: null }), dosis('d1', plus(HEUTE, -29), 100)], { bezug: 'd1-28', aenderung: 'senkung' }), HEUTE).find((x) => x.id === 'W-D4' && !x.frage);
+  check('W-D4-Art Gegenprobe Tag 28, gespeichert „Senkung": beim Termin', !!senk && senk.stufe === 'termin' && /bei der Kontrolle/.test(senk.text), JSON.stringify(senk));
+  // Die Frage trägt ihre Art, damit die Antwort sie speichern kann (js/app.js).
+  const frageStand = (nach) => vollständigerStand({ dosen: [dosis('d0', DOSIS_AB, 75, { praxis: null }), dosis('d1', plus(HEUTE, -28), nach)] });
+  const fA = dosisHinweise(frageStand(100), HEUTE).find((x) => x.id === 'W-D4' && x.frage);
+  const fB = dosisHinweise(frageStand(50), HEUTE).find((x) => x.id === 'W-D4' && x.frage);
+  check('W-D4-Art: die Frage nennt ihre Art (Erhöhung/Senkung), wd4FrageArt liest sie',
+    !!fA && fA.frage.art === 'erhoehung' && !!fB && fB.frage.art === 'senkung' && typeof dosisModul.wd4FrageArt === 'function'
+    && dosisModul.wd4FrageArt(frageStand(100), HEUTE, 'd1-28') === 'erhoehung' && dosisModul.wd4FrageArt(frageStand(50), HEUTE, 'd1-28') === 'senkung'
+    && dosisModul.wd4FrageArt(frageStand(50), HEUTE, 'd1-14') === null, `${JSON.stringify(fA && fA.frage)} | ${JSON.stringify(fB && fB.frage)}`);
+}
+
+{
+  // X3b nach G11: 14 Tage ab dem Tag der Berichtigung, nicht ab „Gilt ab".
+  // Die Nutzerin setzt „Gilt ab" wie geraten auf den wahren Beginn (2024) –
+  // der Hinweis „Bitte rufen Sie in den nächsten Tagen in der Praxis an und
+  // sagen Sie, was Sie nehmen" war sofort weg, obwohl die Praxis weiter mit
+  // den angeordneten 100 µg rechnet.
+  const st = (weiteres = {}, befundTag = plus(HEUTE, -10)) => vollständigerStand({
+    befund: bef(6.5, 15, { datum: befundTag }),
+    dosen: [dosis('d1', '2024-05-14', 75, { praxis: null }), dosis('dB', '2024-05-14', 75, { praxis: false, berichtigung: true, statt: 'dC', ...weiteres }), dosis('dC', plus(HEUTE, -60), 100)],
+  });
+  const x3b = (s, heute = HEUTE) => dosisHinweise(s, heute).find((h) => h.id === 'X3b');
+  // Mit dem Tag aus dem Formular (berichtigtAm).
+  const s = st({ berichtigtAm: plus(HEUTE, -3) });
+  const h = x3b(s);
+  check('X3b nach G11: 3 Tage nach der Berichtigung mit „Gilt ab" 2024 – X3b mit Stufe Tage', !!h && h.stufe === 'tage' && /in den nächsten Tagen in der Praxis an/.test(h.text), JSON.stringify(h));
+  check('X3b nach G11: 11 Tage später noch da, 12 Tage später nicht mehr (14 Tage ab der Berichtigung)',
+    !!x3b(s, plus(HEUTE, 11)) && !x3b(s, plus(HEUTE, 12)), `${JSON.stringify(x3b(s, plus(HEUTE, 11)))} | ${JSON.stringify(x3b(s, plus(HEUTE, 12)))}`);
+  const k = r6('X3b nach G11: Karte', s);
+  check('X3b nach G11: die Karte sinkt durch das Befolgen ihres Rats nicht – Grund X3b, Stufe Tage, wie „Heute" und Gesamtbild',
+    hatRegel(k, 'X3b') && k.stufe === 'tage' && gesamtbildMitDosis(s, HEUTE).stufe === 'tage' && !WIE_BISHER.test(kern(k)), info(k));
+  // Ältere Daten ohne den Tag: frühestens der erste Befund ab dem Beginn der nie genommenen 100 µg.
+  const alt = st();
+  check('X3b nach G11 ohne gespeicherten Tag: ab dem Befund nach den ersetzten 100 µg (vor 10 Tagen) – X3b', !!x3b(alt), hinweisInfo(dosisHinweise(alt, HEUTE)));
+  // Gegenprobe (G10): Eine Berichtigung vor der Blutabnahme hält die Frage zum Befund nicht zurück.
+  const vorher = st({ berichtigtAm: plus(HEUTE, -12) }, plus(HEUTE, -10));
+  const kv = r6('X3b Gegenprobe: Berichtigung vor der Blutabnahme', { ...vorher, nachfragen: [] });
+  check('X3b Gegenprobe: Berichtigung vor der Blutabnahme – die Karte fragt, ob die Dosis stimmt (G10)', !!kv.frage && kv.frage.id === 'X3' && !hatRegel(kv, 'X3b'), info(kv));
+}
+
 // Die globalen Eigenschaften, die hier zählen, auch über die Karten der Runde 6.
 global('Runde 6: L3f – kein Text nennt eine längere Frist als die Stufe der Karte', R6.filter((x) => x.r.stufe !== 'notruf'),
   (x) => FRIST_UNTER.every(([ab, m]) => rang(x.r.stufe) < RANG[ab] || !m.test(kern(x.r))), (x) => `${x.name}: ${x.r.stufe} | ${kern(x.r).replace(/\s+/g, ' ').slice(0, 160)}`);

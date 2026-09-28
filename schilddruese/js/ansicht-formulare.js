@@ -18,7 +18,7 @@ import * as sp from './speicher.js';
 import * as ez from './einschaetzung.js';
 import { befundPruefen } from './einheiten.js';
 import { E14_TEXT, E16_TEXT } from './wissen.js';
-import { dosisBefund } from './dosis.js';
+import { dosisBefund, berichtigtAm as berichtigungsTag } from './dosis.js';
 import { wahlFrage, JNW_WAHL, BEFUND_FRAGEN, w1Karte } from './ansicht-einschaetzung.js';
 
 const feldDatum = (name, wert, titel = 'Datum', hinweis = '', max = '') => `
@@ -392,8 +392,21 @@ function dosisAbsenden(id, f, heute) {
     // ein vorhandener Vermerk stehen – `eintrag` enthält ihn nicht.
     const statt = !alt && berichtigung ? heuteGilt : nie && f.get('nieGenommen') === 'ja' ? nie.statt : null;
     const vermerk = statt && s.dosen.some((d) => d.id === statt.id) && statt !== alt ? { statt: statt.id } : {};
-    if (alt) Object.assign(alt, eintrag, berichtigung || alt.berichtigung ? { berichtigung: true, ...vermerk } : {});
-    else s.dosen.push({ id: sp.kennung(), ...eintrag, berichtigung, ...(berichtigung ? vermerk : {}) });
+    /*
+     * Runde 6 – Rest (X3b): der Tag der Berichtigung – heute, wenn sie jetzt
+     * entsteht oder „Ja, nie genommen" dazukommt (davon weiß die Praxis noch
+     * nichts). Sonst bleibt er; ältere Einträge ohne ihn bekommen ihren
+     * bisherigen „Gilt ab": Ab dem lief die Bitte, der Praxis zu sagen, was
+     * sie nimmt. Rückt „Gilt ab" jetzt auf den wahren Beginn, wie die Karte
+     * rät, endete sie sonst sofort (js/dosis.js, berichtigtAm).
+     * Ohne gespeicherten Tag derselbe Ersatztag wie auf der Dosis-Karte –
+     * sonst beendete schon das Ändern der Notiz die Bitte (Nachprüfung zu
+     * Runde 6 – Rest).
+     */
+    const berichtigtAm = berichtigung || vermerk.statt || !alt ? heute
+      : alt.berichtigtAm || [berichtigungsTag(s, alt, heute), heute].sort()[0];
+    if (alt) Object.assign(alt, eintrag, berichtigung || alt.berichtigung ? { berichtigung: true, ...vermerk, berichtigtAm } : {});
+    else s.dosen.push({ id: sp.kennung(), ...eintrag, berichtigung, ...(berichtigung ? { ...vermerk, berichtigtAm } : {}) });
     s.dosen.sort((a, b) => a.ab.localeCompare(b.ab));
     // X3 (1) „Nein, ich nehme etwas anderes": Mit dem Eintrag ist die
     // Aufforderung erfüllt. Die Antwort fällt weg, und die Dosis-Karte fragt

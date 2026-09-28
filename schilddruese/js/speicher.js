@@ -627,6 +627,11 @@ export function normStand(roh) {
       // berichtigt (die Dosis, nach der die Karte gefragt hatte). Nur bei einer
       // Berichtigung; siehe ersetztDurchBerichtigung().
       ...(bool(d.berichtigung) && typeof d.statt === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(d.statt) ? { statt: d.statt } : {}),
+      // Runde 6 – Rest (X3b): der Tag, an dem die Berichtigung eingetragen
+      // wurde (oder „nie genommen" dazukam). „Gilt ab" rückt danach oft auf
+      // den wahren Beginn – die Bitte, der Praxis Bescheid zu sagen, gilt
+      // aber ab diesem Tag (js/dosis.js, berichtigtAm). Nur bei einer Berichtigung.
+      ...(bool(d.berichtigung) && istISO(d.berichtigtAm) ? { berichtigtAm: d.berichtigtAm } : {}),
     };
   }, 'ab').sort((a, b) => a.ab.localeCompare(b.ab));
   // Ein Verweis auf einen Eintrag, den es nicht (mehr) gibt, sagt nichts mehr.
@@ -725,6 +730,10 @@ export function normStand(roh) {
     if (!(typeof n.art === 'string' && /^[a-z0-9_]{1,30}$/.test(n.art)
       && typeof n.bezug === 'string' && n.bezug.length <= 60 && typeof n.antwort === 'string' && /^[a-z0-9_]{1,20}$/.test(n.antwort))) return null;
     const eintrag = { art: n.art, bezug: n.bezug, antwort: n.antwort, am: n.am };
+    // Runde 6 – Rest (W-D4-Art): Die Antwort auf W-D4 trägt die Art der
+    // Frage – nach einer Erhöhung oder einer Senkung. Aus dem heutigen
+    // Datenstand ließ sie sich nicht sicher lesen (einschaetzung.wd4Art).
+    if (n.art === 'wd4' && ['erhoehung', 'senkung'].includes(n.aenderung)) return { ...eintrag, aenderung: n.aenderung };
     if (n.art !== 'karte_gezeigt') return eintrag;
     if (!['mehr', 'weniger', 'gleich'].includes(n.antwort)) return null;
     const titel = zeile(n.titel, GRENZEN.titel);

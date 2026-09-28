@@ -23,7 +23,7 @@ import { formular, absenden, eintragLoeschen, zaehlerNachfuehren } from './ansic
 import { einschaetzungSeite } from './ansicht-einschaetzung.js';
 import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS, PRAXIS_NOCH_NICHT } from './ansicht-dosis.js';
 import { fragenVorschlaege, abnahmeHeute, aenderungsArt } from './einschaetzung.js';
-import { dosisHinweise } from './dosis.js';
+import { dosisHinweise, wd4FrageArt } from './dosis.js';
 import { willkommenAnsicht, willkommenWeiter, willkommenEntwurf, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
 import { berichtText } from './bericht.js';
 import { erinnerungICS, terminICS } from './ics.js';
@@ -1259,7 +1259,12 @@ function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
         // die nächste Dosisänderung zur „Berichtigung" – ohne Kontrolle und
         // ohne Nachfrage nach einer Erhöhung (C17).
         if (art === 'dosis_stimmt') s.nachfragen = s.nachfragen.filter((n) => !(n.art === 'dosis_stimmt' && n.bezug !== zu && /^nein/.test(n.antwort)));
-        s.nachfragen.push({ id: sp.kennung(), art, bezug: zu, antwort: wert, am: heute });
+        // Runde 6 – Rest (W-D4-Art): Die Antwort auf W-D4 merkt sich, wonach
+        // gefragt wurde – nach einer Erhöhung oder einer Senkung. Später aus
+        // den Einträgen gelesen, machte ein nachgetragener Eintrag davor aus
+        // „Herzklopfen seit der Erhöhung: Ja" ein „müder seit der Senkung".
+        const aenderung = art === 'wd4' ? wd4FrageArt(s, heute, zu) : null;
+        s.nachfragen.push({ id: sp.kennung(), art, bezug: zu, antwort: wert, am: heute, ...(aenderung ? { aenderung } : {}) });
         geschrieben = true;
       }
     });

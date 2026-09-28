@@ -3295,6 +3295,15 @@ const r6Berichtigung = (st) => st.dosen.find((d) => d.berichtigung) || {};
   const zeileC = await r4a.text('#ansicht [data-seite="dosis"][data-param="dC"]');
   check(zeileC.includes('nie genommen (berichtigt)') && !zeileC.includes('aktuell') && !zeileC.includes('geplant'),
     `G11: in „Dosis im Verlauf" stehen die 100 µg als „nie genommen (berichtigt)" („${zeileC}")`);
+  // Runde 6 – Rest (X3b nach G11): Die Berichtigung merkt sich ihren Tag, und
+  // „Heute" bittet 14 Tage ab ihm, der Praxis zu sagen, was sie nimmt – auch
+  // nachdem „Gilt ab" auf den wahren Beginn gerückt ist. Vorher war die Bitte
+  // mit dem Vorrücken sofort weg.
+  await page.click('#reiter-heute');
+  const heuteA = await ansichtText(page);
+  check(neu.berichtigtAm === TAG && nachher.berichtigtAm === TAG && await gibt('#ansicht [data-regel="X3b"]')
+    && heuteA.includes('Sie haben berichtigt, welche Menge Sie im Moment nehmen') && heuteA.includes('in den nächsten Tagen in der Praxis an'),
+  `X3b nach G11: der Tag der Berichtigung bleibt (${neu.berichtigtAm} / ${nachher.berichtigtAm}), „Heute" nennt X3b nach dem Vorrücken`);
 }
 
 // ---------------------------------------------------------------- G11 (b): alte Berichtigung ohne Vermerk
@@ -3328,6 +3337,40 @@ const r6Berichtigung = (st) => st.dosen.find((d) => d.berichtigung) || {};
   const berichtB = await r6Bericht();
   check(ja && ja.ab === R6_LANGE && ja.statt === 'dC' && berichtB.includes(`Aktuell: L-Thyroxin 75 µg, 1 Tablette am Tag, seit ${kurz(R6_LANGE)}`) && !berichtB.includes('Aktuell: L-Thyroxin 100 µg'),
     `G11: „Ja, nie genommen" speichert mit Vermerk – der Bericht nennt 75 µg (${JSON.stringify(ja)})`);
+  // Runde 6 – Rest (X3b nach G11): „Ja, nie genommen" ist neu für die Praxis – ab heute die Bitte X3b.
+  await page.click('#reiter-heute');
+  check(ja && ja.berichtigtAm === TAG && await gibt('#ansicht [data-regel="X3b"]'),
+    `X3b nach G11: alte Berichtigung mit „Ja, nie genommen" – Tag der Berichtigung heute, „Heute" nennt X3b (${ja && ja.berichtigtAm})`);
+}
+
+// ---------------------------------------------------------------- Runde 6 – Rest (W-D4-Art): die Antwort merkt sich die Art der Frage
+
+// „Ja" auf die Frage 14 Tage nach der Erhöhung auf „Heute". Danach trägt sie
+// davor noch eine Menge nach (selbst 125 µg) – aus der Erhöhung auf 100 µg
+// wurde vorher rechnerisch eine Senkung: „müder seit der Senkung", Termin
+// statt „Heute anrufen".
+{
+  const erhoeht = plus(TAG, -14);
+  await laden(stand({
+    dosen: [
+      { id: 'd1', ab: plus(TAG, -400), praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '' },
+      { id: 'd2', ab: erhoeht, praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, notiz: '', praxis: true },
+    ],
+    labor: [befund('b1', plus(TAG, -30), { tsh: w(6.8, 'mU/l', 0.4, 4) }, { praxis: 'geaendert', praxisAm: erhoeht })],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: plus(TAG, -29) }],
+  }));
+  await page.click('#reiter-heute');
+  const frage = page.locator('#ansicht [data-regel="W-D4"]');
+  if (await frage.count()) await frage.locator('[data-act="frage-antwort"][data-wert="ja"]').click();
+  const st = await gespeichert();
+  const antwort = st.nachfragen.find((n) => n.art === 'wd4');
+  check(!!antwort && antwort.antwort === 'ja' && antwort.aenderung === 'erhoehung', `W-D4-Art: die Antwort speichert, dass nach einer Erhöhung gefragt wurde (${JSON.stringify(antwort)})`);
+  // Danach davor nachgetragen: selbst 125 µg – die Antwort bleibt „seit der Erhöhung".
+  await laden({ ...st, dosen: [...st.dosen, { id: 'dX', ab: plus(TAG, -20), praeparat: 'L-Thyroxin', mikrogramm: 125, tabletten: 1, notiz: '', praxis: false }].sort((a, b) => a.ab.localeCompare(b.ab)) });
+  await page.click('#reiter-heute');
+  const wd4 = await gibt('#ansicht [data-regel="W-D4"]') ? await r4a.text('#ansicht [data-regel="W-D4"]') : '';
+  check(wd4.includes('Heute anrufen') && wd4.includes('Warnzeichen-Check') && await gibt('#ansicht [data-regel="W-D4"] [data-seite="warnzeichen"]'),
+    `W-D4-Art: nach einem Nachtrag davor bleibt „Heute anrufen" mit dem Warnzeichen-Check („${wd4.slice(0, 100)}")`);
 }
 
 // ---------------------------------------------------------------- G11 (c): gleich mit dem wahren Beginn angelegt

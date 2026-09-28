@@ -2315,6 +2315,38 @@ export function wd4Bezug(id, tag) {
 }
 
 /**
+ * Nach welcher Änderung fragte die Nachfrage, die `n` beantwortet (W-D4)?
+ * Runde 6 – Rest (W-D4-Art): Vorher las die App das aus dem heutigen
+ * Datenstand – den Eintrag aus dem Bezug gegen den davor. Wurde davor noch
+ * ein Eintrag nachgetragen oder die Stärke eines früheren berichtigt, war
+ * aus der Erhöhung eine Senkung geworden: „Herzklopfen seit der Erhöhung:
+ * Ja" las sich auf der Karte und im Arztbericht als „müder seit der
+ * Senkung", und „Heute anrufen" fiel auf „Beim nächsten Termin".
+ * Jetzt gilt, was gefragt wurde: Die Antwort trägt die Art der Frage
+ * (`aenderung`, gespeichert beim Antworten, js/app.js). Ältere Antworten ohne
+ * sie: Nach 14 Tagen fragt die App nur nach einer Erhöhung (Frage A); nach 28
+ * Tagen aus dem Eintrag gegen den Zeitraum davor (dosisVerlauf), sonst offen –
+ * ohne Einträge ab dem Tag der Antwort: Gefragt wurde 28 Tage nach dem Beginn
+ * der Änderung, ein Eintrag ab dem Antworttag war nicht die Menge davor.
+ * → 'erhoehung' | 'senkung' | null
+ */
+export function wd4Art(stand, n, heute) {
+  if (n.aenderung === 'erhoehung' || n.aenderung === 'senkung') return n.aenderung;
+  const m = /-(14|28)$/.exec(n.bezug || '');
+  if (!m) return null;
+  if (m[1] === '14') return 'erhoehung';
+  const d = stand.dosen.find((x) => wd4Bezug(x.id, 28) === n.bezug) || null;
+  const perioden = dosisVerlauf({ ...stand, dosen: stand.dosen.filter((x) => x === d || x.ab < n.am) }, heute);
+  const i = d ? perioden.findIndex((p) => p.eintraege.includes(d)) : -1;
+  if (i > 0) {
+    const alt = sp.tagesdosis(perioden[i - 1].d);
+    const neu = sp.tagesdosis(d);
+    if (alt !== null && neu !== null && alt !== neu) return neu > alt ? 'erhoehung' : 'senkung';
+  }
+  return null;
+}
+
+/**
  * Runde 6: G13 – die Antworten auf die Nachfragen nach einer Dosisänderung
  * (RW2 W-D4: nach einer Erhöhung Herzklopfen, Unruhe, Brustschmerz; nach
  * einer Senkung müder, mehr frieren). Sie sind Angaben der Patientin zu
@@ -2330,7 +2362,6 @@ export function wd4Bezug(id, tag) {
  */
 export function wd4Angaben(stand, heute) {
   const ab = tageWeiter(heute, -89);
-  const perioden = dosisVerlauf(stand, heute);
   return stand.nachfragen
     .filter((n) => n.art === 'wd4' && ['ja', 'nein'].includes(n.antwort) && n.am <= heute
       && (n.am >= ab || !stand.labor.some((l) => l.tsh && l.datum > n.am && l.datum <= heute)))
@@ -2339,16 +2370,10 @@ export function wd4Angaben(stand, heute) {
       let tag = null;
       stand.dosen.forEach((x) => [14, 28].forEach((t) => { if (!d && wd4Bezug(x.id, t) === n.bezug) { d = x; tag = t; } }));
       if (!d) tag = Number((/-(14|28)$/.exec(n.bezug) || [])[1]) || null;
-      // Erhöhung oder Senkung: die Menge dieses Eintrags gegen den Zeitraum davor.
-      let art = null;
-      const i = d ? perioden.findIndex((p) => p.eintraege.includes(d)) : -1;
-      if (i > 0) {
-        const alt = sp.tagesdosis(perioden[i - 1].d);
-        const neu = sp.tagesdosis(d);
-        if (alt !== null && neu !== null && alt !== neu) art = neu > alt ? 'mehr' : 'weniger';
-      }
-      // Nach 14 Tagen fragt die Karte nur nach einer Erhöhung.
-      if (!art && d && tag === 14) art = 'mehr';
+      // Erhöhung oder Senkung: wie gefragt, nicht wie es der heutige
+      // Datenstand nahelegt (Runde 6 – Rest, W-D4-Art; siehe wd4Art).
+      const a = wd4Art(stand, n, heute);
+      const art = a === 'erhoehung' ? 'mehr' : a === 'senkung' ? 'weniger' : null;
       return { am: n.am, antwort: n.antwort, tag, d, art };
     })
     .sort((a, b) => a.am.localeCompare(b.am));
@@ -2512,10 +2537,13 @@ function abschnittZeilen(stand, heute, mitEinschaetzung) {
   wd4Angaben(stand, heute).forEach((n) => {
     const antwort = JNW_TEXT[n.antwort];
     const wann = `beantwortet am ${kurz(n.am)} (Angabe)`;
+    // Die Art steht jetzt auch ohne den Eintrag fest (gespeichert oder Tag 14) – ohne ihn ohne Datum.
+    const vom = n.d ? ` vom ${kurz(n.d.ab)}` : '';
+    const tage = n.tag ? ` ${n.tag} Tage` : '';
     if (n.art === 'mehr') {
-      z.push(`Nachfrage ${n.tag} Tage nach der Erhöhung vom ${kurz(n.d.ab)}, ${wann}: Herzklopfen, Herzrasen, innere Unruhe, Zittern, schlechter Schlaf oder Schmerzen in der Brust seit der Erhöhung: ${antwort}.`);
+      z.push(`Nachfrage${tage} nach der Erhöhung${vom}, ${wann}: Herzklopfen, Herzrasen, innere Unruhe, Zittern, schlechter Schlaf oder Schmerzen in der Brust seit der Erhöhung: ${antwort}.`);
     } else if (n.art === 'weniger') {
-      z.push(`Nachfrage ${n.tag} Tage nach der Senkung vom ${kurz(n.d.ab)}, ${wann}: deutlich müder oder mehr frieren seit der Senkung: ${antwort}.`);
+      z.push(`Nachfrage${tage} nach der Senkung${vom}, ${wann}: deutlich müder oder mehr frieren seit der Senkung: ${antwort}.`);
     } else {
       z.push(`Nachfrage${n.tag ? ` ${n.tag} Tage` : ''} nach einer Dosisänderung${n.d ? ` vom ${kurz(n.d.ab)}` : ''}, ${wann}: Beschwerden seit der Änderung: ${antwort}.`);
     }

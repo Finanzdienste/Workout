@@ -3193,6 +3193,29 @@ fall('G13 lange Kennung: der gekürzte Bezug (F28) wird aufgelöst', () => {
   check('G13 Zeile „nach der Erhöhung vom 01.09.2026"', ez.berichtZeilen(s, '2026-09-20').includes(G13_ZEILE));
 });
 
+// ---- Runde 6 – Rest (W-D4-Art): Die Antwort gilt, wie gefragt wurde – nicht,
+// wie es der heutige Datenstand nahelegt. Wurde vor der Erhöhung noch ein
+// Eintrag nachgetragen (selbst 125 µg), stand im Bericht „müder seit der Senkung".
+fall('Runde 6 – Rest: wd4Art und wd4Angaben nach der Art der Frage', () => {
+  const mitNachtrag = (antwort = {}) => G13_STAND(100, 'd1-14', 'ja', {
+    dosen: [r6Dosis('d0', '2025-01-01', 75, { praxis: true }), r6Dosis('dX', '2026-08-20', 125, { praxis: false }), r6Dosis('d1', '2026-09-01', 100, { praxis: true })],
+    ...antwort,
+  });
+  const s = mitNachtrag();
+  const n = s.nachfragen.find((x) => x.art === 'wd4');
+  check('Runde 6 – Rest wd4Art: die Tag-14-Frage ist die nach einer Erhöhung, auch nach einem Nachtrag davor', typeof ez.wd4Art === 'function' && ez.wd4Art(s, n, '2026-09-19') === 'erhoehung');
+  check('Runde 6 – Rest wd4Angaben/Bericht: „nach der Erhöhung vom 01.09.2026", nicht „Senkung"', ez.berichtZeilen(s, '2026-09-19').includes(G13_ZEILE)
+    && !ez.berichtZeilen(s, '2026-09-19').some((x) => enthaelt(x, 'seit der Senkung')), auszug(ez.berichtZeilen(s, '2026-09-19').filter((x) => enthaelt(x, 'Nachfrage')), 400));
+  // Gespeicherte Art nach 28 Tagen gilt vor dem Datenstand.
+  const s28 = G13_STAND(100, 'd1-28', 'nein');
+  s28.nachfragen.find((x) => x.art === 'wd4').aenderung = 'senkung';
+  check('Runde 6 – Rest wd4Art: eine gespeicherte Art gilt vor dem Datenstand', ez.wd4Art(s28, s28.nachfragen.find((x) => x.art === 'wd4'), '2026-10-05') === 'senkung');
+  // Ohne den Eintrag (gelöscht): die Zeile ohne Datum, statt abzustürzen.
+  const ohne = r6Stand({ dosen: [r6Dosis('d0', '2025-01-01', 75)], nachfragen: [{ id: 'n2', art: 'wd4', bezug: 'weg-14', antwort: 'ja', am: '2026-09-15' }] });
+  check('Runde 6 – Rest wd4Angaben: Antwort ohne Eintrag – „Nachfrage 14 Tage nach der Erhöhung, beantwortet am 15.09.2026"',
+    ez.berichtZeilen(ohne, '2026-09-20').some((x) => x.startsWith('Nachfrage 14 Tage nach der Erhöhung, beantwortet am 15.09.2026 (Angabe)')), auszug(ez.berichtZeilen(ohne, '2026-09-20').filter((x) => enthaelt(x, 'Nachfrage')), 300));
+});
+
 // ---- G19: Marcumar – die Grenze zwischen „heute anrufen" und 112 bei Blutungen.
 fall('G19 Warnzeichen-Check und Plan M7: Nasenbluten, das nicht steht, ist 112', () => {
   const w1 = ez.WARNFRAGEN.find((f) => f.key === 'blutung');

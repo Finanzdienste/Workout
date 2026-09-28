@@ -1142,5 +1142,180 @@ fall('G10', () => {
     !!ja && ja.stufe === 'termin' && !/in den nächsten Tagen|Ist das nicht die Menge/.test(ja.text), JSON.stringify(ja));
 });
 
+// ================================================================ Runde 6 – Rest
+/*
+ * Die offenen Punkte nach der Nachprüfung der Runde 6, so nachgestellt wie in
+ * den Nachweisen (review6/nach-p61-*.mjs, rot4w/acht.mjs, rot4w/ersetzt.mjs):
+ * Stellen, die noch jeden Dosis-Eintrag als Änderung zählten (G14, G15, G11),
+ * die W-D4-Antwort aus dem heutigen Datenstand gedeutet, und X3b ab „Gilt ab".
+ * Jeder Fall scheiterte vor der Korrektur, außer den Gegenproben.
+ */
+const R6R_D = (id, ab, mikrogramm, weiteres = {}) => ({ id, ab, praeparat: 'L-Thyroxin', mikrogramm, tabletten: 1, notiz: '', praxis: null, ...weiteres });
+
+// G14-Rest (rot4w/acht.mjs): TSH 6,2 über dem Bereich, jetzt 0,25 darunter,
+// dazwischen nur ein doppelter Eintrag. D0.17 fehlte, die Karte hätte ohne die
+// Komma-Rückfrage (bestätigt) „weniger" gesagt.
+fall('G14-Rest', () => {
+  const H = '2026-09-28';
+  const s = (dosen) => normStand({
+    version: 2,
+    profil: { ...PROFIL, geburtsjahr: 1966, herz: 'nein' },
+    dosen,
+    einnahmen: r6Einnahmen(H),
+    labor: [
+      { id: 'b1', datum: '2026-03-02', tsh: tsh(6.2), ...R6_NEIN, praxis: 'nochnicht', praxisAm: '2026-03-05' },
+      { id: 'b2', datum: '2026-09-22', tsh: tsh(0.25), ...R6_NEIN, bestaetigt: true, praxisAm: '2026-09-23' },
+    ],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b2', antwort: 'ja', am: '2026-09-23' }],
+  });
+  const d0 = R6R_D('d0', '2024-01-01', 100);
+  const k = dosisRichtung(s([d0, R6R_D('d1', '2026-05-04', 100, { praxis: true })]), H);
+  check('G14-Rest doppelter Eintrag: D0.17 („bei gleicher Dosis auf der anderen Seite"), keine Richtung',
+    k.richtung === 'klaeren' && k.gruende.some((g) => g.id === 'D0.17'), `${k.richtung}/${k.stufe} ${k.gruende.map((g) => g.id)}`);
+  const p = dosisRichtung(s([d0, R6R_D('d1', '2026-05-04', 100, { praeparat: 'Euthyrox', praxis: true })]), H);
+  check('G14-Rest Gegenprobe Präparatwechsel: eine Änderung (RW2 D0.17) – kein D0.17', !p.gruende.some((g) => g.id === 'D0.17'), `${p.richtung} ${p.gruende.map((g) => g.id)}`);
+});
+
+// G15-Rest (review6/nach-p61-g15-rest.mjs, rot4w/ersetzt.mjs): 75 µg seit
+// 2025; 100 µg ab 01.06. (angeordnet, nie genommen), am selben Tag berichtigt
+// auf 75 µg. vorUeber fiel weg (mehr/zeitnah → mehr/termin), D2d zählte die
+// 100 µg als zweite Erhöhung („schon mehrfach erhöht").
+fall('G15-Rest', () => {
+  const roh = (dosen, t1, t2) => normStand({
+    version: 2,
+    profil: { ...PROFIL, geburtsjahr: 1966, herz: 'nein' },
+    dosen,
+    einnahmen: r6Einnahmen('2026-09-05'),
+    labor: [
+      { id: 'b1', datum: '2026-05-10', tsh: tsh(t1), ...R6_NEIN, praxis: 'geaendert', praxisAm: '2026-05-28' },
+      { id: 'b2', datum: '2026-08-20', tsh: tsh(t2), ...R6_NEIN, praxis: 'nochnicht', praxisAm: '2026-08-21' },
+    ],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: '2026-05-11' }, { id: 'n2', art: 'dosis_stimmt', bezug: 'b2', antwort: 'ja', am: '2026-08-23' }],
+  });
+  const D0 = R6R_D('d0', '2025-01-01', 75);
+  const ersetzt = [R6R_D('dC', '2026-06-01', 100, { praxis: true }), R6R_D('dB', '2026-06-01', 75, { praxis: false, berichtigung: true })];
+  // Nach den 14 Tagen von X3b (die Berichtigung kam frühestens mit dem Befund vom 20.08.).
+  const H = '2026-09-05';
+  const wahr = dosisRichtung(roh([D0], 5.5, 5.8), H);
+  const k = dosisRichtung(roh([D0, ...ersetzt], 5.5, 5.8), H);
+  check('G15-Rest vorUeber: mit dem ersetzten Eintrag dieselbe Karte wie ohne – mehr, zeitnah, „Zweimal erhöht"',
+    k.richtung === 'mehr' && k.stufe === 'zeitnah' && wahr.stufe === 'zeitnah' && /Zweimal erhöht/.test(alleTexte(k)), `${wahr.richtung}/${wahr.stufe} | ${k.richtung}/${k.stufe} ${k.gruende.map((g) => g.id)}`);
+  const D00 = R6R_D('d00', '2025-06-01', 50);
+  const D0b = { ...D0, ab: '2025-12-01', praxis: true };
+  const d2d = dosisRichtung(roh([D00, D0b, ...ersetzt], 9, 9.5), H);
+  check('G15-Rest D2d: kein „schon mehrfach erhöht" wegen des ersetzten Eintrags', !/mehrfach erhöht/.test(alleTexte(d2d)) && d2d.regeln.includes('D2c'), `${d2d.richtung}/${d2d.stufe} ${d2d.regeln}`);
+  // Am Tag des Nachweises (25.08.): Die Berichtigung ist erst Tage alt – die
+  // Karte liegt nicht unter der Wahrheit, sondern nennt X3b (siehe unten).
+  const n = dosisRichtung(roh([D0, ...ersetzt], 5.5, 5.8), '2026-08-25');
+  check('G15-Rest am 25.08.: nicht unter „zeitnah" – X3b „in den nächsten Tagen" (Berichtigung frühestens am 20.08.)',
+    n.stufe === 'tage' && n.gruende.some((g) => g.id === 'X3b'), `${n.richtung}/${n.stufe} ${n.gruende.map((g) => g.id)}`);
+});
+
+// G11-Rest (review6/nach-p61-g11-hinweise.mjs): Berichtigung mit „statt" auf
+// den wahren Beginn gerückt; die nie genommenen 100 µg (ab 29.07.) waren
+// trotzdem die jüngste Änderung – W-D4-Frage „seit Ihre Dosis erhöht wurde"
+// und INR zu einer Erhöhung, die es nie gab.
+const R6R_G11 = (weiteres = {}) => normStand({
+  version: 2,
+  profil: { ...PROFIL, seit: '2024-05-14', geburtsjahr: 1950, herz: 'nein' },
+  mittel: weiteres.mittel || [],
+  // Wie das Dosis-Formular: die Berichtigung zuletzt angefügt, dann stabil nach „Gilt ab" sortiert.
+  dosen: [R6R_D('d1', '2024-05-14', 75), R6R_D('dC', weiteres.dC || '2026-06-04', 100, { praxis: true }),
+    R6R_D('dB', weiteres.ab || '2024-05-14', 75, { praxis: false, berichtigung: true, ...(weiteres.statt === false ? {} : { statt: 'dC' }) })].sort((a, b) => a.ab.localeCompare(b.ab)),
+  einnahmen: r6Einnahmen('2026-08-19'),
+  labor: [
+    { id: 'bA', datum: '2026-05-13', tsh: tsh(25), ...R6_NEIN, praxis: 'geaendert', praxisAm: weiteres.dC || '2026-06-04' },
+    { id: 'bB', datum: '2026-08-10', tsh: tsh(6.5), ...R6_NEIN, praxis: 'nochnicht', praxisAm: '2026-08-12' },
+  ],
+  nachfragen: weiteres.nachfragen || [{ id: 'n0', art: 'dosis_stimmt', bezug: 'bA', antwort: 'ja', am: '2026-05-14' }, { id: 'n2', art: 'dosis_stimmt', bezug: 'bB', antwort: 'ja', am: '2026-08-12' }],
+});
+fall('G11-Rest', () => {
+  const s = R6R_G11({ dC: '2026-07-29', mittel: ['marcumar'] });
+  const h = dosisHinweise(s, '2026-08-12');
+  check('G11-Rest Tag 14 nach den nie genommenen 100 µg: keine W-D4-Frage „seit Ihre Dosis erhöht wurde"', !h.some((x) => x.id === 'W-D4'), h.map((x) => x.id).join(','));
+  check('G11-Rest mit Marcumar: kein INR wegen einer Änderung, die es nie gab (WW1)', !h.some((x) => x.id === 'WW1'), h.map((x) => `${x.id}: ${x.text.slice(0, 60)}`).join(' | '));
+  const k = dosisRichtung(s, '2026-08-12');
+  check('G11-Rest Grundlage: 75 µg seit dem wahren Beginn', /Ihre Dosis laut App: 75 µg am Tag seit 14\.05\.2024/.test(k.grundlage), k.grundlage.slice(-150));
+});
+
+// W-D4-Art (review6/nach-p61-wd4-art.mjs): „Ja" auf die Tag-14-Frage (immer
+// die nach einer Erhöhung). Danach ein Eintrag davor nachgetragen (selbst
+// 125 µg) oder die Stärke von 2025 berichtigt – Karte und Arztbericht sagten
+// „müder seit der Senkung", die Stufe fiel von heute auf Termin.
+fall('W-D4-Art', () => {
+  const H = '2026-09-16';
+  const s = (dosen, antwort = {}) => normStand({
+    version: 2,
+    profil: { ...PROFIL, geburtsjahr: 1950, herz: 'nein' },
+    dosen,
+    einnahmen: r6Einnahmen(H),
+    labor: [{ id: 'b1', datum: '2026-08-20', tsh: tsh(6.8), ...R6_NEIN, praxis: 'geaendert', praxisAm: '2026-08-28' }],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: '2026-08-21' }, { id: 'n2', art: 'wd4', bezug: 'd1-14', antwort: 'ja', am: '2026-09-15', ...antwort }],
+  });
+  const d0 = R6R_D('d0', '2025-01-01', 75);
+  const d1 = R6R_D('d1', '2026-09-01', 100, { praxis: true });
+  for (const [was, dosen] of [
+    ['nachgetragen: selbst 125 µg ab 20.08.', [d0, R6R_D('dX', '2026-08-20', 125, { praxis: false }), d1]],
+    ['Stärke von 2025 berichtigt 75 → 125', [{ ...d0, mikrogramm: 125 }, d1]],
+  ]) {
+    const st = s(dosen);
+    const k = dosisRichtung(st, H);
+    const g = gesamtbildMitDosis(st, H);
+    const b = berichtText(st, H);
+    check(`W-D4-Art ${was}: Karte und „Heute" – heute anrufen, „seit der Erhöhung"`,
+      k.stufe === 'heute' && g.stufe === 'heute' && k.gruende.some((x) => x.id === 'W-D4' && /seit der Erhöhung/.test(x.text)) && !/seit der Senkung/.test(alleTexte(k)),
+      `${k.stufe}/${g.stufe} ${k.gruende.map((x) => `${x.id}: ${x.text.slice(0, 60)}`).join(' | ')}`);
+    check(`W-D4-Art ${was}: der Arztbericht nennt die Nachfrage nach der Erhöhung, nicht „müder seit der Senkung"`,
+      /Nachfrage 14 Tage nach der Erhöhung vom 01\.09\.2026[^\n]*Brust seit der Erhöhung: ja/.test(b) && !/seit der Senkung/.test(b),
+      b.split('\n').filter((z) => /Nachfrage|W-D4/.test(z)).join(' | ').slice(0, 300));
+  }
+  // rot4w/mono.mjs Seed 5056: eine ältere Antwort nach 28 Tagen (ohne
+  // gespeicherte Art) zu 137 → 150 µg; danach „selbst +25 µg ab heute"
+  // eingetragen. Ein Eintrag ab dem Antworttag war nicht die Menge vor der
+  // Frage – vorher las die App daraus eine Senkung, heute → Termin.
+  const HM = '2026-09-28';
+  const mono = (eigen) => normStand({
+    version: 2,
+    profil: { ...PROFIL, geburtsjahr: 1966, herz: 'ja' },
+    dosen: [R6R_D('a', '2023-02-28', 137), R6R_D('b', '2026-10-08', 150, { praxis: true }), ...(eigen ? [R6R_D('c', HM, 162, { praxis: false })] : [])].sort((x, y) => x.ab.localeCompare(y.ab)),
+    einnahmen: r6Einnahmen(HM),
+    labor: [{ id: 'l1', datum: '2026-07-05', tsh: tsh(4.6), ...R6_NEIN, praxis: 'nochnicht', praxisAm: '2026-07-06' }],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'l1', antwort: 'ja', am: '2026-07-31' }, { id: 'n2', art: 'wd4', bezug: 'b-28', antwort: 'ja', am: HM }],
+  });
+  const w5056 = (st) => (dosisHinweise(st, HM).find((x) => x.id === 'W-D4' && !x.frage) || {}).stufe;
+  check('W-D4-Art Seed 5056: „selbst +25 µg ab heute" macht aus der Erhöhung keine Senkung (heute bleibt)', w5056(mono(false)) === 'heute' && w5056(mono(true)) === 'heute',
+    `${w5056(mono(false))} → ${w5056(mono(true))}`);
+  // Die gespeicherte Art bleibt beim Laden erhalten (normStand) – nur bei W-D4.
+  const n = s([d0, d1], { aenderung: 'erhoehung' }).nachfragen;
+  check('W-D4-Art normStand behält die Art der Antwort', n.find((x) => x.art === 'wd4').aenderung === 'erhoehung' && !('aenderung' in n.find((x) => x.art === 'dosis_stimmt')), JSON.stringify(n));
+  const fremd = normStand({ version: 2, nachfragen: [{ id: 'a', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: H, aenderung: 'erhoehung' }, { id: 'b', art: 'wd4', bezug: 'd1-28', antwort: 'ja', am: H, aenderung: 'irgendwas' }] }).nachfragen;
+  check('W-D4-Art normStand: keine Art an anderen Antworten, keine unbekannte Art', fremd.every((x) => !('aenderung' in x)), JSON.stringify(fremd));
+});
+
+// X3b nach G11 (review6/nach-p61-g11-hinweise.mjs, nach-p61-g11-selbertag.mjs):
+// „Gilt ab" der Berichtigung auf den wahren Beginn (oder auf den Tag der
+// ersetzten 100 µg) – X3b „bitte in den nächsten Tagen anrufen und sagen, was
+// Sie nehmen" verschwand sofort, weil es an 14 Tagen nach „Gilt ab" hing.
+fall('X3b nach G11', () => {
+  const x3b = (s, h) => dosisHinweise(s, h).find((x) => x.id === 'X3b');
+  const s = R6R_G11();
+  for (const h of ['2026-08-12', '2026-08-20']) {
+    const k = dosisRichtung(s, h);
+    check(`X3b nach G11 „Gilt ab" 2024, ${h}: X3b mit Stufe Tage, auf „Heute" und der Karte`, !!x3b(s, h) && x3b(s, h).stufe === 'tage' && k.stufe === 'tage' && k.gruende.some((g) => g.id === 'X3b'),
+      `${JSON.stringify(x3b(s, h))} | ${k.stufe} ${k.gruende.map((g) => g.id)}`);
+  }
+  check('X3b nach G11 „Gilt ab" 2024: nach den 14 Tagen (01.09.) nicht mehr', !x3b(s, '2026-09-01'));
+  // Alte Berichtigung ohne Vermerk, „Gilt ab" genau auf den Tag der 100 µg (nach-p61-g11-selbertag.mjs).
+  const selb = R6R_G11({ ab: '2026-06-04', statt: false, nachfragen: [{ id: 'n0', art: 'dosis_stimmt', bezug: 'bA', antwort: 'ja', am: '2026-05-14' }] });
+  check('X3b nach G11 selber Tag wie die ersetzten 100 µg (ohne Vermerk): X3b am 14.08.', !!x3b(selb, '2026-08-14') && x3b(selb, '2026-08-14').stufe === 'tage',
+    dosisHinweise(selb, '2026-08-14').map((x) => x.id).join(','));
+  // Mit dem Tag der Berichtigung aus dem Formular: genau 14 Tage ab ihm.
+  const mitTag = normStand({ ...JSON.parse(JSON.stringify(s)), dosen: s.dosen.map((d) => (d.id === 'dB' ? { ...d, berichtigtAm: '2026-08-12' } : d)) });
+  check('X3b nach G11 mit gespeichertem Tag (12.08.): bis 26.08., am 27.08. nicht mehr', !!x3b(mitTag, '2026-08-26') && !x3b(mitTag, '2026-08-27'));
+  check('X3b nach G11 normStand behält den Tag nur bei einer Berichtigung',
+    normStand({ version: 2, dosen: [R6R_D('a', '2025-01-01', 75, { berichtigtAm: '2026-01-01' }), R6R_D('b', '2026-01-01', 50, { berichtigung: true, berichtigtAm: '2026-01-05' }), R6R_D('c', '2026-02-01', 50, { berichtigung: true, berichtigtAm: 'gestern' })] })
+      .dosen.map((d) => d.berichtigtAm || '-').join(',') === '-,2026-01-05,-');
+});
+
 console.log(fails ? `\n${fails} gescheitert` : '\nalles grün');
 process.exit(fails ? 1 : 0);
