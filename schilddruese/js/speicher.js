@@ -17,6 +17,7 @@
  *      mit der der Rest der App rechnet.
  */
 import { heuteISO, istISO, istUhr, tageZwischen, zahlAus, rohText, zuISO } from './datum.js';
+import { kuerzen, saeubern, einzeilig, zeichenZahl } from './text.js';
 
 export const SCHLUESSEL = 'schilddruese.stand.v1';
 /*
@@ -288,7 +289,53 @@ function leererStand() {
   };
 }
 
-const text = (v, max = 200) => (typeof v === 'string' ? v.slice(0, max) : '');
+/*
+ * Längengrenzen für Texte, in Zeichen (Code-Points) – eine Stelle für die
+ * Formulare (maxlength, Zähler), das Zusammenführen und normStand (Runde 5:
+ * F23). Vorher kürzte das Formular eine Frage oder Notiz still auf 300
+ * Zeichen, das Befinden auf 500; normStand kürzte beim nächsten Laden noch
+ * einmal. Gerade beim Diktieren kommt man schnell darüber, und ausgerechnet
+ * das Ende („… vor der Blutabnahme weglassen?") fiel weg. Die Grenze für
+ * Notizen und Fragen ist jetzt überall dieselbe: Was ein Formular mit
+ * maxlength = GRENZEN.notiz annimmt, kürzt normStand nie (maxlength zählt
+ * UTF-16-Einheiten, also nie mehr Zeichen als hier erlaubt).
+ */
+export const GRENZEN = {
+  notiz: 1000,      // Notizen zu Dosis, Befund, Befinden, Termin
+  frage: 1000,      // Fragen für den Termin
+  name: 60,         // Anrede
+  laborName: 60,
+  praeparat: 80,
+  wo: 80,           // Ort eines Termins
+  einheit: 20,
+  titel: 200,       // gemerkter Titel der Dosis-Karte
+};
+
+/*
+ * Zahlengrenzen der Formulare – normStand übernimmt aus einem Stand nur, was
+ * ein Formular auch annimmt (Runde 5: F29). Die Formulare prüfen gegen
+ * dieselben Werte, sonst verwürfe das nächste Laden still, was gerade
+ * gespeichert wurde.
+ */
+export const ZAHL_GRENZEN = {
+  mikrogramm: { min: 5, max: 400 },   // Stärke einer Tablette in µg
+  tabletten: { max: 4 },              // Tabletten am Tag, über 0
+  vorrat: { max: 10000 },             // Tabletten im Vorrat, ab 0
+};
+
+/*
+ * Ein Text aus einem Stand: ohne Steuerzeichen und halbe Emojis, nach ganzen
+ * Zeichen gekürzt (Runde 5: F23, F25). Zeilenumbrüche bleiben – Notizen und
+ * Fragen dürfen mehrzeilig sein.
+ */
+const text = (v, max = 200) => (typeof v === 'string' ? kuerzen(saeubern(v), max) : '');
+/*
+ * Ein einzeiliges Feld (Anrede, Präparat, Labor, Ort, Einheit, Kartentitel):
+ * Das Eingabefeld ist einzeilig, aus einer bearbeiteten Sicherung kamen aber
+ * Umbrüche mit. Ein Name „Erika\nDOSIS\nAktuell: … 150 µg" setzte im
+ * Arztbericht einen falschen Abschnitt DOSIS vor den echten (Runde 5: F27).
+ */
+const zeile = (v, max) => (typeof v === 'string' ? kuerzen(einzeilig(v), max) : '');
 
 /*
  * Kennungen aus einer Sicherungsdatei nur, wenn sie aussehen wie die eigenen.
@@ -328,10 +375,14 @@ function normWert(roh) {
   if (!roh || typeof roh !== 'object') return null;
   const wert = zahlAus(roh.wert);
   if (wert === null || wert < 0) return null;
-  let von = zahlAus(roh.von);
-  let bis = zahlAus(roh.bis);
+  // Eine Grenze unter 0 gibt es auf keinem Befund, und das Formular liest
+  // „-5" als „bis 5". Aus einer Sicherung stand TSH 0,005 sonst „im Bereich"
+  // (−5–4) neben dem Muster „zu viel Schilddrüsenhormon" (Runde 5: F29).
+  const grenze = (v) => { const n = zahlAus(v); return n !== null && n >= 0 ? n : null; };
+  let von = grenze(roh.von);
+  let bis = grenze(roh.bis);
   if (von !== null && bis !== null && von >= bis) { von = null; bis = null; }
-  return { wert, einheit: text(roh.einheit, 20), von, bis, unter: bool(roh.unter) };
+  return { wert, einheit: zeile(roh.einheit, GRENZEN.einheit), von, bis, unter: bool(roh.unter) };
 }
 
 /**
@@ -408,8 +459,13 @@ function zusammenfuehren(labor) {
   // ein dritter Eintrag desselben Tages darf sie nicht still wieder füllen.
   const geleert = new Map();
   labor.forEach((l) => {
-    const da = [...ergebnis].reverse().find((x) => x.datum === l.datum);
-    if (!da || WERTE().some(([k]) => wertWiderspruch(da[k], l[k]))) { ergebnis.push(l); return; }
+    const ziel = [...ergebnis].reverse().find((x) => x.datum === l.datum);
+    if (!ziel || WERTE().some(([k]) => wertWiderspruch(ziel[k], l[k]))) { ergebnis.push(l); return; }
+    // Erst an einer Kopie zusammenführen: Passen die beiden Notizen samt
+    // Vermerk nicht zusammen in GRENZEN.notiz, bleiben die Einträge getrennt,
+    // statt die neuere Notiz still abzuschneiden (Runde 5: F23). Vorher wurde
+    // auf 300 Zeichen gekürzt – ausgerechnet der Satz, der dazukam, fiel weg.
+    const da = { ...ziel };
     const zweite = [];
     WERTE().forEach(([k, name]) => {
       const a = da[k];
@@ -425,8 +481,7 @@ function zusammenfuehren(labor) {
         da[k] = { ...a, von, bis };
       }
     });
-    if (!geleert.has(da)) geleert.set(da, new Set());
-    const offen = geleert.get(da);
+    const offen = new Set(geleert.get(ziel) || []);
     FRAGEN_FELDER.filter((k) => k !== 'praxis').forEach((k) => {
       if (offen.has(k)) return;
       if (da[k] && l[k] && da[k] !== l[k]) { da[k] = ''; offen.add(k); } else if (!da[k]) da[k] = l[k];
@@ -450,8 +505,23 @@ function zusammenfuehren(labor) {
       if (da[k] === null || da[k] === undefined || da[k] === '') da[k] = l[k];
     });
     const zusatz = zweite.length ? `Zwei Einträge vom selben Tag zusammengeführt – bitte mit dem Befund vergleichen: ${zweite.join('; ')}.` : '';
-    const eigene = [da.notiz, l.notiz].filter(Boolean).filter((x, i, alle) => alle.indexOf(x) === i).join(' · ');
-    da.notiz = [eigene.slice(0, zusatz ? Math.max(0, 297 - zusatz.length) : 300), zusatz].filter(Boolean).join(' · ').slice(0, 300);
+    let notiz = [da.notiz, l.notiz, zusatz].filter(Boolean).filter((x, i, alle) => alle.indexOf(x) === i).join(' · ');
+    /*
+     * Die Werte gehen vor: Sind beide Notizen zusammen zu lang, werden die
+     * Einträge trotzdem zusammengeführt. Blieben sie getrennt, rechnete die
+     * App nur mit einem Teil des Befunds – TSH ohne das fT4 vom selben Tag –
+     * und nannte eine niedrigere Frist (Nachprüfung zu F23). Die Notiz wird
+     * dann sichtbar gekürzt („[…]"); der Hinweis auf zusammengeführte,
+     * widersprüchliche Angaben bleibt ganz stehen.
+     */
+    if (zeichenZahl(notiz) > GRENZEN.notiz) {
+      const ende = ` […]${zusatz ? ` · ${zusatz}` : ''}`;
+      const text = [da.notiz, l.notiz].filter(Boolean).filter((x, i, alle) => alle.indexOf(x) === i).join(' · ');
+      notiz = kuerzen(text, Math.max(0, GRENZEN.notiz - zeichenZahl(ende))) + ende;
+    }
+    da.notiz = notiz;
+    Object.assign(ziel, da);
+    geleert.set(ziel, offen);
   });
   return ergebnis;
 }
@@ -465,7 +535,7 @@ export function normStand(roh) {
   const s = leererStand();
   if (!roh || typeof roh !== 'object') return s;
   const p = roh.profil || {};
-  s.profil.name = text(p.name, 60);
+  s.profil.name = zeile(p.name, GRENZEN.name);
   s.profil.begruesst = bool(p.begruesst);
   s.profil.seit = istISO(p.seit) ? p.seit : null;
   const jahr = zahlAus(p.geburtsjahr);
@@ -516,13 +586,25 @@ export function normStand(roh) {
   s.einstellungen.hinweisTablette = bool(e.hinweisTablette, true);
 
   s.dosen = liste(roh.dosen, (d) => {
+    /*
+     * Nur Zahlen in den Grenzen des Formulars (Runde 5: F29): Stärke 5–400 µg,
+     * Tabletten über 0 bis 4. Aus einer Sicherung stand sonst „500000000 µg,
+     * 1e+300 Tabletten am Tag – zusammen Infinity µg" auf „Heute" und im
+     * Bericht. Eine unmögliche Tablettenzahl fällt nicht still auf 1 zurück –
+     * das änderte die Tagesdosis –, sondern macht die Dosis unbekannt
+     * (Stärke null): Dann fragt die Karte nach, statt mit ihr zu rechnen.
+     * Ohne Angabe gilt weiter 1 Tablette.
+     */
     const mikrogramm = zahlAus(d.mikrogramm);
+    const ohneZahl = d.tabletten === undefined || d.tabletten === null || d.tabletten === '';
+    const tabletten = ohneZahl ? 1 : zahlAus(d.tabletten);
+    const tablettenOk = tabletten !== null && tabletten > 0 && tabletten <= ZAHL_GRENZEN.tabletten.max;
     return {
       ab: d.ab,
-      praeparat: text(d.praeparat, 80),
-      mikrogramm: mikrogramm !== null && mikrogramm > 0 ? mikrogramm : null,
-      tabletten: zahlAus(d.tabletten) > 0 ? zahlAus(d.tabletten) : 1,
-      notiz: text(d.notiz, 300),
+      praeparat: zeile(d.praeparat, GRENZEN.praeparat),
+      mikrogramm: tablettenOk && mikrogramm !== null && mikrogramm >= ZAHL_GRENZEN.mikrogramm.min && mikrogramm <= ZAHL_GRENZEN.mikrogramm.max ? mikrogramm : null,
+      tabletten: tablettenOk ? tabletten : 1,
+      notiz: text(d.notiz, GRENZEN.notiz),
       praxis: typeof d.praxis === 'boolean' ? d.praxis : null,
       // Eingetragen nach „Nein, ich nehme etwas anderes" auf der Dosis-Karte:
       // keine Änderung der Dosis, sondern eine Berichtigung dessen, was die App
@@ -541,7 +623,7 @@ export function normStand(roh) {
 
   s.labor = liste(roh.labor, (l) => {
     const eintrag = {
-      datum: l.datum, tsh: normWert(l.tsh), ft4: normWert(l.ft4), ft3: normWert(l.ft3), notiz: text(l.notiz, 300),
+      datum: l.datum, tsh: normWert(l.tsh), ft4: normWert(l.ft4), ft3: normWert(l.ft3), notiz: text(l.notiz, GRENZEN.notiz),
       ...Object.fromEntries(WEITERE_WERTE.map(([k]) => [k, normWert(l[k])])),
       // Die Fragen zur Blutabnahme – alle freiwillig, ja | nein | unbekannt
       // | '' (offen). Ohne sie lassen sich manche Muster nicht sicher deuten:
@@ -566,7 +648,7 @@ export function normStand(roh) {
       einnahmeArt: wahl(l.einnahmeArt, ['ja', 'abends', 'nein', 'unbekannt', ''], ''),
       abstandOk: jnw(l.abstandOk),          // Abstände aus „Was braucht Abstand?" eingehalten
       verwechselt: wahl(l.verwechselt, ['einmal', 'tage', 'nein', 'unbekannt', ''], ''), // versehentlich mehr genommen
-      laborName: text(l.laborName, 60),
+      laborName: zeile(l.laborName, GRENZEN.laborName),
       // Was die Praxis zu diesem Wert gesagt hat – und wann:
       // bleibt | geaendert | nachmessen | nochnicht | ''.
       praxis: wahl(l.praxis, ['bleibt', 'geaendert', 'nachmessen', 'nochnicht', ''],
@@ -584,7 +666,7 @@ export function normStand(roh) {
     stufe: wahl(b.stufe, ['gut', 'mittel', 'schlecht'], 'mittel'),
     beschwerden: Array.isArray(b.beschwerden)
       ? [...new Set(b.beschwerden.filter((k) => [...BESCHWERDEN, ...ALTE_BESCHWERDEN].some(([id]) => id === k)))] : [],
-    notiz: text(b.notiz, 500),
+    notiz: text(b.notiz, GRENZEN.notiz),
   })).sort((a, b) => a.datum.localeCompare(b.datum));
 
   s.gewicht = liste(roh.gewicht, (g) => {
@@ -596,14 +678,14 @@ export function normStand(roh) {
     datum: t.datum,
     uhr: istUhr(t.uhr) ? t.uhr : '',
     art: wahl(t.art, ['arzt', 'labor', 'sonst'], 'arzt'),
-    wo: text(t.wo, 80),
+    wo: zeile(t.wo, GRENZEN.wo),
     blutabnahme: bool(t.blutabnahme),
-    notiz: text(t.notiz, 300),
+    notiz: text(t.notiz, GRENZEN.notiz),
   })).sort((a, b) => `${a.datum}${a.uhr}`.localeCompare(`${b.datum}${b.uhr}`));
 
   s.fragen = Array.isArray(roh.fragen)
-    ? roh.fragen.filter((f) => f && typeof f.text === 'string' && f.text.trim())
-      .map((f) => ({ id: eigeneKennung(f.id), text: text(f.text, 300), erledigt: bool(f.erledigt) }))
+    ? roh.fragen.filter((f) => f && typeof f.text === 'string' && saeubern(f.text).trim())
+      .map((f) => ({ id: eigeneKennung(f.id), text: text(f.text, GRENZEN.frage), erledigt: bool(f.erledigt) }))
     : [];
 
   s.uhrWechsel = liste(roh.uhrWechsel, (u) => (istUhr(u.von) && istUhr(u.nach)
@@ -612,14 +694,19 @@ export function normStand(roh) {
   // hat (bezug = Befund-ID, antwort mehr | weniger | gleich, am = Tag der
   // Anzeige) – für „die zuletzt gezeigte Richtungskarte" im Arztbericht (RW2
   // B1). Nur dafür ein kurzer Titel der Karte; eine andere Antwort ist keine
-  // Richtung und fällt weg (Runde 4: E16).
+  // Richtung und fällt weg (Runde 4: E16). Der Titel ist einzeilig: Aus einer
+  // Sicherung kam er mit Umbrüchen und stand als zweite „(App)"-Zeile im
+  // Bericht. Ob er wirklich ein Titel der Karte ist, prüft der Bericht
+  // (dosisBerichtZeilen gegen RICHTUNG_TITEL, Runde 5: F27).
+  // Der Bezug darf 60 Zeichen haben: Kennungen aus einer Sicherung haben bis
+  // 40, die W-D4-Frage hängt „-14" oder „-28" an (Runde 5: F28).
   s.nachfragen = liste(roh.nachfragen, (n) => {
     if (!(typeof n.art === 'string' && /^[a-z0-9_]{1,30}$/.test(n.art)
-      && typeof n.bezug === 'string' && n.bezug.length <= 40 && typeof n.antwort === 'string' && /^[a-z0-9_]{1,20}$/.test(n.antwort))) return null;
+      && typeof n.bezug === 'string' && n.bezug.length <= 60 && typeof n.antwort === 'string' && /^[a-z0-9_]{1,20}$/.test(n.antwort))) return null;
     const eintrag = { art: n.art, bezug: n.bezug, antwort: n.antwort, am: n.am };
     if (n.art !== 'karte_gezeigt') return eintrag;
     if (!['mehr', 'weniger', 'gleich'].includes(n.antwort)) return null;
-    const titel = text(n.titel, 200).trim();
+    const titel = zeile(n.titel, GRENZEN.titel);
     return titel ? { ...eintrag, titel } : eintrag;
   }, 'am').slice(-80);
 
@@ -635,9 +722,11 @@ export function normStand(roh) {
     ja: Array.isArray(w.ja) ? [...new Set(w.ja.filter((k) => typeof k === 'string' && /^[a-z0-9_]{1,30}$/.test(k)))].slice(0, 30) : [],
   })).sort((a, b) => `${a.datum}${a.uhr}`.localeCompare(`${b.datum}${b.uhr}`)).slice(-1000);
 
+  // Ein Vorrat über 10 000 Tabletten (über 27 Jahre) ist ein Tippfehler oder
+  // eine bearbeitete Datei: „Reicht noch etwa 1e+23 Tage" (Runde 5: F29).
   if (roh.vorrat && typeof roh.vorrat === 'object' && istISO(roh.vorrat.stand)) {
     const tabletten = zahlAus(roh.vorrat.tabletten);
-    if (tabletten !== null && tabletten >= 0) s.vorrat = { tabletten, stand: roh.vorrat.stand };
+    if (tabletten !== null && tabletten >= 0 && tabletten <= ZAHL_GRENZEN.vorrat.max) s.vorrat = { tabletten, stand: roh.vorrat.stand };
   }
 
   s.tab = wahl(roh.tab, ['heute', 'verlauf', 'mehr'], 'heute');

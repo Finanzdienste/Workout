@@ -2606,6 +2606,311 @@ try {
 if (hatteLocalStorage) globalThis.localStorage = vorherLocalStorage;
 else delete globalThis.localStorage;
 
+// ================================================================ Runde 5 (F9, F11, F12, F14, F15, F23, F27–F29 – Kern-Teile)
+//
+// Befunde der fünften Review-Runde, soweit sie den Kern, den Speicher und die
+// Texte betreffen. Jeder Fall hier scheiterte vor der Korrektur (außer den
+// Gegenproben). Stand wie im Nachweis: heute 28.09.2026.
+
+let tx = {};
+let spR5 = {};
+try {
+  tx = await import('../schilddruese/js/text.js');
+  spR5 = await import('../schilddruese/js/speicher.js');
+} catch (e) {
+  check('Import schilddruese/js/text.js und speicher.js', false, e && e.message);
+}
+const R5 = '2026-09-28';
+const R5_FRAGEN = {
+  abnahmeUhr: '08:00', vorAbnahme: 'nein', biotin: 'nein', krank: 'nein', kortison: 'nein', kontrastmittel: 'nein',
+  mittelGeaendert: 'nein', einnahmeGeaendert: 'nein', packung: 'nein', vergessen: 'nein', einnahmeArt: 'ja', abstandOk: 'ja', verwechselt: 'nein',
+};
+/** Ein Stand für die Fälle dieser Runde – über normStand, wie die App liest. */
+const r5Stand = (ue = {}) => normStand({
+  version: 2,
+  profil: { ...BASIS_PROFIL, geburtsjahr: 1946, ...(ue.profil || {}) },
+  mittel: ue.mittel || [],
+  dosen: ue.dosen || [{ id: 'd1', ab: '2021-01-01', praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, praxis: true }],
+  einnahmen: ue.einnahmen || einnahmen('2026-09-27', 150),
+  labor: ue.labor || [],
+  befinden: ue.befinden || [],
+  warnzeichen: ue.warnzeichen || [],
+  nachfragen: ue.nachfragen || [],
+  vorrat: ue.vorrat,
+});
+const fn = (name, mod = ez) => typeof mod[name] === 'function';
+
+// ---- F11: Einträge nur mit weiteren Werten verdrängen den TSH-Befund nicht,
+// und es gibt kein „Befund vom …: .".
+const F11_STAND = () => r5Stand({
+  labor: [
+    { id: 'b1', datum: '2026-06-10', tsh: t(0.06, 0.27, 4.2), ft4: f4(26), ...R5_FRAGEN, biotin: 'ja', vorAbnahme: 'ja', tabletteUhr: '06:30' },
+    { id: 'b2', datum: '2026-07-15', ...ww('hba1c', 6.1, '%', null, 5.7) },
+    { id: 'b3', datum: '2026-08-20', ...ww('vitd', 18, 'ng/ml', 30, 100) },
+    { id: 'b4', datum: '2026-09-18', ...ww('b12', 320, 'pmol/l', 150, 700) },
+  ],
+});
+fall('F11 berichtBefunde: nur Einträge mit TSH, fT4 oder fT3', () => {
+  check('F11 berichtBefunde vorhanden', fn('berichtBefunde'));
+  if (!fn('berichtBefunde')) return;
+  const b = ez.berichtBefunde(F11_STAND(), R5);
+  check('F11 berichtBefunde = [Befund vom 10.06.]', b.length === 1 && b[0].id === 'b1', JSON.stringify(b.map((x) => x.id)));
+  const s = r5Stand({ labor: ['2026-03-01', '2026-05-01', '2026-07-01', '2026-09-01'].map((d, i) => ({ id: `l${i}`, datum: d, tsh: t(2 + i) })) });
+  check('F11 berichtBefunde: die letzten drei, der neueste zuerst', ez.berichtBefunde(s, R5).map((x) => x.id).join() === 'l3,l2,l1');
+});
+fall('F11 Bericht: der TSH-Befund mit Muster, Biotin und „Tablette vorher"', () => {
+  const z = ez.berichtZeilen(F11_STAND(), R5);
+  const t2 = z.join('\n');
+  check('F11 „Muster d"', /Einordnung \(App\): Muster d/.test(t2), auszug(z, 600));
+  check('F11 „Biotin: ja" und „Tablette vorher: ja (6:30 Uhr)"', /Biotin: ja/.test(t2) && /Tablette vorher: ja \(6:30 Uhr\)/.test(t2), auszug(z, 600));
+  check('F11 nie „(Befund): ."', !/\(Befund\): \./.test(t2), auszug(z.filter((x) => /\(Befund\): \./.test(x))));
+  check('F11 genau ein Block „Angaben zur Abnahme" (nur zum TSH-Befund)', z.filter((x) => x.startsWith('  Angaben zur Abnahme')).length === 1, auszug(z, 600));
+  check('F11 genau eine Einnahmebilanz', z.filter((x) => /Einnahme in den 42 Tagen davor/.test(x)).length === 1);
+  ['Weitere Werte vom 15.07.2026 (Befund): HbA1c', 'Weitere Werte vom 20.08.2026 (Befund): Vitamin D (25-OH) 18 ng/ml (Labor 30–100)', 'Weitere Werte vom 18.09.2026 (Befund): Vitamin B12 320 pmol/l']
+    .forEach((x) => check(`F11 kurze Zeile „${x.slice(0, 40)}…"`, z.some((y) => y.startsWith(x)), auszug(z, 600)));
+  check('F11 kurze Zeilen ohne „.;" oder „.."', !z.some((x) => /\.;|\.\.$/.test(x)), auszug(z.filter((x) => /\.;|\.\.$/.test(x))));
+  const i18 = z.findIndex((x) => x.startsWith('Weitere Werte vom 18.09.2026'));
+  const i10 = z.findIndex((x) => x.startsWith('Befund vom 10.06.2026'));
+  check('F11 nach Datum, der neueste zuerst', i18 >= 0 && i10 > i18, `${i18} / ${i10}`);
+});
+fall('F11 Gegenprobe: drei TSH-Befunde – ein älterer Eintrag nur mit Vitamin D fällt weg', () => {
+  const s = r5Stand({
+    labor: [{ id: 'v', datum: '2026-01-10', ...ww('vitd', 18, 'ng/ml', 30, 100) },
+      ...['2026-03-01', '2026-05-01', '2026-07-01'].map((d, i) => ({ id: `l${i}`, datum: d, tsh: t(2) }))],
+  });
+  const z = ez.berichtZeilen(s, R5);
+  check('F11 ohne „Weitere Werte vom 10.01.2026"', !z.some((x) => x.startsWith('Weitere Werte vom 10.01.2026')), auszug(z, 400));
+  check('F11 drei Befunde', z.filter((x) => x.startsWith('Befund vom')).length === 3);
+});
+
+// ---- F12: Ohne P6 fehlen die reinen Angaben nicht (angabenZeilen).
+const F12_STAND = (profil = { behandelt: false, ursache: '' }) => r5Stand({
+  profil: { geburtsjahr: 1950, ...profil },
+  mittel: ['marcumar', 'amiodaron', 'biotin', 'kalzium'],
+  labor: [{ id: 'b2', datum: '2026-09-22', tsh: t(0.04, 0.27, 4.2), ft4: f4(28), ...R5_FRAGEN, biotin: 'ja', vorAbnahme: 'ja', tabletteUhr: '06:30', abnahmeUhr: '07:15', verwechselt: 'einmal', einnahmeArt: 'nein' }],
+  warnzeichen: [{ id: 'w1', datum: '2026-09-20', uhr: '21:40', ja: ['brust', 'herzrasen'] }],
+  befinden: [bf('2026-09-18', 'lebensmuede', 'muede')],
+});
+fall('F12 angabenZeilen ohne P6', () => {
+  check('F12 angabenZeilen vorhanden', fn('angabenZeilen'));
+  if (!fn('angabenZeilen')) return;
+  const s = F12_STAND();
+  check('F12 Vorbedingung: P6 nicht aktiv', !ez.aktiv(s));
+  const z = ez.angabenZeilen(s, R5);
+  const t2 = z.join('\n');
+  [
+    ['Titel ohne Einschätzung', /^ANGABEN ZUR BLUTABNAHME UND WEITERE ANGABEN \(ohne Einschätzung der App\) – Stand 28\.09\.2026/],
+    ['Profil', /^Profil \(Angabe\): Alter etwa 76 Jahre/m],
+    ['Q4 im Profilteil', /Ursache in der Hirnanhangdrüse oder TSH bewusst niedrig \(Angabe\): nicht beantwortet/],
+    ['Marcumar, Amiodaron, Biotin', /Weitere Mittel \(Angabe\): .*Marcumar.*Amiodaron.*Biotin/],
+    ['Abstand beim Kalzium', /Kalzium.*\(Abstand eingehalten: nicht beantwortet\)/],
+    ['Befund mit Rohwerten', /^Befund vom 22\.09\.2026 \(Befund\): TSH 0,04 mU\/l \(Labor 0,27–4,2\); fT4 28 pmol\/l \(Labor 12–22\)\.$/m],
+    ['Tablette vorher mit Uhrzeit, Biotin', /Angaben zur Abnahme \(Angabe\): Abnahme 7:15 Uhr; Tablette vorher: ja \(6:30 Uhr\); Biotin: ja/],
+    ['Q5 „einmal viele Tabletten", Q2 nein', /Weitere Angaben \(Angabe\): nüchtern mit Wasser: nein; .*versehentlich mehr genommen: ja, einmal viele Tabletten auf einmal/],
+    ['Beschwerden der letzten 28 Tage', /Beschwerden der letzten 28 Tage \(Angabe\): .*nicht mehr leben möchte/],
+    ['Warnzeichen-Check mit Brust', /Warnzeichen-Check vom 20\.09\.2026 21:40 Uhr \(Angabe\): Schmerzen oder Engegefühl in der Brust/],
+  ].forEach(([was, m]) => check(`F12 ohne P6: ${was}`, m.test(t2), auszug(z, 700)));
+  check('F12 ohne P6: keine Einschätzung (kein „(App)", kein Muster, keine Auswertung)',
+    !/\(App\)|Muster|Auswertung|Einordnung|EINSCHÄTZUNG/.test(t2), auszug(z.filter((x) => /\(App\)|Muster|Auswertung|Einordnung/.test(x))));
+});
+fall('F12 berichtZeilen mit P6: dieselben Angaben, dazu die Einschätzung', () => {
+  const z = ez.berichtZeilen(F12_STAND({ behandelt: true, ursache: 'hashimoto' }), R5);
+  const t2 = z.join('\n');
+  check('F12 mit P6: Q5 steht im Kern', /Weitere Angaben \(Angabe\): .*versehentlich mehr genommen: ja, einmal viele Tabletten auf einmal/.test(t2), auszug(z, 600));
+  check('F12 mit P6: „Weitere Angaben" direkt nach „Angaben zur Abnahme"', z.findIndex((x) => x.startsWith('  Weitere Angaben (Angabe)')) === z.findIndex((x) => x.startsWith('  Angaben zur Abnahme')) + 1);
+  check('F12 mit P6: Einordnung und Auswertung', /Einordnung \(App\): Muster/.test(t2) && /Auswertung \(App\)/.test(t2), auszug(z, 600));
+  check('F12 mit P6: Q4 steht nur bei offenem Behandlungsgrund', !/Hirnanhangdrüse oder TSH bewusst niedrig/.test(t2));
+});
+
+// ---- F14: Befund-Hinweise auch mit Muster.
+fall('F14 TSH 11 im Bereich 0,4–12: Hinweis zur festen Schwelle', () => {
+  const z = ez.berichtZeilen(r5Stand({ labor: [{ id: 'b', datum: '2026-09-22', tsh: t(11, 0.4, 12), ...R5_FRAGEN, bestaetigt: true }] }), R5);
+  check('F14 „Hinweis (App): TSH: Ein Wert über 10 mU/l gilt immer als deutlich erhöht"', z.some((x) => /^ {2}Hinweis \(App\): TSH: Ein Wert über 10 mU\/l gilt immer als deutlich erhöht/.test(x)), auszug(z, 600));
+});
+fall('F14 TSH 0,08 im Bereich 0,05–4: Hinweis unter 0,1', () => {
+  const z = ez.berichtZeilen(r5Stand({ labor: [{ id: 'b', datum: '2026-09-22', tsh: t(0.08, 0.05, 4), ...R5_FRAGEN, bestaetigt: true }] }), R5);
+  check('F14 „TSH: Ein Wert unter 0,1 mU/l"', z.some((x) => /Hinweis \(App\): TSH: Ein Wert unter 0,1/.test(x)), auszug(z, 600));
+});
+fall('F14 zwei Einträge vom 22.09. mit TSH 0,7 und 7', () => {
+  const z = ez.berichtZeilen(r5Stand({ labor: [{ id: 'x1', datum: '2026-09-22', tsh: t(0.7, 0.27, 4.2) }, { id: 'x2', datum: '2026-09-22', tsh: t(7, 0.27, 4.2) }] }), R5);
+  const h = z.filter((x) => /Hinweis \(App\): .*zwei Einträge mit verschiedenen Werten/.test(x));
+  check('F14 in beiden Blöcken der Widerspruchs-Hinweis', h.length === 2, auszug(z, 600));
+  check('F14 … und welchen die App nimmt (den zuletzt eingetragenen, TSH 7)', h.length === 2 && /mit diesem, dem zuletzt eingetragenen/.test(h[0]) && /nicht mit diesem/.test(h[1])
+    && z.indexOf(h[0]) > z.findIndex((x) => /TSH 7 mU\/l/.test(x)), auszug(h));
+});
+fall('F14 fT4 1,2 pmol/l: Hinweis zur Einheit; einseitiger TSH-Bereich: Hinweis', () => {
+  const a = ez.berichtZeilen(r5Stand({ labor: [{ id: 'b', datum: '2026-09-22', tsh: t(2.1, 0.27, 4.2), ft4: f4O(1.2), ...R5_FRAGEN }] }), R5);
+  check('F14 „passt nicht zur gewählten Einheit"', a.some((x) => /Hinweis \(App\): fT4: Der Wert passt nicht zur gewählten Einheit/.test(x)), auszug(a, 600));
+  const b = ez.berichtZeilen(r5Stand({ labor: [{ id: 'b', datum: '2026-09-22', tsh: { wert: 3.8, einheit: 'mU/l', von: null, bis: 4.2 }, ft4: f4(14), ...R5_FRAGEN }] }), R5);
+  check('F14 „zwei Grenzen"', b.some((x) => /Hinweis \(App\): TSH: Auf dem Befund steht meist ein Bereich mit zwei Grenzen/.test(x)), auszug(b, 600));
+});
+fall('F14 Gegenprobe: ohne Auffälligkeit kein Hinweis, keine Bitte aus dem Formular', () => {
+  const z = ez.berichtZeilen(r5Stand({ labor: [{ id: 'b', datum: '2026-09-22', tsh: t(2.1, 0.27, 4.2), ft4: f4(14), ...R5_FRAGEN }] }), R5);
+  check('F14 kein „Hinweis (App)"', !z.some((x) => /Hinweis \(App\)/.test(x)), auszug(z.filter((x) => /Hinweis/.test(x))));
+});
+
+// ---- F9 (Kern-Teil): die Warn-Beschwerden mit Datum, auch ohne P6.
+fall('F9 warnBeschwerden', () => {
+  check('F9 WARN_BESCHWERDEN und warnBeschwerden vorhanden', Array.isArray(ez.WARN_BESCHWERDEN) && fn('warnBeschwerden'));
+  if (!fn('warnBeschwerden')) return;
+  check('F9 WARN_BESCHWERDEN: lebensmüde, Puls, Herzklopfen, abgenommen', ['lebensmuede', 'puls', 'herz', 'abnahme'].every((k) => ez.WARN_BESCHWERDEN.includes(k)));
+  const befinden = [];
+  for (let i = 1; i <= 50; i += 2) befinden.push(bf(plus(R5, -i), 'muede', 'frieren', 'schlaf', 'konzentration', 'stimmung', 'schmerzen'));
+  befinden.push(bf('2026-08-23', 'lebensmuede', 'puls', 'abnahme'));
+  befinden.push(bf('2026-07-01', 'herz'));
+  const s = r5Stand({ profil: { behandelt: false, ursache: '' }, befinden });
+  const w = ez.warnBeschwerden(s, R5);
+  check('F9 der seltene Eintrag vom 23.08. mit lebensmüde, Puls, abgenommen', ['lebensmuede', 'puls', 'abnahme'].every((k) => w.some((x) => x.key === k && x.daten.join() === '2026-08-23')), JSON.stringify(w));
+  check('F9 mit dem Namen der Beschwerde', w.some((x) => x.key === 'lebensmuede' && /nicht mehr leben möchte/.test(x.name)), JSON.stringify(w));
+  check('F9 Herzklopfen vom 01.07. liegt außerhalb der 8 Wochen', !w.some((x) => x.key === 'herz'), JSON.stringify(w));
+  check('F9 Zeitraum wählbar: 90 Tage mit Herzklopfen', ez.warnBeschwerden(s, R5, 90).some((x) => x.key === 'herz'));
+  const z = fn('angabenZeilen') ? ez.angabenZeilen(r5Stand({ profil: { behandelt: false, ursache: '' }, befinden: [bf(plus(R5, -10), 'lebensmuede')] }), R5) : [];
+  check('F9 ohne P6: „Beschwerden der letzten 28 Tage" nennt „lebensmüde"', z.some((x) => /^Beschwerden der letzten 28 Tage \(Angabe\): .*nicht mehr leben möchte/.test(x)), auszug(z, 500));
+});
+
+// ---- F15 (Kern-Teil): Dosis-Historie mit Berichtigung und doppeltem Eintrag.
+const f15Dosis = (id, ab, mikrogramm, weiteres = {}) => ({ id, ab, praeparat: 'L-Thyroxin', mikrogramm, tabletten: 1, praxis: null, ...weiteres });
+fall('F15 dosisSeit: ein doppelter Eintrag vom Einrichten ist kein Neubeginn', () => {
+  check('F15 dosisSeit vorhanden', fn('dosisSeit'));
+  if (!fn('dosisSeit')) return;
+  const s = r5Stand({ dosen: [f15Dosis('d1', '2019-03-01', 75, { praxis: true }), f15Dosis('d2', '2026-09-01', 75)] });
+  check('F15 seit 01.03.2019', ez.dosisSeit(s, s.dosen[1]) === '2019-03-01', ez.dosisSeit(s, s.dosen[1]));
+  const e = r5Stand({ dosen: [f15Dosis('d1', '2019-03-01', 75), f15Dosis('d2', '2026-09-01', 100)] });
+  check('F15 Gegenprobe: eine echte Änderung beginnt neu', ez.dosisSeit(e, e.dosen[1]) === '2026-09-01');
+});
+fall('F15 dosisVerlauf und dosisDamals', () => {
+  check('F15 dosisVerlauf und dosisDamals vorhanden', fn('dosisVerlauf') && fn('dosisDamals'));
+  if (!fn('dosisVerlauf') || !fn('dosisDamals')) return;
+  // (a) Berichtigung nach „Nein, ich nehme etwas anderes" ab 20.09., Befund vom 15.09.
+  const a = r5Stand({
+    dosen: [f15Dosis('d1', '2019-03-01', 75, { praxis: true }), f15Dosis('d2', '2026-09-20', 100, { berichtigung: true })],
+    labor: [{ id: 'b2', datum: '2026-09-15', tsh: t(7.8, 0.27, 4.2), ...R5_FRAGEN }],
+  });
+  const va = ez.dosisVerlauf(a, R5);
+  check('F15 (a) zwei Perioden, die zweite ist eine Berichtigung', va.length === 2 && va[1].berichtigung === true && va[1].d.id === 'd2' && va[0].berichtigtDurch === va[1],
+    JSON.stringify(va.map((p) => [p.ab, p.art, p.berichtigung, p.berichtigtDurch && p.berichtigtDurch.ab])));
+  const da = ez.dosisDamals(a, '2026-09-15', R5);
+  check('F15 (a) Dosis damals 75 µg – später als unzutreffend gemeldet (Berichtigung ab 20.09.)', da && da.td === 75 && da.berichtigtDurch && da.berichtigtDurch.ab === '2026-09-20', JSON.stringify(da && { td: da.td, b: da.berichtigtDurch && da.berichtigtDurch.ab }));
+  // (b) doppelter Eintrag vom Einrichten
+  const b = r5Stand({ dosen: [f15Dosis('d1', '2019-03-01', 75, { praxis: true }), f15Dosis('d2', '2026-09-01', 75)], nachfragen: [] });
+  const vb = ez.dosisVerlauf(b, R5);
+  check('F15 (b) eine Periode seit 01.03.2019 mit beiden Einträgen', vb.length === 1 && vb[0].ab === '2019-03-01' && vb[0].eintraege.length === 2 && vb[0].d.id === 'd2',
+    JSON.stringify(vb.map((p) => [p.ab, p.eintraege.map((d) => d.id)])));
+  // (c) Berichtigung mit gleichem Beginn ersetzt den Eintrag vom selben Tag
+  const c = r5Stand({ dosen: [f15Dosis('d0', '2019-03-01', 50, { praxis: true }), f15Dosis('d1', '2026-09-10', 75), f15Dosis('d2', '2026-09-10', 100, { berichtigung: true })] });
+  const vc = ez.dosisVerlauf(c, R5);
+  check('F15 (c) 50 µg und 100 µg ab 10.09. (ersetzt 75 µg); die 50 µg waren nicht falsch',
+    vc.length === 2 && vc[1].d.id === 'd2' && vc[1].art === 'dosis' && vc[1].ersetzt && vc[1].ersetzt.d.id === 'd1' && vc[0].berichtigtDurch === null,
+    JSON.stringify(vc.map((p) => [p.ab, p.d.id, p.art, p.ersetzt && p.ersetzt.d.id, p.berichtigtDurch && p.berichtigtDurch.ab])));
+  // (d) 75 → 100 µg ab 10.09., am selben Tag berichtigt auf 75: eine Periode seit 2019.
+  const dd = r5Stand({ dosen: [f15Dosis('d0', '2019-03-01', 75), f15Dosis('d1', '2026-09-10', 100), f15Dosis('d2', '2026-09-10', 75, { berichtigung: true })] });
+  const vd = ez.dosisVerlauf(dd, R5);
+  check('F15 (d) zurück auf die Menge davor: eine Periode seit 01.03.2019', vd.length === 1 && vd[0].ab === '2019-03-01' && vd[0].d.id === 'd2',
+    JSON.stringify(vd.map((p) => [p.ab, p.d.id, p.art])));
+  // Gegenprobe: eine echte Änderung ist keine Berichtigung.
+  const g = r5Stand({ dosen: [f15Dosis('d1', '2019-03-01', 75), f15Dosis('d2', '2026-09-20', 100, { praxis: true })] });
+  const vg = ez.dosisVerlauf(g, R5);
+  check('F15 Gegenprobe: 75 → 100 µg ist eine Änderung (art dosis, keine Berichtigung)', vg.length === 2 && vg[1].art === 'dosis' && !vg[1].berichtigung && !vg[0].berichtigtDurch);
+});
+
+// ---- F23: eine Längengrenze für Notizen und Fragen, gekürzt nach ganzen Zeichen.
+fall('F23 kuerzen und GRENZEN', () => {
+  check('F23 text.js: kuerzen, zeichenZahl', typeof tx.kuerzen === 'function' && typeof tx.zeichenZahl === 'function');
+  if (typeof tx.kuerzen !== 'function') return;
+  const e = `${'a'.repeat(79)}🏥`;
+  check('F23 kuerzen(…🏥, 80) behält das Emoji ganz', tx.kuerzen(e, 80) === e);
+  check('F23 kuerzen(…🏥, 79) lässt keine Hälfte stehen', tx.kuerzen(e, 79) === 'a'.repeat(79));
+  check('F23 zeichenZahl zählt ein Emoji als eins', tx.zeichenZahl('😊a') === 2);
+});
+fall('F23 normStand: Notizen und Fragen bis 1000 Zeichen bleiben ganz', () => {
+  check('F23 GRENZEN.notiz = GRENZEN.frage = 1000', spR5.GRENZEN && spR5.GRENZEN.notiz === 1000 && spR5.GRENZEN.frage === 1000, JSON.stringify(spR5.GRENZEN));
+  const frage = `${'x'.repeat(300)} WICHTIG: Soll ich die Tablette vor der Blutabnahme weglassen?`;
+  const lang = `${'n'.repeat(998)}😊`;
+  const s = normStand({
+    version: 2, profil: BASIS_PROFIL, dosen: [{ ...D1, notiz: lang }],
+    labor: [{ id: 'l', datum: '2026-09-20', tsh: t(2), notiz: lang }],
+    befinden: [{ id: 'b', datum: '2026-09-20', stufe: 'gut', beschwerden: [], notiz: lang }],
+    termine: [{ id: 't', datum: '2026-10-01', notiz: lang }],
+    fragen: [{ id: 'f', text: frage }],
+  });
+  check('F23 Frage mit 360 Zeichen bleibt ganz', s.fragen[0] && s.fragen[0].text === frage, s.fragen[0] && s.fragen[0].text.slice(-40));
+  [['Dosis', s.dosen[0]], ['Befund', s.labor[0]], ['Befinden', s.befinden[0]], ['Termin', s.termine[0]]]
+    .forEach(([was, x]) => check(`F23 ${was}-Notiz mit 999 Zeichen (Emoji am Ende) bleibt ganz`, x && x.notiz === lang, x && `${x.notiz.length}`));
+  const zuLang = normStand({ version: 2, profil: BASIS_PROFIL, fragen: [{ id: 'f', text: `${'y'.repeat(999)}😊z` }] });
+  check('F23 über 1000 Zeichen: nach ganzen Zeichen gekürzt', zuLang.fragen[0].text === `${'y'.repeat(999)}😊`, zuLang.fragen[0].text.slice(-4));
+});
+fall('F23 Zusammenführen zweier Befunde eines Tages: keine Notiz fällt weg', () => {
+  const alt = `Hausarzt Dr. B., nüchtern abgenommen. ${'a'.repeat(190)}`;
+  const neu = 'Laborärztin: Biotin bitte eine Woche vor der nächsten Abnahme weglassen. Und das Labor wechseln.';
+  const s = normStand({
+    version: 2, profil: BASIS_PROFIL, dosen: [D1],
+    labor: [{ id: 'l1', datum: '2026-09-20', tsh: t(2.5), notiz: alt }, { id: 'l2', datum: '2026-09-20', ft4: f4(14), notiz: neu }],
+  });
+  check('F23 zusammengeführt: ein Eintrag mit TSH und fT4', s.labor.length === 1 && s.labor[0].tsh && s.labor[0].ft4, JSON.stringify(s.labor.map((l) => l.id)));
+  check('F23 beide Notizen vollständig', s.labor.length === 1 && s.labor[0].notiz.includes(alt) && s.labor[0].notiz.includes(neu), s.labor[0] && s.labor[0].notiz.slice(-60));
+  // Passen beide zusammen nicht in 1000 Zeichen, werden die Werte trotzdem
+  // zusammengeführt und die Notiz sichtbar gekürzt („[…]"). ENTSCHIEDEN
+  // (Nachprüfung zu F23): Getrennt rechnete die App nur mit dem TSH und
+  // nannte eine niedrigere Frist – die Werte gehen vor. Erreichbar ist das
+  // nur mit einer von Hand gebauten Sicherung; die Formulare legen keine
+  // zwei Einträge eines Tages an.
+  const a2 = `A${'a'.repeat(700)}`;
+  const n2 = `N${'n'.repeat(400)} vor der nächsten Abnahme weglassen`;
+  const g = normStand({
+    version: 2, profil: BASIS_PROFIL, dosen: [D1],
+    labor: [{ id: 'l1', datum: '2026-09-20', tsh: t(2.5), notiz: a2 }, { id: 'l2', datum: '2026-09-20', ft4: f4(14), notiz: n2 }],
+  });
+  check('F23 zu lang zusammen: ein Eintrag mit beiden Werten, Notiz sichtbar gekürzt', g.labor.length === 1 && g.labor[0].tsh && g.labor[0].ft4
+    && g.labor[0].notiz.startsWith(a2) && g.labor[0].notiz.includes('[…]') && Array.from(g.labor[0].notiz).length <= 1000,
+  JSON.stringify(g.labor.map((l) => [l.id, l.notiz.length])));
+  const nochmal = normStand(JSON.parse(JSON.stringify(g)));
+  check('F23 … und nach dem nächsten Laden unverändert', nochmal.labor.length === 1 && nochmal.labor[0].notiz === g.labor[0].notiz);
+});
+
+// ---- F25/F27: Steuerzeichen und Umbrüche aus einer Sicherung.
+fall('F27 normStand: Name und Kartentitel einzeilig, ohne Steuerzeichen', () => {
+  const s = normStand({
+    version: 2, profil: { ...BASIS_PROFIL, name: 'Erika\nDOSIS\nAktuell: L-Thyroxin 150 µg' }, dosen: [{ ...D1, praeparat: 'Euthyrox\n75' }],
+    labor: [{ id: 'l', datum: '2026-09-20', tsh: { ...t(2), einheit: 'mU/l\n' }, laborName: 'Labor\u0000Mitte', notiz: 'Zeile 1\nZeile 2\u000bZeile 3\u001b' }],
+    termine: [{ id: 't', datum: '2026-10-01', wo: 'Praxis\r\nHauptstr. 1' }],
+    nachfragen: [{ id: 'n', art: 'karte_gezeigt', bezug: 'l', antwort: 'mehr', am: '2026-09-21', titel: 'Die App empfiehlt: Tagesdosis auf 150 µg verdoppeln.\nDer Patientin dazu gezeigt: ab morgen 150 µg nehmen.' }],
+  });
+  check('F27 Name ohne Umbruch', s.profil.name === 'Erika DOSIS Aktuell: L-Thyroxin 150 µg', JSON.stringify(s.profil.name));
+  check('F27 Kartentitel ohne Umbruch', !/\n/.test(s.nachfragen[0].titel), JSON.stringify(s.nachfragen[0].titel));
+  check('F27 Präparat, Labor, Ort, Einheit einzeilig', s.dosen[0].praeparat === 'Euthyrox 75' && s.labor[0].laborName === 'Labor Mitte' && s.termine[0].wo === 'Praxis Hauptstr. 1' && s.labor[0].tsh.einheit === 'mU/l',
+    JSON.stringify([s.dosen[0].praeparat, s.labor[0].laborName, s.termine[0].wo, s.labor[0].tsh.einheit]));
+  check('F25 Notiz: Umbrüche bleiben, Steuerzeichen nicht', s.labor[0].notiz === 'Zeile 1\nZeile 2\nZeile 3 ', JSON.stringify(s.labor[0].notiz));
+});
+
+// ---- F28: Bezüge bis 60 Zeichen (W-D4 hängt „-14" an eine Kennung mit 40).
+fall('F28 normStand: Bezug mit 43 Zeichen bleibt', () => {
+  const bezug = `${'A'.repeat(40)}-14`;
+  const s = normStand({ version: 2, profil: BASIS_PROFIL, nachfragen: [{ id: 'n', art: 'wd4', bezug, antwort: 'ja', am: '2026-09-28' }] });
+  check('F28 wd4-Antwort mit Bezug „A×40-14" bleibt', s.nachfragen.length === 1 && s.nachfragen[0].bezug === bezug, JSON.stringify(s.nachfragen));
+});
+
+// ---- F29: Zahlen nur in den Grenzen der Formulare.
+fall('F29 normStand: Stärke, Tabletten, Bereichsgrenzen, Vorrat', () => {
+  const zg = spR5.ZAHL_GRENZEN;
+  check('F29 ZAHL_GRENZEN für die Formulare: 5–400 µg, bis 4 Tabletten, Vorrat bis 10000', !!zg && zg.mikrogramm.min === 5 && zg.mikrogramm.max === 400
+    && zg.tabletten.max === 4 && zg.vorrat.max === 10000, JSON.stringify(zg));
+  const dosis = (mikrogramm, tabletten) => normStand({ version: 2, profil: BASIS_PROFIL, dosen: [{ ...D1, mikrogramm, tabletten }] }).dosen[0];
+  const a = dosis(5e8, 1e300);
+  check('F29 500000000 µg, 1e+300 Tabletten → Stärke unbekannt, 1 Tablette', a.mikrogramm === null && a.tabletten === 1, JSON.stringify(a));
+  check('F29 Stärke über 400 µg → unbekannt', dosis(500, 1).mikrogramm === null);
+  check('F29 Stärke unter 5 µg → unbekannt', dosis(4, 1).mikrogramm === null);
+  check('F29 Tabletten 0 oder über 4 → Stärke unbekannt (nicht still 1 Tablette)', dosis(75, 0).mikrogramm === null && dosis(75, 5).mikrogramm === null);
+  check('F29 Tabletten „Infinity" → Stärke unbekannt', dosis(75, 'Infinity').mikrogramm === null);
+  const ok = dosis(400, 4);
+  check('F29 Gegenprobe: 400 µg, 4 Tabletten bleiben; 5 µg bleibt; ohne Tablettenzahl 1', ok.mikrogramm === 400 && ok.tabletten === 4 && dosis(5, 0.5).mikrogramm === 5
+    && dosis(75, undefined).tabletten === 1 && dosis(75, undefined).mikrogramm === 75, JSON.stringify([ok, dosis(75, undefined)]));
+  const l = normStand({ version: 2, profil: BASIS_PROFIL, labor: [{ id: 'l', datum: '2026-09-20', tsh: { wert: 0.005, einheit: 'mU/l', von: -5, bis: 4 } }] }).labor[0];
+  check('F29 Bereichsgrenze −5 → keine Grenze', l.tsh.von === null && l.tsh.bis === 4, JSON.stringify(l.tsh));
+  const v = (tabletten) => normStand({ version: 2, profil: BASIS_PROFIL, vorrat: { tabletten, stand: '2026-09-20' } }).vorrat;
+  check('F29 Vorrat 1e+23 → kein Vorrat', v(1e23) === null, JSON.stringify(v(1e23)));
+  check('F29 Gegenprobe: Vorrat 10000 und 0 bleiben', v(10000) && v(10000).tabletten === 10000 && v(0) && v(0).tabletten === 0);
+});
+
 // ================================================================ Globale Eigenschaften über alle Fälle
 
 // MEHRDEUTIG: Grundsatz 1/11 verbietet „Tablette(n) mehr/weniger". Nicht als Aufforderung gelten

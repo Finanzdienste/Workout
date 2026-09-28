@@ -18,7 +18,7 @@
   </div>
 </header>
 
-<main id="ansicht" class="ansicht" role="tabpanel" tabindex="-1" aria-labelledby="reiter-heute">
+<main id="ansicht" class="ansicht" tabindex="-1" aria-labelledby="reiter-heute">
   <!-- Die Notfallnummern stehen fest im HTML (W0). js/app.js ersetzt sie beim
        Start durch die Ansicht – „Heute" hat dieselbe Leiste oben. Startet die
        App nicht (etwa direkt nach einem Update, wenn ein alter Zwischenspeicher
@@ -39,11 +39,22 @@
 
 <!-- Drei Reiter, mit Wort und Bild. Sie stehen fest im HTML, damit die App
      auch mit einem Skript aus einem älteren Zwischenspeicher eine Navigation
-     hat – dieselbe Vorsicht wie in der Workout-App. -->
-<nav class="reiterleiste" id="reiterleiste" role="tablist" aria-label="Bereiche">
-  <button type="button" class="reiter" id="reiter-heute" data-reiter="heute" role="tab" aria-controls="ansicht"><span class="ri" aria-hidden="true">☀️</span><span>Heute</span></button>
-  <button type="button" class="reiter" id="reiter-verlauf" data-reiter="verlauf" role="tab" aria-controls="ansicht"><span class="ri" aria-hidden="true">📈</span><span>Verlauf</span></button>
-  <button type="button" class="reiter" id="reiter-mehr" data-reiter="mehr" role="tab" aria-controls="ansicht"><span class="ri" aria-hidden="true">☰</span><span>Mehr</span></button>
+     hat – dieselbe Vorsicht wie in der Workout-App.
+
+     <main> ist der Hauptbereich und <nav> die Navigation – für
+     Vorleseprogramme die beiden Orientierungspunkte der Seite. Vorher
+     überschrieben role="tabpanel" und role="tablist" beide: Im Rotor
+     „Orientierungspunkte" fehlten Hauptbereich und Navigation (Runde 5: F6).
+     Die Reiter bleiben Reiter (role="tab", aria-selected zeigt den gewählten)
+     in einer eigenen Liste innerhalb der Navigation. aria-controls entfällt –
+     ein Reiter-Feld gibt es nicht mehr, main ist der Hauptbereich. Die Liste
+     trägt die Anordnung der Leiste (nebeneinander, gleich breit). -->
+<nav class="reiterleiste" id="reiterleiste" aria-label="Bereiche">
+  <div role="tablist" style="display:flex;flex:1;min-width:0">
+    <button type="button" class="reiter" id="reiter-heute" data-reiter="heute" role="tab"><span class="ri" aria-hidden="true">☀️</span><span>Heute</span></button>
+    <button type="button" class="reiter" id="reiter-verlauf" data-reiter="verlauf" role="tab"><span class="ri" aria-hidden="true">📈</span><span>Verlauf</span></button>
+    <button type="button" class="reiter" id="reiter-mehr" data-reiter="mehr" role="tab"><span class="ri" aria-hidden="true">☰</span><span>Mehr</span></button>
+  </div>
 </nav>
 
 <div class="meldung" id="meldung" role="status" aria-live="polite"></div>
@@ -69,7 +80,12 @@
      Läuft die App schon, fragt das Skript sie vorher: Mitten in einem
      Formular lud die Seite sonst ohne Rückfrage neu, und die halb
      eingetragenen Laborwerte waren weg (Runde 4: E25). Dann wartet das
-     Neuladen, bis js/app.js eine Lage ohne offene Seite zeichnet. -->
+     Neuladen, bis js/app.js eine Lage ohne offene Seite zeichnet.
+
+     Und auch ohne offene Seite nicht mitten in einen Tipp hinein: Die App
+     lädt erst neu, wenn die Sperre gegen den Doppeltipp abgelaufen ist und
+     keine Meldung mehr „Rückgängig" anbietet (Runde 5: F19). Dafür gibt sie
+     __schilddrueseNeuLadenPlanen her. -->
 <script>
 (function () {
   try {
@@ -91,8 +107,10 @@
       return;
     }
     var erlaubt = window.__schilddrueseNeuLadenErlaubt;
+    var planen = window.__schilddrueseNeuLadenPlanen;
     if (typeof erlaubt === 'function') {
       try {
+        if (typeof planen === 'function') { window.__schilddrueseNeuLaden = true; planen(); return; }
         if (!erlaubt()) { window.__schilddrueseNeuLaden = true; return; }
       } catch (x) { /* dann eben gleich */ }
     }

@@ -911,5 +911,115 @@ fall('R4-a', () => {
   check('R4-a Check mit „große Menge" (W4a): Q5 steht weiter auf der Karte', w4.stufe === 'notruf' && w4.gruende.some((g) => g.id === 'Q5'), lage(w4));
 });
 
+// ================================================================ Runde 5
+/*
+ * Die Befunde der fünften Review-Runde zu Bericht und Dosis-Karte (F10, F11,
+ * F12, F15, F28), so nachgestellt wie im Nachweis – über viele Tage
+ * hintereinander. Jeder Fall scheiterte vor der Korrektur (außer den Gegenproben).
+ */
+const R5_TAG = '2026-09-28';
+const r5Tage = (von, n) => Array.from({ length: n }, (_, i) => plus(von, i));
+
+// F10 – Die Dringlichkeit im Bericht ist an jedem Tag die der Karte, die
+// Gesamteinschätzung die von „Heute": Herzklopfen am 26. und 27.09. bei TSH 0,05.
+fall('F10', () => {
+  const s = stand({
+    profil: { geburtsjahr: 1942, herz: 'ja', osteoporose: 'ja' }, befund: { datum: '2026-09-22', tsh: tshL(0.05), ft4: ft4(24.5), praxisAm: '2026-09-23' },
+    dosen: [d('d1', '2020-01-01', 125)], nachfragen: [ja('b1', '2026-09-24')],
+    befinden: [{ id: 'x1', datum: '2026-09-26', stufe: 'mittel', beschwerden: ['herz'], notiz: '' }, { id: 'x2', datum: '2026-09-27', stufe: 'schlecht', beschwerden: ['herz'], notiz: '' }],
+    warnzeichen: [{ id: 'w', datum: R5_TAG, uhr: '09:00', ja: [] }],
+  });
+  const falsch = r5Tage(R5_TAG, 14).filter((t) => {
+    const k = dosisRichtung(s, t);
+    const z = dosisBerichtZeilen(s, t).join('\n');
+    const g = gesamtbildMitDosis(s, t);
+    const gz = typeof dosisModul.gesamtBerichtZeilen === 'function' ? dosisModul.gesamtBerichtZeilen(s, t).join('\n') : '';
+    return !z.includes(`Dringlichkeit auf der Karte (App): „${k.kopf.titel}"`) || !gz.includes(`(App, wie auf „Heute"): „${g.kopf.titel}"`);
+  });
+  check('F10 28.09.–11.10.: Bericht nennt jeden Tag die Dringlichkeit der Karte und die von „Heute"', falsch.length === 0, falsch.join(', '));
+  const z = dosisBerichtZeilen(s, R5_TAG).join('\n');
+  check('F10 am 28.09.: „Heute anrufen" und der Herzklopfen-Satz stehen im Bericht', /„Heute anrufen"/.test(z) && /Auf der Karte: Sie haben Herzklopfen eingetragen/.test(z), z.slice(0, 300));
+});
+
+// F11 – Nach dem TSH-Befund vom 10.06. kommen Monat für Monat Einträge nur
+// mit weiteren Werten: Der TSH-Befund bleibt im Bericht, nie „(Befund): .".
+fall('F11', () => {
+  const labor = [{ id: 'b1', datum: '2026-06-10', tsh: tshL(0.06), ft4: ft4(26), ...FRAGEN, biotin: 'ja', vorAbnahme: 'ja', tabletteUhr: '06:30' }];
+  const weitere = [['2026-07-15', { hba1c: { wert: 6.1, einheit: '%', von: null, bis: 5.7 } }], ['2026-08-20', { vitd: { wert: 18, einheit: 'ng/ml', von: 30, bis: 100 } }],
+    ['2026-09-18', { b12: { wert: 320, einheit: 'pmol/l', von: 150, bis: 700 } }], ['2026-09-25', { ferritin: { wert: 80, einheit: 'ng/ml', von: 15, bis: 150 } }]];
+  const schlecht = [];
+  weitere.forEach(([datum, werte], i) => {
+    labor.push({ id: `w${i}`, datum, ...werte });
+    const s = normStand({ version: 2, profil: PROFIL, dosen: [d('d1', '2021-01-01', 100)], einnahmen: einnahmen(), labor: JSON.parse(JSON.stringify(labor)) });
+    const t = ez.berichtZeilen(s, R5_TAG).join('\n');
+    if (!/Einordnung \(App\): Muster d/.test(t) || !/Biotin: ja/.test(t) || /\(Befund\): \./.test(t) || !t.includes(`Weitere Werte vom ${datum.slice(8, 10)}.${datum.slice(5, 7)}.2026 (Befund)`)) schlecht.push(datum);
+  });
+  check('F11 mit jedem weiteren Eintrag: Muster d, Biotin, eine kurze Zeile, nie „(Befund): ."', schlecht.length === 0, schlecht.join(', '));
+});
+
+// F12 – Die Angaben stehen mit und ohne P6 gleich da; ohne P6 fehlt nur die Einschätzung.
+fall('F12', () => {
+  const ue = {
+    mittel: ['marcumar', 'amiodaron', 'biotin', 'kalzium'], befund: { datum: '2026-09-22', tsh: tshL(0.04), ft4: ft4(28), biotin: 'ja', vorAbnahme: 'ja', tabletteUhr: '06:30', verwechselt: 'einmal' },
+    warnzeichen: [{ id: 'w1', datum: '2026-09-20', uhr: '21:40', ja: ['brust', 'herzrasen'] }],
+    befinden: [{ id: 'x', datum: '2026-09-20', stufe: 'schlecht', beschwerden: ['puls'], notiz: '' }],
+  };
+  const mit = ez.berichtZeilen(stand(ue), R5_TAG);
+  const ohne = typeof ez.angabenZeilen === 'function' ? ez.angabenZeilen(stand({ ...ue, profil: { behandelt: false, ursache: '' } }), R5_TAG) : [];
+  const angaben = mit.filter((x) => /\(Angabe\)|\(Befund\)/.test(x) && !/^(Profil|Grundlage)|Hirnanhangdrüse/.test(x)).map((x) => x.replace(/ Auswertung \(App\):.*$/, '').replace(/ – (im|über|unter|deutlich|knapp)[^;.]*/g, ''));
+  const fehlt = angaben.filter((x) => !ohne.includes(x));
+  check('F12 jede Angabe aus dem Abschnitt mit P6 steht auch ohne P6 da', angaben.length >= 6 && fehlt.length === 0, `${angaben.length} Angaben, fehlt: ${fehlt.join(' | ').slice(0, 300)}`);
+  check('F12 ohne P6 keine Zeile mit „(App)"', ohne.length > 0 && !ohne.some((x) => /\(App\)/.test(x)), ohne.filter((x) => /\(App\)/.test(x)).join(' | '));
+});
+
+// F15 – Doppelter Eintrag vom Einrichten (75 µg ab 2019 und ab 01.09.2026):
+// Die Grundlage der Karte nennt an jedem Tag „seit 01.03.2019".
+fall('F15', () => {
+  const s = stand({
+    befund: { datum: '2026-09-15', tsh: tshL(5.8), ft4: ft4(12.6) }, nachfragen: [ja('b1', '2026-09-16')],
+    dosen: [d('d1', '2019-03-01', 75), d('d2', '2026-09-01', 75, { praxis: null })],
+  });
+  const falsch = r5Tage('2026-09-16', 30).filter((t) => !dosisRichtung(s, t).grundlage.includes('75 µg am Tag seit 01.03.2019'));
+  check('F15 16.09.–15.10.: Grundlage „75 µg am Tag seit 01.03.2019"', falsch.length === 0, falsch.slice(0, 3).join(', '));
+});
+
+// F28 – Dosis 75 → 100 µg am 14.09. mit einer Kennung aus 40 Zeichen: Die
+// W-D4-Frage erscheint an Tag 14, wird beantwortet (wie app.js: Bezug auf 40
+// Zeichen) und kommt danach – auch nach dem Laden – nicht wieder.
+fall('F28', () => {
+  const id = 'A'.repeat(40);
+  let s = stand({ befund: { datum: '2026-09-01', tsh: tsh(6) }, dosen: [d('d1', '2020-01-01', 75), d(id, '2026-09-14', 100)], nachfragen: [ja('b1', '2026-09-02')] });
+  const vorher = r5Tage('2026-09-14', 14).filter((t) => dosisHinweise(s, t).some((h) => h.id === 'W-D4' && h.frage));
+  check('F28 vor Tag 14 keine W-D4-Frage', vorher.length === 0, vorher.join(', '));
+  const f = dosisHinweise(s, R5_TAG).find((h) => h.id === 'W-D4' && h.frage);
+  check('F28 Tag 14 (28.09.): die W-D4-Frage steht da', !!f);
+  if (!f) return;
+  s.nachfragen.push({ id: 'a', art: 'wd4', bezug: String(f.frage.bezug).slice(0, 40), antwort: 'nein', am: R5_TAG });
+  s = normStand(JSON.parse(JSON.stringify(s)));
+  const noch = r5Tage(R5_TAG, 7).filter((t) => dosisHinweise(s, t).some((h) => h.id === 'W-D4' && h.frage && h.frage.bezug === f.frage.bezug));
+  check('F28 nach der Antwort und dem Laden: die Frage kommt an Tag 14–20 nicht wieder', noch.length === 0, noch.join(', '));
+});
+
+// ================================================================ Nachprüfung Runde 5
+// R5-a – zwei Einträge eines Tages (nur TSH, nur fT4) werden auch dann
+// zusammengeführt, wenn ihre Notizen zusammen über der Grenze liegen: Sonst
+// rechnete die App nur mit dem TSH und nannte eine niedrigere Frist.
+fall('R5-a', () => {
+  const roh = {
+    version: 2, profil: { ...PROFIL }, dosen: [{ id: 'd1', ab: '2021-01-01', praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, praxis: true }],
+    labor: [
+      { id: 'b1', datum: '2026-09-22', tsh: tsh(0.2), ...FRAGEN, notiz: 'A'.repeat(900) },
+      { id: 'b2', datum: '2026-09-22', ft4: ft4(26), ...FRAGEN, notiz: 'B'.repeat(200) },
+    ],
+  };
+  const s = normStand(roh);
+  const b = s.labor[0];
+  check('R5-a ein Eintrag mit TSH und fT4', s.labor.length === 1 && b.tsh && b.ft4, `${s.labor.length} Einträge`);
+  check('R5-a Notiz sichtbar gekürzt, innerhalb der Grenze', b.notiz.includes('[…]') && Array.from(b.notiz).length <= 1000, `${Array.from(b.notiz).length} Zeichen`);
+  const kurz = normStand({ ...roh, labor: roh.labor.map((l) => ({ ...l, notiz: 'x' })) });
+  check('R5-a Gegenprobe kurze Notizen: gleiche Stufe', gesamtbildMitDosis(s, HEUTE).stufe === gesamtbildMitDosis(kurz, HEUTE).stufe,
+    `${gesamtbildMitDosis(s, HEUTE).stufe} / ${gesamtbildMitDosis(kurz, HEUTE).stufe}`);
+});
+
 console.log(fails ? `\n${fails} gescheitert` : '\nalles grün');
 process.exit(fails ? 1 : 0);

@@ -13,7 +13,7 @@
  * angesprochen; ein Name, den es hier nicht gibt, liefert null.
  */
 import { heuteISO, tageWeiter, istISO, istUhr, zahlAus, datumInWorten, datumKurz, uhrText, jetztUhr } from './datum.js';
-import { esc } from './text.js';
+import { esc, kuerzen, saeubern, einzeilig, zeichenZahl } from './text.js';
 import * as sp from './speicher.js';
 import * as ez from './einschaetzung.js';
 import { befundPruefen } from './einheiten.js';
@@ -21,9 +21,9 @@ import { E14_TEXT, E16_TEXT } from './wissen.js';
 import { dosisBefund } from './dosis.js';
 import { wahlFrage, JNW_WAHL, BEFUND_FRAGEN, w1Karte } from './ansicht-einschaetzung.js';
 
-const feldDatum = (name, wert, titel = 'Datum', hinweis = '') => `
+const feldDatum = (name, wert, titel = 'Datum', hinweis = '', max = '') => `
   <label class="feld"><span>${titel}</span>
-    <input type="date" name="${name}" value="${esc(wert)}" required>
+    <input type="date" name="${name}" value="${esc(wert)}"${max ? ` max="${esc(max)}"` : ''} required>
     ${hinweis ? `<span class="hinweis">${hinweis}</span>` : ''}
   </label>`;
 
@@ -43,8 +43,20 @@ export function tablettenWahl(aktuell) {
   </label>`;
 }
 
-/** Eine gespeicherte Zahl zurück ins Eingabefeld: 2.1 → „2,1", nichts → leer. */
-const zahlFeld = (wert) => (wert === null || wert === undefined ? '' : String(wert).replace('.', ','));
+/*
+ * Eine gespeicherte Zahl zurück ins Eingabefeld: 2.1 → „2,1", nichts → leer.
+ * Nie mit Exponent: Aus einer Sicherung stand sonst „1e+23" im Feld, und ein
+ * bloßes „Speichern" scheiterte an „Bitte die Anzahl eintragen" – zahlAus()
+ * liest keinen Exponenten (Runde 5: F29).
+ */
+function zahlFeld(wert) {
+  if (wert === null || wert === undefined) return '';
+  let s = String(wert);
+  if (/e/i.test(s) && typeof wert === 'number' && Number.isFinite(wert)) {
+    s = wert.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 20 });
+  }
+  return s.replace('.', ',');
+}
 
 const feldZahl = (name, wert, titel, { hinweis = '', platzhalter = '' } = {}) => `
   <label class="feld"><span>${titel}</span>
@@ -52,13 +64,67 @@ const feldZahl = (name, wert, titel, { hinweis = '', platzhalter = '' } = {}) =>
     ${hinweis ? `<span class="hinweis">${hinweis}</span>` : ''}
   </label>`;
 
-const feldText = (name, wert, titel, { hinweis = '', platzhalter = '', lang = false } = {}) => `
+/*
+ * Runde 5: F23 – Längengrenzen und Zähler. Vorher hatte kein Feld eine Grenze,
+ * und beim Speichern wurde still gekürzt: Eine diktierte Frage mit 360
+ * Zeichen verlor ihr Ende („… vor der Blutabnahme weglassen?"), die Meldung
+ * sagte trotzdem „Frage gespeichert". Jetzt nimmt jedes Feld nur so viel an,
+ * wie gespeichert wird (maxlength = sp.GRENZEN – dieselben Grenzen wie in
+ * normStand), und unter jedem mehrzeiligen Feld steht, wie viel hineinpasst.
+ * Wird es knapp, zählt der Satz herunter; schneidet das Feld beim Einfügen
+ * oder Diktieren etwas ab, sagt er „voll" – dann sieht die Nutzerin nach, ob
+ * das Ende fehlt. Gezählt wird wie bei maxlength (UTF-16-Einheiten), damit
+ * „voll" genau dann erscheint, wenn das Feld nichts mehr annimmt.
+ */
+const ZAEHLER_AB = 100;   // so viele Zeichen vor der Grenze wird aus „höchstens …" ein „noch …"
+
+export function zaehlerText(laenge, max) {
+  const rest = max - laenge;
+  if (rest <= 0) return `Das Feld ist voll – mehr als ${max} Zeichen passen nicht hinein.`;
+  if (rest <= ZAEHLER_AB) return `Noch ${rest} Zeichen frei.`;
+  return `Höchstens ${max} Zeichen.`;
+}
+
+/** Beim Tippen: den Zähler unter einem Textfeld nachführen (js/app.js, Ereignis „input"). */
+export function zaehlerNachfuehren(el) {
+  if (!el || el.tagName !== 'TEXTAREA') return;
+  const id = (el.getAttribute('aria-describedby') || '').split(/\s+/).find((x) => x.startsWith('zaehler-'));
+  const z = id ? document.getElementById(id) : null;
+  if (!z) return;
+  const max = Number(z.dataset.max);
+  const text = zaehlerText(el.value.length, max);
+  if (z.textContent !== text) z.textContent = text;
+  z.classList.toggle('voll', el.value.length >= max);
+}
+
+/*
+ * `max`: die Grenze aus sp.GRENZEN. Mehrzeilige Felder bekommen dazu den
+ * Zähler – sichtbar unter dem Feld, für Vorleseprogramme als Beschreibung des
+ * Felds (aria-describedby); im Namen des Felds soll er nicht mitgelesen werden.
+ */
+const feldText = (name, wert, titel, { hinweis = '', platzhalter = '', lang = false, max = 0 } = {}) => {
+  const zaehler = lang && max ? `zaehler-${name}` : '';
+  const laenge = String(wert || '').length;
+  return `
   <label class="feld"><span>${titel}</span>
     ${lang
-    ? `<textarea name="${name}" placeholder="${esc(platzhalter)}">${esc(wert || '')}</textarea>`
-    : `<input type="text" name="${name}" value="${esc(wert || '')}" placeholder="${esc(platzhalter)}" autocomplete="off">`}
+    ? `<textarea name="${name}" placeholder="${esc(platzhalter)}"${max ? ` maxlength="${max}"` : ''}${zaehler ? ` aria-describedby="${zaehler}"` : ''}>${esc(wert || '')}</textarea>`
+    : `<input type="text" name="${name}" value="${esc(wert || '')}" placeholder="${esc(platzhalter)}"${max ? ` maxlength="${max}"` : ''} autocomplete="off">`}
     ${hinweis ? `<span class="hinweis">${hinweis}</span>` : ''}
+    ${zaehler ? `<span class="hinweis zaehler${laenge >= max ? ' voll' : ''}" id="${zaehler}" data-max="${max}" aria-hidden="true">${esc(zaehlerText(laenge, max))}</span>` : ''}
   </label>`;
+};
+
+/*
+ * Ein Text aus dem Formular, so wie normStand ihn beim nächsten Laden liest:
+ * ohne Steuerzeichen, nach ganzen Zeichen auf die Grenze gekürzt – maxlength
+ * lässt ohnehin nicht mehr zu, also geht hier nichts verloren (F23). Vorher
+ * `.slice(0, 300)` nach UTF-16-Einheiten: Ein Emoji an der Grenze blieb halb
+ * stehen und kam in der Kalenderdatei als „�" an (Runde 5: F23, F25).
+ * `zeile`: ein einzeiliges Feld (Präparat, Labor, Ort, Anrede).
+ */
+export const textAus = (roh, max) => kuerzen(saeubern(String(roh || '')).trim(), max);
+export const zeileAus = (roh, max) => kuerzen(einzeilig(String(roh || '')), max);
 
 const fuss = (art, id, { speichern = 'Speichern', loeschen = true } = {}) => `
   <div class="formular-fuss">
@@ -88,7 +154,7 @@ function dosisFormular(id, stand, heute) {
     html: `
       <form data-formular="dosis" ${dosisId ? `data-id="${esc(dosisId)}"` : ''} novalidate>
         ${!da && letzte ? `<div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Die bisherige Dosis (${esc(sp.dosisText(letzte))}) bleibt im Verlauf stehen. Hier kommt die neue dazu, so wie die Ärztin sie verordnet hat.</div></div>` : ''}
-        ${feldText('praeparat', d.praeparat, 'Präparat', { platzhalter: 'z. B. L-Thyroxin Henning', hinweis: 'So, wie es auf der Packung steht. Ein Herstellerwechsel ist auch eine Änderung.' })}
+        ${feldText('praeparat', d.praeparat, 'Präparat', { platzhalter: 'z. B. L-Thyroxin Henning', hinweis: 'So, wie es auf der Packung steht. Ein Herstellerwechsel ist auch eine Änderung.', max: sp.GRENZEN.praeparat })}
         ${feldZahl('mikrogramm', d.mikrogramm, 'Stärke in µg (Mikrogramm)', { platzhalter: 'z. B. 75', hinweis: 'Die Zahl auf der Packung, z. B. 50, 75 oder 100.' })}
         ${tablettenWahl(d.tabletten)}
         ${feldDatum('ab', d.ab, 'Gilt ab', 'Der Tag, ab dem diese Dosis genommen wird. Liegt er in der Zukunft, nennt „Heute" bis dahin weiter die bisherige Dosis.')}
@@ -96,7 +162,7 @@ function dosisFormular(id, stand, heute) {
     optionen: [['ja', 'Ja'], ['nein', 'Nein']],
     hinweis: 'Steht im Bericht für den Arzttermin. Bei „Nein" erinnert die App daran, der Praxis Bescheid zu sagen.',
   }) : ''}
-        ${feldText('notiz', d.notiz, 'Notiz (freiwillig)', { platzhalter: 'z. B. nach Laborkontrolle im März' })}
+        ${feldText('notiz', d.notiz, 'Notiz (freiwillig)', { platzhalter: 'z. B. nach Laborkontrolle im März', max: sp.GRENZEN.notiz })}
         <p class="klein gedaempft" style="margin-bottom:.6rem">${esc(E16_TEXT)}</p>
         ${fuss('dosis', dosisId)}
       </form>`,
@@ -169,11 +235,11 @@ function dosisAbsenden(id, f, heute) {
   if (mitQuelle && quelle !== 'ja' && quelle !== 'nein') fehler.praxis = 'Bitte „Ja" oder „Nein" wählen: Hat die Praxis diese Dosis angeordnet?';
   if (Object.keys(fehler).length) return { ok: false, fehler };
   const eintrag = {
-    praeparat: String(f.get('praeparat') || '').trim().slice(0, 80),
+    praeparat: zeileAus(f.get('praeparat'), sp.GRENZEN.praeparat),
     mikrogramm,
     tabletten: zahlAus(f.get('tabletten')) || 1,
     ab,
-    notiz: String(f.get('notiz') || '').trim().slice(0, 300),
+    notiz: textAus(f.get('notiz'), sp.GRENZEN.notiz),
     praxis: quelle === 'ja' ? true : quelle === 'nein' ? false : null,
   };
   /*
@@ -394,9 +460,16 @@ function befundeZusammen(alt, neu) {
     if (neu[k] && alt[k] && neu[k] !== alt[k]) widerspruch.push({ abnahmeUhr: 'Uhrzeit der Abnahme', tabletteUhr: 'Uhrzeit der Tablette', laborName: 'Name des Labors' }[k]);
     zusammen[k] = alt[k] || neu[k] || '';
   });
-  zusammen.notiz = [alt.notiz, neu.notiz].filter(Boolean).filter((x, i, l) => l.indexOf(x) === i).join(' · ').slice(0, 300);
+  /*
+   * Runde 5: F23 – Beide Notizen passen zusammen nicht in die Grenze: nicht
+   * kürzen, sondern am Feld sagen (laborAbsenden). Vorher wurde auf 300
+   * Zeichen gekürzt, und ausgerechnet die neue Notiz fiel weg – übrig blieb
+   * „Biotin bitte eine Woche" ohne „vor der nächsten Abnahme weglassen".
+   */
+  zusammen.notiz = [alt.notiz, neu.notiz].filter(Boolean).filter((x, i, l) => l.indexOf(x) === i).join(' · ');
   zusammen.datum = alt.datum;
-  return { zusammen, widerspruch };
+  const notizZeichen = zeichenZahl(zusammen.notiz);
+  return { zusammen, widerspruch, notizZuLang: notizZeichen > sp.GRENZEN.notiz ? { zeichen: notizZeichen, vorhanden: zeichenZahl(alt.notiz) } : null };
 }
 
 const WERT_PLATZ = { tsh: 'z. B. 2,1', ft4: 'z. B. 15,2', ft3: 'z. B. 4,8' };
@@ -417,17 +490,26 @@ function laborFormular(id, stand, heute) {
     const platzVon = vorher && vorher.von !== null ? `z. B. ${zahlFeld(vorher.von)}` : 'von';
     const platzBis = vorher && vorher.bis !== null ? `z. B. ${zahlFeld(vorher.bis)}` : 'bis';
     const wertText = w ? `${w.unter ? '< ' : ''}${zahlFeld(w.wert)}` : '';
+    /*
+     * Runde 5: F2 – Jedes Wertfeld trägt den Namen seines Werts. Vorher hießen
+     * alle elf Felder für Vorleseprogramme nur „Wert"; wer mit „Weiter" von
+     * Feld zu Feld sprang, konnte TSH, fT4 und fT3 nicht unterscheiden, und ein
+     * fT4-Wert landete leicht im falschen Feld. Die Karte ist eine Gruppe mit
+     * dem Namen des Werts, das Feld heißt „Wert TSH" (sichtbar bleibt „Wert").
+     * Der Hinweis zu „< 0,01" ist die Beschreibung des TSH-Felds, nicht mehr
+     * Teil seines Namens.
+     */
     return `
-      <div class="karte" data-feld="${key}">
-        <div class="laborwert-kopf"><span class="laborwert-name">${esc(name)}</span>
+      <div class="karte" data-feld="${key}" role="group" aria-labelledby="lw-${key}">
+        <div class="laborwert-kopf"><span class="laborwert-name" id="lw-${key}">${esc(name)}</span>
           <select name="${key}_einheit" aria-label="Einheit ${esc(name)}" style="width:auto;min-height:2.4rem">
             ${[...new Set([...einheiten, einheit].filter(Boolean))].map((e) => `<option value="${esc(e)}" ${e === einheit ? 'selected' : ''}>${esc(e)}</option>`).join('')}
           </select>
         </div>
         ${key === 'ft4' ? '<p class="klein gedaempft" style="margin:.3rem 0 .5rem">Bitte nur das freie T4 eintragen (fT4, FT4). „T4" oder „Gesamt-T4" ist ein anderer Wert und wird von der App nicht eingeordnet.</p>' : ''}
-        <label class="feld"><span>Wert</span>
-          <input type="text" inputmode="decimal" name="${key}_wert" value="${esc(wertText)}" placeholder="${esc(WERT_PLATZ[key] || 'vom Befund')}" autocomplete="off">
-          ${key === 'tsh' ? '<span class="hinweis">Steht auf dem Befund „&lt; 0,01", tragen Sie genau das ein.</span>' : ''}
+        <label class="feld"><span>Wert<span class="sr-only"> ${esc(name)}</span></span>
+          <input type="text" inputmode="decimal" name="${key}_wert" value="${esc(wertText)}" placeholder="${esc(WERT_PLATZ[key] || 'vom Befund')}" autocomplete="off"${key === 'tsh' ? ' aria-describedby="hinweis-tsh"' : ''}>
+          ${key === 'tsh' ? '<span class="hinweis" id="hinweis-tsh" aria-hidden="true">Steht auf dem Befund „&lt; 0,01", tragen Sie genau das ein.</span>' : ''}
         </label>
         <div class="feld" data-feld="${key}_von"><span>Bereich laut Befund</span>
           <div class="bereich-reihe">
@@ -472,14 +554,14 @@ function laborFormular(id, stand, heute) {
           <span class="hinweis">TSH ist morgens meist etwas höher als nachmittags.</span>
         </label>
         ${werte}
-        ${feldText('laborName', l.laborName, 'Name des Labors (freiwillig)', { platzhalter: letzter && letzter.laborName ? `z. B. ${letzter.laborName}` : 'steht oben auf dem Befund', hinweis: 'Bei einem anderen Labor vergleicht die App die Werte nur eingeschränkt.' })}
+        ${feldText('laborName', l.laborName, 'Name des Labors (freiwillig)', { platzhalter: letzter && letzter.laborName ? `z. B. ${letzter.laborName}` : 'steht oben auf dem Befund', hinweis: 'Bei einem anderen Labor vergleicht die App die Werte nur eingeschränkt.', max: sp.GRENZEN.laborName })}
         ${weitere}
         <fieldset class="fragen-block">
           <legend>Fragen zur Blutabnahme</legend>
           <p class="hinweis" style="margin-bottom:.8rem">Alle freiwillig. Die Antworten helfen, den Wert richtig zu lesen: Eine Tablette vor der Abnahme hebt fT4, Biotin verfälscht die Messung, eine schwere Krankheit oder Kortison verschieben die Werte für Wochen. Was offen bleibt, fragt die Dosis-Karte später.</p>
           ${fragen}
         </fieldset>
-        ${feldText('notiz', l.notiz, 'Notiz (freiwillig)', { platzhalter: 'z. B. anderes Labor als sonst', lang: true })}
+        ${feldText('notiz', l.notiz, 'Notiz (freiwillig)', { platzhalter: 'z. B. anderes Labor als sonst', lang: true, max: sp.GRENZEN.notiz })}
         ${fuss('labor', id)}
       </form>`,
   };
@@ -499,10 +581,10 @@ function laborAbsenden(id, f, heute) {
   const praxis = auswahl(f.get('praxis'), ['bleibt', 'geaendert', 'nachmessen', 'nochnicht']);
   const eintrag = {
     datum,
-    notiz: String(f.get('notiz') || '').trim().slice(0, 300),
+    notiz: textAus(f.get('notiz'), sp.GRENZEN.notiz),
     abnahmeUhr: uhr('abnahmeUhr'),
     tabletteUhr: f.get('vorAbnahme') === 'ja' ? uhr('tabletteUhr') : '',
-    laborName: String(f.get('laborName') || '').trim().slice(0, 60),
+    laborName: zeileAus(f.get('laborName'), sp.GRENZEN.laborName),
     vergessen: auswahl(f.get('vergessen'), ['nein', 'einzelne', 'mehrere', 'unbekannt']),
     einnahmeArt: auswahl(f.get('einnahmeArt'), ['ja', 'abends', 'nein', 'unbekannt']),
     praxis,
@@ -535,7 +617,7 @@ function laborAbsenden(id, f, heute) {
     // Ein Bereich darf einseitig sein („< 116") – so, wie er auf dem Befund steht.
     if (von !== null && bis !== null && von >= bis) fehler[`${key}_von`] = `${name}: „von" muss kleiner sein als „bis".`;
     einer = true;
-    eintrag[key] = { wert, einheit: String(f.get(`${key}_einheit`) || '').slice(0, 20), von, bis, unter };
+    eintrag[key] = { wert, einheit: zeileAus(f.get(`${key}_einheit`), sp.GRENZEN.einheit), von, bis, unter };
   });
   if (!einer && !Object.keys(fehler).length) fehler.tsh_wert = 'Bitte mindestens einen Wert eintragen.';
   if (Object.keys(fehler).length) return { ok: false, fehler };
@@ -554,9 +636,23 @@ function laborAbsenden(id, f, heute) {
   if (amTag) {
     const oeffnen = { seite: 'labor', param: amTag.id, text: `Befund vom ${datumKurz(datum)} öffnen` };
     if (id) return { ok: false, fehler: { datum: { text: `Für den ${datumKurz(datum)} gibt es schon einen Befund. Tragen Sie die Werte bitte dort ein – oder wählen Sie ein anderes Datum.`, knopf: oeffnen } } };
-    const { zusammen, widerspruch } = befundeZusammen(amTag, eintrag);
+    const { zusammen, widerspruch, notizZuLang } = befundeZusammen(amTag, eintrag);
     if (widerspruch.length) {
       return { ok: false, fehler: { datum: { text: `Für den ${datumKurz(datum)} gibt es schon einen Befund, und er sagt bei ${widerspruch.join(', ')} etwas anderes. Bitte prüfen Sie den vorhandenen Befund und ändern Sie ihn dort.`, knopf: oeffnen } } };
+    }
+    if (notizZuLang) {
+      // Platz für die neue Notiz: die Grenze ohne die vorhandene und ohne das „ · " dazwischen.
+      const platz = Math.max(0, sp.GRENZEN.notiz - notizZuLang.vorhanden - 3);
+      const bitte = platz > 0 ? `Bitte kürzen Sie Ihre Notiz auf höchstens ${platz} Zeichen` : 'Bitte lassen Sie Ihre Notiz hier weg';
+      return {
+        ok: false,
+        fehler: {
+          notiz: {
+            text: `Beim Befund vom ${datumKurz(datum)} steht schon eine Notiz. Zusammen wären es ${notizZuLang.zeichen} Zeichen, es passen höchstens ${sp.GRENZEN.notiz}. ${bitte} – oder öffnen Sie den vorhandenen Befund und kürzen Sie dort.`,
+            knopf: oeffnen,
+          },
+        },
+      };
     }
     ziel = zusammen;
   }
@@ -676,7 +772,7 @@ function befindenFormular(id, stand, heute) {
           </div>
           <span class="hinweis">Alles freiwillig. Solche Beschwerden haben oft andere Gründe – deshalb gehört das ins Gespräch mit der Ärztin, nicht in eine eigene Dosisänderung.</span>
         </div>
-        ${feldText('notiz', b.notiz, 'Notiz (freiwillig)', { lang: true, platzhalter: 'z. B. seit drei Tagen abends sehr müde' })}
+        ${feldText('notiz', b.notiz, 'Notiz (freiwillig)', { lang: true, platzhalter: 'z. B. seit drei Tagen abends sehr müde', max: sp.GRENZEN.notiz })}
         ${fuss('befinden', da ? da.id : null)}
       </form>`,
   };
@@ -724,7 +820,7 @@ function befindenAbsenden(id, f, heute) {
   // Ein alter Punkt bleibt nur, wo er schon stand – neu wählen lässt er sich nicht.
   const alt = alteBeschwerden(vorher).map(([k]) => k);
   const beschwerden = f.getAll('beschwerden').filter((k) => sp.BESCHWERDEN.some(([x]) => x === k) || alt.includes(k));
-  const notiz = String(f.get('notiz') || '').trim().slice(0, 500);
+  const notiz = textAus(f.get('notiz'), sp.GRENZEN.notiz);
   let gespeichert = null;
   sp.aendern((s) => {
     const da = id ? s.befinden.find((b) => b.id === id) : null;
@@ -754,21 +850,31 @@ function terminFormular(id, stand, heute) {
             <option value="sonst" ${t.art === 'sonst' ? 'selected' : ''}>Sonstiges</option>
           </select>
         </label>
-        ${feldDatum('datum', t.datum || heute)}
+        ${feldDatum('datum', t.datum || heute, 'Datum', '', terminGrenze(heute))}
         <label class="feld"><span>Uhrzeit (freiwillig)</span><input type="time" name="uhr" value="${esc(t.uhr)}"></label>
-        ${feldText('wo', t.wo, 'Wo / bei wem (freiwillig)', { platzhalter: 'z. B. Praxis Dr. Meier' })}
+        ${feldText('wo', t.wo, 'Wo / bei wem (freiwillig)', { platzhalter: 'z. B. Praxis Dr. Meier', max: sp.GRENZEN.wo })}
         <label class="haken" style="margin-bottom:.9rem"><input type="checkbox" name="blutabnahme" ${t.blutabnahme ? 'checked' : ''}>Es wird Blut abgenommen</label>
         <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span><div>Bei einer Blutabnahme wird die Tablette meist erst danach genommen, weil fT4 in den Stunden nach der Einnahme vorübergehend ansteigt. Wie die Praxis es haben möchte, am besten einmal fragen und hier notieren.</div></div>
-        ${feldText('notiz', t.notiz, 'Notiz (freiwillig)', { lang: true, platzhalter: 'z. B. nüchtern kommen, Befunde mitbringen' })}
+        ${feldText('notiz', t.notiz, 'Notiz (freiwillig)', { lang: true, platzhalter: 'z. B. nüchtern kommen, Befunde mitbringen', max: sp.GRENZEN.notiz })}
         ${fuss('termin', id)}
       </form>`,
   };
 }
 
-function terminAbsenden(id, f) {
+/*
+ * Runde 5: F25 – Ein Termin liegt höchstens fünf Jahre voraus. Das Datumsfeld
+ * nahm jedes Jahr bis 9999 an; ein vertipptes Jahr landete so in der
+ * Kalenderdatei. Ein Termin, der schon so gespeichert ist, lässt sich weiter
+ * ändern, ohne dass das Datum im Weg steht.
+ */
+const terminGrenze = (heute) => tageWeiter(heute, 5 * 366);
+
+function terminAbsenden(id, f, heute) {
   const fehler = {};
   const datum = f.get('datum');
+  const da = id ? sp.getStand().termine.find((t) => t.id === id) : null;
   if (!istISO(datum)) fehler.datum = 'Bitte ein Datum wählen.';
+  else if (datum > terminGrenze(heute) && !(da && da.datum === datum)) fehler.datum = 'Das Datum liegt mehr als fünf Jahre in der Zukunft. Bitte prüfen Sie das Jahr.';
   const uhr = String(f.get('uhr') || '');
   if (uhr && !istUhr(uhr)) fehler.uhr = 'Bitte eine Uhrzeit wie 9:30 wählen.';
   if (Object.keys(fehler).length) return { ok: false, fehler };
@@ -776,9 +882,9 @@ function terminAbsenden(id, f) {
     datum,
     uhr,
     art: ['arzt', 'labor', 'sonst'].includes(f.get('art')) ? f.get('art') : 'arzt',
-    wo: String(f.get('wo') || '').trim().slice(0, 80),
+    wo: zeileAus(f.get('wo'), sp.GRENZEN.wo),
     blutabnahme: f.get('blutabnahme') === 'on',
-    notiz: String(f.get('notiz') || '').trim().slice(0, 300),
+    notiz: textAus(f.get('notiz'), sp.GRENZEN.notiz),
   };
   sp.aendern((s) => {
     const da = id ? s.termine.find((t) => t.id === id) : null;
@@ -797,14 +903,14 @@ function frageFormular(id, stand) {
     titel: da ? 'Frage ändern' : 'Frage für den Arzttermin',
     html: `
       <form data-formular="frage" ${id ? `data-id="${esc(id)}"` : ''} novalidate>
-        ${feldText('text', da ? da.text : '', 'Was möchten Sie fragen?', { lang: true, platzhalter: 'z. B. Kann die Müdigkeit am Nachmittag an der Dosis liegen?' })}
+        ${feldText('text', da ? da.text : '', 'Was möchten Sie fragen?', { lang: true, platzhalter: 'z. B. Kann die Müdigkeit am Nachmittag an der Dosis liegen?', max: sp.GRENZEN.frage })}
         ${fuss('frage', id)}
       </form>`,
   };
 }
 
 function frageAbsenden(id, f) {
-  const text = String(f.get('text') || '').trim().slice(0, 300);
+  const text = textAus(f.get('text'), sp.GRENZEN.frage);
   if (!text) return { ok: false, fehler: { text: 'Bitte die Frage eintragen.' } };
   sp.aendern((s) => {
     const da = id ? s.fragen.find((x) => x.id === id) : null;
@@ -877,6 +983,10 @@ function vorratAbsenden(id, f, heute) {
   const tabletten = zahlAus(f.get('tabletten'));
   const stand = f.get('stand');
   if (tabletten === null || tabletten < 0) fehler.tabletten = 'Bitte die Anzahl eintragen, z. B. 100.';
+  // Runde 5: F29 – dieselbe Obergrenze wie normStand. Ohne sie wurde ein
+  // Vorrat über 10 000 gespeichert („Vorrat gespeichert") und beim nächsten
+  // Laden still verworfen.
+  else if (tabletten > sp.ZAHL_GRENZEN.vorrat.max) fehler.tabletten = `Bitte prüfen: Die App zählt höchstens ${sp.ZAHL_GRENZEN.vorrat.max} Tabletten. Tragen Sie ein, wie viele Tabletten heute noch da sind, z. B. 100.`;
   if (!istISO(stand)) fehler.stand = 'Bitte ein Datum wählen.';
   else if (stand > heute) fehler.stand = 'Das Datum liegt in der Zukunft.';
   if (Object.keys(fehler).length) return { ok: false, fehler };
@@ -1095,7 +1205,7 @@ function warnzeichenAbsenden(id, f, heute) {
 // ---------------------------------------------------------------- Anrede
 
 function anredeAbsenden(id, f) {
-  const name = String(f.get('name') || '').trim().slice(0, 60);
+  const name = zeileAus(f.get('name'), sp.GRENZEN.name);
   sp.aendern((s) => { s.profil.name = name; });
   return { ok: true, meldung: 'Anrede gespeichert', danach: { name: 'darstellung' } };
 }

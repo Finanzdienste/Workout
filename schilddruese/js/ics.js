@@ -13,11 +13,21 @@
  * zweiter Import denselben Termin ersetzt statt ihn zu verdoppeln.
  */
 import { zweistellig } from './datum.js';
+import { saeubern } from './text.js';
 
 const NL = '\r\n';
 
+/*
+ * Text für SUMMARY und DESCRIPTION. Vorher wurden nur \\ ; , und Zeilenenden
+ * behandelt: Ein weicher Umbruch aus Word (\v), ein Seitenvorschub oder ein
+ * Steuerzeichen aus einer Sicherung stand dann roh in der Datei, und eine
+ * halbe Emoji-Hälfte (vom Kürzen) wurde zu „�" – RFC 5545 (3.3.11) lässt in
+ * TEXT keine Steuerzeichen zu. saeubern() macht aus \v und \f einen
+ * Zeilenumbruch, aus den übrigen ein Leerzeichen und lässt halbe Emojis weg;
+ * der Tab ist in TEXT erlaubt (Runde 5: F25).
+ */
 function entschaerfen(text) {
-  return String(text)
+  return saeubern(text)
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
@@ -81,6 +91,10 @@ function stempel(iso, hhmm, plusMinuten = 0) {
   const [j, mo, t] = iso.split('-').map(Number);
   const [h, m] = hhmm.split(':').map(Number);
   const d = new Date(Date.UTC(j, mo - 1, t, h, m + plusMinuten));
+  // Das Datumsfeld nimmt das Jahr 9999 an; ein Ende danach hätte fünf
+  // Ziffern im Jahr („100000101T003000") und wäre nach RFC 5545 ungültig.
+  // Dann endet der Termin mit dem Jahr 9999 – nie vor seinem Beginn (Runde 5: F25).
+  if (d.getUTCFullYear() > 9999) return '99991231T235900';
   return `${d.getUTCFullYear()}${zweistellig(d.getUTCMonth() + 1)}${zweistellig(d.getUTCDate())}`
     + `T${zweistellig(d.getUTCHours())}${zweistellig(d.getUTCMinutes())}00`;
 }

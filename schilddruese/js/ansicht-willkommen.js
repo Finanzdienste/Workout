@@ -16,7 +16,7 @@ import { istISO, istUhr, zahlAus } from './datum.js';
 import { esc } from './text.js';
 import * as sp from './speicher.js';
 import { P6_TEXT } from './einschaetzung.js';
-import { tablettenWahl, jahrAus, STAERKE_GRENZE_TEXT, STAERKE_RUECKFRAGE, staerkeUngewoehnlich } from './ansicht-formulare.js';
+import { tablettenWahl, jahrAus, STAERKE_GRENZE_TEXT, STAERKE_RUECKFRAGE, staerkeUngewoehnlich, zeileAus } from './ansicht-formulare.js';
 
 export const WILLKOMMEN_SCHRITTE = 3;
 
@@ -69,7 +69,7 @@ export function willkommenAnsicht(schritt, stand, heute, entwurf = null) {
           <label class="haken haken-breit" style="margin-top:.7rem"><input type="checkbox" name="behandelt" ${behandelt ? 'checked' : ''}>Ich werde wegen einer Schilddrüsen-Unterfunktion mit Tabletten behandelt</label>
         </div>
         <label class="feld"><span>Wie dürfen wir Sie ansprechen? (freiwillig)</span>
-          <input type="text" name="name" value="${esc(aus('name', stand.profil.name))}" placeholder="z. B. Frau Müller oder Vorname" autocomplete="off">
+          <input type="text" name="name" value="${esc(aus('name', stand.profil.name))}" placeholder="z. B. Frau Müller oder Vorname" maxlength="${sp.GRENZEN.name}" autocomplete="off">
         </label>
         <label class="feld"><span>In welchem Jahr sind Sie geboren?</span>
           <input type="text" inputmode="numeric" name="geburtsjahr" value="${esc(aus('geburtsjahr', stand.profil.geburtsjahr ? String(stand.profil.geburtsjahr) : ''))}" placeholder="z. B. 1952" autocomplete="off">
@@ -96,7 +96,7 @@ export function willkommenAnsicht(schritt, stand, heute, entwurf = null) {
         <h2 class="willkommen-titel">Welche Tablette nehmen Sie?</h2>
         <p class="gedaempft" style="margin-bottom:.9rem">Steht auf der Packung. Ist die Packung gerade nicht zur Hand, die Stärke leer lassen – bitte nicht schätzen. „Heute" erinnert dann daran, sie nachzutragen.</p>
         <label class="feld"><span>Präparat</span>
-          <input type="text" name="praeparat" value="${esc(aus('praeparat', d.praeparat))}" placeholder="z. B. L-Thyroxin Henning" autocomplete="off">
+          <input type="text" name="praeparat" value="${esc(aus('praeparat', d.praeparat))}" placeholder="z. B. L-Thyroxin Henning" maxlength="${sp.GRENZEN.praeparat}" autocomplete="off">
         </label>
         <label class="feld"><span>Stärke in µg (Mikrogramm)</span>
           <input type="text" inputmode="decimal" name="mikrogramm" value="${esc(mikrogramm)}" placeholder="z. B. 75" autocomplete="off">
@@ -142,7 +142,8 @@ export function willkommenAnsicht(schritt, stand, heute, entwurf = null) {
 export function willkommenWeiter(schritt, form, heute) {
   const f = new FormData(form);
   if (schritt === 1) {
-    const name = String(f.get('name') || '').trim().slice(0, 60);
+    // Höchstens so lang, wie das Feld annimmt und normStand behält (Runde 5: F23).
+    const name = zeileAus(f.get('name'), sp.GRENZEN.name);
     const j = jahrAus(f.get('geburtsjahr'), heute);
     if (!j.ok) return { ok: false, fehler: { geburtsjahr: j.fehler } };
     sp.aendern((s) => {
@@ -183,7 +184,7 @@ export function willkommenWeiter(schritt, form, heute) {
       };
     }
     const eintrag = {
-      praeparat: String(f.get('praeparat') || '').trim().slice(0, 80),
+      praeparat: zeileAus(f.get('praeparat'), sp.GRENZEN.praeparat),
       mikrogramm,
       tabletten: zahlAus(f.get('tabletten')) || 1,
       ab,

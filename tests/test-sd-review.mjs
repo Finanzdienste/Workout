@@ -1351,7 +1351,12 @@ check(await page.locator('form[data-formular="labor"] input[name=verwechselt]').
 await laden(stand({ fragen: [{ id: 'q1', text: 'Kann die Müdigkeit am Nachmittag an der Dosis liegen?', erledigt: false }] }));
 await mehrSeite('fragen');
 let e14 = page.locator('#ansicht [data-act="frage-erledigt"][data-id="q1"]');
-check((await e14.innerText()).includes('Besprochen?') && await e14.getAttribute('aria-label') === 'Als besprochen abhaken', `E14: der Knopf sagt sichtbar, was er tut („${(await e14.innerText()).replace(/\s+/g, ' ')}")`);
+// Runde 5: F8 – geprüft wird der Name für Vorleseprogramme statt des
+// aria-labels: Das aria-label („Als besprochen abhaken" / „Wieder offen")
+// ist weggefallen, der Name ist jetzt der sichtbare Text, der Zustand steht
+// in aria-pressed. Was E14 verlangt, bleibt: Der Knopf sagt sichtbar, was er tut.
+check((await e14.innerText()).includes('Besprochen?') && await page.getByRole('button', { name: 'Besprochen?', exact: true, pressed: false }).count() === 1,
+  `E14: der Knopf sagt sichtbar, was er tut („${(await e14.innerText()).replace(/\s+/g, ' ')}")`);
 await e14.click();
 e14 = page.locator('#ansicht [data-act="frage-erledigt"][data-id="q1"]');
 check((await e14.innerText()).replace(/\s+/g, ' ').trim().endsWith('Besprochen') && await e14.getAttribute('aria-pressed') === 'true', 'E14: abgehakt – „✓ Besprochen"');
@@ -2152,6 +2157,771 @@ for (const farbe of ['hell', 'dunkel']) {
   const notiz = await page.locator('textarea[name="notiz"]').inputValue().catch(() => '');
   check(neu.some((d) => /noch nicht gespeichert/.test(d)) && notiz === 'Nachtrag: auch Schwindel',
     `Nachprüfung R4: „Eintrag öffnen" aus dem Befinden-Formular fragt erst und lässt die Eingaben beim Abbrechen stehen (${JSON.stringify(neu)}, Notiz „${notiz}")`);
+}
+
+// ================================================================ Runde 5 – App
+//
+// Befunde aus der fünften Durchsicht (F…), die js/app.js und index.html
+// betreffen: der Doppeltipp auf Seiten, die an Ort und Stelle neu zeichnen,
+// das aufgeschobene Neuladen nach einem Update, „Rückgängig", Eingaben beim
+// Neuzeichnen, das Zurückholen in eine unfertige Einrichtung, die zweite
+// offene Instanz, Fehlertexte am Feld, Orientierungspunkte und der
+// Seitentitel als Überschrift. Jeder Fall scheiterte vor der Korrektur.
+
+/** Ein eigener Kontext mit Finger (hasTouch), fester Uhr und einem Stand. */
+async function r5Finger(st, { viewport = { width: 360, height: 740 }, zeit = '09:00' } = {}) {
+  const k = await browser.newContext({ viewport, locale: 'de-DE', hasTouch: true, isMobile: true, serviceWorkers: 'block' });
+  await k.addInitScript(uhrStellen);
+  const p = await k.newPage();
+  const fehlerListe = [];
+  p.on('pageerror', (e) => fehlerListe.push(e.message));
+  p.on('dialog', (d) => d.accept());
+  await p.goto(SD_URL, { waitUntil: 'networkidle' });
+  await p.evaluate(({ key, s0, t, z }) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('__testtag', t);
+    localStorage.setItem('__testzeit', z);
+    if (s0) localStorage.setItem(key, JSON.stringify(s0));
+  }, { key: SCHLUESSEL, s0: st, t: TAG, z: zeit });
+  await p.reload({ waitUntil: 'networkidle' });
+  const gespeichertF = async () => { await p.waitForTimeout(250); return p.evaluate((key) => JSON.parse(localStorage.getItem(key) || 'null'), SCHLUESSEL); };
+  const mitte = async (sel) => {
+    const b = (await p.locator(sel).count()) ? await p.locator(sel).first().boundingBox() : null;
+    return b ? { x: b.x + b.width / 2, y: b.y + b.height / 2 } : null;
+  };
+  /** Was unter dem Finger liegt: der Knopf mit seinen data-Angaben. */
+  const unter = (m) => p.evaluate(({ x, y }) => {
+    const b = document.elementFromPoint(x, y)?.closest('button, a');
+    return b ? { act: b.dataset.act || '', ziel: b.dataset.ziel || '', feld: b.dataset.feld || '', wert: b.dataset.wert || '', id: b.dataset.id || '', text: b.textContent.trim().replace(/\s+/g, ' ').slice(0, 50) } : null;
+  }, m).catch(() => null);
+  /** Zwei Tipps an derselben Stelle – `abstand` ms auseinander. → was nach dem ersten unter dem Finger lag. */
+  const doppeltipp = async (m, abstand = 250) => {
+    await p.touchscreen.tap(m.x, m.y);
+    await p.waitForTimeout(abstand);
+    const dort = await unter(m);
+    await p.touchscreen.tap(m.x, m.y);
+    await p.waitForTimeout(600);
+    return dort;
+  };
+  return { k, p, gespeichertF, mitte, unter, doppeltipp, fehlerListe };
+}
+/** Ein Befund, dessen Fragen alle noch offen sind. */
+const r5Befund = (werte) => ({
+  id: 'b1', datum: plus(TAG, -10), notiz: '', tsh: null, ft4: null, ft3: null, ...werte,
+  vorAbnahme: '', biotin: '', krank: '', kortison: '', kontrastmittel: '', mittelGeaendert: '', einnahmeGeaendert: '', packung: '', vergessen: '', einnahmeArt: '', abstandOk: '', verwechselt: '', praxis: '', praxisAm: '',
+});
+const r5Profil = { behandelt: true, geburtsjahr: 1950, ursache: 'hashimoto', krebs: '', kortison: '', herz: 'nein' };
+
+// ---------------------------------------------------------------- F18: Doppeltipp auf der Dosis-Karte
+
+// P6 aus, TSH 0,05 und fT4 über dem Bereich. Ein Doppeltipp (250 ms) auf
+// „Ja, ich werde … behandelt": Der zweite Tipp beantwortete vorher F8 „Hat
+// die Praxis zu diesem Wert schon etwas gesagt?" ungelesen – bei „Erst
+// nachmessen" schwiegen danach Karte und „Heute" zur Anruf-Frist. Wo der
+// zweite Tipp landet, hängt an Schrift und Bildschirm; geprüft wird in
+// mehreren Lagen, und mindestens in einer muss eine Antwort unter dem Finger liegen.
+{
+  const f18Stand = (schrift) => stand({
+    profil: { ...r5Profil, behandelt: false, ursache: '' },
+    einstellungen: r4Einstellungen(schrift, 'hell'),
+    labor: [r5Befund({ tsh: w(0.05, 'mU/l', 0.27, 4.2), ft4: w(24, 'pmol/l', 12, 22) })],
+  });
+  const lagen = [['gross', 390, 844], ['normal', 375, 667], ['gross', 375, 667], ['normal', 390, 844]];
+  const ergebnisse = [];
+  for (const [schrift, breite, hoehe] of lagen) {
+    const f = await r5Finger(f18Stand(schrift), { viewport: { width: breite, height: hoehe } });
+    await f.p.click('#reiter-mehr');
+    await f.p.locator('#ansicht [data-seite="dosis-karte"]').first().click();
+    await f.p.locator('#ansicht [data-act="behandelt"]').scrollIntoViewIfNeeded();
+    await f.p.waitForTimeout(800);
+    const m = await f.mitte('#ansicht [data-act="behandelt"]');
+    const frei = m && (await f.unter(m))?.act === 'behandelt';
+    const dort = frei ? await f.doppeltipp(m) : null;
+    const s0 = await f.gespeichertF();
+    ergebnisse.push({
+      lage: `${schrift} ${breite}×${hoehe}`, frei, zweiterTipp: dort && `${dort.act}:${dort.feld}=${dort.wert}`,
+      behandelt: s0.profil.behandelt, praxis: s0.labor[0].praxis, dosisFormular: await f.p.locator('form[data-formular="dosis"]').count(),
+    });
+    await f.k.close();
+  }
+  const getroffen = ergebnisse.filter((e) => e.frei && /^frage-antwort:/.test(e.zweiterTipp || ''));
+  check(getroffen.length > 0, `F18: Vorbedingung – nach dem Tipp auf P6 liegt eine Antwort der nächsten Frage unter dem Finger (${JSON.stringify(ergebnisse.map((e) => `${e.lage}: ${e.zweiterTipp}`))})`);
+  check(ergebnisse.every((e) => !e.frei || (e.behandelt === true && e.praxis === '' && e.dosisFormular === 0)),
+    `F18: Doppeltipp auf „Ja, ich werde … behandelt" – der zweite Tipp beantwortet die Frage zur Praxis nicht ungelesen (${JSON.stringify(ergebnisse)})`);
+}
+
+// TSH 7,5, alle Fragen einzeln beantwortet, nur F2 doppelt: Vorher war die
+// nächste Frage („schwer krank oder im Krankenhaus?") ungelesen mit „Nein"
+// beantwortet – eine mögliche Sperre (RW2 D0.10) fiel weg.
+{
+  const f18Kette = [];
+  let f18Doppelt = null;
+  for (const [schrift, breite, hoehe] of [['normal', 360, 740], ['gross', 390, 844], ['gross', 360, 740]]) {
+    const f = await r5Finger(stand({
+      profil: r5Profil, einstellungen: r4Einstellungen(schrift, 'hell'),
+      labor: [r5Befund({ tsh: w(7.5, 'mU/l', 0.27, 4.2) })],
+    }), { viewport: { width: breite, height: hoehe } });
+    await f.p.click('#reiter-mehr');
+    await f.p.locator('#ansicht [data-seite="dosis-karte"]').first().click();
+    await f.p.waitForTimeout(700);
+    const frage = () => f.p.evaluate(() => { const q = document.querySelector('#dosis-karte .dosis-frage'); return q ? q.dataset.frage : null; });
+    for (let i = 0; i < 20; i++) {
+      const id = await frage();
+      if (!id) break;
+      const wert = id === 'F8' ? 'nochnicht' : ['X3', 'Q2'].includes(id) ? 'ja' : 'nein';
+      const sel = `#dosis-karte .dosis-frage [data-act="frage-antwort"][data-wert="${wert}"]`;
+      if (!(await f.p.locator(sel).count())) break;
+      // In die Mitte – am unteren Rand läge der Knopf hinter der Reiterleiste.
+      await f.p.locator(sel).first().evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      await f.p.waitForTimeout(100);
+      const m = await f.mitte(sel);
+      if ((await f.unter(m))?.act !== 'frage-antwort') break;
+      if (id !== 'F2') {
+        await f.p.touchscreen.tap(m.x, m.y);
+        await f.p.waitForTimeout(900);
+        f18Kette.push(id);
+        continue;
+      }
+      const dort = await f.doppeltipp(m);
+      const s0 = await f.gespeichertF();
+      // Wohin die Antwort unter dem Finger gehört hätte: an den Befund, ins
+      // Profil oder als Nachfrage (js/dosis.js).
+      const ablage = !dort || dort.act !== 'frage-antwort' ? null
+        : dort.ziel === 'befund' ? s0.labor[0][dort.feld]
+          : dort.ziel === 'profil' ? s0.profil[dort.feld]
+            : s0.nachfragen.some((n) => n.art === dort.feld.toLowerCase()) ? 'beantwortet' : '';
+      f18Doppelt = { lage: `${schrift} ${breite}×${hoehe}`, dort, jetzt: await frage(), feldWert: ablage };
+      break;
+    }
+    await f.k.close();
+    if (f18Doppelt && f18Doppelt.dort && f18Doppelt.dort.act === 'frage-antwort') break;
+    f18Doppelt = null;
+  }
+  check(Boolean(f18Doppelt), `F18: Vorbedingung – nach „Nein" auf F2 liegt eine Antwort der nächsten Frage unter dem Finger (Kette ${f18Kette.join(', ')})`);
+  check(Boolean(f18Doppelt) && [undefined, null, ''].includes(f18Doppelt.feldWert) && f18Doppelt.jetzt !== null && f18Doppelt.jetzt !== 'F2',
+    `F18: Doppeltipp auf „Nein" bei F2 – die nächste Frage bleibt offen und ungespeichert (${JSON.stringify(f18Doppelt && { lage: f18Doppelt.lage, unter: f18Doppelt.dort, jetzt: f18Doppelt.jetzt, gespeichert: f18Doppelt.feldWert })})`);
+}
+
+// „Meine Fragen": Nach dem Abhaken rückt die nächste Frage unter den Finger –
+// vorher waren nach einem Doppeltipp beide „besprochen", und der Bericht
+// nannte die zweite nicht mehr.
+{
+  const f = await r5Finger(stand({
+    fragen: [
+      { id: 'f1', text: 'Soll ich die Tablette vor oder nach dem Kaffee nehmen?', erledigt: false },
+      { id: 'f2', text: 'Kann das Herzstolpern von der Tablette kommen?', erledigt: false },
+      { id: 'f3', text: 'Wann ist die nächste Blutabnahme?', erledigt: false },
+    ],
+  }));
+  await f.p.click('#reiter-mehr');
+  await f.p.locator('#ansicht [data-seite="fragen"]').first().click();
+  await f.p.waitForTimeout(800);
+  const m = await f.mitte('[data-act="frage-erledigt"][data-id="f1"]');
+  const dort = await f.doppeltipp(m);
+  const s0 = await f.gespeichertF();
+  const erledigt = s0.fragen.filter((q) => q.erledigt).map((q) => q.id);
+  check(dort && dort.act === 'frage-erledigt' && dort.id !== 'f1', `F18: Vorbedingung – nach dem Abhaken liegt die nächste Frage unter dem Finger (${JSON.stringify(dort)})`);
+  check(erledigt.length === 1 && erledigt[0] === 'f1', `F18: Doppeltipp unter „Meine Fragen" – nur die angetippte Frage ist besprochen (${erledigt.join(', ')})`);
+  // Ein Tipp mit Pause wirkt wie gewohnt – die Sperre hält niemanden auf.
+  await f.p.waitForTimeout(400);
+  await f.p.touchscreen.tap(m.x, m.y);
+  const s1 = await f.gespeichertF();
+  check(s1.fragen.filter((q) => q.erledigt).length === 2, 'F18: … ein Tipp mit Pause hakt die nächste Frage wie gewohnt ab');
+  // Notrufnummern bleiben frei: Die Sperre gilt nicht für tel:-Links (Nachprüfung zu E3).
+  const frei = await f.p.evaluate(() => {
+    const a = document.querySelector('a[href^="tel:"]');
+    if (!a) return null;
+    let angekommen = false;
+    a.addEventListener('click', (e) => { angekommen = !e.defaultPrevented; e.preventDefault(); }, { once: true });
+    a.click();
+    return angekommen;
+  });
+  check(frei !== false, 'F18: … ein tel:-Link wird nie gesperrt');
+  check(!f.fehlerListe.length, `F18: ohne Fehler in der Konsole (${f.fehlerListe.slice(0, 2).join(' | ')})`);
+  await f.k.close();
+}
+
+// ---------------------------------------------------------------- F19: das aufgeschobene Neuladen nach einem Update
+
+// Ein Update hat übernommen, während das Befinden-Formular offen war
+// (index.html setzt dann window.__schilddrueseNeuLaden). Doppeltipp auf
+// „Speichern" um 6:30: Vorher lud die Seite gleich nach dem ersten Tipp neu,
+// die Sperre war weg, und der zweite Tipp hakte auf der frischen Seite die
+// Tablette ab. „Befinden gespeichert" sah niemand.
+// Schrift „normal", 360 × 740: Dort liegt auf der frisch geladenen Seite
+// „Heute" der Knopf „Tablette genommen?" genau unter „Speichern".
+for (const abstand of [250, 400]) {
+  const f = await r5Finger(stand({
+    profil: { herz: 'nein' }, einstellungen: r4Einstellungen('normal', 'hell'), einnahmen: { [plus(TAG, -1)]: { uhr: '07:00' } },
+  }), { zeit: '06:30' });
+  await f.p.locator('[data-act="befinden"][data-stufe="schlecht"]').click();
+  await f.p.waitForTimeout(300);
+  await f.p.locator('#befinden [data-seite="befinden"]').click();
+  await f.p.waitForTimeout(300);
+  for (const b of ['muede', 'frieren', 'verstopfung']) {
+    const cb = f.p.locator(`input[name="beschwerden"][value="${b}"]`);
+    if (await cb.count()) await cb.check();
+  }
+  await f.p.evaluate(() => { window.__schilddrueseNeuLaden = true; window.scrollTo(0, 1e6); });
+  await f.p.waitForTimeout(700);
+  let geladen = 0;
+  f.p.on('load', () => { geladen++; });
+  const m = await f.mitte('form[data-formular="befinden"] button[type=submit]');
+  await f.p.touchscreen.tap(m.x, m.y);
+  await f.p.waitForTimeout(abstand);
+  await f.p.touchscreen.tap(m.x, m.y);
+  for (let i = 0; i < 30 && !geladen; i++) await f.p.waitForTimeout(200);
+  await f.p.waitForTimeout(400);
+  const s0 = await f.gespeichertF();
+  const meldungText = await f.p.locator('#meldung').innerText().catch(() => '');
+  const dortNachher = await f.unter(m);
+  // Vor der Korrektur ist sie dort schon abgehakt („tablette-zurueck").
+  check(dortNachher && ['tablette', 'tablette-zurueck'].includes(dortNachher.act), `F19: Vorbedingung – auf der neu geladenen Seite liegt der Tabletten-Knopf unter dem Finger (${JSON.stringify(dortNachher)})`);
+  check(geladen === 1 && !(TAG in s0.einnahmen) && s0.befinden.some((b) => b.datum === TAG && b.stufe === 'schlecht'),
+    `F19: Doppeltipp (${abstand} ms) auf „Speichern" mit anstehendem Neuladen – gespeichert, einmal neu geladen, keine Tablette abgehakt (${geladen}× geladen, heute ${JSON.stringify(s0.einnahmen[TAG] ?? 'nichts')})`);
+  check(meldungText.includes('Befinden gespeichert'), `F19: … die Meldung „Befinden gespeichert" steht auch nach dem Neuladen da („${meldungText}")`);
+  await f.k.close();
+}
+
+// Mit „Rückgängig" in der Meldung wartet das Neuladen, bis sie weg ist –
+// sonst ginge der Knopf mit der alten Seite verloren.
+{
+  const f = await r5Finger(stand({ einnahmen: { [plus(TAG, -1)]: { uhr: '07:00' } } }), { zeit: '07:30' });
+  await f.p.evaluate(() => { window.__schilddrueseNeuLaden = true; });
+  let geladen = 0;
+  f.p.on('load', () => { geladen++; });
+  await f.p.locator('#ansicht .tablette').click();
+  await f.p.waitForTimeout(2000);
+  const knopf = await f.p.locator('#meldung [data-act="tablette-rueckgaengig"]').count();
+  check(geladen === 0 && knopf === 1, `F19: nach „Tablette genommen" bleibt „Rückgängig" stehen – das Neuladen wartet (${geladen}× geladen, Knopf ${knopf})`);
+  if (knopf) await f.p.locator('#meldung [data-act="tablette-rueckgaengig"]').click();
+  const s0 = await f.gespeichertF();
+  check(!(TAG in s0.einnahmen), 'F19: … und „Rückgängig" wirkt noch');
+  // Geht die App in den Hintergrund, lädt sie gleich dort neu – das sieht
+  // niemand, und kein Tipp kann es treffen.
+  await f.p.waitForTimeout(300);
+  const vorHintergrund = geladen;
+  await f.p.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  for (let i = 0; i < 20 && geladen === vorHintergrund; i++) await f.p.waitForTimeout(100);
+  check(vorHintergrund === 0 && geladen === 1, `F19: … im Hintergrund lädt die App dann sofort neu (vorher ${vorHintergrund}×, jetzt ${geladen}× geladen)`);
+  await f.k.close();
+}
+
+// ---------------------------------------------------------------- F20: „Rückgängig" stellt den Stand von vorher her
+
+// Heute stand bewusst „nicht genommen". Ein Fehltipp auf „Doch genommen?",
+// dann „Rückgängig": Vorher war der Tag danach leer, und „Heute" forderte
+// gelb zur Einnahme auf.
+await ladenHeute(stand({ einnahmen: { [plus(TAG, -1)]: { uhr: '07:00' }, [TAG]: null } }));
+const f20Vorher = (await page.locator('#ansicht .tablette').innerText()).replace(/\s+/g, ' ');
+await page.click('#ansicht .tablette');
+await r4app.klick('#meldung [data-act="tablette-rueckgaengig"]');
+s = await gespeichert();
+const f20Knopf = (await page.locator('#ansicht .tablette').innerText()).replace(/\s+/g, ' ');
+check(f20Vorher.includes('nicht genommen') && TAG in s.einnahmen && s.einnahmen[TAG] === null && f20Knopf.includes('nicht genommen'),
+  `F20: „Rückgängig" nach „Doch genommen" – für heute steht wieder „nicht genommen" (${JSON.stringify(s.einnahmen[TAG])}, „${f20Knopf}")`);
+check((await r4app.meldung()).includes('nicht genommen'), `F20: … die Meldung sagt, was jetzt gilt („${await r4app.meldung()}")`);
+// Gegenprobe: ohne Eintrag vorher bleibt der Tag nach „Rückgängig" leer (E3).
+await ladenHeute(stand({ einnahmen: { [plus(TAG, -1)]: { uhr: '07:00' } } }));
+await page.click('#ansicht .tablette');
+await r4app.klick('#meldung [data-act="tablette-rueckgaengig"]');
+s = await gespeichert();
+check(!(TAG in s.einnahmen) && (await r4app.meldung()).includes('keine Tablette abgehakt'), 'F20: Gegenprobe – ohne Eintrag vorher ist heute wieder nichts eingetragen');
+
+// ---------------------------------------------------------------- F21: Neuzeichnen verwirft keine Eingaben
+
+// „Frau Möller" ins Feld „Anrede", dann „Sehr groß" und „Dunkel": Vorher war
+// das Feld danach leer, galt als unverändert, und „Anrede speichern"
+// speicherte leer – mit „Anrede gespeichert".
+await laden(stand({ profil: { name: '' } }));
+await mehrSeite('darstellung');
+await page.fill('form[data-formular="anrede"] input[name="name"]', 'Frau Möller');
+await page.click('[data-act="schrift"][data-wert="sehr-gross"]');
+const f21NachSchrift = await feldWert('form[data-formular="anrede"] input[name="name"]');
+await page.click('[data-act="farbe"][data-wert="dunkel"]');
+const f21NachFarbe = await feldWert('form[data-formular="anrede"] input[name="name"]');
+check(f21NachSchrift === 'Frau Möller' && f21NachFarbe === 'Frau Möller'
+  && await page.evaluate(() => document.documentElement.dataset.schrift === 'sehr-gross' && document.documentElement.dataset.farbe === 'dunkel'),
+`F21: nach „Sehr groß" und „Dunkel" steht die getippte Anrede noch im Feld („${f21NachSchrift}", „${f21NachFarbe}")`);
+// Weiter ungespeichert: Ein Reiter fragt vor dem Verwerfen (E5).
+browserDialog.antwort = false;
+const f21n = dialoge.length;
+await page.click('#reiter-heute');
+browserDialog.antwort = true;
+check(dialoge.slice(f21n).some((d) => d.includes('noch nicht gespeichert')) && await feldWert('form[data-formular="anrede"] input[name="name"]') === 'Frau Möller',
+  'F21: … sie zählt weiter als ungespeichert – ein Reiter fragt, bevor sie verloren geht');
+await r4app.klick('form[data-formular="anrede"] button[type=submit]');
+s = await gespeichert();
+check(s.profil.name === 'Frau Möller' && s.einstellungen.schrift === 'sehr-gross' && s.einstellungen.farbe === 'dunkel' && (await r4app.meldung()).includes('Anrede gespeichert'),
+  `F21: „Anrede speichern" speichert, was im Feld steht („${s.profil.name}")`);
+// Kopfhöhe bei „sehr groß" (B60): Der Kopf wächst mit der Schrift, --kopf-h mit ihm.
+const f21Kopf = await page.evaluate(() => ({ kopf: document.querySelector('.kopf').offsetHeight, merk: parseFloat(document.documentElement.style.getPropertyValue('--kopf-h')) }));
+check(Math.abs(f21Kopf.kopf - f21Kopf.merk) <= 1, `F21: … die gemerkte Kopfhöhe passt zur neuen Schrift (${JSON.stringify(f21Kopf)})`);
+
+// ---------------------------------------------------------------- F22: Zurückholen in eine unfertige Einrichtung
+
+// Die Rücklage stammt aus einer Einrichtung bis Schritt 2 (Dosis gespeichert,
+// noch nicht begrüßt). Nach „Stand vor dem Einlesen zurückholen" führte
+// „Fertig – zur App" vorher auf die Seite „Sicherung" statt zu „Heute".
+await page.evaluate(({ k, rueck }) => localStorage.setItem(`${k}.vorImport`, JSON.stringify(rueck)), {
+  k: SCHLUESSEL,
+  rueck: {
+    am: TAG,
+    eingelesen: 'r5-f22',
+    stand: {
+      version: 2, profil: { name: '', begruesst: false, behandelt: true }, einstellungen: r4Einstellungen('gross', 'hell'),
+      dosen: [{ id: 'd1', ab: '2024-01-01', praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, notiz: '' }],
+      einnahmen: {}, labor: [], befinden: [], gewicht: [], termine: [], fragen: [],
+    },
+  },
+});
+await laden(stand());
+await mehrSeite('sicherung');
+await r4app.klick('#ansicht [data-act="sicherung-zurueck"]');
+const f22Willkommen = await gibt('.schritte');
+for (let i = 0; i < 5 && await gibt('[data-act="willkommen-weiter"]'); i++) {
+  await page.click('[data-act="willkommen-weiter"]');
+  await page.waitForTimeout(700);
+}
+s = await gespeichert();
+const f22Titel = await r4app.text('#kopf .kopf-titel');
+check(f22Willkommen && s.profil.begruesst && !f22Titel && await attr('#reiter-heute', 'aria-selected') === 'true' && await gibt('#ansicht .tablette'),
+  `F22: nach dem Zurückholen in eine unfertige Einrichtung führt „Fertig – zur App" zu „Heute" (Titel „${f22Titel}", Willkommen ${f22Willkommen})`);
+await page.waitForTimeout(300);
+check(await page.evaluate(() => !history.state || !history.state.tiefe), `F22: … ohne übrig gebliebenen Schritt im Browserverlauf (${JSON.stringify(await page.evaluate(() => history.state))})`);
+
+// ---------------------------------------------------------------- F24: eine zweite offene Instanz
+
+// In A ist die Dosis-Karte zum Befund mit TSH 7,5 offen, in B kommt TSH 0,05
+// von heute dazu. Vorher blieb in A die alte Karte stehen („kleiner Schritt
+// nach oben"), obwohl ihr Stand etwas ganz anderes ergab.
+const f24Alt = stand({ labor: [befund('b1', plus(TAG, -6), { tsh: w(7.5, 'mU/l', 0.27, 4.2) })] });
+const f24Neu = { ...f24Alt, labor: [...f24Alt.labor, befund('b2', TAG, { tsh: w(0.05, 'mU/l', 0.27, 4.2) }, { praxis: '', praxisAm: null })] };
+await laden(f24Alt);
+await mehrSeite('dosis-karte');
+await page.waitForTimeout(400);
+const f24Vorher = await r4app.text('#dosis-karte');
+const f24StufeVorher = await attr('#dosis-karte', 'data-stufe');
+const f24b = await ctx.newPage();
+await f24b.goto(SD_URL.replace(/index\.html$/, 'manifest.webmanifest'));
+await f24b.evaluate(({ k, st }) => localStorage.setItem(k, JSON.stringify(st)), { k: SCHLUESSEL, st: f24Neu });
+await page.waitForTimeout(500);
+const f24Nachher = await r4app.text('#dosis-karte');
+const f24StufeNachher = await attr('#dosis-karte', 'data-stufe');
+check(f24Vorher && f24Nachher && f24Nachher !== f24Vorher && f24StufeNachher !== f24StufeVorher && f24Nachher.includes('anrufen'),
+  `F24: die offene Dosis-Karte zeichnet sich nach einer Änderung im anderen Fenster neu (${f24StufeVorher} „${f24Vorher.slice(0, 50)}…" → ${f24StufeNachher} „${f24Nachher.slice(0, 50)}…")`);
+// Mit ungespeicherten Eingaben bleibt die Seite, wie sie ist – mit einer Meldung.
+await laden(f24Alt);
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="labor"]:not([data-param])');
+await page.fill('input[name=tsh_wert]', '3,8');
+await page.waitForTimeout(300);
+await f24b.evaluate(({ k, st }) => localStorage.setItem(k, JSON.stringify(st)), { k: SCHLUESSEL, st: f24Neu });
+await page.waitForTimeout(500);
+check(await feldWert('input[name=tsh_wert]') === '3,8' && (await r4app.meldung()).includes('anderen Fenster'),
+  `F24: … mitten im Formular bleibt TSH 3,8 stehen, und eine Meldung sagt, dass sich anderswo etwas geändert hat („${await r4app.meldung()}")`);
+await f24b.close();
+browserDialog.antwort = true;
+
+// ---------------------------------------------------------------- F3: Fehlertexte am Feld
+
+await laden(stand());
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="labor"]:not([data-param])');
+await page.fill('input[name=tsh_wert]', 'abc');
+await page.click('form[data-formular="labor"] button[type=submit]');
+const f3Feld = (name) => page.evaluate((n) => {
+  const el = document.querySelector(`[name="${n}"]`);
+  if (!el) return null;
+  const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+  const texte = ids.map((id) => document.getElementById(id)).filter((x) => x && x.classList.contains('feld-fehler'));
+  return {
+    invalid: el.getAttribute('aria-invalid'), fokus: document.activeElement === el,
+    fehler: texte.map((x) => x.textContent).join(' | '), imLabel: texte.some((x) => x.closest('label')), alarm: texte.map((x) => x.getAttribute('role')),
+    // Vom Ende des Labels (beim TSH-Feld steht dort noch der Hinweis zu „< 0,01").
+    abstand: texte.length ? Math.round(texte[0].getBoundingClientRect().top - (el.closest('label') || el).getBoundingClientRect().bottom) : null,
+  };
+}, name);
+let f3 = await f3Feld('tsh_wert');
+check(f3 && f3.invalid === 'true' && f3.fokus && f3.fehler.includes('Bitte eine Zahl') && !f3.imLabel,
+  `F3: TSH „abc" – das Feld hat den Fokus, ist als ungültig markiert und nennt den Fehlertext; der steht hinter dem Label (${JSON.stringify(f3)})`);
+check(f3 && f3.alarm[0] === null && f3.abstand !== null && f3.abstand >= 0 && f3.abstand <= 12,
+  `F3: … ohne zweite Alarm-Ansage, dicht unter dem Feld (${JSON.stringify(f3 && { alarm: f3.alarm, abstand: f3.abstand })})`);
+await page.fill('input[name=tsh_wert]', '2,1');
+await page.fill('input[name=ft4_wert]', 'abc');
+await page.click('form[data-formular="labor"] button[type=submit]');
+f3 = await f3Feld('tsh_wert');
+const f3ft4 = await f3Feld('ft4_wert');
+check(f3 && f3.invalid === null && !f3.fehler && f3ft4 && f3ft4.invalid === 'true' && f3ft4.fehler.includes('fT4') && await page.locator('.feld-fehler').count() === 1,
+  `F3: berichtigt – TSH ist nicht mehr als ungültig markiert, fT4 schon (${JSON.stringify({ tsh: f3, ft4: f3ft4 })})`);
+// Neue Dosis ohne Stärke und ohne Angabe zur Praxis: Die Gruppe der
+// Auswahlknöpfe ist als ungültig markiert, ihr Fehler bleibt eine Alarm-Ansage.
+await laden(stand());
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="dosis"]');
+await page.fill('input[name=ab]', plus(TAG, -7));
+await page.click('form[data-formular="dosis"] button[type=submit]');
+const f3Gruppe = await page.evaluate(() => {
+  const g = document.querySelector('[data-feld="praxis"] [role="radiogroup"]');
+  const p = g && document.getElementById((g.getAttribute('aria-describedby') || '').split(/\s+/).find((id) => id.startsWith('fehler-')) || '-');
+  return g ? { invalid: g.getAttribute('aria-invalid'), text: p ? p.textContent : null, alarm: p ? p.getAttribute('role') : null, fokus: document.activeElement?.getAttribute('name') } : null;
+});
+check(f3Gruppe && f3Gruppe.invalid === 'true' && (f3Gruppe.text || '').includes('Praxis') && f3Gruppe.alarm === 'alert' && f3Gruppe.fokus === 'mikrogramm',
+  `F3: Dosis ohne Stärke und ohne Praxis-Angabe – die Auswahl ist als ungültig markiert und nennt den Fehler (${JSON.stringify(f3Gruppe)})`);
+await page.check('input[name=praxis][value=ja]');
+await page.fill('input[name=mikrogramm]', '100');
+await page.click('form[data-formular="dosis"] button[type=submit]');
+s = await gespeichert();
+check(s.dosen.length === 2, 'F3: … berichtigt wird gespeichert');
+
+// ---------------------------------------------------------------- F6, F4: Orientierungspunkte und Seitentitel
+
+// Vorher: main mit role=tabpanel und nav mit role=tablist – für Vorleser
+// weder Hauptbereich noch Navigation. Der Seitentitel war ein Span, viele
+// Seiten hatten keine Überschrift.
+for (const [schrift, farbe] of [['gross', 'hell'], ['sehr-gross', 'dunkel']]) {
+  await ladenHeute({ ...stand(), einstellungen: r4Einstellungen(schrift, farbe) });
+  const lm = {
+    main: await page.getByRole('main').count(),
+    nav: await page.getByRole('navigation', { name: 'Bereiche' }).count(),
+    tablist: await page.getByRole('navigation', { name: 'Bereiche' }).getByRole('tablist').count(),
+    tabs: await page.getByRole('tablist').getByRole('tab').count(),
+    heuteGewaehlt: await page.getByRole('tab', { name: 'Heute', selected: true }).count(),
+  };
+  const leiste = await page.evaluate(() => [...document.querySelectorAll('#reiterleiste .reiter')].map((b) => { const r = b.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; }));
+  const gleich = leiste.length === 3 && leiste.every(([, top, breite]) => top === leiste[0][1] && Math.abs(breite - 120) <= 2) && leiste[2][0] + leiste[2][2] <= 361;
+  check(lm.main === 1 && lm.nav === 1 && lm.tablist === 1 && lm.tabs === 3 && lm.heuteGewaehlt === 1 && gleich,
+    `F6 (${schrift}, ${farbe}): Hauptbereich und Navigation „Bereiche" mit den drei Reitern, die Leiste nebeneinander und gleich breit (${JSON.stringify({ ...lm, leiste })})`);
+  await mehrSeite('dosis-karte');
+  const kopf = await page.evaluate(() => {
+    const h = document.querySelector('#kopf h1');
+    return h ? {
+      id: h.id, text: h.textContent, fokus: document.activeElement === h, klasse: h.className,
+      groesse: parseFloat(getComputedStyle(h).fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize),
+      rechts: Math.round(h.getBoundingClientRect().right),
+    } : null;
+  });
+  check(kopf && kopf.id === 'seitentitel' && kopf.text === 'Dosis-Karte' && kopf.klasse === 'kopf-titel' && Math.abs(kopf.groesse - 1.05) < 0.01 && kopf.rechts <= 360
+    && await page.getByRole('heading', { level: 1, name: 'Dosis-Karte' }).count() === 1 && await page.getByRole('main', { name: 'Dosis-Karte' }).count() === 1,
+  `F4 (${schrift}, ${farbe}): der Seitentitel ist die Überschrift h1 – in der Größe wie bisher –, und der Hauptbereich heißt wie die Seite (${JSON.stringify(kopf)})`);
+  check(kopf && kopf.fokus, 'F4: … nach dem Öffnen der Seite steht der Fokus auf dieser Überschrift');
+  check(await page.evaluate(() => document.documentElement.scrollWidth) <= 360, `F4, F6 (${schrift}, ${farbe}): ohne waagerechtes Scrollen`);
+}
+
+// ================================================================ Runde 5 – Ansichten und Bericht
+//
+// Befunde aus der fünften Durchsicht (F…), die die Ansichten und das
+// Stylesheet betreffen: der Fokus hinter der Reiterleiste, die Namen der
+// Wertfelder, Überschriften, der Rand der Eingabefelder, Text mit Deckkraft,
+// der Knopf „Besprochen", Längengrenzen mit Zähler, das Datum eines Termins,
+// die Obergrenze des Vorrats und der Druck des Berichts. Jeder Fall
+// scheiterte vor der Korrektur. Der Inhalt des Berichts (F9–F15, F26) steht
+// in tests/test-sd-bericht.mjs.
+
+/** Kontrast zweier Farben („rgb(…)") nach WCAG. */
+const r5Rgb = (x) => (String(x).match(/[\d.]+/g) || ['0', '0', '0']).slice(0, 3).map(Number);
+const r5Lum = ([r, g, b]) => {
+  const f = (c) => { const v = c / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+};
+const r5Kontrast = (a, b) => {
+  const [x, y] = [r5Lum(r5Rgb(a)), r5Lum(r5Rgb(b))].sort((m, n) => n - m);
+  return Math.round(((x + 0.05) / (y + 0.05)) * 100) / 100;
+};
+/** Farbe, Deckkraft und der Hintergrund, auf dem ein Element wirklich liegt (der erste nicht durchsichtige darüber). */
+const r5Farben = (sel, eigenschaft = 'color') => page.evaluate(({ x, e }) => {
+  const el = document.querySelector(x);
+  if (!el) return null;
+  let h = el;
+  let hg = 'rgb(255, 255, 255)';
+  while (h) {
+    const c = getComputedStyle(h).backgroundColor;
+    if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) { hg = c; break; }
+    h = h.parentElement;
+  }
+  const cs = getComputedStyle(el);
+  const eigenerHg = /rgba\(0, 0, 0, 0\)|transparent/.test(cs.backgroundColor) ? hg : cs.backgroundColor;
+  let um = el.parentElement;
+  let umgebung = 'rgb(255, 255, 255)';
+  while (um) {
+    const c = getComputedStyle(um).backgroundColor;
+    if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) { umgebung = c; break; }
+    um = um.parentElement;
+  }
+  return { farbe: cs[e], deckkraft: cs.opacity, hg: eigenerHg, umgebung };
+}, { x: sel, e: eigenschaft });
+
+// ---------------------------------------------------------------- F1: kein Feld ganz hinter der Reiterleiste
+
+// Mit Tab durch den Warnzeichen-Check: Vorher lag „… nicht mehr leben
+// möchten" ganz hinter der festen Leiste – angehakt, aber nicht zu sehen.
+for (const schrift of ['gross', 'sehr-gross']) {
+  await laden(stand({ einstellungen: r4Einstellungen(schrift, 'hell') }));
+  await page.click('#reiter-heute');
+  await page.click('#ansicht [data-seite="warnzeichen"]');
+  await page.evaluate(() => { window.scrollTo(0, 0); if (document.activeElement) document.activeElement.blur(); });
+  const f1Verdeckt = [];
+  let f1Lebensmuede = null;
+  for (let i = 0; i < 80; i++) {
+    await page.keyboard.press('Tab');
+    const r = await page.evaluate(() => {
+      const a = document.activeElement;
+      if (!a || a === document.body) return null;
+      if (a.closest('#reiterleiste')) return { ende: true };
+      const zeile = ['checkbox', 'radio'].includes(a.type) ? (a.closest('label') || a) : a;
+      const z = zeile.getBoundingClientRect();
+      const f = a.getBoundingClientRect();
+      const leiste = document.querySelector('#reiterleiste').getBoundingClientRect();
+      const kopf = document.querySelector('.kopf').getBoundingClientRect();
+      return {
+        wert: a.value || a.textContent.trim().slice(0, 30), sichtbar: Math.round(Math.min(z.bottom, leiste.top) - Math.max(z.top, kopf.bottom)),
+        feld: [Math.round(f.top), Math.round(f.bottom)], leiste: Math.round(leiste.top), kopf: Math.round(kopf.bottom),
+      };
+    });
+    if (!r) continue;
+    if (r.ende) break;
+    if (r.sichtbar <= 0) f1Verdeckt.push(r.wert);
+    if (r.wert === 'lebensmuede') f1Lebensmuede = r;
+  }
+  check(!f1Verdeckt.length && f1Lebensmuede && f1Lebensmuede.feld[0] >= f1Lebensmuede.kopf && f1Lebensmuede.feld[1] <= f1Lebensmuede.leiste,
+    `F1 (${schrift}): mit Tab liegt kein Feld ganz hinter der Reiterleiste, das Häkchen „lebensmüde" ist ganz zu sehen (${JSON.stringify({ verdeckt: f1Verdeckt, lebensmuede: f1Lebensmuede })})`);
+}
+
+// ---------------------------------------------------------------- F2: Wertfelder mit dem Namen des Werts
+
+// Vorher hießen alle Wertfelder für Vorleseprogramme nur „Wert", das
+// TSH-Feld „Wert Steht auf dem Befund …".
+await laden(stand());
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="labor"]:not([data-param])');
+const f2 = {
+  tsh: await page.getByRole('textbox', { name: 'Wert TSH', exact: true }).count(),
+  ft4: await page.getByRole('textbox', { name: 'Wert fT4', exact: true }).count(),
+  ft3: await page.getByRole('textbox', { name: 'Wert fT3', exact: true }).count(),
+  nurWert: await page.getByRole('textbox', { name: 'Wert', exact: true }).count(),
+  gruppe: await page.getByRole('group', { name: 'TSH', exact: true }).count(),
+};
+const f2Beschreibung = () => page.evaluate(() => {
+  const el = document.querySelector('input[name=tsh_wert]');
+  return (el.getAttribute('aria-describedby') || '').split(/\s+/).map((id) => document.getElementById(id)).filter(Boolean).map((x) => x.textContent.trim());
+});
+let f2Text = await f2Beschreibung();
+check(f2.tsh === 1 && f2.ft4 === 1 && f2.ft3 === 1 && f2.nurWert === 0 && f2.gruppe === 1 && f2Text.some((x) => x.includes('< 0,01')),
+  `F2: jedes Wertfeld trägt den Namen seines Werts, der Hinweis zu „< 0,01" ist die Beschreibung des TSH-Felds (${JSON.stringify({ ...f2, beschreibung: f2Text })})`);
+await page.fill('input[name=tsh_wert]', 'abc');
+await page.click('form[data-formular="labor"] button[type=submit]');
+f2Text = await f2Beschreibung();
+check(f2Text.length === 2 && f2Text[0].includes('< 0,01') && f2Text[1].includes('Bitte eine Zahl'),
+  `F2, F3: nach einem Fehler beschreiben Hinweis und Fehlertext das Feld (${JSON.stringify(f2Text)})`);
+
+// ---------------------------------------------------------------- F4: Überschriften der Dosis-Karte und von „Alle Laborwerte"
+
+await laden(stand({
+  profil: { geburtsjahr: 1962, herz: 'nein' },
+  labor: [
+    befund('b0', plus(TAG, -90), { tsh: w(3.1, 'mU/l', 0.4, 4), ft4: w(14, 'pmol/l', 12, 22) }),
+    befund('b1', plus(TAG, -5), { tsh: w(7.5, 'mU/l', 0.4, 4), ft4: w(12.5, 'pmol/l', 12, 22) }),
+  ],
+  nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: plus(TAG, -1) }],
+}));
+await mehrSeite('dosis-karte');
+const f4Ueberschrift = page.locator('#dosis-karte').getByRole('heading', { level: 2 });
+const f4Name = (await f4Ueberschrift.count()) === 1 ? (await f4Ueberschrift.innerText()).replace(/\s+/g, ' ') : '';
+const f4Groessen = await page.evaluate(() => ['.dosis-titel', '.pflicht'].map((x) => { const el = document.querySelector(`#dosis-karte ${x}`); return el ? getComputedStyle(el).fontSize : null; }));
+check(f4Name.includes((await r4app.text('#dosis-karte .stufe-schild')).trim()) && f4Name.includes((await r4app.text('#dosis-karte .dosis-titel')).trim()) && f4Groessen[0] === f4Groessen[1],
+  `F4: die Dosis-Karte hat eine Überschrift (Ebene 2) mit Stufe und Titel – der Titel so groß wie der Pflichttext („${f4Name}", ${f4Groessen.join('/')})`);
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="labor-liste"]');
+const f4Ebenen = await page.evaluate(() => [...document.querySelectorAll('h1, h2, h3, h4, [role="heading"]')].filter((h) => h.getClientRects().length)
+  .map((h) => Number(h.getAttribute('aria-level') || h.tagName.slice(1))));
+check(f4Ebenen[0] === 1 && f4Ebenen.length >= 3 && f4Ebenen.every((e, i) => i === 0 || e <= f4Ebenen[i - 1] + 1),
+  `F4: „Alle Laborwerte" springt nicht von h1 auf h3 (${f4Ebenen.join(' > ')})`);
+
+// ---------------------------------------------------------------- F5: der Rand der Eingabefelder, F7: Text mit Deckkraft
+
+for (const farbe of ['hell', 'dunkel']) {
+  await laden(stand({ einstellungen: r4Einstellungen('gross', farbe) }));
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="labor"]:not([data-param])');
+  const f5 = {};
+  for (const [name, x] of [['TSH-Wert', 'input[name=tsh_wert]'], ['Datum', 'input[name=datum]'], ['Notiz', 'textarea[name=notiz]'], ['Weitere Werte', 'details.weitere > summary'], ['Auswahl', '.wahl-flaeche']]) {
+    const f = await r5Farben(x, 'borderTopColor');
+    f5[name] = f ? Math.min(r5Kontrast(f.farbe, f.hg), r5Kontrast(f.farbe, f.umgebung)) : 0;
+  }
+  check(Object.values(f5).every((k) => k >= 3), `F5 (${farbe}): der Rand der Eingabefelder hat mindestens 3 : 1 gegen Feld und Umgebung (${JSON.stringify(f5)})`);
+}
+// Tage vor dem Beginn des Zählens (Einrichten vor drei Tagen) und die grüne
+// Unterzeile nach dem Abhaken.
+for (const farbe of ['hell', 'dunkel']) {
+  await laden(stand({ profil: { seit: plus(TAG, -3) }, einnahmen: {}, einstellungen: r4Einstellungen('gross', farbe) }));
+  await page.click('#reiter-verlauf');
+  const f7Tag = await r5Farben('.tag.leer .tag-zahl');
+  const f7TagKnopf = await r5Farben('.tag.leer');
+  await page.click('#reiter-heute');
+  await page.click('.tablette');
+  const f7Small = await r5Farben('.tablette.genommen small');
+  const f7 = {
+    tag: f7Tag ? r5Kontrast(f7Tag.farbe, f7Tag.hg) : 0, tagDeckkraft: f7TagKnopf && f7TagKnopf.deckkraft,
+    small: f7Small ? r5Kontrast(f7Small.farbe, f7Small.hg) : 0, smallDeckkraft: f7Small && f7Small.deckkraft,
+  };
+  check(f7.tag >= 4.5 && f7.tagDeckkraft === '1' && f7.small >= 4.5 && f7.smallDeckkraft === '1',
+    `F7 (${farbe}): Tageszahlen „noch nicht erfasst" und „✓ Tablette genommen – heute um …" ohne Deckkraft, mindestens 4,5 : 1 (${JSON.stringify(f7)})`);
+}
+
+// ---------------------------------------------------------------- F8: „✓ Besprochen" – Name und Zustand
+
+await laden(stand({ fragen: [{ id: 'q1', text: 'Soll ich Vitamin D nehmen?', erledigt: false }, { id: 'q2', text: 'Kann das Herzstolpern von der Tablette kommen?', erledigt: true }] }));
+await mehrSeite('fragen');
+const f8 = {
+  besprochen: await page.getByRole('button', { name: 'Besprochen', exact: true, pressed: true }).count(),
+  offen: await page.getByRole('button', { name: 'Besprochen?', exact: true, pressed: false }).count(),
+  wiederOffen: await page.getByRole('button', { name: 'Wieder offen' }).count(),
+};
+check(f8.besprochen === 1 && f8.offen === 1 && f8.wiederOffen === 0,
+  `F8: eine besprochene Frage heißt „Besprochen" und ist gedrückt, eine offene „Besprochen?" – nicht „Wieder offen, gedrückt" (${JSON.stringify(f8)})`);
+
+// ---------------------------------------------------------------- F23: Längengrenzen, Zähler, zu lange Notiz beim Zusammenführen
+
+// Eine diktierte Frage mit 382 Zeichen: Vorher wurde sie still auf 300
+// gekürzt – ohne ihr Ende „WICHTIG: Soll ich die Tablette …?".
+const f23Frage = `${'Kann die Müdigkeit an der Dosis liegen? '.repeat(8)}WICHTIG: Soll ich die Tablette vor der Blutabnahme weglassen?`;
+await laden(stand());
+await mehrSeite('fragen');
+await page.click('#ansicht [data-seite="frage"]:not([data-param])');
+const f23Zaehler = () => r4app.text('form[data-formular="frage"] .zaehler');
+const f23Feld = 'form[data-formular="frage"] textarea[name=text]';
+const f23Leer = await f23Zaehler();
+await page.fill(f23Feld, f23Frage);
+const f23Beschreibung = await page.evaluate(() => { const el = document.querySelector('textarea[name=text]'); const id = (el.getAttribute('aria-describedby') || '').split(/\s+/)[0]; return id && document.getElementById(id) ? document.getElementById(id).textContent : ''; });
+check(await attr(f23Feld, 'maxlength') === '1000' && f23Leer.includes('Höchstens 1000 Zeichen') && f23Beschreibung.includes('1000'),
+  `F23: das Fragefeld nimmt höchstens 1000 Zeichen und sagt es – sichtbar und als Beschreibung („${f23Leer}")`);
+await page.click('form[data-formular="frage"] button[type=submit]');
+s = await gespeichert();
+check(s.fragen.length === 1 && s.fragen[0].text === f23Frage, `F23: die Frage mit ${f23Frage.length} Zeichen ist ganz gespeichert (${s.fragen[0] ? s.fragen[0].text.length : 0})`);
+await page.click('#ansicht [data-seite="frage"]:not([data-param])');
+await page.fill(f23Feld, 'x'.repeat(950));
+const f23Knapp = await f23Zaehler();
+await page.fill(f23Feld, '');
+await page.focus(f23Feld);
+await page.keyboard.insertText('y'.repeat(1200));
+const f23Voll = { zaehler: await f23Zaehler(), laenge: (await feldWert(f23Feld)).length, klasse: await attr('form[data-formular="frage"] .zaehler', 'class') };
+check(f23Knapp.includes('Noch 50 Zeichen frei') && f23Voll.laenge === 1000 && f23Voll.zaehler.includes('voll') && (f23Voll.klasse || '').includes('voll'),
+  `F23: der Zähler geht beim Tippen mit – „noch 50", und „voll", wenn beim Einfügen etwas abgeschnitten wird (${f23Knapp} | ${JSON.stringify(f23Voll)})`);
+// Einzeilige Felder: die Grenzen aus dem Kern (sp.GRENZEN).
+await r4app.klick('form[data-formular="frage"] [data-act="zurueck"]');
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="labor"]:not([data-param])');
+const f23Labor = [await attr('input[name=laborName]', 'maxlength'), await attr('textarea[name=notiz]', 'maxlength')];
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="dosis"]');
+const f23Dosis = [await attr('input[name=praeparat]', 'maxlength'), await attr('input[name=notiz]', 'maxlength')];
+await mehrSeite('termine');
+await page.click('#ansicht [data-seite="termin"]:not([data-param])');
+const f23Termin = [await attr('input[name=wo]', 'maxlength'), await attr('textarea[name=notiz]', 'maxlength')];
+await mehrSeite('darstellung');
+const f23Anrede = await attr('form[data-formular="anrede"] input[name=name]', 'maxlength');
+check(JSON.stringify([f23Labor, f23Dosis, f23Termin, f23Anrede]) === JSON.stringify([['60', '1000'], ['80', '1000'], ['80', '1000'], '60']),
+  `F23: Labor, Präparat, Ort, Anrede und Notizen haben die Grenze, die gespeichert wird (${JSON.stringify([f23Labor, f23Dosis, f23Termin, f23Anrede])})`);
+// Zum Befund desselben Tages mit einer Notiz von 900 Zeichen kommt fT4 mit
+// 200 Zeichen Notiz. Vorher wurde die zusammengeführte Notiz auf 300 Zeichen
+// gekürzt – die neue fiel ganz weg, „Zum Befund … hinzugefügt".
+const f23Alt = `Laborärztin: ${'a'.repeat(880)} Ende.`;
+const f23Neu = `Nachgereicht: ${'b'.repeat(170)} Biotin bitte eine Woche vor der nächsten Abnahme weglassen.`;
+await laden(stand({ labor: [befund('b1', plus(TAG, -5), { tsh: w(2.1, 'mU/l', 0.27, 4.2) }, { notiz: f23Alt })] }));
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="labor"]:not([data-param])');
+await page.fill('input[name=datum]', plus(TAG, -5));
+await page.fill('input[name=ft4_wert]', '14');
+await page.fill('textarea[name=notiz]', f23Neu);
+await page.click('form[data-formular="labor"] button[type=submit]');
+await page.waitForTimeout(150);
+if (await gibt('dialog.rueckfrage [data-act="befund-bestaetigen"]')) await page.click('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+s = await gespeichert();
+const f23Fehler = await page.evaluate(() => {
+  const el = document.querySelector('textarea[name=notiz]');
+  const id = el ? (el.getAttribute('aria-describedby') || '').split(/\s+/).find((x) => x.startsWith('fehler-')) : null;
+  return id && document.getElementById(id) ? document.getElementById(id).textContent : '';
+});
+check(s.labor.length === 1 && s.labor[0].notiz === f23Alt && !s.labor[0].ft4 && f23Fehler.includes('1000') && await feldWert('textarea[name=notiz]') === f23Neu,
+  `F23: zu lang zusammen mit der vorhandenen Notiz – nichts wird gekürzt, der Fehler steht an der Notiz, die Eingaben bleiben („${f23Fehler.slice(0, 90)}…")`);
+
+// ---------------------------------------------------------------- F25: das Datum eines Termins, F29: Vorrat und Zahlen ohne Exponent
+
+await laden(stand());
+await mehrSeite('termine');
+await page.click('#ansicht [data-seite="termin"]:not([data-param])');
+const f25Max = await attr('form[data-formular="termin"] input[name=datum]', 'max');
+await page.fill('form[data-formular="termin"] input[name=datum]', '9999-12-31');
+await page.click('form[data-formular="termin"] button[type=submit]');
+s = await gespeichert();
+check(f25Max === plus(TAG, 5 * 366) && s.termine.length === 0 && (await r4app.text('form[data-formular="termin"] .feld-fehler')).includes('fünf Jahre'),
+  `F25: ein Termin liegt höchstens fünf Jahre voraus – das Feld hat ein max, das Jahr 9999 wird nicht gespeichert (max ${f25Max})`);
+await mehrSeite('vorrat');
+await page.fill('form[data-formular="vorrat"] input[name=tabletten]', '99999999999999999999999');
+await page.click('form[data-formular="vorrat"] button[type=submit]');
+s = await gespeichert();
+const f29Fehler = await r4app.text('form[data-formular="vorrat"] .feld-fehler');
+// Vor der Korrektur war gespeichert und das Formular zu – dann neu öffnen, statt zu hängen.
+if (!(await gibt('form[data-formular="vorrat"]'))) await mehrSeite('vorrat');
+await page.fill('form[data-formular="vorrat"] input[name=tabletten]', '10000');
+await page.click('form[data-formular="vorrat"] button[type=submit]');
+const f29Danach = await gespeichert();
+check(s.vorrat === null && f29Fehler.includes('10000') && f29Danach.vorrat && f29Danach.vorrat.tabletten === 10000,
+  `F29: ein Vorrat über 10 000 wird nicht gespeichert (und beim nächsten Laden still verworfen), 10 000 schon („${f29Fehler}")`);
+// Ein Wert aus einer Sicherung steht ohne Exponent im Feld – „1e+21" las
+// zahlAus() nicht, und ein bloßes „Speichern" scheiterte.
+await laden(stand({ labor: [befund('b1', plus(TAG, -5), { tsh: w(2.1, 'mU/l', 0.27, 4.2), crp: w(1e21, 'mg/l', null, 5) })] }));
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="labor"][data-param="b1"]');
+const f29Feld = await feldWert('input[name=crp_wert]');
+check(f29Feld === '1000000000000000000000', `F29: eine große Zahl steht ohne Exponent im Feld („${f29Feld}")`);
+
+// ---------------------------------------------------------------- F16: Druck des Berichts
+
+// Im dunklen Farbschema behielt die Karte beim Drucken ihren fast schwarzen
+// Hintergrund unter schwarzer Schrift, und der Satz „Zum Zeigen im
+// Sprechzimmer …" stand mit auf dem Papier.
+await laden(stand({ einstellungen: r4Einstellungen('sehr-gross', 'dunkel'), labor: [befund('b1', plus(TAG, -5), { tsh: w(2.1, 'mU/l', 0.27, 4.2), ft4: w(15, 'pmol/l', 12, 22) })] }));
+await mehrSeite('bericht');
+await page.emulateMedia({ media: 'print' });
+const f16 = await page.evaluate(() => {
+  const b = document.querySelector('#berichtText');
+  const satz = [...document.querySelectorAll('#ansicht p')].find((p) => p.textContent.includes('Zum Zeigen im Sprechzimmer'));
+  return {
+    karte: getComputedStyle(b.closest('.karte')).backgroundColor, html: getComputedStyle(document.documentElement).backgroundColor,
+    schrift: getComputedStyle(b).color, groesse: getComputedStyle(b).fontSize, satz: satz ? getComputedStyle(satz).display : null,
+  };
+});
+const f16Pdf = await page.pdf({ format: 'A4', printBackground: true });
+const f16Seiten = (f16Pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+await page.emulateMedia({ media: 'screen' });
+check(f16.karte === 'rgb(255, 255, 255)' && f16.html === 'rgb(255, 255, 255)' && f16.schrift === 'rgb(0, 0, 0)' && f16.satz === 'none',
+  `F16: im dunklen Farbschema druckt der Bericht schwarz auf weiß, ohne den Satz für den Bildschirm (${JSON.stringify(f16)})`);
+check(f16.groesse === '16px' && f16Seiten === 1, `F16: … in 12 pt – ein einfacher Bericht passt auf ein Blatt (${f16.groesse}, ${f16Seiten} Seite(n))`);
+
+// ---------------------------------------------------------------- Runde 5 (Ansichten) bei „sehr groß", hell und dunkel
+
+for (const farbe of ['hell', 'dunkel']) {
+  await laden(stand({ einstellungen: r4Einstellungen('sehr-gross', farbe), labor: [befund('b1', plus(TAG, -5), { tsh: w(7.5, 'mU/l', 0.4, 4) }, { notiz: 'Hausarzt\n\n12.08.2026: TSH 0,05' })],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: plus(TAG, -1) }] }));
+  const breiten = [];
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="labor"]:not([data-param])');
+  breiten.push(['Laborformular', await page.evaluate(() => document.documentElement.scrollWidth)]);
+  await mehrSeite('dosis-karte');
+  breiten.push(['Dosis-Karte', await page.evaluate(() => document.documentElement.scrollWidth)]);
+  await mehrSeite('fragen');
+  await page.click('#ansicht [data-seite="frage"]:not([data-param])');
+  await page.fill('form[data-formular="frage"] textarea[name=text]', 'x'.repeat(990));
+  breiten.push(['Frage mit Zähler', await page.evaluate(() => document.documentElement.scrollWidth)]);
+  await page.fill('form[data-formular="frage"] textarea[name=text]', '');
+  await mehrSeite('bericht');
+  breiten.push(['Bericht', await page.evaluate(() => document.documentElement.scrollWidth)]);
+  check(breiten.every(([, b]) => b <= 360), `Runde 5 (Ansichten, sehr groß, ${farbe}): ohne waagerechtes Scrollen (${breiten.map(([n, b]) => `${n} ${b}`).join(', ')})`);
 }
 
 await ende();

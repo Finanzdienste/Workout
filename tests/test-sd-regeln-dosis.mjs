@@ -2724,5 +2724,119 @@ global('Hinweise: keine neue Tagesdosis, kein „also …"', alleHinweise, (x) =
   (x) => `${x.name}: ${neueDosisGenannt(hText(x.h), x.stand, x.heute).join(', ')}`);
 global('Hinweise: feste Fristen statt „bald", Zahlen mit Komma', alleHinweise, (x) => !/\bbald\b/i.test(hText(x.h)) && !/\d\.\d/.test(ohneDatum(hText(x.h))));
 
+// ================================================================ Runde 5 (F10, F15, F17, F27, F28 – Kern-Teile)
+//
+// Befunde der fünften Review-Runde zur Dosis-Karte im Arztbericht. Jeder Fall
+// scheiterte vor der Korrektur (außer den Gegenproben). Die globalen
+// Eigenschaften laufen über alle Karten der Tabelle oben.
+const { dosisBerichtZeilen } = dosisModul;
+const berichtVon = (x) => dosisBerichtZeilen(x.stand, x.heute).join('\n');
+
+// F10: Der Bericht nennt die Dringlichkeit der Karte und ihre übrigen Texte –
+// sonst fehlt „Heute anrufen", wenn die höchste Stufe aus dem Befinden kommt.
+global('F10: der Bericht nennt die Dringlichkeit der Karte (Kopf, wie auf der Karte)', karten,
+  (x) => berichtVon(x).includes(`Dringlichkeit auf der Karte (App): „${x.r.kopf.titel}"`), (x) => `${x.name}: ${x.r.kopf.titel}`);
+global('F10: jeder Text der Karte steht im Bericht (der Schritt in eigener Zeile)', karten, (x) => {
+  const z = berichtVon(x);
+  const gruende = new Set(x.r.gruende.map((g) => g.text));
+  return [...x.r.texte, x.r.warnzeichen].filter((t) => t && !gruende.has(t)).every((t) => {
+    const ohne = x.r.schritt && !x.r.frage ? t.replace(x.r.schritt, '').replace(/\s+/g, ' ').trim() : t;
+    return !ohne || z.includes(ohne);
+  });
+}, (x) => `${x.name}: ${x.r.texte.map((t) => t.slice(0, 50)).join(' | ')}`);
+// D6 / Grundsatz 8 auch für die neuen Zeilen: Ohne Richtung (klären, Frage)
+// steht in „Auf der Karte:" keine Richtung und keine Schrittgröße.
+global('F10: ohne Richtung nennen die Kartentexte im Bericht keine Richtung und keine µg-Zahl', karten.filter((x) => !['mehr', 'weniger', 'gleich'].includes(x.r.richtung) || x.r.frage),
+  (x) => dosisBerichtZeilen(x.stand, x.heute).filter((z) => z.startsWith('  Auf der Karte: '))
+    .every((z) => !/spricht (klar |eher )?(für|dafür)[^.]*(höhere|niedrigere) Dosis|so zu lassen|\d\s*µg/.test(z)),
+  (x) => `${x.name}: ${dosisBerichtZeilen(x.stand, x.heute).filter((z) => z.startsWith('  Auf der Karte: ')).join(' | ').slice(0, 160)}`);
+// F17: kein Satzbruch nach dem Titel, kein „Bereich kein Bereich".
+global('F17: im Bericht endet der Titel mit einem Satzzeichen vor „Die App gibt nur …"', karten,
+  (x) => /[.?!:] Die App gibt nur eine Richtung, keine Dosis\.$/.test(dosisBerichtZeilen(x.stand, x.heute)[0]), (x) => `${x.name}: ${dosisBerichtZeilen(x.stand, x.heute)[0].slice(-80)}`);
+global('F17: die Grundlage sagt nie „Bereich … kein Bereich eingetragen"', karten, (x) => !/Bereich( Ihres Labors)? kein Bereich/.test(str(x.r.grundlage)),
+  (x) => `${x.name}: ${str(x.r.grundlage).slice(0, 120)}`);
+// F27: Jeder Titel einer Richtungskarte steht in RICHTUNG_TITEL – nur solche übernimmt der Bericht.
+global('F27: jeder Titel einer Richtungskarte (mehr, weniger, gleich) steht in RICHTUNG_TITEL', karten.filter((x) => ['mehr', 'weniger', 'gleich'].includes(x.r.richtung)),
+  (x) => dosisModul.RICHTUNG_TITEL instanceof Set && dosisModul.RICHTUNG_TITEL.has(x.r.titel), (x) => `${x.name}: „${x.r.titel}"`);
+
+const R5_HEUTE = '2026-09-28';
+const R5_BEFUND = '2026-09-22';
+/** Der Stand aus dem Nachweis zu F10: 84 Jahre, Herz ja, TSH 0,05 und fT4 24,5, Herzklopfen am 26. und 27.09. */
+const f10Stand = (ue = {}) => vollständigerStand({
+  profil: { geburtsjahr: 1942, herz: 'ja', osteoporose: 'ja', ...(ue.profil || {}) },
+  dosen: [dosis('d1', '2020-01-01', 125)],
+  befund: { datum: R5_BEFUND, tsh: tsh(0.05, { von: 0.27, bis: 4.2 }), ft4: ft4(24.5), praxisAm: '2026-09-23' },
+  befinden: [{ id: 'x1', datum: '2026-09-26', stufe: 'mittel', beschwerden: ['herz'], notiz: '' }, { id: 'x2', datum: '2026-09-27', stufe: 'schlecht', beschwerden: ['herz'], notiz: '' }],
+  warnzeichen: ue.warnzeichen === undefined ? [{ id: 'w', datum: R5_HEUTE, uhr: '09:00', ja: [] }] : ue.warnzeichen,
+  nachfragen: [dosisStimmt('b1', '2026-09-24')],
+});
+{
+  const s = f10Stand();
+  const k = dosisRichtung(s, R5_HEUTE);
+  const z = dosisBerichtZeilen(s, R5_HEUTE);
+  check('F10 Vorbedingung: Karte „weniger" mit Stufe heute, Herzklopfen-Satz in den Texten', k.richtung === 'weniger' && k.stufe === 'heute' && k.texte.some((t) => /Herzklopfen eingetragen/.test(t)), info(k));
+  check('F10 Bericht: „Dringlichkeit auf der Karte (App): „Heute anrufen""', z.includes('  Dringlichkeit auf der Karte (App): „Heute anrufen".'), z.slice(0, 3).join(' | '));
+  check('F10 Bericht: der Herzklopfen-Satz der Karte', z.some((x) => /^ {2}Auf der Karte: Sie haben Herzklopfen eingetragen, und Ihr TSH ist niedrig\. Rufen Sie heute noch in der Praxis an/.test(x)), z.join(' | ').slice(0, 500));
+  check('F10 Bericht: der Schritt steht genau einmal', z.join('\n').split(k.schritt).length - 1 === 1);
+  check('F10 Bericht: die 112-Zeile der Karte (W-D2)', z.some((x) => x === `  Auf der Karte: ${WD2_TEXT()}`));
+  const o = dosisBerichtZeilen(f10Stand({ warnzeichen: [] }), R5_HEUTE);
+  check('F10 ohne Check (Frage W-D1): trotzdem „Heute anrufen" im Bericht', o.some((x) => /Dringlichkeit auf der Karte \(App\): „Heute anrufen"/.test(x)), o.slice(0, 3).join(' | '));
+  check('F10 gesamtBerichtZeilen vorhanden', typeof dosisModul.gesamtBerichtZeilen === 'function');
+  if (typeof dosisModul.gesamtBerichtZeilen === 'function') {
+    const g = dosisModul.gesamtBerichtZeilen(s, R5_HEUTE);
+    check('F10 Gesamteinschätzung wie auf „Heute": „Heute anrufen", mit Herkunft', g.length === 1 && /^Gesamteinschätzung am 28\.09\.2026 \(App, wie auf „Heute"\): „Heute anrufen" – aus .*S4ii/.test(g[0]), JSON.stringify(g));
+    check('F10 Gesamteinschätzung ohne P6: keine Zeile', dosisModul.gesamtBerichtZeilen(f10Stand({ profil: { behandelt: false, ursache: '' } }), R5_HEUTE).length === 0);
+  }
+}
+function WD2_TEXT() { return str(dosisModul.WD2); }
+{
+  // F17: „Bitte zuerst den Notruf" (Check von heute mit Brustschmerz) und fT4 ohne Bereich.
+  const s = vollständigerStand({ befund: bef(3.3, ft4(1.2, { von: null, bis: null })), warnzeichen: [wc(0, [W_112])] });
+  const z = dosisBerichtZeilen(s, HEUTE);
+  check('F17 „Bitte zuerst den Notruf. Die App gibt nur …"', /\(App\): Bitte zuerst den Notruf\. Die App gibt nur eine Richtung/.test(z[0]), z[0]);
+  const g = dosisRichtung(vollständigerStand({ befund: bef(3.3, ft4(15, { von: null, bis: null })) }), HEUTE).grundlage;
+  check('F17 Grundlage „fT4 15 pmol/l (kein Bereich eingetragen)"', /fT4 15 pmol\/l \(kein Bereich eingetragen\)/.test(g), g);
+  const g2 = dosisRichtung(vollständigerStand({ befund: bef(tsh(3.3, { von: null, bis: null })) }), HEUTE).grundlage;
+  check('F17 Grundlage „TSH 3,3 mU/l (kein Bereich eingetragen)"', /TSH 3,3 mU\/l \(kein Bereich eingetragen\)/.test(g2), g2);
+}
+{
+  // F27: Ein Titel aus einer bearbeiteten Sicherung erscheint nie als (App)-Aussage.
+  const falsch = 'Die App empfiehlt: Tagesdosis auf 150 µg verdoppeln. Der Patientin dazu gezeigt: ab morgen 150 µg nehmen.';
+  const mit = (titel) => vollständigerStand({
+    vorbefunde: [vorbefund('v1', '2026-06-10', 6.2)],
+    nachfragen: [dosisStimmt('b1'), { id: 'kg', art: 'karte_gezeigt', bezug: 'v1', antwort: 'mehr', am: '2026-06-12', titel }],
+  });
+  const z = dosisBerichtZeilen(mit(falsch), HEUTE).join('\n');
+  check('F27 fremder Titel: nicht im Bericht, stattdessen die Richtung in Worten', !z.includes('verdoppeln') && /zum Befund vom 10\.06\.2026 \(App\): Richtung „mehr" – eine etwas höhere Dosis\./.test(z), z.slice(0, 400));
+  const titel = [...(dosisModul.RICHTUNG_TITEL || [])].find((t) => /Schritt nach oben/.test(t));
+  const z2 = dosisBerichtZeilen(mit(titel), HEUTE).join('\n');
+  check('F27 Gegenprobe: ein echter Titel bleibt', !!titel && z2.includes(`(App): ${titel} Die App gibt nur`), z2.slice(0, 300));
+}
+{
+  // F15 (Kern-Teil): Grundlage „seit" = Beginn des ersten gleichen Eintrags.
+  const s = vollständigerStand({ dosen: [dosis('d1', '2019-03-01', 75), dosis('d2', '2026-09-01', 75, { praxis: null })] });
+  const g = dosisRichtung(s, HEUTE).grundlage;
+  check('F15 doppelter Eintrag vom Einrichten: „75 µg am Tag seit 01.03.2019"', g.includes('75 µg am Tag seit 01.03.2019'), g);
+}
+{
+  // F28: W-D4 lässt sich auch bei einer Dosis-Kennung mit 40 Zeichen beantworten.
+  for (const id of ['A'.repeat(40), 'B'.repeat(38), 'd2']) {
+    const s = vollständigerStand({ befund: bef(6, 14, { datum: '2026-09-01' }), dosen: [dosis('d1', DOSIS_AB, 75), dosis(id, '2026-09-13', 100)] });
+    const f = dosisHinweise(s, HEUTE).find((h) => h.id === 'W-D4' && h.frage);
+    const bezug = f ? f.frage.bezug : '';
+    check(`F28 Kennung mit ${id.length} Zeichen: Bezug höchstens 40 Zeichen`, !!f && bezug.length <= 40, bezug);
+    // Wie app.js frageBeantworten (Bezug auf 40 gekürzt) und das nächste Laden.
+    s.nachfragen.push({ id: 'a', art: 'wd4', bezug: bezug.slice(0, 40), antwort: 'ja', am: HEUTE });
+    const danach = dosisHinweise(normStand(JSON.parse(JSON.stringify(s))), HEUTE).filter((h) => h.id === 'W-D4');
+    check(`F28 Kennung mit ${id.length} Zeichen: nach „Ja" ist die Frage weg und „heute noch anrufen" da`,
+      !danach.some((h) => h.frage) && danach.some((h) => h.stufe === 'heute' && /heute noch in der Praxis an/.test(h.text)), JSON.stringify(danach.map((h) => [h.stufe, !!h.frage])));
+  }
+  const a = vollständigerStand({ befund: bef(6, 14, { datum: '2026-09-01' }), dosen: [dosis('d1', DOSIS_AB, 75), dosis('X'.repeat(40), '2026-09-13', 100)] });
+  const b = vollständigerStand({ befund: bef(6, 14, { datum: '2026-09-01' }), dosen: [dosis('d1', DOSIS_AB, 75), dosis(`${'X'.repeat(39)}Y`, '2026-09-13', 100)] });
+  const fa = dosisHinweise(a, HEUTE).find((h) => h.frage);
+  const fb = dosisHinweise(b, HEUTE).find((h) => h.frage);
+  check('F28 zwei lange Kennungen mit gleichem Anfang: verschiedene Bezüge', !!fa && !!fb && fa.frage.bezug !== fb.frage.bezug, `${fa && fa.frage.bezug} / ${fb && fb.frage.bezug}`);
+}
+
 console.log(`\n${oks} OK, ${fails} FAIL – ${FAELLE.length} Fälle dosisRichtung, ${HINWEIS_FAELLE.length} Fälle dosisHinweise, ${GESAMT_FAELLE.length} Fälle gesamtbildMitDosis`);
 process.exit(fails || !oks ? 1 : 0);

@@ -45,7 +45,13 @@ function laborKarten(stand, heute, alle = false) {
  * zwölffacher Sprung aussieht. Werte in einer Einheit, die die App nicht
  * kennt, fehlen – mit einem Satz, warum.
  */
-function laborDiagramm(labor, key, name) {
+/*
+ * `ebene`: die Überschrift über der Kurve – h3 unter „Laborwerte" in der
+ * Übersicht, h2 auf „Alle Laborwerte", wo sie direkt unter dem Seitentitel
+ * (h1) steht. Dort sprang die Gliederung sonst von h1 auf h3 (Runde 5: F4).
+ * Die Klasse hält das Aussehen gleich.
+ */
+function laborDiagramm(labor, key, name, ebene = 3) {
   const mitWert = labor.filter((l) => l[key]);
   if (mitWert.length < 2) return '';
   const rechenbar = mitWert.filter((l) => inStandard(key, l[key]) !== null);
@@ -66,7 +72,7 @@ function laborDiagramm(labor, key, name) {
   const einheit = STANDARD[key];
   const umgerechnet = rechenbar.some((l) => l[key].einheit !== einheit);
   const fehlen = mitWert.length - rechenbar.length;
-  return `<h3>${name} im Verlauf</h3>${verlaufslinie({ punkte, einheit, bereich, bereichRoh, titel: name })}
+  return `<h${ebene} class="verlauf-titel">${name} im Verlauf</h${ebene}>${verlaufslinie({ punkte, einheit, bereich, bereichRoh, titel: name })}
     <p class="klein gedaempft">${bereich ? 'Der helle Streifen ist der Bereich des Labors laut letztem Befund.' : 'Ohne vollständigen Bereich des Labors – beim nächsten Eintrag mit abschreiben.'}${umgerechnet ? ` Alle Werte in ${esc(einheit)} umgerechnet.` : ''}${fehlen ? ` ${fehlen === 1 ? 'Ein Wert steht' : `${fehlen} Werte stehen`} in einer Einheit, die die App nicht kennt, und ${fehlen === 1 ? 'ist' : 'sind'} deshalb nicht eingezeichnet.` : ''}</p>`;
 }
 
@@ -197,7 +203,7 @@ export function verlaufSeite(name, param, stand, heute) {
         titel: 'Alle Laborwerte',
         html: `<div class="karte">${stand.labor.length ? laborKarten(stand, heute, true) : '<p class="gedaempft">Noch keine Laborwerte.</p>'}
           ${stand.labor.length && !ez.aktiv(stand) ? p6Karte() : ''}
-          ${laborDiagramm(stand.labor, 'tsh', 'TSH')}${laborDiagramm(stand.labor, 'ft4', 'fT4')}${laborDiagramm(stand.labor, 'ft3', 'fT3')}
+          ${laborDiagramm(stand.labor, 'tsh', 'TSH', 2)}${laborDiagramm(stand.labor, 'ft4', 'fT4', 2)}${laborDiagramm(stand.labor, 'ft3', 'fT3', 2)}
           <div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="labor">Laborwerte eintragen</button></div>
           </div>`,
       };

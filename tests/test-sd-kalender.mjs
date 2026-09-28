@@ -125,4 +125,35 @@ check(gleich(um.frueh, ['DTSTART:20260329T015000', 'DTEND:20260329T025000']), `E
 check(gleich(um.herbst, ['DTSTART:20261025T023000', 'DTEND:20261025T024500']), `E29: Umstellung im Herbst unverändert (${um.herbst})`);
 check(gleich(um.silvester, ['DTSTART:20261231T235000', 'DTEND:20270101T000500']), `E29: 23:50 endet weiter am nächsten Tag (${um.silvester})`);
 
+// ---- Runde 5: F25 – Steuerzeichen und halbe Emojis in SUMMARY und
+// DESCRIPTION. RFC 5545 (3.3.11) lässt in TEXT keine Steuerzeichen zu (außer
+// dem Tab); eine halbe Emoji-Hälfte (vom Kürzen) wurde beim Speichern zu „�".
+// Geprüft im Browser selbst: Beim Übergeben an Node würde eine halbe Hälfte
+// schon unterwegs ersetzt.
+const f25 = await page.evaluate(async () => {
+  const m = await import('./js/ics.js');
+  const halb = `${'a'.repeat(79)}${'🏥'.slice(0, 1)}`;
+  const dateien = {
+    termin: m.terminICS({ id: 'f25', datum: '2026-04-02', uhr: '08:00', titel: `Blutabnahme – ${halb}`, notiz: 'Überweisung mitbringen\u000bKarte\u000cnüchtern\u0000\u001b\u007f Ende\tmit Tab', blutabnahme: true, biotin: true }),
+    erinnerung: m.erinnerungICS({ abISO: '2026-03-10', uhr: '06:45', text: `Tablette\u0007 ${'🏥'.slice(1)}nehmen`, notiz: 'Notiz\u0008mit Rückschritt' }),
+    spaet: m.terminICS({ id: 'f25b', datum: '9999-12-31', uhr: '23:30', titel: 'Termin' }),
+  };
+  const pruef = (t) => {
+    const ohneCRLF = t.replace(/\r\n/g, '');
+    const steuer = [...ohneCRLF].filter((c) => { const n = c.charCodeAt(0); return (n < 0x20 && n !== 0x09) || n === 0x7f; }).map((c) => c.charCodeAt(0));
+    const halbe = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(t);
+    const ersatz = new TextDecoder().decode(new TextEncoder().encode(t)).includes('�');
+    return { steuer, halbe, ersatz, entfaltet: t.replace(/\r\n /g, '') };
+  };
+  return Object.fromEntries(Object.entries(dateien).map(([k, t]) => [k, pruef(t)]));
+});
+for (const [name, r] of Object.entries(f25)) {
+  check(r.steuer.length === 0, `F25 ${name}: keine Steuerzeichen außer CRLF und Tab (${JSON.stringify(r.steuer)})`);
+  check(!r.halbe && !r.ersatz, `F25 ${name}: keine halben Emojis, kein „�" nach dem Speichern`);
+}
+check(f25.termin.entfaltet.includes('Überweisung mitbringen\\nKarte\\nnüchtern') && f25.termin.entfaltet.includes('Ende\tmit Tab'),
+  'F25 weicher Umbruch (\\v) und Seitenvorschub werden zur Zeile, der Tab bleibt');
+check(f25.termin.entfaltet.includes(`SUMMARY:Blutabnahme – ${'a'.repeat(79)}\r\n`), 'F25 die halbe Emoji-Hälfte am Ende des Titels fällt weg');
+check(/DTSTART:99991231T233000\r\nDTEND:99991231T235900/.test(f25.spaet.entfaltet), `F25 Termin am 31.12.9999 um 23:30: DTEND im Jahr 9999, nicht „100000101…" (${(f25.spaet.entfaltet.match(/DTEND:\S+/) || [''])[0]})`);
+
 await ende();

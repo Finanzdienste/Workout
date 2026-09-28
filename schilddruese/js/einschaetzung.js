@@ -185,6 +185,95 @@ export function aenderungen(stand, heute) {
     && !(a[i - 1].ab === d.ab && istBerichtigung(stand, d, heute)));
 }
 
+/*
+ * Seit wann die Menge eines Eintrags gilt: der Beginn des ersten gleichen
+ * Eintrags davor. Ein doppelter Eintrag (beim Einrichten „ab heute", später
+ * mit dem richtigen Beginn noch einmal) ist keine Änderung (B59) – die
+ * Grundlage der Dosis-Karte nannte trotzdem „75 µg am Tag seit 01.09.2026",
+ * obwohl die Menge seit 2019 galt, und der Bericht las sich wie ein Neubeginn
+ * der Behandlung (Runde 5: F15).
+ */
+export function dosisSeit(stand, d) {
+  if (!d) return null;
+  let i = stand.dosen.indexOf(d);
+  if (i < 0) return d.ab;
+  while (i > 0 && aenderungsArt(stand.dosen[i], stand.dosen[i - 1]) === 'doppelt') i--;
+  return stand.dosen[i].ab;
+}
+
+/**
+ * Die Dosis-Historie für den Arztbericht – nach denselben Regeln wie Karte
+ * und Einschätzung (Runde 5: F15). Vorher war jeder Eintrag eine eigene
+ * Periode: Eine Berichtigung nach „Nein, ich nehme etwas anderes" stand als
+ * „Aktuell: 100 µg seit 20.09. / Davor: 75 µg" da – die Ärztin las „erhöht"
+ * und wartete die Einpendelzeit ab –, und ein doppelter Eintrag vom
+ * Einrichten als „Aktuell: 75 µg seit 01.09.2026 / Davor: 75 µg ab 2019".
+ *
+ * → [{ d, erster, ab, eintraege, art, berichtigung, ersetzt, berichtigtDurch, geplant }],
+ *   der älteste zuerst. Je Periode:
+ *   - `eintraege`: die gleichen Einträge hintereinander (doppelt), `erster`
+ *     und `d` (der jüngste, mit ihm rechnet die App) daraus; `ab` = erster.ab,
+ *   - `art` gegenüber der Periode davor: 'beginn' | 'dosis' | 'praeparat',
+ *   - `berichtigung`: Die Periode beginnt mit einer Berichtigung
+ *     (istBerichtigung) – keine Änderung, sondern: Die Menge der Periode davor
+ *     stimmte nicht. Seit wann die neue gilt, ist offen.
+ *   - `ersetzt`: die Periode mit demselben Beginn, die die Berichtigung
+ *     ersetzt – sie galt keinen Tag und steht nicht mehr in der Liste (D19),
+ *   - `berichtigtDurch`: bei einer Periode, deren Menge später berichtigt
+ *     wurde, die berichtigende Periode (sonst null). Nicht bei `ersetzt`:
+ *     Dann war die Menge des ersetzten Eintrags falsch, nicht die davor.
+ *     Beispiel 50 µg (2019), 75 µg ab 10.09., am selben Tag berichtigt auf
+ *     100 µg: zwei Perioden – 50 µg und 100 µg ab 10.09. (art 'dosis',
+ *     berichtigung, ersetzt = 75 µg),
+ *   - `geplant`: Beginn nach heute.
+ */
+export function dosisVerlauf(stand, heute) {
+  const perioden = [];
+  stand.dosen.forEach((d, i) => {
+    const vor = perioden[perioden.length - 1];
+    if (vor && aenderungsArt(d, stand.dosen[i - 1]) === 'doppelt') {
+      vor.eintraege.push(d);
+      vor.d = d;
+      return;
+    }
+    const berichtigung = i > 0 && istBerichtigung(stand, d, heute);
+    let ersetzt = null;
+    if (vor && berichtigung && vor.ab === d.ab) ersetzt = perioden.pop();
+    const davor = perioden[perioden.length - 1] || null;
+    // Berichtigt auf die Menge davor (75 → 100 ab 10.09., am selben Tag
+    // berichtigt auf 75): Der ersetzte Eintrag galt keinen Tag, die 75 µg
+    // gelten weiter – eine Periode, kein Wechsel.
+    if (ersetzt && davor && aenderungsArt(d, davor.d) === 'doppelt') {
+      davor.eintraege.push(d);
+      davor.d = d;
+      return;
+    }
+    const p = {
+      d, erster: d, ab: d.ab, eintraege: [d], art: davor ? aenderungsArt(d, davor.d) : 'beginn',
+      berichtigung, ersetzt, berichtigtDurch: null, geplant: d.ab > heute,
+    };
+    // Ersetzt die Berichtigung einen Eintrag vom selben Tag, war die Menge
+    // DIESES Eintrags falsch – nicht die der Periode davor.
+    if (davor && berichtigung && !ersetzt) davor.berichtigtDurch = p;
+    perioden.push(p);
+  });
+  return perioden;
+}
+
+/**
+ * Die Dosis an einem Tag (etwa dem eines Befunds) mit ihrer Periode aus
+ * dosisVerlauf(): `berichtigtDurch` sagt, dass die App-Dosis dieses Tages
+ * später als unzutreffend gemeldet wurde – dann ist „Dosis damals" nur, was
+ * die App damals wusste (Runde 5: F15).
+ * → { d, td, periode, berichtigtDurch } | null
+ */
+export function dosisDamals(stand, tag, heute) {
+  const d = dosisAmIn(stand, tag);
+  if (!d) return null;
+  const periode = dosisVerlauf(stand, heute).find((p) => p.eintraege.includes(d)) || null;
+  return { d, td: sp.tagesdosis(d), periode, berichtigtDurch: periode ? periode.berichtigtDurch : null };
+}
+
 /** Biotin im Spiel (L5d): beim Befund angegeben oder als Mittel eingetragen. */
 const biotinImSpiel = (befund, stand) => befund.biotin === 'ja' || stand.mittel.includes('biotin');
 
@@ -1935,12 +2024,114 @@ function wertZeile(key, name, w, e) {
   return `${name} ${wertText(w)} ${w.einheit}${um}${bereich}${e && e.lage ? ` – ${LAGE_TEXT[e.genau]}` : ''}`;
 }
 
-/** Die Zeilen des Abschnitts „Einschätzung der App" im Arztbericht. */
-export function berichtZeilen(stand, heute) {
+/*
+ * Die Befunde, die der Arztbericht einzeln beschreibt (Runde 5: F11): die
+ * letzten drei bis heute mit TSH, fT4 oder fT3, der neueste zuerst. Vorher
+ * waren es die letzten drei Einträge überhaupt – drei Einträge nur mit HbA1c,
+ * Vitamin D und B12 verdrängten den TSH-Befund, auf den sich „Heute" und die
+ * Dosis-Karte beziehen, samt Muster, Biotin und „Tablette vorher"; dafür
+ * standen dreimal „Befund vom …: ." mit einer Einnahmebilanz zum HbA1c da.
+ * Eine Auswahl für berichtZeilen, angabenZeilen und js/bericht.js: Hängt der
+ * Bericht Antworten an „Angaben zur Abnahme" an, muss es dieselbe Liste sein,
+ * sonst landen sie beim falschen Befund.
+ */
+export function berichtBefunde(stand, heute) {
+  return stand.labor.filter((l) => l.datum <= heute && (l.tsh || l.ft4 || l.ft3)).slice(-3).reverse();
+}
+
+/*
+ * Einträge nur mit weiteren Werten aus demselben Zeitraum – nicht älter als
+ * der älteste beschriebene Befund, höchstens drei. Sie bekommen je eine kurze
+ * Zeile, ohne Abnahmefragen und ohne Einnahmebilanz (Runde 5: F11).
+ */
+function berichtNurWeitere(stand, heute, befunde) {
+  const ab = befunde.length >= 3 ? befunde[befunde.length - 1].datum : '';
+  return stand.labor.filter((l) => l.datum <= heute && l.datum >= ab && !(l.tsh || l.ft4 || l.ft3)).slice(-3).reverse();
+}
+
+/** Ein Wert, wie er auf dem Befund steht – ohne Einordnung der App (für angabenZeilen). */
+function rohZeile(name, w) {
+  if (!w) return null;
+  const v = w.von !== null && w.von !== undefined;
+  const b = w.bis !== null && w.bis !== undefined;
+  const bereich = v && b ? ` (Labor ${roh(w.von)}–${roh(w.bis)})` : v ? ` (Labor ab ${roh(w.von)})` : b ? ` (Labor bis ${roh(w.bis)})` : '';
+  return `${name} ${wertText(w)} ${w.einheit}${bereich}`;
+}
+
+/*
+ * Hinweise zur Befund-Einschätzung, die die Ärztin braucht, um einen
+ * Widerspruch im selben Befundblock zu verstehen – auch mit Muster (Runde 5:
+ * F14): die feste Schwelle über 10 bzw. unter 0,1, zwei Einträge desselben
+ * Tages mit verschiedenen Werten, eine Einheit, die nicht zum Wert passt oder
+ * die die App nicht kennt, ein einseitiger TSH-Bereich. Vorher standen sie
+ * nur ohne Muster da – „TSH 11 – im Bereich" neben „In den nächsten Tagen
+ * anrufen" blieb ohne Begründung. Nicht die übrigen Bitten an die Patientin.
+ */
+const ARZT_HINWEIS = /^TSH: Ein Wert (über 10|unter 0,1)|zwei Einträge mit verschiedenen Werten|passt nicht zur gewählten Einheit|Einheit kennt die App nicht|zwei Grenzen/;
+
+/*
+ * Beschwerden mit eigenem Warn-Pfad: lebensmüde (W5), Puls/Herzstolpern (S4),
+ * Herzklopfen (S4ii, R3), ungewollt abgenommen (W2t). Der Arztbericht nennt
+ * sie immer mit Datum – nicht nur, wenn sie unter den fünf häufigsten sind,
+ * und auch ohne P6: P6 sperrt diese Warnzeichen nicht (Runde 5: F9).
+ */
+export const WARN_BESCHWERDEN = ['lebensmuede', 'puls', 'herz', 'abnahme'];
+
+/**
+ * Die Warn-Beschwerden (WARN_BESCHWERDEN) aus dem Befinden der letzten `tage`
+ * Tage bis heute, je mit den Tagen, an denen sie eingetragen wurden (ältester
+ * zuerst). Nur Angaben der Patientin, ohne Auswertung.
+ * → [{ key, name, daten: ['2026-09-20', …] }] – nur die, die vorkommen.
+ */
+export function warnBeschwerden(stand, heute, tage = 56) {
+  const ab = tageWeiter(heute, -(tage - 1));
+  return WARN_BESCHWERDEN.map((key) => ({
+    key,
+    name: sp.beschwerdeName(key),
+    daten: [...new Set(stand.befinden.filter((b) => b.datum >= ab && b.datum <= heute && b.beschwerden.includes(key)).map((b) => b.datum))].sort(),
+  })).filter((x) => x.daten.length);
+}
+
+const VERGESSEN_TEXT = { nein: 'nein', einzelne: 'einzelne Tage', mehrere: 'mehrere Tage', unbekannt: 'weiß nicht' };
+
+/*
+ * RW2 B1: Der Bericht enthält die Antworten auf F1–F8 und Q1–Q5. Die Zeile
+ * „Angaben zur Abnahme" nennt F1–F7, die Packung und Q1; „Weitere Angaben"
+ * Q2 (nüchtern), Q3 (Abstände), Q5 (versehentlich mehr) und F8 (was die
+ * Praxis gesagt hat) – gerade „einmal viele Tabletten auf einmal" muss die
+ * Ärztin lesen (B45, B65). Bisher hängte js/bericht.js diese Zeile selbst an,
+ * nur bei P6 und mit einer eigenen Befundauswahl; jetzt steht sie hier, in
+ * beiden Fassungen des Abschnitts (Runde 5: F11, F12). Dazu Q4 im Profil.
+ */
+const Q2_TEXT = { ja: 'ja', abends: 'abends, mit der Praxis abgesprochen', nein: 'nein', unbekannt: 'weiß nicht', '': 'nicht beantwortet' };
+const Q5_TEXT = { nein: 'nein', einmal: 'ja, einmal viele Tabletten auf einmal', tage: 'ja, über Tage zu viel oder eine andere Stärke', unbekannt: 'weiß nicht', '': 'nicht beantwortet' };
+const F8_TEXT = { bleibt: 'Dosis bleibt', geaendert: 'Dosis wird geändert', nachmessen: 'erst nachmessen', nochnicht: 'noch nichts gesagt', '': 'nicht beantwortet' };
+function weitereAngabenZeile(l) {
+  const teile = [
+    `nüchtern mit Wasser: ${Q2_TEXT[l.einnahmeArt || ''] || l.einnahmeArt}`,
+    l.abstandOk ? `Abstände eingehalten: ${JNW_TEXT[l.abstandOk] || l.abstandOk}` : null,
+    `versehentlich mehr genommen: ${Q5_TEXT[l.verwechselt || ''] || l.verwechselt}`,
+    `Praxis zu diesem Wert: ${F8_TEXT[l.praxis || ''] || l.praxis}${l.praxis && l.praxisAm ? ` (angegeben ${kurz(l.praxisAm)})` : ''}`,
+  ].filter(Boolean);
+  return `  Weitere Angaben (Angabe): ${teile.join('; ')}.`;
+}
+
+/*
+ * Der Abschnitt für den Arztbericht – mit der Einschätzung der App
+ * (berichtZeilen, nur bei P6) oder nur mit den Angaben (angabenZeilen, immer).
+ * Eine Rechnung für beide: Die Angaben stehen in beiden Fassungen gleich da,
+ * mit P6 kommt je Befund die Einordnung dazu (Runde 5: F12).
+ */
+function abschnittZeilen(stand, heute, mitEinschaetzung) {
   const z = [];
   const p = stand.profil;
-  z.push(`EINSCHÄTZUNG DER APP (automatisch erstellt, ersetzt keine ärztliche Beurteilung) – Stand ${kurz(heute)}.`);
-  z.push('Grundlage: Angaben der Patientin und von ihr übertragene Befunde. Kennzeichnung: (Angabe) = Angabe der Patientin, (Befund) = vom Befund übertragen, (App) = von der App berechnet.');
+  if (mitEinschaetzung) {
+    z.push(`EINSCHÄTZUNG DER APP (automatisch erstellt, ersetzt keine ärztliche Beurteilung) – Stand ${kurz(heute)}.`);
+    z.push('Grundlage: Angaben der Patientin und von ihr übertragene Befunde. Kennzeichnung: (Angabe) = Angabe der Patientin, (Befund) = vom Befund übertragen, (App) = von der App berechnet.');
+  } else {
+    z.push(`ANGABEN ZUR BLUTABNAHME UND WEITERE ANGABEN (ohne Einschätzung der App) – Stand ${kurz(heute)}.`);
+    z.push('Kennzeichnung: (Angabe) = Angabe der Patientin, (Befund) = vom Befund übertragen. Eine Einschätzung der Laborwerte und der Dosis gibt es erst, wenn unter „Über mich" eine behandelte Schilddrüsen-Unterfunktion bestätigt ist. Warnzeichen und Beschwerden mit eigenem Anruf-Hinweis (etwa unregelmäßiger Puls) zeigt die App der Patientin auch ohne diese Angabe.');
+  }
   const alter = alterAm(stand, heute);
   const ziel = zielBereich(stand);
   z.push(`Profil (Angabe): ${[
@@ -1955,14 +2146,32 @@ export function berichtZeilen(stand, heute) {
     `Kortison dauerhaft: ${JNW_TEXT[p.kortison]}`,
     `Diabetes: ${hatDiabetes(stand) ? 'ja' : JNW_TEXT[p.diabetes]}`,
   ].join('; ')}.`);
+  // Q4 – nur gefragt, wenn der Behandlungsgrund offen ist.
+  if (p.hypophyseOderNiedrig || ['andere', 'unbekannt', ''].includes(p.ursache)) {
+    z.push(`  Ursache in der Hirnanhangdrüse oder TSH bewusst niedrig (Angabe): ${JNW_TEXT[p.hypophyseOderNiedrig || '']}.`);
+  }
   if (stand.mittel.length) {
     z.push(`Weitere Mittel (Angabe): ${stand.mittel.map((k) => `${kurzName(k)}${ABSTAND_MITTEL[k] ? ` (Abstand eingehalten: ${JNW_TEXT[stand.mittelAbstand[k] || '']})` : ''}`).join('; ')}.`);
   }
 
-  // Die letzten drei Befunde
-  stand.labor.filter((l) => l.datum <= heute).slice(-3).reverse().forEach((l) => {
-    const e = befundEinschaetzen(l, stand, heute);
-    const w = sp.LABORWERTE.map(([k, name]) => wertZeile(k, name, l[k], e.werte.find((x) => x.key === k)?.einordnung)).filter(Boolean);
+  // Die letzten drei Befunde mit TSH/fT4/fT3 und dazwischen die Einträge nur
+  // mit weiteren Werten, nach Datum, der neueste zuerst (Runde 5: F11).
+  const befunde = berichtBefunde(stand, heute);
+  const eintraege = [...befunde.map((l) => ({ l, befund: true })), ...berichtNurWeitere(stand, heute, befunde).map((l) => ({ l, befund: false }))]
+    .sort((a, b) => b.l.datum.localeCompare(a.l.datum) || stand.labor.indexOf(b.l) - stand.labor.indexOf(a.l));
+  eintraege.forEach(({ l, befund }) => {
+    if (!befund) {
+      // Nie „Befund vom …: ." – ein Eintrag ohne TSH/fT4/fT3 nennt seine Werte selbst.
+      // Mit Einschätzung je Wert ihr Satz – ohne dessen Schlusspunkt, damit kein „.;" entsteht.
+      const ww = mitEinschaetzung
+        ? weitereWerte(l, stand).map((x) => `${rohZeile(x.name, x.wert)}${x.texte.length ? ` – ${x.texte[0].replace(/\.$/, '')}` : ''}`)
+        : sp.WEITERE_WERTE.map(([k, name]) => rohZeile(name, l[k])).filter(Boolean);
+      const zeile = `Weitere Werte vom ${kurz(l.datum)} (Befund): ${ww.join('; ')}${l.laborName ? `; Labor: ${l.laborName}` : ''}`;
+      z.push(/[.?!]$/.test(zeile) ? zeile : `${zeile}.`);
+      return;
+    }
+    const e = mitEinschaetzung ? befundEinschaetzen(l, stand, heute) : null;
+    const w = sp.LABORWERTE.map(([k, name]) => (e ? wertZeile(k, name, l[k], e.werte.find((x) => x.key === k)?.einordnung) : rohZeile(name, l[k]))).filter(Boolean);
     z.push(`Befund vom ${kurz(l.datum)} (Befund): ${w.join('; ')}${l.laborName ? `; Labor: ${l.laborName}` : ''}.`);
     const fragen = [
       l.abnahmeUhr ? `Abnahme ${uhr(l.abnahmeUhr)}` : null,
@@ -1974,9 +2183,15 @@ export function berichtZeilen(stand, heute) {
       `Mittel geändert: ${JNW_TEXT[l.mittelGeaendert]}`,
       `Einnahme geändert: ${JNW_TEXT[l.einnahmeGeaendert]}`,
       `andere Packung: ${JNW_TEXT[l.packung]}`,
-      l.vergessen ? `vergessen: ${{ nein: 'nein', einzelne: 'einzelne Tage', mehrere: 'mehrere Tage', unbekannt: 'weiß nicht' }[l.vergessen]}` : null,
+      l.vergessen ? `vergessen: ${VERGESSEN_TEXT[l.vergessen]}` : null,
     ].filter(Boolean);
     z.push(`  Angaben zur Abnahme (Angabe): ${fragen.join('; ')}.`);
+    z.push(weitereAngabenZeile(l));
+    if (!e) {
+      const ww = sp.WEITERE_WERTE.map(([k, name]) => rohZeile(name, l[k])).filter(Boolean);
+      if (ww.length) z.push(`  Weitere Werte (Befund): ${ww.join('; ')}.`);
+      return;
+    }
     const x = einnahmenVor(l, stand);
     z.push(x.erfasst >= 28
       ? `  Einnahme in den 42 Tagen davor (App): an ${x.erfasst} Tagen erfasst, davon ${x.nicht} nicht genommen; ${x.unbekannt} Tage ohne Eintrag (unbekannt).`
@@ -1988,8 +2203,16 @@ export function berichtZeilen(stand, heute) {
       // C10: Die Stufe hier gilt für TSH und fT4. Hebt ein weiterer Wert den
       // Befund an, steht das dabei – wie im Kopf der Befund-Karte.
       const mitWeiteren = e.kopf && e.kopf.weitere.length
-        ? `; mit ${aufzaehlung(weitereWerte(l, stand).filter((x) => e.kopf.weitere.includes(x.key)).map((x) => x.name))} insgesamt „${STUFEN[e.stufeGesamt].titel}"` : '';
+        ? `; mit ${aufzaehlung(weitereWerte(l, stand).filter((y) => e.kopf.weitere.includes(y.key)).map((y) => y.name))} insgesamt „${STUFEN[e.stufeGesamt].titel}"` : '';
       z.push(`  Einordnung (App): ${grundlage}, Stufe „${STUFEN[e.stufeLabor].titel}"${e.hypophyse || e.ohneMuster ? ' nach fT4' : ''}${ersetzt}${mitWeiteren}.`);
+      // Runde 5: F14 – die Hinweise, die einen Widerspruch im Block erklären.
+      // Beim doppelten Eintrag dazu, mit welchem die App rechnet (C15).
+      const zuletzt = [...stand.labor].reverse().find((y) => y.datum === l.datum);
+      e.hinweise.filter((h) => ARZT_HINWEIS.test(h)).forEach((h) => {
+        const welcher = !/zwei Einträge mit verschiedenen Werten/.test(h) ? ''
+          : zuletzt === l ? ' Die App rechnet mit diesem, dem zuletzt eingetragenen Eintrag.' : ' Die App rechnet mit dem zuletzt eingetragenen Eintrag dieses Tages, nicht mit diesem.';
+        z.push(`  Hinweis (App): ${h}${welcher}`);
+      });
       e.erklaerungen.forEach((x2) => z.push(`  – ${x2.text}`));
       e.verlauf.forEach((x2) => z.push(`  – ${x2.text}`));
       e.zusaetze.forEach((x2) => z.push(`  – ${x2.text}`));
@@ -1999,9 +2222,15 @@ export function berichtZeilen(stand, heute) {
     weitereWerte(l, stand).forEach((ww) => z.push(`  ${ww.name} ${wertText(ww.wert)} ${ww.wert.einheit}${ww.texte.length ? ` – ${ww.texte[0]}` : ''}`));
   });
 
-  const b = beschwerdenAuswerten(stand, heute);
-  if (b.genannt.length) {
-    z.push(`Beschwerden der letzten 28 Tage (Angabe): ${b.genannt.map(sp.beschwerdeName).join(', ')}. Auswertung (App): ${b.richtung === 'wenig' ? 'könnten zu zu wenig Hormon passen' : b.richtung === 'viel' ? 'könnten zu zu viel Hormon passen' : 'kein klares Muster'} (Punkte zu wenig ${zahl(b.punkteWenig)}, zu viel ${zahl(b.punkteViel)}).`);
+  const genannt = [...genanntIn(stand, heute, 28)];
+  if (genannt.length) {
+    const angabe = `Beschwerden der letzten 28 Tage (Angabe): ${genannt.map(sp.beschwerdeName).join(', ')}.`;
+    if (mitEinschaetzung) {
+      const b = beschwerdenAuswerten(stand, heute);
+      z.push(`${angabe} Auswertung (App): ${b.richtung === 'wenig' ? 'könnten zu zu wenig Hormon passen' : b.richtung === 'viel' ? 'könnten zu zu viel Hormon passen' : 'kein klares Muster'} (Punkte zu wenig ${zahl(b.punkteWenig)}, zu viel ${zahl(b.punkteViel)}).`);
+    } else {
+      z.push(angabe);
+    }
   }
   const ab = tageWeiter(heute, -89);
   const checks = stand.warnzeichen.filter((w) => w.datum >= ab && w.datum <= heute);
@@ -2010,4 +2239,24 @@ export function berichtZeilen(stand, heute) {
     z.push(`Warnzeichen-Check vom ${kurz(c.datum)}${c.uhr ? ` ${uhr(c.uhr)}` : ''} (Angabe): ${namen.length ? namen.join('; ') : 'nichts angekreuzt'}.`);
   });
   return z;
+}
+
+/** Die Zeilen des Abschnitts „Einschätzung der App" im Arztbericht – nur bei P6 (aktiv). */
+export function berichtZeilen(stand, heute) {
+  return abschnittZeilen(stand, heute, true);
+}
+
+/**
+ * Dieselben Angaben ohne jede Einschätzung der App – für den Bericht ohne P6
+ * (Runde 5: F12). P6 sperrt nur die Einschätzung (L2–L7, S2–S4), nicht die
+ * Angaben aus RW1 B1: Profil, weitere Mittel mit Abstand, die Antworten zur
+ * Blutabnahme je Befund, die Beschwerden der letzten 28 Tage und die
+ * Warnzeichen-Checks der letzten 90 Tage. Vorher fehlte ohne den Haken der
+ * ganze Abschnitt – die Ärztin sah TSH 0,04 und fT4 28 ohne „Biotin: ja" und
+ * ohne „Tablette vorher", und ohne den Check mit Brustschmerz.
+ * Gleiche Zeilenanfänge wie berichtZeilen („Profil (Angabe)", „  Angaben zur
+ * Abnahme"), dieselbe Befundauswahl (berichtBefunde).
+ */
+export function angabenZeilen(stand, heute) {
+  return abschnittZeilen(stand, heute, false);
 }

@@ -76,17 +76,23 @@ export function mehrAnsicht(stand, heute) {
 
 // ---------------------------------------------------------------- Seiten
 
+/*
+ * Runde 5: F16 – Der Satz über den Knöpfen gilt der Nutzerin am Bildschirm,
+ * nicht dem Papier: Er wurde mitgedruckt. „nicht-drucken" blendet ihn im
+ * Druck aus, „bericht-karte" nimmt dort Rahmen und Innenabstand der Karte weg
+ * (css/styles.css, @media print).
+ */
 function berichtSeite(stand, heute) {
   return {
     titel: 'Bericht',
     html: `
-      <p class="gedaempft" style="margin-bottom:.8rem">Zum Zeigen im Sprechzimmer, zum Vorlesen oder zum Weiterschicken. Was die App selbst eingeordnet hat, steht darin gekennzeichnet in einem eigenen Abschnitt.</p>
+      <p class="gedaempft nicht-drucken" style="margin-bottom:.8rem">Zum Zeigen im Sprechzimmer, zum Vorlesen oder zum Weiterschicken. Was die App selbst eingeordnet hat, steht darin gekennzeichnet in einem eigenen Abschnitt.</p>
       <div class="knopf-reihe" style="margin:0 0 .8rem">
         <button type="button" class="knopf knopf-haupt" data-act="bericht-teilen">Teilen</button>
         <button type="button" class="knopf" data-act="bericht-kopieren">Kopieren</button>
         <button type="button" class="knopf" data-act="bericht-drucken">Drucken</button>
       </div>
-      <div class="karte"><div class="bericht" id="berichtText">${esc(berichtText(stand, heute))}</div></div>`,
+      <div class="karte bericht-karte"><div class="bericht" id="berichtText">${esc(berichtText(stand, heute))}</div></div>`,
   };
 }
 
@@ -96,6 +102,12 @@ function berichtSeite(stand, heute) {
  * unter „Besprochen" ans Ende, als sei sie verschwunden (Runde 4: E14). Jetzt
  * steht es auf dem Knopf, in der Reihe mit „Ändern" und „Löschen" – neben der
  * Frage wäre bei „sehr groß" auf 360 px kaum Platz für ihren Text geblieben.
+ *
+ * Der Name des Knopfs ist sein sichtbarer Text („Besprochen?" bzw.
+ * „Besprochen", die Zeichen ○/✓ sind nur Schmuck), der Zustand steht allein in
+ * aria-pressed. Vorher hieß eine erledigte Frage für Vorleseprogramme „Wieder
+ * offen, gedrückt" – das klang, als sei sie offen –, und die Sprachsteuerung
+ * fand „Besprochen" nicht (Runde 5: F8).
  */
 function fragenSeite(stand) {
   const offen = stand.fragen.filter((f) => !f.erledigt);
@@ -104,7 +116,7 @@ function fragenSeite(stand) {
     <div class="karte">
       <p>${esc(f.text)}</p>
       <div class="knopf-reihe" style="margin-top:.4rem">
-        <button type="button" class="knopf knopf-klein${f.erledigt ? '' : ' knopf-leise'}" data-act="frage-erledigt" data-id="${esc(f.id)}" aria-pressed="${f.erledigt}" aria-label="${f.erledigt ? 'Wieder offen' : 'Als besprochen abhaken'}"><span aria-hidden="true">${f.erledigt ? '✓' : '○'}</span> ${f.erledigt ? 'Besprochen' : 'Besprochen?'}</button>
+        <button type="button" class="knopf knopf-klein${f.erledigt ? '' : ' knopf-leise'}" data-act="frage-erledigt" data-id="${esc(f.id)}" aria-pressed="${f.erledigt}"><span aria-hidden="true">${f.erledigt ? '✓' : '○'}</span> ${f.erledigt ? 'Besprochen' : 'Besprochen?'}</button>
         <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="frage" data-param="${esc(f.id)}">Ändern</button>
         <button type="button" class="knopf knopf-klein knopf-gefahr" data-act="frage-loeschen" data-id="${esc(f.id)}">Löschen</button>
       </div>
@@ -231,7 +243,7 @@ function darstellungSeite(stand) {
       </div>
       <form data-formular="anrede" class="karte" novalidate>
         <label class="feld"><span>Anrede (freiwillig)</span>
-          <input type="text" name="name" value="${esc(stand.profil.name)}" placeholder="z. B. Frau Müller oder Vorname" autocomplete="off">
+          <input type="text" name="name" value="${esc(stand.profil.name)}" placeholder="z. B. Frau Müller oder Vorname" maxlength="${sp.GRENZEN.name}" autocomplete="off">
           <span class="hinweis">Steht oben auf „Heute" und im Bericht.</span>
         </label>
         <button type="submit" class="knopf knopf-breit">Anrede speichern</button>

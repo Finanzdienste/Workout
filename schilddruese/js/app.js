@@ -19,7 +19,7 @@ import { esc, mehrzahl } from './text.js';
 import { heuteAnsicht } from './ansicht-heute.js';
 import { verlaufAnsicht, verlaufSeite } from './ansicht-verlauf.js';
 import { mehrAnsicht, mehrSeite } from './ansicht-mehr.js';
-import { formular, absenden, eintragLoeschen } from './ansicht-formulare.js';
+import { formular, absenden, eintragLoeschen, zaehlerNachfuehren } from './ansicht-formulare.js';
 import { einschaetzungSeite } from './ansicht-einschaetzung.js';
 import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS, PRAXIS_NOCH_NICHT } from './ansicht-dosis.js';
 import { fragenVorschlaege, abnahmeHeute } from './einschaetzung.js';
@@ -156,6 +156,14 @@ function seiteInhalt(seite, stand, heute) {
     || { titel: 'Nicht gefunden', html: '<div class="karte"><p>Diese Seite gibt es nicht.</p></div>' };
 }
 
+/*
+ * Was zuletzt gezeichnet wurde – daran erkennt render(), ob es dieselbe Seite
+ * an Ort und Stelle neu zeichnet (Schrift, Farben, eine Antwort auf der
+ * Dosis-Karte, eine Änderung im anderen Fenster) oder ob eine andere Seite
+ * kommt. Jede neue Seite ist ein neues Objekt in ui.seite (zeigeSeite, zurueck).
+ */
+let gezeichnet = null;   // { seite, tab, willkommen, schritt }
+
 function render() {
   const stand = sp.getStand();
   document.documentElement.dataset.schrift = stand.einstellungen.schrift;
@@ -165,6 +173,18 @@ function render() {
   let html;
   let titel = null;
   const willkommen = !stand.profil.begruesst;
+  /*
+   * Runde 5: F21 – An Ort und Stelle neu gezeichnet, kam jedes Formular aus
+   * dem gespeicherten Stand: „Frau Möller" ins Feld „Anrede" getippt, dann
+   * „Sehr groß" – das Feld war leer, und weil der Vergleichsstand (E5) neu
+   * gesetzt wurde, galt es als unverändert. „Anrede speichern" speicherte
+   * leer und meldete „Anrede gespeichert". Jetzt bleibt stehen, was getippt
+   * war, und es zählt weiter als ungespeichert.
+   */
+  const anOrt = Boolean(gezeichnet) && gezeichnet.seite === ui.seite && gezeichnet.tab === ui.tab
+    && gezeichnet.willkommen === willkommen && (!willkommen || gezeichnet.schritt === ui.schritt);
+  const behalten = anOrt && eingabenGeaendert() ? eingabenMerken() : null;
+  gezeichnet = { seite: ui.seite, tab: ui.tab, willkommen, schritt: ui.schritt };
   if (willkommen) {
     // Ein Entwurf aus „Zurück" geht dem Stand vor (Runde 4: E12).
     html = willkommenAnsicht(ui.schritt, stand, heute, ui.entwurf[ui.schritt] || null);
@@ -194,9 +214,14 @@ function render() {
   }
 
   // Kopf: die Marke, oder „Zurück" mit dem Titel der Seite.
+  // Der Titel ist die Überschrift der Seite (h1): Vorher ein Span, und viele
+  // Seiten – auch die Dosis-Karte – hatten gar keine Überschrift; die
+  // Überschriften-Navigation der Vorleseprogramme fand dort nichts (Runde 5:
+  // F4). Die Klasse bleibt, damit Größe und Stil gleich bleiben. tabindex -1:
+  // Nach dem Öffnen einer Seite steht der Fokus auf ihr (zeigeSeite).
   if (titel && !willkommen) {
     const ziel = ui.stapel.length ? seiteInhalt(ui.stapel[ui.stapel.length - 1], stand, heute).titel : REITER_TITEL[ui.tab];
-    $kopf.innerHTML = `<button type="button" class="kopf-zurueck" data-act="zurueck" aria-label="Zurück zu ${esc(ziel)}">‹ Zurück</button><span class="kopf-titel" id="seitentitel">${esc(titel)}</span>`;
+    $kopf.innerHTML = `<button type="button" class="kopf-zurueck" data-act="zurueck" aria-label="Zurück zu ${esc(ziel)}">‹ Zurück</button><h1 class="kopf-titel" id="seitentitel" tabindex="-1">${esc(titel)}</h1>`;
   } else if (willkommen) {
     $kopf.innerHTML = `<h1 class="marke"><img src="icon.svg" alt="">Schilddrüse</h1><span class="kopf-titel gedaempft" style="margin-left:auto">${esc(titel)}</span>`;
   } else {
@@ -216,16 +241,68 @@ function render() {
   // Was im Formular stand, als es gezeichnet wurde – daran misst verlassen(),
   // ob etwas eingetippt und noch nicht gespeichert ist (Runde 4: E5).
   ui.formStand = formStand();
-  // Ein Update hat während eines Formulars übernommen: jetzt neu laden, wo
-  // nichts mehr verloren geht (Runde 4: E25, siehe index.html). Dann ohne
-  // Schritt im Browserverlauf – der liefe sonst erst nach dem Neuladen.
-  if (window.__schilddrueseNeuLaden && neuLadenErlaubt()) {
-    window.__schilddrueseNeuLaden = false;
-    sp.sofortSchreiben();
-    location.reload();
-    return;
+  // Das Getippte zurück in die Felder – der Vergleichsstand bleibt der
+  // gezeichnete, die Eingaben zählen also weiter als ungespeichert (F21).
+  if (behalten) {
+    eingabenZurueck(behalten);
+    // Der Zeichenzähler zählt, was jetzt im Feld steht (Runde 5: F23).
+    $ansicht.querySelectorAll('textarea').forEach(zaehlerNachfuehren);
   }
   verlaufAbgleichen();
+  // Ein Update hat während eines Formulars übernommen: neu laden, wo nichts
+  // mehr verloren geht (Runde 4: E25, siehe index.html) – aber nicht sofort.
+  // Das lud gleich nach dem Tipp auf „Speichern" neu, und die Sperre gegen den
+  // zweiten Tipp (E3) war mit der alten Seite weg: Der zweite Tipp eines
+  // Doppeltipps traf auf der frischen Seite „Tablette genommen?" und hakte
+  // die Tablette um 6:30 ab; „Befinden gespeichert" sah niemand (Runde 5: F19).
+  if (window.__schilddrueseNeuLaden && neuLadenErlaubt()) neuLadenPlanen();
+}
+
+/*
+ * Runde 5: F21 – die Felder der offenen Formulare, bevor render() sie
+ * ersetzt, und zurück in die neu gezeichneten. Zugeordnet wird über das
+ * Formular (data-formular, data-id) und den Namen der Felder; Haken und
+ * Auswahlknöpfe über ihren Wert. Verborgene Felder setzt nur die App selbst.
+ */
+function eingabenMerken() {
+  return [...$ansicht.querySelectorAll('form[data-formular]')].map((form) => ({
+    formular: form.dataset.formular,
+    id: form.dataset.id || '',
+    felder: [...form.elements]
+      .filter((el) => el.name && !['hidden', 'file', 'submit', 'button', 'reset'].includes(el.type))
+      .map((el) => ({ name: el.name, typ: el.type, wert: el.value, an: el.checked })),
+    offen: [...form.querySelectorAll('details')].map((d) => d.open),
+  }));
+}
+
+function eingabenZurueck(gemerkt) {
+  gemerkt.forEach((g) => {
+    const form = [...$ansicht.querySelectorAll('form[data-formular]')]
+      .find((f) => f.dataset.formular === g.formular && (f.dataset.id || '') === g.id);
+    if (!form) return;
+    const reihe = {};   // Name → Werte der Textfelder in ihrer Reihenfolge
+    g.felder.forEach((f) => {
+      if (f.typ !== 'checkbox' && f.typ !== 'radio') (reihe[f.name] = reihe[f.name] || []).push(f.wert);
+    });
+    const schonDa = {};
+    [...form.elements].forEach((el) => {
+      if (!el.name || ['hidden', 'file', 'submit', 'button', 'reset'].includes(el.type)) return;
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        const alt = g.felder.find((f) => f.name === el.name && f.typ === el.type && f.wert === el.value);
+        if (alt) el.checked = alt.an;
+        else if (g.felder.some((f) => f.name === el.name && f.typ === el.type)) el.checked = false;
+        return;
+      }
+      const i = schonDa[el.name] || 0;
+      schonDa[el.name] = i + 1;
+      const werte = reihe[el.name];
+      if (!werte || i >= werte.length) return;
+      if (el.tagName === 'SELECT' && ![...el.options].some((o) => o.value === werte[i])) return;
+      el.value = werte[i];
+    });
+    const details = form.querySelectorAll('details');
+    if (details.length === g.offen.length) details.forEach((d, i) => { if (g.offen[i]) d.open = true; });
+  });
 }
 
 /*
@@ -274,7 +351,10 @@ function zeigeSeite(name, param = null, { ersetzen = false } = {}) {
     ziel.scrollIntoView({ block: 'center' });
     ziel.focus({ preventScroll: true });
   } else {
-    $ansicht.focus({ preventScroll: true });
+    // Auf die Überschrift der neuen Seite: Das Vorleseprogramm sagt
+    // „Überschrift, Ebene 1" mit dem Titel an, und das Weiterwischen führt in
+    // den Inhalt (Runde 5: F4). Ohne Titel wie bisher auf die Ansicht.
+    (document.getElementById('seitentitel') || $ansicht).focus({ preventScroll: true });
   }
 }
 
@@ -430,6 +510,8 @@ function nachDemSpeichern(danach) {
  * an derselben Stelle: ein Finger oder Stift, oder der zweite Klick eines
  * Doppelklicks (detail 2). Andere Stellen, ein einzelner Mausklick und die
  * Tastatur (detail 0) bleiben frei – wer gezielt tippt, wird nicht aufgehalten.
+ * Seit Runde 5 (F18) sperrt jede Aktion so, nicht nur ein Seitenwechsel –
+ * siehe den Klick-Empfänger unten.
  */
 const SPERRE_MS = 600;
 const SPERRE_PX = 48;
@@ -692,24 +774,31 @@ function aktion(el) {
     case 'tablette': {
       // Abhaken fragt nicht nach – ein Fehltipp lässt sich aber gleich in der
       // Meldung zurücknehmen, ohne die Rückfrage von „Zurücknehmen" (Runde 4: E3).
+      // Gemerkt wird auch, was vorher für heute galt: „Rückgängig" machte aus
+      // einem bewussten „Heute nicht genommen" sonst einen leeren Tag, und
+      // „Heute" forderte danach gelb zur Einnahme auf (Runde 5: F20).
       const uhr = jetztUhr();
+      const vorher = sp.einnahme(heute);
       sp.einnahmeSetzen(heute, { uhr });
-      ui.abgehakt = { tag: heute, uhr };
+      ui.abgehakt = { tag: heute, uhr, vorher: vorher && typeof vorher === 'object' ? { ...vorher } : vorher };
       render();
       meldung('Tablette abgehakt', { knopf: { act: 'tablette-rueckgaengig', text: 'Rückgängig' } });
       break;
     }
     case 'tablette-rueckgaengig': {
       // Nur der Haken von eben – steht inzwischen etwas anderes da (eine
-      // andere Uhrzeit, ein neuer Tag), bleibt es.
+      // andere Uhrzeit, ein neuer Tag), bleibt es. Zurück kommt der Stand von
+      // vorher (F20): nichts eingetragen, oder „nicht genommen".
       const a = ui.abgehakt;
       const e = sp.einnahme(heute);
       ui.abgehakt = null;
       meldungZu();
       if (a && a.tag === heute && e && e.uhr === a.uhr) {
-        sp.einnahmeSetzen(heute, undefined);
+        sp.einnahmeSetzen(heute, a.vorher);
         render();
-        meldung('Zurückgenommen – heute ist keine Tablette abgehakt.');
+        meldung(a.vorher === null
+          ? 'Zurückgenommen – für heute steht wieder: nicht genommen.'
+          : a.vorher ? 'Zurückgenommen – für heute gilt wieder der Eintrag von vorher.' : 'Zurückgenommen – heute ist keine Tablette abgehakt.');
       }
       break;
     }
@@ -896,7 +985,22 @@ function aktion(el) {
       // Zurückholen ersetzt alles, was seit dem Einlesen eingetragen wurde –
       // „zurückholen" klingt aber nach „meine Daten wiederherstellen".
       if (!window.confirm('Den Stand von vor dem Einlesen zurückholen? Alles, was seitdem eingetragen wurde, geht dabei verloren.')) break;
-      if (sp.importZurueck()) { meldung('Vorheriger Stand ist wieder da'); render(); } else meldung('Kein vorheriger Stand vorhanden');
+      if (sp.importZurueck()) {
+        // War der Stand von vorher eine unfertige Einrichtung, beginnt sie von
+        // vorn – wie nach „Alles löschen". Vorher blieb die Seite „Sicherung"
+        // stehen und öffnete sich nach „Fertig – zur App" statt „Heute"
+        // (Runde 5: F22, wie C19).
+        if (!sp.getStand().profil.begruesst) {
+          ui.seite = null;
+          ui.stapel = [];
+          ui.tab = 'heute';
+          ui.schritt = 1;
+          ui.entwurf = {};
+          window.scrollTo(0, 0);
+        }
+        meldung('Vorheriger Stand ist wieder da');
+        render();
+      } else meldung('Kein vorheriger Stand vorhanden');
       break;
     case 'alles-loeschen':
       if (window.confirm('Wirklich alle Daten dieser App löschen? Dosis, Einnahmen, Laborwerte, alles.')
@@ -942,6 +1046,11 @@ function aktion(el) {
         ui.schritt = 1;
         ui.entwurf = {};
         ui.tab = 'heute';
+        // „Fertig – zur App" führt zu „Heute" (B64, E3) – auch wenn die
+        // Einrichtung aus einer offenen Seite heraus kam, etwa nach dem
+        // Zurückholen eines unfertigen Stands unter „Sicherung" (Runde 5: F22).
+        ui.seite = null;
+        ui.stapel = [];
         window.scrollTo(0, 0);
         render();
         $ansicht.focus({ preventScroll: true });
@@ -1268,6 +1377,27 @@ function praxisNachfrage(vorher, weiter) {
   });
 }
 
+/*
+ * Runde 5: F3 – Der Fehler gehört zum Feld, auch für Vorleseprogramme: Das
+ * Feld (bei Auswahlknöpfen ihre Gruppe) trägt aria-invalid und nennt den
+ * Fehlertext über aria-describedby. Vorher meldete das Feld „gültig", und wer
+ * wieder auf das Feld wischte, erfuhr nicht, was falsch war. Der Text steht
+ * hinter dem Label, nicht darin – sonst läse WebKit ihn als Teil des Namens.
+ * Der erste Fehler bekommt den Fokus und wird so mit dem Feld angesagt; eine
+ * zusätzliche Alarm-Ansage würde von der Fokus-Ansage ohnehin verdrängt. Jeder
+ * weitere Fehler (etwa „Hat die Praxis diese Dosis angeordnet?" neben der
+ * leeren Stärke) bleibt eine Alarm-Ansage.
+ */
+function fehlerMarkeWeg(form) {
+  form.querySelectorAll('[data-fehler-marke]').forEach((el) => {
+    el.removeAttribute('aria-invalid');
+    const rest = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter((id) => id && !id.startsWith('fehler-'));
+    if (rest.length) el.setAttribute('aria-describedby', rest.join(' '));
+    else el.removeAttribute('aria-describedby');
+    el.removeAttribute('data-fehler-marke');
+  });
+}
+
 /**
  * Fehler am Feld zeigen, ohne die Eingaben zu verlieren. Ein Fehler ist ein
  * Text – oder { text, knopf: { seite, param, text } }, wenn der Weg zur Lösung
@@ -1277,17 +1407,33 @@ function zeigeFehler(form, fehler) {
   if (!form) return;
   form.querySelectorAll('.feld-fehler').forEach((f) => f.remove());
   form.querySelectorAll('.feld.fehlt').forEach((f) => f.classList.remove('fehlt'));
+  fehlerMarkeWeg(form);
   let erstes = null;
   Object.entries(fehler || {}).forEach(([name, eintrag]) => {
     const { text, knopf } = typeof eintrag === 'string' ? { text: eintrag, knopf: null } : eintrag;
-    const feld = form.querySelector(`[name="${name}"]`);
-    const huelle = feld ? feld.closest('.feld') : form.querySelector(`[data-feld="${name}"]`);
+    const feld = form.querySelector(`[name="${CSS.escape(name)}"]`);
+    const huelle = feld ? feld.closest('.feld') : form.querySelector(`[data-feld="${CSS.escape(name)}"]`);
     const ziel = huelle || form;
     if (huelle) huelle.classList.add('fehlt');
     const p = document.createElement('p');
     p.className = 'feld-fehler';
-    p.setAttribute('role', 'alert');
+    p.id = `fehler-${String(name).replace(/[^\w-]/g, '_')}`;
     p.textContent = text;
+    // Wer den Fehler trägt: das Feld selbst, bei Auswahlknöpfen und Haken
+    // ihre Gruppe. Ohne Feld nur die Hülle – und die nur mit Beschreibung.
+    const gruppe = feld && ['radio', 'checkbox'].includes(feld.type) ? feld.closest('[role="radiogroup"], [role="group"]') : null;
+    const traeger = gruppe || (feld && !['radio', 'checkbox'].includes(feld.type) ? feld : null);
+    const beschrieben = traeger || huelle;
+    if (beschrieben) {
+      const ids = (beschrieben.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+      beschrieben.setAttribute('aria-describedby', [...ids, p.id].join(' '));
+      beschrieben.setAttribute('data-fehler-marke', '');
+    }
+    if (traeger) traeger.setAttribute('aria-invalid', 'true');
+    // Nur der erste Fehler, dessen Feld selbst den Text nennt und den Fokus
+    // bekommt, kommt ohne Alarm aus.
+    const mitFokus = !erstes && feld && traeger === feld;
+    if (!mitFokus) p.setAttribute('role', 'alert');
     if (knopf) {
       const b = document.createElement('button');
       b.type = 'button';
@@ -1298,7 +1444,13 @@ function zeigeFehler(form, fehler) {
       b.textContent = knopf.text;
       p.append(document.createElement('br'), b);
     }
-    ziel.appendChild(p);
+    if (huelle && huelle.tagName === 'LABEL') {
+      // Dicht unter das Feld: Das Label hat unten Abstand zum nächsten Feld.
+      p.style.margin = '-.6rem 0 .9rem';
+      huelle.after(p);
+    } else {
+      ziel.appendChild(p);
+    }
     if (!erstes) erstes = feld || ziel;
   });
   if (erstes) {
@@ -1321,6 +1473,18 @@ document.addEventListener('click', (e) => {
   if (el.tagName === 'BUTTON' && !el.getAttribute('type')) el.setAttribute('type', 'button');
   const merkmal = fokusMerkmal(el);
   aktion(el);
+  /*
+   * Runde 5: F18 – Jede Aktion sperrt den zweiten Tipp an derselben Stelle
+   * wie ein Seitenwechsel (E3). Auch was an Ort und Stelle neu zeichnet, legt
+   * neue Knöpfe unter den Finger: Ein Doppeltipp auf „Ja, ich werde … behandelt"
+   * beantwortete auf der Dosis-Karte ungelesen „Hat die Praxis zu diesem Wert
+   * schon etwas gesagt?" mit „Erst nachmessen" – danach schwiegen Karte und
+   * „Heute" zur Anruf-Frist. Ebenso sprang ein doppeltes „Nein" über die
+   * nächste Frage („schwer krank?"), und unter „Meine Fragen" wurde die
+   * nachrückende Frage mit abgehakt. Hier, im selben Klick, ist der letzte
+   * Druck noch der dieses Tipps. Notrufnummern (tel:) bleiben immer frei.
+   */
+  sperren();
   fokusZurueck(merkmal);
 });
 
@@ -1362,7 +1526,9 @@ document.addEventListener('submit', (e) => {
     rueckfrageZeigen(form, ergebnis.rueckfragen, { satz: ergebnis.rueckfrageSatz, feld: ergebnis.rueckfrageFeld });
     return;
   }
-  if (!ergebnis.ok) { zeigeFehler(form, ergebnis.fehler); return; }
+  // Ein Fehler rollt das Feld in die Mitte – unter dem Finger liegt dann
+  // etwas anderes als „Speichern" (Runde 5: F18, wie E3).
+  if (!ergebnis.ok) { zeigeFehler(form, ergebnis.fehler); sperren(); return; }
   nachDemSpeichern(ergebnis.danach);
   meldung(ergebnis.meldung || 'Gespeichert');
 });
@@ -1382,6 +1548,11 @@ document.addEventListener('keydown', (e) => {
   e.preventDefault();
   aktion(weiter);
 });
+
+// Runde 5: F23 – der Zeichenzähler unter Notiz und Frage geht beim Tippen,
+// Einfügen und Diktieren mit (js/ansicht-formulare.js). Ohne ihn sah niemand,
+// dass ein langes Diktat an der Grenze abgeschnitten wurde.
+document.addEventListener('input', (e) => zaehlerNachfuehren(e.target));
 
 document.addEventListener('change', (e) => {
   if (e.target.id === 'sicherungDatei') {
@@ -1488,10 +1659,21 @@ setInterval(tagPruefen, 60000);
  * (C19). Dann auch hier zurück zum Anfang, selbst aus einer offenen Seite:
  * Sonst stand dort weiter, was es nicht mehr gibt, und nach dem Einrichten
  * öffnete sich wieder die alte Seite.
+ *
+ * Eine offene Seite ohne ungespeicherte Eingaben zeichnet sich neu (Runde 5:
+ * F24). Vorher blieb jede Seite stehen, auch ohne Formular: Die Dosis-Karte
+ * zeigte weiter „kleiner Schritt nach oben", obwohl im anderen Fenster gerade
+ * TSH 0,05 eingetragen worden war, und „Teilen" schickte einen anderen
+ * Bericht als den gezeigten. Mit Eingaben oder einer offenen Rückfrage bleibt
+ * die Seite, wie sie ist – mit einer Meldung, dass sich etwas geändert hat.
  */
 function fremdeAenderung() {
   const warEingerichtet = sp.getStand().profil.begruesst;
-  if (!sp.neuLesen()) return;
+  // Derselbe Inhalt, nur anders geschrieben (ein Stand, den normStand beim
+  // Laden ergänzt hat): keine Änderung – sonst meldete jede Rückkehr in die
+  // App mitten im Formular ein „anderes Fenster", das es nicht gibt.
+  const inhaltVorher = JSON.stringify(sp.getStand());
+  if (!sp.neuLesen() || JSON.stringify(sp.getStand()) === inhaltVorher) return;
   if (warEingerichtet && !sp.getStand().profil.begruesst) {
     ui.seite = null;
     ui.stapel = [];
@@ -1500,8 +1682,13 @@ function fremdeAenderung() {
     ui.entwurf = {};
     window.scrollTo(0, 0);
     render();
-  } else if (!ui.seite) {
+  } else if (!ui.seite || (!eingabenGeaendert() && !rueckfrage && !auswahl)) {
+    // Der Fokus bleibt auf dem Knopf, der ihn hatte – sonst stand er danach im Nichts.
+    const aktiv = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.act ? fokusMerkmal(document.activeElement) : null;
     render();
+    if (aktiv) fokusZurueck(aktiv);
+  } else {
+    meldung('In einem anderen Fenster wurde etwas geändert. Die Anzeige wird nach dem Speichern aktualisiert.');
   }
 }
 document.addEventListener('visibilitychange', () => {
@@ -1551,6 +1738,64 @@ function neuLadenErlaubt() {
 }
 window.__schilddrueseNeuLadenErlaubt = neuLadenErlaubt;
 
+/*
+ * Runde 5: F19 – das aufgeschobene Neuladen. Es wartet, bis seit dem letzten
+ * Tipp die Sperre gegen den Doppeltipp abgelaufen ist (die lebt nur in dieser
+ * Seite und wäre nach dem Neuladen weg), und solange die Meldung einen Knopf
+ * wie „Rückgängig" anbietet – der ginge sonst mit der Seite verloren. Die
+ * Meldung selbst („Befinden gespeichert") kommt nach dem Neuladen noch einmal.
+ * Geht die App vorher in den Hintergrund, lädt sie dort neu – das sieht
+ * niemand, und kein Tipp kann es treffen.
+ */
+const MELDUNG_MERK = 'schilddruese.meldung';
+let neuLadenTimer = null;
+
+function neuLadenPlanen() {
+  clearTimeout(neuLadenTimer);
+  neuLadenTimer = setTimeout(neuLadenVersuchen, SPERRE_MS + 300);
+}
+
+function neuLadenVersuchen() {
+  neuLadenTimer = null;
+  // Inzwischen eine Seite offen: Das nächste render() ohne Seite plant neu.
+  if (!window.__schilddrueseNeuLaden || !neuLadenErlaubt()) return;
+  const seitDemTipp = letzterDruck ? performance.now() - letzterDruck.t : Infinity;
+  const knopfOffen = $meldung.classList.contains('zeigen') && $meldung.querySelector('button');
+  if (seitDemTipp < SPERRE_MS + 300 || knopfOffen) { neuLadenPlanen(); return; }
+  neuLaden();
+}
+
+function neuLaden() {
+  clearTimeout(neuLadenTimer);
+  neuLadenTimer = null;
+  window.__schilddrueseNeuLaden = false;
+  try {
+    const text = $meldung.classList.contains('zeigen') && $meldung.firstChild && $meldung.firstChild.nodeType === 3 ? $meldung.firstChild.textContent : '';
+    if (text) sessionStorage.setItem(MELDUNG_MERK, text);
+  } catch { /* dann ohne die Meldung */ }
+  sp.sofortSchreiben();
+  location.reload();
+}
+
+// Für index.html: Übernimmt der neue Worker, plant die App das Neuladen –
+// ohne offene Seite gleich, sonst beim nächsten render() ohne Seite.
+window.__schilddrueseNeuLadenPlanen = () => { if (neuLadenErlaubt()) neuLadenPlanen(); };
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden' || !window.__schilddrueseNeuLaden || !neuLadenErlaubt()) return;
+  // „Rückgängig" in der Meldung soll nach der Rückkehr noch da sein.
+  if ($meldung.classList.contains('zeigen') && $meldung.querySelector('button')) return;
+  neuLaden();
+});
+
 render();
 speicherFestnageln();
 tablettenHinweis();
+// Eine Meldung von vor dem Neuladen nach einem Update – einmal (F19).
+try {
+  const gemerkt = sessionStorage.getItem(MELDUNG_MERK);
+  if (gemerkt) {
+    sessionStorage.removeItem(MELDUNG_MERK);
+    meldung(gemerkt);
+  }
+} catch { /* ohne Sitzungsspeicher eben nicht */ }

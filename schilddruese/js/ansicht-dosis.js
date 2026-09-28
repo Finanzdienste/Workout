@@ -180,6 +180,23 @@ function aktionKnoepfe(k) {
   return `<div class="knopf-reihe">${liste.map((a, i) => `<button type="button" class="knopf${i ? '' : ' knopf-haupt'}" data-act="seite" data-seite="${AKTION[a.aktion].seite}" data-param="${esc(a.param || '')}">${esc(a.text || AKTION[a.aktion].text)}</button>`).join('')}</div>`;
 }
 
+/*
+ * Runde 5: F4 – Der Kopf der Karte ist ihre Überschrift (Ebene 2, unter dem
+ * Seitentitel „Dosis-Karte"). Vorher hatte die Seite gar keine Überschrift;
+ * die Überschriften-Navigation der Vorleseprogramme fand dort nichts. Die
+ * Überschrift umfasst Stufe und Titel: Wer von Überschrift zu Überschrift
+ * springt, hört zuerst, wie dringlich es ist – „In den nächsten Tagen
+ * anrufen", dann „Das spricht für …" –, statt hinter der Stufe zu landen.
+ * Kein <h2>: `.karte h2` machte den Titel größer als den Pflichttext
+ * (Grundsatz 8). Aussehen und Größe bleiben, wie sie waren.
+ */
+function kartenKopf(stufe, kopfTitel, titel) {
+  return `<div class="dosis-kopf" role="heading" aria-level="2">
+        <p class="stufe-zeile">${stufeSchild(stufe, kopfTitel)}</p>
+        <p class="dosis-titel">${esc(titel)}</p>
+      </div>`;
+}
+
 function dosisKarteSeite(stand, heute) {
   const titel = 'Dosis-Karte';
   if (!ez.aktiv(stand)) return { titel, html: p6Karte() };
@@ -217,8 +234,7 @@ function dosisKarteSeite(stand, heute) {
   if (k.stufe === 'notruf') {
     teile.push(`
       <div class="karte dosis-karte ${STUFE_KLASSE.notruf} dosis-notruf" id="dosis-karte" tabindex="-1" data-richtung="${esc(k.richtung)}" data-stufe="notruf">
-        <p class="stufe-zeile">${stufeSchild('notruf', kopfTitel)}</p>
-        <p class="dosis-titel">${esc(k.titel)}</p>
+        ${kartenKopf('notruf', kopfTitel, k.titel)}
         ${k.texte.map((t) => `<p class="dosis-text">${esc(t)}</p>`).join('')}
         ${gruendeListe}
         ${k.warnzeichen ? `<p class="warnzeichen-zeile" role="note">${esc(k.warnzeichen)}</p>` : ''}
@@ -237,8 +253,7 @@ function dosisKarteSeite(stand, heute) {
   // Knopfreihe unter der Warnzeile: Jede genannte Nummer ist anrufbar.
   teile.push(`
     <div class="karte dosis-karte ${STUFE_KLASSE[k.stufe]}" id="dosis-karte" tabindex="-1" data-richtung="${esc(k.richtung)}" data-stufe="${esc(k.stufe)}">
-      <p class="stufe-zeile">${stufeSchild(k.stufe, kopfTitel)}</p>
-      <p class="dosis-titel">${esc(k.titel)}</p>
+      ${kartenKopf(k.stufe, kopfTitel, k.titel)}
       ${k.frage ? frageBlock(k.frage, stand) : ''}
       ${k.texte.map((t) => `<p class="dosis-text">${esc(t)}</p>`).join('')}
       ${gruendeListe}

@@ -37,7 +37,7 @@ import { normEinheit, inStandard, plausibel } from './einheiten.js';
 import {
   befundEinschaetzen, dosisAmIn, alterAm, einnahmenVor, beschwerdenAuswerten, hatDiabetes, zielBereich,
   einordnen, hoechste, warnzeichenAuswerten, vergleichbar, W5_TEXT, praxisHatErklaert,
-  STUFEN, kopfFuer, giftnotrufAnruf, gesamtbild, WARNFRAGEN, aenderungsArt, istBerichtigung, aenderungen,
+  STUFEN, kopfFuer, giftnotrufAnruf, gesamtbild, WARNFRAGEN, aenderungsArt, istBerichtigung, aenderungen, dosisSeit,
 } from './einschaetzung.js';
 
 const kurz = (iso) => datumKurz(iso);
@@ -58,6 +58,28 @@ const JNW = [['ja', 'Ja'], ['nein', 'Nein'], ['unbekannt', 'Weiß nicht']];
 // ---------------------------------------------------------------- Texte
 
 export const KOPF_KLAEREN = 'Aus diesem Befund lässt sich im Moment nichts zur Dosis ableiten.';
+
+/*
+ * Die Titel der Richtungskarten (mehr, weniger, gleich). Die Karte merkt sich
+ * den gezeigten Titel ('karte_gezeigt'), der Arztbericht nennt ihn als
+ * (App)-Aussage. Aus einer bearbeiteten Sicherung kam dort sonst jeder Text
+ * an – „Die App empfiehlt: Tagesdosis auf 150 µg verdoppeln" (Runde 5: F27).
+ * Der Bericht übernimmt deshalb nur einen Titel aus RICHTUNG_TITEL, sonst die
+ * Richtung in Worten. Ändert sich ein Titel, den alten hier behalten: Er
+ * steht in gespeicherten Nachfragen.
+ */
+const TITEL = {
+  D1b: 'Das spricht dafür, die Dosis so zu lassen – und nach dem Zielbereich zu fragen.',
+  D1: 'Das spricht dafür, die Dosis so zu lassen.',
+  D2a: 'Das spricht eher dafür, die Dosis so zu lassen.',
+  D2b: 'Das spricht für eine Kontrolle oder einen kleinen Schritt nach oben.',
+  D2c: 'Das spricht für eine etwas höhere Dosis.',
+  D3: 'Das spricht klar dafür, dass Ihre Dosis im Moment zu niedrig ist.',
+  D4a: 'Das spricht für eine etwas niedrigere Dosis oder zunächst eine Kontrolle.',
+  D4b: 'Das spricht für eine etwas niedrigere Dosis.',
+  D5: 'Das spricht für eine niedrigere Dosis.',
+};
+export const RICHTUNG_TITEL = new Set(Object.values(TITEL));
 const KLAEREN_KURZ = 'Das heißt nicht, dass alles in Ordnung ist – die Gründe stehen darunter.';
 const KLAEREN_SATZ = `${KLAEREN_KURZ} Nehmen Sie Ihre Tablette bis dahin genau wie bisher weiter.`;
 
@@ -435,10 +457,14 @@ export function dosisRichtung(stand, heute) {
   const stufeHerz = hoechste(...pfade.map((t) => t.stufe));
 
   // DG – die Grundlage steht auf jeder Karte. Werte und Grenzen wie auf dem Befund (Runde 4: E21).
-  const bereich = (w) => (w.von !== null || w.bis !== null ? `${w.von !== null ? roh(w.von) : '…'}–${w.bis !== null ? roh(w.bis) : '…'}` : 'kein Bereich eingetragen');
+  // Der Bereich als Ganzes: Ohne Grenzen stand dort „(Bereich Ihres Labors
+  // kein Bereich eingetragen)" (Runde 5: F17).
+  const bereichTeil = (vor, w) => (w.von !== null || w.bis !== null ? `${vor} ${w.von !== null ? roh(w.von) : '…'}–${w.bis !== null ? roh(w.bis) : '…'}` : 'kein Bereich eingetragen');
   // B21: Eine schon eingetragene künftige Dosis gehört zur Grundlage – sonst nennt die Karte nur die alte.
   const naechste = stand.dosen.find((d) => d.ab > heute && d !== dAkt && sp.tagesdosis(d) !== null);
-  const grundlage = `Grundlage: Befund vom ${kurz(tag)} – TSH ${befund.tsh.unter ? '< ' : ''}${roh(befund.tsh.wert)} ${befund.tsh.einheit} (Bereich Ihres Labors ${bereich(befund.tsh)}${ziel ? `; Zielbereich Ihrer Ärztin ${roh(ziel.von)}–${roh(ziel.bis)} mU/l` : ''})${befund.ft4 ? `, fT4 ${befund.ft4.unter ? '< ' : ''}${roh(befund.ft4.wert)} ${befund.ft4.einheit} (Bereich ${bereich(befund.ft4)})` : ''}. ${dAkt && td !== null ? `Ihre Dosis laut App: ${ug(td)} am Tag seit ${kurz(dAkt.ab)}${dAkt.praeparat ? ` (${dAkt.praeparat})` : ''}.` : 'Ihre Dosis ist in der App nicht vollständig eingetragen.'}${naechste && dAkt ? ` Ab ${kurz(naechste.ab)} ist eingetragen: ${ug(sp.tagesdosis(naechste))} am Tag.` : ''} Die App kennt Ihre übrigen Befunde nicht – die Entscheidung trifft die Praxis.`;
+  // „seit": der Beginn des ersten gleichen Eintrags – ein doppelter Eintrag
+  // vom Einrichten ist kein Neubeginn (Runde 5: F15).
+  const grundlage = `Grundlage: Befund vom ${kurz(tag)} – TSH ${befund.tsh.unter ? '< ' : ''}${roh(befund.tsh.wert)} ${befund.tsh.einheit} (${bereichTeil('Bereich Ihres Labors', befund.tsh)}${ziel ? `; Zielbereich Ihrer Ärztin ${roh(ziel.von)}–${roh(ziel.bis)} mU/l` : ''})${befund.ft4 ? `, fT4 ${befund.ft4.unter ? '< ' : ''}${roh(befund.ft4.wert)} ${befund.ft4.einheit} (${bereichTeil('Bereich', befund.ft4)})` : ''}. ${dAkt && td !== null ? `Ihre Dosis laut App: ${ug(td)} am Tag seit ${kurz(dosisSeit(stand, dAkt))}${dAkt.praeparat ? ` (${dAkt.praeparat})` : ''}.` : 'Ihre Dosis ist in der App nicht vollständig eingetragen.'}${naechste && dAkt ? ` Ab ${kurz(naechste.ab)} ist eingetragen: ${ug(sp.tagesdosis(naechste))} am Tag.` : ''} Die App kennt Ihre übrigen Befunde nicht – die Entscheidung trifft die Praxis.`;
 
   const karte = (x) => {
     const richtung = x.richtung || 'klaeren';
@@ -1232,7 +1258,7 @@ export function dosisRichtung(stand, heute) {
     const unterRand = tsh !== null && (tsh < 0.6 || (breite > 0 && tsh <= unten + 0.1 * breite));
     if (!ziel && (vorsichtig || p.osteoporose !== 'nein') && unterRand) {
       return richtungsKarte({
-        richtung: 'gleich', titel: 'Das spricht dafür, die Dosis so zu lassen – und nach dem Zielbereich zu fragen.', stufe: 'termin', regeln: ['D1b'],
+        richtung: 'gleich', titel: TITEL.D1b, stufe: 'termin', regeln: ['D1b'],
         texte: [(s, eigen) => satz('Ihr TSH liegt am unteren Rand. Im Alter, bei Herz- oder Knochenerkrankung wird TSH oft etwas höher angestrebt.', zielFrage(s, eigen))],
       });
     }
@@ -1240,7 +1266,7 @@ export function dosisRichtung(stand, heute) {
     const vorher = [...stand.labor].reverse().find((l) => l.id !== befund.id && l.tsh && l.datum < tag);
     if (amRand && (!vorher || !stand.dosen.some((d) => d.ab > vorher.datum && d.ab <= tag))) texte.push('Ein Wert knapp am Rand des Bereichs schwankt von Messung zu Messung. Das ist kein Grund für eine Änderung.');
     if (g28.has('muede')) texte.push('Bei Hashimoto kommt eine chronische Entzündung der Magenschleimhaut häufiger vor. Sie kann zu Vitamin-B12- und Eisenmangel führen. Wenn Sie trotz guter Schilddrüsenwerte müde sind, lassen Sie Blutbild, B12 und Ferritin prüfen.');
-    return richtungsKarte({ richtung: 'gleich', titel: 'Das spricht dafür, die Dosis so zu lassen.', texte, stufe: b.richtung ? 'termin' : 'keine', regeln: ['D1'] });
+    return richtungsKarte({ richtung: 'gleich', titel: TITEL.D1, texte, stufe: b.richtung ? 'termin' : 'keine', regeln: ['D1'] });
   }
 
   // D2d (X9) – hohe Dosis oder Hinweise auf gestörte Aufnahme
@@ -1266,7 +1292,7 @@ export function dosisRichtung(stand, heute) {
     const grenzeAlt = alt !== null && alt >= 80 ? 7 : 6;
     if (!ziel && alt !== null && alt >= 70 && tsh <= grenzeAlt) {
       return richtungsKarte({
-        richtung: 'gleich', titel: 'Das spricht eher dafür, die Dosis so zu lassen.', stufe: 'termin', regeln: ['D2a'],
+        richtung: 'gleich', titel: TITEL.D2a, stufe: 'termin', regeln: ['D2a'],
         texte: [(s, eigen) => satz('Ihr TSH liegt etwas über dem Bereich des Labors. Im Alter wird ein etwas höherer TSH-Wert oft bewusst hingenommen, weil zu viel Hormon Herz und Knochen belastet. Das spricht eher dafür, die Dosis so zu lassen.', zielFrage(s, eigen))],
       });
     }
@@ -1299,7 +1325,7 @@ export function dosisRichtung(stand, heute) {
     if (vorsichtig) zusatz.push(herzZusatz);
     return richtungsKarte({
       richtung: 'mehr',
-      titel: graubereich ? 'Das spricht für eine Kontrolle oder einen kleinen Schritt nach oben.' : 'Das spricht für eine etwas höhere Dosis.',
+      titel: graubereich ? TITEL.D2b : TITEL.D2c,
       texte: zusatz, schritt: graubereich ? 'Ärztinnen erhöhen dann meist nur in einem kleinen Schritt von 12,5 µg (Mikrogramm) am Tag.' : sMehr,
       stufe, warnzeichen: vorsichtig ? WD2 : null, regeln: [graubereich ? 'D2b' : 'D2c'],
     });
@@ -1314,7 +1340,7 @@ export function dosisRichtung(stand, heute) {
      */
     const notfallD3 = 'Wenn Sie ungewohnt stark schläfrig oder neu verwirrt sind oder stark auskühlen: sofort 112 anrufen. Wenn Sie nur mehr frieren als sonst, machen Sie den Warnzeichen-Check.';
     return richtungsKarte({
-      richtung: 'mehr', titel: 'Das spricht klar dafür, dass Ihre Dosis im Moment zu niedrig ist.', stufe: 'tage', regeln: ['D3'], schritt: sMehr,
+      richtung: 'mehr', titel: TITEL.D3, stufe: 'tage', regeln: ['D3'], schritt: sMehr,
       warnzeichen: vorsichtig ? WD2 : null, notfall: notfallD3,
       texte: [(s, eigen) => satz('Ihr TSH ist zu hoch und Ihr fT4 zu niedrig.', fristHier(s, eigen), `${warumKlein()}${sMehr} Nehmen Sie nicht auf eigene Faust mehr, und schon gar nicht mehrere Schritte auf einmal. ${notfallD3}`), ...(vorsichtig ? [herzZusatz] : [])],
     });
@@ -1326,7 +1352,7 @@ export function dosisRichtung(stand, heute) {
       // „Oft wird erst in 6 bis 8 Wochen nachgemessen" nur, wenn die Karte beim
       // Termin steht – bei Muster d oder Herzklopfen gilt eine kürzere Frist (B24).
       return richtungsKarte({
-        richtung: 'weniger', titel: 'Das spricht für eine etwas niedrigere Dosis oder zunächst eine Kontrolle.', stufe: 'termin', regeln: ['D4a'], schritt: sWeniger,
+        richtung: 'weniger', titel: TITEL.D4a, stufe: 'termin', regeln: ['D4a'], schritt: sWeniger,
         texte: [...zusatzVorher, (s, eigen) => satz('Ihr TSH ist leicht zu niedrig. Das spricht für eine etwas niedrigere Dosis oder zunächst eine Kontrolle.',
           rang(s) <= rang('termin') ? 'Oft wird erst in 6 bis 8 Wochen nachgemessen. Das entscheidet die Praxis.' : satz('Ob erst nachgemessen wird, entscheidet die Praxis.', fristHier(s, eigen)),
           nichtWeglassen(dAkt))],
@@ -1338,7 +1364,7 @@ export function dosisRichtung(stand, heute) {
     const texte = [...zusatzVorher, (s, eigen) => satz(`Ihr TSH ist zu niedrig. Das spricht für eine etwas niedrigere Dosis. ${sWeniger}`,
       vorsichtig || risikoKnochen ? 'Gerade im Alter, bei Herzkrankheit oder bei Knochenschwund belastet zu viel Hormon auf Dauer Herz und Knochen, auch wenn Sie sich gut fühlen.' : '',
       fristHier(s, eigen), nichtWeglassen(dAkt))];
-    return richtungsKarte({ richtung: 'weniger', titel: 'Das spricht für eine etwas niedrigere Dosis.', stufe, regeln: ['D4b'], schritt: sWeniger, texte });
+    return richtungsKarte({ richtung: 'weniger', titel: TITEL.D4b, stufe, regeln: ['D4b'], schritt: sWeniger, texte });
   };
 
   const y = befund.verwechselt === 'unbekannt' ? ['Schauen Sie auf Ihre Packung: Steht dort dieselbe Stärke (µg) wie in der App?'] : [];
@@ -1355,7 +1381,7 @@ export function dosisRichtung(stand, heute) {
     const texte = [...y, (s, eigen) => satz('Ihr TSH ist zu niedrig und Ihr fT4 zu hoch. Das spricht für eine niedrigere Dosis.', fristHier(s, eigen), `${sWeniger} Die Menge legt die Praxis fest. Setzen Sie die Tablette nicht einfach ab und lassen Sie keine Tage weg.${mengeText(dAkt) ? ` ${nichtWeglassen(dAkt)}` : ''}`)];
     // „heute oder morgen" nur, solange die Karte nicht selbst „heute" sagt.
     if (g14.has('herz') || g14.has('schwitzen')) texte.push((s) => (rang(s) >= rang('heute') ? '' : 'Wenn Sie seit Tagen Herzklopfen, Zittern oder innere Unruhe haben: Rufen Sie heute oder morgen an.'));
-    return richtungsKarte({ richtung: 'weniger', titel: 'Das spricht für eine niedrigere Dosis.', stufe: 'tage', regeln: ['D5'], schritt: sWeniger, texte, warnzeichen: WD2 });
+    return richtungsKarte({ richtung: 'weniger', titel: TITEL.D5, stufe: 'tage', regeln: ['D5'], schritt: sWeniger, texte, warnzeichen: WD2 });
   }
 
   // Übrige Muster (z) – keine Richtung
@@ -1442,7 +1468,7 @@ export function dosisHinweise(stand, heute) {
 
     // W-D4 – Nachfragen nach 14 und 28 Tagen
     const frage = (tag, text) => {
-      const bezug = `${beginn.id}-${tag}`;
+      const bezug = wd4Bezug(beginn.id, tag);
       const antwort = [...stand.nachfragen].reverse().find((x) => x.art === 'wd4' && x.bezug === bezug);
       if (!antwort && nMenge >= tag && nMenge <= tag + 6) {
         add('W-D4', 'termin', text, { frage: { id: 'W-D4', text, optionen: [['ja', 'Ja'], ['nein', 'Nein']], ziel: 'nachfrage', feld: 'wd4', bezug } });
@@ -1503,6 +1529,25 @@ export function dosisHinweise(stand, heute) {
     add('E15', 'termin', 'Sie haben die Uhrzeit Ihrer Tablette um mehr als drei Stunden verschoben. Manche Menschen nehmen die Tablette abends vor dem Schlafen, mindestens 3 Stunden nach der letzten Mahlzeit. Das ist möglich, aber nur nach Rücksprache mit der Praxis und dann jeden Tag gleich. Ein Wechsel der Uhrzeit kann den Wert verändern. Lassen Sie danach nach 6 bis 8 Wochen kontrollieren.');
   }
   return h.map((x) => ({ ...x, anrufe: anrufeAus([x.text], stand) }));
+}
+
+/*
+ * Der Bezug einer W-D4-Frage: Kennung der Dosis und Tag („d2-14"). Höchstens
+ * 40 Zeichen – so viel speichert die Antwort (app.js frageBeantworten). Eine
+ * Kennung aus einer Sicherung darf 40 Zeichen haben; mit „-14" waren es 43,
+ * die gespeicherte Antwort passte nie zur Frage: „Antwort gespeichert", die
+ * Frage blieb, und ein „Ja" brachte nie „heute noch anrufen" (Runde 5: F28).
+ * Eine lange Kennung wird deshalb gekürzt und mit einer Prüfsumme der ganzen
+ * Kennung eindeutig gemacht. Kurze Kennungen (die der App haben 13 Zeichen)
+ * bleiben, wie sie waren – gespeicherte Antworten passen weiter.
+ */
+function wd4Bezug(id, tag) {
+  const bezug = `${id}-${tag}`;
+  if (bezug.length <= 40) return bezug;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193) >>> 0;
+  const pruef = h.toString(36);
+  return `${id.slice(0, 40 - pruef.length - 2 - String(tag).length)}_${pruef}-${tag}`;
 }
 
 /**
@@ -1609,6 +1654,13 @@ export function gesamtbildMitDosis(stand, heute) {
   return { ...g, stufe, kopf: kopfFuer(stufe, teile), teile, dosis: karte, dosisHinweise: hinweise.filter((h) => !h.still) };
 }
 
+/*
+ * Ein Titel endet im Bericht mit einem Satzzeichen: „Bitte zuerst den Notruf"
+ * hat auf der Karte keinen Punkt, im Bericht folgt aber „Die App gibt nur eine
+ * Richtung …" – „… den Notruf Die App gibt …" (Runde 5: F17).
+ */
+const satzEnde = (t) => (/[.?!:]$/.test(t) ? t : `${t}.`);
+
 /** Eine gemerkte Richtung ohne Titel (ältere Einträge) in Worten. */
 const RICHTUNG_WORTE = {
   mehr: 'Richtung „mehr" – eine etwas höhere Dosis.',
@@ -1632,8 +1684,16 @@ const RICHTUNG_WORTE = {
 export function dosisBerichtZeilen(stand, heute) {
   const k = dosisRichtung(stand, heute);
   if (!k) return [];
-  const titel = k.frage ? `offene Frage – ${k.frage.text}` : k.titel;
+  const titel = satzEnde(k.frage ? `offene Frage – ${k.frage.text}` : k.titel);
   const z = [`Dosis-Karte der App, Stand ${kurz(heute)}, zum Befund vom ${kurz(k.befund.datum)} (App): ${titel} Die App gibt nur eine Richtung, keine Dosis.`];
+  /*
+   * Die Dringlichkeit der Karte (Runde 5: F10). Kommt ihre höchste Stufe aus
+   * dem Befinden oder dem Check (Herzklopfen bei niedrigem TSH), stand im
+   * Bericht nur die niedrigere Stufe des Befunds – „Heute anrufen" fehlte,
+   * obwohl die App es der Patientin gesagt hatte (RW1 Grundsatz 5, L3f).
+   */
+  const stufeTitel = STUFEN[k.stufe].titel;
+  z.push(`  Dringlichkeit auf der Karte (App): „${k.kopf.titel}"${k.kopf.titel !== stufeTitel ? ` (Stufe „${stufeTitel}")` : ''}.`);
   const richtung = !k.frage && k.richtung !== 'klaeren' ? k.richtung : null;
   const gezeigt = stand.nachfragen.filter((n) => n.art === 'karte_gezeigt' && n.am <= heute);
   // D6 / Grundsatz 8: Auch im Bericht steht die Richtung nie ohne Pflichttext –
@@ -1643,6 +1703,18 @@ export function dosisBerichtZeilen(stand, heute) {
     z.push(`  ${gesehen ? 'Der Patientin dazu gezeigt' : 'Dazu gehört der Pflichttext'}: ${k.pflicht}`);
   }
   k.gruende.forEach((g) => z.push(`  Grund ${g.id}: ${g.text}`));
+  /*
+   * Die übrigen Texte der Karte (Runde 5: F10) – etwa „Sie haben Herzklopfen
+   * eingetragen … Rufen Sie heute noch in der Praxis an", die Bitte um das
+   * Geburtsjahr oder die 112-Zeile (W-D2). Ohne sie fehlte gerade der Satz,
+   * der die höhere Stufe begründet. Der Schritt steht in einer eigenen Zeile
+   * und wird hier nicht wiederholt; Texte eines Grundes auch nicht.
+   */
+  const gruende = new Set(k.gruende.map((g) => g.text));
+  [...k.texte, k.warnzeichen].filter((t) => t && !gruende.has(t)).forEach((t) => {
+    const ohneSchritt = k.schritt && !k.frage ? t.replace(k.schritt, '').replace(/\s+/g, ' ').trim() : t;
+    if (ohneSchritt) z.push(`  Auf der Karte: ${ohneSchritt}`);
+  });
   if (k.schritt && !k.frage) z.push(`  ${k.schritt}`);
   z.push(`  ${k.grundlage}`);
   const zuletzt = gezeigt.reduce((a, n) => (!a || n.am >= a.am ? n : a), null);
@@ -1653,8 +1725,26 @@ export function dosisBerichtZeilen(stand, heute) {
     // an dem die Karte sie zeigte. Der Pflichttext damals war D6 lang oder –
     // unter „Heute anrufen" – ohne „Ein paar Tage Warten"; hier steht, was
     // in beiden stand.
-    z.push(`Zuletzt gezeigte Richtung der Dosis-Karte, zuerst angezeigt am ${kurz(zuletzt.am)}, zum Befund vom ${kurz(vorher.datum)} (App): ${zuletzt.titel || RICHTUNG_WORTE[zuletzt.antwort]} Die App gibt nur eine Richtung, keine Dosis.`);
+    // Nur ein Titel, den die Karte wirklich zeigt – ein beliebiger Text aus
+    // einer Sicherung stünde sonst als Aussage der App da (Runde 5: F27).
+    const gemerkt = RICHTUNG_TITEL.has(zuletzt.titel) ? zuletzt.titel : RICHTUNG_WORTE[zuletzt.antwort];
+    z.push(`Zuletzt gezeigte Richtung der Dosis-Karte, zuerst angezeigt am ${kurz(zuletzt.am)}, zum Befund vom ${kurz(vorher.datum)} (App): ${gemerkt} Die App gibt nur eine Richtung, keine Dosis.`);
     z.push(`  Der Patientin dazu gezeigt: ${zuletzt.antwort === 'gleich' ? D6_KURZ : D6_HEUTE}`);
   }
   return z;
+}
+
+/*
+ * Die Gesamteinschätzung, wie „Heute" sie zeigt – als Zeile für den
+ * Arztbericht (Runde 5: F10). Mit den Kennungen der Teile, die die höchste
+ * Stufe tragen (z. B. „S4ii, Befund"), damit die Ärztin sieht, woher sie
+ * kommt. Ohne P6 leer. → string[] (keine oder eine Zeile)
+ */
+const TEIL_NAME = { befund: 'Befund', 'befund-ohne-tsh': 'Befund ohne TSH', dosis: 'Dosis-Karte' };
+export function gesamtBerichtZeilen(stand, heute) {
+  const g = gesamtbildMitDosis(stand, heute);
+  if (!g.aktiv) return [];
+  const oben = [...new Set(g.teile.filter((t) => t.stufe === g.stufe).map((t) => TEIL_NAME[t.id] || t.id))];
+  const titel = STUFEN[g.stufe].titel;
+  return [`Gesamteinschätzung am ${kurz(heute)} (App, wie auf „Heute"): „${g.kopf.titel}"${g.kopf.titel !== titel ? ` (Stufe „${titel}")` : ''}${oben.length && g.stufe !== 'keine' ? ` – aus ${oben.join(', ')}` : ''}.`];
 }
