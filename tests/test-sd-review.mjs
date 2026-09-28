@@ -841,4 +841,249 @@ check(await leiste0.isVisible() && await leiste0.locator('a[href="tel:112"]').co
   && await leiste0.locator('a[href="tel:08001110111"]').count() === 1, 'C18: … die Notfallleiste mit 112, 116 117 und Telefonseelsorge steht trotzdem da (W0)');
 await ohneWorker.close();
 
+
+// ================================================================ Runde 3
+//
+// Befunde aus der dritten Durchsicht (D…), soweit sie die Oberfläche
+// betreffen: die Wissenstexte, der Kalender, der Morgen der Blutabnahme und
+// was „Heute", die Einschätzung, die Dosis-Karte und die Formulare aus den
+// neuen Angaben des Kerns machen. Jeder Fall scheiterte vor der Korrektur;
+// die Regeln selbst prüfen tests/test-sd-regeln-*.mjs.
+
+const zuKapitel = async (id) => {
+  await page.click('#reiter-mehr');
+  await page.click('#ansicht [data-seite="wissen"]');
+  await page.click(`#ansicht [data-seite="wissen-kapitel"][data-param="${id}"]`);
+  return page.locator('#ansicht article').innerText();
+};
+const dosisStimmt = (am, antwort = 'ja') => [{ id: 'ns', art: 'dosis_stimmt', bezug: 'b1', antwort, am }];
+// Neu geladen bleibt der zuletzt benutzte Reiter (B64) – für „Heute" also hinwechseln.
+const ladenHeute = async (st, o) => { await laden(st, o); await page.click('#reiter-heute'); };
+
+// ---------------------------------------------------------------- D2: „Wann anrufen, wann 112" – heute statt in den nächsten Tagen
+
+// Herzklopfen seit Tagen, ein neu unregelmäßiger Puls, Erbrechen über mehr
+// als einen Tag: Der Check sagt „heute noch anrufen" (W2h), das Kapitel sagte
+// „in den nächsten Tagen".
+await laden(stand());
+const notfallKapitel = await zuKapitel('notfall');
+const heuteBlock = (notfallKapitel.split('Heute noch die Praxis anrufen')[1] || '').split('In den nächsten Tagen')[0];
+const tageBlock = notfallKapitel.split('In den nächsten Tagen die Praxis anrufen')[1] || '';
+check(/Herzklopfen seit Tagen/.test(heuteBlock) && /Puls neu unregelmäßig/.test(heuteBlock) && /Erbrechen länger als einen Tag/.test(heuteBlock) && /116 117/.test(heuteBlock) && /112/.test(heuteBlock),
+  `D2: „Heute noch die Praxis anrufen" steht vor „In den nächsten Tagen" – mit Herzklopfen, Puls, Erbrechen, 116 117 und 112 (${heuteBlock.replace(/\s+/g, ' ').slice(0, 60)}…)`);
+check(tageBlock && !/unregelmäßiger Puls|Durchfall oder Erbrechen/.test(tageBlock) && /Gewichtsverlust/.test(tageBlock),
+  '… unter „In den nächsten Tagen" stehen Puls und Erbrechen nicht mehr, der ungewollte Gewichtsverlust schon');
+const heuteNummern = await page.evaluate(() => {
+  const h2 = [...document.querySelectorAll('#ansicht article h2')].find((h) => h.textContent.includes('Heute noch die Praxis anrufen'));
+  const hrefs = [];
+  for (let el = h2 && h2.nextElementSibling; el && el.tagName !== 'H2'; el = el.nextElementSibling) el.querySelectorAll('a[href^="tel:"]').forEach((a) => hrefs.push(a.getAttribute('href')));
+  return hrefs;
+});
+check(heuteNummern.includes('tel:116117') && heuteNummern.includes('tel:112'), `D2: … 116 117 und 112 dort als Knöpfe (${heuteNummern.join(', ')})`);
+
+// ---------------------------------------------------------------- D10, D5: „Tablette vergessen?"
+
+const vergessenKapitel = await zuKapitel('vergessen');
+check(/Mehr als eine Tablette zu viel auf einmal/.test(vergessenKapitel) && await page.locator('#ansicht article a[href="tel:022819240"]').count() === 1
+  && await page.locator('#ansicht article a[href="tel:112"]').count() === 1,
+  'D10: „mehr als eine Tablette zu viel auf einmal" – jetzt der Giftnotruf fürs Bundesland (Knopf) und 112 als Knopf');
+check(!/2 bis 3 Stunden/.test(vergessenKapitel) && /mindestens 3 Stunden nach dem Essen/.test(vergessenKapitel), 'D5: Nachholen „mindestens 3 Stunden nach dem Essen" – nicht „2 bis 3"');
+await laden(stand({ profil: { bundesland: '' } }));
+await zuKapitel('vergessen');
+check(await page.locator('#ansicht article a[href="tel:112"]').count() === 1 && await page.locator('#ansicht article [data-seite="profil"]').count() === 1,
+  'D10: ohne Bundesland 112 als Knopf und der Weg ins Profil');
+
+// ---------------------------------------------------------------- D5: eine Zahl für abends – Plan, Kalender, Wissen
+
+const abendText = await page.evaluate(async () => (await import('./js/ics.js')).erinnerungText('21:30'));
+check(/mindestens 3 Stunden nach der letzten Mahlzeit/.test(abendText) && !/\b2\b[^.]*Stunden/.test(abendText), `D5: Kalender um 21:30 „mindestens 3 Stunden" (${abendText.slice(0, 60)}…)`);
+await laden(stand({ einstellungen: { erinnerung: '21:30', schrift: 'gross', farbe: 'hell', hinweisTablette: false } }));
+await mehrSeite('abstand');
+const abstandText = await ansichtText(page);
+check(/3 Stunden \(besser 4\)/.test(abstandText) && !/2[–-]3 Stunden/.test(abstandText), 'D5: „Was braucht Abstand?" nennt abends dieselbe Zahl');
+
+// ---------------------------------------------------------------- D16: Morgen der Blutabnahme
+
+// Eigener Kontext: Systemhinweise erlaubt und mitgeschrieben, ohne Service
+// Worker, damit der Hinweis über new Notification() kommt.
+const r3ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, locale: 'de-DE', serviceWorkers: 'block' });
+await r3ctx.addInitScript(uhrStellen);
+await r3ctx.addInitScript(() => {
+  window.__hinweise = [];
+  class N { constructor(titel, o) { window.__hinweise.push({ titel, text: o && o.body }); } }
+  N.permission = 'granted';
+  N.requestPermission = async () => 'granted';
+  window.Notification = N;
+});
+const p3 = await r3ctx.newPage();
+const p3Fehler = [];
+p3.on('pageerror', (e) => p3Fehler.push(e.message));
+await p3.goto(SD_URL, { waitUntil: 'networkidle' });
+const abnahmeStand = (termin) => stand({
+  einstellungen: { erinnerung: '07:00', schrift: 'gross', farbe: 'hell', hinweisTablette: true },
+  termine: [{ id: 't1', datum: TAG, uhr: '09:30', art: 'labor', wo: '', blutabnahme: true, notiz: '', ...termin }],
+});
+const p3Laden = async (st, zeit) => {
+  await p3.evaluate(({ key, s0, t, z }) => {
+    localStorage.clear();
+    localStorage.setItem('__testtag', t);
+    localStorage.setItem('__testzeit', z);
+    localStorage.setItem(key, JSON.stringify(s0));
+  }, { key: SCHLUESSEL, s0: st, t: TAG, z: zeit });
+  await p3.reload({ waitUntil: 'networkidle' });
+  await p3.waitForTimeout(300);
+};
+const p3Uhr = async (zeit) => {
+  await p3.evaluate((z) => localStorage.setItem('__testzeit', z), zeit);
+  await p3.reload({ waitUntil: 'networkidle' });
+  await p3.waitForTimeout(300);
+};
+await p3Laden(abnahmeStand(), '07:10');
+let tKnopf = p3.locator('.tablette');
+check(!(await tKnopf.getAttribute('class')).includes('faellig') && (await tKnopf.innerText()).includes('Heute erst nach der Blutabnahme (9:30 Uhr)'),
+  `D16: 7:10, Abnahme um 9:30: der Knopf mahnt nicht („${(await tKnopf.innerText()).replace(/\s+/g, ' ')}")`);
+check((await p3.evaluate(() => window.__hinweise)).length === 0, 'D16: … und kein Systemhinweis „Nüchtern, mit einem Glas Wasser"');
+await p3Uhr('10:00');
+tKnopf = p3.locator('.tablette');
+check((await tKnopf.getAttribute('class')).includes('faellig') && (await p3.evaluate(() => window.__hinweise)).length === 1,
+  'D16: nach der Abnahme (10:00) erinnert die App wieder – der Merker war nicht schon um 7:10 gesetzt');
+await p3Laden(abnahmeStand({ uhr: '' }), '08:00');
+check((await p3.locator('.tablette').innerText()).includes('Heute erst nach der Blutabnahme – dann hier antippen') && (await p3.evaluate(() => window.__hinweise)).length === 0,
+  'D16: Abnahme ohne Uhrzeit – kein Mahnen, „Heute erst nach der Blutabnahme"');
+await p3Laden({ ...abnahmeStand(), termine: [] }, '07:10');
+check((await p3.locator('.tablette').getAttribute('class')).includes('faellig') && (await p3.evaluate(() => window.__hinweise)).length === 1,
+  'D16: ohne Blutabnahme bleibt es beim gewohnten Hinweis um 7 Uhr');
+check(p3Fehler.length === 0, `D16: keine Fehler auf der Seite${p3Fehler.length ? `: ${p3Fehler[0]}` : ''}`);
+await r3ctx.close();
+
+// ---------------------------------------------------------------- D4: die 112 unter der Frage nach einer Erhöhung, auch in der Einschätzung
+
+await ladenHeute(stand({
+  labor: [befund('b1', plus(TAG, -30), { tsh: w(5.8, 'mU/l', 0.4, 4) }, { praxis: 'geaendert', praxisAm: plus(TAG, -16) })],
+  dosen: [dosis('d1', plus(TAG, -400), 75, null), dosis('d2', plus(TAG, -14), 88, true)],
+}));
+check(await page.locator('#ansicht .kern-hinweis[data-regel="W-D4"] a[href="tel:112"]').count() === 1, 'D4: „Heute" – die Frage nach der Erhöhung mit 112 als Knopf');
+await mehrSeite('gesamtbild');
+const wd4Teil = page.locator('#ansicht .teil-karte[data-regel="W-D4"]');
+check(await wd4Teil.count() === 1 && (await wd4Teil.innerText()).includes('sofort 112') && await wd4Teil.locator('a[href="tel:112"]').count() === 1,
+  'D4: die Einschätzung nennt dieselbe Frage mit „sofort 112" – und 112 ist dort anrufbar');
+
+// ---------------------------------------------------------------- D11: die eigene Änderung nach 14 Tagen
+
+// TSH 12 (Stufe Tage) und 75 → 125 µg ohne Anweisung der Praxis vor 20
+// Tagen: „Heute" nennt X3 nur 14 Tage selbst. Danach steht „wieder Ihre
+// bisherige Menge" nur auf der Karte – und „Heute" verwies nicht dorthin,
+// weil X3 nicht über der Stufe des Befunds lag.
+await ladenHeute(stand({
+  labor: [befund('b1', plus(TAG, -27), { tsh: w(12, 'mU/l', 0.4, 4), ft4: w(14, 'pmol/l', 12, 22) }, { praxisAm: plus(TAG, -25) })],
+  dosen: [dosis('d1', plus(TAG, -400), 75, null), dosis('d2', plus(TAG, -20), 125, false)],
+  nachfragen: dosisStimmt(plus(TAG, -25)),
+}));
+let dVerweis = page.locator('#ansicht .dosis-verweis');
+check(await page.locator('#ansicht [data-regel="X3"]').count() === 0 && await dVerweis.count() === 1 && (await dVerweis.innerText()).includes('wichtigen Hinweis'),
+  'D11: Tag 20 nach der eigenen Änderung – „Heute" verweist auf den wichtigen Hinweis der Dosis-Karte');
+// Ohne Verweis (vor der Korrektur) über „Mehr" – der Test läuft dann weiter.
+if (await dVerweis.count()) await dVerweis.locator('[data-seite="dosis-karte"]').click(); else await mehrSeite('dosis-karte');
+check((await page.locator('#dosis-karte li[data-grund="X3"]').innerText()).includes('bisherige Menge'), '… dort steht „nehmen Sie bis dahin wieder Ihre bisherige Menge"');
+
+// ---------------------------------------------------------------- D17: übernommene Gründe auf der 112-Karte und neben der Frage nach dem Check
+
+const q5Stand = (mehr = {}) => stand({
+  profil: { geburtsjahr: 1962, herz: 'nein' },
+  labor: [befund('b1', plus(TAG, -3), { tsh: w(0.05, 'mU/l', 0.4, 4), ft4: w(30, 'pmol/l', 12, 22) }, { verwechselt: 'einmal' })],
+  nachfragen: dosisStimmt(plus(TAG, -2)),
+  ...mehr,
+});
+await ladenHeute(q5Stand({ befinden: [{ id: 'bf', datum: TAG, stufe: 'schlecht', beschwerden: ['lebensmuede'], notiz: '' }] }));
+dVerweis = page.locator('#ansicht .dosis-verweis');
+check(await dVerweis.count() === 1 && await dVerweis.getAttribute('data-stufe') === 'heute',
+  `D17: „lebensmüde" und Q5 „einmal viele Tabletten": der Verweis trägt die Stufe des Giftnotruf-Rats (heute), nicht 112 (${await dVerweis.getAttribute('data-stufe')})`);
+check(await page.locator('#ansicht > .karte, #ansicht > .hinweis-karte').first().getAttribute('data-regel') === 'W5', '… W5 bleibt ganz oben');
+await ladenHeute(q5Stand({ befinden: [{ id: 'bf', datum: TAG, stufe: 'mittel', beschwerden: ['herz'], notiz: '' }] }));
+dVerweis = page.locator('#ansicht .dosis-verweis');
+check(await dVerweis.count() === 1 && /Frage an Sie/.test(await dVerweis.innerText()) && /wichtigen Hinweis/.test(await dVerweis.innerText()),
+  `D17: Frage nach dem Check und Q5 – der Verweis nennt beides („${(await dVerweis.innerText()).replace(/\s+/g, ' ').slice(0, 90)}…")`);
+
+// ---------------------------------------------------------------- D19: „Nein, ich nehme etwas anderes" am Einrichtungstag
+
+const d19 = () => stand({
+  dosen: [dosis('dh', TAG, 75, null)],
+  labor: [befund('b1', TAG, { tsh: w(7.5, 'mU/l', 0.4, 4), ft4: w(14, 'pmol/l', 12, 22) })],
+  nachfragen: dosisStimmt(TAG, 'nein_75'),
+});
+await laden(d19());
+await mehrSeite('dosis-karte');
+const d19Knopf = page.locator('#dosis-karte [data-act="seite"][data-seite="dosis"]');
+check(await d19Knopf.getAttribute('data-param') === 'dh' && (await d19Knopf.innerText()).includes('Dosis ändern'), 'D19: die Karte öffnet den vorhandenen Eintrag („Dosis ändern")');
+// Trägt sie trotzdem einen zweiten Eintrag ein (über den Verlauf), ist auch
+// der die Berichtigung – der vorhandene mit der Menge aus dem Nein zählt nicht.
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="dosis"]');
+await page.fill('input[name=mikrogramm]', '100');
+await page.check('input[name=praxis][value=nein]');
+await page.click('form[data-formular="dosis"] button[type=submit]');
+s = await gespeichert();
+const d19Neu = s.dosen.find((d) => d.mikrogramm === 100);
+check(d19Neu && d19Neu.berichtigung === true, `D19: der neue Eintrag (100 µg) gilt als Berichtigung (berichtigung = ${d19Neu && d19Neu.berichtigung})`);
+await mehrSeite('dosis-karte');
+check(await page.locator('#dosis-karte li[data-grund="X3"]').count() === 0 && !(await page.locator('#dosis-karte').innerText()).includes('bisherige Menge'),
+  'D19: … die Karte nennt kein „mehr als ein üblicher Schritt … wieder Ihre bisherige Menge" – das wären die 75 µg, die sie nie genommen hat');
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="X3"]').count() === 0 && await page.locator('#ansicht [data-regel="X3b"]').count() === 1,
+  'D19: „Heute" nennt die Berichtigung (X3b), nicht die eigene Änderung (X3)');
+
+// ---------------------------------------------------------------- D13: Vorrat
+
+await ladenHeute(stand({ vorrat: { tabletten: 10, stand: plus(TAG, -20) } }));
+check((await ansichtText(page)).replace(/\s+/g, ' ').includes('Der Vorrat ist aufgebraucht. Bitte heute ein neues Rezept holen.'), 'D13: aufgebraucht – „Bitte heute ein neues Rezept holen", nicht „Rechtzeitig …"');
+await ladenHeute(stand({
+  vorrat: { tabletten: 100, stand: plus(TAG, -30) },
+  dosen: [dosis('d1', plus(TAG, -400), 75, null), dosis('d2', plus(TAG, -10), 100, true)],
+}));
+const neuZaehlen = page.locator('#ansicht [data-regel="vorrat-staerke"]');
+check(await neuZaehlen.count() === 1 && (await neuZaehlen.innerText()).includes('zählen Sie Ihren Tablettenvorrat neu') && await neuZaehlen.locator('[data-seite="vorrat"]').count() === 1,
+  'D13: seit dem Zählen eine andere Stärke – „Heute" bittet ums Neuzählen, mit Knopf zum Vorrat');
+check(!(await ansichtText(page)).includes('Vorrat reicht noch'), '… und nennt keine Reichweite aus der alten Packung');
+if (await neuZaehlen.count()) await neuZaehlen.locator('[data-seite="vorrat"]').click(); else await mehrSeite('vorrat');
+await page.fill('input[name=tabletten]', '50');
+await page.click('form[data-formular="vorrat"] button[type=submit]');
+await page.click('#reiter-heute');
+check(await page.locator('#ansicht [data-regel="vorrat-staerke"]').count() === 0, '… nach dem Zählen ist die Bitte weg');
+await ladenHeute(stand({ vorrat: { tabletten: 100, stand: plus(TAG, -3) } }));
+await page.click('#reiter-verlauf');
+await page.click('#ansicht [data-seite="dosis"]');
+await page.fill('input[name=mikrogramm]', '100');
+await page.check('input[name=praxis][value=ja]');
+await page.click('form[data-formular="dosis"] button[type=submit]');
+check((await page.locator('#meldung').innerText()).includes('Tablettenvorrat neu'), `D13: nach dem Speichern einer anderen Stärke: „Bitte zählen Sie Ihren Tablettenvorrat neu" (${await page.locator('#meldung').innerText()})`);
+
+// ---------------------------------------------------------------- D12: die Kontrolle nach der Änderung jeden Tag
+
+// Tag 92 nach der Änderung, ohne Kontrollwert: keine eigene Karte (still),
+// aber dieselbe Stufe auf „Heute" und in der Einschätzung wie an Tag 91.
+const d12 = (n) => stand({
+  labor: [befund('b1', plus(TAG, -n - 7), { tsh: w(4.5, 'mU/l', 0.27, 4.2), ft4: w(15, 'pmol/l', 12, 22) }, { praxis: 'geaendert', praxisAm: plus(TAG, -n - 5) })],
+  dosen: [dosis('d1', plus(TAG, -400), 75, null), dosis('d2', plus(TAG, -n), 88, true)],
+});
+for (const [n, karte] of [[91, 1], [92, 0]]) {
+  await ladenHeute(d12(n));
+  check(await page.locator('#ansicht [data-regel="D6c"]').count() === karte && await page.locator('#ansicht .einschaetzung-verweis').getAttribute('data-stufe') === 'zeitnah',
+    `D12: Tag ${n} – D6c ${karte ? 'als Karte' : 'still'}, die Einschätzung auf „Heute" bleibt „In ein bis zwei Wochen"`);
+}
+await mehrSeite('gesamtbild');
+check(await page.locator('#ansicht .teil-karte[data-regel="D6c"]').count() === 1, '… und die Einschätzung nennt den Grund unter „Im Einzelnen"');
+
+// ---------------------------------------------------------------- Runde 3 bei „sehr groß" und dunkel
+
+for (const [seite, st] of [
+  ['heute', { ...abnahmeStand(), vorrat: { tabletten: 100, stand: plus(TAG, -30) }, dosen: [dosis('d1', plus(TAG, -400), 75, null), dosis('d2', plus(TAG, -10), 100, true)] }],
+  ['vergessen', stand()],
+  ['notfall', stand()],
+]) {
+  await ladenHeute({ ...st, einstellungen: { ...st.einstellungen, schrift: 'sehr-gross', farbe: 'dunkel' } }, { zeit: '07:10' });
+  if (seite !== 'heute') await zuKapitel(seite);
+  const breit = await page.evaluate(() => document.documentElement.scrollWidth);
+  check(breit <= 360, `Runde 3: „${seite}" bei „sehr groß" und dunkel ohne waagerechtes Scrollen (${breit} px)`);
+}
+
 await ende();

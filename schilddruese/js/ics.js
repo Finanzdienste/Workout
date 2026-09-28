@@ -100,13 +100,17 @@ function kopf(name) {
  * Was in der Erinnerung steht, richtet sich nach der Uhrzeit: Wer die
  * Tablette nach Absprache mit der Praxis abends nimmt (RW2 E15), bekam um
  * 22 Uhr „Frühstück frühestens eine halbe Stunde später" – und nichts über den
- * Abstand zur letzten Mahlzeit (B57). Abends gilt deshalb der Satz aus M3
+ * Abstand zur letzten Mahlzeit (B57). Abends gilt deshalb der Satz aus E15
  * (ab 17 Uhr wie „Was braucht Abstand?"), tagsüber ein neutraler – kein Rat,
  * danach nichts mehr zu essen: Mittags hieße das, das Abendessen wegzulassen.
+ *
+ * „Mindestens 3 Stunden" wie E15, der Plan (M3), das Wissen und die
+ * ATA-Leitlinie. Hier stand „frühestens 2 bis 3 Stunden" aus RW1 M3 – eine
+ * Zahl unter der Leitlinie, ausgerechnet in der täglichen Erinnerung (D5).
  */
 const MORGENS = 'Nüchtern, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später.';
 const TAGSUEBER = 'Mit einem Glas Wasser, jeden Tag zur gleichen Zeit. Essen und andere Mittel mit Abstand – siehe „Was braucht Abstand?" in der App.';
-const ABENDS = 'Mit einem Glas Wasser, frühestens 2 bis 3 Stunden nach der letzten Mahlzeit – jeden Tag gleich, so wie mit der Praxis besprochen.';
+const ABENDS = 'Mit einem Glas Wasser, mindestens 3 Stunden nach der letzten Mahlzeit – jeden Tag gleich, so wie mit der Praxis besprochen.';
 export const erinnerungText = (uhr) => {
   const h = Number(String(uhr).slice(0, 2));
   return h >= 17 ? ABENDS : h >= 11 ? TAGSUEBER : MORGENS;

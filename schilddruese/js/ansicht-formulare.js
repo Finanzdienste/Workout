@@ -103,6 +103,12 @@ function dosisFormular(id, stand, heute) {
   };
 }
 
+/** Die Menge, auf die sich „Nein, ich nehme etwas anderes" bezog („nein_87_5" → 87,5) – wie neinDosis in js/dosis.js. */
+function neinMenge(antwort) {
+  const m = /^nein_(\d+)(?:_(\d+))?$/.exec(antwort || '');
+  return m ? Number(`${m[1]}.${m[2] || '0'}`) : null;
+}
+
 /**
  * Dieselbe Tablette in derselben Menge – kein Wechsel, nur ein zweiter
  * Eintrag (wie aenderungsArt 'doppelt' in js/dosis.js).
@@ -174,9 +180,18 @@ function dosisAbsenden(id, f, heute) {
     // nächste echte Änderung – auch eine der Praxis – galt Monate später als
     // Berichtigung, ohne Kontrolle (D6c) und ohne Nachfrage nach einer
     // Erhöhung (W-D4) (C17).
+    //
+    // „Danach eingetragen" heißt: mit einer anderen Menge als der, auf die
+    // sich das Nein bezog – wie in js/dosis.js. Am Einrichtungstag beginnt
+    // die eine Dosis oft „ab heute", am Tag der Antwort: Sie selbst ist die
+    // falsche Menge, keine Berichtigung. Galt sie als eine, wurde ein neuer
+    // Eintrag mit der richtigen Menge zur „eigenen Änderung" – mit „nehmen
+    // Sie wieder Ihre bisherige Menge", also der falschen (Runde 3: D19).
     const befund = dosisBefund(s, heute);
     const antwort = befund ? [...s.nachfragen].reverse().find((n) => n.art === 'dosis_stimmt' && n.bezug === befund.id) : null;
-    const berichtigung = Boolean(antwort && /^nein/.test(antwort.antwort) && !s.dosen.some((d) => d !== alt && d.ab >= antwort.am));
+    const menge = antwort ? neinMenge(antwort.antwort) : null;
+    const berichtigung = Boolean(antwort && /^nein/.test(antwort.antwort)
+      && !s.dosen.some((d) => d !== alt && d.ab >= antwort.am && (menge === null || sp.tagesdosis(d) !== menge)));
     if (alt) Object.assign(alt, eintrag, berichtigung ? { berichtigung: true } : {});
     else s.dosen.push({ id: sp.kennung(), ...eintrag, berichtigung });
     s.dosen.sort((a, b) => a.ab.localeCompare(b.ab));
@@ -187,6 +202,22 @@ function dosisAbsenden(id, f, heute) {
     // „nein" nennen keine Menge (B26, B63).
     s.nachfragen = s.nachfragen.filter((n) => !(n.art === 'dosis_stimmt' && /^nein/.test(n.antwort)));
   });
+  /*
+   * Andere Stärke oder Tablettenzahl bei gezähltem Vorrat: bitte neu zählen
+   * (D13). Bei einer neuen Stärke gilt die gezählte Packung nicht mehr – das
+   * kann die App nicht verrechnen; „Heute" bittet dann auch selbst darum, mit
+   * Knopf (vorratAndereStaerke). Bei einer anderen Tablettenzahl rechnet sie
+   * zwar mit, aber nur ab dem Tag, der hier eingetragen ist.
+   */
+  const bisher = da || [...andere].reverse().find((d) => d.ab <= ab) || null;
+  if (stand.vorrat && bisher && (bisher.mikrogramm !== eintrag.mikrogramm || bisher.tabletten !== eintrag.tabletten)) {
+    return {
+      ok: true,
+      meldung: ab > heute
+        ? `Dosis gespeichert. Bitte zählen Sie am ${datumKurz(ab)} Ihren Tablettenvorrat neu – unter „Mehr → Tablettenvorrat".`
+        : 'Dosis gespeichert. Bitte zählen Sie Ihren Tablettenvorrat neu – unter „Mehr → Tablettenvorrat".',
+    };
+  }
   return { ok: true, meldung: 'Dosis gespeichert' };
 }
 
@@ -677,14 +708,42 @@ function frageAbsenden(id, f) {
 
 // ---------------------------------------------------------------- Vorrat
 
+/**
+ * Seit dem Zählen eine andere Stärke (µg)? Dann gilt die gezählte Packung
+ * nicht mehr, und keine Rechnung kann das verrechnen: Die App zählte die
+ * alte Packung weiter herunter und meldete sich zu früh, zu spät oder gar
+ * nicht (D13). → der erste Eintrag mit anderer Stärke, der heute schon gilt,
+ * oder null. Eine andere Tablettenzahl bei gleicher Stärke rechnet
+ * sp.vorratReicht() abschnittsweise mit.
+ */
+export function vorratAndereStaerke(stand, heute) {
+  const v = stand.vorrat;
+  if (!v) return null;
+  const damals = stand.dosen.filter((d) => d.ab <= v.stand).pop() || stand.dosen[0] || null;
+  if (!damals || damals.mikrogramm === null) return null;
+  return stand.dosen.find((d) => d.ab > v.stand && d.ab <= heute && d.mikrogramm !== null && d.mikrogramm !== damals.mikrogramm) || null;
+}
+
+/** „reicht noch etwa 5 Tage", „… 1 Tag" – oder „aufgebraucht". */
+export const vorratText = (reicht) => (reicht <= 0 ? 'aufgebraucht' : `reicht noch etwa ${reicht} ${reicht === 1 ? 'Tag' : 'Tage'}`);
+
+/**
+ * `id` 'neu': neu zählen (von „Heute" nach einer anderen Stärke) – leer und
+ * mit heute als Tag. Sonst stand dort der alte Tag des Zählens, und wer ihn
+ * nicht änderte, zählte die neue Packung rückwirkend.
+ */
 function vorratFormular(id, stand, heute) {
-  const v = stand.vorrat || { tabletten: null, stand: heute };
+  const v = stand.vorrat && id !== 'neu' ? stand.vorrat : { tabletten: null, stand: heute };
   const reicht = sp.vorratReicht(heute);
+  const andere = vorratAndereStaerke(stand, heute);
+  const aktuell = andere
+    ? ` Seit dem ${datumKurz(andere.ab)} nehmen Sie eine andere Stärke (${zahlFeld(andere.mikrogramm)} µg) – bitte zählen Sie die Tabletten dieser Packung.`
+    : reicht !== null ? ` Aktuell: ${vorratText(reicht)}.` : '';
   return {
     titel: 'Tablettenvorrat',
     html: `
       <form data-formular="vorrat" novalidate>
-        <p class="gedaempft" style="margin-bottom:.9rem">Wie viele Tabletten sind heute noch da? Die App zählt ab hier täglich herunter und meldet sich zwei Wochen vor dem Ende.${reicht !== null ? ` Aktuell: reicht noch etwa ${Math.max(0, reicht)} Tage.` : ''}</p>
+        <p class="gedaempft" style="margin-bottom:.9rem">Wie viele Tabletten sind heute noch da? Die App zählt ab hier täglich herunter und meldet sich zwei Wochen vor dem Ende.${esc(aktuell)}</p>
         ${feldZahl('tabletten', v.tabletten, 'Tabletten im Vorrat', { platzhalter: 'z. B. 100' })}
         ${feldDatum('stand', v.stand, 'Gezählt am')}
         <div class="formular-fuss">

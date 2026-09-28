@@ -22,7 +22,7 @@ import { mehrAnsicht, mehrSeite } from './ansicht-mehr.js';
 import { formular, absenden, eintragLoeschen } from './ansicht-formulare.js';
 import { einschaetzungSeite } from './ansicht-einschaetzung.js';
 import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS } from './ansicht-dosis.js';
-import { fragenVorschlaege } from './einschaetzung.js';
+import { fragenVorschlaege, abnahmeHeute } from './einschaetzung.js';
 import { dosisHinweise } from './dosis.js';
 import { willkommenAnsicht, willkommenWeiter, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
 import { berichtText } from './bericht.js';
@@ -329,6 +329,15 @@ async function tablettenHinweis() {
   const heute = heuteISO();
   if (sp.einnahme(heute) !== undefined) return;
   if (jetztUhr() < stand.einstellungen.erinnerung) return;
+  /*
+   * Am Morgen einer Blutabnahme kommt die Tablette erst danach (RW1 L0d).
+   * Der Hinweis „Nüchtern, mit einem Glas Wasser" sagte um 7 Uhr das
+   * Gegenteil – wer ihm folgte, bekam ein erhöhtes fT4 (D16). Bis zur
+   * Uhrzeit der Abnahme (ohne Uhrzeit den ganzen Tag) also keiner. Gemerkt
+   * wird erst ein wirklich gezeigter Hinweis: Nach der Abnahme erinnert die
+   * App dann noch – der Minutentakt in tagPruefen() ruft hier wieder an.
+   */
+  if (abnahmeHeute(stand, heute, jetztUhr())) return;
   try {
     if (localStorage.getItem(HINWEIS_MERK) === heute) return;
     localStorage.setItem(HINWEIS_MERK, heute);

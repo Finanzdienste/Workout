@@ -1716,11 +1716,16 @@ pruefeBeschwerden({ name: 'B11 S2 zu viel: fester Satz gegen Selbsthandlung', be
 
 // ---- B12: Behandlungsgrund Hirnanhangdrüse – die Stufe kommt aus fT4, nicht aus TSH (RW2 P1).
 const HYPO = { ursache: 'hypophyse' };
-pruefeFall({ name: 'B12 Hypophyse: TSH 0,05 + fT4 16 → keine „zu viel Hormon"-Stufe', profil: HYPO, tsh: t(0.05), ft4: f4(16), stufe: 'keine', texte: ['entscheidend ist fT4'], verboten: ['zu viel Schilddrüsenhormon', 'Hirnanhangdrüse'], ohneRegeln: ['L3a', 'L4b'] });
+// Runde 3 (D6): fT4 von 16 auf 19 gesetzt. Geprüft wird hier, dass das
+// niedrige TSH keine „zu viel Hormon"-Stufe auslöst; 16 liegt bei 12–22 aber
+// in der unteren Hälfte und ergibt seit D6 zu Recht „Termin" (Leitlinie: fT4
+// in der oberen Hälfte) – der Fall stünde sonst für etwas anderes.
+pruefeFall({ name: 'B12 Hypophyse: TSH 0,05 + fT4 19 → keine „zu viel Hormon"-Stufe', profil: HYPO, tsh: t(0.05), ft4: f4(19), stufe: 'keine', texte: ['entscheidend ist fT4'], verboten: ['zu viel Schilddrüsenhormon', 'Hirnanhangdrüse'], ohneRegeln: ['L3a', 'L4b'] });
 pruefeFall({ name: 'B12 Hypophyse: TSH 1,0 + fT4 10,5 → mindestens zeitnah', profil: HYPO, tsh: t(1), ft4: f4(10.5), stufeMin: 'zeitnah', texte: ['zu wenig Schilddrüsenhormon'], verboten: ['ohne Bedeutung'] });
 pruefeFall({ name: 'B12 Hypophyse: TSH 1,0 ohne fT4 → termin, fT4 erfragen', profil: HYPO, tsh: t(1), stufe: 'termin', texte: ['fT4 bestimmt'], verboten: ['wichtigste Wert', 'derzeit passt'] });
 pruefeFall({ name: 'B12 Hypophyse: fT4 8 (deutlich unter) → tage, Satz 1', profil: HYPO, tsh: t(0.3), ft4: f4(8), stufe: 'tage', notfall: 1 });
-pruefeFall({ name: 'B12 Hypophyse ohne TSH, fT4 15 → ohne „wichtigste Wert"', profil: HYPO, tsh: null, ft4: f4(15), muster: null, stufe: 'keine', texte: ['entscheidend ist fT4'], verboten: ['wichtigste Wert'] });
+// Runde 3 (D6): fT4 von 15 auf 19 gesetzt – aus demselben Grund wie oben.
+pruefeFall({ name: 'B12 Hypophyse ohne TSH, fT4 19 → ohne „wichtigste Wert"', profil: HYPO, tsh: null, ft4: f4(19), muster: null, stufe: 'keine', texte: ['entscheidend ist fT4'], verboten: ['wichtigste Wert'] });
 pruefeFall({ name: 'B12 Hypophyse: TSH 15 bleibt tage (feste Schwelle)', profil: HYPO, tsh: t(15), ft4: f4(15), stufe: 'tage' });
 
 // ---- B13: bestätigter sehr hoher Wert mit Laborbereich wird eingeordnet (E13: „bis dahin keine Einordnung").
@@ -2189,6 +2194,174 @@ try {
   });
 } catch (e) {
   check('C21 im Speicher (läuft ohne Absturz)', false, e && e.message);
+}
+if (hatteLocalStorage) globalThis.localStorage = vorherLocalStorage;
+else delete globalThis.localStorage;
+
+// ================================================================ Runde 3 (D1–D16, Kern-Teile)
+//
+// Befunde der dritten Review-Runde, soweit sie den Kern und den Speicher
+// betreffen. Jeder Fall hier scheiterte vor der Korrektur.
+
+// ---- D1: Vitamin D über 100 – kein pauschales Absetzen „Ihres Vitamin-D-Präparats"
+// (nach einer Schilddrüsen-OP oft Calcitriol oder Kalzium gegen die Unterfunktion
+// der Nebenschilddrüsen). Stufe tage bleibt (E13e).
+['op', 'hashimoto'].forEach((ursache) => fall(`D1 Vitamin D 110 ng/ml (30–100), Ursache ${ursache}`, () => {
+  const s = baue({ profil: { ursache }, tsh: t(1.5), befund: ww('vitd', 110, 'ng/ml', 30, 100), mittel: ['kalzium'] });
+  const e = ez.weitereWerte(s.labor.find((x) => x.id === 'ziel'), s).find((x) => x.key === 'vitd');
+  const n = `D1 (${ursache})`;
+  check(`${n}: Stufe tage`, !!e && e.stufe === 'tage', `ist ${e && e.stufe}`);
+  ['sehr hoch', 'nicht ohne Rücksprache ab', 'Calcitriol', 'Colecalciferol', 'in den nächsten Tagen die Praxis an'].forEach((x) => check(`${n}: Text „${x}"`, !!e && enthaelt(e.texte, x), e && e.texte.join(' | ')));
+  check(`${n}: kein „Ihr Vitamin-D-Präparat … nicht weiter"`, !!e && !enthaelt(e.texte, 'Vitamin-D-Präparat'), e && e.texte.join(' | '));
+  // Keine niedrigere Stufe als W1 für Verwirrtheit (112) – der Satz nennt sie gar nicht.
+  check(`${n}: nennt keine Verwirrtheit mit „heute"`, !!e && !enthaelt(e.texte, 'Verwirrtheit'), e && e.texte.join(' | '));
+  check(`${n}: Gesamtbild tage`, ez.gesamtbild(s, HEUTE).stufe === 'tage', `ist ${ez.gesamtbild(s, HEUTE).stufe}`);
+}));
+
+// ---- D3: S4 trägt die Stufe heute – der Text nennt keine mildere Frist daneben.
+pruefeBeschwerden({
+  name: 'D3 S4 Puls unregelmäßig → „heute noch", ohne „in den nächsten Tagen"', befinden: [bf(HEUTE, 'puls')],
+  stufe: 'heute', regeln: ['S4'], texte: ['heute noch in der Praxis an', '116 117', 'sofort 112'], verboten: ['in den nächsten Tagen', 'heute oder'],
+});
+
+// Dieselbe Mischung stand in S4ii (Herzklopfen an einem Tag + niedriges TSH):
+// Mit 78 Jahren Stufe heute, der Satz begann aber mit „in den nächsten Tagen".
+pruefeBeschwerden({
+  name: 'D3 S4ii 78 J., Herzklopfen an einem Tag + TSH 0,05 → nur „heute noch"', profil: { geburtsjahr: J[78] }, befund: { tsh: t(0.05), ft4: f4(24) },
+  befinden: [bf(HEUTE, 'herz')], stufe: 'heute', regeln: ['S4ii'], texte: ['heute noch in der Praxis an', '116 117', 'sofort 112'], verboten: ['in den nächsten Tagen'],
+});
+pruefeBeschwerden({
+  name: 'D3 S4ii 56 J. ohne Herz → tage, Satz wie bisher', befund: { tsh: t(0.05), ft4: f4(24) },
+  befinden: [bf(HEUTE, 'herz')], stufe: 'tage', regeln: ['S4ii'], texte: ['in den nächsten Tagen', 'noch heute'],
+});
+
+// ---- D5 (Kern-Teil): abends frühestens 3 Stunden nach der letzten Mahlzeit (RW2 E15, ATA 2014).
+['17:00', '21:30', '22:00'].forEach((uhrzeit) => fall(`D5 Plan bei Einnahme ${uhrzeit}: keine „2 Stunden"`, () => {
+  const p = plan(`D5 ${uhrzeit}`, { uhr: uhrzeit, mittel: ['kalzium', 'eisen', 'kaffee'] });
+  const m3 = eintrag(p, 'fruehstueck');
+  check(`D5 ${uhrzeit}: M3 nennt 3 Stunden`, !!m3 && enthaelt(m3.text, '3 Stunden') && enthaelt(m3.text, 'letzten Mahlzeit'), m3 && m3.text);
+  const zwei = texteVon(p).filter((x) => /\b2\s*(?:[–-]\s*3\s*|bis\s+3\s+)?Stunden/.test(x));
+  check(`D5 ${uhrzeit}: keine „2" vor „Stunden" im Plan`, zwei.length === 0, zwei.join(' | '));
+}));
+
+// ---- D6: Behandlungsgrund Hirnanhangdrüse – fT4 im Bereich heißt nur in der
+// oberen Hälfte „passt" (ETA 2018, Endocrine Society 2016).
+const WENIG4 = [bf(HEUTE, 'muede', 'frieren', 'verstopfung', 'trockenhaut')];
+pruefeFall({
+  name: 'D6 Hypophyse: TSH 0,3 + fT4 12,5 (12–22), 78 J. → termin, untere Hälfte', profil: { ...HYPO, geburtsjahr: J[78] }, tsh: t(0.3), ft4: f4(12.5),
+  stufe: 'termin', texte: ['entscheidend ist fT4', 'unteren Hälfte', 'welcher Bereich für Sie gilt', 'nächsten Termin'], verboten: ['derzeit passt', 'Unterversorgung', 'Hirnanhangdrüse'],
+  pruef: (E) => [['Richtung unklar (nicht „passend")', E.richtung === 'unklar', `ist ${E.richtung}`],
+    ['Kopf nicht „Kein besonderer Anlass"', !!E.kopf && E.kopf.stufe === 'termin', JSON.stringify(E.kopf)],
+    ['Satz gegen Selbsthandlung', !!E.gegenSelbst, `ist ${E.gegenSelbst}`]],
+});
+pruefeFall({
+  name: 'D6 Hypophyse: TSH 0,3 + fT4 20 (12–22) → keine, obere Hälfte passt', profil: HYPO, tsh: t(0.3), ft4: f4(20),
+  stufe: 'keine', texte: ['oberen Hälfte', 'derzeit passt'], pruef: (E) => [['Richtung passend', E.richtung === 'passend', `ist ${E.richtung}`]],
+});
+pruefeFall({ name: 'D6 Hypophyse: fT4 genau in der Mitte (17 bei 12–22) → passt', profil: HYPO, tsh: t(0.3), ft4: f4(17), stufe: 'keine', texte: ['derzeit passt'] });
+pruefeFall({
+  name: 'D6 Hypophyse: fT4 12,5 ohne Laborbereich → termin, ohne „passt"', profil: HYPO, tsh: t(0.3), ft4: f4O(12.5),
+  stufe: 'termin', texte: ['welcher Teil des Bereichs', 'beiden Grenzen'], verboten: ['derzeit passt'],
+  pruef: (E) => [['Richtung unklar', E.richtung === 'unklar', `ist ${E.richtung}`]],
+});
+pruefeFall({
+  name: 'D6 Hypophyse: fT4 „< 20" (12–22) → nicht sicher obere Hälfte', profil: HYPO, tsh: t(0.3), ft4: { ...f4(20), unter: true },
+  stufe: 'termin', verboten: ['derzeit passt'],
+});
+pruefeFall({
+  name: 'D6 Hypophyse ohne TSH, fT4 12,5 (12–22) → termin', profil: HYPO, tsh: null, ft4: f4(12.5), muster: null,
+  stufe: 'termin', texte: ['unteren Hälfte'], verboten: ['derzeit passt'], pruef: (E) => [['Richtung unklar', E.richtung === 'unklar', `ist ${E.richtung}`]],
+});
+// TSH über 10 hebt auf tage (feste Schwelle) – dann weder „passt" noch „beim nächsten Termin" (L3f).
+[['D6 Hypophyse: TSH 15 + fT4 19 → tage ohne „passt"', 19], ['D6 Hypophyse: TSH 15 + fT4 13 → tage ohne „nächsten Termin"', 13]]
+  .forEach(([name, wert]) => pruefeFall({ name, profil: HYPO, tsh: t(15), ft4: f4(wert), stufe: 'tage', texte: ['deutlich erhöht'], verboten: ['derzeit passt', 'nächsten Termin'] }));
+pruefeBeschwerden({
+  name: 'D6 Hypophyse fT4 12,5 + Beschwerden „zu wenig" → kein S3 „Ursache oft woanders"', profil: { ...HYPO, geburtsjahr: J[78] },
+  befund: { tsh: t(0.3), ft4: f4(12.5) }, befinden: WENIG4, richtung: 'wenig', verboten: ['oft woanders', 'lagen zuletzt im Bereich'],
+});
+pruefeBeschwerden({
+  name: 'D6 Hypophyse fT4 20 + Beschwerden „zu wenig" → S3 wie bisher', profil: { ...HYPO, geburtsjahr: J[78] },
+  befund: { tsh: t(0.3), ft4: f4(20) }, befinden: WENIG4, regeln: ['S3'], texte: ['oft woanders'],
+});
+fall('D6 Hypophyse fT4 12,5: Gesamtbild nicht „Kein besonderer Anlass"', () => {
+  const s = baue({ profil: { ...HYPO, geburtsjahr: J[78] }, tsh: t(0.3), ft4: f4(12.5), befinden: WENIG4 });
+  const g = ez.gesamtbild(s, HEUTE);
+  check('D6 Gesamtbild mindestens termin', rang(g.stufe) >= rang('termin'), `ist ${g.stufe}; ${teilIds(g).join(', ')}`);
+  check('D6 Teil befund termin', g.teile.some((x) => x.id === 'befund' && x.stufe === 'termin'), teilIds(g).join(', '));
+});
+
+// ---- D8: L5a nur für Mittel, die TSH, fT4, Aufnahme oder Bedarf verändern (RW1 L5a/L5e).
+const D8_FALL = (key) => ({
+  profil: { geburtsjahr: J[78], herz: 'ja' }, tsh: t(0.05), ft4: f4(24), befund: { mittelGeaendert: 'nein' },
+  mittel: [key], mittelWechsel: [{ id: 'mw1', key, art: 'beginn', am: '2026-09-01' }],
+});
+['marcumar', 'selen', 'oestrogen_haut', 'digitalis', 'bisphosphonat', 'diabetes'].forEach((key) => pruefeFall({
+  name: `D8 ${key} begonnen 19 Tage vor der Abnahme → kein L5a`, ...D8_FALL(key), muster: 'd', stufe: 'tage', ohneRegeln: ['L5a'], verboten: ['eingependelt'],
+}));
+['ppi', 'kalzium', 'oestrogen_tablette', 'amiodaron', 'jod', 'metformin'].forEach((key) => pruefeFall({
+  name: `D8 ${key} begonnen 19 Tage vor der Abnahme → L5a`, ...D8_FALL(key), muster: 'd', regeln: ['L5a'],
+}));
+pruefeFall({ name: 'D8 Magenschutz abgesetzt 19 Tage vorher → L5a', ...D8_FALL('ppi'), mittel: [], mittelWechsel: [{ id: 'mw1', key: 'ppi', art: 'ende', am: '2026-09-01' }], regeln: ['L5a'] });
+pruefeFall({ name: 'D8 Befundfrage „Mittel geändert: ja" → L5a auch ohne Liste', ...D8_FALL('marcumar'), befund: { mittelGeaendert: 'ja' }, regeln: ['L5a'] });
+fall('D8 Arztbericht: kein „eingependelt" unter „Mittel geändert: nein" (Marcumar)', () => {
+  const z = ez.berichtZeilen(baue(D8_FALL('marcumar')), HEUTE);
+  check('D8 Bericht ohne L5a-Satz', !z.some((x) => enthaelt(x, 'eingependelt')), z.filter((x) => enthaelt(x, 'eingependelt')).join(' | '));
+});
+
+// ---- D16 (Kern-Teil): Termin mit Blutabnahme heute – solange sie bevorsteht.
+fall('D16 abnahmeHeute', () => {
+  const T = (datum, uhr, art = 'labor', blutabnahme = false) => ({ id: `t${datum}${uhr}`, datum, uhr, art, wo: '', blutabnahme, notiz: '' });
+  const mit = (termine) => baue({ ohneBefund: true, termine });
+  const s = mit([T(HEUTE, '09:30')]);
+  check('D16 Funktion vorhanden', typeof ez.abnahmeHeute === 'function');
+  check('D16 07:10 vor der Abnahme um 9:30 → Termin', !!ez.abnahmeHeute(s, HEUTE, '07:10') && ez.abnahmeHeute(s, HEUTE, '07:10').uhr === '09:30');
+  check('D16 10:00 nach der Abnahme → null', ez.abnahmeHeute(s, HEUTE, '10:00') === null);
+  check('D16 ohne Uhrzeit-Angabe → Termin', !!ez.abnahmeHeute(s, HEUTE));
+  check('D16 Abnahme ohne Uhrzeit gilt den ganzen Tag', !!ez.abnahmeHeute(mit([T(HEUTE, '')]), HEUTE, '18:00'));
+  check('D16 Arzttermin mit Haken „Blut" zählt', !!ez.abnahmeHeute(mit([T(HEUTE, '11:00', 'arzt', true)]), HEUTE, '07:00'));
+  check('D16 Arzttermin ohne Blutabnahme zählt nicht', ez.abnahmeHeute(mit([T(HEUTE, '11:00', 'arzt')]), HEUTE, '07:00') === null);
+  check('D16 Abnahme morgen zählt heute nicht', ez.abnahmeHeute(mit([T(plus(HEUTE, 1), '09:30')]), HEUTE, '07:00') === null);
+  const zwei = mit([T(HEUTE, '08:00'), T(HEUTE, '11:00')]);
+  check('D16 zwei Abnahmen: bis zur späteren', !!ez.abnahmeHeute(zwei, HEUTE, '09:00') && ez.abnahmeHeute(zwei, HEUTE, '09:00').uhr === '11:00');
+});
+
+// ---- D13: Vorrat – der Verbrauch zählt Tag für Tag mit der Dosis, die an dem Tag galt.
+try {
+  const VORRAT_AB = '2026-01-12';
+  const WECHSEL = plus(VORRAT_AB, 40); // 21.02.2026: 1½ → 1 Tablette am Tag
+  globalThis.localStorage = speicherAttrappe({
+    [SCHLUESSEL_SD]: JSON.stringify({
+      version: 2, profil: { ...BASIS_PROFIL },
+      dosen: [{ id: 'd1', ab: '2025-06-01', praeparat: 'L-Thyroxin', mikrogramm: 50, tabletten: 1.5 }, { id: 'd2', ab: WECHSEL, praeparat: 'L-Thyroxin', mikrogramm: 50, tabletten: 1, praxis: true }],
+      vorrat: { tabletten: 100, stand: VORRAT_AB },
+    }),
+  });
+  const S = await instanz();
+  fall('D13 1½ → 1 Tablette ab Tag 40: Vorrat ehrlich gezählt', () => {
+    // Tatsächlich übrig an Tag n ≥ 40: 100 − 40 × 1,5 − (n − 40) = 80 − n.
+    // Die Reichweite ab heute rechnet die schon eingetragene spätere Dosis mit:
+    // an Tag 0 noch 40 Tage zu 1½ und dann 40 zu 1 – zusammen 80.
+    [[0, 80], [30, 50], [40, 40], [66, 14], [79, 1], [80, 0]].forEach(([n, soll]) => {
+      const r = S.vorratReicht(plus(VORRAT_AB, n));
+      check(`D13 Tag ${n}: reicht ${soll}`, r === soll, `ist ${r}`);
+    });
+    const leer = S.vorratReicht(plus(VORRAT_AB, 86));
+    check('D13 Tag 86 (seit 6 Tagen leer): aufgebraucht, nicht „14 Tage"', leer !== null && leer <= 0, `ist ${leer}`);
+  });
+  globalThis.localStorage = speicherAttrappe({
+    [SCHLUESSEL_SD]: JSON.stringify({ version: 2, profil: { ...BASIS_PROFIL }, dosen: [D1], vorrat: { tabletten: 30, stand: HEUTE } }),
+  });
+  const E = await instanz();
+  fall('D13 gleichbleibende Dosis wie bisher', () => {
+    check('D13 am Zähltag: 30', E.vorratReicht(HEUTE) === 30, `ist ${E.vorratReicht(HEUTE)}`);
+    check('D13 nach 29 Tagen: 1', E.vorratReicht(plus(HEUTE, 29)) === 1, `ist ${E.vorratReicht(plus(HEUTE, 29))}`);
+    check('D13 nach 30 Tagen: 0', E.vorratReicht(plus(HEUTE, 30)) === 0, `ist ${E.vorratReicht(plus(HEUTE, 30))}`);
+  });
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: JSON.stringify({ version: 2, profil: { ...BASIS_PROFIL }, dosen: [D1] }) });
+  const O = await instanz();
+  fall('D13 ohne Vorrat: null', () => check('D13 null', O.vorratReicht(HEUTE) === null, `ist ${O.vorratReicht(HEUTE)}`));
+} catch (e) {
+  check('D13 im Speicher (läuft ohne Absturz)', false, e && e.message);
 }
 if (hatteLocalStorage) globalThis.localStorage = vorherLocalStorage;
 else delete globalThis.localStorage;

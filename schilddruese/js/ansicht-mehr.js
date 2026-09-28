@@ -10,6 +10,7 @@ import { esc, mehrzahl } from './text.js';
 import * as sp from './speicher.js';
 import { berichtText } from './bericht.js';
 import { KAPITEL, kapitel, kapitelHtml } from './wissen.js';
+import { vorratAndereStaerke, vorratText } from './ansicht-formulare.js';
 
 const zeile = (seite, titel, unter, param = null, ri = '') => `
   <button type="button" class="zeile" data-act="seite" data-seite="${seite}"${param ? ` data-param="${esc(param)}"` : ''}>
@@ -22,6 +23,18 @@ function sicherungUnter(stand, heute) {
   if (!stand.letzteSicherung) return 'Noch nie gesichert';
   const tage = tageZwischen(stand.letzteSicherung, heute);
   return `Zuletzt ${esc(relativ(stand.letzteSicherung, heute))}${tage > 60 ? ' – Zeit für eine neue' : ''}`;
+}
+
+/*
+ * Die Zeile zum Vorrat sagt dasselbe wie „Heute" (D13): nach einer anderen
+ * Stärke „bitte neu zählen" statt einer Reichweite aus der alten Packung,
+ * bei 0 „aufgebraucht" statt „reicht noch etwa 0 Tage".
+ */
+function vorratUnter(stand, heute, reicht) {
+  if (reicht === null) return 'Wird nicht gezählt';
+  if (vorratAndereStaerke(stand, heute)) return 'Andere Stärke – bitte neu zählen';
+  const t = vorratText(reicht);
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 export function mehrAnsicht(stand, heute) {
@@ -54,7 +67,7 @@ export function mehrAnsicht(stand, heute) {
     <h2 class="abschnitt">Einstellungen</h2>
     <div class="zeilen">
       ${zeile('erinnerung', 'Erinnerung', `Einnahme um ${esc(uhrText(stand.einstellungen.erinnerung))} · Kalenderdatei`, null, '⏰')}
-      ${zeile('vorrat', 'Tablettenvorrat', reicht !== null ? `Reicht noch etwa ${Math.max(0, reicht)} Tage` : 'Wird nicht gezählt', null, '💊')}
+      ${zeile('vorrat', 'Tablettenvorrat', vorratUnter(stand, heute, reicht), null, '💊')}
       ${zeile('darstellung', 'Schrift, Farben, Anrede', stand.einstellungen.schrift === 'sehr-gross' ? 'Schrift sehr groß' : stand.einstellungen.schrift === 'normal' ? 'Schrift normal' : 'Schrift groß', null, '🔤')}
       ${zeile('sicherung', 'Sicherung', sicherungUnter(stand, heute), null, '💾')}
       ${zeile('ueber', 'Über diese App', 'Was sie kann und was nicht · Alles löschen', null, 'ℹ️')}

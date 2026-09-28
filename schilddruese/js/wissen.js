@@ -55,18 +55,32 @@ export const KAPITEL = [
       <h2>Aufbewahren</h2>
       <p>Trocken, vor Licht geschützt, nicht über 25 °C – also nicht im Badezimmer und nicht im Auto. Am besten in der Originalpackung.</p>`,
   },
+  /*
+   * „Tablette vergessen?" – zwei Korrekturen aus der dritten Durchsicht:
+   * Nachholen „mindestens 3 Stunden nach dem Essen" wie E15, der Plan (M3)
+   * und die Kalender-Erinnerung; vorher stand hier „2 bis 3 Stunden", eine
+   * Zahl unter der Leitlinie (D5). Und der Fall „mehr als eine Tablette zu
+   * viel auf einmal" fehlte: Wer drei auf einmal genommen hatte, fand nur
+   * „einmal doppelt: schadet nicht" – der Check sagt dazu „jetzt der
+   * Giftnotruf" (W4a; D10). Die Nummer fürs Bundesland kommt wie im Kapitel
+   * „Wann anrufen" aus <!--giftnotruf-->, die 112 steht als Knopf darunter.
+   */
   {
     id: 'vergessen',
     titel: 'Tablette vergessen?',
     kurz: 'Nachholen oder auslassen – nie doppelt',
     html: `
       <div class="merke"><strong>Nie die doppelte Menge nehmen.</strong></div>
-      <p><strong>Fällt es noch am selben Tag auf:</strong> nachholen, wenn ein nüchterner Zeitpunkt möglich ist – etwa 2 bis 3 Stunden nach dem Essen und danach eine halbe Stunde nichts essen. Das geht auch abends vor dem Schlafen.</p>
+      <p><strong>Fällt es noch am selben Tag auf:</strong> nachholen, wenn ein nüchterner Zeitpunkt möglich ist – mindestens 3 Stunden nach dem Essen und danach eine halbe Stunde nichts essen. Das geht auch abends vor dem Schlafen.</p>
       <p><strong>Geht das nicht, oder fällt es erst am nächsten Tag auf:</strong> auslassen und ganz normal weitermachen. Auch das ist richtig, so steht es in der Packungsbeilage.</p>
       <p>Eine einzelne vergessene Tablette ist nicht gefährlich: Das Hormon wirkt etwa eine Woche im Körper nach. Häufiges Vergessen zeigt sich aber in den Blutwerten – der TSH-Wert steigt. Deshalb die Einnahme hier abhaken; vergessene Tage stehen dann im Bericht für den Arzttermin.</p>
       <h2>Aus Versehen doppelt genommen?</h2>
       <p>Eine einmal doppelt genommene Tablette schadet in der Regel nicht. Beschwerden können aber verzögert kommen: Treten in den nächsten Tagen Herzklopfen, Unruhe oder Zittern auf – oder haben Sie eine Herzkrankheit –, die Praxis anrufen.</p>
-      <p>Mehrere Tabletten zu viel über mehrere Tage, oder ein Kind hat Tabletten genommen: Arzt oder Giftnotruf anrufen, auch wenn noch keine Beschwerden da sind.</p>`,
+      <p><strong>Mehr als eine Tablette zu viel auf einmal</strong> (zum Beispiel drei statt einer): jetzt den Giftnotruf anrufen, auch ohne Beschwerden – sie kommen oft erst nach Tagen. Halten Sie die Packung bereit.</p>
+      <p>Mehrere Tabletten zu viel über mehrere Tage, oder ein Kind hat Tabletten genommen: Arzt oder Giftnotruf anrufen, auch wenn noch keine Beschwerden da sind.</p>
+      <!--giftnotruf-->
+      <p><strong>Bei Herzrasen, Brustschmerz, Atemnot oder Verwirrtheit: sofort 112.</strong></p>
+      <p><a class="knopf knopf-gefahr knopf-breit" href="tel:112">112 anrufen</a></p>`,
   },
   {
     id: 'abstand',
@@ -205,6 +219,14 @@ export const KAPITEL = [
       <p>Dauerhaft zu viel Hormon erhöht – besonders im Alter und bei Frauen nach den Wechseljahren – das Risiko für Vorhofflimmern und Knochenschwund, auch wenn man sich dabei gut fühlt. „Lieber etwas mehr" ist deshalb keine gute Idee. L-Thyroxin ist auch kein Mittel zum Abnehmen.</p>
       <p>Nach einer Dosisänderung bessern sich Beschwerden erst nach einigen Wochen bis wenigen Monaten. Bleiben Beschwerden trotz guter Werte, sucht die Ärztin nach anderen Ursachen.</p>`,
   },
+  /*
+   * „Heute noch die Praxis anrufen" (D2): Herzklopfen seit Tagen, ein neu
+   * unregelmäßiger Puls, Erbrechen über mehr als einen Tag … standen unter
+   * „In den nächsten Tagen" – der Check (W2h), die Befinden-Karte (S4) und
+   * die Dosis-Karte sagen dazu „heute noch". Dieses Kapitel liest die
+   * Nutzerin allein als Leitfaden; es darf keine längere Frist nennen als die
+   * App an anderer Stelle (RW1 Grundsatz 5, L3f). Die Liste ist die aus W2h.
+   */
   {
     id: 'notfall',
     titel: 'Wann anrufen, wann 112',
@@ -227,13 +249,24 @@ export const KAPITEL = [
       <h2>Zu viele Tabletten genommen</h2>
       <p>Arzt oder Giftnotruf. Der Giftnotruf ist in Deutschland regional organisiert.</p>
       <!--giftnotruf-->
+      <h2>Heute noch die Praxis anrufen</h2>
+      <ul>
+        <li>Herzklopfen seit Tagen oder Puls neu unregelmäßig</li>
+        <li>Ruhepuls mehrmals über 100 oder unter 50 Schläge pro Minute</li>
+        <li>Erbrechen länger als einen Tag oder Durchfall über mehrere Tage</li>
+        <li>über mehrere Tage versehentlich zu viele Tabletten genommen</li>
+        <li>keine Schilddrüsen-Tabletten mehr im Haus</li>
+        <li>mit Marcumar: Blutungszeichen wie Nasenbluten, das nicht aufhört, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund</li>
+      </ul>
+      <p>Ist die Praxis geschlossen: Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.</p>
+      <div class="knopf-reihe"><a class="knopf" href="tel:116117">116 117 anrufen</a><a class="knopf knopf-gefahr" href="tel:112">112 anrufen</a></div>
       <h2>In den nächsten Tagen die Praxis anrufen</h2>
       <ul>
-        <li>neue, anhaltende Beschwerden aus „Anzeichen: zu wenig oder zu viel"</li>
+        <li>neue, anhaltende Beschwerden aus „Anzeichen: zu wenig oder zu viel" – außer Herzklopfen oder unregelmäßigem Puls, siehe oben</li>
         <li>mehrfach vergessene Tabletten</li>
         <li>ein neues oder abgesetztes Medikament oder Nahrungsergänzungsmittel</li>
         <li>ein anderes Präparat aus der Apotheke</li>
-        <li>mehrere Tage Durchfall oder Erbrechen, ungewollter Gewichtsverlust, unregelmäßiger Puls</li>
+        <li>ungewollter Gewichtsverlust</li>
         <li>geplante Operation oder Untersuchung mit Kontrastmittel</li>
         <li>Schwangerschaft</li>
       </ul>`,
@@ -284,10 +317,11 @@ export function kapitel(id) {
 }
 
 /*
- * Der Giftnotruf im Kapitel „Wann anrufen, wann 112": die Nummer fürs
- * eingetragene Bundesland als Knopf. Vorher stand dort nur „zum Beispiel
- * Berlin 030 19240" – wer in Bayern wohnt, las die falsche Nummer (B67).
- * Ohne Bundesland: 112 (RW1 P5) – der Knopf steht oben im Kapitel.
+ * Der Giftnotruf in den Kapiteln „Wann anrufen, wann 112" und „Tablette
+ * vergessen?": die Nummer fürs eingetragene Bundesland als Knopf. Vorher
+ * stand dort nur „zum Beispiel Berlin 030 19240" – wer in Bayern wohnt, las
+ * die falsche Nummer (B67). Ohne Bundesland: 112 (RW1 P5) – der Knopf steht
+ * im Kapitel selbst.
  */
 function giftnotrufAbsatz(stand) {
   const land = stand ? sp.BUNDESLAENDER.find(([k]) => k === stand.profil.bundesland) : null;

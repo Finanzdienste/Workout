@@ -406,12 +406,47 @@ function musterText(m, befund, stand, { passt = true } = {}) {
  */
 const HYPO_TEXT = 'Bei Ihrem Behandlungsgrund (siehe Profil) sagt der TSH-Wert wenig über die Einstellung – entscheidend ist fT4.';
 
-function hypophyseText(f) {
+/*
+ * D6: Wo liegt ein fT4 „im Bereich" – in der oberen oder der unteren Hälfte
+ * des Laborbereichs? Beim Behandlungsgrund Hirnanhangdrüse wird fT4 unter der
+ * Tablette meist in der oberen Hälfte angestrebt (ETA 2018, Endocrine Society
+ * 2016); ein Wert knapp über der Untergrenze heißt dann oft: zu wenig. Vorher
+ * hieß jedes fT4 im Bereich „Einstellung passt" und „Kein besonderer Anlass",
+ * und S3 erklärte die Beschwerden einer Unterversorgung mit „Ursache oft
+ * woanders" weg. Die Hälfte lässt sich nur am Laborbereich mit beiden Grenzen
+ * sagen – die Bereiche für fT4 unterscheiden sich je nach Labor stark, die
+ * Orientierung taugt dafür nicht. Ein Wert „< x" in der oberen Hälfte kann
+ * auch darunter liegen.
+ * → 'oben' | 'unten' | 'offen'; null, wenn fT4 nicht im Bereich liegt.
+ */
+function ft4Haelfte(f, w) {
+  if (f.lage !== 'im') return null;
+  if (f.quelle !== 'labor' || f.von === null || f.bis === null || !w || typeof w.wert !== 'number') return 'offen';
+  if (w.wert < (f.von + f.bis) / 2) return 'unten';
+  return w.unter ? 'offen' : 'oben';
+}
+
+/*
+ * `stufe`: die Stufe des Befunds. Liegt sie über „Termin" (TSH über 10 als
+ * feste Schwelle), nennt der Text weder „passt" noch „beim nächsten Termin" –
+ * unter „In den nächsten Tagen anrufen" wäre beides eine niedrigere Frist
+ * (L3f). `tshHoch`: Dann steht auch der Grund für diese Stufe da.
+ */
+function hypophyseText(f, w, { stufe = 'keine', tshHoch = false } = {}) {
   if (!f.lage) return `${HYPO_TEXT} fT4 fehlt oder lässt sich nicht einordnen. Bitte fragen Sie die Praxis, ob fT4 bestimmt werden soll.`;
   const lage = `fT4 liegt ${LAGE_TEXT[f.genau]}.`;
   if (f.lage === 'unter') return `${HYPO_TEXT} ${lage} Das kann bedeuten, dass zu wenig Schilddrüsenhormon im Körper ist. Ob die Dosis angepasst wird, entscheidet Ihre Ärztin.`;
   if (f.lage === 'ueber') return `${HYPO_TEXT} ${lage} Das kann bedeuten, dass zu viel Schilddrüsenhormon im Körper ist – oder die Tablette wurde kurz vor der Blutabnahme genommen. Ob die Dosis angepasst wird, entscheidet Ihre Ärztin.`;
-  return `${HYPO_TEXT} ${lage} Das spricht dafür, dass die Tabletten-Einstellung derzeit passt.`;
+  const haelfte = ft4Haelfte(f, w);
+  const wann = STUFEN[stufe].rang > STUFEN.termin.rang ? 'in der Praxis auch' : 'beim nächsten Termin';
+  const tsh = tshHoch ? ' Der TSH-Wert ist deutlich erhöht – das sollte die Praxis ansehen.' : '';
+  if (haelfte === 'oben') {
+    return `${HYPO_TEXT} fT4 liegt im Bereich, in der oberen Hälfte.${stufe === 'keine' ? ' Das spricht dafür, dass die Tabletten-Einstellung derzeit passt.' : ''}${tsh}`;
+  }
+  // Nicht „Unterversorgung": Im höheren Alter lässt die Leitlinie (ETA 2018)
+  // ein fT4 weiter unten eher zu – das Ziel legt die Ärztin fest.
+  if (haelfte === 'unten') return `${HYPO_TEXT} fT4 liegt im Bereich, aber in der unteren Hälfte.${tsh} Bei Ihrem Behandlungsgrund wird fT4 meist eher in der oberen Hälfte angestrebt; im höheren Alter oder bei Herzkrankheit legt die Ärztin das Ziel manchmal niedriger fest. Bitte fragen Sie ${wann}, welcher Bereich für Sie gilt.`;
+  return `${HYPO_TEXT} ${lage}${tsh} Welcher Teil des Bereichs für Sie richtig ist, sagt die Praxis – bitte fragen Sie ${wann} danach. Tragen Sie dazu den Bereich vom Befund mit beiden Grenzen ein, dann kann die App mehr sagen.`;
 }
 
 /*
@@ -430,6 +465,26 @@ function nachFt4(f) {
   return { stufe: 'keine', satz: 3, regeln: [] };
 }
 const FT4_RICHTUNG = { unter: 'wenig', ueber: 'viel', im: 'passend' };
+
+/*
+ * Behandlungsgrund Hirnanhangdrüse (B12, D6): Stufe und Richtung aus fT4. Ein
+ * fT4 im Bereich, das nicht sicher in der oberen Hälfte liegt, ist nicht
+ * „passend", sondern ein Anlass, beim nächsten Termin nach dem Zielbereich zu
+ * fragen – Stufe mindestens Termin, Richtung 'unklar'. So entfällt auch S3
+ * „Ursache der Beschwerden oft woanders", und die Dosis-Karte liest aus
+ * `richtung` keine „passende" Einstellung heraus.
+ */
+function nachFt4Hypo(f, w) {
+  const r = nachFt4(f);
+  const haelfte = ft4Haelfte(f, w);
+  if (!r || !haelfte || haelfte === 'oben') return r;
+  return { ...r, stufe: mindestens(r.stufe, 'termin') };
+}
+function hypoRichtung(f, w) {
+  const haelfte = ft4Haelfte(f, w);
+  if (haelfte) return haelfte === 'oben' ? 'passend' : 'unklar';
+  return FT4_RICHTUNG[f.lage] || 'unklar';
+}
 
 /*
  * Gilt die Praxis-Angabe (L3f) für diesen Befund noch? R1: nur mit einem
@@ -553,7 +608,7 @@ export function befundEinschaetzen(befund, stand, heute) {
   if (!m.code) {
     if (befund.tsh && !m.tLab.lage) regeln.push('L0a');
     const tshText = befund.tsh ? 'Der TSH-Wert lässt sich so nicht einordnen – siehe Hinweis.' : 'Ohne TSH-Wert ergibt sich kein Muster.';
-    const ft4 = nachFt4(m.f);
+    const ft4 = hypophyse ? nachFt4Hypo(m.f, befund.ft4) : nachFt4(m.f);
     // B2: Ein auffälliges fT4 zählt auch ohne einordenbaren TSH-Wert. L3a und
     // L3e (i) hängen nicht am Muster – fT4 5 pmol/l ohne TSH ist nicht
     // „kein besonderer Anlass". Ohne auffälliges fT4 bleibt es beim Hinweis.
@@ -564,7 +619,7 @@ export function befundEinschaetzen(befund, stand, heute) {
     }
     const { stufe, satz } = ft4;
     ft4.regeln.forEach((r) => regeln.push(r));
-    const text = hypophyse ? hypophyseText(m.f) : `${tshText} fT4 liegt ${LAGE_TEXT[m.f.genau]} – das sollte die Praxis sehen.`;
+    const text = hypophyse ? hypophyseText(m.f, befund.ft4, { stufe }) : `${tshText} fT4 liegt ${LAGE_TEXT[m.f.genau]} – das sollte die Praxis sehen.`;
     const erklaerungen = erklaerungenFuer(befund, m, stand);
     erklaerungen.forEach((e) => regeln.push(e.id));
     const verlauf = verlaufTexte(befund, stand, verlaufRechnen(befund, stand), stufe, m.tsh, { hypophyse });
@@ -575,7 +630,7 @@ export function befundEinschaetzen(befund, stand, heute) {
       ...leer,
       ohneMuster: true,
       text,
-      richtung: FT4_RICHTUNG[m.f.lage] || 'unklar',
+      richtung: hypophyse ? hypoRichtung(m.f, befund.ft4) : FT4_RICHTUNG[m.f.lage] || 'unklar',
       stufe,
       stufeLabor: stufe,
       stufeText: BEFUND_STUFE[stufe],
@@ -676,7 +731,7 @@ export function befundEinschaetzen(befund, stand, heute) {
   // fT4: Termin, damit er bestimmt wird). Was nicht am niedrigen TSH hängt,
   // bleibt: TSH > 10 oder fT4 deutlich außerhalb (L3a), Muster b (Entscheidung 8).
   if (hypophyse) {
-    const ft4 = nachFt4(f);
+    const ft4 = nachFt4Hypo(f, befund.ft4);
     let s = ft4 ? ft4.stufe : 'termin';
     if (l3a.length) s = mindestens(s, 'tage');
     if (code === 'b') s = mindestens(s, 'tage');
@@ -720,7 +775,7 @@ export function befundEinschaetzen(befund, stand, heute) {
 
   // Text, bei Muster am Ziel mit Kennzeichnung (L2z1)
   let text;
-  if (hypophyse) text = hypophyseText(f);
+  if (hypophyse) text = hypophyseText(f, befund.ft4, { stufe, tshHoch: l3a.includes('tsh>10') });
   else {
     text = musterText(m, befund, stand, { passt: !r12Angehoben });
     if (code === 'd' && (vorher || biotin)) text += ' Ein Teil kann an der Messung liegen – der niedrige TSH-Wert bleibt aber wichtig.';
@@ -741,7 +796,7 @@ export function befundEinschaetzen(befund, stand, heute) {
     gruppe,
     ziel: Boolean(m.ziel),
     text,
-    richtung: hypophyse ? FT4_RICHTUNG[f.lage] || 'unklar' : MUSTER_RICHTUNG[gruppe] || (code === 'z2c' ? 'wenig' : 'viel'),
+    richtung: hypophyse ? hypoRichtung(f, befund.ft4) : MUSTER_RICHTUNG[gruppe] || (code === 'z2c' ? 'wenig' : 'viel'),
     stufe,
     stufeLabor: stufe,
     stufeText: BEFUND_STUFE[stufe] || STUFEN[stufe].text,
@@ -762,6 +817,17 @@ export function befundEinschaetzen(befund, stand, heute) {
 // ---------------------------------------------------------------- Erklärungen (L5)
 
 const GRUPPE_A = ['kalzium', 'eisen', 'magnesium', 'multimineral', 'antazida', 'sucralfat', 'soja', 'ballaststoffe', 'kaffee', 'phosphatbinder', 'orlistat', 'raloxifen'];
+/*
+ * D8: Welche begonnenen oder abgesetzten Mittel L5a („hat sich womöglich noch
+ * nicht eingependelt") auslösen – nur die, die TSH, fT4, die Aufnahme oder den
+ * Bedarf an L-Thyroxin verändern (die Gruppen A–F aus L5e). Vorher zählte
+ * jeder Eintrag der Mittelliste: Marcumar, Digitoxin, Selen oder ein
+ * Östrogen-Pflaster erklärten dann einen dringlichen Befund als
+ * vorübergehend – und im Arztbericht stand der Satz direkt unter
+ * „Mittel geändert: nein". Biotin hat seine eigene Erklärung (L5d).
+ */
+const L5A_MITTEL = [...new Set([...GRUPPE_A, 'colestyramin', 'ppi', 'oestrogen_tablette', 'tamoxifen', 'raloxifen', 'enzyminduktor',
+  'lithium', 'amiodaron', 'jod', 'krebsmittel', 'metformin'])];
 
 function erklaerungenFuer(befund, m, stand) {
   const { code } = m;
@@ -772,7 +838,7 @@ function erklaerungenFuer(befund, m, stand) {
 
   // L5a – etwas wurde weniger als 6 Wochen vorher geändert
   const dosisNeu = stand.dosen.some((d, i) => i > 0 && imFenster(d.ab));
-  const mittelNeu = stand.mittelWechsel.some((w) => imFenster(w.am));
+  const mittelNeu = stand.mittelWechsel.some((w) => L5A_MITTEL.includes(w.key) && imFenster(w.am));
   if (dosisNeu || mittelNeu || befund.packung === 'ja' || befund.mittelGeaendert === 'ja') {
     e.push({ id: 'L5a', text: 'Die Dosis, das Präparat oder ein anderes Mittel wurde weniger als 6 Wochen vor der Blutabnahme geändert. Der Wert hat sich womöglich noch nicht eingependelt – das dauert etwa 6–8 Wochen. Ihre Ärztin wird das berücksichtigen.' });
   }
@@ -1065,7 +1131,15 @@ export function weitereWerte(befund, stand) {
           if (std < 12) { stufe = 'termin'; texte.push('Der Wert zeigt einen Vitamin-D-Mangel. Sprechen Sie ihn beim nächsten Termin an.'); }
           else if (std < 20) { stufe = 'termin'; texte.push('Der Wert ist knapp. Fragen Sie beim nächsten Termin, ob Sie Vitamin D nehmen sollen.'); }
           else if (std <= 100) texte.push('Der Wert ist ausreichend, auch wenn das Labor einen höheren Bereich angibt.');
-          else { stufe = 'tage'; texte.push('Der Wert ist sehr hoch. Nehmen Sie Ihr Vitamin-D-Präparat bis zur Rücksprache nicht weiter und rufen Sie in den nächsten Tagen die Praxis an.'); }
+          else {
+            // D1: Pausieren nur das frei gekaufte Vitamin D. Vorher hieß es
+            // „Ihr Vitamin-D-Präparat" – nach einer Schilddrüsen-OP lesen das
+            // manche als ihr Calcitriol oder Kalzium gegen die Unterfunktion der
+            // Nebenschilddrüsen; abgesetzt droht binnen Tagen ein Kalziummangel
+            // mit Krämpfen.
+            stufe = 'tage';
+            texte.push('Der Wert ist sehr hoch. Nehmen Sie bis zur Rücksprache keine zusätzlichen Vitamin-D-Tropfen, -Tabletten oder -Kapseln (Colecalciferol, z. B. 1.000 oder 20.000 Einheiten) mehr. Mittel, die Ihnen wegen der Nebenschilddrüsen oder eines niedrigen Kalziumwerts verordnet wurden (z. B. Calcitriol/Rocaltrol, Alfacalcidol, Kalzium), setzen Sie nicht ohne Rücksprache ab. Rufen Sie in den nächsten Tagen die Praxis an.');
+          }
           texte.push('Der Wert schwankt mit der Jahreszeit.');
         }
         break;
@@ -1139,8 +1213,11 @@ export function beschwerdenAuswerten(stand, heute) {
   // S4 – Puls und Herzklopfen
   const letzter = letzterBefund(stand, heute);
   const frisch = letzter && tageZwischen(letzter.befund.datum, heute) <= 90;
+  // D3: Die Stufe ist „heute" (RW1 Grundsatz 5: S4 hat die Textvariante
+  // heute) – der Satz nennt deshalb nicht zusätzlich „in den nächsten Tagen".
+  // Unter dem Schild „Heute anrufen" las man sonst die mildere Frist heraus.
   if (g14.has('puls')) {
-    add('S4', 'heute', 'Ein neu unregelmäßiger Puls oder Herzstolpern sollte ärztlich angeschaut werden – möglich ist zum Beispiel Vorhofflimmern, auch wenn Ihr Schilddrüsenwert passt. Bitte rufen Sie heute oder in den nächsten Tagen in der Praxis an, außerhalb der Sprechzeiten 116 117. Mit Schwindel, Atemnot, Brustschmerz oder Ohnmacht: sofort 112.');
+    add('S4', 'heute', 'Ein neu unregelmäßiger Puls oder Herzstolpern sollte ärztlich angeschaut werden – möglich ist zum Beispiel Vorhofflimmern, auch wenn Ihr Schilddrüsenwert passt. Bitte rufen Sie heute noch in der Praxis an, außerhalb der Sprechzeiten 116 117. Mit Schwindel, Atemnot, Brustschmerz oder Ohnmacht: sofort 112.');
   }
   if (g14.has('herz')) {
     // Bei einer Ursache in der Hirnanhangdrüse sagt ein niedriges TSH nichts
@@ -1154,7 +1231,12 @@ export function beschwerdenAuswerten(stand, heute) {
     if (tshTief && tage >= 2) {
       add('S4ii', 'heute', 'Sie haben an mehreren Tagen Herzklopfen eingetragen. Zusammen mit einem niedrigen TSH-Wert kann das bedeuten, dass zu viel Schilddrüsenhormon im Körper ist. Bitte rufen Sie heute in der Praxis an, außerhalb der Sprechzeiten 116 117. Bei Herzrasen mit Schwindel, Atemnot oder Brustschmerz: sofort 112. Bitte die Tabletten nicht eigenmächtig weglassen.');
     } else if (tshTief) {
-      add('S4ii', alt65 || stand.profil.herz === 'ja' ? 'heute' : 'tage', 'Herzklopfen zusammen mit einem niedrigen TSH-Wert kann bedeuten, dass zu viel Schilddrüsenhormon im Körper ist. Bitte rufen Sie in den nächsten Tagen in der Praxis an – im Alter oder bei Herzkrankheit noch heute. Bei Herzrasen mit Schwindel, Atemnot oder Brustschmerz: sofort 112. Bitte die Tabletten nicht eigenmächtig weglassen.');
+      // Wie bei S4 (D3): Gilt für sie „heute" (Alter, Herz), nennt der Satz
+      // nur das – nicht zuerst „in den nächsten Tagen" unter „Heute anrufen".
+      const heuteNoch = alt65 || stand.profil.herz === 'ja';
+      add('S4ii', heuteNoch ? 'heute' : 'tage', `Herzklopfen zusammen mit einem niedrigen TSH-Wert kann bedeuten, dass zu viel Schilddrüsenhormon im Körper ist. ${heuteNoch
+        ? 'Bitte rufen Sie heute noch in der Praxis an, außerhalb der Sprechzeiten 116 117.'
+        : 'Bitte rufen Sie in den nächsten Tagen in der Praxis an – im Alter oder bei Herzkrankheit noch heute.'} Bei Herzrasen mit Schwindel, Atemnot oder Brustschmerz: sofort 112. Bitte die Tabletten nicht eigenmächtig weglassen.`);
     } else {
       // Wer den Check heute schon gemacht hat, wird nicht noch einmal dorthin geschickt.
       const zumCheck = stand.warnzeichen.some((w) => w.datum === heute) ? '' : ' Gehen Sie dazu kurz den Warnzeichen-Check durch.';
@@ -1376,9 +1458,13 @@ export function abstandPlan(stand) {
   const plan = [];
   const add = (id, key, name, ab, text, wichtig = false) => plan.push({ id, key, name, ab, text, wichtig });
 
-  // M3 – Frühstück, immer
+  // M3 – Frühstück, immer. Abends gilt die Zahl aus RW2 E15 und der
+  // ATA-Leitlinie (3 Stunden oder mehr nach dem Abendessen), nicht die
+  // „2–3 Stunden" aus RW1 M3 (D5): Die beiden Regelwerke widersprachen sich,
+  // und die niedrigere Zahl stand ausgerechnet im täglichen Plan, während
+  // Wissen und E15-Hinweis „mindestens 3 Stunden" sagten.
   if (abend) {
-    add('M3', 'fruehstueck', 'Essen und Trinken', null, 'Wenn Ihre Ärztin die Einnahme am Abend festgelegt hat: die Tablette frühestens 2–3 Stunden nach der letzten Mahlzeit nehmen, nur mit einem Glas Wasser.');
+    add('M3', 'fruehstueck', 'Essen und Trinken', null, 'Wenn Ihre Ärztin die Einnahme am Abend festgelegt hat: die Tablette frühestens 3 Stunden (besser 4) nach der letzten Mahlzeit nehmen, nur mit einem Glas Wasser.');
   } else {
     let t = `Die Schilddrüsen-Tablette nüchtern nur mit einem Glas Wasser nehmen. Frühstück, Kaffee, Tee, Milch und Saft erst nach 30 Minuten, besser nach 60 Minuten – also ab ${uhr(plusMinuten(T, 30))}, besser ab ${uhr(plusMinuten(T, 60))}.`;
     if (hat('kaffee')) t += ' Bei Kaffee sind 60 Minuten besser.';
@@ -1442,6 +1528,25 @@ export function abstandPlan(stand) {
 // ---------------------------------------------------------------- Kontrollen (L0d, L7, L8, E7)
 
 const L7B_MITTEL = ['ppi', 'oestrogen_tablette', 'tamoxifen', 'raloxifen', 'kalzium', 'eisen', 'enzyminduktor', 'lithium', 'amiodaron'];
+
+/**
+ * Der Termin mit Blutabnahme an `heute` – oder null. Mit `jetzt` („HH:MM")
+ * nur, solange die Abnahme noch bevorsteht: ohne Uhrzeit den ganzen Tag, sonst
+ * bis zu ihrer Uhrzeit. Bei mehreren zählt eine ohne Uhrzeit, sonst die
+ * späteste – die Tablette kommt erst nach der letzten Abnahme.
+ *
+ * D16 (für Tabletten-Knopf und Systemhinweis): Am Morgen der Abnahme mahnte
+ * die App „Nüchtern, mit einem Glas Wasser – und danach hier abhaken", während
+ * L0d darunter „erst NACH der Blutabnahme" sagte. Eine Tablette vorher hebt
+ * fT4 an und verfälscht die Einordnung.
+ */
+export function abnahmeHeute(stand, heute, jetzt = null) {
+  const liste = stand.termine.filter((t) => (t.art === 'labor' || t.blutabnahme) && t.datum === heute);
+  if (!liste.length) return null;
+  const t = liste.find((x) => !x.uhr) || liste.reduce((a, b) => (b.uhr > a.uhr ? b : a));
+  if (jetzt && t.uhr && t.uhr <= jetzt) return null;
+  return t;
+}
 
 export function kontrolleHinweise(stand, heute) {
   const h = [];

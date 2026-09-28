@@ -505,12 +505,14 @@ function gesamtbildSeite(stand, heute) {
           + '<div class="knopf-reihe"><button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis-karte">Dosis-Karte ansehen</button></div>',
       });
     } else if (t.quelle === 'dosis') {
-      // Eine Frage (W-D4) wird auf „Heute" beantwortet – hier nur der Verweis dorthin.
+      // Eine Frage (W-D4) wird auf „Heute" beantwortet – hier nur der Verweis
+      // dorthin. Nennt sie eine Nummer („… sofort 112 anrufen" nach einer
+      // Erhöhung, D4), ist die auch hier anrufbar – wie auf „Heute".
       einzeln.push({
         stufe: t.stufe,
         regel: t.id,
         html: t.mitFrage
-          ? `<p>${esc(t.text)}</p><p class="klein gedaempft">Die Frage dazu beantworten Sie auf „Heute".</p><div class="knopf-reihe"><button type="button" class="knopf knopf-klein" data-act="reiter" data-reiter="heute">Zu „Heute"</button></div>`
+          ? `<p>${esc(t.text)}</p>${anrufReihe(t.anrufe)}<p class="klein gedaempft">Die Frage dazu beantworten Sie auf „Heute".</p><div class="knopf-reihe"><button type="button" class="knopf knopf-klein" data-act="reiter" data-reiter="heute">Zu „Heute"</button></div>`
           : mitAnruf(`<p>${esc(t.text)}</p>`, t.anrufe),
       });
     }

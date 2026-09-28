@@ -23,6 +23,7 @@ import {
   notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang, anrufReihe, anrufeImText,
 } from './ansicht-einschaetzung.js';
 import { dosisVerweis } from './ansicht-dosis.js';
+import { vorratAndereStaerke } from './ansicht-formulare.js';
 
 const STUFEN = [['gut', 'Gut'], ['mittel', 'Mittel'], ['schlecht', 'Schlecht']];
 
@@ -42,11 +43,21 @@ function tabletteKnopf(stand, heute, jetztUhr) {
         <small>Doch genommen? Hier antippen.</small>
       </button>`;
   }
-  const faellig = jetztUhr >= stand.einstellungen.erinnerung;
+  /*
+   * Am Morgen einer Blutabnahme kommt die Tablette erst danach (RW1 L0d).
+   * Der Knopf stand um 7 Uhr gelb auf „Noch nicht eingetragen", und davor
+   * hieß es „Nüchtern, mit Wasser · geplant 7:00 Uhr" – die Termin-Karte
+   * darunter sagte das Gegenteil (D16). Bis zur Abnahme deshalb weder gelb
+   * noch die gewohnte Zeit, sondern wann es so weit ist.
+   */
+  const abnahme = ez.abnahmeHeute(stand, heute, jetztUhr);
+  const faellig = !abnahme && jetztUhr >= stand.einstellungen.erinnerung;
+  const unter = abnahme ? `Heute erst nach der Blutabnahme${abnahme.uhr ? ` (${esc(uhrText(abnahme.uhr))})` : ''} – dann hier antippen.`
+    : faellig ? 'Noch nicht eingetragen – antippen, sobald genommen.' : `Nüchtern, mit Wasser · geplant ${esc(uhrText(stand.einstellungen.erinnerung))}`;
   return `
     <button type="button" class="tablette${faellig ? ' faellig' : ''}" data-act="tablette" aria-pressed="false">
       <span>Tablette genommen?</span>
-      <small>${faellig ? 'Noch nicht eingetragen – antippen, sobald genommen.' : `Nüchtern, mit Wasser · geplant ${esc(uhrText(stand.einstellungen.erinnerung))}`}</small>
+      <small>${unter}</small>
     </button>`;
 }
 
@@ -190,12 +201,25 @@ function hinweise(stand, heute) {
     }
   }
 
+  /*
+   * Vorrat (D13): Nach einer anderen Stärke gilt die gezählte Packung nicht
+   * mehr – dann keine Reichweite aus der alten, sondern die Bitte, neu zu
+   * zählen. Ist er aufgebraucht, heißt es „heute" statt „rechtzeitig".
+   */
+  const andereStaerke = vorratAndereStaerke(stand, heute);
   const reicht = vorratReicht(heute);
-  if (reicht !== null && reicht <= 14) {
+  if (andereStaerke) {
+    add('termin', `
+      <div class="hinweis-karte warn" data-regel="vorrat-staerke"><span class="ri" aria-hidden="true">💊</span>
+        <div><strong>Bitte zählen Sie Ihren Tablettenvorrat neu.</strong>
+        <br><span class="klein">Seit dem ${esc(datumKurz(andereStaerke.ab))} nehmen Sie eine andere Stärke. Die gezählte Packung gilt dafür nicht mehr.</span>
+        ${kleinerKnopf('vorrat', 'Vorrat neu zählen', 'neu')}</div>
+      </div>`);
+  } else if (reicht !== null && reicht <= 14) {
     add(reicht <= 0 ? 'heute' : reicht <= 3 ? 'tage' : 'termin', `
       <div class="hinweis-karte warn"><span class="ri" aria-hidden="true">💊</span>
         <div><strong>${reicht <= 0 ? 'Der Vorrat ist aufgebraucht.' : `Vorrat reicht noch etwa ${reicht} ${reicht === 1 ? 'Tag' : 'Tage'}.`}</strong>
-        <br><span class="klein">Rechtzeitig ein neues Rezept holen. <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="vorrat">Vorrat ändern</button></span></div>
+        <br><span class="klein">${reicht <= 0 ? 'Bitte heute ein neues Rezept holen.' : 'Rechtzeitig ein neues Rezept holen.'} <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="vorrat">Vorrat ändern</button></span></div>
       </div>`);
   }
 

@@ -46,8 +46,11 @@ for (const k of kapitel) {
 // Notfall: Nummern als Knöpfe zum Anrufen.
 await page.click('#reiter-mehr');
 await page.click('[data-seite="wissen-kapitel"][data-param="notfall"]');
-check(await page.locator('a[href="tel:112"]').count() === 1, 'Notruf 112 als Knopf zum Anrufen');
-check(await page.locator('a[href="tel:116117"]').count() === 1, 'Bereitschaftsdienst 116 117 als Knopf');
+// Geändert in Runde 3 (D2): Der neue Abschnitt „Heute noch die Praxis
+// anrufen" nennt 116 117 und 112 und macht beide dort selbst anrufbar –
+// seitdem stehen beide Nummern zweimal im Kapitel, deshalb „mindestens einmal".
+check(await page.locator('a[href="tel:112"]').count() >= 1, 'Notruf 112 als Knopf zum Anrufen');
+check(await page.locator('a[href="tel:116117"]').count() >= 1, 'Bereitschaftsdienst 116 117 als Knopf');
 check((await page.locator('#ansicht').innerText()).includes('Brustschmerz'), 'Brustschmerz als Grund für 112');
 
 await ende();

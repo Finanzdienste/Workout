@@ -1669,6 +1669,206 @@ const FAELLE = [
     },
     erwartet: { keineRichtung: true, regel: 'D0.5', stufe: 'keine', ohne: [/Gilt ab/] },
   },
+
+  // ================================================================ Review Runde 3 (D4–D20): Regressionsfälle
+  // Jeder Fall scheiterte vor der Korrektur (außer den Gegenproben).
+  //
+  // D7 – RW2 P1, D0.14: Bei der Hirnanhangdrüse sagt TSH nichts über die
+  // Hormonmenge. D0.18 („Beschwerden passen nicht zum Laborwert") vergleicht
+  // dort mit der Richtung der Einschätzung aus fT4, nicht mit dem TSH-Muster.
+  ...[['12,5 (untere Hälfte)', 12.5], ['20 (obere Hälfte)', 20]].map(([was, f]) => ({
+    name: `D7 Hypophyse, TSH 0,3, fT4 ${was}, Beschwerden „zu wenig": kein D0.18`,
+    stand: { profil: { geburtsjahr: geb(78), ursache: 'hypophyse' }, befund: bef(0.3, f), befinden: [bf(0, ['muede', 'frieren', 'verstopfung', 'trockenhaut'])] },
+    erwartet: { keineRichtung: true, regel: 'D0.14', ohneRegel: 'D0.18', ohne: [/passen nicht zu diesem Laborwert/] },
+  })),
+  {
+    name: 'D7 Gegenprobe Hypophyse, fT4 23 über dem Bereich, Beschwerden „zu wenig": D0.18',
+    stand: { profil: { geburtsjahr: geb(78), ursache: 'hypophyse' }, befund: bef(0.3, 23), befinden: [bf(0, ['muede', 'frieren', 'verstopfung', 'trockenhaut'])] },
+    erwartet: { keineRichtung: true, regel: ['D0.14', 'D0.18'] },
+  },
+
+  // D9 – RW1 W1, L3e: Schläfrigkeit, Verwirrtheit, Auskühlen bei Muster b
+  // heißen „sofort 112" wie in der Einschätzung, nicht zuerst der Check.
+  {
+    name: 'D9 Muster b (78 J.): Schläfrigkeit, Verwirrtheit, Auskühlen → sofort 112',
+    stand: { profil: { geburtsjahr: geb(78) }, befund: bef(15, 7) },
+    erwartet: {
+      richtung: 'mehr', regel: 'D3', text: [/ungewohnt stark schläfrig oder neu verwirrt sind oder stark auskühlen: sofort 112/],
+      ohne: [/verwirrt sind oder stark frieren, machen Sie gleich den Warnzeichen-Check/], extra: [['112 anrufbar', (r) => r.anrufe.some((a) => a.nummer === '112')]],
+    },
+  },
+
+  // D11 – rot-2 X3 (4), RW2 B2: Eine eigene Änderung („Auf Anweisung der
+  // Praxis: Nein") steht auf der Karte, bis sie geklärt ist – nicht nur 14 Tage.
+  ...[15, 30, 60].map((n) => ({
+    name: `D11 75 → 125 µg ohne Praxis, Tag ${n}: Tage, bisherige Menge, W-D2, „klärt der Anruf"`,
+    heute: plus(HEUTE, n - 30),
+    stand: {
+      befund: bef(6.5, 14, { datum: plus(HEUTE, -40), praxisAm: plus(HEUTE, -38) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -30), 125, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -38))],
+    },
+    erwartet: {
+      keineRichtung: true, stufe: 'tage', regel: ['D0.5', 'X3'], warnzeichen: true, text: [/bisherige Menge/, /klärt der Anruf/],
+      ohne: [/Eine neue Einschätzung gibt es mit dem Kontrollwert/, /genau wie bisher weiter/],
+    },
+  })),
+  {
+    name: 'D11 kleine eigene Änderung 75 → 88 µg, Tag 30: B2 mit Tage, Kontrolle „nach der Änderung"',
+    stand: {
+      befund: bef(6.5, 14, { datum: plus(HEUTE, -40), praxisAm: plus(HEUTE, -38) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -30), 88, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -38))],
+    },
+    erwartet: { keineRichtung: true, stufe: 'tage', regel: 'B2', text: [/in den nächsten Tagen/, /6 bis 8 Wochen nach der Änderung/], ohne: [/Eine neue Einschätzung gibt es mit dem Kontrollwert/] },
+  },
+  {
+    name: 'D11 zurück 75 → 125 → 75 µg (beide ohne Praxis): nicht „wieder Ihre bisherige Menge", sondern die frühere Menge',
+    stand: {
+      befund: bef(6.5, 14, { datum: plus(HEUTE, -40), praxisAm: plus(HEUTE, -38) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -13), 125, { praxis: false }), dosis('d3', plus(HEUTE, -10), 75, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -38))],
+    },
+    erwartet: { keineRichtung: true, stufe: 'tage', regel: 'B2', ohneRegel: 'X3', text: [/frühere Menge/], ohne: [/bisherige Menge/, /mehr als ein üblicher Schritt/] },
+  },
+  {
+    name: 'D11 Gegenprobe: Praxis entschied nach der eigenen Änderung – X3 ohne Frist, Stufe keine',
+    stand: {
+      befund: bef(6.5, 14, { datum: plus(HEUTE, -40), praxis: 'bleibt', praxisAm: plus(HEUTE, -20) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -30), 125, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -38))],
+    },
+    erwartet: { keineRichtung: true, stufe: 'keine', regel: 'X3', warnzeichen: true, text: [/bisherige Menge/], ohne: [/heute oder morgen/, /in den nächsten Tagen/] },
+  },
+  {
+    name: 'D11 Gegenprobe: Befund nach der Einpendelzeit – er zeigt, wie die neue Menge wirkt, kein X3',
+    stand: {
+      vorbefunde: [vorbefund('b0', plus(HEUTE, -100), 6.5)],
+      befund: bef(2, 15, { datum: plus(HEUTE, -5) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -70), 125, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -4))],
+    },
+    erwartet: { ohneRegel: ['X3', 'B2'], ohne: [/bisherige Menge/] },
+  },
+
+  // D14 – rot-2 X3 (2): Die 14-Tage-Rückfrage nur bei „mehr"/„weniger".
+  {
+    name: 'D14 TSH 2,1 („so lassen"), Antwort vor 14 Tagen: keine Rückfrage, die Richtung bleibt',
+    stand: { befund: bef(2.1, 16, { datum: plus(HEUTE, -16) }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -14))] },
+    erwartet: { richtung: 'gleich', frage: false },
+  },
+  {
+    name: 'D14 hohe Dosis (D2d, klären), Antwort vor 14 Tagen: keine Rückfrage',
+    stand: { befund: bef(6.5, 15, { datum: plus(HEUTE, -16) }), dosen: [dosis('d1', DOSIS_AB, 175)], nachfragen: [dosisStimmt('b1', plus(HEUTE, -14))] },
+    erwartet: { richtung: 'klaeren', regel: 'D2d', frage: false },
+  },
+  {
+    name: 'D14 Gegenprobe TSH 12 (mehr, Tage), Antwort vor 14 Tagen: Rückfrage mit der Stufe der Richtung',
+    stand: { befund: bef(12, 15, { datum: plus(HEUTE, -16) }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -14))] },
+    erwartet: { frage: 'nach14', keineRichtung: true, stufe: 'tage' },
+  },
+
+  // D17 – RW2 Grundsatz 5, RW1 L3f: Frühe Ausstiege (Frage nach dem Check,
+  // W5, Check mit 112-Zeichen, Schwangerschaft) verwerfen keinen Grund, den
+  // nur die Karte kennt. Nur neben W1 (Brustschmerz) steht nichts anderes.
+  {
+    name: 'D17 „selbst geändert", Muster c2 (76 J.), dazu Herzklopfen heute: Frage nach dem Check mit X3 und Tage',
+    stand: {
+      profil: { geburtsjahr: geb(76) }, befund: bef(7.5, 14, { datum: plus(HEUTE, -30) }), befinden: [bf(0, ['herz'])],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -28)), nachfrage14('b1', plus(HEUTE, -2), 'selbst')],
+    },
+    erwartet: { frage: 'warncheck', stufe: 'tage', regel: 'X3', text: [/selbst etwas an der Dosis geändert/] },
+  },
+  {
+    name: 'D17 Q5 „einmal", Muster d (64 J.), dazu Herzklopfen heute: Frage nach dem Check, Giftnotruf, heute',
+    stand: { profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), befinden: [bf(0, ['herz'])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] },
+    erwartet: { frage: 'warncheck', stufe: 'heute', regel: 'Q5', text: [/Giftnotruf/], extra: [['Giftnotruf Bayern anrufbar', (r) => r.anrufe.some((a) => a.nummer === '08919240')]] },
+  },
+  {
+    name: 'D17 Q5 „einmal" und „lebensmüde" im Befinden: W5 zuerst, Giftnotruf bleibt auf der Karte',
+    stand: { profil: { geburtsjahr: geb(76) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), befinden: [bf(0, ['lebensmuede'])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] },
+    erwartet: {
+      ohneRichtung: true, stufe: 'notruf', regel: ['W5', 'Q5'], text: [/Giftnotruf/],
+      extra: [
+        ['Kopf „Bitte sprechen Sie heute mit jemandem"', (r) => /sprechen Sie heute mit jemandem/.test(str(r.kopf && r.kopf.titel))],
+        ['Giftnotruf und Telefonseelsorge anrufbar', (r) => r.anrufe.some((a) => a.nummer === '08919240') && r.anrufe.some((a) => a.nummer === '08001110111')],
+      ],
+    },
+  },
+  {
+    name: 'D17 „selbst geändert" und Check „große Menge auf einmal": X3 steht neben dem Giftnotruf',
+    stand: {
+      profil: { geburtsjahr: geb(76) }, befund: bef(7.5, 14, { datum: plus(HEUTE, -30) }), warnzeichen: [wc(0, ['packung'])],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -28)), nachfrage14('b1', plus(HEUTE, -2), 'selbst')],
+    },
+    erwartet: { ohneRichtung: true, stufe: 'notruf', regel: ['W4a', 'X3'], text: [/selbst etwas an der Dosis geändert/] },
+  },
+  {
+    name: 'D17 Gegenprobe Q5 „einmal" und Check Brustschmerz (W1): nur 112, alles andere ausgeblendet',
+    stand: { profil: { geburtsjahr: geb(76) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), warnzeichen: [wc(0, [W_112])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] },
+    erwartet: { ohneRichtung: true, stufe: 'notruf', regel: 'W1', ohneRegel: 'Q5' },
+  },
+  {
+    name: 'D17 Schwangerschaft (36 J.) und Q5 „einmal": D7 zuerst, der Giftnotruf bleibt (heute)',
+    stand: { profil: { geburtsjahr: geb(36), schwanger: 'ja' }, befund: bef(0.05, 30, { verwechselt: 'einmal' }) },
+    erwartet: { ohneRichtung: true, stufe: 'heute', regel: ['D7', 'Q5'], text: [/Giftnotruf/], ohne: [/genau wie bisher/] },
+  },
+
+  // D18 – rot-2 X15, RW2 D5: Eine beantwortete Verwechslung (Q5) bleibt neben
+  // jedem anderen Grund stehen – mit Giftnotruf und ohne „genau wie bisher".
+  {
+    name: 'D18 Q5 „einmal", Muster d, dazu Beschwerden „zu wenig" (D0.18): heute, Giftnotruf, kein „wie bisher"',
+    stand: { profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), befinden: [bf(0, ['frieren', 'verstopfung', 'trockenhaut'])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] },
+    erwartet: {
+      ohneRichtung: true, stufe: 'heute', regel: ['D0.18', 'Q5'], text: [/Giftnotruf/], ohne: [/genau wie bisher/],
+      extra: [['Giftnotruf Bayern anrufbar', (r) => r.anrufe.some((a) => a.nummer === '08919240')]],
+    },
+  },
+  {
+    name: 'D18 Q5 „über Tage", dazu D0.18: „verordnete Stärke", kein „wie bisher"',
+    stand: { profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'tage' }), befinden: [bf(0, ['frieren', 'verstopfung', 'trockenhaut'])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] },
+    erwartet: { ohneRichtung: true, stufeMin: 'tage', regel: ['D0.18', 'Q5'], text: [/verordnete Stärke/], ohne: [/genau wie bisher/] },
+  },
+  {
+    name: 'D18 Q5 „einmal", Profil Kortison „weiß nicht" (D0.14): Q5 bleibt',
+    stand: { profil: { kortison: 'unbekannt' }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] },
+    erwartet: { ohneRichtung: true, stufe: 'heute', regel: ['D0.14', 'Q5'] },
+  },
+  {
+    name: 'D18 Gegenprobe Q5 „einmal" und Biotin „ja": beide Gründe wie bisher (der Block ohne Sperrgrund bleibt)',
+    stand: { profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal', biotin: 'ja' }), nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] },
+    erwartet: { ohneRichtung: true, stufe: 'heute', regel: ['D0.9', 'Q5'] },
+  },
+
+  // D19 – rot-2 X3 (1): „Nein, ich nehme etwas anderes" am Einrichtungstag
+  // (Dosis „ab heute", Befund von heute) führt zum Eintrag, nicht zur selben Frage.
+  {
+    name: 'D19 Dosis ab heute, Befund heute, „Nein, ich nehme etwas anderes": X3 mit „Dosis ändern", keine neue Frage',
+    stand: { befund: bef(7.5, 14, { datum: HEUTE }), dosen: [dosis('d1', HEUTE, 75)], nachfragen: [dosisStimmt('b1', HEUTE, 'nein_75')] },
+    erwartet: {
+      keineRichtung: true, frage: false, regel: 'X3', text: [/ändern Sie den Eintrag/],
+      extra: [['Knopf öffnet den vorhandenen Eintrag', (r) => r.aktion === 'dosis' && r.aktionParam === 'd1']],
+    },
+  },
+  {
+    name: 'D19 Gegenprobe Dosis ab gestern: X3 mit „Dosis eintragen"',
+    stand: { befund: bef(7.5, 14, { datum: HEUTE }), dosen: [dosis('d1', plus(HEUTE, -1), 75)], nachfragen: [dosisStimmt('b1', HEUTE, 'nein_75')] },
+    erwartet: { keineRichtung: true, frage: false, regel: 'X3', extra: [['Knopf für einen neuen Eintrag', (r) => r.aktion === 'dosis' && r.aktionParam === null]] },
+  },
+
+  // D20 – RW1 L3f: W-D4 nach einer Senkung unter „In den nächsten Tagen
+  // anrufen" nicht „Sprechen Sie das bei der Kontrolle an".
+  {
+    name: 'D20 Senkung 100 → 88 µg, W-D4 „Ja", Kontrollbefund mit TSH 12: kein „bei der Kontrolle" unter Tage',
+    stand: {
+      profil: { geburtsjahr: geb(76) },
+      vorbefunde: [vorbefund('b0', '2026-08-20', 0.2, { ft4: ft4(21), praxis: 'geaendert', praxisAm: '2026-08-25' })],
+      befund: bef(12, 11, { datum: '2026-09-25' }),
+      dosen: [dosis('d1', DOSIS_AB, 100), dosis('d2', '2026-08-26', 88)],
+      nachfragen: [dosisStimmt('b1', '2026-09-25'), { id: 'wd4', art: 'wd4', bezug: 'd2-28', antwort: 'ja', am: '2026-09-24' }],
+    },
+    erwartet: { keineRichtung: true, stufe: 'tage', regel: 'W-D4', text: [/bei Ihrem Anruf in der Praxis/], ohne: [/bei der Kontrolle an/] },
+  },
 ];
 
 // ================================================================ Tabelle: dosisHinweise
@@ -1857,6 +2057,54 @@ const HINWEIS_FAELLE = [
     nicht: [H.WD4A],
     extra: [['X3b', (l) => l.some((h) => h.id === 'X3b')]],
   },
+
+  // ---------------------------------------------------------------- Review Runde 3: Regressionsfälle
+  // D4 – RW1 W1, RW2 W-D2: Die Frage nach einer Erhöhung nennt „Schmerzen in
+  // der Brust" – dazu gehört „sofort 112", schon vor der Antwort und danach.
+  {
+    name: 'D4 Frage A nach Erhöhung (Tag 14): 112-Satz schon unter der Frage, 112 anrufbar',
+    stand: () => hStand({ am: plus(HEUTE, -14) }),
+    hat: [mit(H.WD4A, { stufe: 'termin', text: [/Brust/, /sofort 112/] })],
+    extra: [['112 anrufbar', (l) => l.some((h) => h.id === 'W-D4' && h.frage && h.anrufe.some((a) => a.nummer === '112'))]],
+  },
+  {
+    name: 'D4 W-D4 nach Erhöhung mit „Ja": heute noch anrufen und sofort 112 bei Brustschmerz, 112 anrufbar',
+    stand: () => vollständigerStand({
+      befund: { datum: HB }, dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -15), 88)],
+      nachfragen: [dosisStimmt('b1', plus(HB, 2)), { id: 'wd4', art: 'wd4', bezug: 'd2-14', antwort: 'ja', am: HEUTE }],
+    }),
+    extra: [['W-D4 „heute" mit „sofort 112" und 112 anrufbar', (l) => l.some((h) => h.id === 'W-D4' && h.stufe === 'heute' && /heute noch/.test(h.text)
+      && /Engegefühl in der Brust[^.]*sofort 112/.test(h.text) && h.anrufe.some((a) => a.nummer === '112'))]],
+  },
+  // D11 – RW2 B2: Wer zurück zur früheren Menge geht, liest nicht noch einmal
+  // „wieder Ihre bisherige Menge" (das wäre die selbst gewählte).
+  {
+    name: 'D11 zurück 75 → 125 → 75 µg (beide ohne Praxis): kein X3(4), B2 „frühere Menge"',
+    stand: () => vollständigerStand({ befund: { datum: HB }, dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -5), 125, { praxis: false }), dosis('d3', plus(HEUTE, -2), 75, { praxis: false })] }),
+    hat: [mit(H.B2, { stufe: 'tage', text: [/frühere Menge/, /in den nächsten Tagen/], ohne: [/bisherige Menge/] })],
+    nicht: [H.X34],
+  },
+  // D12 – RW2 D6c: Die Kontrolle bleibt fällig, bis ein Wert da ist; auf
+  // „Heute" als Karte nur in den ersten vier Wochen und an jedem 7. Tag.
+  ...[[92, true], [98, false], [200, true]].map(([n, still]) => ({
+    name: `D12 D6c Tag ${n} nach der Änderung ohne Befund: fällig, zeitnah${still ? ', still (keine Karte auf „Heute")' : ', als Karte'}`,
+    // Der Befund liegt vor der Änderung – ein späterer beendete die Kontrolle.
+    stand: () => hStand({ am: plus(HEUTE, -n), befund: { datum: plus(HEUTE, -n - 7) } }),
+    hat: [mit(H.D6C, { stufe: 'zeitnah' })],
+    extra: [[still ? 'still' : 'nicht still', (l) => l.some((h) => h.id === 'D6c' && Boolean(h.still) === still)]],
+  })),
+  // D15 – Grundsatz 4 (feste Fristen): INR und Blutzucker mit Datum statt
+  // „in den nächsten …" – an Tag 14 stand sonst noch „1 bis 2 Wochen".
+  {
+    name: 'D15 WW1 Tag 14: festes Datum (Änderung + 14 Tage), nicht „in den nächsten 1 bis 2 Wochen"',
+    stand: () => hStand({ am: plus(HEUTE, -14), mittel: ['marcumar'] }),
+    hat: [mit(H.WW1, { stufe: 'zeitnah', text: [re(`bis spätestens ${kurz(HEUTE)}`), re(`am ${kurz(plus(HEUTE, -14))} geändert`)], ohne: [/in den nächsten 1 bis 2 Wochen/] })],
+  },
+  {
+    name: 'D15 WW2 Tag 42: festes Datum (Änderung + 42 Tage), nicht „in den nächsten 6 Wochen"',
+    stand: () => hStand({ am: plus(HEUTE, -42), mittel: ['diabetes'] }),
+    hat: [mit(H.WW2, { stufe: 'zeitnah', text: [re(`bis zum ${kurz(HEUTE)}`)], ohne: [/in den nächsten 6 Wochen/] })],
+  },
 ];
 
 function pruefeHinweisFall(f) {
@@ -1988,6 +2236,69 @@ const GESAMT_FAELLE = [
       ['ohne die Dosis-Hinweise stünde L7d da', (g, stand) => ez.gesamtbild(stand, HEUTE).teile.some((t) => t.id === 'L7d')],
       ['D6c auf „Heute" (dosisHinweise) mindestens zeitnah', (g) => g.dosisHinweise.some((h) => h.id === 'D6c' && rang(h.stufe) >= RANG.zeitnah)],
     ],
+  },
+
+  // ---------------------------------------------------------------- Review Runde 3: Regressionsfälle
+  // D11 – rot-2 X3 (4): Eine eigene große Änderung hält „Heute" und die
+  // Einschätzung auf Tage, bis sie geklärt ist – auch nach Tag 14.
+  {
+    name: 'D11 75 → 125 µg ohne Praxis, Tag 30: Gesamtbild Tage, der Teil der Karte nennt „bisherige Menge"',
+    stand: () => vollständigerStand({
+      befund: bef(6.5, 14, { datum: plus(HEUTE, -40), praxisAm: plus(HEUTE, -38) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -30), 125, { praxis: false })],
+      nachfragen: [dosisStimmt('b1', plus(HEUTE, -38))],
+    }),
+    stufe: 'tage', teile: ['dosis'], nichtTeile: ['X3'],
+    extra: [['Teil der Karte: bisherige Menge', (g) => g.teile.some((t) => t.id === 'dosis' && /bisherige Menge/.test(t.text))]],
+  },
+  // D12 – RW1 Grundsatz 5: Die Gesamtstufe springt nicht mit dem Wochentag,
+  // und nach Tag 183 fällt die überfällige Kontrolle nicht weg.
+  ...[91, 92, 95, 97, 98, 200].map((n) => ({
+    name: `D12 Änderung vor ${n} Tagen (78 J., Muster c1), kein Befund danach: Gesamtbild zeitnah`,
+    stand: () => vollständigerStand({
+      profil: { geburtsjahr: geb(78) }, befund: bef(4.5, 15, { datum: plus(HEUTE, -n - 7), praxis: 'geaendert', praxisAm: plus(HEUTE, -n - 2) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -n), 88)],
+    }),
+    stufe: 'zeitnah', teile: ['D6c'],
+    extra: [['D6c als Karte auf „Heute" nur am 7. Tag', (g) => g.dosisHinweise.some((h) => h.id === 'D6c') === (n % 7 === 0)]],
+  })),
+  {
+    name: 'D12 Änderung vor 400 Tagen, Befund über ein Jahr alt: D6c statt L7a, zeitnah',
+    stand: () => vollständigerStand({
+      profil: { geburtsjahr: geb(78) }, befund: bef(4.5, 15, { datum: plus(HEUTE, -407), praxis: 'geaendert', praxisAm: plus(HEUTE, -402) }),
+      dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', plus(HEUTE, -400), 88)],
+    }),
+    stufe: 'zeitnah', teile: ['D6c'], nichtTeile: ['L7a'],
+    extra: [['ohne die Dosis-Hinweise stünde L7a da', (g, stand) => ez.gesamtbild(stand, HEUTE).teile.some((t) => t.id === 'L7a')]],
+  },
+  // D17 – Frühe Ausstiege: dieselbe Lage, dieselbe Dringlichkeit auf allen Bildschirmen.
+  {
+    name: 'D17 Q5 „einmal" und Herzklopfen heute (noch ohne Check): Gesamtbild heute, Giftnotruf im Teil der Karte',
+    stand: () => vollständigerStand({ profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), befinden: [bf(0, ['herz'])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] }),
+    stufe: 'heute', teile: ['dosis'],
+    extra: [['Teil der Karte: Giftnotruf, anrufbar', (g) => g.teile.some((t) => t.id === 'dosis' && /Giftnotruf/.test(t.text) && t.anrufe.some((a) => a.nummer === '08919240'))]],
+  },
+  {
+    name: 'D17 Q5 „einmal" und „lebensmüde": Gesamtbild 112 mit Gesprächsangebot, Q5 als eigener Teil (heute)',
+    stand: () => vollständigerStand({ profil: { geburtsjahr: geb(76) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), befinden: [bf(0, ['lebensmuede'])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] }),
+    stufe: 'notruf', teile: ['W5', 'Q5'],
+    extra: [
+      ['Kopf „Bitte sprechen Sie heute mit jemandem"', (g) => /sprechen Sie heute mit jemandem/.test(g.kopf.titel)],
+      ['Q5 heute mit Giftnotruf-Knopf', (g) => g.teile.some((t) => t.id === 'Q5' && t.stufe === 'heute' && t.anrufe.some((a) => a.nummer === '08919240'))],
+    ],
+  },
+  {
+    name: 'D17 Gegenprobe Q5 „einmal" und Check Brustschmerz (W1): Gesamtbild nur 112, kein Q5-Teil',
+    stand: () => vollständigerStand({ profil: { geburtsjahr: geb(76) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), warnzeichen: [wc(0, [W_112])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] }),
+    stufe: 'notruf', nichtTeile: ['Q5'],
+  },
+  // D18 – der Giftnotruf nach „einmal viele Tabletten" steht auch neben einem
+  // zweiten Grund mit derselben Stufe im Gesamtbild.
+  {
+    name: 'D18 Q5 „einmal" und Check „über Tage zu viele" (W2h): der Teil der Karte nennt den Giftnotruf',
+    stand: () => vollständigerStand({ profil: { geburtsjahr: geb(64) }, befund: bef(0.05, 30, { datum: plus(HEUTE, -3), verwechselt: 'einmal' }), warnzeichen: [wc(0, ['zuviele'])], nachfragen: [dosisStimmt('b1', plus(HEUTE, -2))] }),
+    stufe: 'heute',
+    extra: [['Teil der Karte: Giftnotruf, anrufbar', (g) => g.teile.some((t) => t.id === 'dosis' && /Giftnotruf/.test(t.text) && t.anrufe.some((a) => a.nummer === '08919240'))]],
   },
 ];
 const GESAMT_ERGEBNISSE = [];

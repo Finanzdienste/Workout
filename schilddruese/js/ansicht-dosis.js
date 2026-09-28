@@ -106,6 +106,9 @@ function dosisKarteSeite(stand, heute) {
    * die geht es erst danach. Vorher stand unter „Bitte rufen Sie jetzt den
    * Giftnotruf an" noch „Das ist eine Einschätzung aus Ihrem Laborwert …"
    * (C1, C6).
+   * Außer neben W1 stehen darunter die übrigen dringlichen Gründe mit ihren
+   * Nummern (D17: Q5 mit dem Giftnotruf, „selbst geändert" …) – und, falls
+   * die Karte sie trägt, die 112-Zeichen (W-D2) wie auf jeder anderen Karte.
    */
   if (k.stufe === 'notruf') {
     teile.push(`
@@ -114,6 +117,7 @@ function dosisKarteSeite(stand, heute) {
         <p class="dosis-titel">${esc(k.titel)}</p>
         ${k.texte.map((t) => `<p class="dosis-text">${esc(t)}</p>`).join('')}
         ${gruendeListe}
+        ${k.warnzeichen ? `<p class="warnzeichen-zeile" role="note">${esc(k.warnzeichen)}</p>` : ''}
         ${anrufReihe(uebrige)}
       </div>`);
     return { titel, html: teile.join('') };
@@ -189,6 +193,13 @@ export function dosisSeite(name, param, stand, heute) {
  * (C7), stand dort sonst unter „Das ist mehr als ein üblicher Schritt …" noch
  * einmal „… hat die Dosis-Karte einen wichtigen Hinweis" – derselbe Anlass
  * zweimal.
+ *
+ * X3 und B2 zur eigenen Änderung sind immer wichtig, auch ohne höhere Stufe
+ * als der Befund (D11): „Heute" nennt sie selbst nur 14 Tage, die Karte, bis
+ * die Praxis danach entschieden hat. Bei TSH 12 (Stufe Tage wie X3) stand
+ * „nehmen Sie bis dahin wieder Ihre bisherige Menge" ab Tag 15 nur noch auf
+ * der Karte – und nichts auf „Heute" führte dorthin. Ohne Stufe (die Praxis
+ * hat danach entschieden, C4) nicht: Dann gilt, was sie gesagt hat.
  */
 export function dosisVerweis(stand, heute, k = undefined, schonDa = new Set()) {
   if (!ez.aktiv(stand)) return null;
@@ -196,9 +207,23 @@ export function dosisVerweis(stand, heute, k = undefined, schonDa = new Set()) {
   if (!karte) return null;
   const am = datumKurz(karte.befund.datum);
   const richtung = karte.richtung === 'mehr' || karte.richtung === 'weniger';
-  const wichtig = karte.gruende.some((g) => g.stufe && !g.id.startsWith('W') && !schonDa.has(g.id) && rang(g.stufe) > rang(karte.einschaetzung.stufeLabor));
-  if (karte.frage) return { stufe: karte.stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte eine Frage an Sie.` };
-  if (richtung) return { stufe: karte.stufe, text: `Zu Ihrem Befund vom ${am} gibt es eine Einschätzung zur Dosis. Bitte lesen Sie sie ganz – und rufen Sie vor jeder Änderung die Praxis an.` };
-  if (wichtig) return { stufe: karte.stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte einen wichtigen Hinweis. Bitte lesen Sie ihn dort.` };
+  const eigene = ['X3', 'B2'];
+  const wichtige = karte.gruende.filter((g) => g.stufe && !g.id.startsWith('W') && !schonDa.has(g.id)
+    && (eigene.includes(g.id) || rang(g.stufe) > rang(karte.einschaetzung.stufeLabor)));
+  /*
+   * Eine 112-Karte (W5, ein Check mit 112-Zeichen) nennt ihre übrigen Gründe
+   * mit eigener Frist (D17: Q5 „einmal viele Tabletten" – heute der
+   * Giftnotruf). Der Verweis darauf trägt deren Stufe, nicht 112: Den Notfall
+   * zeigt „Heute" schon selbst, mit seinen Nummern, ganz oben.
+   */
+  const stufe = karte.stufe === 'notruf'
+    ? ez.hoechste(...wichtige.filter((g) => g.stufe !== 'notruf').map((g) => g.stufe)) : karte.stufe;
+  // Die Frage nach dem Check trägt die dringlichen Gründe mit (D17) – dann
+  // sagt der Verweis beides, sonst läse sich „eine Frage" wie eine Nebensache.
+  if (karte.frage) {
+    return { stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte eine Frage an Sie${wichtige.length ? ' und einen wichtigen Hinweis. Bitte lesen Sie beides dort.' : '.'}` };
+  }
+  if (richtung) return { stufe, text: `Zu Ihrem Befund vom ${am} gibt es eine Einschätzung zur Dosis. Bitte lesen Sie sie ganz – und rufen Sie vor jeder Änderung die Praxis an.` };
+  if (wichtige.length && rang(stufe) > rang('keine')) return { stufe, text: `Zu Ihrem Befund vom ${am} hat die Dosis-Karte einen wichtigen Hinweis. Bitte lesen Sie ihn dort.` };
   return null;
 }

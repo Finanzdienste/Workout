@@ -16,7 +16,7 @@
  *      gelesenen Stand – aus dem Speicher wie aus einer Datei – in die Form,
  *      mit der der Rest der App rechnet.
  */
-import { heuteISO, istISO, istUhr, zahlAus, zahlText } from './datum.js';
+import { heuteISO, istISO, istUhr, tageZwischen, zahlAus, zahlText } from './datum.js';
 
 export const SCHLUESSEL = 'schilddruese.stand.v1';
 /*
@@ -933,14 +933,56 @@ export function naechsterTermin(heute = heuteISO()) {
   return stand.termine.find((t) => t.datum >= heute) || null;
 }
 
-/** Tage, die der Vorrat noch reicht – oder null ohne Vorrat/Dosis. */
+/*
+ * Tabletten am Tag `tag`: aus der Dosis, die an dem Tag gilt. Vor der ersten
+ * Dosis (oder ganz ohne) die früheste bzw. eine Tablette – wie aktuelleDosis().
+ */
+function tablettenAm(tag) {
+  const d = dosisAm(tag) || stand.dosen[0];
+  return d ? d.tabletten : 1;
+}
+
+/**
+ * Tage, die der Vorrat noch reicht, heute mitgezählt – 0 oder weniger heißt
+ * aufgebraucht; null ohne Vorrat.
+ *
+ * D13: Der Verbrauch zählt je Abschnitt mit der Dosis, die in diesem
+ * Abschnitt galt, und die Reichweite ab heute mit der heutigen und einer schon
+ * eingetragenen späteren Dosis. Vorher zählten alle Tage seit der Zählung mit
+ * der heutigen Tablettenzahl: Nach 1½ → 1 Tablette am Tag meldete sich die App
+ * erst sechs Tage nach dem wirklichen Ende – mit „reicht noch etwa 14 Tage".
+ * Abschnittsweise statt Tag für Tag, damit auch ein Jahre altes „gezählt am"
+ * oder ein großer Vorrat keine lange Schleife bei jedem Zeichnen braucht.
+ */
 export function vorratReicht(heute = heuteISO()) {
   if (!stand.vorrat) return null;
-  const dosis = aktuelleDosis();
-  const jeTag = dosis ? dosis.tabletten : 1;
-  const vergangen = Math.max(0, Math.round((new Date(`${heute}T12:00:00`) - new Date(`${stand.vorrat.stand}T12:00:00`)) / 86400000));
-  const rest = stand.vorrat.tabletten - vergangen * jeTag;
-  return Math.floor(rest / jeTag);
+  // Halbe Tabletten sind im Rechner genau, ein Drittel nicht – ein Rest von
+  // 0,9999999 Tagen ist ein ganzer Tag.
+  const ganz = (x) => Math.floor(x + 1e-9);
+  const wechsel = [...new Set(stand.dosen.map((d) => d.ab))].sort();
+  // Bis gestern verbraucht. Ein „gezählt am" in der Zukunft verbraucht nichts.
+  let rest = stand.vorrat.tabletten;
+  let von = stand.vorrat.stand;
+  for (const bis of [...wechsel.filter((x) => x > von && x < heute), heute]) {
+    if (bis > von) {
+      rest -= tageZwischen(von, bis) * tablettenAm(von);
+      von = bis;
+    }
+  }
+  if (rest <= 0) return ganz(rest / tablettenAm(heute));
+  // Ab heute: je Abschnitt bis zur letzten schon eingetragenen Änderung,
+  // danach gleichbleibend.
+  let tage = 0;
+  let ab = heute;
+  for (const bis of wechsel.filter((x) => x > heute)) {
+    const jeTag = tablettenAm(ab);
+    const n = tageZwischen(ab, bis);
+    if (ganz(rest / jeTag) < n) return tage + ganz(rest / jeTag);
+    rest -= n * jeTag;
+    tage += n;
+    ab = bis;
+  }
+  return tage + ganz(rest / tablettenAm(ab));
 }
 
 // ---------------------------------------------------------------- Sicherung
