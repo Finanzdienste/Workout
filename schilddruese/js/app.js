@@ -1667,6 +1667,16 @@ setInterval(tagPruefen, 60000);
  * Bericht als den gezeigten. Mit Eingaben oder einer offenen Rückfrage bleibt
  * die Seite, wie sie ist – mit einer Meldung, dass sich etwas geändert hat.
  */
+/*
+ * Die aufgeklappte 112-Karte auf der Befinden-Seite („… – JETZT") ist wie eine
+ * offene Rückfrage: Neu gezeichnet klappte sie ohne Hinweis zu, und die
+ * 112-Zeile war nicht mehr im Bild (Nachprüfung zu F24).
+ */
+const notrufOffen = () => {
+  const huelle = document.getElementById('notfall-jetzt-huelle');
+  return Boolean(huelle && !huelle.hidden);
+};
+
 function fremdeAenderung() {
   const warEingerichtet = sp.getStand().profil.begruesst;
   // Derselbe Inhalt, nur anders geschrieben (ein Stand, den normStand beim
@@ -1682,7 +1692,7 @@ function fremdeAenderung() {
     ui.entwurf = {};
     window.scrollTo(0, 0);
     render();
-  } else if (!ui.seite || (!eingabenGeaendert() && !rueckfrage && !auswahl)) {
+  } else if (!ui.seite || (!eingabenGeaendert() && !rueckfrage && !auswahl && !notrufOffen())) {
     // Der Fokus bleibt auf dem Knopf, der ihn hatte – sonst stand er danach im Nichts.
     const aktiv = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.act ? fokusMerkmal(document.activeElement) : null;
     render();

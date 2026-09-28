@@ -2924,4 +2924,31 @@ for (const farbe of ['hell', 'dunkel']) {
   check(breiten.every(([, b]) => b <= 360), `Runde 5 (Ansichten, sehr groß, ${farbe}): ohne waagerechtes Scrollen (${breiten.map(([n, b]) => `${n} ${b}`).join(', ')})`);
 }
 
+// ================================================================ Nachprüfung Runde 5
+// Die aufgeklappte 112-Karte der Befinden-Seite („… – JETZT") klappt nicht
+// zu, wenn ein anderes Fenster etwas speichert (Nebenwirkung von F24).
+{
+  await laden(stand());
+  await page.click('#reiter-verlauf');
+  await page.click('[data-seite="befinden"]:not([data-param])');
+  await page.click('[data-act="notfall-jetzt"]');
+  await page.waitForTimeout(300);
+  const vorher = await page.evaluate(() => !document.getElementById('notfall-jetzt-huelle').hidden);
+  const b = await ctx.newPage();
+  b.on('dialog', (d) => d.accept());
+  await b.goto(SD_URL, { waitUntil: 'networkidle' });
+  await b.evaluate((key) => {
+    const s = JSON.parse(localStorage.getItem(key));
+    s.fragen.push({ id: 'aus-b', text: 'Frage aus dem anderen Fenster', erledigt: false });
+    localStorage.setItem(key, JSON.stringify(s));
+  }, SCHLUESSEL);
+  await page.waitForTimeout(500);
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForTimeout(500);
+  const nachher = await page.evaluate(() => ({ offen: !document.getElementById('notfall-jetzt-huelle')?.hidden, meldung: document.getElementById('meldung').textContent }));
+  check(vorher && nachher.offen && /anderen Fenster/.test(nachher.meldung),
+    `Nachprüfung R5: die offene 112-Karte bleibt offen, wenn ein anderes Fenster speichert – mit Meldung (${JSON.stringify(nachher)})`);
+  await b.close();
+}
+
 await ende();
