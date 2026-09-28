@@ -280,4 +280,44 @@ check(r5.includes('– Kann die Müdigkeit an der Dosis liegen?\n  Soll ich den 
   && r5.includes('(nach Kontrolle im März)'),
 'F26: … die zweite Zeile einer Frage bleibt unter ihrem Strich, die Befinden-Notiz eingerückt, die Dosis-Notiz in einer Zeile');
 
+// ---------------------------------------------------------------- Runde 6: G11 – eine nie genommene Dosis
+
+// (a) 75 µg seit 2024; 100 µg ab 04.06. auf Anweisung der Praxis eingetragen,
+// aber nie genommen. Nach „Nein, ich nehme etwas anderes" berichtigt, mit
+// Vermerk (statt) und „Gilt ab" auf dem wahren Beginn, wie die Karte rät.
+// Vorher stand im Bericht nur „Aktuell: 75 µg seit 14.05.2024" – dass die
+// angeordneten 100 µg nie genommen wurden, erfuhr die Ärztin nicht.
+const g11Dosen = (dB) => [
+  { id: 'd1', ab: '2024-05-14', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '', praxis: null },
+  dB,
+  { id: 'dC', ab: '2026-06-04', praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, notiz: '', praxis: true },
+];
+const g11Labor = [{ id: 'bB', datum: '2026-08-10', tsh: r5W(6.5, 'mU/l', 0.4, 4), ...R5_NEIN }];
+r5 = await r5Bericht(r5Stand({
+  dosen: g11Dosen({ id: 'dB', ab: '2024-05-14', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '', praxis: false, berichtigung: true, statt: 'dC' }),
+  labor: g11Labor,
+}));
+let g11 = r5Abschnitt(r5, 'DOSIS');
+check(g11[1] === 'Aktuell: L-Thyroxin 75 µg, 1 Tablette am Tag, seit 14.05.2024'
+  && g11.includes('Berichtigung (Angabe): Ab 04.06.2026 war L-Thyroxin 100 µg, 1 Tablette am Tag eingetragen (auf Anweisung der Praxis) – nach Angabe der Patientin nie genommen; stattdessen L-Thyroxin 75 µg, 1 Tablette am Tag.')
+  && !r5.includes('Aktuell: L-Thyroxin 100 µg'),
+`G11: DOSIS nennt 75 µg seit 2024 und die angeordneten 100 µg ab 04.06. als nie genommen (${JSON.stringify(g11.slice(1, 3))})`);
+check(r5.includes('10.08.2026: TSH 6,5 mU/l (Labor 0,4–4) – Dosis damals 75 µg am Tag'), 'G11: … und „Dosis damals" 75 µg, nicht die nie genommenen 100 µg');
+// (b) Am selben Tag ersetzt (50 µg seit 2021, 100 µg ab 04.06. angeordnet,
+// am selben Tag berichtigt auf 75 µg): Der Satz „Ab diesem Tag war zuerst …
+// eingetragen" stand schon in der Aktuell-Zeile; jetzt steht es einmal, als
+// „nie genommen" mit Menge und Quelle.
+r5 = await r5Bericht(r5Stand({
+  dosen: [
+    { id: 'd1', ab: '2021-01-01', praeparat: 'L-Thyroxin', mikrogramm: 50, tabletten: 1, notiz: '', praxis: true },
+    { id: 'dC', ab: '2026-06-04', praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, notiz: '', praxis: true },
+    { id: 'dB', ab: '2026-06-04', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '', praxis: false, berichtigung: true },
+  ],
+  labor: g11Labor,
+}));
+g11 = r5Abschnitt(r5, 'DOSIS');
+check(g11[1] === 'Aktuell: L-Thyroxin 75 µg, 1 Tablette am Tag, seit 04.06.2026 – auf Anweisung der Praxis: nein' && !r5.includes('war zuerst')
+  && g11.filter((z) => z.includes('nie genommen')).length === 1 && g11.some((z) => z.startsWith('Berichtigung (Angabe): Ab 04.06.2026 war L-Thyroxin 100 µg') && z.includes('(auf Anweisung der Praxis)')),
+`G11: am selben Tag ersetzt – die nie genommenen 100 µg stehen genau einmal da, mit „auf Anweisung der Praxis" (${JSON.stringify(g11.slice(1, 4))})`);
+
 await ende();

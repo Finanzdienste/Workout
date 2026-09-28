@@ -2838,5 +2838,190 @@ function WD2_TEXT() { return str(dosisModul.WD2); }
   check('F28 zwei lange Kennungen mit gleichem Anfang: verschiedene Bezüge', !!fa && !!fb && fa.frage.bezug !== fb.frage.bezug, `${fa && fa.frage.bezug} / ${fb && fb.frage.bezug}`);
 }
 
+// ================================================================ Runde 6 (G7, G10, G12, G17, G24 – Dosis-Karte und „Heute")
+//
+// Befunde der sechsten Review-Runde. Jeder Fall scheiterte vor der Korrektur,
+// außer den Gegenproben (sie sagen, was bleiben muss). Die wichtigsten
+// globalen Eigenschaften laufen am Ende auch über diese Karten.
+const R6 = [];
+const r6 = (name, stand, heute = HEUTE) => {
+  const r = dosisRichtung(stand, heute);
+  R6.push({ name, stand, heute, r });
+  return r;
+};
+const WIE_BISHER = /genau wie bisher weiter/;
+
+{
+  // G7: Ein Grund, der eine andere Einnahme verlangt (D0.7 A und C, D0.8 mit
+  // den Abständen), steht nicht unter „genau wie bisher weiter" – die Menge
+  // bleibt trotzdem („dieselbe Menge wie bisher"): D0.7 warnt vor mehr.
+  for (const [was, ue] of [
+    ['D0.7 A (an 3 Tagen nicht genommen)', { befund: bef(8), einnahmen: mitLuecken([5, 6, 7]) }],
+    ['D0.7 A ohne Zahl (Q1 „mehrere Tage vergessen")', { befund: bef(8, 15, { vergessen: 'mehrere' }) }],
+    ['D0.7 C (Q2 „nein")', { befund: bef(8, 15, { einnahmeArt: 'nein' }) }],
+    ['D0.7 C (Q2 „weiß nicht")', { befund: bef(8, 15, { einnahmeArt: 'unbekannt' }) }],
+    ['D0.8 mit den Abständen (Q3 „nein")', { befund: bef(8, 15, { abstandOk: 'nein' }), mittel: ['kalzium'] }],
+  ]) {
+    const r = r6(`G7 ${was}`, vollständigerStand(ue));
+    check(`G7 ${was}: keine Richtung, kein „genau wie bisher weiter", aber „dieselbe Menge wie bisher"`,
+      r.richtung === 'klaeren' && !WIE_BISHER.test(kern(r)) && /dieselbe Menge wie bisher/.test(kern(r)), `${info(r)} | ${kern(r).replace(/\s+/g, ' ').slice(0, 220)}`);
+  }
+  // Gegenprobe: D0.8a („Behalten Sie jetzt alles gleich bei") und Biotin verlangen keine andere Einnahme.
+  for (const [was, ue] of [['D0.8a (Mittel geändert)', { befund: bef(8, 15, { mittelGeaendert: 'ja' }) }], ['D0.9 (Biotin)', { befund: bef(8, 15, { biotin: 'ja' }) }]]) {
+    const r = r6(`G7 Gegenprobe ${was}`, vollständigerStand(ue));
+    check(`G7 Gegenprobe ${was}: der D0-Kopftext „genau wie bisher weiter" bleibt`, WIE_BISHER.test(kern(r)) && !/dieselbe Menge/.test(kern(r)), kern(r).replace(/\s+/g, ' ').slice(0, 220));
+  }
+}
+
+{
+  // G24: X7 „über 80 und mit einer Herzerkrankung" nur, wenn das Herz
+  // angegeben ist. Ohne Angabe (P3: gilt vorsichtig als Herzkrankheit) der
+  // Satz zur fehlenden Angabe und ein Knopf zu „Über mich".
+  for (const herz of ['', 'unbekannt']) {
+    const r = r6(`G24 X7, Herz „${herz}"`, vollständigerStand({ profil: { geburtsjahr: geb(85), herz }, befund: bef(7.5, 14) }));
+    check(`G24 X7, Herz „${herz || 'nicht angegeben'}": nicht „mit einer Herzerkrankung", dafür die vorsichtige Annahme erklärt, Knopf „Über mich"`,
+      hatRegel(r, 'X7') && r.richtung === 'klaeren' && r.stufe === 'termin' && !/mit einer Herzerkrankung/.test(kern(r))
+      && /Solange nicht angegeben ist, ob Sie eine Herzerkrankung haben, rechnet die App vorsichtig/.test(kern(r)) && r.aktionen.some((a) => a.aktion === 'profil'),
+      `${info(r)} | ${kern(r).replace(/\s+/g, ' ').slice(0, 300)} | ${JSON.stringify(r.aktionen)}`);
+  }
+  const r = r6('G24 Gegenprobe X7, Herz „ja"', vollständigerStand({ profil: { geburtsjahr: geb(85), herz: 'ja' }, befund: bef(7.5, 14) }));
+  check('G24 Gegenprobe X7, Herz „ja": „mit einer Herzerkrankung", ohne Satz zur fehlenden Angabe',
+    hatRegel(r, 'X7') && /mit einer Herzerkrankung/.test(kern(r)) && !/Solange nicht angegeben/.test(kern(r)), kern(r).replace(/\s+/g, ' ').slice(0, 300));
+}
+
+{
+  // G17: Die Frage nach dem Check (W-D1) trägt die Stufe der Karte, die nach
+  // „Nichts davon" käme – nicht noch einmal die rohe Befundstufe. Hat die
+  // Praxis den Befund erklärt (F8 „bleibt", „nachmessen"), sagte sie vorher
+  // „In den nächsten Tagen anrufen", nach dem leeren Check „Beim nächsten Termin".
+  const st = (praxis, mitCheck) => vollständigerStand({
+    profil: { geburtsjahr: geb(76) },
+    befund: bef(12, 15, { datum: plus(HEUTE, -12), praxis, praxisAm: plus(HEUTE, -10) }),
+    befinden: [bf(-11, ['herz'])],
+    warnzeichen: mitCheck ? [wc(0, [])] : [],
+    nachfragen: [dosisStimmt('b1', plus(HEUTE, -11))],
+  });
+  for (const praxis of ['bleibt', 'nachmessen']) {
+    const vor = r6(`G17 F8 „${praxis}", vor dem Check`, st(praxis, false));
+    const nach = r6(`G17 F8 „${praxis}", Check „Nichts davon"`, st(praxis, true));
+    const gv = gesamtbildMitDosis(st(praxis, false), HEUTE).stufe;
+    const gn = gesamtbildMitDosis(st(praxis, true), HEUTE).stufe;
+    check(`G17 F8 „${praxis}": die Frage nach dem Check hat die Stufe der Karte danach`, !!vor.frage && vor.frage.ziel === 'warncheck' && vor.stufe === nach.stufe,
+      `vor: ${info(vor)} | nach: ${info(nach)}`);
+    check(`G17 F8 „${praxis}": Gesamtbild vor und nach dem leeren Check gleich`, gv === gn, `${gv} / ${gn}`);
+    check(`G17 F8 „${praxis}": die Frage nennt, warum sie unter dem Muster liegt (D0.5)`, hatRegel(vor, 'D0.5'), info(vor));
+  }
+  const vor = r6('G17 Gegenprobe F8 „noch nicht"', st('nochnicht', false));
+  check('G17 Gegenprobe F8 „noch nicht": die Frage bleibt bei der Stufe des Befunds (Tage)', !!vor.frage && vor.stufe === 'tage', info(vor));
+  // W-D3 (Muster b, TSH über 20) nach „Dosis bleibt": vor und nach dem leeren Check dieselbe Stufe.
+  const b = (mitCheck) => vollständigerStand({
+    befund: bef(25, 9, { datum: plus(HEUTE, -12), praxis: 'bleibt', praxisAm: plus(HEUTE, -10) }),
+    warnzeichen: mitCheck ? [wc(0, [])] : [], nachfragen: [dosisStimmt('b1', plus(HEUTE, -11))],
+  });
+  const v3 = r6('G17 W-D3 nach „Dosis bleibt", vor dem Check', b(false));
+  const n3 = r6('G17 W-D3 nach „Dosis bleibt", Check „Nichts davon"', b(true));
+  check('G17 W-D3 nach „Dosis bleibt": vor und nach dem leeren Check dieselbe Stufe', !!v3.frage && hatRegel(v3, 'W-D3') && v3.stufe === n3.stufe, `vor: ${info(v3)} | nach: ${info(n3)}`);
+}
+// G17 über alle Karten der Tabelle: Jede Frage nach dem Check trägt genau die
+// Stufe der Karte, die nach „Nichts davon" käme (RW2 W-D1: die Frage selbst
+// hebt nicht an und senkt nicht).
+global('G17: die Frage nach dem Check hat die Stufe der Karte nach „Nichts davon"', [...karten, ...R6].filter((x) => x.r.frage && x.r.frage.ziel === 'warncheck'), (x) => {
+  const danach = dosisRichtung({ ...x.stand, warnzeichen: [...x.stand.warnzeichen, { id: 'g17', datum: x.heute, uhr: '09:00', ja: [] }] }, x.heute);
+  return danach.stufe === x.r.stufe;
+}, (x) => `${x.name}: Frage ${x.r.stufe}, danach ${dosisRichtung({ ...x.stand, warnzeichen: [...x.stand.warnzeichen, { id: 'g17', datum: x.heute, uhr: '09:00', ja: [] }] }, x.heute).stufe}`);
+
+{
+  // G10: X3b nach einer Berichtigung – Frist und Text aus „Auf Anweisung der
+  // Praxis?". Vorher immer „Beim nächsten Termin" mit „Ist das nicht die
+  // Menge, die Ihre Praxis verordnet hat, rufen Sie … in den nächsten Tagen an".
+  const st = (praxis, befund = bef(6.5)) => vollständigerStand({
+    befund, dosen: [dosis('d1', DOSIS_AB, 75), dosis('d2', HEUTE, 100, { praxis, berichtigung: true })], nachfragen: [],
+  });
+  const x3b = (s) => dosisHinweise(s, HEUTE).find((h) => h.id === 'X3b');
+  const ja = x3b(st(true));
+  check('G10 Berichtigung „Auf Anweisung der Praxis: Ja": X3b beim nächsten Termin, ohne andere Frist, ohne die beantwortete Frage',
+    !!ja && ja.stufe === 'termin' && /beim nächsten Termin/.test(ja.text) && !/in den nächsten Tagen|heute|Ist das nicht die Menge/.test(ja.text), JSON.stringify(ja));
+  const s = st(false);
+  const nein = x3b(s);
+  check('G10 Berichtigung „Nein": X3b mit Stufe Tage und „in den nächsten Tagen", ohne Bedingung',
+    !!nein && nein.stufe === 'tage' && /in den nächsten Tagen/.test(nein.text) && !/Ist das nicht die Menge/.test(nein.text), JSON.stringify(nein));
+  const k = r6('G10 Berichtigung „Nein": Karte', s);
+  check('G10 Berichtigung „Nein": Karte und Gesamtbild wie „Heute" mindestens Tage, Grund X3b auf der Karte',
+    rang(k.stufe) >= RANG.tage && rang(gesamtbildMitDosis(s, HEUTE).stufe) >= RANG.tage && hatRegel(k, 'X3b'), `${info(k)} | Gesamtbild ${gesamtbildMitDosis(s, HEUTE).stufe}`);
+  const ohne = x3b(st(null));
+  check('G10 Berichtigung ohne Angabe zur Praxis: X3b mit Stufe Tage zur Frist „in den nächsten Tagen"', !!ohne && ohne.stufe === 'tage' && /in den nächsten Tagen/.test(ohne.text), JSON.stringify(ohne));
+  // Unter einer Karte „Heute anrufen" (Q5 „einmal viele Tabletten") schreibt X3b die Frist der Karte.
+  const hoch = r6('G10 Berichtigung „Nein" unter Q5 „einmal"', st(false, bef(0.05, 30, { verwechselt: 'einmal' })));
+  const g = hoch.gruende.find((x) => x.id === 'X3b');
+  check('G10 X3b auf einer Karte „Heute anrufen": „heute noch", nicht „in den nächsten Tagen"', hoch.stufe === 'heute' && !!g && /heute noch/.test(g.text) && !/in den nächsten Tagen/.test(g.text),
+    `${info(hoch)} | ${g && g.text}`);
+}
+
+{
+  // G12: „Ja" auf die Nachfrage nach der Erhöhung (Herzklopfen bis
+  // Brustschmerz) gilt drei Tage – für die Erhöhung, zu der sie gegeben wurde,
+  // auch wenn die Nutzerin danach selbst wieder weniger nimmt. Und nie „wieder
+  // Ihre bisherige Menge": Das wäre die Menge mit den Beschwerden.
+  const st = (eigen, { antwort = 'ja', am = plus(HEUTE, -1) } = {}) => vollständigerStand({
+    befund: bef(6.8, 15, { datum: plus(HEUTE, -30), praxis: 'geaendert', praxisAm: plus(HEUTE, -20) }),
+    dosen: [dosis('d0', DOSIS_AB, 75), dosis('d1', plus(HEUTE, -15), 100), ...(eigen ? [dosis('d2', HEUTE, eigen, { praxis: false })] : [])],
+    nachfragen: [dosisStimmt('b1', plus(HEUTE, -29)), ...(antwort ? [{ id: 'w1', art: 'wd4', bezug: 'd1-14', antwort, am }] : [])],
+  });
+  for (const eigen of [null, 75, 88, 50]) {
+    const was = eigen ? `danach selbst ${ug6(eigen)} (Praxis: Nein)` : 'ohne eigene Änderung';
+    const s = st(eigen);
+    const h = dosisHinweise(s, HEUTE);
+    const w = h.find((x) => x.id === 'W-D4' && !x.frage);
+    const k = r6(`G12 ${was}`, s);
+    const g = gesamtbildMitDosis(s, HEUTE);
+    check(`G12 ${was}: „Heute" nennt W-D4 mit Stufe heute, Warnzeichen-Check und 112`, !!w && w.stufe === 'heute' && /Warnzeichen-Check/.test(w.text) && w.anrufe.some((a) => a.nummer === '112'), hinweisInfo(h));
+    check(`G12 ${was}: Karte und Gesamtbild „heute", Grund W-D4 „seit der Erhöhung"`,
+      k.stufe === 'heute' && g.stufe === 'heute' && k.gruende.some((x) => x.id === 'W-D4' && /seit der Erhöhung/.test(x.text)), `${info(k)} | Gesamtbild ${g.stufe}`);
+    check(`G12 ${was}: nirgends „wieder Ihre bisherige Menge"`, !/bisherige Menge/.test([kern(k), ...h.map(hText)].join('\n')),
+      [kern(k), ...h.map(hText)].join(' | ').replace(/\s+/g, ' ').slice(0, 300));
+    check(`G12 ${was}: kein Hinweis mit Stufe heute nennt eine längere Frist`, h.filter((x) => x.stufe === 'heute').every((x) => !/in den nächsten Tagen|heute oder morgen/.test(x.text)), hinweisInfo(h));
+    if (eigen === 50) {
+      const x3 = h.find((x) => x.id === 'X3');
+      check('G12 großer eigener Schritt nach Beschwerden: „fragen Sie dort, welche Menge Sie bis zur Klärung nehmen sollen"',
+        !!x3 && /fragen Sie dort, welche Menge Sie bis zur Klärung nehmen sollen/.test(x3.text) && k.gruende.some((x) => x.id === 'X3' && /welche Menge Sie bis zur Klärung/.test(x.text)), hinweisInfo(h));
+    }
+  }
+  // Nach drei Tagen fällt „Heute anrufen" weg (RW2 W-D4) – der Rat, nicht zur Menge mit den Beschwerden zurückzukehren, bleibt.
+  const spaet = st(50, { am: plus(HEUTE, -4) });
+  const hs = dosisHinweise(spaet, HEUTE);
+  const ks = r6('G12 Antwort vor 4 Tagen, danach selbst 50 µg', spaet);
+  check('G12 Antwort vor 4 Tagen: kein W-D4 mehr, X3 ohne „bisherige Menge"', !hs.some((x) => x.id === 'W-D4') && hs.some((x) => x.id === 'X3' && x.stufe === 'tage' && /welche Menge Sie bis zur Klärung/.test(x.text))
+    && !/bisherige Menge/.test(kern(ks)), hinweisInfo(hs));
+  // Gegenproben: ohne Antwort und nach „Nein" bleibt es bei X3 (4) wie bisher.
+  for (const [was, opt] of [['ohne Antwort', { antwort: null }], ['nach „Nein"', { antwort: 'nein' }]]) {
+    const hg = dosisHinweise(st(50, opt), HEUTE);
+    check(`G12 Gegenprobe ${was}: kein W-D4, X3 „heute oder morgen … wieder Ihre bisherige Menge"`,
+      !hg.some((x) => x.id === 'W-D4' && !x.frage) && hg.some((x) => x.id === 'X3' && x.stufe === 'tage' && /heute oder morgen die Praxis an und nehmen Sie bis dahin wieder Ihre bisherige Menge/.test(x.text)), hinweisInfo(hg));
+  }
+  // „Ja" nach einer Senkung (Frage B, Tag 28), danach eine eigene Änderung: Termin, mit dem Satz zur Senkung.
+  const senk = vollständigerStand({
+    befund: bef(3, 15, { datum: plus(HEUTE, -40), praxis: 'geaendert', praxisAm: plus(HEUTE, -35) }),
+    dosen: [dosis('d0', DOSIS_AB, 100), dosis('d1', plus(HEUTE, -29), 88), dosis('d2', HEUTE, 100, { praxis: false })],
+    nachfragen: [dosisStimmt('b1', plus(HEUTE, -39)), { id: 'w1', art: 'wd4', bezug: 'd1-28', antwort: 'ja', am: plus(HEUTE, -1) }],
+  });
+  const hk = dosisHinweise(senk, HEUTE).find((x) => x.id === 'W-D4' && !x.frage);
+  const kk = r6('G12 „Ja" nach Senkung, danach selbst wieder mehr', senk);
+  check('G12 „Ja" nach einer Senkung bleibt nach einer eigenen Änderung: Termin, „bei der Kontrolle", Karte mit dem Satz zur Senkung',
+    !!hk && hk.stufe === 'termin' && /bei der Kontrolle/.test(hk.text) && kk.gruende.some((x) => x.id === 'W-D4' && /seit der Senkung/.test(x.text)), `${JSON.stringify(hk)} | ${info(kk)}`);
+}
+function ug6(n) { return `${String(n).replace('.', ',')} µg`; }
+
+// Die globalen Eigenschaften, die hier zählen, auch über die Karten der Runde 6.
+global('Runde 6: L3f – kein Text nennt eine längere Frist als die Stufe der Karte', R6.filter((x) => x.r.stufe !== 'notruf'),
+  (x) => FRIST_UNTER.every(([ab, m]) => rang(x.r.stufe) < RANG[ab] || !m.test(kern(x.r))), (x) => `${x.name}: ${x.r.stufe} | ${kern(x.r).replace(/\s+/g, ' ').slice(0, 160)}`);
+global('Runde 6: Karte nie unter der Stufe des Musters (außer D0.4/D0.5)', R6.filter((x) => x.r.einschaetzung && !x.r.gruende.some((g) => ['D0.4', 'D0.5'].includes(g.id))),
+  (x) => rang(x.r.stufe) >= rang(x.r.einschaetzung.stufeLabor), (x) => `${x.name}: Karte ${x.r.stufe}, Muster ${x.r.einschaetzung.stufeLabor}`);
+global('Runde 6: Gesamtbild nie unter der Dosis-Karte', R6, (x) => rang(gesamtbildMitDosis(x.stand, x.heute).stufe) >= rang(x.r.stufe), (x) => x.name);
+global('Runde 6: jede genannte Nummer steht in anrufe', R6,
+  (x) => NUMMERN.every(([m, passt]) => !m.test([kern(x.r), str(x.r.warnzeichen), ...frageTexte(x.r)].join('\n')) || x.r.anrufe.some(passt)), (x) => x.name);
+global('Runde 6: keine neue Tagesdosis', R6, (x) => neueDosisGenannt(alles(x.r), x.stand, x.heute).length === 0, (x) => `${x.name}: ${neueDosisGenannt(alles(x.r), x.stand, x.heute).join(', ')}`);
+global('Runde 6: nie „nehmen Sie mehr/weniger" als Aufforderung', R6,
+  (x) => !/\bnehmen Sie (ab (jetzt|morgen|heute) )?(eine? )?(mehr|weniger|zusätzlich)\b/i.test(alles(x.r)) && !/\b(erhöhen|verringern|reduzieren|senken) Sie\b/.test(alles(x.r)), (x) => x.name);
+
 console.log(`\n${oks} OK, ${fails} FAIL – ${FAELLE.length} Fälle dosisRichtung, ${HINWEIS_FAELLE.length} Fälle dosisHinweise, ${GESAMT_FAELLE.length} Fälle gesamtbildMitDosis`);
 process.exit(fails || !oks ? 1 : 0);

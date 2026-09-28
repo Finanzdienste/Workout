@@ -6,10 +6,21 @@
  * formal auch diesen Pfad ab, aber der Browser nimmt für eine Seite immer die
  * Registrierung mit dem längsten passenden Pfad – also diese.
  *
- * Zwei Strategien, übernommen aus ../sw.js und dort begründet:
+ * Zwei Strategien, ursprünglich aus ../sw.js:
  *
  *   Seitenaufrufe   erst Netz, bei Fehlschlag der Zwischenspeicher.
- *   Alles andere    sofort aus dem Zwischenspeicher, parallel erneuern.
+ *   Alles andere    aus dem Zwischenspeicher, nur was dort fehlt vom Netz.
+ *
+ * Den Vorrat einer Fassung beschreibt nur ihre Installation – nie ein Abruf.
+ * Vorher legte der Worker jede gute Antwort des Servers in seinen Vorrat
+ * („parallel erneuern"). Scheiterte die Installation einer neuen Fassung,
+ * weil im Mobilnetz eine Datei abbrach (E26), blieb zwar der alte Worker –
+ * er füllte seinen Vorrat aber beim nächsten Öffnen mit den Dateien der
+ * neuen Fassung auf, bis auf die, die wieder abbrach. Ab dann passten die
+ * Module nicht mehr zusammen, und die App startete nicht mehr, auch ohne
+ * Netz nicht; nur die feste Notfallzeile blieb (Runde 6: G1, wie C18).
+ * Neue Dateien kommen deshalb nur mit einer neuen VERSION, also über
+ * install und activate.
  *
  * VERSION bei jeder Änderung an einer der unten gelisteten Dateien
  * hochzählen – daran hängt das Aufräumen alter Zwischenspeicher, und ohne
@@ -17,7 +28,7 @@
  * auf ein altes app.js.
  */
 
-const VERSION = 'v9';
+const VERSION = 'v10';
 const CACHE = `schilddruese-${VERSION}`;
 
 const SHELL = [
@@ -72,14 +83,18 @@ const frisch = (eingabe) => fetch(new Request(eingabe, { cache: 'reload' }));
  * zweier Fassungen, genau der Fehler aus C18.
  */
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => Promise.all(SHELL.map((url) => frisch(url).then((res) => {
-        if (!res || !res.ok) throw new Error(`${url}: ${res ? res.status : 'keine Antwort'}`);
-        return cache.put(url, res);
-      }))))
-      .then(() => self.skipWaiting()),
-  );
+  event.waitUntil(caches.has(CACHE).then((schonDa) => caches.open(CACHE)
+    .then((cache) => Promise.all(SHELL.map((url) => frisch(url).then((res) => {
+      if (!res || !res.ok) throw new Error(`${url}: ${res ? res.status : 'keine Antwort'}`);
+      return cache.put(url, res);
+    }))))
+    .then(() => self.skipWaiting())
+    // Gescheitert: den halb gefüllten Vorrat dieser Fassung wegräumen – er
+    // lag sonst neben dem alten, bis irgendwann ein Update gelang (Runde 6:
+    // G1). Die Installation scheitert trotzdem, der alte Worker bleibt. Nur
+    // einen Vorrat, den diese Installation angelegt hat: Kam der Worker mit
+    // derselben VERSION noch einmal, ist es der Vorrat des laufenden.
+    .catch((e) => (schonDa ? Promise.reject(e) : caches.delete(CACHE).then(() => { throw e; })))));
 });
 
 self.addEventListener('activate', (event) => {
@@ -103,42 +118,24 @@ self.addEventListener('fetch', (event) => {
 
   const imVorrat = (req) => caches.open(CACHE).then((c) => c.match(req));
 
-  // Nur eine gute Antwort ersetzt, was im Zwischenspeicher liegt – keine 503
-  // von GitHub Pages und keine Umleitung, sonst liefert der Worker offline
-  // genau diese Fehlerseite aus.
+  // Keine 503 von GitHub Pages und keine Umleitung als Seite ausliefern,
+  // solange der Vorrat eine bessere hat.
   const gut = (res) => res && res.ok && !res.redirected && res.type === 'basic';
   const zuletztGut = () => imVorrat(request).then((hit) => hit || imVorrat('./index.html'));
 
+  // Beide Wege lesen den Vorrat nur, keiner schreibt hinein (Runde 6: G1,
+  // siehe oben). Die Seite kommt weiter zuerst vom Netz, die Module aus dem
+  // Vorrat dieses Workers – fehlt dort eines, vom Netz, ohne es abzulegen.
   if (request.mode === 'navigate') {
     event.respondWith(
       frisch(request)
-        .then((res) => {
-          if (gut(res)) {
-            const kopie = res.clone();
-            caches.open(CACHE).then((c) => c.put(request, kopie));
-            return res;
-          }
-          return zuletztGut().then((hit) => hit || res);
-        })
+        .then((res) => (gut(res) ? res : zuletztGut().then((hit) => hit || res)))
         .catch(() => zuletztGut().then((hit) => hit || Response.error())),
     );
     return;
   }
 
-  event.respondWith(
-    imVorrat(request).then((hit) => {
-      const erneuern = frisch(request)
-        .then((res) => {
-          if (gut(res)) {
-            const kopie = res.clone();
-            caches.open(CACHE).then((c) => c.put(request, kopie));
-          }
-          return res;
-        })
-        .catch(() => hit);
-      return hit || erneuern;
-    }),
-  );
+  event.respondWith(imVorrat(request).then((hit) => hit || frisch(request)));
 });
 
 /*

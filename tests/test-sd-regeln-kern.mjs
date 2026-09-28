@@ -1181,11 +1181,16 @@ fall('R13 „mehr als eine Tablette zu viel" → Giftnotruf', () => {
 });
 
 // W4b: einzelne Tablette zu viel – Stufe Termin, keine Anruf-Aufforderung; R13-Zusatz bei T3/Herz.
+// Runde 6: G22 – geändert: Der Zusatz („wenn Herzklopfen oder Unruhe auftreten,
+// die Praxis anrufen") gilt jetzt für alle und für die nächsten Tage, nicht nur
+// „heute" bei T3/Herz – die Wirkung setzt verzögert ein, und das Wissen sagt es
+// so. Die dritte Spalte bleibt als Angabe, für wen R13 ihn verlangt; geprüft
+// wird unten, dass er bei allen steht.
 [
   ['W4b nur L-Thyroxin, Herz nein', {}, false],
   ['R13 W4b mit T3-Präparat', T3, true],
   ['R13 W4b mit Herzerkrankung', { herz: 'ja' }, true],
-].forEach(([name, profil, zusatz]) => fall(name, () => {
+].forEach(([name, profil]) => fall(name, () => {
   const r = warn(name, [schluessel('w4b')[0]], { profil });
   const w4b = (r.abschnitte || []).find((a) => a.id === 'W4b');
   check(`${name}: Stufe termin`, r.stufe === 'termin', `ist ${r.stufe}`);
@@ -1193,7 +1198,8 @@ fall('R13 „mehr als eine Tablette zu viel" → Giftnotruf', () => {
   check(`${name}: „nächste Tablette wie gewohnt", „keine Tablette weg"`,
     enthaelt(warnTexte(r), 'nächste Tablette wie gewohnt') && enthaelt(warnTexte(r), 'keine Tablette weg'), auszug(warnTexte(r)));
   check(`${name}: kein W3 (W4 ist eine Ja-Antwort)`, !abschnittIds(r).includes('W3'), JSON.stringify(abschnittIds(r)));
-  check(`${name}: Zusatz Herzklopfen/Unruhe ${zusatz ? 'ja' : 'nein'}`, enthaelt(warnTexte(r), 'Herzklopfen oder Unruhe') === zusatz, auszug(warnTexte(r)));
+  check(`${name}: Zusatz Herzklopfen/Unruhe in den nächsten Tagen (G22: für alle)`,
+    enthaelt(warnTexte(r), 'in den nächsten Tagen Herzklopfen, Unruhe oder Zittern') && !enthaelt(warnTexte(r), 'Wenn heute Herzklopfen'), auszug(warnTexte(r)));
 }));
 
 // W5 im Check.
@@ -2910,6 +2916,344 @@ fall('F29 normStand: Stärke, Tabletten, Bereichsgrenzen, Vorrat', () => {
   check('F29 Vorrat 1e+23 → kein Vorrat', v(1e23) === null, JSON.stringify(v(1e23)));
   check('F29 Gegenprobe: Vorrat 10000 und 0 bleiben', v(10000) && v(10000).tabletten === 10000 && v(0) && v(0).tabletten === 0);
 });
+
+// ================================================================ Runde 6 (G11, G13–G16, G18, G19, G21, G22 – Kern-Teile)
+//
+// Befunde der sechsten Review-Runde, soweit sie den Kern, den Speicher und
+// die Einheiten betreffen. Jeder Fall hier scheiterte vor der Korrektur
+// (außer den Gegenproben). Stände wie in den Nachweisen.
+
+const r6Dosis = (id, ab, mikrogramm, weiteres = {}) => ({ id, ab, praeparat: 'L-Thyroxin', mikrogramm, tabletten: 1, notiz: '', praxis: null, ...weiteres });
+const R6_FRAGEN = { ...R5_FRAGEN, abnahmeUhr: '' };
+/** Ein Stand für die Fälle dieser Runde – über normStand, wie die App liest. */
+const r6Stand = (ue = {}) => normStand({
+  version: 2,
+  profil: { ...BASIS_PROFIL, geburtsjahr: 1950, ...(ue.profil || {}) },
+  mittel: ue.mittel || [],
+  mittelAbstand: ue.mittelAbstand || {},
+  dosen: ue.dosen || [r6Dosis('d1', '2024-01-01', 100, { praxis: true })],
+  einnahmen: ue.einnahmen || {},
+  labor: ue.labor || [],
+  befinden: ue.befinden || [],
+  warnzeichen: ue.warnzeichen || [],
+  nachfragen: ue.nachfragen || [],
+});
+const idsVon = (liste) => (liste || []).map((d) => d && d.id).join(',');
+
+// ---- G18: Lebensbedrohliche weitere Werte bekommen eine Stufe, die der Gefahr
+// entspricht – feste Grenzen vor dem Laborbereich, der Fristsatz im Text passt dazu.
+const g18 = (werte, key, mittel = []) => {
+  const s = r6Stand({ mittel, labor: [{ id: 'b', datum: '2026-09-27', tsh: t(2), ft4: f4(15), ...R6_FRAGEN, ...werte }] });
+  return { s, x: ez.weitereWerte(s.labor[0], s).find((y) => y.key === key) };
+};
+[
+  ['G18 Natrium 118 (135–145) → heute', ww('natrium', 118, 'mmol/l', 135, 145), 'natrium', 'heute'],
+  ['G18 Natrium 124 → heute', ww('natrium', 124, 'mmol/l', 135, 145), 'natrium', 'heute'],
+  ['G18 Natrium 127 → tage', ww('natrium', 127, 'mmol/l', 135, 145), 'natrium', 'tage'],
+  ['G18 Natrium 153 → tage', ww('natrium', 153, 'mmol/l', 135, 145), 'natrium', 'tage'],
+  ['G18 Natrium 159 → heute', ww('natrium', 159, 'mmol/l', 135, 145), 'natrium', 'heute'],
+  ['G18 Natrium 118 ohne Laborbereich → heute (feste Grenze)', ww('natrium', 118, 'mmol/l'), 'natrium', 'heute'],
+  ['G18 Hb 6,5 g/dl → heute', ww('hb', 6.5, 'g/dl', 12, 16), 'hb', 'heute'],
+  ['G18 Hb 4,0 mmol/l (6,4 g/dl) → heute', ww('hb', 4.0, 'mmol/l', 7.4, 9.9), 'hb', 'heute'],
+  ['G18 Hb 65 g/l → heute', ww('hb', 65, 'g/l', 120, 160), 'hb', 'heute'],
+  ['G18 Hb 7,5 g/dl → tage', ww('hb', 7.5, 'g/dl', 12, 16), 'hb', 'tage'],
+  ['G18 CRP 24 mg/dl (240 mg/l) → heute', ww('crp', 24, 'mg/dl', null, 0.5), 'crp', 'heute'],
+  ['G18 CRP 240 mg/l → heute', ww('crp', 240, 'mg/l', null, 5), 'crp', 'heute'],
+].forEach(([name, werte, key, stufe]) => fall(name, () => {
+  const { s, x } = g18(werte, key);
+  const text = x ? x.texte.join(' ') : '';
+  sammle('weitereWerte', name, x ? x.texte : []);
+  check(`${name}: Stufe ${stufe}`, !!x && x.stufe === stufe, JSON.stringify(x && { stufe: x.stufe, texte: x.texte }));
+  check(`${name}: die Frist steht im Text`, stufe === 'heute' ? enthaelt(text, 'heute noch') && enthaelt(text, '116 117') : enthaelt(text, 'in den nächsten Tagen'), text);
+  check(`${name}: „falls sich die Praxis nicht schon gemeldet hat"`, enthaelt(text, 'falls sich die Praxis nicht schon bei Ihnen gemeldet hat'), text);
+  check(`${name}: 112 für Zeichen, die nicht warten können`, enthaelt(text, 'sofort 112'), text);
+  check(`${name}: keine niedrigere Frist darunter (L3f)`, !enthaelt(text, 'ein bis zwei Wochen') && !enthaelt(text, 'nächsten Termin'), text);
+  const g = ez.gesamtbild(s, R5);
+  check(`${name}: Gesamtbild ${stufe}, der Teil E13-${key} mit derselben Stufe`, g.stufe === stufe && g.teile.some((x2) => x2.id === `E13-${key}` && x2.stufe === stufe),
+    JSON.stringify({ stufe: g.stufe, teile: g.teile.map((x2) => [x2.id, x2.stufe]) }));
+  const e = ez.befundEinschaetzen(s.labor[0], s, R5);
+  check(`${name}: Kopf der Befund-Karte ${stufe}`, !!e.kopf && e.kopf.stufe === stufe, JSON.stringify(e.kopf));
+  check(`${name}: nie „notruf" aus einem Laborwert (Grundsatz 5)`, g.stufe !== 'notruf' && (!x || x.stufe !== 'notruf'));
+}));
+[
+  ['G18 Gegenprobe: Natrium 131 unter 135–145 → termin (L9)', ww('natrium', 131, 'mmol/l', 135, 145), 'natrium', 'termin'],
+  ['G18 Gegenprobe: Natrium 150 über 135–145 → termin', ww('natrium', 150, 'mmol/l', 135, 145), 'natrium', 'termin'],
+  ['G18 Gegenprobe: Hb 11 g/dl → zeitnah (E13f)', ww('hb', 11, 'g/dl', 12, 16), 'hb', 'zeitnah'],
+  ['G18 Gegenprobe: Hb 8 g/dl → zeitnah', ww('hb', 8, 'g/dl', 12, 16), 'hb', 'zeitnah'],
+  ['G18 Gegenprobe: CRP 100 mg/l → termin', ww('crp', 100, 'mg/l', null, 5), 'crp', 'termin'],
+].forEach(([name, werte, key, stufe]) => fall(name, () => {
+  const { x } = g18(werte, key);
+  check(name, !!x && x.stufe === stufe, JSON.stringify(x && { stufe: x.stufe, texte: x.texte }));
+}));
+fall('G18 Hb unter dem Bereich mit Marcumar → tage', () => {
+  const { x } = g18(ww('hb', 11, 'g/dl', 12, 16), 'hb', ['marcumar']);
+  const text = x ? x.texte.join(' ') : '';
+  check('G18 Hb 11 g/dl mit Marcumar: tage, mit Grund, ohne „ein bis zwei Wochen"', !!x && x.stufe === 'tage' && enthaelt(text, 'Marcumar') && !enthaelt(text, 'ein bis zwei Wochen'), JSON.stringify(x));
+});
+
+// ---- G11: Eine Berichtigung bleibt eine Berichtigung, auch wenn „Gilt ab" danach
+// auf den wahren Beginn gesetzt wird. Stand wie im Nachweis (rot4w/falle.mjs):
+// 100 µg ab 04.06. angeordnet, nie genommen; nach „Nein" 75 µg eingetragen
+// (Berichtigung von dC) und „Gilt ab" auf 2024 bzw. 2026-01-01 gesetzt.
+const G11_HEUTE = '2026-08-12';
+const G11_STAND = (ab = '2024-05-14', weiteres = {}, extra = []) => r6Stand({
+  dosen: [r6Dosis('d1', '2024-05-14', 75), r6Dosis('dC', '2026-06-04', 100, { praxis: true }),
+    r6Dosis('dB', ab, 75, { praxis: false, berichtigung: true, statt: 'dC', ...weiteres }), ...extra],
+  labor: [
+    { id: 'bA', datum: '2026-05-13', tsh: t(25), ...R6_FRAGEN, praxis: 'geaendert', praxisAm: '2026-06-04' },
+    { id: 'bB', datum: '2026-08-10', tsh: t(6.5), ...R6_FRAGEN, praxis: 'nochnicht', praxisAm: '2026-08-12' },
+  ],
+  nachfragen: [{ id: 'n0', art: 'dosis_stimmt', bezug: 'bA', antwort: 'ja', am: '2026-05-14' }],
+});
+['2024-05-14', '2026-01-01'].forEach((ab) => fall(`G11 Berichtigung mit „Gilt ab" ${ab} vor dem berichtigten Eintrag`, () => {
+  const s = G11_STAND(ab);
+  const dB = s.dosen.find((d) => d.id === 'dB');
+  const dC = s.dosen.find((d) => d.id === 'dC');
+  check(`G11 (${ab}) normStand behält „statt"`, !!dB && dB.statt === 'dC', JSON.stringify(dB));
+  check(`G11 (${ab}) sp.ersetztDurchBerichtigung: dC → dB`, typeof spR5.ersetztDurchBerichtigung === 'function' && spR5.ersetztDurchBerichtigung(s).get(dC) === dB);
+  check(`G11 (${ab}) sp.gueltigeDosen ohne dC`, typeof spR5.gueltigeDosen === 'function' && idsVon(spR5.gueltigeDosen(s)) === 'd1,dB', typeof spR5.gueltigeDosen === 'function' ? idsVon(spR5.gueltigeDosen(s)) : 'fehlt');
+  check(`G11 (${ab}) dosisAmIn(heute) = die Berichtigung (75 µg), nicht die nie genommenen 100 µg`, ez.dosisAmIn(s, G11_HEUTE) === dB, JSON.stringify(ez.dosisAmIn(s, G11_HEUTE)));
+  check(`G11 (${ab}) istBerichtigung bleibt ja`, ez.istBerichtigung(s, dB, G11_HEUTE) === true);
+  const v = ez.dosisVerlauf(s, G11_HEUTE);
+  const aktuell = v[v.length - 1];
+  check(`G11 (${ab}) dosisVerlauf: aktuell 75 µg, dC in keinem Zeitraum`, !!aktuell && aktuell.d === dB && !v.some((p) => p.eintraege.includes(dC)),
+    JSON.stringify(v.map((p) => [p.ab, idsVon(p.eintraege)])));
+  check(`G11 (${ab}) dosisVerlauf: dC als nie genommen vermerkt, ersetzt durch dB`, v.some((p) => (p.nieGenommen || []).some((x) => x.d === dC && x.durch === dB)),
+    JSON.stringify(v.map((p) => (p.nieGenommen || []).map((x) => x.d.id))));
+  const damals = ez.dosisDamals(s, '2026-08-10', G11_HEUTE);
+  check(`G11 (${ab}) Dosis damals (10.08.) 75 µg`, !!damals && damals.td === 75, JSON.stringify(damals && damals.td));
+  check(`G11 (${ab}) aenderungen: keine nie genommene Erhöhung`, !ez.aenderungen(s, G11_HEUTE).includes(dC), idsVon(ez.aenderungen(s, G11_HEUTE)));
+  const zeilen = typeof ez.nieGenommenZeilen === 'function' ? ez.nieGenommenZeilen(s, G11_HEUTE) : [];
+  check(`G11 (${ab}) Bericht-Zeile zur nie umgesetzten Anordnung`, zeilen.length === 1 && enthaelt(zeilen[0], 'Ab 04.06.2026 war L-Thyroxin 100 µg')
+    && enthaelt(zeilen[0], 'auf Anweisung der Praxis') && enthaelt(zeilen[0], 'nie genommen') && enthaelt(zeilen[0], 'stattdessen L-Thyroxin 75 µg'), auszug(zeilen));
+}));
+fall('G11 Gegenprobe: eine spätere Änderung der Praxis bleibt, nur der berichtigte Eintrag galt nie', () => {
+  const s = G11_STAND('2024-05-14', {}, [r6Dosis('dN', '2026-08-20', 88, { praxis: true })]);
+  check('G11 ab 20.08. gelten 88 µg', ez.dosisAmIn(s, '2026-08-25').id === 'dN', JSON.stringify(ez.dosisAmIn(s, '2026-08-25')));
+  check('G11 nur dC ist ersetzt', idsVon([...spR5.ersetztDurchBerichtigung(s).keys()]) === 'dC');
+  check('G11 die 88 µg sind eine Änderung', ez.aenderungen(s, '2026-08-25').some((d) => d.id === 'dN'));
+});
+fall('G11 Gegenprobe: Berichtigung nach dem berichtigten Eintrag – wie bisher (F15)', () => {
+  const s = G11_STAND(G11_HEUTE);
+  const v = ez.dosisVerlauf(s, G11_HEUTE);
+  check('G11 drei Zeiträume, die 100 µg „laut App; später berichtigt", keiner nie genommen',
+    v.length === 3 && v[1].d.id === 'dC' && v[1].berichtigtDurch === v[2] && v.every((p) => !p.nieGenommen.length),
+    JSON.stringify(v.map((p) => [p.ab, p.d.id, p.berichtigtDurch && p.berichtigtDurch.ab, p.nieGenommen && p.nieGenommen.length])));
+  check('G11 dosisAmIn(heute) = dB', ez.dosisAmIn(s, G11_HEUTE).id === 'dB');
+});
+fall('G11 istBerichtigung: mit „statt" bleibt es eine Berichtigung, auch wenn der Tag dagegen spräche', () => {
+  // Nur Befund bA mit „Dosis wird geändert" am 04.06.: Ein Eintrag danach ohne
+  // späteren Befund gilt nach dem Tag als die Änderung der Praxis (C17).
+  const stand = (weiteres) => r6Stand({
+    dosen: [r6Dosis('d1', '2024-05-14', 75), r6Dosis('dC', '2026-06-04', 100, { praxis: true }), r6Dosis('dB', '2026-06-10', 75, { berichtigung: true, ...weiteres })],
+    labor: [{ id: 'bA', datum: '2026-05-13', tsh: t(25), ...R6_FRAGEN, praxis: 'geaendert', praxisAm: '2026-06-04' }],
+  });
+  const s = stand({ statt: 'dC' });
+  check('G11 mit statt: Berichtigung', ez.istBerichtigung(s, s.dosen[2], '2026-06-12') === true);
+  const o = stand({});
+  check('G11 Gegenprobe ohne statt (alte Marke): nach dem Tag keine Berichtigung (C17 bleibt)', ez.istBerichtigung(o, o.dosen[2], '2026-06-12') === false);
+});
+fall('G11 normStand: „statt" nur bei einer Berichtigung und nur auf einen vorhandenen Eintrag', () => {
+  const s = r6Stand({
+    dosen: [r6Dosis('d1', '2024-05-14', 75), r6Dosis('d2', '2026-06-04', 100, { statt: 'd1' }),
+      r6Dosis('d3', '2026-07-01', 75, { berichtigung: true, statt: 'gibtsnicht' }), r6Dosis('d4', '2026-08-01', 50, { berichtigung: true, statt: 'd2\n' })],
+  });
+  check('G11 ohne Berichtigung kein statt', !('statt' in s.dosen[1]), JSON.stringify(s.dosen[1]));
+  check('G11 ein Verweis ins Leere fällt weg', !('statt' in s.dosen[2]), JSON.stringify(s.dosen[2]));
+  check('G11 eine ungültige Kennung fällt weg', !('statt' in s.dosen[3]), JSON.stringify(s.dosen[3]));
+});
+
+// ---- G15: Ein Eintrag, den eine Berichtigung am selben Tag ersetzt, zählt nirgends
+// als Änderung. Stand wie im Nachweis (rot4w/ersetzt.mjs): 75 µg seit 2025, 100 µg
+// ab 01.06. (Praxis) und am selben Tag berichtigt auf 75 µg.
+const G15_HEUTE = '2026-08-25';
+const G15_STAND = (ab = '2026-06-01') => r6Stand({
+  profil: { geburtsjahr: 1966 },
+  dosen: [r6Dosis('d0', '2025-01-01', 75), r6Dosis('dC', ab, 100, { praxis: true }), r6Dosis('dB', ab, 75, { praxis: false, berichtigung: true })],
+  labor: [
+    { id: 'b1', datum: '2026-05-10', tsh: t(5.5), ...R6_FRAGEN, praxis: 'geaendert', praxisAm: '2026-05-12' },
+    { id: 'b2', datum: '2026-08-20', tsh: t(5.8), ...R6_FRAGEN },
+  ],
+  nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: '2026-05-11' }, { id: 'n2', art: 'dosis_stimmt', bezug: 'b2', antwort: 'ja', am: '2026-08-21' }],
+});
+fall('G15 aenderungen, dosisSeit, nieGegolten', () => {
+  const s = G15_STAND();
+  check('G15 Vorbedingung: dB ist eine Berichtigung', ez.istBerichtigung(s, s.dosen[2], G15_HEUTE) === true);
+  check('G15 aenderungen: keine (der ersetzte Eintrag galt nie)', ez.aenderungen(s, G15_HEUTE).length === 0, idsVon(ez.aenderungen(s, G15_HEUTE)));
+  const d = ez.dosisAmIn(s, G15_HEUTE);
+  check('G15 dosisSeit (Grundlage der Karte) = 01.01.2025 wie im Bericht', ez.dosisSeit(s, d, G15_HEUTE) === '2025-01-01' && ez.dosisSeit(s, d) === '2025-01-01', `${ez.dosisSeit(s, d, G15_HEUTE)} / ${ez.dosisSeit(s, d)}`);
+  check('G15 nieGegolten: dC, durch dB', typeof ez.nieGegolten === 'function' && ez.nieGegolten(s, G15_HEUTE).get(s.dosen[1]) === s.dosen[2]);
+  check('G15 dosenDieGalten: d0, dB', typeof ez.dosenDieGalten === 'function' && idsVon(ez.dosenDieGalten(s, G15_HEUTE)) === 'd0,dB');
+  const v = ez.dosisVerlauf(s, G15_HEUTE);
+  check('G15 dosisVerlauf: ein Zeitraum seit 2025, dC als nie genommen', v.length === 1 && v[0].ab === '2025-01-01' && v[0].nieGenommen.length === 1 && v[0].nieGenommen[0].d.id === 'dC',
+    JSON.stringify(v.map((p) => [p.ab, idsVon(p.eintraege), (p.nieGenommen || []).map((x) => x.d.id)])));
+});
+fall('G15 L6 in Einschätzung und Bericht: „Die Dosis war in dieser Zeit gleich"', () => {
+  const s = G15_STAND();
+  const e = ez.befundEinschaetzen(s.labor[1], s, G15_HEUTE);
+  const l6 = (e.verlauf || []).find((x) => x.id === 'L6');
+  check('G15 L6: gleich, nicht „geändert"', !!l6 && enthaelt(l6.text, 'Die Dosis war in dieser Zeit gleich') && !enthaelt(l6.text, 'geändert'), l6 && l6.text);
+  const z = ez.berichtZeilen(s, G15_HEUTE);
+  check('G15 Bericht ohne „Dazwischen wurde die Dosis geändert"', !z.some((x) => enthaelt(x, 'Dazwischen wurde die Dosis geändert')), auszug(z.filter((x) => enthaelt(x, 'Dosis'))));
+});
+fall('G15 ersetzter Eintrag im 6-Wochen-Fenster: kein L5a', () => {
+  const s = G15_STAND('2026-07-10');
+  const e = ez.befundEinschaetzen(s.labor[1], s, G15_HEUTE);
+  check('G15 kein L5a', !e.regeln.includes('L5a'), JSON.stringify(e.regeln));
+  check('G15 Bericht ohne „eingependelt"', !ez.berichtZeilen(s, G15_HEUTE).some((x) => enthaelt(x, 'eingependelt')));
+});
+fall('G15 L7d: ein ersetzter Eintrag nach dem auffälligen Befund ist keine Änderung', () => {
+  const s = r6Stand({
+    dosen: [r6Dosis('d0', '2025-01-01', 75), r6Dosis('dC', '2026-06-20', 100, { praxis: true }), r6Dosis('dB', '2026-06-20', 75, { berichtigung: true })],
+    labor: [{ id: 'b', datum: '2026-06-01', tsh: t(12), ft4: f4(13), ...R6_FRAGEN }],
+  });
+  const l7d = ez.kontrolleHinweise(s, R5).find((h) => h.id === 'L7d');
+  check('G15 L7d da, ohne „wurde die Dosis geändert"', !!l7d && !enthaelt(l7d.text, 'Dosis geändert'), l7d && l7d.text);
+});
+fall('G15 Gegenprobe: 50 µg, 75 µg ab 10.09. am selben Tag berichtigt auf 100 µg – eine Änderung am 10.09.', () => {
+  const s = r6Stand({ dosen: [r6Dosis('d0', '2019-03-01', 50, { praxis: true }), r6Dosis('d1', '2026-09-10', 75), r6Dosis('d2', '2026-09-10', 100, { berichtigung: true })] });
+  const a = ez.aenderungen(s, R5);
+  check('G15 aenderungen = [d2] ab 10.09.', idsVon(a) === 'd2' && a[0].ab === '2026-09-10', idsVon(a));
+  check('G15 dosisSeit(d2) = 10.09.', ez.dosisSeit(s, s.dosen[2], R5) === '2026-09-10');
+});
+
+// ---- G14: Achtfach-Rückfrage auch nach Präparatwechsel mit gleicher Menge und
+// bei doppeltem Eintrag (Entscheidung 13: „bei gleicher Dosis" = gleiche Menge).
+const G14_D0 = r6Dosis('d0', '2024-01-01', 100, { praxis: true });
+const g14Stand = (dosen, wert) => r6Stand({ dosen, labor: [{ id: 'b1', datum: '2026-03-02', tsh: t(2.5), ...R6_FRAGEN }, { id: 'b2', datum: '2026-09-22', tsh: t(wert), ...R6_FRAGEN }] });
+[
+  ['G14 Präparatwechsel gleiche Menge (Euthyrox 100 µg ab 04.05., Praxis ja)', [G14_D0, { ...r6Dosis('d1', '2026-05-04', 100, { praxis: true }), praeparat: 'Euthyrox' }]],
+  ['G14 doppelter Eintrag (alles gleich)', [G14_D0, r6Dosis('d1', '2026-05-04', 100, { praxis: true })]],
+].forEach(([name, dosen]) => [0.25, 25].forEach((wert) => fall(`${name}, TSH 2,5 → ${String(wert).replace('.', ',')}`, () => {
+  const s = g14Stand(dosen, wert);
+  const p = eh.befundPruefen(s.labor[1], s, R5);
+  check(`${name}, ${wert}: Rückfrage „Bitte prüfen Sie das Komma"`, p.rueckfragen.some((r) => /Komma/.test(r)), JSON.stringify(p));
+  check(`${name}, ${wert}: nicht plausibel, bis bestätigt`, eh.plausibel(s.labor[1], s) === false);
+})));
+[
+  ['G14 Gegenprobe: echte Änderung 100 → 50 µg dazwischen', [G14_D0, r6Dosis('d1', '2026-05-04', 50)]],
+  ['G14 Gegenprobe: 100 → 50 → 100 µg dazwischen', [G14_D0, r6Dosis('d1', '2026-05-04', 50), r6Dosis('d2', '2026-07-01', 100)]],
+].forEach(([name, dosen]) => fall(name, () => {
+  const s = g14Stand(dosen, 25);
+  check(`${name}: keine Achtfach-Rückfrage`, !eh.befundPruefen(s.labor[1], s, R5).rueckfragen.some((r) => /Komma/.test(r)));
+}));
+
+// ---- G16: Weitere Werte im Einschätzungsteil des Berichts mit Herkunft und Bereich.
+fall('G16 Bericht: weitere Werte mit (Befund), Laborbereich und „Einordnung (App)"', () => {
+  const s = r6Stand({
+    labor: [
+      { id: 'w1', datum: '2026-09-01', ...ww('vitd', 8, 'ng/ml', 30, 100), ...R6_FRAGEN },
+      { id: 'b1', datum: '2026-09-20', tsh: t(2.1), ...ww('hb', 10.9, 'g/dl', 12, 16), ...R6_FRAGEN, praxis: 'nochnicht', praxisAm: '2026-09-21' },
+    ],
+  });
+  const z = ez.berichtZeilen(s, R5);
+  check('G16 Hb unter dem Befund: Wert mit Bereich und (Befund), der Satz als Einordnung (App)',
+    z.includes('  Hämoglobin (Blutfarbstoff) 10,9 g/dl (Labor 12–16) (Befund) – Einordnung (App): Der Wert spricht für eine Blutarmut. Besprechen Sie ihn innerhalb von ein bis zwei Wochen mit der Praxis.'),
+    auszug(z.filter((x) => enthaelt(x, 'Hämoglobin')), 600));
+  check('G16 Eintrag nur mit Vitamin D: der App-Satz als Einordnung (App), nicht unter (Befund)',
+    z.some((x) => x.startsWith('Weitere Werte vom 01.09.2026 (Befund): Vitamin D (25-OH) 8 ng/ml (Labor 30–100) – Einordnung (App): Der Wert zeigt einen Vitamin-D-Mangel')),
+    auszug(z.filter((x) => enthaelt(x, 'Vitamin D')), 600));
+  const i = z.findIndex((x) => x.startsWith('EINSCHÄTZUNG'));
+  const ohne = z.slice(i + 2).filter((x) => /\S/.test(x) && !/\((Angabe|Befund|App)\)/.test(x) && !/^ {2}– /.test(x));
+  check('G16 jede Zeile des Abschnitts mit Herkunft (außer den eingerückten App-Sätzen „  – …")', ohne.length === 0, auszug(ohne, 600));
+});
+
+// ---- G13: Die Antwort auf die W-D4-Nachfrage steht im Bericht, solange sie gilt.
+const G13_STAND = (mikrogramm = 100, bezug = 'd1-14', antwort = 'ja', weiteres = {}) => r6Stand({
+  dosen: [r6Dosis('d0', '2025-01-01', 75, { praxis: true }), r6Dosis('d1', '2026-09-01', mikrogramm, { praxis: true })],
+  labor: [{ id: 'b1', datum: '2026-08-20', tsh: t(6.8), ...R6_FRAGEN, praxis: 'geaendert', praxisAm: '2026-08-28' }],
+  nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: '2026-08-21' }, { id: 'n2', art: 'wd4', bezug, antwort, am: '2026-09-15' }],
+  ...weiteres,
+});
+const G13_ZEILE = 'Nachfrage 14 Tage nach der Erhöhung vom 01.09.2026, beantwortet am 15.09.2026 (Angabe): Herzklopfen, Herzrasen, innere Unruhe, Zittern, schlechter Schlaf oder Schmerzen in der Brust seit der Erhöhung: ja.';
+['2026-09-19', '2026-10-27'].forEach((heute) => fall(`G13 W-D4 „ja" am ${heute} im Bericht`, () => {
+  const s = G13_STAND();
+  check(`G13 ${heute}: berichtZeilen nennt die Antwort`, ez.berichtZeilen(s, heute).includes(G13_ZEILE), auszug(ez.berichtZeilen(s, heute).filter((x) => enthaelt(x, 'Nachfrage')), 600));
+  check(`G13 ${heute}: auch ohne P6 (angabenZeilen)`, ez.angabenZeilen(r6Stand({ profil: { behandelt: false, ursache: '' }, dosen: s.dosen, labor: s.labor, nachfragen: s.nachfragen }), heute).includes(G13_ZEILE));
+}));
+fall('G13 nach einer Senkung: „deutlich müder oder mehr frieren", auch „nein"', () => {
+  const z = ez.berichtZeilen(G13_STAND(50, 'd1-28', 'nein'), '2026-10-05');
+  check('G13 Senkung, nein', z.includes('Nachfrage 28 Tage nach der Senkung vom 01.09.2026, beantwortet am 15.09.2026 (Angabe): deutlich müder oder mehr frieren seit der Senkung: nein.'),
+    auszug(z.filter((x) => enthaelt(x, 'Nachfrage')), 600));
+});
+fall('G13 solange es gilt: über 90 Tage hinaus bis zum nächsten TSH-Wert', () => {
+  const s = G13_STAND();
+  check('G13 ohne neuen TSH-Wert nach 120 Tagen noch da', ez.berichtZeilen(s, '2027-01-13').includes(G13_ZEILE));
+  const mit = G13_STAND(100, 'd1-14', 'ja', { labor: [...s.labor, { id: 'b2', datum: '2026-10-30', tsh: t(3), ...R6_FRAGEN }] });
+  check('G13 nach dem Kontrollwert und 90 Tagen nicht mehr', !ez.berichtZeilen(mit, '2027-01-13').some((x) => x.startsWith('Nachfrage')));
+  check('G13 nach dem Kontrollwert, innerhalb von 90 Tagen noch da', ez.berichtZeilen(mit, '2026-11-05').includes(G13_ZEILE));
+});
+fall('G13 lange Kennung: der gekürzte Bezug (F28) wird aufgelöst', () => {
+  const lang = 'x'.repeat(40);
+  check('G13 wd4Bezug vorhanden, höchstens 40 Zeichen', typeof ez.wd4Bezug === 'function' && ez.wd4Bezug(lang, 14).length <= 40);
+  const s = r6Stand({
+    dosen: [r6Dosis('d0', '2025-01-01', 75), r6Dosis(lang, '2026-09-01', 100, { praxis: true })],
+    nachfragen: [{ id: 'n2', art: 'wd4', bezug: ez.wd4Bezug(lang, 14), antwort: 'ja', am: '2026-09-15' }],
+  });
+  check('G13 Zeile „nach der Erhöhung vom 01.09.2026"', ez.berichtZeilen(s, '2026-09-20').includes(G13_ZEILE));
+});
+
+// ---- G19: Marcumar – die Grenze zwischen „heute anrufen" und 112 bei Blutungen.
+fall('G19 Warnzeichen-Check und Plan M7: Nasenbluten, das nicht steht, ist 112', () => {
+  const w1 = ez.WARNFRAGEN.find((f) => f.key === 'blutung');
+  const w2h = ez.WARNFRAGEN.find((f) => f.key === 'blutungszeichen');
+  check('G19 W1 „blutung" nennt Nasenbluten nach 15 Minuten Zudrücken, Bluterbrechen, schwarzen Stuhl', !!w1 && w1.gruppe === 'w1'
+    && enthaelt(w1.text, 'Nasenbluten, das nach 15 Minuten Zudrücken nicht steht') && enthaelt(w1.text, 'Bluterbrechen') && enthaelt(w1.text, 'schwarz'), w1 && w1.text);
+  check('G19 W2h „blutungszeichen" nicht mehr „Nasenbluten, das nicht aufhört"', !!w2h && w2h.gruppe === 'w2h' && !enthaelt(w2h.text, 'nicht aufhört') && enthaelt(w2h.text, 'Blut im Urin oder Stuhl'), w2h && w2h.text);
+  const r = warn('G19 blutungszeichen', ['blutungszeichen'], { mittel: ['marcumar'] });
+  const a = (r.abschnitte || []).find((x) => x.id === 'W2h');
+  check('G19 Ergebnis W2h: heute, mit der 112-Grenze für die Blutung daneben', !!a && a.stufe === 'heute' && enthaelt(a.text, '15 Minuten Zudrücken') && enthaelt(a.text, 'sofort 112')
+    && (a.anrufe || []).some((x) => x.nummer === '112'), JSON.stringify(a));
+  const ohne = warn('G19 herzklopfen', ['herzklopfen'], { mittel: ['marcumar'] });
+  check('G19 Gegenprobe: W2h ohne Blutungszeichen ohne den Blutungssatz', !enthaelt(warnTexte(ohne), '15 Minuten'));
+  const m7 = ez.abstandPlan(baue({ ohneBefund: true, mittel: ['marcumar'] })).find((x) => x.id === 'M7');
+  check('G19 Plan M7: 112 bei Nasenbluten nach 15 Minuten, Bluterbrechen, schwarzem Stuhl', !!m7 && enthaelt(m7.text, '15 Minuten Zudrücken') && enthaelt(m7.text, 'sofort 112')
+    && !enthaelt(m7.text, 'Nasenbluten, das nicht aufhört'), m7 && m7.text);
+});
+
+// ---- G21: Kaffee überall dieselbe Zahl (30 Minuten, besser 60).
+fall('G21 Kaffee: Abstandsfrage 30 Minuten, alte Antwort „nein" als solche erkennbar', () => {
+  check('G21 ABSTAND_MITTEL.kaffee = 30', ez.ABSTAND_MITTEL.kaffee === 30, String(ez.ABSTAND_MITTEL.kaffee));
+  const alt = r6Stand({ mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' } });
+  check('G21 alter Stand mit „nein" → kaffeePruefen, die Antwort bleibt', alt.profil.kaffeePruefen === true && alt.mittelAbstand.kaffee === 'nein' && alt.profil.kaffee30 === true, JSON.stringify(alt.profil));
+  const neu = r6Stand({ profil: { kaffee30: true, kaffeePruefen: false }, mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' } });
+  check('G21 „nein" auf die neue Frage → kein kaffeePruefen', neu.profil.kaffeePruefen === false);
+  check('G21 alter Stand mit „ja" → kein kaffeePruefen', r6Stand({ mittel: ['kaffee'], mittelAbstand: { kaffee: 'ja' } }).profil.kaffeePruefen === false);
+  check('G21 Bericht sagt, worauf sich das alte „nein" bezog', ez.berichtZeilen(alt, R5).some((x) => enthaelt(x, 'Kaffee oder Tee am Morgen (Abstand eingehalten: nein – Antwort auf die frühere Frage nach mindestens 60 Minuten)')),
+    auszug(ez.berichtZeilen(alt, R5).filter((x) => enthaelt(x, 'Kaffee'))));
+  check('G21 Gegenprobe: „nein" auf die neue Frage ohne Zusatz', ez.berichtZeilen(neu, R5).some((x) => enthaelt(x, 'Kaffee oder Tee am Morgen (Abstand eingehalten: nein)')));
+  const m3k = ez.abstandPlan(baue({ ohneBefund: true, mittel: ['kaffee'] })).find((x) => x.id === 'M3k');
+  check('G21 Plan: Kaffee frühestens nach 30, besser nach 60 Minuten', !!m3k && hatUhr(m3k.text, '07:30') && hatUhr(m3k.text, '08:00'), m3k && m3k.text);
+});
+
+// ---- G22: Einmal doppelt genommen – Beschwerden können in den nächsten Tagen kommen.
+fall('G22 W4b bei Herzerkrankung: „in den nächsten Tagen", nicht nur „heute"', () => {
+  const r = warn('G22 herz', ['eine_zuviel'], { profil: { herz: 'ja' } });
+  check('G22 W4b termin, „in den nächsten Tagen Herzklopfen, Unruhe oder Zittern"', r.stufe === 'termin' && enthaelt(warnTexte(r), 'in den nächsten Tagen Herzklopfen, Unruhe oder Zittern')
+    && !enthaelt(warnTexte(r), 'Wenn heute'), auszug(warnTexte(r)));
+});
+
+// ---- G11 und G21 im laufenden Speicher (je eine eigene Instanz von speicher.js).
+try {
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: JSON.stringify(G11_STAND('2024-05-14')) });
+  const A = await instanz();
+  fall('G11 sp.aktuelleDosis: die Berichtigung, nicht die nie genommenen 100 µg', () => {
+    const d = A.aktuelleDosis(G11_HEUTE);
+    check('G11 aktuelleDosis = dB (75 µg)', !!d && d.id === 'dB', JSON.stringify(d));
+    check('G11 dosisAm(10.08.) = dB', !!A.dosisAm('2026-08-10') && A.dosisAm('2026-08-10').id === 'dB');
+    check('G11 naechsteDosis: keine (die 100 µg sind nicht „geplant")', A.naechsteDosis(G11_HEUTE) === null, JSON.stringify(A.naechsteDosis(G11_HEUTE)));
+  });
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: JSON.stringify({ version: 2, profil: BASIS_PROFIL, mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' }, dosen: [D1] }) });
+  const K = await instanz();
+  fall('G21 mittelSetzen: gespeichert ist die Antwort auf die neue Frage', () => {
+    check('G21 vorher kaffeePruefen', K.getStand().profil.kaffeePruefen === true);
+    K.mittelSetzen(['kaffee'], { kaffee: 'nein' }, R5);
+    check('G21 nach dem Speichern kein kaffeePruefen, „nein" bleibt', K.getStand().profil.kaffeePruefen === false && K.getStand().mittelAbstand.kaffee === 'nein');
+  });
+} catch (e) {
+  check('Runde 6 Speicher-Instanzen laufen', false, e && e.message);
+}
+if (hatteLocalStorage) globalThis.localStorage = vorherLocalStorage;
 
 // ================================================================ Globale Eigenschaften über alle Fälle
 

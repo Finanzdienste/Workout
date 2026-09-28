@@ -114,20 +114,40 @@ const NACH14_WAHL = [['praxis', 'Ja, mit der Praxis gesprochen'], ['selbst', 'Ic
 const grossAnfang = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const letzteNachfrage = (stand, art, bezug) => [...stand.nachfragen].reverse().find((n) => n.art === art && n.bezug === bezug) || null;
 
-function antwortenBlock(b, stand, heute) {
+/*
+ * Runde 6: G6 – die Angaben über sie, nach denen die Karte selbst fragt:
+ * Schilddrüsenkrebs (P2), dauerhaft Kortison oder Nebennierenschwäche (P9),
+ * Hirnanhangdrüse oder TSH bewusst niedrig (Q4, nur wo die Karte danach
+ * fragt: Muster d/e bei offener Ursache) und das Geburtsjahr (X6, Muster c).
+ * Vorher fehlten sie in der Liste: Ein Fehltipp „Ja" auf die Krebsfrage
+ * sperrte die Karte, hob „Heute" an und stand so im Arztbericht – und unter
+ * „Stimmt eine Antwort nicht? Tippen Sie auf ändern" stand die falsche
+ * Antwort nicht. Sie speichern wie die Frage selbst ins Profil
+ * (js/app.js frageBeantworten, PROFIL_ANTWORTEN).
+ */
+const PROFIL_ZEILEN = [
+  { feld: 'krebs', kurz: 'Wegen Schilddrüsenkrebs behandelt' },
+  { feld: 'kortison', kurz: 'Dauerhaft Kortison oder Nebennierenschwäche' },
+  { feld: 'hypophyseOderNiedrig', kurz: 'Ursache in der Hirnanhangdrüse oder TSH bewusst niedrig', nurWenn: (e, p) => ['d', 'e'].includes(e.gruppe) && ['andere', 'unbekannt', ''].includes(p.ursache) },
+];
+
+function antwortenBlock(b, stand, heute, e = null) {
   const zeilen = [];
-  const zeile = ({ feld, ziel, kurz, wert, optionen }) => {
+  const profilZeilen = [];
+  const zeile = ({ feld, ziel, kurz, wert, optionen, zusatz = '' }, liste = zeilen) => {
     const gewaehlt = optionen.find(([w]) => w === wert);
     const text = gewaehlt ? gewaehlt[1].replace(/^Ja: /, '') : wert;
     const andere = optionen.filter(([w]) => w !== wert);
-    zeilen.push(`
-      <li class="antwort-zeile" data-antwort="${esc(feld)}">
+    // Profil-Angaben mit eigenem Anker: „kortison" gibt es auch am Befund (F4).
+    liste.push(`
+      <li class="antwort-zeile" data-antwort="${esc(ziel === 'profil' ? `profil-${feld}` : feld)}">
         <p><span class="gedaempft">${esc(kurz)}:</span> <strong>${esc(text)}</strong></p>
         <details class="antwort-aendern">
           <summary class="knopf knopf-klein" aria-label="${esc(`Antwort ändern: ${kurz}`)}">ändern</summary>
           <div class="antworten">${andere.map(([w, t]) => `
             <button type="button" class="knopf antwort" data-act="frage-antwort" data-ziel="${esc(ziel)}" data-feld="${esc(feld)}" data-bezug="${esc(b.id)}" data-wert="${esc(w)}">${esc(t)}</button>`).join('')}</div>
         </details>
+        ${zusatz}
       </li>`);
   };
   if (b.verwechselt) zeile({ feld: 'verwechselt', ziel: 'befund', kurz: 'Versehentlich mehr genommen', wert: b.verwechselt, optionen: Q5_WAHL });
@@ -149,13 +169,44 @@ function antwortenBlock(b, stand, heute) {
     if (!b[f.feld]) return;
     zeile({ feld: f.feld, ziel: 'befund', kurz: grossAnfang(f.kurz), wert: b[f.feld], optionen: f.optionen || JNW_WAHL });
   });
-  if (!zeilen.length) return '';
-  const offen = ['einmal', 'tage'].includes(b.verwechselt) || (stimmt && /^nein/.test(stimmt.antwort)) || (nach14 && nach14.antwort === 'selbst');
+  // G6: die Angaben über sie. „Weiß nicht" sperrt wie „Ja" (Grundsatz 3) –
+  // dann die Bitte, die Angabe zu ergänzen, sobald sie es weiß (bei D0.13
+  // sagte die Karte das schon, bei D0.14 nicht).
+  const p = stand.profil;
+  const sperrt = [];
+  PROFIL_ZEILEN.forEach((z) => {
+    if (!p[z.feld] || (z.nurWenn && !(e && z.nurWenn(e, p)))) return;
+    if (['ja', 'unbekannt'].includes(p[z.feld])) sperrt.push(z.feld);
+    zeile({
+      feld: z.feld, ziel: 'profil', kurz: z.kurz, wert: p[z.feld], optionen: JNW_WAHL,
+      zusatz: p[z.feld] === 'unbekannt' ? '<p class="klein antwort-zusatz">Bitte ändern Sie die Angabe hier, sobald Sie es wissen – fragen Sie beim nächsten Anruf in der Praxis.</p>' : '',
+    }, profilZeilen);
+  });
+  // Das Geburtsjahr ist eine Zahl: „ändern" öffnet das kleine Formular der Frage X6.
+  if (e && e.gruppe === 'c' && p.geburtsjahr) {
+    profilZeilen.push(`
+      <li class="antwort-zeile" data-antwort="profil-geburtsjahr">
+        <p><span class="gedaempft">Geburtsjahr:</span> <strong>${esc(String(p.geburtsjahr))}</strong></p>
+        <details class="antwort-aendern">
+          <summary class="knopf knopf-klein" aria-label="Antwort ändern: Geburtsjahr">ändern</summary>
+          <form data-formular="geburtsjahr" class="jahr-form" novalidate>
+            <label class="feld"><span>Geburtsjahr</span>
+              <input type="text" inputmode="numeric" name="geburtsjahr" value="${esc(String(p.geburtsjahr))}" placeholder="z. B. 1952" autocomplete="off">
+            </label>
+            <button type="submit" class="knopf knopf-haupt knopf-breit">Speichern</button>
+          </form>
+        </details>
+      </li>`);
+  }
+  const anzahl = zeilen.length + profilZeilen.length;
+  if (!anzahl) return '';
+  const offen = ['einmal', 'tage'].includes(b.verwechselt) || (stimmt && /^nein/.test(stimmt.antwort)) || (nach14 && nach14.antwort === 'selbst') || sperrt.length > 0;
   return `
     <details class="karte antworten-block"${offen ? ' open' : ''}>
-      <summary>Ihre Antworten zu diesem Befund (${zeilen.length})</summary>
+      <summary>Ihre Antworten (${anzahl})</summary>
       <p class="klein gedaempft">Stimmt eine Antwort nicht? Tippen Sie auf „ändern" und wählen Sie die richtige.</p>
-      <ul class="antwort-liste">${zeilen.join('')}</ul>
+      ${zeilen.length ? `${profilZeilen.length ? '<p class="klein zwischen"><strong>Zu diesem Befund:</strong></p>' : ''}<ul class="antwort-liste">${zeilen.join('')}</ul>` : ''}
+      ${profilZeilen.length ? `<p class="klein zwischen"><strong>Über Sie</strong> – gilt für alle Befunde und steht auch unter „Mehr → Über mich":</p><ul class="antwort-liste" data-antworten="profil">${profilZeilen.join('')}</ul>` : ''}
     </details>`;
 }
 
@@ -266,7 +317,7 @@ function dosisKarteSeite(stand, heute) {
       <div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="praxis-entschieden" data-param="${esc(b.id)}">Die Praxis hat entschieden</button></div>
       <p class="klein gedaempft grundlage">${esc(k.grundlage)}</p>
     </div>`);
-  teile.push(antwortenBlock(b, stand, heute));
+  teile.push(antwortenBlock(b, stand, heute, k.einschaetzung));
   teile.push(`<p class="klein gedaempft">${esc(ez.FUSSZEILE)}</p>`);
   return { titel, html: teile.join(''), merken: k.merken || null };
 }

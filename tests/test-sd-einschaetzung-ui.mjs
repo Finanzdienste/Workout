@@ -79,7 +79,9 @@ check(await page.locator('.mittel-zeile[data-mittel="kalzium"] .mittel-abstand')
 await page.check('input[name=mittel][value=kalzium]');
 check(await page.locator('.mittel-zeile[data-mittel="kalzium"] .mittel-abstand').isVisible(), '… dann steht sie darunter');
 check((await page.locator('.mittel-zeile[data-mittel="kalzium"]').textContent()).includes('mindestens 4 Stunden Abstand'), 'Kalzium: „mindestens 4 Stunden Abstand"');
-check((await page.locator('.mittel-zeile[data-mittel="kaffee"]').textContent()).includes('mindestens 60 Minuten Abstand'), 'Kaffee: „mindestens 60 Minuten Abstand"');
+// Runde 6: G21 – Kaffee fragt nach mindestens 30 Minuten (besser 60), wie der
+// Plan „Was braucht Abstand?", Wissen und Q2; vorher 60 (RW1 P7).
+check((await page.locator('.mittel-zeile[data-mittel="kaffee"]').textContent()).includes('mindestens 30 Minuten Abstand'), 'Kaffee: „mindestens 30 Minuten Abstand"');
 check((await page.locator('.mittel-zeile[data-mittel="colestyramin"]').textContent()).includes('mindestens 5 Stunden Abstand'), 'Colestyramin: „mindestens 5 Stunden Abstand"');
 await page.check('input[name=abstand_kalzium][value=ja]');
 await page.check('input[name=mittel][value=kaffee]');

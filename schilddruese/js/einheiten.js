@@ -146,11 +146,44 @@ export function pruefeWert(key, w) {
   return ergebnis;
 }
 
-/** Die Tagesdosis, die an `tag` galt – rein aus dem übergebenen Stand. */
-function dosisAm(stand, tag) {
-  let d = null;
-  for (const x of stand.dosen) if (x.ab <= tag) d = x;
-  return d;
+/*
+ * Die Dosis-Einträge, die galten – rein aus dem übergebenen Stand: ohne die,
+ * die eine Berichtigung nach ihrem „Gilt ab" ersetzt (Runde 6: G11), und
+ * ohne einen, den eine Berichtigung am selben Tag ersetzt (G15). Die volle
+ * Prüfung, ob eine Marke „berichtigung" gilt, steht in js/einschaetzung.js
+ * (istBerichtigung) – der Kern importiert dieses Modul, umgekehrt wäre es ein
+ * Zirkel. Hier zählt die Marke selbst: Im Zweifel fragt die App einmal mehr
+ * nach dem Komma.
+ */
+function dosenOhneErsetzte(stand) {
+  const dosen = sp.gueltigeDosen(stand);
+  return dosen.filter((d, i) => !(dosen[i + 1] && dosen[i + 1].ab === d.ab && dosen[i + 1].berichtigung));
+}
+
+/*
+ * Runde 6: G14 – „bei gleicher Dosis" (Entscheidung 13) heißt: dieselbe
+ * Menge am Tag an beiden Befundtagen und dazwischen kein Eintrag mit einer
+ * anderen – wie L6 in der Einschätzung. Vorher zählte nur, ob derselbe
+ * Eintrag galt: Nach einem Präparatwechsel mit gleicher Menge (neues
+ * Rezept) oder einem doppelten Eintrag ging TSH 0,25 nach 2,5 ohne Rückfrage
+ * durch, und die Dosis-Karte gab aus einem vermutlichen Kommafehler eine
+ * Richtung.
+ */
+function gleicheMenge(stand, von, bis) {
+  const dosen = dosenOhneErsetzte(stand);
+  const am = (tag) => {
+    let d = null;
+    for (const x of dosen) if (x.ab <= tag) d = x;
+    return d;
+  };
+  // Die Menge am Tag; ohne Stärke gilt nur ein ganz gleicher Eintrag als gleich
+  // (wie bisher derselbe Eintrag – im Zweifel fragt die App nach dem Komma).
+  const menge = (d) => (sp.tagesdosis(d) !== null ? sp.tagesdosis(d)
+    : `?${String(d.praeparat || '').trim().toLowerCase()}|${d.tabletten}`);
+  const a = am(von);
+  const b = am(bis);
+  if (!a || !b || menge(a) !== menge(b)) return false;
+  return !dosen.some((d) => d.ab > von && d.ab <= bis && menge(d) !== menge(a));
 }
 
 /**
@@ -176,9 +209,7 @@ export function befundPruefen(befund, stand, heute) {
     const vorher = [...stand.labor].reverse().find((l) => l.id !== befund.id && l.datum < befund.datum && inStandard('tsh', l.tsh) !== null);
     if (vorher) {
       const alt = inStandard('tsh', vorher.tsh);
-      const dA = dosisAm(stand, vorher.datum);
-      const dB = dosisAm(stand, befund.datum);
-      const gleich = dA && dB && dA.id === dB.id;
+      const gleich = gleicheMenge(stand, vorher.datum, befund.datum);
       if (gleich && alt > 0 && tsh > 0 && (tsh / alt >= 8 || alt / tsh >= 8)) {
         rueckfragen.push(`Der TSH-Wert ist bei gleicher Dosis ${tsh > alt ? 'mehr als achtmal so hoch' : 'weniger als ein Achtel'} wie am ${vorher.datum.split('-').reverse().join('.')} (${zahl(vorher.tsh.wert)}). Bitte prüfen Sie das Komma.`);
       }

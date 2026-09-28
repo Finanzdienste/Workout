@@ -732,6 +732,10 @@ details.antworten-block[open] > summary { margin-bottom: .4rem; }
 .antwort-aendern > summary::-webkit-details-marker { display: none; }
 .antwort-aendern[open] > summary { border-color: var(--akzent); background: var(--akzent-hell); }
 .antwort-aendern .antworten { margin-top: .5rem; }
+/* Runde 6: G6 – die Angaben über sie: die Bitte bei „Weiß nicht" in voller
+   Breite unter Antwort und „ändern"; das Geburtsjahr mit seinem Formular. */
+.antwort-zeile > p.antwort-zusatz { flex-basis: 100%; }
+.antwort-aendern .jahr-form { margin-top: .5rem; }
 
 /* ---------- Ja / Nein / Weiß nicht als große Flächen ---------- */
 .wahl-frage > span:first-child { font-weight: 700; }

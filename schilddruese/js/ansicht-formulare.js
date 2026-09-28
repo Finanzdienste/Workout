@@ -211,6 +211,73 @@ function gleicheDosis(a, b) {
   return name(a) === name(b) && a.mikrogramm === b.mikrogramm && a.tabletten === b.tabletten;
 }
 
+/*
+ * Steht auf der Dosis-Karte „Nein, ich nehme etwas anderes", ist der Eintrag
+ * die Berichtigung – keine neue Anordnung. Das bleibt am Eintrag stehen, auch
+ * wenn die Antwort gleich wegfällt; sonst hielte die Karte ihn bei „Auf
+ * Anweisung der Praxis: Ja" für eine beschlossene Änderung und meldete „Kein
+ * besonderer Anlass" (Nachprüfung zu B26).
+ * Aber nur die jüngste Antwort zum Befund, um den es jetzt geht, und nur,
+ * solange danach noch nichts eingetragen ist. Vorher genügte irgendeine
+ * liegengebliebene Antwort „Nein", auch zu einem früheren Befund: Die
+ * nächste echte Änderung – auch eine der Praxis – galt Monate später als
+ * Berichtigung, ohne Kontrolle (D6c) und ohne Nachfrage nach einer
+ * Erhöhung (W-D4) (C17).
+ *
+ * „Danach eingetragen" heißt: mit einer anderen Menge als der, auf die
+ * sich das Nein bezog – wie in js/dosis.js. Am Einrichtungstag beginnt
+ * die eine Dosis oft „ab heute", am Tag der Antwort: Sie selbst ist die
+ * falsche Menge, keine Berichtigung. Galt sie als eine, wurde ein neuer
+ * Eintrag mit der richtigen Menge zur „eigenen Änderung" – mit „nehmen
+ * Sie wieder Ihre bisherige Menge", also der falschen (Runde 3: D19).
+ *
+ * Eine eigene Funktion seit Runde 6 (G11): Die Rückfrage „nie genommen?"
+ * braucht die Antwort schon vor dem Speichern. `alt`: der Eintrag, der
+ * gerade geändert wird, oder null.
+ */
+function istBerichtigungJetzt(s, alt, heute) {
+  const befund = dosisBefund(s, heute);
+  const antwort = befund ? [...s.nachfragen].reverse().find((n) => n.art === 'dosis_stimmt' && n.bezug === befund.id) : null;
+  const menge = antwort ? neinMenge(antwort.antwort) : null;
+  return Boolean(antwort && /^nein/.test(antwort.antwort)
+    && !s.dosen.some((d) => d !== alt && d.ab >= antwort.am && (menge === null || sp.tagesdosis(d) !== menge)));
+}
+
+/*
+ * Runde 6: G11 – Die Praxis ordnet 100 µg an, eingetragen ab 04.06., genommen
+ * aber weiter 75 µg. Nach „Nein, ich nehme etwas anderes" trägt die Nutzerin
+ * 75 µg ein, und die Dosis-Karte bittet, „Gilt ab" auf den Tag zu setzen,
+ * seit dem sie es nimmt – 2024. Rückte die Berichtigung so vor die 100 µg,
+ * galten diese wieder als ihre Dosis, auf der Karte und im Arztbericht „auf
+ * Anweisung der Praxis"; die Berichtigung war aus allen Ansichten weg, und
+ * die Ärztin rechnete von 100 µg aus weiter.
+ *
+ * Seitdem vermerkt eine Berichtigung den Eintrag, den sie berichtigt
+ * (`statt`, js/speicher.js ersetztDurchBerichtigung): Liegt er nach ihrem
+ * „Gilt ab", galt er nach ihrer Angabe nie – ebenso alles dazwischen. Beim
+ * Anlegen ist das der Eintrag, nach dem die Karte gefragt hat, also der, der
+ * heute gilt. Eine Berichtigung aus älteren Fassungen hat keinen Vermerk.
+ * Rückt ihr „Gilt ab" vor einen Eintrag mit anderer Menge, fragt das
+ * Formular nach, statt die nie genommene Menge still wieder gelten zu lassen.
+ *
+ * `abNeu`, `abAlt`: der neue und der bisherige Tag – rückt der Eintrag
+ * dazwischen vor einen Eintrag mit anderer Menge?
+ * → { x, statt } | null – `x`: der jüngste solche Eintrag (für die Frage),
+ *   `statt`: der Eintrag, der am bisherigen Tag gilt (für den Vermerk).
+ */
+function nieGenommenFrage(andere, eintrag, abNeu, abAlt, statt) {
+  const td = sp.tagesdosis(eintrag);
+  const x = [...andere].reverse().find((d) => d.ab > abNeu && d.ab <= abAlt && sp.tagesdosis(d) !== td);
+  return x && statt ? { x, statt } : null;
+}
+
+/** „Ab 04.06.2026 ist noch 100 µg am Tag eingetragen (auf Anweisung der Praxis)." */
+const nochEingetragen = (x) => `Ab ${datumKurz(x.ab)} ist noch ${mengeText(x)} eingetragen${x.praxis === true ? ' (auf Anweisung der Praxis)' : ''}.`;
+const mengeText = (d) => {
+  const td = sp.tagesdosis(d);
+  return td !== null ? `${zahlFeld(td)} µg am Tag` : sp.dosisText(d);
+};
+
 function dosisAbsenden(id, f, heute) {
   const stand = sp.getStand();
   const fehler = {};
@@ -250,7 +317,36 @@ function dosisAbsenden(id, f, heute) {
    * blieb „Seit wann?" auf heute). Dann dort „Gilt ab" ändern.
    */
   const vorher = [...andere].reverse().find((d) => d.ab <= ab);
-  if (!da) {
+  /*
+   * Runde 6: G11 – „nie genommen?" (siehe nieGenommenFrage). Beim Ändern
+   * einer Berichtigung ohne Vermerk, deren „Gilt ab" vor einen Eintrag mit
+   * anderer Menge rückt. Beim Anlegen einer Berichtigung, die genau dem
+   * Eintrag davor gleicht (75 µg seit 2024, dann 100 µg ab 04.06. – nie
+   * genommen): Vorher wies das Formular sie als „Genau diese Dosis ist schon
+   * … eingetragen" ab, und ihr Knopf führte zum Eintrag von 2024, an dem
+   * nichts falsch war. „Ja, nie genommen" schickt das Formular mit
+   * nieGenommen=ja noch einmal ab, „Nein" führt zu „Gilt ab".
+   */
+  const berichtigtJetzt = istBerichtigungJetzt(stand, da, heute);
+  const heuteGilt = ez.dosisAmIn(stand, heute);
+  let nie = null;
+  if (da && da.berichtigung && !da.statt && ab < da.ab) {
+    nie = nieGenommenFrage(andere, eintrag, ab, da.ab, [...andere].reverse().find((d) => d.ab <= da.ab));
+  } else if (!da && berichtigtJetzt && heuteGilt && vorher && gleicheDosis(vorher, eintrag)) {
+    nie = nieGenommenFrage(andere, eintrag, ab, heute, heuteGilt);
+  }
+  if (nie && f.get('nieGenommen') !== 'ja') {
+    return {
+      ok: false,
+      rueckfragen: [nochEingetragen(nie.x)],
+      rueckfrageSatz: `Haben Sie das nie genommen? Dann gilt Ihre Angabe ab ${datumKurz(ab)}, und die ${mengeText(nie.x)} zählen als nie genommen.`,
+      rueckfrageFeld: 'ab',
+      rueckfrageName: 'nieGenommen',
+      rueckfrageJa: 'Ja, nie genommen',
+      rueckfrageNein: 'Nein – „Gilt ab" prüfen',
+    };
+  }
+  if (!da && !nie) {
     const danach = andere.find((d) => d.ab > ab);
     const gleich = vorher && gleicheDosis(vorher, eintrag) ? vorher : danach && gleicheDosis(danach, eintrag) ? danach : null;
     if (gleich) {
@@ -267,6 +363,7 @@ function dosisAbsenden(id, f, heute) {
    * Ein Eintrag, dessen Stärke und Tablettenzahl gleich bleiben (nur die
    * Notiz oder der Tag geändert), fragt nicht jedes Mal wieder.
    */
+  const nieVorher = new Set([...ez.nieGegolten(stand, heute).keys()].map((d) => d.id));
   const unveraendert = da && da.mikrogramm === eintrag.mikrogramm && da.tabletten === eintrag.tabletten;
   // Die Stärke bis jetzt – vor dem Speichern gemerkt: Beim Ändern überschreibt
   // sp.aendern den Eintrag `da` selbst.
@@ -287,31 +384,16 @@ function dosisAbsenden(id, f, heute) {
   }
   sp.aendern((s) => {
     const alt = id ? s.dosen.find((d) => d.id === id) : null;
-    // Steht auf der Dosis-Karte „Nein, ich nehme etwas anderes", ist dieser
-    // Eintrag die Berichtigung – keine neue Anordnung. Das bleibt am Eintrag
-    // stehen, auch wenn die Antwort gleich wegfällt; sonst hielte die Karte
-    // ihn bei „Auf Anweisung der Praxis: Ja" für eine beschlossene Änderung
-    // und meldete „Kein besonderer Anlass" (Nachprüfung zu B26).
-    // Aber nur die jüngste Antwort zum Befund, um den es jetzt geht, und nur,
-    // solange danach noch nichts eingetragen ist. Vorher genügte irgendeine
-    // liegengebliebene Antwort „Nein", auch zu einem früheren Befund: Die
-    // nächste echte Änderung – auch eine der Praxis – galt Monate später als
-    // Berichtigung, ohne Kontrolle (D6c) und ohne Nachfrage nach einer
-    // Erhöhung (W-D4) (C17).
-    //
-    // „Danach eingetragen" heißt: mit einer anderen Menge als der, auf die
-    // sich das Nein bezog – wie in js/dosis.js. Am Einrichtungstag beginnt
-    // die eine Dosis oft „ab heute", am Tag der Antwort: Sie selbst ist die
-    // falsche Menge, keine Berichtigung. Galt sie als eine, wurde ein neuer
-    // Eintrag mit der richtigen Menge zur „eigenen Änderung" – mit „nehmen
-    // Sie wieder Ihre bisherige Menge", also der falschen (Runde 3: D19).
-    const befund = dosisBefund(s, heute);
-    const antwort = befund ? [...s.nachfragen].reverse().find((n) => n.art === 'dosis_stimmt' && n.bezug === befund.id) : null;
-    const menge = antwort ? neinMenge(antwort.antwort) : null;
-    const berichtigung = Boolean(antwort && /^nein/.test(antwort.antwort)
-      && !s.dosen.some((d) => d !== alt && d.ab >= antwort.am && (menge === null || sp.tagesdosis(d) !== menge)));
-    if (alt) Object.assign(alt, eintrag, berichtigung ? { berichtigung: true } : {});
-    else s.dosen.push({ id: sp.kennung(), ...eintrag, berichtigung });
+    // Berichtigung nach „Nein, ich nehme etwas anderes"? Siehe istBerichtigungJetzt.
+    const berichtigung = istBerichtigungJetzt(s, alt, heute);
+    // Runde 6: G11 – der Vermerk, welchen Eintrag die Berichtigung berichtigt:
+    // beim Anlegen der, der heute gilt (nach ihm hat die Karte gefragt); nach
+    // „Ja, nie genommen" der, der am bisherigen Tag galt. Beim Ändern bleibt
+    // ein vorhandener Vermerk stehen – `eintrag` enthält ihn nicht.
+    const statt = !alt && berichtigung ? heuteGilt : nie && f.get('nieGenommen') === 'ja' ? nie.statt : null;
+    const vermerk = statt && s.dosen.some((d) => d.id === statt.id) && statt !== alt ? { statt: statt.id } : {};
+    if (alt) Object.assign(alt, eintrag, berichtigung || alt.berichtigung ? { berichtigung: true, ...vermerk } : {});
+    else s.dosen.push({ id: sp.kennung(), ...eintrag, berichtigung, ...(berichtigung ? vermerk : {}) });
     s.dosen.sort((a, b) => a.ab.localeCompare(b.ab));
     // X3 (1) „Nein, ich nehme etwas anderes": Mit dem Eintrag ist die
     // Aufforderung erfüllt. Die Antwort fällt weg, und die Dosis-Karte fragt
@@ -337,15 +419,24 @@ function dosisAbsenden(id, f, heute) {
    */
   const neuZaehlen = stand.vorrat && bisherMikrogramm !== eintrag.mikrogramm
     && vorratAndereStaerke(sp.getStand(), ab > heute ? ab : heute);
+  /*
+   * Runde 6: G11 – Zählt nach dem Speichern ein Eintrag als nie genommen, der
+   * es vorher nicht tat (die Berichtigung rückte vor ihn), sagt die Meldung
+   * das. Sonst verschwände die angeordnete Menge still aus Karte und
+   * Verlauf – im Bericht steht sie weiter, als „nie genommen".
+   */
+  const nieJetzt = [...ez.nieGegolten(sp.getStand(), heute).keys()].filter((d) => !nieVorher.has(d.id));
+  const nieSatz = nieJetzt.length
+    ? ` ${nieJetzt.map((d, i) => `${i ? 'die' : 'Die'} ${mengeText(d)} ab ${datumKurz(d.ab)}`).join(' und ')} zählen jetzt als nie genommen.` : '';
   if (neuZaehlen) {
     return {
       ok: true,
       meldung: ab > heute
-        ? `Dosis gespeichert. Bitte zählen Sie am ${datumKurz(ab)} Ihren Tablettenvorrat neu – „Heute" erinnert Sie an dem Tag daran.`
-        : 'Dosis gespeichert. Bitte zählen Sie Ihren Tablettenvorrat neu – auf „Heute" unter „Vorrat neu zählen" oder unter „Mehr → Tablettenvorrat".',
+        ? `Dosis gespeichert.${nieSatz} Bitte zählen Sie am ${datumKurz(ab)} Ihren Tablettenvorrat neu – „Heute" erinnert Sie an dem Tag daran.`
+        : `Dosis gespeichert.${nieSatz} Bitte zählen Sie Ihren Tablettenvorrat neu – auf „Heute" unter „Vorrat neu zählen" oder unter „Mehr → Tablettenvorrat".`,
     };
   }
-  return { ok: true, meldung: 'Dosis gespeichert' };
+  return { ok: true, meldung: nieSatz ? `Dosis gespeichert.${nieSatz}` : 'Dosis gespeichert' };
 }
 
 // ---------------------------------------------------------------- Labor
@@ -1055,18 +1146,56 @@ export function jahrAus(roh, heute) {
 const abstandText = (min) => (min % 60 === 0 && min >= 120 ? `${min / 60} Stunden` : `${min} Minuten`);
 
 
+/*
+ * Runde 6: G21 – Kaffee: Die Frage folgt jetzt dem Plan „Was braucht
+ * Abstand?" (frühestens nach 30, besser nach 60 Minuten) statt „mindestens 60
+ * Minuten" – wer dem Plan folgte, musste „Nein" antworten und bekam auf der
+ * Dosis-Karte „Halten Sie zuerst jeden Tag die Abstände ein". Die Minuten
+ * kommen weiter aus ABSTAND_MITTEL. Ein „Nein" auf die alte Frage
+ * (profil.kaffeePruefen) bleibt stehen, mit der Bitte, es zu prüfen;
+ * Speichern gilt als neue Antwort (sp.mittelSetzen).
+ */
+function abstandFrage(k, min) {
+  if (k === 'kaffee') return `Trinken Sie Kaffee oder Tee mit mindestens ${abstandText(min)} Abstand nach der Schilddrüsen-Tablette? (Besser sind 60 Minuten.)`;
+  return `Nehmen Sie dieses Mittel mit mindestens ${abstandText(min)} Abstand zur Schilddrüsen-Tablette?`;
+}
+
 /** Ein Mittel zum Ankreuzen – bei Aufnahmehemmern mit der Frage nach dem Abstand (P7). */
 function mittelZeile([k, name], stand) {
   const an = stand.mittel.includes(k);
   const min = ez.ABSTAND_MITTEL[k];
   const oestrogen = stand.profil.oestrogenPruefen && k.startsWith('oestrogen_')
     ? '<span class="hinweis warn-text">Bitte prüfen: Nehmen Sie Östrogen als Tablette oder als Pflaster/Gel? Früher gab es hier nur „Östrogen" – die App hat „als Tablette" angenommen.</span>' : '';
+  const kaffee = k === 'kaffee' && stand.profil.kaffeePruefen && stand.mittelAbstand.kaffee
+    ? `<span class="hinweis warn-text" data-hinweis="kaffee">Die Frage hat sich geändert: jetzt mindestens ${abstandText(min)} (besser 60). Stimmt Ihre Antwort noch?</span>` : '';
   return `
     <div class="mittel-zeile" data-mittel="${esc(k)}">
       <label class="haken haken-breit"><input type="checkbox" name="mittel" value="${esc(k)}" ${an ? 'checked' : ''}>${esc(name)}</label>
       ${oestrogen}
-      ${min ? `<div class="mittel-abstand">${wahlFrage(`abstand_${k}`, stand.mittelAbstand[k] || '', `Nehmen Sie dieses Mittel mit mindestens ${abstandText(min)} Abstand zur Schilddrüsen-Tablette?`)}</div>` : ''}
+      ${min ? `<div class="mittel-abstand">${wahlFrage(`abstand_${k}`, stand.mittelAbstand[k] || '', abstandFrage(k, min), { extra: kaffee })}</div>` : ''}
     </div>`;
+}
+
+/*
+ * Runde 6: G20 – Über der Mittelliste stand „Neu begonnen oder abgesetzt? …
+ * dann erinnert die App an die Kontrolle nach 6–8 Wochen." Die Erinnerung
+ * (L7b) gibt es aber nur für die Mittel in ez.L7B_MITTEL – bei Colestyramin,
+ * Phosphatbindern, Jod oder Krebsmitteln wartete man auf eine, die nie kam.
+ * Der Satz nennt jetzt genau diese Mittel, gebaut aus derselben Liste, damit
+ * beide nie auseinanderlaufen; ein Mittel ohne eigenen Kurznamen hier kommt
+ * mit seinem Namen aus der Liste der Mittel.
+ */
+const L7B_NAMEN = {
+  ppi: 'Magenschutz wie Pantoprazol', kalzium: 'Kalzium', eisen: 'Eisen', oestrogen_tablette: 'Östrogen als Tablette', tamoxifen: 'Tamoxifen',
+  raloxifen: 'Raloxifen', lithium: 'Lithium', amiodaron: 'Amiodaron', enzyminduktor: 'Carbamazepin, Phenytoin, Phenobarbital oder Rifampicin',
+};
+export function kontrolleMittelSatz() {
+  const namen = ez.L7B_MITTEL.map((k) => L7B_NAMEN[k] || ez.mittelName(k).replace(/ \(.*\)$/, ''));
+  // Der Name mit eigenem „oder" zuletzt und mit „bei", sonst verschwimmt die Aufzählung.
+  const lang = namen.filter((n) => /,| oder /.test(n));
+  const kurz = namen.filter((n) => !lang.includes(n));
+  const liste = [kurz.join(', '), ...lang.map((n, i) => (kurz.length || i ? `bei ${n}` : n))].filter(Boolean).join(' und ');
+  return `Neu begonnen oder abgesetzt? Am besten am selben Tag hier ändern. Bei ${liste} erinnert die App dann an die Kontrolle nach 6–8 Wochen. Bei anderen Mitteln fragen Sie die Praxis, ob kontrolliert werden soll.`;
 }
 
 function profilFormular(id, stand, heute) {
@@ -1129,7 +1258,7 @@ function profilFormular(id, stand, heute) {
         </fieldset>
 
         <fieldset class="profil-teil"><legend id="frage-mittel">Was nehmen Sie sonst noch regelmäßig?</legend>
-          <p class="hinweis" style="margin-bottom:.5rem">Neu begonnen oder abgesetzt? Am besten am selben Tag hier ändern – dann erinnert die App an die Kontrolle nach 6–8 Wochen.</p>
+          <p class="hinweis" style="margin-bottom:.5rem" data-hinweis="kontrolle">${esc(kontrolleMittelSatz())}</p>
           <div class="mittel-liste" role="group" aria-labelledby="frage-mittel">
             ${sp.MITTEL.map((m) => mittelZeile(m, stand)).join('')}
           </div>

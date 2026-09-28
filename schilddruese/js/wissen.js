@@ -64,6 +64,14 @@ export const KAPITEL = [
    * „einmal doppelt: schadet nicht" – der Check sagt dazu „jetzt der
    * Giftnotruf" (W4a; D10). Die Nummer fürs Bundesland kommt wie im Kapitel
    * „Wann anrufen" aus <!--giftnotruf-->, die 112 steht als Knopf darunter.
+   *
+   * Runde 6: G22 – „einmal doppelt" wie im Warnzeichen-Check (W4b): Hier
+   * stand „– oder haben Sie eine Herzkrankheit –, die Praxis anrufen", der
+   * Check sagte zum selben Ereignis „beim nächsten Kontakt erwähnen" und
+   * beobachtete nur „heute". Jetzt beide gleich: anrufen, wenn in den
+   * nächsten Tagen Beschwerden kommen (die Wirkung setzt verzögert ein); bei
+   * Herzkrankheit oder T3 beim nächsten Kontakt sagen (RW1 W4b: keine
+   * Anruf-Aufforderung ohne Beschwerden).
    */
   {
     id: 'vergessen',
@@ -75,7 +83,7 @@ export const KAPITEL = [
       <p><strong>Geht das nicht, oder fällt es erst am nächsten Tag auf:</strong> auslassen und ganz normal weitermachen. Auch das ist richtig, so steht es in der Packungsbeilage.</p>
       <p>Eine einzelne vergessene Tablette ist nicht gefährlich: Das Hormon wirkt etwa eine Woche im Körper nach. Häufiges Vergessen zeigt sich aber in den Blutwerten – der TSH-Wert steigt. Deshalb die Einnahme hier abhaken; vergessene Tage stehen dann im Bericht für den Arzttermin.</p>
       <h2>Aus Versehen doppelt genommen?</h2>
-      <p>Eine einmal doppelt genommene Tablette schadet in der Regel nicht. Beschwerden können aber verzögert kommen: Treten in den nächsten Tagen Herzklopfen, Unruhe oder Zittern auf – oder haben Sie eine Herzkrankheit –, die Praxis anrufen.</p>
+      <p>Eine einmal doppelt genommene Tablette schadet in der Regel nicht. Beschwerden können aber verzögert kommen: Treten in den nächsten Tagen Herzklopfen, Unruhe oder Zittern auf, die Praxis anrufen. Bei einer Herzkrankheit oder einem Präparat mit T3-Anteil (z. B. Novothyral) sagen Sie es der Praxis beim nächsten Kontakt, auch ohne Beschwerden.</p>
       <p><strong>Mehr als eine Tablette zu viel auf einmal</strong> (zum Beispiel drei statt einer): jetzt den Giftnotruf anrufen, auch ohne Beschwerden – sie kommen oft erst nach Tagen. Halten Sie die Packung bereit.</p>
       <p>Mehrere Tabletten zu viel über mehrere Tage, oder ein Kind hat Tabletten genommen: Arzt oder Giftnotruf anrufen, auch wenn noch keine Beschwerden da sind.</p>
       <!--giftnotruf-->
@@ -189,6 +197,16 @@ export const KAPITEL = [
         <li>Ihre Fragen – auch die lassen sich hier notieren</li>
       </ul>`,
   },
+  /*
+   * Runde 6: G23 – Ein neu unregelmäßiger Puls und eine neue Verwirrtheit
+   * waren hier nur „ein Grund für ein Gespräch mit der Ärztin"; gelesen wird
+   * das als Anlass für den nächsten Termin. Dieselben Zeichen heißen im
+   * Check, auf der Befinden-Karte und im Kapitel „Wann anrufen" heute
+   * anrufen (W2h, S4) bzw. sofort 112 (W1). Kein Text darf eine niedrigere
+   * Stufe nennen (RW1 Grundsatz 5, L3f); die D2-Korrektur (Runde 3) hatte nur
+   * das Kapitel „Wann anrufen" angepasst. Die Nummern als Knöpfe; 116 117,
+   * falls die Praxis geschlossen ist.
+   */
   {
     id: 'zeichen',
     titel: 'Anzeichen: zu wenig oder zu viel',
@@ -207,13 +225,15 @@ export const KAPITEL = [
       </ul>
       <h2>Zu viel Hormon</h2>
       <ul>
-        <li>Herzklopfen, schneller oder unregelmäßiger Puls</li>
+        <li>Herzklopfen, schneller oder unregelmäßiger Puls – ist der Puls neu unregelmäßig: heute noch die Praxis anrufen</li>
         <li>innere Unruhe, Nervosität, Zittern</li>
         <li>Schwitzen, Hitzeempfindlichkeit</li>
         <li>Gewichtsverlust trotz Appetit</li>
         <li>Schlafstörungen, Durchfall, Muskelschwäche</li>
       </ul>
       <p>Bei älteren Menschen fehlen die typischen Zeichen oft. Dann können ungewollter Gewichtsverlust, ein unregelmäßiger Puls, Schwäche oder neue Verwirrtheit die einzigen Hinweise sein.</p>
+      <p><strong>Ist der Puls neu unregelmäßig, rufen Sie heute noch die Praxis an – ist sie geschlossen, den Bereitschaftsdienst 116 117. Bei plötzlicher, neuer Verwirrtheit: sofort 112.</strong> Mehr dazu: <button type="button" class="knopf-link" data-act="seite" data-seite="wissen-kapitel" data-param="notfall">Wann anrufen, wann 112</button></p>
+      <div class="knopf-reihe"><a class="knopf" href="tel:116117">116 117 anrufen</a><a class="knopf knopf-gefahr" href="tel:112">112 anrufen</a></div>
       <div class="merke"><strong>Beides ist ein Grund für ein Gespräch mit der Ärztin – nie ein Grund, die Dosis selbst zu ändern.</strong></div>
       <p>${BE1_TEXT}</p>
       <p>Dauerhaft zu viel Hormon erhöht – besonders im Alter und bei Frauen nach den Wechseljahren – das Risiko für Vorhofflimmern und Knochenschwund, auch wenn man sich dabei gut fühlt. „Lieber etwas mehr" ist deshalb keine gute Idee. L-Thyroxin ist auch kein Mittel zum Abnehmen.</p>
@@ -226,6 +246,15 @@ export const KAPITEL = [
    * die Dosis-Karte sagen dazu „heute noch". Dieses Kapitel liest die
    * Nutzerin allein als Leitfaden; es darf keine längere Frist nennen als die
    * App an anderer Stelle (RW1 Grundsatz 5, L3f). Die Liste ist die aus W2h.
+   *
+   * Runde 6: G19 – Die 112-Liste nannte keine Blutung; „Nasenbluten, das
+   * nicht aufhört" stand nur unter „Heute noch". Unter Blutverdünnern ist
+   * ein Nasenbluten, das sich trotz Zudrücken nicht stillen lässt, ein
+   * Notfall. Jetzt wie im Warnzeichen-Check: W1 „starke Blutung, die nicht
+   * aufhört" mit Nasenbluten nach 15 Minuten Zudrücken, Bluterbrechen und
+   * schwarzem Stuhl → 112; W2h die Blutungszeichen, die nicht warten sollen,
+   * aber kein Notfall sind → heute. Dazu W1 „plötzliche, neue Verwirrtheit",
+   * die hier nur als seltene Folge schwerer Unterversorgung stand (G23).
    */
   {
     id: 'notfall',
@@ -239,6 +268,8 @@ export const KAPITEL = [
           <li>Brustschmerz oder Engegefühl in der Brust</li>
           <li>Atemnot, Ohnmacht</li>
           <li>plötzlicher einseitiger Lähmung oder Sprachstörung</li>
+          <li>plötzlicher, neuer Verwirrtheit</li>
+          <li>einer starken Blutung, die nicht aufhört – auch Nasenbluten, das nach 15 Minuten Zudrücken nicht steht (besonders mit Blutverdünnern wie Marcumar), Bluterbrechen oder schwarzem, teerartigem Stuhl</li>
           <li>extremer Schläfrigkeit, Verwirrtheit, sehr niedriger Körpertemperatur oder sehr langsamem Atem – selten, bei schwerer Unterversorgung, etwa nach längerem Weglassen der Tabletten</li>
         </ul>
       </div></div>
@@ -256,7 +287,7 @@ export const KAPITEL = [
         <li>Erbrechen länger als einen Tag oder Durchfall über mehrere Tage</li>
         <li>über mehrere Tage versehentlich zu viele Tabletten genommen</li>
         <li>keine Schilddrüsen-Tabletten mehr im Haus</li>
-        <li>mit Marcumar: Blutungszeichen wie Nasenbluten, das nicht aufhört, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund</li>
+        <li>mit Marcumar: Nasen- oder Zahnfleischbluten, das öfter kommt, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund</li>
       </ul>
       <p>Ist die Praxis geschlossen: Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.</p>
       <div class="knopf-reihe"><a class="knopf" href="tel:116117">116 117 anrufen</a><a class="knopf knopf-gefahr" href="tel:112">112 anrufen</a></div>

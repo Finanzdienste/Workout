@@ -93,8 +93,11 @@ function aktuellZeile(p, vor, heute) {
     const [neuText, altText] = vergleich(p.d, alt);
     // Ersetzt die Berichtigung einen Eintrag vom selben Tag, war nur dieser
     // falsch – ab wann die Menge gilt, hat die Patientin selbst eingetragen.
+    // Runde 6: G11 – was dort zuerst eingetragen war, sagt die Zeile „nie
+    // genommen" unter den Davor-Zeilen (ez.nieGenommenZeilen), mit Menge und
+    // Quelle; hier stünde es sonst doppelt.
     if (p.ersetzt) {
-      return `Aktuell: ${text}, ${p.ab > heute ? 'ab' : 'seit'} ${datumKurz(p.ab)}${notizText(p)}${quelle(p.erster)}. Berichtigung (Angabe): Ab diesem Tag war zuerst ${altText} eingetragen.`;
+      return `Aktuell: ${text}, ${p.ab > heute ? 'ab' : 'seit'} ${datumKurz(p.ab)}${notizText(p)}${quelle(p.erster)}`;
     }
     return `Aktuell: ${text}, eingetragen ab ${datumKurz(p.ab)}${notizText(p)}${quelle(p.erster)}. Berichtigung (Angabe): Die Patientin nimmt nach eigener Angabe ${neuText} statt der zuvor eingetragenen ${altText}. Seit wann genau, ist offen.`;
   }
@@ -156,6 +159,14 @@ export function berichtText(stand, heute) {
     perioden.filter((p) => p.geplant && p !== aktuell)
       .forEach((p) => z.push(`Geplant ab ${datumKurz(p.ab)}: ${sp.dosisText(p.d)}${notizText(p)}${quelle(p.erster)}`));
     perioden.slice(0, i).slice(-3).reverse().forEach((p) => z.push(davorZeile(p)));
+    /*
+     * Runde 6: G11 – Einträge, die nach Angabe der Patientin nie galten (von
+     * einer Berichtigung ersetzt, am selben Tag oder weil sie vor ihnen
+     * beginnt). Vorher verschwand mit dem wahren Beginn der Berichtigung auch
+     * die Nachricht, dass eine angeordnete Dosis nie umgesetzt wurde – die
+     * Ärztin rechnete von einer Menge aus weiter, die nie genommen wurde.
+     */
+    ez.nieGenommenZeilen(stand, heute).forEach((x) => z.push(x));
     z.push(`Einnahmezeit laut Erinnerung in der App (Angabe): etwa ${uhrText(stand.einstellungen.erinnerung)}`);
     const letzterTsh = [...stand.labor].reverse().find((l) => l.tsh && l.datum <= heute);
     if (letzterTsh && Q2[letzterTsh.einnahmeArt]) {

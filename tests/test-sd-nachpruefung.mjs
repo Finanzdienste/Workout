@@ -1021,5 +1021,126 @@ fall('R5-a', () => {
     `${gesamtbildMitDosis(s, HEUTE).stufe} / ${gesamtbildMitDosis(kurz, HEUTE).stufe}`);
 });
 
+// ================================================================ Runde 6
+/*
+ * Die Befunde der sechsten Review-Runde zur Dosis-Karte und zu „Heute"
+ * (G10, G11, G12), so nachgestellt wie im Nachweis. Jeder Fall scheiterte
+ * vor der Korrektur, außer den Gegenproben.
+ */
+const { berichtText } = await import('../schilddruese/js/bericht.js');
+const R6_NEIN = { ...FRAGEN, abnahmeUhr: '', tabletteUhr: '', laborName: '', bestaetigt: false, notiz: '' };
+const r6Einnahmen = (bis) => {
+  const e = {};
+  for (let t = '2026-05-01'; t <= bis; t = plus(t, 1)) e[t] = { uhr: '07:00' };
+  return e;
+};
+
+// G11 – Die Praxis ordnet 100 µg an (F8 „geändert", eingetragen „auf Anweisung
+// der Praxis: Ja"), die Nutzerin nimmt aber weiter 75 µg. Beim nächsten Befund
+// „Nein, ich nehme etwas anderes" → 75 µg eingetragen. Die Karte bat, „Gilt ab"
+// auf den Tag zu setzen, seit dem sie es nimmt („seit 2024") – das rückte die
+// Berichtigung vor die 100 µg, und die galten wieder, auch im Arztbericht.
+fall('G11', () => {
+  const H6 = '2026-08-12';
+  const roh = (abB) => ({
+    version: 2,
+    profil: { ...PROFIL, seit: '2024-05-14', geburtsjahr: 1950, herz: 'nein' },
+    dosen: [
+      { id: 'd1', ab: '2024-05-14', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, praxis: null },
+      { id: 'dC', ab: '2026-06-04', praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, praxis: true },
+      { id: 'dB', ab: abB, praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, praxis: false, berichtigung: true },
+    ],
+    einnahmen: r6Einnahmen(H6),
+    labor: [
+      { id: 'bA', datum: '2026-05-13', tsh: tsh(25), ...R6_NEIN, praxis: 'geaendert', praxisAm: '2026-06-04' },
+      { id: 'bB', datum: '2026-08-10', tsh: tsh(6.5), ...R6_NEIN, praxis: 'nochnicht', praxisAm: '2026-08-12' },
+    ],
+    nachfragen: [{ id: 'n0', art: 'dosis_stimmt', bezug: 'bA', antwort: 'ja', am: '2026-05-14' }],
+  });
+  const k = dosisRichtung(normStand(roh(H6)), H6);
+  const d05 = (k.gruende.find((g) => g.id === 'D0.5') || {}).text || '';
+  check('G11 die Karte nennt den frühesten Tag: „nicht vor dem 04.06.2026" (sonst gälten die 100 µg wieder)', /nicht vor dem 04\.06\.2026/.test(d05) && /100 µg am Tag eingetragen/.test(d05), d05);
+  check('G11 … und für „nie genommen" genau diesen Tag, mit dem Hinweis an die Praxis', /nie genommen, wählen Sie bei „Gilt ab" genau den 04\.06\.2026/.test(d05) && /angeordnete Menge nicht genommen/.test(d05), d05);
+  // Dem Rat der Karte folgen, wie das Dosis-Formular es speichert (Gilt ab
+  // ändern, stabil nach Datum sortieren). Nennt die Karte keinen Tag (vorher),
+  // folgt die Nutzerin „seit der Blutabnahme oder länger": seit 2024.
+  const m = /genau den (\d\d)\.(\d\d)\.(\d{4})/.exec(d05);
+  const neuAb = m ? `${m[3]}-${m[2]}-${m[1]}` : '2024-05-14';
+  const r = roh(neuAb);
+  r.dosen.sort((a, b) => a.ab.localeCompare(b.ab));
+  const s = normStand(r);
+  const k2 = dosisRichtung(s, H6);
+  const bericht = berichtText(s, H6);
+  check('G11 nach dem Rat: die Karte fragt nicht wieder nach den nie genommenen 100 µg', !(k2.frage && /100 µg/.test(k2.frage.text)) && /Ihre Dosis laut App: 75 µg am Tag/.test(k2.grundlage),
+    `${k2.frage ? k2.frage.text : k2.titel} | ${k2.grundlage.replace(/^.*?\. Ihre/, 'Ihre').slice(0, 80)}`);
+  check('G11 nach dem Rat: der Arztbericht nennt 75 µg als aktuelle Dosis und „Dosis damals 75 µg"', /Aktuell: L-Thyroxin 75 µg/.test(bericht) && !/Aktuell: L-Thyroxin 100 µg/.test(bericht)
+    && /10\.08\.2026: TSH 6,5 mU\/l[^\n]*Dosis damals 75 µg/.test(bericht), bericht.split('\n').filter((z) => /Aktuell|Dosis damals/.test(z)).join(' | '));
+  // Ersetzt die Berichtigung den Eintrag schon am selben Tag (beide nach der
+  // Blutabnahme), gibt es an „Gilt ab" nichts mehr zu ändern.
+  const r3 = roh('2026-08-11');
+  r3.dosen[1].ab = '2026-08-11';
+  const k3 = dosisRichtung(normStand(r3), H6);
+  const t3 = (k3.gruende.find((g) => g.id === 'D0.5') || {}).text || '';
+  check('G11 schon am selben Tag ersetzt: kein Rat, „Gilt ab" zu ändern, kein Knopf „Dosis ändern", Hinweis an die Praxis',
+    !!t3 && !/Gilt ab/.test(t3) && !k3.aktionen.some((a) => a.aktion === 'dosis') && /sagen Sie der Praxis, was Sie wirklich nehmen/.test(t3), `${t3} | ${JSON.stringify(k3.aktionen)}`);
+  // Ist der berichtigte Eintrag der erste (beim Einrichten 100 µg statt 75 µg
+  // eingetragen), bleibt „seit der Blutabnahme oder länger" – mit seinem Beginn als frühestem Tag.
+  const r4 = roh(H6);
+  r4.dosen = [{ ...r4.dosen[0], mikrogramm: 100 }, r4.dosen[2]];
+  const t4 = (dosisRichtung(normStand(r4), H6).gruende.find((g) => g.id === 'D0.5') || {}).text || '';
+  check('G11 berichtigter Eintrag vom Einrichten: „seit der Blutabnahme oder länger", aber nicht vor seinem Beginn',
+    /seit der Blutabnahme am 10\.08\.2026 oder länger/.test(t4) && /nicht vor dem 14\.05\.2024/.test(t4), t4);
+});
+
+// G12 – „Ja" auf die Nachfrage nach der Erhöhung (Tag 14), am nächsten Tag
+// selbst wieder weniger eingetragen: „Heute anrufen", der Warnzeichen-Check
+// und die Zeile im Arztbericht bleiben; nie zurück zur Menge mit den Beschwerden.
+fall('G12', () => {
+  const H6 = '2026-09-16';
+  const s = (eigen) => normStand({
+    version: 2,
+    profil: { ...PROFIL, geburtsjahr: 1950, herz: 'nein' },
+    dosen: [
+      { id: 'd0', ab: '2025-01-01', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, praxis: null },
+      { id: 'd1', ab: '2026-09-01', praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, praxis: true },
+      ...(eigen ? [{ id: 'd2', ab: H6, praeparat: 'L-Thyroxin', mikrogramm: eigen, tabletten: 1, praxis: false }] : []),
+    ],
+    einnahmen: r6Einnahmen(H6),
+    labor: [{ id: 'b1', datum: '2026-08-20', tsh: tsh(6.8), ...R6_NEIN, praxis: 'geaendert', praxisAm: '2026-08-28' }],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: '2026-08-21' }, { id: 'n2', art: 'wd4', bezug: 'd1-14', antwort: 'ja', am: '2026-09-15' }],
+  });
+  for (const eigen of [88, 50]) {
+    const st = s(eigen);
+    const g = gesamtbildMitDosis(st, H6);
+    const w = g.dosisHinweise.find((h) => h.id === 'W-D4');
+    check(`G12 selbst auf ${eigen} µg: „Heute" bleibt bei „Heute anrufen" mit dem Warnzeichen-Check`, g.stufe === 'heute' && !!w && w.stufe === 'heute' && /Warnzeichen-Check/.test(w.text),
+      `${g.stufe} | ${g.dosisHinweise.map((h) => `${h.id}/${h.stufe}`).join(', ')}`);
+    const z = [...dosisBerichtZeilen(st, H6), ...dosisModul.gesamtBerichtZeilen(st, H6)].join('\n');
+    check(`G12 selbst auf ${eigen} µg: der Bericht nennt „Heute anrufen" und die Beschwerden seit der Erhöhung`, /„Heute anrufen" – aus [^\n]*W-D4/.test(z) && /Grund W-D4: [^\n]*seit der Erhöhung/.test(z), z.slice(0, 400));
+    const texte = [alleTexte(dosisRichtung(st, H6)), ...g.dosisHinweise.map((h) => h.text)].join(' ');
+    check(`G12 selbst auf ${eigen} µg: kein „wieder Ihre bisherige Menge" (die 100 µg mit den Beschwerden)`, !/bisherige Menge/.test(texte), texte.slice(0, 300));
+  }
+});
+
+// G10 – wie Fall 1 (Berichtigung), mit „Auf Anweisung der Praxis: Nein": Frist und Stufe passen zusammen.
+fall('G10', () => {
+  const mitPraxis = (praxis) => stand({
+    befund: { tsh: tsh(6.5) },
+    dosen: [
+      { id: 'd1', ab: '2025-01-01', praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1 },
+      { id: 'd2', ab: HEUTE, praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, praxis, berichtigung: true },
+    ],
+    nachfragen: [],
+  });
+  const nein = mitPraxis(false);
+  const h = dosisHinweise(nein, HEUTE).find((x) => x.id === 'X3b');
+  check('G10 „Nein": X3b mit Stufe Tage, der Text nennt dieselbe Frist ohne Bedingung', !!h && h.stufe === 'tage' && /in den nächsten Tagen/.test(h.text) && !/Ist das nicht/.test(h.text), JSON.stringify(h));
+  check('G10 „Nein": Einschätzung auf „Heute" und Dosis-Karte in den nächsten Tagen', gesamtbildMitDosis(nein, HEUTE).stufe === 'tage' && dosisRichtung(nein, HEUTE).stufe === 'tage',
+    `${gesamtbildMitDosis(nein, HEUTE).stufe} / ${dosisRichtung(nein, HEUTE).stufe}`);
+  const ja = dosisHinweise(mitPraxis(true), HEUTE).find((x) => x.id === 'X3b');
+  check('G10 „Ja": X3b beim nächsten Termin, ohne „in den nächsten Tagen" und ohne die schon beantwortete Frage',
+    !!ja && ja.stufe === 'termin' && !/in den nächsten Tagen|Ist das nicht die Menge/.test(ja.text), JSON.stringify(ja));
+});
+
 console.log(fails ? `\n${fails} gescheitert` : '\nalles grün');
 process.exit(fails ? 1 : 0);

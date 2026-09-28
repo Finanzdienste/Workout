@@ -22,7 +22,7 @@ import { mehrAnsicht, mehrSeite } from './ansicht-mehr.js';
 import { formular, absenden, eintragLoeschen, zaehlerNachfuehren } from './ansicht-formulare.js';
 import { einschaetzungSeite } from './ansicht-einschaetzung.js';
 import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS, PRAXIS_NOCH_NICHT } from './ansicht-dosis.js';
-import { fragenVorschlaege, abnahmeHeute } from './einschaetzung.js';
+import { fragenVorschlaege, abnahmeHeute, aenderungsArt } from './einschaetzung.js';
 import { dosisHinweise } from './dosis.js';
 import { willkommenAnsicht, willkommenWeiter, willkommenEntwurf, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
 import { berichtText } from './bericht.js';
@@ -164,14 +164,53 @@ function seiteInhalt(seite, stand, heute) {
  */
 let gezeichnet = null;   // { seite, tab, willkommen, schritt }
 
-function render() {
+/*
+ * Was render() mit diesem Stand zeichnen würde – ohne zu zeichnen und ohne
+ * etwas zu merken. → { html, titel, merken? }. Auch für fremdeAenderung():
+ * Gibt es das offene Formular mit dem neuen Stand noch? (Runde 6: G2)
+ */
+function ansichtBauen(stand, heute) {
+  if (!stand.profil.begruesst) {
+    // Ein Entwurf aus „Zurück" geht dem Stand vor (Runde 4: E12).
+    return {
+      html: willkommenAnsicht(ui.schritt, stand, heute, ui.entwurf[ui.schritt] || null),
+      titel: `Schritt ${ui.schritt} von ${WILLKOMMEN_SCHRITTE}`,
+    };
+  }
+  if (ui.seite) return seiteInhalt(ui.seite, stand, heute);
+  if (ui.tab === 'verlauf') return { html: verlaufAnsicht(stand, heute), titel: null };
+  if (ui.tab === 'mehr') return { html: mehrAnsicht(stand, heute), titel: null };
+  return { html: heuteAnsicht(stand, heute, jetztUhr()), titel: null };
+}
+
+/*
+ * Runde 6: G3 – Die Formulare der Einrichtung tragen kein data-formular: Der
+ * Empfänger für „submit" schickt sie an willkommenWeiter, nicht an absenden().
+ * Deshalb erfassten formStand() und eingabenMerken() sie nicht. Schrieb ein
+ * zweites Fenster, zeichnete die App den Schritt neu, und die getippte
+ * Stärke und das Präparat waren still weg. Sie bekommen hier data-schritt
+ * und zählen damit wie jedes andere Formular.
+ */
+const FORMULARE = 'form[data-formular], form[data-schritt]';
+function schritteMarkieren(wurzel) {
+  wurzel.querySelectorAll('form:not([data-formular]):not([data-sofort])').forEach((f) => { f.dataset.schritt = String(ui.schritt); });
+}
+/** Woran ein Formular nach dem Neuzeichnen wiederzuerkennen ist. */
+function formKennung(form) {
+  return form.dataset.formular ? `${form.dataset.formular}#${form.dataset.id || ''}` : `schritt#${form.dataset.schritt || ''}`;
+}
+
+/**
+ * `eingaben`: was nach dem Zeichnen in die Felder zurückkommt. Ohne Angabe
+ * (undefined) das Getippte, wenn dieselbe Seite an Ort und Stelle neu
+ * gezeichnet wird (F21); null zeichnet nur aus dem Stand (G2).
+ */
+function render({ eingaben } = {}) {
   const stand = sp.getStand();
   document.documentElement.dataset.schrift = stand.einstellungen.schrift;
   document.documentElement.dataset.farbe = stand.einstellungen.farbe;
   const heute = heuteISO();
 
-  let html;
-  let titel = null;
   const willkommen = !stand.profil.begruesst;
   /*
    * Runde 5: F21 – An Ort und Stelle neu gezeichnet, kam jedes Formular aus
@@ -183,34 +222,22 @@ function render() {
    */
   const anOrt = Boolean(gezeichnet) && gezeichnet.seite === ui.seite && gezeichnet.tab === ui.tab
     && gezeichnet.willkommen === willkommen && (!willkommen || gezeichnet.schritt === ui.schritt);
-  const behalten = anOrt && eingabenGeaendert() ? eingabenMerken() : null;
+  const behalten = eingaben !== undefined ? eingaben : anOrt && eingabenGeaendert() ? eingabenMerken() : null;
   gezeichnet = { seite: ui.seite, tab: ui.tab, willkommen, schritt: ui.schritt };
-  if (willkommen) {
-    // Ein Entwurf aus „Zurück" geht dem Stand vor (Runde 4: E12).
-    html = willkommenAnsicht(ui.schritt, stand, heute, ui.entwurf[ui.schritt] || null);
-    titel = `Schritt ${ui.schritt} von ${WILLKOMMEN_SCHRITTE}`;
-  } else if (ui.seite) {
-    const s = seiteInhalt(ui.seite, stand, heute);
-    html = s.html;
-    titel = s.titel;
-    // Die Dosis-Karte kann sich merken lassen, dass sie etwas gezeigt hat –
-    // einmal; beim nächsten Zeichnen liefert sie dafür nichts mehr. Mit dem
-    // Titel der Karte: Der Bericht nennt so die zuletzt gezeigte Richtung in
-    // den Worten, die die Patientin gelesen hat (RW2 B1, Runde 4: E16).
-    // Der Titel ist danach Nutzerspeicher – jede Ansicht gibt ihn nur über esc() aus.
-    if (s.merken) {
-      const m = s.merken;
-      const titelText = typeof m.titel === 'string' ? m.titel.trim().slice(0, 200) : '';
-      sp.aendern((st) => {
-        st.nachfragen.push({ id: sp.kennung(), art: m.art, bezug: m.bezug, antwort: m.antwort, am: heute, ...(titelText ? { titel: titelText } : {}) });
-      });
-    }
-  } else if (ui.tab === 'verlauf') {
-    html = verlaufAnsicht(stand, heute);
-  } else if (ui.tab === 'mehr') {
-    html = mehrAnsicht(stand, heute);
-  } else {
-    html = heuteAnsicht(stand, heute, jetztUhr());
+  const gebaut = ansichtBauen(stand, heute);
+  const { html } = gebaut;
+  const titel = gebaut.titel || null;
+  // Die Dosis-Karte kann sich merken lassen, dass sie etwas gezeigt hat –
+  // einmal; beim nächsten Zeichnen liefert sie dafür nichts mehr. Mit dem
+  // Titel der Karte: Der Bericht nennt so die zuletzt gezeigte Richtung in
+  // den Worten, die die Patientin gelesen hat (RW2 B1, Runde 4: E16).
+  // Der Titel ist danach Nutzerspeicher – jede Ansicht gibt ihn nur über esc() aus.
+  if (!willkommen && ui.seite && gebaut.merken) {
+    const m = gebaut.merken;
+    const titelText = typeof m.titel === 'string' ? m.titel.trim().slice(0, 200) : '';
+    sp.aendern((st) => {
+      st.nachfragen.push({ id: sp.kennung(), art: m.art, bezug: m.bezug, antwort: m.antwort, am: heute, ...(titelText ? { titel: titelText } : {}) });
+    });
   }
 
   // Kopf: die Marke, oder „Zurück" mit dem Titel der Seite.
@@ -230,6 +257,7 @@ function render() {
 
   kopfHoeheMerken();
   $ansicht.innerHTML = speicherWarnung() + html;
+  if (willkommen) schritteMarkieren($ansicht);
   // Vorleseprogramme nennen beim Fokus den Namen des Bereichs – bei einer
   // offenen Seite ihren Titel, nicht den Reiter darunter.
   $ansicht.setAttribute('aria-labelledby', titel && !willkommen ? 'seitentitel' : `reiter-${ui.tab}`);
@@ -238,12 +266,34 @@ function render() {
   $reiter.querySelectorAll('.reiter').forEach((b) => {
     b.setAttribute('aria-selected', String(!willkommen && b.dataset.reiter === ui.tab && !ui.seite));
   });
+  /*
+   * Runde 6: G4 – Der gemerkte Reiter ist immer der gezeichnete. Gemerkt
+   * wurde er nur beim Tipp auf einen Reiter: Nach „Sicherung einlesen" oder
+   * „Fertig – zur App" stand „Heute" da, gemerkt blieb „Mehr" – und das
+   * aufgeschobene Neuladen nach einem Update sprang eine Sekunde später ohne
+   * Zutun dorthin (E25, F19). Nicht beim Einrichten: Dort gibt es keinen Reiter.
+   */
+  if (!willkommen) reiterMerken(ui.tab);
+  /*
+   * Runde 6: G9 – „Rückgängig" gilt nur dem Haken von eben. Steht für den Tag
+   * inzwischen etwas anderes (über „antippen zum Zurücknehmen", in der Liste
+   * der Einnahmen, im anderen Fenster), geht der Knopf mit der Meldung weg.
+   * Vorher blieb „Tablette abgehakt [Rückgängig]" unter „Noch nicht
+   * eingetragen" stehen, und der Knopf tat nichts.
+   */
+  if (ui.abgehakt) {
+    const e = sp.einnahme(ui.abgehakt.tag);
+    if (!e || e.uhr !== ui.abgehakt.uhr) {
+      ui.abgehakt = null;
+      if ($meldung.querySelector('[data-act="tablette-rueckgaengig"]')) meldungZu();
+    }
+  }
   // Was im Formular stand, als es gezeichnet wurde – daran misst verlassen(),
   // ob etwas eingetippt und noch nicht gespeichert ist (Runde 4: E5).
   ui.formStand = formStand();
   // Das Getippte zurück in die Felder – der Vergleichsstand bleibt der
   // gezeichnete, die Eingaben zählen also weiter als ungespeichert (F21).
-  if (behalten) {
+  if (behalten && behalten.length) {
     eingabenZurueck(behalten);
     // Der Zeichenzähler zählt, was jetzt im Feld steht (Runde 5: F23).
     $ansicht.querySelectorAll('textarea').forEach(zaehlerNachfuehren);
@@ -261,24 +311,23 @@ function render() {
 /*
  * Runde 5: F21 – die Felder der offenen Formulare, bevor render() sie
  * ersetzt, und zurück in die neu gezeichneten. Zugeordnet wird über das
- * Formular (data-formular, data-id) und den Namen der Felder; Haken und
- * Auswahlknöpfe über ihren Wert. Verborgene Felder setzt nur die App selbst.
+ * Formular (data-formular, data-id; beim Einrichten data-schritt, Runde 6:
+ * G3) und den Namen der Felder; Haken und Auswahlknöpfe über ihren Wert.
+ * Verborgene Felder setzt nur die App selbst.
  */
 function eingabenMerken() {
-  return [...$ansicht.querySelectorAll('form[data-formular]')].map((form) => ({
-    formular: form.dataset.formular,
-    id: form.dataset.id || '',
+  return [...$ansicht.querySelectorAll(FORMULARE)].map((form) => ({
+    kennung: formKennung(form),
     felder: [...form.elements]
       .filter((el) => el.name && !['hidden', 'file', 'submit', 'button', 'reset'].includes(el.type))
-      .map((el) => ({ name: el.name, typ: el.type, wert: el.value, an: el.checked })),
+      .map((el) => ({ name: el.name, typ: el.type, wert: el.value, an: el.checked, aus: el.disabled })),
     offen: [...form.querySelectorAll('details')].map((d) => d.open),
   }));
 }
 
 function eingabenZurueck(gemerkt) {
   gemerkt.forEach((g) => {
-    const form = [...$ansicht.querySelectorAll('form[data-formular]')]
-      .find((f) => f.dataset.formular === g.formular && (f.dataset.id || '') === g.id);
+    const form = [...$ansicht.querySelectorAll(FORMULARE)].find((f) => formKennung(f) === g.kennung);
     if (!form) return;
     const reihe = {};   // Name → Werte der Textfelder in ihrer Reihenfolge
     g.felder.forEach((f) => {
@@ -287,6 +336,11 @@ function eingabenZurueck(gemerkt) {
     const schonDa = {};
     [...form.elements].forEach((el) => {
       if (!el.name || ['hidden', 'file', 'submit', 'button', 'reset'].includes(el.type)) return;
+      if (el.type === 'checkbox' && g.delta && g.delta[el.name]) {
+        if (g.delta[el.name].an.includes(el.value)) el.checked = true;
+        else if (g.delta[el.name].aus.includes(el.value)) el.checked = false;
+        return;
+      }
       if (el.type === 'checkbox' || el.type === 'radio') {
         const alt = g.felder.find((f) => f.name === el.name && f.typ === el.type && f.wert === el.value);
         if (alt) el.checked = alt.an;
@@ -383,11 +437,17 @@ function zurueck() {
  */
 const VERWERFEN = 'Ihre Eingaben sind noch nicht gespeichert. Verwerfen und die Seite verlassen?';
 
-/** Die Felder des offenen Formulars als Text – oder null ohne Formular. */
+/*
+ * Die Felder der offenen Formulare als Text – oder null ohne Formular. Je
+ * Formular mit seiner Kennung: geaenderteEingaben() vergleicht Feld für
+ * Feld (Runde 6: G2). Vorher zählte nur das erste Formular der Seite.
+ */
 function formStand() {
-  const form = $ansicht.querySelector('form[data-formular]');
-  if (!form) return null;
-  return JSON.stringify([...new FormData(form)].map(([k, v]) => [k, typeof v === 'string' ? v : '']));
+  const formulare = [...$ansicht.querySelectorAll(FORMULARE)];
+  if (!formulare.length) return null;
+  return JSON.stringify(formulare.map((form) => [
+    formKennung(form), [...new FormData(form)].map(([k, v]) => [k, typeof v === 'string' ? v : '']),
+  ]));
 }
 
 function eingabenGeaendert() {
@@ -556,6 +616,23 @@ function herunterladen(name, inhalt, typ) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+/*
+ * Runde 6: G8 – Die Datei nennt ihr eigenes Datum als letzte Sicherung.
+ * Vorher stand darin letzteSicherung: null (die App setzte das Datum erst
+ * nach dem Schreiben der Datei), und wer sie auf dem neuen Handy einlas, sah
+ * „Noch nie gesichert". Auf diesem Handy gilt das Datum erst, wenn Teilen
+ * oder Herunterladen geklappt hat – ein abgebrochenes Teilen ist keine Sicherung.
+ */
+function mitSicherungsdatum(json, heute) {
+  try {
+    const daten = JSON.parse(json);
+    daten.letzteSicherung = heute;
+    return JSON.stringify(daten, null, 2);
+  } catch {
+    return json;
+  }
+}
+
 /**
  * Die Sicherung weitergeben – aufs Handy heißt das meist: an sich selbst
  * schicken oder in einen Ordner legen. Wo das Teilen nicht geht, wird
@@ -564,7 +641,7 @@ function herunterladen(name, inhalt, typ) {
 async function sicherungSpeichern() {
   const heute = heuteISO();
   const name = `schilddruese-sicherung-${heute}.json`;
-  const json = sp.exportJSON();
+  const json = mitSicherungsdatum(sp.exportJSON(), heute);
   let geteilt = false;
   try {
     const datei = new File([json], name, { type: 'application/json' });
@@ -577,6 +654,11 @@ async function sicherungSpeichern() {
   }
   if (!geteilt) herunterladen(name, json, 'application/json');
   sp.aendern((s) => { s.letzteSicherung = heute; });
+  // Runde 6: G8 – Neu zeichnen: Über der Meldung „Sicherung gespeichert"
+  // stand sonst weiter „Noch keine Sicherung gespeichert." Nach dem Teilen
+  // (await) ist der Klick längst vorbei – der Fokus bleibt auf dem Knopf.
+  render();
+  fokusZurueck('[data-act="sicherung-speichern"]');
   meldung('Sicherung gespeichert');
 }
 
@@ -629,6 +711,11 @@ function sicherungLaden(datei) {
       ergebnis = kaputt;
     }
     if (ergebnis.ok) {
+      // Runde 6: G8 – Eine ältere Datei ohne eigenes Sicherungsdatum: Der
+      // eingelesene Stand ist gesichert, und zwar am Tag der Datei.
+      const vom = pruefung.datei.exportiertAm;
+      const bisher = sp.getStand().letzteSicherung;
+      if (vom && vom <= heuteISO() && (!bisher || bisher < vom)) sp.aendern((s) => { s.letzteSicherung = vom; });
       meldung(pruefung.datei.exportiertAm ? `Sicherung vom ${datumKurz(pruefung.datei.exportiertAm)} eingelesen` : 'Sicherung eingelesen');
       ui.seite = null;
       ui.stapel = [];
@@ -804,8 +891,13 @@ function aktion(el) {
     }
     case 'tablette-zurueck':
       if (window.confirm('Den Haken für heute zurücknehmen?')) {
+        // Runde 6: G9 – „Tablette abgehakt [Rückgängig]" von eben geht mit
+        // weg; stattdessen sagt die Meldung, was jetzt gilt.
+        ui.abgehakt = null;
+        meldungZu();
         sp.einnahmeSetzen(heute, undefined);
         render();
+        meldung('Zurückgenommen – heute ist keine Tablette abgehakt.');
       }
       break;
     case 'gestern-genommen':
@@ -877,8 +969,19 @@ function aktion(el) {
         const b = s.labor.find((l) => l.id === el.dataset.id);
         if (b) {
           vorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm };
+          /*
+           * Runde 6: G5 – Eine Entscheidung, die schon gilt, behält ihr Datum,
+           * wie im Befund-Formular. Ein erneuter Tipp auf „Neue Dosis
+           * eintragen" machte aus der Entscheidung vom 07.09. eine von heute –
+           * und damit die schon eingetragene neue Dosis zu einer, die vor der
+           * Entscheidung begann. „Noch nichts entschieden" ist dagegen eine
+           * Angabe über heute (wie F8 „Noch nicht") und bekommt das Datum neu.
+           * Der Haken „Es gilt, was die Praxis gesagt hat" auf der Karte
+           * gehört zum Tag der Entscheidung und kommt bei einem erneuten Tipp
+           * nicht wieder; die Meldung nach dem Tipp bestätigt ihn trotzdem.
+           */
+          if (b.praxis !== wert || !b.praxisAm || wert === 'nochnicht') b.praxisAm = heute;
           b.praxis = wert;
-          b.praxisAm = heute;
         }
       });
       if (wert === 'geaendert') {
@@ -1255,19 +1358,26 @@ function dialogZeigen({ titel, punkte = [], satz = '', knoepfe, art, abbrechen }
   return { dialog, freigeben: (fertig) => setTimeout(() => { liste.forEach((b) => { b.disabled = false; }); fertig(); }, FREIGABE_MS) };
 }
 
-function rueckfrageZeigen(form, fragen, { satz = '', feld = '' } = {}) {
+/*
+ * Runde 6: G11 – `ja`, `nein`, `name`: eigene Knopftexte und ein eigenes
+ * Bestätigungsfeld. Die Frage des Dosis-Formulars „Haben Sie das nie
+ * genommen?" beantwortet „Ja, stimmt" schlecht, und ihre Bestätigung
+ * (nieGenommen=ja) darf die Rückfrage zur Stärke nicht mit abhaken – die
+ * kommt danach noch, mit „bestaetigt".
+ */
+function rueckfrageZeigen(form, fragen, { satz = '', feld = '', ja = '', nein = '', name = '' } = {}) {
   rueckfrageSchliessen(null);
   const { dialog, freigeben } = dialogZeigen({
     titel: 'Bitte prüfen',
     punkte: fragen,
     satz: satz || 'Steht es genau so auf dem Befund?',
     knoepfe: [
-      { text: 'Ja, stimmt', klasse: 'knopf knopf-haupt', act: 'befund-bestaetigen' },
-      { text: 'Korrigieren', klasse: 'knopf', act: 'befund-korrigieren' },
+      { text: ja || 'Ja, stimmt', klasse: 'knopf knopf-haupt', act: 'befund-bestaetigen' },
+      { text: nein || 'Korrigieren', klasse: 'knopf', act: 'befund-korrigieren' },
     ],
     abbrechen: () => rueckfrageSchliessen(false),
   });
-  const r = { dialog, form, feld, bereit: false };
+  const r = { dialog, form, feld, name: /^[a-z]\w{0,30}$/i.test(name) ? name : 'bestaetigt', kennung: form ? formKennung(form) : '', bereit: false };
   rueckfrage = r;
   freigeben(() => { r.bereit = true; });
 }
@@ -1275,21 +1385,34 @@ function rueckfrageZeigen(form, fragen, { satz = '', feld = '' } = {}) {
 /** true: bestätigt speichern · false: zurück ins Formular · null: nur schließen. */
 function rueckfrageSchliessen(bestaetigt) {
   if (!rueckfrage) return;
-  const { dialog, form, feld: feldName } = rueckfrage;
+  const { dialog, form: gefragt, feld: feldName, kennung, name: bestaetigtName } = rueckfrage;
   rueckfrage = null;
   if (dialog.open && dialog.close) dialog.close();
   dialog.remove();
-  if (bestaetigt === true && form.isConnected) {
-    let feld = form.querySelector('input[name="bestaetigt"]');
+  /*
+   * Runde 6: G3 – Wurde die Seite unter der Rückfrage neu gezeichnet, hing sie
+   * an einem Formular, das es nicht mehr gab: „Ja, stimmt" schloss nur den
+   * Dialog, gespeichert wurde nichts, und niemand erfuhr es. Das neue
+   * Formular trägt dieselbe Kennung und die getippten Werte (F21) – dann
+   * gilt es. Gibt es keines, sagt es eine Meldung.
+   */
+  const form = gefragt && gefragt.isConnected ? gefragt
+    : [...$ansicht.querySelectorAll(FORMULARE)].find((f) => formKennung(f) === kennung) || null;
+  if (bestaetigt === true && !form) {
+    meldung('Die Seite hat sich inzwischen geändert – gespeichert wurde nichts. Bitte prüfen Sie Ihre Angaben noch einmal.');
+    return;
+  }
+  if (bestaetigt === true) {
+    let feld = form.querySelector(`input[name="${bestaetigtName}"]`);
     if (!feld) {
       feld = document.createElement('input');
       feld.type = 'hidden';
-      feld.name = 'bestaetigt';
+      feld.name = bestaetigtName;
       form.appendChild(feld);
     }
     feld.value = 'ja';
     form.requestSubmit();
-  } else if (bestaetigt === false && form.isConnected) {
+  } else if (bestaetigt === false && form) {
     // „Korrigieren" führt zum Feld, um das es geht – bei der Stärke also
     // dorthin, nicht zum ersten Laborwert.
     const erstes = (feldName && form.querySelector(`[name="${CSS.escape(feldName)}"]`)) || form.querySelector('input[name$="_wert"]');
@@ -1334,9 +1457,24 @@ function auswahlFertig(wert) {
  */
 const PRAXIS_ENTSCHIEDEN = { bleibt: 'Die Dosis bleibt so', nachmessen: 'Erst nachmessen' };
 
+/*
+ * Runde 6: G5 – nur, solange nach dem Befund noch keine Dosis eingetragen ist
+ * (wie dosisNach in js/dosis.js). Vorher fragte die App auch dann „Die neue
+ * Dosis ist noch nicht eingetragen", wenn 88 µg seit drei Wochen dastanden –
+ * und „Nein, noch nichts entschieden" löschte die Entscheidung der Praxis,
+ * der Bericht widersprach sich danach.
+ */
 function praxisNochGeaendert(vorher) {
-  const b = sp.getStand().labor.find((l) => l.id === vorher.befund);
-  return Boolean(b && b.praxis === 'geaendert');
+  const st = sp.getStand();
+  const b = st.labor.find((l) => l.id === vorher.befund);
+  if (!b || b.praxis !== 'geaendert') return false;
+  // Erledigt ist die Bitte nur mit einer neuen Menge „auf Anweisung der
+  // Praxis" – nicht schon mit irgendeinem Eintrag nach dem Befund. Eine
+  // eigene Änderung oder eine Berichtigung ist nicht die Dosis der Praxis;
+  // sonst senkte ein Fehltipp mit „Abbrechen" die Dringlichkeit ohne jede
+  // Rückfrage (Nachprüfung zu G5).
+  return !st.dosen.some((d, i) => i > 0 && d.ab > b.datum && d.praxis === true && !d.berichtigung
+    && aenderungsArt(d, st.dosen[i - 1]) === 'dosis');
 }
 
 function praxisNachfrage(vorher, weiter) {
@@ -1523,7 +1661,10 @@ document.addEventListener('submit', (e) => {
   }
   const ergebnis = absenden(form.dataset.formular, form.dataset.id || null, form, heuteISO());
   if (!ergebnis.ok && ergebnis.rueckfragen) {
-    rueckfrageZeigen(form, ergebnis.rueckfragen, { satz: ergebnis.rueckfrageSatz, feld: ergebnis.rueckfrageFeld });
+    // Eigene Knöpfe und eigenes Bestätigungsfeld: „nie genommen?" (Runde 6: G11).
+    rueckfrageZeigen(form, ergebnis.rueckfragen, {
+      satz: ergebnis.rueckfrageSatz, feld: ergebnis.rueckfrageFeld, ja: ergebnis.rueckfrageJa, nein: ergebnis.rueckfrageNein, name: ergebnis.rueckfrageName,
+    });
     return;
   }
   // Ein Fehler rollt das Feld in die Mitte – unter dem Finger liegt dann
@@ -1677,14 +1818,114 @@ const notrufOffen = () => {
   return Boolean(huelle && !huelle.hidden);
 };
 
+/*
+ * Runde 6: G2 – Mit ungespeicherten Eingaben blieb die Seite stehen, und die
+ * Meldung versprach „Die Anzeige wird nach dem Speichern aktualisiert". Die
+ * Felder, die niemand angefasst hatte, zeigten aber den alten Stand, und das
+ * Speichern schrieb ihn zurück: „Herzerkrankung: Ja" aus dem anderen Fenster
+ * wurde still wieder „Nein". Jetzt zeichnet die Seite aus dem neuen Stand,
+ * und nur die Felder, die hier geändert wurden, kommen zurück – sie zählen
+ * weiter als ungespeichert. Wo das nicht geht (eine Rückfrage ist offen, oder
+ * das Formular gibt es mit dem neuen Stand nicht mehr), bleibt die Seite
+ * stehen, und die Meldung sagt, was beim Speichern gilt.
+ *
+ * Runde 6: G3 – Die Einrichtung zählt dabei wie eine offene Seite. Vorher
+ * zeichnete die App dort immer neu: Stärke und Präparat aus Schritt 2 waren
+ * weg, und eine offene Rückfrage („7,5 µg ist ungewöhnlich") hing an einem
+ * Formular, das es nicht mehr gab – „Ja, stimmt" tat nichts.
+ */
+const FREMD_NEU = 'In einem anderen Fenster wurde etwas geändert. Die Seite zeigt jetzt den neuen Stand – Ihre Eingaben hier sind noch da.';
+// Welche Liste des Stands hinter einem Formular mit data-id steht (wie eintragLoeschen).
+const EINTRAG_LISTE = { dosis: 'dosen', labor: 'labor', gewicht: 'gewicht', befinden: 'befinden', termin: 'termine', frage: 'fragen' };
+
+function fremdStehtText() {
+  if (gezeichnet && gezeichnet.willkommen) return 'In einem anderen Fenster wurde etwas geändert. Wenn Sie hier weitermachen, gilt, was auf dieser Seite steht.';
+  return `In einem anderen Fenster wurde etwas geändert. Wenn Sie hier speichern, gilt, was auf dieser Seite steht.${ui.seite ? ' Den neuen Stand sehen Sie nach „‹ Zurück".' : ''}`;
+}
+
+/** Die Werte je Feldname aus [name, wert]-Paaren. */
+function werteJeName(paare) {
+  const m = new Map();
+  paare.forEach(([k, v]) => m.set(k, [...(m.get(k) || []), v]));
+  return m;
+}
+
+/*
+ * Runde 6: G2 – nur die Felder, die hier jemand verändert hat: verglichen mit
+ * dem Stand beim Zeichnen (ui.formStand), je Formular und Name. Haken und
+ * Auswahlknöpfe als Menge, Textfelder in ihrer Reihenfolge. Gesperrte und
+ * verborgene Felder setzt nur die App. → wie eingabenMerken(), nur die geänderten.
+ */
+function geaenderteEingaben() {
+  let vorher;
+  try {
+    vorher = new Map(JSON.parse(ui.formStand || '[]'));
+  } catch {
+    vorher = new Map();
+  }
+  const menge = (typ) => typ === 'checkbox' || typ === 'radio';
+  return eingabenMerken().map((g) => {
+    const felder = g.felder.filter((f) => !f.aus);
+    const alt = werteJeName(vorher.get(g.kennung) || []);
+    const jetzt = werteJeName(felder.filter((f) => !menge(f.typ) || f.an).map((f) => [f.name, f.wert]));
+    const alsMenge = new Set(felder.filter((f) => menge(f.typ)).map((f) => f.name));
+    const gleich = (name) => {
+      const a = alt.get(name) || [];
+      const b = jetzt.get(name) || [];
+      return alsMenge.has(name) ? JSON.stringify([...a].sort()) === JSON.stringify([...b].sort()) : JSON.stringify(a) === JSON.stringify(b);
+    };
+    const namen = new Set(felder.map((f) => f.name).filter((n) => !gleich(n)));
+    // Bei Haken-Gruppen zählt, was hier dazu- oder weggekommen ist – nicht
+    // die ganze Gruppe: Sonst verwarf das Zurückholen, was im anderen Fenster
+    // in derselben Gruppe angehakt wurde (Nachprüfung zu G2).
+    const delta = {};
+    felder.filter((f) => f.typ === 'checkbox' && namen.has(f.name)).forEach((f) => {
+      const a = new Set(alt.get(f.name) || []);
+      const d = delta[f.name] || (delta[f.name] = { an: [], aus: [] });
+      if (f.an && !a.has(f.wert)) d.an.push(f.wert);
+      if (!f.an && a.has(f.wert)) d.aus.push(f.wert);
+    });
+    return { ...g, felder: felder.filter((f) => namen.has(f.name)), delta };
+  }).filter((g) => g.felder.length);
+}
+
+/** Das Feld mit dem Fokus – um es nach dem Neuzeichnen wiederzufinden. */
+function feldMerken() {
+  const el = document.activeElement;
+  const form = el && el.form;
+  if (!form || !el.name || !$ansicht.contains(form) || !form.matches(FORMULARE)) return null;
+  let markiert = null;
+  try {
+    if (typeof el.selectionStart === 'number') markiert = [el.selectionStart, el.selectionEnd];
+  } catch { /* Zahlenfelder kennen keine Markierung */ }
+  const gleiche = [...form.elements].filter((x) => x.name === el.name);
+  return { kennung: formKennung(form), name: el.name, nr: gleiche.indexOf(el), wert: el.value, typ: el.type, markiert };
+}
+
+function feldZurueck(m) {
+  if (!m) return;
+  const form = [...$ansicht.querySelectorAll(FORMULARE)].find((f) => formKennung(f) === m.kennung);
+  if (!form) return;
+  const gleiche = [...form.elements].filter((x) => x.name === m.name);
+  const el = m.typ === 'radio' || m.typ === 'checkbox' ? gleiche.find((x) => x.value === m.wert) : gleiche[m.nr];
+  if (!el) return;
+  el.focus({ preventScroll: true });
+  try {
+    if (m.markiert) el.setSelectionRange(m.markiert[0], m.markiert[1]);
+  } catch { /* egal */ }
+}
+
 function fremdeAenderung() {
   const warEingerichtet = sp.getStand().profil.begruesst;
+  // Die geänderten Felder vor dem Einlesen – verglichen wird mit dem Zeichnen.
+  const eingaben = eingabenGeaendert() ? geaenderteEingaben() : [];
   // Derselbe Inhalt, nur anders geschrieben (ein Stand, den normStand beim
   // Laden ergänzt hat): keine Änderung – sonst meldete jede Rückkehr in die
   // App mitten im Formular ein „anderes Fenster", das es nicht gibt.
   const inhaltVorher = JSON.stringify(sp.getStand());
   if (!sp.neuLesen() || JSON.stringify(sp.getStand()) === inhaltVorher) return;
-  if (warEingerichtet && !sp.getStand().profil.begruesst) {
+  const stand = sp.getStand();
+  if (warEingerichtet && !stand.profil.begruesst) {
     ui.seite = null;
     ui.stapel = [];
     ui.tab = 'heute';
@@ -1692,14 +1933,52 @@ function fremdeAenderung() {
     ui.entwurf = {};
     window.scrollTo(0, 0);
     render();
-  } else if (!ui.seite || (!eingabenGeaendert() && !rueckfrage && !auswahl && !notrufOffen())) {
-    // Der Fokus bleibt auf dem Knopf, der ihn hatte – sonst stand er danach im Nichts.
-    const aktiv = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.act ? fokusMerkmal(document.activeElement) : null;
-    render();
-    if (aktiv) fokusZurueck(aktiv);
-  } else {
-    meldung('In einem anderen Fenster wurde etwas geändert. Die Anzeige wird nach dem Speichern aktualisiert.');
+    return;
   }
+  // Eine offene Rückfrage oder die aufgeklappte 112-Karte bleiben, wie sie sind.
+  if (rueckfrage || auswahl || notrufOffen()) {
+    meldung(fremdStehtText());
+    return;
+  }
+  if (eingaben.length) {
+    // Gibt es das Formular mit dem neuen Stand nicht mehr (etwa: im anderen
+    // Fenster fertig eingerichtet), wären die Eingaben beim Neuzeichnen weg.
+    // Ebenso, wenn der Eintrag dahinter gelöscht wurde: Dann käme ein leeres
+    // Formular („Laborwerte eintragen", Datum heute) um die geänderten Felder.
+    const vorlage = document.createElement('template');
+    vorlage.innerHTML = ansichtBauen(stand, heuteISO()).html;
+    if (!stand.profil.begruesst) schritteMarkieren(vorlage.content);
+    const da = new Set([...vorlage.content.querySelectorAll(FORMULARE)].map(formKennung));
+    const eintragWeg = (kennung) => {
+      const [art, id] = kennung.split('#');
+      const liste = stand[EINTRAG_LISTE[art]];
+      return Boolean(id && Array.isArray(liste) && !liste.some((x) => x.id === id));
+    };
+    if (!eingaben.every((g) => da.has(g.kennung) && !eintragWeg(g.kennung))) {
+      meldung(fremdStehtText());
+      return;
+    }
+  }
+  if (!warEingerichtet && stand.profil.begruesst) {
+    // Im anderen Fenster fertig eingerichtet: hier auch – weiter auf „Heute",
+    // wie nach „Fertig – zur App".
+    ui.seite = null;
+    ui.stapel = [];
+    ui.tab = 'heute';
+    ui.schritt = 1;
+    ui.entwurf = {};
+  }
+  if (eingaben.length) {
+    const feld = feldMerken();
+    render({ eingaben });
+    feldZurueck(feld);
+    meldung(FREMD_NEU);
+    return;
+  }
+  // Der Fokus bleibt auf dem Knopf, der ihn hatte – sonst stand er danach im Nichts.
+  const aktiv = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.act ? fokusMerkmal(document.activeElement) : null;
+  render({ eingaben: null });
+  if (aktiv) fokusZurueck(aktiv);
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {

@@ -330,6 +330,11 @@ function notfallSatz(n) {
  * dem Laborbereich (bei LDL etwa keine Wertung „im Bereich = gut"). Vorher
  * zeigte die App ihn nirgends, direkt darüber stand aber „Der Laborbereich
  * ist nicht Ihr persönlicher Zielwert" (Runde 4: E11).
+ *
+ * Runde 6: G18 – Werte über festen Gefahrengrenzen (Natrium unter 125,
+ * Hb unter 7, CRP über 100 …) nennen jetzt „heute noch anrufen" mit 116 117
+ * und den 112-Satz. Jede Nummer, die ein Text nennt, steht darunter als
+ * Anruf-Knopf – auf „Heute" kommen sie über die Teile des Gesamtbilds.
  */
 function weitereBlock(l, stand) {
   const liste = ez.weitereWerte(l, stand);
@@ -342,7 +347,7 @@ function weitereBlock(l, stand) {
         <div class="befund-wert" data-weiterer="${esc(x.key)}"><b>${esc(x.name)}</b><span class="zahl">${esc(`${x.wert.unter ? '< ' : ''}${rohText(x.wert.wert)} ${x.wert.einheit}`)}</span></div>
         ${bereich ? `<p class="lage-zeile"><span class="bereich">(Bereich Ihres Labors ${esc(bereich)})</span></p>` : ''}
         ${rang(x.stufe) > 0 ? `<p class="frist klein">${stufeSchild(x.stufe)}</p>` : ''}
-        ${x.texte.map((t) => `<p class="klein">${esc(t)}</p>`).join('')}`;
+        ${x.texte.map((t) => `<p class="klein">${esc(t)}</p>${anrufReihe(anrufeImText(t, stand))}`).join('')}`;
   }).join('')}
       <p class="klein gedaempft">${esc(ez.WEITERE_HINWEIS)}</p>
     </div>`;

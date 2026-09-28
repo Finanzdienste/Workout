@@ -96,10 +96,14 @@ const ab70 = (stand, tag) => { const a = alterAm(stand, tag); return a === null 
 /** L4b: Alter ab 65 (oder unbekannt), Herzkrankheit oder Osteoporose. */
 const risiko = (stand, tag) => ab65(stand, tag) || stand.profil.herz === 'ja' || stand.profil.osteoporose === 'ja';
 
-/** Die Dosis, die an `tag` galt. */
+/**
+ * Die Dosis, die an `tag` galt. Ohne die Einträge, die eine Berichtigung
+ * ersetzt, obwohl sie nach deren „Gilt ab" beginnen (Runde 6: G11) – sonst
+ * galt die nie genommene Menge wieder als Dosis.
+ */
 export function dosisAmIn(stand, tag) {
   let d = null;
-  for (const x of stand.dosen) if (x.ab <= tag) d = x;
+  for (const x of sp.gueltigeDosen(stand)) if (x.ab <= tag) d = x;
   return d;
 }
 
@@ -163,6 +167,12 @@ export function aenderungsArt(d, vorher) {
  */
 export function istBerichtigung(stand, d, heute) {
   if (!d || !d.berichtigung) return false;
+  // Runde 6: G11 – Das Dosis-Formular vermerkt bei einer Berichtigung, welchen
+  // Eintrag sie berichtigt (`statt`), und nur dann, wenn sie aus der Antwort
+  // „Nein" zum Befund von jetzt kommt (C17). Sie bleibt eine Berichtigung,
+  // auch wenn „Gilt ab" danach auf den wahren Beginn rückt – die Prüfung
+  // unten hängt am Tag und könnte sie sonst zur Änderung machen.
+  if (d.statt && stand.dosen.some((x) => x !== d && x.id === d.statt)) return true;
   if (stand.labor.some((l) => l.tsh && l.datum > d.ab && l.datum <= heute)) return true;
   const b = [...stand.labor].reverse().find((l) => l.tsh && l.datum <= d.ab);
   if (!b) return true;
@@ -178,11 +188,18 @@ export function istBerichtigung(stand, d, heute) {
  * Hersteller) – außer einem doppelten (alles gleich wie der vorige, B59) und
  * einer Berichtigung, die den vorigen Eintrag vom selben Tag ersetzt: Der
  * galt keinen Tag, die Menge war von Anfang an eine andere (Runde 3: D19).
+ *
+ * Runde 6: G15 – aus den Zeiträumen von dosisVerlauf, nicht mehr aus den
+ * einzelnen Einträgen. Vorher fiel nur die Berichtigung weg, nicht der
+ * Eintrag, den sie am selben Tag ersetzt: 75 µg seit 2025, 100 µg ab 01.06.
+ * (angeordnet, nie genommen), am selben Tag berichtigt auf 75 µg – der
+ * Bericht sagte richtig „75 µg seit 01.01.2025", L6 aber „Dazwischen wurde
+ * die Dosis geändert", die Grundlage der Karte „seit 01.06.2026", und D0.6
+ * und L5a hielten den Wert für nicht eingependelt. Jetzt gilt eine Änderung
+ * nur, wo ein Zeitraum mit `aenderung` beginnt – überall dieselbe Antwort.
  */
 export function aenderungen(stand, heute) {
-  return stand.dosen.filter((d, i, a) => i > 0
-    && aenderungsArt(d, a[i - 1]) !== 'doppelt'
-    && !(a[i - 1].ab === d.ab && istBerichtigung(stand, d, heute)));
+  return dosisVerlauf(stand, heute).filter((p) => p.aenderung).map((p) => p.erster);
 }
 
 /*
@@ -192,13 +209,17 @@ export function aenderungen(stand, heute) {
  * Grundlage der Dosis-Karte nannte trotzdem „75 µg am Tag seit 01.09.2026",
  * obwohl die Menge seit 2019 galt, und der Bericht las sich wie ein Neubeginn
  * der Behandlung (Runde 5: F15).
+ *
+ * Runde 6: G15 – der Beginn seines Zeitraums aus dosisVerlauf, wie im
+ * Bericht. Nach einer Berichtigung am selben Tag zurück auf die Menge davor
+ * nannte die Grundlage der Karte sonst den Tag des ersetzten Eintrags, der
+ * Bericht im selben Dokument den wahren Beginn. `heute` wie bei
+ * dosisVerlauf; ohne zählt jeder eingetragene Befund.
  */
-export function dosisSeit(stand, d) {
+export function dosisSeit(stand, d, heute = '9999-12-31') {
   if (!d) return null;
-  let i = stand.dosen.indexOf(d);
-  if (i < 0) return d.ab;
-  while (i > 0 && aenderungsArt(stand.dosen[i], stand.dosen[i - 1]) === 'doppelt') i--;
-  return stand.dosen[i].ab;
+  const p = dosisVerlauf(stand, heute).find((x) => x.eintraege.includes(d));
+  return p ? p.ab : d.ab;
 }
 
 /**
@@ -225,39 +246,100 @@ export function dosisSeit(stand, d) {
  *     Beispiel 50 µg (2019), 75 µg ab 10.09., am selben Tag berichtigt auf
  *     100 µg: zwei Perioden – 50 µg und 100 µg ab 10.09. (art 'dosis',
  *     berichtigung, ersetzt = 75 µg),
- *   - `geplant`: Beginn nach heute.
+ *   - `geplant`: Beginn nach heute,
+ *   - `aenderung` (Runde 6: G15): Der Beginn des Zeitraums zählt als
+ *     Änderung von Dosis, Präparat oder Hersteller – für L5a, L6, L7d, S3
+ *     und die Dosis-Karte (aenderungen()). Nicht beim ersten Zeitraum und
+ *     nicht bei einer Berichtigung, die den vorigen Eintrag vom selben Tag
+ *     berichtigt, der selbst nur doppelt war (E33). Eine Berichtigung mit
+ *     eigenem Beginn zählt vorsichtshalber (seit wann, ist offen),
+ *   - `nieGenommen` (Runde 6: G11, G15): [{ d, durch }] – Einträge, die nach
+ *     der Berichtigung `durch` (in diesem Zeitraum) nie galten: ersetzt am
+ *     selben Tag oder nach ihrem „Gilt ab" (sp.ersetztDurchBerichtigung).
+ *     Sie stehen in keinem Zeitraum. Der Bericht nennt sie, damit die
+ *     Ärztin von einer nie umgesetzten Anordnung erfährt.
  */
 export function dosisVerlauf(stand, heute) {
+  const statt = sp.ersetztDurchBerichtigung(stand);
   const perioden = [];
-  stand.dosen.forEach((d, i) => {
+  // Der vorige Eintrag, der galt – ein ersetzter zählt nicht (G11).
+  let vorher = null;
+  stand.dosen.forEach((d) => {
+    if (statt.has(d)) return;
     const vor = perioden[perioden.length - 1];
-    if (vor && aenderungsArt(d, stand.dosen[i - 1]) === 'doppelt') {
+    if (vor && aenderungsArt(d, vorher) === 'doppelt') {
       vor.eintraege.push(d);
       vor.d = d;
+      vorher = d;
       return;
     }
-    const berichtigung = i > 0 && istBerichtigung(stand, d, heute);
+    const berichtigung = vorher !== null && istBerichtigung(stand, d, heute);
     let ersetzt = null;
     if (vor && berichtigung && vor.ab === d.ab) ersetzt = perioden.pop();
     const davor = perioden[perioden.length - 1] || null;
+    const galtNie = ersetzt ? [...ersetzt.nieGenommen, ...ersetzt.eintraege.map((x) => ({ d: x, durch: d }))] : [];
     // Berichtigt auf die Menge davor (75 → 100 ab 10.09., am selben Tag
     // berichtigt auf 75): Der ersetzte Eintrag galt keinen Tag, die 75 µg
     // gelten weiter – eine Periode, kein Wechsel.
     if (ersetzt && davor && aenderungsArt(d, davor.d) === 'doppelt') {
       davor.eintraege.push(d);
       davor.d = d;
+      davor.nieGenommen.push(...galtNie);
+      // Hatte der ersetzte Eintrag die Menge davor berichtigt, ist das zurückgenommen.
+      if (davor.berichtigtDurch === ersetzt) davor.berichtigtDurch = null;
+      vorher = d;
       return;
     }
     const p = {
       d, erster: d, ab: d.ab, eintraege: [d], art: davor ? aenderungsArt(d, davor.d) : 'beginn',
       berichtigung, ersetzt, berichtigtDurch: null, geplant: d.ab > heute,
+      aenderung: Boolean(davor) && !(berichtigung && !ersetzt && vorher.ab === d.ab),
+      nieGenommen: galtNie,
     };
     // Ersetzt die Berichtigung einen Eintrag vom selben Tag, war die Menge
     // DIESES Eintrags falsch – nicht die der Periode davor.
     if (davor && berichtigung && !ersetzt) davor.berichtigtDurch = p;
+    if (davor && ersetzt && davor.berichtigtDurch === ersetzt) davor.berichtigtDurch = p;
     perioden.push(p);
+    vorher = d;
+  });
+  // G11: Die Einträge, die eine Berichtigung nach ihrem „Gilt ab" ersetzt,
+  // gehören zum Zeitraum dieser Berichtigung.
+  statt.forEach((b, x) => {
+    const p = perioden.find((q) => q.eintraege.includes(b));
+    if (p) p.nieGenommen.push({ d: x, durch: b });
   });
   return perioden;
+}
+
+/**
+ * Runde 6: G11, G15 – die Dosis-Einträge, die nie galten: ersetzt durch eine
+ * Berichtigung am selben Tag oder nach deren „Gilt ab". Für die Stellen, die
+ * einzelne Einträge brauchen (etwa den doppelten Eintrag nach einem Befund,
+ * D0.5), statt der Zeiträume. → Map Eintrag → die Berichtigung
+ */
+export function nieGegolten(stand, heute) {
+  const m = new Map();
+  dosisVerlauf(stand, heute).forEach((p) => p.nieGenommen.forEach((x) => m.set(x.d, x.durch)));
+  return m;
+}
+
+/** Die Dosis-Einträge, die galten (ohne nieGegolten), in ihrer Reihenfolge. */
+export function dosenDieGalten(stand, heute) {
+  const nie = nieGegolten(stand, heute);
+  return stand.dosen.filter((d) => !nie.has(d));
+}
+
+/*
+ * Runde 6: G11 – je nie genommenem Eintrag ein Satz für den Abschnitt DOSIS
+ * des Arztberichts (js/bericht.js). Ohne ihn verschwand mit dem wahren
+ * Beginn der Berichtigung auch die Nachricht, dass eine angeordnete Dosis
+ * nie umgesetzt wurde – gerade die braucht die Ärztin, bevor sie von einem
+ * Kontrollwert aus weiterrechnet. Mit Mengen wie die übrigen Zeilen dort.
+ */
+export function nieGenommenZeilen(stand, heute) {
+  return dosisVerlauf(stand, heute).flatMap((p) => p.nieGenommen).sort((a, b) => a.d.ab.localeCompare(b.d.ab))
+    .map(({ d, durch }) => `Berichtigung (Angabe): Ab ${kurz(d.ab)} war ${sp.dosisText(d)} eingetragen${d.praxis === true ? ' (auf Anweisung der Praxis)' : ''} – nach Angabe der Patientin nie genommen; stattdessen ${sp.dosisText(durch)}.`);
 }
 
 /**
@@ -794,7 +876,7 @@ export function befundEinschaetzen(befund, stand, heute) {
     const text = hypophyse ? hypophyseText(m.f, befund.ft4, { stufe }) : `${tshText} fT4 liegt ${LAGE_TEXT[m.f.genau]} – das sollte die Praxis sehen.`;
     const erklaerungen = erklaerungenFuer(befund, m, stand, heute);
     erklaerungen.forEach((e) => regeln.push(e.id));
-    const verlauf = verlaufTexte(befund, stand, verlaufRechnen(befund, stand), stufe, m.tsh, { hypophyse });
+    const verlauf = verlaufTexte(befund, stand, verlaufRechnen(befund, stand), stufe, m.tsh, { hypophyse, heute });
     verlauf.forEach((v) => regeln.push(v.id));
     praxisZusatz.forEach((z) => regeln.push(z.id));
     regeln.push({ tage: 'L3a', zeitnah: 'L3b', termin: 'L3c', keine: 'L3d' }[stufe]);
@@ -956,7 +1038,7 @@ export function befundEinschaetzen(befund, stand, heute) {
 
   const erklaerungen = erklaerungenFuer(befund, m, stand, heute);
   erklaerungen.forEach((e) => regeln.push(e.id));
-  const verlauf = verlaufTexte(befund, stand, verlaufInfo, stufe, tsh, { hypophyse });
+  const verlauf = verlaufTexte(befund, stand, verlaufInfo, stufe, tsh, { hypophyse, heute });
   verlauf.forEach((v) => regeln.push(v.id));
   zusaetze.forEach((z) => { if (!regeln.includes(z.id)) regeln.push(z.id); });
 
@@ -1176,7 +1258,7 @@ function wertMitEinheit(a, b) {
  * `hypophyse`: Beim Behandlungsgrund Hirnanhangdrüse sagt die Richtung des
  * TSH nichts über die Hormonmenge – dann nur die Zahlen, ohne Übersetzung.
  */
-function verlaufTexte(befund, stand, info, stufe, tsh, { hypophyse = false } = {}) {
+function verlaufTexte(befund, stand, info, stufe, tsh, { hypophyse = false, heute = null } = {}) {
   const t = [];
   const v = info.vorher;
   if (v && !info.vergleichbar) {
@@ -1209,8 +1291,15 @@ function verlaufTexte(befund, stand, info, stufe, tsh, { hypophyse = false } = {
     const dA = dosisAmIn(stand, v.datum);
     const dB = dosisAmIn(stand, befund.datum);
     if (dA && dB) {
-      const geaendert = stand.dosen.some((d) => d.ab > v.datum && d.ab <= befund.datum && sp.tagesdosis(d) !== sp.tagesdosis(dA));
-      s += geaendert ? ' Dazwischen wurde die Dosis geändert.' : ' Die Dosis war in dieser Zeit gleich.';
+      // Runde 6: G15 – aus den Zeiträumen wie Bericht und Karte: Ein Eintrag,
+      // den eine Berichtigung am selben Tag ersetzt, galt nie und ist keine
+      // Änderung. Beginnt dazwischen nur eine Berichtigung (seit wann, ist
+      // offen), sagt der Satz genau das – weder „geändert" noch „gleich".
+      const dazwischen = dosisVerlauf(stand, heute || befund.datum).filter((p) => p.ab > v.datum && p.ab <= befund.datum);
+      const nurBerichtigt = (p) => p.berichtigung && !p.ersetzt;
+      const geaendert = dazwischen.some((p) => !nurBerichtigt(p) && sp.tagesdosis(p.d) !== sp.tagesdosis(dA));
+      s += geaendert ? ' Dazwischen wurde die Dosis geändert.'
+        : dazwischen.some(nurBerichtigt) ? ' Dazwischen wurde die eingetragene Dosis berichtigt.' : ' Die Dosis war in dieser Zeit gleich.';
     }
     if (v.abnahmeUhr && befund.abnahmeUhr) {
       const min = (u) => Number(u.slice(0, 2)) * 60 + Number(u.slice(3));
@@ -1254,6 +1343,73 @@ export function hatDiabetes(stand) {
   return stand.mittel.includes('diabetes') || stand.mittel.includes('metformin') || stand.profil.diabetes === 'ja';
 }
 
+/*
+ * Runde 6: G18 – feste Grenzen für weitere Werte, bei denen im Alter Gefahr
+ * besteht. Vorher ordnete die App sie nur gegen den Laborbereich ein (RW1 L9,
+ * RW2 E13f): Natrium 118 mmol/l hieß „Beim nächsten Termin", Hb 6,5 g/dl
+ * „innerhalb von ein bis zwei Wochen", CRP 240 mg/l „Beim nächsten Termin" –
+ * als oberste Einschätzung auf „Heute" eine Entwarnung für Werte, die noch am
+ * selben Tag abgeklärt gehören. RW2 nennt als Grund für die fehlenden
+ * Schwellen nur, dass kein Prüfer welche genannt hat. Die Werte in der
+ * Standardeinheit (inStandard: Natrium mmol/l, Hb g/dl, CRP mg/l), also auch
+ * nach Umrechnung (Hb 4,0 mmol/l = 6,4 g/dl; CRP 24 mg/dl = 240 mg/l):
+ *
+ * - Natrium unter 125 mmol/l → heute, 125–129 → tage: Die europäische
+ *   Leitlinie zur Hyponatriämie (Spasovski G. et al., ESE/ESICM/ERA-EDTA,
+ *   Eur J Endocrinol 2014;170:G1–G47) nennt unter 125 „schwer" (Gefahr von
+ *   Verwirrtheit, Sturz, Krampfanfall), 125–129 „mäßig".
+ * - Natrium über 155 mmol/l → heute, 151–155 → tage: Für die Hypernatriämie
+ *   gibt es keine vergleichbare Leitlinie; über 155 mmol/l gilt in der
+ *   Literatur meist als schwer und bedeutet im Alter fast immer eine
+ *   gefährliche Austrocknung.
+ * - Hb unter 7 g/dl → heute, unter 8 g/dl → tage: Ab hier wird eine
+ *   Transfusion erwogen (Querschnitts-Leitlinien der Bundesärztekammer zur
+ *   Therapie mit Blutkomponenten, Gesamtnovelle 2020; AABB-Leitlinie, Carson
+ *   JL et al., JAMA 2023;330:1892–1902: Schwelle 7 g/dl, bei
+ *   Herz-Kreislauf-Erkrankung 8 g/dl). Mit Marcumar jeder Wert unter dem
+ *   Bereich → tage: Dahinter kann eine unbemerkte Blutung stecken.
+ * - CRP über 100 mg/l → heute: spricht für eine schwere bakterielle
+ *   Infektion (NICE-Leitlinie CG191 „Pneumonia in adults", 2014: über
+ *   100 mg/l Antibiotikum).
+ *
+ * Die Schwellen muss die Ärztin bestätigen (RW1 Grundsatz 11b); RW1 L9 und
+ * RW2 E13f sind entsprechend nachzutragen. Keine Diagnose – nur die Frist,
+ * mit „falls sich die Praxis nicht schon gemeldet hat" wie L3a, und der
+ * 112-Satz für Zeichen, bei denen es nicht warten kann.
+ */
+const HEUTE_ANRUFEN = 'Bitte rufen Sie heute noch in der Praxis an – falls sich die Praxis nicht schon bei Ihnen gemeldet hat. Außerhalb der Sprechzeiten: Ärztlicher Bereitschaftsdienst 116 117.';
+const TAGE_ANRUFEN = 'Bitte rufen Sie in den nächsten Tagen in der Praxis an – falls sich die Praxis nicht schon bei Ihnen gemeldet hat.';
+export const GEFAHR_GRENZEN = {
+  natrium: { heuteUnter: 125, tageUnter: 130, tageUeber: 150, heuteUeber: 155 },
+  hb: { heuteUnter: 7, tageUnter: 8 },
+  crp: { heuteUeber: 100 },
+};
+function gefahrStufe(key, std, { unter = false, marcumar = false } = {}) {
+  const g = GEFAHR_GRENZEN[key];
+  if (!g || std === null) return null;
+  if (key === 'natrium') {
+    const zeichen = 'Bei Verwirrtheit, starker Schläfrigkeit, einem Krampfanfall oder einem Sturz: sofort 112.';
+    if (std < g.heuteUnter || std > g.heuteUeber) {
+      return { stufe: 'heute', text: `Der Natriumwert (Salz im Blut) ist stark ${std < g.heuteUnter ? 'erniedrigt' : 'erhöht'}. ${HEUTE_ANRUFEN} ${zeichen}` };
+    }
+    if (std < g.tageUnter || std > g.tageUeber) {
+      return { stufe: 'tage', text: `Der Natriumwert (Salz im Blut) ist deutlich ${std < g.tageUnter ? 'erniedrigt' : 'erhöht'}. ${TAGE_ANRUFEN} ${zeichen}` };
+    }
+  }
+  if (key === 'hb') {
+    const zeichen = 'Bei Atemnot, Schmerzen in der Brust, Ohnmacht oder schwarzem Stuhl: sofort 112.';
+    if (std < g.heuteUnter) return { stufe: 'heute', text: `Der Wert spricht für eine starke Blutarmut. ${HEUTE_ANRUFEN} ${zeichen}` };
+    if (std < g.tageUnter) return { stufe: 'tage', text: `Der Wert spricht für eine deutliche Blutarmut. ${TAGE_ANRUFEN} ${zeichen}` };
+    if (unter && marcumar) {
+      return { stufe: 'tage', text: `Der Wert spricht für eine Blutarmut. Weil Sie Marcumar nehmen, sollte die Praxis bald klären, woher sie kommt. ${TAGE_ANRUFEN} ${zeichen}` };
+    }
+  }
+  if (key === 'crp' && std > g.heuteUeber) {
+    return { stufe: 'heute', text: `Der Entzündungswert ist sehr hoch. Das kann auf eine schwere Infektion hinweisen. ${HEUTE_ANRUFEN} Bei hohem Fieber, Atemnot oder Verwirrtheit: sofort 112.` };
+  }
+  return null;
+}
+
 /** Einordnung der freiwilligen Werte eines Befunds. */
 export function weitereWerte(befund, stand) {
   const liste = [];
@@ -1276,6 +1432,16 @@ export function weitereWerte(befund, stand) {
         ? 'Der Wert passt nicht gut zur gewählten Einheit. Bitte tragen Sie den Bereich vom Befund ein (steht meist neben dem Wert) – dann ordnet die App den Wert ein.'
         : 'Der Wert passt nicht zur gewählten Einheit – bitte prüfen. Bis dahin ordnet die App ihn nicht ein.');
       liste.push({ key, name, wert: w, stufe, texte });
+      return;
+    }
+    // Runde 6: G18 – feste Grenzen für Werte, die im Alter lebensbedrohlich
+    // sein können, VOR dem Laborbereich (siehe GEFAHR_GRENZEN). Die Frist steht
+    // im Text selbst; ein Satz mit einer niedrigeren Frist („innerhalb von ein
+    // bis zwei Wochen") darf darunter nicht stehen (L3f). Nie „notruf" aus einem
+    // Laborwert (RW1 Grundsatz 5) – nur der gezielte 112-Satz wie bei L3e.
+    const gefahr = gefahrStufe(key, std, { unter, marcumar: stand.mittel.includes('marcumar') });
+    if (gefahr) {
+      liste.push({ key, name, wert: w, stufe: gefahr.stufe, texte: [gefahr.text], auffaellig: true });
       return;
     }
     switch (key) {
@@ -1449,7 +1615,9 @@ export function beschwerdenAuswerten(stand, heute) {
   // Änderung (Entscheidung 3) – beim Einrichten beginnt er am Einrichtungstag,
   // oft nach dem nachgetragenen Befund (B20). Beim Behandlungsgrund
   // Hirnanhangdrüse zählt die Richtung aus fT4, nicht das TSH-Muster (B12).
-  if (frisch && !stand.dosen.some((d, i) => i > 0 && d.ab > letzter.befund.datum && d.ab <= heute)) {
+  // Runde 6: G15 – „Änderung" wie überall (aenderungen): Ein doppelter oder
+  // am selben Tag berichtigter Eintrag ändert nichts an der Dosis.
+  if (frisch && !aenderungen(stand, heute).some((d) => d.ab > letzter.befund.datum && d.ab <= heute)) {
     const r = letzter.gruppe;
     const wenigLabor = letzter.hypophyse ? letzter.richtung === 'wenig' : ['b', 'c'].includes(r);
     const vielLabor = letzter.hypophyse ? letzter.richtung === 'viel' : ['d', 'e'].includes(r);
@@ -1475,6 +1643,19 @@ export function notfallWorte(text) {
 
 // ---------------------------------------------------------------- Warnzeichen (W0–W5)
 
+/*
+ * Runde 6: G19 – Blutungen unter Marcumar klar abgegrenzt: W1 hieß nur
+ * „Starke Blutung, die nicht aufhört", der Marcumar-Punkt (W2h, heute
+ * anrufen) aber „Nasenbluten, das nicht aufhört". Wer so ein Nasenbluten
+ * hatte, fand es wörtlich im W2h-Punkt und bekam „heute anrufen" – unter
+ * Blutverdünnung ist Nasenbluten, das sich trotz Zudrücken nicht stillen
+ * lässt, ein Notfall (Patienteninformation Phenprocoumon, Deutsche
+ * Herzstiftung). Jetzt nennt W1 das Nasenbluten nach 15 Minuten Zudrücken,
+ * Bluterbrechen und schwarzen Stuhl; W2h die Blutungszeichen, die nicht
+ * warten sollen, aber kein Notfall sind („Blut im Stuhl" bleibt dort – sonst
+ * hieße eine Hämorrhoidenblutung 112). Die Schlüssel bleiben, gespeicherte
+ * Checks gelten weiter. RW1 W1, W2h und M7 sind entsprechend nachzutragen.
+ */
 export const WARNFRAGEN = [
   { key: 'brust', gruppe: 'w1', text: 'Schmerzen oder Engegefühl in der Brust' },
   { key: 'herzrasen', gruppe: 'w1', text: 'Plötzliches starkes Herzrasen oder Herzstolpern mit Schwindel' },
@@ -1485,7 +1666,7 @@ export const WARNFRAGEN = [
   { key: 'verwirrt', gruppe: 'w1', text: 'Plötzliche, neue Verwirrtheit' },
   { key: 'kalt', gruppe: 'w1', text: 'Körpertemperatur unter 35 °C oder starkes Auskühlen' },
   { key: 'fieber', gruppe: 'w1', text: 'Hohes Fieber zusammen mit Herzrasen und starker Unruhe oder Verwirrtheit' },
-  { key: 'blutung', gruppe: 'w1', text: 'Starke Blutung, die nicht aufhört' },
+  { key: 'blutung', gruppe: 'w1', text: 'Starke Blutung, die nicht aufhört – auch Nasenbluten, das nach 15 Minuten Zudrücken nicht steht, Bluterbrechen oder schwarzer, teerartiger Stuhl' },
   { key: 'packung', gruppe: 'w4a', text: 'Auf einmal eine große Menge Schilddrüsen-Tabletten eingenommen (z. B. eine halbe oder ganze Packung)' },
   { key: 'mehrere', gruppe: 'w4a', text: 'Heute mehr als eine Tablette zu viel auf einmal genommen' },
   { key: 'lebensmuede', gruppe: 'w5', text: 'So niedergeschlagen, dass Sie manchmal nicht mehr leben möchten' },
@@ -1494,7 +1675,7 @@ export const WARNFRAGEN = [
   { key: 'erbrechen', gruppe: 'w2h', text: 'Erbrechen länger als einen Tag oder Durchfall über mehrere Tage' },
   { key: 'zuviele', gruppe: 'w2h', text: 'Über mehrere Tage versehentlich zu viele Schilddrüsen-Tabletten genommen' },
   { key: 'keine_tabletten', gruppe: 'w2h', text: 'Keine Schilddrüsen-Tabletten mehr im Haus' },
-  { key: 'blutungszeichen', gruppe: 'w2h', text: 'Blutungszeichen: Nasenbluten, das nicht aufhört, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund', nurWenn: 'marcumar' },
+  { key: 'blutungszeichen', gruppe: 'w2h', text: 'Blutungszeichen: Nasen- oder Zahnfleischbluten, das öfter kommt, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund', nurWenn: 'marcumar' },
   { key: 'unruhe', gruppe: 'w2t', text: 'Zittern oder innere Unruhe seit Tagen' },
   { key: 'abnahme', gruppe: 'w2t', text: 'Ungewollt abgenommen – mehr als 5 % des Gewichts in wenigen Monaten (z. B. 3 kg bei 60 kg)' },
   { key: 'muede_frieren', gruppe: 'w2t', text: 'Neue starke Müdigkeit oder ständiges Frieren seit Wochen' },
@@ -1593,7 +1774,11 @@ function checkAbschnitte(ja, stand, in_) {
   // Vorher gab es nur den Knopf 116 117, auf der Ergebnisseite des Checks
   // und in der Einschätzung ohne Notfallleiste (Runde 4: E19).
   if (!in_('w4a') && in_('w2h')) {
-    abschnitte.push({ id: 'W2h', stufe: 'heute', text: 'Bitte rufen Sie heute noch in der Praxis an. Außerhalb der Sprechzeiten: Ärztlicher Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.', anrufe: [TEL_116, TEL_112] });
+    // G19: Bei Blutungszeichen steht die Grenze zum Notfall gleich daneben –
+    // wer „Nasenbluten, das nicht aufhört" hier sucht, liest, ab wann es 112 ist.
+    const blutung = ja.includes('blutungszeichen') && warnfragenFuer(stand).some((f) => f.key === 'blutungszeichen')
+      ? ' Hört eine Blutung nicht auf – etwa Nasenbluten, das nach 15 Minuten Zudrücken nicht steht –, erbrechen Sie Blut oder ist der Stuhl schwarz: sofort 112.' : '';
+    abschnitte.push({ id: 'W2h', stufe: 'heute', text: `Bitte rufen Sie heute noch in der Praxis an. Außerhalb der Sprechzeiten: Ärztlicher Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.${blutung}`, anrufe: [TEL_116, TEL_112] });
   }
   if (!in_('w4a') && !in_('w2h') && in_('w2t')) {
     abschnitte.push({ id: 'W2t', stufe: 'tage', text: 'Bitte rufen Sie in den nächsten Tagen in der Praxis an. Wenn es nicht warten kann und die Praxis geschlossen ist: 116 117.', anrufe: [TEL_116] });
@@ -1602,8 +1787,13 @@ function checkAbschnitte(ja, stand, in_) {
   // dem Giftnotruf (W4a) und nicht, wenn über Tage zu viele genommen wurden:
   // Kein Text darf eine niedrigere Stufe nennen als die oben (L3f).
   if (in_('w4b') && !in_('w4a') && !ja.includes('zuviele')) {
-    let t = 'Eine einzelne versehentlich doppelte Tablette ist in der Regel unbedenklich. Nehmen Sie die nächste Tablette wie gewohnt und erwähnen Sie es beim nächsten Kontakt mit der Praxis. Bitte lassen Sie deshalb keine Tablette weg.';
-    if (stand.profil.praeparatArt === 't3' || stand.profil.herz === 'ja') t += ' Wenn heute Herzklopfen oder Unruhe auftreten, rufen Sie die Praxis an.';
+    // Runde 6: G22 – Die Wirkung von L-Thyroxin setzt verzögert ein; Beschwerden
+    // nach einer doppelten Tablette kommen eher nach Tagen (so auch das Wissen,
+    // „Tablette vergessen?"). „Wenn heute Herzklopfen …", nur bei Herz oder T3,
+    // verengte das auf einen Tag – am nächsten stand nichts mehr da. Jetzt für
+    // alle und für die nächsten Tage; bedingt formuliert, die Stufe bleibt
+    // „Termin" (RW1 W4b: keine Anruf-Aufforderung ohne Beschwerden).
+    const t = 'Eine einzelne versehentlich doppelte Tablette ist in der Regel unbedenklich. Nehmen Sie die nächste Tablette wie gewohnt und erwähnen Sie es beim nächsten Kontakt mit der Praxis. Bitte lassen Sie deshalb keine Tablette weg. Beschwerden können verzögert kommen: Wenn in den nächsten Tagen Herzklopfen, Unruhe oder Zittern auftreten, rufen Sie die Praxis an.';
     abschnitte.push({ id: 'W4b', stufe: 'termin', text: t, anrufe: [] });
   }
   if (!abschnitte.length) abschnitte.push({ id: 'W3', stufe: 'termin', text: W3_TEXT, anrufe: [] });
@@ -1621,8 +1811,18 @@ function plusMinuten(hhmm, min) {
 const uhr = (hhmm) => `${Number(hhmm.slice(0, 2))}:${hhmm.slice(3)} Uhr`;
 
 const M1_MITTEL = ['kalzium', 'eisen', 'magnesium', 'multimineral', 'antazida', 'sucralfat', 'phosphatbinder', 'orlistat', 'soja', 'ballaststoffe'];
-/** Mittel mit Abstandsfrage (P7): Aufnahmehemmer, Colestyramin, Kaffee. */
-export const ABSTAND_MITTEL = { ...Object.fromEntries(M1_MITTEL.map((k) => [k, 240])), colestyramin: 300, kaffee: 60 };
+/*
+ * Mittel mit Abstandsfrage (P7): Aufnahmehemmer, Colestyramin, Kaffee – in
+ * Minuten; „Über mich" fragt damit „mindestens … Abstand".
+ *
+ * Runde 6: G21 – Kaffee 30 statt 60 Minuten. Plan (M3: „frühestens nach 30,
+ * besser nach 60 Minuten"), Wissen, Q2 und die Fachinformation sagen 30 als
+ * Mindestabstand; nur die Frage verlangte 60 (RW1 P7). Wer dem Plan folgte,
+ * musste „nein" antworten, bekam auf der Dosis-Karte D0.8 („Halten Sie
+ * zuerst jeden Tag die Abstände ein") und im Arztbericht „Abstand
+ * eingehalten: nein". „Besser 60" steht weiter im Plan. RW1 P7 nachtragen.
+ */
+export const ABSTAND_MITTEL = { ...Object.fromEntries(M1_MITTEL.map((k) => [k, 240])), colestyramin: 300, kaffee: 30 };
 
 /**
  * Der persönliche Plan: je Mittel ein Eintrag, dazu immer Frühstück (M3) und
@@ -1689,7 +1889,8 @@ export function abstandPlan(stand) {
   ['oestrogen_tablette', 'tamoxifen'].filter(hat).forEach((k) => add('M5', k, mittelName(k), null, `${k === 'tamoxifen' ? 'Tamoxifen' : 'Östrogen als Tablette'} kann den Bedarf an Schilddrüsenhormon erhöhen. Etwa 6–8 Wochen (bis 12 Wochen) nach Beginn oder Absetzen sollte TSH kontrolliert werden.`));
   if (hat('oestrogen_haut')) add('M5', 'oestrogen_haut', mittelName('oestrogen_haut'), null, 'Östrogen als Pflaster, Gel oder Spray beeinflusst die Schilddrüsen-Tablette kaum.');
   if (hat('biotin')) add('M6', 'biotin', mittelName('biotin'), null, 'Biotin (auch in Haar-, Haut- und Nägel-Mitteln und Vitamin-B-Komplexen) kann Laborwerte verfälschen. Vor jeder Blutabnahme mindestens 3 Tage weglassen, bei hoch dosierten Präparaten bis zu 1 Woche. Sagen Sie der Praxis, dass Sie Biotin nehmen. Wurde Biotin ärztlich verordnet, die Pause nur nach Rücksprache.');
-  if (hat('marcumar')) add('M7', 'marcumar', mittelName('marcumar'), null, 'Marcumar/Phenprocoumon: Mehr Schilddrüsenhormon verstärkt die Blutverdünnung. Nach jeder Dosisänderung oder jedem Präparatwechsel der Schilddrüsen-Tablette die Gerinnung (INR) früher kontrollieren lassen, etwa innerhalb von 1–2 Wochen – bitte die Praxis informieren, die Ihren Marcumar-Ausweis führt. Bei Blutungszeichen (Nasenbluten, das nicht aufhört, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund) heute die Praxis anrufen, bei starker Blutung 112.');
+  // Runde 6: G19 – dieselbe Grenze zum Notfall wie im Warnzeichen-Check (W1/W2h).
+  if (hat('marcumar')) add('M7', 'marcumar', mittelName('marcumar'), null, 'Marcumar/Phenprocoumon: Mehr Schilddrüsenhormon verstärkt die Blutverdünnung. Nach jeder Dosisänderung oder jedem Präparatwechsel der Schilddrüsen-Tablette die Gerinnung (INR) früher kontrollieren lassen, etwa innerhalb von 1–2 Wochen – bitte die Praxis informieren, die Ihren Marcumar-Ausweis führt. Bei Blutungszeichen (Nasen- oder Zahnfleischbluten, das öfter kommt, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund) heute die Praxis anrufen. Bei Nasenbluten, das nach 15 Minuten Zudrücken nicht steht, einer anderen starken Blutung, Bluterbrechen oder schwarzem Stuhl: sofort 112.');
   if (hatDiabetes(stand)) add('M8', hat('diabetes') ? 'diabetes' : 'metformin', 'Diabetes-Mittel', null, 'Diabetes-Mittel oder Insulin: Nach einer Dosisänderung der Schilddrüsen-Tablette den Blutzucker in den folgenden Wochen häufiger messen und Auffälligkeiten Ihrer Diabetes-Praxis melden.');
   ['amiodaron', 'jod', 'lithium', 'krebsmittel'].filter(hat).forEach((k) => add('M9', k, mittelName(k), null, `${kurzName(k)} kann die Schilddrüse direkt beeinflussen. Bitte mit der Praxis abstimmen, die Ihre Schilddrüse behandelt – Kontrollen sind hier besonders wichtig.${k === 'jod' ? ' Algen- und Kelp-Präparate besser meiden.' : ''}`));
   if (hat('selen')) add('M11', 'selen', mittelName('selen'), null, 'Selen: Ein Nutzen für das Befinden oder die Einstellung ist nicht belegt, und zu viel Selen kann schaden. Bitte nur nach Rücksprache mit Ihrer Ärztin.');
@@ -1705,7 +1906,9 @@ export function abstandPlan(stand) {
 
 // ---------------------------------------------------------------- Kontrollen (L0d, L7, L8, E7)
 
-const L7B_MITTEL = ['ppi', 'oestrogen_tablette', 'tamoxifen', 'raloxifen', 'kalzium', 'eisen', 'enzyminduktor', 'lithium', 'amiodaron'];
+// Exportiert für „Über mich" (Runde 6: G20): Der Satz, bei welchen Mitteln die
+// App an die Kontrolle erinnert, entsteht aus dieser Liste.
+export const L7B_MITTEL = ['ppi', 'oestrogen_tablette', 'tamoxifen', 'raloxifen', 'kalzium', 'eisen', 'enzyminduktor', 'lithium', 'amiodaron'];
 
 /**
  * Der Termin mit Blutabnahme an `heute` – oder null. Mit `jetzt` („HH:MM")
@@ -1783,8 +1986,11 @@ export function kontrolleHinweise(stand, heute) {
     const d = letzter.befund.datum;
     const danachOhneTsh = stand.labor.some((l) => l.datum > d && l.datum <= heute);
     const damals = sp.tagesdosis(dosisAmIn(stand, d));
-    const dosisGeaendert = stand.dosen.some((x, i) => i > 0 && !x.berichtigung && x.ab > d && x.ab <= heute
-      && sp.tagesdosis(x) !== null && sp.tagesdosis(x) !== damals);
+    // Runde 6: G15 – aus den Zeiträumen: Ein Eintrag, den eine Berichtigung
+    // am selben Tag ersetzt, galt nie; eine Berichtigung mit eigenem Beginn
+    // ist keine Änderung (seit wann, ist offen) – eine am selben Tag schon.
+    const dosisGeaendert = dosisVerlauf(stand, heute).some((p) => p.aenderung && !(p.berichtigung && !p.ersetzt) && p.ab > d && p.ab <= heute
+      && sp.tagesdosis(p.d) !== null && sp.tagesdosis(p.d) !== damals);
     add('L7d', 'zeitnah', dosisGeaendert || danachOhneTsh
       ? `Seit Ihrem auffälligen Befund vom ${kurz(d)} ${dosisGeaendert ? 'wurde die Dosis geändert, TSH aber nicht neu bestimmt' : 'wurde TSH nicht neu bestimmt'}. Bitte fragen Sie in der Praxis, wann TSH kontrolliert werden soll.`
       : 'Ihr letzter Befund war auffällig, und seitdem wurde nicht neu kontrolliert. Bitte fragen Sie in der Praxis, wann kontrolliert werden soll.');
@@ -2092,6 +2298,62 @@ export function warnBeschwerden(stand, heute, tage = 56) {
   })).filter((x) => x.daten.length);
 }
 
+/*
+ * Der Bezug einer W-D4-Nachfrage: Kennung der Dosis und Tag („d2-14") –
+ * genau wie in js/dosis.js (Runde 5: F28): Eine lange Kennung wird gekürzt
+ * und mit einer Prüfsumme eindeutig gemacht, damit der Bezug in 40 Zeichen
+ * passt. Hier, damit der Bericht die Antwort ihrer Dosis zuordnen kann;
+ * dosis.js kann sie von hier importieren (umgekehrt wäre es ein Zirkel).
+ */
+export function wd4Bezug(id, tag) {
+  const bezug = `${id}-${tag}`;
+  if (bezug.length <= 40) return bezug;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193) >>> 0;
+  const pruef = h.toString(36);
+  return `${id.slice(0, 40 - pruef.length - 2 - String(tag).length)}_${pruef}-${tag}`;
+}
+
+/**
+ * Runde 6: G13 – die Antworten auf die Nachfragen nach einer Dosisänderung
+ * (RW2 W-D4: nach einer Erhöhung Herzklopfen, Unruhe, Brustschmerz; nach
+ * einer Senkung müder, mehr frieren). Sie sind Angaben der Patientin zu
+ * Warnbeschwerden und gehören wie die Warnzeichen-Checks in den Bericht,
+ * auch ohne P6 (Entscheidung Runde 5). Vorher standen sie dort nur drei Tage
+ * lang mittelbar als „Grund W-D4" – bei der Kontrolle 6 bis 8 Wochen nach
+ * der Erhöhung las die Ärztin nichts davon.
+ *
+ * Solange sie gilt: aus den letzten 90 Tagen wie die Checks, und darüber
+ * hinaus, bis ein neuer TSH-Wert da ist – für diesen Kontrollwert ist sie
+ * gedacht. „ja" und „nein".
+ * → [{ am, antwort, tag: 14|28|null, d: Dosis-Eintrag|null, art: 'mehr'|'weniger'|null }], der älteste zuerst
+ */
+export function wd4Angaben(stand, heute) {
+  const ab = tageWeiter(heute, -89);
+  const perioden = dosisVerlauf(stand, heute);
+  return stand.nachfragen
+    .filter((n) => n.art === 'wd4' && ['ja', 'nein'].includes(n.antwort) && n.am <= heute
+      && (n.am >= ab || !stand.labor.some((l) => l.tsh && l.datum > n.am && l.datum <= heute)))
+    .map((n) => {
+      let d = null;
+      let tag = null;
+      stand.dosen.forEach((x) => [14, 28].forEach((t) => { if (!d && wd4Bezug(x.id, t) === n.bezug) { d = x; tag = t; } }));
+      if (!d) tag = Number((/-(14|28)$/.exec(n.bezug) || [])[1]) || null;
+      // Erhöhung oder Senkung: die Menge dieses Eintrags gegen den Zeitraum davor.
+      let art = null;
+      const i = d ? perioden.findIndex((p) => p.eintraege.includes(d)) : -1;
+      if (i > 0) {
+        const alt = sp.tagesdosis(perioden[i - 1].d);
+        const neu = sp.tagesdosis(d);
+        if (alt !== null && neu !== null && alt !== neu) art = neu > alt ? 'mehr' : 'weniger';
+      }
+      // Nach 14 Tagen fragt die Karte nur nach einer Erhöhung.
+      if (!art && d && tag === 14) art = 'mehr';
+      return { am: n.am, antwort: n.antwort, tag, d, art };
+    })
+    .sort((a, b) => a.am.localeCompare(b.am));
+}
+
 const VERGESSEN_TEXT = { nein: 'nein', einzelne: 'einzelne Tage', mehrere: 'mehrere Tage', unbekannt: 'weiß nicht' };
 
 /*
@@ -2151,7 +2413,9 @@ function abschnittZeilen(stand, heute, mitEinschaetzung) {
     z.push(`  Ursache in der Hirnanhangdrüse oder TSH bewusst niedrig (Angabe): ${JNW_TEXT[p.hypophyseOderNiedrig || '']}.`);
   }
   if (stand.mittel.length) {
-    z.push(`Weitere Mittel (Angabe): ${stand.mittel.map((k) => `${kurzName(k)}${ABSTAND_MITTEL[k] ? ` (Abstand eingehalten: ${JNW_TEXT[stand.mittelAbstand[k] || '']})` : ''}`).join('; ')}.`);
+    // Runde 6: G21 – ein „nein" zu Kaffee auf die frühere Frage nach 60 Minuten sagt das dazu.
+    const alteFrage = (k) => (k === 'kaffee' && p.kaffeePruefen && stand.mittelAbstand.kaffee === 'nein' ? ' – Antwort auf die frühere Frage nach mindestens 60 Minuten' : '');
+    z.push(`Weitere Mittel (Angabe): ${stand.mittel.map((k) => `${kurzName(k)}${ABSTAND_MITTEL[k] ? ` (Abstand eingehalten: ${JNW_TEXT[stand.mittelAbstand[k] || '']}${alteFrage(k)})` : ''}`).join('; ')}.`);
   }
 
   // Die letzten drei Befunde mit TSH/fT4/fT3 und dazwischen die Einträge nur
@@ -2163,8 +2427,10 @@ function abschnittZeilen(stand, heute, mitEinschaetzung) {
     if (!befund) {
       // Nie „Befund vom …: ." – ein Eintrag ohne TSH/fT4/fT3 nennt seine Werte selbst.
       // Mit Einschätzung je Wert ihr Satz – ohne dessen Schlusspunkt, damit kein „.;" entsteht.
+      // Runde 6: G16 – der Satz ist die Einordnung der App, nicht vom Befund:
+      // Er steht als „Einordnung (App)" da, nicht unter „(Befund)".
       const ww = mitEinschaetzung
-        ? weitereWerte(l, stand).map((x) => `${rohZeile(x.name, x.wert)}${x.texte.length ? ` – ${x.texte[0].replace(/\.$/, '')}` : ''}`)
+        ? weitereWerte(l, stand).map((x) => `${rohZeile(x.name, x.wert)}${x.texte.length ? ` – Einordnung (App): ${x.texte[0].replace(/\.$/, '')}` : ''}`)
         : sp.WEITERE_WERTE.map(([k, name]) => rohZeile(name, l[k])).filter(Boolean);
       const zeile = `Weitere Werte vom ${kurz(l.datum)} (Befund): ${ww.join('; ')}${l.laborName ? `; Labor: ${l.laborName}` : ''}`;
       z.push(/[.?!]$/.test(zeile) ? zeile : `${zeile}.`);
@@ -2219,7 +2485,11 @@ function abschnittZeilen(stand, heute, mitEinschaetzung) {
     } else if (e.hinweise.length) {
       z.push(`  Einordnung (App): keine – ${e.hinweise.join(' ')}`);
     }
-    weitereWerte(l, stand).forEach((ww) => z.push(`  ${ww.name} ${wertText(ww.wert)} ${ww.wert.einheit}${ww.texte.length ? ` – ${ww.texte[0]}` : ''}`));
+    // Runde 6: G16 – wie jede Zeile des Abschnitts mit Herkunft und mit dem
+    // Laborbereich vom Befund: der Wert „(Befund)", der Satz „Einordnung (App)".
+    // Vorher stand „  Hämoglobin (Blutfarbstoff) 10,9 g/dl – Der Wert spricht
+    // für eine Blutarmut …" ohne Bereich und ohne Kennzeichnung da.
+    weitereWerte(l, stand).forEach((ww) => z.push(`  ${rohZeile(ww.name, ww.wert)} (Befund)${ww.texte.length ? ` – Einordnung (App): ${ww.texte[0]}` : ''}`));
   });
 
   const genannt = [...genanntIn(stand, heute, 28)];
@@ -2237,6 +2507,18 @@ function abschnittZeilen(stand, heute, mitEinschaetzung) {
   checks.forEach((c) => {
     const namen = c.ja.map((k) => (WARNFRAGEN.find((f) => f.key === k) || { text: k }).text);
     z.push(`Warnzeichen-Check vom ${kurz(c.datum)}${c.uhr ? ` ${uhr(c.uhr)}` : ''} (Angabe): ${namen.length ? namen.join('; ') : 'nichts angekreuzt'}.`);
+  });
+  // Runde 6: G13 – die Antworten auf die Nachfragen nach einer Dosisänderung (W-D4).
+  wd4Angaben(stand, heute).forEach((n) => {
+    const antwort = JNW_TEXT[n.antwort];
+    const wann = `beantwortet am ${kurz(n.am)} (Angabe)`;
+    if (n.art === 'mehr') {
+      z.push(`Nachfrage ${n.tag} Tage nach der Erhöhung vom ${kurz(n.d.ab)}, ${wann}: Herzklopfen, Herzrasen, innere Unruhe, Zittern, schlechter Schlaf oder Schmerzen in der Brust seit der Erhöhung: ${antwort}.`);
+    } else if (n.art === 'weniger') {
+      z.push(`Nachfrage ${n.tag} Tage nach der Senkung vom ${kurz(n.d.ab)}, ${wann}: deutlich müder oder mehr frieren seit der Senkung: ${antwort}.`);
+    } else {
+      z.push(`Nachfrage${n.tag ? ` ${n.tag} Tage` : ''} nach einer Dosisänderung${n.d ? ` vom ${kurz(n.d.ab)}` : ''}, ${wann}: Beschwerden seit der Änderung: ${antwort}.`);
+    }
   });
   return z;
 }

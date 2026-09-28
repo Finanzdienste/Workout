@@ -246,6 +246,16 @@ function leererStand() {
       // angekreuztes Mittel als „neu begonnen" – beim ersten Eintragen nimmt
       // man die meisten schon seit Jahren.
       mittelErfasst: false,
+      // Runde 6: G21 – Die Frage „Abstand eingehalten?" zu Kaffee oder Tee
+      // fragte bis Runde 6 nach 60 Minuten, Plan, Wissen und Q2 sagen aber
+      // „frühestens nach 30, besser nach 60 Minuten". Jetzt fragt sie nach 30.
+      // `kaffee30`: Dieser Stand kennt schon die neue Frage. `kaffeePruefen`:
+      // Das gespeicherte „nein" ist noch die Antwort auf die alte, strengere
+      // Frage. Es bleibt stehen (nie still Daten verwerfen), der Bericht sagt
+      // aber, worauf es sich bezog, und „Über mich" kann um eine neue Antwort
+      // bitten. Speichern der Mittel (mittelSetzen) gilt als neu beantwortet.
+      kaffee30: true,
+      kaffeePruefen: false,
     },
     // Weitere Mittel als Schlüssel aus MITTEL.
     mittel: [],
@@ -577,6 +587,9 @@ export function normStand(roh) {
       if (MITTEL.some(([m]) => m === k) && ['ja', 'nein', 'unbekannt'].includes(v)) s.mittelAbstand[k] = v;
     });
   }
+  // Runde 6: G21 – ein „nein" zu Kaffee aus einem Stand, der die neue Frage
+  // (30 statt 60 Minuten) noch nicht kannte, gehört zur alten Frage.
+  s.profil.kaffeePruefen = p.kaffee30 === true ? bool(p.kaffeePruefen) : s.mittelAbstand.kaffee === 'nein';
   s.mittelWechsel = liste(roh.mittelWechsel, (w) => (MITTEL.some(([m]) => m === w.key) && ['beginn', 'ende'].includes(w.art)
     ? { key: w.key, art: w.art, am: w.am } : null), 'am').sort((a, b) => a.am.localeCompare(b.am)).slice(-60);
   const e = roh.einstellungen || {};
@@ -610,8 +623,16 @@ export function normStand(roh) {
       // keine Änderung der Dosis, sondern eine Berichtigung dessen, was die App
       // wusste. Sie zählt nie als angeordnete Änderung (D0.5).
       berichtigung: bool(d.berichtigung),
+      // Runde 6: G11 – die Kennung des Eintrags, den die Berichtigung
+      // berichtigt (die Dosis, nach der die Karte gefragt hatte). Nur bei einer
+      // Berichtigung; siehe ersetztDurchBerichtigung().
+      ...(bool(d.berichtigung) && typeof d.statt === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(d.statt) ? { statt: d.statt } : {}),
     };
   }, 'ab').sort((a, b) => a.ab.localeCompare(b.ab));
+  // Ein Verweis auf einen Eintrag, den es nicht (mehr) gibt, sagt nichts mehr.
+  s.dosen.forEach((d) => {
+    if (d.statt && !s.dosen.some((x) => x !== d && x.id === d.statt)) delete d.statt;
+  });
 
   if (roh.einnahmen && typeof roh.einnahmen === 'object' && !Array.isArray(roh.einnahmen)) {
     Object.entries(roh.einnahmen).forEach(([tag, wert]) => {
@@ -890,10 +911,44 @@ export function aendern(fn) {
 
 // ---------------------------------------------------------------- Abfragen
 
-/** Die Dosis, die an `tag` gilt – die neueste mit ab <= tag. */
+/**
+ * Runde 6: G11 – Einträge, die eine Berichtigung ersetzt, obwohl sie erst
+ * nach deren „Gilt ab" beginnen. Ablauf: Eingetragen ist 100 µg ab 04.06.
+ * (angeordnet, aber nie umgestellt). Nach „Nein, ich nehme etwas anderes"
+ * trägt die Nutzerin 75 µg ein, und die Karte bittet, „Gilt ab" auf den Tag
+ * zu setzen, seit dem sie es nimmt – 2024. Dann lag die Berichtigung vor den
+ * 100 µg, und die 100 µg galten wieder als ihre Dosis: in Karte und
+ * Arztbericht, mit „auf Anweisung der Praxis", die Berichtigung war weg.
+ *
+ * Die Berichtigung kennt deshalb den Eintrag, den sie berichtigt (`statt`,
+ * vom Dosis-Formular gesetzt). Liegt er nach ihr, galt er nach ihrer Angabe
+ * nie – ebenso alles zwischen ihr und ihm: Sie nimmt ihre Menge seit ihrem
+ * „Gilt ab". Einträge nach dem berichtigten (etwa eine spätere Änderung der
+ * Praxis) bleiben. Rein, ohne gespeicherten Stand: Kern und Ansichten
+ * rechnen damit gleich. Liegt der berichtigte Eintrag davor, gilt die
+ * übliche Regel (js/einschaetzung.js, dosisVerlauf).
+ * → Map ersetzter Eintrag → die Berichtigung, die ihn ersetzt
+ */
+export function ersetztDurchBerichtigung(s) {
+  const weg = new Map();
+  s.dosen.forEach((b, i) => {
+    if (!b.berichtigung || !b.statt) return;
+    const j = s.dosen.findIndex((x) => x.id === b.statt);
+    for (let k = i + 1; k <= j; k++) if (!weg.has(s.dosen[k])) weg.set(s.dosen[k], b);
+  });
+  return weg;
+}
+
+/** Die Dosis-Einträge ohne die, die eine Berichtigung ersetzt (G11) – in ihrer Reihenfolge. */
+export function gueltigeDosen(s) {
+  const weg = ersetztDurchBerichtigung(s);
+  return weg.size ? s.dosen.filter((d) => !weg.has(d)) : s.dosen;
+}
+
+/** Die Dosis, die an `tag` gilt – die neueste mit ab <= tag (ohne ersetzte, G11). */
 export function dosisAm(tag = heuteISO()) {
   let gefunden = null;
-  for (const d of stand.dosen) {
+  for (const d of gueltigeDosen(stand)) {
     if (d.ab <= tag) gefunden = d;
   }
   return gefunden;
@@ -906,13 +961,13 @@ export function dosisAm(tag = heuteISO()) {
  * Irgendeine muss „Heute" nennen.
  */
 export function aktuelleDosis(tag = heuteISO()) {
-  return dosisAm(tag) || stand.dosen[0] || null;
+  return dosisAm(tag) || gueltigeDosen(stand)[0] || null;
 }
 
 /** Die nächste Dosis, die erst nach `tag` gilt – oder null. */
 export function naechsteDosis(tag = heuteISO()) {
   const jetzt = aktuelleDosis(tag);
-  return stand.dosen.find((d) => d.ab > tag && d !== jetzt) || null;
+  return gueltigeDosen(stand).find((d) => d.ab > tag && d !== jetzt) || null;
 }
 
 /**
@@ -1026,6 +1081,8 @@ export function mittelSetzen(neu, abstand = {}, heute = heuteISO()) {
     s.profil.mittelErfasst = true;
     // Das Formular zeigt die Rückfrage zum alten „Östrogen" – gespeichert ist beantwortet.
     s.profil.oestrogenPruefen = false;
+    // Ebenso die Kaffee-Frage: Gespeichert ist die Antwort auf die neue Frage (Runde 6: G21).
+    s.profil.kaffeePruefen = false;
   });
 }
 
@@ -1039,7 +1096,7 @@ export function naechsterTermin(heute = heuteISO()) {
  * Dosis (oder ganz ohne) die früheste bzw. eine Tablette – wie aktuelleDosis().
  */
 function tablettenAm(tag) {
-  const d = dosisAm(tag) || stand.dosen[0];
+  const d = dosisAm(tag) || gueltigeDosen(stand)[0];
   return d ? d.tabletten : 1;
 }
 

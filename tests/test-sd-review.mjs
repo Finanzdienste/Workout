@@ -2951,4 +2951,585 @@ for (const farbe of ['hell', 'dunkel']) {
   await b.close();
 }
 
+// ================================================================ Runde 6 – App
+//
+// Befunde aus der sechsten Durchsicht (G…), die js/app.js betreffen: eine
+// Änderung im anderen Fenster bei offenem Formular und beim Einrichten, der
+// gemerkte Reiter, die Rückfrage zur Praxis bei schon eingetragener Dosis,
+// das Datum der Sicherung und „Rückgängig" nach dem Zurücknehmen. Den
+// Service Worker (G1) prüft tests/test-sd-offline.mjs. Jeder Fall scheiterte
+// vor der Korrektur.
+
+/** Ein zweites Fenster derselben App im selben Browser – ein Tab neben der installierten App. */
+async function r6Fenster(k = ctx) {
+  const p = await k.newPage();
+  p.on('dialog', (d) => d.accept());
+  await p.goto(SD_URL, { waitUntil: 'networkidle' });
+  return p;
+}
+const r6Profil = async (p) => {
+  await p.click('#reiter-mehr');
+  await p.click('#ansicht [data-seite="profil"]');
+};
+const r6Lage = (p) => p.evaluate(() => {
+  const m = document.getElementById('meldung');
+  const r = m.getBoundingClientRect();
+  return {
+    meldung: m.classList.contains('zeigen') ? m.textContent : '',
+    rueckgaengig: m.querySelectorAll('[data-act="tablette-rueckgaengig"]').length,
+    links: Math.round(r.left), rechts: Math.round(r.right), breite: document.documentElement.scrollWidth,
+  };
+});
+/** Im zweiten Fenster „Herzerkrankung: Ja" speichern, während im ersten das Geburtsjahr getippt ist. */
+async function r6ZweiProfile(a, b) {
+  await r6Profil(a);
+  await r6Profil(b);
+  await a.fill('form[data-formular="profil"] input[name=geburtsjahr]', '1947');
+  await b.check('form[data-formular="profil"] input[name=herz][value=ja]', { force: true });
+  await b.click('form[data-formular="profil"] button[type=submit]');
+  await a.waitForTimeout(700);
+  return a.evaluate(() => ({
+    herzJa: Boolean(document.querySelector('form[data-formular="profil"] input[name=herz][value=ja]')?.checked),
+    jahr: document.querySelector('form[data-formular="profil"] input[name=geburtsjahr]')?.value ?? null,
+    fokus: document.activeElement ? document.activeElement.getAttribute('name') : null,
+  }));
+}
+
+// ---------------------------------------------------------------- G2: fremde Änderung bei offenem Formular
+
+// Beide Fenster auf „Über mich". Im ersten ist das Geburtsjahr getippt, aber
+// nicht gespeichert; im zweiten wird „Herzerkrankung: Ja" gespeichert. Vorher
+// blieb das erste stehen, zeigte weiter „Nein" und versprach „Die Anzeige
+// wird nach dem Speichern aktualisiert" – sein Speichern schrieb „Nein" zurück.
+{
+  await laden(stand({ profil: { herz: 'nein', geburtsjahr: 1948 } }));
+  const b = await r6Fenster();
+  const g2 = await r6ZweiProfile(page, b);
+  const g2Meldung = (await r6Lage(page)).meldung;
+  check(g2.herzJa && g2.jahr === '1947' && g2Meldung.includes('anderen Fenster') && !g2Meldung.includes('nach dem Speichern aktualisiert'),
+    `G2: das Formular zeigt den neuen Stand („Herzerkrankung: Ja" aus dem anderen Fenster), das getippte Geburtsjahr bleibt (${JSON.stringify(g2)}, „${g2Meldung}")`);
+  check(g2.fokus === 'geburtsjahr', `G2: … der Fokus bleibt im Feld, in dem getippt wurde (${g2.fokus})`);
+  await page.click('form[data-formular="profil"] button[type=submit]');
+  const g2s = await gespeichert();
+  check(g2s.profil.herz === 'ja' && Number(g2s.profil.geburtsjahr) === 1947,
+    `G2: … Speichern behält beides – die Angabe aus dem anderen Fenster wird nicht still überschrieben (herz ${g2s.profil.herz}, Jahr ${g2s.profil.geburtsjahr})`);
+  // Gibt es den Eintrag hinter dem Formular nicht mehr (im anderen Fenster
+  // gelöscht), bleibt die Seite stehen – ein leeres Formular um das geänderte
+  // Feld wäre schlimmer. Die Meldung verspricht dann nichts, was nicht geschieht.
+  await laden(stand({ labor: [befund('b1', plus(TAG, -5), { tsh: w(2, 'mU/l', 0.27, 4.2) })] }));
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="labor"][data-param="b1"]');
+  await page.fill('input[name=tsh_wert]', '3,1');
+  await b.evaluate((key) => {
+    const st = JSON.parse(localStorage.getItem(key));
+    st.labor = [];
+    localStorage.setItem(key, JSON.stringify(st));
+  }, SCHLUESSEL);
+  await page.waitForTimeout(600);
+  const g2Weg = { tsh: await feldWert('input[name=tsh_wert]'), datum: await feldWert('form[data-formular="labor"] input[name=datum]'), meldung: (await r6Lage(page)).meldung };
+  check(g2Weg.tsh === '3,1' && g2Weg.datum === plus(TAG, -5) && g2Weg.meldung.includes('anderen Fenster') && g2Weg.meldung.includes('Wenn Sie hier speichern') && !g2Weg.meldung.includes('aktualisiert'),
+    `G2: im anderen Fenster gelöscht – das Formular bleibt, wie es war, und die Meldung sagt, was beim Speichern gilt (${JSON.stringify(g2Weg)})`);
+  await b.close();
+}
+
+// ---------------------------------------------------------------- G3: fremde Änderung beim Einrichten
+
+// Zwei Fenster in der Einrichtung. Im ersten sind in Schritt 2 Stärke und
+// Präparat getippt, das zweite schließt Schritt 1 ab: Vorher zeichnete das
+// erste den Schritt neu, und das Getippte war still weg. Dann eine offene
+// Rückfrage („7,5 µg?"), und das zweite speichert Schritt 2: Vorher tat
+// „Ja, stimmt" danach nichts, die 7,5 wurden nicht gespeichert.
+{
+  const k = await browser.newContext({ viewport: { width: 360, height: 740 }, locale: 'de-DE', serviceWorkers: 'block' });
+  await k.addInitScript(uhrStellen);
+  const a = await k.newPage();
+  a.on('dialog', (d) => d.accept());
+  await a.goto(SD_URL, { waitUntil: 'networkidle' });
+  await a.evaluate((t) => {
+    localStorage.clear();
+    localStorage.setItem('__testtag', t);
+    localStorage.setItem('__testzeit', '09:00');
+  }, TAG);
+  await a.reload({ waitUntil: 'networkidle' });
+  await a.check('input[name=behandelt]').catch(() => {});
+  await a.fill('input[name=name]', 'Frau Berger');
+  await a.click('[data-act="willkommen-weiter"]');
+  await a.waitForTimeout(700);
+  const b = await r6Fenster(k);
+  await a.fill('input[name=mikrogramm]', '88');
+  await a.fill('input[name=praeparat]', 'Euthyrox');
+  await b.fill('input[name=name]', 'Frau Berger aus dem Tab');
+  await b.click('[data-act="willkommen-weiter"]');
+  await a.waitForTimeout(700);
+  const schritt = (p) => p.evaluate(() => ({
+    titel: document.querySelector('#kopf .kopf-titel')?.textContent || '',
+    mg: document.querySelector('input[name=mikrogramm]')?.value ?? null,
+    praeparat: document.querySelector('input[name=praeparat]')?.value ?? null,
+  }));
+  const g3 = await schritt(a);
+  const g3Meldung = (await r6Lage(a)).meldung;
+  check(g3.titel === 'Schritt 2 von 3' && g3.mg === '88' && g3.praeparat === 'Euthyrox' && g3Meldung.includes('anderen Fenster'),
+    `G3: beim Einrichten bleiben Stärke und Präparat stehen, wenn ein anderes Fenster etwas speichert – mit Meldung (${JSON.stringify(g3)}, „${g3Meldung}")`);
+  await a.fill('input[name=mikrogramm]', '7,5');
+  await a.waitForTimeout(700);
+  await a.click('[data-act="willkommen-weiter"]');
+  await a.waitForTimeout(300);
+  const rueckfrageDa = await a.locator('dialog.rueckfrage').count();
+  await b.fill('input[name=mikrogramm]', '50');
+  await b.click('[data-act="willkommen-weiter"]');
+  await a.waitForTimeout(800);
+  const g3Stehen = (await r6Lage(a)).meldung;
+  if (await a.locator('dialog.rueckfrage [data-act="befund-bestaetigen"]').count()) await a.click('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+  await a.waitForTimeout(700);
+  const g3Nach = await schritt(a);
+  const g3s = await a.evaluate((key) => JSON.parse(localStorage.getItem(key) || 'null'), SCHLUESSEL);
+  check(rueckfrageDa === 1 && g3Nach.titel === 'Schritt 3 von 3' && g3s.dosen.length === 1 && g3s.dosen[0].mikrogramm === 7.5,
+    `G3: mit offener Rückfrage bleibt der Schritt stehen, „Ja, stimmt" speichert die bestätigten 7,5 µg (${g3Nach.titel}, ${JSON.stringify(g3s.dosen.map((d) => d.mikrogramm))})`);
+  check(g3Stehen.includes('anderen Fenster') && !g3Stehen.includes('aktualisiert'), `G3: … die Meldung verspricht dabei nichts, was nicht geschieht („${g3Stehen}")`);
+  await k.close();
+}
+
+// ---------------------------------------------------------------- G4: der gemerkte Reiter
+
+// „Sicherung einlesen" führt zu „Heute" – gemerkt blieb aber „Mehr", und das
+// Neuladen nach einem Update (oder von Hand) sprang ohne Zutun dorthin.
+// Ebenso „Fertig – zur App" nach „Alles löschen".
+{
+  await laden(stand());
+  await mehrSeite('sicherung');
+  const datei = { ...stand({ profil: { name: 'Aus der Datei' } }), exportiertAm: `${plus(TAG, -1)}T10:00:00Z`, app: 'schilddruese' };
+  await page.setInputFiles('#sicherungDatei', { name: 'sicherung.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(datei)) });
+  await page.waitForTimeout(500);
+  const eingelesen = await attr('.reiter[aria-selected="true"]', 'data-reiter');
+  await page.evaluate(() => { window.__schilddrueseNeuLaden = true; window.__schilddrueseNeuLadenPlanen(); });
+  await page.waitForTimeout(2200);
+  await page.waitForLoadState('networkidle');
+  const nachUpdate = await attr('.reiter[aria-selected="true"]', 'data-reiter');
+  check(eingelesen === 'heute' && nachUpdate === 'heute', `G4: nach „Sicherung einlesen" und dem Neuladen nach einem Update bleibt „Heute" (${eingelesen} → ${nachUpdate})`);
+  await mehrSeite('ueber');
+  await page.click('[data-act="alles-loeschen"]');
+  await page.click('[data-act="willkommen-weiter"]');
+  await page.waitForTimeout(700);
+  await page.fill('input[name=mikrogramm]', '75');
+  await page.click('[data-act="willkommen-weiter"]');
+  await page.waitForTimeout(700);
+  await page.click('[data-act="willkommen-weiter"]');
+  await page.waitForTimeout(700);
+  const fertig = await attr('.reiter[aria-selected="true"]', 'data-reiter');
+  await page.reload({ waitUntil: 'networkidle' });
+  const g4Neu = await attr('.reiter[aria-selected="true"]', 'data-reiter');
+  check(fertig === 'heute' && g4Neu === 'heute', `G4: nach „Alles löschen" und „Fertig – zur App" öffnet das Neuladen wieder „Heute" (${fertig} → ${g4Neu})`);
+}
+
+// ---------------------------------------------------------------- G5: Rückfrage zur Praxis bei schon eingetragener Dosis
+
+// Befund vom … mit „Die Praxis hat entschieden: Neue Dosis" (vor 21 Tagen),
+// 88 µg seit 20 Tagen eingetragen. Ein erneuter Tipp auf „Neue Dosis
+// eintragen", dann „Abbrechen": Vorher rückte das Datum der Entscheidung
+// auf heute, und die App fragte „Die neue Dosis ist noch nicht eingetragen" –
+// „Nein" löschte die Entscheidung, der Bericht widersprach sich.
+{
+  await laden(stand({
+    dosen: [{ id: 'd1', ab: plus(TAG, -400), praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '' },
+      { id: 'd2', ab: plus(TAG, -20), praeparat: 'L-Thyroxin', mikrogramm: 88, tabletten: 1, notiz: '', praxis: true }],
+    labor: [befund('b1', plus(TAG, -24), { tsh: w(8, 'mU/l', 0.27, 4.2) }, { praxis: 'geaendert', praxisAm: plus(TAG, -21) })],
+  }));
+  await mehrSeite('dosis-karte');
+  await r4app.klick('#dosis-karte [data-seite="praxis-entschieden"]');
+  await r4app.klick('[data-act="praxis-entscheid"][data-wert="geaendert"]');
+  const formDa = await gibt('form[data-formular="dosis"]');
+  const g5Datum = (await gespeichert()).labor[0].praxisAm;
+  await r4app.klick('form[data-formular="dosis"] [data-act="zurueck"]');
+  await page.waitForTimeout(300);
+  const g5Frage = await gibt(r4app.praxisDialog);
+  // Vor der Korrektur: die Frage schließen, ohne etwas zu ändern.
+  if (g5Frage) await r4app.klick(`${r4app.praxisDialog} [data-wert="spaeter"]`);
+  const g5b = (await gespeichert()).labor[0];
+  check(formDa && g5Datum === plus(TAG, -21) && !g5Frage && g5b.praxis === 'geaendert' && g5b.praxisAm === plus(TAG, -21) && await gibt('#dosis-karte'),
+    `G5: 88 µg stehen schon da – kein neues Datum für die Entscheidung, keine Frage „noch nicht eingetragen", zurück auf der Karte (${g5Datum}, Frage ${g5Frage}, ${g5b.praxis} ${g5b.praxisAm})`);
+}
+
+// ---------------------------------------------------------------- G8: das Datum der Sicherung
+
+// Nach „Sicherung speichern" stand über der Meldung weiter „Noch keine
+// Sicherung gespeichert.", und in der Datei stand letzteSicherung: null.
+{
+  await laden(stand());
+  await mehrSeite('sicherung');
+  const [g8Download] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="sicherung-speichern"]')]);
+  const g8Datei = JSON.parse(readFileSync(await g8Download.path(), 'utf8'));
+  await page.waitForTimeout(300);
+  const g8Text = await ansichtText(page);
+  check(!g8Text.includes('Noch keine Sicherung gespeichert') && g8Text.includes('Letzte Sicherung'),
+    `G8: nach „Sicherung speichern" nennt die Seite gleich die letzte Sicherung („${(g8Text.match(/Letzte Sicherung[^\n]*|Noch keine Sicherung[^\n]*/) || [''])[0]}")`);
+  check(g8Datei.letzteSicherung === TAG, `G8: … und die Datei kennt ihr Sicherungsdatum (${g8Datei.letzteSicherung})`);
+  // Eine ältere Datei ohne dieses Datum: Der eingelesene Stand ist am Tag der Datei gesichert.
+  const alt = { ...stand({ profil: { name: 'Alte Datei' } }), letzteSicherung: null, exportiertAm: `${plus(TAG, -3)}T10:00:00.000Z`, app: 'schilddruese' };
+  await page.setInputFiles('#sicherungDatei', { name: 'alt.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(alt)) });
+  await page.waitForTimeout(500);
+  const g8s = await gespeichert();
+  await page.click('#reiter-mehr');
+  const g8Menue = await ansichtText(page);
+  check(g8s.profil.name === 'Alte Datei' && g8s.letzteSicherung === plus(TAG, -3) && !g8Menue.includes('Noch nie gesichert'),
+    `G8: nach dem Einlesen einer älteren Datei gilt ihr Datum als letzte Sicherung, nicht „Noch nie gesichert" (${g8s.letzteSicherung})`);
+}
+
+// ---------------------------------------------------------------- G9: „Rückgängig" nach dem Zurücknehmen
+
+// „Tablette abgehakt [Rückgängig]", dann „antippen zum Zurücknehmen": Vorher
+// blieb die Meldung mit „Rückgängig" unter „Noch nicht eingetragen" stehen,
+// und der Knopf tat nichts. Ebenso, wenn ein anderes Fenster zurücknimmt.
+{
+  await ladenHeute(stand());
+  await page.click('[data-act="tablette"]');
+  const vorher = await r6Lage(page);
+  await page.waitForTimeout(700);
+  await page.click('[data-act="tablette-zurueck"]');
+  await page.waitForTimeout(300);
+  const nachher = await r6Lage(page);
+  const g9s = await gespeichert();
+  check(vorher.rueckgaengig === 1 && nachher.rueckgaengig === 0 && nachher.meldung.includes('Zurückgenommen') && !(TAG in g9s.einnahmen),
+    `G9: nach „Zurücknehmen" verschwindet „Rückgängig", die Meldung sagt, was jetzt gilt („${nachher.meldung}")`);
+  await page.waitForTimeout(700);
+  await page.click('[data-act="tablette"]');
+  const b = await r6Fenster();
+  await b.click('#reiter-heute');
+  await b.click('[data-act="tablette-zurueck"]');
+  await page.waitForTimeout(700);
+  const fremd = await r6Lage(page);
+  check(fremd.rueckgaengig === 0 && await gibt('[data-act="tablette"]'),
+    `G9: … auch wenn ein anderes Fenster den Haken zurücknimmt (${JSON.stringify(fremd)})`);
+  await b.close();
+}
+
+// ---------------------------------------------------------------- Runde 6 (App) bei „sehr groß", hell und dunkel, mit Finger
+
+// Die neuen Meldungen passen auf 360 px, auch bei Schrift „sehr groß".
+for (const farbe of ['hell', 'dunkel']) {
+  const f = await r5Finger(stand({ einstellungen: r4Einstellungen('sehr-gross', farbe), profil: { herz: 'nein', geburtsjahr: 1948 } }));
+  const b = await r6Fenster(f.k);
+  const zwei = await r6ZweiProfile(f.p, b);
+  const g2Lage = await r6Lage(f.p);
+  await b.close();
+  await f.p.click('#reiter-heute');
+  await f.p.waitForTimeout(700);
+  await f.p.locator('[data-act="tablette"]').tap();
+  await f.p.waitForTimeout(800);
+  await f.p.locator('[data-act="tablette-zurueck"]').tap();
+  await f.p.waitForTimeout(400);
+  const g9Lage = await r6Lage(f.p);
+  const passt = (l) => l.meldung && l.links >= 0 && l.rechts <= 360 && l.breite <= 360;
+  check(zwei.herzJa && zwei.jahr === '1947' && passt(g2Lage) && passt(g9Lage) && g9Lage.rueckgaengig === 0 && !f.fehlerListe.length,
+    `Runde 6 (App): bei „sehr groß" und ${farbe} passen die Meldungen zum anderen Fenster und zum Zurücknehmen auf 360 px (${JSON.stringify({ g2Lage, g9Lage, fehler: f.fehlerListe.slice(0, 1) })})`);
+  await f.k.close();
+}
+
+// ================================================================ Runde 6 – Ansichten
+//
+// Befunde aus der sechsten Durchsicht (G…), die die Ansichten betreffen: das
+// Dosis-Formular bei einer Berichtigung und die „nie genommene" Dosis (G11),
+// die Angaben über sie auf der Dosis-Karte (G6), Anruf-Knöpfe bei weiteren
+// Werten (G18), „Über mich" mit der Kontroll-Erinnerung (G20) und der
+// Kaffee-Frage (G21). Wissen und Bericht prüfen tests/test-sd-wissen.mjs und
+// tests/test-sd-bericht.mjs. Jeder Fall scheiterte vor der Korrektur.
+
+/*
+ * G11: 75 µg seit langem; die Praxis ordnete 100 µg an (vor 60 Tagen
+ * eingetragen, „auf Anweisung: ja"), genommen wurden sie nie. Der neue Befund
+ * von vorgestern, X3 steht noch aus.
+ */
+const R6_LANGE = plus(TAG, -800);
+const R6_ANGEORDNET = plus(TAG, -60);
+const r6g11 = ({ dosen = [], nachfragen = [] } = {}) => stand({
+  dosen: [
+    { id: 'd1', ab: R6_LANGE, praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '' },
+    { id: 'dC', ab: R6_ANGEORDNET, praeparat: 'L-Thyroxin', mikrogramm: 100, tabletten: 1, notiz: '', praxis: true },
+    ...dosen,
+  ],
+  labor: [
+    befund('bA', plus(TAG, -90), { tsh: w(25, 'mU/l', 0.4, 4) }, { praxis: 'geaendert', praxisAm: R6_ANGEORDNET }),
+    befund('bB', plus(TAG, -2), { tsh: w(6.5, 'mU/l', 0.4, 4) }),
+  ],
+  nachfragen: [{ id: 'n0', art: 'dosis_stimmt', bezug: 'bA', antwort: 'ja', am: plus(TAG, -89) }, ...nachfragen],
+});
+const r6Dialog = async () => ((await gibt('dialog.rueckfrage')) ? (await page.locator('dialog.rueckfrage').innerText()).replace(/\s+/g, ' ') : '');
+const r6Bericht = async () => { await mehrSeite('bericht'); return page.locator('#berichtText').innerText(); };
+const r6Berichtigung = (st) => st.dosen.find((d) => d.berichtigung) || {};
+
+// ---------------------------------------------------------------- G11 (a): neue Berichtigung mit Vermerk, dann der wahre Beginn
+
+// Karte X3 → „Nein, ich nehme etwas anderes" → 75 µg eintragen; dann, wie
+// die Karte rät, „Gilt ab" auf den Tag, seit dem sie es nimmt. Vorher ohne
+// Rückfrage gespeichert: Die 100 µg galten wieder als ihre Dosis, auf der
+// Karte, im Bericht „Aktuell: 100 µg … auf Anweisung der Praxis: ja".
+{
+  await laden(r6g11());
+  await mehrSeite('dosis-karte');
+  await r4app.klick('#dosis-karte [data-act="frage-antwort"][data-feld="dosis_stimmt"][data-wert^="nein"]');
+  await r4app.klick('#dosis-karte [data-act="seite"][data-seite="dosis"]');
+  await page.fill('form[data-formular="dosis"] input[name=mikrogramm]', '75');
+  await page.check('form[data-formular="dosis"] input[name=praxis][value=nein]', { force: true });
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  const neu = r6Berichtigung(await gespeichert());
+  check(neu.ab === TAG && neu.statt === 'dC', `G11: die Berichtigung vermerkt, welchen Eintrag sie berichtigt – die 100 µg, nach denen die Karte fragte (${JSON.stringify(neu)})`);
+  if (!(await gibt('#dosis-karte'))) await mehrSeite('dosis-karte');
+  await r4app.klick(`#dosis-karte [data-act="seite"][data-seite="dosis"][data-param="${neu.id}"]`);
+  await page.fill('form[data-formular="dosis"] input[name=ab]', R6_LANGE);
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await page.waitForTimeout(300);
+  const dialogA = await r6Dialog();
+  const meldungA = await r4app.meldung();
+  const nachher = r6Berichtigung(await gespeichert());
+  check(!dialogA && nachher.ab === R6_LANGE && nachher.statt === 'dC' && meldungA.includes(`Die 100 µg am Tag ab ${kurz(R6_ANGEORDNET)} zählen jetzt als nie genommen`),
+    `G11: „Gilt ab" auf den wahren Beginn – ohne Rückfrage, die Meldung sagt, dass die 100 µg jetzt als nie genommen zählen („${meldungA}")`);
+  await mehrSeite('dosis-karte');
+  const karteA = await r4a.text('#dosis-karte');
+  check(!karteA.includes('100 µg') && karteA.includes(`Ihre Dosis laut App: 75 µg am Tag seit ${kurz(R6_LANGE)}`),
+    `G11: die Karte rechnet mit 75 µg seit dem wahren Beginn, nicht wieder mit den 100 µg („${karteA.slice(0, 90)}…")`);
+  const berichtA = await r6Bericht();
+  check(berichtA.includes(`Aktuell: L-Thyroxin 75 µg, 1 Tablette am Tag, seit ${kurz(R6_LANGE)}`) && !berichtA.includes('Aktuell: L-Thyroxin 100 µg')
+    && berichtA.includes(`Berichtigung (Angabe): Ab ${kurz(R6_ANGEORDNET)} war L-Thyroxin 100 µg, 1 Tablette am Tag eingetragen (auf Anweisung der Praxis) – nach Angabe der Patientin nie genommen`),
+  'G11: der Bericht nennt 75 µg als aktuelle Dosis und die angeordneten 100 µg als nie genommen');
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="dosis-liste"]');
+  const zeileC = await r4a.text('#ansicht [data-seite="dosis"][data-param="dC"]');
+  check(zeileC.includes('nie genommen (berichtigt)') && !zeileC.includes('aktuell') && !zeileC.includes('geplant'),
+    `G11: in „Dosis im Verlauf" stehen die 100 µg als „nie genommen (berichtigt)" („${zeileC}")`);
+}
+
+// ---------------------------------------------------------------- G11 (b): alte Berichtigung ohne Vermerk
+
+// Eine Berichtigung aus einer früheren Fassung kennt den berichtigten
+// Eintrag nicht. Rückt ihr „Gilt ab" vor die 100 µg, fragt das Formular
+// jetzt nach – vorher gespeichert, und die 100 µg galten wieder.
+{
+  const alt = { id: 'dB', ab: TAG, praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '', praxis: false, berichtigung: true };
+  await laden(r6g11({ dosen: [alt] }));
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="dosis-liste"]');
+  await page.click('#ansicht [data-seite="dosis"][data-param="dB"]');
+  await page.fill('form[data-formular="dosis"] input[name=ab]', R6_LANGE);
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await page.waitForTimeout(300);
+  const frage = await r6Dialog();
+  check(frage.includes(`Ab ${kurz(R6_ANGEORDNET)} ist noch 100 µg am Tag eingetragen (auf Anweisung der Praxis)`) && frage.includes('Haben Sie das nie genommen?')
+    && await gibt('dialog.rueckfrage [data-act="befund-bestaetigen"]') && (await r4a.text('dialog.rueckfrage [data-act="befund-bestaetigen"]')) === 'Ja, nie genommen',
+  `G11: alte Berichtigung vor die 100 µg gerückt – die Frage „nie genommen?" mit „Ja, nie genommen" („${frage.slice(0, 110)}")`);
+  // „Nein" speichert nichts und führt zu „Gilt ab".
+  await r4app.klick('dialog.rueckfrage [data-act="befund-korrigieren"]');
+  await page.waitForTimeout(200);
+  const nein = await gespeichert();
+  check(!(await gibt('dialog.rueckfrage')) && nein.dosen.find((d) => d.id === 'dB').ab === TAG && await fokusName() === 'ab',
+    `G11: „Nein" speichert nichts und führt zu „Gilt ab" (Fokus ${await fokusName()})`);
+  // Vor der Korrektur ist das Formular schon gespeichert und weg – dann scheitern, nicht hängen.
+  await r4app.klick('form[data-formular="dosis"] button[type=submit]');
+  await r4app.klick('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+  const ja = (await gespeichert()).dosen.find((d) => d.id === 'dB');
+  const berichtB = await r6Bericht();
+  check(ja && ja.ab === R6_LANGE && ja.statt === 'dC' && berichtB.includes(`Aktuell: L-Thyroxin 75 µg, 1 Tablette am Tag, seit ${kurz(R6_LANGE)}`) && !berichtB.includes('Aktuell: L-Thyroxin 100 µg'),
+    `G11: „Ja, nie genommen" speichert mit Vermerk – der Bericht nennt 75 µg (${JSON.stringify(ja)})`);
+}
+
+// ---------------------------------------------------------------- G11 (c): gleich mit dem wahren Beginn angelegt
+
+// Nach „Nein" gleich 75 µg ab dem wahren Beginn eingetragen: Vorher wies das
+// Formular das ab („Genau diese Dosis ist schon … eingetragen") und bot nur
+// den Eintrag von damals zum Ändern an, an dem nichts falsch war.
+{
+  await laden(r6g11({ nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'bB', antwort: 'nein_100', am: TAG }] }));
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="dosis"]');
+  await page.fill('form[data-formular="dosis"] input[name=mikrogramm]', '75');
+  await page.fill('form[data-formular="dosis"] input[name=ab]', R6_LANGE);
+  await page.check('form[data-formular="dosis"] input[name=praxis][value=nein]', { force: true });
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await page.waitForTimeout(300);
+  const frage = await r6Dialog();
+  await r4app.klick('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+  const c = r6Berichtigung(await gespeichert());
+  check(frage.includes('Haben Sie das nie genommen?') && c.ab === R6_LANGE && c.statt === 'dC' && c.mikrogramm === 75,
+    `G11: Berichtigung gleich ab dem wahren Beginn – Frage „nie genommen?", dann mit Vermerk gespeichert (${JSON.stringify(c)})`);
+}
+
+// ---------------------------------------------------------------- G6: Angaben über sie auf der Dosis-Karte ändern
+
+// Krebs „Ja" (Fehltipp) und Kortison „Weiß nicht": Die Karte sperrt mit D0.13
+// und D0.14. Vorher standen beide Antworten nicht unter „Ihre Antworten", der
+// einzige Weg zurück war „Mehr → Über mich & weitere Mittel".
+{
+  await laden(stand({
+    profil: { krebs: 'ja', kortison: 'unbekannt' },
+    labor: [befund('b1', plus(TAG, -5), { tsh: w(8.5, 'mU/l', 0.27, 4.2), ft4: w(13, 'pmol/l', 12, 22) })],
+    nachfragen: dosisStimmt(plus(TAG, -4)),
+  }));
+  await mehrSeite('dosis-karte');
+  const krebs = '#ansicht details.antworten-block [data-antwort="profil-krebs"]';
+  const kortison = '#ansicht details.antworten-block [data-antwort="profil-kortison"]';
+  check(await gibt('#dosis-karte li[data-grund="D0.13"]') && await gibt('#ansicht details.antworten-block[open]')
+    && (await r4a.text(krebs)).includes('Schilddrüsenkrebs') && (await r4a.text(krebs)).includes('Ja')
+    && (await r4a.text(kortison)).includes('Weiß nicht') && (await r4a.text(kortison)).includes('sobald Sie es wissen'),
+  `G6: „Ihre Antworten" – aufgeklappt, mit Krebs „Ja" und Kortison „Weiß nicht" samt Bitte, es zu ergänzen („${await r4a.text(kortison)}")`);
+  check((await r4a.text('#ansicht details.antworten-block')).includes('gilt für alle Befunde') && (await r4a.text('#ansicht details.antworten-block')).includes('Mehr → Über mich'),
+    'G6: … mit dem Hinweis, dass diese Angaben für alle Befunde gelten und unter „Mehr → Über mich" stehen');
+  if (await gibt(krebs)) {
+    await page.click(`${krebs} summary`);
+    await page.click(`${krebs} [data-act="frage-antwort"][data-ziel="profil"][data-wert="nein"]`);
+  }
+  const g6 = await gespeichert();
+  check(g6.profil.krebs === 'nein' && !(await gibt('#dosis-karte li[data-grund="D0.13"]')),
+    `G6: „ändern" → „Nein" speichert ins Profil, D0.13 ist weg (krebs = ${g6.profil.krebs})`);
+  // Das Geburtsjahr (Muster c) mit seinem kleinen Formular.
+  const jahr = '#ansicht details.antworten-block [data-antwort="profil-geburtsjahr"]';
+  if (await gibt(jahr)) {
+    await page.click(`${jahr} summary`);
+    await page.fill(`${jahr} input[name=geburtsjahr]`, '1938');
+    await page.click(`${jahr} button[type=submit]`);
+  }
+  check(Number((await gespeichert()).profil.geburtsjahr) === 1938 && await gibt('#dosis-karte'),
+    'G6: … ebenso das Geburtsjahr, danach steht wieder die Karte da');
+}
+
+// ---------------------------------------------------------------- G18: Anruf-Knöpfe bei weiteren Werten
+
+// Natrium 118 heißt jetzt „heute noch anrufen" mit 116 117 und 112 im Text –
+// unter dem Befund standen die Nummern nicht als Knopf.
+{
+  await laden(stand({ labor: [befund('b1', plus(TAG, -1), { tsh: w(2, 'mU/l', 0.27, 4.2), ft4: w(15, 'pmol/l', 12, 22), natrium: w(118, 'mmol/l', 135, 145) })] }));
+  await page.click('#reiter-verlauf');
+  const ww = page.locator('#ansicht .weitere-werte').first();
+  const tel = await ww.locator('a[href^="tel:"]').evaluateAll((a) => a.map((x) => x.getAttribute('href')));
+  check(tel.includes('tel:116117') && tel.includes('tel:112'), `G18: unter „Natrium 118" stehen 116 117 und 112 als Anruf-Knopf (${JSON.stringify(tel)})`);
+}
+
+// ---------------------------------------------------------------- G20: Kontroll-Erinnerung nur, wo es sie gibt
+
+// „dann erinnert die App an die Kontrolle nach 6–8 Wochen" stand über allen
+// Mitteln – L7b erinnert aber nur bei einigen (ez.L7B_MITTEL).
+{
+  await laden(stand());
+  await mehrSeite('profil');
+  const satz = await r4a.text('#ansicht [data-hinweis="kontrolle"]');
+  const l7b = await page.evaluate(async () => {
+    const ez = await import('./js/einschaetzung.js');
+    return (ez.L7B_MITTEL || []).map((k) => ez.mittelName(k).split(/[ ,(]/)[0]);
+  });
+  check(l7b.length > 0 && l7b.every((n) => satz.includes(n)) && satz.includes('Bei anderen Mitteln fragen Sie die Praxis') && !satz.includes('Colestyramin'),
+    `G20: „Über mich" nennt genau die Mittel, bei denen die App an die Kontrolle erinnert (${l7b.join(', ')}; „${satz.slice(0, 80)}…")`);
+}
+
+// ---------------------------------------------------------------- G21: Kaffee – die Frage folgt dem Plan
+
+// Ein „Nein" auf die frühere Frage nach 60 Minuten: Die Karte sagte D0.8
+// „Halten Sie zuerst jeden Tag die Abstände ein" – wer dem Plan folgte (ab 30
+// Minuten), musste „Nein" antworten. Jetzt fragt sie Q3, und „Über mich"
+// bittet, die Antwort zu prüfen.
+{
+  await laden(stand({
+    mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' },
+    labor: [befund('b1', plus(TAG, -5), { tsh: w(7.5, 'mU/l', 0.4, 4), ft4: w(14, 'pmol/l', 12, 22) })],
+    nachfragen: dosisStimmt(plus(TAG, -4)),
+  }));
+  await mehrSeite('dosis-karte');
+  check(!(await gibt('#dosis-karte li[data-grund="D0.8"]')) && await attr('#dosis-karte .dosis-frage', 'data-frage') === 'Q3',
+    `G21: ein „Nein" auf die alte 60-Minuten-Frage sperrt die Karte nicht mit D0.8 – sie fragt Q3 (${await attr('#dosis-karte .dosis-frage', 'data-frage')})`);
+  await mehrSeite('profil');
+  const kaffee = await r4a.text('#ansicht .mittel-zeile[data-mittel="kaffee"]');
+  check(kaffee.includes('mindestens 30 Minuten Abstand') && kaffee.includes('Die Frage hat sich geändert') && kaffee.includes('Stimmt Ihre Antwort noch?'),
+    `G21: „Über mich" fragt nach 30 Minuten und bittet, die alte Antwort zu prüfen („${kaffee.slice(0, 100)}…")`);
+  await page.click('form[data-formular="profil"] button[type=submit]');
+  const g21 = await gespeichert();
+  await mehrSeite('profil');
+  check(g21.profil.kaffeePruefen === false && g21.mittelAbstand.kaffee === 'nein' && !(await r4a.text('#ansicht .mittel-zeile[data-mittel="kaffee"]')).includes('Die Frage hat sich geändert'),
+    'G21: … Speichern gilt als Antwort auf die neue Frage, der Hinweis ist weg, die Antwort bleibt');
+}
+
+// ---------------------------------------------------------------- Runde 6 (Ansichten) bei „sehr groß", hell und dunkel
+
+for (const farbe of ['hell', 'dunkel']) {
+  const einst = r4Einstellungen('sehr-gross', farbe);
+  const seiten = [];
+  const breite = async (name) => seiten.push([name, await page.evaluate(() => document.documentElement.scrollWidth)]);
+  await laden({
+    ...stand({
+      profil: { krebs: 'ja', kortison: 'unbekannt' },
+      labor: [befund('b1', plus(TAG, -5), { tsh: w(8.5, 'mU/l', 0.27, 4.2), ft4: w(13, 'pmol/l', 12, 22), natrium: w(118, 'mmol/l', 135, 145) })],
+      nachfragen: dosisStimmt(plus(TAG, -4)), mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' },
+    }),
+    einstellungen: einst,
+  });
+  await mehrSeite('dosis-karte');
+  for (const z of ['profil-kortison', 'profil-geburtsjahr']) {
+    if (await gibt(`#ansicht [data-antwort="${z}"] summary`)) await page.click(`#ansicht [data-antwort="${z}"] summary`);
+  }
+  await breite('Dosis-Karte mit Angaben über sie');
+  await page.click('#reiter-verlauf');
+  await breite('Befund mit Natrium und Anruf-Knöpfen');
+  await mehrSeite('profil');
+  await breite('Über mich mit Kaffee-Hinweis');
+  await laden({ ...r6g11({ dosen: [{ id: 'dB', ab: TAG, praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '', praxis: false, berichtigung: true }] }), einstellungen: einst });
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="dosis-liste"]');
+  await page.click('#ansicht [data-seite="dosis"][data-param="dB"]');
+  await page.fill('form[data-formular="dosis"] input[name=ab]', R6_LANGE);
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await page.waitForTimeout(300);
+  const knoepfe = await page.evaluate(() => [...document.querySelectorAll('dialog.rueckfrage button')].map((b) => { const r = b.getBoundingClientRect(); return r.right <= window.innerWidth && r.left >= 0; }));
+  await breite('Rückfrage „nie genommen?"');
+  if (await gibt('dialog.rueckfrage')) await page.keyboard.press('Escape');
+  const zuBreit = seiten.filter(([, b]) => b > 360);
+  check(!zuBreit.length && knoepfe.length === 2 && knoepfe.every(Boolean),
+    `Runde 6 (Ansichten): bei „sehr groß" und ${farbe} ohne waagerechtes Scrollen, die Knöpfe der Rückfrage ganz sichtbar (${seiten.map(([n, b]) => `${n} ${b}`).join(', ')})`);
+}
+
+// ================================================================ Nachprüfung Runde 6
+// E1-Nachfrage auch nach einer eigenen Änderung: Erst eine neue Menge „auf
+// Anweisung der Praxis" erfüllt „Bitte tragen Sie die neue Dosis ein" – ein
+// Fehltipp mit „Abbrechen" senkt die Dringlichkeit nicht ohne Rückfrage.
+{
+  await laden(stand({
+    dosen: [{ id: 'd1', ab: plus(TAG, -400), praeparat: 'L-Thyroxin', mikrogramm: 75, tabletten: 1, notiz: '' },
+      { id: 'd2', ab: plus(TAG, -20), praeparat: 'L-Thyroxin', mikrogramm: 88, tabletten: 1, notiz: '', praxis: false }],
+    labor: [befund('b1', plus(TAG, -24), { tsh: w(8, 'mU/l', 0.27, 4.2) }, { praxis: 'nochnicht', praxisAm: plus(TAG, -22) })],
+  }));
+  await mehrSeite('dosis-karte');
+  await page.click('#dosis-karte [data-seite="praxis-entschieden"]');
+  await page.click('[data-act="praxis-entscheid"][data-wert="geaendert"]');
+  await page.click('form[data-formular="dosis"] [data-act="zurueck"]');
+  await page.waitForTimeout(300);
+  const frage = await page.locator('dialog').innerText().catch(() => '');
+  check(/Hat die Praxis Ihre Dosis schon geändert/.test(frage),
+    `Nachprüfung R6: nach eigener Änderung fragt „Abbrechen" weiter, ob die Praxis schon geändert hat (${frage.replace(/\s+/g, ' ').slice(0, 80)})`);
+  if (await page.locator('dialog [data-wert="nein"]').count()) await page.click('dialog [data-wert="nein"]');
+  await page.waitForTimeout(300);
+  const s = await gespeichert();
+  check(s.labor[0].praxis === 'nochnicht', `Nachprüfung R6: „Nein" stellt „noch nichts entschieden" wieder her (${s.labor[0].praxis})`);
+}
+
+// Dieselbe Haken-Gruppe in zwei Fenstern: Fenster 1 hakt Kalzium an
+// (ungespeichert), Fenster 2 hakt Eisen an und speichert. Nach dem
+// Speichern in Fenster 1 gelten beide – keine Angabe fällt still weg.
+{
+  await laden(stand({ profil: { herz: 'nein', geburtsjahr: 1948, mittelErfasst: true }, mittel: [] }));
+  const p2 = await ctx.newPage();
+  p2.on('dialog', (d) => d.accept());
+  await p2.goto(SD_URL, { waitUntil: 'networkidle' });
+  for (const p of [page, p2]) {
+    await p.click('#reiter-mehr');
+    await p.locator('#ansicht [data-seite="profil"]').first().click();
+    await p.waitForTimeout(300);
+  }
+  await page.check('input[name=mittel][value=kalzium]', { force: true });
+  await p2.check('input[name=mittel][value=eisen]', { force: true });
+  await p2.click('form[data-formular="profil"] button[type=submit]');
+  await page.waitForTimeout(700);
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForTimeout(300);
+  await page.click('form[data-formular="profil"] button[type=submit]');
+  await page.waitForTimeout(500);
+  const mittel = (await gespeichert()).mittel;
+  check(mittel.includes('kalzium') && mittel.includes('eisen'),
+    `Nachprüfung R6: Haken aus beiden Fenstern bleiben erhalten (${JSON.stringify(mittel)})`);
+  await p2.close();
+}
+
 await ende();

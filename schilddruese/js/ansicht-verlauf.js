@@ -207,16 +207,25 @@ export function verlaufSeite(name, param, stand, heute) {
           <div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="labor">Laborwerte eintragen</button></div>
           </div>`,
       };
-    case 'dosis-liste':
+    case 'dosis-liste': {
+      /*
+       * Runde 6: G11 – Ein Eintrag, den eine Berichtigung ersetzt (am selben
+       * Tag oder weil sie vor ihm beginnt), galt nach Angabe der Nutzerin nie.
+       * Er bleibt in der Liste – er steht so im Arztbericht, und löschen soll
+       * ihn niemand müssen –, aber nicht als „aktuell" oder „geplant".
+       */
+      const nie = ez.nieGegolten(stand, heute);
+      const merkmal = (d) => (nie.has(d) ? ' · nie genommen (berichtigt)' : d === sp.aktuelleDosis(heute) ? ' · aktuell' : d.ab > heute ? ' · geplant' : '');
       return {
         titel: 'Dosis im Verlauf',
         html: `<div class="zeilen">${[...stand.dosen].reverse().map((d) => `
-          <button type="button" class="zeile" data-act="seite" data-seite="dosis" data-param="${esc(d.id)}">
-            <span class="zeile-text"><span class="zeile-titel">${esc(sp.dosisText(d))}${d === sp.aktuelleDosis(heute) ? ' · aktuell' : d.ab > heute ? ' · geplant' : ''}</span>
+          <button type="button" class="zeile" data-act="seite" data-seite="dosis" data-param="${esc(d.id)}"${nie.has(d) ? ' data-nie-genommen="ja"' : ''}>
+            <span class="zeile-text"><span class="zeile-titel">${esc(sp.dosisText(d))}${merkmal(d)}</span>
             <span class="zeile-unter">ab ${esc(datumKurz(d.ab))}${d.praxis === true ? ' · auf Anweisung der Praxis' : d.praxis === false ? ' · nicht auf Anweisung der Praxis' : ''}${d.notiz ? ` · ${esc(d.notiz)}` : ''}</span></span><span class="zeile-pfeil" aria-hidden="true">›</span>
           </button>`).join('')}</div>
           <div class="knopf-reihe"><button type="button" class="knopf knopf-haupt" data-act="seite" data-seite="dosis">Neue Dosis eintragen</button></div>`,
       };
+    }
     case 'gewicht-liste':
       return {
         titel: 'Gewicht',

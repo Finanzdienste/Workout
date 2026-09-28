@@ -132,9 +132,11 @@ const UPDATE_PORT = 8113;
 /*
  * Runde 4 (E25, E26) nutzt denselben Server weiter: `fassung` liefert einen
  * Worker mit eigener VERSION, `fehlt` beantwortet eine Datei mit 503 (Abbruch
- * im Mobilnetz), `aus` trennt jede Verbindung (kein Netz).
+ * im Mobilnetz), `aus` trennt jede Verbindung (kein Netz). Runde 6 (G1):
+ * `inhalt` ändert auch die Module – js/app.js braucht dann etwas, das nur
+ * das neue js/text.js hat, wie bei einem echten Update.
  */
-const lage = { update: false, unpassend: 0, fassung: null, fehlt: null, aus: false };
+const lage = { update: false, unpassend: 0, fassung: null, fehlt: null, aus: false, inhalt: false };
 const TYPEN = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png' };
 const updateServer = createServer((req, res) => {
   if (lage.aus) { req.socket.destroy(); return; }
@@ -150,6 +152,8 @@ const updateServer = createServer((req, res) => {
     res.writeHead(404).end();
     return;
   }
+  if (lage.inhalt && rel === '/schilddruese/js/app.js') inhalt = `import { NEU_IN_G1 } from './text.js';\nwindow.__fassung = NEU_IN_G1;\n${inhalt}`;
+  if (lage.inhalt && rel === '/schilddruese/js/text.js') inhalt = `${inhalt}\nexport const NEU_IN_G1 = 'g1';\n`;
   const senden = () => {
     res.writeHead(200, { 'content-type': TYPEN[path.extname(datei)] || 'application/octet-stream', 'cache-control': 'no-store' });
     res.end(inhalt);
@@ -297,6 +301,81 @@ for (let i = 0; i < 20 && !e26Da; i++) {
 check(e26Da, `E26: ohne Netz startet die App danach wie gewohnt${e26Fehler.length ? ` (${e26Fehler[0].slice(0, 60)})` : ''}`);
 await e26.k.close();
 lage.aus = false;
+
+// --- Runde 6: G1 – der alte Worker mischt nach einem gescheiterten Update keine Fassungen
+/*
+ * E26 ließ den alten Worker stehen, sein Abruf legte aber jede gute Antwort
+ * des Servers in seinen Vorrat. Bei einem echten Update ändern sich Module:
+ * Beim ersten Öffnen kam das neue js/app.js in den alten Vorrat, das neue
+ * js/text.js brach wieder ab. Ab dem zweiten Öffnen passten die Module nicht
+ * zusammen – die App startete nicht, auch ohne Netz nicht. Der E26-Fall
+ * oben ändert nur VERSION und fand das deshalb nicht. Dazu blieb der halb
+ * gefüllte Vorrat der gescheiterten Fassung liegen.
+ */
+lage.fassung = null;
+const g1 = await mitWorker();
+const g1Fehler = [];
+g1.p.on('pageerror', (e) => g1Fehler.push(e.message));
+/** Die Vorräte dieser App: Einträge, und ob js/app.js schon das der neuen Fassung ist. */
+const g1Vorrat = (p) => p.evaluate(async () => {
+  const o = {};
+  for (const k of (await caches.keys()).filter((n) => n.startsWith('schilddruese-'))) {
+    const c = await caches.open(k);
+    const app = await c.match('./js/app.js');
+    o[k] = { eintraege: (await c.keys()).length, neuesApp: app ? (await app.text()).includes('NEU_IN_G1') : null };
+  }
+  return o;
+});
+const g1App = async (p) => {
+  for (let i = 0; i < 24; i++) {
+    if (await p.locator('.tablette').isVisible().catch(() => false)) return true;
+    await p.waitForTimeout(250);
+  }
+  return false;
+};
+const g1Alt = await g1Vorrat(g1.p);
+check(Object.keys(g1Alt).length === 1 && Object.values(g1Alt)[0].eintraege >= shell.length - 1 && Object.values(g1Alt)[0].neuesApp === false,
+  `G1: vorher ein vollständiger Vorrat der alten Fassung (${JSON.stringify(g1Alt)})`);
+lage.fassung = 'g1';
+lage.inhalt = true;
+lage.fehlt = '/schilddruese/js/text.js';
+// Erstes Öffnen nach dem Update: Der Browser versucht die neue Fassung, js/text.js bricht ab.
+await g1.p.reload({ waitUntil: 'networkidle' }).catch(() => {});
+for (let i = 0; i < 20; i++) {
+  if (!await g1.p.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.installing)).catch(() => false)) break;
+  await g1.p.waitForTimeout(250);
+}
+await g1.p.waitForTimeout(500);
+// Zweites Öffnen, das Netz wackelt weiter.
+g1Fehler.length = 0;
+await g1.p.reload({ waitUntil: 'networkidle' }).catch(() => {});
+const g1Zweites = await g1App(g1.p);
+check(g1Zweites, `G1: nach dem gescheiterten Update startet die App beim nächsten Öffnen${g1Fehler.length ? ` (${g1Fehler[0].slice(0, 80)})` : ''}`);
+const g1Nach = await g1Vorrat(g1.p);
+check(JSON.stringify(g1Nach) === JSON.stringify(g1Alt),
+  `G1: der alte Vorrat bleibt, wie er war – ohne Dateien der neuen Fassung, und kein halber Vorrat liegt daneben (${JSON.stringify(g1Nach)})`);
+lage.aus = true;
+const g1Offline = await g1.k.newPage();
+const g1OfflineFehler = [];
+g1Offline.on('pageerror', (e) => g1OfflineFehler.push(e.message));
+await g1Offline.goto(SD_UPDATE, { waitUntil: 'load' }).catch(() => {});
+check(await g1App(g1Offline), `G1: ohne Netz startet die App danach wie gewohnt${g1OfflineFehler.length ? ` (${g1OfflineFehler[0].slice(0, 80)})` : ''}`);
+await g1Offline.close();
+// Ist das Netz wieder gut, kommt die neue Fassung doch – vollständig.
+lage.aus = false;
+lage.fehlt = null;
+const g1Gut = await g1.k.newPage();
+await g1Gut.goto(SD_UPDATE, { waitUntil: 'networkidle' }).catch(() => {});
+let g1Fassung = null;
+for (let i = 0; i < 60 && g1Fassung !== 'g1'; i++) {
+  await g1Gut.waitForTimeout(250);
+  g1Fassung = await g1Gut.evaluate(() => window.__fassung || null).catch(() => null);
+}
+check(g1Fassung === 'g1' && await g1App(g1Gut) && Object.keys(await g1Vorrat(g1Gut)).every((k) => k.endsWith('-g1')),
+  `G1: mit gutem Netz übernimmt die neue Fassung danach ganz (${g1Fassung}, ${JSON.stringify(await g1Vorrat(g1Gut))})`);
+await g1.k.close();
+lage.fassung = null;
+lage.inhalt = false;
 
 updateServer.closeAllConnections();
 updateServer.close();
