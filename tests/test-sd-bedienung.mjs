@@ -156,7 +156,7 @@ check(/TSH 2\b/.test(await page.locator('#berichtText').innerText()), 'und der B
 // Erst das verzögerte Speichern des letzten Reiterwechsels abwarten – sonst
 // schreibt die App beim Neuladen (pagehide) ihren Stand über den neueren.
 await gespeichert();
-await page.evaluate((key) => localStorage.setItem(key, JSON.stringify({ version: 2, neu: 'bleibt' })), SCHLUESSEL);
+await page.evaluate((key) => localStorage.setItem(key, JSON.stringify({ version: 99, neu: 'bleibt' })), SCHLUESSEL);
 await page.reload({ waitUntil: 'networkidle' });
 const n = dialoge.length;
 await page.setInputFiles('#sicherungDatei', datei);

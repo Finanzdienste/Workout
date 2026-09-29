@@ -12,9 +12,31 @@
  * geht, steht immer dasselbe – das entscheidet die Ärztin. Kein Satz hier
  * darf dazu taugen, eine Tablette mehr oder weniger zu nehmen.
  *
+ * Das Kapitel „Ernährung und Alltag" übernimmt die Texte E1–E16 aus dem
+ * Regelwerk 2 (Dosisrichtung und Ernährung) mit den Korrekturen des roten
+ * Teams; den Absatz vor der Blutabnahme liefert js/dosis.js (VOR_ABNAHME),
+ * damit er überall gleich lautet.
+ *
  * Die Texte sind HTML, von Hand geschrieben und ohne Eingaben von außen –
- * deshalb ohne esc().
+ * deshalb ohne esc(); nur was aus einem anderen Modul kommt, wird entschärft.
  */
+import { esc } from './text.js';
+import * as sp from './speicher.js';
+import { VOR_ABNAHME } from './dosis.js';
+
+/** E14: auch im Formular „Über mich & weitere Mittel". */
+export const E14_TEXT = 'Vorsicht bei Mitteln „für die Schilddrüse" aus Internet, Drogerie oder Reformhaus: Manche enthalten viel Jod, Biotin oder sogar echtes Schilddrüsenhormon (z. B. „Thyroid", „Schilddrüsenextrakt"). Das kann zu einer Überdosis führen oder die Laborwerte verfälschen. Auch Mittel für Haare, Haut und Nägel und Vitamin-B-Komplexe enthalten oft Biotin. Zeigen Sie neue Mittel vor dem ersten Einnehmen in der Apotheke oder Praxis und tragen Sie sie in der App ein.';
+
+/*
+ * E16, mit dem Zusatz des roten Teams: „geteilt" nur, wenn die Praxis es so
+ * verordnet hat – wer auf Anordnung eine halbe Tablette nimmt, soll aus
+ * „nicht teilen" nicht lesen, jetzt die ganze zu nehmen. Auch im
+ * Dosis-Formular.
+ */
+export const E16_TEXT = 'Die Tabletten gibt es in vielen Stärken, auch in Schritten von 12,5 µg. Nehmen Sie Ihre Tablette genau wie verordnet, auch geteilt, wenn die Praxis es so verordnet hat. Teilen Sie nicht zusätzlich und nehmen Sie nicht abwechselnd verschiedene Stärken, wenn die Praxis es nicht so gesagt hat. Schauen Sie bei jeder neuen Packung auf die Stärke (µg) und den Hersteller. Ist etwas anders als bisher, fragen Sie in der Apotheke nach und tragen Sie es in der App ein. Auch ein Wechsel ist ein Grund für eine Kontrolle nach 6 bis 8 Wochen.';
+
+/** BE1 (Regelwerk 2): Beschwerden und die Dosis. */
+const BE1_TEXT = 'Ihre Beschwerden helfen der Praxis beim Einordnen. Für die Dosis richtet sich die App nur nach Ihrem TSH-Wert. Beschwerden allein sind kein Grund, mehr oder weniger zu nehmen.';
 
 export const KAPITEL = [
   {
@@ -29,22 +51,44 @@ export const KAPITEL = [
       <p>Statt morgens geht auch abends vor dem Schlafengehen, mindestens 3, besser 4 Stunden nach der letzten Mahlzeit. Danach nichts mehr essen und außer Wasser nichts trinken. Das wirkt mindestens genauso gut.</p>
       <p>Ein Wechsel zwischen morgens und abends aber nur nach Absprache mit der Ärztin – und etwa 6 bis 8 Wochen danach die Blutwerte kontrollieren lassen.</p>
       <h2>Die Dosis</h2>
-      <p>Wie viel Sie nehmen, legt allein Ihre Ärztin oder Ihr Arzt fest. Auch das Weglassen oder Hinzunehmen einzelner Tabletten ist eine Dosisänderung.</p>
+      <p>Nach einem Laborwert sagt die App auf der Dosis-Karte (unter „Mehr"), ob der TSH-Wert eher für mehr, für weniger oder für die gleiche Dosis spricht – als Richtung mit der Schrittgröße, die Ärztinnen üblicherweise wählen, nie als neue Tagesdosis. Die neue Menge legt die Ärztin fest: Vor jeder Änderung bitte die Praxis anrufen und bis dahin genau wie bisher weiternehmen. Auch das Weglassen oder Hinzunehmen einzelner Tabletten ist eine Dosisänderung.</p>
       <h2>Aufbewahren</h2>
       <p>Trocken, vor Licht geschützt, nicht über 25 °C – also nicht im Badezimmer und nicht im Auto. Am besten in der Originalpackung.</p>`,
   },
+  /*
+   * „Tablette vergessen?" – zwei Korrekturen aus der dritten Durchsicht:
+   * Nachholen „mindestens 3 Stunden nach dem Essen" wie E15, der Plan (M3)
+   * und die Kalender-Erinnerung; vorher stand hier „2 bis 3 Stunden", eine
+   * Zahl unter der Leitlinie (D5). Und der Fall „mehr als eine Tablette zu
+   * viel auf einmal" fehlte: Wer drei auf einmal genommen hatte, fand nur
+   * „einmal doppelt: schadet nicht" – der Check sagt dazu „jetzt der
+   * Giftnotruf" (W4a; D10). Die Nummer fürs Bundesland kommt wie im Kapitel
+   * „Wann anrufen" aus <!--giftnotruf-->, die 112 steht als Knopf darunter.
+   *
+   * Runde 6: G22 – „einmal doppelt" wie im Warnzeichen-Check (W4b): Hier
+   * stand „– oder haben Sie eine Herzkrankheit –, die Praxis anrufen", der
+   * Check sagte zum selben Ereignis „beim nächsten Kontakt erwähnen" und
+   * beobachtete nur „heute". Jetzt beide gleich: anrufen, wenn in den
+   * nächsten Tagen Beschwerden kommen (die Wirkung setzt verzögert ein); bei
+   * Herzkrankheit oder T3 beim nächsten Kontakt sagen (RW1 W4b: keine
+   * Anruf-Aufforderung ohne Beschwerden).
+   */
   {
     id: 'vergessen',
     titel: 'Tablette vergessen?',
     kurz: 'Nachholen oder auslassen – nie doppelt',
     html: `
       <div class="merke"><strong>Nie die doppelte Menge nehmen.</strong></div>
-      <p><strong>Fällt es noch am selben Tag auf:</strong> nachholen, wenn ein nüchterner Zeitpunkt möglich ist – etwa 2 bis 3 Stunden nach dem Essen und danach eine halbe Stunde nichts essen. Das geht auch abends vor dem Schlafen.</p>
+      <p><strong>Fällt es noch am selben Tag auf:</strong> nachholen, wenn ein nüchterner Zeitpunkt möglich ist – mindestens 3 Stunden nach dem Essen und danach eine halbe Stunde nichts essen. Das geht auch abends vor dem Schlafen.</p>
       <p><strong>Geht das nicht, oder fällt es erst am nächsten Tag auf:</strong> auslassen und ganz normal weitermachen. Auch das ist richtig, so steht es in der Packungsbeilage.</p>
       <p>Eine einzelne vergessene Tablette ist nicht gefährlich: Das Hormon wirkt etwa eine Woche im Körper nach. Häufiges Vergessen zeigt sich aber in den Blutwerten – der TSH-Wert steigt. Deshalb die Einnahme hier abhaken; vergessene Tage stehen dann im Bericht für den Arzttermin.</p>
       <h2>Aus Versehen doppelt genommen?</h2>
-      <p>Eine einmal doppelt genommene Tablette schadet in der Regel nicht. Beschwerden können aber verzögert kommen: Treten in den nächsten Tagen Herzklopfen, Unruhe oder Zittern auf – oder haben Sie eine Herzkrankheit –, die Praxis anrufen.</p>
-      <p>Mehrere Tabletten zu viel über mehrere Tage, oder ein Kind hat Tabletten genommen: Arzt oder Giftnotruf anrufen, auch wenn noch keine Beschwerden da sind.</p>`,
+      <p>Eine einmal doppelt genommene Tablette schadet in der Regel nicht. Beschwerden können aber verzögert kommen: Treten in den nächsten Tagen Herzklopfen, Unruhe oder Zittern auf, die Praxis anrufen. Bei einer Herzkrankheit oder einem Präparat mit T3-Anteil (z. B. Novothyral) sagen Sie es der Praxis beim nächsten Kontakt, auch ohne Beschwerden.</p>
+      <p><strong>Mehr als eine Tablette zu viel auf einmal</strong> (zum Beispiel drei statt einer): jetzt den Giftnotruf anrufen, auch ohne Beschwerden – sie kommen oft erst nach Tagen. Halten Sie die Packung bereit.</p>
+      <p>Mehrere Tabletten zu viel über mehrere Tage, oder ein Kind hat Tabletten genommen: Arzt oder Giftnotruf anrufen, auch wenn noch keine Beschwerden da sind.</p>
+      <!--giftnotruf-->
+      <p><strong>Bei Herzrasen, Brustschmerz, Atemnot oder Verwirrtheit: sofort 112.</strong></p>
+      <p><a class="knopf knopf-gefahr knopf-breit" href="tel:112">112 anrufen</a></p>`,
   },
   {
     id: 'abstand',
@@ -72,25 +116,63 @@ export const KAPITEL = [
       <h2>Biotin vor der Blutabnahme</h2>
       <p>Biotin (Vitamin B7 oder H, oft hoch dosiert in Mitteln für Haare, Haut und Nägel) verfälscht die Laborwerte: Sie sehen dann fälschlich nach zu viel Hormon aus. Vor der Blutabnahme pausieren – bei Haar-Haut-Nägel-Präparaten mindestens 3 Tage – und die Praxis informieren. Übliche Multivitamine mit wenigen Mikrogramm stören nicht.</p>
       <h2>Andere Medikamente</h2>
-      <p>Manche Medikamente verändern den Bedarf oder die Wirkung, zum Beispiel Östrogene (Pille, Hormonersatz), einige Epilepsiemittel oder das Herzmittel Amiodaron. Umgekehrt verstärkt L-Thyroxin Blutverdünner wie Marcumar; nach einer Dosisänderung sollte dann der INR-Wert früher kontrolliert werden. Bei Diabetes kann sich der Blutzucker ändern.</p>
+      <p>Manche Medikamente verändern den Bedarf oder die Wirkung, zum Beispiel Östrogen als Tablette (Hormonersatz) – als Pflaster, Gel oder Spray kaum –, einige Epilepsiemittel oder das Herzmittel Amiodaron. Umgekehrt verstärkt L-Thyroxin Blutverdünner wie Marcumar; nach einer Dosisänderung sollte dann der INR-Wert früher kontrolliert werden. Bei Diabetes kann sich der Blutzucker ändern.</p>
       <div class="merke">Jedes neue Medikament und jedes Nahrungsergänzungsmittel der Ärztin oder in der Apotheke nennen.</div>`,
+  },
+  {
+    id: 'ernaehrung',
+    titel: 'Ernährung und Alltag',
+    kurz: 'Ist die Tablette das Einzige, was zählt? Jod, Selen, Gewicht, Bewegung',
+    html: `
+      <h2>Ist die Tablette das Einzige, was zählt?</h2>
+      <p>Die Tablette ersetzt das Hormon, das Ihre Schilddrüse nicht mehr genug bildet. Keine Ernährung und kein Nahrungsergänzungsmittel kann das ersetzen. Lassen Sie die Tablette deshalb nie weg, auch nicht bei gesunder Ernährung oder mit Naturmitteln. Für die Dosis zählen nur die Tablette und Ihr TSH-Wert. Die Ernährung spielt trotzdem eine Rolle: Sie beeinflusst, wie gut die Tablette aufgenommen wird. Deshalb zählen Abstand und Gleichmäßigkeit. Und Themen wie Cholesterin, Blutzucker, Vitamin B12, Eisen und Knochen hängen mit der Schilddrüse zusammen – dazu mehr in den folgenden Abschnitten.</p>
+      <h2>Jod und Seefisch</h2>
+      <p>Jodsalz im Haushalt und Seefisch ein- bis zweimal pro Woche sind auch bei Hashimoto in Ordnung. Meiden Sie hochdosierte Jodtabletten, Algen, Kelp und Algentabletten, denn sie können sehr viel Jod enthalten. Achten Sie bei Multivitamin-Präparaten auf den Jodgehalt und fragen Sie in der Apotheke. Vor einer Untersuchung mit Kontrastmittel (z. B. CT oder Herzkatheter) sagen Sie, dass Sie eine Schilddrüsenerkrankung haben.</p>
+      <h2>Selen</h2>
+      <p>Ein Nutzen von Selen für Ihre Dosis oder den Verlauf ist nicht belegt. Selen kann Antikörperwerte etwas senken, an der nötigen Tablettendosis ändert das nichts. Nehmen Sie Selenpräparate nur nach Rücksprache und nie mehr als empfohlen. Zu viel Selen schadet, zum Beispiel mit Haarausfall, brüchigen Nägeln oder Nervenbeschwerden. Paranüsse: höchstens 1 bis 2 Stück am Tag.</p>
+      <h2>Abstand und Gleichmäßigkeit</h2>
+      <p>Kaffee, Tee, Milch und Frühstück: erst 30 bis 60 Minuten nach der Tablette. Kalzium-, Eisen- und Magnesiumpräparate, Mittel gegen Sodbrennen, Soja- und Ballaststoffpräparate: 4 Stunden Abstand. Ihr persönlicher Plan steht unter „Was braucht Abstand?". Genauso wichtig: Machen Sie es jeden Tag gleich, denn Ihre Dosis ist auf Ihre Gewohnheiten eingestellt. Wenn Sie Ihre Ernährung stark umstellen, zum Beispiel neu täglich Soja, viel Kleie, Leinsamen oder Flohsamen, oder ein neues Kalziumpräparat beginnen: Sagen Sie es der Praxis und lassen Sie nach 6 bis 8 Wochen TSH kontrollieren.</p>
+      <h2>Glutenfrei?</h2>
+      <p>Glutenfreie Ernährung hilft nur bei nachgewiesener Zöliakie. Bei Hashimoto kommt Zöliakie etwas häufiger vor. Sprechen Sie es an bei anhaltendem Durchfall oder Blähungen, ungewolltem Abnehmen, Blutarmut oder Eisenmangel, oder wenn Ihr TSH trotz regelmäßiger, richtiger Einnahme immer wieder zu hoch ist. Wichtig: Essen Sie vor einem Bluttest auf Zöliakie <strong>nicht</strong> glutenfrei, sonst fällt der Test fälschlich unauffällig aus.</p>
+      <h2>Zucker und Diabetes</h2>
+      <p>Zucker hat keinen besonderen Einfluss auf die Schilddrüse. Wie für alle gilt: in Maßen. Wenn Sie Diabetes haben und Insulin oder Tabletten gegen Zucker nehmen: Messen Sie in den Wochen nach jeder Änderung der Schilddrüsendosis öfter. Mehr Schilddrüsenhormon kann den Zucker erhöhen, weniger kann ihn senken. Achten Sie besonders nach einer Verringerung auf Unterzucker: Zittern, Schwitzen, Heißhunger, Verwirrtheit. Bei starkem Durst, häufigem Wasserlassen oder ungewolltem Abnehmen lassen Sie den Blutzucker prüfen.</p>
+      <h2>Gewicht</h2>
+      <p>Eine unbehandelte Unterfunktion kann ein paar Kilo ausmachen, vieles davon Wasser. Ist sie gut eingestellt, gelten die normalen Regeln fürs Gewicht. L-Thyroxin ist kein Mittel zum Abnehmen: Nehmen Sie nie mehr Tabletten, um abzunehmen – das belastet Herz und Knochen. Wenn sich Ihr Gewicht um mehr als etwa 5 kg ändert, sagen Sie es bei der nächsten Kontrolle, denn dann kann sich der Bedarf ändern. Bei ungewolltem Abnehmen oder schneller Zunahme mit geschwollenen Beinen rufen Sie in den nächsten Tagen die Praxis an. Bei plötzlicher Atemnot: 112.</p>
+      <h2>Cholesterin</h2>
+      <p>Eine Unterfunktion erhöht das LDL-Cholesterin; mit guter Einstellung sinkt es oft wieder. Ein hohes LDL ist aber kein Grund, selbst mehr Tablette zu nehmen. Welcher LDL-Wert für Sie richtig ist, hängt von Herz, Gefäßen, Blutdruck, Diabetes und Alter ab – das legt die Ärztin fest. Einen Cholesterinsenker (Statin) bitte nicht selbst absetzen, nur weil die Schilddrüse jetzt eingestellt ist. Muskelschmerzen unter einem Statin sagen Sie der Praxis.</p>
+      <h2>Müde trotz guter Werte: B12 und Eisen</h2>
+      <p>Bei Hashimoto kommt eine chronische Entzündung der Magenschleimhaut häufiger vor. Sie kann zu Vitamin-B12- und Eisenmangel führen und die Aufnahme der Tablette verschlechtern. Magenschutzmittel und Metformin können den B12-Mangel verstärken. Wenn Sie trotz guter Schilddrüsenwerte müde sind oder Kribbeln, Taubheit in Händen oder Füßen, Gangunsicherheit oder Vergesslichkeit bemerken, lassen Sie Blutbild, B12 und Ferritin prüfen – bei Kribbeln, Taubheit oder Gangunsicherheit innerhalb von ein bis zwei Wochen. Eisentabletten brauchen 4 Stunden Abstand zur Schilddrüsentablette.</p>
+      <h2>Vitamin D</h2>
+      <p>Ein Einfluss von Vitamin D auf die Schilddrüse ist nicht belegt. Im Alter ist es für die Knochen oft sinnvoll; häufig werden 800 bis 1000 Einheiten am Tag empfohlen – klären Sie die Menge mit der Ärztin. Nehmen Sie keine hochdosierten Präparate (z. B. 20.000 Einheiten) auf eigene Faust. Achtung: Viele Vitamin-D-Präparate enthalten auch Kalzium. Dann brauchen sie 4 Stunden Abstand zur Schilddrüsentablette.</p>
+      <h2>Kohl, Brokkoli und Co.</h2>
+      <p>Kohl, Brokkoli, Rettich und ähnliches Gemüse sind in normalen Mengen unbedenklich, gekocht ohnehin. Da die Tablette das Hormon liefert, spielen sie praktisch keine Rolle.</p>
+      <h2>Bewegung</h2>
+      <p>Bewegung hilft gegen Müdigkeit und tut Gewicht, Knochen, Gleichgewicht und Stimmung gut. Steigern Sie langsam. Bei Herzklopfen oder innerer Unruhe lassen Sie das erst ärztlich klären. <strong>Bei Schmerzen oder Engegefühl in der Brust, Herzrasen mit Schwindel oder Atemnot während der Bewegung: sofort aufhören und 112 anrufen.</strong></p>
+      <h2>Mittel „für die Schilddrüse"</h2>
+      <p>${E14_TEXT}</p>
+      <h2>Die Tablette abends?</h2>
+      <p>Manche Menschen nehmen die Tablette abends vor dem Schlafen, mindestens 3 Stunden nach der letzten Mahlzeit. Das ist möglich, aber nur nach Rücksprache mit der Praxis und dann jeden Tag gleich. Ein Wechsel der Uhrzeit kann den Wert verändern. Lassen Sie danach nach 6 bis 8 Wochen kontrollieren.</p>
+      <h2>Stärken und Packungen</h2>
+      <p>${E16_TEXT}</p>
+      <h2>Vor der Blutabnahme</h2>
+      <div class="merke">${esc(VOR_ABNAHME)}</div>`,
   },
   {
     id: 'labor',
     titel: 'Laborwerte verstehen',
-    kurz: 'TSH, fT4, fT3 – und warum die App nichts bewertet',
+    kurz: 'TSH, fT4, fT3 – und wie die App sie einordnet',
     html: `
       <h2>TSH</h2>
       <p>TSH ist der Botenstoff, mit dem die Hirnanhangdrüse die Schilddrüse antreibt, und der wichtigste Wert für die Einstellung. Bekommt der Körper zu wenig Schilddrüsenhormon, <strong>steigt</strong> TSH; bekommt er zu viel, <strong>sinkt</strong> TSH. TSH reagiert sehr empfindlich – schon kleine Änderungen lassen ihn deutlich schwanken.</p>
-      <p>Einheit: mU/l. Die Schreibweisen mIU/l und µIU/ml bedeuten dasselbe und haben denselben Zahlenwert.</p>
+      <p>Einheit: mU/l. Die Schreibweisen mIE/l, mIU/l, µU/ml und µIU/ml bedeuten dasselbe und haben denselben Zahlenwert.</p>
       <p class="klein gedaempft">Liegt die Ursache der Unterfunktion ausnahmsweise in der Hirnanhangdrüse selbst (selten), richtet sich die Ärztin nach fT4 statt nach TSH.</p>
       <h2>fT4</h2>
       <p>fT4 ist das freie Thyroxin – das Hormon, das in der Tablette steckt. Einheiten: pmol/l oder ng/dl (1 ng/dl entspricht 12,87 pmol/l).</p>
       <h2>fT3</h2>
       <p>fT3 ist die aktive Form, die der Körper aus T4 bildet. Einheiten: pmol/l oder pg/ml. Unter L-Thyroxin wird es zur Kontrolle meist nicht gebraucht; ein fT3 im unteren Bereich kommt dabei häufig vor.</p>
       <h2>Der Bereich des Labors</h2>
-      <p>Jedes Labor hat eigene Grenzen, je nach Messverfahren. Deshalb gibt diese App <strong>keine Normwerte vor</strong>, sondern übernimmt den Bereich, der auf Ihrem Befund steht. Im höheren Alter liegt die obere TSH-Grenze oft etwas höher, und bei älteren Menschen wird häufig bewusst ein etwas höherer TSH-Wert angestrebt, weil zu viel Hormon Herz und Knochen belastet. Den persönlichen Zielbereich legt die Ärztin fest.</p>
-      <div class="merke">Ein Wert außerhalb des Bereichs ist keine Aufforderung, selbst etwas zu ändern. Die Ärztin sieht ihn sich an und entscheidet – auch darüber, ob überhaupt etwas zu tun ist. Die App zeigt die Werte deshalb ohne Ampel und ohne „zu hoch" oder „zu niedrig".</div>
+      <p>Jedes Labor hat eigene Grenzen, je nach Messverfahren. Deshalb übernimmt die App den <strong>Bereich von Ihrem Befund</strong>. Fehlt er, nimmt sie übliche Orientierungswerte und sagt das ausdrücklich dazu. Im höheren Alter liegt die obere TSH-Grenze oft etwas höher, und bei älteren Menschen wird häufig bewusst ein etwas höherer TSH-Wert angestrebt, weil zu viel Hormon Herz und Knochen belastet. Den persönlichen Zielbereich legt die Ärztin fest.</p>
+      <div class="merke">Unter jedem Befund und unter „Mehr → Einschätzung" ordnet die App die Werte ein: über, im oder unter dem Bereich, welches Muster TSH und fT4 zusammen ergeben, wie dringend das ist und was in Ihren eigenen Einträgen eine Erklärung sein könnte. Ein Wert außerhalb des Bereichs ist trotzdem keine Aufforderung, sofort selbst etwas zu ändern – erst mit der Praxis sprechen.</div>
       <h2>Warum Werte schwanken</h2>
       <p>TSH ist nachts und früh morgens am höchsten, nachmittags am niedrigsten, und nach dem Essen etwas niedriger als nüchtern. Kleine Unterschiede zwischen zwei Messungen sind normal. Am besten immer unter gleichen Bedingungen abnehmen lassen: morgens, nüchtern.</p>
       <p>Wenig Aussagekraft hat ein einzelner Wert kurz nach einer Dosisänderung, während einer schweren Erkrankung oder unter Biotin.</p>`,
@@ -115,6 +197,16 @@ export const KAPITEL = [
         <li>Ihre Fragen – auch die lassen sich hier notieren</li>
       </ul>`,
   },
+  /*
+   * Runde 6: G23 – Ein neu unregelmäßiger Puls und eine neue Verwirrtheit
+   * waren hier nur „ein Grund für ein Gespräch mit der Ärztin"; gelesen wird
+   * das als Anlass für den nächsten Termin. Dieselben Zeichen heißen im
+   * Check, auf der Befinden-Karte und im Kapitel „Wann anrufen" heute
+   * anrufen (W2h, S4) bzw. sofort 112 (W1). Kein Text darf eine niedrigere
+   * Stufe nennen (RW1 Grundsatz 5, L3f); die D2-Korrektur (Runde 3) hatte nur
+   * das Kapitel „Wann anrufen" angepasst. Die Nummern als Knöpfe; 116 117,
+   * falls die Praxis geschlossen ist.
+   */
   {
     id: 'zeichen',
     titel: 'Anzeichen: zu wenig oder zu viel',
@@ -133,17 +225,37 @@ export const KAPITEL = [
       </ul>
       <h2>Zu viel Hormon</h2>
       <ul>
-        <li>Herzklopfen, schneller oder unregelmäßiger Puls</li>
+        <li>Herzklopfen, schneller oder unregelmäßiger Puls – ist der Puls neu unregelmäßig: heute noch die Praxis anrufen</li>
         <li>innere Unruhe, Nervosität, Zittern</li>
         <li>Schwitzen, Hitzeempfindlichkeit</li>
         <li>Gewichtsverlust trotz Appetit</li>
         <li>Schlafstörungen, Durchfall, Muskelschwäche</li>
       </ul>
       <p>Bei älteren Menschen fehlen die typischen Zeichen oft. Dann können ungewollter Gewichtsverlust, ein unregelmäßiger Puls, Schwäche oder neue Verwirrtheit die einzigen Hinweise sein.</p>
+      <p><strong>Ist der Puls neu unregelmäßig, rufen Sie heute noch die Praxis an – ist sie geschlossen, den Bereitschaftsdienst 116 117. Bei plötzlicher, neuer Verwirrtheit: sofort 112.</strong> Mehr dazu: <button type="button" class="knopf-link" data-act="seite" data-seite="wissen-kapitel" data-param="notfall">Wann anrufen, wann 112</button></p>
+      <div class="knopf-reihe"><a class="knopf" href="tel:116117">116 117 anrufen</a><a class="knopf knopf-gefahr" href="tel:112">112 anrufen</a></div>
       <div class="merke"><strong>Beides ist ein Grund für ein Gespräch mit der Ärztin – nie ein Grund, die Dosis selbst zu ändern.</strong></div>
+      <p>${BE1_TEXT}</p>
       <p>Dauerhaft zu viel Hormon erhöht – besonders im Alter und bei Frauen nach den Wechseljahren – das Risiko für Vorhofflimmern und Knochenschwund, auch wenn man sich dabei gut fühlt. „Lieber etwas mehr" ist deshalb keine gute Idee. L-Thyroxin ist auch kein Mittel zum Abnehmen.</p>
       <p>Nach einer Dosisänderung bessern sich Beschwerden erst nach einigen Wochen bis wenigen Monaten. Bleiben Beschwerden trotz guter Werte, sucht die Ärztin nach anderen Ursachen.</p>`,
   },
+  /*
+   * „Heute noch die Praxis anrufen" (D2): Herzklopfen seit Tagen, ein neu
+   * unregelmäßiger Puls, Erbrechen über mehr als einen Tag … standen unter
+   * „In den nächsten Tagen" – der Check (W2h), die Befinden-Karte (S4) und
+   * die Dosis-Karte sagen dazu „heute noch". Dieses Kapitel liest die
+   * Nutzerin allein als Leitfaden; es darf keine längere Frist nennen als die
+   * App an anderer Stelle (RW1 Grundsatz 5, L3f). Die Liste ist die aus W2h.
+   *
+   * Runde 6: G19 – Die 112-Liste nannte keine Blutung; „Nasenbluten, das
+   * nicht aufhört" stand nur unter „Heute noch". Unter Blutverdünnern ist
+   * ein Nasenbluten, das sich trotz Zudrücken nicht stillen lässt, ein
+   * Notfall. Jetzt wie im Warnzeichen-Check: W1 „starke Blutung, die nicht
+   * aufhört" mit Nasenbluten nach 15 Minuten Zudrücken, Bluterbrechen und
+   * schwarzem Stuhl → 112; W2h die Blutungszeichen, die nicht warten sollen,
+   * aber kein Notfall sind → heute. Dazu W1 „plötzliche, neue Verwirrtheit",
+   * die hier nur als seltene Folge schwerer Unterversorgung stand (G23).
+   */
   {
     id: 'notfall',
     titel: 'Wann anrufen, wann 112',
@@ -156,6 +268,8 @@ export const KAPITEL = [
           <li>Brustschmerz oder Engegefühl in der Brust</li>
           <li>Atemnot, Ohnmacht</li>
           <li>plötzlicher einseitiger Lähmung oder Sprachstörung</li>
+          <li>plötzlicher, neuer Verwirrtheit</li>
+          <li>einer starken Blutung, die nicht aufhört – auch Nasenbluten, das nach 15 Minuten Zudrücken nicht steht (besonders mit Blutverdünnern wie Marcumar), Bluterbrechen oder schwarzem, teerartigem Stuhl</li>
           <li>extremer Schläfrigkeit, Verwirrtheit, sehr niedriger Körpertemperatur oder sehr langsamem Atem – selten, bei schwerer Unterversorgung, etwa nach längerem Weglassen der Tabletten</li>
         </ul>
       </div></div>
@@ -164,14 +278,26 @@ export const KAPITEL = [
       <p>Ärztlicher Bereitschaftsdienst: <strong>116 117</strong>.</p>
       <p><a class="knopf knopf-breit" href="tel:116117">116 117 anrufen</a></p>
       <h2>Zu viele Tabletten genommen</h2>
-      <p>Arzt oder Giftnotruf. Der Giftnotruf ist in Deutschland regional organisiert, zum Beispiel Berlin 030 19240.</p>
+      <p>Arzt oder Giftnotruf. Der Giftnotruf ist in Deutschland regional organisiert.</p>
+      <!--giftnotruf-->
+      <h2>Heute noch die Praxis anrufen</h2>
+      <ul>
+        <li>Herzklopfen seit Tagen oder Puls neu unregelmäßig</li>
+        <li>Ruhepuls mehrmals über 100 oder unter 50 Schläge pro Minute</li>
+        <li>Erbrechen länger als einen Tag oder Durchfall über mehrere Tage</li>
+        <li>über mehrere Tage versehentlich zu viele Tabletten genommen</li>
+        <li>keine Schilddrüsen-Tabletten mehr im Haus</li>
+        <li>mit Marcumar: Nasen- oder Zahnfleischbluten, das öfter kommt, Blut im Urin oder Stuhl, große blaue Flecken ohne Grund</li>
+      </ul>
+      <p>Ist die Praxis geschlossen: Bereitschaftsdienst 116 117. Wenn es schlimmer wird oder ein Notfallzeichen dazukommt: 112.</p>
+      <div class="knopf-reihe"><a class="knopf" href="tel:116117">116 117 anrufen</a><a class="knopf knopf-gefahr" href="tel:112">112 anrufen</a></div>
       <h2>In den nächsten Tagen die Praxis anrufen</h2>
       <ul>
-        <li>neue, anhaltende Beschwerden aus „Anzeichen: zu wenig oder zu viel"</li>
+        <li>neue, anhaltende Beschwerden aus „Anzeichen: zu wenig oder zu viel" – außer Herzklopfen oder unregelmäßigem Puls, siehe oben</li>
         <li>mehrfach vergessene Tabletten</li>
         <li>ein neues oder abgesetztes Medikament oder Nahrungsergänzungsmittel</li>
         <li>ein anderes Präparat aus der Apotheke</li>
-        <li>mehrere Tage Durchfall oder Erbrechen, ungewollter Gewichtsverlust, unregelmäßiger Puls</li>
+        <li>ungewollter Gewichtsverlust</li>
         <li>geplante Operation oder Untersuchung mit Kontrastmittel</li>
         <li>Schwangerschaft</li>
       </ul>`,
@@ -201,8 +327,14 @@ export const KAPITEL = [
     titel: 'Was diese App kann – und was nicht',
     kurz: 'Grenzen, Datenschutz, Sicherung',
     html: `
-      <p>Die App ist eine Alltagshilfe: Sie hilft beim Abhaken der Tablette, speichert Dosis, Laborwerte, Gewicht und Beschwerden und schreibt daraus einen Bericht für den Arzttermin.</p>
-      <div class="merke">Sie <strong>bewertet keine Werte</strong>, stellt <strong>keine Diagnose</strong>, empfiehlt oder berechnet <strong>keine Dosis</strong> und ersetzt keinen Arztbesuch. Sie ist kein Medizinprodukt.</div>
+      <p>Die App ist eine Alltagshilfe: Sie hilft beim Abhaken der Tablette, speichert Dosis, Laborwerte, Gewicht und Beschwerden, ordnet sie ein und schreibt daraus einen Bericht für den Arzttermin.</p>
+      <div class="merke">Sie <strong>ordnet Werte und Beschwerden nach festen Regeln ein</strong>: wo ein Wert zum Bereich liegt, welches Muster TSH und fT4 zusammen ergeben, wie dringend das ist und was in Ihren Einträgen eine Erklärung sein könnte. Die <strong>Dosis-Karte</strong> sagt, ob der letzte TSH-Wert eher für mehr, weniger oder gleich viel spricht, und nennt die Schrittgröße, die Ärztinnen üblicherweise wählen. Sie <strong>rechnet keine neue Dosis</strong> aus und <strong>ersetzt keinen Arztbesuch</strong>: Vor jeder Änderung bitte die Praxis anrufen – die neue Menge legt die Ärztin fest.</div>
+      <p>Die Einschätzung gilt nur für Erwachsene mit einer bekannten, behandelten Unterfunktion. Hat die Praxis Ihnen einen Wert schon erklärt, gilt deren Einschätzung.</p>
+      <h2>Woher die Regeln stammen</h2>
+      <p>Die Regeln stehen in zwei Regelwerken: eines für Laborwerte, Beschwerden, Warnzeichen und Wechselwirkungen, eines für die Dosis-Karte und die Ernährung. Jedes haben drei unabhängige Prüfer mit verschiedenem Blick (Hormone, Labor, Arzneimittel und Patientensicherheit) gegengelesen, danach hat ein „rotes Team" sie an Fallbeispielen angegriffen. <strong>Offen gesagt: Alle Prüfer waren KI-Agenten, keine Ärztinnen.</strong> Bitte lassen Sie die App deshalb vor dem Gebrauch einmal von Ihrer Ärztin oder Apothekerin ansehen und tragen Sie den TSH-Zielbereich ein, den sie Ihnen nennt.</p>
+      <p>Sie ist kein Medizinprodukt, sondern nur für den eigenen, privaten Gebrauch gedacht – bitte geben Sie sie nicht an andere weiter.</p>
+      <h2>Beschwerden</h2>
+      <p>${BE1_TEXT}</p>
       <h2>Ihre Daten</h2>
       <p>Alles, was Sie eintragen, bleibt <strong>nur auf diesem Handy</strong>, im Speicher des Browsers. Es gibt kein Konto und keinen Server, und nichts wird verschickt – außer Sie teilen selbst den Bericht oder eine Sicherung.</p>
       <p>Das heißt auch: Bei einem neuen Handy, beim Löschen der Browserdaten oder wenn der Browser aufräumt, sind die Daten weg. Deshalb ab und zu unter „Mehr → Sicherung" eine Sicherungsdatei speichern.</p>
@@ -213,4 +345,28 @@ export const KAPITEL = [
 
 export function kapitel(id) {
   return KAPITEL.find((k) => k.id === id) || null;
+}
+
+/*
+ * Der Giftnotruf in den Kapiteln „Wann anrufen, wann 112" und „Tablette
+ * vergessen?": die Nummer fürs eingetragene Bundesland als Knopf. Vorher
+ * stand dort nur „zum Beispiel Berlin 030 19240" – wer in Bayern wohnt, las
+ * die falsche Nummer (B67). Ohne Bundesland: 112 (RW1 P5) – der Knopf steht
+ * im Kapitel selbst. „Bundesland eintragen" trägt data-param="bundesland",
+ * damit js/app.js zur Auswahl scrollt statt an den Anfang der langen Seite
+ * „Über mich" (Runde 4: E8).
+ */
+function giftnotrufAbsatz(stand) {
+  const land = stand ? sp.BUNDESLAENDER.find(([k]) => k === stand.profil.bundesland) : null;
+  if (!land) {
+    return '<p>Ohne eingetragenes Bundesland kennt die App Ihre Giftnotruf-Nummer nicht – dann rufen Sie 112 an. Tragen Sie unter „Über mich" Ihr Bundesland ein, dann steht die Nummer hier und oben auf „Heute". <button type="button" class="knopf-link" data-act="seite" data-seite="profil" data-param="bundesland">Bundesland eintragen</button></p>';
+  }
+  const nummer = land[2];
+  return `<p>Für ${esc(land[1])}: <strong>${esc(nummer)}</strong>.</p>
+      <p><a class="knopf knopf-breit knopf-anruf" href="tel:${esc(nummer.replace(/[^\d+]/g, ''))}">Giftnotruf ${esc(nummer)} anrufen</a></p>`;
+}
+
+/** Das HTML eines Kapitels – mit dem, was vom eingetragenen Stand abhängt. */
+export function kapitelHtml(k, stand) {
+  return k.html.replace('<!--giftnotruf-->', giftnotrufAbsatz(stand));
 }
