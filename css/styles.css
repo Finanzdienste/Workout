@@ -1566,11 +1566,14 @@ textarea.io {
 .fig-pack { fill: #e8eaed; }
 .fig-pack-tasche { fill: #c9ced6; }
 .fig-strap { fill: none; stroke: #d5d9df; stroke-linecap: round; }
-/* Finger und Daumen: Linien in Körperfarbe mit einem Rand in Hintergrundfarbe,
-   damit sie auch vor dem Rumpf zu sehen sind. */
-.fig-finger { stroke: var(--accent); fill: none; stroke-linecap: round; }
-.fig-finger-rand { stroke: var(--bg-elev); fill: none; stroke-linecap: round; }
-.fig.hurt-mode .fig-finger { stroke: #56607a; }
+/* Hände: ein Umriss um die ganze Hand statt um jeden Finger. Einzeln umrandet
+   lagen die Finger von der Seite gesehen hintereinander, und aus den Rändern
+   wurde ein Kringel – „Die Hände sehen nicht so richtig händig aus". Also erst
+   die ganze Hand breit in Hintergrundfarbe, darüber dieselbe Form ohne Rand in
+   Körperfarbe; übrig bleibt der Rand um die Hand als Ganzes. */
+.fig-hand { fill: var(--accent); stroke: none; }
+.fig-hand-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: 1.8; stroke-linejoin: round; }
+.fig.hurt-mode .fig-hand { fill: #56607a; }
 
 /* Supersätze: der Wechselhinweis in der Fokus-Ansicht und die Vorschau unter
    Mehr. Bewusst leise – es ist eine Ansage über den Ablauf, keine Aufgabe. */

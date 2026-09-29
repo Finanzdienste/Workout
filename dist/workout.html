@@ -1576,11 +1576,14 @@ textarea.io {
 .fig-pack { fill: #e8eaed; }
 .fig-pack-tasche { fill: #c9ced6; }
 .fig-strap { fill: none; stroke: #d5d9df; stroke-linecap: round; }
-/* Finger und Daumen: Linien in Körperfarbe mit einem Rand in Hintergrundfarbe,
-   damit sie auch vor dem Rumpf zu sehen sind. */
-.fig-finger { stroke: var(--accent); fill: none; stroke-linecap: round; }
-.fig-finger-rand { stroke: var(--bg-elev); fill: none; stroke-linecap: round; }
-.fig.hurt-mode .fig-finger { stroke: #56607a; }
+/* Hände: ein Umriss um die ganze Hand statt um jeden Finger. Einzeln umrandet
+   lagen die Finger von der Seite gesehen hintereinander, und aus den Rändern
+   wurde ein Kringel – „Die Hände sehen nicht so richtig händig aus". Also erst
+   die ganze Hand breit in Hintergrundfarbe, darüber dieselbe Form ohne Rand in
+   Körperfarbe; übrig bleibt der Rand um die Hand als Ganzes. */
+.fig-hand { fill: var(--accent); stroke: none; }
+.fig-hand-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: 1.8; stroke-linejoin: round; }
+.fig.hurt-mode .fig-hand { fill: #56607a; }
 
 /* Supersätze: der Wechselhinweis in der Fokus-Ansicht und die Vorschau unter
    Mehr. Bewusst leise – es ist eine Ansage über den Ablauf, keine Aufgabe. */
@@ -6634,19 +6637,20 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
      * Bewusst ein Pfad und nicht Viereck plus zwei Kreise: nur so lässt sich
      * eine Trennlinie außen herum ziehen, ohne dass innen Nähte auftauchen.
      */
-    const limb = (from, to, w1, w2, cls = 'fig-limb') => {
+    const kapsel = (from, to, w1, w2) => {
       const dx = to.x - from.x; const dy = to.y - from.y;
       const len = Math.hypot(dx, dy) || 1;
       const nx = -dy / len; const ny = dx / len;
       const a = Math.max(0.4, w1 * gearScale * from.k);
       const b = Math.max(0.4, w2 * gearScale * to.k);
       const f = (v) => v.toFixed(1);
-      const d = `M${f(from.x + nx * a)} ${f(from.y + ny * a)}`
+      return `M${f(from.x + nx * a)} ${f(from.y + ny * a)}`
         + ` A${f(a)} ${f(a)} 0 0 1 ${f(from.x - nx * a)} ${f(from.y - ny * a)}`
         + ` L${f(to.x - nx * b)} ${f(to.y - ny * b)}`
         + ` A${f(b)} ${f(b)} 0 0 1 ${f(to.x + nx * b)} ${f(to.y + ny * b)} Z`;
-      const z = (from.z + to.z) / 2;
-      deckend(z, 'path', { d, class: cls });
+    };
+    const limb = (from, to, w1, w2, cls = 'fig-limb') => {
+      deckend((from.z + to.z) / 2, 'path', { d: kapsel(from, to, w1, w2), class: cls });
     };
 
     // Rumpf als Körper mit Tiefe. Eine einzelne Fläche zwischen Schultern und
@@ -6695,13 +6699,8 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       limb(pts.chest, pts[`hand${s}`], 4.2, 2.4, 'fig-gusset');
       limb(pts[`shoulder${s}`], pts[`elbow${s}`], 3.4, 2.5);
       limb(pts[`elbow${s}`], pts[`hand${s}`], 2.5, 1.8);
-      // Hand als eigener Ballen: sonst hört der Unterarm einfach auf und es
-      // ist nicht zu sehen, dass die Figur etwas greift.
-      deckend(pts[`hand${s}`].z + 0.002, 'circle', {
-        cx: pts[`hand${s}`].x.toFixed(1), cy: pts[`hand${s}`].y.toFixed(1),
-        r: (2.4 * gearScale * pts[`hand${s}`].k).toFixed(1),
-        class: 'fig-limb',
-      });
+      // Die Hand selbst zeichnet haende() weiter unten – mit Fläche, Fingern
+      // und Daumen, je nachdem, ob sie greift oder aufliegt.
       limb(pts[`hip${s}`], pts[`knee${s}`], 4.6, 3.1);
       limb(pts[`knee${s}`], pts[`ankle${s}`], 3.1, 1.9);
       limb(pts[`ankle${s}`], pts[`toe${s}`], 1.9, 1.5, 'fig-limb fig-foot');
@@ -6909,52 +6908,132 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     }
 
     /*
-     * Daumen und Finger – damit man den Griff sieht.
+     * Hände: Handfläche, vier Finger, Daumen.
      *
-     * Die Hand war ein Ballen, und ein Ballen greift nicht. Jetzt: drei Finger
-     * in Verlängerung des Unterarms – sie liegen um die Stange, die Hantel, das
-     * Band – und der Daumen quer dazu, in der Richtung, die das Muster nennt
-     * (`daumen`, siehe oben bei PATTERNS). Am Klimmzug im Obergriff zeigen die
-     * Daumen zueinander, im Untergriff nach außen: Das ist der Unterschied
-     * zwischen Chin-ups und Pull-ups, und er war nicht zu sehen.
+     * Bis v213 war die Hand ein Ballen mit drei Strichen davor. Von der Seite
+     * gesehen lagen die Striche übereinander, und jeder hatte seinen dunklen
+     * Rand – bei den Liegestützen stand am Ende des Arms ein Kringel:
      *
-     * Jeder Strich zweimal: erst breit in Hintergrundfarbe, dann in der Farbe
-     * des Körpers – sonst verschwinden die Finger, sobald die Hand vor dem
-     * Rumpf liegt.
+     *     „Die Hände sehen nicht so richtig händig aus"
+     *
+     * Jetzt ist die Hand ein kleiner Körper im Raum wie Arm und Bein: eine
+     * Handfläche als Fläche, vier Finger und ein Daumen als eigene Glieder,
+     * alle mit limb() und demselben Rand. Gedreht wird sie mit der Figur, und
+     * verkürzt sieht sie aus wie eine Hand von der Seite, nicht wie ein Knoten.
+     *
+     * Zwei Haltungen:
+     *   aufliegend  flach, Finger gestreckt und leicht gespreizt – am Boden
+     *               (`finger: 'boden'`), unter der Goblet-Hantel
+     *               (`finger: 'oben'`) und bei freien Händen;
+     *   greifend    Faust um Stange, Hantel oder Band: die Finger laufen über
+     *               den Griff und krümmen sich auf der Seite der Handfläche
+     *               zurück, der Daumen legt sich von der anderen Seite darum.
+     *
+     * Der Daumen zeigt weiter dorthin, wo das Muster es sagt (`daumen`, siehe
+     * PATTERNS) – im Obergriff zueinander, im Untergriff nach außen. Das ist
+     * der Unterschied zwischen Chin-ups und Pull-ups, und er bleibt sichtbar.
+     *
+     * Maße in Körperlängen, gut doppelt so groß wie echt: Die Glieder der
+     * Figur sind es auch, und eine Hand in echter Größe wäre am Handy ein
+     * Punkt.
      */
-    if (spec.daumen) {
-      const weltOben = [0, 1, 0];
-      const haende = equip === 'onehand' ? [spec.gewichtHand || 'R'] : ['L', 'R'];
-      haende.forEach((seite) => {
-        const hand = j[`hand${seite}`];
-        const ell = j[`elbow${seite}`];
-        const innen = mul(sideAxis, seite === 'L' ? 1 : -1);
-        const t = ({ innen, aussen: mul(innen, -1), vorn: frontAxis, hinten: mul(frontAxis, -1),
-          oben: weltOben, unten: mul(weltOben, -1) })[spec.daumen] || innen;
-        let f = norm([hand[0] - ell[0], hand[1] - ell[1], hand[2] - ell[2]]);
-        if (spec.finger === 'boden') f = norm([upAxis[0], 0, upAxis[2]]);
-        else if (spec.finger === 'oben') f = upAxis;
-        const strich = (von, bis, breite) => {
-          const a2 = P(von); const b2 = P(bis);
-          const attrs = (w, cls, dz) => ({
-            x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
-            'stroke-width': (w * gearScale * a2.k).toFixed(2), class: cls, opacity: depth(a2.z),
-            _z: Math.max(a2.z, b2.z) + dz,
-          });
-          [attrs(breite + 1.1, 'fig-finger-rand', 0.03), attrs(breite, 'fig-finger', 0.031)].forEach((at) => {
-            const { _z, ...rest } = at;
-            parts.push({ z: _z, node: el('line', rest) });
-          });
-        };
-        // Drei Finger nebeneinander, von der Daumenseite weg gestaffelt.
-        [0.013, -0.008, -0.029].forEach((o) => {
-          const von = add(hand, mul(t, o));
-          strich(von, add(von, mul(f, 0.066)), 1.5);
+    const weltOben = [0, 1, 0];
+    const kreuz = (a2, b2) => [a2[1] * b2[2] - a2[2] * b2[1], a2[2] * b2[0] - a2[0] * b2[2], a2[0] * b2[1] - a2[1] * b2[0]];
+    const skalar = (a2, b2) => a2[0] * b2[0] + a2[1] * b2[1] + a2[2] * b2[2];
+    const greifend = spec.daumen && !spec.finger;
+    ['L', 'R'].forEach((seite) => {
+      const hand = j[`hand${seite}`];
+      const ell = j[`elbow${seite}`];
+      // Einarmig: nur die Hand mit der Hantel greift, die andere liegt auf.
+      const faust = greifend && (equip !== 'onehand' || seite === (spec.gewichtHand || 'R'));
+      const innen = mul(sideAxis, seite === 'L' ? 1 : -1);
+      const richtung = faust || spec.finger ? spec.daumen : 'vorn';
+      let t = ({ innen, aussen: mul(innen, -1), vorn: frontAxis, hinten: mul(frontAxis, -1),
+        oben: weltOben, unten: mul(weltOben, -1) })[richtung] || innen;
+      let f = norm([hand[0] - ell[0], hand[1] - ell[1], hand[2] - ell[2]]);
+      if (spec.finger === 'boden') f = norm([upAxis[0], 0, upAxis[2]]);
+      else if (spec.finger === 'oben') f = upAxis;
+      // Der Daumen steht quer zu den Fingern. Liegt die gewünschte Richtung
+      // fast längs, bleibt die Hand trotzdem eine Hand: dann eben quer zum Arm.
+      t = add(t, mul(f, -skalar(t, f)));
+      if (Math.hypot(...t) < 0.2) t = add(sideAxis, mul(f, -skalar(sideAxis, f)));
+      t = norm(t);
+      // Wohin die Handfläche zeigt. Welche Seite das ist, hängt an der Hand –
+      // eine linke ist das Spiegelbild einer rechten. Nachgeprüft am
+      // Liegestütz: Finger zum Kopf, Daumen nach innen, Handfläche zum Boden.
+      const n = seite === 'R' ? kreuz(f, t) : kreuz(t, f);
+      const at = (df, dt, dn) => add(add(add(hand, mul(f, df)), mul(t, dt)), mul(n, dn));
+      const fingerAuf = [0.033, 0.011, -0.011, -0.033];   // Zeigefinger zuerst, am Daumen
+
+      const stuecke = [];
+      const glied = (a3, b3, w1, w2) => stuecke.push([a3, b3, w1, w2]);
+      const vorn = [];
+      // Die Handfläche zweimal: als Fläche, damit man von oben ihre Breite
+      // sieht, und als Glied, damit sie von der Seite eine Dicke hat und nicht
+      // zum Strich wird – bei den Liegestützen schaut man fast waagerecht auf
+      // den Boden.
+      let flaeche;
+      if (faust) {
+        // Die Handfläche liegt hinter dem Griff, der Griff quer über ihr.
+        const h = -0.04;
+        flaeche = [at(-0.06, 0.04, h), at(-0.015, 0.05, h), at(0.03, 0.048, h),
+          at(0.04, 0, h), at(0.03, -0.048, h), at(-0.015, -0.05, h), at(-0.06, -0.04, h)];
+        glied(at(-0.045, 0, h), at(0.025, 0, h), 1.25, 1.1);
+        fingerAuf.forEach((o, i) => {
+          const knoechel = at(0.032, o, h);
+          const ueber = at(0.052 - i * 0.003, o, 0.002);
+          const spitze = at(0.012, o * 0.92, 0.042);
+          glied(knoechel, ueber, 0.8, 0.74);
+          glied(ueber, spitze, 0.74, 0.64);
+          vorn.push([ueber, spitze, 0.74, 0.64]);
         });
-        const dvon = add(hand, mul(t, 0.02));
-        strich(dvon, add(dvon, add(mul(t, 0.046), mul(f, 0.016))), 1.7);
-      });
-    }
+        glied(at(-0.04, 0.046, h + 0.012), at(-0.004, 0.052, 0.03), 0.92, 0.76);
+        glied(at(-0.004, 0.052, 0.03), at(0.016, 0.03, 0.046), 0.76, 0.66);
+        vorn.push([at(-0.004, 0.052, 0.03), at(0.016, 0.03, 0.046), 0.76, 0.66]);
+      } else {
+        flaeche = [at(0, 0.04, 0), at(0.045, 0.051, 0), at(0.088, 0.048, 0),
+          at(0.097, 0, 0), at(0.088, -0.048, 0), at(0.045, -0.051, 0), at(0, -0.04, 0)];
+        glied(at(0.01, 0, 0), at(0.085, 0, 0), 1.2, 1.0);
+        [0.068, 0.078, 0.072, 0.058].forEach((lang, i) => {
+          const o = fingerAuf[i];
+          const von = at(0.08, o, 0);
+          const dir = norm(add(f, mul(t, o * 1.6)));
+          glied(von, add(von, mul(dir, lang)), 0.78, 0.6);
+        });
+        const dvon = at(0.024, 0.036, 0);
+        glied(dvon, add(dvon, mul(norm(add(mul(t, 0.78), mul(f, 0.62))), 0.068)), 0.9, 0.66);
+      }
+
+      // Alles in *einen* Pfad, und nur um den ein Rand: Jedes Glied einzeln
+      // umrandet – so wie Arm und Bein – ergab von der Seite gesehen einen
+      // Stapel Ränder, weil die vier Finger dort hintereinander liegen. So
+      // bleibt der Umriss der ganzen Hand, innen ist sie eine Fläche.
+      //
+      // Die Fläche läuft im selben Drehsinn wie die Glieder (kapsel()), sonst
+      // stanzt die Füllregel die Überlappung als Loch aus.
+      const q = flaeche.map(P);
+      const drehsinn = q.reduce((acc, e, i) => {
+        const n2 = q[(i + 1) % q.length];
+        return acc + e.x * n2.y - n2.x * e.y;
+      }, 0);
+      if (drehsinn < 0) q.reverse();
+      const f1 = (v) => v.toFixed(1);
+      const d = [`M${q.map((e) => `${f1(e.x)} ${f1(e.y)}`).join(' L')} Z`,
+        ...stuecke.map(([a3, b3, w1, w2]) => kapsel(P(a3), P(b3), w1, w2))].join(' ');
+      const alle = [...q, ...stuecke.flatMap(([a3, b3]) => [P(a3), P(b3)])];
+      const zHand = alle.reduce((acc, e) => acc + e.z, 0) / alle.length;
+      parts.push({ z: zHand - 0.0015, node: el('path', { d, class: 'fig-hand-rand' }) });
+      deckend(zHand, 'path', { d, class: 'fig-hand' });
+      // Bei der Faust die eingerollten Finger und den Daumen noch einmal
+      // einzeln, mit Rand, in ihrer eigenen Tiefe. Liegen sie vorn – man sieht
+      // in die Handfläche, Untergriff –, stehen vier Finger quer über dem Griff
+      // und der Daumen darüber. Liegen sie hinten, verdeckt sie die Hand, und
+      // man sieht den glatten Handrücken: Obergriff. Das ist der Unterschied,
+      // um den es bei der Frage nach den Fingern ging.
+      if (faust) {
+        vorn.forEach(([a3, b3, w1, w2]) => limb(P(a3), P(b3), w1, w2));
+      }
+    });
 
     if (spec.keil) {
       /*

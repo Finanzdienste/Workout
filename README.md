@@ -380,6 +380,29 @@ Griff liegt – beim Seitheben lag sie vorher entlang des Arms, was keine Hantel
 je tut. `tests/test-figur.mjs` prüft, dass kein greifendes Muster ohne `daumen`
 ist.
 
+**Seit v214 ist die Hand eine Hand.** Die drei Striche vor dem Ballen hielten
+nur, solange man von vorn schaute. Bei den Liegestützen blickt man fast
+waagerecht auf den Boden, die Finger zeigen dort zum Kopf, also halb auf den
+Betrachter zu – die Striche lagen hintereinander, jeder mit seinem dunklen
+Rand, und am Ende des Arms stand ein Kringel:
+
+> „Die Hände sehen nicht so richtig händig aus"
+
+Jetzt hat jede Hand eine Handfläche (als Fläche, damit man von oben ihre
+Breite sieht, und als Glied, damit sie von der Seite eine Dicke hat), vier
+Finger und einen Daumen, alles im Raum wie Arm und Bein und mit ihnen gedreht.
+Sie ist eine Form mit *einem* Umriss, nicht fünf Glieder mit fünf Rändern – von
+der Seite gesehen liegen die Finger dann einfach hintereinander wie bei einer
+echten Hand. Zwei Haltungen: **aufliegend** – flach, Finger leicht gespreizt,
+am Boden (`finger: 'boden'`), unter der Goblet-Hantel und bei freien Händen –
+und **greifend**: eine Faust um Stange, Hantel oder Band. Bei der Faust werden
+die eingerollten Finger noch einmal einzeln gezeichnet, in ihrer eigenen Tiefe.
+Schaut man in die Handfläche, liegen sie vorn, quer über dem Griff; schaut man
+auf den Handrücken, verdeckt ihn die Hand. So bleibt der Griff sichtbar: Von
+vorn zeigt der Klimmzug im Obergriff die Finger, der Chin-up den Handrücken.
+Die Hand ist gut doppelt so groß wie echt, wie die Glieder der Figur auch –
+in echter Größe wäre sie am Handy ein Punkt.
+
 **Aus `backplate` wurde `backpack`**, und das war kein Schönheitsfehler: Die
 Figur trug eine Scheibe auf dem Rücken, die Gewichtsangabe hieß
 „Zusatzgewicht" – beides zeigt etwas, das man sich allein nicht auflegen kann.
