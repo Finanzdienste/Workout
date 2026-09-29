@@ -2059,6 +2059,12 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
                 got = (gleich, ausreisser, doppelt, selten, luecke, laengste, imbalance, ruest, count, round(mix, 6))
             elif REIHUNG == 'einheiten2':
                 got = (gleich, selten, luecke, ausreisser, doppelt, laengste, imbalance, ruest, count, round(mix, 6))
+            # WK_REIHUNG=ruesten: wie 'einheiten', aber der Umbau direkt dahinter.
+            # Mit Hantel-Vorrang (tools/pruefung/startpunkt.py) stehen mehr
+            # Kurzhantelübungen im Plan, und jede mit eigenem Gewicht ist ein
+            # Umbau mehr – Bänder und Körpergewicht brauchen keinen.
+            elif REIHUNG == 'ruesten':
+                got = (gleich, ausreisser, ruest, doppelt, selten, luecke, laengste, imbalance, count, round(mix, 6))
             else:
                 got = (gleich, doppelt, selten, luecke, laengste, imbalance, ruest, count, round(mix, 6))
             if best is None or got < best[0]:

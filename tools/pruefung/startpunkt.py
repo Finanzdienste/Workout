@@ -21,20 +21,19 @@ und sucht unter allen Lösungen die ausgewogenste:
   * jede Übung entweder draußen oder mit PER_EX_WEEK Sätzen je Woche,
   * die Pflichtübungen mit ihrem Minimum (PFLICHT aus build-plan.py),
   * und als Maß: möglichst viele Übungen drin, jede möglichst nah an drei
-    Sätzen je Woche. Band, Rucksack (außer an der Klimmzugstange) und reine
-    Körpergewichtsübungen zählen dabei als zweite Wahl, weil Hanteln und
-    Stange im Haus sind:
+    Sätzen je Woche. Übungen mit Rucksack zählen dabei als zweite Wahl, weil
+    Hanteln und Stange im Haus sind (siehe zweite_wahl()):
 
         „Ists normal dass ich so viele Übungen mit Rucksack und Flaschen usw
          machen soll obwohl ich ja ne komplette hantelausrüstung usw hab?"
 
-    Ausgenommen sind die Übungen, für die es keine Hantelfassung gibt.
+    Bänder und Körpergewicht nicht – sie kosten keinen Umbau.
 
 Das Ergebnis ist kein Plan, sondern ein Startpunkt: {Übung: Sätze über den
 ganzen Plan}. Von ihm aus läuft wandern() in build-plan.py (WK_START) und
-verteilt danach auf Wochen und Tage wie immer. Der Startpunkt des Cut vom
-25.09. liegt als cut-start.json daneben – damit der Lauf nachvollziehbar
-bleibt, nicht nur sein Ergebnis.
+verteilt danach auf Wochen und Tage wie immer. Die Startpunkte der vier
+Pläne liegen als <variante>-start.json daneben – damit ein Lauf
+nachvollziehbar bleibt, nicht nur sein Ergebnis.
 """
 import importlib.util
 import json
@@ -57,20 +56,30 @@ def lade_generator(variante):
 
 
 def zweite_wahl(meta, ids):
-    """Übungen, die mit Hanteln im Haus nur die zweite Wahl sind."""
-    raus = set()
-    for i in ids:
-        equip = meta[i].get('equip')
-        if equip in ('band', None):
-            raus.add(i)
-        elif equip == 'backpack' and 'Klimmzugstange' not in meta[i].get('dbEquip', ''):
-            raus.add(i)
+    """Übungen, die mit Hanteln im Haus nur die zweite Wahl sind: die mit Rucksack.
+
+    Gemeint war die Frage zu genau diesen:
+
+        „Ists normal dass ich so viele Übungen mit Rucksack und Flaschen usw
+         machen soll obwohl ich ja ne komplette hantelausrüstung usw hab?"
+
+    Ein Rucksack will gepackt werden wie eine Hantel – gegen eine Kurzhantel-
+    oder Langhantelübung spart er keinen Umbau und ist die schlechtere Last.
+
+    **Bänder und Körpergewicht zählen nicht dazu**, und das ist gemessen, nicht
+    geschätzt: Am 29.09. standen sie probeweise mit auf der Liste. Die Pläne
+    bekamen dafür mehr Kurzhantelübungen mit je eigenem Gewicht, und der
+    Umbau stieg je Einheit – Cut 3,00 → 3,65, Oberkörper 3,08 → 3,82, Bauch-
+    Beine-Po 3,31 → 4,00, Aufbau 3,55 → 4,32. Ein Band braucht keinen Umbau,
+    und wenig Umbau ist die härtere Vorgabe („ultra wichtig").
+    """
+    raus = {i for i in ids
+            if meta[i].get('equip') == 'backpack' and 'Klimmzugstange' not in meta[i].get('dbEquip', '')}
     # Das Inverted Row hängt zwar an der Klimmzugstange, ist aber ein Rudern mit
     # Rucksack – und Rudern gibt es mit der Langhantel. Genau diese Übung stand
     # auf dem Bildschirmfoto zur Frage oben.
     raus.add('inverted-row')
-    # Dafür gibt es keine Hantelfassung – sie sind nicht zweite Wahl, sondern die einzige.
-    return raus - {'haengendes-knieheben', 'sliding-leg-curl', 'einbeiniger-sliding-leg-curl'}
+    return raus
 
 
 def main():
@@ -114,12 +123,10 @@ def main():
     # Jede Übung drin ist einen halben Wochen-Sollwert wert, die zweite Wahl nur
     # ein Zehntel; jeder Satz Abstand vom Soll kostet eins. Dazu kostet bei der
     # zweiten Wahl jeder Satz selbst anderthalb: Ohne das war es dem Löser
-    # gleich, ob der Überschuss einer Gruppe beim Kurzhantel- oder beim
-    # Band-Seitheben landete – im Oberkörper-Plan standen so 7,3 Sätze
-    # Band-Seitheben je Woche gegen 3 mit Kurzhanteln. Mehr als eins muss es
-    # sein: Bei einem halben holte der Cut die Sätze für die hintere Schulter
-    # über einen neuen Face Pull am Band, weil der billiger war, als den
-    # Reverse Fly mit Kurzhanteln über drei Sätze die Woche zu heben.
+    # gleich, ob der Überschuss einer Gruppe bei der Hantel- oder bei der
+    # Rucksackübung landete. Mehr als eins muss es sein, sonst ist eine neue
+    # Rucksackübung mit drei Sätzen billiger als drei Sätze mehr auf einer
+    # Hantelübung, die schon im Plan steht.
     c = np.array([1.5 if i in zweite else 0 for i in ids]
                  + [(-0.5 + (0.4 if i in zweite else 0)) * soll for i in ids] + [1] * n, float)
     r = milp(c=c, constraints=LinearConstraint(np.array(A, float), lb, ub),
