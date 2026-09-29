@@ -84,7 +84,13 @@ await page.waitForTimeout(300);
 // einzigen trainierten Tag. Also hinblättern statt hoffen.
 // Die trainierten Einheiten sind die ersten des Plans, liegen also nie *nach*
 // dem gezeigten Monat – zurückblättern genügt, und zwei Schritte reichen immer.
-for (let i = 0; i < 3 && !(await page.locator('.cal-cell.done').count()); i++) {
+//
+// Gezählt werden nur Tage *des* Monats (ohne .out): Das Raster zeigt die
+// Randtage des Vormonats mit. Am 29.09. lagen die beiden trainierten
+// Einheiten genau dort – der Kalender stand im Oktober, das Blättern hörte beim
+// Randtag 29.09. auf, und die Zusammenfassung des Oktobers meldete richtig
+// „0 trainiert". Der Test war falsch, nicht die App.
+for (let i = 0; i < 3 && !(await page.locator('.cal-cell.done:not(.out)').count()); i++) {
   await page.locator('[data-act="cal-month"][data-d="-1"]').click();
   await page.waitForTimeout(150);
 }
