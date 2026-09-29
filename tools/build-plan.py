@@ -211,11 +211,17 @@ VARIANTEN = {
         # Grundübungen: die Beine voll, der Oberkörper mit wenigstens einem
         # Auftritt je Muster. Ohne diese Zeile fielen beim Neulauf vom 29.09.
         # Chin-ups und Schulterdrücken ganz heraus.
+        #
+        # Seitliche Schulter 8 statt 7, aus demselben Grund wie im Cut: Mit
+        # dem Schulterdrücken zählt ein Teil ihres Ziels jetzt nebenbei, und
+        # bei 7 fiel sie auf 5,1 direkte Sätze an 1,71 Terminen – unter der
+        # Schwelle, die im Cut der Anlass zum Anheben war. Mit 8 sind es 6,1 an
+        # 2,05, so viel wie vorher.
         'pflicht': {'goblet-squat': 3, 'rumaenisches-kreuzheben': 3,
                     'floor-press': 1, 'chin-ups': 1, 'einarmiges-kh-rudern': 2,
                     'sitzendes-schulterdruecken': 1},
         'ziele': {
-            'chest': 6, 'lats': 7, 'sideDelts': 7, 'rearDelts': 8,
+            'chest': 6, 'lats': 7, 'sideDelts': 8, 'rearDelts': 8,
             'biceps': 5, 'triceps': 6, 'abs': 12,
             'frontDelts': None, 'traps': None, 'hamstringsHip': None,
             'glutes': 15, 'quads': 12, 'hamstringsKnee': 6, 'calves': 9,
@@ -694,6 +700,11 @@ def bw_saetze(plan, weeks, lo=2, hi=4, budget=4000000, sammeln=400):
         got = summe(val)
         return all(got[m] <= CAP_U * weeks for m in groups if ziel[m] is None)
 
+    def ueber(val):
+        """Wie weit die Gruppen ohne Ziel über der Obergrenze liegen, zusammen."""
+        got = summe(val)
+        return sum(max(0, got[m] - CAP_U * weeks) for m in groups if ziel[m] is None)
+
     # ---- 1. Tiefensuche je Block ----------------------------------------
     erlaubt = {i: sorted(range(grenzen[i][0], grenzen[i][1] + 1),
                          key=lambda n, a=auftritte[i]: (abs(n - 3 * a), n))
@@ -769,11 +780,19 @@ def bw_saetze(plan, weeks, lo=2, hi=4, budget=4000000, sammeln=400):
         return gesamt, 0.0, True
 
     # ---- 2. Abstieg, wo die Suche nicht durchkam ------------------------
+    #
+    # Erst die Obergrenze, dann die Abweichung. Vorher war jeder Schritt über
+    # der Grenze verboten – und lag schon der Start mit drei Sätzen je Auftritt
+    # darüber, war es *jeder* Schritt, auch der zurück: Im Oberkörperplan vom
+    # 29.09. stand die vordere Schulter ohne Hanteln bei 13,4 (Grenze 13), der
+    # Abstieg kam keinen Satz weit, und Trizeps, Gesäß und Bauch blieben bis
+    # 0,21 daneben. Liegt der Start unter der Grenze, rechnet er wie vorher:
+    # Ein Schritt darüber ist dann immer schlechter als keiner.
     val = dict(start)
     besser = True
     while besser:
         besser = False
-        jetzt = fehler(val)
+        jetzt = (ueber(val), fehler(val))
         bester = None
         for i in ids:
             for d in (-1, 1):
@@ -781,11 +800,10 @@ def bw_saetze(plan, weeks, lo=2, hi=4, budget=4000000, sammeln=400):
                 if not (grenzen[i][0] <= n <= grenzen[i][1]):
                     continue
                 probe = {**val, i: n}
-                if not haltbar(probe):
-                    continue
-                f = fehler(probe)
-                if f < jetzt - 1e-12 and (bester is None or f < bester[0]):
-                    bester = (f, i, n)
+                k = (ueber(probe), fehler(probe))
+                if (k[0] < jetzt[0] or (k[0] == jetzt[0] and k[1] < jetzt[1] - 1e-12)) \
+                        and (bester is None or k < bester[0]):
+                    bester = (k, i, n)
         if bester:
             val[bester[1]] = bester[2]
             besser = True
@@ -1528,6 +1546,11 @@ MAX_REL = 0.5
 # Zuschlag je Körnung, die eine Woche mit ihrer Satzsumme aus wochen_band()
 # fällt. Gleich viel wie BAND: teurer als eine kleine Ungenauigkeit, billiger
 # als drei Sätze daneben bei einer Gruppe mit Ziel 10 (1,3·10⁷).
+#
+# WK_EBEN=0 schaltet das Wochenband ganz ab, auch in der Rangfolge zwischen den
+# Anläufen – das ist der Generator von vorher, nachgeprüft: Ein Lauf für
+# „Bauch, Beine, Po" von vor der Änderung kam damit Einheit für Einheit
+# wieder heraus. Genommen wurde er trotzdem nicht (siehe 'bbp').
 EBEN = int(os.environ.get('WK_EBEN', 5 * 10 ** 6))
 
 
@@ -1784,7 +1807,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
         # Innerhalb eines Anlaufs wiegt pen() sie schon gegen die Genauigkeit
         # ab, hier sollen sie eine bessere Verteilung nicht mehr überstimmen.
         auftritte = sum(visits(c) for w in col for c in w if c)
-        uneben = sum(wochen_abstand(sum(w), woche) for w in col)
+        uneben = sum(wochen_abstand(sum(w), woche) for w in col) if EBEN else 0
         alle = sorted((miss(x, g) / (g if g else CAP_U)
                        for v in vols for x, g in zip(v, goals)), reverse=True)
         hart = sum(1 for x in alle if x >= MAX_REL)

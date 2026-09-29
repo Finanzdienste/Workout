@@ -2,6 +2,7 @@
 """Ein ausgewogener Startpunkt für tools/build-plan.py, ganzzahlig gelöst.
 
     python3 tools/pruefung/startpunkt.py cut          # schreibt tools/pruefung/cut-start.json
+    python3 tools/pruefung/startpunkt.py cut --ohne-bw-kappe   # wie vor dem 29.09., siehe unten
     WK_START=tools/pruefung/cut-start.json python3 tools/build-plan.py cut
 
 Braucht numpy und scipy (pip install scipy). Kein Tor, kein Schritt der CI –
@@ -82,8 +83,12 @@ def zweite_wahl(meta, ids):
     return raus
 
 
+OHNE_BW_KAPPE = '--ohne-bw-kappe' in sys.argv
+
+
 def main():
-    variante = sys.argv[1] if len(sys.argv) > 1 else 'cut'
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    variante = args[0] if args else 'cut'
     bp = lade_generator(variante)
     meta = json.loads(bp.META.read_text(encoding='utf-8'))
     shares = {k: v['dbShares'] for k, v in meta.items()}
@@ -103,6 +108,25 @@ def main():
         A.append(row)
         lb.append(ziel * weeks if ziel is not None else 0)
         ub.append(ziel * weeks if ziel is not None else bp.CAP_U * weeks)
+    # Die Gruppen ohne Ziel auch *ohne Hanteln* unter der Kappe, bei drei
+    # Sätzen je Auftritt. Ohne diese Zeilen rechnete der Startpunkt nur mit den
+    # Hantel-Anteilen, und im Oberkörperplan vom 29.09. lag die vordere
+    # Schulter ohne Hanteln bei 13,4 (Kappe 13): Pike-Liegestütze und die
+    # Körpergewicht-Fassung des Schulterdrückens treffen sie viel stärker.
+    # Mit zwei bis vier Sätzen je Auftritt ließ sich das hinterher nicht mehr
+    # ausgleichen, nicht einmal auf die 0,05 Sätze, die die Planprüfung erlaubt
+    # (nachgerechnet mit demselben Löser).
+    #
+    # `--ohne-bw-kappe` lässt sie weg – so sind die Startpunkte von Cut und
+    # „Bauch, Beine, Po" vom 29.09. entstanden, vor dieser Änderung. Ihre Pläne
+    # halten die Kappe ohne Hanteln trotzdem (die Planprüfung sagt es), und
+    # mit dem Schalter kommen sie Wert für Wert wieder heraus.
+    bw = {k: v.get('bwShares', {}) for k, v in meta.items()}
+    for m in groups:
+        if bp.GOAL.get(m) is None and not OHNE_BW_KAPPE:
+            A.append([round(bw[i].get(m, 0) * bp.UNIT) * g for i in ids] + [0] * (2 * n))
+            lb.append(0)
+            ub.append(bp.CAP_U * weeks)
     for k in range(n):
         r = [0] * N; r[k] = 1; r[n + k] = -lo
         A.append(r); lb.append(0); ub.append(np.inf)            # drin → mindestens lo

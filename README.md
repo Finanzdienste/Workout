@@ -2816,11 +2816,80 @@ das nicht wert. Der Aufbau bleibt deshalb der vom 25.09.; seine Grundübungen
 hatte er ohnehin (Goblet Squat 1,7 statt der 2 aus `pflicht`, Rudern 2,9 statt
 3 – knapp darunter, weil `pflicht` erst nach ihm kam).
 
-#### Bauch, Beine, Po und Oberkörper
+#### Oberkörper: kein Rucksack, Schulterdrücken drin, gleich lange Einheiten
 
-Noch der Stand vom 25.09. Die Neuläufe sind gerechnet (ohne Rucksack, nur
-Einheiten mit 15 oder 18 Sätzen) und werden mit dem Wochenband gegengerechnet,
-bevor sie eingespielt werden.
+| | Oberkörper vom 25.09. | Oberkörper vom 29.09. |
+| --- | --- | --- |
+| Rucksack (Sätze je Woche) | 4,3 (Liegestütze, Inverted Row) | 0 |
+| Schulterdrücken (Sätze je Woche) | 0 | 3,1 |
+| vordere Schulter | 4,6 direkte Sätze, 1,52 ×/Woche | 7,6 direkte Sätze, 2,00 ×/Woche |
+| Sätze je Woche | 63–69 | 66–69 |
+| Sätze je Einheit | 12–21 (6 × 12, 2 × 21) | 15–18 (29 × 15, 55 × 18) |
+| Übungen je Einheit | 4–7 | 5–6 |
+| Übungen im Plan | 25 | 20 |
+| Rüstvorgänge je Einheit | 3,08 | 3,24 |
+| dieselbe Bewegung zweimal in einer Einheit | 34 | 32 |
+
+**Hier kostet es Umbau, und das steht bewusst da:** 3,24 statt 3,08
+Rüstvorgänge je Einheit. Beim Aufbau war der Preis 0,4 und damit zu hoch;
+hier sind es 0,16 für einen Plan ohne Rucksack, mit der Grundübung, die ihm
+fehlte, und ohne die Einheiten mit 12 und 21 Sätzen. Drei Tagesverteilungen
+(zwei Rangfolgen, darunter `WK_REIHUNG=ruesten`) holten nur 0,01 zurück – es
+liegt an der Auswahl, nicht an den Tagen. Weitere Kosten: Bauch 1,10 statt
+1,19 Termine je Woche und bis 10 statt 7 Tage Abstand, Bizeps 2,52 statt 2,86,
+Waden (ein Termin je Woche) bis 12 statt 7 Tage Abstand. Heraus fallen Band
+Pull-apart, gewichtete Crunches, gewichtete Liegestütze, Hip Thrust, Inverted
+Row, Pike-Liegestütze und Wadenheben mit gebeugtem Knie; neu sind
+Schulterdrücken und Reverse Fly.
+
+**Der erste Lauf hielt ohne Hanteln nicht.** Die vordere Schulter lag dort bei
+13,4 Sätzen (Kappe 13), weil Pike-Liegestütze und die Körpergewicht-Fassung des
+Schulterdrückens sie viel stärker treffen als die Hantel-Fassungen – und der
+Startpunkt rechnete nur mit den Hantel-Anteilen. Mit zwei bis vier Sätzen je
+Auftritt ließ sich das hinterher nicht ausgleichen, nachgerechnet mit einem
+ganzzahligen Löser: nicht exakt und nicht einmal auf die 0,05 Sätze, die die
+Planprüfung zulässt. Seitdem hält `tools/pruefung/startpunkt.py` die Gruppen
+ohne Ziel auch ohne Hanteln unter der Kappe. (Der Abstieg in `bw_saetze()`
+baut eine Überschreitung jetzt ebenfalls zuerst ab, statt jeden Schritt zu
+verweigern – geholfen hat das hier allein nicht.) Gerechnet:
+
+    python3 tools/pruefung/startpunkt.py oberkoerper
+    WK_START=tools/pruefung/oberkoerper-start.json WK_REIHUNG=einheiten WK_SEED=7 python3 tools/build-plan.py oberkoerper
+
+#### Bauch, Beine, Po: kein Rucksack, weniger Umbau, Schulter auf 8
+
+| | BBP vom 25.09. | BBP vom 29.09. |
+| --- | --- | --- |
+| Rucksack (Sätze je Woche) | 5,1 (Liegestütze, Inverted Row) | 0 |
+| Schulterdrücken / Floor Press (Sätze je Woche) | 1,1 / 1,0 | 2,3 / 2,9 |
+| seitliche Schulter | 6,3 direkte Sätze, 2,10 ×/Woche | 6,1 direkte Sätze, 2,05 ×/Woche |
+| hintere Schulter | 5,7 direkte Sätze, 1,90 ×/Woche | 6,1 direkte Sätze, 2,00 ×/Woche |
+| Sätze je Woche | 60–72 | 69 |
+| Sätze je Einheit | 15–18 (36 × 15, 48 × 18) | 15–18 (21 × 15, 63 × 18) |
+| Übungen im Plan | 28 | 23 |
+| Rüstvorgänge je Einheit | 3,31 | 3,16 |
+| dieselbe Bewegung zweimal in einer Einheit | 0 | 0 |
+
+**Die seitliche Schulter steht hier jetzt auf 8, nicht 7** – aus demselben
+Grund wie im Cut. Mit dem Schulterdrücken zählt ein Teil ihres Ziels nebenbei,
+und beim ersten Neulauf mit 7 fiel sie auf 5,1 direkte Sätze an 1,71 Terminen.
+Mit 8 bleibt sie, wo sie war. **Was es kostet:** Bizeps 1,95 statt 2,19 Termine
+je Woche, Rücken 2,10 statt 2,24, Nacken 2,38 statt 2,71, bei Bizeps und Brust
+bis zu 7 statt 5 Tage Abstand. Heraus fallen einbeiniges Kreuzheben, gewichtete
+Liegestütze, Inverted Row, liegende Trizepsstrecker, Reverse Fly und Reverse
+Snow Angel; Face Pull kommt dafür dreimal statt einmal die Woche, Rumänisches
+Kreuzheben mit 3 statt 1,1 Sätzen. Gerechnet:
+
+    python3 tools/pruefung/startpunkt.py bbp --ohne-bw-kappe
+    WK_START=tools/pruefung/bbp-start.json WK_REIHUNG=einheiten WK_SEED=11 python3 tools/build-plan.py bbp
+
+(`--ohne-bw-kappe`, weil dieser Startpunkt vor der Kappe ohne Hanteln
+entstand – siehe Oberkörper oben. Der Plan hält sie trotzdem.)
+
+Drei Läufe mit dem neuen Ziel, einer davon ohne Wochenband (`WK_EBEN=0` – der
+Schalter bringt den Generator von vorher zurück, nachgeprüft an einem älteren
+BBP-Lauf, der Einheit für Einheit wieder herauskam). Genommen ist der einzige
+mit null doppelten Bewegungen.
 
 ### Einen Plan neu einspielen
 
