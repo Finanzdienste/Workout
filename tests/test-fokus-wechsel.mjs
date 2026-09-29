@@ -151,11 +151,16 @@ await page.waitForTimeout(300);
 // Datum 1.10.: „0 trainiert"). Also die Monate der beiden Tage ablaufen und
 // zusammenzählen, vom jüngeren zum älteren, also nur rückwärts blätternd. Der
 // zuletzt gezeigte Monat bleibt offen, für das Antippen weiter unten.
+//
+// Ausgangspunkt ist der Monat, den der Kalender zeigt – nicht der heutige. Er
+// öffnet beim Monat der nächsten Einheit (calMonthNow()), und die liegt am
+// 31.10. schon im November.
 const monat = (tag) => Number(tag.slice(0, 4)) * 12 + Number(tag.slice(5, 7));
+const gezeigt = await page.evaluate(async () => (await import('./js/ansicht-kalender.js')).calMonthNow());
 let zurueckGeblaettert = -1, trainiert = 0, marken = 0, kalender = '';
 const gezaehlt = [];
 for (const tag of [vorTagen(1), vorTagen(2)]) {
-  const ziel = monat(heute()) - monat(tag);
+  const ziel = monat(gezeigt) - monat(tag);
   if (ziel === zurueckGeblaettert) continue;
   for (zurueckGeblaettert = Math.max(zurueckGeblaettert, 0); zurueckGeblaettert < ziel; zurueckGeblaettert++) {
     await page.locator('[data-act="cal-month"][data-d="-1"]').click();
