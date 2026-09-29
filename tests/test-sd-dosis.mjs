@@ -83,11 +83,15 @@ check(await d6c.count() === 1 && (await d6c.innerText()).includes('Jetzt ist die
 check(!/erhöh|senk|zu hoch|zu niedrig/i.test(await d6c.innerText()), '… ohne jede Aussage über die Dosis selbst');
 
 // Mit einem Laborwert nach der Änderung verschwindet er.
+// Geändert in Runde 7 (H16): Kontrollbefund erst nach der Einpendelzeit (ohne
+// Geburtsjahr 8 Wochen, also Tag 56). Ein Wert vom Tag 55 ist noch nicht
+// eingependelt – die Dosis-Karte verwirft ihn selbst (D0.6), und die Kontrolle
+// bleibt deshalb zu Recht fällig.
 await page.evaluate(({ key, datum }) => {
   const st = JSON.parse(localStorage.getItem(key));
   st.labor.push({ id: 'l9', datum, tsh: { wert: 2, einheit: 'mU/l', von: 0.4, bis: 4 }, ft4: null, ft3: null, notiz: '' });
   localStorage.setItem(key, JSON.stringify(st));
-}, { key: 'schilddruese.stand.v1', datum: plus(montag, 55) });
+}, { key: 'schilddruese.stand.v1', datum: plus(montag, 56) });
 await uhr(plus(montag, 56), '06:00');
 await page.click('#reiter-heute');
 check(await page.locator('#ansicht [data-regel="D6c"]').count() === 0, 'ist danach ein Laborwert eingetragen, verschwindet der Hinweis');

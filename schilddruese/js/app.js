@@ -1018,7 +1018,10 @@ function aktion(el) {
       if (rueckfrage && rueckfrage.bereit) rueckfrageSchliessen(true);
       break;
     case 'befund-korrigieren':
-      rueckfrageSchliessen(false);
+      // „Nein" als Antwort (Runde 7: H1) erst, wenn die Rückfrage zu sehen war – wie „Ja".
+      if (rueckfrage && rueckfrage.neinSendet) {
+        if (rueckfrage.bereit) rueckfrageSchliessen('nein');
+      } else rueckfrageSchliessen(false);
       break;
     case 'auswahl':
       if (auswahl && auswahl.bereit) auswahlFertig(el.dataset.wert);
@@ -1370,7 +1373,16 @@ function dialogZeigen({ titel, punkte = [], satz = '', knoepfe, art, abbrechen }
  * (nieGenommen=ja) darf die Rückfrage zur Stärke nicht mit abhaken – die
  * kommt danach noch, mit „bestaetigt".
  */
-function rueckfrageZeigen(form, fragen, { satz = '', feld = '', ja = '', nein = '', name = '' } = {}) {
+/*
+ * Runde 7: H1 – `neinSendet`: Auch „Nein" ist eine Antwort, kein „zurück ins
+ * Formular". Die Frage „Ab 14.05.2024 ist schon 75 µg eingetragen. Nehmen Sie
+ * diese Menge seit dem 14.05.2024?" hat zwei Antworten, die beide speichern:
+ * „Ja" übernimmt den Tag, „Nein, schon früher" behält den eingetragenen. Führte
+ * „Nein" nur ins Formular, käme beim nächsten Speichern dieselbe Frage –
+ * eine Schleife. Das Bestätigungsfeld trägt dann „nein". Escape bleibt
+ * „zurück ins Formular".
+ */
+function rueckfrageZeigen(form, fragen, { satz = '', feld = '', ja = '', nein = '', name = '', neinSendet = false } = {}) {
   rueckfrageSchliessen(null);
   const { dialog, freigeben } = dialogZeigen({
     titel: 'Bitte prüfen',
@@ -1382,12 +1394,12 @@ function rueckfrageZeigen(form, fragen, { satz = '', feld = '', ja = '', nein = 
     ],
     abbrechen: () => rueckfrageSchliessen(false),
   });
-  const r = { dialog, form, feld, name: /^[a-z]\w{0,30}$/i.test(name) ? name : 'bestaetigt', kennung: form ? formKennung(form) : '', bereit: false };
+  const r = { dialog, form, feld, name: /^[a-z]\w{0,30}$/i.test(name) ? name : 'bestaetigt', kennung: form ? formKennung(form) : '', bereit: false, neinSendet: Boolean(neinSendet) };
   rueckfrage = r;
   freigeben(() => { r.bereit = true; });
 }
 
-/** true: bestätigt speichern · false: zurück ins Formular · null: nur schließen. */
+/** true: bestätigt speichern · 'nein': mit „nein" speichern (neinSendet) · false: zurück ins Formular · null: nur schließen. */
 function rueckfrageSchliessen(bestaetigt) {
   if (!rueckfrage) return;
   const { dialog, form: gefragt, feld: feldName, kennung, name: bestaetigtName } = rueckfrage;
@@ -1403,11 +1415,12 @@ function rueckfrageSchliessen(bestaetigt) {
    */
   const form = gefragt && gefragt.isConnected ? gefragt
     : [...$ansicht.querySelectorAll(FORMULARE)].find((f) => formKennung(f) === kennung) || null;
-  if (bestaetigt === true && !form) {
+  const senden = bestaetigt === true || bestaetigt === 'nein';
+  if (senden && !form) {
     meldung('Die Seite hat sich inzwischen geändert – gespeichert wurde nichts. Bitte prüfen Sie Ihre Angaben noch einmal.');
     return;
   }
-  if (bestaetigt === true) {
+  if (senden) {
     let feld = form.querySelector(`input[name="${bestaetigtName}"]`);
     if (!feld) {
       feld = document.createElement('input');
@@ -1415,7 +1428,7 @@ function rueckfrageSchliessen(bestaetigt) {
       feld.name = bestaetigtName;
       form.appendChild(feld);
     }
-    feld.value = 'ja';
+    feld.value = bestaetigt === true ? 'ja' : 'nein';
     form.requestSubmit();
   } else if (bestaetigt === false && form) {
     // „Korrigieren" führt zum Feld, um das es geht – bei der Stärke also
@@ -1669,6 +1682,7 @@ document.addEventListener('submit', (e) => {
     // Eigene Knöpfe und eigenes Bestätigungsfeld: „nie genommen?" (Runde 6: G11).
     rueckfrageZeigen(form, ergebnis.rueckfragen, {
       satz: ergebnis.rueckfrageSatz, feld: ergebnis.rueckfrageFeld, ja: ergebnis.rueckfrageJa, nein: ergebnis.rueckfrageNein, name: ergebnis.rueckfrageName,
+      neinSendet: ergebnis.rueckfrageNeinSendet,
     });
     return;
   }

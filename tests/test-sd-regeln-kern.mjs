@@ -3270,13 +3270,640 @@ try {
   const K = await instanz();
   fall('G21 mittelSetzen: gespeichert ist die Antwort auf die neue Frage', () => {
     check('G21 vorher kaffeePruefen', K.getStand().profil.kaffeePruefen === true);
-    K.mittelSetzen(['kaffee'], { kaffee: 'nein' }, R5);
+    // Runde 7: H5 – geändert: Neu beantwortet ist die Frage erst mit
+    // bestätigter (oder geänderter) Antwort, nicht schon durch jedes Speichern
+    // von „Über mich". Ohne Bestätigung bleibt kaffeePruefen (Fall H5 unten).
+    K.mittelSetzen(['kaffee'], { kaffee: 'nein' }, R5, { kaffeeNeu: true });
     check('G21 nach dem Speichern kein kaffeePruefen, „nein" bleibt', K.getStand().profil.kaffeePruefen === false && K.getStand().mittelAbstand.kaffee === 'nein');
   });
 } catch (e) {
   check('Runde 6 Speicher-Instanzen laufen', false, e && e.message);
 }
 if (hatteLocalStorage) globalThis.localStorage = vorherLocalStorage;
+
+// ================================================================ Runde 7 (H1, H2, H5–H7, H11, H12, H14, H18 – Dosis-Historie und Speicher)
+//
+// Die Dosis-Historie nach der vereinfachten Regel: Eine Berichtigung ersetzt,
+// worauf ihr `statt` zeigt – und dazwischen nur Einträge mit ANDERER Menge;
+// eine zweite Berichtigung ersetzt die erste; von mehreren Einträgen desselben
+// Tages zählt der letzte. Dazu die Datenfassung 3 und die Kaffee-Antwort.
+// Jeder Fall scheiterte vor der Korrektur (außer den Gegenproben). Stände wie
+// in den Nachweisen der siebten Runde.
+
+let dzR7 = {};
+let afR7 = {};
+try {
+  dzR7 = await import('../schilddruese/js/dosis.js');
+  afR7 = await import('../schilddruese/js/ansicht-formulare.js');
+} catch (e) {
+  check('Runde 7: Import dosis.js und ansicht-formulare.js', false, e && e.message);
+}
+const r7Stand = (ue = {}) => normStand({
+  version: 3,
+  profil: { ...BASIS_PROFIL, geburtsjahr: 1950, ...(ue.profil || {}) },
+  mittel: ue.mittel || [],
+  dosen: ue.dosen || [],
+  einnahmen: ue.einnahmen || {},
+  labor: ue.labor || [],
+  nachfragen: ue.nachfragen || [],
+  vorrat: ue.vorrat,
+});
+const r7Ber = (id, ab, mikrogramm, statt, berichtigtAm, weiteres = {}) => r6Dosis(id, ab, mikrogramm, { praxis: false, berichtigung: true, statt, berichtigtAm, ...weiteres });
+const nieIds = (s, h) => [...ez.nieGegolten(s, h)].map(([d, durch]) => `${d.id}>${durch.id}`).sort().join(',');
+/** H11: Kern und Ansichten rechnen gleich – was galt, ist gültig, und jeder ersetzte Eintrag steht als nie genommen da. */
+const r7Invariante = (name, s, h) => {
+  const gueltig = spR5.gueltigeDosen(s);
+  const galten = ez.dosenDieGalten(s, h);
+  const nie = ez.nieGegolten(s, h);
+  check(`${name}: dosenDieGalten ⊆ gueltigeDosen`, galten.every((d) => gueltig.includes(d)), `${idsVon(galten)} / ${idsVon(gueltig)}`);
+  check(`${name}: jeder ersetzte Eintrag gilt als nie genommen, mit derselben Berichtigung`,
+    [...spR5.ersetztDurchBerichtigung(s)].every(([x, b]) => nie.get(x) === b), `${idsVon([...spR5.ersetztDurchBerichtigung(s).keys()])} / ${nieIds(s, h)}`);
+};
+
+// ---- H1: Eine Berichtigung, deren ungefähres „Gilt ab" vor einen genommenen
+// Eintrag mit derselben Menge rückt, streicht ihn nicht („nie genommen;
+// stattdessen 75 µg"). Stand wie im Nachweis (r6rf/s1-ungefaehr.mjs).
+const H1_HEUTE = '2026-08-12';
+const H1_STAND = (ab, extra = []) => r7Stand({
+  dosen: [r6Dosis('d0', '2019-01-01', 50), r6Dosis('d1', '2024-05-14', 75, { praxis: true }), ...extra, r6Dosis('dC', '2026-06-04', 100, { praxis: true }),
+    r7Ber('dK', ab, 75, 'dC', H1_HEUTE)],
+  labor: [
+    { id: 'b0', datum: '2024-03-01', tsh: t(5.5), ...R6_FRAGEN, praxis: 'geaendert', praxisAm: '2024-05-10' },
+    { id: 'bA', datum: '2026-05-13', tsh: t(9), ...R6_FRAGEN, praxis: 'geaendert', praxisAm: '2026-06-04' },
+    { id: 'bB', datum: '2026-08-10', tsh: t(6.5), ...R6_FRAGEN, praxis: 'nochnicht', praxisAm: H1_HEUTE },
+  ],
+  nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'bA', antwort: 'ja', am: '2026-05-14' }],
+});
+fall('H1 Berichtigung „ungefähr" ab 01.01.2024 vor den 75 µg der Praxis vom 14.05.2024', () => {
+  const s = H1_STAND('2024-01-01');
+  check('H1 ersetzt ist nur der berichtigte Eintrag (100 µg), nicht die 75 µg der Praxis', idsVon([...spR5.ersetztDurchBerichtigung(s).keys()]) === 'dC',
+    idsVon([...spR5.ersetztDurchBerichtigung(s).keys()]));
+  check('H1 nie genommen nur die 100 µg', nieIds(s, H1_HEUTE) === 'dC>dK', nieIds(s, H1_HEUTE));
+  const zeilen = ez.nieGenommenZeilen(s, H1_HEUTE);
+  check('H1 Bericht: keine „nie genommen; stattdessen 75 µg"-Zeile zu den 75 µg', zeilen.length === 1 && enthaelt(zeilen[0], 'Ab 04.06.2026 war L-Thyroxin 100 µg')
+    && !zeilen.some((z) => enthaelt(z, 'Ab 14.05.2024')), auszug(zeilen));
+  check('H1 die 75 µg der Praxis gelten (dosenDieGalten)', ez.dosenDieGalten(s, H1_HEUTE).some((d) => d.id === 'd1'), idsVon(ez.dosenDieGalten(s, H1_HEUTE)));
+  r7Invariante('H1', s, H1_HEUTE);
+});
+fall('H1 ein Präparatwechsel mit derselben Menge dazwischen (Euthyrox 75 µg) bleibt', () => {
+  const s = H1_STAND('2024-01-01', [r6Dosis('dE', '2025-03-01', 75, { praeparat: 'Euthyrox', praxis: true })]);
+  check('H1 ersetzt nur dC, der Präparatwechsel bleibt', idsVon([...spR5.ersetztDurchBerichtigung(s).keys()]) === 'dC', idsVon([...spR5.ersetztDurchBerichtigung(s).keys()]));
+  check('H1 … und steht nicht als nie genommen im Bericht', !ez.nieGenommenZeilen(s, H1_HEUTE).some((z) => enthaelt(z, 'Euthyrox')), auszug(ez.nieGenommenZeilen(s, H1_HEUTE)));
+});
+fall('H1 Gegenprobe: eine andere Menge dazwischen zählt weiter als nie genommen', () => {
+  const s = H1_STAND('2024-01-01', [r6Dosis('dX', '2025-03-01', 88, { praxis: true })]);
+  check('H1 88 µg dazwischen und die 100 µg ersetzt', nieIds(s, H1_HEUTE) === 'dC>dK,dX>dK', nieIds(s, H1_HEUTE));
+});
+fall('H1 nach „Ja, seit dem 14.05.2024": Praxis ja, „Dosis damals" beim Befund vom März 50 µg', () => {
+  const s = H1_STAND('2024-05-14');
+  const v = ez.dosisVerlauf(s, H1_HEUTE);
+  const aktuell = v[v.length - 1];
+  check('H1 aktuell 75 µg seit 14.05.2024, Beginn mit dem Eintrag der Praxis', !!aktuell && aktuell.ab === '2024-05-14' && aktuell.erster.id === 'd1' && aktuell.erster.praxis === true,
+    JSON.stringify(v.map((p) => [p.ab, idsVon(p.eintraege)])));
+  const damals = ez.dosisDamals(s, '2024-03-01', H1_HEUTE);
+  check('H1 Dosis damals (01.03.2024) 50 µg', !!damals && damals.td === 50 && !damals.berichtigtDurch, JSON.stringify(damals && { td: damals.td }));
+});
+
+// ---- H7: Eine zweite Berichtigung ersetzt die erste – gleich, wo ihr „Gilt ab"
+// steht. Stand wie im Nachweis (rot5w/v/a-gleichab.mjs): 125 µg seit
+// 24.12.2025, Befund TSH 0,15; erste Berichtigung 175 µg (vorgerückt auf den
+// 01.06.2025), zweite 150 µg statt der ersten.
+const H7_HEUTE = '2026-09-28';
+const H7_STAND = (ab2) => r7Stand({
+  profil: { seit: '2025-12-24' },
+  dosen: [r6Dosis('d1', '2025-12-24', 125), r7Ber('B1', '2025-06-01', 175, 'd1', H7_HEUTE), r7Ber('B2', ab2, 150, 'B1', H7_HEUTE)],
+  labor: [{ id: 'b1', datum: '2026-09-22', tsh: t(0.15), ...R6_FRAGEN, praxis: 'nochnicht', praxisAm: '2026-09-22' }],
+  nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: H7_HEUTE }],
+});
+[['2025-06-01', 'am selben Tag wie die erste'], ['2025-10-01', 'zwischen der ersten und dem berichtigten Eintrag']].forEach(([ab2, wo]) => fall(`H7 zweite Berichtigung ${wo}`, () => {
+  const s = H7_STAND(ab2);
+  check(`H7 (${ab2}) aktuell gilt die zweite Berichtigung (150 µg)`, ez.dosisAmIn(s, H7_HEUTE) && ez.dosisAmIn(s, H7_HEUTE).id === 'B2', JSON.stringify(ez.dosisAmIn(s, H7_HEUTE)));
+  check(`H7 (${ab2}) die erste Berichtigung und die 125 µg nie genommen, beide durch die zweite`, nieIds(s, H7_HEUTE) === 'B1>B2,d1>B2', nieIds(s, H7_HEUTE));
+  const damals = ez.dosisDamals(s, '2026-09-22', H7_HEUTE);
+  check(`H7 (${ab2}) Dosis damals 150 µg`, !!damals && damals.td === 150, JSON.stringify(damals && damals.td));
+  const zeilen = ez.nieGenommenZeilen(s, H7_HEUTE);
+  check(`H7 (${ab2}) Bericht: 175 µg und 125 µg nie genommen, stattdessen 150 µg`, zeilen.length === 2 && zeilen.every((z) => enthaelt(z, 'stattdessen L-Thyroxin 150 µg'))
+    && enthaelt(zeilen, 'war L-Thyroxin 175 µg') && enthaelt(zeilen, 'war L-Thyroxin 125 µg'), auszug(zeilen));
+  const k = dzR7.dosisRichtung ? dzR7.dosisRichtung(s, H7_HEUTE) : null;
+  check(`H7 (${ab2}) die Karte fragt nicht wieder nach der als falsch gemeldeten Menge`, !!k && !enthaelt(texteVon(k), '175 µg'), k ? auszug(texteVon(k)) : 'keine Karte');
+  r7Invariante(`H7 (${ab2})`, s, H7_HEUTE);
+}));
+fall('H7 zweite Berichtigung erst „ab heute": aktuell 150 µg, die erste gilt nie', () => {
+  const s = H7_STAND(H7_HEUTE);
+  check('H7 (ab heute) aktuell die zweite Berichtigung', ez.dosisAmIn(s, H7_HEUTE).id === 'B2');
+  check('H7 (ab heute) nur die erste Berichtigung nie genommen – die 125 µg „laut App; später berichtigt"', nieIds(s, H7_HEUTE) === 'B1>B2', nieIds(s, H7_HEUTE));
+  const v = ez.dosisVerlauf(s, H7_HEUTE);
+  check('H7 (ab heute) Verlauf: 125 µg, dann die Berichtigung auf 150 µg', v.length === 2 && v[0].d.id === 'd1' && v[0].berichtigtDurch === v[1] && v[1].berichtigung,
+    JSON.stringify(v.map((p) => [p.ab, idsVon(p.eintraege), p.berichtigung])));
+  r7Invariante('H7 (ab heute)', s, H7_HEUTE);
+});
+
+// ---- H11: Kette aus zwei Berichtigungen (100 → 88 ab 01.07. → 75 ab 01.06.):
+// Der ursprüngliche Eintrag galt in der Einschätzung wieder als genommen, W-D4
+// fragte nach einer Erhöhung, die es nie gab, der Bericht schwieg dazu.
+const H11_STAND = () => r7Stand({
+  profil: { seit: '2026-08-01' },
+  dosen: [r6Dosis('d1', '2026-08-01', 100), r7Ber('B1', '2026-07-01', 88, 'd1', '2026-08-15'), r7Ber('B2', '2026-06-01', 75, 'B1', '2026-08-15')],
+  labor: [{ id: 'b1', datum: '2026-08-10', tsh: t(6.5), ...R6_FRAGEN, praxis: 'nochnicht', praxisAm: '2026-08-10' }],
+});
+fall('H11 Kette aus zwei Berichtigungen', () => {
+  const s = H11_STAND();
+  check('H11 gueltigeDosen = dosenDieGalten = nur die 75 µg', idsVon(spR5.gueltigeDosen(s)) === 'B2' && idsVon(ez.dosenDieGalten(s, '2026-08-15')) === 'B2',
+    `${idsVon(spR5.gueltigeDosen(s))} / ${idsVon(ez.dosenDieGalten(s, '2026-08-15'))}`);
+  check('H11 88 µg und 100 µg nie genommen, beide durch die 75 µg', nieIds(s, '2026-08-15') === 'B1>B2,d1>B2', nieIds(s, '2026-08-15'));
+  check('H11 Bericht nennt auch den Eintrag vom Einrichten (100 µg ab 01.08.2026)', ez.nieGenommenZeilen(s, '2026-08-15').some((z) => enthaelt(z, 'Ab 01.08.2026 war L-Thyroxin 100 µg')),
+    auszug(ez.nieGenommenZeilen(s, '2026-08-15')));
+  check('H11 keine Änderung der Dosis', ez.aenderungen(s, '2026-08-15').length === 0, idsVon(ez.aenderungen(s, '2026-08-15')));
+  ['2026-08-15', '2026-08-20'].forEach((tag) => {
+    const h = dzR7.dosisHinweise ? dzR7.dosisHinweise(s, tag).filter((x) => ['W-D4', 'D6c'].includes(x.id)) : [{ id: 'fehlt' }];
+    check(`H11 „Heute" am ${tag}: keine W-D4-Frage und kein D6c zu einer Erhöhung, die es nie gab`, h.length === 0, JSON.stringify(h.map((x) => [x.id, x.text.slice(0, 60)])));
+  });
+  r7Invariante('H11', s, '2026-08-15');
+});
+fall('H11 Kette aus drei Berichtigungen – jede mit einem anderen „Gilt ab"', () => {
+  const s = r7Stand({
+    dosen: [r6Dosis('d0', '2020-01-01', 50), r6Dosis('d1', '2026-08-01', 100), r7Ber('B1', '2026-07-01', 88, 'd1', '2026-08-15'),
+      r7Ber('B2', '2026-06-01', 75, 'B1', '2026-08-16'), r7Ber('B3', '2026-06-15', 62.5, 'B2', '2026-08-17')],
+  });
+  check('H11 (drei) aktuell die jüngste Berichtigung', ez.dosisAmIn(s, '2026-08-20').id === 'B3');
+  check('H11 (drei) alle Glieder und der Eintrag vom 01.08. durch die jüngste', nieIds(s, '2026-08-20') === 'B1>B3,B2>B3,d1>B3', nieIds(s, '2026-08-20'));
+  r7Invariante('H11 (drei)', s, '2026-08-20');
+});
+
+// ---- H12 (Historie): Eine Berichtigung, die vor den einzigen Eintrag gerückt
+// ist, bleibt eine Berichtigung – im Verlauf und im Formular (Frage nach der
+// Praxis, sonst wurde „Nein" beim nächsten Ändern still zu „nicht angegeben").
+fall('H12 Berichtigung an erster Stelle', () => {
+  const s = r7Stand({
+    profil: { seit: '2026-01-10' },
+    dosen: [r6Dosis('d1', '2026-01-10', 100), r7Ber('B', '2025-06-01', 125, 'd1', '2026-09-28')],
+    labor: [{ id: 'b1', datum: '2026-09-22', tsh: t(3.5), ...R6_FRAGEN, praxis: 'nochnicht', praxisAm: '2026-09-22' }],
+  });
+  const v = ez.dosisVerlauf(s, '2026-09-28');
+  check('H12 der Zeitraum der Berichtigung ist als Berichtigung vermerkt, die 100 µg als nie genommen', v.length === 1 && v[0].berichtigung === true && nieIds(s, '2026-09-28') === 'd1>B',
+    JSON.stringify(v.map((p) => [p.ab, p.berichtigung])));
+  const html = afR7.formular ? afR7.formular('dosis', 'B', s, '2026-09-28').html : '';
+  check('H12 „Dosis ändern" fragt auch an erster Stelle „Auf Anweisung der Praxis?", mit „Nein" gewählt',
+    /name="praxis" value="nein" checked/.test(html), html.includes('name="praxis"') ? 'ohne „Nein"' : 'ohne Frage');
+});
+
+// ---- H18: Mehrere Einträge mit demselben Beginn – nur der letzte zählt, keine
+// „Davor"-Zeiträume ohne Dauer. Stand wie im Nachweis (rot5w/w/p-gleichtag-dosis.mjs).
+const H18_HEUTE = '2026-09-28';
+fall('H18 75 µg seit 2025, dann 100, 88 und 100 µg ab 20.09.', () => {
+  const s = r7Stand({ dosen: [r6Dosis('d0', '2025-01-01', 75), r6Dosis('a', '2026-09-20', 100, { praxis: true }), r6Dosis('b', '2026-09-20', 88, { praxis: true }),
+    r6Dosis('c', '2026-09-20', 100, { praxis: true })] });
+  const v = ez.dosisVerlauf(s, H18_HEUTE);
+  check('H18 zwei Zeiträume: 75 µg seit 2025, 100 µg ab 20.09.', v.length === 2 && v[0].ab === '2025-01-01' && v[1].ab === '2026-09-20' && v[1].d.id === 'c',
+    JSON.stringify(v.map((p) => [p.ab, idsVon(p.eintraege)])));
+  check('H18 kein Zeitraum ohne Dauer', v.every((p, i) => i === 0 || p.ab > v[i - 1].ab));
+  check('H18 die am selben Tag ersetzten Einträge galten nicht, und sie sind nicht „nie genommen"', idsVon(ez.dosenDieGalten(s, H18_HEUTE)) === 'd0,c' && nieIds(s, H18_HEUTE) === '',
+    `${idsVon(ez.dosenDieGalten(s, H18_HEUTE))} / ${nieIds(s, H18_HEUTE)}`);
+  check('H18 eine Änderung, am 20.09.', idsVon(ez.aenderungen(s, H18_HEUTE)) === 'c', idsVon(ez.aenderungen(s, H18_HEUTE)));
+});
+fall('H18 75 → 100 → 88 µg am selben Tag ist eine Erhöhung von 75 auf 88 µg', () => {
+  const s = r7Stand({ dosen: [r6Dosis('d0', '2025-01-01', 75), r6Dosis('a', '2026-09-20', 100, { praxis: true }), r6Dosis('b', '2026-09-20', 88, { praxis: true })] });
+  ['2026-10-04', '2026-10-18'].forEach((tag) => {
+    const h = dzR7.dosisHinweise ? dzR7.dosisHinweise(s, tag).find((x) => x.id === 'W-D4') : null;
+    check(`H18 W-D4 am ${tag} fragt nach der Erhöhung, nicht „seit Ihre Dosis verringert wurde"`, !!h && enthaelt(h.text, 'erhöht') && !enthaelt(h.text, 'verringert'), h ? h.text.slice(0, 90) : 'keine W-D4-Frage');
+  });
+});
+fall('H18 dieselbe Antwort auf W-D4 zu zwei Einträgen desselben Tages steht einmal im Bericht', () => {
+  const s = r7Stand({
+    dosen: [r6Dosis('d0', '2025-01-01', 88), r6Dosis('a', '2026-06-29', 100.5, { praxis: true }), r6Dosis('b', '2026-06-29', 150.5, { praxis: false })],
+    nachfragen: [{ id: 'n1', art: 'wd4', bezug: 'a-14', antwort: 'ja', am: '2026-07-13', aenderung: 'erhoehung' },
+      { id: 'n2', art: 'wd4', bezug: 'b-14', antwort: 'ja', am: '2026-07-13', aenderung: 'erhoehung' }],
+  });
+  const z = ez.berichtZeilen(s, '2026-07-20').filter((x) => x.startsWith('Nachfrage 14 Tage nach der Erhöhung vom 29.06.2026'));
+  check('H18 die Nachfrage-Zeile steht genau einmal', z.length === 1, auszug(z));
+  check('H18 Verlauf: kein „Davor" mit 100,5 µg ab 29.06.', ez.dosisVerlauf(s, '2026-07-20').length === 2, JSON.stringify(ez.dosisVerlauf(s, '2026-07-20').map((p) => [p.ab, idsVon(p.eintraege)])));
+});
+fall('H18 Gegenprobe: dieselbe Menge unter anderem Namen ab demselben Tag – ein Zeitraum, der erste Eintrag bleibt sein Beginn', () => {
+  const s = r7Stand({ dosen: [r6Dosis('d0', '2019-01-01', 50), r6Dosis('d1', '2024-05-14', 75, { praeparat: 'Euthyrox', praxis: true }),
+    r6Dosis('d2', '2024-05-14', 75, { praxis: false })] });
+  const v = ez.dosisVerlauf(s, H18_HEUTE);
+  check('H18 zwei Zeiträume, der zweite beginnt mit dem Eintrag der Praxis', v.length === 2 && v[1].erster.id === 'd1' && idsVon(v[1].eintraege) === 'd1,d2',
+    JSON.stringify(v.map((p) => [p.ab, idsVon(p.eintraege)])));
+});
+
+// ---- H6, H14: Vorrat – ein nie genommener Eintrag ist keine andere Stärke.
+const H14_STAND = (ab) => r7Stand({
+  dosen: [r6Dosis('d0', '2025-01-01', 75), r6Dosis('dP', '2026-08-01', 100, { praxis: true }), r7Ber('B', ab, 75, 'dP', '2026-10-10')],
+  labor: [{ id: 'b1', datum: '2026-10-05', tsh: t(5.9), ...R6_FRAGEN, praxis: 'nochnicht', praxisAm: '2026-10-05' }],
+  vorrat: { tabletten: 100, stand: '2026-07-15' },
+});
+['2026-08-01', '2026-07-20'].forEach((ab) => fall(`H14 Vorrat vor den nie genommenen 100 µg gezählt, Berichtigung ab ${ab}`, () => {
+  const s = H14_STAND(ab);
+  const x = afR7.vorratAndereStaerke ? afR7.vorratAndereStaerke(s, '2026-10-10') : 'fehlt';
+  check(`H14 (${ab}) keine „andere Stärke" – die 100 µg wurden nie genommen`, x === null, JSON.stringify(x));
+}));
+fall('H6 Ersetzung am selben Tag (ohne Vermerk) ist keine andere Stärke', () => {
+  const s = r7Stand({ dosen: [r6Dosis('d1', '2024-05-14', 75), r6Dosis('dC', '2026-06-04', 100, { praxis: true }), r6Dosis('dB', '2026-06-04', 75, { praxis: false, berichtigung: true })],
+    labor: [{ id: 'bB', datum: '2026-08-10', tsh: t(6.5), ...R6_FRAGEN }], vorrat: { tabletten: 130, stand: '2026-05-25' } });
+  check('H6 vorratAndereStaerke null', afR7.vorratAndereStaerke && afR7.vorratAndereStaerke(s, '2026-09-28') === null, JSON.stringify(afR7.vorratAndereStaerke && afR7.vorratAndereStaerke(s, '2026-09-28')));
+});
+fall('H14 Gegenprobe: eine wirklich genommene andere Stärke bleibt „bitte neu zählen"', () => {
+  const s = r7Stand({ dosen: [r6Dosis('d0', '2025-01-01', 75), r6Dosis('dP', '2026-08-01', 100, { praxis: true })], vorrat: { tabletten: 100, stand: '2026-07-15' } });
+  const x = afR7.vorratAndereStaerke ? afR7.vorratAndereStaerke(s, '2026-10-10') : null;
+  check('H14 andere Stärke ab 01.08.', !!x && x.id === 'dP', JSON.stringify(x));
+});
+
+// ---- H2: Datenfassung 3 – eine ältere Instanz schreibt einen Stand mit den
+// Feldern aus Runde 6 nicht mehr gekürzt zurück.
+/*
+ * Die gespeicherten Felder der Fassung 3. Kommt ein Feld dazu (oder fällt
+ * eines weg), scheitert dieser Fall: Dann VERSION in js/speicher.js
+ * hochzählen und die Liste anpassen – sonst verwirft eine noch offene ältere
+ * App das neue Feld beim nächsten Speichern (H2).
+ */
+const FELDER_FASSUNG_3 = ['befinden', 'befinden[].beschwerden', 'befinden[].datum', 'befinden[].id', 'befinden[].notiz', 'befinden[].stufe', 'dauerhaft', 'dosen',
+  'dosen[].ab', 'dosen[].berichtigtAm', 'dosen[].berichtigung', 'dosen[].id', 'dosen[].mikrogramm', 'dosen[].notiz', 'dosen[].praeparat', 'dosen[].praxis', 'dosen[].statt',
+  'dosen[].tabletten', 'einnahmen', 'einstellungen', 'einstellungen.erinnerung', 'einstellungen.farbe', 'einstellungen.hinweisTablette', 'einstellungen.schrift', 'fragen',
+  'fragen[].erledigt', 'fragen[].id', 'fragen[].text', 'gewicht', 'gewicht[].datum', 'gewicht[].id', 'gewicht[].kg', 'labor', 'labor[].abnahmeUhr', 'labor[].abstandOk',
+  'labor[].b12', 'labor[].bestaetigt', 'labor[].biotin', 'labor[].crp', 'labor[].datum', 'labor[].einnahmeArt', 'labor[].einnahmeGeaendert',
+  // Runde 7 – weitere Werte (H4, H15, H21): der Tag, an dem die Werte eingetragen wurden.
+  'labor[].eingetragenAm', 'labor[].ferritin', 'labor[].ft3',
+  'labor[].ft4', 'labor[].hb', 'labor[].hba1c', 'labor[].id', 'labor[].kontrastmittel', 'labor[].kortison', 'labor[].krank', 'labor[].laborName', 'labor[].ldl',
+  'labor[].mittelGeaendert', 'labor[].natrium', 'labor[].notiz', 'labor[].packung', 'labor[].praxis', 'labor[].praxisAm', 'labor[].tabletteUhr', 'labor[].tsh',
+  'labor[].tsh.bis', 'labor[].tsh.einheit', 'labor[].tsh.unter', 'labor[].tsh.von', 'labor[].tsh.wert', 'labor[].vergessen', 'labor[].verwechselt', 'labor[].vitd',
+  'labor[].vorAbnahme', 'letzteSicherung', 'mittel', 'mittelAbstand', 'mittelWechsel', 'mittelWechsel[].am', 'mittelWechsel[].art', 'mittelWechsel[].id', 'mittelWechsel[].key',
+  'nachfragen', 'nachfragen[].aenderung', 'nachfragen[].am', 'nachfragen[].antwort', 'nachfragen[].art', 'nachfragen[].bezug', 'nachfragen[].id', 'nachfragen[].titel',
+  'profil', 'profil.begruesst', 'profil.behandelt', 'profil.bundesland', 'profil.diabetes', 'profil.geburtsjahr', 'profil.herz', 'profil.hypophyseOderNiedrig',
+  'profil.kaffee30', 'profil.kaffeePruefen', 'profil.kortison', 'profil.krebs', 'profil.mittelErfasst', 'profil.name', 'profil.oestrogenPruefen', 'profil.osteoporose',
+  'profil.praeparatArt', 'profil.schwanger', 'profil.seit', 'profil.ursache', 'profil.zielAm', 'profil.zielBis', 'profil.zielNiedrig', 'profil.zielVon', 'tab', 'termine',
+  'termine[].art', 'termine[].blutabnahme', 'termine[].datum', 'termine[].id', 'termine[].notiz', 'termine[].uhr', 'termine[].wo', 'uhrWechsel', 'uhrWechsel[].am',
+  'uhrWechsel[].id', 'uhrWechsel[].nach', 'uhrWechsel[].von', 'version', 'vorrat', 'vorrat.stand', 'vorrat.tabletten', 'warnzeichen', 'warnzeichen[].datum',
+  'warnzeichen[].id', 'warnzeichen[].ja', 'warnzeichen[].uhr'];
+/** Ein Stand, in dem jedes Feld vorkommt. */
+const R7_VOLL = {
+  version: 3,
+  profil: { ...BASIS_PROFIL, name: 'E', seit: '2024-01-01', schwanger: '', zielVon: 1, zielBis: 3, zielAm: '2026-01-01', hypophyseOderNiedrig: 'nein', bundesland: 'BY', mittelErfasst: true, kaffee30: true, kaffeePruefen: false },
+  mittel: ['kaffee'], mittelAbstand: { kaffee: 'ja' },
+  mittelWechsel: [{ id: 'w1', key: 'kaffee', art: 'beginn', am: '2026-01-01' }],
+  uhrWechsel: [{ id: 'u1', am: '2026-01-01', von: '07:00', nach: '11:00' }],
+  nachfragen: [{ id: 'n1', art: 'wd4', bezug: 'd1-14', antwort: 'ja', am: '2026-01-01', aenderung: 'erhoehung' }, { id: 'n2', art: 'karte_gezeigt', bezug: 'b1', antwort: 'mehr', am: '2026-01-01', titel: 'T' }],
+  einstellungen: { erinnerung: '07:00', schrift: 'gross', farbe: 'hell', hinweisTablette: true },
+  dosen: [r6Dosis('d1', '2024-01-01', 75, { praxis: true }), r7Ber('d2', '2025-01-01', 88, 'd1', '2025-02-01')],
+  einnahmen: { '2026-01-01': { uhr: '07:00' } },
+  // Geändert in Runde 7 – weitere Werte (H4, H15, H21): Der Befund trägt jetzt
+  // auch den Tag seines Eintrags, damit der Schutz dieses neue Feld mitprüft.
+  labor: [{ id: 'b1', datum: '2026-01-01', tsh: t(2), notiz: '', eingetragenAm: '2026-01-02' }],
+  befinden: [{ id: 'f1', datum: '2026-01-01', stufe: 'gut', beschwerden: [], notiz: '' }],
+  gewicht: [{ id: 'g1', datum: '2026-01-01', kg: 70 }],
+  termine: [{ id: 't1', datum: '2026-01-01', uhr: '', art: 'arzt', wo: '', blutabnahme: false, notiz: '' }],
+  fragen: [{ id: 'q1', text: 'x', erledigt: false }],
+  warnzeichen: [{ id: 'z1', datum: '2026-01-01', uhr: '', ja: [] }],
+  vorrat: { tabletten: 10, stand: '2026-01-01' },
+  tab: 'heute', letzteSicherung: null, dauerhaft: false,
+};
+const r7Pfade = (o, vor = '') => Object.entries(o).flatMap(([k, v]) => {
+  const p = vor ? `${vor}.${k}` : k;
+  if (Array.isArray(v)) return [p, ...v.flatMap((x) => (x && typeof x === 'object' ? r7Pfade(x, `${p}[]`) : []))];
+  if (v && typeof v === 'object' && !['einnahmen', 'mittelAbstand'].includes(k)) return [p, ...r7Pfade(v, p)];
+  return [p];
+});
+fall('H2 Datenfassung 3', () => {
+  check('H2 speicher.VERSION = 3', spR5.VERSION === 3, String(spR5.VERSION));
+  check('H2 normStand schreibt Fassung 3, auch aus einem Stand der Fassung 2', normStand({ version: 2 }).version === 3 && normStand(R7_VOLL).version === 3);
+  const alt = normStand({ version: 2, profil: BASIS_PROFIL, mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' }, dosen: [D1] });
+  check('H2 ein Stand der Fassung 2 wird ergänzt: das alte Kaffee-„nein" gehört zur alten Frage', alt.profil.kaffeePruefen === true && alt.profil.kaffee30 === true);
+  const felder = [...new Set(r7Pfade(normStand(R7_VOLL)))].sort();
+  const neu = felder.filter((x) => !FELDER_FASSUNG_3.includes(x));
+  const weg = FELDER_FASSUNG_3.filter((x) => !felder.includes(x));
+  check('H2 Schutz: die gespeicherten Felder sind die der Fassung 3 – ein neues Feld heißt VERSION hochzählen', spR5.VERSION === 3 && !neu.length && !weg.length,
+    `neu: ${neu.join(', ') || '–'}; weg: ${weg.join(', ') || '–'}`);
+});
+try {
+  const { readFileSync: lies, writeFileSync: schreib, mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { fileURLToPath, pathToFileURL } = await import('node:url');
+  // Eine Instanz, die nur Fassung 2 kennt – wie eine noch offene ältere App.
+  const js = (datei) => new URL(`../schilddruese/js/${datei}`, import.meta.url);
+  const ordner = mkdtempSync(join(tmpdir(), 'sd-fassung2-'));
+  const quelle = lies(fileURLToPath(js('speicher.js')), 'utf8')
+    .replace(/export const VERSION = \d+;/, 'export const VERSION = 2;')
+    .replace("from './datum.js'", `from '${js('datum.js').href}'`)
+    .replace("from './text.js'", `from '${js('text.js').href}'`);
+  const altDatei = join(ordner, 'speicher-fassung2.js');
+  schreib(altDatei, quelle);
+  const mitStatt = { version: 2, profil: BASIS_PROFIL, dosen: [r6Dosis('d1', '2024-05-14', 75), r6Dosis('dC', '2026-06-04', 100, { praxis: true }), r7Ber('dB', '2024-05-14', 75, 'dC', '2026-08-12')] };
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: JSON.stringify(mitStatt) });
+  const N = await instanz();
+  N.aendern((s) => { s.profil.name = 'Erika'; });
+  N.sofortSchreiben();
+  const geschrieben = JSON.parse(globalThis.localStorage.getItem(SCHLUESSEL_SD));
+  const A2 = await import(`${pathToFileURL(altDatei).href}?runde7`);
+  fall('H2 eine ältere Instanz (Fassung 2) neben der neuen', () => {
+    check('H2 die neue App speichert Fassung 3', geschrieben.version === 3, String(geschrieben.version));
+    check('H2 die ältere sieht einen neueren Stand und schreibt nicht', A2.speicherGrund() === 'neuer' && A2.kannSpeichern() === false, `${A2.speicherGrund()} / ${A2.kannSpeichern()}`);
+    A2.aendern((s) => { s.profil.name = 'alt'; });
+    A2.sofortSchreiben();
+    const danach = JSON.parse(globalThis.localStorage.getItem(SCHLUESSEL_SD));
+    check('H2 … der Vermerk „statt" der Berichtigung bleibt gespeichert', danach.profil.name === 'Erika' && danach.dosen.find((d) => d.id === 'dB').statt === 'dC',
+      JSON.stringify(danach.dosen.find((d) => d.id === 'dB')));
+    const neuere = A2.sicherungPruefen(N.exportJSON());
+    check('H2 … und lehnt eine Sicherung der neuen Fassung ab', neuere.ok === false && enthaelt(neuere.grund, 'neueren Fassung'), JSON.stringify(neuere));
+  });
+  rmSync(ordner, { recursive: true, force: true });
+  // ---- H5: Speichern von „Über mich" beantwortet die neue Kaffee-Frage nicht von selbst.
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: JSON.stringify({ version: 2, profil: BASIS_PROFIL, mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' }, dosen: [D1] }) });
+  const K7 = await instanz();
+  fall('H5 mittelSetzen: das alte „nein" bleibt die Antwort auf die alte Frage, bis es bestätigt oder geändert ist', () => {
+    K7.mittelSetzen(['kaffee'], { kaffee: 'nein' }, R5);
+    check('H5 ohne Bestätigung bleibt kaffeePruefen (etwa nur das Bundesland gespeichert)', K7.getStand().profil.kaffeePruefen === true && K7.getStand().mittelAbstand.kaffee === 'nein');
+    K7.mittelSetzen(['kaffee'], { kaffee: 'nein' }, R5, { kaffeeNeu: true });
+    check('H5 mit Bestätigung gilt „nein" für die neue Frage', K7.getStand().profil.kaffeePruefen === false);
+  });
+  globalThis.localStorage = speicherAttrappe({ [SCHLUESSEL_SD]: JSON.stringify({ version: 2, profil: BASIS_PROFIL, mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' }, dosen: [D1] }) });
+  const K8 = await instanz();
+  fall('H5 Gegenprobe: Kaffee nicht mehr angekreuzt – nichts mehr zu prüfen', () => {
+    K8.mittelSetzen([], {}, R5);
+    check('H5 ohne Kaffee kein kaffeePruefen', K8.getStand().profil.kaffeePruefen === false);
+  });
+} catch (e) {
+  check('Runde 7 Speicher-Instanzen laufen', false, e && e.stack ? e.stack.split('\n').slice(0, 2).join(' | ') : String(e));
+}
+if (hatteLocalStorage) globalThis.localStorage = vorherLocalStorage;
+
+// ================================================================ Runde 7 – weitere Werte (H4, H15, H19–H22)
+//
+// Gefahrengrenzen der weiteren Werte (G18) mit fester Frist statt Dauerstufe,
+// Einheiten-Rückfrage nach dem Laborbereich (Hb, CRP) und HbA1c mit Diabetes.
+// Jeder Fall scheiterte vor der Korrektur (außer den Gegenproben). Heute ist
+// der 28.09.2026 wie in den Nachweisen der siebten Runde.
+
+let aeR7 = {};
+try {
+  aeR7 = await import('../schilddruese/js/ansicht-einschaetzung.js');
+} catch (e) {
+  check('Runde 7 – weitere Werte: Import ansicht-einschaetzung.js', false, e && e.message);
+}
+const W7 = R5;
+/** Ein Befund mit TSH, fT4 und weiteren Werten. */
+const w7Befund = (id, datum, werte, weiteres = {}) => ({ id, datum, tsh: t(2), ft4: f4(15), ...R6_FRAGEN, praxis: 'nochnicht', ...werte, ...weiteres });
+const w7Stand = (labor, ue = {}) => r6Stand({ labor, ...ue });
+/** Der weitere Wert `key` des Befunds `id` – mit dem Tag, wie Befund-Karte und Gesamtbild rechnen. */
+const w7Wert = (s, id, key, heute = W7) => ez.weitereWerte(s.labor.find((l) => l.id === id), s, heute).find((x) => x.key === key);
+const w7Teil = (s, key, heute = W7) => ez.gesamtbild(s, heute).teile.find((x) => x.id === `E13-${key}`);
+const NA118 = ww('natrium', 118, 'mmol/l', 135, 145);
+
+// ---- H19: CRP 15 und „bis 0,5" mit dem vorbelegten mg/l ist fast sicher
+// 15 mg/dl = 150 mg/l. Vorher: keine Rückfrage, „Beim nächsten Termin".
+fall('H19 CRP 15 „mg/l" bei Bereich bis 0,5: Rückfrage mit Vorschlag mg/dl', () => {
+  const p = eh.pruefeWert('crp', { wert: 15, einheit: 'mg/l', von: null, bis: 0.5 });
+  check('H19 pruefeWert: Rückfrage, unplausibel, Vorschlag mg/dl', !!p.rueckfrage && p.unplausibel && p.vorschlag === 'mg/dl' && enthaelt(p.rueckfrage, 'mg/dl'), JSON.stringify(p));
+  const s = w7Stand([w7Befund('b', plus(W7, -1), ww('crp', 15, 'mg/l', null, 0.5))]);
+  check('H19 befundPruefen nennt die Rückfrage', eh.befundPruefen(s.labor[0], s, W7).rueckfragen.some((r) => enthaelt(r, 'Bereich passt nicht')), JSON.stringify(eh.befundPruefen(s.labor[0], s, W7)));
+});
+fall('H19 CRP 15 „mg/l" bis 0,5 nach „Ja, stimmt" → heute, mit „Falls … mg/dl"', () => {
+  const s = w7Stand([w7Befund('b', plus(W7, -1), ww('crp', 15, 'mg/l', null, 0.5), { bestaetigt: true })]);
+  const x = w7Wert(s, 'b', 'crp');
+  check('H19 bestätigt: Stufe heute', !!x && x.stufe === 'heute', JSON.stringify(x && { stufe: x.stufe, texte: x.texte }));
+  check('H19 bestätigt: Text sagt, woher die Frist kommt', !!x && enthaelt(x.texte[0], 'Falls auf dem Befund „mg/dl" steht') && enthaelt(x.texte[0], 'heute noch'), x && x.texte[0]);
+  check('H19 bestätigt: Gesamtbild heute', ez.gesamtbild(s, W7).stufe === 'heute', ez.gesamtbild(s, W7).stufe);
+  const u = w7Stand([w7Befund('b', plus(W7, -1), ww('crp', 15, 'mg/l', null, 0.5))]);
+  const y = w7Wert(u, 'b', 'crp');
+  check('H19 unbestätigt (älterer Stand): nicht „Beim nächsten Termin", sondern heute mit der Bitte zu prüfen', !!y && y.stufe === 'heute' && enthaelt(y.texte.join(' '), 'bitte prüfen'), JSON.stringify(y && { stufe: y.stufe, texte: y.texte }));
+});
+fall('H19 Hb 68 „g/dl" bei 120–160 nach „Ja, stimmt" → heute (6,8 g/dl)', () => {
+  const s = w7Stand([w7Befund('b', plus(W7, -1), ww('hb', 68, 'g/dl', 120, 160), { bestaetigt: true })]);
+  const x = w7Wert(s, 'b', 'hb');
+  check('H19 Hb 68: Stufe heute, „Falls … g/l"', !!x && x.stufe === 'heute' && enthaelt(x.texte[0], '„g/l"'), JSON.stringify(x && { stufe: x.stufe, texte: x.texte }));
+  check('H19 Hb 68: kein „ein bis zwei Wochen" darunter (L3f)', !!x && !enthaelt(x.texte, 'ein bis zwei Wochen'), x && x.texte.join(' | '));
+});
+fall('H19 umgekehrt: CRP 15 „mg/dl" bei Bereich bis 5 → Rückfrage mit Vorschlag mg/l', () => {
+  const p = eh.pruefeWert('crp', { wert: 15, einheit: 'mg/dl', von: null, bis: 5 });
+  check('H19 umgekehrt: unplausibel, Vorschlag mg/l', p.unplausibel && p.vorschlag === 'mg/l', JSON.stringify(p));
+  const u = w7Stand([w7Befund('b', plus(W7, -1), ww('crp', 15, 'mg/dl', null, 5))]);
+  check('H19 umgekehrt, unbestätigt: nicht still „heute anrufen"', w7Wert(u, 'b', 'crp').stufe === 'keine', JSON.stringify(w7Wert(u, 'b', 'crp')));
+  const s = w7Stand([w7Befund('b', plus(W7, -1), ww('crp', 15, 'mg/dl', null, 5), { bestaetigt: true })]);
+  const x = w7Wert(s, 'b', 'crp');
+  check('H19 umgekehrt, bestätigt: heute (150 mg/l) mit der Bitte, die Einheit zu prüfen', x.stufe === 'heute' && enthaelt(x.texte.join(' '), 'ändern Sie bitte die Einheit'), JSON.stringify(x));
+});
+[
+  ['H19 Gegenprobe: CRP 15 mg/l bis 5', 'crp', { wert: 15, einheit: 'mg/l', von: null, bis: 5 }, 'termin'],
+  ['H19 Gegenprobe: CRP 12 mg/l bis 3', 'crp', { wert: 12, einheit: 'mg/l', von: null, bis: 3 }, 'termin'],
+  ['H19 Gegenprobe: hs-CRP 2 mg/l bis 1', 'crp', { wert: 2, einheit: 'mg/l', von: null, bis: 1 }, 'termin'],
+  ['H19 Gegenprobe: CRP 24 mg/dl bis 0,5', 'crp', { wert: 24, einheit: 'mg/dl', von: null, bis: 0.5 }, 'heute'],
+  ['H19 Gegenprobe: CRP 1,2 mg/dl bis 1,0', 'crp', { wert: 1.2, einheit: 'mg/dl', von: null, bis: 1.0 }, 'termin'],
+  ['H20 Gegenprobe: Hb 7,5 g/dl bei 12–16', 'hb', { wert: 7.5, einheit: 'g/dl', von: 12, bis: 16 }, 'tage'],
+  ['H20 Gegenprobe: Hb 7,8 mmol/l bei 7,4–9,9', 'hb', { wert: 7.8, einheit: 'mmol/l', von: 7.4, bis: 9.9 }, 'keine'],
+  ['H20 Gegenprobe: Hb 6,9 mmol/l bei 7,4–9,9', 'hb', { wert: 6.9, einheit: 'mmol/l', von: 7.4, bis: 9.9 }, 'zeitnah'],
+  ['H20 Gegenprobe: Hb 9,2 mmol/l bei 8,6–11,2 (Männerbereich)', 'hb', { wert: 9.2, einheit: 'mmol/l', von: 8.6, bis: 11.2 }, 'keine'],
+  ['H20 Gegenprobe: Hb 110 g/l bei 120–160', 'hb', { wert: 110, einheit: 'g/l', von: 120, bis: 160 }, 'zeitnah'],
+  ['H20 Gegenprobe: Hb 11,2 g/dl bei 11,5–15,5', 'hb', { wert: 11.2, einheit: 'g/dl', von: 11.5, bis: 15.5 }, 'zeitnah'],
+].forEach(([name, key, w, stufe]) => fall(name, () => {
+  const p = eh.pruefeWert(key, w);
+  check(`${name}: keine Rückfrage`, !p.rueckfrage && !p.unplausibel, JSON.stringify(p));
+  const s = w7Stand([w7Befund('b', plus(W7, -1), { [key]: w })]);
+  const x = w7Wert(s, 'b', key);
+  check(`${name}: Stufe ${stufe}`, !!x && x.stufe === stufe, JSON.stringify(x && { stufe: x.stufe, texte: x.texte }));
+}));
+
+// ---- H20: Hb aus einem mmol/l-Befund mit dem vorbelegten g/dl hieß
+// „deutliche" bzw. „starke Blutarmut", obwohl er im eingetragenen Bereich lag.
+[[7.8, 'tage'], [6.9, 'heute']].forEach(([wert, vorher]) => fall(`H20 Hb ${String(wert).replace('.', ',')} „g/dl" bei 7,4–9,9 (vorher ${vorher})`, () => {
+  const w = { wert, einheit: 'g/dl', von: 7.4, bis: 9.9 };
+  const p = eh.pruefeWert('hb', w);
+  check(`H20 Hb ${wert}: Rückfrage „vielleicht mmol/l", unplausibel`, p.unplausibel && p.vorschlag === 'mmol/l' && enthaelt(p.rueckfrage, 'mmol/l'), JSON.stringify(p));
+  const s = w7Stand([w7Befund('b', plus(W7, -1), { hb: w })]);
+  const x = w7Wert(s, 'b', 'hb');
+  check(`H20 Hb ${wert}: vor der Klärung keine Einordnung (E13)`, !!x && x.stufe === 'keine' && enthaelt(x.texte, 'bitte prüfen'), JSON.stringify(x && { stufe: x.stufe, texte: x.texte }));
+  check(`H20 Hb ${wert}: kein Gesamtbild-Teil mit Blutarmut`, !w7Teil(s, 'hb'), JSON.stringify(w7Teil(s, 'hb')));
+  check(`H20 Hb ${wert}: Dosis-Karte sperrt, bis bestätigt (D0.3 über plausibel)`, eh.plausibel(s.labor[0], s) === false);
+}));
+fall('H20 Hb 7,8 „g/dl" bei 7,4–9,9, ausdrücklich bestätigt → Frist bleibt, mit der Bitte, die Einheit zu prüfen', () => {
+  const s = w7Stand([w7Befund('b', plus(W7, -1), { hb: { wert: 7.8, einheit: 'g/dl', von: 7.4, bis: 9.9 } }, { bestaetigt: true })]);
+  const x = w7Wert(s, 'b', 'hb');
+  check('H20 bestätigt: tage (ein vertippter Bereich darf kein echtes Hb verschweigen)', !!x && x.stufe === 'tage', JSON.stringify(x));
+  check('H20 bestätigt: Bitte, die Einheit zu prüfen („mmol/l")', !!x && enthaelt(x.texte.join(' '), 'Steht auf dem Befund „mmol/l"'), x && x.texte.join(' | '));
+});
+fall('H20 Hb 7,8 g/dl ohne Bereich: einfache Rückfrage, Frist bleibt', () => {
+  const p = eh.pruefeWert('hb', { wert: 7.8, einheit: 'g/dl', von: null, bis: null });
+  check('H20 ohne Bereich: Rückfrage nach mmol/l, aber nicht unplausibel', !!p.rueckfrage && !p.unplausibel && enthaelt(p.rueckfrage, 'mmol/l'), JSON.stringify(p));
+  const s = w7Stand([w7Befund('b', plus(W7, -1), ww('hb', 7.8, 'g/dl'), { bestaetigt: true })]);
+  check('H20 ohne Bereich: tage', w7Wert(s, 'b', 'hb').stufe === 'tage');
+});
+
+// ---- H4, H15, H21: „Heute anrufen" aus einem Gefahrenwert gilt, solange er
+// neu und unbeantwortet ist – nicht monatelang (vorher: täglich bis zum
+// nächsten Befund, auch nach der Entscheidung der Praxis).
+fall('H21 Natrium 118: heute am Befundtag und bis Tag 14, ab Tag 15 „In ein bis zwei Wochen" mit Datum', () => {
+  const tag0 = plus(W7, -15);
+  const s = w7Stand([w7Befund('b', tag0, NA118)]);
+  [0, 1, 10, 14].forEach((n) => {
+    const x = w7Wert(s, 'b', 'natrium', plus(tag0, n));
+    check(`H21 Tag ${n}: heute`, !!x && x.stufe === 'heute' && ez.gesamtbild(s, plus(tag0, n)).stufe === 'heute', JSON.stringify(x && x.stufe));
+  });
+  const x = w7Wert(s, 'b', 'natrium');
+  check('H21 Tag 15: zeitnah', !!x && x.stufe === 'zeitnah', JSON.stringify(x && { stufe: x.stufe, texte: x.texte }));
+  check('H21 Tag 15: Text mit Datum, ohne „heute noch", mit „ein bis zwei Wochen" und 112', !!x && enthaelt(x.texte[0], `vom ${tag0.split('-').reverse().join('.')}`)
+    && !enthaelt(x.texte[0], 'heute noch') && enthaelt(x.texte[0], 'ein bis zwei Wochen') && enthaelt(x.texte[0], 'sofort 112'), x && x.texte[0]);
+  const g = ez.gesamtbild(s, W7);
+  check('H21 Tag 15: Gesamtbild zeitnah, nicht heute', g.stufe === 'zeitnah', `${g.stufe}; ${teilIds(g).join(', ')}`);
+  const e = ez.befundEinschaetzen(s.labor[0], s, W7);
+  check('H21 Tag 15: Kopf der Befund-Karte zeitnah (dieselbe Lage, dieselbe Frist)', !!e.kopf && e.kopf.stufe === 'zeitnah', JSON.stringify(e.kopf));
+  check('H21 nach sieben Monaten nicht „Heute anrufen"', ez.gesamtbild(s, plus(tag0, 210)).stufe !== 'heute', ez.gesamtbild(s, plus(tag0, 210)).stufe);
+});
+fall('H15 Natrium 118, die Praxis hat sich am Folgetag zum Befund gemeldet → nicht mehr „heute"', () => {
+  const tag0 = plus(W7, -5);
+  const s = w7Stand([w7Befund('b', tag0, NA118, { praxis: 'bleibt', praxisAm: plus(tag0, 1) })]);
+  check('H15 am Befundtag (vor der Angabe): heute', w7Wert(s, 'b', 'natrium', tag0).stufe === 'heute');
+  const x = w7Wert(s, 'b', 'natrium');
+  check('H15 nach der Angabe: zeitnah (F8 betrifft die Dosis – ob die Praxis das Natrium sah, weiß die App nicht)', !!x && x.stufe === 'zeitnah', JSON.stringify(x && x.stufe));
+  check('H15 Text: „Die Praxis hat sich zu diesem Befund gemeldet"', !!x && enthaelt(x.texte[0], 'zu diesem Befund gemeldet'), x && x.texte[0]);
+  ['geaendert', 'nachmessen'].forEach((praxis) => {
+    const s2 = w7Stand([w7Befund('b', tag0, NA118, { praxis, praxisAm: plus(tag0, 2) })]);
+    check(`H15 auch nach „${praxis}"`, w7Wert(s2, 'b', 'natrium').stufe === 'zeitnah');
+  });
+  const s3 = w7Stand([w7Befund('b', tag0, NA118, { praxis: 'nochnicht', praxisAm: plus(tag0, 1) })]);
+  check('H15 Gegenprobe: „Noch nicht" beendet nichts', w7Wert(s3, 'b', 'natrium').stufe === 'heute');
+});
+fall('H15 ein frischer Gefahrenwert fällt nie unter „heute": Angabe vom selben Tag, von vorher, zu einem anderen Befund', () => {
+  const tag0 = plus(W7, -3);
+  const gleich = w7Stand([w7Befund('b', tag0, NA118, { praxis: 'bleibt', praxisAm: tag0 })]);
+  check('H15 F8 am Tag des Eintrags (mit dem Befund zusammen): heute', w7Wert(gleich, 'b', 'natrium').stufe === 'heute');
+  // Befund vom 01.09., Praxis „bleibt" am 03.09.; Natrium erst heute nachgetragen.
+  const nach = w7Stand([w7Befund('b', '2026-09-01', NA118, { praxis: 'bleibt', praxisAm: '2026-09-03', eingetragenAm: W7 })]);
+  check('H15 nachgetragenes Natrium, Praxis-Angabe von vorher: heute', w7Wert(nach, 'b', 'natrium').stufe === 'heute', JSON.stringify(w7Wert(nach, 'b', 'natrium').stufe));
+  check('H15 … und Tag 14 nach dem Eintrag noch heute, Tag 15 nicht', w7Wert(nach, 'b', 'natrium', plus(W7, 14)).stufe === 'heute' && w7Wert(nach, 'b', 'natrium', plus(W7, 15)).stufe === 'zeitnah');
+  const spaet = w7Stand([w7Befund('b', plus(W7, -30), NA118, { eingetragenAm: W7 })]);
+  check('H15 drei Wochen später abgeschrieben: ab dem Eintrag heute', w7Wert(spaet, 'b', 'natrium').stufe === 'heute');
+  const anderer = w7Stand([w7Befund('a', plus(W7, -40), {}, { praxis: 'bleibt', praxisAm: plus(W7, -38) }), w7Befund('b', plus(W7, -2), NA118)]);
+  check('H15 Angabe der Praxis zu einem älteren Befund: heute', w7Wert(anderer, 'b', 'natrium').stufe === 'heute' && ez.gesamtbild(anderer, W7).stufe === 'heute');
+});
+fall('H4 „Die Praxis weiß davon" zu genau diesem Wert → Beim nächsten Termin', () => {
+  const tag0 = plus(W7, -2);
+  const bekannt = (am, antwort = 'natrium', bezug = 'b') => [{ id: 'n7', art: ez.WERT_BEKANNT, bezug, antwort, am }];
+  const s = w7Stand([w7Befund('b', tag0, NA118)], { nachfragen: bekannt(plus(tag0, 1)) });
+  const x = w7Wert(s, 'b', 'natrium');
+  check('H4 Konstante WERT_BEKANNT', ez.WERT_BEKANNT === 'wert_bekannt', String(ez.WERT_BEKANNT));
+  check('H4 quittiert: termin, keine weitere Frage', !!x && x.stufe === 'termin' && x.bekanntFrage === false, JSON.stringify(x && { stufe: x.stufe, bekanntFrage: x.bekanntFrage }));
+  check('H4 quittiert: Text nennt die Angabe, 112 bleibt, kein „heute noch"', !!x && enthaelt(x.texte[0], 'Praxis davon weiß') && enthaelt(x.texte[0], 'sofort 112') && !enthaelt(x.texte[0], 'heute noch'), x && x.texte[0]);
+  check('H4 quittiert: Gesamtbild termin', ez.gesamtbild(s, W7).stufe === 'termin', ez.gesamtbild(s, W7).stufe);
+  const u = w7Stand([w7Befund('b', tag0, NA118)]);
+  check('H4 unquittiert: der Teil bietet die Angabe an', JSON.stringify((w7Teil(u, 'natrium') || {}).bekannt) === JSON.stringify({ befund: 'b', key: 'natrium' }), JSON.stringify(w7Teil(u, 'natrium')));
+  check('H4 quittiert: der Teil bietet sie nicht mehr an', !!w7Teil(s, 'natrium') && !w7Teil(s, 'natrium').bekannt, JSON.stringify(w7Teil(s, 'natrium')));
+  const vorher = w7Stand([w7Befund('b', tag0, NA118, { eingetragenAm: W7 })], { nachfragen: bekannt(plus(W7, -1)) });
+  check('H4 eine Angabe von vor dem Eintrag des Werts zählt nicht', w7Wert(vorher, 'b', 'natrium').stufe === 'heute');
+  const fremd = w7Stand([w7Befund('b', tag0, { ...NA118, ...ww('crp', 150, 'mg/l', null, 5) })], { nachfragen: bekannt(plus(tag0, 1)) });
+  check('H4 die Angabe gilt nur für den genannten Wert', w7Wert(fremd, 'b', 'natrium').stufe === 'termin' && w7Wert(fremd, 'b', 'crp').stufe === 'heute');
+  const b2 = w7Stand([w7Befund('b', tag0, NA118)], { nachfragen: bekannt(plus(tag0, 1), 'natrium', 'anderer') });
+  check('H4 die Angabe gilt nur für den genannten Befund', w7Wert(b2, 'b', 'natrium').stufe === 'heute');
+  const gespeichert = normStand({ version: 3, nachfragen: bekannt(plus(tag0, 1)) }).nachfragen;
+  check('H4 normStand behält die Angabe', gespeichert.length === 1 && gespeichert[0].art === 'wert_bekannt' && gespeichert[0].antwort === 'natrium', JSON.stringify(gespeichert));
+});
+fall('H4 Hb 11,5 unter dem Bereich mit Marcumar: nach 30 Tagen „In ein bis zwei Wochen"', () => {
+  const s = w7Stand([w7Befund('b', plus(W7, -30), ww('hb', 11.5, 'g/dl', 12, 16))], { mittel: ['marcumar'] });
+  const x = w7Wert(s, 'b', 'hb');
+  check('H4 Marcumar nach 30 Tagen: zeitnah, Marcumar im Text', !!x && x.stufe === 'zeitnah' && enthaelt(x.texte[0], 'Marcumar'), JSON.stringify(x && { stufe: x.stufe, texte: x.texte }));
+  check('H4 Marcumar am 10. Tag: tage', w7Wert(s, 'b', 'hb', plus(W7, -20)).stufe === 'tage');
+});
+fall('H21 CRP 150 und Hb 6,5 nach 20 Tagen: nicht mehr „heute"', () => {
+  const s = w7Stand([w7Befund('b', plus(W7, -20), { ...ww('crp', 150, 'mg/l', null, 5), ...ww('hb', 6.5, 'g/dl', 12, 16) })]);
+  check('H21 CRP nach 20 Tagen: zeitnah', w7Wert(s, 'b', 'crp').stufe === 'zeitnah');
+  check('H21 Hb nach 20 Tagen: zeitnah', w7Wert(s, 'b', 'hb').stufe === 'zeitnah');
+  check('H21 Gesamtbild nach 20 Tagen: zeitnah', ez.gesamtbild(s, W7).stufe === 'zeitnah', teilIds(ez.gesamtbild(s, W7)).join(', '));
+});
+fall('H21 Bericht: die ursprüngliche Einordnung mit dem Grund, warum sie für die Patientin nicht mehr gilt', () => {
+  const s = w7Stand([w7Befund('b', '2026-03-12', NA118, { praxis: 'bleibt', praxisAm: '2026-03-13' })]);
+  const z = ez.berichtZeilen(s, W7).find((x) => x.includes('Natrium 118'));
+  check('H21 Bericht: „heute noch" als Einordnung am Befundtag', !!z && enthaelt(z, 'heute noch'), z);
+  check('H21 Bericht: „Für die Patientin gilt inzwischen „In ein bis zwei Wochen"" mit der Angabe der Praxis', !!z && enthaelt(z, 'Für die Patientin gilt inzwischen „In ein bis zwei Wochen"') && enthaelt(z, '13.03.2026'), z);
+  const ohne = w7Stand([w7Befund('b', '2026-09-01', NA118)]);
+  const z2 = ez.berichtZeilen(ohne, W7).find((x) => x.includes('Natrium 118'));
+  check('H21 Bericht ohne Angabe: seit wann und warum („älter als 14 Tage")', !!z2 && enthaelt(z2, 'seit 16.09.2026 älter als 14 Tage'), z2);
+});
+fall('H4 Gegenprobe: Vitamin D über 100 bleibt „tage" (E13e, B44 – keine Gefahrengrenze)', () => {
+  const s = w7Stand([w7Befund('b', plus(W7, -40), ww('vitd', 120, 'ng/ml', 30, 100), { praxis: 'bleibt', praxisAm: plus(W7, -38) })]);
+  check('H4 Vitamin D 120 nach 40 Tagen und Praxis-Angabe: tage', w7Wert(s, 'b', 'vitd').stufe === 'tage');
+});
+fall('H4 normStand: der Tag des Eintrags bleibt, beim Zusammenführen gilt der spätere', () => {
+  const s = normStand({ version: 3, labor: [{ id: 'a', datum: '2026-09-01', tsh: t(2), eingetragenAm: '2026-09-03' }, { id: 'b', datum: '2026-09-01', ft4: f4(15), ...NA118, eingetragenAm: '2026-09-20' }] });
+  check('H4 zusammengeführt: ein Eintrag mit eingetragenAm 20.09.', s.labor.length === 1 && s.labor[0].eingetragenAm === '2026-09-20', JSON.stringify(s.labor.map((l) => [l.id, l.eingetragenAm])));
+  const kaputt = normStand({ version: 3, labor: [{ id: 'a', datum: '2026-09-01', tsh: t(2), eingetragenAm: 'gestern' }] });
+  check('H4 ein ungültiger Tag fällt weg', !('eingetragenAm' in kaputt.labor[0]), JSON.stringify(kaputt.labor[0]));
+});
+
+// ---- H4, H15, H21 in der Ansicht: die Antwort „Die Praxis weiß davon" beim
+// Wert und im Gesamtbild – vorher gab es keinen Weg, „Heute anrufen" zu beenden.
+fall('H4 Ansicht: Knopf „Ja, die Praxis weiß davon" beim Wert und im Gesamtbild', () => {
+  const s = w7Stand([w7Befund('b', plus(W7, -1), NA118)]);
+  const karte = aeR7.befundKarte ? aeR7.befundKarte(s.labor[0], s, W7) : '';
+  const knopf = /data-act="frage-antwort" data-ziel="nachfrage" data-feld="wert_bekannt" data-bezug="b" data-wert="natrium"/;
+  check('H4 Befund-Karte: Knopf mit Nachfrage wert_bekannt zu Befund und Wert', knopf.test(karte), karte.slice(karte.indexOf('weitere-werte'), karte.indexOf('weitere-werte') + 900));
+  const seite = aeR7.einschaetzungSeite ? aeR7.einschaetzungSeite('gesamtbild', null, s, W7) : { html: '' };
+  const teil = (seite.html.split('data-regel="E13-natrium"')[1] || '').split('teil-karte')[0];
+  check('H4 Gesamtbild: der Teil zum Natrium trägt den Knopf', knopf.test(teil), teil.slice(0, 600));
+  const q = w7Stand([w7Befund('b', plus(W7, -1), NA118)], { nachfragen: [{ id: 'n7', art: 'wert_bekannt', bezug: 'b', antwort: 'natrium', am: W7 }] });
+  check('H4 quittiert: kein Knopf mehr', !knopf.test(aeR7.befundKarte(q.labor[0], q, W7)));
+  const alt = w7Stand([w7Befund('b', '2026-03-12', NA118, { praxis: 'bleibt', praxisAm: '2026-03-13' })]);
+  const karteAlt = aeR7.befundKarte(alt.labor[0], alt, W7);
+  check('H21 Ansicht: sieben Monate später kein „Heute anrufen" beim Wert, sondern „In ein bis zwei Wochen"', !/Heute anrufen/.test(karteAlt) && /In ein bis zwei Wochen/.test(karteAlt), karteAlt.slice(0, 400));
+});
+
+// ---- H4: Das Befund-Formular merkt sich den Tag, an dem Werte dazukamen.
+fall('H4 Befund-Formular: eingetragenAm beim Anlegen und wenn ein Wert dazukommt, nicht beim Ändern einer Frage', () => {
+  const vorherFormData = globalThis.FormData;
+  // Das Formular liest mit FormData – unter Node aus einem einfachen Objekt.
+  globalThis.FormData = class {
+    constructor(felder) { this.felder = new Map(Object.entries(felder || {})); }
+    get(k) { return this.felder.has(k) ? this.felder.get(k) : null; }
+    has(k) { return this.felder.has(k); }
+  };
+  try {
+    spR5.aendern((st) => Object.assign(st, w7Stand([])));
+    const felder = (datum, weiteres = {}) => ({ datum, tsh_wert: '2', tsh_einheit: 'mU/l', tsh_von: '0,4', tsh_bis: '4', ...weiteres });
+    const r1 = afR7.absenden('labor', null, felder('2026-09-01', { natrium_wert: '118', natrium_einheit: 'mmol/l', natrium_von: '135', natrium_bis: '145' }), '2026-09-20');
+    const b = spR5.getStand().labor[0];
+    check('H4 angelegt: eingetragenAm = Tag des Eintrags', r1.ok && b && b.eingetragenAm === '2026-09-20', JSON.stringify({ r1, b: b && b.eingetragenAm }));
+    afR7.absenden('labor', b.id, felder('2026-09-01', { natrium_wert: '118', natrium_einheit: 'mmol/l', natrium_von: '135', natrium_bis: '145', praxis: 'bleibt' }), '2026-09-22');
+    check('H4 nur die Frage geändert: eingetragenAm bleibt', spR5.getStand().labor[0].eingetragenAm === '2026-09-20', spR5.getStand().labor[0].eingetragenAm);
+    afR7.absenden('labor', b.id, felder('2026-09-01', { natrium_wert: '118', natrium_einheit: 'mmol/l', natrium_von: '135', natrium_bis: '145', crp_wert: '150', crp_einheit: 'mg/l', crp_bis: '5', praxis: 'bleibt' }), '2026-09-25');
+    const b2 = spR5.getStand().labor[0];
+    check('H4 CRP nachgetragen: eingetragenAm = Tag des Nachtrags, die Praxis-Angabe davor zählt dafür nicht', b2.eingetragenAm === '2026-09-25' && w7Wert(spR5.getStand(), b2.id, 'crp', '2026-09-26').stufe === 'heute',
+      JSON.stringify({ am: b2.eingetragenAm, crp: w7Wert(spR5.getStand(), b2.id, 'crp', '2026-09-26') }));
+    const r4 = afR7.absenden('labor', null, felder('2026-09-10', { hb_wert: '7,8', hb_einheit: 'g/dl', hb_von: '7,4', hb_bis: '9,9' }), '2026-09-26');
+    check('H20 Formular: Hb 7,8 „g/dl" bei 7,4–9,9 braucht „Ja, stimmt" – mit „vielleicht mmol/l"', !r4.ok && (r4.rueckfragen || []).some((x) => enthaelt(x, 'mmol/l')), JSON.stringify(r4));
+    const r5 = afR7.absenden('labor', null, felder('2026-09-11', { crp_wert: '15', crp_einheit: 'mg/l', crp_bis: '0,5' }), '2026-09-26');
+    check('H19 Formular: CRP 15 „mg/l" bis 0,5 braucht „Ja, stimmt" – mit „vielleicht mg/dl"', !r5.ok && (r5.rueckfragen || []).some((x) => enthaelt(x, 'mg/dl')), JSON.stringify(r5));
+  } finally {
+    globalThis.FormData = vorherFormData;
+    spR5.aendern((st) => Object.assign(st, w7Stand([])));
+  }
+});
+
+// ---- H22: HbA1c mit Diabetes – vorher immer „Kein besonderer Anlass".
+[
+  ['H22 13 % unter Insulin/Zuckertabletten', ww('hba1c', 13, '%'), { mittel: ['diabetes'] }, 'zeitnah', 'deutlich über'],
+  ['H22 119 mmol/mol unter Insulin/Zuckertabletten', ww('hba1c', 119, 'mmol/mol'), { mittel: ['diabetes'] }, 'zeitnah', 'deutlich über'],
+  ['H22 9,1 % mit Metformin', ww('hba1c', 9.1, '%'), { mittel: ['metformin'] }, 'zeitnah', 'deutlich über'],
+  ['H22 13 % mit Profil „Diabetes: ja"', ww('hba1c', 13, '%'), { profil: { diabetes: 'ja' } }, 'zeitnah', 'deutlich über'],
+  ['H22 5,6 % unter Insulin/Zuckertabletten', ww('hba1c', 5.6, '%'), { mittel: ['diabetes'] }, 'termin', 'Unterzuckerungen'],
+  ['H22 47 mmol/mol unter Insulin/Zuckertabletten', ww('hba1c', 47, 'mmol/mol'), { mittel: ['diabetes'] }, 'termin', 'Unterzuckerungen'],
+  ['H22 Gegenprobe: 9,0 % mit Diabetes', ww('hba1c', 9, '%'), { mittel: ['diabetes'] }, 'keine', 'persönlich'],
+  ['H22 Gegenprobe: 75 mmol/mol mit Diabetes', ww('hba1c', 75, 'mmol/mol'), { mittel: ['diabetes'] }, 'keine', 'persönlich'],
+  ['H22 Gegenprobe: 7,5 % mit Diabetes', ww('hba1c', 7.5, '%'), { mittel: ['diabetes'] }, 'keine', 'persönlich'],
+  ['H22 Gegenprobe: 6,5 % mit Diabetes', ww('hba1c', 6.5, '%'), { mittel: ['diabetes'] }, 'keine', 'persönlich'],
+  ['H22 Gegenprobe: 5,6 % nur mit Metformin (keine Unterzuckerung)', ww('hba1c', 5.6, '%'), { mittel: ['metformin'] }, 'keine', 'persönlich'],
+  ['H22 Gegenprobe: 5,6 % nur mit Profil „Diabetes: ja"', ww('hba1c', 5.6, '%'), { profil: { diabetes: 'ja' } }, 'keine', 'persönlich'],
+  ['H22 Gegenprobe: 13 % ohne Diabetes wie bisher', ww('hba1c', 13, '%'), {}, 'zeitnah', 'Diabetes hindeuten'],
+  ['H22 Gegenprobe: 6,0 % ohne Diabetes wie bisher', ww('hba1c', 6.0, '%'), {}, 'termin', 'leicht erhöht'],
+].forEach(([name, werte, zusatz, stufe, stueck]) => fall(name, () => {
+  const s = baue({ tsh: t(2), ft4: f4(15), befund: werte, ...zusatz });
+  const b = s.labor.find((x) => x.id === 'ziel');
+  const x = ez.weitereWerte(b, s, HEUTE).find((y) => y.key === 'hba1c');
+  sammle('weitereWerte', name, x ? x.texte : []);
+  check(`${name}: Stufe ${stufe}`, !!x && x.stufe === stufe, JSON.stringify(x && { stufe: x.stufe, texte: x.texte }));
+  check(`${name}: Text „${stueck}"`, !!x && enthaelt(x.texte, stueck), x && x.texte.join(' | '));
+  if (stufe !== 'keine') {
+    check(`${name}: der Zieltext bleibt dabei`, enthaelt(x.texte, 'persönlich') || !zusatz.mittel && !zusatz.profil, x.texte.join(' | '));
+    const e = ez.befundEinschaetzen(b, s, HEUTE);
+    check(`${name}: Kopf der Befund-Karte ${stufe}, nicht „Kein besonderer Anlass"`, !!e.kopf && e.kopf.stufe === stufe, JSON.stringify(e.kopf));
+    check(`${name}: keine Stufe „tage" aus dem HbA1c`, x.stufe !== 'tage');
+  }
+}));
 
 // ================================================================ Globale Eigenschaften über alle Fälle
 

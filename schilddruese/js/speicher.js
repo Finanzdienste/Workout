@@ -28,8 +28,24 @@ export const SCHLUESSEL = 'schilddruese.stand.v1';
  * Fassung 1 wird beim Lesen einfach ergänzt. Hochgezählt, damit eine noch
  * zwischengespeicherte ältere App diese Felder nicht beim nächsten Speichern
  * stillschweigend verwirft (siehe neuererStand).
+ *
+ * Fassung 3 (Runde 7: H2): Runde 6 hat Felder ergänzt, ohne hochzuzählen –
+ * bei einer Dosis-Berichtigung `statt` und `berichtigtAm`, bei der Antwort auf
+ * die W-D4-Nachfrage `aenderung`, im Profil `kaffee30` und `kaffeePruefen`.
+ * Eine ältere App in einem zweiten Fenster (etwa mit offenem Formular, das
+ * nach einem Update noch nicht neu geladen hat, E25) las den neuen Stand ein,
+ * ihr normStand strich diese Felder, und beim nächsten Speichern schrieb sie
+ * den gekürzten Stand zurück: Ohne `statt` galt die nie genommene Dosis
+ * wieder als aktuelle „auf Anweisung der Praxis" (der Fehler aus G11). Mit
+ * Fassung 3 sieht die ältere App einen neueren Stand und schreibt nicht
+ * (neuererStand), ebenso lehnt sie eine neue Sicherung ab. Ein Stand der
+ * Fassung 1 oder 2 wird beim Lesen wie bisher ergänzt: Fehlt `kaffee30`,
+ * gehört ein „nein" zur alten Kaffee-Frage (G21); eine Berichtigung ohne
+ * `statt` oder `berichtigtAm` rechnet wie vor Runde 6. Jedes neue
+ * gespeicherte Feld heißt: hier hochzählen (tests/test-sd-regeln-kern.mjs
+ * prüft die Feldnamen gegen eine Liste).
  */
-export const VERSION = 2;
+export const VERSION = 3;
 
 function tageWeiterLokal(iso, n) {
   const d = new Date(`${iso}T12:00:00`);
@@ -253,7 +269,8 @@ function leererStand() {
       // Das gespeicherte „nein" ist noch die Antwort auf die alte, strengere
       // Frage. Es bleibt stehen (nie still Daten verwerfen), der Bericht sagt
       // aber, worauf es sich bezog, und „Über mich" kann um eine neue Antwort
-      // bitten. Speichern der Mittel (mittelSetzen) gilt als neu beantwortet.
+      // bitten. Neu beantwortet ist sie erst mit geänderter oder ausdrücklich
+      // bestätigter Antwort (mittelSetzen, Runde 7: H5).
       kaffee30: true,
       kaffeePruefen: false,
     },
@@ -508,9 +525,11 @@ function zusammenfuehren(labor) {
       } else if (!da[k]) da[k] = l[k];
     });
     da.bestaetigt = da.bestaetigt || l.bestaetigt;
+    // Runde 7: H4 – der spätere Eintrag bringt Werte dazu: Sein Tag gilt.
+    if (l.eingetragenAm && (!da.eingetragenAm || l.eingetragenAm > da.eingetragenAm)) da.eingetragenAm = l.eingetragenAm;
     // Felder, die oben nicht vorkommen: leere ergänzen, wie bisher. Die
     // oben bewusst geleerten (eine Frage wieder offen) bleiben leer.
-    const oben = new Set(['id', 'datum', 'notiz', 'praxisAm', ...WERTE().map(([k]) => k), ...FRAGEN_FELDER, ...Object.keys(ZEIT_FELDER)]);
+    const oben = new Set(['id', 'datum', 'notiz', 'praxisAm', 'eingetragenAm', ...WERTE().map(([k]) => k), ...FRAGEN_FELDER, ...Object.keys(ZEIT_FELDER)]);
     Object.keys(l).filter((k) => !oben.has(k)).forEach((k) => {
       if (da[k] === null || da[k] === undefined || da[k] === '') da[k] = l[k];
     });
@@ -682,6 +701,13 @@ export function normStand(roh) {
       praxisAm: istISO(l.praxisAm) ? l.praxisAm : null,
       // Ein ungewöhnlicher Wert (Komma, Einheit) wurde ausdrücklich bestätigt.
       bestaetigt: bool(l.bestaetigt),
+      // Runde 7: H4, H15, H21 – der Tag, an dem die Werte eingetragen oder
+      // zuletzt geändert wurden (vom Befund-Formular). Die Frist eines
+      // Gefahrenwerts läuft ab diesem Tag, wenn er nach der Abnahme liegt,
+      // und eine Angabe der Praxis zählt für ihn erst danach
+      // (einschaetzung.gefahrVorbei). Ältere Einträge haben ihn nicht – dann
+      // gilt das Datum der Abnahme.
+      ...(istISO(l.eingetragenAm) ? { eingetragenAm: l.eingetragenAm } : {}),
     };
     return [...LABORWERTE, ...WEITERE_WERTE].some(([k]) => eintrag[k]) ? eintrag : null;
   }).sort((a, b) => a.datum.localeCompare(b.datum));
@@ -931,19 +957,68 @@ export function aendern(fn) {
  *
  * Die Berichtigung kennt deshalb den Eintrag, den sie berichtigt (`statt`,
  * vom Dosis-Formular gesetzt). Liegt er nach ihr, galt er nach ihrer Angabe
- * nie – ebenso alles zwischen ihr und ihm: Sie nimmt ihre Menge seit ihrem
+ * nie – ebenso alles zwischen ihr und ihm mit einer anderen Menge (Runde 7,
+ * unten): Sie nimmt ihre Menge seit ihrem
  * „Gilt ab". Einträge nach dem berichtigten (etwa eine spätere Änderung der
  * Praxis) bleiben. Rein, ohne gespeicherten Stand: Kern und Ansichten
  * rechnen damit gleich. Liegt der berichtigte Eintrag davor, gilt die
  * übliche Regel (js/einschaetzung.js, dosisVerlauf).
  * → Map ersetzter Eintrag → die Berichtigung, die ihn ersetzt
+ *
+ * Runde 7 – die Regel, einfacher und für Ketten (H1, H7, H11):
+ *   1. Zeigt eine Berichtigung per `statt` auf eine andere Berichtigung, löst
+ *      sie diese ab: Die ältere galt nie, gleich wo ihr „Gilt ab" steht. Nach
+ *      „Nein" auf die Frage „Nehmen Sie im Moment genau 175 µg?" war die
+ *      175 µg eben nicht, was sie nimmt. Vorher ging es nur nach der
+ *      Reihenfolge: Stand die zweite Berichtigung am selben Tag wie die erste
+ *      oder zwischen ihr und dem berichtigten Eintrag, ersetzte die ältere die
+ *      jüngere – die gerade eingetragene Menge „zählte als nie genommen", und
+ *      die Karte fragte wieder nach der als falsch gemeldeten (H7).
+ *   2. Nur die jüngste Berichtigung einer Kette (der Kopf) ersetzt Einträge:
+ *      alle Glieder der Kette und – liegt der ursprünglich berichtigte Eintrag
+ *      nicht vor ihr – diesen und jeden Eintrag zwischen ihr und ihm mit
+ *      ANDERER Menge am Tag. Wer als Kopf gilt, gilt auch als „durch" für
+ *      alles, was die Kette ersetzt; vorher fiel der ursprüngliche Eintrag
+ *      einer Kette aus der Historie heraus und galt in der Einschätzung
+ *      wieder als genommen (H11).
+ *   3. Ein Eintrag dazwischen mit DERSELBEN Menge passt zu ihrer Angabe und
+ *      bleibt (H1): 75 µg „seit Anfang 2024" (ungefähr, wie die Karte rät)
+ *      strich sonst die 75 µg, die die Praxis am 14.05.2024 angeordnet hatte,
+ *      als „nie genommen; stattdessen 75 µg". Ob das ungefähre Datum vor den
+ *      genaueren Eintrag gehört, fragt das Dosis-Formular.
  */
 export function ersetztDurchBerichtigung(s) {
+  const dosen = s.dosen;
+  const nachId = new Map(dosen.map((d) => [d.id, d]));
+  // Der Eintrag, auf den `statt` zeigt – nie die Berichtigung selbst.
+  const ziel = (b) => {
+    const t = b.berichtigung && b.statt ? nachId.get(b.statt) : null;
+    return t && t !== b ? t : null;
+  };
+  const abgeloest = new Set(dosen.map(ziel).filter((t) => t && t.berichtigung));
   const weg = new Map();
-  s.dosen.forEach((b, i) => {
-    if (!b.berichtigung || !b.statt) return;
-    const j = s.dosen.findIndex((x) => x.id === b.statt);
-    for (let k = i + 1; k <= j; k++) if (!weg.has(s.dosen[k])) weg.set(s.dosen[k], b);
+  dosen.forEach((kopf, i) => {
+    if (!ziel(kopf) || abgeloest.has(kopf)) return;
+    const kette = new Set([kopf]);
+    let t = ziel(kopf);
+    while (t && t.berichtigung && !kette.has(t)) {
+      kette.add(t);
+      if (!weg.has(t)) weg.set(t, kopf);
+      t = ziel(t);
+    }
+    if (!t || kette.has(t)) return;
+    const menge = tagesdosis(kopf);
+    const j = dosen.indexOf(t);
+    for (let k = i + 1; k <= j; k++) {
+      const x = dosen[k];
+      if (!kette.has(x) && !weg.has(x) && (k === j || tagesdosis(x) !== menge)) weg.set(x, kopf);
+    }
+  });
+  // Ersetzt ein Kopf einen anderen, ersetzt er auch, was jener ersetzte.
+  weg.forEach((b, x) => {
+    let durch = b;
+    for (let n = 0; weg.has(durch) && n < dosen.length; n++) durch = weg.get(durch);
+    weg.set(x, durch);
   });
   return weg;
 }
@@ -1076,7 +1151,7 @@ export function alter(tag = heuteISO()) {
  * neu angekreuzte oder weggenommene Mittel mit Datum vermerkt – daraus
  * erinnert die App an die Kontrolle 6–8 Wochen nach Beginn oder Ende.
  */
-export function mittelSetzen(neu, abstand = {}, heute = heuteISO()) {
+export function mittelSetzen(neu, abstand = {}, heute = heuteISO(), { kaffeeNeu = false } = {}) {
   aendern((s) => {
     const vorher = new Set(s.mittel);
     const danach = [...new Set(neu.filter((k) => MITTEL.some(([m]) => m === k)))];
@@ -1090,8 +1165,18 @@ export function mittelSetzen(neu, abstand = {}, heute = heuteISO()) {
     s.profil.mittelErfasst = true;
     // Das Formular zeigt die Rückfrage zum alten „Östrogen" – gespeichert ist beantwortet.
     s.profil.oestrogenPruefen = false;
-    // Ebenso die Kaffee-Frage: Gespeichert ist die Antwort auf die neue Frage (Runde 6: G21).
-    s.profil.kaffeePruefen = false;
+    /*
+     * Die Kaffee-Frage (Runde 6: G21) gilt nur als neu beantwortet, wenn die
+     * Antwort geändert oder ausdrücklich bestätigt wurde (`kaffeeNeu`, Haken
+     * „Meine Antwort gilt für die neue Frage") – oder Kaffee nicht mehr
+     * angekreuzt ist. Runde 7: H5 – vorher machte jedes Speichern von „Über
+     * mich" das alte „Nein" zur Antwort auf die neue Frage, auch wenn nur das
+     * Bundesland über den Knopf der Notfallleiste gespeichert wurde; den
+     * Hinweis weit unten in der Liste sah dabei niemand. Die Karte sperrte
+     * wieder mit D0.8, der Bericht nannte „Abstand eingehalten: nein" ohne
+     * den Zusatz „frühere Frage".
+     */
+    if (kaffeeNeu || !danach.includes('kaffee') || !s.mittelAbstand.kaffee) s.profil.kaffeePruefen = false;
   });
 }
 

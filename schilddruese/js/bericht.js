@@ -149,6 +149,11 @@ export function berichtText(stand, heute) {
   z.push('');
 
   // Dosis (F15): aus den Zeiträumen, nicht aus den einzelnen Einträgen.
+  // Runde 7: H18 – ein Eintrag, den am selben Tag ein anderer ersetzt hat,
+  // galt keinen Tag und hat keinen Zeitraum: Vorher stand er als „Davor: 88 µg
+  // ab 20.09." da, obwohl ab demselben Tag 100 µg eingetragen waren. Eine
+  // Berichtigung ersetzt, worauf ihr `statt` zeigt, eine zweite die erste
+  // (H1, H7, H11) – was dabei nie genommen wurde, nennt nieGenommenZeilen.
   const perioden = ez.dosisVerlauf(stand, heute);
   z.push('DOSIS');
   if (perioden.length) {

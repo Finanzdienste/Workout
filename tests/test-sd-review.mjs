@@ -3479,11 +3479,14 @@ const r6Berichtigung = (st) => st.dosen.find((d) => d.berichtigung) || {};
   const kaffee = await r4a.text('#ansicht .mittel-zeile[data-mittel="kaffee"]');
   check(kaffee.includes('mindestens 30 Minuten Abstand') && kaffee.includes('Die Frage hat sich geändert') && kaffee.includes('Stimmt Ihre Antwort noch?'),
     `G21: „Über mich" fragt nach 30 Minuten und bittet, die alte Antwort zu prüfen („${kaffee.slice(0, 100)}…")`);
+  // Runde 7: H5 – geändert: Nicht mehr jedes Speichern gilt als Antwort auf
+  // die neue Frage, sondern erst die bestätigte (Haken) oder geänderte Antwort.
+  if (await gibt('input[name=kaffeeNeu]')) await page.check('input[name=kaffeeNeu]', { force: true });
   await page.click('form[data-formular="profil"] button[type=submit]');
   const g21 = await gespeichert();
   await mehrSeite('profil');
   check(g21.profil.kaffeePruefen === false && g21.mittelAbstand.kaffee === 'nein' && !(await r4a.text('#ansicht .mittel-zeile[data-mittel="kaffee"]')).includes('Die Frage hat sich geändert'),
-    'G21: … Speichern gilt als Antwort auf die neue Frage, der Hinweis ist weg, die Antwort bleibt');
+    'G21: … die bestätigte Antwort gilt für die neue Frage, der Hinweis ist weg, die Antwort bleibt');
 }
 
 // ---------------------------------------------------------------- Runde 6 (Ansichten) bei „sehr groß", hell und dunkel
@@ -3573,6 +3576,241 @@ for (const farbe of ['hell', 'dunkel']) {
   check(mittel.includes('kalzium') && mittel.includes('eisen'),
     `Nachprüfung R6: Haken aus beiden Fenstern bleiben erhalten (${JSON.stringify(mittel)})`);
   await p2.close();
+}
+
+// ================================================================ Runde 7 – Historie
+//
+// Befunde der siebten Durchsicht zur Dosis-Historie, wie sie in den Ansichten
+// ankommen: Vorrat nach „nie genommen" (H6, H14), zwei Einträge ab demselben
+// Tag (H18), eine Kette aus Berichtigungen auf „Heute" (H11), die Frage nach
+// der Praxis bei einer Berichtigung an erster Stelle (H12) und die
+// Kaffee-Antwort beim Speichern von „Über mich" (H5). Die Wege über die
+// Dosis-Karte (H1, H7) prüft tests/test-sd-berichtigung.mjs. Jeder Fall
+// scheiterte vor der Korrektur.
+const r7Dosis = (id, ab, mikrogramm, weiteres = {}) => ({ id, ab, praeparat: 'L-Thyroxin', mikrogramm, tabletten: 1, notiz: '', praxis: null, ...weiteres });
+const r7Ber = (id, ab, mikrogramm, statt, berichtigtAm) => r7Dosis(id, ab, mikrogramm, { praxis: false, berichtigung: true, statt, berichtigtAm });
+const r7Heute = async () => { await page.click('#reiter-heute'); return (await ansichtText(page)).replace(/\s+/g, ' '); };
+
+// ---------------------------------------------------------------- H6, H14: Vorrat nach „nie genommen"
+
+// Die Praxis ordnete 100 µg ab 01.08. an, genommen wurden sie nie: Nach „Nein"
+// 75 µg, „Gilt ab" 01.08. Gezählt waren 100 Tabletten am 15.07. Vorher sagte
+// „Heute" „Seit dem 01.08.2026 nehmen Sie eine andere Stärke …" und schwieg
+// dazu, dass der Vorrat nur noch knapp zwei Wochen reicht.
+{
+  await laden(stand({
+    dosen: [r7Dosis('d0', '2025-01-01', 75), r7Dosis('dP', '2026-08-01', 100, { praxis: true })],
+    labor: [befund('b1', '2026-10-05', { tsh: w(5.9, 'mU/l', 0.4, 4) })],
+    vorrat: { tabletten: 100, stand: '2026-07-15' },
+  }), { tag: '2026-10-10' });
+  await mehrSeite('dosis-karte');
+  await r4app.klick('#dosis-karte [data-act="frage-antwort"][data-feld="dosis_stimmt"][data-wert^="nein"]');
+  await r4app.klick('#dosis-karte [data-act="seite"][data-seite="dosis"]');
+  await page.fill('form[data-formular="dosis"] input[name=mikrogramm]', '75');
+  await page.check('form[data-formular="dosis"] input[name=praxis][value=nein]', { force: true });
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  const neu = r6Berichtigung(await gespeichert());
+  if (!(await gibt('#dosis-karte'))) await mehrSeite('dosis-karte');
+  await r4app.klick(`#dosis-karte [data-act="seite"][data-seite="dosis"][data-param="${neu.id}"]`);
+  await page.fill('form[data-formular="dosis"] input[name=ab]', '2026-08-01');
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await page.waitForTimeout(300);
+  const meldung = await r4app.meldung();
+  const heute = await r7Heute();
+  check(meldung.includes('Die 100 µg am Tag ab 01.08.2026 zählen jetzt als nie genommen') && !heute.includes('andere Stärke') && heute.includes('Vorrat reicht noch etwa 13 Tage'),
+    `H14: nach „nie genommen" keine „andere Stärke" auf „Heute", dafür die Reichweite („${meldung}" / ${heute.includes('andere Stärke') ? 'andere Stärke' : (heute.match(/Vorrat reicht[^.]*/) || ['keine Reichweite'])[0]})`);
+  await page.click('#reiter-mehr');
+  check(!(await ansichtText(page)).includes('Andere Stärke – bitte neu zählen'), 'H14: … und „Mehr" sagt nicht „Andere Stärke – bitte neu zählen"');
+}
+// H6: am selben Tag ersetzt (Berichtigung ohne Vermerk), Vorrat davor gezählt.
+{
+  await laden(stand({
+    dosen: [r7Dosis('d1', '2024-05-14', 75), r7Dosis('dC', '2026-06-04', 100, { praxis: true }), r7Dosis('dB', '2026-06-04', 75, { praxis: false, berichtigung: true })],
+    labor: [befund('b1', '2026-08-10', { tsh: w(6.5, 'mU/l', 0.4, 4) })],
+    vorrat: { tabletten: 130, stand: '2026-05-25' },
+  }), { tag: '2026-09-28' });
+  const heute = await r7Heute();
+  check(!heute.includes('andere Stärke') && heute.includes('Vorrat reicht noch etwa 4 Tage'),
+    `H6: am selben Tag ersetzt – keine „andere Stärke", „Vorrat reicht noch etwa 4 Tage" (${(heute.match(/Vorrat reicht[^.]*|andere Stärke/) || ['nichts'])[0]})`);
+}
+
+// ---------------------------------------------------------------- H18: zwei Einträge ab demselben Tag
+
+// 75 µg seit langem, 100 µg ab vor einer Woche (Praxis). Wer am selben Tag
+// 88 µg „neu" einträgt statt zu ändern, bekam keine Rückfrage – der Bericht
+// nannte die 100 µg als „Davor", obwohl sie keinen Tag galten.
+{
+  const ab = plus(TAG, -7);
+  const h18 = () => stand({ dosen: [r7Dosis('d0', plus(TAG, -400), 75), r7Dosis('dA', ab, 100, { praxis: true })] });
+  const eintragen = async () => {
+    await page.click('#reiter-verlauf');
+    await page.click('#ansicht [data-seite="dosis-liste"]');
+    await page.click('#ansicht [data-act="seite"][data-seite="dosis"]:not([data-param])');
+    await page.fill('form[data-formular="dosis"] input[name=mikrogramm]', '88');
+    await page.fill('form[data-formular="dosis"] input[name=ab]', ab);
+    await page.check('form[data-formular="dosis"] input[name=praxis][value=ja]', { force: true });
+    await page.click('form[data-formular="dosis"] button[type=submit]');
+    await page.waitForTimeout(300);
+  };
+  await laden(h18());
+  await eintragen();
+  const frage = await r6Dialog();
+  check(frage.includes(`Ab ${kurz(ab)} ist schon 100 µg am Tag eingetragen (auf Anweisung der Praxis)`) && frage.includes('Soll Ihre Angabe diesen Eintrag ersetzen?')
+    && frage.includes('Ja, ersetzen'), `H18: ein zweiter Eintrag ab demselben Tag – die Rückfrage „ersetzen?" („${frage.slice(0, 120)}")`);
+  await r4app.klick('dialog.rueckfrage [data-act="befund-korrigieren"]');
+  await page.waitForTimeout(200);
+  check((await gespeichert()).dosen.length === 2 && await fokusName() === 'ab', `H18: „Nein" speichert nichts und führt zu „Gilt ab" (Fokus ${await fokusName()})`);
+  await r4app.klick('form[data-formular="dosis"] button[type=submit]');
+  await r4app.klick('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+  const s = await gespeichert();
+  const dA = s.dosen.find((d) => d.id === 'dA') || {};
+  check(s.dosen.length === 2 && dA.mikrogramm === 88 && dA.ab === ab, `H18: „Ja, ersetzen" ändert den vorhandenen Eintrag – kein zweiter ab demselben Tag (${JSON.stringify(s.dosen.map((d) => [d.id, d.mikrogramm, d.ab]))})`);
+  const bericht = await r6Bericht();
+  check(bericht.includes(`Aktuell: L-Thyroxin 88 µg, 1 Tablette am Tag, seit ${kurz(ab)}`) && !bericht.includes('Davor: L-Thyroxin 100 µg'),
+    'H18: im Bericht 88 µg seit dem Tag, kein „Davor: 100 µg" ohne Dauer');
+  // Ein älterer Stand hat schon drei Einträge ab demselben Tag: Es zählt der letzte.
+  await laden(stand({ dosen: [r7Dosis('d0', plus(TAG, -400), 75), r7Dosis('a', ab, 100, { praxis: true }), r7Dosis('b', ab, 88, { praxis: true }), r7Dosis('c', ab, 100, { praxis: true })] }));
+  const alt = await r6Bericht();
+  check(alt.includes(`Aktuell: L-Thyroxin 100 µg, 1 Tablette am Tag, seit ${kurz(ab)}`) && !alt.includes(`Davor: L-Thyroxin 88 µg`) && !alt.includes(`Davor: L-Thyroxin 100 µg`),
+    `H18: drei Einträge ab demselben Tag – keine „Davor"-Zeiträume ohne Dauer (${alt.split('\n').filter((z) => /^Aktuell|^Davor/.test(z)).join(' | ')})`);
+}
+
+// ---------------------------------------------------------------- H11: Kette aus zwei Berichtigungen auf „Heute"
+
+// 100 µg seit dem Einrichten, berichtigt auf 88 µg ab 01.07., dann auf 75 µg
+// ab 01.06. Vorher fragte „Heute" nach Herzklopfen „seit Ihre Dosis erhöht
+// wurde" – zu 100 µg, die nie genommen wurden –, und der Bericht nannte sie nicht.
+{
+  await laden(stand({
+    profil: { seit: '2026-08-01' },
+    dosen: [r7Dosis('d1', '2026-08-01', 100), r7Ber('B1', '2026-07-01', 88, 'd1', '2026-08-15'), r7Ber('B2', '2026-06-01', 75, 'B1', '2026-08-15')],
+    labor: [befund('b1', '2026-08-10', { tsh: w(6.5, 'mU/l', 0.4, 4) })],
+  }), { tag: '2026-08-15' });
+  const heute = await r7Heute();
+  check(!(await gibt('#ansicht [data-regel="W-D4"]')) && heute.includes('L-Thyroxin 75 µg'), `H11: „Heute" nennt 75 µg und fragt nicht nach einer Erhöhung, die es nie gab (${heute.slice(0, 80)})`);
+  const bericht = await r6Bericht();
+  check(bericht.includes('Berichtigung (Angabe): Ab 01.08.2026 war L-Thyroxin 100 µg, 1 Tablette am Tag eingetragen – nach Angabe der Patientin nie genommen; stattdessen L-Thyroxin 75 µg')
+    && bericht.includes('Berichtigung (Angabe): Ab 01.07.2026 war L-Thyroxin 88 µg'), 'H11: der Bericht nennt auch die 100 µg vom Einrichten als nie genommen');
+}
+
+// ---------------------------------------------------------------- H12: Berichtigung an erster Stelle – die Frage nach der Praxis bleibt
+
+// Die Berichtigung ist, wie die Karte rät, vor den einzigen Eintrag gerückt.
+// Beim Ändern der Notiz fehlte die Frage „Auf Anweisung der Praxis?", und
+// „Nein" wurde still zu „nicht angegeben".
+{
+  await laden(stand({
+    profil: { seit: '2026-01-10' },
+    dosen: [r7Dosis('d1', '2026-01-10', 100), r7Ber('B', '2025-06-01', 125, 'd1', TAG)],
+    labor: [befund('b1', plus(TAG, -6), { tsh: w(3.5, 'mU/l', 0.4, 4) })],
+  }));
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="dosis-liste"]');
+  await page.click('#ansicht [data-seite="dosis"][data-param="B"]');
+  const gewaehlt = await page.locator('form[data-formular="dosis"] input[name=praxis][value=nein]').isChecked().catch(() => false);
+  await page.fill('form[data-formular="dosis"] [name=notiz]', 'seit dem Umzug');
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  const B = (await gespeichert()).dosen.find((d) => d.id === 'B') || {};
+  check(gewaehlt && B.notiz === 'seit dem Umzug' && B.praxis === false, `H12: an erster Stelle fragt „Dosis ändern" nach der Praxis, „Nein" bleibt (${JSON.stringify({ gewaehlt, praxis: B.praxis })})`);
+}
+
+// ---------------------------------------------------------------- H5: nur das Bundesland gespeichert
+
+// Ein „Nein" auf die frühere Kaffee-Frage (60 Minuten). Über „Bundesland
+// eintragen" nur das Bundesland gespeichert – den Kaffee-Hinweis weit unten
+// sah niemand. Vorher galt das „Nein" danach als Antwort auf die neue Frage:
+// Die Karte sperrte mit D0.8, der Bericht ließ „frühere Frage" weg.
+{
+  await laden(stand({
+    profil: { bundesland: '' }, mittel: ['kaffee'], mittelAbstand: { kaffee: 'nein' },
+    labor: [befund('b1', plus(TAG, -5), { tsh: w(7.5, 'mU/l', 0.4, 4), ft4: w(14, 'pmol/l', 12, 22) })],
+    nachfragen: dosisStimmt(plus(TAG, -4)),
+  }));
+  await page.click('#reiter-heute');
+  await page.locator('[data-act="seite"][data-seite="profil"][data-param="bundesland"]').first().click();
+  await page.selectOption('select[name=bundesland]', 'BY');
+  await page.click('form[data-formular="profil"] button[type=submit]');
+  const s = await gespeichert();
+  check(s.profil.bundesland === 'BY' && s.profil.kaffeePruefen === true && s.mittelAbstand.kaffee === 'nein',
+    `H5: nur das Bundesland gespeichert – das alte „Nein" bleibt die Antwort auf die alte Frage (${JSON.stringify({ bl: s.profil.bundesland, pruefen: s.profil.kaffeePruefen })})`);
+  await mehrSeite('dosis-karte');
+  check(!(await gibt('#dosis-karte li[data-grund="D0.8"]')) && await attr('#dosis-karte .dosis-frage', 'data-frage') === 'Q3',
+    `H5: … die Karte fragt weiter Q3 statt D0.8 (${await attr('#dosis-karte .dosis-frage', 'data-frage')})`);
+  const bericht = await r6Bericht();
+  check(bericht.includes('Antwort auf die frühere Frage nach mindestens 60 Minuten'), 'H5: … und der Bericht sagt weiter, worauf sich das „Nein" bezog');
+  // Mit dem Haken „Meine Antwort gilt für die neue Frage" ist sie neu beantwortet.
+  await mehrSeite('profil');
+  if (await gibt('input[name=kaffeeNeu]')) await page.check('input[name=kaffeeNeu]', { force: true });
+  await page.click('form[data-formular="profil"] button[type=submit]');
+  check((await gespeichert()).profil.kaffeePruefen === false, 'H5: mit dem Haken gilt das „Nein" für die neue Frage');
+}
+
+// ================================================================ Runde 7 – weitere Werte
+
+// ---------------------------------------------------------------- H4, H15, H21: „Heute anrufen" lässt sich beenden
+
+// Natrium 118 von vorgestern: „Heute anrufen – falls sich die Praxis nicht
+// schon gemeldet hat". Es gab keinen Weg, das zu beantworten; die Stufe blieb
+// monatelang. Jetzt: „Ja, die Praxis weiß davon" beim Wert.
+{
+  await laden(stand({
+    labor: [befund('b1', plus(TAG, -2), { tsh: w(2, 'mU/l', 0.4, 4), ft4: w(15, 'pmol/l', 12, 22), natrium: w(118, 'mmol/l', 135, 145) })],
+    nachfragen: dosisStimmt(plus(TAG, -1)),
+  }));
+  await page.click('#reiter-heute');
+  const vorher = await attr('#ansicht .einschaetzung-verweis', 'data-stufe');
+  await page.click('#ansicht .einschaetzung-verweis [data-seite="gesamtbild"]');
+  const knopf = page.locator('#ansicht .teil-karte[data-regel="E13-natrium"] [data-act="frage-antwort"][data-feld="wert_bekannt"]');
+  const da = await knopf.count();
+  if (da) await knopf.click();
+  const q = (await gespeichert()).nachfragen.find((n) => n.art === 'wert_bekannt') || {};
+  check(vorher === 'heute' && da === 1 && q.bezug === 'b1' && q.antwort === 'natrium' && q.am === TAG,
+    `H4: „Ja, die Praxis weiß davon" beim Natrium speichert die Angabe mit Datum (${JSON.stringify({ vorher, da, q })})`);
+  const oben = await attr('#ansicht .stufe-karte', 'data-stufe');
+  check(oben === 'termin' && !(await gibt('#ansicht [data-feld="wert_bekannt"]')),
+    `H4: … danach „Beim nächsten Termin", und die Frage ist beantwortet (${oben})`);
+  await page.click('#reiter-heute');
+  check(await attr('#ansicht .einschaetzung-verweis', 'data-stufe') === 'termin', 'H4: … auf „Heute" dieselbe Stufe');
+}
+// Sieben Monate nach dem Befund, die Praxis hatte „Dosis bleibt so" gesagt:
+// kein tägliches „Heute anrufen" mehr, der Wert steht mit Datum da.
+{
+  await laden(stand({
+    labor: [befund('b1', plus(TAG, -200), { tsh: w(2, 'mU/l', 0.4, 4), ft4: w(15, 'pmol/l', 12, 22), natrium: w(118, 'mmol/l', 135, 145) }, { praxis: 'bleibt', praxisAm: plus(TAG, -199) })],
+  }));
+  await page.click('#reiter-heute');
+  const stufe = await attr('#ansicht .einschaetzung-verweis', 'data-stufe');
+  await page.click('#ansicht .einschaetzung-verweis [data-seite="gesamtbild"]');
+  const teil = await page.locator('#ansicht .teil-karte[data-regel="E13-natrium"]').innerText().catch(() => '');
+  check(stufe === 'zeitnah' && teil.includes(`vom ${kurz(plus(TAG, -200))}`) && !teil.includes('heute noch'),
+    `H15/H21: sieben Monate später „In ein bis zwei Wochen" mit Datum statt „Heute anrufen" (${stufe}; „${teil.slice(0, 140)}…")`);
+}
+
+// ---------------------------------------------------------------- H19: CRP 15 und „bis 0,5" mit dem vorbelegten mg/l
+
+{
+  await laden(stand());
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="labor"]');
+  await page.fill('input[name=datum]', plus(TAG, -1));
+  await page.fill('input[name=tsh_wert]', '2');
+  await page.fill('input[name=tsh_von]', '0,4');
+  await page.fill('input[name=tsh_bis]', '4,0');
+  await page.click('details.weitere > summary');
+  const einheit = await page.inputValue('select[name=crp_einheit]');
+  await page.fill('input[name=crp_wert]', '15');
+  await page.fill('input[name=crp_bis]', '0,5');
+  await page.click('form[data-formular="labor"] button[type=submit]');
+  const frage = (await gibt('dialog.rueckfrage')) ? await page.locator('dialog.rueckfrage').innerText() : '';
+  check(einheit === 'mg/l' && frage.includes('mg/dl'), `H19: CRP 15 mit „bis 0,5" und dem vorbelegten mg/l – Rückfrage „vielleicht mg/dl" („${frage.replace(/\s+/g, ' ').slice(0, 160)}")`);
+  if (await gibt('dialog.rueckfrage')) {
+    await page.waitForTimeout(700);   // die Knöpfe sind die ersten 0,6 Sekunden gesperrt
+    await page.click('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+  }
+  const b = (await gespeichert()).labor.find((l) => l.crp) || {};
+  check(b.bestaetigt === true && b.eingetragenAm === TAG, `H19: … nach „Ja, stimmt" gespeichert, mit dem Tag des Eintrags (${JSON.stringify({ bestaetigt: b.bestaetigt, am: b.eingetragenAm })})`);
+  await page.click('#reiter-heute');
+  check(await attr('#ansicht .einschaetzung-verweis', 'data-stufe') === 'heute', 'H19: … und „Heute" sagt „Heute anrufen" (15 mg/dl = 150 mg/l), nicht „Beim nächsten Termin"');
 }
 
 await ende();

@@ -258,26 +258,55 @@ export function dosisSeit(stand, d, heute = '9999-12-31') {
  *     selben Tag oder nach ihrem „Gilt ab" (sp.ersetztDurchBerichtigung).
  *     Sie stehen in keinem Zeitraum. Der Bericht nennt sie, damit die
  *     Ärztin von einer nie umgesetzten Anordnung erfährt.
+ *
+ * Runde 7 – die Dosis-Historie ist, was die Nutzerin zuletzt gesagt hat:
+ *   - Eine Berichtigung ersetzt, worauf ihr `statt` zeigt; eine zweite
+ *     Berichtigung ersetzt die erste (sp.ersetztDurchBerichtigung, H1, H7).
+ *   - Von mehreren Einträgen mit demselben Beginn zählt nur der letzte (H18):
+ *     Beginnt ein Zeitraum am selben Tag wie der vorige, galt der vorige
+ *     keinen Tag. Vorher stand er als „Davor: 88 µg ab 20.09." im Bericht,
+ *     obwohl ab demselben Tag 100 µg eingetragen waren, und 75 → 100 → 88 µg
+ *     am selben Tag zählte als Senkung von 100 auf 88 statt als Erhöhung von
+ *     75 auf 88 (W-D4 fragte „müder seit der Senkung"). Ist der neue Eintrag
+ *     eine Berichtigung, galt der ersetzte nach ihrer Angabe nie (wie
+ *     bisher, D19); sonst ist er nur „am selben Tag ersetzt" und steht in
+ *     keinem Zeitraum und nicht im Bericht. Dieselbe Menge unter anderem
+ *     Namen ab demselben Tag geht im Zeitraum auf – der erste Eintrag (etwa
+ *     der der Praxis) bleibt dessen Beginn.
+ *   - Jeder Eintrag, den eine Berichtigung ersetzt, steht bei dem Zeitraum,
+ *     in dem sie aufgeht – auch wenn ihr eigener Zeitraum am selben Tag
+ *     ersetzt wurde (H11: vorher fiel er dann still heraus).
  */
 export function dosisVerlauf(stand, heute) {
   const statt = sp.ersetztDurchBerichtigung(stand);
   const perioden = [];
+  // Der Zeitraum, in dem ein Eintrag steht oder aufging (H11).
+  const wo = new Map();
+  const umziehen = (von, nach) => wo.forEach((q, x) => { if (q === von) wo.set(x, nach); });
+  // Runde 7: H12 – eine Berichtigung, die vor den einzigen (ersten) Eintrag
+  // gerückt ist und ihn ersetzt, bleibt eine Berichtigung, auch als erster
+  // Zeitraum. Sonst zählt der erste Eintrag nie als Berichtigung.
+  const ersetzend = new Set(statt.values());
   // Der vorige Eintrag, der galt – ein ersetzter zählt nicht (G11).
   let vorher = null;
   stand.dosen.forEach((d) => {
     if (statt.has(d)) return;
     const vor = perioden[perioden.length - 1];
-    if (vor && aenderungsArt(d, vorher) === 'doppelt') {
+    // Doppelt – oder dieselbe Menge ab demselben Tag wie der Zeitraum (ein
+    // anderer Name am selben Tag ist kein Wechsel, der einen Tag galt, H18).
+    const td = sp.tagesdosis(d);
+    if (vor && (aenderungsArt(d, vorher) === 'doppelt' || (vor.ab === d.ab && td !== null && td === sp.tagesdosis(vor.d)))) {
       vor.eintraege.push(d);
       vor.d = d;
+      wo.set(d, vor);
       vorher = d;
       return;
     }
-    const berichtigung = vorher !== null && istBerichtigung(stand, d, heute);
-    let ersetzt = null;
-    if (vor && berichtigung && vor.ab === d.ab) ersetzt = perioden.pop();
+    const berichtigung = (vorher !== null || ersetzend.has(d)) && istBerichtigung(stand, d, heute);
+    // Runde 7: H18 – derselbe Beginn: Der vorige Zeitraum galt keinen Tag.
+    const ersetzt = vor && vor.ab === d.ab ? perioden.pop() : null;
     const davor = perioden[perioden.length - 1] || null;
-    const galtNie = ersetzt ? [...ersetzt.nieGenommen, ...ersetzt.eintraege.map((x) => ({ d: x, durch: d }))] : [];
+    const galtNie = ersetzt ? [...ersetzt.nieGenommen, ...(berichtigung ? ersetzt.eintraege.map((x) => ({ d: x, durch: d })) : [])] : [];
     // Berichtigt auf die Menge davor (75 → 100 ab 10.09., am selben Tag
     // berichtigt auf 75): Der ersetzte Eintrag galt keinen Tag, die 75 µg
     // gelten weiter – eine Periode, kein Wechsel.
@@ -287,6 +316,8 @@ export function dosisVerlauf(stand, heute) {
       davor.nieGenommen.push(...galtNie);
       // Hatte der ersetzte Eintrag die Menge davor berichtigt, ist das zurückgenommen.
       if (davor.berichtigtDurch === ersetzt) davor.berichtigtDurch = null;
+      umziehen(ersetzt, davor);
+      wo.set(d, davor);
       vorher = d;
       return;
     }
@@ -301,12 +332,14 @@ export function dosisVerlauf(stand, heute) {
     if (davor && berichtigung && !ersetzt) davor.berichtigtDurch = p;
     if (davor && ersetzt && davor.berichtigtDurch === ersetzt) davor.berichtigtDurch = p;
     perioden.push(p);
+    if (ersetzt) umziehen(ersetzt, p);
+    wo.set(d, p);
     vorher = d;
   });
   // G11: Die Einträge, die eine Berichtigung nach ihrem „Gilt ab" ersetzt,
-  // gehören zum Zeitraum dieser Berichtigung.
+  // gehören zum Zeitraum, in dem diese Berichtigung steht oder aufging.
   statt.forEach((b, x) => {
-    const p = perioden.find((q) => q.eintraege.includes(b));
+    const p = wo.get(b);
     if (p) p.nieGenommen.push({ d: x, durch: b });
   });
   return perioden;
@@ -324,10 +357,17 @@ export function nieGegolten(stand, heute) {
   return m;
 }
 
-/** Die Dosis-Einträge, die galten (ohne nieGegolten), in ihrer Reihenfolge. */
+/*
+ * Die Dosis-Einträge, die galten, in ihrer Reihenfolge: die aus den
+ * Zeiträumen von dosisVerlauf. Runde 7: H18 – ohne nieGegolten UND ohne einen
+ * Eintrag, den am selben Tag ein anderer ersetzt hat; er galt keinen Tag.
+ * Vorher verglichen die jüngste Änderung, W-D4 und das Zurück auf die frühere
+ * Menge (js/dosis.js) mit ihm statt mit der Menge vor diesem Tag, und der
+ * Vorrat hielt ihn für eine andere Stärke (H14).
+ */
 export function dosenDieGalten(stand, heute) {
-  const nie = nieGegolten(stand, heute);
-  return stand.dosen.filter((d) => !nie.has(d));
+  const galten = new Set(dosisVerlauf(stand, heute).flatMap((p) => p.eintraege));
+  return stand.dosen.filter((d) => galten.has(d));
 }
 
 /*
@@ -844,7 +884,8 @@ export function befundEinschaetzen(befund, stand, heute) {
   if (doppelt.length) {
     hinweise.push(`Für den ${kurz(befund.datum)} gibt es zwei Einträge mit verschiedenen Werten (${aufzaehlung(doppelt)}). Bitte vergleichen Sie beide mit dem Befund und löschen Sie den falschen.`);
   }
-  const weitere = weitereWerte(befund, stand);
+  // Runde 7: H4, H15, H21 – mit dem Tag: Eine Gefahrenfrist gilt nur, solange sie gilt.
+  const weitere = weitereWerte(befund, stand, heute);
 
   const leer = {
     befund, muster: null, gruppe: null, ziel: false, text: '', richtung: null, werte, hinweise, stufe: 'keine', stufeLabor: 'keine',
@@ -1387,31 +1428,126 @@ export const GEFAHR_GRENZEN = {
 function gefahrStufe(key, std, { unter = false, marcumar = false } = {}) {
   const g = GEFAHR_GRENZEN[key];
   if (!g || std === null) return null;
+  // `war(datum)`: derselbe Befund in der Vergangenheit – für die Zeit nach
+  // der Frist (Runde 7: H4, H15, H21, siehe gefahrNachFrist).
   if (key === 'natrium') {
     const zeichen = 'Bei Verwirrtheit, starker Schläfrigkeit, einem Krampfanfall oder einem Sturz: sofort 112.';
+    const richtung = std < g.tageUnter ? 'erniedrigt' : 'erhöht';
+    const war = (wie) => (d) => `Der Natriumwert (Salz im Blut) vom ${d} war ${wie} ${richtung}.`;
     if (std < g.heuteUnter || std > g.heuteUeber) {
-      return { stufe: 'heute', text: `Der Natriumwert (Salz im Blut) ist stark ${std < g.heuteUnter ? 'erniedrigt' : 'erhöht'}. ${HEUTE_ANRUFEN} ${zeichen}` };
+      return { stufe: 'heute', text: `Der Natriumwert (Salz im Blut) ist stark ${richtung}. ${HEUTE_ANRUFEN} ${zeichen}`, war: war('stark'), zeichen };
     }
     if (std < g.tageUnter || std > g.tageUeber) {
-      return { stufe: 'tage', text: `Der Natriumwert (Salz im Blut) ist deutlich ${std < g.tageUnter ? 'erniedrigt' : 'erhöht'}. ${TAGE_ANRUFEN} ${zeichen}` };
+      return { stufe: 'tage', text: `Der Natriumwert (Salz im Blut) ist deutlich ${richtung}. ${TAGE_ANRUFEN} ${zeichen}`, war: war('deutlich'), zeichen };
     }
   }
   if (key === 'hb') {
     const zeichen = 'Bei Atemnot, Schmerzen in der Brust, Ohnmacht oder schwarzem Stuhl: sofort 112.';
-    if (std < g.heuteUnter) return { stufe: 'heute', text: `Der Wert spricht für eine starke Blutarmut. ${HEUTE_ANRUFEN} ${zeichen}` };
-    if (std < g.tageUnter) return { stufe: 'tage', text: `Der Wert spricht für eine deutliche Blutarmut. ${TAGE_ANRUFEN} ${zeichen}` };
+    const war = (was) => (d) => `Der Hämoglobin-Wert (Blutfarbstoff) vom ${d} sprach für eine ${was}.`;
+    if (std < g.heuteUnter) return { stufe: 'heute', text: `Der Wert spricht für eine starke Blutarmut. ${HEUTE_ANRUFEN} ${zeichen}`, war: war('starke Blutarmut'), zeichen };
+    if (std < g.tageUnter) return { stufe: 'tage', text: `Der Wert spricht für eine deutliche Blutarmut. ${TAGE_ANRUFEN} ${zeichen}`, war: war('deutliche Blutarmut'), zeichen };
     if (unter && marcumar) {
-      return { stufe: 'tage', text: `Der Wert spricht für eine Blutarmut. Weil Sie Marcumar nehmen, sollte die Praxis bald klären, woher sie kommt. ${TAGE_ANRUFEN} ${zeichen}` };
+      return {
+        stufe: 'tage',
+        text: `Der Wert spricht für eine Blutarmut. Weil Sie Marcumar nehmen, sollte die Praxis bald klären, woher sie kommt. ${TAGE_ANRUFEN} ${zeichen}`,
+        war: (d) => `${war('Blutarmut')(d)} Weil Sie Marcumar nehmen, sollte die Praxis klären, woher sie kommt.`,
+        zeichen,
+      };
     }
   }
   if (key === 'crp' && std > g.heuteUeber) {
-    return { stufe: 'heute', text: `Der Entzündungswert ist sehr hoch. Das kann auf eine schwere Infektion hinweisen. ${HEUTE_ANRUFEN} Bei hohem Fieber, Atemnot oder Verwirrtheit: sofort 112.` };
+    const zeichen = 'Bei hohem Fieber, Atemnot oder Verwirrtheit: sofort 112.';
+    return {
+      stufe: 'heute', text: `Der Entzündungswert ist sehr hoch. Das kann auf eine schwere Infektion hinweisen. ${HEUTE_ANRUFEN} ${zeichen}`,
+      war: (d) => `Der Entzündungswert (CRP) vom ${d} war sehr hoch.`, zeichen,
+    };
   }
   return null;
 }
 
-/** Einordnung der freiwilligen Werte eines Befunds. */
-export function weitereWerte(befund, stand) {
+/*
+ * Runde 7: H4, H15, H21 – Eine Gefahrengrenze ist der Anlass für EINEN
+ * Anruf, keine Dauerstufe. Seit G18 stand „Heute anrufen" aus einem einzigen
+ * Natrium von 118 täglich monatelang oben auf „Heute" – auch nach der
+ * Entscheidung der Praxis zu diesem Befund, bis ein neuer Befund kam und 90
+ * Tage vergangen waren, ohne jeden Weg, es zu beenden. Ein echtes „Heute
+ * anrufen" (W2h, S4, W-D4) sah dann nicht anders aus als der Dauerzustand;
+ * gegen genau diese Abstumpfung setzt RW1 OFFEN 1 die Angabe der Praxis.
+ *
+ * Die Regel: Die Frist aus GEFAHR_GRENZEN („heute", „tage") gilt, solange
+ * der Wert neu und unbeantwortet ist –
+ *   - höchstens 14 Tage ab dem Tag, seit dem die App den Wert kennt: dem
+ *     Befunddatum, bei einem später eingetragenen oder geänderten Wert dem
+ *     Tag des Eintrags (befund.eingetragenAm). Wie X3/B2 auf „Heute" und das
+ *     14-Tage-Fenster von S4/R3 (Entscheidung 16): Nach zwei Wochen hat die
+ *     Praxis den Wert entweder behandelt, oder er ist kein Anlass mehr für
+ *     „heute noch", sondern für die Frage, ob er kontrolliert wurde;
+ *   - und nur, bis die Praxis sich zu DIESEM Befund gemeldet hat (F8
+ *     „bleibt", „geändert", „nachmessen") – mit einem Datum NACH diesem Tag.
+ *     Eine Angabe vom selben Tag oder von vorher kann sich nicht auf einen
+ *     Wert beziehen, der erst an diesem Tag in die App kam (wie H8 bei der
+ *     eigenen Dosisänderung). So fällt ein frisch eingetragener Gefahrenwert
+ *     nie unter „heute": weder durch eine ältere Angabe der Praxis noch durch
+ *     die Zeit;
+ *   - oder bis die Nutzerin zu genau diesem Wert angibt, dass die Praxis von
+ *     ihm weiß (Knopf beim Wert, Nachfrage WERT_BEKANNT).
+ * Danach steht der Wert mit Datum da. Ohne Angabe zu diesem Wert bleibt
+ * „In ein bis zwei Wochen" (Stufe zeitnah): F8 betrifft TSH und die Dosis
+ * (B44) – ob die Praxis dabei das Natrium gesehen hat, weiß die App nicht,
+ * deshalb nicht tiefer (Urteil zu H4). Mit der Angabe „Die Praxis weiß davon"
+ * gilt „Beim nächsten Termin": Ob kontrolliert wird, sagt die Praxis. Der
+ * 112-Satz bleibt in jedem Fall stehen. Der Bericht nennt die ursprüngliche
+ * Einordnung weiter, mit dem Grund, warum sie für die Patientin nicht mehr gilt.
+ * Die übrigen E13-Stufen (Vitamin D über 100) bleiben, wie sie sind (B44).
+ * Dauer und Stufen muss die Ärztin bestätigen (RW1 Grundsatz 11b).
+ */
+export const GEFAHR_FRISCH_TAGE = 14;
+/** Nachfrage „Die Praxis weiß von diesem Wert": bezug = Befund-ID, antwort = Schlüssel des Werts. */
+export const WERT_BEKANNT = 'wert_bekannt';
+
+/** Seit wann die App die weiteren Werte dieses Befunds kennt. */
+function weitereSeit(befund) {
+  return befund.eingetragenAm && befund.eingetragenAm > befund.datum ? befund.eingetragenAm : befund.datum;
+}
+
+/**
+ * Warum eine Gefahrenstufe nicht mehr gilt – oder null, solange sie gilt.
+ * → { grund: 'bekannt' | 'praxis' | 'alter', am } (am: seit wann)
+ */
+function gefahrVorbei(befund, key, stand, heute) {
+  const seit = weitereSeit(befund);
+  const bekannt = [...stand.nachfragen].reverse().find((n) => n.art === WERT_BEKANNT && n.bezug === befund.id && n.antwort === key
+    && n.am >= seit && n.am <= heute);
+  if (bekannt) return { grund: 'bekannt', am: bekannt.am };
+  if (praxisHatErklaert(befund) && befund.praxisAm && befund.praxisAm > seit && befund.praxisAm <= heute) return { grund: 'praxis', am: befund.praxisAm };
+  if (tageZwischen(seit, heute) > GEFAHR_FRISCH_TAGE) return { grund: 'alter', am: tageWeiter(seit, GEFAHR_FRISCH_TAGE + 1) };
+  return null;
+}
+
+/** Stufe und Text eines Gefahrenwerts, dessen Frist vorbei ist (siehe gefahrVorbei). */
+function gefahrNachFrist(gefahr, vorbei, befund, vorsatz = '') {
+  const war = `${vorsatz}${gefahr.war(kurz(befund.datum))}`;
+  if (vorbei.grund === 'bekannt') {
+    return { stufe: 'termin', text: `${war} Sie haben angegeben, dass die Praxis davon weiß. Halten Sie sich an das, was dort besprochen wurde, und fragen Sie beim nächsten Termin, ob der Wert kontrolliert werden soll. ${gefahr.zeichen}` };
+  }
+  const frage = vorbei.grund === 'praxis'
+    ? 'Die Praxis hat sich zu diesem Befund gemeldet. Falls sie dabei nicht über diesen Wert gesprochen hat'
+    : 'Falls er seitdem nicht kontrolliert oder mit Ihnen besprochen wurde';
+  return { stufe: 'zeitnah', text: `${war} ${frage}, besprechen Sie ihn bitte in den nächsten ein bis zwei Wochen mit der Praxis. ${gefahr.zeichen}` };
+}
+
+/**
+ * Einordnung der freiwilligen Werte eines Befunds.
+ *
+ * Mit `heute` gilt die Frist einer Gefahrengrenze nur, solange sie gilt
+ * (Runde 7: H4, H15, H21 – siehe gefahrVorbei); so rechnen Befund-Karte,
+ * Gesamtbild und „Heute". Ohne `heute` (Bericht, Tabellen) steht die
+ * Einordnung am Befundtag. Ein Gefahrenwert trägt dann `gefahr` { stufe,
+ * text, vorbei } – die ursprüngliche Einordnung und, wenn sie nicht mehr gilt,
+ * warum –, und `bekanntFrage`, solange die Nutzerin noch angeben kann, dass die
+ * Praxis von ihm weiß.
+ */
+export function weitereWerte(befund, stand, heute = null) {
   const liste = [];
   sp.WEITERE_WERTE.forEach(([key, name]) => {
     const w = befund[key];
@@ -1422,26 +1558,69 @@ export function weitereWerte(befund, stand) {
     const p = pruefeWert(key, w);
     const unter = w.von !== null && w.von !== undefined && w.wert < w.von;
     const ueber = w.bis !== null && w.bis !== undefined && w.wert > w.bis;
+    const hatBereich = (w.von !== null && w.von !== undefined) || (w.bis !== null && w.bis !== undefined);
+    const marcumar = stand.mittel.includes('marcumar');
+    /*
+     * Runde 7: H19, H20 – passt Wert oder Bereich zu einer anderen Einheit
+     * (einheiten.pruefeWert: vorschlag), rechnet die App die Gefahrengrenzen
+     * auch in der vermuteten Einheit. Wer „15" und „bis 0,5" vom Befund
+     * abschreibt und das vorbelegte mg/l stehen lässt, hat sehr wahrscheinlich
+     * 15 mg/dl, also 150 mg/l – vorher hieß das „Beim nächsten Termin", nach
+     * „Ja, stimmt" bei Hb 68 „g/dl" (= 6,8 g/dl) „in ein bis zwei Wochen".
+     * Stammt die Frist aus der vermuteten Einheit, sagt der Text das („Falls
+     * auf dem Befund … steht"). Umgekehrt zählt vor der Klärung nur die
+     * vermutete Einheit (E13 „bis dahin keine Einordnung"): Hb 7,8 „g/dl" bei
+     * 7,4–9,9 ist in mmol/l ein normaler Wert und hieß „deutliche Blutarmut –
+     * in den nächsten Tagen anrufen". Den Laborbereich als Entwarnung zu
+     * nehmen („liegt im Bereich") wäre falsch: Ein vertippter Bereich
+     * verschwiege dann ein echtes Hb von 6,5 g/dl.
+     */
+    const vermutet = p.unplausibel && p.vorschlag && GEFAHR_GRENZEN[key]
+      ? gefahrStufe(key, inStandard(key, { wert: w.wert, einheit: p.vorschlag }), { unter, marcumar }) : null;
+    const vermutetVorsatz = vermutet ? `Falls auf dem Befund „${p.vorschlag}" steht: ` : '';
+    let gefahr = null;
+    let vorsatz = '';
+    let einheitPruefen = null;
     // E13: Passt die Einheit nicht zum Wert, erst nachfragen und bis dahin
     // nicht einordnen. Ist der Wert bestätigt und steht der Bereich vom Befund
     // dabei, gilt er (B13) – sonst bliebe gerade ein bestätigter Vitamin-D-Wert
     // von 210 ng/ml ohne die Stufe Tage, die schon 180 ng/ml bekommen.
-    const hatBereich = (w.von !== null && w.von !== undefined) || (w.bis !== null && w.bis !== undefined);
     if (p.unplausibel && !(befund.bestaetigt && hatBereich)) {
-      texte.push(befund.bestaetigt
+      const pruefen = befund.bestaetigt
         ? 'Der Wert passt nicht gut zur gewählten Einheit. Bitte tragen Sie den Bereich vom Befund ein (steht meist neben dem Wert) – dann ordnet die App den Wert ein.'
-        : 'Der Wert passt nicht zur gewählten Einheit – bitte prüfen. Bis dahin ordnet die App ihn nicht ein.');
-      liste.push({ key, name, wert: w, stufe, texte });
-      return;
+        : 'Der Wert passt nicht zur gewählten Einheit – bitte prüfen. Bis dahin ordnet die App ihn nicht ein.';
+      if (!vermutet) {
+        texte.push(pruefen);
+        liste.push({ key, name, wert: w, stufe, texte });
+        return;
+      }
+      gefahr = vermutet;
+      vorsatz = vermutetVorsatz;
+      einheitPruefen = befund.bestaetigt ? pruefen : 'Der Wert passt nicht zur gewählten Einheit – bitte prüfen.';
+    } else {
+      // Runde 6: G18 – feste Grenzen für Werte, die im Alter lebensbedrohlich
+      // sein können, VOR dem Laborbereich (siehe GEFAHR_GRENZEN). Die Frist
+      // steht im Text selbst; ein Satz mit einer niedrigeren Frist („innerhalb
+      // von ein bis zwei Wochen") darf darunter nicht stehen (L3f). Nie „notruf"
+      // aus einem Laborwert (RW1 Grundsatz 5) – nur der gezielte 112-Satz wie bei L3e.
+      gefahr = gefahrStufe(key, std, { unter, marcumar });
+      if (vermutet && (!gefahr || STUFEN[vermutet.stufe].rang > STUFEN[gefahr.stufe].rang)) {
+        gefahr = vermutet;
+        vorsatz = vermutetVorsatz;
+      } else if (gefahr && p.unplausibel && p.vorschlag && GEFAHR_GRENZEN[key]) {
+        einheitPruefen = `Wert und Bereich passen nicht gut zu ${w.einheit}. Steht auf dem Befund „${p.vorschlag}", ändern Sie bitte die Einheit beim Befund – dann ordnet die App den Wert neu ein.`;
+      }
     }
-    // Runde 6: G18 – feste Grenzen für Werte, die im Alter lebensbedrohlich
-    // sein können, VOR dem Laborbereich (siehe GEFAHR_GRENZEN). Die Frist steht
-    // im Text selbst; ein Satz mit einer niedrigeren Frist („innerhalb von ein
-    // bis zwei Wochen") darf darunter nicht stehen (L3f). Nie „notruf" aus einem
-    // Laborwert (RW1 Grundsatz 5) – nur der gezielte 112-Satz wie bei L3e.
-    const gefahr = gefahrStufe(key, std, { unter, marcumar: stand.mittel.includes('marcumar') });
     if (gefahr) {
-      liste.push({ key, name, wert: w, stufe: gefahr.stufe, texte: [gefahr.text], auffaellig: true });
+      // Runde 7: H4, H15, H21 – die Frist gilt nur, solange der Wert neu und
+      // unbeantwortet ist (gefahrVorbei).
+      const vorbei = heute ? gefahrVorbei(befund, key, stand, heute) : null;
+      const jetzt = vorbei ? gefahrNachFrist(gefahr, vorbei, befund, vorsatz) : { stufe: gefahr.stufe, text: `${vorsatz}${gefahr.text}` };
+      liste.push({
+        key, name, wert: w, stufe: jetzt.stufe, texte: [jetzt.text, ...(einheitPruefen ? [einheitPruefen] : [])], auffaellig: true,
+        gefahr: { stufe: gefahr.stufe, text: `${vorsatz}${gefahr.text}`, vorbei },
+        bekanntFrage: !vorbei || vorbei.grund !== 'bekannt',
+      });
       return;
     }
     switch (key) {
@@ -1486,8 +1665,34 @@ export function weitereWerte(befund, stand) {
         break;
       case 'hba1c':
         if (std !== null) {
-          if (hatDiabetes(stand)) texte.push('Ihr Zielwert ist persönlich, im Alter oft 7 bis 8 % (53 bis 64 mmol/mol). Fragen Sie die Praxis, welcher für Sie gilt.');
-          else if (std >= 6.5) { stufe = 'zeitnah'; texte.push('Der Wert ist erhöht und kann auf Diabetes hindeuten. Besprechen Sie ihn innerhalb von ein bis zwei Wochen mit der Praxis.'); }
+          if (hatDiabetes(stand)) {
+            /*
+             * Runde 7: H22 – mit Diabetes stand bisher nur der Zieltext da
+             * (E13b „keine Wertung"), oben „Kein besonderer Anlass" – auch bei
+             * 13 % (etwa 325 mg/dl im Mittel, im Alter Gefahr der Austrocknung)
+             * und bei 5,6 % unter Insulin (Unterzuckergefahr). Über dem im Alter
+             * üblichen Zielkorridor (NVL Typ-2-Diabetes 2023: 6,5–8,5 %) liegt
+             * über 9 % (über 75 mmol/mol) → in ein bis zwei Wochen. Unter 6,5 %
+             * (unter 48 mmol/mol) nur mit „Diabetes-Tabletten oder Insulin" –
+             * Metformin allein oder nur „Diabetes: ja" macht keine
+             * Unterzuckerung (DDG „Diabetes im Alter") → beim nächsten Termin.
+             * Keine Stufe „tage" aus dem HbA1c: Es ist ein Mittel über drei
+             * Monate; akute Entgleisung gehört zu den Warnzeichen. Die
+             * Schwellen je Einheit wie bei B12 (E13c), ohne Umrechnungsrest.
+             * Die Ärztin muss sie bestätigen (RW1 Grundsatz 11b).
+             */
+            const mmol = normEinheit('hba1c', w.einheit) === 'mmol/mol';
+            const x = mmol ? w.wert : std;
+            const [hoch, tief] = mmol ? [75, 48] : [9, 6.5];
+            if (x > hoch) {
+              stufe = 'zeitnah';
+              texte.push('Der Wert liegt deutlich über dem Bereich, der im Alter meist angestrebt wird. Besprechen Sie ihn innerhalb von ein bis zwei Wochen mit der Praxis.');
+            } else if (x < tief && stand.mittel.includes('diabetes')) {
+              stufe = 'termin';
+              texte.push('Unter Insulin oder manchen Zuckertabletten kann ein so niedriger Wert im Alter zu niedrig sein – dann drohen Unterzuckerungen. Bitte beim nächsten Termin ansprechen.');
+            }
+            texte.push('Ihr Zielwert ist persönlich, im Alter oft 7 bis 8 % (53 bis 64 mmol/mol). Fragen Sie die Praxis, welcher für Sie gilt.');
+          } else if (std >= 6.5) { stufe = 'zeitnah'; texte.push('Der Wert ist erhöht und kann auf Diabetes hindeuten. Besprechen Sie ihn innerhalb von ein bis zwei Wochen mit der Praxis.'); }
           else if (std >= 5.7) { stufe = 'termin'; texte.push('Der Wert ist leicht erhöht. Sprechen Sie ihn beim nächsten Termin an.'); }
           texte.push('Blutarmut, Eisen- oder B12-Mangel und Nierenerkrankungen können den Wert verfälschen.');
         }
@@ -2021,7 +2226,7 @@ export function kontrolleHinweise(stand, heute) {
     const stufen = eintraege.map((l) => {
       const e = befundEinschaetzen(l, stand, heute);
       return hoechste(schilddruese && !e.praxisErklaert ? e.stufeLabor : 'keine',
-        ...weitereWerte(l, stand).filter((x) => keys.includes(x.key)).map((x) => x.stufe));
+        ...weitereWerte(l, stand, heute).filter((x) => keys.includes(x.key)).map((x) => x.stufe));
     });
     const oben = hoechste(...stufen);
     const hoeher = STUFEN[oben].rang > STUFEN[stufen[stufen.length - 1]].rang;
@@ -2128,7 +2333,11 @@ function befundOhneMuster(stand, heute, letzter) {
  * über 100 ng/ml heißt „in den nächsten Tagen anrufen" – oben darf dann nicht
  * „Kein besonderer Anlass" stehen. Je Wert zählt der jüngste Befund, der ihn
  * enthält – aus den letzten 90 Tagen oder ab dem letzten Befund mit Muster.
- * Die Praxis-Angabe zum Befund betrifft TSH und fT4, nicht diese Werte.
+ * Die Praxis-Angabe zum Befund betrifft TSH und fT4, nicht diese Werte –
+ * außer bei der Frist einer Gefahrengrenze (Runde 7: H4, H15, H21, siehe
+ * gefahrVorbei): Die gilt nur, solange der Wert neu und unbeantwortet ist.
+ * Ein Teil mit `bekannt` { befund, key } bietet die Angabe „Die Praxis weiß
+ * davon" an (Nachfrage WERT_BEKANNT).
  */
 function weitereTeile(stand, heute, letzter) {
   const tage90 = tageWeiter(heute, -90);
@@ -2139,11 +2348,14 @@ function weitereTeile(stand, heute, letzter) {
     const l = stand.labor[i];
     if (l.datum > heute) continue;
     if (l.datum < ab) break;
-    weitereWerte(l, stand).forEach((x) => {
+    weitereWerte(l, stand, heute).forEach((x) => {
       if (gesehen.has(x.key)) return;
       gesehen.add(x.key);
       if (STUFEN[x.stufe].rang >= STUFEN.termin.rang) {
-        teile.push({ id: `E13-${x.key}`, stufe: x.stufe, text: `${x.name}: ${x.texte[0]}`, quelle: 'weitere', datum: l.datum });
+        teile.push({
+          id: `E13-${x.key}`, stufe: x.stufe, text: `${x.name}: ${x.texte[0]}`, quelle: 'weitere', datum: l.datum,
+          ...(x.bekanntFrage ? { bekannt: { befund: l.id, key: x.key } } : {}),
+        });
       }
     });
   }
@@ -2253,6 +2465,23 @@ export function berichtBefunde(stand, heute) {
 function berichtNurWeitere(stand, heute, befunde) {
   const ab = befunde.length >= 3 ? befunde[befunde.length - 1].datum : '';
   return stand.labor.filter((l) => l.datum <= heute && l.datum >= ab && !(l.tsh || l.ft4 || l.ft3)).slice(-3).reverse();
+}
+
+/*
+ * Runde 7: H4, H15, H21 – die Einordnung eines weiteren Werts im Bericht: bei
+ * einem Gefahrenwert die ursprüngliche, denn die Ärztin soll sie sehen, und
+ * dazu, was davon für die Patientin noch gilt und warum (wie „für die
+ * Patientin ersetzt durch …" beim erklärten Befund).
+ */
+const VORBEI_TEXT = {
+  bekannt: (am) => `laut ihrer Angabe vom ${kurz(am)} weiß die Praxis davon`,
+  praxis: (am) => `die Praxis hat sich am ${kurz(am)} zum Befund gemeldet`,
+  alter: (am) => `seit ${kurz(am)} älter als ${GEFAHR_FRISCH_TAGE} Tage, ohne Angabe, dass er besprochen wurde`,
+};
+function weitereEinordnung(x) {
+  if (!x.gefahr || !x.gefahr.vorbei) return x.texte[0];
+  const v = x.gefahr.vorbei;
+  return `${x.gefahr.text} Für die Patientin gilt inzwischen „${STUFEN[x.stufe].titel}" (${VORBEI_TEXT[v.grund](v.am)}).`;
 }
 
 /** Ein Wert, wie er auf dem Befund steht – ohne Einordnung der App (für angabenZeilen). */
@@ -2376,6 +2605,12 @@ export function wd4Angaben(stand, heute) {
       const art = a === 'erhoehung' ? 'mehr' : a === 'senkung' ? 'weniger' : null;
       return { am: n.am, antwort: n.antwort, tag, d, art };
     })
+    // Runde 7: H18 – dieselbe Antwort zur Änderung desselben Tages nur einmal.
+    // Zwei Einträge mit demselben Beginn fragten je einmal nach, und der
+    // Bericht führte zweimal wortgleich „Nachfrage 14 Tage nach der Erhöhung
+    // vom 29.06.2026, beantwortet am 13.07.2026 …: ja".
+    .filter((x, i, alle) => alle.findIndex((y) => y.am === x.am && y.antwort === x.antwort && y.tag === x.tag && y.art === x.art
+      && (y.d ? y.d.ab : null) === (x.d ? x.d.ab : null)) === i)
     .sort((a, b) => a.am.localeCompare(b.am));
 }
 
@@ -2455,7 +2690,7 @@ function abschnittZeilen(stand, heute, mitEinschaetzung) {
       // Runde 6: G16 – der Satz ist die Einordnung der App, nicht vom Befund:
       // Er steht als „Einordnung (App)" da, nicht unter „(Befund)".
       const ww = mitEinschaetzung
-        ? weitereWerte(l, stand).map((x) => `${rohZeile(x.name, x.wert)}${x.texte.length ? ` – Einordnung (App): ${x.texte[0].replace(/\.$/, '')}` : ''}`)
+        ? weitereWerte(l, stand, heute).map((x) => `${rohZeile(x.name, x.wert)}${x.texte.length ? ` – Einordnung (App): ${weitereEinordnung(x).replace(/\.$/, '')}` : ''}`)
         : sp.WEITERE_WERTE.map(([k, name]) => rohZeile(name, l[k])).filter(Boolean);
       const zeile = `Weitere Werte vom ${kurz(l.datum)} (Befund): ${ww.join('; ')}${l.laborName ? `; Labor: ${l.laborName}` : ''}`;
       z.push(/[.?!]$/.test(zeile) ? zeile : `${zeile}.`);
@@ -2514,7 +2749,7 @@ function abschnittZeilen(stand, heute, mitEinschaetzung) {
     // Laborbereich vom Befund: der Wert „(Befund)", der Satz „Einordnung (App)".
     // Vorher stand „  Hämoglobin (Blutfarbstoff) 10,9 g/dl – Der Wert spricht
     // für eine Blutarmut …" ohne Bereich und ohne Kennzeichnung da.
-    weitereWerte(l, stand).forEach((ww) => z.push(`  ${rohZeile(ww.name, ww.wert)} (Befund)${ww.texte.length ? ` – Einordnung (App): ${ww.texte[0]}` : ''}`));
+    weitereWerte(l, stand, heute).forEach((ww) => z.push(`  ${rohZeile(ww.name, ww.wert)} (Befund)${ww.texte.length ? ` – Einordnung (App): ${weitereEinordnung(ww)}` : ''}`));
   });
 
   const genannt = [...genanntIn(stand, heute, 28)];

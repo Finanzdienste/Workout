@@ -336,8 +336,10 @@ function notfallSatz(n) {
  * und den 112-Satz. Jede Nummer, die ein Text nennt, steht darunter als
  * Anruf-Knopf – auf „Heute" kommen sie über die Teile des Gesamtbilds.
  */
-function weitereBlock(l, stand) {
-  const liste = ez.weitereWerte(l, stand);
+function weitereBlock(l, stand, heute) {
+  // Runde 7: H4, H15, H21 – mit dem Tag, wie Kopf und Gesamtbild: Die Frist
+  // einer Gefahrengrenze gilt nur, solange der Wert neu und unbeantwortet ist.
+  const liste = ez.weitereWerte(l, stand, heute);
   if (!liste.length) return '';
   return `
     <div class="weitere-werte">
@@ -347,10 +349,27 @@ function weitereBlock(l, stand) {
         <div class="befund-wert" data-weiterer="${esc(x.key)}"><b>${esc(x.name)}</b><span class="zahl">${esc(`${x.wert.unter ? '< ' : ''}${rohText(x.wert.wert)} ${x.wert.einheit}`)}</span></div>
         ${bereich ? `<p class="lage-zeile"><span class="bereich">(Bereich Ihres Labors ${esc(bereich)})</span></p>` : ''}
         ${rang(x.stufe) > 0 ? `<p class="frist klein">${stufeSchild(x.stufe)}</p>` : ''}
-        ${x.texte.map((t) => `<p class="klein">${esc(t)}</p>${anrufReihe(anrufeImText(t, stand))}`).join('')}`;
+        ${x.texte.map((t) => `<p class="klein">${esc(t)}</p>${anrufReihe(anrufeImText(t, stand))}`).join('')}
+        ${x.bekanntFrage ? bekanntFrage(l.id, x.key) : ''}`;
   }).join('')}
       <p class="klein gedaempft">${esc(ez.WEITERE_HINWEIS)}</p>
     </div>`;
+}
+
+/*
+ * Runde 7: H4, H15, H21 – „Die Praxis weiß davon" zu einem Gefahrenwert
+ * (Natrium 118, Hb 6,5, CRP 150). Der Text sagt „falls sich die Praxis nicht
+ * schon bei Ihnen gemeldet hat", aber es gab keinen Weg, das zu beantworten:
+ * „Heute anrufen" stand monatelang da, auch nach dem Anruf. Die Antwort
+ * speichert die Dosis-Karte-Nachfrage mit Datum (js/app.js frageBeantworten,
+ * ziel „nachfrage"); danach gilt für den Wert „Beim nächsten Termin".
+ */
+function bekanntFrage(befundId, key) {
+  return `
+        <div class="bekannt-frage" data-bekannt="${esc(key)}">
+          <p class="klein">Hat die Praxis mit Ihnen schon über diesen Wert gesprochen?</p>
+          <div class="knopf-reihe"><button type="button" class="knopf knopf-klein" data-act="frage-antwort" data-ziel="nachfrage" data-feld="${esc(ez.WERT_BEKANNT)}" data-bezug="${esc(befundId)}" data-wert="${esc(key)}">Ja, die Praxis weiß davon</button></div>
+        </div>`;
 }
 
 /*
@@ -420,7 +439,7 @@ export function befundKarte(l, stand, heute, { kurz = false, aendern = false, do
       </div>`);
   }
   if (!kurz) teile.push(angabenZeile(l));
-  teile.push(weitereBlock(l, stand));
+  teile.push(weitereBlock(l, stand, heute));
   if (!kurz && l.notiz) teile.push(`<p class="klein gedaempft">${esc(l.notiz)}</p>`);
   const knoepfe = [];
   if (dosisKnopf && l.tsh) knoepfe.push('<button type="button" class="knopf" data-act="seite" data-seite="dosis-karte">Dosis: mehr oder weniger?</button>');
@@ -520,7 +539,15 @@ function gesamtbildSeite(stand, heute) {
       // Der Text nennt das Datum selbst („Befund vom …: …").
       einzeln.push({ stufe: t.stufe, regel: t.id, html: mitAnruf(`<p>${esc(t.text)}</p>`, anrufeImText(t.text, stand)) });
     } else if (t.quelle === 'weitere') {
-      einzeln.push({ stufe: t.stufe, regel: t.id, html: mitAnruf(`<p class="klein gedaempft">Befund vom ${esc(datumKurz(t.datum))}:</p><p>${esc(t.text)}</p>`, anrufeImText(t.text, stand)) });
+      // Runde 7: H4, H15, H21 – bei einem Gefahrenwert gleich die Antwort „Die
+      // Praxis weiß davon": Der Befund, zu dem er gehört, steht nicht immer
+      // unten auf dieser Seite (nur der letzte mit TSH).
+      einzeln.push({
+        stufe: t.stufe,
+        regel: t.id,
+        html: mitAnruf(`<p class="klein gedaempft">Befund vom ${esc(datumKurz(t.datum))}:</p><p>${esc(t.text)}</p>`, anrufeImText(t.text, stand))
+          + (t.bekannt ? bekanntFrage(t.bekannt.befund, t.bekannt.key) : ''),
+      });
     } else if (t.quelle === 'kontrolle') {
       einzeln.push({ stufe: t.stufe, regel: t.id, html: mitAnruf(`<p>${esc(t.text)}</p>`, anrufeImText(t.text, stand)) });
     } else if (t.quelle === 'dosis' && t.id === 'dosis') {

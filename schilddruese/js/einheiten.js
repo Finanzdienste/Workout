@@ -109,30 +109,83 @@ const GRENZEN = {
   crp: { 'mg/l': [0, 500, null, null], 'mg/dl': [0, 50, null, null] },
 };
 
+/*
+ * Runde 7: H19, H20 – Welche Einheit der Laborbereich nahelegt, bei den
+ * Werten mit einer Gefahrengrenze und mehreren Einheiten (Hb, CRP). Vorher
+ * prüfte die App bei den weiteren Werten nur den Wert, nie den Bereich: Ein Hb
+ * aus einem mmol/l-Befund (7,8 bei 7,4–9,9) ging mit dem vorbelegten g/dl
+ * ohne Rückfrage als „deutliche Blutarmut – in den nächsten Tagen anrufen"
+ * durch, obwohl der Wert im eingetragenen Bereich lag; ein CRP von 15 mg/dl
+ * (= 150 mg/l, Bereich „bis 0,5") mit dem vorbelegten mg/l hieß nur „Beim
+ * nächsten Termin". RW2 E13 verlangt dafür eine Rückfrage.
+ *
+ * Die Grenzen liegen dort, wo sich die üblichen Bereiche der Einheiten nicht
+ * überschneiden: Hb-Obergrenzen in mmol/l bis etwa 11,2, in g/dl ab 15, in
+ * g/l ab 150; Untergrenzen in mmol/l 7–9, in g/dl ab 11. CRP-Obergrenzen in
+ * mg/dl 0,3–1, in mg/l 3–10. Eine hs-CRP-Grenze „< 1 mg/l" fragt deshalb
+ * nicht nach (erst unter 1), eine CRP-Obergrenze zwischen 1 und 1,5 ist
+ * mehrdeutig und bleibt ohne Rückfrage.
+ * → die Einheit, zu der der Bereich passt, oder null (ohne Bereich, mehrdeutig).
+ */
+function einheitNachBereich(key, w) {
+  const hat = (x) => x !== null && x !== undefined;
+  if (key === 'hb') {
+    if (hat(w.bis)) return w.bis < 12.5 ? 'mmol/l' : w.bis < 30 ? 'g/dl' : 'g/l';
+    if (hat(w.von)) return w.von < 10 ? 'mmol/l' : w.von < 30 ? 'g/dl' : 'g/l';
+    return null;
+  }
+  if (key === 'crp' && hat(w.bis)) return w.bis < 1 ? 'mg/dl' : w.bis > 1.5 ? 'mg/l' : null;
+  return null;
+}
+
 /**
- * Ein einzelner Wert: { rueckfrage, unplausibel }. `unplausibel` heißt, die
- * Einheit ist wahrscheinlich verwechselt.
+ * Ein einzelner Wert: { rueckfrage, unplausibel, vorschlag }. `unplausibel`
+ * heißt, die Einheit ist wahrscheinlich verwechselt; `vorschlag` ist dann die
+ * vermutete Einheit (kanonisch) – oder null, wenn die App keine vermutet.
  */
 export function pruefeWert(key, w) {
-  const ergebnis = { rueckfrage: null, unplausibel: false };
+  const ergebnis = { rueckfrage: null, unplausibel: false, vorschlag: null };
   if (!w || typeof w.wert !== 'number') return ergebnis;
   const e = normEinheit(key, w.einheit);
   const g = e && GRENZEN[key] && GRENZEN[key][e];
   const name = ([...sp.LABORWERTE, ...sp.WEITERE_WERTE].find(([k]) => k === key) || [key, key])[1];
   const frage = `Bitte prüfen Sie Komma und Einheit: Steht auf dem Befund bei ${name} wirklich ${zahl(w.wert)} ${w.einheit}?`;
+  // Runde 7: H19, H20 – passt der Bereich zu einer anderen Einheit, ist sie
+  // der bessere Vorschlag als die aus dem Wert allein (Hb 7,8 „g/l" bei
+  // 7,4–9,9 kommt aus mmol/l, nicht aus g/dl).
+  const nachBereich = e ? einheitNachBereich(key, w) : null;
+  const bereichAnders = nachBereich && nachBereich !== e ? nachBereich : null;
   if (g) {
     const [unten, oben, sonstKlein, sonstGross] = g;
     // „< 0,01" vom Befund zählt als 0,01 und ist kein Tippfehler.
     const zuKlein = w.wert < unten && !(key === 'tsh' && w.unter && w.wert >= 0.01);
     const vorschlag = (e2) => (e2 === '?' ? `${frage} Der Wert passt nicht gut zu dieser Einheit.`
       : `${frage} Der Wert passt nicht gut zu dieser Einheit – steht auf dem Befund vielleicht „${e2}"?`);
-    if (zuKlein) {
-      ergebnis.rueckfrage = sonstKlein ? vorschlag(sonstKlein) : frage;
-      ergebnis.unplausibel = Boolean(sonstKlein);
-    } else if (w.wert > oben) {
-      ergebnis.rueckfrage = sonstGross ? vorschlag(sonstGross) : frage;
-      ergebnis.unplausibel = Boolean(sonstGross);
-    }
+    const setze = (sonst) => {
+      const e2 = bereichAnders && sonst !== '?' ? bereichAnders : sonst;
+      ergebnis.rueckfrage = e2 ? vorschlag(e2) : frage;
+      ergebnis.unplausibel = Boolean(e2);
+      ergebnis.vorschlag = e2 && e2 !== '?' ? e2 : null;
+    };
+    if (zuKlein) setze(sonstKlein);
+    else if (w.wert > oben) setze(sonstGross);
+  }
+  // Runde 7: H19, H20 – der Wert allein passt, der Bereich aber zu einer
+  // anderen Einheit: unplausibel wie bei einem Wert, der nicht passt (E13 „bis
+  // dahin keine Einordnung"). Nach „Ja, stimmt" rechnet weitereWerte die
+  // Gefahrengrenzen in beiden Einheiten (siehe dort).
+  if (!ergebnis.rueckfrage && bereichAnders) {
+    ergebnis.rueckfrage = `${frage} Der Bereich passt nicht gut zu dieser Einheit – steht auf dem Befund vielleicht „${bereichAnders}"?`;
+    ergebnis.unplausibel = true;
+    ergebnis.vorschlag = bereichAnders;
+  }
+  // Runde 7: H20 – ein Hb unter 10 in g/dl ohne Bereich kann ebenso gut ein
+  // normaler Wert in mmol/l sein (Frauen etwa 7,4–9,9). Ohne Bereich lässt
+  // sich das nicht erkennen – also einmal nachfragen. Nicht „unplausibel": In
+  // g/dl ist der Wert möglich und bekommt seine Frist, nur eben bestätigt.
+  if (!ergebnis.rueckfrage && key === 'hb' && e === 'g/dl' && w.wert < 10
+    && (w.von === null || w.von === undefined) && (w.bis === null || w.bis === undefined)) {
+    ergebnis.rueckfrage = `${frage} Manche Labore geben Hämoglobin in mmol/l an – dann wählen Sie bitte diese Einheit.`;
   }
   if (key === 'tsh' && e) {
     const von = w.von;

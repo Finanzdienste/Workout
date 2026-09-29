@@ -42,7 +42,9 @@ check(download.suggestedFilename() === `schilddruese-sicherung-${TAG}.json`, `Da
 const datei = path.join(ABLAGE, 'sd-sicherung.json');
 await download.saveAs(datei);
 const inhalt = JSON.parse(readFileSync(datei, 'utf8'));
-check(inhalt.app === 'schilddruese' && inhalt.version === 2, 'die Datei trägt App-Namen und Version');
+// Runde 7: H2 – geändert: Die Datenfassung ist jetzt 3 (neue Felder aus
+// Runde 6), damit eine ältere App die Datei ablehnt, statt Felder zu verwerfen.
+check(inhalt.app === 'schilddruese' && inhalt.version === 3, 'die Datei trägt App-Namen und Version');
 check(vergleich(inhalt) === vergleich(vorher), 'die Datei enthält Dosis, Einnahmen, Laborwerte und Fragen');
 let s = await gespeichert();
 check(s.letzteSicherung === TAG, 'das Datum der letzten Sicherung wird gemerkt');

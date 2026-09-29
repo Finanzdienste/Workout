@@ -24,7 +24,7 @@
  *
  * Wie in js/einschaetzung.js: reine Rechnung mit übergebenem Stand und Tag.
  */
-import { tageWeiter, tageZwischen, zahlText, rohText, datumKurz } from './datum.js';
+import { tageWeiter, tageZwischen, zahlText, rohText, datumKurz, istISO } from './datum.js';
 import * as sp from './speicher.js';
 import { normEinheit, inStandard, plausibel } from './einheiten.js';
 /*
@@ -227,17 +227,52 @@ function grosserSchritt(tdNeu, tdAlt) {
   return schritt > 25 || (tdAlt > 0 && schritt / tdAlt > 0.25);
 }
 
+/** Die Nachfrage „Entscheidung eingetragen, während die Karte auf sie wartete" (siehe wartetAufPraxis). */
+export const PRAXIS_DANACH = 'praxis_danach';
+
 /*
  * Hat die Praxis nach einer eigenen Änderung zum jüngsten Befund entschieden
  * (F8 oder „Die Praxis hat entschieden")? Dann gilt ihre Entscheidung (RW2
  * Grundsatz 6, D6b): „Sagen Sie es der Praxis in den nächsten Tagen" ist
  * erledigt. Vorher stand das direkt unter „Gut. Es gilt, was die Praxis
  * gesagt hat" – auf der Karte bis zum nächsten Befund, ohne Ausweg (C4).
- * `seit`: ab wann die eigene Änderung bekannt ist (Eintrag oder Meldung).
+ * `seit`: ab wann die eigene Änderung bekannt ist (bekanntSeit, berichtigtAm).
+ *
+ * Runde 7: H8 – Nur eine Angabe echt NACH diesem Tag. Eine Angabe vom selben
+ * Tag zählt als vorher: Wer heute „Erst nachmessen" eintrug und danach
+ * selbst von 100 auf 150 µg ging, las sonst „Kein besonderer Anlass" – die
+ * Praxis wusste nachweislich nichts von der Verdopplung. Welche Angabe am
+ * selben Tag zuerst kam, weiß die App bei einem Dosis-Eintrag nicht; so
+ * bleibt die höhere Stufe. `gleicherTag`: Die App erfuhr es als Antwort auf
+ * ihre eigene Frage („Ich habe selbst etwas geändert", „Nein, ich nehme
+ * etwas anderes" mit der Berichtigung danach). Diese Fragen stellt die Karte
+ * nur, solange die Praxis zu diesem Befund nichts entschieden hat (D0.5 sperrt
+ * sie) – eine Entscheidung vom selben Tag kam also danach. Ebenso, wenn die
+ * Entscheidung eingetragen wurde, während die Karte auf sie wartete
+ * (Nachfrage PRAXIS_DANACH vom Tag der Entscheidung, siehe wartetAufPraxis).
  */
-function praxisNachEigener(stand, heute, seit) {
+function praxisNachEigener(stand, heute, seit, { gleicherTag = false } = {}) {
   const b = dosisBefund(stand, heute);
-  return Boolean(b && seit && praxisHatErklaert(b) && b.praxisAm && b.praxisAm >= seit);
+  if (!(b && seit && praxisHatErklaert(b) && b.praxisAm)) return false;
+  if (b.praxisAm > seit) return true;
+  return b.praxisAm === seit && (gleicherTag
+    || stand.nachfragen.some((n) => n.art === PRAXIS_DANACH && n.bezug === b.id && n.antwort === 'ja' && n.am === b.praxisAm));
+}
+
+/*
+ * Runde 7: H8 – Seit wann die App von einer eigenen Änderung weiß: der Tag,
+ * an dem sie eingetragen wurde (`eingetragenAm`, vom Dosis-Formular), oder
+ * der Tag der Meldung „selbst geändert" – nie vor ihrem „Gilt ab". Vorher galt
+ * allein „Gilt ab": Wer eine eigene Erhöhung erst Wochen später mit dem
+ * wahren Beginn eintrug, bekam X3/B2 auf „Heute" nur für den Rest der 14 Tage
+ * oder gar nicht (ohne Befund dann nirgends „bis dahin wieder Ihre bisherige
+ * Menge", keine 112-Zeichen), und eine Angabe der Praxis von VOR dem Eintrag
+ * galt als ihre Entscheidung danach. Wie berichtigtAm bei der Berichtigung.
+ * Ältere Einträge ohne den Tag: „Gilt ab" bzw. die Meldung.
+ */
+function bekanntSeit(stand, d) {
+  const meldung = d.praxis === null ? selbstGemeldet(stand, d) : null;
+  return [d.ab, istISO(d.eingetragenAm) ? d.eingetragenAm : null, meldung ? meldung.am : null].filter(Boolean).sort().pop();
 }
 
 /**
@@ -333,11 +368,40 @@ function berichtigungJetzt(stand, heute) {
   // Eintrag davor am selben Tag (Einrichten „ab heute", D19), ist sie der erste.
   for (let i = galten.length - 1; i >= 0 && sp.tagesdosis(galten[i]) === td; i--) {
     const d = galten[i];
-    if (stand.dosen.indexOf(d) < 1 || !istBerichtigung(stand, d, heute)) continue;
+    /*
+     * Runde 7: H12 – Der allererste Eintrag ist nur dann keine Berichtigung,
+     * wenn er nichts über eine berichtigt (kein `statt`, kein berichtigtAm).
+     * Ersetzte die Berichtigung den einzigen Eintrag (vom Einrichten) und
+     * rückte sie, wie D0.5 rät, vor ihn, stand sie an erster Stelle: X3b
+     * („in den nächsten Tagen anrufen") fiel sofort weg, „Heute" sank auf
+     * „Kein besonderer Anlass" – durch das Befolgen des Rats der Karte.
+     */
+    const ersterOhneVermerk = stand.dosen.indexOf(d) < 1 && !d.statt && !d.berichtigtAm;
+    if (ersterOhneVermerk || !istBerichtigung(stand, d, heute)) continue;
     const am = berichtigtAm(stand, d, heute);
     if (!ber || am > ber.am) ber = { d, am };
   }
   return ber;
+}
+
+/*
+ * X3b gilt 14 Tage ab dem Tag der Berichtigung (Runde 6 – Rest) – für
+ * „Heute" (dosisHinweise) und die Karte dieselbe Rechnung.
+ *
+ * Runde 7: H3 – Hat die Praxis NACH der Berichtigung zum jüngsten Befund
+ * entschieden, ist „rufen Sie in den nächsten Tagen an und sagen Sie, was
+ * Sie nehmen" erledigt, wie bei der eigenen Änderung (C4, praxisNachEigener).
+ * Vorher stand „✓ Gut. Es gilt, was die Praxis gesagt hat" direkt über
+ * „📞 In den nächsten Tagen anrufen" – bis zu 14 Tage lang. Dann `erledigt`:
+ * „Heute" nennt X3b nicht mehr, die Karte ohne Frist (siehe dosisRichtung).
+ * → { ber, erledigt } | null
+ */
+function x3bLage(stand, heute) {
+  const ber = berichtigungJetzt(stand, heute);
+  const n = ber ? tageZwischen(ber.am, heute) : -1;
+  if (!ber || n < 0 || n > 14) return null;
+  // Am selben Tag danach: Die Berichtigung folgt auf „Nein, ich nehme etwas anderes" (siehe praxisNachEigener).
+  return { ber, erledigt: praxisNachEigener(stand, heute, ber.am, { gleicherTag: true }) };
 }
 
 /*
@@ -382,10 +446,22 @@ function zurueckGenommen(stand, d, heute) {
   });
   if (mengen.length < 3 || mengen[mengen.length - 1].d !== d) return false;
   const vorige = mengen[mengen.length - 2].d;
-  const vorigeEigen = vorige.praxis === false || (vorige.praxis === null && Boolean(selbstGemeldet(stand, vorige)));
+  const selbstGeaendert = (x) => x.praxis === false || (x.praxis === null && Boolean(selbstGemeldet(stand, x)));
   const b = dosisBefund(stand, heute);
   const praxisDazwischen = Boolean(b && praxisHatErklaert(b) && b.praxisAm && b.praxisAm >= vorige.ab && b.praxisAm < d.ab);
-  return vorigeEigen && !praxisDazwischen && mengen[mengen.length - 3].td === td;
+  /*
+   * Runde 7: H9 – „zurück" nur auf eine Menge, die selbst keine eigene
+   * Änderung war. Im Zickzack 100 µg (Praxis) → selbst 150 → selbst 100 →
+   * selbst wieder 150 hieß der letzte Schritt „zurück auf Ihre frühere
+   * Menge": X3 mit „bis dahin wieder Ihre bisherige Menge" und die
+   * 112-Zeichen (W-D2) fielen weg, „Heute" sagte „Sie nehmen wieder Ihre
+   * frühere Menge" – eine eigenmächtige Verdopplung als Normalzustand. Eine
+   * Berichtigung ist keine Änderung: Ihre Menge hat die Nutzerin wirklich
+   * genommen, dorthin zurück ist „zurück".
+   */
+  const ziel = mengen[mengen.length - 3].d;
+  const zielEigen = selbstGeaendert(ziel) && !istBerichtigung(stand, ziel, heute);
+  return selbstGeaendert(vorige) && !zielEigen && !praxisDazwischen && mengen[mengen.length - 3].td === td;
 }
 
 /**
@@ -407,7 +483,8 @@ function zurueckGenommen(stand, d, heute) {
  * derselben Menge klärt nichts (Runde 4: E30). Bestätigt ein solcher Eintrag
  * „Auf Anweisung der Praxis: Ja" die Menge, gilt das wie die Entscheidung der
  * Praxis – dann nennt die Karte den Grund ohne Frist (siehe dosisRichtung).
- * → { d, ab, gross, zurueck } | null – `ab`: seit wann die Änderung bekannt ist.
+ * → { d, ab, gross, zurueck } | null – `ab`: seit wann die Änderung bekannt
+ * ist (bekanntSeit: Tag des Eintrags oder der Meldung, Runde 7: H8).
  */
 function eigeneAenderung(stand, heute) {
   const a = letzteAenderung(stand, heute);
@@ -415,8 +492,10 @@ function eigeneAenderung(stand, heute) {
   const d = a.beginn;
   const meldung = d.praxis === null ? selbstGemeldet(stand, d) : null;
   if (d.praxis !== false && !meldung) return null;
-  const ab = meldung && meldung.am > d.ab ? meldung.am : d.ab;
-  if (ab > heute || praxisNachEigener(stand, heute, ab) || mengeBestaetigt(stand, d, heute)) return null;
+  if (d.ab > heute) return null;
+  // Ein Tag nach heute (Sicherung mit verstellter Uhr) zählt als heute – er hebt den Schutz nicht auf.
+  const ab = [bekanntSeit(stand, d), heute].sort()[0];
+  if (praxisNachEigener(stand, heute, ab) || mengeBestaetigt(stand, d, heute)) return null;
   if (kontrollwertDa(stand, d, heute)) return null;
   const zurueck = zurueckGenommen(stand, d, heute);
   return { d, ab, gross: !zurueck && grosserSchritt(sp.tagesdosis(d), sp.tagesdosis(a.vorBeginn)), zurueck };
@@ -936,8 +1015,13 @@ export function dosisRichtung(stand, heute) {
   const praxisSagt = praxisHatErklaert(befund);
   // „Selbst geändert" gemeldet, und die Praxis hat danach entschieden (C4) –
   // nach der Meldung und nach dem jüngsten eigenen Eintrag, wie auf „Heute".
-  const eigenAb = nachher.filter((y) => y.art === 'dosis' && y.d.praxis !== true && !y.korrektur).map((y) => y.d.ab).pop() || null;
-  const praxisDanach = selbst && praxisNachEigener(stand, heute, [nach14.am, eigenAb].filter(Boolean).sort().pop());
+  // Nach dem Tag, an dem er eingetragen wurde, nicht nach seinem „Gilt ab" (Runde 7: H8).
+  const eigenAb = nachher.filter((y) => y.art === 'dosis' && y.d.praxis !== true && !y.korrektur).map((y) => bekanntSeit(stand, y.d)).sort().pop() || null;
+  // Eine Entscheidung am Tag der Meldung kam nach ihr (siehe
+  // praxisNachEigener); am Tag des Eintrags ist die Reihenfolge offen – dann
+  // gilt die Entscheidung als vorher (H8).
+  const praxisDanach = selbst && praxisNachEigener(stand, heute, nach14.am, { gleicherTag: true })
+    && (!eigenAb || praxisNachEigener(stand, heute, eigenAb));
   // Nach einer eigenen Änderung, zu der die Praxis noch nichts gesagt hat,
   // klärt erst der Anruf, was gilt – nicht „8 Wochen bei der neuen Menge
   // bleiben bis zum Kontrollwert" neben „wieder die bisherige Menge" (C7).
@@ -1001,17 +1085,8 @@ export function dosisRichtung(stand, heute) {
     // „wie bisher" wäre nach einer eingetragenen Änderung missverständlich:
     // Gemeint ist die neue Menge, nicht die alte.
     if (!doppelt) ohneWieBisher = true;
-    /*
-     * „Heute" nennt die Berichtigung ohne Absprache mit der Praxis (X3b) mit
-     * der Stufe Tage (Runde 6: G10) – die Karte zur selben Lage auch, wie bei
-     * der eigenen Änderung (B2, C7). Unter „Beim nächsten Termin" stand sonst
-     * auf der Karte, was „Heute" „in den nächsten Tagen" verlangt. Nur hier,
-     * wo D0.5 die Richtung ohnehin sperrt: Sonst hielte der Grund die Frage
-     * „Nehmen Sie im Moment genau …?" zurück. Die Frist schreibt erst die
-     * Karte, mit ihrer eigenen Stufe (RW1 L3f).
-     */
-    hinweise.filter((h) => h.id === 'X3b' && rang(h.stufe) > rang('termin'))
-      .forEach((h) => grund('X3b', (s) => x3bText(h.praxis, hoechste(s, 'tage')), h.stufe));
+    // X3b (die Berichtigung ohne Absprache mit der Praxis) steht unten, eine
+    // Regel für alle Wege (Runde 7: H13).
     // Die Praxis-Angabe senkt die Stufe nur, solange sie gilt (R1: nicht mehr,
     // wenn danach neue Beschwerden eingetragen wurden – e.praxisErklaert).
     if (echt || (praxisSagt && e.praxisErklaert)) stufeFest = 'keine';
@@ -1187,7 +1262,8 @@ export function dosisRichtung(stand, heute) {
     // Die Menge später „Auf Anweisung der Praxis: Ja" noch einmal eingetragen
     // (neues Rezept): wie ihre Entscheidung – bis ein Kontrollwert zeigt, wie sie wirkt.
     const bestaetigt = Boolean(eigeneD) && mengeBestaetigt(stand, eigeneD, heute) && !kontrollwertDa(stand, eigeneD, heute);
-    if (eigeneD && (praxisNachEigener(stand, heute, eigeneD.ab) || bestaetigt)) {
+    // Nach dem Tag des Eintrags, wie auf „Heute" (eigeneAenderung, Runde 7: H8).
+    if (eigeneD && (praxisNachEigener(stand, heute, bekanntSeit(stand, eigeneD)) || bestaetigt)) {
       const i = galten.indexOf(eigeneD);
       const gross = grosserSchritt(sp.tagesdosis(eigeneD), sp.tagesdosis(galten[i - 1])) && !zurueckGenommen(stand, eigeneD, heute);
       if (gross) warnWD2 = true;
@@ -1245,27 +1321,6 @@ export function dosisRichtung(stand, heute) {
   }
 
   /*
-   * Runde 6 – Rest (X3b): Rückt die Berichtigung, wie D0.5 rät, mit „Gilt
-   * ab" auf ihren wahren Beginn vor die Blutabnahme, fällt D0.5 weg – die
-   * Bitte, der Praxis zu sagen, was sie nimmt, bleibt aber 14 Tage ab dem Tag
-   * der Berichtigung (dosisHinweise, `am`). Kam die Berichtigung mit oder
-   * nach dieser Blutabnahme, war sie die Antwort auf die Frage zu diesem
-   * Befund, und X3b stand eben noch als Grund auf der Karte: Die Karte sänke
-   * sonst durch das Befolgen ihres eigenen Rats auf die Richtung „Beim
-   * nächsten Termin", während „Heute" weiter „in den nächsten Tagen" sagt.
-   * Nicht, solange die Frage „Nehmen Sie im Moment genau …?" aussteht – die
-   * hält X3b nicht zurück (G10, R3-a). Eine Berichtigung vor der Blutabnahme
-   * bleibt, wie sie war (G10).
-   */
-  if (!dosisNach && stimmtGilt) {
-    hinweise.filter((h) => h.id === 'X3b' && rang(h.stufe) > rang('termin') && h.am >= tag).forEach((h) => {
-      grund('X3b', (s) => x3bText(h.praxis, hoechste(s, 'tage')), h.stufe);
-      // Wie unter D0.5 nach der Berichtigung: nicht „genau wie bisher" – die Praxis rechnet mit einer anderen Menge.
-      ohneWieBisher = true;
-    });
-  }
-
-  /*
    * Q5 (RW2 D5, rot-2 X15): Eine schon beantwortete Verwechslung ist ein
    * dringlicher Grund – „einmal viele Tabletten" mit Giftnotruf und Stufe
    * heute. Sie wurde nur ohne andere Gründe gelesen (unten, mit der Frage).
@@ -1288,8 +1343,15 @@ export function dosisRichtung(stand, heute) {
    * der Giftnotruf (D18).
    */
   const q5Akut = tageZwischen(tag, heute) <= 92 && !(praxisSagt && befund.praxisAm && befund.praxisAm >= tag) && !echt;
+  /*
+   * Runde 7: H10 – Gefragt wird Q5 nur bei Muster d und e (unten), die
+   * Antwort gilt aber unabhängig vom Muster von heute. Vorher fielen
+   * Giftnotruf und Stufe weg, sobald das Muster wechselte: fT4 desselben
+   * Befunds nachgetragen (e3 → g2), „TSH bewusst niedrig", Krebs oder ein
+   * Zielbereich unter „Über mich" – darunter stand „genau wie bisher weiter".
+   * Eine Überdosis wird durch eine Profilangabe nicht harmlos (D18, Monotonie).
+   */
   const q5Grund = (akut = true) => {
-    if (gruppe !== 'd' && gruppe !== 'e') return;
     if (befund.verwechselt === 'einmal' && !akut) {
       grund('Q5', satz(praxisSagt || echt
         ? 'Sie hatten angegeben, einmal viele Tabletten auf einmal genommen zu haben. Wusste die Praxis das bei ihrer Entscheidung nicht, sagen Sie es ihr.'
@@ -1434,6 +1496,39 @@ export function dosisRichtung(stand, heute) {
     if (anker && tageZwischen(anker, heute) >= 14) {
       frage14 = { id: 'X3-14', text: 'Haben Sie inzwischen mit der Praxis über diesen Wert gesprochen oder selbst etwas an der Dosis geändert?', optionen: [['praxis', 'Ja, mit der Praxis gesprochen'], ['selbst', 'Ich habe selbst etwas geändert'], ['nein', 'Nein, noch nicht']], ziel: 'nachfrage', feld: 'nach14', bezug: befund.id };
     }
+  }
+
+  /*
+   * X3b auf der Karte: „Heute" nennt die Berichtigung ohne Absprache mit der
+   * Praxis mit der Stufe Tage (Runde 6: G10) – die Karte zur selben Lage auch,
+   * wie bei der eigenen Änderung (B2, C7). Die Frist schreibt erst die Karte,
+   * mit ihrer eigenen Stufe (RW1 L3f).
+   *
+   * Runde 7: H13 – eine Regel statt zweier Sonderfälle: X3b steht auf der
+   * Karte, sobald er keine Frage zurückhält, die die Karte sonst stellen
+   * würde – wenn ohnehin ein Grund die Richtung sperrt (D0.5 nach der
+   * Berichtigung, D0.6, D0.4 …) oder wenn die Frage „Nehmen Sie im Moment
+   * genau …?" zu diesem Befund beantwortet ist und die Berichtigung mit oder
+   * nach ihm kam (Runde 6 – Rest). Vorher stand X3b nur im Zweig D0.5 und
+   * nach dieser Antwort: Rückte die Berichtigung, wie D0.5 rät, weniger als 6
+   * bzw. 8 Wochen vor die Abnahme, sperrte D0.6 die Frage, die Antwort kam
+   * nie, und die Karte sank auf „Beim nächsten Termin" – „Heute" und der
+   * Bericht sagten zur selben Sache „In den nächsten Tagen anrufen". Eine
+   * Berichtigung vor der Blutabnahme hält die Frage zum Befund nicht zurück (G10).
+   *
+   * Runde 7: H3 – Hat die Praxis nach der Berichtigung entschieden, bleibt
+   * der Grund ohne Frist, wie bei der eigenen Änderung (C4): Ob die Praxis
+   * davon wusste, weiß die App nicht.
+   */
+  const x3b = x3bLage(stand, heute);
+  if (x3b && (gruende.length || (stimmtGilt && x3b.ber.am >= tag))) {
+    hinweise.filter((h) => h.id === 'X3b' && rang(h.stufe) > rang('termin'))
+      .forEach((h) => grund('X3b', (s) => x3bText(h.praxis, hoechste(s, 'tage')), h.stufe));
+    if (x3b.erledigt && x3b.ber.d.praxis !== true) {
+      grund('X3b', 'Sie haben berichtigt, welche Menge Sie im Moment nehmen. Wusste die Praxis das bei ihrer Entscheidung nicht, sagen Sie ihr, was Sie nehmen.');
+    }
+    // Wie unter D0.5 nach der Berichtigung: nicht „genau wie bisher" – die Praxis rechnet mit einer anderen Menge.
+    if (gruende.some((g) => g.id === 'X3b')) ohneWieBisher = true;
   }
 
   if (gruende.length) return karte({ stufe: e.stufeLabor, stufeFest, warnzeichen: warnWD2 ? WD2 : null });
@@ -1644,8 +1739,12 @@ export function dosisRichtung(stand, heute) {
  * Was nach einer Dosisänderung dran ist: Kontrolle (D6c), Nachfragen (W-D4),
  * INR (WW1), Blutzucker (WW2), eigenmächtige Änderung (B2, X3), Präparat-
  * oder Uhrzeitwechsel (P7, E15). Jeder Hinweis: { id, stufe, text, anrufe, frage? }.
+ *
+ * `anrufHeute`: Ein anderer Teil des Gesamtbilds verlangt schon „heute noch
+ * anrufen" (Runde 7: H17, siehe gesamtbildMitDosis) – dann nennen X3, B2 und
+ * X3b denselben Anruf mit derselben Frist, wie nach W-D4 „Ja".
  */
-export function dosisHinweise(stand, heute) {
+export function dosisHinweise(stand, heute, { anrufHeute = false } = {}) {
   const h = [];
   const add = (id, stufe, text, extra = {}) => h.push({ id, stufe, text, ...extra });
   const aenderung = letzteAenderung(stand, heute);
@@ -1667,6 +1766,8 @@ export function dosisHinweise(stand, heute) {
    */
   const wd4 = wd4Antwort(stand, heute);
   const wd4Heute = Boolean(wd4 && wd4.art === 'erhoehung');
+  // Der Anruf bei der Praxis ist heute ohnehin fällig (W-D4 „Ja" oder ein anderer Teil, H17).
+  const heuteNoch = wd4Heute || anrufHeute;
   const wd4Hinweis = () => {
     if (!wd4) return;
     // Unter „Heute anrufen" nicht „heute oder morgen" – derselbe Satz steht
@@ -1692,11 +1793,12 @@ export function dosisHinweise(stand, heute) {
    * mit der nie genommenen Menge rechnet (berichtigungJetzt, berichtigtAm).
    */
   const x3bHinweis = () => {
-    const ber = berichtigungJetzt(stand, heute);
-    const n = ber ? tageZwischen(ber.am, heute) : -1;
-    if (!ber || n < 0 || n > 14) return;
-    // Steht wegen W-D4 schon „heute noch anrufen" da, ist es derselbe Anruf (siehe B2 unten).
-    const stufe = ber.d.praxis === true ? 'termin' : wd4Heute ? 'heute' : 'tage';
+    const lage = x3bLage(stand, heute);
+    // Nach der Entscheidung der Praxis nicht mehr (Runde 7: H3).
+    if (!lage || lage.erledigt) return;
+    const { ber } = lage;
+    // Steht schon „heute noch anrufen" da, ist es derselbe Anruf (siehe B2 unten).
+    const stufe = ber.d.praxis === true ? 'termin' : heuteNoch ? 'heute' : 'tage';
     add('X3b', stufe, x3bText(ber.d.praxis, stufe), { praxis: ber.d.praxis, am: ber.am });
   };
 
@@ -1712,7 +1814,16 @@ export function dosisHinweise(stand, heute) {
     // Auch, wenn sie erst im Einpendelfenster 70 wird (Runde 4: E18).
     const ab = ausAenderung ? einpendelnAb(stand, seit) : 42;
     const n = tageZwischen(seit, heute);
-    const neuerBefund = stand.labor.some((l) => l.tsh && l.datum > seit && l.datum <= heute);
+    /*
+     * Runde 7: H16 – Nach einer Änderung ist erst ein Wert nach der
+     * Einpendelzeit der Kontrollbefund, wie für die Karte (kontrollwertDa,
+     * D0.6). Vorher erledigte jeder TSH-Wert danach die Kontrolle, auch einer
+     * zwei Wochen später beim Hausarzt: „Heute" zeigte nie „Jetzt ist die
+     * Kontrolle fällig", während die Karte genau diesen Wert als „noch nicht
+     * eingependelt" verwarf. Nach „Erst nachmessen" zählt jeder spätere Wert –
+     * die Praxis lässt oft schon nach ein, zwei Wochen nachmessen.
+     */
+    const neuerBefund = stand.labor.some((l) => l.tsh && l.datum > seit && l.datum <= heute && (!ausAenderung || tageZwischen(seit, l.datum) >= ab));
     /*
      * Fällig ist die Kontrolle ab Tag `ab` bis zum Kontrollbefund – ein
      * Zustand, kein Ereignis (RW2 D6c „wöchentlich wiederholen", ohne Ende).
@@ -1800,14 +1911,15 @@ export function dosisHinweise(stand, heute) {
       // Steht wegen W-D4 schon „heute noch anrufen" da, ist es derselbe
       // Anruf – wie auf der Karte, deren Sätze die Frist ihrer Stufe nennen
       // (Runde 6: G12). Sonst zwei Karten: „heute noch" und „heute oder morgen".
-      const stufe = wd4Heute ? 'heute' : 'tage';
-      const frist = wd4Heute ? 'heute noch' : 'in den nächsten Tagen';
+      // Ebenso nach Herzklopfen an mehreren Tagen, W2h … (Runde 7: H17).
+      const stufe = heuteNoch ? 'heute' : 'tage';
+      const frist = heuteNoch ? 'heute noch' : 'in den nächsten Tagen';
       if (eigen.zurueck) {
         add('B2', stufe, `Sie nehmen wieder Ihre frühere Menge. Bitte sagen Sie Ihrer Praxis ${frist}, dass Sie die Dosis zwischendurch selbst geändert hatten.`);
       } else if (eigen.gross) {
         const galten = dosenDieGalten(stand, heute);
         const zurueckZu = galten[galten.indexOf(eigen.d) - 1];
-        add('X3', stufe, `Das ist mehr als ein üblicher Schritt. Rufen Sie ${wd4Heute ? 'heute noch' : 'heute oder morgen'} die Praxis an und ${bisDahinSatz(mengeMitBeschwerden(stand, zurueckZu, heute))}. ${WD2}`, { warnzeichen: WD2 });
+        add('X3', stufe, `Das ist mehr als ein üblicher Schritt. Rufen Sie ${heuteNoch ? 'heute noch' : 'heute oder morgen'} die Praxis an und ${bisDahinSatz(mengeMitBeschwerden(stand, zurueckZu, heute))}. ${WD2}`, { warnzeichen: WD2 });
       } else {
         // Die Frist der Kontrolle wie auf der Karte und bei D6c (Runde 4: E17).
         add('B2', stufe, `Bitte sagen Sie Ihrer Praxis ${frist}, dass Sie die Dosis geändert haben. Lassen Sie ${wochenText(einpendelnAb(stand, eigen.d.ab))} nach der Änderung kontrollieren.`);
@@ -1871,6 +1983,22 @@ function wd4Bezug(id, tag) {
 export function wd4FrageArt(stand, heute, bezug) {
   const h = dosisHinweise(stand, heute).find((x) => x.id === 'W-D4' && x.frage && x.frage.bezug === bezug);
   return h ? h.frage.art || null : null;
+}
+
+/**
+ * Runde 7: H8 – Wartet die Karte auf eine Entscheidung der Praxis NACH einer
+ * eigenen Änderung oder Berichtigung (X3, B2, X3b mit Frist)? Für js/app.js,
+ * „Die Praxis hat entschieden" und F8: Kommt die Entscheidung, während die
+ * Karte wartet, ist sie eine neue – mit dem Datum von heute, auch bei
+ * derselben Antwort wie vorher (sonst gälte weiter die von vor der Änderung,
+ * und X3/B2 blieben bis zum Kontrollwert, ohne Ausweg wie vor C4), und mit
+ * der Nachfrage { art: PRAXIS_DANACH, bezug: <Befund-id>, antwort: 'ja', am:
+ * heute }. Die sagt, dass sie nach der Änderung vom selben Tag kam: Ohne sie
+ * zählt eine Entscheidung vom Tag des Eintrags als vorher (praxisNachEigener).
+ */
+export function wartetAufPraxis(stand, heute) {
+  const k = dosisRichtung(stand, heute);
+  return Boolean(k && k.gruende.some((g) => ['X3', 'B2', 'X3b'].includes(g.id) && g.stufe));
 }
 
 /** Je Bezug die jüngste W-D4-Antwort – wie beim Fragen (eine neuere Antwort ersetzt die ältere). */
@@ -1975,7 +2103,21 @@ export function gesamtbildMitDosis(stand, heute) {
   const g = gesamtbild(stand, heute);
   if (!g.aktiv) return { ...g, dosis: null, dosisHinweise: [] };
   const karte = dosisRichtung(stand, heute);
-  const hinweise = dosisHinweise(stand, heute);
+  let hinweise = dosisHinweise(stand, heute);
+  /*
+   * Runde 7: H17 – derselbe Anruf mit einer Frist (G12). Verlangt ein anderer
+   * Teil schon „heute noch anrufen" – Herzklopfen an mehreren Tagen (R3, S4),
+   * der Check (W2h), die Karte (Q5 …), ein Laborwert –, nennen X3, B2 und X3b
+   * denselben Anruf auch „heute noch". Vorher stand auf „Heute" neben
+   * „📞 Heute anrufen – Herzklopfen" eine zweite Karte „📞 In den nächsten
+   * Tagen anrufen … heute oder morgen" zur eigenen Verdopplung; die Karte
+   * sagte zum selben X3 „heute noch" (RW1 L3f). Eine 112-Stufe allein hebt
+   * nicht an: Unter ihr stehen die übrigen Gründe mit ihrer eigenen Frist.
+   */
+  const ANRUF = ['X3', 'B2', 'X3b'];
+  const karteHeute = karte && (karte.stufe === 'notruf' ? (INNEN.get(karte) || {}).rest : karte.stufe) === 'heute';
+  const heuteSonst = karteHeute || [...g.teile, ...hinweise.filter((h) => !ANRUF.includes(h.id))].some((t) => t.stufe === 'heute');
+  if (heuteSonst && hinweise.some((h) => ANRUF.includes(h.id) && rang(h.stufe) < rang('heute'))) hinweise = dosisHinweise(stand, heute, { anrufHeute: true });
   let teile = [...g.teile];
   /*
    * L7d und D6c meinen dieselbe Kontrolle (B37, Entscheidung „Kontrolle nach
@@ -2110,16 +2252,48 @@ export function dosisBerichtZeilen(stand, heute) {
 }
 
 /*
- * Die Gesamteinschätzung, wie „Heute" sie zeigt – als Zeile für den
- * Arztbericht (Runde 5: F10). Mit den Kennungen der Teile, die die höchste
- * Stufe tragen (z. B. „S4ii, Befund"), damit die Ärztin sieht, woher sie
- * kommt. Ohne P6 leer. → string[] (keine oder eine Zeile)
+ * Runde 7: H23 – die Teile in Worten. Vorher übersetzte die Zeile nur
+ * „Befund" und „Dosis-Karte"; der Rest stand als Kennung da: „Heute anrufen –
+ * aus E13-natrium, E13-crp, S4ii, Dosis-Karte". Die Ärztin kann interne
+ * Kennungen nicht deuten (RW1/RW2 B1). Ein Teil ohne Namen fällt nicht weg –
+ * sonst fehlte ein Grund –, er steht mit seinen ersten Wörtern da.
  */
-const TEIL_NAME = { befund: 'Befund', 'befund-ohne-tsh': 'Befund ohne TSH', dosis: 'Dosis-Karte' };
+const TEIL_NAME = {
+  befund: 'Befund', 'befund-ohne-tsh': 'Befund ohne TSH', dosis: 'Dosis-Karte',
+  S4: 'neu unregelmäßiger Puls (Befinden)', S4ii: 'Herzklopfen bei niedrigem TSH (Befinden)', R3: 'Herzklopfen (Befinden)',
+  S2: 'Beschwerden (Befinden)', S2b: 'viele Beschwerden (Befinden)', S3: 'Beschwerden zum Laborwert (Befinden)',
+  W2t: 'ungewollt abgenommen (Befinden)', W5: 'Angabe „lebensmüde" (Befinden)',
+  L7a: 'Schilddrüsen-Kontrolle über ein Jahr her oder keine eingetragen', L7b: 'Kontrolle nach Beginn oder Ende eines Mittels', L7c: 'Gewicht seit der Blutabnahme verändert',
+  L7d: 'ausstehende Kontrolle nach auffälligem Befund', L8: 'Gewichtsverlust', 'L0b-doppelt': 'zwei Einträge eines Abnahmetags',
+  D6c: 'fällige Kontrolle nach Dosisänderung', 'W-D4': 'Beschwerden seit der Dosisänderung (Nachfrage)',
+  X3: 'eigene Dosisänderung', B2: 'eigene Dosisänderung', X3b: 'Berichtigung der Dosis ohne Absprache mit der Praxis',
+  WW1: 'INR-Kontrolle nach Dosisänderung (Marcumar)', WW2: 'Blutzucker nach Dosisänderung', P7: 'Präparatwechsel', E15: 'Einnahmezeit verschoben',
+  Q5: 'versehentlich mehr genommen (Angabe zum Befund)',
+};
+function teilName(t) {
+  if (/^E13-/.test(t.id)) {
+    const w = sp.WEITERE_WERTE.find(([k]) => `E13-${k}` === t.id);
+    return `${w ? w[1] : t.id.slice(4)}${t.datum ? ` im Befund vom ${kurz(t.datum)}` : ''}`;
+  }
+  // Der Check von heute: W1 … W5, W2h, W2t aus dem Warnzeichen-Check.
+  if (t.quelle === 'warnzeichen') return 'Warnzeichen-Check von heute';
+  if (TEIL_NAME[t.id]) return TEIL_NAME[t.id];
+  // Übrige Gründe der Karte (neben einer 112-Karte einzeln, D17).
+  if (t.quelle === 'dosis') return 'Dosis-Karte';
+  const worte = String(t.text || '').replace(/\s+/g, ' ').trim().split(' ').slice(0, 6).join(' ');
+  return worte ? `„${worte} …"` : 'weiterer Hinweis';
+}
+/*
+ * Die Gesamteinschätzung, wie „Heute" sie zeigt – als Zeile für den
+ * Arztbericht (Runde 5: F10). Mit den Namen der Teile, die die höchste
+ * Stufe tragen (z. B. „Herzklopfen bei niedrigem TSH (Befinden), Befund"),
+ * damit die Ärztin sieht, woher sie kommt. Ohne P6 leer. → string[] (keine
+ * oder eine Zeile)
+ */
 export function gesamtBerichtZeilen(stand, heute) {
   const g = gesamtbildMitDosis(stand, heute);
   if (!g.aktiv) return [];
-  const oben = [...new Set(g.teile.filter((t) => t.stufe === g.stufe).map((t) => TEIL_NAME[t.id] || t.id))];
+  const oben = [...new Set(g.teile.filter((t) => t.stufe === g.stufe).map(teilName))];
   const titel = STUFEN[g.stufe].titel;
   return [`Gesamteinschätzung am ${kurz(heute)} (App, wie auf „Heute"): „${g.kopf.titel}"${g.kopf.titel !== titel ? ` (Stufe „${titel}")` : ''}${oben.length && g.stufe !== 'keine' ? ` – aus ${oben.join(', ')}` : ''}.`];
 }
