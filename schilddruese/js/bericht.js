@@ -172,6 +172,8 @@ export function berichtText(stand, heute) {
      * Ärztin rechnete von einer Menge aus weiter, die nie genommen wurde.
      */
     ez.nieGenommenZeilen(stand, heute).forEach((x) => z.push(x));
+    // Nachprüfung zu Runde 7 (N1): eine am selben Tag ersetzte Anordnung.
+    ez.amTagErsetztZeilen(stand, heute).forEach((x) => z.push(x));
     z.push(`Einnahmezeit laut Erinnerung in der App (Angabe): etwa ${uhrText(stand.einstellungen.erinnerung)}`);
     const letzterTsh = [...stand.labor].reverse().find((l) => l.tsh && l.datum <= heute);
     if (letzterTsh && Q2[letzterTsh.einnahmeArt]) {

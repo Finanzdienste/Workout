@@ -1546,5 +1546,108 @@ fall('H23', () => {
     z.length === 1 && /– aus /.test(z[0]) && !/\b(E13-\w+|S4ii?|W-D4|L7d|D6c|R3)\b/.test(z[0]) && /Natrium im Befund vom 23\.09\.2026/.test(z[0]), z.join(' | '));
 });
 
+// ================================================================ Nachprüfung Runde 7
+/*
+ * Die Nachprüfung der siebten Runde (review7/nach-w8901, nach-w8902): H8 war
+ * im Kern behoben, aber nicht verdrahtet – normStand warf dosen[].eingetragenAm
+ * weg. N1: Ein Tag für den ganzen Befund begann die Frist eines unveränderten
+ * Gefahrenwerts neu. N3: Der Bericht nannte bei einem später eingetragenen
+ * Wert den falschen Grund. Jeder Fall scheiterte vor der Korrektur.
+ */
+fall('Nachprüfung R7 – H8: normStand behält den Tag des Eintrags', () => {
+  const H = '2026-09-28';
+  // Wie H8 (b), aber der Tag steht in den gespeicherten Daten, nicht nachträglich gesetzt.
+  const b = r7Stand({
+    dosen: [R6R_D('d1', '2025-01-01', 112), R6R_D('e1', '2026-09-20', 150, { praxis: false, eingetragenAm: H })],
+    labor: [r7Befund('b1', '2026-09-18', 0.06, { praxis: 'bleibt', praxisAm: '2026-09-23' })],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: '2026-09-19' }],
+  });
+  const gb = gesamtbildMitDosis(b, H);
+  check('Nachprüfung R7 H8: eigene Erhöhung am 28.09. eingetragen, „bleibt" vom 23.09. – nach dem Laden X3 mit „In den nächsten Tagen anrufen"',
+    b.dosen.find((d) => d.id === 'e1').eingetragenAm === H && gb.stufe === 'tage' && gb.dosis.gruende.some((g) => g.id === 'X3' && g.stufe === 'tage'), r7Lage(b, H));
+  // PRAXIS_DANACH: dieselbe Entscheidung am Tag des Eintrags, eingetragen, während die Karte wartete.
+  const danach = r7Stand({
+    dosen: [R6R_D('d1', '2025-01-01', 112), R6R_D('e1', '2026-09-20', 150, { praxis: false, eingetragenAm: H })],
+    labor: [r7Befund('b1', '2026-09-18', 0.06, { praxis: 'bleibt', praxisAm: H })],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: '2026-09-19' },
+      { id: 'n2', art: dosisModul.PRAXIS_DANACH, bezug: 'b1', antwort: 'ja', am: H }],
+  });
+  const kd = dosisRichtung(danach, H);
+  check('Nachprüfung R7 H8 Gegenprobe: mit PRAXIS_DANACH vom selben Tag gilt die Entscheidung als danach – X3 ohne Frist',
+    kd.gruende.some((g) => g.id === 'X3' && !g.stufe) && kd.stufe !== 'tage', r7Lage(danach, H));
+});
+
+fall('Nachprüfung R7 – N1: der Tag je weiterem Wert', () => {
+  const na = { wert: 118, einheit: 'mmol/l', von: 135, bis: 145, unter: false };
+  // Natrium 118 vom 20.05., „Die Praxis weiß davon" am 21.05.; am 01.06. kam fT4
+  // dazu (alter Tag für den ganzen Befund: 01.06., neuer je Wert: Natrium 20.05.).
+  const s = r7Stand({
+    dosen: [R6R_D('d1', '2025-01-01', 100, { praxis: true })],
+    labor: [r7Befund('b1', '2026-05-20', 2, { ft4: ft4(15), natrium: na, eingetragenAm: '2026-06-01', werteAm: { natrium: '2026-05-20' } })],
+    nachfragen: [{ id: 'n1', art: ez.WERT_BEKANNT, bezug: 'b1', antwort: 'natrium', am: '2026-05-21' }],
+    bis: '2026-06-30',
+  });
+  const w = ez.weitereWerte(s.labor[0], s, '2026-06-03').find((x) => x.key === 'natrium');
+  check('Nachprüfung R7 N1: fT4 nachgetragen – „Die Praxis weiß davon" gilt für das unveränderte Natrium weiter (termin, nicht heute)',
+    s.labor[0].werteAm && s.labor[0].werteAm.natrium === '2026-05-20' && w && w.stufe === 'termin', JSON.stringify({ am: s.labor[0].werteAm, w: w && [w.stufe, w.texte[0].slice(0, 80)] }));
+  const ohne = r7Stand({
+    dosen: [R6R_D('d1', '2025-01-01', 100, { praxis: true })],
+    labor: [r7Befund('b1', '2026-05-20', 2, { natrium: na, werteAm: { natrium: '2026-05-20', tsh: '2026-05-20', quatsch: 'x' } })],
+    bis: '2026-06-30',
+  });
+  check('Nachprüfung R7 N1: normStand behält werteAm nur für weitere Werte des Eintrags mit gültigem Tag',
+    JSON.stringify(ohne.labor[0].werteAm) === '{"natrium":"2026-05-20"}', JSON.stringify(ohne.labor[0].werteAm));
+});
+
+fall('Nachprüfung R7 – N3: Begründung im Bericht bei einem später eingetragenen Wert', () => {
+  const H = '2026-09-28';
+  const s = r7Stand({
+    dosen: [R6R_D('d1', '2025-01-01', 100, { praxis: true })],
+    labor: [r7Befund('b1', '2026-08-01', 2, { natrium: { wert: 118, einheit: 'mmol/l', von: 135, bis: 145, unter: false }, werteAm: { natrium: '2026-08-20' } })],
+  });
+  const text = berichtText(s, H);
+  check('Nachprüfung R7 N3: „seit dem Eintrag in die App am 20.08.2026 mehr als 14 Tage", nicht „seit 04.09.2026 älter als 14 Tage"',
+    /seit dem Eintrag in die App am 20\.08\.2026 mehr als 14 Tage ohne Angabe/.test(text) && !/seit 04\.09\.2026 älter/.test(text),
+    (text.split('\n').find((z) => /Natrium/.test(z) && /inzwischen/.test(z)) || '').slice(0, 300));
+  const frueh = r7Stand({
+    dosen: [R6R_D('d1', '2025-01-01', 100, { praxis: true })],
+    labor: [r7Befund('b1', '2026-08-01', 2, { natrium: { wert: 118, einheit: 'mmol/l', von: 135, bis: 145, unter: false } })],
+  });
+  check('Nachprüfung R7 N3 Gegenprobe: am Abnahmetag eingetragen – „seit 16.08.2026 älter als 14 Tage" wie bisher',
+    /seit 16\.08\.2026 älter als 14 Tage/.test(berichtText(frueh, H)), (berichtText(frueh, H).split('\n').find((z) => /inzwischen/.test(z)) || '').slice(0, 300));
+});
+
+// N1 (8901, review7/nach-h18-ersetzen-ui.mjs, nach-h18-praxis.mjs): Die Regel
+// „von zwei Einträgen eines Tages zählt der letzte" (H18) verschluckte eine
+// eigene Änderung am Tag des Einrichtens, und eine am selben Tag ersetzte
+// Anordnung der Praxis fehlte im Bericht.
+fall('Nachprüfung R7 – N1: eigene Änderung am Tag eines vorhandenen Eintrags', () => {
+  const H = '2026-09-28';
+  const s = r7Stand({
+    profil: { geburtsjahr: 1948, herz: 'ja' },
+    dosen: [R6R_D('d1', H, 137), R6R_D('e1', H, 274, { praxis: false, eingetragenAm: H })],
+  });
+  const v = ez.dosisVerlauf(s, H);
+  const g = gesamtbildMitDosis(s, H);
+  const x3 = g.dosisHinweise.find((h) => h.id === 'X3');
+  check('Nachprüfung R7 N1: 137 µg vom Einrichten, am selben Tag selbst 274 µg – die 137 µg sind die Menge davor, X3 mit „bisherige Menge" und 112-Zeichen',
+    v.length === 2 && v[1].d.id === 'e1' && v[1].aenderung && !!x3 && /bisherige Menge/.test(x3.text) && /112/.test(x3.warnzeichen || '') && rang7(g.stufe) >= rang7('tage'),
+    `${JSON.stringify(v.map((p) => [p.ab, p.d.id]))} | ${r7Lage(s, H)}`);
+  // Anordnung der Praxis 137 µg ab heute, am selben Tag selbst 112 µg (vorher 100 µg).
+  const p = r7Stand({
+    dosen: [R6R_D('d0', '2025-01-01', 100, { praxis: true }), R6R_D('p1', H, 137, { praxis: true }), R6R_D('e1', H, 112, { praxis: false, eingetragenAm: H })],
+  });
+  const text = berichtText(p, H);
+  check('Nachprüfung R7 N1: eine am selben Tag ersetzte Anordnung der Praxis steht im Bericht',
+    /Ab 28\.09\.2026 war [^\n]*137 µg[^\n]*eingetragen \(auf Anweisung der Praxis\) – am selben Tag ersetzt durch [^\n]*112 µg[^\n]*\(nicht auf Anweisung der Praxis\)/.test(text),
+    (text.split('\n').filter((z) => /137/.test(z)).join(' | ') || text.split('\n').filter((z) => /^Aktuell|^Davor/.test(z)).join(' | ')).slice(0, 300));
+  const gp = gesamtbildMitDosis(p, H);
+  check('Nachprüfung R7 N1: … und die eigene Änderung gegenüber den 100 µg davor gibt B2 bzw. X3 mit Frist', gp.dosisHinweise.some((h) => ['X3', 'B2'].includes(h.id) && h.stufe === 'tage'), r7Lage(p, H));
+  // Gegenprobe H18: zwei Angaben der Praxis am selben Tag – die letzte zählt, kein Zeitraum ohne Dauer.
+  const q = r7Stand({ dosen: [R6R_D('d0', '2025-01-01', 100, { praxis: true }), R6R_D('p1', H, 137, { praxis: true }), R6R_D('p2', H, 125, { praxis: true })] });
+  check('Nachprüfung R7 N1 Gegenprobe: zwei Anordnungen am selben Tag bleiben ein Zeitraum (H18)', ez.dosisVerlauf(q, H).length === 2 && ez.dosisVerlauf(q, H)[1].d.id === 'p2',
+    JSON.stringify(ez.dosisVerlauf(q, H).map((x) => [x.ab, x.d.id])));
+});
+
 console.log(fails ? `\n${fails} gescheitert` : '\nalles grün');
 process.exit(fails ? 1 : 0);

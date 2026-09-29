@@ -3808,9 +3808,63 @@ const r7Heute = async () => { await page.click('#reiter-heute'); return (await a
     await page.click('dialog.rueckfrage [data-act="befund-bestaetigen"]');
   }
   const b = (await gespeichert()).labor.find((l) => l.crp) || {};
-  check(b.bestaetigt === true && b.eingetragenAm === TAG, `H19: … nach „Ja, stimmt" gespeichert, mit dem Tag des Eintrags (${JSON.stringify({ bestaetigt: b.bestaetigt, am: b.eingetragenAm })})`);
+  // Nachprüfung zu Runde 7 (N1): der Tag steht je Wert in werteAm.
+  check(b.bestaetigt === true && b.werteAm && b.werteAm.crp === TAG, `H19: … nach „Ja, stimmt" gespeichert, mit dem Tag des Eintrags (${JSON.stringify({ bestaetigt: b.bestaetigt, am: b.werteAm })})`);
   await page.click('#reiter-heute');
   check(await attr('#ansicht .einschaetzung-verweis', 'data-stufe') === 'heute', 'H19: … und „Heute" sagt „Heute anrufen" (15 mg/dl = 150 mg/l), nicht „Beim nächsten Termin"');
+}
+
+// ================================================================ Nachprüfung Runde 7
+// H8, verdrahtet: Die Karte wartet nach einer eigenen Erhöhung (heute
+// eingetragen) auf die Praxis. „Die Praxis hat entschieden → Die Dosis bleibt
+// so" – dieselbe Antwort wie am 22.09. – ist eine neue Entscheidung: Datum
+// heute und der Vermerk PRAXIS_DANACH. Vorher behielt sie ihr altes Datum
+// (G5), und X3 blieb mit Frist stehen, ohne Ausweg bis zum Kontrollwert.
+{
+  await laden(stand({
+    dosen: [{ id: 'd1', ab: plus(TAG, -400), praeparat: 'L-Thyroxin', mikrogramm: 112, tabletten: 1, notiz: '', praxis: true },
+      { id: 'e1', ab: plus(TAG, -7), praeparat: 'L-Thyroxin', mikrogramm: 150, tabletten: 1, notiz: '', praxis: false, eingetragenAm: TAG }],
+    labor: [befund('b1', plus(TAG, -9), { tsh: w(0.06, 'mU/l', 0.27, 4.2) }, { praxis: 'bleibt', praxisAm: plus(TAG, -5) })],
+    nachfragen: [{ id: 'n1', art: 'dosis_stimmt', bezug: 'b1', antwort: 'ja', am: plus(TAG, -8) }],
+  }));
+  await mehrSeite('dosis-karte');
+  const vorher = await attr('#dosis-karte', 'data-stufe');
+  await page.click('#dosis-karte [data-seite="praxis-entschieden"]');
+  await page.click('[data-act="praxis-entscheid"][data-wert="bleibt"]');
+  await page.waitForTimeout(300);
+  const s = await gespeichert();
+  const danach = (s.nachfragen || []).filter((n) => n.art === 'praxis_danach' && n.bezug === 'b1');
+  check(s.labor[0].praxisAm === TAG && danach.length === 1 && danach[0].am === TAG,
+    `Nachprüfung R7 H8: gleiche Entscheidung, während die Karte wartet – Datum heute und PRAXIS_DANACH (${JSON.stringify({ am: s.labor[0].praxisAm, danach })})`);
+  await mehrSeite('dosis-karte');
+  const nachher = await attr('#dosis-karte', 'data-stufe');
+  check(vorher === 'tage' && nachher !== 'tage', `Nachprüfung R7 H8: die Karte wartet danach nicht mehr (${vorher} → ${nachher})`);
+}
+
+// N1 (review7/nach-h18-ersetzen-ui.mjs): 137 µg ab heute vom Einrichten, dann
+// am selben Tag selbst 274 µg (Praxis: Nein). „Ja, ersetzen" überschrieb die
+// 137 µg – ohne Rückfrage „mehr als die Hälfte", ohne X3 und 112-Zeichen.
+{
+  await laden(stand({ dosen: [r7Dosis('d1', TAG, 137)] }));
+  await page.click('#reiter-verlauf');
+  await page.click('#ansicht [data-seite="dosis-liste"]');
+  await page.click('#ansicht [data-act="seite"][data-seite="dosis"]:not([data-param])');
+  await page.fill('form[data-formular="dosis"] input[name=mikrogramm]', '274');
+  await page.fill('form[data-formular="dosis"] input[name=ab]', TAG);
+  await page.check('form[data-formular="dosis"] input[name=praxis][value=nein]', { force: true });
+  await page.click('form[data-formular="dosis"] button[type=submit]');
+  await page.waitForTimeout(300);
+  const frage = await r6Dialog();
+  check(frage.includes('mehr als die Hälfte') && !frage.includes('ersetzen'), `Nachprüfung R7 N1: eigene Änderung am Tag des Einrichtens – Rückfrage „mehr als die Hälfte", nicht „ersetzen?" („${frage.slice(0, 120)}")`);
+  await r4app.klick('dialog.rueckfrage [data-act="befund-bestaetigen"]');
+  const s = await gespeichert();
+  check(s.dosen.length === 2 && s.dosen[0].mikrogramm === 137 && s.dosen[1].mikrogramm === 274 && s.dosen[1].eingetragenAm === TAG,
+    `Nachprüfung R7 N1: beide Einträge bleiben, mit dem Tag des Eintrags (${JSON.stringify(s.dosen.map((d) => [d.mikrogramm, d.ab, d.eingetragenAm]))})`);
+  await page.click('#reiter-heute');
+  const hinweis = page.locator('#ansicht [data-regel="X3"], #ansicht [data-regel="B2"]');
+  const heute = (await hinweis.count()) ? await hinweis.first().innerText() : '';
+  check(/bisherige Menge/.test(heute) && await hinweis.first().locator('a[href="tel:112"]').count() === 1,
+    `Nachprüfung R7 N1: „Heute" rät, bis zum Anruf die bisherige Menge zu nehmen, mit 112 als Anruf („${heute.replace(/\s+/g, ' ').slice(0, 120)}")`);
 }
 
 await ende();

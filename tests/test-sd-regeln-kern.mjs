@@ -3517,16 +3517,20 @@ fall('H14 Gegenprobe: eine wirklich genommene andere Stärke bleibt „bitte neu
  * App das neue Feld beim nächsten Speichern (H2).
  */
 const FELDER_FASSUNG_3 = ['befinden', 'befinden[].beschwerden', 'befinden[].datum', 'befinden[].id', 'befinden[].notiz', 'befinden[].stufe', 'dauerhaft', 'dosen',
-  'dosen[].ab', 'dosen[].berichtigtAm', 'dosen[].berichtigung', 'dosen[].id', 'dosen[].mikrogramm', 'dosen[].notiz', 'dosen[].praeparat', 'dosen[].praxis', 'dosen[].statt',
+  // Nachprüfung zu Runde 7 (H8): der Tag, an dem eine Menge eingetragen wurde.
+  'dosen[].ab', 'dosen[].berichtigtAm', 'dosen[].berichtigung', 'dosen[].eingetragenAm', 'dosen[].id', 'dosen[].mikrogramm', 'dosen[].notiz', 'dosen[].praeparat', 'dosen[].praxis', 'dosen[].statt',
   'dosen[].tabletten', 'einnahmen', 'einstellungen', 'einstellungen.erinnerung', 'einstellungen.farbe', 'einstellungen.hinweisTablette', 'einstellungen.schrift', 'fragen',
   'fragen[].erledigt', 'fragen[].id', 'fragen[].text', 'gewicht', 'gewicht[].datum', 'gewicht[].id', 'gewicht[].kg', 'labor', 'labor[].abnahmeUhr', 'labor[].abstandOk',
   'labor[].b12', 'labor[].bestaetigt', 'labor[].biotin', 'labor[].crp', 'labor[].datum', 'labor[].einnahmeArt', 'labor[].einnahmeGeaendert',
   // Runde 7 – weitere Werte (H4, H15, H21): der Tag, an dem die Werte eingetragen wurden.
   'labor[].eingetragenAm', 'labor[].ferritin', 'labor[].ft3',
   'labor[].ft4', 'labor[].hb', 'labor[].hba1c', 'labor[].id', 'labor[].kontrastmittel', 'labor[].kortison', 'labor[].krank', 'labor[].laborName', 'labor[].ldl',
-  'labor[].mittelGeaendert', 'labor[].natrium', 'labor[].notiz', 'labor[].packung', 'labor[].praxis', 'labor[].praxisAm', 'labor[].tabletteUhr', 'labor[].tsh',
+  'labor[].mittelGeaendert', 'labor[].natrium', 'labor[].natrium.bis', 'labor[].natrium.einheit', 'labor[].natrium.unter', 'labor[].natrium.von', 'labor[].natrium.wert',
+  'labor[].notiz', 'labor[].packung', 'labor[].praxis', 'labor[].praxisAm', 'labor[].tabletteUhr', 'labor[].tsh',
   'labor[].tsh.bis', 'labor[].tsh.einheit', 'labor[].tsh.unter', 'labor[].tsh.von', 'labor[].tsh.wert', 'labor[].vergessen', 'labor[].verwechselt', 'labor[].vitd',
-  'labor[].vorAbnahme', 'letzteSicherung', 'mittel', 'mittelAbstand', 'mittelWechsel', 'mittelWechsel[].am', 'mittelWechsel[].art', 'mittelWechsel[].id', 'mittelWechsel[].key',
+  'labor[].vorAbnahme',
+  // Nachprüfung zu Runde 7 (N1): der Tag des Eintrags je weiterem Wert.
+  'labor[].werteAm', 'labor[].werteAm.natrium', 'letzteSicherung', 'mittel', 'mittelAbstand', 'mittelWechsel', 'mittelWechsel[].am', 'mittelWechsel[].art', 'mittelWechsel[].id', 'mittelWechsel[].key',
   'nachfragen', 'nachfragen[].aenderung', 'nachfragen[].am', 'nachfragen[].antwort', 'nachfragen[].art', 'nachfragen[].bezug', 'nachfragen[].id', 'nachfragen[].titel',
   'profil', 'profil.begruesst', 'profil.behandelt', 'profil.bundesland', 'profil.diabetes', 'profil.geburtsjahr', 'profil.herz', 'profil.hypophyseOderNiedrig',
   'profil.kaffee30', 'profil.kaffeePruefen', 'profil.kortison', 'profil.krebs', 'profil.mittelErfasst', 'profil.name', 'profil.oestrogenPruefen', 'profil.osteoporose',
@@ -3543,11 +3547,13 @@ const R7_VOLL = {
   uhrWechsel: [{ id: 'u1', am: '2026-01-01', von: '07:00', nach: '11:00' }],
   nachfragen: [{ id: 'n1', art: 'wd4', bezug: 'd1-14', antwort: 'ja', am: '2026-01-01', aenderung: 'erhoehung' }, { id: 'n2', art: 'karte_gezeigt', bezug: 'b1', antwort: 'mehr', am: '2026-01-01', titel: 'T' }],
   einstellungen: { erinnerung: '07:00', schrift: 'gross', farbe: 'hell', hinweisTablette: true },
-  dosen: [r6Dosis('d1', '2024-01-01', 75, { praxis: true }), r7Ber('d2', '2025-01-01', 88, 'd1', '2025-02-01')],
+  dosen: [r6Dosis('d1', '2024-01-01', 75, { praxis: true, eingetragenAm: '2024-01-03' }), r7Ber('d2', '2025-01-01', 88, 'd1', '2025-02-01')],
   einnahmen: { '2026-01-01': { uhr: '07:00' } },
   // Geändert in Runde 7 – weitere Werte (H4, H15, H21): Der Befund trägt jetzt
   // auch den Tag seines Eintrags, damit der Schutz dieses neue Feld mitprüft.
-  labor: [{ id: 'b1', datum: '2026-01-01', tsh: t(2), notiz: '', eingetragenAm: '2026-01-02' }],
+  // Nachprüfung zu Runde 7 (N1): dazu ein weiterer Wert mit seinem Tag.
+  labor: [{ id: 'b1', datum: '2026-01-01', tsh: t(2), notiz: '', eingetragenAm: '2026-01-02',
+    natrium: { wert: 140, einheit: 'mmol/l', von: 135, bis: 145, unter: false }, werteAm: { natrium: '2026-01-03' } }],
   befinden: [{ id: 'f1', datum: '2026-01-01', stufe: 'gut', beschwerden: [], notiz: '' }],
   gewicht: [{ id: 'g1', datum: '2026-01-01', kg: 70 }],
   termine: [{ id: 't1', datum: '2026-01-01', uhr: '', art: 'arzt', wo: '', blutabnahme: false, notiz: '' }],
@@ -3857,13 +3863,29 @@ fall('H4 Befund-Formular: eingetragenAm beim Anlegen und wenn ein Wert dazukommt
     const felder = (datum, weiteres = {}) => ({ datum, tsh_wert: '2', tsh_einheit: 'mU/l', tsh_von: '0,4', tsh_bis: '4', ...weiteres });
     const r1 = afR7.absenden('labor', null, felder('2026-09-01', { natrium_wert: '118', natrium_einheit: 'mmol/l', natrium_von: '135', natrium_bis: '145' }), '2026-09-20');
     const b = spR5.getStand().labor[0];
-    check('H4 angelegt: eingetragenAm = Tag des Eintrags', r1.ok && b && b.eingetragenAm === '2026-09-20', JSON.stringify({ r1, b: b && b.eingetragenAm }));
+    // Geändert in der Nachprüfung zu Runde 7 (N1): Der Tag steht je Wert in
+    // werteAm – ein Tag für den ganzen Befund begann die Frist eines
+    // unveränderten Natrium neu, sobald ein anderer Wert dazukam.
+    const am = (x, k) => (x && x.werteAm ? x.werteAm[k] : undefined);
+    check('H4 angelegt: werteAm.natrium = Tag des Eintrags', r1.ok && b && am(b, 'natrium') === '2026-09-20', JSON.stringify({ r1, b: b && b.werteAm }));
     afR7.absenden('labor', b.id, felder('2026-09-01', { natrium_wert: '118', natrium_einheit: 'mmol/l', natrium_von: '135', natrium_bis: '145', praxis: 'bleibt' }), '2026-09-22');
-    check('H4 nur die Frage geändert: eingetragenAm bleibt', spR5.getStand().labor[0].eingetragenAm === '2026-09-20', spR5.getStand().labor[0].eingetragenAm);
+    check('H4 nur die Frage geändert: werteAm.natrium bleibt', am(spR5.getStand().labor[0], 'natrium') === '2026-09-20', JSON.stringify(spR5.getStand().labor[0].werteAm));
     afR7.absenden('labor', b.id, felder('2026-09-01', { natrium_wert: '118', natrium_einheit: 'mmol/l', natrium_von: '135', natrium_bis: '145', crp_wert: '150', crp_einheit: 'mg/l', crp_bis: '5', praxis: 'bleibt' }), '2026-09-25');
     const b2 = spR5.getStand().labor[0];
-    check('H4 CRP nachgetragen: eingetragenAm = Tag des Nachtrags, die Praxis-Angabe davor zählt dafür nicht', b2.eingetragenAm === '2026-09-25' && w7Wert(spR5.getStand(), b2.id, 'crp', '2026-09-26').stufe === 'heute',
-      JSON.stringify({ am: b2.eingetragenAm, crp: w7Wert(spR5.getStand(), b2.id, 'crp', '2026-09-26') }));
+    check('H4 CRP nachgetragen: werteAm.crp = Tag des Nachtrags, die Praxis-Angabe davor zählt dafür nicht', am(b2, 'crp') === '2026-09-25' && w7Wert(spR5.getStand(), b2.id, 'crp', '2026-09-26').stufe === 'heute',
+      JSON.stringify({ am: b2.werteAm, crp: w7Wert(spR5.getStand(), b2.id, 'crp', '2026-09-26') }));
+    // N1: Das unveränderte Natrium behält seinen Tag – die Praxis-Angabe vom
+    // 22.09. kam nach ihm und gilt für es weiter.
+    check('N1 CRP nachgetragen: Natrium behält seinen Tag, „heute" kommt nicht zurück', am(b2, 'natrium') === '2026-09-20' && w7Wert(spR5.getStand(), b2.id, 'natrium', '2026-09-26').stufe === 'zeitnah',
+      JSON.stringify({ am: b2.werteAm, na: w7Wert(spR5.getStand(), b2.id, 'natrium', '2026-09-26') }));
+    afR7.absenden('labor', b.id, felder('2026-09-01', { tsh_wert: '2,2', natrium_wert: '118', natrium_einheit: 'mmol/l', natrium_von: '135', natrium_bis: '145', crp_wert: '150', crp_einheit: 'mg/l', crp_bis: '5', praxis: 'bleibt' }), '2026-09-27');
+    const b3 = spR5.getStand().labor[0];
+    check('N1 nur TSH berichtigt: die Tage der weiteren Werte bleiben', am(b3, 'natrium') === '2026-09-20' && am(b3, 'crp') === '2026-09-25'
+      && w7Wert(spR5.getStand(), b3.id, 'natrium', '2026-09-27').stufe === 'zeitnah', JSON.stringify(b3.werteAm));
+    afR7.absenden('labor', b.id, felder('2026-09-01', { tsh_wert: '2,2', natrium_wert: '119', natrium_einheit: 'mmol/l', natrium_von: '135', natrium_bis: '145', crp_wert: '150', crp_einheit: 'mg/l', crp_bis: '5', praxis: 'bleibt' }), '2026-09-28');
+    const b4 = spR5.getStand().labor[0];
+    check('N1 Gegenprobe: Natrium selbst geändert – sein Tag wird neu, „heute" gilt wieder', am(b4, 'natrium') === '2026-09-28' && am(b4, 'crp') === '2026-09-25'
+      && w7Wert(spR5.getStand(), b4.id, 'natrium', '2026-09-28').stufe === 'heute', JSON.stringify(b4.werteAm));
     const r4 = afR7.absenden('labor', null, felder('2026-09-10', { hb_wert: '7,8', hb_einheit: 'g/dl', hb_von: '7,4', hb_bis: '9,9' }), '2026-09-26');
     check('H20 Formular: Hb 7,8 „g/dl" bei 7,4–9,9 braucht „Ja, stimmt" – mit „vielleicht mmol/l"', !r4.ok && (r4.rueckfragen || []).some((x) => enthaelt(x, 'mmol/l')), JSON.stringify(r4));
     const r5 = afR7.absenden('labor', null, felder('2026-09-11', { crp_wert: '15', crp_einheit: 'mg/l', crp_bis: '0,5' }), '2026-09-26');
@@ -3871,6 +3893,81 @@ fall('H4 Befund-Formular: eingetragenAm beim Anlegen und wenn ein Wert dazukommt
   } finally {
     globalThis.FormData = vorherFormData;
     spR5.aendern((st) => Object.assign(st, w7Stand([])));
+  }
+});
+
+// ---- Nachprüfung zu Runde 7, H8: Das Dosis-Formular merkt sich den Tag, an
+// dem eine Menge eingetragen wurde (dosen[].eingetragenAm) – die Karte rechnet
+// seit Runde 7 damit (dosis.js, bekanntSeit), aber niemand setzte ihn.
+fall('H8 Dosis-Formular: eingetragenAm beim Anlegen und wenn Menge oder Quelle sich ändern, nicht bei Notiz oder „Gilt ab"', () => {
+  const vorherFormData = globalThis.FormData;
+  globalThis.FormData = class {
+    constructor(felder) { this.felder = new Map(Object.entries(felder || {})); }
+    get(k) { return this.felder.has(k) ? this.felder.get(k) : null; }
+    has(k) { return this.felder.has(k); }
+  };
+  try {
+    spR5.aendern((st) => Object.assign(st, r6Stand({ dosen: [r6Dosis('d1', '2025-01-01', 112, { praxis: true })] })));
+    const dosis = (ab, mikrogramm, weiteres = {}) => ({ ab, mikrogramm, tabletten: '1', praeparat: 'L-Thyroxin', notiz: '', praxis: 'nein', ...weiteres });
+    const r1 = afR7.absenden('dosis', null, dosis('2026-09-20', '150'), '2026-09-28');
+    const e1 = () => spR5.getStand().dosen.find((d) => d.ab === '2026-09-20' || d.ab === '2026-09-18');
+    check('H8 angelegt: eingetragenAm = Tag des Eintrags, nicht „Gilt ab"', r1.ok && e1() && e1().eingetragenAm === '2026-09-28', JSON.stringify({ r1, e: e1() }));
+    const id = e1().id;
+    afR7.absenden('dosis', id, dosis('2026-09-20', '150', { notiz: 'selbst erhöht' }), '2026-09-29');
+    check('H8 nur die Notiz geändert: eingetragenAm bleibt', e1().eingetragenAm === '2026-09-28', JSON.stringify(e1()));
+    afR7.absenden('dosis', id, dosis('2026-09-18', '150', { notiz: 'selbst erhöht' }), '2026-09-30');
+    check('H8 nur „Gilt ab" geändert: eingetragenAm bleibt', e1().eingetragenAm === '2026-09-28', JSON.stringify(e1()));
+    afR7.absenden('dosis', id, dosis('2026-09-18', '137', { notiz: 'selbst erhöht', bestaetigt: 'ja' }), '2026-10-01');
+    check('H8 Menge geändert: eingetragenAm = Tag der Änderung', e1().eingetragenAm === '2026-10-01', JSON.stringify(e1()));
+    afR7.absenden('dosis', id, dosis('2026-09-18', '137', { notiz: 'selbst erhöht', praxis: 'ja' }), '2026-10-02');
+    check('H8 „Auf Anweisung der Praxis" geändert: eingetragenAm = Tag der Änderung', e1().eingetragenAm === '2026-10-02', JSON.stringify(e1()));
+    const gelesen = normStand(JSON.parse(JSON.stringify(spR5.getStand())));
+    check('H8 normStand behält eingetragenAm', gelesen.dosen.find((d) => d.id === id).eingetragenAm === '2026-10-02', JSON.stringify(gelesen.dosen));
+    check('H8 normStand verwirft einen Tag, der keiner ist', !('eingetragenAm' in normStand({ version: 3, dosen: [{ ...r6Dosis('x', '2025-01-01', 75), eingetragenAm: 'gestern' }] }).dosen[0]));
+  } finally {
+    globalThis.FormData = vorherFormData;
+    spR5.aendern((st) => Object.assign(st, r6Stand({})));
+  }
+});
+
+// ---- Nachprüfung zu Runde 7, N1: Eine eigene Änderung ersetzt keinen Eintrag
+// desselben Tages; „Gilt ab" auf einen belegten Tag fragt nach.
+fall('N1 Dosis-Formular: eigene Änderung am Tag eines vorhandenen Eintrags', () => {
+  const vorherFormData = globalThis.FormData;
+  globalThis.FormData = class {
+    constructor(felder) { this.felder = new Map(Object.entries(felder || {})); }
+    get(k) { return this.felder.has(k) ? this.felder.get(k) : null; }
+    has(k) { return this.felder.has(k); }
+  };
+  try {
+    const H = '2026-09-13';
+    spR5.aendern((st) => Object.assign(st, r6Stand({ dosen: [r6Dosis('d1', H, 137)] })));
+    const dosis = (ab, mikrogramm, weiteres = {}) => ({ ab, mikrogramm, tabletten: '1', praeparat: 'L-Thyroxin', notiz: '', praxis: 'nein', ...weiteres });
+    const r1 = afR7.absenden('dosis', null, dosis(H, '274'), H);
+    check('N1 274 µg ab dem Tag des Einrichtens (Praxis: Nein): nicht „ersetzen?", sondern die Rückfrage „mehr als die Hälfte"',
+      !r1.ok && r1.rueckfrageName !== 'ersetzen' && (r1.rueckfragen || []).some((x) => enthaelt(x, 'mehr als die Hälfte')), JSON.stringify(r1));
+    const r2 = afR7.absenden('dosis', null, dosis(H, '274', { bestaetigt: 'ja' }), H);
+    const dosen = spR5.getStand().dosen;
+    check('N1 nach „Ja, stimmt": beide Einträge bleiben, die 137 µg sind die Menge davor', r2.ok && dosen.length === 2 && dosen[0].mikrogramm === 137 && dosen[1].mikrogramm === 274,
+      JSON.stringify(dosen.map((d) => [d.ab, d.mikrogramm, d.praxis])));
+    // Gegenprobe: eine Anordnung der Praxis am selben Tag fragt weiter „ersetzen?".
+    spR5.aendern((st) => Object.assign(st, r6Stand({ dosen: [r6Dosis('d0', '2025-01-01', 100, { praxis: true }), r6Dosis('d1', H, 137, { praxis: true })] })));
+    const r3 = afR7.absenden('dosis', null, dosis(H, '125', { praxis: 'ja' }), H);
+    check('N1 Gegenprobe: Anordnung der Praxis am selben Tag – weiter „ersetzen?"', !r3.ok && r3.rueckfrageName === 'ersetzen', JSON.stringify(r3));
+    // Rest von H18: „Gilt ab" auf einen Tag, an dem schon eine andere Menge steht.
+    spR5.aendern((st) => Object.assign(st, r6Stand({ dosen: [r6Dosis('d0', '2025-01-01', 100, { praxis: true }), r6Dosis('d1', '2026-09-01', 88, { praxis: true }), r6Dosis('d2', '2026-09-10', 112, { praxis: true })] })));
+    const r4 = afR7.absenden('dosis', 'd2', dosis('2026-09-01', '112', { praxis: 'ja' }), H);
+    check('H18-Rest: „Gilt ab" auf einen belegten Tag fragt „ersetzen?"', !r4.ok && r4.rueckfrageName === 'ersetzen' && (r4.rueckfragen || []).some((x) => enthaelt(x, '88 µg')), JSON.stringify(r4));
+    const r5 = afR7.absenden('dosis', 'd2', dosis('2026-09-01', '112', { praxis: 'ja', ersetzen: 'ja' }), H);
+    const nach = spR5.getStand().dosen;
+    check('H18-Rest: nach „Ja, ersetzen" bleibt die Anordnung (für den Bericht), die verschobene Angabe gilt', r5.ok && nach.some((d) => d.id === 'd1') && nach.find((d) => d.id === 'd2').ab === '2026-09-01'
+      && ez.dosisVerlauf(spR5.getStand(), H).length === 2, JSON.stringify(nach.map((d) => [d.id, d.ab, d.mikrogramm])));
+    spR5.aendern((st) => Object.assign(st, r6Stand({ dosen: [r6Dosis('d0', '2025-01-01', 100, { praxis: true }), r6Dosis('d1', '2026-09-01', 88, { praxis: false }), r6Dosis('d2', '2026-09-10', 112, { praxis: true })] })));
+    const r6 = afR7.absenden('dosis', 'd2', dosis('2026-09-01', '112', { praxis: 'ja', ersetzen: 'ja' }), H);
+    check('H18-Rest: nach „Ja, ersetzen" ist eine andere Angabe (keine Anordnung) gelöscht', r6.ok && !spR5.getStand().dosen.some((d) => d.id === 'd1'), JSON.stringify(spR5.getStand().dosen.map((d) => d.id)));
+  } finally {
+    globalThis.FormData = vorherFormData;
+    spR5.aendern((st) => Object.assign(st, r6Stand({})));
   }
 });
 

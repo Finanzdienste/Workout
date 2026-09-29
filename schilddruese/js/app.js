@@ -23,7 +23,7 @@ import { formular, absenden, eintragLoeschen, zaehlerNachfuehren } from './ansic
 import { einschaetzungSeite } from './ansicht-einschaetzung.js';
 import { dosisSeite, PRAXIS_BESTAETIGUNG, PRAXIS_NEUE_DOSIS, PRAXIS_NOCH_NICHT } from './ansicht-dosis.js';
 import { fragenVorschlaege, abnahmeHeute, aenderungsArt } from './einschaetzung.js';
-import { dosisHinweise, wd4FrageArt } from './dosis.js';
+import { dosisHinweise, wd4FrageArt, wartetAufPraxis, PRAXIS_DANACH } from './dosis.js';
 import { willkommenAnsicht, willkommenWeiter, willkommenEntwurf, WILLKOMMEN_SCHRITTE } from './ansicht-willkommen.js';
 import { berichtText } from './bericht.js';
 import { erinnerungICS, terminICS } from './ics.js';
@@ -965,6 +965,7 @@ function aktion(el) {
       const wert = el.dataset.wert;
       if (!['bleibt', 'geaendert', 'nachmessen', 'nochnicht'].includes(wert)) break;
       let vorher = null;
+      const neuNachEigener = entscheidungNachEigener(wert, heute);
       sp.aendern((s) => {
         const b = s.labor.find((l) => l.id === el.dataset.id);
         if (b) {
@@ -980,8 +981,9 @@ function aktion(el) {
            * gehört zum Tag der Entscheidung und kommt bei einem erneuten Tipp
            * nicht wieder; die Meldung nach dem Tipp bestätigt ihn trotzdem.
            */
-          if (b.praxis !== wert || !b.praxisAm || wert === 'nochnicht') b.praxisAm = heute;
+          if (b.praxis !== wert || !b.praxisAm || wert === 'nochnicht' || neuNachEigener) b.praxisAm = heute;
           b.praxis = wert;
+          if (neuNachEigener) praxisDanachVermerken(s, b, heute);
         }
       });
       if (wert === 'geaendert') {
@@ -1231,6 +1233,25 @@ const PROFIL_ANTWORTEN = {
 };
 
 /*
+ * Runde 7: H8 – Kommt eine Entscheidung der Praxis, während die Dosis-Karte
+ * nach einer eigenen Änderung oder Berichtigung auf sie wartet (X3, B2, X3b
+ * mit Frist), ist sie eine neue: mit dem Datum von heute, auch bei derselben
+ * Antwort wie vorher, und mit dem Vermerk PRAXIS_DANACH. Ohne ihn zählte eine
+ * Entscheidung vom Tag des Eintrags als vorher, und nach einer gleichen
+ * Antwort behielt die Entscheidung ihr altes Datum (G5) – X3/B2 blieben dann
+ * bis zum Kontrollwert stehen, ohne Ausweg (js/dosis.js, wartetAufPraxis).
+ * Vor dem Speichern gefragt: Danach wartet die Karte nicht mehr.
+ */
+function entscheidungNachEigener(wert, heute) {
+  return ['bleibt', 'geaendert', 'nachmessen'].includes(wert) && wartetAufPraxis(sp.getStand(), heute);
+}
+
+function praxisDanachVermerken(s, b, heute) {
+  s.nachfragen = s.nachfragen.filter((n) => !(n.art === PRAXIS_DANACH && n.bezug === b.id));
+  s.nachfragen.push({ id: sp.kennung(), art: PRAXIS_DANACH, bezug: b.id, antwort: 'ja', am: heute });
+}
+
+/*
  * Eine Frage der Dosis-Karte oder von „Heute" beantworten. Wohin die Antwort
  * gehört, sagt die Frage selbst (js/dosis.js): an den Befund, ins Profil
  * oder als Nachfrage mit Datum. Danach zeichnet die Karte neu – mit der
@@ -1241,6 +1262,7 @@ const PROFIL_ANTWORTEN = {
 function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
   let geschrieben = false;
   let praxisVorher = null;
+  const neuNachEigener = ziel === 'befund' && feld === 'praxis' && entscheidungNachEigener(wert, heute);
   if (/^[a-z0-9_]{1,20}$/i.test(wert || '') && /^[A-Za-z0-9_]{1,30}$/.test(feld || '')) {
     sp.aendern((s) => {
       if (ziel === 'befund') {
@@ -1249,6 +1271,7 @@ function frageBeantworten({ ziel, feld, bezug, wert }, heute) {
         if (feld === 'praxis') praxisVorher = { befund: b.id, praxis: b.praxis, praxisAm: b.praxisAm };
         b[feld] = wert;
         if (feld === 'praxis') b.praxisAm = heute;
+        if (neuNachEigener) praxisDanachVermerken(s, b, heute);
         geschrieben = true;
       } else if (ziel === 'profil') {
         if (!(PROFIL_ANTWORTEN[feld] || []).includes(wert)) return;

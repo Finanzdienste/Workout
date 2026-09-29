@@ -21,7 +21,7 @@
  * und Tag. So lässt sich jede Regel im Test prüfen, und die Ansicht zeigt
  * genau das, was sie übergibt.
  */
-import { tageWeiter, tageZwischen, zahlText, rohText, datumKurz } from './datum.js';
+import { tageWeiter, tageZwischen, zahlText, rohText, datumKurz, istISO } from './datum.js';
 import * as sp from './speicher.js';
 import { inStandard, normEinheit, pruefeWert, plausibel } from './einheiten.js';
 
@@ -303,10 +303,21 @@ export function dosisVerlauf(stand, heute) {
       return;
     }
     const berichtigung = (vorher !== null || ersetzend.has(d)) && istBerichtigung(stand, d, heute);
-    // Runde 7: H18 – derselbe Beginn: Der vorige Zeitraum galt keinen Tag.
-    const ersetzt = vor && vor.ab === d.ab ? perioden.pop() : null;
+    /*
+     * Runde 7: H18 – derselbe Beginn: Der vorige Zeitraum galt keinen Tag.
+     * Nachprüfung zu Runde 7 (N1): außer eine eigene Änderung (Praxis: Nein)
+     * folgt am selben Tag auf den ersten Eintrag – meist den vom Einrichten,
+     * bei dem „Seit wann?" auf heute blieb. Dann ist er die Menge davor: Ohne
+     * ihn gab es für 137 → 274 µg kein X3, keine 112-Zeichen und keine
+     * Rückfrage „mehr als die Hälfte", weil nichts davor stand.
+     */
+    const eigeneNachErstem = vor && vor.ab === d.ab && perioden.length === 1 && d.praxis === false && !berichtigung;
+    const ersetzt = vor && vor.ab === d.ab && !eigeneNachErstem ? perioden.pop() : null;
     const davor = perioden[perioden.length - 1] || null;
     const galtNie = ersetzt ? [...ersetzt.nieGenommen, ...(berichtigung ? ersetzt.eintraege.map((x) => ({ d: x, durch: d })) : [])] : [];
+    // Nachprüfung zu Runde 7 (N1): am selben Tag ersetzte Anordnungen der
+    // Praxis (keine Berichtigung – die nennt galtNie) – für amTagErsetztZeilen.
+    const amTagErsetzt = ersetzt ? [...ersetzt.amTagErsetzt, ...(berichtigung ? [] : ersetzt.eintraege.filter((x) => x.praxis === true))] : [];
     // Berichtigt auf die Menge davor (75 → 100 ab 10.09., am selben Tag
     // berichtigt auf 75): Der ersetzte Eintrag galt keinen Tag, die 75 µg
     // gelten weiter – eine Periode, kein Wechsel.
@@ -314,6 +325,7 @@ export function dosisVerlauf(stand, heute) {
       davor.eintraege.push(d);
       davor.d = d;
       davor.nieGenommen.push(...galtNie);
+      davor.amTagErsetzt.push(...amTagErsetzt);
       // Hatte der ersetzte Eintrag die Menge davor berichtigt, ist das zurückgenommen.
       if (davor.berichtigtDurch === ersetzt) davor.berichtigtDurch = null;
       umziehen(ersetzt, davor);
@@ -326,6 +338,7 @@ export function dosisVerlauf(stand, heute) {
       berichtigung, ersetzt, berichtigtDurch: null, geplant: d.ab > heute,
       aenderung: Boolean(davor) && !(berichtigung && !ersetzt && vorher.ab === d.ab),
       nieGenommen: galtNie,
+      amTagErsetzt,
     };
     // Ersetzt die Berichtigung einen Eintrag vom selben Tag, war die Menge
     // DIESES Eintrags falsch – nicht die der Periode davor.
@@ -380,6 +393,18 @@ export function dosenDieGalten(stand, heute) {
 export function nieGenommenZeilen(stand, heute) {
   return dosisVerlauf(stand, heute).flatMap((p) => p.nieGenommen).sort((a, b) => a.d.ab.localeCompare(b.d.ab))
     .map(({ d, durch }) => `Berichtigung (Angabe): Ab ${kurz(d.ab)} war ${sp.dosisText(d)} eingetragen${d.praxis === true ? ' (auf Anweisung der Praxis)' : ''} – nach Angabe der Patientin nie genommen; stattdessen ${sp.dosisText(durch)}.`);
+}
+
+/*
+ * Nachprüfung zu Runde 7 (N1): Eine Anordnung der Praxis, die am selben Tag
+ * ein anderer Eintrag ersetzt hat, galt keinen Tag und hat keinen Zeitraum
+ * (H18). Sie darf trotzdem nicht still aus dem Bericht verschwinden – gerade
+ * wenn die Patientin am Tag der Anordnung selbst etwas anderes eingetragen hat.
+ */
+export function amTagErsetztZeilen(stand, heute) {
+  return dosisVerlauf(stand, heute).flatMap((p) => p.amTagErsetzt.map((x) => ({ x, p })))
+    .map(({ x, p }) => `Ab ${kurz(x.ab)} war ${sp.dosisText(x)} eingetragen (auf Anweisung der Praxis) – am selben Tag ersetzt durch ${sp.dosisText(p.d)}${
+      p.d.praxis === false ? ' (nicht auf Anweisung der Praxis)' : p.d.praxis === true ? ' (auf Anweisung der Praxis)' : ''}.`);
 }
 
 /**
@@ -1505,9 +1530,17 @@ export const GEFAHR_FRISCH_TAGE = 14;
 /** Nachfrage „Die Praxis weiß von diesem Wert": bezug = Befund-ID, antwort = Schlüssel des Werts. */
 export const WERT_BEKANNT = 'wert_bekannt';
 
-/** Seit wann die App die weiteren Werte dieses Befunds kennt. */
-function weitereSeit(befund) {
-  return befund.eingetragenAm && befund.eingetragenAm > befund.datum ? befund.eingetragenAm : befund.datum;
+/*
+ * Seit wann die App diesen weiteren Wert kennt. Nachprüfung zu Runde 7 (N1):
+ * je Wert (befund.werteAm, vom Befund-Formular). Mit einem Tag für den ganzen
+ * Befund begann die Frist eines unveränderten Natrium 118 neu, sobald TSH
+ * berichtigt oder fT4 nachgetragen wurde – „Heute anrufen" kam für bis zu 14
+ * Tage zurück, und eine Antwort „Die Praxis weiß davon" galt still nicht mehr.
+ * Einträge aus der Zeit davor tragen nur befund.eingetragenAm.
+ */
+function weitereSeit(befund, key) {
+  const am = befund.werteAm && istISO(befund.werteAm[key]) ? befund.werteAm[key] : befund.eingetragenAm;
+  return am && am > befund.datum ? am : befund.datum;
 }
 
 /**
@@ -1515,12 +1548,14 @@ function weitereSeit(befund) {
  * → { grund: 'bekannt' | 'praxis' | 'alter', am } (am: seit wann)
  */
 function gefahrVorbei(befund, key, stand, heute) {
-  const seit = weitereSeit(befund);
+  const seit = weitereSeit(befund, key);
   const bekannt = [...stand.nachfragen].reverse().find((n) => n.art === WERT_BEKANNT && n.bezug === befund.id && n.antwort === key
     && n.am >= seit && n.am <= heute);
   if (bekannt) return { grund: 'bekannt', am: bekannt.am };
   if (praxisHatErklaert(befund) && befund.praxisAm && befund.praxisAm > seit && befund.praxisAm <= heute) return { grund: 'praxis', am: befund.praxisAm };
-  if (tageZwischen(seit, heute) > GEFAHR_FRISCH_TAGE) return { grund: 'alter', am: tageWeiter(seit, GEFAHR_FRISCH_TAGE + 1) };
+  if (tageZwischen(seit, heute) > GEFAHR_FRISCH_TAGE) {
+    return { grund: 'alter', am: tageWeiter(seit, GEFAHR_FRISCH_TAGE + 1), ...(seit > befund.datum ? { eingetragen: seit } : {}) };
+  }
   return null;
 }
 
@@ -2473,15 +2508,22 @@ function berichtNurWeitere(stand, heute, befunde) {
  * dazu, was davon für die Patientin noch gilt und warum (wie „für die
  * Patientin ersetzt durch …" beim erklärten Befund).
  */
+/*
+ * Nachprüfung zu Runde 7 (N3): Bei einem später eingetragenen Wert zählen
+ * die 14 Tage ab dem Eintrag, nicht ab der Abnahme. „seit 04.09. älter als 14
+ * Tage" war dann falsch – der Befund vom 01.08. war es schon seit dem 16.08.
+ */
 const VORBEI_TEXT = {
-  bekannt: (am) => `laut ihrer Angabe vom ${kurz(am)} weiß die Praxis davon`,
-  praxis: (am) => `die Praxis hat sich am ${kurz(am)} zum Befund gemeldet`,
-  alter: (am) => `seit ${kurz(am)} älter als ${GEFAHR_FRISCH_TAGE} Tage, ohne Angabe, dass er besprochen wurde`,
+  bekannt: (v) => `laut ihrer Angabe vom ${kurz(v.am)} weiß die Praxis davon`,
+  praxis: (v) => `die Praxis hat sich am ${kurz(v.am)} zum Befund gemeldet`,
+  alter: (v) => (v.eingetragen
+    ? `seit dem Eintrag in die App am ${kurz(v.eingetragen)} mehr als ${GEFAHR_FRISCH_TAGE} Tage ohne Angabe, dass er besprochen wurde`
+    : `seit ${kurz(v.am)} älter als ${GEFAHR_FRISCH_TAGE} Tage, ohne Angabe, dass er besprochen wurde`),
 };
 function weitereEinordnung(x) {
   if (!x.gefahr || !x.gefahr.vorbei) return x.texte[0];
   const v = x.gefahr.vorbei;
-  return `${x.gefahr.text} Für die Patientin gilt inzwischen „${STUFEN[x.stufe].titel}" (${VORBEI_TEXT[v.grund](v.am)}).`;
+  return `${x.gefahr.text} Für die Patientin gilt inzwischen „${STUFEN[x.stufe].titel}" (${VORBEI_TEXT[v.grund](v)}).`;
 }
 
 /** Ein Wert, wie er auf dem Befund steht – ohne Einordnung der App (für angabenZeilen). */

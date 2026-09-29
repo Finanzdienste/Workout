@@ -413,10 +413,20 @@ function dosisAbsenden(id, f, heute) {
    * Eine Berichtigung am Tag des berichtigten Eintrags ist gewollt (D19).
    */
   let da = formDa;
+  /*
+   * Nachprüfung zu Runde 7 (N1): Eine eigene Änderung (Praxis: Nein) ersetzt
+   * keinen Eintrag desselben Tages – sie ist eine Änderung GEGENÜBER ihm.
+   * „Ja, ersetzen" überschrieb die 137 µg vom Einrichten mit 274 µg: kein
+   * X3, keine 112-Zeichen, keine Rückfrage „mehr als die Hälfte". Jetzt
+   * kommt sie als eigener Eintrag dazu; war der vorhandene der erste, gilt er
+   * als die Menge davor (ez.dosisVerlauf), sonst zählt die Menge vor diesem
+   * Tag, und eine ersetzte Anordnung der Praxis nennt der Bericht.
+   */
+  const eigene = felder.praxis === false;
   if (!formDa && !berichtigtJetzt) {
     const gleich = gleichFehler();
     if (gleich) return gleich;
-    const amTag = [...stand.dosen].reverse().find((d) => d.ab === ab);
+    const amTag = eigene ? null : [...stand.dosen].reverse().find((d) => d.ab === ab);
     if (amTag && f.get('ersetzen') !== 'ja') {
       return {
         ok: false,
@@ -430,6 +440,29 @@ function dosisAbsenden(id, f, heute) {
     }
     if (amTag) da = amTag;
   }
+  /*
+   * Nachprüfung zu Runde 7 (Rest von H18): „Gilt ab" eines vorhandenen
+   * Eintrags auf einen Tag, an dem schon eine andere Menge steht. Von zwei
+   * Einträgen eines Tages zählt der zuletzt gesagte; vorher geschah das ohne
+   * Rückfrage, und die andere Menge verschwand still aus Bericht und Karte.
+   * „Ja, ersetzen" löscht sie – außer einer Anordnung der Praxis, die der
+   * Bericht als „am selben Tag ersetzt" nennt. Eine eigene Änderung fragt
+   * nicht (siehe oben).
+   */
+  const belegt = formDa && !eigene && ab !== formDa.ab
+    ? [...stand.dosen].reverse().find((d) => d !== formDa && d.ab === ab && sp.tagesdosis(d) !== sp.tagesdosis(eintrag)) : null;
+  if (belegt && f.get('ersetzen') !== 'ja') {
+    return {
+      ok: false,
+      rueckfragen: [nochEingetragen(belegt, 'schon')],
+      rueckfrageSatz: 'Soll Ihre Angabe diesen Eintrag ersetzen? Ab einem Tag kann nur eine Dosis gelten.',
+      rueckfrageFeld: 'ab',
+      rueckfrageName: 'ersetzen',
+      rueckfrageJa: 'Ja, ersetzen',
+      rueckfrageNein: 'Nein – „Gilt ab" prüfen',
+    };
+  }
+  const weg = belegt && belegt.praxis !== true ? belegt.id : null;
   const andere = stand.dosen.filter((d) => d !== da);
   const vorher = [...andere].reverse().find((d) => d.ab <= ab);
   /*
@@ -523,16 +556,29 @@ function dosisAbsenden(id, f, heute) {
      */
     const berichtigtAm = berichtigung || vermerk.statt || !alt ? heute
       : alt.berichtigtAm || [berichtigungsTag(s, alt, heute), heute].sort()[0];
+    /*
+     * Runde 7: H8 – der Tag, an dem die App von dieser Menge erfährt: heute
+     * beim Anlegen und wenn sich Menge oder „Auf Anweisung der Praxis"
+     * ändern. Seit ihm gilt eine eigene Änderung als bekannt (X3/B2 auf
+     * „Heute" 14 Tage, eine Entscheidung der Praxis zählt erst danach;
+     * js/dosis.js, bekanntSeit). Wer eine eigene Erhöhung erst Wochen später
+     * mit dem wahren „Gilt ab" einträgt, verlor sonst beides. Nur „Gilt ab",
+     * Präparat oder Notiz geändert: Der Tag bleibt.
+     */
+    const neueMenge = !alt || alt.mikrogramm !== eintrag.mikrogramm || alt.tabletten !== eintrag.tabletten || alt.praxis !== eintrag.praxis;
+    const eingetragenAm = neueMenge ? heute : alt.eingetragenAm;
     if (alt) {
       const verschoben = alt.ab !== eintrag.ab;
-      Object.assign(alt, eintrag, berichtigung || alt.berichtigung ? { berichtigung: true, ...vermerk, berichtigtAm } : {});
+      Object.assign(alt, eintrag, berichtigung || alt.berichtigung ? { berichtigung: true, ...vermerk, berichtigtAm } : {},
+        eingetragenAm ? { eingetragenAm } : {});
       // Runde 7: H18 – wer „Gilt ab" ändert, sagt es zuletzt: hinter andere
       // Einträge desselben Tages, wie probeDosen rechnet.
       if (verschoben) s.dosen.push(...s.dosen.splice(s.dosen.indexOf(alt), 1));
     } else {
       gespeichert = sp.kennung();
-      s.dosen.push({ id: gespeichert, ...eintrag, berichtigung, ...(berichtigung ? { ...vermerk, berichtigtAm } : {}) });
+      s.dosen.push({ id: gespeichert, ...eintrag, berichtigung, ...(berichtigung ? { ...vermerk, berichtigtAm } : {}), eingetragenAm });
     }
+    if (weg) s.dosen = s.dosen.filter((d) => d.id !== weg);
     s.dosen.sort((a, b) => a.ab.localeCompare(b.ab));
     // X3 (1) „Nein, ich nehme etwas anderes": Mit dem Eintrag ist die
     // Aufforderung erfüllt. Die Antwort fällt weg, und die Dosis-Karte fragt
@@ -913,18 +959,23 @@ function laborAbsenden(id, f, heute) {
   // „bestätigt" meint die Rückfragen des Kerns (plausibel()), nicht die nach der zweiten Grenze.
   ziel.bestaetigt = Boolean(amTag && amTag.bestaetigt) || kernFragen.length > 0;
   /*
-   * Runde 7: H4, H15, H21 – der Tag, an dem die weiteren Werte in die App
-   * kamen. Ab ihm läuft die Frist eines Gefahrenwerts (Natrium 118 → „heute
+   * Runde 7: H4, H15, H21 – der Tag, an dem ein weiterer Wert in die App kam.
+   * Ab ihm läuft die Frist eines Gefahrenwerts (Natrium 118 → „heute
    * anrufen", höchstens 14 Tage), und eine Angabe der Praxis zählt für ihn
    * erst danach (einschaetzung.gefahrVorbei). Ohne ihn galt das Datum der
    * Abnahme: Ein drei Wochen später abgeschriebener Befund stand nie auf
    * „heute", und ein „Die Dosis bleibt so", das vor dem nachgetragenen
-   * Natrium gegeben war, hätte es gleich beendet. Neu gesetzt nur, wenn ein
-   * Wert dazukommt oder sich ändert – nicht beim Ändern einer Frage.
+   * Natrium gegeben war, hätte es gleich beendet.
+   * Nachprüfung zu Runde 7 (N1): je Wert, neu gesetzt nur, wenn genau dieser
+   * Wert dazukommt oder sich ändert. Ein Tag für den ganzen Befund begann die
+   * Frist auch neu, wenn nur TSH berichtigt oder fT4 nachgetragen wurde.
    */
   const wertDaten = (w) => (w ? [w.wert, w.einheit, Boolean(w.unter), w.von ?? null, w.bis ?? null].join('|') : '');
-  const werteNeu = !bezug || [...sp.LABORWERTE, ...sp.WEITERE_WERTE].some(([k]) => wertDaten(bezug[k]) !== wertDaten(ziel[k]));
-  if (werteNeu && sp.WEITERE_WERTE.some(([k]) => ziel[k])) ziel.eingetragenAm = heute;
+  ziel.werteAm = Object.fromEntries(sp.WEITERE_WERTE.filter(([k]) => ziel[k]).map(([k]) => {
+    const bisher = bezug && wertDaten(bezug[k]) === wertDaten(ziel[k])
+      ? (bezug.werteAm && bezug.werteAm[k]) || bezug.eingetragenAm || bezug.datum : null;
+    return [k, bisher || heute];
+  }));
 
   sp.aendern((s) => {
     const alt = bezug ? s.labor.find((l) => l.id === bezug.id) : null;

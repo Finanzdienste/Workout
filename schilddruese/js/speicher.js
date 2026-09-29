@@ -527,9 +527,14 @@ function zusammenfuehren(labor) {
     da.bestaetigt = da.bestaetigt || l.bestaetigt;
     // Runde 7: H4 – der spätere Eintrag bringt Werte dazu: Sein Tag gilt.
     if (l.eingetragenAm && (!da.eingetragenAm || l.eingetragenAm > da.eingetragenAm)) da.eingetragenAm = l.eingetragenAm;
+    // Nachprüfung zu Runde 7 (N1): je Wert der spätere Tag – die Frist eines
+    // Gefahrenwerts endet so nicht früher, als einer der beiden Einträge sagt.
+    const am = { ...(ziel.werteAm || {}) };
+    Object.entries(l.werteAm || {}).forEach(([k, tag]) => { if (!am[k] || tag > am[k]) am[k] = tag; });
+    if (Object.keys(am).length) da.werteAm = am;
     // Felder, die oben nicht vorkommen: leere ergänzen, wie bisher. Die
     // oben bewusst geleerten (eine Frage wieder offen) bleiben leer.
-    const oben = new Set(['id', 'datum', 'notiz', 'praxisAm', 'eingetragenAm', ...WERTE().map(([k]) => k), ...FRAGEN_FELDER, ...Object.keys(ZEIT_FELDER)]);
+    const oben = new Set(['id', 'datum', 'notiz', 'praxisAm', 'eingetragenAm', 'werteAm', ...WERTE().map(([k]) => k), ...FRAGEN_FELDER, ...Object.keys(ZEIT_FELDER)]);
     Object.keys(l).filter((k) => !oben.has(k)).forEach((k) => {
       if (da[k] === null || da[k] === undefined || da[k] === '') da[k] = l[k];
     });
@@ -651,6 +656,12 @@ export function normStand(roh) {
       // den wahren Beginn – die Bitte, der Praxis Bescheid zu sagen, gilt
       // aber ab diesem Tag (js/dosis.js, berichtigtAm). Nur bei einer Berichtigung.
       ...(bool(d.berichtigung) && istISO(d.berichtigtAm) ? { berichtigtAm: d.berichtigtAm } : {}),
+      // Runde 7: H8 – der Tag, an dem Menge oder „Auf Anweisung der Praxis"
+      // eingetragen oder zuletzt geändert wurden (vom Dosis-Formular). Seit
+      // ihm weiß die App von einer eigenen Änderung; eine Angabe der Praxis
+      // von davor ist keine Entscheidung danach (js/dosis.js, bekanntSeit).
+      // Ältere Einträge haben ihn nicht – dann gilt „Gilt ab".
+      ...(istISO(d.eingetragenAm) ? { eingetragenAm: d.eingetragenAm } : {}),
     };
   }, 'ab').sort((a, b) => a.ab.localeCompare(b.ab));
   // Ein Verweis auf einen Eintrag, den es nicht (mehr) gibt, sagt nichts mehr.
@@ -709,6 +720,11 @@ export function normStand(roh) {
       // gilt das Datum der Abnahme.
       ...(istISO(l.eingetragenAm) ? { eingetragenAm: l.eingetragenAm } : {}),
     };
+    // Nachprüfung zu Runde 7 (N1): derselbe Tag je weiterem Wert (werteAm, vom
+    // Befund-Formular) – nur für Werte, die der Eintrag hat.
+    const werteAm = l.werteAm && typeof l.werteAm === 'object' && !Array.isArray(l.werteAm)
+      ? Object.fromEntries(WEITERE_WERTE.filter(([k]) => eintrag[k] && istISO(l.werteAm[k])).map(([k]) => [k, l.werteAm[k]])) : {};
+    if (Object.keys(werteAm).length) eintrag.werteAm = werteAm;
     return [...LABORWERTE, ...WEITERE_WERTE].some(([k]) => eintrag[k]) ? eintrag : null;
   }).sort((a, b) => a.datum.localeCompare(b.datum));
   s.labor = zusammenfuehren(s.labor);
