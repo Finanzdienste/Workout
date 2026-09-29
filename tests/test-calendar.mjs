@@ -135,6 +135,13 @@ await page.waitForTimeout(200);
 check(await page.locator('.cal-detail').count() === 0, 'nochmal antippen schließt die Auswahl');
 
 // --- Sprung ins Dashboard ---
+// Am Monatsende liegt die nächste geplante Einheit schon im Folgemonat – dann
+// dorthin blättern (gefunden mit dem Datum 31.10.: kein .cal-cell.plan im
+// Oktober, der Klick wartete 30 Sekunden ins Leere).
+for (let i = 0; i < 2 && !(await page.locator('.cal-cell.plan:not(.out)').count()); i++) {
+  await page.locator('[data-act="cal-month"][data-d="1"]').click();
+  await page.waitForTimeout(150);
+}
 await page.locator('.cal-cell.plan').first().click();
 await page.waitForTimeout(200);
 const nr = await page.locator('.cal-detail .lbl').first().textContent();

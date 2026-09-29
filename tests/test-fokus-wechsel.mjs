@@ -146,15 +146,32 @@ check(ersterTermin >= heute(),
 await page.evaluate(async () => (await import('./js/store.js')).setSetting('tab', 'calendar'));
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
-const kalender = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+// Der Kalender zeigt den laufenden Monat. Am Monatsersten liegen gestern und
+// vorgestern aber im Vormonat, am Zweiten je einer in jedem (gefunden mit dem
+// Datum 1.10.: „0 trainiert"). Also die Monate der beiden Tage ablaufen und
+// zusammenzählen, vom jüngeren zum älteren, also nur rückwärts blätternd. Der
+// zuletzt gezeigte Monat bleibt offen, für das Antippen weiter unten.
+const monat = (tag) => Number(tag.slice(0, 4)) * 12 + Number(tag.slice(5, 7));
+let zurueckGeblaettert = -1, trainiert = 0, marken = 0, kalender = '';
+const gezaehlt = [];
+for (const tag of [vorTagen(1), vorTagen(2)]) {
+  const ziel = monat(heute()) - monat(tag);
+  if (ziel === zurueckGeblaettert) continue;
+  for (zurueckGeblaettert = Math.max(zurueckGeblaettert, 0); zurueckGeblaettert < ziel; zurueckGeblaettert++) {
+    await page.locator('[data-act="cal-month"][data-d="-1"]').click();
+    await page.waitForTimeout(150);
+  }
+  kalender = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+  trainiert += Number((kalender.match(/in diesem Monat · (\d+) trainiert/) || [0, 0])[1]);
+  marken += await page.locator('.cal-cell.frueher:not(.out)').count();
+  gezaehlt.push((kalender.match(/\d+ Einheit(en)? in diesem Monat[^·]*·[^·(]*/) || ['?'])[0].trim());
+}
 // Gezählt wie jeder andere Trainingstag, und ohne Nachsatz: *„Mach keine
 // Unterscheidung in trainiert früherer Plan und trainiert."*
-check(/2 trainiert/.test(kalender),
-  `der Kalender zählt die Tage aus dem früheren Plan als trainiert (${
-    (kalender.match(/\d+ Einheiten[^·]*·[^·]*/) || ['?'])[0].trim()})`);
+check(trainiert === 2,
+  `der Kalender zählt die Tage aus dem früheren Plan als trainiert (${gezaehlt.join(' + ')})`);
 check(!/früherer Plan|früheren Plan/.test(kalender),
   'ohne sie gesondert auszuweisen');
-const marken = await page.locator('.cal-cell.frueher').count();
 check(marken === 2, `beide Tage sind markiert (${marken})`);
 
 // Und antippen erklärt, was da war.
