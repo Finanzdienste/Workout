@@ -2674,8 +2674,10 @@ ganzzahligen Lösungen (`wandern()`). Die erste, die er mit den Pflichtübungen
 fand, war exakt und schief: sechs Sätze Waden die Woche, null Trizeps.
 `tools/pruefung/startpunkt.py` rechnet deshalb vorher mit demselben Löser einen
 ausgewogenen Startpunkt – jede Übung möglichst nah an drei Sätzen die Woche,
-möglichst viele drin, Band und Rucksack als zweite Wahl, weil Hanteln und
-Stange im Haus sind – und der Generator nimmt ihn als `WK_START`. Der
+möglichst viele drin, Rucksack als zweite Wahl, weil Hanteln und Stange im
+Haus sind (Bänder nicht mehr – siehe [Neu gerechnet am
+29.09.](#neu-gerechnet-am-2909-hantel-vor-rucksack-grundübungen-gleich-lange-wochen))
+– und der Generator nimmt ihn als `WK_START`. Der
 Startpunkt liegt als `tools/pruefung/cut-start.json` im Repo, damit der Lauf
 nachvollziehbar bleibt und nicht nur sein Ergebnis:
 
@@ -2732,6 +2734,93 @@ die 48-Stunden-Regel nur vier Übungen zu, und die fünfte muss auf einen
 anderen Tag. Kosten: Bizeps 2,52 statt 2,62 Termine je Woche, Rücken 2,19 statt
 2,24, Rüstvorgänge 3,00 statt 2,99. Die Karte in der App rechnet die Größen
 selbst aus (`tagLaenge()`), der Vergleich zum Aufbau steht in `fokusAnders()`.
+
+### Neu gerechnet am 29.09.: Hantel vor Rucksack, Grundübungen, gleich lange Wochen
+
+Zwei Fragen standen dahinter:
+
+*„Ists normal dass ich so viele Übungen mit Rucksack und Flaschen usw machen
+soll obwohl ich ja ne komplette hantelausrüstung usw hab?"*
+
+*„Ja kannst machen, aber sicher dass im cut so wenig sätze je muskelgruppe
+optimal sind?"*
+
+**Rucksack ist zweite Wahl, Band und Körpergewicht nicht.** Der Startpunkt
+(`tools/pruefung/startpunkt.py`) nimmt eine Übung mit Rucksack nur noch, wenn
+es ohne nicht aufgeht, und jeder ihrer Sätze kostet extra – sonst landete der
+Überschuss einer Gruppe ebenso gern beim Rucksack wie bei der Hantel. Bänder
+und Körpergewicht standen probeweise mit auf der Liste und flogen nach der
+Messung wieder herunter: Die Pläne bekamen dafür mehr Kurzhantelübungen mit je
+eigenem Gewicht, und der Umbau je Einheit stieg überall, beim Aufbau von 3,55
+auf 4,32. Ein Band braucht keinen Umbau, und wenig Umbau ist die härtere
+Vorgabe.
+
+**Grundübungen in jedem Plan**, nicht nur im Cut: `pflicht` in
+`tools/build-plan.py` hält Floor Press, Chin-ups, Rudern, Kreuzheben, Goblet
+Squat und Schulterdrücken mit einer Mindestmenge je Woche. Ohne diese Zeile
+fielen beim ersten Neulauf in „Bauch, Beine, Po" Chin-ups und Schulterdrücken
+ganz heraus, im Oberkörperplan stand das Schulterdrücken bei null.
+
+**Gleich lange Wochen.** Neu in `spread()`: `wochen_band()` gibt jeder Woche
+die beiden Satzsummen um den Schnitt vor, wie `band()` es für jede Übung tut,
+und jede Körnung daneben kostet `EBEN`. Anlass war der Cut: Mit den Schultern
+auf 8 lagen seine Wochen zwischen 54 und 63 Sätzen, und eine 63er-Woche geht
+auf vier Termine nur als 18/18/15/12 – der Termin nach dem Ein-Tages-Abstand
+bleibt wegen der 48-Stunden-Regel bei vier Übungen. Acht Einheiten mit 18
+Sätzen statt drei, also genau das, was am 26.09. behoben worden war. Mit dem
+Wochenband liegen alle Wochen bei 57 oder 60.
+
+#### Cut: die Schultern auf 8
+
+Zur zweiten Frage die ehrliche Antwort: *Optimal* ist für den Cut nicht
+bewiesen, weder 7 noch eine andere Zahl – es gibt kaum Studien im Defizit.
+Belegt ist, dass zum Halten deutlich weniger reicht als zum Aufbauen (Bickel
+2011: ein Drittel des Aufbauvolumens hielt die Muskeln, bei Jüngeren sogar ein
+Neuntel), und in der einen Studie im Defizit brachten 20 Sätze nicht mehr als
+12. Rund 7 gewichtete Sätze je Gruppe sind damit gut gedeckt – solange die
+Lasten bleiben; die tragen im Cut die Hauptlast. **Zwei Gruppen lagen aber
+darunter:** seitliche und hintere Schulter mit je 5 direkten Sätzen an 1,67
+Terminen, in sieben von 21 Wochen nur ein Termin. Beide bekommen vom Drücken
+und Ziehen wenig nebenbei ab. Jetzt ist ihr Ziel 8 (die hintere 7,95, damit es
+exakt aufgeht):
+
+| | Cut vom 26.09. | Cut vom 29.09. |
+| --- | --- | --- |
+| seitliche Schulter | 5 direkte Sätze, 1,67 ×/Woche | 6 direkte Sätze, 2,00 ×/Woche |
+| hintere Schulter | 5 direkte Sätze, 1,67 ×/Woche | 6 direkte Sätze, 2,00 ×/Woche |
+| Sätze je Woche | 51–60 (Ø 55,7) | 57–60 (Ø 57,7) |
+| Sätze je Einheit | 12–18 (33 × 12, 48 × 15, 3 × 18) | 12–18 (18 × 12, 64 × 15, 2 × 18) |
+| Rüstvorgänge je Einheit | 3,00 | 3,05 |
+| Rucksack (Sätze je Woche) | 1,0 | 1,0 |
+| dieselbe Bewegung zweimal in einer Einheit | 0 | 0 |
+
+Face Pull ist dafür neu drin, Reverse Snow Angel draußen. **Was es kostet:**
+Bizeps 2,24 statt 2,52 Termine je Woche, Gesäß 2,76 statt 3,00, vordere
+Schulter 1,95 statt 2,10 – mit denselben Sätzen, nur anders verteilt. Der
+Beinbeuger am Knie (ein Termin je Woche) hat zweimal 11 Tage Abstand statt
+höchstens 7; das lag in allen gerechneten Varianten so. Gerechnet:
+
+    WK_START=tools/pruefung/cut-start.json WK_REIHUNG=einheiten WK_SEED=11 python3 tools/build-plan.py cut
+    WK_NUR_TAGE=1 WK_SPLITS=20000 WK_REIHUNG=einheiten WK_SEED=21 python3 tools/build-plan.py cut
+
+Zwei Startwerte für die Mengen, drei Läufe für die Tage (zwei Rangfolgen);
+genommen ist der mit den wenigsten Befunden der Planprüfung.
+
+#### Aufbau: bleibt, wie er ist
+
+Neu gerechnet wurde auch er, mit Grundübungen und Rucksack als zweiter Wahl.
+Heraus kam ein Plan ohne gewichtete Liegestütze – aber mit 3,96 bis 4,00
+Rüstvorgängen je Einheit statt 3,55 und drei bis vier Einheiten mit 21 Sätzen,
+auch mit gleich langen Wochen. Zwei Sätze Rucksack weniger in der Woche sind
+das nicht wert. Der Aufbau bleibt deshalb der vom 25.09.; seine Grundübungen
+hatte er ohnehin (Goblet Squat 1,7 statt der 2 aus `pflicht`, Rudern 2,9 statt
+3 – knapp darunter, weil `pflicht` erst nach ihm kam).
+
+#### Bauch, Beine, Po und Oberkörper
+
+Noch der Stand vom 25.09. Die Neuläufe sind gerechnet (ohne Rucksack, nur
+Einheiten mit 15 oder 18 Sätzen) und werden mit dem Wochenband gegengerechnet,
+bevor sie eingespielt werden.
 
 ### „Kurz und knapp" war ein Jahr lang kaputt
 

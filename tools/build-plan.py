@@ -1525,6 +1525,32 @@ REF = 10 * UNIT          # Bezugsziel der relativen Strafe: zehn Sätze
 # Sätze bekommen – 9 sind bereits die Hälfte darüber. Enger gesetzt findet der
 # Lauf für solche Gruppen gar keine Verteilung mehr.
 MAX_REL = 0.5
+# Zuschlag je Körnung, die eine Woche mit ihrer Satzsumme aus wochen_band()
+# fällt. Gleich viel wie BAND: teurer als eine kleine Ungenauigkeit, billiger
+# als drei Sätze daneben bei einer Gruppe mit Ziel 10 (1,3·10⁷).
+EBEN = int(os.environ.get('WK_EBEN', 5 * 10 ** 6))
+
+
+def wochen_band(total, weeks):
+    """Satzsummen, die eine Woche haben darf: der Schnitt, ab- und aufgerundet.
+
+    Gleich lange Einheiten gehen nur in gleich langen Wochen. Der Cut mit den
+    Schultern auf 8 hatte 57,7 Sätze je Woche im Schnitt, verteilt aber auf
+    Wochen mit 54 bis 63 – und eine 63er-Woche lässt sich auf vier Termine nur
+    als 18/18/15/12 legen, weil der Termin nach dem Ein-Tages-Abstand wegen der
+    48-Stunden-Regel bei vier Übungen bleibt. Acht Einheiten mit 18 Sätzen statt
+    drei. Mit Wochen von 57 oder 60 Sätzen geht 15/15/15/12 und höchstens
+    18/15/15/12.
+
+      „Wieso hast du es denn gemacht wenns ungleichere Einheiten und damit
+       schlechter ist?"
+
+    Dieselbe Rechnung wie band(), nur für die Summe der Woche statt für eine
+    Übung. Die Plansummen bleiben unberührt.
+    """
+    schritt = GRAIN * weeks
+    s = sum(total)
+    return GRAIN * (s // schritt), GRAIN * -(-s // schritt)
 
 
 def band(t, weeks):
@@ -1592,7 +1618,13 @@ def miss(x, goal):
     return abs(x - goal) if goal is not None else max(0, x - CAP_U)
 
 
-def pen(week_vol, week_sets, goals, bands):
+def wochen_abstand(s, woche):
+    """Um wie viele Körnungen liegt die Wochensumme s außerhalb von woche?"""
+    lo, hi = woche
+    return (max(0, lo - s) + max(0, s - hi)) // GRAIN
+
+
+def pen(week_vol, week_sets, goals, bands, woche=None):
     """Strafe einer Woche.
 
     **Was hier bewusst NICHT steht: eine eigene Strafe für die Obergrenze.**
@@ -1626,10 +1658,13 @@ def pen(week_vol, week_sets, goals, bands):
     die Obergrenze hinausgeht, gemessen an der Obergrenze.
 
     Dazu kommt die Regelmäßigkeit: Jede Übung, die in dieser Woche aus ihrer
-    Schranke fällt, kostet BAND – siehe band().
+    Schranke fällt, kostet BAND – siehe band(). Und jede Körnung, um die die
+    Woche als Ganzes aus wochen_band() fällt, kostet EBEN.
     """
     out = APP * sum(visits(c) for c in week_sets if c)
     out += BAND * sum(1 for c, (lo, hi) in zip(week_sets, bands) if not lo <= c <= hi)
+    if woche:
+        out += EBEN * wochen_abstand(sum(week_sets), woche)
     for x, goal in zip(week_vol, goals):
         d = miss(x, goal)
         rel = d / (goal if goal else CAP_U)
@@ -1652,6 +1687,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
     rows_s = vol.s
     goals = [GOAL.get(m) for m in vol.groups]
     bands = [band(t, weeks) for t in total]
+    woche = wochen_band(total, weeks)
     if any(hi > PER_WEEK for _, hi in bands):
         sys.exit('Eine Übung braucht mehr Sätze pro Woche, als PER_SET zulässt – '
                  'PER_EX_WEEK und PER_SET passen nicht zusammen.')
@@ -1670,7 +1706,7 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
         vols = [[sum(rows[i][w] * rows_s[i][g] for i in range(len(rows)))
                  for g in range(len(vol.groups))] for w in range(weeks)]
         col = [[row[w] for row in rows] for w in range(weeks)]
-        sq = [pen(vols[w], col[w], goals, bands) for w in range(weeks)]
+        sq = [pen(vols[w], col[w], goals, bands, woche) for w in range(weeks)]
         # Die Strafe für die Wochen steht in sq, die für die Abstände je Übung
         # in sp: Ein Zug verschiebt nur eine Übung, also ist auch nur deren
         # Abstandsstrafe neu zu rechnen.
@@ -1691,8 +1727,8 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
                 if c:
                     vols[u][g] -= d * c
                     vols[v][g] += d * c
-            return (pen(vols[u], col[u], goals, bands),
-                    pen(vols[v], col[v], goals, bands),
+            return (pen(vols[u], col[u], goals, bands, woche),
+                    pen(vols[v], col[v], goals, bands, woche),
                     LUECKE * spacing(rows[i], weeks))
 
         for _ in range(rounds):
@@ -1742,18 +1778,19 @@ def spread(total, vol, weeks, rnd, restarts, rounds):
                         move(i, u, v, -d)
 
         # Zwischen den Anläufen zählt dieselbe Rangfolge wie in pen(): erst
-        # grobe Abweichungen, dann Auftritte, dann die volle Liste – alles im
-        # Verhältnis zum Ziel der jeweiligen Gruppe, nicht in Sätzen. Die
-        # Ausnahmen von der Schranke entscheiden zuletzt: Innerhalb eines
-        # Anlaufs wiegt pen() sie schon gegen die Genauigkeit ab, hier sollen
-        # sie eine bessere Verteilung nicht mehr überstimmen.
+        # grobe Abweichungen, dann Auftritte, dann gleich lange Wochen, dann
+        # die volle Liste – alles im Verhältnis zum Ziel der jeweiligen Gruppe,
+        # nicht in Sätzen. Die Ausnahmen von der Schranke entscheiden zuletzt:
+        # Innerhalb eines Anlaufs wiegt pen() sie schon gegen die Genauigkeit
+        # ab, hier sollen sie eine bessere Verteilung nicht mehr überstimmen.
         auftritte = sum(visits(c) for w in col for c in w if c)
+        uneben = sum(wochen_abstand(sum(w), woche) for w in col)
         alle = sorted((miss(x, g) / (g if g else CAP_U)
                        for v in vols for x, g in zip(v, goals)), reverse=True)
         hart = sum(1 for x in alle if x >= MAX_REL)
         aus = sum(1 for w in col for c, (lo, hi) in zip(w, bands) if not lo <= c <= hi)
         eng = sum(spacing(row, weeks) for row in rows)
-        got = (hart, auftritte, alle, aus, eng)
+        got = (hart, auftritte, uneben, alle, aus, eng)
         if best is None or got < best[0]:
             best = (got, [list(c) for c in col], (hart, auftritte, alle, aus))
     _, per_week, (hart, auftritte, alle, aus) = best
