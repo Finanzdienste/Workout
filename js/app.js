@@ -5216,6 +5216,11 @@ function render() {
   (RENDERERS[ui.tab] || renderDashboard)();
   restoreFocus(hatte);
   syncHistory();
+  // Welche Einheit gerade in der Fokusansicht offen ist – damit sie nach dem
+  // Neuladen wieder dort aufgeht (siehe `fokusOffen` beim Start). Nur beim
+  // Wechsel geschrieben, nicht bei jedem Satz.
+  const offen = ui.tab === 'dashboard' && ui.focus ? ui.workoutNo : null;
+  if ((store.getState().fokusOffen ?? null) !== offen) store.setSetting('fokusOffen', offen);
 }
 
 function go(tab) {
@@ -6530,24 +6535,25 @@ if (ui.standAngebot) {
 // umschreiben – js/data.js hat den Nachfolger schon geladen, hier zieht der
 // gespeicherte Wert nach.
 let neuAngefangen = false;
+// Hat der Start etwas zu sagen (Umzug, Planwechsel, Aufstieg …), bleibt die
+// App auf dem Dashboard, wo der Hinweis steht – siehe unten bei `session`.
+let startHinweis = false;
 if (fokusUmzug()) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;
   neuAngefangen = true;
+  startHinweis = true;
 }
 // Und danach: Hat sich der *Inhalt* des Plans geändert, ohne dass der Fokus ein
 // anderer wäre? Dann werden die angefangenen Einheiten festgeschrieben, und die
 // Runde läuft weiter – kein Neuanfang, also auch kein Verschieben auf heute.
 // Nach fokusUmzug(), nicht davor – der stellt erst fest, welcher Plan gilt.
-if (planWechsel()) {
+if (planWechsel() || festReparieren()) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;
-} else if (festReparieren()) {
-  ui.tab = 'dashboard';
-  ui.focus = false;
-  ui.listView = false;
+  startHinweis = true;
 }
 /*
  * Eine neu begonnene Runde fängt heute an – nicht am Plandatum.
@@ -6589,6 +6595,39 @@ if (pruefeAufstieg() || pruefeZusatztag()) {
   // weiter die nächste Planeinheit – angelegt und unsichtbar, also praktisch
   // nicht vorhanden.
   ui.workoutNo = naechsteEinheit();
+  startHinweis = true;
+}
+/*
+ * Läuft eine Einheit, geht es beim Öffnen mit ihr weiter.
+ *
+ *     „Immer wenn ich kurz aus der app rausgeh und wieder rein komm dann kommt
+ *      das. Aber eigentlich sollte ja einfach die Übung kommen die jetzt als
+ *      nächstes ansteht"
+ *
+ * Das Handy beendet eine Web-App im Hintergrund gern ganz, und beim
+ * Zurückkommen lädt sie neu – nach einer neuen Fassung ohnehin. Bis v216
+ * landete man dann auf dem Dashboard vor „Training fortsetzen", mitten im
+ * Satz. Jetzt direkt in der Fokusansicht, bei der ersten Übung mit offenem
+ * Satz – so wie der Knopf es getan hätte.
+ *
+ * Nur, wenn beim Verlassen die Fokusansicht dieser Einheit offen war
+ * (`fokusOffen`, siehe render()) – wer mitten im Training bewusst zurück aufs
+ * Dashboard oder in die Übungsliste gegangen ist, landet dort wieder. Und
+ * nicht, wenn der Start etwas zu sagen hat (`startHinweis`) oder die Einheit
+ * nicht heute begonnen wurde: Eine von gestern wartet auf dem Dashboard, wo
+ * man sie abschließt oder bewusst weitermacht.
+ */
+{
+  const s = store.getState();
+  const laeuft = s.session;
+  const heute = laeuft && s.clock && s.clock.n === laeuft.n && s.clock.on === todayISO();
+  if (heute && s.fokusOffen === laeuft.n && !startHinweis && !ui.standAngebot
+      && ui.tab === 'dashboard' && workoutByNo(laeuft.n).ex.length) {
+    ui.workoutNo = laeuft.n;
+    ui.focus = true;
+    ui.listView = false;
+    ui.focusIdx = firstOpenExercise(laeuft.n, store.workoutMode(laeuft.n));
+  }
 }
 /*
  * Wenn das Speichern kippt, muss der Bildschirm es sagen – sofort.

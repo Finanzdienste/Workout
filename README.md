@@ -4449,6 +4449,27 @@ Einheit. Sie erscheint erst, wenn überhaupt Zeit gemessen wurde – Einheiten a
 der Zeit davor tragen keine, und ein Durchschnitt über null Einheiten wäre eine
 Lüge.
 
+### Zurück in der App: weiter bei der nächsten Übung
+
+> „Immer wenn ich kurz aus der app rausgeh und wieder rein komm dann kommt das.
+> Aber eigentlich sollte ja einfach die Übung kommen die jetzt als nächstes
+> ansteht"
+
+Das Handy beendet eine Web-App im Hintergrund gern ganz, und beim Zurückkommen
+lädt sie neu – nach einer neuen Fassung sowieso. Die Fokusansicht war dann weg,
+und man stand mitten im Training vor „Training fortsetzen" auf dem Dashboard.
+Seit v217 öffnet die App eine laufende Einheit direkt in der Fokusansicht, bei
+der ersten Übung mit offenem Satz – so, wie der Knopf es getan hätte.
+
+Das gilt, wenn beim Verlassen die Fokusansicht offen war – die App merkt sich
+das (`fokusOffen`). Wer mitten im Training bewusst zurück aufs Dashboard oder
+in die Übungsliste gegangen ist, landet wieder dort. Dazu zwei Ausnahmen, beide
+mit Absicht: Hat der Start etwas zu sagen (Planwechsel, Aufstieg, Zusatztag,
+ein geschickter Stand), bleibt das Dashboard, wo der Hinweis steht. Und eine
+Einheit, die nicht heute begonnen wurde, öffnet nicht von selbst – die wartet
+auf dem Dashboard, wo man sie abschließt oder bewusst weitermacht.
+`tests/test-fortsetzen.mjs` prüft das.
+
 Das ist übrigens die ehrlichere Zahl als die des Handys: Androids *Digitales
 Wohlbefinden* zählt, wie lange die App offen war, diese Uhr zählt, wie lange
 trainiert wurde.
