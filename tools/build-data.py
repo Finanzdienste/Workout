@@ -351,7 +351,7 @@ def main():
     # Namen, Wiederholungen, Hinweise und das Bodyweight-Äquivalent. Datei
     # löschen und neu generieren stellt den Originalplan wieder her.
     # Ohne plan.json gilt das alte, gleichmäßige Ziel für jede Gruppe.
-    def lies_plan(pfad):
+    def lies_plan(pfad, still=False):
         """Eine Plandatei prüfen und in die Form bringen, die die App erwartet."""
         roh = json.loads(pfad.read_text(encoding='utf-8'))
         # Der Suchbegriff ist tools/plan-*.json, und da geraet leicht etwas
@@ -382,9 +382,10 @@ def main():
                     sys.exit(f'{pfad.name}: {i["id"]} am {o["date"]} hat '
                              f'{i["bwSets"]} Bodyweight-Sätze')
             fresh.append({'n': len(fresh) + 1, 'date': o['date'], 'ex': o['ex']})
-        print(f'{pfad.relative_to(ROOT)}: {len(fresh)} Einheiten '
-              f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), '
-              f'Fokus "{roh.get("name", "Ausgewogen")}"')
+        if not still:
+            print(f'{pfad.relative_to(ROOT)}: {len(fresh)} Einheiten '
+                  f'({fresh[0]["date"]} bis {fresh[-1]["date"]}), '
+                  f'Fokus "{roh.get("name", "Ausgewogen")}"')
         # Fingerabdruck der Inhalte: Welche Uebung an welcher Nummer steht.
         #
         # Ein Protokoll ist nach Workout-Nummer abgelegt. Aendert sich, was
@@ -431,6 +432,28 @@ def main():
     for v in varianten.values():
         v['target'] = {m: v['target'].get(m, DEFAULT_TARGET) for m in groups}
 
+    # Der Plan davor, je Variante, wenn er unter tools/plan-vorher/ liegt.
+    #
+    # Wechselt der Plan, schreibt die App angefangene Einheiten auf das fest,
+    # was im Protokoll steht (planWechsel() in js/app.js). Die Fokusansicht
+    # legte aber nur Einträge für die Übungen an, die schon angezeigt waren –
+    # und am 29.09. stand eine angefangene Cut-Einheit danach mit zwei statt
+    # vier Übungen da:
+    #
+    #     „Heute nur zwei Übungen?"
+    #
+    # Mit dem alten Plan weiß die App, was hinter der Nummer stand, und schreibt
+    # die ganze Einheit fest. Wer einen Plan neu einspielt, legt den bisherigen
+    # vorher hierher (siehe README, „Einen Plan neu einspielen").
+    for key, v in varianten.items():
+        vorher = ROOT / 'tools' / 'plan-vorher' / f'{key}.json'
+        if vorher.exists():
+            alt = lies_plan(vorher, still=True)
+            if alt['stand'] != v['stand']:
+                v['vorher'] = {'stand': alt['stand'],
+                               'ex': [[[i['id'], i['sets'], i['bwSets']] for i in o['ex']]
+                                      for o in alt['plan']]}
+
     # Eine Umleitung ins Leere wäre schlimmer als gar keine: Sie sieht im Code
     # nach Sorgfalt aus und landet doch wieder beim stillen Rückfall.
     for alt, ziel in FOKUS_ERSATZ.items():
@@ -452,6 +475,8 @@ def main():
         "//   rest     Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,\n"
         "//            und ab welchem Anteil eine Uebung als direkt fuer sie gilt\n"
         "//   plan     die Einheiten selbst\n"
+        "//   vorher   der Plan davor (nur Stand und Uebungen je Nummer), damit ein\n"
+        "//            Planwechsel angefangene Einheiten vollstaendig festschreibt\n"
         "export const PLANS = {\n"
         + "".join(
             f"  {json.dumps(key)}: {{\n"
@@ -462,7 +487,9 @@ def main():
             f"    cap: {json.dumps(v['cap'])},\n"
             f"    rest: {json.dumps(v['rest'], ensure_ascii=False)},\n"
             f"    plan: {json.dumps(v['plan'], ensure_ascii=False, separators=(',', ':'))},\n"
-            f"  }},\n"
+            + (f"    vorher: {json.dumps(v['vorher'], ensure_ascii=False, separators=(',', ':'))},\n"
+               if v.get('vorher') else '')
+            + f"  }},\n"
             for key, v in varianten.items())
         + "};\n\n"
         "// Abgeschaffte Fokusse und ihr Nachfolger. Ein Fokus steht im Browser des\n"

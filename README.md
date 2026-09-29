@@ -2822,6 +2822,41 @@ Noch der Stand vom 25.09. Die Neuläufe sind gerechnet (ohne Rucksack, nur
 Einheiten mit 15 oder 18 Sätzen) und werden mit dem Wochenband gegengerechnet,
 bevor sie eingespielt werden.
 
+### Einen Plan neu einspielen
+
+Jeder Plan trägt einen Fingerabdruck seiner Inhalte (`stand` in `js/data.js`:
+welche Übung hinter welcher Nummer steht, ohne Termine). Ändert er sich, schreibt
+die App beim nächsten Laden jede angefangene oder trainierte Einheit auf das
+fest, was dort gemacht wurde (`planWechsel()` in `js/app.js`), und nur der Rest
+bekommt den neuen Plan. Die Runde läuft weiter, und ein Hinweis sagt es.
+
+**Mit v215 ging dabei etwas verloren.** Der neue Cut kam, während eine Einheit
+angefangen war – Liegestütze im Wechsel mit Band-Seitheben, dahinter Crunches
+und Wadenheben:
+
+> „Heute nur zwei Übungen?"
+
+Festgeschrieben wurde aus dem Protokoll, und das kannte nur das erste Paar: Die
+Fokusansicht legte Einträge nur für die Übungen an, die sie gerade zeigte. Die
+Listenansicht tat es für alle, die Fokusansicht nicht – und angefangen wird
+fast immer in der Fokusansicht. Seit v216:
+
+* **Die Fokusansicht legt die ganze Einheit an**, sobald sie aufgeht, wie die
+  Liste mit jeder Karte.
+* **Der Plan davor reist mit.** Wer einen Plan neu einspielt, legt den
+  bisherigen vorher nach `tools/plan-vorher/<variante>.json`;
+  `tools/build-data.py` bettet dessen Übungen je Nummer als `vorher` ein. Kommt
+  der Wechsel von genau diesem Stand, schreibt die App eine angefangene Einheit
+  mit ihrer ganzen alten Liste fest, egal was das Protokoll kennt.
+* **Was schon zu kurz festgeschrieben war, wird repariert** (`festReparieren()`):
+  eine nicht abgeschlossene Einheit, deren feste Übungen alle in derselben
+  Nummer des Plans davor stehen, der aber mehr hatte, bekommt dessen ganze
+  Liste zurück. Abgehakte Sätze bleiben, und die App sagt es. Abgeschlossene
+  Einheiten bleiben, wie sie sind – was nicht gemacht wurde, kommt nicht
+  nachträglich hinein.
+
+`tests/test-fest-vollstaendig.mjs` prüft alle drei, an genau diesem Fall.
+
 ### „Kurz und knapp" war ein Jahr lang kaputt
 
 *Auch diese Variante gibt es nicht mehr – siehe [Zwei Pläne, die es nicht mehr

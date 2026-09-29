@@ -339,7 +339,9 @@ function planWechsel() {
     }
     return false;
   }
-  const liste = festeListen(s.log || {}, s.mode);
+  const vorherPlan = (PLANS[fokus] || {}).vorher;
+  const liste = festeListen(s.log || {}, s.mode,
+    vorherPlan && vorherPlan.stand === vorher ? vorherPlan : null);
   const einheiten = store.festschreiben(liste);
   // **Und gesagt wird es auch** – eine Einheit, die plötzlich andere Übungen
   // zeigt, braucht einen Grund, den man lesen kann.
@@ -360,7 +362,7 @@ function planWechsel() {
  * Nachhinein zu einer offenen. Bei einer angefangenen alles, was dort stand:
  * der Rest ist noch zu tun.
  */
-function festeListen(log, grundModus) {
+function festeListen(log, grundModus, vorher = null) {
   const aktiv = (x) => x && (x.done || x.w || x.wie);
   const out = {};
   Object.entries(log).forEach(([n, e]) => {
@@ -371,12 +373,64 @@ function festeListen(log, grundModus) {
     if (!e.done && !angefasst('db') && !angefasst('bw')) return;
     let m = e.mode || grundModus || 'db';
     if (zahl('db') || zahl('bw')) m = zahl('bw') > zahl('db') ? 'bw' : 'db';
+    // Eine angefangene Einheit mit dem Plan davor: ganz, wie sie dort stand.
+    // Das Protokoll allein kennt nur die Übungen, die schon angezeigt waren –
+    // in der Fokusansicht bis v215 nur das erste Paar (siehe vorherListe()).
+    const alt = !e.done && vorherListe(vorher, n, m);
+    if (alt) {
+      out[n] = alt;
+      return;
+    }
     const soll = e.soll || {};
     out[n] = Object.entries(e[m] || {})
       .filter(([id, arr]) => Array.isArray(arr) && EX_BY_ID.has(id) && (!e.done || arr.some(aktiv)))
       .map(([id, arr]) => ({ id, sets: soll[id] || arr.length }));
   });
   return out;
+}
+
+/** Die Übungsliste der Einheit n im Plan davor, im gegebenen Modus – oder null. */
+function vorherListe(vorher, n, mode) {
+  const liste = vorher && vorher.ex[Number(n) - 1];
+  if (!liste) return null;
+  return liste.filter(([id]) => EX_BY_ID.has(id))
+    .map(([id, sets, bwSets]) => ({ id, sets: mode === 'bw' ? bwSets : sets }));
+}
+
+/**
+ * Angefangene Einheiten, die ein Planwechsel zu kurz festgeschrieben hat.
+ *
+ *     „Heute nur zwei Übungen?"
+ *
+ * Mit v215 kam ein neuer Cut-Plan. Eine Einheit, die in der Fokusansicht
+ * angefangen war, hatte im Protokoll nur das erste Übungspaar – die Ansicht
+ * legte Einträge nur für das an, was sie gerade zeigte –, und planWechsel()
+ * schrieb sie auf genau diese zwei fest. Die anderen beiden waren weg.
+ *
+ * Repariert wird nur, was eindeutig so entstanden ist: nicht abgeschlossen,
+ * festgeschrieben, und jede feste Übung steht auch in derselben Nummer des
+ * Plans davor, der aber mehr hatte. Dann gilt dessen ganze Liste; die Satzzahl
+ * der schon festen Übungen bleibt.
+ */
+function festReparieren() {
+  const s = store.getState();
+  const fokus = s.focus || 'standard';
+  const vorher = (PLANS[fokus] || {}).vorher;
+  if (!vorher) return 0;
+  const ersatz = {};
+  Object.entries(s.log || {}).forEach(([n, e]) => {
+    if (!e || e.done || !Array.isArray(e.fest) || !e.fest.length) return;
+    const alt = vorherListe(vorher, n, e.mode || s.mode);
+    if (!alt || alt.length <= e.fest.length) return;
+    if (!e.fest.every((f) => alt.some((a) => a.id === f.id))) return;
+    ersatz[n] = alt.map((a) => e.fest.find((f) => f.id === a.id) || a);
+  });
+  const k = store.festErsetzen(ersatz);
+  if (k) {
+    store.setSetting('planUmbau', { einheiten: k, repariert: true,
+      fokus: (PLANS[fokus] || {}).name || fokus });
+  }
+  return k;
 }
 
 /**
@@ -390,6 +444,21 @@ function festeListen(log, grundModus) {
 function umbauHinweis() {
   const u = store.getState().planUmbau;
   if (!u) return '';
+  if (u.repariert) {
+    return `
+    <div class="notice aufstieg" style="margin:0 0 12px">
+      <strong>Deine angefangene Einheit ist wieder vollständig</strong>
+      <div class="small" style="margin-top:6px">
+        Beim Plan-Update eben ${u.einheiten === 1 ? 'hatte eine angefangene Einheit' : `hatten ${u.einheiten} angefangene Einheiten`}
+        in „${esc(u.fokus)}" Übungen verloren – nur die schon angezeigten waren
+        geblieben. Das war ein Fehler in der App. Jetzt stehen wieder alle Übungen
+        drin, die dort vorher standen; was du schon abgehakt hast, bleibt abgehakt.
+      </div>
+      <div class="btn-row nav" style="margin-top:10px">
+        <button type="button" class="btn btn-primary" data-act="umbau-ok">Verstanden</button>
+      </div>
+    </div>`;
+  }
   if (u.fest) {
     return `
     <div class="notice aufstieg" style="margin:0 0 12px">
@@ -1177,6 +1246,11 @@ function renderFocus() {
   const n = ui.workoutNo;
   const w = workoutByNo(n);
   const mode = store.workoutMode(n);
+  // Die ganze Einheit ins Protokoll, nicht nur die angezeigte Übung – so wie
+  // die Listenansicht es mit jeder Karte tut. Sonst kennt ein späterer
+  // Planwechsel von einer angefangenen Einheit nur das erste Paar und schreibt
+  // sie darauf fest (siehe festReparieren()).
+  if (!w.custom) w.ex.forEach((x) => { const v = resolve(x, mode); store.getSets(n, mode, v.id, v.sets); });
   const prog = progressOf(n, mode);
 
   // Eine Einheit kann leer sein: mit genug angehakten Beschwerden fällt jede
@@ -6467,6 +6541,10 @@ if (fokusUmzug()) {
 // Runde läuft weiter – kein Neuanfang, also auch kein Verschieben auf heute.
 // Nach fokusUmzug(), nicht davor – der stellt erst fest, welcher Plan gilt.
 if (planWechsel()) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
+  ui.listView = false;
+} else if (festReparieren()) {
   ui.tab = 'dashboard';
   ui.focus = false;
   ui.listView = false;

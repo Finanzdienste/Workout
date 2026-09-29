@@ -820,6 +820,22 @@ export function festschreiben(einheiten) {
   return neu;
 }
 
+/**
+ * Festgeschriebene Listen ersetzen – nur für festReparieren() in js/app.js,
+ * das die Fälle eng eingrenzt. festschreiben() lässt vorhandene bewusst stehen.
+ */
+export function festErsetzen(einheiten) {
+  let neu = 0;
+  Object.entries(einheiten).forEach(([n, liste]) => {
+    const e = state.log[n];
+    if (!e || e.done || !liste.length) return;
+    e.fest = liste.map(({ id, sets }) => ({ id, sets }));
+    neu += 1;
+  });
+  if (neu) { persist(); emit(); }
+  return neu;
+}
+
 export function markDone(n, mode) {
   const e = ensure(n);
   e.done = mode;
