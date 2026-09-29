@@ -65,6 +65,10 @@ def zweite_wahl(meta, ids):
             raus.add(i)
         elif equip == 'backpack' and 'Klimmzugstange' not in meta[i].get('dbEquip', ''):
             raus.add(i)
+    # Das Inverted Row hängt zwar an der Klimmzugstange, ist aber ein Rudern mit
+    # Rucksack – und Rudern gibt es mit der Langhantel. Genau diese Übung stand
+    # auf dem Bildschirmfoto zur Frage oben.
+    raus.add('inverted-row')
     # Dafür gibt es keine Hantelfassung – sie sind nicht zweite Wahl, sondern die einzige.
     return raus - {'haengendes-knieheben', 'sliding-leg-curl', 'einbeiniger-sliding-leg-curl'}
 
@@ -108,8 +112,16 @@ def main():
     zweite = zweite_wahl(meta, ids)
     print('zweite Wahl:', ', '.join(sorted(zweite)))
     # Jede Übung drin ist einen halben Wochen-Sollwert wert, die zweite Wahl nur
-    # ein Zehntel; jeder Satz Abstand vom Soll kostet eins.
-    c = np.array([0] * n + [(-0.5 + (0.4 if i in zweite else 0)) * soll for i in ids] + [1] * n, float)
+    # ein Zehntel; jeder Satz Abstand vom Soll kostet eins. Dazu kostet bei der
+    # zweiten Wahl jeder Satz selbst anderthalb: Ohne das war es dem Löser
+    # gleich, ob der Überschuss einer Gruppe beim Kurzhantel- oder beim
+    # Band-Seitheben landete – im Oberkörper-Plan standen so 7,3 Sätze
+    # Band-Seitheben je Woche gegen 3 mit Kurzhanteln. Mehr als eins muss es
+    # sein: Bei einem halben holte der Cut die Sätze für die hintere Schulter
+    # über einen neuen Face Pull am Band, weil der billiger war, als den
+    # Reverse Fly mit Kurzhanteln über drei Sätze die Woche zu heben.
+    c = np.array([1.5 if i in zweite else 0 for i in ids]
+                 + [(-0.5 + (0.4 if i in zweite else 0)) * soll for i in ids] + [1] * n, float)
     r = milp(c=c, constraints=LinearConstraint(np.array(A, float), lb, ub),
              integrality=np.array([1] * (2 * n) + [0] * n), bounds=Bounds(lower, upper),
              options={'time_limit': 240})

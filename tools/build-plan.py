@@ -176,6 +176,13 @@ VARIANTEN = {
         'name': 'Aufbau',
         'ziele': TARGET,
         'cap': CAP,
+        # Die Grundübungen bleiben drin, in jedem Plan – siehe 'cut'. Hier mit
+        # den Mindestmengen, die der Plan vor dem Neulauf ohnehin hatte, damit
+        # ein Neulauf nichts kürzt, was vorher stand. Ohne diese Zeile fiel die
+        # Floor Press beim Neulauf vom 29.09. auf 1,6 Sätze die Woche.
+        'pflicht': {'floor-press': 3, 'chin-ups': 3, 'einarmiges-kh-rudern': 3,
+                    'rumaenisches-kreuzheben': 2, 'goblet-squat': 2,
+                    'sitzendes-schulterdruecken': 2},
     },
     # Der Unterkörper war hier nie das Problem – Gesäß 3,0 Termine die Woche,
     # Oberschenkel 2,8, Bauch 2,0. Kaputt war der Oberkörper, und zwar nach
@@ -201,6 +208,12 @@ VARIANTEN = {
     # abbekommt; die hintere ist der, den man vergisst.
     'bbp': {
         'name': 'Bauch, Beine, Po',
+        # Grundübungen: die Beine voll, der Oberkörper mit wenigstens einem
+        # Auftritt je Muster. Ohne diese Zeile fielen beim Neulauf vom 29.09.
+        # Chin-ups und Schulterdrücken ganz heraus.
+        'pflicht': {'goblet-squat': 3, 'rumaenisches-kreuzheben': 3,
+                    'floor-press': 1, 'chin-ups': 1, 'einarmiges-kh-rudern': 2,
+                    'sitzendes-schulterdruecken': 1},
         'ziele': {
             'chest': 6, 'lats': 7, 'sideDelts': 7, 'rearDelts': 8,
             'biceps': 5, 'triceps': 6, 'abs': 12,
@@ -228,6 +241,12 @@ VARIANTEN = {
     # Goblet-Fassungen im Plan, das Hüftmuster stand mit gar nichts.
     'oberkoerper': {
         'name': 'Oberkörper',
+        # Grundübungen: der Oberkörper voll, die Beine mit wenigstens einem
+        # Auftritt je Muster. Ohne diese Zeile fiel beim Neulauf vom 29.09. der
+        # Goblet Squat ganz heraus.
+        'pflicht': {'floor-press': 3, 'chin-ups': 3, 'einarmiges-kh-rudern': 3,
+                    'sitzendes-schulterdruecken': 3,
+                    'rumaenisches-kreuzheben': 1, 'goblet-squat': 1},
         'ziele': {
             'chest': 12, 'lats': 12, 'sideDelts': 12, 'rearDelts': 9,
             'biceps': 12, 'triceps': 12, 'abs': 6,
@@ -310,13 +329,28 @@ VARIANTEN = {
     # (WK_START, unten), nicht aus dem Partikulärpunkt: Der Löser fand sonst
     # zuerst einen Plan mit sechs Sätzen Waden und null Trizeps die Woche –
     # exakt, aber schief.
+    #
+    # **Seitliche und hintere Schulter 8 statt 7** (hintere 7,95, damit es
+    # exakt aufgeht):
+    #
+    #     „sicher dass im cut so wenig sätze je muskelgruppe optimal sind?"
+    #
+    # Für die meisten Gruppen ist rund 7 im Defizit gedeckt – nicht als
+    # „optimal" bewiesen, aber über jeder bekannten Erhaltungsdosis (Bickel
+    # 2011: schon ein Drittel des Aufbauvolumens hielt die Muskeln; Roth 2023,
+    # die einzige Studie im Defizit: 20 Sätze brachten nicht mehr als 12). Die
+    # beiden Schultern lagen aber darunter: je 5 direkte Sätze an 1,67
+    # Terminen, in sieben von 21 Wochen nur ein Termin mit drei Sätzen. Das ist
+    # unter der üblichen Erhaltungsschwelle von rund 6 direkten Sätzen – und
+    # gerade die seitliche Schulter bekommt vom Drücken wenig ab. Mit 8 sind es
+    # 6 direkte Sätze je Woche, zwei Sätze mehr im ganzen Plan.
     'cut': {
         'name': 'Cut',
         'pflicht': {'floor-press': 3, 'chin-ups': 3, 'rumaenisches-kreuzheben': 3,
                     'einarmiges-kh-rudern': 3, 'goblet-squat': 3,
                     'sitzendes-schulterdruecken': 2},
         'ziele': {
-            'chest': 7, 'lats': 7, 'sideDelts': 7, 'rearDelts': 6.95,
+            'chest': 7, 'lats': 7, 'sideDelts': 8, 'rearDelts': 7.95,
             'biceps': 6.95, 'triceps': 7, 'abs': 9,
             'frontDelts': None, 'traps': None,
             'glutes': 7.9, 'quads': 6, 'hamstringsHip': 5.15, 'hamstringsKnee': 3, 'calves': 6,
