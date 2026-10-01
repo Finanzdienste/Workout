@@ -403,6 +403,35 @@ vorn zeigt der Klimmzug im Obergriff die Finger, der Chin-up den Handrücken.
 Die Hand ist gut doppelt so groß wie echt, wie die Glieder der Figur auch –
 in echter Größe wäre sie am Handy ein Punkt.
 
+**Und seit v219 klappt keine Hand mehr um.** Liegt die gewünschte
+Daumenrichtung fast längs des Unterarms – die Arme vorn bei der Kniebeuge ohne
+Gewicht, der waagerechte Unterarm beim Hammercurl, die seitlich gestreckten
+Arme am Ende des Pull-Aparts, die hängenden beim Reverse Fly –, bleibt von ihr
+quer zum Arm nur ein kurzer Rest, und wohin der zeigt, entscheiden ein paar
+Grad Armstellung. Bis v218 griff dann unter 0,2 hart eine Ersatzachse, und
+zwar für beide Hände dieselbe (`sideAxis`): links zeigte sie nach innen, rechts
+nach außen. Die rechte Hand klappte dadurch mitten in der Wiederholung von
+einem Bild zum nächsten um 180° um, mit ihr die Handfläche und bei der Faust
+die sichtbaren Finger – also genau das, woran man laut dem Wunsch oben den
+Griff erkennen soll. Bei reduzierter Bewegung steht die Figur fest bei
+t = 0,55, und das lag bei der Kniebeuge ohne Gewicht mitten in diesem Bereich:
+Dort hatte sie dauerhaft zwei verschiedene Hände. Jetzt kommt die
+Ersatzrichtung weich dazu, umso stärker, je kürzer der Rest – keine Schwelle,
+an der etwas springt. Sie ist gespiegelt wie die Hand (`innen` ist links und
+rechts eine andere Achse) und kehrt sich mit dem Arm um, je nachdem, ob er in
+Wunschrichtung zeigt oder ihr entgegen. Damit zeigt sie dorthin, wohin der
+Rest bei leicht abgespreiztem, leicht vorgestrecktem Arm ohnehin zeigt.
+Umklappen könnte die Hand nur noch bei Armhaltungen, die keine Übung hat: der
+Unterarm nach vorn oder hinten und dabei zur Körpermitte hin, oder quer zum
+Körper, nach außen oder nach innen, und dabei etwas hinter der Schulterlinie.
+Nachgemessen über alle Muster × Geräte in Schritten von Δt = 0,005: Der größte
+Sprung der Daumenrichtung von einem Bild zum nächsten (1 − cos) fiel von 2,0 –
+volle 180° – auf 0,001. `tests/test-rotate.mjs` prüft es am gezeichneten Pfad:
+Von vorn gesehen ist bei Kniebeuge ohne Gewicht, Hammercurl, Pull-Apart und
+Reverse Fly die eine Hand das Spiegelbild der anderen (vorher 1,5 bis 2,7
+Einheiten daneben, jetzt 0), und keine Hand ändert von einem Bild zum nächsten
+sprunghaft ihre Form (vorher 1,6 bis 2,9, jetzt 0,15 bis 0,31).
+
 **Aus `backplate` wurde `backpack`**, und das war kein Schönheitsfehler: Die
 Figur trug eine Scheibe auf dem Rücken, die Gewichtsangabe hieß
 „Zusatzgewicht" – beides zeigt etwas, das man sich allein nicht auflegen kann.
@@ -2799,10 +2828,15 @@ Bizeps 2,24 statt 2,52 Termine je Woche, Gesäß 2,76 statt 3,00 und bis 5 statt
 3 Tage Abstand, vordere Schulter 1,95 statt 2,10 und bis 7 statt 5 Tage – mit
 denselben Sätzen, nur anders verteilt. Der Beinbeuger am Knie (ein Termin je
 Woche) hat zweimal 11 Tage Abstand statt höchstens 7; das lag in allen
-gerechneten Varianten so. In der stärksten Woche liegt der Nacken bei 11,1
-statt 9,9 Sätzen (der Face Pull trifft ihn mit; im Schnitt 9,85 bei einer
-Kappe von 10), die vordere Schulter bei 9,75 statt 9,3; seitliche und hintere
-Schulter liegen dort ohnehin höher, ihr Ziel stieg. Gerechnet:
+gerechneten Varianten so. In der stärksten Woche liegt mit Hanteln der Nacken
+bei 11,1 statt 9,9 Sätzen (der Face Pull trifft ihn mit; im Schnitt 9,85 bei
+einer Kappe von 10), die vordere Schulter bei 9,75 statt 9,3; seitliche und
+hintere Schulter liegen dort ohnehin höher, ihr Ziel stieg. Ohne Hanteln steigen
+in der stärksten Woche der Nacken auf 11,3 statt 9,75 und die vordere Schulter
+auf 11,05 statt 10,6, beide über der Kappe von 10 (die vordere Schulter lag
+schon vorher darüber). Die Kappe gilt aber für den Schnitt, und der liegt ohne
+Hanteln bei 9,8 und 8,7. Der Trizeps steigt dort auf 8,55 statt 8,25;
+seitliche und hintere Schulter steigen auch hier mit ihrem Ziel. Gerechnet:
 
     WK_START=tools/pruefung/cut-start.json WK_REIHUNG=einheiten WK_SEED=11 python3 tools/build-plan.py cut
     WK_NUR_TAGE=1 WK_SPLITS=20000 WK_REIHUNG=einheiten WK_SEED=21 python3 tools/build-plan.py cut
@@ -2836,17 +2870,22 @@ hatte er ohnehin (Goblet Squat 1,7 statt der 2 aus `pflicht`, Rudern 2,9 statt
 
 **Hier kostet es Umbau, und das steht bewusst da:** 3,24 statt 3,08
 Rüstvorgänge je Einheit. Beim Aufbau war der Preis 0,4 und damit zu hoch;
-hier sind es 0,16 für einen Plan ohne Rucksack, mit der Grundübung, die ihm
-fehlte, und ohne die Einheiten mit 12 und 21 Sätzen. Drei Tagesverteilungen
-(zwei Rangfolgen, darunter `WK_REIHUNG=ruesten`) holten nur 0,01 zurück – es
-liegt an der Auswahl, nicht an den Tagen. Weitere Kosten: Bauch 1,10 statt
-1,19 Termine je Woche und bis 10 statt 7 Tage Abstand, Bizeps 2,52 statt 2,86,
-Nacken 2,67 statt 2,76, Waden (ein Termin je Woche) bis 12 statt 7 Tage
-Abstand, Beinbeuger am Knie (ebenso) bis 11 statt 10. In der stärksten Woche
-bekommt die vordere Schulter 13,2 statt 10,2 Sätze, ohne Hanteln 13,5 – mehr
-als die Kappe von 13, aber die gilt für den Schnitt, und der bleibt ohne
-Hanteln bei 10,5. Die hintere Schulter liegt dort bei 11,1 statt 9,9, Bauch,
-Bizeps und seitliche Schulter um 0,15 bis 0,6 Sätze höher. Heraus fallen Band
+hier sind es 0,15 (13 Rüstvorgänge mehr auf 84 Einheiten – die gerundeten
+Werte der Tabelle liegen 0,16 auseinander) für einen Plan ohne Rucksack, mit
+der Grundübung, die ihm fehlte, und ohne die Einheiten mit 12 und 21 Sätzen.
+Drei Tagesverteilungen (zwei Rangfolgen, darunter `WK_REIHUNG=ruesten`) holten
+nur 0,01 zurück – es liegt an der Auswahl, nicht an den Tagen. Weitere Kosten:
+Bauch 1,10 statt 1,19 Termine je Woche und bis 10 statt 7 Tage Abstand, Bizeps
+2,52 statt 2,86, Nacken 2,67 statt 2,76, Waden (ein Termin je Woche) bis 12
+statt 7 Tage Abstand, Beinbeuger am Knie (ebenso) bis 11 statt 10. In der
+stärksten Woche bekommt die vordere Schulter mit Hanteln 13,2 statt 10,2
+Sätze, ohne Hanteln 13,5 statt 10,45 – mehr als die Kappe von 13, aber die
+gilt für den Schnitt, und der liegt ohne Hanteln bei 10,5 (vorher 9,5), also
+darunter. Die hintere Schulter liegt dort in beiden Modi bei 11,1 statt 9,9,
+Bizeps und seitliche Schulter um 0,15 Sätze höher. Der Bauch steigt mit
+Hanteln um 0,6 auf 8,25 und sinkt ohne Hanteln auf 8,1 statt 8,35; ohne
+Hanteln steigen dafür Gesäß auf 7,95 statt 7,1 und Beinbeuger an der Hüfte auf
+7,35 statt 6,35. Heraus fallen Band
 Pull-apart, gewichtete Crunches, gewichtete Liegestütze, Hip Thrust, Inverted
 Row, Pike-Liegestütze und Wadenheben mit gebeugtem Knie; neu sind
 Schulterdrücken und Reverse Fly.
@@ -2885,26 +2924,29 @@ und beim ersten Neulauf mit 7 fiel sie auf 5,1 direkte Sätze an 1,71 Terminen.
 Mit 8 bleibt sie, wo sie war. **Was es kostet:** Bizeps 1,95 statt 2,19 Termine
 je Woche, Rücken 2,10 statt 2,24, Nacken 2,38 statt 2,71, bei Bizeps und Brust
 bis zu 7 statt 5 Tage Abstand, beim Gesäß bis 5 statt 4. In der stärksten Woche
-bekommt die vordere Schulter 10,5 statt 7,05 Sätze, die seitliche 10,5 statt
-9,0 (ihr Ziel stieg), die hintere 9,9 statt 9,0, der Trizeps 7,65 statt 6,9.
-Heraus fallen einbeiniges Kreuzheben, gewichtete Liegestütze, Inverted Row,
-liegende Trizepsstrecker, Reverse Fly und Reverse Snow Angel; Face Pull kommt
-dafür mit 3,1 statt 1,1 Sätzen je Woche (an 22 statt 8 Terminen, also etwa
-einmal die Woche statt alle zweieinhalb Wochen), Rumänisches Kreuzheben mit 3
-statt 1,1 Sätzen. Neu ist eine Übung: Pike-Liegestütze, 27 Sätze an 9
-Terminen, rund 1,3 je Woche. Gerechnet:
+bekommt mit Hanteln die vordere Schulter 10,5 statt 7,05 Sätze, die seitliche
+10,5 statt 9,0 (ihr Ziel stieg), die hintere 9,9 statt 9,0, der Trizeps 7,65
+statt 6,9. Ohne Hanteln sind es bei der vorderen Schulter 11,5 statt 7,05 und
+beim Trizeps 8,05 statt 7,45; seitliche und hintere Schulter wie mit Hanteln,
+der Nacken 11,9 statt 11,85. Heraus fallen einbeiniges Kreuzheben, gewichtete
+Liegestütze, Inverted Row, liegende Trizepsstrecker, Reverse Fly und Reverse
+Snow Angel; Face Pull kommt dafür mit 3,1 statt 1,1 Sätzen je Woche (an 22
+statt 8 Terminen, also etwa einmal die Woche statt alle zweieinhalb Wochen),
+Rumänisches Kreuzheben mit 3 statt 1,1 Sätzen. Neu ist eine Übung:
+Pike-Liegestütze, 27 Sätze an 9 Terminen (ohne Hanteln 35), also rund 1,3
+Sätze je Woche (etwa alle zwei bis drei Wochen ein Termin). Gerechnet:
 
     python3 tools/pruefung/startpunkt.py bbp --ohne-bw-kappe
     WK_START=tools/pruefung/bbp-start.json WK_REIHUNG=einheiten WK_SEED=11 python3 tools/build-plan.py bbp
 
 (`--ohne-bw-kappe`, weil dieser Startpunkt vor der Kappe ohne Hanteln
 entstand – siehe Oberkörper oben. Der Plan hält sie trotzdem: Ohne Hanteln
-liegen vordere Schulter, Beinbeuger an der Hüfte und Nacken bei 8,0, 8,1 und
-9,8 Sätzen, die Kappe ist hier 12, und `tools/pruefung/plan-pruefen.py` prüft
-das in beiden Modi. Deshalb dürfen die Pike-Liegestütze hier bleiben, während
-sie im Oberkörper herausfallen: Dort trieben sie im ersten Lauf zusammen mit
-dem Schulterdrücken die vordere Schulter ohne Hanteln über die Kappe, hier ist
-Platz.)
+liegen vordere Schulter, Beinbeuger an der Hüfte und Nacken im Schnitt bei 8,0,
+8,1 und 9,8 Sätzen, die Kappe ist hier 12, und `tools/pruefung/plan-pruefen.py`
+prüft das in beiden Modi. Deshalb dürfen die Pike-Liegestütze hier neu
+dazukommen, während sie im Oberkörper herausfallen: Dort trieben sie im ersten
+Lauf zusammen mit dem Schulterdrücken die vordere Schulter ohne Hanteln über
+die Kappe, hier ist Platz.)
 
 Drei Läufe mit dem neuen Ziel, einer davon ohne Wochenband (`WK_EBEN=0` – der
 Schalter bringt den Generator von vorher zurück, nachgeprüft an einem älteren
@@ -2946,21 +2988,95 @@ fast immer in der Fokusansicht. Seit v216:
 
 `tests/test-fest-vollstaendig.mjs` prüft alle drei, an genau diesem Fall.
 
+**Lücken darin, gefunden bei der Durchsicht der Reparatur.** Die ersten drei
+sind seit v219 zu, die übrigen seit der Fassung danach.
+
+* **Ein ganz abgehaktes Paar blieb kurz.** Stand das feste Paar schon
+  vollständig abgehakt da, ohne dass die Einheit abgeschlossen war, stempelte
+  `stempleFertige()` sie beim Start als fertig – gemessen an der kurzen Liste.
+  `festReparieren()` lässt Abgeschlossenes aus, also kamen Crunches und
+  Wadenheben nie zurück, und die Einheit galt als trainiert. Gestempelt wird
+  jetzt erst nach Umzug, Planwechsel und Reparatur. Was mit dem letzten Haken
+  oder mit „Abschließen" fertig wurde, trägt `done` schon vorher und bleibt,
+  wie es ist.
+* **Die alte Liste stand roh fest** – Plan-IDs und Plan-Sätze, ohne Stufe,
+  eigene Wahl und Beschwerden. Ein Anfänger bekam damit das hängende Knieheben
+  zurück, also genau die Übung, die
+
+  > „wenn man Anfänger ausgewählt hat soll auch nur die Boden Variante kommen"
+
+  nicht mehr kommen sollte. Fortgeschrittene bekamen drei Sätze statt vier, und
+  was eine Beschwerde gestrichen hatte, stand wieder da. `vorherFassung()` in
+  `js/plan.js` schickt die Liste jetzt über denselben Weg wie einen
+  gewöhnlichen Plantag: Beschwerden und Termine, Anfängerfassung und eigene
+  Wahl, Satzzahl der Stufe. Die Reparatur erkennt dabei auch die leichtere oder
+  schwerere Fassung einer Übung wieder (`stufenKette`) – vorher blieb
+  ausgerechnet die Einheit eines Anfängers kurz.
+* **Der Reparaturhinweis überschrieb den zum Planwechsel**, solange der noch
+  nicht weggetippt war, und „ab der nächsten offenen Einheit gelten die neuen
+  Übungen" war weg. Beide stehen jetzt getrennt in `planUmbau` (`einheiten` und
+  `repariert`) und zusammen in einem Hinweis.
+* **Bloß angezeigt hieß schon trainiert.** Was im Protokoll steht, geht vor:
+  Eine Übung dort behält ihre Fassung, auch wenn die Stufe heute eine andere
+  wählen würde. Gezählt hatte dafür jeder Eintrag – und die Fokusansicht legt
+  die ganze Einheit an, sobald sie aufgeht. Über einen solchen, nie
+  angefassten Eintrag kam eine Übung zurück, die eine danach angehakte
+  Beschwerde gesperrt hatte. Jetzt entscheidet nur, was angefasst ist
+  (abgehakt, Gewicht, Rückmeldung); gesehen heißt nicht gemacht. Die Satzzahl
+  jenes Tages (`soll`) gilt weiter für jede Übung, die so dastand.
+* **Eine richtig gekürzte Liste wurde „repariert".** Schreibt `planWechsel()`
+  eine Einheit aus dem Plan davor fest, während eine Beschwerde oder ein Termin
+  eine Übung streicht, ist die Liste kürzer – zu Recht. War die Beschwerde
+  später weg, sah die Reparatur einen längeren Plan davor, holte die Übung
+  zurück und meldete „Das war ein Fehler in der App". Jede Liste, die
+  `planWechsel()` festschreibt, trägt jetzt den Stand, aus dem sie stammt
+  (`festAus`) – auch eine aus dem Protokoll, wenn der Plan davor nicht passte,
+  weil eine Fassung übersprungen wurde –, und die Reparatur lässt sie aus;
+  ebenso eine, die schon einmal repariert wurde. Repariert werden nur noch die
+  unvermerkten kurzen Listen von v215.
+* **Nach der Reparatur stand die falsche Einheit auf der Startkarte.** Welche
+  Einheit das Dashboard zeigt, stand schon vor Planwechsel und Reparatur fest.
+  Die Einheit mit dem ganz abgehakten Paar galt da noch als fertig. Im
+  nachgestellten Fall (Cut, Einheiten 1–3 trainiert, die 4 repariert) stand
+  neben „Deine angefangene Einheit ist wieder vollständig" deshalb
+  „Heute · Workout 5", und wer auf Start tippte, ließ die reparierte 4 halb
+  liegen. Jetzt wird die nächste Einheit danach neu bestimmt.
+
+`tests/test-fest-vollstaendig.mjs` prüft alle: ein ganz abgehaktes Paar samt
+Startkarte, den Wechsel bei Anfänger, eigener Wahl und Fortgeschritten, die
+Reparatur einer Anfänger-Einheit (auch nach einem Aufstieg), beide Hinweise auf
+einmal, einen Planwechsel mit Beschwerde, die später wegfällt, einen bloß
+angezeigten Eintrag einer gesperrten Übung und den Vorrang von `soll`.
+
 **Dass der Plan davor dort auch liegt, prüft inzwischen ein Skript.** Anfangs
 war es nur eine Bitte in diesem Abschnitt, und Vergessen fiele erst auf, wenn
 wieder eine angefangene Einheit zu kurz ist. Eine veraltete Datei hilft dabei so
 wenig wie keine: Die App nimmt den Plan davor nur, wenn sein Stand genau der
 ist, von dem der Wechsel kommt – der ausgelieferte. `tools/pruefung/plan-vorher.py`
-vergleicht deshalb wie die Versionspflicht mit dem ausgelieferten Stand
-(`origin/main`, in CI dem vor dem Push): Hat ein Plan seither einen anderen
-Fingerabdruck, muss `tools/plan-vorher/<variante>.json` (`standard` für
-`tools/plan.json`) genau den ausgelieferten tragen, sonst hält es an und nennt
-den Befehl, der ihn dorthin holt, etwa
+vergleicht deshalb mit dem ausgelieferten Stand, lokal `origin/main`: Hat ein
+Plan seither einen anderen Fingerabdruck, muss `tools/plan-vorher/<variante>.json`
+(`standard` für `tools/plan.json`) genau den ausgelieferten tragen, sonst hält es
+an und nennt den Befehl, der ihn dorthin holt, etwa
 `git show origin/main:tools/plan-cut.json > tools/plan-vorher/cut.json`;
 danach neu bauen. Verschobene Termine verlangen nichts, eine neue Variante auch
 nicht. Es läuft im Commit-Haken, in `npm run pruefen` und in CI.
-`tests/test-plan-vorher.mjs` prüft es in einem Wegwerf-Repo: neuer Cut ohne
-Plan davor – angehalten; den genannten Befehl ausgeführt – durch.
+
+In CI ist der Vergleichsstand anders als bei der Versionspflicht nicht einfach
+der vor dem Push. Ausgeliefert wird nur `main`, und auf einem Zweig ist der Stand
+vor dem zweiten Push einer, den nie jemand auf dem Handy hatte. In der ersten
+Fassung verlangte das Tor genau diesen als Plan davor. Wer der Meldung folgte,
+scheiterte danach am Pull-Request gegen `main`, denn keine Ablage erfüllte beide
+Prüfungen. Mit `--ci` nimmt es deshalb bei einem Pull-Request dessen Basis, bei
+einem Push nach `main` den Stand davor und auf jedem anderen Zweig den Abzweig
+von `main` (`git merge-base origin/main HEAD`). Dafür holt der Checkout die ganze
+Geschichte (`fetch-depth: 0`). Liegt ein Zweig hinter `origin/main` und hat
+`main` dort inzwischen selbst einen neuen Plan, gibt man den Abzweig lokal von
+Hand an: `python3 tools/pruefung/plan-vorher.py $(git merge-base origin/main HEAD)`.
+
+`tests/test-plan-vorher.mjs` prüft es in einem Wegwerf-Repo, dessen
+`tools/plan-vorher/` es selbst anlegt. Ein neuer Cut ohne Plan davor wird
+angehalten, nach dem genannten Befehl geht er durch. Zwei Pushes mit
+Planänderung auf einem Zweig bestehen danach auch gegen `main`.
 
 ### „Kurz und knapp" war ein Jahr lang kaputt
 
@@ -3433,19 +3549,20 @@ die freiwillige Einheit nicht. Ausgefallene Einheiten sperren nichts: Was nicht
 stattgefunden hat, muss auch nicht erholt werden. Angehakte Verletzungen
 ebenfalls eingerechnet.
 
-Ein Beispiel aus dem Testlauf – vier Einheiten „abgeschlossen", bei jeder die
-letzten zwei Übungen nie angefasst:
+Ein Beispiel aus dem Testlauf (Aufbau) – vier Einheiten „abgeschlossen", bei
+jeder die letzten zwei Übungen nie angefasst, und heute steht Workout 5 an:
 
 | | |
 | --- | --- |
-| Rückstand | rund 26 Sätze bei 7 Muskelgruppen |
-| Vorschlag | 5 Übungen, 15 Sätze |
-| davon | Band-Pull-Apart, Schulterdrücken, zwei Wadenheben, SZ-Curls |
-| direkt getroffen | hintere/vordere Schulter, Nacken, Trizeps, Waden, Bizeps |
+| Rückstand | rund 30 Sätze bei 8 Muskelgruppen |
+| Vorschlag | 4 Übungen, 12 Sätze |
+| davon | fersenerhöhter Goblet Squat, Reverse Fly, zwei Wadenheben |
+| direkt getroffen | Oberschenkel vorn, hintere Schulter, Nacken, Waden |
+| ruhen, obwohl sie fehlen | Bauch, Bizeps, Gesäß, Beinbeuger an der Hüfte – Workout 5 trifft sie heute direkt |
 | Kollisionen mit dem Plan | keine |
 
-Genau die kleinen Gruppen also, die hinten aus der Einheit fallen, wenn die
-Zeit knapp wird.
+Vor allem die kleinen Gruppen also, die hinten aus der Einheit fallen, wenn die
+Zeit knapp wird – und keine, die heute ohnehin drankommt.
 
 Der Zusatztag geht als **eigenes Workout** in die Ablage, nicht in den Plan –
 der rechnet sein Wochenvolumen aus festen Einheiten, und eine
@@ -3456,10 +3573,39 @@ Sätze zählen trotzdem in der Statistik mit; trainiert ist trainiert.
 Zusatztag macht – er steht im Plan, nicht im Protokoll. Ohne diese Sperre käme
 bei jedem Laden ein weiterer dazu.
 
-`tests/test-zusatztag.mjs`, 17 Prüfungen – darunter die Gegenrechnung über den
-echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in Reichweite
-kollidiert, und die beiden Fälle, in denen **nichts** passieren darf: volle
-Woche, und Woche läuft noch.
+`tests/test-zusatztag.mjs`, über 20 Prüfungen – darunter die Gegenrechnung über
+den echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in
+Reichweite kollidiert, ein eigener Fall mit einer gestern abgeschlossenen
+Einheit, die ihre Gruppen ebenfalls sperrt, und die beiden Fälle, in denen
+**nichts** passieren darf: volle Woche, und Woche läuft noch.
+
+**Die Gegenrechnung war lange grün, ohne etwas zu prüfen.** Gefunden bei der
+Durchsicht der Tests auf Datumsabhängigkeit. Der Test legt die erste Woche mit
+einer festen Verschiebung „hinter uns" – so stand es im Kommentar. Im Code
+stand aber `+ 14`. Die Verschiebung kommt auf das Plandatum drauf, Workout 1
+lag damit zwei Wochen *vor* uns und die nächste offene Einheit drei Wochen. In
+Reichweite, also weniger als zwei Tage entfernt, lag an keinem Testtag eine
+Einheit. Die Schleife lief leer, und eine leere Schleife meldet keine
+Kollision. Nachgestellt: Mit einem `ruhendeGruppen()`, das gar nichts sperrt
+(`return new Set()`), blieb der Test grün.
+
+Seit v219 steht dort `- 14`. Damit wäre Workout 5 schon eine Woche verstrichen,
+und `catchUpPlan()` rückt den Plan nach, bis Workout 5 auf heute fällt – genau
+die Einheit, gegen die der Zusatztag ruhen muss. Danach liegt Workout 1 eine
+Woche zurück, Workout 4 zwei Tage, Workout 6 zwei Tage voraus; die beiden
+stehen genau auf der Grenze und sind nicht in Reichweite. Der Test zählt
+außerdem mit, wie viele Einheiten er tatsächlich geprüft hat. Ist es keine,
+ist das ein Fehler und kein „bestanden". Gerechnet wird wie in der App, in
+Kalendertagen am tatsächlichen Termin. Mit `new Date()` samt Uhrzeit wäre eine
+Einheit von übermorgen ab Mittag auf „morgen" gerundet worden – ein Fehlalarm
+an jedem Nachmittag.
+
+Seitdem fällt der Zusatztag im Testlauf kleiner aus: 4 Übungen und 12 Sätze
+statt 5 und 15. Split Squat und einbeiniges Kreuzheben fliegen raus, weil
+Workout 5 heute Gesäß und Beinbeuger an der Hüfte trifft. Genau das soll die
+Regel tun. Und bricht man `ruhendeGruppen()` mit Absicht, wird der Test jetzt
+rot. Weil Workout 4 genau auf der Grenze liegt, prüfte dieser Aufbau nie, ob
+eine kürzlich *abgeschlossene* Einheit sperrt – das tut der eigene Fall oben.
 
 **Nur nach oben.** Hier stand einmal die Gegenrichtung: Wer über mehrere
 Einheiten hinweg nur einen Teil schafft, dem hätte die App die Erfahrungsstufe
@@ -4567,8 +4713,10 @@ trainiert wurde.
 Das Handy beendet eine Web-App im Hintergrund gern ganz, und beim Zurückkommen
 lädt sie neu – nach einer neuen Fassung sowieso. Die Fokusansicht war dann weg,
 und man stand mitten im Training vor „Training fortsetzen" auf dem Dashboard.
-Seit v217 öffnet die App eine laufende Einheit direkt in der Fokusansicht, bei
-der ersten Übung mit offenem Satz – so, wie der Knopf es getan hätte.
+Seit v217 öffnet die App eine laufende Einheit direkt in der Fokusansicht, seit
+v219 bei der Übung, die zuletzt zu sehen war, solange dort noch ein Satz offen
+ist, sonst bei der, die als Nächstes dran ist. So, wie der Knopf es getan
+hätte.
 
 Das gilt, wenn beim Verlassen die Fokusansicht offen war – die App merkt sich
 das (`fokusOffen`). Wer mitten im Training bewusst zurück aufs Dashboard oder
@@ -4577,7 +4725,60 @@ mit Absicht: Hat der Start etwas zu sagen (Planwechsel, Aufstieg, Zusatztag,
 ein geschickter Stand), bleibt das Dashboard, wo der Hinweis steht. Und eine
 Einheit, die nicht heute begonnen wurde, öffnet nicht von selbst – die wartet
 auf dem Dashboard, wo man sie abschließt oder bewusst weitermacht.
-`tests/test-fortsetzen.mjs` prüft das.
+
+**Mit Supersätzen beim Partner.** „Eigentlich sollte ja einfach die Übung
+kommen die jetzt als nächstes ansteht" – mit Supersätzen stimmte genau das
+nicht. Nach A1 springt die App zum Partner B, nach dem Neuladen stand aber
+wieder A da: `firstOpenExercise()` kannte nur die Planreihenfolge, und A hatte
+noch Sätze offen. Wer dem folgte, machte A2 vor B1, und der Wechsel geriet
+durcheinander. Dasselbe passierte, wenn man oben in der Übersicht bewusst zu
+einer späteren Übung gesprungen war – aus den Haken lässt sich das nicht
+ablesen. Jetzt merkt sich die App neben der Einheit auch die angezeigte Übung
+(`fokusOffen` ist `{ n, id }`; der alte Stand mit der bloßen Nummer gilt
+weiter). Hat die keinen offenen Satz mehr, fragt sie `naechsterOffen()` aus
+`js/supersatz.js`: die erste Gruppe in Planreihenfolge, in der noch etwas offen
+ist, und darin der Schritt, der dran ist – mit derselben Prüfung, die
+`superWeiter()` nach jedem Haken macht. „Training fortsetzen" und das
+Weiterrücken nach einer fertigen Übung fragen dasselbe, damit alle Wege an
+derselben Stelle landen.
+
+Eine Übung, die über beide Modi fertig ist, gilt dabei als fertig.
+Umschalten geht auch mitten in der Einheit, und die Karte zählt die Sätze aus
+Hanteln und Bodyweight zusammen. Die Prüfung im Wechsel sah anfangs nur den
+gerade eingestellten Modus: Paar 1 mit Hanteln durch, dann auf Bodyweight
+umgestellt, und „Training fortsetzen", das Neuladen und das Weiterrücken nach
+Paar 2 führten zurück zu Paar 1 – zu Übungen, deren Karte längst „fertig"
+sagte. Welcher Satz innerhalb einer halb fertigen Übung dran ist, bleibt die
+Frage des eingestellten Modus. Dasselbe galt für den Haken selbst: Fertig war
+eine Übung bis v219 erst mit dem Haken auf ihrem letzten Satz im eingestellten
+Modus. Stand B mit Hanteln bei 2 von 3, lief nach dem Umschalten mit dem
+fehlenden Satz eine Pause „1/3", und die App blieb bei B. Jetzt zählt beim
+Abhaken dieselbe Frage wie auf der Karte (`saetzeErledigt()`), und es geht
+weiter zum nächsten Paar.
+
+**Ein Zurück reicht, auch nach dem Neuladen.** Ein Neuladen behält den Verlauf
+des Browsers – nach einer neuen Fassung (`location.reload()`) ebenso wie bei
+einem wiederhergestellten Tab. Der Eintrag der Fokusansicht stand also schon
+da, und die App legte trotzdem bei jedem Neuladen einen weiteren an: Nach
+zweimal Neuladen zeigte Zurück zweimal unverändert dieselbe Übung, erst der
+dritte Druck kam aufs Dashboard. Jetzt übernimmt sie den vorhandenen Eintrag.
+Kalt gestartet, mit frischem Verlauf, legt sie weiter genau einen an – sonst
+führte Zurück aus der App hinaus statt aufs Dashboard.
+
+Und umgekehrt: Bleibt die App nach dem Neuladen auf dem Dashboard (ein Hinweis
+beim Start, eine Einheit von gestern), obwohl der Verlauf noch auf der
+Fokusansicht oder der Liste stand, saß das Dashboard auf diesem Eintrag. Der
+erste Druck auf Zurück führte zum Eintrag darunter – wieder das Dashboard, es
+sah aus, als täte Zurück nichts. Jetzt geht der Start selbst so weit zurück,
+bis die Ebene erreicht ist, aus der man hineingegangen war, und der erste Druck
+auf Zurück führt dorthin, wo man vor dem Dashboard war.
+
+`tests/test-fortsetzen.mjs` prüft das: den Partner nach dem Neuladen (auch aus
+dem alten Stand) und über „Training fortsetzen", den bewussten Sprung zu einer
+späteren Übung, ein Umschalten mitten in einer Einheit mit Supersätzen, dass
+nach zweimal Neuladen wie nach einem Kaltstart ein einziges Zurück aufs
+Dashboard führt, und dass schon der erste Druck etwas tut, wenn die App nach
+dem Neuladen auf dem Dashboard bleibt.
 
 ### Die Zeitschätzung wird an der eigenen Uhr geeicht
 

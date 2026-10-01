@@ -145,12 +145,22 @@ const DEFAULT_STATE = {
   // festgeschriebenen Einheiten, `repariert` die von festReparieren() wieder
   // vervollständigten – getrennt, weil beide Hinweise zugleich offen sein können.
   planUmbau: null,
-  // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn }
+  // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn,
+  //                   soll, fest, festAus } }
+  // Je Satz:
   //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
   //   done abgehakt
   //   wie  'unter' | 'drin' | 'oben' – wo im Wiederholungsbereich der Satz
   //        lag, falls beantwortet. Fehlt, wenn die Frage übergangen wurde;
-  //        das ist der Normalfall und kostet nichts. }
+  //        das ist der Normalfall und kostet nichts.
+  // Je Einheit, neben mode und startedOn:
+  //   soll    Satzzahl je Übung an diesem Tag, beim ersten Anzeigen festgehalten
+  //   fest    nach einem Planwechsel die eigene Übungsliste [{ id, sets }]
+  //   festAus woher `fest` stammt: der Stand des Plans davor oder der, unter
+  //           dem das Protokoll entstand (planWechsel()), oder der Plan, aus
+  //           dem festReparieren() die Liste vervollständigt hat
+  //           (festErsetzen()). Fehlt nur an den kurzen Listen von v215 – und
+  //           nur die repariert festReparieren() in js/app.js.
   log: {},
 };
 
@@ -810,13 +820,18 @@ export function toggleCare(n, key) {
  * in js/app.js. `einheiten`: { [n]: [{ id, sets }] }. Was schon eine hat,
  * behält sie: Festgeschrieben wird der Stand des Tages, an dem trainiert
  * wurde, nicht der des zweiten Planwechsels danach.
+ *
+ * `ausPlan`: { [n]: Stand } für Listen, die ganz aus dem Plan davor kommen
+ * statt aus dem Protokoll. Der Stand landet als `festAus` an der Einheit –
+ * festReparieren() lässt solche Listen in Ruhe.
  */
-export function festschreiben(einheiten) {
+export function festschreiben(einheiten, ausPlan = {}) {
   let neu = 0;
   Object.entries(einheiten).forEach(([n, liste]) => {
     const e = state.log[n];
     if (!e || e.fest || !liste.length) return;
     e.fest = liste.map(({ id, sets }) => ({ id, sets }));
+    if (ausPlan[n]) e.festAus = ausPlan[n];
     neu += 1;
   });
   if (neu) { persist(); emit(); }
@@ -826,13 +841,17 @@ export function festschreiben(einheiten) {
 /**
  * Festgeschriebene Listen ersetzen – nur für festReparieren() in js/app.js,
  * das die Fälle eng eingrenzt. festschreiben() lässt vorhandene bewusst stehen.
+ * Die neue Liste stammt aus dem Plan `stand` und trägt ihn als `festAus`:
+ * Einmal repariert ist sie vollständig, auch wenn später eine Beschwerde
+ * wegfällt und der Plan davor dann länger aussähe.
  */
-export function festErsetzen(einheiten) {
+export function festErsetzen(einheiten, stand) {
   let neu = 0;
   Object.entries(einheiten).forEach(([n, liste]) => {
     const e = state.log[n];
     if (!e || e.done || !liste.length) return;
     e.fest = liste.map(({ id, sets }) => ({ id, sets }));
+    if (stand) e.festAus = stand;
     neu += 1;
   });
   if (neu) { persist(); emit(); }

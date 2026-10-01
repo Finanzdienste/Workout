@@ -53,13 +53,19 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 //
 // Minus, nicht plus: Die Verschiebung kommt auf das Plandatum drauf, und mit
 // „+ 14" lag Workout 1 zwei Wochen *vor* uns. Abschnitt 5 fand dann an keinem
-// Tag eine Einheit in Reichweite und war grün, ohne etwas zu prüfen. So liegt
-// Woche 1 zwei Wochen zurück, und catchUpPlan() zieht die erste offene Einheit
-// (Workout 5) auf heute – genau die, gegen die der Zusatztag ruhen muss.
+// Tag eine Einheit in Reichweite und war grün, ohne etwas zu prüfen.
+//
+// Die zwei Wochen gelten aber nur bis zum Laden: `schiebe` legt Workout 1 auf
+// heute − 14, damit ist Workout 5 schon verstrichen, und catchUpPlan() rückt
+// den Plan nach, bis Workout 5 auf heute fällt. Die abgehakten Einheiten haben
+// hier kein startedOn und wandern mit. Danach liegen W1 bei −7, W4 bei −2,
+// W5 heute und W6 bei +2 – in Reichweite (unter REST.days) ist damit nur W5,
+// die anstehende Einheit, gegen die der Zusatztag ruhen muss. Den Fall einer
+// gestern *abgeschlossenen* Einheit prüft ein eigener Abschnitt weiter unten.
 const schiebe = await page.evaluate(async () => {
   const { PLAN } = await import('./js/data.js');
   const { daysBetween, todayISO } = await import('./js/dates.js');
-  return daysBetween(PLAN[0].date, todayISO()) - 14;   // Woche 1 liegt hinter uns
+  return daysBetween(PLAN[0].date, todayISO()) - 14;   // W1 vor dem Nachrücken bei −14
 });
 
 const zustand = () => page.evaluate(async () => {
@@ -244,6 +250,81 @@ const bleibtStehen = await page.evaluate(async () => (await import('./js/store.j
   .customs().some((c) => c.name === 'Zusatztag Woche 9'));
 check(bleibtStehen, 'ein angefangener Zusatztag bleibtStehen stehen – abgehakte Sätze räumt niemand weg');
 void schonAngefasst;
+
+/* ------------------------------------------------------------------ *
+ * Auch die Einheit von gestern sperrt
+ *
+ * Abschnitt 5 trifft nur die *anstehende* Einheit: Nach dem Nachrücken liegt
+ * Workout 4 genau zwei Tage zurück und damit außer Reichweite. Der andere Zweig
+ * in ruhendeGruppen() – eine abgehakte Einheit von gestern sperrt ihre Gruppen
+ * – lief nie mit. Man konnte ihn ausbauen, und der Test blieb grün.
+ *
+ * Einfach Workout 4 auf gestern zu legen reicht nicht: Dann sperren W4 und das
+ * auf heute gerückte W5 zusammen alles bis auf die Quads, und unter zwei
+ * Übungen gibt es gar keinen Zusatztag – geprüft wäre wieder nichts. Deshalb
+ * tragen hier alle vier Einheiten ihren echten Trainingstag (W1 −7, W2 −5,
+ * W3 −3, W4 gestern), und der Rest des Plans liegt drei Tage voraus: W5 ist
+ * noch nicht dran, catchUpPlan() hat nichts nachzurücken. In Reichweite ist
+ * damit allein Workout 4 – abgeschlossen, gestern.
+ * ------------------------------------------------------------------ */
+const gesternAufbau = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { addDays, daysBetween, todayISO } = await import('./js/dates.js');
+  const heute = todayISO();
+  return {
+    shift: daysBetween(PLAN[4].date, heute) + 3,     // W5 bei +3
+    tage: { 1: addDays(heute, -7), 2: addDays(heute, -5),
+            3: addDays(heute, -3), 4: addDays(heute, -1) },
+    gestern: addDays(heute, -1),
+  };
+});
+const gesternLog = await protokoll(0, 4, 2);
+Object.entries(gesternAufbau.tage).forEach(([n, tag]) => { gesternLog[n].startedOn = tag; });
+await setze({ greeted: true, name: 'T', level: 'geuebt', shift: gesternAufbau.shift,
+  log: gesternLog });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(600);
+
+const gesternRuhe = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const daten = await import('./js/data.js');
+  const { effDate, completedMode } = await import('./js/plan.js');
+  const { daysBetween, todayISO } = await import('./js/dates.js');
+  const byId = new Map(daten.EXERCISES.map((e) => [e.id, e]));
+  const heute = todayISO();
+  const direktIm = (liste) => new Set(liste.flatMap((x) => Object.entries(byId.get(x.id).db.shares)
+    .filter(([, sh]) => sh >= daten.REST.direct).map(([m]) => m)));
+  const c = store.customs().find((x) => /^Zusatztag Woche 1$/.test(x.name));
+  const w4 = daten.PLAN[3];
+  // Was ausgelassen wurde: je Einheit die letzten zwei Übungen (protokoll()).
+  const ausgelassen = direktIm(daten.PLAN.slice(0, 4).flatMap((w) => w.ex.slice(-2)));
+  const gruppenW4 = direktIm(w4.ex);
+  const zusatz = c ? direktIm(c.ex) : new Set();
+  return {
+    angelegt: c ? c.ex.map((x) => x.id) : null,
+    w4: { termin: effDate(w4), fertig: !!completedMode(w4.n) },
+    inReichweite: daten.PLAN.filter((w) => Math.abs(daysBetween(effDate(w), heute))
+      < daten.REST.days).map((w) => `W${w.n}`),
+    // Gruppen von W4, die auch im Rückstand stehen: Die würde der Zusatztag
+    // ohne die Sperre nehmen. Ist das leer, beweist der Fall nichts.
+    gewollt: [...gruppenW4].filter((m) => ausgelassen.has(m)),
+    treffer: [...gruppenW4].filter((m) => zusatz.has(m)),
+  };
+});
+console.log('     gestern abgeschlossen:', JSON.stringify(gesternRuhe));
+check(gesternRuhe.w4.termin === gesternAufbau.gestern && gesternRuhe.w4.fertig,
+  `Workout 4 ist abgehakt und liegt auf gestern (${gesternRuhe.w4.termin})`);
+check(gesternRuhe.inReichweite.join() === 'W4',
+  `in Reichweite ist allein Workout 4 (${gesternRuhe.inReichweite.join(', ') || 'keine'})`);
+check(gesternRuhe.gewollt.length > 0,
+  `der Rückstand enthält Gruppen von Workout 4 – sonst gäbe es nichts zu sperren (${
+    gesternRuhe.gewollt.join(', ')})`);
+check(gesternRuhe.angelegt && gesternRuhe.angelegt.length >= 2,
+  `trotzdem entsteht ein Zusatztag mit mindestens zwei Übungen (${
+    gesternRuhe.angelegt ? gesternRuhe.angelegt.length : 'keiner'})`);
+check(gesternRuhe.treffer.length === 0,
+  `und er lässt die Gruppen von gestern in Ruhe${
+    gesternRuhe.treffer.length ? ': ' + gesternRuhe.treffer.join(', ') + '@W4' : ''}`);
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

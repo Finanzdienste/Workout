@@ -459,9 +459,11 @@ function stufenFassung(ex, m) {
  * (tagAnpassen), dann Stufe und eigene Wahl (stufenFassung). Vorrat und
  * Modus-Sperren nicht – die rechnet exBasis() auch über einer festen Liste.
  *
- * Und was schon im Protokoll steht, hat Vorrang: Die Übung dort war die
- * angezeigte, `soll` die Satzzahl jenes Tages. Hat sich die Stufe seither
- * geändert, steht sonst eine andere Fassung fest als die, die trainiert wurde.
+ * Und was schon im Protokoll steht, hat Vorrang: Eine angefasste Übung dort
+ * war die trainierte, `soll` die Satzzahl jenes Tages. Hat sich die Stufe
+ * seither geändert, steht sonst eine andere Fassung fest als die, die
+ * trainiert wurde. Bloß angezeigte Übungen zählen dafür nicht (siehe unten),
+ * ihr `soll` schon.
  */
 export function vorherFassung(n, liste, mode) {
   const roh = liste.filter(([id]) => EX_BY_ID.has(id))
@@ -471,16 +473,29 @@ export function vorherFassung(n, liste, mode) {
   const items = stufenFassung(tag, mode);
   const e = store.getState().log[n] || {};
   const soll = e.soll || {};
-  const da = Object.keys(e[mode] || {}).filter((id) => EX_BY_ID.has(id));
+  // Nur angefasste Einträge (abgehakt, Gewicht, Rückmeldung) – dieselbe Regel
+  // wie protokolliert() unten. Einen Eintrag legt die App schon beim Anzeigen
+  // an, die Fokusansicht seit v216 für die ganze Einheit. Zählte jeder, holte
+  // die Zuordnung über `from` eine Übung zurück, die eine danach angehakte
+  // Beschwerde gesperrt hat: Gemessen an BBP Einheit 1 mit Schulter-Impingement
+  // stand der liegende Trizepsstrecker wieder fest statt des Ersatzes, obwohl
+  // nur der Split Squat abgehakt war. Gesehen heißt nicht gemacht – was nur
+  // angezeigt war, bleibt beweglich wie an jedem anderen Tag.
+  const da = Object.entries(e[mode] || {})
+    .filter(([id, arr]) => EX_BY_ID.has(id) && Array.isArray(arr) && arr.some((x) => x && (x.done || !!x.w || !!x.wie)))
+    .map(([id]) => id);
   const frei = da.filter((id) => !items.some((it) => it.id === id));
   return items.map((it) => {
     let id = it.id;
     if (!da.includes(id)) {
       const x = frei.find((y) => nah(it, y));
-      if (!x) return it;
-      frei.splice(frei.indexOf(x), 1);
-      id = x;
+      if (x) {
+        frei.splice(frei.indexOf(x), 1);
+        id = x;
+      }
     }
+    // `soll` dagegen für jede Übung, die an jenem Tag so dastand – auch nur
+    // angezeigt. Es ist die Satzzahl, mit der die App sie gezeigt hat.
     return { ...it, id, sets: soll[id] || it.sets };
   });
 }

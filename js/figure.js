@@ -1785,8 +1785,11 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // dorthin, wohin der Rest ohnehin zeigt, wenn der Arm wie fast immer
       // etwas abgespreizt ist und etwas vor dem Körper liegt. Umklappen könnte
       // die Hand nur noch, wo der Unterarm nach vorn oder hinten zeigt und
-      // dabei zur Körpermitte hin, oder seitlich hinaus und dabei hinter die
-      // Schulter. Beides kommt in keinem Muster vor.
+      // dabei zur Körpermitte hin, oder quer zum Körper, nach außen oder nach
+      // innen, und dabei etwas hinter der Schulterlinie. Keins davon kommt in
+      // einem Muster vor: Über alle Muster bleibt der Vektor vor dem Normieren
+      // nie kürzer als 0,38 (gemessen 0,386), weit weg von der Stelle, an der
+      // er null wird.
       const quer = (v) => add(v, mul(f, -skalar(v, f)));
       const rest = quer(wunsch);
       const kurz = Math.max(0, 1 - Math.hypot(...rest) / 0.5);

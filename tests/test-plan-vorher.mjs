@@ -17,11 +17,21 @@
  *   4. Sein Fingerabdruck ist der aus tools/build-data.py – derselbe, den die
  *      App in js/data.js vergleicht. Rechnete das Tor anders, prüfte es etwas,
  *      das die App nie ansieht.
+ *   5. In CI vergleicht es mit dem ausgelieferten Stand, nicht mit dem vor dem
+ *      Push: Zwei Pushes mit Planänderung auf einem Zweig, und wer der Meldung
+ *      folgt, besteht danach auch gegen main.
+ *
+ * Was heute in tools/plan-vorher/ liegt, übernimmt der Test bewusst nicht. Die
+ * erste Fassung tat das und verlangte wörtlich „standard.json fehlt" – beim
+ * nächsten neuen Standardplan hätte genau die Datei dort gelegen, die das Tor
+ * verlangt, und der Test wäre rot geworden, obwohl alles stimmte. Den
+ * Ausgangszustand legt er deshalb selbst fest.
  *
  * Kein Browser: Das Tor ist ein Python-Skript. Es steht trotzdem hier, damit es
  * mit `node tests/lauf.mjs` überall mitläuft.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -30,45 +40,76 @@ import { ROOT } from './umgebung.mjs';
 
 let fails = 0;
 const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { fails++; process.exitCode = 1; } };
+const zeige = (text) => console.log(text.split('\n').map((z) => `     ${z}`).join('\n'));
 
 const { PLANS } = await import(pathToFileURL(path.join(ROOT, 'js', 'data.js')).href);
 
-// Das Wegwerf-Repo: die Pläne, der Plan davor und das Tor, als ein Commit –
-// der ist hier „ausgeliefert". Nie im echten Repo, wo ein Fehler im Test
-// tools/ umschriebe.
-const tmp = mkdtempSync(path.join(os.tmpdir(), 'plan-vorher-'));
+// Der Fingerabdruck, wie lies_plan() in tools/build-data.py ihn bildet: welche
+// Übung hinter welcher Nummer steht, ohne Termine. Hier nachgerechnet, damit
+// der Test die Stände seiner selbst gebauten Ablagen kennt, ohne sie dem Tor
+// abzulesen – und gegen js/data.js abgeglichen, damit er nicht danebenliegt.
+const standVon = (roh) => createHash('sha256')
+  .update(roh.plan.map((o, i) => `${i + 1}:${o.ex.map((x) => x.id).join(',')}`).join(';'))
+  .digest('hex').slice(0, 12);
+
+// Das Wegwerf-Repo: die Pläne und das Tor, als ein Commit – der ist hier
+// „ausgeliefert". Nie im echten Repo, wo ein Fehler im Test tools/ umschriebe.
+const wurzel = mkdtempSync(path.join(os.tmpdir(), 'plan-vorher-'));
+const tmp = path.join(wurzel, 'repo');
 const quelle = path.join(ROOT, 'tools');
 const git = (...args) => execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
-  '-c', 'commit.gpgsign=false', ...args], { cwd: tmp, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-const tor = (...args) => {
+  '-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', ...args],
+{ cwd: tmp, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+// Das Tor. Die GITHUB_*-Variablen des Testlaufs selbst (der läuft in CI ja
+// auch) dürfen nicht hineinreichen – nur die, die ein Schritt ausdrücklich setzt.
+const tor = (args, ci = {}) => {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GITHUB_')));
   const r = spawnSync('python3', [path.join('tools', 'pruefung', 'plan-vorher.py'), ...args],
-    { cwd: tmp, encoding: 'utf8' });
+    { cwd: tmp, encoding: 'utf8', env: { ...env, ...ci } });
   return { code: r.status, text: `${r.stdout || ''}${r.stderr || ''}`.trim() };
 };
-const plan = (f) => JSON.parse(readFileSync(path.join(tmp, 'tools', f), 'utf8'));
-const schreibe = (f, roh) => writeFileSync(path.join(tmp, 'tools', f), JSON.stringify(roh, null, 1));
+const datei = (f) => path.join(tmp, 'tools', f);
+const plan = (f) => JSON.parse(readFileSync(datei(f), 'utf8'));
+const schreibe = (f, roh) => writeFileSync(datei(f), JSON.stringify(roh, null, 1));
 // Ein neuer Stand, wie ihn ein Generatorlauf bringt: andere Übungen hinter
 // einer Nummer. Die Reihenfolge reicht – sie geht in den Fingerabdruck ein.
-const umbauen = (f) => {
-  const roh = plan(f);
-  roh.plan[0].ex.reverse();
-  schreibe(f, roh);
+const umgebaut = (roh, nummer) => {
+  const neu = structuredClone(roh);
+  neu.plan[nummer - 1].ex.reverse();
+  return neu;
 };
+const umbauen = (f, nummer = 1) => schreibe(f, umgebaut(plan(f), nummer));
+const befehle = (text) => text.split('\n').filter((z) => /^\s*git show \S+ > \S+$/.test(z))
+  .forEach((z) => execFileSync('sh', ['-c', z.trim()], { cwd: tmp }));
 
 try {
   mkdirSync(path.join(tmp, 'tools', 'pruefung'), { recursive: true });
   readdirSync(quelle).filter((f) => /^plan(-.+)?\.json$/.test(f))
-    .forEach((f) => cpSync(path.join(quelle, f), path.join(tmp, 'tools', f)));
-  cpSync(path.join(quelle, 'plan-vorher'), path.join(tmp, 'tools', 'plan-vorher'), { recursive: true });
-  cpSync(path.join(quelle, 'pruefung', 'plan-vorher.py'), path.join(tmp, 'tools', 'pruefung', 'plan-vorher.py'));
+    .forEach((f) => cpSync(path.join(quelle, f), datei(f)));
+  cpSync(path.join(quelle, 'pruefung', 'plan-vorher.py'), datei('pruefung/plan-vorher.py'));
+
+  // Der Ausgangszustand von tools/plan-vorher/, unabhängig vom echten Repo:
+  // für den Cut eine bekannt veraltete Ablage (Einheit 2 umgedreht), für den
+  // Standardplan ausdrücklich keine.
+  const cut = plan('plan-cut.json');
+  const veraltet = umgebaut(cut, 2);
+  mkdirSync(datei('plan-vorher'), { recursive: true });
+  schreibe('plan-vorher/cut.json', veraltet);
+  rmSync(datei('plan-vorher/standard.json'), { force: true });
+
+  check(standVon(cut) === PLANS.cut.stand && standVon(plan('plan.json')) === PLANS.standard.stand,
+    `der Fingerabdruck im Test ist der aus js/data.js (${PLANS.cut.stand}, ${PLANS.standard.stand})`);
+  check(standVon(veraltet) !== PLANS.cut.stand && standVon(umgebaut(cut, 1)) !== PLANS.cut.stand,
+    'Umdrehen einer Einheit ergibt wirklich einen neuen Stand');
+
   git('init', '-q');
   git('add', '.');
   git('commit', '-qm', 'ausgeliefert');
   const basis = git('rev-parse', 'HEAD').trim();
 
   // --- 1. Nichts geändert, oder nur Termine ----------------------------
-  let r = tor(basis);
-  console.log(`     ${r.text}`);
+  let r = tor([basis]);
+  zeige(r.text);
   check(r.code === 0, 'unveränderte Pläne: das Tor lässt durch');
 
   const roh = plan('plan-cut.json');
@@ -76,21 +117,18 @@ try {
     o.date = new Date(Date.parse(o.date) + 7 * 864e5).toISOString().slice(0, 10);
   });
   schreibe('plan-cut.json', roh);
-  r = tor(basis);
+  r = tor([basis]);
   check(r.code === 0, 'nur Termine verschoben (und die Datei anders formatiert): es lässt durch');
   git('checkout', '--', 'tools');
 
   // --- 2. Neuer Stand, der Plan davor veraltet -------------------------
-  //
-  // Genau die Lage im Repo: tools/plan-vorher/cut.json ist der Cut von vor
-  // „Schultern auf 8". Der nächste neue Cut muss den jetzigen dorthin legen.
   umbauen('plan-cut.json');
-  r = tor(basis);
-  console.log(r.text.split('\n').map((z) => `     ${z}`).join('\n'));
+  r = tor([basis]);
+  zeige(r.text);
   check(r.code === 1, 'neuer Cut, tools/plan-vorher/cut.json veraltet: das Tor hält an');
-  check(r.text.includes(`tools/plan-vorher/cut.json hat ${PLANS.cut.vorher.stand}`),
-    'es nennt die Datei und den Stand, der dort liegt');
-  check(r.text.includes(`tools/plan-cut.json: ${PLANS.cut.stand} →`),
+  check(r.text.includes(`tools/plan-vorher/cut.json hat ${standVon(veraltet)}`),
+    `es nennt die Datei und den Stand, der dort liegt (${standVon(veraltet)})`);
+  check(r.text.includes(`tools/plan-cut.json: ${PLANS.cut.stand} → ${standVon(plan('plan-cut.json'))}`),
     `sein Fingerabdruck ist der aus js/data.js (${PLANS.cut.stand})`);
   const befehl = `git show ${basis}:tools/plan-cut.json > tools/plan-vorher/cut.json`;
   check(r.text.includes(befehl), 'es nennt den Befehl, der den ausgelieferten Cut dorthin holt');
@@ -98,18 +136,17 @@ try {
     'und nur den Plan, der sich geändert hat');
 
   // --- 3. Den genannten Befehl ausgeführt ------------------------------
-  r.text.split('\n').filter((z) => /^\s*git show \S+ > \S+$/.test(z))
-    .forEach((z) => execFileSync('sh', ['-c', z.trim()], { cwd: tmp }));
-  check(readFileSync(path.join(tmp, 'tools', 'plan-vorher', 'cut.json'), 'utf8')
+  befehle(r.text);
+  check(readFileSync(datei('plan-vorher/cut.json'), 'utf8')
     === readFileSync(path.join(quelle, 'plan-cut.json'), 'utf8'),
   'danach liegt dort der ausgelieferte Cut, Byte für Byte');
-  r = tor(basis);
-  console.log(`     ${r.text}`);
+  r = tor([basis]);
+  zeige(r.text);
   check(r.code === 0, 'und das Tor lässt durch');
 
   // --- 4. Der Standardplan heißt dort standard.json --------------------
   umbauen('plan.json');
-  r = tor(basis);
+  r = tor([basis]);
   check(r.code === 1 && r.text.includes('tools/plan-vorher/standard.json fehlt'),
     'neuer Standardplan ohne tools/plan-vorher/standard.json: das Tor hält an');
   check(r.text.includes(`tools/plan.json: ${PLANS.standard.stand} →`),
@@ -118,15 +155,87 @@ try {
     'mit dem Befehl, der ihn dorthin holt');
 
   // --- 5. Wo es nichts zu vergleichen gibt -----------------------------
-  git('checkout', '--', 'tools/plan.json');
-  cpSync(path.join(tmp, 'tools', 'plan-cut.json'), path.join(tmp, 'tools', 'plan-neu.json'));
-  r = tor(basis);
+  git('checkout', '--', 'tools');
+  cpSync(datei('plan-cut.json'), datei('plan-neu.json'));
+  r = tor([basis]);
   check(r.code === 0, 'eine neue Variante hat keinen Plan davor und verlangt keinen');
-  r = tor('0'.repeat(40));
+  r = tor(['0'.repeat(40)]);
   check(r.code === 0 && r.text.includes('nichts geprüft'),
-    'der erste Push eines Zweigs (vorher = 000…): nichts geprüft, und das gesagt');
+    'Vergleichsstand 000… (etwa vor dem allerersten Push nach main): nichts geprüft, und das gesagt');
+  rmSync(datei('plan-neu.json'));
+
+  // --- 6. In CI: gegen den ausgelieferten Stand ------------------------
+  //
+  // Bis Runde 1 bekam das Tor in CI den Stand vor dem Push. Auf einem Zweig
+  // ist der ab dem zweiten Push einer, den nie jemand hatte: Gegen ihn
+  // verlangte es diesen Zwischenstand als Plan davor, und wer das befolgte,
+  // scheiterte danach am Pull-Request gegen main. Hier zwei Pushes auf einem
+  // Zweig, der erste hat den Plan davor vergessen.
+  git('update-ref', 'refs/remotes/origin/main', basis);
+  git('checkout', '-qb', 'zweig');
+  const ereignis = path.join(wurzel, 'ereignis.json');
+  const ci = (name, ref, daten) => {
+    writeFileSync(ereignis, JSON.stringify(daten));
+    return tor(['--ci'], { GITHUB_EVENT_NAME: name, GITHUB_REF: ref, GITHUB_EVENT_PATH: ereignis });
+  };
+
+  umbauen('plan-cut.json');
+  git('commit', '-qam', 'Push 1: neuer Cut, Plan davor vergessen');
+  const push1 = git('rev-parse', 'HEAD').trim();
+  r = ci('push', 'refs/heads/zweig', { before: '0'.repeat(40) });
+  zeige(r.text);
+  check(r.code === 1 && r.text.includes('Abzweig von origin/main'),
+    'Push 1 auf den Zweig (vorher = 000…): verglichen wird trotzdem, mit dem Abzweig von main');
+  check(r.text.includes(befehl), 'und es verlangt den ausgelieferten Cut, nicht einen vom Zweig');
+
+  befehle(r.text);
+  umbauen('plan-cut.json', 3);
+  git('add', '-A');
+  git('commit', '-qm', 'Push 2: Plan davor nach Anweisung, Cut noch einmal anders');
+  r = ci('push', 'refs/heads/zweig', { before: push1 });
+  zeige(r.text);
+  check(r.code === 0, 'Push 2 (vorher = Push 1): der Anweisung gefolgt, das Tor lässt durch');
+  check(tor([push1]).code === 1,
+    'gegen Push 1 als Vergleich hätte es angehalten – deshalb nicht der Stand vor dem Push');
+
+  r = ci('pull_request', 'refs/pull/1/merge', { before: push1, pull_request: { base: { sha: basis } } });
+  zeige(r.text);
+  // Dass wirklich verglichen wurde: Dieselbe Bezeichnung steht auch in der
+  // Meldung „kein Vergleichsstand … nichts geprüft", ebenfalls mit Exit 0.
+  check(r.code === 0 && r.text.includes('Basis des Pull-Requests') && !r.text.includes('nichts geprüft')
+      && r.text.includes(`cut ${PLANS.cut.stand} →`) && r.text.includes(basis.slice(0, 12)),
+    'der Pull-Request vergleicht mit seiner Basis (main) und lässt durch');
+  r = ci('pull_request', 'refs/pull/1/merge', { before: basis, pull_request: { base: { sha: push1 } } });
+  check(r.code === 1 && r.text.includes(push1.slice(0, 12)),
+    'mit Push 1 als Basis hält derselbe Pull-Request an – gelesen wird base.sha, nicht before');
+
+  // Inzwischen ist main weitergegangen, mit einem anderen Plan. Der Zweig
+  // zweigt weiter von `basis` ab und wird gegen den Abzweig geprüft, nicht
+  // gegen die Spitze von main – gegen die hielte er wegen eines Plans an, den
+  // er nie angefasst hat.
+  git('checkout', '-qb', 'main-weiter', basis);
+  umbauen('plan-bbp.json');
+  git('commit', '-qam', 'main geht weiter: neuer BBP');
+  const spitze = git('rev-parse', 'HEAD').trim();
+  git('checkout', '-q', 'zweig');
+  git('update-ref', 'refs/remotes/origin/main', spitze);
+  r = ci('push', 'refs/heads/zweig', { before: push1 });
+  zeige(r.text);
+  check(r.code === 0 && r.text.includes(`${basis.slice(0, 12)}, Abzweig von origin/main`),
+    'main ist weiter: der Zweig wird gegen seinen Abzweig geprüft und lässt durch');
+  check(tor([spitze]).code === 1,
+    'gegen die Spitze von main hätte er angehalten – deshalb der Abzweig');
+  git('update-ref', 'refs/remotes/origin/main', basis);
+
+  r = ci('push', 'refs/heads/main', { before: basis });
+  zeige(r.text);
+  check(r.code === 0 && r.text.includes('Stand vor dem Push nach main'),
+    'und der Push nach main, gegen den Stand davor, auch');
+
+  r = ci('push', 'refs/heads/main', { before: push1 });
+  check(r.code === 1, 'auf main zählt der Stand vor dem Push – dort ist er der ausgelieferte');
 } finally {
-  rmSync(tmp, { recursive: true, force: true });
+  rmSync(wurzel, { recursive: true, force: true });
 }
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

@@ -246,7 +246,7 @@ check(chin[0].stange.toFixed(0) === chin[1].stange.toFixed(0), 'Stange bleibt st
 // anderen – vorher lagen die Ecken 1,5 bis 2,7 Einheiten daneben, und zwar
 // genau an den Stellen hier. Und von einem Bild zum nächsten (Δt 0,005)
 // ändert keine Hand mehr sprunghaft ihre Form: vorher 1,6 bis 2,9 beim
-// Umklappen, jetzt höchstens 0,3.
+// Umklappen, jetzt 0,15 bis 0,31 (das Meiste beim Hammercurl).
 const haende = await page.evaluate(async () => {
   const { mountFigure } = await import('./js/figure.js');
   // Ecken des Hand-Pfads: die Punkte von M und L und die Endpunkte der Bögen.

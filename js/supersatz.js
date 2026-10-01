@@ -149,7 +149,11 @@ export function schritte(gruppe) {
  * stumpf „der danach". Wer einen Satz überspringt oder einen Haken wieder
  * wegnimmt, soll trotzdem an der richtigen Stelle landen.
  *
- * `erledigt(id, satz)` sagt, ob ein Satz schon steht.
+ * `erledigt(id, satz)` sagt, ob ein Satz schon steht. Eine Übung, die schon
+ * ganz fertig ist, muss dabei für jeden ihrer Sätze „ja" sagen – auch wenn die
+ * Sätze im anderen Modus abgehakt wurden (satzSteht() in js/app.js). Sonst
+ * führte der Wechsel nach einem Umschalten mitten in der Einheit zurück zu
+ * einer Übung, deren Karte längst „fertig" sagt.
  */
 export function naechsterSchritt(gruppe, erledigt) {
   return schritte(gruppe).find((s) => !erledigt(s.id, s.satz)) || null;

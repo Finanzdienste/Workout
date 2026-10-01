@@ -16,26 +16,46 @@ auch dort liegt, stand nur im README, und niemand prüfte es. Eine veraltete
 hilft dabei so wenig wie keine: Die App nimmt den Plan davor nur, wenn sein
 Stand genau der ist, von dem der Wechsel kommt – also der ausgelieferte.
 
-Verglichen wird deshalb wie bei der Versionspflicht mit einem Stand, der schon
-ausgeliefert ist:
+Verglichen wird deshalb mit einem Stand, der schon ausgeliefert ist:
 
     python3 tools/pruefung/plan-vorher.py                # gegen origin/main
     python3 tools/pruefung/plan-vorher.py <commit>       # gegen diesen
+    python3 tools/pruefung/plan-vorher.py --ci           # in GitHub Actions
 
 Lokal zählt auch, was noch nicht committet ist. Gibt es den Vergleichsstand
-nicht (flacher Klon, erster Push), wird nichts geprüft und das gesagt. Eine
+nicht (flacher Klon, oder 000… als Stand vor dem allerersten Push nach main),
+wird nichts geprüft und das gesagt. Eine
 Variante, die es dort noch nicht gab, hat keinen Plan davor. Verglichen wird
 der Fingerabdruck, nicht die Datei: Verschobene Termine ändern nichts an dem,
 was hinter einer Nummer steht, und verlangen nichts.
+
+In CI ist der Vergleichsstand nicht einfach der vor dem Push, anders als bei
+der Versionspflicht. Ausgeliefert wird nur main (GitHub Pages), und auf einem
+Zweig ist der Stand vor dem zweiten Push einer, den nie jemand hatte. Gegen
+ihn verlangte das Tor genau diesen Zwischenstand als Plan davor – und wer der
+Meldung folgte, scheiterte danach am Pull-Request gegen main, weil keine
+Ablage beide Prüfungen erfüllt. Mit --ci nimmt es deshalb den ausgelieferten:
+
+    pull_request           die Basis des Pull-Requests (base.sha)
+    Push nach main         den Stand vor dem Push (before)
+    Push auf einen Zweig   den Abzweig von main (git merge-base origin/main HEAD)
+
+Lokal bleibt es bei origin/main. Wer auf einem Zweig sitzt, der hinter
+origin/main liegt, gibt den Abzweig selbst an:
+`python3 tools/pruefung/plan-vorher.py $(git merge-base origin/main HEAD)`.
 """
 import hashlib
 import json
+import os
 import pathlib
 import re
 import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+# Der Zweig, den GitHub Pages ausliefert – nur was dort lag, hatte jemand auf
+# dem Handy.
+AUSGELIEFERT = 'main'
 
 
 def git(*args, check=True):
@@ -63,12 +83,37 @@ def plaene():
     return {v: p for v, p in alle.items() if (ROOT / p).exists()}
 
 
+def basis_in_ci():
+    """Der ausgelieferte Stand für diesen Lauf in GitHub Actions, und woher."""
+    ereignis = os.environ.get('GITHUB_EVENT_NAME', '')
+    daten = {}
+    if os.environ.get('GITHUB_EVENT_PATH'):
+        with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as f:
+            daten = json.load(f)
+    if ereignis.startswith('pull_request'):
+        # Nicht before: Bei „synchronize" ist das der vorige Kopf des Zweigs.
+        return ((daten.get('pull_request') or {}).get('base') or {}).get('sha', ''), \
+            'Basis des Pull-Requests'
+    if os.environ.get('GITHUB_REF') == f'refs/heads/{AUSGELIEFERT}':
+        return daten.get('before') or '', f'Stand vor dem Push nach {AUSGELIEFERT}'
+    # Ein anderer Zweig als main – auch ein Lauf von Hand dort: Ausgeliefert
+    # war, wovon er abzweigt. Ein Lauf von Hand auf main landet oben.
+    # Braucht die ganze Geschichte und origin/main – fetch-depth: 0.
+    r = git('merge-base', f'origin/{AUSGELIEFERT}', 'HEAD', check=False)
+    return r.stdout.strip(), f'Abzweig von origin/{AUSGELIEFERT}'
+
+
 def main():
-    basis = sys.argv[1] if len(sys.argv) > 1 else 'origin/main'
-    da = not re.fullmatch(r'0+', basis) and git(
+    if sys.argv[1:] == ['--ci']:
+        basis, woher = basis_in_ci()
+        name = f'{basis[:12] or "–"}, {woher}'
+    else:
+        basis = sys.argv[1] if len(sys.argv) > 1 else 'origin/main'
+        name = basis
+    da = basis and not re.fullmatch(r'0+', basis) and git(
         'rev-parse', '--verify', '--quiet', basis + '^{commit}', check=False).returncode == 0
     if not da:
-        print(f'– Plan davor: kein Vergleichsstand ({basis}), nichts geprüft')
+        print(f'– Plan davor: kein Vergleichsstand ({name}), nichts geprüft')
         return 0
     gut, fehlt = [], []
     for variante, pfad in plaene().items():
@@ -87,7 +132,7 @@ def main():
             fehlt.append((pfad, ablage, war, ist, liegt))
     if fehlt:
         print(f'✗ Plan davor: neuer Stand, aber der ausgelieferte Plan liegt nicht in '
-              f'tools/plan-vorher/ (gegen {basis}).')
+              f'tools/plan-vorher/ (gegen {name}).')
         for pfad, ablage, war, ist, liegt in fehlt:
             print(f'    {pfad}: {war} → {ist}; {ablage} '
                   + (f'hat {liegt}' if liegt else 'fehlt'))
@@ -98,9 +143,10 @@ def main():
         print('    python3 tools/build-data.py && python3 tools/build-single.py')
         return 1
     if not gut:
-        print(f'✓ Plan davor: kein Plan mit neuem Stand (gegen {basis})')
+        print(f'✓ Plan davor: kein Plan mit neuem Stand (gegen {name})')
         return 0
-    print(f'✓ Plan davor: {", ".join(gut)} – der ausgelieferte liegt in tools/plan-vorher/')
+    print(f'✓ Plan davor: {", ".join(gut)} – der ausgelieferte liegt in tools/plan-vorher/ '
+          f'(gegen {name})')
     return 0
 
 

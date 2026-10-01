@@ -29,6 +29,16 @@
  *      Anfängers (liegendes statt hängendes Knieheben) wird auch vervollständigt.
  *   8. Ein noch offener Hinweis zum Planwechsel bleibt neben dem zur Reparatur
  *      stehen, statt überschrieben zu werden.
+ *   9. Planwechsel mit aktiver Beschwerde: Die gesperrte Übung ist getauscht
+ *      oder weg, und die App zeigt genau die feste Liste. Fällt die Beschwerde
+ *      später weg, wird diese Liste **nicht** „repariert" – sie war richtig.
+ *      Und ein bloß angezeigter Eintrag im Protokoll holt eine gesperrte Übung
+ *      nicht zurück.
+ *  10. `soll` aus dem Protokoll geht vor der heutigen Stufe; eine angefasste
+ *      Übung in ihrer angezeigten Fassung bleibt, was sie war.
+ *
+ * Und zu 5.: Die Startkarte zeigt danach die reparierte Einheit, nicht die
+ * nächste – bis v219 stand dort „Workout 5" neben „wieder vollständig".
  */
 import { chromium } from 'playwright';
 import { URL } from './umgebung.mjs';
@@ -87,6 +97,8 @@ const lies = (n) => page.evaluate(async (nn) => {
     done: e.done || null,
     umbau: getState().planUmbau,
     text: (document.querySelector('#view') || {}).textContent || '',
+    karte: ((document.querySelector('.hero-eyebrow') || {}).textContent || '').trim(),
+    eintrag: e,
   };
 }, n);
 const gleich = (a, b) => [...a].sort().join() === [...b].sort().join();
@@ -170,16 +182,30 @@ if (!lage) {
 
   // --- 5. Das feste Paar ganz abgehakt, nicht abgeschlossen ---------------
   // Ohne `done`: Der Tick-Handler stempelt nur beim letzten Haken der ganzen
-  // Einheit, und die hatte beim Abhaken noch alle ihre Übungen.
+  // Einheit, und die hatte beim Abhaken noch alle ihre Übungen. Die Einheiten
+  // davor sind fertig, damit die reparierte die nächste offene ist – und die
+  // Startkarte sie zeigen muss statt der danach.
+  const davor = await page.evaluate(async (n) => {
+    const { workoutByNo } = await import('./js/plan.js');
+    const out = {};
+    for (let k = 1; k < n; k++) {
+      const db = {};
+      workoutByNo(k, 'db').ex.forEach((x) => { db[x.id] = Array.from({ length: x.sets }, () => ({ w: '20', done: true })); });
+      out[k] = { mode: 'db', done: 'db', startedOn: '2026-09-1' + (k % 10), db, bw: {} };
+    }
+    return out;
+  }, lage.n);
   await setze({
     greeted: true, mode: 'db', focus: lage.f, planStand: { [lage.f]: lage.stand },
-    log: { [lage.n]: { ...halb, db: { [a.id]: voll(a.sets), [b.id]: voll(b.sets) }, fest: lage.liste.slice(0, 2) } },
+    log: { ...davor, [lage.n]: { ...halb, db: { [a.id]: voll(a.sets), [b.id]: voll(b.sets) }, fest: lage.liste.slice(0, 2) } },
   });
   await page.waitForTimeout(300);
   const paar = await lies(lage.n);
   check(paar.fest.map((x) => x.split(':')[0]).join() === lage.liste.map((x) => x.id).join(),
     `ein ganz abgehaktes Paar ohne Abschluss wird trotzdem repariert: ${paar.fest.length} von ${lage.liste.length} Übungen`);
   check(!paar.done, `und die Einheit gilt danach nicht als abgeschlossen (done: ${paar.done})`);
+  check(new RegExp(`Workout ${lage.n}$`).test(paar.karte),
+    `die Startkarte zeigt die reparierte Einheit, nicht die nächste („${paar.karte}")`);
 
   // --- 8. Offener Planwechsel-Hinweis und Reparatur: beide -----------------
   await setze({
@@ -198,6 +224,115 @@ if (!lage) {
   await page.waitForTimeout(200);
   const weg = await page.evaluate(() => document.querySelector('#view').textContent);
   check(!/Der Plan wurde überarbeitet|wieder vollständig/.test(weg), 'ein Tipp auf „Verstanden" nimmt beide weg');
+
+  // --- 9. Planwechsel mit aktiver Beschwerde ---------------------------------
+  // Beschwerden, die eine Übung hinter dem angefangenen Paar sperren, das Paar
+  // selbst aber nicht – sonst ginge es um behalteProtokolliertes(), nicht um
+  // den Plan davor.
+  const kandidaten = await page.evaluate(async (liste) => {
+    const { INJURIES, gesperrt } = await import('./js/injuries.js');
+    const ids = liste.map((x) => x.id);
+    return INJURIES.map((inj) => ({ id: inj.id, weg: [...gesperrt([inj.id], 'db')] }))
+      .filter((k) => !k.weg.includes(ids[0]) && !k.weg.includes(ids[1]) && ids.slice(2).some((id) => k.weg.includes(id)));
+  }, lage.liste);
+  if (!kandidaten.length) {
+    console.log(`     keine Beschwerde sperrt in Einheit ${lage.n} etwas hinter dem ersten Paar – 9. entfällt`);
+  } else {
+    // Die erste, die die Einheit kürzer macht, statt nur zu tauschen: Nur dann
+    // sieht die feste Liste ohne die Beschwerde „zu kurz" aus, und genau das
+    // darf die Reparatur nicht für ihren Fehler halten. Gibt es keine, prüft
+    // der Rest trotzdem, nur eben den Tausch.
+    let fall = null;
+    for (const k of kandidaten) {
+      await setze({
+        greeted: true, mode: 'db', focus: lage.f, injuries: [k.id], planStand: { [lage.f]: lage.alt }, log: { [lage.n]: halb },
+      });
+      const r = await lies(lage.n);
+      if (!fall || r.fest.length < lage.liste.length) fall = { ...k, r };
+      if (r.fest.length < lage.liste.length) break;
+    }
+    const ids = (l) => l.map((x) => x.split(':')[0]);
+    console.log(`     mit ${fall.id}: ${ids(fall.r.fest).join(', ')}`);
+    check(fall.r.fest.length > 0 && !ids(fall.r.fest).some((id) => fall.weg.includes(id)),
+      `${fall.id}: die gesperrte Übung steht nicht fest (${fall.weg.filter((id) => lage.liste.some((x) => x.id === id)).join(', ')})`);
+    check(gleich(fall.r.ex, fall.r.fest), `${fall.id}: und die App zeigt genau die feste Liste (${fall.r.ex.join(' ')})`);
+
+    // Beschwerde abgehakt, die Einheit noch offen, nächster Start. Der Eintrag
+    // geht so weiter, wie die App ihn geschrieben hat – samt allem, woran sie
+    // eine Liste aus dem Plan davor erkennt.
+    await setze({
+      greeted: true, mode: 'db', focus: lage.f, injuries: [], planStand: { [lage.f]: lage.stand },
+      log: { [lage.n]: fall.r.eintrag },
+    });
+    await page.waitForTimeout(300);
+    const heil = await lies(lage.n);
+    check(heil.fest.join(' ') === fall.r.fest.join(' '),
+      `ohne die Beschwerde bleibt die feste Liste, wie sie war (${heil.fest.length} Übungen)`);
+    check(!(heil.umbau && heil.umbau.repariert) && !/wieder vollständig|Fehler in der App/.test(heil.text),
+      `und es gibt keine „Reparatur" und keinen Hinweis dazu (${JSON.stringify(heil.umbau)})`);
+
+    // Seit v216 legt die Fokusansicht die ganze Einheit im Protokoll an. Ein
+    // solcher, nie angefasster Eintrag der gesperrten Übung darf sie über die
+    // Zuordnung „angezeigt = trainiert" nicht zurückholen.
+    const gesehen = { ...halb, db: { ...halb.db }, soll: { ...halb.soll } };
+    lage.liste.slice(2).forEach((x) => {
+      gesehen.db[x.id] = Array.from({ length: x.sets }, () => ({ w: '', done: false }));
+      gesehen.soll[x.id] = x.sets;
+    });
+    await setze({
+      greeted: true, mode: 'db', focus: lage.f, injuries: [fall.id], planStand: { [lage.f]: lage.alt }, log: { [lage.n]: gesehen },
+    });
+    const sicht = await lies(lage.n);
+    check(sicht.fest.length > 0 && !ids(sicht.fest).some((id) => fall.weg.includes(id)),
+      `ein bloß angezeigter Eintrag holt die gesperrte Übung nicht zurück (${ids(sicht.fest).join(', ')})`);
+    check(gleich(sicht.ex, sicht.fest), `und die App zeigt genau die feste Liste (${sicht.ex.join(' ')})`);
+
+    // Eine *reparierte* Liste trägt den Plan, aus dem sie vervollständigt
+    // wurde (festErsetzen()). Mit aktiver Beschwerde repariert, Beschwerde
+    // danach abgehakt: Das ist keine zweite Reparatur wert.
+    const altKurz = lage.liste.slice(0, 2).map(({ id, sets }) => ({ id, sets }));
+    await setze({
+      greeted: true, mode: 'db', focus: lage.f, injuries: [fall.id], planStand: { [lage.f]: lage.stand },
+      log: { [lage.n]: { ...halb, fest: altKurz } },
+    });
+    await page.waitForTimeout(300);
+    const repMit = await lies(lage.n);
+    check(repMit.umbau && repMit.umbau.repariert && repMit.eintrag.festAus,
+      `mit ${fall.id} repariert, und die Liste trägt den Vermerk (${repMit.fest.length} Übungen, festAus ${repMit.eintrag.festAus})`);
+    await setze({
+      greeted: true, mode: 'db', focus: lage.f, injuries: [], planStand: { [lage.f]: lage.stand },
+      log: { [lage.n]: repMit.eintrag },
+    });
+    await page.waitForTimeout(300);
+    const repOhne = await lies(lage.n);
+    check(repOhne.fest.join(' ') === repMit.fest.join(' ') && !(repOhne.umbau && repOhne.umbau.repariert),
+      `nach dem Abhaken der Beschwerde keine zweite „Reparatur" (${repOhne.fest.length} Übungen, ${JSON.stringify(repOhne.umbau)})`);
+  }
+
+  // --- 9b. Festgeschrieben aus dem Protokoll – ohne passenden Plan davor ------
+  // Wurde eine Fassung übersprungen, kennt die App den Plan davor nicht und
+  // schreibt aus dem Protokoll fest. Das ist seit v216 vollständig, was die
+  // Fokusansicht gezeigt hat. Beim nächsten Start darf festReparieren() diese
+  // Liste nicht gegen einen Plan „reparieren", aus dem sie gar nicht stammt.
+  const vierVonAllen = { ...halb, db: { ...halb.db }, soll: { ...halb.soll } };
+  lage.liste.slice(2, -1).forEach((x) => {
+    vierVonAllen.db[x.id] = Array.from({ length: x.sets }, () => ({ w: '', done: false }));
+    vierVonAllen.soll[x.id] = x.sets;
+  });
+  await setze({
+    greeted: true, mode: 'db', focus: lage.f, planStand: { [lage.f]: 'aaaaaaaaaaaa' }, log: { [lage.n]: vierVonAllen },
+  });
+  const proto = await lies(lage.n);
+  check(proto.fest.length === lage.liste.length - 1 && !!proto.eintrag.festAus,
+    `ohne passenden Plan davor aus dem Protokoll festgeschrieben, mit Vermerk (${proto.fest.length} Übungen, festAus ${proto.eintrag.festAus})`);
+  await setze({
+    greeted: true, mode: 'db', focus: lage.f, planStand: { [lage.f]: lage.stand }, log: { [lage.n]: proto.eintrag },
+  });
+  await page.waitForTimeout(300);
+  const proto2 = await lies(lage.n);
+  check(proto2.fest.join(' ') === proto.fest.join(' ') && !(proto2.umbau && proto2.umbau.repariert)
+      && !/wieder vollständig|Fehler in der App/.test(proto2.text),
+    `beim nächsten Start keine „Reparatur" gegen einen fremden Plan (${proto2.fest.length} Übungen, ${JSON.stringify(proto2.umbau)})`);
 }
 
 // Eine Einheit im Plan davor mit einer Übung, die eine leichtere Fassung hat
@@ -286,6 +421,36 @@ if (!stufe) {
   const auf = await lies(stufe.n);
   check(auf.fest.join(' ') === [...erwartet(anfaenger.slice(0, j + 1)), ...erwartet(liste.slice(j + 1))].join(' '),
     `nach einem Aufstieg erkennt die Reparatur die leichtere Fassung wieder (${auf.fest.join(' ')})`);
+
+  // --- 10. Was im Protokoll steht, geht vor -------------------------------
+  // `soll` ist die Satzzahl jenes Tages. Im Fall „Fortgeschritten" oben steht
+  // dort schon die Zahl der Stufe – die beiden Wege wären nicht zu
+  // unterscheiden. Hier stand das Paar mit der Grundzahl da, und heute ist die
+  // Stufe Fortgeschritten: das Paar behält sie, der Rest bekommt die der Stufe.
+  await setze({
+    greeted: true, mode: 'db', focus: stufe.f, level: 'fortgeschritten', planStand: { [stufe.f]: stufe.alt },
+    log: { [stufe.n]: protokoll(liste) },
+  });
+  const vorrang = await lies(stufe.n);
+  const mitSoll = [...erwartet(liste.slice(0, 2)), ...erwartet(liste.slice(2), 4 / 3)];
+  check(vorrang.fest.join(' ') === mitSoll.join(' '),
+    `soll aus dem Protokoll vor der Stufe: das Paar wie damals, der Rest wie heute (${vorrang.fest.join(' ')})`);
+  check(gleich(vorrang.ex, vorrang.fest), `und so zeigt die App es auch (${vorrang.ex.join(' ')})`);
+
+  // Als Anfänger angezeigt und trainiert – die leichtere Fassung mit einem
+  // abgehakten Satz –, heute Geübt. Festgeschrieben wird, was gemacht wurde,
+  // nicht die Fassung, die die heutige Stufe wählen würde.
+  const geuebt = protokoll(anfaenger);
+  geuebt.db[anfaenger[j].id] = Array.from({ length: anfaenger[j].sets }, (_, i) => (i ? {} : { w: '20', done: true }));
+  geuebt.soll[anfaenger[j].id] = anfaenger[j].sets;
+  await setze({
+    greeted: true, mode: 'db', focus: stufe.f, level: 'geuebt', planStand: { [stufe.f]: stufe.alt },
+    log: { [stufe.n]: geuebt },
+  });
+  const behalten = await lies(stufe.n);
+  check(behalten.fest[j] === `${liste[j].leicht}:${liste[j].sets}`,
+    `angezeigt und angefasst als ${liste[j].leicht}: bleibt fest, auch als Geübter (${behalten.fest.join(' ')})`);
+  check(gleich(behalten.ex, behalten.fest), `und so zeigt die App es auch (${behalten.ex.join(' ')})`);
 }
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

@@ -22,6 +22,14 @@
  *   8. Mit Supersätzen beim Partner: Nach A1 kommt B, auch nach dem Neuladen,
  *      auch aus dem Stand von v217/v218 (nur die Nummer der Einheit gemerkt)
  *      und auch über „Training fortsetzen".
+ *   9. Mit Supersätzen und Umschalten mitten in der Einheit: Paar 1 mit
+ *      Hanteln fertig, dann Bodyweight – weder „Training fortsetzen" noch das
+ *      Neuladen noch das Weiterrücken nach Paar 2 führen zurück zu Paar 1.
+ *  10. Geht die App nach dem Neuladen nicht weiter (Einheit von gestern oder
+ *      vorbei, ein Hinweis beim Start), obwohl der Verlauf auf der
+ *      Fokusansicht stand – auch über Liste und Fokusansicht –, führt schon der
+ *      erste Druck auf Zurück dorthin, wo man vor dem Dashboard war – und
+ *      tut nicht scheinbar nichts.
  */
 import { chromium } from 'playwright';
 import { URL } from './umgebung.mjs';
@@ -277,6 +285,214 @@ const fortgesetzt = await blick(s);
 check(!amBrett.fokus && fortgesetzt.fokus && fortgesetzt.ex === b,
   `„Training fortsetzen" landet ebenfalls beim Partner (${fortgesetzt.ex})`);
 await c8.close();
+
+// --- 9. Supersätze und Umschalten mitten in der Einheit -------------------
+// Umschalten geht auch mitten im Training (set-modus), und saetzeErledigt()
+// zählt die Sätze beider Modi zusammen. Der Wechsel fragte bis v219 nur den
+// gerade eingestellten Modus – und führte zu Paar 1 zurück, dessen Karte
+// längst „fertig" sagte.
+const { c: c9, p: m } = await frisch({ greeted: true, mode: 'db', supersatz: true });
+await m.locator('[data-act="start-session"]').first().click();
+await m.waitForTimeout(300);
+const ein = await m.evaluate(async () => {
+  const { getState } = await import('./js/store.js');
+  const { workoutByNo, resolve } = await import('./js/plan.js');
+  const { paare } = await import('./js/supersatz.js');
+  const n = getState().session.n;
+  const gr = (md) => paare(workoutByNo(n, md).ex.map((x) => resolve(x, md)), md)
+    .map((g) => g.map((x) => ({ id: x.id, sets: x.sets })));
+  return { n, db: gr('db'), bw: gr('bw'), bwIds: workoutByNo(n, 'bw').ex.map((x) => x.id) };
+});
+const paar1 = ein.db[0].map((x) => x.id);
+const paar2 = ein.bw[1].map((x) => x.id);
+check(ein.db[0].length === 2 && ein.bw[1].length === 2
+  && paar1.every((id) => ein.bw[0].some((x) => x.id === id)) && !paar2.some((id) => paar1.includes(id)),
+`Ausgangslage: Paar 1 ist in beiden Modi dasselbe Paar (${paar1.join(' + ')}), Paar 2 ein anderes (${paar2.join(' + ')})`);
+// Paar 1 mit Hanteln ganz abhaken – so wie die Tipps es täten.
+await m.evaluate(async (e) => {
+  const store = await import('./js/store.js');
+  for (const x of e.db[0]) for (let i = 0; i < x.sets; i++) store.updateSet(e.n, 'db', x.id, x.sets, i, { done: true });
+  store.flush();
+}, ein);
+await neuLaden(m);
+// Zurück aufs Dashboard, unter „Mehr" auf Bodyweight – mitten in der Einheit.
+await m.goBack();
+await m.waitForTimeout(300);
+await m.locator('.tab[data-tab="settings"]').click();
+await m.waitForTimeout(250);
+await m.locator('[data-act="set-modus"][data-v="bw"]').first().click();
+await m.waitForTimeout(250);
+await m.locator('.tab[data-tab="dashboard"]').click();
+await m.waitForTimeout(250);
+const fertigBeide = await m.evaluate(async (e) => {
+  const { saetzeErledigt, workoutByNo } = await import('./js/plan.js');
+  return workoutByNo(e.n, 'bw').ex.filter((x) => saetzeErledigt(e.n, x.id, x.sets) >= x.sets).map((x) => x.id);
+}, ein);
+check(paar1.every((id) => fertigBeide.includes(id)),
+  `nach dem Umschalten zählt Paar 1 auch im Bodyweight-Modus als fertig (${fertigBeide.join(', ')})`);
+
+// a) Zurück auf dem Dashboard: „Training fortsetzen".
+const brett9 = await blick(m);
+if (brett9.start) await m.locator('[data-act="start-session"]').first().click();
+await m.waitForTimeout(300);
+const fort9 = await blick(m);
+check(!brett9.fokus && fort9.fokus && fort9.ex === paar2[0],
+  `„Training fortsetzen" nach dem Umschalten: Paar 2, nicht zurück zu Paar 1 (${fort9.ex}, erwartet ${paar2[0]})`);
+
+// b) Neuladen, gemerkt ist eine Übung aus Paar 1: Die ist fertig, also greift
+//    der Rückfall – und der darf nicht wieder bei Paar 1 landen.
+await m.evaluate((id) => {
+  const st = JSON.parse(localStorage.getItem('workout.state.v1'));
+  st.fokusOffen = { n: st.session.n, id };
+  localStorage.setItem('workout.state.v1', JSON.stringify(st));
+  window.Storage.prototype.setItem = () => {};
+}, paar1[0]);
+await neuLaden(m);
+const geladen9 = await blick(m);
+check(geladen9.fokus && geladen9.ex === paar2[0],
+  `Neuladen mit gemerkter fertiger Übung: weiter bei Paar 2 (${geladen9.ex}, erwartet ${paar2[0]})`);
+
+// c) Paar 2 im Bodyweight-Modus per Tipp durchhaken. Nach dem letzten Satz
+//    rückt die App weiter – zu Paar 3, nicht zu Paar 1.
+await m.locator(`[data-act="focus-goto"][data-i="${ein.bwIds.indexOf(paar2[0])}"]`).click();
+await m.waitForTimeout(250);
+const saetze2 = ein.bw[1].reduce((a, x) => a + x.sets, 0);
+const wege = [];
+for (let k = 0; k < saetze2; k++) {
+  const vor = (await blick(m)).ex;
+  if (!paar2.includes(vor)) break;
+  await m.locator('.focus-sets .set-btn:not(.on)').first().click();
+  await m.waitForTimeout(350);
+  wege.push(`${vor}→${(await blick(m)).ex}`);
+}
+const nach9 = await blick(m);
+check(nach9.fokus && nach9.ex === ein.bw[2][0].id,
+  `nach Paar 2 weiter zu Paar 3, nicht zu Paar 1 (${nach9.ex}, erwartet ${ein.bw[2][0].id}; ${wege.join(' ')})`);
+await c9.close();
+
+// d) Umschalten mitten *im* Paar. Bis v219 entschied hier ein Haken auf dem
+//    letzten Satz im aktuellen Modus, ob die Übung fertig ist: Stand B mit
+//    Hanteln bei 2 von 3, lief nach dem Umschalten mit dem einen fehlenden
+//    Satz eine Pause „1/3", und die App blieb bei B, statt zu Paar 2 zu gehen.
+//    Und mit nur A fertig muss der Wechsel bei B bleiben, nicht zu A springen.
+async function imPaar(vorB) {
+  const { c, p } = await frisch({ greeted: true, mode: 'db', supersatz: true });
+  await p.locator('[data-act="start-session"]').first().click();
+  await p.waitForTimeout(300);
+  await p.evaluate(async ([e, k]) => {
+    const store = await import('./js/store.js');
+    const [a, b] = e.db[0];
+    for (let i = 0; i < a.sets; i++) store.updateSet(e.n, 'db', a.id, a.sets, i, { done: true });
+    for (let i = 0; i < k; i++) store.updateSet(e.n, 'db', b.id, b.sets, i, { done: true });
+    store.flush();
+  }, [ein, vorB]);
+  await neuLaden(p);
+  await p.goBack();
+  await p.waitForTimeout(300);
+  await p.locator('.tab[data-tab="settings"]').click();
+  await p.waitForTimeout(250);
+  await p.locator('[data-act="set-modus"][data-v="bw"]').first().click();
+  await p.waitForTimeout(250);
+  await p.locator('.tab[data-tab="dashboard"]').click();
+  await p.waitForTimeout(250);
+  await p.locator('[data-act="start-session"]').first().click();
+  await p.waitForTimeout(300);
+  const vorher = await blick(p);
+  await p.locator('.focus-sets .set-btn:not(.on)').first().click();
+  await p.waitForTimeout(400);
+  const danach = await blick(p);
+  const pause = await p.evaluate(async () => !!(await import('./js/store.js')).getState().rest);
+  await c.close();
+  return { vorher, danach, pause };
+}
+const bFast = await imPaar(ein.db[0][1].sets - 1);
+check(bFast.vorher.ex === paar1[1] && bFast.danach.ex === paar2[0] && !bFast.pause,
+  `B mit Hanteln fast fertig, nach dem Umschalten der letzte Satz: weiter zu Paar 2, keine Pause (${bFast.vorher.ex} → ${bFast.danach.ex}, Pause ${bFast.pause})`);
+const nurA = await imPaar(0);
+check(nurA.vorher.ex === paar1[1] && nurA.danach.ex === paar1[1],
+  `nur A mit Hanteln fertig, nach dem Umschalten ein Satz B: die App bleibt bei B, nicht zurück zu A (${nurA.vorher.ex} → ${nurA.danach.ex})`);
+
+// --- 10. Verlauf, wenn die App nach dem Neuladen nicht weitergeht ----------
+// Der Verlauf stand auf der Fokusansicht, die App bleibt aber auf dem
+// Dashboard. Bis v219 saß das Dashboard auf dem Eintrag der Fokusansicht, und
+// der erste Druck auf Zurück führte zum Eintrag darunter – wieder das
+// Dashboard. Davor war die Statistik offen: Dorthin muss *ein* Zurück führen.
+const aktiv = (p) => p.evaluate(() => ({
+  fokus: !!document.querySelector('.focus-cue'),
+  tab: (document.querySelector('.tab[aria-selected="true"]') || {}).dataset?.tab || null,
+}));
+async function ohneFortsetzen(name, aendern, ueberListe = false) {
+  const { c, p } = await frisch({ greeted: true, mode: 'db' });
+  await p.locator('.tab[data-tab="stats"]').click();
+  await p.waitForTimeout(200);
+  await p.locator('.tab[data-tab="dashboard"]').click();
+  await p.waitForTimeout(200);
+  await p.locator('[data-act="start-session"]').first().click();
+  await p.waitForTimeout(300);
+  await p.locator('.focus-sets .set-btn').first().click();
+  await p.waitForTimeout(300);
+  if (ueberListe) {
+    // Zwischendurch in der Übersicht und zurück: Dann liegen Fokusansicht,
+    // Liste und wieder Fokusansicht übereinander, und alle drei gelten nicht
+    // mehr.
+    await p.locator('[data-act="focus-list"]').click();
+    await p.waitForTimeout(250);
+    await p.locator('[data-act="focus-back"]').click();
+    await p.waitForTimeout(250);
+  }
+  const vorher = await p.evaluate(() => history.state);
+  await p.evaluate(aendern);
+  await neuLaden(p);
+  const da = await aktiv(p);
+  const zustand = await p.evaluate(() => history.state);
+  check(vorher && vorher.focus && !da.fokus && da.tab === 'dashboard' && zustand && !zustand.focus,
+    `${name}: Dashboard, und der Verlauf steht nicht mehr auf der Fokusansicht (${JSON.stringify(zustand)})`);
+  await p.goBack();
+  await p.waitForTimeout(300);
+  const zurueck10 = p.url().startsWith('about:') ? { tab: p.url() } : await aktiv(p);
+  check(zurueck10.tab === 'stats',
+    `${name}: ein Zurück führt zur Statistik, wo man vorher war (${zurueck10.tab})`);
+  return { c, p };
+}
+const gestrig = await ohneFortsetzen('Einheit von gestern', () => {
+  const st = JSON.parse(localStorage.getItem('workout.state.v1'));
+  st.clock = { ...(st.clock || {}), on: new Date(Date.now() - 86400000).toISOString().slice(0, 10) };
+  localStorage.setItem('workout.state.v1', JSON.stringify(st));
+  window.Storage.prototype.setItem = () => {};
+});
+// Und die Zurück-Taste arbeitet danach wie immer: wieder ins Training, und
+// ein Zurück führt aus der Fokusansicht aufs Dashboard.
+const w10 = gestrig.p;
+await w10.locator('.tab[data-tab="dashboard"]').click();
+await w10.waitForTimeout(250);
+await w10.locator('[data-act="start-session"]').first().click();
+await w10.waitForTimeout(300);
+const wieder = await aktiv(w10);
+await w10.goBack();
+await w10.waitForTimeout(300);
+const raus = await aktiv(w10);
+check(wieder.fokus && !raus.fokus && raus.tab === 'dashboard',
+  'danach führt Zurück aus der Fokusansicht wieder aufs Dashboard');
+await gestrig.c.close();
+const vorbei = await ohneFortsetzen('Einheit schon vorbei', () => {
+  const st = JSON.parse(localStorage.getItem('workout.state.v1'));
+  st.session = null;
+  localStorage.setItem('workout.state.v1', JSON.stringify(st));
+  window.Storage.prototype.setItem = () => {};
+}, true);
+await vorbei.c.close();
+// Der Start hat etwas zu sagen (`startHinweis`): Hier ein Plan-Update – die
+// Einheit läuft heute noch, aber der Hinweis steht auf dem Dashboard.
+const hinweis = await ohneFortsetzen('Hinweis beim Start (Plan-Update)', () => {
+  const st = JSON.parse(localStorage.getItem('workout.state.v1'));
+  const f = st.focus || 'standard';
+  st.planStand = { ...(st.planStand || {}), [f]: 'ein-alter-stand' };
+  localStorage.setItem('workout.state.v1', JSON.stringify(st));
+  window.Storage.prototype.setItem = () => {};
+});
+check(await hinweis.p.evaluate(async () => !!(await import('./js/store.js')).getState().planUmbau),
+  'Hinweis beim Start: der Planwechsel wurde wirklich erkannt');
+await hinweis.c.close();
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
