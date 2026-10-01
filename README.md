@@ -3965,6 +3965,12 @@ Wahl auf eine Geschwisterübung wirkt nicht mehr. Wer eine Übung nicht verträg
 hakt das unter Beschwerden an; die Flaschen und der Rucksack als Ersatz kommen
 nur noch über „Was da ist", wenn Band oder Stange fehlen.
 
+Unter dem Zeichen steht seit v224 die Übung, zu der der Knopf führt, nicht nur
+„leichter" oder „schwerer" (*„Bei schwerer kann ruhig die Übung stehen und
+so"*). Der Knopf ist so breit wie der Name, höchstens ein gutes Drittel der
+Zeile, und der Name bricht um, statt über den Rand zu laufen. „statt …" in der
+Mitte entfällt, wenn dieselbe Übung schon auf einem der Knöpfe steht.
+
 #### Und der Folgefehler, den diese Änderung ausgelöst hat
 
 > „Aber heute ist doch erst Dienstag? Montag stand ein Training an, Dienstag

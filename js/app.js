@@ -2928,8 +2928,16 @@ function fassungRow(it, mode) {
   if (!f) return '';
   const seite = mode === 'bw' ? 'bw' : 'db';
   const name = (id) => { const e = EX_BY_ID.get(id); return e ? e[seite].name : id; };
+  // Unter dem Zeichen steht, wohin es geht – die Übung selbst, nicht nur
+  // „schwerer":
+  //
+  //     „Bei schwerer kann ruhig die Übung stehen und so"
+  //
+  // „schwerer" sagte nur die Richtung; was dann kommt, stand erst nach dem
+  // Tippen da. Und es lief über den Knopf hinaus. Jetzt ist der Knopf so breit,
+  // wie der Name es braucht (höchstens ein gutes Drittel der Zeile), und der
+  // Name bricht um.
   const knopf = (id, plus) => {
-    const wie = plus ? 'schwerer' : 'leichter';
     if (!id) {
       return `<button type="button" class="kg-step${plus ? ' kg-plus' : ''}" disabled
               aria-label="${esc(plus ? 'Keine schwerere Ausführung' : 'Keine leichtere Ausführung')}">${plus ? '+' : '−'}</button>`;
@@ -2938,11 +2946,11 @@ function fassungRow(it, mode) {
     // kommt: Der Gerätefilter läuft danach und tauscht sie wieder weg.
     const moeglich = uebungGeht(id, mode);
     const ex = EX_BY_ID.get(id);
-    return `<button type="button" class="kg-step${plus ? ' kg-plus' : ''}"
+    return `<button type="button" class="kg-step fassung-knopf${plus ? ' kg-plus' : ''}"
               data-act="fassung-waehlen" data-ex="${esc(f.plan)}" data-v="${esc(id)}"
               ${moeglich ? '' : 'disabled'}
               aria-label="${esc(moeglich ? `${plus ? 'Schwerer' : 'Leichter'}: ${name(id)}`
-    : `${name(id)} geht gerade nicht – ${ex[seite].equip} fehlt`)}">${plus ? '+' : '−'}<span class="kg-step-d">${wie}</span></button>`;
+    : `${name(id)} geht gerade nicht – ${ex[seite].equip} fehlt`)}">${plus ? '+' : '−'}<span class="kg-step-d">${esc(name(id))}</span></button>`;
   };
   const stufe = f.leichter && f.schwerer ? 'mittel' : (f.leichter ? 'schwer' : 'leicht');
   return `
@@ -2951,6 +2959,8 @@ function fassungRow(it, mode) {
       <div class="kg-main">
         <span class="kg-val kg-fest">${stufe}</span>
         <span class="kg-unit">Ausführung${it.statt && it.statt !== it.id
+    // „statt X" nur, wenn X nicht ohnehin schon auf einem der Knöpfe steht.
+    && it.statt !== f.leichter && it.statt !== f.schwerer
     ? ` · statt ${esc(name(it.statt))}` : ''}</span>
       </div>
       ${knopf(f.schwerer, true)}
