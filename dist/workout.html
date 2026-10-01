@@ -11039,6 +11039,7 @@ function resetAll() {
   try {
     localStorage.removeItem(KEY);
     localStorage.removeItem(KEY_RUNDEN);
+    localStorage.removeItem('workout.satzuhr.v1');   // Pausenuhr der Supersätze (js/app.js)
   } catch { /* ignorieren */ }
   persist();
   emit();
@@ -17024,12 +17025,13 @@ async function holdScreen(on) {
   }
 }
 
-function startRest(exName, setIndex, sets, secs) {
+function startRest(exName, setIndex, sets, secs, exId = null) {
   if (!secs) return;
   store.setRest({
     endsAt: Date.now() + secs * 1000,
     total: secs,
     next: `Satz ${setIndex + 2} von ${sets} · ${exName}`,
+    ex: exId,   // wessen Pause – siehe pauseZurAnzeige()
   });
   announce(`Pause ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} Minuten, `
     + `danach Satz ${setIndex + 2} von ${sets}, ${exName}`);
@@ -17102,11 +17104,19 @@ setInterval(() => {
   badge.textContent = `⏱ ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 }, 1000);
 
-document.getElementById('restSkip')?.addEventListener('click', () => endRest(false));
+document.getElementById('restSkip')?.addEventListener('click', () => {
+  // Weggetippt ist weggetippt: Auch wer danach zu dieser Übung zurückwischt,
+  // bekommt die Pause nicht noch einmal (pauseZurAnzeige() rechnet aus satzUhr).
+  const rest = store.getState().rest;
+  if (rest && rest.ex) { satzUhr.delete(rest.ex); uhrMerken(); }
+  endRest(false);
+});
 document.getElementById('restPlus')?.addEventListener('click', () => {
   const rest = store.getState().rest;
   if (!rest) return;
   store.setRest({ ...rest, endsAt: rest.endsAt + 30000, total: rest.total + 30 });
+  // Die 30 s gehören zur Übung, nicht zur Leiste – beim Zurückwischen bleiben sie.
+  if (rest.ex && satzUhr.has(rest.ex)) { satzUhr.set(rest.ex, satzUhr.get(rest.ex) + 30000); uhrMerken(); }
   armRest(); // Signal 30 s weiter hinten neu auflegen
   tickRest();
 });
@@ -17221,8 +17231,27 @@ function weiterZurNaechsten(n, mode) {
  * kürzer. Genau das ist der ganze Trick, und er steht in dieser einen Zeile.
  * ------------------------------------------------------------------ */
 
-/** Wann war diese Übung zuletzt dran? Nur für diese Sitzung, im Arbeitsspeicher. */
-const satzUhr = new Map();
+/**
+ * Wann war diese Übung zuletzt dran?
+ *
+ * Bis v222 nur im Arbeitsspeicher. Seit die Leiste unten der angezeigten Übung
+ * folgt (pauseZurAnzeige()), wird hier auch nachgelesen, wenn man nur zur
+ * anderen Übung wischt – und nach einem Neuladen der Seite (kurz aus der App,
+ * das Handy hat sie verworfen) wäre die Uhr leer gewesen: Die laufende Pause
+ * wäre beim ersten Wischen verschwunden. Deshalb steht sie auch im Gerät, nur
+ * dort, nie in der Sicherung, und nach drei Stunden ist sie bedeutungslos.
+ */
+const UHR_KEY = 'workout.satzuhr.v1';
+const satzUhr = (() => {
+  try {
+    const roh = JSON.parse(localStorage.getItem(UHR_KEY) || 'null');
+    if (roh && Array.isArray(roh.m) && Date.now() - roh.t < 3 * 3600 * 1000) return new Map(roh.m);
+  } catch { /* kein Speicher – dann eben nur im Arbeitsspeicher */ }
+  return new Map();
+})();
+const uhrMerken = () => {
+  try { localStorage.setItem(UHR_KEY, JSON.stringify({ t: Date.now(), m: [...satzUhr] })); } catch { /* s. o. */ }
+};
 
 const superAn = () => !!store.getState().supersatz;
 
@@ -17236,6 +17265,49 @@ function superPartner(n, mode, id) {
   if (!superAn()) return null;
   const g = gruppeVon(superGruppen(n, mode), id);
   return g && g.length === 2 ? g.find((x) => x.id !== id) : null;
+}
+
+/**
+ * Im Supersatz zeigt die Leiste unten die Pause der Übung, die gerade zu
+ * sehen ist.
+ *
+ *     „Bei supersatz soll unten die pausenzeit angezeigt werden von der Übung
+ *      die grad angezeigt wird"
+ *
+ * Im Wechsel laufen zwei Pausen zugleich, eine je Übung – die Leiste zeigte
+ * aber nur die zuletzt gestartete. Wer zum Partner wischte oder in der
+ * Fortschrittsleiste auf ihn tippte, sah weiter die Pause der anderen Übung
+ * samt deren Namen. Jetzt folgt die Leiste der Anzeige: Ist die gezeigte Übung
+ * noch nicht erholt, steht dort ihre Restzeit, gerechnet wie in superWeiter()
+ * aus der Uhr (satzUhr); ist sie erholt, fertig oder noch gar nicht dran
+ * gewesen, verschwindet die Leiste. Wischt man zurück, steht die andere wieder
+ * da – nichts davon ist verloren, es wird nur aus der Uhr neu abgelesen.
+ *
+ * Ohne Supersätze bleibt alles beim Alten: Dort gibt es nur eine Pause.
+ */
+function pauseZurAnzeige(n, mode) {
+  if (!superAn() || !ui.focus) return;
+  const item = workoutByNo(n, mode).ex[ui.focusIdx];
+  if (!item) return;
+  const v = resolve(item, mode);
+  const rest = store.getState().rest;
+  if (rest && rest.ex === v.id) return;           // läuft schon für diese
+  const fertig = saetzeErledigt(n, v.id, item.sets);
+  const zuletzt = satzUhr.get(v.id);
+  const ende = zuletzt ? zuletzt + restFor(v) * 1000 : 0;
+  if (fertig > 0 && fertig < item.sets && ende - Date.now() >= 1000) {
+    store.setRest({
+      endsAt: ende,
+      total: restFor(v),
+      next: `Satz ${fertig + 1} von ${item.sets} · ${v.name}`,
+      ex: v.id,
+    });
+    holdScreen(true);
+    armRest();
+    tickRest();
+  } else if (rest) {
+    endRest(false);
+  }
 }
 
 /**
@@ -17289,7 +17361,7 @@ function superWeiter(n, mode, id) {
   const seit = zuletzt ? (Date.now() - zuletzt) / 1000 : Infinity;
   const wartet = Math.max(0, Math.round(restFor(v) - seit));
   if (wartet > 0) {
-    startRest(v.name, ziel.satz - 1, v.sets, wartet);
+    startRest(v.name, ziel.satz - 1, v.sets, wartet, ziel.id);
   } else if (store.getState().rest) {
     endRest(false);
   }
@@ -21550,7 +21622,7 @@ view.addEventListener('click', (e) => {
       // Wann diese Übung zuletzt dran war – daraus rechnet der Supersatz die
       // Wartezeit. Nur beim Setzen, nicht beim Wegnehmen: Ein zurückgenommener
       // Haken macht die verstrichene Zeit nicht ungeschehen.
-      if (done) satzUhr.set(id, Date.now());
+      if (done) { satzUhr.set(id, Date.now()); uhrMerken(); }
 
       // Im Supersatz entscheidet der Wechsel, wohin es geht und wie lange
       // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
@@ -21568,7 +21640,7 @@ view.addEventListener('click', (e) => {
       if (imWechsel) {
         // schon erledigt
       } else if (done && !workoutComplete && !exDone && i < item.sets - 1) {
-        startRest(variant.name, i, item.sets, restFor(variant));
+        startRest(variant.name, i, item.sets, restFor(variant), id);
       } else if (store.getState().rest) {
         endRest(false);
       }
@@ -21757,10 +21829,12 @@ view.addEventListener('click', (e) => {
     }
     case 'focus-goto':
       ui.focusIdx = Number(t.dataset.i);
+      pauseZurAnzeige(n, mode);
       render();
       break;
     case 'focus-step':
       ui.focusIdx = Math.max(0, Math.min(workoutByNo(n).ex.length - 1, ui.focusIdx + Number(t.dataset.d)));
+      pauseZurAnzeige(n, mode);
       render();
       break;
     case 'complete-workout':
@@ -22439,6 +22513,7 @@ function blaettern(richtung) {
     const ziel = ui.focusIdx + richtung;
     if (ziel < 0 || ziel >= w.ex.length) return;
     ui.focusIdx = ziel;
+    pauseZurAnzeige(n, store.workoutMode(n));
     render();
     return;
   }

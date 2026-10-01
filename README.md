@@ -4142,6 +4142,21 @@ Ohne eingetragenen Vorrat weiß die App es nicht und lässt die Paarung, wie sie
 war. Die Paarung folgt dem heutigen Gewicht: Wer mitten im Paar so weit
 erhöht, dass es nicht mehr reicht, macht die beiden danach nacheinander.
 
+**Die Leiste unten gehört zur Übung, die zu sehen ist.**
+
+> *„Bei supersatz soll unten die pausenzeit angezeigt werden von der Übung die
+> grad angezeigt wird"*
+
+Im Wechsel laufen zwei Pausen zugleich, eine je Übung; die Leiste zeigte nur
+die zuletzt gestartete. Wer zum Partner wischte oder oben auf ihn tippte, sah
+weiter die Pause der anderen Übung samt deren Namen. Jetzt liest
+`pauseZurAnzeige()` beim Wechseln die Uhr der gezeigten Übung ab: noch nicht
+erholt → ihre Restzeit, sonst keine Leiste. Zurückwischen zeigt wieder die
+andere, weitergelaufen statt neu gestartet; eine weggetippte Pause kommt nicht
+wieder, +30 s bleiben an der Übung hängen. Die Uhr (`workout.satzuhr.v1`) liegt
+nur im Gerät und überlebt ein Neuladen der Seite – sonst wäre die laufende
+Pause nach kurzem Wechsel in eine andere App beim ersten Wischen verschwunden.
+
 ### Drei Minuten waren zu viel
 
 > *„Und sicher 3 min Pause?"*

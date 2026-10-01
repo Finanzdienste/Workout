@@ -254,6 +254,68 @@ const pause = await page.evaluate(() => !!JSON.parse(
 check(pause === false,
   'und ohne Pause davor – der Partner war noch nicht dran, es gibt nichts zu warten');
 
+// --- 7b. Die Leiste unten folgt der angezeigten Übung ----------------------
+// „Bei supersatz soll unten die pausenzeit angezeigt werden von der Übung die
+// grad angezeigt wird" – im Wechsel laufen zwei Pausen, eine je Übung.
+const leiste = () => page.evaluate(() => {
+  const b = document.getElementById('restBar');
+  return {
+    an: !!b && !b.hidden,
+    text: b ? document.getElementById('restNext').textContent : '',
+    zeit: b ? document.getElementById('restTime').textContent : '',
+    name: document.querySelector('.focus-name').textContent.trim(),
+  };
+});
+// Jetzt steht B (Satz 1 von A ist durch). B abhaken → A mit Restpause.
+await page.locator('.focus-set, .set-btn').first().click();
+await page.waitForTimeout(600);
+const beiA = await leiste();
+console.log('     bei A:', JSON.stringify(beiA));
+check(beiA.name === erst && beiA.an && beiA.text.includes(erst),
+  `nach Satz 1 von B steht A da, unten mit der Pause von A (${beiA.text})`);
+// Zum Partner wischen: Unten steht jetzt dessen Pause, nicht mehr die von A.
+const idxB = await page.evaluate((nm) => [...document.querySelectorAll('.prog-ex')]
+  .findIndex((b) => b.getAttribute('aria-label').includes(nm)), zweit);
+await page.locator(`[data-act="focus-goto"][data-i="${idxB}"]`).click();
+await page.waitForTimeout(400);
+const beiB = await leiste();
+console.log('     bei B:', JSON.stringify(beiB));
+check(beiB.name === zweit && beiB.an && beiB.text.includes(zweit) && !beiB.text.includes(erst),
+  `beim Partner zeigt die Leiste dessen Pause (${beiB.text})`);
+// Zurück zu A: wieder die von A, und die Zeit lief weiter statt neu anzufangen.
+await page.locator('[data-act="focus-step"][data-d="-1"]').first().click();
+await page.waitForTimeout(400);
+const zurueck = await leiste();
+const sek = (z) => { const [m, x] = z.split(':').map(Number); return m * 60 + x; };
+console.log('     zurück bei A:', JSON.stringify(zurueck));
+check(zurueck.name === erst && zurueck.an && zurueck.text.includes(erst) && sek(zurueck.zeit) <= sek(beiA.zeit),
+  `zurück bei A steht wieder A's Pause, weitergelaufen (${beiA.zeit} → ${zurueck.zeit})`);
+// Weggetippt bleibt weggetippt, auch nach Hin- und Herwischen.
+await page.locator('#restSkip').click();
+await page.waitForTimeout(200);
+await page.locator(`[data-act="focus-goto"][data-i="${idxB}"]`).click();
+await page.waitForTimeout(300);
+await page.locator('[data-act="focus-step"][data-d="-1"]').first().click();
+await page.waitForTimeout(300);
+const weg = await leiste();
+check(weg.name === erst && !weg.an, 'eine weggetippte Pause kommt beim Zurückwischen nicht wieder');
+// Und nach dem Neuladen der Seite liest die Leiste dieselbe Uhr.
+await page.locator(`[data-act="focus-goto"][data-i="${idxB}"]`).click();
+await page.waitForTimeout(300);
+const vorher = await leiste();
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(500);
+if (!(await page.locator('.focus-name').count())) {
+  await page.locator('[data-act="start-session"]').first().click();
+  await page.waitForTimeout(400);
+}
+await page.locator(`[data-act="focus-goto"][data-i="${idxB}"]`).click();
+await page.waitForTimeout(300);
+const nachLaden = await leiste();
+console.log('     nach dem Laden bei B:', JSON.stringify(nachLaden), 'vorher', JSON.stringify(vorher));
+check(vorher.an && nachLaden.an && nachLaden.text.includes(zweit),
+  'nach dem Neuladen steht beim Partner weiter seine Pause');
+
 // --- Supersätze kosten keine Umbauten ---------------------------------------
 //
 // Gefunden bei der Durchsicht der App: Eine Kurzhantel und ein Kurzhantel-Paar

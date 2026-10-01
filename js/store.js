@@ -1203,6 +1203,7 @@ export function resetAll() {
   try {
     localStorage.removeItem(KEY);
     localStorage.removeItem(KEY_RUNDEN);
+    localStorage.removeItem('workout.satzuhr.v1');   // Pausenuhr der Supersätze (js/app.js)
   } catch { /* ignorieren */ }
   persist();
   emit();
