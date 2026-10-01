@@ -50,11 +50,16 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 // Der Plan rückt beim Laden auf heute nach. Damit die erste Woche wirklich in
 // der Vergangenheit liegt, wird die Verschiebung fest gesetzt – sonst steht die
 // „abgeschlossene" Woche je nach Testtag noch in der Zukunft.
+//
+// Minus, nicht plus: Die Verschiebung kommt auf das Plandatum drauf, und mit
+// „+ 14" lag Workout 1 zwei Wochen *vor* uns. Abschnitt 5 fand dann an keinem
+// Tag eine Einheit in Reichweite und war grün, ohne etwas zu prüfen. So liegt
+// Woche 1 zwei Wochen zurück, und catchUpPlan() zieht die erste offene Einheit
+// (Workout 5) auf heute – genau die, gegen die der Zusatztag ruhen muss.
 const schiebe = await page.evaluate(async () => {
   const { PLAN } = await import('./js/data.js');
-  const heute = new Date();
-  const start = new Date(PLAN[0].date);
-  return Math.round((heute - start) / 86400000) + 14;   // Woche 1 liegt hinter uns
+  const { daysBetween, todayISO } = await import('./js/dates.js');
+  return daysBetween(PLAN[0].date, todayISO()) - 14;   // Woche 1 liegt hinter uns
 });
 
 const zustand = () => page.evaluate(async () => {
@@ -123,28 +128,38 @@ check(angelegt.saetze >= 6, `und genug Sätze, dass es sich lohnt (${angelegt.sa
 check(new Set(angelegt.ids).size === angelegt.ids.length, 'keine Übung doppelt');
 
 // --- 5. Die Erholungsregel gilt auch hier --------------------------------
-const kollision = await page.evaluate(async () => {
+// Gezählt wird in Kalendertagen am tatsächlichen Termin, wie in
+// ruhendeGruppen(). Mit `new Date()` samt Uhrzeit rundete eine Einheit von
+// übermorgen ab Mittag auf „morgen" und galt als in Reichweite, die App aber
+// sperrt sie zu Recht nicht. Und gezählt wird, wie viele Einheiten überhaupt
+// geprüft wurden: Eine leere Schleife meldet keine Kollision, das hieß hier
+// bisher „bestanden".
+const ruhe = await page.evaluate(async () => {
   const store = await import('./js/store.js');
   const daten = await import('./js/data.js');
+  const { effDate } = await import('./js/plan.js');
+  const { daysBetween, todayISO } = await import('./js/dates.js');
   const c = store.customs()[0];
   const byId = new Map(daten.EXERCISES.map((e) => [e.id, e]));
-  const heute = new Date();
-  const s = store.getState();
+  const heute = todayISO();
   const direktIm = (liste) => new Set(liste.flatMap((x) => Object.entries(byId.get(x.id).db.shares)
     .filter(([, sh]) => sh >= daten.REST.direct).map(([m]) => m)));
   const zusatz = direktIm(c.ex);
   const treffer = [];
+  const geprueft = [];
   daten.PLAN.forEach((w) => {
-    const d = new Date(w.date);
-    d.setDate(d.getDate() + (s.shift || 0));
-    if (Math.abs(Math.round((d - heute) / 86400000)) >= daten.REST.days) return;
+    if (Math.abs(daysBetween(effDate(w), heute)) >= daten.REST.days) return;
+    geprueft.push(`W${w.n}`);
     direktIm(w.ex).forEach((m) => { if (zusatz.has(m)) treffer.push(`${m}@W${w.n}`); });
   });
-  return treffer;
+  return { treffer, geprueft };
 });
-check(kollision.length === 0,
+console.log('      in Reichweite:', ruhe.geprueft.join(', ') || 'keine');
+check(ruhe.geprueft.length > 0,
+  `mindestens eine Planeinheit liegt in Reichweite und wird geprüft (${ruhe.geprueft.length})`);
+check(ruhe.treffer.length === 0,
   `keine Gruppe kollidiert mit einer Einheit in Reichweite${
-    kollision.length ? ': ' + kollision.slice(0, 4).join(', ') : ''}`);
+    ruhe.treffer.length ? ': ' + ruhe.treffer.slice(0, 4).join(', ') : ''}`);
 
 // --- 6. Kein zweiter beim nächsten Laden --------------------------------
 await page.reload({ waitUntil: 'networkidle' });

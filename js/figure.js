@@ -1752,16 +1752,45 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       const faust = greifend && (equip !== 'onehand' || seite === (spec.gewichtHand || 'R'));
       const innen = mul(sideAxis, seite === 'L' ? 1 : -1);
       const richtung = faust || spec.finger ? spec.daumen : 'vorn';
-      let t = ({ innen, aussen: mul(innen, -1), vorn: frontAxis, hinten: mul(frontAxis, -1),
-        oben: weltOben, unten: mul(weltOben, -1) })[richtung] || innen;
+      // Zu jeder Daumenrichtung eine Ersatzrichtung quer dazu, für den Fall,
+      // dass der Wunsch längs des Unterarms liegt (siehe unten). Ein Wunsch
+      // und sein Gegenteil teilen sie sich – so bleibt „aussen" genau die
+      // umgedrehte Hand von „innen".
+      const hinten = mul(frontAxis, -1);
+      const [wunsch, ersatz] = ({
+        innen: [innen, hinten], aussen: [mul(innen, -1), hinten],
+        vorn: [frontAxis, innen], hinten: [hinten, innen],
+        oben: [weltOben, innen], unten: [mul(weltOben, -1), innen],
+      })[richtung] || [innen, hinten];
       let f = norm([hand[0] - ell[0], hand[1] - ell[1], hand[2] - ell[2]]);
       if (spec.finger === 'boden') f = norm([upAxis[0], 0, upAxis[2]]);
       else if (spec.finger === 'oben') f = upAxis;
-      // Der Daumen steht quer zu den Fingern. Liegt die gewünschte Richtung
-      // fast längs, bleibt die Hand trotzdem eine Hand: dann eben quer zum Arm.
-      t = add(t, mul(f, -skalar(t, f)));
-      if (Math.hypot(...t) < 0.2) t = add(sideAxis, mul(f, -skalar(sideAxis, f)));
-      t = norm(t);
+      // Der Daumen steht quer zu den Fingern: die gewünschte Richtung ohne
+      // ihren Anteil längs des Arms. Liegt die gewünschte Richtung fast längs,
+      // bleibt die Hand trotzdem eine Hand: dann eben quer zum Arm.
+      //
+      // Bis v218 hieß „quer" ab einem Rest unter 0,2 hart sideAxis – für
+      // beide Hände dieselbe Achse, links also nach innen, rechts nach außen.
+      // Die rechte Hand klappte dadurch mitten in der Wiederholung um 180° um
+      // (Kniebeuge ohne Gewicht, Hammercurl, Pull-Apart, Reverse Fly), mit ihr
+      // die Handfläche und bei der Faust die sichtbaren Finger, also genau der
+      // Unterschied zwischen Ober- und Untergriff. Bei reduzierter Bewegung
+      // stand die Kniebeuge sogar dauerhaft mit zwei verschiedenen Händen da.
+      //
+      // Jetzt kommt der Ersatz weich dazu, umso mehr, je kürzer der Rest –
+      // keine Schwelle, an der etwas springt. Er ist gespiegelt wie die Hand
+      // (`innen` ist links und rechts eine andere Achse) und kehrt sich mit
+      // dem Arm um: skalar(f, wunsch) ist dort +1 oder −1, je nachdem, ob der
+      // Arm in Wunschrichtung zeigt oder ihr entgegen. So zeigt der Ersatz
+      // dorthin, wohin der Rest ohnehin zeigt, wenn der Arm wie fast immer
+      // etwas abgespreizt ist und etwas vor dem Körper liegt. Umklappen könnte
+      // die Hand nur noch, wo der Unterarm nach vorn oder hinten zeigt und
+      // dabei zur Körpermitte hin, oder seitlich hinaus und dabei hinter die
+      // Schulter. Beides kommt in keinem Muster vor.
+      const quer = (v) => add(v, mul(f, -skalar(v, f)));
+      const rest = quer(wunsch);
+      const kurz = Math.max(0, 1 - Math.hypot(...rest) / 0.5);
+      const t = norm(add(rest, mul(quer(ersatz), kurz * kurz * skalar(f, wunsch))));
       // Wohin die Handfläche zeigt. Welche Seite das ist, hängt an der Hand –
       // eine linke ist das Spiegelbild einer rechten. Nachgeprüft am
       // Liegestütz: Finger zum Kopf, Daumen nach innen, Handfläche zum Boden.

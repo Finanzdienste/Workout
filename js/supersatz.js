@@ -155,6 +155,24 @@ export function naechsterSchritt(gruppe, erledigt) {
   return schritte(gruppe).find((s) => !erledigt(s.id, s.satz)) || null;
 }
 
+/**
+ * Der nächste Schritt der ganzen Einheit – gefragt, wo kein gerade abgehakter
+ * Satz die Gruppe vorgibt: beim Öffnen der App, bei „Training fortsetzen" und
+ * wenn die Gruppe des letzten Satzes durch ist.
+ *
+ * Die erste Gruppe in Planreihenfolge, in der noch etwas offen ist, und darin
+ * der Schritt, der dran ist. Nach A1 ist das B1 und nicht A2, obwohl A noch
+ * Sätze offen hat. Für eine Gruppe aus einer einzigen Übung ist es schlicht
+ * deren erster offener Satz – also dasselbe wie ohne Supersätze.
+ */
+export function naechsterOffen(gruppen, erledigt) {
+  for (const g of gruppen) {
+    const s = naechsterSchritt(g, erledigt);
+    if (s) return s;
+  }
+  return null;
+}
+
 /** Zu welcher Gruppe gehört diese Übung? */
 export function gruppeVon(gruppen, id) {
   return gruppen.find((g) => g.some((x) => x.id === id)) || null;

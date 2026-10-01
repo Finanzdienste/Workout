@@ -2795,10 +2795,14 @@ exakt aufgeht):
 | dieselbe Bewegung zweimal in einer Einheit | 0 | 0 |
 
 Face Pull ist dafür neu drin, Reverse Snow Angel draußen. **Was es kostet:**
-Bizeps 2,24 statt 2,52 Termine je Woche, Gesäß 2,76 statt 3,00, vordere
-Schulter 1,95 statt 2,10 – mit denselben Sätzen, nur anders verteilt. Der
-Beinbeuger am Knie (ein Termin je Woche) hat zweimal 11 Tage Abstand statt
-höchstens 7; das lag in allen gerechneten Varianten so. Gerechnet:
+Bizeps 2,24 statt 2,52 Termine je Woche, Gesäß 2,76 statt 3,00 und bis 5 statt
+3 Tage Abstand, vordere Schulter 1,95 statt 2,10 und bis 7 statt 5 Tage – mit
+denselben Sätzen, nur anders verteilt. Der Beinbeuger am Knie (ein Termin je
+Woche) hat zweimal 11 Tage Abstand statt höchstens 7; das lag in allen
+gerechneten Varianten so. In der stärksten Woche liegt der Nacken bei 11,1
+statt 9,9 Sätzen (der Face Pull trifft ihn mit; im Schnitt 9,85 bei einer
+Kappe von 10), die vordere Schulter bei 9,75 statt 9,3; seitliche und hintere
+Schulter liegen dort ohnehin höher, ihr Ziel stieg. Gerechnet:
 
     WK_START=tools/pruefung/cut-start.json WK_REIHUNG=einheiten WK_SEED=11 python3 tools/build-plan.py cut
     WK_NUR_TAGE=1 WK_SPLITS=20000 WK_REIHUNG=einheiten WK_SEED=21 python3 tools/build-plan.py cut
@@ -2837,7 +2841,12 @@ fehlte, und ohne die Einheiten mit 12 und 21 Sätzen. Drei Tagesverteilungen
 (zwei Rangfolgen, darunter `WK_REIHUNG=ruesten`) holten nur 0,01 zurück – es
 liegt an der Auswahl, nicht an den Tagen. Weitere Kosten: Bauch 1,10 statt
 1,19 Termine je Woche und bis 10 statt 7 Tage Abstand, Bizeps 2,52 statt 2,86,
-Waden (ein Termin je Woche) bis 12 statt 7 Tage Abstand. Heraus fallen Band
+Nacken 2,67 statt 2,76, Waden (ein Termin je Woche) bis 12 statt 7 Tage
+Abstand, Beinbeuger am Knie (ebenso) bis 11 statt 10. In der stärksten Woche
+bekommt die vordere Schulter 13,2 statt 10,2 Sätze, ohne Hanteln 13,5 – mehr
+als die Kappe von 13, aber die gilt für den Schnitt, und der bleibt ohne
+Hanteln bei 10,5. Die hintere Schulter liegt dort bei 11,1 statt 9,9, Bauch,
+Bizeps und seitliche Schulter um 0,15 bis 0,6 Sätze höher. Heraus fallen Band
 Pull-apart, gewichtete Crunches, gewichtete Liegestütze, Hip Thrust, Inverted
 Row, Pike-Liegestütze und Wadenheben mit gebeugtem Knie; neu sind
 Schulterdrücken und Reverse Fly.
@@ -2867,7 +2876,7 @@ verweigern – geholfen hat das hier allein nicht.) Gerechnet:
 | Sätze je Woche | 60–72 | 69 |
 | Sätze je Einheit | 15–18 (36 × 15, 48 × 18) | 15–18 (21 × 15, 63 × 18) |
 | Übungen im Plan | 28 | 23 |
-| Rüstvorgänge je Einheit | 3,31 | 3,16 |
+| Rüstvorgänge je Einheit | 3,31 | 3,15 |
 | dieselbe Bewegung zweimal in einer Einheit | 0 | 0 |
 
 **Die seitliche Schulter steht hier jetzt auf 8, nicht 7** – aus demselben
@@ -2875,16 +2884,27 @@ Grund wie im Cut. Mit dem Schulterdrücken zählt ein Teil ihres Ziels nebenbei,
 und beim ersten Neulauf mit 7 fiel sie auf 5,1 direkte Sätze an 1,71 Terminen.
 Mit 8 bleibt sie, wo sie war. **Was es kostet:** Bizeps 1,95 statt 2,19 Termine
 je Woche, Rücken 2,10 statt 2,24, Nacken 2,38 statt 2,71, bei Bizeps und Brust
-bis zu 7 statt 5 Tage Abstand. Heraus fallen einbeiniges Kreuzheben, gewichtete
-Liegestütze, Inverted Row, liegende Trizepsstrecker, Reverse Fly und Reverse
-Snow Angel; Face Pull kommt dafür dreimal statt einmal die Woche, Rumänisches
-Kreuzheben mit 3 statt 1,1 Sätzen. Gerechnet:
+bis zu 7 statt 5 Tage Abstand, beim Gesäß bis 5 statt 4. In der stärksten Woche
+bekommt die vordere Schulter 10,5 statt 7,05 Sätze, die seitliche 10,5 statt
+9,0 (ihr Ziel stieg), die hintere 9,9 statt 9,0, der Trizeps 7,65 statt 6,9.
+Heraus fallen einbeiniges Kreuzheben, gewichtete Liegestütze, Inverted Row,
+liegende Trizepsstrecker, Reverse Fly und Reverse Snow Angel; Face Pull kommt
+dafür mit 3,1 statt 1,1 Sätzen je Woche (an 22 statt 8 Terminen, also etwa
+einmal die Woche statt alle zweieinhalb Wochen), Rumänisches Kreuzheben mit 3
+statt 1,1 Sätzen. Neu ist eine Übung: Pike-Liegestütze, 27 Sätze an 9
+Terminen, rund 1,3 je Woche. Gerechnet:
 
     python3 tools/pruefung/startpunkt.py bbp --ohne-bw-kappe
     WK_START=tools/pruefung/bbp-start.json WK_REIHUNG=einheiten WK_SEED=11 python3 tools/build-plan.py bbp
 
 (`--ohne-bw-kappe`, weil dieser Startpunkt vor der Kappe ohne Hanteln
-entstand – siehe Oberkörper oben. Der Plan hält sie trotzdem.)
+entstand – siehe Oberkörper oben. Der Plan hält sie trotzdem: Ohne Hanteln
+liegen vordere Schulter, Beinbeuger an der Hüfte und Nacken bei 8,0, 8,1 und
+9,8 Sätzen, die Kappe ist hier 12, und `tools/pruefung/plan-pruefen.py` prüft
+das in beiden Modi. Deshalb dürfen die Pike-Liegestütze hier bleiben, während
+sie im Oberkörper herausfallen: Dort trieben sie im ersten Lauf zusammen mit
+dem Schulterdrücken die vordere Schulter ohne Hanteln über die Kappe, hier ist
+Platz.)
 
 Drei Läufe mit dem neuen Ziel, einer davon ohne Wochenband (`WK_EBEN=0` – der
 Schalter bringt den Generator von vorher zurück, nachgeprüft an einem älteren
@@ -2925,6 +2945,22 @@ fast immer in der Fokusansicht. Seit v216:
   nachträglich hinein.
 
 `tests/test-fest-vollstaendig.mjs` prüft alle drei, an genau diesem Fall.
+
+**Dass der Plan davor dort auch liegt, prüft inzwischen ein Skript.** Anfangs
+war es nur eine Bitte in diesem Abschnitt, und Vergessen fiele erst auf, wenn
+wieder eine angefangene Einheit zu kurz ist. Eine veraltete Datei hilft dabei so
+wenig wie keine: Die App nimmt den Plan davor nur, wenn sein Stand genau der
+ist, von dem der Wechsel kommt – der ausgelieferte. `tools/pruefung/plan-vorher.py`
+vergleicht deshalb wie die Versionspflicht mit dem ausgelieferten Stand
+(`origin/main`, in CI dem vor dem Push): Hat ein Plan seither einen anderen
+Fingerabdruck, muss `tools/plan-vorher/<variante>.json` (`standard` für
+`tools/plan.json`) genau den ausgelieferten tragen, sonst hält es an und nennt
+den Befehl, der ihn dorthin holt, etwa
+`git show origin/main:tools/plan-cut.json > tools/plan-vorher/cut.json`;
+danach neu bauen. Verschobene Termine verlangen nichts, eine neue Variante auch
+nicht. Es läuft im Commit-Haken, in `npm run pruefen` und in CI.
+`tests/test-plan-vorher.mjs` prüft es in einem Wegwerf-Repo: neuer Cut ohne
+Plan davor – angehalten; den genannten Befehl ausgeführt – durch.
 
 ### „Kurz und knapp" war ein Jahr lang kaputt
 
@@ -4518,6 +4554,10 @@ Einheit. Sie erscheint erst, wenn überhaupt Zeit gemessen wurde – Einheiten a
 der Zeit davor tragen keine, und ein Durchschnitt über null Einheiten wäre eine
 Lüge.
 
+Das ist übrigens die ehrlichere Zahl als die des Handys: Androids *Digitales
+Wohlbefinden* zählt, wie lange die App offen war, diese Uhr zählt, wie lange
+trainiert wurde.
+
 ### Zurück in der App: weiter bei der nächsten Übung
 
 > „Immer wenn ich kurz aus der app rausgeh und wieder rein komm dann kommt das.
@@ -4538,10 +4578,6 @@ ein geschickter Stand), bleibt das Dashboard, wo der Hinweis steht. Und eine
 Einheit, die nicht heute begonnen wurde, öffnet nicht von selbst – die wartet
 auf dem Dashboard, wo man sie abschließt oder bewusst weitermacht.
 `tests/test-fortsetzen.mjs` prüft das.
-
-Das ist übrigens die ehrlichere Zahl als die des Handys: Androids *Digitales
-Wohlbefinden* zählt, wie lange die App offen war, diese Uhr zählt, wie lange
-trainiert wurde.
 
 ### Die Zeitschätzung wird an der eigenen Uhr geeicht
 

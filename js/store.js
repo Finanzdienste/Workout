@@ -141,6 +141,9 @@ const DEFAULT_STATE = {
   fokusUmzug: null,
   // Dasselbe eine Etage tiefer: Der Fokus bleibt, aber der *Inhalt* des Plans
   // ist ein anderer geworden. Siehe planWechsel() in js/app.js.
+  // { fest, einheiten, repariert, fokus }: `einheiten` zählt die
+  // festgeschriebenen Einheiten, `repariert` die von festReparieren() wieder
+  // vervollständigten – getrennt, weil beide Hinweise zugleich offen sein können.
   planUmbau: null,
   // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn }
   //   w    benutztes Gewicht, beim Abhaken mitgeschrieben

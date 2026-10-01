@@ -143,38 +143,46 @@ export function adjustedPlan() {
   const list = [];
   const notes = [];
   PLAN.forEach((w, i) => {
-    if (!act.length && !term.length) {
-      list.push(w.ex);
-      notes.push({ dropped: [], swapped: [], termin: [] });
-      return;
-    }
-    if (!act.length) {
-      // Nur Termine, keine Beschwerden: Der teure Teil oben (Nachbartage,
-      // Tabuliste, Ersatzsuche) hat dann nichts zu tun.
-      const t = faelltAus(w.ex, effDate(w));
-      list.push(t.items);
-      notes.push({ dropped: t.dropped, swapped: [], termin: t.namen });
-      return;
-    }
-    const eng = (a, b) => a && b && Math.abs(daysBetween(effDate(a), effDate(b))) < REST.days;
-    const meide = new Set();
-    if (eng(PLAN[i - 1], w)) directSets(list[i - 1]).forEach((m) => meide.add(m));
-    if (eng(w, PLAN[i + 1])) directSets(PLAN[i + 1].ex).forEach((m) => meide.add(m));
-    const taboo = new Set(EXERCISES
-      .filter((e) => directOf(e.id).some((m) => meide.has(m)))
-      .map((e) => e.id));
-    const r = applyInjuries(w.ex, act, taboo);
-    // Termine kommen *nach* den Verletzungen: Was ohnehin schon getauscht ist,
-    // wird an seiner neuen Stelle geprüft. Ein Ersatz, der die geschonte Gruppe
-    // trifft, fällt dann genauso weg wie das Original.
-    const t = faelltAus(r.items, effDate(w));
-    list.push(t.items);
-    notes.push({ dropped: r.dropped.concat(t.dropped), swapped: r.swapped, termin: t.namen });
+    const r = tagAnpassen(w, w.ex, list[i - 1], act, term);
+    list.push(r.items);
+    notes.push(r.notiz);
   });
   planCache.key = key;
   planCache.list = list;
   planCache.notes = notes;
   return list;
+}
+
+/**
+ * Ein Plantag unter Beschwerden und Terminen, mit der Übungsliste `ex` an
+ * seiner Stelle. Das ist sonst w.ex – vorherFassung() reicht hier die Liste aus
+ * dem Plan davor durch, damit sie genauso angepasst wird wie ein gewöhnlicher
+ * Tag. `vortag` ist die schon angepasste Liste des Tages davor.
+ */
+function tagAnpassen(w, ex, vortag, act, term) {
+  if (!act.length && !term.length) {
+    return { items: ex, notiz: { dropped: [], swapped: [], termin: [] } };
+  }
+  if (!act.length) {
+    // Nur Termine, keine Beschwerden: Der teure Teil unten (Nachbartage,
+    // Tabuliste, Ersatzsuche) hat dann nichts zu tun.
+    const t = faelltAus(ex, effDate(w));
+    return { items: t.items, notiz: { dropped: t.dropped, swapped: [], termin: t.namen } };
+  }
+  const i = w.n - 1;
+  const eng = (a, b) => a && b && Math.abs(daysBetween(effDate(a), effDate(b))) < REST.days;
+  const meide = new Set();
+  if (eng(PLAN[i - 1], w)) directSets(vortag).forEach((m) => meide.add(m));
+  if (eng(w, PLAN[i + 1])) directSets(PLAN[i + 1].ex).forEach((m) => meide.add(m));
+  const taboo = new Set(EXERCISES
+    .filter((e) => directOf(e.id).some((m) => meide.has(m)))
+    .map((e) => e.id));
+  const r = applyInjuries(ex, act, taboo);
+  // Termine kommen *nach* den Verletzungen: Was ohnehin schon getauscht ist,
+  // wird an seiner neuen Stelle geprüft. Ein Ersatz, der die geschonte Gruppe
+  // trifft, fällt dann genauso weg wie das Original.
+  const t = faelltAus(r.items, effDate(w));
+  return { items: t.items, notiz: { dropped: r.dropped.concat(t.dropped), swapped: r.swapped, termin: t.namen } };
 }
 
 /** Was an einem Plantag getauscht wurde und was wegfiel. */
@@ -414,14 +422,66 @@ function gestufteSaetze(w, m) {
   if (Array.isArray(fest) && fest.length) {
     return fest.filter((it) => EX_BY_ID.has(it.id)).map((it) => ({ id: it.id, sets: it.sets, bwSets: it.sets }));
   }
+  return stufenFassung(adjustedPlan()[w.n - 1] || w.ex, m);
+}
+
+/** Erfahrungsstufe und eigene Wahl auf einer Tagesliste: erst die Fassung der Übung, dann die Satzzahl. */
+function stufenFassung(ex, m) {
   // Erst die Stufe, dann der Vorrat. Die Anfängerfassung einer Übung braucht
   // oft weniger Gerät – das hängende Knieheben die Klimmzugstange, das liegende
   // nichts. Andersherum fiele sie weg, statt getauscht zu werden.
-  const geplant = anfaengerFassung(adjustedPlan()[w.n - 1] || w.ex, m);
+  const geplant = anfaengerFassung(ex, m);
   return geplant.map((it) => {
     const roh = m === 'bw' && it.bwSets ? it.bwSets : it.sets;
     const sets = satzZahl(roh);
     return sets === it.sets ? it : { ...it, sets };
+  });
+}
+
+/**
+ * Die Liste der Einheit n aus dem Plan davor – so, wie sie an jenem Tag
+ * dastand. `liste` ist der Eintrag aus PLANS[f].vorher.ex: [id, sets, bwSets].
+ *
+ * planWechsel() und festReparieren() in js/app.js schreiben damit eine
+ * angefangene Einheit fest, und gestufteSaetze() gibt eine feste Liste
+ * unverändert zurück. Bis v218 ging sie roh hinein – Plan-IDs, Plan-Sätze –,
+ * und was hier fehlt, fehlt danach für immer. Gemessen an einer angefangenen
+ * BBP-Einheit: Als Anfänger, und genauso mit der eigenen Wahl, stand danach
+ * wieder das hängende Knieheben da, also genau die Übung, die laut
+ *
+ *     „wenn man Anfänger ausgewählt hat soll auch nur die Boden Variante
+ *      kommen"
+ *
+ * nicht mehr kommen sollte. Fortgeschritten bekam drei Sätze statt vier, und
+ * was eine Beschwerde oder ein Termin gestrichen hatte, kam zurück.
+ *
+ * Deshalb derselbe Weg wie ein gewöhnlicher Plantag: Beschwerden und Termine
+ * (tagAnpassen), dann Stufe und eigene Wahl (stufenFassung). Vorrat und
+ * Modus-Sperren nicht – die rechnet exBasis() auch über einer festen Liste.
+ *
+ * Und was schon im Protokoll steht, hat Vorrang: Die Übung dort war die
+ * angezeigte, `soll` die Satzzahl jenes Tages. Hat sich die Stufe seither
+ * geändert, steht sonst eine andere Fassung fest als die, die trainiert wurde.
+ */
+export function vorherFassung(n, liste, mode) {
+  const roh = liste.filter(([id]) => EX_BY_ID.has(id))
+    .map(([id, sets, bwSets]) => ({ id, sets, bwSets }));
+  const w = PLAN[n - 1];
+  const tag = w ? tagAnpassen(w, roh, adjustedPlan()[n - 2], activeInjuries(), termine()).items : roh;
+  const items = stufenFassung(tag, mode);
+  const e = store.getState().log[n] || {};
+  const soll = e.soll || {};
+  const da = Object.keys(e[mode] || {}).filter((id) => EX_BY_ID.has(id));
+  const frei = da.filter((id) => !items.some((it) => it.id === id));
+  return items.map((it) => {
+    let id = it.id;
+    if (!da.includes(id)) {
+      const x = frei.find((y) => nah(it, y));
+      if (!x) return it;
+      frei.splice(frei.indexOf(x), 1);
+      id = x;
+    }
+    return { ...it, id, sets: soll[id] || it.sets };
   });
 }
 
@@ -490,6 +550,12 @@ function verwandte(id) {
   return verwandtCache.get(id) || new Set();
 }
 
+/** Ist `x` aus dieser Stelle geworden – über höchstens zwei Schritte (siehe oben)? */
+function nah(it, x) {
+  return [it.id, it.statt, it.from].filter(Boolean).some((y) => y === x
+    || verwandte(y).has(x) || [...verwandte(y)].some((z) => verwandte(z).has(x)));
+}
+
 function protokolliert(n) {
   const e = store.getState().log[n];
   const ids = new Set();
@@ -506,8 +572,6 @@ function behalteProtokolliertes(n, items) {
   const fehlen = [...da].filter((id) => EX_BY_ID.has(id) && !items.some((it) => it.id === id));
   if (!fehlen.length) return items;
   const out = items.map((it) => ({ ...it }));
-  const nah = (it, x) => [it.id, it.statt, it.from].filter(Boolean).some((y) => y === x
-    || verwandte(y).has(x) || [...verwandte(y)].some((z) => verwandte(z).has(x)));
   const soll = (store.getState().log[n] || {}).soll || {};
   fehlen.forEach((x) => {
     const ziel = out.find((it) => !da.has(it.id) && !it.gehalten && nah(it, x));

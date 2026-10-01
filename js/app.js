@@ -47,8 +47,8 @@ import { uebungsListe, vorratKarte } from './ansicht-vorrat.js';
 import {
   erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
 } from './ansicht-statistik.js';
-import { gruppeVon, naechsterSchritt, paare } from './supersatz.js';
-import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, saetzeErledigt, resolve, sammleStats, shiftToToday, tagLaenge, vorratNotiz, workoutByNo } from './plan.js';
+import { gruppeVon, naechsterOffen, naechsterSchritt, paare } from './supersatz.js';
+import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, saetzeErledigt, resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat, uebungGeht } from './vorrat.js';
@@ -389,12 +389,16 @@ function festeListen(log, grundModus, vorher = null) {
   return out;
 }
 
-/** Die Übungsliste der Einheit n im Plan davor, im gegebenen Modus – oder null. */
+/**
+ * Die Übungsliste der Einheit n im Plan davor, im gegebenen Modus – oder null.
+ * Nicht roh, sondern so, wie sie dastand: Stufe, eigene Wahl, Beschwerden und
+ * was schon im Protokoll steht (vorherFassung() in js/plan.js).
+ */
 function vorherListe(vorher, n, mode) {
   const liste = vorher && vorher.ex[Number(n) - 1];
   if (!liste) return null;
-  return liste.filter(([id]) => EX_BY_ID.has(id))
-    .map(([id, sets, bwSets]) => ({ id, sets: mode === 'bw' ? bwSets : sets }));
+  const fassung = vorherFassung(Number(n), liste, mode);
+  return fassung.length ? fassung : null;
 }
 
 /**
@@ -411,23 +415,38 @@ function vorherListe(vorher, n, mode) {
  * festgeschrieben, und jede feste Übung steht auch in derselben Nummer des
  * Plans davor, der aber mehr hatte. Dann gilt dessen ganze Liste; die Satzzahl
  * der schon festen Übungen bleibt.
+ *
+ * „Steht auch dort" heißt: als sie selbst oder als ihre leichtere oder
+ * schwerere Fassung (stufenKette). Die feste Liste nennt, was angezeigt war –
+ * bei einem Anfänger das liegende Knieheben, wo im Plan das hängende steht.
+ * Bis v218 verglich das hier nur die IDs, und genau die Einheit eines Anfängers
+ * blieb dann kurz.
+ *
+ * Läuft beim Start **vor** stempleFertige() – warum, steht beim Aufruf unten.
  */
 function festReparieren() {
   const s = store.getState();
   const fokus = s.focus || 'standard';
   const vorher = (PLANS[fokus] || {}).vorher;
   if (!vorher) return 0;
+  const passt = (a, f) => [a.id, a.statt, a.from].some((x) => x && stufenKette(x).includes(f.id));
   const ersatz = {};
   Object.entries(s.log || {}).forEach(([n, e]) => {
     if (!e || e.done || !Array.isArray(e.fest) || !e.fest.length) return;
     const alt = vorherListe(vorher, n, e.mode || s.mode);
     if (!alt || alt.length <= e.fest.length) return;
-    if (!e.fest.every((f) => alt.some((a) => a.id === f.id))) return;
-    ersatz[n] = alt.map((a) => e.fest.find((f) => f.id === a.id) || a);
+    if (!e.fest.every((f) => alt.some((a) => passt(a, f)))) return;
+    ersatz[n] = alt.map((a) => e.fest.find((f) => f.id === a.id) || e.fest.find((f) => passt(a, f)) || a);
   });
   const k = store.festErsetzen(ersatz);
   if (k) {
-    store.setSetting('planUmbau', { einheiten: k, repariert: true,
+    // Ein Hinweis zum Planwechsel, der noch nicht weggetippt ist, bleibt
+    // stehen – daneben, nicht darüber. Bis v218 überschrieb die Reparatur ihn,
+    // und „ab der nächsten offenen Einheit gelten die neuen Übungen" war weg,
+    // bevor es gelesen war. Deshalb zählt `repariert` für sich und `einheiten`
+    // bleibt, was planWechsel() hineingeschrieben hat.
+    const offen = s.planUmbau;
+    store.setSetting('planUmbau', { ...(offen && offen.fest ? offen : {}), repariert: k,
       fokus: (PLANS[fokus] || {}).name || fokus });
   }
   return k;
@@ -440,28 +459,19 @@ function festReparieren() {
  * ist, was mit dem Bisherigen passiert ist, und was *nicht* verloren geht. Die
  * dritte Zeile ist die wichtigste: Eine zurückgesetzte Runde sieht aus wie ein
  * Datenverlust, und sie ist keiner.
+ *
+ * Planwechsel und Reparatur können zugleich offen sein (siehe festReparieren()),
+ * dann stehen beide Absätze in einem Hinweis, der Planwechsel zuerst.
  */
 function umbauHinweis() {
   const u = store.getState().planUmbau;
   if (!u) return '';
-  if (u.repariert) {
-    return `
-    <div class="notice aufstieg" style="margin:0 0 12px">
-      <strong>Deine angefangene Einheit ist wieder vollständig</strong>
-      <div class="small" style="margin-top:6px">
-        Beim Plan-Update eben ${u.einheiten === 1 ? 'hatte eine angefangene Einheit' : `hatten ${u.einheiten} angefangene Einheiten`}
-        in „${esc(u.fokus)}" Übungen verloren – nur die schon angezeigten waren
-        geblieben. Das war ein Fehler in der App. Jetzt stehen wieder alle Übungen
-        drin, die dort vorher standen; was du schon abgehakt hast, bleibt abgehakt.
-      </div>
-      <div class="btn-row nav" style="margin-top:10px">
-        <button type="button" class="btn btn-primary" data-act="umbau-ok">Verstanden</button>
-      </div>
-    </div>`;
-  }
+  // Bis v218 stand bei einer Reparatur `repariert: true` und die Zahl in
+  // `einheiten` – so liegt es auf manchem Gerät noch, bis es weggetippt ist.
+  const repariert = u.repariert === true ? u.einheiten : (u.repariert || 0);
+  const teile = [];
   if (u.fest) {
-    return `
-    <div class="notice aufstieg" style="margin:0 0 12px">
+    teile.push(`
       <strong>Der Plan wurde überarbeitet</strong>
       <div class="small" style="margin-top:6px">
         ${u.einheiten
@@ -470,7 +480,22 @@ function umbauHinweis() {
     : ''}Ab der nächsten offenen Einheit gelten in „${esc(u.fokus)}" die neuen Übungen,
         und die Runde läuft einfach weiter. <b>Gewichte, Bänder, Erfahrungsstufe und
         Statistik bleiben, wie sie sind.</b>
-      </div>
+      </div>`);
+  }
+  if (repariert) {
+    teile.push(`
+      <strong${teile.length ? ' style="display:block;margin-top:12px"' : ''}>Deine angefangene Einheit ist wieder vollständig</strong>
+      <div class="small" style="margin-top:6px">
+        Beim Plan-Update eben ${repariert === 1 ? 'hatte eine angefangene Einheit' : `hatten ${repariert} angefangene Einheiten`}
+        in „${esc(u.fokus)}" Übungen verloren – nur die schon angezeigten waren
+        geblieben. Das war ein Fehler in der App. Jetzt stehen wieder alle Übungen
+        drin, die dort vorher standen; was du schon abgehakt hast, bleibt abgehakt.
+      </div>`);
+  }
+  if (teile.length) {
+    return `
+    <div class="notice aufstieg" style="margin:0 0 12px">
+      ${teile.join('')}
       <div class="btn-row nav" style="margin-top:10px">
         <button type="button" class="btn btn-primary" data-act="umbau-ok">Verstanden</button>
       </div>
@@ -1114,9 +1139,25 @@ const ui = {
  * Dashboard
  * ------------------------------------------------------------------ */
 
-/** Index der ersten Übung, in der noch ein Satz offen ist. */
+/**
+ * Index der Übung, die als Nächstes dran ist: der ersten, in der noch ein Satz
+ * offen ist.
+ *
+ * Mit Supersätzen entscheidet der Wechsel (naechsterOffen() in
+ * js/supersatz.js): Nach A1 ist B dran, obwohl A in der Planreihenfolge vorn
+ * steht und noch Sätze offen hat. Vorher kannte diese Funktion nur die
+ * Planreihenfolge: Nach dem Neuladen stand wieder A da, wo superWeiter() eben
+ * noch zu B gesprungen war, und Tobi machte A2 vor B1. Jetzt dieselbe Antwort
+ * für alle, die fragen – das Neuladen, „Training fortsetzen" und das
+ * Weiterrücken nach einer fertigen Übung.
+ */
 function firstOpenExercise(n, mode) {
   const w = workoutByNo(n, mode);
+  if (superAn()) {
+    const ziel = naechsterOffen(superGruppen(n, mode), satzSteht(n, mode));
+    const idx = ziel ? w.ex.findIndex((x) => x.id === ziel.id) : -1;
+    if (idx >= 0) return idx;
+  }
   const idx = w.ex.findIndex((item) => {
     return saetzeErledigt(n, item.id, item.sets) < item.sets;
   });
@@ -1167,6 +1208,19 @@ function superPartner(n, mode, id) {
 }
 
 /**
+ * Steht dieser Satz schon? Die Frage, die naechsterSchritt() stellt – beim
+ * Abhaken (superWeiter) und beim Fortsetzen (firstOpenExercise) wörtlich
+ * dieselbe, sonst landeten beide an verschiedenen Stellen. Nur nachgesehen:
+ * peekSets() legt anders als getSets() nichts im Protokoll an.
+ */
+function satzSteht(n, mode) {
+  return (exId, satz) => {
+    const arr = store.peekSets(n, mode, exId);
+    return !!(arr && arr[satz] && arr[satz].done);
+  };
+}
+
+/**
  * Nach einem abgehakten Satz: wohin, und wie lange warten?
  *
  * Gibt zurück, ob der Supersatz den Ablauf übernommen hat. Tut er es nicht
@@ -1179,12 +1233,7 @@ function superWeiter(n, mode, id) {
   const g = gruppeVon(paare(items, mode), id);
   if (!g || g.length < 2) return false;
 
-  const erledigt = (exId, satz) => {
-    const v = items.find((x) => x.id === exId);
-    const arr = store.getSets(n, mode, exId, v.sets);
-    return !!(arr[satz] && arr[satz].done);
-  };
-  const ziel = naechsterSchritt(g, erledigt);
+  const ziel = naechsterSchritt(g, satzSteht(n, mode));
   if (!ziel) return false;              // Paar durch – der normale Weg greift
 
   const v = items.find((x) => x.id === ziel.id);
@@ -5216,11 +5265,22 @@ function render() {
   (RENDERERS[ui.tab] || renderDashboard)();
   restoreFocus(hatte);
   syncHistory();
-  // Welche Einheit gerade in der Fokusansicht offen ist – damit sie nach dem
-  // Neuladen wieder dort aufgeht (siehe `fokusOffen` beim Start). Nur beim
-  // Wechsel geschrieben, nicht bei jedem Satz.
-  const offen = ui.tab === 'dashboard' && ui.focus ? ui.workoutNo : null;
-  if ((store.getState().fokusOffen ?? null) !== offen) store.setSetting('fokusOffen', offen);
+  // Welche Einheit gerade in der Fokusansicht offen ist, und bei welcher Übung
+  // – damit sie nach dem Neuladen genau dort wieder aufgeht (siehe `fokusOffen`
+  // beim Start). Die Übung muss mit: Weder den Sprung zum Supersatz-Partner
+  // noch einen bewussten Tipp auf eine spätere Übung kann man hinterher aus den
+  // Haken ablesen. Nur beim Wechsel geschrieben – der Einheit oder der Übung –,
+  // nicht bei jedem Satz.
+  let offen = null;
+  if (ui.tab === 'dashboard' && ui.focus) {
+    const ex = workoutByNo(ui.workoutNo).ex;
+    const x = ex[Math.min(Math.max(0, ui.focusIdx), ex.length - 1)];
+    offen = { n: ui.workoutNo, id: x ? x.id : null };
+  }
+  const war = store.getState().fokusOffen ?? null;
+  if ((war === null) !== (offen === null) || (offen && (war.n !== offen.n || war.id !== offen.id))) {
+    store.setSetting('fokusOffen', offen);
+  }
 }
 
 function go(tab) {
@@ -6477,14 +6537,6 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   });
 }
 
-// Nachrücken passiert still: Ist der Termin der nächsten offenen Einheit
-// verstrichen, wandert der Restplan nach hinten. Der Rückgabewert – wie viele
-// Tage das waren – wird nicht mehr gebraucht, seit der Hinweis dazu weg ist.
-// Erst nachstempeln, dann die Runde prüfen: rundeWeiter() fragt genau die
-// Vollständigkeit ab, die hier festgeschrieben wird.
-stempleFertige();
-rundeWeiter();
-catchUpPlan();
 // Hat jemand einen Stand geschickt? Steht im Anker der Adresse und wird dort
 // sofort entfernt. Die Frage danach stellt die Startansicht – also muss sie
 // auch die sichtbare sein, sonst öffnet der Link bei jemandem, der zuletzt in
@@ -6555,6 +6607,23 @@ if (planWechsel() || festReparieren()) {
   ui.listView = false;
   startHinweis = true;
 }
+// Erst jetzt nachstempeln: nach Umzug, Planwechsel und Reparatur, nicht davor.
+// Bis v218 lief es als Erstes, und eine Einheit, die v215 auf ihr erstes Paar
+// festgeschrieben hatte, war gegen diese kurze Liste gemessen fertig, sobald
+// beide Übungen ganz abgehakt waren. stempleFertige() setzte `done`,
+// festReparieren() lässt Abgeschlossenes aus – Crunches und Wadenheben kamen
+// nie zurück, und die Einheit galt als trainiert. Was von Hand oder mit dem
+// letzten Haken fertig wurde, trägt `done` schon vorher und bleibt, wie es ist.
+// Und nach dem Umzug, weil das Protokoll davor noch zum alten Plan gehört.
+//
+// Nachrücken passiert still: Ist der Termin der nächsten offenen Einheit
+// verstrichen, wandert der Restplan nach hinten. Der Rückgabewert – wie viele
+// Tage das waren – wird nicht mehr gebraucht, seit der Hinweis dazu weg ist.
+// Erst nachstempeln, dann die Runde prüfen: rundeWeiter() fragt genau die
+// Vollständigkeit ab, die hier festgeschrieben wird.
+stempleFertige();
+rundeWeiter();
+catchUpPlan();
 /*
  * Eine neu begonnene Runde fängt heute an – nicht am Plandatum.
  *
@@ -6564,9 +6633,8 @@ if (planWechsel() || festReparieren()) {
  * Genau so ist es gedacht, und genau das war kaputt. Beide Umzüge oben setzen
  * die Verschiebung auf null zurück (restartPlan), und die Plandaten stehen fest
  * in js/data.js – die erste Einheit trägt den 24. August. Das Nachrücken, das
- * daraus sonst „heute" macht, war zu diesem Zeitpunkt längst gelaufen:
- * catchUpPlan() steht dreißig Zeilen weiter oben. Auf dem Dashboard stand
- * danach „vor 25 Tagen · Workout 1".
+ * daraus sonst „heute" macht, lief damals vor den Umzügen. Auf dem Dashboard
+ * stand danach „vor 25 Tagen · Workout 1".
  *
  * Deshalb hier und nicht in restartPlan(): Der Speicher kennt keine Plandaten,
  * und er soll sie auch nicht kennen – die Rechnung dazu steht in js/plan.js.
@@ -6607,8 +6675,10 @@ if (pruefeAufstieg() || pruefeZusatztag()) {
  * Das Handy beendet eine Web-App im Hintergrund gern ganz, und beim
  * Zurückkommen lädt sie neu – nach einer neuen Fassung ohnehin. Bis v216
  * landete man dann auf dem Dashboard vor „Training fortsetzen", mitten im
- * Satz. Jetzt direkt in der Fokusansicht, bei der ersten Übung mit offenem
- * Satz – so wie der Knopf es getan hätte.
+ * Satz. Jetzt direkt in der Fokusansicht, und zwar bei der Übung, die zuletzt
+ * zu sehen war – solange dort noch ein Satz offen ist. Sonst bei der, die als
+ * Nächstes dran ist (firstOpenExercise(), mit Supersätzen also beim Partner),
+ * so wie der Knopf es getan hätte.
  *
  * Nur, wenn beim Verlassen die Fokusansicht dieser Einheit offen war
  * (`fokusOffen`, siehe render()) – wer mitten im Training bewusst zurück aufs
@@ -6621,12 +6691,31 @@ if (pruefeAufstieg() || pruefeZusatztag()) {
   const s = store.getState();
   const laeuft = s.session;
   const heute = laeuft && s.clock && s.clock.n === laeuft.n && s.clock.on === todayISO();
-  if (heute && s.fokusOffen === laeuft.n && !startHinweis && !ui.standAngebot
+  // In v217 und v218 stand in `fokusOffen` nur die Nummer der Einheit.
+  const offen = s.fokusOffen && typeof s.fokusOffen === 'object'
+    ? s.fokusOffen : { n: s.fokusOffen ?? null, id: null };
+  if (heute && offen.n === laeuft.n && !startHinweis && !ui.standAngebot
       && ui.tab === 'dashboard' && workoutByNo(laeuft.n).ex.length) {
+    const mode = store.workoutMode(laeuft.n);
+    const ex = workoutByNo(laeuft.n, mode).ex;
+    const da = ex.findIndex((x) => x.id === offen.id);
     ui.workoutNo = laeuft.n;
     ui.focus = true;
     ui.listView = false;
-    ui.focusIdx = firstOpenExercise(laeuft.n, store.workoutMode(laeuft.n));
+    ui.focusIdx = da >= 0 && saetzeErledigt(laeuft.n, ex[da].id, ex[da].sets) < ex[da].sets
+      ? da : firstOpenExercise(laeuft.n, mode);
+    // Den Verlauf nicht doppelt füllen. Ein Neuladen behält ihn (location.reload()
+    // nach einer neuen Fassung ebenso wie ein wiederhergestellter Tab), und
+    // dann steht der Eintrag der Fokusansicht schon da. render() legte trotzdem
+    // einen weiteren dazu, weil `lastLevel` noch vom Dashboard stammt – nach
+    // zweimal Neuladen zeigte Zurück zweimal unverändert dieselbe Übung, erst
+    // der dritte Druck kam aufs Dashboard. Kalt gestartet ist der Verlauf leer:
+    // Dann bleibt es beim einen neuen Eintrag, und Zurück führt aufs Dashboard
+    // statt aus der App.
+    const st = history.state;
+    if (st && `${st.tab || 'dashboard'}|${st.listView ? 1 : 0}|${st.focus ? 1 : 0}` === levelOf()) {
+      lastLevel = levelOf();
+    }
   }
 }
 /*

@@ -229,6 +229,75 @@ check(chin[0].kopf - chin[0].stange > 5, 'Klimmzug unten: Kopf hängt deutlich u
 check(chin[1].kopf - chin[1].stange < 0, 'Klimmzug oben: Kopf ist über der Stange');
 check(chin[0].stange.toFixed(0) === chin[1].stange.toFixed(0), 'Stange bleibt stehen, der Körper bewegt sich');
 
+// Hände: links das Spiegelbild von rechts, und keine klappt um.
+//
+// Liegt die gewünschte Daumenrichtung fast längs des Unterarms, nimmt die
+// Figur eine Ersatzrichtung. Bis v218 war das für beide Hände dieselbe Achse –
+// links nach innen, rechts nach außen –, und die rechte Hand klappte mitten in
+// der Wiederholung um 180° um: Kniebeuge ohne Gewicht, Hammercurl, Pull-Apart,
+// Reverse Fly. Mit ihr wechselte bei der Faust die sichtbare Fingerseite, also
+// genau das, woran man den Griff erkennen soll:
+//
+//     „Man soll bei jeder Übung auch die Finger sehen können damit man sieht
+//      obs Ober- oder Untergriff ist"
+//
+// Gemessen am gezeichneten Pfad, nicht an Zwischenwerten der Rechnung. Von
+// vorn gesehen ist bei diesen Übungen die eine Hand das Spiegelbild der
+// anderen – vorher lagen die Ecken 1,5 bis 2,7 Einheiten daneben, und zwar
+// genau an den Stellen hier. Und von einem Bild zum nächsten (Δt 0,005)
+// ändert keine Hand mehr sprunghaft ihre Form: vorher 1,6 bis 2,9 beim
+// Umklappen, jetzt höchstens 0,3.
+const haende = await page.evaluate(async () => {
+  const { mountFigure } = await import('./js/figure.js');
+  // Ecken des Hand-Pfads: die Punkte von M und L und die Endpunkte der Bögen.
+  const ecken = (d) => [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)|A[\d.]+ [\d.]+ 0 0 1 (-?[\d.]+) (-?[\d.]+)/g)]
+    .map((m) => (m[1] !== undefined ? [+m[1], +m[2]] : [+m[3], +m[4]]));
+  const naechste = (a, b) => Math.max(...a.map((p) => Math.min(...b.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1])))));
+  const abstand = (a, b) => Math.max(naechste(a, b), naechste(b, a));
+  const out = {};
+  for (const [pattern, equip, t] of [
+    ['squatbw', null, 0.55], ['hammercurl', 'dumbbells', 0.6],
+    ['pullapart', 'band', 0.95], ['reversefly', 'dumbbells', 0.02],
+  ]) {
+    // Feste Größe, damit die Maße unten etwas bedeuten: Ein Kasten ohne
+    // Höhe bekommt ein flaches Sichtfeld und eine halb so große Figur.
+    const host = document.createElement('div');
+    host.style.cssText = 'width:300px;height:300px';
+    document.body.appendChild(host);
+    const h = mountFigure(host, pattern, true, equip);
+    h.stop(); h.setView(0, 20);
+    const pfade = () => [...host.querySelectorAll('path.fig-hand')].map((p) => ecken(p.getAttribute('d')));
+    h.draw(t);
+    const [a, b] = pfade();
+    const mitte = +host.querySelector('.fig-head').getAttribute('cx');
+    const spiegel = abstand(a.map(([x, y]) => [2 * mitte - x, y]), b);
+    // Jede Hand gegen sich selbst im Bild davor, beide um ihren Schwerpunkt
+    // verschoben: gemessen wird die Form, nicht der Weg.
+    let sprung = 0;
+    let davor = null;
+    for (let i = 0; i <= 200; i++) {
+      h.draw(i / 200);
+      const jetzt = pfade().map((e) => {
+        const sx = e.reduce((s, q) => s + q[0], 0) / e.length;
+        const sy = e.reduce((s, q) => s + q[1], 0) / e.length;
+        return { sx, e: e.map(([x, y]) => [x - sx, y - sy]) };
+      }).sort((p, q) => p.sx - q.sx);
+      if (davor) jetzt.forEach((x, k) => { sprung = Math.max(sprung, abstand(x.e, davor[k].e)); });
+      davor = jetzt;
+    }
+    out[pattern] = { t, spiegel, sprung };
+    host.remove();
+  }
+  return out;
+});
+console.log('     Hände:', JSON.stringify(haende, (k, v) => (typeof v === 'number' ? +v.toFixed(2) : v)));
+Object.entries(haende).forEach(([pattern, v]) => {
+  check(v.spiegel < 0.3,
+    `${pattern} t=${v.t}: von vorn ist die eine Hand das Spiegelbild der anderen (${v.spiegel.toFixed(2)} daneben)`);
+  check(v.sprung < 1,
+    `${pattern}: keine Hand klappt von einem Bild zum nächsten um (größte Formänderung ${v.sprung.toFixed(2)})`);
+});
+
 // Jedes Muster aus den Daten muss es auch geben, und wo Bodyweight eine
 // andere Bewegung ist, darf es nicht das Hantel-Muster erben.
 const map = await page.evaluate(async () => {

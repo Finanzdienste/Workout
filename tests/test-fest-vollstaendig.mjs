@@ -18,6 +18,17 @@
  *      Sätze bleiben, und die App sagt es.
  *   4. Eine abgeschlossene Einheit bleibt, was sie war – was nicht gemacht
  *      wurde, wird nicht nachträglich hineingeschrieben.
+ *   5. Auch wenn das feste Paar schon ganz abgehakt ist, ohne dass die Einheit
+ *      abgeschlossen wäre: stempleFertige() lief bis v218 vor der Reparatur
+ *      und machte daraus eine fertige Einheit mit zwei Übungen.
+ *   6. Die Liste aus dem Plan davor geht durch dieselbe Anpassung wie ein
+ *      gewöhnlicher Plantag – Anfängerfassung, eigene Wahl, Satzzahl der
+ *      Stufe. Bis v218 stand sie roh fest: das hängende Knieheben für
+ *      Anfänger, drei Sätze für Fortgeschrittene.
+ *   7. Die Reparatur erkennt die angezeigte Fassung wieder: Die Einheit eines
+ *      Anfängers (liegendes statt hängendes Knieheben) wird auch vervollständigt.
+ *   8. Ein noch offener Hinweis zum Planwechsel bleibt neben dem zur Reparatur
+ *      stehen, statt überschrieben zu werden.
  */
 import { chromium } from 'playwright';
 import { URL } from './umgebung.mjs';
@@ -65,8 +76,25 @@ check(angelegt.fokus, 'die Fokusansicht ist offen');
 check(angelegt.soll.length > 2 && angelegt.soll.every((id) => angelegt.im.includes(id)),
   `alle ${angelegt.soll.length} Übungen der Einheit stehen im Protokoll, nicht nur die angezeigte (${angelegt.im.length})`);
 
-// Welche Variante bringt einen Plan davor mit? Ohne einen gibt es 2. und 3.
-// nicht – dann ist nichts zu prüfen, und das wird gesagt statt verschwiegen.
+// Liest Liste, Abschluss und Hinweis einer Einheit nach dem Laden.
+const lies = (n) => page.evaluate(async (nn) => {
+  const { getState } = await import('./js/store.js');
+  const { workoutByNo } = await import('./js/plan.js');
+  const e = getState().log[nn] || {};
+  return {
+    fest: (e.fest || []).map((x) => `${x.id}:${x.sets}`),
+    ex: workoutByNo(nn, 'db').ex.map((x) => `${x.id}:${x.sets}`),
+    done: e.done || null,
+    umbau: getState().planUmbau,
+    text: (document.querySelector('#view') || {}).textContent || '',
+  };
+}, n);
+const gleich = (a, b) => [...a].sort().join() === [...b].sort().join();
+const voll = (k) => Array.from({ length: k }, () => ({ w: '20', done: true }));
+
+// Welche Variante bringt einen Plan davor mit? Ohne einen gibt es 2. bis 5.
+// und 8. nicht – dann ist nichts zu prüfen, und das wird gesagt statt
+// verschwiegen.
 const lage = await page.evaluate(async () => {
   const { PLANS } = await import('./js/data.js');
   const f = Object.keys(PLANS).find((k) => PLANS[k].vorher);
@@ -74,10 +102,11 @@ const lage = await page.evaluate(async () => {
   const v = PLANS[f].vorher;
   // Eine Nummer, deren alte Liste mindestens drei Übungen hatte.
   const i = v.ex.findIndex((l) => l.length >= 3);
-  return { f, stand: PLANS[f].stand, alt: v.stand, n: i + 1, liste: v.ex[i].map(([id, sets]) => ({ id, sets })) };
+  return { f, name: PLANS[f].name, stand: PLANS[f].stand, alt: v.stand, n: i + 1,
+           liste: v.ex[i].map(([id, sets]) => ({ id, sets })) };
 });
 if (!lage) {
-  console.log('     kein Plan bringt einen Vorgänger mit (tools/plan-vorher/) – 2. und 3. entfallen');
+  console.log('     kein Plan bringt einen Vorgänger mit (tools/plan-vorher/) – 2. bis 5. und 8. entfallen');
 } else {
   console.log(`     ${lage.f}: Plan davor ${lage.alt}, jetzt ${lage.stand}, Einheit ${lage.n} hatte ${lage.liste.length} Übungen`);
   const [a, b] = lage.liste;
@@ -138,6 +167,125 @@ if (!lage) {
     return (getState().log[n].fest || []).length;
   }, lage.n);
   check(fertig === 2, `eine abgeschlossene Einheit behält, was gemacht wurde (${fertig} Übungen)`);
+
+  // --- 5. Das feste Paar ganz abgehakt, nicht abgeschlossen ---------------
+  // Ohne `done`: Der Tick-Handler stempelt nur beim letzten Haken der ganzen
+  // Einheit, und die hatte beim Abhaken noch alle ihre Übungen.
+  await setze({
+    greeted: true, mode: 'db', focus: lage.f, planStand: { [lage.f]: lage.stand },
+    log: { [lage.n]: { ...halb, db: { [a.id]: voll(a.sets), [b.id]: voll(b.sets) }, fest: lage.liste.slice(0, 2) } },
+  });
+  await page.waitForTimeout(300);
+  const paar = await lies(lage.n);
+  check(paar.fest.map((x) => x.split(':')[0]).join() === lage.liste.map((x) => x.id).join(),
+    `ein ganz abgehaktes Paar ohne Abschluss wird trotzdem repariert: ${paar.fest.length} von ${lage.liste.length} Übungen`);
+  check(!paar.done, `und die Einheit gilt danach nicht als abgeschlossen (done: ${paar.done})`);
+
+  // --- 8. Offener Planwechsel-Hinweis und Reparatur: beide -----------------
+  await setze({
+    greeted: true, mode: 'db', focus: lage.f, planStand: { [lage.f]: lage.stand },
+    log: { [lage.n]: { ...halb, fest: lage.liste.slice(0, 2) } },
+    planUmbau: { einheiten: 1, fest: true, fokus: lage.name },
+  });
+  await page.waitForTimeout(300);
+  const beide = await lies(lage.n);
+  check(!!(beide.umbau && beide.umbau.fest && beide.umbau.einheiten === 1 && beide.umbau.repariert === 1),
+    `der Planwechsel-Hinweis bleibt neben der Reparatur gespeichert (${JSON.stringify(beide.umbau)})`);
+  check(/Der Plan wurde überarbeitet/.test(beide.text) && /neuen Übungen/.test(beide.text),
+    'der Text zum Planwechsel steht noch da');
+  check(/wieder vollständig/.test(beide.text), 'und der zur Reparatur daneben');
+  await page.locator('[data-act="umbau-ok"]').first().click();
+  await page.waitForTimeout(200);
+  const weg = await page.evaluate(() => document.querySelector('#view').textContent);
+  check(!/Der Plan wurde überarbeitet|wieder vollständig/.test(weg), 'ein Tipp auf „Verstanden" nimmt beide weg');
+}
+
+// Eine Einheit im Plan davor mit einer Übung, die eine leichtere Fassung hat
+// (das hängende Knieheben) – hinter dem ersten Paar und nicht als letzte, damit
+// sie weder im Protokoll eines v214-Stands steht noch beim Reparieren fehlt.
+const stufe = await page.evaluate(async () => {
+  const { PLANS } = await import('./js/data.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const leicht = (id) => {
+    const l = (EX_BY_ID.get(id) || {}).anfaenger;
+    return l && EX_BY_ID.has(l) ? l : null;
+  };
+  for (const f of Object.keys(PLANS)) {
+    const v = PLANS[f].vorher;
+    if (!v) continue;
+    const i = v.ex.findIndex((l) => l.length >= 4 && l.slice(2, -1).some(([id]) => leicht(id)));
+    if (i < 0) continue;
+    const liste = v.ex[i].map(([id, sets]) => ({ id, sets, leicht: leicht(id) }));
+    const j = liste.findIndex((x, k) => k >= 2 && x.leicht);
+    return { f, stand: PLANS[f].stand, alt: v.stand, n: i + 1, liste, j };
+  }
+  return null;
+});
+if (!stufe) {
+  console.log('     kein Plan davor mit einer Übung in zwei Fassungen – 6. und 7. entfallen');
+} else {
+  const { liste, j } = stufe;
+  console.log(`     ${stufe.f}, Einheit ${stufe.n}: ${liste[j].id} → ${liste[j].leicht} für Anfänger`);
+  // Was ein Anfänger an diesem Tag sah, und was im Protokoll eines v214-Stands
+  // steht: nur das erste Paar, das erste davon mit einem Satz.
+  const anfaenger = liste.map((x) => ({ ...x, id: x.leicht || x.id }));
+  // Satzzahl wie satzZahl() in js/stufen.js: Fortgeschritten ein Drittel mehr.
+  const saetze = (x, faktor = 1) => Math.max(1, Math.round(x.sets * faktor));
+  const protokoll = (zeige, faktor = 1) => {
+    const [p, q] = zeige;
+    const satz = (x, d) => Array.from({ length: saetze(x, faktor) }, (_, i) => (i < d ? { w: '20', done: true } : {}));
+    return {
+      mode: 'db', startedOn: '2026-09-29', bw: {},
+      db: { [p.id]: satz(p, 1), [q.id]: satz(q, 0) },
+      soll: { [p.id]: saetze(p, faktor), [q.id]: saetze(q, faktor) },
+    };
+  };
+  const erwartet = (zeige, faktor = 1) => zeige.map((x) => `${x.id}:${saetze(x, faktor)}`);
+
+  // --- 6. Planwechsel: Anfänger, eigene Wahl, Fortgeschritten ------------
+  const faelle = [
+    { was: 'Anfänger', level: 'anfaenger', zeige: anfaenger },
+    { was: 'eigene Wahl', level: 'geuebt', fassung: { [liste[j].id]: liste[j].leicht },
+      zeige: liste.map((x, k) => (k === j ? { ...x, id: x.leicht } : x)) },
+    { was: 'Fortgeschritten', level: 'fortgeschritten', zeige: liste, faktor: 4 / 3 },
+  ];
+  for (const fall of faelle) {
+    const faktor = fall.faktor || 1;
+    await setze({
+      greeted: true, mode: 'db', focus: stufe.f, level: fall.level, ...(fall.fassung ? { fassung: fall.fassung } : {}),
+      planStand: { [stufe.f]: stufe.alt },
+      log: { [stufe.n]: protokoll(fall.zeige, faktor) },
+    });
+    const r = await lies(stufe.n);
+    const soll = erwartet(fall.zeige, faktor);
+    check(r.fest.join(' ') === soll.join(' '),
+      `${fall.was}: festgeschrieben wird, was angezeigt war (${r.fest.join(' ')})`);
+    check(gleich(r.ex, r.fest), `${fall.was}: und so zeigt die App es auch (${r.ex.join(' ')})`);
+  }
+
+  // --- 7. Reparatur der Einheit eines Anfängers --------------------------
+  // Festgeschrieben bis einschließlich der leichteren Fassung, der Rest fehlt.
+  const kurz = anfaenger.slice(0, j + 1).map(({ id, sets }) => ({ id, sets }));
+  await setze({
+    greeted: true, mode: 'db', focus: stufe.f, level: 'anfaenger', planStand: { [stufe.f]: stufe.stand },
+    log: { [stufe.n]: { ...protokoll(anfaenger), fest: kurz } },
+  });
+  await page.waitForTimeout(300);
+  const anf = await lies(stufe.n);
+  check(anf.fest.join(' ') === erwartet(anfaenger).join(' '),
+    `die zu kurze Einheit eines Anfängers wird vervollständigt, mit ${liste[j].leicht} (${anf.fest.join(' ')})`);
+  check(/wieder vollständig/.test(anf.text), 'und die App sagt es');
+
+  // Seither aufgestiegen: Die feste Liste nennt noch die leichtere Fassung,
+  // der Plan davor die schwerere. Erkannt wird sie trotzdem, und sie bleibt.
+  await setze({
+    greeted: true, mode: 'db', focus: stufe.f, level: 'geuebt', planStand: { [stufe.f]: stufe.stand },
+    log: { [stufe.n]: { ...protokoll(anfaenger), fest: kurz } },
+  });
+  await page.waitForTimeout(300);
+  const auf = await lies(stufe.n);
+  check(auf.fest.join(' ') === [...erwartet(anfaenger.slice(0, j + 1)), ...erwartet(liste.slice(j + 1))].join(' '),
+    `nach einem Aufstieg erkennt die Reparatur die leichtere Fassung wieder (${auf.fest.join(' ')})`);
 }
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
