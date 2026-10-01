@@ -1103,8 +1103,11 @@ button { font: inherit; color: inherit; }
 .fig-plate { fill: #e8eaed; }
 /* Die Kante der Hantelscheibe unterm Fuß (squatheel) – dieselbe Scheibe, nur
    dunkler, wie die Seite jeder Scheibe im Schlagschatten. */
-.fig-plate-seite { fill: #b7bcc4; }
+.fig-plate-seite { fill: #b7bcc4; stroke: #b7bcc4; stroke-width: .25; stroke-linejoin: round; }
 .fig-bar { stroke: #e8eaed; stroke-linecap: round; }
+/* Stangenende hinter der äußeren Scheibe: gerade abgeschnitten, sonst sitzt
+   dort wieder ein runder Knopf – genau die „Kugel“, die weg sollte. */
+.fig-bar-stummel { stroke-linecap: butt; }
 .fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
 .fig-ground { fill: var(--line); opacity: .55; }
 .fig-bench { fill: #4a5468; }
@@ -5236,6 +5239,7 @@ const RIG = {
 const rad = (d) => (d * Math.PI) / 180;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (v, s) => [v[0] * s, v[1] * s, v[2] * s];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
 function rotX(v, deg) {
   const c = Math.cos(rad(deg)); const s = Math.sin(rad(deg));
@@ -6732,36 +6736,99 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     });
 
     // Gerät, ausgerichtet an den Achsen des Skeletts selbst
+    const pkt = (q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`;
+    /**
+     * Eine Hantelscheibe: ein flacher Zylinder um `axis`, von `a` bis `b`
+     * entlang der Achse gemessen ab `centre`, Radius `r` in Metern.
+     *
+     *     „Hab übrigens so hantelscheiben, nicht diese kugeln"
+     *
+     * Vorher stand an jedem Stangenende ein flacher Kreis, und ein Kreis ist
+     * aus jedem Blickwinkel rund – also eine Kugel. Eine Scheibe ist das nur
+     * von vorn; von der Seite ist sie ein schmaler Streifen. Deshalb zwei
+     * Ringe aus projizierten Punkten (Vorder- und Rückseite) und dazwischen
+     * die dunklere Kante, wie bei den Scheiben unter den Fersen.
+     *
+     * `k` ist der Perspektivfaktor, mit dem gezeichnet wird – siehe barAt().
+     * Die Scheibe ist ein Teil; ihre Flächen ordnet sie selbst: hintere
+     * Fläche, Kante von hinten nach vorn, vordere Fläche.
+     */
+    const scheibe = (centre, axis, a, b, r, k) => {
+      const hilf = Math.abs(axis[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const u = norm(cross(axis, hilf));
+      const v = cross(axis, u);
+      const proj = (p) => {
+        const q = P(p);
+        return k ? { x: VBW / 2 + (q.x - VBW / 2) * (k / q.k), y: VBH / 2 + (q.y - VBH / 2) * (k / q.k), z: q.z } : q;
+      };
+      const ring = (s) => {
+        const m = add(centre, mul(axis, s));
+        const out = [];
+        for (let w = 0; w < 360; w += 22.5) {
+          out.push(proj(add(m, add(mul(u, Math.cos(rad(w)) * r), mul(v, Math.sin(rad(w)) * r)))));
+        }
+        return out;
+      };
+      const ra = ring(a);
+      const rb = ring(b);
+      const tiefe = (rg) => rg.reduce((acc, q) => acc + q.z, 0) / rg.length;
+      const [hinten, vorn] = tiefe(ra) < tiefe(rb) ? [ra, rb] : [rb, ra];
+      const g = el('g', { class: 'fig-scheibe' });
+      g.appendChild(el('polygon', { points: hinten.map(pkt).join(' '), class: 'fig-plate' }));
+      ra.map((q, i) => {
+        const n = (i + 1) % ra.length;
+        return { z: q.z + ra[n].z + rb[i].z + rb[n].z, pts: [q, ra[n], rb[n], rb[i]] };
+      }).sort((x, y) => x.z - y.z).forEach((f) => {
+        g.appendChild(el('polygon', { points: f.pts.map(pkt).join(' '), class: 'fig-plate-seite' }));
+      });
+      g.appendChild(el('polygon', { points: vorn.map(pkt).join(' '), class: 'fig-plate' }));
+      parts.push({ z: (tiefe(ra) + tiefe(rb)) / 2, node: g });
+    };
     /** Stange samt Scheiben entlang einer Achse im Raum. */
     const barAt = (centre, axis, half, plate) => {
       // Eine Stange ist ein starrer, gerader Gegenstand. Projiziert man ihre
       // Enden einzeln, bekommt das nähere einen größeren Perspektivfaktor als
       // das fernere – bei einer Kurzhantel unsichtbar, bei 1,2 m Langhantel
-      // kippt sie sichtbar wie eine Wippe, obwohl sie waagerecht liegt. Beide
-      // Enden rechnen deshalb mit dem Faktor der Stangenmitte: Die Verkürzung
+      // kippt sie sichtbar wie eine Wippe, obwohl sie waagerecht liegt. Alle
+      // Punkte rechnen deshalb mit dem Faktor der Stangenmitte: Die Verkürzung
       // beim Drehen bleibt, die falsche Neigung verschwindet.
       const c = P(centre);
-      const end = (s) => {
-        const q = P(add(centre, mul(axis, s * half)));
+      const at = (s) => {
+        const q = P(add(centre, mul(axis, s)));
         return {
           x: VBW / 2 + (q.x - VBW / 2) * (c.k / q.k),
           y: VBH / 2 + (q.y - VBH / 2) * (c.k / q.k),
           z: q.z, k: c.k,
         };
       };
-      const e1 = end(-1);
-      const e2 = end(1);
-      parts.push({
-        z: (e1.z + e2.z) / 2,
-        node: el('line', {
-          x1: e1.x.toFixed(1), y1: e1.y.toFixed(1), x2: e2.x.toFixed(1), y2: e2.y.toFixed(1),
-          'stroke-width': (2.2 * gearScale * (e1.k + e2.k) / 2).toFixed(2), class: 'fig-bar',
-        }),
+      const strich = (s1, s2, z, stummel) => {
+        const e1 = at(s1);
+        const e2 = at(s2);
+        parts.push({
+          z,
+          node: el('line', {
+            x1: e1.x.toFixed(1), y1: e1.y.toFixed(1), x2: e2.x.toFixed(1), y2: e2.y.toFixed(1),
+            'stroke-width': (2.2 * gearScale * c.k).toFixed(2), class: stummel ? 'fig-bar fig-bar-stummel' : 'fig-bar',
+          }),
+        });
+      };
+      // Je Seite eine große Scheibe innen und eine kleinere außen – das
+      // gestufte Profil ist es, woran man eine Scheibenhantel erkennt.
+      // `plate` ist der alte Kreisradius in Bildpunkten, plate / 40 derselbe
+      // Radius in Metern (gearScale = fit.scale / 40).
+      const r = plate / 40;
+      const dick = r * 0.42;
+      const innen = half - dick * 1.6;
+      strich(-innen, innen, c.z);                  // Griff
+      [-1, 1].forEach((s) => {
+        const s2 = (x) => s * x;
+        scheibe(centre, axis, s2(innen), s2(innen + dick), r, c.k);
+        scheibe(centre, axis, s2(innen + dick), s2(innen + dick * 1.75), r * 0.74, c.k);
+        // Stummel samt Verschluss hinter der äußeren Scheibe – hinter der
+        // fernen Scheibe verdeckt, vor der nahen sichtbar.
+        const ende = at(s2(innen + dick * 2.35));
+        strich(s2(innen + dick * 1.75), s2(innen + dick * 2.35), ende.z, true);
       });
-      [e1, e2].forEach((q) => parts.push({
-        z: q.z + 0.01,
-        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (plate * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
-      }));
     };
 
     if (equip === 'dumbbells') {
@@ -6778,8 +6845,12 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     } else if (equip === 'onehand') {
       barAt(pts0[`hand${spec.gewichtHand || 'R'}`], spec.hantelLaengs ? frontAxis : sideAxis, 0.13, 3.4);
     } else if (equip === 'goblet') {
-      // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten
-      barAt(midOf(pts0.handL, pts0.handR), upAxis, 0.105, 4.4);
+      // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten –
+      // die Handflächen unter der oberen Scheibe, der Rest hängt darunter.
+      // Dieselbe Kurzhantel wie bei den Curls, nur mit mehr Scheiben; mit der
+      // Mitte zwischen den Händen verschwand die halbe Hantel in den Fäusten.
+      const r = 4.0 / 40;
+      barAt(add(midOf(pts0.handL, pts0.handR), mul(upAxis, -(0.13 - r * 0.42 * 1.6))), upAxis, 0.13, 4.0);
     } else if (equip === 'barbell') {
       // Eine Langhantel ist doppelt so breit wie die Schultern, und zwischen
       // Hand und Scheibe liegt ein gutes Stück blanke Stange. Mit dem alten
@@ -6855,11 +6926,8 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       // in drei weiteren Tabellen über Auf- und Abbau. Ein eigener Gerätename
       // nur fürs Zeichnen hätte die alle mitgeschleppt.
       const hoch = spec.plateAt === 'hip';
-      const q = P(add(hoch ? j.hipC : j.chest, mul(frontAxis, hoch ? 0.16 : 0.26)));
-      parts.push({
-        z: q.z + 0.01,
-        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (5.4 * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
-      });
+      // Flach aufgelegt wie die Scheiben an der Hantel (scheibe()), kein Kreis.
+      scheibe(add(hoch ? j.hipC : j.chest, mul(frontAxis, hoch ? 0.16 : 0.26)), frontAxis, -0.02, 0.02, 5.4 / 40);
     } else if (equip === 'backpack') {
       // Rucksack – auf dem Rücken, auf der Brust oder in den Händen.
       //
@@ -11575,6 +11643,53 @@ function belegung(kg, equip, satz) {
   return beste ? beste.wahl.sort((a, b) => b[0] - a[0]) : null;
 }
 
+/**
+ * Lassen sich diese Aufbauten *gleichzeitig* bestücken – aus einem Vorrat?
+ *
+ *     „Goblet squad und Floor Press geht nicht im suoersatz weil man für
+ *      beides 5kg Scheiben brauch"
+ *
+ * Alles andere hier rechnet so, als wäre die andere Stange leer (siehe Kopf):
+ * eine abbauen, die andere aufbauen. Im Supersatz bleiben aber *beide* stehen –
+ * das ist der ganze Sinn. Dann müssen die Scheiben für beide zugleich da sein,
+ * und zwei verschiedene Stangen helfen nichts, wenn beide dieselben zwei
+ * 5er brauchen.
+ *
+ * `lasten` ist eine Liste von [Gerät, kg]. Durchsucht werden alle Belegungen
+ * des ersten Aufbaus – nicht nur die mit den wenigsten Scheiben, denn mit
+ * kleineren Scheiben geht es vielleicht doch –, und für jede wird der Rest mit
+ * dem, was übrig bleibt, weiter geprüft.
+ *
+ * null, wenn nichts eingetragen ist: „weiß ich nicht" ist nicht „geht nicht".
+ */
+function zusammen(lasten, satz) {
+  if (!satz || !Array.isArray(satz.scheiben) || !satz.scheiben.length) return null;
+  const offen = lasten.filter(([equip]) => RASTER[equip]);
+  const geht = (i, vorrat) => {
+    if (i >= offen.length) return true;
+    const [equip, kg] = offen[i];
+    const r = RASTER[equip];
+    const ziel = Math.round(((kg || 0) - basisVon(r, satz)) * 4) / 4;
+    if (ziel < 1e-9) return geht(i + 1, vorrat);            // nichts drauf
+    const suche = (j, rest, v) => {
+      if (Math.abs(rest) < 1e-9) return geht(i + 1, v);
+      if (j >= v.length || rest < -1e-9) return false;
+      const [w, anzahl] = v[j];
+      const maxK = Math.min(Math.floor(anzahl / r.pro), Math.floor((rest + 1e-9) / (r.faktor * w)));
+      for (let k = maxK; k >= 0; k--) {
+        const nv = k ? v.map((z, x) => (x === j ? [w, anzahl - k * r.pro] : z)) : v;
+        if (suche(j + 1, Math.round((rest - r.faktor * k * w) * 4) / 4, nv)) return true;
+      }
+      return false;
+    };
+    return suche(0, ziel, vorrat);
+  };
+  // Ein Gewicht, das sich schon allein nicht bauen lässt, ist kein Konflikt
+  // zwischen den beiden – das ist die Sache von raste() und der Vorschau.
+  if (offen.some(([equip, kg]) => (kg || 0) > basisVon(RASTER[equip], satz) && !belegung(kg, equip, satz))) return null;
+  return geht(0, satz.scheiben.map((z) => z.slice()));
+}
+
 /** Die Belegung als Satz, wie man ihn jemandem zurufen würde. */
 function belegungText(kg, equip, satz) {
   const b = belegung(kg, equip, satz);
@@ -12070,7 +12185,9 @@ function ladeText(exId, kg) {
  *   Nicht dasselbe Gerät. Sonst müsste zwischen jedem Satz umgebaut werden, und
  *   der gewonnene Zeitvorteil ginge in Scheibenwechseln wieder drauf. Umgekehrt
  *   ist der Fall, in dem sich zwei *verschiedene* Geräte treffen, der beste:
- *   Beide Aufbauten bleiben stehen, es wird gar nichts gewechselt.
+ *   Beide Aufbauten bleiben stehen, es wird gar nichts gewechselt – sofern
+ *   die Scheiben für beide zugleich reichen. Zwei Stangen, die dieselben
+ *   Scheiben brauchen, sind beim Umstecken dasselbe Gerät.
  *
  * **Warum Paare und nicht sechs im Kreis.** Der Vorschlag war ein Rundlauf über
  * alle Übungen. Der Gedanke stimmt, die Zahl nicht: Ab drei Übungen im Wechsel
@@ -12085,6 +12202,7 @@ function ladeText(exId, kg) {
  * nicht aus einem festen Übergang. Wer zügig wechselt, wartet kurz; wer trödelt,
  * gar nicht.
  */
+
 
 
 /** Ab diesem Anteil gilt ein Muskel als von der Übung getroffen. */
@@ -12122,6 +12240,12 @@ const geraet = (id) => {
  */
 const STANGE = { lh: 'lh', sz: 'sz', kh1: 'kh', kh2: 'kh', ruck: 'ruck' };
 
+/** [Gerät, kg], mit dem diese Übung heute aufgebaut wird. */
+const last = (x) => {
+  const ex = EX_BY_ID.get(x.id);
+  return [ex ? ex.equip : x.equip, ex ? workingWeight(x.id) || 0 : 0];
+};
+
 /** Dürfen diese beiden im Wechsel laufen? */
 function passtZusammen(a, b, mode) {
   if (a.id === b.id) return false;
@@ -12130,6 +12254,13 @@ function passtZusammen(a, b, mode) {
   // Dasselbe Gerät hieße: zwischen jedem Satz umbauen. Zwei Übungen ohne Aufbau
   // dürfen sich dagegen treffen – da gibt es nichts zu wechseln.
   if (ga && gb && ga === gb) return false;
+  // Zwei Stangen, ein Scheibenvorrat: Im Wechsel bleiben beide geladen, also
+  // müssen die Scheiben für beide zugleich da sein (zusammen() in
+  // js/scheiben.js). Goblet und Floor Press mit je zwei 5ern bei zwei 5ern im
+  // Raum hieße sonst, zwischen jedem Satz die Scheiben umzustecken – genau der
+  // Umbau, den die zweite Regel verhindern soll. Ohne eingetragenen Vorrat
+  // weiß die App es nicht und lässt das Paar stehen.
+  if (ga && gb && zusammen([last(a), last(b)], meinSatz()) === false) return false;
   const ma = direkteMuskeln(a.id, mode);
   return ![...direkteMuskeln(b.id, mode)].some((m) => ma.has(m));
 }

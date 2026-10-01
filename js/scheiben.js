@@ -281,6 +281,53 @@ export function belegung(kg, equip, satz) {
   return beste ? beste.wahl.sort((a, b) => b[0] - a[0]) : null;
 }
 
+/**
+ * Lassen sich diese Aufbauten *gleichzeitig* bestücken – aus einem Vorrat?
+ *
+ *     „Goblet squad und Floor Press geht nicht im suoersatz weil man für
+ *      beides 5kg Scheiben brauch"
+ *
+ * Alles andere hier rechnet so, als wäre die andere Stange leer (siehe Kopf):
+ * eine abbauen, die andere aufbauen. Im Supersatz bleiben aber *beide* stehen –
+ * das ist der ganze Sinn. Dann müssen die Scheiben für beide zugleich da sein,
+ * und zwei verschiedene Stangen helfen nichts, wenn beide dieselben zwei
+ * 5er brauchen.
+ *
+ * `lasten` ist eine Liste von [Gerät, kg]. Durchsucht werden alle Belegungen
+ * des ersten Aufbaus – nicht nur die mit den wenigsten Scheiben, denn mit
+ * kleineren Scheiben geht es vielleicht doch –, und für jede wird der Rest mit
+ * dem, was übrig bleibt, weiter geprüft.
+ *
+ * null, wenn nichts eingetragen ist: „weiß ich nicht" ist nicht „geht nicht".
+ */
+export function zusammen(lasten, satz) {
+  if (!satz || !Array.isArray(satz.scheiben) || !satz.scheiben.length) return null;
+  const offen = lasten.filter(([equip]) => RASTER[equip]);
+  const geht = (i, vorrat) => {
+    if (i >= offen.length) return true;
+    const [equip, kg] = offen[i];
+    const r = RASTER[equip];
+    const ziel = Math.round(((kg || 0) - basisVon(r, satz)) * 4) / 4;
+    if (ziel < 1e-9) return geht(i + 1, vorrat);            // nichts drauf
+    const suche = (j, rest, v) => {
+      if (Math.abs(rest) < 1e-9) return geht(i + 1, v);
+      if (j >= v.length || rest < -1e-9) return false;
+      const [w, anzahl] = v[j];
+      const maxK = Math.min(Math.floor(anzahl / r.pro), Math.floor((rest + 1e-9) / (r.faktor * w)));
+      for (let k = maxK; k >= 0; k--) {
+        const nv = k ? v.map((z, x) => (x === j ? [w, anzahl - k * r.pro] : z)) : v;
+        if (suche(j + 1, Math.round((rest - r.faktor * k * w) * 4) / 4, nv)) return true;
+      }
+      return false;
+    };
+    return suche(0, ziel, vorrat);
+  };
+  // Ein Gewicht, das sich schon allein nicht bauen lässt, ist kein Konflikt
+  // zwischen den beiden – das ist die Sache von raste() und der Vorschau.
+  if (offen.some(([equip, kg]) => (kg || 0) > basisVon(RASTER[equip], satz) && !belegung(kg, equip, satz))) return null;
+  return geht(0, satz.scheiben.map((z) => z.slice()));
+}
+
 /** Die Belegung als Satz, wie man ihn jemandem zurufen würde. */
 export function belegungText(kg, equip, satz) {
   const b = belegung(kg, equip, satz);

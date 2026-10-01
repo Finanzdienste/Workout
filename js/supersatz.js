@@ -21,7 +21,9 @@
  *   Nicht dasselbe Gerät. Sonst müsste zwischen jedem Satz umgebaut werden, und
  *   der gewonnene Zeitvorteil ginge in Scheibenwechseln wieder drauf. Umgekehrt
  *   ist der Fall, in dem sich zwei *verschiedene* Geräte treffen, der beste:
- *   Beide Aufbauten bleiben stehen, es wird gar nichts gewechselt.
+ *   Beide Aufbauten bleiben stehen, es wird gar nichts gewechselt – sofern
+ *   die Scheiben für beide zugleich reichen. Zwei Stangen, die dieselben
+ *   Scheiben brauchen, sind beim Umstecken dasselbe Gerät.
  *
  * **Warum Paare und nicht sechs im Kreis.** Der Vorschlag war ein Rundlauf über
  * alle Übungen. Der Gedanke stimmt, die Zahl nicht: Ab drei Übungen im Wechsel
@@ -38,7 +40,8 @@
  */
 
 import { EX_BY_ID } from './uebung.js';
-import { RUEST_FAM } from './gewichte.js';
+import { RUEST_FAM, meinSatz, workingWeight } from './gewichte.js';
+import { zusammen } from './scheiben.js';
 
 /** Ab diesem Anteil gilt ein Muskel als von der Übung getroffen. */
 export const DIREKT = 0.5;
@@ -75,6 +78,12 @@ const geraet = (id) => {
  */
 const STANGE = { lh: 'lh', sz: 'sz', kh1: 'kh', kh2: 'kh', ruck: 'ruck' };
 
+/** [Gerät, kg], mit dem diese Übung heute aufgebaut wird. */
+const last = (x) => {
+  const ex = EX_BY_ID.get(x.id);
+  return [ex ? ex.equip : x.equip, ex ? workingWeight(x.id) || 0 : 0];
+};
+
 /** Dürfen diese beiden im Wechsel laufen? */
 export function passtZusammen(a, b, mode) {
   if (a.id === b.id) return false;
@@ -83,6 +92,13 @@ export function passtZusammen(a, b, mode) {
   // Dasselbe Gerät hieße: zwischen jedem Satz umbauen. Zwei Übungen ohne Aufbau
   // dürfen sich dagegen treffen – da gibt es nichts zu wechseln.
   if (ga && gb && ga === gb) return false;
+  // Zwei Stangen, ein Scheibenvorrat: Im Wechsel bleiben beide geladen, also
+  // müssen die Scheiben für beide zugleich da sein (zusammen() in
+  // js/scheiben.js). Goblet und Floor Press mit je zwei 5ern bei zwei 5ern im
+  // Raum hieße sonst, zwischen jedem Satz die Scheiben umzustecken – genau der
+  // Umbau, den die zweite Regel verhindern soll. Ohne eingetragenen Vorrat
+  // weiß die App es nicht und lässt das Paar stehen.
+  if (ga && gb && zusammen([last(a), last(b)], meinSatz()) === false) return false;
   const ma = direkteMuskeln(a.id, mode);
   return ![...direkteMuskeln(b.id, mode)].some((m) => ma.has(m));
 }

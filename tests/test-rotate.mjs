@@ -89,11 +89,13 @@ const gearOf = async (name) => {
     await page.waitForTimeout(120);
   }
   check((await page.locator('.focus-name').textContent()) === name, `${name} in der Fokus-Ansicht gefunden`);
-  return { bars: await page.locator('.fig-bar').count(), plates: await page.locator('.fig-plate').count() };
+  // Griffe ohne die Stummel hinter den Scheiben; je Hantelende eine große
+  // und eine kleine Scheibe (fig-scheibe), also vier je Hantel.
+  return { bars: await page.locator('.fig-bar:not(.fig-bar-stummel)').count(), plates: await page.locator('.fig-scheibe').count() };
 };
 const seit = await gearOf('Sitzendes Seitheben');
 console.log('     Seitheben:', JSON.stringify(seit));
-check(seit.bars === 2 && seit.plates === 4, 'Seitheben: zwei Kurzhanteln, vier Scheiben');
+check(seit.bars === 2 && seit.plates === 8, 'Seitheben: zwei Kurzhanteln, je vier Scheiben');
 
 // Gerät je Art, unabhängig vom Plan des Tages: Figur direkt aufhängen
 const gear = await page.evaluate(async () => {
@@ -110,10 +112,10 @@ const gear = await page.evaluate(async () => {
     h.stop();
     h.setView(0, 0);
     h.draw(0);
-    const bar = host.querySelector('.fig-bar');
-    const plates = [...host.querySelectorAll('.fig-plate')];
+    const bar = host.querySelector('.fig-bar:not(.fig-bar-stummel)');
+    const plates = [...host.querySelectorAll('.fig-scheibe')];
     out[key] = {
-      bars: host.querySelectorAll('.fig-bar').length,
+      bars: host.querySelectorAll('.fig-bar:not(.fig-bar-stummel)').length,
       plates: plates.length,
       dx: bar ? Math.abs(+bar.getAttribute('x2') - +bar.getAttribute('x1')) : null,
       dy: bar ? Math.abs(+bar.getAttribute('y2') - +bar.getAttribute('y1')) : null,
@@ -124,10 +126,10 @@ const gear = await page.evaluate(async () => {
   return out;
 });
 console.log('     Geräte:', JSON.stringify(gear));
-check(gear.goblet.bars === 1 && gear.goblet.plates === 2, 'Goblet Squat: genau eine Hantel');
+check(gear.goblet.bars === 1 && gear.goblet.plates === 4, 'Goblet Squat: genau eine Hantel');
 check(gear.goblet.dy > gear.goblet.dx * 3, 'Goblet Squat: Hantel steht senkrecht');
 check(Math.abs(gear.goblet.mx - 50) < 4, 'Goblet Squat: Hantel mittig vor dem Körper, also in beiden Händen');
-check(gear.einhand.bars === 1 && gear.einhand.plates === 2, 'Rudern: eine Kurzhantel in einer Hand');
+check(gear.einhand.bars === 1 && gear.einhand.plates === 4, 'Rudern: eine Kurzhantel in einer Hand');
 check(gear.langhantel.bars === 1 && gear.langhantel.dx > gear.goblet.dy * 1.5, 'SZ-Curls: eine lange, waagerechte Stange');
 
 // Liegende Muster liegen aus jedem Blickwinkel – Kopf links, Körper flach

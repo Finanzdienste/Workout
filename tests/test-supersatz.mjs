@@ -61,6 +61,49 @@ check(regeln.gut === true, 'Floor Press + Chin-ups: nichts gemeinsam, kein Umbau
 check(regeln.ohneAufbau === true, 'zwei Übungen ohne Aufbau dürfen sich treffen');
 check(regeln.selbst === false, 'und keine Übung mit sich selbst');
 
+// --- 1b. Zwei Stangen, ein Scheibenvorrat -------------------------------
+// „Goblet squad und Floor Press geht nicht im suoersatz weil man für beides
+// 5kg Scheiben brauch" – verschiedene Stangen, aber dieselben Scheiben. Im
+// Wechsel bleiben beide geladen, also müssen die Scheiben für beide reichen.
+const vorrat = await page.evaluate(async () => {
+  const { passtZusammen } = await import('./js/supersatz.js');
+  const { zusammen } = await import('./js/scheiben.js');
+  const store = await import('./js/store.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const v = (id) => ({ id, ...EX_BY_ID.get(id).db });
+  store.setWeight('goblet-squat', 10);
+  store.setWeight('floor-press', 10);
+  const mit = (scheiben) => {
+    store.getState().scheiben = { stange: {}, scheiben };
+    return passtZusammen(v('goblet-squat'), v('floor-press'), 'db');
+  };
+  return {
+    zweiFuenfer: mit([[5, 2], [2.5, 2]]),     // je zwei 5er gebraucht, zwei da
+    vierFuenfer: mit([[5, 4], [2.5, 2]]),     // reicht für beide
+    ausweichen: mit([[5, 2], [2.5, 4]]),      // Floor Press geht mit 4× 2,5
+    ohneVorrat: mit([]),                      // unbekannt: nicht raten
+    rein: [
+      zusammen([['goblet', 10], ['barbell', 10]], { stange: {}, scheiben: [[5, 2]] }),
+      zusammen([['goblet', 10], ['barbell', 10]], { stange: {}, scheiben: [[5, 4]] }),
+      zusammen([['dumbbells', 10], ['barbell', 5]], { stange: {}, scheiben: [[2.5, 10], [5, 2]] }),
+    ],
+  };
+});
+console.log('     Vorrat:', JSON.stringify(vorrat));
+check(vorrat.zweiFuenfer === false,
+  'Goblet 10 + Floor Press 10 mit nur zwei 5ern: kein Paar – die Scheiben müssten jeden Satz wandern');
+check(vorrat.vierFuenfer === true, 'mit vier 5ern stehen beide Aufbauten – Paar');
+check(vorrat.ausweichen === true, 'reicht es mit kleineren Scheiben, ist es auch ein Paar');
+check(vorrat.ohneVorrat === true, 'ohne eingetragenen Vorrat bleibt es beim alten Verhalten');
+check(vorrat.rein[0] === false && vorrat.rein[1] === true && vorrat.rein[2] === true,
+  `zusammen() rechnet den Vorrat für alle Aufbauten zugleich (${vorrat.rein})`);
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  store.getState().scheiben = undefined;
+  delete store.getState().weights['goblet-squat'];
+  delete store.getState().weights['floor-press'];
+});
+
 // --- 2. Die Paarung einer echten Einheit -------------------------------
 // Jede Einheit jeder Variante durchgehen: Ein einziges Paar, das eine der
 // beiden Regeln verletzt, wäre ein stiller Fehler im Training.

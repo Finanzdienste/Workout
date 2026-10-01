@@ -1093,8 +1093,11 @@ button { font: inherit; color: inherit; }
 .fig-plate { fill: #e8eaed; }
 /* Die Kante der Hantelscheibe unterm Fuß (squatheel) – dieselbe Scheibe, nur
    dunkler, wie die Seite jeder Scheibe im Schlagschatten. */
-.fig-plate-seite { fill: #b7bcc4; }
+.fig-plate-seite { fill: #b7bcc4; stroke: #b7bcc4; stroke-width: .25; stroke-linejoin: round; }
 .fig-bar { stroke: #e8eaed; stroke-linecap: round; }
+/* Stangenende hinter der äußeren Scheibe: gerade abgeschnitten, sonst sitzt
+   dort wieder ein runder Knopf – genau die „Kugel“, die weg sollte. */
+.fig-bar-stummel { stroke-linecap: butt; }
 .fig-bar-fixed { stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; }
 .fig-ground { fill: var(--line); opacity: .55; }
 .fig-bench { fill: #4a5468; }

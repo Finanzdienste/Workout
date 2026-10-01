@@ -35,6 +35,7 @@ export const RIG = {
 const rad = (d) => (d * Math.PI) / 180;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (v, s) => [v[0] * s, v[1] * s, v[2] * s];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
 function rotX(v, deg) {
   const c = Math.cos(rad(deg)); const s = Math.sin(rad(deg));
@@ -1531,36 +1532,99 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     });
 
     // Gerät, ausgerichtet an den Achsen des Skeletts selbst
+    const pkt = (q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`;
+    /**
+     * Eine Hantelscheibe: ein flacher Zylinder um `axis`, von `a` bis `b`
+     * entlang der Achse gemessen ab `centre`, Radius `r` in Metern.
+     *
+     *     „Hab übrigens so hantelscheiben, nicht diese kugeln"
+     *
+     * Vorher stand an jedem Stangenende ein flacher Kreis, und ein Kreis ist
+     * aus jedem Blickwinkel rund – also eine Kugel. Eine Scheibe ist das nur
+     * von vorn; von der Seite ist sie ein schmaler Streifen. Deshalb zwei
+     * Ringe aus projizierten Punkten (Vorder- und Rückseite) und dazwischen
+     * die dunklere Kante, wie bei den Scheiben unter den Fersen.
+     *
+     * `k` ist der Perspektivfaktor, mit dem gezeichnet wird – siehe barAt().
+     * Die Scheibe ist ein Teil; ihre Flächen ordnet sie selbst: hintere
+     * Fläche, Kante von hinten nach vorn, vordere Fläche.
+     */
+    const scheibe = (centre, axis, a, b, r, k) => {
+      const hilf = Math.abs(axis[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const u = norm(cross(axis, hilf));
+      const v = cross(axis, u);
+      const proj = (p) => {
+        const q = P(p);
+        return k ? { x: VBW / 2 + (q.x - VBW / 2) * (k / q.k), y: VBH / 2 + (q.y - VBH / 2) * (k / q.k), z: q.z } : q;
+      };
+      const ring = (s) => {
+        const m = add(centre, mul(axis, s));
+        const out = [];
+        for (let w = 0; w < 360; w += 22.5) {
+          out.push(proj(add(m, add(mul(u, Math.cos(rad(w)) * r), mul(v, Math.sin(rad(w)) * r)))));
+        }
+        return out;
+      };
+      const ra = ring(a);
+      const rb = ring(b);
+      const tiefe = (rg) => rg.reduce((acc, q) => acc + q.z, 0) / rg.length;
+      const [hinten, vorn] = tiefe(ra) < tiefe(rb) ? [ra, rb] : [rb, ra];
+      const g = el('g', { class: 'fig-scheibe' });
+      g.appendChild(el('polygon', { points: hinten.map(pkt).join(' '), class: 'fig-plate' }));
+      ra.map((q, i) => {
+        const n = (i + 1) % ra.length;
+        return { z: q.z + ra[n].z + rb[i].z + rb[n].z, pts: [q, ra[n], rb[n], rb[i]] };
+      }).sort((x, y) => x.z - y.z).forEach((f) => {
+        g.appendChild(el('polygon', { points: f.pts.map(pkt).join(' '), class: 'fig-plate-seite' }));
+      });
+      g.appendChild(el('polygon', { points: vorn.map(pkt).join(' '), class: 'fig-plate' }));
+      parts.push({ z: (tiefe(ra) + tiefe(rb)) / 2, node: g });
+    };
     /** Stange samt Scheiben entlang einer Achse im Raum. */
     const barAt = (centre, axis, half, plate) => {
       // Eine Stange ist ein starrer, gerader Gegenstand. Projiziert man ihre
       // Enden einzeln, bekommt das nähere einen größeren Perspektivfaktor als
       // das fernere – bei einer Kurzhantel unsichtbar, bei 1,2 m Langhantel
-      // kippt sie sichtbar wie eine Wippe, obwohl sie waagerecht liegt. Beide
-      // Enden rechnen deshalb mit dem Faktor der Stangenmitte: Die Verkürzung
+      // kippt sie sichtbar wie eine Wippe, obwohl sie waagerecht liegt. Alle
+      // Punkte rechnen deshalb mit dem Faktor der Stangenmitte: Die Verkürzung
       // beim Drehen bleibt, die falsche Neigung verschwindet.
       const c = P(centre);
-      const end = (s) => {
-        const q = P(add(centre, mul(axis, s * half)));
+      const at = (s) => {
+        const q = P(add(centre, mul(axis, s)));
         return {
           x: VBW / 2 + (q.x - VBW / 2) * (c.k / q.k),
           y: VBH / 2 + (q.y - VBH / 2) * (c.k / q.k),
           z: q.z, k: c.k,
         };
       };
-      const e1 = end(-1);
-      const e2 = end(1);
-      parts.push({
-        z: (e1.z + e2.z) / 2,
-        node: el('line', {
-          x1: e1.x.toFixed(1), y1: e1.y.toFixed(1), x2: e2.x.toFixed(1), y2: e2.y.toFixed(1),
-          'stroke-width': (2.2 * gearScale * (e1.k + e2.k) / 2).toFixed(2), class: 'fig-bar',
-        }),
+      const strich = (s1, s2, z, stummel) => {
+        const e1 = at(s1);
+        const e2 = at(s2);
+        parts.push({
+          z,
+          node: el('line', {
+            x1: e1.x.toFixed(1), y1: e1.y.toFixed(1), x2: e2.x.toFixed(1), y2: e2.y.toFixed(1),
+            'stroke-width': (2.2 * gearScale * c.k).toFixed(2), class: stummel ? 'fig-bar fig-bar-stummel' : 'fig-bar',
+          }),
+        });
+      };
+      // Je Seite eine große Scheibe innen und eine kleinere außen – das
+      // gestufte Profil ist es, woran man eine Scheibenhantel erkennt.
+      // `plate` ist der alte Kreisradius in Bildpunkten, plate / 40 derselbe
+      // Radius in Metern (gearScale = fit.scale / 40).
+      const r = plate / 40;
+      const dick = r * 0.42;
+      const innen = half - dick * 1.6;
+      strich(-innen, innen, c.z);                  // Griff
+      [-1, 1].forEach((s) => {
+        const s2 = (x) => s * x;
+        scheibe(centre, axis, s2(innen), s2(innen + dick), r, c.k);
+        scheibe(centre, axis, s2(innen + dick), s2(innen + dick * 1.75), r * 0.74, c.k);
+        // Stummel samt Verschluss hinter der äußeren Scheibe – hinter der
+        // fernen Scheibe verdeckt, vor der nahen sichtbar.
+        const ende = at(s2(innen + dick * 2.35));
+        strich(s2(innen + dick * 1.75), s2(innen + dick * 2.35), ende.z, true);
       });
-      [e1, e2].forEach((q) => parts.push({
-        z: q.z + 0.01,
-        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (plate * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
-      }));
     };
 
     if (equip === 'dumbbells') {
@@ -1577,8 +1641,12 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     } else if (equip === 'onehand') {
       barAt(pts0[`hand${spec.gewichtHand || 'R'}`], spec.hantelLaengs ? frontAxis : sideAxis, 0.13, 3.4);
     } else if (equip === 'goblet') {
-      // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten
-      barAt(midOf(pts0.handL, pts0.handR), upAxis, 0.105, 4.4);
+      // Eine Hantel, senkrecht, von beiden Händen vor der Brust gehalten –
+      // die Handflächen unter der oberen Scheibe, der Rest hängt darunter.
+      // Dieselbe Kurzhantel wie bei den Curls, nur mit mehr Scheiben; mit der
+      // Mitte zwischen den Händen verschwand die halbe Hantel in den Fäusten.
+      const r = 4.0 / 40;
+      barAt(add(midOf(pts0.handL, pts0.handR), mul(upAxis, -(0.13 - r * 0.42 * 1.6))), upAxis, 0.13, 4.0);
     } else if (equip === 'barbell') {
       // Eine Langhantel ist doppelt so breit wie die Schultern, und zwischen
       // Hand und Scheibe liegt ein gutes Stück blanke Stange. Mit dem alten
@@ -1654,11 +1722,8 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // in drei weiteren Tabellen über Auf- und Abbau. Ein eigener Gerätename
       // nur fürs Zeichnen hätte die alle mitgeschleppt.
       const hoch = spec.plateAt === 'hip';
-      const q = P(add(hoch ? j.hipC : j.chest, mul(frontAxis, hoch ? 0.16 : 0.26)));
-      parts.push({
-        z: q.z + 0.01,
-        node: el('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (5.4 * gearScale * q.k).toFixed(1), class: 'fig-plate' }),
-      });
+      // Flach aufgelegt wie die Scheiben an der Hantel (scheibe()), kein Kreis.
+      scheibe(add(hoch ? j.hipC : j.chest, mul(frontAxis, hoch ? 0.16 : 0.26)), frontAxis, -0.02, 0.02, 5.4 / 40);
     } else if (equip === 'backpack') {
       // Rucksack – auf dem Rücken, auf der Brust oder in den Händen.
       //

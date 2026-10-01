@@ -334,6 +334,17 @@ Der Goblet Squat ist das feinste Beispiel: ohne Hantel greifen die Hände nichts
 und mit der geerbten Goblet-Haltung sah es aus, als hielte die Figur eine
 unsichtbare Hantel vor der Brust.
 
+Die Hanteln selbst sind **Scheibenhanteln**: je Ende eine große und eine
+kleinere Scheibe als flacher Zylinder mit dunklerer Kante, dahinter ein gerade
+abgeschnittener Stummel (`scheibe()` in `js/figure.js`). Vorher saß an jedem
+Ende ein flacher Kreis – und ein Kreis ist aus jedem Blickwinkel rund:
+
+> *„Hab übrigens so hantelscheiben, nicht diese kugeln"*
+
+Von der Seite ist eine Scheibe ein schmaler Streifen, nur von vorn ein Kreis.
+Beim Goblet Squat liegen die Hände unter der oberen Scheibe, die Hantel hängt
+darunter; mit der Mitte zwischen den Fäusten verschwand sie halb in ihnen.
+
 Auch innerhalb einer Variante zählt der Unterschied: einbeinige Übungen haben
 eigene Muster (`legcurl1`, `calf1`), das Wadenheben mit gebeugtem Knie ebenso
 (`calfbent`), und bei den Füße-erhöhten Liegestützen (`pushupfeet`) steht ein
@@ -4113,6 +4124,23 @@ normale Pause richtig. Unter *Mehr* steht deshalb nicht nur der Schalter,
 sondern auch, **wie die nächste Einheit konkret liefe**, Paar für Paar. Ein
 Schalter, der „paart automatisch" verspricht, ist sonst erst im Training
 überprüfbar — und dann steht man mittendrin.
+
+**Zwei Stangen, ein Scheibenvorrat.**
+
+> *„Goblet squad und Floor Press geht nicht im suoersatz weil man für beides
+> 5kg Scheiben brauch"*
+
+Verschiedene Stangen hießen bisher: Beide bleiben geladen, nichts wird
+gewechselt. Das stimmt nur, wenn die Scheiben für beide **zugleich** reichen.
+Hängen an beiden dieselben zwei 5er, wandern sie zwischen jedem Satz von einer
+Stange zur anderen – der Umbau, den die Geräteregel verhindern soll, nur über
+Umwege. `zusammen()` in `js/scheiben.js` prüft deshalb mit dem eingetragenen
+Vorrat (*Mehr → Was bei dir rumliegt*), ob sich beide Arbeitsgewichte gleichzeitig
+bestücken lassen – über alle Belegungen, nicht nur die mit den wenigsten
+Scheiben: Geht der Floor Press auch mit vier 2,5ern, ist es weiter ein Paar.
+Ohne eingetragenen Vorrat weiß die App es nicht und lässt die Paarung, wie sie
+war. Die Paarung folgt dem heutigen Gewicht: Wer mitten im Paar so weit
+erhöht, dass es nicht mehr reicht, macht die beiden danach nacheinander.
 
 ### Drei Minuten waren zu viel
 
