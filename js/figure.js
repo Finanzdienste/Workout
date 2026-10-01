@@ -680,6 +680,16 @@ export const PATTERNS = {
     // der Kopf senkt sich zwischen die Hände. Die Arme zeigen senkrecht nach
     // unten, dafür muss arm.p der Rumpfneigung folgen (-p + lean = 0).
     label: 'Überkopf-Drücken', stuetz: 'lean',
+    // Von der Seite, nicht vom Standardblick fast von vorn. Der zeigte genau in
+    // die Achse des umgedrehten V: Hüfte, Rumpf, Kopf und beide Arme lagen
+    // hintereinander, und übrig blieb ein Knäuel –
+    //
+    //     „Sieht schon sehr unordentlich aus"
+    //
+    // Bei 75° steht das V da: Hüfte oben, Kopf zwischen den Armen, Hände und
+    // Füße am Boden, und die Arme liegen noch leicht versetzt statt deckungs-
+    // gleich wie bei 90°.
+    view: [75, 12],
     poses: [
       // lean 146 legte den Kopf zwischen die Hände auf den Boden. Bei 126 ist
       // die Hüfte klar der höchste Punkt und der Kopf bleibt darüber.
