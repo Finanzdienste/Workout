@@ -368,4 +368,78 @@ check(PATTERNS.hinge1.gewichtHand && PATTERNS.hinge1.gewichtHand !== PATTERNS.hi
   check(PATTERNS.invrow.packAt === 'chest', 'bei der Inverted Row liegt der Rucksack auf der Brust');
 }
 
+/* --- 12. Liegend mit aufgestellten Füßen: die Ferse steht ----------------- */
+//
+// Bodenpresse, Trizeps im Liegen und Crunch lagen auf der Hüfte, und Knöchel
+// wie Zehen hingen 0,07 darüber – „Füße aufstellen" sagt der Hinweis. Gefunden
+// bei der Durchsicht der Figuren. Dieselbe Abmachung wie bei Beckenheben und
+// Hip Thrust (Abschnitt 1): Steht der Fuß, liegt der Knöchel auf dem Boden.
+[['press', T], ['pressbar', T], ['triceps', T], ['crunch', T], ['kneeraisefloor', [0]],
+  ['bridge', T], ['thrust', T]].forEach(([name, ts]) => {
+  const hoch = Math.max(...ts.map((t) => {
+    const j = skelett(PATTERNS[name], t);
+    return Math.min(j.ankleL[1], j.ankleR[1]) - BODEN;
+  }));
+  check(hoch < 0.02, `${name}: die Füße stehen auf dem Boden (Knöchel höchstens ${hoch.toFixed(3)} darüber)`);
+});
+
+/* --- 13. Reverse Snow Angel: die Figur bleibt liegen ---------------------- */
+//
+// Abschnitt 3 kann das nicht sehen – er prüft, dass der tiefste Punkt auf dem
+// Boden liegt, und das stellt skelett() immer her. Liefen die Arme durch den
+// Boden, wurde die Hand zum tiefsten Punkt und hob die ganze Figur an: Zehen
+// bei t=0,7 0,10 über dem Boden. Also die Zehen selbst messen.
+{
+  const js = T.map((t) => skelett(PATTERNS.snowangel, t));
+  const zehen = js.map((j) => Math.min(j.toeL[1], j.toeR[1]) - BODEN);
+  const haende = js.map((j) => Math.min(j.handL[1], j.handR[1]) - BODEN);
+  check(Math.max(...zehen) < 0.005,
+    `Snow Angel: die Zehen bleiben in jedem Bild liegen (höchstens ${Math.max(...zehen).toFixed(3)})`);
+  check(Math.min(...haende) > 0.05,
+    `Snow Angel: die Hände bleiben über dem Boden (mindestens ${Math.min(...haende).toFixed(3)})`);
+  const ende = js[js.length - 1];
+  check(Math.abs(ende.handL[0] - ende.hipC[0]) < 0.2,
+    `Snow Angel: am Ende stehen die Hände neben der Hüfte (x ${ende.handL[0].toFixed(2)} gegen ${ende.hipC[0].toFixed(2)})`);
+}
+
+/* --- 14. An der Stange mit Füßen am Boden: die Fersen stehen -------------- */
+//
+// Inverted Row und Trizeps an der Stange halten die Hände fest; den Boden
+// zeichnet die Figur einmal aus der Startstellung. Wanderte der Fuß, steckte er
+// im Boden (Inverted Row −0,010) oder schwebte (+0,045, beim Trizeps +0,038),
+// beim Trizeps rutschte er zudem 0,25 nach hinten.
+Object.entries(PATTERNS).filter(([, s]) => s.anchor === 'bar' && !s.float).forEach(([name, spec]) => {
+  const js = T.map((t) => skelett(spec, t));
+  const boden = Math.min(...Object.values(js[0]).map((q) => q[1]));
+  const fuss = (j) => ['ankleL', 'ankleR', 'toeL', 'toeR'].map((k) => j[k]).reduce((a, b) => (b[1] < a[1] ? b : a));
+  const hoehe = js.map((j) => fuss(j)[1] - boden);
+  const weg = Math.max(...js.map((j) => flach(fuss(j), fuss(js[0]))));
+  check(Math.max(...hoehe.map(Math.abs)) < 0.002,
+    `${name}: die Fersen bleiben auf Bodenhöhe (${Math.min(...hoehe).toFixed(3)} … ${Math.max(...hoehe).toFixed(3)})`);
+  check(weg < 0.005, `${name}: und rutschen nicht (wandern ${weg.toFixed(3)})`);
+});
+
+/* --- 15. Trizeps an der Stange: von der Seite gezeigt --------------------- */
+// Im Standardblick (yaw 25) neigte sich der Körper auf die Kamera zu, und
+// die Beine verschwanden hinter Rumpf und Kopf – wie vorher beim Pike.
+{
+  const v = PATTERNS.tricepsbar.view;
+  check(Array.isArray(v) && Math.abs(v[0]) >= 55 && Math.abs(v[0]) <= 125,
+    `Trizeps an der Stange: eigener Blick von der Seite (${v ? v.join('/') : 'keiner'})`);
+}
+
+/* --- 16. Bodyweight-Gerät: auch der Rucksack ------------------------------ */
+//
+// Abgeleitet wurde nur das Band; Rucksack-Curls und Rucksack-Rudern curlten
+// und ruderten im Bodyweight-Modus mit leeren Fäusten.
+{
+  const { bwGeraet } = await import('../js/figure.js');
+  const { EXERCISES } = await import('../js/data.js');
+  check(bwGeraet('Rucksack') === 'backpack' && bwGeraet('Loop-Band') === 'band' && bwGeraet('Ohne Gerät') === null,
+    'bwGeraet: Rucksack → backpack, Band → band, sonst nichts');
+  const rucksack = EXERCISES.filter((e) => /rucksack/i.test(e.bw.equip));
+  check(rucksack.length >= 2 && rucksack.every((e) => bwGeraet(e.bw.equip) === 'backpack'),
+    `jede Bodyweight-Fassung mit Rucksack zeigt ihn (${rucksack.map((e) => e.id).join(', ')})`);
+}
+
 console.log(`\n${fails ? fails + " FEHLER" : "alle Prüfungen bestanden"}`);

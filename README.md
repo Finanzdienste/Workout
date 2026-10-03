@@ -290,12 +290,41 @@ das fällt sofort als Fehler auf. Damit dabei die Füße stehen bleiben, ändern
 diese Muster ihre Neigung zwischen den Stellungen: der Körper dreht sich um die
 Fersen, statt sich als Ganzes zu verschieben.
 
+Die beiden Endstellungen allein reichten dafür nicht: Bei der Inverted Row
+steckten die Fersen auf halbem Weg 0,01 im Boden und schwebten oben 0,045
+darüber, beim Trizeps an der Stange hoben sie 0,04 ab und rutschten 0,28 nach
+hinten. `skelett()` rechnet deshalb für jedes Muster mit Stange und Boden je
+Einzelbild nach – wie beim Liegestütz: den ganzen Körper starr drehen und den
+Schulterwinkel nachstellen, bis der Fuß, der am Start unten war, so tief und so
+weit von der Stange steht wie dort. `tests/test-figur.mjs` misst Höhe und Weg
+der Fersen über die ganze Bewegung.
+
+Auch liegende Figuren ohne festen Punkt müssen liegen bleiben. Beim Reverse Snow
+Angel liefen die Arme über die Beugung nach vorn – in Bauchlage ist das der
+Boden –, die Hand wurde zum tiefsten Punkt, und die ganze Figur hob bis 0,10 ab.
+Jetzt geht der Bogen über die Abspreizung, mit leicht angehobenen Armen, von
+über dem Kopf an die Hüfte. Und wer mit aufgestellten Füßen auf dem Rücken
+liegt (Bodenpresse, Trizeps im Liegen, Crunch, Knieheben im Liegen), hat die
+Ferse auf dem Boden statt 0,07 darüber (`AUFGESTELLT`).
+
+**Der Kopf ist eine Kugel.** Er wurde mit seinem Mittelpunkt einsortiert, die
+Halskapsel mit ihrer Mitte; schaute die Kamera leicht von unten – so stehen
+zehn Muster im Standardblick –, lag der Hals davor, und sein runder Abschluss
+stand mitten im Gesicht, ein Ring hinter einem Stummel. Jetzt liegt der Kopf
+immer vor Hals und Schulterdeckel, der Hals vor dem Deckel; gegen Hände und
+Geräte zählt weiter der Mittelpunkt.
+
 **Der Ausschnitt passt sich der Bewegung an**, einmal je Muster aus beiden
 Endstellungen gerechnet. Eine feste Größe ließ liegende Übungen klein in einem
 halbleeren Kasten stehen; ein Maß je Einzelbild würde die Figur beim Abspielen
 atmen lassen. Gemessen wird ein Radius, kein Rechteck – sonst änderte schon das
 Drehen die Größe. Das Sichtfeld übernimmt zudem die Form des Kastens; bei festem
-Quadrat blieb links und rechts breiter Rand ungenutzt.
+Quadrat blieb links und rechts breiter Rand ungenutzt. Was fest im Raum steht
+und zur Übung gehört, zählt mit: Beim Face Pull ragte die Stange, an der das
+Band hängt, aus dem Bild. Die Bodenscheibe reicht in der Tiefe so weit wie die
+Figur – beim Trizeps an der Stange, den die Figur wie den Pike von der Seite
+zeigt (`view`; von schräg vorn verdeckte der Rumpf beide Beine), standen die
+Füße sonst neben ihr.
 
 Beim Wadenheben steigt der Körper, die **Zehen bleiben liegen**. Wird alles
 zusammen angehoben, wandert bloß die ganze Figur nach oben und die Bewegung ist
@@ -374,6 +403,24 @@ Jetzt ist er eine Fläche im Raum, die dem Rumpf folgt, mit Vordertasche und
 zwei Trägern über die Schultern; bei der Inverted Row liegt er auf der Brust
 (`packAt: 'chest'`), bei Liegestützen und Klimmzügen auf dem Rücken, bei
 Rucksack-Curls und -Rudern in den Händen (`packAt: 'hand'`).
+
+Eine Fläche war aber noch kein Rucksack. Liegend schaut der Standardblick fast
+parallel auf die Rumpfebene, und vom Rucksack blieb ein weißer Strich; in den
+Händen stand eine Karte ohne Verbindung mitten vor dem Becken, 0,24 von jeder
+Hand entfernt. Jetzt ist er ein Kasten mit Tiefe – nur die Flächen, die zur
+Kamera zeigen, jede nach ihrer Tiefe einsortiert, die Außenseite hell mit
+Vordertasche. Gehalten hängt er lotrecht unter den Händen, gut zwei Drittel so
+breit wie der Griff, mit je einer Schlaufe zur Hand. Und er ist auch in der
+Bodyweight-Fassung da: Rucksack-Curls und Rucksack-Rudern heißen dort genauso
+und sagen „beide Hände in die Trageschlaufen", abgeleitet wurde aber nur das
+Band. Die Ableitung steht jetzt einmal, als `bwGeraet()` in `js/figure.js`, und
+`resolve()` wie `figuren.html` benutzen sie.
+
+**Die Hip-Thrust-Stange liegt auf der Hüftbeuge**, 0,11 vor der Hüftmitte, wie
+die Scheibe beim Beckenheben. In der Mitte des Beckenrings war sie aus keinem
+Blick zwischen den Scheiben zu sehen. Ihr Griff ist dazu in Stücke geteilt, jedes
+mit eigener Tiefe – als ein Strich deckte jede nähere Fläche von Rumpf und
+Oberschenkel auch das Stück, das frei vor dem Körper liegt.
 
 **Und die Hände greifen.** Sie waren Ballen, und ein Ballen greift nicht:
 

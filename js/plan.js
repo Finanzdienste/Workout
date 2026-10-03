@@ -19,6 +19,7 @@ import { esc } from './text.js';
 import { ruestOrderStabil } from './gewichte.js';
 import { nichtsAbgewaehlt, vorratFassung } from './vorrat.js';
 import { satzZahl } from './stufen.js';
+import { bwGeraet } from './figure.js';
 
 /**
  * Wie viele Wochen ein ganzer Durchlauf dauert.
@@ -893,8 +894,9 @@ export function resolve(item, mode) {
     // Gerät der Figur. Bodyweight heißt nicht gerätelos: Ein Loop-Band ist in
     // beiden Varianten dasselbe Gerät, und seit die Bodyweight-Fassungen von
     // Curls, Trizepsdrücken und Schulterdrücken am Band hängen, wäre eine Figur
-    // ohne Band schlicht falsch.
-    gear: mode === 'db' ? ex.equip : (/band/i.test(v.equip) ? 'band' : null),
+    // ohne Band schlicht falsch. Dasselbe gilt für den Rucksack – siehe
+    // bwGeraet() in js/figure.js.
+    gear: mode === 'db' ? ex.equip : bwGeraet(v.equip),
     weightNote: ex.weightNote,
   };
 }
