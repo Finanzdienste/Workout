@@ -1588,6 +1588,9 @@ textarea.io {
    ist und kein Klotz. */
 .fig-pack { fill: #e8eaed; }
 .fig-pack-tasche { fill: #c9ced6; }
+/* Seiten, Deckel und Boden des Kastens: dunkler als die Außenseite, damit die
+   Kanten zu sehen sind – wie die Kante einer Hantelscheibe (fig-plate-seite). */
+.fig-pack-seite { fill: #b7bcc4; stroke: #b7bcc4; stroke-width: .25; stroke-linejoin: round; }
 .fig-strap { fill: none; stroke: #d5d9df; stroke-linecap: round; }
 /* Hände: ein Umriss um die ganze Hand statt um jeden Finger. Einzeln umrandet
    lagen die Finger von der Seite gesehen hintereinander, und aus den Rändern
@@ -3604,7 +3607,7 @@ const EXERCISES = [
       "reps": "8–15",
       "equip": "Loop-Band",
       "cue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Schwerer wird es mit dem nächststärkeren Band, leichter mit dem schwächeren.",
-      "rest": 180,
+      "rest": 150,
       "pattern": "ohpstand",
       "shares": {
         "frontDelts": 1.0,
@@ -4129,7 +4132,7 @@ const EXERCISES = [
     "bw": {
       "name": "Einbeiniges Kreuzheben",
       "reps": "10–20 je Bein",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen locker nach unten. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
       "rest": 120,
       "pattern": "hinge1",
@@ -4194,7 +4197,7 @@ const EXERCISES = [
     "db": {
       "name": "Pike-Liegestütze",
       "reps": "6–15",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Je senkrechter der Oberkörper, desto mehr Schulter und desto weniger Brust. Füße auf einem Hocker machen es deutlich schwerer.",
       "rest": 150,
       "pattern": "pike",
@@ -4216,7 +4219,7 @@ const EXERCISES = [
     "bw": {
       "name": "Pike-Liegestütze",
       "reps": "6–15",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
       "rest": 150,
       "pattern": "pike",
@@ -4239,7 +4242,7 @@ const EXERCISES = [
   {
     "id": "kurzhantel-bodenpresse",
     "group": "Brust",
-    "weight": 12,
+    "weight": 12.5,
     "step": 2.5,
     "weightNote": "je Hand",
     "equip": "dumbbells",
@@ -4327,7 +4330,7 @@ const EXERCISES = [
     "bw": {
       "name": "Enge Liegestütze",
       "reps": "8–20",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Liegestütze mit engem Handabstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
       "rest": 150,
       "pattern": "pushup",
@@ -4387,7 +4390,7 @@ const EXERCISES = [
     "db": {
       "name": "Reverse Snow Angel",
       "reps": "10–20",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf.",
       "rest": 90,
       "pattern": "snowangel",
@@ -4405,7 +4408,7 @@ const EXERCISES = [
     "bw": {
       "name": "Reverse Snow Angel",
       "reps": "10–20",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf; das nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
       "rest": 90,
       "pattern": "snowangel",
@@ -4446,13 +4449,13 @@ const EXERCISES = [
     "schmerz": [
       {
         "ort": "Rücken beim Einrollen",
-        "text": "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von „angespannt“ ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
+        "text": "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von „angespannt\" ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
       }
     ],
     "db": {
       "name": "Knieheben im Liegen",
       "reps": "10–20",
-      "equip": "ohne Gerät",
+      "equip": "Ohne Gerät",
       "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
       "rest": 120,
       "pattern": "kneeraisefloor",
@@ -4468,7 +4471,7 @@ const EXERCISES = [
     "bw": {
       "name": "Knieheben im Liegen",
       "reps": "10–20",
-      "equip": "ohne Gerät",
+      "equip": "Ohne Gerät",
       "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
       "rest": 120,
       "pattern": "kneeraisefloor",
@@ -4628,7 +4631,7 @@ const EXERCISES = [
       "reps": "10–20",
       "equip": "Rucksack",
       "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "rowbar",
       "heben": "Der Rucksack steht vor den Füßen. Hüfte nach hinten, Knie beugen, Rücken flach, Schlaufen greifen und aufstehen; dann in die Vorlage. Am Ende aufrichten und mit geradem Rücken absetzen.",
       "shares": {
@@ -4651,7 +4654,7 @@ const EXERCISES = [
       "reps": "10–20",
       "equip": "Rucksack",
       "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "rowbar",
       "shares": {
         "lats": 1.0,
@@ -4908,7 +4911,7 @@ const EXERCISES = [
     "bw": {
       "name": "Beckenheben",
       "reps": "15–25",
-      "equip": "ohne Gerät",
+      "equip": "Ohne Gerät",
       "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es einbeinig.",
       "rest": 120,
       "pattern": "bridge",
@@ -5568,6 +5571,52 @@ function stuetz(spec, t) {
  */
 function skelett(spec, t) {
   let j = spec.stuetz ? stuetz(spec, t) : solve(mische(spec, t));
+  // An der Stange, die Füße am Boden (Inverted Row, Trizeps an der Stange):
+  // Die Fersen stehen, und der Körper dreht sich um sie. Mit den beiden
+  // Endstellungen allein wanderte der tiefste Punkt – bei der Inverted Row
+  // steckten die Fersen bei t≈0,25 0,010 im Boden und schwebten oben 0,045
+  // darüber, beim Trizeps hoben sie auf halbem Weg 0,038 ab. Der Boden wird
+  // aber einmal aus der Startstellung gezeichnet (fit.groundY). Also wie beim
+  // Stütz je Bild nachrechnen: den ganzen Körper starr drehen (lean und Hüfte
+  // gegenläufig – das ist dieselbe Drehung wie tilt, nur auch im Stehen) und
+  // den Schulterwinkel nachstellen, bis der Fuß, der am Start unten war, so
+  // tief und so weit von der Stange steht wie dort. Nur die Neigung zu suchen
+  // hielt die Höhe, ließ die Fersen aber 0,08 zur Stange rutschen; zwei
+  // Bedingungen brauchen zwei Winkel, gelöst gemeinsam mit Newton.
+  if (spec.anchor === 'bar' && !spec.float && t !== 0) {
+    const start = solve(mische(spec, 0));
+    const fussName = ['ankleL', 'ankleR', 'toeL', 'toeR'].reduce((a, b) => (start[b][1] < start[a][1] ? b : a));
+    const lage = (q) => {
+      const h = mitte(q.handL, q.handR);
+      const f = q[fussName];
+      return [f[1] - h[1], Math.hypot(f[0] - h[0], f[2] - h[2])];
+    };
+    const ziel = lage(start);
+    const pose = mische(spec, t);
+    const stell = (x) => ({
+      ...pose, lean: pose.lean + x[0],
+      legL: { ...pose.legL, p: pose.legL.p - x[0] },
+      legR: { ...pose.legR, p: pose.legR.p - x[0] },
+      armL: { ...pose.armL, p: pose.armL.p + x[1] },
+      armR: { ...pose.armR, p: pose.armR.p + x[1] },
+    });
+    const F = (x) => lage(solve(stell(x))).map((v, i) => v - ziel[i]);
+    let x = [0, 0];
+    for (let i = 0; i < 16; i++) {
+      const f = F(x);
+      if (f.every((v) => Math.abs(v) < 1e-6)) break;
+      const h = 0.05;
+      const spalten = [0, 1].map((k) => {
+        const y = x.slice(); y[k] += h;
+        return F(y).map((v, r) => (v - f[r]) / h);
+      });
+      const dx = loese([0, 1].map((r) => spalten.map((c) => c[r])), f);
+      if (!dx) break;
+      const k = Math.min(1, 10 / Math.max(...dx.map(Math.abs), 1e-9));
+      x = x.map((v, n) => v - k * dx[n]);
+    }
+    j = solve(stell(x));
+  }
   // An der Stange festhalten. Beim Griff an eine Stange bleiben die Hände
   // stehen und der Körper bewegt sich – andersherum wanderte die Stange mit
   // den Händen mit, was sofort als Fehler auffällt.
@@ -5618,6 +5667,23 @@ function skelett(spec, t) {
  * Griff unter die Goblet-Hantel. `hantelLaengs` legt die Kurzhantel in
  * Blickrichtung, wie sie bei neutralem Griff liegt.
  */
+
+/*
+ * Füße aufgestellt – für alles, was mit angewinkelten Beinen auf dem Rücken
+ * liegt: Bodenpresse, Bodenpresse an der Stange, Trizeps im Liegen, Crunch.
+ *
+ * Vorher stand hier L(56, 9, 100), bzw. beim Crunch L(58, 9, 104). Der tiefste
+ * Punkt war damit in jeder Stellung die Hüfte, und Knöchel wie Zehen hingen
+ * 0,07 Körperlängen darüber – die Füße schwebten, während der Hinweis „Füße
+ * aufstellen" sagt. Gefunden bei der Durchsicht der Figuren.
+ *
+ * Bei p 56 legt erst k 116 die Ferse auf Hüfthöhe (nachgerechnet mit solve(),
+ * Knöchel 0,001 über der Hüfte). Das ist dieselbe Abmachung wie bei
+ * Beckenheben, Hip Thrust und Beinbeuger: Steht der Fuß, liegt der Knöchel
+ * auf dem Boden.
+ */
+const AUFGESTELLT = L(56, 9, 116);
+
 const PATTERNS = {
   // Ruhig stehende Figur ohne Bewegung – Grundlage für die Verletzungskarte.
   // Die Arme stehen etwas ab, sonst verschwindet die Schultermarke im Rumpf.
@@ -5790,8 +5856,8 @@ const PATTERNS = {
     // Boden – nachgesehen an gerenderten Bildern, nicht geschätzt.
     label: 'Drücken im Liegen', lie: 'supine', view: [25, -12],
     poses: [
-      { arm: A(10, 33, 104), leg: L(56, 9, 100) },
-      { arm: A(90, 10, 0), leg: L(56, 9, 100) },
+      { arm: A(10, 33, 104), leg: AUFGESTELLT },
+      { arm: A(90, 10, 0), leg: AUFGESTELLT },
     ],
   },
   pressbar: {
@@ -5829,8 +5895,8 @@ const PATTERNS = {
     // stärker verkürzt erscheint – das ist der billigere Preis.
     label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [20, -10],
     poses: [
-      { arm: A(9, 15, 110), leg: L(56, 9, 100) },
-      { arm: A(90, 14, 0), leg: L(56, 9, 100) },
+      { arm: A(9, 15, 110), leg: AUFGESTELLT },
+      { arm: A(90, 14, 0), leg: AUFGESTELLT },
     ],
   },
   row: {
@@ -6035,8 +6101,12 @@ const PATTERNS = {
      * längs, y hoch):
      *
      *                Knie          Knöchel
-     *   Start    x 0.24 y 0.36   x 0.54 y 0.07   Füße stehen am Boden
-     *   Ende     x −0.18 y 0.39  x 0.23 y 0.43   Knie über dem Bauch, Füße frei
+     *   Start    x 0.28 y 0.33   x 0.53 y 0.00   Füße stehen am Boden
+     *   Ende     x −0.18 y 0.40  x 0.23 y 0.46   Knie über dem Bauch, Füße frei
+     *
+     * Am Start stand hier bis zur Durchsicht der Figuren L(50, 9, 95), und
+     * der Knöchel lag 0,04 über der Hüfte, also in der Luft – dieselbe Sache
+     * wie bei AUFGESTELLT oben. Mit k 103 steht er.
      *
      * Das negative x am Ende ist der Punkt: Die Knie kommen über die Hüfte
      * hinaus Richtung Brust, und genau dieses letzte Stück ist das Einrollen
@@ -6050,7 +6120,7 @@ const PATTERNS = {
      */
     label: 'Knieheben im Liegen', lie: 'supine', view: [20, -30],
     poses: [
-      { arm: A(0, 17, 6), leg: L(50, 9, 95) },
+      { arm: A(0, 17, 6), leg: L(50, 9, 103) },
       { arm: A(0, 17, 6), leg: L(98, 9, 105), becken: 15 },
     ],
   },
@@ -6173,8 +6243,8 @@ const PATTERNS = {
     // Oberarm bleibt senkrecht stehen, nur der Ellenbogen arbeitet
     label: 'Trizeps-Strecken', lie: 'supine', view: [20, -30],
     poses: [
-      { arm: A(84, 8, 112), leg: L(56, 9, 100) },
-      { arm: A(90, 8, 4), leg: L(56, 9, 100) },
+      { arm: A(84, 8, 112), leg: AUFGESTELLT },
+      { arm: A(90, 8, 4), leg: AUFGESTELLT },
     ],
   },
   tricepsoh: {
@@ -6237,8 +6307,8 @@ const PATTERNS = {
     poses: [
       // Unterarme längs am Rumpf statt quer darüber: eng gefaltet verdeckten
       // sie die Scheibe und alles verschmolz zu einem Knäuel.
-      { lean: 0, arm: A(46, -6, 120, 26), leg: L(58, 9, 104) },
-      { lean: 34, arm: A(46, -6, 120, 26), leg: L(58, 9, 104) },
+      { lean: 0, arm: A(46, -6, 120, 26), leg: AUFGESTELLT },
+      { lean: 34, arm: A(46, -6, 120, 26), leg: AUFGESTELLT },
     ],
   },
   legcurl1: {
@@ -6406,6 +6476,13 @@ const PATTERNS = {
      * allein in den Winkeln.
      */
     label: 'Trizeps an der Stange', anchor: 'bar', barY: 0.02, bar: true,
+    // Von der Seite, wie beim Pike und aus demselben Grund. Im Standardblick
+    // (yaw 25) neigt sich der Körper fast genau auf die Kamera zu: Rumpf und
+    // Kopf deckten beide Beine bis auf zwei Stummel unter der Stange, und die
+    // schräge Linie von der Ferse bis zum Kopf, die der Hinweis verlangt, war
+    // in keinem Bild zu sehen. Bei 70° steht sie da, die Hände an der Kante,
+    // und die Arme liegen noch leicht versetzt statt deckungsgleich.
+    view: [70, 8],
     // leg.p spiegelt lean: nur so bleibt der Körper eine gerade Linie von den
     // Fersen bis zum Kopf. Mit senkrechten Beinen wurde daraus ein Hüftknick.
     poses: [
@@ -6416,11 +6493,29 @@ const PATTERNS = {
   snowangel: {
     // Bauchlage, Arme angehoben, vom Kopf bis zur Hüfte und zurück
     label: 'Reverse Snow Angel', lie: 'prone',
+    /*
+     * Der Bogen geht seitlich, nicht durch den Boden.
+     *
+     * Vorher liefen die Arme über arm.p von 164 auf 26, also über die
+     * Beugung nach vorn – und „vorn" ist in Bauchlage der Boden. Auf halbem
+     * Weg zeigte der Arm senkrecht nach unten, die Hand wurde ab t≈0,45 zum
+     * tiefsten Punkt, und weil skelett() den tiefsten Punkt auf den Boden
+     * setzt, hob die ganze liegende Figur ab (Füße bis 0,10 über dem Boden)
+     * und sank zum Ende wieder. Ein Snow Angel ist aber ein Bogen in der
+     * Rumpfebene: von über dem Kopf über die Seite an die Hüfte, die Hände
+     * dabei vom Boden gelöst.
+     *
+     * Also über die Abspreizung (160 → 14), und arm.p leicht negativ: Das
+     * hebt die Arme in Bauchlage zur Decke. Nachgerechnet bleibt die Hand
+     * über den ganzen Weg 0,11 bis 0,46 über dem Boden, die Zehen liegen in
+     * jedem Bild auf, und am Ende steht die Hand neben der Hüfte (x 0,09 bei
+     * Hüfte 0) statt im Boden.
+     */
     poses: [
       // Brust deutlich angehoben: liegt der Rumpf flach, liegen auch die Arme
       // am Boden und von der Bewegung ist nichts zu sehen.
-      { lean: -24, arm: A(164, 32, 10), leg: L(0, 6, 4) },
-      { lean: -24, arm: A(26, 46, 10), leg: L(0, 6, 4) },
+      { lean: -24, arm: A(-8, 160, 10), leg: L(0, 6, 4) },
+      { lean: -24, arm: A(-8, 14, 10), leg: L(0, 6, 4) },
     ],
   },
   calf: {
@@ -6434,6 +6529,23 @@ const PATTERNS = {
 };
 
 
+/**
+ * Gerät der Figur in der Bodyweight-Fassung, aus deren Gerätetext.
+ *
+ * Bodyweight heißt nicht gerätelos: Ein Loop-Band ist in beiden Fassungen
+ * dasselbe Gerät, und ein Rucksack auch – Rucksack-Curls und Rucksack-Rudern
+ * heißen in beiden so und sagen „beide Hände in die Trageschlaufen". Abgeleitet
+ * wurde aber nur das Band, und die Figur curlte und ruderte mit leeren Fäusten.
+ * Gefunden bei der Durchsicht der Figuren. Hier steht die Ableitung einmal;
+ * resolve() in js/plan.js und die Übersicht figuren.html benutzen sie beide,
+ * statt sie abzuschreiben.
+ */
+function bwGeraet(equipText) {
+  if (/band/i.test(equipText || '')) return 'band';
+  if (/rucksack/i.test(equipText || '')) return 'backpack';
+  return null;
+}
+
 const NS = 'http://www.w3.org/2000/svg';
 const CYCLE_MS = 4200;   // eine Wiederholung; das Tempo darin ist unsymmetrisch
 const el = (name, attrs = {}) => {
@@ -6443,6 +6555,16 @@ const el = (name, attrs = {}) => {
 };
 
 const active = new Set();
+
+/**
+ * Halbe Länge der festen Stange, an der beim Face Pull das Band hängt.
+ *
+ * Bis zur Durchsicht der Figuren 0,9 – über zwei Meter bei einer Figur von
+ * 1,80 m, also breiter als jede Tür, in die man eine Klimmzugstange hängt.
+ * Seit der Ausschnitt die Stange mitzählt (fit), hätte diese Länge die ganze
+ * Figur klein gedrückt. 0,6 reicht gut über beide Bänder hinaus.
+ */
+const UEBERKOPF_HALB = 0.6;
 
 /**
  * Nur zeichnen, was zu sehen ist.
@@ -6580,7 +6702,14 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
   // stehen; ein Maß je Einzelbild würde die Figur beim Abspielen atmen lassen.
   // Radius statt Rechteck, damit auch das Drehen nichts daran ändert.
   const fit = (() => {
-    const all = [skeleton(0), skeleton(1)].flatMap((j) => Object.values(j));
+    // Was fest im Raum steht und zur Übung gehört, zählt mit: Beim Face Pull
+    // lag die Stange, an der das Band hängt, außerhalb des Kreises um die
+    // Gelenke – im Bild blieb von ihr ein Stummel am oberen Rand, und die
+    // Bänder liefen aus dem Kasten. Ein Band, das im Nichts endet, ist genau
+    // das, was die Stange verhindern soll (siehe unten bei ueberkopf).
+    const anker = spec.ueberkopf !== undefined
+      ? [-1, 1].map((s) => [s * UEBERKOPF_HALB, spec.ueberkopf, spec.ueberkopfZ]) : [];
+    const all = [...[skeleton(0), skeleton(1)].flatMap((j) => Object.values(j)), ...anker];
     const mid = [0, 1, 2].map((i) => (Math.min(...all.map((q) => q[i])) + Math.max(...all.map((q) => q[i]))) / 2);
     // Radius statt Rechteck: so ändert das Drehen die Größe nicht, und die
     // Figur kann in keiner Lage über den Rand ragen. Der Kopf zählt mit seinem
@@ -6599,7 +6728,9 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     // die mitfährt, ist keine.
     const oben = skeleton(1);
     const schulter = [0, 1, 2].map((i) => (oben.shoulderL[i] + oben.shoulderR[i]) / 2);
-    return { mid, groundY, bank: schulter,
+    // Wie weit die Figur in der Tiefe reicht – für die Bodenscheibe, siehe dort.
+    const tief = (Math.max(...all.map((q) => q[2])) - Math.min(...all.map((q) => q[2]))) / 2;
+    return { mid, groundY, bank: schulter, bodenZ: Math.max(0.34, tief + 0.1),
              scale: (Math.min(VBW, VBH) / 2) * 0.94 / Math.max(r, 0.1) };
   })();
   const gearScale = fit.scale / 40;
@@ -6711,7 +6842,31 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       face([rings[r][c], rings[r][d2], rings[r + 1][d2], rings[r + 1][c]]);
     }));
     limb(pts.hipC, pts.neck, 4.2, 3.4, 'fig-spine');
-    limb(pts.neck, pts.head, 2.6, 2.2, 'fig-spine');   // Hals schließt die Lücke
+    /*
+     * Kopf und Hals in der richtigen Reihenfolge.
+     *
+     * Der Kopf wurde mit der Tiefe seines Mittelpunkts einsortiert, die
+     * Halskapsel mit der Mitte zwischen Hals und Kopfmittelpunkt. Schaut die
+     * Kamera leicht von unten (pitch < 0, so stehen zehn Muster im
+     * Standardblick), liegt der Hals näher als der Kopfmittelpunkt – die
+     * Kapsel wurde *nach* dem Kopf gezeichnet, und ihr runder Abschluss stand
+     * mit dunklem Rand mitten im Gesicht: ein Ring hinter einem Stummel, wie
+     * ein Heiligenschein. Gefunden bei der Durchsicht der Figuren.
+     *
+     * Der Kopf ist eine Kugel, und was von ihr zu sehen ist, ist ihre
+     * Oberfläche, nicht ihr Mittelpunkt. Hals und Schulterdeckel hängen unten
+     * an ihr: Was von ihnen innerhalb des Kopfumrisses liegt, verdeckt die
+     * Kugel. Also liegt der Kopf immer vor dem Hals und vor dem Schulterdeckel,
+     * und der Hals vor dem Deckel – sonst verschwände sein unteres Ende im
+     * Rumpf und es bliebe ein loser Kopf. Gegen alles andere – Hände, Hanteln,
+     * Stange – zählt weiter der Mittelpunkt: Eine Hand vor dem Gesicht soll
+     * davor bleiben.
+     */
+    const zDeckel = rings[0].reduce((acc, q) => acc + q.z, 0) / rings[0].length;
+    const zKopf = Math.max(pts.head.z + 0.001, zDeckel + 0.003);
+    const zHals = Math.min(Math.max((pts.neck.z + pts.head.z) / 2, zDeckel + 0.001), zKopf - 0.002);
+    // Hals schließt die Lücke
+    deckend(zHals, 'path', { d: kapsel(pts.neck, pts.head, 2.6, 2.2), class: 'fig-spine fig-hals' });
 
     ['L', 'R'].forEach((s) => {
       // Achsel-Steg: von der Brust zur Hand, nicht erst vom Schultergelenk.
@@ -6738,7 +6893,7 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
     // Kopf als Ei entlang der Rumpfachse statt als Kreis
     const headR = RIG.headR * 46 * gearScale * pts.head.k;
     const axis = Math.atan2(pts.head.y - pts.neck.y, pts.head.x - pts.neck.x) * 180 / Math.PI + 90;
-    deckend(pts.head.z + 0.001, 'ellipse', {
+    deckend(zKopf, 'ellipse', {
       cx: pts.head.x.toFixed(1), cy: pts.head.y.toFixed(1),
       rx: (headR * 0.86).toFixed(1), ry: headR.toFixed(1),
       transform: `rotate(${axis.toFixed(1)} ${pts.head.x.toFixed(1)} ${pts.head.y.toFixed(1)})`,
@@ -6794,8 +6949,16 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       g.appendChild(el('polygon', { points: vorn.map(pkt).join(' '), class: 'fig-plate' }));
       parts.push({ z: (tiefe(ra) + tiefe(rb)) / 2, node: g });
     };
-    /** Stange samt Scheiben entlang einer Achse im Raum. */
-    const barAt = (centre, axis, half, plate) => {
+    /**
+     * Stange samt Scheiben entlang einer Achse im Raum.
+     *
+     * `teile` zerlegt den Griff in so viele Stücke, jedes mit seiner eigenen
+     * Tiefe. Nötig, wo die Stange quer über dem Körper liegt (Hip Thrust): Als
+     * ein Strich wird sie mit der Tiefe ihrer Mitte einsortiert, also mitten
+     * im Becken, und jede nähere Fläche von Rumpf und Oberschenkel deckt sie
+     * ganz – auch das Stück, das zwischen Körper und naher Scheibe frei liegt.
+     */
+    const barAt = (centre, axis, half, plate, teile = 1) => {
       // Eine Stange ist ein starrer, gerader Gegenstand. Projiziert man ihre
       // Enden einzeln, bekommt das nähere einen größeren Perspektivfaktor als
       // das fernere – bei einer Kurzhantel unsichtbar, bei 1,2 m Langhantel
@@ -6829,7 +6992,12 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       const r = plate / 40;
       const dick = r * 0.42;
       const innen = half - dick * 1.6;
-      strich(-innen, innen, c.z);                  // Griff
+      // Griff
+      for (let i = 0; i < teile; i++) {
+        const s1 = -innen + (2 * innen * i) / teile;
+        const s2 = -innen + (2 * innen * (i + 1)) / teile;
+        strich(s1, s2, teile === 1 ? c.z : (at(s1).z + at(s2).z) / 2);
+      }
       [-1, 1].forEach((s) => {
         const s2 = (x) => s * x;
         scheibe(centre, axis, s2(innen), s2(innen + dick), r, c.k);
@@ -6876,7 +7044,14 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       // ist die Länge.
       barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.34, 4.0);
     } else if (equip === 'hipbar') {
-      barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.56, 4.4);
+      // Auf der Hüftbeuge, nicht im Becken. Die Mitte lag bis zur Durchsicht
+      // der Figuren genau auf der Hüftmitte – dem Mittelpunkt des Beckenrings,
+      // 0,09 tief im Körper –, und zwischen den Scheiben war aus keinem Blick
+      // ein Stück Stange zu sehen: zwei Scheiben, die neben der Hüfte
+      // schweben. 0,11 nach vorn legt sie auf die Vorderseite des Beckens,
+      // wie die Scheibe beim Beckenheben (siehe 'plate'); dazu der Griff in
+      // Stücken, damit das Stück vor dem Körper auch vor ihm liegt.
+      barAt(add(midOf(pts0.hipL, pts0.hipR), mul(frontAxis, 0.11)), sideAxis, 0.56, 4.4, 12);
     } else if (equip === 'band') {
       // Ein Loop-Band hängt nicht überall gleich. Beim Pull-Apart und beim
       // Reverse Fly hält man es wirklich zwischen beiden Händen – dort ist eine
@@ -6962,40 +7137,135 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       // gehört er in die Hände (`packAt: 'hand'`).
       const halten = spec.packAt === 'hand';
       const brust = spec.packAt === 'chest';
-      const rumpf = midOf(j.chest, j.hipC);
-      const tiefe = brust ? 0.15 : -0.14;
-      const c3 = halten ? add(midOf(j.handL, j.handR), mul(frontAxis, 0.10)) : add(rumpf, mul(frontAxis, tiefe));
-      const bw = halten ? 0.13 : 0.17;
-      const bh = halten ? 0.15 : 0.21;
-      const ecke = (sx, sy) => P(add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, sy * bh / 2)));
-      const flaeche = (ecken, cls, dz) => {
-        const q = ecken.map(([sx, sy]) => ecke(sx, sy));
+      const strich = (von, bis, dz = 0.012) => {
+        const a2 = P(von); const b2 = P(bis);
         parts.push({
-          z: q.reduce((acc, e) => acc + e.z, 0) / q.length + dz,
-          node: el('polygon', { points: q.map((e) => `${e.x.toFixed(1)},${e.y.toFixed(1)}`).join(' '), class: cls }),
+          z: (a2.z + b2.z) / 2 + dz,
+          node: el('line', {
+            x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
+            'stroke-width': (1.5 * gearScale * a2.k).toFixed(2), class: 'fig-strap',
+          }),
         });
       };
-      flaeche([[-1, 1], [1, 1], [1, -1], [-1, -1]], 'fig-pack', 0.01);
-      flaeche([[-0.72, -0.1], [0.72, -0.1], [0.72, -0.82], [-0.72, -0.82]], 'fig-pack-tasche', 0.014);
-      if (!halten) {
+      /*
+       * Ein Kasten, keine Fläche.
+       *
+       * Der Rucksack war zwei Vielecke in der Rumpfebene. Bei Liegestütz und
+       * Inverted Row liegt diese Ebene waagerecht, und der Standardblick schaut
+       * fast parallel darauf: übrig blieb ein weißer Strich auf dem Rücken bzw.
+       * der Brust, und dass dort ein Rucksack liegt, war nur an den Trägern zu
+       * raten. Gefunden bei der Durchsicht der Figuren. Jetzt hat er Tiefe wie
+       * der Klotz unter den Füßen und die Scheiben an der Stange: sechs
+       * Flächen, von denen nur die gezeichnet werden, die zur Kamera zeigen,
+       * jede mit ihrer eigenen Tiefe einsortiert. Die Außenseite – weg vom
+       * Körper bzw. nach vorn – ist hell und trägt die Vordertasche, die
+       * übrigen sind dunkler, damit die Kanten zu sehen sind.
+       *
+       * u, v, w sind Breite, Höhe und Tiefe, rechtshändig (u × v = w), w zeigt
+       * nach außen.
+       */
+      const kasten = (c3, u, v, w, bw, bh, bd) => {
+        const seiten = [
+          [w, u, v, bd, bw, bh, true], [mul(w, -1), v, u, bd, bh, bw],
+          [u, v, w, bw, bh, bd], [mul(u, -1), w, v, bw, bd, bh],
+          [v, w, u, bh, bd, bw], [mul(v, -1), u, w, bh, bw, bd],
+        ];
+        seiten.forEach(([n, a, b, hn, ha, hb, aussen]) => {
+          const m = add(c3, mul(n, hn / 2));
+          const ecken = (fa, fb) => [[1, 1], [-1, 1], [-1, -1], [1, -1]]
+            .map(([sa, sb]) => P(add(add(m, mul(a, sa * fa * ha / 2)), mul(b, sb * fb * hb / 2))));
+          const q = ecken(1, 1);
+          // Nur was zur Kamera zeigt: Im Bild (y nach unten) laufen die Ecken
+          // einer zugewandten Fläche dann im Uhrzeigersinn.
+          const flaeche2 = q.reduce((acc, e, i) => {
+            const n2 = q[(i + 1) % 4];
+            return acc + e.x * n2.y - n2.x * e.y;
+          }, 0);
+          if (flaeche2 >= 0) return;
+          const z = q.reduce((acc, e) => acc + e.z, 0) / 4;
+          const poly = (pts4, cls) => el('polygon', { points: pts4.map(pkt).join(' '), class: cls });
+          const g = el('g');
+          g.appendChild(poly(q, aussen ? 'fig-pack' : 'fig-pack-seite'));
+          // Vordertasche: die untere Hälfte der Außenseite, etwas schmaler.
+          if (aussen) {
+            const t = [[0.72, -0.1], [-0.72, -0.1], [-0.72, -0.82], [0.72, -0.82]]
+              .map(([sa, sb]) => P(add(add(add(m, mul(n, 0.004)), mul(a, sa * ha / 2)), mul(b, sb * hb / 2))));
+            g.appendChild(poly(t, 'fig-pack-tasche'));
+          }
+          parts.push({ z: z + 0.01, node: g });
+        });
+      };
+      if (halten) {
+        /*
+         * Gehalten: lotrecht unter den Händen, an zwei Schlaufen.
+         *
+         * Vorher eine Fläche um die Mitte zwischen den Händen, in der
+         * Rumpfebene und ohne Verbindung zu ihnen: Die Hände hingen seitlich
+         * an den Oberschenkeln, der Rucksack stand 0,24 von jeder entfernt
+         * mitten vor dem Schritt, beim Rudern zudem um 62° mit dem Rumpf
+         * gekippt – eine schwebende weiße Karte, während der Hinweis „beide
+         * Hände in die Trageschlaufen" sagt.
+         *
+         * Ein Rucksack, den man an den Schlaufen hält, hängt senkrecht nach
+         * unten, egal wie der Rumpf steht. Seine Breite folgt dem Griff, so
+         * wie man ihn an den beiden Trägern fasst: gut zwei Drittel des
+         * Abstands der Hände, die Schlaufen laufen schräg zu ihnen hoch. Er
+         * hängt knapp vor den Händen, sonst stäke er in den Oberschenkeln.
+         */
+        const punkt = (a3, b3) => a3[0] * b3[0] + a3[1] * b3[1] + a3[2] * b3[2];
+        const hl = j.handL; const hr = j.handR;
+        const quer = norm([hr[0] - hl[0], 0, hr[2] - hl[2]]);
+        const u = Math.hypot(hr[0] - hl[0], hr[2] - hl[2]) > 1e-6 ? quer : sideAxis;
+        const v = [0, 1, 0];
+        let w = cross(u, v);
+        // w soll nach vorn zeigen (vom Körper weg), sonst hinge er im Rumpf.
+        const uu = punkt(w, frontAxis) < 0 ? mul(u, -1) : u;
+        w = cross(uu, v);
+        const abstandH = Math.hypot(hr[0] - hl[0], hr[1] - hl[1], hr[2] - hl[2]);
+        const bw = Math.min(0.4, Math.max(0.17, abstandH * 0.7));
+        const griff = midOf(hl, hr);
+        const oben = griff[1] - 0.06;
+        // Hochkant wie ein Rucksack, aber nie in den Boden: Beim Rudern hängen
+        // die Hände unten knapp über Kniehöhe.
+        const bh = Math.min(0.34, oben - (BODEN + 0.02)); const bd = 0.12;
+        const c3 = [griff[0] + w[0] * (bd / 2 + 0.03), oben - bh / 2, griff[2] + w[2] * (bd / 2 + 0.03)];
+        kasten(c3, uu, v, w, bw, bh, bd);
+        // Schlaufen: je ein schmales Dreieck von der Oberkante zur Hand und
+        // zurück – ein Band, das um die Faust läuft.
+        ['L', 'R'].forEach((seite) => {
+          const hand = j[`hand${seite}`];
+          const s = punkt([hand[0] - griff[0], 0, hand[2] - griff[2]], uu) < 0 ? -1 : 1;
+          const kante = add(c3, add(mul(uu, s * bw * 0.42), mul(v, bh / 2)));
+          const a3 = add(kante, mul(uu, -s * 0.03));
+          const b3 = add(kante, mul(uu, s * 0.03));
+          strich(a3, hand, 0.013);
+          strich(hand, b3, 0.013);
+        });
+      } else {
+        const rumpf = midOf(j.chest, j.hipC);
+        const tiefe = brust ? 0.15 : -0.14;
+        const c3 = add(rumpf, mul(frontAxis, tiefe));
+        const bw = 0.17; const bh = 0.21; const bd = 0.09;
+        // Außen ist bei der Brust vorn, beim Rücken hinten.
+        const w = brust ? frontAxis : mul(frontAxis, -1);
+        const u = brust ? sideAxis : mul(sideAxis, -1);
+        kasten(c3, u, upAxis, w, bw, bh, bd);
         // Träger: vom oberen Rand über die Schulter auf die andere Seite des
         // Rumpfs. Zwei Stücke mit eigener Tiefe, damit das Stück hinter dem
-        // Rumpf auch dahinter gezeichnet wird.
+        // Rumpf auch dahinter gezeichnet wird. Sie beginnen an der Innenkante
+        // des Kastens, am Körper.
         ['L', 'R'].forEach((seite) => {
           const sx = seite === 'L' ? -0.55 : 0.55;
-          const oben3 = add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, bh / 2));
+          const oben3 = add(add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, bh / 2)), mul(w, -bd / 2));
           const schulter = add(j[`shoulder${seite}`], mul(upAxis, 0.035));
-          const drueben = add(add(j[`shoulder${seite}`], mul(frontAxis, -tiefe * 0.7)), mul(upAxis, -0.12));
-          [[oben3, schulter], [schulter, drueben]].forEach(([von, bis]) => {
-            const a2 = P(von); const b2 = P(bis);
-            parts.push({
-              z: (a2.z + b2.z) / 2 + 0.012,
-              node: el('line', {
-                x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
-                'stroke-width': (1.5 * gearScale * a2.k).toFixed(2), class: 'fig-strap',
-              }),
-            });
-          });
+          // Das zweite Stück endet *innerhalb* der anderen Rumpfseite. Es lag
+          // 0,105 tief (Rumpf 0,096) und auf der Breite des Schultergelenks
+          // (0,215, Rumpf 0,19), also außerhalb – bei der Inverted Row schaute
+          // unter dem Rumpf ein weißer Trägerstummel heraus.
+          const innen3 = add(j[`shoulder${seite}`], mul(sideAxis, seite === 'L' ? 0.07 : -0.07));
+          const drueben = add(add(innen3, mul(frontAxis, -tiefe * 0.5)), mul(upAxis, -0.12));
+          strich(oben3, schulter);
+          strich(schulter, drueben);
         });
       }
     }
@@ -7422,8 +7692,8 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       // im Nichts endet, ist keine Auskunft, sondern ein Fehler im Bild.
       // Fest im Raum, nicht an den Haenden: Die Stange haengt nicht am Sportler.
       const mitte = [0, spec.ueberkopf, spec.ueberkopfZ];
-      const b1 = P(add(mitte, mul(sideAxis, -0.9)));
-      const b2 = P(add(mitte, mul(sideAxis, 0.9)));
+      const b1 = P(add(mitte, mul(sideAxis, -UEBERKOPF_HALB)));
+      const b2 = P(add(mitte, mul(sideAxis, UEBERKOPF_HALB)));
       parts.push({
         z: (b1.z + b2.z) / 2 - 0.02,
         node: el('line', {
@@ -7453,9 +7723,14 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       // Mittig unter der Figur, nicht am Ursprung: wer an einer Stange hängt,
       // steht nicht über dem Nullpunkt, und die Scheibe lag dann daneben.
       const gy = spec.anchor === 'bar' ? fit.groundY : -0.62;
+      // In der Tiefe so weit, wie die Figur reicht, mindestens 0,34. Beim
+      // Trizeps an der Stange liegt der Körper der Länge nach in der Tiefe
+      // (Fersen z −1,0, Kopf +0,3); die Scheibe mit fester Tiefe 0,34 lag
+      // dort nur unter der Mitte, und seit die Figur von der Seite gezeigt
+      // wird, standen die Füße sichtbar daneben in der Luft.
       const ring = [];
       for (let a = 0; a < 360; a += 15) {
-        ring.push(P([fit.mid[0] + Math.cos(rad(a)) * 0.62, gy, fit.mid[2] + Math.sin(rad(a)) * 0.34]));
+        ring.push(P([fit.mid[0] + Math.cos(rad(a)) * 0.62, gy, fit.mid[2] + Math.sin(rad(a)) * fit.bodenZ]));
       }
       // Immer ganz nach hinten. Sortiert man den Boden wie ein Körperteil ein,
       // legt er sich beim Blick von oben über das hintere Bein und färbt es
@@ -9992,7 +10267,7 @@ const DEFAULT_STATE = {
   // vervollständigten – getrennt, weil beide Hinweise zugleich offen sein können.
   planUmbau: null,
   // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn,
-  //                   soll, fest, festAus } }
+  //                   soll, nach, fest, festAus, festNetto } }
   // Je Satz:
   //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
   //   done abgehakt
@@ -10001,7 +10276,13 @@ const DEFAULT_STATE = {
   //        das ist der Normalfall und kostet nichts.
   // Je Einheit, neben mode und startedOn:
   //   soll    Satzzahl je Übung an diesem Tag, beim ersten Anzeigen festgehalten
-  //   fest    nach einem Planwechsel die eigene Übungsliste [{ id, sets }]
+  //   nach    wie viele Sätze davon Nacharbeit waren, je Übung (merkeNach())
+  //   fest    nach einem Planwechsel die eigene Übungsliste
+  //           [{ id, sets, bwSets }] – ohne Nacharbeit, die kommt in exOf()
+  //           dazu; `bwSets` fehlt, wo es gleich `sets` ist, und in Listen
+  //           von vor dieser Angabe (dort gilt `sets` für beide Modi)
+  //   festNetto  die Satzzahlen in `fest` sind ohne Nacharbeit – geprüft von
+  //           festNachReparieren() in js/app.js, einmal je Liste
   //   festAus woher `fest` stammt: der Stand des Plans davor oder der, unter
   //           dem das Protokoll entstand (planWechsel()), oder der Plan, aus
   //           dem festReparieren() die Liste vervollständigt hat
@@ -10352,8 +10633,31 @@ function ensure(n) {
   return e;
 }
 
+/**
+ * Wie viele Sätze von `soll[exId]` an diesem Tag Nacharbeit waren – mit `soll`
+ * zusammen geschrieben, nie getrennt davon.
+ *
+ * `soll` hält die Satzzahl, die auf dem Bildschirm stand, und die enthält die
+ * „+1 nachgeholt". Für den Tag selbst ist das richtig. Ein Planwechsel schreibt
+ * aus `soll` aber die feste Liste der Einheit (vorherFassung() in js/plan.js),
+ * und die ist die *Basis*: exOf() legt die Nacharbeit darauf noch einmal
+ * obendrauf. Gemessen an einer angefangenen BBP-Einheit stand danach der Goblet
+ * Squat mit 5 statt 4 Sätzen da, die Einheit mit 23 statt 21. Wer den Vermerk
+ * hat, kann die Nacharbeit wieder herausrechnen.
+ *
+ * `nach` undefined heißt „unbekannt" (ein Aufrufer, der es nicht weiß) – dann
+ * wird nichts vermerkt. Gespeichert wird auch die Null: Fehlt der Eintrag,
+ * stammt `soll` aus der Zeit vor diesem Vermerk oder von einem solchen
+ * Aufrufer, und nur dann darf festNachReparieren() in js/app.js schätzen.
+ */
+function merkeNach(e, exId, nach) {
+  if (nach === undefined) return;
+  if (!e.nach) e.nach = {};
+  e.nach[exId] = Math.max(0, Number(nach) || 0);
+}
+
 /** Satz-Array für eine Übung in einem Workout; legt es bei Bedarf an. */
-function getSets(n, mode, exId, setCount) {
+function getSets(n, mode, exId, setCount, nach) {
   const e = ensure(n);
   const bucket = e[mode];
   let arr = bucket[exId];
@@ -10374,7 +10678,10 @@ function getSets(n, mode, exId, setCount) {
     // Satzliste beim bloßen Ansehen auf die heutige Zahl auf, und ein leerer
     // dritter Satz sieht danach aus wie einer, den jemand ausgelassen hat.
     if (!e.soll) e.soll = {};
-    if (e.soll[exId] === undefined) e.soll[exId] = setCount;
+    if (e.soll[exId] === undefined) {
+      e.soll[exId] = setCount;
+      merkeNach(e, exId, nach);
+    }
   }
   // Ein Satz ist: benutztes Gewicht, abgehakt, und – wenn beantwortet – wie er
   // gelaufen ist (`wie`, siehe updateSet). Ein Feld `r` für Wiederholungen
@@ -10593,14 +10900,18 @@ function peekSets(n, mode, exId) {
   return Array.isArray(arr) ? arr : null;
 }
 
-function updateSet(n, mode, exId, setCount, index, patch) {
-  const arr = getSets(n, mode, exId, setCount);
+function updateSet(n, mode, exId, setCount, index, patch, nach) {
+  const arr = getSets(n, mode, exId, setCount, nach);
   Object.assign(arr[index], patch);
   const e = ensure(n);
   // Beim Antippen zählt, was gerade auf dem Bildschirm steht: Wer die Stufe
   // mitten in einer Einheit wechselt, trainiert ab da die neue Satzzahl.
   if (!e.soll) e.soll = {};
   e.soll[exId] = setCount;
+  // Und mit ihr, wie viel davon Nacharbeit ist (siehe merkeNach()). Ohne
+  // Angabe passt ein alter Vermerk nicht mehr zur neuen Zahl – dann lieber
+  // keiner als ein falscher.
+  if (nach === undefined) { if (e.nach) delete e.nach[exId]; } else merkeNach(e, exId, nach);
   e.mode = mode;
   syncStartedOn(n);
   persist();
@@ -10624,7 +10935,7 @@ function completeWorkout(n, mode, exList) {
   const e = ensure(n);
   e.mode = mode;
   exList.forEach((item) => {
-    const arr = getSets(n, mode, item.id, item.sets);
+    const arr = getSets(n, mode, item.id, item.sets, item.nach || 0);
     // `w` mitschreiben, sonst fehlt der Eintrag später überall dort, wo das
     // Gewicht zählt: in der Verlaufskurve und in der Steigerungsserie.
     arr.forEach((s) => { s.done = true; if (item.w && s.w === '') s.w = item.w; });
@@ -10662,8 +10973,21 @@ function toggleCare(n, key) {
  * abgeschlossen wurde; ein Zurücksetzen nimmt sie wieder zurück.
  */
 /**
+ * Ein Eintrag einer festen Liste: die Übung und ihre Satzzahl in *beiden*
+ * Modi. Bis hierher ging nur `sets` mit, die Zahl des Modus, in dem trainiert
+ * wurde – wer die Einheit danach in der anderen Variante weitermachte (das
+ * Umschalten ist ausdrücklich erlaubt, siehe set-modus in js/app.js), bekam
+ * die Satzzahl des Hantel-Tages: hängendes Knieheben mit 3 statt 4 Sätzen.
+ * Alte Listen ohne `bwSets` gelten weiter mit `sets` für beide Modi, so wie
+ * bisher (gestufteSaetze() in js/plan.js).
+ */
+function festEintrag({ id, sets, bwSets }) {
+  return bwSets === undefined || bwSets === sets ? { id, sets } : { id, sets, bwSets };
+}
+
+/**
  * Einheiten auf ihre eigene Übungsliste festschreiben – siehe planWechsel()
- * in js/app.js. `einheiten`: { [n]: [{ id, sets }] }. Was schon eine hat,
+ * in js/app.js. `einheiten`: { [n]: [{ id, sets, bwSets }] }. Was schon eine hat,
  * behält sie: Festgeschrieben wird der Stand des Tages, an dem trainiert
  * wurde, nicht der des zweiten Planwechsels danach.
  *
@@ -10676,7 +11000,7 @@ function festschreiben(einheiten, ausPlan = {}) {
   Object.entries(einheiten).forEach(([n, liste]) => {
     const e = state.log[n];
     if (!e || e.fest || !liste.length) return;
-    e.fest = liste.map(({ id, sets }) => ({ id, sets }));
+    e.fest = liste.map(festEintrag);
     if (ausPlan[n]) e.festAus = ausPlan[n];
     neu += 1;
   });
@@ -10696,12 +11020,32 @@ function festErsetzen(einheiten, stand) {
   Object.entries(einheiten).forEach(([n, liste]) => {
     const e = state.log[n];
     if (!e || e.done || !liste.length) return;
-    e.fest = liste.map(({ id, sets }) => ({ id, sets }));
+    e.fest = liste.map(festEintrag);
     if (stand) e.festAus = stand;
     neu += 1;
   });
   if (neu) { persist(); emit(); }
   return neu;
+}
+
+/**
+ * Feste Listen als „ohne Nacharbeit" vermerken, wo nötig mit berichtigten
+ * Satzzahlen – nur für festNachReparieren() in js/app.js. `einheiten`:
+ * { [n]: Liste }. Gibt zurück, wie viele Listen sich dabei geändert haben.
+ */
+function festNetto(einheiten) {
+  let geaendert = 0;
+  let neu = 0;
+  Object.entries(einheiten).forEach(([n, liste]) => {
+    const e = state.log[n];
+    if (!e || e.festNetto || !Array.isArray(e.fest)) return;
+    const jetzt = liste.map(festEintrag);
+    if (JSON.stringify(jetzt) !== JSON.stringify(e.fest)) { e.fest = jetzt; geaendert += 1; }
+    e.festNetto = true;
+    neu += 1;
+  });
+  if (neu) { persist(); emit(); }
+  return geaendert;
 }
 
 function markDone(n, mode) {
@@ -11055,7 +11399,7 @@ function resetAll() {
   emit();
 }
 
-const store = { ablageKlemmt, addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, festErsetzen, festschreiben, flush, getSets, getState, importJSON, isStarted, markBackup, markDone, markIcs, normStand, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, speicherGrund, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
+const store = { ablageKlemmt, addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, festErsetzen, festNetto, festschreiben, flush, getSets, getState, importJSON, isStarted, markBackup, markDone, markIcs, normStand, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, speicherGrund, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
 
 /* ===== js/text.js ===== */
 /*
@@ -11151,6 +11495,20 @@ function repsBereich(reps) {
 function gezaehlteReps(satz, reps) {
   const { lo, hi } = repsBereich(reps);
   return satz && satz.wie === 'oben' ? hi : lo;
+}
+
+/**
+ * Die Kilo, die ein abgehakter Satz zum Volumen beiträgt: sein *eigenes*
+ * Gewicht mal gezaehlteReps(). Ohne Zahl im Gewichtsfeld 0.
+ *
+ * Eine Stelle für alle, die Volumen zählen – Kachel, Lebensbilanz und
+ * Verlaufskarte. Die Karte rechnete vorher mit dem Gewicht des ersten Satzes
+ * für alle Sätze und der unteren Grenze; wer von 40 auf 35 kg herunterging,
+ * sah dort für dieselbe Einheit eine andere Zahl als in der Kachel darüber.
+ */
+function satzKilo(satz, reps) {
+  const kg = parseFloat(String(satz && satz.w).replace(',', '.'));
+  return Number.isNaN(kg) ? 0 : kg * gezaehlteReps(satz, reps);
 }
 
 /**
@@ -11780,6 +12138,35 @@ function gerastet(ex, kg) {
 /** Anteile des Arbeitsgewichts je Stufe – schwerer heißt mehr Anlauf. */
 const AUFWAERM_STUFEN = { 1: [0.5, 0.75], 2: [0.6] };
 
+/** Geräte, auf die Scheiben paarweise kommen – je Seite eine. */
+const STANGEN = new Set(['barbell', 'hipbar', 'szbar']);
+
+/**
+ * Ein Aufwärmgewicht auf etwas legen, das sich einstellen lässt.
+ *
+ * Mit eingetragenen Scheiben ist das das Raster daraus. Ohne – und das ist der
+ * Normalfall – stand hier vorher das Viertelkilo: 26,25 kg an der Stange
+ * (13,125 je Seite), 13,25 kg je Hand, 7,25 kg auf der Hüfte. Genau die
+ * „Rechnung, keine Ansage", die der Abschnitt oben ausschließen will. Dasselbe
+ * passierte *mit* Scheiben bei beiden Kurzhanteln, sobald von keiner Größe vier
+ * Stück da sind: Dann gibt es dort kein Raster (siehe raste()), und das
+ * Viertelkilo blieb stehen.
+ *
+ * Ohne Raster gilt deshalb die Schrittweite der Übung – dieselbe, in der auch
+ * das Arbeitsgewicht wandert, bei Kurzhanteln also je Hand. An der Stange
+ * höchstens 2,5 kg, ein Paar 1,25er: Die Schrittweite 5 ist dort für das
+ * Arbeitsgewicht gedacht, und 17,5 kg für die Hälfte von 35 lassen sich
+ * aufstecken. Bei gleichem Abstand nach unten, wie in raste().
+ */
+function aufwaermGewicht(ex, roh) {
+  const satz = meinSatz();
+  const r = gepflegt(ex.equip, satz) ? raste(roh, ex.equip, satz) : null;
+  if (r !== null) return r;
+  const step = ex.step || 2.5;
+  const raster = STANGEN.has(ex.equip) ? Math.min(step, 2.5) : step;
+  return Math.ceil(roh / raster - 0.5 - 1e-9) * raster;
+}
+
 /**
  * Die Aufwärmsätze einer Übung: [{ kg, reps }] – oder eine leere Liste.
  *
@@ -11794,8 +12181,7 @@ function aufwaermsaetze(ex, kg, reps) {
   const gesehen = new Set([kg]);
   const liste = [];
   stufen.forEach((anteil) => {
-    const roh = Math.round(kg * anteil * 4) / 4;
-    const w = gerastet(ex, roh);
+    const w = aufwaermGewicht(ex, kg * anteil);
     // Über dem Arbeitsgewicht ist kein Aufwärmsatz, sondern ein Fehler: Das
     // passiert, wenn das Raster grob ist und nach oben schnappt.
     if (!(w > 0) || w >= kg || gesehen.has(w)) return;
@@ -11871,9 +12257,16 @@ function doneWeightNote(n, mode, exId) {
  *
  * Sortiert wird deshalb nach Gerät und innerhalb des Geräts absteigend nach
  * Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in kleinen
- * Schritten nach unten statt hin und her. Am Plan gemessen sind das rund 30 %
- * weniger Kilo, die in einer Einheit bewegt werden – und schwer zuerst ist
- * ohnehin die richtige Reihenfolge fürs Training.
+ * Schritten nach unten statt hin und her – und schwer zuerst ist ohnehin die
+ * richtige Reihenfolge fürs Training.
+ *
+ * Was das bringt, ist die Zahl der Auf- und Umbauten, nicht die Kilo. Über alle
+ * 84 Einheiten mit den Startgewichten nachgezählt: Aufbau 309 → 298, Bauch,
+ * Beine, Po 291 → 265, Cut 257 → 256, Oberkörper 274 → 272 – jeweils das
+ * Minimum, das unter denselben Nebenbedingungen überhaupt geht. Die bewegten
+ * Kilo bleiben dabei ungefähr gleich (bis 3 % mehr); hier stand einmal „rund
+ * 30 % weniger Kilo", und das lässt sich an den heutigen Plänen nicht mehr
+ * nachmessen.
  *
  * Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
  * Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach
@@ -12138,8 +12531,18 @@ function naechstesGewicht(exId, richtung) {
   const ex = EX_BY_ID.get(exId);
   const jetzt = workingWeight(exId) || 0;
   const schritt = stepOf(exId);
-  if (!ex || !gepflegt(ex.equip, meinSatz())) return Math.max(0, jetzt + richtung * schritt);
-  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), mindestSchritt(jetzt, schritt));
+  const liste = ex ? erreichbar(ex.equip, meinSatz()) : null;
+  // Kein Raster (nichts eingetragen, oder bei beiden Kurzhanteln von keiner
+  // Größe vier Stück): freie Schritte. Vorher gab nachbar() im zweiten Fall
+  // null zurück, und der Knopf blieb einfach stehen.
+  if (!liste || liste.length <= 1) return Math.max(0, jetzt + richtung * schritt);
+  // Liegt das Gewicht neben dem Raster – gesetzt, bevor die Scheiben
+  // eingetragen waren, oder frei eingetippt –, geht der erste Schritt auf den
+  // nächsten erreichbaren Wert, ohne Mindestweite. Sonst sprang 12 kg je Hand
+  // bei 2,5er-Schritten auf 15 und über die 12,5 hinweg, die nur ein halbes
+  // Kilo daneben liegen.
+  const aufRaster = liste.some((w) => Math.abs(w - jetzt) < 1e-9);
+  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), aufRaster ? mindestSchritt(jetzt, schritt) : 0);
   return n === null ? jetzt : n;
 }
 
@@ -13490,6 +13893,7 @@ function faelltAus(items, iso) {
 
 
 
+
 /**
  * Wie viele Wochen ein ganzer Durchlauf dauert.
  *
@@ -13655,6 +14059,68 @@ function tagAnpassen(w, ex, vortag, act, term) {
   return { items: t.items, notiz: { dropped: r.dropped.concat(t.dropped), swapped: r.swapped, termin: t.namen } };
 }
 
+/**
+ * Die Notiz des Tages um das ergänzt, was der Modus noch sperrt – und dabei
+ * die Kette zu Ende gelesen.
+ *
+ * Gefunden am Handgelenkbruch im Hantel-Modus: Die Beschwerde tauscht den
+ * Goblet Squat auf den Hip Thrust, sperrt den Hip Thrust mit Hanteln aber
+ * selbst (avoidDb – mit der Stange auf der Hüfte trägt die Hand). Die Notiz
+ * hängte beides aneinander, „Goblet Squat → Hip Thrust" und gleich daneben
+ * „Hip Thrust fällt aus", und die Beschwerden-Übersicht zählte die
+ * Goblet-Sätze als getauscht, obwohl keiner davon stattfand. Dasselbe Muster
+ * steht an mehr als einer Stelle: Die Handgelenksüberlastung tauscht
+ * Liegestütze auf die Floor Press und sperrt sie ohne Hanteln, und viele
+ * Beschwerden tauschen auf Übungen, die eine *andere* angehakte nur in einem
+ * Modus sperrt. Deshalb hier allgemein und nicht an der einen Regel:
+ *
+ *   A → X, und X fällt im Modus weg    → A fällt aus
+ *   A → X, und X wird im Modus zu Y    → A → Y
+ *
+ * Nicht in applyInjuries(): Dessen Ergebnis ist für beide Modi dasselbe und
+ * gemerkt (adjustedPlan()), der Modus kommt erst danach.
+ *
+ * Stand X auch selbst im Plan, hat applyInjuries() beide Einträge zu einem
+ * zusammengelegt, und der Modus nennt nur noch die Summe. Die wird nach den
+ * Satzzahlen des Plans aufgeteilt: X behält seinen eigenen Teil, A bekommt
+ * den getauschten.
+ */
+function modusNotiz(roh, r, w) {
+  let swapped = roh.swapped.slice();
+  const dropped = roh.dropped.slice();
+  const eigen = (id) => w.ex.filter((it) => it.id === id).reduce((a, it) => a + (it.sets || 0), 0);
+  // `summe` auf X selbst und die Tausche davor verteilen, in ganzen Sätzen.
+  const verteile = (summe, x, davor) => {
+    const gewichte = [eigen(x), ...davor.map((s) => s.sets || 0)];
+    const alle = gewichte.reduce((a, b) => a + b, 0) || 1;
+    let vergeben = 0;
+    return gewichte.map((g, i) => {
+      if (i === gewichte.length - 1) return Math.max(0, summe - vergeben);
+      const t = Math.round((summe * g) / alle);
+      vergeben += t;
+      return t;
+    });
+  };
+  r.dropped.forEach((d) => {
+    const davor = swapped.filter((s) => s.to === d.id);
+    if (!davor.length) { dropped.push(d); return; }
+    swapped = swapped.filter((s) => s.to !== d.id);
+    const [selbst, ...teile] = verteile(d.sets, d.id, davor);
+    davor.forEach((s, i) => dropped.push({ id: s.from, sets: teile[i], reason: d.reason }));
+    if (selbst > 0) dropped.push({ ...d, sets: selbst });
+  });
+  const weiter = [];
+  r.swapped.forEach((m) => {
+    const davor = swapped.filter((s) => s.to === m.from);
+    if (!davor.length) { weiter.push(m); return; }
+    swapped = swapped.filter((s) => s.to !== m.from);
+    const [selbst, ...teile] = verteile(m.sets, m.from, davor);
+    davor.forEach((s, i) => weiter.push({ from: s.from, to: m.to, sets: teile[i] }));
+    if (selbst > 0) weiter.push({ ...m, sets: selbst });
+  });
+  return { dropped, swapped: swapped.concat(weiter) };
+}
+
 /** Was an einem Plantag getauscht wurde und was wegfiel. */
 function injuryNotes(n, mode) {
   adjustedPlan();
@@ -13664,7 +14130,7 @@ function injuryNotes(n, mode) {
   const w = PLAN[n - 1];
   if (mode && w) {
     const r = modusTausch(vorratFassung(gestufteSaetze(w, mode), mode).items, activeInjuries(), mode);
-    roh = { ...roh, dropped: roh.dropped.concat(r.dropped), swapped: roh.swapped.concat(r.swapped) };
+    roh = { ...roh, ...modusNotiz(roh, r, w) };
   }
   // Was protokolliert ist, ist weder ausgefallen noch getauscht worden – es
   // steht wieder da (behalteProtokolliertes). Ohne diesen Filter hieß es an
@@ -13888,9 +14354,17 @@ function gestufteSaetze(w, m) {
   // Einheit war schon angefangen oder trainiert, und hinter ihrer Nummer steht
   // im neuen Plan etwas anderes. Sie bleibt, wie sie war – samt der Satzzahl
   // jenes Tages, deshalb hier vor der Stufe und ohne sie.
+  //
+  // Die Satzzahl des Modus, in dem sie gerade steht: `bwSets` für Bodyweight,
+  // sonst `sets` (siehe festEintrag() in js/store.js). Listen von vor dieser
+  // Angabe haben nur `sets` – die Zahl des Modus, in dem damals trainiert
+  // wurde – und behalten sie in beiden Modi, wie bisher.
   const fest = (store.getState().log[w.n] || {}).fest;
   if (Array.isArray(fest) && fest.length) {
-    return fest.filter((it) => EX_BY_ID.has(it.id)).map((it) => ({ id: it.id, sets: it.sets, bwSets: it.sets }));
+    return fest.filter((it) => EX_BY_ID.has(it.id)).map((it) => {
+      const sets = m === 'bw' ? (it.bwSets ?? it.sets) : it.sets;
+      return { id: it.id, sets, bwSets: sets };
+    });
   }
   return stufenFassung(adjustedPlan()[w.n - 1] || w.ex, m);
 }
@@ -13941,8 +14415,12 @@ function vorherFassung(n, liste, mode) {
   const w = PLAN[n - 1];
   const tag = w ? tagAnpassen(w, roh, adjustedPlan()[n - 2], activeInjuries(), termine()).items : roh;
   const items = stufenFassung(tag, mode);
+  // Dieselbe Liste im anderen Modus, für dessen Satzzahl. stufenFassung()
+  // tauscht Stelle für Stelle, die beiden Listen liegen also übereinander.
+  const andere = stufenFassung(tag, mode === 'bw' ? 'db' : 'bw');
   const e = store.getState().log[n] || {};
   const soll = e.soll || {};
+  const nach = e.nach || {};
   // Nur angefasste Einträge (abgehakt, Gewicht, Rückmeldung) – dieselbe Regel
   // wie protokolliert() unten. Einen Eintrag legt die App schon beim Anzeigen
   // an, die Fokusansicht seit v216 für die ganze Einheit. Zählte jeder, holte
@@ -13955,7 +14433,7 @@ function vorherFassung(n, liste, mode) {
     .filter(([id, arr]) => EX_BY_ID.has(id) && Array.isArray(arr) && arr.some((x) => x && (x.done || !!x.w || !!x.wie)))
     .map(([id]) => id);
   const frei = da.filter((id) => !items.some((it) => it.id === id));
-  return items.map((it) => {
+  return items.map((it, k) => {
     let id = it.id;
     if (!da.includes(id)) {
       const x = frei.find((y) => nah(it, y));
@@ -13965,8 +14443,18 @@ function vorherFassung(n, liste, mode) {
       }
     }
     // `soll` dagegen für jede Übung, die an jenem Tag so dastand – auch nur
-    // angezeigt. Es ist die Satzzahl, mit der die App sie gezeigt hat.
-    return { ...it, id, sets: soll[id] || it.sets };
+    // angezeigt. Es ist die Satzzahl, mit der die App sie gezeigt hat, und
+    // damit samt „+1 nachgeholt". Die feste Liste ist aber die Basis, auf die
+    // exOf() die Nacharbeit erst legt; stünde sie hier mit drin, käme sie
+    // doppelt (siehe merkeNach() in js/store.js). Fehlt der Vermerk, weil
+    // `soll` älter ist, schätzt festNachReparieren() in js/app.js nach.
+    const eigen = soll[id] ? Math.max(1, soll[id] - (nach[id] || 0)) : it.sets;
+    // Der andere Modus war an jenem Tag nicht zu sehen – für ihn gilt die
+    // Satzzahl, die der Plan dort hatte. Bis hierher bekam er die des
+    // trainierten Modus: hängendes Knieheben im Bodyweight-Modus mit den drei
+    // Sätzen des Hantel-Tages statt mit vier.
+    const fremd = (andere[k] || it).sets;
+    return { ...it, id, sets: mode === 'bw' ? fremd : eigen, bwSets: mode === 'bw' ? eigen : fremd };
   });
 }
 
@@ -14363,8 +14851,9 @@ function resolve(item, mode) {
     // Gerät der Figur. Bodyweight heißt nicht gerätelos: Ein Loop-Band ist in
     // beiden Varianten dasselbe Gerät, und seit die Bodyweight-Fassungen von
     // Curls, Trizepsdrücken und Schulterdrücken am Band hängen, wäre eine Figur
-    // ohne Band schlicht falsch.
-    gear: mode === 'db' ? ex.equip : (/band/i.test(v.equip) ? 'band' : null),
+    // ohne Band schlicht falsch. Dasselbe gilt für den Rucksack – siehe
+    // bwGeraet() in js/figure.js.
+    gear: mode === 'db' ? ex.equip : bwGeraet(v.equip),
     weightNote: ex.weightNote,
   };
 }
@@ -14458,8 +14947,7 @@ function sammleStats() {
           const planned = gezaehlteReps(s, reps);
           setsDone++;
           repsTotal += planned;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
+          if (m === 'db') volume += satzKilo(s, reps);
           perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
         });
       });
@@ -14507,8 +14995,7 @@ function sammleStats() {
           setsDone++;
           customSets++;
           repsTotal += planned;
-          const kg = parseFloat(String(x.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
+          if (m === 'db') volume += satzKilo(x, reps);
           perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
         });
       });
@@ -14782,8 +15269,7 @@ function bilanzAus(runde) {
           if (!s.done) return;
           saetze++;
           hier++;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volumen += kg * gezaehlteReps(s, reps);
+          if (m === 'db') volumen += satzKilo(s, reps);
         });
         if (hier) mitSatz++;
       });
@@ -14833,8 +15319,7 @@ function protokollWerte(log) {
           const geplant = gezaehlteReps(s, reps);
           w.saetze += 1;
           w.reps += geplant;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) w.volumen += kg * geplant;
+          if (m === 'db') w.volumen += satzKilo(s, reps);
           w.perEx.set(id, (w.perEx.get(id) || 0) + 1);
         });
       });
@@ -15776,7 +16261,8 @@ function lastLoggedFor(exId, mode, beforeN) {
 
 /**
  * Zeitreihen aus dem Protokoll: je Übung das benutzte Gewicht, je
- * Muskelgruppe das Volumen (Gewicht × geplante Wdh. × Sätze) einer Einheit.
+ * Muskelgruppe das Volumen einer Einheit (Gewicht × gezählte Wdh. je Satz,
+ * mit dem Anteil der Gruppe an der Übung gewichtet).
  *
  * Nur abgehakte Sätze zählen, und nur die Hantel-Variante trägt Kilo bei –
  * Bodyweight-Einheiten haben schlicht kein Gewicht, das man summieren könnte.
@@ -15816,8 +16302,17 @@ function progressSeries() {
       if (!perExercise.has(id)) perExercise.set(id, []);
       perExercise.get(id).push({ label: day, value: kg });
 
-      const vol = kg * plannedReps(stufenWerte(ex.db).reps) * done.length;
-      ex.db.muscles.forEach((m) => muscleDay.set(m, (muscleDay.get(m) || 0) + vol));
+      // Volumen wie in der Kachel darüber: jeder Satz mit seinem eigenen
+      // Gewicht (satzKilo). Auf die Gruppen verteilt nach ihren Anteilen, wie
+      // beim Wochenvolumen – ein Goblet Squat ist für den Beinbeuger an der
+      // Hüfte (Anteil 0,15) kein Beintraining. Voll gutgeschrieben überzeichnete
+      // er dessen Kurve um das Sechsfache, und ein Tag ohne Kreuzheben sah dort
+      // fast genauso aus wie einer mit.
+      const reps = stufenWerte(ex.db).reps;
+      const vol = done.reduce((sum, x) => sum + satzKilo(x, reps), 0);
+      Object.entries(ex.db.shares).forEach(([m, anteil]) => {
+        muscleDay.set(m, (muscleDay.get(m) || 0) + vol * anteil);
+      });
     });
 
     muscleDay.forEach((vol, m) => {
@@ -16405,9 +16900,14 @@ function festeListen(log, grundModus, vorher = null, protokollStand = '') {
       return;
     }
     const soll = e.soll || {};
+    const nach = e.nach || {};
+    // Ohne die Nacharbeit jenes Tages, aus demselben Grund wie in
+    // vorherFassung(): Die feste Liste ist die Basis, exOf() legt die
+    // Nacharbeit darauf. Einen Plan, der die Satzzahl des anderen Modus
+    // nennte, gibt es hier nicht – dort gilt dieselbe Zahl, wie bisher.
     out[n] = Object.entries(e[m] || {})
       .filter(([id, arr]) => Array.isArray(arr) && EX_BY_ID.has(id) && (!e.done || arr.some(aktiv)))
-      .map(([id, arr]) => ({ id, sets: soll[id] || arr.length }));
+      .map(([id, arr]) => ({ id, sets: Math.max(1, (soll[id] || arr.length) - (nach[id] || 0)) }));
     // Auch eine Liste aus dem Protokoll ist seit v216 ganz – die Fokusansicht
     // legt die Einheit beim Öffnen vollständig an. Sie trägt deshalb ebenfalls
     // einen Vermerk, hier den Stand, unter dem das Protokoll entstand. Ohne ihn
@@ -16492,6 +16992,57 @@ function festReparieren() {
       fokus: (PLANS[fokus] || {}).name || fokus });
   }
   return k;
+}
+
+/**
+ * Feste Listen, in denen die Nacharbeit schon steht.
+ *
+ * Von v215 bis v224 schrieb ein Planwechsel eine angefangene Einheit mit der
+ * Satzzahl fest, die auf dem Bildschirm stand (`soll`) – und die enthielt die
+ * „+1 nachgeholt". exOf() legte die Nacharbeit dann noch einmal obendrauf:
+ * Goblet Squat 5(+1) statt 4(+1), die Einheit 23 statt 21 Sätze. Seitdem
+ * merkt sich das Protokoll, wie viel von `soll` Nacharbeit war (`nach`, siehe
+ * merkeNach() in js/store.js), und vorherFassung() rechnet sie heraus. Für die
+ * Listen, die schon so dastehen, und für ein `soll` aus der Zeit davor gibt es
+ * diesen Vermerk nicht.
+ *
+ * **Repariert wird nur, was die Doppelung heute sichtbar macht:** eine Einheit,
+ * die noch nicht fertig ist und auf die exOf() jetzt Nacharbeit legt. Dort ist
+ * die Nacharbeit des Tages dieselbe Rechnung wie heute – sie misst die Einheiten
+ * davor in derselben Woche, und die sind fertig und ändern sich nicht mehr.
+ * Abgezogen wird nur an einer Übung, deren feste Zahl genau ihr `soll` ist
+ * (also daraus stammt) und deren Nacharbeit nicht vermerkt ist. Danach zeigt
+ * die Einheit wieder, was sie vor dem Update zeigte.
+ *
+ * **Eine fertige Einheit bleibt, wie sie ist.** Auf sie legt exOf() nichts
+ * mehr, die Doppelung ist dort unsichtbar – und was an jenem Tag Nacharbeit
+ * war, lässt sich aus dem Protokoll nicht mehr sicher sagen: Eine Vier kann
+ * „3 + 1" sein oder die vier Sätze eines Fortgeschrittenen. Lieber eine Zahl
+ * stehen lassen, die der Nutzer so gesehen hat, als eine erfundene einsetzen.
+ *
+ * Jede Liste wird einmal angesehen und dann vermerkt (`festNetto`), wie
+ * festReparieren() es mit `festAus` hält: Kommt später in derselben Woche
+ * Nacharbeit dazu, ist das echte Nacharbeit und kein Grund, nachzurechnen.
+ */
+function festNachReparieren() {
+  const s = store.getState();
+  const ergebnis = {};
+  Object.entries(s.log || {}).forEach(([k, e]) => {
+    const n = Number(k);
+    if (!Number.isInteger(n) || !e || e.festNetto || !Array.isArray(e.fest) || !e.fest.length) return;
+    const w = PLAN[n - 1];
+    const m = store.workoutMode(n);
+    const extra = w && !e.done ? nacharbeit(w, m) : null;
+    const soll = e.soll || {};
+    const nach = e.nach || {};
+    ergebnis[n] = e.fest.map((f) => {
+      const dazu = (extra && extra.get(f.id)) || 0;
+      const feld = m === 'bw' && f.bwSets !== undefined ? 'bwSets' : 'sets';
+      if (!dazu || nach[f.id] !== undefined || soll[f.id] !== f[feld] || f[feld] - dazu < 1) return f;
+      return { ...f, [feld]: f[feld] - dazu };
+    });
+  });
+  return store.festNetto(ergebnis);
 }
 
 /**
@@ -16602,7 +17153,7 @@ function downloadBackup() {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   store.markBackup(doneCount());
-  toast('Gesichert – falls kein Download kam: Text in „Mehr“ kopieren');
+  toast('Gesichert – falls kein Download kam: Text in „Mehr" kopieren');
 }
 
 /* ------------------------------------------------------------------ *
@@ -17398,8 +17949,12 @@ function progressStrip(n, mode, w, cur) {
     <div class="prog">
       ${w.ex.map((item, k) => {
         const v = resolve(item, mode);
-        const arr = store.peekSets(n, mode, v.id) || [];
-        const done = arr.slice(0, v.sets).filter((x) => x.done).length;
+        // Über beide Modi gezählt, wie der Kopf daneben und die Listenansicht
+        // (saetzeErledigt()). Bis hierher nur der Eimer des eingestellten
+        // Modus: Nach dem Umschalten auf Bodyweight stand die mit Hanteln
+        // fertige Übung 1 mit 0 von 2 Feldern da, während der Kopf „2/16
+        // Sätze" meldete.
+        const done = saetzeErledigt(n, v.id, v.sets);
         return `
         <button type="button" class="prog-ex ${k === cur ? 'cur' : ''} ${done === v.sets ? 'done' : ''}"
                 style="flex-grow:${v.sets}" data-act="focus-goto" data-i="${k}"
@@ -17425,7 +17980,7 @@ function renderFocus() {
   // die Listenansicht es mit jeder Karte tut. Sonst kennt ein späterer
   // Planwechsel von einer angefangenen Einheit nur das erste Paar und schreibt
   // sie darauf fest (siehe festReparieren()).
-  if (!w.custom) w.ex.forEach((x) => { const v = resolve(x, mode); store.getSets(n, mode, v.id, v.sets); });
+  if (!w.custom) w.ex.forEach((x) => { const v = resolve(x, mode); store.getSets(n, mode, v.id, v.sets, v.nach || 0); });
   const prog = progressOf(n, mode);
 
   // Eine Einheit kann leer sein: mit genug angehakten Beschwerden fällt jede
@@ -17440,8 +17995,14 @@ function renderFocus() {
   const i = Math.min(Math.max(0, ui.focusIdx), w.ex.length - 1);
   const item = w.ex[i];
   const it = resolve(item, mode);
-  const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
+  const sets = store.getSets(n, mode, it.id, it.sets, it.nach || 0).slice(0, it.sets);
   const doneCount = sets.filter((s) => s.done).length;
+  // Sätze aus dem anderen Modus zählen mit – wie auf der Karte der Liste,
+  // samt demselben Satz darunter. Sonst stand eine schon fertige Übung hier
+  // mit leeren Knöpfen und grauem „Weiter", und ein Tipp darauf buchte einen
+  // Satz, den es nie gab (siehe toggle-set).
+  const anderswo = Math.max(0, saetzeErledigt(n, it.id, it.sets) - doneCount);
+  const exFertig = doneCount + anderswo >= it.sets;
   const kg = it.weight === null ? null : workingWeight(it.id);
   const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
 
@@ -17519,6 +18080,8 @@ function renderFocus() {
                 aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
                 data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
     </div>
+    ${anderswo > 0 ? `<div class="small muted ex-anderswo">${anderswo === 1 ? 'Ein Satz' : `${anderswo} Sätze`}
+      schon ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} gemacht – ${anderswo === 1 ? 'zählt' : 'zählen'} mit.</div>` : ''}
     </section>
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
@@ -17528,7 +18091,7 @@ function renderFocus() {
 
     <div class="btn-row nav">
       <button type="button" class="btn btn-ghost" data-act="focus-step" data-d="-1" ${i === 0 ? 'disabled' : ''}>← Zurück</button>
-      <button type="button" class="btn ${doneCount === it.sets ? 'btn-primary' : 'btn-ghost'}"
+      <button type="button" class="btn ${exFertig ? 'btn-primary' : 'btn-ghost'}"
               data-act="focus-step" data-d="1" ${i === w.ex.length - 1 ? 'disabled' : ''}>Weiter →</button>
     </div>
 
@@ -17647,7 +18210,13 @@ function frischerStart() {
  * Knopf steht dann hier, statt ihn eine Ebene tiefer suchen zu lassen.
  */
 function startBlock(n, mode, prog) {
-  const laeuft = !!store.getState().session;
+  // Nur die eigene Einheit „läuft". Bis hierher genügte irgendeine laufende:
+  // Wer mitten im Training zur nächsten Einheit blätterte, sah dort „▶︎ Start",
+  // und ein Tipp ersetzte die Uhr der laufenden Einheit – die Zeit seit dem
+  // letzten Wegschalten der App war weg, ohne ein Wort.
+  const sess = store.getState().session;
+  const laeuft = !!sess && sess.n === n;
+  if (sess && !laeuft && !prog.erledigt) return laufendWoandersBlock(sess.n, prog);
 
   if (prog.erledigt && laeuft) {
     return `
@@ -17674,9 +18243,9 @@ function startBlock(n, mode, prog) {
         <div class="fertig-sub">${wieViel}${
           min ? ` · ${min} min` : ''}. Die nächste Einheit kommt von selbst.</div>
       </div>
-      ${prog.complete ? '' : `
+      ${sess ? `<div style="margin-top:8px">${zurLaufendenKnopf(sess.n)}</div>` : (prog.complete ? '' : `
       <button type="button" class="btn btn-ghost btn-block" data-act="start-session"
-              style="margin-top:8px">Doch noch weitermachen</button>`}`;
+              style="margin-top:8px">Doch noch weitermachen</button>`)}`;
   }
 
   if (prog.done) {
@@ -17701,6 +18270,42 @@ function startBlock(n, mode, prog) {
     </button>`;
 }
 
+/** Wie die laufende Einheit heißt – für Knöpfe und Hinweise. */
+function einheitTitel(k) {
+  return istCustom(k) ? ((store.customById(k) || {}).name || 'Eigenes Workout') : `Workout ${k}`;
+}
+
+/**
+ * Eine andere Einheit läuft gerade.
+ *
+ * Der Nutzer will dabei zweierlei: nichts verlieren und nichts unbemerkt
+ * ändern. Wer mitten im Training zur nächsten Einheit blättert, schaut fast
+ * immer nur voraus – also führt der erste Knopf zurück in die laufende, ohne
+ * an ihr etwas anzurühren. Wer wirklich wechseln will (falsche Einheit
+ * erwischt), kann das, aber nur mit einem Knopf, der sagt, was passiert: Die
+ * laufende wird beendet, ihre Zeit gebucht wie beim Wegschalten der App, und
+ * ihre Sätze bleiben stehen – sie ist danach angefangen wie jede
+ * unterbrochene Einheit (start-session unten). Einfach den Startknopf zu
+ * zeigen und die Uhr still zu ersetzen, war die eine Lösung, die beides
+ * verfehlte.
+ */
+function laufendWoandersBlock(k, prog) {
+  const titel = einheitTitel(k);
+  return `
+    <div class="small muted laeuft-woanders" style="margin-bottom:8px">${esc(titel)} läuft noch.</div>
+    ${zurLaufendenKnopf(k)}
+    <button type="button" class="btn btn-ghost btn-block" data-act="start-session" style="margin-top:8px">
+      ${prog.done ? 'Diese fortsetzen' : 'Diese starten'} – ${esc(titel)} wird beendet
+    </button>`;
+}
+
+function zurLaufendenKnopf(k) {
+  return `
+    <button type="button" class="btn btn-primary btn-block btn-start" data-act="zur-laufenden">
+      ▶︎ Zurück zu ${esc(einheitTitel(k))}
+    </button>`;
+}
+
 /**
  * Hanteln oder Bodyweight – unter Mehr, als Wahl zwischen zwei Dingen.
  *
@@ -17715,11 +18320,15 @@ function startBlock(n, mode, prog) {
  * trainieren, keine Abweichung von einer Norm. Und ohne das Wort: Was hier
  * steht, gilt ab sofort und nicht „normalerweise".
  *
- * **Die offene Einheit wechselt mit**, sofern noch kein Satz steht. Ein
- * Umschalter, der nur „ab dem nächsten Mal" wirkt, während vorn unverändert die
- * alte Variante steht, sähe kaputt aus. Was schon läuft, bleibt dagegen, wie es
- * ist – mitten im Training die Übungen auszutauschen wäre das Gegenteil von
- * hilfreich, und das Protokoll führt beide Varianten getrennt.
+ * **Die laufende Einheit wechselt mit, und die vorn stehende, solange sie
+ * unberührt ist.** Ein Umschalter, der nur „ab dem nächsten Mal" wirkt, während
+ * vorn unverändert die alte Variante steht, sähe kaputt aus. Mitten im Training
+ * umzustellen ist ausdrücklich gewollt (siehe set-modus) – das Protokoll führt
+ * beide Varianten getrennt, und Sätze beider zählen zusammen. Eine schon
+ * trainierte oder angefangene, aber nicht laufende Einheit bleibt dagegen in
+ * ihrer Variante: Hier stand einmal, sie bleibe, „wie sie ist", und der Code
+ * kippte trotzdem jede Einheit, die gerade vorn stand – auch die fertige von
+ * heute.
  */
 function modusKarte(mode) {
   return `
@@ -17727,8 +18336,9 @@ function modusKarte(mode) {
     <div class="card">
       <div class="small muted">Beide Fassungen stehen im selben Plan und treffen dieselben
         Muskelgruppen – nur mit dem, was gerade da ist. Umgestellt wird hier, so oft du willst,
-        <b>auch mitten im Training</b>: Die App führt für jede Variante ein eigenes Protokoll,
-        abgehakte Sätze der anderen bleiben stehen und sind beim Zurückschalten wieder da.</div>
+        <b>auch mitten im Training</b>: Die laufende Einheit wechselt mit, abgehakte Sätze der
+        anderen Variante bleiben stehen und zählen weiter. Eine schon trainierte Einheit bleibt
+        in der Variante, in der du sie gemacht hast.</div>
       <div class="btn-row nav" style="margin-top:10px" role="group" aria-label="Variante wählen">
         ${['db', 'bw'].map((m) => `
           <button type="button" class="btn ${m === mode ? 'btn-primary' : ''}"
@@ -17736,6 +18346,30 @@ function modusKarte(mode) {
             ${MODE_ICON[m]} ${esc(MODE_LABEL[m])}</button>`).join('')}
       </div>
     </div>`;
+}
+
+/**
+ * Kürzeste und längste Pause im laufenden Plan, je mit der Übung, die sie am
+ * häufigsten hat.
+ *
+ * Gerechnet, nicht hingeschrieben: Hier stand „0:45 – 2:30 min, 2:30 beim
+ * Squat, 0:45 bei Crunches" – drei Wochen, nachdem die Pausen auf 1:30 bis
+ * 3:00 angehoben worden waren. Ein Text, der Zahlen aus den Daten abschreibt,
+ * veraltet mit der nächsten Änderung an den Daten.
+ */
+function pausenSpanne(mode) {
+  const je = new Map();   // Pause -> Map(Name -> Anzahl)
+  PLAN.forEach((w) => exOf(w, mode).forEach((it) => {
+    const r = resolve(it, mode);
+    if (!(r.rest > 0)) return;
+    if (!je.has(r.rest)) je.set(r.rest, new Map());
+    je.get(r.rest).set(r.name, (je.get(r.rest).get(r.name) || 0) + 1);
+  }));
+  if (!je.size) return null;
+  const haeufigste = (rest) => [...je.get(rest).entries()].sort((a, b) => b[1] - a[1])[0][0];
+  const min = Math.min(...je.keys());
+  const max = Math.max(...je.keys());
+  return { min, max, minName: haeufigste(min), maxName: haeufigste(max) };
 }
 
 /**
@@ -17760,15 +18394,19 @@ function modusKarte(mode) {
  */
 function pausenKarte(s) {
   const wahl = s.useExerciseRest ? 'je' : (s.restSeconds ? 'fest' : 'aus');
-  const fest = `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min`;
+  const mmss = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  const fest = `${mmss(s.restSeconds)} min`;
+  const sp = pausenSpanne(s.mode === 'bw' ? 'bw' : 'db');
+  const spanne = sp && sp.min !== sp.max;
   const ARTEN = [
-    ['je', '⏱️ Je Übung', '0:45 – 2:30 min'],
+    ['je', '⏱️ Je Übung', spanne ? `${mmss(sp.min)} – ${mmss(sp.max)} min` : 'Je Übung'],
     ['fest', '⏲️ Feste Länge', fest],
     ['aus', '🚫 Aus', 'Aus'],
   ];
   const erklaerung = {
-    je: 'Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen – 2:30 beim '
-      + 'Squat, 0:45 bei Crunches. Die Längen stehen in der Übung selbst.',
+    je: `Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen${spanne
+      ? ` – ${mmss(sp.max)} bei ${sp.maxName}, ${mmss(sp.min)} bei ${sp.minName}` : ''}. `
+      + 'Die Längen stehen in der Übung selbst.',
     fest: 'Dieselbe Pause nach jedem Satz, egal welche Übung.',
     aus: 'Kein Timer, kein Ton – Sätze nur abhaken.',
   };
@@ -18434,7 +19072,7 @@ function renderDashboard() {
     ${tagNotiz(w, mode, items)}`);
 
   items.forEach((it, i) => {
-    const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
+    const sets = store.getSets(n, mode, it.id, it.sets, it.nach || 0).slice(0, it.sets);
     const doneCount = sets.filter((s) => s.done).length;
     const open = ui.openEx.has(it.id);
     // Sätze aus dem anderen Modus zählen mit (siehe saetzeErledigt) – und die
@@ -18728,7 +19366,7 @@ function renderStats() {
     <div class="section-title">Gewicht je Übung</div>
     <div class="spark-grid" id="sparkEx"></div>
 
-    <div class="section-title">Volumen je Muskelgruppe</div>
+    <div class="section-title">Volumen je Muskelgruppe · Anteile eingerechnet</div>
     <div class="spark-grid" id="sparkMus"></div>
 
     <div class="section-title">Meist trainierte Übungen</div>
@@ -20183,7 +20821,12 @@ function renderInjuries() {
   const swapCount = new Map();
   let wegenPause = 0;
   PLAN.forEach((w) => {
-    const r = injuryNotes(w.n);
+    // Mit dem Modus, wie die Wochenrechnung darunter (exOf(w, mode)) – ohne
+    // ihn zählte die Übersicht im Hantel-Modus den Goblet Squat beim
+    // Handgelenkbruch als „→ Hip Thrust getauscht", obwohl der Hip Thrust mit
+    // Hanteln selbst gesperrt ist und beide wegfallen (modusNotiz() in
+    // js/plan.js).
+    const r = injuryNotes(w.n, mode);
     r.dropped.forEach((d) => {
       gone.push(d);
       if (d.reason === 'rest') wegenPause += d.sets;
@@ -21059,7 +21702,7 @@ function renderSettings() {
         <div>
           <div class="lbl">Supersätze</div>
           <div class="hint">Zwei verträgliche Übungen im Wechsel, statt die Pause abzusitzen:
-            A, B, A, B. Gepaart wird nur, was keinen Muskel teilt und nicht dasselbe Gerät
+            A, B, A, B. Gepaart wird nur, was keinen Hauptmuskel teilt und nicht dasselbe Gerät
             braucht – dann bleiben beide Aufbauten stehen und es wird nichts umgebaut.
             Die Pause wird dabei nicht kürzer, sondern gefüllt: Wenn eine Übung wieder dran
             ist, wartest du nur noch die Zeit, die seit ihrem letzten Satz fehlt. Unterm
@@ -21072,10 +21715,11 @@ function renderSettings() {
         <div>
           <div class="lbl">Aufwärmsätze anzeigen</div>
           <div class="hint">Über den schweren Übungen steht, womit aufzuwärmen ist – die
-            Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf deine Scheiben.
-            Nur bei Grund- und schweren Nebenübungen; ein Seitheben mit 5 kg braucht das
-            nicht. Abgehakt wird nichts davon: Aufwärmsätze zählen nicht in die Statistik
-            und nicht für den Stufenaufstieg.</div>
+            Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf deine Scheiben
+            oder, ohne eingetragene, auf die Schrittweite der Übung. Nur bei Grund- und
+            schweren Nebenübungen; ein Seitheben mit 5 kg braucht das nicht. Abgehakt wird
+            nichts davon: Aufwärmsätze zählen nicht in die Statistik und nicht für den
+            Stufenaufstieg.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${!!s.aufwaermen}"
                 data-act="toggle-aufwaermen" aria-label="Aufwärmsätze anzeigen"></button>
@@ -21238,7 +21882,7 @@ function renderSettings() {
         <button type="button" class="btn" data-act="download">Als Datei sichern</button>
         <button type="button" class="btn" data-act="export">Export anzeigen</button>
       </div>
-      <textarea class="io" id="io" placeholder="Hier JSON einfügen und auf „Importieren“ tippen…" style="margin-top:10px"></textarea>
+      <textarea class="io" id="io" placeholder="Hier JSON einfügen und auf „Importieren&quot; tippen…" style="margin-top:10px"></textarea>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" data-act="import-file">Datei laden</button>
         <button type="button" class="btn" data-act="import">Eingefügten Text laden</button>
@@ -21269,8 +21913,8 @@ function renderSettings() {
     <div class="section-title">Über den Plan</div>
     <div class="card small muted">
       ${PLAN.length} Einheiten, ursprünglich vom ${esc(fmtDate(PLAN[0].date, true))} bis ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))},
-      aufgebaut auf ${EXERCISES.length} Grundübungen. Zu jeder Hantelübung gehört ein
-      Bodyweight-Äquivalent mit gleicher Satzzahl und angepasstem Wiederholungsbereich.
+      aufgebaut auf ${EXERCISES.length} Übungen. Zu jeder Hantelübung gehört ein
+      Bodyweight-Äquivalent mit eigener Satzzahl und angepasstem Wiederholungsbereich.
       ${EINZELDATEI ? '' : `
       <div style="margin-top:10px">
         <a class="btn btn-block" href="./figuren.html">Alle Bewegungsbilder ansehen</a>
@@ -21584,8 +22228,18 @@ view.addEventListener('click', (e) => {
       const id = t.dataset.ex;
       const i = Number(t.dataset.i);
       const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
-      const cur = store.getSets(n, mode, id, item.sets)[i].done;
+      const cur = store.getSets(n, mode, id, item.sets, item.nach || 0)[i].done;
       const variant = resolve(item, mode);
+      // Eine Übung, die über beide Modi fertig ist, bekommt keinen Satz mehr
+      // dazu. Nach dem Umschalten stehen ihre Knöpfe in diesem Modus leer da,
+      // und ein Tipp darauf buchte bis hierher einen Satz, der nie gemacht
+      // wurde: 3 Hantelsätze + 1 in der Statistik, und die App sprang mit
+      // „Weiter: …" davon. Zurücknehmen geht weiter – das ist ein Haken in
+      // diesem Modus, der wirklich dasteht.
+      if (!cur && saetzeErledigt(n, id, item.sets) >= item.sets) {
+        toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
+        break;
+      }
       initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
 
       // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
@@ -21593,7 +22247,7 @@ view.addEventListener('click', (e) => {
       const patch = { done: !cur };
       if (!cur && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
       else if (cur) patch.w = '';
-      store.updateSet(n, mode, id, item.sets, i, patch);
+      store.updateSet(n, mode, id, item.sets, i, patch, item.nach || 0);
 
       const done = !cur;
       const workoutComplete = done && progressOf(n, mode).complete;
@@ -21736,7 +22390,7 @@ view.addEventListener('click', (e) => {
     case 'backup-teilen':
       teileBackup();
       break;
-    case 'start-session':
+    case 'start-session': {
       if (!workoutByNo(n).ex.length) {
         toast('Heute fällt alles weg – nichts zu starten');
         break;
@@ -21754,13 +22408,36 @@ view.addEventListener('click', (e) => {
       }
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       sound('start');
+      // Läuft noch eine andere Einheit, wird sie zuerst beendet – mit ihrer
+      // Zeit. startSession() ersetzt die Uhr, und gebucht wird nur beim
+      // Anhalten; ohne diese Zeile war alles seit dem letzten Wegschalten der
+      // App verloren. Gefragt ist vorher schon: Der Knopf dafür sagt, dass die
+      // andere endet (laufendWoandersBlock()).
+      const lief = store.getState().session;
+      const vorige = lief && lief.n !== n ? lief.n : null;
+      if (vorige !== null) {
+        if (store.getState().rest) endRest(false);
+        store.endSession();
+      }
       store.startSession(n);
       ui.focus = true;
       ui.listView = false;
       ui.focusIdx = firstOpenExercise(n, mode);
       render();
-      toast('Los geht’s 💪');
+      toast(vorige !== null ? `${einheitTitel(vorige)} beendet, Zeit gespeichert – los geht’s 💪` : 'Los geht’s 💪');
       break;
+    }
+    case 'zur-laufenden': {
+      const lief = store.getState().session;
+      if (!lief) { render(); break; }
+      ui.workoutNo = lief.n;
+      ui.openEx.clear();
+      ui.focus = true;
+      ui.listView = false;
+      ui.focusIdx = firstOpenExercise(lief.n, store.workoutMode(lief.n));
+      render();
+      break;
+    }
     case 'finish-session': {
       const prog = progressOf(n, mode);
       // Abgehakt ist abgehakt: Wer hier tippt, ist fertig – der Tag zählt als
@@ -22011,13 +22688,29 @@ view.addEventListener('click', (e) => {
        */
       const neu = t.dataset.v === 'bw' ? 'bw' : 'db';
       store.setMode(neu);
-      store.setWorkoutMode(ui.workoutNo, neu);
+      // Umgestellt wird die laufende Einheit und die, die gerade vorn steht –
+      // diese aber nur, solange sie unberührt ist. `ui.workoutNo` ist, was
+      // zuletzt auf dem Dashboard stand, auch eine längst trainierte Einheit,
+      // zu der man geblättert hat. Deren Modus kippte bis hierher mit: Die
+      // fertige Hantel-Einheit von heute hieß nach „ab jetzt Bodyweight"
+      // plötzlich Bodyweight-Einheit, mit anderen Übungen und Haken nur noch
+      // über „schon mit Hanteln gemacht". Was trainiert ist, bleibt in der
+      // Variante, in der es trainiert wurde; die nächste Einheit nimmt die
+      // neue von selbst (workoutMode() in js/store.js).
+      const lief = store.getState().session;
+      const vorn = ui.workoutNo;
+      const vornEintrag = store.getState().log[vorn];
+      const unberuehrt = !store.isStarted(vorn) && !(vornEintrag && vornEintrag.done);
+      if (lief) store.setWorkoutMode(lief.n, neu);
+      if (unberuehrt && !(lief && lief.n === vorn)) store.setWorkoutMode(vorn, neu);
       // Die Fokusansicht zeigt eine Übung an ihrer Position; die andere
       // Variante hat dieselbe Zahl Übungen, aber wer gerade bei Nummer 5 stand,
       // soll dort auch wieder landen. Das tut sie von selbst – ui.focusIdx
       // bleibt stehen und wird beim Zeichnen begrenzt.
       render();
-      toast(`${MODE_LABEL[neu]} – Abgehaktes bleibt gespeichert`);
+      toast(unberuehrt || (lief && lief.n === vorn)
+        ? `${MODE_LABEL[neu]} – Abgehaktes bleibt gespeichert`
+        : `${MODE_LABEL[neu]} – ${einheitTitel(vorn)} bleibt, wie du sie trainiert hast`);
       break;
     }
     case 'set-rest':
@@ -22568,7 +23261,7 @@ view.addEventListener('input', (e) => {
     const n = ui.workoutNo;
     const mode = store.workoutMode(n);
     const item = workoutByNo(n, mode).ex.find((x) => x.id === t.dataset.ex);
-    store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value });
+    store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value }, item.nach || 0);
   } else if (t.dataset.act === 'scheiben-stange') {
     // Beim Tippen still speichern, ohne neu zu rendern: Ein render() würde das
     // Feld ersetzen und den Fokus mitnehmen, mitten im Wort.
@@ -22763,6 +23456,11 @@ if (fokusUmzug()) {
 // Runde läuft weiter – kein Neuanfang, also auch kein Verschieben auf heute.
 // Nach fokusUmzug(), nicht davor – der stellt erst fest, welcher Plan gilt.
 const planUmgebaut = planWechsel() || festReparieren();
+// Danach, und immer: auch die Listen, die eben erst festgeschrieben wurden,
+// können aus einem `soll` ohne Nacharbeits-Vermerk stammen. Still – die
+// Einheit zeigt danach wieder, was sie vor dem Update zeigte, und das ist
+// keine Nachricht.
+festNachReparieren();
 if (planUmgebaut) {
   ui.tab = 'dashboard';
   ui.focus = false;
@@ -22826,7 +23524,16 @@ if (neuAngefangen) store.setShift(shiftToToday());
 // *neuen* gegenüber, und dagegen gerechnet findet sammleStats() so gut wie
 // nichts. Erst nachdem der Umzug die Runde samt Bilanz abgelegt hat, steht dem
 // Aufstieg die richtige Zahl gegenüber.
-if (pruefeAufstieg() || pruefeZusatztag()) {
+//
+// Beide Prüfungen laufen, jede für sich – nicht `pruefeAufstieg() ||
+// pruefeZusatztag()`. Mit dem Kurzschluss blieb nach einem Aufstieg beim Start
+// der fällige Zusatztag aus, und ein veralteter, unberührter wurde nicht
+// weggeräumt – er stand dann über naechsteEinheit() sogar als nächste Einheit
+// da. Nach einer Einheit (toggle-set, finish-session) liefen sie schon immer
+// nacheinander.
+const gestiegenBeimStart = pruefeAufstieg();
+const zusatzBeimStart = pruefeZusatztag();
+if (gestiegenBeimStart || zusatzBeimStart) {
   ui.tab = 'dashboard';
   ui.focus = false;
   // Der Zusatztag entsteht erst hier, also nach der Wahl der Startansicht ganz
