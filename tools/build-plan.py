@@ -2456,9 +2456,11 @@ def main():
     # Die Ziele wandern mit: die App zeigt das Wochenvolumen gegen genau diese
     # Zahlen, und eine zweite Stelle, an der 10 steht, wäre eine Stelle zu viel.
     # Der Nacken bekommt seinen Ist-Wert als Ziel – ohne Ziel gäbe es dort
-    # nichts anzuzeigen, und die Obergrenze ist keine Ansage. Zwei
-    # Nachkommastellen sind dabei nicht gerundet, sondern exakt: der Wert ist
-    # ein Vielfaches von 0,05.
+    # nichts anzuzeigen, und die Obergrenze ist keine Ansage. Der Wert ist der
+    # Schnitt über alle Wochen, auf vier Stellen gerundet – exakt ist er nicht:
+    # Die Plansumme ist ein Vielfaches von 0,05, geteilt durch 21 Wochen aber
+    # nicht mehr (Aufbau, vordere Schulter: 3879/420 = 9,2357…). Angezeigt
+    # wird er ohnehin nicht als Ziel (ergebnis, siehe unten).
     ziele = {m: TARGET[m] if TARGET.get(m) is not None
              else round(sum(v[groups.index(m)] for v in got) / weeks / UNIT, 4)
              for m in groups}

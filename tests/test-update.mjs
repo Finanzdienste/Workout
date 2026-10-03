@@ -26,7 +26,8 @@ import { starte } from './server.mjs';
 const KOPIE = mkdtempSync(path.join(tmpdir(), 'workout-update-'));
 const WEG = new Set(['node_modules', '.git', '.testlauf', 'tests', 'tools', 'dist']);
 cpSync(ROOT, KOPIE, { recursive: true, filter: (q) => !WEG.has(path.relative(ROOT, q).split(path.sep)[0]) });
-const PORT = 8144;
+// Überschreibbar, damit zwei Läufe nebeneinander nicht um denselben Port streiten.
+const PORT = Number(process.env.WORKOUT_PORT_UPDATE) || 8144;
 const server = await starte(PORT, 600, KOPIE);
 const UPDATE_URL = `http://127.0.0.1:${PORT}/index.html`;
 
@@ -63,7 +64,18 @@ try {
 
   // 3. App wieder öffnen
   await page.goto(UPDATE_URL, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(4000);   // Installieren, Übernehmen, Neuladen
+  // Warten, bis die neue Fassung wirklich läuft – nicht eine feste Frist. Dazwischen
+  // liegen Installieren (rund 45 Dateien mit cache: 'reload'), Übernehmen und
+  // einmal Neuladen, und auf einem ausgelasteten Rechner dauert das länger als
+  // die vier Sekunden, die hier standen. Das Neuladen zerstört dabei den
+  // Kontext, in dem gewartet wird; dann wird im neuen weitergewartet.
+  const bis = Date.now() + 30000;
+  let angekommen = false;
+  while (!angekommen && Date.now() < bis) {
+    angekommen = await page.waitForFunction(() => window.__neu === true, null,
+      { timeout: Math.max(1, bis - Date.now()) }).then(() => true, () => false);
+  }
+  await page.locator('.tab').first().waitFor({ timeout: 10000 }).catch(() => {});
   console.log('     Marke gesetzt:', await page.evaluate(() => { try { return sessionStorage.getItem('workout.reloaded'); } catch { return 'fehler'; } }));
   console.log('     app.js im Cache neu:', await page.evaluate(async () => {
     const c = await caches.open((await caches.keys()).find((k) => k.startsWith('workout-')));

@@ -214,6 +214,22 @@ check((await state()).useExerciseRest === true, 'und zurück auf die Pause je Ü
 check(await page.locator('[data-act="set-pause"][data-v="je"][aria-pressed="true"]').count() === 1,
   'der gewählte Knopf ist als gewählt ausgewiesen');
 
+// Die Spanne kommt aus den Daten. Hier stand fest „0:45 – 2:30 min, 0:45 bei
+// Crunches" – drei Wochen, nachdem die Pausen auf 1:30 bis 3:00 angehoben
+// worden waren.
+const spanne = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { exOf, resolve } = await import('./js/plan.js');
+  const r = PLAN.flatMap((w) => exOf(w, 'db').map((it) => resolve(it, 'db').rest)).filter((x) => x > 0);
+  const mmss = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  return `${mmss(Math.min(...r))} – ${mmss(Math.max(...r))} min`;
+});
+const pausenText = (await page.locator('.card', { has: page.locator('[data-act="set-pause"]') }).textContent())
+  .replace(/\s+/g, ' ');
+console.log('     Pausenkarte:', pausenText.slice(0, 160));
+check(pausenText.includes(spanne), `die Spanne steht so da, wie sie in den Daten ist (${spanne})`);
+check(!/0:45/.test(pausenText), 'und nicht mehr die alte 0:45 bei Crunches');
+
 // --- Kein Steigerungsvorschlag, nirgends und nie ---
 //
 //     "Es sollen nie Steigerungsvorschlaege kommen. Egal wann."

@@ -7,7 +7,7 @@
  * laufende Runde mit allen abgelegten zusammengezählt.
  */
 import * as store from './store.js';
-import { EX_BY_ID, gezaehlteReps, stufenWerte } from './uebung.js';
+import { EX_BY_ID, gezaehlteReps, satzKilo, stufenWerte } from './uebung.js';
 import { FOKUS_ERSATZ, PLANS } from './data.js';
 import { RANG, leistungsStand, naechsteStufe } from './stufen.js';
 import { sammleStats } from './plan.js';
@@ -114,8 +114,7 @@ export function bilanzAus(runde) {
           if (!s.done) return;
           saetze++;
           hier++;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volumen += kg * gezaehlteReps(s, reps);
+          if (m === 'db') volumen += satzKilo(s, reps);
         });
         if (hier) mitSatz++;
       });
@@ -165,8 +164,7 @@ export function protokollWerte(log) {
           const geplant = gezaehlteReps(s, reps);
           w.saetze += 1;
           w.reps += geplant;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) w.volumen += kg * geplant;
+          if (m === 'db') w.volumen += satzKilo(s, reps);
           w.perEx.set(id, (w.perEx.get(id) || 0) + 1);
         });
       });

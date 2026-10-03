@@ -9,7 +9,7 @@ import * as store from './store.js';
 import { EX_BY_ID, repsBereich } from './uebung.js';
 import { esc, fmtNum } from './text.js';
 import { levelFaktor } from './stufen.js';
-import { belegungText, gepflegt, nachbar, normSatz, raste, stangeZaehlt } from './scheiben.js';
+import { belegungText, erreichbar, gepflegt, nachbar, normSatz, raste, stangeZaehlt } from './scheiben.js';
 
 /** Der eingetragene Scheibensatz – oder ein leerer, wenn nichts eingetragen ist. */
 export const meinSatz = () => normSatz(store.getState().scheiben);
@@ -56,6 +56,35 @@ export function gerastet(ex, kg) {
 /** Anteile des Arbeitsgewichts je Stufe – schwerer heißt mehr Anlauf. */
 const AUFWAERM_STUFEN = { 1: [0.5, 0.75], 2: [0.6] };
 
+/** Geräte, auf die Scheiben paarweise kommen – je Seite eine. */
+const STANGEN = new Set(['barbell', 'hipbar', 'szbar']);
+
+/**
+ * Ein Aufwärmgewicht auf etwas legen, das sich einstellen lässt.
+ *
+ * Mit eingetragenen Scheiben ist das das Raster daraus. Ohne – und das ist der
+ * Normalfall – stand hier vorher das Viertelkilo: 26,25 kg an der Stange
+ * (13,125 je Seite), 13,25 kg je Hand, 7,25 kg auf der Hüfte. Genau die
+ * „Rechnung, keine Ansage", die der Abschnitt oben ausschließen will. Dasselbe
+ * passierte *mit* Scheiben bei beiden Kurzhanteln, sobald von keiner Größe vier
+ * Stück da sind: Dann gibt es dort kein Raster (siehe raste()), und das
+ * Viertelkilo blieb stehen.
+ *
+ * Ohne Raster gilt deshalb die Schrittweite der Übung – dieselbe, in der auch
+ * das Arbeitsgewicht wandert, bei Kurzhanteln also je Hand. An der Stange
+ * höchstens 2,5 kg, ein Paar 1,25er: Die Schrittweite 5 ist dort für das
+ * Arbeitsgewicht gedacht, und 17,5 kg für die Hälfte von 35 lassen sich
+ * aufstecken. Bei gleichem Abstand nach unten, wie in raste().
+ */
+function aufwaermGewicht(ex, roh) {
+  const satz = meinSatz();
+  const r = gepflegt(ex.equip, satz) ? raste(roh, ex.equip, satz) : null;
+  if (r !== null) return r;
+  const step = ex.step || 2.5;
+  const raster = STANGEN.has(ex.equip) ? Math.min(step, 2.5) : step;
+  return Math.ceil(roh / raster - 0.5 - 1e-9) * raster;
+}
+
 /**
  * Die Aufwärmsätze einer Übung: [{ kg, reps }] – oder eine leere Liste.
  *
@@ -70,8 +99,7 @@ export function aufwaermsaetze(ex, kg, reps) {
   const gesehen = new Set([kg]);
   const liste = [];
   stufen.forEach((anteil) => {
-    const roh = Math.round(kg * anteil * 4) / 4;
-    const w = gerastet(ex, roh);
+    const w = aufwaermGewicht(ex, kg * anteil);
     // Über dem Arbeitsgewicht ist kein Aufwärmsatz, sondern ein Fehler: Das
     // passiert, wenn das Raster grob ist und nach oben schnappt.
     if (!(w > 0) || w >= kg || gesehen.has(w)) return;
@@ -147,9 +175,16 @@ export function doneWeightNote(n, mode, exId) {
  *
  * Sortiert wird deshalb nach Gerät und innerhalb des Geräts absteigend nach
  * Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in kleinen
- * Schritten nach unten statt hin und her. Am Plan gemessen sind das rund 30 %
- * weniger Kilo, die in einer Einheit bewegt werden – und schwer zuerst ist
- * ohnehin die richtige Reihenfolge fürs Training.
+ * Schritten nach unten statt hin und her – und schwer zuerst ist ohnehin die
+ * richtige Reihenfolge fürs Training.
+ *
+ * Was das bringt, ist die Zahl der Auf- und Umbauten, nicht die Kilo. Über alle
+ * 84 Einheiten mit den Startgewichten nachgezählt: Aufbau 309 → 298, Bauch,
+ * Beine, Po 291 → 265, Cut 257 → 256, Oberkörper 274 → 272 – jeweils das
+ * Minimum, das unter denselben Nebenbedingungen überhaupt geht. Die bewegten
+ * Kilo bleiben dabei ungefähr gleich (bis 3 % mehr); hier stand einmal „rund
+ * 30 % weniger Kilo", und das lässt sich an den heutigen Plänen nicht mehr
+ * nachmessen.
  *
  * Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
  * Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach
@@ -414,8 +449,18 @@ export function naechstesGewicht(exId, richtung) {
   const ex = EX_BY_ID.get(exId);
   const jetzt = workingWeight(exId) || 0;
   const schritt = stepOf(exId);
-  if (!ex || !gepflegt(ex.equip, meinSatz())) return Math.max(0, jetzt + richtung * schritt);
-  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), mindestSchritt(jetzt, schritt));
+  const liste = ex ? erreichbar(ex.equip, meinSatz()) : null;
+  // Kein Raster (nichts eingetragen, oder bei beiden Kurzhanteln von keiner
+  // Größe vier Stück): freie Schritte. Vorher gab nachbar() im zweiten Fall
+  // null zurück, und der Knopf blieb einfach stehen.
+  if (!liste || liste.length <= 1) return Math.max(0, jetzt + richtung * schritt);
+  // Liegt das Gewicht neben dem Raster – gesetzt, bevor die Scheiben
+  // eingetragen waren, oder frei eingetippt –, geht der erste Schritt auf den
+  // nächsten erreichbaren Wert, ohne Mindestweite. Sonst sprang 12 kg je Hand
+  // bei 2,5er-Schritten auf 15 und über die 12,5 hinweg, die nur ein halbes
+  // Kilo daneben liegen.
+  const aufRaster = liste.some((w) => Math.abs(w - jetzt) < 1e-9);
+  const n = nachbar(jetzt, richtung, ex.equip, meinSatz(), aufRaster ? mindestSchritt(jetzt, schritt) : 0);
   return n === null ? jetzt : n;
 }
 

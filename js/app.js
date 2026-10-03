@@ -587,7 +587,7 @@ function downloadBackup() {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   store.markBackup(doneCount());
-  toast('Gesichert – falls kein Download kam: Text in „Mehr“ kopieren');
+  toast('Gesichert – falls kein Download kam: Text in „Mehr" kopieren');
 }
 
 /* ------------------------------------------------------------------ *
@@ -1724,6 +1724,30 @@ function modusKarte(mode) {
 }
 
 /**
+ * Kürzeste und längste Pause im laufenden Plan, je mit der Übung, die sie am
+ * häufigsten hat.
+ *
+ * Gerechnet, nicht hingeschrieben: Hier stand „0:45 – 2:30 min, 2:30 beim
+ * Squat, 0:45 bei Crunches" – drei Wochen, nachdem die Pausen auf 1:30 bis
+ * 3:00 angehoben worden waren. Ein Text, der Zahlen aus den Daten abschreibt,
+ * veraltet mit der nächsten Änderung an den Daten.
+ */
+function pausenSpanne(mode) {
+  const je = new Map();   // Pause -> Map(Name -> Anzahl)
+  PLAN.forEach((w) => exOf(w, mode).forEach((it) => {
+    const r = resolve(it, mode);
+    if (!(r.rest > 0)) return;
+    if (!je.has(r.rest)) je.set(r.rest, new Map());
+    je.get(r.rest).set(r.name, (je.get(r.rest).get(r.name) || 0) + 1);
+  }));
+  if (!je.size) return null;
+  const haeufigste = (rest) => [...je.get(rest).entries()].sort((a, b) => b[1] - a[1])[0][0];
+  const min = Math.min(...je.keys());
+  const max = Math.max(...je.keys());
+  return { min, max, minName: haeufigste(min), maxName: haeufigste(max) };
+}
+
+/**
  * Die Pause: eine Einstellung mit drei Werten, nicht zwei Schalter.
  *
  *     „Wieso sind das eigentlich zwei verschiedene Schalter? Eigentlich sind
@@ -1745,15 +1769,19 @@ function modusKarte(mode) {
  */
 function pausenKarte(s) {
   const wahl = s.useExerciseRest ? 'je' : (s.restSeconds ? 'fest' : 'aus');
-  const fest = `${Math.floor(s.restSeconds / 60)}:${String(s.restSeconds % 60).padStart(2, '0')} min`;
+  const mmss = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  const fest = `${mmss(s.restSeconds)} min`;
+  const sp = pausenSpanne(s.mode === 'bw' ? 'bw' : 'db');
+  const spanne = sp && sp.min !== sp.max;
   const ARTEN = [
-    ['je', '⏱️ Je Übung', '0:45 – 2:30 min'],
+    ['je', '⏱️ Je Übung', spanne ? `${mmss(sp.min)} – ${mmss(sp.max)} min` : 'Je Übung'],
     ['fest', '⏲️ Feste Länge', fest],
     ['aus', '🚫 Aus', 'Aus'],
   ];
   const erklaerung = {
-    je: 'Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen – 2:30 beim '
-      + 'Squat, 0:45 bei Crunches. Die Längen stehen in der Übung selbst.',
+    je: `Schwere Grundübungen bekommen mehr Pause als kleine Isolationsübungen${spanne
+      ? ` – ${mmss(sp.max)} bei ${sp.maxName}, ${mmss(sp.min)} bei ${sp.minName}` : ''}. `
+      + 'Die Längen stehen in der Übung selbst.',
     fest: 'Dieselbe Pause nach jedem Satz, egal welche Übung.',
     aus: 'Kein Timer, kein Ton – Sätze nur abhaken.',
   };
@@ -2713,7 +2741,7 @@ function renderStats() {
     <div class="section-title">Gewicht je Übung</div>
     <div class="spark-grid" id="sparkEx"></div>
 
-    <div class="section-title">Volumen je Muskelgruppe</div>
+    <div class="section-title">Volumen je Muskelgruppe · Anteile eingerechnet</div>
     <div class="spark-grid" id="sparkMus"></div>
 
     <div class="section-title">Meist trainierte Übungen</div>
@@ -5044,7 +5072,7 @@ function renderSettings() {
         <div>
           <div class="lbl">Supersätze</div>
           <div class="hint">Zwei verträgliche Übungen im Wechsel, statt die Pause abzusitzen:
-            A, B, A, B. Gepaart wird nur, was keinen Muskel teilt und nicht dasselbe Gerät
+            A, B, A, B. Gepaart wird nur, was keinen Hauptmuskel teilt und nicht dasselbe Gerät
             braucht – dann bleiben beide Aufbauten stehen und es wird nichts umgebaut.
             Die Pause wird dabei nicht kürzer, sondern gefüllt: Wenn eine Übung wieder dran
             ist, wartest du nur noch die Zeit, die seit ihrem letzten Satz fehlt. Unterm
@@ -5057,10 +5085,11 @@ function renderSettings() {
         <div>
           <div class="lbl">Aufwärmsätze anzeigen</div>
           <div class="hint">Über den schweren Übungen steht, womit aufzuwärmen ist – die
-            Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf deine Scheiben.
-            Nur bei Grund- und schweren Nebenübungen; ein Seitheben mit 5 kg braucht das
-            nicht. Abgehakt wird nichts davon: Aufwärmsätze zählen nicht in die Statistik
-            und nicht für den Stufenaufstieg.</div>
+            Hälfte und drei Viertel des Arbeitsgewichts, eingerastet auf deine Scheiben
+            oder, ohne eingetragene, auf die Schrittweite der Übung. Nur bei Grund- und
+            schweren Nebenübungen; ein Seitheben mit 5 kg braucht das nicht. Abgehakt wird
+            nichts davon: Aufwärmsätze zählen nicht in die Statistik und nicht für den
+            Stufenaufstieg.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${!!s.aufwaermen}"
                 data-act="toggle-aufwaermen" aria-label="Aufwärmsätze anzeigen"></button>
@@ -5223,7 +5252,7 @@ function renderSettings() {
         <button type="button" class="btn" data-act="download">Als Datei sichern</button>
         <button type="button" class="btn" data-act="export">Export anzeigen</button>
       </div>
-      <textarea class="io" id="io" placeholder="Hier JSON einfügen und auf „Importieren“ tippen…" style="margin-top:10px"></textarea>
+      <textarea class="io" id="io" placeholder="Hier JSON einfügen und auf „Importieren&quot; tippen…" style="margin-top:10px"></textarea>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" data-act="import-file">Datei laden</button>
         <button type="button" class="btn" data-act="import">Eingefügten Text laden</button>
@@ -5254,8 +5283,8 @@ function renderSettings() {
     <div class="section-title">Über den Plan</div>
     <div class="card small muted">
       ${PLAN.length} Einheiten, ursprünglich vom ${esc(fmtDate(PLAN[0].date, true))} bis ${esc(fmtDate(PLAN[PLAN.length - 1].date, true))},
-      aufgebaut auf ${EXERCISES.length} Grundübungen. Zu jeder Hantelübung gehört ein
-      Bodyweight-Äquivalent mit gleicher Satzzahl und angepasstem Wiederholungsbereich.
+      aufgebaut auf ${EXERCISES.length} Übungen. Zu jeder Hantelübung gehört ein
+      Bodyweight-Äquivalent mit eigener Satzzahl und angepasstem Wiederholungsbereich.
       ${EINZELDATEI ? '' : `
       <div style="margin-top:10px">
         <a class="btn btn-block" href="./figuren.html">Alle Bewegungsbilder ansehen</a>

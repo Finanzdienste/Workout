@@ -1292,7 +1292,7 @@
       }
     ],
     "dbRest": 150,
-    "bwRest": 180,
+    "bwRest": 150,
     "dbWeight": 10,
     "dbStep": 2,
     "weightNote": "je Hand",
@@ -1656,7 +1656,7 @@
     "bwName": "Einbeiniges Kreuzheben",
     "bwReps": "10–20 je Bein",
     "dbEquip": "Kurzhantel",
-    "bwEquip": "ohne",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Eine Kurzhantel in der Hand der freien Seite. Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden. Zurück über das Gesäß, nicht über den unteren Rücken.",
     "dbHeben": "Die Hantel steht vor dem Standbein. Auf beiden Beinen mit geradem Rücken in die Hocke, greifen, aufstehen, dann erst auf ein Bein. Am Ende auf beiden Beinen in die Hocke und abstellen.",
     "bwCue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen locker nach unten. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
@@ -1773,8 +1773,8 @@
       "traps": 0.35
     },
     "equip": null,
-    "dbEquip": "ohne",
-    "bwEquip": "ohne",
+    "dbEquip": "Ohne Gerät",
+    "bwEquip": "Ohne Gerät",
     "bewegung": "ueberkopfdruecken"
   },
   "kurzhantel-bodenpresse": {
@@ -1785,7 +1785,7 @@
     "bwName": "Enge Liegestütze",
     "bwReps": "8–20",
     "dbEquip": "Kurzhanteln",
-    "bwEquip": "ohne",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Rücken am Boden, Knie angewinkelt, in jeder Hand eine Kurzhantel. Oberarme etwa 45 Grad vom Rumpf, bis die Ellenbogen den Boden berühren – dort kurz halten, dann drücken. Der Boden ist die Bremse: Er begrenzt die Tiefe und nimmt der Schulter den Bereich, in dem sie ungeschützt ist.",
     "dbHeben": "Hinsetzen, Hanteln auf den Oberschenkeln, dann mit ihnen zurücklegen – sie folgen auf die Brust. Am Ende zur Brust ablassen, Oberarme am Boden, und seitlich neben dich auf den Boden legen. Nicht über dem Gesicht loslassen, nicht mit gestreckten Armen aufsetzen.",
     "bwCue": "Liegestütze mit engem Handabstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
@@ -1848,7 +1848,7 @@
     ],
     "dbRest": 150,
     "bwRest": 150,
-    "dbWeight": 12,
+    "dbWeight": 12.5,
     "dbStep": 2.5,
     "weightNote": "je Hand",
     "dbPattern": "press",
@@ -1876,8 +1876,8 @@
     "reps": "10–20",
     "bwName": "Reverse Snow Angel",
     "bwReps": "10–20",
-    "dbEquip": "ohne",
-    "bwEquip": "ohne",
+    "dbEquip": "Ohne Gerät",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf.",
     "bwCue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf; das nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
     "detail": [
@@ -1935,8 +1935,8 @@
     "reps": "10–20",
     "bwName": "Knieheben im Liegen",
     "bwReps": "10–20",
-    "dbEquip": "ohne Gerät",
-    "bwEquip": "ohne Gerät",
+    "dbEquip": "Ohne Gerät",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
     "bwCue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
     "detail": [
@@ -1956,7 +1956,7 @@
     "schmerz": [
       {
         "ort": "Rücken beim Einrollen",
-        "text": "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von „angespannt“ ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
+        "text": "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von „angespannt\" ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
       }
     ],
     "dbRest": 120,
@@ -2090,8 +2090,8 @@
         "Dicht geführt trifft es den Latissimus; weit abgespreizt wandert die Last in die hintere Schulter. Beides ist eine Übung, aber nur eine davon ist diese."
       ]
     ],
-    "dbRest": 120,
-    "bwRest": 120,
+    "dbRest": 150,
+    "bwRest": 150,
     "dbWeight": 8,
     "dbStep": 1,
     "weightNote": "im Rucksack",
@@ -2256,7 +2256,7 @@
     "bwName": "Beckenheben",
     "bwReps": "15–25",
     "dbEquip": "Scheibe",
-    "bwEquip": "ohne Gerät",
+    "bwEquip": "Ohne Gerät",
     "dbCue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen so nah, dass du sie mit den Fingerspitzen fast berührst. Scheibe flach auf die Hüftbeuge, Handtuch darunter – sie liegt auf, eine Kurzhantel rollt. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen.",
     "dbHeben": "Erst hinlegen, dann die Scheibe: Sie liegt neben der Hüfte, mit beiden Händen auf die Hüftbeuge ziehen. Am Ende zur Seite ablegen, dann erst aufsetzen.",
     "bwCue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es einbeinig.",

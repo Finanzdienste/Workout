@@ -65,6 +65,20 @@ export function gezaehlteReps(satz, reps) {
 }
 
 /**
+ * Die Kilo, die ein abgehakter Satz zum Volumen beiträgt: sein *eigenes*
+ * Gewicht mal gezaehlteReps(). Ohne Zahl im Gewichtsfeld 0.
+ *
+ * Eine Stelle für alle, die Volumen zählen – Kachel, Lebensbilanz und
+ * Verlaufskarte. Die Karte rechnete vorher mit dem Gewicht des ersten Satzes
+ * für alle Sätze und der unteren Grenze; wer von 40 auf 35 kg herunterging,
+ * sah dort für dieselbe Einheit eine andere Zahl als in der Kachel darüber.
+ */
+export function satzKilo(satz, reps) {
+  const kg = parseFloat(String(satz && satz.w).replace(',', '.'));
+  return Number.isNaN(kg) ? 0 : kg * gezaehlteReps(satz, reps);
+}
+
+/**
  * Wiederholungen und Pause, auf die Erfahrungsstufe umgerechnet.
  *
  * Bei fast jeder Übung braucht es das nicht: Der Anfänger nimmt die Hälfte des
