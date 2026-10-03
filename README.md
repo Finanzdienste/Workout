@@ -951,8 +951,15 @@ einer eigenen Wertemenge je Übung und den Werten nahe der Dreierzahl zuerst;
 findet sie nichts, ein Abstieg von der Dreierzahl aus, ±1 Satz je Schritt.
 Unter den exakten Lösungen wird die genommen, die dem Hantel-Plan am nächsten
 kommt – je weniger Auftritte abweichen, desto weniger merkt man, dass da zwei
-Pläne liegen. Danach verteilt `bw_verteilen()` die Plansumme gleichmäßig über
-die Auftritte, damit die Ausreißer nicht am Anfang stapeln.
+Pläne liegen. Danach verteilt `bw_verteilen()` die Plansumme auf die Auftritte –
+bis zum 03.10. gleichmäßig je Übung, ohne Blick auf die Einheit. Im Aufbau
+hatten die Einheiten ohne Hanteln damit 14 bis 21 Sätze, mit Hanteln 15 oder
+18. Jetzt sucht ein ganzzahliges Programm die Verteilung, bei der jede Einheit
+in der Spanne ihrer Woche mit Hanteln bleibt, keine Woche einer Gruppe stärker
+oder schwächer wird als bei der gleichmäßigen und keine Gruppe öfter über ihrer
+Grenze liegt; darunter die mit den wenigsten Übungen, die mal mit zwei und mal
+mit vier Sätzen dastehen, dann die mit den wenigsten Abweichungen von der
+Hantel-Satzzahl. Zahlen unter *Neu gerechnet am 03.10.*
 
 Das Ganze hängt allein am fertigen Plan, nicht am Generatorlauf –
 `tools/pruefung/bw-satzzahl.py` rechnet es in acht Sekunden für alle sechs
@@ -1333,7 +1340,10 @@ Tagen addieren, bleiben die Wochentage fest.
 3. **Aufteilung auf die Einheiten.** Zwei oder drei Sätze je Auftritt, immer die
    kürzeste Zerlegung, alle vier Einheiten etwa gleich lang und keine die
    längste – und die beiden am Ein-Tages-Abstand je auf eine Körperhälfte
-   festgelegt, siehe oben.
+   festgelegt, siehe oben. Das waren je Woche 2000 Zufallsversuche (`split()`);
+   jetzt ist es ein ganzzahliges Programm je Woche (`split_exakt()`), das die
+   Kriterien in ihrer Rangfolge exakt abarbeitet und an keinem Zufall hängt –
+   siehe *Neu gerechnet am 03.10.*
 
 Gerechnet wird durchweg in Zwanzigsteln eines Satzes – alle Anteile sind
 Vielfache von 0,05, damit ist „exakt" wirklich exakt und nicht bis auf
@@ -1868,6 +1878,19 @@ der Einheiten. Weiter vorn holt der Rüstaufwand mehr heraus – 2,23 Geräte je
 Einheit –, aber die Einheiten laufen dann auseinander: 12 bis 21 Sätze statt 15
 bis 18. Eine Einheit, die anderthalbmal so lang ist wie die nächste, ist der
 schlechtere Tausch. Umgebaut wird zwischendurch, gewartet wird die ganze Zeit.
+
+**Gezählt wird wie in der App.** Lange zählte der Generator nur Gerätefamilien
+je Tag – ohne Gewicht, und die SZ-Stange als Langhantel. Die App zählt jeden
+Gerätewechsel als Aufbau und jeden Gewichtswechsel am selben Gerät als Umbau
+(`ruestHint()`), und so stehen die Zahlen auch in jeder Tabelle hier. Im Aufbau
+waren das 2,39 gegen 3,55 je Einheit: Optimiert wurde eine andere Zahl als die,
+die gemessen wird. Jetzt rechnet `ruest_zaehlen()` in `tools/build-plan.py`
+dieselbe Reihenfolge wie `ruestOrder()` nach (Gerät, Startgewicht,
+Stufenregel) und zählt wie `ruestHint()`; `tests/test-reihenfolge.mjs` legt
+beide Zählungen Einheit für Einheit nebeneinander. Mit den Startgewichten,
+denn mehr kennt der Generator nicht – welche Übungen zusammen an einem Tag
+stehen, entscheidet aber nur er. Was das bringt, steht unter *Neu gerechnet am
+03.10.*
 
 ### Mehr Sätze auf weniger Übungen – gemessen und verworfen
 
@@ -3015,7 +3038,12 @@ hier sind es 0,15 (13 Rüstvorgänge mehr auf 84 Einheiten – die gerundeten
 Werte der Tabelle liegen 0,16 auseinander) für einen Plan ohne Rucksack, mit
 der Grundübung, die ihm fehlte, und ohne die Einheiten mit 12 und 21 Sätzen.
 Drei Tagesverteilungen (zwei Rangfolgen, darunter `WK_REIHUNG=ruesten`) holten
-nur 0,01 zurück – es liegt an der Auswahl, nicht an den Tagen. Weitere Kosten:
+nur 0,01 zurück. Daraus stand hier der Schluss „es liegt an der Auswahl, nicht
+an den Tagen" – und der war falsch. Der Generator zählte damals Gerätefamilien
+ohne Gewicht, also eine andere Zahl als diese Tabelle, und probierte je Woche
+2000 Zufallsaufteilungen. Mit der Zählung der App und einer exakten Aufteilung
+holen allein die Tage 0,20 zurück, mehr als den ganzen Preis: 3,04 statt 3,24,
+siehe *Neu gerechnet am 03.10.* Weitere Kosten:
 Bauch 1,10 statt 1,19 Termine je Woche und bis 10 statt 7 Tage Abstand, Bizeps
 2,52 statt 2,86, Nacken 2,67 statt 2,76, Waden (ein Termin je Woche) bis 12
 statt 7 Tage Abstand, Beinbeuger am Knie (ebenso) bis 11 statt 10. In der
@@ -3093,6 +3121,155 @@ Drei Läufe mit dem neuen Ziel, einer davon ohne Wochenband (`WK_EBEN=0` – der
 Schalter bringt den Generator von vorher zurück, nachgeprüft an einem älteren
 BBP-Lauf, der Einheit für Einheit wieder herauskam). Genommen ist der einzige
 mit null doppelten Bewegungen.
+
+### Neu gerechnet am 03.10.: Tage exakt verteilt, Umbau gezählt wie die App, ohne Hanteln gleich lang
+
+Kein neuer Plan, sondern dieselben Pläne, anders auf die Tage gelegt. Jede
+Übung kommt in jeder Woche genau so oft vor wie vorher, mit denselben Sätzen;
+neu sind die Tage, an denen sie steht, und die Satzzahl ohne Hanteln. Anlass
+war die Durchsicht der Planrechnung, und sie fand drei Dinge:
+
+* **Der Generator optimierte eine andere Zahl als die, die gemessen wird.** Er
+  zählte Gerätefamilien je Tag, ohne Gewicht und mit der SZ-Stange als
+  Langhantel – im Aufbau 2,39 je Einheit, die App zählt 3,55. Jetzt zählt er
+  wie sie (*Umbauen kostet mehr Zeit als Pausieren*).
+* **2000 Zufallsversuche je Woche finden das Minimum nicht.** `split()` hält
+  die Kriterien vorn in der Rangfolge zuverlässig; für den Umbau ganz hinten
+  war unter den Versuchen, die das schafften, fast nie einer mit weniger Umbau,
+  obwohl es ihn gab. Am Oberkörper stand deshalb der falsche Schluss „es liegt
+  an der Auswahl, nicht an den Tagen".
+* **Ohne Hanteln waren die Einheiten nicht gleich lang** – Aufbau 14 bis 21
+  Sätze, mit Hanteln 15 oder 18.
+
+**Schritt 3 ist jetzt exakt.** `split_exakt()` in `tools/build-plan.py` legt
+jede Woche als ganzzahliges Programm an (`scipy.optimize.milp`, das
+`tools/pruefung/startpunkt.py` schon braucht) und arbeitet die Kriterien der
+Rangfolge streng nacheinander ab: erst das vorderste minimieren, mit diesem
+Wert festhalten, dann das nächste. Ein Kriterium weiter hinten kann so keines
+weiter vorn verschlechtern. Hart, also keine Frage der Rangfolge:
+
+* die 48-Stunden-Regel **in beiden Modi** (`split()` sah nur die Gruppen mit
+  Hanteln);
+* nicht mehr doppelte Bewegungen als die Woche des Plans davor, je Modus und
+  zusammen;
+* Einheitenlängen in der Spanne der Woche davor, je Gruppe und Modus mindestens
+  so viele Termine;
+* kein größerer Abstand zwischen zwei Terminen einer Gruppe als in
+  `tools/pruefung/befunde.json`.
+
+Ließe sich das in einer Woche nicht halten, fielen erst der Abstand, dann die
+Termine, dann die 48 Stunden, und der Lauf sagte es; nötig war es in keiner
+Woche. Unter Gleichstand entscheidet die Nähe zum Plan davor, nicht ein
+Zufall: **Derselbe Lauf gibt denselben Plan**, auch mit anderem `WK_SEED`
+(nachgeprüft, Byte für Byte). Ein Lauf dauert damit Sekunden für die Tage und bis
+zu sieben Minuten für die Satzzahl ohne Hanteln. `WK_TAGE=zufall` bringt die
+alte Aufteilung zurück, zum Vergleich.
+
+**Ohne Hanteln gleich lang:** `bw_verteilen()` legt die Sätze ohne Hanteln so,
+dass jede Einheit in der Spanne ihrer Woche mit Hanteln bleibt (siehe *Der
+Bodyweight-Modus trifft jetzt dieselben Ziele*). Die Plansumme je Übung bleibt
+die aus `bw_saetze()`, also auch jedes Ziel im Schnitt.
+
+**Was es kostet, steht in der Tabelle mit:** Damit die Einheiten ohne Hanteln
+ins Band passen, weichen mehr Auftritte von drei Sätzen ab – im Bauch-Beine-Po-
+Plan 83 statt 41, im Cut 61 statt 25 –, und in diesen beiden Plänen stehen je
+vier Übungen mal mit zwei, mal mit vier Sätzen da. Ohne das Kriterium gegen
+solche gemischten Übungen wären es zehn und neun gewesen, bei 75 und 51
+Abweichungen. Mit Hanteln
+ändert sich an den Satzzahlen nichts. Sonst ist nichts schlechter geworden:
+Die Planprüfung zählt 33 Verbesserungen gegen den letzten Stand (Frequenz,
+größter Abstand, stärkste Woche) und keine Verschlechterung; `befunde.json`,
+`tests/ruestaufwand-stand.json` und `plan-eingaben.json` sind nachgezogen,
+`bewegung-stand.json` bleibt, wie es war (8/0/0/32).
+
+Die Tabellen kommen aus einem Lauf, nicht von Hand:
+`python3 tools/pruefung/vorher-nachher.py` stellt jeden Plan gegen den
+ausgelieferten (`origin/main`). „Vorher" ist der Aufbau vom 25.09. und die
+übrigen vom 29.09., „ohne
+Hanteln" heißt mit den Sätzen des Bodyweight-Modus; umgebaut wird dort nichts.
+
+#### Aufbau
+
+| | vorher, mit Hanteln | nachher, mit Hanteln | vorher, ohne Hanteln | nachher, ohne Hanteln |
+| --- | --- | --- | --- | --- |
+| Rüstvorgänge je Einheit | 3,55 | 3,45 | – | – |
+| Sätze je Einheit | 15–18 (23 × 15, 61 × 18) | 15–18 (23 × 15, 61 × 18) | 14–21 (3 × 14, 17 × 15, 2 × 16, 9 × 17, 35 × 18, 12 × 19, 3 × 20, 3 × 21) | 15–18 (15 × 15, 2 × 16, 67 × 18) |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | – | – | 54 (0) | 58 (1) |
+| Wochensätze: größte Abweichung des Schnitts vom Ziel | 0,00 | 0,00 | 0,00 | 0,00 |
+| stärkste Woche über der Grenze (Gruppenwochen darüber) | +2,15 (69) | +2,15 (69) | +3,90 (79) | +3,60 (75) |
+| Termine je Woche, alle Gruppen zusammen | 31,4 | 31,4 | 31,4 | 31,4 |
+| größter Abstand (Tage) | 11 | 11 | 11 | 11 |
+| dieselbe Bewegung zweimal in einer Einheit | 1 | 1 | 8 | 8 |
+| Rucksack (Sätze je Woche) | 3,0 | 3,0 | 3,1 | 3,1 |
+
+Der größte Abstand ändert sich bei keiner Gruppe.
+
+#### Bauch, Beine, Po
+
+| | vorher, mit Hanteln | nachher, mit Hanteln | vorher, ohne Hanteln | nachher, ohne Hanteln |
+| --- | --- | --- | --- | --- |
+| Rüstvorgänge je Einheit | 3,15 | 3,10 | – | – |
+| Sätze je Einheit | 15–18 (21 × 15, 63 × 18) | 15–18 (21 × 15, 63 × 18) | 14–20 (1 × 14, 14 × 15, 6 × 16, 2 × 17, 36 × 18, 24 × 19, 1 × 20) | 15–18 (7 × 15, 4 × 16, 5 × 17, 68 × 18) |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | – | – | 41 (0) | 83 (4) |
+| Wochensätze: größte Abweichung des Schnitts vom Ziel | 0,00 | 0,00 | 0,02 | 0,02 |
+| stärkste Woche über der Grenze (Gruppenwochen darüber) | +0,90 (24) | +0,90 (24) | +1,05 (17) | +1,05 (16) |
+| Termine je Woche, alle Gruppen zusammen | 31,4 | 31,4 | 31,4 | 31,4 |
+| größter Abstand (Tage) | 7 | 7 | 7 | 7 |
+| dieselbe Bewegung zweimal in einer Einheit | 0 | 0 | 0 | 0 |
+| Rucksack (Sätze je Woche) | 0,0 | 0,0 | 0,0 | 0,0 |
+
+Der größte Abstand ändert sich bei keiner Gruppe.
+
+#### Cut
+
+| | vorher, mit Hanteln | nachher, mit Hanteln | vorher, ohne Hanteln | nachher, ohne Hanteln |
+| --- | --- | --- | --- | --- |
+| Rüstvorgänge je Einheit | 3,05 | 2,85 | – | – |
+| Sätze je Einheit | 12–18 (18 × 12, 64 × 15, 2 × 18) | 12–15 (16 × 12, 68 × 15) | 12–18 (17 × 12, 1 × 13, 5 × 14, 42 × 15, 17 × 16, 2 × 18) | 12–15 (4 × 12, 11 × 13, 1 × 14, 68 × 15) |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | – | – | 25 (0) | 61 (4) |
+| Wochensätze: größte Abweichung des Schnitts vom Ziel | 0,00 | 0,00 | 0,03 | 0,03 |
+| stärkste Woche über der Grenze (Gruppenwochen darüber) | +1,10 (7) | +1,10 (7) | +1,30 (13) | +1,30 (13) |
+| Termine je Woche, alle Gruppen zusammen | 29,2 | 29,5 | 29,2 | 29,5 |
+| größter Abstand (Tage) | 11 | 9 | 11 | 9 |
+| dieselbe Bewegung zweimal in einer Einheit | 0 | 0 | 0 | 0 |
+| Rucksack (Sätze je Woche) | 0,0 | 0,0 | 0,0 | 0,0 |
+
+Größter Abstand je Gruppe, wo er sich ändert (Tage): Gesäß mit Hanteln 5 → 4; Beinbeuger (Knie) mit Hanteln 11 → 9; Gesäß ohne Hanteln 5 → 4; Beinbeuger (Knie) ohne Hanteln 11 → 9.
+
+#### Oberkörper
+
+| | vorher, mit Hanteln | nachher, mit Hanteln | vorher, ohne Hanteln | nachher, ohne Hanteln |
+| --- | --- | --- | --- | --- |
+| Rüstvorgänge je Einheit | 3,24 | 3,04 | – | – |
+| Sätze je Einheit | 15–18 (29 × 15, 55 × 18) | 15–18 (29 × 15, 55 × 18) | 14–20 (4 × 14, 23 × 15, 2 × 16, 5 × 17, 45 × 18, 4 × 19, 1 × 20) | 15–18 (25 × 15, 4 × 16, 5 × 17, 50 × 18) |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | – | – | 17 (0) | 17 (0) |
+| Wochensätze: größte Abweichung des Schnitts vom Ziel | 0,00 | 0,00 | 0,00 | 0,00 |
+| stärkste Woche über der Grenze (Gruppenwochen darüber) | +0,65 (11) | +0,65 (11) | +0,65 (10) | +0,65 (10) |
+| Termine je Woche, alle Gruppen zusammen | 29,0 | 29,4 | 29,0 | 29,4 |
+| größter Abstand (Tage) | 12 | 11 | 12 | 11 |
+| dieselbe Bewegung zweimal in einer Einheit | 11 | 11 | 32 | 32 |
+| Rucksack (Sätze je Woche) | 0,0 | 0,0 | 0,0 | 0,0 |
+
+Größter Abstand je Gruppe, wo er sich ändert (Tage): Bauch mit Hanteln 10 → 8; Waden mit Hanteln 12 → 11; Schulter vorn mit Hanteln 7 → 5; Beinbeuger (Knie) mit Hanteln 11 → 7; Bauch ohne Hanteln 10 → 8; Waden ohne Hanteln 12 → 11; Schulter vorn ohne Hanteln 7 → 5; Beinbeuger (Knie) ohne Hanteln 11 → 7.
+
+Beim Aufbau und beim Bauch-Beine-Po-Plan ändern die Tage fast nur den Umbau;
+die größten Abstände bleiben, wie sie waren, und im Aufbau kommt das Gesäß
+etwas öfter dran (2,71 statt 2,67 Termine je Woche). Beim Cut gibt es keine Einheit mit 18 Sätzen mehr,
+beim Oberkörper kommt der Beinbeuger am Knie nach höchstens 7 statt 11 Tagen
+wieder dran. Der Oberkörper liegt beim Umbau jetzt unter den 3,08 vom 25.09.,
+mit denen der Plan vom 29.09. verglichen worden war.
+
+Gerechnet:
+
+    WK_NUR_TAGE=1 python3 tools/build-plan.py standard
+    WK_NUR_TAGE=1 WK_REIHUNG=einheiten python3 tools/build-plan.py bbp
+    WK_NUR_TAGE=1 WK_REIHUNG=einheiten python3 tools/build-plan.py cut
+    WK_NUR_TAGE=1 WK_REIHUNG=einheiten python3 tools/build-plan.py oberkoerper
+
+Eingespielt nach dem folgenden Abschnitt: Alle vier ausgelieferten Pläne liegen
+in `tools/plan-vorher/`, auch der Aufbau (`standard.json`), der dort bisher
+fehlte, weil er sich seit Einführung der Ablage nicht geändert hatte. Eine
+angefangene Einheit behält damit ihre ganze alte Liste.
 
 ### Einen Plan neu einspielen
 
@@ -3552,6 +3729,21 @@ Verteilung bleibt dieselbe, nur die Höhe ändert sich – und das Wochensoll in
 der Statistik rechnet mit demselben Faktor, damit „Soll gegen Ist" weiter
 stimmt. Eigene Workouts bleiben außen vor: Was jemand selbst zusammenstellt,
 hat er so gemeint.
+
+**Ohne Hanteln stimmte das „exakt" auf der Stufe Fortgeschritten nicht.**
+Dort stehen je Auftritt auch zwei und vier Sätze (siehe *Der Bodyweight-Modus
+trifft jetzt dieselben Ziele*), und je Auftritt gerundet werden daraus drei
+(+50 %) und fünf (+25 %). Nachgerechnet gegen das Wochensoll der Statistik
+(Ziel × 4/3): im Bauch-Beine-Po-Plan ohne Hanteln Bauch −0,43 Sätze je Woche,
+im Aufbau und im Cut −0,19. `satzZahlIm()` in `js/stufen.js` rundet deshalb
+nicht mehr je Auftritt, sondern je Übung über den ganzen Plan: Die Summe bis
+zum k-ten Auftritt folgt der gerundeten Summe der Plansätze × 4/3. Aus 2, 2, 2
+werden 3, 2, 3, aus 4, 4, 4 werden 5, 6, 5; über eine Woche liegt eine Übung
+höchstens einen Satz neben ihrem Soll, über den Plan auf den Satz genau, und
+dieselbe Einheit hat immer dieselbe Zahl – sie hängt nur am Plan. Mit drei
+Sätzen überall, also mit Hanteln, ändert sich nichts. Die größte Abweichung,
+die die Rundung jetzt noch beiträgt, sind 0,02 Sätze je Woche;
+`tests/test-stufen.mjs` prüft das je Plan und Gruppe gegen `targetOf()`.
 
 Pausen, Übungsauswahl und die Erholungsregel sind für alle dieselben – daran
 ist nichts stufenspezifisch. Und sobald jemand ein Gewicht selbst einstellt,

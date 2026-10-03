@@ -117,10 +117,14 @@ const wechsel = await page.evaluate(async () => {
   store.setSetting('greeted', true);
   store.setSetting('level', 'geuebt');
   const ex = plan.exOf(PLAN[0], 'db');
+  // Ohne Hanteln die Satzzahl dieses Modus – sie kann eine andere sein
+  // (bw_saetze() in tools/build-plan.py), in Einheit 1 seit dem 03.10. auch.
+  const ohne = new Map(plan.exOf(PLAN[0], 'bw').map((it) => [it.id, it.sets]));
   ex.forEach((it, k) => {
     const m = k < 3 ? 'db' : 'bw';
     if (k === 3) store.setWorkoutMode(1, 'bw');
-    for (let i = 0; i < it.sets; i++) store.updateSet(1, m, it.id, it.sets, i, { done: true, w: '10' });
+    const n = m === 'bw' ? (ohne.get(it.id) ?? it.sets) : it.sets;
+    for (let i = 0; i < n; i++) store.updateSet(1, m, it.id, n, i, { done: true, w: '10' });
   });
   const p = plan.progressOf(1, 'bw');
   return { done: p.done, total: p.total, nach: [...(plan.nacharbeit(PLAN[1], 'bw') || [])].length };

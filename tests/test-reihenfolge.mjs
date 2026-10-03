@@ -7,7 +7,8 @@
  */
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
-import { URL } from './umgebung.mjs';
+import { execFileSync } from 'node:child_process';
+import { URL, ROOT } from './umgebung.mjs';
 
 const EINHEITEN = 84;
 
@@ -135,6 +136,55 @@ for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
   }, fokus);
 }
 console.log('     Rüstvorgänge je Einheit:', JSON.stringify(gemessen), ' Stand:', JSON.stringify(STAND));
+
+// --- 4. Der Generator zählt Einheit für Einheit wie die App ----------------
+// tools/build-plan.py verteilt die Übungen so auf die Tage, dass möglichst
+// wenig umgebaut wird. Bis zum 03.10. zählte er dabei Gerätefamilien je Tag –
+// ohne Gewicht, die SZ-Stange als Langhantel – und optimierte damit eine
+// andere Zahl als die, die hier oben steht: im Aufbau 2,39 gegen 3,55. Hier
+// steht seine Zählung (ruest_zaehlen()) neben der der App, für jede Einheit
+// jedes Plans.
+const generator = JSON.parse(execFileSync('python3', ['-c', `
+import importlib.util, json, sys
+sys.argv = ['build-plan.py']
+spec = importlib.util.spec_from_file_location('bp', 'tools/build-plan.py')
+bp = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(bp)
+info = bp.ruest_info_aus(json.load(open('tools/exercise-meta.json', encoding='utf-8')))
+out = {}
+for v, f in [('standard', 'plan.json'), ('bbp', 'plan-bbp.json'), ('cut', 'plan-cut.json'), ('oberkoerper', 'plan-oberkoerper.json')]:
+    plan = json.load(open('tools/' + f, encoding='utf-8'))['plan']
+    out[v] = [bp.ruest_zaehlen([it['id'] for it in e['ex']], info) for e in plan]
+print(json.dumps(out))
+`], { cwd: ROOT, encoding: 'utf8' }));
+for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
+  await page.evaluate(async (f) => {
+    const s = await import('./js/store.js');
+    s.setSetting('focus', f);
+    s.flush();
+  }, fokus);
+  await page.reload({ waitUntil: 'networkidle' });
+  const app = await page.evaluate(async () => {
+    const d = await import('./js/data.js');
+    const { exOf } = await import('./js/plan.js');
+    const { setupOf, workingWeight } = await import('./js/gewichte.js');
+    return d.PLAN.map((w) => {
+      let vorher = null;
+      let n = 0;
+      exOf(w, 'db').forEach((it) => {
+        const cur = setupOf(it.id, workingWeight(it.id));
+        if (!cur) return;
+        if (!vorher || vorher.fam !== cur.fam || Math.abs(vorher.kg - cur.kg) > 0.01) n += 1;
+        vorher = cur;
+      });
+      return n;
+    });
+  });
+  const anders = app.map((n, i) => [i + 1, n, generator[fokus][i]]).filter(([, a, g]) => a !== g);
+  check(app.length === generator[fokus].length && !anders.length,
+    `${fokus}: Generator und App zählen in jeder Einheit gleich viele Rüstvorgänge`
+    + (anders.length ? ` – anders in ${anders.length}, etwa Einheit ${anders[0][0]}: App ${anders[0][1]}, Generator ${anders[0][2]}` : ''));
+}
 Object.entries(gemessen).forEach(([f, wert]) => {
   check(wert !== null && typeof STAND[f] === 'number' && wert <= STAND[f] + 0.005,
     `${f}: ${wert} Rüstvorgänge je Einheit, nicht mehr als festgehalten (${STAND[f]})`);

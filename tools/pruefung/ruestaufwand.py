@@ -79,7 +79,10 @@ def sortiere(items):
             break
         fest.add(g[2])
         out = bauen(items, geladen, fest)
-    return out
+    # Steht danach immer noch eine Isolation vor der Grundübung, gilt der Plan –
+    # wie am Ende von ruestOrder() in js/gewichte.js. Ohne diese Zeile zählte
+    # das Skript in genau diesen Einheiten anders als die App.
+    return list(items) if vorgezogen(out) else out
 
 
 def ruesten(items):
@@ -126,9 +129,10 @@ def lies(quelle):
     return json.load(open(ROOT / quelle))['plan']
 
 
-print(f'{"Plan":<34}{"Einh.":>6}{"Übungen":>9}{"(min–max)":>11}{"Sätze":>7}{"Rüsten":>8}{"kg":>7}')
-for q in sys.argv[1:]:
-    m = miss(lies(q))
-    spanne = f'{m["ue_min"]}-{m["ue_max"]}'
-    print(f'{q:<34}{m["einheiten"]:>6}{m["ue"]:>9.2f}{spanne:>11}'
-          f'{m["saetze"]:>7.1f}{m["ruest"]:>8.2f}{m["kg"]:>7.0f}')
+if __name__ == '__main__':
+    print(f'{"Plan":<34}{"Einh.":>6}{"Übungen":>9}{"(min–max)":>11}{"Sätze":>7}{"Rüsten":>8}{"kg":>7}')
+    for q in sys.argv[1:]:
+        m = miss(lies(q))
+        spanne = f'{m["ue_min"]}-{m["ue_max"]}'
+        print(f'{q:<34}{m["einheiten"]:>6}{m["ue"]:>9.2f}{spanne:>11}'
+              f'{m["saetze"]:>7.1f}{m["ruest"]:>8.2f}{m["kg"]:>7.0f}')

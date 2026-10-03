@@ -35,7 +35,7 @@ import {
   AKT_ICON, aktivitaetTage, calMonthNow, calendarCell, calendarDetail, dayState, fruehereTage,
 } from './ansicht-kalender.js';
 import { EX_BY_ID } from './uebung.js';
-import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, satzFaktor, satzZahl } from './stufen.js';
+import { LEVELS, SAETZE_JE_STUFE, levelBeispiel, satzFaktor, satzZahl, satzZahlIm } from './stufen.js';
 import {
   aufwaermsaetze, doneWeightNote, gewichtNotiz, naechstesGewicht,
   ruestCache, ruestHint,
@@ -4881,7 +4881,7 @@ function fokusZeile(v) {
   // bw_saetze() in tools/build-plan.py.
   const modus = store.getState().mode;
   const roh = (x) => (modus === 'bw' && x.bwSets ? x.bwSets : x.sets);
-  const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + satzZahl(roh(x)), 0), 0);
+  const saetze = v.plan.reduce((a, w) => a + w.ex.reduce((b, x) => b + satzZahlIm(v.plan, w.n, x.id, roh(x), modus), 0), 0);
   const proEinheit = saetze / v.plan.length;
   // Mit den echten Pausen rechnen, nicht mit einem Mittelwert für alle: Ein Satz
   // Chin-ups kostet 180 s Pause, einer Wadenheben 90. Pauschal zweieinhalb
@@ -4891,7 +4891,7 @@ function fokusZeile(v) {
     const ex = EX_BY_ID.get(x.id);
     const pause = (ex && ex[modus] && ex[modus].rest) || 120;
     // Arbeit plus Pause nach jedem Satz; die letzte Pause der Einheit fällt weg.
-    return b + satzZahl(roh(x)) * (ARBEIT_JE_SATZ + pause);
+    return b + satzZahlIm(v.plan, w.n, x.id, roh(x), modus) * (ARBEIT_JE_SATZ + pause);
   }, 0) - ((w.ex.length && EX_BY_ID.get(w.ex[w.ex.length - 1].id)[modus].rest) || 0), 0);
   // Wer schon gemessen hat, bekommt seine eigene Zahl statt der Formel.
   const eich = zeitEichung();

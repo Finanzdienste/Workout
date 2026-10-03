@@ -2,13 +2,8 @@
   "hinweis": "Erzeugt von tools/pruefung/plan-frisch.py – je Variante der Stand der Eingaben, aus denen ihre Plandatei erzeugt wurde. Unter \"hingenommen\" stehen Abweichungen, die bewusst so bleiben; alles andere laesst die Pruefung nicht durch.",
   "plaene": {
     "standard": {
-      "fingerabdruck": "a06e9e765dc24da8",
+      "fingerabdruck": "9ae006d393cf1c17",
       "hingenommen": {
-        "sz-curls.equip": {
-          "erzeugt_mit": "barbell",
-          "jetzt": "szbar",
-          "grund": "Die SZ-Stange ist in der App eine eigene Stange geworden: eigenes Leergewicht, eigener Auf- und Abbau (RASTER und RUEST_FAM in js/scheiben.js bzw. js/gewichte.js). Vorher lief sie ueber 'barbell' und bekam damit das Leergewicht der Langhantel aufgerechnet – bei 20 kg Langhantel und 7 kg SZ waren alle Vorschlaege um 13 kg zu schwer. Die Plaene bleiben trotzdem stehen, und das ist nachgerechnet, nicht gehofft: `equip` geht in tools/build-plan.py an genau einer Stelle ein (GERAET.get(v['equip']) in der Zeile mit `geraet =`), und GERAET bildet 'szbar' wie 'barbell' auf 'lh' ab – wer an einem Tag eine Stange laedt, hat die Scheiben ohnehin draussen, die zweite Stange ist ein Wechsel und kein Aufbau. Die Geraete-Abbildung des Generators ist damit Eintrag fuer Eintrag dieselbe wie die, mit der die eingecheckten Plaene erzeugt wurden; nachgemessen ueber alle Uebungen: kein Unterschied. Vier Laeufe zu je einer Viertelstunde wuerden denselben Plan ergeben."
-        },
         "inverted-row": {
           "erzeugt_mit": null,
           "jetzt": "neu im Katalog",
@@ -78,11 +73,6 @@
           "erzeugt_mit": null,
           "jetzt": "neu im Katalog",
           "grund": "Hammercurls neu im Katalog, und ausdruecklich nicht fuer die Plaene: nurErsatz, also nur als Tauschziel an der Uebungskarte. Der Anlass ist eine Rueckmeldung zum Training - die SZ-Stange tat im Unterarm weh, \"man spuert den Knochen\". Eine Stange bindet beide Haende an dieselbe feste Drehung; zwei Kurzhanteln lassen jedem Unterarm die seine, und der Hammergriff stellt ihn in die Mittelstellung. Der Hinweistext der SZ-Curls empfahl genau das schon seit Langem beim Namen ('Hammercurls mit Kurzhanteln halten das Handgelenk neutral') - nur gab es die Uebung nicht, die er empfahl.\n\nDie Anteile sind identisch zu sz-curls und rucksack-curls ({biceps: 1.0} auf beiden Seiten), und das ist der Grund, warum die Plaene hier nichts merken: Der Tausch verschiebt keine einzige Wochenmenge. Brachialis und Brachioradialis bekommen beim Hammergriff mehr ab, aber die App kennt keine Gruppe fuer den Unterarm - eine erfundene Gruppe waere eine Zahl, die nichts misst."
-        },
-        "kurzhantel-bodenpresse.dbWeight": {
-          "erzeugt_mit": 12,
-          "jetzt": 12.5,
-          "grund": "Startgewicht der Kurzhantel-Bodenpresse von 12 auf 12,5 kg, damit es auf ihrem eigenen Schritt von 2,5 kg liegt (vorher lief der Knopf 12 -> 14,5 -> 17, und der Anfaenger bekam 5 statt 6 kg). Der Plan merkt davon nichts, und das ist nachgelesen: dbWeight geht in tools/build-plan.py an genau einer Stelle ein, als Wahrheitswert in der Zeile mit `geraet =` (mit Last -> Geraetefamilie, ohne -> keine). 12 und 12,5 sind beide eine Last; die Geraete-Abbildung ist Eintrag fuer Eintrag dieselbe, ein Neulauf ergaebe denselben Plan."
         }
       },
       "felder": {
@@ -412,7 +402,7 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 12,
+          "dbWeight": 12.5,
           "bewegung": {
             "db": "bodendruecken",
             "bw": "liegestuetz"
@@ -677,17 +667,12 @@
       }
     },
     "bbp": {
-      "fingerabdruck": "a06e9e765dc24da8",
+      "fingerabdruck": "9ae006d393cf1c17",
       "hingenommen": {
         "hammer-curls": {
           "erzeugt_mit": null,
           "jetzt": "neu im Katalog",
           "grund": "Hammercurls neu im Katalog, und ausdruecklich nicht fuer die Plaene: nurErsatz, also nur als Tauschziel an der Uebungskarte. Der Anlass ist eine Rueckmeldung zum Training - die SZ-Stange tat im Unterarm weh, \"man spuert den Knochen\". Eine Stange bindet beide Haende an dieselbe feste Drehung; zwei Kurzhanteln lassen jedem Unterarm die seine, und der Hammergriff stellt ihn in die Mittelstellung. Der Hinweistext der SZ-Curls empfahl genau das schon seit Langem beim Namen ('Hammercurls mit Kurzhanteln halten das Handgelenk neutral') - nur gab es die Uebung nicht, die er empfahl.\n\nDie Anteile sind identisch zu sz-curls und rucksack-curls ({biceps: 1.0} auf beiden Seiten), und das ist der Grund, warum die Plaene hier nichts merken: Der Tausch verschiebt keine einzige Wochenmenge. Brachialis und Brachioradialis bekommen beim Hammergriff mehr ab, aber die App kennt keine Gruppe fuer den Unterarm - eine erfundene Gruppe waere eine Zahl, die nichts misst."
-        },
-        "kurzhantel-bodenpresse.dbWeight": {
-          "erzeugt_mit": 12,
-          "jetzt": 12.5,
-          "grund": "Startgewicht der Kurzhantel-Bodenpresse von 12 auf 12,5 kg, damit es auf ihrem eigenen Schritt von 2,5 kg liegt (vorher lief der Knopf 12 -> 14,5 -> 17, und der Anfaenger bekam 5 statt 6 kg). Der Plan merkt davon nichts, und das ist nachgelesen: dbWeight geht in tools/build-plan.py an genau einer Stelle ein, als Wahrheitswert in der Zeile mit `geraet =` (mit Last -> Geraetefamilie, ohne -> keine). 12 und 12,5 sind beide eine Last; die Geraete-Abbildung ist Eintrag fuer Eintrag dieselbe, ein Neulauf ergaebe denselben Plan."
         }
       },
       "felder": {
@@ -1017,7 +1002,7 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 12,
+          "dbWeight": 12.5,
           "bewegung": {
             "db": "bodendruecken",
             "bw": "liegestuetz"
@@ -1282,17 +1267,12 @@
       }
     },
     "cut": {
-      "fingerabdruck": "a06e9e765dc24da8",
+      "fingerabdruck": "9ae006d393cf1c17",
       "hingenommen": {
         "hammer-curls": {
           "erzeugt_mit": null,
           "jetzt": "neu im Katalog",
           "grund": "Hammercurls neu im Katalog, und ausdruecklich nicht fuer die Plaene: nurErsatz, also nur als Tauschziel an der Uebungskarte. Der Anlass ist eine Rueckmeldung zum Training - die SZ-Stange tat im Unterarm weh, \"man spuert den Knochen\". Eine Stange bindet beide Haende an dieselbe feste Drehung; zwei Kurzhanteln lassen jedem Unterarm die seine, und der Hammergriff stellt ihn in die Mittelstellung. Der Hinweistext der SZ-Curls empfahl genau das schon seit Langem beim Namen ('Hammercurls mit Kurzhanteln halten das Handgelenk neutral') - nur gab es die Uebung nicht, die er empfahl.\n\nDie Anteile sind identisch zu sz-curls und rucksack-curls ({biceps: 1.0} auf beiden Seiten), und das ist der Grund, warum die Plaene hier nichts merken: Der Tausch verschiebt keine einzige Wochenmenge. Brachialis und Brachioradialis bekommen beim Hammergriff mehr ab, aber die App kennt keine Gruppe fuer den Unterarm - eine erfundene Gruppe waere eine Zahl, die nichts misst."
-        },
-        "kurzhantel-bodenpresse.dbWeight": {
-          "erzeugt_mit": 12,
-          "jetzt": 12.5,
-          "grund": "Startgewicht der Kurzhantel-Bodenpresse von 12 auf 12,5 kg, damit es auf ihrem eigenen Schritt von 2,5 kg liegt (vorher lief der Knopf 12 -> 14,5 -> 17, und der Anfaenger bekam 5 statt 6 kg). Der Plan merkt davon nichts, und das ist nachgelesen: dbWeight geht in tools/build-plan.py an genau einer Stelle ein, als Wahrheitswert in der Zeile mit `geraet =` (mit Last -> Geraetefamilie, ohne -> keine). 12 und 12,5 sind beide eine Last; die Geraete-Abbildung ist Eintrag fuer Eintrag dieselbe, ein Neulauf ergaebe denselben Plan."
         }
       },
       "felder": {
@@ -1622,7 +1602,7 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 12,
+          "dbWeight": 12.5,
           "bewegung": {
             "db": "bodendruecken",
             "bw": "liegestuetz"
@@ -1887,17 +1867,12 @@
       }
     },
     "oberkoerper": {
-      "fingerabdruck": "a06e9e765dc24da8",
+      "fingerabdruck": "9ae006d393cf1c17",
       "hingenommen": {
         "hammer-curls": {
           "erzeugt_mit": null,
           "jetzt": "neu im Katalog",
           "grund": "Hammercurls neu im Katalog, und ausdruecklich nicht fuer die Plaene: nurErsatz, also nur als Tauschziel an der Uebungskarte. Der Anlass ist eine Rueckmeldung zum Training - die SZ-Stange tat im Unterarm weh, \"man spuert den Knochen\". Eine Stange bindet beide Haende an dieselbe feste Drehung; zwei Kurzhanteln lassen jedem Unterarm die seine, und der Hammergriff stellt ihn in die Mittelstellung. Der Hinweistext der SZ-Curls empfahl genau das schon seit Langem beim Namen ('Hammercurls mit Kurzhanteln halten das Handgelenk neutral') - nur gab es die Uebung nicht, die er empfahl.\n\nDie Anteile sind identisch zu sz-curls und rucksack-curls ({biceps: 1.0} auf beiden Seiten), und das ist der Grund, warum die Plaene hier nichts merken: Der Tausch verschiebt keine einzige Wochenmenge. Brachialis und Brachioradialis bekommen beim Hammergriff mehr ab, aber die App kennt keine Gruppe fuer den Unterarm - eine erfundene Gruppe waere eine Zahl, die nichts misst."
-        },
-        "kurzhantel-bodenpresse.dbWeight": {
-          "erzeugt_mit": 12,
-          "jetzt": 12.5,
-          "grund": "Startgewicht der Kurzhantel-Bodenpresse von 12 auf 12,5 kg, damit es auf ihrem eigenen Schritt von 2,5 kg liegt (vorher lief der Knopf 12 -> 14,5 -> 17, und der Anfaenger bekam 5 statt 6 kg). Der Plan merkt davon nichts, und das ist nachgelesen: dbWeight geht in tools/build-plan.py an genau einer Stelle ein, als Wahrheitswert in der Zeile mit `geraet =` (mit Last -> Geraetefamilie, ohne -> keine). 12 und 12,5 sind beide eine Last; die Geraete-Abbildung ist Eintrag fuer Eintrag dieselbe, ein Neulauf ergaebe denselben Plan."
         }
       },
       "felder": {
@@ -2227,7 +2202,7 @@
           },
           "tier": 1,
           "equip": "dumbbells",
-          "dbWeight": 12,
+          "dbWeight": 12.5,
           "bewegung": {
             "db": "bodendruecken",
             "bw": "liegestuetz"

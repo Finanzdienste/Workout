@@ -70,7 +70,9 @@ await page.evaluate(async () => {
   const store = await import('./js/store.js');
   const { PLAN } = await import('./js/data.js');
   store.completeWorkout(PLAN[0].n, 'db', PLAN[0].ex.map((x) => ({ id: x.id, sets: x.sets })));
-  store.completeWorkout(PLAN[1].n, 'bw', PLAN[1].ex.map((x) => ({ id: x.id, sets: x.sets })));
+  // Ohne Hanteln die Satzzahl dieses Modus: Steht dort eine Vier, sind drei
+  // abgehakte Sätze keine fertige Einheit (so bei Einheit 2 seit dem 03.10.).
+  store.completeWorkout(PLAN[1].n, 'bw', PLAN[1].ex.map((x) => ({ id: x.id, sets: x.bwSets ?? x.sets })));
 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(300);

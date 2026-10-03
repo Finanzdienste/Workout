@@ -186,6 +186,31 @@ check(await page.locator('.tag-note').count() === 0,
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);
 
+// --- Ohne Hanteln so lang wie mit ---
+// Der Plan ist auf gleich lange Einheiten gerechnet: im Aufbau 15 oder 18 Sätze.
+// Ohne Hanteln stehen je Auftritt zwei bis vier Sätze (bw_saetze() in
+// tools/build-plan.py), und verteilt wurden sie je Übung, ohne Blick auf die
+// Einheit – heraus kamen 14 bis 21. Jetzt bleibt jede Einheit in der Spanne,
+// die die Einheiten derselben Woche mit Hanteln haben. Geprüft an den rohen
+// Plandaten, alle vier Pläne.
+const laengen = await page.evaluate(async () => {
+  const d = await import('./js/data.js');
+  return Object.fromEntries(Object.entries(d.PLANS).map(([f, v]) => {
+    const summe = (w, feld) => w.ex.reduce((a, x) => a + (x[feld] ?? x.sets), 0);
+    const raus = [];
+    v.plan.forEach((w, i) => {
+      const woche = v.plan.slice(i - (i % 4), i - (i % 4) + 4).map((x) => summe(x, 'sets'));
+      const bw = summe(w, 'bwSets');
+      if (bw < Math.min(...woche) || bw > Math.max(...woche)) raus.push(`${w.n}: ${bw} statt ${Math.min(...woche)}–${Math.max(...woche)}`);
+    });
+    const alle = v.plan.map((w) => summe(w, 'bwSets'));
+    return [f, { raus, min: Math.min(...alle), max: Math.max(...alle) }];
+  }));
+});
+Object.entries(laengen).forEach(([f, l]) => check(!l.raus.length,
+  `${f}: ohne Hanteln ${l.min}–${l.max} Sätze je Einheit, keine außerhalb der Spanne ihrer Woche mit Hanteln`
+  + (l.raus.length ? ` – ${l.raus.length} daneben, etwa Einheit ${l.raus[0]}` : '')));
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();

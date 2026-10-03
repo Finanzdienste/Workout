@@ -18,7 +18,7 @@ import { faelltAus, termine } from './termine.js';
 import { esc } from './text.js';
 import { ruestOrderStabil } from './gewichte.js';
 import { nichtsAbgewaehlt, vorratFassung } from './vorrat.js';
-import { satzZahl } from './stufen.js';
+import { satzZahlIm } from './stufen.js';
 import { bwGeraet } from './figure.js';
 
 /**
@@ -493,18 +493,24 @@ function gestufteSaetze(w, m) {
       return { id: it.id, sets, bwSets: sets };
     });
   }
-  return stufenFassung(adjustedPlan()[w.n - 1] || w.ex, m);
+  return stufenFassung(adjustedPlan()[w.n - 1] || w.ex, m, w.n);
 }
 
-/** Erfahrungsstufe und eigene Wahl auf einer Tagesliste: erst die Fassung der Übung, dann die Satzzahl. */
-function stufenFassung(ex, m) {
+/**
+ * Erfahrungsstufe und eigene Wahl auf einer Tagesliste: erst die Fassung der
+ * Übung, dann die Satzzahl – die der Stufe für genau diesen Auftritt im Plan
+ * (satzZahlIm(), `n` ist die Nummer der Einheit).
+ */
+function stufenFassung(ex, m, n) {
   // Erst die Stufe, dann der Vorrat. Die Anfängerfassung einer Übung braucht
   // oft weniger Gerät – das hängende Knieheben die Klimmzugstange, das liegende
   // nichts. Andersherum fiele sie weg, statt getauscht zu werden.
   const geplant = anfaengerFassung(ex, m);
   return geplant.map((it) => {
     const roh = m === 'bw' && it.bwSets ? it.bwSets : it.sets;
-    const sets = satzZahl(roh);
+    // Getauscht wird über `from` (Beschwerde) und `statt` (Stufe); die
+    // Satzzahl gehört zum Eintrag im Plan, also zu dessen Übung.
+    const sets = satzZahlIm(PLAN, n, it.from || it.statt || it.id, roh, m);
     return sets === it.sets ? it : { ...it, sets };
   });
 }
@@ -541,10 +547,10 @@ export function vorherFassung(n, liste, mode) {
     .map(([id, sets, bwSets]) => ({ id, sets, bwSets }));
   const w = PLAN[n - 1];
   const tag = w ? tagAnpassen(w, roh, adjustedPlan()[n - 2], activeInjuries(), termine()).items : roh;
-  const items = stufenFassung(tag, mode);
+  const items = stufenFassung(tag, mode, n);
   // Dieselbe Liste im anderen Modus, für dessen Satzzahl. stufenFassung()
   // tauscht Stelle für Stelle, die beiden Listen liegen also übereinander.
-  const andere = stufenFassung(tag, mode === 'bw' ? 'db' : 'bw');
+  const andere = stufenFassung(tag, mode === 'bw' ? 'db' : 'bw', n);
   const e = store.getState().log[n] || {};
   const soll = e.soll || {};
   const nach = e.nach || {};
