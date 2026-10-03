@@ -442,4 +442,32 @@ Object.entries(PATTERNS).filter(([, s]) => s.anchor === 'bar' && !s.float).forEa
     `jede Bodyweight-Fassung mit Rucksack zeigt ihn (${rucksack.map((e) => e.id).join(', ')})`);
 }
 
+/* --- 17. Goblet: Hände als Schale vor der Brust, Arme nicht gekreuzt ------ */
+//
+// „Findest du seine handpositionen sehen gesund aus?" – Die Unterarme
+// kreuzten sich vor der Brust, die linke Hand stand rechts der Mitte, und die
+// Hände standen hochkant vor dem Kinn. Gehalten wird die Hantel mit den
+// Ellenbogen unten und fast senkrechten Unterarmen, jede Hand auf ihrer Seite.
+for (const name of ['squat', 'squatheel']) {
+  const spec = PATTERNS[name];
+  check(spec.finger === 'schale', `${name}: Hände als Schale unter der Hantel (finger ${spec.finger})`);
+  for (let k = 0; k <= 10; k++) {
+    const t = k / 10;
+    const j = skelett(spec, t);
+    const seite = (s) => Math.sign(j[`shoulder${s}`][0]);
+    const gekreuzt = ['L', 'R'].some((s) => Math.sign(j[`hand${s}`][0]) !== seite(s));
+    const steil = Math.min(...['L', 'R'].map((s) => {
+      const h = j[`hand${s}`]; const e = j[`elbow${s}`];
+      return (h[1] - e[1]) / Math.hypot(h[0] - e[0], h[1] - e[1], h[2] - e[2]);
+    }));
+    const vorn = Math.min(...['L', 'R'].map((s) => j[`hand${s}`][2] - j.chest[2]));
+    const unterHals = Math.max(...['L', 'R'].map((s) => j[`hand${s}`][1])) < j.neck[1];
+    if (k === 0 || k === 10 || gekreuzt || steil < 0.8 || vorn < 0.1 || !unterHals) {
+      check(!gekreuzt && steil >= 0.8 && vorn >= 0.1 && unterHals,
+        `${name} t=${t}: Hände je auf ihrer Seite, Unterarm steil (${steil.toFixed(2)}), `
+        + `${vorn.toFixed(2)} vor der Brust, unter dem Hals`);
+    }
+  }
+}
+
 console.log(`\n${fails ? fails + " FEHLER" : "alle Prüfungen bestanden"}`);

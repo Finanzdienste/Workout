@@ -371,6 +371,14 @@ Der Goblet Squat ist das feinste Beispiel: ohne Hantel greifen die Hände nichts
 und mit der geerbten Goblet-Haltung sah es aus, als hielte die Figur eine
 unsichtbare Hantel vor der Brust.
 
+**Goblet-Griff.** *„Findest du seine handpositionen sehen gesund aus?"* – nein:
+Die Unterarme kreuzten sich vor der Brust, und die Hände standen hochkant vor
+dem Kinn. Jetzt zeigen die Ellenbogen nach unten, die Unterarme stehen fast
+senkrecht, und beide Hände liegen als Schale unter der oberen Scheibe
+(`GOBLET_ARM`, `finger: 'schale'`). Die Winkel sind nachgerechnet, nicht
+geschätzt, und `tests/test-figur.mjs` prüft in jeder Stellung, dass jede Hand
+auf ihrer Seite bleibt.
+
 Die Hanteln selbst sind **Scheibenhanteln**: je Ende eine große und eine
 kleinere Scheibe als flacher Zylinder mit dunklerer Kante, dahinter ein gerade
 abgeschnittener Stummel (`scheibe()` in `js/figure.js`). Vorher saß an jedem

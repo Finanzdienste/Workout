@@ -5668,8 +5668,8 @@ function skelett(spec, t) {
  * Das ist Anatomie, keine Zeichenkonvention: Bei hängenden Armen und nach vorn
  * gedrehten Handflächen stehen die Daumen außen; wer die Hand eindreht
  * (Obergriff), dreht den Daumen nach innen. `finger: 'boden'` für Hände, die
- * flach aufliegen – dort zeigen die Finger zum Kopf –, `finger: 'oben'` für den
- * Griff unter die Goblet-Hantel. `hantelLaengs` legt die Kurzhantel in
+ * flach aufliegen – dort zeigen die Finger zum Kopf –, `finger: 'schale'` für
+ * die Hände unter der Goblet-Hantel (Handfläche oben, Finger nach vorn). `hantelLaengs` legt die Kurzhantel in
  * Blickrichtung, wie sie bei neutralem Griff liegt.
  */
 
@@ -5689,6 +5689,29 @@ function skelett(spec, t) {
  */
 const AUFGESTELLT = L(56, 9, 116);
 
+/*
+ * Arme beim Goblet Squat – oben und unten.
+ *
+ *     „Findest du seine handpositionen sehen gesund aus?"
+ *
+ * Taten sie nicht. Mit A(26, -18, 130, 32) zog die Adduktion die Arme über die
+ * Mitte hinaus: Die linke Hand stand 0,04 rechts der Mitte, die rechte ebenso
+ * weit links, die Unterarme kreuzten sich vor der Brust, und mit `finger:
+ * 'oben'` standen die Hände hochkant vor dem Kinn – wie zum Beten. So hält
+ * niemand eine Hantel, und wer es nachmacht, verdreht sich die Handgelenke.
+ *
+ * Gehalten wird so: Die Hantel steht senkrecht vor dem Brustbein, beide
+ * Handflächen liegen als Schale unter der oberen Scheibe, die Ellenbogen
+ * zeigen nach unten, die Unterarme stehen fast senkrecht. Die Winkel sind
+ * dagegen gesucht, nicht geschätzt (Gitter über p, a, e, i; Ziel: Hand 0,065
+ * neben der Mitte, auf Brustbeinhöhe, 0,15–0,17 vor der Brust, Ellenbogen
+ * außerhalb der Hand und darunter). Ergebnis oben: Hände bei ±0,061, 0,15 vor
+ * der Brust, Ellenbogen bei ±0,17, Unterarm zu 86 % senkrecht; unten bei
+ * ±0,060, Unterarm zu 88 % senkrecht – die Ellenbogen gehen innen an den
+ * Knien vorbei, wie der Hinweis es sagt.
+ */
+const GOBLET_ARM = [A(18, -18, 145, -2), A(34, -20, 155, -6)];
+
 const PATTERNS = {
   // Ruhig stehende Figur ohne Bewegung – Grundlage für die Verletzungskarte.
   // Die Arme stehen etwas ab, sonst verschwindet die Schultermarke im Rumpf.
@@ -5700,13 +5723,13 @@ const PATTERNS = {
     ],
   },
   squat: {
-    daumen: 'innen', finger: 'oben',
+    daumen: 'hinten', finger: 'schale',
     label: 'Kniebeuge',
     poses: [
       // lean unten bewusst moderat: mit 42° klappte die Figur zusammen und der
       // Kopf stand auf Kniehöhe. Beim Goblet Squat bleibt der Rumpf aufrecht.
-      { lean: 6, arm: A(26, -18, 130, 32), leg: L(2, 5, 4) },
-      { lean: 24, arm: A(34, -18, 126, 32), leg: L(100, 9, 118) },
+      { lean: 6, arm: GOBLET_ARM[0], leg: L(2, 5, 4) },
+      { lean: 24, arm: GOBLET_ARM[1], leg: L(100, 9, 118) },
     ],
   },
   legcurl: {
@@ -6418,7 +6441,7 @@ const PATTERNS = {
    * Tiefe ist der Grund, warum man die Fersen überhaupt erhöht.
    */
   squatheel: {
-    daumen: 'innen', finger: 'oben',
+    daumen: 'hinten', finger: 'schale',
     // Mehr von der Seite als die freie Kniebeuge (Vorgabe yaw 25): Sonst
     // steht die Erhöhung von vorn gesehen hochkant hinter dem Fuß und ist
     // damit genau das, was sie nicht sein soll – unsichtbar.
@@ -6435,8 +6458,8 @@ const PATTERNS = {
     // ein Möbelstück, nicht wie Eisen.
     label: 'Kniebeuge, Fersen erhöht', fersenscheiben: true, view: [62, -4],
     poses: [
-      { lean: 6, arm: A(26, -18, 130, 32), leg: L(2, 5, 4), heel: 0.16 },
-      { lean: 20, arm: A(34, -18, 126, 32), leg: L(104, 9, 126), heel: 0.16 },
+      { lean: 6, arm: GOBLET_ARM[0], leg: L(2, 5, 4), heel: 0.16 },
+      { lean: 20, arm: GOBLET_ARM[1], leg: L(104, 9, 126), heel: 0.16 },
     ],
   },
   squatheelbw: {
@@ -7032,8 +7055,12 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       // die Handflächen unter der oberen Scheibe, der Rest hängt darunter.
       // Dieselbe Kurzhantel wie bei den Curls, nur mit mehr Scheiben; mit der
       // Mitte zwischen den Händen verschwand die halbe Hantel in den Fäusten.
+      //
+      // Die Hände sind Schalen (finger: 'schale'), ihre Finger reichen um den
+      // Rand der Scheibe nach oben. Die Innenseite der oberen Scheibe liegt
+      // deshalb nicht am Handgelenk, sondern 0,04 darüber – auf den Handflächen.
       const r = 4.0 / 40;
-      barAt(add(midOf(pts0.handL, pts0.handR), mul(upAxis, -(0.13 - r * 0.42 * 1.6))), upAxis, 0.13, 4.0);
+      barAt(add(midOf(pts0.handL, pts0.handR), mul(upAxis, 0.04 - (0.13 - r * 0.42 * 1.6))), upAxis, 0.13, 4.0);
     } else if (equip === 'barbell') {
       // Eine Langhantel ist doppelt so breit wie die Schultern, und zwischen
       // Hand und Scheibe liegt ein gutes Stück blanke Stange. Mit dem alten
@@ -7292,7 +7319,7 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
      * Zwei Haltungen:
      *   aufliegend  flach, Finger gestreckt und leicht gespreizt – am Boden
      *               (`finger: 'boden'`), unter der Goblet-Hantel
-     *               (`finger: 'oben'`) und bei freien Händen;
+     *               (`finger: 'schale'`) und bei freien Händen;
      *   greifend    Faust um Stange, Hantel oder Band: die Finger laufen über
      *               den Griff und krümmen sich auf der Seite der Handfläche
      *               zurück, der Daumen legt sich von der anderen Seite darum.
@@ -7329,6 +7356,11 @@ function mountFigure(host, pattern, weight, equip, marks = []) {
       let f = norm([hand[0] - ell[0], hand[1] - ell[1], hand[2] - ell[2]]);
       if (spec.finger === 'boden') f = norm([upAxis[0], 0, upAxis[2]]);
       else if (spec.finger === 'oben') f = upAxis;
+      // Schale unter der Goblet-Hantel: beide Hände als V unter der oberen
+      // Scheibe, die Finger schräg nach innen oben um ihren Rand, die
+      // Handflächen nach oben. Nach vorn zeigende Finger standen von der Seite
+      // vor der Hantel in der Luft, als hielte die Hand ein Tablett.
+      else if (spec.finger === 'schale') f = norm(add(innen, upAxis));
       // Der Daumen steht quer zu den Fingern: die gewünschte Richtung ohne
       // ihren Anteil längs des Arms. Liegt die gewünschte Richtung fast längs,
       // bleibt die Hand trotzdem eine Hand: dann eben quer zum Arm.
