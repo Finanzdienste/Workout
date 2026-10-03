@@ -16,7 +16,7 @@ Was als dieselbe Bewegung gilt, steht als `bewegung` in tools/exercise-meta.json
 je Modus, wo es sich unterscheidet: Im Bodyweight-Modus werden Floor Press und
 gewichtete Liegestütze beide zu Liegestützen. Geprüft wird in beiden Modi.
 
-Verteilt werden die Übungen von tools/build-plan.py (split(), Kriterium ganz
+Verteilt werden die Übungen von tools/build-plan.py (split_exakt(), Kriterium ganz
 vorn); nur die Tage neu verteilen geht mit WK_NUR_TAGE=1.
 
 **Null ist nicht überall erreichbar**, und das ist Arithmetik, keine Nachlässigkeit:

@@ -50,6 +50,8 @@ Gerechnet wird in drei Schritten:
      einen Auftritt von ihrem eigenen Wochenschnitt ab – siehe band().
   3. Aufteilung auf die Einheiten.  Jede Übung kommt ein- bis dreimal pro
      Woche vor, je zwei bis drei Sätze; alle Einheiten etwa gleich lang.
+     Gerechnet als ganzzahliges Programm je Woche (split_exakt()), die
+     Kriterien streng nacheinander – derselbe Lauf gibt denselben Plan.
 
 Die Anteile sind Schätzungen aus gängiger Trainingslehre, keine Messwerte: 1,0
 heißt "dafür ist die Übung da", 0,5 "arbeitet spürbar mit". Wer sie anders
@@ -479,6 +481,11 @@ RESTARTS = 16            # Anläufe beim Verteilen auf die Wochen
 SPREAD_ROUNDS = 400000   # Schritte je Anlauf
 REIHUNG = os.environ.get('WK_REIHUNG', 'bewegung')
 SPLITS = int(os.environ.get('WK_SPLITS', 2000))   # Versuche je Woche für die Aufteilung
+# Wie Schritt 3 eine Woche aufteilt: 'exakt' ist ein ganzzahliges Programm je
+# Woche (split_exakt(), braucht scipy) und hängt an keinem Zufall; 'zufall' sind
+# die WK_SPLITS Versuche von split(), wie bis zum 03.10. – zum Vergleich und für
+# WK_PER_SET mit zwei verschiedenen Zahlen, das die exakte Fassung nicht kennt.
+TAGE = os.environ.get('WK_TAGE', 'exakt')
 
 # Rüstzeit. Zwischen zwei Übungen steht in der Wohnung nicht die Pause, sondern
 # der Umbau: Scheiben ab, andere drauf, Verschlüsse zu. Welche Geräte an einem
@@ -486,19 +493,104 @@ SPLITS = int(os.environ.get('WK_SPLITS', 2000))   # Versuche je Woche für die A
 # echten Spielraum, weil das Wochenvolumen längst feststeht und nur noch die
 # Verteilung auf die vier Tage offen ist. Übungen ohne Aufbau (Klimmzüge, Band,
 # Bodyweight) zählen nicht mit, sie kosten nichts.
+#
+# **Gezählt wird wie in der App**, Eintrag für Eintrag RUEST_FAM aus
+# js/gewichte.js. Bis zum 03.10. zählte der Generator nur Gerätefamilien je Tag,
+# ohne Gewicht, und die SZ-Stange als Langhantel („die zweite Stange ist ein
+# Wechsel, kein Aufbau"). Die App sieht das anders: Sie zeigt „Aufbauen:
+# SZ-Stange", und zwei Kurzhantelübungen mit 12,5 und 20 kg sind dort ein Umbau,
+# hier waren sie keiner. Optimiert wurde damit eine andere Zahl als die, die in
+# der App und in jeder Tabelle im README steht (tools/pruefung/ruestaufwand.py):
+# Im Aufbau lag sie im Schnitt bei 2,39, die App zählte 3,55 – und exakt nach
+# der alten Zahl verteilt wurde die App-Zahl beim BBP sogar schlechter, 3,155
+# auf 3,214. Siehe ruest_zaehlen().
 GERAET = {
-    # Die SZ-Stange zaehlt hier wie die Langhantel, obwohl sie in der App eine
-    # eigene Stange ist (RASTER/RUEST_FAM, eigenes Leergewicht). Fuer die
-    # *Tagesaufteilung* geht es um etwas anderes: Wer an einem Tag eine Stange
-    # laedt, hat die Scheiben ohnehin draussen – die zweite Stange ist ein
-    # Wechsel, kein Aufbau. Und weil `equip` in diese Datei nur ueber GERAET
-    # eingeht (eine einzige Stelle, siehe unten), bleibt die Eingabe des
-    # Generators dadurch unveraendert: Die eingecheckten Plaene sind weiter die
-    # ihrer Eingaben, ohne dass vier Laeufe zu je einer Viertelstunde noetig sind.
-    'barbell': 'lh', 'hipbar': 'lh', 'szbar': 'lh',
+    'barbell': 'lh', 'hipbar': 'lh',     # dieselbe Stange, nur einmal mit Polster
+    'szbar': 'sz',                       # eigene Stange, eigener Auf- und Abbau
     'dumbbells': 'kh2', 'goblet': 'kh1', 'onehand': 'kh1', 'plate': 'kh1',
     'backpack': 'ruck',
 }
+
+
+def ruest_reihenfolge(ids, info):
+    """Die Reihenfolge, in der die App eine Einheit zeigt – ruestOrder() in js/gewichte.js.
+
+    `ids` in der Reihenfolge des Plans, `info` je Übung (Aufbau, Stufe, direkte
+    Gruppen); Aufbau ist (Gerätefamilie, Startgewicht) oder None. Die App
+    bündelt nach Gerät und innerhalb des Geräts absteigend nach Gewicht, zieht
+    aber keine Isolation vor eine Grundübung am selben Muskel; geht das nicht
+    auf, gilt die Reihenfolge des Plans. Dieselbe Rechnung steht in
+    tools/pruefung/ruestaufwand.py.
+    """
+    geladen = [(x, info[x][0], i) for i, x in enumerate(ids) if info[x][0]]
+    if len(geladen) < 3:
+        return list(ids)
+
+    def vorgezogen(liste):
+        for a in range(len(liste)):
+            for b in range(a + 1, len(liste)):
+                if info[liste[a]][1] > info[liste[b]][1] and info[liste[a]][2] & info[liste[b]][2]:
+                    return a, b
+        return None
+
+    def bauen(fest):
+        platz = {}
+        key = lambda g: f'#{g[2]}' if g[2] in fest else g[1][0]      # noqa: E731
+        for g in geladen:
+            platz.setdefault(key(g), g[2])
+        sortiert = sorted(geladen, key=lambda g: (platz[key(g)], -g[1][1], g[2]))
+        out = list(ids)
+        for k, g in enumerate(geladen):
+            out[g[2]] = sortiert[k][0]
+        return out
+
+    fest = set()
+    out = bauen(fest)
+    for _ in range(len(geladen)):
+        paar = vorgezogen(out)
+        if not paar:
+            break
+        schwer = next((g for g in geladen if g[0] == out[paar[1]]), None)
+        kandidaten = [out[paar[0]], out[schwer[2]] if schwer else None, out[paar[1]]]
+        g = next((g for k in kandidaten if k for g in geladen if g[0] == k and g[2] not in fest), None)
+        if not g:
+            break
+        fest.add(g[2])
+        out = bauen(fest)
+    return list(ids) if vorgezogen(out) else out
+
+
+def ruest_info_aus(meta):
+    """Je Übung (Aufbau, Stufe, direkte Gruppen mit Hanteln) – was ruest_zaehlen() braucht.
+
+    Aufbau ist (Gerätefamilie, Startgewicht), ohne Gewicht nichts: Klimmzüge
+    stehen mit 0 kg im Rucksack, Band und Bodyweight ohnehin.
+    """
+    return {k: ((GERAET[v['equip']], v['dbWeight']) if v.get('dbWeight') and v.get('equip') in GERAET else None,
+                v.get('tier', 1), frozenset(m for m, s in v['dbShares'].items() if s >= DIRECT))
+            for k, v in meta.items()}
+
+
+def ruest_zaehlen(ids, info):
+    """Auf- und Umbauten einer Einheit, gezählt wie ruestHint() in der App.
+
+    Ein Gerätewechsel ist ein Aufbau, dasselbe Gerät mit anderem Gewicht ein
+    Umbau, dasselbe mit demselben Gewicht kostet nichts. Gewicht heißt hier das
+    Startgewicht (dbWeight) – mehr kennt der Generator nicht, und mehr kennt
+    tools/pruefung/ruestaufwand.py auch nicht. Nach ein paar Steigerungen
+    liegen die echten Gewichte anders; die Reihenfolge stellt die App deshalb
+    zur Laufzeit selbst ein. Welche Übungen überhaupt zusammen an einem Tag
+    stehen, entscheidet aber nur der Plan.
+    """
+    vorher, n = None, 0
+    for x in ruest_reihenfolge(ids, info):
+        s = info[x][0]
+        if not s:
+            continue
+        if vorher is None or vorher[0] != s[0] or abs(vorher[1] - s[1]) > 0.01:
+            n += 1
+        vorher = s
+    return n
 
 # Gerechnet wird durchweg in Zwanzigsteln eines Satzes: alle Anteile in
 # exercise-meta.json sind Vielfache von 0,05, damit bleibt alles ganzzahlig und
@@ -810,20 +902,23 @@ def bw_saetze(plan, weeks, lo=2, hi=4, budget=4000000, sammeln=400):
     return val, fehler(val), vollstaendig
 
 
-def bw_verteilen(plan, gesamt):
-    """Die Plansumme je Übung auf ihre Auftritte verteilen.
+def bw_gleichmaessig(plan, gesamt):
+    """Die Plansumme je Übung gleichmäßig auf ihre Auftritte verteilen.
 
-    Möglichst gleichmäßig über den ganzen Plan: Bekommt eine Übung 80 Sätze auf
-    24 Auftritte, sind das acht Auftritte mit vier und sechzehn mit drei – und
-    die vier Sätze sollen sich über die Wochen verteilen, nicht am Anfang
-    stapeln. Sonst schwankt das Wochenvolumen im Bodyweight-Modus stärker als
-    im Hantel-Modus, obwohl der Schnitt stimmt.
+    Bekommt eine Übung 80 Sätze auf 24 Auftritte, sind das acht Auftritte mit
+    vier und sechzehn mit drei – und die vier Sätze sollen sich über die Wochen
+    verteilen, nicht am Anfang stapeln. Sonst schwankt das Wochenvolumen im
+    Bodyweight-Modus stärker als im Hantel-Modus, obwohl der Schnitt stimmt.
+
+    Zurück kommt je Auftritt (in Planreihenfolge) die Satzzahl. Bis zum 03.10.
+    war das schon die Verteilung; jetzt ist es der Bezug für bw_verteilen().
     """
     auftritte = collections.Counter()
     for e in plan:
         for it in e['ex']:
             auftritte[it['id']] += 1
     gezaehlt = collections.Counter()
+    out = []
     for e in plan:
         for it in e['ex']:
             i = it['id']
@@ -832,8 +927,142 @@ def bw_verteilen(plan, gesamt):
             # Der k-te Auftritt bekommt so viele Sätze, dass die Teilsummen der
             # idealen Verteilung n·(k+1)/a folgen – das streut die Ausreißer
             # von selbst gleichmäßig.
-            it['bwSets'] = (n * (k + 1)) // a - (n * k) // a
+            out.append((n * (k + 1)) // a - (n * k) // a)
             gezaehlt[i] += 1
+    return out
+
+
+def bw_verteilen(plan, gesamt, lo=2, hi=4):
+    """Die Plansumme je Übung auf ihre Auftritte verteilen – so, dass die Einheit gleich lang bleibt.
+
+    bw_gleichmaessig() sieht nur die Übung, nicht die Einheit. Gemessen am
+    Aufbau: Mit Hanteln hat jede Einheit 15 oder 18 Sätze, ohne Hanteln lagen
+    sie bei 14 bis 21 – drei Einheiten mit 21, zwölf mit 19, obwohl dieselben
+    Plansummen auch in 15 bis 18 aufgehen, ohne einen einzigen Auftritt mehr,
+    der von drei Sätzen abweicht. „Die Einheit bleibt dieselbe Einheit"
+    (bw_saetze()) hieß bis dahin: dieselben Übungen, aber nicht dieselbe Dauer.
+
+    Jetzt ein ganzzahliges Programm über alle Auftritte, je Auftritt lo bis hi
+    Sätze, die Summe je Übung genau die aus bw_saetze(). Hart:
+
+      * keine Einheit gibt einer Gruppe mehr als CAP (die Tagesspitze, die
+        main() ohnehin prüft);
+      * das Wochenvolumen jeder Gruppe bleibt in der Spanne, die die
+        gleichmäßige Verteilung hat – keine Woche wird stärker oder schwächer
+        als dort –, und keine Gruppe liegt in mehr Wochen über ihrer Grenze
+        (wochen-cap.py). Mit WK_NUR_TAGE ist die gleichmäßige Verteilung Woche
+        für Woche die des Vergleichsplans: Welche Übung in welcher Woche wie
+        oft vorkommt, ändert die Tagesaufteilung nicht.
+
+    Gesucht wird lexikografisch:
+
+      1. möglichst wenige Sätze außerhalb der Spanne, die die Einheiten
+         **derselben Woche mit Hanteln** haben (bei 15 bis 18 also keine 14
+         und keine 19);
+      2. möglichst wenige Übungen, die mal mit zwei und mal mit vier Sätzen
+         dastehen – das fällt mehr auf als eine, die immer zwei hat;
+      3. möglichst wenige Auftritte, die von der Hantel-Satzzahl abweichen –
+         dasselbe Kriterium wie in bw_saetze(): je weniger, desto weniger fällt
+         auf, dass es zwei Pläne sind;
+      4. möglichst nah an der gleichmäßigen Verteilung; das entscheidet den
+         Rest, ohne Zufall.
+
+    Der Preis steht im README (Neu gerechnet am 03.10.): Für das Band weichen
+    mehr Auftritte von drei Sätzen ab als vorher, im BBP 83 statt 41. Der
+    Hantel-Plan bleibt dabei, wie er ist.
+    """
+    ref = bw_gleichmaessig(plan, gesamt)
+    auftritte = [(k, it) for k, e in enumerate(plan) for it in e['ex']]
+    gruppen = sorted({m for _, it in auftritte for m in BW_SHARES.get(it['id'], {})})
+    anteil = {(it['id'], m): round(BW_SHARES.get(it['id'], {}).get(m, 0) * UNIT)
+              for _, it in auftritte for m in gruppen}
+    wochen = len(plan) // WEEK
+    # Die Spanne der gleichmäßigen Verteilung je Gruppe über alle Wochen.
+    spanne = {}
+    for w in range(wochen):
+        vol = collections.Counter()
+        for j, (k, it) in enumerate(auftritte):
+            if w * WEEK <= k < (w + 1) * WEEK:
+                for m in gruppen:
+                    vol[m] += ref[j] * anteil[it['id'], m]
+        for m in gruppen:
+            a, b = spanne.get(m, (vol[m], vol[m]))
+            spanne[m] = (min(a, vol[m]), max(b, vol[m]))
+
+    M = Modell()
+    s = [M.var(lo, hi) for _ in auftritte]
+    for i in sorted({it['id'] for _, it in auftritte}):
+        M.zeile({s[j]: 1 for j, (_, it) in enumerate(auftritte) if it['id'] == i}, gesamt[i], gesamt[i])
+    je_einheit = collections.defaultdict(list)
+    for j, (k, _) in enumerate(auftritte):
+        je_einheit[k].append(j)
+    for k, js in je_einheit.items():
+        for m in gruppen:
+            terme = {s[j]: anteil[auftritte[j][1]['id'], m] for j in js if anteil[auftritte[j][1]['id'], m]}
+            if terme:
+                M.zeile(terme, oben=CAP_U + 1)      # CAP + 0,05, wie die Prüfung in main()
+    # Und keine Gruppe liegt in mehr Wochen über ihrer Grenze als dort
+    # (wochen-cap.py zählt genau das).
+    drueber = {}
+    for w in range(wochen):
+        for m in gruppen:
+            terme = {s[j]: anteil[it['id'], m] for j, (k, it) in enumerate(auftritte)
+                     if w * WEEK <= k < (w + 1) * WEEK and anteil[it['id'], m]}
+            if not terme:
+                continue
+            M.zeile(terme, *spanne[m])
+            grenze = CAP_VON(m)
+            if spanne[m][1] > grenze:
+                o = M.var()
+                drueber.setdefault(m, {})[o] = 1
+                M.zeile({**terme, o: -(spanne[m][1] - grenze)}, oben=grenze)
+    for m, terme in drueber.items():
+        bezug = sum(1 for w in range(wochen)
+                    if sum(ref[j] * anteil[it['id'], m] for j, (k, it) in enumerate(auftritte)
+                           if w * WEEK <= k < (w + 1) * WEEK) > CAP_VON(m))
+        M.zeile(terme, oben=bezug)
+    band = {}
+    for w in range(wochen):
+        laengen = [sum(it['sets'] for it in e['ex']) for e in plan[w * WEEK:(w + 1) * WEEK]]
+        for k in range(w * WEEK, (w + 1) * WEEK):
+            band[k] = (min(laengen), max(laengen))
+    raus = {}
+    for k, js in je_einheit.items():
+        drunter, drueber = M.var(0, math.inf), M.var(0, math.inf)
+        M.zeile({drunter: 1, **{s[j]: 1 for j in js}}, band[k][0])
+        M.zeile({drueber: -1, **{s[j]: 1 for j in js}}, oben=band[k][1])
+        raus[drunter] = raus[drueber] = 1
+    anders, weg = {}, {}
+    for j, (_, it) in enumerate(auftritte):
+        for ziel, sammel in ((it['sets'], anders), (ref[j], weg)):
+            d = M.var(0, math.inf)
+            M.zeile({d: 1, s[j]: -1}, -ziel)
+            M.zeile({d: 1, s[j]: 1}, ziel)
+            sammel[d] = 1
+    # Eine Übung, die mal mit zwei und mal mit vier Sätzen dasteht, fällt mehr
+    # auf als eine, die immer zwei oder immer drei hat.
+    gemischt = {}
+    for i in sorted({it['id'] for _, it in auftritte}):
+        js = [j for j, (_, it) in enumerate(auftritte) if it['id'] == i]
+        hat = []
+        for richtung in (-1, 1):
+            h = M.var()
+            for j in js:
+                # richtung · (s − 3) ≤ h: bei zwei (−1) bzw. vier (+1) muss h = 1 sein.
+                M.zeile({h: 1, s[j]: -richtung}, -3 * richtung)
+            hat.append(h)
+        g = M.var()
+        M.zeile({g: 1, hat[0]: -1, hat[1]: -1}, -1)
+        gemischt[g] = 1
+    x = None
+    for ziel in (raus, gemischt, anders, weg):
+        x = M.loese(ziel)
+        if x is None:
+            sys.exit('bw_verteilen: keine Verteilung gefunden – die gleichmäßige hätte gepasst, '
+                     'hier stimmt etwas nicht.')
+        M.zeile(ziel, oben=wert_von(ziel, x) + 1e-6)
+    for j, (_, it) in enumerate(auftritte):
+        it['bwSets'] = int(round(x[s[j]]))
     return plan
 
 
@@ -1919,6 +2148,17 @@ def clash(slot, dset, direkt, tight, prev):
 MAX_LUECKE = 8
 
 
+def direkt_in_beiden(ex, shares):
+    """Direkte Gruppen in beiden Modi, als Paare (Modus, Gruppe).
+
+    Ohne Hanteln trifft dieselbe Übung teils andere Muskeln – und die
+    48-Stunden-Regel gilt in beiden Modi, also prüft die exakte Aufteilung
+    beide (siehe split_exakt()).
+    """
+    return frozenset((m, g) for m, sh in (('db', shares), ('bw', BW_SHARES))
+                     for g, a in sh.get(ex, {}).items() if a >= DIRECT)
+
+
 def direct_groups(ex, shares):
     """Muskelgruppen, für die eine Übung *da* ist – Anteil ab DIRECT.
 
@@ -1931,7 +2171,10 @@ def direct_groups(ex, shares):
 
 def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(), prev=frozenset(),
           roles=None, zuletzt=None, termine=(), bew=None):
-    """Aufteilung mit möglichst gleich langen und gleich gemischten Einheiten.
+    """Aufteilung mit möglichst gleich langen und gleich gemischten Einheiten – durch Probieren.
+
+    Bis zum 03.10. der Weg für Schritt 3, jetzt nur noch mit WK_TAGE=zufall;
+    der Normalfall ist split_exakt(), das dieselben Kriterien exakt abarbeitet.
 
     `used` sind die bereits vergebenen Zusammenstellungen; eine Wiederholung
     wiegt schwerer als jede Unwucht, sonst gleichen sich zwei Wochen an.
@@ -2140,6 +2383,331 @@ def split(week, ids, shares, groups, sessions, rnd, tries, used, geraet, tight=(
     return day, direkt, konflikte
 
 
+class Modell:
+    """Ein kleines ganzzahliges Programm für scipy.optimize.milp.
+
+    Variablen sind Nummern, Zeilen sind {Variable: Faktor} mit unterer und
+    oberer Schranke. Die Zeilen bleiben als Wörterbücher stehen und werden erst
+    beim Lösen zur Matrix – so kann eine schon festgelegte Zeile nachträglich
+    einen Term dazubekommen (siehe ruest in split_exakt()).
+    """
+
+    def __init__(self):
+        self.unten, self.oben, self.ganz, self.zeilen = [], [], [], []
+
+    def var(self, unten=0, oben=1, ganz=True):
+        self.unten.append(unten)
+        self.oben.append(oben)
+        self.ganz.append(1 if ganz else 0)
+        return len(self.unten) - 1
+
+    def zeile(self, terme, unten=-math.inf, oben=math.inf):
+        self.zeilen.append((terme, unten, oben))
+        return terme
+
+    def loese(self, ziel):
+        import numpy as np
+        from scipy.optimize import Bounds, LinearConstraint, milp
+        from scipy.sparse import coo_matrix
+        n = len(self.unten)
+        r, s, v = [], [], []
+        for k, (terme, _, _) in enumerate(self.zeilen):
+            for j, c in terme.items():
+                r.append(k)
+                s.append(j)
+                v.append(c)
+        c = np.zeros(n)
+        for j, f in ziel.items():
+            c[j] += f
+        nb = [LinearConstraint(coo_matrix((v, (r, s)), shape=(len(self.zeilen), n)).tocsr(),
+                               [z[1] for z in self.zeilen], [z[2] for z in self.zeilen])] if self.zeilen else []
+        # Ohne Lücke und ohne Zeitgrenze: Mit einer Toleranz oder einem
+        # Abbruch nach Sekunden hinge das Ergebnis davon ab, wie schnell der
+        # Rechner ist – und derselbe Lauf gäbe nicht mehr denselben Plan.
+        res = milp(c=c, constraints=nb, integrality=np.array(self.ganz),
+                   bounds=Bounds(np.array(self.unten, float), np.array(self.oben, float)),
+                   options={'mip_rel_gap': 0})
+        if res.status != 0 or res.x is None:
+            return None
+        return res.x
+
+
+def wert_von(terme, x):
+    """Der Wert einer Zeile oder eines Ziels in der Lösung x."""
+    return sum(c * x[j] for j, c in terme.items())
+
+
+# Die Rangfolge der exakten Tagesaufteilung, je WK_REIHUNG – dieselbe wie in
+# split(), nur ohne `mix`: Das ist eine Summe von Quadraten und stand ohnehin
+# ganz hinten. Statt seiner entscheidet zum Schluss die Nähe zum Vergleichsplan
+# (`naehe`, nur mit WK_NUR_TAGE), sonst nichts – und damit kein Zufall.
+RANGFOLGE = {
+    'pause': ('selten', 'luecke', 'gleich', 'doppelt', 'laengste', 'imbalance', 'ruest', 'count'),
+    'einheiten': ('gleich', 'ausreisser', 'doppelt', 'selten', 'luecke', 'laengste', 'imbalance',
+                  'ruest', 'count'),
+    'einheiten2': ('gleich', 'selten', 'luecke', 'ausreisser', 'doppelt', 'laengste', 'imbalance',
+                   'ruest', 'count'),
+    'ruesten': ('gleich', 'ausreisser', 'ruest', 'doppelt', 'selten', 'luecke', 'laengste',
+                'imbalance', 'count'),
+}
+RANGFOLGE_SONST = ('gleich', 'doppelt', 'selten', 'luecke', 'laengste', 'imbalance', 'ruest', 'count')
+
+
+def split_exakt(week, ids, shares, sessions, used, ruest_info, rang, termine, zuletzt, zuletzt_beide,
+                tight=(), prev=frozenset(), bew=None, bezug=None, abstand=None):
+    """Eine Woche auf ihre Einheiten aufteilen – exakt statt durch Probieren.
+
+    split() zieht je Woche 2000 Zufallsaufteilungen und behält die beste. Das
+    reicht für die Kriterien vorn in der Rangfolge; für den Umbau ganz hinten
+    reicht es nicht: Unter 2000 Versuchen, die alle vorderen Kriterien halten,
+    ist selten einer mit weniger Umbau, obwohl es ihn gibt. Nachgerechnet am
+    Cut: 3,05 Rüstvorgänge je Einheit im Plan, 2,85 mit denselben Übungen,
+    denselben Sätzen und denselben Einheitenlängen, nur anders auf die Tage
+    gelegt. Das README sagte für den Oberkörper bis dahin „es liegt an der
+    Auswahl, nicht an den Tagen" – es lag an beidem, und an den Tagen am
+    meisten.
+
+    Hier ist es ein ganzzahliges Programm je Woche: y[i,d] = 1, wenn Übung i
+    am Tag d steht. Jede Übung kommt so oft vor, wie ihre Wochenmenge durch
+    die Satzzahl je Auftritt ergibt, höchstens einmal am Tag. Die Kriterien
+    aus split() werden **lexikografisch** minimiert – erst das vorderste, dann
+    mit diesem Wert festgehalten das nächste, und so weiter (RANGFOLGE). Ein
+    Kriterium weiter hinten kann damit nie eines weiter vorn verschlechtern.
+
+    Hart, also keine Frage der Rangfolge:
+
+      * die 48-Stunden-Regel, **in beiden Modi** – split() sah nur die direkten
+        Gruppen mit Hanteln; ohne Hanteln trifft manche Übung andere
+        (`prev` und `zuletzt_beide` tragen deshalb Paare (Modus, Gruppe));
+      * mit `bezug` (der eingecheckte Plan, WK_NUR_TAGE): nicht mehr doppelte
+        Bewegungen als dessen Woche, Einheitenlängen in deren Spanne und je
+        Gruppe und Modus mindestens so viele Termine;
+      * mit `abstand` (tools/pruefung/befunde.json): kein größerer Abstand
+        zwischen zwei Terminen einer Gruppe als dort festgehalten.
+
+    Geht das nicht auf, fallen erst der Abstand, dann die Termine und zuletzt
+    die 48 Stunden – in dieser Reihenfolge, und der Bericht sagt es.
+
+    Der Umbau (`ruest`) zählt wie die App: verschiedene (Gerät, Gewicht) je
+    Tag, und wo die App die Geräte nicht zusammenhängend sortieren kann (eine
+    Isolation dürfte nicht vor die Grundübung), der Aufschlag, den
+    ruest_zaehlen() dort misst. Der Aufschlag kommt erst dazu, wenn eine
+    Lösung genau diesen Tag enthält – so bleibt das Programm klein, und das
+    Ergebnis ist trotzdem das Minimum der echten Zählung.
+
+    Zurück kommt dasselbe wie bei split(), dazu was gelockert werden musste.
+    """
+    G = PER_SET[0]
+    items = [(ids[k], week[k] // G) for k in range(len(ids)) if week[k]]
+    alle = sorted(i for i, _ in items)
+    oft = dict(items)
+    T = range(sessions)
+    target_sets = sum(week) / sessions
+    unten = int(target_sets // GRAIN) * GRAIN
+    oben = unten if unten == target_sets else unten + GRAIN
+
+    def direkt_beide(i):
+        return direkt_in_beiden(i, shares)
+
+    gruppen = sorted({g for i in alle for g in direkt_beide(i)})
+    # Paare mit derselben Bewegung, und in welchen Modi sie es sind. split()
+    # zählte ein Paar einmal, egal in wie vielen Modi; hier zählt jeder Modus.
+    # Sonst ist es der Rechnung gleich, ob zwei Übungen nur ohne Hanteln
+    # dieselbe Bewegung sind (beide werden zu Liegestützen) oder auch mit –
+    # und im Oberkörper stieg die Zahl mit Hanteln von 11 auf 19, während die
+    # Summe gleich blieb.
+    bewpaare = [(a, b, frozenset(m for m, _ in (bew or {}).get(a, frozenset()) & (bew or {}).get(b, frozenset())))
+                for x, a in enumerate(alle) for b in alle[x + 1:]
+                if (bew or {}).get(a, frozenset()) & (bew or {}).get(b, frozenset())]
+
+    def bauen(locker):
+        M = Modell()
+        y = {(i, d): M.var() for i in alle for d in T}
+        h = {(g, d): M.var() for g in gruppen for d in T}
+        for i in alle:
+            M.zeile({y[i, d]: 1 for d in T}, oft[i], oft[i])
+        for g in gruppen:
+            mit = [i for i in alle if g in direkt_beide(i)]
+            for d in T:
+                for i in mit:
+                    M.zeile({h[g, d]: 1, y[i, d]: -1}, 0)
+                M.zeile({h[g, d]: 1, **{y[i, d]: -1 for i in mit}}, oben=0)
+        anzahl = {d: {y[i, d]: 1 for i in alle} for d in T}
+        last = {d: {y[i, d]: G for i in alle} for d in T}
+        k = {}
+        # ---- hart ----
+        if 'erholung' not in locker:
+            for g in gruppen:
+                for a, b in tight:
+                    M.zeile({h[g, a]: 1, h[g, b]: 1}, oben=1)
+                if g in prev:
+                    M.zeile({h[g, 0]: 1}, oben=0)
+        if bezug is not None:
+            for d in T:
+                M.zeile(last[d], bezug['laenge'][0], bezug['laenge'][1])
+            if 'termine' not in locker:
+                for g in gruppen:
+                    if bezug['termine'].get(g):
+                        M.zeile({h[g, d]: 1 for d in T}, bezug['termine'][g])
+        if abstand and 'abstand' not in locker:
+            for g in gruppen:
+                erlaubt = abstand.get(g)
+                if erlaubt is None:
+                    continue
+                # Ein Termin am Tag e braucht einen davor, wenn der letzte zu
+                # weit zurückliegt – sonst wäre die Lücke bis e zu groß.
+                vorher = zuletzt_beide.get(g)
+                for e in T:
+                    if vorher is not None and (termine[e] - vorher).days > erlaubt:
+                        M.zeile({h[g, e]: 1, **{h[g, d]: -1 for d in range(e)}}, oben=0)
+                    for d in range(e):
+                        if (termine[e] - termine[d]).days > erlaubt:
+                            M.zeile({h[g, d]: 1, h[g, e]: 1, **{h[g, x]: -1 for x in range(d + 1, e)}},
+                                    oben=1)
+        # ---- Kriterien ----
+        gleich, je_modus, paare = {}, {'db': {}, 'bw': {}}, {}
+        for a, b, modi in bewpaare:
+            for d in T:
+                q = M.var()
+                M.zeile({q: 1, y[a, d]: -1, y[b, d]: -1}, -1)
+                gleich[q] = len(modi)
+                paare[q] = 1
+                for m in modi:
+                    je_modus[m][q] = 1
+        k['gleich'] = gleich
+        if bezug is not None:
+            # Nicht mehr als die Woche des Vergleichsplans – je Modus und
+            # zusammen gezählt wie bewegung.py.
+            M.zeile(paare, oben=bezug['gleich'][None])
+            for m, terme in je_modus.items():
+                M.zeile(terme, oben=bezug['gleich'][m])
+        aus = {}
+        for d in T:
+            lo, hi = M.var(0, math.inf), M.var(0, math.inf)
+            M.zeile({lo: 1, **last[d]}, unten)
+            M.zeile({hi: -1, **last[d]}, oben=oben)
+            aus[lo] = aus[hi] = 1
+        k['ausreisser'] = aus
+        doppelt = {}
+        for S in sorted(used, key=lambda s: sorted(s)):
+            if not S <= set(alle):
+                continue
+            for d in T:
+                u = M.var()
+                M.zeile({u: 1, **{y[i, d]: (-1 if i in S else 1) for i in alle}}, 1 - len(S))
+                doppelt[u] = 1
+        gleiche_tage = M.var()
+        for d in T:
+            for e in range(d + 1, sessions):
+                anders = {}
+                for i in alle:
+                    w = M.var()
+                    M.zeile({w: 1, y[i, d]: -1, y[i, e]: 1}, 0)
+                    M.zeile({w: 1, y[i, e]: -1, y[i, d]: 1}, 0)
+                    anders[w] = 1
+                M.zeile({gleiche_tage: 1, **anders}, 1)
+        doppelt[gleiche_tage] = 1
+        k['doppelt'] = doppelt
+        selten = {}
+        for g in gruppen:
+            if g[0] != 'db':
+                continue
+            if sum(oft[i] for i in alle if g in direkt_beide(i)) >= 2:
+                s = M.var(0, 2)
+                M.zeile({s: 1, **{h[g, d]: 1 for d in T}}, 2)
+                selten[s] = 1
+        k['selten'] = selten
+        luecke = {}
+        for g in gruppen:
+            vorher = zuletzt.get(g[1]) if g[0] == 'db' else None
+            if vorher is None:
+                continue
+            L = M.var(0, math.inf)
+            for d in T:
+                strafe = (termine[d] - vorher).days - MAX_LUECKE
+                if strafe > 0:
+                    M.zeile({L: 1, h[g, d]: -strafe, **{h[g, x]: strafe for x in range(d)}}, 0)
+            luecke[L] = 1
+        k['luecke'] = luecke
+        laengste = M.var(0, math.inf)
+        kuerzeste = M.var(0, math.inf)
+        for d in T:
+            M.zeile({laengste: 1, **{j: -1 for j in anzahl[d]}}, 0)
+            M.zeile({kuerzeste: 1, **{j: -1 for j in anzahl[d]}}, oben=0)
+        k['laengste'] = {laengste: 1}
+        k['count'] = {laengste: 1, kuerzeste: -1}
+        imb = M.var(0, math.inf, ganz=False)
+        for d in T:
+            M.zeile({imb: 1, **{j: -c for j, c in last[d].items()}}, -target_sets)
+            M.zeile({imb: 1, **last[d]}, target_sets)
+        k['imbalance'] = {imb: 1}
+        ruest = {}
+        schluessel = sorted({ruest_info[i][0] for i in alle if ruest_info[i][0]})
+        for p in schluessel:
+            for d in T:
+                z = M.var()
+                for i in alle:
+                    if ruest_info[i][0] == p:
+                        M.zeile({z: 1, y[i, d]: -1}, 0)
+                ruest[z] = 1
+        k['ruest'] = ruest
+        if bezug is not None:
+            k['naehe'] = {y[i, d]: -1 for i in alle for d in T if i in bezug['tage'][d]}
+        return M, y, k
+
+    def tage_aus(x, y):
+        return [[i for i in alle if x[y[i, d]] > 0.5] for d in T]
+
+    for locker in ((), ('abstand',), ('abstand', 'termine'), ('abstand', 'termine', 'erholung')):
+        M, y, k = bauen(set(locker))
+        aufschlag = {}       # Tagesliste -> Aufschlag schon im Programm
+        reihe = RANGFOLGE.get(REIHUNG, RANGFOLGE_SONST) + (('naehe',) if 'naehe' in k else ())
+        ruest_fest = False
+        x = None
+        for name in reihe:
+            while True:
+                x = M.loese(k[name])
+                if x is None:
+                    break
+                if not (ruest_fest or name == 'ruest'):
+                    break
+                # Stimmt die Zählung der App an jedem Tag mit dem Programm?
+                neu = False
+                for tag in tage_aus(x, y):
+                    S = frozenset(tag)
+                    reihenfolge = sorted(tag, key=rang)
+                    echt = ruest_zaehlen(reihenfolge, ruest_info)
+                    naeherung = len({ruest_info[i][0] for i in tag if ruest_info[i][0]})
+                    if echt > naeherung and S not in aufschlag:
+                        aufschlag[S] = echt - naeherung
+                        for d in T:
+                            u = M.var()
+                            M.zeile({u: 1, **{y[i, d]: (-1 if i in S else 1) for i in alle}}, 1 - len(S))
+                            k['ruest'][u] = echt - naeherung
+                        neu = True
+                if not neu:
+                    break
+            if x is None:
+                break
+            wert = wert_von(k[name], x)
+            M.zeile(k[name], oben=wert + 1e-6)
+            if name == 'ruest':
+                ruest_fest = True
+        if x is not None:
+            break
+    else:
+        sys.exit('Keine Aufteilung gefunden – auch ohne 48-Stunden-Regel nicht.')
+
+    tage = tage_aus(x, y)
+    day = [[(i, G) for i in tag] for tag in tage]
+    direkt = [set().union(*[direct_groups(i, shares) for i in tag]) if tag else set() for tag in tage]
+    beide = [set().union(*[direkt_beide(i) for i in tag]) if tag else set() for tag in tage]
+    konflikte = sum(len(beide[a] & beide[b]) for a, b in tight)
+    konflikte += len(prev & beide[0]) if prev else 0
+    used.update(frozenset(tag) for tag in tage)
+    return day, direkt, beide, konflikte, locker
+
+
 # ------------------------------------------------------------------ #
 
 def main():
@@ -2187,8 +2755,11 @@ def main():
     # falsch, sobald sich eine davon änderte. Jetzt probiert der Lauf, statt zu
     # raten: die erste Wochenzahl ab WEEKS, für die alle Blöcke aufgehen.
     # Gerät je Übung – ohne Gewicht ist nichts aufzubauen (Klimmzüge stehen mit
-    # 0 kg im Rucksack, Band und Bodyweight ohnehin).
+    # 0 kg im Rucksack, Band und Bodyweight ohnehin). Für split() wie bisher nur
+    # die Familie; für die exakte Aufteilung (Gerät, Gewicht) samt Stufe und
+    # direkten Gruppen, denn danach sortiert die App – siehe ruest_zaehlen().
     geraet = {k: (GERAET.get(v['equip']) if v['dbWeight'] else None) for k, v in meta.items()}
+    ruest_info = ruest_info_aus(meta)
     # Der Startwert steht fest, damit derselbe Lauf dasselbe ergibt – und ist
     # trotzdem ein Schalter (WK_SEED). Das Ziel ist verrauscht: Zwei Läufe mit
     # verschiedenen Startwerten liefern verschieden gute Pläne, und beim Cut lag
@@ -2290,6 +2861,41 @@ def main():
     # Wann jede Gruppe zuletzt direkt drankam. Ohne dieses Gedächtnis sieht der
     # Tagesaufteiler nur seine eigene Woche – siehe MAX_LUECKE und split().
     zuletzt = {}
+    # Dasselbe für die exakte Aufteilung in beiden Modi, je (Modus, Gruppe).
+    zuletzt_beide, prev_beide = {}, frozenset()
+    gelockert = collections.Counter()
+    if TAGE == 'exakt' and PER_SET[0] != PER_SET[1]:
+        sys.exit('Die exakte Tagesaufteilung kennt nur eine Satzzahl je Auftritt – '
+                 'mit WK_PER_SET=2,3 bitte WK_TAGE=zufall.')
+    # Mit WK_NUR_TAGE gibt es einen Vergleichsplan, und dann gilt: nicht
+    # schlechter als er. Die größten Abstände je Gruppe stehen in
+    # tools/pruefung/befunde.json – dem Stand, gegen den die Planprüfung misst.
+    abstand = None
+    befunde = ROOT / 'tools' / 'pruefung' / 'befunde.json'
+    if nur_tage and befunde.exists():
+        bef = json.loads(befunde.read_text(encoding='utf-8'))
+        abstand = {(modus, g): v for modus in ('db', 'bw')
+                   for g, v in bef.get(f'{VARIANTE}/{modus}', {}).get('abstand_max', {}).items()}
+
+    def bezug_der_woche(k):
+        alte = alt[k * WEEK:(k + 1) * WEEK]
+        termine_b = collections.Counter()
+        gleich_b = {None: 0, 'db': 0, 'bw': 0}
+        for s in alte:
+            idl = [it['id'] for it in s['ex']]
+            for g in set().union(*[direkt_in_beiden(i, shares) for i in idl]):
+                termine_b[g] += 1
+            for a in range(len(idl)):
+                for b in range(a + 1, len(idl)):
+                    gemeinsam = bew.get(idl[a], frozenset()) & bew.get(idl[b], frozenset())
+                    if gemeinsam:
+                        gleich_b[None] += 1
+                        for m in {m for m, _ in gemeinsam}:
+                            gleich_b[m] += 1
+        laengen = [sum(it['sets'] for it in s['ex']) for s in alte]
+        return {'tage': [frozenset(it['id'] for it in s['ex']) for s in alte],
+                'laenge': (min(laengen), max(laengen)), 'termine': termine_b, 'gleich': gleich_b}
+
     for k, w in enumerate(per_week):
         block = day[k * WEEK:(k + 1) * WEEK]
         # Welche Einheiten dieses Blocks liegen zu dicht beieinander? Bei vier
@@ -2309,8 +2915,19 @@ def main():
         for a, b in tight:
             roles[a], roles[b] = roles[a] or half[0], roles[b] or half[1]
         eng_prev = prev if eng_am_anfang else frozenset()
-        sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd, SPLITS, used,
-                                             geraet, tight, eng_prev, roles, zuletzt, block, bew=bew)
+        if TAGE == 'exakt':
+            sess_list, direkt, beide, konflikte, locker = split_exakt(
+                w, ids, shares, WEEK, used, ruest_info, rang, block, zuletzt, zuletzt_beide,
+                tight, prev_beide if eng_am_anfang else frozenset(), bew,
+                bezug_der_woche(k) if nur_tage else None, abstand)
+            gelockert.update(locker)
+            prev_beide = frozenset(beide[-1])
+            for slot, gruppen_am_tag in enumerate(beide):
+                for g in gruppen_am_tag:
+                    zuletzt_beide[g] = block[slot]
+        else:
+            sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd, SPLITS, used,
+                                                 geraet, tight, eng_prev, roles, zuletzt, block, bew=bew)
         # Ging es nicht auf, kostet ein zweiter Anlauf nur für diese eine Woche
         # ein paar Sekunden – und die Erholungsbedingung ist der Punkt, an dem
         # der ganze Plan hängt. Vorher fiel sie hier still weg: bei zehn Sätzen
@@ -2318,7 +2935,7 @@ def main():
         # von zwanzig Wochen nicht mehr, und im Plan standen zwei Übergänge mit
         # derselben Gruppe an zwei Tagen hintereinander.
         for faktor in (8, 40):
-            if not konflikte:
+            if not konflikte or TAGE == 'exakt':
                 break
             sess_list, direkt, konflikte = split(w, ids, shares, groups, WEEK, rnd,
                                                  SPLITS * faktor, used, geraet, tight, eng_prev,
@@ -2341,6 +2958,11 @@ def main():
           f'{min(len(s["ex"]) for s in plan)}–{max(len(s["ex"]) for s in plan)} Übungen je Einheit, '
           f'{min(sum(e["sets"] for e in s["ex"]) for s in plan)}–'
           f'{max(sum(e["sets"] for e in s["ex"]) for s in plan)} Sätze je Einheit')
+    print(f'Rüstvorgänge je Einheit, gezählt wie die App: '
+          f'{sum(ruest_zaehlen([e["id"] for e in s["ex"]], ruest_info) for s in plan) / len(plan):.3f}'
+          + (' (exakte Tagesaufteilung' + (', gelockert: ' + ', '.join(
+              f'{name} in {n} Wochen' for name, n in sorted(gelockert.items())) if gelockert else '')
+             + ')' if TAGE == 'exakt' else ''))
 
     # ---- Erholung: am fertigen Plan nachgemessen, nicht dem Verfahren geglaubt ----
     def direkt_am_tag(sess):

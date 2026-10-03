@@ -102,6 +102,54 @@ export const satzFaktor = () => (SAETZE_JE_STUFE[store.getState().level || 'geue
 
 export const satzZahl = (n) => Math.max(1, Math.round(n * satzFaktor()));
 
+/**
+ * Wie satzZahl(), aber für einen Auftritt im Plan – und dann volumentreu.
+ *
+ * „Jede Muskelgruppe bekommt exakt ein Drittel mehr" (oben) stimmt nur, solange
+ * jede Übung mit drei Sätzen dasteht: Aus drei werden vier. Ohne Hanteln stehen
+ * aber auch zwei und vier (bw_saetze() in tools/build-plan.py), und je Auftritt
+ * gerundet wird daraus drei (+50 %) und fünf (+25 %). Nachgerechnet gegen das
+ * Soll der Statistik (Ziel × 4/3): im BBP ohne Hanteln Bauch −0,45 Sätze je
+ * Woche, Trizeps −0,11, im Aufbau Bauch −0,20 – genau die Genauigkeit, die
+ * bw_saetze() vorher herausgerechnet hatte.
+ *
+ * Deshalb wird nicht je Auftritt gerundet, sondern je Übung über den ganzen
+ * Plan: Der k-te Auftritt bekommt so viele Sätze, dass die Summe bis zu ihm der
+ * gerundeten Summe der Plansätze × Faktor folgt – dieselbe Rechnung wie
+ * bw_gleichmaessig() im Generator. Aus 2, 2, 2 werden 3, 2, 3 (acht statt neun),
+ * aus 4, 4, 4 werden 5, 6, 5. Über jede Woche liegt eine Übung damit höchstens
+ * einen Satz neben ihrem Soll, über den Plan auf den Satz genau. Und es hängt
+ * nur am Plan, nicht am Verlauf: Dieselbe Einheit hat immer dieselbe Zahl.
+ *
+ * `roh` ist die Satzzahl, die an dieser Stelle steht; weicht sie vom Plan ab
+ * (Beschwerden haben zwei Einträge zusammengelegt, eine feste Liste von einem
+ * Planwechsel), wird wie bisher je Auftritt gerundet. Mit drei Sätzen überall,
+ * also im Hantel-Modus, kommt dasselbe heraus wie bei satzZahl().
+ */
+const verteilt = new WeakMap();   // Plan -> Map("Faktor|Modus" -> Map("n|id" -> [roh, Sätze]))
+
+export function satzZahlIm(plan, n, id, roh, mode) {
+  const f = satzFaktor();
+  if (!plan || Number.isInteger(roh * f)) return satzZahl(roh);
+  let jePlan = verteilt.get(plan);
+  if (!jePlan) { jePlan = new Map(); verteilt.set(plan, jePlan); }
+  const schluessel = `${f}|${mode}`;
+  let tafel = jePlan.get(schluessel);
+  if (!tafel) {
+    tafel = new Map();
+    const bisher = new Map();      // Übung -> Plansätze bis hierher
+    plan.forEach((w) => (w.ex || []).forEach((x) => {
+      const r = mode === 'bw' && x.bwSets ? x.bwSets : x.sets;
+      const vor = bisher.get(x.id) || 0;
+      bisher.set(x.id, vor + r);
+      tafel.set(`${w.n}|${x.id}`, [r, Math.max(1, Math.round((vor + r) * f) - Math.round(vor * f))]);
+    }));
+    jePlan.set(schluessel, tafel);
+  }
+  const da = tafel.get(`${n}|${id}`);
+  return da && da[0] === roh ? da[1] : satzZahl(roh);
+}
+
 /* ------------------------------------------------------------------ *
  * Die Stufe ist, was du hebst
  *
