@@ -84,6 +84,27 @@ const last = (x) => {
   return [ex ? ex.equip : x.equip, ex ? workingWeight(x.id) || 0 : 0];
 };
 
+/**
+ * Reichen die Scheiben, damit beide Aufbauten zugleich stehen bleiben?
+ *
+ * Zwei Stangen, ein Scheibenvorrat: Im Wechsel bleiben beide geladen, also
+ * müssen die Scheiben für beide zugleich da sein (zusammen() in
+ * js/scheiben.js). Goblet und Floor Press mit je zwei 5ern bei zwei 5ern im
+ * Raum hieße sonst, zwischen jedem Satz die Scheiben umzustecken – genau der
+ * Umbau, den die zweite Regel verhindern soll. Ohne eingetragenen Vorrat weiß
+ * die App es nicht und sagt ja; ebenso, wenn eine der beiden gar keinen Aufbau
+ * hat.
+ *
+ * Eigens herausgezogen für die laufende Einheit: Dort steht die Paarung fest
+ * (superGruppen() in js/app.js), und wer mittendrin so weit erhöht, dass es
+ * nicht mehr reicht, behält sein Paar – bekommt aber gesagt, dass er umstecken
+ * muss.
+ */
+export function scheibenReichen(a, b) {
+  if (!geraet(a.id) || !geraet(b.id)) return true;
+  return zusammen([last(a), last(b)], meinSatz()) !== false;
+}
+
 /** Dürfen diese beiden im Wechsel laufen? */
 export function passtZusammen(a, b, mode) {
   if (a.id === b.id) return false;
@@ -92,13 +113,7 @@ export function passtZusammen(a, b, mode) {
   // Dasselbe Gerät hieße: zwischen jedem Satz umbauen. Zwei Übungen ohne Aufbau
   // dürfen sich dagegen treffen – da gibt es nichts zu wechseln.
   if (ga && gb && ga === gb) return false;
-  // Zwei Stangen, ein Scheibenvorrat: Im Wechsel bleiben beide geladen, also
-  // müssen die Scheiben für beide zugleich da sein (zusammen() in
-  // js/scheiben.js). Goblet und Floor Press mit je zwei 5ern bei zwei 5ern im
-  // Raum hieße sonst, zwischen jedem Satz die Scheiben umzustecken – genau der
-  // Umbau, den die zweite Regel verhindern soll. Ohne eingetragenen Vorrat
-  // weiß die App es nicht und lässt das Paar stehen.
-  if (ga && gb && zusammen([last(a), last(b)], meinSatz()) === false) return false;
+  if (!scheibenReichen(a, b)) return false;
   const ma = direkteMuskeln(a.id, mode);
   return ![...direkteMuskeln(b.id, mode)].some((m) => ma.has(m));
 }

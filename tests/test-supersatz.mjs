@@ -104,6 +104,86 @@ await page.evaluate(async () => {
   delete store.getState().weights['floor-press'];
 });
 
+// --- 1c. zusammen() rechnet schnell – und dasselbe wie vorher ------------
+// Gefunden bei der Durchsicht: Die erste Fassung zählte alle Belegungen des
+// ersten Aufbaus auf, ohne sich etwas zu merken. Scheitert das Paar bei einem
+// großen Vorrat, lief das im Hauptthread 1,4 s (4 Größen × 40) bis 25 s
+// (6 Größen × 20) – bei jedem Neuzeichnen. Die Antwort darf sich dabei nicht
+// ändern: Gegengeprüft wird an genau dieser alten Aufzählung, über viele
+// zufällige Sätze.
+const schnell = await page.evaluate(async () => {
+  const { zusammen, normSatz, erreichbar, belegung, RASTER } = await import('./js/scheiben.js');
+  const satzVon = (spec) => ({ stange: {}, scheiben: spec.map(([w, k]) => [w, k]) });
+  const faelle = [
+    [[[1.25, 40], [2.5, 40], [5, 40], [10, 40]], [['goblet', 300], ['barbell', 460]], false],
+    [[[1.25, 20], [2.5, 20], [5, 20], [10, 20], [15, 20], [20, 20]], [['goblet', 500], ['barbell', 580]], false],
+  ];
+  const zeiten = faelle.map(([spec, lasten, soll]) => {
+    const t0 = performance.now();
+    const ist = zusammen(lasten, satzVon(spec));
+    return { ms: Math.round(performance.now() - t0), ok: ist === soll };
+  });
+  // Die alte Aufzählung, wörtlich – als Maßstab für die Antwort.
+  const basisVon = (r, satz) => (r.stange ? (satz.stange[r.stange] || 0) : 0);
+  const alt = (lasten, satz) => {
+    const offen = lasten.filter(([equip]) => RASTER[equip]);
+    const geht = (i, vorrat) => {
+      if (i >= offen.length) return true;
+      const [equip, kg] = offen[i];
+      const r = RASTER[equip];
+      const ziel = Math.round(((kg || 0) - basisVon(r, satz)) * 4) / 4;
+      if (ziel < 1e-9) return geht(i + 1, vorrat);
+      const suche = (j, rest, v) => {
+        if (Math.abs(rest) < 1e-9) return geht(i + 1, v);
+        if (j >= v.length || rest < -1e-9) return false;
+        const [w, anzahl] = v[j];
+        const maxK = Math.min(Math.floor(anzahl / r.pro), Math.floor((rest + 1e-9) / (r.faktor * w)));
+        for (let k = maxK; k >= 0; k--) {
+          const nv = k ? v.map((z, x) => (x === j ? [w, anzahl - k * r.pro] : z)) : v;
+          if (suche(j + 1, Math.round((rest - r.faktor * k * w) * 4) / 4, nv)) return true;
+        }
+        return false;
+      };
+      return suche(0, ziel, vorrat);
+    };
+    if (offen.some(([equip, kg]) => (kg || 0) > basisVon(RASTER[equip], satz) && !belegung(kg, equip, satz))) return null;
+    return geht(0, satz.scheiben.map((z) => z.slice()));
+  };
+  let seed = 7;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const GROESSEN = [0.5, 1, 1.25, 2, 2.5, 4, 5, 7.5, 10, 15, 20];
+  const GERAETE = Object.keys(RASTER);
+  let gleich = 0;
+  const anders = [];
+  const zaehl = { true: 0, false: 0, null: 0 };
+  for (let t = 0; t < 3000; t++) {
+    const satz = normSatz({
+      stange: { kh: rnd() < 0.3 ? 2 : null, lh: rnd() < 0.3 ? 10 : null },
+      scheiben: Array.from({ length: 1 + Math.floor(rnd() * 5) }, () => [pick(GROESSEN), 1 + Math.floor(rnd() * 8)]),
+    });
+    const summe = satz.scheiben.reduce((x, [w, k]) => x + w * k, 0);
+    const lasten = [0, 1].map(() => {
+      const e = pick(GERAETE);
+      const liste = erreichbar(e, satz);
+      return [e, liste && rnd() < 0.8 ? pick(liste) : Math.round(rnd() * summe * 2) / 4];
+    });
+    const a = alt(lasten, satz);
+    const b = zusammen(lasten, satz);
+    zaehl[String(b)]++;
+    if (a === b) gleich++;
+    else if (anders.length < 3) anders.push(JSON.stringify({ lasten, satz: satz.scheiben, alt: a, neu: b }));
+  }
+  return { zeiten, gleich, anders, zaehl };
+});
+console.log('     zusammen():', JSON.stringify(schnell.zeiten), JSON.stringify(schnell.zaehl));
+check(schnell.zeiten.every((z) => z.ok), 'die großen Vorräte geben die richtige Antwort');
+check(schnell.zeiten.every((z) => z.ms < 50),
+  `und zwar in unter 50 ms je Paar (${schnell.zeiten.map((z) => z.ms).join(', ')} ms)`);
+check(schnell.anders.length === 0 && schnell.zaehl.true > 300 && schnell.zaehl.false > 300,
+  `3000 zufällige Sätze: dieselbe Antwort wie die alte Aufzählung (${schnell.gleich} gleich)${
+    schnell.anders.length ? ': ' + schnell.anders.join(' | ') : ''}`);
+
 // --- 2. Die Paarung einer echten Einheit -------------------------------
 // Jede Einheit jeder Variante durchgehen: Ein einziges Paar, das eine der
 // beiden Regeln verletzt, wäre ein stiller Fehler im Training.
@@ -366,6 +446,264 @@ for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
   }, STANGE);
   check(r.an <= r.aus + 2,
     `${fokus}: Supersätze kosten keine zusätzlichen Umbauten (ohne ${r.aus}, mit ${r.an})`);
+}
+
+// --- Ab hier je Abschnitt eine frische Seite ------------------------------
+const neueSeite = async (vorher) => {
+  const c = await browser.newContext({ viewport: { width: 414, height: 896 } });
+  await c.route('**/rest/v1/**', (r) => r.fulfill({ status: 204, body: '' }));
+  if (vorher) await c.addInitScript(vorher);
+  const p = await c.newPage();
+  p.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
+  return p;
+};
+const mitStand = async (p, stand) => {
+  await p.goto(URL, { waitUntil: 'networkidle' });
+  await p.evaluate((s) => localStorage.setItem('workout.state.v1', JSON.stringify(s)), stand);
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.waitForTimeout(300);
+};
+const leisteAuf = (p) => p.evaluate(() => {
+  const b = document.getElementById('restBar');
+  return {
+    an: !!b && !b.hidden,
+    text: b ? document.getElementById('restNext').textContent : '',
+    zeit: b ? document.getElementById('restTime').textContent : '',
+    fuell: b ? parseFloat(document.getElementById('restFill').style.width) : NaN,
+    name: document.querySelector('.focus-name')?.textContent.trim(),
+    hin: [...document.querySelectorAll('.super-hin')].map((e) => e.textContent.trim()).join(' | '),
+  };
+});
+const idxVon = (p, nm) => p.evaluate((nm) => [...document.querySelectorAll('.prog-ex')]
+  .findIndex((b) => b.getAttribute('aria-label').includes(nm)), nm);
+const zeige = async (p, nm) => {
+  await p.locator(`[data-act="focus-goto"][data-i="${await idxVon(p, nm)}"]`).click();
+  await p.waitForTimeout(300);
+};
+const haken = async (p) => {
+  await p.locator('.focus-set:not(.on)').first().click();
+  await p.waitForTimeout(500);
+};
+const name = async (p) => (await p.locator('.focus-name').textContent()).trim();
+
+// --- 8. Die Paarung steht, sobald trainiert wird ---------------------------
+// Gefunden bei der Durchsicht: Seit die Scheiben mitreden, hängt ein Paar am
+// Gewicht. Ein Tipp auf + mitten im Supersatz löste es auf – der Hinweis
+// „Im Wechsel mit …" verschwand, die App blieb bei derselben Übung, und die
+// angefangene Partnerübung rutschte hinter das nächste Paar. Jetzt bleibt das
+// Paar; reichen die Scheiben nicht mehr für beide, sagt die App, dass
+// umzustecken ist. Auch nach dem Neuladen, und die Vorschau unter Mehr zeigt
+// dasselbe.
+{
+  const p = await neueSeite();
+  await mitStand(p, { greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {}, supersatz: true, mode: 'db' });
+  // Gesucht wird ein Paar, das mit einem Vorrat zusammen passt und nach einem
+  // Schritt + an einer der beiden nicht mehr – über die Einheiten des Plans,
+  // damit der Test nicht an einer einzelnen Übung hängt.
+  const fall = await p.evaluate(async () => {
+    const P = await import('./js/plan.js');
+    const S = await import('./js/supersatz.js');
+    const G = await import('./js/gewichte.js');
+    const SC = await import('./js/scheiben.js');
+    const store = await import('./js/store.js');
+    const { PLAN } = await import('./js/data.js');
+    const { EX_BY_ID } = await import('./js/uebung.js');
+    const VORRAETE = [
+      [[1.25, 4], [2.5, 4], [5, 2], [10, 4]], [[1.25, 4], [2.5, 4], [5, 4], [10, 2]],
+      [[1.25, 2], [2.5, 4], [5, 4], [10, 2]], [[2.5, 4], [5, 4], [10, 2]], [[1.25, 4], [2.5, 4], [5, 4], [10, 4]],
+    ];
+    for (const w of PLAN) {
+      for (const scheiben of VORRAETE) {
+        store.setSetting('scheiben', { stange: {}, scheiben });
+        const items = P.workoutByNo(w.n, 'db').ex.map((x) => P.resolve(x, 'db'));
+        const gruppen = S.paare(items, 'db');
+        for (const g of gruppen) {
+          if (g.length < 2 || !g.every((x) => SC.RASTER[EX_BY_ID.get(x.id).equip])) continue;
+          const lasten = g.map((x) => [EX_BY_ID.get(x.id).equip, G.workingWeight(x.id) || 0]);
+          if (SC.zusammen(lasten, G.meinSatz()) !== true) continue;
+          for (const [k, x] of g.entries()) {
+            const neu = G.naechstesGewicht(x.id, 1);
+            const danach = lasten.map((l, i) => (i === k ? [l[0], neu] : l));
+            if (neu > lasten[k][1] && SC.zusammen(danach, G.meinSatz()) === false) {
+              store.setSetting('scheiben', null);
+              return {
+                n: w.n, scheiben, hoch: x.id,
+                a: g[0].name, b: g[1].name, namen: Object.fromEntries(g.map((y) => [y.id, y.name])),
+              };
+            }
+          }
+        }
+      }
+    }
+    store.setSetting('scheiben', null);
+    return null;
+  });
+  console.log('     Paar, das knapp wird:', JSON.stringify(fall));
+  check(!!fall, 'es gibt im Plan ein Paar, das ein Schritt + über den Vorrat hebt');
+  if (fall) {
+    await p.evaluate(async (scheiben) => {
+      const s = await import('./js/store.js');
+      s.setSetting('scheiben', { stange: {}, scheiben });
+      s.flush();
+    }, fall.scheiben);
+    await p.reload({ waitUntil: 'networkidle' });
+    await p.waitForTimeout(300);
+    for (let i = 0; i < 100; i++) {
+      const t = await p.locator('#view').textContent();
+      if (new RegExp(`Workout ${fall.n}\\b`).test(t)) break;
+      await p.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+      await p.waitForTimeout(80);
+    }
+    await p.locator('[data-act="start-session"]').first().click();
+    await p.waitForTimeout(400);
+    await zeige(p, fall.a);
+    const start = await leisteAuf(p);
+    check(start.hin.includes(`Im Wechsel mit ${fall.b}`), `${fall.a} steht im Wechsel mit ${fall.b}`);
+    await haken(p);                       // A1
+    check(await name(p) === fall.b, 'nach A1 geht es zum Partner');
+    await haken(p);                       // B1
+    const hoch = fall.namen[fall.hoch];
+    const partner = hoch === fall.a ? fall.b : fall.a;
+    if (await name(p) !== hoch) await zeige(p, hoch);
+    await p.locator(`[data-act="weight-step"][data-ex="${fall.hoch}"][data-dir="1"]`).first().click();
+    await p.waitForTimeout(400);
+    const nachPlus = await leisteAuf(p);
+    console.log('     nach +:', nachPlus.name, '|', nachPlus.hin);
+    check(nachPlus.hin.includes(`Im Wechsel mit ${partner}`),
+      'nach + mitten im Paar bleibt der Wechsel – das Paar kippt nicht');
+    check(/Scheiben reichen nicht für beide/.test(nachPlus.hin),
+      'und es steht da, dass die Scheiben nicht mehr für beide reichen');
+    if (await name(p) !== fall.a) await zeige(p, fall.a);
+    await haken(p);                       // A2
+    check(await name(p) === fall.b,
+      `nach A2 geht es weiter zum Partner, nicht zur nächsten Gruppe (${await name(p)})`);
+    // Neu geladen – das neue Gewicht ist da, die Paarung bleibt.
+    await p.reload({ waitUntil: 'networkidle' });
+    await p.waitForTimeout(400);
+    if (!(await p.locator('.focus-name').count())) {
+      await p.locator('[data-act="start-session"]').first().click();
+      await p.waitForTimeout(400);
+    }
+    await zeige(p, fall.a);
+    check((await leisteAuf(p)).hin.includes(`Im Wechsel mit ${fall.b}`), 'auch nach dem Neuladen');
+    await p.locator('.tab[data-tab="settings"]').click();
+    await p.waitForTimeout(400);
+    const mehr = (await p.locator('#view').textContent()).replace(/\s+/g, ' ');
+    check(mehr.includes(`${fall.a} im Wechsel mit ${fall.b}`) && /Scheiben reichen nicht für beide/.test(mehr),
+      'die Vorschau unter Mehr zeigt dasselbe Paar, mit demselben Hinweis');
+  }
+  await p.context().close();
+}
+
+// --- 9. Nach „Training fortsetzen" steht unten die Pause der gezeigten Übung --
+// Gefunden bei der Durchsicht: Zum Partner gewischt, mit Zurück aufs Dashboard,
+// „Training fortsetzen" – oben die Liegestütze, unten „Satz 2 von 3 · Pull-ups".
+// Und „Fertig" beendete dann die Pause der Pull-ups.
+{
+  const p = await neueSeite();
+  await mitStand(p, { greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {}, supersatz: true });
+  await p.locator('[data-act="start-session"]').first().click();
+  await p.waitForTimeout(400);
+  const a = await name(p);
+  await haken(p);
+  const b = await name(p);
+  await haken(p);
+  await zeige(p, b);
+  check((await leisteAuf(p)).text.includes(b), 'beim Partner steht dessen Pause');
+  await p.goBack();
+  await p.waitForTimeout(400);
+  await p.locator('[data-act="start-session"]').first().click();
+  await p.waitForTimeout(400);
+  const weiter = await leisteAuf(p);
+  console.log('     nach „Training fortsetzen":', JSON.stringify(weiter));
+  check(weiter.name === a && weiter.an && weiter.text.includes(a) && !weiter.text.includes(b),
+    `nach „Training fortsetzen" passt die Leiste zur gezeigten Übung (${weiter.name} / ${weiter.text})`);
+
+  // --- 9b. „+30 s" beim Partner, weg und zurück: der Balken bleibt im Rahmen
+  // Das Ganze, an dem der Balken misst, kannte die 30 s nicht: 177 s von 150 –
+  // 118 %, eine halbe Minute lang ein voller Balken.
+  await zeige(p, b);
+  await p.locator('#restPlus').click();
+  await p.waitForTimeout(200);
+  await zeige(p, a);
+  await zeige(p, b);
+  const plus = await leisteAuf(p);
+  console.log('     nach +30 s, weg und zurück:', JSON.stringify(plus));
+  check(plus.an && plus.text.includes(b) && plus.fuell <= 100 && plus.fuell > 90,
+    `nach +30 s, weg- und zurückgewischt: Balken bei ${plus.fuell.toFixed(1)} %, nicht über 100`);
+  await p.context().close();
+}
+
+// --- 10. Wegwischen nimmt der laufenden Pause nicht ihr Signal ---------------
+// Gefunden bei der Durchsicht: Zu einer Übung ohne eigene Pause gewischt, war
+// die Pause samt Ton und Systemmeldung weg; zum Partner gewischt, klingelte es
+// zu dessen Ende statt zu dem der Übung, die als Nächste dran ist. Das Signal
+// gehört der Pause, auf die der Ablauf wartet – die Leiste zeigt trotzdem die
+// der gezeigten Übung.
+{
+  const p = await neueSeite(() => {
+    window.__post = [];
+    Object.defineProperty(navigator.serviceWorker, 'controller', {
+      configurable: true, get: () => ({ postMessage: (m) => window.__post.push(m) }),
+    });
+    window.Notification = class {
+      static get permission() { return 'granted'; }
+      static requestPermission() { return Promise.resolve('granted'); }
+      close() {}
+    };
+    navigator.vibrate = (x) => { window.__vibrate = x; return true; };
+    // Vorgemerkte und abgesagte Töne mitzählen: cancelSound() stoppt sie ohne
+    // Zeitangabe.
+    window.__vorgemerkt = 0;
+    window.__abgesagt = 0;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const orig = Ctx.prototype.createOscillator;
+    Ctx.prototype.createOscillator = function (...x) {
+      const osc = orig.apply(this, x);
+      const uhr = this;
+      const start = osc.start.bind(osc);
+      osc.start = (wann = 0) => { if (wann - uhr.currentTime > 1) window.__vorgemerkt++; return start(wann); };
+      const stop = osc.stop.bind(osc);
+      osc.stop = (...y) => { if (!y.length) window.__abgesagt++; return stop(...y); };
+      return osc;
+    };
+  });
+  await mitStand(p, {
+    greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {}, supersatz: true,
+    notify: true, sound: true, restSeconds: 6, useExerciseRest: false,
+  });
+  const laeuft = () => p.evaluate(async () => (await import('./js/store.js')).getState().rest);
+  const aus = () => p.evaluate(() => window.__post.filter((m) => m.typ === 'pause-aus').length);
+  await p.locator('[data-act="start-session"]').first().click();
+  await p.waitForTimeout(400);
+  const a = await name(p);
+  await haken(p);
+  const b = await name(p);
+  await haken(p);
+  const pause = await laeuft();
+  check(pause && pause.next.includes(a), `nach B1 läuft die Pause von ${a}`);
+  check(await p.evaluate(() => window.__vorgemerkt) > 0, 'und ihr Ton liegt auf der Uhr');
+  await p.evaluate(() => { window.__post.length = 0; window.__abgesagt = 0; });
+  await zeige(p, b);
+  const beiB = await leisteAuf(p);
+  const nochA = await laeuft();
+  check(beiB.an && beiB.text.includes(b), 'beim Partner zeigt die Leiste dessen Pause');
+  check(nochA && nochA.endsAt === pause.endsAt && await aus() === 0,
+    'das Signal bleibt aber bei der Pause, auf die der Ablauf wartet');
+  const c = await p.evaluate((nm) => [...document.querySelectorAll('.prog-ex')]
+    .map((x) => x.getAttribute('aria-label')).find((l, k) => k > 1 && / 0 von /.test(l) && !l.includes(nm)), a);
+  await zeige(p, c.split(',')[1].trim());
+  const beiC = await leisteAuf(p);
+  check(!beiC.an, `bei einer Übung ohne eigene Pause (${beiC.name}) ist die Leiste weg`);
+  check(!!(await laeuft()) && await aus() === 0 && await p.evaluate(() => window.__abgesagt) === 0,
+    'aber Ton und Systemmeldung der laufenden Pause bleiben vorgemerkt');
+  const bis = pause.endsAt - await p.evaluate(() => Date.now());
+  await p.waitForTimeout(Math.max(0, bis) + 700);
+  const toast = await p.evaluate(() => document.getElementById('toast')?.textContent || '');
+  check(/Pause vorbei/.test(toast) && await p.evaluate(() => Array.isArray(window.__vibrate)),
+    `am Ende der Pause meldet sie sich trotzdem, auch wenn eine andere Übung zu sehen ist (${toast})`);
+  check(!(await laeuft()), 'und ist danach vorbei');
+  await p.context().close();
 }
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);

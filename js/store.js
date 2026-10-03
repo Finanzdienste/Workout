@@ -146,7 +146,7 @@ const DEFAULT_STATE = {
   // vervollständigten – getrennt, weil beide Hinweise zugleich offen sein können.
   planUmbau: null,
   // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn,
-  //                   soll, fest, festAus } }
+  //                   soll, fest, festAus, paare } }
   // Je Satz:
   //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
   //   done abgehakt
@@ -161,6 +161,9 @@ const DEFAULT_STATE = {
   //           dem festReparieren() die Liste vervollständigt hat
   //           (festErsetzen()). Fehlt nur an den kurzen Listen von v215 – und
   //           nur die repariert festReparieren() in js/app.js.
+  //   paare   je Modus die Supersatz-Paarung, festgehalten mit dem ersten
+  //           abgehakten Satz: { db: { key, gruppen: [[id, id], [id]] } }
+  //           (superGruppen() in js/app.js)
   log: {},
 };
 
@@ -740,6 +743,22 @@ export function setShift(days) {
   emit();
 }
 
+/**
+ * Die festgehaltene Supersatz-Paarung einer Einheit in einem Modus, oder null:
+ * { key, gruppen: [[id, id], [id]] }. Siehe superGruppen() in js/app.js.
+ */
+export function paarung(n, mode) {
+  const e = state.log[n];
+  return (e && e.paare && e.paare[mode]) || null;
+}
+
+export function setPaarung(n, mode, wert) {
+  const e = ensure(n);
+  if (!e.paare || typeof e.paare !== 'object') e.paare = {};
+  e.paare[mode] = wert;
+  persist();
+}
+
 /** Nur lesen – legt nichts an, damit reines Blättern den Speicher nicht füllt. */
 export function peekSets(n, mode, exId) {
   const e = state.log[n];
@@ -766,6 +785,8 @@ export function resetWorkout(n, mode) {
   if (!e) return;
   e[mode] = {};
   if (e.done === mode) delete e.done;
+  // Ein neuer Anlauf paart neu – nach dem Gewicht von jetzt.
+  if (e.paare) delete e.paare[mode];
   // Verworfen ist verworfen: Der nächste Anlauf an dieser Einheit fängt die
   // Zeit wieder bei null an.
   if (state.clock && state.clock.n === n) state.clock = null;

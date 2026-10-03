@@ -4145,8 +4145,32 @@ Vorrat (*Mehr → Was bei dir rumliegt*), ob sich beide Arbeitsgewichte gleichze
 bestücken lassen – über alle Belegungen, nicht nur die mit den wenigsten
 Scheiben: Geht der Floor Press auch mit vier 2,5ern, ist es weiter ein Paar.
 Ohne eingetragenen Vorrat weiß die App es nicht und lässt die Paarung, wie sie
-war. Die Paarung folgt dem heutigen Gewicht: Wer mitten im Paar so weit
-erhöht, dass es nicht mehr reicht, macht die beiden danach nacheinander.
+war.
+
+Gesucht wird Größe für Größe: Für alles Weitere zählt nur, wie viel jedem
+Aufbau noch fehlt, nicht womit der Rest erreicht wurde – ein gescheiterter
+Zwischenstand wird gemerkt, und was ein Aufbau schon allein nicht mehr schafft
+oder mehr Eisen braucht, als noch daliegt, wird gar nicht erst versucht. Die
+erste Fassung zählte alle Belegungen auf; bei einem großen Vorrat und einem
+Paar, das nicht geht, waren das 1,4 s (4 Größen × 40 Stück) bis 25 s (6 × 20)
+im Hauptthread, bei jedem Neuzeichnen. Jetzt sind es wenige Millisekunden, mit
+derselben Antwort – `tests/test-supersatz.mjs` prüft das an 3000 zufälligen
+Sätzen gegen die alte Aufzählung. Wird es trotzdem zu viel, heißt die Antwort
+„weiß ich nicht" statt einer eingefrorenen App.
+
+**Die Paarung steht, sobald trainiert wird.** Weil die Scheiben mitreden,
+hängt ein Paar am Gewicht – und ein Tipp auf + mitten im Supersatz löste es
+auf: Der Hinweis „Im Wechsel mit …" verschwand, die App blieb bei derselben
+Übung, und die angefangene Partnerübung rutschte hinter das nächste Paar. Die
+Paarung ist aber ein Plan für diese Einheit, wie die Rüst-Reihenfolge. Mit dem
+ersten abgehakten Satz wird sie deshalb im Protokoll der Einheit festgehalten
+(`paare`), damit sie auch ein Neuladen mit dem neuen Gewicht übersteht; vorher
+richtet sie sich nach Gewicht und Vorrat, damit die Vorschau unter *Mehr* zeigt,
+was ein eingetragener Vorrat bewirkt. Vorschau und Training lesen dieselbe
+Paarung. Reichen die Scheiben nach einer Erhöhung nicht mehr für beide
+Aufbauten, bleibt das Paar, und unter dem Wechselhinweis steht: *Die Scheiben
+reichen nicht für beide Aufbauten – zwischen den Sätzen umstecken.* Ändern sich
+die Übungen selbst (Beschwerde, Gerät weg, andere Fassung), wird neu gepaart.
 
 **Die Leiste unten gehört zur Übung, die zu sehen ist.**
 
@@ -4156,12 +4180,27 @@ erhöht, dass es nicht mehr reicht, macht die beiden danach nacheinander.
 Im Wechsel laufen zwei Pausen zugleich, eine je Übung; die Leiste zeigte nur
 die zuletzt gestartete. Wer zum Partner wischte oder oben auf ihn tippte, sah
 weiter die Pause der anderen Übung samt deren Namen. Jetzt liest
-`pauseZurAnzeige()` beim Wechseln die Uhr der gezeigten Übung ab: noch nicht
-erholt → ihre Restzeit, sonst keine Leiste. Zurückwischen zeigt wieder die
-andere, weitergelaufen statt neu gestartet; eine weggetippte Pause kommt nicht
-wieder, +30 s bleiben an der Übung hängen. Die Uhr (`workout.satzuhr.v1`) liegt
-nur im Gerät und überlebt ein Neuladen der Seite – sonst wäre die laufende
-Pause nach kurzem Wechsel in eine andere App beim ersten Wischen verschwunden.
+`leistenPause()` die Uhr der gezeigten Übung ab: noch nicht erholt → ihre
+Restzeit, sonst keine Leiste. Zurückwischen zeigt wieder die andere,
+weitergelaufen statt neu gestartet; eine weggetippte Pause kommt nicht wieder,
++30 s bleiben an der Übung hängen – auch im Ganzen, an dem der Balken misst
+(vorher stand er danach bei 118 %). Die Uhr (`workout.satzuhr.v1`) liegt nur im
+Gerät und überlebt ein Neuladen der Seite – sonst wäre die laufende Pause nach
+kurzem Wechsel in eine andere App beim ersten Wischen verschwunden.
+
+Abgelesen wird nach jedem Zeichnen, an dem, was gerade zu sehen ist – nicht nur
+beim Wischen. Vorher stand nach „Training fortsetzen" unter den Liegestützen die
+Pause der Pull-ups, und „Fertig" beendete dann deren Pause statt der gezeigten.
+
+**Was klingelt, ist eine andere Frage als was unten steht.** Ton, Vibration und
+Systemmeldung gehören der Pause, auf die der Ablauf wartet – der des nächsten
+Schritts. Die läuft weiter, egal wohin man wischt. Zuerst wurde mit der Leiste
+auch das Signal getauscht: Zu einer noch nicht begonnenen Übung gewischt, war
+die Pause samt Ton und Meldung weg; zum Partner gewischt, klingelte es zu
+dessen Ende. Die Pause des Partners klingelt bewusst nicht – ist sie kürzer,
+käme ihr Ton, während man noch auf die andere wartet. Dran ist sie trotzdem
+rechtzeitig: Nach dem nächsten Satz rechnet der Wechsel ihre Restzeit aus der
+Uhr und legt dann ihr Signal.
 
 ### Drei Minuten waren zu viel
 
