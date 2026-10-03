@@ -146,7 +146,7 @@ const DEFAULT_STATE = {
   // vervollständigten – getrennt, weil beide Hinweise zugleich offen sein können.
   planUmbau: null,
   // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn,
-  //                   soll, fest, festAus } }
+  //                   soll, nach, fest, festAus, festNetto } }
   // Je Satz:
   //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
   //   done abgehakt
@@ -155,7 +155,13 @@ const DEFAULT_STATE = {
   //        das ist der Normalfall und kostet nichts.
   // Je Einheit, neben mode und startedOn:
   //   soll    Satzzahl je Übung an diesem Tag, beim ersten Anzeigen festgehalten
-  //   fest    nach einem Planwechsel die eigene Übungsliste [{ id, sets }]
+  //   nach    wie viele Sätze davon Nacharbeit waren, je Übung (merkeNach())
+  //   fest    nach einem Planwechsel die eigene Übungsliste
+  //           [{ id, sets, bwSets }] – ohne Nacharbeit, die kommt in exOf()
+  //           dazu; `bwSets` fehlt, wo es gleich `sets` ist, und in Listen
+  //           von vor dieser Angabe (dort gilt `sets` für beide Modi)
+  //   festNetto  die Satzzahlen in `fest` sind ohne Nacharbeit – geprüft von
+  //           festNachReparieren() in js/app.js, einmal je Liste
   //   festAus woher `fest` stammt: der Stand des Plans davor oder der, unter
   //           dem das Protokoll entstand (planWechsel()), oder der Plan, aus
   //           dem festReparieren() die Liste vervollständigt hat
@@ -506,8 +512,31 @@ function ensure(n) {
   return e;
 }
 
+/**
+ * Wie viele Sätze von `soll[exId]` an diesem Tag Nacharbeit waren – mit `soll`
+ * zusammen geschrieben, nie getrennt davon.
+ *
+ * `soll` hält die Satzzahl, die auf dem Bildschirm stand, und die enthält die
+ * „+1 nachgeholt". Für den Tag selbst ist das richtig. Ein Planwechsel schreibt
+ * aus `soll` aber die feste Liste der Einheit (vorherFassung() in js/plan.js),
+ * und die ist die *Basis*: exOf() legt die Nacharbeit darauf noch einmal
+ * obendrauf. Gemessen an einer angefangenen BBP-Einheit stand danach der Goblet
+ * Squat mit 5 statt 4 Sätzen da, die Einheit mit 23 statt 21. Wer den Vermerk
+ * hat, kann die Nacharbeit wieder herausrechnen.
+ *
+ * `nach` undefined heißt „unbekannt" (ein Aufrufer, der es nicht weiß) – dann
+ * wird nichts vermerkt. Gespeichert wird auch die Null: Fehlt der Eintrag,
+ * stammt `soll` aus der Zeit vor diesem Vermerk oder von einem solchen
+ * Aufrufer, und nur dann darf festNachReparieren() in js/app.js schätzen.
+ */
+function merkeNach(e, exId, nach) {
+  if (nach === undefined) return;
+  if (!e.nach) e.nach = {};
+  e.nach[exId] = Math.max(0, Number(nach) || 0);
+}
+
 /** Satz-Array für eine Übung in einem Workout; legt es bei Bedarf an. */
-export function getSets(n, mode, exId, setCount) {
+export function getSets(n, mode, exId, setCount, nach) {
   const e = ensure(n);
   const bucket = e[mode];
   let arr = bucket[exId];
@@ -528,7 +557,10 @@ export function getSets(n, mode, exId, setCount) {
     // Satzliste beim bloßen Ansehen auf die heutige Zahl auf, und ein leerer
     // dritter Satz sieht danach aus wie einer, den jemand ausgelassen hat.
     if (!e.soll) e.soll = {};
-    if (e.soll[exId] === undefined) e.soll[exId] = setCount;
+    if (e.soll[exId] === undefined) {
+      e.soll[exId] = setCount;
+      merkeNach(e, exId, nach);
+    }
   }
   // Ein Satz ist: benutztes Gewicht, abgehakt, und – wenn beantwortet – wie er
   // gelaufen ist (`wie`, siehe updateSet). Ein Feld `r` für Wiederholungen
@@ -747,14 +779,18 @@ export function peekSets(n, mode, exId) {
   return Array.isArray(arr) ? arr : null;
 }
 
-export function updateSet(n, mode, exId, setCount, index, patch) {
-  const arr = getSets(n, mode, exId, setCount);
+export function updateSet(n, mode, exId, setCount, index, patch, nach) {
+  const arr = getSets(n, mode, exId, setCount, nach);
   Object.assign(arr[index], patch);
   const e = ensure(n);
   // Beim Antippen zählt, was gerade auf dem Bildschirm steht: Wer die Stufe
   // mitten in einer Einheit wechselt, trainiert ab da die neue Satzzahl.
   if (!e.soll) e.soll = {};
   e.soll[exId] = setCount;
+  // Und mit ihr, wie viel davon Nacharbeit ist (siehe merkeNach()). Ohne
+  // Angabe passt ein alter Vermerk nicht mehr zur neuen Zahl – dann lieber
+  // keiner als ein falscher.
+  if (nach === undefined) { if (e.nach) delete e.nach[exId]; } else merkeNach(e, exId, nach);
   e.mode = mode;
   syncStartedOn(n);
   persist();
@@ -778,7 +814,7 @@ export function completeWorkout(n, mode, exList) {
   const e = ensure(n);
   e.mode = mode;
   exList.forEach((item) => {
-    const arr = getSets(n, mode, item.id, item.sets);
+    const arr = getSets(n, mode, item.id, item.sets, item.nach || 0);
     // `w` mitschreiben, sonst fehlt der Eintrag später überall dort, wo das
     // Gewicht zählt: in der Verlaufskurve und in der Steigerungsserie.
     arr.forEach((s) => { s.done = true; if (item.w && s.w === '') s.w = item.w; });
@@ -816,8 +852,21 @@ export function toggleCare(n, key) {
  * abgeschlossen wurde; ein Zurücksetzen nimmt sie wieder zurück.
  */
 /**
+ * Ein Eintrag einer festen Liste: die Übung und ihre Satzzahl in *beiden*
+ * Modi. Bis hierher ging nur `sets` mit, die Zahl des Modus, in dem trainiert
+ * wurde – wer die Einheit danach in der anderen Variante weitermachte (das
+ * Umschalten ist ausdrücklich erlaubt, siehe set-modus in js/app.js), bekam
+ * die Satzzahl des Hantel-Tages: hängendes Knieheben mit 3 statt 4 Sätzen.
+ * Alte Listen ohne `bwSets` gelten weiter mit `sets` für beide Modi, so wie
+ * bisher (gestufteSaetze() in js/plan.js).
+ */
+function festEintrag({ id, sets, bwSets }) {
+  return bwSets === undefined || bwSets === sets ? { id, sets } : { id, sets, bwSets };
+}
+
+/**
  * Einheiten auf ihre eigene Übungsliste festschreiben – siehe planWechsel()
- * in js/app.js. `einheiten`: { [n]: [{ id, sets }] }. Was schon eine hat,
+ * in js/app.js. `einheiten`: { [n]: [{ id, sets, bwSets }] }. Was schon eine hat,
  * behält sie: Festgeschrieben wird der Stand des Tages, an dem trainiert
  * wurde, nicht der des zweiten Planwechsels danach.
  *
@@ -830,7 +879,7 @@ export function festschreiben(einheiten, ausPlan = {}) {
   Object.entries(einheiten).forEach(([n, liste]) => {
     const e = state.log[n];
     if (!e || e.fest || !liste.length) return;
-    e.fest = liste.map(({ id, sets }) => ({ id, sets }));
+    e.fest = liste.map(festEintrag);
     if (ausPlan[n]) e.festAus = ausPlan[n];
     neu += 1;
   });
@@ -850,12 +899,32 @@ export function festErsetzen(einheiten, stand) {
   Object.entries(einheiten).forEach(([n, liste]) => {
     const e = state.log[n];
     if (!e || e.done || !liste.length) return;
-    e.fest = liste.map(({ id, sets }) => ({ id, sets }));
+    e.fest = liste.map(festEintrag);
     if (stand) e.festAus = stand;
     neu += 1;
   });
   if (neu) { persist(); emit(); }
   return neu;
+}
+
+/**
+ * Feste Listen als „ohne Nacharbeit" vermerken, wo nötig mit berichtigten
+ * Satzzahlen – nur für festNachReparieren() in js/app.js. `einheiten`:
+ * { [n]: Liste }. Gibt zurück, wie viele Listen sich dabei geändert haben.
+ */
+export function festNetto(einheiten) {
+  let geaendert = 0;
+  let neu = 0;
+  Object.entries(einheiten).forEach(([n, liste]) => {
+    const e = state.log[n];
+    if (!e || e.festNetto || !Array.isArray(e.fest)) return;
+    const jetzt = liste.map(festEintrag);
+    if (JSON.stringify(jetzt) !== JSON.stringify(e.fest)) { e.fest = jetzt; geaendert += 1; }
+    e.festNetto = true;
+    neu += 1;
+  });
+  if (neu) { persist(); emit(); }
+  return geaendert;
 }
 
 export function markDone(n, mode) {
