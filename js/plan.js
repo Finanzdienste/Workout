@@ -185,6 +185,68 @@ function tagAnpassen(w, ex, vortag, act, term) {
   return { items: t.items, notiz: { dropped: r.dropped.concat(t.dropped), swapped: r.swapped, termin: t.namen } };
 }
 
+/**
+ * Die Notiz des Tages um das ergänzt, was der Modus noch sperrt – und dabei
+ * die Kette zu Ende gelesen.
+ *
+ * Gefunden am Handgelenkbruch im Hantel-Modus: Die Beschwerde tauscht den
+ * Goblet Squat auf den Hip Thrust, sperrt den Hip Thrust mit Hanteln aber
+ * selbst (avoidDb – mit der Stange auf der Hüfte trägt die Hand). Die Notiz
+ * hängte beides aneinander, „Goblet Squat → Hip Thrust" und gleich daneben
+ * „Hip Thrust fällt aus", und die Beschwerden-Übersicht zählte die
+ * Goblet-Sätze als getauscht, obwohl keiner davon stattfand. Dasselbe Muster
+ * steht an mehr als einer Stelle: Die Handgelenksüberlastung tauscht
+ * Liegestütze auf die Floor Press und sperrt sie ohne Hanteln, und viele
+ * Beschwerden tauschen auf Übungen, die eine *andere* angehakte nur in einem
+ * Modus sperrt. Deshalb hier allgemein und nicht an der einen Regel:
+ *
+ *   A → X, und X fällt im Modus weg    → A fällt aus
+ *   A → X, und X wird im Modus zu Y    → A → Y
+ *
+ * Nicht in applyInjuries(): Dessen Ergebnis ist für beide Modi dasselbe und
+ * gemerkt (adjustedPlan()), der Modus kommt erst danach.
+ *
+ * Stand X auch selbst im Plan, hat applyInjuries() beide Einträge zu einem
+ * zusammengelegt, und der Modus nennt nur noch die Summe. Die wird nach den
+ * Satzzahlen des Plans aufgeteilt: X behält seinen eigenen Teil, A bekommt
+ * den getauschten.
+ */
+function modusNotiz(roh, r, w) {
+  let swapped = roh.swapped.slice();
+  const dropped = roh.dropped.slice();
+  const eigen = (id) => w.ex.filter((it) => it.id === id).reduce((a, it) => a + (it.sets || 0), 0);
+  // `summe` auf X selbst und die Tausche davor verteilen, in ganzen Sätzen.
+  const verteile = (summe, x, davor) => {
+    const gewichte = [eigen(x), ...davor.map((s) => s.sets || 0)];
+    const alle = gewichte.reduce((a, b) => a + b, 0) || 1;
+    let vergeben = 0;
+    return gewichte.map((g, i) => {
+      if (i === gewichte.length - 1) return Math.max(0, summe - vergeben);
+      const t = Math.round((summe * g) / alle);
+      vergeben += t;
+      return t;
+    });
+  };
+  r.dropped.forEach((d) => {
+    const davor = swapped.filter((s) => s.to === d.id);
+    if (!davor.length) { dropped.push(d); return; }
+    swapped = swapped.filter((s) => s.to !== d.id);
+    const [selbst, ...teile] = verteile(d.sets, d.id, davor);
+    davor.forEach((s, i) => dropped.push({ id: s.from, sets: teile[i], reason: d.reason }));
+    if (selbst > 0) dropped.push({ ...d, sets: selbst });
+  });
+  const weiter = [];
+  r.swapped.forEach((m) => {
+    const davor = swapped.filter((s) => s.to === m.from);
+    if (!davor.length) { weiter.push(m); return; }
+    swapped = swapped.filter((s) => s.to !== m.from);
+    const [selbst, ...teile] = verteile(m.sets, m.from, davor);
+    davor.forEach((s, i) => weiter.push({ from: s.from, to: m.to, sets: teile[i] }));
+    if (selbst > 0) weiter.push({ ...m, sets: selbst });
+  });
+  return { dropped, swapped: swapped.concat(weiter) };
+}
+
 /** Was an einem Plantag getauscht wurde und was wegfiel. */
 export function injuryNotes(n, mode) {
   adjustedPlan();
@@ -194,7 +256,7 @@ export function injuryNotes(n, mode) {
   const w = PLAN[n - 1];
   if (mode && w) {
     const r = modusTausch(vorratFassung(gestufteSaetze(w, mode), mode).items, activeInjuries(), mode);
-    roh = { ...roh, dropped: roh.dropped.concat(r.dropped), swapped: roh.swapped.concat(r.swapped) };
+    roh = { ...roh, ...modusNotiz(roh, r, w) };
   }
   // Was protokolliert ist, ist weder ausgefallen noch getauscht worden – es
   // steht wieder da (behalteProtokolliertes). Ohne diesen Filter hieß es an
@@ -418,9 +480,17 @@ function gestufteSaetze(w, m) {
   // Einheit war schon angefangen oder trainiert, und hinter ihrer Nummer steht
   // im neuen Plan etwas anderes. Sie bleibt, wie sie war – samt der Satzzahl
   // jenes Tages, deshalb hier vor der Stufe und ohne sie.
+  //
+  // Die Satzzahl des Modus, in dem sie gerade steht: `bwSets` für Bodyweight,
+  // sonst `sets` (siehe festEintrag() in js/store.js). Listen von vor dieser
+  // Angabe haben nur `sets` – die Zahl des Modus, in dem damals trainiert
+  // wurde – und behalten sie in beiden Modi, wie bisher.
   const fest = (store.getState().log[w.n] || {}).fest;
   if (Array.isArray(fest) && fest.length) {
-    return fest.filter((it) => EX_BY_ID.has(it.id)).map((it) => ({ id: it.id, sets: it.sets, bwSets: it.sets }));
+    return fest.filter((it) => EX_BY_ID.has(it.id)).map((it) => {
+      const sets = m === 'bw' ? (it.bwSets ?? it.sets) : it.sets;
+      return { id: it.id, sets, bwSets: sets };
+    });
   }
   return stufenFassung(adjustedPlan()[w.n - 1] || w.ex, m);
 }
@@ -471,8 +541,12 @@ export function vorherFassung(n, liste, mode) {
   const w = PLAN[n - 1];
   const tag = w ? tagAnpassen(w, roh, adjustedPlan()[n - 2], activeInjuries(), termine()).items : roh;
   const items = stufenFassung(tag, mode);
+  // Dieselbe Liste im anderen Modus, für dessen Satzzahl. stufenFassung()
+  // tauscht Stelle für Stelle, die beiden Listen liegen also übereinander.
+  const andere = stufenFassung(tag, mode === 'bw' ? 'db' : 'bw');
   const e = store.getState().log[n] || {};
   const soll = e.soll || {};
+  const nach = e.nach || {};
   // Nur angefasste Einträge (abgehakt, Gewicht, Rückmeldung) – dieselbe Regel
   // wie protokolliert() unten. Einen Eintrag legt die App schon beim Anzeigen
   // an, die Fokusansicht seit v216 für die ganze Einheit. Zählte jeder, holte
@@ -485,7 +559,7 @@ export function vorherFassung(n, liste, mode) {
     .filter(([id, arr]) => EX_BY_ID.has(id) && Array.isArray(arr) && arr.some((x) => x && (x.done || !!x.w || !!x.wie)))
     .map(([id]) => id);
   const frei = da.filter((id) => !items.some((it) => it.id === id));
-  return items.map((it) => {
+  return items.map((it, k) => {
     let id = it.id;
     if (!da.includes(id)) {
       const x = frei.find((y) => nah(it, y));
@@ -495,8 +569,18 @@ export function vorherFassung(n, liste, mode) {
       }
     }
     // `soll` dagegen für jede Übung, die an jenem Tag so dastand – auch nur
-    // angezeigt. Es ist die Satzzahl, mit der die App sie gezeigt hat.
-    return { ...it, id, sets: soll[id] || it.sets };
+    // angezeigt. Es ist die Satzzahl, mit der die App sie gezeigt hat, und
+    // damit samt „+1 nachgeholt". Die feste Liste ist aber die Basis, auf die
+    // exOf() die Nacharbeit erst legt; stünde sie hier mit drin, käme sie
+    // doppelt (siehe merkeNach() in js/store.js). Fehlt der Vermerk, weil
+    // `soll` älter ist, schätzt festNachReparieren() in js/app.js nach.
+    const eigen = soll[id] ? Math.max(1, soll[id] - (nach[id] || 0)) : it.sets;
+    // Der andere Modus war an jenem Tag nicht zu sehen – für ihn gilt die
+    // Satzzahl, die der Plan dort hatte. Bis hierher bekam er die des
+    // trainierten Modus: hängendes Knieheben im Bodyweight-Modus mit den drei
+    // Sätzen des Hantel-Tages statt mit vier.
+    const fremd = (andere[k] || it).sets;
+    return { ...it, id, sets: mode === 'bw' ? fremd : eigen, bwSets: mode === 'bw' ? eigen : fremd };
   });
 }
 

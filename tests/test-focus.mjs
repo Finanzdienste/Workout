@@ -159,6 +159,70 @@ await page.waitForTimeout(150);
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check(overflow === 0, `kein horizontaler Überlauf (${overflow}px)`);
 
+// --- Umschalten mitten in der Einheit: fertig bleibt fertig ---
+// Übung 1 mit Hanteln durch, dann unter Mehr auf Bodyweight. Kopf, Liste und
+// Fortsetzen zählen über beide Modi (saetzeErledigt()); die Fokusansicht
+// zählte bis hierher nur den Eimer des eingestellten Modus: leere Felder in
+// der Leiste, leere Knöpfe, graues „Weiter" – und ein Tipp darauf buchte einen
+// Satz, den es nie gab.
+await page.evaluate(() => {
+  localStorage.clear();
+  localStorage.setItem('workout.state.v1', JSON.stringify({ greeted: true, mode: 'db', useExerciseRest: false, restSeconds: 0 }));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(200);
+const erste = await page.locator('.focus-set').first().getAttribute('data-ex');
+const dbSaetze = await page.locator('.focus-set').count();
+for (let i = 0; i < dbSaetze; i++) {
+  await page.locator('.focus-set').nth(i).click();
+  await page.waitForTimeout(120);
+}
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(200);
+await page.locator('[data-act="set-modus"][data-v="bw"]').first().click();
+await page.waitForTimeout(200);
+await page.locator('.tab[data-tab="dashboard"]').click();
+await page.waitForTimeout(200);
+const fortsetzen = page.locator('[data-act="start-session"]');
+if (await fortsetzen.count()) await fortsetzen.first().click();
+await page.waitForTimeout(200);
+const lage = await page.evaluate(async (id) => {
+  const { getState } = await import('./js/store.js');
+  const { workoutByNo } = await import('./js/plan.js');
+  const n = getState().session.n;
+  const ex = workoutByNo(n, 'bw').ex;
+  const k = ex.findIndex((x) => x.id === id);
+  return { n, k, sets: k >= 0 ? ex[k].sets : 0 };
+}, erste);
+check(lage.k >= 0, `${erste} steht auch ohne Hanteln in der Einheit (Stelle ${lage.k + 1})`);
+const feld = page.locator(`.prog-ex[data-i="${lage.k}"]`);
+check(/\bdone\b/.test(await feld.getAttribute('class') || '')
+  && await feld.locator('i.on').count() === lage.sets,
+  `die Leiste zeigt die mit Hanteln fertige Übung als fertig (${await feld.locator('i.on').count()} von ${lage.sets})`);
+await feld.click();
+await page.waitForTimeout(200);
+check(/btn-primary/.test(await page.locator('[data-act="focus-step"][data-d="1"]').getAttribute('class') || ''),
+  '„Weiter" ist hervorgehoben wie bei jeder fertigen Übung');
+check(await page.locator('.fo .ex-anderswo').count() === 1,
+  'und darunter steht, dass die Hantelsätze mitzählen');
+const zaehle = () => page.evaluate(async ([n, id]) => {
+  const e = (await import('./js/store.js')).getState().log[n];
+  const z = (m) => ((e[m] || {})[id] || []).filter((x) => x && x.done).length;
+  return { db: z('db'), bw: z('bw'), name: (document.querySelector('.focus-name') || {}).textContent };
+}, [lage.n, erste]);
+const vorTipp = await zaehle();
+await page.locator('.focus-set:not(.on)').first().click();
+await page.waitForTimeout(250);
+const nachTipp = await zaehle();
+check(nachTipp.db === vorTipp.db && nachTipp.bw === vorTipp.bw,
+  `ein Tipp auf die fertige Übung bucht keinen weiteren Satz (Hanteln ${nachTipp.db}, ohne ${nachTipp.bw})`);
+check(nachTipp.name === vorTipp.name, `und die Ansicht bleibt bei ihr (${nachTipp.name})`);
+await page.locator('[data-act="focus-list"]').click();
+await page.waitForTimeout(150);
+await page.locator('[data-act="finish-session"]').click();
+await page.waitForTimeout(150);
+
 
 // --- Vier Pläne zur Wahl, und der Beinplan rechnet auf Beinziele ---
 await page.locator('.tab[data-tab="settings"]').click();

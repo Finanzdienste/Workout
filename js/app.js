@@ -48,7 +48,7 @@ import {
   erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
 } from './ansicht-statistik.js';
 import { gruppeVon, naechsterOffen, naechsterSchritt, paare } from './supersatz.js';
-import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, progressOf, saetzeErledigt, resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo } from './plan.js';
+import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, nacharbeit, progressOf, saetzeErledigt, resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat, uebungGeht } from './vorrat.js';
@@ -390,9 +390,14 @@ function festeListen(log, grundModus, vorher = null, protokollStand = '') {
       return;
     }
     const soll = e.soll || {};
+    const nach = e.nach || {};
+    // Ohne die Nacharbeit jenes Tages, aus demselben Grund wie in
+    // vorherFassung(): Die feste Liste ist die Basis, exOf() legt die
+    // Nacharbeit darauf. Einen Plan, der die Satzzahl des anderen Modus
+    // nennte, gibt es hier nicht – dort gilt dieselbe Zahl, wie bisher.
     out[n] = Object.entries(e[m] || {})
       .filter(([id, arr]) => Array.isArray(arr) && EX_BY_ID.has(id) && (!e.done || arr.some(aktiv)))
-      .map(([id, arr]) => ({ id, sets: soll[id] || arr.length }));
+      .map(([id, arr]) => ({ id, sets: Math.max(1, (soll[id] || arr.length) - (nach[id] || 0)) }));
     // Auch eine Liste aus dem Protokoll ist seit v216 ganz – die Fokusansicht
     // legt die Einheit beim Öffnen vollständig an. Sie trägt deshalb ebenfalls
     // einen Vermerk, hier den Stand, unter dem das Protokoll entstand. Ohne ihn
@@ -477,6 +482,57 @@ function festReparieren() {
       fokus: (PLANS[fokus] || {}).name || fokus });
   }
   return k;
+}
+
+/**
+ * Feste Listen, in denen die Nacharbeit schon steht.
+ *
+ * Von v215 bis v224 schrieb ein Planwechsel eine angefangene Einheit mit der
+ * Satzzahl fest, die auf dem Bildschirm stand (`soll`) – und die enthielt die
+ * „+1 nachgeholt". exOf() legte die Nacharbeit dann noch einmal obendrauf:
+ * Goblet Squat 5(+1) statt 4(+1), die Einheit 23 statt 21 Sätze. Seitdem
+ * merkt sich das Protokoll, wie viel von `soll` Nacharbeit war (`nach`, siehe
+ * merkeNach() in js/store.js), und vorherFassung() rechnet sie heraus. Für die
+ * Listen, die schon so dastehen, und für ein `soll` aus der Zeit davor gibt es
+ * diesen Vermerk nicht.
+ *
+ * **Repariert wird nur, was die Doppelung heute sichtbar macht:** eine Einheit,
+ * die noch nicht fertig ist und auf die exOf() jetzt Nacharbeit legt. Dort ist
+ * die Nacharbeit des Tages dieselbe Rechnung wie heute – sie misst die Einheiten
+ * davor in derselben Woche, und die sind fertig und ändern sich nicht mehr.
+ * Abgezogen wird nur an einer Übung, deren feste Zahl genau ihr `soll` ist
+ * (also daraus stammt) und deren Nacharbeit nicht vermerkt ist. Danach zeigt
+ * die Einheit wieder, was sie vor dem Update zeigte.
+ *
+ * **Eine fertige Einheit bleibt, wie sie ist.** Auf sie legt exOf() nichts
+ * mehr, die Doppelung ist dort unsichtbar – und was an jenem Tag Nacharbeit
+ * war, lässt sich aus dem Protokoll nicht mehr sicher sagen: Eine Vier kann
+ * „3 + 1" sein oder die vier Sätze eines Fortgeschrittenen. Lieber eine Zahl
+ * stehen lassen, die der Nutzer so gesehen hat, als eine erfundene einsetzen.
+ *
+ * Jede Liste wird einmal angesehen und dann vermerkt (`festNetto`), wie
+ * festReparieren() es mit `festAus` hält: Kommt später in derselben Woche
+ * Nacharbeit dazu, ist das echte Nacharbeit und kein Grund, nachzurechnen.
+ */
+function festNachReparieren() {
+  const s = store.getState();
+  const ergebnis = {};
+  Object.entries(s.log || {}).forEach(([k, e]) => {
+    const n = Number(k);
+    if (!Number.isInteger(n) || !e || e.festNetto || !Array.isArray(e.fest) || !e.fest.length) return;
+    const w = PLAN[n - 1];
+    const m = store.workoutMode(n);
+    const extra = w && !e.done ? nacharbeit(w, m) : null;
+    const soll = e.soll || {};
+    const nach = e.nach || {};
+    ergebnis[n] = e.fest.map((f) => {
+      const dazu = (extra && extra.get(f.id)) || 0;
+      const feld = m === 'bw' && f.bwSets !== undefined ? 'bwSets' : 'sets';
+      if (!dazu || nach[f.id] !== undefined || soll[f.id] !== f[feld] || f[feld] - dazu < 1) return f;
+      return { ...f, [feld]: f[feld] - dazu };
+    });
+  });
+  return store.festNetto(ergebnis);
 }
 
 /**
@@ -1383,8 +1439,12 @@ function progressStrip(n, mode, w, cur) {
     <div class="prog">
       ${w.ex.map((item, k) => {
         const v = resolve(item, mode);
-        const arr = store.peekSets(n, mode, v.id) || [];
-        const done = arr.slice(0, v.sets).filter((x) => x.done).length;
+        // Über beide Modi gezählt, wie der Kopf daneben und die Listenansicht
+        // (saetzeErledigt()). Bis hierher nur der Eimer des eingestellten
+        // Modus: Nach dem Umschalten auf Bodyweight stand die mit Hanteln
+        // fertige Übung 1 mit 0 von 2 Feldern da, während der Kopf „2/16
+        // Sätze" meldete.
+        const done = saetzeErledigt(n, v.id, v.sets);
         return `
         <button type="button" class="prog-ex ${k === cur ? 'cur' : ''} ${done === v.sets ? 'done' : ''}"
                 style="flex-grow:${v.sets}" data-act="focus-goto" data-i="${k}"
@@ -1410,7 +1470,7 @@ function renderFocus() {
   // die Listenansicht es mit jeder Karte tut. Sonst kennt ein späterer
   // Planwechsel von einer angefangenen Einheit nur das erste Paar und schreibt
   // sie darauf fest (siehe festReparieren()).
-  if (!w.custom) w.ex.forEach((x) => { const v = resolve(x, mode); store.getSets(n, mode, v.id, v.sets); });
+  if (!w.custom) w.ex.forEach((x) => { const v = resolve(x, mode); store.getSets(n, mode, v.id, v.sets, v.nach || 0); });
   const prog = progressOf(n, mode);
 
   // Eine Einheit kann leer sein: mit genug angehakten Beschwerden fällt jede
@@ -1425,8 +1485,14 @@ function renderFocus() {
   const i = Math.min(Math.max(0, ui.focusIdx), w.ex.length - 1);
   const item = w.ex[i];
   const it = resolve(item, mode);
-  const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
+  const sets = store.getSets(n, mode, it.id, it.sets, it.nach || 0).slice(0, it.sets);
   const doneCount = sets.filter((s) => s.done).length;
+  // Sätze aus dem anderen Modus zählen mit – wie auf der Karte der Liste,
+  // samt demselben Satz darunter. Sonst stand eine schon fertige Übung hier
+  // mit leeren Knöpfen und grauem „Weiter", und ein Tipp darauf buchte einen
+  // Satz, den es nie gab (siehe toggle-set).
+  const anderswo = Math.max(0, saetzeErledigt(n, it.id, it.sets) - doneCount);
+  const exFertig = doneCount + anderswo >= it.sets;
   const kg = it.weight === null ? null : workingWeight(it.id);
   const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
 
@@ -1504,6 +1570,8 @@ function renderFocus() {
                 aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
                 data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
     </div>
+    ${anderswo > 0 ? `<div class="small muted ex-anderswo">${anderswo === 1 ? 'Ein Satz' : `${anderswo} Sätze`}
+      schon ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} gemacht – ${anderswo === 1 ? 'zählt' : 'zählen'} mit.</div>` : ''}
     </section>
 
     <div class="cue focus-cue">${esc(it.cue)}</div>
@@ -1513,7 +1581,7 @@ function renderFocus() {
 
     <div class="btn-row nav">
       <button type="button" class="btn btn-ghost" data-act="focus-step" data-d="-1" ${i === 0 ? 'disabled' : ''}>← Zurück</button>
-      <button type="button" class="btn ${doneCount === it.sets ? 'btn-primary' : 'btn-ghost'}"
+      <button type="button" class="btn ${exFertig ? 'btn-primary' : 'btn-ghost'}"
               data-act="focus-step" data-d="1" ${i === w.ex.length - 1 ? 'disabled' : ''}>Weiter →</button>
     </div>
 
@@ -1632,7 +1700,13 @@ function frischerStart() {
  * Knopf steht dann hier, statt ihn eine Ebene tiefer suchen zu lassen.
  */
 function startBlock(n, mode, prog) {
-  const laeuft = !!store.getState().session;
+  // Nur die eigene Einheit „läuft". Bis hierher genügte irgendeine laufende:
+  // Wer mitten im Training zur nächsten Einheit blätterte, sah dort „▶︎ Start",
+  // und ein Tipp ersetzte die Uhr der laufenden Einheit – die Zeit seit dem
+  // letzten Wegschalten der App war weg, ohne ein Wort.
+  const sess = store.getState().session;
+  const laeuft = !!sess && sess.n === n;
+  if (sess && !laeuft && !prog.erledigt) return laufendWoandersBlock(sess.n, prog);
 
   if (prog.erledigt && laeuft) {
     return `
@@ -1659,9 +1733,9 @@ function startBlock(n, mode, prog) {
         <div class="fertig-sub">${wieViel}${
           min ? ` · ${min} min` : ''}. Die nächste Einheit kommt von selbst.</div>
       </div>
-      ${prog.complete ? '' : `
+      ${sess ? `<div style="margin-top:8px">${zurLaufendenKnopf(sess.n)}</div>` : (prog.complete ? '' : `
       <button type="button" class="btn btn-ghost btn-block" data-act="start-session"
-              style="margin-top:8px">Doch noch weitermachen</button>`}`;
+              style="margin-top:8px">Doch noch weitermachen</button>`)}`;
   }
 
   if (prog.done) {
@@ -1686,6 +1760,42 @@ function startBlock(n, mode, prog) {
     </button>`;
 }
 
+/** Wie die laufende Einheit heißt – für Knöpfe und Hinweise. */
+function einheitTitel(k) {
+  return istCustom(k) ? ((store.customById(k) || {}).name || 'Eigenes Workout') : `Workout ${k}`;
+}
+
+/**
+ * Eine andere Einheit läuft gerade.
+ *
+ * Der Nutzer will dabei zweierlei: nichts verlieren und nichts unbemerkt
+ * ändern. Wer mitten im Training zur nächsten Einheit blättert, schaut fast
+ * immer nur voraus – also führt der erste Knopf zurück in die laufende, ohne
+ * an ihr etwas anzurühren. Wer wirklich wechseln will (falsche Einheit
+ * erwischt), kann das, aber nur mit einem Knopf, der sagt, was passiert: Die
+ * laufende wird beendet, ihre Zeit gebucht wie beim Wegschalten der App, und
+ * ihre Sätze bleiben stehen – sie ist danach angefangen wie jede
+ * unterbrochene Einheit (start-session unten). Einfach den Startknopf zu
+ * zeigen und die Uhr still zu ersetzen, war die eine Lösung, die beides
+ * verfehlte.
+ */
+function laufendWoandersBlock(k, prog) {
+  const titel = einheitTitel(k);
+  return `
+    <div class="small muted laeuft-woanders" style="margin-bottom:8px">${esc(titel)} läuft noch.</div>
+    ${zurLaufendenKnopf(k)}
+    <button type="button" class="btn btn-ghost btn-block" data-act="start-session" style="margin-top:8px">
+      ${prog.done ? 'Diese fortsetzen' : 'Diese starten'} – ${esc(titel)} wird beendet
+    </button>`;
+}
+
+function zurLaufendenKnopf(k) {
+  return `
+    <button type="button" class="btn btn-primary btn-block btn-start" data-act="zur-laufenden">
+      ▶︎ Zurück zu ${esc(einheitTitel(k))}
+    </button>`;
+}
+
 /**
  * Hanteln oder Bodyweight – unter Mehr, als Wahl zwischen zwei Dingen.
  *
@@ -1700,11 +1810,15 @@ function startBlock(n, mode, prog) {
  * trainieren, keine Abweichung von einer Norm. Und ohne das Wort: Was hier
  * steht, gilt ab sofort und nicht „normalerweise".
  *
- * **Die offene Einheit wechselt mit**, sofern noch kein Satz steht. Ein
- * Umschalter, der nur „ab dem nächsten Mal" wirkt, während vorn unverändert die
- * alte Variante steht, sähe kaputt aus. Was schon läuft, bleibt dagegen, wie es
- * ist – mitten im Training die Übungen auszutauschen wäre das Gegenteil von
- * hilfreich, und das Protokoll führt beide Varianten getrennt.
+ * **Die laufende Einheit wechselt mit, und die vorn stehende, solange sie
+ * unberührt ist.** Ein Umschalter, der nur „ab dem nächsten Mal" wirkt, während
+ * vorn unverändert die alte Variante steht, sähe kaputt aus. Mitten im Training
+ * umzustellen ist ausdrücklich gewollt (siehe set-modus) – das Protokoll führt
+ * beide Varianten getrennt, und Sätze beider zählen zusammen. Eine schon
+ * trainierte oder angefangene, aber nicht laufende Einheit bleibt dagegen in
+ * ihrer Variante: Hier stand einmal, sie bleibe, „wie sie ist", und der Code
+ * kippte trotzdem jede Einheit, die gerade vorn stand – auch die fertige von
+ * heute.
  */
 function modusKarte(mode) {
   return `
@@ -1712,8 +1826,9 @@ function modusKarte(mode) {
     <div class="card">
       <div class="small muted">Beide Fassungen stehen im selben Plan und treffen dieselben
         Muskelgruppen – nur mit dem, was gerade da ist. Umgestellt wird hier, so oft du willst,
-        <b>auch mitten im Training</b>: Die App führt für jede Variante ein eigenes Protokoll,
-        abgehakte Sätze der anderen bleiben stehen und sind beim Zurückschalten wieder da.</div>
+        <b>auch mitten im Training</b>: Die laufende Einheit wechselt mit, abgehakte Sätze der
+        anderen Variante bleiben stehen und zählen weiter. Eine schon trainierte Einheit bleibt
+        in der Variante, in der du sie gemacht hast.</div>
       <div class="btn-row nav" style="margin-top:10px" role="group" aria-label="Variante wählen">
         ${['db', 'bw'].map((m) => `
           <button type="button" class="btn ${m === mode ? 'btn-primary' : ''}"
@@ -2419,7 +2534,7 @@ function renderDashboard() {
     ${tagNotiz(w, mode, items)}`);
 
   items.forEach((it, i) => {
-    const sets = store.getSets(n, mode, it.id, it.sets).slice(0, it.sets);
+    const sets = store.getSets(n, mode, it.id, it.sets, it.nach || 0).slice(0, it.sets);
     const doneCount = sets.filter((s) => s.done).length;
     const open = ui.openEx.has(it.id);
     // Sätze aus dem anderen Modus zählen mit (siehe saetzeErledigt) – und die
@@ -4168,7 +4283,12 @@ function renderInjuries() {
   const swapCount = new Map();
   let wegenPause = 0;
   PLAN.forEach((w) => {
-    const r = injuryNotes(w.n);
+    // Mit dem Modus, wie die Wochenrechnung darunter (exOf(w, mode)) – ohne
+    // ihn zählte die Übersicht im Hantel-Modus den Goblet Squat beim
+    // Handgelenkbruch als „→ Hip Thrust getauscht", obwohl der Hip Thrust mit
+    // Hanteln selbst gesperrt ist und beide wegfallen (modusNotiz() in
+    // js/plan.js).
+    const r = injuryNotes(w.n, mode);
     r.dropped.forEach((d) => {
       gone.push(d);
       if (d.reason === 'rest') wegenPause += d.sets;
@@ -5569,8 +5689,18 @@ view.addEventListener('click', (e) => {
       const id = t.dataset.ex;
       const i = Number(t.dataset.i);
       const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
-      const cur = store.getSets(n, mode, id, item.sets)[i].done;
+      const cur = store.getSets(n, mode, id, item.sets, item.nach || 0)[i].done;
       const variant = resolve(item, mode);
+      // Eine Übung, die über beide Modi fertig ist, bekommt keinen Satz mehr
+      // dazu. Nach dem Umschalten stehen ihre Knöpfe in diesem Modus leer da,
+      // und ein Tipp darauf buchte bis hierher einen Satz, der nie gemacht
+      // wurde: 3 Hantelsätze + 1 in der Statistik, und die App sprang mit
+      // „Weiter: …" davon. Zurücknehmen geht weiter – das ist ein Haken in
+      // diesem Modus, der wirklich dasteht.
+      if (!cur && saetzeErledigt(n, id, item.sets) >= item.sets) {
+        toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
+        break;
+      }
       initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
 
       // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
@@ -5578,7 +5708,7 @@ view.addEventListener('click', (e) => {
       const patch = { done: !cur };
       if (!cur && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
       else if (cur) patch.w = '';
-      store.updateSet(n, mode, id, item.sets, i, patch);
+      store.updateSet(n, mode, id, item.sets, i, patch, item.nach || 0);
 
       const done = !cur;
       const workoutComplete = done && progressOf(n, mode).complete;
@@ -5721,7 +5851,7 @@ view.addEventListener('click', (e) => {
     case 'backup-teilen':
       teileBackup();
       break;
-    case 'start-session':
+    case 'start-session': {
       if (!workoutByNo(n).ex.length) {
         toast('Heute fällt alles weg – nichts zu starten');
         break;
@@ -5739,13 +5869,36 @@ view.addEventListener('click', (e) => {
       }
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       sound('start');
+      // Läuft noch eine andere Einheit, wird sie zuerst beendet – mit ihrer
+      // Zeit. startSession() ersetzt die Uhr, und gebucht wird nur beim
+      // Anhalten; ohne diese Zeile war alles seit dem letzten Wegschalten der
+      // App verloren. Gefragt ist vorher schon: Der Knopf dafür sagt, dass die
+      // andere endet (laufendWoandersBlock()).
+      const lief = store.getState().session;
+      const vorige = lief && lief.n !== n ? lief.n : null;
+      if (vorige !== null) {
+        if (store.getState().rest) endRest(false);
+        store.endSession();
+      }
       store.startSession(n);
       ui.focus = true;
       ui.listView = false;
       ui.focusIdx = firstOpenExercise(n, mode);
       render();
-      toast('Los geht’s 💪');
+      toast(vorige !== null ? `${einheitTitel(vorige)} beendet, Zeit gespeichert – los geht’s 💪` : 'Los geht’s 💪');
       break;
+    }
+    case 'zur-laufenden': {
+      const lief = store.getState().session;
+      if (!lief) { render(); break; }
+      ui.workoutNo = lief.n;
+      ui.openEx.clear();
+      ui.focus = true;
+      ui.listView = false;
+      ui.focusIdx = firstOpenExercise(lief.n, store.workoutMode(lief.n));
+      render();
+      break;
+    }
     case 'finish-session': {
       const prog = progressOf(n, mode);
       // Abgehakt ist abgehakt: Wer hier tippt, ist fertig – der Tag zählt als
@@ -5996,13 +6149,29 @@ view.addEventListener('click', (e) => {
        */
       const neu = t.dataset.v === 'bw' ? 'bw' : 'db';
       store.setMode(neu);
-      store.setWorkoutMode(ui.workoutNo, neu);
+      // Umgestellt wird die laufende Einheit und die, die gerade vorn steht –
+      // diese aber nur, solange sie unberührt ist. `ui.workoutNo` ist, was
+      // zuletzt auf dem Dashboard stand, auch eine längst trainierte Einheit,
+      // zu der man geblättert hat. Deren Modus kippte bis hierher mit: Die
+      // fertige Hantel-Einheit von heute hieß nach „ab jetzt Bodyweight"
+      // plötzlich Bodyweight-Einheit, mit anderen Übungen und Haken nur noch
+      // über „schon mit Hanteln gemacht". Was trainiert ist, bleibt in der
+      // Variante, in der es trainiert wurde; die nächste Einheit nimmt die
+      // neue von selbst (workoutMode() in js/store.js).
+      const lief = store.getState().session;
+      const vorn = ui.workoutNo;
+      const vornEintrag = store.getState().log[vorn];
+      const unberuehrt = !store.isStarted(vorn) && !(vornEintrag && vornEintrag.done);
+      if (lief) store.setWorkoutMode(lief.n, neu);
+      if (unberuehrt && !(lief && lief.n === vorn)) store.setWorkoutMode(vorn, neu);
       // Die Fokusansicht zeigt eine Übung an ihrer Position; die andere
       // Variante hat dieselbe Zahl Übungen, aber wer gerade bei Nummer 5 stand,
       // soll dort auch wieder landen. Das tut sie von selbst – ui.focusIdx
       // bleibt stehen und wird beim Zeichnen begrenzt.
       render();
-      toast(`${MODE_LABEL[neu]} – Abgehaktes bleibt gespeichert`);
+      toast(unberuehrt || (lief && lief.n === vorn)
+        ? `${MODE_LABEL[neu]} – Abgehaktes bleibt gespeichert`
+        : `${MODE_LABEL[neu]} – ${einheitTitel(vorn)} bleibt, wie du sie trainiert hast`);
       break;
     }
     case 'set-rest':
@@ -6553,7 +6722,7 @@ view.addEventListener('input', (e) => {
     const n = ui.workoutNo;
     const mode = store.workoutMode(n);
     const item = workoutByNo(n, mode).ex.find((x) => x.id === t.dataset.ex);
-    store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value });
+    store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value }, item.nach || 0);
   } else if (t.dataset.act === 'scheiben-stange') {
     // Beim Tippen still speichern, ohne neu zu rendern: Ein render() würde das
     // Feld ersetzen und den Fokus mitnehmen, mitten im Wort.
@@ -6748,6 +6917,11 @@ if (fokusUmzug()) {
 // Runde läuft weiter – kein Neuanfang, also auch kein Verschieben auf heute.
 // Nach fokusUmzug(), nicht davor – der stellt erst fest, welcher Plan gilt.
 const planUmgebaut = planWechsel() || festReparieren();
+// Danach, und immer: auch die Listen, die eben erst festgeschrieben wurden,
+// können aus einem `soll` ohne Nacharbeits-Vermerk stammen. Still – die
+// Einheit zeigt danach wieder, was sie vor dem Update zeigte, und das ist
+// keine Nachricht.
+festNachReparieren();
 if (planUmgebaut) {
   ui.tab = 'dashboard';
   ui.focus = false;
@@ -6811,7 +6985,16 @@ if (neuAngefangen) store.setShift(shiftToToday());
 // *neuen* gegenüber, und dagegen gerechnet findet sammleStats() so gut wie
 // nichts. Erst nachdem der Umzug die Runde samt Bilanz abgelegt hat, steht dem
 // Aufstieg die richtige Zahl gegenüber.
-if (pruefeAufstieg() || pruefeZusatztag()) {
+//
+// Beide Prüfungen laufen, jede für sich – nicht `pruefeAufstieg() ||
+// pruefeZusatztag()`. Mit dem Kurzschluss blieb nach einem Aufstieg beim Start
+// der fällige Zusatztag aus, und ein veralteter, unberührter wurde nicht
+// weggeräumt – er stand dann über naechsteEinheit() sogar als nächste Einheit
+// da. Nach einer Einheit (toggle-set, finish-session) liefen sie schon immer
+// nacheinander.
+const gestiegenBeimStart = pruefeAufstieg();
+const zusatzBeimStart = pruefeZusatztag();
+if (gestiegenBeimStart || zusatzBeimStart) {
   ui.tab = 'dashboard';
   ui.focus = false;
   // Der Zusatztag entsteht erst hier, also nach der Wahl der Startansicht ganz

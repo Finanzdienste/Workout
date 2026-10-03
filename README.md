@@ -175,6 +175,14 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   zwischendurch das Handy weglegt, bekommt sonst zwei Stunden angezeigt, in
   denen vierzig Minuten trainiert wurde. *Fortsetzen* zählt weiter statt neu
   anzufangen, über Nacht fängt sie von vorn an, *Abbrechen* setzt sie zurück.
+* **Eine Einheit läuft, die nächste wartet.** Wer mitten im Training zur
+  nächsten Einheit blättert, sieht dort nicht *Start*, sondern *Zurück zu
+  Workout 1* – fast immer will man nur vorausschauen. Darunter steht, leiser,
+  *Diese starten – Workout 1 wird beendet*. Vorher stand dort der gewöhnliche
+  Startknopf, und ein Tipp ersetzte die Uhr der laufenden Einheit: Die Zeit seit
+  dem letzten Wegschalten der App war weg, ohne ein Wort. Jetzt wird die
+  laufende beim Wechsel erst beendet und ihre Zeit gebucht; ihre Sätze bleiben,
+  sie ist danach angefangen wie jede unterbrochene Einheit.
 * **Keine Wiederholungen eintragen.** Die stehen im Plan.
 * **Ein Arbeitsgewicht je Übung**, vorbelegt mit einem Startwert (siehe unten).
   Änderbar durch Antippen der Zahl oder über **−** und **+**, die je Übung
@@ -1948,6 +1956,23 @@ findet die App selbst und schreibt es hin. Die andere steht als `COMBOS` von
 Hand in der Datei – Dinge, die man wissen muss und die keine Formel hergibt,
 etwa dass Tennis- und Golferarm zusammen den kompletten Zug lahmlegen.
 
+**Ein Tausch auf eine Übung, die der Modus sperrt, ist kein Tausch.** Manche
+Sperren gelten nur in einem Modus (`avoidDb`, `avoidBw`): Beim Handgelenkbruch
+ist der Hip Thrust mit Hanteln gesperrt, weil die Hand die Stange auf der Hüfte
+hält – und dieselbe Beschwerde tauscht den Goblet Squat auf den Hip Thrust. Im
+Hantel-Modus fielen dann beide weg, aber die Karte im Training sagte
+„Goblet Squat → Hip Thrust" und gleich daneben „Hip Thrust fällt aus", und der
+Tab zählte die Goblet-Sätze als getauscht. Dasselbe Muster steht an mehr als
+einer Stelle – die Handgelenksüberlastung tauscht Liegestütze auf die Floor
+Press und sperrt sie ohne Hanteln, und 16 weitere Beschwerden tauschen auf
+eine Übung, die eine *andere* nur in einem Modus sperrt. Deshalb liest die
+Notiz die Kette jetzt allgemein zu Ende (`modusNotiz()` in `js/plan.js`):
+Fällt das Ziel im Modus weg, fällt die Ursprungsübung aus; wird es im Modus
+weitergetauscht, heißt es gleich „A → Y". Der Tab rechnet dafür im
+eingestellten Modus, wie die Wochentabelle darunter. `tests/test-injuries.mjs`
+prüft jede Beschwerde einzeln und jedes solche Paar in beiden Modi an jeder
+Einheit.
+
 **Die 3D-Figur** kommt aus `js/figure.js`, mit einer ruhig stehenden Stellung
 (`stand`) und Marken an den betroffenen Stellen. `SPOTS` übersetzt einen Namen
 wie `knee` in Punkte am Skelett; was es doppelt gibt, wird auch doppelt
@@ -2227,6 +2252,23 @@ Ausführung nachgeschärft.
 
 Beide Varianten werden **getrennt** protokolliert: Wer ein Workout mit Hanteln
 beginnt und auf Bodyweight umschaltet, verliert die Einträge nicht.
+
+**Was umgestellt wird.** Die Wahl unter *Mehr* gilt für die laufende Einheit
+und für die, die gerade vorn steht, solange dort noch nichts abgehakt ist –
+die nächsten nehmen sie von selbst. Eine schon trainierte Einheit bleibt in der
+Variante, in der sie gemacht wurde. Vorher kippte jede Einheit mit, die
+zuletzt auf dem Dashboard stand: Wer nach der fertigen Hantel-Einheit „für das
+nächste Mal" auf Bodyweight stellte, sah die von heute danach als
+Bodyweight-Einheit, mit anderen Übungen. Die Karte unter *Mehr* sagt es so.
+
+**Fertig ist fertig, auch in der Fokusansicht.** Sätze beider Varianten zählen
+zusammen (`saetzeErledigt()`), und so zählen jetzt auch Fortschrittsleiste,
+Satzknöpfe und der Knopf *Weiter* in der Fokusansicht – vorher nur der Eimer
+der gerade eingestellten Variante. Nach dem Umschalten stand die mit Hanteln
+fertige Übung dort mit leeren Feldern da, während der Kopf sie mitzählte, und
+ein Tipp auf einen leeren Knopf buchte einen Satz, den es nie gab. Jetzt steht
+darunter, wie in der Liste, dass die Sätze der anderen Variante mitzählen, und
+eine über beide fertige Übung bekommt keinen Satz mehr dazu.
 
 Ist „Modus je Workout merken“ aktiv (Standard), behält eine einmal bearbeitete
 Einheit ihren Modus, auch wenn global umgeschaltet wird.
@@ -3059,6 +3101,39 @@ Reparatur einer Anfänger-Einheit (auch nach einem Aufstieg), beide Hinweise auf
 einmal, einen Planwechsel mit Beschwerde, die später wegfällt, einen bloß
 angezeigten Eintrag einer gesperrten Übung und den Vorrang von `soll`.
 
+**Zwei Zahlen, die beim Festschreiben nicht stimmten.**
+
+* **Die Nacharbeit kam doppelt.** `soll` hält die Satzzahl, die auf dem
+  Bildschirm stand – samt „+1 nachgeholt". So ging sie in die feste Liste, und
+  `exOf()` legte die Nacharbeit dann noch einmal obendrauf. Nachgestellt an
+  einer angefangenen BBP-Einheit: vor dem Update 21 Sätze, danach 23, der
+  Goblet Squat mit 5(+1) statt 4(+1), die erhöhten Liegestütze mit 4 ohne
+  Vermerk. Das Protokoll merkt sich jetzt neben `soll`, wie viel davon
+  Nacharbeit war (`nach`), und die feste Liste ist die Basis ohne sie.
+* **Die andere Variante bekam die falsche Satzzahl.** Festgeschrieben wurde nur
+  die Zahl des Modus, in dem trainiert wurde. Wer danach auf Bodyweight
+  umstellte, bekam das hängende Knieheben mit den drei Sätzen des Hantel-Tages
+  statt mit vier. Die Liste trägt jetzt beide (`sets`, `bwSets`). Eine ältere
+  ohne `bwSets` bleibt, wie sie war: ihre eine Zahl in beiden Modi.
+
+**Was schon doppelt dastand, wird repariert – aber nur, wo es sicher geht**
+(`festNachReparieren()`). Für Listen von vorher, und für ein `soll` von vorher,
+gibt es den Vermerk `nach` nicht. Sichtbar ist die Doppelung nur an einer
+Einheit, die noch offen ist und auf die `exOf()` jetzt Nacharbeit legt. Dort
+ist die Nacharbeit des Tages dieselbe Rechnung wie heute – sie misst die
+Einheiten davor in derselben Woche, und die ändern sich nicht mehr –, also wird
+sie an genau diesen Übungen abgezogen, wo die feste Zahl aus `soll` stammt. Die
+Einheit zeigt danach, was sie vor dem Update zeigte. Eine abgeschlossene
+Einheit bleibt, wie sie ist: Auf sie legt `exOf()` nichts mehr, und ob eine
+Vier dort „3 + 1" war oder die vier Sätze eines Fortgeschrittenen, sagt das
+Protokoll nicht – lieber die Zahl stehen lassen, die so zu sehen war, als eine
+zu erfinden. Jede Liste wird dabei einmal angesehen und vermerkt
+(`festNetto`), wie `festReparieren()` es mit `festAus` hält; was später in der
+Woche an Nacharbeit dazukommt, ist echte Nacharbeit. Geprüft in
+`tests/test-fest-vollstaendig.mjs`, mit und ohne Vermerk, an einer schon
+doppelt festgeschriebenen Liste, an einer vermerkten und an einer
+abgeschlossenen.
+
 **Dass der Plan davor dort auch liegt, prüft inzwischen ein Skript.** Anfangs
 war es nur eine Bitte in diesem Abschnitt, und Vergessen fiele erst auf, wenn
 wieder eine angefangene Einheit zu kurz ist. Eine veraltete Datei hilft dabei so
@@ -3583,6 +3658,14 @@ Sätze zählen trotzdem in der Statistik mit; trainiert ist trainiert.
 **Nur einmal je Woche.** Der Rückstand schrumpft nicht dadurch, dass man den
 Zusatztag macht – er steht im Plan, nicht im Protokoll. Ohne diese Sperre käme
 bei jedem Laden ein weiterer dazu.
+
+**Auch beim Start mit Aufstieg.** Beim Öffnen der App prüft sie beides,
+Stufenaufstieg und Zusatztag, jedes für sich. Dort stand
+`pruefeAufstieg() || pruefeZusatztag()`, und der Kurzschluss ließ die zweite
+Prüfung aus, sobald die erste einen Aufstieg meldete – etwa nach dem Einlesen
+einer Sicherung. Der fällige Zusatztag fehlte dann bis zum nächsten Laden, und
+ein veralteter, unberührter blieb stehen und galt sogar als nächste Einheit.
+Nach einer Einheit liefen die beiden schon immer nacheinander.
 
 `tests/test-zusatztag.mjs`, über 20 Prüfungen – darunter die Gegenrechnung über
 den echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in

@@ -198,6 +198,55 @@ check(!/Abgeschlossen/.test(abzeichen),
 check(abzeichen.includes(`${soll.gesetzt}/${soll.db}`),
   `und die Anzeige nennt das Hantel-Soll ${soll.gesetzt}/${soll.db} (${abzeichen.slice(0, 70)}…)`);
 
+// --- 6. Umstellen unter Mehr: laufende und unberührte Einheit, keine fertige ---
+// set-modus schrieb den Modus der Einheit um, die zuletzt auf dem Dashboard
+// stand – auch einer fertigen. Die Hantel-Einheit von heute hieß nach „ab
+// jetzt Bodyweight" plötzlich Bodyweight-Einheit.
+await page.evaluate(() => localStorage.setItem('workout.state.v1',
+  JSON.stringify({ greeted: true, name: 'T', level: 'geuebt', mode: 'db', restSeconds: 0 })));
+await page.reload({ waitUntil: 'networkidle' });
+await page.evaluate(async () => {
+  const s = await import('./js/store.js');
+  const { workoutByNo } = await import('./js/plan.js');
+  s.completeWorkout(1, 'db', workoutByNo(1, 'db').ex);
+  s.markDone(1, 'db');
+});
+await page.reload({ waitUntil: 'networkidle' });
+const modusVon = (n) => page.evaluate(async (nn) => {
+  const s = await import('./js/store.js');
+  return { mode: s.workoutMode(nn), eintrag: (s.getState().log[nn] || {}).mode || null };
+}, n);
+const umstellen = async (m) => {
+  await page.locator('.tab[data-tab="settings"]').click();
+  await page.waitForTimeout(200);
+  await page.locator(`[data-act="set-modus"][data-v="${m}"]`).first().click();
+  await page.waitForTimeout(200);
+  await page.locator('.tab[data-tab="dashboard"]').click();
+  await page.waitForTimeout(200);
+};
+// Zur fertigen Einheit 1 zurückblättern, dann umstellen.
+const vorn6 = await page.evaluate(() => (document.querySelector('.hero-eyebrow') || {}).textContent || '');
+if (!/Workout 1\b/.test(vorn6)) {
+  await page.locator('[data-act="nav-workout"][data-delta="-1"]').first().click();
+  await page.waitForTimeout(200);
+}
+await umstellen('bw');
+const fertig1 = await modusVon(1);
+const naechste2 = await modusVon(2);
+check(fertig1.mode === 'db', `die fertige Hantel-Einheit bleibt Hantel-Einheit (${fertig1.mode})`);
+check(naechste2.mode === 'bw', `die nächste, unberührte Einheit nimmt die neue Variante (${naechste2.mode})`);
+// Mitten in Einheit 2 zurück auf Hanteln: Die laufende wechselt mit.
+await page.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+await page.waitForTimeout(200);
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(200);
+await page.locator('.focus-set').first().click();
+await page.waitForTimeout(200);
+await umstellen('db');
+const laufend2 = await modusVon(2);
+check(laufend2.mode === 'db', `die laufende Einheit wechselt mitten im Training mit (${laufend2.mode})`);
+check((await modusVon(1)).mode === 'db', 'und die fertige bleibt, wie sie war');
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

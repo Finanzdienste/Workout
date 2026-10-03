@@ -36,6 +36,10 @@
  *      nicht zurück.
  *  10. `soll` aus dem Protokoll geht vor der heutigen Stufe; eine angefasste
  *      Übung in ihrer angezeigten Fassung bleibt, was sie war.
+ *  11. Die Nacharbeit des Tages steht nicht in der festen Liste – exOf() legt
+ *      sie genau einmal darauf. Schon doppelt festgeschriebene Listen einer
+ *      offenen Einheit werden beim Start berichtigt, einmal und mit Vermerk.
+ *  12. Die feste Liste kennt die Satzzahl beider Modi (`bwSets`).
  *
  * Und zu 5.: Die Startkarte zeigt danach die reparierte Einheit, nicht die
  * nächste – bis v219 stand dort „Workout 5" neben „wieder vollständig".
@@ -451,6 +455,141 @@ if (!stufe) {
   check(behalten.fest[j] === `${liste[j].leicht}:${liste[j].sets}`,
     `angezeigt und angefasst als ${liste[j].leicht}: bleibt fest, auch als Geübter (${behalten.fest.join(' ')})`);
   check(gleich(behalten.ex, behalten.fest), `und so zeigt die App es auch (${behalten.ex.join(' ')})`);
+}
+
+// --- 11. Nacharbeit steht nicht doppelt in der festen Liste -----------------
+// `soll` hält die Satzzahl samt „+1 nachgeholt". Bis v224 schrieb der
+// Planwechsel sie so fest, und exOf() legte die Nacharbeit noch einmal darauf:
+// Goblet Squat 5(+1) statt 4(+1). Woche: Einheit 1 von Hand abgeschlossen mit
+// je einem Satz, Einheit 2 angefangen – beide mit den Übungen des Plans davor.
+const woche = await page.evaluate(async () => {
+  const { PLANS } = await import('./js/data.js');
+  const f = Object.keys(PLANS).find((k) => PLANS[k].vorher && PLANS[k].vorher.ex[1]);
+  if (!f) return null;
+  const v = PLANS[f].vorher;
+  return { f, stand: PLANS[f].stand, alt: v.stand, e1: v.ex[0], e2: v.ex[1] };
+});
+if (!woche) {
+  console.log('     kein Plan davor – 11. und 12. entfallen');
+} else {
+  const e1 = {
+    mode: 'db', startedOn: '2026-09-28', done: 'db', bw: {},
+    db: Object.fromEntries(woche.e1.map(([id, s]) => [id, Array.from({ length: s }, (_, k) => (k ? {} : { w: '20', done: true }))])),
+    soll: Object.fromEntries(woche.e1.map(([id, s]) => [id, s])),
+  };
+  // Einheit 2, wie die App sie angelegt hätte: `plus` ist die Nacharbeit des
+  // Tages, `vermerk` sagt, ob das Protokoll sie kennt (`nach`, seit dieser
+  // Fassung) oder nicht (alles davor).
+  const e2 = (plus, vermerk) => ({
+    mode: 'db', startedOn: '2026-09-30', bw: {},
+    db: Object.fromEntries(woche.e2.map(([id, s], i) => [id,
+      Array.from({ length: s + (plus[id] || 0) }, (_, k) => (i === 0 && k === 0 ? { w: '20', done: true } : {}))])),
+    soll: Object.fromEntries(woche.e2.map(([id, s]) => [id, s + (plus[id] || 0)])),
+    ...(vermerk ? { nach: Object.fromEntries(woche.e2.map(([id]) => [id, plus[id] || 0])) } : {}),
+  });
+  const basis = Object.fromEntries(woche.e2.map(([id, s]) => [id, s]));
+  const liesE2 = () => page.evaluate(async () => {
+    const { getState } = await import('./js/store.js');
+    const { workoutByNo } = await import('./js/plan.js');
+    const e = getState().log[2] || {};
+    return {
+      fest: (e.fest || []).map((x) => [x.id, x.sets]),
+      ex: workoutByNo(2, 'db').ex.map((x) => [x.id, x.sets, x.nach || 0]),
+      festNetto: !!e.festNetto,
+      e1: getState().log[1],
+    };
+  });
+  const zeig = (r) => r.ex.map(([id, s, n]) => `${id}:${s}${n ? `(+${n})` : ''}`).join(' ');
+  // Jede Übung hat genau ihre Basis aus dem Plan davor, und die Nacharbeit
+  // kommt höchstens einmal obendrauf – mit Vermerk.
+  const sauber = (r) => r.ex.length === woche.e2.length
+    && r.ex.every(([id, s, n]) => basis[id] !== undefined && s - n === basis[id] && n <= 1);
+
+  // Erst nachsehen, welche Nacharbeit diese Woche überhaupt ergibt.
+  await setze({ greeted: true, mode: 'db', focus: woche.f, planStand: { [woche.f]: woche.alt }, log: { 1: e1, 2: e2({}, true) } });
+  const probe = await liesE2();
+  const plus = Object.fromEntries(probe.ex.filter(([, , n]) => n).map(([id, , n]) => [id, n]));
+  console.log(`     ${woche.f}, Einheit 2: Nacharbeit ${JSON.stringify(plus)}`);
+  check(Object.keys(plus).length > 0, 'die Woche ergibt Nacharbeit für Einheit 2 (sonst prüft 11. nichts)');
+
+  // a) Mit Vermerk: genau herausgerechnet.
+  await setze({ greeted: true, mode: 'db', focus: woche.f, planStand: { [woche.f]: woche.alt }, log: { 1: e1, 2: e2(plus, true) } });
+  const mitVermerk = await liesE2();
+  check(mitVermerk.fest.every(([id, s]) => s === basis[id]),
+    `festgeschrieben wird die Basis ohne Nacharbeit (${mitVermerk.fest.map((x) => x.join(':')).join(' ')})`);
+  check(sauber(mitVermerk), `und die Nacharbeit kommt genau einmal dazu (${zeig(mitVermerk)})`);
+
+  // b) `soll` von vor dem Vermerk, der Planwechsel kommt jetzt.
+  await setze({ greeted: true, mode: 'db', focus: woche.f, planStand: { [woche.f]: woche.alt }, log: { 1: e1, 2: e2(plus, false) } });
+  const ohneVermerk = await liesE2();
+  check(sauber(ohneVermerk) && ohneVermerk.festNetto,
+    `soll ohne Vermerk: nachgerechnet, die Nacharbeit steht einmal da (${zeig(ohneVermerk)})`);
+
+  // c) Schon doppelt festgeschrieben (v215–v224), kein neuer Planwechsel.
+  const altFest = { ...e2(plus, false), fest: woche.e2.map(([id, s]) => ({ id, sets: s + (plus[id] || 0) })), festAus: woche.alt };
+  await setze({ greeted: true, mode: 'db', focus: woche.f, planStand: { [woche.f]: woche.stand }, log: { 1: probe.e1, 2: altFest } });
+  const doppelt = await liesE2();
+  check(sauber(doppelt) && doppelt.festNetto,
+    `eine schon doppelt festgeschriebene Liste wird beim Start berichtigt und vermerkt (${zeig(doppelt)})`);
+
+  // d) Einmal vermerkt, nie wieder nachgerechnet – auch nicht, wenn die Zahl
+  // danach noch so aussieht.
+  await setze({ greeted: true, mode: 'db', focus: woche.f, planStand: { [woche.f]: woche.stand },
+    log: { 1: probe.e1, 2: { ...altFest, festNetto: true } } });
+  const vermerkt = await liesE2();
+  check(vermerkt.fest.every(([id, s]) => s === basis[id] + (plus[id] || 0)),
+    `eine vermerkte Liste bleibt, wie sie ist (${vermerkt.fest.map((x) => x.join(':')).join(' ')})`);
+
+  // e) Eine abgeschlossene Einheit bleibt, wie sie war: Was dort Nacharbeit
+  // war, ist aus dem Protokoll nicht mehr sicher abzulesen.
+  await setze({ greeted: true, mode: 'db', focus: woche.f, planStand: { [woche.f]: woche.stand },
+    log: { 1: probe.e1, 2: { ...altFest, done: 'db' } } });
+  const fertigE2 = await liesE2();
+  check(fertigE2.fest.every(([id, s]) => s === basis[id] + (plus[id] || 0)),
+    `eine abgeschlossene Einheit wird nicht umgerechnet (${fertigE2.fest.map((x) => x.join(':')).join(' ')})`);
+}
+
+// --- 12. Die feste Liste kennt die Satzzahl beider Modi --------------------
+// Mit Hanteln angefangen, Plan-Update, dann auf Bodyweight umgestellt: Eine
+// Übung mit sets ≠ bwSets (hängendes Knieheben 3/4) bekam die Hantel-Zahl.
+const beideModi = await page.evaluate(async () => {
+  const { PLANS } = await import('./js/data.js');
+  for (const f of Object.keys(PLANS)) {
+    const v = PLANS[f].vorher;
+    if (!v) continue;
+    const i = v.ex.findIndex((l) => l.length >= 3 && l.slice(1).some(([, s, b]) => b && b !== s));
+    if (i >= 0) return { f, alt: v.stand, stand: PLANS[f].stand, n: i + 1, liste: v.ex[i] };
+  }
+  return null;
+});
+if (!beideModi) {
+  console.log('     kein Plan davor mit einer Übung, die in beiden Modi verschieden viele Sätze hat – 12. entfällt');
+} else {
+  const [erste] = beideModi.liste;
+  const anders = beideModi.liste.slice(1).find(([, s, b]) => b && b !== s);
+  const angefangen = {
+    mode: 'db', startedOn: '2026-09-30', bw: {},
+    db: { [erste[0]]: Array.from({ length: erste[1] }, (_, k) => (k ? {} : { w: '20', done: true })) },
+    soll: { [erste[0]]: erste[1] },
+  };
+  const liesModi = (n) => page.evaluate(async (nn) => {
+    const { workoutByNo } = await import('./js/plan.js');
+    const satz = (m) => Object.fromEntries(workoutByNo(nn, m).ex.map((x) => [x.id, x.sets]));
+    return { db: satz('db'), bw: satz('bw') };
+  }, n);
+  await setze({ greeted: true, mode: 'db', focus: beideModi.f, planStand: { [beideModi.f]: beideModi.alt },
+    log: { [beideModi.n]: angefangen } });
+  const modi = await liesModi(beideModi.n);
+  console.log(`     ${beideModi.f}, Einheit ${beideModi.n}: ${anders[0]} ${anders[1]}/${anders[2]}`);
+  check(modi.db[anders[0]] === anders[1], `mit Hanteln ${anders[0]} mit ${anders[1]} Sätzen (${modi.db[anders[0]]})`);
+  check(modi.bw[anders[0]] === anders[2], `ohne Hanteln mit ${anders[2]} Sätzen wie im Plan davor (${modi.bw[anders[0]]})`);
+
+  // Eine Liste von vor dieser Angabe hat nur `sets` – sie bleibt, wie sie war.
+  await setze({ greeted: true, mode: 'db', focus: beideModi.f, planStand: { [beideModi.f]: beideModi.stand },
+    log: { [beideModi.n]: { ...angefangen, fest: beideModi.liste.map(([id, s]) => ({ id, sets: s })), festAus: beideModi.alt } } });
+  const altModi = await liesModi(beideModi.n);
+  check(altModi.bw[anders[0]] === anders[1] && altModi.db[anders[0]] === anders[1],
+    `eine alte Liste ohne bwSets zeigt in beiden Modi ihre eine Zahl, wie bisher (${altModi.db[anders[0]]}/${altModi.bw[anders[0]]})`);
 }
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

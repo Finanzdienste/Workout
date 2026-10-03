@@ -326,6 +326,29 @@ check(gesternRuhe.treffer.length === 0,
   `und er lässt die Gruppen von gestern in Ruhe${
     gesternRuhe.treffer.length ? ': ' + gesternRuhe.treffer.join(', ') + '@W4' : ''}`);
 
+// --- Aufstieg und Zusatztag beim selben Start ----------------------------
+// Beim Start stand `pruefeAufstieg() || pruefeZusatztag()`: Kam ein Aufstieg,
+// lief die zweite Prüfung gar nicht, und der fällige Zusatztag fehlte bis zum
+// nächsten Laden. Aufstieg wie in test-aufstieg.mjs: Anfänger mit Gewichten
+// über dem Start.
+const steigt = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  const w = {};
+  EXERCISES.filter((e) => e.weight > 0).slice(0, 8).forEach((e) => { w[e.id] = e.weight * 1.1; });
+  return w;
+});
+await setze({ greeted: true, name: 'T', level: 'anfaenger', shift: schiebe, weights: steigt,
+  log: await protokoll(0, 4, 2) });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(600);
+const mitAufstieg = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  return { level: store.getState().level, customs: store.customs().map((c) => c.name) };
+});
+check(mitAufstieg.level !== 'anfaenger', `beim Start kam ein Aufstieg (${mitAufstieg.level})`);
+check(mitAufstieg.customs.some((c) => /Zusatztag Woche 1/.test(c)),
+  `und der fällige Zusatztag steht trotzdem schon beim selben Start da (${mitAufstieg.customs.join(', ') || 'nichts'})`);
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();
