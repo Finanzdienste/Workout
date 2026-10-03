@@ -354,6 +354,52 @@ function stuetz(spec, t) {
  */
 export function skelett(spec, t) {
   let j = spec.stuetz ? stuetz(spec, t) : solve(mische(spec, t));
+  // An der Stange, die Füße am Boden (Inverted Row, Trizeps an der Stange):
+  // Die Fersen stehen, und der Körper dreht sich um sie. Mit den beiden
+  // Endstellungen allein wanderte der tiefste Punkt – bei der Inverted Row
+  // steckten die Fersen bei t≈0,25 0,010 im Boden und schwebten oben 0,045
+  // darüber, beim Trizeps hoben sie auf halbem Weg 0,038 ab. Der Boden wird
+  // aber einmal aus der Startstellung gezeichnet (fit.groundY). Also wie beim
+  // Stütz je Bild nachrechnen: den ganzen Körper starr drehen (lean und Hüfte
+  // gegenläufig – das ist dieselbe Drehung wie tilt, nur auch im Stehen) und
+  // den Schulterwinkel nachstellen, bis der Fuß, der am Start unten war, so
+  // tief und so weit von der Stange steht wie dort. Nur die Neigung zu suchen
+  // hielt die Höhe, ließ die Fersen aber 0,08 zur Stange rutschen; zwei
+  // Bedingungen brauchen zwei Winkel, gelöst gemeinsam mit Newton.
+  if (spec.anchor === 'bar' && !spec.float && t !== 0) {
+    const start = solve(mische(spec, 0));
+    const fussName = ['ankleL', 'ankleR', 'toeL', 'toeR'].reduce((a, b) => (start[b][1] < start[a][1] ? b : a));
+    const lage = (q) => {
+      const h = mitte(q.handL, q.handR);
+      const f = q[fussName];
+      return [f[1] - h[1], Math.hypot(f[0] - h[0], f[2] - h[2])];
+    };
+    const ziel = lage(start);
+    const pose = mische(spec, t);
+    const stell = (x) => ({
+      ...pose, lean: pose.lean + x[0],
+      legL: { ...pose.legL, p: pose.legL.p - x[0] },
+      legR: { ...pose.legR, p: pose.legR.p - x[0] },
+      armL: { ...pose.armL, p: pose.armL.p + x[1] },
+      armR: { ...pose.armR, p: pose.armR.p + x[1] },
+    });
+    const F = (x) => lage(solve(stell(x))).map((v, i) => v - ziel[i]);
+    let x = [0, 0];
+    for (let i = 0; i < 16; i++) {
+      const f = F(x);
+      if (f.every((v) => Math.abs(v) < 1e-6)) break;
+      const h = 0.05;
+      const spalten = [0, 1].map((k) => {
+        const y = x.slice(); y[k] += h;
+        return F(y).map((v, r) => (v - f[r]) / h);
+      });
+      const dx = loese([0, 1].map((r) => spalten.map((c) => c[r])), f);
+      if (!dx) break;
+      const k = Math.min(1, 10 / Math.max(...dx.map(Math.abs), 1e-9));
+      x = x.map((v, n) => v - k * dx[n]);
+    }
+    j = solve(stell(x));
+  }
   // An der Stange festhalten. Beim Griff an eine Stange bleiben die Hände
   // stehen und der Körper bewegt sich – andersherum wanderte die Stange mit
   // den Händen mit, was sofort als Fehler auffällt.
@@ -404,6 +450,23 @@ export function skelett(spec, t) {
  * Griff unter die Goblet-Hantel. `hantelLaengs` legt die Kurzhantel in
  * Blickrichtung, wie sie bei neutralem Griff liegt.
  */
+
+/*
+ * Füße aufgestellt – für alles, was mit angewinkelten Beinen auf dem Rücken
+ * liegt: Bodenpresse, Bodenpresse an der Stange, Trizeps im Liegen, Crunch.
+ *
+ * Vorher stand hier L(56, 9, 100), bzw. beim Crunch L(58, 9, 104). Der tiefste
+ * Punkt war damit in jeder Stellung die Hüfte, und Knöchel wie Zehen hingen
+ * 0,07 Körperlängen darüber – die Füße schwebten, während der Hinweis „Füße
+ * aufstellen" sagt. Gefunden bei der Durchsicht der Figuren.
+ *
+ * Bei p 56 legt erst k 116 die Ferse auf Hüfthöhe (nachgerechnet mit solve(),
+ * Knöchel 0,001 über der Hüfte). Das ist dieselbe Abmachung wie bei
+ * Beckenheben, Hip Thrust und Beinbeuger: Steht der Fuß, liegt der Knöchel
+ * auf dem Boden.
+ */
+const AUFGESTELLT = L(56, 9, 116);
+
 export const PATTERNS = {
   // Ruhig stehende Figur ohne Bewegung – Grundlage für die Verletzungskarte.
   // Die Arme stehen etwas ab, sonst verschwindet die Schultermarke im Rumpf.
@@ -576,8 +639,8 @@ export const PATTERNS = {
     // Boden – nachgesehen an gerenderten Bildern, nicht geschätzt.
     label: 'Drücken im Liegen', lie: 'supine', view: [25, -12],
     poses: [
-      { arm: A(10, 33, 104), leg: L(56, 9, 100) },
-      { arm: A(90, 10, 0), leg: L(56, 9, 100) },
+      { arm: A(10, 33, 104), leg: AUFGESTELLT },
+      { arm: A(90, 10, 0), leg: AUFGESTELLT },
     ],
   },
   pressbar: {
@@ -615,8 +678,8 @@ export const PATTERNS = {
     // stärker verkürzt erscheint – das ist der billigere Preis.
     label: 'Drücken im Liegen an der Stange', lie: 'supine', view: [20, -10],
     poses: [
-      { arm: A(9, 15, 110), leg: L(56, 9, 100) },
-      { arm: A(90, 14, 0), leg: L(56, 9, 100) },
+      { arm: A(9, 15, 110), leg: AUFGESTELLT },
+      { arm: A(90, 14, 0), leg: AUFGESTELLT },
     ],
   },
   row: {
@@ -821,8 +884,12 @@ export const PATTERNS = {
      * längs, y hoch):
      *
      *                Knie          Knöchel
-     *   Start    x 0.24 y 0.36   x 0.54 y 0.07   Füße stehen am Boden
-     *   Ende     x −0.18 y 0.39  x 0.23 y 0.43   Knie über dem Bauch, Füße frei
+     *   Start    x 0.28 y 0.33   x 0.53 y 0.00   Füße stehen am Boden
+     *   Ende     x −0.18 y 0.40  x 0.23 y 0.46   Knie über dem Bauch, Füße frei
+     *
+     * Am Start stand hier bis zur Durchsicht der Figuren L(50, 9, 95), und
+     * der Knöchel lag 0,04 über der Hüfte, also in der Luft – dieselbe Sache
+     * wie bei AUFGESTELLT oben. Mit k 103 steht er.
      *
      * Das negative x am Ende ist der Punkt: Die Knie kommen über die Hüfte
      * hinaus Richtung Brust, und genau dieses letzte Stück ist das Einrollen
@@ -836,7 +903,7 @@ export const PATTERNS = {
      */
     label: 'Knieheben im Liegen', lie: 'supine', view: [20, -30],
     poses: [
-      { arm: A(0, 17, 6), leg: L(50, 9, 95) },
+      { arm: A(0, 17, 6), leg: L(50, 9, 103) },
       { arm: A(0, 17, 6), leg: L(98, 9, 105), becken: 15 },
     ],
   },
@@ -959,8 +1026,8 @@ export const PATTERNS = {
     // Oberarm bleibt senkrecht stehen, nur der Ellenbogen arbeitet
     label: 'Trizeps-Strecken', lie: 'supine', view: [20, -30],
     poses: [
-      { arm: A(84, 8, 112), leg: L(56, 9, 100) },
-      { arm: A(90, 8, 4), leg: L(56, 9, 100) },
+      { arm: A(84, 8, 112), leg: AUFGESTELLT },
+      { arm: A(90, 8, 4), leg: AUFGESTELLT },
     ],
   },
   tricepsoh: {
@@ -1023,8 +1090,8 @@ export const PATTERNS = {
     poses: [
       // Unterarme längs am Rumpf statt quer darüber: eng gefaltet verdeckten
       // sie die Scheibe und alles verschmolz zu einem Knäuel.
-      { lean: 0, arm: A(46, -6, 120, 26), leg: L(58, 9, 104) },
-      { lean: 34, arm: A(46, -6, 120, 26), leg: L(58, 9, 104) },
+      { lean: 0, arm: A(46, -6, 120, 26), leg: AUFGESTELLT },
+      { lean: 34, arm: A(46, -6, 120, 26), leg: AUFGESTELLT },
     ],
   },
   legcurl1: {
@@ -1192,6 +1259,13 @@ export const PATTERNS = {
      * allein in den Winkeln.
      */
     label: 'Trizeps an der Stange', anchor: 'bar', barY: 0.02, bar: true,
+    // Von der Seite, wie beim Pike und aus demselben Grund. Im Standardblick
+    // (yaw 25) neigt sich der Körper fast genau auf die Kamera zu: Rumpf und
+    // Kopf deckten beide Beine bis auf zwei Stummel unter der Stange, und die
+    // schräge Linie von der Ferse bis zum Kopf, die der Hinweis verlangt, war
+    // in keinem Bild zu sehen. Bei 70° steht sie da, die Hände an der Kante,
+    // und die Arme liegen noch leicht versetzt statt deckungsgleich.
+    view: [70, 8],
     // leg.p spiegelt lean: nur so bleibt der Körper eine gerade Linie von den
     // Fersen bis zum Kopf. Mit senkrechten Beinen wurde daraus ein Hüftknick.
     poses: [
@@ -1202,11 +1276,29 @@ export const PATTERNS = {
   snowangel: {
     // Bauchlage, Arme angehoben, vom Kopf bis zur Hüfte und zurück
     label: 'Reverse Snow Angel', lie: 'prone',
+    /*
+     * Der Bogen geht seitlich, nicht durch den Boden.
+     *
+     * Vorher liefen die Arme über arm.p von 164 auf 26, also über die
+     * Beugung nach vorn – und „vorn" ist in Bauchlage der Boden. Auf halbem
+     * Weg zeigte der Arm senkrecht nach unten, die Hand wurde ab t≈0,45 zum
+     * tiefsten Punkt, und weil skelett() den tiefsten Punkt auf den Boden
+     * setzt, hob die ganze liegende Figur ab (Füße bis 0,10 über dem Boden)
+     * und sank zum Ende wieder. Ein Snow Angel ist aber ein Bogen in der
+     * Rumpfebene: von über dem Kopf über die Seite an die Hüfte, die Hände
+     * dabei vom Boden gelöst.
+     *
+     * Also über die Abspreizung (160 → 14), und arm.p leicht negativ: Das
+     * hebt die Arme in Bauchlage zur Decke. Nachgerechnet bleibt die Hand
+     * über den ganzen Weg 0,11 bis 0,46 über dem Boden, die Zehen liegen in
+     * jedem Bild auf, und am Ende steht die Hand neben der Hüfte (x 0,09 bei
+     * Hüfte 0) statt im Boden.
+     */
     poses: [
       // Brust deutlich angehoben: liegt der Rumpf flach, liegen auch die Arme
       // am Boden und von der Bewegung ist nichts zu sehen.
-      { lean: -24, arm: A(164, 32, 10), leg: L(0, 6, 4) },
-      { lean: -24, arm: A(26, 46, 10), leg: L(0, 6, 4) },
+      { lean: -24, arm: A(-8, 160, 10), leg: L(0, 6, 4) },
+      { lean: -24, arm: A(-8, 14, 10), leg: L(0, 6, 4) },
     ],
   },
   calf: {
@@ -1220,6 +1312,23 @@ export const PATTERNS = {
 };
 
 
+/**
+ * Gerät der Figur in der Bodyweight-Fassung, aus deren Gerätetext.
+ *
+ * Bodyweight heißt nicht gerätelos: Ein Loop-Band ist in beiden Fassungen
+ * dasselbe Gerät, und ein Rucksack auch – Rucksack-Curls und Rucksack-Rudern
+ * heißen in beiden so und sagen „beide Hände in die Trageschlaufen". Abgeleitet
+ * wurde aber nur das Band, und die Figur curlte und ruderte mit leeren Fäusten.
+ * Gefunden bei der Durchsicht der Figuren. Hier steht die Ableitung einmal;
+ * resolve() in js/plan.js und die Übersicht figuren.html benutzen sie beide,
+ * statt sie abzuschreiben.
+ */
+export function bwGeraet(equipText) {
+  if (/band/i.test(equipText || '')) return 'band';
+  if (/rucksack/i.test(equipText || '')) return 'backpack';
+  return null;
+}
+
 const NS = 'http://www.w3.org/2000/svg';
 const CYCLE_MS = 4200;   // eine Wiederholung; das Tempo darin ist unsymmetrisch
 const el = (name, attrs = {}) => {
@@ -1229,6 +1338,16 @@ const el = (name, attrs = {}) => {
 };
 
 const active = new Set();
+
+/**
+ * Halbe Länge der festen Stange, an der beim Face Pull das Band hängt.
+ *
+ * Bis zur Durchsicht der Figuren 0,9 – über zwei Meter bei einer Figur von
+ * 1,80 m, also breiter als jede Tür, in die man eine Klimmzugstange hängt.
+ * Seit der Ausschnitt die Stange mitzählt (fit), hätte diese Länge die ganze
+ * Figur klein gedrückt. 0,6 reicht gut über beide Bänder hinaus.
+ */
+const UEBERKOPF_HALB = 0.6;
 
 /**
  * Nur zeichnen, was zu sehen ist.
@@ -1366,7 +1485,14 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
   // stehen; ein Maß je Einzelbild würde die Figur beim Abspielen atmen lassen.
   // Radius statt Rechteck, damit auch das Drehen nichts daran ändert.
   const fit = (() => {
-    const all = [skeleton(0), skeleton(1)].flatMap((j) => Object.values(j));
+    // Was fest im Raum steht und zur Übung gehört, zählt mit: Beim Face Pull
+    // lag die Stange, an der das Band hängt, außerhalb des Kreises um die
+    // Gelenke – im Bild blieb von ihr ein Stummel am oberen Rand, und die
+    // Bänder liefen aus dem Kasten. Ein Band, das im Nichts endet, ist genau
+    // das, was die Stange verhindern soll (siehe unten bei ueberkopf).
+    const anker = spec.ueberkopf !== undefined
+      ? [-1, 1].map((s) => [s * UEBERKOPF_HALB, spec.ueberkopf, spec.ueberkopfZ]) : [];
+    const all = [...[skeleton(0), skeleton(1)].flatMap((j) => Object.values(j)), ...anker];
     const mid = [0, 1, 2].map((i) => (Math.min(...all.map((q) => q[i])) + Math.max(...all.map((q) => q[i]))) / 2);
     // Radius statt Rechteck: so ändert das Drehen die Größe nicht, und die
     // Figur kann in keiner Lage über den Rand ragen. Der Kopf zählt mit seinem
@@ -1385,7 +1511,9 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     // die mitfährt, ist keine.
     const oben = skeleton(1);
     const schulter = [0, 1, 2].map((i) => (oben.shoulderL[i] + oben.shoulderR[i]) / 2);
-    return { mid, groundY, bank: schulter,
+    // Wie weit die Figur in der Tiefe reicht – für die Bodenscheibe, siehe dort.
+    const tief = (Math.max(...all.map((q) => q[2])) - Math.min(...all.map((q) => q[2]))) / 2;
+    return { mid, groundY, bank: schulter, bodenZ: Math.max(0.34, tief + 0.1),
              scale: (Math.min(VBW, VBH) / 2) * 0.94 / Math.max(r, 0.1) };
   })();
   const gearScale = fit.scale / 40;
@@ -1497,7 +1625,31 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       face([rings[r][c], rings[r][d2], rings[r + 1][d2], rings[r + 1][c]]);
     }));
     limb(pts.hipC, pts.neck, 4.2, 3.4, 'fig-spine');
-    limb(pts.neck, pts.head, 2.6, 2.2, 'fig-spine');   // Hals schließt die Lücke
+    /*
+     * Kopf und Hals in der richtigen Reihenfolge.
+     *
+     * Der Kopf wurde mit der Tiefe seines Mittelpunkts einsortiert, die
+     * Halskapsel mit der Mitte zwischen Hals und Kopfmittelpunkt. Schaut die
+     * Kamera leicht von unten (pitch < 0, so stehen zehn Muster im
+     * Standardblick), liegt der Hals näher als der Kopfmittelpunkt – die
+     * Kapsel wurde *nach* dem Kopf gezeichnet, und ihr runder Abschluss stand
+     * mit dunklem Rand mitten im Gesicht: ein Ring hinter einem Stummel, wie
+     * ein Heiligenschein. Gefunden bei der Durchsicht der Figuren.
+     *
+     * Der Kopf ist eine Kugel, und was von ihr zu sehen ist, ist ihre
+     * Oberfläche, nicht ihr Mittelpunkt. Hals und Schulterdeckel hängen unten
+     * an ihr: Was von ihnen innerhalb des Kopfumrisses liegt, verdeckt die
+     * Kugel. Also liegt der Kopf immer vor dem Hals und vor dem Schulterdeckel,
+     * und der Hals vor dem Deckel – sonst verschwände sein unteres Ende im
+     * Rumpf und es bliebe ein loser Kopf. Gegen alles andere – Hände, Hanteln,
+     * Stange – zählt weiter der Mittelpunkt: Eine Hand vor dem Gesicht soll
+     * davor bleiben.
+     */
+    const zDeckel = rings[0].reduce((acc, q) => acc + q.z, 0) / rings[0].length;
+    const zKopf = Math.max(pts.head.z + 0.001, zDeckel + 0.003);
+    const zHals = Math.min(Math.max((pts.neck.z + pts.head.z) / 2, zDeckel + 0.001), zKopf - 0.002);
+    // Hals schließt die Lücke
+    deckend(zHals, 'path', { d: kapsel(pts.neck, pts.head, 2.6, 2.2), class: 'fig-spine fig-hals' });
 
     ['L', 'R'].forEach((s) => {
       // Achsel-Steg: von der Brust zur Hand, nicht erst vom Schultergelenk.
@@ -1524,7 +1676,7 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     // Kopf als Ei entlang der Rumpfachse statt als Kreis
     const headR = RIG.headR * 46 * gearScale * pts.head.k;
     const axis = Math.atan2(pts.head.y - pts.neck.y, pts.head.x - pts.neck.x) * 180 / Math.PI + 90;
-    deckend(pts.head.z + 0.001, 'ellipse', {
+    deckend(zKopf, 'ellipse', {
       cx: pts.head.x.toFixed(1), cy: pts.head.y.toFixed(1),
       rx: (headR * 0.86).toFixed(1), ry: headR.toFixed(1),
       transform: `rotate(${axis.toFixed(1)} ${pts.head.x.toFixed(1)} ${pts.head.y.toFixed(1)})`,
@@ -1580,8 +1732,16 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       g.appendChild(el('polygon', { points: vorn.map(pkt).join(' '), class: 'fig-plate' }));
       parts.push({ z: (tiefe(ra) + tiefe(rb)) / 2, node: g });
     };
-    /** Stange samt Scheiben entlang einer Achse im Raum. */
-    const barAt = (centre, axis, half, plate) => {
+    /**
+     * Stange samt Scheiben entlang einer Achse im Raum.
+     *
+     * `teile` zerlegt den Griff in so viele Stücke, jedes mit seiner eigenen
+     * Tiefe. Nötig, wo die Stange quer über dem Körper liegt (Hip Thrust): Als
+     * ein Strich wird sie mit der Tiefe ihrer Mitte einsortiert, also mitten
+     * im Becken, und jede nähere Fläche von Rumpf und Oberschenkel deckt sie
+     * ganz – auch das Stück, das zwischen Körper und naher Scheibe frei liegt.
+     */
+    const barAt = (centre, axis, half, plate, teile = 1) => {
       // Eine Stange ist ein starrer, gerader Gegenstand. Projiziert man ihre
       // Enden einzeln, bekommt das nähere einen größeren Perspektivfaktor als
       // das fernere – bei einer Kurzhantel unsichtbar, bei 1,2 m Langhantel
@@ -1615,7 +1775,12 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       const r = plate / 40;
       const dick = r * 0.42;
       const innen = half - dick * 1.6;
-      strich(-innen, innen, c.z);                  // Griff
+      // Griff
+      for (let i = 0; i < teile; i++) {
+        const s1 = -innen + (2 * innen * i) / teile;
+        const s2 = -innen + (2 * innen * (i + 1)) / teile;
+        strich(s1, s2, teile === 1 ? c.z : (at(s1).z + at(s2).z) / 2);
+      }
       [-1, 1].forEach((s) => {
         const s2 = (x) => s * x;
         scheibe(centre, axis, s2(innen), s2(innen + dick), r, c.k);
@@ -1662,7 +1827,14 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // ist die Länge.
       barAt(midOf(pts0.handL, pts0.handR), sideAxis, 0.34, 4.0);
     } else if (equip === 'hipbar') {
-      barAt(midOf(pts0.hipL, pts0.hipR), sideAxis, 0.56, 4.4);
+      // Auf der Hüftbeuge, nicht im Becken. Die Mitte lag bis zur Durchsicht
+      // der Figuren genau auf der Hüftmitte – dem Mittelpunkt des Beckenrings,
+      // 0,09 tief im Körper –, und zwischen den Scheiben war aus keinem Blick
+      // ein Stück Stange zu sehen: zwei Scheiben, die neben der Hüfte
+      // schweben. 0,11 nach vorn legt sie auf die Vorderseite des Beckens,
+      // wie die Scheibe beim Beckenheben (siehe 'plate'); dazu der Griff in
+      // Stücken, damit das Stück vor dem Körper auch vor ihm liegt.
+      barAt(add(midOf(pts0.hipL, pts0.hipR), mul(frontAxis, 0.11)), sideAxis, 0.56, 4.4, 12);
     } else if (equip === 'band') {
       // Ein Loop-Band hängt nicht überall gleich. Beim Pull-Apart und beim
       // Reverse Fly hält man es wirklich zwischen beiden Händen – dort ist eine
@@ -1748,40 +1920,135 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // gehört er in die Hände (`packAt: 'hand'`).
       const halten = spec.packAt === 'hand';
       const brust = spec.packAt === 'chest';
-      const rumpf = midOf(j.chest, j.hipC);
-      const tiefe = brust ? 0.15 : -0.14;
-      const c3 = halten ? add(midOf(j.handL, j.handR), mul(frontAxis, 0.10)) : add(rumpf, mul(frontAxis, tiefe));
-      const bw = halten ? 0.13 : 0.17;
-      const bh = halten ? 0.15 : 0.21;
-      const ecke = (sx, sy) => P(add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, sy * bh / 2)));
-      const flaeche = (ecken, cls, dz) => {
-        const q = ecken.map(([sx, sy]) => ecke(sx, sy));
+      const strich = (von, bis, dz = 0.012) => {
+        const a2 = P(von); const b2 = P(bis);
         parts.push({
-          z: q.reduce((acc, e) => acc + e.z, 0) / q.length + dz,
-          node: el('polygon', { points: q.map((e) => `${e.x.toFixed(1)},${e.y.toFixed(1)}`).join(' '), class: cls }),
+          z: (a2.z + b2.z) / 2 + dz,
+          node: el('line', {
+            x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
+            'stroke-width': (1.5 * gearScale * a2.k).toFixed(2), class: 'fig-strap',
+          }),
         });
       };
-      flaeche([[-1, 1], [1, 1], [1, -1], [-1, -1]], 'fig-pack', 0.01);
-      flaeche([[-0.72, -0.1], [0.72, -0.1], [0.72, -0.82], [-0.72, -0.82]], 'fig-pack-tasche', 0.014);
-      if (!halten) {
+      /*
+       * Ein Kasten, keine Fläche.
+       *
+       * Der Rucksack war zwei Vielecke in der Rumpfebene. Bei Liegestütz und
+       * Inverted Row liegt diese Ebene waagerecht, und der Standardblick schaut
+       * fast parallel darauf: übrig blieb ein weißer Strich auf dem Rücken bzw.
+       * der Brust, und dass dort ein Rucksack liegt, war nur an den Trägern zu
+       * raten. Gefunden bei der Durchsicht der Figuren. Jetzt hat er Tiefe wie
+       * der Klotz unter den Füßen und die Scheiben an der Stange: sechs
+       * Flächen, von denen nur die gezeichnet werden, die zur Kamera zeigen,
+       * jede mit ihrer eigenen Tiefe einsortiert. Die Außenseite – weg vom
+       * Körper bzw. nach vorn – ist hell und trägt die Vordertasche, die
+       * übrigen sind dunkler, damit die Kanten zu sehen sind.
+       *
+       * u, v, w sind Breite, Höhe und Tiefe, rechtshändig (u × v = w), w zeigt
+       * nach außen.
+       */
+      const kasten = (c3, u, v, w, bw, bh, bd) => {
+        const seiten = [
+          [w, u, v, bd, bw, bh, true], [mul(w, -1), v, u, bd, bh, bw],
+          [u, v, w, bw, bh, bd], [mul(u, -1), w, v, bw, bd, bh],
+          [v, w, u, bh, bd, bw], [mul(v, -1), u, w, bh, bw, bd],
+        ];
+        seiten.forEach(([n, a, b, hn, ha, hb, aussen]) => {
+          const m = add(c3, mul(n, hn / 2));
+          const ecken = (fa, fb) => [[1, 1], [-1, 1], [-1, -1], [1, -1]]
+            .map(([sa, sb]) => P(add(add(m, mul(a, sa * fa * ha / 2)), mul(b, sb * fb * hb / 2))));
+          const q = ecken(1, 1);
+          // Nur was zur Kamera zeigt: Im Bild (y nach unten) laufen die Ecken
+          // einer zugewandten Fläche dann im Uhrzeigersinn.
+          const flaeche2 = q.reduce((acc, e, i) => {
+            const n2 = q[(i + 1) % 4];
+            return acc + e.x * n2.y - n2.x * e.y;
+          }, 0);
+          if (flaeche2 >= 0) return;
+          const z = q.reduce((acc, e) => acc + e.z, 0) / 4;
+          const poly = (pts4, cls) => el('polygon', { points: pts4.map(pkt).join(' '), class: cls });
+          const g = el('g');
+          g.appendChild(poly(q, aussen ? 'fig-pack' : 'fig-pack-seite'));
+          // Vordertasche: die untere Hälfte der Außenseite, etwas schmaler.
+          if (aussen) {
+            const t = [[0.72, -0.1], [-0.72, -0.1], [-0.72, -0.82], [0.72, -0.82]]
+              .map(([sa, sb]) => P(add(add(add(m, mul(n, 0.004)), mul(a, sa * ha / 2)), mul(b, sb * hb / 2))));
+            g.appendChild(poly(t, 'fig-pack-tasche'));
+          }
+          parts.push({ z: z + 0.01, node: g });
+        });
+      };
+      if (halten) {
+        /*
+         * Gehalten: lotrecht unter den Händen, an zwei Schlaufen.
+         *
+         * Vorher eine Fläche um die Mitte zwischen den Händen, in der
+         * Rumpfebene und ohne Verbindung zu ihnen: Die Hände hingen seitlich
+         * an den Oberschenkeln, der Rucksack stand 0,24 von jeder entfernt
+         * mitten vor dem Schritt, beim Rudern zudem um 62° mit dem Rumpf
+         * gekippt – eine schwebende weiße Karte, während der Hinweis „beide
+         * Hände in die Trageschlaufen" sagt.
+         *
+         * Ein Rucksack, den man an den Schlaufen hält, hängt senkrecht nach
+         * unten, egal wie der Rumpf steht. Seine Breite folgt dem Griff, so
+         * wie man ihn an den beiden Trägern fasst: gut zwei Drittel des
+         * Abstands der Hände, die Schlaufen laufen schräg zu ihnen hoch. Er
+         * hängt knapp vor den Händen, sonst stäke er in den Oberschenkeln.
+         */
+        const punkt = (a3, b3) => a3[0] * b3[0] + a3[1] * b3[1] + a3[2] * b3[2];
+        const hl = j.handL; const hr = j.handR;
+        const quer = norm([hr[0] - hl[0], 0, hr[2] - hl[2]]);
+        const u = Math.hypot(hr[0] - hl[0], hr[2] - hl[2]) > 1e-6 ? quer : sideAxis;
+        const v = [0, 1, 0];
+        let w = cross(u, v);
+        // w soll nach vorn zeigen (vom Körper weg), sonst hinge er im Rumpf.
+        const uu = punkt(w, frontAxis) < 0 ? mul(u, -1) : u;
+        w = cross(uu, v);
+        const abstandH = Math.hypot(hr[0] - hl[0], hr[1] - hl[1], hr[2] - hl[2]);
+        const bw = Math.min(0.4, Math.max(0.17, abstandH * 0.7));
+        const griff = midOf(hl, hr);
+        const oben = griff[1] - 0.06;
+        // Hochkant wie ein Rucksack, aber nie in den Boden: Beim Rudern hängen
+        // die Hände unten knapp über Kniehöhe.
+        const bh = Math.min(0.34, oben - (BODEN + 0.02)); const bd = 0.12;
+        const c3 = [griff[0] + w[0] * (bd / 2 + 0.03), oben - bh / 2, griff[2] + w[2] * (bd / 2 + 0.03)];
+        kasten(c3, uu, v, w, bw, bh, bd);
+        // Schlaufen: je ein schmales Dreieck von der Oberkante zur Hand und
+        // zurück – ein Band, das um die Faust läuft.
+        ['L', 'R'].forEach((seite) => {
+          const hand = j[`hand${seite}`];
+          const s = punkt([hand[0] - griff[0], 0, hand[2] - griff[2]], uu) < 0 ? -1 : 1;
+          const kante = add(c3, add(mul(uu, s * bw * 0.42), mul(v, bh / 2)));
+          const a3 = add(kante, mul(uu, -s * 0.03));
+          const b3 = add(kante, mul(uu, s * 0.03));
+          strich(a3, hand, 0.013);
+          strich(hand, b3, 0.013);
+        });
+      } else {
+        const rumpf = midOf(j.chest, j.hipC);
+        const tiefe = brust ? 0.15 : -0.14;
+        const c3 = add(rumpf, mul(frontAxis, tiefe));
+        const bw = 0.17; const bh = 0.21; const bd = 0.09;
+        // Außen ist bei der Brust vorn, beim Rücken hinten.
+        const w = brust ? frontAxis : mul(frontAxis, -1);
+        const u = brust ? sideAxis : mul(sideAxis, -1);
+        kasten(c3, u, upAxis, w, bw, bh, bd);
         // Träger: vom oberen Rand über die Schulter auf die andere Seite des
         // Rumpfs. Zwei Stücke mit eigener Tiefe, damit das Stück hinter dem
-        // Rumpf auch dahinter gezeichnet wird.
+        // Rumpf auch dahinter gezeichnet wird. Sie beginnen an der Innenkante
+        // des Kastens, am Körper.
         ['L', 'R'].forEach((seite) => {
           const sx = seite === 'L' ? -0.55 : 0.55;
-          const oben3 = add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, bh / 2));
+          const oben3 = add(add(add(c3, mul(sideAxis, sx * bw / 2)), mul(upAxis, bh / 2)), mul(w, -bd / 2));
           const schulter = add(j[`shoulder${seite}`], mul(upAxis, 0.035));
-          const drueben = add(add(j[`shoulder${seite}`], mul(frontAxis, -tiefe * 0.7)), mul(upAxis, -0.12));
-          [[oben3, schulter], [schulter, drueben]].forEach(([von, bis]) => {
-            const a2 = P(von); const b2 = P(bis);
-            parts.push({
-              z: (a2.z + b2.z) / 2 + 0.012,
-              node: el('line', {
-                x1: a2.x.toFixed(1), y1: a2.y.toFixed(1), x2: b2.x.toFixed(1), y2: b2.y.toFixed(1),
-                'stroke-width': (1.5 * gearScale * a2.k).toFixed(2), class: 'fig-strap',
-              }),
-            });
-          });
+          // Das zweite Stück endet *innerhalb* der anderen Rumpfseite. Es lag
+          // 0,105 tief (Rumpf 0,096) und auf der Breite des Schultergelenks
+          // (0,215, Rumpf 0,19), also außerhalb – bei der Inverted Row schaute
+          // unter dem Rumpf ein weißer Trägerstummel heraus.
+          const innen3 = add(j[`shoulder${seite}`], mul(sideAxis, seite === 'L' ? 0.07 : -0.07));
+          const drueben = add(add(innen3, mul(frontAxis, -tiefe * 0.5)), mul(upAxis, -0.12));
+          strich(oben3, schulter);
+          strich(schulter, drueben);
         });
       }
     }
@@ -2208,8 +2475,8 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // im Nichts endet, ist keine Auskunft, sondern ein Fehler im Bild.
       // Fest im Raum, nicht an den Haenden: Die Stange haengt nicht am Sportler.
       const mitte = [0, spec.ueberkopf, spec.ueberkopfZ];
-      const b1 = P(add(mitte, mul(sideAxis, -0.9)));
-      const b2 = P(add(mitte, mul(sideAxis, 0.9)));
+      const b1 = P(add(mitte, mul(sideAxis, -UEBERKOPF_HALB)));
+      const b2 = P(add(mitte, mul(sideAxis, UEBERKOPF_HALB)));
       parts.push({
         z: (b1.z + b2.z) / 2 - 0.02,
         node: el('line', {
@@ -2239,9 +2506,14 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // Mittig unter der Figur, nicht am Ursprung: wer an einer Stange hängt,
       // steht nicht über dem Nullpunkt, und die Scheibe lag dann daneben.
       const gy = spec.anchor === 'bar' ? fit.groundY : -0.62;
+      // In der Tiefe so weit, wie die Figur reicht, mindestens 0,34. Beim
+      // Trizeps an der Stange liegt der Körper der Länge nach in der Tiefe
+      // (Fersen z −1,0, Kopf +0,3); die Scheibe mit fester Tiefe 0,34 lag
+      // dort nur unter der Mitte, und seit die Figur von der Seite gezeigt
+      // wird, standen die Füße sichtbar daneben in der Luft.
       const ring = [];
       for (let a = 0; a < 360; a += 15) {
-        ring.push(P([fit.mid[0] + Math.cos(rad(a)) * 0.62, gy, fit.mid[2] + Math.sin(rad(a)) * 0.34]));
+        ring.push(P([fit.mid[0] + Math.cos(rad(a)) * 0.62, gy, fit.mid[2] + Math.sin(rad(a)) * fit.bodenZ]));
       }
       // Immer ganz nach hinten. Sortiert man den Boden wie ein Körperteil ein,
       // legt er sich beim Blick von oben über das hintere Bein und färbt es

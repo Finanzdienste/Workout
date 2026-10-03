@@ -132,6 +132,126 @@ check(Math.abs(gear.goblet.mx - 50) < 4, 'Goblet Squat: Hantel mittig vor dem K�
 check(gear.einhand.bars === 1 && gear.einhand.plates === 4, 'Rudern: eine Kurzhantel in einer Hand');
 check(gear.langhantel.bars === 1 && gear.langhantel.dx > gear.goblet.dy * 1.5, 'SZ-Curls: eine lange, waagerechte Stange');
 
+// Durchsicht der Figuren: Kopf, Stange, Rucksack. Alles am gezeichneten Bild
+// gemessen, in einem Kasten von der Form der Übungskarte (346 × 198) bzw.
+// quadratisch, wo es um eine Achse geht.
+const durchsicht = await page.evaluate(async () => {
+  const { mountFigure, PATTERNS } = await import('./js/figure.js');
+  const mach = (pattern, equip, t, view, w = 346, h = 198) => {
+    const host = document.createElement('div');
+    host.style.cssText = `width:${w}px;height:${h}px;position:fixed;left:0;top:0;background:#000`;
+    document.body.appendChild(host);
+    const f = mountFigure(host, pattern, true, equip);
+    f.stop();
+    if (view) f.setView(...view);
+    f.draw(t);
+    return host;
+  };
+  const punkte = (n) => n.getAttribute('points').trim().split(/\s+/).map((s) => s.split(',').map(Number));
+  const out = {};
+  // Der Kopf liegt vor der Halskapsel – sonst steht ihr runder Abschluss mit
+  // Rand mitten im Gesicht.
+  out.kopf = [];
+  Object.keys(PATTERNS).forEach((p) => [0, 1].forEach((t) => {
+    const host = mach(p, null, t);
+    const kinder = [...host.querySelector('svg g').children];
+    const kopf = kinder.findIndex((n) => n.classList.contains('fig-head'));
+    const hals = kinder.findIndex((n) => n.classList.contains('fig-hals'));
+    if (hals < 0 || kopf < hals) out.kopf.push(`${p} t${t}`);
+    host.remove();
+  }));
+  // Hip Thrust von vorn: Wie viel der Stange zwischen den Scheiben ist zu sehen?
+  {
+    const host = mach('thrust', 'hipbar', 1, [-80, 0], 400, 400);
+    const ends = [...host.querySelectorAll('line.fig-bar:not(.fig-bar-stummel)')]
+      .flatMap((b) => [[+b.getAttribute('x1'), +b.getAttribute('y1')], [+b.getAttribute('x2'), +b.getAttribute('y2')]]);
+    const a = ends.reduce((p, q) => (q[0] < p[0] ? q : p));
+    const b = ends.reduce((p, q) => (q[0] > p[0] ? q : p));
+    const svg = host.querySelector('svg'); const box = svg.getBoundingClientRect(); const vb = svg.viewBox.baseVal;
+    let sicht = 0; const N = 40;
+    for (let i = 1; i < N; i++) {
+      const x = a[0] + ((b[0] - a[0]) * i) / N; const y = a[1] + ((b[1] - a[1]) * i) / N;
+      const e = document.elementFromPoint(box.left + ((x - vb.x) / vb.width) * box.width, box.top + ((y - vb.y) / vb.height) * box.height);
+      if (e && e.classList.contains('fig-bar')) sicht++;
+    }
+    out.hipbar = sicht / (N - 1);
+    host.remove();
+  }
+  // Face Pull: die feste Stange liegt ganz im Bild, in der Karte wie im Quadrat.
+  out.facepull = [[346, 198], [300, 300]].flatMap(([w, h]) => [0, 1].map((t) => {
+    const host = mach('facepull', 'band', t, null, w, h);
+    const vb = host.querySelector('svg').viewBox.baseVal;
+    const l = host.querySelector('.fig-bar-fixed');
+    const drin = [[+l.getAttribute('x1'), +l.getAttribute('y1')], [+l.getAttribute('x2'), +l.getAttribute('y2')]]
+      .every(([x, y]) => x >= 0 && x <= vb.width && y >= 0 && y <= vb.height);
+    host.remove();
+    return drin;
+  }));
+  // Gehaltener Rucksack, von vorn: je Hand eine Schlaufe (zwei Striche, die sich
+  // an der Hand treffen), deren andere Enden am Rucksack liegen; der Rucksack
+  // hängt lotrecht und unter den Händen.
+  out.halten = [['curl', 0], ['curl', 1], ['rowbar', 0], ['rowbar', 1]].map(([p, t]) => {
+    const host = mach(p, 'backpack', t, [0, 0], 400, 400);
+    const straps = [...host.querySelectorAll('.fig-strap')]
+      .map((s) => [[+s.getAttribute('x1'), +s.getAttribute('y1')], [+s.getAttribute('x2'), +s.getAttribute('y2')]]);
+    const pk = [...host.querySelectorAll('.fig-pack, .fig-pack-seite')].flatMap(punkte);
+    const bb = pk.length ? [Math.min(...pk.map((q) => q[0])), Math.min(...pk.map((q) => q[1])),
+      Math.max(...pk.map((q) => q[0])), Math.max(...pk.map((q) => q[1]))] : [0, 0, 0, 0];
+    const zumKasten = ([x, y]) => Math.hypot(Math.max(bb[0] - x, 0, x - bb[2]), Math.max(bb[1] - y, 0, y - bb[3]));
+    const key = (q) => q.map((v) => v.toFixed(1)).join(',');
+    const zahl = new Map();
+    straps.flat().forEach((q) => zahl.set(key(q), (zahl.get(key(q)) || 0) + 1));
+    const haende = straps.flat().filter((q) => zahl.get(key(q)) >= 2);
+    const andere = straps.flat().filter((q) => zahl.get(key(q)) < 2);
+    const aussen = host.querySelector('.fig-pack');
+    let schief = 1;
+    if (aussen) {
+      const q = punkte(aussen);
+      schief = Math.max(...q.map((e, i) => {
+        const n = q[(i + 1) % q.length];
+        const dx = Math.abs(n[0] - e[0]); const dy = Math.abs(n[1] - e[1]);
+        return Math.min(dx, dy) / Math.max(dx, dy, 1e-9);
+      }));
+    }
+    host.remove();
+    return {
+      name: `${p} t${t}`, schlaufen: straps.length, haende: new Set(haende.map(key)).size,
+      hand: haende.length ? Math.max(...haende.map(zumKasten)) : Infinity,
+      ende: andere.length ? Math.max(...andere.map(zumKasten)) : Infinity,
+      unter: haende.length ? Math.min(...haende.map(([, y]) => bb[1] - y)) : -1,
+      schief,
+    };
+  });
+  // Getragener Rucksack: sichtbare Fläche im Standardblick der Karte.
+  out.tragen = {};
+  ['pushup', 'invrow'].forEach((p) => [0, 1].forEach((t) => {
+    const host = mach(p, 'backpack', t, null);
+    out.tragen[`${p} t${t}`] = [...host.querySelectorAll('.fig-pack, .fig-pack-seite')].reduce((acc, f) => {
+      const q = punkte(f);
+      return acc + Math.abs(q.reduce((a2, e, i) => { const n = q[(i + 1) % q.length]; return a2 + e[0] * n[1] - n[0] * e[1]; }, 0) / 2);
+    }, 0);
+    host.remove();
+  }));
+  return out;
+});
+console.log('     Durchsicht:', JSON.stringify(durchsicht));
+check(durchsicht.kopf.length === 0,
+  `der Kopf liegt vor dem Hals, kein Heiligenschein${durchsicht.kopf.length ? ' – dahinter: ' + durchsicht.kopf.join(', ') : ''}`);
+check(durchsicht.hipbar > 0.3,
+  `Hip Thrust von vorn: die Stange ist zwischen den Scheiben zu sehen (${(durchsicht.hipbar * 100).toFixed(0)} % des Griffs)`);
+check(durchsicht.facepull.every(Boolean), 'Face Pull: die Stange, an der das Band hängt, liegt ganz im Bild');
+durchsicht.halten.forEach((h) => {
+  check(h.schlaufen === 4 && h.haende === 2,
+    `${h.name}: Rucksack an zwei Schlaufen, je eine zur Hand (${h.schlaufen} Striche, ${h.haende} Hände)`);
+  check(h.ende < 0.5 && h.hand < 10,
+    `${h.name}: die Schlaufen reichen vom Rucksack (${h.ende.toFixed(1)}) bis an die Hand (${h.hand.toFixed(1)} vom Rucksack)`);
+  check(h.unter > 0 && h.schief < 0.05,
+    `${h.name}: er hängt lotrecht unter den Händen (Oberkante ${h.unter.toFixed(1)} darunter, Neigung ${h.schief.toFixed(3)})`);
+});
+Object.entries(durchsicht.tragen).forEach(([k, a]) => {
+  check(a > 10, `${k}: der getragene Rucksack ist ein Kasten, kein Strich (Fläche ${a.toFixed(1)})`);
+});
+
 // Liegende Muster liegen aus jedem Blickwinkel – Kopf links, Körper flach
 const lying = await page.evaluate(async () => {
   const { mountFigure } = await import('./js/figure.js');

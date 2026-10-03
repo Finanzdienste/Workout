@@ -1578,6 +1578,9 @@ textarea.io {
    ist und kein Klotz. */
 .fig-pack { fill: #e8eaed; }
 .fig-pack-tasche { fill: #c9ced6; }
+/* Seiten, Deckel und Boden des Kastens: dunkler als die Außenseite, damit die
+   Kanten zu sehen sind – wie die Kante einer Hantelscheibe (fig-plate-seite). */
+.fig-pack-seite { fill: #b7bcc4; stroke: #b7bcc4; stroke-width: .25; stroke-linejoin: round; }
 .fig-strap { fill: none; stroke: #d5d9df; stroke-linecap: round; }
 /* Hände: ein Umriss um die ganze Hand statt um jeden Finger. Einzeln umrandet
    lagen die Finger von der Seite gesehen hintereinander, und aus den Rändern

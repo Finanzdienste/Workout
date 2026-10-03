@@ -80,6 +80,32 @@ check(stehend.druecken === 'ohpstand',
 check(stehend.hantelDruecken === 'ohp',
   `die Hantelfassung sitzt weiterhin – sie heißt ja auch so (${stehend.hantelDruecken})`);
 
+// Rucksack-Curls und Rucksack-Rudern halten auch in der Bodyweight-Fassung
+// einen Rucksack – „beide Hände in die Trageschlaufen". Abgeleitet wurde dort
+// nur das Band, und die Figur curlte mit leeren Fäusten. Geprüft auf der
+// Übersicht und in resolve(), das die Karten der App füttert.
+const rucksack = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  const { resolve } = await import('./js/plan.js');
+  return ['rucksack-curls', 'rucksack-rudern'].map((id) => {
+    const ex = EXERCISES.find((e) => e.id === id);
+    const karte = [...document.querySelectorAll('.karte')]
+      .find((k) => k.querySelector('h2').textContent.trim() === ex.bw.name);
+    return {
+      id,
+      gear: resolve({ id, sets: 3 }, 'bw').gear,
+      karte: !!karte,
+      pack: karte ? karte.querySelectorAll('.fig-pack').length : 0,
+      code: karte ? karte.querySelector('code').textContent : '',
+    };
+  });
+});
+rucksack.forEach((r) => {
+  check(r.gear === 'backpack', `${r.id} (Bodyweight): resolve() gibt der Figur den Rucksack (${r.gear})`);
+  check(r.karte && r.pack > 0 && /backpack/.test(r.code),
+    `${r.id} (Bodyweight): die Übersicht zeichnet ihn (${r.code || 'keine Karte'})`);
+});
+
 await page.screenshot({ path: `${SHOT}/figuren.png`, fullPage: true });
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
