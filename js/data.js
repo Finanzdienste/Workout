@@ -1765,7 +1765,7 @@ export const EXERCISES = [
       "reps": "8–15",
       "equip": "Loop-Band",
       "cue": "Auf das Band stellen, Enden auf Schulterhöhe, Handflächen nach vorn. Senkrecht nach oben drücken, bis die Arme fast gestreckt sind, Rippen unten lassen. Schwerer wird es mit dem nächststärkeren Band, leichter mit dem schwächeren.",
-      "rest": 180,
+      "rest": 150,
       "pattern": "ohpstand",
       "shares": {
         "frontDelts": 1.0,
@@ -2290,7 +2290,7 @@ export const EXERCISES = [
     "bw": {
       "name": "Einbeiniges Kreuzheben",
       "reps": "10–20 je Bein",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Auf einem Bein stehen, Knie leicht gebeugt und dort lassen. Hüfte nach hinten schieben, Oberkörper und freies Bein kippen wie eine Wippe, bis es hinten am Oberschenkel zieht. Rücken gerade, Schultern parallel zum Boden, zurück über das Gesäß und nicht über den unteren Rücken. Die Arme hängen locker nach unten. Ohne Zusatzlast zählt das Tempo: drei Sekunden hinunter, oben eine Sekunde Gesäß fest. Wackelt es zu sehr, mit den Fingerspitzen eine Wand berühren – das nimmt nur das Gleichgewicht heraus, nicht die Arbeit.",
       "rest": 120,
       "pattern": "hinge1",
@@ -2355,7 +2355,7 @@ export const EXERCISES = [
     "db": {
       "name": "Pike-Liegestütze",
       "reps": "6–15",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Je senkrechter der Oberkörper, desto mehr Schulter und desto weniger Brust. Füße auf einem Hocker machen es deutlich schwerer.",
       "rest": 150,
       "pattern": "pike",
@@ -2377,7 +2377,7 @@ export const EXERCISES = [
     "bw": {
       "name": "Pike-Liegestütze",
       "reps": "6–15",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Aus dem Liegestütz die Hüfte hoch schieben, bis der Körper ein umgedrehtes V bildet – Kopf zwischen den Armen, Blick zu den Füßen. Ellenbogen beugen und den Scheitel Richtung Boden senken, dann drücken. Zu schwer? Die Hüfte etwas weniger hoch schieben – dann wandert Last in die Brust. Zu leicht? Füße auf einen Hocker, dann steht der Oberkörper fast senkrecht und die Schulter trägt fast alles.",
       "rest": 150,
       "pattern": "pike",
@@ -2400,7 +2400,7 @@ export const EXERCISES = [
   {
     "id": "kurzhantel-bodenpresse",
     "group": "Brust",
-    "weight": 12,
+    "weight": 12.5,
     "step": 2.5,
     "weightNote": "je Hand",
     "equip": "dumbbells",
@@ -2488,7 +2488,7 @@ export const EXERCISES = [
     "bw": {
       "name": "Enge Liegestütze",
       "reps": "8–20",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Liegestütze mit engem Handabstand, Hände etwa schulterbreit, Ellenbogen dicht am Körper. Zu schwer? Hände auf einer Stuhlkante. Zu leicht? Füße erhöht.",
       "rest": 150,
       "pattern": "pushup",
@@ -2548,7 +2548,7 @@ export const EXERCISES = [
     "db": {
       "name": "Reverse Snow Angel",
       "reps": "10–20",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken zeigen nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt. Daumen zeigen die ganze Zeit nach oben. Zu schwer? Den Weg verkürzen: nur bis Schulterhöhe statt über den Kopf.",
       "rest": 90,
       "pattern": "snowangel",
@@ -2566,7 +2566,7 @@ export const EXERCISES = [
     "bw": {
       "name": "Reverse Snow Angel",
       "reps": "10–20",
-      "equip": "ohne",
+      "equip": "Ohne Gerät",
       "cue": "Bauchlage, Stirn auf einem gefalteten Handtuch, Arme neben dem Körper, Handrücken nach oben. Arme knapp über dem Boden halten und langsam über die Seite nach oben zum Kopf führen, dann denselben Weg zurück. Der Boden wird nie berührt, die Daumen zeigen die ganze Zeit nach oben. Der Reiz kommt aus der Zeit unter Spannung: vier Sekunden hin, vier zurück. Zu schwer? Den Weg verkürzen – nur bis Schulterhöhe statt über den Kopf; das nimmt den Hebel heraus. Wird es zu leicht, langsamer werden, nicht schneller.",
       "rest": 90,
       "pattern": "snowangel",
@@ -2607,13 +2607,13 @@ export const EXERCISES = [
     "schmerz": [
       {
         "ort": "Rücken beim Einrollen",
-        "text": "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von „angespannt“ ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
+        "text": "Erst die Unterscheidung, denn sie ist die ganze Antwort: Spannung ist nicht Schmerz. Dass der Rücken beim Einrollen mitarbeitet, gehört dazu. Der Streckerzug längs der Wirbelsäule hält gegen, während der Bauch das Becken dreht – Gegenspieler spannen mit, sonst gäbe es keine kontrollierte Bewegung, sondern ein Einknicken. Ein Gefühl von „angespannt\" ist also richtig.\n\nDrei Dinge, die es unnötig stark machen, alle mit demselben Test:\n\nLiegt der untere Rücken am Boden? Schieb dir eine Hand unter die Taille. Passt sie leicht durch, startest du aus einem Hohlkreuz – dann ist der Strecker schon verkürzt, bevor die Übung anfängt, und das Einrollen arbeitet dagegen an. Dafür liegen die Hände unter dem Gesäß: Sie kippen das Becken an und nehmen den Bogen raus. Erst wenn die Taille Kontakt hat, fängt die Wiederholung an.\n\nWoher kommt die Bewegung? Das Becken soll sich drehen, weil der Bauch das Schambein Richtung Rippen zieht – nicht, weil du dich über die Füße oder die Hände vom Boden wegdrückst. Drücken ruft den Rücken. Probe: Füße ganz locker lassen, so locker, dass sie beim Einrollen von selbst leichter werden. Geht die Bewegung dann nicht mehr, kam sie vorher aus den Füßen.\n\nAtmest du? Luft anhalten und alles festmachen spannt den Rücken gleich mit. Ausatmen beim Einrollen, und zwar lang – die letzten Zentimeter des Ausatmens ziehen die Rippen nach unten und machen genau die Bewegung, um die es hier geht.\n\nWo die Grenze liegt: Hebt sich der untere Rücken unterwegs vom Boden ab, oder ist es ein stechender Schmerz statt einer Spannung, dann ist die Wiederholung zu Ende – nicht die Technik feiner justieren, sondern absetzen."
       }
     ],
     "db": {
       "name": "Knieheben im Liegen",
       "reps": "10–20",
-      "equip": "ohne Gerät",
+      "equip": "Ohne Gerät",
       "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
       "rest": 120,
       "pattern": "kneeraisefloor",
@@ -2629,7 +2629,7 @@ export const EXERCISES = [
     "bw": {
       "name": "Knieheben im Liegen",
       "reps": "10–20",
-      "equip": "ohne Gerät",
+      "equip": "Ohne Gerät",
       "cue": "Auf dem Rücken, Hände flach unter das Gesäß. Knie anheben – und dann kommt der Teil, um den es geht: das Becken hinten einrollen, bis das Gesäß vom Boden abhebt. Spürst du es nur in den Beinen, war es genau dieser Teil, der gefehlt hat; das Anheben allein macht der Hüftbeuger, nicht der Bauch. Dann lass die Füße aufgestellt und rolle nur das Becken ein – das ist die ganze Übung, nur ohne den Anteil, der am Bauch vorbeigeht. Zu schwer? Ein Bein nach dem anderen.",
       "rest": 120,
       "pattern": "kneeraisefloor",
@@ -2789,7 +2789,7 @@ export const EXERCISES = [
       "reps": "10–20",
       "equip": "Rucksack",
       "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "rowbar",
       "heben": "Der Rucksack steht vor den Füßen. Hüfte nach hinten, Knie beugen, Rücken flach, Schlaufen greifen und aufstehen; dann in die Vorlage. Am Ende aufrichten und mit geradem Rücken absetzen.",
       "shares": {
@@ -2812,7 +2812,7 @@ export const EXERCISES = [
       "reps": "10–20",
       "equip": "Rucksack",
       "cue": "Rucksack mit Büchern füllen und die Trageschlaufen greifen. Hüfte nach hinten schieben, Oberkörper bis etwa 45° vorbeugen, Rücken gerade. Den Rucksack zum Bauchnabel ziehen, Ellenbogen dicht am Körper, oben die Schulterblätter kurz zusammenziehen, dann langsam ablassen. Der Oberkörper bleibt still – wer sich mit dem Rumpf hochreißt, trainiert den unteren Rücken statt den oberen. Zu schwer? Ein Buch weniger – das ist hier der Gewichtsschritt.",
-      "rest": 120,
+      "rest": 150,
       "pattern": "rowbar",
       "shares": {
         "lats": 1.0,
@@ -3069,7 +3069,7 @@ export const EXERCISES = [
     "bw": {
       "name": "Beckenheben",
       "reps": "15–25",
-      "equip": "ohne Gerät",
+      "equip": "Ohne Gerät",
       "cue": "Rücken flach auf dem Boden, Füße hüftbreit aufgestellt, Fersen nah am Gesäß. Gesäß anspannen und die Hüfte heben, bis Knie, Hüfte und Schulter eine Linie bilden. Oben 1–2 s halten, Rippen unten lassen – das Halten ersetzt die fehlende Zusatzlast. Schwerer wird es einbeinig.",
       "rest": 120,
       "pattern": "bridge",

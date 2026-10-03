@@ -142,6 +142,49 @@ console.log(`     ohne Ersatz: ${ohneErsatz.length ? ohneErsatz.join(', ') : 'ke
 check(ohneErsatz.length === 0,
   `jede Übung des Plans hat einen Ersatz${ohneErsatz.length ? ': ' + ohneErsatz.join(', ') : ''}`);
 
+// --- Startgewicht auf dem eigenen Schritt, eine Schreibweise für „ohne" ---
+//
+// Die Kurzhantel-Bodenpresse stand auf 12 kg bei 2,5er-Schritten: Der Knopf
+// lief 12 → 14,5 → 17, der Anfänger bekam 5 statt 6. Und „ohne Gerät" stand in
+// vier Schreibweisen im Katalog, die die Übungskarte roh anzeigt.
+const form = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  const daneben = EXERCISES.filter((e) => e.weight > 0 && e.step
+    && Math.abs(e.weight / e.step - Math.round(e.weight / e.step)) > 1e-9)
+    .map((e) => `${e.id} ${e.weight}/${e.step}`);
+  const ohne = new Set();
+  EXERCISES.forEach((e) => ['db', 'bw'].forEach((m) => {
+    if (/^ohne/i.test(e[m].equip || '')) ohne.add(e[m].equip.replace(/ \(.*\)$/, ''));
+  }));
+  return { daneben, ohne: [...ohne] };
+});
+check(form.daneben.length === 0,
+  `jedes Startgewicht liegt auf dem Schritt seiner Übung${form.daneben.length ? ': ' + form.daneben.join(', ') : ''}`);
+check(form.ohne.length === 1 && form.ohne[0] === 'Ohne Gerät',
+  `„ohne Gerät" in einer Schreibweise (${form.ohne.join(' | ')})`);
+
+// --- Pausen nach der Regel aus dem README (Abschnitt Pausenlängen) -------
+//
+// Stufe 1 unter 8 Wdh. 3:00, Stufe 1 ab 8 Wdh. 2:30, Stufe 2 und 3 2:00,
+// Stufe 4 1:30. Die Ausnahmen stehen dort mit Grund; jede andere Abweichung
+// ist ein Versehen – wie das Band-Schulterdrücken, das mit 3:00 länger
+// pausierte als die Hantelfassung.
+const AUSNAHMEN = {
+  'sitzendes-schulterdruecken.db': 150,   // „Und sicher 3 min Pause?" – nein
+  'pike-liegestuetze.db': 150, 'pike-liegestuetze.bw': 150,
+  'reverse-snow-angel.db': 90, 'reverse-snow-angel.bw': 90,
+};
+const pausen = await page.evaluate(async () => {
+  const { EXERCISES } = await import('./js/data.js');
+  return EXERCISES.flatMap((e) => ['db', 'bw'].map((m) => ({
+    k: `${e.id}.${m}`, tier: e.tier, lo: Number((/\d+/.exec(e[m].reps) || [0])[0]), rest: e[m].rest })));
+});
+const regel = (p) => (p.tier === 1 ? (p.lo < 8 ? 180 : 150) : (p.tier === 4 ? 90 : 120));
+const abweichend = pausen.filter((p) => p.rest !== (AUSNAHMEN[p.k] ?? regel(p)))
+  .map((p) => `${p.k} ${p.rest} statt ${AUSNAHMEN[p.k] ?? regel(p)}`);
+check(abweichend.length === 0,
+  `jede Pause folgt der Regel oder einer benannten Ausnahme${abweichend.length ? ': ' + abweichend.join(', ') : ''}`);
+
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs[0] : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 await browser.close();

@@ -11,7 +11,7 @@
  */
 import * as store from './store.js';
 import { EXERCISES, PLAN, REST } from './data.js';
-import { EX_BY_ID, directOf, directSets, gezaehlteReps, stufenWerte } from './uebung.js';
+import { EX_BY_ID, directOf, directSets, gezaehlteReps, satzKilo, stufenWerte } from './uebung.js';
 import { addDays, daysBetween, plural, todayISO } from './dates.js';
 import { INJURIES, applyInjuries, gesperrt, modusTausch } from './injuries.js';
 import { faelltAus, termine } from './termine.js';
@@ -988,8 +988,7 @@ export function sammleStats() {
           const planned = gezaehlteReps(s, reps);
           setsDone++;
           repsTotal += planned;
-          const kg = parseFloat(String(s.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
+          if (m === 'db') volume += satzKilo(s, reps);
           perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
         });
       });
@@ -1037,8 +1036,7 @@ export function sammleStats() {
           setsDone++;
           customSets++;
           repsTotal += planned;
-          const kg = parseFloat(String(x.w).replace(',', '.'));
-          if (m === 'db' && !Number.isNaN(kg)) volume += kg * planned;
+          if (m === 'db') volume += satzKilo(x, reps);
           perEx.set(item.id, (perEx.get(item.id) || 0) + 1);
         });
       });

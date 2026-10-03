@@ -3,3 +3,6 @@ __pycache__/
 node_modules/
 # Bildschirmfotos und Browserprofile aus den Testläufen
 .testlauf/
+# Ein Hilfsskript, das `${ordner}/bild.png` ohne gesetzten Ordner schreibt,
+# legt die Bilder hier ab – so kamen einmal drei Bildschirmfotos ins Repo.
+undefined/

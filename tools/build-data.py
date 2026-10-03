@@ -167,9 +167,10 @@ GERAET_AUS_TEXT = {
     # leer ausgeht - gemessen: 1,8 statt 10 Saetzen je Woche ohne Band und
     # Hanteln. Siehe flaschen-seitheben.
     'zwei volle Flaschen': [],
+    # Eine Schreibweise. Es standen einmal vier da („Ohne Gerät", „ohne Gerät",
+    # „ohne" …), und die Übungskarte zeigt den Text roh – dieselbe Angabe sah
+    # je Übung anders aus. Eine abweichende bricht jetzt den Bau ab.
     'Ohne Gerät': [],
-    'ohne Gerät': [],
-    'ohne': [],
     'Ohne Gerät (optional zwei Bücherstapel)': [],
 }
 

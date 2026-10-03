@@ -68,19 +68,19 @@ heutige tag mit 4 Übungen optimal ist?"*, *„heute wieder nur fünf übungen �
 optimal?"*. Ob fünf viel oder wenig ist, weiß nur, wer die anderen 83 Einheiten
 daneben legen kann. Die kennt die App, der Nutzer nicht.
 
-Jetzt legt sie sie daneben. Jeder Fokus hat wenige Größen von Einheit – Aufbau
-und Oberkörper zwei, „Bauch, Beine, Po" drei, der Cut vier –, und die häufigste
-ist der Normalfall:
+Jetzt legt sie sie daneben. Jeder Fokus hat wenige Größen von Einheit – Aufbau,
+Oberkörper und „Bauch, Beine, Po" zwei, der Cut drei –, und die häufigste ist
+der Normalfall (gezählt in `tools/plan*.json`):
 
 | Fokus | Übungen je Einheit | häufigste Größe |
 |---|---|---|
 | Aufbau | 5 oder 6 | 6 (61 von 84) |
-| Oberkörper | 5 oder 6 | 6 (57 von 84) |
-| Bauch, Beine, Po | 5, 6 oder 7 | 6 (55 von 84) |
-| Cut | 4 bis 6 | 5 (48 von 84) |
+| Oberkörper | 5 oder 6 | 6 (55 von 84) |
+| Bauch, Beine, Po | 5 oder 6 | 6 (63 von 84) |
+| Cut | 4 bis 6 | 5 (64 von 84) |
 
-Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall; 33 Tage haben
-vier Übungen, drei haben sechs (Stand des Cut vom 26.09., siehe [Der Cut vom
+Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall; 18 Tage haben
+vier Übungen, zwei haben sechs (zum Cut siehe [Der Cut vom
 25.09.](#der-cut-vom-2509-fünf-feste-grundübungen)).
 
 In der Kopfzeile stand dafür kurz ein Wort – „kurzer Tag", „normaler Tag". Raus
@@ -516,16 +516,23 @@ App, wo `stepOf()` die einzige Stelle ist, die ihn kennt – die Knöpfe und ihr
 | Schritt | Übungen | warum |
 | --- | --- | --- |
 | 5 kg | Rumänisches Kreuzheben, Hip Thrust, Floor Press, Langhantelrudern | Langhantel: eine 2,5-kg-Scheibe je Seite |
-| 2,5 kg | Goblet Squats, SZ-Curls, Kurzhantel-Bodenpresse | schwer, oder je Hand mit gröberen Scheiben |
+| 2,5 kg | Goblet Squats, SZ-Curls, Kurzhantel-Bodenpresse, Inverted Row (Rucksack) | schwer, oder je Hand mit gröberen Scheiben |
 | 2 kg | Wadenheben, einbeiniges Kreuzheben, Schulterdrücken, Split Squat, Beckenheben | eine 1-kg-Scheibe je Seite |
 | 1,25 kg | Crunches | Scheibe auf der Brust |
-| 1 kg | gewichtete Liegestütze, Reverse Fly, Seitheben, Trizepsstrecker, Hammercurls, Rucksack-Übungen | kleine Muskeln, kleine Hanteln, ein Liter im Rucksack |
+| 1 kg | gewichtete Liegestütze, Reverse Fly, Seitheben, Trizepsstrecker, Hammercurls, die übrigen Rucksack-Übungen | kleine Muskeln, kleine Hanteln, ein Liter im Rucksack |
 
-Maßstab: kein Schritt über einem Viertel des Arbeitsgewichts. Der größte liegt
-bei 25 % (Crunches, 1,25 von 5 kg), danach 20 % (Reverse Fly, 1 von 5 kg), die
-meisten deutlich darunter. Bei den vier Langhantelübungen sind es 12,5 bis
-14 % – wer 1,25-kg-Scheiben hat, setzt `dbStep` dort auf 2,5. (Stand v201; die
-Zahlen stehen je Übung in `tools/exercise-meta.json`.)
+Maßstab: kein Schritt über einem Viertel des Startgewichts. Der größte liegt
+bei 25 % (Crunches, 1,25 von 5 kg), danach 20 % (Reverse Fly und Rucksack-Curls
+1 von 5 kg, Schulterdrücken und Split Squat 2 von 10, Kurzhantel-Bodenpresse 2,5
+von 12,5), die übrigen bei 12,5 bis 17 %. Bei den vier Langhantelübungen sind
+es 12,5 bis 14 % – wer 1,25-kg-Scheiben hat, setzt `dbStep` dort auf 2,5. Die
+Zahlen stehen je Übung in `tools/exercise-meta.json`.
+
+Das Startgewicht liegt auf dem eigenen Schritt – `tests/test-katalog.mjs` prüft
+das. Die Kurzhantel-Bodenpresse stand auf 12 kg bei 2,5er-Schritten: Der Knopf
+lief 12 → 14,5 → 17, und der Anfänger bekam 5 statt 6 kg. Jetzt startet sie bei
+12,5. Wer schon ein eigenes Gewicht eingetragen hat, behält es; das
+Startgewicht gilt nur, solange keins gespeichert ist.
 
 Gespeichert wird auf **Viertelkilo** gerundet, nicht auf halbe: sonst würde aus
 einem Schritt auf 21,25 kg still 21,5. Aus demselben Grund zeigt die App zwei
@@ -567,10 +574,30 @@ Satz zu sechs Wiederholungen kostet mehr Erholung als einer zu fünfzehn.
 
 | Art | Pause | Beispiel |
 | --- | --- | --- |
-| Stufe 1, unter 8 Wdh. | 3:00 | Chin-ups (5–10), Floor Press (6–12), Schulterdrücken (6–12) |
-| Stufe 1, ab 8 Wdh. | 2:30 | Goblet Squat, Rudern, Hip Thrust, Kreuzheben |
+| Stufe 1, unter 8 Wdh. | 3:00 | Chin-ups (5–10), Pull-ups (4–10), Floor Press (6–12) |
+| Stufe 1, ab 8 Wdh. | 2:30 | Goblet Squat, Rudern, Hip Thrust, Kreuzheben, Band-Schulterdrücken |
 | Stufe 2 und 3 | 2:00 | Leg Curls, Seitheben, Curls, Reverse Fly, Pull-Apart |
 | Stufe 4 (Bauch, Waden) | 1:30 | Crunches, Wadenheben |
+
+Drei Ausnahmen, jede mit Grund – `tests/test-katalog.mjs` prüft alle übrigen
+gegen die Regel:
+
+| Übung | Pause | statt | Warum |
+| --- | --- | --- | --- |
+| Sitzendes Schulterdrücken (Hanteln, 6–12) | 2:30 | 3:00 | Auf Nachfrage: *„Und sicher 3 min Pause?"* – nein, siehe *Drei Minuten waren zu viel*. Leichte Kurzhanteln, keine Last nahe am Limit. |
+| Pike-Liegestütze (Stufe 2, 6–15) | 2:30 | 2:00 | Die Regel kennt die untere Grenze nur bei Stufe 1. Mit 6 Wiederholungen unten ist das schwerste Drücken ohne Gerät so fordernd wie eine Grundübung, und leichter stellen lässt sich das Körpergewicht nicht. |
+| Reverse Snow Angel (Stufe 3, 10–20) | 1:30 | 2:00 | Ohne jede Last – die Arme sind das ganze Gewicht. Erholt sich wie Bauch und Waden. |
+
+Das Band-Schulterdrücken stand auf 3:00 und damit als einzige Übung länger als
+seine Hantelfassung, ohne dass irgendwo ein Grund dafür stand. Ein Loop-Band über 8–15 Wiederholungen ist die leichteste Fassung; es
+folgt jetzt der Regel (2:30). Ebenso das Rucksack-Rudern (Stufe 1, 10–20), das
+ohne erkennbaren Grund bei 2:00 stand, während das Band-Rudern mit demselben
+Bereich 2:30 hatte.
+
+Die Spanne, die unter *Mehr* bei „Je Übung" steht, rechnet die App aus dem
+laufenden Plan aus, mit der Übung, die die kürzeste und die längste Pause am
+häufigsten hat. Fest hingeschrieben stand dort noch „0:45 – 2:30 min, 0:45 bei
+Crunches", drei Wochen nach der Anhebung unten.
 
 **Vorher war die Isolation zu kurz.** Reverse Fly und Seitheben standen bei
 1:00, Crunches bei 0:45 – das kam aus älteren ACSM/NSCA-Richtwerten, in denen
@@ -710,9 +737,18 @@ Untergrundfarbe. Beschriftet wird nur der Endwert – eine Zahl an jedem Punkt
 liest niemand. Ziehen über die Karte zeigt den Wert des jeweiligen Tages, die
 vollständige Reihe steht im `aria-label`.
 
-Volumen = Gewicht × geplante Wiederholungen × abgehakte Sätze. Nur
-Hantel-Einheiten tragen Kilo bei; Bodyweight-Einheiten haben kein Gewicht, das
-sich sinnvoll summieren ließe, und erscheinen deshalb nicht in dieser Rechnung.
+Volumen = Summe über die abgehakten Sätze, jeder mit seinem **eigenen** Gewicht
+mal den gezählten Wiederholungen (`satzKilo()` in `js/uebung.js`) – dieselbe
+Rechnung wie die Kachel „Volumen kg" darüber. Die Karte nahm vorher das Gewicht
+des ersten Satzes für alle: 40 kg, dann auf 35 gesenkt, ergab in der Kachel 870
+und in der Karte 720 für dieselbe Einheit. Auf die Muskelgruppen verteilt wird
+**nach Anteilen**, wie beim Wochenvolumen: Ein Goblet Squat mit 480 kg geht mit
+480 auf die Oberschenkel, aber nur mit 72 auf den Beinbeuger an der Hüfte
+(Anteil 0,15). Vorher bekam jede Gruppe das volle Volumen, und ein Tag ohne
+Kreuzheben sah auf der Beinbeuger-Kurve fast so aus wie einer mit. Die
+Überschrift sagt deshalb „Anteile eingerechnet". Nur Hantel-Einheiten tragen
+Kilo bei; Bodyweight-Einheiten haben kein Gewicht, das sich sinnvoll summieren
+ließe, und erscheinen deshalb nicht in dieser Rechnung.
 
 ## Wochenvolumen je Muskelgruppe
 
@@ -2459,7 +2495,7 @@ Push nachgerechnet.
 npm install          # nur für die Tests; die App selbst braucht nichts
 npx playwright install chromium
 npm test             # alle Browsertests
-npm run test:plan    # die sechs Pläne nachrechnen
+npm run test:plan    # die vier Pläne nachrechnen
 ```
 
 Einzelne Tests: `node tests/lauf.mjs zeit stufen`. Der Läufer startet die
@@ -2495,8 +2531,8 @@ dritte feste Regel, und sie kommt ohne neue Zahl aus: Die Wochenobergrenze
 steht schon da. Schöpft ein einzelner Tag sie aus, ist etwas grundsätzlich
 schiefgegangen – unabhängig davon, was die Trainingslehre zum optimalen
 Tagesvolumen sagt, wo die Datenlage dünn ist. Sie greift heute nirgends: Der
-höchste Wert über alle sechs Pläne und beide Modi ist 9,0 bei einer Obergrenze
-von 10. Genau das ist ihr Zweck – nichts ändern, sondern anschlagen, wenn sich
+höchste Wert über alle vier Pläne und beide Modi ist 8,7 (Trizeps, Oberkörper
+ohne Hanteln) bei einer Obergrenze von 10. Genau das ist ihr Zweck – nichts ändern, sondern anschlagen, wenn sich
 etwas ändert.
 
 Gemessen wird in **gewichtetem Volumen**, derselben Währung wie die Ziele. Die
@@ -2526,9 +2562,11 @@ hilft das niemandem, dessen Hip Thrust seit dreißig Tagen ausfällt.
 Der Zusammenhang, an dem sich beide Fehlschläge aufhängen, ist keine
 Faustregel, sondern eine Gleichung. Ein Auftritt einer Übung hat immer drei
 Sätze; also kommt eine Muskelgruppe genau so oft dran, wie sie direkte Sätze
-durch drei hat. An allen sechs Plänen nachgemessen stimmt das auf zwei
-Nachkommastellen: 3,0 direkte Sätze ergeben 1,00 Termine, 4,4 ergeben 1,48,
-5,9 ergeben 1,95, 8,1 ergeben 2,24.
+durch drei hat. Im Aufbau-Plan (Hanteln) nachgemessen: 3,0 direkte Sätze
+ergeben 1,00 Termine, 4,4 ergeben 1,48, 5,9 ergeben 1,95, 8,1 ergeben 2,71.
+Weniger Termine werden es nur dort, wo eine Gruppe an einem Tag zwei direkte
+Übungen bekommt – beim Trizeps an 35 von 63 Tagen, deshalb 15,1 direkte Sätze
+an 3,0 Terminen.
 
 Der Haken ist, dass die *Ziele* etwas anderes zählen – gewichtetes Volumen,
 also auch das Halten bei der Kniebeuge und das Mitziehen beim Rudern. Eine
@@ -2563,15 +2601,18 @@ Generator verteilt danach (`split()`, erstes Kriterium), und
 Neu verteilt wurden nur die Tage, nicht die Mengen (`WK_NUR_TAGE=1`): Jede
 Woche bekommt genau die Sätze je Übung wie vorher, nur auf andere Einheiten.
 
-| Plan | vorher | jetzt | Rüstvorgänge je Einheit |
-| --- | ---: | ---: | --- |
-| Aufbau | 21 | 8 | 3,52 → 3,55 |
-| Bauch, Beine, Po | 3 | 0 | 3,30 → 3,31 |
-| Cut | 5 | 0 | 3,01 → 3,05 |
-| Oberkörper | 49 | 34 | 3,00 → 3,08 |
+| Plan | vorher | danach | heute | Rüstvorgänge je Einheit (vorher → danach → heute) |
+| --- | ---: | ---: | ---: | --- |
+| Aufbau | 21 | 8 | 8 | 3,52 → 3,55 → 3,55 |
+| Bauch, Beine, Po | 3 | 0 | 0 | 3,30 → 3,31 → 3,16 |
+| Cut | 5 | 0 | 0 | 3,01 → 3,05 → 3,05 |
+| Oberkörper | 49 | 34 | 32 | 3,00 → 3,08 → 3,24 |
 
-*Die Cut-Zeile gilt für den Stand vom 17.09. Der Cut vom 25.09. (fünf feste
-Grundübungen, siehe unten) steht weiter bei null und bei 2,99 Rüstvorgängen.*
+*„danach" ist der Stand dieser Umstellung (Cut: 17.09., sonst 25.09.), „heute"
+der der ausgelieferten Pläne – gezählt von `tools/pruefung/bewegung.py` und
+festgehalten in `tests/ruestaufwand-stand.json`. Bauch, Beine, Po und Oberkörper
+sind am 29.09. neu gerechnet worden (siehe unten); dort steht auch, warum der
+Oberkörper dabei Rüstvorgänge zugelegt hat.*
 
 **Null geht nicht überall, und das ist Arithmetik.** Im Oberkörper-Plan haben
 seitliche Schulter und Brust je 12 Sätze die Woche, also vier Auftritte, und die
@@ -3495,7 +3536,7 @@ hochstufen – wer die Zahl, gegen die gerechnet wird, nirgends sehen kann, häl
 das für einen Fehler. Die Karte erscheint erst, sobald es eine abgelegte Runde
 gibt; vorher wären es zwei Mal dieselbe Zahl nebeneinander.
 
-`tests/test-gesamt.mjs` prüft das mit 33 Prüfungen, darunter beide Richtungen:
+`tests/test-gesamt.mjs` prüft das, darunter beide Richtungen:
 dass 35 + 35 aus der Ablage hochstufen, und dass 84 *angebrochene* Einheiten es
 nicht tun. Gegengeprüft – nimmt man die kumulative Zählung heraus, fallen zwei
 Prüfungen um; ersetzt man die Vollständigkeitsregel durch „irgendwas abgehakt",
@@ -3646,7 +3687,7 @@ noch nicht initialisiert – und das zeigte sich erst, sobald ein Protokoll da
 war, weil `completedMode()` ohne Protokoll vorher aussteigt. Elf Testdateien
 fielen gleichzeitig um, die Ursache war eine Zeile Reihenfolge.
 
-`tests/test-nacharbeit.mjs` prüft das mit 14 Prüfungen, darunter die
+`tests/test-nacharbeit.mjs` prüft das, darunter die
 wichtigste: dass **nichts** passiert, wenn alles normal läuft. Gegengeprüft –
 nimmt man die Nacharbeit heraus, fallen drei Prüfungen um.
 
@@ -3778,6 +3819,13 @@ verlangt, wäre der Trizeps ohne Band und Stange nur noch nebenbei drangekommen
 
 `tools/pruefung/geraete.py` prüft seither, dass kein Gerätetext ein „oder"
 oder einen Schrägstrich enthält.
+
+„Ohne Gerät" hat eine Schreibweise. Es standen vier im Katalog – „Ohne Gerät",
+„ohne Gerät", „ohne" und die Fassung mit Bücherstapeln –, und weil die
+Übungskarte den Gerätetext roh zeigt, sah dieselbe Angabe je Übung anders aus.
+`GERAET_AUS_TEXT` kennt nur noch „Ohne Gerät" (und die Bücherstapel, die etwas
+sagen); eine andere Schreibweise bricht den Bau ab, und `tests/test-katalog.mjs`
+prüft es an `js/data.js`.
 
 ### Hochnehmen und ablegen
 
@@ -4076,7 +4124,24 @@ Der Fall, den diese Vorschau als Erstes zutage förderte: Bei einem Vorrat mit
 Scheiben kostet eine Stufe bei einem Paar, zwei reichen dafür nicht —, aber eine
 nackte Null sieht aus wie ein Fehler der App. Jetzt steht der Grund daneben:
 *„nur die leere Stange – für ein Paar bräuchte es von einer Größe vier
-Scheiben."*
+Scheiben."* In diesem Fall gibt es für beide Kurzhanteln kein Raster, und die
+Knöpfe gehen in den freien Schritten der Übung – vorher blieb das + dort
+einfach stehen.
+
+**Ein Gewicht neben dem Raster wird zuerst eingerastet.** Wer 12 kg je Hand
+eingetragen hat, bevor die Scheiben (4 × 1,25 / 4 × 2,5 / 4 × 5) drinstanden,
+liegt neben dem, was sich aufstecken lässt. Der Mindestschritt von fünf Prozent
+ließ das + dann über die 12,5 hinweg auf 15 springen. Jetzt geht der erste Druck
+auf den nächsten erreichbaren Wert in dieser Richtung – 12,5 nach oben, 10 nach
+unten –, und erst danach gelten die üblichen Schritte.
+
+**Aufwärmsätze auch ohne Scheiben auf einer einstellbaren Zahl.** Die Hälfte und
+drei Viertel des Arbeitsgewichts rasten auf den eingetragenen Satz ein. Ohne
+Eintrag – oder bei beiden Kurzhanteln ohne Raster – stand vorher das Viertelkilo
+da: 26,25 kg an der Stange, 13,25 kg je Hand, 7,25 kg auf der Hüfte. Jetzt gilt
+dort die Schrittweite der Übung, bei Kurzhanteln je Hand, an der Stange
+höchstens 2,5 kg (ein Paar 1,25er), damit die Hälfte von 35 weiter 17,5 sein
+darf. Bei gleichem Abstand nach unten.
 
 ### Supersätze: die Pause füllen statt absitzen
 
@@ -4123,8 +4188,9 @@ Matching-Problem, dessen Lösung den Floor Press ans Ende schieben könnte — a
 dem Papier besser, im Training schlechter. Und ein Paar aus Übung 1 und Übung 6
 hieße, zwischen jedem Satz durch den halben Raum zu laufen.
 
-Über alle 168 Einheiten (4 Varianten × 2 Modi) findet sich im Schnitt **2,6
-Paare je Einheit**; 78 Übungen bleiben allein. Dass etwas übrig bleibt, ist
+Über alle 336 Einheiten der vier Pläne (4 × 84) findet `paare()` im Schnitt
+**2,2 Paare je Einheit**, mit und ohne Hanteln gleich; 361 Übungen bleiben
+allein. Dass etwas übrig bleibt, ist
 keine Schwäche — wo zwei sich einen Muskel oder ein Gerät teilen, ist die
 normale Pause richtig. Unter *Mehr* steht deshalb nicht nur der Schalter,
 sondern auch, **wie die nächste Einheit konkret liefe**, Paar für Paar. Ein

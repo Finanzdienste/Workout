@@ -287,6 +287,42 @@ const ruck = await page.evaluate(async () => {
 check(ruck.hoch - ruck.jetzt === 1,
   `der Rucksack geht weiter in seinen eigenen Schritten: ${ruck.jetzt} → ${ruck.hoch}`);
 
+// Ein Gewicht neben dem Raster – gesetzt, bevor die Scheiben eingetragen
+// waren. 12 kg je Hand bei 4× 1,25 / 4× 2,5 / 4× 5: Der Mindestschritt (5 % von
+// 12) ließ den Knopf über die 12,5 hinweg auf 15 springen, die nur ein halbes
+// Kilo daneben liegen. Erst einrasten, dann weiter.
+const daneben = async (scheiben) => {
+  await page.evaluate((sch) => {
+    localStorage.removeItem('workout.rounds.v1');
+    localStorage.setItem('workout.state.v1', JSON.stringify({
+      greeted: true, name: 'T', shift: 0, log: {}, scheiben: sch,
+      weights: { 'sitzendes-schulterdruecken': 12 },
+    }));
+  }, scheiben);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(300);
+  return page.evaluate(async () => {
+    const { workingWeight, naechstesGewicht } = await import('./js/gewichte.js');
+    const id = 'sitzendes-schulterdruecken';
+    return { jetzt: workingWeight(id), hoch: naechstesGewicht(id, 1), runter: naechstesGewicht(id, -1) };
+  });
+};
+const neben = await daneben({ stange: { kh: null, sz: null, lh: null },
+  scheiben: [[1.25, 4], [2.5, 4], [5, 4]] });
+console.log('     neben dem Raster:', JSON.stringify(neben));
+check(neben.jetzt === 12 && neben.hoch === 12.5,
+  `12 kg neben dem Raster: + rastet erst auf 12,5 ein, statt auf 15 zu springen (${neben.hoch})`);
+check(neben.runter === 10, `− geht auf den nächsten erreichbaren Wert darunter (${neben.runter})`);
+// Und wo es für beide Kurzhanteln gar kein Raster gibt (zwei Stück je Größe),
+// rechnet der Knopf frei weiter, statt stehen zu bleiben.
+const frei = await daneben(echterSatz);
+console.log('     ohne Raster für beide Kurzhanteln:', JSON.stringify(frei));
+check(frei.hoch === 14 && frei.runter === 10,
+  `ohne Raster für beide Kurzhanteln: freie Schritte 12 → ${frei.hoch} / ${frei.runter}`);
+await setze(SATZ);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+
 // --- 7. Die Bedienung -------------------------------------------------
 await page.locator('.tab[data-tab="settings"]').click();
 await page.waitForTimeout(400);
