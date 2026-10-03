@@ -1613,6 +1613,10 @@ textarea.io {
 }
 .super-paar.allein { color: var(--muted); font-weight: 500; }
 .super-mit { color: var(--muted); font-weight: 500; }
+/* Ein festes Paar, für das die Scheiben nach einer Erhöhung nicht mehr reichen:
+   Das ist dann doch eine Aufgabe – umstecken. */
+.super-hin.knapp { color: var(--warn, #e0a33e); font-weight: 600; }
+.super-paar .knapp { color: var(--warn, #e0a33e); font-weight: 600; }
 
 /* Der Abschluss einer fertigen Einheit. Bewusst kein Knopf: Hier ist nichts
    mehr zu tun, und ein Knopf würde etwas anderes behaupten. */
@@ -10267,7 +10271,7 @@ const DEFAULT_STATE = {
   // vervollständigten – getrennt, weil beide Hinweise zugleich offen sein können.
   planUmbau: null,
   // { [workoutNo]: { db: {exId: [{w,done,wie}]}, bw: {...}, mode, startedOn,
-  //                   soll, nach, fest, festAus, festNetto } }
+  //                   soll, nach, fest, festAus, festNetto, paare } }
   // Je Satz:
   //   w    benutztes Gewicht, beim Abhaken mitgeschrieben
   //   done abgehakt
@@ -10288,6 +10292,9 @@ const DEFAULT_STATE = {
   //           dem festReparieren() die Liste vervollständigt hat
   //           (festErsetzen()). Fehlt nur an den kurzen Listen von v215 – und
   //           nur die repariert festReparieren() in js/app.js.
+  //   paare   je Modus die Supersatz-Paarung, festgehalten mit dem ersten
+  //           abgehakten Satz: { db: { key, gruppen: [[id, id], [id]] } }
+  //           (superGruppen() in js/app.js)
   log: {},
 };
 
@@ -10893,6 +10900,22 @@ function setShift(days) {
   emit();
 }
 
+/**
+ * Die festgehaltene Supersatz-Paarung einer Einheit in einem Modus, oder null:
+ * { key, gruppen: [[id, id], [id]] }. Siehe superGruppen() in js/app.js.
+ */
+function paarung(n, mode) {
+  const e = state.log[n];
+  return (e && e.paare && e.paare[mode]) || null;
+}
+
+function setPaarung(n, mode, wert) {
+  const e = ensure(n);
+  if (!e.paare || typeof e.paare !== 'object') e.paare = {};
+  e.paare[mode] = wert;
+  persist();
+}
+
 /** Nur lesen – legt nichts an, damit reines Blättern den Speicher nicht füllt. */
 function peekSets(n, mode, exId) {
   const e = state.log[n];
@@ -10923,6 +10946,8 @@ function resetWorkout(n, mode) {
   if (!e) return;
   e[mode] = {};
   if (e.done === mode) delete e.done;
+  // Ein neuer Anlauf paart neu – nach dem Gewicht von jetzt.
+  if (e.paare) delete e.paare[mode];
   // Verworfen ist verworfen: Der nächste Anlauf an dieser Einheit fängt die
   // Zeit wieder bei null an.
   if (state.clock && state.clock.n === n) state.clock = null;
@@ -11399,7 +11424,7 @@ function resetAll() {
   emit();
 }
 
-const store = { ablageKlemmt, addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, festErsetzen, festNetto, festschreiben, flush, getSets, getState, importJSON, isStarted, markBackup, markDone, markIcs, normStand, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setRest, setSetting, setShift, setWeight, setWorkoutMode, speicherGrund, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
+const store = { ablageKlemmt, addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, festErsetzen, festNetto, festschreiben, flush, getSets, getState, importJSON, isStarted, markBackup, markDone, markIcs, normStand, paarung, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setPaarung, setRest, setSetting, setShift, setWeight, setWorkoutMode, speicherGrund, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
 
 /* ===== js/text.js ===== */
 /*
@@ -12024,39 +12049,106 @@ function belegung(kg, equip, satz) {
  * und zwei verschiedene Stangen helfen nichts, wenn beide dieselben zwei
  * 5er brauchen.
  *
- * `lasten` ist eine Liste von [Gerät, kg]. Durchsucht werden alle Belegungen
- * des ersten Aufbaus – nicht nur die mit den wenigsten Scheiben, denn mit
- * kleineren Scheiben geht es vielleicht doch –, und für jede wird der Rest mit
- * dem, was übrig bleibt, weiter geprüft.
+ * `lasten` ist eine Liste von [Gerät, kg]. Gefragt ist, ob es *irgendeine*
+ * Aufteilung gibt – nicht nur die mit den wenigsten Scheiben, denn mit
+ * kleineren Scheiben geht es vielleicht doch.
+ *
+ * **Warum nicht einfach alles aufzählen.** Die erste Fassung zählte alle
+ * Belegungen des ersten Aufbaus auf und prüfte für jede den Rest. Mit einem
+ * Heimsatz sind das ein paar Millisekunden; scheitert das Paar aber bei einem
+ * großen Vorrat, wurde der ganze Suchraum abgearbeitet – gemessen 25 s für
+ * 6 Größen zu je 20 Stück, im Hauptthread, bei jedem Neuzeichnen (gefunden bei
+ * der Durchsicht). Dabei hängt alles Weitere nur daran, bei welcher Größe man
+ * steht und wie viel jedem Aufbau noch fehlt – nicht daran, womit der Rest
+ * erreicht wurde. Gesucht wird deshalb Größe für Größe, mit drei Abkürzungen:
+ *
+ *   - Ein Zwischenstand, der schon einmal gescheitert ist, scheitert wieder.
+ *   - Was ein Aufbau *allein* mit den restlichen Größen nicht mehr schafft,
+ *     schafft er mit einem Partner erst recht nicht (`allein` unten).
+ *   - Was zusammen mehr Eisen braucht, als noch daliegt, geht nicht.
+ *
+ * Gerundet wird Schritt für Schritt wie vorher; die Antwort ist dieselbe, nur
+ * ohne Aufzählung. Bleibt es trotzdem zu viel, gibt es null statt einer
+ * eingefrorenen App: lieber „weiß ich nicht" als eine Antwort, auf die man
+ * wartet.
  *
  * null, wenn nichts eingetragen ist: „weiß ich nicht" ist nicht „geht nicht".
  */
+const ZUSAMMEN_BUDGET = 100000;   // Zwischenstände, bevor aufgegeben wird
+
 function zusammen(lasten, satz) {
   if (!satz || !Array.isArray(satz.scheiben) || !satz.scheiben.length) return null;
   const offen = lasten.filter(([equip]) => RASTER[equip]);
-  const geht = (i, vorrat) => {
-    if (i >= offen.length) return true;
-    const [equip, kg] = offen[i];
-    const r = RASTER[equip];
-    const ziel = Math.round(((kg || 0) - basisVon(r, satz)) * 4) / 4;
-    if (ziel < 1e-9) return geht(i + 1, vorrat);            // nichts drauf
-    const suche = (j, rest, v) => {
-      if (Math.abs(rest) < 1e-9) return geht(i + 1, v);
-      if (j >= v.length || rest < -1e-9) return false;
+  const rs = offen.map(([equip]) => RASTER[equip]);
+  const v = satz.scheiben;
+  const n = v.length;
+  // Gerechnet wird in Viertelkilo: Nach jedem Schritt wird darauf gerundet,
+  // also liegt jeder Fehlbetrag auf diesem Raster und taugt als Index.
+  const ziele = offen.map(([, kg], i) => {
+    const ziel = Math.round(((kg || 0) - basisVon(rs[i], satz)) * 4);
+    return ziel < 1 ? 0 : ziel;
+  });
+  // Eine Stufe mehr: Fehlbetrag danach, gerundet wie in belegung().
+  const nach = (q, r, k, w) => (k ? Math.round((q / 4 - r.faktor * k * w) * 4) : q);
+  const stufen = (q, r, frei, w) => (q === 0 ? 0
+    : Math.min(Math.floor(frei / r.pro), Math.floor((q / 4 + 1e-9) / (r.faktor * w))));
+
+  // allein[i][j][q]: Schafft Aufbau i den Fehlbetrag q mit den Größen ab j,
+  // wenn ihm keiner etwas wegnimmt?
+  const allein = offen.map((_, i) => {
+    const r = rs[i];
+    const tab = Array.from({ length: n + 1 }, () => new Uint8Array(ziele[i] + 1));
+    tab[n][0] = 1;
+    for (let j = n - 1; j >= 0; j--) {
       const [w, anzahl] = v[j];
-      const maxK = Math.min(Math.floor(anzahl / r.pro), Math.floor((rest + 1e-9) / (r.faktor * w)));
-      for (let k = maxK; k >= 0; k--) {
-        const nv = k ? v.map((z, x) => (x === j ? [w, anzahl - k * r.pro] : z)) : v;
-        if (suche(j + 1, Math.round((rest - r.faktor * k * w) * 4) / 4, nv)) return true;
+      for (let q = 0; q <= ziele[i]; q++) {
+        for (let k = stufen(q, r, anzahl, w); k >= 0 && !tab[j][q]; k--) {
+          if (tab[j + 1][nach(q, r, k, w)]) tab[j][q] = 1;
+        }
+      }
+    }
+    return tab;
+  });
+  // Ein Gewicht, das sich schon allein nicht bauen lässt, ist kein Konflikt
+  // zwischen den beiden – das ist die Sache von raste() und der Vorschau.
+  // (Dieselbe Frage wie belegung() !== null.)
+  if (ziele.some((z, i) => !allein[i][0][z])) return null;
+
+  // Wie viel Eisen ab Größe j noch daliegt, in Viertelkilo. Nur bei Scheiben
+  // auf dem Viertelkilo-Raster (normSatz() sorgt dafür) ist das ohne Rundung.
+  const exakt = v.every(([w]) => Number.isInteger(w * 4));
+  const eisen = new Array(n + 1).fill(0);
+  for (let j = n - 1; j >= 0; j--) eisen[j] = eisen[j + 1] + v[j][1] * v[j][0] * 4;
+
+  const gescheitert = new Set();
+  let schritte = 0;
+  const geht = (j, qs) => {
+    if (qs.every((q) => q === 0)) return true;
+    if (j >= n || qs.some((q, i) => !allein[i][j][q])) return false;
+    // Ein Aufbau verbraucht je Kilo, das er trägt, pro/faktor Kilo Scheiben.
+    if (exakt && qs.reduce((s, q, i) => s + q * rs[i].pro / rs[i].faktor, 0) > eisen[j]) return false;
+    const key = `${j}|${qs.join(',')}`;
+    if (gescheitert.has(key)) return false;
+    if (++schritte > ZUSAMMEN_BUDGET) return false;   // aufgegeben, s. u.
+    const [w, anzahl] = v[j];
+    const neu = qs.slice();
+    // Der erste greift zuerst zu, die nächsten nehmen, was übrig bleibt.
+    const verteile = (i, frei) => {
+      if (i >= qs.length) return geht(j + 1, neu.slice());
+      for (let k = stufen(qs[i], rs[i], frei, w); k >= 0; k--) {
+        neu[i] = nach(qs[i], rs[i], k, w);
+        if (verteile(i + 1, frei - k * rs[i].pro)) return true;
       }
       return false;
     };
-    return suche(0, ziel, vorrat);
+    if (verteile(0, anzahl)) return true;
+    gescheitert.add(key);
+    return false;
   };
-  // Ein Gewicht, das sich schon allein nicht bauen lässt, ist kein Konflikt
-  // zwischen den beiden – das ist die Sache von raste() und der Vorschau.
-  if (offen.some(([equip, kg]) => (kg || 0) > basisVon(RASTER[equip], satz) && !belegung(kg, equip, satz))) return null;
-  return geht(0, satz.scheiben.map((z) => z.slice()));
+  // Ein Weg, der gefunden wurde, gilt – auch nach dem Aufgeben. Ein „nein"
+  // nach dem Aufgeben ist aber keins.
+  if (geht(0, ziele)) return true;
+  return schritte > ZUSAMMEN_BUDGET ? null : false;
 }
 
 /** Die Belegung als Satz, wie man ihn jemandem zurufen würde. */
@@ -12660,6 +12752,27 @@ const last = (x) => {
   return [ex ? ex.equip : x.equip, ex ? workingWeight(x.id) || 0 : 0];
 };
 
+/**
+ * Reichen die Scheiben, damit beide Aufbauten zugleich stehen bleiben?
+ *
+ * Zwei Stangen, ein Scheibenvorrat: Im Wechsel bleiben beide geladen, also
+ * müssen die Scheiben für beide zugleich da sein (zusammen() in
+ * js/scheiben.js). Goblet und Floor Press mit je zwei 5ern bei zwei 5ern im
+ * Raum hieße sonst, zwischen jedem Satz die Scheiben umzustecken – genau der
+ * Umbau, den die zweite Regel verhindern soll. Ohne eingetragenen Vorrat weiß
+ * die App es nicht und sagt ja; ebenso, wenn eine der beiden gar keinen Aufbau
+ * hat.
+ *
+ * Eigens herausgezogen für die laufende Einheit: Dort steht die Paarung fest
+ * (superGruppen() in js/app.js), und wer mittendrin so weit erhöht, dass es
+ * nicht mehr reicht, behält sein Paar – bekommt aber gesagt, dass er umstecken
+ * muss.
+ */
+function scheibenReichen(a, b) {
+  if (!geraet(a.id) || !geraet(b.id)) return true;
+  return zusammen([last(a), last(b)], meinSatz()) !== false;
+}
+
 /** Dürfen diese beiden im Wechsel laufen? */
 function passtZusammen(a, b, mode) {
   if (a.id === b.id) return false;
@@ -12668,13 +12781,7 @@ function passtZusammen(a, b, mode) {
   // Dasselbe Gerät hieße: zwischen jedem Satz umbauen. Zwei Übungen ohne Aufbau
   // dürfen sich dagegen treffen – da gibt es nichts zu wechseln.
   if (ga && gb && ga === gb) return false;
-  // Zwei Stangen, ein Scheibenvorrat: Im Wechsel bleiben beide geladen, also
-  // müssen die Scheiben für beide zugleich da sein (zusammen() in
-  // js/scheiben.js). Goblet und Floor Press mit je zwei 5ern bei zwei 5ern im
-  // Raum hieße sonst, zwischen jedem Satz die Scheiben umzustecken – genau der
-  // Umbau, den die zweite Regel verhindern soll. Ohne eingetragenen Vorrat
-  // weiß die App es nicht und lässt das Paar stehen.
-  if (ga && gb && zusammen([last(a), last(b)], meinSatz()) === false) return false;
+  if (!scheibenReichen(a, b)) return false;
   const ma = direkteMuskeln(a.id, mode);
   return ![...direkteMuskeln(b.id, mode)].some((m) => ma.has(m));
 }
@@ -17592,7 +17699,7 @@ function startRest(exName, setIndex, sets, secs, exId = null) {
     endsAt: Date.now() + secs * 1000,
     total: secs,
     next: `Satz ${setIndex + 2} von ${sets} · ${exName}`,
-    ex: exId,   // wessen Pause – siehe pauseZurAnzeige()
+    ex: exId,   // wessen Pause – siehe leistenPause()
   });
   announce(`Pause ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} Minuten, `
     + `danach Satz ${setIndex + 2} von ${sets}, ${exName}`);
@@ -17603,12 +17710,9 @@ function startRest(exName, setIndex, sets, secs, exId = null) {
 
 function endRest(withSignal) {
   if (!restBar) return;
-  if (restTicker) { clearInterval(restTicker); restTicker = null; }
   holdScreen(false);
   store.setRest(null);
-  restBar.hidden = true;
   restBar.classList.remove('ready');
-  document.body.classList.remove('resting');
   // Das Signal liegt längst auf der Audio-Uhr und hat gerade selbst gespielt –
   // hier noch einmal anzustoßen, gäbe ein Echo. Nur wenn das Voraussetzen nicht
   // geklappt hat (kein Ton freigeschaltet, Browser ohne Web Audio), kommt der
@@ -17627,6 +17731,9 @@ function endRest(withSignal) {
   } else {
     announce('');
   }
+  // Im Supersatz kann unten trotzdem noch etwas stehen: die Pause der gezeigten
+  // Übung, wenn es nicht die war, die eben zu Ende ging (leistenPause()).
+  tickRest();
 }
 
 function tickRest() {
@@ -17634,16 +17741,25 @@ function tickRest() {
   // stammen, fehlt die Leiste - dann lieber ohne Timer weiterlaufen als alles
   // mit einem Fehler anhalten.
   if (!restBar) return;
-  const rest = store.getState().rest;
-  if (!rest) { restBar.hidden = true; document.body.classList.remove('resting'); return; }
-
-  const left = Math.round((rest.endsAt - Date.now()) / 1000);
-  if (left <= 0) {
+  const laeuft = store.getState().rest;
+  // Das Ende der Pause, auf die der Ablauf wartet, meldet sich – gleich, was
+  // die Leiste gerade zeigt. endRest() zeichnet die Leiste danach selbst neu.
+  if (laeuft && Math.round((laeuft.endsAt - Date.now()) / 1000) <= 0) {
     endRest(true);
     toast('Pause vorbei – nächster Satz');
     return;
   }
+  const rest = leistenPause();
+  if (!rest) {
+    restBar.hidden = true;
+    document.body.classList.remove('resting');
+    // Der Takt läuft weiter, solange eine Pause läuft, auch wenn sie gerade
+    // nicht zu sehen ist – sonst käme ihr Ende nie an.
+    if (!laeuft && restTicker) { clearInterval(restTicker); restTicker = null; }
+    return;
+  }
 
+  const left = Math.max(1, Math.round((rest.endsAt - Date.now()) / 1000));
   restBar.hidden = false;
   document.body.classList.add('resting');
   // Die letzten Sekunden gehören dem Weg zur Hantel, nicht mehr der Pause.
@@ -17652,7 +17768,9 @@ function tickRest() {
   if (restLabel) restLabel.textContent = gleich ? 'Fertig machen' : 'Pause';
   restTime.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   restNext.textContent = rest.next;
-  restFill.style.width = `${Math.max(0, (left / rest.total) * 100)}%`;
+  // Gedeckelt: Eine Pause, die länger ist als ihr Ganzes, zeigt einen vollen
+  // Balken und keinen, der über den Rand hinausläuft.
+  restFill.style.width = `${Math.min(100, Math.max(0, (left / rest.total) * 100))}%`;
 
   if (!restTicker) restTicker = setInterval(tickRest, 250);
 }
@@ -17665,20 +17783,37 @@ setInterval(() => {
   badge.textContent = `⏱ ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 }, 1000);
 
+/*
+ * Die beiden Knöpfe gelten der Pause, die unten steht – im Supersatz also der
+ * der gezeigten Übung, nicht unbedingt der, deren Ende gleich klingelt.
+ */
 document.getElementById('restSkip')?.addEventListener('click', () => {
+  const gezeigt = leistenPause();
+  if (!gezeigt) return;
   // Weggetippt ist weggetippt: Auch wer danach zu dieser Übung zurückwischt,
-  // bekommt die Pause nicht noch einmal (pauseZurAnzeige() rechnet aus satzUhr).
-  const rest = store.getState().rest;
-  if (rest && rest.ex) { satzUhr.delete(rest.ex); uhrMerken(); }
-  endRest(false);
+  // bekommt die Pause nicht noch einmal (leistenPause() rechnet aus satzUhr).
+  if (gezeigt.ex) { satzUhr.delete(gezeigt.ex); satzPlus.delete(gezeigt.ex); uhrMerken(); }
+  // Die Pause, auf die der Ablauf wartet, endet nur, wenn sie es war, die
+  // unten stand. Tippt man beim Partner dessen Pause weg, klingelt die andere
+  // trotzdem.
+  if (gezeigt === store.getState().rest) endRest(false);
+  else tickRest();
 });
 document.getElementById('restPlus')?.addEventListener('click', () => {
+  const gezeigt = leistenPause();
+  if (!gezeigt) return;
   const rest = store.getState().rest;
-  if (!rest) return;
-  store.setRest({ ...rest, endsAt: rest.endsAt + 30000, total: rest.total + 30 });
-  // Die 30 s gehören zur Übung, nicht zur Leiste – beim Zurückwischen bleiben sie.
-  if (rest.ex && satzUhr.has(rest.ex)) { satzUhr.set(rest.ex, satzUhr.get(rest.ex) + 30000); uhrMerken(); }
-  armRest(); // Signal 30 s weiter hinten neu auflegen
+  // Die 30 s gehören zur Übung, nicht zur Leiste – beim Zurückwischen bleiben
+  // sie, und zwar auch im Ganzen, an dem der Balken misst (satzPlus).
+  if (gezeigt.ex && satzUhr.has(gezeigt.ex)) {
+    satzUhr.set(gezeigt.ex, satzUhr.get(gezeigt.ex) + 30000);
+    satzPlus.set(gezeigt.ex, (satzPlus.get(gezeigt.ex) || 0) + 30);
+    uhrMerken();
+  }
+  if (gezeigt === rest) {
+    store.setRest({ ...rest, endsAt: rest.endsAt + 30000, total: rest.total + 30 });
+    armRest(); // Signal 30 s weiter hinten neu auflegen
+  }
   tickRest();
 });
 
@@ -17730,6 +17865,10 @@ const ui = {
   focus: false,    // Fokus-Ansicht: eine Übung groß
   listView: false, // Übungsliste statt Startansicht
   focusIdx: 0,
+  // Die Übung, die renderFocus() zuletzt gezeichnet hat, oder null – daran
+  // liest die Pausenleiste im Supersatz ab, wessen Pause sie zeigt
+  // (leistenPause()).
+  gezeigt: null,
   // Kalender: gezeigter Monat und der angetippte Tag. Beides fängt bei der
   // nächsten offenen Einheit an, nicht stur bei heute – wer den Tab öffnet,
   // will meistens wissen, was als Nächstes kommt.
@@ -17796,29 +17935,100 @@ function weiterZurNaechsten(n, mode) {
  * Wann war diese Übung zuletzt dran?
  *
  * Bis v222 nur im Arbeitsspeicher. Seit die Leiste unten der angezeigten Übung
- * folgt (pauseZurAnzeige()), wird hier auch nachgelesen, wenn man nur zur
+ * folgt (leistenPause()), wird hier auch nachgelesen, wenn man nur zur
  * anderen Übung wischt – und nach einem Neuladen der Seite (kurz aus der App,
  * das Handy hat sie verworfen) wäre die Uhr leer gewesen: Die laufende Pause
  * wäre beim ersten Wischen verschwunden. Deshalb steht sie auch im Gerät, nur
  * dort, nie in der Sicherung, und nach drei Stunden ist sie bedeutungslos.
  */
 const UHR_KEY = 'workout.satzuhr.v1';
-const satzUhr = (() => {
+const uhrRoh = (() => {
   try {
     const roh = JSON.parse(localStorage.getItem(UHR_KEY) || 'null');
-    if (roh && Array.isArray(roh.m) && Date.now() - roh.t < 3 * 3600 * 1000) return new Map(roh.m);
+    if (roh && Array.isArray(roh.m) && Date.now() - roh.t < 3 * 3600 * 1000) return roh;
   } catch { /* kein Speicher – dann eben nur im Arbeitsspeicher */ }
-  return new Map();
+  return null;
 })();
+const satzUhr = new Map(uhrRoh ? uhrRoh.m : []);
+/**
+ * Wie viel „+30 s" in der Uhr einer Übung steckt.
+ *
+ * satzUhr verschiebt dafür den Zeitpunkt, damit die Wartezeit stimmt. Das Ganze,
+ * an dem der Balken unten misst, wusste davon nichts: Nach „+30 s", einmal weg-
+ * und zurückgewischt, stand die Restzeit bei 2:57 und das Ganze bei 2:30 – der
+ * Balken lief mit 118 % über den Rand und blieb eine halbe Minute voll stehen
+ * (gefunden bei der Durchsicht).
+ */
+const satzPlus = new Map(uhrRoh && Array.isArray(uhrRoh.p) ? uhrRoh.p : []);
 const uhrMerken = () => {
-  try { localStorage.setItem(UHR_KEY, JSON.stringify({ t: Date.now(), m: [...satzUhr] })); } catch { /* s. o. */ }
+  try {
+    localStorage.setItem(UHR_KEY, JSON.stringify({ t: Date.now(), m: [...satzUhr], p: [...satzPlus] }));
+  } catch { /* s. o. */ }
 };
 
 const superAn = () => !!store.getState().supersatz;
 
-/** Die Paare dieser Einheit. Neu gerechnet ist billiger als falsch gemerkt. */
+/**
+ * Die Paare dieser Einheit – und zwar, sobald trainiert wird, immer dieselben.
+ *
+ * Seit die Scheiben mitreden (passtZusammen() fragt zusammen() in
+ * js/scheiben.js), hängt ein Paar am Gewicht. Neu gerechnet bei jedem Aufruf
+ * hieß das: Ein Tipp auf + mitten im Supersatz löste das Paar auf. Der Hinweis
+ * „Im Wechsel mit …" verschwand, nach dem nächsten Satz blieb die App bei
+ * derselben Übung, und die angefangene Partnerübung rutschte hinter das nächste
+ * Paar – bei Hip Thrust ↔ Schulterdrücken sechs Sätze weit (gefunden bei der
+ * Durchsicht). Dasselbe beim Ändern des Vorrats unter Mehr. Die Paarung ist
+ * aber ein Plan für diese Einheit, wie die Rüst-Reihenfolge
+ * (ruestOrderStabil() in js/gewichte.js), keine ständig nachgeführte Rechnung.
+ *
+ * Festgehalten wird sie deshalb mit dem ersten abgehakten Satz, im Protokoll
+ * der Einheit (paarungFesthalten()) – im Arbeitsspeicher allein hätte ein
+ * Neuladen mit dem neuen Gewicht sie genauso gekippt. Vorher richtet sie sich
+ * nach Gewicht und Vorrat: Wer unter Mehr seinen Vorrat einträgt, soll in der
+ * Vorschau sehen, was daraus folgt. Ändern sich die Übungen selbst (Beschwerde
+ * angehakt, Gerät weg, andere Fassung), ist es eine andere Einheit und wird
+ * neu gepaart.
+ *
+ * Reichen die Scheiben nach einer Erhöhung nicht mehr für beide Aufbauten,
+ * bleibt das Paar trotzdem – die Fokusansicht sagt dann, dass zwischen den
+ * Sätzen umzustecken ist (scheibenReichen()), statt still umzustellen.
+ */
 function superGruppen(n, mode) {
-  return paare(workoutByNo(n, mode).ex.map((x) => resolve(x, mode)), mode);
+  const items = workoutByNo(n, mode).ex.map((x) => resolve(x, mode));
+  const fest = festePaarung(n, mode, items);
+  return fest || paare(items, mode);
+}
+
+/** Welche Übungen eine Paarung meint – unabhängig von ihrer Reihenfolge. */
+const paarungsKey = (items) => items.map((x) => x.id).sort().join(',');
+
+/**
+ * Die festgehaltene Paarung, falls sie zu genau diesen Übungen passt. Nach
+ * der Reihenfolge wird nicht gefragt: Die Rüst-Reihenfolge wird beim Laden neu
+ * bestimmt und hängt am Gewicht – an ihr darf eine festgehaltene Paarung nicht
+ * zerbrechen.
+ */
+function festePaarung(n, mode, items) {
+  const fest = store.paarung(n, mode);
+  if (!fest || fest.key !== paarungsKey(items) || !Array.isArray(fest.gruppen)) return null;
+  const byId = new Map(items.map((x) => [x.id, x]));
+  const gruppen = fest.gruppen.map((g) => (Array.isArray(g) ? g.map((id) => byId.get(id)) : []));
+  const ids = gruppen.flat();
+  // Was aus einer Sicherung kommt, wird nicht geglaubt, sondern nachgezählt.
+  const heil = gruppen.every((g) => g.length >= 1 && g.length <= 2 && g.every(Boolean))
+    && ids.length === items.length && new Set(ids).size === items.length;
+  return heil ? gruppen : null;
+}
+
+/** Mit dem ersten abgehakten Satz: Die Paarung gilt ab jetzt für die Einheit. */
+function paarungFesthalten(n, mode) {
+  if (!superAn()) return;
+  const items = workoutByNo(n, mode).ex.map((x) => resolve(x, mode));
+  if (festePaarung(n, mode, items)) return;
+  store.setPaarung(n, mode, {
+    key: paarungsKey(items),
+    gruppen: paare(items, mode).map((g) => g.map((x) => x.id)),
+  });
 }
 
 /** Steht diese Übung im Wechsel, und mit wem? */
@@ -17835,40 +18045,47 @@ function superPartner(n, mode, id) {
  *     „Bei supersatz soll unten die pausenzeit angezeigt werden von der Übung
  *      die grad angezeigt wird"
  *
- * Im Wechsel laufen zwei Pausen zugleich, eine je Übung – die Leiste zeigte
- * aber nur die zuletzt gestartete. Wer zum Partner wischte oder in der
- * Fortschrittsleiste auf ihn tippte, sah weiter die Pause der anderen Übung
- * samt deren Namen. Jetzt folgt die Leiste der Anzeige: Ist die gezeigte Übung
- * noch nicht erholt, steht dort ihre Restzeit, gerechnet wie in superWeiter()
- * aus der Uhr (satzUhr); ist sie erholt, fertig oder noch gar nicht dran
- * gewesen, verschwindet die Leiste. Wischt man zurück, steht die andere wieder
- * da – nichts davon ist verloren, es wird nur aus der Uhr neu abgelesen.
+ * Im Wechsel laufen zwei Pausen zugleich, eine je Übung. Sie sind aber nicht
+ * gleich wichtig, und das trennt zwei Fragen:
+ *
+ *   **Was klingelt.** Ton, Vibration und Systemmeldung gehören der Pause, auf
+ *   die der Ablauf wartet – der des nächsten Schritts, wie ihn superWeiter()
+ *   oder das Abhaken gestartet hat (`store.rest`). Die läuft weiter, egal
+ *   wohin man wischt. Zuerst tauschte die Leiste beim Wischen auch das
+ *   Signal mit aus: Zur dritten, noch nicht begonnenen Übung gewischt, war die
+ *   Pause samt Ton und Meldung weg; zum Partner gewischt, klingelte es zu
+ *   dessen Ende statt zu dem der Übung, die als Nächste dran ist (gefunden
+ *   bei der Durchsicht). Die Pause des Partners klingelt bewusst nicht: Ist
+ *   sie kürzer, käme ihr Ton, während man noch auf die andere wartet.
+ *
+ *   **Was unten steht.** Die Pause der gezeigten Übung: ist es die laufende,
+ *   genau die; sonst ihre eigene, aus der Uhr (satzUhr) gerechnet wie in
+ *   superWeiter(); ist die Übung erholt, fertig oder noch gar nicht dran
+ *   gewesen, nichts. Wischt man zurück, steht die andere wieder da – nichts
+ *   davon ist verloren, es wird nur neu abgelesen.
+ *
+ * Abgelesen wird an dem, was renderFocus() zuletzt gezeichnet hat
+ * (`ui.gezeigt`), und render() fragt nach jedem Zeichnen neu. Damit passt die
+ * Leiste zu jeder Stelle, die ui.focusIdx setzt – vorher wurde nur nach dem
+ * Wischen und Tippen nachgezogen, und nach „Training fortsetzen" oder dem
+ * Neuladen stand unter den Liegestützen die Pause der Pull-ups.
  *
  * Ohne Supersätze bleibt alles beim Alten: Dort gibt es nur eine Pause.
  */
-function pauseZurAnzeige(n, mode) {
-  if (!superAn() || !ui.focus) return;
-  const item = workoutByNo(n, mode).ex[ui.focusIdx];
-  if (!item) return;
-  const v = resolve(item, mode);
+function leistenPause() {
   const rest = store.getState().rest;
-  if (rest && rest.ex === v.id) return;           // läuft schon für diese
-  const fertig = saetzeErledigt(n, v.id, item.sets);
-  const zuletzt = satzUhr.get(v.id);
-  const ende = zuletzt ? zuletzt + restFor(v) * 1000 : 0;
-  if (fertig > 0 && fertig < item.sets && ende - Date.now() >= 1000) {
-    store.setRest({
-      endsAt: ende,
-      total: restFor(v),
-      next: `Satz ${fertig + 1} von ${item.sets} · ${v.name}`,
-      ex: v.id,
-    });
-    holdScreen(true);
-    armRest();
-    tickRest();
-  } else if (rest) {
-    endRest(false);
-  }
+  const g = ui.gezeigt;
+  if (!superAn() || !g) return rest;
+  if (rest && rest.ex === g.id) return rest;
+  const zuletzt = satzUhr.get(g.id);
+  const ende = zuletzt ? zuletzt + g.pause * 1000 : 0;
+  if (!(g.fertig > 0 && g.fertig < g.sets && ende - Date.now() >= 1000)) return null;
+  return {
+    endsAt: ende,
+    total: g.pause + (satzPlus.get(g.id) || 0),
+    next: `Satz ${g.fertig + 1} von ${g.sets} · ${g.name}`,
+    ex: g.id,
+  };
 }
 
 /**
@@ -17906,14 +18123,13 @@ function satzSteht(n, mode) {
 function superWeiter(n, mode, id) {
   if (!superAn() || !ui.focus) return false;
   const w = workoutByNo(n, mode);
-  const items = w.ex.map((x) => resolve(x, mode));
-  const g = gruppeVon(paare(items, mode), id);
+  const g = gruppeVon(superGruppen(n, mode), id);
   if (!g || g.length < 2) return false;
 
   const ziel = naechsterSchritt(g, satzSteht(n, mode));
   if (!ziel) return false;              // Paar durch – der normale Weg greift
 
-  const v = items.find((x) => x.id === ziel.id);
+  const v = g.find((x) => x.id === ziel.id);
   const idx = w.ex.findIndex((x) => x.id === ziel.id);
   if (idx >= 0) ui.focusIdx = idx;
 
@@ -18003,6 +18219,10 @@ function renderFocus() {
   // Satz, den es nie gab (siehe toggle-set).
   const anderswo = Math.max(0, saetzeErledigt(n, it.id, it.sets) - doneCount);
   const exFertig = doneCount + anderswo >= it.sets;
+  ui.gezeigt = {
+    id: it.id, name: it.name, sets: it.sets, pause: restFor(it),
+    fertig: saetzeErledigt(n, it.id, it.sets),
+  };
   const kg = it.weight === null ? null : workingWeight(it.id);
   const anders = it.weight === null ? '' : doneWeightNote(n, mode, it.id);
 
@@ -18055,7 +18275,13 @@ function renderFocus() {
       // Im Wechsel muss dastehen, mit wem – sonst wirkt der Sprung zur nächsten
       // Übung wie ein Fehler statt wie der Plan.
       const partner = superPartner(n, mode, it.id);
-      return partner ? `<div class="super-hin">↔ Im Wechsel mit ${esc(partner.name)}</div>` : '';
+      if (!partner) return '';
+      // Das Paar bleibt, auch wenn ein Gewicht inzwischen so gestiegen ist,
+      // dass die Scheiben nicht mehr für beide reichen – dann muss man es
+      // aber wissen, sonst steht man vor der leeren Stange.
+      const knapp = scheibenReichen(it, partner) ? ''
+        : '<div class="super-hin knapp">Die Scheiben reichen nicht für beide Aufbauten – zwischen den Sätzen umstecken.</div>';
+      return `<div class="super-hin">↔ Im Wechsel mit ${esc(partner.name)}</div>${knapp}`;
     })()}
 
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
@@ -19491,7 +19717,8 @@ function superVorschau() {
     <div class="scheiben-satz">
       <div class="lbl">Workout ${n} liefe so</div>
       ${gruppen.map((g) => (g.length === 2
-        ? `<div class="super-paar">↔ ${esc(g[0].name)} <span class="super-mit">im Wechsel mit</span> ${esc(g[1].name)}</div>`
+        ? `<div class="super-paar">↔ ${esc(g[0].name)} <span class="super-mit">im Wechsel mit</span> ${esc(g[1].name)}${
+          scheibenReichen(g[0], g[1]) ? '' : ' <span class="knapp">– Scheiben reichen nicht für beide, umstecken</span>'}</div>`
         : `<div class="super-paar allein">${esc(g[0].name)} <span class="super-mit">allein, mit normaler Pause</span></div>`)).join('')}
       <div class="hint">${paarZahl
         ? `${paarZahl} ${paarZahl === 1 ? 'Paar' : 'Paare'} – der Rest läuft wie bisher.`
@@ -22042,9 +22269,13 @@ function render() {
   view.setAttribute('aria-labelledby', `tab-${reiter}`);
   const hatte = focusKey(document.activeElement);
   clearFigures(); // alte Animationen abmelden, bevor das DOM ersetzt wird
+  ui.gezeigt = null;   // setzt renderFocus(), wenn es eine Übung zeigt
   (RENDERERS[ui.tab] || renderDashboard)();
   restoreFocus(hatte);
   syncHistory();
+  // Die Leiste unten nach jedem Zeichnen zur gezeigten Übung passend machen –
+  // hier einmal statt an jeder Stelle, die ui.focusIdx setzt.
+  tickRest();
   // Welche Einheit gerade in der Fokusansicht offen ist, und bei welcher Übung
   // – damit sie nach dem Neuladen genau dort wieder aufgeht (siehe `fokusOffen`
   // beim Start). Die Übung muss mit: Weder den Sprung zum Supersatz-Partner
@@ -22296,7 +22527,10 @@ view.addEventListener('click', (e) => {
       // Wann diese Übung zuletzt dran war – daraus rechnet der Supersatz die
       // Wartezeit. Nur beim Setzen, nicht beim Wegnehmen: Ein zurückgenommener
       // Haken macht die verstrichene Zeit nicht ungeschehen.
-      if (done) { satzUhr.set(id, Date.now()); uhrMerken(); }
+      if (done) { satzUhr.set(id, Date.now()); satzPlus.delete(id); uhrMerken(); }
+
+      // Ab dem ersten Satz steht die Paarung für diese Einheit (superGruppen()).
+      if (done) paarungFesthalten(n, mode);
 
       // Im Supersatz entscheidet der Wechsel, wohin es geht und wie lange
       // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
@@ -22526,12 +22760,10 @@ view.addEventListener('click', (e) => {
     }
     case 'focus-goto':
       ui.focusIdx = Number(t.dataset.i);
-      pauseZurAnzeige(n, mode);
       render();
       break;
     case 'focus-step':
       ui.focusIdx = Math.max(0, Math.min(workoutByNo(n).ex.length - 1, ui.focusIdx + Number(t.dataset.d)));
-      pauseZurAnzeige(n, mode);
       render();
       break;
     case 'complete-workout':
@@ -23226,7 +23458,6 @@ function blaettern(richtung) {
     const ziel = ui.focusIdx + richtung;
     if (ziel < 0 || ziel >= w.ex.length) return;
     ui.focusIdx = ziel;
-    pauseZurAnzeige(n, store.workoutMode(n));
     render();
     return;
   }

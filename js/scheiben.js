@@ -293,39 +293,106 @@ export function belegung(kg, equip, satz) {
  * und zwei verschiedene Stangen helfen nichts, wenn beide dieselben zwei
  * 5er brauchen.
  *
- * `lasten` ist eine Liste von [Gerät, kg]. Durchsucht werden alle Belegungen
- * des ersten Aufbaus – nicht nur die mit den wenigsten Scheiben, denn mit
- * kleineren Scheiben geht es vielleicht doch –, und für jede wird der Rest mit
- * dem, was übrig bleibt, weiter geprüft.
+ * `lasten` ist eine Liste von [Gerät, kg]. Gefragt ist, ob es *irgendeine*
+ * Aufteilung gibt – nicht nur die mit den wenigsten Scheiben, denn mit
+ * kleineren Scheiben geht es vielleicht doch.
+ *
+ * **Warum nicht einfach alles aufzählen.** Die erste Fassung zählte alle
+ * Belegungen des ersten Aufbaus auf und prüfte für jede den Rest. Mit einem
+ * Heimsatz sind das ein paar Millisekunden; scheitert das Paar aber bei einem
+ * großen Vorrat, wurde der ganze Suchraum abgearbeitet – gemessen 25 s für
+ * 6 Größen zu je 20 Stück, im Hauptthread, bei jedem Neuzeichnen (gefunden bei
+ * der Durchsicht). Dabei hängt alles Weitere nur daran, bei welcher Größe man
+ * steht und wie viel jedem Aufbau noch fehlt – nicht daran, womit der Rest
+ * erreicht wurde. Gesucht wird deshalb Größe für Größe, mit drei Abkürzungen:
+ *
+ *   - Ein Zwischenstand, der schon einmal gescheitert ist, scheitert wieder.
+ *   - Was ein Aufbau *allein* mit den restlichen Größen nicht mehr schafft,
+ *     schafft er mit einem Partner erst recht nicht (`allein` unten).
+ *   - Was zusammen mehr Eisen braucht, als noch daliegt, geht nicht.
+ *
+ * Gerundet wird Schritt für Schritt wie vorher; die Antwort ist dieselbe, nur
+ * ohne Aufzählung. Bleibt es trotzdem zu viel, gibt es null statt einer
+ * eingefrorenen App: lieber „weiß ich nicht" als eine Antwort, auf die man
+ * wartet.
  *
  * null, wenn nichts eingetragen ist: „weiß ich nicht" ist nicht „geht nicht".
  */
+const ZUSAMMEN_BUDGET = 100000;   // Zwischenstände, bevor aufgegeben wird
+
 export function zusammen(lasten, satz) {
   if (!satz || !Array.isArray(satz.scheiben) || !satz.scheiben.length) return null;
   const offen = lasten.filter(([equip]) => RASTER[equip]);
-  const geht = (i, vorrat) => {
-    if (i >= offen.length) return true;
-    const [equip, kg] = offen[i];
-    const r = RASTER[equip];
-    const ziel = Math.round(((kg || 0) - basisVon(r, satz)) * 4) / 4;
-    if (ziel < 1e-9) return geht(i + 1, vorrat);            // nichts drauf
-    const suche = (j, rest, v) => {
-      if (Math.abs(rest) < 1e-9) return geht(i + 1, v);
-      if (j >= v.length || rest < -1e-9) return false;
+  const rs = offen.map(([equip]) => RASTER[equip]);
+  const v = satz.scheiben;
+  const n = v.length;
+  // Gerechnet wird in Viertelkilo: Nach jedem Schritt wird darauf gerundet,
+  // also liegt jeder Fehlbetrag auf diesem Raster und taugt als Index.
+  const ziele = offen.map(([, kg], i) => {
+    const ziel = Math.round(((kg || 0) - basisVon(rs[i], satz)) * 4);
+    return ziel < 1 ? 0 : ziel;
+  });
+  // Eine Stufe mehr: Fehlbetrag danach, gerundet wie in belegung().
+  const nach = (q, r, k, w) => (k ? Math.round((q / 4 - r.faktor * k * w) * 4) : q);
+  const stufen = (q, r, frei, w) => (q === 0 ? 0
+    : Math.min(Math.floor(frei / r.pro), Math.floor((q / 4 + 1e-9) / (r.faktor * w))));
+
+  // allein[i][j][q]: Schafft Aufbau i den Fehlbetrag q mit den Größen ab j,
+  // wenn ihm keiner etwas wegnimmt?
+  const allein = offen.map((_, i) => {
+    const r = rs[i];
+    const tab = Array.from({ length: n + 1 }, () => new Uint8Array(ziele[i] + 1));
+    tab[n][0] = 1;
+    for (let j = n - 1; j >= 0; j--) {
       const [w, anzahl] = v[j];
-      const maxK = Math.min(Math.floor(anzahl / r.pro), Math.floor((rest + 1e-9) / (r.faktor * w)));
-      for (let k = maxK; k >= 0; k--) {
-        const nv = k ? v.map((z, x) => (x === j ? [w, anzahl - k * r.pro] : z)) : v;
-        if (suche(j + 1, Math.round((rest - r.faktor * k * w) * 4) / 4, nv)) return true;
+      for (let q = 0; q <= ziele[i]; q++) {
+        for (let k = stufen(q, r, anzahl, w); k >= 0 && !tab[j][q]; k--) {
+          if (tab[j + 1][nach(q, r, k, w)]) tab[j][q] = 1;
+        }
+      }
+    }
+    return tab;
+  });
+  // Ein Gewicht, das sich schon allein nicht bauen lässt, ist kein Konflikt
+  // zwischen den beiden – das ist die Sache von raste() und der Vorschau.
+  // (Dieselbe Frage wie belegung() !== null.)
+  if (ziele.some((z, i) => !allein[i][0][z])) return null;
+
+  // Wie viel Eisen ab Größe j noch daliegt, in Viertelkilo. Nur bei Scheiben
+  // auf dem Viertelkilo-Raster (normSatz() sorgt dafür) ist das ohne Rundung.
+  const exakt = v.every(([w]) => Number.isInteger(w * 4));
+  const eisen = new Array(n + 1).fill(0);
+  for (let j = n - 1; j >= 0; j--) eisen[j] = eisen[j + 1] + v[j][1] * v[j][0] * 4;
+
+  const gescheitert = new Set();
+  let schritte = 0;
+  const geht = (j, qs) => {
+    if (qs.every((q) => q === 0)) return true;
+    if (j >= n || qs.some((q, i) => !allein[i][j][q])) return false;
+    // Ein Aufbau verbraucht je Kilo, das er trägt, pro/faktor Kilo Scheiben.
+    if (exakt && qs.reduce((s, q, i) => s + q * rs[i].pro / rs[i].faktor, 0) > eisen[j]) return false;
+    const key = `${j}|${qs.join(',')}`;
+    if (gescheitert.has(key)) return false;
+    if (++schritte > ZUSAMMEN_BUDGET) return false;   // aufgegeben, s. u.
+    const [w, anzahl] = v[j];
+    const neu = qs.slice();
+    // Der erste greift zuerst zu, die nächsten nehmen, was übrig bleibt.
+    const verteile = (i, frei) => {
+      if (i >= qs.length) return geht(j + 1, neu.slice());
+      for (let k = stufen(qs[i], rs[i], frei, w); k >= 0; k--) {
+        neu[i] = nach(qs[i], rs[i], k, w);
+        if (verteile(i + 1, frei - k * rs[i].pro)) return true;
       }
       return false;
     };
-    return suche(0, ziel, vorrat);
+    if (verteile(0, anzahl)) return true;
+    gescheitert.add(key);
+    return false;
   };
-  // Ein Gewicht, das sich schon allein nicht bauen lässt, ist kein Konflikt
-  // zwischen den beiden – das ist die Sache von raste() und der Vorschau.
-  if (offen.some(([equip, kg]) => (kg || 0) > basisVon(RASTER[equip], satz) && !belegung(kg, equip, satz))) return null;
-  return geht(0, satz.scheiben.map((z) => z.slice()));
+  // Ein Weg, der gefunden wurde, gilt – auch nach dem Aufgeben. Ein „nein"
+  // nach dem Aufgeben ist aber keins.
+  if (geht(0, ziele)) return true;
+  return schritte > ZUSAMMEN_BUDGET ? null : false;
 }
 
 /** Die Belegung als Satz, wie man ihn jemandem zurufen würde. */
