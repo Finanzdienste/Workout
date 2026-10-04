@@ -6,8 +6,9 @@
     python3 tools/pruefung/vorher-nachher.py <commit> --nachher 'pfad/t-{v}.json'
 
 Je Plan und Modus nebeneinander: Rüstvorgänge je Einheit (wie die App zählt,
-nur mit Hanteln – ohne Hanteln wird nichts umgebaut), Sätze je Einheit,
-Wochensätze je Gruppe gegen ihr Ziel, Termine, größter Abstand, dieselbe
+nur mit Hanteln – ohne Hanteln wird nichts umgebaut), Sätze und Übungen je
+Einheit, Auftritte ohne drei Sätze, Wochensätze je Gruppe gegen ihr Ziel (im
+Schnitt und in der einzelnen Woche), Termine, größter Abstand, dieselbe
 Bewegung zweimal in einer Einheit und die Sätze mit Rucksack. Bis zum 03.10.
 standen diese Tabellen von Hand im README, aus Zahlen verschiedener Skripte;
 jetzt kommen sie aus einem Lauf, und wer sie nachrechnen will, ruft ihn auf.
@@ -104,7 +105,19 @@ def kennzahlen(daten, v, modus):
             je_uebung[it['id']].add(it.get('bwSets', it['sets']))
     anders = (sum(1 for e in plan for it in e['ex'] if it.get('bwSets', it['sets']) != it['sets']),
               sum(1 for v in je_uebung.values() if 2 in v and 4 in v)) if modus == 'bw' else None
+    # Die einzelne Woche gegen das Ziel, nicht nur der Schnitt: Mit drei Sätzen
+    # je Auftritt kommen Brust und Rücken auf 9 oder 12, nie auf 10. Gemessen
+    # für „2 bis 4 Sätze – gemessen" im README, in Sätzen je Gruppe und Woche.
+    woche_ab = [abs(vol[w][g] - t) for w in range(wochen) for g, t in ziele.items()]
+    satzzahlen = collections.defaultdict(set)
+    for e in plan:
+        for it in e['ex']:
+            satzzahlen[it['id']].add(it.get(feld, it['sets']))
     return {
+        'woche_ab': (statistics.mean(woche_ab), max(woche_ab)),
+        'ohne_drei': (sum(1 for e in plan for it in e['ex'] if it.get(feld, it['sets']) != 3),
+                      sum(1 for v in satzzahlen.values() if 2 in v and 4 in v)),
+        'uebungen': statistics.mean(len(e['ex']) for e in plan),
         'anders': anders,
         'ruest': (statistics.mean(sum(ra.ruesten(ra.sortiere([it['id'] for it in e['ex']]))[:2])
                                   for e in plan) if modus == 'db' else None),
@@ -130,9 +143,14 @@ def tabelle(v, alt, neu):
     zeile('Rüstvorgänge je Einheit', lambda k: '–' if k['ruest'] is None else zahl(k['ruest']))
     zeile('Sätze je Einheit', lambda k: f'{k["laenge"][0]}–{k["laenge"][1]} ('
           + ', '.join(f'{c} × {s}' for s, c in k['verteilung']) + ')')
+    zeile('Übungen je Einheit', lambda k: zahl(k['uebungen']))
+    zeile('Auftritte ohne drei Sätze (Übungen mal mit 2, mal mit 4)',
+          lambda k: f'{k["ohne_drei"][0]} ({k["ohne_drei"][1]})')
     zeile('Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4)',
           lambda k: '–' if k['anders'] is None else f'{k["anders"][0]} ({k["anders"][1]})')
     zeile('Wochensätze: größte Abweichung des Schnitts vom Ziel', lambda k: zahl(k['ziel']))
+    zeile('Wochensätze: Abweichung der einzelnen Woche vom Ziel, Mittel / größte',
+          lambda k: f'{zahl(k["woche_ab"][0])} / {zahl(k["woche_ab"][1])}')
     zeile('stärkste Woche über der Grenze (Gruppenwochen darüber)',
           lambda k: f'+{zahl(k["ueber"][0])} ({k["ueber"][1]})')
     zeile('Termine je Woche, alle Gruppen zusammen', lambda k: zahl(k['termine'], 1))
