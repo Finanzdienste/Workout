@@ -1123,7 +1123,9 @@ Wochenzahl sucht sich der Lauf jetzt selbst.
 Was das bringt: **5,7 Übungen je Einheit statt 7,7**, 15 bis 18 Sätze je
 Einheit statt 15 bis 21. Was es kostet: ein paar Sätze Wochenvolumen weniger
 und größere Ausschläge in den gemischten Gruppen – bis 25 % statt bis 10 %.
-Der Schnitt über den ganzen Plan bleibt in beiden Fällen exakt.
+Der Schnitt über den ganzen Plan bleibt in beiden Fällen exakt. Ob zwei bis
+vier Sätze je Auftritt die einzelne Woche genauer machen, ist nachgerechnet –
+unter *2 bis 4 Sätze – gemessen*: ein wenig, nicht genug.
 
 **Gewichtet wird im Verhältnis zum Ziel**, nicht in Sätzen. Ein Satz zu wenig
 ist bei den Waden (Ziel 6) ein Sechstel des Wochenpensums, bei der Brust (10)
@@ -1923,7 +1925,9 @@ die vordere Schulter, die nur noch alle zwei Wochen drankommt. Bei gleichem
 Wochenvolumen wächst ein Muskel zwar unabhängig von der Frequenz ähnlich gut –
 aber 14 Tage sind keine niedrigere Frequenz mehr, das ist eine Lücke.
 
-`PER_SET` steht deshalb weiter auf `(3, 3)`.
+`PER_SET` steht deshalb weiter auf `(3, 3)`. Zwei bis vier Sätze je Auftritt,
+je nach Übung und Woche, sind ebenfalls nachgerechnet und verworfen (*2 bis 4 Sätze –
+gemessen*).
 
 **Die App sortiert innerhalb der Einheit.** Nach Gerät, und innerhalb des Geräts
 absteigend nach Gewicht: Jedes Gerät wird einmal aufgebaut, und die Last geht in
@@ -3278,6 +3282,92 @@ Eingespielt nach dem folgenden Abschnitt: Alle vier ausgelieferten Pläne liegen
 in `tools/plan-vorher/`, auch der Aufbau (`standard.json`), der dort bisher
 fehlte, weil er sich seit Einführung der Ablage nicht geändert hatte. Eine
 angefangene Einheit behält damit ihre ganze alte Liste.
+
+### 2 bis 4 Sätze – gemessen
+
+> „wir können gern 2 bis 4 Sätze machen wenn das iwie sinnvoll ist"
+
+Gefragt war, warum mit Hanteln jede Übung genau drei Sätze hat. Ohne Hanteln
+stehen längst zwei bis vier da (*Der Bodyweight-Modus trifft jetzt dieselben
+Ziele*). Mit Hanteln hat es drei Stellen gegeben, an denen es etwas bringen
+könnte:
+
+* **Die einzelne Woche genauer.** Brust und Rücken kommen mit drei Sätzen je
+  Auftritt in einer Woche nur auf 9 oder 12, nie auf 10 (*Jede Übung steht mit
+  drei Sätzen da*). Mit einer Vier wird aus 9 eine 10.
+* **Weniger Umbau.** Steht dasselbe Gerät an einem Tag ohnehin, kann dort eine
+  Vier stehen und an einem anderen Tag ein Auftritt ganz wegfallen.
+* **Gleichmäßigere Einheiten** – 16 und 17 statt 15 und 18.
+
+`hantel_saetze()` in `tools/build-plan.py` rechnet das am fertig verteilten
+Plan, mit denselben harten Regeln wie *Neu gerechnet am 03.10.*: jedes Ziel im
+Schnitt exakt, jede Gruppe an jedem ihrer Tage weiter direkt dran (Termine,
+größter Abstand und 48 Stunden bleiben also stehen), Einheiten in der Spanne
+ihrer Woche, keine Woche stärker oder weiter vom Ziel als die schlechteste
+davor. Jeder Auftritt ohne drei Sätze kostet etwas, und keine Übung darf mal
+zwei und mal vier haben. Eingeschaltet wird es mit `WK_SAETZE=2,4`; ohne den
+Schalter entstehen dieselben vier Pläne Byte für Byte wie vorher (nachgeprüft).
+
+Ergebnis gegen die ausgelieferten Pläne, mit Hanteln (aus
+`tools/pruefung/vorher-nachher.py`):
+
+| | Aufbau | Bauch, Beine, Po | Cut | Oberkörper |
+| --- | --- | --- | --- | --- |
+| Abweichung der einzelnen Woche vom Ziel, Mittel (Sätze) | 0,60 → 0,50 | 0,44 → 0,38 | 0,69 → 0,57 | 0,37 → 0,29 |
+| … größte | 2,35 → 2,00 | 2,85 → 2,85 | 2,40 → 2,25 | 2,40 → 2,40 |
+| Rüstvorgänge je Einheit | 3,45 → 3,39 | 3,10 → 3,10 | 2,85 → 2,83 | 3,04 → 2,98 |
+| Übungen je Einheit | 5,73 → 5,65 | 5,75 → 5,73 | 4,81 → 4,77 | 5,65 → 5,60 |
+| Einheiten zwischen den beiden Längen (16/17 bzw. 13/14 Sätze) | 0 → 13 von 84 | 0 → 16 | 0 → 15 | 0 → 15 |
+| Auftritte ohne drei Sätze | 0 → 30 | 0 → 22 | 0 → 33 | 0 → 19 |
+| Termine je Woche, größter Abstand | gleich | gleich | gleich | gleich |
+| dieselbe Bewegung zweimal in einer Einheit | 1 → 1 | 0 → 0 | 0 → 0 | 11 → 6 |
+| Fortgeschritten: Auftritte mit sechs Sätzen am Stück | 0 → 8 | 0 → 4 | 0 → 8 | 0 → 6 |
+| ohne Hanteln: Wochenkappen | besser (75 → 65 Gruppenwochen darüber) | **schlechter** (16 → 17) | gleich | **schlechter** (stärkste Woche +0,65 → +1,65) |
+
+**Deshalb bleibt es bei drei.** Keine der Hoffnungen trägt, und es kostet
+etwas:
+
+* Die Woche wird um ein Sechstel bis ein Fünftel genauer, nicht um die Hälfte,
+  und die schlechteste Woche bleibt in zwei Plänen, wie sie war. Halbieren ginge
+  – im Aufbau von 0,60 auf 0,22 –, aber nur mit 120 Auftritten ohne drei Sätze
+  und 16 Übungen, die zwischen zwei und vier springen: Bekommt eine Übung in
+  einer Woche eine Vier, muss sie sie anderswo wieder abgeben, sonst stimmt
+  ihre Plansumme nicht. Wer stattdessen die Übungen tauschen lässt (eine immer
+  mit vier, eine andere immer mit zwei), trifft andere Gruppen mit, und die
+  Gleichungen gehen kaum noch auf.
+* Am Umbau ist kaum etwas zu holen, höchstens 0,06 je Einheit. Die
+  exakte Tagesaufteilung hat die Geräte schon zusammengelegt; ein Auftritt, der
+  wegfallen könnte, ohne dass eine Gruppe ihren Tag verliert, ist selten.
+* Mehr Termine gibt es nicht. Gedacht war an die Gruppen, die nur einmal die
+  Woche drankommen (Beinbeuger am Knie, im Oberkörper Waden und
+  Oberschenkel, bis 11 Tage Abstand): zwei Zweier statt einer Drei. Drei Sätze
+  lassen sich aber nicht auf zwei Auftritte teilen; es ginge nur als 4 und 2
+  im Wechsel, und eine Woche mit 4 statt 3 ist stärker als jede, die der Plan
+  je hatte – `plan-pruefen.py` hielte sie an.
+* Die Einheiten werden kaum gleichmäßiger: 13 bis 16 von 84 liegen danach
+  zwischen den beiden Längen, die Spanne bleibt 15 bis 18 (Cut 12 bis 15).
+* Ohne Hanteln wird es in zwei Plänen schlechter. Fällt ein Auftritt weg,
+  rechnet `bw_saetze()` die Sätze ohne Hanteln auf weniger Auftritte neu, und
+  dabei bekommt im Oberkörper die seitliche Schulter ohne Hanteln eine Woche
+  mit 14,65 Sätzen statt höchstens 13,65 (Grenze 13) – das Tor in
+  `plan-pruefen.py` hielte den Plan an.
+* Und auf der Stufe Fortgeschritten werden aus zwei Vieren derselben Übung
+  einmal fünf und einmal sechs Sätze (*Erfahrung: dieselben Übungen, andere
+  Startgewichte*: Gerundet wird über den ganzen Plan, damit das Volumen
+  stimmt). Mit drei überall sind es immer vier.
+
+Gerechnet ist das mit `WK_SAETZE_STRAFE=0.05` (eine Zwei oder Vier muss die
+Wochen einer Gruppe um ein Zwanzigstel ihres Ziels näher bringen) und
+`WK_SAETZE_UMBAU=0.1`. Billiger (0,01) und mit dreimal so viel Gewicht auf
+dem Umbau (0,3) kommt nichts Besseres heraus: im Bauch-Beine-Po-Plan 3,05
+Rüstvorgänge statt 3,10 bei 48 Auftritten ohne drei Sätze, dafür ohne Hanteln
+23 statt 16 Gruppenwochen über der Grenze.
+
+Für das Training heißt das: Jede Übung mit Hanteln bleibt bei drei Sätzen. Die
+Wochen schwanken bei Brust und Rücken weiter zwischen 9 und 12 – über den
+ganzen Plan stimmt die 10 exakt, und eine Woche mit 12 gleicht die mit 9 aus.
+
+    WK_SAETZE=2,4 WK_NUR_TAGE=1 python3 tools/build-plan.py standard --report
 
 ### Einen Plan neu einspielen
 
