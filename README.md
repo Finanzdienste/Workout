@@ -3955,10 +3955,27 @@ einer Sicherung. Der fällige Zusatztag fehlte dann bis zum nächsten Laden, und
 ein veralteter, unberührter blieb stehen und galt sogar als nächste Einheit.
 Nach einer Einheit liefen die beiden schon immer nacheinander.
 
+**Was gestern liegen blieb, ruht nicht.**
+
+> *„Hab gestern mein Training nicht ganz beendet. Müssten die muskelgruppen
+> nicht heute dazu kommen oder so?"*
+
+Eine abgeschlossene Einheit von gestern sperrte bis hierher *alle* ihre
+Gruppen – auch die der Übungen, von denen kein einziger Satz abgehakt war. Die
+letzten beiden Einheiten einer Woche liegen an zwei aufeinanderfolgenden Tagen
+(Freitag, Samstag) und treffen zusammen jede Gruppe; am Sonntag gab es deshalb
+nie einen Zusatztag, erst am Montag vor Workout 5. Jetzt sperrt eine
+vergangene Einheit nur die Gruppen der Übungen, die wirklich trainiert wurden
+(in beiden Modi gezählt), auch wenn sie nicht abgeschlossen ist. Eine
+anstehende Einheit sperrt weiter alles, was sie vorhat – die 48 Stunden zur
+nächsten Einheit bleiben also gewahrt. Was am Samstag ausgefallen ist und am
+Montag nicht drankommt, steht damit schon am Sonntag im Zusatztag.
+
 `tests/test-zusatztag.mjs`, über 20 Prüfungen – darunter die Gegenrechnung über
 den echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in
 Reichweite kollidiert, ein eigener Fall mit einer gestern abgeschlossenen
-Einheit, die ihre Gruppen ebenfalls sperrt, und die beiden Fälle, in denen
+Einheit, die die Gruppen ihrer trainierten Übungen sperrt und die der
+ausgelassenen in den Zusatztag lässt, und die beiden Fälle, in denen
 **nichts** passieren darf: volle Woche, und Woche läuft noch.
 
 **Die Gegenrechnung war lange grün, ohne etwas zu prüfen.** Gefunden bei der

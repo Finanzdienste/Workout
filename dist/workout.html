@@ -20444,23 +20444,39 @@ const ZUSATZ_AB = 6;            // unter sechs Sätzen Rückstand lohnt es nicht
  * ausgerechnet für die Einheit nicht, die freiwillig dazukommt.
  *
  * Ausgefallene Einheiten sperren nichts: Was nicht stattgefunden hat, muss auch
- * nicht erholt werden.
+ * nicht erholt werden. Und das gilt auch für den Teil einer Einheit, der
+ * ausgefallen ist:
+ *
+ *     „Hab gestern mein Training nicht ganz beendet. Müssten die
+ *      muskelgruppen nicht heute dazu kommen oder so?"
+ *
+ * Vorher sperrte eine abgeschlossene Einheit von gestern *alle* ihre Gruppen,
+ * auch die der Übungen, von denen kein Satz abgehakt war. Weil die letzten
+ * beiden Einheiten einer Woche an zwei aufeinanderfolgenden Tagen liegen und
+ * zusammen jede Gruppe treffen, gab es am Tag danach nie einen Zusatztag –
+ * ausgerechnet für das, was liegen geblieben war und gar nicht ermüdet ist.
+ * Jetzt sperrt eine vergangene Einheit nur die Gruppen der Übungen, von denen
+ * wirklich ein Satz steht, in beiden Modi gezählt (saetzeErledigt). Auch eine
+ * angefangene, nicht abgeschlossene Einheit zählt so – die abgehakten Sätze
+ * sind trainiert, ob die Einheit nun fertig heißt oder nicht. Eine anstehende
+ * Einheit (heute oder später) sperrt weiter alles, was sie vorhat.
  */
 function ruhendeGruppen() {
   const heute = todayISO();
   const sperre = new Set();
+  const direkt = (id, m) => {
+    const ex = EX_BY_ID.get(id);
+    if (!ex) return;
+    Object.entries(ex[m].shares).forEach(([mus, share]) => {
+      if (share >= REST.direct) sperre.add(mus);
+    });
+  };
   PLAN.forEach((w) => {
     const d = effDate(w);
     if (Math.abs(daysBetween(d, heute)) >= REST.days) return;
-    const fertig = completedMode(w.n);
-    if (!fertig && d < heute) return;
-    const m = fertig || store.workoutMode(w.n);
+    const m = completedMode(w.n) || store.workoutMode(w.n);
     exBasis(w, m).forEach((it) => {
-      const ex = EX_BY_ID.get(it.id);
-      if (!ex) return;
-      Object.entries(ex[m].shares).forEach(([mus, share]) => {
-        if (share >= REST.direct) sperre.add(mus);
-      });
+      if (d >= heute || saetzeErledigt(w.n, it.id, it.sets) > 0) direkt(it.id, m);
     });
   });
   return sperre;

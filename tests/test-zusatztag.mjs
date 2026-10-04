@@ -298,7 +298,10 @@ const gesternRuhe = await page.evaluate(async () => {
   const w4 = daten.PLAN[3];
   // Was ausgelassen wurde: je Einheit die letzten zwei Übungen (protokoll()).
   const ausgelassen = direktIm(daten.PLAN.slice(0, 4).flatMap((w) => w.ex.slice(-2)));
-  const gruppenW4 = direktIm(w4.ex);
+  // Gesperrt sind nur die Gruppen der Übungen, die gestern wirklich trainiert
+  // wurden – nicht die der ausgelassenen (siehe ruhendeGruppen()).
+  const gruppenW4 = direktIm(w4.ex.slice(0, -2));
+  const nurAusgelassenW4 = [...direktIm(w4.ex.slice(-2))].filter((m) => !gruppenW4.has(m));
   const zusatz = c ? direktIm(c.ex) : new Set();
   return {
     angelegt: c ? c.ex.map((x) => x.id) : null,
@@ -309,6 +312,9 @@ const gesternRuhe = await page.evaluate(async () => {
     // ohne die Sperre nehmen. Ist das leer, beweist der Fall nichts.
     gewollt: [...gruppenW4].filter((m) => ausgelassen.has(m)),
     treffer: [...gruppenW4].filter((m) => zusatz.has(m)),
+    // Gestern ausgelassen und auch sonst nicht trainiert: ruht nicht.
+    frei: nurAusgelassenW4.filter((m) => ausgelassen.has(m)),
+    freiImZusatz: nurAusgelassenW4.filter((m) => zusatz.has(m)),
   };
 });
 console.log('     gestern abgeschlossen:', JSON.stringify(gesternRuhe));
@@ -325,6 +331,14 @@ check(gesternRuhe.angelegt && gesternRuhe.angelegt.length >= 2,
 check(gesternRuhe.treffer.length === 0,
   `und er lässt die Gruppen von gestern in Ruhe${
     gesternRuhe.treffer.length ? ': ' + gesternRuhe.treffer.join(', ') + '@W4' : ''}`);
+// „Hab gestern mein Training nicht ganz beendet. Müssten die muskelgruppen
+// nicht heute dazu kommen oder so?" – Was gestern liegen blieb, ist nicht
+// ermüdet und darf in den Zusatztag. Vorher sperrte die Einheit von gestern
+// alle ihre Gruppen, auch die der ausgelassenen Übungen.
+check(gesternRuhe.frei.length > 0,
+  `gestern Ausgelassenes steht im Rückstand und ist sonst nicht trainiert (${gesternRuhe.frei.join(', ')})`);
+check(gesternRuhe.freiImZusatz.length > 0,
+  `der Zusatztag nimmt gestern Ausgelassenes auf (${gesternRuhe.freiImZusatz.join(', ') || 'nichts'})`);
 
 // --- Aufstieg und Zusatztag beim selben Start ----------------------------
 // Beim Start stand `pruefeAufstieg() || pruefeZusatztag()`: Kam ein Aufstieg,
