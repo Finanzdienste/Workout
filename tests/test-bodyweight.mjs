@@ -110,6 +110,37 @@ for (const [key, z] of Object.entries(ziele)) {
     `${key}: die Bodyweight-Fassung trifft jetzt auch (schlechteste ${z.bw[0]} ${z.bw[1].toFixed(3)})`);
 }
 
+// --- 2b. Ohne Hanteln so wenige Wochen über der Grenze wie möglich ------
+// Gezählt wie tools/pruefung/wochen-cap.py: je Gruppe und Woche, Grenze
+// max(cap, Ziel). bw_verteilen() in tools/build-plan.py hielt die Zahl bis
+// zum 05.10. nur unter der der gleichmäßigen Verteilung und ließ den Rest die
+// Nähe zu ihr entscheiden – im Aufbau lagen so 75 Gruppenwochen darüber, wo
+// 62 gehen, ohne dass eine Einheit länger oder eine Woche stärker wird. Ein
+// Vergleichsstand wie tools/pruefung/befunde.json: Die Zahlen dürfen sinken,
+// nicht steigen. plan-pruefen.py sieht nur die stärkste Woche, nicht wie oft.
+const DRUEBER_OHNE_HANTELN = { standard: 62, bbp: 16, cut: 13, oberkoerper: 9 };
+const drueber = await page.evaluate(async () => {
+  const { PLANS, EXERCISES } = await import('./js/data.js');
+  const byId = new Map(EXERCISES.map((e) => [e.id, e]));
+  return Object.fromEntries(Object.entries(PLANS).map(([key, v]) => {
+    const wochen = [];
+    v.plan.forEach((w, i) => w.ex.forEach((it) => {
+      const woche = (wochen[Math.floor(i / 4)] ||= {});
+      for (const [m, a] of Object.entries(byId.get(it.id).bw.shares)) {
+        woche[m] = (woche[m] || 0) + (it.bwSets ?? it.sets) * a;
+      }
+    }));
+    const n = wochen.reduce((s, woche) => s + Object.entries(woche)
+      .filter(([m, x]) => x > Math.max(v.cap, v.target[m] || 0) + 1e-9).length, 0);
+    return [key, n];
+  }));
+});
+for (const [key, n] of Object.entries(drueber)) {
+  const stand = DRUEBER_OHNE_HANTELN[key];
+  check(stand !== undefined && n <= stand,
+    `${key}: ohne Hanteln ${n} Gruppenwochen über der Grenze (Vergleichsstand ${stand ?? '–'})`);
+}
+
 // --- 3. Die App zeigt je Modus die Zahl dieses Modus -------------------
 const fall = await page.evaluate(async () => {
   const { PLANS } = await import('./js/data.js');

@@ -334,7 +334,7 @@
    "rearDelts": 11.1,
    "sideDelts": 13.65,
    "traps": 12.9,
-   "triceps": 13.35
+   "triceps": 12.75
   }
  },
  "oberkoerper/db": {
@@ -457,7 +457,7 @@
    "trizeps-strecken-stange"
   ],
   "woche_max": {
-   "abs": 10.7,
+   "abs": 10.0,
    "biceps": 11.4,
    "calves": 6.0,
    "chest": 13.0,
