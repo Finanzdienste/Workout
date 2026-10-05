@@ -46,6 +46,8 @@
  *  14. Die Reparatur einer Liste ohne Vermerk vergleicht mit dem Plan, aus dem
  *      sie kam (Cut e06a62), nicht mit dem letzten davor (a51fd2): keine
  *      Übungen, die nie in der Einheit standen.
+ *  15. Ändern sich nur die Satzzahlen (`saetze`, nicht `stand`), behalten
+ *      angefangene und abgeschlossene Einheiten die Zahl jenes Tages.
  *
  * Und zu 5.: Die Startkarte zeigt danach die reparierte Einheit, nicht die
  * nächste – bis v219 stand dort „Workout 5" neben „wieder vollständig".
@@ -682,6 +684,88 @@ if (!sprung) {
     `Einheit 4 – der Fall vom 29.09. – ist wieder vollständig (${ids(vier).length} von ${sprung.e06[1].length})`);
   check(/wieder vollständig/.test(vier.text), 'und die App sagt es');
 }
+
+// --- 15. Nur die Satzzahlen ändern sich ---------------------------------
+// Der Neulauf vom 05.10. hat allein die Sätze ohne Hanteln neu verteilt. Der
+// Fingerabdruck `stand` sieht nur die Übungen, planWechsel() lief nicht, und
+// eine angefangene Einheit bekam still eine andere Satzzahl; eine mit drei
+// Sätzen abgeschlossene hätte bei vier im Plan als unfertig gegolten. Jetzt
+// gibt es dafür `saetze` (satzWechsel() in js/app.js).
+const satz = await page.evaluate(async () => {
+  const { PLANS } = await import('./js/data.js');
+  const p = PLANS.standard;
+  // Zwei Einheiten mit einer Übung, deren Satzzahl ohne Hanteln wir „früher"
+  // um eins anders setzen: eine angefangene und eine abgeschlossene.
+  const wahl = [];
+  for (const w of p.plan) {
+    const it = w.ex.find((x) => (x.bwSets ?? x.sets) >= 3);
+    if (it) {
+      wahl.push({ n: w.n, ids: w.ex.map((x) => x.id), id: it.id, bw: it.bwSets ?? it.sets,
+        plan: Object.fromEntries(w.ex.map((x) => [x.id, x.bwSets ?? x.sets])) });
+    }
+    if (wahl.length === 3) break;
+  }
+  return { stand: p.stand, saetze: p.saetze, wahl };
+});
+const [angef, fertig, frei] = satz.wahl;
+const bwEintrag = (fall, alt, alleFertig) => {
+  const bw = {};
+  const soll = {};
+  fall.ids.forEach((id) => {
+    const zahl = id === fall.id ? alt : fall.plan[id];
+    soll[id] = zahl;
+    bw[id] = Array.from({ length: zahl }, (_, i) => (alleFertig || (id === fall.id && i === 0) ? { done: true } : {}));
+  });
+  return { mode: 'bw', startedOn: '2026-10-04', db: {}, bw, soll, ...(alleFertig ? { done: 'bw' } : {}) };
+};
+await setze({
+  greeted: true, mode: 'bw', focus: 'standard',
+  planStand: { standard: satz.stand }, planSaetze: { standard: 'aaaaaaaaaaaa' },
+  log: {
+    [angef.n]: bwEintrag(angef, angef.bw - 1, false),
+    [fertig.n]: bwEintrag(fertig, fertig.bw - 1, true),
+    // Satzzahl wie im Plan: bleibt frei.
+    [frei.n]: bwEintrag(frei, frei.bw, false),
+  },
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+const satzNach = await page.evaluate(async ([a, f, fr]) => {
+  const { getState } = await import('./js/store.js');
+  const { workoutByNo, completedMode } = await import('./js/plan.js');
+  const zahl = (n, id) => (workoutByNo(n, 'bw').ex.find((x) => x.id === id) || {}).sets;
+  const st = getState();
+  return {
+    angef: zahl(a.n, a.id), fertig: zahl(f.n, f.id), frei: zahl(fr.n, fr.id),
+    fertigFertig: !!completedMode(f.n),
+    festFrei: !!(st.log[fr.n] || {}).fest,
+    festAngef: (st.log[a.n] || {}).fest,
+    saetze: (st.planSaetze || {}).standard,
+    umbau: st.planUmbau,
+  };
+}, [angef, fertig, frei]);
+console.log('     nur Satzzahlen:', JSON.stringify({ ...satzNach, festAngef: undefined }));
+check(satzNach.angef === angef.bw - 1,
+  `angefangene Einheit ohne Hanteln behält ihre Satzzahl (${satzNach.angef}, Plan jetzt ${angef.bw})`);
+check(satzNach.fertig === fertig.bw - 1 && satzNach.fertigFertig,
+  `abgeschlossene Einheit bleibt bei ihrer Zahl und fertig (${satzNach.fertig}, fertig ${satzNach.fertigFertig})`);
+check(!satzNach.festFrei && satzNach.frei === frei.bw,
+  `eine Einheit, deren Zahlen stimmen, bleibt frei (${satzNach.frei})`);
+check(Array.isArray(satzNach.festAngef) && satzNach.festAngef.every((x) => typeof x.sets === 'number'),
+  'die feste Liste trägt beide Modi');
+check(satzNach.saetze === satz.saetze, 'der neue Satz-Fingerabdruck ist vermerkt');
+check(!!(satzNach.umbau && satzNach.umbau.fest), 'und die App sagt, dass Einheiten festgeschrieben wurden');
+
+// Ganz neu (noch nie ein Plan vermerkt): nichts festschreiben.
+await setze({ greeted: true, mode: 'bw', focus: 'standard', log: { [angef.n]: bwEintrag(angef, angef.bw - 1, false) } });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+const ganzNeu = await page.evaluate(async (n) => {
+  const { getState } = await import('./js/store.js');
+  return { fest: !!(getState().log[n] || {}).fest, saetze: (getState().planSaetze || {}).standard };
+}, angef.n);
+check(!ganzNeu.fest && ganzNeu.saetze === satz.saetze,
+  'ohne vermerkten Plan wird nichts festgeschrieben, der Fingerabdruck nur vermerkt');
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');

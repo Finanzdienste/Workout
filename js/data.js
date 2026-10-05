@@ -3123,6 +3123,7 @@ export const EXERCISES = [
 //   rest     Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,
 //            und ab welchem Anteil eine Uebung als direkt fuer sie gilt
 //   plan     die Einheiten selbst
+//   saetze   Fingerabdruck der Satzzahlen (je Nummer Uebung/sets/bwSets)
 //   vorher   jeder fruehere ausgelieferte Plan als { stand, ex } (nur die
 //            Uebungen je Nummer), damit ein Planwechsel angefangene
 //            Einheiten vollstaendig festschreibt - auch nach einem Sprung
@@ -3131,6 +3132,7 @@ export const PLANS = {
   "standard": {
     name: "Aufbau",
     stand: "5d06c61de5e8",
+    saetze: "cd3cb5cf2569",
     target: {"abs": 9, "biceps": 10, "calves": 6, "chest": 10, "frontDelts": 9.2357, "glutes": 9, "hamstringsHip": 5.0571, "hamstringsKnee": 3, "lats": 10, "quads": 6, "rearDelts": 8, "sideDelts": 10, "traps": 9.9857, "triceps": 10},
     derived: ["frontDelts", "hamstringsHip", "traps"],
     cap: 10,
@@ -3143,6 +3145,7 @@ export const PLANS = {
   "bbp": {
     name: "Bauch, Beine, Po",
     stand: "f689fd6497f1",
+    saetze: "01b721078644",
     target: {"abs": 12, "biceps": 5, "calves": 9, "chest": 6, "frontDelts": 7.3786, "glutes": 15, "hamstringsHip": 7.9357, "hamstringsKnee": 6, "lats": 7, "quads": 12, "rearDelts": 8, "sideDelts": 8, "traps": 9.8857, "triceps": 6},
     derived: ["frontDelts", "hamstringsHip", "traps"],
     cap: 12,
@@ -3156,6 +3159,7 @@ export const PLANS = {
   "cut": {
     name: "Cut",
     stand: "345241a49404",
+    saetze: "577d2f7aeeb1",
     target: {"abs": 9, "biceps": 6.95, "calves": 6, "chest": 7, "frontDelts": 8.15, "glutes": 7.9, "hamstringsHip": 5.15, "hamstringsKnee": 3, "lats": 7, "quads": 6, "rearDelts": 7.95, "sideDelts": 8, "traps": 9.85, "triceps": 7},
     derived: ["frontDelts", "traps"],
     cap: 10,
@@ -3169,6 +3173,7 @@ export const PLANS = {
   "oberkoerper": {
     name: "Oberkörper",
     stand: "49ced3ea3450",
+    saetze: "ada4850e5a59",
     target: {"abs": 6, "biceps": 12, "calves": 3, "chest": 12, "frontDelts": 10.1643, "glutes": 6, "hamstringsHip": 5.0714, "hamstringsKnee": 3, "lats": 12, "quads": 3, "rearDelts": 9, "sideDelts": 12, "traps": 12.0857, "triceps": 12},
     derived: ["frontDelts", "hamstringsHip", "traps"],
     cap: 13,

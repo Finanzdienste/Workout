@@ -398,9 +398,19 @@ def main():
         # Betrieb staendig und aendern nichts an dem, was zu tun ist.
         inhalt = ';'.join(f'{o["n"]}:' + ','.join(i['id'] for i in o['ex'])
                           for o in fresh)
+        # Und ein zweiter nur fuer die Satzzahlen. `stand` sieht nur die
+        # Uebungen; ein Neulauf, der allein die Saetze ohne Hanteln verteilt
+        # (bw_verteilen am 05.10.), liess ihn gleich – und eine angefangene
+        # Einheit bekam still eine andere Satzzahl. Getrennt, weil die Kette
+        # frueherer Plaene (tools/plan-vorher/) nach `stand` geht und eine
+        # reine Satzaenderung dort kein neues Glied braucht: Was an dem Tag
+        # galt, steht im Protokoll (`soll`), siehe satzWechsel() in js/app.js.
+        saetze = ';'.join(f'{o["n"]}:' + ','.join(
+            f'{i["id"]}/{i.get("sets", "")}/{i.get("bwSets", "")}' for i in o['ex']) for o in fresh)
         return {
             'name': roh.get('name', 'Aufbau'),
             'stand': hashlib.sha256(inhalt.encode()).hexdigest()[:12],
+            'saetze': hashlib.sha256(saetze.encode()).hexdigest()[:12],
             'target': roh['target'],
             'derived': roh.get('derived', []),
             'cap': roh.get('cap', DEFAULT_CAP),
@@ -503,6 +513,7 @@ def main():
         "//   rest     Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,\n"
         "//            und ab welchem Anteil eine Uebung als direkt fuer sie gilt\n"
         "//   plan     die Einheiten selbst\n"
+        "//   saetze   Fingerabdruck der Satzzahlen (je Nummer Uebung/sets/bwSets)\n"
         "//   vorher   jeder fruehere ausgelieferte Plan als { stand, ex } (nur die\n"
         "//            Uebungen je Nummer), damit ein Planwechsel angefangene\n"
         "//            Einheiten vollstaendig festschreibt - auch nach einem Sprung\n"
@@ -512,6 +523,7 @@ def main():
             f"  {json.dumps(key)}: {{\n"
             f"    name: {json.dumps(v['name'], ensure_ascii=False)},\n"
             f"    stand: {json.dumps(v.get('stand', ''))},\n"
+            f"    saetze: {json.dumps(v.get('saetze', ''))},\n"
             f"    target: {json.dumps(v['target'], ensure_ascii=False)},\n"
             f"    derived: {json.dumps(v['derived'], ensure_ascii=False)},\n"
             f"    cap: {json.dumps(v['cap'])},\n"

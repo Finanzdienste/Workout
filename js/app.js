@@ -339,8 +339,9 @@ function planWechsel() {
     if (vorher !== jetzt) {
       store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
     }
-    return false;
+    return satzWechsel(fokus, vorher === undefined);
   }
+  merkeSaetze(fokus);
   const { listen, ausPlan } = festeListen(s.log || {}, s.mode, vorherPlan(fokus, vorher), vorher);
   const einheiten = store.festschreiben(listen, ausPlan);
   // **Und gesagt wird es auch** – eine Einheit, die plötzlich andere Übungen
@@ -348,6 +349,75 @@ function planWechsel() {
   store.setSetting('planUmbau', { einheiten, fest: true, fokus: (PLANS[fokus] || {}).name || fokus });
   store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
   return true;
+}
+
+/** Den Fingerabdruck der Satzzahlen dieses Plans als gesehen vermerken. */
+function merkeSaetze(fokus) {
+  const s = store.getState();
+  const jetzt = (PLANS[fokus] || {}).saetze || '';
+  if (jetzt && (s.planSaetze || {})[fokus] !== jetzt) {
+    store.setSetting('planSaetze', { ...(s.planSaetze || {}), [fokus]: jetzt });
+  }
+}
+
+/**
+ * Dieselben Übungen, andere Satzzahlen.
+ *
+ * `stand` sieht nur, welche Übung hinter welcher Nummer steht. Der Neulauf vom
+ * 05.10. hat allein die Sätze ohne Hanteln neu verteilt – `stand` blieb gleich,
+ * planWechsel() lief nicht, und eine angefangene Einheit bekam still eine
+ * andere Satzzahl. Eine abgeschlossene, die mit drei Sätzen fertig war, hätte
+ * danach sogar als unfertig gegolten, wenn dort jetzt vier stehen.
+ *
+ * Deshalb ein zweiter Fingerabdruck nur für die Satzzahlen (`saetze`, siehe
+ * tools/build-data.py). Ändert er sich, werden die Einheiten festgeschrieben,
+ * in denen etwas passiert ist und deren Satzzahl im trainierten Modus vom
+ * neuen Plan abweicht – mit der Zahl jenes Tages aus dem Protokoll (`soll`,
+ * ohne Nacharbeit), wie bei einem Planwechsel ohne Plan davor. Die Zahl des
+ * anderen Modus kommt aus dem Plan: Sie hat sich dort nicht geändert, oder es
+ * wurde in ihm nicht trainiert. Alle übrigen Einheiten bekommen den neuen Plan.
+ */
+function satzWechsel(fokus, ganzNeu = false) {
+  const s = store.getState();
+  const jetzt = (PLANS[fokus] || {}).saetze || '';
+  const vorher = (s.planSaetze || {})[fokus];
+  if (!jetzt) return false;
+  // Ganz neu (noch nie ein Plan vermerkt): nichts zu vergleichen. Kennt das
+  // Gerät dagegen schon einen Plan, aber noch keinen Satz-Fingerabdruck – jede
+  // Fassung vor dieser –, wird geprüft: Ob sich etwas geändert hat, sagt dann
+  // das Protokoll selbst, und eine Einheit, deren Zahlen stimmen, bleibt frei.
+  if (vorher === jetzt || (vorher === undefined && ganzNeu)) {
+    merkeSaetze(fokus);
+    return false;
+  }
+  const stand = (PLANS[fokus] || {}).stand || '';
+  const { listen } = festeListen(s.log || {}, s.mode, null, stand);
+  const fest = {};
+  const ausPlan = {};
+  Object.entries(listen).forEach(([n, liste]) => {
+    const w = PLAN[Number(n) - 1];
+    const e = s.log[n];
+    if (!w || !e) return;
+    const zahl = (m) => Object.values(e[m] || {})
+      .reduce((a, arr) => a + (Array.isArray(arr) ? arr.filter((x) => x && x.done).length : 0), 0);
+    let m = e.mode || s.mode || 'db';
+    if (zahl('db') || zahl('bw')) m = zahl('bw') > zahl('db') ? 'bw' : 'db';
+    const anders = m === 'bw' ? 'db' : 'bw';
+    const neu = new Map(exBasis(w, m).map((it) => [it.id, it.sets]));
+    const neuAnders = new Map(exBasis(w, anders).map((it) => [it.id, it.sets]));
+    if (!liste.some((it) => neu.get(it.id) !== it.sets)) return;
+    fest[n] = liste.map((it) => {
+      const sonst = neuAnders.get(it.id) ?? it.sets;
+      return m === 'bw' ? { id: it.id, sets: sonst, bwSets: it.sets } : { id: it.id, sets: it.sets, bwSets: sonst };
+    });
+    ausPlan[n] = stand;
+  });
+  const einheiten = Object.keys(fest).length ? store.festschreiben(fest, ausPlan) : 0;
+  if (einheiten) {
+    store.setSetting('planUmbau', { einheiten, fest: true, fokus: (PLANS[fokus] || {}).name || fokus });
+  }
+  merkeSaetze(fokus);
+  return einheiten > 0;
 }
 
 /**

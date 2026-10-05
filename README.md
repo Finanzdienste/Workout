@@ -3892,6 +3892,21 @@ Wadenheben, der letzten von fünf.
 angefangene Einheit, die danach ganz feststeht, und das Gerät, das v215 geladen
 und alles danach übersprungen hat.
 
+**Und wenn sich nur die Satzzahlen ändern?** `stand` zählt nur, welche Übung
+hinter welcher Nummer steht. Der Neulauf vom 05.10. (ohne Hanteln weniger
+Wochen über der Grenze) hat allein `bwSets` verteilt – der Stand blieb, kein
+neues Glied in der Kette war nötig, und `planWechsel()` lief nicht. Eine ohne
+Hanteln angefangene Einheit hätte damit still eine andere Satzzahl bekommen,
+eine mit drei Sätzen abgeschlossene bei vier im Plan als unfertig gegolten.
+Deshalb trägt jeder Plan einen zweiten Fingerabdruck nur für die Satzzahlen
+(`saetze`, je Nummer Übung/sets/bwSets). Ändert er sich, schreibt
+`satzWechsel()` die Einheiten fest, in denen etwas passiert ist und deren
+Satzzahl im trainierten Modus vom neuen Plan abweicht – mit der Zahl jenes
+Tages aus dem Protokoll (`soll`), die des anderen Modus aus dem Plan. Ein
+Gerät, das noch gar keinen Satz-Fingerabdruck kennt (jede Fassung davor),
+wird dabei genauso geprüft: Ob sich etwas geändert hat, sagt das Protokoll.
+`tests/test-fest-vollstaendig.mjs` §15.
+
 **So kommt ein neuer Stand dazu.** Wer einen Plan neu einspielt
 (`tools/plan.json` oder `tools/plan-<variante>.json`), legt den ausgelieferten
 Stand dazu – nichts wird ersetzt, nichts gelöscht:

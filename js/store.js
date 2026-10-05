@@ -75,6 +75,9 @@ const DEFAULT_STATE = {
   // alter Eintrag auf etwas anderes als das, was gemacht wurde. Siehe
   // planWechsel() in js/app.js.
   planStand: {},
+  // Dasselbe für die Satzzahlen allein (PLANS[f].saetze) – siehe satzWechsel()
+  // in js/app.js.
+  planSaetze: {},
   // Übungen, die von Hand nach vorn geholt wurden, weil sie sonst regelmäßig
   // ausfallen. Kostet womöglich einen zusätzlichen Umbau – siehe js/muster.js.
   vorne: [],
