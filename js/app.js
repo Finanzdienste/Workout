@@ -3605,10 +3605,13 @@ function tagNotiz(w, mode, items) {
  *
  * Das Ziel ist nicht überall dasselbe: es kommt als TARGET aus den erzeugten
  * Daten, damit hier keine zweite Zahl steht, die von der Rechnung abweichen
- * kann. Im Ziel heißt: keinen ganzen Satz darunter – genau die Grenze, die
- * tools/build-plan.py für die einzelne Woche garantiert. Enger wäre es keine
- * Aussage über das Training, sondern über den Rundungsspielraum des Plans:
- * dessen eigene Wochen weichen um bis zu 0,95 Sätze ab.
+ * kann. Im Ziel heißt: mindestens 90 % dessen, was der Plan für diese Woche
+ * vorsieht (inTarget() und plannedWeek() gleich darunter) – nicht das Ziel
+ * selbst. Eine Garantie „kein ganzer Satz unter dem Ziel" gibt
+ * tools/build-plan.py für die einzelne Woche nicht: Die erzeugten Pläne
+ * weichen in einzelnen Wochen um mehr als zwei Sätze ab (README, *2 bis 4
+ * Sätze – gemessen*); als grob gilt dort erst eine Woche, die die Hälfte
+ * des Ziels danebenliegt (MAX_REL).
  *
  * Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den
  * jeweiligen Anteilen. Eine Woche sind WEEK_SESSIONS aufeinanderfolgende

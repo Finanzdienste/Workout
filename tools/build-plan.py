@@ -2797,8 +2797,8 @@ def split_exakt(week, ids, shares, sessions, used, ruest_info, rang, termine, zu
                     je_modus[m][q] = 1
         k['gleich'] = gleich
         if bezug is not None:
-            # Nicht mehr als die Woche des Vergleichsplans – je Modus und
-            # zusammen gezählt wie bewegung.py.
+            # Nicht mehr als die Woche des Vergleichsplans – je Modus, wie
+            # bewegung.py prüft, und dazu zusammen.
             M.zeile(paare, oben=bezug['gleich'][None])
             for m, terme in je_modus.items():
                 M.zeile(terme, oben=bezug['gleich'][m])
