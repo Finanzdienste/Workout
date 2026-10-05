@@ -14,13 +14,14 @@
  * ------------------------------------------------------------------ */
 import * as store from './store.js';
 import { PLAN } from './data.js';
-import { esc } from './text.js';
+import { esc, fmtNum } from './text.js';
 import { addDays, fmtDate, monthStart, plural, todayISO } from './dates.js';
 import { completedMode, effDate, exOf, progressOf, resolve } from './plan.js';
 import { MODE_ICON, MODE_LABEL, repsLabel } from './anzeige.js';
 import { termine, terminLabel } from './termine.js';
 import { AKT_BY_ID, gruppenAm } from './aktivitaeten.js';
 import { MUSCLE_LABEL } from './body.js';
+import { EX_BY_ID } from './uebung.js';
 
 /** Ein Zeichen für „hier war Sport, aber nicht aus dem Plan". */
 export const AKT_ICON = '🤾';
@@ -46,8 +47,13 @@ export const KIND_TEXT = { done: 'trainiert', part: 'angefangen', miss: 'ausgefa
  * nichts, die Tage stehen im abgelegten Protokoll; sie wurden nur nicht mehr
  * gezeigt. Ein Trainingstag gehört aber dem Tag, nicht dem Plan.
  *
- * Welche Übungen es waren, weiß der Kalender nicht mehr – der Plan dazu ist
- * nicht geladen. Gezeigt werden deshalb Tag, Modus und die Zahl der Sätze.
+ * Und welche Übungen es waren, mit Sätzen und Kilo. Hier stand einmal, das
+ * wisse der Kalender nicht mehr, weil der Plan dazu nicht geladen sei. Für
+ * Namen, Sätze und Gewicht braucht es den Plan aber nicht: Das Protokoll steht
+ * nach Übung (log[n][modus][id], je Satz `done` und `w`), und die Namen kommen
+ * aus dem Katalog. Unbekannt bleiben nur die Wiederholungen, die der Plan an
+ * jenem Tag vorsah – gezeigt wird deshalb, was gemacht wurde, nicht, was
+ * vorgesehen war.
  */
 export function fruehereTage() {
   const map = new Map();
@@ -55,21 +61,37 @@ export function fruehereTage() {
     Object.values(r.log || {}).forEach((e) => {
       if (!e || !e.startedOn) return;
       const proModus = { db: 0, bw: 0 };
+      const uebungen = [];
       ['db', 'bw'].forEach((m) => {
-        Object.values(e[m] || {}).forEach((arr) => {
-          if (Array.isArray(arr)) arr.forEach((s) => { if (s && s.done) proModus[m] += 1; });
+        Object.entries(e[m] || {}).forEach(([id, arr]) => {
+          if (!Array.isArray(arr)) return;
+          const fertig = arr.filter((s) => s && s.done);
+          if (!fertig.length) return;
+          proModus[m] += fertig.length;
+          const kg = fertig.map((s) => parseFloat(String(s.w ?? '').replace(',', '.')))
+            .filter((x) => Number.isFinite(x) && x > 0);
+          uebungen.push({ id, mode: m, saetze: fertig.length, kg });
         });
       });
       const saetze = proModus.db + proModus.bw;
       if (!saetze) return;
       const da = map.get(e.startedOn)
-        || { saetze: 0, einheiten: 0, mode: e.done || (proModus.bw > proModus.db ? 'bw' : 'db') };
+        || { saetze: 0, einheiten: 0, mode: e.done || (proModus.bw > proModus.db ? 'bw' : 'db'), uebungen: [] };
       da.saetze += saetze;
       da.einheiten += 1;
+      da.uebungen.push(...uebungen);
       map.set(e.startedOn, da);
     });
   });
   return map;
+}
+
+/** „20 kg" oder „20–22,5 kg" für die Sätze einer früheren Übung – oder nichts. */
+function kgSpanne(kg) {
+  if (!kg.length) return '';
+  const lo = Math.min(...kg);
+  const hi = Math.max(...kg);
+  return lo === hi ? `${fmtNum(lo)} kg` : `${fmtNum(lo)}–${fmtNum(hi)} kg`;
 }
 
 /**
@@ -218,8 +240,16 @@ export function calendarDetail(iso, byDate, today, frueher, akt) {
           </div>
           <span class="chip ${alt.mode}">${MODE_ICON[alt.mode]} ${esc(MODE_LABEL[alt.mode])}</span>
         </div>
-        <div class="small muted">Aus einem früheren Trainingsplan. Die Übungen dazu stehen in
-          dem Plan, der damals galt – die Sätze und Kilo zählen in der Statistik weiter mit.</div>
+        <ul class="cal-list">
+          ${(alt.uebungen || []).filter((u) => EX_BY_ID.has(u.id)).map((u) => `
+          <li>
+            <span class="cal-ex">${esc(EX_BY_ID.get(u.id)[u.mode].name)}</span>
+            <span class="cal-sets">${plural(u.saetze, 'Satz', 'Sätze')}${
+              kgSpanne(u.kg) ? ` · ${esc(kgSpanne(u.kg))}` : ''}</span>
+          </li>`).join('')}
+        </ul>
+        <div class="small muted">Aus einem früheren Trainingsplan, so wie es im Protokoll steht –
+          die Sätze und Kilo zählen in der Statistik weiter mit.</div>
       </div>`;
   }
   if (!ws.length) {

@@ -165,8 +165,9 @@ const DEFAULT_STATE = {
   //   festAus woher `fest` stammt: der Stand des Plans davor oder der, unter
   //           dem das Protokoll entstand (planWechsel()), oder der Plan, aus
   //           dem festReparieren() die Liste vervollständigt hat
-  //           (festErsetzen()). Fehlt nur an den kurzen Listen von v215 – und
-  //           nur die repariert festReparieren() in js/app.js.
+  //           (festErsetzen()). Fehlt nur an Listen aus Planwechseln bis
+  //           v219, darunter den kurzen von v215 – und nur die repariert
+  //           festReparieren() in js/app.js, gegen den Plan, aus dem sie kamen.
   //   paare   je Modus die Supersatz-Paarung, festgehalten mit dem ersten
   //           abgehakten Satz: { db: { key, gruppen: [[id, id], [id]] } }
   //           (superGruppen() in js/app.js)
@@ -1194,15 +1195,43 @@ export function restorable() {
   return null;
 }
 
-/** Hält fest, dass eine Kalenderdatei erzeugt wurde, und zählt SEQUENCE hoch. */
-export function markIcs(count = 0) {
+/**
+ * Hält fest, dass eine Kalenderdatei erzeugt wurde, und zählt SEQUENCE hoch.
+ *
+ * `plan` ({ focus, stand }) sagt, aus welchem Plan die Termine stammen. Jeder
+ * Termin trägt Übungsliste, Satzzahl und Dauer; ändert ein Plan-Update, was
+ * hinter den Nummern steht, stimmt der Kalender nicht mehr, obwohl kein Tag
+ * verschoben ist (icsStale() in js/app.js). Eine Datei aus lauter Absagen hat
+ * keinen Plan – nach ihr steht nichts mehr im Kalender, was veralten könnte.
+ */
+export function markIcs(count = 0, plan = null) {
   const seq = (state.lastIcs && state.lastIcs.seq) || 0;
   // `count` merkt sich, wie viele Termine in der Datei standen. Beim nächsten
   // Export weiß die App damit, welche Nummern abzusagen sind.
-  state.lastIcs = { on: todayISO(), shift: state.shift, seq: seq + 1, count };
+  state.lastIcs = {
+    on: todayISO(), shift: state.shift, seq: seq + 1, count,
+    ...(plan ? { focus: plan.focus, stand: plan.stand } : {}),
+  };
   persist();
   emit();
   return state.lastIcs;
+}
+
+/**
+ * Einem Export ohne Planangabe den Plan nachtragen, unter dem er entstand.
+ *
+ * Exporte von vor dieser Angabe kennen ihren Plan nicht. Beim Start ist er
+ * aber noch zu sagen: Der Export kam spätestens aus der letzten Sitzung, und
+ * in der galt der Plan, den `planStand` zuletzt vermerkt hat. Danach meldet
+ * icsStale() auch für ihn das nächste Plan-Update. Nur einmal, und nicht nach
+ * einer Datei aus lauter Absagen (`count` 0).
+ */
+export function icsPlanNachtragen(focus, stand) {
+  const i = state.lastIcs;
+  if (!i || i.count === 0 || i.stand !== undefined || !stand) return;
+  state.lastIcs = { ...i, focus, stand };
+  persist();
+  emit();
 }
 
 /**

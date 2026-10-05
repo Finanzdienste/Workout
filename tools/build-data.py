@@ -446,14 +446,41 @@ def main():
     # Mit dem alten Plan weiß die App, was hinter der Nummer stand, und schreibt
     # die ganze Einheit fest. Wer einen Plan neu einspielt, legt den bisherigen
     # vorher hierher (siehe README, „Einen Plan neu einspielen").
+    #
+    # **Eine Kette, nicht ein Plan davor.** Bis hierher lag je Variante genau
+    # eine Datei (tools/plan-vorher/<variante>.json), und jeder neue Plan
+    # überschrieb sie. Die App nimmt einen Vorgänger aber nur, wenn sein Stand
+    # genau der ist, unter dem das Gerät zuletzt lief – wer eine Fassung
+    # übersprungen hatte, fand seinen nicht mehr. Am 03.10. ersetzte der Cut
+    # a51fd2 den e06a62, und eine Cut-Einheit, die unter e06a62 angefangen und
+    # seitdem nicht geöffnet war, stand danach wieder mit dem ersten Paar da:
+    # derselbe Fehler wie am 29.09. Deshalb liegt jetzt jeder ausgelieferte
+    # Stand in tools/plan-vorher/<variante>/<stand>.json und bleibt dort; die
+    # App sucht sich den passenden heraus (vorherPlan() in js/app.js).
+    #
+    # Der Dateiname ist der Stand. So steht kein Stand zweimal da, und wer eine
+    # Datei unter falschem Namen ablegt, merkt es hier und nicht erst auf dem
+    # Handy eines Nutzers, dessen Einheit wieder kurz ist.
     for key, v in varianten.items():
-        vorher = ROOT / 'tools' / 'plan-vorher' / f'{key}.json'
-        if vorher.exists():
-            alt = lies_plan(vorher, still=True)
-            if alt['stand'] != v['stand']:
-                v['vorher'] = {'stand': alt['stand'],
-                               'ex': [[[i['id'], i['sets'], i['bwSets']] for i in o['ex']]
-                                      for o in alt['plan']]}
+        einzeln = ROOT / 'tools' / 'plan-vorher' / f'{key}.json'
+        if einzeln.exists():
+            sys.exit(f'{einzeln.relative_to(ROOT)}: Die Ablage ist eine Kette – '
+                     f'je Stand eine Datei unter tools/plan-vorher/{key}/<stand>.json '
+                     f'(siehe README, „Einen Plan neu einspielen").')
+        ordner = ROOT / 'tools' / 'plan-vorher' / key
+        kette = []
+        for datei in sorted(ordner.glob('*.json')) if ordner.is_dir() else []:
+            alt = lies_plan(datei, still=True)
+            if datei.stem != alt['stand']:
+                sys.exit(f'{datei.relative_to(ROOT)}: Der Plan darin hat den Stand '
+                         f'{alt["stand"]} – die Datei muss {alt["stand"]}.json heißen.')
+            if alt['stand'] == v['stand']:
+                continue   # der laufende Plan ist kein Vorgänger
+            kette.append({'stand': alt['stand'],
+                          'ex': [[[i['id'], i['sets'], i['bwSets']] for i in o['ex']]
+                                 for o in alt['plan']]})
+        if kette:
+            v['vorher'] = kette
 
     # Eine Umleitung ins Leere wäre schlimmer als gar keine: Sie sieht im Code
     # nach Sorgfalt aus und landet doch wieder beim stillen Rückfall.
@@ -476,8 +503,10 @@ def main():
         "//   rest     Mindestabstand in Tagen, bis eine Gruppe wieder direkt drankommt,\n"
         "//            und ab welchem Anteil eine Uebung als direkt fuer sie gilt\n"
         "//   plan     die Einheiten selbst\n"
-        "//   vorher   der Plan davor (nur Stand und Uebungen je Nummer), damit ein\n"
-        "//            Planwechsel angefangene Einheiten vollstaendig festschreibt\n"
+        "//   vorher   jeder fruehere ausgelieferte Plan als { stand, ex } (nur die\n"
+        "//            Uebungen je Nummer), damit ein Planwechsel angefangene\n"
+        "//            Einheiten vollstaendig festschreibt - auch nach einem Sprung\n"
+        "//            ueber mehrere Fassungen\n"
         "export const PLANS = {\n"
         + "".join(
             f"  {json.dumps(key)}: {{\n"
@@ -488,7 +517,10 @@ def main():
             f"    cap: {json.dumps(v['cap'])},\n"
             f"    rest: {json.dumps(v['rest'], ensure_ascii=False)},\n"
             f"    plan: {json.dumps(v['plan'], ensure_ascii=False, separators=(',', ':'))},\n"
-            + (f"    vorher: {json.dumps(v['vorher'], ensure_ascii=False, separators=(',', ':'))},\n"
+            + ("    vorher: [\n"
+               + "".join(f"      {json.dumps(k, ensure_ascii=False, separators=(',', ':'))},\n"
+                         for k in v['vorher'])
+               + "    ],\n"
                if v.get('vorher') else '')
             + f"  }},\n"
             for key, v in varianten.items())

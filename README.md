@@ -1648,6 +1648,16 @@ nacheinander nachgetragen werden. Die Kachel zeigt dann „+1", und aufgeklappt
 stehen beide untereinander. Eine Map von Datum auf *eine* Einheit hätte die
 zweite still verschluckt.
 
+**Tage aus einem früheren Plan** – vor einem Fokuswechsel oder Neustart, das
+Protokoll liegt in der Ablage – sehen aus wie jeder trainierte Tag, und ein Tipp
+zeigt auch dort die Übungen, mit den gemachten Sätzen und dem Gewicht
+(„Goblet Squat · 3 Sätze · 20 kg"). Lange stand dort nur „Die Übungen dazu
+stehen in dem Plan, der damals galt", mit der Begründung, der Plan sei nicht
+mehr geladen. Für Namen, Sätze und Kilo braucht es ihn aber nicht: Das
+Protokoll steht nach Übung, die Namen kommen aus dem Katalog. Was fehlt, sind
+nur die Wiederholungen, die der Plan an jenem Tag vorsah – gezeigt wird
+deshalb, was gemacht wurde.
+
 ### In den Google-Kalender
 
 *Mehr → Kalender → Kalenderdatei (.ics)* schreibt **alle 84 Termine** in eine
@@ -1691,6 +1701,19 @@ Daran erinnert die App von sich aus: Steht der Plan nicht mehr dort, wo er beim
 letzten Export stand, erscheint in der Kalender-Karte der Hinweis „Der Plan hat
 sich seit dem letzten Export um *n* Tage verschoben". Ein Tipp auf den Knopf,
 ein Import, und die Termine stimmen wieder.
+
+Verschoben ist aber nicht das Einzige, was veralten kann. Jeder Termin trägt
+auch die Übungsliste, die Satzzahl und die Dauer, und nach der Neuverteilung vom
+03.10. standen beim Cut 69 von 84 Terminen mit anderen Übungen im Kalender – die
+App sagte nichts. Der Export merkt sich deshalb, aus welchem Fokus und welchem
+Planstand (`stand`) er stammt, und der Hinweis nennt den Grund: „Der Plan wurde
+seit dem letzten Export überarbeitet" oder „Exportiert hast du ‚Cut' – jetzt
+gilt ‚Aufbau'". Verglichen wird der Fingerabdruck des Plans, nicht jede einzelne
+Liste: Die ändert sich mit jeder Nacharbeit und jedem Aufstieg, und ein Hinweis,
+der nach jedem Training kommt, wird nicht mehr gelesen. Ein Export von vor
+dieser Angabe bekommt beim Start den Plan nachgetragen, der bis dahin galt, und
+meldet das nächste Update genauso. Nach „Termine austragen" steht nichts mehr im
+Kalender, was veralten könnte – dann kommt dazu auch kein Hinweis.
 
 ### Wieder austragen
 
@@ -2227,6 +2250,13 @@ Das Einlesen **beendet auch die Einrichtung**: Wer die frisch installierte App
 klicken, die der Import gleich wieder überschreibt. Der Knopf ist deshalb unter
 *Mehr* erreichbar, ohne die Einrichtung abzuschließen. Eine kaputte Datei lässt
 den vorhandenen Stand unangetastet.
+
+Nach dem Einlesen lädt die App einmal neu – immer, nicht nur bei einem anderen
+Fokus. Beim Start läuft der Planwechsel samt Reparaturen, und nur dort. Eine
+Sicherung aus einem älteren Planstand mit angefangener Einheit zeigte sonst bis
+zum nächsten Öffnen die Übungen des neuen Plans; wer weitertrainierte, bekam
+danach die alte Liste festgeschrieben und eine schon gemachte Übung offen
+daneben. Dasselbe gilt für „Stand von vor dem Import zurückholen".
 
 ### Die Ablage liegt nicht mehr im Weg jedes abgehakten Satzes
 
@@ -3445,7 +3475,9 @@ Gerechnet:
 Eingespielt nach dem folgenden Abschnitt: Alle vier ausgelieferten Pläne liegen
 in `tools/plan-vorher/`, auch der Aufbau (`standard.json`), der dort bisher
 fehlte, weil er sich seit Einführung der Ablage nicht geändert hatte. Eine
-angefangene Einheit behält damit ihre ganze alte Liste.
+angefangene Einheit behält damit ihre ganze alte Liste – aber nur nach einem
+Sprung um eine Fassung: Die drei Pläne, die dabei überschrieben wurden, fehlten
+danach. Heute ist die Ablage eine Kette, siehe „Einen Plan neu einspielen".
 
 ### 2 bis 4 Sätze – gemessen
 
@@ -3555,10 +3587,11 @@ fast immer in der Fokusansicht. Seit v216:
 * **Die Fokusansicht legt die ganze Einheit an**, sobald sie aufgeht, wie die
   Liste mit jeder Karte.
 * **Der Plan davor reist mit.** Wer einen Plan neu einspielt, legt den
-  bisherigen vorher nach `tools/plan-vorher/<variante>.json`;
-  `tools/build-data.py` bettet dessen Übungen je Nummer als `vorher` ein. Kommt
-  der Wechsel von genau diesem Stand, schreibt die App eine angefangene Einheit
-  mit ihrer ganzen alten Liste fest, egal was das Protokoll kennt.
+  bisherigen vorher in die Ablage unter `tools/plan-vorher/` (heute eine Kette,
+  siehe unten); `tools/build-data.py` bettet dessen Übungen je Nummer als
+  `vorher` ein. Kommt der Wechsel von genau diesem Stand, schreibt die App eine
+  angefangene Einheit mit ihrer ganzen alten Liste fest, egal was das Protokoll
+  kennt.
 * **Was schon zu kurz festgeschrieben war, wird repariert** (`festReparieren()`):
   eine nicht abgeschlossene Einheit, deren feste Übungen alle in derselben
   Nummer des Plans davor stehen, der aber mehr hatte, bekommt dessen ganze
@@ -3661,18 +3694,85 @@ Woche an Nacharbeit dazukommt, ist echte Nacharbeit. Geprüft in
 doppelt festgeschriebenen Liste, an einer vermerkten und an einer
 abgeschlossenen.
 
-**Dass der Plan davor dort auch liegt, prüft inzwischen ein Skript.** Anfangs
-war es nur eine Bitte in diesem Abschnitt, und Vergessen fiele erst auf, wenn
+**Eine Kette statt eines Plans davor.** Bis hierher lag je Variante genau eine
+Datei, `tools/plan-vorher/<variante>.json`, und der Plan vom 03.10. überschrieb
+sie: Cut e06a62 → a51fd2, Bauch-Beine-Po 0b49d3 → 4fabb1, Oberkörper
+905ce6 → 22bd0e. Die App nimmt einen früheren Plan aber nur, wenn sein Stand
+genau der ist, unter dem das Gerät zuletzt lief. Wer eine Fassung übersprungen
+hatte – eine Cut-Einheit unter v214 angefangen, die App erst nach dem 03.10.
+wieder geöffnet –, fand seinen nicht mehr, und die Einheit wurde wieder aus dem
+Protokoll festgeschrieben: zwei von fünf Übungen, derselbe Fehler wie am 29.09.,
+und mit dem Vermerk `festAus` danach auch nie mehr repariert. Jetzt liegt jeder
+Stand, der seit Einführung der Ablage ausgeliefert war, in einer eigenen Datei
+und bleibt dort:
+
+    tools/plan-vorher/
+      standard/9fc6f8d96677.json
+      cut/e06a6265485c.json     cut/a51fd2af0bfc.json
+      bbp/0b49d3183b5b.json     bbp/4fabb1de572c.json
+      oberkoerper/905ce67222ec.json   oberkoerper/22bd0e4d8a64.json
+
+Die drei überschriebenen sind aus der Geschichte zurückgeholt. Der Dateiname ist
+der Stand; `tools/build-data.py` hält an, wenn beides nicht zusammenpasst, und
+bettet alle außer dem laufenden als `PLANS[f].vorher` ein, eine Liste von
+`{ stand, ex }`. `planWechsel()` sucht sich daraus den Eintrag mit dem Stand des
+Geräts (`vorherPlan()`). Das kostet `js/data.js` rund 36 KB; je weiterem Stand
+kommen etwa 12 KB dazu.
+
+**Repariert wird nur gegen den Plan, aus dem eine Liste kam.** `festReparieren()`
+verglich die unvermerkten Listen mit „dem Plan davor", und der war nach dem
+03.10. beim Cut der a51fd2 – genau der Plan, in den v215 gewechselt hatte. Eine
+kurze Liste aus Einheit 3, Kreuzheben und Goblet Squat, stand dort auch drin,
+nur zwischen Rudern und Face Pull. Beim zweiten Start bekam die Einheit genau
+diese beiden dazu, die nie in ihr standen; Reverse Fly fehlte weiter, und der
+Hinweis versprach „wieder alle Übungen …, die dort vorher standen". Einheit 4
+blieb kurz. Ohne Vermerk festgeschrieben haben nur die Planwechsel bis v219, und
+von den Ständen der Kette lösten die nur den Cut e06a62 (v215), Bauch-Beine-Po
+0b49d3 und Oberkörper 905ce6 (v218) ab. Gegen genau diese repariert die App
+jetzt (`OHNE_VERMERK_AUS` in `js/app.js`); jeder andere Stand war noch der
+laufende Plan, als es `festAus` schon gab. Ein Präfix der alten Einheit zu
+verlangen hätte den Fall auch abgefangen, aber nicht jede echte Kurzliste
+durchgelassen: Die Fokusansicht zeigte als erstes Paar zwei Übungen, die
+zusammenpassen, nicht die ersten beiden – unter v214 etwa Goblet Squat mit dem
+Wadenheben, der letzten von fünf.
+
+`tests/test-fest-vollstaendig.mjs` prüft beides: für jeden Stand der Kette eine
+angefangene Einheit, die danach ganz feststeht, und das Gerät, das v215 geladen
+und alles danach übersprungen hat.
+
+**So kommt ein neuer Stand dazu.** Wer einen Plan neu einspielt
+(`tools/plan.json` oder `tools/plan-<variante>.json`), legt den ausgelieferten
+Stand dazu – nichts wird ersetzt, nichts gelöscht:
+
+1. Den Stand des ausgelieferten Plans nennt das Tor (siehe unten), oder er
+   steht in `js/data.js` unter `PLANS[<variante>].stand`, solange dort noch
+   nicht neu gebaut ist.
+2. `mkdir -p tools/plan-vorher/<variante>` und
+   `git show origin/main:tools/plan.json > tools/plan-vorher/standard/<stand>.json`
+   (für eine andere Variante `tools/plan-<variante>.json` und ihr Ordner).
+   Die Variante heißt wie in `PLANS`: `standard` für `tools/plan.json`.
+3. Den neuen Plan nach `tools/plan*.json` schreiben, dann
+   `python3 tools/build-data.py && python3 tools/build-single.py`.
+4. `python3 tools/pruefung/plan-vorher.py` muss durchgehen. In
+   `OHNE_VERMERK_AUS` kommt nichts dazu – ein Wechsel schreibt seit v220 mit
+   Vermerk fest.
+
+**Dass der ausgelieferte Plan dort auch liegt, prüft ein Skript.** Anfangs war
+es nur eine Bitte in diesem Abschnitt, und Vergessen fiele erst auf, wenn
 wieder eine angefangene Einheit zu kurz ist. Eine veraltete Datei hilft dabei so
-wenig wie keine: Die App nimmt den Plan davor nur, wenn sein Stand genau der
+wenig wie keine: Die App nimmt einen früheren Plan nur, wenn sein Stand genau der
 ist, von dem der Wechsel kommt – der ausgelieferte. `tools/pruefung/plan-vorher.py`
 vergleicht deshalb mit dem ausgelieferten Stand, lokal `origin/main`: Hat ein
-Plan seither einen anderen Fingerabdruck, muss `tools/plan-vorher/<variante>.json`
-(`standard` für `tools/plan.json`) genau den ausgelieferten tragen, sonst hält es
-an und nennt den Befehl, der ihn dorthin holt, etwa
-`git show origin/main:tools/plan-cut.json > tools/plan-vorher/cut.json`;
-danach neu bauen. Verschobene Termine verlangen nichts, eine neue Variante auch
-nicht. Es läuft im Commit-Haken, in `npm run pruefen` und in CI.
+Plan seither einen anderen Fingerabdruck, muss
+`tools/plan-vorher/<variante>/<stand>.json` (`standard` für `tools/plan.json`)
+da sein, sonst hält es an und nennt die Befehle, die ihn dorthin holen, etwa
+`mkdir -p tools/plan-vorher/cut` und
+`git show origin/main:tools/plan-cut.json > tools/plan-vorher/cut/345241a49404.json`;
+danach neu bauen. Es hält auch an, wenn ein Glied der Kette fehlt, das im
+ausgelieferten Stand lag – auch gegen die eine Datei von früher –, und wenn
+eine Datei nicht wie ihr Stand heißt. Verschobene Termine verlangen nichts, eine
+neue Variante auch nicht. Es läuft im Commit-Haken, in `npm run pruefen` und in
+CI.
 
 In CI ist der Vergleichsstand anders als bei der Versionspflicht nicht einfach
 der vor dem Push. Ausgeliefert wird nur `main`, und auf einem Zweig ist der Stand
@@ -3688,8 +3788,12 @@ Hand an: `python3 tools/pruefung/plan-vorher.py $(git merge-base origin/main HEA
 
 `tests/test-plan-vorher.mjs` prüft es in einem Wegwerf-Repo, dessen
 `tools/plan-vorher/` es selbst anlegt. Ein neuer Cut ohne Plan davor wird
-angehalten, nach dem genannten Befehl geht er durch. Zwei Pushes mit
-Planänderung auf einem Zweig bestehen danach auch gegen `main`.
+angehalten, nach dem genannten Befehl geht er durch, und der ältere Stand liegt
+danach noch daneben. Ein gelöschtes Glied der Kette, eine alte Einzeldatei, deren
+Stand in der Kette fehlt, und eine falsch benannte Datei halten es an. Zwei
+Pushes mit Planänderung auf einem Zweig bestehen danach auch gegen `main`. Und
+es gleicht die echte Kette mit `js/data.js` ab: Jeder Stand aus
+`tools/plan-vorher/<variante>/` steht in `PLANS[<variante>].vorher`.
 
 ### „Kurz und knapp" war ein Jahr lang kaputt
 
@@ -5042,6 +5146,14 @@ die Auswahl nicht abstrakt bleibt; bei der Erfahrung stehen zwei Beispielgewicht
 unter jeder Stufe. Am Ende steht der Hinweis, dass sich unter *Mehr → Eigenes
 Workout* ohnehin jede Einheit selbst zusammenstellen lässt: Der Fokus ist ein
 Vorschlag, kein Korsett.
+
+Ist der Fokus ein anderer als der, mit dem die Seite geladen wurde, lädt „Los
+geht's" sie einmal neu – wie jeder andere Fokuswechsel. Der Plan wird beim Laden
+gewählt (`js/data.js`). Wer im Einstieg „Cut" nahm, trainierte vorher die erste
+Einheit nach dem Aufbau-Plan, sechs Übungen mit Klimmzügen, und beim ersten
+Neuladen stand mitten in der Einheit der Cut da, die schon abgehakten
+Liegestütze als fremde Übung dazwischen. Neu geladen wird erst am Ende, nicht
+schon beim Antippen des Fokus – sonst finge der Einstieg wieder beim Namen an.
 
 
 **Die Stufe bestimmt auch die Satzzahl.** Lange skalierte sie nur die

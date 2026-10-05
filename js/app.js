@@ -341,15 +341,29 @@ function planWechsel() {
     }
     return false;
   }
-  const vorherPlan = (PLANS[fokus] || {}).vorher;
-  const { listen, ausPlan } = festeListen(s.log || {}, s.mode,
-    vorherPlan && vorherPlan.stand === vorher ? vorherPlan : null, vorher);
+  const { listen, ausPlan } = festeListen(s.log || {}, s.mode, vorherPlan(fokus, vorher), vorher);
   const einheiten = store.festschreiben(listen, ausPlan);
   // **Und gesagt wird es auch** – eine Einheit, die plötzlich andere Übungen
   // zeigt, braucht einen Grund, den man lesen kann.
   store.setSetting('planUmbau', { einheiten, fest: true, fokus: (PLANS[fokus] || {}).name || fokus });
   store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
   return true;
+}
+
+/**
+ * Der frühere Plan mit genau diesem Stand – oder null.
+ *
+ * js/data.js bringt je Variante jeden Plan mit, der seit der Ablage je
+ * ausgeliefert war (`vorher`, eine Liste von { stand, ex }). Bis hierher war es
+ * einer, der jeweils letzte: Wer eine Fassung übersprungen hatte, lief unter
+ * einem Stand, den die App nicht mehr kannte, und eine angefangene Einheit
+ * wurde wieder nur aus dem Protokoll festgeschrieben – unter v214 hieß das:
+ * das erste Paar. Gesucht wird nach dem Stand und nur nach ihm; ein Plan, der
+ * bloß ähnlich aussieht, ist nicht der, unter dem trainiert wurde.
+ */
+function vorherPlan(fokus, stand) {
+  const kette = (PLANS[fokus] || {}).vorher || [];
+  return (stand && kette.find((k) => k.stand === stand)) || null;
 }
 
 /**
@@ -424,6 +438,19 @@ function vorherListe(vorher, n, mode) {
 }
 
 /**
+ * Aus welchem früheren Plan eine feste Liste ohne Vermerk stammt, je Variante.
+ *
+ * `festAus` steht seit v220 an jeder festen Liste. Ohne ihn festgeschrieben
+ * haben nur die Planwechsel davor, und von den Ständen der Kette lösten die nur
+ * diese ab: den Cut e06a62 (v215 – die kurzen Listen) sowie Bauch-Beine-Po
+ * 0b49d3 und Oberkörper 905ce6 (v218). Jeder andere Stand war noch der laufende
+ * Plan, als es den Vermerk schon gab; eine Liste ohne Vermerk kann aus ihm
+ * nicht kommen. Hier kommt deshalb auch nie etwas dazu – wer heute einen Plan
+ * ablöst, schreibt mit Vermerk fest.
+ */
+const OHNE_VERMERK_AUS = { cut: 'e06a6265485c', bbp: '0b49d3183b5b', oberkoerper: '905ce67222ec' };
+
+/**
  * Angefangene Einheiten, die ein Planwechsel zu kurz festgeschrieben hat.
  *
  *     „Heute nur zwei Übungen?"
@@ -456,12 +483,23 @@ function vorherListe(vorher, n, mode) {
  * sie stammen) und bleiben hier unberührt; ebenso eine, die schon einmal
  * repariert wurde.
  *
+ * **Und nur gegen den Plan, aus dem die Liste kam** (OHNE_VERMERK_AUS). Bis
+ * hierher war das „der Plan davor", und der ist seit dem 03.10. ein anderer:
+ * Beim Cut der a51fd2 – genau der, in den v215 gewechselt hatte. Eine kurze
+ * Liste aus Einheit 3, Kreuzheben und Goblet Squat, stand dort auch drin, nur
+ * zwischen Rudern und Face Pull, und wurde mit genau diesen „vervollständigt".
+ * Die standen nie in der Einheit; Reverse Fly, das dort stand, fehlte weiter.
+ * Ein Präfix der alten Einheit zu verlangen hätte das auch abgefangen, aber
+ * nicht jede echte Kurzliste durchgelassen: Die Fokusansicht zeigte als erstes
+ * Paar zwei Übungen, die zusammenpassen, nicht die ersten beiden – unter v214
+ * etwa Goblet Squat mit Wadenheben, der letzten von fünf.
+ *
  * Läuft beim Start **vor** stempleFertige() – warum, steht beim Aufruf unten.
  */
 function festReparieren() {
   const s = store.getState();
   const fokus = s.focus || 'standard';
-  const vorher = (PLANS[fokus] || {}).vorher;
+  const vorher = vorherPlan(fokus, OHNE_VERMERK_AUS[fokus]);
   if (!vorher) return 0;
   const passt = (a, f) => [a.id, a.statt, a.from].some((x) => x && stufenKette(x).includes(f.id));
   const ersatz = {};
@@ -740,18 +778,32 @@ function einlesen(text, meldung) {
     + 'Der jetzige Stand wird beiseitegelegt und lässt sich unter Mehr einmal zurückholen. Weiter?')) {
     return;
   }
-  const fokusVorher = vorher.focus;
   store.importJSON(text);
   ui.setupStep = 0;
-  if (store.getState().focus !== fokusVorher) {
-    // Der Plan wird beim Start gewählt; ohne Neuladen gälte bis dahin der alte.
-    store.flush();
-    sessionStorage.setItem('workout.nachImport', meldung);
-    location.reload();
-    return;
-  }
-  render();
-  toast(meldung);
+  neuStarten(meldung);
+}
+
+/**
+ * Nach einem fremden Stand – Sicherung oder Rückweg davor – einmal neu laden.
+ *
+ * Bis hierher nur, wenn der Fokus ein anderer war: Der Plan wird beim Start
+ * gewählt. Beim Start läuft aber noch mehr, und nur dort – planWechsel(),
+ * festReparieren(), festNachReparieren(), stempleFertige(). Eine Sicherung
+ * aus einem älteren Planstand mit angefangener Einheit zeigte deshalb bis zum
+ * nächsten Öffnen die Übungen des neuen Plans; wer weitertrainierte, bekam
+ * danach die alte Liste festgeschrieben und eine schon gemachte Übung offen
+ * daneben. Gleicher Fokus oder nicht – ein eingelesener Stand ist ein Start.
+ *
+ * Der Reiter bleibt, wie ohne Neuladen: Wer unter Mehr eingelesen hat, findet
+ * dort danach auch „Stand von vor dem Import zurückholen". Der eingelesene
+ * Stand brächte sonst seinen eigenen mit. Hat der Start etwas zu sagen – einen
+ * Planwechsel –, führt er selbst aufs Dashboard.
+ */
+function neuStarten(meldung) {
+  store.setSetting('tab', ui.tab);
+  store.flush();
+  sessionStorage.setItem('workout.nachImport', meldung);
+  location.reload();
 }
 
 function importBackupDatei() {
@@ -779,7 +831,7 @@ function importBackupDatei() {
  */
 function downloadICS() {
   const vorher = store.getState().lastIcs;
-  const stand = store.markIcs(PLAN.length);
+  const stand = store.markIcs(PLAN.length, { focus: store.getState().focus || 'standard', stand: FOCUS.stand || '' });
   // Was beim letzten Mal exportiert wurde und diesmal nicht mehr vorkommt, muss
   // aus dem Kalender wieder heraus: ein anderer Trainingsfokus hat womöglich
   // weniger Einheiten, und ein Tag, an dem Verletzungen alles sperren, hat gar
@@ -839,10 +891,54 @@ function downloadICSAus() {
   toast(`${cancel.length} Absagen erzeugt – importieren, dann sind die Termine weg`);
 }
 
-/** Stimmen die Termine im Kalender noch, oder hat sich der Plan seither verschoben? */
+/**
+ * Stimmen die Termine im Kalender noch? Null, wenn ja – sonst, warum nicht:
+ * `tage` (um so viele Tage verschoben), `fokus` (exportiert unter einem
+ * anderen Trainingsfokus) oder `plan` (derselbe Fokus, aber ein Plan-Update
+ * hat geändert, was hinter den Nummern steht).
+ *
+ * Bis hierher zählte nur die Verschiebung. Jeder Termin trägt aber auch die
+ * Übungsliste, die Satzzahl und die Dauer – und nach der Neuverteilung vom
+ * 03.10. standen beim Cut 69 von 84 Terminen mit anderen Übungen im Kalender,
+ * ohne dass die App ein Wort sagte. Verglichen wird der Fingerabdruck des
+ * Plans (`stand`), nicht die einzelnen Listen: Die ändern sich mit jeder
+ * Nacharbeit und jedem Aufstieg, und ein Hinweis, der nach jedem Training
+ * kommt, wird nicht mehr gelesen.
+ */
 function icsStale() {
   const s = store.getState();
-  return !!s.lastIcs && s.lastIcs.shift !== s.shift;
+  const i = s.lastIcs;
+  if (!i) return null;
+  const fokus = s.focus || 'standard';
+  const grund = {
+    tage: i.shift !== s.shift ? Math.abs(s.shift - i.shift) : 0,
+    fokus: !!i.focus && i.focus !== fokus,
+    plan: !!i.stand && i.focus === fokus && !!(PLANS[fokus] || {}).stand && i.stand !== PLANS[fokus].stand,
+  };
+  return grund.tage || grund.fokus || grund.plan ? grund : null;
+}
+
+/** Der Hinweis dazu unter Mehr → Kalender, mit dem Grund. */
+function icsHinweis() {
+  const g = icsStale();
+  if (!g) return '';
+  const i = store.getState().lastIcs;
+  const name = (f) => (PLANS[f] || FOKUS_ERSATZ[f] || {}).name || f;
+  const teile = [];
+  if (g.fokus) {
+    teile.push(`Exportiert hast du „${esc(name(i.focus))}" – jetzt gilt „${esc(FOCUS.name)}",
+      und im Kalender stehen noch die Übungen von damals.`);
+  } else if (g.plan) {
+    teile.push(`Der Plan wurde seit dem letzten Export überarbeitet: Hinter den Terminen
+      stehen jetzt andere Übungen, Satzzahlen und Dauern als im Kalender.`);
+  }
+  if (g.tage) {
+    teile.push(`Der Plan hat sich seit dem letzten Export um ${esc(plural(g.tage, 'Tag', 'Tage'))}
+      verschoben.`);
+  }
+  return `<div class="hint" style="color:var(--accent);margin-top:8px">
+        ${teile.join(' ')} Datei neu erzeugen und noch einmal importieren, dann
+        ${g.fokus || g.plan ? 'stimmen Termine und Übungen wieder' : 'wandern die Termine mit'}.</div>`;
 }
 
 /** Zahl der abgeschlossenen Einheiten in dieser Runde. */
@@ -2328,6 +2424,21 @@ function willkommenFertig() {
   if (ui.standAngebot) {
     store.setFriend(freundId(ui.standAngebot.n), ui.standAngebot);
     ui.standAngebot = null;
+  }
+  // Im Einstieg gewählt, aber geladen ist noch der Plan, der beim Öffnen galt –
+  // js/data.js wählt ihn einmal, beim Laden. Wer hier „Cut" nahm, trainierte
+  // die erste Einheit nach dem Aufbau-Plan (sechs Übungen, Klimmzüge), und beim
+  // ersten Neuladen stand mitten in der Einheit der Cut da, mit den schon
+  // abgehakten Liegestützen als fremder Übung dazwischen. Neu geladen wird
+  // deshalb hier, einmal, wie bei jedem anderen Fokuswechsel – nicht schon
+  // beim Antippen: Dann finge der Einstieg wieder beim Namen an. Das Melden
+  // übernimmt der Start (meldeStand() unten), mitten im Neuladen ginge es
+  // verloren.
+  if ((PLANS[store.getState().focus] || PLANS.standard) !== FOCUS) {
+    store.flush();
+    sessionStorage.setItem('workout.nachEinstieg', name ? `Los geht’s, ${name} 💪` : 'Los geht’s 💪');
+    location.reload();
+    return;
   }
   render();
   // Jetzt erst: Der Satz mit dem Schalter stand im letzten Schritt, und der
@@ -5514,11 +5625,7 @@ function renderSettings() {
         Weboberfläche. Am Handy: in Chrome <i>calendar.google.com</i> öffnen, im
         Drei-Punkte-Menü <i>Desktopseite</i> anhaken, dann
         <i>Einstellungen → Importieren und exportieren</i>.</div>
-      ${icsStale() ? `<div class="hint" style="color:var(--accent);margin-top:8px">
-        Der Plan hat sich seit dem letzten Export um
-        ${esc(plural(Math.abs(store.getState().shift - store.getState().lastIcs.shift), 'Tag', 'Tage'))}
-        verschoben – Datei neu erzeugen und noch einmal importieren, dann wandern
-        die Termine mit.</div>` : ''}
+      ${icsHinweis()}
       <div class="btn-row">
         <button type="button" class="btn" data-act="download-ics">Kalenderdatei (.ics)</button>
         <button type="button" class="btn btn-ghost" data-act="ics-aus">Termine austragen</button>
@@ -6774,16 +6881,8 @@ view.addEventListener('click', (e) => {
     }
     case 'vor-import-zurueck':
       if (confirm('Den Stand von vor dem letzten Import zurückholen? Der eingelesene Stand wird damit ersetzt.')) {
-        const f0 = store.getState().focus;
         store.vorImportZurueck();
-        if (store.getState().focus !== f0) {
-          store.flush();
-          sessionStorage.setItem('workout.nachImport', 'Stand von vor dem Import ist zurück');
-          location.reload();
-        } else {
-          render();
-          toast('Stand von vor dem Import ist zurück');
-        }
+        neuStarten('Stand von vor dem Import ist zurück');
       }
       break;
     case 'force-update': {
@@ -7088,15 +7187,15 @@ speicherFestnageln();
 // das ein Sprung innerhalb derselben Seite, sie lädt nicht neu, und ohne diesen
 // Horcher passierte schlicht nichts.
 window.addEventListener('hashchange', eisenAusAdresse);
-// Nach einem Import mit anderem Fokus wurde neu geladen – die Meldung dazu
-// kommt erst jetzt, sonst ginge sie mit dem Neuladen verloren.
-{
-  const nachImport = sessionStorage.getItem('workout.nachImport');
-  if (nachImport) {
-    sessionStorage.removeItem('workout.nachImport');
-    setTimeout(() => toast(nachImport), 400);
+// Nach einem Import oder dem Einstieg mit anderem Fokus wurde neu geladen – die
+// Meldung dazu kommt erst jetzt, sonst ginge sie mit dem Neuladen verloren.
+['workout.nachImport', 'workout.nachEinstieg'].forEach((schluessel) => {
+  const meldung = sessionStorage.getItem(schluessel);
+  if (meldung) {
+    sessionStorage.removeItem(schluessel);
+    setTimeout(() => toast(meldung), 400);
   }
-}
+});
 /*
  * Zwei offene Fenster derselben App – installiert und als Browser-Tab, oder
  * zweimal installiert – teilten sich den Speicher, aber nicht den Zustand:
@@ -7123,6 +7222,14 @@ let neuAngefangen = false;
 // Hat der Start etwas zu sagen (Umzug, Planwechsel, Aufstieg …), bleibt die
 // App auf dem Dashboard, wo der Hinweis steht – siehe unten bei `session`.
 let startHinweis = false;
+// Vor Umzug und Planwechsel: Ein Kalender-Export ohne Planangabe stammt aus dem
+// Plan, der bis jetzt galt – danach weiß das hier niemand mehr (siehe
+// icsPlanNachtragen() in js/store.js).
+{
+  const s = store.getState();
+  const f = s.focus || 'standard';
+  store.icsPlanNachtragen(f, (s.planStand || {})[f]);
+}
 if (fokusUmzug()) {
   ui.tab = 'dashboard';
   ui.focus = false;
