@@ -955,7 +955,21 @@ def bw_gleichmaessig(plan, gesamt):
     return out
 
 
-def bw_verteilen(plan, gesamt, lo=2, hi=4):
+def bw_woche_max():
+    """Die stärkste Woche je Gruppe ohne Hanteln, gegen die die Planprüfung misst.
+
+    Aus tools/pruefung/befunde.json (`<variante>/bw`, `woche_max`), in Sätzen.
+    Leer, wenn es dort nichts gibt – dann gilt nur, was bw_verteilen() selbst
+    hält.
+    """
+    befunde = ROOT / 'tools' / 'pruefung' / 'befunde.json'
+    if not befunde.exists():
+        return {}
+    bef = json.loads(befunde.read_text(encoding='utf-8'))
+    return dict(bef.get(f'{VARIANTE}/bw', {}).get('woche_max', {}))
+
+
+def bw_verteilen(plan, gesamt, lo=2, hi=4, woche_max=None, vergleich=None):
     """Die Plansumme je Übung auf ihre Auftritte verteilen – so, dass die Einheit gleich lang bleibt.
 
     bw_gleichmaessig() sieht nur die Übung, nicht die Einheit. Gemessen am
@@ -975,7 +989,11 @@ def bw_verteilen(plan, gesamt, lo=2, hi=4):
         als dort –, und keine Gruppe liegt in mehr Wochen über ihrer Grenze
         (wochen-cap.py). Mit WK_NUR_TAGE ist die gleichmäßige Verteilung Woche
         für Woche die des Vergleichsplans: Welche Übung in welcher Woche wie
-        oft vorkommt, ändert die Tagesaufteilung nicht.
+        oft vorkommt, ändert die Tagesaufteilung nicht;
+      * mit `woche_max` (Sätze je Gruppe, aus bw_woche_max()): keine Woche
+        einer Gruppe stärker als dort. Das ist die Zahl, gegen die
+        plan-pruefen.py den Plan hält; die Spanne der gleichmäßigen
+        Verteilung reicht dafür nicht, sie liegt oft darüber.
 
     Gesucht wird lexikografisch:
 
@@ -987,8 +1005,19 @@ def bw_verteilen(plan, gesamt, lo=2, hi=4):
       3. möglichst wenige Auftritte, die von der Hantel-Satzzahl abweichen –
          dasselbe Kriterium wie in bw_saetze(): je weniger, desto weniger fällt
          auf, dass es zwei Pläne sind;
-      4. möglichst nah an der gleichmäßigen Verteilung; das entscheidet den
-         Rest, ohne Zufall.
+      4. möglichst wenige Gruppenwochen über der Grenze. Bis zum 05.10. war
+         das nur die harte Zeile oben („nicht mehr als bei der gleichmäßigen
+         Verteilung"), und den Rest entschied 5 – obwohl genau diese Zahl
+         gemessen wird (wochen-cap.py, README). Im Aufbau ohne Hanteln lagen
+         so 75 Gruppenwochen darüber, wo 62 gehen, ohne dass 1 bis 3 oder
+         eine Woche stärker wird;
+      5. möglichst nah an der gleichmäßigen Verteilung;
+      6. mit `vergleich` (dem Vergleichsplan, WK_NUR_TAGE) möglichst nah an
+         dessen Sätzen ohne Hanteln – wie `naehe` in split_exakt(). Unter
+         Gleichstand bei 1 bis 5 bleibt so stehen, was schon ausgeliefert ist,
+         statt dass der Löser eine gleich gute andere Verteilung wählt: Ohne
+         diese Stufe kam der Bauch-Beine-Po-Plan mit 16 geänderten Sätzen
+         heraus, und keine Zahl davon war besser.
 
     Der Preis steht im README (Neu gerechnet am 03.10.): Für das Band weichen
     mehr Auftritte von drei Sätzen ab als vorher, im BBP 83 statt 41. Der
@@ -1044,6 +1073,19 @@ def bw_verteilen(plan, gesamt, lo=2, hi=4):
                     if sum(ref[j] * anteil[it['id'], m] for j, (k, it) in enumerate(auftritte)
                            if w * WEEK <= k < (w + 1) * WEEK) > CAP_VON(m))
         M.zeile(terme, oben=bezug)
+    # Gesichert, bevor die Schleife über die Einheiten den Namen neu belegt.
+    alle_drueber = {o: 1 for terme in drueber.values() for o in terme}
+    # Ohne diese Zeile nahm die Suche nach weniger Wochen über der Grenze im
+    # Aufbau eine stärkere in Kauf: vordere Schulter 13,75 statt 13,6, und
+    # plan-pruefen.py hielte den Plan an. Volumen in UNIT wie `anteil`.
+    for m, saetze in (woche_max or {}).items():
+        if m not in gruppen:
+            continue
+        for w in range(wochen):
+            terme = {s[j]: anteil[it['id'], m] for j, (k, it) in enumerate(auftritte)
+                     if w * WEEK <= k < (w + 1) * WEEK and anteil[it['id'], m]}
+            if terme:
+                M.zeile(terme, oben=round(saetze * UNIT))
     band = {}
     for w in range(wochen):
         laengen = [sum(it['sets'] for it in e['ex']) for e in plan[w * WEEK:(w + 1) * WEEK]]
@@ -1077,11 +1119,26 @@ def bw_verteilen(plan, gesamt, lo=2, hi=4):
         g = M.var()
         M.zeile({g: 1, hat[0]: -1, hat[1]: -1}, -1)
         gemischt[g] = 1
+    # Zuletzt die Nähe zum Vergleichsplan, je Auftritt, der dort an derselben
+    # Nummer steht.
+    naehe = {}
+    for j, (k, it) in enumerate(auftritte):
+        alt = next((a for a in vergleich[k]['ex'] if a['id'] == it['id']), None) \
+            if vergleich is not None and k < len(vergleich) else None
+        if alt is not None:
+            d = M.var(0, math.inf)
+            n_alt = alt.get('bwSets', alt['sets'])
+            M.zeile({d: 1, s[j]: -1}, -n_alt)
+            M.zeile({d: 1, s[j]: 1}, n_alt)
+            naehe[d] = 1
     x = None
-    for ziel in (raus, gemischt, anders, weg):
+    for ziel in (raus, gemischt, anders, alle_drueber, weg) + ((naehe,) if naehe else ()):
         x = M.loese(ziel)
         if x is None:
-            sys.exit('bw_verteilen: keine Verteilung gefunden – die gleichmäßige hätte gepasst, '
+            sys.exit('bw_verteilen: keine Verteilung gefunden, die unter woche_max aus '
+                     'tools/pruefung/befunde.json bleibt – der Vergleichsplan hält sie, '
+                     'also liegen seine Tage anders.' if woche_max else
+                     'bw_verteilen: keine Verteilung gefunden – die gleichmäßige hätte gepasst, '
                      'hier stimmt etwas nicht.')
         M.zeile(ziel, oben=wert_von(ziel, x) + 1e-6)
     for j, (_, it) in enumerate(auftritte):
@@ -3005,8 +3062,10 @@ def main():
     # ihre Einheiten. Dafür reichen Sekunden statt einer Viertelstunde, und es
     # geht auch da, wo Schritt 1 heute nicht mehr reproduzierbar ist (Aufbau).
     nur_tage = os.environ.get('WK_NUR_TAGE') == '1'
+    vergleichsplan = None
     if nur_tage:
         alt = json.loads(QUELLE.read_text(encoding='utf-8'))['plan']
+        vergleichsplan = alt      # `alt` heißt weiter unten etwas anderes
         if len(alt) % WEEK:
             sys.exit(f'{QUELLE} hat {len(alt)} Einheiten – kein Vielfaches von {WEEK}.')
         weeks = len(alt) // WEEK
@@ -3254,7 +3313,12 @@ def main():
                   if GOAL.get(m) is not None), key=lambda x: -abs(x[0]))
 
     bw_total, bw_rest, bw_ganz = bw_saetze(plan, weeks)
-    bw_verteilen(plan, bw_total)
+    # Mit dem Vergleichsplan (WK_NUR_TAGE) auch hier: keine Woche ohne Hanteln
+    # stärker als die, gegen die plan-pruefen.py misst, und unter Gleichstand
+    # seine Sätze. Ein ganz neuer Plan hat andere Wochen, und dort entscheidet
+    # das Tor danach.
+    bw_verteilen(plan, bw_total, woche_max=bw_woche_max() if nur_tage else None,
+                 vergleich=vergleichsplan)
 
     nachher = {}
     for i, n in bw_total.items():

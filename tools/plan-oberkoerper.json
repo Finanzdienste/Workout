@@ -1534,12 +1534,12 @@
     {
      "id": "kurzhantel-bodenpresse",
      "sets": 3,
-     "bwSets": 2
+     "bwSets": 3
     },
     {
      "id": "goblet-squat",
      "sets": 3,
-     "bwSets": 4
+     "bwSets": 3
     },
     {
      "id": "band-seitheben",
@@ -2729,7 +2729,7 @@
     {
      "id": "kurzhantel-bodenpresse",
      "sets": 3,
-     "bwSets": 3
+     "bwSets": 2
     },
     {
      "id": "pull-ups",
@@ -2739,7 +2739,7 @@
     {
      "id": "goblet-squat",
      "sets": 3,
-     "bwSets": 3
+     "bwSets": 4
     },
     {
      "id": "sitzendes-seitheben",

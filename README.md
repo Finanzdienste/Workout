@@ -983,7 +983,8 @@ in der Spanne ihrer Woche mit Hanteln bleibt, keine Woche einer Gruppe stärker
 oder schwächer wird als bei der gleichmäßigen und keine Gruppe öfter über ihrer
 Grenze liegt; darunter die mit den wenigsten Übungen, die mal mit zwei und mal
 mit vier Sätzen dastehen, dann die mit den wenigsten Abweichungen von der
-Hantel-Satzzahl. Zahlen unter *Neu gerechnet am 03.10.*
+Hantel-Satzzahl, dann die mit den wenigsten Gruppenwochen über der Grenze.
+Zahlen unter *Neu gerechnet am 03.10.* und dem Nachtrag dort.
 
 Das Ganze hängt allein am fertigen Plan, nicht am Generatorlauf –
 `tools/pruefung/bw-satzzahl.py` rechnet es in acht Sekunden für alle sechs
@@ -3478,6 +3479,51 @@ fehlte, weil er sich seit Einführung der Ablage nicht geändert hatte. Eine
 angefangene Einheit behält damit ihre ganze alte Liste – aber nur nach einem
 Sprung um eine Fassung: Die drei Pläne, die dabei überschrieben wurden, fehlten
 danach. Heute ist die Ablage eine Kette, siehe „Einen Plan neu einspielen".
+
+**Nachtrag 05.10.: ohne Hanteln seltener über der Grenze.** Eine Zahl hat
+`bw_verteilen()` nur begrenzt, statt sie klein zu machen: die Gruppenwochen
+über der Grenze. Sie durfte nicht über der der gleichmäßigen Verteilung liegen;
+welche der übrigen Verteilungen es wurde, entschied die Nähe zu ihr – obwohl
+genau diese Zahl in den Tabellen oben und in `wochen-cap.py` steht. Jetzt
+kommt sie in der Rangfolge nach den Abweichungen von der Hantel-Satzzahl und
+vor der Nähe. Dazu zwei Regeln, beide nur mit `WK_NUR_TAGE`:
+
+* **Keine Woche stärker als in `befunde.json`.** Ohne diese harte Grenze je
+  Gruppe und Woche nahm die Suche im Aufbau eine stärkere Woche in Kauf
+  (vordere Schulter 13,75 statt 13,6), und `plan-pruefen.py` hätte angehalten.
+* **Unter Gleichstand bleibt der ausgelieferte Plan.** Zum Schluss entscheidet
+  die Nähe zu seinen Sätzen ohne Hanteln, wie bei den Tagen (`naehe` in
+  `split_exakt()`). Ohne das kam der Bauch-Beine-Po-Plan mit 16 anderen
+  Satzzahlen heraus, ohne dass eine Zahl besser wurde.
+
+Gegen den ausgelieferten Stand (`tools/pruefung/vorher-nachher.py`), ohne
+Hanteln – mit Hanteln bleibt jede Satzzahl, wie sie war:
+
+| | Aufbau | Oberkörper |
+| --- | --- | --- |
+| Gruppenwochen über der Grenze | 75 → 62 | 10 → 9 |
+| stärkste Woche über der Grenze | +3,60 → +3,60 | +0,65 → +0,65 |
+| Abweichung der einzelnen Woche vom Ziel, Mittel / größte | 0,68 / 3,00 → 0,65 / 3,00 | 0,44 / 2,70 → 0,43 / 2,70 |
+| Sätze je Einheit | 15–18 (15 × 15, 2 × 16, 67 × 18) → 15–18 (13 × 15, 4 × 16, 2 × 17, 65 × 18) | gleich |
+| Auftritte mit anderer Satzzahl als mit Hanteln (Übungen mal mit 2, mal mit 4) | 58 (1) → 58 (1) | 17 (0) → 17 (0) |
+| geänderte Satzzahlen ohne Hanteln | 52 von 481 | 4 von 475 |
+
+Im Aufbau liegt der Bauch in keiner Woche mehr über der Grenze (stärkste Woche
+10,7 → 10,0), der Trizeps in 9 statt 13 Wochen, Bizeps 9 statt 11, Nacken 8
+statt 10, Gesäß 2 statt 4, seitliche Schulter 13 statt 14. Im Oberkörper kommt
+der Trizeps auf höchstens 12,75 statt 13,35 Sätze, also nie mehr über 13.
+Bauch-Beine-Po und Cut kommen Byte für Byte wieder heraus und bleiben, wie sie
+sind. Termine, Abstände, Bewegungspaare und Umbau ändern sich nirgends.
+`befunde.json` ist nachgezogen, wo es besser wurde, und
+`tests/test-bodyweight.mjs` hält die Gruppenwochen über der Grenze je Plan
+fest: Sie dürfen sinken, nicht steigen.
+
+Der Fingerabdruck (`stand`) zählt nur, welche Übung an welcher Nummer steht,
+und bleibt deshalb bei beiden Plänen. `plan-vorher.py` verlangt nichts, und in
+die Kette unter `tools/plan-vorher/` kommt kein Glied dazu: Eines mit dem
+laufenden Stand bettet `tools/build-data.py` nicht ein, und beim nächsten
+echten Wechsel stünden darin die Satzzahlen von vor diesem Nachtrag statt der
+ausgelieferten. Gerechnet mit denselben vier Aufrufen wie oben.
 
 ### 2 bis 4 Sätze – gemessen
 
