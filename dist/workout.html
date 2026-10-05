@@ -805,6 +805,8 @@ button { font: inherit; color: inherit; }
 .ruest.gleich { color: var(--ok); }
 /* Welche Scheiben draufkommen – die Zahl ist wichtiger als der Rest der Zeile. */
 .ruest-lade { color: var(--text); font-weight: 700; }
+/* Ein Gewicht, das sich mit dem Vorrat nicht stecken lässt: eine Warnung, keine Anweisung. */
+.ruest-lade.knapp { color: var(--warn, #e0a33e); }
 
 /* Der eigene Scheibensatz unter Mehr: schmale Felder in einer Zeile, damit
    „2,5 kg × 4 Stück" auch auf einem Telefon nebeneinander bleibt. */
@@ -12157,7 +12159,12 @@ function belegung(kg, equip, satz) {
  */
 const ZUSAMMEN_BUDGET = 100000;   // Zwischenstände, bevor aufgegeben wird
 
-function zusammen(lasten, satz) {
+/**
+ * Was zusammen() und zusammenBelegung() gemeinsam vorrechnen – oder null, wenn
+ * nichts eingetragen ist, und 'allein', wenn sich ein Gewicht schon für sich
+ * nicht bauen lässt.
+ */
+function vorrechnen(lasten, satz) {
   if (!satz || !Array.isArray(satz.scheiben) || !satz.scheiben.length) return null;
   const offen = lasten.filter(([equip]) => RASTER[equip]);
   const rs = offen.map(([equip]) => RASTER[equip]);
@@ -12193,21 +12200,31 @@ function zusammen(lasten, satz) {
   // Ein Gewicht, das sich schon allein nicht bauen lässt, ist kein Konflikt
   // zwischen den beiden – das ist die Sache von raste() und der Vorschau.
   // (Dieselbe Frage wie belegung() !== null.)
-  if (ziele.some((z, i) => !allein[i][0][z])) return null;
+  if (ziele.some((z, i) => !allein[i][0][z])) return 'allein';
 
   // Wie viel Eisen ab Größe j noch daliegt, in Viertelkilo. Nur bei Scheiben
   // auf dem Viertelkilo-Raster (normSatz() sorgt dafür) ist das ohne Rundung.
   const exakt = v.every(([w]) => Number.isInteger(w * 4));
   const eisen = new Array(n + 1).fill(0);
   for (let j = n - 1; j >= 0; j--) eisen[j] = eisen[j + 1] + v[j][1] * v[j][0] * 4;
+  // Hoffnungslos ab Größe j: ein Aufbau, der allein nicht mehr hinkommt, oder
+  // zusammen mehr Eisen, als noch daliegt. Ein Aufbau verbraucht je Kilo, das
+  // er trägt, pro/faktor Kilo Scheiben.
+  const aussichtslos = (j, qs) => j >= n || qs.some((q, i) => !allein[i][j][q])
+    || (exakt && qs.reduce((s, q, i) => s + q * rs[i].pro / rs[i].faktor, 0) > eisen[j]);
+  return { offen, rs, v, ziele, nach, stufen, aussichtslos };
+}
+
+function zusammen(lasten, satz) {
+  const p = vorrechnen(lasten, satz);
+  if (!p || p === 'allein') return null;
+  const { rs, v, ziele, nach, stufen, aussichtslos } = p;
 
   const gescheitert = new Set();
   let schritte = 0;
   const geht = (j, qs) => {
     if (qs.every((q) => q === 0)) return true;
-    if (j >= n || qs.some((q, i) => !allein[i][j][q])) return false;
-    // Ein Aufbau verbraucht je Kilo, das er trägt, pro/faktor Kilo Scheiben.
-    if (exakt && qs.reduce((s, q, i) => s + q * rs[i].pro / rs[i].faktor, 0) > eisen[j]) return false;
+    if (aussichtslos(j, qs)) return false;
     const key = `${j}|${qs.join(',')}`;
     if (gescheitert.has(key)) return false;
     if (++schritte > ZUSAMMEN_BUDGET) return false;   // aufgegeben, s. u.
@@ -12232,9 +12249,97 @@ function zusammen(lasten, satz) {
   return schritte > ZUSAMMEN_BUDGET ? null : false;
 }
 
-/** Die Belegung als Satz, wie man ihn jemandem zurufen würde. */
-function belegungText(kg, equip, satz) {
-  const b = belegung(kg, equip, satz);
+/**
+ * Nicht nur ob, sondern womit: die Belegung für alle Aufbauten zugleich.
+ *
+ * Gefunden auf dem Weg durch die App: Floor Press 40 kg und Gewichtete Crunches
+ * 5 kg bei 4× 1,25 / 4× 2,5 / 4× 5 / 2× 10. zusammen() sagt ja – je Seite
+ * 10 + 5 + 2,5 + 2,5, dann bleiben zwei 5er für die Brust. Die Rüstzeile
+ * rechnete aber jede Übung für sich und schrieb beim Floor Press „je Seite
+ * 1× 10 + 2× 5 kg": alle vier 5er auf der Stange, und beim Crunch stand
+ * „1× 5 kg" – eine Scheibe, die nach der eigenen Anweisung nicht mehr daliegt.
+ * Ein „es geht" nützt nichts, wenn die Anweisung danach einen anderen Weg
+ * beschreibt.
+ *
+ * Gibt je Eintrag von `lasten` die Belegung zurück, in der Form von
+ * belegung() – null für Geräte ohne Raster (Rucksack). Gesucht wird die mit den
+ * wenigsten Scheiben *insgesamt*, gezählt wie sie in der Hand liegen (bei
+ * beiden Kurzhanteln vier je Stufe). Passen die Belegungen, die jede Übung für
+ * sich bekäme, ohnehin nebeneinander, bleiben es genau die: Dann ändert sich an
+ * der Anzeige nichts. Bei gleich vielen Scheiben gewinnt die zuerst gefundene,
+ * und gesucht wird immer in derselben Reihenfolge – dieselbe Frage gibt
+ * dieselbe Antwort.
+ *
+ * null, wenn es keine gemeinsame gibt, wenn nichts eingetragen ist oder wenn
+ * die Suche zu lang würde – dann rechnet die Anzeige wie vorher je Übung.
+ */
+function zusammenBelegung(lasten, satz) {
+  const p = vorrechnen(lasten, satz);
+  if (!p || p === 'allein') return null;
+  const { offen, rs, v, ziele, nach, stufen, aussichtslos } = p;
+  const zurueck = (wahlen) => {
+    let x = 0;
+    return lasten.map(([equip]) => (RASTER[equip] ? wahlen[x++] : null));
+  };
+
+  // Zuerst die Belegungen für sich: Liegen sie zusammen im Vorrat, gelten die.
+  const fuerSich = offen.map(([equip, kg], i) => (ziele[i] ? belegung(kg, equip, satz) : []));
+  if (fuerSich.every(Boolean)) {
+    const braucht = new Map();
+    fuerSich.forEach((b, i) => b.forEach(([w, k]) => braucht.set(w, (braucht.get(w) || 0) + k * rs[i].pro)));
+    if (v.every(([w, anzahl]) => (braucht.get(w) || 0) <= anzahl)) return zurueck(fuerSich);
+  }
+
+  // Sonst die gemeinsame mit den wenigsten Scheiben. Was ab Größe j noch zu
+  // tun ist, hängt nur an j und den Fehlbeträgen – das Beste dafür wird gemerkt.
+  const gemerkt = new Map();
+  let schritte = 0;
+  const bestes = (j, qs) => {
+    if (qs.every((q) => q === 0)) return { stueck: 0, wahl: [] };
+    if (aussichtslos(j, qs)) return null;
+    const key = `${j}|${qs.join(',')}`;
+    if (gemerkt.has(key)) return gemerkt.get(key);
+    if (++schritte > ZUSAMMEN_BUDGET) return null;
+    const [w, anzahl] = v[j];
+    const neu = qs.slice();
+    const ks = qs.map(() => 0);
+    let sieger = null;
+    const verteile = (i, frei) => {
+      if (i >= qs.length) {
+        const rest = bestes(j + 1, neu.slice());
+        if (!rest) return;
+        const stueck = rest.stueck + ks.reduce((s, k, x) => s + k * rs[x].pro, 0);
+        if (sieger && stueck >= sieger.stueck) return;
+        const hier = ks.flatMap((k, x) => (k ? [[x, w, k]] : []));
+        sieger = { stueck, wahl: hier.concat(rest.wahl) };
+        return;
+      }
+      for (let k = stufen(qs[i], rs[i], frei, w); k >= 0; k--) {
+        neu[i] = nach(qs[i], rs[i], k, w);
+        ks[i] = k;
+        verteile(i + 1, frei - k * rs[i].pro);
+      }
+      neu[i] = qs[i];
+      ks[i] = 0;
+    };
+    verteile(0, anzahl);
+    gemerkt.set(key, sieger);
+    return sieger;
+  };
+  const b = bestes(0, ziele);
+  if (!b || schritte > ZUSAMMEN_BUDGET) return null;
+  const wahlen = offen.map(() => []);
+  b.wahl.forEach(([x, w, k]) => wahlen[x].push([w, k]));
+  return zurueck(wahlen.map((wahl) => wahl.sort((a, c) => c[0] - a[0])));
+}
+
+/**
+ * Eine Belegung als Satz, wie man ihn jemandem zurufen würde.
+ *
+ * Getrennt von der Suche, weil sie nicht immer von belegung() kommt: Im
+ * Supersatz gilt die gemeinsame aus zusammenBelegung().
+ */
+function belegungAlsText(b, equip, satz) {
   if (!b) return '';
   const r = RASTER[equip];
   if (!b.length) {
@@ -12251,6 +12356,11 @@ function belegungText(kg, equip, satz) {
   if (equip === 'dumbbells') return `je Seite ${teile} kg (beide Hanteln)`;
   if (r.faktor === 2) return `je Seite ${teile} kg`;
   return `${teile} kg`;
+}
+
+/** Die Belegung mit den wenigsten Scheiben als Satz. */
+function belegungText(kg, equip, satz) {
+  return belegungAlsText(belegung(kg, equip, satz), equip, satz);
 }
 
 /* ===== js/gewichte.js ===== */
@@ -12630,21 +12740,70 @@ function ruestOrder(items) {
   return vorgezogen(out) ? items : out;
 }
 
-/** Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist. */
-function ruestHint(n, mode, list, i) {
-  if (mode !== 'db') return '';
-  const cur = setupOf(list[i].id, workingWeight(list[i].id));
-  if (!cur) return '';
+/**
+ * Der Aufbau, der vor dieser Übung zuletzt dran war – oder null.
+ *
+ * Ohne Supersatz ist das die nächste Übung mit Aufbau weiter oben in der
+ * Liste. Im Supersatz stimmt die Liste nicht mehr mit dem Ablauf überein:
+ * Partner liegen bis zu drei Plätze auseinander, und dazwischen wird
+ * gewechselt. Gefunden auf dem Weg durch Workout 3 des Aufbau-Plans: Beim
+ * ersten RDL-Satz stand „Stange bleibt bei 40 kg – nichts umbauen" (die Stange
+ * war noch leer, die 40 kg gehörten zum Floor Press darüber, der erst danach
+ * kam), beim Floor Press direkt nach drei RDL-Sätzen mit 40 kg „Aufbauen", und
+ * bei den Crunches „Umbauen: Kurzhantel von 20 auf 5 kg" – die 20 kg gehörten
+ * zum Goblet Squat, den noch niemand angefasst hatte.
+ *
+ * `ablauf` sind deshalb, wenn es ihn gibt, die Übungen in der Reihenfolge der
+ * Sätze (schritte() je Gruppe aus superGruppen() in js/app.js). Gezählt wird
+ * vom ersten Satz dieser Übung rückwärts: Die Rüstzeile sagt, was vor ihr zu
+ * tun ist, wie ohne Supersatz auch.
+ */
+function vorherAufgebaut(list, i, ablauf) {
+  const aufbau = (id) => setupOf(id, workingWeight(id));
+  const erst = ablauf ? ablauf.indexOf(list[i].id) : -1;
   let prev = null;
-  for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, workingWeight(list[k].id));
+  if (erst < 0) {
+    for (let k = i - 1; k >= 0 && !prev; k--) prev = aufbau(list[k].id);
+    return prev;
+  }
+  for (let k = erst - 1; k >= 0 && !prev; k--) prev = aufbau(ablauf[k]);
+  return prev;
+}
+
+/**
+ * Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist.
+ *
+ * `mit.ablauf`: die Reihenfolge der Sätze im Supersatz (vorherAufgebaut()).
+ * `mit.belegung`: die Belegung, mit der diese Übung und ihr Partner zugleich
+ * stehen (paarBelegung() in js/supersatz.js) – dann steht bei beiden genau
+ * die, nicht jede für sich.
+ */
+function ruestHint(n, mode, list, i, mit = {}) {
+  if (mode !== 'db') return '';
+  const id = list[i].id;
+  const cur = setupOf(id, workingWeight(id));
+  if (!cur) return '';
+  const prev = vorherAufgebaut(list, i, mit.ablauf || null);
   const kg = `${fmtNum(cur.kg)} kg${cur.note ? ` ${cur.note}` : ''}`;
   // Sind die Scheiben bekannt, steht hier nicht nur das Ziel, sondern der Weg
   // dahin: Welche Scheiben, wie viele, auf welche Seite. Das ist die Zeile, die
   // den Umbau kurz macht.
-  const lade = ladeText(list[i].id, cur.kg);
-  const wie = lade ? ` <span class="ruest-lade">(${esc(lade)})</span>` : '';
+  const lade = ladeText(id, cur.kg, mit.belegung || null);
+  let wie = lade ? ` <span class="ruest-lade">(${esc(lade)})</span>` : '';
+  // Lässt sich das Gewicht mit dem Vorrat gar nicht stecken – gesetzt, bevor
+  // die Scheiben eingetragen waren, oder frei eingetippt –, blieb die Zeile
+  // ohne Scheiben und ohne Grund: „Aufbauen: Kurzhanteln auf 12 kg", und an
+  // der Hantel merkt man, dass es nicht aufgeht. Dann steht hier, was geht.
+  const geht = gerastet(EX_BY_ID.get(id), cur.kg);
+  if (!lade && geht !== null && Math.abs(geht - cur.kg) > 1e-9) {
+    wie = ` <span class="ruest-lade knapp">(${esc(fmtNum(cur.kg))} kg lässt sich so nicht stecken – nächstes: ${
+      esc(fmtNum(geht))} kg)</span>`;
+  }
   if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
-    return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen</div>`;
+    // Im Paar kann die gemeinsame Belegung eine andere sein als die, mit der
+    // die Stange gerade daliegt – dann muss sie dastehen.
+    return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen${
+      mit.belegung ? wie : ''}</div>`;
   }
   if (prev && prev.fam === cur.fam) {
     return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}${wie}</div>`;
@@ -12743,10 +12902,17 @@ function naechstesGewicht(exId, richtung) {
  * laufen kann, ist keine Reserve, sondern Ballast.
  * ------------------------------------------------------------------ */
 
-/** „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt. */
-function ladeText(exId, kg) {
+/**
+ * „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt.
+ *
+ * `belegung` ist eine schon bestimmte Belegung – im Supersatz die, mit der
+ * beide Aufbauten zugleich stehen (paarBelegung() in js/supersatz.js). Ohne
+ * gilt die mit den wenigsten Scheiben für diese Übung allein.
+ */
+function ladeText(exId, kg, belegung = null) {
   const ex = EX_BY_ID.get(exId);
   if (!ex || kg === null) return '';
+  if (belegung) return belegungAlsText(belegung, ex.equip, meinSatz());
   return belegungText(kg, ex.equip, meinSatz());
 }
 
@@ -12794,6 +12960,7 @@ function ladeText(exId, kg) {
 
 
 
+
 /** Ab diesem Anteil gilt ein Muskel als von der Übung getroffen. */
 const DIREKT = 0.5;
 
@@ -12809,10 +12976,21 @@ function direkteMuskeln(id, mode) {
  *
  * Klimmzugstange, Band und Körpergewicht kosten keinen Umbau. Sie sind deshalb
  * die dankbarsten Partner: Sie kollidieren mit gar nichts.
+ *
+ * **Und zwar das Gerät der Fassung, die gerade trainiert wird.** Hier stand
+ * immer das der Hantel-Fassung, auch ohne Hanteln. Dann trennte die Regel
+ * Band-Reverse-Fly und Wadenheben, weil Kurzhantel und einarmige Kurzhantel
+ * dieselben Griffe sind – obwohl ohne Hanteln weder Griff noch Scheibe im Spiel
+ * ist. Über die 336 Einheiten blieben so ohne Hanteln 99 Paare liegen (gefunden
+ * bei der Durchsicht). Ohne Hanteln ist nur der Rucksack ein Aufbau: Er wird
+ * gepackt, und es gibt einen. Das Band liegt nur da (bwGeraet() in
+ * js/figure.js liest das Gerät der Bodyweight-Fassung).
  */
-const geraet = (id) => {
+const geraet = (id, mode) => {
   const ex = EX_BY_ID.get(id);
-  return (ex && STANGE[RUEST_FAM[ex.equip]]) || null;
+  if (!ex) return null;
+  if (mode === 'bw') return bwGeraet(ex.bw && ex.bw.equip) === 'backpack' ? 'ruck' : null;
+  return STANGE[RUEST_FAM[ex.equip]] || null;
 };
 
 /**
@@ -12829,9 +13007,13 @@ const geraet = (id) => {
  */
 const STANGE = { lh: 'lh', sz: 'sz', kh1: 'kh', kh2: 'kh', ruck: 'ruck' };
 
-/** [Gerät, kg], mit dem diese Übung heute aufgebaut wird. */
-const last = (x) => {
+/**
+ * [Gerät, kg], mit dem diese Übung heute aufgebaut wird – Scheiben gibt es nur
+ * mit Hanteln. Ohne steht hier kein Gerät, und zusammen() hat nichts zu rechnen.
+ */
+const last = (x, mode) => {
   const ex = EX_BY_ID.get(x.id);
+  if (mode === 'bw') return [null, 0];
   return [ex ? ex.equip : x.equip, ex ? workingWeight(x.id) || 0 : 0];
 };
 
@@ -12844,27 +13026,48 @@ const last = (x) => {
  * Raum hieße sonst, zwischen jedem Satz die Scheiben umzustecken – genau der
  * Umbau, den die zweite Regel verhindern soll. Ohne eingetragenen Vorrat weiß
  * die App es nicht und sagt ja; ebenso, wenn eine der beiden gar keinen Aufbau
- * hat.
+ * hat – und ohne Hanteln immer: Da liegt keine Scheibe auf.
  *
  * Eigens herausgezogen für die laufende Einheit: Dort steht die Paarung fest
  * (superGruppen() in js/app.js), und wer mittendrin so weit erhöht, dass es
  * nicht mehr reicht, behält sein Paar – bekommt aber gesagt, dass er umstecken
  * muss.
  */
-function scheibenReichen(a, b) {
-  if (!geraet(a.id) || !geraet(b.id)) return true;
-  return zusammen([last(a), last(b)], meinSatz()) !== false;
+function scheibenReichen(a, b, mode) {
+  if (mode === 'bw' || !geraet(a.id, mode) || !geraet(b.id, mode)) return true;
+  return zusammen([last(a, mode), last(b, mode)], meinSatz()) !== false;
+}
+
+/**
+ * Womit die beiden eines Paars zu laden sind, damit beide stehen bleiben –
+ * als Map von der Übung auf ihre Belegung (wie belegung() in js/scheiben.js).
+ *
+ * Für die Rüstzeile beider Übungen. Rechnete jede für sich, kam beim Floor
+ * Press „je Seite 1× 10 + 2× 5 kg" heraus und beim Crunch „1× 5 kg" – zwei
+ * Anweisungen, die zusammen mehr 5er brauchen, als daliegen, obwohl die
+ * Paarung gerade deshalb gilt, weil es anders geht. Gefragt wird in einer
+ * festen Reihenfolge (nach der Kennung der Übung), damit beide Karten dieselbe
+ * Antwort bekommen. null, wenn es nichts gemeinsam zu laden gibt oder die
+ * Scheiben nicht für beide reichen – dann steht bei jeder ihre eigene.
+ */
+function paarBelegung(a, b, mode) {
+  if (mode === 'bw' || !geraet(a.id, mode) || !geraet(b.id, mode)) return null;
+  const beide = [a, b].sort((x, y) => (x.id < y.id ? -1 : 1));
+  const lasten = beide.map((x) => last(x, mode));
+  const b2 = zusammenBelegung(lasten, meinSatz());
+  if (!b2) return null;
+  return new Map(beide.map((x, i) => [x.id, b2[i]]));
 }
 
 /** Dürfen diese beiden im Wechsel laufen? */
 function passtZusammen(a, b, mode) {
   if (a.id === b.id) return false;
-  const ga = geraet(a.id);
-  const gb = geraet(b.id);
+  const ga = geraet(a.id, mode);
+  const gb = geraet(b.id, mode);
   // Dasselbe Gerät hieße: zwischen jedem Satz umbauen. Zwei Übungen ohne Aufbau
   // dürfen sich dagegen treffen – da gibt es nichts zu wechseln.
   if (ga && gb && ga === gb) return false;
-  if (!scheibenReichen(a, b)) return false;
+  if (!scheibenReichen(a, b, mode)) return false;
   const ma = direkteMuskeln(a.id, mode);
   return ![...direkteMuskeln(b.id, mode)].some((m) => ma.has(m));
 }
@@ -15752,15 +15955,19 @@ const feldWert = (v) => (typeof v === 'number' && Number.isFinite(v) ? fmtNum(v)
  * Deshalb steht jetzt an jeder Zeile, was sie leistet: „+10 kg an der Stange"
  * – oder eben, dass es für ein Paar nicht reicht.
  */
-function scheibenZeile(i, kg, anzahl) {
+function scheibenZeilenHinweis(kg, anzahl) {
   const n = Number(anzahl) || 0;
   const wert = Number(kg) || 0;
   const paare = Math.floor(n / 2);
-  const hinweis = !wert || !n ? ''
+  return !wert || !n ? ''
     : paare < 1
       ? '<span class="scheiben-warn">nur einzeln – eine Stange braucht zwei</span>'
       : `<span class="scheiben-hint">+${esc(fmtNum(wert * 2))} kg je Paar${
           n >= 4 ? ` · ${paare} Paare` : ''}</span>`;
+}
+
+function scheibenZeile(i, kg, anzahl) {
+  const hinweis = scheibenZeilenHinweis(kg, anzahl);
   return `
     <div class="scheiben-zeile">
       <input type="text" inputmode="decimal" class="kg-val" value="${esc(feldWert(kg))}"
@@ -15825,6 +16032,29 @@ function scheibenVorschau(equip, was, satz) {
     + `${liste.length > 14 ? ' …' : ''} kg${RASTER[equip].stange ? rechnung : ''}</div>`;
 }
 
+/**
+ * Der Block „Damit einstellbar" – eigens herausgezogen, damit er sich nach
+ * einer Eingabe nachziehen lässt, ohne die Felder neu zu zeichnen (der
+ * input-Handler für die Scheibenfelder in js/app.js).
+ */
+function scheibenEinstellbar() {
+  const geprueft = meinSatz();
+  if (!geprueft.scheiben.length) return '';
+  return `
+      <div class="scheiben-satz">
+        <div class="lbl">Damit einstellbar</div>
+        ${scheibenVorschau('dumbbells', 'Beide Kurzhanteln, je Hand', geprueft)}
+        ${scheibenVorschau('goblet', 'Eine Kurzhantel', geprueft)}
+        ${/* Nur, wenn es sie gibt. Eine SZ-Stange hat nicht jeder, und eine
+              Zeile „SZ-Stange: 0 kg plus Stange – trag ihr Leergewicht ein"
+              wäre eine Mahnung, etwas einzutragen, das gar nicht existiert.
+              Das Eingabefeld oben steht trotzdem da: Dort sagt man, dass man
+              eine hat. */
+          geprueft.stange.sz === null ? '' : scheibenVorschau('szbar', 'SZ-Stange', geprueft)}
+        ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
+      </div>`;
+}
+
 function scheibenKarte() {
   const satz = roherSatz();
   const geprueft = meinSatz();
@@ -15862,19 +16092,7 @@ function scheibenKarte() {
           dann rechnet die App die Stange überall mit.</div>
       </div>
 
-      ${geprueft.scheiben.length ? `
-      <div class="scheiben-satz">
-        <div class="lbl">Damit einstellbar</div>
-        ${scheibenVorschau('dumbbells', 'Beide Kurzhanteln, je Hand', geprueft)}
-        ${scheibenVorschau('goblet', 'Eine Kurzhantel', geprueft)}
-        ${/* Nur, wenn es sie gibt. Eine SZ-Stange hat nicht jeder, und eine
-              Zeile „SZ-Stange: 0 kg plus Stange – trag ihr Leergewicht ein"
-              wäre eine Mahnung, etwas einzutragen, das gar nicht existiert.
-              Das Eingabefeld oben steht trotzdem da: Dort sagt man, dass man
-              eine hat. */
-          geprueft.stange.sz === null ? '' : scheibenVorschau('szbar', 'SZ-Stange', geprueft)}
-        ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
-      </div>` : ''}
+      <div class="scheiben-einstellbar">${scheibenEinstellbar()}</div>
 
       <div class="small muted" style="margin-top:10px">Für <strong>beide</strong> Kurzhanteln
         zählen vier Scheiben einer Größe als ein Schritt – zwei je Hantel, eine je Seite.
@@ -18128,6 +18346,20 @@ function superPartner(n, mode, id) {
 }
 
 /**
+ * Was die Rüstzeile im Supersatz zusätzlich wissen muss (ruestHint() in
+ * js/gewichte.js): in welcher Reihenfolge die Übungen wirklich drankommen, und
+ * mit welcher Belegung diese Übung neben ihrem Partner steht. Ohne Supersatz
+ * nichts davon – dann gilt die Liste.
+ */
+function ruestMit(n, mode, it) {
+  if (!superAn()) return {};
+  const ablauf = superGruppen(n, mode).flatMap((g) => schritte(g).map((s) => s.id));
+  const partner = superPartner(n, mode, it.id);
+  const beide = partner ? paarBelegung(it, partner, mode) : null;
+  return { ablauf, belegung: (beide && beide.get(it.id)) || null };
+}
+
+/**
  * Im Supersatz zeigt die Leiste unten die Pause der Übung, die gerade zu
  * sehen ist.
  *
@@ -18368,13 +18600,13 @@ function renderFocus() {
       // Das Paar bleibt, auch wenn ein Gewicht inzwischen so gestiegen ist,
       // dass die Scheiben nicht mehr für beide reichen – dann muss man es
       // aber wissen, sonst steht man vor der leeren Stange.
-      const knapp = scheibenReichen(it, partner) ? ''
+      const knapp = scheibenReichen(it, partner, mode) ? ''
         : '<div class="super-hin knapp">Die Scheiben reichen nicht für beide Aufbauten – zwischen den Sätzen umstecken.</div>';
       return `<div class="super-hin">↔ Im Wechsel mit ${esc(partner.name)}</div>${knapp}`;
     })()}
 
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
-      ${ruestHint(n, mode, w.ex, i)}
+      ${ruestHint(n, mode, w.ex, i, ruestMit(n, mode, it))}
       <div class="ex-weight focus-weight">
         ${kgKnopf(it, -1)}
         <div class="kg-main">
@@ -19803,11 +20035,11 @@ function superVorschau() {
   if (!gruppen.length) return '';
   const paarZahl = gruppen.filter((g) => g.length === 2).length;
   return `
-    <div class="scheiben-satz">
+    <div class="scheiben-satz super-vorschau">
       <div class="lbl">Workout ${n} liefe so</div>
       ${gruppen.map((g) => (g.length === 2
         ? `<div class="super-paar">↔ ${esc(g[0].name)} <span class="super-mit">im Wechsel mit</span> ${esc(g[1].name)}${
-          scheibenReichen(g[0], g[1]) ? '' : ' <span class="knapp">– Scheiben reichen nicht für beide, umstecken</span>'}</div>`
+          scheibenReichen(g[0], g[1], mode) ? '' : ' <span class="knapp">– Scheiben reichen nicht für beide, umstecken</span>'}</div>`
         : `<div class="super-paar allein">${esc(g[0].name)} <span class="super-mit">allein, mit normaler Pause</span></div>`)).join('')}
       <div class="hint">${paarZahl
         ? `${paarZahl} ${paarZahl === 1 ? 'Paar' : 'Paare'} – der Rest läuft wie bisher.`
@@ -19828,6 +20060,34 @@ function scheibenAendern(wie) {
   const satz = roherSatz();
   wie(satz);
   store.setSetting('scheiben', satz);
+}
+
+/**
+ * Nach einer Eingabe in ein Scheibenfeld: Zeilenhinweis, „Damit einstellbar"
+ * und die Supersatz-Vorschau nachziehen – aber nicht die Felder selbst.
+ *
+ * Gespeichert wurde schon immer bei jedem Tastendruck, neu gezeichnet bewusst
+ * nicht: Ein render() ersetzt das Feld und nimmt den Fokus mitten im Wort mit.
+ * Damit blieb aber auch stehen, was aus der Eingabe folgt. Nach „Scheibengröße
+ * hinzufügen" (0,5 kg × 4) und dem Eintippen von 10 × 2 stand neben der Zeile
+ * weiter „+1 kg je Paar · 2 Paare", und die Vorschau zeigte je Hand
+ * „0 · 1 · 2,5 · 3,5 …" – Gewichte aus 0,5er-Scheiben, die es gar nicht gibt.
+ * Ausgerechnet die Vorschau, die belegen soll, dass richtig eingetragen ist,
+ * ließ einen richtigen Vorrat vertippt aussehen (gefunden auf dem Weg durch die
+ * App). Wie bei der Terminsuche wird deshalb nur das ersetzt, was sich aus der
+ * Eingabe ergibt.
+ */
+function scheibenNachziehen(feld) {
+  const zeile = feld.closest('.scheiben-zeile');
+  if (zeile && feld.dataset.i !== undefined) {
+    const roh = roherSatz().scheiben[Number(feld.dataset.i)] || [];
+    zeile.querySelectorAll('.scheiben-hint, .scheiben-warn').forEach((x) => x.remove());
+    zeile.insertAdjacentHTML('beforeend', scheibenZeilenHinweis(roh[0], roh[1]));
+  }
+  const block = view.querySelector('.scheiben-einstellbar');
+  if (block) block.innerHTML = scheibenEinstellbar();
+  const paare = view.querySelector('.super-vorschau');
+  if (paare) paare.outerHTML = superVorschau() || '<div class="super-vorschau" hidden></div>';
 }
 
 /**
@@ -23606,6 +23866,7 @@ view.addEventListener('input', (e) => {
     // Feld ersetzen und den Fokus mitnehmen, mitten im Wort.
     const kg = parseFloat(t.value.replace(',', '.'));
     scheibenAendern((s) => { s.stange[t.dataset.satz] = Number.isNaN(kg) ? null : kg; });
+    scheibenNachziehen(t);
   } else if (t.dataset.act === 'termin-suche') {
     // Nur die Trefferliste neu zeichnen, nicht die ganze Ansicht: Ein render()
     // ersetzt das Suchfeld und nimmt den Fokus mitten im Wort mit – derselbe
@@ -23627,6 +23888,7 @@ view.addEventListener('input', (e) => {
       const zeile = s.scheiben[Number(t.dataset.i)];
       if (zeile) zeile[feld] = zahl;
     });
+    scheibenNachziehen(t);
   }
 });
 
