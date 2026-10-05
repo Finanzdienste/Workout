@@ -106,6 +106,35 @@ rucksack.forEach((r) => {
     `${r.id} (Bodyweight): die Übersicht zeichnet ihn (${r.code || 'keine Karte'})`);
 });
 
+// Die Flaschen beim Seitheben, stehend und sitzend – „je eine gefüllte
+// Flasche in die Hand". Abgeleitet wurde das Gerät nur im Bodyweight-Modus
+// und dort nur Band und Rucksack; im Hantel-Modus nennt die Übung gar keins.
+// In beiden Fassungen hob die Figur leere Fäuste.
+const flaschenKarten = async (modus) => {
+  await page.locator(`.modus button[data-modus="${modus}"]`).click();
+  await page.waitForTimeout(600);
+  return page.evaluate(async (m) => {
+    const { EXERCISES } = await import('./js/data.js');
+    const { resolve } = await import('./js/plan.js');
+    return ['flaschen-seitheben', 'sitzendes-flaschen-seitheben'].map((id) => {
+      const ex = EXERCISES.find((e) => e.id === id);
+      const karte = [...document.querySelectorAll('.karte')]
+        .find((k) => k.querySelector('h2').textContent.trim() === ex[m].name);
+      return {
+        id, gear: resolve({ id, sets: 3 }, m).gear,
+        flaschen: karte ? karte.querySelectorAll('.fig-flasche').length : 0,
+        code: karte ? karte.querySelector('code').textContent : '',
+      };
+    });
+  }, modus);
+};
+for (const modus of ['bw', 'db']) {
+  (await flaschenKarten(modus)).forEach((r) => {
+    check(r.gear === 'bottles', `${r.id} (${modus}): resolve() gibt der Figur die Flaschen (${r.gear})`);
+    check(r.flaschen > 0 && /bottles/.test(r.code), `${r.id} (${modus}): die Übersicht zeichnet sie (${r.code || 'keine Karte'})`);
+  });
+}
+
 await page.screenshot({ path: `${SHOT}/figuren.png`, fullPage: true });
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);

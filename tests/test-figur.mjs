@@ -433,13 +433,33 @@ Object.entries(PATTERNS).filter(([, s]) => s.anchor === 'bar' && !s.float).forEa
 // Abgeleitet wurde nur das Band; Rucksack-Curls und Rucksack-Rudern curlten
 // und ruderten im Bodyweight-Modus mit leeren Fäusten.
 {
-  const { bwGeraet } = await import('../js/figure.js');
+  const { bwGeraet, figurGeraet, flaschen } = await import('../js/figure.js');
   const { EXERCISES } = await import('../js/data.js');
   check(bwGeraet('Rucksack') === 'backpack' && bwGeraet('Loop-Band') === 'band' && bwGeraet('Ohne Gerät') === null,
     'bwGeraet: Rucksack → backpack, Band → band, sonst nichts');
   const rucksack = EXERCISES.filter((e) => /rucksack/i.test(e.bw.equip));
   check(rucksack.length >= 2 && rucksack.every((e) => bwGeraet(e.bw.equip) === 'backpack'),
     `jede Bodyweight-Fassung mit Rucksack zeigt ihn (${rucksack.map((e) => e.id).join(', ')})`);
+
+  // Und die Flaschen beim Seitheben – „zwei volle Flaschen", in beiden
+  // Fassungen. Im Hantel-Modus nennt die Übung kein Gerät (equip null), und
+  // die Figur hob dort wie im Bodyweight-Modus leere Fäuste.
+  check(bwGeraet('zwei volle Flaschen') === 'bottles', 'bwGeraet: Flaschen → bottles');
+  const flaschenUebungen = EXERCISES.filter((e) => /flasche/i.test(e.db.equip) || /flasche/i.test(e.bw.equip));
+  const ohne = flaschenUebungen.flatMap((e) => ['db', 'bw'].filter((m) => figurGeraet(e, m) !== 'bottles').map((m) => `${e.id}:${m}`));
+  check(flaschenUebungen.length >= 2 && ohne.length === 0,
+    `jede Flaschen-Übung zeigt die Flaschen, in beiden Fassungen (${flaschenUebungen.map((e) => e.id).join(', ')}`
+    + `${ohne.length ? '; ohne: ' + ohne.join(', ') : ''})`);
+  const mitGeraet = EXERCISES.filter((e) => e.equip);
+  check(mitGeraet.every((e) => figurGeraet(e, 'db') === e.equip),
+    'im Hantel-Modus gilt weiter das Gerät der Übung, wo sie eins nennt');
+  // Eine Flasche je Faust, quer durch sie hindurch.
+  for (const name of ['lateral', 'lateralstand']) {
+    const j = skelett(PATTERNS[name], 0.5);
+    const f = flaschen(PATTERNS[name], j, 'bottles');
+    const inDerHand = f.length === 2 && f.every((x, k) => x.centre === j[`hand${['L', 'R'][k]}`]);
+    check(inDerHand, `${name}: je eine Flasche in jeder Hand (${f.length})`);
+  }
 }
 
 /* --- 17. Goblet: Hände als Schale vor der Brust, Arme nicht gekreuzt ------ */
@@ -468,6 +488,206 @@ for (const name of ['squat', 'squatheel']) {
         + `${vorn.toFixed(2)} vor der Brust, unter dem Hals`);
     }
   }
+}
+
+/*
+ * Und die Hände an der Hantel – gemessen an den Punkten, die gezeichnet
+ * werden (handForm, hanteln aus js/figure.js), über die ganze Bewegung.
+ *
+ * Die zweite Fassung (v228) bestand alle Prüfungen oben und war trotzdem
+ * falsch: Die Hände saßen 0,061 neben der Achse einer Scheibe mit Radius
+ * 0,10, die Finger steckten ab der halben Handfläche in beiden oberen
+ * Scheiben und kreuzten sich 0,05 jenseits der Mitte, die Handflächen zeigten
+ * nach unten, die untere Scheibe lief durch die Unterarme, und unten in der
+ * Hocke steckte die obere Scheibe 0,04 im Kinn. Keine Prüfung kam an die
+ * Hände heran. Jede Hand, jeder Finger und der Daumen sind hier Kapseln mit
+ * der Dicke, mit der sie gezeichnet werden (Breite / 40), die Hantel ist ihre
+ * Scheiben, ihr Griff und ihre Stummel als Zylinder.
+ */
+{
+  const { handForm, hanteln, hantelTeile, achsen } = await import('../js/figure.js');
+  const plus = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const minus = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const mal = (v, s) => [v[0] * s, v[1] * s, v[2] * s];
+  const punkt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const laenge = (v) => Math.hypot(v[0], v[1], v[2]);
+  const auf = (a, b, u) => plus(a, mal(minus(b, a), u));
+  // Abstand eines Punkts zu einem Zylinder entlang der Hantelachse, innen negativ.
+  const zylinder = (h, s0, s1, r) => (p) => {
+    const d = minus(p, h.centre); const s = punkt(d, h.axis); const q = laenge(minus(d, mal(h.axis, s)));
+    if (s >= s0 && s <= s1) return q <= r ? -Math.min(r - q, s - s0, s1 - s) : q - r;
+    const ds = s < s0 ? s0 - s : s - s1;
+    return q <= r ? ds : Math.hypot(ds, q - r);
+  };
+  // Kapseln (Punkt, Halbmesser) einer Hand: Fläche und alle Glieder.
+  const kapseln = (hf) => {
+    const out = [];
+    const m = hf.flaeche.reduce((s, p) => plus(s, mal(p, 1 / hf.flaeche.length)), [0, 0, 0]);
+    hf.flaeche.forEach((p) => [0.34, 0.67, 1].forEach((u) => out.push({ p: auf(m, p, u), r: 0.022, teil: 'Handfläche' })));
+    hf.stuecke.forEach(([a, b, w1, w2], k) => {
+      const teil = k === 0 ? 'Handballen' : k === hf.stuecke.length - 1 ? 'Daumen' : 'Finger';
+      for (let i = 0; i <= 8; i++) out.push({ p: auf(a, b, i / 8), r: (w1 + (w2 - w1) * i / 8) / 40, teil });
+    });
+    return out;
+  };
+  const abstandStrecken = (a1, b1, a2, b2) => {
+    let m = Infinity;
+    for (let i = 0; i <= 12; i++) for (let k = 0; k <= 12; k++) m = Math.min(m, laenge(minus(auf(a1, b1, i / 12), auf(a2, b2, k / 12))));
+    return m;
+  };
+  for (const name of ['squat', 'squatheel']) {
+    const spec = PATTERNS[name];
+    const schlimm = {
+      inHantel: [Infinity, ''], nah: [-Infinity, ''], oben: [Infinity, ''], streck: [Infinity, ''], streckMax: [-Infinity, ''],
+      mitte: [-Infinity, ''], finger: [Infinity, ''], arm: [Infinity, ''], kopf: [Infinity, ''], daumen: [-Infinity, ''],
+    };
+    const merke = (k, v, wo, kleiner) => {
+      if (kleiner ? v < schlimm[k][0] : v > schlimm[k][0]) schlimm[k] = [v, wo];
+    };
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20;
+      const j = skelett(spec, t);
+      const ach = achsen(j);
+      const [h] = hanteln(spec, j, 'goblet');
+      const T = hantelTeile(h.plate, h.half);
+      const teile = [];
+      T.scheiben.forEach(([a, b, r], k) => {
+        teile.push({ name: k ? 'kleine obere Scheibe' : 'große obere Scheibe', d: zylinder(h, a, b, r) });
+        teile.push({ name: k ? 'kleine untere Scheibe' : 'große untere Scheibe', d: zylinder(h, -b, -a, r) });
+      });
+      teile.push({ name: 'Griff', d: zylinder(h, -T.innen, T.innen, T.griffR) });
+      teile.push({ name: 'Stummel oben', d: zylinder(h, T.scheiben[1][1], T.stummel, T.griffR) });
+      teile.push({ name: 'Stummel unten', d: zylinder(h, -T.stummel, -T.scheiben[1][1], T.griffR) });
+      const oberePlatte = teile[0];
+      const haende = ['L', 'R'].map((s) => ({ s, hf: handForm(spec, j, s, 'goblet') }));
+      haende.forEach(({ s, hf }) => {
+        const wo = `t=${t} ${s}`;
+        const innen = mal(ach.sideAxis, s === 'L' ? 1 : -1);
+        let nah = Infinity;
+        kapseln(hf).forEach(({ p, r, teil }) => {
+          teile.forEach((z) => merke('inHantel', z.d(p) - r, `${wo} ${teil} – ${z.name}`, true));
+          nah = Math.min(nah, oberePlatte.d(p) - r);
+          if (teil === 'Finger' || teil === 'Daumen') merke('mitte', punkt(minus(p, h.centre), innen) + r, `${wo} ${teil}`, false);
+        });
+        merke('nah', nah, wo, false);
+        merke('oben', punkt(hf.n, ach.upAxis), wo, true);
+        // Streckung: Handfläche gegen Unterarm. Positiv heißt, die Hand ist
+        // zum Handrücken hin abgeknickt – gestreckt, nicht gebeugt.
+        const streck = Math.asin(Math.max(-1, Math.min(1, punkt(hf.n, hf.unterarm)))) * 180 / Math.PI;
+        merke('streck', streck, wo, true);
+        merke('streckMax', streck, wo, false);
+        // Daumen um den Griff: seine Spitze liegt hinter der Achse, nah am Griff.
+        const [, spitze] = hf.stuecke[hf.stuecke.length - 1];
+        const d = minus(spitze, h.centre);
+        const zurAchse = laenge(minus(d, mal(h.axis, punkt(d, h.axis))));
+        merke('daumen', punkt(d, ach.frontAxis) < 0 ? zurAchse : Infinity, wo, false);
+        // Unter- und Oberarm gegen jedes Teil der Hantel, mit ihrer Dicke.
+        [[j[`elbow${s}`], j[`hand${s}`], 2.5, 1.8, 'Unterarm'], [j[`shoulder${s}`], j[`elbow${s}`], 3.4, 2.5, 'Oberarm']]
+          .forEach(([a, b, w1, w2, arm]) => {
+            for (let k = 0; k <= 20; k++) {
+              const p = auf(a, b, k / 20); const r = (w1 + (w2 - w1) * k / 20) / 40;
+              teile.forEach((z) => merke('arm', z.d(p) - r, `${wo} ${arm} – ${z.name}`, true));
+            }
+          });
+      });
+      // Finger der einen Hand gegen die der anderen
+      haende[0].hf.stuecke.slice(1).forEach(([a1, b1, w1, w2]) => haende[1].hf.stuecke.slice(1).forEach(([a2, b2, v1, v2]) => {
+        merke('finger', abstandStrecken(a1, b1, a2, b2) - (Math.max(w1, w2) + Math.max(v1, v2)) / 40, `t=${t}`, true);
+      }));
+      // Obere Scheiben samt Stummel gegen den Kopfmittelpunkt
+      teile.filter((z) => /obere|oben/.test(z.name)).forEach((z) => merke('kopf', z.d(j.head), `t=${t} ${z.name}`, true));
+    }
+    const f3 = (v) => v.toFixed(3);
+    const [inH, inWo] = schlimm.inHantel;
+    check(inH >= 0, `${name}: keine Hand, kein Finger, kein Daumen steckt in Scheibe, Griff oder Stummel (knappster Abstand ${f3(inH)}, ${inWo})`);
+    check(schlimm.nah[0] <= 0.02, `${name}: die Hände liegen an der oberen Scheibe an (höchstens ${f3(schlimm.nah[0])} entfernt, ${schlimm.nah[1]})`);
+    check(schlimm.oben[0] >= 0.7, `${name}: Handflächen nach oben (Normale · Rumpfachse mindestens ${f3(schlimm.oben[0])}, ${schlimm.oben[1]})`);
+    check(schlimm.streck[0] > 20 && schlimm.streckMax[0] < 75,
+      `${name}: Handgelenk gestreckt, nicht gebeugt und nicht überstreckt (${schlimm.streck[0].toFixed(0)}° bis ${schlimm.streckMax[0].toFixed(0)}°)`);
+    check(schlimm.mitte[0] <= 0, `${name}: keine Fingerspitze über der Mitte (äußerstens ${f3(schlimm.mitte[0])}, ${schlimm.mitte[1]})`);
+    check(schlimm.finger[0] >= 0, `${name}: die Finger beider Hände durchdringen sich nicht (knappster Abstand ${f3(schlimm.finger[0])}, ${schlimm.finger[1]})`);
+    check(schlimm.daumen[0] <= 0.065, `${name}: die Daumen liegen hinten um den Griff (Spitze höchstens ${f3(schlimm.daumen[0])} von der Achse, ${schlimm.daumen[1]})`);
+    check(schlimm.arm[0] >= 0, `${name}: kein Arm in der Hantel, auch nicht in der unteren Scheibe (knappster Abstand ${f3(schlimm.arm[0])}, ${schlimm.arm[1]})`);
+    check(schlimm.kopf[0] >= RIG.headR, `${name}: die obere Scheibe bleibt einen Kopfradius vom Kopf weg (${f3(schlimm.kopf[0])} ≥ ${RIG.headR}, ${schlimm.kopf[1]})`);
+  }
+}
+
+/* --- 18. Kurzhantel quer in der Faust ------------------------------------ */
+//
+// Längs gehaltene Kurzhanteln standen fest in Blickrichtung des Rumpfs. Beim
+// Hammercurl lag die Hantel mitten in der Wiederholung in Verlängerung des
+// Unterarms (18°), beim Reverse Fly hing sie senkrecht am Arm entlang (9°),
+// beim einbeinigen Kreuzheben ebenso (15°). Eine Faust hält den Griff quer.
+// Geprüft wird jede Übung des Katalogs in beiden Fassungen, jede Hand, die
+// eine Kurzhantel, Stange oder Flasche hält, über die ganze Bewegung.
+{
+  const { hanteln, flaschen, figurGeraet } = await import('../js/figure.js');
+  const { EXERCISES } = await import('../js/data.js');
+  const kombis = new Set();
+  EXERCISES.forEach((ex) => ['db', 'bw'].forEach((m) => kombis.add(`${ex[m].pattern}|${figurGeraet(ex, m) || ''}`)));
+  const winkel = (u, a) => Math.acos(Math.min(1, Math.abs(u[0] * a[0] + u[1] * a[1] + u[2] * a[2]))) * 180 / Math.PI;
+  let geprueft = 0;
+  [...kombis].sort().forEach((k) => {
+    const [name, equip] = k.split('|');
+    // Goblet hält die Hantel senkrecht zwischen den Händen, die Hüftstange
+    // liegt auf dem Becken – beide hält keine Faust.
+    if (!equip || equip === 'goblet' || equip === 'hipbar') return;
+    const spec = PATTERNS[name];
+    let min = Infinity; let wo = '';
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20;
+      const j = skelett(spec, t);
+      [...hanteln(spec, j, equip), ...flaschen(spec, j, equip)].forEach((h) => ['L', 'R'].forEach((s) => {
+        const hand = j[`hand${s}`];
+        const d = [0, 1, 2].map((c) => hand[c] - h.centre[c]);
+        const s0 = d[0] * h.axis[0] + d[1] * h.axis[1] + d[2] * h.axis[2];
+        if (Math.hypot(...d.map((v, c) => v - h.axis[c] * s0)) > 0.01) return;   // nicht diese Hand
+        const u = [0, 1, 2].map((c) => hand[c] - j[`elbow${s}`][c]);
+        const n = Math.hypot(...u);
+        const w = winkel(u.map((v) => v / n), h.axis);
+        if (w < min) { min = w; wo = `t=${t} ${s}`; }
+      }));
+    }
+    if (min === Infinity) return;
+    geprueft++;
+    check(min >= 60, `${k}: Griff quer zum Unterarm (mindestens ${min.toFixed(0)}°${min < 60 ? ', ' + wo : ''})`);
+  });
+  check(geprueft >= 8, `dabei alle gehaltenen Geräte des Katalogs (${geprueft} Kombinationen)`);
+}
+
+/* --- 19. Stütz: schneller, dasselbe Ergebnis ------------------------------ */
+//
+// Liegestütz, Füße erhöht und Pike rechneten je Bild über 400-mal solve() –
+// mit vierfach gedrosselter CPU 12–13 ms je Bild. Jetzt stehen Start und
+// Griffweite je Muster fest, jede Auswertung löst einmal, und die Suche tastet
+// von 0 nach außen. Das Ergebnis darf sich dabei nicht ändern: Hier stehen
+// Punkte aus der Rechnung von vorher, auf 1e-9 genau.
+{
+  const vorher = {
+    pushup: [[[-0.340597233, -0.619999928, -0.358331425], [0.814346446, -0.62, 0.205573748], [-0.604465371, -0.068379761, 0]], [[-0.340597233, -0.619999976, -0.358331425], [0.814346455, -0.62, 0.205573748], [-0.625265281, -0.125197101, 0]], [[-0.340597233, -0.619999842, -0.358331425], [0.814346494, -0.62, 0.205573748], [-0.659705936, -0.239893049, 0]], [[-0.340597233, -0.61999492, -0.358331425], [0.814343487, -0.62, 0.205573748], [-0.67262896, -0.294078534, 0]]],
+    pushupfeet: [[[-0.319935029, -0.62, -0.358331425], [0.895363247, -0.062826643, 0.205573748], [-0.623499652, -0.164646854, 0]], [[-0.319935029, -0.62, -0.358331425], [0.895363247, -0.062826563, 0.205573748], [-0.619032085, -0.217483079, 0]], [[-0.319935029, -0.62, -0.358331425], [0.895363295, -0.062826416, 0.205573748], [-0.605178904, -0.319117202, 0]], [[-0.319935029, -0.62, -0.358331425], [0.895363035, -0.062826382, 0.205573748], [-0.596746423, -0.364357849, 0]]],
+    pike: [[[-0.305297052, -0.62, 0.291115324], [0.205573748, -0.619999528, -0.389799403], [0, -0.26766266, 0.407364076]], [[-0.305297052, -0.62, 0.291115324], [0.205573748, -0.619990647, -0.389793549], [0, -0.33623726, 0.315456186]], [[-0.305297052, -0.619999975, 0.291115324], [0.205573748, -0.62, -0.389799666], [0, -0.437001616, 0.254314729]], [[-0.305297052, -0.619999987, 0.291115324], [0.205573748, -0.62, -0.389799666], [0, -0.47636322, 0.238497471]]],
+  };
+  // Eine frische Kopie des Moduls, ohne Zwischenspeicher: rückwärts und
+  // durcheinander gerechnet muss dasselbe herauskommen wie der Reihe nach.
+  const frisch = await import('../js/figure.js?frisch');
+  Object.entries(vorher).forEach(([name, soll]) => {
+    let max = 0;
+    [0.13, 0.5, 0.87, 1].forEach((t, i) => {
+      const j = skelett(PATTERNS[name], t);
+      [j.handL, j.toeR, j.head].forEach((p, k) => p.forEach((v, c) => { max = Math.max(max, Math.abs(v - soll[i][k][c])); }));
+    });
+    let reihe = 0;
+    const ts = Array.from({ length: 41 }, (_, i) => i / 40);
+    const a = ts.map((t) => skelett(PATTERNS[name], t));
+    [...ts].reverse().forEach((t) => {
+      const b = frisch.skelett(frisch.PATTERNS[name], t);
+      const r = a[ts.indexOf(t)];
+      Object.keys(r).forEach((k) => r[k].forEach((v, c) => { reihe = Math.max(reihe, Math.abs(v - b[k][c])); }));
+    });
+    check(max < 1e-9 && reihe < 1e-6,
+      `${name}: dasselbe Skelett wie vorher (${max.toExponential(1)}) und in jeder Reihenfolge (${reihe.toExponential(1)})`);
+  });
 }
 
 console.log(`\n${fails ? fails + " FEHLER" : "alle Prüfungen bestanden"}`);

@@ -245,6 +245,16 @@ aus, für Figuren, die gerade niemand sah. Alle Figuren teilen sich eine einzige
 `requestAnimationFrame`-Schleife, die pausiert, sobald der Tab in den
 Hintergrund geht oder das System reduzierte Bewegung verlangt.
 
+**Ein Bild beim Stütz kostet auch gedrosselt unter 4 ms.** Liegestütz, Füße erhöht und
+Pike suchen je Bild die Stellung, in der Hände und Füße stehen bleiben – und
+lösten dafür über 400-mal das Skelett, mit vierfach gedrosselter CPU 12–13 ms
+je Bild. Jetzt stehen Start und Griffweite je Muster fest, jede Auswertung löst
+einmal und nur Hände und Zehen, die Suche tastet von 0 nach außen statt das
+ganze Raster ab, und draw() zieht die Teile des Bildes davor nach, statt alles
+neu zu bauen. Das Ergebnis ist Punkt für Punkt dasselbe; `tests/test-figur.mjs`
+vergleicht mit Werten der alten Rechnung, `tests/test-rotate.mjs` misst die
+Zeit (gedrosselt, Median unter 4 ms).
+
 Für Screenreader ist die Figur `aria-hidden`: zwei Dutzend namenlose Formen,
 deren Inhalt als Text direkt daneben steht.
 
@@ -332,7 +342,10 @@ und zur Übung gehört, zählt mit: Beim Face Pull ragte die Stange, an der das
 Band hängt, aus dem Bild. Die Bodenscheibe reicht in der Tiefe so weit wie die
 Figur – beim Trizeps an der Stange, den die Figur wie den Pike von der Seite
 zeigt (`view`; von schräg vorn verdeckte der Rumpf beide Beine), standen die
-Füße sonst neben ihr.
+Füße sonst neben ihr. Auch Finger und Gerät zählen mit ihrer Dicke, über die
+ganze Bewegung: Gezählt wurden nur Gelenke, und im hochkantigen Kasten – in der
+Fokus-Ansicht auf dem Handy der Normalfall – schnitt der Rand beim Reverse Snow
+Angel die Fingerspitzen ab und beim sitzenden Seitheben ein Stück Scheibe.
 
 Beim Wadenheben steigt der Körper, die **Zehen bleiben liegen**. Wird alles
 zusammen angehoben, wandert bloß die ganze Figur nach oben und die Bewegung ist
@@ -379,6 +392,35 @@ senkrecht, und beide Hände liegen als Schale unter der oberen Scheibe
 geschätzt, und `tests/test-figur.mjs` prüft in jeder Stellung, dass jede Hand
 auf ihrer Seite bleibt.
 
+Die Schale war damit aber nur behauptet. Nachgerechnet saßen die Hände 0,061
+neben der Achse einer Scheibe mit Radius 0,10, also in ihr; die Finger zeigten
+nach innen oben, steckten in beiden oberen Scheiben und kreuzten sich jenseits
+der Mitte; die Handflächen zeigten nach unten, das Handgelenk war gebeugt; die
+untere Scheibe lief durch die Unterarme, und unten in der Hocke steckte die
+obere Scheibe im Kinn. Von vorn sah man von den Händen nur Schlitze. Jetzt
+steht der Griff als Maße da (`GOBLET_SCHALE`): Die Hantel steht vor dem
+Brustbein und liegt an, die Handflächen zeigen nach oben und etwas zueinander,
+das Handgelenk ist gestreckt (55–68°), die Finger laufen außen um die Scheibe,
+die Daumen hinten um den Griff, und die Unterarme gehen steil und leicht im V
+außen an der unteren Scheibe vorbei. Arme und Maße sind zusammen gesucht, gegen
+dieselben Ziele, die `tests/test-figur.mjs` über die ganze Bewegung an den
+gezeichneten Punkten prüft (`handForm()`, `hanteln()`): keine Hand, kein Finger
+in Scheibe oder Griff, Hände an der Scheibe, Handflächen oben, keine
+Fingerspitze über der Mitte, kein Arm in der Hantel, die obere Scheibe einen
+Kopfradius vom Kopf weg. Dafür ist die Goblet-Hantel etwas schlanker geworden
+(Scheibe 0,075 statt 0,10): Mit der dicken fand die Suche keine steilen
+Unterarme, die an ihr vorbeigehen.
+
+**Eine längs gehaltene Kurzhantel liegt quer in der Faust.** Beim neutralen
+Griff (`hantelLaengs`: Hammercurl, Reverse Fly, einbeiniges Kreuzheben,
+Seitheben, Wadenheben) stand die Hantel fest in Blickrichtung des Rumpfs. Beim
+Hammercurl lag sie mitten in der Wiederholung in Verlängerung des Unterarms,
+beim Reverse Fly und beim Kreuzheben hing sie am Arm entlang. Jetzt liegt sie
+je Hand quer zum Unterarm, in der Ebene von vorn nach hinten (`laengsAchse()`),
+beim Reverse Fly zum Kopf hin; quer gehaltene Hanteln ebenso quer zum Unterarm.
+Geprüft wird jede gehaltene Hantel, Stange und Flasche des Katalogs: mindestens
+60° zum Unterarm, in jeder Stellung.
+
 Die Hanteln selbst sind **Scheibenhanteln**: je Ende eine große und eine
 kleinere Scheibe als flacher Zylinder mit dunklerer Kante, dahinter ein gerade
 abgeschnittener Stummel (`scheibe()` in `js/figure.js`). Vorher saß an jedem
@@ -405,7 +447,8 @@ Beine ohne Bank sähen aus, als säße die Figur in der Luft.
 `goblet` eine senkrecht vor der Brust, `barbell` eine Stange über beide Hände,
 `hipbar` eine quer über dem Becken, `plate` eine Scheibe vor der Brust,
 `backpack` ein Rucksack auf dem Rücken, `band` ein Band zwischen den Händen,
-`null` kein Gerät.
+`null` kein Gerät. Dazu kommt `bottles`, je eine Flasche pro Hand – das steht
+nur im Gerätetext und wird daraus abgeleitet (siehe unten).
 
 **Der Rucksack ist seit v206 einer.** Vorher stand er als aufrechtes Rechteck
 im Bild, egal wie der Körper lag – bei der Inverted Row quer zum Rumpf und auf
@@ -431,6 +474,14 @@ Bodyweight-Fassung da: Rucksack-Curls und Rucksack-Rudern heißen dort genauso
 und sagen „beide Hände in die Trageschlaufen", abgeleitet wurde aber nur das
 Band. Die Ableitung steht jetzt einmal, als `bwGeraet()` in `js/figure.js`, und
 `resolve()` wie `figuren.html` benutzen sie.
+
+Dasselbe galt für die **Flaschen** beim Seitheben, stehend und sitzend („je eine
+gefüllte Flasche in die Hand"): In beiden Fassungen hob die Figur leere Fäuste,
+im Hantel-Modus schon deshalb, weil die Übung dort gar kein Gerät nennt. `bottles` gibt
+jetzt jeder Faust eine Flasche – Körper, Hals und Deckel als Zylinder, gehalten
+wie eine Kurzhantel im neutralen Griff, der Hals beim Daumen. Wo die Übung im
+Hantel-Modus kein Gerät nennt, gilt der Gerätetext wie im Bodyweight-Modus
+(`figurGeraet()`).
 
 **Die Hip-Thrust-Stange liegt auf der Hüftbeuge**, 0,11 vor der Hüftmitte, wie
 die Scheibe beim Beckenheben. In der Mitte des Beckenrings war sie aus keinem

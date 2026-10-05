@@ -420,6 +420,144 @@ Object.entries(haende).forEach(([pattern, v]) => {
     `${pattern}: keine Hand klappt von einem Bild zum nächsten um (größte Formänderung ${v.sprung.toFixed(2)})`);
 });
 
+// Ausschnitt: nichts ragt über den Rand – auch nicht Finger und Gerät.
+//
+// Der Radius des Ausschnitts zählte nur Gelenke und den Kopf. Im
+// hochkantigen Kasten – in der Fokus-Ansicht auf dem Handy im Hochformat der
+// Normalfall – schnitt der Rand beim Reverse Snow Angel die Fingerspitzen ab
+// (4,5 von 100 Einheiten) und beim sitzenden Seitheben ein Stück der
+// Hantelscheibe (1,6). Gemessen über getBBox jedes Teils, im Standardblick,
+// für jede Übung des Katalogs in beiden Fassungen, im hochkantigen, im
+// quadratischen und im flachen Kasten. Boden, Schatten und Bank zählen nicht,
+// um sie geht es hier nicht (die Bank beim Hip Thrust reichte schon vorher
+// hinter dem Kopf aus dem Bild).
+const rand = await page.evaluate(async () => {
+  const { mountFigure, figurGeraet } = await import('./js/figure.js');
+  const { EXERCISES } = await import('./js/data.js');
+  const kombis = new Set();
+  EXERCISES.forEach((ex) => ['db', 'bw'].forEach((m) => kombis.add(`${ex[m].pattern}|${figurGeraet(ex, m) || ''}`)));
+  const out = [];
+  for (const [w, h] of [[344, 480], [362, 495], [300, 300], [344, 254]]) {
+    let schlimm = { ragt: -Infinity, wo: '' };
+    for (const k of kombis) {
+      const [pattern, equip] = k.split('|');
+      const host = document.createElement('div');
+      host.style.cssText = `width:${w}px;height:${h}px;position:fixed;left:0;top:0`;
+      document.body.appendChild(host);
+      const f = mountFigure(host, pattern, true, equip || null);
+      f.stop();
+      const vb = host.querySelector('svg').viewBox.baseVal;
+      for (let i = 0; i <= 20; i++) {
+        f.draw(i / 20);
+        [...host.querySelector('svg > g').children]
+          .filter((n) => !['fig-ground', 'fig-schatten', 'fig-bench', 'fig-bench-leg'].some((c) => n.classList.contains(c)))
+          .forEach((n) => {
+            const b = n.getBBox();
+            const ragt = Math.max(-b.x, -b.y, b.x + b.width - vb.width, b.y + b.height - vb.height);
+            if (ragt > schlimm.ragt) schlimm = { ragt, wo: `${k} t=${i / 20} ${n.getAttribute('class')}` };
+          });
+      }
+      host.remove();
+    }
+    out.push({ kasten: `${w}×${h}`, ...schlimm });
+  }
+  return out;
+});
+rand.forEach((r) => {
+  check(r.ragt <= 0, `${r.kasten}: keine Figur ragt über den Rand, auch nicht Finger und Gerät (knappstes Teil ${r.ragt.toFixed(1)}, ${r.wo})`);
+});
+
+// Flaschen beim Seitheben: in jeder Faust eine, mit Deckel.
+const flaschenBild = await page.evaluate(async () => {
+  const { mountFigure } = await import('./js/figure.js');
+  return ['lateral', 'lateralstand'].map((pattern) => {
+    const host = document.createElement('div');
+    host.style.cssText = 'width:300px;height:300px';
+    document.body.appendChild(host);
+    const f = mountFigure(host, pattern, true, 'bottles');
+    f.stop(); f.setView(90, 0); f.draw(0.5);
+    const n = { pattern, koerper: host.querySelectorAll('.fig-flasche .fig-flasche-flaeche').length, deckel: host.querySelectorAll('.fig-flasche .fig-deckel').length };
+    host.remove();
+    return n;
+  });
+});
+flaschenBild.forEach((n) => {
+  // Je Flasche drei Stücke Körper (Bauch, Schulter, Hals) mit zwei Flächen und
+  // ein Deckel mit zwei Flächen.
+  check(n.koerper === 12 && n.deckel === 4, `${n.pattern}: zwei Flaschen mit Deckel in den Händen (${n.koerper / 6} Körper, ${n.deckel / 2} Deckel)`);
+});
+
+// Laufzeit je Bild beim Stütz.
+//
+// Liegestütz, Füße erhöht und Pike lösten je Bild über 400-mal das Skelett;
+// mit vierfach gedrosselter CPU brauchte draw() im Median 12–13 ms, eine
+// einzige Figur nahm also fast das ganze Bildbudget von 16,7 ms. Gemessen wie
+// die Animation zeichnet, im Kasten der Übungskarte. Drei Durchgänge, der
+// beste Median zählt: Auf einem Rechner, auf dem nebenher anderes läuft,
+// misst ein einzelner Durchgang sonst die Nachbarn mit.
+{
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  const zeiten = await page.evaluate(async () => {
+    const { mountFigure } = await import('./js/figure.js');
+    const out = {};
+    for (const [pattern, equip] of [['pushup', 'backpack'], ['pushupfeet', null], ['pike', null]]) {
+      const host = document.createElement('div');
+      host.style.cssText = 'width:344px;height:254px';
+      document.body.appendChild(host);
+      const f = mountFigure(host, pattern, true, equip);
+      f.stop();
+      const mediane = [];
+      for (let runde = 0; runde < 3; runde++) {
+        const z = [];
+        for (let i = 0; i < 160; i++) {
+          const u = (i % 80) / 80;
+          const a = performance.now();
+          f.draw(u < 0.5 ? u * 2 : 2 - u * 2);
+          z.push(performance.now() - a);
+        }
+        z.sort((p, q) => p - q);
+        mediane.push(z[z.length >> 1]);
+      }
+      out[pattern] = Math.min(...mediane);
+      host.remove();
+    }
+    return out;
+  });
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  Object.entries(zeiten).forEach(([pattern, ms]) => {
+    check(ms < 4, `${pattern}: draw() mit vierfach gedrosselter CPU im Median ${ms.toFixed(1)} ms (unter 4 ms)`);
+  });
+}
+
+// Schneller darf nicht anders heißen: draw() zieht die Teile des Bildes davor
+// nach, statt alles neu zu bauen. Nach vielen Bildern und einer Drehung muss
+// genau dieselbe Zeichnung dastehen wie frisch gezeichnet – für jedes Muster.
+const nachgezogen = await page.evaluate(async () => {
+  const { mountFigure, PATTERNS } = await import('./js/figure.js');
+  const abweichend = [];
+  for (const [p, eq] of [['pushup', 'backpack'], ['curl', 'dumbbells'], ['squat', 'goblet'], ['lateral', 'bottles'],
+    ...Object.keys(PATTERNS).map((k) => [k, null])]) {
+    const kasten = () => {
+      const d = document.createElement('div');
+      d.style.cssText = 'width:300px;height:300px';
+      document.body.appendChild(d);
+      return d;
+    };
+    const a = kasten(); const b = kasten();
+    const fa = mountFigure(a, p, true, eq); fa.stop();
+    for (let i = 0; i <= 40; i++) fa.draw((i / 40) * 0.73);
+    fa.setView(70, 20); fa.draw(0.4); fa.setView(...(PATTERNS[p].view || [25, 8]));
+    for (let i = 0; i <= 30; i++) fa.draw(0.73 - i / 100);
+    fa.draw(0.43);
+    const fb = mountFigure(b, p, true, eq); fb.stop(); fb.draw(0.43);
+    if (a.querySelector('svg > g').innerHTML !== b.querySelector('svg > g').innerHTML) abweichend.push(p);
+    a.remove(); b.remove();
+  }
+  return abweichend;
+});
+check(nachgezogen.length === 0, `nachgezogene Zeichnung gleich der frisch gezeichneten${nachgezogen.length ? ' – anders: ' + nachgezogen.join(', ') : ''}`);
+
 // Jedes Muster aus den Daten muss es auch geben, und wo Bodyweight eine
 // andere Bewegung ist, darf es nicht das Hantel-Muster erben.
 const map = await page.evaluate(async () => {
