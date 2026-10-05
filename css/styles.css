@@ -1064,7 +1064,7 @@ button { font: inherit; color: inherit; }
   display: block;
   width: 100%;
   height: 100%;
-  touch-action: none;    /* Ziehen dreht die Figur, in jede Richtung */
+  touch-action: pan-y;   /* senkrecht scrollt die Liste, waagerecht dreht */
   cursor: grab;
   user-select: none;
 }
@@ -1086,18 +1086,22 @@ button { font: inherit; color: inherit; }
    hin verjüngen und je nach Tiefe abdunkeln. Die Trennlinie in Hintergrundfarbe
    hält sie auseinander – in der tiefen Hocke lag sonst alles als ein Klumpen
    übereinander. Der Rumpf bleibt ohne, seine Flächen gehören zusammen. */
-.fig-limb, .fig-spine, .fig-torso, .fig-head, .fig-gusset {
+.fig-limb, .fig-spine, .fig-torso, .fig-head {
   fill: var(--accent);
   stroke: none;
 }
-/* fig-gusset statt fig-torso: dieselbe Fläche (Farbe, ohne Rand), aber als
-   Pfad gezeichnet (limb()), nicht als Vieleck. test-rotate.mjs liest jedes
-   .fig-torso als Vieleck mit `points` – ein Pfad mit `d` ließ das brechen. */
 .fig-limb, .fig-spine, .fig-head {
   stroke: var(--bg-elev);
-  stroke-width: .9;
+  stroke-width: var(--rand, .9);   /* mountFigure skaliert ihn mit der Figur */
   stroke-linejoin: round;
 }
+/* Arme wie die Hand: Flächen ohne Strich, der Rand eigens dahinter – ringsum
+   beim hinteren Glied (fig-arm-rand), als offene Kante ohne das Stück im
+   Ellenbogen beim vorderen (fig-arm-kante). So gibt es keinen Ring am
+   Ellenbogen und keine Naht an der Schulter. */
+.fig-limb.fig-arm { stroke: none; }
+.fig-arm-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: calc(2 * var(--rand, .9)); stroke-linejoin: round; }
+.fig-arm-kante { fill: none; stroke: var(--bg-elev); stroke-width: calc(2 * var(--rand, .9)); stroke-linejoin: round; stroke-linecap: round; }
 
 /* Schatten-Auflage: dieselbe Form noch einmal in Schwarz, so durchsichtig, wie
    das Glied weit weg ist. Ersetzt die halbdurchsichtigen Glieder von früher. */
@@ -1597,7 +1601,7 @@ textarea.io {
    die ganze Hand breit in Hintergrundfarbe, darüber dieselbe Form ohne Rand in
    Körperfarbe; übrig bleibt der Rand um die Hand als Ganzes. */
 .fig-hand { fill: var(--accent); stroke: none; }
-.fig-hand-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: 1.8; stroke-linejoin: round; }
+.fig-hand-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: calc(2 * var(--rand, .9)); stroke-linejoin: round; }
 .fig.hurt-mode .fig-hand { fill: #56607a; }
 
 /* Supersätze: der Wechselhinweis in der Fokus-Ansicht und die Vorschau unter

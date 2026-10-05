@@ -298,6 +298,82 @@ Hintergrundfarbe um jede Gliedmaße; ohne sie lag in der tiefen Hocke alles als
 ein einziger Klumpen übereinander. Der Rumpf bleibt ohne, seine Flächen gehören
 zusammen.
 
+#### Die Arme
+
+> „Die Arme sehen echt immer komisch aus"
+
+Dazu kam ein Bildschirmfoto: der Face Pull in der Übungsliste, fast von oben –
+zwei Arme mit Ringen an jedem Gelenk, dazwischen ein orangefarbener Keil,
+darunter ein Kreis, der sich als Kopf herausstellte. Vorher schon: „Die Hände
+sehen nicht so richtig händig aus", „Sieht schon sehr unordentlich aus".
+Nachgesehen wurde mit drei Prototypen und drei Gutachten; die Ursachen, nach
+Gewicht:
+
+- **Ein Steg von der Brust bis zur Hand** (`fig-gusset`, 4,2 → 2,4 breit). Er
+  sollte bei starker Hüftbeuge die Lücke zwischen Arm und Rumpf schließen
+  („Sieht iwie komisch aus" beim Rumänischen Kreuzheben), malte aber bei jedem
+  abgespreizten Arm eine Flughaut und bei Überkopf-Haltungen einen Keil – im
+  Foto genau der Keil zwischen den Armen. Er ist weg, ersatzlos: Bei
+  Kreuzheben und einbeinigem Kreuzheben (t = 1) bleibt höchstens ein schmaler
+  Spalt, keine dreieckige Lücke, denn die schmaleren Arme liegen jetzt am Rumpf
+  an statt an ihm vorbei.
+- **Scrollen kippte die Figur.** `touch-action: none` gab jeden Wisch über die
+  Figur ihr, und das Kippen war ausdrücklich ohne Grenze (0,6° je Pixel): Ein
+  150-px-Wisch beim Scrollen der Liste stellte sie auf −98° bzw. +82°, also in
+  die Draufsicht des Fotos, und zurück ging es nicht. Jetzt gehört senkrecht
+  der Liste (`touch-action: pan-y`), gedreht wird erst, wenn eine Geste nach
+  8 px klar waagerecht ist, gekippt nur von −35° bis 45° (liegende Figuren bis
+  −65°), 0,3° je Pixel. Ein Doppeltipp holt den Vorgabeblick zurück; von selbst
+  federt nichts zurück, wer eine Seite sucht, behält sie. Der Hinweis heißt
+  „↔ ziehen zum Drehen" und geht erst beim echten Drehen weg, nicht schon, wenn
+  ein Finger zum Scrollen auf der Figur landet.
+- **Jedes Glied hatte seinen eigenen Rand** – am Ellenbogen ein Ring oder ein U,
+  an der Schulter eine Naht: eine Gliederpuppe. Jetzt wie bei der Hand: Die
+  Armflächen haben keinen Strich, der Rand liegt eigens dahinter. Das hintere
+  Glied (meist der Oberarm) bekommt ihn ringsum, nur an der Schulter nach innen
+  gewölbt, denn dort geht der Arm in den Rumpf über; das vordere nur als offene
+  Kante, ohne das Stück im Ellenbogen. So zeigt ein gebeugter Arm die Kante des
+  Unterarms über dem Oberarm, aber keinen Ring. Ein Zwischenstand mit Rand
+  ringsum auch fürs vordere Glied franste aus, sobald der Arm flach auf dem
+  Rumpf lag (Bridge, Snow Angel): Rumpfflächen fast gleicher Tiefe schoben sich
+  stückweise zwischen Rand und Arm.
+- **Der Rand war fest 0,9 breit**, auch in kleinen Figuren. Jetzt wächst er mit
+  (`--rand` = 0,9 · min(1, gearScale / 0,85), der Arm- und Handrand doppelt so
+  breit): Face Pull in der Karte 0,72. Der Anteil dunkler Linie an der
+  Figurfläche fiel dort von 26 auf 23 %, die Spanne über alle Muster von
+  20–42 % auf 19–30 % (der Ausreißer war der Snow Angel).
+- **Die Arme waren zu dick für ihre Länge.** Gerade Kegel 3,4 → 2,5 → 1,8: Der
+  Oberarm war 1,6-mal so lang wie an der Schulter dick (echt gut dreimal), im
+  Mittel 1,83-mal – ein Würstchen, das bei jeder Verkürzung zur Scheibe wurde.
+  Jetzt hat jedes Glied einen Breitenverlauf (`RIG.armOben`, `RIG.armUnten`):
+  der Oberarm mit seiner Masse im oberen Drittel, zum Ellenbogen schmal, der
+  Unterarm mit dem Bauch kurz unter dem Ellenbogen und dünnem Handgelenk (1,4;
+  unter 1,35 verliert die Hand in der Karte ihren Ansatz). Länge zu mittlerer
+  Dicke jetzt 2,34 und 2,84 statt 1,83 und 2,33. Die Hand ist passend um 12 %
+  kleiner, außer beim Goblet-Griff, dessen Finger gegen die Hantel gesucht
+  sind.
+- **Die Schulter stand hoch wie ein Kleiderbügel**: Die Kappe des Oberarms
+  ragte über die Linie vom Hals. Ein randloses Stück Trapezmuskel vom Hals zur
+  Schulter lässt die Linie jetzt fallen, wie beim Menschen.
+- **Der Weg dazwischen.** Gemischt wurden die Gelenkwinkel der beiden
+  Endstellungen, und deren Mittel ist nicht die Mitte der Bewegung: Beim Face
+  Pull sackte der Ellenbogen mitten im Zug 0,10 unter die Schulter (genau der
+  Fehler, vor dem der Übungstext warnt), beim Pull-Apart fielen die Hände auf
+  Bauchhöhe. Jetzt schwenkt der Oberarm auf dem kürzesten Weg, der Unterarm im
+  mitgeschwenkten Rahmen des Oberarms (`armeRichtung()`); die Endstellungen
+  bleiben bitgenau. Beim Face Pull führt die Hand (`armweg: 'hand'`), und der
+  Vorgabeblick ist schräger ([40, −6] statt [20, −8]): Fast von vorn war vom Zug
+  in die Tiefe nur ein verkürzter Unterarm zu sehen.
+
+Nicht übernommen: eine eigene Kappe für den Deltamuskel (sie stand mit Bogen
+als Buckel auf der Schulter) und ein fünfter Rumpfring für den Trapez; ebenso
+Schatten, die bei fast gleicher Tiefe gestaffelt werden – ohne Staffel wirkte
+die Figur wie ein Scherenschnitt, die Beine verschmolzen. `tests/test-figur.mjs`
+hält das Verhältnis Länge zu Dicke (Oberarm mindestens 2,3, Unterarm 2,8),
+`tests/test-rotate.mjs` prüft, dass es keinen Steg mehr gibt, die Armflächen
+keinen Strich haben, der Rand mitwächst, die Kippgrenze hält, ein senkrechter
+Wisch weder dreht noch den Hinweis nimmt und nichts zurückfedert.
+
 **Frei drehbar in alle Richtungen:** waagerechtes Ziehen um die Hochachse,
 senkrechtes um die Querachse, beides unbegrenzt und über volle Umdrehungen
 hinaus. Auch der Boden liegt als Fläche im Raum und kippt mit – ein Strich am

@@ -690,4 +690,32 @@ for (const name of ['squat', 'squatheel']) {
   });
 }
 
+/* --- 20. Arme: so lang, wie sie dick sind, und nicht dicker --------------- */
+//
+//     „Die Arme sehen echt immer komisch aus"
+//
+// Gezeichnet waren gerade Kegel 3,4 → 2,5 → 1,8 (halbe Breite in
+// Zeicheneinheiten, eine Körperlänge sind 40): Der Oberarm war 1,8-mal so lang
+// wie im Mittel dick, ein Würstchen – echt ist gut dreimal. Gemessen wird die
+// Länge von Gelenk zu Gelenk gegen die mittlere Dicke über den Verlauf.
+{
+  const ok = (p) => Array.isArray(p) && p.length >= 2 && p[0][0] === 0 && p[p.length - 1][0] === 1;
+  const mittel = (p) => p.slice(1).reduce((s, q, i) => s + (q[0] - p[i][0]) * (q[1] + p[i][1]) / 2, 0);
+  const oben = RIG.armOben; const unten = RIG.armUnten;
+  check(ok(oben) && ok(unten), 'Arme mit Breitenverlauf (RIG.armOben, RIG.armUnten von 0 bis 1)');
+  if (ok(oben) && ok(unten)) {
+    const vo = (RIG.upperArm * 40) / (2 * mittel(oben));
+    const vu = (RIG.foreArm * 40) / (2 * mittel(unten));
+    check(vo >= 2.3, `Oberarm: Länge zu Dicke ${vo.toFixed(2)} (mindestens 2,3; bis v235 1,83)`);
+    check(vu >= 2.8, `Unterarm: Länge zu Dicke ${vu.toFixed(2)} (mindestens 2,8; bis v235 2,33)`);
+    // Die Masse sitzt oben bzw. kurz unter dem Ellenbogen, nicht an den Enden.
+    const dickste = (p) => p.reduce((a, q) => (q[1] > a[1] ? q : a))[0];
+    check(dickste(oben) > 0 && dickste(oben) < 0.5 && dickste(unten) > 0 && dickste(unten) < 0.5,
+      `Muskelbauch im oberen Teil (Oberarm bei ${dickste(oben)}, Unterarm bei ${dickste(unten)})`);
+    check(oben[oben.length - 1][1] === unten[0][1], 'am Ellenbogen gleich breit – kein Absatz im Arm');
+    check(unten[unten.length - 1][1] >= 1.35,
+      `Handgelenk ${unten[unten.length - 1][1]} breit (unter 1,35 verliert die Hand in der Karte ihren Ansatz)`);
+  }
+}
+
 console.log(`\n${fails ? fails + " FEHLER" : "alle Prüfungen bestanden"}`);
