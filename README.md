@@ -4720,6 +4720,15 @@ reicht. Das ist der Beleg, dass die Eingabe stimmt: Wer seine gewohnten Gewichte
 wiederfindet, hat richtig eingetragen; wer eine Liste krummer Zahlen sieht, hat
 sich vertippt.
 
+Deshalb zieht sie bei jedem Tastendruck nach, zusammen mit dem Hinweis neben
+der Zeile („+20 kg je Paar") und der Supersatz-Vorschau darüber – ersetzt
+werden nur diese Stellen, nicht die Felder, damit der Fokus im Feld bleibt.
+Vorher wurde gespeichert, aber nicht nachgezeichnet: Nach „Scheibengröße
+hinzufügen" (0,5 kg × 4) und dem Eintippen von 10 × 2 stand neben der Zeile
+weiter „+1 kg je Paar", und die Vorschau zeigte je Hand „0 · 1 · 2,5 · 3,5 …",
+also Gewichte aus 0,5er-Scheiben, die es gar nicht gibt. Ein richtig
+eingetragener Vorrat sah damit vertippt aus, bis man die Ansicht wechselte.
+
 Der Fall, den diese Vorschau als Erstes zutage förderte: Bei einem Vorrat mit
 **zwei Scheiben je Größe** stand dort „0 kg". Die Zahl war richtig — vier
 Scheiben kostet eine Stufe bei einem Paar, zwei reichen dafür nicht —, aber eine
@@ -4734,7 +4743,10 @@ eingetragen hat, bevor die Scheiben (4 × 1,25 / 4 × 2,5 / 4 × 5) drinstanden,
 liegt neben dem, was sich aufstecken lässt. Der Mindestschritt von fünf Prozent
 ließ das + dann über die 12,5 hinweg auf 15 springen. Jetzt geht der erste Druck
 auf den nächsten erreichbaren Wert in dieser Richtung – 12,5 nach oben, 10 nach
-unten –, und erst danach gelten die üblichen Schritte.
+unten –, und erst danach gelten die üblichen Schritte. Bis dahin sagt es die
+Rüstzeile: *„Aufbauen: Kurzhanteln auf 12 kg je Hand (12 kg lässt sich so nicht
+stecken – nächstes: 12,5 kg)"*. Vorher stand dort nur das Ziel, ohne Scheiben
+und ohne Grund, und dass 12 kg nicht aufgehen, merkte man erst an der Hantel.
 
 **Aufwärmsätze auch ohne Scheiben auf einer einstellbaren Zahl.** Die Hälfte und
 drei Viertel des Arbeitsgewichts rasten auf den eingetragenen Satz ein. Ohne
@@ -4789,9 +4801,22 @@ Matching-Problem, dessen Lösung den Floor Press ans Ende schieben könnte — a
 dem Papier besser, im Training schlechter. Und ein Paar aus Übung 1 und Übung 6
 hieße, zwischen jedem Satz durch den halben Raum zu laufen.
 
-Über alle 336 Einheiten der vier Pläne (4 × 84) findet `paare()` im Schnitt
-**2,2 Paare je Einheit**, mit und ohne Hanteln gleich; 361 Übungen bleiben
-allein. Dass etwas übrig bleibt, ist
+**Ohne Hanteln zählt das Gerät der Bodyweight-Fassung.** Die Geräteregel und
+die Scheibenprüfung lasen vorher immer das Gerät und das Gewicht der
+Hantel-Fassung, auch ohne Hanteln. Band-Reverse-Fly und Wadenheben liefen dann
+einzeln, weil Kurzhantel und einarmige Kurzhantel dieselben Griffe sind; mit
+eingetragenem Scheibenvorrat änderte sich sogar die Paarung jeder dritten
+Bodyweight-Einheit nach Hantelgewichten, die dort niemand hebt. Ohne Hanteln
+ist jetzt nur der Rucksack ein Aufbau – es gibt einen, und er wird gepackt.
+Band, Stuhl und Klimmzugstange liegen nur da, und Scheiben sind keine im Spiel.
+
+Über alle 336 Einheiten der vier Pläne (4 × 84), gezählt wie die App die
+Einheit zusammenstellt (`workoutByNo()` und `resolve()`, Startgewichte, kein
+Vorrat eingetragen), findet `paare()` mit Hanteln im Schnitt **2,2 Paare je
+Einheit** (732 Paare, 379 Übungen bleiben allein) und ohne Hanteln **2,5**
+(828 Paare, 187 allein). Der Unterschied ist echt: Ohne Hanteln trennt fast
+nur noch der gemeinsame Muskel. `tests/test-supersatz.mjs` rechnet diese
+Zahlen nach und vergleicht sie mit diesem Absatz. Dass etwas übrig bleibt, ist
 keine Schwäche — wo zwei sich einen Muskel oder ein Gerät teilen, ist die
 normale Pause richtig. Unter *Mehr* steht deshalb nicht nur der Schalter,
 sondern auch, **wie die nächste Einheit konkret liefe**, Paar für Paar. Ein
@@ -4813,6 +4838,16 @@ bestücken lassen – über alle Belegungen, nicht nur die mit den wenigsten
 Scheiben: Geht der Floor Press auch mit vier 2,5ern, ist es weiter ein Paar.
 Ohne eingetragenen Vorrat weiß die App es nicht und lässt die Paarung, wie sie
 war.
+
+Die Rüstzeile beider Übungen nennt dann auch genau diesen Weg. Vorher rechnete
+sie jede für sich: Floor Press 40 kg und Gewichtete Crunches 5 kg bei
+4 × 1,25 / 4 × 2,5 / 4 × 5 / 2 × 10 waren ein Paar, beim Floor Press stand
+„je Seite 1× 10 + 2× 5 kg" – alle vier 5er –, und beim Crunch „1× 5 kg", eine
+Scheibe, die nach der eigenen Anweisung nicht mehr daliegt. `zusammenBelegung()`
+gibt die gemeinsame Belegung mit den wenigsten Scheiben insgesamt zurück, immer
+in derselben Reihenfolge gesucht, damit beide Karten dieselbe Antwort zeigen;
+hier „2× 2,5 kg" auf der Brust. Passen die Belegungen für sich ohnehin
+nebeneinander, bleiben es genau die.
 
 Gesucht wird Größe für Größe: Für alles Weitere zählt nur, wie viel jedem
 Aufbau noch fehlt, nicht womit der Rest erreicht wurde – ein gescheiterter
@@ -4838,6 +4873,17 @@ Paarung. Reichen die Scheiben nach einer Erhöhung nicht mehr für beide
 Aufbauten, bleibt das Paar, und unter dem Wechselhinweis steht: *Die Scheiben
 reichen nicht für beide Aufbauten – zwischen den Sätzen umstecken.* Ändern sich
 die Übungen selbst (Beschwerde, Gerät weg, andere Fassung), wird neu gepaart.
+
+**Die Rüstzeile folgt dem Ablauf, nicht der Liste.** Sie sagt, was vor einer
+Übung umzubauen ist, und schaute dafür auf die Übung darüber. Im Supersatz liegt
+der Partner aber bis zu drei Plätze weiter unten. Workout 3 des Aufbau-Plans
+zeigte vor dem ersten RDL-Satz „Stange bleibt bei 40 kg – nichts umbauen" (die
+Stange war leer, die 40 kg gehörten zum Floor Press, der erst danach kam), beim
+Floor Press direkt nach dem RDL „Aufbauen", und bei den Crunches „Umbauen:
+Kurzhantel von 20 auf 5 kg" für einen Goblet Squat, den noch niemand angefasst
+hatte. Jetzt zählt die Reihenfolge der Sätze (`schritte()` je Gruppe), vom
+ersten Satz der Übung rückwärts. Ohne Supersatz ist das dieselbe Liste wie
+vorher.
 
 **Die Leiste unten gehört zur Übung, die zu sehen ist.**
 

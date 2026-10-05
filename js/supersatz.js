@@ -41,7 +41,8 @@
 
 import { EX_BY_ID } from './uebung.js';
 import { RUEST_FAM, meinSatz, workingWeight } from './gewichte.js';
-import { zusammen } from './scheiben.js';
+import { zusammen, zusammenBelegung } from './scheiben.js';
+import { bwGeraet } from './figure.js';
 
 /** Ab diesem Anteil gilt ein Muskel als von der Übung getroffen. */
 export const DIREKT = 0.5;
@@ -58,10 +59,21 @@ function direkteMuskeln(id, mode) {
  *
  * Klimmzugstange, Band und Körpergewicht kosten keinen Umbau. Sie sind deshalb
  * die dankbarsten Partner: Sie kollidieren mit gar nichts.
+ *
+ * **Und zwar das Gerät der Fassung, die gerade trainiert wird.** Hier stand
+ * immer das der Hantel-Fassung, auch ohne Hanteln. Dann trennte die Regel
+ * Band-Reverse-Fly und Wadenheben, weil Kurzhantel und einarmige Kurzhantel
+ * dieselben Griffe sind – obwohl ohne Hanteln weder Griff noch Scheibe im Spiel
+ * ist. Über die 336 Einheiten blieben so ohne Hanteln 99 Paare liegen (gefunden
+ * bei der Durchsicht). Ohne Hanteln ist nur der Rucksack ein Aufbau: Er wird
+ * gepackt, und es gibt einen. Das Band liegt nur da (bwGeraet() in
+ * js/figure.js liest das Gerät der Bodyweight-Fassung).
  */
-const geraet = (id) => {
+const geraet = (id, mode) => {
   const ex = EX_BY_ID.get(id);
-  return (ex && STANGE[RUEST_FAM[ex.equip]]) || null;
+  if (!ex) return null;
+  if (mode === 'bw') return bwGeraet(ex.bw && ex.bw.equip) === 'backpack' ? 'ruck' : null;
+  return STANGE[RUEST_FAM[ex.equip]] || null;
 };
 
 /**
@@ -78,9 +90,13 @@ const geraet = (id) => {
  */
 const STANGE = { lh: 'lh', sz: 'sz', kh1: 'kh', kh2: 'kh', ruck: 'ruck' };
 
-/** [Gerät, kg], mit dem diese Übung heute aufgebaut wird. */
-const last = (x) => {
+/**
+ * [Gerät, kg], mit dem diese Übung heute aufgebaut wird – Scheiben gibt es nur
+ * mit Hanteln. Ohne steht hier kein Gerät, und zusammen() hat nichts zu rechnen.
+ */
+const last = (x, mode) => {
   const ex = EX_BY_ID.get(x.id);
+  if (mode === 'bw') return [null, 0];
   return [ex ? ex.equip : x.equip, ex ? workingWeight(x.id) || 0 : 0];
 };
 
@@ -93,27 +109,48 @@ const last = (x) => {
  * Raum hieße sonst, zwischen jedem Satz die Scheiben umzustecken – genau der
  * Umbau, den die zweite Regel verhindern soll. Ohne eingetragenen Vorrat weiß
  * die App es nicht und sagt ja; ebenso, wenn eine der beiden gar keinen Aufbau
- * hat.
+ * hat – und ohne Hanteln immer: Da liegt keine Scheibe auf.
  *
  * Eigens herausgezogen für die laufende Einheit: Dort steht die Paarung fest
  * (superGruppen() in js/app.js), und wer mittendrin so weit erhöht, dass es
  * nicht mehr reicht, behält sein Paar – bekommt aber gesagt, dass er umstecken
  * muss.
  */
-export function scheibenReichen(a, b) {
-  if (!geraet(a.id) || !geraet(b.id)) return true;
-  return zusammen([last(a), last(b)], meinSatz()) !== false;
+export function scheibenReichen(a, b, mode) {
+  if (mode === 'bw' || !geraet(a.id, mode) || !geraet(b.id, mode)) return true;
+  return zusammen([last(a, mode), last(b, mode)], meinSatz()) !== false;
+}
+
+/**
+ * Womit die beiden eines Paars zu laden sind, damit beide stehen bleiben –
+ * als Map von der Übung auf ihre Belegung (wie belegung() in js/scheiben.js).
+ *
+ * Für die Rüstzeile beider Übungen. Rechnete jede für sich, kam beim Floor
+ * Press „je Seite 1× 10 + 2× 5 kg" heraus und beim Crunch „1× 5 kg" – zwei
+ * Anweisungen, die zusammen mehr 5er brauchen, als daliegen, obwohl die
+ * Paarung gerade deshalb gilt, weil es anders geht. Gefragt wird in einer
+ * festen Reihenfolge (nach der Kennung der Übung), damit beide Karten dieselbe
+ * Antwort bekommen. null, wenn es nichts gemeinsam zu laden gibt oder die
+ * Scheiben nicht für beide reichen – dann steht bei jeder ihre eigene.
+ */
+export function paarBelegung(a, b, mode) {
+  if (mode === 'bw' || !geraet(a.id, mode) || !geraet(b.id, mode)) return null;
+  const beide = [a, b].sort((x, y) => (x.id < y.id ? -1 : 1));
+  const lasten = beide.map((x) => last(x, mode));
+  const b2 = zusammenBelegung(lasten, meinSatz());
+  if (!b2) return null;
+  return new Map(beide.map((x, i) => [x.id, b2[i]]));
 }
 
 /** Dürfen diese beiden im Wechsel laufen? */
 export function passtZusammen(a, b, mode) {
   if (a.id === b.id) return false;
-  const ga = geraet(a.id);
-  const gb = geraet(b.id);
+  const ga = geraet(a.id, mode);
+  const gb = geraet(b.id, mode);
   // Dasselbe Gerät hieße: zwischen jedem Satz umbauen. Zwei Übungen ohne Aufbau
   // dürfen sich dagegen treffen – da gibt es nichts zu wechseln.
   if (ga && gb && ga === gb) return false;
-  if (!scheibenReichen(a, b)) return false;
+  if (!scheibenReichen(a, b, mode)) return false;
   const ma = direkteMuskeln(a.id, mode);
   return ![...direkteMuskeln(b.id, mode)].some((m) => ma.has(m));
 }

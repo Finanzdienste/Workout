@@ -795,6 +795,8 @@ button { font: inherit; color: inherit; }
 .ruest.gleich { color: var(--ok); }
 /* Welche Scheiben draufkommen – die Zahl ist wichtiger als der Rest der Zeile. */
 .ruest-lade { color: var(--text); font-weight: 700; }
+/* Ein Gewicht, das sich mit dem Vorrat nicht stecken lässt: eine Warnung, keine Anweisung. */
+.ruest-lade.knapp { color: var(--warn, #e0a33e); }
 
 /* Der eigene Scheibensatz unter Mehr: schmale Felder in einer Zeile, damit
    „2,5 kg × 4 Stück" auch auf einem Telefon nebeneinander bleibt. */

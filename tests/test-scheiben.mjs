@@ -302,9 +302,12 @@ const daneben = async (scheiben) => {
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(300);
   return page.evaluate(async () => {
-    const { workingWeight, naechstesGewicht } = await import('./js/gewichte.js');
+    const { workingWeight, naechstesGewicht, ruestHint } = await import('./js/gewichte.js');
     const id = 'sitzendes-schulterdruecken';
-    return { jetzt: workingWeight(id), hoch: naechstesGewicht(id, 1), runter: naechstesGewicht(id, -1) };
+    return {
+      jetzt: workingWeight(id), hoch: naechstesGewicht(id, 1), runter: naechstesGewicht(id, -1),
+      zeile: ruestHint(1, 'db', [{ id }], 0).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
+    };
   });
 };
 const neben = await daneben({ stange: { kh: null, sz: null, lh: null },
@@ -313,12 +316,18 @@ console.log('     neben dem Raster:', JSON.stringify(neben));
 check(neben.jetzt === 12 && neben.hoch === 12.5,
   `12 kg neben dem Raster: + rastet erst auf 12,5 ein, statt auf 15 zu springen (${neben.hoch})`);
 check(neben.runter === 10, `− geht auf den nächsten erreichbaren Wert darunter (${neben.runter})`);
+// Bis jemand drückt, sagt die Rüstzeile, dass es so nicht aufgeht. Vorher stand
+// dort nur „Aufbauen: Kurzhanteln auf 12 kg" – ohne Scheiben und ohne Grund.
+check(neben.zeile.includes('12 kg lässt sich so nicht stecken – nächstes: 12,5 kg'),
+  `die Rüstzeile sagt, dass 12 kg nicht aufgehen, und was geht (${neben.zeile})`);
 // Und wo es für beide Kurzhanteln gar kein Raster gibt (zwei Stück je Größe),
 // rechnet der Knopf frei weiter, statt stehen zu bleiben.
 const frei = await daneben(echterSatz);
 console.log('     ohne Raster für beide Kurzhanteln:', JSON.stringify(frei));
 check(frei.hoch === 14 && frei.runter === 10,
   `ohne Raster für beide Kurzhanteln: freie Schritte 12 → ${frei.hoch} / ${frei.runter}`);
+check(!/nicht stecken/.test(frei.zeile),
+  `ohne Raster gibt es nichts, wogegen 12 kg danebenliegen könnten – kein Hinweis (${frei.zeile})`);
 await setze(SATZ);
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
@@ -471,6 +480,52 @@ await page.locator('[data-act="scheiben-weg"]').first().click();
 await page.waitForTimeout(300);
 check(await page.locator('[data-act="scheiben-weg"]').count() === dazu - 1,
   'und das ✕ nimmt sie wieder weg');
+
+// --- 7b. Nach dem Eintippen zeigen Zeile und Vorschau den neuen Stand ------
+// Gefunden auf dem Weg durch die App: „Scheibengröße hinzufügen" legt 0,5 kg
+// × 4 an. 10 × 2 eingetippt, stand daneben weiter „+1 kg je Paar · 2 Paare",
+// und „Damit einstellbar" zeigte je Hand 0 · 1 · 2,5 · 3,5 – Gewichte aus
+// Scheiben, die es nicht gibt. Gespeichert war richtig, gezeichnet nicht.
+await page.evaluate(() => localStorage.setItem('workout.state.v1', JSON.stringify({
+  greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {}, supersatz: true,
+  scheiben: { stange: { kh: null, sz: null, lh: null }, scheiben: [[1.25, 4], [2.5, 4], [5, 4]] },
+})));
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(400);
+await page.locator('[data-act="scheiben-plus"]').click();
+await page.waitForTimeout(300);
+const neueZeile = await page.locator('[data-act="scheiben-kg"]').count() - 1;
+await page.locator(`[data-act="scheiben-kg"][data-i="${neueZeile}"]`).click();
+await page.keyboard.press('Control+A');
+await page.keyboard.type('10');
+await page.keyboard.press('Tab');
+const fokusDanach = await page.evaluate(() => {
+  const a = document.activeElement;
+  return a ? `${a.dataset.act}/${a.dataset.i}` : '';
+});
+await page.keyboard.press('Control+A');
+await page.keyboard.type('2');
+await page.keyboard.press('Tab');
+await page.waitForTimeout(200);
+const nachTippen = await page.evaluate((i) => {
+  const zeile = document.querySelector(`[data-act="scheiben-kg"][data-i="${i}"]`).closest('.scheiben-zeile');
+  const t = (sel) => (document.querySelector(sel)?.textContent || '').replace(/\s+/g, ' ');
+  return {
+    zeile: zeile.textContent.replace(/\s+/g, ' ').trim(),
+    einstellbar: t('.scheiben-einstellbar'),
+    paare: !!document.querySelector('.super-vorschau'),
+    gespeichert: JSON.parse(localStorage.getItem('workout.state.v1') || '{}').scheiben,
+  };
+}, neueZeile);
+console.log('     nach dem Eintippen:', JSON.stringify({ ...nachTippen, einstellbar: nachTippen.einstellbar.slice(0, 120) }));
+check(fokusDanach === `scheiben-n/${neueZeile}`,
+  `nach Tab steht der Cursor im Stückzahl-Feld derselben Zeile – nachgezogen wird ohne den Fokus zu nehmen (${fokusDanach})`);
+check(/\+20 kg je Paar/.test(nachTippen.zeile) && !/\+1 kg/.test(nachTippen.zeile),
+  `neben der Zeile steht, was 10 kg × 2 bringen (${nachTippen.zeile})`);
+check(/Beide Kurzhanteln, je Hand: 0 · 2,5 · 5 · 7,5/.test(nachTippen.einstellbar) && !/ · 1 · /.test(nachTippen.einstellbar),
+  'und „Damit einstellbar" rechnet mit dem, was eingetippt ist – keine 0,5er mehr');
+check(nachTippen.paare, 'die Supersatz-Vorschau darüber steht weiter da');
 
 // --- 8. Der Satz als Link ----------------------------------------------
 // „Kannst ja bei mir eintragen" geht nicht – die Daten liegen im Browser des

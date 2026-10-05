@@ -16,7 +16,9 @@
  * war diese Übung zuletzt dran", nicht aus einem festen Übergang.
  */
 import { chromium } from 'playwright';
-import { URL } from './umgebung.mjs';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { URL, ROOT } from './umgebung.mjs';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 414, height: 896 } });
@@ -97,6 +99,139 @@ check(vorrat.ausweichen === true, 'reicht es mit kleineren Scheiben, ist es auch
 check(vorrat.ohneVorrat === true, 'ohne eingetragenen Vorrat bleibt es beim alten Verhalten');
 check(vorrat.rein[0] === false && vorrat.rein[1] === true && vorrat.rein[2] === true,
   `zusammen() rechnet den Vorrat für alle Aufbauten zugleich (${vorrat.rein})`);
+// --- 1d. Ohne Hanteln zählt das Gerät der Bodyweight-Fassung --------------
+// Gefunden bei der Durchsicht: Geräteregel und Scheibenprüfung lasen auch ohne
+// Hanteln Gerät und Gewicht der Hantel-Fassung. Band-Reverse-Fly und Wadenheben
+// liefen allein, weil Kurzhantel und einarmige Kurzhantel dieselben Griffe
+// sind, und ein eingetragener Hantel-Scheibenvorrat stellte die Paarung von
+// Band- und Körpergewichtsübungen um.
+const ohneHanteln = await page.evaluate(async () => {
+  const S = await import('./js/supersatz.js');
+  const store = await import('./js/store.js');
+  const P = await import('./js/plan.js');
+  const { PLAN } = await import('./js/data.js');
+  const x = (id) => ({ id });
+  // Vorrat und Gewichte aus 1b stehen noch: Goblet 10 + Floor Press 10 bei zwei 5ern.
+  store.getState().scheiben = { stange: {}, scheiben: [[5, 2], [2.5, 2]] };
+  const knapp = {
+    db: S.scheibenReichen(x('goblet-squat'), x('floor-press'), 'db'),
+    bw: S.scheibenReichen(x('goblet-squat'), x('floor-press'), 'bw'),
+    belegungBw: S.paarBelegung(x('goblet-squat'), x('floor-press'), 'bw'),
+  };
+  const paarung = () => PLAN.map((w) => S.paare(P.workoutByNo(w.n, 'bw').ex.map((y) => P.resolve(y, 'bw')), 'bw')
+    .map((g) => g.map((y) => y.id).join('+')).join('|'));
+  const mitVorrat = paarung();
+  store.getState().scheiben = undefined;
+  const ohneVorrat = paarung();
+  return {
+    flyWaden: {
+      bw: S.passtZusammen(x('reverse-fly'), x('wadenheben-gebeugtes-knie'), 'bw'),
+      db: S.passtZusammen(x('reverse-fly'), x('wadenheben-gebeugtes-knie'), 'db'),
+    },
+    liegestuetzRudern: S.passtZusammen(x('floor-press'), x('einarmiges-kh-rudern'), 'bw'),
+    knapp,
+    vorratAendert: mitVorrat.filter((g, i) => g !== ohneVorrat[i]).length,
+  };
+});
+console.log('     ohne Hanteln:', JSON.stringify(ohneHanteln));
+check(ohneHanteln.flyWaden.bw === true && ohneHanteln.flyWaden.db === false,
+  'Band-Reverse-Fly + Wadenheben: ohne Hanteln ein Paar – nur die Hantel-Fassungen teilen sich die Griffe');
+check(ohneHanteln.liegestuetzRudern === true,
+  'Liegestütze + Band-Rudern: ohne Hanteln ein Paar, obwohl Floor Press und Rudern an derselben Stange hängen');
+check(ohneHanteln.knapp.db === false && ohneHanteln.knapp.bw === true && ohneHanteln.knapp.belegungBw === null,
+  'die Scheibenprüfung gilt nur mit Hanteln – ohne liegt keine Scheibe auf');
+check(ohneHanteln.vorratAendert === 0,
+  `ein Hantel-Scheibenvorrat ändert keine Paarung ohne Hanteln (${ohneHanteln.vorratAendert} Einheiten anders)`);
+
+// --- 1e. Die Belegung für beide zugleich --------------------------------------
+// Gefunden auf dem Weg durch die App: Floor Press 40 + Gewichtete Crunches 5
+// bei 4× 1,25 / 4× 2,5 / 4× 5 / 2× 10 waren ein Paar, weil es zusammen geht.
+// Die Rüstzeile rechnete aber jede Übung für sich: alle vier 5er auf die
+// Stange, und für die Brust „1× 5 kg", die nicht mehr daliegt.
+const gemeinsam = await page.evaluate(async () => {
+  const SC = await import('./js/scheiben.js');
+  const satz = { stange: {}, scheiben: [[1.25, 4], [2.5, 4], [5, 4], [10, 2]] };
+  const fall = SC.zusammenBelegung([['barbell', 40], ['plate', 5]], satz);
+  const andersrum = SC.zusammenBelegung([['plate', 5], ['barbell', 40]], satz);
+  // Passen die Belegungen für sich nebeneinander, bleiben es genau die.
+  const frei = SC.zusammenBelegung([['barbell', 40], ['plate', 5]],
+    { stange: {}, scheiben: [[1.25, 4], [2.5, 4], [5, 6], [10, 2]] });
+  // Gegengeprüft an einer vollständigen Aufzählung: gleiche Antwort wie
+  // zusammen(), Ziel erreicht, Vorrat eingehalten, und nie mehr Scheiben als
+  // die beste Aufteilung überhaupt.
+  const alleWege = (equip, kg, s) => {
+    const r = SC.RASTER[equip];
+    const ziel = Math.round(kg * 4) / 4;
+    const out = [];
+    const geh = (j, rest, wahl) => {
+      if (Math.abs(rest) < 1e-9) { out.push(wahl.slice()); return; }
+      if (j >= s.scheiben.length) return;
+      const [w, anzahl] = s.scheiben[j];
+      for (let k = 0; k <= Math.floor(anzahl / r.pro) && r.faktor * k * w <= rest + 1e-9; k++) {
+        if (k) wahl.push([w, k]);
+        geh(j + 1, Math.round((rest - r.faktor * k * w) * 4) / 4, wahl);
+        if (k) wahl.pop();
+      }
+    };
+    geh(0, ziel, []);
+    return out;
+  };
+  const stueck = (b, equip) => b.reduce((s, [, k]) => s + k * SC.RASTER[equip].pro, 0);
+  let seed = 11;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const fehler = [];
+  let geprueft = 0;
+  let umgestellt = 0;
+  for (let t = 0; t < 400 && fehler.length < 3; t++) {
+    const s = SC.normSatz({ stange: {}, scheiben: Array.from({ length: 1 + Math.floor(rnd() * 3) },
+      () => [pick([1.25, 2.5, 5, 10]), 1 + Math.floor(rnd() * 6)]) });
+    const lasten = [0, 1].map(() => {
+      const e = pick(['barbell', 'goblet', 'dumbbells', 'plate']);
+      const liste = SC.erreichbar(e, s) || [0];
+      return [e, pick(liste.slice(1).length ? liste.slice(1) : liste)];
+    });
+    const ist = SC.zusammenBelegung(lasten, s);
+    const ob = SC.zusammen(lasten, s);
+    let besteZahl = Infinity;
+    alleWege(...lasten[0], s).forEach((a) => alleWege(...lasten[1], s).forEach((b) => {
+      const braucht = new Map();
+      [[a, lasten[0][0]], [b, lasten[1][0]]].forEach(([x, e]) => x.forEach(([w, k]) =>
+        braucht.set(w, (braucht.get(w) || 0) + k * SC.RASTER[e].pro)));
+      if (s.scheiben.every(([w, n]) => (braucht.get(w) || 0) <= n)) {
+        besteZahl = Math.min(besteZahl, stueck(a, lasten[0][0]) + stueck(b, lasten[1][0]));
+      }
+    }));
+    if ((ist !== null) !== (ob === true)) { fehler.push(`ja/nein anders: ${JSON.stringify({ lasten, s: s.scheiben, ob })}`); continue; }
+    if (!ist) continue;
+    geprueft++;
+    const summe = (b, e) => b.reduce((x, [w, k]) => x + SC.RASTER[e].faktor * k * w, 0);
+    const braucht = new Map();
+    ist.forEach((b, i) => b.forEach(([w, k]) => braucht.set(w, (braucht.get(w) || 0) + k * SC.RASTER[lasten[i][0]].pro)));
+    const zahl = stueck(ist[0], lasten[0][0]) + stueck(ist[1], lasten[1][0]);
+    if (ist.some((b, i) => Math.abs(summe(b, lasten[i][0]) - lasten[i][1]) > 1e-9)
+      || !s.scheiben.every(([w, n]) => (braucht.get(w) || 0) <= n)
+      || zahl !== besteZahl) {
+      fehler.push(JSON.stringify({ lasten, s: s.scheiben, ist, zahl, besteZahl }));
+    }
+    if (JSON.stringify(ist) !== JSON.stringify(lasten.map(([e, kg]) => SC.belegung(kg, e, s)))) umgestellt++;
+  }
+  return { fall, andersrum, frei, fehler, geprueft, umgestellt };
+});
+console.log('     gemeinsame Belegung:', JSON.stringify({ fall: gemeinsam.fall, frei: gemeinsam.frei,
+  geprueft: gemeinsam.geprueft, umgestellt: gemeinsam.umgestellt }));
+check(JSON.stringify(gemeinsam.fall) === JSON.stringify([[[10, 1], [5, 2]], [[2.5, 2]]]),
+  `Floor Press 40 + Crunches 5: je Seite 10 + 2× 5, auf die Brust 2× 2,5 – die 5er sind an der Stange (${
+    JSON.stringify(gemeinsam.fall)})`);
+check(JSON.stringify(gemeinsam.andersrum) === JSON.stringify([gemeinsam.fall[1], gemeinsam.fall[0]]),
+  'andersherum gefragt dieselbe Aufteilung');
+check(JSON.stringify(gemeinsam.frei) === JSON.stringify([[[10, 1], [5, 2]], [[5, 1]]]),
+  'reicht der Vorrat für beide Belegungen für sich, bleiben es genau die');
+check(gemeinsam.fehler.length === 0 && gemeinsam.geprueft > 100 && gemeinsam.umgestellt > 5,
+  `zufällige Paare: Ziel erreicht, Vorrat eingehalten, so wenig Scheiben wie überhaupt möglich (${
+    gemeinsam.geprueft} geprüft, ${gemeinsam.umgestellt} anders als je für sich)${
+    gemeinsam.fehler.length ? ': ' + gemeinsam.fehler.join(' | ') : ''}`);
+
 await page.evaluate(async () => {
   const store = await import('./js/store.js');
   store.getState().scheiben = undefined;
@@ -703,6 +838,144 @@ const name = async (p) => (await p.locator('.focus-name').textContent()).trim();
   check(/Pause vorbei/.test(toast) && await p.evaluate(() => Array.isArray(window.__vibrate)),
     `am Ende der Pause meldet sie sich trotzdem, auch wenn eine andere Übung zu sehen ist (${toast})`);
   check(!(await laeuft()), 'und ist danach vorbei');
+  await p.context().close();
+}
+
+// --- Die Zahlen im README, je Modus ------------------------------------------
+// Gezählt, wie die App die Einheit zusammenstellt (workoutByNo() und
+// resolve()), mit den Startgewichten und ohne Vorrat. Dort stand lange eine
+// Zahl aus der Zeit vor der letzten Neuverteilung der Pläne, und „mit und ohne
+// Hanteln gleich" stimmte nur, weil ohne Hanteln nach dem Hantelgerät gepaart
+// wurde.
+{
+  const p = await neueSeite();
+  const summe = { db: { e: 0, p: 0, a: 0 }, bw: { e: 0, p: 0, a: 0 } };
+  for (const fokus of ['standard', 'bbp', 'cut', 'oberkoerper']) {
+    await mitStand(p, { greeted: true, focus: fokus });
+    const z = await p.evaluate(async () => {
+      const P = await import('./js/plan.js');
+      const S = await import('./js/supersatz.js');
+      const { PLAN } = await import('./js/data.js');
+      const out = {};
+      ['db', 'bw'].forEach((m) => {
+        const g = PLAN.flatMap((w) => S.paare(P.workoutByNo(w.n, m).ex.map((x) => P.resolve(x, m)), m));
+        out[m] = { e: PLAN.length, p: g.filter((x) => x.length === 2).length, a: g.filter((x) => x.length === 1).length };
+      });
+      return out;
+    });
+    ['db', 'bw'].forEach((m) => ['e', 'p', 'a'].forEach((k) => { summe[m][k] += z[m][k]; }));
+  }
+  const { db, bw } = summe;
+  const je = (x) => (x.p / x.e).toFixed(1).replace('.', ',');
+  console.log(`     README: mit Hanteln ${db.p} Paare / ${db.a} allein (${je(db)}), ohne ${bw.p} / ${bw.a} (${je(bw)}) in ${db.e} Einheiten`);
+  const readme = readFileSync(path.join(ROOT, 'README.md'), 'utf8').replace(/\s+/g, ' ');
+  check(readme.includes(`Über alle ${db.e} Einheiten`)
+    && readme.includes(`mit Hanteln im Schnitt **${je(db)} Paare je Einheit** (${db.p} Paare, ${db.a} Übungen bleiben allein)`)
+    && readme.includes(`ohne Hanteln **${je(bw)}** (${bw.p} Paare, ${bw.a} allein)`),
+  'die Supersatz-Zahlen im README stimmen mit der Rechnung überein, je Modus');
+  check(bw.p > db.p, 'ohne Hanteln finden sich mehr Paare – da trennt fast nur der Muskel');
+  await p.context().close();
+}
+
+// Bis zur Einheit `n` blättern und sie starten.
+const starte = async (p, n) => {
+  for (let i = 0; i < 100; i++) {
+    const t = await p.locator('#view').textContent();
+    if (new RegExp(`Workout ${n}\\b`).test(t)) break;
+    await p.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+    await p.waitForTimeout(80);
+  }
+  await p.locator('[data-act="start-session"]').first().click();
+  await p.waitForTimeout(400);
+};
+const ruestZeile = async (p) => (await p.locator('.ruest').count()
+  ? (await p.locator('.ruest').first().textContent()).replace(/\s+/g, ' ').trim() : '');
+
+// --- 11. Im Paar nennt die Rüstzeile beider Übungen dieselbe Belegung ---------
+// Aufbau, Workout 3: Floor Press 40 kg im Wechsel mit Gewichtete Crunches 5 kg,
+// Vorrat 4× 1,25 / 4× 2,5 / 4× 5 / 2× 10. Je für sich gerechnet kamen alle
+// vier 5er an die Stange, und die Crunches sollten „1× 5 kg" auf die Brust
+// legen – die es dann nicht mehr gibt.
+{
+  const p = await neueSeite();
+  await mitStand(p, {
+    greeted: true, name: 'T', level: 'geuebt', focus: 'standard', shift: 0, log: {}, supersatz: true, mode: 'db',
+    weights: { 'floor-press': 40, 'gewichtete-crunches': 5 },
+    scheiben: { stange: { kh: null, sz: null, lh: null }, scheiben: [[1.25, 4], [2.5, 4], [5, 4], [10, 2]] },
+  });
+  const nm = await p.evaluate(async () => {
+    const { EX_BY_ID } = await import('./js/uebung.js');
+    return { fp: EX_BY_ID.get('floor-press').db.name, cr: EX_BY_ID.get('gewichtete-crunches').db.name };
+  });
+  await starte(p, 3);
+  await zeige(p, nm.fp);
+  const fp = { hin: (await leisteAuf(p)).hin, ruest: await ruestZeile(p) };
+  await zeige(p, nm.cr);
+  const cr = { hin: (await leisteAuf(p)).hin, ruest: await ruestZeile(p) };
+  console.log('     Floor Press:', JSON.stringify(fp));
+  console.log('     Crunches:   ', JSON.stringify(cr));
+  check(fp.hin.includes(`Im Wechsel mit ${nm.cr}`) && cr.hin.includes(`Im Wechsel mit ${nm.fp}`),
+    'Floor Press und Crunches stehen im Wechsel');
+  check(/je Seite 1× 10 \+ 2× 5 kg/.test(fp.ruest), `beim Floor Press: je Seite 10 + 2× 5 (${fp.ruest})`);
+  check(/\(2× 2,5 kg\)/.test(cr.ruest) && !/1× 5 kg/.test(cr.ruest),
+    `bei den Crunches die Scheiben, die dann noch daliegen: 2× 2,5 statt 1× 5 (${cr.ruest})`);
+  check(!/Scheiben reichen nicht/.test(fp.hin + cr.hin), 'und kein Umsteck-Hinweis – es geht ja');
+  await p.context().close();
+}
+
+// --- 12. Ohne Hanteln kein Scheiben-Hinweis, auch bei festgehaltener Paarung --
+// Bei einer festgehaltenen Paarung und danach geändertem Vorrat stand unter
+// Band- und Körpergewichtsübungen „Die Scheiben reichen nicht für beide
+// Aufbauten – zwischen den Sätzen umstecken": geprüft wurde das Hantelgewicht.
+{
+  const p = await neueSeite();
+  await mitStand(p, { greeted: true, name: 'T', level: 'geuebt', shift: 0, log: {}, supersatz: true, mode: 'bw' });
+  // Je für sich lassen sich beide mit vier 5ern stecken, zusammen nicht – mit
+  // Hanteln hieße das umstecken.
+  const fall = await p.evaluate(async () => {
+    const P = await import('./js/plan.js');
+    const store = await import('./js/store.js');
+    const { EX_BY_ID } = await import('./js/uebung.js');
+    const { PLAN } = await import('./js/data.js');
+    const KG = { barbell: 20, hipbar: 20, szbar: 20, goblet: 20, onehand: 20, plate: 20, dumbbells: 10 };
+    for (const w of PLAN) {
+      const ids = P.workoutByNo(w.n, 'bw').ex.map((x) => x.id);
+      const zwei = ids.filter((id) => KG[EX_BY_ID.get(id).equip]).slice(0, 2);
+      if (zwei.length < 2) continue;
+      zwei.forEach((id) => store.setWeight(id, KG[EX_BY_ID.get(id).equip]));
+      store.setSetting('scheiben', { stange: {}, scheiben: [[5, 4]] });
+      store.setPaarung(w.n, 'bw', {
+        key: ids.slice().sort().join(','),
+        gruppen: [zwei, ...ids.filter((id) => !zwei.includes(id)).map((id) => [id])],
+      });
+      store.flush();
+      return { n: w.n, namen: zwei.map((id) => EX_BY_ID.get(id).bw.name) };
+    }
+    return null;
+  });
+  check(!!fall, 'es gibt eine Einheit mit zwei Übungen, deren Hantel-Fassungen Scheiben brauchen');
+  if (fall) {
+    await p.reload({ waitUntil: 'networkidle' });
+    await p.waitForTimeout(300);
+    for (let i = 0; i < 100; i++) {
+      if (new RegExp(`Workout ${fall.n}\\b`).test(await p.locator('#view').textContent())) break;
+      await p.locator('[data-act="nav-workout"][data-delta="1"]').first().click();
+      await p.waitForTimeout(80);
+    }
+    await p.locator('.tab[data-tab="settings"]').click();
+    await p.waitForTimeout(400);
+    const mehr = (await p.locator('#view').textContent()).replace(/\s+/g, ' ');
+    check(mehr.includes(`${fall.namen[0]} im Wechsel mit ${fall.namen[1]}`) && !/Scheiben reichen nicht/.test(mehr),
+      `Vorschau ohne Hanteln (Workout ${fall.n}): ${fall.namen[0]} ↔ ${fall.namen[1]}, ohne Scheiben-Hinweis`);
+    await p.locator('.tab[data-tab="dashboard"]').click();
+    await p.waitForTimeout(300);
+    await p.locator('[data-act="start-session"]').first().click();
+    await p.waitForTimeout(400);
+    await zeige(p, fall.namen[0]);
+    const hin = (await leisteAuf(p)).hin;
+    check(hin.includes(`Im Wechsel mit ${fall.namen[1]}`) && !/Scheiben reichen nicht/.test(hin),
+      `im Training ohne Hanteln: kein „Scheiben reichen nicht" (${hin})`);
+  }
   await p.context().close();
 }
 

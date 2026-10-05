@@ -74,15 +74,19 @@ const feldWert = (v) => (typeof v === 'number' && Number.isFinite(v) ? fmtNum(v)
  * Deshalb steht jetzt an jeder Zeile, was sie leistet: „+10 kg an der Stange"
  * – oder eben, dass es für ein Paar nicht reicht.
  */
-function scheibenZeile(i, kg, anzahl) {
+export function scheibenZeilenHinweis(kg, anzahl) {
   const n = Number(anzahl) || 0;
   const wert = Number(kg) || 0;
   const paare = Math.floor(n / 2);
-  const hinweis = !wert || !n ? ''
+  return !wert || !n ? ''
     : paare < 1
       ? '<span class="scheiben-warn">nur einzeln – eine Stange braucht zwei</span>'
       : `<span class="scheiben-hint">+${esc(fmtNum(wert * 2))} kg je Paar${
           n >= 4 ? ` · ${paare} Paare` : ''}</span>`;
+}
+
+function scheibenZeile(i, kg, anzahl) {
+  const hinweis = scheibenZeilenHinweis(kg, anzahl);
   return `
     <div class="scheiben-zeile">
       <input type="text" inputmode="decimal" class="kg-val" value="${esc(feldWert(kg))}"
@@ -147,6 +151,29 @@ function scheibenVorschau(equip, was, satz) {
     + `${liste.length > 14 ? ' …' : ''} kg${RASTER[equip].stange ? rechnung : ''}</div>`;
 }
 
+/**
+ * Der Block „Damit einstellbar" – eigens herausgezogen, damit er sich nach
+ * einer Eingabe nachziehen lässt, ohne die Felder neu zu zeichnen (der
+ * input-Handler für die Scheibenfelder in js/app.js).
+ */
+export function scheibenEinstellbar() {
+  const geprueft = meinSatz();
+  if (!geprueft.scheiben.length) return '';
+  return `
+      <div class="scheiben-satz">
+        <div class="lbl">Damit einstellbar</div>
+        ${scheibenVorschau('dumbbells', 'Beide Kurzhanteln, je Hand', geprueft)}
+        ${scheibenVorschau('goblet', 'Eine Kurzhantel', geprueft)}
+        ${/* Nur, wenn es sie gibt. Eine SZ-Stange hat nicht jeder, und eine
+              Zeile „SZ-Stange: 0 kg plus Stange – trag ihr Leergewicht ein"
+              wäre eine Mahnung, etwas einzutragen, das gar nicht existiert.
+              Das Eingabefeld oben steht trotzdem da: Dort sagt man, dass man
+              eine hat. */
+          geprueft.stange.sz === null ? '' : scheibenVorschau('szbar', 'SZ-Stange', geprueft)}
+        ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
+      </div>`;
+}
+
 export function scheibenKarte() {
   const satz = roherSatz();
   const geprueft = meinSatz();
@@ -184,19 +211,7 @@ export function scheibenKarte() {
           dann rechnet die App die Stange überall mit.</div>
       </div>
 
-      ${geprueft.scheiben.length ? `
-      <div class="scheiben-satz">
-        <div class="lbl">Damit einstellbar</div>
-        ${scheibenVorschau('dumbbells', 'Beide Kurzhanteln, je Hand', geprueft)}
-        ${scheibenVorschau('goblet', 'Eine Kurzhantel', geprueft)}
-        ${/* Nur, wenn es sie gibt. Eine SZ-Stange hat nicht jeder, und eine
-              Zeile „SZ-Stange: 0 kg plus Stange – trag ihr Leergewicht ein"
-              wäre eine Mahnung, etwas einzutragen, das gar nicht existiert.
-              Das Eingabefeld oben steht trotzdem da: Dort sagt man, dass man
-              eine hat. */
-          geprueft.stange.sz === null ? '' : scheibenVorschau('szbar', 'SZ-Stange', geprueft)}
-        ${scheibenVorschau('barbell', 'Langhantel', geprueft)}
-      </div>` : ''}
+      <div class="scheiben-einstellbar">${scheibenEinstellbar()}</div>
 
       <div class="small muted" style="margin-top:10px">Für <strong>beide</strong> Kurzhanteln
         zählen vier Scheiben einer Größe als ein Schritt – zwei je Hantel, eine je Seite.
