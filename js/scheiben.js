@@ -320,7 +320,12 @@ export function belegung(kg, equip, satz) {
  */
 const ZUSAMMEN_BUDGET = 100000;   // Zwischenstände, bevor aufgegeben wird
 
-export function zusammen(lasten, satz) {
+/**
+ * Was zusammen() und zusammenBelegung() gemeinsam vorrechnen – oder null, wenn
+ * nichts eingetragen ist, und 'allein', wenn sich ein Gewicht schon für sich
+ * nicht bauen lässt.
+ */
+function vorrechnen(lasten, satz) {
   if (!satz || !Array.isArray(satz.scheiben) || !satz.scheiben.length) return null;
   const offen = lasten.filter(([equip]) => RASTER[equip]);
   const rs = offen.map(([equip]) => RASTER[equip]);
@@ -356,21 +361,31 @@ export function zusammen(lasten, satz) {
   // Ein Gewicht, das sich schon allein nicht bauen lässt, ist kein Konflikt
   // zwischen den beiden – das ist die Sache von raste() und der Vorschau.
   // (Dieselbe Frage wie belegung() !== null.)
-  if (ziele.some((z, i) => !allein[i][0][z])) return null;
+  if (ziele.some((z, i) => !allein[i][0][z])) return 'allein';
 
   // Wie viel Eisen ab Größe j noch daliegt, in Viertelkilo. Nur bei Scheiben
   // auf dem Viertelkilo-Raster (normSatz() sorgt dafür) ist das ohne Rundung.
   const exakt = v.every(([w]) => Number.isInteger(w * 4));
   const eisen = new Array(n + 1).fill(0);
   for (let j = n - 1; j >= 0; j--) eisen[j] = eisen[j + 1] + v[j][1] * v[j][0] * 4;
+  // Hoffnungslos ab Größe j: ein Aufbau, der allein nicht mehr hinkommt, oder
+  // zusammen mehr Eisen, als noch daliegt. Ein Aufbau verbraucht je Kilo, das
+  // er trägt, pro/faktor Kilo Scheiben.
+  const aussichtslos = (j, qs) => j >= n || qs.some((q, i) => !allein[i][j][q])
+    || (exakt && qs.reduce((s, q, i) => s + q * rs[i].pro / rs[i].faktor, 0) > eisen[j]);
+  return { offen, rs, v, ziele, nach, stufen, aussichtslos };
+}
+
+export function zusammen(lasten, satz) {
+  const p = vorrechnen(lasten, satz);
+  if (!p || p === 'allein') return null;
+  const { rs, v, ziele, nach, stufen, aussichtslos } = p;
 
   const gescheitert = new Set();
   let schritte = 0;
   const geht = (j, qs) => {
     if (qs.every((q) => q === 0)) return true;
-    if (j >= n || qs.some((q, i) => !allein[i][j][q])) return false;
-    // Ein Aufbau verbraucht je Kilo, das er trägt, pro/faktor Kilo Scheiben.
-    if (exakt && qs.reduce((s, q, i) => s + q * rs[i].pro / rs[i].faktor, 0) > eisen[j]) return false;
+    if (aussichtslos(j, qs)) return false;
     const key = `${j}|${qs.join(',')}`;
     if (gescheitert.has(key)) return false;
     if (++schritte > ZUSAMMEN_BUDGET) return false;   // aufgegeben, s. u.
@@ -395,9 +410,97 @@ export function zusammen(lasten, satz) {
   return schritte > ZUSAMMEN_BUDGET ? null : false;
 }
 
-/** Die Belegung als Satz, wie man ihn jemandem zurufen würde. */
-export function belegungText(kg, equip, satz) {
-  const b = belegung(kg, equip, satz);
+/**
+ * Nicht nur ob, sondern womit: die Belegung für alle Aufbauten zugleich.
+ *
+ * Gefunden auf dem Weg durch die App: Floor Press 40 kg und Gewichtete Crunches
+ * 5 kg bei 4× 1,25 / 4× 2,5 / 4× 5 / 2× 10. zusammen() sagt ja – je Seite
+ * 10 + 5 + 2,5 + 2,5, dann bleiben zwei 5er für die Brust. Die Rüstzeile
+ * rechnete aber jede Übung für sich und schrieb beim Floor Press „je Seite
+ * 1× 10 + 2× 5 kg": alle vier 5er auf der Stange, und beim Crunch stand
+ * „1× 5 kg" – eine Scheibe, die nach der eigenen Anweisung nicht mehr daliegt.
+ * Ein „es geht" nützt nichts, wenn die Anweisung danach einen anderen Weg
+ * beschreibt.
+ *
+ * Gibt je Eintrag von `lasten` die Belegung zurück, in der Form von
+ * belegung() – null für Geräte ohne Raster (Rucksack). Gesucht wird die mit den
+ * wenigsten Scheiben *insgesamt*, gezählt wie sie in der Hand liegen (bei
+ * beiden Kurzhanteln vier je Stufe). Passen die Belegungen, die jede Übung für
+ * sich bekäme, ohnehin nebeneinander, bleiben es genau die: Dann ändert sich an
+ * der Anzeige nichts. Bei gleich vielen Scheiben gewinnt die zuerst gefundene,
+ * und gesucht wird immer in derselben Reihenfolge – dieselbe Frage gibt
+ * dieselbe Antwort.
+ *
+ * null, wenn es keine gemeinsame gibt, wenn nichts eingetragen ist oder wenn
+ * die Suche zu lang würde – dann rechnet die Anzeige wie vorher je Übung.
+ */
+export function zusammenBelegung(lasten, satz) {
+  const p = vorrechnen(lasten, satz);
+  if (!p || p === 'allein') return null;
+  const { offen, rs, v, ziele, nach, stufen, aussichtslos } = p;
+  const zurueck = (wahlen) => {
+    let x = 0;
+    return lasten.map(([equip]) => (RASTER[equip] ? wahlen[x++] : null));
+  };
+
+  // Zuerst die Belegungen für sich: Liegen sie zusammen im Vorrat, gelten die.
+  const fuerSich = offen.map(([equip, kg], i) => (ziele[i] ? belegung(kg, equip, satz) : []));
+  if (fuerSich.every(Boolean)) {
+    const braucht = new Map();
+    fuerSich.forEach((b, i) => b.forEach(([w, k]) => braucht.set(w, (braucht.get(w) || 0) + k * rs[i].pro)));
+    if (v.every(([w, anzahl]) => (braucht.get(w) || 0) <= anzahl)) return zurueck(fuerSich);
+  }
+
+  // Sonst die gemeinsame mit den wenigsten Scheiben. Was ab Größe j noch zu
+  // tun ist, hängt nur an j und den Fehlbeträgen – das Beste dafür wird gemerkt.
+  const gemerkt = new Map();
+  let schritte = 0;
+  const bestes = (j, qs) => {
+    if (qs.every((q) => q === 0)) return { stueck: 0, wahl: [] };
+    if (aussichtslos(j, qs)) return null;
+    const key = `${j}|${qs.join(',')}`;
+    if (gemerkt.has(key)) return gemerkt.get(key);
+    if (++schritte > ZUSAMMEN_BUDGET) return null;
+    const [w, anzahl] = v[j];
+    const neu = qs.slice();
+    const ks = qs.map(() => 0);
+    let sieger = null;
+    const verteile = (i, frei) => {
+      if (i >= qs.length) {
+        const rest = bestes(j + 1, neu.slice());
+        if (!rest) return;
+        const stueck = rest.stueck + ks.reduce((s, k, x) => s + k * rs[x].pro, 0);
+        if (sieger && stueck >= sieger.stueck) return;
+        const hier = ks.flatMap((k, x) => (k ? [[x, w, k]] : []));
+        sieger = { stueck, wahl: hier.concat(rest.wahl) };
+        return;
+      }
+      for (let k = stufen(qs[i], rs[i], frei, w); k >= 0; k--) {
+        neu[i] = nach(qs[i], rs[i], k, w);
+        ks[i] = k;
+        verteile(i + 1, frei - k * rs[i].pro);
+      }
+      neu[i] = qs[i];
+      ks[i] = 0;
+    };
+    verteile(0, anzahl);
+    gemerkt.set(key, sieger);
+    return sieger;
+  };
+  const b = bestes(0, ziele);
+  if (!b || schritte > ZUSAMMEN_BUDGET) return null;
+  const wahlen = offen.map(() => []);
+  b.wahl.forEach(([x, w, k]) => wahlen[x].push([w, k]));
+  return zurueck(wahlen.map((wahl) => wahl.sort((a, c) => c[0] - a[0])));
+}
+
+/**
+ * Eine Belegung als Satz, wie man ihn jemandem zurufen würde.
+ *
+ * Getrennt von der Suche, weil sie nicht immer von belegung() kommt: Im
+ * Supersatz gilt die gemeinsame aus zusammenBelegung().
+ */
+export function belegungAlsText(b, equip, satz) {
   if (!b) return '';
   const r = RASTER[equip];
   if (!b.length) {
@@ -414,4 +517,9 @@ export function belegungText(kg, equip, satz) {
   if (equip === 'dumbbells') return `je Seite ${teile} kg (beide Hanteln)`;
   if (r.faktor === 2) return `je Seite ${teile} kg`;
   return `${teile} kg`;
+}
+
+/** Die Belegung mit den wenigsten Scheiben als Satz. */
+export function belegungText(kg, equip, satz) {
+  return belegungAlsText(belegung(kg, equip, satz), equip, satz);
 }

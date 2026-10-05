@@ -42,13 +42,13 @@ import {
   workingWeight,
 } from './gewichte.js';
 import { normSatz } from './scheiben.js';
-import { roherSatz } from './ansicht-scheiben.js';
+import { roherSatz, scheibenEinstellbar, scheibenZeilenHinweis } from './ansicht-scheiben.js';
 import { uebungsListe, vorratKarte } from './ansicht-vorrat.js';
 import {
   erfahrungStand, gesamtKarte, lastLoggedFor, musterKarte, progressSeries,
 } from './ansicht-statistik.js';
 import {
-  gruppeVon, naechsterOffen, naechsterSchritt, paare, scheibenReichen,
+  gruppeVon, naechsterOffen, naechsterSchritt, paarBelegung, paare, scheibenReichen, schritte,
 } from './supersatz.js';
 import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, nacharbeit, progressOf, saetzeErledigt, resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
@@ -1424,6 +1424,20 @@ function superPartner(n, mode, id) {
 }
 
 /**
+ * Was die Rüstzeile im Supersatz zusätzlich wissen muss (ruestHint() in
+ * js/gewichte.js): in welcher Reihenfolge die Übungen wirklich drankommen, und
+ * mit welcher Belegung diese Übung neben ihrem Partner steht. Ohne Supersatz
+ * nichts davon – dann gilt die Liste.
+ */
+function ruestMit(n, mode, it) {
+  if (!superAn()) return {};
+  const ablauf = superGruppen(n, mode).flatMap((g) => schritte(g).map((s) => s.id));
+  const partner = superPartner(n, mode, it.id);
+  const beide = partner ? paarBelegung(it, partner, mode) : null;
+  return { ablauf, belegung: (beide && beide.get(it.id)) || null };
+}
+
+/**
  * Im Supersatz zeigt die Leiste unten die Pause der Übung, die gerade zu
  * sehen ist.
  *
@@ -1664,13 +1678,13 @@ function renderFocus() {
       // Das Paar bleibt, auch wenn ein Gewicht inzwischen so gestiegen ist,
       // dass die Scheiben nicht mehr für beide reichen – dann muss man es
       // aber wissen, sonst steht man vor der leeren Stange.
-      const knapp = scheibenReichen(it, partner) ? ''
+      const knapp = scheibenReichen(it, partner, mode) ? ''
         : '<div class="super-hin knapp">Die Scheiben reichen nicht für beide Aufbauten – zwischen den Sätzen umstecken.</div>';
       return `<div class="super-hin">↔ Im Wechsel mit ${esc(partner.name)}</div>${knapp}`;
     })()}
 
     ${kg === null ? bandRow(it) + wdhRow(it, mode, 'focus-weight') : `
-      ${ruestHint(n, mode, w.ex, i)}
+      ${ruestHint(n, mode, w.ex, i, ruestMit(n, mode, it))}
       <div class="ex-weight focus-weight">
         ${kgKnopf(it, -1)}
         <div class="kg-main">
@@ -3099,11 +3113,11 @@ function superVorschau() {
   if (!gruppen.length) return '';
   const paarZahl = gruppen.filter((g) => g.length === 2).length;
   return `
-    <div class="scheiben-satz">
+    <div class="scheiben-satz super-vorschau">
       <div class="lbl">Workout ${n} liefe so</div>
       ${gruppen.map((g) => (g.length === 2
         ? `<div class="super-paar">↔ ${esc(g[0].name)} <span class="super-mit">im Wechsel mit</span> ${esc(g[1].name)}${
-          scheibenReichen(g[0], g[1]) ? '' : ' <span class="knapp">– Scheiben reichen nicht für beide, umstecken</span>'}</div>`
+          scheibenReichen(g[0], g[1], mode) ? '' : ' <span class="knapp">– Scheiben reichen nicht für beide, umstecken</span>'}</div>`
         : `<div class="super-paar allein">${esc(g[0].name)} <span class="super-mit">allein, mit normaler Pause</span></div>`)).join('')}
       <div class="hint">${paarZahl
         ? `${paarZahl} ${paarZahl === 1 ? 'Paar' : 'Paare'} – der Rest läuft wie bisher.`
@@ -3124,6 +3138,34 @@ function scheibenAendern(wie) {
   const satz = roherSatz();
   wie(satz);
   store.setSetting('scheiben', satz);
+}
+
+/**
+ * Nach einer Eingabe in ein Scheibenfeld: Zeilenhinweis, „Damit einstellbar"
+ * und die Supersatz-Vorschau nachziehen – aber nicht die Felder selbst.
+ *
+ * Gespeichert wurde schon immer bei jedem Tastendruck, neu gezeichnet bewusst
+ * nicht: Ein render() ersetzt das Feld und nimmt den Fokus mitten im Wort mit.
+ * Damit blieb aber auch stehen, was aus der Eingabe folgt. Nach „Scheibengröße
+ * hinzufügen" (0,5 kg × 4) und dem Eintippen von 10 × 2 stand neben der Zeile
+ * weiter „+1 kg je Paar · 2 Paare", und die Vorschau zeigte je Hand
+ * „0 · 1 · 2,5 · 3,5 …" – Gewichte aus 0,5er-Scheiben, die es gar nicht gibt.
+ * Ausgerechnet die Vorschau, die belegen soll, dass richtig eingetragen ist,
+ * ließ einen richtigen Vorrat vertippt aussehen (gefunden auf dem Weg durch die
+ * App). Wie bei der Terminsuche wird deshalb nur das ersetzt, was sich aus der
+ * Eingabe ergibt.
+ */
+function scheibenNachziehen(feld) {
+  const zeile = feld.closest('.scheiben-zeile');
+  if (zeile && feld.dataset.i !== undefined) {
+    const roh = roherSatz().scheiben[Number(feld.dataset.i)] || [];
+    zeile.querySelectorAll('.scheiben-hint, .scheiben-warn').forEach((x) => x.remove());
+    zeile.insertAdjacentHTML('beforeend', scheibenZeilenHinweis(roh[0], roh[1]));
+  }
+  const block = view.querySelector('.scheiben-einstellbar');
+  if (block) block.innerHTML = scheibenEinstellbar();
+  const paare = view.querySelector('.super-vorschau');
+  if (paare) paare.outerHTML = superVorschau() || '<div class="super-vorschau" hidden></div>';
 }
 
 /**
@@ -6899,6 +6941,7 @@ view.addEventListener('input', (e) => {
     // Feld ersetzen und den Fokus mitnehmen, mitten im Wort.
     const kg = parseFloat(t.value.replace(',', '.'));
     scheibenAendern((s) => { s.stange[t.dataset.satz] = Number.isNaN(kg) ? null : kg; });
+    scheibenNachziehen(t);
   } else if (t.dataset.act === 'termin-suche') {
     // Nur die Trefferliste neu zeichnen, nicht die ganze Ansicht: Ein render()
     // ersetzt das Suchfeld und nimmt den Fokus mitten im Wort mit – derselbe
@@ -6920,6 +6963,7 @@ view.addEventListener('input', (e) => {
       const zeile = s.scheiben[Number(t.dataset.i)];
       if (zeile) zeile[feld] = zahl;
     });
+    scheibenNachziehen(t);
   }
 });
 

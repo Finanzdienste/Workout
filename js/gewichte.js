@@ -9,7 +9,9 @@ import * as store from './store.js';
 import { EX_BY_ID, repsBereich } from './uebung.js';
 import { esc, fmtNum } from './text.js';
 import { levelFaktor } from './stufen.js';
-import { belegungText, erreichbar, gepflegt, nachbar, normSatz, raste, stangeZaehlt } from './scheiben.js';
+import {
+  belegungAlsText, belegungText, erreichbar, gepflegt, nachbar, normSatz, raste, stangeZaehlt,
+} from './scheiben.js';
 
 /** Der eingetragene Scheibensatz – oder ein leerer, wenn nichts eingetragen ist. */
 export const meinSatz = () => normSatz(store.getState().scheiben);
@@ -373,21 +375,70 @@ export function ruestOrder(items) {
   return vorgezogen(out) ? items : out;
 }
 
-/** Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist. */
-export function ruestHint(n, mode, list, i) {
-  if (mode !== 'db') return '';
-  const cur = setupOf(list[i].id, workingWeight(list[i].id));
-  if (!cur) return '';
+/**
+ * Der Aufbau, der vor dieser Übung zuletzt dran war – oder null.
+ *
+ * Ohne Supersatz ist das die nächste Übung mit Aufbau weiter oben in der
+ * Liste. Im Supersatz stimmt die Liste nicht mehr mit dem Ablauf überein:
+ * Partner liegen bis zu drei Plätze auseinander, und dazwischen wird
+ * gewechselt. Gefunden auf dem Weg durch Workout 3 des Aufbau-Plans: Beim
+ * ersten RDL-Satz stand „Stange bleibt bei 40 kg – nichts umbauen" (die Stange
+ * war noch leer, die 40 kg gehörten zum Floor Press darüber, der erst danach
+ * kam), beim Floor Press direkt nach drei RDL-Sätzen mit 40 kg „Aufbauen", und
+ * bei den Crunches „Umbauen: Kurzhantel von 20 auf 5 kg" – die 20 kg gehörten
+ * zum Goblet Squat, den noch niemand angefasst hatte.
+ *
+ * `ablauf` sind deshalb, wenn es ihn gibt, die Übungen in der Reihenfolge der
+ * Sätze (schritte() je Gruppe aus superGruppen() in js/app.js). Gezählt wird
+ * vom ersten Satz dieser Übung rückwärts: Die Rüstzeile sagt, was vor ihr zu
+ * tun ist, wie ohne Supersatz auch.
+ */
+function vorherAufgebaut(list, i, ablauf) {
+  const aufbau = (id) => setupOf(id, workingWeight(id));
+  const erst = ablauf ? ablauf.indexOf(list[i].id) : -1;
   let prev = null;
-  for (let k = i - 1; k >= 0 && !prev; k--) prev = setupOf(list[k].id, workingWeight(list[k].id));
+  if (erst < 0) {
+    for (let k = i - 1; k >= 0 && !prev; k--) prev = aufbau(list[k].id);
+    return prev;
+  }
+  for (let k = erst - 1; k >= 0 && !prev; k--) prev = aufbau(ablauf[k]);
+  return prev;
+}
+
+/**
+ * Zeile über der Gewichtsangabe: was vor dieser Übung umzubauen ist.
+ *
+ * `mit.ablauf`: die Reihenfolge der Sätze im Supersatz (vorherAufgebaut()).
+ * `mit.belegung`: die Belegung, mit der diese Übung und ihr Partner zugleich
+ * stehen (paarBelegung() in js/supersatz.js) – dann steht bei beiden genau
+ * die, nicht jede für sich.
+ */
+export function ruestHint(n, mode, list, i, mit = {}) {
+  if (mode !== 'db') return '';
+  const id = list[i].id;
+  const cur = setupOf(id, workingWeight(id));
+  if (!cur) return '';
+  const prev = vorherAufgebaut(list, i, mit.ablauf || null);
   const kg = `${fmtNum(cur.kg)} kg${cur.note ? ` ${cur.note}` : ''}`;
   // Sind die Scheiben bekannt, steht hier nicht nur das Ziel, sondern der Weg
   // dahin: Welche Scheiben, wie viele, auf welche Seite. Das ist die Zeile, die
   // den Umbau kurz macht.
-  const lade = ladeText(list[i].id, cur.kg);
-  const wie = lade ? ` <span class="ruest-lade">(${esc(lade)})</span>` : '';
+  const lade = ladeText(id, cur.kg, mit.belegung || null);
+  let wie = lade ? ` <span class="ruest-lade">(${esc(lade)})</span>` : '';
+  // Lässt sich das Gewicht mit dem Vorrat gar nicht stecken – gesetzt, bevor
+  // die Scheiben eingetragen waren, oder frei eingetippt –, blieb die Zeile
+  // ohne Scheiben und ohne Grund: „Aufbauen: Kurzhanteln auf 12 kg", und an
+  // der Hantel merkt man, dass es nicht aufgeht. Dann steht hier, was geht.
+  const geht = gerastet(EX_BY_ID.get(id), cur.kg);
+  if (!lade && geht !== null && Math.abs(geht - cur.kg) > 1e-9) {
+    wie = ` <span class="ruest-lade knapp">(${esc(fmtNum(cur.kg))} kg lässt sich so nicht stecken – nächstes: ${
+      esc(fmtNum(geht))} kg)</span>`;
+  }
   if (prev && prev.fam === cur.fam && Math.abs(prev.kg - cur.kg) < 0.01) {
-    return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen</div>`;
+    // Im Paar kann die gemeinsame Belegung eine andere sein als die, mit der
+    // die Stange gerade daliegt – dann muss sie dastehen.
+    return `<div class="ruest gleich">✓ ${esc(cur.label)} bleibt bei ${esc(kg)} – nichts umbauen${
+      mit.belegung ? wie : ''}</div>`;
   }
   if (prev && prev.fam === cur.fam) {
     return `<div class="ruest">Umbauen: ${esc(cur.label)} von ${esc(fmtNum(prev.kg))} auf ${esc(kg)}${wie}</div>`;
@@ -486,9 +537,16 @@ export function naechstesGewicht(exId, richtung) {
  * laufen kann, ist keine Reserve, sondern Ballast.
  * ------------------------------------------------------------------ */
 
-/** „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt. */
-export function ladeText(exId, kg) {
+/**
+ * „je Seite 1× 2,5 kg" – wenn bekannt ist, welche Scheiben es gibt.
+ *
+ * `belegung` ist eine schon bestimmte Belegung – im Supersatz die, mit der
+ * beide Aufbauten zugleich stehen (paarBelegung() in js/supersatz.js). Ohne
+ * gilt die mit den wenigsten Scheiben für diese Übung allein.
+ */
+export function ladeText(exId, kg, belegung = null) {
   const ex = EX_BY_ID.get(exId);
   if (!ex || kg === null) return '';
+  if (belegung) return belegungAlsText(belegung, ex.equip, meinSatz());
   return belegungText(kg, ex.equip, meinSatz());
 }
