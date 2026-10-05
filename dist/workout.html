@@ -12434,12 +12434,14 @@ function doneWeightNote(n, mode, exId) {
  * richtige Reihenfolge fürs Training.
  *
  * Was das bringt, ist die Zahl der Auf- und Umbauten, nicht die Kilo. Über alle
- * 84 Einheiten mit den Startgewichten nachgezählt: Aufbau 309 → 298, Bauch,
- * Beine, Po 291 → 265, Cut 257 → 256, Oberkörper 274 → 272 – jeweils das
- * Minimum, das unter denselben Nebenbedingungen überhaupt geht. Die bewegten
- * Kilo bleiben dabei ungefähr gleich (bis 3 % mehr); hier stand einmal „rund
- * 30 % weniger Kilo", und das lässt sich an den heutigen Plänen nicht mehr
- * nachmessen.
+ * 84 Einheiten mit den Startgewichten nachgezählt, ist es je Plan das Minimum,
+ * das unter denselben Nebenbedingungen überhaupt geht. Wie viele das sind, steht
+ * nicht hier, sondern als Rüstvorgänge je Einheit in tests/ruestaufwand-stand.json;
+ * tests/test-reihenfolge.mjs misst sie mit setupOf() und ruestOrder() nach und
+ * schlägt an, wenn es mehr werden. Hier standen sie einmal als Zahlen, und die
+ * nächste Neurechnung der Pläne hat sie überholt. Die bewegten Kilo bleiben
+ * dabei ungefähr gleich (bis 3 % mehr); hier stand einmal „rund 30 % weniger
+ * Kilo", und das lässt sich an den heutigen Plänen nicht mehr nachmessen.
  *
  * Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
  * Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach
@@ -20307,10 +20309,13 @@ function tagNotiz(w, mode, items) {
  *
  * Das Ziel ist nicht überall dasselbe: es kommt als TARGET aus den erzeugten
  * Daten, damit hier keine zweite Zahl steht, die von der Rechnung abweichen
- * kann. Im Ziel heißt: keinen ganzen Satz darunter – genau die Grenze, die
- * tools/build-plan.py für die einzelne Woche garantiert. Enger wäre es keine
- * Aussage über das Training, sondern über den Rundungsspielraum des Plans:
- * dessen eigene Wochen weichen um bis zu 0,95 Sätze ab.
+ * kann. Im Ziel heißt: mindestens 90 % dessen, was der Plan für diese Woche
+ * vorsieht (inTarget() und plannedWeek() gleich darunter) – nicht das Ziel
+ * selbst. Eine Garantie „kein ganzer Satz unter dem Ziel" gibt
+ * tools/build-plan.py für die einzelne Woche nicht: Die erzeugten Pläne
+ * weichen in einzelnen Wochen um mehr als zwei Sätze ab (README, *2 bis 4
+ * Sätze – gemessen*); als grob gilt dort erst eine Woche, die die Hälfte
+ * des Ziels danebenliegt (MAX_REL).
  *
  * Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den
  * jeweiligen Anteilen. Eine Woche sind WEEK_SESSIONS aufeinanderfolgende
