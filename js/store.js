@@ -156,6 +156,9 @@ const DEFAULT_STATE = {
   // Je Einheit, neben mode und startedOn:
   //   soll    Satzzahl je Übung an diesem Tag, beim ersten Anzeigen festgehalten
   //   nach    wie viele Sätze davon Nacharbeit waren, je Übung (merkeNach())
+  //   nachFest  die Nacharbeit der Einheit, festgehalten mit dem ersten Satz:
+  //           { db: { exId: k }, bw: { … } } – ab da gilt sie, statt neu
+  //           gerechnet zu werden (halteNachFest(), nacharbeit() in js/plan.js)
   //   fest    nach einem Planwechsel die eigene Übungsliste
   //           [{ id, sets, bwSets }] – ohne Nacharbeit, die kommt in exOf()
   //           dazu; `bwSets` fehlt, wo es gleich `sets` ist, und in Listen
@@ -479,8 +482,25 @@ export function subscribe(fn) {
 
 export function getState() { return state; }
 
+/**
+ * Die Wahl unter Mehr – sie gilt für jede Einheit, die noch nicht angefasst ist.
+ *
+ * Eine Einheit trägt ihre eigene Variante erst, wenn in ihr etwas steht
+ * (updateSet(), completeWorkout()). Bis v229 legte aber schon das bloße
+ * Ansehen ihrer Übungsliste einen Eintrag mit dem damaligen Modus an (ensure()),
+ * und der überstimmte danach jede neue Wahl: Workout 2 einmal vorab
+ * angeschaut, dann auf Bodyweight gestellt – und Workout 2 kam beim nächsten
+ * Training trotzdem mit Hanteln, entgegen „die nächsten nehmen sie von
+ * selbst". ensure() setzt deshalb keinen Modus mehr, und was aus der Zeit davor
+ * noch so dasteht, gibt die Wahl hier frei. Trainiertes und Abgeschlossenes
+ * bleibt in seiner Variante.
+ */
 export function setMode(mode) {
   state.mode = mode === 'bw' ? 'bw' : 'db';
+  Object.keys(state.log).forEach((k) => {
+    const e = state.log[k];
+    if (e && e.mode && !e.done && !isStarted(k)) delete e.mode;
+  });
   persist();
   emit();
 }
@@ -507,8 +527,9 @@ export function setWorkoutMode(n, mode) {
   emit();
 }
 
+// Ohne `mode`: Wer bloß hinsieht, wählt keine Variante (siehe setMode()).
 function ensure(n) {
-  if (!state.log[n]) state.log[n] = { db: {}, bw: {}, mode: state.mode };
+  if (!state.log[n]) state.log[n] = { db: {}, bw: {} };
   const e = state.log[n];
   if (!e.db) e.db = {};
   if (!e.bw) e.bw = {};
@@ -827,6 +848,46 @@ export function resetWorkout(n, mode) {
   // Zeit wieder bei null an.
   if (state.clock && state.clock.n === n) state.clock = null;
   syncStartedOn(n);
+  // Steht danach nichts mehr, ist der nächste Anlauf ein neuer – mit der
+  // Nacharbeit, die dann gilt.
+  if (!isStarted(n)) delete e.nachFest;
+  persist();
+  emit();
+}
+
+/**
+ * Eine Einheit ganz verwerfen – beide Varianten.
+ *
+ * Abbrechen hieß bisher resetWorkout() im eingestellten Modus. Seit das
+ * Umschalten mitten im Training gewollt ist, stehen die Sätze aber womöglich
+ * in beiden: Zwei Sätze mit Hanteln, dann unter Mehr auf Bodyweight, dann
+ * „Abbrechen" – die Rückfrage nannte die zwei Sätze, gelöscht wurde der leere
+ * Bodyweight-Eimer, und der Toast meldete „nichts gespeichert", während die
+ * Einheit angefangen auf dem Dashboard stand.
+ */
+export function verwirfEinheit(n) {
+  const e = state.log[n];
+  if (!e) return;
+  e.db = {};
+  e.bw = {};
+  delete e.done;
+  delete e.paare;
+  delete e.nachFest;
+  if (state.clock && state.clock.n === n) state.clock = null;
+  syncStartedOn(n);
+  persist();
+  emit();
+}
+
+/**
+ * Die Nacharbeit einer Einheit festhalten – einmal, mit dem ersten Satz.
+ * `jeModus` ist { db: { exId: k }, bw: { … } }. Siehe nacharbeit() in
+ * js/plan.js: Ab hier wird sie nicht mehr neu gerechnet.
+ */
+export function halteNachFest(n, jeModus) {
+  const e = ensure(n);
+  if (e.nachFest) return;
+  e.nachFest = { db: { ...(jeModus.db || {}) }, bw: { ...(jeModus.bw || {}) } };
   persist();
   emit();
 }
