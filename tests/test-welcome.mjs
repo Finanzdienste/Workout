@@ -76,6 +76,44 @@ check((await page.locator('.hero-eyebrow').first().textContent()).includes('Tom'
 await page.reload({ waitUntil: 'networkidle' });
 check(await page.locator('.welcome').count() === 0, 'und die Willkommensseite kommt nicht wieder');
 
+// --- Einrichtung mit einem anderen Fokus ---
+// Der Plan wird beim Laden gewählt (js/data.js). Wer im Einstieg „Cut" nahm,
+// bekam bis zum ersten Neuladen den Aufbau-Plan – sechs Übungen, Klimmzüge –,
+// und danach mitten in der Einheit den Cut, mit den schon abgehakten
+// Liegestützen als fremder Übung. Hier ohne eigenes Neuladen: Die erste
+// Einheit muss gleich die erste des Cut sein.
+await page.evaluate(() => localStorage.clear());
+await page.reload({ waitUntil: 'networkidle' });
+await page.locator('#nameInput').fill('Tom');
+for (let i = 0; i < 3; i++) {
+  await page.locator('[data-act="setup-next"]').click();
+  await page.waitForTimeout(200);
+}
+await page.locator('[data-act="set-focus"][data-v="cut"]').click();
+await page.waitForTimeout(200);
+await page.locator('[data-act="setup-next"]').click();
+await page.waitForTimeout(1500);
+await page.waitForLoadState('networkidle');
+const mitCut = await page.evaluate(async () => {
+  const { FOCUS, PLANS } = await import('./js/data.js');
+  const { workoutByNo } = await import('./js/plan.js');
+  const s = (await import('./js/store.js')).getState();
+  return {
+    focus: s.focus, geladen: FOCUS.name, cut: PLANS.cut.name,
+    soll: PLANS.cut.plan[0].ex.map((x) => x.id), zeigt: workoutByNo(1, 'db').ex.map((x) => x.id),
+    karte: ((document.querySelector('#view') || {}).textContent || '').replace(/\s+/g, ' '),
+    toast: ((document.getElementById('toast') || {}).textContent || '').trim(),
+  };
+});
+check(mitCut.focus === 'cut' && mitCut.geladen === mitCut.cut,
+  `nach „Los geht’s" mit Cut gilt der Cut-Plan, ohne Neuladen von Hand (geladen: ${mitCut.geladen})`);
+check([...mitCut.zeigt].sort().join() === [...mitCut.soll].sort().join(),
+  `die erste Einheit ist Cut-Workout 1 (${mitCut.zeigt.join(', ')})`);
+check(mitCut.karte.includes(`${mitCut.soll.length} Übungen`),
+  `und die Startkarte nennt seine ${mitCut.soll.length} Übungen`);
+check(await page.locator('.welcome').count() === 0 && /Los geht’s, Tom/.test(mitCut.toast),
+  `der Einstieg ist fertig, mit Gruß („${mitCut.toast}")`);
+
 // --- Wer schon Daten hat, wird nicht begrüßt ---
 await page.evaluate(() => {
   localStorage.setItem('workout.state.v1', JSON.stringify({ mode: 'db', weights: { x: 1 } }));

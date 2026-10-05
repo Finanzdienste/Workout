@@ -126,6 +126,58 @@ await page.waitForTimeout(500);
 const heil = await page.evaluate(async () => (await import('./js/store.js')).getState().name);
 check(heil === 'Tobi', `nach einer kaputten Datei steht der alte Stand noch (${heil})`);
 
+// --- 6. Sicherung aus einem älteren Planstand, gleicher Fokus -------------
+// Neu geladen wurde nach dem Import nur bei anderem Fokus. Beim Start läuft
+// aber auch der Planwechsel samt Reparaturen, und zwar nur dort. Eine
+// Sicherung unter dem Cut a51fd2 mit angefangener Einheit zeigte deshalb bis
+// zum nächsten Öffnen die Übungen des neuen Plans; wer weitertrainierte,
+// bekam danach die alte Liste festgeschrieben und eine schon gemachte Übung
+// offen daneben. Jetzt ist der eingelesene Stand ein Start wie jeder andere.
+const alt = await page.evaluate(async () => {
+  const { PLANS } = await import('./js/data.js');
+  const k = (PLANS.cut.vorher || []).find((x) => x.stand === 'a51fd2af0bfc');
+  if (!k) return null;
+  const n = k.ex.findIndex((l, i) => l.length >= 3
+    && l.map(([id]) => id).join() !== PLANS.cut.plan[i].ex.map((x) => x.id).join()) + 1;
+  return { n, ids: k.ex[n - 1].map(([id]) => id), jetzt: PLANS.cut.stand };
+});
+if (!alt) {
+  console.log('     der Cut a51fd2 liegt nicht in der Kette – 6. entfällt');
+} else {
+  await zuDaten();
+  await page.evaluate(({ n, ids }) => {
+    const roh = JSON.parse(document.getElementById('io').value || '{}');
+    const s = { ...roh, greeted: true, focus: 'cut', planStand: { cut: 'a51fd2af0bfc' }, log: { [n]: {
+      mode: 'db', startedOn: '2026-10-01', bw: {},
+      db: { [ids[0]]: [{ w: '20', done: true }, {}, {}], [ids[1]]: [{}, {}, {}] },
+      soll: { [ids[0]]: 3, [ids[1]]: 3 },
+    } } };
+    document.getElementById('io').value = JSON.stringify(s);
+  }, alt);
+  // Nicht auf das Neuladen warten, sondern auf die Zeit, die es braucht –
+  // bleibt es aus, sollen die Prüfungen unten das sagen, nicht ein Zeitlimit.
+  await page.locator('[data-act="import"]').first().click();
+  await page.waitForTimeout(1500);
+  await page.waitForLoadState('networkidle');
+  const nach = await page.evaluate(async (n) => {
+    const s = (await import('./js/store.js')).getState();
+    const { workoutByNo } = await import('./js/plan.js');
+    return {
+      fest: ((s.log[n] || {}).fest || []).map((x) => x.id),
+      festAus: (s.log[n] || {}).festAus,
+      planStand: (s.planStand || {}).cut,
+      zeigt: workoutByNo(n, 'db').ex.map((x) => x.id),
+      toast: (document.getElementById('toast') || {}).textContent || '',
+    };
+  }, alt.n);
+  check(nach.planStand === alt.jetzt, `nach dem Import lief der Planwechsel (planStand ${nach.planStand})`);
+  check(nach.fest.join() === alt.ids.join() && nach.festAus === 'a51fd2af0bfc',
+    `die angefangene Einheit ${alt.n} steht mit ihrer alten Liste fest (${nach.fest.length} von ${alt.ids.length})`);
+  check([...nach.zeigt].sort().join() === [...alt.ids].sort().join(),
+    'und die App zeigt sie so – nicht die Übungen des neuen Plans');
+  check(/Import erfolgreich/.test(nach.toast), `die Meldung kommt nach dem Neuladen („${nach.toast.trim()}")`);
+}
+
 rmSync(datei, { force: true });
 rmSync(mist, { force: true });
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);

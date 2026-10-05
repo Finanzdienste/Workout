@@ -118,6 +118,64 @@ check(new RegExp(`${shift} Tage`).test(text),
   `und der Hinweis nennt genau diese Zahl (${shift})`);
 check(await page.locator('[data-act="download-ics"]').count() === 1, 'Knopf zum Erzeugen da');
 
+// --- Nach einem Plan-Update ist der Kalender auch veraltet -----------------
+// Jeder Termin trägt Übungsliste, Satzzahl und Dauer. Nach der Neuverteilung
+// vom 03.10. standen beim Cut 69 von 84 Terminen mit anderen Übungen im
+// Kalender – und die App meldete nur Verschiebungen. Der Export merkt sich
+// deshalb Fokus und Planstand, und der Hinweis sagt, was nicht mehr stimmt.
+const kalenderText = async (zustand) => {
+  await page.evaluate(async () => (await import('./js/store.js')).flush());
+  await page.evaluate((z) => localStorage.setItem('workout.state.v1', JSON.stringify(z)), zustand);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(300);
+  return (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+};
+const { aufbau, cutName } = await page.evaluate(async () => {
+  const { PLANS } = await import('./js/data.js');
+  return { aufbau: PLANS.standard.stand, cutName: PLANS.cut.name };
+});
+const grund = { greeted: true, log: {}, tab: 'settings', planStand: { standard: aufbau } };
+const ueberarbeitet = /Plan wurde seit dem letzten Export überarbeitet/;
+
+let t = await kalenderText({ ...grund, lastIcs: { on: '2026-09-30', shift: 0, seq: 1, count: 84, focus: 'standard', stand: aufbau } });
+check(!ueberarbeitet.test(t), 'derselbe Plan wie beim Export: kein Hinweis auf ein Update');
+
+t = await kalenderText({ ...grund, lastIcs: { on: '2026-09-30', shift: 0, seq: 1, count: 84, focus: 'standard', stand: 'aaaaaaaaaaaa' } });
+check(ueberarbeitet.test(t) && /andere Übungen/.test(t),
+  'exportiert unter einem älteren Planstand: die App sagt, dass der Kalender alte Übungen zeigt');
+check(/stimmen Termine und Übungen wieder/.test(t), 'und was zu tun ist');
+
+t = await kalenderText({ ...grund, lastIcs: { on: '2026-09-30', shift: 0, seq: 1, count: 84, focus: 'cut', stand: 'bbbbbbbbbbbb' } });
+check(t.includes(`Exportiert hast du „${cutName}"`), `exportiert unter einem anderen Fokus: der Hinweis nennt ihn („${cutName}")`);
+
+// Ein Export von vor dieser Angabe kennt seinen Plan nicht. Beim Start ist er
+// noch zu sagen – der, den planStand zuletzt vermerkt hat –, und das Update,
+// das gerade kommt, meldet die App dann auch für ihn.
+t = await kalenderText({ greeted: true, log: {}, tab: 'settings', planStand: { standard: 'cccccccccccc' },
+  lastIcs: { on: '2026-09-30', shift: 0, seq: 1, count: 84 } });
+const nachgetragen = await page.evaluate(async () => (await import('./js/store.js')).getState().lastIcs);
+check(nachgetragen.stand === 'cccccccccccc' && nachgetragen.focus === 'standard',
+  `ein alter Export bekommt beim Start seinen Plan nachgetragen (${nachgetragen.focus}, ${nachgetragen.stand})`);
+// Der Planwechsel hält die App auf dem Dashboard, wo sein Hinweis steht.
+check(/Der Plan wurde überarbeitet/.test(t), 'beim Start lief der Planwechsel');
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(300);
+t = (await page.locator('#view').textContent()).replace(/\s+/g, ' ');
+check(ueberarbeitet.test(t), 'und der Export gilt danach unter Mehr als veraltet');
+
+// Nach „Termine austragen" steht nichts mehr im Kalender, was veralten könnte.
+t = await kalenderText({ ...grund, lastIcs: { on: '2026-09-30', shift: 0, seq: 2, count: 0 } });
+const leer = await page.evaluate(async () => (await import('./js/store.js')).getState().lastIcs);
+check(!ueberarbeitet.test(t) && leer.stand === undefined, 'nach einer Datei aus lauter Absagen: kein Hinweis aufs Update');
+
+// Und der Export selbst merkt sich, woraus er stammt.
+await kalenderText({ ...grund, lastIcs: null });
+await page.locator('[data-act="download-ics"]').first().click();
+await page.waitForTimeout(300);
+const gemerkt = await page.evaluate(async () => (await import('./js/store.js')).getState().lastIcs);
+check(gemerkt && gemerkt.focus === 'standard' && gemerkt.stand === aufbau,
+  `der Export vermerkt Fokus und Planstand (${gemerkt && gemerkt.focus}, ${gemerkt && gemerkt.stand})`);
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();

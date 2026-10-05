@@ -40,6 +40,12 @@
  *      sie genau einmal darauf. Schon doppelt festgeschriebene Listen einer
  *      offenen Einheit werden beim Start berichtigt, einmal und mit Vermerk.
  *  12. Die feste Liste kennt die Satzzahl beider Modi (`bwSets`).
+ *  13. Mehrere Fassungen übersprungen: Für jeden Stand der Kette in
+ *      PLANS[f].vorher steht eine angefangene Einheit danach ganz fest – nicht
+ *      nur für den letzten Plan davor.
+ *  14. Die Reparatur einer Liste ohne Vermerk vergleicht mit dem Plan, aus dem
+ *      sie kam (Cut e06a62), nicht mit dem letzten davor (a51fd2): keine
+ *      Übungen, die nie in der Einheit standen.
  *
  * Und zu 5.: Die Startkarte zeigt danach die reparierte Einheit, nicht die
  * nächste – bis v219 stand dort „Workout 5" neben „wieder vollständig".
@@ -108,19 +114,25 @@ const lies = (n) => page.evaluate(async (nn) => {
 const gleich = (a, b) => [...a].sort().join() === [...b].sort().join();
 const voll = (k) => Array.from({ length: k }, () => ({ w: '20', done: true }));
 
-// Welche Variante bringt einen Plan davor mit? Ohne einen gibt es 2. bis 5.
-// und 8. nicht – dann ist nichts zu prüfen, und das wird gesagt statt
-// verschwiegen.
-const lage = await page.evaluate(async () => {
+// Die Stände, aus denen eine feste Liste ohne Vermerk stammen kann – nur gegen
+// die repariert festReparieren() (OHNE_VERMERK_AUS in js/app.js). Die kurzen
+// Listen von v215 kamen aus dem Cut e06a62.
+const OHNE_VERMERK = { cut: 'e06a6265485c', bbp: '0b49d3183b5b', oberkoerper: '905ce67222ec' };
+
+// Welcher frühere Plan liegt in der Kette? Ohne den Cut e06a62 gibt es 2. bis
+// 5. und 8. nicht – dann ist nichts zu prüfen, und das wird gesagt statt
+// verschwiegen. Er ist zugleich ein Stand, den ein späterer Plan einmal
+// überschrieben hatte: 2. ist damit schon ein Sprung über eine Fassung.
+const lage = await page.evaluate(async (stand) => {
   const { PLANS } = await import('./js/data.js');
-  const f = Object.keys(PLANS).find((k) => PLANS[k].vorher);
-  if (!f) return null;
-  const v = PLANS[f].vorher;
+  const f = 'cut';
+  const v = (PLANS[f].vorher || []).find((k) => k.stand === stand);
+  if (!v) return null;
   // Eine Nummer, deren alte Liste mindestens drei Übungen hatte.
   const i = v.ex.findIndex((l) => l.length >= 3);
   return { f, name: PLANS[f].name, stand: PLANS[f].stand, alt: v.stand, n: i + 1,
            liste: v.ex[i].map(([id, sets]) => ({ id, sets })) };
-});
+}, OHNE_VERMERK.cut);
 if (!lage) {
   console.log('     kein Plan bringt einen Vorgänger mit (tools/plan-vorher/) – 2. bis 5. und 8. entfallen');
 } else {
@@ -342,15 +354,16 @@ if (!lage) {
 // Eine Einheit im Plan davor mit einer Übung, die eine leichtere Fassung hat
 // (das hängende Knieheben) – hinter dem ersten Paar und nicht als letzte, damit
 // sie weder im Protokoll eines v214-Stands steht noch beim Reparieren fehlt.
-const stufe = await page.evaluate(async () => {
+// Aus einem Stand, gegen den auch repariert wird – 7. braucht ihn.
+const stufe = await page.evaluate(async (quellen) => {
   const { PLANS } = await import('./js/data.js');
   const { EX_BY_ID } = await import('./js/uebung.js');
   const leicht = (id) => {
     const l = (EX_BY_ID.get(id) || {}).anfaenger;
     return l && EX_BY_ID.has(l) ? l : null;
   };
-  for (const f of Object.keys(PLANS)) {
-    const v = PLANS[f].vorher;
+  for (const [f, s] of Object.entries(quellen)) {
+    const v = ((PLANS[f] || {}).vorher || []).find((k) => k.stand === s);
     if (!v) continue;
     const i = v.ex.findIndex((l) => l.length >= 4 && l.slice(2, -1).some(([id]) => leicht(id)));
     if (i < 0) continue;
@@ -359,7 +372,7 @@ const stufe = await page.evaluate(async () => {
     return { f, stand: PLANS[f].stand, alt: v.stand, n: i + 1, liste, j };
   }
   return null;
-});
+}, OHNE_VERMERK);
 if (!stufe) {
   console.log('     kein Plan davor mit einer Übung in zwei Fassungen – 6. und 7. entfallen');
 } else {
@@ -464,9 +477,9 @@ if (!stufe) {
 // je einem Satz, Einheit 2 angefangen – beide mit den Übungen des Plans davor.
 const woche = await page.evaluate(async () => {
   const { PLANS } = await import('./js/data.js');
-  const f = Object.keys(PLANS).find((k) => PLANS[k].vorher && PLANS[k].vorher.ex[1]);
+  const f = Object.keys(PLANS).find((k) => PLANS[k].vorher && PLANS[k].vorher[0].ex[1]);
   if (!f) return null;
-  const v = PLANS[f].vorher;
+  const [v] = PLANS[f].vorher;
   return { f, stand: PLANS[f].stand, alt: v.stand, e1: v.ex[0], e2: v.ex[1] };
 });
 if (!woche) {
@@ -555,10 +568,10 @@ if (!woche) {
 const beideModi = await page.evaluate(async () => {
   const { PLANS } = await import('./js/data.js');
   for (const f of Object.keys(PLANS)) {
-    const v = PLANS[f].vorher;
-    if (!v) continue;
-    const i = v.ex.findIndex((l) => l.length >= 3 && l.slice(1).some(([, s, b]) => b && b !== s));
-    if (i >= 0) return { f, alt: v.stand, stand: PLANS[f].stand, n: i + 1, liste: v.ex[i] };
+    for (const v of PLANS[f].vorher || []) {
+      const i = v.ex.findIndex((l) => l.length >= 3 && l.slice(1).some(([, s, b]) => b && b !== s));
+      if (i >= 0) return { f, alt: v.stand, stand: PLANS[f].stand, n: i + 1, liste: v.ex[i] };
+    }
   }
   return null;
 });
@@ -590,6 +603,84 @@ if (!beideModi) {
   const altModi = await liesModi(beideModi.n);
   check(altModi.bw[anders[0]] === anders[1] && altModi.db[anders[0]] === anders[1],
     `eine alte Liste ohne bwSets zeigt in beiden Modi ihre eine Zahl, wie bisher (${altModi.db[anders[0]]}/${altModi.bw[anders[0]]})`);
+}
+
+// --- 13. Mehrere Fassungen übersprungen: jeder Stand der Kette ---------------
+// Bis hierher brachte js/data.js je Variante nur den letzten Plan davor mit,
+// und jeder neue überschrieb ihn. Wer eine Cut-Einheit unter v214 (Stand
+// e06a62) in der Fokusansicht angefangen und die App erst nach dem 03.10.
+// wieder geöffnet hatte, fand seinen Stand nicht mehr – die Einheit wurde aus
+// dem Protokoll festgeschrieben, und das kannte nur das erste Paar. Hier für
+// jeden Stand der Kette: angefangen mit zwei Übungen im Protokoll, danach
+// steht die ganze Einheit fest, mit dem Stand als Vermerk.
+const ketten = await page.evaluate(async () => {
+  const { PLANS } = await import('./js/data.js');
+  return Object.entries(PLANS).flatMap(([f, p]) => (p.vorher || []).map((k) => {
+    const i = k.ex.findIndex((l) => l.length >= 3);
+    return { f, alt: k.stand, n: i + 1, ids: k.ex[i].map(([id]) => id), sets: k.ex[i].map(([, s]) => s) };
+  }));
+});
+check(ketten.length >= 7, `die Kette hat ${ketten.length} frühere Stände (mindestens die sieben ausgelieferten)`);
+for (const k of ketten) {
+  const [a, b] = k.ids;
+  await setze({
+    greeted: true, mode: 'db', focus: k.f, planStand: { [k.f]: k.alt },
+    log: { [k.n]: {
+      mode: 'db', startedOn: '2026-09-28', bw: {},
+      db: { [a]: [{ w: '20', done: true }, {}, {}], [b]: [{}, {}, {}] },
+      soll: { [a]: k.sets[0], [b]: k.sets[1] },
+    } },
+  });
+  const r = await lies(k.n);
+  check(r.fest.map((x) => x.split(':')[0]).join() === k.ids.join() && r.eintrag.festAus === k.alt,
+    `${k.f} unter ${k.alt}, Einheit ${k.n}: alle ${k.ids.length} Übungen fest, Vermerk ${r.eintrag.festAus} (${r.fest.length})`);
+}
+
+// --- 14. Repariert wird nur gegen den Plan, aus dem die Liste kam ------------
+// Ein Gerät, das v215 geladen und danach bis nach dem 03.10. nicht mehr
+// geöffnet hat: planStand a51fd2, in Einheit 3 und 4 die kurzen Listen von
+// v215 ohne Vermerk – entstanden aus dem Cut e06a62. Erster Start: der
+// Planwechsel. Zweiter Start: die Reparatur. Bis hierher verglich die mit dem
+// letzten Plan davor, a51fd2, und setzte in Einheit 3 dessen Liste ein:
+// Rudern und Face Pull, die nie in der Einheit standen. Einheit 4 blieb kurz.
+const sprung = await page.evaluate(async () => {
+  const { PLANS } = await import('./js/data.js');
+  const finde = (s) => (PLANS.cut.vorher || []).find((k) => k.stand === s);
+  const e06 = finde('e06a6265485c');
+  const a51 = finde('a51fd2af0bfc');
+  if (!e06 || !a51) return null;
+  return { e06: [3, 4].map((n) => e06.ex[n - 1].map(([id]) => id)), a51: [3, 4].map((n) => a51.ex[n - 1].map(([id]) => id)) };
+});
+if (!sprung) {
+  console.log('     Cut e06a62 oder a51fd2 fehlt in der Kette – 14. entfällt');
+} else {
+  const kurz = (ids) => ({
+    mode: 'db', startedOn: '2026-09-29', bw: {},
+    db: { [ids[0]]: [{ w: '40', done: true }, {}, {}], [ids[1]]: [{ done: true }, {}, {}] },
+    soll: { [ids[0]]: 3, [ids[1]]: 3 },
+    fest: [{ id: ids[0], sets: 3 }, { id: ids[1], sets: 3 }],
+  });
+  const paar3 = sprung.e06[0].slice(0, 2);
+  const paar4 = sprung.e06[1].slice(0, 2);
+  check(paar3.every((id) => sprung.a51[0].includes(id)) && sprung.a51[0].length > 2,
+    `Voraussetzung: das kurze Paar aus Einheit 3 steht auch im a51fd2, dort mit mehr (${sprung.a51[0].join(', ')})`);
+  await setze({
+    greeted: true, mode: 'db', focus: 'cut', planStand: { cut: 'a51fd2af0bfc' },
+    log: { 3: kurz(paar3), 4: kurz(paar4) },
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(300);
+  const drei = await lies(3);
+  const vier = await lies(4);
+  const ids = (r) => r.fest.map((x) => x.split(':')[0]);
+  console.log(`     Einheit 3: ${ids(drei).join(', ')} · Einheit 4: ${ids(vier).join(', ')}`);
+  check(ids(drei).join() === sprung.e06[0].join() && drei.eintrag.festAus === 'e06a6265485c',
+    `Einheit 3 hat wieder ihre Liste aus e06a62 (${sprung.e06[0].length} Übungen), Vermerk ${drei.eintrag.festAus}`);
+  check(!ids(drei).some((id) => !sprung.e06[0].includes(id)),
+    `und keine Übung, die nie in ihr stand (${ids(drei).filter((id) => !sprung.e06[0].includes(id)).join(', ') || 'keine'})`);
+  check(ids(vier).join() === sprung.e06[1].join(),
+    `Einheit 4 – der Fall vom 29.09. – ist wieder vollständig (${ids(vier).length} von ${sprung.e06[1].length})`);
+  check(/wieder vollständig/.test(vier.text), 'und die App sagt es');
 }
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

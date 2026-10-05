@@ -8,12 +8,20 @@
  * Datei hilft so wenig wie keine – die App nimmt den Plan davor nur, wenn sein
  * Stand der ist, von dem der Wechsel kommt.
  *
- * Geprüft wird das Tor selbst, in einem Wegwerf-Repo mit den echten Plänen:
+ * Die Ablage ist eine Kette: je ausgeliefertem Stand eine Datei,
+ * tools/plan-vorher/<variante>/<stand>.json. Bis zum 03.10. war es eine Datei
+ * je Variante, und der neue Plan überschrieb den vorigen – wer eine Fassung
+ * übersprungen hatte, fand seinen Stand nicht mehr.
+ *
+ * Geprüft wird zuerst, dass js/data.js die echte Kette mitbringt, dann das Tor
+ * selbst, in einem Wegwerf-Repo mit den echten Plänen:
  *
  *   1. Nichts geändert oder nur Termine verschoben: Es lässt durch.
- *   2. Ein Plan mit neuem Stand, der Plan davor veraltet oder gar nicht da: Es
- *      hält an und nennt den Befehl, der den ausgelieferten dorthin holt.
- *   3. Genau diesen Befehl ausgeführt: Es lässt durch.
+ *   2. Ein Plan mit neuem Stand, der ausgelieferte nicht in der Kette: Es
+ *      hält an und nennt die Befehle, die ihn dorthin holen.
+ *   3. Genau diese ausgeführt: Es lässt durch, und der ältere Stand liegt noch
+ *      daneben. Ein gelöschtes Glied, eine alte Einzeldatei, deren Stand in der
+ *      Kette fehlt, und eine falsch benannte Datei halten es an.
  *   4. Sein Fingerabdruck ist der aus tools/build-data.py – derselbe, den die
  *      App in js/data.js vergleicht. Rechnete das Tor anders, prüfte es etwas,
  *      das die App nie ansieht.
@@ -79,8 +87,10 @@ const umgebaut = (roh, nummer) => {
   return neu;
 };
 const umbauen = (f, nummer = 1) => schreibe(f, umgebaut(plan(f), nummer));
-const befehle = (text) => text.split('\n').filter((z) => /^\s*git show \S+ > \S+$/.test(z))
+const befehle = (text) => text.split('\n').filter((z) => /^\s*(git show \S+ > \S+|mkdir -p \S+)$/.test(z))
   .forEach((z) => execFileSync('sh', ['-c', z.trim()], { cwd: tmp }));
+// Wo ein Stand in der Kette liegt: tools/plan-vorher/<variante>/<stand>.json.
+const glied = (variante, roh) => `plan-vorher/${variante}/${standVon(roh)}.json`;
 
 try {
   mkdirSync(path.join(tmp, 'tools', 'pruefung'), { recursive: true });
@@ -89,18 +99,35 @@ try {
   cpSync(path.join(quelle, 'pruefung', 'plan-vorher.py'), datei('pruefung/plan-vorher.py'));
 
   // Der Ausgangszustand von tools/plan-vorher/, unabhängig vom echten Repo:
-  // für den Cut eine bekannt veraltete Ablage (Einheit 2 umgedreht), für den
-  // Standardplan ausdrücklich keine.
+  // für den Cut ein Glied der Kette, das nicht der laufende Plan ist (Einheit 2
+  // umgedreht), also ein älterer Stand – für den Standardplan ausdrücklich keins.
   const cut = plan('plan-cut.json');
   const veraltet = umgebaut(cut, 2);
-  mkdirSync(datei('plan-vorher'), { recursive: true });
-  schreibe('plan-vorher/cut.json', veraltet);
-  rmSync(datei('plan-vorher/standard.json'), { force: true });
+  mkdirSync(datei('plan-vorher/cut'), { recursive: true });
+  schreibe(glied('cut', veraltet), veraltet);
 
   check(standVon(cut) === PLANS.cut.stand && standVon(plan('plan.json')) === PLANS.standard.stand,
     `der Fingerabdruck im Test ist der aus js/data.js (${PLANS.cut.stand}, ${PLANS.standard.stand})`);
   check(standVon(veraltet) !== PLANS.cut.stand && standVon(umgebaut(cut, 1)) !== PLANS.cut.stand,
     'Umdrehen einer Einheit ergibt wirklich einen neuen Stand');
+
+  // Die echte Kette, so wie js/data.js sie mitbringt: jeder Stand aus
+  // tools/plan-vorher/<variante>/ außer dem laufenden – und darunter die, die
+  // am 03.10. überschrieben worden waren. Wer unter einem davon zuletzt
+  // trainiert hat, bekommt seine angefangene Einheit sonst nur aus dem
+  // Protokoll festgeschrieben.
+  for (const v of Object.keys(PLANS)) {
+    const ordner = path.join(quelle, 'plan-vorher', v);
+    const liegen = readdirSync(ordner).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5))
+      .filter((s) => s !== PLANS[v].stand);
+    const drin = (PLANS[v].vorher || []).map((k) => k.stand);
+    check(Array.isArray(PLANS[v].vorher) && liegen.sort().join() === [...drin].sort().join()
+        && PLANS[v].vorher.every((k) => k.ex.length === PLANS[v].plan.length),
+    `${v}: js/data.js bringt die ganze Kette mit (${drin.join(', ')})`);
+  }
+  const alte = { cut: 'e06a6265485c', bbp: '0b49d3183b5b', oberkoerper: '905ce67222ec' };
+  check(Object.entries(alte).every(([v, s]) => PLANS[v].vorher.some((k) => k.stand === s)),
+    `auch die Stände, die ein neuer Plan einmal überschrieben hatte (${Object.values(alte).join(', ')})`);
 
   git('init', '-q');
   git('add', '.');
@@ -125,21 +152,24 @@ try {
   umbauen('plan-cut.json');
   r = tor([basis]);
   zeige(r.text);
-  check(r.code === 1, 'neuer Cut, tools/plan-vorher/cut.json veraltet: das Tor hält an');
-  check(r.text.includes(`tools/plan-vorher/cut.json hat ${standVon(veraltet)}`),
-    `es nennt die Datei und den Stand, der dort liegt (${standVon(veraltet)})`);
+  check(r.code === 1, 'neuer Cut, in der Kette nur ein älterer Stand: das Tor hält an');
+  check(r.text.includes(`tools/plan-vorher/cut/${PLANS.cut.stand}.json fehlt`),
+    `es nennt die Datei, die fehlt – benannt nach dem ausgelieferten Stand (${PLANS.cut.stand})`);
   check(r.text.includes(`tools/plan-cut.json: ${PLANS.cut.stand} → ${standVon(plan('plan-cut.json'))}`),
     `sein Fingerabdruck ist der aus js/data.js (${PLANS.cut.stand})`);
-  const befehl = `git show ${basis}:tools/plan-cut.json > tools/plan-vorher/cut.json`;
+  const befehl = `git show ${basis}:tools/plan-cut.json > tools/plan-vorher/cut/${PLANS.cut.stand}.json`;
   check(r.text.includes(befehl), 'es nennt den Befehl, der den ausgelieferten Cut dorthin holt');
   check(!/plan-bbp|plan-oberkoerper|plan\.json/.test(r.text),
     'und nur den Plan, der sich geändert hat');
 
   // --- 3. Den genannten Befehl ausgeführt ------------------------------
   befehle(r.text);
-  check(readFileSync(datei('plan-vorher/cut.json'), 'utf8')
+  check(readFileSync(datei(`plan-vorher/cut/${PLANS.cut.stand}.json`), 'utf8')
     === readFileSync(path.join(quelle, 'plan-cut.json'), 'utf8'),
   'danach liegt dort der ausgelieferte Cut, Byte für Byte');
+  check(readdirSync(datei('plan-vorher/cut')).sort().join()
+      === [`${PLANS.cut.stand}.json`, `${standVon(veraltet)}.json`].sort().join(),
+  'neben dem älteren Stand – die Kette wird länger, nichts wird überschrieben');
   r = tor([basis]);
   zeige(r.text);
   check(r.code === 0, 'und das Tor lässt durch');
@@ -147,12 +177,58 @@ try {
   // --- 4. Der Standardplan heißt dort standard.json --------------------
   umbauen('plan.json');
   r = tor([basis]);
-  check(r.code === 1 && r.text.includes('tools/plan-vorher/standard.json fehlt'),
-    'neuer Standardplan ohne tools/plan-vorher/standard.json: das Tor hält an');
+  check(r.code === 1 && r.text.includes(`tools/plan-vorher/standard/${PLANS.standard.stand}.json fehlt`),
+    'neuer Standardplan ohne Kette unter tools/plan-vorher/standard/: das Tor hält an');
   check(r.text.includes(`tools/plan.json: ${PLANS.standard.stand} →`),
     `auch hier der Fingerabdruck aus js/data.js (${PLANS.standard.stand})`);
-  check(r.text.includes(`git show ${basis}:tools/plan.json > tools/plan-vorher/standard.json`),
-    'mit dem Befehl, der ihn dorthin holt');
+  check(r.text.includes('mkdir -p tools/plan-vorher/standard')
+      && r.text.includes(`git show ${basis}:tools/plan.json > tools/plan-vorher/standard/${PLANS.standard.stand}.json`),
+  'mit den Befehlen, die den Ordner anlegen und ihn dorthin holen');
+  befehle(r.text);
+  check(tor([basis]).code === 0, 'genau die ausgeführt: das Tor lässt durch');
+  rmSync(datei('plan-vorher/standard'), { recursive: true, force: true });
+
+  // --- 4b. Die Kette wird nur länger ------------------------------------
+  //
+  // Bis zum 03.10. lag je Variante eine Datei, und jeder neue Plan überschrieb
+  // sie. Ein Nutzer, der eine Fassung übersprungen hatte, lief danach unter
+  // einem Stand, den die App nicht mehr kannte. Ein Glied, das im
+  // ausgelieferten Stand lag, darf deshalb nicht verschwinden.
+  git('checkout', '--', 'tools');
+  rmSync(datei(glied('cut', veraltet)));
+  r = tor([basis]);
+  zeige(r.text);
+  check(r.code === 1 && r.text.includes(`> tools/plan-vorher/cut/${standVon(veraltet)}.json`),
+    `ein Glied der Kette gelöscht: das Tor hält an und nennt es (${standVon(veraltet)})`);
+  befehle(r.text);
+  check(readFileSync(datei(glied('cut', veraltet)), 'utf8').length > 0 && tor([basis]).code === 0,
+    'der genannte Befehl holt es zurück, und das Tor lässt durch');
+
+  // Ausgeliefert war noch die eine Datei von früher (tools/plan-vorher/cut.json),
+  // in der Kette fehlt ihr Stand: Auch der darf nicht verloren gehen – genau so
+  // ist der Cut e06a62 verschwunden.
+  git('checkout', '-qb', 'alt-einzeln', basis);
+  rmSync(datei('plan-vorher/cut'), { recursive: true, force: true });
+  schreibe('plan-vorher/cut.json', veraltet);
+  git('add', '-A');
+  git('commit', '-qm', 'Ablage wie bis zum 03.10.: eine Datei je Variante');
+  const einzeln = git('rev-parse', 'HEAD').trim();
+  rmSync(datei('plan-vorher/cut.json'));
+  r = tor([einzeln]);
+  zeige(r.text);
+  check(r.code === 1 && r.text.includes(`git show ${einzeln}:tools/plan-vorher/cut.json > tools/plan-vorher/cut/${standVon(veraltet)}.json`),
+    'gegen die alte Ablage verglichen: ihr Stand muss in die Kette, mit dem Befehl dafür');
+  befehle(r.text);
+  check(tor([einzeln]).code === 0, 'danach liegt er dort, und das Tor lässt durch');
+  git('checkout', '-qf', 'main');
+  git('clean', '-qfd', 'tools');
+
+  // Eine Datei unter fremdem Namen: Der Name ist der Stand.
+  cpSync(datei(glied('cut', veraltet)), datei('plan-vorher/cut/aaaaaaaaaaaa.json'));
+  r = tor([basis]);
+  check(r.code === 1 && r.text.includes(`plan-vorher/cut/aaaaaaaaaaaa.json hat den Stand ${standVon(veraltet)}`),
+    'eine Datei, die nicht wie ihr Stand heißt: das Tor hält an');
+  rmSync(datei('plan-vorher/cut/aaaaaaaaaaaa.json'));
 
   // --- 5. Wo es nichts zu vergleichen gibt -----------------------------
   git('checkout', '--', 'tools');
