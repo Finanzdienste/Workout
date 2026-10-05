@@ -1,7 +1,7 @@
 # Workout
 
 Trainings-App zum Plan aus `Workoutplan_mit_Bodyweight_Equivalent.xlsx` – mit
-Umschalter zwischen **Hantel-Variante** und der **Fassung für unterwegs**
+Wahl zwischen **Hantel-Variante** und der **Fassung für unterwegs**
 (Körpergewicht, Loop-Band und Klimmzugstange).
 
 Statische Web-App: kein Build, keine Abhängigkeiten, keine Server-Anbindung.
@@ -34,7 +34,7 @@ wäre eine App ohne Navigation.
 | --- | --- |
 | **Dashboard** | Startansicht: was heute ansteht, welche Muskelgruppen drankommen, Startknopf. Darunter drei Ebenen – Kurzliste, volle Übungsliste, Fokus-Ansicht während des Trainings. Mit ← und → durch die Einheiten blättern. |
 | **Statistik** | Kennzahlen, **Vergleich mit Freunden**, nächste Einheit, **Wochenvolumen Soll gegen Ist**, **Gewichtsverlauf je Übung** und **Volumen je Muskelgruppe** als Verlaufskarten, meist trainierte Übungen. |
-| **Mehr** | Einstiege zu **Kalender**, **Verletzt** und **eigenen Workouts**; Farbdesign, Teilen, Töne, Trainingsfokus, Standardmodus, „Modus je Workout merken“, Plan-Verschiebung, **Kalenderdatei für Google Kalender**, Export/Import als JSON, Backup-Datei, Alles löschen. |
+| **Mehr** | Einstiege zu **Kalender**, **Eigenes Workout**, **Übungen** und **Verletzt**; **Womit trainierst du** (Hanteln oder Bodyweight), Pause zwischen den Sätzen, Leiste unten, Erfahrung, Trainingsfokus, Farbe, Teilen, Ablauf (Supersätze, Aufwärmsätze), Übungsvorrat, Töne und Hinweise, Sport außerhalb des Plans, Plan neu starten, **Kalenderdatei für Google Kalender**, Daten (Sicherung, Export/Import als JSON, Alles löschen), Fassung. |
 
 Unter *Mehr* erreichbar:
 
@@ -43,6 +43,7 @@ Unter *Mehr* erreichbar:
 | **Kalender** | Monatsraster mit den tatsächlichen Terminen: was trainiert ist, was ansteht, was ausgefallen ist – je Tag mit Modus. Tippen zeigt die Übungen der Einheit. |
 | **Verletzt** | Verletzungen und Beschwerden anhaken. Betroffene Übungen fallen aus dem Plan oder werden getauscht – dauerhaft, bis der Haken weg ist. |
 | **Eigenes Workout** | Eine Einheit selbst zusammenstellen – neben dem Plan, nicht darin. |
+| **Übungen** | Alle Übungen nach Muskelgruppen – einzeln an- und abwählbar. |
 
 ## Drei Ebenen
 
@@ -68,19 +69,21 @@ heutige tag mit 4 Übungen optimal ist?"*, *„heute wieder nur fünf übungen �
 optimal?"*. Ob fünf viel oder wenig ist, weiß nur, wer die anderen 83 Einheiten
 daneben legen kann. Die kennt die App, der Nutzer nicht.
 
-Jetzt legt sie sie daneben. Jeder Fokus hat wenige Größen von Einheit – Aufbau,
-Oberkörper und „Bauch, Beine, Po" zwei, der Cut drei –, und die häufigste ist
-der Normalfall (gezählt in `tools/plan*.json`):
+Jetzt legt sie sie daneben. Jeder Fokus hat wenige Größen von Einheit – seit
+dem Neulauf vom 03.10. jeder genau zwei –, und die häufigste ist der Normalfall
+(gezählt am 05.10. in `tools/plan*.json`; die App zählt zur Laufzeit selbst, mit
+`groessenTabelle()`, und `python3 tools/pruefung/ruestaufwand.py
+tools/plan*.json` zeigt die Spanne in der Spalte „min–max"):
 
 | Fokus | Übungen je Einheit | häufigste Größe |
 |---|---|---|
 | Aufbau | 5 oder 6 | 6 (61 von 84) |
 | Oberkörper | 5 oder 6 | 6 (55 von 84) |
 | Bauch, Beine, Po | 5 oder 6 | 6 (63 von 84) |
-| Cut | 4 bis 6 | 5 (64 von 84) |
+| Cut | 4 oder 5 | 5 (68 von 84) |
 
-Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall; 18 Tage haben
-vier Übungen, zwei haben sechs (zum Cut siehe [Der Cut vom
+Im Cut heißt das: „nur fünf" ist der Normalfall und kein Ausfall; 16 Tage haben
+vier Übungen, keiner mehr sechs (zum Cut siehe [Der Cut vom
 25.09.](#der-cut-vom-2509-fünf-feste-grundübungen)).
 
 In der Kopfzeile stand dafür kurz ein Wort – „kurzer Tag", „normaler Tag". Raus
@@ -97,8 +100,8 @@ gelassen hat, hat andere Einheiten, und dann ist auch die Vergleichsgruppe eine
 andere.
 
 Über der Übungsliste – nicht in der Startansicht, die auf eine Bildschirmseite
-passen soll – steht der Satz dazu: *„Einheiten in diesem Fokus: 4 bis 5 Übungen,
-62 von 84 mit 5. Das Pensum je Muskelgruppe steht für die Woche fest; der Plan
+passen soll – steht der Satz dazu, im Cut etwa: *„Einheiten in diesem Fokus: 4
+bis 5 Übungen, 68 von 84 mit 5. Das Pensum je Muskelgruppe steht für die Woche fest; der Plan
 verteilt es auf die Einheiten."* Der zweite Halbsatz ist keine Trainingslehre,
 sondern die Bauweise des Generators: `tools/build-plan.py` legt das Volumen je
 Gruppe und Woche zuerst fest und verteilt es erst danach auf die Termine
@@ -107,10 +110,13 @@ Gruppe und Woche zuerst fest und verteilt es erst danach auf die Termine
 Die Satzzahl steht weiterhin in der Kopfzeile. Sie war mit der Einordnung daneben
 kurz weggefallen, weil sie im Plan meist Rechnerei ist – `15 Sätze` ist dann nur
 `5 Übungen` mal drei. Ohne das Wort daneben wäre die Zeile aber schlicht um eine
-Angabe kürzer, und in der Bodyweight-Fassung (die je Übung abweicht: 17 von 84
-Cut-Einheiten, 66 von 84 bei „Bauch, Beine, Po") und bei Nacharbeit ist die Summe
-ohnehin eine eigene Auskunft. *(17 von 84 war der Stand vor dem Cut vom 25.09.;
-seither sind es 19.)*
+Angabe kürzer, und in der Bodyweight-Fassung (die je Übung abweicht) und bei
+Nacharbeit ist die Summe ohnehin eine eigene Auskunft. Ohne Hanteln hat im Cut
+in 35 von 84 Einheiten mindestens eine Übung eine andere Satzzahl als mit, in
+„Bauch, Beine, Po" in 40; die Summe der Einheit weicht in 12 bzw. 14 ab (Stand
+05.10., gezählt in `tools/plan*.json`; die Auftritte je Plan zählt
+`tools/pruefung/vorher-nachher.py`). *(Hier standen 17 und später 19 Cut- und
+66 Bauch-Beine-Po-Einheiten – Stände vor den Neuläufen vom 25.09. und 03.10.)*
 
 ### Körperkarte
 
@@ -154,10 +160,12 @@ jede Fläche zeichnet das Muster von selbst.
 
 Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 
-* **Zwei Startknöpfe, kein Umschalten mittendrin.** *Hanteln starten* oder
-  *Bodyweight starten* – die Variante wird beim Start gewählt und steht dann
-  fest. Der Umschalter oben verschwindet während des Trainings: Zwischen zwei
-  Sätzen ist er keine Wahl mehr, sondern eine Möglichkeit, sich zu verklicken.
+* **Ein Startknopf, die Variante steht darunter.** Gewählt wird sie unter
+  *Mehr → Womit trainierst du*, nicht an der Stelle, an der man loslegen will:
+  Wer trainieren geht, hat sie längst getroffen. Früher gab es dafür einen
+  Umschalter oben und zwei Startknöpfe – *„Dass man sowohl oben als auch in der
+  Mitte unterscheiden kann ist unnötig."* Umstellen geht auch mitten im
+  Training (siehe [Die zwei Modi](#die-zwei-modi)).
 * **Workout starten.** Der Knopf beginnt die Einheit und wechselt in die
   Fokus-Ansicht: eine Übung groß, mit vorgeführter Bewegung, Gewicht und
   Satz-Knöpfen. Sind alle Sätze abgehakt, rückt die App von selbst zur
@@ -780,12 +788,20 @@ Anteilen; eine Woche sind vier aufeinanderfolgende Einheiten – dieselbe
 Einteilung, mit der `tools/build-plan.py` rechnet.
 
 **Kein Prozentwert.** Eine Woche mit 9,5 und 10,5 wären 99 %, obwohl alles
-stimmt: der Plan selbst schwankt um bis zu einen Satz. Angezeigt wird deshalb,
-wie viele Gruppen ihr Ziel erreicht haben („12/12"). Die Grenze ist genau das,
-was der Generator für die einzelne Woche garantiert – **kein ganzer Satz
-darunter**. Enger wäre keine Aussage über das Training, sondern über den
-Rundungsspielraum des Plans. Sind noch Einheiten der Woche offen, steht das
-dabei – sonst sähe eine halb trainierte Woche wie ein Rückstand aus.
+stimmt: der Plan selbst schwankt von Woche zu Woche. Angezeigt wird deshalb,
+wie viele Gruppen ihr Ziel erreicht haben („12/12"). **Im Ziel heißt: mindestens
+90 % dessen, was der Plan für diese Woche vorsieht** (`inTarget()` und
+`plannedWeek()` in `js/app.js`, Verletzungen und Modus eingerechnet) – nicht
+das Wochenziel selbst. Früher stand hier „kein ganzer Satz unter dem Ziel, genau
+das, was der Generator für die einzelne Woche garantiert". Beides stimmte nicht:
+Ein Satz ist bei den Waden (Ziel 6) ein Sechstel, bei der Brust (12) ein
+Zwölftel, und eine Garantie für die einzelne Woche gibt der Generator nicht –
+das Ziel ist ein Schnitt über den ganzen Plan, einzelne Wochen liegen über zwei
+Sätze daneben (siehe [2 bis 4 Sätze – gemessen](#2-bis-4-sätze--gemessen)). Wer
+alles abgehakt hatte, sah dann trotzdem „8 von 12 Gruppen im Ziel". Gemessen am
+Pensum der Woche ist eine vollständig trainierte Woche immer im Ziel. Sind noch
+Einheiten der Woche offen, steht das dabei – sonst sähe eine halb trainierte
+Woche wie ein Rückstand aus.
 
 ### Verlaufskarten
 
@@ -1257,12 +1273,18 @@ schob Sätze auf ohnehin volle Tage – die Einheiten gingen auf 37 bis 57 Minut
 auseinander und nur noch 67 von 80 waren verschieden. So kommt jede Gruppe in
 jeder Woche an mindestens zwei Tagen dran, ohne dass es woanders weh tut.
 
-**Ein ganzer Satz Abweichung wird nicht hingenommen.** Bleibt nach dem ersten
-Verteilungslauf eine Woche stehen, in der eine Gruppe einen ganzen Satz
-danebenliegt, sucht der Generator weiter – bis zu dreimal mit anderem Zufall.
-Die Verteilung ist eine Suche, kein Beweis: beim Einbau des Klumpen-Kriteriums
-stand nach dem ersten Anlauf genau ein solcher Fall da, und der zweite fand
-eine Verteilung ohne ihn.
+**Eine grobe Abweichung wird nicht hingenommen.** Bleibt nach dem ersten
+Verteilungslauf eine Woche stehen, in der eine Gruppe grob danebenliegt, sucht
+der Generator weiter – bis zu dreimal mit anderem Zufall. Die Verteilung ist
+eine Suche, kein Beweis: beim Einbau des Klumpen-Kriteriums stand nach dem
+ersten Anlauf genau ein solcher Fall da, und der zweite fand eine Verteilung
+ohne ihn. *(Damals hieß „grob" ein ganzer Satz. Das gilt nicht mehr: Seit jede
+Übung mit drei Sätzen dasteht, kann eine Gruppe mit Ziel 6 in einer Woche nur 3,
+6 oder 9 Sätze bekommen. Als grob gilt heute die Hälfte des Wochenziels
+(`MAX_REL` in `tools/build-plan.py`), und einzelne Wochen der ausgelieferten
+Pläne liegen über zwei Sätze daneben – siehe [2 bis 4 Sätze –
+gemessen](#2-bis-4-sätze--gemessen). Eine Garantie von einem Satz je Woche gibt
+es nicht.)*
 
 Die Länge einer Einheit ergibt sich fast vollständig aus den Zielen: ihre Summe
 über vierzehn Gruppen, abzüglich der Überschneidung (ein Goblet Squat zahlt
@@ -1950,8 +1972,11 @@ vor Kniebeuge oder Kreuzheben. Beides ist Vorermüdung: Die Grundübung endet
 dann am kleinen Muskel statt am großen, und genau dafür ist sie nicht da.
 `ruestOrder()` prüft das Ergebnis deshalb und setzt die Übung fest, die
 überholt hat; danach wird neu sortiert, bis nichts mehr überholt. Die Ersparnis
-bleibt dabei stehen – 304 Rüstvorgänge über den Plan, genau wie ohne die Regel,
-gegen 312 in der reinen Plan-Reihenfolge. Der Maßstab ist `tier` aus
+blieb dabei stehen – beim Einbau 304 Rüstvorgänge über den Aufbau-Plan, genau
+wie ohne die Regel, gegen 312 in der reinen Plan-Reihenfolge. Mit den Plänen vom
+03.10. sind es 260 gegen 281 (gemessen am 05.10.); die jeweils heutige Zahl gibt
+`tests/test-reihenfolge.mjs` aus („Rüstvorgänge: … sortiert gegen …"), und der
+Test schlägt an, wenn das Sortieren mehr kostet als die Plan-Reihenfolge. Der Maßstab ist `tier` aus
 `exercise-meta.json` und "beide treffen denselben Muskel direkt" (Anteil ab
 0,5); der Beinbeuger vor dem Drücken bleibt also erlaubt.
 
@@ -2050,7 +2075,7 @@ Bei Bruch, Riss und Bandscheibenvorfall steht über der Liste, dass hier die
 ärztliche Freigabe entscheidet, wann überhaupt wieder bewegt wird – nicht der
 Trainingsplan.
 
-**Alles geht durch eine Stelle.** `exOf()` in `js/app.js` – und darunter
+**Alles geht durch eine Stelle.** `exOf()` in `js/plan.js` – und darunter
 `adjustedPlan()` – ist der einzige Weg,
 auf dem die App an die Übungen eines Plantags kommt – Startansicht, Fokus,
 Statistik, Kalender. Damit kann es gar nicht passieren, dass eine
@@ -2363,10 +2388,22 @@ heute, nicht am Excel-Termin.
 
 ## Die zwei Modi
 
-Der Umschalter oben rechts wechselt die angezeigte Variante. Die Satzzahl bleibt
-in beiden Modi identisch, nur Übung und Wiederholungsbereich ändern sich – ohne
-Zusatzlast wird über mehr Wiederholungen, langsameres Tempo oder eine einbeinige
-Ausführung nachgeschärft.
+Gewählt wird die Variante unter *Mehr → Womit trainierst du*, als zwei
+gleichrangige Knöpfe *Hanteln* und *Bodyweight* – kein Umschalter oben mehr und
+kein „Standardmodus": *„‚Standardmodus' kann raus. Hier schaltet man immer
+zwischen Hanteln und bodyweight hin und her je nachdem was man grad hat und so.
+Nichts davon ist Standard."* Die Startansicht sagt unter dem Startknopf nur, was
+gilt.
+
+Ohne Hanteln ändern sich Übung und Wiederholungsbereich – ohne Zusatzlast wird
+über mehr Wiederholungen, langsameres Tempo oder eine einbeinige Ausführung
+nachgeschärft – **und die Satzzahl**: Jeder Auftritt hat ohne Hanteln eine
+eigene, zwei bis vier Sätze (`bwSets`), damit die Fassung für unterwegs dieselben
+Wochenziele trifft (siehe [Der Bodyweight-Modus trifft jetzt dieselben
+Ziele](#der-bodyweight-modus-trifft-jetzt-dieselben-ziele)). Wie viele Auftritte
+je Plan abweichen, zählt `tools/pruefung/vorher-nachher.py`; am 05.10. waren es
+58 von 481 im Aufbau, 83 von 483 in „Bauch, Beine, Po", 61 von 404 im Cut und
+17 von 475 im Oberkörper.
 
 Beide Varianten werden **getrennt** protokolliert: Wer ein Workout mit Hanteln
 beginnt und auf Bodyweight umschaltet, verliert die Einträge nicht.
@@ -2388,10 +2425,15 @@ ein Tipp auf einen leeren Knopf buchte einen Satz, den es nie gab. Jetzt steht
 darunter, wie in der Liste, dass die Sätze der anderen Variante mitzählen, und
 eine über beide fertige Übung bekommt keinen Satz mehr dazu.
 
-Ist „Modus je Workout merken“ aktiv (Standard), behält eine einmal bearbeitete
-Einheit ihren Modus, auch wenn global umgeschaltet wird.
+Einen Schalter „Modus je Workout merken" gibt es nicht mehr: Die eigene
+Variante einer Einheit gilt immer, wenn sie eine hat (`workoutMode()` in
+`js/store.js`), alle anderen nehmen die Wahl unter *Mehr*. Welche Einheiten
+beim Umstellen mitwechseln, steht oben unter *Was umgestellt wird*.
 
 ## Übungszuordnung
+
+Alle 38 Übungen aus `js/data.js`, Stand 05.10. Die ersten
+29 stehen in mindestens einem der vier Pläne:
 
 | Hanteln | Fassung für unterwegs | Gerät |
 | --- | --- | --- |
@@ -2418,14 +2460,39 @@ Einheit ihren Modus, auch wenn global umgeschaltet wird.
 | Rumänisches Kreuzheben | Einbeiniges Kreuzheben (Standwaage) | Ohne Gerät |
 | Split Squat | Split Squat ohne Gewicht | Ohne Gerät |
 | Hängendes Knieheben | Hängendes Knieheben | Klimmzugstange |
-| Band-Pull-Apart | Band-Pull-Apart | Loop-Band (Face Pull: + Klimmzugstange) |
+| Band-Pull-Apart | Band-Pull-Apart | Loop-Band |
+| Inverted Row | Inverted Row | Klimmzugstange tief |
+| Einbeiniges Kreuzheben | Einbeiniges Kreuzheben | Ohne Gerät |
+| Pike-Liegestütze | Pike-Liegestütze | Ohne Gerät |
+| Kurzhantel-Bodenpresse | Enge Liegestütze | Ohne Gerät |
+| Face Pull | Face Pull | Loop-Band + Klimmzugstange |
+
+Die übrigen 9 stehen in keinem Plan. Sie kommen als Ersatz hinein – wenn eine
+Verletzung eine Übung sperrt (`js/injuries.js`) oder ein Gerät fehlt
+(`js/vorrat.js`) – und stehen für eigene Workouts bereit:
+
+| Hanteln | Fassung für unterwegs | Gerät |
+| --- | --- | --- |
+| Hammercurls | Band-Hammercurls | Loop-Band |
+| Reverse Snow Angel | Reverse Snow Angel | Ohne Gerät |
+| Knieheben im Liegen | Knieheben im Liegen | Ohne Gerät |
+| Seitheben mit Flaschen | Seitheben mit Flaschen | zwei volle Flaschen |
+| Rucksack-Curls | Rucksack-Curls | Rucksack |
+| Rucksack-Rudern | Rucksack-Rudern | Rucksack |
+| Sitzendes Seitheben mit Flaschen | Sitzendes Seitheben mit Flaschen | zwei volle Flaschen |
+| Trizepsstrecken an der Tischkante | Trizepsstrecken an der Tischkante | Tischkante |
+| Beckenheben | Beckenheben | Ohne Gerät |
+
+Die Liste selbst ist nicht die Quelle: Namen kommen aus der Excel oder, für Übungen,
+die dort nicht stehen, aus `tools/exercise-meta.json`; das Gerät steht dort ebenfalls.
+*Mehr → Übungen* zeigt die ganze Liste in der App.
 
 ## Aufbau
 
 ```
-index.html              Grundgerüst, Topbar mit Modus-Umschalter, Tabbar
+index.html              Grundgerüst, Topbar, Tabbar
 css/styles.css          Styling (dunkel, mobil zuerst)
-js/data.js              Aus Excel + plan.json erzeugt: 24 Übungen, 84 Einheiten, Wochenziele
+js/data.js              Aus Excel + plan*.json erzeugt: 38 Übungen, je Fokus 84 Einheiten, Wochenziele
 js/injuries.js          Verletzungskatalog und die Anpassung des Plans
 js/dates.js             Datums-Hilfsfunktionen inkl. Monatsraster
 js/store.js             Zustand und localStorage-Persistenz
@@ -2435,7 +2502,15 @@ js/stufen.js            Erfahrungsstufen: Startgewichte, Sätze, Aufstieg
 js/gewichte.js          Arbeitsgewichte und die Reihenfolge beim Umbauen
 js/plan.js              Termine, Übungen je Einheit, Nacharbeit, Fortschritt
 js/bilanz.js            Was insgesamt geleistet wurde, über Runden hinweg
-js/app.js               Rendering der fünf Tabs und Event-Handling
+js/scheiben.js          Welche Gewichte sich aus Stange und Scheiben bauen lassen
+js/supersatz.js         Welche Übungen sich zum Supersatz paaren
+js/vorrat.js            Was gerade da ist, und der Ersatz für das, was fehlt
+js/aktivitaeten.js      Was Sport außerhalb des Plans mit welchem Muskel macht
+js/termine.js           Tage, an denen etwas anderes ansteht
+js/muster.js            Was im Protokoll steht, ohne dass es jemand hingeschrieben hat
+js/anzeige.js           Symbole und Beschriftungen für mehrere Ansichten
+js/ansicht-*.js         Kalender, Scheiben, Vorrat, Statistik: Ansichten, die nur lesen
+js/app.js               Zustand der Oberfläche, Routing, Ereignisse, alles, was ins DOM schreibt
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
 js/chart.js             Verlaufskarten für die Statistik
@@ -2503,22 +2578,31 @@ korrigierten Eingaben neu gebaut und gegen den Vergleichsstand geprüft:
 
 Was bleibt, ist die Aufgabe, das nicht mehr unbemerkt passieren zu lassen.
 `tools/pruefung/plan-frisch.py` hält in `tools/pruefung/plan-eingaben.json`
-fest, aus welchen Eingaben die Pläne entstanden sind — und zwar nur die fünf
-Felder, die den Plan wirklich bestimmen (`dbShares`, `bwShares`, `tier`,
-`equip`, `dbWeight`). Hinweistexte und Zeichenmuster ändern sich oft und ändern
-am Plan nichts; zählte man sie mit, schlüge die Prüfung ständig grundlos an und wäre
-nach der dritten Meldung abgeschaltet.
+fest, aus welchen Eingaben die Pläne entstanden sind — und zwar je Variante
+nur die sechs Felder, die den Plan wirklich bestimmen (`dbShares`, `bwShares`,
+`tier`, `equip`, `dbWeight` und, seit dem 25.09., `bewegung`). Hinweistexte und
+Zeichenmuster ändern sich oft und ändern am Plan nichts; zählte man sie mit,
+schlüge die Prüfung ständig grundlos an und wäre nach der dritten Meldung
+abgeschaltet.
 
-Die bekannte Abweichung steht unter `hingenommen`, mit Begründung. Das ist kein
-Schlupfloch, sondern der ehrlichere von zwei Wegen: Im Repo steht damit
-schwarz auf weiß, dass die Pläne älter sind als ihre Eingaben und warum das so
-bleiben soll. Ein Fingerabdruck, den man einfach nachzieht, verschwiege
+Die damals bekannte Abweichung stand unter `hingenommen`, mit Begründung. Das
+ist kein Schlupfloch, sondern der ehrlichere von zwei Wegen: Im Repo steht
+damit schwarz auf weiß, dass ein Plan älter ist als seine Eingaben und warum
+das so bleiben soll. Ein Fingerabdruck, den man einfach nachzieht, verschwiege
 dieselbe Lage. Jede *neue* Abweichung schlägt an — nachgestellt mit einer
 erfundenen Änderung an `goblet-squat.tier`.
 
-Praktisch heißt das: `equip` wirkt hier nur auf die Bündelung der Umbauten. Die
+*(Stand 05.10.: Alle vier Pläne sind mit ihren heutigen Eingaben erzeugt, und
+`hingenommen` ist leer. Dort standen bis dahin 17 Einträge – „neu im Katalog"
+für Übungen, die `--schreiben` längst in den festgehaltenen Stand übernommen
+hatte. Keiner konnte je wieder greifen, und doch las sich jeder wie eine gültige
+Ausnahme. Seitdem leert `--schreiben` die Einträge der geschriebenen Variante
+mit, und die Prüfung schlägt an, wenn unter `hingenommen` etwas steht, zu dem es
+keine Abweichung mehr gibt.)*
+
+Praktisch hieß das damals: `equip` wirkte nur auf die Bündelung der Umbauten. Die
 Reihenfolge *innerhalb* einer Einheit rechnet die App ohnehin zur Laufzeit mit
-dem aktuellen Wert (`ruestOrder` in `js/gewichte.js`) — die SZ-Stange steht also
+dem aktuellen Wert (`ruestOrder` in `js/gewichte.js`) — die SZ-Stange stand also
 längst da, wo sie hingehört.
 
 ### Die Rechnung steht neben der Anzeige, nicht darin
@@ -2528,29 +2612,75 @@ sie zeigt. Das ist keine Stilfrage. Wer nachsehen wollte, wie die Satzzahl
 zustande kommt, musste durch Renderfunktionen scrollen; und jede Rechnung war
 nur über den Browser prüfbar, weil sie an einem `<div>` klebte.
 
-Die Rechnung steht jetzt in sechs Modulen daneben, streng in einer Richtung —
-jedes benutzt nur die vor ihm, keines benutzt `app.js`:
+Die Rechnung steht seit dem 08.09. in sechs Modulen daneben, streng in einer
+Richtung — jedes benutzt nur die vor ihm, keines benutzt `app.js`. Verschoben
+wurde damals **wortgleich**: kein Verhalten geändert, keine Zeile neu getippt.
+Die 815 Browserprüfungen liefen vorher und nachher unverändert grün — bei einem
+Umbau dieser Größe ist das der einzige Beleg, der zählt. Seitdem sind weitere
+Module dazugekommen, und die sechs sind gewachsen (Zeilen am 05.10.; damals in
+Klammern):
 
 | Modul | Was darin steht | Zeilen |
 | --- | --- | --- |
-| `js/text.js` | Text und Zahlen fürs Auge | 23 |
-| `js/uebung.js` | die einzelne Übung nachschlagen | 43 |
-| `js/stufen.js` | Startgewichte, Sätze je Übung, Aufstieg | 125 |
-| `js/gewichte.js` | Arbeitsgewichte, Reihenfolge beim Umbauen | 240 |
-| `js/plan.js` | Termine, Übungen je Einheit, Nacharbeit, Fortschritt | 519 |
-| `js/bilanz.js` | was insgesamt geleistet wurde, über Runden hinweg | 204 |
+| `js/text.js` | Text und Zahlen fürs Auge | 28 (23) |
+| `js/uebung.js` | die einzelne Übung nachschlagen | 96 (43) |
+| `js/stufen.js` | Startgewichte, Sätze je Übung, Aufstieg | 250 (125) |
+| `js/gewichte.js` | Arbeitsgewichte, Reihenfolge beim Umbauen | 496 (240) |
+| `js/plan.js` | Termine, Übungen je Einheit, Nacharbeit, Fortschritt | 1141 (519) |
+| `js/bilanz.js` | was insgesamt geleistet wurde, über Runden hinweg | 278 (204) |
+| `js/scheiben.js` | welche Gewichte sich aus Stange und Scheiben bauen lassen | 417 |
+| `js/supersatz.js` | welche Übungen sich zum Supersatz paaren | 214 |
+| `js/vorrat.js` | was gerade da ist, und der Ersatz für das, was fehlt | 350 |
+| `js/aktivitaeten.js` | was Sport außerhalb des Plans mit welchem Muskel macht | 560 |
+| `js/termine.js` | Tage, an denen etwas anderes ansteht | 183 |
+| `js/muster.js` | was im Protokoll steht, ohne dass es jemand hingeschrieben hat | 145 |
 
-Verschoben wurde **wortgleich**: kein Verhalten geändert, keine Zeile neu
-getippt. Die 815 Browserprüfungen liefen vorher und nachher unverändert grün —
-bei einem Umbau dieser Größe ist das der einzige Beleg, der zählt.
+Am 18.09. kam die zweite Hälfte dazu: **die Ansichten, die nur lesen und HTML
+zurückgeben**, aus `app.js` heraus (6926 → 6107 Zeilen). Die Grenze dabei:
+**Wer schreibt, bleibt.** Eine Ansicht, die `render()` aufruft oder `ui`
+verändert, wäre keine Ansicht, sondern eine Handlung; wo eine Ansicht Zustand
+der Oberfläche braucht, bekommt sie ihn als Argument (`vorratKarte(seite)`,
+`calMonthNow(gewaehlt)`).
 
-**Was bleibt.** `js/app.js` hat noch 4571 Zeilen: die Renderfunktionen,
-den Zustand der Oberfläche (`ui`), die Tab-Verwaltung und den Klick-Verteiler.
-Diese Hälfte weiter zu zerlegen ginge auch, hieße aber, `ui`, `render()` und
-`go()` über eine Registrierung zu entkoppeln — die drei Blöcke, die dafür in
-Frage kämen (Kalender, Verletzungen, Betreiber-Übersicht), greifen alle
-darauf zu. Das ist mehr Maschinerie, als es einbringt, und wird deshalb
-bewusst nicht gemacht.
+| Modul | Was darin steht | Zeilen |
+| --- | --- | --- |
+| `js/anzeige.js` | Symbole und Beschriftungen, die mehr als eine Ansicht braucht | 48 |
+| `js/ansicht-kalender.js` | das Monatsraster | 271 |
+| `js/ansicht-scheiben.js` | Stangen und Scheiben | 207 |
+| `js/ansicht-vorrat.js` | was da ist, und die Übungsübersicht | 264 |
+| `js/ansicht-statistik.js` | die Karten der Statistik | 292 |
+
+**Was bleibt, und warum es vorerst bleibt.** Hier stand am 08.09.: „`js/app.js`
+hat noch 4571 Zeilen … weiter zerlegen ist mehr Maschinerie, als es einbringt."
+Am 05.10. sind es rund 7300 Zeilen – mehr als die 5535, die der Anlass für die
+erste Aufteilung waren, und das trotz der Ansichten, die am 18.09. hinausgingen.
+Die Begründung von damals muss sich also an anderen Zahlen messen lassen:
+
+* **Was drin ist.** Grob nachgezählt an den Abschnittsköpfen: der
+  Ereignis-Verteiler mit 103 `case`-Zweigen und gut 1000 Zeilen (109 Zugriffe
+  auf `ui`, 87 Aufrufe von `render()`), Training und Fokusansicht, Zusatztag
+  und Wochenvolumen, Verletzungen mit Reha-Übungen (rund 600 Zeilen),
+  Betreiber-Übersicht und die Seite *Mehr* (zusammen rund 640), Rückkanal,
+  Vergleich mit Freunden, Bandstärke, Pausentimer und der Start.
+* **Was eine weitere Zerlegung bringen würde.** Jede Änderung trifft weniger
+  fremden Code; Ansichten wie *Mehr*, Verletzungen oder Betreiber-Übersicht
+  ließen sich wie die vom 18.09. für sich prüfen; und mehrere Änderungen
+  gleichzeitig kämen sich seltener in die Quere – seit dem 18.09. haben 40 von
+  95 Commits `js/app.js` angefasst.
+* **Was sie kostet.** Die Renderfunktionen dieser Blöcke lesen `ui` und rufen
+  `render()` und `go()` auf; herauslösen hieße, ihnen den Zustand als Argument
+  zu geben und das Schreiben im Verteiler zu lassen, Ansicht für Ansicht. Der
+  Verteiler selbst bleibt so groß, wie er ist, solange jede Handlung dort ein
+  `case` ist – ihn aufzuteilen bräuchte eine Registrierung, also genau die
+  Maschinerie, die am 08.09. zu viel war. Und jeder Umzug ist ein großer Diff
+  (am 18.09. +4055/−3818 Zeilen), der mit allem kollidiert, was gleichzeitig in
+  `app.js` arbeitet.
+
+Deshalb wird jetzt nicht zerlegt – nicht, weil es sich nicht lohnte, sondern
+weil es nur in einer ruhigen Phase ohne parallele Änderungen an `app.js` geht.
+Kandidaten nach dem Muster vom 18.09. sind die Seite *Mehr* (`renderSettings()`
+und ihre Karten), Verletzungen mit Reha-Übungen und die Betreiber-Übersicht;
+den Verteiler selbst lohnt es erst danach anzusehen.
 
 **Damit die Richtung hält**, prüft `tools/pruefung/schichten.py` bei jedem
 Push drei Dinge: keine Kreise zwischen den Modulen, jedes von `app.js`
@@ -2654,10 +2784,13 @@ Zusage, auf der die ganze Tagesverteilung steht.
 dritte feste Regel, und sie kommt ohne neue Zahl aus: Die Wochenobergrenze
 steht schon da. Schöpft ein einzelner Tag sie aus, ist etwas grundsätzlich
 schiefgegangen – unabhängig davon, was die Trainingslehre zum optimalen
-Tagesvolumen sagt, wo die Datenlage dünn ist. Sie greift heute nirgends: Der
-höchste Wert über alle vier Pläne und beide Modi ist 8,7 (Trizeps, Oberkörper
-ohne Hanteln) bei einer Obergrenze von 10. Genau das ist ihr Zweck – nichts ändern, sondern anschlagen, wenn sich
-etwas ändert.
+Tagesvolumen sagt, wo die Datenlage dünn ist. Sie greift nirgends (Stand 05.10.):
+Der höchste Wert über alle vier Pläne und beide Modi ist 8,85 (Trizeps,
+Oberkörper ohne Hanteln) bei einer Obergrenze von 13; am knappsten liegt der
+Trizeps im Aufbau ohne Hanteln mit 8,8 bei 10. Die aktuellen Werte zeigt
+`python3 tools/pruefung/plan-pruefen.py --bericht` in der Spalte *Spitzentag*.
+Genau das ist ihr Zweck – nichts ändern, sondern anschlagen, wenn sich etwas
+ändert.
 
 Gemessen wird in **gewichtetem Volumen**, derselben Währung wie die Ziele. Die
 rohe Satzzahl taugt dafür nicht, und das ist keine Feinheit: Sie meldet für den
@@ -2689,8 +2822,8 @@ Sätze; also kommt eine Muskelgruppe genau so oft dran, wie sie direkte Sätze
 durch drei hat. Im Aufbau-Plan (Hanteln) nachgemessen: 3,0 direkte Sätze
 ergeben 1,00 Termine, 4,4 ergeben 1,48, 5,9 ergeben 1,95, 8,1 ergeben 2,71.
 Weniger Termine werden es nur dort, wo eine Gruppe an einem Tag zwei direkte
-Übungen bekommt – beim Trizeps an 35 von 63 Tagen, deshalb 15,1 direkte Sätze
-an 3,0 Terminen.
+Übungen bekommt – beim Trizeps an 31 von 63 Tagen (Stand 05.10.), deshalb 15,1
+direkte Sätze an 3,0 Terminen.
 
 Der Haken ist, dass die *Ziele* etwas anderes zählen – gewichtetes Volumen,
 also auch das Halten bei der Kniebeuge und das Mitziehen beim Rudern. Eine
@@ -2720,23 +2853,41 @@ Was als dieselbe Bewegung gilt, steht als `bewegung` in
 `tools/exercise-meta.json`, je Modus, wo es sich unterscheidet – ohne Hanteln
 werden Floor Press und gewichtete Liegestütze beide zu Liegestützen. Der
 Generator verteilt danach (`split()`, erstes Kriterium), und
-`tools/pruefung/bewegung.py` prüft es in CI.
+`tools/pruefung/bewegung.py` prüft es in CI – **jeden Modus für sich**.
 
 Neu verteilt wurden nur die Tage, nicht die Mengen (`WK_NUR_TAGE=1`): Jede
 Woche bekommt genau die Sätze je Übung wie vorher, nur auf andere Einheiten.
 
-| Plan | vorher | danach | heute | Rüstvorgänge je Einheit (vorher → danach → heute) |
+| Plan | vorher | danach | 05.10. (mit / ohne Hanteln) | Rüstvorgänge je Einheit (vorher → danach → 05.10.) |
 | --- | ---: | ---: | ---: | --- |
-| Aufbau | 21 | 8 | 8 | 3,52 → 3,55 → 3,55 |
-| Bauch, Beine, Po | 3 | 0 | 0 | 3,30 → 3,31 → 3,16 |
-| Cut | 5 | 0 | 0 | 3,01 → 3,05 → 3,05 |
-| Oberkörper | 49 | 34 | 32 | 3,00 → 3,08 → 3,24 |
+| Aufbau | 21 | 8 | 1 / 8 | 3,52 → 3,55 → 3,45 |
+| Bauch, Beine, Po | 3 | 0 | 0 / 0 | 3,30 → 3,31 → 3,10 |
+| Cut | 5 | 0 | 0 / 0 | 3,01 → 3,05 → 2,85 |
+| Oberkörper | 49 | 34 | 11 / 32 | 3,00 → 3,08 → 3,04 |
 
-*„danach" ist der Stand dieser Umstellung (Cut: 17.09., sonst 25.09.), „heute"
-der der ausgelieferten Pläne – gezählt von `tools/pruefung/bewegung.py` und
-festgehalten in `tests/ruestaufwand-stand.json`. Bauch, Beine, Po und Oberkörper
-sind am 29.09. neu gerechnet worden (siehe unten); dort steht auch, warum der
-Oberkörper dabei Rüstvorgänge zugelegt hat.*
+*Gezählt werden Paare, nicht Einheiten (im Oberkörper ohne Hanteln 32 Paare in
+29 Einheiten). „danach" ist der Stand dieser Umstellung (Cut: 17.09., sonst
+25.09.); „vorher" und „danach" zählen ein Paar einmal, egal in welchem Modus es
+doppelt ist. Die letzte Spalte ist der Stand der Pläne vom 03.10. (siehe *Neu
+gerechnet am 03.10.*), gezählt am 05.10. Den jeweils heutigen geben
+`python3 tools/pruefung/bewegung.py` (Paare je Modus) und
+`python3 tools/pruefung/ruestaufwand.py tools/plan*.json` (Spalte „Rüsten") aus;
+festgehalten ist er in `tools/pruefung/bewegung-stand.json` und
+`tests/ruestaufwand-stand.json`. Seit dem 03.10. liegt der Umbau in drei der
+vier Pläne unter „vorher"; der Oberkörper liegt mit 3,04 noch knapp darüber.*
+
+**Je Modus, nicht zusammen.** Bis zum 05.10. zählte `bewegung.py` ein Paar
+einmal, egal in welchem Modus es doppelt war, und verglich mit einer Zahl je
+Plan. Ohne Hanteln werden Floor Press und Füße-erhöhte Liegestütze aber beide zu
+Liegestützen, und diese Paare setzten die Grenze: Im Oberkörper hätten es mit
+Hanteln statt 11 bis zu 32 Paare werden dürfen, im Aufbau statt 1 bis zu 8, ohne
+dass die CI etwas merkt. Genau so ist es im Generator schon einmal passiert –
+mit Hanteln 11 → 19 bei gleicher Summe (der Kommentar bei `bewpaare` in
+`tools/build-plan.py`, der seither je Modus begrenzt). Jetzt steht in
+`bewegung-stand.json` je Plan `{"db": …, "bw": …}`, und jede Zahl wird für sich
+verglichen. Gegenprobe: Ein Tausch zweier Übungen im Oberkörper-Plan, der mit
+Hanteln ein zwölftes Paar macht und ohne Hanteln bei 32 bleibt, ließ die alte
+Prüfung grün und schlägt in der neuen an.
 
 **Null geht nicht überall, und das ist Arithmetik.** Im Oberkörper-Plan haben
 seitliche Schulter und Brust je 12 Sätze die Woche, also vier Auftritte, und die
@@ -2745,7 +2896,7 @@ Hanteln sind alle Brustübungen Liegestütze. Im Aufbau sind die restlichen acht
 dieselbe Lage: Floor Press und Füße-erhöhte Liegestütze, beide ohne Hanteln
 Liegestütze. Dort sind es sechs Sätze für eine Gruppe an einem Tag – nicht
 schlechter als eine Übung mit sechs Sätzen. `tools/pruefung/bewegung-stand.json`
-hält den erreichten Stand fest; mehr schlägt an.
+hält den erreichten Stand je Plan und Modus fest; mehr schlägt an.
 
 **Was es kostet, steht hier, damit es niemand später als Fehler findet:** etwas
 mehr Umbau (Tabelle oben – 2 Rüstvorgänge mehr über den ganzen Aufbau-Plan, 7 im
@@ -2754,7 +2905,14 @@ hingenommen sind: im Aufbau der Nacken 2,24 statt 2,33 Termine je Woche, in
 „Bauch, Beine, Po" der Trizeps 2,43 statt 2,52 und ein bis zwei Tage mehr
 Abstand bei Gesäß und Oberschenkel, im Cut die vordere Schulter mit bis zu 12
 statt 9 Tagen Abstand. Nacken und vordere Schulter haben in diesen Plänen kein
-eigenes Ziel; sie laufen mit.
+eigenes Ziel; sie laufen mit. *(Seit 03.10. zum Teil erledigt: Der Umbau im
+Aufbau liegt unter „vorher", der im Oberkörper nur noch 0,04 je Einheit darüber
+statt 0,08 (Tabelle oben); der Trizeps in „Bauch, Beine, Po" ist
+wieder bei 2,52 Terminen, der Oberschenkel dort wieder bei höchstens 3 Tagen
+Abstand, die vordere Schulter im Cut bei höchstens 7. Geblieben sind der Nacken
+im Aufbau mit 2,24 und das Gesäß in „Bauch, Beine, Po" mit höchstens 5 statt 3
+Tagen. Gemessen am 05.10. mit `python3 tools/pruefung/plan-pruefen.py
+--bericht`.)*
 
 ## Trainingsfokus
 
@@ -3004,7 +3162,10 @@ Bizeps 2,24 statt 2,52 Termine je Woche, Gesäß 2,76 statt 3,00 und bis 5 statt
 3 Tage Abstand, vordere Schulter 1,95 statt 2,10 und bis 7 statt 5 Tage – mit
 denselben Sätzen, nur anders verteilt. Der Beinbeuger am Knie (ein Termin je
 Woche) hat zweimal 11 Tage Abstand statt höchstens 7; das lag in allen
-gerechneten Varianten so. In der stärksten Woche liegt mit Hanteln der Nacken
+gerechneten Varianten so. *(Seit 03.10. erledigt: Mit der exakten
+Tagesverteilung sind es höchstens 9 Tage, dreimal; das Gesäß kommt auf 2,90
+Termine und höchstens 4 Tage, die vordere Schulter auf 2,05. Der Bizeps steht
+weiter bei 2,24 – siehe *Neu gerechnet am 03.10.*)* In der stärksten Woche liegt mit Hanteln der Nacken
 bei 11,1 statt 9,9 Sätzen (der Face Pull trifft ihn mit; im Schnitt 9,85 bei
 einer Kappe von 10), die vordere Schulter bei 9,75 statt 9,3; seitliche und
 hintere Schulter liegen dort ohnehin höher, ihr Ziel stieg. Ohne Hanteln steigen
@@ -3044,8 +3205,9 @@ hatte er ohnehin (Goblet Squat 1,7 statt der 2 aus `pflicht`, Rudern 2,9 statt
 | Rüstvorgänge je Einheit | 3,08 | 3,24 |
 | dieselbe Bewegung zweimal in einer Einheit | 34 | 32 |
 
-**Hier kostet es Umbau, und das steht bewusst da:** 3,24 statt 3,08
-Rüstvorgänge je Einheit. Beim Aufbau war der Preis 0,4 und damit zu hoch;
+**Hier kostete es Umbau, und das stand bewusst da:** 3,24 statt 3,08
+Rüstvorgänge je Einheit *(seit 03.10. erledigt: 3,04, weniger als am 25.09.)*.
+Beim Aufbau war der Preis 0,4 und damit zu hoch;
 hier sind es 0,15 (13 Rüstvorgänge mehr auf 84 Einheiten – die gerundeten
 Werte der Tabelle liegen 0,16 auseinander) für einen Plan ohne Rucksack, mit
 der Grundübung, die ihm fehlte, und ohne die Einheiten mit 12 und 21 Sätzen.
@@ -3058,8 +3220,10 @@ holen allein die Tage 0,20 zurück, mehr als den ganzen Preis: 3,04 statt 3,24,
 siehe *Neu gerechnet am 03.10.* Weitere Kosten:
 Bauch 1,10 statt 1,19 Termine je Woche und bis 10 statt 7 Tage Abstand, Bizeps
 2,52 statt 2,86, Nacken 2,67 statt 2,76, Waden (ein Termin je Woche) bis 12
-statt 7 Tage Abstand, Beinbeuger am Knie (ebenso) bis 11 statt 10. In der
-stärksten Woche bekommt die vordere Schulter mit Hanteln 13,2 statt 10,2
+statt 7 Tage Abstand, Beinbeuger am Knie (ebenso) bis 11 statt 10. *(Seit
+03.10. zum Teil erledigt: Bauch bis 8 Tage, Bizeps 2,76, Waden bis 11,
+Beinbeuger am Knie bis 7 Tage; Bauch 1,10 und Nacken 2,67 Termine sind
+geblieben.)* In der stärksten Woche bekommt die vordere Schulter mit Hanteln 13,2 statt 10,2
 Sätze, ohne Hanteln 13,5 statt 10,45 – mehr als die Kappe von 13, aber die
 gilt für den Schnitt, und der liegt ohne Hanteln bei 10,5 (vorher 9,5), also
 darunter. Die hintere Schulter liegt dort in beiden Modi bei 11,1 statt 9,9,

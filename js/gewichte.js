@@ -179,12 +179,14 @@ export function doneWeightNote(n, mode, exId) {
  * richtige Reihenfolge fürs Training.
  *
  * Was das bringt, ist die Zahl der Auf- und Umbauten, nicht die Kilo. Über alle
- * 84 Einheiten mit den Startgewichten nachgezählt: Aufbau 309 → 298, Bauch,
- * Beine, Po 291 → 265, Cut 257 → 256, Oberkörper 274 → 272 – jeweils das
- * Minimum, das unter denselben Nebenbedingungen überhaupt geht. Die bewegten
- * Kilo bleiben dabei ungefähr gleich (bis 3 % mehr); hier stand einmal „rund
- * 30 % weniger Kilo", und das lässt sich an den heutigen Plänen nicht mehr
- * nachmessen.
+ * 84 Einheiten mit den Startgewichten nachgezählt, ist es je Plan das Minimum,
+ * das unter denselben Nebenbedingungen überhaupt geht. Wie viele das sind, steht
+ * nicht hier, sondern als Rüstvorgänge je Einheit in tests/ruestaufwand-stand.json;
+ * tests/test-reihenfolge.mjs misst sie mit setupOf() und ruestOrder() nach und
+ * schlägt an, wenn es mehr werden. Hier standen sie einmal als Zahlen, und die
+ * nächste Neurechnung der Pläne hat sie überholt. Die bewegten Kilo bleiben
+ * dabei ungefähr gleich (bis 3 % mehr); hier stand einmal „rund 30 % weniger
+ * Kilo", und das lässt sich an den heutigen Plänen nicht mehr nachmessen.
  *
  * Warum in der App und nicht im Generator: Hier stehen die *aktuellen*
  * Arbeitsgewichte. Der Generator kennt nur die Startwerte, und die stimmen nach

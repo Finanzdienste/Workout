@@ -1,6 +1,6 @@
 {
-  "plan.json": 8,
-  "plan-bbp.json": 0,
-  "plan-cut.json": 0,
-  "plan-oberkoerper.json": 32
+  "plan.json": {"db": 1, "bw": 8},
+  "plan-bbp.json": {"db": 0, "bw": 0},
+  "plan-cut.json": {"db": 0, "bw": 0},
+  "plan-oberkoerper.json": {"db": 11, "bw": 32}
 }
