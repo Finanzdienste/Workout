@@ -215,7 +215,16 @@ export const EXERCISES = [
         "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
         "verletzung": [
           "handgelenk-reizung"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Handgelenk",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ],
+        "modus": "bw"
       }
     ],
     "db": {
@@ -1019,7 +1028,16 @@ export const EXERCISES = [
         "text": "Mit erhöhten Füßen liegt mehr Gewicht auf den Händen als beim gewöhnlichen Liegestütz, und das Handgelenk steht dabei fast im rechten Winkel. Das ist die unbequemste Stellung, die es kennt.\n\nDer Reihe nach: Hände etwas weiter auseinander, Finger leicht nach außen gedreht. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab: Damit steht das Handgelenk gerade. Runde Scheibenhanteln nicht – die rollen unter Last weg. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse, wo die Hand hält statt zu stützen.",
         "verletzung": [
           "handgelenk-reizung"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Handgelenk",
+        "text": "Mit erhöhten Füßen liegt mehr Gewicht auf den Händen als beim gewöhnlichen Liegestütz, und das Handgelenk steht dabei fast im rechten Winkel. Das ist die unbequemste Stellung, die es kennt.\n\nDer Reihe nach: Hände etwas weiter auseinander, Finger leicht nach außen gedreht. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab: Damit steht das Handgelenk gerade. Runde Scheibenhanteln nicht – die rollen unter Last weg. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ],
+        "modus": "bw"
       },
       {
         "ort": "Schulter vorn",
@@ -1139,7 +1157,7 @@ export const EXERCISES = [
       },
       {
         "ort": "Handgelenk",
-        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
         "verletzung": [
           "handgelenk-reizung"
         ],
@@ -2342,7 +2360,16 @@ export const EXERCISES = [
         "text": "Im Pike steht der Körper steil über den Händen, und dadurch knickt das Handgelenk stärker ab als beim gewöhnlichen Liegestütz. Es trägt dabei einen großen Teil des Gewichts.\n\nWas hilft: die Hände etwas weiter vorn aufsetzen, sodass der Winkel flacher wird, und über die Fingerknöchel drücken statt über den Handballen. Auf den Fäusten oder auf Liegestützgriffen steht das Handgelenk gerade; auf Kurzhanteln nur, wenn sie sechseckig sind – runde rollen weg.\n\nHält es an, hier anhaken – dann geht es auf die Bodenpresse.",
         "verletzung": [
           "handgelenk-reizung"
-        ]
+        ],
+        "modus": "db"
+      },
+      {
+        "ort": "Handgelenk",
+        "text": "Im Pike steht der Körper steil über den Händen, und dadurch knickt das Handgelenk stärker ab als beim gewöhnlichen Liegestütz. Es trägt dabei einen großen Teil des Gewichts.\n\nWas hilft: die Hände etwas weiter vorn aufsetzen, sodass der Winkel flacher wird, und über die Fingerknöchel drücken statt über den Handballen. Auf den Fäusten oder auf Liegestützgriffen steht das Handgelenk gerade; auf Kurzhanteln nur, wenn sie sechseckig sind – runde rollen weg.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
+        "verletzung": [
+          "handgelenk-reizung"
+        ],
+        "modus": "bw"
       },
       {
         "ort": "Schulter",
@@ -2455,7 +2482,7 @@ export const EXERCISES = [
       },
       {
         "ort": "Handgelenk",
-        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Dann geht es auf die Bodenpresse – dieselbe Richtung, dieselbe Brust, aber die Hand hält statt zu stützen.",
+        "text": "Im Liegestütz steht das Handgelenk fast im rechten Winkel und trägt dabei einen großen Teil des Körpergewichts. Das ist die unbequemste Stellung, die es kennt, und die häufigste Stelle, an der es sich meldet.\n\nDer Reihe nach: Hände etwas weiter aus­ein­ander und die Finger leicht nach außen drehen, das nimmt schon viel. Dann bewusst über die Fingerknöchel drücken statt über den Handballen – die Hand wird zum Dreieck statt zur Fläche. Und wer sechseckige Kurzhanteln hat, stützt sich auf deren Griffen ab – das stellt das Handgelenk gerade. Runde Scheibenhanteln nicht: Die rollen unter Last weg, und das auf einem Handgelenk, das ohnehin schon gereizt ist. Liegestützgriffe oder die Fäuste tun dasselbe.\n\nHält es an, hier anhaken. Ohne Hanteln fällt die Übung dann weg: Die Bodenpresse ist dort selbst ein Liegestütz, und einen Ersatz ohne Stütz auf der Hand gibt es ohne Geräte nicht.",
         "verletzung": [
           "handgelenk-reizung"
         ],

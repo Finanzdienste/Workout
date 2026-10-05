@@ -155,6 +155,36 @@ const zurueckIn = await page.evaluate(async () => ({
   n: (await import('./js/store.js')).getState().session?.n,
 }));
 check(zurueckIn.fokus && zurueckIn.n === 1, `„Zurück" landet in der laufenden Einheit, die weiterläuft (${JSON.stringify(zurueckIn)})`);
+
+// Dieselbe Weiche in der Übungsliste von Workout 2. Dort stand bisher der
+// schlichte Knopf „▶︎ Workout starten", und ein Tipp beendete Workout 1 ohne
+// ein Wort davor. Und „‹ Zurück" führte in die Fokusansicht einer Einheit,
+// die hier gar nicht gezeigt wird – `ui.focus` blieb hängen.
+await zumBrett();
+await page.locator('[data-act="show-list"]').first().click();
+await page.waitForTimeout(200);
+const inListe = await page.evaluate(() => ({
+  start: [...document.querySelectorAll('[data-act="start-session"]')].map((b) => b.textContent.replace(/\s+/g, ' ').trim()),
+  zurueck: !!document.querySelector('[data-act="zur-laufenden"]'),
+  hinweis: !!document.querySelector('.laeuft-woanders'),
+  back: (document.querySelector('.back-link') || { dataset: {} }).dataset.act,
+}));
+check(inListe.zurueck && inListe.hinweis,
+  `auch die Liste von Workout 2 sagt, dass Workout 1 läuft, und führt zurück (${JSON.stringify(inListe)})`);
+check(inListe.start.length === 1 && /wird beendet/.test(inListe.start[0]),
+  `wer dort startet, liest vorher, dass Workout 1 endet (${inListe.start.join(' | ')})`);
+check(inListe.back === 'hide-list', `„‹ Zurück" führt zur Übersicht von Workout 2 (${inListe.back})`);
+await page.locator('.back-link').first().click();
+await page.waitForTimeout(200);
+const nachZurueck = await page.evaluate(async () => ({
+  kopf: (document.querySelector('.hero-eyebrow') || {}).textContent || '',
+  fokusOffen: (await import('./js/store.js')).getState().fokusOffen,
+  session: (await import('./js/store.js')).getState().session?.n,
+}));
+check(/Workout 2/.test(nachZurueck.kopf) && nachZurueck.session === 1
+  && !(nachZurueck.fokusOffen && nachZurueck.fokusOffen.n === 2),
+  `danach steht die Übersicht von Workout 2 da, ohne hängende Fokusansicht (${JSON.stringify(nachZurueck)})`);
+await page.locator('[data-act="zur-laufenden"]').click();
 await page.waitForTimeout(1000);
 await zumBrett();
 await page.locator('[data-act="start-session"]').first().click();

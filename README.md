@@ -160,12 +160,13 @@ jede Fläche zeichnet das Muster von selbst.
 
 Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
 
-* **Ein Startknopf, die Variante steht darunter.** Gewählt wird sie unter
-  *Mehr → Womit trainierst du*, nicht an der Stelle, an der man loslegen will:
-  Wer trainieren geht, hat sie längst getroffen. Früher gab es dafür einen
-  Umschalter oben und zwei Startknöpfe – *„Dass man sowohl oben als auch in der
-  Mitte unterscheiden kann ist unnötig."* Umstellen geht auch mitten im
-  Training (siehe [Die zwei Modi](#die-zwei-modi)).
+* **Ein Startknopf, die Variante unter *Mehr*.** Im Knopf steht, ob mit
+  Hanteln oder als Bodyweight trainiert wird; gewählt wird unter *Mehr →
+  Womit trainierst du*, auch mitten im Training. Die Wahl gilt für die
+  laufende Einheit und alle folgenden, bis sie wieder geändert wird – so sagt
+  es auch die Willkommensseite. Dort stand bis zuletzt noch „umgeschaltet wird
+  über dem Startknopf, für jede Einheit neu", aus der Zeit, als es zwei
+  Startknöpfe gab.
 * **Workout starten.** Der Knopf beginnt die Einheit und wechselt in die
   Fokus-Ansicht: eine Übung groß, mit vorgeführter Bewegung, Gewicht und
   Satz-Knöpfen. Sind alle Sätze abgehakt, rückt die App von selbst zur
@@ -190,7 +191,24 @@ Zwischen zwei Sätzen soll die App so wenig Aufmerksamkeit wie möglich kosten:
   Startknopf, und ein Tipp ersetzte die Uhr der laufenden Einheit: Die Zeit seit
   dem letzten Wegschalten der App war weg, ohne ein Wort. Jetzt wird die
   laufende beim Wechsel erst beendet und ihre Zeit gebucht; ihre Sätze bleiben,
-  sie ist danach angefangen wie jede unterbrochene Einheit.
+  sie ist danach angefangen wie jede unterbrochene Einheit. Dieselbe Weiche
+  steht in der Übungsliste der anderen Einheit (*Übungen & Gewichte*): Dort
+  stand noch der schlichte Knopf *Workout starten*, und ein Tipp beendete die
+  laufende ohne ein Wort davor. Ihr *‹ Zurück* führt zur Übersicht dieser
+  Einheit, nicht in die Fokusansicht der laufenden.
+* **Abbrechen verwirft alles, Zurücksetzen bei der laufenden Einheit auch.**
+  Seit das Umschalten mitten im Training geht, stehen Sätze womöglich in beiden
+  Varianten. *Abbrechen* löschte aber nur die gerade eingestellte: Zwei Sätze
+  mit Hanteln, dann Bodyweight, dann *Abbrechen* – die Rückfrage nannte die
+  zwei Sätze, gelöscht wurde der leere Bodyweight-Eimer, und der Toast meldete
+  „nichts gespeichert". Jetzt gehen beide Varianten samt Supersatz-Paarung, und
+  die Zahl in der Rückfrage ist genau das, was verschwindet. *Zurücksetzen* in
+  der Liste tut bei der laufenden Einheit dasselbe und sagt es; bei einer
+  anderen setzt es weiter nur die gezeigte Variante zurück.
+* **„Alle Sätze abhaken" beendet die laufende Einheit.** Wie der letzte Haken:
+  Uhr anhalten, Stand melden, Aufstieg und Zusatztag prüfen. Vorher hakte der
+  Knopf nur ab, die Einheit hieß weiter „läuft", und ein Wechsel unter *Mehr*
+  stellte die fertige Hantel-Einheit als laufende auf Bodyweight um – 17/18.
 * **Keine Wiederholungen eintragen.** Die stehen im Plan.
 * **Ein Arbeitsgewicht je Übung**, vorbelegt mit einem Startwert (siehe unten).
   Änderbar durch Antippen der Zahl oder über **−** und **+**, die je Übung
@@ -785,7 +803,21 @@ dieselben.
 
 Gezählt wird, was wirklich abgehakt ist, in beiden Varianten mit den jeweiligen
 Anteilen; eine Woche sind vier aufeinanderfolgende Einheiten – dieselbe
-Einteilung, mit der `tools/build-plan.py` rechnet.
+Einteilung, mit der `tools/build-plan.py` rechnet. Ein gemachter Zusatztag
+zählt in der Woche, für die er angelegt wurde (siehe *Der Zusatztag*).
+
+**Warum die Woche vom Schnitt abweicht**, sagt der Text unter der Karte ohne
+feste Zahl: Sätze lassen sich nur als Ganzes auf die Einheiten verteilen. Dort
+stand „weil jede Übung mit drei Sätzen dasteht" – für Fortgeschrittene (vier je
+Übung) und ohne Hanteln (zwei bis sechs je Auftritt) stimmte das nicht.
+
+**Serie in Folge.** Gezählt wird rückwärts über die fälligen Einheiten, bis zur
+ersten nicht abgeschlossenen. Die von heute bricht sie nicht, solange sie offen
+ist – der Tag ist ja nicht vorbei. Vorher stand an jedem Trainingstag vor dem
+Training „0": Der Plan rückt Verpasstes nach, die nächste offene Einheit liegt
+also immer auf heute, und genau an ihr brach die Zählung ab (gemessen 4 → 0 → 5
+über Ruhetag, Trainingstag vorher, Trainingstag nachher). Der geteilte Stand
+schickte dieselbe 0 mit.
 
 **Kein Prozentwert.** Eine Woche mit 9,5 und 10,5 wären 99 %, obwohl alles
 stimmt: der Plan selbst schwankt von Woche zu Woche. Angezeigt wird deshalb,
@@ -1658,6 +1690,13 @@ Protokoll steht nach Übung, die Namen kommen aus dem Katalog. Was fehlt, sind
 nur die Wiederholungen, die der Plan an jenem Tag vorsah – gezeigt wird
 deshalb, was gemacht wurde.
 
+**Eigene Einheiten stehen auch drin** – vor allem der Zusatztag. Der Kalender
+zeichnete nur den Plan, und ein ganz gemachter Zusatztag am Sonntag stand dort
+als leerer Tag, während die Statistik ihn bei den Trainingstagen mitzählte.
+Jetzt trägt der Tag, an dem ihr erster Satz stand, die Kachel einer trainierten
+Einheit (neben einer Planeinheit als „+1"), aufgeklappt stehen Name, Übungen
+und abgehakte Sätze, und die Zeile darunter zählt sie bei „trainiert" mit.
+
 ### In den Google-Kalender
 
 *Mehr → Kalender → Kalenderdatei (.ics)* schreibt **alle 84 Termine** in eine
@@ -2139,6 +2178,17 @@ eingestellten Modus, wie die Wochentabelle darunter. `tests/test-injuries.mjs`
 prüft jede Beschwerde einzeln und jedes solche Paar in beiden Modi an jeder
 Einheit.
 
+**Der Text an der Übung sagt, was im Modus passiert.** Bei den Liegestützen
+hieß es unter *Wenn etwas weh tut → Handgelenk* in beiden Modi „Dann geht es
+auf die Bodenpresse". Ohne Hanteln ist die Bodenpresse aber selbst ein
+Liegestütz, die Handgelenksüberlastung sperrt sie dort mit, und die Übung fällt
+ersatzlos weg. Der Eintrag steht deshalb zweimal da, je Modus mit dem Ende, das
+stimmt (`tools/exercise-meta.json`); bei Floor Press und Bodenpresse ohne
+Hanteln ebenso. `tests/test-schmerz.mjs` prüft jeden Eintrag, der einen Ersatz
+ankündigt, gegen die Sperren seines Modus. Nach dem Anhaken springt die
+Fokusansicht außerdem zu einer offenen Übung: Fiel die gezeigte ersatzlos weg,
+rückte bisher die nächste auf ihre Position – auch eine längst fertige.
+
 **Die 3D-Figur** kommt aus `js/figure.js`, mit einer ruhig stehenden Stellung
 (`stand`) und Marken an den betroffenen Stellen. `SPOTS` übersetzt einen Namen
 wie `knee` in Punkte am Skelett; was es doppelt gibt, wird auch doppelt
@@ -2438,10 +2488,15 @@ je Plan abweichen, zählt `tools/pruefung/vorher-nachher.py`; am 05.10. waren es
 Beide Varianten werden **getrennt** protokolliert: Wer ein Workout mit Hanteln
 beginnt und auf Bodyweight umschaltet, verliert die Einträge nicht.
 
-**Was umgestellt wird.** Die Wahl unter *Mehr* gilt für die laufende Einheit
-und für die, die gerade vorn steht, solange dort noch nichts abgehakt ist –
-die nächsten nehmen sie von selbst. Eine schon trainierte Einheit bleibt in der
-Variante, in der sie gemacht wurde. Vorher kippte jede Einheit mit, die
+**Was umgestellt wird.** Die Wahl unter *Mehr* gilt für die laufende Einheit,
+solange sie nicht fertig ist, und für jede, in der noch nichts steht – die
+vorn stehende ebenso wie die nächsten. Eine schon trainierte Einheit bleibt in
+der Variante, in der sie gemacht wurde; eine laufende, die ganz abgehakt ist
+und nur noch auf *Abschließen* wartet, auch. Eine eigene Variante trägt eine
+Einheit erst, wenn in ihr etwas eingetragen ist. Vorher legte schon das bloße
+Ansehen ihrer Übungsliste den damaligen Modus fest: Workout 2 einmal vorab
+angeschaut, dann auf Bodyweight gestellt – und Workout 2 kam trotzdem mit
+Hanteln. Vorher kippte jede Einheit mit, die
 zuletzt auf dem Dashboard stand: Wer nach der fertigen Hantel-Einheit „für das
 nächste Mal" auf Bodyweight stellte, sah die von heute danach als
 Bodyweight-Einheit, mit anderen Übungen. Die Karte unter *Mehr* sagt es so.
@@ -4242,8 +4297,36 @@ Drei Grenzen, jede aus einem Grund:
 | höchstens 1 Satz je Übung, 3 je Einheit | Eine Einheit soll wiedererkennbar bleiben – und mehr wäre auch nicht die Belastung, für die die Erholungsregel gerechnet ist. |
 | gemessen gegen den Plan *ohne* Nacharbeit | Sonst wächst der Rückstand an sich selbst. Wer die nachgetragenen Sätze auch liegen lässt, bekommt sie nicht ein zweites Mal obendrauf. |
 
+| mindestens die Hälfte in den Rückstand | Ein Nachholsatz zählt nur, wenn mindestens die Hälfte seiner direkten Anteile (ab 0,5, wie in der Erholungsregel) eine Lücke trifft (`NACH_ANTEIL`). |
+
 Nur an **offenen** Einheiten. Einer abgeschlossenen nachträglich Sätze
 hinzuzufügen hieße, sie rückwirkend für unfertig zu erklären.
+
+**Die letzte Grenze kam aus einem Satz Schulterdrücken.** Im Cut blieben in
+Workout 3 Rudern, Goblet Squat und Hammercurls liegen – Rücken, Beine, Bizeps.
+Workout 4 bekam „+1 nachgeholt" beim Sitzenden Schulterdrücken, weil dessen
+Nackenanteil (0,3) eine Lücke traf; vordere Schulter und Trizeps, für die man
+den Satz macht, fehlten gar nicht. Bis dahin genügte ein Viertelsatz Rückstand,
+egal wie groß der Satz drumherum war: ein Satz samt 2:30 Pause für 0,3 Nacken.
+Gemessen wird an den direkten Anteilen und nicht an allen, sonst fiele jede
+Grundübung mit vielen kleinen Nebenanteilen durch, obwohl ihre Hauptarbeit
+genau die Lücke trifft. Fehlen nach Einheit 1 nur Bauch und Waden, bekommt
+Einheit 2 deshalb auch kein „+1" beim Split Squat mehr – für 0,25 Bauch.
+
+**Einmal angefangen, steht die Nacharbeit fest.** Sie wurde bei jedem Zeichnen
+neu gerechnet, und die Regel „abgeschlossen bekommt keine" griff schon mitten
+im Training: Sobald alle *Grund*sätze standen, galt die Einheit als fertig, das
+„+1" verschwand, und sie endete von selbst – Workout 4 mit 17 angesagten Sätzen
+bei 16/17, mit „Alle 15 Sätze stehen". Ob ein angesagter Satz drankam, hing nur
+davon ab, ob seine Übung vor dem letzten Grundsatz lag; mit Supersätzen ist er
+in der letzten Gruppe immer der letzte Schritt. Jetzt hält der erste Eintrag in
+einer Einheit ihre Nacharbeit fest (`nachFest` im Protokoll, für beide
+Varianten), und ab da gilt sie: Die Einheit endet mit dem letzten Nachholsatz,
+und Fortschritt und Abschluss zählen ihn mit („alle 19 Sätze"). Neue
+Nacharbeit bekommt eine abgeschlossene Einheit weiter nicht. Abbrechen oder
+ganz Zurücksetzen löst den Vermerk wieder; der nächste Anlauf rechnet neu.
+Das Pensum der Woche zählt die Nacharbeit dabei nicht mit – sie schließt den
+Rückstand, sie vergrößert ihn nicht.
 
 ### Der Zusatztag
 
@@ -4301,9 +4384,21 @@ der rechnet sein Wochenvolumen aus festen Einheiten, und eine
 dazwischengeschobene würde diese Rechnung stillschweigend verschieben. Abgehakte
 Sätze zählen trotzdem in der Statistik mit; trainiert ist trainiert.
 
-**Nur einmal je Woche.** Der Rückstand schrumpft nicht dadurch, dass man den
-Zusatztag macht – er steht im Plan, nicht im Protokoll. Ohne diese Sperre käme
-bei jedem Laden ein weiterer dazu.
+**Und in der Woche, für die er da ist.** Bis hierher zählte er dort nicht:
+Nach einem ganz gemachten Zusatztag (Goblet Squat, Chin-ups, Hammercurls, 9/9)
+standen in der Wochenbilanz genau die Lücken, die er schließen sollte, darunter
+„Für diese Woche steht schon ein Zusatztag bereit … Öffnen", und im Kalender war
+der Sonntag leer. Jetzt geht er in die Bilanz der Woche *N* aus „Zusatztag
+Woche *N*" ein, nicht in die, in deren Tage er fällt – und zwar je Gruppe
+höchstens bis zu dem, was nach den Planeinheiten samt Nacharbeit noch fehlte.
+Was die Nacharbeit schon geschlossen hat, schließt er nicht ein zweites Mal, und
+Volumen für Gruppen ohne Rückstand macht keine Woche voller, als sie geplant
+war. Der Hinweis darunter steht nur, solange er unberührt ist, und der Kalender
+markiert den Tag, an dem sein erster Satz stand (siehe *Kalender*).
+
+**Nur einmal je Woche.** Ein angefangener Zusatztag bleibt, wie er ist, und
+ein zweiter kommt für dieselbe Woche nicht dazu – ohne diese Sperre käme bei
+jedem Laden ein weiterer dazu, solange der erste nicht ganz gemacht ist.
 
 **Auch beim Start mit Aufstieg.** Beim Öffnen der App prüft sie beides,
 Stufenaufstieg und Zusatztag, jedes für sich. Dort stand
@@ -4323,18 +4418,45 @@ Gruppen – auch die der Übungen, von denen kein einziger Satz abgehakt war. Di
 letzten beiden Einheiten einer Woche liegen an zwei aufeinanderfolgenden Tagen
 (Freitag, Samstag) und treffen zusammen jede Gruppe; am Sonntag gab es deshalb
 nie einen Zusatztag, erst am Montag vor Workout 5. Jetzt sperrt eine
-vergangene Einheit nur die Gruppen der Übungen, die wirklich trainiert wurden
-(in beiden Modi gezählt), auch wenn sie nicht abgeschlossen ist. Eine
-anstehende Einheit sperrt weiter alles, was sie vorhat – die 48 Stunden zur
+angefasste Einheit – abgeschlossen oder angefangen – nur die Gruppen der
+Übungen, die wirklich trainiert wurden (in beiden Modi gezählt). Alles sperrt
+nur eine anstehende Einheit, die noch nicht angefangen ist – die 48 Stunden zur
 nächsten Einheit bleiben also gewahrt. Was am Samstag ausgefallen ist und am
 Montag nicht drankommt, steht damit schon am Sonntag im Zusatztag.
+
+**Gerechnet für den Tag, an dem er gemacht wird.** Das Versprechen eben hielt
+zuerst nur im Test. Angelegt wird der Zusatztag beim Abschluss der letzten
+Einheit der Woche – an deren eigenem Tag, und dort hing die Regel noch am
+Datum: Eine Einheit von heute sperrte alles, auch ihre ausgelassenen Übungen.
+Und am Sonntag, wenn er gemacht wird, wurde er nicht neu gerechnet, weil er
+schon dastand. Gemessen: Am Samstag angelegt mit Goblet Squat, gewichteten
+Crunches und hängendem Knieheben, obwohl am Samstag Reverse Fly und Wadenheben
+ausgefallen waren; am Sonntag standen damit sechs Sätze Bauch einen Tag vor der
+Einheit mit Bauch. Jetzt gilt zweierlei. Ob eine Einheit nach Trainiertem oder
+ganz sperrt, hängt an ihrem Stand, nicht am Kalender. Und ein **unberührter**
+Zusatztag wird bei jeder Prüfung neu gerechnet – beim Start, beim Tageswechsel
+und nach jeder abgeschlossenen Einheit: Der Name bleibt, die Übungen sind die
+von heute. Lässt die Regel heute keinen zu, ist er weg und kommt wieder, sobald
+sie es tut. Ein angefangener bleibt, wie er ist.
+
+**An einem Tag mit fälliger Planeinheit steht sie vorn.** Fiel mitten in der
+Woche eine ganze Einheit aus, entstand der Zusatztag oft erst am Tag von
+Workout 5 – und verdrängte es: Das Dashboard zeigte „Eigenes Workout /
+Zusatztag Woche 1" statt „Heute · Workout 5", ohne ein Wort davon, dass heute
+eigentlich Workout 5 dran war. Jetzt ist die fällige Planeinheit die nächste
+(`naechsteEinheit()`), und unter ihrem Startknopf steht der Zusatztag als
+zweite Einheit des Tages, mit *Öffnen*. An einem Tag ohne fällige Einheit ist
+er wie bisher selbst die nächste.
 
 `tests/test-zusatztag.mjs`, über 20 Prüfungen – darunter die Gegenrechnung über
 den echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in
 Reichweite kollidiert, ein eigener Fall mit einer gestern abgeschlossenen
 Einheit, die die Gruppen ihrer trainierten Übungen sperrt und die der
 ausgelassenen in den Zusatztag lässt, und die beiden Fälle, in denen
-**nichts** passieren darf: volle Woche, und Woche läuft noch.
+**nichts** passieren darf: volle Woche, und Woche läuft noch. Dazu der
+Normalfall: am Tag der letzten Einheit angelegt, dann einen Tag weiter – dort
+muss er derselbe sein, den die App an diesem Tag frisch anlegen würde. Und dass
+ein gemachter Zusatztag in Wochenbilanz, Hinweis und Kalender ankommt.
 
 **Die Gegenrechnung war lange grün, ohne etwas zu prüfen.** Gefunden bei der
 Durchsicht der Tests auf Datumsabhängigkeit. Der Test legt die erste Woche mit

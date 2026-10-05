@@ -864,17 +864,77 @@ export function offenInWoche(w) {
 }
 
 /**
+ * Ab welchem Anteil ein Nachholsatz sich lohnt: Mindestens die Hälfte dessen,
+ * was er direkt trainiert, muss in den Rückstand gehen.
+ *
+ * Vorher genügte ein Viertelsatz Rückstand, egal wie groß der Satz drumherum
+ * war. Gemessen im Cut: In Workout 3 blieben Rudern, Goblet Squat und
+ * Hammercurls liegen – Rücken, Beine, Bizeps –, und Workout 4 bekam „+1
+ * nachgeholt" beim Sitzenden Schulterdrücken. Von dessen Anteilen (vordere
+ * Schulter 1, Trizeps 0,6, seitliche Schulter 0,45, Nacken 0,3) traf nur der
+ * Nacken eine Lücke. Ein ganzer Satz samt 2:30 Pause für 0,3 Nacken, und vorn
+ * und am Trizeps Volumen, das dort niemand vermisst hat.
+ *
+ * Gemessen wird an den *direkten* Anteilen (ab REST.direct, wie in der
+ * Erholungsregel): Das sind die Gruppen, für die man den Satz macht. Die
+ * Mitläufer bleiben im Nenner draußen, sonst fiele jede Grundübung mit vielen
+ * kleinen Nebenanteilen durch, obwohl ihre Hauptarbeit genau die Lücke trifft.
+ * Die Hälfte heißt: Der Satz schließt überwiegend Rückstand und nicht
+ * überwiegend Volumen, das ohnehin schon steht.
+ */
+export const NACH_ANTEIL = 0.5;
+
+/**
  * Wie viele Sätze diese Einheit obendrauf bekommt, je Übung.
  *
  * Verteilt wird gierig: Immer der Satz, der vom Rückstand am meisten wegnimmt.
  * Eine Übung zählt dabei mit ihren Anteilen – ein Satz Kniebeugen schließt
  * etwas beim Oberschenkel *und* beim Gesäß.
+ *
+ * **Einmal angefangen, steht die Nacharbeit fest** (`nachFest` im Protokoll,
+ * siehe nachFesthalten() in js/app.js). Hier stand die Regel „ist die Einheit
+ * fertig ohne Nacharbeit, gibt es keine": gedacht für abgeschlossene
+ * Einheiten, gegriffen hat sie aber schon mitten im Training. Lag die Übung
+ * mit „+1 nachgeholt" am Ende, machte ihr letzter *Grundsatz* die Einheit
+ * „fertig ohne Nacharbeit" – das +1 verschwand, die Einheit endete von selbst
+ * bei 16 von 17 und meldete „Alle 15 Sätze stehen". Ob ein angesagter Satz
+ * überhaupt drankam, hing davon ab, wo seine Übung in der Reihenfolge stand.
+ * Mit Supersätzen ist der Nachholsatz in der letzten Gruppe immer der letzte
+ * Schritt.
+ *
+ * Eine abgeschlossene Einheit bekommt deshalb nur keine *neue* Nacharbeit
+ * mehr; was an ihr festgehalten ist, bleibt ihr – sonst zählte der Abschluss
+ * „alle 18 Sätze", wenn 19 abgehakt sind.
  */
 export function nacharbeit(w, m) {
   if (istCustom(w.n) || !PLAN[w.n - 1]) return null;
-  // Eine abgeschlossene Einheit ist Geschichte. Ihr nachträglich Sätze
-  // hinzuzufügen, hieße, sie rückwirkend für unfertig zu erklären.
+  const fest = festeNacharbeit(w, m);
+  if (fest !== undefined) return fest;
+  // Ohne Vermerk: ein Stand aus der Zeit davor. Eine Einheit, deren Grundsätze
+  // alle stehen, ist dann abgeschlossen – ihr nachträglich Sätze hinzuzufügen,
+  // hieße, sie rückwirkend für unfertig zu erklären.
   if (fertigOhneNacharbeit(w.n)) return null;
+  return nacharbeitRechnen(w, m);
+}
+
+/**
+ * Die festgehaltene Nacharbeit einer Einheit, oder `undefined`, wenn keine
+ * festgehalten ist. Übungen, die seither weggefallen sind (eine Beschwerde
+ * tauscht sie), tragen keinen Satz mehr.
+ */
+function festeNacharbeit(w, m) {
+  const e = store.getState().log[w.n];
+  if (!e || !e.nachFest || typeof e.nachFest !== 'object') return undefined;
+  const je = e.nachFest[m] || {};
+  const da = new Set(exBasis(w, m).map((it) => it.id));
+  const extra = new Map(Object.entries(je)
+    .filter(([id, k]) => da.has(id) && Number(k) > 0).map(([id, k]) => [id, Number(k)]));
+  return extra.size ? extra : null;
+}
+
+/** Die Nacharbeit, wie sie jetzt gerechnet würde – ohne festgehaltenen Stand. */
+export function nacharbeitRechnen(w, m) {
+  if (istCustom(w.n) || !PLAN[w.n - 1]) return null;
   const { fehlt, summe } = offenInWoche(w);
   // Unter einem halben Satz lohnt die Unruhe nicht.
   if (summe < 0.5) return null;
@@ -892,6 +952,10 @@ export function nacharbeit(w, m) {
       // offen ist, kann er nicht schließen.
       const wert = Object.entries(shares)
         .reduce((a, [mus, share]) => a + Math.min(share, rest[mus] || 0), 0);
+      // Und ob das den Satz trägt (siehe NACH_ANTEIL).
+      const direkt = Object.values(shares).filter((s) => s >= REST.direct)
+        .reduce((a, s) => a + s, 0);
+      if (direkt > 0 && wert < NACH_ANTEIL * direkt) return;
       if (wert > bestWert) { bestWert = wert; beste = it; }
     });
     if (!beste || bestWert < 0.25) break;
@@ -1092,11 +1156,19 @@ export function sammleStats() {
 
   const workoutsDone = doneDb + doneBw;
 
-  // Aktuelle Serie: rückwärts ab dem letzten fälligen Workout
+  // Aktuelle Serie: rückwärts ab dem letzten fälligen Workout.
+  //
+  // Die Einheit von heute bricht sie nicht, solange sie offen ist – der Tag
+  // ist noch nicht vorbei. Vorher stand an jedem Trainingstag vor dem Start
+  // „0 Serie in Folge": Der Plan rückt Verpasstes nach (catchUpPlan()), die
+  // nächste offene Einheit liegt also immer auf heute, und die Schleife brach
+  // genau an ihr ab. Gemessen: 4 → 0 → 5 über Ruhetag, Trainingstag vor und
+  // nach dem Training. Eine Lücke ist erst eine Einheit, deren Tag vorbei ist.
   let streak = 0;
   const past = PLAN.filter((w) => effDate(w) <= today);
   for (let i = past.length - 1; i >= 0; i--) {
     if (completedMode(past[i].n)) streak++;
+    else if (effDate(past[i]) === today) continue;
     else break;
   }
 

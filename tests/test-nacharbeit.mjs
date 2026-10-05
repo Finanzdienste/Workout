@@ -96,8 +96,15 @@ const kopfSauber = (await page.locator('#view').textContent()).replace(/\s+/g, '
 check(!/nachgeholt/.test(kopfSauber), 'und im Kopf der Einheit steht auch nichts davon');
 
 // --- 2. Eine abgebrochene Einheit wirkt auf die nächste derselben Woche --
-// Einheit 1 abgeschlossen, aber die letzten zwei Übungen gar nicht angefasst.
-const halb = await protokoll(0, 1, 2);
+// Einheit 1 abgeschlossen, aber die letzten drei Übungen gar nicht angefasst.
+//
+// Drei, nicht zwei: Mit zwei fehlten Bauch und Waden, und Einheit 2 bekam
+// „+1 nachgeholt" beim Split Squat – für einen Bauchanteil von 0,25, während
+// Oberschenkel und Gesäß, für die man ihn macht, nichts vermissten. Genau
+// solche Sätze schließt NACH_ANTEIL jetzt aus (Prüfung 8). Mit drei fehlt
+// auch die seitliche Schulter, und Einheit 2 holt mit dem Schulterdrücken
+// etwas nach, das sich lohnt.
+const halb = await protokoll(0, 1, 3);
 await setze({ greeted: true, name: 'T', level: 'geuebt', shift: 0, log: halb });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
@@ -257,6 +264,123 @@ const dritteEcht = await einheit(3);
 console.log('     mit echtem Rückstand:', dritteEcht.map((x) => x.meta).join(' | '));
 check(dritteEcht.some((x) => /nachgeholt/.test(x.meta)),
   'ein wirklich offener Satz wird weiterhin nachgetragen');
+
+// --- 7. Der nachgeholte Satz bleibt, bis er gemacht ist -----------------
+//
+// Workout 4 bekam „+1 nachgeholt" auf Schulterdrücken und Crunches, 17 Sätze.
+// Nach dem dritten Crunch-Satz endete die Einheit von selbst bei 16/17 und
+// meldete „Alle 15 Sätze stehen": Sobald alle *Grund*sätze standen, rechnete
+// nacharbeit() die Einheit als fertig und strich das +1. Ob ein angesagter
+// Satz drankam, hing nur daran, wo seine Übung in der Reihenfolge lag.
+//
+// Hier der schlimmste Fall: Die Grundsätze zuerst, die Nachholsätze ganz am
+// Ende – so, wie sie mit Supersätzen immer liegen.
+await saen(halb);
+await einheit(2);
+await page.locator('[data-act="start-session"]').first().click();
+await page.waitForTimeout(400);
+await page.locator('[data-act="focus-list"]').first().click();
+await page.waitForTimeout(300);
+const plan2 = await page.evaluate(async () => {
+  const { workoutByNo } = await import('./js/plan.js');
+  return workoutByNo(2, 'db').ex.map((x) => ({ id: x.id, sets: x.sets, nach: x.nach || 0 }));
+});
+const nachSaetze = plan2.reduce((a, x) => a + x.nach, 0);
+const gesamt = plan2.reduce((a, x) => a + x.sets, 0);
+console.log('     Einheit 2:', plan2.map((x) => `${x.id} ${x.sets}${x.nach ? `(+${x.nach})` : ''}`).join(', '));
+check(nachSaetze > 0, `Einheit 2 trägt Nacharbeit (${nachSaetze} Sätze, ${gesamt} insgesamt)`);
+const tippe = async (id, i) => {
+  await page.locator(`[data-act="toggle-set"][data-ex="${id}"][data-i="${i}"]`).first().click();
+  await page.waitForTimeout(60);
+};
+for (const x of plan2) for (let i = 0; i < x.sets - x.nach; i++) await tippe(x.id, i);
+const nachGrund = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { progressOf, workoutByNo } = await import('./js/plan.js');
+  return {
+    prog: progressOf(2, 'db'),
+    laeuft: !!store.getState().session,
+    nach: workoutByNo(2, 'db').ex.reduce((a, x) => a + (x.nach || 0), 0),
+  };
+});
+console.log('     nach allen Grundsätzen:', JSON.stringify(nachGrund));
+check(nachGrund.nach === nachSaetze,
+  `alle Grundsätze stehen, die Nacharbeit bleibt angesagt (${nachGrund.nach} von ${nachSaetze})`);
+check(!nachGrund.prog.complete && nachGrund.laeuft && nachGrund.prog.total === gesamt,
+  `die Einheit läuft weiter, ${nachGrund.prog.done}/${nachGrund.prog.total} – nicht von selbst beendet`);
+for (const x of plan2) for (let i = x.sets - x.nach; i < x.sets; i++) await tippe(x.id, i);
+await page.waitForTimeout(200);
+const amEnde = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const { progressOf } = await import('./js/plan.js');
+  return { prog: progressOf(2, 'db'), laeuft: !!store.getState().session,
+           done: (store.getState().log[2] || {}).done || null,
+           toast: document.getElementById('toast').textContent };
+});
+console.log('     am Ende:', JSON.stringify(amEnde));
+check(amEnde.done && !amEnde.laeuft, 'mit dem letzten Nachholsatz ist die Einheit fertig');
+check(amEnde.prog.done === gesamt && amEnde.prog.total === gesamt,
+  `und der Fortschritt zählt die Nacharbeit mit (${amEnde.prog.done}/${amEnde.prog.total})`);
+check(new RegExp(`alle ${gesamt} Sätze`).test(amEnde.toast),
+  `der Abschluss nennt alle ${gesamt} Sätze („${amEnde.toast}")`);
+
+// --- 8. Ein Nachholsatz muss überwiegend Rückstand schließen ------------
+//
+// Gemessen im Cut: In Workout 3 blieben Rudern, Goblet Squat und Hammercurls
+// liegen – Rücken, Beine, Bizeps. Workout 4 bekam „+1 nachgeholt" beim
+// Sitzenden Schulterdrücken, weil dessen Nackenanteil (0,3) eine Lücke traf.
+// Vordere Schulter und Trizeps, für die man den Satz macht, fehlten nicht.
+// Jetzt zählt der Satz nur, wenn mindestens die Hälfte seiner direkten
+// Anteile in den Rückstand geht (NACH_ANTEIL in js/plan.js).
+await page.addInitScript(() => localStorage.setItem('workout.state.v1', JSON.stringify(
+  { greeted: true, name: 'T', level: 'geuebt', focus: 'cut', shift: 0, log: {} })));
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+const cutLog = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const p = await import('./js/plan.js');
+  const log = {};
+  PLAN.slice(0, 3).forEach((w, i) => {
+    const e = { mode: 'db', done: 'db', soll: {}, db: {} };
+    p.exBasis(w, 'db').forEach((it, j) => {
+      e.soll[it.id] = it.sets;
+      // W1 und W2 ganz, W3 nach dem ersten Paar und einem Satz der dritten Übung.
+      const n = i < 2 ? it.sets : (j < 2 ? it.sets : (j === 2 ? 1 : 0));
+      if (n) e.db[it.id] = Array.from({ length: it.sets }, (_, k) => ({ w: '20', done: k < n }));
+    });
+    log[w.n] = e;
+  });
+  return log;
+});
+await page.addInitScript((log) => localStorage.setItem('workout.state.v1', JSON.stringify(
+  { greeted: true, name: 'T', level: 'geuebt', focus: 'cut', shift: 0, log })), cutLog);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+const cut4 = await page.evaluate(async () => {
+  const { PLAN, REST } = await import('./js/data.js');
+  const p = await import('./js/plan.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const w = PLAN[3];
+  const { fehlt } = p.offenInWoche(w);
+  const extra = p.nacharbeit(w, 'db');
+  return {
+    fehlt,
+    nach: extra ? [...extra.keys()] : [],
+    // Je nachgeholter Übung: Anteil, der in den Rückstand geht, gegen ihre direkten Anteile.
+    quote: (extra ? [...extra.keys()] : []).map((id) => {
+      const sh = EX_BY_ID.get(id).db.shares;
+      const wert = Object.entries(sh).reduce((a, [m, s]) => a + Math.min(s, fehlt[m] || 0), 0);
+      const direkt = Object.values(sh).filter((s) => s >= REST.direct).reduce((a, s) => a + s, 0);
+      return { id, q: wert / direkt };
+    }),
+  };
+});
+console.log('     Cut, Workout 4:', JSON.stringify(cut4));
+check(cut4.nach.length > 0, `Workout 4 holt weiter nach, was sich lohnt (${cut4.nach.join(', ')})`);
+check(!cut4.nach.includes('sitzendes-schulterdruecken'),
+  'aber kein Schulterdrücken für 0,3 Sätze Nacken');
+check(cut4.quote.every((x) => x.q >= 0.5),
+  `jeder Nachholsatz schließt überwiegend Rückstand (${cut4.quote.map((x) => `${x.id} ${x.q.toFixed(2)}`).join(', ')})`);
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

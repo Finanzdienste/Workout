@@ -95,6 +95,35 @@ function kgSpanne(kg) {
 }
 
 /**
+ * Eigene Einheiten nach Tag – der Zusatztag und alles selbst Zusammengestellte.
+ *
+ * Der Kalender zeichnete nur den Plan. Ein ganz gemachter Zusatztag am Sonntag
+ * stand dort als leerer Tag, während die Statistik ihn bei den Trainingstagen
+ * mitzählte. Trainiert wurde an dem Tag; der Kalender sagt das jetzt auch – am
+ * Tag, an dem der erste Satz stand (startedOn).
+ */
+export function eigeneTage() {
+  const map = new Map();
+  const log = store.getState().log || {};
+  store.customs().forEach((c) => {
+    const e = log[c.id];
+    if (!e || !e.startedOn) return;
+    const proModus = { db: 0, bw: 0 };
+    ['db', 'bw'].forEach((m) => {
+      Object.values(e[m] || {}).forEach((arr) => {
+        if (Array.isArray(arr)) arr.forEach((s) => { if (s && s.done) proModus[m] += 1; });
+      });
+    });
+    const saetze = proModus.db + proModus.bw;
+    if (!saetze) return;
+    const da = map.get(e.startedOn) || [];
+    da.push({ c, saetze, mode: proModus.bw > proModus.db ? 'bw' : 'db' });
+    map.set(e.startedOn, da);
+  });
+  return map;
+}
+
+/**
  * Sport außerhalb des Plans, nach Tag – für den Kalender.
  *
  *     „Die sonstigen Sachen die ich hatte, zb padel, soll man auch im Kalender
@@ -115,12 +144,16 @@ export function aktivitaetTage() {
   return map;
 }
 
-export function calendarCell(iso, month, today, byDate, sel, frueher, akt) {
+export function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigene) {
   const ws = byDate.get(iso) || [];
   const st = dayState(ws[0], iso, today);
+  const selbst = (eigene && eigene.get(iso)) || [];
   // Der laufende Plan hat Vorrang: Steht heute eine Einheit an, ist das die
   // Auskunft, und nicht das, was vor einem Fokuswechsel an diesem Tag war.
-  const alt = st ? null : (frueher && frueher.get(iso)) || null;
+  // Eine eigene Einheit an einem Tag ohne Planeinheit trägt die Kachel wie
+  // eine trainierte; neben einer Planeinheit zählt sie als weitere (+1).
+  const alt = st ? null : (frueher && frueher.get(iso))
+    || (selbst.length ? { einheiten: 0, mode: selbst[0].mode } : null);
   // Aktivitäten sind eine eigene Ebene und keine dritte Sorte Tag: An einem
   // Tag kann beides gewesen sein – vormittags Padel, abends die Einheit. Sie
   // ersetzen deshalb nichts, sondern kommen als Streifen dazu.
@@ -133,7 +166,7 @@ export function calendarCell(iso, month, today, byDate, sel, frueher, akt) {
   // 'frueher' trägt keine eigene Darstellung mehr (siehe css/styles.css) – die
   // Kachel ist eine trainierte wie jede andere. Die Klasse bleibt als Merkmal
   // für die Detailansicht und den Test stehen.
-  else if (alt) cls.push('done', 'frueher', alt.mode);
+  else if (alt) cls.push('done', alt.einheiten ? 'frueher' : 'eigen', alt.mode);
   if (sport.length) cls.push('akt');
   const tag = Number(iso.slice(8));
   // Ohne Einheit und ohne Sport ist der Tag kein Knopf: nichts anzuzeigen,
@@ -153,7 +186,7 @@ export function calendarCell(iso, month, today, byDate, sel, frueher, akt) {
         <span class="cal-mark">${AKT_ICON}</span>
       </button>`;
   }
-  const anzahl = st ? ws.length : alt.einheiten;
+  const anzahl = (st ? ws.length : alt.einheiten) + selbst.length;
   const modus = st ? st.mode : alt.mode;
   const mehr = anzahl > 1 ? ` (+${anzahl - 1})` : '';
   return `
@@ -213,8 +246,34 @@ export function calendarAktivitaet(iso, sport) {
   }).join('');
 }
 
-/** Die angetippte Einheit im Detail: Übungen, Sätze, Modus. */
-export function calendarDetail(iso, byDate, today, frueher, akt) {
+/** Eine eigene Einheit im Detail – wie calendarWorkout(), nur ohne Plan. */
+export function calendarEigene(iso, x) {
+  const items = x.c.ex.filter((it) => EX_BY_ID.has(it.id)).map((it) => resolve(it, x.mode));
+  return `
+    <div class="card cal-detail cal-eigen">
+      <div class="cal-det-head">
+        <div>
+          <div class="lbl">${esc(x.c.name)} · ${esc(KIND_TEXT.done)}</div>
+          <div class="hint">${esc(fmtDate(iso, true))} · ${plural(items.length, 'Übung', 'Übungen')} ·
+            ${plural(x.saetze, 'Satz', 'Sätze')} abgehakt</div>
+        </div>
+        <span class="chip ${x.mode}">${MODE_ICON[x.mode]} ${esc(MODE_LABEL[x.mode])}</span>
+      </div>
+      <ul class="cal-list">
+        ${items.map((it) => `
+          <li>
+            <span class="cal-ex">${esc(it.name)}</span>
+            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, x.mode))}</span>
+          </li>`).join('')}
+      </ul>
+      <button type="button" class="btn btn-sm" data-act="custom-start" data-id="${esc(x.c.id)}">
+        Im Dashboard ansehen
+      </button>
+    </div>`;
+}
+
+/** Die angetippte Einheit im Detail: Übungen, Sätze, Modus – dazu eigene Einheiten des Tages. */
+export function calendarDetail(iso, byDate, today, frueher, akt, eigene) {
   // Noch kein Tag angetippt: dann gibt es auch keinen Tag, über den sich etwas
   // sagen ließe. Vorher stand hier „Kein Training an diesem Tag" – auch wenn
   // heute eine Einheit lag.
@@ -222,6 +281,11 @@ export function calendarDetail(iso, byDate, today, frueher, akt) {
     return `<div class="card muted small">Tippe einen markierten Tag an, um die Einheit
       zu sehen.</div>`;
   }
+  const selbst = ((eigene && eigene.get(iso)) || []).map((x) => calendarEigene(iso, x)).join('');
+  return calendarDetailPlan(iso, byDate, today, frueher, akt, selbst) + selbst;
+}
+
+function calendarDetailPlan(iso, byDate, today, frueher, akt, selbst) {
   const ws = byDate.get(iso) || [];
   const sport = (akt && akt.get(iso)) || [];
   // Der Sport steht oben: Wer im Kalender auf einen orangen Streifen tippt,
@@ -253,7 +317,7 @@ export function calendarDetail(iso, byDate, today, frueher, akt) {
       </div>`;
   }
   if (!ws.length) {
-    return `<div class="card muted small">Kein Training an diesem Tag. Tippe einen
+    return selbst ? vorn : `<div class="card muted small">Kein Training an diesem Tag. Tippe einen
       markierten Tag an, um die Einheit zu sehen.</div>`;
   }
   // Zwei Einheiten an einem Tag gibt es wirklich – etwa wenn zwei an

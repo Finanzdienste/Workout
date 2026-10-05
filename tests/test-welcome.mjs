@@ -43,6 +43,13 @@ check(await page.locator('.welcome').count() === 1, 'erster Start zeigt die Will
 check(await page.locator('#nameInput').count() === 1, 'und fragt nach dem Namen');
 check((await page.locator('.welcome').textContent()).includes('kein Konto'),
   'sagt, dass es kein Konto gibt');
+// „umgeschaltet wird über dem Startknopf, für jede Einheit neu" – einen
+// Umschalter dort gibt es nicht mehr, und die Wahl unter Mehr gilt für die
+// folgenden Einheiten weiter.
+const einstieg = (await page.locator('.welcome').textContent()).replace(/\s+/g, ' ');
+check(/unter Mehr/.test(einstieg) && /folgenden Einheiten/.test(einstieg)
+  && !/über dem Startknopf/.test(einstieg),
+  'sagt, wo die Variante gewählt wird und dass die Wahl weitergilt');
 await page.screenshot({ path: `${SHOT}/44-welcome.png` });
 
 // Drei Schritte: Name, Farbe, Fokus.

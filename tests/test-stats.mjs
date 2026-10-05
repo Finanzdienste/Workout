@@ -184,6 +184,45 @@ check(gs.karten['Beinbeuger Hüfte'] === 72,
   `Goblet Squat geht nur anteilig auf Beinbeuger Hüfte (${gs.karten['Beinbeuger Hüfte']}, erwartet 72 von ${gs.kachel})`);
 check(gs.karten.Oberschenkel === gs.kachel, `Oberschenkel (Anteil 1) bekommt das volle Volumen (${gs.karten.Oberschenkel})`);
 
+// --- Serie in Folge am Trainingstag -------------------------------------
+// Die Serie zählte rückwärts und brach bei der ersten offenen Einheit ab – und
+// am Trainingstag liegt die nächste offene immer auf heute (der Plan rückt
+// nach). Vor dem Training stand deshalb „0 Serie in Folge", gemessen
+// 4 → 0 → 5 über Ruhetag, Trainingstag vorher und nachher.
+await page.waitForTimeout(300);
+const serienStand = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { addDays, daysBetween, todayISO } = await import('./js/dates.js');
+  const shift = daysBetween(PLAN[4].date, todayISO());       // Workout 5 heute
+  const log = {};
+  PLAN.slice(0, 4).forEach((w) => {
+    log[w.n] = { mode: 'db', done: 'db', startedOn: addDays(w.date, shift), bw: {},
+                 db: Object.fromEntries(w.ex.map((it) => [it.id,
+                   Array.from({ length: it.sets }, () => ({ w: '20', done: true }))])) };
+  });
+  return { greeted: true, name: 'T', level: 'fortgeschritten', mode: 'db', shift, log };
+});
+await page.evaluate((s) => localStorage.setItem('workout.state.v1', JSON.stringify(s)), serienStand);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+const serie = await page.evaluate(async () => {
+  const { sammleStats, effDate, completedMode } = await import('./js/plan.js');
+  const { PLAN } = await import('./js/data.js');
+  const { todayISO } = await import('./js/dates.js');
+  return { streak: sammleStats().streak, w5heute: effDate(PLAN[4]) === todayISO() && !completedMode(5) };
+});
+check(serie.w5heute, 'Workout 5 liegt offen auf heute');
+check(serie.streak === 4, `vor dem Training steht die Serie auf 4, nicht auf 0 (${serie.streak})`);
+
+// --- Der Hinweis unter dem Wochenvolumen nennt keine feste Satzzahl ------
+// „… weil jede Übung mit drei Sätzen dasteht" – für Fortgeschrittene (vier je
+// Übung) und ohne Hanteln (zwei bis vier) stimmte das nicht.
+await page.locator('.tab[data-tab="stats"]').click();
+await page.waitForTimeout(400);
+const volText = (await page.locator('#volWeek').textContent()).replace(/\s+/g, ' ');
+check(/als Ganzes/.test(volText) && !/drei Sätzen/.test(volText),
+  `der Hinweis erklärt die Abweichung ohne „drei Sätze" (…${(volText.match(/darüber oder darunter[^.]*\./) || [''])[0]})`);
+
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
 console.log('ERRORS:', errs.length ? errs : 'none');
 await browser.close();

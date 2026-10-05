@@ -110,10 +110,21 @@ check(z.customs.length === 1 && /Zusatztag Woche 1/.test(z.customs[0]),
 check(!z.hinweis, 'ohne Meldung – es passiert einfach');
 check(await page.locator('[data-act="zusatztag-weg"]').count() === 0,
   'und ohne die drei Knöpfe, von denen zwei nur „weg damit" hießen');
-const kopf = (await page.locator('.hero-title').textContent()).trim();
+// Workout 5 liegt hier auf heute (siehe `schiebe`). Dann steht der Plan vorn
+// und der Zusatztag ist die zweite Einheit des Tages – nicht umgekehrt:
+// Vorher zeigte das Dashboard „Eigenes Workout / Zusatztag Woche 1", und dass
+// heute Workout 5 dran war, stand nirgends.
+const kopf = (await page.locator('.hero-eyebrow').textContent()).trim();
 console.log('     Startansicht zeigt:', kopf);
-check(/Zusatztag Woche 1/.test(kopf),
-  `die Startansicht steht auf dem Zusatztag (${kopf})`);
+check(/Heute · Workout 5/.test(kopf),
+  `an einem Tag mit fälliger Planeinheit steht sie vorn (${kopf})`);
+const zweite = page.locator('.zusatz-danach [data-act="custom-start"]');
+check(await zweite.count() === 1,
+  'und der Zusatztag wird darunter als zweite Einheit angeboten');
+await zweite.click();
+await page.waitForTimeout(300);
+const kopfZusatz = (await page.locator('.hero-title').textContent()).trim();
+check(/Zusatztag Woche 1/.test(kopfZusatz), `ein Tipp öffnet ihn (${kopfZusatz})`);
 check(await page.locator('[data-act="back-to-plan"]').count() === 1,
   'und es gibt den Weg zurück in den Plan, wer ihn nicht will');
 
@@ -179,6 +190,8 @@ check(z.customs.length === 1, `es bleibt bei einem (${z.customs.length})`);
 // Zusatztag steht dann eben da und wird beim nächsten Wochenwechsel durch den
 // neuen ersetzt, wenn er unberührt bleibt.
 await page.locator('.tab[data-tab="dashboard"]').click();
+await page.waitForTimeout(300);
+await page.locator('.zusatz-danach [data-act="custom-start"]').click();
 await page.waitForTimeout(300);
 await page.locator('[data-act="back-to-plan"]').click();
 await page.waitForTimeout(400);
@@ -362,6 +375,177 @@ const mitAufstieg = await page.evaluate(async () => {
 check(mitAufstieg.level !== 'anfaenger', `beim Start kam ein Aufstieg (${mitAufstieg.level})`);
 check(mitAufstieg.customs.some((c) => /Zusatztag Woche 1/.test(c)),
   `und der fällige Zusatztag steht trotzdem schon beim selben Start da (${mitAufstieg.customs.join(', ') || 'nichts'})`);
+
+/* ------------------------------------------------------------------ *
+ * Angelegt am Tag der letzten Einheit, gemacht am Tag danach
+ *
+ * Der Normalfall, und genau der fehlte: Der Zusatztag entsteht beim Abschluss
+ * der letzten Einheit der Woche, also an deren eigenem Tag. Dort zählte sie
+ * als „anstehend" und sperrte alle ihre Gruppen, auch die ausgelassenen – und
+ * am Tag danach, wenn er gemacht wird, wurde er nicht neu gerechnet: Es fehlte
+ * das gestern Ausgelassene, dafür standen Gruppen der Einheit von morgen drin.
+ *
+ * Gestellt wird der Folgetag, indem alle Termine einen Tag nach hinten rücken
+ * (startedOn und shift −1) – für die App dasselbe wie eine Uhr, die einen Tag
+ * weiter ist, und der angelegte Zusatztag bleibt dabei liegen.
+ * ------------------------------------------------------------------ */
+const amTagAufbau = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { addDays, daysBetween, todayISO } = await import('./js/dates.js');
+  const shift = daysBetween(PLAN[3].date, todayISO());          // W4 heute
+  const log = {};
+  PLAN.slice(0, 4).forEach((w) => {
+    const e = { mode: 'db', done: 'db', soll: {}, db: {}, bw: {},
+                startedOn: addDays(w.date, shift) };
+    w.ex.forEach((it, k) => {
+      e.soll[it.id] = it.sets;
+      // Je Einheit die letzten zwei Übungen ausgelassen.
+      e.db[it.id] = Array.from({ length: it.sets },
+        () => ({ w: '20', done: k < w.ex.length - 2 }));
+    });
+    log[w.n] = e;
+  });
+  return { greeted: true, name: 'T', level: 'geuebt', mode: 'db', shift, log };
+});
+await setze(amTagAufbau);
+// Ohne abgelegte Runden: Sonst trüge der Kalender weiter unten den heutigen
+// Tag womöglich wegen einer früheren Runde und nicht wegen des Zusatztags.
+await page.evaluate(() => localStorage.removeItem('workout.rounds.v1'));
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(600);
+
+/** Der Zusatztag samt dem, woran er sich messen lassen muss. */
+const zusatzPruefen = () => page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const daten = await import('./js/data.js');
+  const { effDate, saetzeErledigt } = await import('./js/plan.js');
+  const { daysBetween, todayISO } = await import('./js/dates.js');
+  const byId = new Map(daten.EXERCISES.map((e) => [e.id, e]));
+  const direktVon = (id) => Object.entries(byId.get(id).db.shares)
+    .filter(([, sh]) => sh >= daten.REST.direct).map(([m]) => m);
+  const heute = todayISO();
+  const c = store.customs().find((x) => x.name === 'Zusatztag Woche 1');
+  const zusatz = new Set(c ? c.ex.flatMap((x) => direktVon(x.id)) : []);
+  const w4 = daten.PLAN[3];
+  const trainiertW4 = new Set(w4.ex.filter((it) => saetzeErledigt(4, it.id, it.sets) > 0)
+    .flatMap((it) => direktVon(it.id)));
+  // Am Tag von W4 ausgelassen und dort sonst nicht trainiert.
+  const freiW4 = [...new Set(w4.ex.slice(-2).flatMap((it) => direktVon(it.id)))]
+    .filter((m) => !trainiertW4.has(m));
+  // Kollisionen mit Einheiten in Reichweite: angefasste nach Trainiertem,
+  // anstehende mit allem.
+  const treffer = [];
+  daten.PLAN.forEach((w) => {
+    const d = effDate(w);
+    if (Math.abs(daysBetween(d, heute)) >= daten.REST.days) return;
+    const angefasst = store.isStarted(w.n);
+    if (!angefasst && d < heute) return;
+    w.ex.filter((it) => !angefasst || saetzeErledigt(w.n, it.id, it.sets) > 0)
+      .flatMap((it) => direktVon(it.id))
+      .forEach((m) => { if (zusatz.has(m)) treffer.push(`${m}@W${w.n}`); });
+  });
+  return { id: c && c.id, ex: c ? c.ex.map((x) => x.id) : [], freiW4,
+           freiImZusatz: freiW4.filter((m) => zusatz.has(m)), treffer: [...new Set(treffer)] };
+});
+const amTag = await zusatzPruefen();
+console.log('     am Tag von Workout 4:', JSON.stringify(amTag));
+check(amTag.id, 'beim Abschluss der Woche entsteht der Zusatztag');
+check(amTag.freiW4.length > 0, `Workout 4 hat heute Ausgelassenes (${amTag.freiW4.join(', ')})`);
+check(amTag.freiImZusatz.length > 0,
+  `auch die heute abgeschlossene Einheit sperrt nur, was trainiert ist – Ausgelassenes steht im Zusatztag (${
+    amTag.freiImZusatz.join(', ') || 'nichts'})`);
+check(amTag.treffer.length === 0, `keine Kollision am Tag selbst (${amTag.treffer.join(', ') || 'keine'})`);
+
+// Ein Tag später – der Tag, an dem er gemacht wird.
+const gespeichert = await page.evaluate(() => JSON.parse(localStorage.getItem('workout.state.v1')));
+const folgetag = await page.evaluate(async (z) => {
+  const { addDays } = await import('./js/dates.js');
+  const s = JSON.parse(JSON.stringify(z));
+  s.shift -= 1;
+  Object.values(s.log).forEach((e) => { if (e && e.startedOn) e.startedOn = addDays(e.startedOn, -1); });
+  return s;
+}, gespeichert);
+await setze(folgetag);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(600);
+const danach = await zusatzPruefen();
+console.log('     am Tag danach:', JSON.stringify(danach));
+check(danach.id === amTag.id, 'am Tag danach ist es derselbe Zusatztag – der Name bleibt');
+check(danach.treffer.length === 0,
+  `und er ist für diesen Tag gerechnet: keine Gruppe der Einheit von morgen (${danach.treffer.join(', ') || 'keine'})`);
+// Gegenprobe: Was rechnet die App heute frisch, ohne den alten?
+await setze({ ...folgetag, customs: [] });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(600);
+const frisch = await zusatzPruefen();
+check(frisch.ex.join() === danach.ex.join(),
+  `er ist derselbe, den die App heute frisch anlegen würde (${danach.ex.join(', ')} | frisch: ${frisch.ex.join(', ')})`);
+
+/* ------------------------------------------------------------------ *
+ * Ein gemachter Zusatztag zählt
+ *
+ * In der Wochenbilanz, im Hinweis darunter und im Kalender. Vorher standen nach
+ * 9 von 9 Sätzen in der Statistik genau die Lücken, die er schließen sollte,
+ * darunter „Für diese Woche steht schon ein Zusatztag bereit … Öffnen", und
+ * der Kalender war an dem Tag leer.
+ * ------------------------------------------------------------------ */
+const bilanz = async () => {
+  await page.locator('.tab[data-tab="stats"]').click();
+  await page.waitForTimeout(400);
+  return page.evaluate(() => {
+    const host = document.getElementById('volWeek');
+    const zahl = (t) => Number(String(t).replace(',', '.'));
+    const zeilen = {};
+    host.querySelectorAll('.vol-row').forEach((r) => {
+      const [got, soll] = r.querySelector('.vol-num').textContent.split('/');
+      zeilen[r.querySelector('.vol-name').textContent.trim()] = { got: zahl(got), soll: zahl(soll) };
+    });
+    return { kopf: host.querySelector('.lbl').textContent.trim(), zeilen,
+             bereit: /steht\s+schon ein Zusatztag bereit/.test(host.textContent) };
+  });
+};
+const vorher = await bilanz();
+console.log('     Woche vorher:', vorher.kopf, JSON.stringify(vorher.zeilen));
+check(/Woche 1/.test(vorher.kopf), `die Bilanz zeigt Woche 1 (${vorher.kopf})`);
+check(vorher.bereit, 'solange er unberührt ist, steht der Hinweis auf den bereiten Zusatztag da');
+
+// Alle Sätze des Zusatztags abhaken – so, wie die App es beim Antippen tut.
+await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const c = store.customs().find((x) => x.name === 'Zusatztag Woche 1');
+  c.ex.forEach((it) => {
+    for (let i = 0; i < it.sets; i++) store.updateSet(c.id, 'db', it.id, it.sets, i, { done: true, w: '10' });
+  });
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(500);
+const nachher = await bilanz();
+console.log('     Woche nachher:', JSON.stringify(nachher.zeilen));
+const gestiegen = Object.keys(nachher.zeilen)
+  .filter((g) => nachher.zeilen[g].got > (vorher.zeilen[g] || { got: 0 }).got + 1e-9);
+check(gestiegen.length > 0, `der Zusatztag zählt in der Woche, für die er da ist (${gestiegen.join(', ') || 'keine Gruppe'})`);
+// Doppelt zählt nichts: Was schon im Ziel stand, bleibt, wo es war, und keine
+// Gruppe wächst über ihr Pensum hinaus, weil der Zusatztag dazukam.
+const ueber = Object.keys(nachher.zeilen).filter((g) => {
+  const v = vorher.zeilen[g] || { got: 0 };
+  return nachher.zeilen[g].got > Math.max(v.got, nachher.zeilen[g].soll) + 0.05;
+});
+check(ueber.length === 0,
+  `er schließt nur, was noch offen war – nichts zweimal, nichts über das Pensum (${ueber.join(', ') || 'alles im Rahmen'})`);
+check(!nachher.bereit, 'und der Hinweis „steht schon ein Zusatztag bereit" ist weg');
+
+// Und der Kalender kennt den Tag.
+await page.locator('.tab[data-tab="settings"]').click();
+await page.waitForTimeout(250);
+await page.locator('[data-act="go-tab"][data-tab="calendar"]').first().click();
+await page.waitForTimeout(400);
+const heuteKachel = await page.locator('.cal-cell.today').first().getAttribute('class');
+console.log('     Kalender heute:', heuteKachel);
+check(/\bdone\b/.test(heuteKachel || '') && /\beigen\b/.test(heuteKachel || ''), `der Kalender markiert den Tag des Zusatztags als trainiert (${heuteKachel})`);
+await page.locator('.cal-cell.today').first().click();
+await page.waitForTimeout(300);
+const detail = (await page.locator('.cal-detail').allTextContents()).join(' ').replace(/\s+/g, ' ');
+check(/Zusatztag Woche 1/.test(detail), 'und nennt ihn beim Antippen');
 
 check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.slice(0, 2).join(' | ') : ''}`);
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);
