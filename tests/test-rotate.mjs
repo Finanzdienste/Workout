@@ -526,7 +526,11 @@ flaschenBild.forEach((n) => {
   });
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
   Object.entries(zeiten).forEach(([pattern, ms]) => {
-    check(ms < 4, `${pattern}: draw() mit vierfach gedrosselter CPU im Median ${ms.toFixed(1)} ms (unter 4 ms)`);
+    // Gemessen wurden hier 2,8–3,2 ms, mit der alten Rechnung 11,5–16,5 ms. Die
+    // Grenze liegt bei 8 ms: Sie fängt einen Rückfall auf die alte Rechnung
+    // sicher, lässt aber Luft für langsamere Rechner in der CI – bei 4 ms
+    // blieben dort nur 0,8 ms Reserve, und der Test hätte gewackelt.
+    check(ms < 8, `${pattern}: draw() mit vierfach gedrosselter CPU im Median ${ms.toFixed(1)} ms (unter 8 ms)`);
   });
 }
 
