@@ -1584,6 +1584,13 @@ textarea.io {
    Kanten zu sehen sind – wie die Kante einer Hantelscheibe (fig-plate-seite). */
 .fig-pack-seite { fill: #b7bcc4; stroke: #b7bcc4; stroke-width: .25; stroke-linejoin: round; }
 .fig-strap { fill: none; stroke: #d5d9df; stroke-linecap: round; }
+/* Flaschen beim Seitheben: hell wie die Scheiben, aber blau wie Wasser, damit
+   man sie nicht für Kurzhanteln hält; der Deckel dunkel. Seiten wie bei der
+   Scheibe dunkler, damit die Flasche Tiefe hat. */
+.fig-flasche-flaeche { fill: #b9dcf2; }
+.fig-flasche-seite { fill: #84b8de; stroke: #84b8de; stroke-width: .25; stroke-linejoin: round; }
+.fig-deckel { fill: #3b78c2; }
+.fig-deckel-seite { fill: #2c5e9c; stroke: #2c5e9c; stroke-width: .25; stroke-linejoin: round; }
 /* Hände: ein Umriss um die ganze Hand statt um jeden Finger. Einzeln umrandet
    lagen die Finger von der Seite gesehen hintereinander, und aus den Rändern
    wurde ein Kringel – „Die Hände sehen nicht so richtig händig aus". Also erst

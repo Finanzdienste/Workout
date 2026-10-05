@@ -49,7 +49,7 @@
 
 <script type="module">
 import { EXERCISES } from './js/data.js';
-import { bwGeraet, mountFigure } from './js/figure.js';
+import { figurGeraet, mountFigure } from './js/figure.js';
 
 const gitter = document.getElementById('gitter');
 let stopper = [];
@@ -80,8 +80,8 @@ function zeichne(modus) {
       const unten = document.createElement('div');
       unten.className = 'unten';
       // Dieselbe Ableitung wie in resolve(): Im Hantel-Modus das Gerät der
-      // Übung, im Bodyweight-Modus das, was der Gerätetext nennt (bwGeraet).
-      const gear = modus === 'db' ? ex.equip : bwGeraet(v.equip);
+      // Übung, sonst das, was der Gerätetext nennt (figurGeraet).
+      const gear = figurGeraet(ex, modus);
       unten.innerHTML = `${v.equip}<br><code>${v.pattern} · ${gear || 'ohne Gerät'}</code>`;
       karte.appendChild(unten);
 
