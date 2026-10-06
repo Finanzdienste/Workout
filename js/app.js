@@ -50,7 +50,7 @@ import {
 import {
   gruppeVon, naechsterOffen, naechsterSchritt, paarBelegung, paare, scheibenReichen, schritte,
 } from './supersatz.js';
-import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, nacharbeit, progressOf, saetzeErledigt, resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo } from './plan.js';
+import { PLAN_WEEKS, WEEK_SESSIONS, activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, ersatzGrund, exBasis, exOf, fassungen, firstOpen, hasAnyEntry, injuryNotes, istCustom, nacharbeit, nacharbeitPlan, nachSumme, nachWarumJe, progressOf, saetzeErledigt, resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
 import { GERAETE, ausUebungen, bandFarbe, fehlt, nichtsAbgewaehlt, setzeUebung, setzeVorrat, uebungGeht } from './vorrat.js';
@@ -1474,11 +1474,138 @@ function nachFesthalten(n) {
   const e = store.getState().log[n];
   if (e && e.nachFest) return;
   const jeModus = {};
+  // Und mit ihr, woher sie kommt (die Zeile unter „3 + 1", nachZeile()) –
+  // ebenfalls für beide Varianten. Nur für Übungen, die wirklich Nacharbeit
+  // tragen, und nur als schlichte Objekte: Das landet im Speicher.
+  const warum = {};
   ['db', 'bw'].forEach((m) => {
     const x = nacharbeit(PLAN[n - 1], m);
     jeModus[m] = x ? Object.fromEntries(x) : {};
+    const p = x ? nacharbeitPlan(PLAN[n - 1], m) : null;
+    warum[m] = p ? Object.fromEntries([...p.warum].filter(([id]) => x.has(id))) : {};
   });
-  store.halteNachFest(n, jeModus);
+  store.halteNachFest(n, jeModus, warum);
+}
+
+/*
+ * Woher ein Nachholsatz kommt – eine stille Zeile an der Übung.
+ *
+ *     „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich
+ *      ja goblet sqauds gemacht"
+ *
+ * An der Übung stand „4 Sätze … +1 nachgeholt". Die 4 las sich wie eine neue
+ * Grundzahl, und wofür der Satz nachgeholt wird, stand nirgends. Jetzt steht
+ * die Satzzahl getrennt da („3 + 1") und darunter, wofür: der Tag und die
+ * Übung, die den Rückstand hinterlassen haben, mit ihren Haken. „abgehakt",
+ * weil die App nur Haken kennt – ob jemand den Satz gemacht und nicht
+ * abgehakt hat, weiß sie nicht.
+ *
+ * Kein Popup, kein Toast, nichts wegzutippen: Die Zeile steht da, wo man den
+ * Satz macht, und wer sie nicht braucht, liest darüber hinweg.
+ */
+
+/**
+ * Der Tag einer früheren Einheit, vom Tag der Einheit aus gesehen: in
+ * derselben Woche das Kürzel („Sa"), sonst mit Datum („Do 24.9.").
+ * Keine relativen Wörter wie „vorgestern" – die Zeile bleibt im Verlauf
+ * stehen, und dort stimmte „vorgestern" schon morgen nicht mehr.
+ */
+function tagKurz(isoQuelle, isoEinheit) {
+  const wt = fmtDate(isoQuelle).slice(0, 2);
+  const d = daysBetween(isoQuelle, isoEinheit);
+  if (d >= 1 && d <= 6) return wt;
+  const [, mo, ta] = isoQuelle.split('-').map(Number);
+  return `${wt} ${ta}.${mo}.`;
+}
+
+/** Die Herkunftszeile als Text (ohne HTML). `warum` aus nachWarumJe(), oder null. */
+function nachText(w, mode, it, warum) {
+  const N = it.nach;
+  const heute = effDate(w);
+  const tag = (nq) => (PLAN[nq - 1] ? tagKurz(effDate(PLAN[nq - 1]), heute) : `Workout ${nq}`);
+  // Die Quelle heißt so, wie sie an *ihrem* Tag hieß – im Modus, in dem sie
+  // trainiert wurde (`mq`, fünfter Eintrag in q). Wer am Donnerstag ohne
+  // Hanteln trainiert hat, hat die Standwaage gemacht, nicht das Rumänische
+  // Kreuzheben; die Zeile soll gerade das „aber ich hab doch …" beantworten,
+  // da darf sie keine Übung nennen, die es an dem Tag nicht gab.
+  const name = (id, mq) => {
+    const ex = EX_BY_ID.get(id);
+    return (ex && (ex[mq || mode] || ex.db || ex.bw) || {}).name || id;
+  };
+  // Ohne festgehaltene Erklärung (Altbestand, oder keine Rechnung kommt mehr
+  // auf dieselben Sätze): nur die Tage, aus denen der Rest stammen kann – die
+  // abgeschlossenen Einheiten dieser Woche vor dieser. Mit Wochentag wie der
+  // Rest der Zeile („am Sa …", „(Sa 1 von 3)"), nicht mit Workout-Nummern,
+  // die beim Training niemand im Kopf hat.
+  const spanne = () => {
+    const start = Math.floor((w.n - 1) / WEEK_SESSIONS) * WEEK_SESSIONS + 1;
+    const tage = [];
+    for (let k = start; k < w.n; k++) if (completedMode(k)) tage.push(tag(k));
+    if (!tage.length) return '';
+    const liste = tage.length === 1 ? tage[0] : `${tage.slice(0, -1).join(', ')} und ${tage[tage.length - 1]}`;
+    return `Rest vom ${liste}`;
+  };
+  const mitSpanne = (kopf) => { const s = spanne(); return s ? `${kopf}: ${s}` : kopf; };
+  const q = warum && Array.isArray(warum.q) ? warum.q : [];
+  const g = warum && Array.isArray(warum.g) ? warum.g : [];
+  if (!warum) return mitSpanne(`+${N} nachgeholt`);
+  // Dieselbe Übung war an einem früheren Tag zu kurz: Das beantwortet die
+  // Frage direkt – „vorgestern hab ich doch …".
+  if (q.length === 1 && q[0][1] === it.id) {
+    const [nq, , ab, von] = q[0];
+    return ab > 0
+      ? `+${N} nachgeholt: am ${tag(nq)} nur ${ab} von ${von} Sätzen abgehakt`
+      : `+${N} nachgeholt: am ${tag(nq)} keinen von ${von} Sätzen abgehakt`;
+  }
+  const fuer = g.length ? ` für ${g.map((m) => MUSCLE_LABEL[m] || m).join(' und ')}` : '';
+  if (!q.length) return mitSpanne(`+${N} nachgeholt${fuer}`);
+  const quellen = q.slice(0, 2).map(([nq, id, ab, von, mq]) => `${name(id, mq)} (${tag(nq)} ${ab} von ${von})`).join(', ');
+  const mehr = q.length > 2 ? ` und ${q.length - 2} weitere` : '';
+  return `+${N} nachgeholt${fuer}: ${quellen}${mehr}`;
+}
+
+/** Die Zeile unter der Satzzahl, oder nichts, wenn die Übung keine Nacharbeit trägt. */
+function nachZeile(n, mode, it, warumJe) {
+  if (!it.nach || istCustom(n) || !PLAN[n - 1]) return '';
+  const w = PLAN[n - 1];
+  const je = warumJe === undefined ? nachWarumJe(w, mode) : warumJe;
+  const text = nachText(w, mode, it, (je && je[it.id]) || null);
+  return `<div class="nach-warum" id="nw-${esc(it.id)}">${esc(text)}</div>`;
+}
+
+/**
+ * „3 + 1" statt „4": Grundzahl und Nacharbeit getrennt, damit die 4 nicht wie
+ * eine neue Grundzahl aussieht.
+ *
+ * Schlichter Text, ohne eigene Beschriftung für die Vorlesefunktion. Hier
+ * stand einmal ein aria-label an einem <span> („3 Sätze plus 1
+ * nachgeholter"). Ein Name an einem Element ohne Rolle ist in ARIA nicht
+ * vorgesehen: Im Barrierefreiheitsbaum stand neben dem Namen weiter der Text
+ * „3 + 1", gelesen wurde je nach Vorlesefunktion das eine oder das andere –
+ * und wo der Name ankam, hieß es „3 Sätze plus 1 nachgeholter Sätze × 8–12".
+ * „3 + 1 Sätze" liest jede als „3 plus 1 Sätze", und was das +1 ist, sagt die
+ * Zeile direkt darunter (nachZeile()), die als Nächstes kommt.
+ */
+function satzZahlText(it) {
+  if (!it.nach) return String(it.sets);
+  return `${it.sets - it.nach} + ${it.nach}`;
+}
+
+/** Ist dieser Satz einer der nachgeholten (sie stehen am Ende)? */
+const istNachSatz = (it, idx) => !!it.nach && idx >= it.sets - it.nach;
+
+/** Beschriftung eines Satzknopfs – der Nachholsatz sagt, dass er einer ist. */
+function satzLabel(it, idx) {
+  return `Satz ${idx + 1} von ${it.sets}${istNachSatz(it, idx) ? ', nachgeholt,' : ''} erledigt`;
+}
+
+/**
+ * Verweis auf die Herkunftszeile – nur am Nachholsatz selbst. An allen Knöpfen
+ * hing sonst „+1 nachgeholt für …" auch an Satz 1 bis 3, und die
+ * Vorlesefunktion hängte die Nacharbeit an jeden Grundsatz.
+ */
+function nachVerweis(it, idx) {
+  return istNachSatz(it, idx) ? ` aria-describedby="nw-${esc(it.id)}"` : '';
 }
 
 /** Zur nächsten offenen Übung rücken und sagen, welche das ist. */
@@ -1858,9 +1985,14 @@ function renderFocus() {
          dritte Satz war Nacharbeit aus derselben Woche, aber in dieser Ansicht
          stand nur „3 Sätze" – und dann sucht man den Grund da, wo man zuletzt
          etwas umgestellt hat. Der Supersatz ändert keine einzige Satzzahl; er
-         ordnet nur um. -->
-    <div class="focus-meta">${it.sets} Sätze × ${esc(mitWdh(repsLabel(it, mode)))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}${
-      it.nach ? ` · <b>+${it.nach} nachgeholt</b>` : ''}</div>
+         ordnet nur um.
+         Und es muss dastehen, *wofür*: *„Jetzt vier Sätze je Übung? Wegen
+         Wiederholung? Aber vorgestern hab ich ja goblet sqauds gemacht"* Die 4
+         las sich wie eine neue Grundzahl. Jetzt steht „3 + 1" da und darunter
+         die Herkunft (nachZeile()). Im Supersatz nur an der gezeigten Übung –
+         die Nacharbeit des Partners steht da, wenn er dran ist. -->
+    <div class="focus-meta">${satzZahlText(it)} Sätze × ${esc(mitWdh(repsLabel(it, mode)))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</div>
+    ${nachZeile(n, mode, it)}
     ${(() => {
       // Im Wechsel muss dastehen, mit wem – sonst wirkt der Sprung zur nächsten
       // Übung wie ein Fehler statt wie der Plan.
@@ -1893,7 +2025,7 @@ function renderFocus() {
     <div class="focus-sets">
       ${sets.map((s, idx) => `
         <button type="button" class="set-btn focus-set ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
-                aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
+                aria-label="${satzLabel(it, idx)}"${nachVerweis(it, idx)}
                 data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
     </div>
     ${anderswo > 0 ? `<div class="small muted ex-anderswo">${anderswo === 1 ? 'Ein Satz' : `${anderswo} Sätze`}
@@ -2877,6 +3009,8 @@ function renderDashboard() {
   else when = `vor ${-diff} Tagen`;
 
   const items = w.ex.map((item) => resolve(item, mode));
+  // Die Herkunft der Nacharbeit einmal für die ganze Liste, nicht je Karte.
+  const warumJe = !w.custom && items.some((it) => it.nach) ? nachWarumJe(PLAN[n - 1], mode) : null;
 
   const parts = [];
 
@@ -2936,7 +3070,7 @@ function renderDashboard() {
     // ist der eine Handgriff, der zwischen zwei Sätzen schnell gehen muss.
     const setBtns = sets.map((s, idx) => `
       <button type="button" class="set-btn ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
-              aria-label="Satz ${idx + 1} von ${it.sets} erledigt"
+              aria-label="${satzLabel(it, idx)}"${nachVerweis(it, idx)}
               data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>
     `).join('');
 
@@ -2964,11 +3098,11 @@ function renderDashboard() {
           <span class="ex-idx">${complete ? '✓' : i + 1}</span>
           <span class="ex-main">
             <span class="ex-name">${esc(it.name)}</span>
-            <span class="ex-meta">${it.sets} × ${esc(repsLabel(it, mode))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}${
-              it.nach ? ` · <b>+${it.nach} nachgeholt</b>` : ''}</span>
+            <span class="ex-meta">${satzZahlText(it)} × ${esc(repsLabel(it, mode))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</span>
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
+        ${nachZeile(n, mode, it, warumJe)}
         ${anfaengerZeile(it)}
         ${weightRow}
         ${fassungRow(it, mode)}
@@ -3831,10 +3965,15 @@ function tagesGroesse(w, mode, anzahl) {
  * tiefer, über die Übungsliste, wo sie mit Zahlen dasteht (tagNotiz).
  */
 function tagKopf(w, mode, items) {
+  // Mit Nacharbeit als „12 + 3 Sätze": Grundzahl und Nachgeholtes getrennt,
+  // wie an der Übung („3 + 1"). Keine eigene Zeile dafür – siehe den Kommentar
+  // in der Startansicht, warum dort keine Buchhaltung mehr steht.
+  const alle = items.reduce((a, x) => a + x.sets, 0);
+  const nach = nachSumme(items);
   return [
     MODE_LABEL[mode],
     `${items.length} Übungen`,
-    `${items.reduce((a, x) => a + x.sets, 0)} Sätze`,
+    nach > 0 ? `${alle - nach} + ${nach} Sätze` : `${alle} Sätze`,
   ].join(' · ');
 }
 

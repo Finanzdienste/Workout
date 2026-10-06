@@ -856,6 +856,17 @@ button { font: inherit; color: inherit; }
   line-height: 1.15;
 }
 .focus-meta { font-size: 13.5px; color: var(--muted); margin-bottom: 14px; }
+/* Woher ein Nachholsatz kommt („+1 nachgeholt: am Sa nur 2 von 3 Sätzen
+   abgehakt"). Leise und klein, direkt unter der Satzzahl, die sie erklärt:
+   eine Auskunft, keine Aufgabe. Sie bricht um, statt abgeschnitten zu werden –
+   ein halber Grund ist keiner. Der Wortlaut ist auf höchstens zwei Zeilen
+   gebaut (nachText() in js/app.js). */
+.nach-warum {
+  font-size: .82em; line-height: 1.35; color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.focus-meta + .nach-warum { margin: -11px 0 12px; }
+.ex > .nach-warum { margin: -9px 14px 10px 54px; }
 .focus-weight { padding: 0 0 10px; }
 .focus-next { margin: -4px 0 10px; }
 .focus-sets { display: flex; gap: 10px; margin-bottom: 14px; }

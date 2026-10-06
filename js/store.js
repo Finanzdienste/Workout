@@ -162,6 +162,9 @@ const DEFAULT_STATE = {
   //   nachFest  die Nacharbeit der Einheit, festgehalten mit dem ersten Satz:
   //           { db: { exId: k }, bw: { … } } – ab da gilt sie, statt neu
   //           gerechnet zu werden (halteNachFest(), nacharbeit() in js/plan.js)
+  //   nachWarum  woher diese Nacharbeit kam, im selben Schritt festgehalten:
+  //           { db: { exId: { g: [Gruppe], q: [[n, exId, abgehakt, von]] } },
+  //           bw: { … } } – die Zeile unter „3 + 1" (nachWarum() in js/plan.js)
   //   fest    nach einem Planwechsel die eigene Übungsliste
   //           [{ id, sets, bwSets }] – ohne Nacharbeit, die kommt in exOf()
   //           dazu; `bwSets` fehlt, wo es gleich `sets` ist, und in Listen
@@ -854,7 +857,7 @@ export function resetWorkout(n, mode) {
   syncStartedOn(n);
   // Steht danach nichts mehr, ist der nächste Anlauf ein neuer – mit der
   // Nacharbeit, die dann gilt.
-  if (!isStarted(n)) delete e.nachFest;
+  if (!isStarted(n)) { delete e.nachFest; delete e.nachWarum; }
   persist();
   emit();
 }
@@ -877,6 +880,7 @@ export function verwirfEinheit(n) {
   delete e.done;
   delete e.paare;
   delete e.nachFest;
+  delete e.nachWarum;
   if (state.clock && state.clock.n === n) state.clock = null;
   syncStartedOn(n);
   persist();
@@ -887,11 +891,18 @@ export function verwirfEinheit(n) {
  * Die Nacharbeit einer Einheit festhalten – einmal, mit dem ersten Satz.
  * `jeModus` ist { db: { exId: k }, bw: { … } }. Siehe nacharbeit() in
  * js/plan.js: Ab hier wird sie nicht mehr neu gerechnet.
+ *
+ * `warum` ist ihre Herkunft in derselben Form ({ db: { exId: { g, q } } }),
+ * und sie wird im selben Schritt festgehalten: Eine Erklärung, die später neu
+ * gerechnet wird, könnte einen Satz mit einem Rückstand begründen, aus dem er
+ * nicht stammt – etwa wenn in der Einheit davor noch ein Satz nachgetragen
+ * wird. Die Sätze stehen fest, also steht auch ihr Grund fest.
  */
-export function halteNachFest(n, jeModus) {
+export function halteNachFest(n, jeModus, warum) {
   const e = ensure(n);
   if (e.nachFest) return;
   e.nachFest = { db: { ...(jeModus.db || {}) }, bw: { ...(jeModus.bw || {}) } };
+  if (warum) e.nachWarum = { db: { ...(warum.db || {}) }, bw: { ...(warum.bw || {}) } };
   persist();
   emit();
 }

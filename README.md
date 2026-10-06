@@ -4541,6 +4541,116 @@ ganz Zurücksetzen löst den Vermerk wieder; der nächste Anlauf rechnet neu.
 Das Pensum der Woche zählt die Nacharbeit dabei nicht mit – sie schließt den
 Rückstand, sie vergrößert ihn nicht.
 
+**Gemachte Nacharbeit zählt – derselbe Rückstand kommt nicht zweimal.**
+
+> „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich ja
+> goblet sqauds gemacht"
+
+Tobi, Montag, Workout 7 im Cut: Goblet Squat mit „4 Sätze … +1 nachgeholt". Am
+Donnerstag war ein Satz Kreuzheben liegen geblieben, am Samstag stand dafür der
+Goblet Squat mit „+1" da, und er hat alle vier gemacht. `offenInWoche()` maß
+jede frühere Einheit aber nur an ihrer Grundliste, und `saetzeErledigt()`
+deckelte die Haken auf die Grundzahl: Der vierte Haken fiel unter den Deckel,
+das Loch vom Donnerstag blieb offen, und der Montag forderte es ein zweites Mal
+ein. Die Grenze „gemessen gegen den Plan *ohne* Nacharbeit" deckte nur
+liegen gelassene Nachholsätze ab, keine gemachten.
+
+Jetzt zählt jeder Haken einer früheren Einheit entweder zu ihrer Grundzahl oder
+zu ihrer angesagten Nacharbeit, nie zu beiden, und die gemachte Nacharbeit wird
+je Muskelgruppe vom Rückstand abgezogen – auch aus einer Einheit, die noch
+offen ist (ihr *Rückstand* ist Zukunft, ihre gemachte Nacharbeit nicht).
+Erkannt wird der Nachholsatz am gespeicherten Vermerk (`nach`, ersatzweise
+`nachFest`), nicht an „soll minus heutige Satzzahl": Ein Tag, der mit einer
+höheren Stufe stand (vier Grundsätze, heute drei), hätte seinen vierten
+*Grund*satz sonst als Nacharbeit gutgeschrieben und echten Rückstand
+weggerechnet. Ohne Vermerk keine Gutschrift, und sie endet bei der angesagten
+Zahl. Eine Folge, die so gewollt ist: Stand ein Tag mit 2 + 1 (soll 3, davon 1
+Nacharbeit) und heißt die Stufe heute 3, wird er an seinen 2 Grundsätzen
+gemessen – an der Satzzahl, die an dem Tag galt.
+
+**Was am Tag nicht dastand, schuldet der Tag nicht.** Seit v216 legt die
+Fokusansicht beim Öffnen die ganze Einheit an und die Liste jede Karte; jede
+angezeigte Übung hat also einen Stempel in `soll`. Fehlt er in einer Einheit,
+die `nachFest` trägt (gesetzt ab v233 mit dem ersten Satz), hat eine
+Beschwerde, ein Termin oder der Plan davor die Übung an dem Tag gestrichen.
+Bisher hieß ein fehlender Stempel immer „stand da, nicht angefasst": Wurde der
+Termin „Beine" am Sonntag nach dem Training gelöscht, stand der Goblet Squat
+rückwirkend ganz offen in der Samstagseinheit, und Workout 7 holte ihn nach.
+Eine Einstellung darf keine Arbeit erzeugen. Ältere Einheiten ohne `nachFest`
+behalten die alte Lesart – aus der Zeit vor dem vollständigen Stempeln heißt
+der fehlende Eintrag wirklich „nicht angefasst". Beides steht in
+`tests/test-nacharbeit.mjs` (Abschnitte 9–11, samt Tobis Ablauf über die
+Oberfläche); ohne den Fix schlagen dort elf Prüfungen fehl.
+
+**Und es steht dran, woher.** An der Übung stand nur „+1 nachgeholt" – wofür,
+stand nirgends, und die „4" las sich wie eine neue Grundzahl. Jetzt steht die
+Satzzahl getrennt da, an der Übung „3 + 1 Sätze", im Kopf der Einheit
+„12 + 3 Sätze", und unter der Übung eine stille Zeile:
+
+| Fall | Zeile |
+| --- | --- |
+| dieselbe Übung war an einem früheren Tag zu kurz | „+1 nachgeholt: am Sa nur 2 von 3 Sätzen abgehakt" |
+| eine andere Übung hat die Lücke hinterlassen | „+1 nachgeholt für hintere Schulter und Nacken: Reverse Fly (Sa 0 von 3)" |
+| keine festgehaltene Erklärung (Altbestand) | „+1 nachgeholt: Rest vom Do und Sa" |
+
+Der Tag steht als Kürzel, wenn er in den sechs Tagen davor liegt, sonst mit
+Datum („Do 24.9."); kein „vorgestern", weil die Zeile im Verlauf stehen bleibt.
+„abgehakt", weil die App nur Haken kennt. Genannt werden die Muskelgruppen,
+für die man den Satz macht (seine direkten Anteile, die wirklich Rückstand
+schließen), und die Übungen, die die Hauptgruppe davon offen gelassen haben –
+nur die Hauptgruppe, sonst stand beim Rudern der Reverse Fly, nur weil beide
+den Nacken streifen. Die Herkunft kommt aus derselben Schleife wie die
+Verteilung selbst (`nacharbeitPlan()`), nicht aus einer zweiten Rechnung, die
+irgendwann etwas anderes sagt.
+
+Wie die Nacharbeit wird auch ihr Grund mit dem ersten Satz festgehalten
+(`nachWarum` neben `nachFest`, für beide Varianten). Wird danach in der
+Einheit davor noch ein Satz nachgetragen, bleibt die Zeile, wie sie beim Start
+galt – genau wie die Sätze. Einheiten aus v233–v235 haben `nachFest`, aber
+noch kein `nachWarum`; für sie wird nachgerechnet und die Erklärung nur
+benutzt, wenn die Neurechnung *genau* die festgehaltene Nacharbeit ergibt –
+zuerst mit der Rechnung von damals (`offenInWocheAlt()`), denn die hat diese
+Sätze festgehalten. Wer Workout 7 noch unter v235 angefangen hat, trägt dort
+den Goblet Squat mit +1, den v237 nicht mehr ansagen würde; mit der heutigen
+Rechnung allein passte nichts, und an genau dieser Übung stand dann nur „Rest
+aus Workout 5–6". Jetzt steht dort „+1 nachgeholt für Gesäß: Rumänisches
+Kreuzheben (Do 2 von 3)" – der Rückstand, aus dem v235 den Satz gerechnet hat. Passt keine Rechnung, nennt die Zeile die Tage („Rest vom
+Do und Sa"), nicht Workout-Nummern.
+
+Die Quelle heißt, wie sie an *ihrem* Tag hieß: Wer am Donnerstag ohne Hanteln
+trainiert hat, liest „Einbeiniges Kreuzheben (Standwaage) (Do 1.10. 2 von 3)",
+nicht den Namen der Hantelfassung, die er nie gemacht hat.
+
+**Eine Einstellung löscht auch keine Arbeit.** Gestempelt wird die Übung, die
+am Tag dastand; gesucht wird mit der von heute. Wird nach dem Samstag eine
+Beschwerde angehakt, die das Hängende Knieheben gegen das Liegende tauscht,
+liegt der Stempel unter dem Hängenden – und wurde als „stand an dem Tag nicht
+da" gelesen. Das liegen gebliebene Knieheben verschwand aus der Rechnung.
+Gesucht wird deshalb auch unter `from`/`statt` und, andersherum (Beschwerde
+am Tag angehakt, heute ausgeheilt), unter einem Stempel einer direkt
+verwandten Übung, den heute keine andere Zeile trägt.
+
+**Und eine gesenkte Stufe schreibt nichts gut.** Ob ein Haken Nacharbeit war,
+misst die Grundzahl *jenes* Tages (4 bei „fortgeschritten"), nicht die auf
+heute gekappte (3 bei „geübt"). Sonst zählte bei „4 + 1, gemacht 4" der vierte
+Grundsatz als gemachter Nachholsatz, und wer das +1 ausließ, bekam mehr
+gutgeschrieben als jemand, dem gar keins angesagt war.
+
+Kein Popup, kein Toast, keine Ansage: eine kleine, gedämpfte Zeile direkt unter
+der Satzzahl, im Supersatz nur an der gerade gezeigten Übung. Die Satzknöpfe
+verweisen auf sie (`aria-describedby`) – nur der Nachholsatz selbst, nicht
+Satz 1 bis 3 –, und er heißt im Vorlesetext „Satz 4 von 4, nachgeholt". „3 + 1"
+ist schlichter Text: Ein `aria-label` am `<span>` (ein Name ohne Rolle) kam je
+nach Vorlesefunktion an oder nicht, und wo er ankam, hieß es „3 Sätze plus 1
+nachgeholter Sätze". Die Fokusansicht bleibt dabei eine Seite: Die
+Zeile kostet 18 px (zweizeilig 35 px), und die Figur nimmt nur, was übrig
+bleibt. Gemessen bei 414×896, 390×844 und 360×740 liegt der erste Satzknopf
+weiter ganz über der Leiste unten. Bei 360×640 lag er beim Goblet Squat schon
+*vorher* 19 px darunter (Gewichtszeile, Aufbau- und Aufwärmhinweis, die Figur
+auf ihrem Mindestmaß) – ein eigener Befund, keiner dieser Änderung; mit der
+Zeile sind es 18 px, weil die Meta-Zeile ohne „· +1 nachgeholt" nicht mehr
+umbricht. Geprüft in `tests/test-nacharbeit-herkunft.mjs`.
+
 ### Der Zusatztag
 
 Die Nacharbeit hat einen Deckel von drei Sätzen, und der ist gewollt. Wer aber
@@ -4716,8 +4826,9 @@ fest — sechs angebrochene Einheiten ändern die Stufe nicht.
 Gemessen wird gegen `exBasis()` – den Plan *ohne* Nacharbeit. Was die App
 selbst obendrauf gelegt hat, darf niemandem als Versäumnis angerechnet werden.
 
-**Und es steht dran.** An der Übung („+1 nachgeholt") und im Kopf der Einheit.
-Eine Einheit, die kommentarlos wächst, ist eine Zumutung.
+**Und es steht dran.** An der Übung („3 + 1 Sätze", darunter die Zeile „+1
+nachgeholt: …", woher der Satz kommt) und im Kopf der Einheit („12 + 3
+Sätze"). Eine Einheit, die kommentarlos wächst, ist eine Zumutung.
 
 Beim Einbau ist ein Fehler aufgefallen, der nichts mit dem Feature zu tun hat
 und trotzdem daran hing: Das `ui`-Objekt ruft `defaultWorkoutNo()` **während
