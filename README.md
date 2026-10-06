@@ -5252,7 +5252,7 @@ Band, Stuhl und Klimmzugstange liegen nur da, und Scheiben sind keine im Spiel.
 Über alle 336 Einheiten der vier Pläne (4 × 84), gezählt wie die App die
 Einheit zusammenstellt (`workoutByNo()` und `resolve()`, Startgewichte, kein
 Vorrat eingetragen), findet `paare()` mit Hanteln im Schnitt **2,2 Paare je
-Einheit** (732 Paare, 379 Übungen bleiben allein) und ohne Hanteln **2,5**
+Einheit** (740 Paare, 363 Übungen bleiben allein) und ohne Hanteln **2,5**
 (828 Paare, 187 allein). Der Unterschied ist echt: Ohne Hanteln trennt fast
 nur noch der gemeinsame Muskel. `tests/test-supersatz.mjs` rechnet diese
 Zahlen nach und vergleicht sie mit diesem Absatz. Dass etwas übrig bleibt, ist
@@ -5261,6 +5261,28 @@ normale Pause richtig. Unter *Mehr* steht deshalb nicht nur der Schalter,
 sondern auch, **wie die nächste Einheit konkret liefe**, Paar für Paar. Ein
 Schalter, der „paart automatisch" verspricht, ist sonst erst im Training
 überprüfbar — und dann steht man mittendrin.
+
+**Ohne Partner im Fenster wird weiter hinten gesucht.**
+
+> *„Wieso gibts heute keinen supersatz mit kurzhantel bodenpresse?"*
+
+Cut, Einheit 8, in Rüst-Reihenfolge: Bodenpresse, Pike-Liegestütze, Seitheben,
+Wadenheben, Gewichtete Crunches. Die Pike-Liegestütze teilen den Trizeps,
+Seitheben und Wadenheben die Kurzhanteln – der einzige mögliche Partner waren
+die Crunches, und die standen an fünfter Stelle, eine hinter dem Fenster von
+drei Plätzen. Die schwerste Übung des Tages lief allein mit 2:30 Pause.
+
+Zwei Dinge haben sich deshalb geändert. Erstens sucht `paare()` hinter dem
+Fenster weiter, wenn darin keiner passt – aber nur, wenn das insgesamt nicht
+weniger Paare ergibt; bei gleich vielen gewinnt das Paar für die frühere,
+schwerere Übung. Mit Hanteln sind es über alle 336 Einheiten 8 Paare mehr (732
+→ 740), ohne Hanteln keins, und die Umbauten mit Supersätzen bleiben in allen
+vier Plänen genau die ohne. Zweitens darf eine freie Scheibe (die Crunches
+halten sie auf der Brust) neben geladenen Kurzhanteln laufen, wenn der
+eingetragene Vorrat **beweist**, dass sie übrig ist. Ohne Vorrat bleibt es bei
+der Annahme, die Scheibe komme von der Hantel – dann wäre jeder Wechsel ein
+Umbau, und so zählt auch die Planrechnung (`freieScheibeReicht()` in
+`js/supersatz.js`).
 
 **Zwei Stangen, ein Scheibenvorrat.**
 

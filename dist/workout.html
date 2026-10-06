@@ -14087,6 +14087,36 @@ function paarBelegung(a, b, mode) {
   return new Map(beide.map((x, i) => [x.id, b2[i]]));
 }
 
+/**
+ * Hält eine der beiden nur eine freie Scheibe – und ist bewiesen, dass sie
+ * übrig ist, während die andere geladen bleibt?
+ *
+ *     „Wieso gibts heute keinen supersatz mit kurzhantel bodenpresse?"
+ *
+ * Cut, Einheit 8: Bodenpresse, Pike-Liegestütze, Seitheben, Gewichtete
+ * Crunches, Wadenheben. Die Crunches zählen zur einzelnen Kurzhantel
+ * (RUEST_FAM in js/gewichte.js), weil die Scheibe für die Brust im Zweifel von
+ * der Hantel kommt – dann wäre der Wechsel ein Umbau je Satz, und so zählt auch
+ * die Planrechnung. Damit blieb die Bodenpresse heute ohne Partner: Der
+ * Seitheben braucht dieselben Hanteln, die Pike-Liegestütze den Trizeps.
+ *
+ * Eine Scheibe auf der Brust hängt aber an keiner Stange (RASTER in
+ * js/scheiben.js). Liegt eine übrig, während die Hanteln geladen bleiben, ist
+ * nichts umzubauen. Das gilt nur, wenn der eingetragene Vorrat es *beweist* –
+ * zusammen() sagt ja, nicht bloß „weiß nicht". Ohne Vorrat bleibt es bei der
+ * Annahme, die Scheibe komme von der Hantel.
+ */
+function freieScheibeReicht(a, b, mode) {
+  if (mode === 'bw') return false;
+  const frei = (x) => {
+    const ex = EX_BY_ID.get(x.id);
+    const r = ex && RASTER[ex.equip];
+    return !!r && !r.stange;
+  };
+  if (!frei(a) && !frei(b)) return false;
+  return zusammen([last(a, mode), last(b, mode)], meinSatz()) === true;
+}
+
 /** Dürfen diese beiden im Wechsel laufen? */
 function passtZusammen(a, b, mode) {
   if (a.id === b.id) return false;
@@ -14094,7 +14124,7 @@ function passtZusammen(a, b, mode) {
   const gb = geraet(b.id, mode);
   // Dasselbe Gerät hieße: zwischen jedem Satz umbauen. Zwei Übungen ohne Aufbau
   // dürfen sich dagegen treffen – da gibt es nichts zu wechseln.
-  if (ga && gb && ga === gb) return false;
+  if (ga && gb && ga === gb && !freieScheibeReicht(a, b, mode)) return false;
   if (!scheibenReichen(a, b, mode)) return false;
   const ma = direkteMuskeln(a.id, mode);
   return ![...direkteMuskeln(b.id, mode)].some((m) => ma.has(m));
@@ -14110,22 +14140,45 @@ function passtZusammen(a, b, mode) {
  * hin. Eine optimale Paarung, die den Floor Press ans Ende schiebt, wäre auf
  * dem Papier besser und im Training schlechter.
  *
- * Der Partner wird zusätzlich nur unter den nächsten `FENSTER` Übungen gesucht:
- * Ein Paar aus Übung 1 und Übung 6 hieße, zwischen beiden durch den halben Raum
- * zu laufen.
+ * Der Partner wird zuerst unter den nächsten `FENSTER` Übungen gesucht: Ein
+ * Paar aus Übung 1 und Übung 6 hieße, zwischen beiden durch den halben Raum zu
+ * laufen. Weiter hinten nur, wenn das nicht weniger Paare ergibt (paareGierig()).
  *
  * Gibt eine Liste von Gruppen zurück – jede mit einer oder zwei Übungen.
  */
 const FENSTER = 3;
 
 function paare(items, mode) {
+  const nah = paareGierig(items, mode, false);
+  const weit = paareGierig(items, mode, true);
+  // Über die Lücke nur, wenn es nicht weniger Paare ergibt. Bei gleich vielen
+  // gewinnt das Paar für die frühere Übung: Vorn stehen die Grundübungen mit
+  // den langen Pausen, dort spart ein Partner am meisten Zeit.
+  const zahl = (g) => g.filter((x) => x.length === 2).length;
+  return zahl(weit) >= zahl(nah) ? weit : nah;
+}
+
+/**
+ * Gierig in Reihenfolge, Partner zuerst im Fenster.
+ *
+ * Mit `weit` wird dahinter weitergesucht, wenn im Fenster keiner passt:
+ *
+ *     „Wieso gibts heute keinen supersatz mit kurzhantel bodenpresse?"
+ *
+ * Cut, Einheit 8, in Rüst-Reihenfolge: Bodenpresse, Pike-Liegestütze,
+ * Seitheben, Wadenheben, Gewichtete Crunches. Der einzige Partner der
+ * Bodenpresse stand an fünfter Stelle, eine Übung hinter dem Fenster – und
+ * die schwerste Übung des Tages lief allein mit 2:30 Pause.
+ */
+function paareGierig(items, mode, weit) {
   const frei = items.map(() => true);
   const gruppen = [];
   items.forEach((a, i) => {
     if (!frei[i]) return;
     frei[i] = false;
     let partner = -1;
-    for (let j = i + 1; j < items.length && j <= i + FENSTER; j++) {
+    const bis = weit ? items.length - 1 : i + FENSTER;
+    for (let j = i + 1; j < items.length && j <= bis; j++) {
       if (frei[j] && passtZusammen(a, items[j], mode)) { partner = j; break; }
     }
     if (partner < 0) { gruppen.push([a]); return; }

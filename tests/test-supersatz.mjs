@@ -99,6 +99,58 @@ check(vorrat.ausweichen === true, 'reicht es mit kleineren Scheiben, ist es auch
 check(vorrat.ohneVorrat === true, 'ohne eingetragenen Vorrat bleibt es beim alten Verhalten');
 check(vorrat.rein[0] === false && vorrat.rein[1] === true && vorrat.rein[2] === true,
   `zusammen() rechnet den Vorrat für alle Aufbauten zugleich (${vorrat.rein})`);
+
+// --- 1c. Eine Scheibe auf der Brust hängt an keiner Stange --------------------
+// „Wieso gibts heute keinen supersatz mit kurzhantel bodenpresse?" – Cut,
+// Einheit 8: Bodenpresse, Pike-Liegestütze, Seitheben, Gewichtete Crunches,
+// Wadenheben. Die Crunches liefen über ihre Rüstfamilie als „einzelne
+// Kurzhantel" und damit als dieselbe Stange wie die Kurzhanteln der
+// Bodenpresse. Kein Paar, auch wenn die Scheiben für beide reichten – der Floor
+// Press an der Langhantel durfte mit denselben Crunches immer.
+//
+// Ein Paar gibt es aber nur, wenn der eingetragene Vorrat beweist, dass eine
+// Scheibe für die Brust übrig bleibt. Ohne Vorrat kommt sie im Zweifel von der
+// Hantel – dann wäre jeder Wechsel ein Umbau, und so rechnet auch der Plan.
+const brust = await page.evaluate(async () => {
+  const S = await import('./js/supersatz.js');
+  const store = await import('./js/store.js');
+  const { PLANS } = await import('./js/data.js');
+  const { EX_BY_ID } = await import('./js/uebung.js');
+  const x = (id) => ({ id });
+  store.setWeight('kurzhantel-bodenpresse', 10);
+  store.setWeight('gewichtete-crunches', 5);
+  const mit = (scheiben) => {
+    store.getState().scheiben = { stange: {}, scheiben };
+    return S.passtZusammen(x('kurzhantel-bodenpresse'), x('gewichtete-crunches'), 'db');
+  };
+  const out = {
+    reicht: mit([[5, 5]]),      // je Hand ein 5er-Paar, dazu einer für die Brust
+    knapp: mit([[5, 4]]),       // der fünfte fehlt: die Scheibe müsste wandern
+    ohneVorrat: mit([]),        // unbekannt: die Scheibe kommt von der Hantel
+    gobletBodenpresse: S.passtZusammen(x('goblet-squat'), x('kurzhantel-bodenpresse'), 'db'),
+  };
+  store.getState().scheiben = { stange: {}, scheiben: [[5, 5]] };
+  const w8 = PLANS.cut.plan.find((w) => w.n === 8);
+  const paarung = () => S.paare(w8.ex.map((it) => ({ ...it, ...EX_BY_ID.get(it.id).db, id: it.id })), 'db')
+    .map((g) => g.map((y) => y.id).join('+'));
+  out.einheit8 = paarung();
+  store.getState().scheiben = undefined;
+  out.einheit8ohne = paarung();
+  return out;
+});
+console.log('     Brust:', JSON.stringify(brust));
+check(brust.reicht === true,
+  'Bodenpresse + Gewichtete Crunches: reichen die Scheiben für beide, ist es ein Paar');
+check(brust.knapp === false,
+  'reicht der Vorrat nicht für Hanteln und Brustscheibe zugleich, bleibt es getrennt');
+check(brust.ohneVorrat === false,
+  'ohne eingetragenen Vorrat kein Paar – die Brustscheibe käme von der Hantel');
+check(brust.gobletBodenpresse === false,
+  'Goblet + Bodenpresse bleiben getrennt – dieselben Kurzhantelgriffe');
+check(brust.einheit8.includes('kurzhantel-bodenpresse+gewichtete-crunches'),
+  `Cut Einheit 8 mit Vorrat: die Bodenpresse läuft im Wechsel mit den Crunches (${brust.einheit8.join(' | ')})`);
+check(!brust.einheit8ohne.includes('kurzhantel-bodenpresse+gewichtete-crunches'),
+  `Cut Einheit 8 ohne Vorrat: wie bisher getrennt (${brust.einheit8ohne.join(' | ')})`);
 // --- 1d. Ohne Hanteln zählt das Gerät der Bodyweight-Fassung --------------
 // Gefunden bei der Durchsicht: Geräteregel und Scheibenprüfung lasen auch ohne
 // Hanteln Gerät und Gewicht der Hantel-Fassung. Band-Reverse-Fly und Wadenheben
