@@ -440,10 +440,20 @@ function stuetz(spec, t) {
  * mitten im Zug 0,10 unter die Schulter – genau der Fehler, vor dem der Text
  * der Übung warnt –, beim Pull-Apart fielen die Hände auf Bauchhöhe, und die
  * Griffweite lief 0,65 → 1,18 → 0,76. Hier schwenkt der Oberarm auf dem
- * kürzesten Weg (Slerp im Rahmen des Rumpfes), der Unterarm im mitgeschwenkten
- * Rahmen des Oberarms. Die Endstellungen bleiben bitgenau, was dort gilt
- * (Griff, Anker, Goblet), bleibt also auch. Nicht für Stütz und Stange: dort
- * rechnet skelett() den Arm ohnehin nach.
+ * kürzesten Weg (Slerp im Rahmen des Rumpfes). Der Unterarm bleibt, wie
+ * mische() ihn zum Oberarm stellt, und wird nur mit dem Oberarm auf dessen
+ * neue Richtung mitgedreht.
+ *
+ * Die erste Fassung mischte auch den Unterarm als Richtung (Slerp im Rahmen
+ * des Oberarms). Liegen beide Endstellungen weit auseinander – Trizeps über
+ * Kopf beugt um 117 Grad, der Curl um 118 –, hebt ein Slerp alles, was
+ * beiden gemeinsam ist, mitten im Weg auf fast das Doppelte: Beim Trizeps
+ * über Kopf stand der Unterarm bei t 0,5 mit −0,48 zur Seite statt −0,22,
+ * im Vorgabeblick waagerecht wie beim Schulterdrücken. Die Winkel aus
+ * mische() führen den Ellenbogen dagegen so, wie die Übung ihn beschreibt;
+ * schief lief dort nur der Oberarm. Die Endstellungen bleiben bitgenau,
+ * was dort gilt (Griff, Anker, Goblet), bleibt also auch. Nicht für Stütz und
+ * Stange: dort rechnet skelett() den Arm ohnehin nach.
  */
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -461,11 +471,10 @@ function slerp(a, b, t) {
   if (w < 1e-4) return a;
   return norm3(add(mul(a, Math.sin((1 - t) * w) / Math.sin(w)), mul(b, Math.sin(t * w) / Math.sin(w))));
 }
-// Rahmen des Oberarms: der kürzeste Schwenk aus dem Hängen auf u.
-function armRahmen(u) {
-  const h = [0, -1, 0]; const ax = cross(h, u); const sl = Math.hypot(...ax);
-  const sw = (v) => (sl < 1e-6 ? v : rodrigues(v, mul(ax, 1 / sl), dot3(h, u), sl));
-  return [sw([1, 0, 0]), u, sw([0, 0, 1])];
+// Der kürzeste Schwenk, der die Richtung von nach zu dreht, angewandt auf v.
+function schwenk(v, von, zu) {
+  const ax = cross(von, zu); const sl = Math.hypot(...ax);
+  return sl < 1e-6 ? v : rodrigues(v, mul(ax, 1 / sl), dot3(von, zu), sl);
 }
 const armEnden = new WeakMap();   // je Muster einmal: beide Endstellungen
 function armeRichtung(spec, t, j) {
@@ -476,8 +485,6 @@ function armeRichtung(spec, t, j) {
     const m = s === 'L' ? [-1, 1, 1] : [1, 1, 1];      // links gespiegelt
     const lok = (FF, jj, a, b) => lokal(FF, norm3(sub3(jj[b], jj[a]))).map((x, i) => x * m[i]);
     const u0 = lok(F0, j0, `shoulder${s}`, `elbow${s}`); const u1 = lok(F1, j1, `shoulder${s}`, `elbow${s}`);
-    const f0 = lokal(armRahmen(u0), lok(F0, j0, `elbow${s}`, `hand${s}`));
-    const f1 = lokal(armRahmen(u1), lok(F1, j1, `elbow${s}`, `hand${s}`));
     if (spec.armweg === 'hand') {
       // Die Hand führt (siehe facepull): Richtung Schulter→Hand per Slerp,
       // Abstand linear, der Ellenbogen per Zwei-Glieder-Rechnung zur
@@ -502,7 +509,7 @@ function armeRichtung(spec, t, j) {
       return;
     }
     const u = slerp(u0, u1, t);
-    const f = welt(armRahmen(u), slerp(f0, f1, t));
+    const f = schwenk(lok(F, j, `elbow${s}`, `hand${s}`), lok(F, j, `shoulder${s}`, `elbow${s}`), u);
     const uw = welt(F, u.map((x, i) => x * m[i])); const fw = welt(F, f.map((x, i) => x * m[i]));
     j[`elbow${s}`] = add(j[`shoulder${s}`], mul(uw, RIG.upperArm));
     j[`hand${s}`] = add(j[`elbow${s}`], mul(fw, RIG.foreArm));
@@ -1196,11 +1203,17 @@ export const PATTERNS = {
      * bleibt dabei über der Schulter (Elevation 104 → 92 → 84 Grad).
      */
     armweg: 'hand',
-    // Blick schräger als früher [20, -8]: Der Zug läuft in die Tiefe, und fast
-    // von vorn war davon nur ein verkürzter Unterarm zu sehen. Von 40 Grad sieht
-    // man die Arme nach vorn greifen und die Ellenbogen nach hinten oben kommen;
-    // weiter seitlich liefe das ferne Band am Ende quer durchs Gesicht.
-    label: 'Face Pull', band: 'bar', ueberkopf: 0.89, ueberkopfZ: 0.85, view: [40, -6],
+    // Blick etwas schräger als früher [20, -8]: Der Zug läuft in die Tiefe,
+    // und fast von vorn war davon nur ein verkürzter Unterarm zu sehen. Von 25
+    // Grad sieht man die Arme nach vorn greifen und die Ellenbogen nach hinten
+    // oben kommen. Nicht 40 (so ein Zwischenstand): Dort lag der nahe Oberarm
+    // von t 0 bis 0,2 genau vor dem Gesicht – das Startbild jeder
+    // Wiederholung war eine Figur ohne Kopf, ausgerechnet bei der Übung,
+    // über die es hieß „Die Arme sehen echt immer komisch aus". Weiter
+    // seitlich liefe außerdem das ferne Band am Ende quer durchs Gesicht.
+    // tests/test-rotate.mjs prüft, dass vom Kopf mindestens die Hälfte frei
+    // bleibt.
+    label: 'Face Pull', band: 'bar', ueberkopf: 0.89, ueberkopfZ: 0.85, view: [25, -6],
     poses: [
       { lean: 4, arm: A(104, 12, 8), leg: L(2, 5, 4) },
       { lean: 4, arm: A(8, 84, 4, 120), leg: L(2, 5, 4) },
@@ -2367,16 +2380,16 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
      * gebeugter Arm die Kante des Unterarms über dem Oberarm, wie man es
      * zeichnen würde, aber keinen Ring am Gelenk.
      */
+    const ab = (seite, c, r) => {   // Seite ab Abstand r von c, von c weg
+      const weit = (p) => Math.hypot(p[0] - c.x, p[1] - c.y);
+      const i = seite.findIndex((p) => weit(p) >= r);
+      if (i < 0) return [];
+      if (i === 0) return seite.slice();
+      const [p0, p1] = [seite[i - 1], seite[i]];
+      const u = (r - weit(p0)) / Math.max(1e-6, weit(p1) - weit(p0));
+      return [[p0[0] + (p1[0] - p0[0]) * u, p0[1] + (p1[1] - p0[1]) * u], ...seite.slice(i)];
+    };
     const kante = (g, rA, rB) => {
-      const ab = (seite, c, r) => {   // Seite ab Abstand r von c, von c weg
-        const weit = (p) => Math.hypot(p[0] - c.x, p[1] - c.y);
-        const i = seite.findIndex((p) => weit(p) >= r);
-        if (i < 0) return [];
-        if (i === 0) return seite.slice();
-        const [p0, p1] = [seite[i - 1], seite[i]];
-        const u = (r - weit(p0)) / Math.max(1e-6, weit(p1) - weit(p0));
-        return [[p0[0] + (p1[0] - p0[0]) * u, p0[1] + (p1[1] - p0[1]) * u], ...seite.slice(i)];
-      };
       let pl = g.plus; let mi = g.minus;
       if (rA !== null) { pl = ab(pl, g.a, rA); mi = ab(mi, g.a, rA); }
       if (rB !== null) {
@@ -2409,12 +2422,29 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
     const zwischen = (f) => add(shoulderMid, mul(add(hipMid, mul(shoulderMid, -1)), f));
     const rings = [ring(shoulderMid, 0.190, 0.096), ring(zwischen(0.35), 0.190, 0.102),
       ring(zwischen(0.72), 0.148, 0.084), ring(hipMid, 0.156, 0.090)];
+    /*
+     * Die Rumpfflächen tragen ihre Abdunklung selbst (--tief, siehe
+     * .fig-torso), statt eine Auflage darüber zu bekommen, und haben einen
+     * Strich in ihrer eigenen Farbe.
+     *
+     * Ohne Strich stoßen die Flächen Kante an Kante, und die Kantenglättung
+     * lässt an jeder Fuge ein Viertel von dem durch, was darunter liegt – die
+     * Wirbelsäule mit ihrem dunklen Rand, eine verdeckte Armkante. Bis v235
+     * deckte der Steg das auf der Brust zu; ohne ihn standen dort feine
+     * Striche und Kreuze. Ein Strich in Körperfarbe schließt die Fugen, aber
+     * mit der Auflage obendrauf überlappten sich an jeder Fuge zwei
+     * Auflagen: ein dunkler Strich um die Taille (Face Pull). Mit der
+     * Abdunklung in der Füllung gibt es nichts mehr, das sich doppelt legt.
+     */
+    const rumpfZ = [];   // Tiefen der Rumpfflächen, für die Innenkante der Arme
     const face = (quad) => {
       const z = quad.reduce((acc, q) => acc + q.z, 0) / quad.length;
-      deckend(z, 'polygon', {
+      rumpfZ.push(z);
+      parts.push({ z, node: el('polygon', {
         points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
         class: 'fig-torso',
-      });
+        style: `--tief:${((1 - Number(depth(z))) * 0.9).toFixed(3)}`,
+      }) });
     };
     face(rings[0]);                                        // Schulterdeckel
     face(rings[3]);                                        // Beckenboden
@@ -2422,7 +2452,20 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       const d2 = (c + 1) % 4;
       face([rings[r][c], rings[r][d2], rings[r + 1][d2], rings[r + 1][c]]);
     }));
-    limb(pts.hipC, pts.neck, 4.2, 3.4, 'fig-spine');
+    /*
+     * Die Wirbelsäule: eine Kapsel mitten im Rumpf, einsortiert nach ihrer
+     * Mitte. Von vorn bei aufrechtem Rumpf liegt sie hinter der Vorderfläche,
+     * nur ihr unteres Ende zeigt sich als Bogen über dem Schritt. Neigt sich
+     * der Rumpf aber zur Kamera (Rudern, Hüftbeuge von vorn), liegt ihre
+     * Mitte vor der unteren Bauchfläche, und der Bogen stand auf Brusthöhe –
+     * eine Dekolleté-Linie. Bis v235 deckte das der Steg zu. Jetzt sortiert
+     * sie dann hinter den Rumpf, wo sie in Wahrheit liegt: Die Wirbelsäule
+     * ist der Rücken, und den sieht man von vorn nicht.
+     */
+    const spLen = Math.hypot(pts.neck.x - pts.hipC.x, pts.neck.y - pts.hipC.y, (pts.neck.z - pts.hipC.z) * fit.scale);
+    const zuMir = ((pts.neck.z - pts.hipC.z) * fit.scale) / Math.max(1e-6, spLen);
+    deckend(zuMir > 0.35 ? Math.min(pts.hipC.z, pts.neck.z) - 0.05 : (pts.hipC.z + pts.neck.z) / 2, 'path',
+      { d: kapsel(pts.hipC, pts.neck, 4.2, 3.4), class: 'fig-spine' });
     /*
      * Kopf und Hals in der richtigen Reihenfolge.
      *
@@ -2469,6 +2512,87 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
      * der Arm flach auf dem Rumpf lag (Bridge, Snow Angel): Rumpfflächen fast
      * gleicher Tiefe schoben sich stückweise zwischen Rand und Arm.
      */
+    /*
+     * Innenkante eines Oberarms, der neben dem Rumpf hängt.
+     *
+     * Der Rumpf ist ein Kasten, 0,19 breit, der Arm sitzt mit 0,065 Dicke bei
+     * 0,215 – von vorn liegt seine Innenseite also ein Stück über der
+     * Vorderfläche des Rumpfs, und die liegt in der Tiefe vor dem Arm. Bis zum
+     * ersten Entwurf ohne Steg verschwand die Innenkante dort unter dem Rumpf:
+     * Erst auf Brusthöhe, wo der Rumpf schmaler wird, kam sie wieder hervor.
+     * Hingen die Arme (Curl, Hammer-Curl, Wadenheben, Kniebeuge ohne Gewicht
+     * t0, von hinten genauso), war die Figur ein breiter Block mit Händen,
+     * ein Umhang statt zwei Armen. v235 hatte dort Kapseln mit Ringen – als
+     * Arme zu erkennen, wenn auch als Gliederpuppe.
+     *
+     * Jetzt zieht diese Linie die Innenseite des Oberarms über den Rumpf: ab
+     * gut einem Fünftel seiner Länge (darüber geht die Schulter ohne Naht in
+     * den Trapez über) bis kurz vor den Ellenbogen (dort übernimmt der
+     * Unterarm). Nur die äußere Hälfte, wie beim Rand sonst auch, damit sie
+     * nicht dicker wirkt als die übrigen Kanten. Und nur, wenn der Arm
+     * wirklich neben dem Rumpf hängt: nicht, wenn er dahinter liegt (der ferne
+     * Arm in der Schrägansicht, der Ellenbogen beim Rudern von vorn), und
+     * nicht vor einem Unterarm, der sich über den Oberarm legt (Curl oben).
+     */
+    /*
+     * Und der Arm hinter dem Rumpf (der ferne Arm in der Schrägansicht und
+     * von hinten, der Ellenbogen beim Rudern von vorn): Dort verdeckt zu
+     * Recht der Rumpf die Innenseite des Arms, aber ohne Linie floss beides
+     * ineinander, auf einer Seite fehlte jede Trennung. Hier zieht die Kante
+     * des Rumpfs selbst über den Arm – auf der Seite des Arms, von unterhalb
+     * der Schulter bis zur Taille, um einen halben Rand nach außen versetzt.
+     * Über dem Hintergrund ist sie unsichtbar (gleiche Farbe), zu sehen ist
+     * sie nur dort, wo sie über dem Arm liegt.
+     */
+    const rumpfkante = (s, zO) => {
+      const ax = pts.neck.x - pts.hipC.x; const ay = pts.neck.y - pts.hipC.y;
+      const al = Math.hypot(ax, ay) || 1;
+      const quer = (q) => ((q.x - pts.hipC.x) * ay - (q.y - pts.hipC.y) * ax) / al;
+      const sgn = Math.sign(quer(pts[`elbow${s}`]));
+      // Nur, wenn der Ellenbogen im Bild neben dem Rumpf liegt.
+      if (!sgn || Math.abs(quer(pts[`elbow${s}`])) < 0.12 * fit.scale) return;
+      const ecke = (r) => rings[r].reduce((m, q) => (sgn * quer(q) > sgn * quer(m) ? q : m));
+      const [e0, e1, e2] = [ecke(0), ecke(1), ecke(2)];
+      const ox = (ay / al) * sgn * rand * 0.5; const oy = (-ax / al) * sgn * rand * 0.5;
+      const q = [[e0.x + (e1.x - e0.x) * 0.4, e0.y + (e1.y - e0.y) * 0.4], [e1.x, e1.y], [e2.x, e2.y]]
+        .map(([x, y]) => [x + ox, y + oy]);
+      parts.push({ z: zO + 0.0006, node: el('path', {
+        d: `M${pt2(q[0])} L${pt2(q[1])} L${pt2(q[2])}`, class: 'fig-arm-innen',
+      }) });
+    };
+    const innenkante = (s, ober, zO, zU, rE) => {
+      const u3 = norm(sub(j[`elbow${s}`], j[`shoulder${s}`]));
+      if (skalar(u3, upAxis) > -0.5) return;                 // hängt nicht
+      const zRumpf = P(zwischen(0.35)).z;
+      if (zO < zRumpf - 0.04) { rumpfkante(s, zO); return; }  // liegt dahinter
+      let zI = Math.max(...rumpfZ) + 0.0008;                  // über Rumpf und Schatten
+      if (zI <= zO) return;                                   // der Rumpf deckt nichts zu
+      const f3 = norm(sub(j[`hand${s}`], j[`elbow${s}`]));
+      if (zU > zO && skalar(u3, f3) < 0.5) zI = Math.min(zI, zU - 0.0017);
+      // Die Seite näher an der Rumpfachse (im Bild) ist innen.
+      const ax = pts.neck.x - pts.hipC.x; const ay = pts.neck.y - pts.hipC.y;
+      const al = Math.hypot(ax, ay) || 1;
+      const abst = (q) => Math.abs((q[0] - pts.hipC.x) * ay - (q[1] - pts.hipC.y) * ax) / al;
+      const M = ober.plus.length >> 1;
+      const innenPlus = abst(ober.plus[M]) < abst(ober.minus[M]);
+      const seite = innenPlus ? ober.plus : ober.minus;
+      const gegen = innenPlus ? ober.minus : ober.plus;
+      const len = Math.hypot(ober.b.x - ober.a.x, ober.b.y - ober.a.y);
+      // Um einen halben Rand nach außen versetzt: Die Linie liegt dann genau
+      // dort, wo sonst die sichtbare Hälfte des Randes läge.
+      const raus = seite.map((q, i) => {
+        const nx = q[0] - gegen[i][0]; const ny = q[1] - gegen[i][1];
+        const nl = Math.hypot(nx, ny) || 1;
+        return [q[0] + (nx / nl) * rand * 0.5, q[1] + (ny / nl) * rand * 0.5];
+      });
+      let linie = ab(raus, ober.a, len * 0.22);
+      linie = ab(linie.slice().reverse(), ober.b, rE).reverse();
+      if (linie.length < 2) return;
+      parts.push({ z: zI, node: el('path', {
+        d: `M${pt2(linie[0])}${linie.slice(1).map((q) => ` L${pt2(q)}`).join('')}`,
+        class: 'fig-arm-innen',
+      }) });
+    };
     const arm = (s) => {
       // Schulter: vom Hals zum Schultergelenk fällt der Trapezmuskel ab, und
       // die Kappe des Oberarms sitzt am Ende dieser Linie. Ohne ihn lief der
@@ -2486,28 +2610,48 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // Kappe des Oberarms mit ihrer eigenen Abdunklung als Scheibe auf der
       // Schulter. Aber hinter Hals und Kopf – sonst schob er sich von vorn
       // über das Kinn.
-      deckend(Math.min(Math.max((trapez.z + sh.z) / 2, zO + 0.0006), zHals - 0.0003), 'path',
-        { d: kapsel(trapez, sh, 1.9, RIG.armOben[0][1] * 0.9), class: 'fig-limb fig-arm' });
+      // Abgedunkelt wie der Arm, in der Füllung (siehe unten).
+      const tonVon = (z) => `--tief:${((1 - Number(depth(z))) * 0.9).toFixed(3)}`;
+      const zTrapez = Math.min(Math.max((trapez.z + sh.z) / 2, zO + 0.0006), zHals - 0.0003);
+      parts.push({ z: zTrapez, node: el('path', {
+        d: kapsel(trapez, sh, 1.9, RIG.armOben[0][1] * 0.9), class: 'fig-limb fig-arm fig-trapez', style: tonVon(zTrapez),
+      }) });
       const ober = glied(sh, ew, RIG.armOben);
       const unter = glied(ew, hw, RIG.armUnten);
       // Am Ellenbogen fehlt dem vorderen Glied ein Stück Kante: so weit, wie
       // das hintere es dort umschließt.
       const rE = Math.max(ober.hB, unter.hA) + rand * 1.2;
       const RZ = 0.0015;   // Rand knapp hinter seinem Glied
+      // Beide Glieder in einem Ton, nach der Tiefe des ganzen Arms: Mit je
+      // eigener Abdunklung lag das runde Ende des tieferen Glieds als dunkler
+      // Fleck auf dem Ellenbogen – ein Rest des Rings, den es nicht mehr gibt
+      // (Seitheben, Pull-Apart t1 von vorn).
+      //
+      // Und die Abdunklung in der Füllung (--tief, wie beim Rumpf), nicht als
+      // Auflage: Zwei Auflagen übereinander dunkeln doppelt, und wo das runde
+      // Ende des Unterarms auf dem Oberarm liegt, stand so trotzdem eine
+      // dunkle Scheibe.
+      const zTon = (zO + zU) / 2;
+      const ton = tonVon(zTon);
+      const flaeche = (z, d) => parts.push({ z, node: el('path', { d, class: 'fig-limb fig-arm', style: ton }) });
       if (zU >= zO) {
         // Unterarm vorn (fast immer): Oberarm ringsum, Unterarm offene Kante.
         parts.push({ z: zO - RZ, node: el('path', { d: ober.dSchulter, class: 'fig-arm-rand' }) });
-        deckend(zO, 'path', { d: ober.d, class: 'fig-limb fig-arm' });
+        flaeche(zO, ober.d);
         parts.push({ z: zU - RZ, node: el('path', { d: kante(unter, rE, null), class: 'fig-arm-kante' }) });
-        deckend(zU, 'path', { d: unter.d, class: 'fig-limb fig-arm' });
+        flaeche(zU, unter.d);
       } else {
         // Oberarm vorn (der Arm zeigt vom Betrachter weg, etwa beim Rudern von
         // vorn oder bei der Bridge): umgekehrt.
         parts.push({ z: zU - RZ, node: el('path', { d: unter.d, class: 'fig-arm-rand' }) });
-        deckend(zU, 'path', { d: unter.d, class: 'fig-limb fig-arm' });
-        parts.push({ z: zO - RZ, node: el('path', { d: kante(ober, 0, rE), class: 'fig-arm-kante' }) });
-        deckend(zO, 'path', { d: ober.d, class: 'fig-limb fig-arm' });
+        flaeche(zU, unter.d);
+        // Die Kante erst ein Stück unter der Schulter: Von 0 an stand oben ein
+        // kurzer, freier Strich auf der Schulterkuppe, wie eine Naht.
+        const lenO = Math.hypot(ew.x - sh.x, ew.y - sh.y);
+        parts.push({ z: zO - RZ, node: el('path', { d: kante(ober, lenO * 0.15, rE), class: 'fig-arm-kante' }) });
+        flaeche(zO, ober.d);
       }
+      innenkante(s, ober, zO, zU, rE);
     };
 
     ['L', 'R'].forEach((s) => {

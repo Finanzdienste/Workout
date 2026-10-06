@@ -359,18 +359,43 @@ Gewicht:
   Endstellungen, und deren Mittel ist nicht die Mitte der Bewegung: Beim Face
   Pull sackte der Ellenbogen mitten im Zug 0,10 unter die Schulter (genau der
   Fehler, vor dem der Übungstext warnt), beim Pull-Apart fielen die Hände auf
-  Bauchhöhe. Jetzt schwenkt der Oberarm auf dem kürzesten Weg, der Unterarm im
-  mitgeschwenkten Rahmen des Oberarms (`armeRichtung()`); die Endstellungen
-  bleiben bitgenau. Beim Face Pull führt die Hand (`armweg: 'hand'`), und der
-  Vorgabeblick ist schräger ([40, −6] statt [20, −8]): Fast von vorn war vom Zug
-  in die Tiefe nur ein verkürzter Unterarm zu sehen.
+  Bauchhöhe. Jetzt schwenkt der Oberarm auf dem kürzesten Weg
+  (`armeRichtung()`); der Unterarm bleibt, wie die Winkel ihn zum Oberarm
+  stellen, und wird nur mitgedreht. Ein Zwischenstand mischte auch ihn als
+  Richtung – beim Trizeps über Kopf stand er dann mitten im Weg waagerecht zur
+  Seite (seitlich −0,48 statt −0,22), beim Curl ging er nach außen. Die
+  Endstellungen bleiben bitgenau. Beim Face Pull führt die Hand
+  (`armweg: 'hand'`), und der Vorgabeblick ist schräger ([25, −6] statt
+  [20, −8]): Fast von vorn war vom Zug in die Tiefe nur ein verkürzter Unterarm
+  zu sehen. Nicht [40, −6] (ein Zwischenstand): Dort lag der nahe Oberarm am
+  Start vor dem Gesicht, die Figur war kopflos.
+- **Hängende Arme verschwanden im Rumpf.** Ohne Steg und ohne Rand ringsum lag
+  die Innenseite eines hängenden Oberarms unter der Vorderfläche des Rumpfs
+  (der Kasten ist 0,19 breit, der Arm sitzt bei 0,215 und ist 0,065 dick).
+  Curl, Hammer-Curl, Wadenheben von vorn: ein breiter Block mit Händen. Jetzt
+  zieht `fig-arm-innen` die Trennlinie – die Innenkante des Oberarms über dem
+  Rumpf, ab gut einem Fünftel seiner Länge (die Schulter bleibt ohne Naht),
+  oder, wenn der Arm hinter dem Rumpf liegt (der ferne Arm, von hinten, der
+  Ellenbogen beim Rudern), die Kante des Rumpfs über dem Arm.
+- **Haarlinien und Flecken.** Die Rumpfflächen stießen Kante an Kante, und die
+  Kantenglättung ließ an jeder Fuge durch, was darunter lag (die Wirbelsäule
+  mit ihrem Rand); der Steg hatte das zugedeckt. Und wo zwei abgedunkelte
+  Flächen sich überlappten – das runde Ende des Unterarms auf dem Oberarm –,
+  dunkelte es doppelt: ein Fleck am Ellenbogen wie ein Rest des alten Rings.
+  Rumpf und Arme tragen ihre Abdunklung jetzt in der Füllung (`--tief`,
+  `color-mix`), der Rumpf mit einem Strich in seiner Farbe, ein Arm in einem
+  Ton. Die Wirbelsäule sortiert hinter den Rumpf, sobald er sich zur Kamera
+  neigt: Beim Rudern von vorn stand ihr unteres Ende sonst als Bogen auf
+  Brusthöhe.
 
 Nicht übernommen: eine eigene Kappe für den Deltamuskel (sie stand mit Bogen
 als Buckel auf der Schulter) und ein fünfter Rumpfring für den Trapez; ebenso
 Schatten, die bei fast gleicher Tiefe gestaffelt werden – ohne Staffel wirkte
 die Figur wie ein Scherenschnitt, die Beine verschmolzen. `tests/test-figur.mjs`
-hält das Verhältnis Länge zu Dicke (Oberarm mindestens 2,3, Unterarm 2,8),
-`tests/test-rotate.mjs` prüft, dass es keinen Steg mehr gibt, die Armflächen
+hält das Verhältnis Länge zu Dicke (Oberarm mindestens 2,3, Unterarm 2,8) und
+den Unterarm in seiner Ebene, `tests/test-rotate.mjs` prüft, dass beim Face
+Pull mindestens der halbe Kopf frei bleibt, hängende Oberarme ihre Trennlinie
+haben, es keinen Steg mehr gibt, die Armflächen
 keinen Strich haben, der Rand mitwächst, die Kippgrenze hält, ein senkrechter
 Wisch weder dreht noch den Hinweis nimmt und nichts zurückfedert.
 

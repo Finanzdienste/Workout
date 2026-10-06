@@ -718,4 +718,27 @@ for (const name of ['squat', 'squatheel']) {
   }
 }
 
+/* --- 21. Unterarm zwischen den Endstellungen: in der Ebene der Übung ------ */
+//
+// Der erste Entwurf ohne Steg mischte auch den Unterarm als Richtung. Liegen
+// die Endstellungen weit auseinander, hebt das mitten im Weg alles, was beiden
+// gemeinsam ist, aufs Doppelte: Beim Trizeps über Kopf stand der Unterarm bei
+// t 0,5 mit −0,48 zur Seite (v235: −0,22), im Vorgabeblick waagerecht wie
+// beim Schulterdrücken; beim Curl ging er auf −0,27 statt −0,14 nach außen.
+// Gemessen am linken Arm: Seitenanteil der Richtung Ellenbogen → Hand.
+{
+  const seitlich = (m, t) => {
+    const j = skelett(PATTERNS[m], t);
+    const f = [0, 1, 2].map((i) => j.handL[i] - j.elbowL[i]);
+    return f[0] / Math.hypot(...f);
+  };
+  for (const [m, grenze] of [['tricepsoh', 0.3], ['curl', 0.2]]) {
+    const werte = [0, 0.25, 0.5, 0.75, 1].map((t) => seitlich(m, t));
+    const ende = Math.max(Math.abs(werte[0]), Math.abs(werte[4]));
+    const mitte = Math.max(...werte.slice(1, 4).map(Math.abs));
+    check(mitte <= Math.max(grenze, ende + 0.1),
+      `${m}: Unterarm bleibt in seiner Ebene (seitlich ${werte.map((v) => v.toFixed(2)).join(' → ')})`);
+  }
+}
+
 console.log(`\n${fails ? fails + " FEHLER" : "alle Prüfungen bestanden"}`);

@@ -180,6 +180,73 @@ check(Math.abs(fp.bein - fp.rand) < 0.01 && Math.abs(fp.arm - 2 * fp.rand) < 0.0
 check(Object.values(arme.rand).every((r) => r.rand <= 0.9),
   `nirgends breiter als vorher (${Object.entries(arme.rand).map(([k, r]) => `${k} ${r.rand}`).join(', ')})`);
 
+/*
+ * Face Pull: der Kopf bleibt zu sehen.
+ *
+ * Mit dem Blick [40, −6] (so ein Zwischenstand) lag der nahe Oberarm von t 0
+ * bis 0,2 genau vor dem Gesicht – das Startbild jeder Wiederholung war eine
+ * Figur ohne Kopf, ausgerechnet bei der Übung, über die es hieß „Die Arme
+ * sehen echt immer komisch aus". Gezählt wird am gezeichneten Bild: Punkte im
+ * Umriss des Kopfes, bei denen der Kopf zuoberst liegt.
+ */
+const kopfFrei = await page.evaluate(async () => {
+  const { mountFigure } = await import('./js/figure.js');
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:0;top:0;width:344px;height:210px;z-index:9999;background:#111';
+  document.body.appendChild(host);
+  const h = mountFigure(host, 'facepull', true, 'band');
+  const out = [];
+  for (const t of [0, 0.1, 0.2, 0.3, 0.5, 1]) {
+    h.draw(t);
+    const kopf = host.querySelector('.fig-head');
+    const r = kopf.getBoundingClientRect();
+    let drin = 0; let frei = 0;
+    for (let x = r.left + 0.5; x < r.right; x += 1) {
+      for (let y = r.top + 0.5; y < r.bottom; y += 1) {
+        const stapel = document.elementsFromPoint(x, y)
+          .filter((n) => n instanceof window.SVGGeometryElement && !n.classList.contains('fig-schatten'));
+        if (!stapel.includes(kopf)) continue;
+        drin += 1;
+        if (stapel[0] === kopf) frei += 1;
+      }
+    }
+    out.push(drin ? frei / drin : 0);
+  }
+  h.stop(); host.remove();
+  return out;
+});
+check(kopfFrei.every((v) => v >= 0.5),
+  `Face Pull im Vorgabeblick: vom Kopf bleibt mindestens die Hälfte frei (t 0…1: ${kopfFrei.map((v) => v.toFixed(2)).join(' ')})`);
+
+/*
+ * Hängende Arme bleiben Arme.
+ *
+ * Ohne Steg verschwand die Innenseite eines hängenden Oberarms unter dem
+ * Rumpf – von vorn und von hinten war die Figur ein breiter Block mit Händen.
+ * Jetzt zieht fig-arm-innen die Trennlinie: die Innenkante des Oberarms über
+ * dem Rumpf, oder bei einem Arm hinter dem Rumpf dessen Kante über dem Arm.
+ * Bei abgespreiztem Arm (Seitheben oben) braucht es sie nicht.
+ */
+const innen = await page.evaluate(async () => {
+  const { mountFigure } = await import('./js/figure.js');
+  const out = {};
+  for (const [m, eq, t, blick] of [['curl', 'szbar', 0, [0, 8]], ['curl', 'szbar', 0, null], ['curl', 'szbar', 0, [160, 10]],
+    ['hammercurl', 'dumbbells', 0, null], ['calf1', null, 0, null], ['lateralstand', null, 1, [0, 8]]]) {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:0;top:0;width:344px;height:210px';
+    document.body.appendChild(host);
+    const h = mountFigure(host, m, true, eq);
+    if (blick) h.setView(...blick);
+    h.draw(t);
+    out[`${m} t${t} ${blick ? blick.join('/') : 'Vorgabe'}`] = host.querySelectorAll('.fig-arm-innen').length;
+    h.stop(); host.remove();
+  }
+  return out;
+});
+const innenText = Object.entries(innen).map(([k, v]) => `${k}: ${v}`).join(', ');
+check(Object.entries(innen).every(([k, v]) => (k.startsWith('lateralstand') ? v === 0 : v >= 1)),
+  `hängende Oberarme haben eine Trennlinie zum Rumpf, abgespreizte keine (${innenText})`);
+
 // Der Boden ist eine Fläche im Raum und kippt mit.
 // Nicht jede Übung hat einen: wer an der Stange hängt, steht auf nichts.
 // Also zur ersten Übung weiterblättern, die einen Boden zeigt.
