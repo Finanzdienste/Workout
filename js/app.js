@@ -1523,21 +1523,32 @@ function nachText(w, mode, it, warum) {
   const N = it.nach;
   const heute = effDate(w);
   const tag = (nq) => (PLAN[nq - 1] ? tagKurz(effDate(PLAN[nq - 1]), heute) : `Workout ${nq}`);
-  const name = (id) => {
+  // Die Quelle heißt so, wie sie an *ihrem* Tag hieß – im Modus, in dem sie
+  // trainiert wurde (`mq`, fünfter Eintrag in q). Wer am Donnerstag ohne
+  // Hanteln trainiert hat, hat die Standwaage gemacht, nicht das Rumänische
+  // Kreuzheben; die Zeile soll gerade das „aber ich hab doch …" beantworten,
+  // da darf sie keine Übung nennen, die es an dem Tag nicht gab.
+  const name = (id, mq) => {
     const ex = EX_BY_ID.get(id);
-    return (ex && (ex[mode] || ex.db || ex.bw) || {}).name || id;
+    return (ex && (ex[mq || mode] || ex.db || ex.bw) || {}).name || id;
   };
-  // Ohne festgehaltene Erklärung (Altbestand, oder die Neurechnung passt
-  // nicht mehr): nur die Einheiten, aus denen der Rest stammen kann.
+  // Ohne festgehaltene Erklärung (Altbestand, oder keine Rechnung kommt mehr
+  // auf dieselben Sätze): nur die Tage, aus denen der Rest stammen kann – die
+  // abgeschlossenen Einheiten dieser Woche vor dieser. Mit Wochentag wie der
+  // Rest der Zeile („am Sa …", „(Sa 1 von 3)"), nicht mit Workout-Nummern,
+  // die beim Training niemand im Kopf hat.
   const spanne = () => {
     const start = Math.floor((w.n - 1) / WEEK_SESSIONS) * WEEK_SESSIONS + 1;
-    const bis = w.n - 1;
-    if (bis < start) return '';
-    return bis === start ? `Rest aus Workout ${bis} (${tag(bis)})` : `Rest aus Workout ${start}–${bis}`;
+    const tage = [];
+    for (let k = start; k < w.n; k++) if (completedMode(k)) tage.push(tag(k));
+    if (!tage.length) return '';
+    const liste = tage.length === 1 ? tage[0] : `${tage.slice(0, -1).join(', ')} und ${tage[tage.length - 1]}`;
+    return `Rest vom ${liste}`;
   };
+  const mitSpanne = (kopf) => { const s = spanne(); return s ? `${kopf}: ${s}` : kopf; };
   const q = warum && Array.isArray(warum.q) ? warum.q : [];
   const g = warum && Array.isArray(warum.g) ? warum.g : [];
-  if (!warum) return `+${N} nachgeholt: ${spanne()}`;
+  if (!warum) return mitSpanne(`+${N} nachgeholt`);
   // Dieselbe Übung war an einem früheren Tag zu kurz: Das beantwortet die
   // Frage direkt – „vorgestern hab ich doch …".
   if (q.length === 1 && q[0][1] === it.id) {
@@ -1547,8 +1558,8 @@ function nachText(w, mode, it, warum) {
       : `+${N} nachgeholt: am ${tag(nq)} keinen von ${von} Sätzen abgehakt`;
   }
   const fuer = g.length ? ` für ${g.map((m) => MUSCLE_LABEL[m] || m).join(' und ')}` : '';
-  if (!q.length) return `+${N} nachgeholt${fuer}: ${spanne()}`;
-  const quellen = q.slice(0, 2).map(([nq, id, ab, von]) => `${name(id)} (${tag(nq)} ${ab} von ${von})`).join(', ');
+  if (!q.length) return mitSpanne(`+${N} nachgeholt${fuer}`);
+  const quellen = q.slice(0, 2).map(([nq, id, ab, von, mq]) => `${name(id, mq)} (${tag(nq)} ${ab} von ${von})`).join(', ');
   const mehr = q.length > 2 ? ` und ${q.length - 2} weitere` : '';
   return `+${N} nachgeholt${fuer}: ${quellen}${mehr}`;
 }
@@ -1562,18 +1573,39 @@ function nachZeile(n, mode, it, warumJe) {
   return `<div class="nach-warum" id="nw-${esc(it.id)}">${esc(text)}</div>`;
 }
 
-/** „3 + 1" statt „4": Grundzahl und Nacharbeit getrennt, damit die 4 nicht wie eine neue Grundzahl aussieht. */
+/**
+ * „3 + 1" statt „4": Grundzahl und Nacharbeit getrennt, damit die 4 nicht wie
+ * eine neue Grundzahl aussieht.
+ *
+ * Schlichter Text, ohne eigene Beschriftung für die Vorlesefunktion. Hier
+ * stand einmal ein aria-label an einem <span> („3 Sätze plus 1
+ * nachgeholter"). Ein Name an einem Element ohne Rolle ist in ARIA nicht
+ * vorgesehen: Im Barrierefreiheitsbaum stand neben dem Namen weiter der Text
+ * „3 + 1", gelesen wurde je nach Vorlesefunktion das eine oder das andere –
+ * und wo der Name ankam, hieß es „3 Sätze plus 1 nachgeholter Sätze × 8–12".
+ * „3 + 1 Sätze" liest jede als „3 plus 1 Sätze", und was das +1 ist, sagt die
+ * Zeile direkt darunter (nachZeile()), die als Nächstes kommt.
+ */
 function satzZahlText(it) {
   if (!it.nach) return String(it.sets);
-  const basis = it.sets - it.nach;
-  const vorgelesen = `${basis} Sätze plus ${it.nach} ${it.nach === 1 ? 'nachgeholter' : 'nachgeholte'}`;
-  return `<span aria-label="${vorgelesen}">${basis} + ${it.nach}</span>`;
+  return `${it.sets - it.nach} + ${it.nach}`;
 }
+
+/** Ist dieser Satz einer der nachgeholten (sie stehen am Ende)? */
+const istNachSatz = (it, idx) => !!it.nach && idx >= it.sets - it.nach;
 
 /** Beschriftung eines Satzknopfs – der Nachholsatz sagt, dass er einer ist. */
 function satzLabel(it, idx) {
-  const nach = it.nach && idx >= it.sets - it.nach;
-  return `Satz ${idx + 1} von ${it.sets}${nach ? ', nachgeholt,' : ''} erledigt`;
+  return `Satz ${idx + 1} von ${it.sets}${istNachSatz(it, idx) ? ', nachgeholt,' : ''} erledigt`;
+}
+
+/**
+ * Verweis auf die Herkunftszeile – nur am Nachholsatz selbst. An allen Knöpfen
+ * hing sonst „+1 nachgeholt für …" auch an Satz 1 bis 3, und die
+ * Vorlesefunktion hängte die Nacharbeit an jeden Grundsatz.
+ */
+function nachVerweis(it, idx) {
+  return istNachSatz(it, idx) ? ` aria-describedby="nw-${esc(it.id)}"` : '';
 }
 
 /** Zur nächsten offenen Übung rücken und sagen, welche das ist. */
@@ -1993,7 +2025,7 @@ function renderFocus() {
     <div class="focus-sets">
       ${sets.map((s, idx) => `
         <button type="button" class="set-btn focus-set ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
-                aria-label="${satzLabel(it, idx)}"${it.nach ? ` aria-describedby="nw-${esc(it.id)}"` : ''}
+                aria-label="${satzLabel(it, idx)}"${nachVerweis(it, idx)}
                 data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>`).join('')}
     </div>
     ${anderswo > 0 ? `<div class="small muted ex-anderswo">${anderswo === 1 ? 'Ein Satz' : `${anderswo} Sätze`}
@@ -3038,7 +3070,7 @@ function renderDashboard() {
     // ist der eine Handgriff, der zwischen zwei Sätzen schnell gehen muss.
     const setBtns = sets.map((s, idx) => `
       <button type="button" class="set-btn ${s.done ? 'on' : ''}" aria-pressed="${s.done}"
-              aria-label="${satzLabel(it, idx)}"${it.nach ? ` aria-describedby="nw-${esc(it.id)}"` : ''}
+              aria-label="${satzLabel(it, idx)}"${nachVerweis(it, idx)}
               data-act="toggle-set" data-ex="${it.id}" data-i="${idx}">${s.done ? '✓' : idx + 1}</button>
     `).join('');
 

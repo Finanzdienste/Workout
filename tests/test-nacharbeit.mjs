@@ -559,6 +559,18 @@ check(rd2.summe === 0 && rd2.nach === null, `(d2) ein liegen gelassener Nachhols
 const rd3 = await sieben7({ ...voll, 5: w5Loch, 6: { soll: { 'goblet-squat': 4 } } });
 zeigeR('(d3) soll 4 ohne Nacharbeit', rd3);
 check(rd3.nach && rd3.nach['goblet-squat'] === 1, '(d3) ein vierter Grundsatz aus einer höheren Stufe wird nicht als Nacharbeit gutgeschrieben');
+//   d4: Wie d3, aber an jenem Tag stand dazu ein +1 (soll 5 = 4 + 1), und das
+//       +1 wurde ausgelassen – 4 Haken, dieselbe Arbeit wie in d3. Gefunden in
+//       der Prüfung: Die Gutschrift maß an der auf heute gekappten Grundzahl
+//       (3), zählte den vierten *Grund*satz als gemachten Nachholsatz, und das
+//       Kreuzheben-Loch verschwand. Wer das +1 auslässt, bekam mehr
+//       gutgeschrieben als jemand, dem gar keins angesagt war. Erreichbar über
+//       den Stufenschalter (fortgeschritten → geübt).
+const rd4 = await sieben7({ ...voll, 5: w5Loch,
+  6: { soll: { 'goblet-squat': 5 }, nach: { 'goblet-squat': 1 }, haken: { 'goblet-squat': 4 } } });
+zeigeR('(d4) soll 5 = 4 + 1, 4 Haken', rd4);
+check(JSON.stringify(rd4.nach) === JSON.stringify(rd3.nach),
+  `(d4) ausgelassenes +1 bei gesenkter Stufe: dieselbe Nacharbeit wie ohne +1 (${JSON.stringify(rd4.nach)} = ${JSON.stringify(rd3.nach)})`);
 
 // --- 10. Was am Tag nicht dastand, schuldet der Tag nicht ---------------
 //
@@ -576,6 +588,41 @@ check(/0\/12 Sätze/.test(re.kopf), `(e) Workout 7 bleibt bei 12 Sätzen („${r
 const rf = await sieben7({ ...voll, 5: {}, 6: { weg: ['goblet-squat'], ohneNachFest: true } });
 zeigeR('(f) dasselbe ohne nachFest', rf);
 check(rf.nach && rf.nach['goblet-squat'] === 1, '(f) ohne nachFest (Altbestand) bleibt die bisherige Lesart');
+
+// (g) Die Gegenrichtung: Eine Einstellung löscht auch keine Arbeit. Gestempelt
+// wird die Übung, die am Tag *dastand*; gesucht wurde nur mit der von heute.
+// Gefunden in der Prüfung: Samstag Hängendes Knieheben 0 von 3, abgeschlossen.
+// Danach wird „tennisarm" angehakt, das das Hängende gegen das Liegende
+// tauscht – und der fehlende Stempel unter dem Liegenden las sich als „stand
+// an dem Tag nicht da". Der Bauch-Rückstand war weg, Workout 8 holte nichts
+// nach. Dasselbe andersherum (h): Am Samstag war die Beschwerde angehakt, das
+// Liegende stand da und blieb liegen, heute ist sie ausgeheilt.
+const beschwerde = async (amTag, heute) => {
+  await saeEinmal({ ...tobi, injuries: amTag, log: {} });
+  const log = await baue({ ...voll, 5: {}, 6: { haken: { 'haengendes-knieheben': 0, 'liegendes-knieheben': 0 } },
+    7: { tag: '2026-10-05' } });
+  await saeEinmal({ ...tobi, injuries: heute, log });
+  return p2.evaluate(async () => {
+    const P = await import('./js/plan.js');
+    const { PLAN } = await import('./js/data.js');
+    const o = P.offenInWoche(PLAN[6]);
+    const na = P.nacharbeit(PLAN[7], 'db');
+    return { fehlt: o.fehlt, herkunft: o.herkunft.map((h) => `${h.n}:${h.id} ${h.abgehakt}/${h.von}`),
+      nach8: na ? Object.fromEntries(na) : null };
+  });
+};
+const rg0 = await beschwerde([], []);
+const rg = await beschwerde([], ['tennisarm']);
+console.log(`     (g) ohne Beschwerde: ${JSON.stringify(rg0)}\n     (g) Beschwerde danach: ${JSON.stringify(rg)}`);
+check(rg0.fehlt.abs > 2.9 && rg0.nach8 && rg0.nach8['gewichtete-crunches'] === 1,
+  '(g) Ausgang: Knieheben 0/3 am Sa, Workout 8 holt über die Crunches nach');
+check(rg.fehlt.abs > 2.9 && rg.herkunft.includes('6:haengendes-knieheben 0/3'),
+  `(g) eine danach angehakte Beschwerde lässt den Rückstand stehen, genannt wird die Übung vom Sa (${rg.herkunft.join(', ')})`);
+check(JSON.stringify(rg.nach8) === JSON.stringify(rg0.nach8), `(g) und Workout 8 holt dasselbe nach (${JSON.stringify(rg.nach8)})`);
+const rh = await beschwerde(['tennisarm'], []);
+console.log(`     (h) Beschwerde am Tag, heute ausgeheilt: ${JSON.stringify(rh)}`);
+check(rh.fehlt.abs > 2 && rh.herkunft.includes('6:liegendes-knieheben 0/3'),
+  `(h) ausgeheilt: das am Sa liegen gebliebene Liegende Knieheben bleibt Rückstand (${rh.herkunft.join(', ')})`);
 
 // --- 11. Tobis Ablauf über die Oberfläche --------------------------------
 //

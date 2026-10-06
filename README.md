@@ -4490,7 +4490,7 @@ Satzzahl getrennt da, an der Übung „3 + 1 Sätze", im Kopf der Einheit
 | --- | --- |
 | dieselbe Übung war an einem früheren Tag zu kurz | „+1 nachgeholt: am Sa nur 2 von 3 Sätzen abgehakt" |
 | eine andere Übung hat die Lücke hinterlassen | „+1 nachgeholt für hintere Schulter und Nacken: Reverse Fly (Sa 0 von 3)" |
-| keine festgehaltene Erklärung (Altbestand) | „+1 nachgeholt: Rest aus Workout 5–6" |
+| keine festgehaltene Erklärung (Altbestand) | „+1 nachgeholt: Rest vom Do und Sa" |
 
 Der Tag steht als Kürzel, wenn er in den sechs Tagen davor liegt, sonst mit
 Datum („Do 24.9."); kein „vorgestern", weil die Zeile im Verlauf stehen bleibt.
@@ -4507,12 +4507,41 @@ Wie die Nacharbeit wird auch ihr Grund mit dem ersten Satz festgehalten
 Einheit davor noch ein Satz nachgetragen, bleibt die Zeile, wie sie beim Start
 galt – genau wie die Sätze. Einheiten aus v233–v235 haben `nachFest`, aber
 noch kein `nachWarum`; für sie wird nachgerechnet und die Erklärung nur
-benutzt, wenn die Neurechnung *genau* die festgehaltene Nacharbeit ergibt.
+benutzt, wenn die Neurechnung *genau* die festgehaltene Nacharbeit ergibt –
+zuerst mit der Rechnung von damals (`offenInWocheAlt()`), denn die hat diese
+Sätze festgehalten. Wer Workout 7 noch unter v235 angefangen hat, trägt dort
+den Goblet Squat mit +1, den v237 nicht mehr ansagen würde; mit der heutigen
+Rechnung allein passte nichts, und an genau dieser Übung stand dann nur „Rest
+aus Workout 5–6". Jetzt steht dort „+1 nachgeholt für Gesäß: Rumänisches
+Kreuzheben (Do 2 von 3)" – der Rückstand, aus dem v235 den Satz gerechnet hat. Passt keine Rechnung, nennt die Zeile die Tage („Rest vom
+Do und Sa"), nicht Workout-Nummern.
+
+Die Quelle heißt, wie sie an *ihrem* Tag hieß: Wer am Donnerstag ohne Hanteln
+trainiert hat, liest „Einbeiniges Kreuzheben (Standwaage) (Do 1.10. 2 von 3)",
+nicht den Namen der Hantelfassung, die er nie gemacht hat.
+
+**Eine Einstellung löscht auch keine Arbeit.** Gestempelt wird die Übung, die
+am Tag dastand; gesucht wird mit der von heute. Wird nach dem Samstag eine
+Beschwerde angehakt, die das Hängende Knieheben gegen das Liegende tauscht,
+liegt der Stempel unter dem Hängenden – und wurde als „stand an dem Tag nicht
+da" gelesen. Das liegen gebliebene Knieheben verschwand aus der Rechnung.
+Gesucht wird deshalb auch unter `from`/`statt` und, andersherum (Beschwerde
+am Tag angehakt, heute ausgeheilt), unter einem Stempel einer direkt
+verwandten Übung, den heute keine andere Zeile trägt.
+
+**Und eine gesenkte Stufe schreibt nichts gut.** Ob ein Haken Nacharbeit war,
+misst die Grundzahl *jenes* Tages (4 bei „fortgeschritten"), nicht die auf
+heute gekappte (3 bei „geübt"). Sonst zählte bei „4 + 1, gemacht 4" der vierte
+Grundsatz als gemachter Nachholsatz, und wer das +1 ausließ, bekam mehr
+gutgeschrieben als jemand, dem gar keins angesagt war.
 
 Kein Popup, kein Toast, keine Ansage: eine kleine, gedämpfte Zeile direkt unter
 der Satzzahl, im Supersatz nur an der gerade gezeigten Übung. Die Satzknöpfe
-verweisen auf sie (`aria-describedby`), der Nachholsatz heißt im Vorlesetext
-„Satz 4 von 4, nachgeholt". Die Fokusansicht bleibt dabei eine Seite: Die
+verweisen auf sie (`aria-describedby`) – nur der Nachholsatz selbst, nicht
+Satz 1 bis 3 –, und er heißt im Vorlesetext „Satz 4 von 4, nachgeholt". „3 + 1"
+ist schlichter Text: Ein `aria-label` am `<span>` (ein Name ohne Rolle) kam je
+nach Vorlesefunktion an oder nicht, und wo er ankam, hieß es „3 Sätze plus 1
+nachgeholter Sätze". Die Fokusansicht bleibt dabei eine Seite: Die
 Zeile kostet 18 px (zweizeilig 35 px), und die Figur nimmt nur, was übrig
 bleibt. Gemessen bei 414×896, 390×844 und 360×740 liegt der erste Satzknopf
 weiter ganz über der Leiste unten. Bei 360×640 lag er beim Goblet Squat schon
