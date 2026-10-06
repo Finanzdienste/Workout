@@ -1064,7 +1064,7 @@ button { font: inherit; color: inherit; }
   display: block;
   width: 100%;
   height: 100%;
-  touch-action: none;    /* Ziehen dreht die Figur, in jede Richtung */
+  touch-action: pan-y;   /* senkrecht scrollt die Liste, waagerecht dreht */
   cursor: grab;
   user-select: none;
 }
@@ -1086,22 +1086,46 @@ button { font: inherit; color: inherit; }
    hin verjüngen und je nach Tiefe abdunkeln. Die Trennlinie in Hintergrundfarbe
    hält sie auseinander – in der tiefen Hocke lag sonst alles als ein Klumpen
    übereinander. Der Rumpf bleibt ohne, seine Flächen gehören zusammen. */
-.fig-limb, .fig-spine, .fig-torso, .fig-head, .fig-gusset {
+.fig-limb, .fig-spine, .fig-torso, .fig-head {
   fill: var(--accent);
   stroke: none;
 }
-/* fig-gusset statt fig-torso: dieselbe Fläche (Farbe, ohne Rand), aber als
-   Pfad gezeichnet (limb()), nicht als Vieleck. test-rotate.mjs liest jedes
-   .fig-torso als Vieleck mit `points` – ein Pfad mit `d` ließ das brechen. */
 .fig-limb, .fig-spine, .fig-head {
   stroke: var(--bg-elev);
-  stroke-width: .9;
+  stroke-width: var(--rand, .9);   /* mountFigure skaliert ihn mit der Figur */
   stroke-linejoin: round;
 }
+/* Arme wie die Hand: Flächen ohne Strich, der Rand eigens dahinter – ringsum
+   beim hinteren Glied (fig-arm-rand), als offene Kante ohne das Stück im
+   Ellenbogen beim vorderen (fig-arm-kante). So gibt es keinen Ring am
+   Ellenbogen und keine Naht an der Schulter. */
+.fig-limb.fig-arm {
+  stroke: none;
+  /* abgedunkelt nach der Tiefe des ganzen Arms (--tief aus figure.js) */
+  fill: color-mix(in srgb, var(--accent), #000 calc(var(--tief, 0) * 100%));
+}
+.fig-arm-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: calc(2 * var(--rand, .9)); stroke-linejoin: round; }
+.fig-arm-kante { fill: none; stroke: var(--bg-elev); stroke-width: calc(2 * var(--rand, .9)); stroke-linejoin: round; stroke-linecap: round; }
+/* Innenkante eines hängenden Oberarms über dem Rumpf (siehe innenkante() in
+   figure.js): schon um einen halben Rand nach außen versetzt, daher nur
+   einfach breit. */
+.fig-arm-innen { fill: none; stroke: var(--bg-elev); stroke-width: var(--rand, .9); stroke-linejoin: round; stroke-linecap: round; }
 
 /* Schatten-Auflage: dieselbe Form noch einmal in Schwarz, so durchsichtig, wie
    das Glied weit weg ist. Ersetzt die halbdurchsichtigen Glieder von früher. */
 .fig-schatten { fill: #000; stroke: none; pointer-events: none; }
+/* Rumpfflächen: die Abdunklung nach der Tiefe in der Füllung (--tief aus
+   figure.js), dazu ein Strich in derselben Farbe, damit die Flächen sich um
+   einen Hauch überlappen – sonst zeigte jede Fuge, was darunter liegt
+   (Begründung bei face() in figure.js). Ohne color-mix bleibt es bei der
+   Akzentfarbe ohne Abdunklung. */
+.fig-torso {
+  stroke: var(--accent);
+  fill: color-mix(in srgb, var(--accent), #000 calc(var(--tief, 0) * 100%));
+  stroke: color-mix(in srgb, var(--accent), #000 calc(var(--tief, 0) * 100%));
+  stroke-width: calc(var(--rand, .9) / 3);
+  stroke-linejoin: round;
+}
 .fig-plate { fill: #e8eaed; }
 /* Die Kante der Hantelscheibe unterm Fuß (squatheel) – dieselbe Scheibe, nur
    dunkler, wie die Seite jeder Scheibe im Schlagschatten. */
@@ -1380,6 +1404,12 @@ textarea.io {
 .fig.hurt-mode .fig-spine,
 .fig.hurt-mode .fig-torso,
 .fig.hurt-mode .fig-head { fill: #56607a; }
+.fig.hurt-mode .fig-limb.fig-arm { fill: color-mix(in srgb, #56607a, #000 calc(var(--tief, 0) * 100%)); }
+.fig.hurt-mode .fig-torso {
+  stroke: #56607a;
+  fill: color-mix(in srgb, #56607a, #000 calc(var(--tief, 0) * 100%));
+  stroke: color-mix(in srgb, #56607a, #000 calc(var(--tief, 0) * 100%));
+}
 .fig-hurt { fill: #ff3b30; stroke: #fff; stroke-width: .5; }
 .fig-hurt-halo { fill: rgba(255, 59, 48, .26); }
 .fig-hurt-crack { fill: none; stroke: #fff; stroke-width: .9; stroke-linejoin: round; stroke-linecap: round; }
@@ -1597,7 +1627,7 @@ textarea.io {
    die ganze Hand breit in Hintergrundfarbe, darüber dieselbe Form ohne Rand in
    Körperfarbe; übrig bleibt der Rand um die Hand als Ganzes. */
 .fig-hand { fill: var(--accent); stroke: none; }
-.fig-hand-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: 1.8; stroke-linejoin: round; }
+.fig-hand-rand { fill: var(--bg-elev); stroke: var(--bg-elev); stroke-width: calc(2 * var(--rand, .9)); stroke-linejoin: round; }
 .fig.hurt-mode .fig-hand { fill: #56607a; }
 
 /* Supersätze: der Wechselhinweis in der Fokus-Ansicht und die Vorschau unter

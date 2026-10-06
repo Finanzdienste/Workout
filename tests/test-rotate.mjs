@@ -38,7 +38,10 @@ check(afterYaw !== afterPitch, 'senkrechtes Ziehen kippt um die Querachse');
 const afterDiag = await drag(-90, -70);
 check(afterPitch !== afterDiag, 'schräges Ziehen dreht in beiden Achsen');
 
-// Unbegrenzt: auch nach mehreren vollen Umdrehungen geht es weiter
+// Um die Hochachse unbegrenzt: auch nach mehreren vollen Umdrehungen geht es
+// weiter. Gekippt wird dagegen nur in Grenzen – ohne sie landete die Figur
+// beim Scrollen der Liste in der Draufsicht, Arme über einem Kopf ohne Rumpf
+// („Die Arme sehen echt immer komisch aus").
 let prev = afterDiag;
 let kept = true;
 for (let i = 0; i < 6; i++) {
@@ -46,7 +49,203 @@ for (let i = 0; i < 6; i++) {
   if (next === prev) kept = false;
   prev = next;
 }
-check(kept, 'Drehen bleibt unbegrenzt, auch über volle Umdrehungen hinaus');
+check(kept, 'Drehen um die Hochachse bleibt unbegrenzt, auch über volle Umdrehungen hinaus');
+const kipp = await page.evaluate(async () => {
+  const { mountFigure } = await import('./js/figure.js');
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:0;top:0;width:300px;height:300px';
+  document.body.appendChild(host);
+  const h = mountFigure(host, 'facepull', true, 'band');
+  const r = host.getBoundingClientRect();
+  const ev = (type, x, y) => (type === 'pointerdown' ? host : window).dispatchEvent(new window.PointerEvent(type,
+    { pointerId: 7, pointerType: 'mouse', clientX: x, clientY: y, bubbles: true }));
+  ev('pointerdown', r.left + 150, r.top + 20);
+  for (let y = 20; y <= 900; y += 40) ev('pointermove', r.left + 150, r.top + y);
+  ev('pointerup', r.left + 150, r.top + 900);
+  const unten = h.getView ? h.getView()[1] : NaN;
+  ev('pointerdown', r.left + 150, r.top + 900);
+  for (let y = 900; y >= -900; y -= 40) ev('pointermove', r.left + 150, r.top + y);
+  ev('pointerup', r.left + 150, r.top - 900);
+  const oben = h.getView ? h.getView()[1] : NaN;
+  h.stop(); host.remove();
+  return [unten, oben];
+});
+check(kipp[0] === 45 && kipp[1] === -35,
+  `Kippen bleibt in Grenzen: 45 Grad von oben, −35 von unten (${kipp.map((v) => v.toFixed(0)).join(' / ')})`);
+
+/*
+ * Scrollen über die Figur ist Scrollen, nicht Drehen.
+ *
+ * Das Bildschirmfoto zu „Die Arme sehen echt immer komisch aus" zeigte den
+ * Face Pull von hinten oben: Mit `touch-action: none` gehörte jeder Wisch über
+ * die Figur der Figur, und sie kippte beim Scrollen der Liste in die
+ * Draufsicht. Jetzt scrollt senkrecht die Seite (pan-y), gedreht wird nur
+ * waagerecht, der Hinweis geht erst beim echten Drehen weg, und von selbst
+ * springt nichts zurück.
+ */
+const bedienung = await page.evaluate(async () => {
+  const { mountFigure } = await import('./js/figure.js');
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:0;top:0;width:300px;height:300px';
+  document.body.appendChild(host);
+  const h = mountFigure(host, 'facepull', true, 'band');
+  const svg = host.querySelector('svg');
+  const hint = host.querySelector('.fig-hint');
+  const r = host.getBoundingClientRect();
+  const ev = (type, x, y) => (type === 'pointerdown' ? host : window).dispatchEvent(new window.PointerEvent(type,
+    { pointerId: 9, pointerType: 'touch', clientX: r.left + x, clientY: r.top + y, bubbles: true, cancelable: true }));
+  // Blick als Zahlen, und dazu das gezeichnete Bild selbst (die Rumpfecken) –
+  // so zählt auch, was ohne getView() gedreht würde.
+  const blick = () => ({
+    v: h.getView ? h.getView().slice(0, 2).map((v) => v.toFixed(1)).join('/') : '?',
+    bild: [...host.querySelectorAll('.fig-torso')].map((n) => n.getAttribute('points')).join(' '),
+  });
+  const vorher = blick();
+  // Ein Finger landet zum Scrollen auf der Figur und zieht senkrecht.
+  ev('pointerdown', 150, 150);
+  const nachTipp = hint.classList.contains('gone');
+  for (let y = 150; y >= 30; y -= 10) ev('pointermove', 152, y);
+  ev('pointerup', 152, 30);
+  const nachScroll = hint.classList.contains('gone');
+  const nachWisch = blick();
+  // Jetzt waagerecht: das ist Drehen.
+  ev('pointerdown', 50, 150);
+  for (let x = 50; x <= 250; x += 10) ev('pointermove', x, 152);
+  ev('pointerup', 250, 152);
+  const nachDrehen = hint.classList.contains('gone');
+  const gedreht = blick();
+  await new Promise((res) => setTimeout(res, 5600));
+  const spaeter = blick();
+  const out = { touch: getComputedStyle(svg).touchAction, nachTipp, nachScroll, nachDrehen, vorher, nachWisch, gedreht, spaeter };
+  h.stop(); host.remove();
+  return out;
+});
+check(bedienung.touch === 'pan-y', `senkrecht gehört der Liste: touch-action ${bedienung.touch}`);
+check(bedienung.nachWisch.bild === bedienung.vorher.bild && bedienung.nachWisch.v === bedienung.vorher.v,
+  `ein senkrechter Wisch dreht und kippt die Figur nicht (${bedienung.vorher.v} → ${bedienung.nachWisch.v})`);
+check(!bedienung.nachTipp && !bedienung.nachScroll, 'der Hinweis bleibt, solange nur getippt oder gescrollt wird');
+check(bedienung.gedreht.bild !== bedienung.vorher.bild && bedienung.nachDrehen,
+  `waagerecht dreht (${bedienung.gedreht.v}), und erst dann geht der Hinweis weg`);
+check(bedienung.spaeter.bild === bedienung.gedreht.bild,
+  `kein Zurückfedern: nach 5,6 Sekunden steht der Blick noch (${bedienung.spaeter.v})`);
+
+/*
+ * Die Arme selbst.
+ *
+ * Bis v235 lief ein Steg (fig-gusset) von der Brust bis zur Hand – er sollte
+ * nur die Lücke an der Achsel bei der Hüftbeuge füllen, malte aber bei jedem
+ * abgespreizten Arm eine Flughaut. Jedes Glied trug dazu seinen eigenen Rand:
+ * ein Ring am Ellenbogen. Und der Rand war fest 0,9 breit, beim Face Pull
+ * (kleine Figur) ein Drittel der Figurfläche dunkle Linie.
+ */
+const arme = await page.evaluate(async () => {
+  const { mountFigure } = await import('./js/figure.js');
+  const out = { steg: 0, glieder: 0, armRand: 0, armKante: 0, armMitStrich: 0, rand: {} };
+  for (const [m, eq] of [['facepull', 'band'], ['lateral', 'dumbbells'], ['hinge', 'barbell'], ['hinge1', null],
+    ['ohp', 'dumbbells'], ['pullapart', 'band'], ['curl', 'szbar'], ['bridge', null]]) {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:0;top:0;width:344px;height:210px';
+    document.body.appendChild(host);
+    const h = mountFigure(host, m, true, eq);
+    for (const t of [0, 0.5, 1]) {
+      h.draw(t);
+      out.steg += host.querySelectorAll('.fig-gusset').length;
+      out.armRand += host.querySelectorAll('.fig-arm-rand').length;
+      out.armKante += host.querySelectorAll('.fig-arm-kante').length;
+      out.armMitStrich += [...host.querySelectorAll('path.fig-arm')]
+        .filter((n) => getComputedStyle(n).stroke !== 'none').length;
+    }
+    const svg = host.querySelector('svg');
+    const bein = host.querySelector('path.fig-limb:not(.fig-arm)');
+    const armRand = host.querySelector('.fig-arm-rand');
+    out.rand[m] = {
+      rand: parseFloat(svg.style.getPropertyValue('--rand')),
+      bein: parseFloat(getComputedStyle(bein).strokeWidth),
+      // calc(2 * var(--rand)) kommt als „calc(1.44px)" zurück
+      arm: armRand ? parseFloat(getComputedStyle(armRand).strokeWidth.replace(/^calc\(/, '')) : NaN,
+    };
+    h.stop(); host.remove();
+  }
+  return out;
+});
+check(arme.steg === 0, `kein Steg mehr von der Brust zur Hand (${arme.steg} fig-gusset in 24 Bildern)`);
+check(arme.armRand === 48 && arme.armKante === 48,
+  `je Arm ein Rand ringsum fürs hintere Glied und eine offene Kante fürs vordere (${arme.armRand} / ${arme.armKante} in 24 Bildern)`);
+check(arme.armMitStrich === 0, `die Armflächen selbst haben keinen Strich – kein Ring am Ellenbogen (${arme.armMitStrich})`);
+const fp = arme.rand.facepull;
+check(fp.rand > 0.4 && fp.rand < 0.8,
+  `der Rand wächst mit der Figur: Face Pull in der Karte ${fp.rand} statt fest 0,9`);
+check(Math.abs(fp.bein - fp.rand) < 0.01 && Math.abs(fp.arm - 2 * fp.rand) < 0.01,
+  `und gilt für Beine (${fp.bein}) wie für den Arm-Rand (${fp.arm} = 2 × ${fp.rand})`);
+check(Object.values(arme.rand).every((r) => r.rand <= 0.9),
+  `nirgends breiter als vorher (${Object.entries(arme.rand).map(([k, r]) => `${k} ${r.rand}`).join(', ')})`);
+
+/*
+ * Face Pull: der Kopf bleibt zu sehen.
+ *
+ * Mit dem Blick [40, −6] (so ein Zwischenstand) lag der nahe Oberarm von t 0
+ * bis 0,2 genau vor dem Gesicht – das Startbild jeder Wiederholung war eine
+ * Figur ohne Kopf, ausgerechnet bei der Übung, über die es hieß „Die Arme
+ * sehen echt immer komisch aus". Gezählt wird am gezeichneten Bild: Punkte im
+ * Umriss des Kopfes, bei denen der Kopf zuoberst liegt.
+ */
+const kopfFrei = await page.evaluate(async () => {
+  const { mountFigure } = await import('./js/figure.js');
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:0;top:0;width:344px;height:210px;z-index:9999;background:#111';
+  document.body.appendChild(host);
+  const h = mountFigure(host, 'facepull', true, 'band');
+  const out = [];
+  for (const t of [0, 0.1, 0.2, 0.3, 0.5, 1]) {
+    h.draw(t);
+    const kopf = host.querySelector('.fig-head');
+    const r = kopf.getBoundingClientRect();
+    let drin = 0; let frei = 0;
+    for (let x = r.left + 0.5; x < r.right; x += 1) {
+      for (let y = r.top + 0.5; y < r.bottom; y += 1) {
+        const stapel = document.elementsFromPoint(x, y)
+          .filter((n) => n instanceof window.SVGGeometryElement && !n.classList.contains('fig-schatten'));
+        if (!stapel.includes(kopf)) continue;
+        drin += 1;
+        if (stapel[0] === kopf) frei += 1;
+      }
+    }
+    out.push(drin ? frei / drin : 0);
+  }
+  h.stop(); host.remove();
+  return out;
+});
+check(kopfFrei.every((v) => v >= 0.5),
+  `Face Pull im Vorgabeblick: vom Kopf bleibt mindestens die Hälfte frei (t 0…1: ${kopfFrei.map((v) => v.toFixed(2)).join(' ')})`);
+
+/*
+ * Hängende Arme bleiben Arme.
+ *
+ * Ohne Steg verschwand die Innenseite eines hängenden Oberarms unter dem
+ * Rumpf – von vorn und von hinten war die Figur ein breiter Block mit Händen.
+ * Jetzt zieht fig-arm-innen die Trennlinie: die Innenkante des Oberarms über
+ * dem Rumpf, oder bei einem Arm hinter dem Rumpf dessen Kante über dem Arm.
+ * Bei abgespreiztem Arm (Seitheben oben) braucht es sie nicht.
+ */
+const innen = await page.evaluate(async () => {
+  const { mountFigure } = await import('./js/figure.js');
+  const out = {};
+  for (const [m, eq, t, blick] of [['curl', 'szbar', 0, [0, 8]], ['curl', 'szbar', 0, null], ['curl', 'szbar', 0, [160, 10]],
+    ['hammercurl', 'dumbbells', 0, null], ['calf1', null, 0, null], ['lateralstand', null, 1, [0, 8]]]) {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:0;top:0;width:344px;height:210px';
+    document.body.appendChild(host);
+    const h = mountFigure(host, m, true, eq);
+    if (blick) h.setView(...blick);
+    h.draw(t);
+    out[`${m} t${t} ${blick ? blick.join('/') : 'Vorgabe'}`] = host.querySelectorAll('.fig-arm-innen').length;
+    h.stop(); host.remove();
+  }
+  return out;
+});
+const innenText = Object.entries(innen).map(([k, v]) => `${k}: ${v}`).join(', ');
+check(Object.entries(innen).every(([k, v]) => (k.startsWith('lateralstand') ? v === 0 : v >= 1)),
+  `hängende Oberarme haben eine Trennlinie zum Rumpf, abgespreizte keine (${innenText})`);
 
 // Der Boden ist eine Fläche im Raum und kippt mit.
 // Nicht jede Übung hat einen: wer an der Stange hängt, steht auf nichts.
@@ -57,13 +256,13 @@ for (let i = 0; i < 8 && await page.locator('.fig-ground').count() === 0; i++) {
 }
 check(await page.locator('.fig-ground').count() > 0, 'Übung mit Boden gefunden');
 const g1 = await page.locator('.fig-ground').getAttribute('points');
-await drag(0, 90);
+await drag(0, -90);   // nach oben: nach den Zügen oben steht das Kippen am oberen Anschlag
 const g2 = await page.locator('.fig-ground').getAttribute('points');
 check(g1 !== g2, 'Bodenfläche kippt mit');
 check(await page.locator('.focus-fig line.fig-ground').count() === 0, 'kein Bodenstrich mehr, der wie ein Regler aussieht');
 
 check(await page.locator('.fig-hint').count() === 1, 'Hinweis zum Drehen vorhanden');
-check(await page.locator('.fig-hint.gone').count() === 1, 'Hinweis verschwindet nach der ersten Berührung');
+check(await page.locator('.fig-hint.gone').count() === 1, 'Hinweis verschwindet nach dem ersten Drehen');
 await page.screenshot({ path: `${SHOT}/96-rotated.png` });
 
 // Gerät sichtbar: Kurzhantel-Paar bei Seitheben. Welche Einheit die Übung
