@@ -729,6 +729,18 @@ export function exBasis(w, mode) {
  * (exBasis). Wer die nachgetragenen Sätze auch liegen lässt, bekommt sie nicht
  * ein zweites Mal obendrauf.
  *
+ * **Und ohne Doppelung.** Das galt lange nur für die liegen gelassenen
+ * Nachholsätze, nicht für die gemachten:
+ *
+ *     „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich
+ *      ja goblet sqauds gemacht"
+ *
+ * Der am Samstag gemachte Nachholsatz wurde nirgends gutgeschrieben, und der
+ * Montag forderte denselben Rückstand noch einmal ein. Seitdem zählt jeder
+ * Haken einer früheren Einheit entweder zu ihrer Grundzahl oder zu ihrer
+ * angesagten Nacharbeit, und die gemachte Nacharbeit schließt den Rückstand
+ * (offenInWoche()).
+ *
  * **Nur nach oben.** Hier stand einmal auch die Gegenrichtung: Wer über Wochen
  * nur einen Teil schafft, dem hätte die App die Einheiten von selbst gekürzt.
  * Das ist wieder raus, auf ausdrücklichen Wunsch – die Erfahrungsstufe gehört
@@ -812,23 +824,88 @@ export function fertigOhneNacharbeit(n) {
   return null;
 }
 
-/** Was in dieser Woche vor `w` liegen geblieben ist, je Muskelgruppe. */
+/**
+ * Was in dieser Woche vor `w` liegen geblieben ist, je Muskelgruppe.
+ *
+ * `herkunft` sagt, woher der Rückstand kommt – je abgeschlossener Einheit und
+ * Übung mit offenen Sätzen { n, id, m, abgehakt, von, offen }. Die Anzeige
+ * schreibt daraus an jeden Nachholsatz, wofür er ist (nacharbeitPlan()).
+ *
+ * **Gemachte Nacharbeit zählt.** Jeder abgehakte Satz einer früheren Einheit
+ * zählt entweder zur Grundzahl jenes Tages oder zu der Nacharbeit, die an dem
+ * Tag angesagt war – nie zu beiden. Was an Nacharbeit gemacht ist, schließt
+ * den Rückstand, aus dem sie gerechnet wurde:
+ *
+ *     „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich
+ *      ja goblet sqauds gemacht"
+ *
+ * Vorher wurde eine frühere Einheit nur an ihrer Grundliste gemessen, und
+ * saetzeErledigt() deckelte die Haken auf die Grundzahl. Ein Kreuzheben-Satz
+ * blieb am Donnerstag liegen, am Samstag stand dafür der Goblet Squat mit
+ * „+1 nachgeholt" da, und Tobi machte alle vier – der vierte Haken fiel unter
+ * den Deckel, das Loch vom Donnerstag blieb offen, und am Montag stand
+ * derselbe Goblet Squat wieder mit „+1 nachgeholt" da. Derselbe Rückstand,
+ * zweimal eingefordert.
+ *
+ * Erkannt wird der Nachholsatz am gespeicherten Vermerk (`nach`, ersatzweise
+ * `nachFest`), nicht an „soll minus heutige Satzzahl": Eine Einheit, die an
+ * ihrem Tag mit einer höheren Stufe stand (vier Grundsätze, heute drei), hätte
+ * ihren vierten *Grund*satz sonst als Nacharbeit gutgeschrieben und echten
+ * Rückstand weggerechnet. Ohne Vermerk keine Gutschrift. Und die Gutschrift
+ * endet bei der angesagten Zahl – frei hinzugefügte Sätze zählen nicht.
+ */
 export function offenInWoche(w) {
   const start = Math.floor((w.n - 1) / WEEK_SESSIONS) * WEEK_SESSIONS;
   const fehlt = {};
-  let summe = 0;
+  // Geleistete Nacharbeit je Muskelgruppe – wird am Ende vom Rückstand abgezogen.
+  const plus = {};
+  const herkunft = [];
   for (let i = start; i < w.n - 1 && i < PLAN.length; i++) {
     const x = PLAN[i];
     const mx = fertigOhneNacharbeit(x.n);
-    if (!mx) continue;   // noch offen – das ist kein Rückstand, das ist Zukunft
+    // Eine angefangene, noch offene Einheit trägt keinen Rückstand bei – das
+    // ist Zukunft. Die Nacharbeit, die in ihr schon gemacht ist, zählt aber:
+    // Wer am Samstag das +1 macht und die Einheit offen lässt, hat es gemacht.
+    const m = mx || (store.isStarted(x.n) ? store.workoutMode(x.n) : null);
+    if (!m) continue;
     const eintrag = store.getState().log[x.n] || {};
     // Ohne Stempel: ein Stand aus der Zeit vor dieser Rechnung. Dann bleibt die
     // Einheit draußen, statt an der heutigen Satzzahl gemessen zu werden – die
     // App erfindet lieber keinen Rückstand, als einen zu behaupten, den sie
     // nicht belegen kann.
     if (!eintrag.soll) continue;
-    exBasis(x, mx).forEach((it) => {
-      const done = saetzeErledigt(x.n, it.id, it.sets);
+    exBasis(x, m).forEach((it) => {
+      const soll = eintrag.soll[it.id];
+      const alle = saetzeErledigt(x.n, it.id, Infinity);
+      // Wie viele der `soll` Sätze an jenem Tag Nacharbeit waren – aus dem
+      // Vermerk, sonst aus der festgehaltenen Nacharbeit des Modus.
+      const vermerk = (eintrag.nach || {})[it.id] ?? ((eintrag.nachFest || {})[m] || {})[it.id] ?? 0;
+      const nachTag = soll === undefined ? 0 : Math.min(soll, Number(vermerk) || 0);
+      const basisTag = soll === undefined ? it.sets : Math.min(soll - nachTag, it.sets);
+      // Was über die Grundsätze jenes Tages hinaus abgehakt ist, war seine
+      // Nacharbeit – höchstens so viel, wie angesagt war.
+      const mehr = Math.min(nachTag, Math.max(0, alle - basisTag));
+      if (mehr > 0) {
+        Object.entries(EX_BY_ID.get(it.id)[m].shares).forEach(([mus, share]) => {
+          plus[mus] = (plus[mus] || 0) + mehr * share;
+        });
+      }
+      if (!mx) return;   // noch offen – das ist kein Rückstand, das ist Zukunft
+      // Eine Übung ohne Stempel in einer Einheit mit `nachFest` stand an dem
+      // Tag nicht auf dem Bildschirm. Seit v216 legt die Fokusansicht beim
+      // Öffnen die ganze Einheit an und die Liste jede Karte, und `nachFest`
+      // setzt die App ab v233 mit dem ersten Satz – eine solche Einheit stammt
+      // also sicher aus der Zeit, in der jede angezeigte Übung gestempelt
+      // wird. Fehlt der Stempel, hatte eine Beschwerde, ein Termin oder der
+      // Plan davor die Übung gestrichen. Fällt der Grund später weg (Termin
+      // gelöscht, Zerrung ausgeheilt), stand sie plötzlich rückwirkend „ganz
+      // offen" in der Rechnung, und die nächste Einheit holte sie nach.
+      // Eine Einstellung darf keine Arbeit erzeugen.
+      //
+      // Ältere Einheiten ohne `nachFest` behalten die Lesart unten: Aus der
+      // Zeit vor dem vollständigen Stempeln heißt ein fehlender Eintrag
+      // wirklich „stand da, nicht angefasst".
+      if (soll === undefined && eintrag.nachFest) return;
       // Gemessen wird an der Satzzahl, die an *diesem* Tag galt, nicht an der
       // von heute. Das ist der ganze Punkt:
       //
@@ -850,17 +927,28 @@ export function offenInWoche(w) {
       //
       // Eine Uebung ohne Eintrag hat keine Zahl: Sie stand da und wurde gar
       // nicht angefasst, also zaehlt sie ganz als offen.
-      const soll = eintrag.soll[it.id];
-      const offen = (soll === undefined ? it.sets : Math.min(soll, it.sets)) - done;
+      //
+      // Und von dieser Zahl nur die Grundsätze (`basisTag`): Eine an dem Tag
+      // angesagte Nacharbeit, die liegen blieb, wird nicht noch einmal
+      // nachgeholt – sonst schaukelte sich der Rückstand auf.
+      const abgehakt = Math.min(alle, basisTag);
+      const offen = basisTag - abgehakt;
       if (offen <= 0) return;
+      herkunft.push({ n: x.n, id: it.id, m: mx, abgehakt, von: basisTag, offen });
       const shares = EX_BY_ID.get(it.id)[mx].shares;
       Object.entries(shares).forEach(([mus, share]) => {
         fehlt[mus] = (fehlt[mus] || 0) + offen * share;
-        summe += offen * share;
       });
     });
   }
-  return { fehlt, summe };
+  // Geleistete Nacharbeit schließt den Rückstand, aus dem sie gerechnet wurde.
+  Object.entries(plus).forEach(([mus, v]) => {
+    if (fehlt[mus] === undefined) return;
+    fehlt[mus] = Math.max(0, fehlt[mus] - v);
+  });
+  Object.keys(fehlt).forEach((mus) => { if (fehlt[mus] < 1e-9) delete fehlt[mus]; });
+  const summe = Object.values(fehlt).reduce((a, v) => a + v, 0);
+  return { fehlt, summe, herkunft };
 }
 
 /**
@@ -934,14 +1022,43 @@ function festeNacharbeit(w, m) {
 
 /** Die Nacharbeit, wie sie jetzt gerechnet würde – ohne festgehaltenen Stand. */
 export function nacharbeitRechnen(w, m) {
+  const p = nacharbeitPlan(w, m);
+  return p ? p.extra : null;
+}
+
+/**
+ * Die Nacharbeit samt ihrer Herkunft: { extra: Map<id, k>, warum: Map<id,
+ * { g, q }> } oder null.
+ *
+ *     „Jetzt vier Sätze je Übung? Wegen Wiederholung? Aber vorgestern hab ich
+ *      ja goblet sqauds gemacht"
+ *
+ * An der Übung stand nur „+1 nachgeholt" – wofür, stand nirgends. Und dann
+ * sucht man den Grund bei dem, was man zuletzt gemacht hat. Deshalb merkt sich
+ * die Verteilung je gewähltem Satz, was er schließt:
+ *
+ *   g  die Muskelgruppen, für die man ihn macht – die direkten Anteile der
+ *      Übung (ab REST.direct), die wirklich Rückstand schließen, die größten
+ *      zuerst, höchstens zwei. Trifft keine direkte, die zwei größten.
+ *   q  die Übungen, die diesen Rückstand hinterlassen haben: Einträge aus
+ *      offenInWoche().herkunft, deren Übung die Hauptgruppe g[0] direkt trifft,
+ *      als [n, id, abgehakt, von], die schwersten zuerst, höchstens drei. Nur
+ *      zur Hauptgruppe – über alle Gruppen gesammelt, stand beim Rudern der
+ *      Reverse Fly, nur weil beide den Nacken streifen.
+ *
+ * Dieselbe Schleife wie die Verteilung selbst, nicht eine zweite Rechnung
+ * daneben, die irgendwann etwas anderes sagt als die Satzzahl.
+ */
+export function nacharbeitPlan(w, m) {
   if (istCustom(w.n) || !PLAN[w.n - 1]) return null;
-  const { fehlt, summe } = offenInWoche(w);
+  const { fehlt, summe, herkunft } = offenInWoche(w);
   // Unter einem halben Satz lohnt die Unruhe nicht.
   if (summe < 0.5) return null;
 
   const rest = { ...fehlt };
   const items = exBasis(w, m);
   const extra = new Map();
+  const warum = new Map();
   for (let k = 0; k < NACH_JE_EINHEIT; k++) {
     let beste = null;
     let bestWert = 0;
@@ -960,11 +1077,62 @@ export function nacharbeitRechnen(w, m) {
     });
     if (!beste || bestWert < 0.25) break;
     extra.set(beste.id, (extra.get(beste.id) || 0) + 1);
-    Object.entries(EX_BY_ID.get(beste.id)[m].shares).forEach(([mus, share]) => {
+    const shares = EX_BY_ID.get(beste.id)[m].shares;
+    // Was dieser Satz schließt, je Gruppe – vor dem Abziehen gemessen.
+    const zu = Object.entries(shares)
+      .map(([mus, s]) => ({ mus, s, zu: Math.min(s, rest[mus] || 0) }))
+      .filter((x) => x.zu > 0);
+    const direkt = zu.filter((x) => x.s >= REST.direct);
+    const g = (direkt.length ? direkt : zu).sort((a, b) => b.zu - a.zu).slice(0, 2).map((x) => x.mus);
+    const anteil = (h) => ((EX_BY_ID.get(h.id) || {})[h.m] || { shares: {} }).shares[g[0]] || 0;
+    const q = herkunft
+      .filter((h) => anteil(h) >= REST.direct)
+      .sort((a, b) => (b.offen * anteil(b) - a.offen * anteil(a)) || (b.n - a.n))
+      .slice(0, 3)
+      .map((h) => [h.n, h.id, h.abgehakt, h.von]);
+    if (!warum.has(beste.id)) warum.set(beste.id, { g, q });
+    Object.entries(shares).forEach(([mus, share]) => {
       rest[mus] = Math.max(0, (rest[mus] || 0) - share);
     });
   }
-  return extra.size ? extra : null;
+  return extra.size ? { extra, warum } : null;
+}
+
+/**
+ * Woher die Nacharbeit einer Übung kommt – { g, q } wie in nacharbeitPlan(),
+ * oder null, wenn es sich nicht ehrlich sagen lässt.
+ *
+ * Wie die Nacharbeit selbst: Ab dem ersten Satz gilt, was beim Start galt
+ * (`nachWarum`, mit `nachFest` zusammen festgehalten). Wird danach in der
+ * Einheit, aus der der Rückstand stammt, noch ein Satz nachgetragen, bleibt die
+ * Zeile, wie sie war – genau wie die Sätze selbst.
+ *
+ * Einheiten aus v233 bis v235 haben `nachFest`, aber noch kein `nachWarum`.
+ * Für die wird neu gerechnet – und nur benutzt, wenn die Neurechnung *genau*
+ * die festgehaltene Nacharbeit ergibt. Sonst erklärte die Zeile einen Satz mit
+ * einem Rückstand, aus dem er nicht stammt. Ältere angefangene Einheiten ohne
+ * `nachFest` bekommen keine Erklärung (die Anzeige nennt dann nur die
+ * Einheiten, aus denen sie stammen kann).
+ */
+export function nachWarumJe(w, m) {
+  if (istCustom(w.n) || !PLAN[w.n - 1]) return null;
+  const e = store.getState().log[w.n];
+  if (e && e.nachWarum && typeof e.nachWarum === 'object') return e.nachWarum[m] || null;
+  const alsObjekt = (p) => (p ? Object.fromEntries(p.warum) : null);
+  if (e && e.nachFest && typeof e.nachFest === 'object') {
+    const p = nacharbeitPlan(w, m);
+    const fest = Object.entries(e.nachFest[m] || {}).filter(([, k]) => Number(k) > 0);
+    const gleich = p && fest.length === p.extra.size
+      && fest.every(([id, k]) => p.extra.get(id) === Number(k));
+    return gleich ? alsObjekt(p) : null;
+  }
+  if (store.isStarted(w.n)) return null;
+  return alsObjekt(nacharbeitPlan(w, m));
+}
+
+export function nachWarum(w, m, exId) {
+  const je = nachWarumJe(w, m);
+  return (je && je[exId]) || null;
 }
 
 /** Wie viele Sätze einer Einheit aus der Nacharbeit stammen. */
