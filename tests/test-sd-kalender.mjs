@@ -6,10 +6,10 @@
  * eingestellten Uhrzeit, nach Norm umbrochen – und ein Termin kurz vor
  * Mitternacht darf nicht vor seinem Beginn enden.
  */
-import { oeffne, standMit, plus } from './sd-hilfe.mjs';
+import { oeffne, standMit, plus, SD_URL } from './sd-hilfe.mjs';
 
 const TAG = '2026-03-10';
-const { page, check, gespeichert, ende } = await oeffne({ tag: TAG, stand: standMit(plus(TAG, -3)) });
+const { browser, page, check, gespeichert, ende } = await oeffne({ tag: TAG, stand: standMit(plus(TAG, -3)) });
 
 const ics = await page.evaluate(async () => {
   const m = await import('./js/ics.js');
@@ -77,5 +77,83 @@ await page.click('#reiter-heute');
 const heute = await page.locator('#ansicht').innerText();
 check(heute.includes('Blutabnahme in 5 Tagen, 8:00 Uhr'), '„Heute" kündigt die Blutabnahme an');
 check(heute.includes('erst danach'), '… mit dem Hinweis, die Tablette meist erst danach zu nehmen');
+
+// ---- Runde 4: E27 – die tägliche Erinnerung am Morgen nennt den Tag der
+// Blutabnahme (RW1 L0d). Sie kennt einen später angelegten Abnahmetag nicht,
+// deshalb allgemein – und nur morgens.
+const texte = await page.evaluate(async () => {
+  const m = await import('./js/ics.js');
+  return {
+    morgens: m.erinnerungText('06:45'), mittags: m.erinnerungText('12:00'), abends: m.erinnerungText('21:30'),
+    datei: m.erinnerungICS({ abISO: '2026-03-10', uhr: '06:45' }).replace(/\r\n /g, ''),
+  };
+});
+check(/Blutabnahme/.test(texte.morgens) && /erst nach der Abnahme/.test(texte.morgens) && /außer die Praxis/.test(texte.morgens),
+  `E27: morgens „Am Tag einer Blutabnahme … erst nach der Abnahme" (${texte.morgens})`);
+check(/Frühstück frühestens eine halbe Stunde später/.test(texte.morgens), 'E27: … und weiter der Satz zum Frühstück');
+check(!/Blutabnahme/.test(texte.mittags) && !/Blutabnahme/.test(texte.abends), 'E27: mittags und abends ohne diesen Satz');
+check(texte.datei.includes('DESCRIPTION:Nüchtern\\, mit einem Glas Wasser. Frühstück frühestens eine halbe Stunde später. Am Tag einer Blutabnahme'),
+  'E27: die Kalenderdatei trägt den Satz in der Beschreibung des täglichen Termins');
+
+// ---- Runde 4: E29 – Zeitumstellung. Am 29.03.2026 gibt es in Deutschland
+// 2:00–2:59 nicht; die schwebende Uhrzeit darf trotzdem nicht auf 3:xx
+// rutschen (sonst klingelt die tägliche Erinnerung jeden Tag eine Stunde
+// später, und ein Termin um 2:30 hat die Dauer 0). Eigener Browserkontext in
+// der Zeitzone Berlin – die Uhr der übrigen Prüfungen bleibt, wie sie ist.
+const berlin = await browser.newContext({ timezoneId: 'Europe/Berlin', locale: 'de-DE' });
+const pb = await berlin.newPage();
+await pb.goto(SD_URL, { waitUntil: 'networkidle' });
+const um = await pb.evaluate(async () => {
+  const m = await import('./js/ics.js');
+  const zeiten = (t) => t.match(/DT(?:START|END):\d{8}T\d{6}/g);
+  return {
+    zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    luecke: new Date(2026, 2, 29, 2, 30).getHours(),
+    taeglich: zeiten(m.erinnerungICS({ abISO: '2026-03-29', uhr: '02:30' })),
+    termin: zeiten(m.terminICS({ id: 'u1', datum: '2026-03-29', uhr: '02:30', titel: 'Termin' })),
+    frueh: zeiten(m.terminICS({ id: 'u2', datum: '2026-03-29', uhr: '01:50', titel: 'Termin' })),
+    herbst: zeiten(m.erinnerungICS({ abISO: '2026-10-25', uhr: '02:30' })),
+    silvester: zeiten(m.erinnerungICS({ abISO: '2026-12-31', uhr: '23:50' })),
+  };
+});
+await berlin.close();
+const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+check(um.zone === 'Europe/Berlin' && um.luecke === 3, `E29: Prüfumgebung in Berlin, 2:30 am 29.03. gibt es dort nicht (${um.zone}, ${um.luecke} Uhr)`);
+check(gleich(um.taeglich, ['DTSTART:20260329T023000', 'DTEND:20260329T024500']), `E29: tägliche Erinnerung ab 29.03. um 2:30 bleibt 2:30 (${um.taeglich})`);
+check(gleich(um.termin, ['DTSTART:20260329T023000', 'DTEND:20260329T033000']), `E29: Termin am 29.03. um 2:30 dauert eine Stunde (${um.termin})`);
+check(gleich(um.frueh, ['DTSTART:20260329T015000', 'DTEND:20260329T025000']), `E29: Termin um 1:50 endet um 2:50, nicht 3:50 (${um.frueh})`);
+check(gleich(um.herbst, ['DTSTART:20261025T023000', 'DTEND:20261025T024500']), `E29: Umstellung im Herbst unverändert (${um.herbst})`);
+check(gleich(um.silvester, ['DTSTART:20261231T235000', 'DTEND:20270101T000500']), `E29: 23:50 endet weiter am nächsten Tag (${um.silvester})`);
+
+// ---- Runde 5: F25 – Steuerzeichen und halbe Emojis in SUMMARY und
+// DESCRIPTION. RFC 5545 (3.3.11) lässt in TEXT keine Steuerzeichen zu (außer
+// dem Tab); eine halbe Emoji-Hälfte (vom Kürzen) wurde beim Speichern zu „�".
+// Geprüft im Browser selbst: Beim Übergeben an Node würde eine halbe Hälfte
+// schon unterwegs ersetzt.
+const f25 = await page.evaluate(async () => {
+  const m = await import('./js/ics.js');
+  const halb = `${'a'.repeat(79)}${'🏥'.slice(0, 1)}`;
+  const dateien = {
+    termin: m.terminICS({ id: 'f25', datum: '2026-04-02', uhr: '08:00', titel: `Blutabnahme – ${halb}`, notiz: 'Überweisung mitbringen\u000bKarte\u000cnüchtern\u0000\u001b\u007f Ende\tmit Tab', blutabnahme: true, biotin: true }),
+    erinnerung: m.erinnerungICS({ abISO: '2026-03-10', uhr: '06:45', text: `Tablette\u0007 ${'🏥'.slice(1)}nehmen`, notiz: 'Notiz\u0008mit Rückschritt' }),
+    spaet: m.terminICS({ id: 'f25b', datum: '9999-12-31', uhr: '23:30', titel: 'Termin' }),
+  };
+  const pruef = (t) => {
+    const ohneCRLF = t.replace(/\r\n/g, '');
+    const steuer = [...ohneCRLF].filter((c) => { const n = c.charCodeAt(0); return (n < 0x20 && n !== 0x09) || n === 0x7f; }).map((c) => c.charCodeAt(0));
+    const halbe = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(t);
+    const ersatz = new TextDecoder().decode(new TextEncoder().encode(t)).includes('�');
+    return { steuer, halbe, ersatz, entfaltet: t.replace(/\r\n /g, '') };
+  };
+  return Object.fromEntries(Object.entries(dateien).map(([k, t]) => [k, pruef(t)]));
+});
+for (const [name, r] of Object.entries(f25)) {
+  check(r.steuer.length === 0, `F25 ${name}: keine Steuerzeichen außer CRLF und Tab (${JSON.stringify(r.steuer)})`);
+  check(!r.halbe && !r.ersatz, `F25 ${name}: keine halben Emojis, kein „�" nach dem Speichern`);
+}
+check(f25.termin.entfaltet.includes('Überweisung mitbringen\\nKarte\\nnüchtern') && f25.termin.entfaltet.includes('Ende\tmit Tab'),
+  'F25 weicher Umbruch (\\v) und Seitenvorschub werden zur Zeile, der Tab bleibt');
+check(f25.termin.entfaltet.includes(`SUMMARY:Blutabnahme – ${'a'.repeat(79)}\r\n`), 'F25 die halbe Emoji-Hälfte am Ende des Titels fällt weg');
+check(/DTSTART:99991231T233000\r\nDTEND:99991231T235900/.test(f25.spaet.entfaltet), `F25 Termin am 31.12.9999 um 23:30: DTEND im Jahr 9999, nicht „100000101…" (${(f25.spaet.entfaltet.match(/DTEND:\S+/) || [''])[0]})`);
 
 await ende();
