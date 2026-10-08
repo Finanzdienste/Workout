@@ -41,6 +41,27 @@ export function mitWdh(reps) {
   return `${zahl} Wdh.${zusatz ? ' ' + zusatz : ''}`;
 }
 
+/**
+ * Der Umfang einer Einheit in Zahlen, getrennt nach Plan und Nachgeholtem –
+ * für die Kopfzeile der Einheit (tagKopf() in js/app.js) und den Kalender.
+ *
+ *   plan        Planübungen (ohne die eines eingefügten Zusatztags)
+ *   zusatz      eingefügte Übungen eines Zusatztags
+ *   saetze      alle Sätze
+ *   nachgeholt  Nacharbeit („+1 nachgeholt") und Zusatztag zusammen – das
+ *               „+" in „15 + 3 Sätze" heißt überall dasselbe: nachgeholt
+ *
+ * `allein` für einen Zusatztag, der als eigene Einheit dasteht: Dann *ist* er
+ * die Einheit, und seine Übungen sind kein „+".
+ */
+export function umfang(items, allein = false) {
+  const zus = allein ? [] : items.filter((x) => x.zusatz);
+  const saetze = items.reduce((a, x) => a + x.sets, 0);
+  const nachgeholt = items.reduce((a, x) => a + (x.nach || 0), 0)
+    + zus.reduce((a, x) => a + x.sets, 0);
+  return { plan: items.length - zus.length, zusatz: zus.length, saetze, nachgeholt };
+}
+
 export function repsLabel(it, mode) {
   const plus = mode === 'bw' ? store.bwPlusOf(it.id) : 0;
   if (!plus) return it.reps;

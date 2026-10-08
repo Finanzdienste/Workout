@@ -111,37 +111,61 @@ check(!z.hinweis, 'ohne Meldung – es passiert einfach');
 check(await page.locator('[data-act="zusatztag-weg"]').count() === 0,
   'und ohne die drei Knöpfe, von denen zwei nur „weg damit" hießen');
 // Workout 5 liegt hier auf heute (siehe `schiebe`). Dann steht der Plan vorn
-// und der Zusatztag ist die zweite Einheit des Tages – nicht umgekehrt:
-// Vorher zeigte das Dashboard „Eigenes Workout / Zusatztag Woche 1", und dass
-// heute Workout 5 dran war, stand nirgends.
+// – nicht umgekehrt: Vorher zeigte das Dashboard „Eigenes Workout /
+// Zusatztag Woche 1", und dass heute Workout 5 dran war, stand nirgends.
+//
+// Und der Zusatztag steckt *in* Workout 5. Danach stand er eine Weile als
+// „Als zweite Einheit heute" darunter – „Was soll das mit zweite Einheit.
+// Wenn heute Übungen dazu kommen dann soll alles flüssig in EINE Einheit".
+// Jetzt ein Start, und im Kopf „5 + 1 Übungen" (test-zusatz-einheit.mjs prüft
+// den ganzen Ablauf an Tobis Stand).
 const kopf = (await page.locator('.hero-eyebrow').textContent()).trim();
 console.log('     Startansicht zeigt:', kopf);
 check(/Heute · Workout 5/.test(kopf),
   `an einem Tag mit fälliger Planeinheit steht sie vorn (${kopf})`);
-const zweite = page.locator('.zusatz-danach [data-act="custom-start"]');
-check(await zweite.count() === 1,
-  'und der Zusatztag wird darunter als zweite Einheit angeboten');
-await zweite.click();
-await page.waitForTimeout(300);
-const kopfZusatz = (await page.locator('.hero-title').textContent()).trim();
-check(/Zusatztag Woche 1/.test(kopfZusatz), `ein Tipp öffnet ihn (${kopfZusatz})`);
-check(await page.locator('[data-act="back-to-plan"]').count() === 1,
-  'und es gibt den Weg zurück in den Plan, wer ihn nicht will');
+check(await page.locator('.zusatz-danach').count() === 0
+  && await page.locator('#view [data-act="custom-start"]').count() === 0,
+'keine zweite Einheit daneben, kein zweiter Start');
+const sub5 = (await page.locator('.hero-sub').textContent()).trim();
+check(/\d+ \+ \d+ Übungen/.test(sub5), `der Zusatz steht im Kopf der Einheit (${sub5})`);
 
 // --- 4. Die Einheit selbst ----------------------------------------------
+// Eingefügt: eine bis zwei Übungen, jede, weil sie sich trägt (NACH_ANTEIL –
+// mindestens die Hälfte dessen, was sie direkt trainiert, geht in den
+// Rückstand), keine doppelt. Nachgerechnet mit dem Rückstand der Woche: Soll
+// aus dem Plan, Ist aus den Haken; gezählt nur Gruppen, die heute nicht ruhen
+// (Workout 5 ist heute fällig, Workout 4 liegt zwei Tage zurück).
 const angelegt = await page.evaluate(async () => {
+  const P = await import('./js/plan.js');
+  const D = await import('./js/data.js');
   const store = await import('./js/store.js');
-  const c = store.customs()[0];
-  return {
-    anzahl: c.ex.length,
-    saetze: c.ex.reduce((a, x) => a + x.sets, 0),
-    ids: c.ex.map((x) => x.id),
-  };
+  const byId = new Map(D.EXERCISES.map((e) => [e.id, e]));
+  const ex = P.workoutByNo(5, 'db').ex;
+  const zus = ex.filter((x) => x.zusatz);
+  const luecke = {};
+  D.PLAN.slice(0, 4).forEach((w) => P.exBasis(w, 'db').forEach((it) => {
+    const done = (((store.getState().log[w.n] || {}).db || {})[it.id] || []).filter((s) => s.done).length;
+    Object.entries(byId.get(it.id).db.shares).forEach(([g, s]) => {
+      luecke[g] = (luecke[g] || 0) + (it.sets - done) * s;
+    });
+  }));
+  const ruht = new Set(P.exBasis(D.PLAN[4], 'db').flatMap((it) => Object.entries(byId.get(it.id).db.shares)
+    .filter(([, s]) => s >= D.REST.direct).map(([g]) => g)));
+  const traegt = zus.map((x) => {
+    const sh = byId.get(x.id).db.shares;
+    const wert = Object.entries(sh).reduce((a, [g, s]) => a + (ruht.has(g) ? 0 : Math.min(s * x.sets, Math.max(0, luecke[g] || 0))), 0);
+    const direkt = Object.values(sh).filter((s) => s >= D.REST.direct).reduce((a, s) => a + s, 0) * x.sets;
+    Object.entries(sh).forEach(([g, s]) => { luecke[g] = (luecke[g] || 0) - s * x.sets; });
+    return { id: x.id, wert, direkt, ok: wert >= P.NACH_ANTEIL * direkt - 1e-9 };
+  });
+  return { ids: ex.map((x) => x.id), zus: zus.map((x) => ({ id: x.id, woche: x.zusatz.woche })), traegt };
 });
 console.log('     ', JSON.stringify(angelegt));
-check(angelegt.anzahl >= 2 && angelegt.anzahl <= 5,
-  `zwei bis fünf Übungen, wie eine gewöhnliche Einheit (${angelegt.anzahl})`);
-check(angelegt.saetze >= 6, `und genug Sätze, dass es sich lohnt (${angelegt.saetze})`);
+check(angelegt.zus.length >= 1 && angelegt.zus.length <= 2 && angelegt.zus.every((x) => x.woche === 1),
+  `eine bis zwei Übungen, eingefügt in Workout 5 (${angelegt.zus.map((x) => x.id).join(', ')})`);
+check(angelegt.traegt.every((x) => x.ok),
+  `jede trägt sich – mindestens die Hälfte ihres direkten Anteils geht in den Rückstand (${
+    angelegt.traegt.map((x) => `${x.id} ${x.wert.toFixed(2)}/${x.direkt.toFixed(2)}`).join(', ')})`);
 check(new Set(angelegt.ids).size === angelegt.ids.length, 'keine Übung doppelt');
 
 // --- 5. Die Erholungsregel gilt auch hier --------------------------------
@@ -184,15 +208,37 @@ await page.waitForTimeout(500);
 z = await zustand();
 check(z.customs.length === 1, `es bleibt bei einem (${z.customs.length})`);
 
-// --- 7. Wer ihn nicht will, blättert daran vorbei ------------------------
+// --- 7. Am Ruhetag steht er allein – wer ihn nicht will, blättert vorbei --
 // „Brauch ich nicht" gibt es nicht mehr – der Knopf war zwei Drittel eines
 // Kastens, den niemand bestellt hat. Der Weg zurück in den Plan reicht: Der
 // Zusatztag steht dann eben da und wird beim nächsten Wochenwechsel durch den
 // neuen ersetzt, wenn er unberührt bleibt.
+//
+// Allein steht er nur an einem Tag ohne fällige Planeinheit. Dafür tragen die
+// vier Einheiten hier ihren Trainingstag (−8, −6, −4, −3), und Workout 5
+// liegt drei Tage voraus: heute ein Ruhetag, und keine Einheit in Reichweite
+// der Erholungsregel.
+const ruhetag = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { addDays, daysBetween, todayISO } = await import('./js/dates.js');
+  const heute = todayISO();
+  return { shift: daysBetween(PLAN[4].date, addDays(heute, 3)),
+    tage: { 1: addDays(heute, -8), 2: addDays(heute, -6), 3: addDays(heute, -4), 4: addDays(heute, -3) } };
+});
+const ruhetagLog = await protokoll(0, 4, 2);
+Object.entries(ruhetag.tage).forEach(([n, tag]) => { ruhetagLog[n].startedOn = tag; });
+await setze({ greeted: true, name: 'T', level: 'geuebt', shift: ruhetag.shift, log: ruhetagLog });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(500);
 await page.locator('.tab[data-tab="dashboard"]').click();
 await page.waitForTimeout(300);
-await page.locator('.zusatz-danach [data-act="custom-start"]').click();
-await page.waitForTimeout(300);
+const alleinKopf = (await page.locator('.hero-eyebrow').textContent()).trim();
+const alleinTitel = (await page.locator('.hero-title').textContent()).trim();
+console.log('     am Ruhetag:', alleinKopf, '/', alleinTitel);
+check(/Heute · Zusatztag$/.test(alleinKopf) && /Zusatztag Woche 1/.test(alleinTitel),
+  `am Ruhetag ist er die Einheit des Tages („${alleinKopf}" / „${alleinTitel}")`);
+check(await page.locator('[data-act="back-to-plan"]').count() === 1,
+  'und es gibt den Weg zurück in den Plan, wer ihn nicht will');
 await page.locator('[data-act="back-to-plan"]').click();
 await page.waitForTimeout(400);
 const zurueck = (await page.locator('.hero-eyebrow').textContent()).trim();

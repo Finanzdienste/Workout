@@ -14,16 +14,22 @@ import { EX_BY_ID, satzKilo, stufenWerte } from './uebung.js';
 import { LEISTUNG_MIN, LEVELS, SAETZE_JE_STUFE, leistungsStand, naechsteStufe } from './stufen.js';
 import { esc, fmtNum } from './text.js';
 import { fmtDate, plural } from './dates.js';
-import { effDate, exOf } from './plan.js';
+import { effDate, einheitEx } from './plan.js';
 import { gesamtStats } from './bilanz.js';
 import { abbruch, ausgelassen, vorneListe } from './muster.js';
 
-/** Letzter protokollierter Eintrag derselben Übung im selben Modus. */
+/**
+ * Letzter protokollierter Eintrag derselben Übung im selben Modus.
+ *
+ * In der ganzen Einheit gesucht (einheitEx()), nicht nur in ihrem Plan: Die
+ * Chin-ups aus einem eingefügten Zusatztag sind beim nächsten Mal „Zuletzt
+ * (Workout 9)", nicht „noch nie".
+ */
 export function lastLoggedFor(exId, mode, beforeN) {
   for (let i = PLAN.length - 1; i >= 0; i--) {
     const w = PLAN[i];
     if (w.n >= beforeN) continue;
-    const item = exOf(w, mode).find((x) => x.id === exId);
+    const item = einheitEx(w, mode).find((x) => x.id === exId);
     if (!item) continue;
     const arr = store.peekSets(w.n, mode, exId);
     if (!arr) continue;

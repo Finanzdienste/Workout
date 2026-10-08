@@ -11207,7 +11207,8 @@ const DEFAULT_STATE = {
   // und ohne Klimmzugstange.
   fehlt: [],
   friends: {},           // zuletzt geschickter Stand anderer: { id: { n, w, s, kg, r, p, d, am } }
-  customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}] }]
+  customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}], warum? }]
+                         // `warum` nur am Zusatztag: woher seine Übungen kommen (normWarum())
   session: null,         // laufendes Training: { n }
   clock: null,           // Uhr der Einheit: { n, on, spent, since } – siehe startSession()
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
@@ -11286,6 +11287,13 @@ const DEFAULT_STATE = {
   //   paare   je Modus die Supersatz-Paarung, festgehalten mit dem ersten
   //           abgehakten Satz: { db: { key, gruppen: [[id, id], [id]] } }
   //           (superGruppen() in js/app.js)
+  //   zusatz  nur an Planeinheiten: der in diese Einheit eingefügte
+  //           Zusatztag, festgehalten mit dem ersten Eintrag und nie
+  //           überschrieben: { woche, ex: [{ id, sets, bwSets }], warum:
+  //           { exId: { g, q } } }. Seine Sätze stehen im gewohnten Eimer
+  //           (db/bw), gehören in der Wochenbilanz aber der Woche `woche`
+  //           (halteZusatz(), festerZusatz() und einheitEx() in js/plan.js).
+  //           Verwerfen und Zurücksetzen löschen ihn.
   log: {},
 };
 
@@ -11361,8 +11369,44 @@ function normCustoms(liste) {
       && /^[a-z0-9-]{1,60}$/.test(x.id)
       ? { id: x.id, sets: Math.min(10, Math.max(1, Math.round(Number(x.sets)) || 3)) } : null))
       .filter(Boolean);
-    return { id, name: standText(c.name, 60) || 'Eigenes Workout', ex };
+    const out = { id, name: standText(c.name, 60) || 'Eigenes Workout', ex };
+    // Die Herkunft eines Zusatztags (siehe normWarum()) – nur, wenn es eine gibt.
+    if (c.warum !== undefined) out.warum = normWarum(c.warum, ex.map((x) => x.id));
+    return out;
   }).filter(Boolean);
+}
+
+/*
+ * Woher die Übungen eines Zusatztags kommen – an seinem Träger in `customs`
+ * (`warum`) und, sobald er in einer Einheit festgehalten ist, an log[n].zusatz.
+ * Dieselbe Form wie `nachWarum`: je Übung { g: [Gruppe, …], q: [[n, exId,
+ * abgehakt, von, Modus], …] }.
+ *
+ * Auch das reist in der Sicherung mit, und die kommt von irgendwoher. Was hier
+ * durchgeht, sind kurze Wörter, kleine ganze Zahlen und bekannte Kennungen –
+ * nur für Übungen, die im selben Eintrag stehen. Alles andere fällt weg.
+ */
+const WARUM_GRUPPE = /^[a-zA-Z]{1,30}$/;
+const WARUM_UEBUNG = /^[a-z0-9-]{1,60}$/;
+const ganzIn = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
+function normWarum(roh, ids) {
+  const out = {};
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return out;
+  const erlaubt = new Set(ids || []);
+  Object.keys(roh).forEach((id) => {
+    const w = roh[id];
+    if (!erlaubt.has(id) || !w || typeof w !== 'object' || Array.isArray(w)) return;
+    const g = (Array.isArray(w.g) ? w.g : [])
+      .filter((x) => typeof x === 'string' && WARUM_GRUPPE.test(x)).slice(0, 2);
+    const q = (Array.isArray(w.q) ? w.q : [])
+      .filter((t) => Array.isArray(t) && ganzIn(t[0], 1, 999)
+        && typeof t[1] === 'string' && WARUM_UEBUNG.test(t[1])
+        && ganzIn(t[2], 0, 20) && ganzIn(t[3], 1, 20) && (t[4] === 'db' || t[4] === 'bw'))
+      .slice(0, 3)
+      .map((t) => [t[0], t[1], t[2], t[3], t[4]]);
+    out[id] = { g, q };
+  });
+  return out;
 }
 
 let state = load();
@@ -11962,8 +12006,8 @@ function resetWorkout(n, mode) {
   if (state.clock && state.clock.n === n) state.clock = null;
   syncStartedOn(n);
   // Steht danach nichts mehr, ist der nächste Anlauf ein neuer – mit der
-  // Nacharbeit, die dann gilt.
-  if (!isStarted(n)) { delete e.nachFest; delete e.nachWarum; }
+  // Nacharbeit, die dann gilt, und mit dem Zusatztag, der dann gilt.
+  if (!isStarted(n)) { delete e.nachFest; delete e.nachWarum; delete e.zusatz; }
   persist();
   emit();
 }
@@ -11987,8 +12031,35 @@ function verwirfEinheit(n) {
   delete e.paare;
   delete e.nachFest;
   delete e.nachWarum;
+  // Und der eingefügte Zusatztag: Verworfen ist verworfen. pruefeZusatztag()
+  // in js/app.js legt danach einen neuen Träger an, und die Einheit zeigt ihn
+  // wieder – neu gerechnet, wie vor dem ersten Satz.
+  delete e.zusatz;
   if (state.clock && state.clock.n === n) state.clock = null;
   syncStartedOn(n);
+  persist();
+  emit();
+}
+
+/**
+ * Den Zusatztag in einer Einheit festhalten – einmal, mit dem ersten Eintrag,
+ * und im selben Schritt seinen Träger verbrauchen.
+ *
+ * `wert` ist { woche, ex: [{ id, sets, bwSets }], warum }. Danach gilt in
+ * dieser Einheit, was gerade auf dem Bildschirm stand (zusatzListe() in
+ * js/plan.js), und der Träger „Zusatztag Woche N" samt seinem Protokoll ist
+ * weg – in *einem* Schreibvorgang, damit nie beides zugleich dasteht: die
+ * Übungen fest in der Einheit und noch einmal als eigener Zusatztag daneben.
+ */
+function halteZusatz(n, wert, traegerId) {
+  const e = ensure(n);
+  const z = e.zusatz;
+  if (z && typeof z === 'object' && Number.isInteger(z.woche) && Array.isArray(z.ex) && z.ex.length) return;
+  e.zusatz = clone(wert);
+  if (traegerId) {
+    state.customs = customs().filter((c) => c.id !== traegerId);
+    delete state.log[traegerId];
+  }
   persist();
   emit();
 }
@@ -12156,6 +12227,10 @@ function saveCustom(entwurf) {
   const liste = customs();
   const id = entwurf.id || `c${Date.now().toString(36)}`;
   const eintrag = { id, name: entwurf.name || 'Eigenes Workout', ex: entwurf.ex || [] };
+  // Die Herkunft eines Zusatztags, nur wenn sie im Entwurf steht. Der Baukasten
+  // reicht keine durch – wer einen Zusatztag von Hand umbaut, hat danach ein
+  // eigenes Workout, und dessen Übungen kommen von ihm, nicht aus einer Woche.
+  if (entwurf.warum !== undefined) eintrag.warum = normWarum(entwurf.warum, eintrag.ex.map((x) => x.id));
   const i = liste.findIndex((c) => c.id === id);
   if (i >= 0) liste[i] = eintrag;
   else liste.push(eintrag);
@@ -12509,7 +12584,7 @@ function resetAll() {
   emit();
 }
 
-const store = { ablageKlemmt, addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, festErsetzen, festNetto, festschreiben, flush, getSets, getState, halteNachFest, icsPlanNachtragen, importJSON, isStarted, markBackup, markDone, markIcs, normStand, paarung, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setPaarung, setRest, setSetting, setShift, setWeight, setWorkoutMode, speicherGrund, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, verwirfEinheit, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
+const store = { ablageKlemmt, addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, festErsetzen, festNetto, festschreiben, flush, getSets, getState, halteNachFest, halteZusatz, icsPlanNachtragen, importJSON, isStarted, markBackup, markDone, markIcs, normStand, normWarum, paarung, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setPaarung, setRest, setSetting, setShift, setWeight, setWorkoutMode, speicherGrund, startSession, startedOn, subscribe, toggleCare, toggleInjury, updateSet, verwirfEinheit, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
 
 /* ===== js/text.js ===== */
 /*
@@ -13788,6 +13863,31 @@ function ruestOrder(items) {
   // einen Einheit, und der ist kleiner als eine Isolation, die den Muskel für
   // die schwere Übung danach vorermüdet.
   return vorgezogen(out) ? items : out;
+}
+
+/**
+ * Wie oft in dieser Liste auf- oder umgebaut wird, in der Reihenfolge von
+ * ruestOrder().
+ *
+ * Gezählt wie die Rüstzeile (ruestHint(), vorherAufgebaut()): Eine Übung mit
+ * Aufbau kostet einen Schritt, wenn davor keine mit Aufbau stand oder deren
+ * Gerät oder Gewicht ein anderes war. Übungen ohne Aufbau dazwischen ändern
+ * nichts – die Stange bleibt ja geladen.
+ *
+ * Gebraucht, wenn ein Zusatztag in eine Einheit eingefügt wird (zusatztagEx()
+ * in js/app.js): Bei gleichem Nutzen gewinnt die Übung, die keinen weiteren
+ * Umbau kostet.
+ */
+function ruestSchritte(items) {
+  let n = 0;
+  let prev = null;
+  ruestOrder(items).forEach((it) => {
+    const s = setupOf(it.id, workingWeight(it.id));
+    if (!s) return;
+    if (!prev || prev.fam !== s.fam || !(Math.abs(prev.kg - s.kg) < 0.01)) n += 1;
+    prev = s;
+  });
+  return n;
 }
 
 /**
@@ -15377,7 +15477,8 @@ function faelltAus(items, iso) {
  *
  * exOf() ist die eine Stelle, an der Modus und Stufe über die Satzzahl
  * entscheiden. Alles danach – Protokoll, Fortschritt, Wochenvolumen,
- * Zeitschätzung – rechnet mit dem, was von dort kommt.
+ * Zeitschätzung – rechnet mit dem, was von dort kommt. Die Einheit, wie sie
+ * trainiert wird, legt darauf noch die Übungen eines Zusatztags (einheitEx()).
  */
 
 
@@ -15498,7 +15599,7 @@ const planCache = { key: null, list: null, notes: null };
 // wird – das ließe sich am Schlüssel kaum zuverlässig ablesen. Ein Neuaufbau
 // kostet unter einer Millisekunde, die Ersparnis liegt in den vielen Aufrufen
 // innerhalb *eines* Renderdurchlaufs.
-store.subscribe(() => { planCache.key = null; });
+store.subscribe(() => { planCache.key = null; bindung.key = null; });
 
 function adjustedPlan() {
   const act = activeInjuries();
@@ -15931,8 +16032,12 @@ function vorherFassung(n, liste, mode) {
   // stand der liegende Trizepsstrecker wieder fest statt des Ersatzes, obwohl
   // nur der Split Squat abgehakt war. Gesehen heißt nicht gemacht – was nur
   // angezeigt war, bleibt beweglich wie an jedem anderen Tag.
+  // Ohne die eingefügten Übungen eines Zusatztags: Sie gehören nicht zum Plan
+  // jenes Tages und dürfen keine seiner Stellen übernehmen (zusatzIds()).
+  const zus = zusatzIds(e);
   const da = Object.entries(e[mode] || {})
-    .filter(([id, arr]) => EX_BY_ID.has(id) && Array.isArray(arr) && arr.some((x) => x && (x.done || !!x.w || !!x.wie)))
+    .filter(([id, arr]) => EX_BY_ID.has(id) && !zus.has(id) && Array.isArray(arr)
+      && arr.some((x) => x && (x.done || !!x.w || !!x.wie)))
     .map(([id]) => id);
   const frei = da.filter((id) => !items.some((it) => it.id === id));
   return items.map((it, k) => {
@@ -16035,7 +16140,13 @@ function protokolliert(n) {
   const e = store.getState().log[n];
   const ids = new Set();
   if (!e) return ids;
+  // Die eingefügten Übungen eines Zusatztags stehen im selben Eimer, gehören
+  // aber nicht zum Plan dieser Einheit (einheitEx()). Hielte diese Stelle sie,
+  // stünden sie als „gehalten" in exBasis() – und damit im Maßstab für
+  // Rückstand und Nacharbeit, als hätte der Plan sie verlangt.
+  const zus = zusatzIds(e);
   ['db', 'bw'].forEach((m) => Object.entries(e[m] || {}).forEach(([id, arr]) => {
+    if (zus.has(id)) return;
     if (Array.isArray(arr) && arr.some((x) => x.done || !!x.w || !!x.wie)) ids.add(id);
   }));
   return ids;
@@ -16126,6 +16237,16 @@ function exBasis(w, mode) {
 // nicht initialisiert – und der Fehler zeigt sich erst, sobald ein Protokoll
 // da ist, weil completedMode() ohne Protokoll vorher aussteigt.
 const WEEK_SESSIONS = 4;
+
+// Der Zusatztag (siehe zusatzListe() unten und den Abschnitt in js/app.js).
+// Aus demselben Grund hier oben und hier im Modul: naechsteEinheit() läuft in
+// js/app.js schon bei der Modulauswertung (`ui.workoutNo`), und von dort geht
+// es über completedMode() bis in die Liste des Zusatztags. Standen die Zahlen
+// weiter unten in js/app.js, waren sie dort noch nicht initialisiert.
+const ZUSATZ_UEBUNGEN = 5;      // allein so lang wie eine gewöhnliche Einheit
+const ZUSATZ_AB = 6;            // unter sechs Sätzen Rückstand lohnt es nicht
+const ZUSATZ_IN_EINHEIT = 2;    // in eine Planeinheit eingefügt höchstens zwei
+const ZUSATZ_NAME = /^Zusatztag Woche (\d+)$/;
 
 const NACH_JE_EINHEIT = 3;
 
@@ -16225,11 +16346,22 @@ function fertigOhneNacharbeit(n) {
  */
 function offenInWoche(w) {
   const start = Math.floor((w.n - 1) / WEEK_SESSIONS) * WEEK_SESSIONS;
+  return offenImBlock(start, w.n - 1);
+}
+
+/**
+ * Dieselbe Rechnung über die Plan-Indizes [von, bis) – die Einheiten einer
+ * Woche vor `w` (offenInWoche()) oder eine ganze Woche. Die ganze braucht der
+ * Zusatztag, um an seiner Übung zu sagen, woher sie kommt (zusatztagEx() in
+ * js/app.js) – mit derselben Rechnung wie die Nacharbeit, nicht mit einer
+ * zweiten daneben.
+ */
+function offenImBlock(von, bis) {
   const fehlt = {};
   // Geleistete Nacharbeit je Muskelgruppe – wird am Ende vom Rückstand abgezogen.
   const plus = {};
   const herkunft = [];
-  for (let i = start; i < w.n - 1 && i < PLAN.length; i++) {
+  for (let i = Math.max(0, von); i < bis && i < PLAN.length; i++) {
     const x = PLAN[i];
     const mx = fertigOhneNacharbeit(x.n);
     // Eine angefangene, noch offene Einheit trägt keinen Rückstand bei – das
@@ -16245,8 +16377,12 @@ function offenInWoche(w) {
     if (!eintrag.soll) continue;
     const liste = exBasis(x, m);
     // Stempel, die schon einer Übung von heute gehören – unter ihrer eigenen
-    // Kennung oder über einen Tausch (`from`, `statt`).
-    const belegt = new Set(liste.flatMap((it) => [it.id, it.from, it.statt]).filter(Boolean));
+    // Kennung oder über einen Tausch (`from`, `statt`). Und die Stempel der
+    // eingefügten Übungen eines Zusatztags (zusatzIds()): Die sind weder
+    // Rückstand noch gemachte Nacharbeit dieser Einheit und dürfen auch nicht
+    // als Stempel einer verwandten Planübung gelesen werden.
+    const belegt = new Set([...liste.flatMap((it) => [it.id, it.from, it.statt]).filter(Boolean),
+      ...zusatzIds(eintrag)]);
     liste.forEach((it) => {
       // Unter welcher Kennung der Stempel jenes Tages liegt. Gestempelt wird
       // die Übung, die an dem Tag *dastand* – gesucht wird mit der von heute.
@@ -16611,9 +16747,15 @@ function nachSumme(items) {
 /**
  * Übungsliste eines Plantags – Verletzungen, Modus, Erfahrung und Nacharbeit.
  *
- * Alles in der App geht durch diese Stelle. Die nachgetragenen Sätze stehen
- * deshalb schon hier drin und nicht erst in der Anzeige: Protokoll,
- * Fortschritt, Wochenvolumen und Zeitschätzung rechnen dann von selbst mit.
+ * Plan dieser Einheit – Maßstab für Woche, Plan, Muster und Kalenderdatei.
+ * Die Einheit, wie sie trainiert wird, ist einheitEx(). Ein neuer Aufrufer
+ * nimmt im Zweifel exOf().
+ *
+ * Die nachgetragenen Sätze stehen deshalb schon hier drin und nicht erst in
+ * der Anzeige: Wochenvolumen, Rückstand und Zeitschätzung rechnen dann von
+ * selbst mit. Die Übungen eines Zusatztags dagegen nicht – sie gehören der
+ * Woche, aus der sie nachgeholt werden, und nicht dem Plan dieser Einheit
+ * (siehe einheitEx()).
  */
 function exOf(w, mode) {
   if (istCustom(w.n)) return w.ex;
@@ -16626,21 +16768,237 @@ function exOf(w, mode) {
     : it));
 }
 
+/* ------------------------------------------------------------------ *
+ * Der Zusatztag in der Einheit des Tages
+ *
+ *     „Was soll das mit zweite Einheit. Wenn heute Übungen dazu kommen dann
+ *      soll alles flüssig in EINE Einheit"
+ *
+ * Und am Tag davor, über denselben Zusatztag allein auf der Startseite:
+ *
+ *     „Check ich nicht. Wann soll ich das machen?"
+ *
+ * Bis v238 stand der Zusatztag als eigene Einheit neben dem Plan, an einem
+ * Tag mit fälliger Planeinheit als Zeile darunter („Als zweite Einheit heute").
+ * Zwei Starts, zwei Übungslisten, zwei Abschlüsse – und an seinem Tag auf der
+ * Startseite stand nirgends, warum und wann er dran ist.
+ *
+ * Jetzt gehören seine Übungen zu der Einheit, die heute fällig ist: ein
+ * Start, eine Liste, eine Fokusansicht, ein Fortschritt, Supersätze und
+ * Rüst-Reihenfolge über alle Übungen, ein Abschluss. An jeder eingefügten
+ * Übung steht, woher sie kommt (zusatzText() in js/app.js).
+ *
+ * **Drei Schichten, und jede Rechnung nimmt die, die sie meint:**
+ *
+ *   exBasis()    der Plan ohne Nacharbeit und Zusatz – Maßstab für Rückstand,
+ *                „fertig ohne Nacharbeit" und die Erholungsregel
+ *   exOf()       der Plan der Einheit, mit Nacharbeit – Maßstab für die
+ *                Woche, die Kalenderdatei, die Muster
+ *   einheitEx()  die Einheit, wie sie trainiert wird: exOf() und dahinter die
+ *                Übungen des Zusatztags – Ablauf, Fortschritt, Abschluss,
+ *                Anzeige, Statistik
+ *
+ * Bewusst so herum: workoutByNo() geht über einheitEx(), alles Buchhalterische
+ * über exOf(). Ein Aufrufer, der die falsche Schicht erwischt, zeigt dann
+ * höchstens eine Übung zu wenig an – statt still die Wochenbilanz der Woche
+ * aufzublähen, in deren Tage der Zusatz fällt.
+ *
+ * **Live, dann fest.** Bis zum ersten Eintrag in der Einheit kommen die Übungen
+ * aus dem Zusatztag in `customs` (dem Träger) und werden mit ihm neu gerechnet
+ * (pruefeZusatztag() in js/app.js). Mit dem ersten Eintrag stehen sie in
+ * log[n].zusatz fest, und der Träger ist verbraucht – wie die Nacharbeit
+ * (nachFest) und die Paarung, die ab dem ersten Satz auch nicht mehr wandern.
+ * ------------------------------------------------------------------ */
+
+/** Der unberührte Zusatztag, wenn einer bereitsteht. */
+function offenerZusatztag() {
+  return store.customs().find((c) => ZUSATZ_NAME.test(c.name) && !store.isStarted(c.id)) || null;
+}
+
 /**
- * Ein Plantag mit den Satzzahlen des gewünschten Modus.
+ * Die Planeinheit, die heute einen Zusatztag aufnimmt – oder null.
+ *
+ * Die erste noch nicht angefangene, wenn sie heute (oder schon früher) fällig
+ * ist. Und nur, wenn heute noch keine Planeinheit angefangen wurde: Wer heute
+ * schon trainiert hat, bekommt keine zweite Einheit mit Zusatz obendrauf, der
+ * Zusatztag wartet bis morgen.
+ *
+ * Fragt nie completedMode(), progressOf() oder naechsteEinheit() – die gehen
+ * über workoutByNo() und einheitEx() bis hierher zurück.
+ */
+function zusatzEinheit() {
+  const heute = todayISO();
+  const w = PLAN.find((x) => !store.isStarted(x.n));
+  if (!w || effDate(w) > heute) return null;
+  if (PLAN.some((x) => store.startedOn(x.n) === heute)) return null;
+  return w;
+}
+
+/**
+ * Wo der bereitstehende Zusatztag heute hingehört: { w, c, woche } oder null.
+ * Gemerkt je Tag und bei jeder Zustandsänderung verworfen, wie planCache –
+ * gefragt wird bei jedem Zeichnen viele Male.
+ */
+const bindung = { key: null, wert: null };
+function zusatzBindung() {
+  const heute = todayISO();
+  if (bindung.key === heute) return bindung.wert;
+  const c = offenerZusatztag();
+  const w = c ? zusatzEinheit() : null;
+  bindung.key = heute;
+  bindung.wert = c && w ? { w, c, woche: Number(ZUSATZ_NAME.exec(c.name)[1]) } : null;
+  return bindung.wert;
+}
+
+/** Eine Satzzahl aus fremder Hand: ganz, 1 bis 10, sonst `rueck`. */
+function satzAus(v, rueck) {
+  if (v === undefined || v === null || v === '') return rueck;
+  const k = Math.round(Number(v));
+  return Number.isFinite(k) ? Math.min(10, Math.max(1, k)) : rueck;
+}
+
+/**
+ * Der festgehaltene Zusatz einer Einheit, nachgezählt: { woche, ex, warum }
+ * oder null.
+ *
+ * importJSON() übernimmt `log` ungeprüft (js/store.js), und eine Sicherung ist
+ * eine Datei von irgendwoher. Deshalb wird beim Lesen geprüft, nicht geglaubt:
+ * nur bekannte Übungen, keine doppelt, höchstens ZUSATZ_UEBUNGEN, Satzzahlen
+ * von 1 bis 10, die Herkunft über store.normWarum().
+ */
+function festerZusatz(e) {
+  const z = e && e.zusatz;
+  if (!z || typeof z !== 'object' || Array.isArray(z)) return null;
+  if (!Number.isInteger(z.woche) || z.woche < 1) return null;
+  const ex = [];
+  (Array.isArray(z.ex) ? z.ex : []).forEach((x) => {
+    if (ex.length >= ZUSATZ_UEBUNGEN) return;
+    if (!x || typeof x.id !== 'string' || !EX_BY_ID.has(x.id) || ex.some((y) => y.id === x.id)) return;
+    const sets = satzAus(x.sets, 3);
+    ex.push({ id: x.id, sets, bwSets: satzAus(x.bwSets, sets) });
+  });
+  if (!ex.length) return null;
+  return { woche: z.woche, ex, warum: store.normWarum(z.warum, ex.map((x) => x.id)) };
+}
+
+/**
+ * Die Kennungen, die in dieser Einheit dem Zusatz gehören – großzügig: jede
+ * bekannte aus e.zusatz.ex, auch wenn der Rest des Eintrags kaputt ist. Die
+ * Leser des rohen Eimers (protokolliert(), vorherFassung(), offenImBlock(),
+ * festeListen() in js/app.js, bilanzAus() in js/bilanz.js) lassen sie aus.
+ * Lieber eine Übung zu viel draußen als ein Zusatz-Satz in der Grundlast.
+ */
+function zusatzIds(e) {
+  const out = new Set();
+  const z = e && e.zusatz;
+  if (!z || typeof z !== 'object' || !Array.isArray(z.ex)) return out;
+  z.ex.forEach((x) => { if (x && typeof x.id === 'string' && EX_BY_ID.has(x.id)) out.add(x.id); });
+  return out;
+}
+
+/**
+ * Ist der Zusatztag dieser Woche schon in einer Einheit aufgegangen?
+ *
+ * Dann ist er verbraucht – gemacht oder liegen gelassen. Ein liegen
+ * gelassener Zusatz wird nicht noch einmal angeboten, aus demselben Grund, aus
+ * dem liegen gelassene Nacharbeit nicht noch einmal nachgeholt wird: Sonst
+ * schaukelte sich der Rückstand auf.
+ */
+function zusatzVergeben(nr) {
+  return Object.values(store.getState().log || {}).some((e) => {
+    const z = festerZusatz(e);
+    return !!z && z.woche === nr;
+  });
+}
+
+/** Hat in dieser Einheit diese Übung schon etwas – abgehakt, Gewicht, Rückmeldung? */
+function angefasst(e, id) {
+  return ['db', 'bw'].some((m) => {
+    const arr = ((e && e[m]) || {})[id];
+    return Array.isArray(arr) && arr.some((x) => x && (x.done || !!x.w || !!x.wie));
+  });
+}
+
+/**
+ * Die Übungen des Zusatztags in dieser Einheit – oder [].
+ *
+ * Fest, wenn log[n].zusatz steht: dieselben Kennungen, die Satzzahl des Modus.
+ * Eine noch unberührte Übung fällt dabei weg, wenn eine Beschwerde sie im
+ * Modus sperrt oder das Gerät fehlt; eine angefasste bleibt (dieselbe Regel
+ * wie behalteProtokolliertes()). Sonst live aus dem Träger, solange er an
+ * diese Einheit gebunden ist (zusatzBindung()). Was schon im Plan der Einheit
+ * steht, kommt nie ein zweites Mal dazu.
+ */
+function zusatzListe(w, m, plan) {
+  const e = store.getState().log[w.n];
+  const drin = new Set(plan.map((it) => it.id));
+  const z = festerZusatz(e);
+  if (z) {
+    const sperre = gesperrt(activeInjuries(), m);
+    return z.ex
+      .filter((x) => !drin.has(x.id)
+        && (angefasst(e, x.id) || (!sperre.has(x.id) && uebungGeht(x.id, m))))
+      .map((x) => ({
+        id: x.id, sets: m === 'bw' ? x.bwSets : x.sets, bwSets: x.bwSets,
+        zusatz: { woche: z.woche, warum: z.warum[x.id] || null, live: false },
+      }));
+  }
+  if (!store.customs().some((c) => ZUSATZ_NAME.test(c.name)) || store.isStarted(w.n)) return [];
+  const b = zusatzBindung();
+  if (!b || b.w.n !== w.n) return [];
+  const sperre = gesperrt(activeInjuries(), m);
+  return b.c.ex
+    .filter((x) => EX_BY_ID.has(x.id) && !drin.has(x.id) && !sperre.has(x.id) && uebungGeht(x.id, m))
+    .map((x) => ({
+      id: x.id, sets: x.sets, bwSets: x.sets,
+      zusatz: { woche: b.woche, warum: (b.c.warum || {})[x.id] || null, live: true },
+    }));
+}
+
+/**
+ * Die Einheit, wie sie trainiert wird: exOf() und dahinter der Zusatz.
+ *
+ * Ohne Zusatz kommt exOf() unverändert zurück – dieselbe Liste, dieselbe
+ * Reihenfolge. Mit Zusatz wird im Hantel-Modus über alle Übungen nach
+ * Rüstaufwand geordnet (eine Kurzhantel-Übung des Zusatzes rückt zu den
+ * anderen Kurzhanteln, statt am Ende einen zweiten Aufbau zu kosten); ohne
+ * Hanteln steht er hinten.
+ */
+function einheitEx(w, mode) {
+  if (istCustom(w.n)) return w.ex;
+  const m = mode || store.workoutMode(w.n);
+  const plan = exOf(w, m);
+  const zus = zusatzListe(w, m, plan);
+  if (!zus.length) return plan;
+  return m === 'db' ? ruestOrderStabil([...plan, ...zus], w.n, 'db') : [...plan, ...zus];
+}
+
+/**
+ * Ein Plantag mit den Satzzahlen des gewünschten Modus – so, wie er trainiert
+ * wird (einheitEx()).
  *
  * `mode` ist optional und heißt "der Modus, in dem diese Einheit gerade steht".
  * Wer über *beide* Modi rechnet – completedMode(), die Statistik – muss ihn
  * ausdrücklich mitgeben, sonst bekommt er zweimal dieselben Zahlen und misst
  * den einen Modus am Soll des anderen.
+ *
+ * Ein Zusatztag, der allein steht (an einem Tag ohne Planeinheit), trägt an
+ * jeder Übung dieselbe Marke wie ein eingefügter – damit auch dort an der
+ * Übung steht, woher sie kommt.
  */
 function workoutByNo(n, mode) {
   if (istCustom(n)) {
     const c = store.customById(n);
-    if (c) return { n, date: todayISO(), name: c.name, ex: c.ex, custom: true };
+    if (c) {
+      const z = ZUSATZ_NAME.exec(c.name);
+      const ex = z ? c.ex.map((x) => ({
+        ...x, zusatz: { woche: Number(z[1]), warum: (c.warum || {})[x.id] || null, live: false },
+      })) : c.ex;
+      return { n, date: todayISO(), name: c.name, ex, custom: true };
+    }
   }
   const w = PLAN.find((x) => x.n === n) || PLAN[0];
-  const ex = exOf(w, mode);
+  const ex = einheitEx(w, mode);
   return ex === w.ex ? w : { ...w, ex };
 }
 
@@ -16655,6 +17013,10 @@ function resolve(item, mode) {
     // Muss mitwandern: Ab hier sieht die Anzeige nur noch das, was hier steht,
     // und eine Einheit, die kommentarlos wächst, ist eine Zumutung.
     nach: item.nach || 0,
+    // Aus welchem Zusatztag diese Übung in die Einheit kam – { woche, warum,
+    // live } oder null (siehe einheitEx()). Wandert aus demselben Grund mit:
+    // Ohne sie stünde die Übung ohne Herkunft da, und genau das war die Frage.
+    zusatz: item.zusatz || null,
     // Wofür diese Übung eingesprungen ist, wenn die Anfängerstufe getauscht hat.
     // Muss mitwandern wie `nach`: Ab hier sieht die Anzeige nur noch das, was
     // hier steht – und ein stiller Tausch wäre genau die Sorte Änderung, die
@@ -16769,7 +17131,10 @@ function sammleStats() {
     const entry = log[w.n];
     if (!entry) return;
     ['db', 'bw'].forEach((m) => {
-      exOf(w, m).forEach((item) => {
+      // Die ganze Einheit, samt eingefügtem Zusatztag: Trainiert ist trainiert,
+      // und dessen Träger ist mit dem ersten Satz verbraucht – unter „eigene"
+      // weiter unten zählt er dann nicht mehr.
+      einheitEx(w, m).forEach((item) => {
         const arr = entry[m] && entry[m][item.id];
         if (!Array.isArray(arr)) return;
         // Gerechnet wird mit gezaehlteReps(): der unteren Grenze des Bereichs,
@@ -17099,6 +17464,10 @@ function bilanzAus(runde) {
   Object.entries(runde.log || {}).forEach(([n, e]) => {
     if (!e) return;
     const soll = geplant && geplant.get(String(n));
+    // Die Übungen eines eingefügten Zusatztags zählen bei Sätzen und Volumen,
+    // aber nicht beim Abzählen der Planübungen: Sonst wäre eine Einheit mit
+    // drei von fünf Planübungen und zwei Zusatzübungen „fertig".
+    const zus = zusatzIds(e);
     let fertig = null;
     ['db', 'bw'].forEach((m) => {
       let mitSatz = 0;
@@ -17113,7 +17482,7 @@ function bilanzAus(runde) {
           hier++;
           if (m === 'db') volumen += satzKilo(s, reps);
         });
-        if (hier) mitSatz++;
+        if (hier && !zus.has(id)) mitSatz++;
       });
       // "Von Hand abgeschlossen" gilt auch ohne den letzten Satz – genau wie in
       // completedMode(). Sonst fehlte jede Einheit, die jemand bewusst beendet
@@ -17314,6 +17683,27 @@ function wdhTeile(reps) {
 function mitWdh(reps) {
   const [zahl, zusatz] = wdhTeile(reps);
   return `${zahl} Wdh.${zusatz ? ' ' + zusatz : ''}`;
+}
+
+/**
+ * Der Umfang einer Einheit in Zahlen, getrennt nach Plan und Nachgeholtem –
+ * für die Kopfzeile der Einheit (tagKopf() in js/app.js) und den Kalender.
+ *
+ *   plan        Planübungen (ohne die eines eingefügten Zusatztags)
+ *   zusatz      eingefügte Übungen eines Zusatztags
+ *   saetze      alle Sätze
+ *   nachgeholt  Nacharbeit („+1 nachgeholt") und Zusatztag zusammen – das
+ *               „+" in „15 + 3 Sätze" heißt überall dasselbe: nachgeholt
+ *
+ * `allein` für einen Zusatztag, der als eigene Einheit dasteht: Dann *ist* er
+ * die Einheit, und seine Übungen sind kein „+".
+ */
+function umfang(items, allein = false) {
+  const zus = allein ? [] : items.filter((x) => x.zusatz);
+  const saetze = items.reduce((a, x) => a + x.sets, 0);
+  const nachgeholt = items.reduce((a, x) => a + (x.nach || 0), 0)
+    + zus.reduce((a, x) => a + x.sets, 0);
+  return { plan: items.length - zus.length, zusatz: zus.length, saetze, nachgeholt };
 }
 
 function repsLabel(it, mode) {
@@ -17875,18 +18265,26 @@ function calendarDetailPlan(iso, byDate, today, frueher, akt, selbst) {
 function calendarWorkout(w, iso, today) {
   const st = dayState(w, iso, today);
   const mode = st.mode;
-  const items = exOf(w, mode).map((it) => resolve(it, mode));
+  // Die ganze Einheit, samt eingefügtem Zusatztag (einheitEx()) – so, wie sie
+  // trainiert wird oder wurde. Künftige Tage zeigen keinen: Er gehört zu der
+  // Einheit, die heute fällig ist, und wird erst dort gerechnet.
+  const items = einheitEx(w, mode).map((it) => resolve(it, mode));
   const saetze = items.reduce((a, x) => a + x.sets, 0);
   const kopf = KIND_TEXT[st.kind];
   const prog = progressOf(w.n, mode);
+  // Mit Zusatz wie im Kopf der Einheit: „5 + 1 Übungen · 15 + 3 Sätze", das
+  // „+" heißt nachgeholt (umfang() in js/anzeige.js).
+  const u = umfang(items);
+  const umfangText = u.zusatz
+    ? `${u.plan} + ${u.zusatz} Übungen · ${u.saetze - u.nachgeholt} + ${u.nachgeholt} Sätze`
+    : `${plural(items.length, 'Übung', 'Übungen')} · ${plural(saetze, 'Satz', 'Sätze')}`;
 
   return `
     <div class="card cal-detail">
       <div class="cal-det-head">
         <div>
           <div class="lbl">Workout ${w.n} · ${esc(kopf)}</div>
-          <div class="hint">${esc(fmtDate(iso, true))} · ${plural(items.length, 'Übung', 'Übungen')} ·
-            ${plural(saetze, 'Satz', 'Sätze')}</div>
+          <div class="hint">${esc(fmtDate(iso, true))} · ${esc(umfangText)}</div>
         </div>
         <span class="chip ${mode}">${MODE_ICON[mode]} ${esc(MODE_LABEL[mode])}</span>
       </div>
@@ -17895,7 +18293,7 @@ function calendarWorkout(w, iso, today) {
         ${items.map((it) => `
           <li>
             <span class="cal-ex">${esc(it.name)}</span>
-            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, mode))}</span>
+            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, mode))}${it.zusatz ? ' · nachgeholt' : ''}</span>
           </li>`).join('')}
       </ul>
       <button type="button" class="btn btn-sm" data-act="cal-open" data-n="${w.n}">
@@ -18194,12 +18592,18 @@ function uebungsListe() {
 
 
 
-/** Letzter protokollierter Eintrag derselben Übung im selben Modus. */
+/**
+ * Letzter protokollierter Eintrag derselben Übung im selben Modus.
+ *
+ * In der ganzen Einheit gesucht (einheitEx()), nicht nur in ihrem Plan: Die
+ * Chin-ups aus einem eingefügten Zusatztag sind beim nächsten Mal „Zuletzt
+ * (Workout 9)", nicht „noch nie".
+ */
 function lastLoggedFor(exId, mode, beforeN) {
   for (let i = PLAN.length - 1; i >= 0; i--) {
     const w = PLAN[i];
     if (w.n >= beforeN) continue;
-    const item = exOf(w, mode).find((x) => x.id === exId);
+    const item = einheitEx(w, mode).find((x) => x.id === exId);
     if (!item) continue;
     const arr = store.peekSets(w.n, mode, exId);
     if (!arr) continue;
@@ -18936,11 +19340,18 @@ function festeListen(log, grundModus, vorher = null, protokollStand = '') {
     }
     const soll = e.soll || {};
     const nach = e.nach || {};
+    // Die eingefügten Übungen eines Zusatztags gehören nicht in die feste
+    // Liste: Die ist der *Plan* der Einheit, und der Zusatz steht für sich in
+    // log[n].zusatz – einheitEx() legt ihn wieder dahinter. Stünde er auch
+    // hier, käme er nach einem Planwechsel doppelt, oder seine Sätze zählten
+    // als Plan der Woche, in deren Tage er fällt.
+    const zus = zusatzIds(e);
     // Ohne die Nacharbeit jenes Tages, aus demselben Grund wie in
     // vorherFassung(): Die feste Liste ist die Basis, exOf() legt die
     // Nacharbeit darauf. Einen Plan, der die Satzzahl des anderen Modus
     // nennte, gibt es hier nicht – dort gilt dieselbe Zahl, wie bisher.
     out[n] = Object.entries(e[m] || {})
+      .filter(([id]) => !zus.has(id))
       .filter(([id, arr]) => Array.isArray(arr) && EX_BY_ID.has(id) && (!e.done || arr.some(aktiv)))
       .map(([id, arr]) => ({ id, sets: Math.max(1, (soll[id] || arr.length) - (nach[id] || 0)) }));
     // Auch eine Liste aus dem Protokoll ist seit v216 ganz – die Fokusansicht
@@ -19946,6 +20357,44 @@ function nachFesthalten(n) {
   store.halteNachFest(n, jeModus, warum);
 }
 
+/**
+ * Den eingefügten Zusatztag festhalten, bevor in der Einheit etwas eingetragen
+ * wird – wie die Nacharbeit, aus demselben Grund und am selben Ort.
+ *
+ *     „Was soll das mit zweite Einheit. Wenn heute Übungen dazu kommen dann
+ *      soll alles flüssig in EINE Einheit"
+ *
+ * Bis zum ersten Eintrag kommen die Übungen live aus dem Träger (dem
+ * „Zusatztag Woche N" unter den eigenen Workouts) und werden mit ihm neu
+ * gerechnet. Ab dem ersten Eintrag ist die Einheit angefangen, und
+ * angefangene Einheiten bleiben fest: Fest steht jetzt genau das, was auf dem
+ * Bildschirm stand (zusatzListe() in js/plan.js), und der Träger ist im selben
+ * Schritt verbraucht (store.halteZusatz()).
+ *
+ * Muss **vor** dem Eintrag laufen: Danach ist die Einheit angefangen, die
+ * Bindung greift nicht mehr (zusatzEinheit()), und der Zusatz wäre aus der
+ * Liste gefallen – samt dem Satz, der gerade abgehakt wird. Und vor
+ * paarungFesthalten(), damit der Schlüssel der Paarung alle Übungen kennt.
+ */
+function zusatzFesthalten(n) {
+  if (istCustom(n) || !PLAN[n - 1]) return;
+  const e = store.getState().log[n];
+  if (festerZusatz(e) || store.isStarted(n)) return;
+  const b = zusatzBindung();
+  if (!b || b.w.n !== n) return;
+  const zus = workoutByNo(n, store.workoutMode(n)).ex.filter((it) => it.zusatz && it.zusatz.live);
+  if (!zus.length) return;
+  const warum = b.c.warum || {};
+  store.halteZusatz(n, {
+    woche: b.woche,
+    ex: zus.map((it) => {
+      const x = b.c.ex.find((y) => y.id === it.id);
+      return { id: it.id, sets: x.sets, bwSets: x.sets };
+    }),
+    warum: Object.fromEntries(zus.map((it) => [it.id, warum[it.id]]).filter(([, v]) => v)),
+  }, b.c.id);
+}
+
 /*
  * Woher ein Nachholsatz kommt – eine stille Zeile an der Übung.
  *
@@ -20032,6 +20481,59 @@ function nachZeile(n, mode, it, warumJe) {
   return `<div class="nach-warum" id="nw-${esc(it.id)}">${esc(text)}</div>`;
 }
 
+/*
+ * Woher eine Übung des Zusatztags kommt – dieselbe stille Zeile wie bei der
+ * Nacharbeit, an derselben Stelle.
+ *
+ *     „Check ich nicht. Wann soll ich das machen?"
+ *
+ * Das fragte Tobi, als der Zusatztag allein auf der Startseite stand:
+ * „Zusatztag Woche 2 · 2 Übungen · 6 Sätze", und kein Wort davon, woher die
+ * Übungen kommen und warum sie heute dran sind. Jetzt steckt er in der
+ * Einheit des Tages (einheitEx() in js/plan.js), der Kopf sagt „5 + 1
+ * Übungen", und an der Übung steht, was sie nachholt: die Woche, die Gruppe
+ * und die Übung, die dort liegen geblieben ist, mit ihren Haken.
+ *
+ * Kein Popup, kein Toast, nichts zum Wegtippen – wie bei der Nacharbeit.
+ */
+
+/** Die Herkunftszeile einer Zusatzübung als Text (ohne HTML). */
+function zusatzText(w, it) {
+  const z = it.zusatz;
+  // Vom Tag der Einheit aus gesehen – beim allein stehenden Zusatztag ist das
+  // der Tag, an dem er gemacht wird.
+  const bezug = w.custom ? (store.startedOn(w.n) || todayISO()) : effDate(w);
+  const tag = (nq) => (PLAN[nq - 1] ? tagKurz(effDate(PLAN[nq - 1]), bezug) : `Workout ${nq}`);
+  const name = (id, mq) => {
+    const ex = EX_BY_ID.get(id);
+    return (ex && (ex[mq] || ex.db || ex.bw) || {}).name || id;
+  };
+  const kopf = `Nachgeholt aus Woche ${z.woche}`;
+  const warum = z.warum;
+  if (!warum) return kopf;
+  const q = Array.isArray(warum.q) ? warum.q : [];
+  const g = Array.isArray(warum.g) ? warum.g : [];
+  // Dieselbe Übung ist in jener Woche liegen geblieben: Das beantwortet das
+  // „Wann soll ich das machen?" am kürzesten.
+  if (q.length === 1 && q[0][1] === it.id) {
+    const [nq, , ab, von] = q[0];
+    return ab > 0
+      ? `${kopf}: am ${tag(nq)} nur ${ab} von ${von} Sätzen abgehakt`
+      : `${kopf}: am ${tag(nq)} keinen von ${von} Sätzen abgehakt`;
+  }
+  const fuer = g.length ? ` für ${g.map((m) => MUSCLE_LABEL[m] || m).join(' und ')}` : '';
+  if (!q.length) return `${kopf}${fuer}`;
+  const quellen = q.slice(0, 2).map(([nq, id, ab, von, mq]) => `${name(id, mq)} (${tag(nq)} ${ab} von ${von})`).join(', ');
+  const mehr = q.length > 2 ? ` und ${q.length - 2} weitere` : '';
+  return `${kopf}${fuer}: ${quellen}${mehr}`;
+}
+
+/** Die Zeile an einer Zusatzübung, oder nichts. `w` ist die Einheit (workoutByNo()). */
+function zusatzZeile(w, it) {
+  if (!it.zusatz) return '';
+  return `<div class="nach-warum" id="zw-${esc(it.id)}">${esc(zusatzText(w, it))}</div>`;
+}
+
 /**
  * „3 + 1" statt „4": Grundzahl und Nacharbeit getrennt, damit die 4 nicht wie
  * eine neue Grundzahl aussieht.
@@ -20050,8 +20552,11 @@ function satzZahlText(it) {
   return `${it.sets - it.nach} + ${it.nach}`;
 }
 
-/** Ist dieser Satz einer der nachgeholten (sie stehen am Ende)? */
-const istNachSatz = (it, idx) => !!it.nach && idx >= it.sets - it.nach;
+/**
+ * Ist dieser Satz einer der nachgeholten (sie stehen am Ende)? Bei einer Übung
+ * aus dem Zusatztag ist es jeder.
+ */
+const istNachSatz = (it, idx) => !!it.zusatz || (!!it.nach && idx >= it.sets - it.nach);
 
 /** Beschriftung eines Satzknopfs – der Nachholsatz sagt, dass er einer ist. */
 function satzLabel(it, idx) {
@@ -20064,7 +20569,28 @@ function satzLabel(it, idx) {
  * Vorlesefunktion hängte die Nacharbeit an jeden Grundsatz.
  */
 function nachVerweis(it, idx) {
+  // Eine Übung aus dem Zusatztag ist ganz nachgeholt – jeder Knopf verweist
+  // auf ihre Herkunftszeile (zusatzZeile()).
+  if (it.zusatz) return ` aria-describedby="zw-${esc(it.id)}"`;
   return istNachSatz(it, idx) ? ` aria-describedby="nw-${esc(it.id)}"` : '';
+}
+
+/**
+ * Die Sätze einer Übung zum Anzeigen.
+ *
+ * Eine Übung aus einem noch nicht festgehaltenen Zusatztag (`live`) wird nur
+ * gelesen, nicht angelegt: Bis zum ersten Eintrag kann der Zusatztag noch neu
+ * gerechnet werden oder wegfallen, und dann lägen ein `soll`-Stempel und ein
+ * leeres Satzfeld einer Übung im Protokoll, die nie in dieser Einheit stand –
+ * festeListen() und die Nacharbeit läsen sie als „stand da, nicht angefasst".
+ */
+function saetzeZeigen(n, mode, it) {
+  if (it.zusatz && it.zusatz.live) {
+    const arr = (store.peekSets(n, mode, it.id) || []).slice();
+    while (arr.length < it.sets) arr.push({ w: '', done: false });
+    return arr;
+  }
+  return store.getSets(n, mode, it.id, it.sets, it.nach || 0);
 }
 
 /** Zur nächsten offenen Übung rücken und sagen, welche das ist. */
@@ -20350,7 +20876,7 @@ function progressStrip(n, mode, w, cur) {
         return `
         <button type="button" class="prog-ex ${k === cur ? 'cur' : ''} ${done === v.sets ? 'done' : ''}"
                 style="flex-grow:${v.sets}" data-act="focus-goto" data-i="${k}"
-                aria-label="Übung ${k + 1}, ${esc(v.name)}, ${done} von ${v.sets} Sätzen"
+                aria-label="Übung ${k + 1}, ${esc(v.name)}, ${done} von ${v.sets} Sätzen${v.zusatz ? ', nachgeholt' : ''}"
                 aria-current="${k === cur}">
           <span class="prog-sets">
             ${Array.from({ length: v.sets }, (_, x) => `<i class="${x < done ? 'on' : ''}"></i>`).join('')}
@@ -20371,8 +20897,15 @@ function renderFocus() {
   // Die ganze Einheit ins Protokoll, nicht nur die angezeigte Übung – so wie
   // die Listenansicht es mit jeder Karte tut. Sonst kennt ein späterer
   // Planwechsel von einer angefangenen Einheit nur das erste Paar und schreibt
-  // sie darauf fest (siehe festReparieren()).
-  if (!w.custom) w.ex.forEach((x) => { const v = resolve(x, mode); store.getSets(n, mode, v.id, v.sets, v.nach || 0); });
+  // sie darauf fest (siehe festReparieren()). Ohne die Übungen eines noch
+  // nicht festgehaltenen Zusatztags – die werden nur gelesen (saetzeZeigen()).
+  if (!w.custom) {
+    w.ex.forEach((x) => {
+      if (x.zusatz && x.zusatz.live) return;
+      const v = resolve(x, mode);
+      store.getSets(n, mode, v.id, v.sets, v.nach || 0);
+    });
+  }
   const prog = progressOf(n, mode);
 
   // Eine Einheit kann leer sein: mit genug angehakten Beschwerden fällt jede
@@ -20387,7 +20920,7 @@ function renderFocus() {
   const i = Math.min(Math.max(0, ui.focusIdx), w.ex.length - 1);
   const item = w.ex[i];
   const it = resolve(item, mode);
-  const sets = store.getSets(n, mode, it.id, it.sets, it.nach || 0).slice(0, it.sets);
+  const sets = saetzeZeigen(n, mode, it).slice(0, it.sets);
   const doneCount = sets.filter((s) => s.done).length;
   // Sätze aus dem anderen Modus zählen mit – wie auf der Karte der Liste,
   // samt demselben Satz darunter. Sonst stand eine schon fertige Übung hier
@@ -20452,6 +20985,7 @@ function renderFocus() {
          die Nacharbeit des Partners steht da, wenn er dran ist. -->
     <div class="focus-meta">${satzZahlText(it)} Sätze × ${esc(mitWdh(repsLabel(it, mode)))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</div>
     ${nachZeile(n, mode, it)}
+    ${zusatzZeile(w, it)}
     ${(() => {
       // Im Wechsel muss dastehen, mit wem – sonst wirkt der Sprung zur nächsten
       // Übung wie ein Fehler statt wie der Plan.
@@ -20680,6 +21214,23 @@ function startBlock(n, mode, prog) {
 /** Wie die laufende Einheit heißt – für Knöpfe und Hinweise. */
 function einheitTitel(k) {
   return istCustom(k) ? ((store.customById(k) || {}).name || 'Eigenes Workout') : `Workout ${k}`;
+}
+
+/**
+ * Die Zeile über dem Titel: wann und was.
+ *
+ * Ein Zusatztag, der allein steht – an einem Tag ohne Planeinheit –, hieß hier
+ * „Eigenes Workout", wie alles, was man sich selbst zusammenstellt:
+ *
+ *     „Check ich nicht. Wann soll ich das machen?"
+ *
+ * Jetzt sagt die Zeile, wann (wie bei jeder Planeinheit, „Heute") und was:
+ * „Heute · Zusatztag". Was er nachholt, steht an jeder Übung (zusatzZeile()).
+ * Ein selbst zusammengestelltes Workout bleibt „Eigenes Workout".
+ */
+function einheitAugenbraue(w, when) {
+  if (!w.custom) return `${when} · Workout ${w.n}`;
+  return ZUSATZ_NAME.test(w.name || '') ? `${when} · Zusatztag` : 'Eigenes Workout';
 }
 
 /**
@@ -20923,7 +21474,7 @@ function renderOverview() {
              laufende Nummer bleibt: Sie sagt, wo man ist, ohne zu behaupten,
              wohin es geht. -->
         <div class="hero-eyebrow">${store.getState().name ? `${esc(store.getState().name)} · ` : ''}${
-          w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n}`}</div>
+          esc(einheitAugenbraue(w, when))}</div>
         <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
         <!-- Kein "Plan +2 Tage" mehr: Der Plan rückt von selbst nach, wenn ein
              Termin verstreicht (catchUpPlan). Wie weit er dabei insgesamt vom
@@ -20952,7 +21503,12 @@ function renderOverview() {
         ${startBlock(n, mode, prog)}
 `
       : leererTag(n)}
-      ${zusatzDanach(w, diff)}
+      <!-- Hier stand die Zeile „↩︎ Als zweite Einheit heute: Zusatztag Woche 2,
+           2 Übungen. Öffnen". Raus, auf Ansage: „Was soll das mit zweite
+           Einheit. Wenn heute Übungen dazu kommen dann soll alles flüssig in
+           EINE Einheit". Seine Übungen stehen jetzt in dieser Einheit
+           (einheitEx() in js/plan.js) – im Kopf als „5 + 1 Übungen", an der
+           Übung mit ihrer Herkunft. Ein Start, keine Zeile darunter. -->
 
       <div class="ov-foot">
         ${w.custom ? `<button type="button" class="ov-nav" data-act="back-to-plan" aria-label="Zurück zum Plan">↩</button>`
@@ -21481,7 +22037,7 @@ function renderDashboard() {
 
   parts.push(`
     <section class="card">
-      <div class="hero-eyebrow">${w.custom ? 'Eigenes Workout' : `${esc(when)} · Workout ${w.n}`}</div>
+      <div class="hero-eyebrow">${esc(einheitAugenbraue(w, when))}</div>
       <h2 class="hero-title">${w.custom ? esc(w.name) : esc(fmtDate(date, true))}</h2>
       <div class="hero-sub">${tagKopf(w, mode, items)}</div>
       <div class="hero-badges">
@@ -21511,12 +22067,12 @@ function renderDashboard() {
   // Einheit nicht wieder.
   parts.push(`<div class="focus-top">
       <button type="button" class="back-link" data-act="${session ? 'focus-back' : 'hide-list'}">‹ Zurück</button>
-      <span class="focus-count">${w.ex.length} Übungen · ${prog.done}/${prog.total} Sätze</span>
+      <span class="focus-count">${esc(uebungenText(w, items))} · ${prog.done}/${prog.total} Sätze</span>
     </div>
-    ${tagNotiz(w, mode, items)}`);
+    ${tagNotiz(w, mode, items.filter((it) => w.custom || !it.zusatz))}`);
 
   items.forEach((it, i) => {
-    const sets = store.getSets(n, mode, it.id, it.sets, it.nach || 0).slice(0, it.sets);
+    const sets = saetzeZeigen(n, mode, it).slice(0, it.sets);
     const doneCount = sets.filter((s) => s.done).length;
     const open = ui.openEx.has(it.id);
     // Sätze aus dem anderen Modus zählen mit (siehe saetzeErledigt) – und die
@@ -21562,6 +22118,7 @@ function renderDashboard() {
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
         ${nachZeile(n, mode, it, warumJe)}
+        ${zusatzZeile(w, it)}
         ${anfaengerZeile(it)}
         ${weightRow}
         ${fassungRow(it, mode)}
@@ -21799,7 +22356,7 @@ function renderStats() {
     <div class="card">
       ${upcoming
         ? `<div class="plan-date">Workout ${upcoming.n} · ${esc(fmtDate(effDate(upcoming), true))}</div>
-           <div class="small muted" style="margin-top:4px">${esc(exOf(upcoming, store.workoutMode(upcoming.n)).map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
+           <div class="small muted" style="margin-top:4px">${esc(einheitEx(upcoming, store.workoutMode(upcoming.n)).map((i) => resolve(i, store.workoutMode(upcoming.n)).name).join(' · '))}</div>
            <div class="btn-row"><button type="button" class="btn btn-primary" data-act="open-workout" data-n="${upcoming.n}">Öffnen</button></div>`
         : '<div class="muted">Alle Einheiten des Plans sind abgeschlossen. Stark.</div>'}
     </div>
@@ -21933,7 +22490,7 @@ function superVorschau() {
   const paarZahl = gruppen.filter((g) => g.length === 2).length;
   return `
     <div class="scheiben-satz super-vorschau">
-      <div class="lbl">Workout ${n} liefe so</div>
+      <div class="lbl">${esc(einheitTitel(n))} liefe so</div>
       ${gruppen.map((g) => (g.length === 2
         ? `<div class="super-paar">↔ ${esc(g[0].name)} <span class="super-mit">im Wechsel mit</span> ${esc(g[1].name)}${
           scheibenReichen(g[0], g[1], mode) ? '' : ' <span class="knapp">– Scheiben reichen nicht für beide, umstecken</span>'}</div>`
@@ -22427,13 +22984,22 @@ function tagKopf(w, mode, items) {
   // Mit Nacharbeit als „12 + 3 Sätze": Grundzahl und Nachgeholtes getrennt,
   // wie an der Übung („3 + 1"). Keine eigene Zeile dafür – siehe den Kommentar
   // in der Startansicht, warum dort keine Buchhaltung mehr steht.
-  const alle = items.reduce((a, x) => a + x.sets, 0);
-  const nach = nachSumme(items);
+  //
+  // Und mit einem eingefügten Zusatztag genauso: „5 + 1 Übungen · 15 + 3
+  // Sätze". Das „+" heißt überall dasselbe – nachgeholt –, ob aus der
+  // Nacharbeit oder aus dem Zusatztag; woher, steht an der Übung.
+  const u = umfang(items, !!w.custom);
   return [
     MODE_LABEL[mode],
-    `${items.length} Übungen`,
-    nach > 0 ? `${alle - nach} + ${nach} Sätze` : `${alle} Sätze`,
+    uebungenText(w, items),
+    u.nachgeholt > 0 ? `${u.saetze - u.nachgeholt} + ${u.nachgeholt} Sätze` : `${u.saetze} Sätze`,
   ].join(' · ');
+}
+
+/** „5 Übungen", mit eingefügtem Zusatztag „5 + 1 Übungen". */
+function uebungenText(w, items) {
+  const u = umfang(items, !!w.custom);
+  return u.zusatz ? `${u.plan} + ${u.zusatz} Übungen` : `${items.length} Übungen`;
 }
 
 /**
@@ -22616,10 +23182,42 @@ function weeklyDone() {
  *
  * Eine umbenannte eigene Einheit ist kein Zusatztag mehr – sie gehört dann
  * dem Nutzer, nicht einer Woche.
+ *
+ * **Und ein in eine Planeinheit eingefügter genauso.** Seine Sätze stehen im
+ * Eimer jener Einheit (log[n].zusatz, einheitEx() in js/plan.js), zählen aber
+ * hier – für die Woche, aus der er gerechnet wurde –, und nicht in der Woche,
+ * in deren Tage er fällt: plannedWeek() und weeklyDone() lesen nur den Plan
+ * der Einheit (exOf()). Je Übung im Modus der Einheit, mit dem anderen Modus
+ * nur zum Auffüllen bis zur Satzzahl – wie weeklyDone().
  */
 function zusatzBeitrag(nr, acc, soll) {
   const roh = {};
   const log = store.getState().log;
+  const dazu = (ex, m, k) => {
+    if (!k) return;
+    Object.entries(ex[m].shares).forEach(([mus, share]) => {
+      roh[mus] = (roh[mus] || 0) + k * share;
+    });
+  };
+  Object.entries(log).forEach(([k, e]) => {
+    const n = Number(k);
+    if (!Number.isInteger(n) || !PLAN[n - 1]) return;
+    const z = festerZusatz(e);
+    if (!z || z.woche !== nr) return;
+    const m = completedMode(n) || store.workoutMode(n);
+    const anders = m === 'bw' ? 'db' : 'bw';
+    const zahl = (mm, id) => {
+      const arr = (e[mm] || {})[id];
+      return Array.isArray(arr) ? arr.filter((x) => x && x.done).length : 0;
+    };
+    z.ex.forEach((x) => {
+      const ex = EX_BY_ID.get(x.id);
+      const hier = zahl(m, x.id);
+      const dort = Math.min(zahl(anders, x.id), Math.max(0, (m === 'bw' ? x.bwSets : x.sets) - hier));
+      dazu(ex, m, hier);
+      dazu(ex, anders, dort);
+    });
+  });
   store.customs().filter((c) => c.name === `Zusatztag Woche ${nr}`).forEach((c) => {
     const e = log[c.id];
     if (!e) return;
@@ -22660,13 +23258,31 @@ function zusatzBeitrag(nr, acc, soll) {
  * Einheit offen steht, ist nichts versäumt – da erledigt die Nacharbeit den
  * Rest, und ein Vorschlag wäre bloß Drängeln.
  *
- * Sie geht als *eigenes* Workout in die Ablage, nicht in den Plan. Der Plan
- * rechnet sein Wochenvolumen aus festen Einheiten; eine dazwischengeschobene
- * würde diese Rechnung stillschweigend verschieben (siehe customs() in
- * js/store.js). Abgehakte Sätze zählen trotzdem mit – trainiert ist trainiert.
+ * Angelegt wird sie als *eigenes* Workout („Zusatztag Woche N", der Träger),
+ * nicht im Plan: Der Plan rechnet sein Wochenvolumen aus festen Einheiten.
+ * Abgehakte Sätze zählen trotzdem mit – für die Woche, aus der sie gerechnet
+ * wurde (zusatzBeitrag()).
+ *
+ * **Und an einem Tag mit fälliger Planeinheit steckt sie in dieser Einheit.**
+ *
+ *     „Was soll das mit zweite Einheit. Wenn heute Übungen dazu kommen dann
+ *      soll alles flüssig in EINE Einheit"
+ *
+ * Bis v238 stand sie dann als „Als zweite Einheit heute" unter dem Start –
+ * zwei Einheiten an einem Tag, zwei Starts, zwei Abschlüsse. Und allein auf
+ * der Startseite, am Tag davor, verstand niemand, wann und warum: „Check ich
+ * nicht. Wann soll ich das machen?" Jetzt sind ihre Übungen Teil der heutigen
+ * Einheit (einheitEx() in js/plan.js): ein Start, eine Liste, eine
+ * Fokusansicht, Supersätze und Rüst-Reihenfolge über alle, ein Abschluss. An
+ * der Übung steht, woher sie kommt (zusatzZeile()). Nur an einem Tag ohne
+ * Planeinheit bleibt sie die Einheit des Tages – „Heute · Zusatztag".
+ *
+ * Eingefügt sind es höchstens ZUSATZ_IN_EINHEIT Übungen, und die
+ * Erholungsregel sorgt dafür, dass keine eine Gruppe der Planeinheit direkt
+ * trifft: genau das macht sie zu guten Partnern im Supersatz. Bei gleichem
+ * Nutzen gewinnt die Übung, die keinen weiteren Umbau kostet (zusatztagEx()).
+ * Die Zahlen dazu (ZUSATZ_*) stehen in js/plan.js – warum dort, steht dort.
  * ------------------------------------------------------------------ */
-const ZUSATZ_UEBUNGEN = 5;      // so lang wie eine gewöhnliche Einheit
-const ZUSATZ_AB = 6;            // unter sechs Sätzen Rückstand lohnt es nicht
 
 /**
  * Muskelgruppen, die gerade Ruhe brauchen.
@@ -22701,6 +23317,11 @@ const ZUSATZ_AB = 6;            // unter sechs Sätzen Rückstand lohnt es nicht
  * abgeschlossen wird – an ihrem eigenen Tag. Sie zählte dort als anstehend,
  * und was an ihr ausgelassen war, fehlte im Zusatztag. Dass die Regel gilt,
  * hängt am Stand der Einheit, nicht am Kalender.
+ *
+ * Eine angefasste Einheit sperrt über alle ihre Übungen (einheitEx()), also
+ * auch über die abgehakten eines eingefügten Zusatztags. Eine unberührte
+ * sperrt über ihren Plan (exBasis()) – ein noch nicht festgehaltener Zusatz
+ * sperrt sich damit nie selbst.
  */
 function ruhendeGruppen() {
   const heute = todayISO();
@@ -22718,7 +23339,7 @@ function ruhendeGruppen() {
     const m = completedMode(w.n) || store.workoutMode(w.n);
     const angefasst = store.isStarted(w.n) || !!completedMode(w.n);
     if (!angefasst && d < heute) return;
-    exBasis(w, m).forEach((it) => {
+    (angefasst ? einheitEx(w, m) : exBasis(w, m)).forEach((it) => {
       if (!angefasst || saetzeErledigt(w.n, it.id, it.sets) > 0) direkt(it.id, m);
     });
   });
@@ -22728,11 +23349,47 @@ function ruhendeGruppen() {
 /**
  * Die Übungen für einen Zusatztag – oder null, wenn keiner nötig ist.
  *
+ * `einheit` ist die Planeinheit, in die er heute eingefügt wird
+ * (zusatzEinheit() in js/plan.js), oder null, wenn er allein steht.
+ *
  * Gierig zusammengestellt: immer die Übung, die vom Rückstand am meisten
  * wegnimmt. Eine Übung zählt dabei mit ihren Anteilen, ein Satz Kreuzheben
  * schließt etwas bei der Hüftstreckung *und* beim Gesäß.
+ *
+ * **Nur, was heute geht.** Keine Übung, die eine ruhende Gruppe direkt trifft
+ * (ruhendeGruppen()), keine, die eine Beschwerde im Modus sperrt, keine ohne
+ * Gerät, keine, die schon in der Einheit steht.
+ *
+ * **Nur Nutzen, der heute zählt.** Ein Nebenanteil auf einer ruhenden Gruppe
+ * ist kein Nutzen: Gemessen an Tobis Donnerstag gewannen die Pull-ups (4,85)
+ * vor den Chin-ups (4,65) allein über 0,2 hintere Schulter und 0,35 Nacken –
+ * genau die Gruppen, die der Reverse Fly derselben Einheit direkt trifft. Ohne
+ * sie liegen die Chin-ups vorn (3,30 gegen 3,20), und das ist die Übung, die
+ * am Samstag liegen geblieben ist.
+ *
+ * **Und nur, was sich trägt** – dieselbe Regel wie bei der Nacharbeit
+ * (NACH_ANTEIL): Mindestens die Hälfte dessen, was eine Übung direkt
+ * trainiert, muss in den Rückstand gehen. Sonst kamen nach den Pull-ups noch
+ * die Chin-ups dazu, für 1,45 von 4,95 direkten Sätzen – fast eine Kopie.
+ *
+ * **Bei gleichem Nutzen: kein Umbau mehr.** In eine Einheit eingefügt gewinnt
+ * im Hantel-Modus die Übung mit weniger Rüstschritten über die ganze Einheit
+ * (ruestSchritte() in js/gewichte.js), danach – mit Supersätzen – die mit
+ * mehr Paaren. Gemessen am Seitheben: Band- statt Sitzendes Seitheben, drei
+ * statt vier Rüstschritte, drei statt zwei Paare. Eine Toleranz gibt es
+ * nicht: Der Nutzen bleibt der Maßstab, der Umbau entscheidet nur den
+ * Gleichstand.
+ *
+ * Eingefügt höchstens ZUSATZ_IN_EINHEIT Übungen und mindestens eine; allein
+ * höchstens ZUSATZ_UEBUNGEN und mindestens zwei – eine einzelne Übung ist
+ * keine Einheit, aber ein guter Zusatz.
+ *
+ * Je gewählter Übung merkt sich die Rechnung, was sie schließt (`warum`, wie
+ * nacharbeitPlan() in js/plan.js): die Gruppen und die Übungen der Woche, die
+ * diesen Rückstand hinterlassen haben – in derselben Schleife, nicht in einer
+ * zweiten Rechnung daneben.
  */
-function zusatztagEx(woche, mode) {
+function zusatztagEx(woche, mode, einheit = null) {
   const rest = {};
   let summe = 0;
   Object.keys(MUSCLE_LABEL).forEach((m) => {
@@ -22742,34 +23399,83 @@ function zusatztagEx(woche, mode) {
   if (summe < ZUSATZ_AB) return null;
 
   const ruht = ruhendeGruppen();
-  const gesperrt = blocked(store.getState().injuries || []);
+  const sperre = gesperrt(activeInjuries(), mode);
   const satz = satzZahl(3);
-  const kandidaten = EXERCISES.filter((ex) => {
-    if (gesperrt.has(ex.id)) return false;
-    const shares = ex[mode].shares;
+  const plan = einheit ? exOf(einheit, mode) : [];
+  const imPlan = new Set(plan.map((it) => it.id));
+  const anteile = (ex) => ex[mode].shares;
+  const kandidaten = EXERCISES.filter((ex) => !sperre.has(ex.id) && uebungGeht(ex.id, mode)
+    && !imPlan.has(ex.id)
     // Keine Übung, die eine ruhende Gruppe direkt trifft.
-    return !Object.entries(shares).some(([m, s]) => s >= REST.direct && ruht.has(m));
-  });
+    && !Object.entries(anteile(ex)).some(([m, s]) => s >= REST.direct && ruht.has(m)));
+  const deckel = einheit ? ZUSATZ_IN_EINHEIT : ZUSATZ_UEBUNGEN;
+  const mindestens = einheit ? 1 : 2;
+  // Woher der Rückstand kommt: die ganze Woche, mit der Rechnung der Nacharbeit.
+  const herkunft = offenImBlock((woche.nr - 1) * WEEK_SESSIONS, woche.nr * WEEK_SESSIONS).herkunft;
 
   const gewaehlt = [];
+  const warum = {};
   const uebrig = { ...rest };
-  for (let k = 0; k < ZUSATZ_UEBUNGEN; k++) {
+  const wertVon = (ex) => Object.entries(anteile(ex))
+    .reduce((a, [m, s]) => a + (ruht.has(m) ? 0 : Math.min(s * satz, uebrig[m] || 0)), 0);
+  const traegt = (ex, wert) => {
+    const direkt = Object.values(anteile(ex)).filter((s) => s >= REST.direct)
+      .reduce((a, s) => a + s, 0) * satz;
+    return !(direkt > 0 && wert < NACH_ANTEIL * direkt);
+  };
+  // Rüstschritte und Paare der Einheit mit dieser Übung dazu – nur gefragt,
+  // wenn zwei Übungen gleich viel bringen.
+  const kosten = (ex) => {
+    const liste = [...plan, ...gewaehlt, { id: ex.id, sets: satz, bwSets: satz }];
+    const reihe = mode === 'db' ? ruestOrder(liste) : liste;
+    return {
+      schritte: mode === 'db' ? ruestSchritte(liste) : 0,
+      paare: superAn() ? paare(reihe.map((it) => resolve(it, mode)), mode).filter((g) => g.length === 2).length : 0,
+    };
+  };
+  for (let k = 0; k < deckel; k++) {
     let beste = null;
     let bestWert = 0;
+    let bestKosten = null;
     kandidaten.forEach((ex) => {
       if (gewaehlt.some((g) => g.id === ex.id)) return;
-      const wert = Object.entries(ex[mode].shares)
-        .reduce((a, [m, s]) => a + Math.min(s * satz, uebrig[m] || 0), 0);
-      if (wert > bestWert) { bestWert = wert; beste = ex; }
+      const wert = wertVon(ex);
+      if (!(wert > 0) || !traegt(ex, wert)) return;
+      if (!beste || wert > bestWert + 1e-6) {
+        beste = ex; bestWert = wert; bestKosten = null;
+        return;
+      }
+      if (Math.abs(wert - bestWert) >= 1e-6) return;
+      // Gleichstand: weniger Umbau, dann mehr Paare, sonst bleibt die erste.
+      if (!bestKosten) bestKosten = kosten(beste);
+      const hier = kosten(ex);
+      if (hier.schritte < bestKosten.schritte
+        || (hier.schritte === bestKosten.schritte && hier.paare > bestKosten.paare)) {
+        beste = ex; bestWert = wert; bestKosten = hier;
+      }
     });
     if (!beste || bestWert < 0.5) break;
+    // Was diese Übung schließt, je Gruppe – vor dem Abziehen gemessen, und nur
+    // bei Gruppen, die heute nicht ruhen.
+    const zu = Object.entries(anteile(beste)).filter(([m]) => !ruht.has(m))
+      .map(([m, s]) => ({ m, s, zu: Math.min(s * satz, uebrig[m] || 0) }))
+      .filter((x) => x.zu > 0);
+    const direkt = zu.filter((x) => x.s >= REST.direct);
+    const g = (direkt.length ? direkt : zu).sort((a, b) => b.zu - a.zu).slice(0, 2).map((x) => x.m);
+    const anteil = (h) => ((EX_BY_ID.get(h.id) || {})[h.m] || { shares: {} }).shares[g[0]] || 0;
+    const q = herkunft
+      .filter((h) => anteil(h) >= REST.direct)
+      .sort((a, b) => (b.offen * anteil(b) - a.offen * anteil(a)) || (b.n - a.n))
+      .slice(0, 3)
+      .map((h) => [h.n, h.id, h.abgehakt, h.von, h.m]);
+    warum[beste.id] = { g, q };
     gewaehlt.push({ id: beste.id, sets: satz });
-    Object.entries(beste[mode].shares).forEach(([m, s]) => {
+    Object.entries(anteile(beste)).forEach(([m, s]) => {
       uebrig[m] = Math.max(0, (uebrig[m] || 0) - s * satz);
     });
   }
-  if (gewaehlt.length < 2) return null;
-  return { ex: gewaehlt, fehlt: Math.round(summe), gruppen: Object.keys(rest).length };
+  if (gewaehlt.length < mindestens) return null;
+  return { ex: gewaehlt, warum, fehlt: Math.round(summe), gruppen: Object.keys(rest).length };
 }
 
 /**
@@ -22815,7 +23521,7 @@ function pruefeZusatztag() {
   // ist, wird nicht weggeräumt.
   let weg = 0;
   store.customs()
-    .filter((c) => /^Zusatztag Woche /.test(c.name) && c.name !== name
+    .filter((c) => ZUSATZ_NAME.test(c.name) && c.name !== name
       && !store.isStarted(c.id))
     .forEach((c) => { store.removeCustom(c.id); weg += 1; });
 
@@ -22823,11 +23529,28 @@ function pruefeZusatztag() {
   const da = store.customs().find((c) => c.name === name);
   // Angefangen ist angefangen: Was abgehakt ist, wird nicht umgebaut.
   if (da && store.isStarted(da.id)) return weg > 0;
+  // **Schon in einer Einheit aufgegangen**, gemacht oder liegen gelassen: Dann
+  // ist der Zusatztag dieser Woche verbraucht (zusatzVergeben() in
+  // js/plan.js). Kein zweiter, und ein unberührter Rest kommt weg – sonst
+  // stünde nach Workout 9 ein neuer „Zusatztag Woche 2" da und hinge sich an
+  // Workout 10, und ein liegen gelassener Zusatz würde wie liegen gelassene
+  // Nacharbeit ein zweites Mal eingefordert. Ein festgehaltener Zusatz wird
+  // hier nie angefasst.
+  if (zusatzVergeben(ziel.nr)) {
+    if (!da) return weg > 0;
+    store.removeCustom(da.id);
+    return true;
+  }
   // Die Merkliste `zusatzNein` ist mit dem Knopf „Brauch ich nicht" weggefallen.
   // Sie wird nicht mehr gelesen: Wer den Tag nicht will, macht die nächste
   // Planeinheit, und beim nächsten Wochenwechsel ersetzt ein neuer Zusatztag
   // den unberührten alten.
-  const vorschlag = zusatztagEx(ziel, store.getState().mode);
+  //
+  // Gerechnet für die Einheit, in die er heute eingefügt wird, und in deren
+  // Modus – oder allein, wenn heute keine Planeinheit fällig ist.
+  const einheit = zusatzEinheit();
+  const mode = einheit ? store.workoutMode(einheit.n) : store.getState().mode;
+  const vorschlag = zusatztagEx(ziel, mode, einheit);
 
   // **Ein unberührter Zusatztag wird bei jeder Prüfung neu gerechnet** – beim
   // Start, beim Tageswechsel und nach jeder abgeschlossenen Einheit. Die
@@ -22838,17 +23561,22 @@ function pruefeZusatztag() {
   // war, und dafür standen sechs Sätze Bauch einen Tag vor der Einheit mit
   // Bauch. Der Name bleibt, die Übungen sind die von heute; lässt die Regel
   // heute keinen zu, ist er weg und kommt wieder, sobald sie es tut.
+  //
+  // Mit ihm seine Herkunft (`warum`): Auch die ist von heute, und ein Träger
+  // aus v238 ohne sie bekommt sie hier.
   if (da) {
     if (!vorschlag) { store.removeCustom(da.id); return true; }
+    const warum = store.normWarum(vorschlag.warum, vorschlag.ex.map((x) => x.id));
     const gleich = da.ex.length === vorschlag.ex.length
-      && da.ex.every((x, i) => x.id === vorschlag.ex[i].id && x.sets === vorschlag.ex[i].sets);
-    if (!gleich) store.saveCustom({ id: da.id, name, ex: vorschlag.ex });
+      && da.ex.every((x, i) => x.id === vorschlag.ex[i].id && x.sets === vorschlag.ex[i].sets)
+      && JSON.stringify(da.warum || {}) === JSON.stringify(warum);
+    if (!gleich) store.saveCustom({ id: da.id, name, ex: vorschlag.ex, warum: vorschlag.warum });
     // Dieselbe Einheit, nur anders gefüllt – wer auf ihr steht, bleibt dort.
     return weg > 0;
   }
   if (!vorschlag) return weg > 0;
 
-  store.saveCustom({ name, ex: vorschlag.ex });
+  store.saveCustom({ name, ex: vorschlag.ex, warum: vorschlag.warum });
   return true;
 }
 
@@ -22865,39 +23593,27 @@ function pruefeZusatztag() {
  * Wochenwechsel wird ein unberührter Zusatztag ohnehin ersetzt.
  *
  * **Außer an einem Tag, an dem eine Planeinheit fällig ist.** Dann steht sie
- * vorn, und der Zusatztag ist die zweite Einheit des Tages (zusatzDanach()).
- * Fiel mitten in der Woche eine ganze Einheit aus, entstand der Zusatztag oft
- * erst am Tag von Workout 5 – und verdrängte es: Das Dashboard zeigte
- * „Eigenes Workout / Zusatztag Woche 1" statt „Heute · Workout 5", ohne ein
- * Wort davon, dass heute eigentlich Workout 5 dran war.
+ * vorn – und der Zusatztag *steckt in ihr* (einheitEx() in js/plan.js). Fiel
+ * mitten in der Woche eine ganze Einheit aus, entstand der Zusatztag oft erst
+ * am Tag von Workout 5 – und verdrängte es: Das Dashboard zeigte „Eigenes
+ * Workout / Zusatztag Woche 1" statt „Heute · Workout 5". Danach stand er als
+ * zweite Einheit darunter, und das war auch nicht richtig:
+ *
+ *     „Was soll das mit zweite Einheit. Wenn heute Übungen dazu kommen dann
+ *      soll alles flüssig in EINE Einheit"
+ *
+ * **Und nie allein an einem Tag, an dem schon trainiert wurde.** Wer heute
+ * seine Planeinheit gemacht hat, bekommt danach keinen Zusatztag als nächste
+ * Einheit vorgesetzt: Der wartet bis morgen – an einem Ruhetag steht er dann
+ * allein da, an einem Plantag steckt er in dessen Einheit.
  */
 function naechsteEinheit() {
   const plan = defaultWorkoutNo();
   const w = PLAN.find((x) => x.n === plan);
   if (w && !completedMode(w.n) && effDate(w) <= todayISO()) return plan;
   const offen = offenerZusatztag();
-  return offen ? offen.id : plan;
-}
-
-/** Der unberührte Zusatztag, wenn einer bereitsteht. */
-function offenerZusatztag() {
-  return store.customs()
-    .find((c) => /^Zusatztag Woche /.test(c.name) && !store.isStarted(c.id)) || null;
-}
-
-/**
- * Der Zusatztag als zweite Einheit des Tages – eine Zeile unter dem Start
- * einer heutigen Planeinheit, vorher oder nachher.
- */
-function zusatzDanach(w, diff) {
-  if (w.custom || diff !== 0) return '';
-  const c = offenerZusatztag();
-  if (!c) return '';
-  return `
-    <div class="small muted zusatz-danach" style="margin-top:8px">↩︎ Als zweite Einheit heute:
-      <b>${esc(c.name)}</b>, ${plural(c.ex.length, 'Übung', 'Übungen')}.
-      <button type="button" class="btn btn-sm" data-act="custom-start" data-id="${esc(c.id)}"
-              style="margin-left:6px">Öffnen</button></div>`;
+  if (!offen || zusatzBindung() || PLAN.some((x) => store.startedOn(x.n) === todayISO())) return plan;
+  return offen.id;
 }
 
 /*
@@ -22914,6 +23630,62 @@ function zusatzDanach(w, diff) {
  * die nächste Planeinheit; beim nächsten Wochenwechsel wird ein unberührter
  * Zusatztag ohnehin durch den neuen ersetzt.
  */
+
+/** „A", „A und B", „A, B und C". */
+function undListe(namen) {
+  if (namen.length < 2) return namen.join('');
+  return `${namen.slice(0, -1).join(', ')} und ${namen[namen.length - 1]}`;
+}
+
+/**
+ * Wo ein unberührter Zusatztag heute steht – und wie er dort heißt.
+ *
+ *   gebunden  er steckt in der Einheit, die heute fällig ist (`n`)
+ *   morgen    heute wurde schon trainiert; er kommt frühestens morgen dran
+ *   bereit    er ist heute die Einheit des Tages (ein Ruhetag)
+ *
+ * `namen` sind die Übungen, wie sie in der Einheit stehen – in einer Einheit
+ * die, die dort wirklich angekommen sind.
+ */
+function zusatzLage(c) {
+  const b = zusatzBindung();
+  const zahlen = (liste, mode) => ({
+    namen: liste.map((it) => resolve(it, mode).name),
+    saetze: liste.reduce((a, it) => a + it.sets, 0),
+    anzahl: liste.length,
+  });
+  if (b && b.c.id === c.id) {
+    const mode = store.workoutMode(b.w.n);
+    const zus = workoutByNo(b.w.n, mode).ex.filter((it) => it.zusatz);
+    return { art: 'gebunden', n: b.w.n, ...zahlen(zus.length ? zus : c.ex, mode) };
+  }
+  const art = PLAN.some((x) => store.startedOn(x.n) === todayISO()) ? 'morgen' : 'bereit';
+  return { art, ...zahlen(c.ex, store.getState().mode) };
+}
+
+/**
+ * Der Hinweis unter der Wochenbilanz, solange der Zusatztag der Woche
+ * unberührt ist. Sagt, wo er steckt – nicht nur, dass es ihn gibt: Ein
+ * „Öffnen" auf einen Zusatztag, der längst in Workout 9 steht, führte im
+ * Kreis, und „Wann soll ich das machen?" beantwortete es auch nicht.
+ */
+function zusatzHinweis(c) {
+  const l = zusatzLage(c);
+  const stil = 'class="small muted zusatz-hinweis" style="margin-top:12px"';
+  if (l.art === 'gebunden') {
+    return `<div ${stil}>↩︎ Was hier fehlt, holt Workout ${l.n} heute nach: ${esc(undListe(l.namen))}.
+      <button type="button" class="btn btn-sm" data-act="open-workout" data-n="${l.n}"
+              style="margin-left:6px">Zu Workout ${l.n}</button></div>`;
+  }
+  if (l.art === 'morgen') {
+    return `<div ${stil}>↩︎ Für diese Woche ist ein Zusatztag vorgemerkt (${esc(undListe(l.namen))}).
+      Heute war schon Training – er kommt frühestens morgen dran.</div>`;
+  }
+  return `<div ${stil}>↩︎ Für diese Woche steht
+    schon ein Zusatztag bereit: <b>${esc(c.name)}</b>, ${c.ex.length} Übungen.
+    <button type="button" class="btn btn-sm" data-act="custom-start"
+            data-id="${esc(c.id)}" style="margin-left:6px">Öffnen</button></div>`;
+}
 
 /** Balken für eine Muskelgruppe: erreicht gegen das Pensum dieser Woche.
  *
@@ -22993,10 +23765,7 @@ function renderWeeklyVolume() {
         <div class="vol-quote">${kopf.zahl}<span>/${kopf.von}</span></div>
       </div>
       ${groups.map((m) => volumeBar(m, cur.acc[m] || 0, cur.soll[m] || 0)).join('')}
-      ${schonDa ? `<div class="small muted" style="margin-top:12px">↩︎ Für diese Woche steht
-        schon ein Zusatztag bereit: <b>${esc(schonDa.name)}</b>, ${schonDa.ex.length} Übungen.
-        <button type="button" class="btn btn-sm" data-act="custom-start"
-                data-id="${esc(schonDa.id)}" style="margin-left:6px">Öffnen</button></div>` : ''}
+      ${schonDa ? zusatzHinweis(schonDa) : ''}
       <div class="small muted" style="margin-top:10px">
         Verglichen wird mit dem, was <b>diese Woche</b> auf dem Plan steht – nicht mit dem
         Wochenziel. Das Ziel ist ein Schnitt über den ganzen Plan (${esc(zielText())},
@@ -23682,6 +24451,26 @@ function renderCustom() {
       ${liste.map((c) => {
         const sets = c.ex.reduce((a, x) => a + x.sets, 0);
         const prog = progressOf(c.id, store.workoutMode(c.id));
+        // Ein Zusatztag, der heute in einer Einheit steckt oder erst morgen
+        // dran ist, ist hier nur zum Nachsehen da: Öffnen führte am Plan
+        // vorbei in eine zweite Einheit, Bearbeiten und Löschen änderten etwas,
+        // das gerade Teil einer anderen Einheit ist. Er sagt, wo er steckt.
+        if (ZUSATZ_NAME.test(c.name) && !store.isStarted(c.id)) {
+          const l = zusatzLage(c);
+          if (l.art !== 'bereit') {
+            const wo = l.art === 'gebunden' ? `steckt heute in Workout ${l.n}`
+              : 'frühestens morgen – heute war schon Training';
+            return `
+        <div class="card zusatz-karte">
+          <div class="lbl">${esc(c.name)}</div>
+          <div class="hint">${esc(wo)} · ${plural(l.anzahl, 'Übung', 'Übungen')} · ${plural(l.saetze, 'Satz', 'Sätze')}</div>
+          <div class="small muted" style="margin-top:6px">${esc(l.namen.join(' · '))}</div>
+          ${l.art === 'gebunden' ? `<div class="btn-row nav">
+            <button type="button" class="btn btn-primary" data-act="open-workout" data-n="${l.n}">Zu Workout ${l.n}</button>
+          </div>` : ''}
+        </div>`;
+          }
+        }
         return `
         <div class="card">
           <div class="lbl">${esc(c.name)}</div>
@@ -23864,7 +24653,8 @@ function zeitEichung() {
     const m = completedMode(w.n);
     if (!e || !m || !(e.secs > 0) || e.super) return;
     if (!progressOf(w.n, m).complete) return;
-    const soll = dauerLautFormel(exOf(w, m), m);
+    // Die ganze Einheit, samt eingefügtem Zusatztag: Die Uhr lief auch für ihn.
+    const soll = dauerLautFormel(einheitEx(w, m), m);
     if (soll <= 0) return;
     echt += e.secs;
     formel += soll;
@@ -24659,6 +25449,17 @@ function restoreFocus(key) {
 }
 
 function render() {
+  // Ein Zusatztag, der vorn stand, kann inzwischen weg sein (verbraucht,
+  // neu gerechnet, gelöscht) oder in der Einheit des Tages stecken – über
+  // Mitternacht bei offener App etwa, oder nach dem Verwerfen einer Einheit.
+  // Dann steht die Einheit vorn, in der er steckt, statt einer, die es so
+  // nicht mehr gibt.
+  if (istCustom(ui.workoutNo)) {
+    const c = store.customById(ui.workoutNo);
+    const b = zusatzBindung();
+    if (!c) ui.workoutNo = naechsteEinheit();
+    else if (b && b.c.id === c.id) ui.workoutNo = b.w.n;
+  }
   const mode = ui.tab === 'dashboard' ? store.workoutMode(ui.workoutNo) : store.getState().mode;
   document.body.classList.toggle('mode-bw', mode === 'bw');
   document.documentElement.dataset.theme = store.getState().theme || 'orange';
@@ -24767,6 +25568,12 @@ tabbar.addEventListener('click', (e) => {
   if (btn) go(btn.dataset.tab);
 });
 
+/** Steckt dieser Zusatztag gerade in der Einheit des Tages (zusatzBindung())? */
+function traegerGebunden(id) {
+  const b = zusatzBindung();
+  return !!b && b.c.id === id;
+}
+
 /** Abgehakte Sätze einer Einheit, in beiden Varianten – so viele verschwinden beim Verwerfen. */
 function abgehaktInEinheit(n) {
   const e = store.getState().log[n] || {};
@@ -24802,14 +25609,16 @@ function trainingBeenden(n, mode) {
   if (gestiegen) aufstiegMelden(store.getState().level);
   // Nach der letzten Einheit einer Woche entscheidet sich, ob etwas
   // liegen geblieben ist – also hier und nicht erst beim nächsten Start.
-  const zusatz = pruefeZusatztag();
-  // Der Zusatztag meldet sich nicht: Er *ist* die nächste Einheit und steht
-  // nach diesem render() auf dem Bildschirm. Vorher stand diese Zeile hinter
-  // render() und wirkte erst beim nächsten Zeichnen.
-  if (zusatz && !gestiegen) ui.workoutNo = naechsteEinheit();
+  //
+  // Bis v238 sprang die Startansicht danach auf den frisch angelegten
+  // Zusatztag, und der Abschluss blieb ohne Meldung. Heute ist aber schon
+  // trainiert: Der Zusatztag kommt frühestens morgen dran (naechsteEinheit()),
+  // die Startansicht bleibt auf der Einheit, die eben fertig wurde („Für heute
+  // durch"), und der Abschluss sagt, was er ist.
+  pruefeZusatztag();
   render();
   if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
-  else if (!zusatz) {
+  else {
     toast(prog.complete
       ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
       : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
@@ -24838,6 +25647,10 @@ view.addEventListener('click', (e) => {
       const inj = injuryById(id);
       if (!inj) break;
       store.toggleInjury(id, true);
+      // Ein noch unberührter Zusatztag wird für die neue Lage gerechnet: Eine
+      // Übung, die die Beschwerde sperrt, soll nicht bloß aus der Einheit
+      // fallen, sondern durch eine ersetzt werden, die geht.
+      pruefeZusatztag();
       // Danach weiter bei einer offenen Übung. Mit Hanteln steht an der Stelle
       // meist der Ersatz; ohne Hanteln fällt die Übung oft ersatzlos weg, die
       // Liste wird kürzer, und auf derselben Position stand bisher die nächste
@@ -24856,6 +25669,7 @@ view.addEventListener('click', (e) => {
       const id = t.dataset.inj;
       const on = t.getAttribute('aria-pressed') !== 'true';
       store.toggleInjury(id, on);
+      pruefeZusatztag();   // wie bei 'schmerz-anhaken'
       render();
       toast(on ? `🩹 ${injuryById(id).name} angehakt` : `✓ ${injuryById(id).name} entfernt`);
       break;
@@ -24868,6 +25682,7 @@ view.addEventListener('click', (e) => {
     }
     case 'clear-injuries': {
       store.clearInjuries();
+      pruefeZusatztag();   // wie bei 'schmerz-anhaken'
       render();
       toast('Alle Haken entfernt');
       break;
@@ -24882,6 +25697,8 @@ view.addEventListener('click', (e) => {
       // ruestCache leeren: Die Reihenfolge einer Einheit hängt an ihren Übungen,
       // und die ändern sich hier.
       ruestCache.clear();
+      // Und ein unberührter Zusatztag rechnet ohne die abgewählte Übung neu.
+      pruefeZusatztag();
       render();
       break;
     }
@@ -24917,9 +25734,13 @@ view.addEventListener('click', (e) => {
     case 'toggle-set': {
       const id = t.dataset.ex;
       const i = Number(t.dataset.i);
-      // Vor dem Haken: Ab hier steht fest, was nachgeholt wird.
+      // Vor dem Haken: Ab hier steht fest, was nachgeholt wird – erst der
+      // eingefügte Zusatztag, dann die Nacharbeit. Danach ist die Einheit
+      // angefangen, und der Zusatz hinge an nichts mehr (zusatzFesthalten()).
+      zusatzFesthalten(n);
       nachFesthalten(n);
       const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
+      if (!item) { render(); break; }
       const cur = store.getSets(n, mode, id, item.sets, item.nach || 0)[i].done;
       const variant = resolve(item, mode);
       // Eine Übung, die über beide Modi fertig ist, bekommt keinen Satz mehr
@@ -24968,8 +25789,9 @@ view.addEventListener('click', (e) => {
         if (store.getState().rest) endRest(false);
         const gestiegen = pruefeAufstieg();
         if (gestiegen) aufstiegMelden(store.getState().level);
-        const zusatz = pruefeZusatztag();
-        if (zusatz) ui.workoutNo = naechsteEinheit();
+        // Ohne Sprung: Ein Zusatztag, der hier entsteht, kommt frühestens
+        // morgen dran – siehe trainingBeenden().
+        pruefeZusatztag();
         sound('done');
         render();
         toast(gestiegen ? 'Neue Stufe – siehe oben ⬆️'
@@ -25098,9 +25920,20 @@ view.addEventListener('click', (e) => {
       // Knopf ("Heute anfangen – Plan 3 Tage vorziehen"); der ist raus, weil
       // niemand eine Verschiebung einstellen will, die sich von selbst ergibt.
       // Nach hinten macht catchUpPlan() dasselbe, wenn ein Termin verstreicht.
+      // Wie viele Übungen aus einem Zusatztag schon in der Einheit stehen –
+      // nach dem Vorziehen wird es womöglich einer mehr (siehe unten).
+      const zusVorher = workoutByNo(n, mode).ex.filter((x) => x.zusatz).length;
       if (firstOpen().n === n && daysBetween(todayISO(), effDate(workoutByNo(n))) > 0) {
         store.setShift(shiftToToday());
       }
+      // Mit dem Vorziehen ist diese Einheit heute fällig, und ein Zusatztag, der
+      // bereitsteht oder jetzt erst entsteht, gehört in sie hinein
+      // (zusatzEinheit() in js/plan.js) – gerechnet für heute. Auch ohne
+      // Vorziehen: Eine verworfene oder umgestellte Einheit soll mit dem Stand
+      // von jetzt anfangen. (Nicht beim allein stehenden Zusatztag selbst: Der
+      // würde sonst womöglich unter dem Startknopf neu gerechnet.)
+      if (!istCustom(n)) pruefeZusatztag();
+      const zusNeu = workoutByNo(n, store.workoutMode(n)).ex.filter((x) => x.zusatz);
       initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
       sound('start');
       // Läuft noch eine andere Einheit, wird sie zuerst beendet – mit ihrer
@@ -25117,9 +25950,17 @@ view.addEventListener('click', (e) => {
       store.startSession(n);
       ui.focus = true;
       ui.listView = false;
-      ui.focusIdx = firstOpenExercise(n, mode);
+      ui.focusIdx = firstOpenExercise(n, store.workoutMode(n));
       render();
-      toast(vorige !== null ? `${einheitTitel(vorige)} beendet, Zeit gespeichert – los geht’s 💪` : 'Los geht’s 💪');
+      // Kam beim Vorziehen etwas dazu, sagt der Start es – nichts ändert sich
+      // unbemerkt. Woher es kommt, steht an der Übung.
+      {
+        const dazu = zusNeu.length > zusVorher
+          ? ` · dazu ${undListe(zusNeu.map((x) => resolve(x, store.workoutMode(n)).name))} aus Woche ${zusNeu[0].zusatz.woche}`
+          : '';
+        toast(vorige !== null ? `${einheitTitel(vorige)} beendet, Zeit gespeichert – los geht’s 💪${dazu}`
+          : `Los geht’s 💪${dazu}`);
+      }
       break;
     }
     case 'zur-laufenden': {
@@ -25146,6 +25987,9 @@ view.addEventListener('click', (e) => {
       );
       if (!ok) break;
       store.verwirfEinheit(n);
+      // Mit der Einheit ist auch ihr festgehaltener Zusatz weg; ein neuer Träger
+      // entsteht, und die Einheit zeigt ihn wieder, gerechnet für jetzt.
+      pruefeZusatztag();
       store.endSession();
       ui.focus = false;
       ui.listView = false;
@@ -25203,6 +26047,8 @@ view.addEventListener('click', (e) => {
       render();
       break;
     case 'complete-workout': {
+      // Wie beim einzelnen Haken: erst der Zusatztag, dann die Nacharbeit.
+      zusatzFesthalten(n);
       nachFesthalten(n);
       // Das benutzte Gewicht muss mit: Ohne es fehlen die Sätze in der
       // Verlaufskurve, und die Steigerungsserie bricht ab, weil sie das
@@ -25236,6 +26082,9 @@ view.addEventListener('click', (e) => {
       const etwas = beide ? store.isStarted(n) : hasAnyEntry(n, mode);
       if (!etwas || confirm(frage)) {
         if (beide) store.verwirfEinheit(n); else store.resetWorkout(n, mode);
+        // Steht danach nichts mehr, ist auch der festgehaltene Zusatz weg – wie
+        // beim Abbrechen kommt er neu gerechnet wieder.
+        pruefeZusatztag();
         if (store.getState().rest) endRest(false);
         render();
         toast(beide ? 'Zurückgesetzt – beide Varianten' : `Zurückgesetzt (${MODE_LABEL[mode]})`);
@@ -25247,6 +26096,9 @@ view.addEventListener('click', (e) => {
       render();
       break;
     case 'custom-edit': {
+      // Ein Zusatztag, der gerade in einer Einheit steckt, wird dort nicht
+      // unter der Hand umgebaut (die Karte bietet es auch nicht an).
+      if (traegerGebunden(t.dataset.id)) break;
       const c = store.customById(t.dataset.id);
       if (c) ui.customDraft = { id: c.id, name: c.name, ex: c.ex.map((x) => ({ ...x })) };
       render();
@@ -25294,13 +26146,18 @@ view.addEventListener('click', (e) => {
       toast('Gespeichert – los geht’s');
       break;
     }
-    case 'custom-start':
-      ui.workoutNo = t.dataset.id;
+    case 'custom-start': {
+      // Steckt der Zusatztag heute in einer Einheit, öffnet sich die – er ist
+      // dort, nicht daneben.
+      const b = zusatzBindung();
+      ui.workoutNo = b && b.c.id === t.dataset.id ? b.w.n : t.dataset.id;
       ui.listView = false;
       ui.focus = false;
       go('dashboard');
       break;
+    }
     case 'custom-del': {
+      if (traegerGebunden(t.dataset.id)) break;
       const c = store.customById(t.dataset.id);
       if (!c || !confirm(`„${c.name}" löschen? Die abgehakten Sätze gehen mit.`)) break;
       store.removeCustom(c.id);
@@ -25385,6 +26242,9 @@ view.addEventListener('click', (e) => {
       // abgehakt ist und nur der Abschluss fehlt: Sonst stand die fertige
       // Einheit nach dem Wechsel bei 17/18.
       store.setMode(neu);
+      // Ein noch unberührter Zusatztag rechnet im Modus der Einheit neu, in die
+      // er eingefügt wird – mit den Übungen, die es dort gibt.
+      pruefeZusatztag();
       const lief = store.getState().session;
       const vorn = ui.workoutNo;
       const vornEintrag = store.getState().log[vorn];
@@ -25939,8 +26799,10 @@ view.addEventListener('input', (e) => {
   } else if (t.dataset.act === 'set-input') {
     const n = ui.workoutNo;
     const mode = store.workoutMode(n);
+    zusatzFesthalten(n);
     nachFesthalten(n);
     const item = workoutByNo(n, mode).ex.find((x) => x.id === t.dataset.ex);
+    if (!item) return;
     store.updateSet(n, mode, t.dataset.ex, item.sets, Number(t.dataset.i), { [t.dataset.field]: t.value }, item.nach || 0);
   } else if (t.dataset.act === 'scheiben-stange') {
     // Beim Tippen still speichern, ohne neu zu rendern: Ein render() würde das
@@ -26031,7 +26893,8 @@ document.addEventListener('visibilitychange', () => {
     lastSeenDay = day;
     // Ein unberührter Zusatztag gilt für den Tag, an dem er gemacht wird –
     // über Mitternacht offen gelassen, wird er für den neuen Tag nachgerechnet
-    // (pruefeZusatztag()).
+    // (pruefeZusatztag()). Steckt er danach in der Einheit des Tages, lenkt
+    // render() einen Bildschirm, der noch auf ihm stand, dorthin um.
     if (neuerTag && pruefeZusatztag() && !store.getState().session) {
       ui.workoutNo = naechsteEinheit();
     }
