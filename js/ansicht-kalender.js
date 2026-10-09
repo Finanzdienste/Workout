@@ -16,8 +16,8 @@ import * as store from './store.js';
 import { PLAN } from './data.js';
 import { esc, fmtNum } from './text.js';
 import { addDays, fmtDate, monthStart, plural, todayISO } from './dates.js';
-import { completedMode, effDate, exOf, progressOf, resolve } from './plan.js';
-import { MODE_ICON, MODE_LABEL, repsLabel } from './anzeige.js';
+import { completedMode, effDate, einheitEx, progressOf, resolve } from './plan.js';
+import { MODE_ICON, MODE_LABEL, repsLabel, umfang } from './anzeige.js';
 import { termine, terminLabel } from './termine.js';
 import { AKT_BY_ID, gruppenAm } from './aktivitaeten.js';
 import { MUSCLE_LABEL } from './body.js';
@@ -328,18 +328,26 @@ function calendarDetailPlan(iso, byDate, today, frueher, akt, selbst) {
 export function calendarWorkout(w, iso, today) {
   const st = dayState(w, iso, today);
   const mode = st.mode;
-  const items = exOf(w, mode).map((it) => resolve(it, mode));
+  // Die ganze Einheit, samt eingefügtem Zusatztag (einheitEx()) – so, wie sie
+  // trainiert wird oder wurde. Künftige Tage zeigen keinen: Er gehört zu der
+  // Einheit, die heute fällig ist, und wird erst dort gerechnet.
+  const items = einheitEx(w, mode).map((it) => resolve(it, mode));
   const saetze = items.reduce((a, x) => a + x.sets, 0);
   const kopf = KIND_TEXT[st.kind];
   const prog = progressOf(w.n, mode);
+  // Mit Zusatz wie im Kopf der Einheit: „5 + 1 Übungen · 15 + 3 Sätze", das
+  // „+" heißt nachgeholt (umfang() in js/anzeige.js).
+  const u = umfang(items);
+  const umfangText = u.zusatz
+    ? `${u.plan} + ${u.zusatz} Übungen · ${u.saetze - u.nachgeholt} + ${u.nachgeholt} Sätze`
+    : `${plural(items.length, 'Übung', 'Übungen')} · ${plural(saetze, 'Satz', 'Sätze')}`;
 
   return `
     <div class="card cal-detail">
       <div class="cal-det-head">
         <div>
           <div class="lbl">Workout ${w.n} · ${esc(kopf)}</div>
-          <div class="hint">${esc(fmtDate(iso, true))} · ${plural(items.length, 'Übung', 'Übungen')} ·
-            ${plural(saetze, 'Satz', 'Sätze')}</div>
+          <div class="hint">${esc(fmtDate(iso, true))} · ${esc(umfangText)}</div>
         </div>
         <span class="chip ${mode}">${MODE_ICON[mode]} ${esc(MODE_LABEL[mode])}</span>
       </div>
@@ -348,7 +356,7 @@ export function calendarWorkout(w, iso, today) {
         ${items.map((it) => `
           <li>
             <span class="cal-ex">${esc(it.name)}</span>
-            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, mode))}</span>
+            <span class="cal-sets">${it.sets} × ${esc(repsLabel(it, mode))}${it.zusatz ? ' · nachgeholt' : ''}</span>
           </li>`).join('')}
       </ul>
       <button type="button" class="btn btn-sm" data-act="cal-open" data-n="${w.n}">

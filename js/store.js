@@ -101,7 +101,8 @@ const DEFAULT_STATE = {
   // und ohne Klimmzugstange.
   fehlt: [],
   friends: {},           // zuletzt geschickter Stand anderer: { id: { n, w, s, kg, r, p, d, am } }
-  customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}] }]
+  customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}], warum? }]
+                         // `warum` nur am Zusatztag: woher seine Übungen kommen (normWarum())
   session: null,         // laufendes Training: { n }
   clock: null,           // Uhr der Einheit: { n, on, spent, since } – siehe startSession()
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
@@ -180,6 +181,13 @@ const DEFAULT_STATE = {
   //   paare   je Modus die Supersatz-Paarung, festgehalten mit dem ersten
   //           abgehakten Satz: { db: { key, gruppen: [[id, id], [id]] } }
   //           (superGruppen() in js/app.js)
+  //   zusatz  nur an Planeinheiten: der in diese Einheit eingefügte
+  //           Zusatztag, festgehalten mit dem ersten Eintrag und nie
+  //           überschrieben: { woche, ex: [{ id, sets, bwSets }], warum:
+  //           { exId: { g, q } } }. Seine Sätze stehen im gewohnten Eimer
+  //           (db/bw), gehören in der Wochenbilanz aber der Woche `woche`
+  //           (halteZusatz(), festerZusatz() und einheitEx() in js/plan.js).
+  //           Verwerfen und Zurücksetzen löschen ihn.
   log: {},
 };
 
@@ -255,8 +263,44 @@ function normCustoms(liste) {
       && /^[a-z0-9-]{1,60}$/.test(x.id)
       ? { id: x.id, sets: Math.min(10, Math.max(1, Math.round(Number(x.sets)) || 3)) } : null))
       .filter(Boolean);
-    return { id, name: standText(c.name, 60) || 'Eigenes Workout', ex };
+    const out = { id, name: standText(c.name, 60) || 'Eigenes Workout', ex };
+    // Die Herkunft eines Zusatztags (siehe normWarum()) – nur, wenn es eine gibt.
+    if (c.warum !== undefined) out.warum = normWarum(c.warum, ex.map((x) => x.id));
+    return out;
   }).filter(Boolean);
+}
+
+/*
+ * Woher die Übungen eines Zusatztags kommen – an seinem Träger in `customs`
+ * (`warum`) und, sobald er in einer Einheit festgehalten ist, an log[n].zusatz.
+ * Dieselbe Form wie `nachWarum`: je Übung { g: [Gruppe, …], q: [[n, exId,
+ * abgehakt, von, Modus], …] }.
+ *
+ * Auch das reist in der Sicherung mit, und die kommt von irgendwoher. Was hier
+ * durchgeht, sind kurze Wörter, kleine ganze Zahlen und bekannte Kennungen –
+ * nur für Übungen, die im selben Eintrag stehen. Alles andere fällt weg.
+ */
+const WARUM_GRUPPE = /^[a-zA-Z]{1,30}$/;
+const WARUM_UEBUNG = /^[a-z0-9-]{1,60}$/;
+const ganzIn = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
+export function normWarum(roh, ids) {
+  const out = {};
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return out;
+  const erlaubt = new Set(ids || []);
+  Object.keys(roh).forEach((id) => {
+    const w = roh[id];
+    if (!erlaubt.has(id) || !w || typeof w !== 'object' || Array.isArray(w)) return;
+    const g = (Array.isArray(w.g) ? w.g : [])
+      .filter((x) => typeof x === 'string' && WARUM_GRUPPE.test(x)).slice(0, 2);
+    const q = (Array.isArray(w.q) ? w.q : [])
+      .filter((t) => Array.isArray(t) && ganzIn(t[0], 1, 999)
+        && typeof t[1] === 'string' && WARUM_UEBUNG.test(t[1])
+        && ganzIn(t[2], 0, 20) && ganzIn(t[3], 1, 20) && (t[4] === 'db' || t[4] === 'bw'))
+      .slice(0, 3)
+      .map((t) => [t[0], t[1], t[2], t[3], t[4]]);
+    out[id] = { g, q };
+  });
+  return out;
 }
 
 let state = load();
@@ -856,8 +900,8 @@ export function resetWorkout(n, mode) {
   if (state.clock && state.clock.n === n) state.clock = null;
   syncStartedOn(n);
   // Steht danach nichts mehr, ist der nächste Anlauf ein neuer – mit der
-  // Nacharbeit, die dann gilt.
-  if (!isStarted(n)) { delete e.nachFest; delete e.nachWarum; }
+  // Nacharbeit, die dann gilt, und mit dem Zusatztag, der dann gilt.
+  if (!isStarted(n)) { delete e.nachFest; delete e.nachWarum; delete e.zusatz; }
   persist();
   emit();
 }
@@ -881,8 +925,58 @@ export function verwirfEinheit(n) {
   delete e.paare;
   delete e.nachFest;
   delete e.nachWarum;
+  // Und der eingefügte Zusatztag: Verworfen ist verworfen. pruefeZusatztag()
+  // in js/app.js legt danach einen neuen Träger an, und die Einheit zeigt ihn
+  // wieder – neu gerechnet, wie vor dem ersten Satz.
+  delete e.zusatz;
   if (state.clock && state.clock.n === n) state.clock = null;
   syncStartedOn(n);
+  persist();
+  emit();
+}
+
+/**
+ * Den Zusatztag in einer Einheit festhalten – einmal, mit dem ersten Eintrag,
+ * und im selben Schritt seinen Träger verbrauchen.
+ *
+ * `wert` ist { woche, ex: [{ id, sets, bwSets }], warum }. Danach gilt in
+ * dieser Einheit, was gerade auf dem Bildschirm stand (zusatzListe() in
+ * js/plan.js), und der Träger „Zusatztag Woche N" samt seinem Protokoll ist
+ * weg – in *einem* Schreibvorgang, damit nie beides zugleich dasteht: die
+ * Übungen fest in der Einheit und noch einmal als eigener Zusatztag daneben.
+ */
+export function halteZusatz(n, wert, traegerId) {
+  const e = ensure(n);
+  const z = e.zusatz;
+  if (z && typeof z === 'object' && Number.isInteger(z.woche) && Array.isArray(z.ex) && z.ex.length) return;
+  e.zusatz = clone(wert);
+  if (traegerId) {
+    state.customs = customs().filter((c) => c.id !== traegerId);
+    delete state.log[traegerId];
+    // Und eine Sitzung, die noch auf dem Träger stand – angetippt an seinem
+    // Ruhetag, ohne einen Satz. Blieb sie stehen, zeigte die Einheit, in der
+    // er jetzt steckt, „Eigenes Workout läuft noch. Zurück zu Eigenes
+    // Workout" – eine zweite Einheit, die es gar nicht mehr gab.
+    if (state.session && state.session.n === traegerId) state.session = null;
+    if (state.clock && state.clock.n === traegerId) state.clock = null;
+  }
+  persist();
+  emit();
+}
+
+/**
+ * Eine Sitzung ohne Buchung beenden – für eine Einheit, die nicht mehr für
+ * sich steht: einen Zusatztag, der jetzt in der Einheit des Tages steckt
+ * (traegerSitzungLoesen() in js/app.js). Gebucht wird nichts, weil es nichts
+ * zu buchen gibt: Ein Träger, der sich einfügen lässt, hat keinen Satz, und
+ * seine Zeit gehört keiner Einheit, die es noch gibt.
+ */
+export function sitzungVerwerfen(n) {
+  const s = state.session && state.session.n === n;
+  const c = state.clock && state.clock.n === n;
+  if (!s && !c) return;
+  if (s) state.session = null;
+  if (c) state.clock = null;
   persist();
   emit();
 }
@@ -1050,6 +1144,10 @@ export function saveCustom(entwurf) {
   const liste = customs();
   const id = entwurf.id || `c${Date.now().toString(36)}`;
   const eintrag = { id, name: entwurf.name || 'Eigenes Workout', ex: entwurf.ex || [] };
+  // Die Herkunft eines Zusatztags, nur wenn sie im Entwurf steht. Der Baukasten
+  // reicht keine durch – wer einen Zusatztag von Hand umbaut, hat danach ein
+  // eigenes Workout, und dessen Übungen kommen von ihm, nicht aus einer Woche.
+  if (entwurf.warum !== undefined) eintrag.warum = normWarum(entwurf.warum, eintrag.ex.map((x) => x.id));
   const i = liste.findIndex((c) => c.id === id);
   if (i >= 0) liste[i] = eintrag;
   else liste.push(eintrag);

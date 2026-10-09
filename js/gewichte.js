@@ -378,6 +378,31 @@ export function ruestOrder(items) {
 }
 
 /**
+ * Wie oft in dieser Liste auf- oder umgebaut wird, in der Reihenfolge von
+ * ruestOrder().
+ *
+ * Gezählt wie die Rüstzeile (ruestHint(), vorherAufgebaut()): Eine Übung mit
+ * Aufbau kostet einen Schritt, wenn davor keine mit Aufbau stand oder deren
+ * Gerät oder Gewicht ein anderes war. Übungen ohne Aufbau dazwischen ändern
+ * nichts – die Stange bleibt ja geladen.
+ *
+ * Gebraucht, wenn ein Zusatztag in eine Einheit eingefügt wird (zusatztagEx()
+ * in js/app.js): Bei gleichem Nutzen gewinnt die Übung, die keinen weiteren
+ * Umbau kostet.
+ */
+export function ruestSchritte(items) {
+  let n = 0;
+  let prev = null;
+  ruestOrder(items).forEach((it) => {
+    const s = setupOf(it.id, workingWeight(it.id));
+    if (!s) return;
+    if (!prev || prev.fam !== s.fam || !(Math.abs(prev.kg - s.kg) < 0.01)) n += 1;
+    prev = s;
+  });
+  return n;
+}
+
+/**
  * Der Aufbau, der vor dieser Übung zuletzt dran war – oder null.
  *
  * Ohne Supersatz ist das die nächste Übung mit Aufbau weiter oben in der
