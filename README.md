@@ -4793,7 +4793,7 @@ kein Wort dazu, woher die Übungen kommen und warum sie heute dran sind.
 **Jetzt gehören seine Übungen zu der Einheit, die heute fällig ist** – ein
 Start, eine Liste, eine Fokusansicht („Übung 1 von 6"), ein Fortschritt,
 Supersätze und Rüst-Reihenfolge über alle Übungen, ein Abschluss. Im Kopf
-steht „Hanteln · 5 + 1 Übungen · 15 + 3 Sätze"; das „+" heißt überall
+steht „Hanteln · 5 + 1 Übungen · 15 + 2 Sätze"; das „+" heißt überall
 dasselbe, nachgeholt, ob aus der Nacharbeit oder aus dem Zusatztag. Und an der
 Übung steht, woher sie kommt – eine stille Zeile wie bei der Nacharbeit, kein
 Popup, nichts zum Wegtippen:
@@ -4803,7 +4803,7 @@ Popup, nichts zum Wegtippen:
 Kommt die Übung nicht selbst aus der Woche, nennt die Zeile die Gruppe und die
 Übungen, die den Rückstand hinterlassen haben („Nachgeholt aus Woche 2 für
 Oberschenkel: Goblet Squat (Mo 0 von 3)"). Die Vorlesefunktion liest jeden
-Satzknopf als „Satz 1 von 3, nachgeholt, erledigt" und verweist auf die Zeile.
+Satzknopf als „Satz 1 von 2, nachgeholt, erledigt" und verweist auf die Zeile.
 An einem Tag **ohne** Planeinheit bleibt der Zusatztag die Einheit des Tages –
 mit „Heute · Zusatztag" statt „Eigenes Workout" und derselben Zeile an jeder
 Übung.
@@ -4828,7 +4828,10 @@ samt Reihenfolge – `tests/ruestaufwand-stand.json` bleibt, wie er ist.
 **Live, dann fest.** Bis zum ersten Eintrag in der Einheit kommen die Übungen
 aus dem Träger – dem „Zusatztag Woche N" unter den eigenen Workouts – und
 werden mit ihm neu gerechnet: beim Start, beim Tageswechsel, beim Vorziehen,
-nach einem Moduswechsel, einer Beschwerde oder einer abgewählten Übung. Bis
+nach einem Moduswechsel, einer Beschwerde, einer abgewählten Übung, einem
+abgewählten Gerät, einem eingetragenen oder entfernten Termin, nach „Von vorn
+beginnen", „Verlauf zurückholen" und einer Runde, die bei offener App
+weiterrollt. Bis
 dahin legt die Anzeige für sie nichts im Protokoll an, kein Satzfeld und keinen
 Stempel. Mit dem ersten Eintrag – Haken, Satzfeld oder „Alle Sätze abhaken" –
 steht genau das fest, was auf dem Bildschirm stand (`log[n].zusatz`), und der
@@ -4838,6 +4841,17 @@ angeboten, und er ist weder Rückstand noch gemachte Nacharbeit der Einheit, in
 der er stand – wie liegen gelassene Nacharbeit, sonst schaukelte sich der
 Rückstand auf. Abbrechen und Zurücksetzen löschen ihn; dann steht er neu
 gerechnet wieder da.
+
+Fällt eine noch unberührte Übung des festgehaltenen Zusatzes danach weg –
+Beschwerde, Gerät, Termin –, wird sie nicht ersetzt, der Zusatz ist vergeben.
+Aber die Notiz über der Liste nennt sie, in derselben Zeile wie eine Planübung
+(„Chin-ups (nachgeholt aus Woche 2) fällt aus"); vorher wurde aus „5 + 1
+Übungen" wortlos „5 Übungen". Und eine Sitzung, die noch auf dem Träger stand –
+an einem Ruhetag Start getippt, nichts abgehakt –, endet ohne Buchung, sobald
+er in der Einheit des Tages steckt (`traegerSitzungLoesen()`), spätestens mit
+dem ersten Satz (`halteZusatz()`). Vorher stand am Sonntag statt des Starts
+„Zusatztag Woche 1 läuft noch. ▶︎ Zurück zu Zusatztag Woche 1", und das führte
+im Kreis zurück auf dieselbe Einheit.
 
 **In der Wochenbilanz gehört er der Woche, aus der er kommt.** Seine Sätze
 stehen im Eimer der Einheit, zählen aber für Woche *N* (`zusatzBeitrag()`),
@@ -4852,7 +4866,9 @@ schon Training – er kommt frühestens morgen dran". Am Tag darauf steckt er in
 der Einheit des Tages oder steht an einem Ruhetag allein da. Eine schon
 angefangene Einheit bekommt nie nachträglich etwas dazu; wer eine künftige
 Einheit vorzieht, bekommt ihn mit, und der Start sagt es („Los geht’s 💪 · dazu
-Chin-ups aus Woche 2").
+Chin-ups aus Woche 2"). Und nur in eine Einheit **hinter** seiner Woche, deren
+Einheiten im Protokoll alle angefangen sind (`zusatzEinheitFuer()`): Ein Träger
+der alten Runde hängt sich nicht an Workout 1 der neuen.
 
 **Welche Übungen.** Gierig wie bisher, mit drei Regeln mehr:
 
@@ -4865,6 +4881,12 @@ Chin-ups aus Woche 2").
   (`NACH_ANTEIL`): Mindestens die Hälfte dessen, was eine Übung direkt
   trainiert, muss in den Rückstand gehen. Sonst kamen nach den Pull-ups noch die
   Chin-ups dazu, für 1,45 von 4,95 direkten Sätzen.
+- **Nur so viele Sätze, wie etwas bringen.** Gewählt wird mit drei Sätzen,
+  eingefügt mit der kleinsten Zahl, die schon genauso viel vom Rückstand
+  schließt. Bei Tobi schließen zwei Sätze Chin-ups Rücken (2,0 offen) und
+  Bizeps (1,3 offen); der dritte brachte nichts, weder Woche 2 noch Woche 3,
+  und an der Übung stand „am Sa nur 1 von 3 Sätzen abgehakt" – wer nachrechnet,
+  erwartet zwei. Allein bleibt es bei drei Sätzen je Übung.
 - **Bei gleichem Nutzen kein Umbau mehr.** In eine Einheit eingefügt gewinnt im
   Hantel-Modus die Übung mit weniger Rüstschritten über die ganze Einheit
   (`ruestSchritte()`), danach – mit Supersätzen – die mit mehr Paaren. Eine
@@ -4873,7 +4895,15 @@ Chin-ups aus Woche 2").
 
 Eingefügt höchstens zwei Übungen und mindestens eine, allein höchstens fünf und
 mindestens zwei. Dazu nichts, was eine Beschwerde im Modus sperrt, was ohne
-Gerät dasteht oder schon in der Einheit steht. Die Erholungsregel sorgt dafür,
+Gerät dasteht, was ein Termin an dem Tag schont oder schon in der Einheit steht
+– mit derselben Prüfung, mit der die Einheit ihn zeigt (`zusatzGrund()`). Mit
+Bouldern am Freitag nahm der Plan am Donnerstag den Reverse Fly heraus, und
+darunter stand als Zusatz die Inverted Row – Rücken, Nacken, Bizeps, hintere
+Schulter, genau die geschonten Gruppen. Und was ein Termin schont, ruht auch
+für den Nutzen (`ruhendeGruppen()`): Zwei Stunden Boxen am Freitag schonen am
+Donnerstag Nacken und hintere Schulter, nicht Rücken und Bizeps; ohne das
+gewannen die Pull-ups vor den Chin-ups, allein über ihre Last auf den beiden
+geschonten Gruppen. Die Erholungsregel sorgt dafür,
 dass keine eingefügte Übung eine Gruppe der Planeinheit direkt trifft – genau
 das macht sie zu guten Partnern im Supersatz.
 
@@ -4882,11 +4912,12 @@ Ende):
 
 | | ohne Zusatz | mit Zusatz |
 | --- | --- | --- |
-| Übungen · Sätze | 5 · 15 | 5 + 1 · 15 + 3 (Chin-ups ×3) |
+| Übungen · Sätze | 5 · 15 | 5 + 1 · 15 + 2 (Chin-ups ×2) |
 | Rüstschritte | 3 | 3 |
 | Supersatz-Paare | 2 | 3 (Reverse Fly ↔ Chin-ups) |
-| Formelzeit ohne Supersatz | 44 min | 54 min (mit Pull-ups und Chin-ups wären es 65) |
-| Woche 2 im Ziel, nach 3/3 Chin-ups | 9 von 12 | 11 von 12 (Rücken 6,0/6, Bizeps) |
+| Formelzeit ohne Supersatz | 44 min | 50 min (mit Pull-ups und Chin-ups wären es 65) |
+| Woche 2 im Ziel, nach 2/2 Chin-ups | 9 von 14 | 11 von 14 (Rücken 6,0/6, Bizeps 6,45/6,45) |
+| dasselbe nach 1 / 2 / 3 Sätzen Chin-ups | | 9 / 11 / 11 von 14 |
 | Woche 3, Rücken und Bizeps | 0,0/6 · 0,0/6,45 | dasselbe |
 
 Und am Gleichstand (Sitzendes Seitheben in Woche 2 liegen gelassen): Band- statt
@@ -4894,8 +4925,8 @@ Sitzendes Seitheben, drei statt vier Rüstschritte, drei statt zwei Paare.
 
 **Bewusst unverändert, und wo es endet.**
 
-- Wann ein Zusatztag entsteht, bleibt: ab sechs Sätzen Rückstand, drei Sätze je
-  Übung, nur für die zuletzt abgeschlossene Woche.
+- Wann ein Zusatztag entsteht, bleibt: ab sechs Sätzen Rückstand, nur für die
+  zuletzt abgeschlossene Woche; allein drei Sätze je Übung.
 - Was der Deckel von zwei Übungen abschneidet, verfällt, ebenso ein liegen
   gelassener Zusatz – gewollt, wie bei der Nacharbeit.
 - Die Auswahlregeln gelten auch am Ruhetag. Tobis Mittwoch hätte damit keinen
@@ -4910,16 +4941,29 @@ Sitzendes Seitheben, drei statt vier Rüstschritte, drei statt zwei Paare.
   „gehalten" in den Plan der Einheit – v238 kennt `log[n].zusatz` nicht.
 
 Geprüft in `tests/test-zusatz-einheit.mjs` an Tobis Stand
-(`tests/zusatz-tobi-do.json`), 19 Fälle von der Startansicht bis zur
+(`tests/zusatz-tobi-do.json`), 25 Fälle von der Startansicht bis zur
 manipulierten Sicherung, dazu der Platz auf 414×896 und 360×740: Die
 Startansicht bleibt eine Seite, und an den Chin-ups stehen Herkunftszeile,
 Wechselhinweis und Satzknöpfe über der Leiste. Gegenprobe: gegen v238 wird jeder
-Abschnitt rot, 76 von 119 Prüfungen („5 Übungen · 15 Sätze", „Als zweite
+Abschnitt rot, 93 von 157 Prüfungen („5 Übungen · 15 Sätze", „Als zweite
 Einheit heute", Pull-ups und Chin-ups, Abschluss nach 15). Einzeln zurückgedreht wird jede dieser Stellen rot: das
 Festhalten an jedem der drei Schreibwege, der Filter in `protokolliert()`, die
 Regel „vergeben", die Neurechnung nach dem Verwerfen, beim Vorziehen und nach
 dem Moduswechsel, der Filter in `festeListen()`, die Gleichstandsregel, der
 Nutzen ohne ruhende Gruppen und der Beitrag des festen Zusatzes zur Woche.
+
+Die Prüfung danach (Z20–Z25) fand neun Mängel, sieben verschiedene; gegen den
+ersten Stand von v239 (2598ac7) werden 41 von 188 Prüfungen rot. Einzeln
+zurückgedreht wird jede dieser Stellen rot: die kleinste Satzzahl beim
+Einfügen; die Neurechnung nach „Von vorn beginnen", nach „Verlauf
+zurückholen", beim Rundenwechsel mit offener App, beim Gerät und beim
+Eintragen und Entfernen eines Termins; die Bindung nur hinter einer Woche im
+Protokoll; „zählt nur hinter seiner Woche" (`zusatzZaehlt()`); keine Übungen
+des Trägers an Stelle der angekommenen; die Sitzung beim Start und in
+`halteZusatz()`; der Termin in `zusatzGrund()` und in `ruhendeGruppen()`; die
+weggefallene Zusatzübung in den Notizen. Die Zahl „Woche davor: … von 14" gibt
+der Test mit Nenner aus (Z5): Hier stand zuerst „9 von 12 → 11 von 12" – die
+App hat 14 Gruppen.
 
 `tests/test-zusatztag.mjs`, über 20 Prüfungen – darunter die Gegenrechnung über
 den echten Plan, dass keine Gruppe des Zusatztags mit einer Einheit in

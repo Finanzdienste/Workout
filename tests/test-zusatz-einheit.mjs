@@ -17,12 +17,12 @@
  * (tests/zusatz-tobi-do.json: W1–W8 trainiert, am Sa Chin-ups 1 von 3, der
  * Träger „Zusatztag Woche 2" aus v238 mit Pull-ups und Chin-ups):
  *
- *   Z1   Startansicht: ein Start, „5 + 1 Übungen · 15 + 3 Sätze", keine Zeile
+ *   Z1   Startansicht: ein Start, „5 + 1 Übungen · 15 + 2 Sätze", keine Zeile
  *        „zweite Einheit"; bis zum ersten Eintrag nichts im Protokoll.
  *   Z2   Liste und Herkunftszeile, auch für die Vorlesefunktion.
  *   Z3   Fokus „Übung 1 von 6", Festhalten mit dem ersten Haken, Paarung über
  *        alle, Neuladen. Z3b/Z3c: die beiden anderen Schreibwege.
- *   Z4   Abschluss erst nach allen 18 Sätzen; von Hand „15/18".
+ *   Z4   Abschluss erst nach allen 17 Sätzen; von Hand „15/17".
  *   Z5   Buchhaltung: Woche 3 bekommt nichts, Woche 2 bekommt den Zusatz.
  *   Z6   Liegen gelassen: kein zweiter Zusatztag, kein Rückstand.
  *   Z7   Abbrechen und Zurücksetzen holen den Zusatz neu gerechnet zurück.
@@ -38,6 +38,19 @@
  *   Z17  Fortsetzen nach dem Neuladen im letzten Paar.
  *   Z18  Bodyweight.
  *   Z19  Nacharbeit und Zusatz in derselben Einheit.
+ *   Z20  Kein Leersatz: zwei Chin-ups, nicht drei (1 → 9, 2 → 11, 3 → 11
+ *        Gruppen im Ziel); allein bleibt die volle Satzzahl (Z12).
+ *   Z21  „Von vorn beginnen" räumt den Träger der alten Runde weg, ein
+ *        übrig gebliebener bindet nicht an Workout 1; „Verlauf zurückholen"
+ *        rechnet sofort; ebenso eine Runde, die bei offener App weiterrollt.
+ *   Z22  Klimmzugstange ab und an: Träger neu gerechnet, die Wochenkarte
+ *        behauptet nichts, was nicht in der Einheit steht.
+ *   Z23  Eine Sitzung auf dem Träger endet, wenn er in eine Einheit wandert.
+ *   Z24  Termine: Der Zusatz trifft nichts, was der Tag schont – geladen,
+ *        eingetragen, entfernt; fest und danach eingetragen nennt die Notiz ihn;
+ *        Nebenanteile auf geschonten Gruppen sind kein Nutzen (Boxen).
+ *   Z25  Fester Zusatz, dann Beschwerde oder fehlendes Gerät: Die Notiz nennt
+ *        die weggefallene Übung.
  *
  *   Platz  Startansicht eine Seite, Fokus an den Chin-ups bis zu den Knöpfen
  *          über der Leiste – 414×896 und 360×740.
@@ -52,6 +65,14 @@
  * Gleichstandsregel (Z9), die Neurechnung beim Vorziehen (Z13) und nach dem
  * Moduswechsel (Z14), der Nutzen ohne ruhende Gruppen (Z1) und der Beitrag des
  * festen Zusatzes zur Woche (Z5).
+ *
+ * Z20–Z25 kamen mit der Prüfung danach (gegen 2598ac7 rot): die kleinste
+ * Satzzahl beim Einfügen (Z1, Z2, Z20), pruefeZusatztag() nach Neustart und
+ * Zurückholen (Z21), die Bindung nur hinter einer Woche im Protokoll (Z21),
+ * pruefeZusatztag() beim Gerät (Z22) und bei Terminen (Z24), keine Übungen
+ * des Trägers an Stelle der angekommenen (Z22), die Sitzung beim Start und
+ * in halteZusatz() (Z23), die Termine in ruhendeGruppen() (Z24 Boxen) und in
+ * zusatzGrund() (Z24) und die weggefallene Zusatzübung in den Notizen (Z24, Z25).
  */
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
@@ -184,7 +205,7 @@ async function listeAbhaken(f, wer, hoechstens = 99) {
 /** Was ein festgehaltener Zusatz bei Tobi heißen muss. */
 const TOBI_ZUSATZ = {
   woche: 2,
-  ex: [{ id: 'chin-ups', sets: 3, bwSets: 3 }],
+  ex: [{ id: 'chin-ups', sets: 2, bwSets: 2 }],
   warum: { 'chin-ups': { g: ['lats', 'biceps'], q: [[6, 'chin-ups', 1, 3, 'db']] } },
 };
 const traeger = (st) => (st.customs || []).filter((c) => /^Zusatztag/.test(c.name));
@@ -198,7 +219,7 @@ await abschnitt('Z1', async () => {
   const sub = await f.txt('.hero-sub');
   console.log(`     ${eyebrow} | ${sub}`);
   check(/Heute · Workout 9/.test(eyebrow), `Z1 die Einheit des Tages steht vorn („${eyebrow}")`);
-  check(sub === 'Hanteln · 5 + 1 Übungen · 15 + 3 Sätze', `Z1 eine Einheit, der Zusatz im Kopf („${sub}")`);
+  check(sub === 'Hanteln · 5 + 1 Übungen · 15 + 2 Sätze', `Z1 eine Einheit, der Zusatz im Kopf („${sub}")`);
   check(await f.page.locator('.zusatz-danach').count() === 0, 'Z1 keine Zeile „Als zweite Einheit heute"');
   check(!/zweite Einheit/.test(await f.txt('#view')), 'Z1 nirgends „zweite Einheit"');
   check(await f.page.locator('[data-act="start-session"]').count() === 1, 'Z1 genau ein Start');
@@ -210,8 +231,8 @@ await abschnitt('Z1', async () => {
   const st = await f.lies();
   const tr = traeger(st);
   console.log('     Träger:', JSON.stringify(tr));
-  check(tr.length === 1 && tr[0].name === 'Zusatztag Woche 2' && gleich(tr[0].ex, [{ id: 'chin-ups', sets: 3 }]),
-    'Z1/Z10 genau ein Träger „Zusatztag Woche 2" mit Chin-ups ×3 – keine Pull-ups');
+  check(tr.length === 1 && tr[0].name === 'Zusatztag Woche 2' && gleich(tr[0].ex, [{ id: 'chin-ups', sets: 2 }]),
+    `Z1/Z10/Z20 genau ein Träger „Zusatztag Woche 2" mit Chin-ups ×2 – keine Pull-ups, kein Leersatz (${JSON.stringify((tr[0] || {}).ex)})`);
   check(gleich(((tr[0] || {}).warum || {})['chin-ups']?.q?.[0], [6, 'chin-ups', 1, 3, 'db']),
     'Z1 der Träger kennt seine Herkunft: Workout 6, Chin-ups 1 von 3');
 
@@ -240,14 +261,14 @@ await abschnitt('Z1', async () => {
 
   // Z2 Liste und Herkunftszeile.
   const count = await f.txt('.focus-count');
-  check(count === '5 + 1 Übungen · 0/18 Sätze', `Z2 Kopf der Liste („${count}")`);
+  check(count === '5 + 1 Übungen · 0/17 Sätze', `Z2 Kopf der Liste („${count}")`);
   const namen = await f.alle('article.ex .ex-name');
   check(namen.length === 6 && namen[5] === 'Chin-ups', `Z2 sechs Karten, die Chin-ups am Ende (${namen.join(', ')})`);
   const zw = await f.txt('#zw-chin-ups');
   check(zw === 'Nachgeholt aus Woche 2: am Sa nur 1 von 3 Sätzen abgehakt', `Z2 die Herkunft an der Übung („${zw}")`);
   const knoepfe = await f.page.locator('article.ex').nth(5).locator('.set-btn')
     .evaluateAll((b) => b.map((x) => [x.getAttribute('aria-label'), x.getAttribute('aria-describedby')]));
-  check(knoepfe.length === 3 && knoepfe.every(([l, d], i) => l === `Satz ${i + 1} von 3, nachgeholt, erledigt` && d === 'zw-chin-ups'),
+  check(knoepfe.length === 2 && knoepfe.every(([l, d], i) => l === `Satz ${i + 1} von 2, nachgeholt, erledigt` && d === 'zw-chin-ups'),
     `Z2 jeder Satzknopf sagt „nachgeholt" und verweist auf die Zeile (${knoepfe.map(([l]) => l).join(' | ')})`);
   // Die Einordnung über der Liste nennt die Größen des Plans („4 bis 5
   // Übungen") – eine eingefügte Übung macht daraus keine sechs.
@@ -273,7 +294,7 @@ await abschnitt('Z3', async () => {
   await f.klick('[data-act="start-session"]', 400);
   const kopf = await f.txt('.focus-count');
   console.log(`     ${kopf}`);
-  check(/^⏱ \S+ · Übung 1 von 6 · 0\/18 Sätze$/.test(kopf), `Z3 eine Fokusansicht über alle („${kopf}")`);
+  check(/^⏱ \S+ · Übung 1 von 6 · 0\/17 Sätze$/.test(kopf), `Z3 eine Fokusansicht über alle („${kopf}")`);
   check(await f.page.locator('.prog-ex').count() === 6, 'Z3 der Fortschritt hat sechs Gruppen');
   const ersteUebung = await f.txt('.focus-name');
   await f.klick('.focus-set[aria-pressed="false"]', 400);
@@ -327,7 +348,7 @@ await abschnitt('Z3c', async () => {
   let st = await f.lies();
   const prog = await f.M(({ P }) => P.progressOf(9, 'db'));
   check(gleich(st.log[9]?.zusatz, TOBI_ZUSATZ) && traeger(st).length === 0, 'Z3c „Alle Sätze abhaken" hält den Zusatz fest');
-  check(prog.done === 18 && prog.total === 18, `Z3c und hakt alle 18 ab (${prog.done}/${prog.total})`);
+  check(prog.done === 17 && prog.total === 17, `Z3c und hakt alle 17 ab (${prog.done}/${prog.total})`);
   await f.neuLaden();
   st = await f.lies();
   check(st.log[9].done === 'db' && await f.M(({ P }) => P.completedMode(9)) === 'db',
@@ -345,14 +366,14 @@ await abschnitt('Z4', async () => {
   const plan = await listeAbhaken(f, (n) => n !== 'Chin-ups');
   let st = await f.lies();
   let prog = await f.M(({ P }) => P.progressOf(9, 'db'));
-  check(plan === 15 && prog.done === 15 && prog.total === 18 && !!st.session,
+  check(plan === 15 && prog.done === 15 && prog.total === 17 && !!st.session,
     `Z4 nach den 15 Plansätzen läuft die Einheit weiter (${prog.done}/${prog.total}, Uhr ${st.session ? 'läuft' : 'aus'})`);
   check(!/abgeschlossen/.test(await f.toast()), 'Z4 und es kam kein Abschluss');
   await listeAbhaken(f, (n) => n === 'Chin-ups');
   const t = await f.toast();
   console.log(`     Toast: ${t}`);
-  check(t === 'Training abgeschlossen – alle 18 Sätze 🎉', `Z4 der letzte Chin-up beendet die Einheit („${t}")`);
-  check(/Heute · Workout 9/.test(await f.txt('.hero-eyebrow')) && /Alle 18 Sätze stehen/.test(await f.txt('.fertig-sub')),
+  check(t === 'Training abgeschlossen – alle 17 Sätze 🎉', `Z4 der letzte Chin-up beendet die Einheit („${t}")`);
+  check(/Heute · Workout 9/.test(await f.txt('.hero-eyebrow')) && /Alle 17 Sätze stehen/.test(await f.txt('.fertig-sub')),
     `Z4 die Startansicht bleibt bei Workout 9 („${await f.txt('.fertig-sub')}")`);
   st = await f.lies();
   check(traeger(st).length === 0 && await f.page.locator('.zusatz-danach').count() === 0, 'Z4 kein Träger, keine zweite Einheit danach');
@@ -360,14 +381,14 @@ await abschnitt('Z4', async () => {
   check(!/Zusatztag/.test(await f.txt('.hero-eyebrow')), `Z4 nach dem Neuladen am selben Abend kein Zusatztag vorn („${await f.txt('.hero-eyebrow')}")`);
   await ende(f);
 
-  // Von Hand bei 15/18.
+  // Von Hand bei 15/17.
   const g = await fall('Z4b', VORLAGE);
   await g.klick('[data-act="start-session"]', 400);
   await g.klick('[data-act="focus-list"]');
   await listeAbhaken(g, (n) => n !== 'Chin-ups');
   await g.klick('[data-act="finish-session"]', 400);
   const t2 = await g.toast();
-  check(t2 === 'Gespeichert · 15/18 Sätze', `Z4b von Hand abgeschlossen („${t2}")`);
+  check(t2 === 'Gespeichert · 15/17 Sätze', `Z4b von Hand abgeschlossen („${t2}")`);
   check(await g.M(({ P }) => P.completedMode(9)) === 'db', 'Z4b die Einheit zählt als trainiert');
   await ende(g);
 });
@@ -375,7 +396,7 @@ await abschnitt('Z4', async () => {
 /* ------------------------------------------------------------------ *
  * Z5 Buchhaltung – A mit Zusatz, B ohne; beide Workout 9 ganz abgehakt
  *
- * A hakt in der App alles ab („Alle Sätze abhaken", 18 Sätze). B hakt nur den
+ * A hakt in der App alles ab („Alle Sätze abhaken", 17 Sätze). B hakt nur den
  * Plan ab, an der App vorbei (store.completeWorkout() mit exOf(), 15 Sätze) –
  * so, als hätte es den Zusatz nie gegeben. Die App selbst legt ihn ja beim
  * Laden an. Alles, was dem Plan gehört, muss in A und B gleich sein.
@@ -388,9 +409,9 @@ const wochenKarte = async (f) => {
     host.querySelectorAll('.vol-row').forEach((r) => {
       zeilen[r.querySelector('.vol-name').textContent.trim()] = r.querySelector('.vol-num').textContent.trim();
     });
-    const davor = (host.textContent.match(/Woche davor: (\d+)\s+von (\d+) Gruppen/) || [])[1];
+    const [, davor, von] = host.textContent.match(/Woche davor: (\d+)\s+von (\d+) Gruppen/) || [];
     return { kopf: host.querySelector('.lbl').textContent.trim(), zeilen, davor: davor === undefined ? null : Number(davor),
-      text: host.textContent.replace(/\s+/g, ' ') };
+      von: von === undefined ? null : Number(von), text: host.textContent.replace(/\s+/g, ' ') };
   });
 };
 await abschnitt('Z5', async () => {
@@ -412,8 +433,12 @@ await abschnitt('Z5', async () => {
   'Z5 B: Workout 9 mit den 15 Plansätzen, ohne Zusatz');
   const ka = await wochenKarte(a);
   const kb = await wochenKarte(b);
-  console.log(`     A: ${ka.kopf} Rücken ${ka.zeilen['Rücken']} Bizeps ${ka.zeilen.Bizeps} · davor ${ka.davor}`);
-  console.log(`     B: ${kb.kopf} Rücken ${kb.zeilen['Rücken']} Bizeps ${kb.zeilen.Bizeps} · davor ${kb.davor}`);
+  // Mit Nenner ausgegeben: In README und Bericht stand „9 von 12 → 11 von
+  // 12", die App hat 14 Gruppen. Die Zahl für die README kommt von hier.
+  console.log(`     A: ${ka.kopf} Rücken ${ka.zeilen['Rücken']} Bizeps ${ka.zeilen.Bizeps} · davor ${ka.davor} von ${ka.von}`);
+  console.log(`     B: ${kb.kopf} Rücken ${kb.zeilen['Rücken']} Bizeps ${kb.zeilen.Bizeps} · davor ${kb.davor} von ${kb.von}`);
+  const gruppen = await a.M(async () => Object.keys((await import('./js/body.js')).MUSCLE_LABEL).length);
+  check(ka.von === gruppen && kb.von === gruppen, `Z5 „Woche davor" zählt gegen alle ${gruppen} Gruppen (${ka.von}, ${kb.von})`);
   check(/Woche 3/.test(ka.kopf) && ka.zeilen['Rücken'] === kb.zeilen['Rücken'] && ka.zeilen.Bizeps === kb.zeilen.Bizeps,
     'Z5 Woche 3: Rücken und Bizeps in Soll und Ist gleich, mit und ohne Zusatz – er gehört nicht dieser Woche');
   check(ka.davor !== null && kb.davor !== null && ka.davor >= kb.davor + 2,
@@ -435,8 +460,8 @@ await abschnitt('Z5', async () => {
   check(!ra.plan.includes('chin-ups') && ra.einheit.length === 6, 'Z5 exOf ohne, einheitEx mit dem Zusatz');
   check(!ra.herkunft.includes('chin-ups') && ra.lats === undefined,
     `Z5 für Workout 10 ist der Zusatz weder Rückstand noch Herkunft (${ra.herkunft.join(', ') || 'nichts'})`);
-  check(ra.stats.setsDone === rb.setsDone + 3 && ra.stats.customSets === 0,
-    `Z5 Statistik: drei Sätze mehr, nicht als „eigene" (${ra.stats.setsDone} gegen ${rb.setsDone}, eigene ${ra.stats.customSets})`);
+  check(ra.stats.setsDone === rb.setsDone + 2 && ra.stats.customSets === 0,
+    `Z5 Statistik: zwei Sätze mehr, nicht als „eigene" (${ra.stats.setsDone} gegen ${rb.setsDone}, eigene ${ra.stats.customSets})`);
   await ende(a);
   await ende(b);
 
@@ -507,7 +532,7 @@ await abschnitt('Z7', async () => {
   check(st.log[9]?.zusatz === undefined, 'Z7 Abbrechen löscht den festgehaltenen Zusatz');
   check(traeger(st).length === 1 && traeger(st)[0].name === 'Zusatztag Woche 2', 'Z7 ein neuer Träger steht bereit');
   const sub = await f.txt('.hero-sub');
-  check(sub === 'Hanteln · 5 + 1 Übungen · 15 + 3 Sätze', `Z7 und die Einheit zeigt ihn wieder („${sub}")`);
+  check(sub === 'Hanteln · 5 + 1 Übungen · 15 + 2 Sätze', `Z7 und die Einheit zeigt ihn wieder („${sub}")`);
   // Dasselbe mit „Zurücksetzen" in der Liste bei laufender Einheit.
   await f.klick('[data-act="start-session"]', 400);
   await f.klick('.focus-set[aria-pressed="false"]', 300);
@@ -515,7 +540,7 @@ await abschnitt('Z7', async () => {
   await f.klick('[data-act="reset-workout"]', 400);
   st = await f.lies();
   const kopf = await f.txt('.focus-count');
-  check(st.log[9]?.zusatz === undefined && traeger(st).length === 1 && kopf === '5 + 1 Übungen · 0/18 Sätze',
+  check(st.log[9]?.zusatz === undefined && traeger(st).length === 1 && kopf === '5 + 1 Übungen · 0/17 Sätze',
     `Z7 Zurücksetzen ebenso („${kopf}")`);
   await ende(f);
 });
@@ -661,6 +686,11 @@ await abschnitt('Z12', async () => {
   console.log(`     ${zeilen.join(' | ')}`);
   check(karten >= 2 && karten <= 5 && zeilen.length === karten && zeilen.every((z) => /^Nachgeholt aus Woche 1/.test(z)),
     `Z12 jede seiner ${karten} Übungen sagt, woher sie kommt`);
+  // Allein bleibt es bei der vollen Satzzahl – gekürzt wird nur, was in eine
+  // Einheit eingefügt wird (Z20).
+  const allein = traeger(await f.lies())[0];
+  check(!!allein && allein.ex.every((x) => x.sets === 3),
+    `Z12/Z20 allein: jede Übung mit voller Satzzahl (${(allein ? allein.ex : []).map((x) => `${x.id}×${x.sets}`).join(', ')})`);
   await ende(f);
 });
 
@@ -675,7 +705,7 @@ await abschnitt('Z13', async () => {
   await f.klick('[data-act="start-session"]', 400);
   const t = await f.toast();
   check(t === 'Los geht’s 💪 · dazu Chin-ups aus Woche 2', `Z13 Vorziehen sagt, was dazukommt („${t}")`);
-  check(/Übung 1 von 6 · 0\/18 Sätze/.test(await f.txt('.focus-count')), `Z13 („${await f.txt('.focus-count')}")`);
+  check(/Übung 1 von 6 · 0\/17 Sätze/.test(await f.txt('.focus-count')), `Z13 („${await f.txt('.focus-count')}")`);
   check(await f.M(({ P }) => (P.zusatzBindung ? (P.zusatzBindung() || {}).w?.n : null)) === 9, 'Z13 der Träger steckt in Workout 9');
   await ende(f);
 });
@@ -720,9 +750,9 @@ await abschnitt('Z14', async () => {
   await g.tab('dashboard');
   const r2 = await g.M(({ P }) => {
     const c = P.workoutByNo(9, 'bw').ex.find((x) => x.id === 'chin-ups');
-    return { sets: c ? c.sets : null, erledigt: P.saetzeErledigt(9, 'chin-ups', 3) };
+    return { sets: c ? c.sets : null, erledigt: P.saetzeErledigt(9, 'chin-ups', 2) };
   });
-  check(r2.sets === 3 && r2.erledigt === 1, `Z14b ohne Hanteln stehen die Chin-ups weiter da (${r2.sets} Sätze, ${r2.erledigt} erledigt)`);
+  check(r2.sets === 2 && r2.erledigt === 1, `Z14b ohne Hanteln stehen die Chin-ups weiter da (${r2.sets} Sätze, ${r2.erledigt} erledigt)`);
   await g.klick('[data-act="focus-list"]');
   await g.klick('[data-act="complete-workout"]', 400);
   const p = await g.M(({ P }) => P.progressOf(9, 'bw'));
@@ -786,7 +816,7 @@ await abschnitt('Z16', async () => {
   const detail = await f.alle('.cal-detail');
   const det = detail.join(' ');
   console.log(`     Kalender: ${det.slice(0, 160)}`);
-  check(/5 \+ 1 Übungen · 15 \+ 3 Sätze/.test(det) && /Chin-ups.*· nachgeholt/.test(det), 'Z16 Kalender: der Tag zeigt die ganze Einheit, die Chin-ups als nachgeholt');
+  check(/5 \+ 1 Übungen · 15 \+ 2 Sätze/.test(det) && /Chin-ups.*· nachgeholt/.test(det), 'Z16 Kalender: der Tag zeigt die ganze Einheit, die Chin-ups als nachgeholt');
   check(!/\(\+1\)/.test(kachel), `Z16 die Kachel zählt keine zweite Einheit („${kachel}")`);
   // Statistik
   await f.tab('stats');
@@ -909,6 +939,335 @@ await abschnitt('Z19', async () => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Z20 Kein Leersatz: eingefügt nur so viele Sätze, wie etwas bringen
+ *
+ * An Tobis Chin-ups stand „am Sa nur 1 von 3 Sätzen abgehakt", eingefügt
+ * waren aber drei. Gemessen an Woche 2 („Woche davor" auf der Wochenkarte):
+ * Workout 9 ganz, dazu k Sätze Chin-ups, festgehalten wie aus der App. Der
+ * erste Satz reicht nicht, der zweite schließt Rücken und Bizeps, der dritte
+ * bringt nichts mehr – deshalb sind es zwei (Z1, Z2).
+ * ------------------------------------------------------------------ */
+const mitChinups = (k) => {
+  const z = kopie(VORLAGE);
+  z.customs = [];
+  const e = { mode: 'db', done: 'db', soll: {}, nach: {}, nachFest: { db: {}, bw: {} }, nachWarum: { db: {}, bw: {} },
+    db: {}, bw: {}, startedOn: '2026-10-08', zusatz: { ...kopie(TOBI_ZUSATZ), ex: [{ id: 'chin-ups', sets: k, bwSets: k }] } };
+  ['rumaenisches-kreuzheben', 'floor-press', 'fersenerhoehter-goblet-squat', 'haengendes-knieheben', 'reverse-fly'].forEach((id) => {
+    e.soll[id] = 3;
+    e.nach[id] = 0;
+    e.db[id] = Array.from({ length: 3 }, () => ({ w: '20', done: true }));
+  });
+  e.db['chin-ups'] = Array.from({ length: k }, () => ({ w: '', done: true }));
+  z.log[9] = e;
+  return z;
+};
+await abschnitt('Z20', async () => {
+  const davor = {};
+  for (const k of [1, 2, 3]) {
+    const f = await fall(`Z20 ${k} Chin-ups`, mitChinups(k));
+    const karte = await wochenKarte(f);
+    davor[k] = karte.davor;
+    await ende(f);
+  }
+  console.log(`     Woche 2 im Ziel mit 1 / 2 / 3 Sätzen Chin-ups: ${davor[1]} / ${davor[2]} / ${davor[3]} von 14`);
+  check(davor[1] < davor[2], `Z20 ein Satz reicht nicht (${davor[1]} gegen ${davor[2]})`);
+  check(davor[2] === davor[3], `Z20 ein dritter Satz bringt nichts mehr (${davor[2]} gegen ${davor[3]})`);
+});
+
+/* ------------------------------------------------------------------ *
+ * Z21 „Von vorn beginnen" und „Verlauf zurückholen"
+ *
+ * Der Träger der alten Runde blieb nach dem Neustart stehen und hing sich an
+ * Workout 1 der neuen Runde – mit einem Datum in der Zukunft an der Übung und,
+ * nach dem ersten Haken, als vergebener Zusatz der neuen Woche 2.
+ * ------------------------------------------------------------------ */
+await abschnitt('Z21', async () => {
+  const f = await fall('Z21', VORLAGE);
+  check(traeger(await f.lies()).length === 1, 'Z21 vorher steht der Träger');
+  await f.tab('settings');
+  await f.klick('[data-act="restart-plan"]', 500);
+  await f.tab('dashboard');
+  let st = await f.lies();
+  const sub = await f.txt('.hero-sub');
+  check(traeger(st).length === 0, 'Z21 nach „Von vorn beginnen" ist der Träger der alten Runde weg – ohne Neuladen');
+  check(/Workout 1/.test(await f.txt('.hero-eyebrow')) && !/\+/.test(sub), `Z21 Workout 1 ohne Zusatz („${sub}")`);
+  // Und hielte ihn doch jemand fest (eine Sicherung, ein Stand von vorher):
+  // Workout 1 nimmt keinen Zusatztag einer Woche, die es im Protokoll nicht gibt.
+  const r = await f.M(({ P, store }) => {
+    store.saveCustom({ name: 'Zusatztag Woche 2', ex: [{ id: 'chin-ups', sets: 2 }] });
+    return { b: P.zusatzBindung(), zus: P.workoutByNo(1, 'db').ex.filter((x) => x.zusatz).length };
+  });
+  check(r.b === null && r.zus === 0, 'Z21 ein übrig gebliebener Träger bindet nicht an Workout 1');
+  await f.klick('[data-act="show-list"]');
+  await listeAbhaken(f, () => true, 1);
+  st = await f.lies();
+  check(st.log[1] && st.log[1].zusatz === undefined && await f.M(({ P }) => P.zusatzVergeben(2)) === false,
+    'Z21 der erste Haken in Workout 1 hält nichts fest; Woche 2 der neuen Runde behält ihren Zusatztag');
+  await ende(f);
+
+  // Zurückholen: Mit dem Verlauf ist Woche 2 wieder fertig, und der Träger
+  // steht sofort so da, wie ihn der nächste Start rechnen würde – nicht erst
+  // dann. (Workout 9 liegt danach in der Zukunft, der Neustart hat die Termine
+  // auf heute gelegt; der Zusatztag steht deshalb allein und braucht zwei
+  // Übungen. In Workout 5 ist dafür das Band-Seitheben liegen geblieben.)
+  const zz = kopie(VORLAGE);
+  zz.log[5].db['band-seitheben'] = zz.log[5].db['band-seitheben'].map(() => ({ w: '', done: false }));
+  const g = await fall('Z21 zurück', zz);
+  await g.tab('settings');
+  await g.klick('[data-act="restart-plan"]', 500);
+  check(traeger(await g.lies()).length === 0, 'Z21 zurück: nach dem Neustart kein Träger');
+  await g.klick('[data-act="restore-round"]', 500);
+  const sofort = traeger(await g.lies()).map((c) => [c.name, c.ex]);
+  await g.neuLaden();
+  const danach = traeger(await g.lies()).map((c) => [c.name, c.ex]);
+  console.log(`     zurückgeholt: ${JSON.stringify(sofort)}`);
+  check(sofort.length === 1 && gleich(sofort, danach),
+    `Z21 zurück: „Verlauf zurückholen" rechnet ihn sofort, wie der nächste Start (${JSON.stringify(sofort)} / ${JSON.stringify(danach)})`);
+  await ende(g);
+
+  // Eine Sicherung mit einem Zusatz der Woche 2 in Workout 1: zählt nicht.
+  const z = kopie(VORLAGE);
+  z.log = { 1: { ...kopie(VORLAGE.log[1]), zusatz: kopie(TOBI_ZUSATZ) } };
+  z.log[1].db['chin-ups'] = [{ w: '', done: true }, { w: '', done: true }];
+  z.customs = [];
+  const h = await fall('Z21 Sicherung', z);
+  const r2 = await h.M(({ P, store }) => ({ vergeben: P.zusatzVergeben(2), zaehlt: P.zusatzZaehlt(1, P.festerZusatz(store.getState().log[1])) }));
+  check(r2.vergeben === false && r2.zaehlt === false, `Z21 ein Zusatz in oder vor seiner Woche zählt nicht für sie (${JSON.stringify(r2)})`);
+  await ende(h);
+
+  // Und wenn die Runde bei offener App weiterrollt (rundeWeiter() beim
+  // Zurückkommen, am selben Tag): Der Träger, den der Abschluss der letzten
+  // Woche angelegt hat, gehört zur alten Runde – wie nach „Von vorn beginnen".
+  // (Der aus der Vorlage für Woche 2 steht dann auch noch da.)
+  const k = await fall('Z21 Runde', VORLAGE);
+  const vor = await k.M(({ P, D, store }) => {
+    D.PLAN.filter((w) => !P.completedMode(w.n)).forEach((w) => store.completeWorkout(w.n, 'db', P.exOf(w, 'db')));
+    const letzte = Math.ceil(D.PLAN.length / P.WEEK_SESSIONS);
+    store.saveCustom({ name: `Zusatztag Woche ${letzte}`, ex: [{ id: 'chin-ups', sets: 3 }, { id: 'face-pull', sets: 3 }] });
+    return { alle: D.PLAN.every((w) => P.completedMode(w.n)), traeger: store.customs().filter((c) => /^Zusatztag/.test(c.name)).length };
+  });
+  await k.page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await k.page.waitForTimeout(400);
+  const st3 = await k.lies();
+  check(vor.alle && vor.traeger >= 1 && Object.keys(st3.log || {}).length === 0,
+    `Z21 Runde: alle Einheiten fertig, beim Zurückkommen rollt die Runde weiter (${JSON.stringify(vor)}, Protokoll ${Object.keys(st3.log || {}).length})`);
+  check(traeger(st3).length === 0, `Z21 Runde: der Träger der alten Runde ist sofort weg (${traeger(st3).map((c) => c.name).join(', ') || 'keiner'})`);
+  await ende(k);
+});
+
+/* ------------------------------------------------------------------ *
+ * Z22 Gerätevorrat: Klimmzugstange ab- und wieder anwählen
+ * ------------------------------------------------------------------ */
+const stange = async (f) => {
+  await f.tab('settings');
+  await f.klick('[data-act="vorrat-seite"][data-v="bw"]');
+  await f.klick('[data-act="toggle-vorrat"][data-v="stange"]', 400);
+};
+const stimmig = (f) => f.M(({ P, store }) => {
+  const c = store.customs().find((x) => /^Zusatztag/.test(x.name));
+  const zus = P.workoutByNo(9, 'db').ex.filter((x) => x.zusatz).map((x) => x.id);
+  return { traeger: c ? c.ex.map((x) => x.id) : [], zus, ok: !c || c.ex.every((x) => zus.includes(x.id)) };
+});
+await abschnitt('Z22', async () => {
+  const f = await fall('Z22', VORLAGE);
+  await stange(f);
+  await f.tab('dashboard');
+  const sub = await f.txt('.hero-sub');
+  const r = await stimmig(f);
+  console.log(`     ohne Stange: ${sub} · Träger ${r.traeger.join(', ') || '–'} · in Workout 9 ${r.zus.join(', ') || '–'}`);
+  check(r.ok, 'Z22 ohne Stange wird der Träger neu gerechnet – er nennt nichts, was nicht in Workout 9 steht');
+  await f.tab('stats');
+  check(!/Chin-ups/.test(await f.txt('#volWeek')), 'Z22 die Wochenkarte behauptet keine Chin-ups in Workout 9');
+  // Ein Träger, von dem heute nichts in die Einheit passt: Die Karte sagt
+  // das, statt seine Übungen als „holt Workout 9 heute nach" auszugeben.
+  await f.M(({ store }) => store.saveCustom({ name: 'Zusatztag Woche 2', ex: [{ id: 'chin-ups', sets: 2 }] }));
+  await f.tab('dashboard');
+  await f.tab('stats');
+  const hinweis = await f.txt('#volWeek .zusatz-hinweis');
+  check(!/holt Workout 9 heute nach/.test(hinweis) && /In Workout 9 geht davon heute nichts/.test(hinweis),
+    `Z22 nichts angekommen, nichts behauptet („${hinweis}")`);
+  await stange(f);
+  await f.tab('dashboard');
+  const sub2 = await f.txt('.hero-sub');
+  check(sub2 === 'Hanteln · 5 + 1 Übungen · 15 + 2 Sätze' && (await stimmig(f)).ok,
+    `Z22 mit Stange kommen die Chin-ups zurück („${sub2}")`);
+  await ende(f);
+});
+
+/* ------------------------------------------------------------------ *
+ * Z23 Eine Sitzung auf dem Träger
+ *
+ * Standardplan, Woche 1 mit Lücken, Workout 4 am Do. Fr ist Ruhetag: der
+ * Zusatztag allein, Start getippt, nichts abgehakt. So ist Workout 5 fällig,
+ * und der Zusatztag steckt darin. Vorher stand dort „Zusatztag Woche 1 läuft
+ * noch. ▶︎ Zurück zu Zusatztag Woche 1", im Kreis, und nach dem ersten Satz
+ * „Eigenes Workout läuft noch".
+ * ------------------------------------------------------------------ */
+await abschnitt('Z23', async () => {
+  const leer = await fall('Z23 Aufbau', null);
+  const zustand = await leer.M(({ D }, heute) => {
+    const plan = D.PLANS.standard.plan;
+    const tage = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+    const add = (iso, k) => new Date(Date.parse(iso) + k * 864e5).toISOString().slice(0, 10);
+    const shift = tage(plan[4].date, add(heute, 3));
+    const log = {};
+    plan.slice(0, 4).forEach((w, i) => {
+      const e = { mode: 'db', soll: {}, nach: {}, nachFest: { db: {}, bw: {} }, db: {}, bw: {}, done: 'db',
+        startedOn: i === 3 ? heute : add(w.date, shift - 1) };
+      w.ex.forEach((it, k) => {
+        e.soll[it.id] = it.sets;
+        e.nach[it.id] = 0;
+        const an = i < 3 && k >= w.ex.length - 2 ? 0 : it.sets;
+        e.db[it.id] = Array.from({ length: it.sets }, (_, s) => ({ w: s < an ? '20' : '', done: s < an }));
+      });
+      log[w.n] = e;
+    });
+    return { greeted: true, setupDone: true, name: 'T', focus: 'standard', level: 'geuebt', mode: 'db',
+      supersatz: false, planStand: { standard: D.PLANS.standard.stand }, planSaetze: { standard: D.PLANS.standard.saetze },
+      shift, log };
+  }, '2026-10-08');
+  await leer.ctx.close();
+  const f = await fall('Z23', zustand, '2026-10-09T17:00:00+02:00');
+  check(/Heute · Zusatztag$/.test(await f.txt('.hero-eyebrow')), `Z23 Fr: der Zusatztag allein („${await f.txt('.hero-eyebrow')}")`);
+  await f.klick('[data-act="start-session"]', 400);
+  const traegerId = (await f.lies()).session?.n;
+  check(typeof traegerId === 'string' && traegerId.startsWith('c'), `Z23 Fr: die Sitzung steht auf dem Träger (${traegerId})`);
+  await f.uhr('2026-10-11T17:00:00+02:00');
+  await f.neuLaden();
+  let st = await f.lies();
+  const sub = await f.txt('.hero-sub');
+  console.log(`     So: ${await f.txt('.hero-eyebrow')} · ${sub} · Sitzung ${JSON.stringify(st.session)}`);
+  check(/Heute · Workout 5/.test(await f.txt('.hero-eyebrow')) && /\d \+ \d Übungen/.test(sub), 'Z23 So: der Zusatztag steckt in Workout 5');
+  check(st.session === null && await f.page.locator('.laeuft-woanders').count() === 0
+    && await f.page.locator('[data-act="start-session"]').count() === 1,
+  'Z23 So: keine Sitzung auf dem Träger, kein „läuft noch", ein Start');
+  // Und wenn doch eine stehen geblieben ist (über Mitternacht offen, ohne
+  // Prüfung): Der erste Satz, der den Träger verbraucht, nimmt sie mit.
+  await f.M(({ store }, id) => store.startSession(id), traegerId);
+  await f.tab('stats');
+  await f.tab('dashboard');
+  check(await f.page.locator('.laeuft-woanders').count() === 1, 'Z23 (gestellt) die Sitzung steht wieder auf dem Träger');
+  await f.klick('[data-act="show-list"]');
+  await listeAbhaken(f, () => true, 1);
+  await f.klick('[data-act="hide-list"]');
+  st = await f.lies();
+  check(!!st.log[5]?.zusatz && traeger(st).length === 0 && (st.session === null || st.session.n !== traegerId)
+    && await f.page.locator('.laeuft-woanders').count() === 0,
+  `Z23 der erste Satz verbraucht den Träger samt seiner Sitzung (Sitzung ${JSON.stringify(st.session)})`);
+  await ende(f);
+});
+
+/* ------------------------------------------------------------------ *
+ * Z24 Termine
+ *
+ * Bouldern schont Rücken, Bizeps, Schultern. Der Plan nimmt an so einem Tag
+ * heraus, was sie direkt trifft – und der Zusatz darf sie dann auch nicht
+ * treffen. Vorher kam mit Bouldern am Fr die Inverted Row dazu.
+ * ------------------------------------------------------------------ */
+const terminTreffer = (f) => f.M(({ P }) => import('./js/termine.js').then((T) => import('./js/uebung.js').then((U) => {
+  const g = T.geschont('2026-10-08').gruppen;
+  const zus = P.workoutByNo(9, 'db').ex.filter((x) => x.zusatz);
+  return { geschont: [...g], zus: zus.map((x) => x.id),
+    treffer: zus.flatMap((x) => U.directOf(x.id).filter((m) => g.has(m)).map((m) => `${x.id}:${m}`)) };
+})));
+await abschnitt('Z24', async () => {
+  const z = kopie(VORLAGE);
+  z.termine = [{ datum: '2026-10-09', name: 'Bouldern', aktivitaet: 'bouldern', minuten: 90 }];
+  const f = await fall('Z24 Fr', z);
+  const r = await terminTreffer(f);
+  await f.klick('[data-act="show-list"]');
+  const notiz = (await f.alle('.injury-note')).join(' ');
+  console.log(`     Bouldern Fr: geschont ${r.geschont.join(', ')} · Zusatz ${r.zus.join(', ') || '–'} · ${await f.txt('.focus-count')}`);
+  check(/Rücksicht auf: Bouldern/.test(notiz) && /Reverse Fly/.test(notiz), 'Z24 der Plan nimmt den Reverse Fly heraus');
+  check(r.treffer.length === 0, `Z24 und der Zusatz trifft keine geschonte Gruppe (${r.treffer.join(', ') || 'keine'})`);
+  check((await stimmig(f)).ok, 'Z24 der Träger nennt nichts, was nicht in der Einheit steht');
+  await ende(f);
+
+  // Was ein Termin schont, ist auch kein Nutzen. Zwei Stunden Boxen am Fr
+  // schonen am Do unter anderem hintere Schulter und Nacken, aber weder Rücken
+  // noch Bizeps; der Plan nimmt den Reverse Fly heraus, und damit ruhen die
+  // beiden nicht mehr über die Einheit. Zählten ihre Nebenanteile als Nutzen,
+  // gewönnen die Pull-ups (Nacken 0,35, hintere Schulter 0,2 je Satz) vor den
+  // Chin-ups – genau mit der Last auf den Gruppen, die geschont werden sollen.
+  const zb = kopie(VORLAGE);
+  zb.termine = [{ datum: '2026-10-09', name: 'Boxen', aktivitaet: 'boxen', minuten: 120 }];
+  const b = await fall('Z24 Boxen', zb);
+  const rb = await b.M(({ P, store }) => {
+    const c = store.customs().find((x) => /^Zusatztag/.test(x.name));
+    return { traeger: c ? c.ex.map((x) => `${x.id}×${x.sets}`) : [],
+      plan: P.workoutByNo(9, 'db').ex.filter((x) => !x.zusatz).map((x) => x.id) };
+  });
+  console.log(`     Boxen Fr: Plan ${rb.plan.join(', ')} · Träger ${rb.traeger.join(', ') || '–'}`);
+  check(!rb.plan.includes('reverse-fly') && gleich(rb.traeger, ['chin-ups×2']),
+    `Z24 Boxen: Nebenanteile auf geschonten Gruppen entscheiden nichts – Chin-ups ×2, keine Pull-ups (${rb.traeger.join(', ') || '–'})`);
+  await ende(b);
+
+  // Erst nach dem Laden eingetragen – heute Bouldern –, und wieder entfernt.
+  const g = await fall('Z24 neu', VORLAGE);
+  await g.tab('settings');
+  await g.klick('[data-act="termin-akt"][data-v="bouldern"]');
+  await g.klick('[data-act="termin-neu"]', 400);
+  await g.tab('dashboard');
+  const r2 = await terminTreffer(g);
+  const s2 = await stimmig(g);
+  console.log(`     eingetragen: ${await g.txt('.hero-sub')} · Träger ${s2.traeger.join(', ') || '–'}`);
+  check(r2.treffer.length === 0 && s2.ok, 'Z24 „eintragen" rechnet den Träger neu: nichts Geschontes, nichts Behauptetes');
+  await g.tab('settings');
+  await g.klick('[data-act="termin-weg"]', 400);
+  await g.tab('dashboard');
+  const sub = await g.txt('.hero-sub');
+  check(sub === 'Hanteln · 5 + 1 Übungen · 15 + 2 Sätze', `Z24 „Entfernen" holt die Chin-ups zurück („${sub}")`);
+  await ende(g);
+
+  // Fest, dann der Termin: Die unberührten Chin-ups fallen weg – und die
+  // Notiz sagt es, in derselben Zeile wie beim Plan.
+  const h = await fall('Z24 fest', VORLAGE);
+  await h.klick('[data-act="show-list"]');
+  await listeAbhaken(h, (n) => n !== 'Chin-ups', 1);
+  await h.M(({ store }) => store.setSetting('termine', [{ datum: '2026-10-09', name: 'Bouldern', aktivitaet: 'bouldern', minuten: 90 }]));
+  await h.klick('[data-act="hide-list"]');
+  await h.klick('[data-act="show-list"]');
+  const notiz3 = (await h.alle('.injury-note')).join(' ');
+  check(/Heute fällt deshalb weg:.*Chin-ups \(nachgeholt aus Woche 2\)/.test(notiz3),
+    `Z24/M9 die weggefallenen Chin-ups stehen in der Termin-Notiz („${notiz3.slice(0, 140)}")`);
+  await ende(h);
+});
+
+/* ------------------------------------------------------------------ *
+ * Z25 Fester Zusatz, danach Beschwerde oder fehlendes Gerät
+ *
+ * Der Zusatz ist mit dem ersten Satz vergeben und wird nicht ersetzt. Fällt
+ * eine seiner Übungen danach weg, sagt die Notiz es – wie bei einer Planübung.
+ * ------------------------------------------------------------------ */
+await abschnitt('Z25', async () => {
+  const f = await fall('Z25 Beschwerde', VORLAGE);
+  await f.klick('[data-act="show-list"]');
+  await listeAbhaken(f, (n) => n !== 'Chin-ups', 1);
+  await f.M(({ store }) => store.toggleInjury('tennisarm', true));
+  await f.klick('[data-act="hide-list"]');
+  await f.klick('[data-act="show-list"]');
+  const kopf = await f.txt('.focus-count');
+  const notiz = (await f.alle('.injury-note')).join(' ');
+  console.log(`     Tennisarm: ${kopf} · ${notiz.slice(0, 120)}`);
+  check(kopf === '5 Übungen · 1/15 Sätze' && /Chin-ups \(nachgeholt aus Woche 2\) fällt aus/.test(notiz),
+    'Z25 Tennisarm: die Chin-ups fallen weg, und die Rücksicht-Notiz nennt sie');
+  await ende(f);
+
+  const g = await fall('Z25 Gerät', VORLAGE);
+  await g.klick('[data-act="show-list"]');
+  await listeAbhaken(g, (n) => n !== 'Chin-ups', 1);
+  await g.klick('#restSkip');   // die Pausenleiste liegt sonst über dem Schalter
+  await stange(g);
+  await g.tab('dashboard');
+  // Der Reiter kommt in die Liste zurück, aus der er verlassen wurde.
+  if (!(await g.page.locator('article.ex').count())) await g.klick('[data-act="show-list"]');
+  const notiz2 = (await g.alle('.injury-note')).join(' ');
+  check(/Nicht da: .*Klimmzugstange/.test(notiz2) && /Chin-ups \(nachgeholt aus Woche 2\) fällt aus/.test(notiz2),
+    `Z25 ohne Stange: die Vorrat-Notiz nennt die Chin-ups („${notiz2.slice(0, 120)}")`);
+  await ende(g);
+});
+
+/* ------------------------------------------------------------------ *
  * Platz: Die Startansicht bleibt eine Bildschirmseite, und in der
  * Fokusansicht liegt die Knopfreihe auch mit der Herkunftszeile und dem
  * Wechselhinweis ganz über der Leiste.
@@ -964,7 +1323,7 @@ await abschnitt('Messung', async () => {
   });
   console.log(`     Tobi Do: Sätze ${m.saetze.join(' → ')} · Rüstschritte ${m.schritte.join(' → ')} · Paare ${m.paare.join(' → ')}`
     + ` · Formelzeit ohne Supersatz ${m.minuten[0]} → ${m.minuten[1]} min (Pull-ups + Chin-ups: ${m.minuten[2]} min)`);
-  check(m.saetze[1] === 18 && m.schritte[0] === m.schritte[1], 'Messung: 18 Sätze, kein zusätzlicher Rüstschritt');
+  check(m.saetze[1] === 17 && m.schritte[0] === m.schritte[1], 'Messung: 17 Sätze, kein zusätzlicher Rüstschritt');
   await f.page.screenshot({ path: path.join(SHOT, 'zusatz-einheit-start.png') });
   await ende(f);
 });

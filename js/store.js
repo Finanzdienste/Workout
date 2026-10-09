@@ -953,7 +953,30 @@ export function halteZusatz(n, wert, traegerId) {
   if (traegerId) {
     state.customs = customs().filter((c) => c.id !== traegerId);
     delete state.log[traegerId];
+    // Und eine Sitzung, die noch auf dem Träger stand – angetippt an seinem
+    // Ruhetag, ohne einen Satz. Blieb sie stehen, zeigte die Einheit, in der
+    // er jetzt steckt, „Eigenes Workout läuft noch. Zurück zu Eigenes
+    // Workout" – eine zweite Einheit, die es gar nicht mehr gab.
+    if (state.session && state.session.n === traegerId) state.session = null;
+    if (state.clock && state.clock.n === traegerId) state.clock = null;
   }
+  persist();
+  emit();
+}
+
+/**
+ * Eine Sitzung ohne Buchung beenden – für eine Einheit, die nicht mehr für
+ * sich steht: einen Zusatztag, der jetzt in der Einheit des Tages steckt
+ * (traegerSitzungLoesen() in js/app.js). Gebucht wird nichts, weil es nichts
+ * zu buchen gibt: Ein Träger, der sich einfügen lässt, hat keinen Satz, und
+ * seine Zeit gehört keiner Einheit, die es noch gibt.
+ */
+export function sitzungVerwerfen(n) {
+  const s = state.session && state.session.n === n;
+  const c = state.clock && state.clock.n === n;
+  if (!s && !c) return;
+  if (s) state.session = null;
+  if (c) state.clock = null;
   persist();
   emit();
 }

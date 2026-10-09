@@ -1369,16 +1369,42 @@ export function zusatzEinheit() {
  * Wo der bereitstehende Zusatztag heute hingehört: { w, c, woche } oder null.
  * Gemerkt je Tag und bei jeder Zustandsänderung verworfen, wie planCache –
  * gefragt wird bei jedem Zeichnen viele Male.
+ *
+ * **Nur hinter seiner Woche, und nur, wenn es die im Protokoll gibt.** Ein
+ * Träger „Zusatztag Woche 2" gehört zu einem Protokoll, in dem Woche 2
+ * trainiert ist. Nach „Von vorn beginnen" war das Protokoll leer, der Träger
+ * stand noch da (aufgeräumt wird erst in pruefeZusatztag()), und hier hing er
+ * sich an Workout 1 der neuen Runde: „5 + 1 Übungen", an der Übung „Nachgeholt
+ * aus Woche 2: am Do 15.10. keinen von 3 Sätzen abgehakt" – ein Tag in der
+ * Zukunft. Mit dem ersten Haken stand er dort fest, und die neue Runde bekam
+ * für ihre Woche 2 nie einen eigenen. Deshalb bindet er nur an eine Einheit
+ * hinter seiner Woche, und nur, wenn jede Einheit dieser Woche angefangen ist.
+ * Gefragt wird isStarted() und nicht completedMode(): Das ginge über
+ * workoutByNo() und einheitEx() bis hierher zurück. Für eine fertige Woche
+ * folgt das eine aus dem anderen – fertig heißt mindestens angefangen.
  */
 const bindung = { key: null, wert: null };
 export function zusatzBindung() {
   const heute = todayISO();
   if (bindung.key === heute) return bindung.wert;
   const c = offenerZusatztag();
-  const w = c ? zusatzEinheit() : null;
+  const woche = c ? Number(ZUSATZ_NAME.exec(c.name)[1]) : 0;
+  const w = c ? zusatzEinheitFuer(woche) : null;
   bindung.key = heute;
-  bindung.wert = c && w ? { w, c, woche: Number(ZUSATZ_NAME.exec(c.name)[1]) } : null;
+  bindung.wert = c && w ? { w, c, woche } : null;
   return bindung.wert;
+}
+
+/**
+ * Die Einheit, die heute den Zusatztag der Woche `woche` aufnimmt – oder null
+ * (siehe zusatzBindung()). Dieselbe Frage stellt pruefeZusatztag() in
+ * js/app.js, bevor es den Träger rechnet: für eine Einheit oder für sich allein.
+ */
+export function zusatzEinheitFuer(woche) {
+  const w = zusatzEinheit();
+  if (!w || !(w.n > woche * WEEK_SESSIONS)) return null;
+  const block = PLAN.slice((woche - 1) * WEEK_SESSIONS, woche * WEEK_SESSIONS);
+  return block.length === WEEK_SESSIONS && block.every((x) => store.isStarted(x.n)) ? w : null;
 }
 
 /** Eine Satzzahl aus fremder Hand: ganz, 1 bis 10, sonst `rueck`. */
@@ -1428,6 +1454,18 @@ export function zusatzIds(e) {
 }
 
 /**
+ * Zählt dieser festgehaltene Zusatz für seine Woche? Nur in einer Einheit
+ * *hinter* ihr – eine Woche holt nichts in ihren eigenen Tagen oder davor
+ * nach. Seit zusatzBindung() das prüft, entsteht so etwas nicht mehr; eine
+ * Sicherung kann es aber mitbringen (siehe festerZusatz()), und dann soll sie
+ * weder eine Woche gutschreiben, die noch gar nicht begonnen hat, noch ihr den
+ * eigenen Zusatztag wegnehmen (zusatzVergeben()).
+ */
+export function zusatzZaehlt(n, z) {
+  return !!z && Number.isInteger(n) && n > z.woche * WEEK_SESSIONS;
+}
+
+/**
  * Ist der Zusatztag dieser Woche schon in einer Einheit aufgegangen?
  *
  * Dann ist er verbraucht – gemacht oder liegen gelassen. Ein liegen
@@ -1436,9 +1474,9 @@ export function zusatzIds(e) {
  * schaukelte sich der Rückstand auf.
  */
 export function zusatzVergeben(nr) {
-  return Object.values(store.getState().log || {}).some((e) => {
+  return Object.entries(store.getState().log || {}).some(([k, e]) => {
     const z = festerZusatz(e);
-    return !!z && z.woche === nr;
+    return !!z && z.woche === nr && zusatzZaehlt(Number(k), z);
   });
 }
 
@@ -1451,24 +1489,53 @@ function angefasst(e, id) {
 }
 
 /**
+ * Warum eine noch unberührte Zusatzübung heute nicht geht – oder null.
+ *
+ *   beschwerde  eine angehakte Beschwerde sperrt sie im Modus
+ *   geraet      ihr Gerät fehlt, oder sie ist abgewählt (uebungGeht())
+ *   termin      ein Termin schont an diesem Tag eine Gruppe, die sie direkt
+ *               trifft – dieselbe Regel, mit der der Plan seine eigenen
+ *               Übungen wegnimmt (faelltAus() in js/termine.js)
+ *
+ * Der Termin fehlte zuerst: Mit Bouldern am Freitag nahm der Plan am
+ * Donnerstag den Reverse Fly heraus („Heute fällt deshalb weg: Hängendes
+ * Knieheben · Reverse Fly"), und darunter stand als Zusatz die Inverted Row –
+ * Rücken, Nacken, Bizeps, hintere Schulter, genau die geschonten Gruppen.
+ *
+ * Dieselbe Prüfung wählt die Übungen aus (zusatztagEx() in js/app.js) – sonst
+ * käme in den Träger, was hier gleich wieder herausfällt.
+ */
+export function zusatzGrund(id, m, tag, sperre) {
+  if (sperre.has(id)) return 'beschwerde';
+  if (!uebungGeht(id, m)) return 'geraet';
+  if (faelltAus([{ id }], tag).dropped.length) return 'termin';
+  return null;
+}
+
+/**
  * Die Übungen des Zusatztags in dieser Einheit – oder [].
  *
  * Fest, wenn log[n].zusatz steht: dieselben Kennungen, die Satzzahl des Modus.
  * Eine noch unberührte Übung fällt dabei weg, wenn eine Beschwerde sie im
- * Modus sperrt oder das Gerät fehlt; eine angefasste bleibt (dieselbe Regel
- * wie behalteProtokolliertes()). Sonst live aus dem Träger, solange er an
- * diese Einheit gebunden ist (zusatzBindung()). Was schon im Plan der Einheit
- * steht, kommt nie ein zweites Mal dazu.
+ * Modus sperrt, das Gerät fehlt oder ein Termin ihre Gruppen schont
+ * (zusatzGrund()); eine angefasste bleibt (dieselbe Regel wie
+ * behalteProtokolliertes()). Was so wegfällt, nennt die Notiz über der Liste
+ * (zusatzWeg()). Sonst live aus dem Träger, solange er an diese Einheit
+ * gebunden ist (zusatzBindung()) – dort fällt nichts weg, was die Notiz nennen
+ * müsste: Jede dieser Änderungen rechnet den Träger neu (pruefeZusatztag() in
+ * js/app.js), und was dann nicht geht, wird ersetzt. Was schon im Plan der
+ * Einheit steht, kommt nie ein zweites Mal dazu.
  */
 function zusatzListe(w, m, plan) {
   const e = store.getState().log[w.n];
   const drin = new Set(plan.map((it) => it.id));
   const z = festerZusatz(e);
+  const tag = effDate(w);
   if (z) {
     const sperre = gesperrt(activeInjuries(), m);
     return z.ex
       .filter((x) => !drin.has(x.id)
-        && (angefasst(e, x.id) || (!sperre.has(x.id) && uebungGeht(x.id, m))))
+        && (angefasst(e, x.id) || !zusatzGrund(x.id, m, tag, sperre)))
       .map((x) => ({
         id: x.id, sets: m === 'bw' ? x.bwSets : x.sets, bwSets: x.bwSets,
         zusatz: { woche: z.woche, warum: z.warum[x.id] || null, live: false },
@@ -1479,11 +1546,39 @@ function zusatzListe(w, m, plan) {
   if (!b || b.w.n !== w.n) return [];
   const sperre = gesperrt(activeInjuries(), m);
   return b.c.ex
-    .filter((x) => EX_BY_ID.has(x.id) && !drin.has(x.id) && !sperre.has(x.id) && uebungGeht(x.id, m))
+    .filter((x) => EX_BY_ID.has(x.id) && !drin.has(x.id) && !zusatzGrund(x.id, m, tag, sperre))
     .map((x) => ({
       id: x.id, sets: x.sets, bwSets: x.sets,
       zusatz: { woche: b.woche, warum: (b.c.warum || {})[x.id] || null, live: true },
     }));
+}
+
+/**
+ * Was vom festgehaltenen Zusatz dieser Einheit heute wegfällt, und warum:
+ * [{ id, sets, woche, grund }] – oder [].
+ *
+ * Planübungen, die eine Beschwerde, das Gerät oder ein Termin herausnimmt,
+ * nennt die Notiz über der Liste („… fällt aus", „Heute fällt deshalb weg:
+ * …"). Eine Zusatzübung verschwand dabei bis hierhin wortlos: Tennisarm
+ * angehakt, und aus „5 + 1 Übungen · 1/18 Sätze" wurde „5 Übungen · 1/15
+ * Sätze", die Chin-ups standen nirgends mehr. Ersetzt wird sie nicht – der
+ * Zusatz ist mit dem ersten Satz vergeben (zusatzVergeben()), wie die
+ * Nacharbeit –, aber gesagt wird es, in derselben Zeile wie beim Plan.
+ */
+export function zusatzWeg(w, mode) {
+  if (istCustom(w.n)) return [];
+  const m = mode || store.workoutMode(w.n);
+  const e = store.getState().log[w.n];
+  const z = festerZusatz(e);
+  if (!z) return [];
+  const drin = new Set(exOf(w, m).map((it) => it.id));
+  const sperre = gesperrt(activeInjuries(), m);
+  const tag = effDate(w);
+  return z.ex.flatMap((x) => {
+    if (drin.has(x.id) || angefasst(e, x.id)) return [];
+    const grund = zusatzGrund(x.id, m, tag, sperre);
+    return grund ? [{ id: x.id, sets: m === 'bw' ? x.bwSets : x.sets, woche: z.woche, grund }] : [];
+  });
 }
 
 /**
