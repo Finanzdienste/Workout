@@ -10,7 +10,8 @@
  * Größenlimit, der Hash der Schreibmarke statt der Marke selbst, „veraltet",
  * wenn ein anderes Gerät dazwischen geschrieben hat, „geloescht", wenn die
  * Zeile weg ist, und „zu oft" unter zehn Sekunden. Kein Aufruf erreicht den
- * echten Server – alles, was nach *.supabase.co will, landet in `server()`.
+ * echten Server – alles, was nach *.supabase.co will, landet beim gespielten
+ * (tests/sicherung-labor.mjs).
  *
  * Geprüft wird, was die Zusage ausmacht, nicht nur, dass etwas ankommt:
  *
@@ -28,181 +29,25 @@
  *     dessen Stand nicht still.
  */
 import { chromium } from 'playwright';
-import { webcrypto, createHash, randomBytes } from 'node:crypto';
-import { gunzipSync } from 'node:zlib';
-import { URL as APP, SHOT } from './umgebung.mjs';
+import { randomBytes } from 'node:crypto';
+import { SHOT } from './umgebung.mjs';
+import {
+  START, entschluesseln, labor, logVon, meta, sha, text, zuMehr, zumDashboard,
+} from './sicherung-labor.mjs';
 
 let fails = 0;
 const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { fails++; process.exitCode = 1; } };
-const errs = [];
 
-/* ------------------------------------------------------------------ *
- * Der gespielte Server
- * ------------------------------------------------------------------ */
-const zeilen = new Map();          // id -> { w_hash, daten, iv, groesse, stand }
-let modus = 'ok';                  // 'ok' | 'fehlt' | 'weg'
-const anfragen = [];               // jede Anfrage an *.supabase.co: { name, body, url, roh }
-let serverUhr = Date.parse('2026-10-13T08:00:00Z');
-const sha = (s) => createHash('sha256').update(s, 'utf8').digest('hex');
-// PostgREST schreibt timestamptz mit Mikrosekunden und +00:00 – genau so zurück.
-const stempel = () => new Date(serverUhr).toISOString().replace('Z', '123+00:00');
-const json = (status, obj) => ({ status, contentType: 'application/json', body: JSON.stringify(obj) });
-const abgelehnt = (message) => json(400, { code: 'P0001', message, details: null, hint: null });
-
-function schreiben(p) {
-  if (!/^[0-9a-f]{64}$/.test(p.p_id || '')) return abgelehnt('ungueltige Kennung');
-  if (!/^[0-9a-f]{64}$/.test(p.p_w || '')) return abgelehnt('ungueltige Schreibmarke');
-  if (!/^[A-Za-z0-9+/]{16}$/.test(p.p_iv || '')) return abgelehnt('ungueltiger IV');
-  if (!p.p_daten || p.p_daten.length < 24) return abgelehnt('leere Sicherung');
-  if (p.p_daten.length > 2 * 1024 * 1024) return abgelehnt('Sicherung zu gross');
-  const marke = sha(p.p_w);
-  const alt = zeilen.get(p.p_id);
-  if (!alt) {
-    if (p.p_vorher !== null && p.p_vorher !== undefined) return abgelehnt('geloescht');
-    const z = { w_hash: marke, daten: p.p_daten, iv: p.p_iv, groesse: p.p_daten.length, stand: stempel() };
-    zeilen.set(p.p_id, z);
-    return json(200, z.stand);
-  }
-  if (alt.w_hash !== marke) return abgelehnt('Schreibmarke passt nicht');
-  if (p.p_vorher === null || p.p_vorher === undefined || p.p_vorher !== alt.stand) return abgelehnt('veraltet');
-  if (serverUhr - Date.parse(alt.stand) < 10000) return abgelehnt('zu oft');
-  Object.assign(alt, { daten: p.p_daten, iv: p.p_iv, groesse: p.p_daten.length, stand: stempel() });
-  return json(200, alt.stand);
-}
-
-async function server(route) {
-  const url = route.request().url();
-  const name = (/\/rpc\/([a-z_]+)/.exec(url) || [])[1] || url;
-  const roh = route.request().postData() || '';
-  let body = {};
-  try { body = JSON.parse(roh || '{}'); } catch { body = {}; }
-  anfragen.push({ name, body, url, roh });
-  if (!name.startsWith('sicherung_')) return route.fulfill({ status: 204, body: '' });
-  if (modus === 'weg') return route.abort('internetdisconnected');
-  if (modus === 'fehlt') {
-    return route.fulfill(json(404, {
-      code: 'PGRST202', details: null, hint: null,
-      message: `Could not find the function public.${name} in the schema cache`,
-    }));
-  }
-  if (name === 'sicherung_schreiben') return route.fulfill(schreiben(body));
-  if (name === 'sicherung_lesen') {
-    const z = zeilen.get(body.p_id);
-    return route.fulfill(json(200, z ? [{ daten: z.daten, iv: z.iv, groesse: z.groesse, stand: z.stand }] : []));
-  }
-  if (name === 'sicherung_loeschen') {
-    const z = zeilen.get(body.p_id);
-    const weg = z && z.w_hash === sha(body.p_w || '') ? 1 : 0;
-    if (weg) zeilen.delete(body.p_id);
-    return route.fulfill(json(200, weg));
-  }
-  return route.fulfill(json(404, { code: 'PGRST202', message: 'unbekannt' }));
-}
-
-const sicherungsVerkehr = () => anfragen.filter((a) => a.name.startsWith('sicherung_'));
-const geschrieben = () => anfragen.filter((a) => a.name === 'sicherung_schreiben');
-
-/* ------------------------------------------------------------------ *
- * Entschlüsseln wie ein Fremder, der den Schlüssel hat
- * ------------------------------------------------------------------ */
-const url64 = (t) => Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
-async function entschluesseln(key, daten, iv) {
-  const k = await webcrypto.subtle.importKey('raw', url64(key), 'AES-GCM', false, ['decrypt']);
-  const klar = Buffer.from(await webcrypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: Buffer.from(iv, 'base64') }, k, Buffer.from(daten, 'base64')));
-  if (klar[0] === 1) return gunzipSync(klar.subarray(1)).toString('utf8');
-  if (klar[0] === 0) return klar.subarray(1).toString('utf8');
-  throw new Error(`unbekanntes Format ${klar[0]}`);
-}
-
-/* ------------------------------------------------------------------ *
- * Ein Gerät: eigener Browserkontext, eigener Speicher, eigene Uhr
- * ------------------------------------------------------------------ */
+// Der gespielte Server und die Geräte stehen in tests/sicherung-labor.mjs –
+// tests/test-sicherung-faelle.mjs braucht dieselben.
 const browser = await chromium.launch();
-const START = Date.parse('2026-10-13T08:00:00Z');
-
-async function geraet(name, { zustand = null, pm = null, anker = '' } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 414, height: 896 }, acceptDownloads: true });
-  // Alles nach Supabase landet beim gespielten Server – nie beim echten.
-  await ctx.route(/supabase\.co\//, server);
-  await ctx.addInitScript(({ zustand: z, pm: vorgabe }) => {
-    // Der Rückkanal ist von lokalen Adressen aus gesperrt (js/config.js);
-    // diese Datei prüft ihn, also schaltet sie ihn ausdrücklich frei.
-    localStorage.setItem('workout.rueckkanal.lokal', '1');
-    if (z && !sessionStorage.getItem('__test.zustand')) {
-      sessionStorage.setItem('__test.zustand', '1');
-      localStorage.setItem('workout.state.v1', JSON.stringify(z));
-    }
-    // Der Passwortmanager, nachgebildet: store() legt ab, get() gibt heraus,
-    // was abgelegt oder vorgegeben ist. Das echte Chromium ohne Oberfläche
-    // lehnt store() ab – genau der Fall, den die App ebenfalls abfangen muss.
-    class Ausweis {
-      constructor(d) { this.id = d.id; this.name = d.name; this.password = d.password; this.type = 'password'; }
-    }
-    window.PasswordCredential = Ausweis;
-    const abgelegt = () => JSON.parse(localStorage.getItem('__test.pm') || 'null');
-    Object.defineProperty(navigator, 'credentials', {
-      configurable: true,
-      value: {
-        store: async (c) => {
-          localStorage.setItem('__test.pm', JSON.stringify({ id: c.id, name: c.name, password: c.password }));
-        },
-        get: async (o) => {
-          // Überlebt das Neuladen nach dem Zurückholen – window nicht.
-          sessionStorage.setItem('__test.get', JSON.stringify(o || null));
-          const d = vorgabe === 'keiner' ? null : (vorgabe || abgelegt());
-          return d ? new Ausweis(d) : null;
-        },
-      },
-    });
-    // Teilen: Ein Testlauf hat keinen Dialog – die Frage ist, *was* übergeben wird.
-    navigator.canShare = () => true;
-    navigator.share = async (d) => { window.__geteilt = { title: d.title, text: d.text, url: d.url }; };
-    // Sichtbarkeit steuerbar, wie in test-zeit.mjs.
-    window.__hidden = false;
-    Object.defineProperty(document, 'hidden', { get: () => window.__hidden, configurable: true });
-    Object.defineProperty(document, 'visibilityState', {
-      get: () => (window.__hidden ? 'hidden' : 'visible'), configurable: true,
-    });
-  }, { zustand, pm });
-  const page = await ctx.newPage();
-  page.on('pageerror', (e) => errs.push(`${name}: ${e.message}`));
-  page.on('dialog', (d) => d.accept().catch(() => {}));
-  // Die Uhr steht, bis der Test sie vorstellt: Drossel und Startverzögerung
-  // sind Prüfgegenstand, und echte zwei Minuten wartet hier niemand ab.
-  await page.clock.install({ time: START });
-  await page.clock.pauseAt(START + 1000);
-  await page.goto(APP + anker, { waitUntil: 'networkidle' });
-  return { ctx, page };
-}
-
-/**
- * Die Uhr vorstellen – und dem, was danach übers Netz geht, Zeit lassen.
- *
- * fastForward und nicht runFor: runFor spielt jedes Einzelbild der
- * Bewegungsbilder mit (requestAnimationFrame, 60 je Sekunde), und zwei Minuten
- * Drossel kosteten so eine halbe Minute echte Zeit. fastForward springt und
- * löst jeden fälligen Zeitgeber einmal aus – genau das, was hier zählt.
- */
-async function warte(page, ms) {
-  if (ms) await page.clock.fastForward(ms);
-  serverUhr += ms;
-  await page.waitForTimeout(350);
-  await page.clock.fastForward(1);
-  await page.waitForTimeout(150);
-}
-
-const meta = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('workout.sicherung.v1') || '{}'));
-const text = async (page, sel = '#view') => ((await page.locator(sel).first().textContent()) || '').replace(/\s+/g, ' ');
-const zuMehr = async (page) => {
-  await page.locator('.tab[data-tab="settings"]').click();
-  await page.waitForTimeout(150);
-};
-const zumDashboard = async (page) => {
-  await page.locator('.tab[data-tab="dashboard"]').click();
-  await page.waitForTimeout(150);
-};
-const logVon = (page) => page.evaluate(async () => JSON.stringify((await import('./js/store.js')).getState().log));
+const lab = labor(browser);
+const { zeilen, anfragen } = lab;
+const sicherungsVerkehr = lab.verkehr;
+const geschrieben = lab.geschrieben;
+const warte = lab.warte;
+// Jedes Gerät beginnt hier um START – so ist diese Datei entstanden.
+const geraet = (name, o = {}) => lab.geraet(name, { zeit: START, ...o });
 
 /* ================================================================== *
  * A – Tobis Handy
@@ -320,7 +165,7 @@ check(geschrieben()[1].body.p_vorher === zeileA.stand || !!geschrieben()[1].body
 // Uhr springt dorthin, ohne Zeitgeber auszulösen – wie ein Handy, das über
 // Nacht in der Tasche lag.
 await a.clock.setSystemTime(START + 26 * 3600 * 1000);
-serverUhr = Math.max(serverUhr, START + 26 * 3600 * 1000);
+lab.uhr = Math.max(lab.uhr, START + 26 * 3600 * 1000);
 await a.reload({ waitUntil: 'networkidle' });
 await warte(a, 5000);
 // Eine Änderung, die sicher hochgeht – danach steht die Drossel zwei Minuten.
@@ -380,7 +225,7 @@ await warte(a, 2 * 60000 + 5000);
 check(geschrieben().length === vorBallast + 1, `das holt die gewöhnliche Drossel nach (${geschrieben().length - vorBallast})`);
 
 // --- Ohne Netz: still, und später nachgeholt ---------------------------
-modus = 'weg';
+lab.modus = 'weg';
 const vorNetz = geschrieben().length;
 await a.evaluate(async (id) => (await import('./js/store.js')).setWeight(id, 27.5), uebung);
 await warte(a, 1100);
@@ -388,7 +233,7 @@ await warte(a, 2 * 60000 + 5000);
 check(geschrieben().length === vorNetz + 1, `ohne Netz wird es versucht (${geschrieben().length - vorNetz})`);
 check((await meta(a)).fehler === 'Keine Verbindung', 'und vermerkt, warum es nicht ging');
 check(!/Keine Verbindung/.test(await text(a, '#toast')), 'ohne eine Meldung, die das Training unterbricht');
-modus = 'ok';
+lab.modus = 'ok';
 await a.evaluate(() => window.dispatchEvent(new Event('online')));
 await warte(a, 1100);
 await warte(a, 2 * 60000 + 5000);
@@ -474,6 +319,8 @@ await warte(c, 500);
 check(await logVon(c) === zielC, 'über den Link ist der Verlauf ebenfalls zurück');
 check(anfragen.slice(vorC).every((x) => !x.roh.includes(mA.key) && !x.url.includes(mA.key)),
   'und der Schlüssel aus dem Link ging dabei nicht an den Server');
+// Wer den Link hat, soll nicht mitlesen – mehr dazu in test-sicherung-faelle.mjs.
+check((await meta(c)).key !== mA.key, 'als eigenen Schlüssel übernimmt das Gerät den aus dem Link nicht');
 
 /* ================================================================== *
  * D – ein falscher Schlüssel
@@ -497,7 +344,7 @@ check(/kein gültiger Schlüssel/i.test(await text(d)), 'Unsinn im Feld wird als
 /* ================================================================== *
  * E – der Server kennt die Funktionen (noch) nicht
  * ================================================================== */
-modus = 'fehlt';
+lab.modus = 'fehlt';
 const vorE = geschrieben().length;
 const { page: e } = await geraet('E', { zustand: { greeted: true, name: 'Eva', weights: { 'goblet-squat': 20 } } });
 await warte(e, 4000);
@@ -513,7 +360,7 @@ await zuMehr(e);
 check(/kennt die Sicherung noch nicht/.test(await text(e, '#sicherungStand')),
   'unter Mehr steht ruhig, dass der Server sie noch nicht kennt');
 check(!/PGRST202|kennt die Sicherung/.test(await text(e, '#toast')), 'als Meldung kam nichts');
-modus = 'ok';
+lab.modus = 'ok';
 
 /* ================================================================== *
  * F – abgeschaltet: kein Netzverkehr
@@ -546,6 +393,6 @@ check(loesch.length === 1 && loesch[0].body.p_id === mA.id && loesch[0].body.p_w
 check(!zeilen.has(mA.id), 'und danach ist sie dort weg');
 check(/Gelöscht/.test(await text(a, '#toast')), 'die App sagt es');
 
-check(errs.length === 0, `keine Fehler${errs.length ? `: ${errs.slice(0, 3).join(' | ')}` : ''}`);
+check(lab.fehler.length === 0, `keine Fehler${lab.fehler.length ? `: ${lab.fehler.slice(0, 3).join(' | ')}` : ''}`);
 await browser.close();
 console.log(`\n${fails ? `${fails} FEHLER` : 'alle Prüfungen bestanden'}`);

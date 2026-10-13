@@ -114,3 +114,18 @@ from sicherung;
 
 -- 5. ALTES WEG: dieselbe Regel, die sicherung_schreiben() selbst anwendet.
 delete from sicherung where stand < now() - interval '400 days';
+
+-- 6. DIE DROSSEL JE QUELLE: Hashes aus IP-Adresse und Tagessalz, je Tag.
+-- Mehr als der laufende Tag sollte hier nie stehen – sicherung_schreiben()
+-- löscht beim ersten Aufruf eines Tages den Vortag samt Salz. Schreibt kein
+-- Gerät, bleibt der Vortag liegen; dann räumt dieser Schritt. Wer hier eine
+-- Quelle mit fünf neuen Sicherungen sieht, sieht eine Flut – oder jemanden,
+-- der gerade viel ausprobiert.
+select tag, count(*) as quellen, sum(neu) as neue_sicherungen,
+       pg_size_pretty(sum(bytes)) as neue_daten, max(neu) as meiste_von_einer_quelle
+from sicherung_quelle
+group by tag
+order by tag;
+
+delete from sicherung_quelle where tag < (now() at time zone 'utc')::date;
+delete from sicherung_salz where tag < (now() at time zone 'utc')::date;

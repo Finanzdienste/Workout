@@ -29,10 +29,11 @@ import { buildICS } from './ics.js';
 import { CONFIG, hatServer } from './config.js';
 import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
 import {
-  linkVermerken, passwortManagerDa, schluesselAblegen, schluesselAus, schluesselAusManager,
-  schluesselPruefen, sicherungAn, sicherungEinrichten, sicherungGeaendert, sicherungHolen,
-  sicherungJetzt, sicherungLink, sicherungLoeschen, sicherungMetaLesen, sicherungSchalten,
-  sicherungStart, sicherungTrotzdem, sicherungUebernehmen, sicherungVergessen, sicherungVerstecken,
+  linkVermerken, loeschenAusstehend, passwortManagerDa, schluesselAblegen, schluesselAus,
+  schluesselAusManager, schluesselPruefen, sicherungAblageVerwerfen, sicherungAn, sicherungEinrichten,
+  sicherungGeaendert, sicherungHolen, sicherungJetzt, sicherungLink, sicherungLoeschen,
+  sicherungMetaLesen, sicherungNachsehen, sicherungRueckweg, sicherungSchalten, sicherungStart,
+  sicherungTrotzdem, sicherungUebernehmen, sicherungVergessen, sicherungVerstecken,
 } from './sicherung.js';
 import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './audio.js';
 import { esc, fmtNum, komma1 } from './text.js';
@@ -905,6 +906,10 @@ async function teileBackup() {
 function einlesen(text, meldung) {
   if (!ersetzenErlaubt()) return;
   store.importJSON(text);
+  // Beiseitegelegt ist jetzt der Stand von vor *dieser* Datei. Was die
+  // Sicherung vor einem früheren Zurückholen wusste, gehört nicht mehr dazu
+  // (sicherungRueckweg() in js/sicherung.js).
+  sicherungAblageVerwerfen();
   ui.setupStep = 0;
   neuStarten(meldung);
 }
@@ -3126,6 +3131,8 @@ function sicherungAngebotHtml() {
   if (!ui.sicherungAngebot) return '';
   return `<div class="notice">🔑 Dieser Link bringt den Schlüssel zu einer Sicherung mit. Zurückholen
       ersetzt, was hier steht${needsWelcome() ? '' : ' (der jetzige Stand wird beiseitegelegt)'}.
+      Danach sichert dieses Gerät unter seinem eigenen Schlüssel weiter – wer den Link hat, liest
+      nicht mit.
       <div class="btn-row nav" style="margin-top:10px">
         <button type="button" class="btn btn-primary" data-act="sicherung-angebot-holen"
                 ${ui.sicherungLaeuft ? 'disabled' : ''}>Zurückholen</button>
@@ -3180,6 +3187,18 @@ function sicherungEingabeHtml() {
         style="color:var(--accent);margin-top:8px">${esc(ui.sicherungMeldung)}</div>` : ''}`;
 }
 
+/**
+ * Ein Löschen, das noch nicht beim Server angekommen ist – etwa „Alle Daten
+ * löschen" ohne Netz. Steht im Einstieg (dort landet man danach) und unter
+ * Mehr, bis der Server es bestätigt: Nichts ändert sich unbemerkt, auch nicht
+ * etwas, das sich noch nicht geändert hat.
+ */
+function sicherungLoeschenZeile() {
+  return loeschenAusstehend() ? `<div class="small" id="sicherungLoeschenOffen" style="margin-top:8px">🗑️
+    Eine Sicherung auf dem Server wartet aufs Löschen – das geschieht, sobald er wieder erreichbar
+    ist.</div>` : '';
+}
+
 /** Einstieg, Schritt 1: der Satz, der Schalter, und der Weg zurück für den, der umzieht. */
 function sicherungEinstieg() {
   if (!hatServer()) return '';
@@ -3193,6 +3212,7 @@ function sicherungEinstieg() {
         <button type="button" class="toggle" aria-pressed="${sicherungAn()}" data-act="toggle-sicherung"
                 aria-label="Automatisch sichern"></button>
       </div>
+      ${sicherungLoeschenZeile()}
       <div class="small muted" style="margin-top:10px">Schon auf einem anderen Gerät trainiert?
         Dann holt dieser Knopf den Stand von dort – mit dem Schlüssel aus deinem
         Passwortmanager oder dem Link, den du dir geschickt hast.</div>
@@ -3255,14 +3275,17 @@ function sicherungKarte() {
       <div class="switch-row">
         <div>
           <div class="lbl">Automatisch sichern</div>
-          <div class="hint">${sicherungSatz()} Der Server sieht nur eine Zufallskennung, wie
-            groß die Sicherung ist und wann sie kam. Gespeichert wird bei Supabase; was 400 Tage
-            niemand erneuert, löscht der Server von selbst.</div>
+          <div class="hint" id="sicherungOffen">${sicherungSatz()} Der Server – bei Supabase – sieht
+            eine Zufallskennung, wie groß die Sicherung ist und wann sie kam, sekundengenau: also
+            auch, wann du trainierst. Dazu, wie bei jeder Anfrage, die IP-Adresse deines Geräts;
+            gespeichert wird nicht sie, sondern gegen Missbrauch bis zum Tagesende ein Hash davon.
+            Was 400 Tage niemand erneuert, löscht der Server von selbst.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-sicherung"
                 aria-label="Automatisch sichern"></button>
       </div>
       <div class="small muted" id="sicherungStand" style="margin-top:8px">${esc(lage.replace(/\s+/g, ' '))}</div>
+      ${sicherungLoeschenZeile()}
       ${an && k ? `<div class="btn-row">
         <button type="button" class="btn btn-primary" data-act="sicherung-trotzdem">${k.art === 'geloescht'
           ? 'Wieder sichern' : 'Diesen Stand sichern'}</button>
@@ -3308,7 +3331,11 @@ async function sicherungEinspielen(key, erg, weg) {
   }
   await sicherungUebernehmen(key, { stand: erg.stand, weg });
   ui.setupStep = 0;
-  neuStarten('Sicherung zurückgeholt');
+  // Nichts ändert sich unbemerkt: Nach einem Link sichert das Gerät unter
+  // einem anderen Schlüssel weiter als dem, mit dem es eben geholt hat.
+  neuStarten(weg === 'link'
+    ? 'Sicherung zurückgeholt – gesichert wird ab jetzt unter dem eigenen Schlüssel dieses Geräts'
+    : 'Sicherung zurückgeholt');
 }
 
 /** Mit einem Schlüssel holen und einspielen; was schiefgeht, steht danach am Knopf. */
@@ -3398,11 +3425,22 @@ async function sicherungsLinkSchicken() {
 }
 
 /**
- * Schlüssel aus der Adresse lesen – und den Anker sofort entfernen.
+ * Schlüssel aus der Adresse lesen – und den Anker aus der Adresszeile nehmen.
  *
  * Wie beim geschickten Stand (standAusAdresse()), nur mit mehr auf dem Spiel:
  * Der Anker ist der Schlüssel. Er geht nie an einen Server – ein Anker gehört
- * nicht zur Anfrage –, aber er soll auch nicht im Verlauf stehen bleiben.
+ * nicht zur Anfrage. Aus dem **Browserverlauf** bekommt replaceState ihn
+ * allerdings nicht heraus: Chrome hat die Adresse samt Anker beim Öffnen
+ * vermerkt, und dort bleibt sie (nachgesehen in der History-Datenbank eines
+ * Chromium mit Oberfläche). Bis v240 stand hier, er solle dort nicht stehen
+ * bleiben – das hielt die App nicht ein, und weil das Gerät danach unter genau
+ * diesem Schlüssel weitersicherte, öffnete der Verlaufseintrag jede künftige
+ * Sicherung.
+ *
+ * Deshalb übernimmt das Gerät einen Schlüssel aus einem Link nie als seinen
+ * eigenen (sicherungUebernehmen() in js/sicherung.js): Der Link öffnet nur den
+ * Stand, aus dem er stammt, und was danach kommt, geht unter dem eigenen
+ * Schlüssel des Geräts hinaus.
  */
 function sicherungAusAdresse() {
   const treffer = /[#&]sicherung=([A-Za-z0-9_-]+)/.exec(location.hash);
@@ -7181,6 +7219,9 @@ function go(tab) {
   store.setSetting('tab', tab);
   render();
   window.scrollTo({ top: 0 });
+  // Unter Mehr steht, wie es um die Sicherung steht – fehlten dem Server die
+  // Funktionen, sieht sie dort noch einmal nach (höchstens alle zehn Minuten).
+  if (tab === 'settings') sicherungNachsehen();
 }
 
 /* ------------------------------------------------------------------ *
@@ -7263,6 +7304,43 @@ function abgehaktInEinheit(n) {
 }
 
 /**
+ * Was jedes Ende einer Einheit auslöst – der Knopf „Abschließen" genauso wie
+ * der letzte Haken. Gibt zurück, ob die Stufe gestiegen ist.
+ *
+ * Eine Stelle für beide, weil sie schon einmal auseinandergelaufen sind: Der
+ * letzte Haken – Tobis gewöhnlicher Weg („soll das training automatisch zuende
+ * sein") – beendete die Einheit, sicherte sie aber nicht sofort. Wer das Handy
+ * gleich weglegte, schickte den Stand von vor dem letzten Satz mit: laufende
+ * Einheit, letzter Satz offen, nicht als erledigt vermerkt.
+ */
+function einheitBeenden() {
+  store.endSession();
+  meldeStand(true);
+  ui.focus = false;
+  ui.listView = false;
+  if (store.getState().rest) endRest(false);
+  // Erst nach markDone (das erledigen beide Aufrufer vorher): Die Einheit, die
+  // gerade fertig geworden ist, soll mitzählen. Sonst käme der Aufstieg immer
+  // eine Einheit zu spät.
+  const gestiegen = pruefeAufstieg();
+  if (gestiegen) aufstiegMelden(store.getState().level);
+  // Nach der letzten Einheit einer Woche entscheidet sich, ob etwas
+  // liegen geblieben ist – also hier und nicht erst beim nächsten Start.
+  //
+  // Bis v238 sprang die Startansicht danach auf den frisch angelegten
+  // Zusatztag, und der Abschluss blieb ohne Meldung. Heute ist aber schon
+  // trainiert: Der Zusatztag kommt frühestens morgen dran (naechsteEinheit()),
+  // die Startansicht bleibt auf der Einheit, die eben fertig wurde („Für heute
+  // durch"), und der Abschluss sagt, was er ist.
+  pruefeZusatztag();
+  // Zuletzt, damit Aufstieg und Zusatztag schon drinstehen: sofort sichern, an
+  // der Drossel vorbei. Das ist der Stand, der am meisten wert ist, und das
+  // Handy liegt danach oft für Stunden.
+  sicherungJetzt();
+  return gestiegen;
+}
+
+/**
  * Das Training abschließen: „✓ Abschließen" und „Alle Sätze abhaken" bei
  * laufender Einheit.
  *
@@ -7278,28 +7356,8 @@ function trainingBeenden(n, mode) {
   // trainiert, auch wenn nicht jeder Satz steht. Ohne einen einzigen Satz
   // wäre das allerdings gelogen.
   if (prog.done) store.markDone(n, mode);
-  store.endSession();
-  meldeStand(true);
-  // Nach einer Einheit sofort, an der Drossel vorbei: Das ist der Stand, der
-  // am meisten wert ist, und das Handy liegt danach oft für Stunden.
-  sicherungJetzt();
-  ui.focus = false;
-  ui.listView = false;
-  if (store.getState().rest) endRest(false);
+  const gestiegen = einheitBeenden();
   sound(prog.complete ? 'done' : 'stop');
-  // Erst nach markDone: Die Einheit, die gerade fertig geworden ist, soll
-  // mitzählen. Sonst käme der Aufstieg immer eine Einheit zu spät.
-  const gestiegen = pruefeAufstieg();
-  if (gestiegen) aufstiegMelden(store.getState().level);
-  // Nach der letzten Einheit einer Woche entscheidet sich, ob etwas
-  // liegen geblieben ist – also hier und nicht erst beim nächsten Start.
-  //
-  // Bis v238 sprang die Startansicht danach auf den frisch angelegten
-  // Zusatztag, und der Abschluss blieb ohne Meldung. Heute ist aber schon
-  // trainiert: Der Zusatztag kommt frühestens morgen dran (naechsteEinheit()),
-  // die Startansicht bleibt auf der Einheit, die eben fertig wurde („Für heute
-  // durch"), und der Abschluss sagt, was er ist.
-  pruefeZusatztag();
   render();
   if (gestiegen) toast('Neue Stufe – siehe oben ⬆️');
   else {
@@ -7463,19 +7521,11 @@ view.addEventListener('click', (e) => {
       // Quittung für etwas, das man gerade selbst getan hat.
       //
       // Was er sonst noch auslöst, passiert deshalb hier mit: Uhr anhalten,
-      // Stand melden, Aufstieg und Zusatztag prüfen. Sonst wäre „automatisch
-      // beendet" nur halb beendet.
+      // Stand melden, Aufstieg und Zusatztag prüfen, sofort sichern – alles in
+      // einheitBeenden(), derselben Stelle wie beim Knopf. Sonst wäre
+      // „automatisch beendet" nur halb beendet.
       if (workoutComplete && store.getState().session) {
-        store.endSession();
-        meldeStand(true);
-        ui.focus = false;
-        ui.listView = false;
-        if (store.getState().rest) endRest(false);
-        const gestiegen = pruefeAufstieg();
-        if (gestiegen) aufstiegMelden(store.getState().level);
-        // Ohne Sprung: Ein Zusatztag, der hier entsteht, kommt frühestens
-        // morgen dran – siehe trainingBeenden().
-        pruefeZusatztag();
+        const gestiegen = einheitBeenden();
         sound('done');
         render();
         toast(gestiegen ? 'Neue Stufe – siehe oben ⬆️'
@@ -8157,8 +8207,9 @@ view.addEventListener('click', (e) => {
     case 'sicherung-trotzdem':
       if (!confirm('Diesen Stand auf den Server legen? Was ein anderes Gerät dort zuletzt gesichert '
         + 'hat, wird damit ersetzt.')) break;
-      sicherungTrotzdem().then(({ ok, msg }) => {
-        toast(ok ? 'Gesichert' : (msg || 'Hat nicht geklappt – später noch einmal'));
+      sicherungTrotzdem().then(({ ok, gleich, msg }) => {
+        toast(!ok ? (msg || 'Hat nicht geklappt – später noch einmal')
+          : gleich ? 'Wird in wenigen Sekunden gesichert' : 'Gesichert');
         render();
       });
       break;
@@ -8429,6 +8480,10 @@ view.addEventListener('click', (e) => {
     }
     case 'vor-import-zurueck':
       if (confirm('Den Stand von vor dem letzten Import zurückholen? Der eingelesene Stand wird damit ersetzt.')) {
+        // Die Sicherung kehrt mit zurück: zum Schlüssel von vorher. Sonst
+        // schriebe die nächste Sicherung den alten Stand über die eben geholte
+        // – die vom alten Handy, und das ist dann oft schon weg.
+        if (store.vorImport()) sicherungRueckweg();
         store.vorImportZurueck();
         neuStarten('Stand von vor dem Import ist zurück');
       }
@@ -8475,7 +8530,11 @@ view.addEventListener('click', (e) => {
         // das erste Training danach einen fast leeren Stand darüber – oder sie
         // läge für immer dort, ohne Schlüssel auf diesem Gerät, der an sie
         // herankommt. Beides wäre eine Änderung, die niemand bemerkt.
-        sicherungVergessen();
+        //
+        // Ohne Netz blieb sie bis v240 genau so liegen, und die Meldung sagte
+        // trotzdem „gelöscht". Jetzt bleibt der Löschauftrag stehen, bis der
+        // Server ihn bestätigt, und die Meldung sagt, was wirklich ist.
+        const serverWeg = sicherungVergessen();
         // Erst die Zeile auf dem Server, dann den Speicher: Danach ist die
         // Kennung weg, mit der sie zu finden wäre – sie bliebe für immer
         // stehen, obwohl hier gerade alles gelöscht wird.
@@ -8490,7 +8549,11 @@ view.addEventListener('click', (e) => {
         store.resetAll();
         ui.workoutNo = naechsteEinheit();
         render();
-        toast('Alle Daten gelöscht');
+        serverWeg.then((weg) => {
+          toast(weg ? 'Alle Daten gelöscht'
+            : 'Alle Daten gelöscht – die Sicherung auf dem Server wird gelöscht, sobald wieder Netz da ist.');
+          if (ui.tab === 'settings') render();
+        });
       }
       break;
     default:
@@ -8677,6 +8740,9 @@ document.addEventListener('visibilitychange', () => {
   // Läuft sie noch, das Signal neu auflegen: Ein im Hintergrund angehaltener
   // AudioContext verliert seine vorgemerkten Töne.
   if (store.getState().rest) armRest();
+  // Fehlten dem Server die Funktionen, kann inzwischen jemand den SQL-Block
+  // ausgeführt haben – die App bleibt dafür oft tagelang im Speicher.
+  sicherungNachsehen();
   const day = todayISO();
   // Erst die Runde weiterrollen, dann nachrücken: Sonst schöbe catchUpPlan()
   // den alten, längst fertigen Plan durch die Gegend.
@@ -9046,12 +9112,17 @@ sicherungEinrichten({
     // Dashboard, wenn die eine Zeile kommt oder geht. Mitten im Training nie.
     // Und nie, während jemand tippt – der Neuaufbau nähme ihm das Feld weg.
     let lage = sicherungLage();
+    let loeschen = loeschenAusstehend();
     return () => {
       const neu = sicherungLage();
       const dash = ui.tab === 'dashboard' && !ui.focus && !ui.listView && neu !== lage;
       lage = neu;
+      // Ein erledigter Löschauftrag nimmt seine Zeile mit – auch im Einstieg.
+      const jetzt = loeschenAusstehend();
+      const erledigt = loeschen && !jetzt;
+      loeschen = jetzt;
       const tippt = !!document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
-      if ((ui.tab === 'settings' || dash) && !tippt) render();
+      if ((ui.tab === 'settings' || dash || (erledigt && !ui.focus)) && !tippt) render();
     };
   })(),
 });

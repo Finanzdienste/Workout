@@ -2521,7 +2521,19 @@ sieht:
 | `id` | SHA-256 über `"id:"` + Schlüssel, hex – eine Zufallskennung |
 | `w_hash` | SHA-256 der Schreibmarke; die Marke selbst (SHA-256 über `"w:"` + Schlüssel) wird nicht gespeichert |
 | `daten`, `iv` | Chiffrat und IV, base64 |
-| `groesse`, `stand` | Länge des Chiffrats, Zeitpunkt der letzten Sicherung |
+| `groesse`, `stand` | Länge des Chiffrats, Zeitpunkt der letzten Sicherung – sekundengenau, und weil nach jeder Einheit sofort gesichert wird, verrät er, **wann trainiert wird** |
+| IP-Adresse | sieht Supabase wie bei jeder Anfrage. In die Tabelle kommt sie nicht; gegen Missbrauch zählt `sicherung_quelle` je Quelle und Tag mit, wie viel neu angelegt wurde – die Quelle ist ein Hash aus Adresse und Tagessalz, beides weg mit dem Tag (siehe [Einrichten](#automatische-sicherung-einrichten)) |
+
+Wer zugleich den Rückkanal an hat, sollte eines wissen: Seine Meldung kommt nach
+einer Einheit in derselben Sekunde von derselben Adresse wie die Sicherung. Der
+Betreiber könnte die Zufallskennung der Sicherung also der Zeile im Rückkanal
+zuordnen – lesen kann er die Sicherung trotzdem nicht. Unter *Mehr → Daten*
+steht dasselbe in zwei Sätzen: „Der Server – bei Supabase – sieht eine
+Zufallskennung, wie groß die Sicherung ist und wann sie kam, sekundengenau: also
+auch, wann du trainierst. Dazu, wie bei jeder Anfrage, die IP-Adresse deines
+Geräts; gespeichert wird nicht sie, sondern gegen Missbrauch bis zum Tagesende
+ein Hash davon." Bis v240 hieß es dort „Der Server sieht *nur* …" – ohne Adresse
+und ohne das, was die Uhrzeit verrät. Gefunden bei der Prüfung der Sicherung.
 
 Ein halbes Jahr Training sind gepackt rund 30 bis 60 KB statt 300 bis 500 KB
 (gemessen an der Hochrechnung aus `tests/zusatz-tobi-do.json`). Ob gepackt
@@ -2535,11 +2547,33 @@ neue Sicherung los.
 
 | Anlass | Wann |
 | --- | --- |
-| eine Einheit abgeschlossen | sofort, an der Drossel vorbei |
+| eine Einheit abgeschlossen | sofort, an der Drossel vorbei – mit dem Knopf *Abschließen* genauso wie mit dem letzten Haken |
 | jede andere Änderung | gedrosselt: höchstens alle zwei Minuten |
 | Start der App | wenn seit der letzten Sicherung etwas dazukam – und alle 30 Tage ohnehin, damit die 400 Tage (unten) nie ablaufen, solange die App benutzt wird |
 | App weggelegt | nur, was schon fertig verschlüsselt bereitliegt und unter 64 KB bleibt – mehr trägt `keepalive` nicht, und ohne `keepalive` stirbt die Anfrage mit der eingefrorenen Seite |
 | kein Netz | still; nachgeholt beim nächsten Anlass oder sobald der Browser „online" meldet |
+| weniger als zehn Sekunden nach der letzten Sicherung | gar nicht – sondern genau dann, wenn die zehn Sekunden um sind |
+
+**Der letzte Haken sicherte nicht.** Die App beendet eine Einheit von selbst,
+sobald der letzte Satz steht („soll das training automatisch zuende sein") –
+Tobis gewöhnlicher Weg. Dieser Zweig rief die sofortige Sicherung nicht auf; das
+tat nur der Knopf *Abschließen*. Wer das Handy gleich danach weglegte, schickte
+per `keepalive` den Stand, der vor dem letzten Satz vorbereitet worden war:
+laufende Einheit, letzter Satz offen, nicht als erledigt vermerkt. Jetzt laufen
+beide Wege durch dieselbe Stelle, `einheitBeenden()`, damit sie nicht wieder
+auseinanderlaufen.
+
+**Die zehn Sekunden hält das Gerät selbst ein.** Der Server nimmt je Sicherung
+höchstens alle zehn Sekunden etwas an und sagt sonst `zu oft`. Kam die Einheit
+drei Sekunden nach einer gedrosselten Sicherung zum Abschluss – nachgetragene
+Sätze, ein Supersatz-Partner –, lehnte er die sofortige Sicherung ab, die App
+plante den nächsten Versuch erst nach der Zwei-Minuten-Drossel, und wer das Handy
+weglegte, hatte die fertige Einheit bis zum nächsten Start nur auf dem Gerät.
+Unter *Mehr* stand dazu der rohe Fehlercode. Jetzt wartet das Gerät die zehn
+Sekunden ab (gemessen in seiner eigenen Uhr ab der letzten gelungenen
+Sicherung) und schickt dann – ist die App inzwischen weggelegt, mit
+`keepalive`. Ein `zu oft`, das trotzdem kommt (ein zweites Fenster), ist kein
+Fehler mehr, sondern ein Termin zehn Sekunden später.
 
 Erst, wenn der Einstieg den Satz dazu gezeigt hat und es etwas zu sichern gibt:
 Ein frisches Gerät, das nur seinen Namen kennt, schickt nichts – es soll erst
@@ -2556,6 +2590,20 @@ mit zwei Knöpfen: *Diesen Stand sichern* oder *Den Stand von dort holen*. Ein
 zweites Fenster derselben App auf demselben Gerät ist kein fremdes Gerät – es
 legt seinen Stand in denselben Speicher, und daran erkennt die App es.
 
+**Die verlorene Antwort.** Auch ein einziges Gerät konnte sich selbst für ein
+fremdes halten: Es schickt, der Server schreibt, aber die Antwort kommt nie an
+– Android beendet die weggelegte App, das Netz reißt nach dem Schreiben ab, oder
+der Abbruch nach zehn Sekunden greift bei langsamem Netz. Beim nächsten Mal
+nannte das Gerät den alten Stand als Vorgänger, bekam `veraltet`, zeigte
+„Ein anderes Gerät sichert unter deinem Schlüssel" und sicherte gar nicht mehr,
+bis jemand entschied – bei nur einem Handy. Jetzt vermerkt das Gerät vor dem
+Abschicken den IV dessen, was unterwegs ist (`offen`). Kommt `veraltet`, liest
+es die Zeile einmal: Trägt sie einen dieser IVs, war es das Gerät selbst – der
+IV ist bei jeder Verschlüsselung frisch gewürfelt, kein anderes Gerät kann ihn
+geschrieben haben. Dann übernimmt es den Stand und sichert weiter. Nur bei
+fremdem IV ist es ein Konflikt. Ein Schreiben beim Weglegen geht außerdem nicht
+mehr neben einem laufenden hinaus, sondern wartet in derselben Reihe.
+
 **Zurückholen auf einem neuen Gerät.** Im Einstieg (Schritt 1) und unter
 *Mehr → Daten* steht *Sicherung zurückholen*:
 
@@ -2567,13 +2615,48 @@ legt seinen Stand in denselben Speicher, und daran erkennt die App es.
    Schlüssel oder den ganzen Wiederherstellungs-Link.
 3. Oder gleich der **Link**: `…/#sicherung=<Schlüssel>`. Er öffnet die App mit
    dem Angebot „Zurückholen". Der Anker gehört nicht zur Anfrage, der Schlüssel
-   erreicht also keinen Server, und die App entfernt ihn sofort aus der Adresse.
+   erreicht also keinen Server, und die App nimmt ihn sofort aus der
+   Adresszeile. **Aus dem Browserverlauf nicht:** Chrome hat die Adresse samt
+   Anker beim Öffnen vermerkt, und `replaceState` ändert daran nichts
+   (nachgesehen in der History-Datenbank eines Chromium mit Oberfläche).
 
 Danach derselbe Weg wie beim Einlesen einer Datei: Rückfrage, wenn hier schon
-ein Verlauf steht, der bisherige Stand wird beiseitegelegt, Neuladen. Das Gerät
-sichert ab da unter dem geholten Schlüssel weiter. Hatte es vorher unter einem
-eigenen gesichert, wird diese Sicherung auf dem Server gelöscht – sonst läge sie
-bis zum Ablauf der 400 Tage dort, und kein Knopf käme mehr an sie heran.
+ein Verlauf steht, der bisherige Stand wird beiseitegelegt, Neuladen. Unter
+welchem Schlüssel das Gerät danach weitersichert, hängt am Weg:
+
+| geholt über | gesichert wird danach unter |
+| --- | --- |
+| den eigenen Passwortmanager | dem geholten Schlüssel – es ist der eigene vom alten Gerät. Hatte das neue Gerät vorher unter einem anderen gesichert, wird jene Sicherung gelöscht, sonst läge sie bis zum Ablauf der 400 Tage auf dem Server, und kein Knopf käme mehr an sie heran |
+| den Link oder das Eingabefeld | dem **eigenen** Schlüssel des Geräts; hat es noch keinen, entsteht ein frischer – samt der Zeile „Schlüssel sichern" |
+
+**Warum ein Link-Schlüssel nie übernommen wird.** Bis v240 übernahm das Gerät
+jeden geholten Schlüssel als seinen eigenen. Woher ein Link kommt, weiß aber
+niemand: Jeder Hyperlink auf `…/Workout/#sicherung=…` öffnet das Angebot, ein
+Messenger ist nicht nötig. Hinter dem Link konnte ein harmloser Köder-Stand
+liegen; ein Tipp auf *Zurückholen* (auf einem Gerät ohne Verlauf ohne
+Rückfrage), und das Gerät sicherte ab da jedes Training unter dem Schlüssel
+dessen, der den Link geschickt hatte – der las mit. Unter *Mehr* stand dazu
+„als Link verschickt oder kopiert", obwohl dieses Gerät nichts verschickt
+hatte, und die Zeile „Schlüssel sichern" kam nie. Dazu der Verlauf: Weil das
+Gerät unter dem Schlüssel aus dem Anker weitersicherte, öffnete der
+Verlaufseintrag (Omnibox, synchronisierter Verlauf) jede künftige Sicherung.
+Jetzt öffnet ein Link nur den Stand, aus dem er stammt; die Zeile dahinter
+bleibt unberührt, sie gehört dem, der den Link hat. Der Passwortmanager dagegen
+ist der eigene – was dort liegt, hat der Mensch selbst abgelegt.
+
+**Stand von vor dem Import zurückholen** nimmt die Sicherung mit. Bis v240
+holte der Knopf nur den Stand auf dem Gerät zurück; die Sicherung blieb beim
+eben geholten Schlüssel, und die nächste Sicherung schrieb den alten Stand
+darüber. Die Sicherung vom alten Handy – drei Einheiten – hatte danach eine,
+ohne Rückfrage, und gerade dann, wenn man zurückholt, ist das alte Handy oft
+schon weg. Jetzt legt das Zurückholen auch beiseite, was das Gerät bis dahin
+über seine Sicherung wusste (`workout.sicherung.v1.vorImport`), und der Rückweg
+stellt es wieder her: den Schlüssel von vorher; die beim Zurückholen gelöschte
+eigene Zeile legt die nächste Sicherung neu an, ein noch ausstehender
+Löschauftrag für sie wird zurückgenommen. Die geholte Zeile bleibt, wie sie
+ist. Gab es vorher keinen eigenen Schlüssel, entsteht ein frischer. Ein
+Datei-Import danach verwirft diese Ablage – beiseitegelegt ist dann der Stand
+von vor der Datei.
 
 **Der Schlüssel muss aus dem Gerät heraus**, sonst ist die Sicherung mit dem
 Handy verloren. Zwei Wege, beide unter *Mehr → Daten*:
@@ -2609,15 +2692,39 @@ Schlüssel hat – der liegt auf diesem Gerät und, sobald du ihn dort ablegst, 
 deinem Passwortmanager."* –, mit dem Schalter daneben (Standard: an). Unter
 *Mehr* dazu: „Zuletzt gesichert: vor 3 Min.", wo der Schlüssel liegt, und
 *Sicherung auf dem Server löschen* (schaltet zugleich ab, sonst käme sie mit der
-nächsten Änderung wieder). Abgeschaltet heißt: keine einzige Anfrage, auch
-nicht beim Start. *Alle Daten löschen* nimmt die Sicherung auf dem Server mit –
+nächsten Änderung wieder). Abgeschaltet heißt: keine einzige Sicherung, auch
+nicht beim Start – nur ein Löschauftrag, den der Mensch selbst gegeben hat, geht
+noch hinaus. *Alle Daten löschen* nimmt die Sicherung auf dem Server mit –
 bliebe sie stehen, schriebe das erste Training danach einen fast leeren Stand
 darüber. Was 400 Tage niemand erneuert hat, löscht der Server von selbst.
 
+**Löschen ohne Netz.** *Alle Daten löschen* vergaß bis v240 erst Kennung und
+Schreibmarke und schickte dann das Löschen hinterher, ohne auf die Antwort zu
+warten; die Meldung hieß immer „Alle Daten gelöscht". Ohne Netz – oder bei
+jedem Serverfehler – blieb die Sicherung auf dem Server, kein Knopf kam mehr an
+sie heran, und lag der Schlüssel im Passwortmanager, holte ein neues Gerät die
+„gelöschte" Sicherung vollständig zurück. Jetzt steht der Löschauftrag in einem
+eigenen Schlüssel (`workout.sicherung.loeschen`), bevor irgendetwas vergessen
+wird, und bleibt dort, bis der Server ihn bestätigt; der Start und das
+„online"-Ereignis holen ihn nach. Die Meldung sagt, was ist: „Alle Daten
+gelöscht – die Sicherung auf dem Server wird gelöscht, sobald wieder Netz da
+ist", und unter *Mehr* steht es, solange es aussteht.
+
+**Löschen während des Schreibens.** *Sicherung auf dem Server löschen* lief an
+der Warteschlange vorbei. Hing die allererste Sicherung gerade im Netz, kam das
+Löschen zuerst an, fand nichts („Da lag nichts"), und das Schreiben legte die
+Zeile gleich danach an – bei abgeschalteter Sicherung. Jetzt reiht sich jedes
+Löschen hinter einem laufenden Schreiben ein; und ein Schreiben, dessen Antwort
+erst kommt, nachdem der Schlüssel vergessen wurde, vermerkt nichts mehr.
+
 **Wenn der Server die Funktionen nicht kennt** (der SQL-Block lief noch nicht),
 antwortet PostgREST mit 404 und `PGRST202`. Die App sagt das unter *Mehr*, ruhig
-und ohne Meldung, versucht es einmal je Start und nicht bei jeder Änderung, und
-bis dahin gilt die alte Erinnerung mit dem Datei-Weg.
+und ohne Meldung, und bis dahin gilt die alte Erinnerung mit dem Datei-Weg.
+Nachgefragt wird einmal je Start und danach höchstens alle zehn Minuten – beim
+Zurückkommen in die App, beim Öffnen von *Mehr* oder mit der nächsten Änderung.
+Bis v240 fragte sie nur beim Start; die installierte App bleibt auf Android aber
+oft tagelang im Speicher, und wer den SQL-Block gerade ausgeführt hatte, las
+weiter „kennt die Sicherung noch nicht" und hielt es für gescheitert.
 
 **Was nicht belegt ist**, ehrlich dazugesagt:
 
@@ -2626,7 +2733,12 @@ bis dahin gilt die alte Erinnerung mit dem Datei-Weg.
   geprüft ist es nicht. Deshalb *Nachsehen* und der Link daneben;
 * ob eine `keepalive`-Anfrage mit CORS-Vorabanfrage (der `apikey`-Kopf löst
   eine aus) auf jedem Chrome durchgeht. Scheitert sie, holt der nächste Start
-  es nach – verloren geht nichts.
+  es nach – verloren geht nichts;
+* ob der linke Eintrag in `X-Forwarded-For` bei Supabase die Adresse des Geräts
+  ist (so steht es im Beispiel zur Drossel in der Supabase-Doku). Wäre es die
+  eines Proxys, gälten die Grenzen je Quelle für alle zusammen; fünf neue
+  Sicherungen am Tag reichen dann immer noch für eine Handvoll Geräte, und
+  `tools/aufraeumen.sql`, Schritt 6, zeigt es: eine einzige Quelle für alle.
 
 Die Datei-Wege – *Als Datei sichern*, *Datei laden*, *Sicherung weitergeben* –
 stehen unverändert unter *Mehr → Daten*, für den, der keinen Server will oder
@@ -2643,6 +2755,16 @@ Passwortmanager und über den Link; ein falscher Schlüssel findet nichts; fehle
 die Funktionen, bleibt es bei einem Versuch; abgeschaltet geht keine Anfrage
 raus; Löschen löscht; und ein zweites Gerät mit demselben Schlüssel wird nicht
 still überschrieben.
+
+`tests/test-sicherung-faelle.mjs` spielt die Fälle aus der Prüfung nach, jeder
+gegen die Fassung davor gegengeprüft (dort rot): ein fremder Link, dessen
+Schlüssel nicht übernommen wird; der Rückweg nach dem Zurückholen, der die
+geholte Zeile unberührt lässt; *Alle Daten löschen* ohne Netz, nachgeholt beim
+nächsten Start, danach findet ein neues Gerät nichts mehr; Löschen, während die
+erste Sicherung im Netz hängt; die verlorene Antwort ohne falschen Konflikt; der
+letzte Haken mit sofortigem Weglegen; *Abschließen* drei Sekunden nach einer
+gedrosselten Sicherung; der nachgezogene SQL-Block ohne Neustart; und der Satz
+unter *Mehr*, der die IP-Adresse nennt.
 
 ### Die Ablage liegt nicht mehr im Weg jedes abgehakten Satzes
 
@@ -6380,8 +6502,9 @@ die App fällt darauf zurück, wenn es `melde` nicht gibt.
 ### Automatische Sicherung einrichten
 
 Die [automatische Sicherung](#automatische-sicherung) braucht eine eigene
-Tabelle und drei Funktionen. Einmal im **SQL-Editor** ausführen – derselbe Text
-steht in [`tools/sicherung.sql`](tools/sicherung.sql). Ein Passwort braucht er
+Tabelle, drei Funktionen und zwei kleine Tabellen für die Drossel je Quelle.
+Einmal im **SQL-Editor** ausführen – derselbe Text steht in
+[`tools/sicherung.sql`](tools/sicherung.sql). Ein Passwort braucht er
 nicht: Aus der Tabelle kommt nur Chiffrat, und lesbar ist es nur mit dem
 Schlüssel auf dem Gerät. Wie der Block oben ist er wiederholbar und löscht keine
 Sicherung.
@@ -6400,7 +6523,24 @@ create table if not exists sicherung (
 -- Falls die Tabelle aus einer früheren Fassung dieses Blocks stammt.
 alter table sicherung add column if not exists angelegt timestamptz not null default now();
 
+-- Die Drossel je Quelle: wie viel eine Quelle an einem Tag neu angelegt hat und
+-- wie viele Daten dazukamen (Anlegen und Wachsen). Die Quelle ist ein Hash aus
+-- IP-Adresse und Tagessalz – die Adresse selbst steht nirgends.
+create table if not exists sicherung_quelle (
+  quelle text   not null,
+  tag    date   not null,
+  neu    int    not null default 0,
+  bytes  bigint not null default 0,
+  primary key (quelle, tag)
+);
+create table if not exists sicherung_salz (
+  tag  date primary key,
+  salz text not null
+);
+
 alter table sicherung enable row level security;
+alter table sicherung_quelle enable row level security;
+alter table sicherung_salz enable row level security;
 
 -- Erst weg, dann neu: Ändert sich eine Signatur oder ein Rückgabetyp,
 -- verweigert "create or replace" den Dienst.
@@ -6418,9 +6558,16 @@ create or replace function sicherung_schreiben(
 returns timestamptz
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
-  marke text;
-  alt   sicherung%rowtype;
-  jetzt timestamptz := now();
+  marke    text;
+  alt      sicherung%rowtype;
+  jetzt    timestamptz := now();
+  heute    date := (now() at time zone 'utc')::date;
+  v_ip     text;
+  v_salz   text;
+  v_quelle text;
+  v_neu    int;
+  v_bytes  bigint;
+  zuwachs  bigint;
 begin
   -- Schreiben darf jeder, der den Link hat. Was er schreibt, hat trotzdem eine
   -- Form zu haben – und eine Größe, die der kostenlose Tarif verträgt.
@@ -6433,28 +6580,73 @@ begin
 
   -- Aufräumen nebenbei: Was 400 Tage niemand erneuert hat, gehört zu keinem
   -- Gerät mehr. Die App erneuert spätestens alle 30 Tage, solange sie benutzt
-  -- wird – hier verschwindet also nur Verwaistes.
+  -- wird – hier verschwindet also nur Verwaistes. Und von der Drossel je
+  -- Quelle bleibt kein Tag über seinen Tag hinaus: Ohne das Salz lässt sich
+  -- aus einem alten Hash auch durch Durchprobieren keine Adresse gewinnen.
   delete from sicherung where stand < now() - interval '400 days';
+  delete from sicherung_quelle where tag < heute;
+  delete from sicherung_salz where tag < heute;
+
+  -- Die Quelle: der erste Eintrag in X-Forwarded-For, den PostgREST als
+  -- request.headers weiterreicht. Die Grenzen für alle zusammen (unten) waren
+  -- allein von jedem ausschöpfbar, der den öffentlichen Schlüssel hat – hundert
+  -- Kleinstanfragen, und kein neues Gerät kam mehr hinein. Fehlt der Kopf
+  -- (SQL-Editor, Aufruf ohne Proxy), gibt es keine Grenze je Quelle, nur die
+  -- für alle. Wer den Kopf fälscht, landet ebenfalls dort: Die Grenze je Quelle
+  -- hält die einfache Flut auf, die Grenzen für alle bleiben die letzte Wand.
+  v_ip := nullif(btrim(split_part(coalesce(
+    nullif(current_setting('request.headers', true), '')::json ->> 'x-forwarded-for', ''), ',', 1)), '');
+  if v_ip is not null then
+    insert into sicherung_salz (tag, salz)
+      values (heute, encode(sha256(convert_to(gen_random_uuid()::text || gen_random_uuid()::text, 'UTF8')), 'hex'))
+      on conflict (tag) do nothing;
+    select s.salz into v_salz from sicherung_salz s where s.tag = heute;
+    v_quelle := encode(sha256(convert_to(left(v_ip, 64) || v_salz, 'UTF8')), 'hex');
+    select q.neu, q.bytes into v_neu, v_bytes
+      from sicherung_quelle q where q.quelle = v_quelle and q.tag = heute;
+  end if;
+  v_neu := coalesce(v_neu, 0);
+  v_bytes := coalesce(v_bytes, 0);
 
   select * into alt from sicherung where id = p_id for update;
   if not found then
     if p_vorher is not null then raise exception 'geloescht'; end if;
-    -- Eine einfache Drossel gegen Missbrauch: nicht beliebig viele neue
-    -- Sicherungen je Stunde, nicht mehr als 200 MB insgesamt.
+    zuwachs := length(p_daten);
+    -- Je Quelle und Tag: fünf neue Sicherungen und 8 MB. Ein Umzug, ein
+    -- Rückweg und ein frischer Schlüssel nach einem Link passen an einem Tag
+    -- bequem hinein; eine Flut nicht.
+    if v_quelle is not null and v_neu >= 5 then
+      raise exception 'zu viele neue Sicherungen von hier';
+    end if;
+    if v_quelle is not null and v_bytes + zuwachs > 8 * 1024 * 1024 then
+      raise exception 'zu viele Daten von hier';
+    end if;
+    -- Für alle zusammen: nicht beliebig viele neue Sicherungen je Stunde,
+    -- nicht mehr als 200 MB insgesamt.
     if (select count(*) from sicherung where angelegt > now() - interval '1 hour') >= 100 then
       raise exception 'zu viele neue Sicherungen';
     end if;
-    if (select coalesce(sum(groesse), 0) from sicherung) + length(p_daten) > 200 * 1024 * 1024 then
+    if (select coalesce(sum(groesse), 0) from sicherung) + zuwachs > 200 * 1024 * 1024 then
       raise exception 'Server voll';
     end if;
     insert into sicherung (id, w_hash, daten, iv, groesse, stand, angelegt)
       values (p_id, marke, p_daten, p_iv, length(p_daten), jetzt, jetzt);
+    if v_quelle is not null then
+      insert into sicherung_quelle (quelle, tag, neu, bytes) values (v_quelle, heute, 1, zuwachs)
+        on conflict (quelle, tag) do update
+          set neu = sicherung_quelle.neu + excluded.neu, bytes = sicherung_quelle.bytes + excluded.bytes;
+    end if;
     return jetzt;
   end if;
 
   if alt.w_hash is distinct from marke then raise exception 'Schreibmarke passt nicht'; end if;
   if p_vorher is distinct from alt.stand then raise exception 'veraltet'; end if;
   if alt.stand > now() - interval '10 seconds' then raise exception 'zu oft'; end if;
+  -- Wachsen zählt wie Anlegen: Sonst legte man klein an und blähte danach auf.
+  zuwachs := greatest(length(p_daten) - alt.groesse, 0);
+  if v_quelle is not null and zuwachs > 0 and v_bytes + zuwachs > 8 * 1024 * 1024 then
+    raise exception 'zu viele Daten von hier';
+  end if;
   if (select coalesce(sum(groesse), 0) from sicherung) - alt.groesse + length(p_daten)
        > 200 * 1024 * 1024 then
     raise exception 'Server voll';
@@ -6462,6 +6654,11 @@ begin
   update sicherung
      set daten = p_daten, iv = p_iv, groesse = length(p_daten), stand = jetzt
    where id = p_id;
+  if v_quelle is not null and zuwachs > 0 then
+    insert into sicherung_quelle (quelle, tag, neu, bytes) values (v_quelle, heute, 0, zuwachs)
+      on conflict (quelle, tag) do update
+        set neu = sicherung_quelle.neu + excluded.neu, bytes = sicherung_quelle.bytes + excluded.bytes;
+  end if;
   return jetzt;
 end $$;
 
@@ -6487,8 +6684,8 @@ begin
   return weg;
 end $$;
 
--- Nur die drei Funktionen sind erreichbar, die Tabelle selbst nicht.
-revoke all on table sicherung from anon, authenticated;
+-- Nur die drei Funktionen sind erreichbar, die Tabellen selbst nicht.
+revoke all on table sicherung, sicherung_quelle, sicherung_salz from anon, authenticated;
 revoke all on function sicherung_schreiben(text, text, text, text, timestamptz),
                        sicherung_lesen(text), sicherung_loeschen(text, text)
   from public, anon, authenticated;
@@ -6501,13 +6698,40 @@ grant execute on function sicherung_schreiben(text, text, text, text, timestampt
 notify pgrst, 'reload schema';
 ```
 
-Nachgestellt mit PostgreSQL 16, als Rolle `anon`: Direktzugriff auf die Tabelle
-→ `permission denied`; neu anlegen geht, Ersetzen ohne Vorgänger → `veraltet`,
-mit falscher Schreibmarke → `Schreibmarke passt nicht`, unter zehn Sekunden →
-`zu oft`, mit richtigem Vorgänger → neuer Stand; Lesen mit fremder Kennung → keine
-Zeile; Löschen mit falscher Marke → 0, mit richtiger → 1; gespeichert ist der
-Hash der Marke, nicht die Marke; was älter als 400 Tage ist, verschwindet beim
-nächsten Schreiben. Ein zweiter Lauf des Blocks geht durch und lässt die
+**Die Drossel je Quelle.** Die Grenzen für alle zusammen – 100 neue
+Sicherungen je Stunde, 200 MB insgesamt – konnte jeder ausschöpfen, der den
+öffentlichen Schlüssel hat, und der steht in `js/config.js`: hundert
+Kleinstanfragen, und kein neues Gerät kam mehr hinein; hundert Mal 2 MB, und
+die nächste, etwas größere Sicherung eines echten Geräts endete mit `Server
+voll`. Die Fremdzeilen hätten 400 Tage dort gestanden. Jetzt gilt zusätzlich je
+Quelle und Tag: höchstens fünf neue Sicherungen und 8 MB neue Daten, Wachsen
+einer bestehenden Sicherung mitgezählt – ein Umzug, ein Rückweg und ein
+frischer Schlüssel nach einem Link passen bequem hinein, eine Flut nicht.
+Schrumpfen und gleich groß bleiben kosten nichts. Die Quelle ist der erste
+Eintrag in `X-Forwarded-For`, wie PostgREST ihn als `request.headers`
+weiterreicht, gespeichert nur als SHA-256 über Adresse und ein Salz, das jeden
+Tag neu gewürfelt wird; Zähler und Salz eines Tages löscht der erste Aufruf am
+Tag danach (sonst `tools/aufraeumen.sql`, Schritt 6). Ehrlich dazugesagt: Mit
+dem Salz des Tages ließe sich eine IPv4-Adresse durch Durchprobieren
+zurückrechnen – wer die Datenbank hat, also der Betreiber, sieht die Adressen
+in den Protokollen von Supabase aber ohnehin. Deshalb bleibt beides nicht
+länger als den Tag. Fehlt der Kopf (SQL-Editor), gilt nur die Grenze für alle;
+wer ihn fälscht, ebenso. Die Grenze je Quelle hält die einfache Flut auf, die
+Grenzen für alle bleiben die letzte Wand vor dem kostenlosen Tarif.
+
+Nachgestellt mit PostgreSQL 16, als Rolle `anon`: Direktzugriff auf die drei
+Tabellen → `permission denied`; neu anlegen geht, Ersetzen ohne Vorgänger →
+`veraltet`, mit falscher Schreibmarke → `Schreibmarke passt nicht`, unter zehn
+Sekunden → `zu oft`, mit richtigem Vorgänger → neuer Stand; Lesen mit fremder
+Kennung → keine Zeile; Löschen mit falscher Marke → 0, mit richtiger → 1;
+gespeichert ist der Hash der Marke, nicht die Marke; was älter als 400 Tage ist,
+verschwindet beim nächsten Schreiben. Je Quelle: fünf neue gehen, die sechste →
+`zu viele neue Sicherungen von hier`, auch hinter einem anderen Proxy (zählt der
+linke Eintrag); eine andere Quelle geht weiter; viermal 2 MB gehen, danach →
+`zu viele Daten von hier`; Wachsen über das Budget → dieselbe Ablehnung, von
+einer anderen Quelle geht es; in `sicherung_quelle` steht keine Adresse, nur ihr
+Hash; nach einem Tageswechsel sind Zähler und Salz des Vortags weg; ohne Kopf
+keine Grenze je Quelle. Ein zweiter Lauf des Blocks geht durch und lässt die
 Sicherungen stehen.
 
 `sha256()` ist seit PostgreSQL 11 eingebaut – die Funktion braucht kein
@@ -6515,9 +6739,10 @@ Sicherungen stehen.
 `public, pg_temp` vorbei nicht zu finden wäre.
 
 Wie viel Platz die Sicherungen belegen und wie alt sie sind, zeigt
-[`tools/aufraeumen.sql`](tools/aufraeumen.sql), Schritt 4. Von Hand löschen muss
-dort niemand etwas: `sicherung_schreiben()` räumt bei jedem Aufruf ab, was 400
-Tage niemand erneuert hat.
+[`tools/aufraeumen.sql`](tools/aufraeumen.sql), Schritt 4, die Drossel je Quelle
+Schritt 6. Von Hand löschen muss dort niemand etwas: `sicherung_schreiben()`
+räumt bei jedem Aufruf ab, was 400 Tage niemand erneuert hat, und den Vortag
+der Drossel.
 
 ### Wenn nichts ankommt
 
