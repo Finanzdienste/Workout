@@ -5228,8 +5228,12 @@ hoch es geht, oben eine Sekunde halten, unten ganz tief unter die Buchkante.
 **Ein Buch, keine Hantelscheibe:** Die Scheiben aus dem Vorrat stecken an den
 Hanteln, und für jeden Satz eine abzuschrauben lohnt sich nicht – nur eine
 Scheibe, die ohnehin frei herumliegt, kann das Buch ersetzen. Hochnehmen und
-Ablegen steht wie überall darunter: erst hinsetzen, dann die Hantel quer auf
-die Oberschenkel legen; am Ende neben dem Stuhl abstellen, erst dann aufstehen.
+Ablegen steht wie überall darunter: Die Hantel steht vor dem Stuhl, aufgenommen
+wird sie im Stehen aus der Hocke; mit ihr hinsetzen und sie quer auf die
+Oberschenkel legen, dann die Ballen aufs Buch. Am Ende umgekehrt – aufstehen,
+in die Hocke, abstellen. Im Sitzen seitlich nach einer Hantel neben dem Stuhl zu
+greifen ginge nur mit Seitneigung und Drehung, und das mit der schwereren
+Hantel, die sitzend geht, und müde am Ende des Satzes.
 Neu unter *Wenn etwas weh tut*: „Oberschenkel über dem Knie" – Druck, kein
 Schaden; Handtuch, und nicht auf die Kniescheibe.
 
@@ -5247,8 +5251,13 @@ protokollierte Satz – der Name kommt wie beim Überkopf-Trizepsstrecker aus
 eine Kurzhantel), Startgewicht, Schritt, Pause und Wiederholungen. Damit
 ändert sich auch kein Plan: `stand` und `saetze` aller vier Fokusse sind
 dieselben wie vorher, es gibt **keine Planwechsel-Meldung**, und angefangene
-Einheiten bleiben, wie sie sind. Das Gewicht bleibt ebenfalls stehen – sitzend
-geht mehr, aber wann es hochgeht, entscheidet wie überall der `+`.
+Einheiten bleiben, wie sie sind. Das Gewicht bleibt ebenfalls stehen (bei Tobi
+6,5 kg). Sitzend geht deutlich mehr; woran man das passende erkennt, sagt der
+Abschnitt *Wie schwer* unter „Mehr zur Ausführung": so schwer, dass die letzten
+zwei Wiederholungen eines Satzes hart werden. Er steht für sich – kein
+Vergleich mit der Stehfassung, die mit Hanteln niemand mehr sieht, und kein
+„eingetragenes Gewicht", das ein neuer Nutzer nicht hat. Eingestellt wird es wie
+überall mit `+`; einen Steigerungsvorschlag gibt es weiterhin nicht.
 
 **Die Figur** ist ein neues Muster, `calfseated`: sitzend auf der Bank, Knie
 und Hüfte rechtwinklig, die Ballen auf einem Buch unter beiden Füßen
@@ -5258,18 +5267,40 @@ die liegenden Zehen; sitzend stiege damit die Bank mit in die Luft. Deshalb
 gibt es `fuss` – der Fuß streckt sich im Sprunggelenk –, und `skelett()` stellt
 je Bild Hüft- und Kniewinkel so nach, dass Gesäß und Ballen bleiben, wo sie
 sind (`ballenSitz()`, Newton über zwei Winkel wie an der Stange; mit den
-Endstellungen allein liefen die Zehen auf halbem Weg 0,010 nach vorn). Die
+Endstellungen allein liefen die Zehen auf halbem Weg 0,018 nach vorn). Die
+Zehen stehen dabei nicht wie sonst als tiefster Punkt auf dem Boden, sondern
+auf der Oberkante des Buchs, und das Buch steht auf dem Boden wie die Bank
+daneben (`BUCH`, 0,055 dick). Unten sinkt die Ferse 0,032 unter die Buchkante –
+die Dehnung, für die das Buch da ist –, oben steht sie 0,092 über dem Ballen.
+Die Oberseite des Buchs wird nach ihrer hintersten Ecke einsortiert, nicht nach
+ihrer Mitte: Sie liegt unter beiden Füßen und muss vor ihnen gezeichnet werden.
+Die
 Hantel rechnet `knieHantel()` aus den Oberschenkeln: quer zur Knieachse, bei
 82 % ihrer Länge, so hoch, dass jede große Scheibe auf ihrem Oberschenkel
 aufliegt – steigen die Knie, steigt sie mit. Die Arme sind gesucht: beide
 Hände im Obergriff am Griff, die Fäuste berühren sich nicht und nicht die
-Scheiben, über die ganze Bewegung höchstens 0,003 neben der Achse.
+Scheiben, über die ganze Bewegung höchstens 0,0045 neben der Achse.
 
 `tests/test-wade-sitzend.mjs` prüft Katalog, Pläne, Figur und App: Name und
-Hinweise je Fassung, unveränderte Anteile und Fingerabdrücke, Knie 90°, Gesäß
-und Ballen fest, Fersen steigen, Hantel quer auf den Oberschenkeln, beide
-Fäuste am Griff, und in Tobis Cut-Einheit Karte, Fokus und Bodyweight-Karte.
-Gegen v239 ist er rot.
+Hinweise je Fassung, Hochnehmen im Stehen, „Wie schwer" mit Maßstab,
+unveränderte Anteile und Planeingaben, Knie 90°, Gesäß und Ballen fest, Fersen
+steigen und sinken unten unter die Buchkante, das Buch auf dem Boden, Hantel
+quer auf den Oberschenkeln, beide Fäuste am Griff, kein Fuß unter der
+Buchoberseite aus neun Blickwinkeln, und in Tobis Cut-Einheit Karte, Fokus und
+Bodyweight-Karte. Gegen v239 ist er rot.
+
+**Nachgezogen nach der Prüfung.** Die erste Fassung hatte fünf Mängel: Die
+Buchoberseite deckte einen Fuß zu (von vorn beide), das Buch steckte ganz im
+Boden und der Fuß stand unten flach, „Wie schwer" nannte keinen Maßstab und
+verglich mit der Stehfassung, die Hantel wurde im Sitzen seitlich vom Boden
+gehoben, und der Test hielt feste Fingerabdrücke aller vier Pläne fest – die
+wären bei jedem berechtigten Neulauf rot geworden, auch wenn sich nur ein
+Termin verschiebt, der in `stand` gar nicht eingeht. Jetzt vergleicht er die
+Felder, aus denen die Pläne gerechnet sind (`FELDER` in
+`tools/pruefung/plan-frisch.py`), mit dem in `tools/pruefung/plan-eingaben.json`
+festgehaltenen Stand. In `tests/test-figur.mjs` zählen beim Sitzen auf dem Buch
+(`ballen`) die Zehen auf der Buchoberkante statt des tiefsten Punkts am Boden;
+darunter darf trotzdem nichts im Boden stecken.
 
 ### Jede Übung muss einen Weg nach unten nennen
 

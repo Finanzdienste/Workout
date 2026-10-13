@@ -21,27 +21,39 @@
  * hieße bei Tobi eine Planwechsel-Meldung für eine Übung, die nur anders
  * ausgeführt wird.
  *
- *   W1  Katalog: Name, Hinweis, Hochnehmen, Erklärung je Fassung.
- *   W2  Was bleibt: Schlüssel, Anteile, Gerät, Gewicht, alle vier Pläne.
- *   W3  Figur: sitzt auf der Bank, Knie 90°, Ballen auf dem Buch, Fersen
- *       heben sich, Hantel quer auf den Oberschenkeln, beide Hände daran.
- *   W4  In der App: Karte und Fokus mit Hanteln, Karte ohne Hanteln.
+ *   W1  Katalog: Name, Hinweis, Hochnehmen (im Stehen, nicht seitlich vom
+ *       Stuhl aus), Erklärung je Fassung, „Wie schwer" mit Maßstab.
+ *   W2  Was bleibt: Schlüssel, Anteile, Gerät, Gewicht, und die Eingaben, aus
+ *       denen alle vier Pläne gerechnet sind.
+ *   W3  Figur: sitzt auf der Bank, Knie 90°, Ballen auf dem Buch, das Buch auf
+ *       dem Boden, unten die Ferse unter der Buchkante, Fersen heben sich,
+ *       Hantel quer auf den Oberschenkeln, beide Hände daran.
+ *   W4  In der App: Karte und Fokus mit Hanteln – das Buch so tief wie die
+ *       Bankbeine, kein Fuß unter seiner Oberseite –, Karte ohne Hanteln.
  *
- * Gegenprobe: gegen 9b3a4b4 (v239) rot in W1, W3 und W4, 16 Prüfungen – dort
- * heißt die Übung „Wadenheben gebeugtes Knie", das Muster `calfseated` gibt es
- * nicht, und die Figur steht mit der Hantel in einer Hand. W2 ist grün wie
- * vorher; es ist die Wache dafür, dass es so bleibt. Einzeln zurückgedreht
- * wird jede Stelle in js/figure.js rot: ballenSitz() (die Hüfte rutscht
- * 0,010), knieHantel() (Hantel in der rechten Hand, schräg, neben der Mitte),
- * die zweite Faust, das Buch unter beiden Ballen und `fuss` in solve() (die
- * Fersen bleiben unten).
+ * Gegenprobe: gegen 9b3a4b4 (v239) rot in W1, W3 und W4 – dort heißt die
+ * Übung „Wadenheben gebeugtes Knie", das Muster `calfseated` gibt es nicht,
+ * und die Figur steht mit der Hantel in einer Hand. W2 ist grün wie vorher; es
+ * ist die Wache dafür, dass es so bleibt, und wird rot, sobald sich ein
+ * planbestimmendes Feld dieser Übung ohne Neulauf ändert (dbShares 0,9: vier
+ * Pläne rot), nicht aber, wenn ein Neulauf nur Termine verschiebt. Einzeln
+ * zurückgedreht wird jede Stelle in js/figure.js rot: ballenSitz() (die Hüfte
+ * rutscht), knieHantel() (Hantel in der rechten Hand, schräg, neben der
+ * Mitte), die zweite Faust, das Buch unter beiden Ballen, `fuss` in solve()
+ * (die Fersen bleiben unten), die Zehen auf der Buchoberkante in skelett()
+ * (das Buch steckt 0,033 bzw. 0,065 im Boden), der gestreckte Fuß unten
+ * (`fuss: 14`: die Ferse bleibt über der Buchkante) und die Oberseite nach
+ * der hintersten Ecke (von vorn beide Füße zugedeckt, sonst einer). Gegen
+ * b9658c0, die erste Fassung, sind auch die Texte rot: Hochnehmen im Sitzen
+ * seitlich vom Boden, „Wie schwer" ohne Maßstab.
  */
-import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { chromium } from 'playwright';
 import { PATTERNS, RIG, hanteln, hantelTeile, handForm } from '../js/figure.js';
 import { EXERCISES, PLANS } from '../js/data.js';
 import { skelett } from '../tools/pose.mjs';
-import { URL, SHOT } from './umgebung.mjs';
+import { URL, SHOT, ROOT } from './umgebung.mjs';
 
 let fails = 0;
 const check = (c, m) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) { fails++; process.exitCode = 1; } };
@@ -71,6 +83,14 @@ if (ex) {
   const heben = ex.db.heben || '';
   check(/setz/.test(heben) && /quer/.test(heben) && /Oberschenkel/.test(heben) && /(abstell|ableg)/.test(heben),
     `Hochnehmen und Ablegen: setzen, quer auf die Oberschenkel, am Ende abstellen („${heben.slice(0, 60)}…")`);
+  // Erst die Hantel, dann der Stuhl – und am Ende erst aufstehen, dann
+  // abstellen. Im Sitzen reicht man an eine Hantel neben dem Stuhl nur mit
+  // Seitneigung und Drehung, und das mit der schwereren Hantel, die sitzend
+  // geht, und müde am Ende des Satzes (Prüfung zu b9658c0).
+  const vor = (text, a, b) => text.search(a) >= 0 && text.search(b) > text.search(a);
+  const [anfang, ende = ''] = heben.split(/Am Ende/);
+  check(vor(anfang, /aufstehen/, /hinsetzen/) && vor(ende, /aufstehen/, /abstell/) && !/neben dem Stuhl/.test(heben),
+    'aufgenommen wird sie im Stehen aus der Hocke, abgestellt ebenso – nicht im Sitzen seitlich vom Boden');
 
   const titel = (m) => ex.detail.filter((d) => !d[2] || d[2] === m);
   const db = titel('db');
@@ -81,6 +101,12 @@ if (ex) {
     'der Grund steht da: Zwillingswade entspannt, der Schollenmuskel arbeitet');
   check(db.some((d) => /Scheibe/.test(d[1]) && /Buch/.test(d[1])),
     'und warum ein Buch und keine Hantelscheibe');
+  // „Wie schwer" steht für sich: ein Maßstab statt „entscheidest du", und kein
+  // Vergleich mit der Stehfassung, die mit Hanteln niemand mehr sieht, und kein
+  // „eingetragenes Gewicht", das ein neuer Nutzer nicht hat.
+  const schwer = (db.find((d) => d[0] === 'Wie schwer') || [])[1] || '';
+  check(/letzten zwei Wiederholungen/.test(schwer) && !/stehend|eingetragen|entscheidest/.test(schwer),
+    `„Wie schwer" nennt einen Maßstab und steht für sich („${schwer.slice(0, 70)}…")`);
   check(bw.some((d) => /30/.test(d[1])) && bw.every((d) => !/sitz/i.test(d[0])),
     `ohne Hanteln bleibt die stehende Erklärung mit 30° (${bw.map((d) => d[0]).join(', ')})`);
   check(/Wand/.test(ex.bw.cue) && !/optional/i.test(ex.bw.cue),
@@ -97,19 +123,31 @@ if (ex) {
   check(ex.db.rest === 90 && ex.bw.rest === 90 && ex.db.reps === '12–20' && ex.bw.reps === '15–30',
     'Pause und Wiederholungen unverändert');
 }
-// Der Stand vor dieser Änderung (9b3a4b4), je Fokus: Fingerabdruck der
-// Übungen, der Satzzahlen und ein Abdruck des ganzen Eintrags samt Kette.
-const VORHER = {
-  standard: ['5d06c61de5e8', 'cd3cb5cf2569', '8ab26359c4fbe26f'],
-  bbp: ['f689fd6497f1', '01b721078644', 'bd1f27b1f32dda00'],
-  cut: ['345241a49404', '577d2f7aeeb1', '20e7de5061017244'],
-  oberkoerper: ['49ced3ea3450', 'ada4850e5a59', '24ea23e7709d1f46'],
-};
-Object.entries(VORHER).forEach(([k, [stand, saetze, alles]]) => {
-  const v = PLANS[k];
-  const abdruck = v ? createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 16) : '';
-  check(v && v.stand === stand && v.saetze === saetze && abdruck === alles,
-    `${k}: derselbe Plan wie vorher – keine Planwechsel-Meldung (${v && v.stand}/${v && v.saetze}/${abdruck})`);
+// Die Pläne sind aus wenigen Feldern je Übung gerechnet – genau denen, die
+// tools/pruefung/plan-frisch.py als FELDER vergleicht – und je Fokus ist in
+// tools/pruefung/plan-eingaben.json festgehalten, mit welchen. Stehen dort für
+// diese Übung dieselben Werte wie im Katalog, ist jeder Plan noch der, den
+// diese Eingaben ergeben: kein neuer Fingerabdruck, keine Planwechsel-Meldung.
+// Bis zur Prüfung standen hier feste Fingerabdrücke aller vier Pläne; die
+// wurden bei jedem berechtigten Neulauf rot, auch wenn sich nur ein Termin
+// verschob, der in `stand` gar nicht eingeht.
+const FELDER = ['dbShares', 'bwShares', 'tier', 'equip', 'dbWeight', 'bewegung'];
+const lies = (datei) => JSON.parse(readFileSync(path.join(ROOT, datei), 'utf8'));
+const katalog = lies('tools/exercise-meta.json')[ID] || {};
+const eingaben = lies('tools/pruefung/plan-eingaben.json').plaene || {};
+check(['standard', 'bbp', 'cut', 'oberkoerper'].every((k) => eingaben[k]), 'für alle vier Pläne sind die Eingaben festgehalten');
+Object.entries(eingaben).forEach(([k, v]) => {
+  const fest = (v.felder || {})[ID];
+  const anders = FELDER.filter((f) => {
+    const jetzt = JSON.stringify(katalog[f] ?? null);
+    if (fest && JSON.stringify(fest[f] ?? null) === jetzt) return false;
+    // Bewusst hingenommen, mit Grund – wie in plan-frisch.py.
+    const h = (v.hingenommen || {})[`${ID}.${f}`];
+    return !(h && JSON.stringify(h.jetzt ?? null) === jetzt);
+  });
+  check(!!fest && !anders.length,
+    `${k}: Eingaben, aus denen der Plan gerechnet ist, unverändert – keine Planwechsel-Meldung${anders.length ? ` (anders: ${anders.join(', ')})` : ''}`);
+  check(!!PLANS[k] && PLANS[k].stand.length === 12, `${k}: der Plan ist da (${PLANS[k] && PLANS[k].stand})`);
 });
 
 /* --- W3. Die Figur ---------------------------------------------------------- */
@@ -152,9 +190,22 @@ if (spec) {
   // Die Fersen steigen, Schritt für Schritt, und deutlich.
   const ferse = js.map((j) => (j.ankleL[1] + j.ankleR[1]) / 2);
   check(ferse.every((y, i) => i === 0 || y >= ferse[i - 1] - 1e-9), 'die Fersen steigen ohne Rückschritt');
-  check(ferse[ferse.length - 1] - ferse[0] >= 0.07,
+  check(ferse[ferse.length - 1] - ferse[0] >= 0.1,
     `die Fersen heben sich deutlich (${f2(ferse[0] + 0.62)} → ${f2(ferse[ferse.length - 1] + 0.62)})`);
-  check(Math.abs(j0.ankleR[1] - j0.toeR[1]) < 0.02, `unten steht der Fuß flach (Ferse ${f2(j0.ankleR[1] - j0.toeR[1])} über dem Ballen)`);
+  // Das Buch, wie mountFigure() es zeichnet: Oberkante 0,01 unter den Zehen,
+  // 0,055 dick (BUCH in js/figure.js). Es steht auf dem Boden wie die Bank
+  // daneben, und unten sinkt die Ferse unter seine Kante – das ist die
+  // Dehnung, für die es da ist („dann langsam ganz tief unter die Buchkante").
+  // Bis zur Prüfung stand der Fuß unten flach, und das Buch steckte ganz im
+  // Boden (Unterkante −0,685).
+  const BODEN = -0.62;
+  const buchOben = (j) => zeh(j)[1] - 0.01;
+  const buchUnten = Math.max(...js.map((j) => Math.abs(buchOben(j) - 0.055 - BODEN)));
+  check(buchUnten < 0.002, `das Buch steht auf dem Boden, die Ballen auf ihm (Unterkante ${f2(buchOben(j0) - 0.055 - BODEN)} über dem Boden)`);
+  const unter = Math.min(...['L', 'R'].map((s) => buchOben(j0) - j0[`ankle${s}`][1]));
+  check(unter > 0.015, `unten sinkt die Ferse unter die Buchkante (${f2(unter)} darunter)`);
+  const tiefst = Math.min(...js.map((j) => Math.min(...Object.values(j).map((q) => q[1]))));
+  check(tiefst >= BODEN - 1e-9, `und nichts steckt im Boden (tiefster Punkt ${f2(tiefst - BODEN)} darüber)`);
   check(j1.ankleR[1] - j1.toeR[1] > 0.07, `oben steht er auf dem Ballen (Ferse ${f2(j1.ankleR[1] - j1.toeR[1])} darüber)`);
 
   // Die Hantel: quer über beiden Oberschenkeln, direkt hinter den Knien.
@@ -308,6 +359,39 @@ try {
     check(drunter, `t=${i}: das Buch liegt unter den Ballen (${JSON.stringify(buch && { x: Math.round(buch.x), r: Math.round(buch.r), y: Math.round(buch.y) })} `
       + `unter ${JSON.stringify(fuss && { x: Math.round(fuss.x), r: Math.round(fuss.r), b: Math.round(fuss.b) })})`);
   });
+  // Das Buch steht auf dem Boden wie die Bank: von der Seite, auf Augenhöhe,
+  // reicht seine Unterkante so tief wie die Füße der Bankbeine (die vordere
+  // Ecke liegt etwas näher, daher bis 3 px). Bis zur Prüfung steckte es ganz
+  // im Boden. Und die Oberseite deckt keinen Fuß zu: Sie liegt unter beiden
+  // und wird vor ihnen gezeichnet – aus jedem Blickwinkel, unten, mitten,
+  // oben. Nach ihrer Mitte einsortiert verschwand von schräg vorn ein Fuß bis
+  // auf einen Streifen im Buch, von vorn beide.
+  const zeichnung = await page.evaluate(async () => {
+    const { mountFigure } = await import('./js/figure.js');
+    const host = document.createElement('div');
+    host.style.cssText = 'width:300px;height:300px;position:fixed;left:0;top:0';
+    document.body.appendChild(host);
+    const f = mountFigure(host, 'calfseated', true, 'onehand');
+    f.stop();
+    const unten = (sel) => Math.max(...[...host.querySelectorAll(sel)].map((n) => { const b = n.getBBox(); return b.y + b.height; }));
+    const boden = [0, 1].map((t) => { f.setView(90, 0); f.draw(t); return { buch: unten('.fig-buch'), beine: unten('.fig-bench-leg') }; });
+    const ordnung = [];
+    [0, 45, 62, 90, 135, 180, 225, 270, 315].forEach((y) => [0, 0.5, 1].forEach((t) => {
+      f.setView(y, 8); f.draw(t);
+      const alle = [...host.querySelectorAll('svg *')];
+      const oben = host.querySelector('.fig-buch-oben');
+      const fuesse = [...host.querySelectorAll('.fig-foot')];
+      ordnung.push({ y, t, oben: !!oben, fuesse: fuesse.length, davor: fuesse.filter((n) => alle.indexOf(n) < alle.indexOf(oben)).length });
+    }));
+    host.remove();
+    return { boden, ordnung };
+  });
+  zeichnung.boden.forEach(({ buch, beine }, i) => {
+    check(Math.abs(buch - beine) < 3, `t=${i}: das Buch steht auf dem Boden wie die Bank (Unterkante ${buch.toFixed(1)}, Bankbeine ${beine.toFixed(1)})`);
+  });
+  const verdeckt = zeichnung.ordnung.filter((o) => !o.oben || o.fuesse !== 2 || o.davor > 0);
+  check(zeichnung.ordnung.length === 27 && !verdeckt.length,
+    `die Buchoberseite deckt keinen Fuß zu – 9 Blickwinkel, t 0/0,5/1 (${verdeckt.map((o) => `y${o.y} t${o.t}: ${o.davor} von ${o.fuesse} zugedeckt`).join(', ') || 'beide Füße immer darüber'})`);
   await offen.locator('[data-act="toggle-detail"]').click();
   await page.waitForTimeout(200);
   const titel = await page.locator('article.ex.open .detail-h').allTextContents();

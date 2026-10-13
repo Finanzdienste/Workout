@@ -647,7 +647,7 @@ export const EXERCISES = [
       ],
       [
         "Wie schwer",
-        "Sitzend trägst du deutlich mehr als stehend mit einer Hantel in einer Hand – der Schollenmuskel ist kräftig, und das Gleichgewicht begrenzt nichts mehr. Dein eingetragenes Gewicht bleibt stehen; ob und wann du es mit + hochnimmst, entscheidest du.",
+        "So schwer, dass die letzten zwei Wiederholungen eines Satzes hart werden – mit 1 s oben und ganz tief unten. Das ist mehr, als man erwartet: Der Schollenmuskel ist kräftig, und im Sitzen bremst kein Gleichgewicht. Geht der ganze Satz leicht, ist die Hantel zu leicht; das Gewicht stellst du an der Gewichtszeile mit + ein.",
         "db"
       ],
       [
@@ -687,7 +687,7 @@ export const EXERCISES = [
       "cue": "Auf einen Stuhl setzen, Knie 90° gebeugt, Schienbeine senkrecht. Fußballen auf ein dickes Buch, die Fersen ragen frei darüber hinaus. Die Kurzhantel liegt quer über beiden Oberschenkeln direkt hinter den Knien, beide Hände halten sie fest. Fersen so hoch es geht, oben 1 s halten, dann langsam ganz tief unter die Buchkante.",
       "rest": 90,
       "pattern": "calfseated",
-      "heben": "Die Hantel steht neben dem Stuhl. Erst hinsetzen und die Ballen aufs Buch stellen, dann die Hantel mit geradem Rücken am Griff hochnehmen und quer auf die Oberschenkel direkt hinter den Knien legen. Am Ende mit beiden Händen vom Bein nehmen und neben dem Stuhl abstellen – erst dann aufstehen.",
+      "heben": "Die Hantel steht vor dem Stuhl neben dem Buch. In die Hocke, mit beiden Händen am Griff fassen und mit den Beinen aufstehen – nicht im Sitzen zur Seite nach ihr greifen. Mit der Hantel vor dem Bauch hinsetzen, sie quer auf die Oberschenkel direkt hinter den Knien legen, dann die Ballen aufs Buch. Am Ende umgekehrt: Füße vom Buch, die Hantel mit beiden Händen vor den Bauch nehmen, aufstehen, in die Hocke und abstellen.",
       "shares": {
         "calves": 1.0
       },

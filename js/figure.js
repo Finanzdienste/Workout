@@ -252,6 +252,8 @@ export function mische(spec, t) {
 }
 
 const BODEN = -0.62;
+// Dicke des Buchs unter den Ballen beim Wadenheben (`stufe`, siehe dort).
+const BUCH = 0.055;
 const tiefster = (j, keys) => Math.min(...keys.map((k) => j[k][1]));
 const verschiebe = (j, d) => {
   Object.keys(j).forEach((k) => { j[k] = [j[k][0] + d[0], j[k][1] + d[1], j[k][2] + d[2]]; });
@@ -535,7 +537,7 @@ function armeRichtung(spec, t, j) {
  * das, die Figur samt Bank stiege in die Luft. Hier streckt `fuss` den Fuß, und
  * Hüft- und Kniewinkel werden je Bild so nachgestellt, dass die Zehen genau da
  * bleiben, wo sie am Start standen. Mit den beiden Endstellungen allein liefen
- * sie auf halbem Weg 0,010 nach vorn und 0,003 nach unten – und weil skelett()
+ * sie auf halbem Weg 0,018 nach vorn und 0,003 nach unten – und weil skelett()
  * an ihnen festhält, wäre stattdessen das Gesäß über die Bank gerutscht. Zwei
  * Bedingungen (Höhe und Tiefe der Zehen), zwei Winkel, Newton – wie an der
  * Stange.
@@ -639,7 +641,14 @@ export function skelett(spec, t) {
     const hand = mitte(j.handL, j.handR);
     return verschiebe(j, [-hand[0], barY - hand[1], -hand[2]]);
   }
-  j = verschiebe(j, [0, -Math.min(...Object.values(j).map((q) => q[1])) + BODEN, 0]);
+  // Im Sitzen auf dem Buch (calfseated) stehen die Ballen nicht auf dem Boden,
+  // sondern auf der Buchoberkante – und darunter sinkt unten die Ferse. Mit
+  // dem tiefsten Punkt am Boden lagen dort die Zehen, das Buch steckte darunter
+  // ganz im Boden, und unten stand der Fuß flach: die Dehnung, für die das
+  // Buch da ist, fehlte im Bild.
+  j = spec.ballen
+    ? verschiebe(j, [0, BODEN + BUCH + 0.01 - mitte(j.toeL, j.toeR)[1], 0])
+    : verschiebe(j, [0, -Math.min(...Object.values(j).map((q) => q[1])) + BODEN, 0]);
   // Was steht: beim Stütz die Hände, bei stehenden und sitzenden Figuren die
   // Füße. Liegende Figuren ohne Stütz bleiben, wie sie sind – dort liegt der
   // Rücken, und der Rücken ist lang genug, um nicht aufzufallen.
@@ -1446,24 +1455,27 @@ export const PATTERNS = {
      * `fuss` streckt den Fuß, skelett() hält Gesäß und Ballen fest (`ballen`,
      * siehe ballenSitz()).
      *
-     * Unten steht der Fuß flach, die Ferse 0,004 über dem Ballen – tiefer
-     * ginge in Wirklichkeit, aber nicht in der Zeichnung: Der tiefste Punkt
-     * steht auf dem Boden, und wäre es unten die Ferse und oben der Ballen,
-     * sänke die ganze Figur samt Bank, sobald die Ferse steigt. Oben ist der
-     * Fuß um 45° gestreckt, die Ferse steht 0,095 über dem Ballen.
+     * Unten sinkt die Ferse 0,032 unter den Ballen, also unter die Buchkante –
+     * das ist die Dehnung, für die das Buch da ist („dann langsam ganz tief
+     * unter die Buchkante"). Oben ist der Fuß um 59° weiter gestreckt, die
+     * Ferse steht 0,092 über dem Ballen; der Hub ist 0,124. Dafür stehen die
+     * Zehen nicht wie sonst als tiefster Punkt auf dem Boden, sondern auf der
+     * Buchoberkante (skelett(), `ballen`), und das Buch auf dem Boden. Bis zur
+     * Prüfung stand hier ein flacher Fuß (`fuss: 14`), weil der tiefste Punkt
+     * auf den Boden kam – die Zehen, mit dem Buch darunter im Boden.
      *
      * Die Arme sind gesucht, nicht geschätzt: In beiden Endstellungen sitzt
      * jede Hand im Obergriff auf dem Griff, 0,062 neben der Mitte – die
      * Fäuste berühren sich nicht und nicht die Scheiben; dazwischen führt die
-     * Hand (`armweg: 'hand'`) und bleibt höchstens 0,003 neben der Achse,
+     * Hand (`armweg: 'hand'`) und bleibt höchstens 0,0045 neben der Achse,
      * während die Knie die Hantel anheben. Von der Seite, wie `calfbent` –
      * sonst ist die Ferse nicht zu sehen.
      */
     daumen: 'innen', hantelAuf: 'knie', armweg: 'hand',
     label: 'Wadenheben im Sitzen', seat: true, ballen: true, stufe: 'beide', view: [62, 8],
     poses: [
-      { lean: 6, arm: A(23.5, -17.1, 68), leg: L(90, 4, 90), fuss: 14 },
-      { lean: 6, arm: A(23.2, -17.1, 86.2), leg: L(101.6, 4, 95.8), fuss: 59 },
+      { lean: 6, arm: A(23.5, -17.1, 68), leg: L(90, 4, 90), fuss: 0 },
+      { lean: 6, arm: A(23.5, -17.1, 92.75), leg: L(106.1, 4, 99.9), fuss: 59 },
     ],
   },
   calfbent: {
@@ -3365,17 +3377,28 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       const bx = beide ? Math.abs(j.toeR[0] - j.toeL[0]) / 2 + 0.085 : einbein ? 0.085 : 0.16;
       const bz = klotz ? 0.10 : 0.26;
       const corner = (sx, sz, y) => P([xc + sx * bx, y, zc + sz * bz]);
-      const face = (quad) => parts.push({
-        z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length - 0.05,
+      // Die Oberseite des Buchs unter beiden Ballen kommt nach ihrer hintersten
+      // Ecke dran, nicht nach ihrer Mitte: Die Mitte liegt unter den Zehen, die
+      // Füße reichen von dort bis zur Ferse dahinter. Nach der Mitte einsortiert
+      // wurde sie nach einem oder beiden Füßen gezeichnet und deckte sie zu –
+      // von schräg vorn verschwand der hintere Fuß bis auf einen Streifen im
+      // Buch, von vorn beide bis auf die Knöchel. Sie liegt unter den Füßen und
+      // gehört deshalb immer vor sie.
+      const face = (quad, oben = false) => parts.push({
+        z: (oben && beide ? Math.min(...quad.map((q) => q.z)) : quad.reduce((acc, q) => acc + q.z, 0) / quad.length) - 0.05,
         node: el('polygon', {
           points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
           // Das Buch trägt eine eigene Klasse dazu – gezeichnet wie die Bank,
-          // aber in tests/test-wade-sitzend.mjs von ihr zu unterscheiden.
-          class: klotz ? 'fig-bench fig-buch' : 'fig-bench',
+          // aber in tests/test-wade-sitzend.mjs von ihr zu unterscheiden, die
+          // Oberseite noch eine.
+          class: klotz ? `fig-bench fig-buch${oben ? ' fig-buch-oben' : ''}` : 'fig-bench',
         }),
       });
-      const boden = klotz ? top - 0.055 : -0.62;
-      face([corner(-1, -1, top), corner(1, -1, top), corner(1, 1, top), corner(-1, 1, top)]);
+      // Das Buch steht auf dem Boden: skelett() setzt beim Sitzen auf dem Buch
+      // (`ballen`) die Zehen BUCH + 0,01 darüber, und damit ist `boden` hier
+      // genau die Bodenhöhe – wie bei den Füßen der Bank daneben.
+      const boden = klotz ? top - BUCH : -0.62;
+      face([corner(-1, -1, top), corner(1, -1, top), corner(1, 1, top), corner(-1, 1, top)], true);
       face([corner(-1, 1, top), corner(1, 1, top), corner(1, 1, boden), corner(-1, 1, boden)]);
       face([corner(1, -1, top), corner(1, 1, top), corner(1, 1, boden), corner(1, -1, boden)]);
       face([corner(-1, -1, top), corner(-1, 1, top), corner(-1, 1, boden), corner(-1, -1, boden)]);
