@@ -26,6 +26,9 @@ OUT = ROOT / 'dist' / 'workout.html'
 # Reihenfolge = Abhaengigkeitsreihenfolge
 MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js',
            'js/injuries.js', 'js/audio.js', 'js/config.js', 'js/telemetry.js',
+           # sicherung.js nach telemetry.js: Es nimmt denselben Weg zum Server
+           # (rpcAufruf, grund, fehltFunktion).
+           'js/sicherung.js',
            # Fehlte hier jahrelang: js/app.js importiert buildICS, im Buendel
            # war die Funktion nie definiert. Der Kalenderexport der Ein-Datei-
            # Fassung endete deshalb in einem ReferenceError, waehrend er unter

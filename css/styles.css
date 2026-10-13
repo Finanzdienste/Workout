@@ -1284,6 +1284,13 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
   border-color: color-mix(in srgb, #ffb020 50%, var(--line));
 }
 
+/* Ein Hinweis mit dem Knopf rechts daneben – „Schlüssel sichern" auf dem
+   Dashboard. Das Dashboard kommt ohne Scrollen aus; ein Kasten mit Knopf
+   darunter kostete eine Zeile mehr, als der Hinweis wert ist. */
+.notice.zeile { display: flex; align-items: center; gap: 10px; }
+.notice.zeile > span { flex: 1 1 auto; }
+.notice.zeile .btn { flex: none; padding: 8px 12px; font-size: 13px; }
+
 .empty {
   text-align: center;
   color: var(--muted);

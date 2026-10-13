@@ -34,6 +34,7 @@ const SHELL = [
   './js/audio.js',
   './js/config.js',
   './js/telemetry.js',
+  './js/sicherung.js',
   './js/data.js',
   './js/body.js',
   './js/chart.js',

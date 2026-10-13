@@ -88,3 +88,44 @@ order by zeilen desc;
 --
 --   select id, name, gesehen from nutzung
 --   where name in ('T', 'Tom', 'Mia', 'Alex', 'Chris') or name like '%<img%';
+
+-- ===========================================================================
+-- DIE AUTOMATISCHE SICHERUNG (Tabelle `sicherung`, siehe tools/sicherung.sql)
+-- ===========================================================================
+--
+-- Hier gibt es nichts zu entziffern: Jede Zeile ist ein Chiffrat, das nur mit
+-- dem Schlüssel auf dem Gerät seines Besitzers lesbar ist. Was sich ansehen
+-- lässt, ist, wie viel Platz es kostet und wie alt es ist.
+--
+-- Von Hand muss hier nichts weg. sicherung_schreiben() räumt bei jedem Aufruf
+-- selbst ab, was 400 Tage niemand erneuert hat; die App erneuert spätestens
+-- alle 30 Tage, solange sie benutzt wird. Verschwindet also nur, was zu keinem
+-- benutzten Gerät mehr gehört. Schreibt monatelang gar kein Gerät, räumt auch
+-- niemand – dafür ist Schritt 5.
+
+-- 4. ANSEHEN: wie viele, wie groß, wie alt.
+select count(*) as sicherungen,
+       pg_size_pretty(coalesce(sum(groesse), 0)::bigint) as chiffrat_zusammen,
+       pg_size_pretty(coalesce(max(groesse), 0)::bigint) as groesste,
+       min(stand) as aelteste,
+       max(stand) as neueste,
+       count(*) filter (where stand < now() - interval '400 days') as ueber_400_tage
+from sicherung;
+
+-- 5. ALTES WEG: dieselbe Regel, die sicherung_schreiben() selbst anwendet.
+delete from sicherung where stand < now() - interval '400 days';
+
+-- 6. DIE DROSSEL JE QUELLE: Hashes aus IP-Adresse und Tagessalz, je Tag.
+-- Mehr als der laufende Tag sollte hier nie stehen – sicherung_schreiben()
+-- löscht beim ersten Aufruf eines Tages den Vortag samt Salz. Schreibt kein
+-- Gerät, bleibt der Vortag liegen; dann räumt dieser Schritt. Wer hier eine
+-- Quelle mit fünf neuen Sicherungen sieht, sieht eine Flut – oder jemanden,
+-- der gerade viel ausprobiert.
+select tag, count(*) as quellen, sum(neu) as neue_sicherungen,
+       pg_size_pretty(sum(bytes)) as neue_daten, max(neu) as meiste_von_einer_quelle
+from sicherung_quelle
+group by tag
+order by tag;
+
+delete from sicherung_quelle where tag < (now() at time zone 'utc')::date;
+delete from sicherung_salz where tag < (now() at time zone 'utc')::date;
