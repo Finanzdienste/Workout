@@ -11,6 +11,7 @@
  * der Abstellraum, in dem am Ende alles liegt, was nirgends passte.
  * ------------------------------------------------------------------ */
 import * as store from './store.js';
+import { plural } from './dates.js';
 
 /** Hanteln oder Bodyweight – als Symbol und als Wort. */
 export const MODE_ICON = { db: '🏋️', bw: '🤸' };
@@ -42,24 +43,26 @@ export function mitWdh(reps) {
 }
 
 /**
- * Der Umfang einer Einheit in Zahlen, getrennt nach Plan und Nachgeholtem –
- * für die Kopfzeile der Einheit (tagKopf() in js/app.js) und den Kalender.
+ * Der Umfang einer Einheit: „6 Übungen · 17 Sätze" – für die Kopfzeile der
+ * Einheit (tagKopf() in js/app.js) und den Kalender, wortgleich.
  *
- *   plan        Planübungen (ohne die eines eingefügten Zusatztags)
- *   zusatz      eingefügte Übungen eines Zusatztags
- *   saetze      alle Sätze
- *   nachgeholt  Nacharbeit („+1 nachgeholt") und Zusatztag zusammen – das
- *               „+" in „15 + 3 Sätze" heißt überall dasselbe: nachgeholt
+ * Gezählt wird alles, was an dem Tag gemacht wird: Nachholsätze und die
+ * eingefügten Übungen eines Zusatztags eingerechnet. Hier stand bis v239 die
+ * Aufschlüsselung „5 + 1 Übungen · 15 + 2 Sätze" (in v238 „12 + 3 Sätze"),
+ * das „+" für nachgeholt. Raus auf Zuruf:
  *
- * `allein` für einen Zusatztag, der als eigene Einheit dasteht: Dann *ist* er
- * die Einheit, und seine Übungen sind kein „+".
+ *     „Da brauch auch nicht 5+1 oder so stehen. Da soll einfach die normale
+ *      Zahl dieses Trainings inkl der nachholübungen stehen. Also einfach 6 in
+ *      diesem Fall. Genauso bei den Sätzen"
+ *
+ * Und das ist richtig so: Die Kopfzeile sagt, was dieser Tag *ist*, nicht wie
+ * er zustande kam. Das Warum steht an der Übung, in der stillen Zeile darunter
+ * („+1 nachgeholt …", „Nachgeholt aus Woche 2 …") – dort, wo man den Satz
+ * macht und die Frage aufkommt.
  */
-export function umfang(items, allein = false) {
-  const zus = allein ? [] : items.filter((x) => x.zusatz);
+export function umfangText(items) {
   const saetze = items.reduce((a, x) => a + x.sets, 0);
-  const nachgeholt = items.reduce((a, x) => a + (x.nach || 0), 0)
-    + zus.reduce((a, x) => a + x.sets, 0);
-  return { plan: items.length - zus.length, zusatz: zus.length, saetze, nachgeholt };
+  return `${plural(items.length, 'Übung', 'Übungen')} · ${plural(saetze, 'Satz', 'Sätze')}`;
 }
 
 export function repsLabel(it, mode) {

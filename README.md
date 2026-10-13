@@ -106,6 +106,9 @@ verteilt es auf die Einheiten."* Der zweite Halbsatz ist keine Trainingslehre,
 sondern die Bauweise des Generators: `tools/build-plan.py` legt das Volumen je
 Gruppe und Woche zuerst fest und verteilt es erst danach auf die Termine
 (`split()`, Kriterium `imbalance`). Ein kurzer Tag ist deshalb kein fehlender Tag.
+An einem Tag, in den ein Zusatztag Übungen eingefügt hat, steht der Satz nicht:
+Unter „6 Übungen" widerspräche „4 bis 5 Übungen" dem Kopf (siehe *Summen statt
+Aufschlüsselung* beim Zusatztag).
 
 Die Satzzahl steht weiterhin in der Kopfzeile. Sie war mit der Einordnung daneben
 kurz weggefallen, weil sie im Plan meist Rechnerei ist – `15 Sätze` ist dann nur
@@ -4586,9 +4589,12 @@ der fehlende Eintrag wirklich „nicht angefasst". Beides steht in
 Oberfläche); ohne den Fix schlagen dort elf Prüfungen fehl.
 
 **Und es steht dran, woher.** An der Übung stand nur „+1 nachgeholt" – wofür,
-stand nirgends, und die „4" las sich wie eine neue Grundzahl. Jetzt steht die
-Satzzahl getrennt da, an der Übung „3 + 1 Sätze", im Kopf der Einheit
-„12 + 3 Sätze", und unter der Übung eine stille Zeile:
+stand nirgends, und die „4" las sich wie eine neue Grundzahl. Jetzt steht
+unter der Übung eine stille Zeile, die das Warum sagt. Die Zahlen selbst sind
+seit v240 die Summe – „4 Sätze" an der Übung, „15 Sätze" im Kopf der Einheit,
+der Nachholsatz eingerechnet (v238 und v239 zeigten „3 + 1 Sätze" und
+„12 + 3 Sätze"; warum das wieder raus ist, steht unter *Summen statt
+Aufschlüsselung* beim Zusatztag):
 
 | Fall | Zeile |
 | --- | --- |
@@ -4642,9 +4648,10 @@ gutgeschrieben als jemand, dem gar keins angesagt war.
 Kein Popup, kein Toast, keine Ansage: eine kleine, gedämpfte Zeile direkt unter
 der Satzzahl, im Supersatz nur an der gerade gezeigten Übung. Die Satzknöpfe
 verweisen auf sie (`aria-describedby`) – nur der Nachholsatz selbst, nicht
-Satz 1 bis 3 –, und er heißt im Vorlesetext „Satz 4 von 4, nachgeholt". „3 + 1"
-ist schlichter Text: Ein `aria-label` am `<span>` (ein Name ohne Rolle) kam je
-nach Vorlesefunktion an oder nicht, und wo er ankam, hieß es „3 Sätze plus 1
+Satz 1 bis 3 –, und er heißt im Vorlesetext „Satz 4 von 4, nachgeholt". Die
+Satzzahl („4 Sätze × 8–12") ist schlichter Text: Ein `aria-label` am `<span>`
+(ein Name ohne Rolle), wie es die erste Fassung an „3 + 1" trug, kam je
+nach Vorlesefunktion an oder nicht, und wo es ankam, hieß es „3 Sätze plus 1
 nachgeholter Sätze". Die Fokusansicht bleibt dabei eine Seite: Die
 Zeile kostet 18 px (zweizeilig 35 px), und die Figur nimmt nur, was übrig
 bleibt. Gemessen bei 414×896, 390×844 und 360×740 liegt der erste Satzknopf
@@ -4793,10 +4800,10 @@ kein Wort dazu, woher die Übungen kommen und warum sie heute dran sind.
 **Jetzt gehören seine Übungen zu der Einheit, die heute fällig ist** – ein
 Start, eine Liste, eine Fokusansicht („Übung 1 von 6"), ein Fortschritt,
 Supersätze und Rüst-Reihenfolge über alle Übungen, ein Abschluss. Im Kopf
-steht „Hanteln · 5 + 1 Übungen · 15 + 2 Sätze"; das „+" heißt überall
-dasselbe, nachgeholt, ob aus der Nacharbeit oder aus dem Zusatztag. Und an der
-Übung steht, woher sie kommt – eine stille Zeile wie bei der Nacharbeit, kein
-Popup, nichts zum Wegtippen:
+steht „Hanteln · 6 Übungen · 17 Sätze" – die Summe, der Zusatz eingerechnet
+(siehe *Summen statt Aufschlüsselung* gleich unten). Und an der Übung steht,
+woher sie kommt – eine stille Zeile wie bei der Nacharbeit, kein Popup, nichts
+zum Wegtippen:
 
 > Nachgeholt aus Woche 2: am Sa nur 1 von 3 Sätzen abgehakt
 
@@ -4807,6 +4814,52 @@ Satzknopf als „Satz 1 von 2, nachgeholt, erledigt" und verweist auf die Zeile.
 An einem Tag **ohne** Planeinheit bleibt der Zusatztag die Einheit des Tages –
 mit „Heute · Zusatztag" statt „Eigenes Workout" und derselben Zeile an jeder
 Übung.
+
+**Summen statt Aufschlüsselung (v240).** In v239 stand im Kopf „Hanteln ·
+5 + 1 Übungen · 15 + 2 Sätze", und seit v238 an der Übung mit Nachholsatz
+„3 + 1 Sätze" – das „+" hieß überall nachgeholt. Tobi dazu:
+
+> *„Da brauch auch nicht 5+1 oder so stehen. Da soll einfach die normale Zahl
+> dieses Trainings inkl der nachholübungen stehen. Also einfach 6 in diesem
+> Fall. Genauso bei den Sätzen"*
+
+Jetzt steht überall die eine Zahl, die man an diesem Tag macht, Nachholsätze
+und eingefügte Übungen eingerechnet:
+
+| Stelle | bis v239 | ab v240 |
+| --- | --- | --- |
+| Kopf der Einheit (Startansicht, Übungsliste) | „Hanteln · 5 + 1 Übungen · 15 + 2 Sätze" | „Hanteln · 6 Übungen · 17 Sätze" |
+| Zeile über den Übungen der Liste | „5 + 1 Übungen · 0/17 Sätze" | „6 Übungen · 0/17 Sätze" |
+| Übung in der Liste | „3 + 1 × 8–12" | „4 × 8–12" |
+| Übung in der Fokusansicht | „3 + 1 Sätze × 8–12 Wdh." | „4 Sätze × 8–12 Wdh." |
+| Kalender, Tag mit Zusatz | „5 + 1 Übungen · 15 + 2 Sätze" | „6 Übungen · 17 Sätze" |
+
+Die Kopfzeile sagt, was der Tag *ist*, nicht, wie er zustande kam; die Zahl an
+der Übung ist die Zahl der Satzknöpfe darunter. Das Warum bleibt, wo es
+hingehört – in der stillen Zeile unter der Übung („+1 nachgeholt …",
+„Nachgeholt aus Woche 2 …"), und der Nachholsatz heißt im Vorlesetext weiter
+„Satz 4 von 4, nachgeholt". Kopf, Kalender und die Liste unter Mehr → Eigene
+Workouts teilen sich dafür eine Funktion (`umfangText()` in `js/anzeige.js`)
+und damit auch die Einzahl: Ein eigenes Workout mit einer Übung heißt jetzt
+überall „1 Übung · 3 Sätze" – im Kalender stand das schon so, in der Liste
+und im Kopf „1 Übungen".
+
+**Und keine zweite Übungszahl daneben.** Über der Liste steht sonst die
+Einordnung „Einheiten in diesem Fokus: 4 bis 5 Übungen, 68 von 84 mit 5 …".
+An Workout 9 mit den Chin-ups hieß das: „6 Übungen · 0/17 Sätze" und direkt
+darunter „4 bis 5 Übungen" – zwei Zahlen, die sich widersprechen, auf einem
+Bildschirm. Die Einordnung vergleicht den Plan; warum *dieser* Tag länger ist,
+sagt die Zeile an der eingefügten Übung. An einem Tag mit eingefügten Übungen
+fällt sie deshalb weg (`tagNotiz()`), und die Summe im Kopf ist die einzige
+Übungszahl der Ansicht. Nacharbeit ändert die Zahl der Übungen nicht, dort
+bleibt sie, ebenso an jedem Tag ohne Zusatz.
+
+Geprüft in `tests/test-summen.mjs` an Tobis Donnerstag (Workout 9 mit den
+Chin-ups, ohne Einordnung; Workout 10 daneben mit) und an einem Samstag mit
+Nacharbeit *und* Zusatz („6 Übungen · 19 Sätze", der Sliding Leg Curl mit
+„4 Sätze" und seiner Zeile darunter), samt Kalender, Vorlesefunktion und
+einem eigenen Workout mit einer Übung; gegen v239 schlagen dort fünfzehn
+Prüfungen fehl.
 
 **Drei Schichten, und jede Rechnung nimmt die, die sie meint.**
 
@@ -4845,8 +4898,8 @@ gerechnet wieder da.
 Fällt eine noch unberührte Übung des festgehaltenen Zusatzes danach weg –
 Beschwerde, Gerät, Termin –, wird sie nicht ersetzt, der Zusatz ist vergeben.
 Aber die Notiz über der Liste nennt sie, in derselben Zeile wie eine Planübung
-(„Chin-ups (nachgeholt aus Woche 2) fällt aus"); vorher wurde aus „5 + 1
-Übungen" wortlos „5 Übungen". Und eine Sitzung, die noch auf dem Träger stand –
+(„Chin-ups (nachgeholt aus Woche 2) fällt aus"); vorher wurde aus „6 Übungen"
+(damals „5 + 1 Übungen") wortlos „5 Übungen". Und eine Sitzung, die noch auf dem Träger stand –
 an einem Ruhetag Start getippt, nichts abgehakt –, endet ohne Buchung, sobald
 er in der Einheit des Tages steckt (`traegerSitzungLoesen()`), spätestens mit
 dem ersten Satz (`halteZusatz()`). Vorher stand am Sonntag statt des Starts
@@ -4912,7 +4965,7 @@ Ende):
 
 | | ohne Zusatz | mit Zusatz |
 | --- | --- | --- |
-| Übungen · Sätze | 5 · 15 | 5 + 1 · 15 + 2 (Chin-ups ×2) |
+| Übungen · Sätze | 5 · 15 | 6 · 17 (Chin-ups ×2) |
 | Rüstschritte | 3 | 3 |
 | Supersatz-Paare | 2 | 3 (Reverse Fly ↔ Chin-ups) |
 | Formelzeit ohne Supersatz | 44 min | 50 min (mit Pull-ups und Chin-ups wären es 65) |
@@ -5020,9 +5073,11 @@ fest — sechs angebrochene Einheiten ändern die Stufe nicht.
 Gemessen wird gegen `exBasis()` – den Plan *ohne* Nacharbeit. Was die App
 selbst obendrauf gelegt hat, darf niemandem als Versäumnis angerechnet werden.
 
-**Und es steht dran.** An der Übung („3 + 1 Sätze", darunter die Zeile „+1
-nachgeholt: …", woher der Satz kommt) und im Kopf der Einheit („12 + 3
-Sätze"). Eine Einheit, die kommentarlos wächst, ist eine Zumutung.
+**Und es steht dran.** An der Übung die Zeile „+1 nachgeholt: …", woher der
+Satz kommt, direkt unter der Satzzahl; die Zahlen an der Übung und im Kopf der
+Einheit rechnen den Nachholsatz mit („4 Sätze", „15 Sätze" – seit v240 die
+Summe, vorher „3 + 1" und „12 + 3"). Eine Einheit, die kommentarlos wächst,
+ist eine Zumutung.
 
 Beim Einbau ist ein Fehler aufgefallen, der nichts mit dem Feature zu tun hat
 und trotzdem daran hing: Das `ui`-Objekt ruft `defaultWorkoutNo()` **während

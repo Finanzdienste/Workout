@@ -117,8 +117,9 @@ check(await page.locator('[data-act="zusatztag-weg"]').count() === 0,
 // Und der Zusatztag steckt *in* Workout 5. Danach stand er eine Weile als
 // „Als zweite Einheit heute" darunter – „Was soll das mit zweite Einheit.
 // Wenn heute Übungen dazu kommen dann soll alles flüssig in EINE Einheit".
-// Jetzt ein Start, und im Kopf „5 + 1 Übungen" (test-zusatz-einheit.mjs prüft
-// den ganzen Ablauf an Tobis Stand).
+// Jetzt ein Start, und im Kopf die Summe – Planübungen und eingefügte zusammen
+// (test-zusatz-einheit.mjs prüft den ganzen Ablauf an Tobis Stand,
+// test-summen.mjs die Zahlen).
 const kopf = (await page.locator('.hero-eyebrow').textContent()).trim();
 console.log('     Startansicht zeigt:', kopf);
 check(/Heute · Workout 5/.test(kopf),
@@ -127,7 +128,13 @@ check(await page.locator('.zusatz-danach').count() === 0
   && await page.locator('#view [data-act="custom-start"]').count() === 0,
 'keine zweite Einheit daneben, kein zweiter Start');
 const sub5 = (await page.locator('.hero-sub').textContent()).trim();
-check(/\d+ \+ \d+ Übungen/.test(sub5), `der Zusatz steht im Kopf der Einheit (${sub5})`);
+const umfang5 = await page.evaluate(async () => {
+  const P = await import('./js/plan.js');
+  const ex = P.workoutByNo(5, 'db').ex;
+  return { n: ex.length, saetze: ex.reduce((a, x) => a + x.sets, 0), zus: ex.filter((x) => x.zusatz).length };
+});
+check(umfang5.zus > 0 && sub5.endsWith(` · ${umfang5.n} Übungen · ${umfang5.saetze} Sätze`),
+  `der Zusatz steht im Kopf der Einheit, eingerechnet (${sub5})`);
 
 // --- 4. Die Einheit selbst ----------------------------------------------
 // Eingefügt: eine bis zwei Übungen, jede, weil sie sich trägt (NACH_ANTEIL –

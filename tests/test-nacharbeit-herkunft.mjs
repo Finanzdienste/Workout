@@ -9,9 +9,13 @@
  * und wofür der Satz nachgeholt wird, stand nirgends – also suchte er den
  * Grund bei dem, was er zuletzt gemacht hatte, und fand einen Widerspruch.
  *
- * Jetzt steht die Satzzahl getrennt da („3 + 1 Sätze") und darunter eine
- * stille Zeile: der Tag und die Übung, die den Rückstand hinterlassen haben,
- * mit ihren Haken. Geprüft wird hier:
+ * Jetzt steht unter der Satzzahl eine stille Zeile: der Tag und die Übung,
+ * die den Rückstand hinterlassen haben, mit ihren Haken. Die Satzzahl selbst
+ * stand in v238/v239 getrennt da („3 + 1 Sätze"); seit test-summen.mjs ist
+ * sie die Summe („4 Sätze") – „Da soll einfach die normale Zahl dieses
+ * Trainings inkl der nachholübungen stehen". Welche Übung einen Nachholsatz
+ * hat, erkennt dieser Test deshalb an der Zeile und am Satzknopf, der
+ * „nachgeholt" heißt, nicht mehr an einem „+". Geprüft wird hier:
  *
  *   1. Wortlaut und Stelle – in der Fokusansicht, in der Liste, im Kopf.
  *   2. Supersatz: Die Zeile gehört nur zur gezeigten Übung.
@@ -24,9 +28,9 @@
  *      ankommt, steht im Barrierefreiheitsbaum (nicht nur im Attribut).
  *   8. Platz: Der erste Satzknopf bleibt im Fenster.
  *
- * Gegenprobe: Ohne die Änderung fehlt `.nach-warum`, und „3 + 1" steht nicht
- * da – die Prüfungen 1, 4, 5, 6 und 7 schlagen fehl. Gegen 9808cf7 (die erste
- * Fassung dieser Zeile) schlagen 5b, 5c, 6b und 7 fehl.
+ * Gegenprobe: Ohne die Änderung fehlt `.nach-warum` – die Prüfungen 1, 4, 5,
+ * 6 und 7 schlagen fehl. Gegen 9808cf7 (die erste Fassung dieser Zeile)
+ * schlagen 5b, 5c, 6b und 7 fehl.
  */
 import { chromium } from 'playwright';
 import { URL, SHOT } from './umgebung.mjs';
@@ -117,10 +121,16 @@ const zuEinheit = async (n) => {
   }
   return false;
 };
-/** Die Karten der Liste: Name, Meta, Herkunftszeile. */
+/**
+ * Die Karten der Liste: Name, Meta, Herkunftszeile – und die Satzknöpfe, alle
+ * und die, die „nachgeholt" heißen (satzLabel()). Woran eine Übung mit
+ * Nachholsatz zu erkennen ist, seit die Meta-Zeile die Summe zeigt.
+ */
 const karten = () => page.locator('article.ex').evaluateAll((els) => els.map((el) => {
   const t = (s) => ((el.querySelector(s) || {}).textContent || '').replace(/\s+/g, ' ').trim();
-  return { name: t('.ex-name'), meta: t('.ex-meta'), warum: t('.nach-warum') };
+  return { name: t('.ex-name'), meta: t('.ex-meta'), warum: t('.nach-warum'),
+    knoepfe: el.querySelectorAll('.set-btn').length,
+    nachKnoepfe: el.querySelectorAll('.set-btn[aria-label*="nachgeholt"]').length };
 }));
 /** In der Fokusansicht zur Übung `name` blättern und lesen, was dort steht. */
 const fokusBei = async (name) => {
@@ -152,7 +162,7 @@ check(await zuEinheit(7), 'Workout 7 ist zu erreichen');
 const titel = await txt('.hero-title');
 const kopf = await txt('.hero-sub');
 console.log(`     ${titel} · ${kopf}`);
-check(/12 \+ 3 Sätze/.test(kopf), `im Kopf der Einheit: Grundzahl und Nachgeholtes getrennt („${kopf}")`);
+check(/ · 15 Sätze$/.test(kopf), `im Kopf der Einheit: die Summe, die drei Nachholsätze eingerechnet („${kopf}")`);
 
 await page.locator('[data-act="show-list"]').click();
 await page.waitForTimeout(250);
@@ -160,12 +170,13 @@ const liste = await karten();
 liste.forEach((k) => console.log(`     ${k.name} | ${k.meta}${k.warum ? ` | ${k.warum}` : ''}`));
 const gL = liste.find((k) => k.name === 'Goblet Squat') || {};
 const fL = liste.find((k) => k.name === 'Face Pull') || {};
-check(/^3 \+ 1 ×/.test(gL.meta || ''), `Liste: Goblet Squat „3 + 1 ×" („${gL.meta}")`);
+check(/^4 ×/.test(gL.meta || '') && gL.knoepfe === 4 && gL.nachKnoepfe === 1,
+  `Liste: Goblet Squat „4 ×", vier Satzknöpfe, einer davon nachgeholt („${gL.meta}")`);
 check(!/nachgeholt/.test(gL.meta || ''), 'Liste: die Meta-Zeile sagt nicht mehr „nachgeholt" – das steht in der Zeile darunter');
 check(/am Sa nur 2 von 3 Sätzen abgehakt/.test(gL.warum || ''), `Liste: Goblet „…am Sa nur 2 von 3 Sätzen abgehakt" („${gL.warum}")`);
 check(/Reverse Fly \(Sa 0 von 3\)/.test(fL.warum || ''), `Liste: Face Pull nennt den Reverse Fly vom Samstag („${fL.warum}")`);
 // --- 3. Kein Text ohne Nacharbeit
-const ohne = liste.filter((k) => !/\+ \d/.test(k.meta));
+const ohne = liste.filter((k) => !k.nachKnoepfe);
 check(ohne.length > 0 && ohne.every((k) => !k.warum),
   `Übungen ohne Nacharbeit haben keine Zeile (${ohne.map((k) => k.name).join(', ')})`);
 check(liste.filter((k) => k.warum).length === 3, 'genau drei Zeilen für drei Nachholsätze');
@@ -176,7 +187,7 @@ await page.locator('[data-act="start-session"]').first().click();
 await page.waitForTimeout(400);
 const gF = await fokusBei('Goblet Squat');
 console.log(`     Fokus: ${gF.name} | ${gF.meta} | ${gF.warum} | ${gF.sup}`);
-check(/3 \+ 1 Sätze/.test(gF.meta) && !/nachgeholt/.test(gF.meta), `Fokus: Goblet „3 + 1 Sätze", ohne „nachgeholt" in der Meta-Zeile („${gF.meta}")`);
+check(/^4 Sätze ×/.test(gF.meta) && !/nachgeholt/.test(gF.meta), `Fokus: Goblet „4 Sätze", ohne „nachgeholt" in der Meta-Zeile („${gF.meta}")`);
 check(/am Sa nur 2 von 3 Sätzen abgehakt/.test(gF.warum), `Fokus: darunter die Herkunft („${gF.warum}")`);
 // --- 2. Supersatz: nur die gezeigte Übung
 check(gF.zeilen === 1, `Fokus: genau eine Herkunftszeile – die der gezeigten Übung (${gF.zeilen})`);
@@ -197,7 +208,7 @@ check(!reihe.alert, 'keine Ansage, kein role/aria-live – eine stille Zeile');
 // ohne Rolle ist in ARIA nicht vorgesehen; im Baum stand der Text „3 + 1"
 // daneben weiter, und wo der Name ankam, hieß es „3 Sätze plus 1 nachgeholter
 // Sätze". Und alle vier Knöpfe trugen die Herkunft als Beschreibung, auch
-// Satz 1 bis 3.
+// Satz 1 bis 3. Heute steht die Summe da, „4 Sätze", als schlichter Text.
 const cdp = await ctx.newCDPSession(page);
 const { nodes: ax } = await cdp.send('Accessibility.getFullAXTree');
 const sichtbar = ax.filter((k) => !k.ignored);
@@ -210,14 +221,14 @@ check(axKnoepfe.length === 4 && /am Sa nur 2 von 3/.test(axKnoepfe[3].desc) && a
   'nur der Nachholsatz trägt die Herkunft als Beschreibung – Satz 1 bis 3 nicht');
 const benannt = sichtbar.filter((k) => /nachgeholter/.test(k.name?.value || ''));
 check(benannt.length === 0, `kein Knoten mit einem Namen „… nachgeholter …" (${benannt.map((k) => k.role?.value).join(', ')})`);
-const metaText = sichtbar.filter((k) => k.role?.value === 'StaticText' && /^3 \+ 1 Sätze ×/.test(k.name?.value || ''));
+const metaText = sichtbar.filter((k) => k.role?.value === 'StaticText' && /^4 Sätze ×/.test(k.name?.value || ''));
 check(metaText.length === 1, `die Meta-Zeile kommt als ein Text an („${metaText[0]?.name?.value}")`);
 await cdp.detach();
 const fF = await fokusBei('Face Pull');
 console.log(`     Fokus: ${fF.name} | ${fF.meta} | ${fF.warum}`);
 check(/Reverse Fly \(Sa 0 von 3\)/.test(fF.warum) && fF.zeilen === 1, `Fokus: Face Pull mit seiner eigenen Zeile („${fF.warum}")`);
 const sz = await fokusBei('SZ-Curls');
-check(sz.name === 'SZ-Curls' && sz.zeilen === 0 && !/\+/.test(sz.meta), `Fokus: SZ-Curls ohne Nacharbeit, ohne Zeile („${sz.meta}")`);
+check(sz.name === 'SZ-Curls' && sz.zeilen === 0 && /^3 Sätze ×/.test(sz.meta), `Fokus: SZ-Curls ohne Nacharbeit, ohne Zeile („${sz.meta}")`);
 await fokusAnfang();
 await page.evaluate(() => window.scrollTo(0, 0));
 await page.screenshot({ path: path.join(SHOT, 'herkunft-414x896.png') });
@@ -245,7 +256,7 @@ await page.waitForTimeout(250);
 const nachher = await karten();
 const gN = nachher.find((k) => k.name === 'Goblet Squat') || {};
 console.log(`     nach dem Nachtragen: ${gN.meta} | ${gN.warum}`);
-check(/^3 \+ 1 ×/.test(gN.meta || ''), `die angefangene Einheit behält „3 + 1" („${gN.meta}")`);
+check(/^4 ×/.test(gN.meta || '') && gN.nachKnoepfe === 1, `die angefangene Einheit behält „4", einer davon nachgeholt („${gN.meta}")`);
 check(gN.warum === zeileVorher, `und die Zeile wortgleich („${gN.warum}")`);
 
 // --- 5. Einheiten aus v233–v235: nachFest ohne nachWarum -----------------
@@ -276,7 +287,7 @@ await page.waitForTimeout(250);
 const rueck = await karten();
 const szR = rueck.find((k) => k.name === 'SZ-Curls') || {};
 console.log(`     Rückfall: ${szR.meta} | ${szR.warum}`);
-check(/^3 \+ 1 ×/.test(szR.meta || '') && szR.warum === '+1 nachgeholt: Rest vom Do und Sa',
+check(/^4 ×/.test(szR.meta || '') && szR.warum === '+1 nachgeholt: Rest vom Do und Sa',
   `Neurechnung passt nicht: „+1 nachgeholt: Rest vom Do und Sa" („${szR.warum}")`);
 check(rueck.filter((k) => k.warum).length === 1, 'und keine Zeile an Übungen, die nur die Neurechnung nachholen würde');
 
@@ -323,7 +334,7 @@ await page.waitForTimeout(250);
 const ueber = await karten();
 ueber.forEach((k) => console.log(`     v235-Übergang: ${k.name} | ${k.meta}${k.warum ? ` | ${k.warum}` : ''}`));
 const gU = ueber.find((k) => k.name === 'Goblet Squat') || {};
-check(/^3 \+ 1 ×/.test(gU.meta || '') && gU.warum === '+1 nachgeholt für Gesäß: Rumänisches Kreuzheben (Do 2 von 3)',
+check(/^4 ×/.test(gU.meta || '') && gU.warum === '+1 nachgeholt für Gesäß: Rumänisches Kreuzheben (Do 2 von 3)',
   `v235-Übergang: am Goblet Squat steht, woher v235 den Satz hatte („${gU.warum}")`);
 check(ueber.filter((k) => k.warum).length === 3 && ueber.every((k) => !/Workout \d/.test(k.warum)),
   'und an allen drei Nachholsätzen eine Herkunft mit Tagen, keine Workout-Nummern');
@@ -336,10 +347,10 @@ await page.locator('[data-act="show-list"]').click().catch(() => {});
 await page.waitForTimeout(250);
 const bwListe = await karten();
 bwListe.forEach((k) => console.log(`     bw: ${k.name} | ${k.meta}${k.warum ? ` | ${k.warum}` : ''}`));
-const bwNach = bwListe.filter((k) => /\+ \d/.test(k.meta));
+const bwNach = bwListe.filter((k) => k.nachKnoepfe > 0);
 check(bwNach.length > 0 && bwNach.every((k) => /^\+1 nachgeholt/.test(k.warum)),
   `ohne Hanteln trägt jede Übung mit Nacharbeit ihre Zeile (${bwNach.length})`);
-check(bwListe.filter((k) => !/\+ \d/.test(k.meta)).every((k) => !k.warum), 'und die ohne keine');
+check(bwListe.filter((k) => !k.nachKnoepfe).every((k) => !k.warum), 'und die ohne keine');
 
 // b) Die Quelle heißt so, wie sie an ihrem Tag hieß. Gefunden in der
 //    Prüfung: Donnerstag ganz ohne Hanteln (Kreuzheben = Standwaage, 2 von 3),
@@ -375,9 +386,16 @@ await zuEinheit(6);
 await page.locator('[data-act="show-list"]').click().catch(() => {});
 await page.waitForTimeout(250);
 const sauber = await karten();
-check(sauber.length > 0 && sauber.every((k) => !k.warum && !/\+ \d/.test(k.meta)),
-  `ohne Rückstand: keine Zeile, keine „+" (${sauber.length} Übungen)`);
-check(!/\+ \d+ Sätze/.test(await txt('.hero-sub')), `und der Kopf zeigt eine einzige Zahl („${await txt('.hero-sub')}")`);
+check(sauber.length > 0 && sauber.every((k) => !k.warum && !k.nachKnoepfe),
+  `ohne Rückstand: keine Zeile, kein Nachholsatz (${sauber.length} Übungen)`);
+// Und der Kopf nennt genau den Plan – nichts, was nachgeholt würde.
+const plan6 = await page.evaluate(async () => {
+  const P = await import('./js/plan.js');
+  const { PLAN } = await import('./js/data.js');
+  return P.exBasis(PLAN[5], 'db').reduce((a, x) => a + x.sets, 0);
+});
+check(new RegExp(` · ${plan6} Sätze$`).test(await txt('.hero-sub')),
+  `und der Kopf zeigt die Zahl des Plans, ${plan6} („${await txt('.hero-sub')}")`);
 
 // --- 8. Platz ------------------------------------------------------------
 // Der obere Teil der Fokusansicht ist eine feste Seite bis zu den

@@ -30,7 +30,7 @@ import { CONFIG, hatServer } from './config.js';
 import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
 import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './audio.js';
 import { esc, fmtNum, komma1 } from './text.js';
-import { MODE_ICON, MODE_LABEL, mitWdh, repsLabel, umfang, wdhTeile } from './anzeige.js';
+import { MODE_ICON, MODE_LABEL, mitWdh, repsLabel, umfangText, wdhTeile } from './anzeige.js';
 import {
   AKT_ICON, aktivitaetTage, calMonthNow, calendarCell, calendarDetail, dayState, eigeneTage, fruehereTage,
 } from './ansicht-kalender.js';
@@ -1488,7 +1488,7 @@ function nachFesthalten(n) {
   const e = store.getState().log[n];
   if (e && e.nachFest) return;
   const jeModus = {};
-  // Und mit ihr, woher sie kommt (die Zeile unter „3 + 1", nachZeile()) –
+  // Und mit ihr, woher sie kommt (die Zeile unter der Satzzahl, nachZeile()) –
   // ebenfalls für beide Varianten. Nur für Übungen, die wirklich Nacharbeit
   // tragen, und nur als schlichte Objekte: Das landet im Speicher.
   const warum = {};
@@ -1547,8 +1547,10 @@ function zusatzFesthalten(n) {
  *
  * An der Übung stand „4 Sätze … +1 nachgeholt". Die 4 las sich wie eine neue
  * Grundzahl, und wofür der Satz nachgeholt wird, stand nirgends. Jetzt steht
- * die Satzzahl getrennt da („3 + 1") und darunter, wofür: der Tag und die
- * Übung, die den Rückstand hinterlassen haben, mit ihren Haken. „abgehakt",
+ * an der Übung die ganze Satzzahl („4 Sätze", seit v240 wieder die Summe –
+ * v238 und v239 schrieben „3 + 1", siehe umfangText() in js/anzeige.js) und
+ * darunter, wofür: der Tag und die Übung, die den Rückstand hinterlassen
+ * haben, mit ihren Haken. „abgehakt",
  * weil die App nur Haken kennt – ob jemand den Satz gemacht und nicht
  * abgehakt hat, weiß sie nicht.
  *
@@ -1634,8 +1636,8 @@ function nachZeile(n, mode, it, warumJe) {
  * Das fragte Tobi, als der Zusatztag allein auf der Startseite stand:
  * „Zusatztag Woche 2 · 2 Übungen · 6 Sätze", und kein Wort davon, woher die
  * Übungen kommen und warum sie heute dran sind. Jetzt steckt er in der
- * Einheit des Tages (einheitEx() in js/plan.js), der Kopf sagt „5 + 1
- * Übungen", und an der Übung steht, was sie nachholt: die Woche, die Gruppe
+ * Einheit des Tages (einheitEx() in js/plan.js), der Kopf zählt sie mit
+ * („6 Übungen"), und an der Übung steht, was sie nachholt: die Woche, die Gruppe
  * und die Übung, die dort liegen geblieben ist, mit ihren Haken.
  *
  * Kein Popup, kein Toast, nichts zum Wegtippen – wie bei der Nacharbeit.
@@ -1676,24 +1678,6 @@ function zusatzText(w, it) {
 function zusatzZeile(w, it) {
   if (!it.zusatz) return '';
   return `<div class="nach-warum" id="zw-${esc(it.id)}">${esc(zusatzText(w, it))}</div>`;
-}
-
-/**
- * „3 + 1" statt „4": Grundzahl und Nacharbeit getrennt, damit die 4 nicht wie
- * eine neue Grundzahl aussieht.
- *
- * Schlichter Text, ohne eigene Beschriftung für die Vorlesefunktion. Hier
- * stand einmal ein aria-label an einem <span> („3 Sätze plus 1
- * nachgeholter"). Ein Name an einem Element ohne Rolle ist in ARIA nicht
- * vorgesehen: Im Barrierefreiheitsbaum stand neben dem Namen weiter der Text
- * „3 + 1", gelesen wurde je nach Vorlesefunktion das eine oder das andere –
- * und wo der Name ankam, hieß es „3 Sätze plus 1 nachgeholter Sätze × 8–12".
- * „3 + 1 Sätze" liest jede als „3 plus 1 Sätze", und was das +1 ist, sagt die
- * Zeile direkt darunter (nachZeile()), die als Nächstes kommt.
- */
-function satzZahlText(it) {
-  if (!it.nach) return String(it.sets);
-  return `${it.sets - it.nach} + ${it.nach}`;
 }
 
 /**
@@ -2124,10 +2108,19 @@ function renderFocus() {
          ordnet nur um.
          Und es muss dastehen, *wofür*: *„Jetzt vier Sätze je Übung? Wegen
          Wiederholung? Aber vorgestern hab ich ja goblet sqauds gemacht"* Die 4
-         las sich wie eine neue Grundzahl. Jetzt steht „3 + 1" da und darunter
-         die Herkunft (nachZeile()). Im Supersatz nur an der gezeigten Übung –
-         die Nacharbeit des Partners steht da, wenn er dran ist. -->
-    <div class="focus-meta">${satzZahlText(it)} Sätze × ${esc(mitWdh(repsLabel(it, mode)))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</div>
+         las sich wie eine neue Grundzahl. Darunter steht deshalb die Herkunft
+         (nachZeile()). Im Supersatz nur an der gezeigten Übung – die
+         Nacharbeit des Partners steht da, wenn er dran ist.
+
+         Die Zahl selbst ist die Summe, „4 Sätze", nicht „3 + 1 Sätze" wie in
+         v238 und v239: *„Da soll einfach die normale Zahl dieses Trainings
+         inkl der nachholübungen stehen. Also einfach 6 in diesem Fall.
+         Genauso bei den Sätzen"* Gemacht werden vier, und so viele Satzknöpfe
+         stehen darunter; warum es einer mehr ist, sagt die Zeile direkt unter
+         der Zahl. Für die Vorlesefunktion ist das schlichter Text wie jeder
+         andere: „4 Sätze × 8–12", und der vierte Knopf heißt „Satz 4 von 4,
+         nachgeholt" (satzLabel()). -->
+    <div class="focus-meta">${it.sets} Sätze × ${esc(mitWdh(repsLabel(it, mode)))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</div>
     ${nachZeile(n, mode, it)}
     ${zusatzZeile(w, it)}
     ${(() => {
@@ -2651,8 +2644,8 @@ function renderOverview() {
            2 Übungen. Öffnen". Raus, auf Ansage: „Was soll das mit zweite
            Einheit. Wenn heute Übungen dazu kommen dann soll alles flüssig in
            EINE Einheit". Seine Übungen stehen jetzt in dieser Einheit
-           (einheitEx() in js/plan.js) – im Kopf als „5 + 1 Übungen", an der
-           Übung mit ihrer Herkunft. Ein Start, keine Zeile darunter. -->
+           (einheitEx() in js/plan.js) – im Kopf mitgezählt („6 Übungen"), an
+           der Übung mit ihrer Herkunft. Ein Start, keine Zeile darunter. -->
 
       <div class="ov-foot">
         ${w.custom ? `<button type="button" class="ov-nav" data-act="back-to-plan" aria-label="Zurück zum Plan">↩</button>`
@@ -3211,9 +3204,9 @@ function renderDashboard() {
   // Einheit nicht wieder.
   parts.push(`<div class="focus-top">
       <button type="button" class="back-link" data-act="${session ? 'focus-back' : 'hide-list'}">‹ Zurück</button>
-      <span class="focus-count">${esc(uebungenText(w, items))} · ${prog.done}/${prog.total} Sätze</span>
+      <span class="focus-count">${plural(items.length, 'Übung', 'Übungen')} · ${prog.done}/${prog.total} Sätze</span>
     </div>
-    ${tagNotiz(w, mode, items.filter((it) => w.custom || !it.zusatz))}`);
+    ${tagNotiz(w, mode, items)}`);
 
   items.forEach((it, i) => {
     const sets = saetzeZeigen(n, mode, it).slice(0, it.sets);
@@ -3257,7 +3250,7 @@ function renderDashboard() {
           <span class="ex-idx">${complete ? '✓' : i + 1}</span>
           <span class="ex-main">
             <span class="ex-name">${esc(it.name)}</span>
-            <span class="ex-meta">${satzZahlText(it)} × ${esc(repsLabel(it, mode))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</span>
+            <span class="ex-meta">${it.sets} × ${esc(repsLabel(it, mode))} · ${esc(gruppeLabel(it, mode))} · ${esc(it.equip)}</span>
           </span>
           <span class="ex-right"><span class="chev">▼</span></span>
         </div>
@@ -4125,25 +4118,13 @@ function tagesGroesse(w, mode, anzahl) {
  * tiefer, über die Übungsliste, wo sie mit Zahlen dasteht (tagNotiz).
  */
 function tagKopf(w, mode, items) {
-  // Mit Nacharbeit als „12 + 3 Sätze": Grundzahl und Nachgeholtes getrennt,
-  // wie an der Übung („3 + 1"). Keine eigene Zeile dafür – siehe den Kommentar
-  // in der Startansicht, warum dort keine Buchhaltung mehr steht.
-  //
-  // Und mit einem eingefügten Zusatztag genauso: „5 + 1 Übungen · 15 + 3
-  // Sätze". Das „+" heißt überall dasselbe – nachgeholt –, ob aus der
-  // Nacharbeit oder aus dem Zusatztag; woher, steht an der Übung.
-  const u = umfang(items, !!w.custom);
-  return [
-    MODE_LABEL[mode],
-    uebungenText(w, items),
-    u.nachgeholt > 0 ? `${u.saetze - u.nachgeholt} + ${u.nachgeholt} Sätze` : `${u.saetze} Sätze`,
-  ].join(' · ');
-}
-
-/** „5 Übungen", mit eingefügtem Zusatztag „5 + 1 Übungen". */
-function uebungenText(w, items) {
-  const u = umfang(items, !!w.custom);
-  return u.zusatz ? `${u.plan} + ${u.zusatz} Übungen` : `${items.length} Übungen`;
+  // Die Summe, Nachholsätze und eingefügter Zusatztag eingerechnet: „Hanteln ·
+  // 6 Übungen · 17 Sätze". In v238 stand hier „12 + 3 Sätze", in v239 „5 + 1
+  // Übungen · 15 + 2 Sätze" – raus auf Zuruf, siehe umfangText() in
+  // js/anzeige.js. Woher das Mehr kommt, steht an der Übung; eine eigene Zeile
+  // dafür gibt es auch hier nicht – siehe den Kommentar in der Startansicht,
+  // warum dort keine Buchhaltung mehr steht.
+  return `${MODE_LABEL[mode]} · ${umfangText(items)}`;
 }
 
 /**
@@ -4158,8 +4139,23 @@ function uebungenText(w, items) {
  * tools/build-plan.py legt das Volumen je Muskelgruppe und Woche fest und
  * verteilt es erst danach auf die Einheiten (split(), Kriterium `imbalance`).
  * Ein kurzer Tag ist deshalb kein fehlender Tag.
+ *
+ * **Nicht an einem Tag mit eingefügten Übungen.** Seit v240 zählt der Kopf
+ * die Summe:
+ *
+ *     „Da soll einfach die normale Zahl dieses Trainings inkl der
+ *      nachholübungen stehen. Also einfach 6 in diesem Fall."
+ *
+ * An Workout 9 mit den Chin-ups aus Woche 2 stand dann „6 Übungen · 0/17
+ * Sätze" und direkt darunter „Einheiten in diesem Fokus: 4 bis 5 Übungen" –
+ * zwei Zahlen, die sich widersprechen, auf einem Bildschirm. Die Notiz
+ * vergleicht den Plan; warum dieser Tag länger ist, sagt an so einem Tag die
+ * Herkunftszeile an der eingefügten Übung („Nachgeholt aus Woche 2: …"). Dann
+ * ist die Summe im Kopf die einzige Übungszahl der Ansicht. Nacharbeit ändert
+ * die Übungszahl nicht und lässt die Notiz stehen.
  */
 function tagNotiz(w, mode, items) {
+  if (items.some((it) => it.zusatz)) return '';
   if (!tagesGroesse(w, mode, items.length)) return '';
   const tab = groessenTabelle(mode);
   const groessen = [...tab.keys()].sort((a, b) => a - b);
@@ -5702,7 +5698,10 @@ function renderCustom() {
         </div>
       </div>
       ${liste.map((c) => {
-        const sets = c.ex.reduce((a, x) => a + x.sets, 0);
+        // Der Umfang wie im Kopf der Einheit und im Kalender, mit umfangText()
+        // in js/anzeige.js – hier stand er selbst zusammengesetzt, und ein
+        // Workout mit einer Übung hieß „1 Übungen · 3 Sätze", während der Kopf
+        // nach „Öffnen" „1 Übung · 3 Sätze" sagte.
         const prog = progressOf(c.id, store.workoutMode(c.id));
         // Ein Zusatztag, der heute in einer Einheit steckt oder erst morgen
         // dran ist, ist hier nur zum Nachsehen da: Öffnen führte am Plan
@@ -5729,7 +5728,7 @@ function renderCustom() {
         return `
         <div class="card">
           <div class="lbl">${esc(c.name)}</div>
-          <div class="hint">${c.ex.length} Übungen · ${sets} Sätze${
+          <div class="hint">${umfangText(c.ex)}${
             prog.done ? ` · ${prog.done}/${prog.total} abgehakt` : ''}</div>
           <div class="small muted" style="margin-top:6px">${esc(c.ex.map((x) => resolve(x, 'db').name).join(' · ')) || 'Noch keine Übung'}</div>
           <div class="btn-row nav">

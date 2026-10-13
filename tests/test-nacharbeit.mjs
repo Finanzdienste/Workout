@@ -77,8 +77,9 @@ const einheit = async (n) => {
   }
   await page.locator('[data-act="show-list"]').click();
   await page.waitForTimeout(250);
-  // Je Karte die Meta-Zeile („3 + 1 × …") und, falls da, die Herkunftszeile
-  // darunter („+1 nachgeholt: …") – zusammen ist das, was an der Übung steht.
+  // Je Karte die Meta-Zeile („4 × …", der Nachholsatz eingerechnet) und, falls
+  // da, die Herkunftszeile darunter („+1 nachgeholt: …") – zusammen ist das,
+  // was an der Übung steht.
   return page.locator('article.ex').evaluateAll((els) => els.map((el) => {
     const t = (s) => ((el.querySelector(s) || {}).textContent || '').replace(/\s+/g, ' ').trim();
     return { name: t('.ex-name'), meta: [t('.ex-meta'), t('.nach-warum')].filter(Boolean).join(' · ') };
@@ -121,11 +122,17 @@ check(summe > 0 && summe <= 3, `höchstens drei Sätze je Einheit (${summe})`);
 check(nachgeholt.every((x) => /\+1 nachgeholt/.test(x.meta)),
   'und höchstens einer je Übung');
 // Hier prüfte ein /nachgeholt/ über die ganze Ansicht – das wurde allein durch
-// die Zeile an der Übung grün, der Kopf selbst sagte nichts. Jetzt steht er
-// als „12 + 3 Sätze" da, und genau das wird geprüft.
+// die Zeile an der Übung grün, der Kopf selbst sagte nichts. Dann stand er als
+// „12 + 3 Sätze" da; seit test-summen.mjs als Summe, „15 Sätze". Geprüft wird,
+// dass die Nachholsätze darin stecken: Plan ohne Nacharbeit plus `summe`.
 const kopf = ((await page.locator('.hero-sub').first().textContent()) || '').replace(/\s+/g, ' ');
-check(new RegExp(`\\+ ${summe} Sätze`).test(kopf),
-  `es steht auch im Kopf der Einheit, nicht nur an der Übung („${kopf.trim()}")`);
+const grund2 = await page.evaluate(async () => {
+  const { PLAN } = await import('./js/data.js');
+  const { exBasis } = await import('./js/plan.js');
+  return exBasis(PLAN[1], 'db').reduce((a, x) => a + x.sets, 0);
+});
+check(new RegExp(` · ${grund2 + summe} Sätze$`).test(kopf.trim()),
+  `es steht auch im Kopf der Einheit, nicht nur an der Übung: ${grund2} + ${summe} („${kopf.trim()}")`);
 
 // --- 2b. Und im Training, nicht nur in der Liste ------------------------
 //
@@ -139,12 +146,15 @@ await page.locator('[data-act="start-session"]').first().click();
 await page.waitForTimeout(500);
 let gefunden = false;
 for (let k = 0; k < 8 && !gefunden; k++) {
-  // Die Satzzahl („3 + 1 Sätze") und die Zeile darunter („+1 nachgeholt …").
+  // Die Satzzahl („4 Sätze", der Nachholsatz eingerechnet – so viele, wie
+  // Satzknöpfe dastehen) und die Zeile darunter („+1 nachgeholt …").
   const m = (await page.locator('.focus-meta').first().textContent()
     .catch(() => '') || '').replace(/\s+/g, ' ');
   const z = (await page.locator('.nach-warum').first().textContent()
     .catch(() => '') || '').replace(/\s+/g, ' ');
-  if (/\d \+ \d Sätze/.test(m) && /nachgeholt/.test(z)) { gefunden = true; console.log('     im Training:', m, '/', z); break; }
+  const zahl = Number((m.match(/^\s*(\d+) Sätze ×/) || [])[1] || 0);
+  const knoepfe = await page.locator('.focus-set').count();
+  if (/nachgeholt/.test(z) && zahl > 0 && zahl === knoepfe) { gefunden = true; console.log('     im Training:', m, '/', z); break; }
   const weiter = page.locator('[data-act="focus-step"][data-d="1"]:not([disabled])');
   if (!(await weiter.count())) break;
   await weiter.first().click();
@@ -206,8 +216,10 @@ check(!/zu groß|heruntergestuft|gekürzt/.test(text5),
 
 // Die Sätze je Übung stehen weiter auf dem Wert der eingestellten Stufe.
 const sieben = await einheit(7);
-// Die Grundzahl steht vorn – mit Nacharbeit als „3 + 1 ×".
-const basis = sieben.map((x) => Number((x.meta.match(/^(\d+)(?: \+ \d+)? ×/) || [])[1] || 0));
+// Vorn steht die Summe („4 ×"); die Grundzahl ist sie ohne das, was die Zeile
+// darunter als nachgeholt nennt („+1 nachgeholt …").
+const basis = sieben.map((x) => Number((x.meta.match(/^(\d+) ×/) || [])[1] || 0)
+  - Number((x.meta.match(/\+(\d+) nachgeholt/) || [])[1] || 0));
 console.log('     Sätze je Übung in Einheit 7:', basis.join(', '));
 check(basis.every((n) => n >= 3), `Geübt bleibt bei drei Sätzen je Übung (${basis.join(',')})`);
 
@@ -515,7 +527,7 @@ const sieben7 = async (spez) => {
   return { ...rechnung, liste, kopf };
 };
 const goblet = (r) => r.liste.find((x) => /^Goblet Squat$/.test(x.name)) || { meta: '', karte: '' };
-const mitNach = (x) => /nachgeholt|\d \+ \d/.test(`${x.meta} ${x.karte}`);
+const mitNach = (x) => /nachgeholt/.test(`${x.meta} ${x.karte}`);
 const zeigeR = (t, r) => console.log(`     ${t}: nacharbeit ${JSON.stringify(r.nach)} · ${r.kopf.trim()} · Goblet „${goblet(r).meta}"`);
 
 // (a) Donnerstag Kreuzheben 2/3, Samstag Goblet 4/4 mit dem angesagten +1.
@@ -716,7 +728,7 @@ console.log(`     Mo, Workout 7: ${moKopf} · ${moName}: ${moMeta}`);
 console.log('     ', mo.map((x) => `${x.id} ${x.sets}${x.nach ? `(+${x.nach})` : ''}`).join(', '));
 const g7 = mo.find((x) => x.id === 'goblet-squat') || {};
 check(g7.sets === 3 && !g7.nach, `Montag: Goblet Squat mit 3 Sätzen, ohne zweites +1 (${g7.sets}${g7.nach ? ` +${g7.nach}` : ''})`);
-check(moName !== 'Goblet Squat' || !/nachgeholt|\d \+ \d/.test(moMeta), `und so steht er auch im Training da („${moMeta}")`);
+check(moName !== 'Goblet Squat' || /^3 Sätze ×/.test(moMeta), `und so steht er auch im Training da („${moMeta}")`);
 check(/0\/15 Sätze/.test(moKopf), `die liegen gebliebenen Klimmzüge und Reverse Fly werden weiter nachgeholt („${moKopf}")`);
 check(['einarmiges-kh-rudern', 'face-pull', 'sz-curls'].every((id) => (mo.find((x) => x.id === id) || {}).nach === 1),
   'mit +1 auf Rudern, Face Pull und SZ-Curls');
