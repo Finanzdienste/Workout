@@ -1564,12 +1564,13 @@ function zusatzFesthalten(n) {
  * stehen, und dort stimmte „vorgestern" schon morgen nicht mehr.
  *
  * In beide Richtungen: Die Zeile am Ruhetag nennt auch kommende Tage so
- * („Mo", ruhetagZeile()).
+ * („Mo", ruhetagZeile()). `mitDatum` erzwingt das Datum – dort, wo im selben
+ * Satz ein zweiter Tag dasselbe Kürzel trägt.
  */
-function tagKurz(isoQuelle, isoEinheit) {
+function tagKurz(isoQuelle, isoEinheit, mitDatum = false) {
   const wt = fmtDate(isoQuelle).slice(0, 2);
   const d = Math.abs(daysBetween(isoQuelle, isoEinheit));
-  if (d >= 1 && d <= 6) return wt;
+  if (!mitDatum && d >= 1 && d <= 6) return wt;
   const [, mo, ta] = isoQuelle.split('-').map(Number);
   return `${wt} ${ta}.${mo}.`;
 }
@@ -2568,19 +2569,43 @@ function aktNamen(namen) {
  * nicht hineinpasst, nach der Woche in einen Zusatztag. Ein Ruhetag
  * dazwischen ist also richtig, und jetzt steht es da:
  *
- *     Heute frei. Was am Do liegen blieb, kommt dazu: morgen +2, Mo +1, Di +1.
+ *     Heute frei. Was am Do liegen blieb, kommt dazu: morgen +2, Mo +1,
+ *     Di +1, der Rest entfällt.
  *
  * Die Zahlen kommen aus nacharbeitVorschau() – derselben Verteilung, mit der
  * jede dieser Einheiten an ihrem Tag ihre Nacharbeit rechnet, nicht aus einer
- * zweiten Rechnung. „der Rest nach der Woche" steht nur, wenn das, was nach
- * der letzten Einheit offen bleibt, einen Zusatztag trägt – mit derselben
- * Schwelle wie der Zusatztag selbst (zusatzRueckstand()). Tage statt
- * Workout-Nummern: die Quelle als Wochentag, an dem es liegen blieb, das Ziel
- * als „morgen" oder Wochentag.
+ * zweiten Rechnung; eine schon festgehaltene Nacharbeit gilt auch hier.
+ *
+ * **Was mit dem Rest geschieht, steht am Ende.** „der Rest danach" nur, wenn
+ * das, was nach der letzten Einheit offen bleibt, einen Zusatztag trägt – mit
+ * derselben Schwelle wie der Zusatztag selbst (zusatzRueckstand()). Bleibt
+ * weniger, aber in einer Gruppe mehr als ein halber Satz, verfällt es, und
+ * dann steht „der Rest entfällt" da. Ohne das versprach „Was am Do liegen
+ * blieb, kommt dazu" das Ganze: Bei Tobi holt der Face Pull am Montag einen
+ * der zwei liegen gebliebenen Reverse-Fly-Sätze nach, den zweiten keine
+ * Einheit mehr. Vier Sätze offen, vier kommen dazu – und trotzdem bleibt
+ * hintere Schulter liegen. „danach" und nicht „nach der Woche": Die Woche des
+ * Plans (Do bis Di) ist nicht die Kalenderwoche, und am Sonntag hieß „nach
+ * der Woche" ab morgen – genau da, wo schon „+2" stand. Trägt die letzte
+ * Einheit selbst nichts, steht ihr Tag da („der Rest nach Di").
+ *
+ * Tage statt Workout-Nummern: die Quelle als Wochentag, an dem es liegen
+ * blieb, das Ziel als „morgen" oder Wochentag. Trägt ein Quelltag dasselbe
+ * Kürzel wie ein Ziel oder ein anderer Quelltag, steht sein Datum dabei
+ * („Was am Do 8.10. liegen blieb, kommt dazu: morgen +1, Do +1") – zwei
+ * verpasste Tage dehnen eine Woche über sieben, und dann waren es im selben
+ * Satz zwei Donnerstage.
+ *
+ * **Und der Zusatztag der Woche davor, wenn er morgen in die Einheit kommt**
+ * (zusatzMorgen()). Er entsteht erst am Tag selbst, der Kopf zeigt ihn heute
+ * noch nicht – morgen stand dann „15 + 4" statt der angekündigten „+1". Er
+ * steht als eigener Satz da, mit seinem Namen aus der Übung („Nachgeholt aus
+ * Woche 3"): „Aus Woche 3 kommt dazu: morgen +3."
  *
  * Nur, wenn heute wirklich frei ist: Die gezeigte Einheit ist die, die die App
- * für heute zeigt, und liegt nach heute; heute wurde keine angefangen, und
- * keine läuft. Ist die fällige verpasst, rückt der Plan nach (catchUpPlan())
+ * für heute zeigt, und liegt nach heute; heute wurde nichts trainiert – keine
+ * Planeinheit, kein eigenes Workout, kein allein stehender Zusatztag –, und
+ * nichts läuft. Ist die fällige verpasst, rückt der Plan nach (catchUpPlan())
  * und sie steht auf heute – keine Zeile. Ohne Rückstand auch keine: „Morgen ·
  * Workout 10" sagt schon, dass heute frei ist.
  *
@@ -2593,25 +2618,79 @@ function ruhetagZeile(w) {
   // angeblätterte, und nicht, wenn heute ein Zusatztag allein dasteht.
   if (w.custom || store.getState().session || naechsteEinheit() !== w.n) return '';
   if (daysBetween(heute, effDate(w)) <= 0) return '';
-  if (PLAN.some((x) => store.startedOn(x.n) === heute)) return '';
+  // Heute schon trainiert: jede Einheit im Protokoll, auch ein eigenes Workout
+  // oder ein allein stehender Zusatztag. startedOn steht erst mit dem ersten
+  // Eintrag (syncStartedOn() in js/store.js) – nur geöffnet zählt nicht.
+  if (Object.keys(store.getState().log || {}).some((k) => store.startedOn(k) === heute)) return '';
   const v = nacharbeitVorschau(w);
-  if (!v) return '';
-  const danach = !!zusatzRueckstand(v.rest);
-  if (!v.einheiten.length && !danach) return '';
-  const quellen = [...new Set([...v.einheiten.flatMap((e) => e.quellen),
-    ...(danach || !v.einheiten.length ? v.herkunft.map((h) => h.n) : [])])].sort((a, b) => a - b);
-  if (!quellen.length) return '';
-  const am = undListe([...new Set(quellen.map((n) => tagKurz(effDate(PLAN[n - 1]), heute)))]);
-  // Tag und Zahl gehören zusammen – ein festes Leerzeichen, damit auf 360 px
-  // nicht „morgen" am Zeilenende steht und „+2" am Anfang der nächsten.
-  const ziele = v.einheiten.map((e) => {
-    const d = effDate(PLAN[e.n - 1]);
-    return `${daysBetween(heute, d) === 1 ? 'morgen' : tagKurz(d, heute)}\u00a0+${e.saetze}`;
-  });
-  const text = ziele.length
-    ? `Heute frei. Was am ${am} liegen blieb, kommt dazu: ${[...ziele, ...(danach ? ['der Rest nach der Woche'] : [])].join(', ')}.`
-    : `Heute frei. Was am ${am} liegen blieb, kommt nach der Woche dazu.`;
-  return `<div class="ov-frei">${esc(text)}</div>`;
+  const danach = !!v && !!zusatzRueckstand(v.rest);
+  const quellen = !v || (!v.einheiten.length && !danach) ? []
+    : [...new Set([...v.einheiten.flatMap((e) => e.quellen),
+      ...(danach || !v.einheiten.length ? v.herkunft.map((h) => h.n) : [])])].sort((a, b) => a - b);
+  const zus = zusatzMorgen(w);
+  if (!quellen.length && !zus) return '';
+  const tagVon = (n) => effDate(PLAN[n - 1]);
+  const ziel = (iso) => (daysBetween(heute, iso) === 1 ? 'morgen' : tagKurz(iso, heute));
+  const saetze = [];
+  if (quellen.length) {
+    const zielTage = v.einheiten.map((e) => tagVon(e.n));
+    const letzte = tagVon(v.letzte);
+    // Der Tag der letzten Einheit steht im Satz, wenn der Rest nach ihr kommt
+    // und sie selbst nichts trägt.
+    const nachLetzter = !zielTage.length || (danach && zielTage[zielTage.length - 1] !== letzte);
+    const quellTage = [...new Set(quellen.map(tagVon))];
+    // Ein Kürzel, zwei Tage: Der Quelltag bekommt sein Datum.
+    const kuerzel = (iso) => fmtDate(iso).slice(0, 2);
+    const genannt = [...zielTage, ...(nachLetzter ? [letzte] : []), ...(zus ? [effDate(w)] : [])];
+    const quelle = (iso) => tagKurz(iso, heute,
+      [...genannt, ...quellTage.filter((d) => d !== iso)].some((d) => kuerzel(d) === kuerzel(iso)));
+    const am = undListe(quellTage.map(quelle));
+    if (zielTage.length) {
+      // Tag und Zahl gehören zusammen – ein festes Leerzeichen, damit auf
+      // 360 px nicht „morgen" am Zeilenende steht und „+2" am Anfang der nächsten.
+      const ziele = v.einheiten.map((e, i) => `${ziel(zielTage[i])}\u00a0+${e.saetze}`);
+      if (danach) ziele.push(nachLetzter ? `der Rest nach ${ziel(letzte)}` : 'der Rest danach');
+      else if (Object.values(v.rest).some((x) => x > 0.5)) ziele.push('der Rest entfällt');
+      saetze.push(`Was am ${am} liegen blieb, kommt dazu: ${ziele.join(', ')}.`);
+    } else {
+      saetze.push(`Was am ${am} liegen blieb, kommt nach ${daysBetween(heute, letzte) === 1 ? 'der Einheit morgen' : ziel(letzte)} dazu.`);
+    }
+  }
+  if (zus) saetze.push(`Aus Woche ${zus.woche} kommt dazu: morgen\u00a0+${zus.saetze}.`);
+  return `<div class="ov-frei">${esc(`Heute frei. ${saetze.join(' ')}`)}</div>`;
+}
+
+/**
+ * Der Zusatztag, der morgen in die Einheit `w` kommt: { woche, saetze } oder
+ * null – für die Zeile am Ruhetag.
+ *
+ * Fiel nach einer Woche mit Rückstand am Ruhetag danach und am ersten Tag der
+ * neuen Woche jeder Zusatz unter die Erholungsregel, entstand der Zusatztag
+ * erst am Tag der zweiten Einheit – in ihr, am Morgen. Am Ruhetag davor stand
+ * „Morgen · Workout 14 · 15 + 1 Sätze" und die Zeile „morgen +1", am Samstag
+ * dann „15 + 4". Und ohne Rückstand in der neuen Woche gar keine Zeile, obwohl
+ * morgen drei Sätze dazukamen.
+ *
+ * Gerechnet wird, was zusatztagRechnen() morgen rechnet, mit denselben
+ * Stücken: die zuletzt abgeschlossene Woche (zusatzZiel()), kein Zusatztag,
+ * wenn er schon vergeben oder sein Träger angefangen ist, die Einheit, die ihn
+ * morgen aufnimmt (zusatzEinheitFuer() mit dem Tag von morgen), und seine
+ * Übungen aus zusatztagEx() – dort gilt die Erholungsregel, die Beschwerde,
+ * das Gerät und der Termin des Tages, an dem die Einheit liegt. Nur für
+ * morgen: Liegt die Einheit später, steht morgen der Zusatztag womöglich
+ * allein da („Heute · Zusatztag"), und das zeigt die Startansicht dann selbst.
+ */
+function zusatzMorgen(w) {
+  const morgen = addDays(todayISO(), 1);
+  if (effDate(w) !== morgen) return null;
+  const ziel = zusatzZiel();
+  if (!ziel || zusatzVergeben(ziel.nr)) return null;
+  const traeger = store.customs().find((c) => c.name === `Zusatztag Woche ${ziel.nr}`);
+  if (traeger && store.isStarted(traeger.id)) return null;
+  const einheit = zusatzEinheitFuer(ziel.nr, morgen);
+  if (!einheit || einheit.n !== w.n) return null;
+  const z = zusatztagEx(ziel, store.workoutMode(w.n), einheit);
+  return z ? { woche: ziel.nr, saetze: z.ex.reduce((a, x) => a + x.sets, 0) } : null;
 }
 
 /**
@@ -4552,12 +4631,13 @@ function zusatzBeitrag(nr, acc, soll) {
  * keiner. Zwei Stunden Boxen am Freitag schonen am Donnerstag Nacken und
  * hintere Schulter, nicht aber Rücken und Bizeps – ohne diese Zeile gewannen
  * die Pull-ups vor den Chin-ups, allein über ihre 0,35 Nacken und 0,2 hintere
- * Schulter je Satz. Hier reicht „heute": Gerechnet wird der Zusatztag für die
- * Einheit, die heute fällig ist, oder für heute allein (zusatzEinheitFuer() in
- * js/plan.js).
+ * Schulter je Satz. Gerechnet wird der Zusatztag für die Einheit, die heute
+ * fällig ist, oder für heute allein (zusatzEinheitFuer() in js/plan.js) –
+ * `heute` ist also der Tag, an dem er gemacht wird. Ein anderer ist es nur für
+ * die Zeile am Ruhetag: Sie rechnet den Zusatztag, der morgen in die Einheit
+ * kommt, mit der Regel von morgen (zusatzMorgen()).
  */
-function ruhendeGruppen() {
-  const heute = todayISO();
+function ruhendeGruppen(heute = todayISO()) {
   const sperre = new Set();
   const direkt = (id, m) => {
     const ex = EX_BY_ID.get(id);
@@ -4631,15 +4711,17 @@ function zusatztagEx(woche, mode, einheit = null) {
   if (!rueck) return null;
   const { rest, summe } = rueck;
 
-  const ruht = ruhendeGruppen();
+  // Beschwerde, Gerät und Termin mit derselben Prüfung wie die Einheit, die
+  // ihn zeigt (zusatzGrund() in js/plan.js) – am Tag, an dem er gemacht wird.
+  // Und die Erholungsregel für denselben Tag: Am Tag selbst ist das heute; die
+  // Zeile am Ruhetag rechnet so schon den Zusatz von morgen (zusatzMorgen()).
+  const tag = einheit ? effDate(einheit) : todayISO();
+  const ruht = ruhendeGruppen(tag);
   const sperre = gesperrt(activeInjuries(), mode);
   const satz = satzZahl(3);
   const plan = einheit ? exOf(einheit, mode) : [];
   const imPlan = new Set(plan.map((it) => it.id));
   const anteile = (ex) => ex[mode].shares;
-  // Beschwerde, Gerät und Termin mit derselben Prüfung wie die Einheit, die
-  // ihn zeigt (zusatzGrund() in js/plan.js) – am Tag, an dem er gemacht wird.
-  const tag = einheit ? effDate(einheit) : todayISO();
   const kandidaten = EXERCISES.filter((ex) => !zusatzGrund(ex.id, mode, tag, sperre)
     && !imPlan.has(ex.id)
     // Keine Übung, die eine ruhende Gruppe direkt trifft.
@@ -4784,16 +4866,25 @@ function traegerSitzungLoesen() {
   store.sitzungVerwerfen(s.n);
 }
 
-/** Der Kern von pruefeZusatztag(): aufräumen, neu rechnen, anlegen. */
-function zusatztagRechnen() {
-  const wochen = weeklyDone();
+/**
+ * Die zuletzt abgeschlossene Woche (aus weeklyDone()), für die ein Zusatztag
+ * gerechnet wird – oder null. Für zusatztagRechnen() und die Zeile am Ruhetag
+ * (zusatzMorgen()), mit derselben Frage.
+ */
+function zusatzZiel() {
   let ziel = null;
-  wochen.forEach((w) => {
+  weeklyDone().forEach((w) => {
     if (!w.any) return;
     const block = PLAN.slice(PLAN.indexOf(w.from), PLAN.indexOf(w.to) + 1);
     if (block.some((x) => !completedMode(x.n))) return;
     ziel = w;
   });
+  return ziel;
+}
+
+/** Der Kern von pruefeZusatztag(): aufräumen, neu rechnen, anlegen. */
+function zusatztagRechnen() {
+  const ziel = zusatzZiel();
   const name = ziel ? `Zusatztag Woche ${ziel.nr}` : null;
 
   // **Erst aufräumen.** Ein unberührter Zusatztag gehört zu der Runde, aus der

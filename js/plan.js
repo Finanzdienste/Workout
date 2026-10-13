@@ -1254,11 +1254,20 @@ function nacharbeitVerteilen(rest, items, m, herkunft) {
  * weiß heute niemand. tests/test-nacharbeit-ruhetag.mjs spielt die Woche
  * durch und vergleicht mit dem, was Sa, Mo und Di dann wirklich zeigen.
  *
- * Gibt { einheiten: [{ n, saetze, quellen }], rest, herkunft } zurück, oder
- * null. `quellen` sind die Einheiten, die die Zeilen an den Nachholsätzen
- * nennen werden (warum.q), sonst die mit offenen Sätzen. `rest` ist, was nach
- * der letzten Einheit der Woche noch offen ist, je Muskelgruppe; `herkunft`
- * wie in offenInWoche().
+ * **Festgehaltene Nacharbeit gilt auch hier.** Eine Einheit trägt `nachFest`
+ * schon, wenn in ihr ein Satz an- und wieder abgetippt wurde – angefangen ist
+ * sie dann nicht. nacharbeit() nimmt an ihrem Tag die festgehaltene, und so
+ * auch die Vorschau: Sonst stand im Kopf „15 + 2 Sätze" und darunter „morgen
+ * +1", nachdem in Workout 9 ein vergessener Satz nachgetragen war. Was die
+ * festgehaltenen Sätze schließen, geht ab wie bei der Verteilung – so zieht
+ * offenInWoche() sie an den folgenden Tagen ab (`nach`/`nachFest`).
+ *
+ * Gibt { einheiten: [{ n, saetze, quellen }], rest, herkunft, letzte } zurück,
+ * oder null. `quellen` sind die Einheiten, die die Zeilen an den Nachholsätzen
+ * nennen werden (warum.q bzw. nachWarumJe()), sonst die mit offenen Sätzen.
+ * `rest` ist, was nach der letzten Einheit der Woche noch offen ist, je
+ * Muskelgruppe; `herkunft` wie in offenInWoche(); `letzte` die Nummer der
+ * letzten Einheit der Woche.
  */
 export function nacharbeitVorschau(w) {
   if (istCustom(w.n) || !PLAN[w.n - 1] || store.isStarted(w.n)) return null;
@@ -1268,19 +1277,31 @@ export function nacharbeitVorschau(w) {
   const einheiten = [];
   for (let i = w.n - 1; i < ende; i++) {
     const u = PLAN[i];
-    // Eine schon angefangene Einheit trägt ihre festgehaltene Nacharbeit
-    // (nachFest) – ab da wüsste die Vorschau nicht mehr, was gilt.
+    // Eine schon angefangene Einheit hat Haken – ab da wüsste die Vorschau
+    // nicht mehr, was an ihrem Tag noch offen ist.
     if (store.isStarted(u.n)) break;
-    // Wie nacharbeitPlan(): Unter einem halben Satz gibt es keine.
-    if (Object.values(rest).reduce((a, v) => a + v, 0) < 0.5) break;
     const m = store.workoutMode(u.n);
-    const { extra, warum } = nacharbeitVerteilen(rest, exBasis(u, m), m, herkunft);
+    const fest = festeNacharbeit(u, m);
+    let extra;
+    let q;
+    if (fest !== undefined) {
+      extra = fest || new Map();
+      extra.forEach((k, id) => Object.entries(EX_BY_ID.get(id)[m].shares).forEach(([mus, share]) => {
+        rest[mus] = Math.max(0, (rest[mus] || 0) - k * share);
+      }));
+      q = Object.values(nachWarumJe(u, m) || {}).flatMap((x) => (Array.isArray(x.q) ? x.q : []).map(([nq]) => nq));
+    } else {
+      // Wie nacharbeitPlan(): Unter einem halben Satz gibt es keine.
+      if (Object.values(rest).reduce((a, v) => a + v, 0) < 0.5) continue;
+      const p = nacharbeitVerteilen(rest, exBasis(u, m), m, herkunft);
+      extra = p.extra;
+      q = [...p.warum.values()].flatMap((x) => x.q.map(([nq]) => nq));
+    }
     const saetze = [...extra.values()].reduce((a, k) => a + k, 0);
     if (!saetze) continue;
-    const q = [...warum.values()].flatMap((x) => x.q.map(([nq]) => nq));
     einheiten.push({ n: u.n, saetze, quellen: q.length ? q : herkunft.map((h) => h.n) });
   }
-  return { einheiten, rest, herkunft };
+  return { einheiten, rest, herkunft, letzte: ende };
 }
 
 /**
@@ -1427,9 +1448,12 @@ export function offenerZusatztag() {
  *
  * Fragt nie completedMode(), progressOf() oder naechsteEinheit() – die gehen
  * über workoutByNo() und einheitEx() bis hierher zurück.
+ *
+ * `heute` ist nur für die Zeile am Ruhetag ein anderer Tag: Sie fragt, ob der
+ * Zusatztag morgen in die Einheit von morgen kommt (zusatzMorgen() in
+ * js/app.js) – dieselbe Frage, die morgen früh gestellt wird.
  */
-export function zusatzEinheit() {
-  const heute = todayISO();
+export function zusatzEinheit(heute = todayISO()) {
   const w = PLAN.find((x) => !store.isStarted(x.n));
   if (!w || effDate(w) > heute) return null;
   if (PLAN.some((x) => store.startedOn(x.n) === heute)) return null;
@@ -1471,8 +1495,8 @@ export function zusatzBindung() {
  * (siehe zusatzBindung()). Dieselbe Frage stellt pruefeZusatztag() in
  * js/app.js, bevor es den Träger rechnet: für eine Einheit oder für sich allein.
  */
-export function zusatzEinheitFuer(woche) {
-  const w = zusatzEinheit();
+export function zusatzEinheitFuer(woche, heute = todayISO()) {
+  const w = zusatzEinheit(heute);
   if (!w || !(w.n > woche * WEEK_SESSIONS)) return null;
   const block = PLAN.slice((woche - 1) * WEEK_SESSIONS, woche * WEEK_SESSIONS);
   return block.length === WEEK_SESSIONS && block.every((x) => store.isStarted(x.n)) ? w : null;
