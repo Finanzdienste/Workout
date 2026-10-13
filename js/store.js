@@ -165,7 +165,7 @@ const DEFAULT_STATE = {
   //           gerechnet zu werden (halteNachFest(), nacharbeit() in js/plan.js)
   //   nachWarum  woher diese Nacharbeit kam, im selben Schritt festgehalten:
   //           { db: { exId: { g: [Gruppe], q: [[n, exId, abgehakt, von]] } },
-  //           bw: { … } } – die Zeile unter „3 + 1" (nachWarum() in js/plan.js)
+  //           bw: { … } } – die Zeile unter der Satzzahl (nachWarum() in js/plan.js)
   //   fest    nach einem Planwechsel die eigene Übungsliste
   //           [{ id, sets, bwSets }] – ohne Nacharbeit, die kommt in exOf()
   //           dazu; `bwSets` fehlt, wo es gleich `sets` ist, und in Listen

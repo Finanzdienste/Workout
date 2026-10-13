@@ -272,9 +272,11 @@ await abschnitt('Z1', async () => {
   check(knoepfe.length === 2 && knoepfe.every(([l, d], i) => l === `Satz ${i + 1} von 2, nachgeholt, erledigt` && d === 'zw-chin-ups'),
     `Z2 jeder Satzknopf sagt „nachgeholt" und verweist auf die Zeile (${knoepfe.map(([l]) => l).join(' | ')})`);
   // Die Einordnung über der Liste nennt die Größen des Plans („4 bis 5
-  // Übungen") – eine eingefügte Übung macht daraus keine sechs.
-  const notiz = await f.txt('.tag-note');
-  check(!/6 Übungen|bis 6/.test(notiz), `Z2 die Einordnung zählt Planübungen („${notiz.slice(0, 60)}")`);
+  // Übungen"). Unter „6 Übungen" widerspräche sie dem Kopf – an einem Tag mit
+  // eingefügter Übung steht sie nicht (tagNotiz(), seit v240; geprüft auch in
+  // tests/test-summen.mjs, S5).
+  const notiz = await f.page.locator('.tag-note').count();
+  check(notiz === 0, `Z2 keine Einordnung „4 bis 5 Übungen" unter „6 Übungen" (${notiz ? await f.txt('.tag-note') : 'keine'})`);
   check(await f.page.locator('.nach-warum').count() === 1, 'Z2 genau eine Herkunftszeile – die der Chin-ups');
   // Liste ansehen stempelt den Zusatz nicht (saetzeZeigen()).
   st2 = await f.lies();

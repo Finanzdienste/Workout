@@ -23,11 +23,20 @@
  *   S3  Nirgends ein „+" zwischen zwei Zahlen vor „Übungen", „Sätze" oder
  *       „×" – nicht in der Startansicht, der Liste, der Fokusansicht, dem
  *       Kalender.
+ *   S4  Ein eigenes Workout mit einer Übung heißt unter Mehr → Eigene
+ *       Workouts wie im Kopf nach „Öffnen": „1 Übung · 3 Sätze" (dort stand
+ *       „1 Übungen", selbst zusammengesetzt statt mit umfangText()).
+ *   S5  Unter „6 Übungen · 0/17 Sätze" steht keine Einordnung „Einheiten in
+ *       diesem Fokus: 4 bis 5 Übungen" – an einem Tag mit eingefügter Übung
+ *       fällt sie weg (tagNotiz()); an Workout 10 ohne Zusatz bleibt sie.
  *
- * Gegenprobe: gegen 9b3a4b4 (v239) schlagen alle zwölf Prüfungen auf die
- * Zahlen fehl (S1, S2, S3 – Kopf, Liste, Fokus, Vorlesen, Kalender); die zehn
- * auf Ausgangslage, Herkunftszeilen und Satzknöpfe bleiben grün – das stand
- * schon da und soll bleiben.
+ * Gegenprobe: gegen 9b3a4b4 (v239) schlagen alle fünfzehn Prüfungen auf die
+ * Zahlen fehl (S1 bis S5 – Kopf, Liste, Fokus, Vorlesen, Kalender, eigenes
+ * Workout, Einordnung an Workout 9); die zwölf auf Ausgangslage,
+ * Herkunftszeilen, Satzknöpfe, die Einordnung an Workout 10 und „keine
+ * Fehler" bleiben grün – das stand schon da und soll bleiben. Gegen 51dec87,
+ * die erste Fassung der Summen, schlagen genau S4 (Liste) und S5 (Workout 9)
+ * fehl.
  */
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
@@ -116,8 +125,24 @@ const summe = (ex) => ex.reduce((a, x) => a + x.sets, 0);
   }));
   check(/^2 × /.test(chin.meta) && chin.knoepfe === 2, `S1 Chin-ups: „2 × …", zwei Satzknöpfe („${chin.meta}")`);
   check(/^Nachgeholt aus Woche 2: /.test(chin.zeile.trim()), `S1 die Herkunftszeile bleibt („${chin.zeile.trim()}")`);
+  // S5 Unter „6 Übungen · 0/17 Sätze" stand die Einordnung „Einheiten in
+  // diesem Fokus: 4 bis 5 Übungen" – zwei Übungszahlen, die sich
+  // widersprechen. An einem Tag mit eingefügter Übung steht sie nicht.
+  const notiz = await f.page.locator('.tag-note').count();
+  check(notiz === 0, `S5 Workout 9 mit Zusatz: keine Einordnung „4 bis 5 Übungen" unter „6 Übungen" (${notiz ? await f.txt('.tag-note') : 'keine'})`);
   texte.push(await f.txt('#view'));
   await f.page.screenshot({ path: path.join(SHOT, 'summen-liste-414x896.png') });
+
+  // Gegenstück: Workout 10 trägt nichts Eingefügtes – dort bleibt sie, und
+  // die Zahl im Kopf der Liste liegt in ihrem Bereich.
+  await f.klick('[data-act="nav-workout"][data-delta="1"]');
+  await f.klick('[data-act="show-list"]');
+  const count10 = await f.txt('.focus-count');
+  const notiz10 = await f.txt('.tag-note');
+  const [, von, bis] = notiz10.match(/(\d+) bis (\d+) Übungen/) || [];
+  const anzahl10 = Number((count10.match(/^(\d+) Übung/) || [])[1]);
+  check(await f.page.locator('.tag-note').count() === 1 && anzahl10 >= Number(von) && anzahl10 <= Number(bis),
+    `S5 Workout 10 ohne Zusatz: die Einordnung bleibt und passt zum Kopf („${count10}" – „${notiz10.slice(0, 48)}…")`);
 
   await f.zumKalender();
   const det = await f.txt('.cal-detail .hint');
@@ -222,6 +247,29 @@ const summe = (ex) => ex.reduce((a, x) => a + x.sets, 0);
   const plus = texte.map((t) => (t.match(PLUS) || [])[0]).filter(Boolean);
   check(plus.length === 0, `S3 Samstag: kein „+" zwischen zwei Zahlen (${plus.join(' | ') || 'keins'})`);
   await ende(f, 'S2');
+}
+
+/* ------------------------------------------------------------------ *
+ * S4 Eigenes Workout mit einer Übung: Liste und Kopf mit denselben Worten
+ *
+ * Tobis Stand und dazu „Nur Kniebeuge", Goblet Squat ×3. Unter Mehr →
+ * Eigene Workouts stand „1 Übungen · 3 Sätze", nach „Öffnen" im Kopf
+ * „1 Übung · 3 Sätze".
+ * ------------------------------------------------------------------ */
+{
+  const z = kopie(VORLAGE);
+  z.customs.push({ id: 'ckniebeuge', name: 'Nur Kniebeuge', ex: [{ id: 'goblet-squat', sets: 3 }] });
+  const f = await fall(z, '2026-10-08T17:00:00+02:00');
+  await f.klick('.tab[data-tab="settings"]');
+  await f.klick('[data-act="go-tab"][data-tab="custom"]', 300);
+  const karte = f.page.locator('.card').filter({ has: f.page.locator('.lbl', { hasText: /^Nur Kniebeuge$/ }) }).first();
+  const liste = ((await karte.locator('.hint').textContent({ timeout: 1500 }).catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  check(liste === '1 Übung · 3 Sätze', `S4 Eigene Workouts: „1 Übung · 3 Sätze" („${liste}")`);
+  await karte.locator('[data-act="custom-start"]').click({ timeout: 3000 });
+  await f.page.waitForTimeout(250);
+  const sub = await f.txt('.hero-sub');
+  check(sub === 'Hanteln · 1 Übung · 3 Sätze', `S4 Kopf nach „Öffnen": dieselben Worte („${sub}")`);
+  await ende(f, 'S4');
 }
 
 console.log(`\n${fails ? fails + ' FEHLER' : 'alle Prüfungen bestanden'}`);

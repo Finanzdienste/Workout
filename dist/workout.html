@@ -11271,7 +11271,7 @@ const DEFAULT_STATE = {
   //           gerechnet zu werden (halteNachFest(), nacharbeit() in js/plan.js)
   //   nachWarum  woher diese Nacharbeit kam, im selben Schritt festgehalten:
   //           { db: { exId: { g: [Gruppe], q: [[n, exId, abgehakt, von]] } },
-  //           bw: { … } } – die Zeile unter „3 + 1" (nachWarum() in js/plan.js)
+  //           bw: { … } } – die Zeile unter der Satzzahl (nachWarum() in js/plan.js)
   //   fest    nach einem Planwechsel die eigene Übungsliste
   //           [{ id, sets, bwSets }] – ohne Nacharbeit, die kommt in exOf()
   //           dazu; `bwSets` fehlt, wo es gleich `sets` ist, und in Listen
@@ -20461,7 +20461,7 @@ function nachFesthalten(n) {
   const e = store.getState().log[n];
   if (e && e.nachFest) return;
   const jeModus = {};
-  // Und mit ihr, woher sie kommt (die Zeile unter „3 + 1", nachZeile()) –
+  // Und mit ihr, woher sie kommt (die Zeile unter der Satzzahl, nachZeile()) –
   // ebenfalls für beide Varianten. Nur für Übungen, die wirklich Nacharbeit
   // tragen, und nur als schlichte Objekte: Das landet im Speicher.
   const warum = {};
@@ -20520,8 +20520,10 @@ function zusatzFesthalten(n) {
  *
  * An der Übung stand „4 Sätze … +1 nachgeholt". Die 4 las sich wie eine neue
  * Grundzahl, und wofür der Satz nachgeholt wird, stand nirgends. Jetzt steht
- * die Satzzahl getrennt da („3 + 1") und darunter, wofür: der Tag und die
- * Übung, die den Rückstand hinterlassen haben, mit ihren Haken. „abgehakt",
+ * an der Übung die ganze Satzzahl („4 Sätze", seit v240 wieder die Summe –
+ * v238 und v239 schrieben „3 + 1", siehe umfangText() in js/anzeige.js) und
+ * darunter, wofür: der Tag und die Übung, die den Rückstand hinterlassen
+ * haben, mit ihren Haken. „abgehakt",
  * weil die App nur Haken kennt – ob jemand den Satz gemacht und nicht
  * abgehakt hat, weiß sie nicht.
  *
@@ -20607,8 +20609,8 @@ function nachZeile(n, mode, it, warumJe) {
  * Das fragte Tobi, als der Zusatztag allein auf der Startseite stand:
  * „Zusatztag Woche 2 · 2 Übungen · 6 Sätze", und kein Wort davon, woher die
  * Übungen kommen und warum sie heute dran sind. Jetzt steckt er in der
- * Einheit des Tages (einheitEx() in js/plan.js), der Kopf sagt „5 + 1
- * Übungen", und an der Übung steht, was sie nachholt: die Woche, die Gruppe
+ * Einheit des Tages (einheitEx() in js/plan.js), der Kopf zählt sie mit
+ * („6 Übungen"), und an der Übung steht, was sie nachholt: die Woche, die Gruppe
  * und die Übung, die dort liegen geblieben ist, mit ihren Haken.
  *
  * Kein Popup, kein Toast, nichts zum Wegtippen – wie bei der Nacharbeit.
@@ -21615,8 +21617,8 @@ function renderOverview() {
            2 Übungen. Öffnen". Raus, auf Ansage: „Was soll das mit zweite
            Einheit. Wenn heute Übungen dazu kommen dann soll alles flüssig in
            EINE Einheit". Seine Übungen stehen jetzt in dieser Einheit
-           (einheitEx() in js/plan.js) – im Kopf als „5 + 1 Übungen", an der
-           Übung mit ihrer Herkunft. Ein Start, keine Zeile darunter. -->
+           (einheitEx() in js/plan.js) – im Kopf mitgezählt („6 Übungen"), an
+           der Übung mit ihrer Herkunft. Ein Start, keine Zeile darunter. -->
 
       <div class="ov-foot">
         ${w.custom ? `<button type="button" class="ov-nav" data-act="back-to-plan" aria-label="Zurück zum Plan">↩</button>`
@@ -22177,7 +22179,7 @@ function renderDashboard() {
       <button type="button" class="back-link" data-act="${session ? 'focus-back' : 'hide-list'}">‹ Zurück</button>
       <span class="focus-count">${plural(items.length, 'Übung', 'Übungen')} · ${prog.done}/${prog.total} Sätze</span>
     </div>
-    ${tagNotiz(w, mode, items.filter((it) => w.custom || !it.zusatz))}`);
+    ${tagNotiz(w, mode, items)}`);
 
   items.forEach((it, i) => {
     const sets = saetzeZeigen(n, mode, it).slice(0, it.sets);
@@ -23110,8 +23112,23 @@ function tagKopf(w, mode, items) {
  * tools/build-plan.py legt das Volumen je Muskelgruppe und Woche fest und
  * verteilt es erst danach auf die Einheiten (split(), Kriterium `imbalance`).
  * Ein kurzer Tag ist deshalb kein fehlender Tag.
+ *
+ * **Nicht an einem Tag mit eingefügten Übungen.** Seit v240 zählt der Kopf
+ * die Summe:
+ *
+ *     „Da soll einfach die normale Zahl dieses Trainings inkl der
+ *      nachholübungen stehen. Also einfach 6 in diesem Fall."
+ *
+ * An Workout 9 mit den Chin-ups aus Woche 2 stand dann „6 Übungen · 0/17
+ * Sätze" und direkt darunter „Einheiten in diesem Fokus: 4 bis 5 Übungen" –
+ * zwei Zahlen, die sich widersprechen, auf einem Bildschirm. Die Notiz
+ * vergleicht den Plan; warum dieser Tag länger ist, sagt an so einem Tag die
+ * Herkunftszeile an der eingefügten Übung („Nachgeholt aus Woche 2: …"). Dann
+ * ist die Summe im Kopf die einzige Übungszahl der Ansicht. Nacharbeit ändert
+ * die Übungszahl nicht und lässt die Notiz stehen.
  */
 function tagNotiz(w, mode, items) {
+  if (items.some((it) => it.zusatz)) return '';
   if (!tagesGroesse(w, mode, items.length)) return '';
   const tab = groessenTabelle(mode);
   const groessen = [...tab.keys()].sort((a, b) => a - b);
@@ -24654,7 +24671,10 @@ function renderCustom() {
         </div>
       </div>
       ${liste.map((c) => {
-        const sets = c.ex.reduce((a, x) => a + x.sets, 0);
+        // Der Umfang wie im Kopf der Einheit und im Kalender, mit umfangText()
+        // in js/anzeige.js – hier stand er selbst zusammengesetzt, und ein
+        // Workout mit einer Übung hieß „1 Übungen · 3 Sätze", während der Kopf
+        // nach „Öffnen" „1 Übung · 3 Sätze" sagte.
         const prog = progressOf(c.id, store.workoutMode(c.id));
         // Ein Zusatztag, der heute in einer Einheit steckt oder erst morgen
         // dran ist, ist hier nur zum Nachsehen da: Öffnen führte am Plan
@@ -24681,7 +24701,7 @@ function renderCustom() {
         return `
         <div class="card">
           <div class="lbl">${esc(c.name)}</div>
-          <div class="hint">${c.ex.length} Übungen · ${sets} Sätze${
+          <div class="hint">${umfangText(c.ex)}${
             prog.done ? ` · ${prog.done}/${prog.total} abgehakt` : ''}</div>
           <div class="small muted" style="margin-top:6px">${esc(c.ex.map((x) => resolve(x, 'db').name).join(' · ')) || 'Noch keine Übung'}</div>
           <div class="btn-row nav">

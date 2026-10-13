@@ -106,6 +106,9 @@ verteilt es auf die Einheiten."* Der zweite Halbsatz ist keine Trainingslehre,
 sondern die Bauweise des Generators: `tools/build-plan.py` legt das Volumen je
 Gruppe und Woche zuerst fest und verteilt es erst danach auf die Termine
 (`split()`, Kriterium `imbalance`). Ein kurzer Tag ist deshalb kein fehlender Tag.
+An einem Tag, in den ein Zusatztag Übungen eingefügt hat, steht der Satz nicht:
+Unter „6 Übungen" widerspräche „4 bis 5 Übungen" dem Kopf (siehe *Summen statt
+Aufschlüsselung* beim Zusatztag).
 
 Die Satzzahl steht weiterhin in der Kopfzeile. Sie war mit der Einordnung daneben
 kurz weggefallen, weil sie im Plan meist Rechnerei ist – `15 Sätze` ist dann nur
@@ -4835,15 +4838,28 @@ Die Kopfzeile sagt, was der Tag *ist*, nicht, wie er zustande kam; die Zahl an
 der Übung ist die Zahl der Satzknöpfe darunter. Das Warum bleibt, wo es
 hingehört – in der stillen Zeile unter der Übung („+1 nachgeholt …",
 „Nachgeholt aus Woche 2 …"), und der Nachholsatz heißt im Vorlesetext weiter
-„Satz 4 von 4, nachgeholt". Kopf und Kalender teilen sich dafür eine Funktion
-(`umfangText()` in `js/anzeige.js`) und damit auch die Einzahl: Ein eigenes
-Workout mit einer Übung heißt im Kopf jetzt „1 Übung", wie im Kalender schon
-vorher. Die Einordnung über der Liste („Einheiten in diesem Fokus: 4 bis 5
-Übungen …") bleibt bei den Planübungen – sie vergleicht den Plan, nicht den
-Tag. Geprüft in `tests/test-summen.mjs` an Tobis Donnerstag (Workout 9 mit den
-Chin-ups) und an einem Samstag mit Nacharbeit *und* Zusatz („6 Übungen ·
-19 Sätze", der Sliding Leg Curl mit „4 Sätze" und seiner Zeile darunter), samt
-Kalender und Vorlesefunktion; gegen v239 schlagen dort zwölf Prüfungen fehl.
+„Satz 4 von 4, nachgeholt". Kopf, Kalender und die Liste unter Mehr → Eigene
+Workouts teilen sich dafür eine Funktion (`umfangText()` in `js/anzeige.js`)
+und damit auch die Einzahl: Ein eigenes Workout mit einer Übung heißt jetzt
+überall „1 Übung · 3 Sätze" – im Kalender stand das schon so, in der Liste
+und im Kopf „1 Übungen".
+
+**Und keine zweite Übungszahl daneben.** Über der Liste steht sonst die
+Einordnung „Einheiten in diesem Fokus: 4 bis 5 Übungen, 68 von 84 mit 5 …".
+An Workout 9 mit den Chin-ups hieß das: „6 Übungen · 0/17 Sätze" und direkt
+darunter „4 bis 5 Übungen" – zwei Zahlen, die sich widersprechen, auf einem
+Bildschirm. Die Einordnung vergleicht den Plan; warum *dieser* Tag länger ist,
+sagt die Zeile an der eingefügten Übung. An einem Tag mit eingefügten Übungen
+fällt sie deshalb weg (`tagNotiz()`), und die Summe im Kopf ist die einzige
+Übungszahl der Ansicht. Nacharbeit ändert die Zahl der Übungen nicht, dort
+bleibt sie, ebenso an jedem Tag ohne Zusatz.
+
+Geprüft in `tests/test-summen.mjs` an Tobis Donnerstag (Workout 9 mit den
+Chin-ups, ohne Einordnung; Workout 10 daneben mit) und an einem Samstag mit
+Nacharbeit *und* Zusatz („6 Übungen · 19 Sätze", der Sliding Leg Curl mit
+„4 Sätze" und seiner Zeile darunter), samt Kalender, Vorlesefunktion und
+einem eigenen Workout mit einer Übung; gegen v239 schlagen dort fünfzehn
+Prüfungen fehl.
 
 **Drei Schichten, und jede Rechnung nimmt die, die sie meint.**
 
