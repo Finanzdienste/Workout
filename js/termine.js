@@ -104,6 +104,9 @@ export function termine() {
     : [];
 }
 
+/** Wo ein Termin wirkt, in Tagen ab dem Termin: der Tag davor bis zwei danach. */
+export const WIRKT_AN = [-1, 0, 1, 2];
+
 /**
  * Welche Gruppen an einem bestimmten Tag geschont werden – und wessentwegen.
  *
@@ -117,7 +120,7 @@ export function geschont(iso) {
   termine().forEach((t) => {
     // Wie viele Tage liegt der betrachtete Tag hinter dem Termin? −1 ist der
     // Tag davor, 0 der Termintag, +1 und +2 danach.
-    const tage = [-1, 0, 1, 2].find((d) => iso === addDays(t.datum, d));
+    const tage = WIRKT_AN.find((d) => iso === addDays(t.datum, d));
     if (tage === undefined) return;
     const treffer = terminGruppen(t, tage);
     if (!treffer.length) return;

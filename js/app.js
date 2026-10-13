@@ -59,7 +59,7 @@ import {
 } from './supersatz.js';
 import {
   NACH_ANTEIL, PLAN_WEEKS, WEEK_SESSIONS, ZUSATZ_AB, ZUSATZ_IN_EINHEIT, ZUSATZ_NAME, ZUSATZ_UEBUNGEN,
-  activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, einheitEx, ersatzGrund, exBasis,
+  activeInjuries, ausfallTage, catchUpPlan, completedMode, defaultWorkoutNo, effDate, einheitEx, ersatzGrund, exBasis,
   exOf, fassungen, festerZusatz, firstOpen, hasAnyEntry, injuryNotes, istCustom, nacharbeit,
   nacharbeitPlan, nachWarumJe, offenImBlock, offenerZusatztag, progressOf, saetzeErledigt,
   resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo,
@@ -2333,6 +2333,28 @@ function frischerStart() {
   if (!tage.length) return store.getState().shift;
   const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
   return daysBetween(PLAN[0].date, addDays(tage[tage.length - 1], abstand));
+}
+
+/**
+ * Früher angefangen, als der Plan sagt: Der Restplan rückt vor – auf jedem Weg.
+ *
+ * Bisher tat das nur „Start" (start-session). Wer Workout 10 am Freitag statt
+ * am Samstag in „Übungen & Gewichte" abhakte, ließ den Plan stehen: Workout 11
+ * blieb am Montag, über „Start" wäre es am Sonntag gewesen. Dasselbe Training
+ * ergab je nach Knopf eine andere Woche – und ausfallTage() in js/plan.js, das
+ * den Rhythmus aus dem Protokoll rechnet und nicht aus `shift`, meldete den
+ * Sonntag als „Workout 11 · ausgefallen", obwohl die App an dem Tag „morgen ·
+ * Workout 11" gezeigt hatte. Jetzt gilt beim ersten Haken und bei „Alle Sätze
+ * abhaken" dasselbe wie beim Start: Ist es die nächste offene Einheit und liegt
+ * ihr Termin noch vorn, fällt sie auf heute – und ein Zusatztag, der dann in
+ * sie gehört, kommt hinein.
+ */
+function planVorziehen(n) {
+  if (istCustom(n) || store.isStarted(n) || firstOpen().n !== n) return false;
+  if (daysBetween(todayISO(), effDate(workoutByNo(n))) <= 0) return false;
+  store.setShift(shiftToToday());
+  pruefeZusatztag();
+  return true;
 }
 
 /**
@@ -5838,6 +5860,9 @@ function renderCalendar() {
   const frueher = fruehereTage();
   const akt = aktivitaetTage();
   const eigene = eigeneTage();
+  // Ausgefallene Trainingstage, aus dem Protokoll gerechnet – einmal je
+  // Zeichnung, nicht je Kachel (siehe ausfallTage() in js/plan.js).
+  const aus = ausfallTage(today);
 
   // Gezählt werden Einheiten, nicht Tage – an einem Tag können zwei stehen.
   const imMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7))
@@ -5868,6 +5893,22 @@ function renderCalendar() {
   eigenImMonat.forEach((x) => { proModus[x.mode] += 1; });
   const imMonatAkt = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7) && akt.has(d))
     .flatMap((d) => akt.get(d).map((t) => t.name || terminLabel(t)));
+  // Ausgefallen sind Tage, keine Einheiten – die Einheit, die dran war, steht
+  // offen oder trainiert an ihrem neuen Tag und ist dort schon gezählt; die
+  // Vereinigung mit dayState() fängt die Minuten nach Mitternacht ab, bevor
+  // catchUpPlan() läuft.
+  //
+  //     „Im Kalender ist aktuell nichts unter ausgefallen obwohl ich mehrere
+  //      Trainings hab ausfallen lassen"
+  //
+  // Bis hierher stand an dieser Stelle zaehl.miss, und das war nach dem
+  // Nachrücken immer null. Mit „Tage" im Text, weil sich „5 trainiert · 2
+  // ausgefallen · 11 offen" bei 16 Einheiten sonst wie ein Rechenfehler liest.
+  const ausImMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7)
+    && (aus.has(d) || (byDate.get(d) || []).some((w) => dayState(w, d, today).kind === 'miss'))).length;
+  // Zusammengehalten (geschützte Leerzeichen): Bei 414 px brach die Zeile
+  // sonst hinter „🤸 0) · 2", und die 2 las sich wie Teil der Moduszählung.
+  const ausgefallenText = (k) => `${plural(k, 'Tag', 'Tage')} ausgefallen`.replace(/ /g, '\u00a0');
 
   view.innerHTML = `
     <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
@@ -5880,7 +5921,7 @@ function renderCalendar() {
         <button type="button" class="cal-nav" data-act="cal-month" data-d="1" aria-label="Nächster Monat">›</button>
       </div>
       <div class="cal-grid cal-head">${WEEK_HEAD.map((d) => `<div>${d}</div>`).join('')}</div>
-      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher, akt, eigene)).join('')}</div>
+      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher, akt, eigene, aus)).join('')}</div>
       <div class="cal-legend">
         <span><i class="dot done"></i> trainiert</span>
         <span><i class="dot part"></i> angefangen</span>
@@ -5892,7 +5933,7 @@ function renderCalendar() {
         ${plural(imMonat.length + altImMonat + eigenImMonat.length, 'Einheit', 'Einheiten')} in diesem Monat ·
         ${zaehl.done + altImMonat + eigenImMonat.length} trainiert${zaehl.done + altImMonat + eigenImMonat.length
           ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
-          zaehl.miss ? ` · ${zaehl.miss} ausgefallen` : ''}${
+          ausImMonat ? ` · ${ausgefallenText(ausImMonat)}` : ''}${
           zaehl.plan ? ` · ${zaehl.plan} offen` : ''}${
           imMonatAkt.length ? ` · ${plural(imMonatAkt.length, 'Tag', 'Tage')} anderer Sport (${
             esc(aktNamen(imMonatAkt))})` : ''}
@@ -5901,12 +5942,14 @@ function renderCalendar() {
         <button type="button" class="btn btn-sm" data-act="cal-today">Zu heute</button>`}
     </div>
 
-    ${calendarDetail(sel, byDate, today, frueher, akt, eigene)}
+    ${calendarDetail(sel, byDate, today, frueher, akt, eigene, aus)}
 
     <div class="small muted">
       Die Termine sind die tatsächlichen: verpasste Tage rücken den Restplan
       nach hinten, abgeschlossene Einheiten bleiben auf dem Tag, an dem du
-      trainiert hast.
+      trainiert hast. Ausgefallen steht an einem Trainingstag im Rhythmus des
+      Plans, an dem nicht trainiert und bis zum nächsten Trainingstag nicht
+      nachgeholt wurde.
     </div>`;
 }
 
@@ -7478,6 +7521,8 @@ view.addEventListener('click', (e) => {
       // Vor dem Haken: Ab hier steht fest, was nachgeholt wird – erst der
       // eingefügte Zusatztag, dann die Nacharbeit. Danach ist die Einheit
       // angefangen, und der Zusatz hinge an nichts mehr (zusatzFesthalten()).
+      // Und vorher noch der Plan, falls früher trainiert wird (planVorziehen()).
+      planVorziehen(n);
       zusatzFesthalten(n);
       nachFesthalten(n);
       const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
@@ -7787,7 +7832,9 @@ view.addEventListener('click', (e) => {
       render();
       break;
     case 'complete-workout': {
-      // Wie beim einzelnen Haken: erst der Zusatztag, dann die Nacharbeit.
+      // Wie beim einzelnen Haken: erst der Plan, dann der Zusatztag, dann die
+      // Nacharbeit.
+      planVorziehen(n);
       zusatzFesthalten(n);
       nachFesthalten(n);
       // Das benutzte Gewicht muss mit: Ohne es fehlen die Sätze in der

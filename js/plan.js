@@ -11,11 +11,11 @@
  * trainiert wird, legt darauf noch die Übungen eines Zusatztags (einheitEx()).
  */
 import * as store from './store.js';
-import { EXERCISES, PLAN, REST } from './data.js';
+import { EXERCISES, FOKUS_ERSATZ, PLAN, PLANS, REST } from './data.js';
 import { EX_BY_ID, directOf, directSets, gezaehlteReps, satzKilo, stufenWerte } from './uebung.js';
 import { addDays, daysBetween, plural, todayISO } from './dates.js';
 import { INJURIES, applyInjuries, gesperrt, modusTausch } from './injuries.js';
-import { faelltAus, termine } from './termine.js';
+import { WIRKT_AN, faelltAus, termine } from './termine.js';
 import { esc } from './text.js';
 import { ruestOrderStabil } from './gewichte.js';
 import { nichtsAbgewaehlt, uebungGeht, vorratFassung } from './vorrat.js';
@@ -66,6 +66,219 @@ export function catchUpPlan() {
   if (missed <= 0) return 0;
   store.setShift(s.shift + missed);
   return missed;
+}
+
+/**
+ * Tage von Einheit n bis n+1 im Rhythmus des Plans – aus den Plandaten. Nach
+ * der letzten Einheit der übliche Abstand, wie beim Weiterrollen der Runde
+ * (rundeWeiter() in js/app.js). Reihum, damit auch Nummern jenseits des Plans
+ * einen Rhythmus haben.
+ */
+export function rhythmusLuecke(n) {
+  const L = PLAN.length;
+  const i = (((n - 1) % L) + L) % L;
+  if (i === L - 1) return Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
+  return Math.max(1, daysBetween(PLAN[i].date, PLAN[i + 1].date));
+}
+
+/**
+ * Ausgefallene Trainingstage – gerechnet aus dem Protokoll, kein Schnappschuss.
+ *
+ *     „Im Kalender ist aktuell nichts unter ausgefallen obwohl ich mehrere
+ *      Trainings hab ausfallen lassen"
+ *
+ * Stimmte. catchUpPlan() schiebt den Restplan, sobald der Termin der nächsten
+ * offenen Einheit verstrichen ist, bis sie auf heute fällt – jeden Tag aufs
+ * Neue. Eine Einheit liegt deshalb nie unbegonnen in der Vergangenheit, und
+ * dayState() in js/ansicht-kalender.js kam nie zu 'miss'. Die Legende kannte
+ * „ausgefallen", gezeigt wurde es nur in den Minuten nach Mitternacht, bis
+ * das Nachrücken lief. Wer Sa und Mo nicht trainiert hatte, sah am Di einen
+ * leeren Sa, einen leeren Mo und „heute · geplant".
+ *
+ * **Was ausgefallen heißt.** Ein Trainingstag im Rhythmus des Plans, der
+ * verstrich, ohne dass bis zum nächsten Trainingstag trainiert wurde.
+ *
+ *   Rhythmus  gerechnet ab dem letzten tatsächlich trainierten Tag d mit
+ *             Einheit k: d + Lücke(k), dann + Lücke(k+1) und so weiter – genau
+ *             der Plan, den der Kalender direkt nach dem Training zeigte. Die
+ *             Nummer im Rhythmus läuft je Trainingstag weiter, auch wenn die
+ *             fällige Einheit dieselbe bleibt; so bleibt die Woche (bei Tobi
+ *             Do/Sa/Mo/Di) erhalten, und die Ruhetage dazwischen sind nie
+ *             ausgefallen. Das Nachrücken machte ja jeden Tag zum „heute" –
+ *             das soll nicht als Dutzend Ausfälle erscheinen.
+ *   Fenster   jeder Trainingstag t gilt bis zum nächsten: Wer im Fenster
+ *             trainiert (Planeinheit, eigene Einheit, Zusatztag), hat
+ *             verschoben, nicht ausfallen lassen – W10 am So statt am Sa ist
+ *             kein Ausfall. Ist das Fenster noch offen, gilt der Tag noch nicht
+ *             als ausgefallen; heute nie.
+ *   fällig    die erste Einheit des Verlaufs, die an dem Tag noch nicht
+ *             angefangen war – die, die nach hinten rückte.
+ *
+ * Der Rhythmus nach einem Training ist der, den die App danach zeigte – auch
+ * wenn früher trainiert wurde als geplant: Dann zieht die App den Restplan
+ * vor, beim Start ebenso wie beim ersten Haken ohne Start (planVorziehen() in
+ * js/app.js). Vorher tat das nur der Start: Wer W10 am Fr
+ * in „Übungen & Gewichte" abhakte, sah W11 weiter am Mo, und diese Rechnung
+ * meldete den So dazwischen als ausgefallen – einen Tag, an dem die App
+ * „morgen · Workout 11" gezeigt hatte.
+ *
+ * Kein Ausfall ist ein Tag, an dem eingetragene Termine der fälligen Einheit
+ * jede Übung nehmen (ein Turnier, das alles schont): Es gab nichts zu
+ * trainieren, die App selbst hat sie weitergeschoben. Das gilt mit dem Plan des
+ * Verlaufs, auch wenn der inzwischen in der Ablage liegt – sonst kippte
+ * derselbe Tag beim Fokuswechsel oder Rundenende zu „ausgefallen". Sport
+ * außerhalb des Plans ist dagegen kein Plantraining – der Tag bleibt
+ * ausgefallen, der Kalender zeigt den Sport daneben.
+ *
+ * **Verläufe.** Abgelegte Runden (Fokuswechsel, Neustart, weitergerollte
+ * Runde) zählen mit, wie in fruehereTage(): Ein Trainingstag gehört dem Tag,
+ * nicht dem Plan. Bis zum Wechseltag (finishedOn) läuft der alte Rhythmus,
+ * danach beginnt Workout 1 dort, wo die App es hinlegt – der übliche Abstand
+ * nach dem letzten Eintrag des alten Verlaufs (frischerStart() zählt dabei
+ * auch eigene Einheiten und den Zusatztag), frühestens am Wechseltag. Sonst
+ * stünden nach einem Wechsel Tage als ausgefallen da, an denen der Kalender
+ * gar kein Workout 1 zeigte.
+ *
+ * **Gerechnet, nicht gespeichert** – wie behalteProtokolliertes(): Gelesen
+ * werden nur startedOn je Einheit, die Plandaten und die Termine, nie `shift`.
+ * Damit wirkt es auch für jede Woche, die vor dieser Fassung trainiert wurde,
+ * und wer die App tagelang nicht geöffnet hat, sieht dasselbe wie jemand, der
+ * jeden Tag hineinschaute (gemessen: beide Wege ergeben am Di dieselben Tage,
+ * bei verschiedenem shift-Verlauf). Nicht rekonstruierbar ist, was gelöscht
+ * wurde (es gilt das heutige Protokoll), und der Tag, an dem ein Verlauf
+ * verlassen wurde, der später zurückkam: wechsleFokus() holt ihn aus der
+ * Ablage, und sein finishedOn ging dabei verloren. Dafür – und nur dafür –
+ * gibt es eine gespeicherte Spur, `verlassen` (js/store.js): ein ISO-Tag je
+ * Rückkehr, 12–13 Byte. Ohne sie rutschte nach Cut → Aufbau → Cut der Wechsel
+ * auf den Tag des letzten Cut-Trainings, Workout 1 (Aufbau) erschien auf einem
+ * Cut-Ruhetag, an dem es den Aufbau-Plan noch gar nicht gab, und die echten
+ * Ausfälle davor verschwanden. Zurückgeholt vor dieser Fassung, fehlt die
+ * Spur; dann gilt als Wechsel spätestens das erste Training im anderen Plan –
+ * bis dahin läuft der alte Rhythmus, und kein Tag wird einem Plan
+ * zugeschrieben, den es an dem Tag noch nicht gab.
+ *
+ * Alles in lokalen ISO-Tagen (todayISO, startedOn): Ein Training nach
+ * Mitternacht gehört zum Tag des ersten Satzes. Einmal je Kalender-Zeichnung
+ * aufgerufen, nie je Kachel (gemessen 2 ms bei drei abgelegten Runden mit
+ * 140 Einheiten, 10 ms mit 40 Terminen dazu).
+ *
+ * @returns {Map<string, {n:number, aktuell:boolean, focus:string|null, seit:string, spaeter:string|null}>}
+ *   Schlüssel ISO-Tag (vor heute). n: fällige Einheit; aktuell: aus dem
+ *   laufenden Verlauf (sonst aus der Ablage); focus: dessen Fokus; seit: Tag
+ *   des letzten Trainings davor; spaeter: Tag, an dem n dann angefangen wurde
+ *   (null = noch offen).
+ */
+export function ausfallTage(heute = todayISO()) {
+  const s = store.getState();
+  const TAG = /^\d{4}-\d{2}-\d{2}$/;
+  const tagVon = (e) => (e && TAG.test(e.startedOn || '') ? e.startedOn : null);
+  const planNr = (k) => /^\d+$/.test(k);
+  const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
+  // Jeder Tag mit einem Eintrag, auch eigene Einheiten – so zählt frischerStart().
+  const tageIn = (log) => Object.values(log).map(tagVon).filter(Boolean).sort();
+  // Die Tage, an denen ein zurückgeholter Verlauf früher schon verlassen wurde
+  // (wechsleFokus() in js/store.js).
+  const spur = (x) => (Array.isArray(x) ? x.filter((d) => TAG.test(d || '')).sort() : []);
+  const verlaeufe = (s.rounds || []).map((r) => {
+    const log = r.log || {};
+    const tage = tageIn(log);
+    // Alte Runden ohne finishedOn: Wechsel direkt nach ihrem letzten Training.
+    return { log, tage, focus: r.focus || null, bis: r.finishedOn || tage[tage.length - 1] || null,
+      verlassen: spur(r.verlassen), aktuell: false };
+  });
+  const aktuell = { log: s.log || {}, tage: tageIn(s.log || {}), focus: s.focus || 'standard', bis: null,
+    verlassen: spur(s.verlassen), aktuell: true };
+  verlaeufe.push(aktuell);
+  // Tage, an denen überhaupt ein Termin wirkt. Nur dort fragt die Rechnung
+  // faelltAus() – sonst kostete jeder Rhythmus-Tag einen Gang durch alle
+  // Termine (gemessen: drei Runden, 40 Termine, 10 statt 20 ms je Aufruf).
+  const terminNah = new Set(termine().flatMap((t) => WIRKT_AN.map((d) => addDays(t.datum, d))));
+  /** Der Plan eines Verlaufs: der laufende, sonst der seines Fokus (abgeschafft: der Nachfolger). */
+  const planVon = (v) => (v.aktuell ? PLAN
+    : (PLANS[v.focus] || PLANS[(FOKUS_ERSATZ[v.focus] || {}).nach] || PLANS.standard || {}).plan || PLAN);
+
+  // Jeder Tag mit Training: Planeinheit (auch angefangen), eigene Einheit oder
+  // Zusatztag mit mindestens einem abgehakten Satz, Ablage. Anker sind nur die
+  // Planeinheiten – von ihnen aus läuft der Rhythmus.
+  const trainiert = new Set();
+  const anker = [];
+  verlaeufe.forEach((v, vi) => Object.entries(v.log).forEach(([k, e]) => {
+    const tag = tagVon(e);
+    if (!tag) return;
+    if (planNr(k)) {
+      trainiert.add(tag);
+      anker.push({ tag, n: Number(k), v, vi });
+    } else if (['db', 'bw'].some((m) => Object.values(e[m] || {})
+      .some((arr) => Array.isArray(arr) && arr.some((x) => x && x.done)))) {
+      trainiert.add(tag);
+    }
+  }));
+  anker.sort((a, b) => a.tag.localeCompare(b.tag) || a.vi - b.vi || a.n - b.n);
+  // Je Tag das letzte Training: Wer zwei Einheiten an einem Tag nachholt,
+  // rechnet ab der zweiten weiter.
+  const A = anker.filter((a, i) => !anker[i + 1] || anker[i + 1].tag !== a.tag);
+
+  /** Die erste Einheit des Verlaufs, die am Tag `iso` noch nicht angefangen war – oder null. */
+  const faellig = (v, iso) => {
+    const N = v.aktuell ? PLAN.length : Math.max(PLAN.length, ...Object.keys(v.log).filter(planNr).map(Number));
+    for (let n = 1; n <= N; n++) {
+      const t = tagVon(v.log[n]);
+      if (!t || t > iso) return n;
+    }
+    return null;
+  };
+  const aktuellLeer = !Object.keys(aktuell.log).some((k) => planNr(k) && tagVon(aktuell.log[k]));
+
+  const aus = new Map();
+  A.forEach((a, i) => {
+    const nach = A[i + 1] || null;
+    const bis = nach && nach.tag < heute ? nach.tag : heute;
+    const neu = nach ? nach.v : aktuell;
+    // Beginnt danach ein frischer Verlauf (Workout 1 nach Fokuswechsel, Rundenende, Neustart)?
+    const frisch = nach ? nach.n === 1 && (nach.v !== a.v || a.n > 1) : a.v !== aktuell && aktuellLeer;
+    // Wann der alte Verlauf verlassen wurde: der vermerkte Tag eines
+    // zurückgeholten Verlaufs, sonst finishedOn der Runde. Fehlt beides
+    // (zurückgeholt vor dieser Fassung), spätestens am ersten Training im
+    // anderen Plan.
+    const wechsel = a.v.verlassen.find((x) => x >= a.tag) || a.v.bis || (frisch && nach ? nach.tag : null);
+    let tag = addDays(a.tag, rhythmusLuecke(a.n));
+    let r = a.n + 1;
+    let umgestellt = false;
+    while (tag < bis) {
+      if (wechsel && tag >= wechsel && !umgestellt) {
+        umgestellt = true;
+        if (frisch) {
+          // Workout 1 liegt, wo die App es hinlegt: frischerStart()/rundeWeiter(),
+          // der übliche Abstand nach dem letzten Eintrag – auch einer eigenen
+          // Einheit am Wechseltag –, frühestens am Wechseltag.
+          const vorher = a.v.tage.filter((x) => x <= wechsel);
+          const letzter = vorher.length && vorher[vorher.length - 1] > a.tag ? vorher[vorher.length - 1] : a.tag;
+          const start = addDays(letzter, abstand);
+          tag = start > wechsel ? start : wechsel;
+          r = 1;
+          continue;
+        }
+      }
+      const ende = addDays(tag, rhythmusLuecke(r));   // der nächste Trainingstag schließt das Fenster
+      // Im Fenster nachgeholt: verschoben. Fenster noch offen: noch nicht ausgefallen.
+      if (nach ? nach.tag < ende : heute < ende) break;
+      let selbst = false;
+      for (let t = tag; t < ende; t = addDays(t, 1)) if (trainiert.has(t)) selbst = true;
+      let v = umgestellt ? neu : a.v;
+      let n = faellig(v, tag);
+      if (n === null && v !== neu) { v = neu; n = faellig(v, tag); }   // alter Verlauf war fertig
+      // Mit dem Plan des Verlaufs – ein Turnier bleibt frei, auch nachdem die
+      // Runde in die Ablage gewandert ist.
+      const w = n === null ? null : planVon(v)[n - 1] || PLAN[(n - 1) % PLAN.length];
+      const frei = !!w && terminNah.has(tag) && faelltAus(w.ex, tag).items.length === 0;
+      if (!selbst && n !== null && !frei) {
+        aus.set(tag, { n, aktuell: v.aktuell, focus: v.focus, seit: a.tag, spaeter: tagVon(v.log[n]) });
+      }
+      tag = ende;
+      r += 1;
+    }
+  });
+  return aus;
 }
 
 /** Die erste Einheit, die noch nicht angefangen wurde – die, die dran wäre. */

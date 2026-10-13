@@ -1561,7 +1561,14 @@ textarea.io {
 .cal-cell.part { border-color: var(--accent); background: rgba(255, 122, 69, .16); }
 .cal-cell.part.bw { border-color: var(--accent-2); background: rgba(78, 161, 255, .16); }
 .cal-cell.plan { border-color: var(--line); background: var(--bg-elev-2); }
-.cal-cell.miss { border: 1px dashed var(--line); color: var(--muted); }
+/* Ausgefallen: gestrichelt in --muted, nicht in --line. Die Regel stammt aus
+   der Zeit, als 'miss' praktisch nie gezeichnet wurde; mit --line (1,3:1 auf
+   der Karte) waren die Ausfälle die blassesten Kacheln des Monats, blasser als
+   jeder leere Ruhetag – und genau sie sind die Antwort auf „Im Kalender ist
+   aktuell nichts unter ausgefallen obwohl ich mehrere Trainings hab ausfallen
+   lassen". --muted hat 6,8:1 (WCAG 1.4.11 verlangt 3:1) und bleibt farblos:
+   Das Merkmal ist weiter die Strichelung. */
+.cal-cell.miss { border: 1.5px dashed var(--muted); color: var(--muted); }
 /* Sport außerhalb des Plans: ein Streifen am unteren Rand, keine eigene
    Sorte Tag.
 
@@ -1596,7 +1603,7 @@ textarea.io {
 .cal-legend .dot.done { background: var(--accent); border-color: var(--accent); }
 .cal-legend .dot.part { background: rgba(255, 122, 69, .16); border-color: var(--accent); }
 .cal-legend .dot.plan { background: var(--bg-elev-2); }
-.cal-legend .dot.miss { border-style: dashed; }
+.cal-legend .dot.miss { border: 1.5px dashed var(--muted); }
 
 .cal-detail { margin-top: 12px; }
 .cal-det-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }

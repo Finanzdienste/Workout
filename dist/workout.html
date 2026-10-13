@@ -1571,7 +1571,14 @@ textarea.io {
 .cal-cell.part { border-color: var(--accent); background: rgba(255, 122, 69, .16); }
 .cal-cell.part.bw { border-color: var(--accent-2); background: rgba(78, 161, 255, .16); }
 .cal-cell.plan { border-color: var(--line); background: var(--bg-elev-2); }
-.cal-cell.miss { border: 1px dashed var(--line); color: var(--muted); }
+/* Ausgefallen: gestrichelt in --muted, nicht in --line. Die Regel stammt aus
+   der Zeit, als 'miss' praktisch nie gezeichnet wurde; mit --line (1,3:1 auf
+   der Karte) waren die Ausfälle die blassesten Kacheln des Monats, blasser als
+   jeder leere Ruhetag – und genau sie sind die Antwort auf „Im Kalender ist
+   aktuell nichts unter ausgefallen obwohl ich mehrere Trainings hab ausfallen
+   lassen". --muted hat 6,8:1 (WCAG 1.4.11 verlangt 3:1) und bleibt farblos:
+   Das Merkmal ist weiter die Strichelung. */
+.cal-cell.miss { border: 1.5px dashed var(--muted); color: var(--muted); }
 /* Sport außerhalb des Plans: ein Streifen am unteren Rand, keine eigene
    Sorte Tag.
 
@@ -1606,7 +1613,7 @@ textarea.io {
 .cal-legend .dot.done { background: var(--accent); border-color: var(--accent); }
 .cal-legend .dot.part { background: rgba(255, 122, 69, .16); border-color: var(--accent); }
 .cal-legend .dot.plan { background: var(--bg-elev-2); }
-.cal-legend .dot.miss { border-style: dashed; }
+.cal-legend .dot.miss { border: 1.5px dashed var(--muted); }
 
 .cal-detail { margin-top: 12px; }
 .cal-det-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -12222,7 +12229,12 @@ const DEFAULT_STATE = {
   // damit ein erneuter Import die alten Termine überschreibt statt sie stehen
   // zu lassen.
   lastIcs: null,
-  rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log }]
+  rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log, verlassen? }]
+  // Tage, an denen der laufende Verlauf schon einmal verlassen wurde und aus
+  // der Ablage zurückkam (wechsleFokus()): ['2026-09-23', …]. Das finishedOn
+  // der zurückgeholten Runde ginge sonst verloren, und mit ihm der Tag, ab dem
+  // ausfallTage() in js/plan.js nicht mehr nach diesem Plan rechnen darf.
+  verlassen: [],
   // Angehakte Verletzungen als IDs aus js/injuries.js. Sie gelten für alle
   // kommenden Trainings, bis der Haken wieder weg ist – nicht nur für heute.
   injuries: [],
@@ -12599,7 +12611,7 @@ function schreibeRunden() {
 function mitAblage(aendern) {
   const vorher = {
     log: state.log, rounds: state.rounds, shift: state.shift, focus: state.focus,
-    session: state.session, clock: state.clock, rest: state.rest,
+    session: state.session, clock: state.clock, rest: state.rest, verlassen: state.verlassen,
   };
   state.rounds = [...(state.rounds || [])];
   aendern();
@@ -13357,10 +13369,12 @@ function restartPlan(shiftDays, bilanz) {
       // zurückholen, in den er nicht gehört.
       state.rounds.push({
         finishedOn: todayISO(), log: state.log, focus: state.focus,
+        ...(verlassenSpur()),
         ...(bilanz ? { bilanz } : {}),
       });
     }
     state.log = {};
+    state.verlassen = [];
     state.session = null;
     state.clock = null;
     state.rest = null;
@@ -13401,18 +13415,30 @@ function wechsleFokus(key, bilanz, startShift) {
     if (Object.keys(state.log).length) {
       state.rounds.push({
         finishedOn: todayISO(), log: state.log, focus: alt, shift: state.shift,
+        ...(verlassenSpur()),
         ...(bilanz ? { bilanz } : {}),
       });
     }
     const zurueck = letzteRunde(key);
     if (zurueck) state.rounds = state.rounds.filter((r) => r !== zurueck);
     state.log = (zurueck && zurueck.log) || {};
+    // Der Tag, an dem dieser Verlauf verlassen wurde, kommt mit zurück – als
+    // Spur, nicht als finishedOn: Der Verlauf läuft ja weiter. Siehe
+    // ausfallTage() in js/plan.js.
+    state.verlassen = zurueck
+      ? [...(Array.isArray(zurueck.verlassen) ? zurueck.verlassen : []), zurueck.finishedOn].filter(Boolean)
+      : [];
     state.shift = Math.round(Number(zurueck ? zurueck.shift : startShift) || 0);
     state.session = null;
     state.clock = null;
     state.rest = null;
     state.focus = key;
   });
+}
+
+/** Die Spur `verlassen` für eine Runde, die gerade abgelegt wird – nur, wenn es eine gibt. */
+function verlassenSpur() {
+  return Array.isArray(state.verlassen) && state.verlassen.length ? { verlassen: state.verlassen } : {};
 }
 
 /**
@@ -13455,6 +13481,10 @@ function restoreRound() {
     Object.keys(zurueck).forEach((n) => {
       if (!state.log[n]) state.log[n] = zurueck[n];
     });
+    // Ihre Spur kommt mit: Die Einheiten, zu denen sie gehört, stehen jetzt hier.
+    if (Array.isArray(runde.verlassen) && runde.verlassen.length) {
+      state.verlassen = [...new Set([...(state.verlassen || []), ...runde.verlassen])].sort();
+    }
   });
 }
 
@@ -16413,6 +16443,9 @@ function termine() {
     : [];
 }
 
+/** Wo ein Termin wirkt, in Tagen ab dem Termin: der Tag davor bis zwei danach. */
+const WIRKT_AN = [-1, 0, 1, 2];
+
 /**
  * Welche Gruppen an einem bestimmten Tag geschont werden – und wessentwegen.
  *
@@ -16426,7 +16459,7 @@ function geschont(iso) {
   termine().forEach((t) => {
     // Wie viele Tage liegt der betrachtete Tag hinter dem Termin? −1 ist der
     // Tag davor, 0 der Termintag, +1 und +2 danach.
-    const tage = [-1, 0, 1, 2].find((d) => iso === addDays(t.datum, d));
+    const tage = WIRKT_AN.find((d) => iso === addDays(t.datum, d));
     if (tage === undefined) return;
     const treffer = terminGruppen(t, tage);
     if (!treffer.length) return;
@@ -16559,6 +16592,219 @@ function catchUpPlan() {
   if (missed <= 0) return 0;
   store.setShift(s.shift + missed);
   return missed;
+}
+
+/**
+ * Tage von Einheit n bis n+1 im Rhythmus des Plans – aus den Plandaten. Nach
+ * der letzten Einheit der übliche Abstand, wie beim Weiterrollen der Runde
+ * (rundeWeiter() in js/app.js). Reihum, damit auch Nummern jenseits des Plans
+ * einen Rhythmus haben.
+ */
+function rhythmusLuecke(n) {
+  const L = PLAN.length;
+  const i = (((n - 1) % L) + L) % L;
+  if (i === L - 1) return Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
+  return Math.max(1, daysBetween(PLAN[i].date, PLAN[i + 1].date));
+}
+
+/**
+ * Ausgefallene Trainingstage – gerechnet aus dem Protokoll, kein Schnappschuss.
+ *
+ *     „Im Kalender ist aktuell nichts unter ausgefallen obwohl ich mehrere
+ *      Trainings hab ausfallen lassen"
+ *
+ * Stimmte. catchUpPlan() schiebt den Restplan, sobald der Termin der nächsten
+ * offenen Einheit verstrichen ist, bis sie auf heute fällt – jeden Tag aufs
+ * Neue. Eine Einheit liegt deshalb nie unbegonnen in der Vergangenheit, und
+ * dayState() in js/ansicht-kalender.js kam nie zu 'miss'. Die Legende kannte
+ * „ausgefallen", gezeigt wurde es nur in den Minuten nach Mitternacht, bis
+ * das Nachrücken lief. Wer Sa und Mo nicht trainiert hatte, sah am Di einen
+ * leeren Sa, einen leeren Mo und „heute · geplant".
+ *
+ * **Was ausgefallen heißt.** Ein Trainingstag im Rhythmus des Plans, der
+ * verstrich, ohne dass bis zum nächsten Trainingstag trainiert wurde.
+ *
+ *   Rhythmus  gerechnet ab dem letzten tatsächlich trainierten Tag d mit
+ *             Einheit k: d + Lücke(k), dann + Lücke(k+1) und so weiter – genau
+ *             der Plan, den der Kalender direkt nach dem Training zeigte. Die
+ *             Nummer im Rhythmus läuft je Trainingstag weiter, auch wenn die
+ *             fällige Einheit dieselbe bleibt; so bleibt die Woche (bei Tobi
+ *             Do/Sa/Mo/Di) erhalten, und die Ruhetage dazwischen sind nie
+ *             ausgefallen. Das Nachrücken machte ja jeden Tag zum „heute" –
+ *             das soll nicht als Dutzend Ausfälle erscheinen.
+ *   Fenster   jeder Trainingstag t gilt bis zum nächsten: Wer im Fenster
+ *             trainiert (Planeinheit, eigene Einheit, Zusatztag), hat
+ *             verschoben, nicht ausfallen lassen – W10 am So statt am Sa ist
+ *             kein Ausfall. Ist das Fenster noch offen, gilt der Tag noch nicht
+ *             als ausgefallen; heute nie.
+ *   fällig    die erste Einheit des Verlaufs, die an dem Tag noch nicht
+ *             angefangen war – die, die nach hinten rückte.
+ *
+ * Der Rhythmus nach einem Training ist der, den die App danach zeigte – auch
+ * wenn früher trainiert wurde als geplant: Dann zieht die App den Restplan
+ * vor, beim Start ebenso wie beim ersten Haken ohne Start (planVorziehen() in
+ * js/app.js). Vorher tat das nur der Start: Wer W10 am Fr
+ * in „Übungen & Gewichte" abhakte, sah W11 weiter am Mo, und diese Rechnung
+ * meldete den So dazwischen als ausgefallen – einen Tag, an dem die App
+ * „morgen · Workout 11" gezeigt hatte.
+ *
+ * Kein Ausfall ist ein Tag, an dem eingetragene Termine der fälligen Einheit
+ * jede Übung nehmen (ein Turnier, das alles schont): Es gab nichts zu
+ * trainieren, die App selbst hat sie weitergeschoben. Das gilt mit dem Plan des
+ * Verlaufs, auch wenn der inzwischen in der Ablage liegt – sonst kippte
+ * derselbe Tag beim Fokuswechsel oder Rundenende zu „ausgefallen". Sport
+ * außerhalb des Plans ist dagegen kein Plantraining – der Tag bleibt
+ * ausgefallen, der Kalender zeigt den Sport daneben.
+ *
+ * **Verläufe.** Abgelegte Runden (Fokuswechsel, Neustart, weitergerollte
+ * Runde) zählen mit, wie in fruehereTage(): Ein Trainingstag gehört dem Tag,
+ * nicht dem Plan. Bis zum Wechseltag (finishedOn) läuft der alte Rhythmus,
+ * danach beginnt Workout 1 dort, wo die App es hinlegt – der übliche Abstand
+ * nach dem letzten Eintrag des alten Verlaufs (frischerStart() zählt dabei
+ * auch eigene Einheiten und den Zusatztag), frühestens am Wechseltag. Sonst
+ * stünden nach einem Wechsel Tage als ausgefallen da, an denen der Kalender
+ * gar kein Workout 1 zeigte.
+ *
+ * **Gerechnet, nicht gespeichert** – wie behalteProtokolliertes(): Gelesen
+ * werden nur startedOn je Einheit, die Plandaten und die Termine, nie `shift`.
+ * Damit wirkt es auch für jede Woche, die vor dieser Fassung trainiert wurde,
+ * und wer die App tagelang nicht geöffnet hat, sieht dasselbe wie jemand, der
+ * jeden Tag hineinschaute (gemessen: beide Wege ergeben am Di dieselben Tage,
+ * bei verschiedenem shift-Verlauf). Nicht rekonstruierbar ist, was gelöscht
+ * wurde (es gilt das heutige Protokoll), und der Tag, an dem ein Verlauf
+ * verlassen wurde, der später zurückkam: wechsleFokus() holt ihn aus der
+ * Ablage, und sein finishedOn ging dabei verloren. Dafür – und nur dafür –
+ * gibt es eine gespeicherte Spur, `verlassen` (js/store.js): ein ISO-Tag je
+ * Rückkehr, 12–13 Byte. Ohne sie rutschte nach Cut → Aufbau → Cut der Wechsel
+ * auf den Tag des letzten Cut-Trainings, Workout 1 (Aufbau) erschien auf einem
+ * Cut-Ruhetag, an dem es den Aufbau-Plan noch gar nicht gab, und die echten
+ * Ausfälle davor verschwanden. Zurückgeholt vor dieser Fassung, fehlt die
+ * Spur; dann gilt als Wechsel spätestens das erste Training im anderen Plan –
+ * bis dahin läuft der alte Rhythmus, und kein Tag wird einem Plan
+ * zugeschrieben, den es an dem Tag noch nicht gab.
+ *
+ * Alles in lokalen ISO-Tagen (todayISO, startedOn): Ein Training nach
+ * Mitternacht gehört zum Tag des ersten Satzes. Einmal je Kalender-Zeichnung
+ * aufgerufen, nie je Kachel (gemessen 2 ms bei drei abgelegten Runden mit
+ * 140 Einheiten, 10 ms mit 40 Terminen dazu).
+ *
+ * @returns {Map<string, {n:number, aktuell:boolean, focus:string|null, seit:string, spaeter:string|null}>}
+ *   Schlüssel ISO-Tag (vor heute). n: fällige Einheit; aktuell: aus dem
+ *   laufenden Verlauf (sonst aus der Ablage); focus: dessen Fokus; seit: Tag
+ *   des letzten Trainings davor; spaeter: Tag, an dem n dann angefangen wurde
+ *   (null = noch offen).
+ */
+function ausfallTage(heute = todayISO()) {
+  const s = store.getState();
+  const TAG = /^\d{4}-\d{2}-\d{2}$/;
+  const tagVon = (e) => (e && TAG.test(e.startedOn || '') ? e.startedOn : null);
+  const planNr = (k) => /^\d+$/.test(k);
+  const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
+  // Jeder Tag mit einem Eintrag, auch eigene Einheiten – so zählt frischerStart().
+  const tageIn = (log) => Object.values(log).map(tagVon).filter(Boolean).sort();
+  // Die Tage, an denen ein zurückgeholter Verlauf früher schon verlassen wurde
+  // (wechsleFokus() in js/store.js).
+  const spur = (x) => (Array.isArray(x) ? x.filter((d) => TAG.test(d || '')).sort() : []);
+  const verlaeufe = (s.rounds || []).map((r) => {
+    const log = r.log || {};
+    const tage = tageIn(log);
+    // Alte Runden ohne finishedOn: Wechsel direkt nach ihrem letzten Training.
+    return { log, tage, focus: r.focus || null, bis: r.finishedOn || tage[tage.length - 1] || null,
+      verlassen: spur(r.verlassen), aktuell: false };
+  });
+  const aktuell = { log: s.log || {}, tage: tageIn(s.log || {}), focus: s.focus || 'standard', bis: null,
+    verlassen: spur(s.verlassen), aktuell: true };
+  verlaeufe.push(aktuell);
+  // Tage, an denen überhaupt ein Termin wirkt. Nur dort fragt die Rechnung
+  // faelltAus() – sonst kostete jeder Rhythmus-Tag einen Gang durch alle
+  // Termine (gemessen: drei Runden, 40 Termine, 10 statt 20 ms je Aufruf).
+  const terminNah = new Set(termine().flatMap((t) => WIRKT_AN.map((d) => addDays(t.datum, d))));
+  /** Der Plan eines Verlaufs: der laufende, sonst der seines Fokus (abgeschafft: der Nachfolger). */
+  const planVon = (v) => (v.aktuell ? PLAN
+    : (PLANS[v.focus] || PLANS[(FOKUS_ERSATZ[v.focus] || {}).nach] || PLANS.standard || {}).plan || PLAN);
+
+  // Jeder Tag mit Training: Planeinheit (auch angefangen), eigene Einheit oder
+  // Zusatztag mit mindestens einem abgehakten Satz, Ablage. Anker sind nur die
+  // Planeinheiten – von ihnen aus läuft der Rhythmus.
+  const trainiert = new Set();
+  const anker = [];
+  verlaeufe.forEach((v, vi) => Object.entries(v.log).forEach(([k, e]) => {
+    const tag = tagVon(e);
+    if (!tag) return;
+    if (planNr(k)) {
+      trainiert.add(tag);
+      anker.push({ tag, n: Number(k), v, vi });
+    } else if (['db', 'bw'].some((m) => Object.values(e[m] || {})
+      .some((arr) => Array.isArray(arr) && arr.some((x) => x && x.done)))) {
+      trainiert.add(tag);
+    }
+  }));
+  anker.sort((a, b) => a.tag.localeCompare(b.tag) || a.vi - b.vi || a.n - b.n);
+  // Je Tag das letzte Training: Wer zwei Einheiten an einem Tag nachholt,
+  // rechnet ab der zweiten weiter.
+  const A = anker.filter((a, i) => !anker[i + 1] || anker[i + 1].tag !== a.tag);
+
+  /** Die erste Einheit des Verlaufs, die am Tag `iso` noch nicht angefangen war – oder null. */
+  const faellig = (v, iso) => {
+    const N = v.aktuell ? PLAN.length : Math.max(PLAN.length, ...Object.keys(v.log).filter(planNr).map(Number));
+    for (let n = 1; n <= N; n++) {
+      const t = tagVon(v.log[n]);
+      if (!t || t > iso) return n;
+    }
+    return null;
+  };
+  const aktuellLeer = !Object.keys(aktuell.log).some((k) => planNr(k) && tagVon(aktuell.log[k]));
+
+  const aus = new Map();
+  A.forEach((a, i) => {
+    const nach = A[i + 1] || null;
+    const bis = nach && nach.tag < heute ? nach.tag : heute;
+    const neu = nach ? nach.v : aktuell;
+    // Beginnt danach ein frischer Verlauf (Workout 1 nach Fokuswechsel, Rundenende, Neustart)?
+    const frisch = nach ? nach.n === 1 && (nach.v !== a.v || a.n > 1) : a.v !== aktuell && aktuellLeer;
+    // Wann der alte Verlauf verlassen wurde: der vermerkte Tag eines
+    // zurückgeholten Verlaufs, sonst finishedOn der Runde. Fehlt beides
+    // (zurückgeholt vor dieser Fassung), spätestens am ersten Training im
+    // anderen Plan.
+    const wechsel = a.v.verlassen.find((x) => x >= a.tag) || a.v.bis || (frisch && nach ? nach.tag : null);
+    let tag = addDays(a.tag, rhythmusLuecke(a.n));
+    let r = a.n + 1;
+    let umgestellt = false;
+    while (tag < bis) {
+      if (wechsel && tag >= wechsel && !umgestellt) {
+        umgestellt = true;
+        if (frisch) {
+          // Workout 1 liegt, wo die App es hinlegt: frischerStart()/rundeWeiter(),
+          // der übliche Abstand nach dem letzten Eintrag – auch einer eigenen
+          // Einheit am Wechseltag –, frühestens am Wechseltag.
+          const vorher = a.v.tage.filter((x) => x <= wechsel);
+          const letzter = vorher.length && vorher[vorher.length - 1] > a.tag ? vorher[vorher.length - 1] : a.tag;
+          const start = addDays(letzter, abstand);
+          tag = start > wechsel ? start : wechsel;
+          r = 1;
+          continue;
+        }
+      }
+      const ende = addDays(tag, rhythmusLuecke(r));   // der nächste Trainingstag schließt das Fenster
+      // Im Fenster nachgeholt: verschoben. Fenster noch offen: noch nicht ausgefallen.
+      if (nach ? nach.tag < ende : heute < ende) break;
+      let selbst = false;
+      for (let t = tag; t < ende; t = addDays(t, 1)) if (trainiert.has(t)) selbst = true;
+      let v = umgestellt ? neu : a.v;
+      let n = faellig(v, tag);
+      if (n === null && v !== neu) { v = neu; n = faellig(v, tag); }   // alter Verlauf war fertig
+      // Mit dem Plan des Verlaufs – ein Turnier bleibt frei, auch nachdem die
+      // Runde in die Ablage gewandert ist.
+      const w = n === null ? null : planVon(v)[n - 1] || PLAN[(n - 1) % PLAN.length];
+      const frei = !!w && terminNah.has(tag) && faelltAus(w.ex, tag).items.length === 0;
+      if (!selbst && n !== null && !frei) {
+        aus.set(tag, { n, aktuell: v.aktuell, focus: v.focus, seit: a.tag, spaeter: tagVon(v.log[n]) });
+      }
+      tag = ende;
+      r += 1;
+    }
+  });
+  return aus;
 }
 
 /** Die erste Einheit, die noch nicht angefangen wurde – die, die dran wäre. */
@@ -19203,7 +19449,7 @@ function aktivitaetTage() {
   return map;
 }
 
-function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigene) {
+function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigene, aus) {
   const ws = byDate.get(iso) || [];
   const st = dayState(ws[0], iso, today);
   const selbst = (eigene && eigene.get(iso)) || [];
@@ -19213,6 +19459,10 @@ function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigene) {
   // eine trainierte; neben einer Planeinheit zählt sie als weitere (+1).
   const alt = st ? null : (frueher && frueher.get(iso))
     || (selbst.length ? { einheiten: 0, mode: selbst[0].mode } : null);
+  // Ein Trainingstag im Rhythmus, der ohne Training verstrich (ausfallTage()
+  // in js/plan.js). Auf dem Tag steht keine Einheit mehr – sie rückte nach
+  // hinten –, deshalb kommt der Ausfall aus der Rechnung und nicht aus byDate.
+  const ausfall = !st && !alt && aus ? aus.get(iso) || null : null;
   // Aktivitäten sind eine eigene Ebene und keine dritte Sorte Tag: An einem
   // Tag kann beides gewesen sein – vormittags Padel, abends die Einheit. Sie
   // ersetzen deshalb nichts, sondern kommen als Streifen dazu.
@@ -19226,14 +19476,28 @@ function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigene) {
   // Kachel ist eine trainierte wie jede andere. Die Klasse bleibt als Merkmal
   // für die Detailansicht und den Test stehen.
   else if (alt) cls.push('done', alt.einheiten ? 'frueher' : 'eigen', alt.mode);
+  else if (ausfall) cls.push('miss');
   if (sport.length) cls.push('akt');
   const tag = Number(iso.slice(8));
-  // Ohne Einheit und ohne Sport ist der Tag kein Knopf: nichts anzuzeigen,
-  // nichts zu tippen.
-  if (!st && !alt && !sport.length) {
+  // Ohne Einheit, ohne Ausfall und ohne Sport ist der Tag kein Knopf: nichts
+  // anzuzeigen, nichts zu tippen.
+  if (!st && !alt && !ausfall && !sport.length) {
     return `<div class="${cls.join(' ')}"><span class="cal-num">${tag}</span></div>`;
   }
   const namen = sport.map((t) => t.name || terminLabel(t)).join(', ');
+  if (ausfall) {
+    // Gestrichelt wie jedes „ausgefallen", mit dem Punkt statt eines
+    // Modus-Zeichens: Trainiert wurde an dem Tag in keinem Modus. Sport des
+    // Tages kommt als Streifen dazu und wird mit vorgelesen.
+    return `
+      <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
+              aria-pressed="${iso === sel}"
+              aria-label="${esc(fmtDate(iso, true))}: Workout ${ausfall.n} ${esc(KIND_TEXT.miss)}${
+                sport.length ? ` · ${esc(namen)}` : ''}">
+        <span class="cal-num">${tag}</span>
+        <span class="cal-mark">·</span>
+      </button>`;
+  }
   if (!st && !alt) {
     // Nur Sport an diesem Tag. Die Kachel bleibt ungefüllt – trainiert wurde
     // nach dem Plan nicht –, trägt aber den Streifen und lässt sich antippen.
@@ -19331,8 +19595,50 @@ function calendarEigene(iso, x) {
     </div>`;
 }
 
+/**
+ * Ein ausgefallener Tag im Detail: welche Einheit dran gewesen wäre und wohin
+ * sie rückte. Sachlich, ohne Vorwurf – der Tag ist vorbei, die Einheit nicht
+ * verloren.
+ */
+function calendarAusfall(iso, x, today) {
+  let folge;
+  if (x.spaeter) {
+    const fertig = !x.aktuell || completedMode(x.n);
+    folge = `Workout ${x.n} rückte nach hinten und wurde am ${fmtDate(x.spaeter)} ${fertig ? 'trainiert' : 'angefangen'}.`;
+  } else if (x.aktuell) {
+    const jetzt = effDate(PLAN[x.n - 1]);
+    // Über Mitternacht, bevor catchUpPlan() nachrückt, liegt die Einheit noch
+    // auf einem vergangenen Tag – womöglich auf einem, den das Raster gerade
+    // selbst als ausgefallen zeigt. „Jetzt für Mo geplant" am Di wäre falsch;
+    // „noch offen" stimmt vor und nach dem Nachrücken.
+    folge = jetzt < today
+      ? `Workout ${x.n} rückte nach hinten und ist noch offen.`
+      : `Workout ${x.n} rückte nach hinten und ist jetzt für ${
+        jetzt === today ? 'heute' : fmtDate(jetzt)} geplant.`;
+  } else {
+    folge = `Workout ${x.n} blieb offen – danach ging es mit einem anderen Plan weiter.`;
+  }
+  const plan = x.focus ? (PLANS[x.focus] || FOKUS_ERSATZ[x.focus] || {}).name : '';
+  return `
+    <div class="card cal-detail cal-aus">
+      <div class="cal-det-head">
+        <div>
+          <div class="lbl">Workout ${x.n} · ${esc(KIND_TEXT.miss)}</div>
+          <div class="hint">${esc(fmtDate(iso, true))} · Trainingstag im Rhythmus nach dem Training
+            am ${esc(fmtDate(x.seit))}</div>
+        </div>
+      </div>
+      <div class="small" style="margin:10px 0 12px">${esc(folge)}</div>
+      ${x.aktuell ? `
+        <button type="button" class="btn btn-sm" data-act="cal-open" data-n="${x.n}">
+          ${x.spaeter && completedMode(x.n) ? 'Im Dashboard ansehen' : 'Zu dieser Einheit'}
+        </button>` : `
+        <div class="small muted">Aus einem früheren Trainingsplan${plan ? ` (${esc(plan)})` : ''}.</div>`}
+    </div>`;
+}
+
 /** Die angetippte Einheit im Detail: Übungen, Sätze, Modus – dazu eigene Einheiten des Tages. */
-function calendarDetail(iso, byDate, today, frueher, akt, eigene) {
+function calendarDetail(iso, byDate, today, frueher, akt, eigene, aus) {
   // Noch kein Tag angetippt: dann gibt es auch keinen Tag, über den sich etwas
   // sagen ließe. Vorher stand hier „Kein Training an diesem Tag" – auch wenn
   // heute eine Einheit lag.
@@ -19341,16 +19647,20 @@ function calendarDetail(iso, byDate, today, frueher, akt, eigene) {
       zu sehen.</div>`;
   }
   const selbst = ((eigene && eigene.get(iso)) || []).map((x) => calendarEigene(iso, x)).join('');
-  return calendarDetailPlan(iso, byDate, today, frueher, akt, selbst) + selbst;
+  return calendarDetailPlan(iso, byDate, today, frueher, akt, selbst, aus) + selbst;
 }
 
-function calendarDetailPlan(iso, byDate, today, frueher, akt, selbst) {
+function calendarDetailPlan(iso, byDate, today, frueher, akt, selbst, aus) {
   const ws = byDate.get(iso) || [];
   const sport = (akt && akt.get(iso)) || [];
   // Der Sport steht oben: Wer im Kalender auf einen orangen Streifen tippt,
   // hat ihn gemeint. Die Einheit desselben Tages kommt darunter, sie geht
   // dabei nicht verloren.
   const vorn = sport.length ? calendarAktivitaet(iso, sport) : '';
+  // Ausgefallen: auch hier unter dem Sport – Boxen am Samstag ist kein
+  // Plantraining, die Einheit des Tages rückte trotzdem nach hinten.
+  const ausfall = !ws.length && !(frueher && frueher.get(iso)) && aus ? aus.get(iso) : null;
+  if (ausfall) return vorn + calendarAusfall(iso, ausfall, today);
   if (vorn && !ws.length && !(frueher && frueher.get(iso))) return vorn;
   const alt = ws.length ? null : (frueher && frueher.get(iso)) || null;
   if (alt) {
@@ -22301,6 +22611,28 @@ function frischerStart() {
   if (!tage.length) return store.getState().shift;
   const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
   return daysBetween(PLAN[0].date, addDays(tage[tage.length - 1], abstand));
+}
+
+/**
+ * Früher angefangen, als der Plan sagt: Der Restplan rückt vor – auf jedem Weg.
+ *
+ * Bisher tat das nur „Start" (start-session). Wer Workout 10 am Freitag statt
+ * am Samstag in „Übungen & Gewichte" abhakte, ließ den Plan stehen: Workout 11
+ * blieb am Montag, über „Start" wäre es am Sonntag gewesen. Dasselbe Training
+ * ergab je nach Knopf eine andere Woche – und ausfallTage() in js/plan.js, das
+ * den Rhythmus aus dem Protokoll rechnet und nicht aus `shift`, meldete den
+ * Sonntag als „Workout 11 · ausgefallen", obwohl die App an dem Tag „morgen ·
+ * Workout 11" gezeigt hatte. Jetzt gilt beim ersten Haken und bei „Alle Sätze
+ * abhaken" dasselbe wie beim Start: Ist es die nächste offene Einheit und liegt
+ * ihr Termin noch vorn, fällt sie auf heute – und ein Zusatztag, der dann in
+ * sie gehört, kommt hinein.
+ */
+function planVorziehen(n) {
+  if (istCustom(n) || store.isStarted(n) || firstOpen().n !== n) return false;
+  if (daysBetween(todayISO(), effDate(workoutByNo(n))) <= 0) return false;
+  store.setShift(shiftToToday());
+  pruefeZusatztag();
+  return true;
 }
 
 /**
@@ -25806,6 +26138,9 @@ function renderCalendar() {
   const frueher = fruehereTage();
   const akt = aktivitaetTage();
   const eigene = eigeneTage();
+  // Ausgefallene Trainingstage, aus dem Protokoll gerechnet – einmal je
+  // Zeichnung, nicht je Kachel (siehe ausfallTage() in js/plan.js).
+  const aus = ausfallTage(today);
 
   // Gezählt werden Einheiten, nicht Tage – an einem Tag können zwei stehen.
   const imMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7))
@@ -25836,6 +26171,22 @@ function renderCalendar() {
   eigenImMonat.forEach((x) => { proModus[x.mode] += 1; });
   const imMonatAkt = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7) && akt.has(d))
     .flatMap((d) => akt.get(d).map((t) => t.name || terminLabel(t)));
+  // Ausgefallen sind Tage, keine Einheiten – die Einheit, die dran war, steht
+  // offen oder trainiert an ihrem neuen Tag und ist dort schon gezählt; die
+  // Vereinigung mit dayState() fängt die Minuten nach Mitternacht ab, bevor
+  // catchUpPlan() läuft.
+  //
+  //     „Im Kalender ist aktuell nichts unter ausgefallen obwohl ich mehrere
+  //      Trainings hab ausfallen lassen"
+  //
+  // Bis hierher stand an dieser Stelle zaehl.miss, und das war nach dem
+  // Nachrücken immer null. Mit „Tage" im Text, weil sich „5 trainiert · 2
+  // ausgefallen · 11 offen" bei 16 Einheiten sonst wie ein Rechenfehler liest.
+  const ausImMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7)
+    && (aus.has(d) || (byDate.get(d) || []).some((w) => dayState(w, d, today).kind === 'miss'))).length;
+  // Zusammengehalten (geschützte Leerzeichen): Bei 414 px brach die Zeile
+  // sonst hinter „🤸 0) · 2", und die 2 las sich wie Teil der Moduszählung.
+  const ausgefallenText = (k) => `${plural(k, 'Tag', 'Tage')} ausgefallen`.replace(/ /g, '\u00a0');
 
   view.innerHTML = `
     <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
@@ -25848,7 +26199,7 @@ function renderCalendar() {
         <button type="button" class="cal-nav" data-act="cal-month" data-d="1" aria-label="Nächster Monat">›</button>
       </div>
       <div class="cal-grid cal-head">${WEEK_HEAD.map((d) => `<div>${d}</div>`).join('')}</div>
-      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher, akt, eigene)).join('')}</div>
+      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher, akt, eigene, aus)).join('')}</div>
       <div class="cal-legend">
         <span><i class="dot done"></i> trainiert</span>
         <span><i class="dot part"></i> angefangen</span>
@@ -25860,7 +26211,7 @@ function renderCalendar() {
         ${plural(imMonat.length + altImMonat + eigenImMonat.length, 'Einheit', 'Einheiten')} in diesem Monat ·
         ${zaehl.done + altImMonat + eigenImMonat.length} trainiert${zaehl.done + altImMonat + eigenImMonat.length
           ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
-          zaehl.miss ? ` · ${zaehl.miss} ausgefallen` : ''}${
+          ausImMonat ? ` · ${ausgefallenText(ausImMonat)}` : ''}${
           zaehl.plan ? ` · ${zaehl.plan} offen` : ''}${
           imMonatAkt.length ? ` · ${plural(imMonatAkt.length, 'Tag', 'Tage')} anderer Sport (${
             esc(aktNamen(imMonatAkt))})` : ''}
@@ -25869,12 +26220,14 @@ function renderCalendar() {
         <button type="button" class="btn btn-sm" data-act="cal-today">Zu heute</button>`}
     </div>
 
-    ${calendarDetail(sel, byDate, today, frueher, akt, eigene)}
+    ${calendarDetail(sel, byDate, today, frueher, akt, eigene, aus)}
 
     <div class="small muted">
       Die Termine sind die tatsächlichen: verpasste Tage rücken den Restplan
       nach hinten, abgeschlossene Einheiten bleiben auf dem Tag, an dem du
-      trainiert hast.
+      trainiert hast. Ausgefallen steht an einem Trainingstag im Rhythmus des
+      Plans, an dem nicht trainiert und bis zum nächsten Trainingstag nicht
+      nachgeholt wurde.
     </div>`;
 }
 
@@ -27446,6 +27799,8 @@ view.addEventListener('click', (e) => {
       // Vor dem Haken: Ab hier steht fest, was nachgeholt wird – erst der
       // eingefügte Zusatztag, dann die Nacharbeit. Danach ist die Einheit
       // angefangen, und der Zusatz hinge an nichts mehr (zusatzFesthalten()).
+      // Und vorher noch der Plan, falls früher trainiert wird (planVorziehen()).
+      planVorziehen(n);
       zusatzFesthalten(n);
       nachFesthalten(n);
       const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
@@ -27755,7 +28110,9 @@ view.addEventListener('click', (e) => {
       render();
       break;
     case 'complete-workout': {
-      // Wie beim einzelnen Haken: erst der Zusatztag, dann die Nacharbeit.
+      // Wie beim einzelnen Haken: erst der Plan, dann der Zusatztag, dann die
+      // Nacharbeit.
+      planVorziehen(n);
       zusatzFesthalten(n);
       nachFesthalten(n);
       // Das benutzte Gewicht muss mit: Ohne es fehlen die Sätze in der
