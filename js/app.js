@@ -1490,6 +1490,10 @@ const ui = {
   // liest die Pausenleiste im Supersatz ab, wessen Pause sie zeigt
   // (leistenPause()).
   gezeigt: null,
+  // Hat der erste Haken einer Einheit den Plan auf heute vorgezogen, steht
+  // hier, welcher Stand vorher galt – nimmt man den Haken gleich wieder
+  // zurück, gilt er wieder (toggle-set).
+  vorgezogen: null,
   // Kalender: gezeigter Monat und der angetippte Tag. Beides fängt bei der
   // nächsten offenen Einheit an, nicht stur bei heute – wer den Tab öffnet,
   // will meistens wissen, was als Nächstes kommt.
@@ -7682,7 +7686,11 @@ view.addEventListener('click', (e) => {
       // eingefügte Zusatztag, dann die Nacharbeit. Danach ist die Einheit
       // angefangen, und der Zusatz hinge an nichts mehr (zusatzFesthalten()).
       // Und vorher noch der Plan, falls früher trainiert wird (planVorziehen()).
-      planVorziehen(n);
+      // Was dabei vorher galt, bleibt gemerkt: Ein Fehltipp – Satz an und
+      // gleich wieder ab – soll den Plan nicht für immer um einen Tag
+      // vorziehen. Die Einheit ist danach ja auch nicht mehr angefangen.
+      const shiftVorher = store.getState().shift;
+      if (planVorziehen(n)) ui.vorgezogen = { n, shift: shiftVorher };
       zusatzFesthalten(n);
       nachFesthalten(n);
       const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
@@ -7707,6 +7715,11 @@ view.addEventListener('click', (e) => {
       if (!cur && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
       else if (cur) patch.w = '';
       store.updateSet(n, mode, id, item.sets, i, patch, item.nach || 0);
+      if (cur && ui.vorgezogen && ui.vorgezogen.n === n && !store.isStarted(n)) {
+        store.setShift(ui.vorgezogen.shift);
+        ui.vorgezogen = null;
+        pruefeZusatztag();
+      }
 
       const done = !cur;
       const workoutComplete = done && progressOf(n, mode).complete;

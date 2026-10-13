@@ -177,12 +177,25 @@ async function abschnitt(name, fn) {
   }
 }
 
-/** Was im Kopf der Startansicht steht. */
+/**
+ * Was im Kopf der Startansicht steht – dazu die Grundsätze der gezeigten
+ * Einheit (Plan ohne Nachholsätze und ohne eingefügten Zusatz). Seit der Kopf
+ * die Summe zeigt („6 Übungen · 17 Sätze" statt „15 + 2"), ergibt sich das
+ * „+" daraus: Summe minus Grundsätze.
+ */
 async function kopf(f) {
+  const auge = await f.txt('.hero-eyebrow');
+  const n = Number((auge.match(/Workout (\d+)/) || [])[1] || 0);
+  const [basis, basisUeb] = n ? await f.M(({ P, D, store }, k) => {
+    const liste = P.exBasis(D.PLAN[k - 1], store.workoutMode(k));
+    return [liste.reduce((a, x) => a + x.sets, 0), liste.length];
+  }, n) : [0, 0];
   return {
-    auge: await f.txt('.hero-eyebrow'),
+    auge,
     titel: await f.txt('.hero-title'),
     sub: await f.txt('.hero-sub'),
+    basis,
+    basisUeb,
     frei: await f.txt('.ov-frei'),
     zeilen: await f.page.locator('.ov-frei').count(),
   };
@@ -229,8 +242,13 @@ async function spiele(f, n, muster = {}) {
 
 /** Nachholsätze der Einheit n, wie sie dasteht (Summe der `nach`). */
 const nachVon = (f, n) => f.M(({ P }, k) => P.workoutByNo(k).ex.reduce((a, x) => a + (x.nach || 0), 0), n);
-/** „15 + 2 Sätze" → 2. */
-const plusImKopf = (sub) => Number((sub.match(/(\d+) \+ (\d+) Sätze/) || [])[2] || 0);
+/** Kopf „6 Übungen · 17 Sätze" bei 15 Grundsätzen → 2. */
+/** Wie viele Übungen der Kopf nennt („6 Übungen" → 6). */
+const uebImKopf = (k) => Number((k.sub.match(/(\d+) Übung/) || [])[1] || 0);
+const plusImKopf = (k) => {
+  const summe = Number((k.sub.match(/(\d+) Sätze/) || [])[1] || 0);
+  return summe && k.basis ? summe - k.basis : 0;
+};
 
 /**
  * Die Zeile zerlegt: Quelltage, Ziele („morgen +2, Mo +1"), was mit dem Rest
@@ -269,7 +287,7 @@ async function woche(name, zustand, muster9, { bis = 'do2' } = {}) {
   await f.tag(TAG.sa);
   r.sa = await kopf(f);
   r.ist = [];
-  r.ist.push({ n: 10, plus: await nachVon(f, 10), kopf: plusImKopf(r.sa.sub) });
+  r.ist.push({ n: 10, plus: await nachVon(f, 10), kopf: plusImKopf(r.sa) });
   await spiele(f, 10);
   r.saDanach = await kopf(f);
   await f.tag(TAG.sa);
@@ -278,11 +296,11 @@ async function woche(name, zustand, muster9, { bis = 'do2' } = {}) {
   r.so = await kopf(f);
   await f.tag(TAG.mo);
   r.mo = await kopf(f);
-  r.ist.push({ n: 11, plus: await nachVon(f, 11), kopf: plusImKopf(r.mo.sub) });
+  r.ist.push({ n: 11, plus: await nachVon(f, 11), kopf: plusImKopf(r.mo) });
   await spiele(f, 11);
   await f.tag(TAG.di);
   r.di = await kopf(f);
-  r.ist.push({ n: 12, plus: await nachVon(f, 12), kopf: plusImKopf(r.di.sub) });
+  r.ist.push({ n: 12, plus: await nachVon(f, 12), kopf: plusImKopf(r.di) });
   await spiele(f, 12);
   if (bis === 'di') return r;
   await f.tag(TAG.mi);
@@ -292,7 +310,7 @@ async function woche(name, zustand, muster9, { bis = 'do2' } = {}) {
   await f.tag(TAG.do2);
   r.do2 = await kopf(f);
   const st = await f.lies();
-  r.zusatzDo = traeger(st) || /Übungen/.test(r.do2.sub) && /\d+ \+ \d+ Übungen/.test(r.do2.sub);
+  r.zusatzDo = traeger(st) || uebImKopf(r.do2) > r.do2.basisUeb;
   return r;
 }
 
@@ -342,7 +360,7 @@ await abschnitt('R1', async () => {
   const k = await kopf(f);
   console.log(`     ${k.auge} | ${k.titel} | ${k.sub}\n     ${k.frei}`);
   check(k.auge === 'Tobi · Morgen · Workout 10' && k.titel === 'Sa, 10. Oktober 2026'
-    && k.sub === 'Hanteln · 5 Übungen · 15 + 2 Sätze', 'R1 Tobis Freitag: der Kopf wie auf seinem Bildschirm');
+    && k.sub === 'Hanteln · 5 Übungen · 17 Sätze', 'R1 Tobis Freitag: der Kopf wie auf seinem Bildschirm');
   check(k.frei === ZEILE_TOBI, `R1 die Zeile: „${ZEILE_TOBI}" („${k.frei}")`);
   const roh = await f.page.locator('.ov-frei').first().textContent().catch(() => '');
   check(/morgen\u00a0\+2, Mo\u00a0\+1, Di\u00a0\+1/.test(roh || ''),
@@ -424,10 +442,10 @@ await abschnitt('R3', async () => {
   // Der Mittwoch ist frei, der Zusatztag kommt morgen in Workout 13: Die Zeile
   // sagt es, mit der Zahl, die der Donnerstag dann zeigt.
   const zMi = zerlege(r.mi.frei);
-  check(/Heute · Workout 13/.test(r.do2.auge) && /^\w+ · 5 \+ \d+ Übungen/.test(r.do2.sub),
+  check(/Heute · Workout 13/.test(r.do2.auge) && uebImKopf(r.do2) > r.do2.basisUeb,
     `R3 Do: der Zusatztag steckt in Workout 13 („${r.do2.sub}")`);
-  check(!!zMi && !zMi.quellen && !!zMi.zusatz && zMi.zusatz.woche === 3 && zMi.zusatz.plus === plusImKopf(r.do2.sub),
-    `R3 Mi: „Aus Woche 3 kommt dazu: morgen +${plusImKopf(r.do2.sub)}" („${r.mi.frei}")`);
+  check(!!zMi && !zMi.quellen && !!zMi.zusatz && zMi.zusatz.woche === 3 && zMi.zusatz.plus === plusImKopf(r.do2),
+    `R3 Mi: „Aus Woche 3 kommt dazu: morgen +${plusImKopf(r.do2)}" („${r.mi.frei}")`);
   check(r.do2.zeilen === 0, 'R3 Do: Workout 13 ist fällig – keine Zeile');
   await ende(r.f);
 });
@@ -534,8 +552,8 @@ await abschnitt('R10', async () => {
   // Was der Mi ankündigt, bringt der Do – hier nichts, und so sagt es die Zeile.
   const zMi = zerlege(mi.frei);
   console.log(`     R10 Mi: ${mi.auge} | ${mi.sub} | ${mi.frei}\n     R10 Do: ${do2.auge} | ${do2.sub}`);
-  check(/Heute · Workout 13/.test(do2.auge) && ((zMi && zMi.zusatz && zMi.zusatz.plus) || 0) === plusImKopf(do2.sub),
-    `R10 Mi: die Zeile kündigt an, was Workout 13 am Do bringt (+${plusImKopf(do2.sub)}, „${mi.frei}")`);
+  check(/Heute · Workout 13/.test(do2.auge) && ((zMi && zMi.zusatz && zMi.zusatz.plus) || 0) === plusImKopf(do2),
+    `R10 Mi: die Zeile kündigt an, was Workout 13 am Do bringt (+${plusImKopf(do2)}, „${mi.frei}")`);
 
   // a) In der neuen Woche bleibt am Do ein Floor-Press-Satz liegen.
   await spiele(f, 13, { 'floor-press': 2 });
@@ -568,7 +586,7 @@ await abschnitt('R10', async () => {
   check(istA.zusatz > 0 && istA.nach > 0, 'R10a Workout 14 trägt am Sa Nacharbeit und den Zusatztag Woche 3');
   check(!!zA && zA.ziele === `morgen +${istA.nach}` && !!zA.zusatz && zA.zusatz.woche === 3 && zA.zusatz.plus === istA.zusatz,
     `R10a Fr: „… morgen +${istA.nach}. Aus Woche 3 kommt dazu: morgen +${istA.zusatz}." („${a.frei}")`);
-  check(!!zA && plusImKopf(saA.sub) === istA.nach + (zA.zusatz ? zA.zusatz.plus : 0),
+  check(!!zA && plusImKopf(saA) === istA.nach + (zA.zusatz ? zA.zusatz.plus : 0),
     `R10a was die Zeile am Fr ankündigt, ergibt den Kopf des Sa („${saA.sub}")`);
   await ende(f);
 
@@ -584,7 +602,7 @@ await abschnitt('R10', async () => {
   console.log(`     R10b Fr 16.10.: ${kb.sub} | ${kb.frei}\n     R10b Sa 17.10.: ${saB.sub}`);
   check(kb.frei === `Heute frei. Aus Woche 3 kommt dazu: morgen +${zusB}.` && zusB > 0,
     `R10b Fr: „Heute frei. Aus Woche 3 kommt dazu: morgen +${zusB}." („${kb.frei}")`);
-  check(!!zB && plusImKopf(saB.sub) === (zB.zusatz ? zB.zusatz.plus : -1),
+  check(!!zB && plusImKopf(saB) === (zB.zusatz ? zB.zusatz.plus : -1),
     `R10b und der Sa zeigt genau das („${saB.sub}")`);
   await ende(b);
 });
@@ -649,8 +667,8 @@ await abschnitt('R12', async () => {
   const k = await kopf(f);
   const z = zerlege(k.frei);
   console.log(`     R12 Fr: ${k.auge} | ${k.sub} | ${k.frei}`);
-  check(!!z && plusImKopf(k.sub) > 0 && z.ziele.startsWith(`morgen +${plusImKopf(k.sub)}`),
-    `R12 die Zahl hinter „morgen" ist das „+" im Kopf (+${plusImKopf(k.sub)}, „${k.frei}")`);
+  check(!!z && plusImKopf(k) > 0 && z.ziele.startsWith(`morgen +${plusImKopf(k)}`),
+    `R12 die Zahl hinter „morgen" ist das „+" im Kopf (+${plusImKopf(k)}, „${k.frei}")`);
   const ist = [];
   for (const [t, n] of [['sa', 10], ['mo', 11], ['di', 12]]) {
     await f.tag(TAG[t]);
@@ -711,7 +729,7 @@ await abschnitt('R8', async () => {
   // b) Samstag verpasst: Am Sonntag ist Workout 10 heute.
   const b = await fall('R8b', freitagsStand, TAG.so);
   const kb = await kopf(b);
-  check(/Heute · Workout 10/.test(kb.auge) && kb.zeilen === 0 && plusImKopf(kb.sub) === 2,
+  check(/Heute · Workout 10/.test(kb.auge) && kb.zeilen === 0 && plusImKopf(kb) === 2,
     `R8b Sa verpasst: am So „Heute · Workout 10" mit +2, keine Zeile („${kb.auge} | ${kb.sub}")`);
   // d) Am Freitag eine andere Einheit angeblättert: keine Zeile – sie gehört zur nächsten.
   const d =await fall('R8d', freitagsStand, TAG.fr);
