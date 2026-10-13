@@ -4654,6 +4654,82 @@ auf ihrem Mindestmaß) – ein eigener Befund, keiner dieser Änderung; mit der
 Zeile sind es 18 px, weil die Meta-Zeile ohne „· +1 nachgeholt" nicht mehr
 umbricht. Geprüft in `tests/test-nacharbeit-herkunft.mjs`.
 
+**Am Ruhetag steht, wohin der Rest geht.**
+
+> „Hab gestern nicht vollständig trainiert. Trotzdem soll ich heute nichts
+> nachholen?"
+
+Tobi, Freitag 09.10., ein planmäßiger Ruhetag im Cut. Am Donnerstag waren in
+Workout 9 Kreuzheben, Floor Press und Reverse Fly nicht ganz fertig geworden.
+Die Startansicht zeigte „Morgen · Workout 10 · Hanteln · 5 Übungen · 15 + 2
+Sätze" – richtig, aber nirgends stand, dass der Rest schon verteilt ist: auf
+die restlichen Einheiten derselben Woche (die Nacharbeit oben), und was dort
+nicht hineinpasst, nach der Woche (der Zusatztag unten). Ein Ruhetag
+dazwischen stimmt also. Jetzt steht es unter der Satzzahl, in einer stillen
+Zeile:
+
+> Heute frei. Was am Do liegen blieb, kommt dazu: morgen +2, Mo +1, Di +1.
+
+| Fall | Zeile |
+| --- | --- |
+| Rückstand, auf die restlichen Einheiten verteilt | „Heute frei. Was am Do liegen blieb, kommt dazu: morgen +2, Mo +1, Di +1." |
+| mehr, als hineinpasst, und der Rest trägt einen Zusatztag | „… kommt dazu: morgen +2, Mo +2, Di +3, der Rest nach der Woche." |
+| Rückstand von zwei Tagen (Sonntag, nach einem kurzen Samstag) | „Heute frei. Was am Do und Sa liegen blieb, kommt dazu: morgen +1, Di +3." |
+| kein Rückstand, oder heute ist nicht frei | keine Zeile |
+
+**Dieselbe Rechnung, keine zweite.** Die Zahlen kommen aus derselben
+Verteilung, mit der jede dieser Einheiten an ihrem Tag ihre Nacharbeit rechnet
+– die Schleife aus `nacharbeitPlan()` steht jetzt für sich
+(`nacharbeitVerteilen()`), und `nacharbeitVorschau()` lässt sie Einheit für
+Einheit über die restliche Woche laufen. Was eine Einheit schließt, geht vom
+Rückstand ab, bevor die nächste rechnet; genau so zieht `offenInWoche()` an
+deren Tag die gemachte Nacharbeit ab. Angenommen ist nur, dass die Einheiten
+dazwischen so gemacht werden, wie sie dastehen. Der naheliegende Kurzweg –
+jede künftige Einheit gegen den heutigen Rückstand rechnen – hätte bei Tobi
+„Mo +2" angesagt; gezeigt hätte der Montag dann +1.
+
+„der Rest nach der Woche" steht nur, wenn das, was nach der letzten Einheit
+offen bleibt, einen Zusatztag trägt – mit derselben Schwelle, die der
+Zusatztag selbst prüft (`zusatzRueckstand()`: Gruppen über einem halben Satz,
+zusammen mindestens sechs). Bleibt weniger, verfällt es wie bisher, und die
+Zeile verspricht dafür nichts. Tage statt Workout-Nummern: die Quelle als
+Wochentag, an dem es liegen blieb (die Tage, die dann auch an den
+Nachholsätzen stehen), das Ziel als „morgen" oder Wochentag. Tag und Zahl
+hängen mit einem festen Leerzeichen zusammen; auf 360 px stand sonst
+„morgen" am Zeilenende und „+2" darunter.
+
+**Nur, wenn heute wirklich frei ist.** Die gezeigte Einheit ist die, die die
+App für heute zeigt, und sie liegt nach heute; heute wurde keine Einheit
+angefangen, und keine läuft. Ist die fällige verpasst, rückt der Plan nach
+(`catchUpPlan()`) und sie steht auf heute – keine Zeile. Wer heute schon
+trainiert hat, eine andere Einheit anblättert oder die nächste mit *Start*
+vorzieht, sieht auch keine. Ohne Rückstand ebenfalls nicht: „Morgen · Workout
+10" sagt schon, dass heute frei ist.
+
+Kein Popup, nichts zum Wegtippen, keine Karte. Die Buchhaltungszeile, die hier
+früher stand („↩ 2 Sätze aus dieser Woche nachgeholt …"), bleibt draußen –
+diese steht nur an einem Tag ohne Einheit und beantwortet die Frage, die genau
+dort aufkommt. Die Startansicht bleibt eine Seite: Die Zeile kostet bei
+414×896 und bei 360×740 zwei Textzeilen (34 px), das Muskelbild nimmt den Rest
+(343 statt 383 px, 187 statt 227 px).
+
+Geprüft in `tests/test-nacharbeit-ruhetag.mjs`, über die Oberfläche und von
+Tobis Donnerstag aus (`tests/zusatz-tobi-do.json`): Workout 9 wie bei ihm
+abgehakt, dann die Woche Tag für Tag durchgespielt, jede Einheit ganz. Was die
+Zeile am Freitag ankündigt, zeigen Sa, Mo und Di dann wirklich (+2, +1, +1);
+am Sonntag rechnet sie vom Tag aus („morgen +1, Di +1"); nach der Woche
+entsteht kein Zusatztag, weil sie keinen ankündigt. Mit viel Liegengebliebenem
+(vier von fünf Übungen gar nicht) heißt es „morgen +2, Mo +2, Di +3, der Rest
+nach der Woche", und am Donnerstag darauf steckt der Zusatztag Woche 3 in
+Workout 13. Dazu ohne Hanteln, mit Padel am Sonntag (Sa und Mo verlieren
+Beinübungen, „morgen +1, Mo +1, Di +1"), mit liegen gelassenen Chin-ups aus
+dem eingefügten Zusatz (kein Rückstand – dieselbe Zeile), mit zwei Quelltagen
+und alle Fälle ohne Zeile. Gegenprobe: Gegen 9b3a4b4 werden 27 von 117
+Prüfungen rot. Einzeln zurückgedreht wird jede Stelle rot: der Abzug zwischen
+den Einheiten („Mo +2"), die Woche statt nur der nächsten Einheit, die
+Schwelle für „der Rest nach der Woche", „heute schon trainiert", „die Einheit
+für heute" und „liegt nach heute".
+
 ### Der Zusatztag
 
 Die Nacharbeit hat einen Deckel von drei Sätzen, und der ist gewollt. Wer aber

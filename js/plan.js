@@ -1184,9 +1184,18 @@ export function nacharbeitPlan(w, m, { alt = false } = {}) {
   const { fehlt, summe, herkunft } = alt ? offenInWocheAlt(w) : offenInWoche(w);
   // Unter einem halben Satz lohnt die Unruhe nicht.
   if (summe < 0.5) return null;
+  const p = nacharbeitVerteilen({ ...fehlt }, exBasis(w, m), m, herkunft);
+  return p.extra.size ? p : null;
+}
 
-  const rest = { ...fehlt };
-  const items = exBasis(w, m);
+/**
+ * Die Verteilung selbst: höchstens NACH_JE_EINHEIT Sätze auf `items`, gierig
+ * gegen den Rückstand `rest` – der dabei um das kleiner wird, was die
+ * gewählten Sätze schließen. Ausgelagert aus nacharbeitPlan(), damit die
+ * Vorschau am Ruhetag (nacharbeitVorschau()) mit genau dieser Schleife
+ * rechnet und nicht mit einer zweiten daneben.
+ */
+function nacharbeitVerteilen(rest, items, m, herkunft) {
   const extra = new Map();
   const warum = new Map();
   for (let k = 0; k < NACH_JE_EINHEIT; k++) {
@@ -1225,7 +1234,69 @@ export function nacharbeitPlan(w, m, { alt = false } = {}) {
       rest[mus] = Math.max(0, (rest[mus] || 0) - share);
     });
   }
-  return extra.size ? { extra, warum } : null;
+  return { extra, warum };
+}
+
+/**
+ * Wohin der Rückstand dieser Woche noch geht – von heute aus, Einheit für
+ * Einheit. Für die Zeile am Ruhetag (ruhetagZeile() in js/app.js):
+ *
+ *     „Hab gestern nicht vollständig trainiert. Trotzdem soll ich heute
+ *      nichts nachholen?"
+ *
+ * `w` ist die nächste, noch nicht angefangene Einheit. Sie und jede weitere
+ * der Woche bekommt ihre Nacharbeit aus derselben Verteilung wie an ihrem Tag
+ * (nacharbeitVerteilen()), und was eine Einheit schließt, geht vom Rückstand
+ * ab, bevor die nächste rechnet. Genau so rechnet offenInWoche() an deren
+ * Tag: Die gemachte Nacharbeit wird je Muskelgruppe abgezogen (`plus`), und
+ * max(0, max(0, a − s1) − s2) ist max(0, a − s1 − s2). Angenommen ist nur,
+ * dass die Einheiten davor so gemacht werden, wie sie dann dastehen – mehr
+ * weiß heute niemand. tests/test-nacharbeit-ruhetag.mjs spielt die Woche
+ * durch und vergleicht mit dem, was Sa, Mo und Di dann wirklich zeigen.
+ *
+ * Gibt { einheiten: [{ n, saetze, quellen }], rest, herkunft } zurück, oder
+ * null. `quellen` sind die Einheiten, die die Zeilen an den Nachholsätzen
+ * nennen werden (warum.q), sonst die mit offenen Sätzen. `rest` ist, was nach
+ * der letzten Einheit der Woche noch offen ist, je Muskelgruppe; `herkunft`
+ * wie in offenInWoche().
+ */
+export function nacharbeitVorschau(w) {
+  if (istCustom(w.n) || !PLAN[w.n - 1] || store.isStarted(w.n)) return null;
+  const ende = Math.min((Math.floor((w.n - 1) / WEEK_SESSIONS) + 1) * WEEK_SESSIONS, PLAN.length);
+  const { fehlt, herkunft } = offenInWoche(w);
+  const rest = { ...fehlt };
+  const einheiten = [];
+  for (let i = w.n - 1; i < ende; i++) {
+    const u = PLAN[i];
+    // Eine schon angefangene Einheit trägt ihre festgehaltene Nacharbeit
+    // (nachFest) – ab da wüsste die Vorschau nicht mehr, was gilt.
+    if (store.isStarted(u.n)) break;
+    // Wie nacharbeitPlan(): Unter einem halben Satz gibt es keine.
+    if (Object.values(rest).reduce((a, v) => a + v, 0) < 0.5) break;
+    const m = store.workoutMode(u.n);
+    const { extra, warum } = nacharbeitVerteilen(rest, exBasis(u, m), m, herkunft);
+    const saetze = [...extra.values()].reduce((a, k) => a + k, 0);
+    if (!saetze) continue;
+    const q = [...warum.values()].flatMap((x) => x.q.map(([nq]) => nq));
+    einheiten.push({ n: u.n, saetze, quellen: q.length ? q : herkunft.map((h) => h.n) });
+  }
+  return { einheiten, rest, herkunft };
+}
+
+/**
+ * Der Rückstand, der einen Zusatztag trägt: die Gruppen mit mehr als einem
+ * halben Satz Lücke, zusammen mindestens ZUSATZ_AB – sonst null. Eine Stelle
+ * für beide, die es wissen müssen: den Zusatztag selbst (zusatztagEx() in
+ * js/app.js) und die Zeile am Ruhetag, die „der Rest nach der Woche" nur sagt,
+ * wenn er so gerechnet wird.
+ */
+export function zusatzRueckstand(luecke) {
+  const rest = {};
+  let summe = 0;
+  Object.entries(luecke).forEach(([m, v]) => {
+    if (v > 0.5) { rest[m] = v; summe += v; }
+  });
+  return summe < ZUSATZ_AB ? null : { rest, summe };
 }
 
 /**

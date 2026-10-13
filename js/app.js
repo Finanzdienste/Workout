@@ -51,12 +51,13 @@ import {
   gruppeVon, naechsterOffen, naechsterSchritt, paarBelegung, paare, scheibenReichen, schritte,
 } from './supersatz.js';
 import {
-  NACH_ANTEIL, PLAN_WEEKS, WEEK_SESSIONS, ZUSATZ_AB, ZUSATZ_IN_EINHEIT, ZUSATZ_NAME, ZUSATZ_UEBUNGEN,
+  NACH_ANTEIL, PLAN_WEEKS, WEEK_SESSIONS, ZUSATZ_IN_EINHEIT, ZUSATZ_NAME, ZUSATZ_UEBUNGEN,
   activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, einheitEx, ersatzGrund, exBasis,
   exOf, fassungen, festerZusatz, firstOpen, hasAnyEntry, injuryNotes, istCustom, nacharbeit,
-  nacharbeitPlan, nachWarumJe, offenImBlock, offenerZusatztag, progressOf, saetzeErledigt,
+  nacharbeitPlan, nacharbeitVorschau, nachWarumJe, offenImBlock, offenerZusatztag, progressOf, saetzeErledigt,
   resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo,
-  zusatzBindung, zusatzEinheitFuer, zusatzGrund, zusatzIds, zusatzVergeben, zusatzWeg, zusatzZaehlt,
+  zusatzBindung, zusatzEinheitFuer, zusatzGrund, zusatzIds, zusatzRueckstand, zusatzVergeben, zusatzWeg,
+  zusatzZaehlt,
 } from './plan.js';
 import { bilanzAus, lebenStats, pruefeAufstieg, rundenBilanz } from './bilanz.js';
 import { vorneUm } from './muster.js';
@@ -1561,10 +1562,13 @@ function zusatzFesthalten(n) {
  * derselben Woche das Kürzel („Sa"), sonst mit Datum („Do 24.9.").
  * Keine relativen Wörter wie „vorgestern" – die Zeile bleibt im Verlauf
  * stehen, und dort stimmte „vorgestern" schon morgen nicht mehr.
+ *
+ * In beide Richtungen: Die Zeile am Ruhetag nennt auch kommende Tage so
+ * („Mo", ruhetagZeile()).
  */
 function tagKurz(isoQuelle, isoEinheit) {
   const wt = fmtDate(isoQuelle).slice(0, 2);
-  const d = daysBetween(isoQuelle, isoEinheit);
+  const d = Math.abs(daysBetween(isoQuelle, isoEinheit));
   if (d >= 1 && d <= 6) return wt;
   const [, mo, ta] = isoQuelle.split('-').map(Number);
   return `${wt} ${ta}.${mo}.`;
@@ -2550,6 +2554,66 @@ function aktNamen(namen) {
     : `${eindeutig.slice(0, 3).join(', ')} +${eindeutig.length - 3}`;
 }
 
+/*
+ * Am Ruhetag: wohin der Rückstand der Woche geht – eine stille Zeile im Kopf.
+ *
+ *     „Hab gestern nicht vollständig trainiert. Trotzdem soll ich heute
+ *      nichts nachholen?"
+ *
+ * Tobi, Freitag, ein planmäßiger Ruhetag. Am Donnerstag war Workout 9 nicht
+ * ganz fertig geworden, und die Startansicht zeigte „Morgen · Workout 10 …
+ * 15 + 2 Sätze" – richtig, aber kein Wort dazu, dass der Rest schon verteilt
+ * ist. Was in einer Woche liegen bleibt, kommt auf ihre restlichen Einheiten
+ * (höchstens drei Sätze je Einheit, nacharbeit() in js/plan.js); was dort
+ * nicht hineinpasst, nach der Woche in einen Zusatztag. Ein Ruhetag
+ * dazwischen ist also richtig, und jetzt steht es da:
+ *
+ *     Heute frei. Was am Do liegen blieb, kommt dazu: morgen +2, Mo +1, Di +1.
+ *
+ * Die Zahlen kommen aus nacharbeitVorschau() – derselben Verteilung, mit der
+ * jede dieser Einheiten an ihrem Tag ihre Nacharbeit rechnet, nicht aus einer
+ * zweiten Rechnung. „der Rest nach der Woche" steht nur, wenn das, was nach
+ * der letzten Einheit offen bleibt, einen Zusatztag trägt – mit derselben
+ * Schwelle wie der Zusatztag selbst (zusatzRueckstand()). Tage statt
+ * Workout-Nummern: die Quelle als Wochentag, an dem es liegen blieb, das Ziel
+ * als „morgen" oder Wochentag.
+ *
+ * Nur, wenn heute wirklich frei ist: Die gezeigte Einheit ist die, die die App
+ * für heute zeigt, und liegt nach heute; heute wurde keine angefangen, und
+ * keine läuft. Ist die fällige verpasst, rückt der Plan nach (catchUpPlan())
+ * und sie steht auf heute – keine Zeile. Ohne Rückstand auch keine: „Morgen ·
+ * Workout 10" sagt schon, dass heute frei ist.
+ *
+ * Kein Popup, nichts zum Wegtippen, keine Karte – eine Zeile unter der
+ * Satzzahl, so leise wie die Herkunftszeile an der Übung.
+ */
+function ruhetagZeile(w) {
+  const heute = todayISO();
+  // Die Einheit, die die App für heute zeigt (naechsteEinheit()) – nicht eine
+  // angeblätterte, und nicht, wenn heute ein Zusatztag allein dasteht.
+  if (w.custom || store.getState().session || naechsteEinheit() !== w.n) return '';
+  if (daysBetween(heute, effDate(w)) <= 0) return '';
+  if (PLAN.some((x) => store.startedOn(x.n) === heute)) return '';
+  const v = nacharbeitVorschau(w);
+  if (!v) return '';
+  const danach = !!zusatzRueckstand(v.rest);
+  if (!v.einheiten.length && !danach) return '';
+  const quellen = [...new Set([...v.einheiten.flatMap((e) => e.quellen),
+    ...(danach || !v.einheiten.length ? v.herkunft.map((h) => h.n) : [])])].sort((a, b) => a - b);
+  if (!quellen.length) return '';
+  const am = undListe([...new Set(quellen.map((n) => tagKurz(effDate(PLAN[n - 1]), heute)))]);
+  // Tag und Zahl gehören zusammen – ein festes Leerzeichen, damit auf 360 px
+  // nicht „morgen" am Zeilenende steht und „+2" am Anfang der nächsten.
+  const ziele = v.einheiten.map((e) => {
+    const d = effDate(PLAN[e.n - 1]);
+    return `${daysBetween(heute, d) === 1 ? 'morgen' : tagKurz(d, heute)}\u00a0+${e.saetze}`;
+  });
+  const text = ziele.length
+    ? `Heute frei. Was am ${am} liegen blieb, kommt dazu: ${[...ziele, ...(danach ? ['der Rest nach der Woche'] : [])].join(', ')}.`
+    : `Heute frei. Was am ${am} liegen blieb, kommt nach der Woche dazu.`;
+  return `<div class="ov-frei">${esc(text)}</div>`;
+}
+
 /**
  * Startansicht: was heute ansteht, welche Muskelgruppen drankommen, los.
  * Die einzelnen Übungen liegen eine Ebene tiefer – vor dem Training will man
@@ -2627,6 +2691,7 @@ function renderOverview() {
              nicht gibt. Wer die Zahl wirklich sucht, findet sie unter
              Mehr → Termine. -->
         <div class="hero-sub">${tagKopf(w, mode, items)}</div>
+        ${ruhetagZeile(w)}
         ${prog.done ? `<div class="progress"><i style="width:${prog.pct}%"></i></div>
           <div class="ov-prog">${prog.done}/${prog.total} Sätze${prog.erledigt ? ' · abgeschlossen' : ''}</div>` : ''}
         <!-- Hier stand: "↩ 2 Sätze aus dieser Woche nachgeholt – diese Woche ist
@@ -2634,7 +2699,12 @@ function renderOverview() {
              jeder betroffenen Übung steht in der Liste weiterhin "+1
              nachgeholt", also dort, wo man sie auch macht. Drei Zeilen
              Buchhaltung vor dem Start waren dagegen genau das, was diese
-             Ansicht nicht sein soll. -->
+             Ansicht nicht sein soll.
+
+             Die Zeile darüber (ruhetagZeile()) ist keine Rückkehr dazu: Sie
+             steht nur an einem Tag ohne Einheit, ist eine Zeile und beantwortet
+             die Frage, die dort aufkommt – „Trotzdem soll ich heute nichts
+             nachholen?" An einem Trainingstag steht sie nie. -->
       </header>
 
       <div class="ov-body" id="bodyMap"></div>
@@ -4554,13 +4624,12 @@ function ruhendeGruppen() {
  * zweiten Rechnung daneben.
  */
 function zusatztagEx(woche, mode, einheit = null) {
-  const rest = {};
-  let summe = 0;
-  Object.keys(MUSCLE_LABEL).forEach((m) => {
-    const luecke = (woche.soll[m] || 0) - (woche.acc[m] || 0);
-    if (luecke > 0.5) { rest[m] = luecke; summe += luecke; }
-  });
-  if (summe < ZUSATZ_AB) return null;
+  // Ab wann ein Rückstand einen Zusatztag trägt, steht an einer Stelle
+  // (zusatzRueckstand() in js/plan.js) – die Zeile am Ruhetag fragt dieselbe.
+  const rueck = zusatzRueckstand(Object.fromEntries(Object.keys(MUSCLE_LABEL)
+    .map((m) => [m, (woche.soll[m] || 0) - (woche.acc[m] || 0)])));
+  if (!rueck) return null;
+  const { rest, summe } = rueck;
 
   const ruht = ruhendeGruppen();
   const sperre = gesperrt(activeInjuries(), mode);
