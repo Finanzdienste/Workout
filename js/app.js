@@ -52,7 +52,7 @@ import {
 } from './supersatz.js';
 import {
   NACH_ANTEIL, PLAN_WEEKS, WEEK_SESSIONS, ZUSATZ_AB, ZUSATZ_IN_EINHEIT, ZUSATZ_NAME, ZUSATZ_UEBUNGEN,
-  activeInjuries, catchUpPlan, completedMode, defaultWorkoutNo, effDate, einheitEx, ersatzGrund, exBasis,
+  activeInjuries, ausfallTage, catchUpPlan, completedMode, defaultWorkoutNo, effDate, einheitEx, ersatzGrund, exBasis,
   exOf, fassungen, festerZusatz, firstOpen, hasAnyEntry, injuryNotes, istCustom, nacharbeit,
   nacharbeitPlan, nachWarumJe, offenImBlock, offenerZusatztag, progressOf, saetzeErledigt,
   resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo,
@@ -5388,6 +5388,9 @@ function renderCalendar() {
   const frueher = fruehereTage();
   const akt = aktivitaetTage();
   const eigene = eigeneTage();
+  // Ausgefallene Trainingstage, aus dem Protokoll gerechnet – einmal je
+  // Zeichnung, nicht je Kachel (siehe ausfallTage() in js/plan.js).
+  const aus = ausfallTage(today);
 
   // Gezählt werden Einheiten, nicht Tage – an einem Tag können zwei stehen.
   const imMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7))
@@ -5418,6 +5421,19 @@ function renderCalendar() {
   eigenImMonat.forEach((x) => { proModus[x.mode] += 1; });
   const imMonatAkt = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7) && akt.has(d))
     .flatMap((d) => akt.get(d).map((t) => t.name || terminLabel(t)));
+  // Ausgefallen sind Tage, keine Einheiten – die Einheit, die dran war, steht
+  // offen oder trainiert an ihrem neuen Tag und ist dort schon gezählt; die
+  // Vereinigung mit dayState() fängt die Minuten nach Mitternacht ab, bevor
+  // catchUpPlan() läuft.
+  //
+  //     „Im Kalender ist aktuell nichts unter ausgefallen obwohl ich mehrere
+  //      Trainings hab ausfallen lassen"
+  //
+  // Bis hierher stand an dieser Stelle zaehl.miss, und das war nach dem
+  // Nachrücken immer null. Mit „Tage" im Text, weil sich „5 trainiert · 2
+  // ausgefallen · 11 offen" bei 16 Einheiten sonst wie ein Rechenfehler liest.
+  const ausImMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7)
+    && (aus.has(d) || (byDate.get(d) || []).some((w) => dayState(w, d, today).kind === 'miss'))).length;
 
   view.innerHTML = `
     <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
@@ -5430,7 +5446,7 @@ function renderCalendar() {
         <button type="button" class="cal-nav" data-act="cal-month" data-d="1" aria-label="Nächster Monat">›</button>
       </div>
       <div class="cal-grid cal-head">${WEEK_HEAD.map((d) => `<div>${d}</div>`).join('')}</div>
-      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher, akt, eigene)).join('')}</div>
+      <div class="cal-grid">${tage.map((d) => calendarCell(d, month, today, byDate, sel, frueher, akt, eigene, aus)).join('')}</div>
       <div class="cal-legend">
         <span><i class="dot done"></i> trainiert</span>
         <span><i class="dot part"></i> angefangen</span>
@@ -5442,7 +5458,7 @@ function renderCalendar() {
         ${plural(imMonat.length + altImMonat + eigenImMonat.length, 'Einheit', 'Einheiten')} in diesem Monat ·
         ${zaehl.done + altImMonat + eigenImMonat.length} trainiert${zaehl.done + altImMonat + eigenImMonat.length
           ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
-          zaehl.miss ? ` · ${zaehl.miss} ausgefallen` : ''}${
+          ausImMonat ? ` · ${plural(ausImMonat, 'Tag', 'Tage')} ausgefallen` : ''}${
           zaehl.plan ? ` · ${zaehl.plan} offen` : ''}${
           imMonatAkt.length ? ` · ${plural(imMonatAkt.length, 'Tag', 'Tage')} anderer Sport (${
             esc(aktNamen(imMonatAkt))})` : ''}
@@ -5451,12 +5467,14 @@ function renderCalendar() {
         <button type="button" class="btn btn-sm" data-act="cal-today">Zu heute</button>`}
     </div>
 
-    ${calendarDetail(sel, byDate, today, frueher, akt, eigene)}
+    ${calendarDetail(sel, byDate, today, frueher, akt, eigene, aus)}
 
     <div class="small muted">
       Die Termine sind die tatsächlichen: verpasste Tage rücken den Restplan
       nach hinten, abgeschlossene Einheiten bleiben auf dem Tag, an dem du
-      trainiert hast.
+      trainiert hast. Ausgefallen steht an einem Trainingstag im Rhythmus des
+      Plans, an dem nicht trainiert und bis zum nächsten Trainingstag nicht
+      nachgeholt wurde.
     </div>`;
 }
 

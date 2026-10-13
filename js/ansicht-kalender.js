@@ -13,7 +13,7 @@
  * nicht für sich prüfen.
  * ------------------------------------------------------------------ */
 import * as store from './store.js';
-import { PLAN } from './data.js';
+import { FOKUS_ERSATZ, PLAN, PLANS } from './data.js';
 import { esc, fmtNum } from './text.js';
 import { addDays, fmtDate, monthStart, plural, todayISO } from './dates.js';
 import { completedMode, effDate, einheitEx, progressOf, resolve } from './plan.js';
@@ -144,7 +144,7 @@ export function aktivitaetTage() {
   return map;
 }
 
-export function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigene) {
+export function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigene, aus) {
   const ws = byDate.get(iso) || [];
   const st = dayState(ws[0], iso, today);
   const selbst = (eigene && eigene.get(iso)) || [];
@@ -154,6 +154,10 @@ export function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigen
   // eine trainierte; neben einer Planeinheit zählt sie als weitere (+1).
   const alt = st ? null : (frueher && frueher.get(iso))
     || (selbst.length ? { einheiten: 0, mode: selbst[0].mode } : null);
+  // Ein Trainingstag im Rhythmus, der ohne Training verstrich (ausfallTage()
+  // in js/plan.js). Auf dem Tag steht keine Einheit mehr – sie rückte nach
+  // hinten –, deshalb kommt der Ausfall aus der Rechnung und nicht aus byDate.
+  const ausfall = !st && !alt && aus ? aus.get(iso) || null : null;
   // Aktivitäten sind eine eigene Ebene und keine dritte Sorte Tag: An einem
   // Tag kann beides gewesen sein – vormittags Padel, abends die Einheit. Sie
   // ersetzen deshalb nichts, sondern kommen als Streifen dazu.
@@ -167,14 +171,28 @@ export function calendarCell(iso, month, today, byDate, sel, frueher, akt, eigen
   // Kachel ist eine trainierte wie jede andere. Die Klasse bleibt als Merkmal
   // für die Detailansicht und den Test stehen.
   else if (alt) cls.push('done', alt.einheiten ? 'frueher' : 'eigen', alt.mode);
+  else if (ausfall) cls.push('miss');
   if (sport.length) cls.push('akt');
   const tag = Number(iso.slice(8));
-  // Ohne Einheit und ohne Sport ist der Tag kein Knopf: nichts anzuzeigen,
-  // nichts zu tippen.
-  if (!st && !alt && !sport.length) {
+  // Ohne Einheit, ohne Ausfall und ohne Sport ist der Tag kein Knopf: nichts
+  // anzuzeigen, nichts zu tippen.
+  if (!st && !alt && !ausfall && !sport.length) {
     return `<div class="${cls.join(' ')}"><span class="cal-num">${tag}</span></div>`;
   }
   const namen = sport.map((t) => t.name || terminLabel(t)).join(', ');
+  if (ausfall) {
+    // Gestrichelt wie jedes „ausgefallen", mit dem Punkt statt eines
+    // Modus-Zeichens: Trainiert wurde an dem Tag in keinem Modus. Sport des
+    // Tages kommt als Streifen dazu und wird mit vorgelesen.
+    return `
+      <button type="button" class="${cls.join(' ')}" data-act="cal-day" data-iso="${iso}"
+              aria-pressed="${iso === sel}"
+              aria-label="${esc(fmtDate(iso, true))}: Workout ${ausfall.n} ${esc(KIND_TEXT.miss)}${
+                sport.length ? ` · ${esc(namen)}` : ''}">
+        <span class="cal-num">${tag}</span>
+        <span class="cal-mark">·</span>
+      </button>`;
+  }
   if (!st && !alt) {
     // Nur Sport an diesem Tag. Die Kachel bleibt ungefüllt – trainiert wurde
     // nach dem Plan nicht –, trägt aber den Streifen und lässt sich antippen.
@@ -272,8 +290,44 @@ export function calendarEigene(iso, x) {
     </div>`;
 }
 
+/**
+ * Ein ausgefallener Tag im Detail: welche Einheit dran gewesen wäre und wohin
+ * sie rückte. Sachlich, ohne Vorwurf – der Tag ist vorbei, die Einheit nicht
+ * verloren.
+ */
+export function calendarAusfall(iso, x, today) {
+  let folge;
+  if (x.spaeter) {
+    const fertig = !x.aktuell || completedMode(x.n);
+    folge = `Workout ${x.n} rückte nach hinten und wurde am ${fmtDate(x.spaeter)} ${fertig ? 'trainiert' : 'angefangen'}.`;
+  } else if (x.aktuell) {
+    const jetzt = effDate(PLAN[x.n - 1]);
+    folge = `Workout ${x.n} rückte nach hinten und ist jetzt für ${
+      jetzt === today ? 'heute' : fmtDate(jetzt)} geplant.`;
+  } else {
+    folge = `Workout ${x.n} blieb offen – danach ging es mit einem anderen Plan weiter.`;
+  }
+  const plan = x.focus ? (PLANS[x.focus] || FOKUS_ERSATZ[x.focus] || {}).name : '';
+  return `
+    <div class="card cal-detail cal-aus">
+      <div class="cal-det-head">
+        <div>
+          <div class="lbl">Workout ${x.n} · ${esc(KIND_TEXT.miss)}</div>
+          <div class="hint">${esc(fmtDate(iso, true))} · Trainingstag im Rhythmus nach dem Training
+            am ${esc(fmtDate(x.seit))}</div>
+        </div>
+      </div>
+      <div class="small" style="margin:10px 0 12px">${esc(folge)}</div>
+      ${x.aktuell ? `
+        <button type="button" class="btn btn-sm" data-act="cal-open" data-n="${x.n}">
+          ${x.spaeter && completedMode(x.n) ? 'Im Dashboard ansehen' : 'Zu dieser Einheit'}
+        </button>` : `
+        <div class="small muted">Aus einem früheren Trainingsplan${plan ? ` (${esc(plan)})` : ''}.</div>`}
+    </div>`;
+}
+
 /** Die angetippte Einheit im Detail: Übungen, Sätze, Modus – dazu eigene Einheiten des Tages. */
-export function calendarDetail(iso, byDate, today, frueher, akt, eigene) {
+export function calendarDetail(iso, byDate, today, frueher, akt, eigene, aus) {
   // Noch kein Tag angetippt: dann gibt es auch keinen Tag, über den sich etwas
   // sagen ließe. Vorher stand hier „Kein Training an diesem Tag" – auch wenn
   // heute eine Einheit lag.
@@ -282,16 +336,20 @@ export function calendarDetail(iso, byDate, today, frueher, akt, eigene) {
       zu sehen.</div>`;
   }
   const selbst = ((eigene && eigene.get(iso)) || []).map((x) => calendarEigene(iso, x)).join('');
-  return calendarDetailPlan(iso, byDate, today, frueher, akt, selbst) + selbst;
+  return calendarDetailPlan(iso, byDate, today, frueher, akt, selbst, aus) + selbst;
 }
 
-function calendarDetailPlan(iso, byDate, today, frueher, akt, selbst) {
+function calendarDetailPlan(iso, byDate, today, frueher, akt, selbst, aus) {
   const ws = byDate.get(iso) || [];
   const sport = (akt && akt.get(iso)) || [];
   // Der Sport steht oben: Wer im Kalender auf einen orangen Streifen tippt,
   // hat ihn gemeint. Die Einheit desselben Tages kommt darunter, sie geht
   // dabei nicht verloren.
   const vorn = sport.length ? calendarAktivitaet(iso, sport) : '';
+  // Ausgefallen: auch hier unter dem Sport – Boxen am Samstag ist kein
+  // Plantraining, die Einheit des Tages rückte trotzdem nach hinten.
+  const ausfall = !ws.length && !(frueher && frueher.get(iso)) && aus ? aus.get(iso) : null;
+  if (ausfall) return vorn + calendarAusfall(iso, ausfall, today);
   if (vorn && !ws.length && !(frueher && frueher.get(iso))) return vorn;
   const alt = ws.length ? null : (frueher && frueher.get(iso)) || null;
   if (alt) {

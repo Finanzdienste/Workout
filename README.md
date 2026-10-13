@@ -1818,12 +1818,13 @@ trainiert, umrandet geplant, gestrichelt ausgefallen, plus ein Ring um heute:
 | **trainiert** | gefüllt, in der Farbe des Modus (orange Hanteln, blau Bodyweight) |
 | **angefangen** | getönt mit Rahmen – Sätze stehen, die Einheit ist aber nicht fertig |
 | **geplant** | schlichter Rahmen |
-| **ausgefallen** | gestrichelt, nur bei abgeschaltetem Nachrücken möglich |
+| **ausgefallen** | gestrichelt – ein Trainingstag im Rhythmus, der ohne Training verstrich (siehe *Ausgefallen*) |
 
 Das Zeichen in der Kachel nennt den Modus (🏋️ / 🤸), bei erledigten Einheiten
 den, in dem tatsächlich trainiert wurde, sonst den, der beim Start greifen
 würde. Darunter zählt eine Zeile den Monat zusammen: wie viele Einheiten,
-wie viele davon mit Hanteln, wie viele mit Bodyweight, was offen ist.
+wie viele davon mit Hanteln, wie viele mit Bodyweight, was offen ist, wie viele
+Tage ausgefallen sind.
 
 **Ein Tipp auf einen Tag** klappt die Einheit auf: Datum, Zustand, Modus-Marke
 und alle Übungen mit Sätzen und Wiederholungen – in der Variante, die zu dem
@@ -1852,6 +1853,94 @@ als leerer Tag, während die Statistik ihn bei den Trainingstagen mitzählte.
 Jetzt trägt der Tag, an dem ihr erster Satz stand, die Kachel einer trainierten
 Einheit (neben einer Planeinheit als „+1"), aufgeklappt stehen Name, Übungen
 und abgehakte Sätze, und die Zeile darunter zählt sie bei „trainiert" mit.
+
+**Ausgefallen – aus dem Protokoll gerechnet.**
+
+> „Im Kalender ist aktuell nichts unter ausgefallen obwohl ich mehrere
+> Trainings hab ausfallen lassen"
+
+Stimmte. Tobi hatte am Do 08.10. Workout 9 gemacht, am Sa und am Mo nicht. Am
+Di standen der 10. und der 12. leer da, Workout 10 „heute · geplant", und in
+der Zeile kein einziges „ausgefallen". Das Nachrücken (`catchUpPlan()`) schiebt
+den Restplan jeden Tag aufs Neue auf heute; eine Einheit liegt deshalb nie
+unbegonnen in der Vergangenheit, und der Zustand „ausgefallen" kam nur in den
+Minuten nach Mitternacht vor, bis das Nachrücken lief. Diese Tabelle sagte es
+selbst: „nur bei abgeschaltetem Nachrücken möglich" – einen Schalter dafür gibt
+es längst nicht mehr.
+
+Jetzt rechnet `ausfallTage()` in `js/plan.js` die Tage aus dem Protokoll:
+
+* **Ausgefallen ist ein Trainingstag im Rhythmus des Plans, der verstrich,
+  ohne dass bis zum nächsten Trainingstag trainiert wurde.**
+* **Rhythmus:** ab dem letzten tatsächlich trainierten Tag *d* mit Einheit *k*
+  die Abstände der Plandaten, also *d* + Lücke(*k*), dann + Lücke(*k*+1) und so
+  weiter – genau der Plan, den der Kalender direkt nach dem Training zeigte.
+  Die Nummer im Rhythmus läuft je Trainingstag weiter, auch wenn die fällige
+  Einheit dieselbe bleibt; so bleibt die Woche erhalten, und die Ruhetage
+  dazwischen sind nie ausgefallen. Das Nachrücken machte ja jeden Tag zum
+  „heute" – das soll nicht als Dutzend Ausfälle erscheinen.
+* **Fenster:** Ein Trainingstag gilt bis zum nächsten. Wer darin trainiert,
+  hat verschoben und nichts ausfallen lassen – Workout 10 am So statt am Sa ist
+  kein Ausfall. Solange das Fenster offen ist, gilt der Tag noch nicht als
+  ausgefallen, **heute nie**.
+* **Fällig** war die erste Einheit, die an dem Tag noch nicht angefangen war –
+  die, die nach hinten rückte. Ein Tipp auf den Tag sagt das: „Workout 10 ·
+  ausgefallen – Trainingstag im Rhythmus nach dem Training am Do, 08.10.
+  Workout 10 rückte nach hinten und ist jetzt für heute geplant" (oder „wurde
+  am Mo, 12.10. trainiert"), mit dem Knopf zu dieser Einheit.
+
+Bei Tobi heute: **Sa 10. und Mo 12. ausgefallen, je Workout 10**; Fr, So und
+heute nicht. Die Zeile darunter: „16 Einheiten in diesem Monat · 5 trainiert ·
+2 Tage ausgefallen · 11 offen". Ausgefallen sind **Tage**, keine Einheiten –
+die Einheit, die dran war, steht offen oder trainiert an ihrem neuen Tag und
+ist dort schon gezählt. Ohne das Wort läse sich 5 + 2 + 11 ≠ 16 wie ein Fehler.
+
+Die Randfälle, alle im Browser gegen die echte App nachgemessen
+(`tests/test-ausgefallen.mjs`):
+
+* **Sport außerhalb des Plans** ist kein Plantraining. Boxen am Sa lässt den Sa
+  ausgefallen, die Kachel trägt zusätzlich den Sport-Streifen, und das Detail
+  zeigt erst das Boxen, dann die Einheit.
+* **Ein Termin, der der fälligen Einheit jede Übung nimmt** (ein Turnier, das
+  alles schont), macht den Tag frei: Es gab nichts zu trainieren, die App selbst
+  hat die Einheit weitergeschoben. Termine verschieben den Plan sonst nicht.
+* **Eine eigene Einheit oder der Zusatztag** im Fenster zählt als Training.
+* **Angefangen und liegen gelassen** ist trainiert – der Rhythmus läuft ab dem
+  Tag weiter, fällig ist danach die nächste Einheit.
+* **Zwei Einheiten an einem Tag** nachgeholt: Gerechnet wird ab der zweiten.
+  Workout 10 und 11 am Mo – der Sa ist ausgefallen („wurde am Mo, 12.10.
+  trainiert"), der Mo nicht.
+* **Fokuswechsel, Neustart, neue Runde:** Die abgelegten Runden zählen mit.
+  Bis zum Wechseltag läuft der alte Rhythmus, danach liegt Workout 1 dort, wo
+  die App es hinlegte – der übliche Abstand nach dem letzten Training,
+  frühestens am Wechseltag. Sonst stünden Tage als ausgefallen da, an denen
+  der Kalender gar kein Workout 1 zeigte.
+* **Zeitzone und Tageswechsel:** alles in lokalen Tagen, ein Training nach
+  Mitternacht gehört zum Tag des ersten Satzes. Ist die App über Mitternacht
+  offen, zählt die Zeile einen Tag, den beide Rechnungen kennen, einmal.
+
+**Kein Schnappschuss.** Gelesen werden nur die Tage im Protokoll
+(`startedOn`), die Plandaten und die Termine – nie die Verschiebung. Damit
+wirkt es rückwirkend für jeden vorhandenen Verlauf: Tobi sieht seine Tage
+sofort und nicht erst ab jetzt. Gemessen: Wer die App von Fr bis Di täglich
+öffnet (Verschiebung 31, 31, 32, 33, 34), sieht am Di genau dieselben Tage wie
+jemand, der sie erst am Di öffnet (31 → 34 in einem Schritt). Nicht
+rekonstruierbar ist nur, was gelöscht wurde – es gilt das heutige Protokoll –
+und der Wechseltag einer zurückgeholten Runde; dann stimmt das Datum, und nur
+der Name der fälligen Einheit kann für die Tage davor aus dem anderen Plan
+stammen. Beides rechtfertigt keine zusätzlich gespeicherte Spur.
+
+**Serie und Statistik bleiben, wie sie sind.** Die Serie zählt Einheiten der
+Reihe nach (siehe *Serie in Folge*), der Kalender Tage. Würde ein
+ausgefallener Tag sie brechen, stünde sie nach zwei an einem Tag nachgeholten
+Einheiten auf 1, obwohl keine Einheit fehlt. Eine eigene Ausfall-Kennzahl gibt
+es nirgends, und es wird auch keine erfunden.
+
+Geprüft in `tests/test-ausgefallen.mjs` an Tobis Stand. Gegen den Stand davor
+(9b3a4b4, v239) werden 35 von 68 Prüfungen rot; einzeln zurückgedreht wird
+jede Regel rot – das Fenster (W10 am So wäre ein Ausfall am Sa), der Start von
+Workout 1 nach einem Wechsel (Sa 19. / Mo 21. statt So 20. / Di 22.), der freie
+Tag bei einem Termin, der alles schont, und die Zählung über Mitternacht.
 
 ### In den Google-Kalender
 
