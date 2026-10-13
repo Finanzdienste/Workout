@@ -24,6 +24,8 @@
  *   leg.p     Hüfte gebeugt (Knie nach vorn)
  *   leg.a     Bein zur Seite
  *   leg.k     Knie gebeugt (Ferse nach hinten)
+ *   fuss      Fuß gestreckt (Zehen vom Schienbein weg) – nur beim Wadenheben
+ *             im Sitzen, siehe calfseated
  */
 
 export const RIG = {
@@ -131,7 +133,11 @@ export function solve(pose, nur = GELENKE) {
     const knee = add(hip, mul(thighDir, R.thigh));
     const shinDir = rotX(thighDir, leg.k);
     const ankle = add(knee, mul(shinDir, R.shin));
-    const toe = add(ankle, mul(rotX(shinDir, -80 - leg.k * 0.25), R.foot));
+    // `fuss` streckt den Fuß im Sprunggelenk. Im Stehen braucht es das nicht:
+    // Dort hebt `heel` den ganzen Körper über die liegenden Zehen (siehe
+    // unten). Im Sitzen bleibt das Gesäß auf der Bank – gehoben werden nur
+    // Knie und Ferse, und der Fuß dreht sich um den Ballen.
+    const toe = add(ankle, mul(rotX(shinDir, -80 - leg.k * 0.25 + (pose.fuss || 0)), R.foot));
     return [shoulder, elbow, hand, hip, knee, ankle, toe];
   };
   const [shoulderL, elbowL, handL, hipL, kneeL, ankleL, toeL] = seite(-1, pose.armL || pose.arm || A(), pose.legL || pose.leg || L());
@@ -236,6 +242,7 @@ export function mische(spec, t) {
     lean: mix(a.lean || 0, b.lean || 0),
     tilt: mix(a.tilt || 0, b.tilt || 0),
     heel: mix(a.heel || 0, b.heel || 0),
+    fuss: mix(a.fuss || 0, b.fuss || 0),
     becken: mix(a.becken || 0, b.becken || 0),
     armL: mixA(a.armL || a.arm, b.armL || b.arm),
     armR: mixA(a.armR || a.arm, b.armR || b.arm),
@@ -245,6 +252,8 @@ export function mische(spec, t) {
 }
 
 const BODEN = -0.62;
+// Dicke des Buchs unter den Ballen beim Wadenheben (`stufe`, siehe dort).
+const BUCH = 0.055;
 const tiefster = (j, keys) => Math.min(...keys.map((k) => j[k][1]));
 const verschiebe = (j, d) => {
   Object.keys(j).forEach((k) => { j[k] = [j[k][0] + d[0], j[k][1] + d[1], j[k][2] + d[2]]; });
@@ -517,6 +526,52 @@ function armeRichtung(spec, t, j) {
   return j;
 }
 
+/*
+ * Im Sitzen auf den Ballen: Gesäß auf der Bank, Ballen auf dem Buch – und
+ * dazwischen gehen Knie und Fersen hoch (calfseated).
+ *
+ *     „Ist nicht bisschen merkwürdig für Hantel nur in einer Hand zu halten?"
+ *
+ * Seitdem wird das Wadenheben mit gebeugtem Knie mit Hantel im Sitzen gemacht.
+ * Stehend hob `heel` den ganzen Körper über die liegenden Zehen; sitzend hieße
+ * das, die Figur samt Bank stiege in die Luft. Hier streckt `fuss` den Fuß, und
+ * Hüft- und Kniewinkel werden je Bild so nachgestellt, dass die Zehen genau da
+ * bleiben, wo sie am Start standen. Mit den beiden Endstellungen allein liefen
+ * sie auf halbem Weg 0,018 nach vorn und 0,003 nach unten – und weil skelett()
+ * an ihnen festhält, wäre stattdessen das Gesäß über die Bank gerutscht. Zwei
+ * Bedingungen (Höhe und Tiefe der Zehen), zwei Winkel, Newton – wie an der
+ * Stange.
+ */
+const ballenStart = new WeakMap();
+function ballenSitz(spec, t) {
+  if (!ballenStart.has(spec)) ballenStart.set(spec, solve(mische(spec, 0), ['toeR']).toeR);
+  const ziel = ballenStart.get(spec);
+  const pose = mische(spec, t);
+  const stell = (x) => ({
+    ...pose,
+    legL: { ...pose.legL, p: pose.legL.p + x[0], k: pose.legL.k + x[1] },
+    legR: { ...pose.legR, p: pose.legR.p + x[0], k: pose.legR.k + x[1] },
+  });
+  const F = (x) => {
+    const zeh = solve(stell(x), ['toeR']).toeR;
+    return [zeh[1] - ziel[1], zeh[2] - ziel[2]];
+  };
+  let x = [0, 0];
+  for (let i = 0; i < 16; i++) {
+    const f = F(x);
+    if (f.every((v) => Math.abs(v) < 1e-9)) break;
+    const h = 0.05;
+    const spalten = [0, 1].map((k) => {
+      const y = x.slice(); y[k] += h;
+      return F(y).map((v, r) => (v - f[r]) / h);
+    });
+    const dx = loese([0, 1].map((r) => spalten.map((c) => c[r])), f);
+    if (!dx) break;
+    x = x.map((v, n) => v - dx[n]);
+  }
+  return solve(stell(x));
+}
+
 /**
  * Skelett einer Stellung, auf den Boden gesetzt und an Ort und Stelle.
  *
@@ -530,7 +585,7 @@ function armeRichtung(spec, t, j) {
  */
 const festerPunkt = new WeakMap();
 export function skelett(spec, t) {
-  let j = spec.stuetz ? stuetz(spec, t) : solve(mische(spec, t));
+  let j = spec.stuetz ? stuetz(spec, t) : spec.ballen && t !== 0 ? ballenSitz(spec, t) : solve(mische(spec, t));
   if (!spec.stuetz && spec.anchor !== 'bar' && t > 0 && t < 1) j = armeRichtung(spec, t, j);
   // An der Stange, die Füße am Boden (Inverted Row, Trizeps an der Stange):
   // Die Fersen stehen, und der Körper dreht sich um sie. Mit den beiden
@@ -586,7 +641,14 @@ export function skelett(spec, t) {
     const hand = mitte(j.handL, j.handR);
     return verschiebe(j, [-hand[0], barY - hand[1], -hand[2]]);
   }
-  j = verschiebe(j, [0, -Math.min(...Object.values(j).map((q) => q[1])) + BODEN, 0]);
+  // Im Sitzen auf dem Buch (calfseated) stehen die Ballen nicht auf dem Boden,
+  // sondern auf der Buchoberkante – und darunter sinkt unten die Ferse. Mit
+  // dem tiefsten Punkt am Boden lagen dort die Zehen, das Buch steckte darunter
+  // ganz im Boden, und unten stand der Fuß flach: die Dehnung, für die das
+  // Buch da ist, fehlte im Bild.
+  j = spec.ballen
+    ? verschiebe(j, [0, BODEN + BUCH + 0.01 - mitte(j.toeL, j.toeR)[1], 0])
+    : verschiebe(j, [0, -Math.min(...Object.values(j).map((q) => q[1])) + BODEN, 0]);
   // Was steht: beim Stütz die Hände, bei stehenden und sitzenden Figuren die
   // Füße. Liegende Figuren ohne Stütz bleiben, wie sie sind – dort liegt der
   // Rücken, und der Rücken ist lang genug, um nicht aufzufallen.
@@ -1378,6 +1440,44 @@ export const PATTERNS = {
       { tilt: 8, arm: A(40, 42, 100), leg: L(0, 6, 4) },
     ],
   },
+  calfseated: {
+    /*
+     * Wadenheben mit gebeugtem Knie, mit Hantel – im Sitzen.
+     *
+     *     „Ist nicht bisschen merkwürdig für Hantel nur in einer Hand zu halten?"
+     *
+     * War es. Bis v239 stand die Hantelfassung wie `calfbent` da: stehend, Knie
+     * 30° gebeugt, die Kurzhantel hing in der rechten Hand. Jetzt sitzt die
+     * Figur, Knie und Hüfte rechtwinklig, das Schienbein senkrecht, die Ballen
+     * auf einem Buch (`stufe: 'beide'`), und die Hantel liegt quer über beiden
+     * Oberschenkeln direkt hinter den Knien (`hantelAuf: 'knie'`, siehe
+     * knieHantel()), beide Hände am Griff. Gehoben werden nur Knie und Fersen:
+     * `fuss` streckt den Fuß, skelett() hält Gesäß und Ballen fest (`ballen`,
+     * siehe ballenSitz()).
+     *
+     * Unten sinkt die Ferse 0,032 unter den Ballen, also unter die Buchkante –
+     * das ist die Dehnung, für die das Buch da ist („dann langsam ganz tief
+     * unter die Buchkante"). Oben ist der Fuß um 59° weiter gestreckt, die
+     * Ferse steht 0,092 über dem Ballen; der Hub ist 0,124. Dafür stehen die
+     * Zehen nicht wie sonst als tiefster Punkt auf dem Boden, sondern auf der
+     * Buchoberkante (skelett(), `ballen`), und das Buch auf dem Boden. Bis zur
+     * Prüfung stand hier ein flacher Fuß (`fuss: 14`), weil der tiefste Punkt
+     * auf den Boden kam – die Zehen, mit dem Buch darunter im Boden.
+     *
+     * Die Arme sind gesucht, nicht geschätzt: In beiden Endstellungen sitzt
+     * jede Hand im Obergriff auf dem Griff, 0,062 neben der Mitte – die
+     * Fäuste berühren sich nicht und nicht die Scheiben; dazwischen führt die
+     * Hand (`armweg: 'hand'`) und bleibt höchstens 0,0045 neben der Achse,
+     * während die Knie die Hantel anheben. Von der Seite, wie `calfbent` –
+     * sonst ist die Ferse nicht zu sehen.
+     */
+    daumen: 'innen', hantelAuf: 'knie', armweg: 'hand',
+    label: 'Wadenheben im Sitzen', seat: true, ballen: true, stufe: 'beide', view: [62, 8],
+    poses: [
+      { lean: 6, arm: A(23.5, -17.1, 68), leg: L(90, 4, 90), fuss: 0 },
+      { lean: 6, arm: A(23.5, -17.1, 92.75), leg: L(106.1, 4, 99.9), fuss: 59 },
+    ],
+  },
   calfbent: {
     daumen: 'vorn', hantelLaengs: true,
     // Mit gebeugtem Knie: trifft den flachen Wadenmuskel statt der Zwillingswade.
@@ -1730,12 +1830,52 @@ function gobletHantel(spec, j, ach) {
   };
 }
 
+/*
+ * Die Kurzhantel quer über beiden Oberschenkeln, direkt hinter den Knien –
+ * beim Wadenheben im Sitzen (`hantelAuf: 'knie'`, siehe calfseated).
+ *
+ * Sie liegt auf den Beinen, nicht in der Hand: Achse parallel zur Linie von
+ * Knie zu Knie, Mitte zwischen den Oberschenkeln bei `bei` ihrer Länge, und so
+ * hoch, dass die große Scheibe jeder Seite oben auf ihrem Oberschenkel
+ * aufliegt – der Oberschenkel als Kegel mit den Breiten, mit denen er
+ * gezeichnet wird (limb(hip, knee, 4.6, 3.1)). Steigen die Knie, steigt sie
+ * mit. Die Höhe in vier Schritten nachgestellt: Neigt sich der Oberschenkel
+ * oben um 12°, liegt seine Oberkante über der Achse etwas höher als im
+ * Waagerechten.
+ *
+ * Der Griff ist länger als bei `kurz` in hanteln() (half 0,17 statt 0,13):
+ * Zwei Fäuste nebeneinander sind in dieser Figur 0,22 breit, der Griff bei
+ * 0,13 nur 0,17 – sie steckten in den Scheiben. Die Scheiben sind dafür
+ * kleiner (Radius 0,07 statt 0,085), sonst stünde der Griff so hoch über den
+ * Knien, dass die Hantel aus jedem schrägen Blick vor der Brust zu schweben
+ * schien.
+ */
+const KNIE_HANTEL = { bei: 0.82, half: 0.17, plate: 2.8 };
+const oberschenkel = (u) => (4.6 + (3.1 - 4.6) * u) / 40;
+function knieHantel(j) {
+  const K = KNIE_HANTEL;
+  const { r, dick, innen } = hantelTeile(K.plate, K.half);
+  const axis = norm(sub(j.kneeR, j.kneeL));
+  const bei = (s) => add(j[`hip${s}`], mul(sub(j[`knee${s}`], j[`hip${s}`]), K.bei));
+  const dir = norm(sub(j.kneeR, j.hipR));
+  const lang = abstand(j.kneeR, j.hipR);
+  let centre = add(mitte(bei('L'), bei('R')), [0, r + oberschenkel(K.bei), 0]);
+  for (let i = 0; i < 4; i++) {
+    // Der tiefste Punkt der großen Scheibe rechts, gegen den rechten Oberschenkel.
+    const v = sub(sub(add(centre, mul(axis, innen + dick / 2)), [0, r, 0]), j.hipR);
+    const s = skalar(v, dir);
+    centre = sub(centre, [0, Math.hypot(...sub(v, mul(dir, s))) - oberschenkel(s / lang), 0]);
+  }
+  return { centre, axis, half: K.half, plate: K.plate, teile: 8 };
+}
+
 /**
  * Die Hanteln und Stangen, die die Figur hält: je eine mit Mitte, Achse,
  * halber Länge, Scheibengröße und – wo sie quer über dem Körper liegt – der
  * Zahl der Stücke für den Maleralgorithmus (siehe barAt()).
  */
 export function hanteln(spec, j, equip) {
+  if (spec.hantelAuf === 'knie' && equip === 'onehand') return [knieHantel(j)];
   const ach = achsen(j);
   // Quer zum Körper liegt die Hantel bei aufgedrehtem Unterarm – so hält
   // man sie beim Seitheben, beim Drücken, beim gewöhnlichen Curl. Zeigen
@@ -1836,8 +1976,9 @@ export function handForm(spec, j, seite, equip) {
   const hand = j[`hand${seite}`];
   const ell = j[`elbow${seite}`];
   const greifend = spec.daumen && !spec.finger;
-  // Einarmig: nur die Hand mit der Hantel greift, die andere liegt auf.
-  const faust = !!greifend && (equip !== 'onehand' || seite === (spec.gewichtHand || 'R'));
+  // Einarmig: nur die Hand mit der Hantel greift, die andere liegt auf. Liegt
+  // die eine Hantel quer auf den Knien (calfseated), halten sie beide.
+  const faust = !!greifend && (equip !== 'onehand' || !!spec.hantelAuf || seite === (spec.gewichtHand || 'R'));
   const innen = mul(sideAxis, seite === 'L' ? 1 : -1);
   const richtung = faust || spec.finger ? spec.daumen : 'vorn';
   // Zu jeder Daumenrichtung eine Ersatzrichtung quer dazu, für den Fall,
@@ -3222,24 +3363,42 @@ export function mountFigure(host, pattern, weight, equip, marks = []) {
       // Übung: Ohne erhöhten Ballen fehlt die Dehnung nach unten, und das war
       // aus dem Bild vorher nicht zu sehen. Zuhause ist der Klotz meistens ein
       // dickes Buch, deshalb ist er flach und nicht stufenhoch.
+      //
+      // `stufe: 'beide'` ist dasselbe Buch unter beiden Ballen – beim
+      // Wadenheben im Sitzen (calfseated), so breit wie beide Füße.
+      const beide = spec.stufe === 'beide';
       const einbein = spec.stufe === 'R' || spec.stufe === 'L';
       const ank = einbein ? (spec.stufe === 'R' ? j.ankleR : j.ankleL) : midOf(j.ankleL, j.ankleR);
-      const zeh = einbein ? (spec.stufe === 'R' ? j.toeR : j.toeL) : null;
-      const top = einbein ? zeh[1] - 0.01 : Math.min(j.toeL[1], j.toeR[1]) - 0.02;
+      const zeh = einbein ? (spec.stufe === 'R' ? j.toeR : j.toeL) : beide ? midOf(j.toeL, j.toeR) : null;
+      const klotz = einbein || beide;
+      const top = klotz ? zeh[1] - 0.01 : Math.min(j.toeL[1], j.toeR[1]) - 0.02;
       // Unter dem Ballen, nicht unter der Ferse: Der Klotz sitzt vorn.
-      const zc = einbein ? zeh[2] : ank[2]; const xc = einbein ? zeh[0] : ank[0];
-      const bx = einbein ? 0.085 : 0.16;
-      const bz = einbein ? 0.10 : 0.26;
+      const zc = klotz ? zeh[2] : ank[2]; const xc = klotz ? zeh[0] : ank[0];
+      const bx = beide ? Math.abs(j.toeR[0] - j.toeL[0]) / 2 + 0.085 : einbein ? 0.085 : 0.16;
+      const bz = klotz ? 0.10 : 0.26;
       const corner = (sx, sz, y) => P([xc + sx * bx, y, zc + sz * bz]);
-      const face = (quad) => parts.push({
-        z: quad.reduce((acc, q) => acc + q.z, 0) / quad.length - 0.05,
+      // Die Oberseite des Buchs unter beiden Ballen kommt nach ihrer hintersten
+      // Ecke dran, nicht nach ihrer Mitte: Die Mitte liegt unter den Zehen, die
+      // Füße reichen von dort bis zur Ferse dahinter. Nach der Mitte einsortiert
+      // wurde sie nach einem oder beiden Füßen gezeichnet und deckte sie zu –
+      // von schräg vorn verschwand der hintere Fuß bis auf einen Streifen im
+      // Buch, von vorn beide bis auf die Knöchel. Sie liegt unter den Füßen und
+      // gehört deshalb immer vor sie.
+      const face = (quad, oben = false) => parts.push({
+        z: (oben && beide ? Math.min(...quad.map((q) => q.z)) : quad.reduce((acc, q) => acc + q.z, 0) / quad.length) - 0.05,
         node: el('polygon', {
           points: quad.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' '),
-          class: 'fig-bench',
+          // Das Buch trägt eine eigene Klasse dazu – gezeichnet wie die Bank,
+          // aber in tests/test-wade-sitzend.mjs von ihr zu unterscheiden, die
+          // Oberseite noch eine.
+          class: klotz ? `fig-bench fig-buch${oben ? ' fig-buch-oben' : ''}` : 'fig-bench',
         }),
       });
-      const boden = einbein ? top - 0.055 : -0.62;
-      face([corner(-1, -1, top), corner(1, -1, top), corner(1, 1, top), corner(-1, 1, top)]);
+      // Das Buch steht auf dem Boden: skelett() setzt beim Sitzen auf dem Buch
+      // (`ballen`) die Zehen BUCH + 0,01 darüber, und damit ist `boden` hier
+      // genau die Bodenhöhe – wie bei den Füßen der Bank daneben.
+      const boden = klotz ? top - BUCH : -0.62;
+      face([corner(-1, -1, top), corner(1, -1, top), corner(1, 1, top), corner(-1, 1, top)], true);
       face([corner(-1, 1, top), corner(1, 1, top), corner(1, 1, boden), corner(-1, 1, boden)]);
       face([corner(1, -1, top), corner(1, 1, top), corner(1, 1, boden), corner(1, -1, boden)]);
       face([corner(-1, -1, top), corner(-1, 1, top), corner(-1, 1, boden), corner(-1, -1, boden)]);

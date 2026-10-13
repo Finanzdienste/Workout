@@ -73,13 +73,19 @@ const BODEN = -0.62;
 // darunter, stimmt die Rechnung nicht – und liegt der tiefste Punkt in einer
 // Zwischenstellung woanders, hebt und senkt sich die ganze Figur beim Abspielen.
 // Ausgenommen, was an der Stange hängt: Dort halten die Hände, nicht der Boden.
+// Wer auf einem Buch sitzt (calfseated, `ballen`), steht mit den Zehen auf
+// dessen Oberkante und nicht mit dem tiefsten Punkt am Boden – unten sinkt die
+// Ferse unter die Buchkante. Dort zählen die Zehen, und im Boden steckt trotzdem
+// nichts.
 Object.entries(PATTERNS).filter(([, spec]) => spec.anchor !== 'bar').forEach(([name, spec]) => {
-  const tiefsten = [0, 0.25, 0.5, 0.75, 1].map((t) => {
-    const j = skelett(spec, t);
-    return Math.min(...Object.values(j).map((q) => q[1]));
-  });
+  const js = [0, 0.25, 0.5, 0.75, 1].map((t) => skelett(spec, t));
+  const tiefster = (j) => Math.min(...Object.values(j).map((q) => q[1]));
+  const tiefsten = js.map((j) => (spec.ballen ? (j.toeL[1] + j.toeR[1]) / 2 : tiefster(j)));
   const abweichung = Math.max(...tiefsten) - Math.min(...tiefsten);
-  check(abweichung < 1e-9, `${name}: sitzt in jeder Stellung auf dem Boden`);
+  const drunter = Math.min(...js.map(tiefster)) - BODEN;
+  check(abweichung < 1e-9 && drunter > -1e-9,
+    `${name}: ${spec.ballen ? 'steht in jeder Stellung auf dem Buch' : 'sitzt in jeder Stellung auf dem Boden'}`
+    + (spec.ballen ? ` (tiefster Punkt ${drunter.toFixed(3)} über dem Boden)` : ''));
 });
 
 /* --- 4. Die Auflage steht nur da, wo sie hingehört ------------------------ */
@@ -245,7 +251,10 @@ stehend.forEach(([name, spec]) => {
   const fuss = (j) => (s ? j[`toe${s}`] : mittel(j.toeL, j.toeR));
   const js = T.map((t) => skelett(spec, t));
   const weg = Math.max(...js.map((j) => flach(fuss(j), fuss(js[0]))));
-  const hoch = Math.max(...js.map((j) => (s ? j[`toe${s}`][1] : Math.min(j.toeL[1], j.toeR[1])) - BODEN));
+  // Auf dem Buch (calfseated) steht der Fuß auf dessen Oberkante: Die Zehen
+  // liegen BUCH + 0,01 = 0,065 über dem Boden (js/figure.js, skelett()).
+  const auf = spec.ballen ? BODEN + 0.065 : BODEN;
+  const hoch = Math.max(...js.map((j) => (s ? j[`toe${s}`][1] : Math.min(j.toeL[1], j.toeR[1])) - auf));
   check(weg < 0.005 && hoch < 0.03,
     `${name}: ${s ? 'der Standfuß' : 'die Füße'} bleibt am Boden stehen (wandert ${weg.toFixed(3)}, hebt ${hoch.toFixed(3)})`);
 });

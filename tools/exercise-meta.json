@@ -1235,17 +1235,44 @@
     "tier": 4,
     "dbEquip": "Kurzhantel",
     "bwEquip": "Ohne Gerät",
-    "dbCue": "Knie ca. 30° gebeugt halten und so das Wadenheben ausführen – trifft den tiefen Wadenmuskel.",
-    "dbHeben": "Die Hantel steht neben dem Fuß. In die Hocke, greifen, mit den Beinen aufstehen. Am Ende in die Hocke und abstellen.",
-    "bwCue": "Gleiche gebeugte Knieposition, mehr Wiederholungen, langsames Tempo. Optional einbeinig für mehr Last.",
+    "dbCue": "Auf einen Stuhl setzen, Knie 90° gebeugt, Schienbeine senkrecht. Fußballen auf ein dickes Buch, die Fersen ragen frei darüber hinaus. Die Kurzhantel liegt quer über beiden Oberschenkeln direkt hinter den Knien, beide Hände halten sie fest. Fersen so hoch es geht, oben 1 s halten, dann langsam ganz tief unter die Buchkante.",
+    "dbHeben": "Die Hantel steht vor dem Stuhl neben dem Buch. In die Hocke, mit beiden Händen am Griff fassen und mit den Beinen aufstehen – nicht im Sitzen zur Seite nach ihr greifen. Mit der Hantel vor dem Bauch hinsetzen, sie quer auf die Oberschenkel direkt hinter den Knien legen, dann die Ballen aufs Buch. Am Ende umgekehrt: Füße vom Buch, die Hantel mit beiden Händen vor den Bauch nehmen, aufstehen, in die Hocke und abstellen.",
+    "bwCue": "Stehend, eine Hand flach an der Wand fürs Gleichgewicht – sie hält nur, sie drückt nicht. Knie etwa 30° beugen und dort halten, die Bewegung kommt allein aus dem Sprunggelenk. Fersen so hoch es geht, oben 1 s halten, in 3 s absenken.",
     "detail": [
       [
+        "Warum sitzend",
+        "Mit 90° im Knie ist die Zwillingswade entspannt: Sie läuft über das Knie, und so weit gebeugt kann sie kaum noch Kraft aufbauen. Die ganze Arbeit macht der Schollenmuskel darunter, um den es hier geht – er gibt der Wade ihren Umfang. Stehend mit nur leicht gebeugtem Knie arbeitet die Zwillingswade noch mit. Dazu liegt die Last gleichmäßig auf beiden Beinen statt in einer Hand, es gibt kein Gleichgewicht zu halten, und es geht deutlich mehr Gewicht.",
+        "db"
+      ],
+      [
+        "Hantel und Knie",
+        "Die Hantel liegt quer auf den Oberschenkeln, direkt hinter den Knien – nicht auf der Kniescheibe, dort drückt sie auf Knochen und rollt, und nicht weiter zur Hüfte hin, dort trägt der Stuhl mit und die Wade weniger. Beide Hände halten den Griff, damit sie liegen bleibt; drücken müssen sie nicht. Drückt das Eisen, ein gefaltetes Handtuch darunter.",
+        "db"
+      ],
+      [
+        "Ein Buch, keine Scheibe",
+        "Unter die Ballen gehört ein dickes Buch: Es ist fest, rutscht nicht und ist hoch genug, dass die Ferse unten frei darunter sinkt – genau diese Dehnung ist die halbe Übung. Keine Hantelscheibe aus dem Vorrat: Die stecken an den Hanteln, und abschrauben lohnt sich dafür nicht. Nur eine Scheibe, die ohnehin frei herumliegt, kann das Buch ersetzen.",
+        "db"
+      ],
+      [
+        "Wie schwer",
+        "So schwer, dass die letzten zwei Wiederholungen eines Satzes hart werden – mit 1 s oben und ganz tief unten. Das ist mehr, als man erwartet: Der Schollenmuskel ist kräftig, und im Sitzen bremst kein Gleichgewicht. Geht der ganze Satz leicht, ist die Hantel zu leicht; das Gewicht stellst du an der Gewichtszeile mit + ein.",
+        "db"
+      ],
+      [
         "Warum gebeugt",
-        "Der Zwillingsmuskel läuft über das Knie und ist bei gebeugtem Knie erschlafft. Was dann noch drückt, ist der Schollenmuskel darunter – der macht den Umfang der Wade und wird sonst nie direkt getroffen."
+        "Der Zwillingsmuskel läuft über das Knie; je weiter es gebeugt ist, desto weniger kann er mitarbeiten. Was dann drückt, ist der Schollenmuskel darunter – der macht den Umfang der Wade und wird sonst nie direkt getroffen.",
+        "bw"
       ],
       [
         "Winkel",
-        "Etwa 30 Grad Kniebeugung und dort halten. Beugt sich das Knie während des Satzes weiter, wird die Bewegung zur Mini-Kniebeuge."
+        "Etwa 30 Grad Kniebeugung und dort halten. Beugt sich das Knie während des Satzes weiter, wird die Bewegung zur Mini-Kniebeuge.",
+        "bw"
+      ],
+      [
+        "Die Hand an der Wand",
+        "Sie hält nur das Gleichgewicht und drückt nicht mit. Ohne sie geht die halbe Aufmerksamkeit ins Wackeln statt in die Wade, und beim Ausgleichen wandert das Knie.",
+        "bw"
       ]
     ],
     "schmerz": [
@@ -1255,6 +1282,11 @@
         "verletzung": [
           "wadenzerrung"
         ]
+      },
+      {
+        "ort": "Oberschenkel über dem Knie",
+        "text": "Die Hantel liegt mit ihrem ganzen Gewicht auf einer kleinen Fläche, und je schwerer sie wird, desto mehr drückt das Eisen in den Oberschenkel. Das ist Druck, kein Schaden.\n\nEin gefaltetes Handtuch zwischen Hantel und Bein löst es fast immer. Liegt sie auf der Kniescheibe statt dahinter, ein Stück zur Hüfte hin schieben – auf dem Knie drückt sie auf Knochen und rollt leichter weg.",
+        "modus": "db"
       }
     ],
     "dbRest": 90,
@@ -1262,7 +1294,7 @@
     "dbWeight": 12,
     "dbStep": 2,
     "weightNote": "eine Hantel",
-    "dbPattern": "calfbent",
+    "dbPattern": "calfseated",
     "dbShares": {
       "calves": 1.0
     },
@@ -1270,7 +1302,8 @@
     "bwShares": {
       "calves": 1.0
     },
-    "equip": "onehand"
+    "equip": "onehand",
+    "name": "Sitzendes Wadenheben"
   },
   "sitzendes-schulterdruecken": {
     "group": "Schulter",
