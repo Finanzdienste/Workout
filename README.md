@@ -500,6 +500,7 @@ Bewegung als die mit Hanteln:
 | Goblet Squat (`squat`) | Kniebeuge mit vorgestreckten Armen (`squatbw`) |
 | Hip Thrust beidbeinig (`thrust`) | einbeinig (`thrust1`) |
 | Floor Press (`press`) | Liegestütze (`pushup`) |
+| Sitzendes Wadenheben (`calfseated`) | Wadenheben mit gebeugtem Knie, stehend (`calfbent`) |
 
 Umgekehrt gilt genauso: Wo die Fassung für unterwegs **dieselbe** Bewegung mit
 dem Band ist – Rudern, Reverse Fly, Trizepsdrücken, Schulterdrücken, Curls –,
@@ -561,8 +562,9 @@ darunter; mit der Mitte zwischen den Fäusten verschwand sie halb in ihnen.
 
 Auch innerhalb einer Variante zählt der Unterschied: einbeinige Übungen haben
 eigene Muster (`legcurl1`, `calf1`), das Wadenheben mit gebeugtem Knie ebenso
-(`calfbent`), und bei den Füße-erhöhten Liegestützen (`pushupfeet`) steht ein
-Kasten unter den Füßen – sonst wäre nicht zu sehen, dass sie erhöht sind.
+(`calfbent`, mit Hantel im Sitzen `calfseated`), und bei den Füße-erhöhten
+Liegestützen (`pushupfeet`) steht ein Kasten unter den Füßen – sonst wäre nicht
+zu sehen, dass sie erhöht sind.
 
 Wo eine Übung im Sitzen ausgeführt wird, setzt `seat: true` eine Bank unter die
 Figur – Sitzfläche mit Vorderkante und vier Beinen, damit sie beim Drehen von
@@ -2685,7 +2687,7 @@ Alle 38 Übungen aus `js/data.js`, Stand 05.10. Die ersten
 | Sitzendes Seitheben | Sitzendes Band-Seitheben | Loop-Band + Stuhl |
 | Überkopf-Trizepsstrecker | Überkopf-Trizepsstrecker am Band | Loop-Band + Stuhl |
 | Einbeiniges stehendes Wadenheben | Einbeiniges Wadenheben | Treppenstufe |
-| Wadenheben gebeugtes Knie | Wadenheben mit gebeugtem Knie | Ohne Gerät |
+| Sitzendes Wadenheben | Wadenheben mit gebeugtem Knie | Ohne Gerät |
 | Fersenerhöhter Goblet Squat | Fersenerhöhter 1½-Wdh. Bodyweight Squat | festes Buch |
 | SZ-Curls | Band-Curls | Loop-Band |
 | Gewichtete Crunches | Crunches | Ohne Gerät |
@@ -5199,6 +5201,75 @@ steht im Hinweis. Ohne Hanteln gibt es keine Last, also auch keinen Absatz.
 `tools/pruefung/geraete.py` verlangt den Text für jedes gezeichnete Gerät aus
 `MIT_LAST` (`tools/build-data.py`) und dass Hochnehmen und Ablegen beide
 vorkommen – das Ablegen ist der Teil, bei dem man müde ist.
+
+### Wadenheben mit Hantel: im Sitzen, die Hantel quer auf den Knien
+
+*„Ist nicht bisschen merkwürdig für Hantel nur in einer Hand zu halten?"* –
+zum Wadenheben mit gebeugtem Knie, Cut mit Hanteln. Es stand stehend da, das
+Knie 30° gebeugt, eine Kurzhantel in einer Hand (6,5 kg), und genau so war
+auch die Figur gezeichnet.
+
+Merkwürdig war das nicht nur fürs Gefühl. Die Hantelfassung wird jetzt **im
+Sitzen** gemacht, aus vier Gründen:
+
+- **Der richtige Muskel.** Die Übung ist für den Schollenmuskel (Soleus) da.
+  Die Zwillingswade läuft über das Knie; mit 90° im Knie ist sie entspannt,
+  und die ganze Arbeit bleibt beim Soleus. Mit 30° arbeitet sie noch mit.
+- **Symmetrisch.** Die Last liegt auf beiden Beinen, nicht in einer Hand.
+- **Kein Gleichgewicht.** Stehend auf den Ballen mit einer Hantel auf einer
+  Seite kostet das Ausbalancieren mehr Aufmerksamkeit als die Wade.
+- **Mehr Last.** Der Soleus ist kräftig; sitzend begrenzt nichts anderes mehr.
+
+So geht sie (*Sitzendes Wadenheben*): auf einen Stuhl, Knie 90°, Schienbeine
+senkrecht; die Fußballen auf einem dicken Buch, die Fersen frei dahinter; die
+Kurzhantel quer über beiden Oberschenkeln direkt hinter den Knien, beide Hände
+halten sie, ein gefaltetes Handtuch darunter, wenn das Eisen drückt. Fersen so
+hoch es geht, oben eine Sekunde halten, unten ganz tief unter die Buchkante.
+**Ein Buch, keine Hantelscheibe:** Die Scheiben aus dem Vorrat stecken an den
+Hanteln, und für jeden Satz eine abzuschrauben lohnt sich nicht – nur eine
+Scheibe, die ohnehin frei herumliegt, kann das Buch ersetzen. Hochnehmen und
+Ablegen steht wie überall darunter: erst hinsetzen, dann die Hantel quer auf
+die Oberschenkel legen; am Ende neben dem Stuhl abstellen, erst dann aufstehen.
+Neu unter *Wenn etwas weh tut*: „Oberschenkel über dem Knie" – Druck, kein
+Schaden; Handtuch, und nicht auf die Kniescheibe.
+
+**Ohne Hanteln bleibt sie stehend** mit gebeugtem Knie – ohne Last ist sitzend
+zu leicht. Neu ist dort die Hand an der Wand fürs Gleichgewicht; der Hinweis
+steht jetzt für sich, statt mit „gleiche gebeugte Knieposition" auf die
+Hantelfassung zu verweisen, und ohne „optional einbeinig" – eine Übung, eine
+Ausführung. Die Figur bleibt `calfbent`: Eine Wand kennt sie nicht, und eine
+Hand, die ins Leere greift, wäre schlechter als eine, die frei hängt.
+
+**Was sich nicht ändert**, mit Absicht: der Schlüssel
+`wadenheben-gebeugtes-knie` (an ihm hängen das eingetragene Gewicht und jeder
+protokollierte Satz – der Name kommt wie beim Überkopf-Trizepsstrecker aus
+`name` in `tools/exercise-meta.json`), die Muskelanteile, das Gerät (`onehand`,
+eine Kurzhantel), Startgewicht, Schritt, Pause und Wiederholungen. Damit
+ändert sich auch kein Plan: `stand` und `saetze` aller vier Fokusse sind
+dieselben wie vorher, es gibt **keine Planwechsel-Meldung**, und angefangene
+Einheiten bleiben, wie sie sind. Das Gewicht bleibt ebenfalls stehen – sitzend
+geht mehr, aber wann es hochgeht, entscheidet wie überall der `+`.
+
+**Die Figur** ist ein neues Muster, `calfseated`: sitzend auf der Bank, Knie
+und Hüfte rechtwinklig, die Ballen auf einem Buch unter beiden Füßen
+(`stufe: 'beide'`), von der Seite gezeigt, damit man die Ferse steigen sieht.
+Gehoben werden nur Knie und Fersen. Stehend hebt `heel` den ganzen Körper über
+die liegenden Zehen; sitzend stiege damit die Bank mit in die Luft. Deshalb
+gibt es `fuss` – der Fuß streckt sich im Sprunggelenk –, und `skelett()` stellt
+je Bild Hüft- und Kniewinkel so nach, dass Gesäß und Ballen bleiben, wo sie
+sind (`ballenSitz()`, Newton über zwei Winkel wie an der Stange; mit den
+Endstellungen allein liefen die Zehen auf halbem Weg 0,010 nach vorn). Die
+Hantel rechnet `knieHantel()` aus den Oberschenkeln: quer zur Knieachse, bei
+82 % ihrer Länge, so hoch, dass jede große Scheibe auf ihrem Oberschenkel
+aufliegt – steigen die Knie, steigt sie mit. Die Arme sind gesucht: beide
+Hände im Obergriff am Griff, die Fäuste berühren sich nicht und nicht die
+Scheiben, über die ganze Bewegung höchstens 0,003 neben der Achse.
+
+`tests/test-wade-sitzend.mjs` prüft Katalog, Pläne, Figur und App: Name und
+Hinweise je Fassung, unveränderte Anteile und Fingerabdrücke, Knie 90°, Gesäß
+und Ballen fest, Fersen steigen, Hantel quer auf den Oberschenkeln, beide
+Fäuste am Griff, und in Tobis Cut-Einheit Karte, Fokus und Bodyweight-Karte.
+Gegen v239 ist er rot.
 
 ### Jede Übung muss einen Weg nach unten nennen
 
