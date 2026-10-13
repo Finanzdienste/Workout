@@ -28,6 +28,12 @@ import { sparkPanel } from './chart.js';
 import { buildICS } from './ics.js';
 import { CONFIG, hatServer } from './config.js';
 import { geraeteId, melden, loeschen, adminListe } from './telemetry.js';
+import {
+  linkVermerken, passwortManagerDa, schluesselAblegen, schluesselAus, schluesselAusManager,
+  schluesselPruefen, sicherungAn, sicherungEinrichten, sicherungGeaendert, sicherungHolen,
+  sicherungJetzt, sicherungLink, sicherungLoeschen, sicherungMetaLesen, sicherungSchalten,
+  sicherungStart, sicherungTrotzdem, sicherungUebernehmen, sicherungVergessen, sicherungVerstecken,
+} from './sicherung.js';
 import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './audio.js';
 import { esc, fmtNum, komma1 } from './text.js';
 import { MODE_ICON, MODE_LABEL, mitWdh, repsLabel, umfang, wdhTeile } from './anzeige.js';
@@ -788,10 +794,23 @@ function downloadBackup() {
  *                           Teilen-Weg: Die Datei geht an Drive, an eine Mail
  *                           an sich selbst, an was auch immer da ist.
  *
- * Was hier bewusst *nicht* passiert: die Sicherung von selbst irgendwohin
- * schicken. Der Rückkanal an den Betreiber trägt eine Handvoll Zahlen und ist
- * abschaltbar; ein vollständiger Trainingsverlauf ist etwas anderes, und der
- * geht nur dorthin, wohin er ausdrücklich geschickt wird.
+ * Hier stand bis v239: „Was hier bewusst *nicht* passiert: die Sicherung von
+ * selbst irgendwohin schicken." Tobi – Nutzer und Betreiber in einer Person –
+ * hat das anders entschieden:
+ *
+ *     „Wenn ich auch 'Sicherung weitergeben' klicke passiert nichts. Lass das
+ *      doch generell einfach automatisch sichern"
+ *
+ * Jetzt geht der Verlauf von selbst an den Server des Betreibers – aber erst,
+ * nachdem er auf dem Gerät verschlüsselt wurde, mit einem Schlüssel, der das
+ * Gerät nie verlässt, außer der Mensch legt ihn selbst in seinen
+ * Passwortmanager oder schickt sich den Link. Lesen kann ihn also nur, wer den
+ * Schlüssel hat; der Betreiber nicht. Die Grundsätze von damals gelten weiter:
+ * Einstieg und Mehr sagen, was geschieht, ein Schalter stellt es ab, ein Knopf
+ * löscht es auf dem Server. Wie, steht in js/sicherung.js; was davon zu sehen
+ * ist, weiter unten bei „Automatische Sicherung".
+ *
+ * Der Datei-Weg bleibt daneben, für den, der keinen Server will oder hat.
  * ------------------------------------------------------------------ */
 
 /**
@@ -813,23 +832,51 @@ async function speicherFestnageln() {
 /**
  * Die Sicherung weitergeben statt herunterladen.
  *
- * Fällt auf den Download zurück, wo es das Teilen nicht gibt oder es abgelehnt
- * wird – und zwar still: „Teilen abgebrochen" ist keine Meldung wert, das war
- * eine Entscheidung.
+ *     „Wenn ich auch 'Sicherung weitergeben' klicke passiert nichts."
+ *
+ * Zwei Fehler, die zusammen genau das ergaben:
+ *
+ *   Der Typ.     Chrome teilt Dateien nur mit bestimmten Endungen und Typen
+ *                (ShareServiceImpl, PERMITTED_EXTENSIONS / _MIME_TYPES): Text,
+ *                Bilder, Audio, Video, PDF. .json und application/json stehen
+ *                nicht darauf. canShare() sagt trotzdem ja – es prüft den Typ
+ *                gar nicht –, und erst share() lehnt ab, mit NotAllowedError.
+ *                Deshalb .txt und genau 'text/plain': Der Vergleich ist exakt,
+ *                „text/plain;charset=utf-8" fiele schon wieder durch. „Datei
+ *                laden" nimmt .txt ohnehin an (importBackupDatei()).
+ *   Das Schweigen. Hier stand `catch { return; }` mit dem Kommentar
+ *                „abgebrochen – kein Grund für eine Meldung". Abgebrochen ist
+ *                aber nur ein AbortError. Alles andere ist eine Ablehnung, und
+ *                die wurde mitverschluckt: kein Dialog, keine Meldung, kein
+ *                Download.
+ *
+ * Jetzt: Abbruch bleibt still. Jede andere Ablehnung endet im Download, mit
+ * einer Meldung, die den Grund nennt und den Textweg zeigt – ob ein Download
+ * ohne frische Berührung auf jedem Handy durchgeht, ist nicht belegt, das
+ * Textfeld unter Mehr → Daten dagegen schon.
  */
 async function teileBackup() {
   const json = store.exportJSON();
-  const datei = new File([json], `workout-backup-${todayISO()}.json`,
-    { type: 'application/json' });
+  const datei = new File([json], `workout-backup-${todayISO()}.txt`, { type: 'text/plain' });
+  ui.teilenFehler = '';
   if (navigator.canShare && navigator.canShare({ files: [datei] })) {
     try {
       await navigator.share({ files: [datei], title: 'Workout-Sicherung' });
       store.markBackup(doneCount());
       render();
       return;
-    } catch { return; }   // abgebrochen – kein Grund für eine Meldung
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;   // abgebrochen: eine Entscheidung, keine Meldung
+      ui.teilenFehler = e && e.name ? `${e.name}${e.message ? ` – ${e.message}` : ''}` : 'ohne Angabe';
+    }
   }
   downloadBackup();
+  if (ui.teilenFehler) {
+    if (ui.tab === 'settings') render();
+    const io = document.getElementById('io');
+    if (io) io.value = json;
+    toast('Teilen hat der Browser abgelehnt – als Datei gespeichert. Der Text steht unter Mehr → Daten zum Kopieren.');
+  }
 }
 
 /**
@@ -856,15 +903,18 @@ async function teileBackup() {
  * jetzt importJSON selbst).
  */
 function einlesen(text, meldung) {
-  const vorher = store.getState();
-  const hatVerlauf = Object.keys(vorher.log || {}).length > 0 || (vorher.rounds || []).length > 0;
-  if (hatVerlauf && !confirm('Die Sicherung ersetzt deinen ganzen jetzigen Verlauf. '
-    + 'Der jetzige Stand wird beiseitegelegt und lässt sich unter Mehr einmal zurückholen. Weiter?')) {
-    return;
-  }
+  if (!ersetzenErlaubt()) return;
   store.importJSON(text);
   ui.setupStep = 0;
   neuStarten(meldung);
+}
+
+/** Die Rückfrage vor jedem Einlesen – aus einer Datei wie vom Server. */
+function ersetzenErlaubt() {
+  const vorher = store.getState();
+  const hatVerlauf = Object.keys(vorher.log || {}).length > 0 || (vorher.rounds || []).length > 0;
+  return !hatVerlauf || confirm('Die Sicherung ersetzt deinen ganzen jetzigen Verlauf. '
+    + 'Der jetzige Stand wird beiseitegelegt und lässt sich unter Mehr einmal zurückholen. Weiter?');
 }
 
 /**
@@ -1439,6 +1489,16 @@ const ui = {
   // will meistens wissen, was als Nächstes kommt.
   calMonth: null,
   calDay: null,
+  // Automatische Sicherung (js/sicherung.js) – nur, was gerade auf dem
+  // Bildschirm steht: ein Schlüssel aus einem Wiederherstellungs-Link, ob das
+  // Eingabefeld offen ist, was beim Zurückholen schiefging, und warum das
+  // Teilen der Datei zuletzt abgelehnt wurde.
+  sicherungAngebot: null,
+  sicherungEingabe: false,
+  sicherungMeldung: '',
+  sicherungLaeuft: false,
+  sicherungLinkText: '',
+  teilenFehler: '',
 };
 
 /* ------------------------------------------------------------------ *
@@ -2604,12 +2664,7 @@ function renderOverview() {
           <button type="button" class="btn btn-primary" data-act="accept-stand">Zum Vergleich</button>
           <button type="button" class="btn btn-ghost" data-act="drop-stand">Verwerfen</button>
         </div></div>` : ''}
-      ${due ? `<div class="notice warn">💾 ${esc(plural(due, 'Einheit', 'Einheiten'))} seit der letzten
-        Sicherung. Alles liegt nur in diesem Browser.
-        <button type="button" class="btn btn-block btn-primary" data-act="backup-teilen"
-                style="margin-top:10px">Sicherung weitergeben</button>
-        <div class="small muted" style="margin-top:6px">Geht an Drive, an eine Mail an dich
-          selbst, an was du willst – Hauptsache nicht nur auf dieses Handy.</div></div>` : ''}
+      ${sicherungsZeile(due)}
 
       <header class="ov-top">
         <!-- Kein „von 84" mehr: „Die app geht ja unendlich." Stimmt – der Plan
@@ -2713,8 +2768,13 @@ function renderWelcome() {
     ${ui.standAngebot && schritt === 0 ? `<div class="notice">👋 <b>${esc(ui.standAngebot.n)}</b> hat dir
       den Link geschickt und seinen Stand mitgeschickt: ${esc(ui.standAngebot.w)} von
       ${esc(ui.standAngebot.p)} Einheiten. Sobald du fertig eingerichtet hast, steht er in deinem
-      Vergleich.</div>` : ''}`;
+      Vergleich.</div>` : ''}
+    ${schritt === 0 ? sicherungAngebotHtml() : ''}`;
 
+  // „Von allein geht nichts irgendwohin" stand hier, solange es keinen Server
+  // gab. Mit der automatischen Sicherung stimmt der Satz nicht mehr – und eine
+  // Zusage, die die App an anderer Stelle bricht, ist schlimmer als keine.
+  // Ohne Server in js/config.js bleibt er, denn dann stimmt er.
   const seiten = [`
     <div class="card">
       <p class="small">Ein fertiger Trainingsplan: Übungen, Sätze, Wiederholungen, Pausen –
@@ -2722,17 +2782,22 @@ function renderWelcome() {
         du mit <strong>Hanteln</strong> oder als <strong>Bodyweight</strong>-Variante ganz ohne
         Geräte. Gewählt wird unter <em>Mehr</em>, auch mitten im Training – die Wahl gilt
         dann für die laufende und alle folgenden Einheiten, bis du sie wieder änderst.</p>
-      <p class="small">Die App läuft offline und braucht kein Konto. Was du einträgst, bleibt
+      ${hatServer() ? `<p class="small">Die App läuft offline und braucht kein Konto. Was du
+        einträgst, liegt auf diesem Gerät und wird verschlüsselt gesichert (unten). Für den
+        Vergleich unter <em>Statistik</em> schickst du deinen Stand als Link, und wer ihn
+        bekommt, sieht die Zahlen darin.</p>`
+      : `<p class="small">Die App läuft offline und braucht kein Konto. Was du einträgst, bleibt
         auf diesem Gerät – bis du selbst etwas verschickst: Für den Vergleich unter
         <em>Statistik</em> schickst du deinen Stand als Link, und wer ihn bekommt, sieht die
-        Zahlen darin. Von allein geht nichts irgendwohin.</p>
+        Zahlen darin. Von allein geht nichts irgendwohin.</p>`}
     </div>
     <div class="card">
       <div class="lbl">Wie heißt du?</div>
       <div class="hint">Nur für die Anzeige und für den Vergleich mit Freunden.</div>
       <input type="text" id="nameInput" class="name-input" maxlength="24"
              autocomplete="name" placeholder="Dein Name" aria-label="Dein Name">
-    </div>`, `
+    </div>
+    ${sicherungEinstieg()}`, `
     <div class="card">
       <div class="small muted">Zwei Akzente: der wärmere gilt für die Hantel-Variante, der
         kühlere für Bodyweight. Sonst ändert sich nichts – dunkel bleibt dunkel.</div>
@@ -2917,10 +2982,12 @@ function shareKarte(ausfuehrlich = false) {
             vorkamen, wie oft du den Link weitergeschickt hast und wie viele Stände von
             Freunden du übernommen hast. Dazu eine Zufallszahl, an der dein Gerät
             wiedererkannt wird. Er hat die App gebaut und sieht daran, ob sie benutzt wird
-            und was hakt. Sonst geht nichts raus: keine Uhrzeiten, keine Adressen, nichts
-            von außerhalb dieser App. Gespeichert wird bei Supabase, einem Datenbankdienst;
-            der sieht dabei technisch bedingt die IP-Adresse deines Geräts – in die Tabelle
-            geschrieben wird sie nicht.</div>
+            und was hakt. Sonst geht auf diesem Weg nichts raus: keine Uhrzeiten, keine
+            Adressen, nichts von außerhalb dieser App. Gespeichert wird bei Supabase, einem
+            Datenbankdienst; der sieht dabei technisch bedingt die IP-Adresse deines Geräts –
+            in die Tabelle geschrieben wird sie nicht. Die Sicherung deines Trainings ist
+            davon getrennt: verschlüsselt, lesbar nur mit deinem Schlüssel, eigener Schalter
+            unter <i>Mehr → Daten</i>.</div>
         </div>
         <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-share"
                 aria-label="Nutzung teilen"></button>
@@ -2993,6 +3060,355 @@ function meldeStand(sofort = false) {
     // ein Neuaufbau der Seite eine Zumutung.
     if (ui.tab === 'settings') render();
   });
+}
+
+/* ------------------------------------------------------------------ *
+ * Automatische Sicherung – was davon zu sehen ist
+ *
+ * Die Technik steht in js/sicherung.js. Hier steht, wo man sie sieht:
+ *
+ *   Einstieg, Schritt 1  der Satz, was geschieht, mit dem Schalter daneben,
+ *                        und „Sicherung zurückholen" für den, der umzieht
+ *   Mehr → Daten         derselbe Satz, wann zuletzt gesichert wurde, wo der
+ *                        Schlüssel liegt, und Löschen
+ *   Dashboard            eine Zeile, und nur, wenn etwas zu tun ist
+ *
+ * Ohne Server in js/config.js gibt es nichts davon; dann bleibt die alte
+ * Erinnerung „N Einheiten seit der letzten Sicherung" mit dem Datei-Weg.
+ * ------------------------------------------------------------------ */
+
+function sicherungSatz() {
+  return `Dein Training wird automatisch verschlüsselt auf dem Server von ${esc(CONFIG.betreiber)}
+    gesichert. Lesen kann es nur, wer den Schlüssel hat – der liegt auf diesem Gerät und,
+    sobald du ihn dort ablegst, in deinem Passwortmanager.`;
+}
+
+/** „vor 3 Min." – für „Zuletzt gesichert". */
+function vorWann(iso) {
+  const t = Date.parse(iso || '');
+  if (!Number.isFinite(t)) return 'unbekannt';
+  const min = Math.floor((Date.now() - t) / 60000);
+  if (min < 1) return 'gerade eben';
+  if (min < 60) return `vor ${min} Min.`;
+  if (min < 24 * 60) return `vor ${Math.floor(min / 60)} Std.`;
+  const d = new Date(t);
+  const tag = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `am ${fmtDate(tag)}`;
+}
+
+/** Ein Datum aus den Vermerken („2026-10-13") lesbar. */
+const sicherungTag = (iso) => (iso ? fmtDate(String(iso).slice(0, 10)) : '');
+
+/**
+ * In welcher Lage ist die Sicherung – für das Dashboard, das nur dann etwas
+ * sagt, wenn es etwas zu tun gibt.
+ *
+ *   aus/fehlt/neu  es wird (noch) nicht automatisch gesichert – die alte
+ *                  Erinnerung gilt weiter
+ *   konflikt       angehalten, bis jemand entscheidet
+ *   klemmt         eine Woche lang nichts angekommen
+ *   schluessel     es läuft, aber der Schlüssel liegt nur auf diesem Gerät
+ *   still          alles gut: nichts anzeigen
+ */
+function sicherungLage() {
+  if (!sicherungAn()) return 'aus';
+  const m = sicherungMetaLesen();
+  if (m.fehlt) return 'fehlt';
+  if (m.konflikt) return 'konflikt';
+  if (!m.ok) return 'neu';
+  if (m.fehler && Date.now() - Date.parse(m.ok) > 7 * 24 * 3600 * 1000) return 'klemmt';
+  const a = m.aussen || {};
+  return a.passwort || a.geprueft || a.link ? 'still' : 'schluessel';
+}
+
+/** Der Wiederherstellungs-Link, der beim Öffnen einen Schlüssel mitbrachte. */
+function sicherungAngebotHtml() {
+  if (!ui.sicherungAngebot) return '';
+  return `<div class="notice">🔑 Dieser Link bringt den Schlüssel zu einer Sicherung mit. Zurückholen
+      ersetzt, was hier steht${needsWelcome() ? '' : ' (der jetzige Stand wird beiseitegelegt)'}.
+      <div class="btn-row nav" style="margin-top:10px">
+        <button type="button" class="btn btn-primary" data-act="sicherung-angebot-holen"
+                ${ui.sicherungLaeuft ? 'disabled' : ''}>Zurückholen</button>
+        <button type="button" class="btn btn-ghost" data-act="sicherung-angebot-weg">Verwerfen</button>
+      </div>
+      ${ui.sicherungMeldung ? `<div class="hint" id="sicherungMeldung" style="color:var(--accent);margin-top:8px">${esc(ui.sicherungMeldung)}</div>` : ''}
+    </div>`;
+}
+
+/** Die eine Zeile auf dem Dashboard – sie ersetzt die alte Erinnerung, wo gesichert wird. */
+function sicherungsZeile(due) {
+  const angebot = sicherungAngebotHtml();
+  if (angebot) return angebot;
+  const lage = sicherungLage();
+  const m = sicherungMetaLesen();
+  if (lage === 'konflikt' || lage === 'klemmt') {
+    const was = lage === 'klemmt'
+      ? `Zuletzt gesichert ${vorWann(m.ok)} – seitdem kommt nichts mehr an.`
+      : (m.konflikt.art === 'geloescht'
+        ? 'Sicherung angehalten: Auf dem Server ist sie weg.'
+        : 'Sicherung angehalten: Ein anderes Gerät sichert unter deinem Schlüssel.');
+    return `<div class="notice warn zeile">⚠️ <span>${esc(was)}</span>
+      <button type="button" class="btn" data-act="sicherung-ansehen">Ansehen</button></div>`;
+  }
+  if (lage === 'schluessel') {
+    return `<div class="notice zeile">🔑 <span>Wird automatisch gesichert – der Schlüssel liegt aber
+      nur auf diesem Gerät.</span>
+      <button type="button" class="btn btn-primary" data-act="schluessel-sichern">Schlüssel sichern</button></div>`;
+  }
+  if (lage === 'still') return '';
+  // aus, fehlt, neu: Es wird (noch) nicht automatisch gesichert. Dann die
+  // Erinnerung wie bisher, mit dem Datei-Weg.
+  return due ? `<div class="notice warn">💾 ${esc(plural(due, 'Einheit', 'Einheiten'))} seit der letzten
+        Sicherung. Alles liegt nur in diesem Browser.
+        <button type="button" class="btn btn-block btn-primary" data-act="backup-teilen"
+                style="margin-top:10px">Sicherung weitergeben</button>
+        <div class="small muted" style="margin-top:6px">Geht an Drive, an eine Mail an dich
+          selbst, an was du willst – Hauptsache nicht nur auf dieses Handy.</div></div>` : '';
+}
+
+/** Das Eingabefeld für Schlüssel oder Link – wo der Passwortmanager nichts hergibt. */
+function sicherungEingabeHtml() {
+  return `${ui.sicherungEingabe ? `
+      <input type="text" class="name-input" id="sicherungSchluessel" autocomplete="off"
+             autocapitalize="off" spellcheck="false" placeholder="Schlüssel oder Link"
+             aria-label="Schlüssel oder Wiederherstellungs-Link">
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary btn-block" data-act="sicherung-eingabe-laden"
+                ${ui.sicherungLaeuft ? 'disabled' : ''}>Laden</button>
+      </div>` : ''}
+      ${ui.sicherungMeldung && !ui.sicherungAngebot ? `<div class="hint" id="sicherungMeldung"
+        style="color:var(--accent);margin-top:8px">${esc(ui.sicherungMeldung)}</div>` : ''}`;
+}
+
+/** Einstieg, Schritt 1: der Satz, der Schalter, und der Weg zurück für den, der umzieht. */
+function sicherungEinstieg() {
+  if (!hatServer()) return '';
+  return `
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Automatisch sichern</div>
+          <div class="hint">${sicherungSatz()}</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${sicherungAn()}" data-act="toggle-sicherung"
+                aria-label="Automatisch sichern"></button>
+      </div>
+      <div class="small muted" style="margin-top:10px">Schon auf einem anderen Gerät trainiert?
+        Dann holt dieser Knopf den Stand von dort – mit dem Schlüssel aus deinem
+        Passwortmanager oder dem Link, den du dir geschickt hast.</div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-block" data-act="sicherung-holen"
+                ${ui.sicherungLaeuft ? 'disabled' : ''}>Sicherung zurückholen</button>
+      </div>
+      ${sicherungEingabeHtml()}
+    </div>`;
+}
+
+/** Mehr → Daten: alles, was es über die Sicherung zu wissen und zu tun gibt. */
+function sicherungKarte() {
+  if (!hatServer()) return '';
+  const m = sicherungMetaLesen();
+  const an = sicherungAn();
+  const k = m.konflikt;
+  let lage;
+  if (!an) {
+    lage = 'Abgeschaltet – es geht nichts raus. Was schon auf dem Server liegt, bleibt dort, '
+      + 'bis du es löschst.';
+  } else if (m.fehlt) {
+    lage = `Der Server kennt die Sicherung noch nicht – ${CONFIG.betreiber} muss dort einmal den
+      SQL-Block aus der README ausführen (Abschnitt „Automatische Sicherung"). Bis dahin hilft
+      die Datei unten.`;
+  } else if (k && k.art === 'geloescht') {
+    lage = 'Auf dem Server ist die Sicherung weg – auf einem anderen Gerät gelöscht oder 400 Tage '
+      + 'nicht erneuert. Dieses Gerät sichert erst wieder, wenn du es sagst.';
+  } else if (k) {
+    lage = `Ein anderes Gerät hat unter demselben Schlüssel gesichert${m.ok
+      ? `, nach der letzten Sicherung von hier (${vorWann(m.ok)})` : ''}. Damit dieses Gerät den
+      neueren Stand nicht überschreibt, sichert es gerade nicht. Was soll gelten?`;
+  } else if (m.ok) {
+    lage = `Zuletzt gesichert: ${vorWann(m.ok)}.${m.fehler
+      ? ` Der letzte Versuch ging nicht (${m.fehler}) – wird von selbst wiederholt.` : ''}`;
+  } else if (m.fehler) {
+    lage = `Noch nicht gesichert: ${m.fehler}. Wird von selbst wiederholt.`;
+  } else {
+    lage = 'Noch nichts gesichert – das passiert nach dem ersten Training von selbst.';
+  }
+  const a = m.aussen || {};
+  const wo = [];
+  if (a.geprueft) wo.push(`liegt in deinem Passwortmanager (nachgesehen ${sicherungTag(a.geprueft)})`);
+  else if (a.passwort) {
+    wo.push(`am ${sicherungTag(a.passwort)} an den Passwortmanager übergeben – ob Chrome ihn
+      gespeichert hat, erfährt die App nicht; „Nachsehen" prüft es`);
+  }
+  // „verschickt oder kopiert", nicht „abgelegt": Wohin der Link danach ging,
+  // weiß die App nicht.
+  if (a.link) wo.push(`am ${sicherungTag(a.link)} als Link verschickt oder kopiert`);
+  const schluessel = !m.key
+    ? 'Der Schlüssel entsteht mit der ersten Sicherung.'
+    : wo.length ? `🔑 Schlüssel: ${wo.join('; ')}.`
+      : `🔑 Schlüssel: nur auf diesem Gerät. Geht es verloren, ist die Sicherung nicht mehr zu
+        lesen – auch für ${CONFIG.betreiber} nicht. Leg ihn im Passwortmanager ab oder schick dir
+        den Link.`;
+  const pw = passwortManagerDa();
+  return `
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Automatisch sichern</div>
+          <div class="hint">${sicherungSatz()} Der Server sieht nur eine Zufallskennung, wie
+            groß die Sicherung ist und wann sie kam. Gespeichert wird bei Supabase; was 400 Tage
+            niemand erneuert, löscht der Server von selbst.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${an}" data-act="toggle-sicherung"
+                aria-label="Automatisch sichern"></button>
+      </div>
+      <div class="small muted" id="sicherungStand" style="margin-top:8px">${esc(lage.replace(/\s+/g, ' '))}</div>
+      ${an && k ? `<div class="btn-row">
+        <button type="button" class="btn btn-primary" data-act="sicherung-trotzdem">${k.art === 'geloescht'
+          ? 'Wieder sichern' : 'Diesen Stand sichern'}</button>
+        ${k.art === 'geloescht' ? '' : '<button type="button" class="btn" data-act="sicherung-von-dort">Den Stand von dort holen</button>'}
+      </div>` : ''}
+      <div class="small muted" id="schluesselStand" style="margin-top:8px">${esc(schluessel.replace(/\s+/g, ' '))}</div>
+      ${m.key ? `<div class="btn-row">
+        ${pw ? '<button type="button" class="btn" data-act="schluessel-passwort">Im Passwortmanager ablegen</button>' : ''}
+        ${pw && a.passwort ? '<button type="button" class="btn" data-act="schluessel-pruefen">Nachsehen</button>' : ''}
+        <button type="button" class="btn" data-act="schluessel-link">Link an dich schicken</button>
+      </div>
+      <div class="small muted" style="margin-top:6px">Wer den Link hat, kann deinen Verlauf lesen –
+        schick ihn nur an dich selbst.</div>` : ''}
+      ${ui.sicherungLinkText ? `<input type="text" class="name-input" id="sicherungLink" readonly
+        value="${esc(ui.sicherungLinkText)}" aria-label="Wiederherstellungs-Link">` : ''}
+      <div class="btn-row">
+        <button type="button" class="btn" data-act="sicherung-holen"
+                ${ui.sicherungLaeuft ? 'disabled' : ''}>Sicherung zurückholen</button>
+        ${m.id ? '<button type="button" class="btn btn-ghost" data-act="sicherung-loeschen">Sicherung auf dem Server löschen</button>' : ''}
+      </div>
+      ${sicherungEingabeHtml()}
+    </div>`;
+}
+
+/** Den Namen aus dem Einstieg festhalten, bevor neu gezeichnet wird – sonst wäre er weg. */
+function einstiegNameHalten() {
+  const feld = document.getElementById('nameInput');
+  if (feld) store.setSetting('name', feld.value.trim().slice(0, 24));
+}
+
+/**
+ * Eine geholte Sicherung einspielen: Rückfrage, einlesen, den Schlüssel
+ * übernehmen, neu starten – derselbe Weg wie beim Einlesen einer Datei.
+ */
+async function sicherungEinspielen(key, erg, weg) {
+  if (!ersetzenErlaubt()) return;
+  try {
+    store.importJSON(erg.text);
+  } catch (e) {
+    ui.sicherungMeldung = `Die Sicherung ließ sich nicht einlesen: ${e.message}`;
+    render();
+    return;
+  }
+  await sicherungUebernehmen(key, { stand: erg.stand, weg });
+  ui.setupStep = 0;
+  neuStarten('Sicherung zurückgeholt');
+}
+
+/** Mit einem Schlüssel holen und einspielen; was schiefgeht, steht danach am Knopf. */
+async function sicherungHolenMit(key, weg) {
+  ui.sicherungLaeuft = true;
+  ui.sicherungMeldung = '';
+  render();
+  const erg = await sicherungHolen(key);
+  ui.sicherungLaeuft = false;
+  if (!erg.ok) {
+    ui.sicherungMeldung = erg.msg;
+    render();
+    return;
+  }
+  await sicherungEinspielen(key, erg, weg);
+}
+
+/**
+ * „Sicherung zurückholen": erst der Passwortmanager – dort liegt der
+ * Schlüssel, wenn er synchronisiert wurde, und ein Tipp in der Auswahl genügt.
+ * Gibt es ihn nicht, lehnt er ab oder liefert nichts, kommt das Eingabefeld
+ * für Schlüssel oder Link.
+ */
+async function sicherungHolenStarten() {
+  ui.sicherungMeldung = '';
+  // Wer jetzt selbst zurückholt, meint nicht mehr den Link, mit dem die App
+  // aufging – dessen Angebot (und seine Meldung) räumt das Feld.
+  ui.sicherungAngebot = null;
+  let key = null;
+  try {
+    key = await schluesselAusManager();
+  } catch { key = null; }
+  if (key) {
+    await sicherungHolenMit(key, 'passwort');
+    return;
+  }
+  ui.sicherungEingabe = true;
+  render();
+  const feld = document.getElementById('sicherungSchluessel');
+  if (feld) feld.focus();
+}
+
+/**
+ * Den Schlüssel außerhalb des Geräts ablegen – auf dem Dashboard ein Tipp:
+ * Passwortmanager, wo es ihn gibt, sonst der Link.
+ */
+async function schluesselImManager() {
+  try {
+    await schluesselAblegen();
+    toast('Chrome fragt jetzt, ob es das Passwort „Workout-Sicherung" speichern soll – „Speichern" tippen.');
+    render();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Den Wiederherstellungs-Link an sich selbst schicken – oder kopieren, wo es kein Teilen gibt. */
+async function sicherungsLinkSchicken() {
+  const link = await sicherungLink(appURL());
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Workout-Sicherung',
+        text: 'Schlüssel zu meiner Workout-Sicherung – nur für mich. Auf einem neuen Gerät öffnen, '
+          + 'dann ist das Training wieder da.',
+        url: link,
+      });
+      linkVermerken();
+      toast('Link verschickt – wer ihn hat, kann deinen Verlauf lesen');
+      render();
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+  // Kein Teilen: in die Zwischenablage, und zur Sicherheit sichtbar daneben.
+  ui.sicherungLinkText = link;
+  try {
+    await navigator.clipboard.writeText(link);
+    toast('Link kopiert – leg ihn außerhalb dieses Geräts ab, etwa als Mail an dich');
+  } catch {
+    toast('Link steht unter dem Knopf – kopieren und außerhalb dieses Geräts ablegen');
+  }
+  linkVermerken();
+  render();
+}
+
+/**
+ * Schlüssel aus der Adresse lesen – und den Anker sofort entfernen.
+ *
+ * Wie beim geschickten Stand (standAusAdresse()), nur mit mehr auf dem Spiel:
+ * Der Anker ist der Schlüssel. Er geht nie an einen Server – ein Anker gehört
+ * nicht zur Anfrage –, aber er soll auch nicht im Verlauf stehen bleiben.
+ */
+function sicherungAusAdresse() {
+  const treffer = /[#&]sicherung=([A-Za-z0-9_-]+)/.exec(location.hash);
+  if (!treffer) return null;
+  history.replaceState(history.state, '', location.pathname + location.search);
+  return schluesselAus(`#sicherung=${treffer[1]}`);
 }
 
 /* ------------------------------------------------------------------ *
@@ -6536,13 +6952,17 @@ function renderSettings() {
       </div>
     </div>
 
-    <div class="section-title">Daten</div>
+    <div class="section-title" id="daten">Daten</div>
+    ${sicherungKarte()}
     <div class="card">
+      ${ui.teilenFehler ? `<div class="notice warn" id="teilenFehler">Teilen hat dein Browser
+        abgelehnt (${esc(ui.teilenFehler)}). Die Sicherung wurde stattdessen heruntergeladen – kam
+        kein Download, steht sie unten im Textfeld zum Kopieren.</div>` : ''}
       <div class="small muted">Alles liegt lokal im Browser – Android räumt den bei Platzmangel weg.
         ${(() => {
           const b = store.getState().lastBackup;
-          if (!b) return 'Noch nie gesichert.';
-          return `Zuletzt gesichert am ${esc(fmtDate(b.on))}, nach ${esc(plural(b.done, 'Einheit', 'Einheiten'))}.`;
+          if (!b) return hatServer() ? 'Als Datei noch nie gesichert.' : 'Noch nie gesichert.';
+          return `${hatServer() ? 'Als Datei zuletzt' : 'Zuletzt'} gesichert am ${esc(fmtDate(b.on))}, nach ${esc(plural(b.done, 'Einheit', 'Einheiten'))}.`;
         })()}</div>
       <div class="small muted" style="margin-top:6px">${store.getState().dauerhaft
         ? 'Der Browser hat zugesagt, diesen Speicher nicht von selbst freizugeben.'
@@ -6599,6 +7019,12 @@ function renderSettings() {
 
   showVersion();
   tonStandZeigen();
+  // Hat der Browser das Teilen abgelehnt, steht die Sicherung schon im
+  // Textfeld – der Weg, der auch ohne Download und ohne Teilen geht.
+  if (ui.teilenFehler) {
+    const io = document.getElementById('io');
+    if (io && !io.value) io.value = store.exportJSON();
+  }
 }
 
 /**
@@ -6854,6 +7280,9 @@ function trainingBeenden(n, mode) {
   if (prog.done) store.markDone(n, mode);
   store.endSession();
   meldeStand(true);
+  // Nach einer Einheit sofort, an der Drossel vorbei: Das ist der Stand, der
+  // am meisten wert ist, und das Handy liegt danach oft für Stunden.
+  sicherungJetzt();
   ui.focus = false;
   ui.listView = false;
   if (store.getState().rest) endRest(false);
@@ -7664,6 +8093,90 @@ view.addEventListener('click', (e) => {
       render();
       break;
     }
+    // --- Automatische Sicherung (js/sicherung.js) ---
+    case 'toggle-sicherung': {
+      einstiegNameHalten();
+      const an = !sicherungAn();
+      sicherungSchalten(an);
+      render();
+      toast(an ? 'Wird ab jetzt automatisch gesichert'
+        : 'Abgeschaltet – es geht nichts mehr raus. Was schon dort liegt, löscht der Knopf unter Mehr.');
+      break;
+    }
+    case 'sicherung-holen':
+      einstiegNameHalten();
+      sicherungHolenStarten();
+      break;
+    case 'sicherung-eingabe-laden': {
+      const feld = document.getElementById('sicherungSchluessel');
+      const key = schluesselAus(feld ? feld.value : '');
+      if (!key) {
+        ui.sicherungMeldung = 'Das ist kein gültiger Schlüssel – gemeint ist der Link, den du dir '
+          + 'geschickt hast, oder die 43 Zeichen hinter „#sicherung=".';
+        render();
+        break;
+      }
+      sicherungHolenMit(key, 'link');
+      break;
+    }
+    case 'sicherung-angebot-holen':
+      if (ui.sicherungAngebot) sicherungHolenMit(ui.sicherungAngebot, 'link');
+      break;
+    case 'sicherung-angebot-weg':
+      ui.sicherungAngebot = null;
+      ui.sicherungMeldung = '';
+      render();
+      break;
+    case 'sicherung-ansehen':
+      go('settings');
+      { const ziel = document.getElementById('daten'); if (ziel) ziel.scrollIntoView(); }
+      break;
+    case 'schluessel-sichern':
+      // Ein Tipp: Passwortmanager, wo es ihn gibt – sonst, oder wenn der
+      // Browser ablehnt (Chrome ohne Oberfläche tut das), der Link.
+      (async () => {
+        if (passwortManagerDa() && await schluesselImManager()) return;
+        await sicherungsLinkSchicken();
+      })();
+      break;
+    case 'schluessel-passwort':
+      schluesselImManager().then((ok) => {
+        if (!ok) toast('Der Browser nimmt den Schlüssel nicht an – nimm den Link');
+      });
+      break;
+    case 'schluessel-pruefen':
+      schluesselPruefen().then((da) => {
+        toast(da ? 'Liegt im Passwortmanager ✓'
+          : 'Im Passwortmanager liegt er nicht – leg ihn ab oder schick dir den Link');
+        render();
+      }).catch(() => toast('Der Passwortmanager hat nicht geantwortet'));
+      break;
+    case 'schluessel-link':
+      sicherungsLinkSchicken();
+      break;
+    case 'sicherung-trotzdem':
+      if (!confirm('Diesen Stand auf den Server legen? Was ein anderes Gerät dort zuletzt gesichert '
+        + 'hat, wird damit ersetzt.')) break;
+      sicherungTrotzdem().then(({ ok, msg }) => {
+        toast(ok ? 'Gesichert' : (msg || 'Hat nicht geklappt – später noch einmal'));
+        render();
+      });
+      break;
+    case 'sicherung-von-dort': {
+      const key = sicherungMetaLesen().key;
+      if (key) sicherungHolenMit(key, 'eigen');
+      break;
+    }
+    case 'sicherung-loeschen':
+      if (!confirm('Die Sicherung auf dem Server löschen? Danach ist auch die automatische Sicherung '
+        + 'abgeschaltet – sonst käme sie mit der nächsten Änderung wieder. Auf diesem Gerät bleibt alles.')) break;
+      sicherungLoeschen().then(({ ok, zeilen, msg }) => {
+        if (!ok) toast(msg || 'Hat nicht geklappt – später noch einmal');
+        else toast(zeilen === 0 ? 'Da lag nichts – jetzt ist es auch abgeschaltet' : 'Gelöscht – und abgeschaltet');
+        render();
+      });
+      render();
+      break;
     case 'toggle-tab': {
       const key = t.dataset.v;
       const drin = new Set(store.getState().tabs || ['stats']);
@@ -7956,7 +8469,13 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'reset-all':
-      if (confirm('Wirklich alle protokollierten Sätze und Einstellungen löschen?')) {
+      if (confirm(`Wirklich alle protokollierten Sätze und Einstellungen löschen?${
+        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}`)) {
+        // Die Sicherung auf dem Server gehört dazu: Bliebe sie stehen, schriebe
+        // das erste Training danach einen fast leeren Stand darüber – oder sie
+        // läge für immer dort, ohne Schlüssel auf diesem Gerät, der an sie
+        // herankommt. Beides wäre eine Änderung, die niemand bemerkt.
+        sicherungVergessen();
         // Erst die Zeile auf dem Server, dann den Speicher: Danach ist die
         // Kennung weg, mit der sie zu finden wäre – sie bliebe für immer
         // stehen, obwohl hier gerade alles gelöscht wird.
@@ -8140,6 +8659,9 @@ document.addEventListener('visibilitychange', () => {
     // Ab hier zaehlt der Worker sichtbar mit – die Seite friert gleich ein.
     swSichtbar(false);
     store.flush();
+    // Was fertig verschlüsselt bereitliegt, geht mit keepalive hinterher –
+    // nur unter 64 KB, sonst beim nächsten Start (js/sicherung.js).
+    sicherungVerstecken();
     return;
   }
   if (wegSeit) {
@@ -8226,6 +8748,14 @@ ui.standAngebot = standAusAdresse();
 // braucht keine eigene Ansicht, weil er nichts zeigt, was man vergleichen
 // müsste: Er trägt ein, was man ohnehin gerade eintippen wollte.
 eisenAusAdresse();
+// Ein Wiederherstellungs-Link: Der Schlüssel steht im Anker. Zurückgeholt wird
+// erst auf Tipp – der Einstieg oder das Dashboard bietet es an.
+ui.sicherungAngebot = sicherungAusAdresse();
+if (ui.sicherungAngebot) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
+  ui.listView = false;
+}
 
 // Einmal beim Start den Browser bitten, diesen Speicher nicht von selbst
 // freizugeben. Ohne await: Das Ergebnis interessiert erst, wenn jemand unter
@@ -8235,6 +8765,13 @@ speicherFestnageln();
 // das ein Sprung innerhalb derselben Seite, sie lädt nicht neu, und ohne diesen
 // Horcher passierte schlicht nichts.
 window.addEventListener('hashchange', eisenAusAdresse);
+window.addEventListener('hashchange', () => {
+  const key = sicherungAusAdresse();
+  if (!key) return;
+  ui.sicherungAngebot = key;
+  ui.sicherungMeldung = '';
+  go('dashboard');
+});
 // Nach einem Import oder dem Einstieg mit anderem Fokus wurde neu geladen – die
 // Meldung dazu kommt erst jetzt, sonst ginge sie mit dem Neuladen verloren.
 ['workout.nachImport', 'workout.nachEinstieg'].forEach((schluessel) => {
@@ -8483,8 +9020,46 @@ store.subscribe(() => {
 store.subscribe(() => { erinnerungPflegen(); });
 erinnerungPflegen();
 
+/*
+ * Die automatische Sicherung anschließen (js/sicherung.js).
+ *
+ * Gesichert wird der Stand, den auch die Sicherungsdatei hat – ohne das
+ * Betreiber-Passwort, das exportJSON() ebenfalls weglässt. Und erst, wenn der
+ * Einstieg den Satz dazu gezeigt hat und es etwas zu sichern gibt: Ein frisches
+ * Gerät, das nur seinen Namen kennt, hat nichts, was einen Server braucht – und
+ * es soll erst die Gelegenheit haben, eine vorhandene Sicherung zurückzuholen.
+ */
+sicherungEinrichten({
+  stand: () => {
+    const { adminPass, ...rest } = store.getState();
+    void adminPass;
+    return rest;
+  },
+  darf: () => {
+    if (needsWelcome()) return false;
+    const s = store.getState();
+    return Object.keys(s.log || {}).length > 0 || (s.rounds || []).length > 0
+      || (s.customs || []).length > 0 || Object.keys(s.weights || {}).length > 0;
+  },
+  nachher: (() => {
+    // Neu zeichnen nur, wo sich dadurch etwas ändert: unter Mehr, und auf dem
+    // Dashboard, wenn die eine Zeile kommt oder geht. Mitten im Training nie.
+    // Und nie, während jemand tippt – der Neuaufbau nähme ihm das Feld weg.
+    let lage = sicherungLage();
+    return () => {
+      const neu = sicherungLage();
+      const dash = ui.tab === 'dashboard' && !ui.focus && !ui.listView && neu !== lage;
+      lage = neu;
+      const tippt = !!document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+      if ((ui.tab === 'settings' || dash) && !tippt) render();
+    };
+  })(),
+});
+store.subscribe(() => { sicherungGeaendert(); });
+
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist
+sicherungStart();    // wenn seit der letzten Sicherung etwas dazukam
 store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit
 // Neu geladen und sichtbar: Die Uhr eines laufenden Trainings muss wieder
 // anlaufen. Ohne diese Zeile stünde sie bis zum nächsten Wegschalten still.

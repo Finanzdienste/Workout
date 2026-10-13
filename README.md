@@ -4,9 +4,13 @@ Trainings-App zum Plan aus `Workoutplan_mit_Bodyweight_Equivalent.xlsx` – mit
 Wahl zwischen **Hantel-Variante** und der **Fassung für unterwegs**
 (Körpergewicht, Loop-Band und Klimmzugstange).
 
-Statische Web-App: kein Build, keine Abhängigkeiten, keine Server-Anbindung.
-`index.html` im Browser öffnen oder über GitHub Pages ausliefern. Alle
-protokollierten Sätze liegen lokal im `localStorage` des Geräts.
+Statische Web-App: kein Build, keine Abhängigkeiten, kein Server, den sie zum
+Laufen braucht. `index.html` im Browser öffnen oder über GitHub Pages
+ausliefern. Alle protokollierten Sätze liegen lokal im `localStorage` des
+Geräts; ist in `js/config.js` ein Server eingetragen, gehen ein paar Zahlen an
+den Betreiber ([Rückkanal](#rückkanal-und-betreiber-übersicht)) und das
+Training verschlüsselt in die [Sicherung](#automatische-sicherung) – beides
+offengelegt und abschaltbar.
 
 > **Daneben, im selben Repository:** [`schilddruese/`](schilddruese/README.md)
 > – eine zweite, eigenständige App für den Alltag mit
@@ -2430,9 +2434,12 @@ herausreißt.
 
 Alles liegt im `localStorage` genau eines Browsers. Android räumt den bei
 Platzmangel weg, und „Websitedaten löschen" reicht ebenfalls – ein halbes Jahr
-Training wäre weg. Deshalb erinnert die Startansicht nach acht erledigten
-Einheiten daran und bietet die Sicherung direkt an; in *Mehr* steht, wann
-zuletzt gesichert wurde.
+Training wäre weg. Deshalb sichert die App seit v240 **von selbst** –
+verschlüsselt, auf dem Server des Betreibers, lesbar nur mit dem Schlüssel des
+Nutzers (siehe [Automatische Sicherung](#automatische-sicherung)). Wo es keinen
+Server gibt oder die Sicherung abgeschaltet ist, erinnert die Startansicht wie
+bisher nach acht erledigten Einheiten daran und bietet die Datei direkt an; in
+*Mehr* steht, wann zuletzt gesichert wurde.
 
 **Umzug auf ein anderes Gerät oder in die installierte App.** *Genau eines
 Browsers* ist dabei wörtlich zu nehmen: Chrome und Firefox teilen sich nichts,
@@ -2463,6 +2470,179 @@ Sicherung aus einem älteren Planstand mit angefangener Einheit zeigte sonst bis
 zum nächsten Öffnen die Übungen des neuen Plans; wer weitertrainierte, bekam
 danach die alte Liste festgeschrieben und eine schon gemachte Übung offen
 daneben. Dasselbe gilt für „Stand von vor dem Import zurückholen".
+
+### „Sicherung weitergeben" tat nichts
+
+> „Wenn ich auch 'Sicherung weitergeben' klicke passiert nichts."
+
+Stimmt, und zwar aus zwei Gründen, die sich gegenseitig verdeckt haben:
+
+* **Der Typ.** Chrome teilt Dateien nur mit bestimmten Endungen und Typen –
+  Text, Bilder, Audio, Video, PDF (`ShareServiceImpl.PERMITTED_EXTENSIONS` und
+  `PERMITTED_MIME_TYPES` im Chromium-Quelltext, für Android und Desktop gleich).
+  `.json` und `application/json` stehen nicht darauf. `canShare()` sagt
+  trotzdem ja, weil es den Typ gar nicht prüft; erst `share()` lehnt im
+  Browserprozess ab, mit `NotAllowedError`.
+* **Das Schweigen.** Der Fehler landete in `catch { return; }` mit dem
+  Kommentar „abgebrochen – kein Grund für eine Meldung". Abgebrochen ist aber
+  nur ein `AbortError`. Die Ablehnung wurde mitverschluckt: kein Dialog, keine
+  Meldung, kein Download, nichts.
+
+Jetzt geht die Datei als **`.txt` mit genau `text/plain`** raus – der Vergleich
+in Chrome ist exakt, `text/plain;charset=utf-8` fiele schon wieder durch.
+*Datei laden* nimmt `.txt` ohnehin an. Ein Abbruch bleibt still; jede andere
+Ablehnung endet im Download, mit einer Meldung, die den Grund nennt, und mit der
+Sicherung im Textfeld unter *Mehr → Daten*. Das Textfeld ist der Weg, der
+sicher geht: Ob ein Download nach einer abgelehnten Freigabe, also ohne frische
+Berührung, auf jedem Handy durchkommt, ist nicht belegt.
+
+`tests/test-sicherung.mjs` spielt alle drei Antworten durch – geteilt,
+abgebrochen, abgelehnt – und liest die geteilte `.txt` wieder ein.
+
+### Automatische Sicherung
+
+> „Lass das doch generell einfach automatisch sichern"
+
+Bis v239 stand im Code ausdrücklich das Gegenteil: *Was hier bewusst nicht
+passiert: die Sicherung von selbst irgendwohin schicken.* Tobi ist Nutzer und
+Betreiber in einer Person und hat das anders entschieden. Die Grundsätze
+dahinter gelten weiter, und an ihnen hängt die ganze Bauart:
+**offengelegt, abschaltbar, löschbar – und lesen kann es niemand außer dem
+Besitzer des Schlüssels, auch der Betreiber nicht.**
+
+**Ende-zu-Ende verschlüsselt.** Beim ersten Mal erzeugt das Gerät einen
+Schlüssel aus 256 Bit Zufall (WebCrypto). Er geht nie über die Leitung. Was
+hinausgeht, ist der Stand – derselbe wie in der Sicherungsdatei –, mit gzip
+gepackt und mit AES-GCM verschlüsselt, mit frischem IV bei jedem Mal. Der Server
+sieht:
+
+| Feld | Was es ist |
+| --- | --- |
+| `id` | SHA-256 über `"id:"` + Schlüssel, hex – eine Zufallskennung |
+| `w_hash` | SHA-256 der Schreibmarke; die Marke selbst (SHA-256 über `"w:"` + Schlüssel) wird nicht gespeichert |
+| `daten`, `iv` | Chiffrat und IV, base64 |
+| `groesse`, `stand` | Länge des Chiffrats, Zeitpunkt der letzten Sicherung |
+
+Ein halbes Jahr Training sind gepackt rund 30 bis 60 KB statt 300 bis 500 KB
+(gemessen an der Hochrechnung aus `tests/zusatz-tobi-do.json`). Ob gepackt
+wurde, steht als erstes Byte *im* Chiffrat – von außen nicht einmal das.
+
+**Wann.** Nur, wenn sich der Inhalt geändert hat: Das Gerät merkt sich den Hash
+des zuletzt gesicherten Klartexts. Felder, die sich ohne Training ändern – der
+offene Reiter, die laufende Pause, die Uhr der Einheit, was dem Rückkanal
+gemeldet wurde –, zählen dabei nicht, sonst schickte jedes Wegschalten eine
+neue Sicherung los.
+
+| Anlass | Wann |
+| --- | --- |
+| eine Einheit abgeschlossen | sofort, an der Drossel vorbei |
+| jede andere Änderung | gedrosselt: höchstens alle zwei Minuten |
+| Start der App | wenn seit der letzten Sicherung etwas dazukam – und alle 30 Tage ohnehin, damit die 400 Tage (unten) nie ablaufen, solange die App benutzt wird |
+| App weggelegt | nur, was schon fertig verschlüsselt bereitliegt und unter 64 KB bleibt – mehr trägt `keepalive` nicht, und ohne `keepalive` stirbt die Anfrage mit der eingefrorenen Seite |
+| kein Netz | still; nachgeholt beim nächsten Anlass oder sobald der Browser „online" meldet |
+
+Erst, wenn der Einstieg den Satz dazu gezeigt hat und es etwas zu sichern gibt:
+Ein frisches Gerät, das nur seinen Namen kennt, schickt nichts – es soll erst
+die Gelegenheit haben, eine vorhandene Sicherung zurückzuholen.
+
+**Zwei Geräte, ein Schlüssel.** Nach einem Umzug ist das der Normalfall,
+solange das alte Handy noch herumliegt – und das alte Handy rückt beim nächsten
+Öffnen den Plan nach, ändert also seinen Stand. Ohne Vorkehrung hätte es den
+neueren Stand des neuen Handys still überschrieben. Jedes Schreiben nennt
+deshalb den Stand, den es zu ersetzen glaubt (`p_vorher`); hat dazwischen ein
+anderes Gerät geschrieben, lehnt der Server mit `veraltet` ab. Das Gerät hört
+dann auf, sagt es auf dem Dashboard („Sicherung angehalten") und unter *Mehr*
+mit zwei Knöpfen: *Diesen Stand sichern* oder *Den Stand von dort holen*. Ein
+zweites Fenster derselben App auf demselben Gerät ist kein fremdes Gerät – es
+legt seinen Stand in denselben Speicher, und daran erkennt die App es.
+
+**Zurückholen auf einem neuen Gerät.** Im Einstieg (Schritt 1) und unter
+*Mehr → Daten* steht *Sicherung zurückholen*:
+
+1. Erst der **Passwortmanager**: `navigator.credentials.get({password: true,
+   mediation: 'optional'})`. Chrome zeigt die Kontoauswahl, ein Tipp genügt.
+   (`'silent'` liefert auf einem neuen Gerät praktisch immer nichts, weil die
+   Einführung zur automatischen Anmeldung dort noch nicht gezeigt wurde.)
+2. Gibt es ihn nicht oder liefert er nichts: ein **Eingabefeld** für den
+   Schlüssel oder den ganzen Wiederherstellungs-Link.
+3. Oder gleich der **Link**: `…/#sicherung=<Schlüssel>`. Er öffnet die App mit
+   dem Angebot „Zurückholen". Der Anker gehört nicht zur Anfrage, der Schlüssel
+   erreicht also keinen Server, und die App entfernt ihn sofort aus der Adresse.
+
+Danach derselbe Weg wie beim Einlesen einer Datei: Rückfrage, wenn hier schon
+ein Verlauf steht, der bisherige Stand wird beiseitegelegt, Neuladen. Das Gerät
+sichert ab da unter dem geholten Schlüssel weiter. Hatte es vorher unter einem
+eigenen gesichert, wird diese Sicherung auf dem Server gelöscht – sonst läge sie
+bis zum Ablauf der 400 Tage dort, und kein Knopf käme mehr an sie heran.
+
+**Der Schlüssel muss aus dem Gerät heraus**, sonst ist die Sicherung mit dem
+Handy verloren. Zwei Wege, beide unter *Mehr → Daten*:
+
+* **Passwortmanager.** `navigator.credentials.store(new PasswordCredential(…))`
+  – Chrome synchronisiert den Eintrag über das Google-Konto auf jedes Gerät mit
+  demselben Konto. Eine Nutzergeste braucht `store()` nicht, aber Chrome fragt
+  bei einem neuen Eintrag nach („Passwort speichern?"), und **die Seite erfährt
+  nie, ob gespeichert wurde**: Das Versprechen erfüllt sich, bevor Chrome
+  überhaupt fragt. Die App sagt deshalb „übergeben", nicht „gespeichert", und
+  *Nachsehen* prüft es mit der Kontoauswahl. Der Benutzername trägt den Anfang
+  der Kennung (`workout-sicherung-1a2b3c4d`): Ein zweiter Eintrag unter
+  demselben Namen ersetzte den ersten **still** – ein frisches Gerät, das ablegt,
+  bevor es zurückholt, hätte damit den einzigen Weg zur alten Sicherung
+  überschrieben. Der Eintrag gilt für den ganzen Ursprung
+  (`finanzdienste.github.io`); fremde GitHub-Konten kommen nicht heran, weil
+  `github.io` auf der Public-Suffix-List steht.
+* **Link an dich schicken.** Über den Teilen-Dialog, als Mail oder Notiz an sich
+  selbst; ohne Teilen in die Zwischenablage und sichtbar ins Feld. **Wer den
+  Link hat, kann den Verlauf lesen** – das steht direkt darunter.
+
+Auf dem Dashboard ersetzt eine einmalige Zeile die alte Erinnerung, solange der
+Schlüssel nur auf dem Gerät liegt: „Wird automatisch gesichert – der Schlüssel
+liegt aber nur auf diesem Gerät. *Schlüssel sichern*". Ein Tipp: der
+Passwortmanager, wo es ihn gibt, sonst – oder wenn der Browser ablehnt – der
+Link. Danach ist sie weg, und die Erinnerung „N Einheiten seit der letzten
+Sicherung" kommt nicht wieder, solange automatisch gesichert wird.
+
+**Offengelegt, abschaltbar, löschbar.** Im Einstieg, Schritt 1, und unter
+*Mehr → Daten* steht derselbe Satz – *„Dein Training wird automatisch
+verschlüsselt auf dem Server von Tobi gesichert. Lesen kann es nur, wer den
+Schlüssel hat – der liegt auf diesem Gerät und, sobald du ihn dort ablegst, in
+deinem Passwortmanager."* –, mit dem Schalter daneben (Standard: an). Unter
+*Mehr* dazu: „Zuletzt gesichert: vor 3 Min.", wo der Schlüssel liegt, und
+*Sicherung auf dem Server löschen* (schaltet zugleich ab, sonst käme sie mit der
+nächsten Änderung wieder). Abgeschaltet heißt: keine einzige Anfrage, auch
+nicht beim Start. *Alle Daten löschen* nimmt die Sicherung auf dem Server mit –
+bliebe sie stehen, schriebe das erste Training danach einen fast leeren Stand
+darüber. Was 400 Tage niemand erneuert hat, löscht der Server von selbst.
+
+**Wenn der Server die Funktionen nicht kennt** (der SQL-Block lief noch nicht),
+antwortet PostgREST mit 404 und `PGRST202`. Die App sagt das unter *Mehr*, ruhig
+und ohne Meldung, versucht es einmal je Start und nicht bei jeder Änderung, und
+bis dahin gilt die alte Erinnerung mit dem Datei-Weg.
+
+**Was nicht belegt ist**, ehrlich dazugesagt:
+
+* ob Chrome die Abfrage „Passwort speichern?" auch in der installierten App
+  (WebAPK) zeigt – im Quelltext gibt es Hinweise darauf, auf einem Gerät
+  geprüft ist es nicht. Deshalb *Nachsehen* und der Link daneben;
+* ob eine `keepalive`-Anfrage mit CORS-Vorabanfrage (der `apikey`-Kopf löst
+  eine aus) auf jedem Chrome durchgeht. Scheitert sie, holt der nächste Start
+  es nach – verloren geht nichts.
+
+Die Datei-Wege – *Als Datei sichern*, *Datei laden*, *Sicherung weitergeben* –
+stehen unverändert unter *Mehr → Daten*, für den, der keinen Server will oder
+hat. Einzurichten ist die Sicherung einmal auf dem Server:
+[Automatische Sicherung einrichten](#automatische-sicherung-einrichten).
+
+`tests/test-sicherung-auto.mjs` spielt den Server mit der Semantik der drei
+Funktionen nach und prüft: Der Server bekommt kein Klartext-Fragment (keinen
+Namen, keine Übung, kein `"log"`), der Schlüssel geht nie über die Leitung,
+entschlüsseln lässt es sich nur mit ihm; gesichert wird nach dem Abschluss
+sofort, sonst höchstens alle zwei Minuten, beim Weglegen nur unter 64 KB und nur
+bei Änderung; zurückgeholt auf frischen Geräten über den (nachgebildeten)
+Passwortmanager und über den Link; ein falscher Schlüssel findet nichts; fehlen
+die Funktionen, bleibt es bei einem Versuch; abgeschaltet geht keine Anfrage
+raus; Löschen löscht; und ein zweites Gerät mit demselben Schlüssel wird nicht
+still überschrieben.
 
 ### Die Ablage liegt nicht mehr im Weg jedes abgehakten Satzes
 
@@ -5803,7 +5983,11 @@ nächsten Training.
 ### Einrichten in vier Schritten
 
 Wer den Link zum ersten Mal öffnet, bekommt **Name, Farbe, Erfahrung, Fokus** –
-in dieser Reihenfolge, eine Frage pro Bildschirm. Die Farbe wirkt sofort, damit
+in dieser Reihenfolge, eine Frage pro Bildschirm. Im ersten Schritt steht
+außerdem, wo ein Server eingetragen ist, der Satz zur
+[automatischen Sicherung](#automatische-sicherung) mit dem Schalter daneben und
+*Sicherung zurückholen* für den, der von einem anderen Gerät kommt – er
+überspringt damit die übrigen Fragen. Die Farbe wirkt sofort, damit
 die Auswahl nicht abstrakt bleibt; bei der Erfahrung stehen zwei Beispielgewichte
 unter jeder Stufe. Am Ende steht der Hinweis, dass sich unter *Mehr → Eigenes
 Workout* ohnehin jede Einheit selbst zusammenstellen lässt: Der Fokus ist ein
@@ -5970,8 +6154,13 @@ Die alten Zeilen stehen weiter in der Tabelle. Sie zu löschen ist eine
 Entscheidung des Betreibers, kein Aufräumen nebenbei.
 
 Heimlich mitzuzählen wäre technisch dasselbe und trotzdem etwas anderes: Die App
-verspricht jedem beim ersten Start, dass nichts von allein sein Gerät verlässt.
-Eine Zusage, die sie an anderer Stelle bricht, ist schlimmer als gar keine.
+sagt jedem beim ersten Start, was von allein sein Gerät verlässt und an wen –
+die Zahlen des Rückkanals und, verschlüsselt, die
+[automatische Sicherung](#automatische-sicherung) –, jeweils mit eigenem
+Schalter. Eine Zusage, die sie an anderer Stelle bricht, ist schlimmer als gar
+keine. Bis v239 lautete diese Zusage noch „von allein geht nichts irgendwohin";
+mit der automatischen Sicherung stimmte der Satz nicht mehr und ist deshalb aus
+dem Einstieg verschwunden, statt stehen zu bleiben.
 
 ### Die Testleichen wegräumen
 
@@ -6187,6 +6376,148 @@ und auf die Tabelle selbst hat außer ihr niemand ein Recht.
 
 Wer eine ältere Einrichtung mit Regeln statt Funktionen hat, muss nichts tun –
 die App fällt darauf zurück, wenn es `melde` nicht gibt.
+
+### Automatische Sicherung einrichten
+
+Die [automatische Sicherung](#automatische-sicherung) braucht eine eigene
+Tabelle und drei Funktionen. Einmal im **SQL-Editor** ausführen – derselbe Text
+steht in [`tools/sicherung.sql`](tools/sicherung.sql). Ein Passwort braucht er
+nicht: Aus der Tabelle kommt nur Chiffrat, und lesbar ist es nur mit dem
+Schlüssel auf dem Gerät. Wie der Block oben ist er wiederholbar und löscht keine
+Sicherung.
+
+```sql
+create table if not exists sicherung (
+  id       text primary key,
+  w_hash   text not null,
+  daten    text not null,
+  iv       text not null,
+  groesse  int  not null,
+  stand    timestamptz not null default now(),
+  angelegt timestamptz not null default now()
+);
+
+-- Falls die Tabelle aus einer früheren Fassung dieses Blocks stammt.
+alter table sicherung add column if not exists angelegt timestamptz not null default now();
+
+alter table sicherung enable row level security;
+
+-- Erst weg, dann neu: Ändert sich eine Signatur oder ein Rückgabetyp,
+-- verweigert "create or replace" den Dienst.
+drop function if exists sicherung_schreiben(text, text, text, text, timestamptz);
+drop function if exists sicherung_lesen(text);
+drop function if exists sicherung_loeschen(text, text);
+
+-- Anlegen oder ersetzen – Ersetzen nur mit passender Schreibmarke und nur, wenn
+-- `p_vorher` der Stand ist, der dort gerade liegt. Sonst hat dazwischen ein
+-- anderes Gerät mit demselben Schlüssel geschrieben ('veraltet'), oder die
+-- Sicherung wurde inzwischen gelöscht ('geloescht'). Die App hört dann auf und
+-- fragt, statt den anderen Stand still zu überschreiben.
+create or replace function sicherung_schreiben(
+  p_id text, p_w text, p_daten text, p_iv text, p_vorher timestamptz default null)
+returns timestamptz
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  marke text;
+  alt   sicherung%rowtype;
+  jetzt timestamptz := now();
+begin
+  -- Schreiben darf jeder, der den Link hat. Was er schreibt, hat trotzdem eine
+  -- Form zu haben – und eine Größe, die der kostenlose Tarif verträgt.
+  if p_id is null or p_id !~ '^[0-9a-f]{64}$' then raise exception 'ungueltige Kennung'; end if;
+  if p_w is null or p_w !~ '^[0-9a-f]{64}$' then raise exception 'ungueltige Schreibmarke'; end if;
+  if p_iv is null or p_iv !~ '^[A-Za-z0-9+/]{16}$' then raise exception 'ungueltiger IV'; end if;
+  if p_daten is null or length(p_daten) < 24 then raise exception 'leere Sicherung'; end if;
+  if length(p_daten) > 2 * 1024 * 1024 then raise exception 'Sicherung zu gross'; end if;
+  marke := encode(sha256(convert_to(p_w, 'UTF8')), 'hex');
+
+  -- Aufräumen nebenbei: Was 400 Tage niemand erneuert hat, gehört zu keinem
+  -- Gerät mehr. Die App erneuert spätestens alle 30 Tage, solange sie benutzt
+  -- wird – hier verschwindet also nur Verwaistes.
+  delete from sicherung where stand < now() - interval '400 days';
+
+  select * into alt from sicherung where id = p_id for update;
+  if not found then
+    if p_vorher is not null then raise exception 'geloescht'; end if;
+    -- Eine einfache Drossel gegen Missbrauch: nicht beliebig viele neue
+    -- Sicherungen je Stunde, nicht mehr als 200 MB insgesamt.
+    if (select count(*) from sicherung where angelegt > now() - interval '1 hour') >= 100 then
+      raise exception 'zu viele neue Sicherungen';
+    end if;
+    if (select coalesce(sum(groesse), 0) from sicherung) + length(p_daten) > 200 * 1024 * 1024 then
+      raise exception 'Server voll';
+    end if;
+    insert into sicherung (id, w_hash, daten, iv, groesse, stand, angelegt)
+      values (p_id, marke, p_daten, p_iv, length(p_daten), jetzt, jetzt);
+    return jetzt;
+  end if;
+
+  if alt.w_hash is distinct from marke then raise exception 'Schreibmarke passt nicht'; end if;
+  if p_vorher is distinct from alt.stand then raise exception 'veraltet'; end if;
+  if alt.stand > now() - interval '10 seconds' then raise exception 'zu oft'; end if;
+  if (select coalesce(sum(groesse), 0) from sicherung) - alt.groesse + length(p_daten)
+       > 200 * 1024 * 1024 then
+    raise exception 'Server voll';
+  end if;
+  update sicherung
+     set daten = p_daten, iv = p_iv, groesse = length(p_daten), stand = jetzt
+   where id = p_id;
+  return jetzt;
+end $$;
+
+-- Lesen mit der Kennung allein: Ohne den Schlüssel ist das Chiffrat Rauschen,
+-- und die Kennung ist eine 256-Bit-Zufallszahl – erraten lässt sie sich nicht.
+create or replace function sicherung_lesen(p_id text)
+returns table (daten text, iv text, groesse int, stand timestamptz)
+language sql security definer set search_path = public, pg_temp as $$
+  select s.daten, s.iv, s.groesse, s.stand from sicherung s where s.id = p_id;
+$$;
+
+-- Der Weg zurück. Gibt zurück, wie viele Zeilen weggingen – sonst müsste die
+-- App "Gelöscht" sagen, ohne es zu wissen.
+create or replace function sicherung_loeschen(p_id text, p_w text)
+returns int
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare weg int;
+begin
+  delete from sicherung
+   where id = p_id
+     and w_hash = encode(sha256(convert_to(coalesce(p_w, ''), 'UTF8')), 'hex');
+  get diagnostics weg = row_count;
+  return weg;
+end $$;
+
+-- Nur die drei Funktionen sind erreichbar, die Tabelle selbst nicht.
+revoke all on table sicherung from anon, authenticated;
+revoke all on function sicherung_schreiben(text, text, text, text, timestamptz),
+                       sicherung_lesen(text), sicherung_loeschen(text, text)
+  from public, anon, authenticated;
+grant execute on function sicherung_schreiben(text, text, text, text, timestamptz),
+                          sicherung_lesen(text), sicherung_loeschen(text, text)
+  to anon;
+
+-- PostgREST die neuen Funktionen sofort zeigen, statt auf den nächsten
+-- Neustart seines Zwischenspeichers zu warten.
+notify pgrst, 'reload schema';
+```
+
+Nachgestellt mit PostgreSQL 16, als Rolle `anon`: Direktzugriff auf die Tabelle
+→ `permission denied`; neu anlegen geht, Ersetzen ohne Vorgänger → `veraltet`,
+mit falscher Schreibmarke → `Schreibmarke passt nicht`, unter zehn Sekunden →
+`zu oft`, mit richtigem Vorgänger → neuer Stand; Lesen mit fremder Kennung → keine
+Zeile; Löschen mit falscher Marke → 0, mit richtiger → 1; gespeichert ist der
+Hash der Marke, nicht die Marke; was älter als 400 Tage ist, verschwindet beim
+nächsten Schreiben. Ein zweiter Lauf des Blocks geht durch und lässt die
+Sicherungen stehen.
+
+`sha256()` ist seit PostgreSQL 11 eingebaut – die Funktion braucht kein
+`pgcrypto`, das bei Supabase im Schema `extensions` läge und am Suchpfad
+`public, pg_temp` vorbei nicht zu finden wäre.
+
+Wie viel Platz die Sicherungen belegen und wie alt sie sind, zeigt
+[`tools/aufraeumen.sql`](tools/aufraeumen.sql), Schritt 4. Von Hand löschen muss
+dort niemand etwas: `sicherung_schreiben()` räumt bei jedem Aufruf ab, was 400
+Tage niemand erneuert hat.
 
 ### Wenn nichts ankommt
 
@@ -6405,7 +6736,9 @@ dazu `id` als feste Kennung – ohne die leitet der Browser die Identität aus
 
 **Der Haken beim Umzug:** Der Speicher gehört dem Browser. Wer von Firefox nach
 Chrome wechselt, startet mit leerem Protokoll. Der Weg dazwischen führt über
-*Mehr → Daten → Als Datei sichern* und drüben über *Importieren*.
+die [automatische Sicherung](#automatische-sicherung) – drüben im Einstieg
+*Sicherung zurückholen*, mit dem Schlüssel aus dem Passwortmanager oder dem Link
+– oder von Hand über *Mehr → Daten → Als Datei sichern* und drüben *Datei laden*.
 
 ## Weitergeben
 
@@ -6418,14 +6751,19 @@ Wer den Link öffnet, hat dieselbe App: denselben Plan, dieselben Bewegungen,
 offline. Beim ersten Start kommt eine Seite, die in vier Sätzen erklärt, was das
 ist, und nach dem Namen fragt.
 
-**Der Name ist kein Konto.** Es gibt keinen Server, keine Anmeldung und nichts,
-was im Hintergrund abgleicht. Was jemand einträgt, bleibt auf seinem Gerät – bis
-er selbst etwas verschickt: Für den Vergleich unter *Statistik* schickt man
-seinen Stand als Link, und wer ihn bekommt, sieht die Zahlen darin.
+**Der Name ist kein Konto.** Es gibt keine Anmeldung und nichts, was zwischen
+Menschen im Hintergrund abgleicht. Was jemand einträgt, liegt auf seinem Gerät
+und wird – wo ein Server eingetragen ist – verschlüsselt gesichert, lesbar nur
+mit seinem eigenen Schlüssel ([Automatische Sicherung](#automatische-sicherung)).
+Für den Vergleich unter *Statistik* schickt man seinen Stand als Link, und wer
+ihn bekommt, sieht die Zahlen darin.
 
 Genau so steht es auch auf der Seite. Vorher stand dort „niemand sonst sieht es",
-und das stimmte nicht mehr, seit es den Vergleich gibt – eine Zusage, die die App
-an einer anderen Stelle bricht, ist schlimmer als gar keine.
+und das stimmte nicht mehr, seit es den Vergleich gibt; danach „von allein geht
+nichts irgendwohin", und das stimmte nicht mehr, seit es die automatische
+Sicherung gibt – eine Zusage, die die App an einer anderen Stelle bricht, ist
+schlimmer als gar keine. Ohne Server in `js/config.js` steht der alte Satz noch
+da, denn dann stimmt er.
 
 Wer schon Daten hat, wird nicht begrüßt: Fehlt im gespeicherten Stand der
 Schlüssel `greeted`, stammt er aus einer Fassung vor der Willkommensseite – und
