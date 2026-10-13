@@ -115,7 +115,12 @@ const DEFAULT_STATE = {
   // damit ein erneuter Import die alten Termine überschreibt statt sie stehen
   // zu lassen.
   lastIcs: null,
-  rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log }]
+  rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log, verlassen? }]
+  // Tage, an denen der laufende Verlauf schon einmal verlassen wurde und aus
+  // der Ablage zurückkam (wechsleFokus()): ['2026-09-23', …]. Das finishedOn
+  // der zurückgeholten Runde ginge sonst verloren, und mit ihm der Tag, ab dem
+  // ausfallTage() in js/plan.js nicht mehr nach diesem Plan rechnen darf.
+  verlassen: [],
   // Angehakte Verletzungen als IDs aus js/injuries.js. Sie gelten für alle
   // kommenden Trainings, bis der Haken wieder weg ist – nicht nur für heute.
   injuries: [],
@@ -492,7 +497,7 @@ function schreibeRunden() {
 function mitAblage(aendern) {
   const vorher = {
     log: state.log, rounds: state.rounds, shift: state.shift, focus: state.focus,
-    session: state.session, clock: state.clock, rest: state.rest,
+    session: state.session, clock: state.clock, rest: state.rest, verlassen: state.verlassen,
   };
   state.rounds = [...(state.rounds || [])];
   aendern();
@@ -1250,10 +1255,12 @@ export function restartPlan(shiftDays, bilanz) {
       // zurückholen, in den er nicht gehört.
       state.rounds.push({
         finishedOn: todayISO(), log: state.log, focus: state.focus,
+        ...(verlassenSpur()),
         ...(bilanz ? { bilanz } : {}),
       });
     }
     state.log = {};
+    state.verlassen = [];
     state.session = null;
     state.clock = null;
     state.rest = null;
@@ -1294,18 +1301,30 @@ export function wechsleFokus(key, bilanz, startShift) {
     if (Object.keys(state.log).length) {
       state.rounds.push({
         finishedOn: todayISO(), log: state.log, focus: alt, shift: state.shift,
+        ...(verlassenSpur()),
         ...(bilanz ? { bilanz } : {}),
       });
     }
     const zurueck = letzteRunde(key);
     if (zurueck) state.rounds = state.rounds.filter((r) => r !== zurueck);
     state.log = (zurueck && zurueck.log) || {};
+    // Der Tag, an dem dieser Verlauf verlassen wurde, kommt mit zurück – als
+    // Spur, nicht als finishedOn: Der Verlauf läuft ja weiter. Siehe
+    // ausfallTage() in js/plan.js.
+    state.verlassen = zurueck
+      ? [...(Array.isArray(zurueck.verlassen) ? zurueck.verlassen : []), zurueck.finishedOn].filter(Boolean)
+      : [];
     state.shift = Math.round(Number(zurueck ? zurueck.shift : startShift) || 0);
     state.session = null;
     state.clock = null;
     state.rest = null;
     state.focus = key;
   });
+}
+
+/** Die Spur `verlassen` für eine Runde, die gerade abgelegt wird – nur, wenn es eine gibt. */
+function verlassenSpur() {
+  return Array.isArray(state.verlassen) && state.verlassen.length ? { verlassen: state.verlassen } : {};
 }
 
 /**
@@ -1348,6 +1367,10 @@ export function restoreRound() {
     Object.keys(zurueck).forEach((n) => {
       if (!state.log[n]) state.log[n] = zurueck[n];
     });
+    // Ihre Spur kommt mit: Die Einheiten, zu denen sie gehört, stehen jetzt hier.
+    if (Array.isArray(runde.verlassen) && runde.verlassen.length) {
+      state.verlassen = [...new Set([...(state.verlassen || []), ...runde.verlassen])].sort();
+    }
   });
 }
 

@@ -2278,6 +2278,28 @@ function frischerStart() {
 }
 
 /**
+ * Früher angefangen, als der Plan sagt: Der Restplan rückt vor – auf jedem Weg.
+ *
+ * Bisher tat das nur „Start" (start-session). Wer Workout 10 am Freitag statt
+ * am Samstag in „Übungen & Gewichte" abhakte, ließ den Plan stehen: Workout 11
+ * blieb am Montag, über „Start" wäre es am Sonntag gewesen. Dasselbe Training
+ * ergab je nach Knopf eine andere Woche – und ausfallTage() in js/plan.js, das
+ * den Rhythmus aus dem Protokoll rechnet und nicht aus `shift`, meldete den
+ * Sonntag als „Workout 11 · ausgefallen", obwohl die App an dem Tag „morgen ·
+ * Workout 11" gezeigt hatte. Jetzt gilt beim ersten Haken und bei „Alle Sätze
+ * abhaken" dasselbe wie beim Start: Ist es die nächste offene Einheit und liegt
+ * ihr Termin noch vorn, fällt sie auf heute – und ein Zusatztag, der dann in
+ * sie gehört, kommt hinein.
+ */
+function planVorziehen(n) {
+  if (istCustom(n) || store.isStarted(n) || firstOpen().n !== n) return false;
+  if (daysBetween(todayISO(), effDate(workoutByNo(n))) <= 0) return false;
+  store.setShift(shiftToToday());
+  pruefeZusatztag();
+  return true;
+}
+
+/**
  * Der Knopf unter der Körperkarte – oder eben keiner.
  *
  * Drei Zustände, und der dritte fehlte: Bisher stand über jeder angefangenen
@@ -5434,6 +5456,9 @@ function renderCalendar() {
   // ausgefallen · 11 offen" bei 16 Einheiten sonst wie ein Rechenfehler liest.
   const ausImMonat = tage.filter((d) => d.slice(0, 7) === month.slice(0, 7)
     && (aus.has(d) || (byDate.get(d) || []).some((w) => dayState(w, d, today).kind === 'miss'))).length;
+  // Zusammengehalten (geschützte Leerzeichen): Bei 414 px brach die Zeile
+  // sonst hinter „🤸 0) · 2", und die 2 las sich wie Teil der Moduszählung.
+  const ausgefallenText = (k) => `${plural(k, 'Tag', 'Tage')} ausgefallen`.replace(/ /g, '\u00a0');
 
   view.innerHTML = `
     <button type="button" class="back-link" data-act="go-tab" data-tab="settings">← Mehr</button>
@@ -5458,7 +5483,7 @@ function renderCalendar() {
         ${plural(imMonat.length + altImMonat + eigenImMonat.length, 'Einheit', 'Einheiten')} in diesem Monat ·
         ${zaehl.done + altImMonat + eigenImMonat.length} trainiert${zaehl.done + altImMonat + eigenImMonat.length
           ? ` (${MODE_ICON.db} ${proModus.db} · ${MODE_ICON.bw} ${proModus.bw})` : ''}${
-          ausImMonat ? ` · ${plural(ausImMonat, 'Tag', 'Tage')} ausgefallen` : ''}${
+          ausImMonat ? ` · ${ausgefallenText(ausImMonat)}` : ''}${
           zaehl.plan ? ` · ${zaehl.plan} offen` : ''}${
           imMonatAkt.length ? ` · ${plural(imMonatAkt.length, 'Tag', 'Tage')} anderer Sport (${
             esc(aktNamen(imMonatAkt))})` : ''}
@@ -7010,6 +7035,8 @@ view.addEventListener('click', (e) => {
       // Vor dem Haken: Ab hier steht fest, was nachgeholt wird – erst der
       // eingefügte Zusatztag, dann die Nacharbeit. Danach ist die Einheit
       // angefangen, und der Zusatz hinge an nichts mehr (zusatzFesthalten()).
+      // Und vorher noch der Plan, falls früher trainiert wird (planVorziehen()).
+      planVorziehen(n);
       zusatzFesthalten(n);
       nachFesthalten(n);
       const item = workoutByNo(n, mode).ex.find((x) => x.id === id);
@@ -7327,7 +7354,9 @@ view.addEventListener('click', (e) => {
       render();
       break;
     case 'complete-workout': {
-      // Wie beim einzelnen Haken: erst der Zusatztag, dann die Nacharbeit.
+      // Wie beim einzelnen Haken: erst der Plan, dann der Zusatztag, dann die
+      // Nacharbeit.
+      planVorziehen(n);
       zusatzFesthalten(n);
       nachFesthalten(n);
       // Das benutzte Gewicht muss mit: Ohne es fehlen die Sätze in der

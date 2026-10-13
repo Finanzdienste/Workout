@@ -35,14 +35,37 @@
  *   A11  Zeitzone: Di 00:30 in Berlin ist Di, der Mo ist ausgefallen.
  *   A12  Die Serie bleibt, was sie war (Einheiten, nicht Tage).
  *
- * Gegenprobe: gegen 9b3a4b4 (v239) sind 35 von 68 Prüfungen rot, genau die
- * mit ★; die übrigen 33 (Nachrücken, Ruhetage, Serie, keine Fehler) bleiben
- * grün. Einzeln zurückgedreht wird je eine Stelle rot (AUSFALL_NUR=A2,A3 lässt
- * nur diese Abschnitte laufen): die Fensterregel (A2-So, A3), die Wechselregel
- * für Workout 1 nach einem Fokuswechsel (A8: Sa 19. / Mo 21.), „frei" bei
- * Terminen (A5b) und die Vereinigung mit dayState() in der Monatszählung – als
- * Summe gerechnet „3 Tage" (A10), nur aus der Rechnung eine Kachel ohne Zahl
- * (A10b).
+ * Nachgebessert nach der Prüfung (Funde an 1a96da4):
+ *
+ *   A1   sichtbar: Rand und Legendenpunkt „ausgefallen" mit ≥ 3:1 Kontrast
+ *        (vorher 1,3:1), „2 Tage ausgefallen" bricht nicht zwischen 2 und Tage.
+ *   A10  Di 00:05 vor dem Nachrücken: Das Detail des Sa sagt „noch offen",
+ *        nicht „jetzt für Mo, 12.10. geplant" (den Mo zeigt das Raster selbst
+ *        als ausgefallen).
+ *   A13  W10 am Fr ohne Start in „Übungen & Gewichte" abgehakt: Der Plan rückt
+ *        vor wie beim Start (W11 am So); jeder gemeldete Tag war am Tag selbst
+ *        „heute · Workout n". Ebenso „Alle Sätze abhaken".
+ *   A14  Cut → Aufbau → Cut über die Fokuskarten: die Ausfälle vor dem Wechsel
+ *        bleiben dieselben (die Spur `verlassen`), auch beim nächsten Wechsel;
+ *        ohne Spur (alter Stand) dieselben Tage, kein Ruhetag.
+ *   A15  Eigene Einheit am Wechseltag: Workout 1 liegt, wo frischerStart() es
+ *        hinlegt – der Ruhetag davor ist nicht ausgefallen.
+ *   A16  Ein Turnier, das alles schont, bleibt frei, nachdem der Verlauf beim
+ *        Fokuswechsel in die Ablage gewandert ist.
+ *
+ * Gegenprobe: gegen 9b3a4b4 (v239) sind in A1–A12 genau die ★ rot, A13, A14
+ * und A16 brechen ab (ausfallTage() fehlt), A15 ist dort trivial grün (es gab
+ * gar keine Ausfälle). Gegen 1a96da4 sind 14 von 95 rot, genau die ★ der
+ * Nachbesserung (A1 drei, A10 eine, A13 drei, A14 fünf, A15 und A16 je eine).
+ * Einzeln zurückgedreht wird je eine Stelle rot (AUSFALL_NUR=A2,A3 lässt nur
+ * diese Abschnitte laufen): die Fensterregel (A2-So, A3), die Wechselregel für
+ * Workout 1 nach einem Fokuswechsel (A8: Sa 19. / Mo 21.), „frei" bei Terminen
+ * (A5b) und die Vereinigung mit dayState() in der Monatszählung – als Summe
+ * gerechnet „3 Tage" (A10), nur aus der Rechnung eine Kachel ohne Zahl
+ * (A10b); aus der Nachbesserung planVorziehen() (A13), die Spur (A14, vier
+ * rot), der letzte Eintrag vor dem Wechsel (A15), „frei" in der Ablage (A16),
+ * die Farbe (A1, zwei), das geschützte Leerzeichen (A1) und „noch offen"
+ * (A10).
  */
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
@@ -162,6 +185,37 @@ async function fall(name, zustand, wann = DI, runden = null) {
       await page.waitForTimeout(250);
       return (await page.locator('.cal-detail').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim()).join(' | ');
     },
+    /** Fokus wechseln über die Karte unter Mehr – die App lädt danach neu. */
+    fokus: async (key) => {
+      await page.locator('.tab[data-tab="settings"]').click();
+      await page.waitForTimeout(200);
+      await Promise.all([page.waitForEvent('load'), page.locator(`.fokus-btn[data-v="${key}"]`).first().click()]);
+      await page.waitForTimeout(400);
+      await f.kalender();
+    },
+    /** Zum Dashboard; gibt die Kopfzeile zurück („TOBI · HEUTE · WORKOUT 11"). */
+    dashboard: async () => {
+      await page.locator('.tab[data-tab="dashboard"]').click();
+      await page.waitForTimeout(250);
+      return ((await page.locator('#view').innerText()).split('\n').find((l) => /WORKOUT \d+/i.test(l)) || '').trim();
+    },
+    /** Die gezeigte Einheit in „Übungen & Gewichte" Satz für Satz abhaken – ohne Start. */
+    abhaken: async () => {
+      await page.locator('[data-act="show-list"]').first().click();
+      await page.waitForTimeout(250);
+      for (let k = 0; k < 60; k++) {
+        const b = page.locator('[data-act="toggle-set"]:not(.on)').first();
+        if (!(await b.count())) break;
+        await b.click();
+        await page.waitForTimeout(30);
+      }
+      await page.waitForTimeout(200);
+    },
+    /** ausfallTage() als [Tag, Nummer, Fokus, aus der Ablage?]. */
+    aus: () => page.evaluate(async () => {
+      const P = await import('./js/plan.js');
+      return [...P.ausfallTage().entries()].map(([k, x]) => [k, x.n, x.focus, !x.aktuell]);
+    }),
     /** Rechnen mit den Modulen der App – dieselben Instanzen, die die Seite benutzt. */
     M: (fn, arg) => page.evaluate(async ([src, a]) => {
       const m = {
@@ -215,6 +269,41 @@ await abschnitt('A1', async () => {
     'A1: Einheiten, trainiert und offen zählen wie bisher');
   const label = await f.label(10);
   check(/Workout 10 ausgefallen/.test(label), `★ A1: vorgelesen „Workout 10 ausgefallen" (${label})`);
+  // Sichtbar: Die Strichelung ist das einzige Merkmal – mit --line hatte sie
+  // 1,3:1 auf der Karte und war blasser als jeder leere Ruhetag.
+  const sicht = await f.page.evaluate(() => {
+    const rgb = (x) => (x.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+    const lum = (c) => {
+      const [r, g, b] = c.map((v) => { const y = v / 255; return y <= 0.03928 ? y / 12.92 : ((y + 0.055) / 1.055) ** 2.4; });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const grund = (e) => {
+      for (let x = e.parentElement; x; x = x.parentElement) {
+        const b = getComputedStyle(x).backgroundColor;
+        if (b && b !== 'transparent' && !/,\s*0\)$/.test(b)) return b;
+      }
+      return getComputedStyle(document.body).backgroundColor;
+    };
+    const ratio = (a, b) => {
+      const [h, d] = [lum(rgb(a)), lum(rgb(b))].sort((x, y) => y - x);
+      return Math.round(((h + 0.05) / (d + 0.05)) * 100) / 100;
+    };
+    const k = document.querySelector('.cal-grid:not(.cal-head) .cal-cell.miss');
+    const p = document.querySelector('.cal-legend .dot.miss');
+    return {
+      kachel: k ? ratio(getComputedStyle(k).borderTopColor, grund(k)) : 0,
+      punkt: p ? ratio(getComputedStyle(p).borderTopColor, grund(p)) : 0,
+      stil: k ? getComputedStyle(k).borderTopStyle : '',
+    };
+  });
+  check(sicht.kachel >= 3 && sicht.stil === 'dashed',
+    `★ A1: Rand der Ausfall-Kachel gestrichelt, Kontrast ≥ 3:1 (${sicht.stil}, ${sicht.kachel}:1)`);
+  check(sicht.punkt >= 3, `★ A1: Legendenpunkt „ausgefallen" Kontrast ≥ 3:1 (${sicht.punkt}:1)`);
+  // Die Zahl bleibt bei „Tage ausgefallen": Bei 414 px brach die Zeile hinter
+  // „🤸 0) · 2" um, und die 2 las sich wie Teil der Moduszählung.
+  const roh = (await f.page.locator('.cal-legend + .small').first().textContent()) || '';
+  check(roh.includes('2\u00a0Tage\u00a0ausgefallen'),
+    `★ A1: „2 Tage ausgefallen" mit geschützten Leerzeichen (${JSON.stringify((roh.match(/.{0,4}Tage.{0,12}/) || [''])[0])})`);
 
   await f.bild('ausgefallen-raster-414x896.png');
   const d10 = await f.tippe('2026-10-10');
@@ -454,6 +543,13 @@ await abschnitt('A10', async () => {
   console.log(`     Mo 23:58: ${vorher.join(', ') || '–'} · Di 00:05: ${nachts.join(', ') || '–'} · ${zeile}`);
   check(gleich(vorher, [10]), `★ A10: Mo 23:58 nur der Sa (${vorher.join(', ') || 'keiner'})`);
   check(/· 2 Tage ausgefallen/.test(zeile), `★ A10: Di 00:05 „2 Tage ausgefallen" – nicht 1, nicht 3 (${zeile})`);
+  // Das Detail des Sa nennt keinen vergangenen Tag als „jetzt geplant" – W10
+  // liegt bis zum Nachrücken noch auf dem Mo, den das Raster selbst als
+  // ausgefallen zeigt.
+  const d10 = await f.tippe('2026-10-10');
+  check(/Workout 10 · ausgefallen/.test(d10) && !/für Mo, 12\.10\. geplant/.test(d10)
+    && /rückte nach hinten und ist noch offen/.test(d10),
+  `★ A10: Di 00:05, Tipp auf den Sa: „noch offen", nicht „jetzt für Mo, 12.10. geplant" (${d10.slice(0, 160)})`);
   await f.page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await f.page.waitForTimeout(300);
   const danach = await f.miss();
@@ -497,6 +593,173 @@ await abschnitt('A11', async () => {
   console.log(`     ausgefallen: ${miss.join(', ') || '–'} · 13.: ${k13}`);
   check(miss.includes(12), `★ A11: Di 00:30 Berlin – der Mo ist ausgefallen (${miss.join(', ') || 'keiner'})`);
   check(k13 && k13.includes('today') && !k13.includes('miss'), 'A11: heute ist der Di, nicht ausgefallen');
+  await ende(f);
+});
+
+/* ------------------------------------------------------------------ *
+ * A13 Früher trainiert, ohne Start abgehakt – der Plan rückt trotzdem vor
+ * ------------------------------------------------------------------ */
+await abschnitt('A13', async () => {
+  // Fr 09.10.: W10 ist für Sa dran. Tobi hakt es in „Übungen & Gewichte" ab,
+  // ohne „Start". Bisher blieb der Plan stehen (W11 am Mo), die Rechnung lief
+  // aber ab Fr – und meldete den So als ausgefallen, an dem die App „morgen ·
+  // Workout 11" zeigte. Geprüft wird die Invariante: Jeder gemeldete Tag war
+  // an dem Tag selbst „heute · Workout n" mit eben diesem n.
+  const f = await fall('A13', tobi(), '2026-10-09T18:00:00+02:00');
+  const gezeigt = { '2026-10-09': await f.dashboard() };
+  await f.abhaken();
+  const nachHaken = await f.M(({ P, D, store }) => ({
+    shift: store.getState().shift, w10: store.startedOn(10), fertig: P.completedMode(10), w11: P.effDate(D.PLAN[10]),
+  }));
+  console.log(`     Fr: ${gezeigt['2026-10-09']} · nach dem Haken ${JSON.stringify(nachHaken)}`);
+  check(nachHaken.w10 === '2026-10-09' && !!nachHaken.fertig, `A13: W10 am Fr trainiert (${nachHaken.w10}, ${nachHaken.fertig})`);
+  check(nachHaken.shift === 30 && nachHaken.w11 === '2026-10-11',
+    `★ A13: Abhaken ohne Start zieht den Plan vor wie der Start – W11 am So (shift ${nachHaken.shift}, W11 ${nachHaken.w11})`);
+  for (const iso of ['2026-10-10', '2026-10-11', '2026-10-12']) {
+    await f.uhr(`${iso}T10:00:00+02:00`);
+    await f.neuLaden();
+    gezeigt[iso] = await f.dashboard();
+    if (iso === '2026-10-12') await f.abhaken();   // Mo: das Gezeigte trainiert
+  }
+  await f.uhr(DI);
+  await f.neuLaden();
+  const aus = await f.aus();
+  console.log(`     gezeigt: ${Object.entries(gezeigt).map(([d, k]) => `${d.slice(8)} ${k.replace(/^.*?·\s*/, '')}`).join(' | ')}`);
+  console.log(`     ausgefallen: ${aus.map(([d, n]) => `${d.slice(8)} W${n}`).join(', ') || '–'}`);
+  const falsch = aus.filter(([d, n]) => d >= '2026-10-09' && !new RegExp(`HEUTE · WORKOUT ${n}\\b`, 'i').test(gezeigt[d] || ''));
+  check(!falsch.length, `★ A13: jeder gemeldete Tag zeigte am Tag selbst „heute · Workout n" (${
+    falsch.map(([d, n]) => `${d.slice(8)} W${n}: „${gezeigt[d]}"`).join('; ') || 'alle'})`);
+  check(gleich(aus.map(([d, n]) => [d, n]), [['2026-10-11', 11]]),
+    `A13: ausgefallen nur So 11. (Workout 11, an dem Tag „heute") – Sa war Ruhetag (${aus.map(([d]) => d.slice(8)).join(', ') || 'keiner'})`);
+  await ende(f);
+
+  // „Alle Sätze abhaken" ist derselbe Weg.
+  const g = await fall('A13-alle', tobi(), '2026-10-09T18:00:00+02:00');
+  await g.dashboard();
+  await g.page.locator('[data-act="show-list"]').first().click();
+  await g.page.waitForTimeout(250);
+  await g.page.locator('[data-act="complete-workout"]').first().click();
+  await g.page.waitForTimeout(300);
+  const alle = await g.M(({ P, D, store }) => ({ shift: store.getState().shift, w11: P.effDate(D.PLAN[10]), fertig: P.completedMode(10) }));
+  check(alle.fertig && alle.shift === 30 && alle.w11 === '2026-10-11',
+    `★ A13: „Alle Sätze abhaken" am Fr – W10 fertig, W11 am So (${JSON.stringify(alle)})`);
+  await ende(g);
+});
+
+/* ------------------------------------------------------------------ *
+ * A14 Hin- und Rückwechsel des Fokus: die Spur `verlassen`
+ * ------------------------------------------------------------------ */
+await abschnitt('A14', async () => {
+  // Cut W1–W7 bis Fr 18.09., Pause; Mi 23.09. auf Aufbau, dort W1 am Fr 25.
+  // und W2 am Mo 28.; Di 29.09. zurück auf Cut. Der Cut-Verlauf kommt aus der
+  // Ablage zurück, sein finishedOn ging dabei verloren – die Ausfälle davor
+  // rutschten auf einen Cut-Ruhetag und hießen „Workout 1 (Aufbau)".
+  const z = tobi();
+  z.log = {};
+  ['2026-09-07', '2026-09-09', '2026-09-11', '2026-09-12', '2026-09-14', '2026-09-16', '2026-09-18']
+    .forEach((d, i) => { z.log[i + 1] = ganz(d); });
+  z.shift = 14;
+  z.customs = [];
+  const f = await fall('A14', z, '2026-09-23T15:00:00+02:00');
+  const vorher = (await f.aus()).filter(([d]) => d < '2026-09-23');
+  await f.fokus('standard');
+  await f.M(({ store }) => {
+    const s = store.getState();
+    s.log[1] = { mode: 'db', done: 'db', startedOn: '2026-09-25', db: { 'goblet-squat': [{ w: '20', done: true }] }, bw: {} };
+    s.log[2] = { mode: 'db', done: 'db', startedOn: '2026-09-28', db: { 'goblet-squat': [{ w: '20', done: true }] }, bw: {} };
+    localStorage.setItem('workout.state.v1', JSON.stringify(s));
+  });
+  await f.uhr('2026-09-29T15:00:00+02:00');
+  await f.neuLaden();
+  const imAufbau = (await f.aus()).filter(([d]) => d < '2026-09-25');
+  await f.fokus('cut');
+  const zurueck = (await f.aus()).filter(([d]) => d < '2026-09-25');
+  const spur = await f.M(({ store }) => store.getState().verlassen);
+  const zeig = (l) => l.map(([d, n, fo, ab]) => `${d.slice(8)} W${n}${ab ? `(${fo})` : ''}`).join(', ') || '–';
+  console.log(`     Cut am 23.: ${zeig(vorher)} · in Aufbau am 29.: ${zeig(imAufbau)} · zurück in Cut: ${zeig(zurueck)} · Spur ${JSON.stringify(spur)}`);
+  check(gleich(vorher.map(([d, n]) => [d, n]), [['2026-09-19', 8], ['2026-09-21', 8]]),
+    `A14: in Cut am 23.: Sa 19. und Mo 21. (Workout 8) ausgefallen (${zeig(vorher)})`);
+  const kern = (l) => l.map(([d, n, fo]) => [d, n, fo]);
+  check(gleich(kern(imAufbau), [['2026-09-19', 8, 'cut'], ['2026-09-21', 8, 'cut'], ['2026-09-23', 1, 'standard']]),
+    `A14: in Aufbau: 19./21. Cut W8, Mi 23. Aufbau W1 (am Wechseltag dran, erst Fr trainiert) (${zeig(imAufbau)})`);
+  check(gleich(kern(zurueck), kern(imAufbau)),
+    `★ A14: nach dem Rückwechsel dieselben Tage mit denselben Einheiten (${zeig(zurueck)})`);
+  check(gleich(spur, ['2026-09-23']), `★ A14: der Tag des Verlassens kommt als Spur mit (${JSON.stringify(spur)})`);
+  const d23 = await f.tippe('2026-09-23');
+  check(/Workout 1 · ausgefallen/.test(d23) && /früheren Trainingsplan \(Aufbau\)/.test(d23),
+    `★ A14: Detail des 23.: Workout 1 aus dem Aufbau-Plan (${d23.slice(0, 140)})`);
+  // Ohne Spur – zurückgeholt vor dieser Fassung: Wechsel spätestens am ersten
+  // Training im anderen Plan. Die Tage stimmen, nur der 23. heißt nach Cut.
+  const ohne = await f.M(({ P, store }) => {
+    const s = store.getState();
+    const alt = s.verlassen;
+    s.verlassen = [];
+    const r = [...P.ausfallTage().keys()].filter((d) => d < '2026-09-25');
+    s.verlassen = alt;
+    return r;
+  });
+  check(gleich(ohne, ['2026-09-19', '2026-09-21', '2026-09-23']),
+    `★ A14: ohne Spur dieselben Tage, kein Ausfall auf dem Ruhetag 20. (${ohne.join(', ')})`);
+  // Noch einmal weg: Die Spur wandert mit in die Ablage.
+  await f.fokus('standard');
+  const nochmal = (await f.aus()).filter(([d]) => d < '2026-09-25');
+  const runde = await f.M(({ store }) => (store.getState().rounds || []).filter((r) => r.focus === 'cut')
+    .map((r) => ({ finishedOn: r.finishedOn, verlassen: r.verlassen || null })));
+  check(gleich(kern(nochmal), kern(imAufbau)) && gleich(runde, [{ finishedOn: '2026-09-29', verlassen: ['2026-09-23'] }]),
+    `★ A14: wieder in Aufbau – die Cut-Runde trägt die Spur, dieselben Tage (${zeig(nochmal)} · ${JSON.stringify(runde)})`);
+  await ende(f);
+});
+
+/* ------------------------------------------------------------------ *
+ * A15 Eigene Einheit am Wechseltag
+ * ------------------------------------------------------------------ */
+await abschnitt('A15', async () => {
+  // Aufbau W1–W3 Mo 14./Mi 16./Fr 18.09., eine eigene Einheit am Sa 19.,
+  // am selben Tag Wechsel auf Cut. frischerStart() legt Cut W1 auf Mo 21.
+  // (ab dem letzten Eintrag, der eigenen Einheit); trainiert am Di 22. – einen
+  // Tag später, im Fenster. Kein Ausfall, auch nicht am So 20.
+  const z = tobi();
+  z.focus = 'standard';
+  z.log = { 1: ganz('2026-09-14'), 2: ganz('2026-09-16'), 3: ganz('2026-09-18') };
+  z.customs = [{ id: 'crueckenx', name: 'Rücken extra', ex: [{ id: 'pull-ups', sets: 3 }] }];
+  z.log.crueckenx = einheit('2026-09-19', { 'pull-ups': 3 }, null);
+  z.shift = 21;
+  const f = await fall('A15', z, '2026-09-19T18:00:00+02:00');
+  await f.fokus('cut');
+  const w1 = await f.M(({ P, D }) => P.effDate(D.PLAN[0]));
+  check(w1 === '2026-09-21', `A15: die App legt Cut W1 auf Mo 21. (${w1})`);
+  await f.M(({ store }) => {
+    const s = store.getState();
+    s.log[1] = { mode: 'db', done: 'db', startedOn: '2026-09-22', db: { 'goblet-squat': [{ w: '20', done: true }] }, bw: {} };
+    localStorage.setItem('workout.state.v1', JSON.stringify(s));
+  });
+  await f.uhr('2026-09-23T15:00:00+02:00');
+  await f.neuLaden();
+  const miss = await f.miss();
+  console.log(`     ausgefallen: ${miss.join(', ') || '–'} · ${await f.zeile()}`);
+  check(!miss.length, `★ A15: kein Ausfall – So 20. war Ruhetag, W1 am Di im Fenster (${miss.join(', ') || 'keiner'})`);
+  await ende(f);
+});
+
+/* ------------------------------------------------------------------ *
+ * A16 Turnier, das alles schont – auch nachdem der Verlauf abgelegt ist
+ * ------------------------------------------------------------------ */
+await abschnitt('A16', async () => {
+  const z = tobi();
+  z.focus = 'standard';
+  z.log = { 1: ganz('2026-09-14'), 2: ganz('2026-09-16'), 3: ganz('2026-09-21') };
+  z.shift = 24;
+  z.termine = [{ datum: '2026-09-18', name: 'Turnier', schont: 'alles' }];
+  z.customs = [];
+  const f = await fall('A16', z, '2026-09-22T15:00:00+02:00');
+  const vorher = await f.aus();
+  await f.fokus('cut');
+  const nachher = await f.aus();
+  const miss = await f.miss();
+  console.log(`     vorher: ${vorher.map(([d]) => d.slice(8)).join(', ') || '–'} · nach dem Wechsel: ${nachher.map(([d]) => d.slice(8)).join(', ') || '–'}`);
+  check(!vorher.length, 'A16: Aufbau läuft – das Turnier macht Fr 18. (und den Tag danach) frei');
+  check(gleich(nachher.map(([d, n]) => [d, n]), vorher.map(([d, n]) => [d, n])) && !miss.length,
+    `★ A16: nach dem Wechsel auf Cut dieselben Tage – frei bleibt frei (${miss.join(', ') || 'keiner'})`);
   await ende(f);
 });
 

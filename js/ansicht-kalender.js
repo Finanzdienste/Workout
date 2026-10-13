@@ -302,8 +302,14 @@ export function calendarAusfall(iso, x, today) {
     folge = `Workout ${x.n} rückte nach hinten und wurde am ${fmtDate(x.spaeter)} ${fertig ? 'trainiert' : 'angefangen'}.`;
   } else if (x.aktuell) {
     const jetzt = effDate(PLAN[x.n - 1]);
-    folge = `Workout ${x.n} rückte nach hinten und ist jetzt für ${
-      jetzt === today ? 'heute' : fmtDate(jetzt)} geplant.`;
+    // Über Mitternacht, bevor catchUpPlan() nachrückt, liegt die Einheit noch
+    // auf einem vergangenen Tag – womöglich auf einem, den das Raster gerade
+    // selbst als ausgefallen zeigt. „Jetzt für Mo geplant" am Di wäre falsch;
+    // „noch offen" stimmt vor und nach dem Nachrücken.
+    folge = jetzt < today
+      ? `Workout ${x.n} rückte nach hinten und ist noch offen.`
+      : `Workout ${x.n} rückte nach hinten und ist jetzt für ${
+        jetzt === today ? 'heute' : fmtDate(jetzt)} geplant.`;
   } else {
     folge = `Workout ${x.n} blieb offen – danach ging es mit einem anderen Plan weiter.`;
   }
