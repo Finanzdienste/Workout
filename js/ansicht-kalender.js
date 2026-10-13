@@ -17,7 +17,7 @@ import { PLAN } from './data.js';
 import { esc, fmtNum } from './text.js';
 import { addDays, fmtDate, monthStart, plural, todayISO } from './dates.js';
 import { completedMode, effDate, einheitEx, progressOf, resolve } from './plan.js';
-import { MODE_ICON, MODE_LABEL, repsLabel, umfang } from './anzeige.js';
+import { MODE_ICON, MODE_LABEL, repsLabel, umfangText } from './anzeige.js';
 import { termine, terminLabel } from './termine.js';
 import { AKT_BY_ID, gruppenAm } from './aktivitaeten.js';
 import { MUSCLE_LABEL } from './body.js';
@@ -332,22 +332,18 @@ export function calendarWorkout(w, iso, today) {
   // trainiert wird oder wurde. Künftige Tage zeigen keinen: Er gehört zu der
   // Einheit, die heute fällig ist, und wird erst dort gerechnet.
   const items = einheitEx(w, mode).map((it) => resolve(it, mode));
-  const saetze = items.reduce((a, x) => a + x.sets, 0);
   const kopf = KIND_TEXT[st.kind];
   const prog = progressOf(w.n, mode);
-  // Mit Zusatz wie im Kopf der Einheit: „5 + 1 Übungen · 15 + 3 Sätze", das
-  // „+" heißt nachgeholt (umfang() in js/anzeige.js).
-  const u = umfang(items);
-  const umfangText = u.zusatz
-    ? `${u.plan} + ${u.zusatz} Übungen · ${u.saetze - u.nachgeholt} + ${u.nachgeholt} Sätze`
-    : `${plural(items.length, 'Übung', 'Übungen')} · ${plural(saetze, 'Satz', 'Sätze')}`;
 
   return `
     <div class="card cal-detail">
       <div class="cal-det-head">
         <div>
           <div class="lbl">Workout ${w.n} · ${esc(kopf)}</div>
-          <div class="hint">${esc(fmtDate(iso, true))} · ${esc(umfangText)}</div>
+          <!-- Wortgleich mit dem Kopf der Einheit: die Summe, Nachgeholtes
+               eingerechnet (umfangText() in js/anzeige.js); welche Übung
+               nachgeholt ist, steht in der Liste darunter. -->
+          <div class="hint">${esc(fmtDate(iso, true))} · ${esc(umfangText(items))}</div>
         </div>
         <span class="chip ${mode}">${MODE_ICON[mode]} ${esc(MODE_LABEL[mode])}</span>
       </div>
