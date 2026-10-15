@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>Matches</title>
+<link rel="icon" type="image/svg+xml" href="../icon.svg">
+<link rel="stylesheet" href="css/matches.css">
+</head>
+<body>
+<header class="topbar">
+  <h1 class="brand">Matches <b>nach Entfernung</b></h1>
+  <span class="zaehler" id="zaehler"></span>
+</header>
+
+<main>
+  <!-- Der Standort steht oben, weil ohne ihn keine einzige gerechnete
+       Entfernung zustande kommt. Eine Spalte, die erst nach einer Einstellung
+       tief unten funktioniert, sieht aus wie ein Fehler. -->
+  <section class="karte">
+    <h2>Von wo aus gemessen wird</h2>
+    <div class="reihe">
+      <label class="feld">
+        <span>Dein Ort oder „52.52, 13.405"</span>
+        <input id="heimOrt" type="text" list="ortsliste" placeholder="z. B. Berlin-Kreuzberg" autocomplete="off">
+      </label>
+      <button type="button" class="knopf" id="heimSetzen">Übernehmen</button>
+      <button type="button" class="knopf" id="heimOrten">Vom Gerät</button>
+    </div>
+    <p class="hinweis hinweis--ruhig" id="heimStand">Noch kein Standort – Entfernungen lassen sich dann nur eintragen, nicht rechnen.</p>
+    <label class="reihe" style="gap:8px;align-items:center;font-size:13px;color:var(--muted)">
+      <input type="checkbox" id="netzsuche" style="width:auto">
+      <span>Unbekannte Orte im Netz nachschlagen (OpenStreetMap). Aus, weil dabei der eingetippte Ortsname das Gerät verlässt.</span>
+    </label>
+  </section>
+
+  <section class="karte">
+    <h2 id="formTitel">Person eintragen</h2>
+    <form id="form">
+      <div class="reihe">
+        <label class="feld"><span>Name</span>
+          <input id="fName" type="text" placeholder="Anna" autocomplete="off" required></label>
+        <label class="feld feld--schmal"><span>App</span>
+          <select id="fApp">
+            <option value="tinder">Tinder</option>
+            <option value="hinge">Hinge</option>
+            <option value="bumble">Bumble</option>
+            <option value="andere">Andere</option>
+          </select></label>
+        <label class="feld feld--schmal"><span>km (aus der App)</span>
+          <input id="fKm" type="number" min="0" step="0.1" inputmode="decimal" placeholder="4"></label>
+        <label class="feld"><span>oder Ort</span>
+          <input id="fOrt" type="text" list="ortsliste" placeholder="Leipzig" autocomplete="off"></label>
+      </div>
+      <div class="reihe" style="margin-top:8px">
+        <label class="feld feld--schmal"><span>Match am</span>
+          <input id="fDatum" type="date"></label>
+        <label class="feld feld--schmal"><span>Stand</span>
+          <select id="fStatus">
+            <option value="neu">Neu</option>
+            <option value="geschrieben">Geschrieben</option>
+            <option value="date">Date gehabt</option>
+            <option value="aus">Erledigt</option>
+          </select></label>
+        <label class="feld"><span>Notiz</span>
+          <input id="fNotiz" type="text" placeholder="Kletterhalle, Sonntag" autocomplete="off"></label>
+        <button type="submit" class="knopf knopf--haupt" id="fSenden">Hinzufügen</button>
+        <button type="button" class="knopf knopf--still" id="fAbbrechen" hidden>Abbrechen</button>
+      </div>
+      <p class="hinweis" id="formHinweis" hidden></p>
+    </form>
+  </section>
+
+  <section class="karte">
+    <div class="reihe" style="margin-bottom:10px">
+      <label class="feld"><span>Suchen</span>
+        <input id="suche" type="search" placeholder="Name, Ort, Notiz" autocomplete="off"></label>
+      <label class="feld feld--schmal"><span>App</span>
+        <select id="filterApp"><option value="">alle</option>
+          <option value="tinder">Tinder</option><option value="hinge">Hinge</option>
+          <option value="bumble">Bumble</option><option value="andere">Andere</option></select></label>
+      <label class="feld feld--schmal"><span>Stand</span>
+        <select id="filterStatus"><option value="">alle</option>
+          <option value="neu">Neu</option><option value="geschrieben">Geschrieben</option>
+          <option value="date">Date gehabt</option><option value="aus">Erledigt</option></select></label>
+    </div>
+    <div class="tabelle-rahmen">
+      <table id="tabelle">
+        <thead>
+          <tr>
+            <th data-feld="km" aria-sort="ascending"><button type="button">Entfernung</button></th>
+            <th data-feld="name"><button type="button">Name</button></th>
+            <th data-feld="app"><button type="button">App</button></th>
+            <th data-feld="matchAm" class="sp-datum"><button type="button">Match am</button></th>
+            <th data-feld="status"><button type="button">Stand</button></th>
+            <th data-feld="nachrichten" class="sp-nachr"><button type="button">Nachr.</button></th>
+            <th class="th-notiz">Notiz</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="koerper"></tbody>
+      </table>
+    </div>
+    <div class="leer" id="leer" hidden></div>
+  </section>
+
+  <section class="karte">
+    <h2>Datenauskunft einlesen</h2>
+    <div class="reihe">
+      <input type="file" id="datei" accept=".json,.csv,.txt" multiple>
+      <button type="button" class="knopf" id="csvRaus">Tabelle als CSV</button>
+      <button type="button" class="knopf" id="sicherung">Sicherung</button>
+      <label class="knopf" style="cursor:pointer">Wiederherstellen
+        <input type="file" id="zurueck" accept=".json" hidden></label>
+    </div>
+    <div id="importStand"></div>
+
+    <details class="erklaerung">
+      <summary>Was in diesen Dateien steht – und was nicht</summary>
+      <p>Keine der drei Apps hat eine offene Schnittstelle. Was es gibt, ist die
+        Datenauskunft nach der DSGVO, die man sich selbst schicken lässt:</p>
+      <ul>
+        <li><b>Tinder</b> → Einstellungen → Meine Daten herunterladen. Im ZIP liegt
+          <code>data.json</code>.</li>
+        <li><b>Hinge</b> → Einstellungen → Datenschutz → Meine Daten herunterladen.
+          Darin <code>matches.json</code>.</li>
+        <li><b>Bumble</b> → Einstellungen → Datenschutz → Datenauskunft anfordern.
+          Der Aufbau schwankt; JSON und CSV werden beide versucht.</li>
+      </ul>
+      <p><b>Entfernungen stehen in keiner dieser Dateien.</b> Die Kilometerangabe
+        entsteht erst beim Anzeigen im Profil und wird nirgends gespeichert.
+        Automatisch kommt sie über <code>android-lesen.py</code> herein: Das Programm
+        liest den Bildschirm des Telefons mit, während du durch deine Profile gehst –
+        alle drei Apps in einem Durchgang, ohne Root. Für Tinder gibt es zusätzlich
+        <code>mitlesen.user.js</code> im Browser, das dort auch das Match-Datum
+        mitbringt.
+        Namen fehlen bei Tinder und Hinge ebenfalls – der Import bringt daher
+        Datum, Nachrichtenzahl und einen aus der eigenen ersten Nachricht
+        geratenen Vornamen. Der Rest ist Handarbeit, und genau dafür ist das
+        Formular oben auf drei Tastendrücke ausgelegt.</p>
+      <p>Alles bleibt in diesem Browser. Kein Konto, kein Server, keine
+        Übertragung – außer der Ortssuche, wenn du sie oben einschaltest.</p>
+    </details>
+  </section>
+</main>
+
+<datalist id="ortsliste"></datalist>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
