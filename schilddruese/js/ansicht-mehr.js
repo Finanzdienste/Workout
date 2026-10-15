@@ -9,7 +9,8 @@ import { datumInWorten, datumKurz, relativ, uhrText, tageZwischen } from './datu
 import { esc, mehrzahl } from './text.js';
 import * as sp from './speicher.js';
 import { berichtText } from './bericht.js';
-import { KAPITEL, kapitel } from './wissen.js';
+import { KAPITEL, kapitel, kapitelHtml } from './wissen.js';
+import { vorratAndereStaerke, vorratText } from './ansicht-formulare.js';
 
 const zeile = (seite, titel, unter, param = null, ri = '') => `
   <button type="button" class="zeile" data-act="seite" data-seite="${seite}"${param ? ` data-param="${esc(param)}"` : ''}>
@@ -24,11 +25,32 @@ function sicherungUnter(stand, heute) {
   return `Zuletzt ${esc(relativ(stand.letzteSicherung, heute))}${tage > 60 ? ' – Zeit für eine neue' : ''}`;
 }
 
+/*
+ * Die Zeile zum Vorrat sagt dasselbe wie „Heute" (D13): nach einer anderen
+ * Stärke „bitte neu zählen" statt einer Reichweite aus der alten Packung,
+ * bei 0 „aufgebraucht" statt „reicht noch etwa 0 Tage".
+ */
+function vorratUnter(stand, heute, reicht) {
+  if (reicht === null) return 'Wird nicht gezählt';
+  if (vorratAndereStaerke(stand, heute)) return 'Andere Stärke – bitte neu zählen';
+  const t = vorratText(reicht);
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 export function mehrAnsicht(stand, heute) {
   const offen = stand.fragen.filter((f) => !f.erledigt).length;
   const termin = sp.naechsterTermin(heute);
   const reicht = sp.vorratReicht(heute);
   return `
+    <h2 class="abschnitt">Einschätzung</h2>
+    <div class="zeilen">
+      ${zeile('gesamtbild', 'Einschätzung: Was sagen meine Werte?', 'Laborwerte, Beschwerden und Kontrollen eingeordnet', null, '🔎')}
+      ${zeile('dosis-karte', 'Dosis-Karte: mehr oder weniger?', 'Was der letzte TSH-Wert für die Dosis bedeutet – vor jeder Änderung die Praxis anrufen', null, '⚖️')}
+      ${zeile('warnzeichen', 'Warnzeichen prüfen', 'Geht es Ihnen gerade schlecht? In einer Minute wissen, was zu tun ist', null, '🚨')}
+      ${zeile('abstand', 'Was braucht Abstand?', stand.mittel.length ? `Uhrzeiten für ${mehrzahl(stand.mittel.length, 'Mittel', 'Mittel')}` : 'Kaffee, Kalzium, Eisen – ab wann in Ordnung', null, '⏱️')}
+      ${zeile('profil', 'Über mich & weitere Mittel', stand.profil.geburtsjahr || stand.mittel.length ? 'Angaben ändern' : 'Alter, Behandlung, Bundesland und weitere Mittel', null, '👤')}
+    </div>
+
     <h2 class="abschnitt">Zum Arzttermin</h2>
     <div class="zeilen">
       ${zeile('bericht', 'Bericht für den Arzttermin', 'Dosis, Einnahmen, Laborwerte, Befinden – zum Zeigen oder Schicken', null, '📄')}
@@ -45,7 +67,7 @@ export function mehrAnsicht(stand, heute) {
     <h2 class="abschnitt">Einstellungen</h2>
     <div class="zeilen">
       ${zeile('erinnerung', 'Erinnerung', `Einnahme um ${esc(uhrText(stand.einstellungen.erinnerung))} · Kalenderdatei`, null, '⏰')}
-      ${zeile('vorrat', 'Tablettenvorrat', reicht !== null ? `Reicht noch etwa ${Math.max(0, reicht)} Tage` : 'Wird nicht gezählt', null, '💊')}
+      ${zeile('vorrat', 'Tablettenvorrat', vorratUnter(stand, heute, reicht), null, '💊')}
       ${zeile('darstellung', 'Schrift, Farben, Anrede', stand.einstellungen.schrift === 'sehr-gross' ? 'Schrift sehr groß' : stand.einstellungen.schrift === 'normal' ? 'Schrift normal' : 'Schrift groß', null, '🔤')}
       ${zeile('sicherung', 'Sicherung', sicherungUnter(stand, heute), null, '💾')}
       ${zeile('ueber', 'Über diese App', 'Was sie kann und was nicht · Alles löschen', null, 'ℹ️')}
@@ -54,31 +76,49 @@ export function mehrAnsicht(stand, heute) {
 
 // ---------------------------------------------------------------- Seiten
 
+/*
+ * Runde 5: F16 – Der Satz über den Knöpfen gilt der Nutzerin am Bildschirm,
+ * nicht dem Papier: Er wurde mitgedruckt. „nicht-drucken" blendet ihn im
+ * Druck aus, „bericht-karte" nimmt dort Rahmen und Innenabstand der Karte weg
+ * (css/styles.css, @media print).
+ */
 function berichtSeite(stand, heute) {
   return {
     titel: 'Bericht',
     html: `
-      <p class="gedaempft" style="margin-bottom:.8rem">Zum Zeigen im Sprechzimmer, zum Vorlesen oder zum Weiterschicken. Die App bewertet darin nichts.</p>
+      <p class="gedaempft nicht-drucken" style="margin-bottom:.8rem">Zum Zeigen im Sprechzimmer, zum Vorlesen oder zum Weiterschicken. Was die App selbst eingeordnet hat, steht darin gekennzeichnet in einem eigenen Abschnitt.</p>
       <div class="knopf-reihe" style="margin:0 0 .8rem">
         <button type="button" class="knopf knopf-haupt" data-act="bericht-teilen">Teilen</button>
         <button type="button" class="knopf" data-act="bericht-kopieren">Kopieren</button>
         <button type="button" class="knopf" data-act="bericht-drucken">Drucken</button>
       </div>
-      <div class="karte"><div class="bericht" id="berichtText">${esc(berichtText(stand, heute))}</div></div>`,
+      <div class="karte bericht-karte"><div class="bericht" id="berichtText">${esc(berichtText(stand, heute))}</div></div>`,
   };
 }
 
+/*
+ * Der Knopf zum Abhaken zeigte nur „○" – was er tut, stand allein in der
+ * Beschreibung für Vorleseprogramme. Ein Tipp schob die Frage ohne ein Wort
+ * unter „Besprochen" ans Ende, als sei sie verschwunden (Runde 4: E14). Jetzt
+ * steht es auf dem Knopf, in der Reihe mit „Ändern" und „Löschen" – neben der
+ * Frage wäre bei „sehr groß" auf 360 px kaum Platz für ihren Text geblieben.
+ *
+ * Der Name des Knopfs ist sein sichtbarer Text („Besprochen?" bzw.
+ * „Besprochen", die Zeichen ○/✓ sind nur Schmuck), der Zustand steht allein in
+ * aria-pressed. Vorher hieß eine erledigte Frage für Vorleseprogramme „Wieder
+ * offen, gedrückt" – das klang, als sei sie offen –, und die Sprachsteuerung
+ * fand „Besprochen" nicht (Runde 5: F8).
+ */
 function fragenSeite(stand) {
   const offen = stand.fragen.filter((f) => !f.erledigt);
   const erledigt = stand.fragen.filter((f) => f.erledigt);
   const liste = (fragen) => fragen.map((f) => `
-    <div class="karte" style="display:flex;gap:.7rem;align-items:flex-start">
-      <button type="button" class="knopf knopf-klein${f.erledigt ? '' : ' knopf-leise'}" data-act="frage-erledigt" data-id="${esc(f.id)}" aria-pressed="${f.erledigt}" aria-label="${f.erledigt ? 'Wieder offen' : 'Als besprochen abhaken'}">${f.erledigt ? '✓' : '○'}</button>
-      <div style="flex:1;min-width:0"><p>${esc(f.text)}</p>
-        <div class="knopf-reihe" style="margin-top:.4rem">
-          <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="frage" data-param="${esc(f.id)}">Ändern</button>
-          <button type="button" class="knopf knopf-klein knopf-gefahr" data-act="frage-loeschen" data-id="${esc(f.id)}">Löschen</button>
-        </div>
+    <div class="karte">
+      <p>${esc(f.text)}</p>
+      <div class="knopf-reihe" style="margin-top:.4rem">
+        <button type="button" class="knopf knopf-klein${f.erledigt ? '' : ' knopf-leise'}" data-act="frage-erledigt" data-id="${esc(f.id)}" aria-pressed="${f.erledigt}"><span aria-hidden="true">${f.erledigt ? '✓' : '○'}</span> ${f.erledigt ? 'Besprochen' : 'Besprochen?'}</button>
+        <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="frage" data-param="${esc(f.id)}">Ändern</button>
+        <button type="button" class="knopf knopf-klein knopf-gefahr" data-act="frage-loeschen" data-id="${esc(f.id)}">Löschen</button>
       </div>
     </div>`).join('');
   return {
@@ -123,7 +163,7 @@ function wissenSeite() {
   };
 }
 
-function kapitelSeite(id) {
+function kapitelSeite(id, stand) {
   const k = kapitel(id);
   if (!k) return null;
   const i = KAPITEL.indexOf(k);
@@ -131,7 +171,7 @@ function kapitelSeite(id) {
   return {
     titel: k.titel,
     html: `
-      <article class="karte wissen">${k.html}</article>
+      <article class="karte wissen">${kapitelHtml(k, stand)}</article>
       <p class="klein gedaempft">Im Zweifel: Ihre Ärztin, Ihr Arzt oder die Apotheke. Diese App ersetzt keine ärztliche Beratung.</p>
       ${weiter ? `<div class="knopf-reihe"><button type="button" class="knopf knopf-breit" data-act="seite" data-seite="wissen-kapitel" data-param="${weiter.id}">Weiter: ${esc(weiter.titel)} ›</button></div>` : ''}`,
   };
@@ -203,7 +243,7 @@ function darstellungSeite(stand) {
       </div>
       <form data-formular="anrede" class="karte" novalidate>
         <label class="feld"><span>Anrede (freiwillig)</span>
-          <input type="text" name="name" value="${esc(stand.profil.name)}" placeholder="z. B. Frau Müller oder Vorname" autocomplete="off">
+          <input type="text" name="name" value="${esc(stand.profil.name)}" placeholder="z. B. Frau Müller oder Vorname" maxlength="${sp.GRENZEN.name}" autocomplete="off">
           <span class="hinweis">Steht oben auf „Heute" und im Bericht.</span>
         </label>
         <button type="submit" class="knopf knopf-breit">Anrede speichern</button>
@@ -254,7 +294,7 @@ export function mehrSeite(name, param, stand, heute) {
     case 'fragen': return fragenSeite(stand);
     case 'termine': return termineSeite(stand, heute);
     case 'wissen': return wissenSeite();
-    case 'wissen-kapitel': return kapitelSeite(param);
+    case 'wissen-kapitel': return kapitelSeite(param, stand);
     case 'erinnerung': return erinnerungSeite(stand);
     case 'darstellung': return darstellungSeite(stand);
     case 'sicherung': return sicherungSeite(stand, heute);

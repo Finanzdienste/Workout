@@ -18,19 +18,109 @@
   </div>
 </header>
 
-<main id="ansicht" class="ansicht" role="tabpanel" tabindex="-1" aria-labelledby="reiter-heute"></main>
+<main id="ansicht" class="ansicht" tabindex="-1" aria-labelledby="reiter-heute">
+  <!-- Die Notfallnummern stehen fest im HTML (W0). js/app.js ersetzt sie beim
+       Start durch die Ansicht – „Heute" hat dieselbe Leiste oben. Startet die
+       App nicht (etwa direkt nach einem Update, wenn ein alter Zwischenspeicher
+       nicht zu den neuen Dateien passt), blieb sonst eine leere Seite ohne
+       112 (C18). Das Bundesland kennt diese Zeile nicht: beim Giftnotruf 112,
+       wie ohne Angabe im Profil (P5). -->
+  <section class="notfall-leiste" aria-label="Notfall">
+    <p class="notfall-text"><strong>Notfall?</strong> Bei Brustschmerz, starker Atemnot, Ohnmacht, Lähmung, Sprachstörung oder plötzlicher Verwirrtheit: sofort 112.</p>
+    <a class="knopf knopf-notruf knopf-breit" href="tel:112"><span aria-hidden="true">📞</span> 112 anrufen</a>
+    <p class="notfall-nummern">
+      <span>Ärztlicher Bereitschaftsdienst <a class="nummer" href="tel:116117">116 117</a></span>
+      <span class="giftnotruf">Giftnotruf <a class="nummer" href="tel:112">112</a></span>
+      <span>Telefonseelsorge <a class="nummer" href="tel:08001110111">0800 111 0 111</a></span>
+    </p>
+  </section>
+  <p class="start-hinweis klein gedaempft">Erscheint hier nach ein paar Sekunden nichts weiter, schließen Sie die App bitte und öffnen Sie sie neu.</p>
+</main>
 
 <!-- Drei Reiter, mit Wort und Bild. Sie stehen fest im HTML, damit die App
      auch mit einem Skript aus einem älteren Zwischenspeicher eine Navigation
-     hat – dieselbe Vorsicht wie in der Workout-App. -->
-<nav class="reiterleiste" id="reiterleiste" role="tablist" aria-label="Bereiche">
-  <button type="button" class="reiter" id="reiter-heute" data-reiter="heute" role="tab" aria-controls="ansicht"><span class="ri" aria-hidden="true">☀️</span><span>Heute</span></button>
-  <button type="button" class="reiter" id="reiter-verlauf" data-reiter="verlauf" role="tab" aria-controls="ansicht"><span class="ri" aria-hidden="true">📈</span><span>Verlauf</span></button>
-  <button type="button" class="reiter" id="reiter-mehr" data-reiter="mehr" role="tab" aria-controls="ansicht"><span class="ri" aria-hidden="true">☰</span><span>Mehr</span></button>
+     hat – dieselbe Vorsicht wie in der Workout-App.
+
+     <main> ist der Hauptbereich und <nav> die Navigation – für
+     Vorleseprogramme die beiden Orientierungspunkte der Seite. Vorher
+     überschrieben role="tabpanel" und role="tablist" beide: Im Rotor
+     „Orientierungspunkte" fehlten Hauptbereich und Navigation (Runde 5: F6).
+     Die Reiter bleiben Reiter (role="tab", aria-selected zeigt den gewählten)
+     in einer eigenen Liste innerhalb der Navigation. aria-controls entfällt –
+     ein Reiter-Feld gibt es nicht mehr, main ist der Hauptbereich. Die Liste
+     trägt die Anordnung der Leiste (nebeneinander, gleich breit). -->
+<nav class="reiterleiste" id="reiterleiste" aria-label="Bereiche">
+  <div role="tablist" style="display:flex;flex:1;min-width:0">
+    <button type="button" class="reiter" id="reiter-heute" data-reiter="heute" role="tab"><span class="ri" aria-hidden="true">☀️</span><span>Heute</span></button>
+    <button type="button" class="reiter" id="reiter-verlauf" data-reiter="verlauf" role="tab"><span class="ri" aria-hidden="true">📈</span><span>Verlauf</span></button>
+    <button type="button" class="reiter" id="reiter-mehr" data-reiter="mehr" role="tab"><span class="ri" aria-hidden="true">☰</span><span>Mehr</span></button>
+  </div>
 </nav>
 
 <div class="meldung" id="meldung" role="status" aria-live="polite"></div>
 
+<!-- Ein klassisches Skript vor der App, kein Modul: Es läuft auch dann, wenn
+     die Module nicht zusammenpassen und js/app.js gar nicht erst startet.
+
+     Nach einem Update liefert der alte Service Worker, was er im Vorrat hat.
+     Fehlte darin ein Modul (der Vorrat einer Zwischenfassung war
+     unvollständig), kam es frisch vom Server und passte nicht zu den alten –
+     die App startete nicht, und das Neuladen stand in js/app.js, lief also
+     auch nicht: leere Seite bis zum nächsten Öffnen (C18). Hier läuft es
+     immer: Übernimmt der neue Worker die Seite, lädt sie einmal neu und
+     bekommt dann nur Dateien aus seinem vollständigen Vorrat.
+
+     Nur, wenn vorher schon der eigene Worker die Seite hatte: Beim allerersten
+     Besuch steuert womöglich der Worker der Workout-App eine Ebene höher sie,
+     und ein Neuladen risse die Nutzerin mitten aus dem Einrichten. Und nur
+     einmal je Sitzung, damit ein kaputter Worker keine Schleife auslöst.
+     Schrift und Farbe gleich aus dem Speicher, damit die Leiste oben nicht
+     erst hell aufblitzt.
+
+     Läuft die App schon, fragt das Skript sie vorher: Mitten in einem
+     Formular lud die Seite sonst ohne Rückfrage neu, und die halb
+     eingetragenen Laborwerte waren weg (Runde 4: E25). Dann wartet das
+     Neuladen, bis js/app.js eine Lage ohne offene Seite zeichnet.
+
+     Und auch ohne offene Seite nicht mitten in einen Tipp hinein: Die App
+     lädt erst neu, wenn die Sperre gegen den Doppeltipp abgelaufen ist und
+     keine Meldung mehr „Rückgängig" anbietet (Runde 5: F19). Dafür gibt sie
+     __schilddrueseNeuLadenPlanen her. -->
+<script>
+(function () {
+  try {
+    var st = JSON.parse(localStorage.getItem('schilddruese.stand.v1') || 'null');
+    var e = (st && st.einstellungen) || {};
+    if (['normal', 'gross', 'sehr-gross'].indexOf(e.schrift) >= 0) document.documentElement.setAttribute('data-schrift', e.schrift);
+    if (['hell', 'dunkel'].indexOf(e.farbe) >= 0) document.documentElement.setAttribute('data-farbe', e.farbe);
+  } catch (x) { /* dann eben die Vorgaben */ }
+  if (!('serviceWorker' in navigator) || location.protocol.indexOf('http') !== 0) return;
+  var sw = navigator.serviceWorker;
+  var eigenerWorker = new URL('./sw.js', location.href).href;
+  var hatteWorker = Boolean(sw.controller && sw.controller.scriptURL === eigenerWorker);
+  sw.addEventListener('controllerchange', function () {
+    if (!hatteWorker) return;
+    try {
+      if (sessionStorage.getItem('schilddruese.neugeladen')) return;
+      sessionStorage.setItem('schilddruese.neugeladen', '1');
+    } catch (x) {
+      return;
+    }
+    var erlaubt = window.__schilddrueseNeuLadenErlaubt;
+    var planen = window.__schilddrueseNeuLadenPlanen;
+    if (typeof erlaubt === 'function') {
+      try {
+        if (typeof planen === 'function') { window.__schilddrueseNeuLaden = true; planen(); return; }
+        if (!erlaubt()) { window.__schilddrueseNeuLaden = true; return; }
+      } catch (x) { /* dann eben gleich */ }
+    }
+    location.reload();
+  });
+  window.addEventListener('load', function () {
+    sw.register('./sw.js').catch(function () { /* dann ohne Offline-Betrieb */ });
+  });
+}());
+</script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -9,7 +9,7 @@
  *
  * Liefert einen SVG-Text, weil die Ansichten aus Text zusammengesetzt werden.
  */
-import { datumKurz, zahlText } from './datum.js';
+import { datumKurz, zahlText, rohText } from './datum.js';
 import { esc } from './text.js';
 
 const B = 320;   // Breite der Zeichenfläche (viewBox)
@@ -20,12 +20,15 @@ const RAND = { links: 50, rechts: 12, oben: 12, unten: 30 };
 
 /**
  * @param {object} o
- * @param {Array}  o.punkte    [{ datum, wert }] – zeitlich aufsteigend, mindestens einer
+ * @param {Array}  o.punkte    [{ datum, wert, unter?, roh? }] – zeitlich aufsteigend, mindestens einer.
+ *                             `unter`: „< …" wie auf dem Befund; `roh`: der Wert ist nicht
+ *                             umgerechnet und steht ungerundet in der Beschreibung.
  * @param {string} o.einheit
  * @param {Array}  [o.bereich] [von, bis] des Labors, falls bekannt
+ * @param {boolean} [o.bereichRoh] die Grenzen sind nicht umgerechnet – ungerundet beschriften
  * @param {string} o.titel     für die Beschriftung für Vorleseprogramme
  */
-export function verlaufslinie({ punkte, einheit = '', bereich = null, titel = '' }) {
+export function verlaufslinie({ punkte, einheit = '', bereich = null, bereichRoh = false, titel = '' }) {
   if (!punkte.length) return '';
   const werte = punkte.map((p) => p.wert);
   const alle = bereich ? [...werte, ...bereich] : werte;
@@ -42,14 +45,15 @@ export function verlaufslinie({ punkte, einheit = '', bereich = null, titel = ''
   const y = (w) => RAND.oben + hoehe - ((w - lo) / (hi - lo)) * hoehe;
   const f = (n) => n.toFixed(1);
 
-  const beschreibung = `${titel}: ${punkte.map((p) => `${datumKurz(p.datum)} ${zahlText(p.wert)} ${einheit}`).join(', ')}`;
+  // „< 0,01" mit dem Zeichen, ein abgeschriebener Wert ungerundet (Runde 4: E9, E21).
+  const beschreibung = `${titel}: ${punkte.map((p) => `${datumKurz(p.datum)} ${p.unter ? '< ' : ''}${p.roh ? rohText(p.wert) : zahlText(p.wert)} ${einheit}`).join(', ')}`;
   const teile = [`<svg viewBox="0 0 ${B} ${H}" class="verlauf-svg" role="img" aria-label="${esc(beschreibung)}">`];
 
   if (bereich) {
     const [von, bis] = bereich;
     teile.push(`<rect x="${RAND.links}" y="${f(y(bis))}" width="${breite}" height="${f(Math.max(1, y(von) - y(bis)))}" class="verlauf-bereich"/>`);
     [von, bis].forEach((g) => {
-      teile.push(`<text x="${RAND.links - 6}" y="${f(y(g) + 4)}" class="verlauf-achse" text-anchor="end">${esc(zahlText(g))}</text>`);
+      teile.push(`<text x="${RAND.links - 6}" y="${f(y(g) + 4)}" class="verlauf-achse" text-anchor="end">${esc(bereichRoh ? rohText(g) : zahlText(g))}</text>`);
     });
   }
 

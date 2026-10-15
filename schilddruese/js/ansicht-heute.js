@@ -1,18 +1,29 @@
 /*
  * Heute – der erste Bildschirm, und für die meisten Tage der einzige.
  *
- * Oben das Datum in Worten, darunter die Dosis, dann der eine große Knopf.
- * Was danach kommt, ist nur da, wenn es zutrifft: ein Termin in den nächsten
- * zwei Wochen, ein Vorrat, der zur Neige geht, ein Tag gestern ohne Eintrag.
- * Ganz unten die Frage nach dem Befinden – freiwillig, drei Knöpfe.
+ * Ganz oben die Notfallleiste (W0), dann das Datum in Worten, die Dosis und
+ * der eine große Knopf. Was danach kommt, ist nur da, wenn es zutrifft – und
+ * nach Dringlichkeit geordnet: seelische Not (W5) immer zuerst, dann was heute
+ * einen Anruf braucht, dann was in den nächsten Tagen, in ein bis zwei Wochen
+ * oder beim nächsten Termin dran ist. Ganz unten die Frage nach dem Befinden –
+ * freiwillig, drei Knöpfe.
  *
- * Nichts hier scrollt bei 360 × 740, solange keine Hinweise anstehen.
+ * Die Einschätzung selbst steht nicht hier, nur ein Verweis mit ihrer Stufe
+ * in Worten. Auch die Dosis-Karte wird nur verlinkt: Ihre Richtung darf nie
+ * ohne den Pflichttext darunter stehen.
  */
-import { datumInWorten, tageWeiter, uhrText, relativ, tageZwischen } from './datum.js';
+import { datumInWorten, datumKurz, tageWeiter, uhrText, relativ, tageZwischen } from './datum.js';
 import { esc } from './text.js';
+import * as ez from './einschaetzung.js';
+import { gesamtbildMitDosis } from './dosis.js';
 import {
   dosisText, aktuelleDosis, naechsteDosis, einnahme, naechsterTermin, vorratReicht, zaehltAb,
 } from './speicher.js';
+import {
+  notfallLeiste, p6Karte, beschwerdeKarte, w5Karte, stufeSchild, stufeZeile, hinweisKlasse, STUFE_KLASSE, rang, anrufReihe, anrufeImText, anrufKnopf,
+} from './ansicht-einschaetzung.js';
+import { dosisVerweis } from './ansicht-dosis.js';
+import { vorratAndereStaerke } from './ansicht-formulare.js';
 
 const STUFEN = [['gut', 'Gut'], ['mittel', 'Mittel'], ['schlecht', 'Schlecht']];
 
@@ -32,23 +43,89 @@ function tabletteKnopf(stand, heute, jetztUhr) {
         <small>Doch genommen? Hier antippen.</small>
       </button>`;
   }
-  const faellig = jetztUhr >= stand.einstellungen.erinnerung;
+  /*
+   * Am Morgen einer Blutabnahme kommt die Tablette erst danach (RW1 L0d).
+   * Der Knopf stand um 7 Uhr gelb auf „Noch nicht eingetragen", und davor
+   * hieß es „Nüchtern, mit Wasser · geplant 7:00 Uhr" – die Termin-Karte
+   * darunter sagte das Gegenteil (D16). Bis zur Abnahme deshalb weder gelb
+   * noch die gewohnte Zeit, sondern wann es so weit ist.
+   */
+  const abnahme = ez.abnahmeHeute(stand, heute, jetztUhr);
+  /*
+   * Ohne Uhrzeit weiß die App nicht, wann die Abnahme vorbei ist. Bis
+   * Mitternacht zu schweigen hieß: Wer die Tablette danach vergaß, wurde an
+   * dem Tag nicht mehr erinnert, und bei Einnahme am Abend fiel die gewohnte
+   * Erinnerung ganz weg – um 23 Uhr stand noch „Heute erst nach der
+   * Blutabnahme" (Runde 4: E34). Dann ab der gewohnten Zeit wieder gelb, der
+   * Satz darunter bleibt: erst nach der Abnahme. Mit Uhrzeit wie bisher bis
+   * zur Abnahme weder gelb noch die gewohnte Zeit (D16).
+   */
+  const faellig = (!abnahme || !abnahme.uhr) && jetztUhr >= stand.einstellungen.erinnerung;
+  const unter = abnahme ? `Heute erst nach der Blutabnahme${abnahme.uhr ? ` (${esc(uhrText(abnahme.uhr))})` : ''} – dann hier antippen.`
+    : faellig ? 'Noch nicht eingetragen – antippen, sobald genommen.' : `Nüchtern, mit Wasser · geplant ${esc(uhrText(stand.einstellungen.erinnerung))}`;
   return `
     <button type="button" class="tablette${faellig ? ' faellig' : ''}" data-act="tablette" aria-pressed="false">
       <span>Tablette genommen?</span>
-      <small>${faellig ? 'Noch nicht eingetragen – antippen, sobald genommen.' : `Nüchtern, mit Wasser · geplant ${esc(uhrText(stand.einstellungen.erinnerung))}`}</small>
+      <small>${unter}</small>
     </button>`;
 }
 
+const kleinerKnopf = (seite, text, param = null) => `<br><button type="button" class="knopf knopf-klein" data-act="seite" data-seite="${seite}"${param ? ` data-param="${esc(param)}"` : ''} style="margin-top:.4rem">${text}</button>`;
+
+/** Ein Hinweis aus dem Rechenkern als Karte – mit Stufe in Worten. */
+function kernHinweis(h, stand) {
+  const frage = h.frage ? `
+    <div class="antworten zwei">
+      ${h.frage.optionen.map(([w, t]) => `<button type="button" class="knopf antwort" data-act="frage-antwort" data-ziel="${esc(h.frage.ziel)}" data-feld="${esc(h.frage.feld)}" data-bezug="${esc(h.frage.bezug)}" data-wert="${esc(w)}">${esc(t)}</button>`).join('')}
+    </div>` : '';
+  const warn = h.warnzeichen && !h.text.includes(h.warnzeichen) ? `<p class="warnzeichen-zeile">${esc(h.warnzeichen)}</p>` : '';
+  // Nach „Ja" auf die Frage nach einer Erhöhung: erst der Warnzeichen-Check.
+  const check = h.id === 'W-D4' && !h.frage && h.stufe === 'heute'
+    ? '<div class="knopf-reihe"><button type="button" class="knopf" data-act="seite" data-seite="warnzeichen">Warnzeichen prüfen</button></div>' : '';
+  // Nennt der Hinweis eine Nummer (X3 mit „Sofort 112 …"), ist sie anrufbar.
+  // Die Kontroll-Hinweise des Kerns bringen keine Liste mit – etwa der zu zwei
+  // Einträgen eines Tages (L0b-doppelt), der mit der Stufe „heute" 116 117
+  // nennt (C12): dann die Nummern aus dem Text, wie im Gesamtbild.
+  const anrufe = h.anrufe || anrufeImText(h.text, stand);
+  return `
+    <div class="karte kern-hinweis ${hinweisKlasse(h.stufe)}" data-regel="${esc(h.id)}">
+      ${stufeZeile(h.stufe)}
+      <p>${esc(h.text)}</p>
+      ${warn}${frage}${check}${anrufReihe(anrufe)}
+    </div>`;
+}
+
+/**
+ * Alle Hinweise als Liste { stufe, html, oben }. Die bisherigen (Tablette,
+ * gestern, Termin, Vorrat, Sicherung) bekommen eine Stufe, damit sie sich
+ * einreihen: „gestern keine Tablette – nicht doppelt" gehört vor eine
+ * Erinnerung an die Kontrolle, eine aufgebrauchte Packung auch.
+ */
 function hinweise(stand, heute) {
-  const teile = [];
+  const liste = [];
+  // `regel`: die Kennung, damit derselbe Anlass aus zwei Quellen (W5 aus dem
+  // Befinden und aus dem Check) nur einmal dasteht.
+  const add = (stufe, html, oben = false, regel = null) => liste.push({ stufe, html, oben, regel });
+  const aktiv = ez.aktiv(stand);
+  // Eine Rechnung für alles, was die Einschätzung betrifft: das Gesamtbild
+  // mit Dosis-Karte und Dosis-Hinweisen (js/dosis.js). So nennt „Heute" dieselbe
+  // Stufe wie die Seite „Einschätzung" und die Dosis-Karte (B40, B61).
+  const gm = aktiv ? gesamtbildMitDosis(stand, heute) : null;
+
+  // Seelische Not, Herz und ungewollter Gewichtsverlust aus dem Befinden –
+  // das sind Warnzeichen (W5, S4, R3, W2t), keine Einschätzung, und stehen
+  // deshalb auch ohne P6-Haken da.
+  ez.beschwerdenAuswerten(stand, heute).texte
+    .filter((t) => ['W5', 'W5b', 'S4', 'S4ii', 'R3', 'W2t'].includes(t.id))
+    .forEach((t) => add(t.stufe, t.id === 'W5' ? w5Karte(t.text) : beschwerdeKarte(t), t.id === 'W5', t.id));
+
   // Stärke fehlt (beim Einrichten leer gelassen): daran erinnern, bis sie da ist.
   const geltend = aktuelleDosis(heute);
   if (geltend && geltend.mikrogramm === null) {
-    teile.push(`
+    add('termin', `
       <div class="hinweis-karte warn"><span class="ri" aria-hidden="true">💊</span>
         <div><strong>Die Stärke der Tablette fehlt noch.</strong> Sie steht auf der Packung, z. B. „75 µg".
-        <br><button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis" data-param="${esc(geltend.id)}" style="margin-top:.4rem">Stärke eintragen</button></div>
+        ${kleinerKnopf('dosis', 'Stärke eintragen', geltend.id)}</div>
       </div>`);
   }
 
@@ -56,7 +133,7 @@ function hinweise(stand, heute) {
   // der vor einer doppelten Tablette schützt, steht hier dauerhaft – nicht nur
   // ein paar Sekunden als Meldung.
   if (einnahme(tageWeiter(heute, -1)) === null && einnahme(heute) === undefined) {
-    teile.push(`
+    add('tage', `
       <div class="hinweis-karte"><span class="ri" aria-hidden="true">ℹ️</span>
         <div>Gestern keine Tablette. <strong>Heute wie gewohnt eine – nicht doppelt.</strong></div>
       </div>`);
@@ -67,7 +144,7 @@ function hinweise(stand, heute) {
   const gestern = tageWeiter(heute, -1);
   const ab = zaehltAb();
   if (ab && ab <= gestern && einnahme(gestern) === undefined) {
-    teile.push(`
+    add('termin', `
       <div class="karte" id="gestern">
         <h2>Gestern nicht eingetragen</h2>
         <p class="gedaempft">Haben Sie gestern die Tablette genommen?</p>
@@ -78,12 +155,22 @@ function hinweise(stand, heute) {
       </div>`);
   }
 
+  // Die alte Frage nach Östrogen: Tablette oder Pflaster? Das macht beim
+  // Bedarf einen Unterschied, und die App weiß es nicht.
+  if (stand.profil.oestrogenPruefen) {
+    add('termin', `
+      <div class="hinweis-karte warn"><span class="ri" aria-hidden="true">💊</span>
+        <div><strong>Bitte prüfen:</strong> Nehmen Sie Östrogen als Tablette oder als Pflaster/Gel?
+        ${kleinerKnopf('profil', 'Im Profil angeben')}</div>
+      </div>`);
+  }
+
   const termin = naechsterTermin(heute);
   if (termin && tageZwischen(heute, termin.datum) <= 14) {
     const art = termin.art === 'labor' ? 'Blutabnahme' : termin.art === 'arzt' ? 'Arzttermin' : 'Termin';
     const wann = `${relativ(termin.datum, heute)}${termin.uhr ? `, ${uhrText(termin.uhr)}` : ''}`;
     const blut = termin.blutabnahme || termin.art === 'labor';
-    teile.push(`
+    add(tageZwischen(heute, termin.datum) <= 1 ? 'tage' : 'termin', `
       <div class="hinweis-karte"><span class="ri" aria-hidden="true">📅</span>
         <div><strong>${esc(art)} ${esc(wann)}</strong>${termin.wo ? ` · ${esc(termin.wo)}` : ''}
         ${blut ? '<br><span class="klein">Blutabnahme: Die Tablette meist erst danach nehmen – so, wie es mit der Praxis besprochen ist.</span>' : ''}
@@ -91,47 +178,133 @@ function hinweise(stand, heute) {
       </div>`);
   }
 
-  // Nach einer Dosisänderung wird meist nach 6–8 Wochen kontrolliert. Nur eine
-  // Erinnerung an diese Regel, keine Empfehlung: Sie erscheint erst ab der
-  // vierten Woche, nur solange weder ein neuer Laborwert noch ein Termin
-  // eingetragen ist, und sagt nichts über die Dosis selbst.
-  const geltende = aktuelleDosis(heute);
-  if (geltende && stand.dosen.indexOf(geltende) >= 1 && !termin) {
-    // Die heute gültige Dosis, nicht die zuletzt eingetragene: Ist schon eine
-    // künftige eingetragen, soll die Erinnerung an die laufende nicht fehlen.
-    const letzte = geltende;
-    const seit = tageZwischen(letzte.ab, heute);
-    const laborDanach = stand.labor.some((l) => l.datum >= letzte.ab);
-    if (seit >= 28 && seit <= 70 && !laborDanach) {
-      teile.push(`
-        <div class="hinweis-karte"><span class="ri" aria-hidden="true">🩸</span>
-          <div>Die Dosis wurde vor ${Math.floor(seit / 7)} Wochen geändert. Üblich ist eine Blutkontrolle etwa 6 bis 8 Wochen danach – falls noch kein Termin ausgemacht ist, bei der Praxis nachfragen.
-          <br><button type="button" class="knopf knopf-klein" data-act="seite" data-seite="termin" style="margin-top:.4rem">Termin eintragen</button></div>
+  // Was die Rechenkerne für heute sagen: Kontrollen, Nachfragen nach einer
+  // Dosisänderung, Wechselwirkungen. Nur bei bestätigter Behandlung (P6).
+  // Die Kontrollen aus dem Gesamtbild: Dort fällt L7d weg, wenn die
+  // Dosis-Karte an dieselbe Kontrolle erinnert (D6c) – sonst stand sie doppelt da.
+  // Eine eigene Erinnerung „vor N Wochen geändert" gibt es hier nicht mehr:
+  // Sie kam auch ohne P6 und ohne den Text vor der Blutabnahme (B47) – die
+  // Kontrolle nach einer Dosisänderung meldet allein D6c.
+  const kern = gm ? [...gm.teile.filter((t) => t.quelle === 'kontrolle'), ...gm.dosisHinweise] : [];
+  kern.forEach((h) => add(h.stufe, kernHinweis(h, stand)));
+
+  if (gm) {
+    // Die Einschätzung: nur ihre Stufe in Worten und der Weg dorthin.
+    const g = gm;
+    const befundAm = g.ohneMuster ? g.ohneMuster.befund.datum : g.befund ? g.befund.befund.datum : null;
+    if (rang(g.stufe) >= rang('termin')) {
+      add(g.stufe, `
+        <div class="karte einschaetzung-verweis ${STUFE_KLASSE[g.stufe]}" data-stufe="${esc(g.stufe)}">
+          <p class="klein gedaempft">Einschätzung</p>
+          <p class="stufe-zeile">${stufeSchild(g.stufe, g.kopf.titel)}</p>
+          ${befundAm ? `<p class="klein">Nach dem Befund vom ${esc(datumKurz(befundAm))} und Ihren übrigen Einträgen.</p>` : '<p class="klein">Nach Ihren Einträgen.</p>'}
+          <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="gesamtbild" style="margin-top:.5rem">Einschätzung ansehen</button>
         </div>`);
     }
+    const d = dosisVerweis(stand, heute, g.dosis, new Set(g.dosisHinweise.map((h) => h.id)));
+    if (d) {
+      // Bittet der Verweis um einen Eintrag (die neue Dosis nach „Die Praxis
+      // hat entschieden", Runde 4: E1), führt ein Knopf direkt ins Formular.
+      const ansehen = '<button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis-karte"';
+      const knoepfe = d.knopf
+        ? `<div class="knopf-reihe"><button type="button" class="knopf knopf-klein knopf-haupt" data-act="seite" data-seite="${esc(d.knopf.seite)}" data-param="${esc(d.knopf.param || '')}">${esc(d.knopf.text)}</button>${ansehen}>Dosis-Karte ansehen</button></div>`
+        : `${ansehen} style="margin-top:.5rem">Dosis-Karte ansehen</button>`;
+      add(d.stufe, `
+        <div class="karte dosis-verweis" data-stufe="${esc(d.stufe)}">
+          <p><strong>Dosis-Karte</strong></p>
+          <p class="klein">${esc(d.text)}</p>
+          ${knoepfe}
+        </div>`);
+    }
+  }
+
+  /*
+   * Ohne P6-Haken gibt es keine Einschätzung und damit auch keinen Verweis –
+   * der Warnzeichen-Check von heute stand dann nur auf seiner Ergebnisseite.
+   * Nach „Zurück" sagte keine Seite mehr „Jetzt den Giftnotruf anrufen" oder
+   * „Heute anrufen", während dieselben Warnzeichen aus dem Befinden (W5, S4,
+   * R3, W2t) hier den ganzen Tag stehen. Warnzeichen hängen nicht an P6
+   * (Entscheidung „P6 sperrt … nicht Notfall, Warnzeichen") – also stehen
+   * die Abschnitte des Checks ab „In den nächsten Tagen" hier (Runde 4: E15).
+   * Bei W1 ist das nur der 112-Text (RW1 W1). „Nichts davon" (W3) und „genau
+   * eine zu viel" (W4b) nicht: Sie verlangen keinen Anruf, und die Texte aus
+   * dem Befinden stehen oben schon. Muster, Stufe, Befund und Dosis-Karte
+   * bleiben ohne P6 gesperrt. Mit P6 trägt der Verweis auf die Einschätzung
+   * den Check.
+   */
+  if (!aktiv) {
+    const w = ez.warnHeute(stand, heute);
+    const schon = new Set(liste.map((h) => h.regel));
+    if (w) {
+      w.abschnitte
+        .filter((a) => !['W3', 'W4b'].includes(a.id) && rang(a.stufe) >= rang('tage') && !schon.has(a.id))
+        .forEach((a) => {
+          const wann = `<p class="klein gedaempft">Warnzeichen-Check von heute${w.check.uhr ? `, ${esc(uhrText(w.check.uhr))}` : ''}:</p>`;
+          // W1 groß mit 112 wie auf der Ergebnisseite – ohne role="alert":
+          // „Heute" zeichnet oft neu, und jede Durchsage wiederholte sich.
+          if (a.id === 'W1') {
+            add('notruf', `
+              <div class="karte gefahr notruf-karte" data-regel="W1">${wann}
+                <p class="gross">${esc(a.text)}</p>
+                <div class="knopf-reihe">${a.anrufe.map((x) => anrufKnopf(x.nummer, x.text, { notruf: true, breit: true })).join('')}</div>
+              </div>`, true, 'W1');
+          } else if (a.id === 'W5') {
+            add(a.stufe, w5Karte(a.text), true, 'W5');
+          } else {
+            add(a.stufe, `
+              <div class="karte kern-hinweis ${hinweisKlasse(a.stufe)}" data-regel="${esc(a.id)}">
+                ${stufeZeile(a.stufe, ez.kopfFuer(a.stufe, [a]).titel)}
+                ${wann}
+                <p>${esc(a.text)}</p>
+                ${anrufReihe(a.anrufe)}
+              </div>`, false, a.id);
+          }
+        });
+    }
+  }
+
+  /*
+   * Vorrat (D13): Nach einer anderen Stärke gilt die gezählte Packung nicht
+   * mehr – dann keine Reichweite aus der alten, sondern die Bitte, neu zu
+   * zählen. Ist er aufgebraucht, heißt es „heute" statt „rechtzeitig".
+   */
+  const andereStaerke = vorratAndereStaerke(stand, heute);
+  const reicht = vorratReicht(heute);
+  if (andereStaerke) {
+    add('termin', `
+      <div class="hinweis-karte warn" data-regel="vorrat-staerke"><span class="ri" aria-hidden="true">💊</span>
+        <div><strong>Bitte zählen Sie Ihren Tablettenvorrat neu.</strong>
+        <br><span class="klein">Seit dem ${esc(datumKurz(andereStaerke.ab))} nehmen Sie eine andere Stärke. Die gezählte Packung gilt dafür nicht mehr.</span>
+        ${kleinerKnopf('vorrat', 'Vorrat neu zählen', 'neu')}</div>
+      </div>`);
+  } else if (reicht !== null && reicht <= 14) {
+    add(reicht <= 0 ? 'heute' : reicht <= 3 ? 'tage' : 'termin', `
+      <div class="hinweis-karte warn"><span class="ri" aria-hidden="true">💊</span>
+        <div><strong>${reicht <= 0 ? 'Der Vorrat ist aufgebraucht.' : `Vorrat reicht noch etwa ${reicht} ${reicht === 1 ? 'Tag' : 'Tage'}.`}</strong>
+        <br><span class="klein">${reicht <= 0 ? 'Bitte heute ein neues Rezept holen.' : 'Rechtzeitig ein neues Rezept holen.'} <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="vorrat">Vorrat ändern</button></span></div>
+      </div>`);
   }
 
   // Sicherung: erst, wenn es etwas zu verlieren gibt, und dann alle zwei Monate.
   const eintraege = Object.keys(stand.einnahmen).length + stand.labor.length;
   const letzteSicherung = stand.letzteSicherung;
   if (eintraege >= 30 && (!letzteSicherung || tageZwischen(letzteSicherung, heute) > 60)) {
-    teile.push(`
+    add('keine', `
       <div class="hinweis-karte"><span class="ri" aria-hidden="true">💾</span>
         <div>${letzteSicherung ? 'Die letzte Sicherung ist über zwei Monate her.' : 'Ihre Daten sind noch nicht gesichert.'} Bei einem neuen Handy wären sie sonst weg.
-        <br><button type="button" class="knopf knopf-klein" data-act="seite" data-seite="sicherung" style="margin-top:.4rem">Jetzt sichern</button></div>
+        ${kleinerKnopf('sicherung', 'Jetzt sichern')}</div>
       </div>`);
   }
 
-  const reicht = vorratReicht(heute);
-  if (reicht !== null && reicht <= 14) {
-    teile.push(`
-      <div class="hinweis-karte warn"><span class="ri" aria-hidden="true">💊</span>
-        <div><strong>${reicht <= 0 ? 'Der Vorrat ist aufgebraucht.' : `Vorrat reicht noch etwa ${reicht} ${reicht === 1 ? 'Tag' : 'Tage'}.`}</strong>
-        <br><span class="klein">Rechtzeitig ein neues Rezept holen. <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="vorrat">Vorrat ändern</button></span></div>
-      </div>`);
-  }
+  // P6: ohne Bestätigung keine Einschätzung – klein, ganz unten.
+  if (!aktiv) add('keine', p6Karte());
 
-  return teile.join('');
+  // W5 immer zuerst, danach nach Stufe; Gleichstand behält die Reihenfolge.
+  return liste
+    .map((h, i) => ({ ...h, i }))
+    .sort((a, b) => (b.oben - a.oben) || (rang(b.stufe) - rang(a.stufe)) || (a.i - b.i))
+    .map((h) => h.html)
+    .join('');
 }
 
 function befinden(stand, heute) {
@@ -144,6 +317,7 @@ function befinden(stand, heute) {
         ${STUFEN.map(([id, name]) => `<button type="button" class="knopf" data-act="befinden" data-stufe="${id}" aria-pressed="${gewaehlt === id}">${name}</button>`).join('')}
       </div>
       <p class="klein gedaempft" style="margin-top:.6rem">
+        <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="warnzeichen" style="margin:.2rem 0 .4rem">Geht es Ihnen gerade schlecht? Warnzeichen prüfen</button><br>
         ${eintrag
     ? `Eingetragen${eintrag.beschwerden.length ? ` · ${eintrag.beschwerden.length} ${eintrag.beschwerden.length === 1 ? 'Beschwerde' : 'Beschwerden'}` : ''}. <button type="button" class="knopf knopf-klein knopf-leise" data-act="seite" data-seite="befinden" data-param="${esc(eintrag.id)}">Beschwerden angeben</button>`
     : 'Freiwillig. Beschwerden lassen sich danach genauer angeben.'}
@@ -160,13 +334,21 @@ export function heuteAnsicht(stand, heute, jetztUhr) {
   const dosis = dosisText(aktuelleDosis(heute));
   const naechste = naechsteDosis(heute);
   const anrede = stand.profil.name ? `Guten Tag, ${esc(stand.profil.name)}.` : '';
-  return `
+  const kopf = `
     <p class="heute-datum">${esc(datumInWorten(heute))}</p>
     <p class="heute-dosis">${anrede ? `${anrede} ` : ''}${dosis
     ? esc(dosis)
     : 'Noch keine Dosis eingetragen. <button type="button" class="knopf knopf-klein" data-act="seite" data-seite="dosis">Dosis eintragen</button>'}</p>
-    ${naechste ? `<p class="hinweis-karte" style="display:block"><strong>Ab ${esc(datumInWorten(naechste.ab))}:</strong> ${esc(dosisText(naechste))}</p>` : ''}
-    ${tabletteKnopf(stand, heute, jetztUhr)}
+    ${naechste ? `<p class="hinweis-karte" style="display:block"><strong>Ab ${esc(datumInWorten(naechste.ab))}:</strong> ${esc(dosisText(naechste))}</p>` : ''}`;
+  const knopf = tabletteKnopf(stand, heute, jetztUhr);
+  // Bei Schrift „sehr groß" füllten Notfallleiste, Datum und Dosis den ersten
+  // Bildschirm (360 × 740) – der Knopf, für den man die App jeden Morgen
+  // öffnet, lag darunter. Dann steht er direkt unter der Leiste, Datum und
+  // Dosis folgen. Die Leiste selbst bleibt oben (W0).
+  const knopfZuerst = stand.einstellungen.schrift === 'sehr-gross';
+  return `
+    ${notfallLeiste(stand)}
+    ${knopfZuerst ? `${knopf}<div style="height:.6rem"></div>${kopf}` : `${kopf}${knopf}`}
     <div style="height:.8rem"></div>
     ${hinweise(stand, heute)}
     ${befinden(stand, heute)}`;

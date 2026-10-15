@@ -14,7 +14,7 @@ const { page, check, uhr, gespeichert, ende } = await oeffne({ viewport: { width
 
 check(await page.locator('.willkommen-titel').isVisible(), 'beim ersten Öffnen steht die Willkommensseite da');
 check(await page.locator('#reiterleiste').isHidden(), 'die Reiterleiste ist während der Einrichtung ausgeblendet');
-check((await ansichtText(page)).includes('keine Dosis'), 'die Grenzen der App stehen gleich auf der ersten Seite');
+check((await ansichtText(page)).includes('Praxis anrufen'), 'die Grenzen der App stehen gleich auf der ersten Seite');
 check(await page.locator('[data-act="sicherung-laden"]').isVisible(), 'wer ein neues Handy hat, kann schon hier eine Sicherung einlesen');
 
 // Eingabetaste im Namensfeld: weiter, nicht neu laden.
