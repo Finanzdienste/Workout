@@ -866,12 +866,65 @@ abschalten.
 `js/audio.js` erzeugt alle Töne per Web Audio, keiner wird geladen – das hält
 die App offline-tauglich und spart eine Datei, die veralten könnte. Ein Ton ist
 eine Folge von Sinus-Tönen; sieben gibt es: Training gestartet, Satz abgehakt,
-Übung fertig, Pause vorbei, Workout komplett, Training beendet, Gewicht erhöht.
+Übung fertig, Fertig machen, Pause vorbei, Workout komplett, Training beendet.
 Der Tupfer beim Abhaken hat einen eigenen Schalter, weil er zwanzigmal pro
 Training kommt; die übrigen ein- bis zweimal.
 
-Weil mobile Browser Ton nur nach einer Berührung zulassen, entsteht der
-AudioContext beim Start des Trainings oder beim ersten Abhaken.
+**Freischalten: mit der ersten Berührung, und nie ohne eine (v241).**
+
+> „Irgendwie gibt's überhaupt keine soundeffekte mehr in der app"
+>
+> „Jetzt fehlt iwie die Pause" – „Und es gibt iwie überhaupt keine sounds"
+> (mitten im Training, v236 gerade live)
+
+Mobile Browser lassen Ton nur zu, wenn der AudioContext auf eine Berührung
+zurückgeht. Chrome auf Android (im Tab und als „Zum Startbildschirm"-
+Verknüpfung) merkt sich *eine* Aktivierung für die Lebensdauer des Dokuments:
+pointerup, touchend, mousedown oder keydown – nicht touchstart, nicht
+pointerdown, nicht ein senkrechter Wisch. Danach startet ein neuer Kontext
+`running`, und `resume()` klappt auch Minuten später aus einem Zeitgeber. Ein
+Neuladen (Aktualisierung, Neustart vom Startbildschirm) ist ein neues Dokument
+und wieder gesperrt. iOS gibt einen Kontext frei, wenn `resume()` oder ein
+`start()` innerhalb von fünf Sekunden nach der Berührung kommt – dann dauerhaft.
+
+Bis v240 entstand der Kontext erst in den Klick-Handlern von „Training starten"
+und dem Satzknopf, und an zwei Stellen auch *ohne* Berührung: in `armRest()`,
+wenn man während einer Pause weg- und zurückschaltete, und in `endRest()`, wenn
+eine Pause ablief, ohne dass seit dem Laden jemand getippt hatte. So ein Kontext
+ist `suspended`, sein `resume()` antwortet nie, und alles, was auf seine
+stehende Uhr gelegt wurde, klingelte beim nächsten Tipp auf einmal nach – ein
+„Pause vorbei" zum nächsten Satz. Genau das war Tobis Lage am 06.10.: Seite
+mitten in der Pause neu geladen, keine Leiste mit Signal, kein Ton bis zum
+nächsten Tipp. Seit v241:
+
+* **Ein Lauscher auf dem Dokument** (`beruehrung()` in `js/audio.js`, capture,
+  pointerup/touchend/mousedown/keydown) legt den Kontext in der *ersten*
+  aktivierenden Berührung an und weckt ihn – noch im selben Ereignis, bevor ein
+  Klick-Handler läuft, und auch dann, wenn die Berührung selbst keinen Ton
+  auslöst (die Figur drehen, ein Reiter). Wo es `navigator.userActivation`
+  gibt, zählt dessen `hasBeenActive`; ein touchend nach dem Scrollen schaltet
+  nichts frei. Jede weitere Berührung weckt einen Kontext, der nicht läuft.
+* **Nichts legt den Kontext ohne Berührung an.** `scheduleSound()` und
+  `playSound()` merken sich stattdessen den Wunsch: die Pause wird nach dem
+  Freischalten mit frisch gerechneter Restzeit neu aufgelegt (`armRest()` als
+  Rückruf – auch beim Start der Seite, wenn eine Pause den Neustart überdauert
+  hat; diese Zeile fehlte bis v240); ein Ton, der sofort hätte kommen sollen,
+  kommt mit der ersten Berührung einmal nach und zählt als *verpasst*. Nur eine
+  Pause, die gerade eben zu Ende ging (unter einer Minute), bekommt den Gong
+  nach – nicht eine, die beim Neustart längst vorbei war.
+* **`wecken()` weckt alles, was nicht läuft**, nicht nur `suspended`: iOS
+  setzt den Kontext nach einem Anruf oder App-Wechsel auf `interrupted`. Geweckt
+  wird bei jeder aktivierenden Berührung und beim Zurückkommen
+  (`visibilitychange`).
+* **`navigator.audioSession.type = 'playback'`**, wo es die API gibt (Audio
+  Session API, W3C-Entwurf; MDN; Safari ab 16.4). Sonst liegt Web Audio auf iOS
+  in der Sitzung „ambient", die mit dem Stummschalter verstummt. Der Preis:
+  Musik aus einer anderen App kann während eines Tons kurz leiser werden oder
+  pausieren. Aus den Quellen übernommen, nicht am Gerät gemessen.
+* **„Töne anhören" liegt auf der Audio-Uhr**, nicht mehr auf sechs
+  `setTimeout`s (`probeSpielen()`): Auf iOS hätte ein Zeitgeber, der später als
+  fünf Sekunden nach dem Tipp feuert, einen schlafenden Kontext nicht mehr
+  wecken dürfen. Eine eigene Liste, die das Vorausplanen der Pause nicht stört.
 
 **Das Pausensignal wird vorausgeplant, nicht per `setTimeout` ausgelöst.** Der
 Unterschied zählt genau dann, wenn man während der Pause das Handy weglegt oder
@@ -885,6 +938,61 @@ er aber vorhanden, und damit gilt die Seite als aktiv. Wird die Pause
 übersprungen oder um 30 s verlängert, wird der vorgemerkte Ton verworfen und neu
 gelegt.
 
+**Pausenende: Hat es gespielt?** Bis v240 beendete `tickRest()` die Pause bei
+`Math.round(rest) <= 0`, also bis zu eine halbe Sekunde *vor* dem Endzeitpunkt
+– und `endRest()` → `cancelSound()` verwarf das vorausgelegte Signal, das eine
+Viertel- bis halbe Sekunde später auf der Uhr lag, vor seinem Start. Ein
+Oszillator, der vor seiner Startzeit gestoppt wird, klingt nie. Gemessen: in
+jeder Runde, 0,499 s und 0,511 s zu früh; das lauteste Signal der App kam im
+Vordergrund *nie*, nur die leise Vorwarnung und der Satz-Tupfer. Seit v241 endet
+die Pause erst nach dem Endzeitpunkt (die Anzeige rundet weiter und zeigt in der
+letzten halben Sekunde 0:01), und `endRest()` fragt `signalStand('rest')`:
+*erklungen* oder *läuft* (begonnen, oder fällig in den nächsten 0,3 s – die
+Audio-Uhr zeigt das zuletzt gerenderte Quantum, nicht die Wanduhr) → ausklingen
+lassen, kein zweiter Ton; *offen* (noch vor uns, weil der Kontext im Hintergrund
+angehalten war und seine Uhr hinter der Wanduhr zurückliegt) oder *keins* →
+verwerfen und jetzt den Ton geben. Kein Doppelton, kein stummes Ende.
+
+**Ehrlich zählen.** `tonStand()` zählt seit v241 nicht mehr, was angefordert
+wurde, sondern was der Kontext *wiedergegeben* hat: Jeder Klang trägt am
+Grundton einen `ended`-Lauscher, und gezählt wird, wenn die Uhr beim Ende über
+seiner Startzeit steht (ein vor dem Start verworfener Ton meldet `ended` mit
+einer Uhr, die noch davor steht). Getrennt davon `verpasst`: Töne, die
+angefordert wurden, als der Kanal nicht frei war, und Töne, die eine Sekunde
+nach der Anforderung noch nicht begonnen hatten, weil der Kontext stand – die
+werden verworfen statt später nachzuklingeln (`bewachen()`). Unter *Mehr → Töne*
+steht die Auswertung in einfachen Worten, und sie zieht sich mit jedem Ton
+nach, der kommt oder ausfällt (`onTonStand()`): *läuft · N Töne losgeschickt* –
+war trotzdem nichts zu hören, liegt es am Gerät: Medien-Lautstärke (die Wippe
+regelt sie nur, während etwas spielt), Bluetooth-Kopfhörer oder Auto, Bitte
+nicht stören, in Chrome die Website-Einstellung Ton, am iPhone der
+Stummschalter. *angehalten* – der Browser wartet auf eine Berührung, oder er
+hält den Kanal trotz Berührung an (Anruf, App-Wechsel). Schläft der Kanal eine
+Sekunde nach einer Berührung weiter, zeigt das Dashboard einmal eine stille
+Zeile (kein Popup), die von selbst verschwindet, sobald er läuft.
+
+**Gemessen, aus Quellen, nicht belegbar.** Gemessen in Chromium 153 mit
+Standard-Autoplay-Policy (keine Flagge) und Touch über eine rohe CDP-Sitzung
+(`tests/test-ton-freischalten.mjs`): ohne Berührung kein Kontext, auch nicht
+nach weg und zurück; die erste Berührung – ein Reiter, die Figur – legt ihn an
+und er läuft sofort; eine Pause, die den Neustart überdauert, wird mit der
+ersten Berührung nachgeholt und spielt genau einmal, ohne vorzeitigen Stopp; ein
+Pausenende ohne Tipp erzeugt keinen Kontext und keine Konsolenmeldung „not
+allowed to start", der Gong kommt mit dem nächsten Satz-Tipp einmal nach; „Töne
+anhören" legt sechs Töne im Abstand von 0,9 s sofort auf die Uhr. Wichtig für
+jede weitere Messung: In Playwright zählt jedes `page.evaluate()` und jede
+Locator-Hilfe als Nutzergeste (`Runtime.callFunctionOn` mit `userGesture:
+true`) – ein Test, der vor der ersten Berührung eines davon aufruft, sieht die
+Sperre nicht; die erste Prüfung jeder Szene ist deshalb
+`navigator.userActivation.hasBeenActive === false`. Aus Quellen (Chromium- und
+WebKit-Quelltext, MDN, W3C): die Aktivierungsregeln oben, die iOS-Fünf-
+Sekunden-Regel, `interrupted`, die Audio Session API. Nicht belegbar ohne
+Gerät: ob Tobis installierte App eine echte WebAPK ist (dort gibt es laut
+Chromium keine Sperre – der Umbau schadet dort nicht, verschiebt aber ein
+Pausenende ohne Tipp nach einem Neustart auf die erste Berührung); ob iOS sich
+wie beschrieben verhält; und ob das Gerät den erzeugten Ton ausgibt – genau
+dafür steht die Zeile unter *Mehr → Töne*.
+
 Zusätzlich hält die App während der Pause das Display wach
 (`navigator.wakeLock`).
 
@@ -894,8 +1002,9 @@ Erlaubnis des Browsers). Sie kommt nur, wenn die App gerade nicht zu sehen ist �
 davor sitzend reichen Ton und Leiste. Der Wecker dafür ist ein gewöhnliches
 `setTimeout`; der Trägerton hält die Seite wach genug, dass es auch läuft.
 `endRest()` bestellt ihn nur bei einer *abgebrochenen* Pause ab, nicht bei einer
-abgelaufenen: Diese Zeile läuft bis zu eine halbe Sekunde vor dem Ende, weil der
-Timer im Vierteltakt prüft und rundet.
+abgelaufenen – der Wecker soll noch losgehen, falls die App im Hintergrund ist.
+(Bis v240 lief diese Zeile bis zu eine halbe Sekunde vor dem Ende, weil der
+Timer im Vierteltakt prüfte und rundete; seit v241 erst danach, siehe oben.)
 
 Was auch das nicht kann: klingeln, wenn die App ganz geschlossen ist. Dafür
 bräuchte es einen Server, der eine Push-Nachricht schickt – die App hat keinen
@@ -3187,7 +3296,7 @@ js/app.js               Zustand der Oberfläche, Routing, Ereignisse, alles, was
 js/figure.js            Animierte Bewegungsabläufe und die Verletzungsfigur
 js/body.js              Körperkarte mit den beanspruchten Muskelgruppen
 js/chart.js             Verlaufskarten für die Statistik
-js/audio.js             Erzeugte Töne und das vorausgeplante Pausensignal
+js/audio.js             Erzeugte Töne, Freischalten mit der ersten Berührung, das vorausgeplante Pausensignal
 js/config.js            Adresse des Rückkanals – leer heißt: kein Server
 js/telemetry.js         Melden, löschen, Betreiber-Übersicht (siehe Rückkanal)
 js/ics.js               Trainingstermine als Kalenderdatei (.ics)

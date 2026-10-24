@@ -35,7 +35,9 @@ import {
   sicherungMetaLesen, sicherungNachsehen, sicherungRueckweg, sicherungSchalten, sicherungStart,
   sicherungTrotzdem, sicherungUebernehmen, sicherungVergessen, sicherungVerstecken,
 } from './sicherung.js';
-import { initAudio, playSound, scheduleSound, cancelSound, tonStand } from './audio.js';
+import {
+  initAudio, playSound, scheduleSound, cancelSound, signalStand, probeSpielen, tonStand, onTonStand,
+} from './audio.js';
 import { esc, fmtNum, komma1 } from './text.js';
 import { MODE_ICON, MODE_LABEL, mitWdh, repsLabel, umfangText, wdhTeile } from './anzeige.js';
 import {
@@ -1289,7 +1291,11 @@ function armRest() {
   }
   const left = (rest.endsAt - Date.now()) / 1000;
   if (store.getState().sound) {
-    restArmed = scheduleSound([['ready', left - VORLAUF], ['rest', left]]);
+    // Ohne Berührung seit dem Laden legt der Tonkanal nichts auf – er merkt
+    // sich stattdessen diesen Aufruf und holt ihn nach der ersten Berührung
+    // nach, mit dann frisch gerechneter Restzeit. Bis dahin ist restArmed
+    // false, und endRest() sorgt am Ende selbst für den Ton.
+    restArmed = scheduleSound([['ready', left - VORLAUF], ['rest', left]], armRest);
   } else {
     cancelSound();
     restArmed = false;
@@ -1329,21 +1335,53 @@ function startRest(exName, setIndex, sets, secs, exId = null) {
   tickRest();
 }
 
+/*
+ * Wie lange nach ihrem Ende eine Pause noch „gerade eben vorbei" ist.
+ *
+ * Nach einem Neustart der Seite ruft tickRest() auch für eine Pause endRest(),
+ * die vor einer Stunde ablief – Leiste weg, Hinweis, fertig. Ein Gong dazu wäre
+ * dann kein Signal mehr, sondern ein Rätsel. Innerhalb dieser Frist ist er es
+ * noch: Das ist der Fall „Seite mitten in der Pause neu geladen, keiner hat
+ * getippt", und dort kommt er nach der ersten Berührung nach.
+ */
+const NACHKLANG_MS = 60000;
+
 function endRest(withSignal) {
   if (!restBar) return;
+  const vorbei = store.getState().rest;
   holdScreen(false);
   store.setRest(null);
   restBar.classList.remove('ready');
-  // Das Signal liegt längst auf der Audio-Uhr und hat gerade selbst gespielt –
-  // hier noch einmal anzustoßen, gäbe ein Echo. Nur wenn das Voraussetzen nicht
-  // geklappt hat (kein Ton freigeschaltet, Browser ohne Web Audio), kommt der
-  // Ton jetzt. cancelSound() lässt ein bereits laufendes Signal ausklingen.
-  if (withSignal && !restArmed) sound('rest');
+  /*
+   * Das Signal liegt auf der Audio-Uhr – aber hat es gespielt? Vier Fälle:
+   *
+   *   erklungen / läuft   Es kam oder kommt gerade. Noch einmal anstoßen gäbe
+   *                       ein Echo; cancelSound() lässt es ausklingen.
+   *   offen               Es liegt noch vor uns – weil der Kontext im
+   *                       Hintergrund angehalten war und seine Uhr hinter der
+   *                       Wanduhr zurückliegt. Dann käme es nie oder zur
+   *                       Unzeit: verwerfen und jetzt den Ton geben.
+   *   keins               Nichts lag auf der Uhr (kein Ton freigeschaltet,
+   *                       Töne aus, kein Web Audio) – jetzt den Ton geben.
+   *
+   * Vor diesem Umbau stand hier `if (!restArmed) sound('rest')` – und
+   * tickRest() beendete die Pause bis zu eine halbe Sekunde zu früh, sodass
+   * cancelSound() das vorausgelegte Signal jedes Mal vor seinem Start stoppte:
+   * Das lauteste Signal der App kam im Vordergrund nie. *„Jetzt fehlt iwie die
+   * Pause"* – und *„es gibt iwie überhaupt keine sounds"*.
+   *
+   * Ohne Berührung seit dem Laden merkt sich playSound() den Ton und holt ihn
+   * bei der ersten nach – aber nur, wenn die Pause gerade eben zu Ende ging
+   * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war.
+   */
+  const stand = restArmed ? signalStand('rest') : 'keins';
+  const frisch = !vorbei || Date.now() - vorbei.endsAt < NACHKLANG_MS;
+  if (withSignal && frisch && stand !== 'erklungen' && stand !== 'laeuft') sound('rest');
   cancelSound();
   // Bei einer abgebrochenen Pause den Hinweis abbestellen – bei einer
-  // abgelaufenen gerade nicht: Diese Zeile läuft bis zu eine halbe Sekunde vor
-  // dem Ende (der Timer prüft im Vierteltakt und rundet), der Wecker soll aber
-  // noch losgehen, falls die App im Hintergrund ist.
+  // abgelaufenen gerade nicht: Der Wecker soll noch losgehen, falls die App im
+  // Hintergrund ist. (Diese Zeile läuft seit v241 erst nach dem Ende, nicht
+  // mehr bis zu eine halbe Sekunde davor.)
   if (!withSignal) dropNote();
   restArmed = false;
   if (withSignal) {
@@ -1365,7 +1403,14 @@ function tickRest() {
   const laeuft = store.getState().rest;
   // Das Ende der Pause, auf die der Ablauf wartet, meldet sich – gleich, was
   // die Leiste gerade zeigt. endRest() zeichnet die Leiste danach selbst neu.
-  if (laeuft && Math.round((laeuft.endsAt - Date.now()) / 1000) <= 0) {
+  //
+  // Erst NACH dem Endzeitpunkt, nicht gerundet: Mit `Math.round(...) <= 0`
+  // endete die Pause bei 0,49 s Rest – und endRest() verwarf das Signal, das
+  // 0,25 bis 0,5 s später auf der Audio-Uhr lag, vor seinem Start. Gemessen:
+  // in jeder Runde, 0,499 s und 0,511 s zu früh, das Pausensignal kam im
+  // Vordergrund nie. Die Anzeige rundet weiter (unten, Math.max(1, …)) und
+  // zeigt in der letzten halben Sekunde 0:01 statt 0:00.
+  if (laeuft && laeuft.endsAt - Date.now() <= 0) {
     endRest(true);
     toast('Pause vorbei – nächster Satz');
     return;
@@ -1494,6 +1539,9 @@ const ui = {
   // hier, welcher Stand vorher galt – nimmt man den Haken gleich wieder
   // zurück, gilt er wieder (toggle-set).
   vorgezogen: null,
+  // Steht die stille Zeile zum Ton im Dashboard? Gesetzt über onTonStand(),
+  // wenn der Tonkanal nach einer Berührung weiter schläft (tonHinweis()).
+  tonHinweis: false,
   // Kalender: gezeigter Monat und der angetippte Tag. Beides fängt bei der
   // nächsten offenen Einheit an, nicht stur bei heute – wer den Tab öffnet,
   // will meistens wissen, was als Nächstes kommt.
@@ -2169,6 +2217,7 @@ function renderFocus() {
          verloren geht. Aufgefallen ist das erst, als der Test den Speicher
          wirklich vollgeschrieben hat. -->
     ${speicherWarnung()}
+    ${tonHinweis()}
 
     <div class="focus-fig" id="focusFig"></div>
 
@@ -2813,6 +2862,7 @@ function renderOverview() {
       ${umbauHinweis()}
       ${aufstiegHinweis()}
       ${speicherWarnung()}
+      ${tonHinweis()}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
            Frage, ob eine neue Kalenderdatei erzeugt werden soll. Beides raus,
            auf Zuruf.
@@ -3800,6 +3850,7 @@ function renderDashboard() {
   parts.push(aufstiegHinweis());
 
   if (!store.canPersist()) parts.push(speicherWarnung());
+  parts.push(tonHinweis());
 
   parts.push(`
     <section class="card">
@@ -7099,13 +7150,9 @@ function renderSettings() {
       <div class="btn-row">
         <button type="button" class="btn btn-block" data-act="test-sound">Töne anhören</button>
       </div>
-      <div class="small muted" id="tonStand"></div>
-      <div class="small muted" style="margin-top:6px">Hörst du nichts, obwohl oben
-        <b>läuft</b> steht und die Zahl steigt: Dann hat die App den Ton losgeschickt und
-        das Handy gibt ihn nicht aus. Der übliche Grund ist die
-        <b>Medien-Lautstärke</b> – die Wippe stellt am Handy die Klingel, solange nichts
-        spielt. Tipp auf „Töne anhören" und drück <i>währenddessen</i> die Wippe nach
-        oben; dann regelst du den richtigen Kanal.</div>` : ''}
+      <!-- Die Auswertung schreibt tonStandZeigen() hinein – und zieht sie mit
+           jedem Ton nach, der kommt oder ausfällt (onTonStand). -->
+      <div class="small muted" id="tonStand"></div>` : ''}
     </div>
 
     <div class="section-title">Sport außerhalb des Plans</div>
@@ -7286,9 +7333,67 @@ function tonStandZeigen() {
   const t = tonStand();
   if (!t.moeglich) { host.textContent = 'Dieser Browser kann keine Töne erzeugen.'; return; }
   const wort = { aus: 'noch nicht angefordert', laeuft: 'läuft', schlaeft: 'angehalten' };
-  host.textContent = `Tonkanal: ${wort[t.zustand]} · ${t.gespielt === 1
-    ? '1 Ton losgeschickt' : `${t.gespielt} Töne losgeschickt`}, seit die App offen ist.`;
+  const toene = (n) => (n === 1 ? '1 Ton' : `${n} Töne`);
+  /*
+   * Die Auswertung in einfachen Worten. *„Irgendwie gibt's überhaupt keine
+   * soundeffekte mehr in der app"* – die Zeile soll genau die eine Frage
+   * beantworten, die die App beantworten kann: Liegt es an ihr, am Browser
+   * oder am Gerät?
+   *
+   *   läuft, Töne durch   → am Gerät. Alles, was ein Handy stumm macht, steht
+   *                         da – jeder Punkt ist auf Android oder iPhone schon
+   *                         einmal die Ursache gewesen.
+   *   angehalten          → am Browser: ohne Berührung keine Freigabe – oder,
+   *                         nach einer Berührung, ein Kontext, den ein Anruf
+   *                         oder App-Wechsel unterbrochen hat (klemmt).
+   *   noch nicht angefordert → an der App ist noch nichts passiert.
+   */
+  let rat;
+  if (t.zustand === 'aus') {
+    rat = 'Tipp auf „Töne anhören": Dann steht hier, ob die App Töne losschickt und ob der Browser sie durchlässt.';
+  } else if (t.zustand === 'laeuft' && t.gespielt > 0) {
+    rat = `Die App hat ${toene(t.gespielt)} losgeschickt, der Browser hat sie durchgelassen. War trotzdem nichts zu hören, liegt es am Gerät: Medien-Lautstärke (die Wippe regelt sie nur, während etwas spielt – also während „Töne anhören"), Bluetooth-Kopfhörer oder Auto, Bitte nicht stören, in Chrome die Website-Einstellung Ton (Einstellungen → Website-Einstellungen → Ton), am iPhone der Stummschalter.`;
+  } else if (t.zustand === 'laeuft') {
+    rat = 'Der Tonkanal ist offen, aber noch ist kein Ton durchgelaufen – tipp auf „Töne anhören".';
+  } else if (t.klemmt) {
+    rat = 'Der Browser hält den Tonkanal an, obwohl du schon getippt hast – das passiert nach einem Anruf oder einem Wechsel zu einer anderen App. Der nächste Tipp weckt ihn; hilft das nicht, die App einmal schließen und neu öffnen.';
+  } else {
+    rat = 'Der Browser lässt Ton erst nach einer Berührung zu – tipp auf „Töne anhören", das ist eine.';
+  }
+  const verloren = t.verpasst
+    ? ` ${toene(t.verpasst)} ${t.verpasst === 1 ? 'kam' : 'kamen'} deshalb nicht: Der Tonkanal war in dem Moment nicht frei.`
+    : '';
+  host.textContent = `Tonkanal: ${wort[t.zustand]} · ${toene(t.gespielt)} losgeschickt, seit die App offen ist. ${rat}${verloren}`;
 }
+
+/*
+ * Die stille Zeile im Dashboard – nur, wenn der Ton klemmt.
+ *
+ * Kein Popup, kein Toast: Wer trainiert, soll nicht wegtippen müssen. Sie
+ * erscheint, wenn der Tonkanal nach einer Berührung weiter schläft
+ * (tonStand().klemmt – iOS nach Anruf oder App-Wechsel, ein Browser, der nicht
+ * weckt), und verschwindet von selbst, sobald er läuft. In allen drei Ansichten
+ * des Dashboards, weil die Fokusansicht die ist, in der man trainiert.
+ */
+function tonHinweis() {
+  if (!ui.tonHinweis) return '';
+  return `<div class="notice zeile small" id="tonHinweis"><span>🔇 Der Browser hält den Tonkanal an,
+    obwohl du getippt hast – Töne kommen gerade nicht. Der nächste Tipp weckt ihn;
+    mehr unter <i>Mehr → Töne</i>.</span></div>`;
+}
+
+/** Nach jeder Änderung am Tonkanal: die Zeile unter Mehr, und die stille Zeile im Dashboard. */
+onTonStand(() => {
+  tonStandZeigen();
+  const zeigen = tonStand().klemmt;
+  if (zeigen === ui.tonHinweis) return;
+  ui.tonHinweis = zeigen;
+  // Neu zeichnen nur, wo die Zeile steht, und nie, während jemand tippt – der
+  // Neuaufbau nähme ihm das Feld weg. Das passiert höchstens zweimal je
+  // Sitzung: wenn sie kommt und wenn sie geht.
+  const tippt = !!document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+  if (ui.tab === 'dashboard' && !tippt) render();
+});
 
 /* ------------------------------------------------------------------ *
  * Rendering / Routing
@@ -8649,13 +8754,12 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'test-sound': {
-      // Der Reihe nach, damit man hört, was wofür steht.
+      // Der Reihe nach, damit man hört, was wofür steht – auf der Audio-Uhr,
+      // nicht per setTimeout (siehe probeSpielen in js/audio.js). Die Zeile
+      // darunter zieht sich über onTonStand() mit jedem Ton nach, der kommt.
       initAudio();
-      ['start', 'set', 'exercise', 'ready', 'rest', 'done']
-        .forEach((name, i) => setTimeout(() => playSound(name), i * 900));
-      // Die Zahl darunter nachziehen, sonst steht dort der Stand von vorhin und
-      // sieht aus, als sei nichts passiert.
-      setTimeout(tonStandZeigen, 6 * 900);
+      probeSpielen();
+      tonStandZeigen();
       toast('Start · Satz · Übung fertig · fertig machen · Pause vorbei · Workout komplett');
       break;
     }
@@ -9355,3 +9459,11 @@ store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit
 // anlaufen. Ohne diese Zeile stünde sie bis zum nächsten Wegschalten still.
 if (!document.hidden) store.clockStart();
 tickRest(); // eine Pause, die einen Neustart der Seite überdauert hat
+// Läuft sie noch, ihr Signal wieder auflegen. Bis v240 fehlte diese Zeile:
+// Nach einem Neuladen mitten in der Pause (Aktualisierung, Neustart vom
+// Startbildschirm) stand die Leiste, aber auf der Audio-Uhr lag nichts, und am
+// Ende entstand der Ton auf einem Kontext ohne Berührung – stumm. Jetzt merkt
+// sich der Tonkanal den Wunsch und legt das Signal bei der ersten Berührung auf
+// (scheduleSound mit Rückruf); ist die Pause bis dahin vorbei, kommt einmal
+// „Pause vorbei" (endRest).
+if (store.getState().rest) armRest();
