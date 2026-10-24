@@ -1,4 +1,15 @@
-/* Töne zu den Ereignissen der App und der Hinweis im Hintergrund. */
+/*
+ * Töne zu den Ereignissen der App und der Hinweis im Hintergrund.
+ *
+ * Dieser Test läuft OHNE die Tonsperre des Handys: Die Flagge unten hebt sie
+ * auf, und jedes page.evaluate() zählt in Chromium ohnehin als Nutzergeste
+ * (Runtime.callFunctionOn mit userGesture: true) – ein AudioContext startet
+ * hier also immer running. Was dieser Test deshalb NICHT sehen kann: ob die
+ * App ohne Berührung stumm bleibt, ob die erste Berührung freischaltet, ob ein
+ * Pausenende ohne Tipp nachgeholt wird. Das misst tests/test-ton-freischalten.mjs
+ * mit Standard-Policy über eine rohe CDP-Sitzung. Hier geht es um die Töne
+ * selbst: welcher wann kommt, was vorausgelegt wird, und die Systemmeldung.
+ */
 import { chromium } from 'playwright';
 import { URL, SHOT } from './umgebung.mjs';
 
@@ -239,7 +250,10 @@ console.log('     vor dem Testton:', JSON.stringify(vorher));
 check(/Tonkanal:/.test(vorher || ''), 'die Zeile steht unter Mehr');
 
 await page.locator('[data-act="test-sound"]').first().click();
-await page.waitForTimeout(6200);
+// Gezählt wird seit v241, was der Kontext wiedergegeben hat (`ended`), nicht,
+// was angefordert wurde – der letzte der sechs Töne klingt bis gut 6 s nach dem
+// Tipp aus.
+await page.waitForTimeout(7000);
 const nachher = await page.locator('#tonStand').textContent();
 console.log('     nach dem Testton:', JSON.stringify(nachher));
 check(/läuft/.test(nachher || ''),
