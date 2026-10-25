@@ -489,10 +489,13 @@ function nachholen(gedrueckt = false) {
  */
 export function tonUeberholt() {
   if (!wunschTon) return;
-  notieren('ton', {
-    was: 'verfallen', name: wunschTon.name, grund: 'ueberholt',
-    spaet: Math.round((Date.now() - wunschTon.faellig) / 1000),
-  });
+  // Schon per Frist verfallen, steht er schon im Protokoll – nicht zweimal.
+  if (!wunschTon.verfallen) {
+    notieren('ton', {
+      was: 'verfallen', name: wunschTon.name, grund: 'ueberholt',
+      spaet: Math.round((Date.now() - wunschTon.faellig) / 1000),
+    });
+  }
   wunschTon = null;
   tonMelden();
 }

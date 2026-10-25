@@ -8764,7 +8764,12 @@ view.addEventListener('click', (e) => {
       const patch = { done: !cur };
       if (!cur && variant.weight !== null) patch.w = fmtNum(workingWeight(id));
       else if (cur) patch.w = '';
+      // Der Eintrag selbst kann die Uhr deckeln (store.eingetragen(): ein Satz
+      // nach drei Stunden Stille) – das soll das Protokoll so sehen wie jedes
+      // andere Anhalten.
+      const uhrVorSatz = store.getState().clock;
       store.updateSet(n, mode, id, item.sets, i, patch, item.nach || 0);
+      uhrGedeckelt(uhrVorSatz, 'satz');
       if (cur && ui.vorgezogen && ui.vorgezogen.n === n && !store.isStarted(n)) {
         store.setShift(ui.vorgezogen.shift);
         ui.vorgezogen = null;
@@ -9359,8 +9364,12 @@ view.addEventListener('click', (e) => {
       const an = diagnoseSchalten(!diagnoseAn());
       if (!an) ui.diagnoseOffen = false;
       render();
+      // Bei vollem Speicher gilt „aus" sofort, gemerkt wird es aber erst, wenn
+      // wieder Platz ist (diagAusMerken() in js/diagnose.js) – das steht dabei.
       toast(an ? 'Wird ab jetzt mitgeschrieben – nur auf diesem Gerät'
-        : 'Abgeschaltet – es wird nichts mehr mitgeschrieben');
+        : diagnoseStand().ausOffen
+          ? 'Abgeschaltet – der Speicher ist voll, gemerkt wird es, sobald wieder Platz ist'
+          : 'Abgeschaltet – es wird nichts mehr mitgeschrieben');
       break;
     }
     case 'diagnose-teilen':

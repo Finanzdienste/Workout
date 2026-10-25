@@ -7333,6 +7333,13 @@ Alles unter *Mehr → Daten*, in der Karte **Diagnoseprotokoll**:
   bewusst abgeschaltet hatte, wurde nach dem Löschen aller Daten wieder
   protokolliert, und weder die Rückfrage noch der Einstieg sagte es. Ein
   Löschen soll nie dazu führen, dass mehr mitgeschrieben wird.
+  Abschalten verwirft nichts – auch nicht, wenn das Protokoll gerade nur im
+  Arbeitsspeicher lief (Speicher knapp oder gesperrt); bis zum Gegenlesen der
+  Zusammenführung gingen dabei die Zeilen seit dem Weichen verloren und mit
+  ihnen Teilen und Kopieren. Und „aus" überlebt den nächsten Start auch bei
+  vollem Speicher: Passt der Schalter nicht mehr hinein, sagt der Toast es
+  („gemerkt wird es, sobald wieder Platz ist"), und beim nächsten Wegschalten
+  mit Platz steht er drin.
 
 ### Ehrlich dazugesagt
 
@@ -7357,9 +7364,12 @@ Alles unter *Mehr → Daten*, in der Karte **Diagnoseprotokoll**:
 * Eine Fehlermeldung kann etwas anderes zitieren, als die Regeln oben fangen.
   Deshalb: höchstens 200 Zeichen, und du siehst den Text vor dem Teilen.
 
-`tests/test-diagnose.mjs` prüft das in 14 Fällen – Start, Kosten, Fehler,
+`tests/test-diagnose.mjs` prüft das in 15 Fällen – Start, Kosten, Fehler,
 Pause und Ton, Tagesabschluss, Sicherung, Ansehen, Teilen, Kopieren, Schalter
-und Löschen, Ringpuffer, volle Ablage, „nichts geht raus", Einzeldatei.
+und Löschen, Ringpuffer, volle Ablage, „nichts geht raus", Einzeldatei, und
+was das Gegenlesen der Zusammenführung fand: Abschalten im Arbeitsspeicher,
+„aus" bei vollem Speicher, der Uhr-Deckel beim Satz (`uhr gedeckelt wo=satz`)
+und ein verfallener Gong, der nicht zweimal im Protokoll steht.
 
 ## Rückkanal und Betreiber-Übersicht
 

@@ -195,6 +195,7 @@ const DIAGNOSE_PLATZ_ALLE_MS = 10 * 60000;
 let diagAn = true;
 let diagSpeicherDa = true;   // lässt der Browser überhaupt speichern?
 let diagNurRam = false;      // gesperrt, oder Platz für das Training gemacht
+let diagAusOffen = false;    // „aus" gilt, ist aber noch nicht gemerkt (Speicher voll)
 let diagWarum = '';          // … und warum (für die Karte unter Mehr)
 let diagKoerper = '';        // was nach eigenem Wissen im Schlüssel steht (mit '\n' am Ende)
 let diagGeschrieben = '';    // genau das, was zuletzt geschrieben oder gelesen wurde
@@ -487,6 +488,7 @@ export function diagnoseSchalten(an) {
   try {
     if (an) {
       diagAn = true;
+      diagAusOffen = false;
       localStorage.removeItem(DIAGNOSE_AUS);
       notieren('diagnose', { an: true });
       diagSchreibenJetzt();
@@ -494,14 +496,52 @@ export function diagnoseSchalten(an) {
       notieren('diagnose', { an: false });
       diagSchreibenJetzt();
       diagAn = false;
-      diagOffen = [];
-      diagOffenBytes = 0;
-      localStorage.setItem(DIAGNOSE_AUS, '1');
+      diagBehalten();
+      diagAusMerken();
     }
   } catch {
     diagAn = !!an;
   }
   return diagAn;
+}
+
+/*
+ * Abschalten verwirft nichts. Im Normalfall hat diagSchreibenJetzt() die
+ * offenen Zeilen eben in den Körper übernommen; läuft das Protokoll nur im
+ * Arbeitsspeicher (Speicher knapp oder gesperrt, diagWeichen()), schreibt es
+ * nicht – dann wanderten sie bisher mit `diagOffen = []` ins Nichts, und im
+ * gesperrten Fall verschwanden mit ihnen Teilen und Kopieren. Jetzt bleiben
+ * sie im Körper, bis zum Löschen, wie die Karte sagt.
+ */
+function diagBehalten() {
+  if (diagNurRam && diagOffen.length) diagKoerper = diagAlles();
+  diagOffen = [];
+  diagOffenBytes = 0;
+}
+
+/*
+ * „Aus" muss den nächsten Start überleben – sonst schriebe es dann wieder mit,
+ * obwohl der Schalter eben „aus" zeigte. Scheitert das Merken am vollen
+ * Speicher, gibt das Protokoll seinen eigenen Schlüssel frei (der Text bleibt
+ * im Arbeitsspeicher, wie bei diagWeichen()) und versucht es noch einmal. Liegt
+ * der Schlüssel schon nicht mehr drin, ist auch damit kein Platz zu machen:
+ * Dann bleibt es ausstehend (diagnoseStand().ausOffen, die App sagt es im
+ * Toast) und wird bei jedem Schreibanlass nachgeholt (diagnoseSchreiben(),
+ * beim Wegschalten und Schließen), sobald wieder Platz ist.
+ */
+function diagAusMerken() {
+  try {
+    localStorage.setItem(DIAGNOSE_AUS, '1');
+    diagAusOffen = false;
+    return;
+  } catch { /* gleich noch einmal, mit Platz */ }
+  diagWeichen('platz', diagAlles());
+  try {
+    localStorage.setItem(DIAGNOSE_AUS, '1');
+    diagAusOffen = false;
+  } catch {
+    diagAusOffen = true;
+  }
 }
 
 /** Der ganze Text zum Teilen: der Kopf (aus js/app.js), eine Linie, die Zeilen. */
@@ -552,11 +592,13 @@ export function diagnoseStand() {
     schreibMsMittel: diagMessung.n ? diagMessung.summe / diagMessung.n : 0,
     zuletzt: diagMessung.zuletzt,
     fassung: diagFassung,
+    ausOffen: diagAusOffen,
   };
 }
 
 /** Jetzt schreiben – an den Stellen, an denen auch der Store sofort schreibt. */
 export function diagnoseSchreiben() {
+  if (diagAusOffen && !diagAn) diagAusMerken();
   try { diagSchreibenJetzt(); } catch { /* s. o. */ }
 }
 
@@ -771,7 +813,7 @@ function diagFremd(e) {
   try {
     if (e.key === DIAGNOSE_AUS) {
       diagAn = e.newValue !== '1';
-      if (!diagAn) { diagOffen = []; diagOffenBytes = 0; }
+      if (!diagAn) diagBehalten();
     }
   } catch { /* s. o. */ }
 }

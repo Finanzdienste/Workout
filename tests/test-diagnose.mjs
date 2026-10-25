@@ -53,6 +53,13 @@
  *      lösen keine Anfrage aus, die Sicherungsdatei kennt das Protokoll nicht.
  *  14. Die Einzeldatei: läuft ohne Fehler, sagt „einzeldatei=true", hat die
  *      Karte.
+ *  15. Gefunden beim Gegenlesen der Zusammenführung (39cb16a): Abschalten im
+ *      Arbeitsspeicher behält die Zeilen und Teilen; „aus" bei bis aufs letzte
+ *      Zeichen vollem Speicher sagt es im Toast und wird nachgeholt, sobald
+ *      Platz ist; ein Satz nach 3,5 h Stille schreibt „uhr gedeckelt wo=satz".
+ *      Dazu in 4: Ein Haken nach der Frist setzt kein zweites „verfallen".
+ *      Gegenprobe gegen 39cb16a: 5 rot (2 in „aus im Arbeitsspeicher", Toast,
+ *      nachgeholt, Deckel) – dazu das doppelte „verfallen" in 4.
  *
  * Gegenprobe gegen 87e4cd1 (vor dem Protokoll): 16 Prüfungen rot, in allen
  * 14 Abschnitten – 1 bis 6, 11 und 12 brechen ab, weil js/diagnose.js fehlt
@@ -511,6 +518,12 @@ await abschnitt(4, async () => {
   z = await h.zeilen();
   check(hat(z, / ton was=verfallen name=rest grund="frist ohne beruehrung"/),
     `ohne Berührung bis zum Ende der Frist: verfallen, mit Grund (${zeige(z, /verfallen/).slice(24)})`);
+  // Ein Haken danach (tonUeberholt()) überholt nichts mehr: Der Gong steht
+  // schon als verfallen da und kommt nicht ein zweites Mal hinein.
+  await h.page.evaluate(async () => (await import('./js/audio.js')).tonUeberholt());
+  z = await h.zeilen();
+  const verfallen = z.filter((x) => / ton was=verfallen name=rest/.test(x)).length;
+  check(verfallen === 1, `ein Haken nach der Frist: „verfallen" steht einmal, nicht zweimal (${verfallen})`);
   await ende(h);
 
   const k = await fall('4 verpasst', { zustand: laufend(Date.now() + 9000) });
@@ -947,6 +960,71 @@ await abschnitt(14, async () => {
   await f.zuMehr();
   check(await f.page.locator('#diagnose').count() === 1, 'die Karte ist da');
   await ende(f);
+});
+
+/* ------------------------------------------------------------------ *
+ * 15. Gefunden beim Gegenlesen der Zusammenführung
+ * ------------------------------------------------------------------ */
+await abschnitt(15, async () => {
+  // Abschalten, während das Protokoll nur im Arbeitsspeicher läuft (der Store
+  // hatte „voll" gemeldet): Was seitdem notiert wurde, bleibt – „was da ist,
+  // bleibt bis zum Löschen", und Teilen geht weiter.
+  const f = await fall('15 aus im Arbeitsspeicher');
+  await f.page.evaluate(async (d) => {
+    const m = await import(d);
+    m.diagnosePlatzMachen();
+    m.notieren('probe', { marke: 'nurram' });
+  }, D);
+  await f.zuMehr();
+  await f.klick('[data-act="toggle-diagnose"]', 250);
+  const z = await f.zeilen();
+  check(hat(z, / probe marke=nurram/) && hat(z, / diagnose an=false/),
+    `aus im Arbeitsspeicher: die Zeilen seit dem Weichen bleiben (${z.length} Zeilen)`);
+  check(await f.page.locator('[data-act="diagnose-teilen"]').count() === 1, 'und Teilen bleibt da');
+  await ende(f);
+
+  // Abschalten bei vollem Speicher, das Protokoll hat seinen Platz schon
+  // geräumt: „aus" muss das nächste Laden trotzdem überleben – sonst schriebe
+  // es wieder mit, obwohl der Schalter eben „aus" zeigte. Gemerkt wird es,
+  // sobald wieder Platz ist (hier: aufgeräumt, dann weggeschaltet), und der
+  // Toast sagt es dabei.
+  const g = await fall('15 aus bei vollem Speicher', { zustand: { ...GRUND, adminPass: undefined } });
+  await g.zuMehr();
+  await g.page.evaluate(async (d) => (await import(d)).diagnosePlatzMachen(), D);
+  await g.page.evaluate(FUELLEN, 0);
+  // Bis aufs letzte Zeichen: FUELLEN lässt Blöcke von 32 Zeichen übrig, und
+  // in die passte der Schalter noch.
+  await g.page.evaluate(() => {
+    try { for (let i = 0; i < 5000; i++) localStorage.setItem(`ballast.z${i}`, ''); } catch { /* voll */ }
+  });
+  await g.klick('[data-act="toggle-diagnose"]', 250);
+  const toastVoll = (await g.page.locator('#toast').textContent()) || '';
+  check(/Speicher ist voll/.test(toastVoll), `der Toast sagt, dass es noch nicht gemerkt ist (${toastVoll.slice(0, 60)})`);
+  await g.page.evaluate(RAEUMEN);
+  await g.weg();
+  await g.da();
+  const gemerkt = await g.page.evaluate((k) => localStorage.getItem(k), AUS);
+  await g.neu();
+  check(gemerkt === '1' && !(await g.page.evaluate(async (d) => (await import(d)).diagnoseAn(), D)),
+    `aus bei vollem Speicher: nachgeholt, sobald Platz war (${gemerkt}), und nach dem Neuladen weiter aus`);
+  await ende(g);
+
+  // Ein Satz nach drei Stunden Stille deckelt die Uhr schon beim Eintrag
+  // (store.eingetragen()) – das Protokoll sieht es wie jedes andere Anhalten.
+  const h = await fall('15 Deckel beim Satz');
+  await h.klick('[data-act="start-session"]', 300);
+  await h.klick('.focus-set:not(.on)', 300);
+  await h.page.evaluate(async () => {
+    const s = (await import('./js/store.js')).getState();
+    const jetzt = Date.now();
+    s.clock.since = jetzt - 4 * 3600e3;
+    for (const e of Object.values(s.log)) if (e && e.zuletzt) e.zuletzt = jetzt - 3.5 * 3600e3;
+  });
+  await h.klick('.focus-set:not(.on)', 300);
+  const y = await h.zeilen();
+  check(hat(y, / einheit was="uhr gedeckelt" n=1 wo=satz vorMin=2\d\d/),
+    `ein Satz nach 3,5 h Stille: „uhr gedeckelt wo=satz" (${zeige(y, /gedeckelt/).slice(24)})`);
+  await ende(h);
 });
 
 console.log(`\n${fails ? `${fails} FEHLER` : 'alle Prüfungen bestanden'}`);
