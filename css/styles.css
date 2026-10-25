@@ -1296,6 +1296,15 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 .notice.zeile > span { flex: 1 1 auto; }
 .notice.zeile .btn { flex: none; padding: 8px 12px; font-size: 13px; }
 
+/* Mehr → Töne und Hinweise, unter „Töne anhören": erst das Urteil in
+   Textfarbe, darunter grau die Ursachen am Handy als Liste. Ein Absatz
+   kleines Grau, in dem die Antwort im dritten Satz stand, liest niemand bis
+   dorthin. */
+.ton-stand { font-size: 13px; margin-top: 8px; }
+.ton-urteil { color: var(--text); margin-bottom: 4px; }
+.ton-stand ul { margin: 2px 0 0; padding-left: 18px; color: var(--muted); }
+.ton-stand li { margin-bottom: 2px; }
+
 .empty {
   text-align: center;
   color: var(--muted);

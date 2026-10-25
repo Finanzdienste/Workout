@@ -1163,11 +1163,11 @@ const VORLAUF = 5;
  * Training zwanzigmal, und ob man das mag, ist Geschmackssache – die
  * Ereignisse drumherum kommen ein- bis zweimal und stören niemanden.
  */
-function sound(name) {
+function sound(name, wann) {
   const s = store.getState();
   if (!s.sound) return;
   if (name === 'set' && !s.soundSets) return;
-  playSound(name);
+  playSound(name, wann);
 }
 
 /* Hinweis zum Pausenende, wenn die App gerade nicht im Vordergrund ist.
@@ -1342,7 +1342,10 @@ function startRest(exName, setIndex, sets, secs, exId = null) {
  * die vor einer Stunde ablief – Leiste weg, Hinweis, fertig. Ein Gong dazu wäre
  * dann kein Signal mehr, sondern ein Rätsel. Innerhalb dieser Frist ist er es
  * noch: Das ist der Fall „Seite mitten in der Pause neu geladen, keiner hat
- * getippt", und dort kommt er nach der ersten Berührung nach.
+ * getippt", und dort kommt er nach der ersten Berührung nach – aber nur, wenn
+ * die noch in die Frist fällt. Die Frist zählt ab dem Pausenende, nicht ab dem
+ * Vormerken: Ohne sie kam der Gong beim ersten Tipp auch 70 s danach, mitten
+ * in den nächsten Satz.
  */
 const NACHKLANG_MS = 60000;
 
@@ -1372,12 +1375,21 @@ function endRest(withSignal) {
    *
    * Ohne Berührung seit dem Laden merkt sich playSound() den Ton und holt ihn
    * bei der ersten nach – aber nur, wenn die Pause gerade eben zu Ende ging
-   * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war.
+   * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war, und
+   * nur bis NACHKLANG_MS nach dem Ende.
+   *
+   * Aufgeräumt wird danach mit `ausklingen` nur am echten Ende: Ein Signal,
+   * das in den nächsten 0,3 s anfängt, ist das dieses Endes. Bei „Pause weg"
+   * (withSignal false) geht auch das – wer wegtippt, will keinen Gong mehr.
+   * Gibt es einen Ersatz, zählt der liegengebliebene nicht als verpasst; gibt
+   * es keinen (Pause schon zu lange vorbei), zählt er – er war fällig und kam
+   * nie.
    */
   const stand = restArmed ? signalStand('rest') : 'keins';
   const frisch = !vorbei || Date.now() - vorbei.endsAt < NACHKLANG_MS;
-  if (withSignal && frisch && stand !== 'erklungen' && stand !== 'laeuft') sound('rest');
-  cancelSound();
+  const ersatz = withSignal && frisch && stand !== 'erklungen' && stand !== 'laeuft';
+  if (ersatz) sound('rest', vorbei ? { faellig: vorbei.endsAt, bis: vorbei.endsAt + NACHKLANG_MS } : undefined);
+  cancelSound({ ausklingen: withSignal, ersetzt: ersatz ? 'rest' : null });
   // Bei einer abgebrochenen Pause den Hinweis abbestellen – bei einer
   // abgelaufenen gerade nicht: Der Wecker soll noch losgehen, falls die App im
   // Hintergrund ist. (Diese Zeile läuft seit v241 erst nach dem Ende, nicht
@@ -7152,7 +7164,7 @@ function renderSettings() {
       </div>
       <!-- Die Auswertung schreibt tonStandZeigen() hinein – und zieht sie mit
            jedem Ton nach, der kommt oder ausfällt (onTonStand). -->
-      <div class="small muted" id="tonStand"></div>` : ''}
+      <div class="ton-stand" id="tonStand"></div>` : ''}
     </div>
 
     <div class="section-title">Sport außerhalb des Plans</div>
@@ -7326,44 +7338,76 @@ function renderSettings() {
  * Ton los, oder sie schickt ihn los und das Gerät gibt ihn nicht aus. Ob eine
  * Seite hörbar ist, kann sie selbst nicht wissen – was sie weiß, ist, ob der
  * Tonkanal offen war und wie viele Töne hinausgingen. Genau das steht hier.
+ *
+ * Das Urteil zuerst, in Textfarbe und in einem Satz: Ist die App stumm oder
+ * das Handy? Erst darunter, grau und als Liste, was ein Handy stumm machen
+ * kann. Vorher stand die Antwort im dritten Satz von 65 Wörtern kleinem Grau,
+ * und die Zahl der Töne stand zweimal hintereinander.
  */
+const TON_URSACHEN = [
+  'Medien-Lautstärke: Die Wippe regelt sie nur, während etwas spielt – also während „Töne anhören" hochdrücken.',
+  'Bluetooth-Kopfhörer oder Auto verbunden? Dann kommt der Ton dort.',
+  'Bitte nicht stören',
+  'Chrome: Einstellungen → Website-Einstellungen → Ton',
+  'iPhone: der Stummschalter – die App folgt ihm, damit Musik aus anderen Apps weiterläuft',
+];
+
 function tonStandZeigen() {
   const host = document.getElementById('tonStand');
   if (!host) return;
   const t = tonStand();
-  if (!t.moeglich) { host.textContent = 'Dieser Browser kann keine Töne erzeugen.'; return; }
-  const wort = { aus: 'noch nicht angefordert', laeuft: 'läuft', schlaeft: 'angehalten' };
   const toene = (n) => (n === 1 ? '1 Ton' : `${n} Töne`);
+  const kam = (n) => (n === 1 ? 'kam' : 'kamen');
   /*
    * Die Auswertung in einfachen Worten. *„Irgendwie gibt's überhaupt keine
    * soundeffekte mehr in der app"* – die Zeile soll genau die eine Frage
    * beantworten, die die App beantworten kann: Liegt es an ihr, am Browser
    * oder am Gerät?
    *
-   *   läuft, Töne durch   → am Gerät. Alles, was ein Handy stumm macht, steht
-   *                         da – jeder Punkt ist auf Android oder iPhone schon
-   *                         einmal die Ursache gewesen.
-   *   angehalten          → am Browser: ohne Berührung keine Freigabe – oder,
-   *                         nach einer Berührung, ein Kontext, den ein Anruf
-   *                         oder App-Wechsel unterbrochen hat (klemmt).
-   *   noch nicht angefordert → an der App ist noch nichts passiert.
+   *   läuft, Töne durch    → am Gerät. Alles, was ein Handy stumm macht, steht
+   *                          darunter – jeder Punkt ist auf Android oder iPhone
+   *                          schon einmal die Ursache gewesen.
+   *   „Töne anhören" läuft → noch kein Urteil, aber auch keine Aufforderung,
+   *                          auf den Knopf zu tippen, auf den man eben tippte.
+   *   angehalten           → am Browser: ohne Berührung keine Freigabe – oder,
+   *                          nach einer Berührung, ein Kontext, den ein Anruf
+   *                          oder App-Wechsel unterbrochen hat (klemmt).
+   *   noch nichts          → an der App ist noch nichts passiert.
+   *
+   * Was nicht pünktlich kam, steht dahinter – jeweils mit seinem Grund. Ein
+   * nachgeholter Gong kam verspätet, nicht „nicht": So erlebt man es auch.
    */
-  let rat;
-  if (t.zustand === 'aus') {
-    rat = 'Tipp auf „Töne anhören": Dann steht hier, ob die App Töne losschickt und ob der Browser sie durchlässt.';
-  } else if (t.zustand === 'laeuft' && t.gespielt > 0) {
-    rat = `Die App hat ${toene(t.gespielt)} losgeschickt, der Browser hat sie durchgelassen. War trotzdem nichts zu hören, liegt es am Gerät: Medien-Lautstärke (die Wippe regelt sie nur, während etwas spielt – also während „Töne anhören"), Bluetooth-Kopfhörer oder Auto, Bitte nicht stören, in Chrome die Website-Einstellung Ton (Einstellungen → Website-Einstellungen → Ton), am iPhone der Stummschalter.`;
-  } else if (t.zustand === 'laeuft') {
-    rat = 'Der Tonkanal ist offen, aber noch ist kein Ton durchgelaufen – tipp auf „Töne anhören".';
-  } else if (t.klemmt) {
-    rat = 'Der Browser hält den Tonkanal an, obwohl du schon getippt hast – das passiert nach einem Anruf oder einem Wechsel zu einer anderen App. Der nächste Tipp weckt ihn; hilft das nicht, die App einmal schließen und neu öffnen.';
-  } else {
-    rat = 'Der Browser lässt Ton erst nach einer Berührung zu – tipp auf „Töne anhören", das ist eine.';
-  }
-  const verloren = t.verpasst
-    ? ` ${toene(t.verpasst)} ${t.verpasst === 1 ? 'kam' : 'kamen'} deshalb nicht: Der Tonkanal war in dem Moment nicht frei.`
+  const spaet = t.verspaetet
+    ? ` ${toene(t.verspaetet)} ${kam(t.verspaetet)} verspätet – ${t.nachgeholt === t.verspaetet
+      ? 'erst mit deiner ersten Berührung, vorher lässt der Browser keinen Ton zu'
+      : 'der Browser hatte den Ton angehalten, etwa im Hintergrund'}.`
     : '';
-  host.textContent = `Tonkanal: ${wort[t.zustand]} · ${toene(t.gespielt)} losgeschickt, seit die App offen ist. ${rat}${verloren}`;
+  const weg = t.verpasst
+    ? ` ${toene(t.verpasst)} ${kam(t.verpasst)} nicht – der Browser hatte den Ton in dem Moment angehalten.`
+    : '';
+  let urteil;
+  let darunter = '';
+  if (!t.moeglich) {
+    urteil = '✗ Dieser Browser kann keine Töne erzeugen.';
+  } else if (t.zustand === 'laeuft' && t.gespielt > 0) {
+    urteil = `✓ Die App schickt Töne los (${t.gespielt} seit dem Öffnen).${spaet}${weg}`;
+    darunter = `<div class="muted">Hörst du nichts, liegt es am Handy:</div>
+      <ul>${TON_URSACHEN.map((u) => `<li>${esc(u)}</li>`).join('')}</ul>`;
+  } else if (t.zustand === 'laeuft' && t.laufend) {
+    urteil = '♪ Töne laufen gerade …';
+  } else if (t.zustand === 'laeuft') {
+    urteil = `Der Ton ist frei, aber noch kam keiner durch – tipp auf „Töne anhören".${spaet}${weg}`;
+  } else if (t.klemmt) {
+    urteil = `✗ Der Browser hält den Ton an, obwohl du schon getippt hast.${t.verpasst
+      ? ` Deshalb ${kam(t.verpasst)} ${toene(t.verpasst)} nicht.` : ''}`;
+    darunter = `<div class="muted">Das passiert nach einem Anruf oder einem Wechsel zu einer
+      anderen App. Tipp noch einmal; bleibt es stumm, die App schließen und neu öffnen.</div>`;
+  } else if (t.zustand === 'schlaeft') {
+    urteil = 'Der Browser lässt Ton erst nach einer Berührung zu – tipp auf „Töne anhören", das ist eine.';
+  } else {
+    urteil = 'Noch kein Ton angefordert. Tipp auf „Töne anhören": Dann steht hier, ob die App Töne losschickt.';
+  }
+  host.innerHTML = `<div class="ton-urteil">${esc(urteil)}</div>${darunter}`;
 }
 
 /*
@@ -7374,12 +7418,16 @@ function tonStandZeigen() {
  * (tonStand().klemmt – iOS nach Anruf oder App-Wechsel, ein Browser, der nicht
  * weckt), und verschwindet von selbst, sobald er läuft. In allen drei Ansichten
  * des Dashboards, weil die Fokusansicht die ist, in der man trainiert.
+ *
+ * Das Urteil vorn, und kein Versprechen, dass der nächste Tipp weckt: Sie
+ * erscheint ja gerade, weil einer es nicht getan hat. Der Abschnitt heißt so,
+ * wie er unter Mehr heißt.
  */
 function tonHinweis() {
   if (!ui.tonHinweis) return '';
-  return `<div class="notice zeile small" id="tonHinweis"><span>🔇 Der Browser hält den Tonkanal an,
-    obwohl du getippt hast – Töne kommen gerade nicht. Der nächste Tipp weckt ihn;
-    mehr unter <i>Mehr → Töne</i>.</span></div>`;
+  return `<div class="notice zeile small" id="tonHinweis"><span>🔇 Töne kommen gerade nicht – der
+    Browser hält den Ton an, obwohl du getippt hast. Tipp noch einmal; bleibt es stumm, App
+    schließen und neu öffnen. Einzelheiten unter <i>Mehr → Töne und Hinweise</i>.</span></div>`;
 }
 
 /** Nach jeder Änderung am Tonkanal: die Zeile unter Mehr, und die stille Zeile im Dashboard. */
