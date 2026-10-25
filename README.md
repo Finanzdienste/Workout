@@ -10,7 +10,10 @@ ausliefern. Alle protokollierten Sätze liegen lokal im `localStorage` des
 Geräts; ist in `js/config.js` ein Server eingetragen, gehen ein paar Zahlen an
 den Betreiber ([Rückkanal](#rückkanal-und-betreiber-übersicht)) und das
 Training verschlüsselt in die [Sicherung](#automatische-sicherung) – beides
-offengelegt und abschaltbar.
+offengelegt und abschaltbar. Daneben führt die App ein
+[Diagnoseprotokoll](#diagnoseprotokoll) über sich selbst – was sie wann
+technisch getan hat, ohne Gewichte und Namen. Es bleibt auf dem Gerät und geht
+nur auf Tipp unter *Mehr → Daten* als Textdatei weiter.
 
 > **Daneben, im selben Repository:** [`schilddruese/`](schilddruese/README.md)
 > – eine zweite, eigenständige App für den Alltag mit
@@ -3406,6 +3409,7 @@ css/styles.css          Styling (dunkel, mobil zuerst)
 js/data.js              Aus Excel + plan*.json erzeugt: 38 Übungen, je Fokus 84 Einheiten, Wochenziele
 js/injuries.js          Verletzungskatalog und die Anpassung des Plans
 js/dates.js             Datums-Hilfsfunktionen inkl. Monatsraster
+js/diagnose.js          Diagnoseprotokoll: Ringpuffer aus Textzeilen, Fehler-Lauscher – importiert nichts
 js/store.js             Zustand und localStorage-Persistenz
 js/text.js              Text und Zahlen fürs Auge
 js/uebung.js            Die einzelne Übung nachschlagen
@@ -7135,6 +7139,227 @@ kühl. Daran erkennt man den Modus, ohne den Schalter zu lesen. Das Design setzt
 beide (`--accent-db`, `--accent-bw`), und `body.mode-bw` schaltet zwischen ihnen
 um. Das Attribut sitzt am `<html>` und nicht am `<body>`: `--accent` wird auf
 `:root` abgeleitet und nähme sonst weiter den Standardwert von dort.
+
+## Diagnoseprotokoll
+
+> „Können wir nicht allgemein alles mögliche im Hintergrund loggen damit du
+> siehst was funktioniert und was nicht oder so?"
+
+Ja – weil Ton, Pause, Service Worker und Speicher auf dem Handy still scheitern.
+Hinter *„es gab iwie keine sounds"* und *„Jetzt fehlt iwie die Pause"* standen
+jedes Mal Gründe, die in keinem Zustand stehen: ob die Pause ablief oder
+weggetippt wurde, ob das Signal auf der Audio-Uhr lag, ob der Tonkanal schlief,
+ob der erste Tipp den Ton überholt hat. Im Test nachgestellt sah man sie, am
+Gerät bis jetzt nichts. Jetzt schreibt die App das mit – nach denselben Regeln
+wie der Rückkanal, nur strenger, weil hier mehr drinsteht.
+
+### Vier Regeln
+
+* **Bleibt hier.** Ein eigener Schlüssel im Speicher des Browsers
+  (`workout.diagnose.v1`), höchstens 64 KB und 14 Tage; was älter oder zu viel
+  ist, fällt vorn weg. Nichts geht von selbst irgendwohin – kein Server, nicht
+  in die Sicherung (weder Datei noch Server), nicht in den Rückkanal.
+  `js/diagnose.js` hat keinen Weg nach draußen: kein `fetch`, kein
+  `sendBeacon`, keinen einzigen Import. Hinaus geht es nur, wenn du unter
+  *Mehr → Daten* auf **Protokoll teilen** oder **Kopieren** tippst – als
+  `.txt`, derselbe reparierte Weg wie bei der Sicherung (Chrome teilt `.txt`
+  mit genau `text/plain`, kein `.json`).
+* **Abschaltbar.** Ein Schalter in derselben Karte, Standard an. Aus heißt: Es
+  wird nichts mehr mitgeschrieben, auch nicht nach dem Neuladen und auch nicht
+  in einem zweiten Fenster; was da ist, bleibt bis zum Löschen. **Protokoll
+  löschen** leert es (mit Rückfrage), *Alle Daten löschen* räumt es mit – und
+  lässt den Schalter, wie er ist.
+* **Wenig.** Kennungen und Zahlen, keine Inhalte – die Tabelle unten. Uhrzeiten
+  stehen drin, also auch, wann du trainierst; das sagt die Karte dazu.
+* **Sichtbar.** Die Karte zeigt, was drinsteht, eine Zusammenfassung und einen
+  Kasten zum Abfotografieren: oben die Lage (der Kopf ohne den langen
+  User-Agent), darunter die letzten acht Einträge – ohne feste Höhe und an
+  Wortgrenzen umbrochen, damit ein Foto alles zeigt. Bei 414 × 896 und
+  Einträgen üblicher Länge ist er rund 560 px hoch, passt also auf einen
+  Bildschirm. Beim Gegenlesen endete er dort mit fester Höhe noch im Kopf, und
+  „break-all" brach mitten im Wort („Ti pp"). **Alles ansehen** klappt den
+  ganzen Text auf, und jede geteilte Datei beginnt mit „Workout-Diagnose · … ·
+  bleibt auf dem Gerät, geteilt nur auf Tipp" – damit auch der Empfänger weiß,
+  was er bekommt.
+
+| Was drinsteht | Was nie drinsteht |
+| --- | --- |
+| Zeit (Ortszeit, Millisekunden), Art des Eintrags | Name |
+| Einheit als Nummer, Übung als Kennung, Satz als „2 von 3" | Gewichte, Wiederholungen, Eingaben |
+| Pausenlänge, was am Pausenende entschieden wurde | Beschwerden, Termine, Notizen |
+| Tonzustand: Kontext, woher, angehalten, verpasst und warum | Sicherungsschlüssel, Kennung, Schreibmarke |
+| Fehler mit Meldung und Datei:Zeile | der Anker einer Adresse (`#sicherung=…`, `#stand=…`) |
+| Browser, Fenster, Fassung, Service Worker | Betreiber-Passwort, Schlüssel des Servers |
+| Speicherlage, Größen in KB, Ergebnis jeder Sicherung | der Inhalt des Trainingsprotokolls |
+
+Jede Adresse verliert Anker, Anfrage und Herkunft, bevor sie eine Zeile wird –
+im Anker eines Wiederherstellungs-Links steht der Sicherungsschlüssel. Jede
+Zeichenkette ab 40 Zeichen aus dem Alphabet von Schlüsseln wird zu „…" (der
+Sicherungsschlüssel hat 43, ein JWT weit mehr; die längste Übungskennung 32).
+Und eine Meldung über JSON verliert, was sie in Anführungszeichen zitiert:
+Chrome zitiert beim Parsen den Anfang des Textes, und das wäre der Anfang einer
+Sicherung – mit dem Namen darin. Gemeldet wird beim Einlesen deshalb nur der
+Name des Fehlers.
+
+### Was mitgeschrieben wird
+
+Eine Zeile je Ereignis, an der Stelle, an der es passiert (`notieren()` in
+`js/app.js`, `js/audio.js`, `js/sicherung.js`):
+
+```
+2026-10-25 16:37:44.498 satz einheit=1 mode=db ex=fuesse-erhoehte-liegestuetze satz=1 von=3 done=true exFertig=false fertig=false super=false pause=90
+2026-10-25 16:37:44.508 pause was=start dauer=90 ex=fuesse-erhoehte-liegestuetze satz=1 von=3
+2026-10-25 16:37:44.518 ton was=geplant plan=ready+rest in=90 zustand=running
+2026-10-25 16:37:46.520 pause was=ablauf stand=laeuft frisch=true ersatz=false toene=true leiste=true sichtbar=true spaet=0
+```
+
+| Art | Was |
+| --- | --- |
+| `start` | Start der Seite: installiert oder Browser, Browser kurz, Fenster, Zeitzone, Netz, Speicherlage, Größen, Plan, laufende Einheit und Pause, Grund eines Neuladens (Update, Import, Einstieg, Fokus); eine Zeile später die Fassung aus dem Zwischenspeicher; auf Android eine weitere mit der Version, die der User-Agent verschweigt (siehe unten) |
+| `sw` | Service Worker: registriert, Update gefunden, Zustand, Wechsel mit oder ohne Neuladen, Notausgang „App aktualisieren", die Fassung, sobald ein neuer Zwischenspeicher steht, Fehler |
+| `fehler` | jeder Fehler, den niemand gefangen hat – geworfen, abgelehnt, eine Datei, die nicht lädt |
+| `sicht` | App weg (mit Rest der Pause), wieder da (wie lange weg, wie viel gutgeschrieben), Seite zu, Neuladen |
+| `ton` | Kontext angelegt (woher, Zustand), Zustandswechsel, Wecken und Ergebnis, erste Berührung, los, geplant, vorgemerkt, nachgeholt, verfallen (mit Grund: Frist, überholt, kein Kontext), verpasst, verworfen auf stehender Uhr, erklungen, abgesagt |
+| `pause` | Start, Auflegen (Ton ja/nein, Hinweis über Worker/Seite/aus), Ablauf (wie viel zu spät) oder Abbruch (wie viel noch übrig war) mit dem, was `endRest()` entschied, weg, +30 s, Hinweis der Seite gezeigt oder gescheitert (mit Grund), Wakelock abgelehnt |
+| `satz` | ein Haken: Einheit, Modus, Übung, Satz („satz=2 von=3", gezählt wie in der Pausen-Zeile), was danach kam (Übung fertig, Einheit fertig, Supersatz, Pause) – oder abgelehnt, weil schon fertig |
+| `einheit` | Start, Abschließen, Ende (Dauer, liegen geblieben, Aufstieg), verworfen, zurückgesetzt, markiert, alles abgehakt, Uhr gedeckelt |
+| `tag` | Tagesabschluss (welche Einheiten mit wie vielen Sätzen, welche Sitzung, wie lange still), Nachrücken, Nachziehen beim Zurückkommen, die Uhr um Mitternacht |
+| `plan` / `zusatz` / `nach` | Umzug, Umbau, Fokus, Neustart, Runde weiter oder zurück, Vorziehen, Aufstieg, Zusatztag, Nacharbeit festgehalten |
+| `schalter` | Töne, Satz-Tupfer, Hinweise, Supersatz, Teilen, Stufe, Pause, Modus, Fokus, Aufwärmen, Sicherung – von, nach |
+| `datei` | Sicherung teilen, herunterladen, Export, Import |
+| `sicherung` | Ergebnis jedes Versuchs (gelungen, keine Verbindung, Server kennt sie nicht, Konflikt, zu oft), Holen, Löschen, Löschauftrag |
+| `rueckkanal` | Ergebnis der Meldung |
+| `speicher` | Zusage des Browsers, Speicherlage, Platz gemacht, Satzuhr |
+| `diagnose` | das Protokoll selbst: an, aus, geleert, geteilt, kopiert, heruntergeladen |
+
+Dieselbe Zeile binnen 10 s wird nicht wiederholt, sondern als „×n"
+hochgezählt – ein Fehler je Bild rollte sonst in Sekunden das ganze Protokoll
+weg.
+
+Der Kopf über dem Text (acht Zeilen, beim Ansehen, Teilen und Kopieren frisch
+gebaut, nie gespeichert): Zeit und Zeitzone; Fassung, Anzeige, Browser,
+Fenster, Netz; Speicher, Zusage und Größen; Ton mit seinen Zählern und den
+Schaltern; laufende Einheit, Pause, Plan, Service Worker; Sicherung und
+Rückkanal; Fehler, Einträge heute, wie oft und wie lange in dieser Sitzung
+geschrieben wurde; der volle User-Agent.
+
+Zwei Angaben darin waren beim Gegenlesen falsch und sind es nicht mehr:
+
+* **Die Fassung** las die Startzeile einmal aus dem Zwischenspeicher – und
+  genau nach *App aktualisieren* (der Notausgang räumt alle) und bei der
+  ersten Installation ist da noch keiner. Im Kopf stand „Fassung keine", in der
+  Datei nirgends eine Version. Jetzt zieht die App sie nach, sobald ein Service
+  Worker aktiviert ist oder die Seite übernimmt (`sw was=fassung`).
+* **Android.** Chrome schreibt seit Fassung 110 auf Android immer
+  „Android 10; K" in den User-Agent, egal welches Android läuft – das
+  Protokoll schrieb also „Android/10" in jede Datei. Jetzt steht dort
+  „Android/?", und die echte Version kommt aus `navigator.userAgentData` nach
+  (`start system=Android/14`). Nur die Version, nicht das Modell, das dieselbe
+  Abfrage hergäbe: Für Ton, Speicher und Worker zählen Browser und Android.
+
+### Was es kostet
+
+Geschrieben wird nie im Tipp, sondern gebündelt: höchstens einmal je Minute aus
+einem Zeitgeber (Vorderkante – ein Dauerfeuer schiebt das Schreiben nicht
+hinaus), dazu an denselben Stellen, an denen auch der Store sofort schreibt
+(Wegschalten, Schließen, Neuladen), und gleich nach einem Fehler, einer
+Störung des Speichers oder dem Ende einer Einheit – das höchstens alle zwei
+Sekunden. Gemessen im Test-Chromium auf dem Rechner (`tests/test-diagnose.mjs`,
+Fall 2; am Handy zeigt der Kopf die eigene Zahl):
+
+| | Protokoll | zum Vergleich |
+| --- | --- | --- |
+| je Eintrag | 2–4 µs, kein Speicherzugriff | – |
+| je abgehaktem Satz | 0 Schreibvorgänge im Tipp | der Store: eine Schreibung von 26–65 KB |
+| je Schreibung | 0,1–0,5 ms bei 64 KB, die erste einer Seite mit Platzhalter 2–4 ms | – |
+| Platzhalter beim Laden (nur mit Protokoll im Speicher; die erste Schreibung spart ihn dafür) | 0,3–1,4 ms, Median 0,5 ms; bei sechsfach gedrosselter CPU 2,5–10,5 ms | – |
+| je Satz im Protokoll | 550–770 Zeichen (Satz, Pause, Ton, Ende der Pause; mehr mit +30 s und Wegtippen) | – |
+
+Eine Einheit mit 17 Sätzen ergibt so 10 bis 13 KB; 64 KB halten die letzten
+fünf, sechs Einheiten. Wer etwas zeigen will, teilt es also am besten bald
+danach.
+
+### Der Speicher gehört dem Training
+
+Das Protokoll darf dem Training nie den Platz nehmen – in der Lage „voll"
+entscheiden die letzten Dutzend Byte (siehe oben,
+[Wenn der Speicher voll ist](#wenn-der-speicher-voll-ist-sagt-die-app-jetzt-das-richtige)).
+Drei Wege, alle drei im Test nachgestellt:
+
+* **Vorher.** Schon beim Laden, wenn ein Protokoll der letzten Sitzung im
+  Speicher liegt – noch bevor der Store das erste Mal schreibt –, sonst nach
+  dem ersten Schreiben jeder Seite, und danach höchstens alle zehn Minuten legt
+  das Protokoll kurz einen Platzhalter von 256 KB daneben und nimmt ihn gleich
+  wieder weg. Passt der nicht, räumt es seinen Schlüssel und läuft nur noch im
+  Arbeitsspeicher – bei so knappem Speicher hat es dort nichts zu suchen.
+  256 KB sind das Vierfache des Protokolls und mehr als der ganze Zustand samt
+  einer abgelegten Runde.
+
+  Das „beim Laden" kam beim Gegenlesen dazu: Füllte zwischen zwei Sitzungen
+  etwas anderes den Speicher (auf github.io teilen sich alle Projekte eines
+  Kontos die Herkunft), scheiterte schon das erste Schreiben des Stores beim
+  Start. Die App sah „voll" danach nie als *Wechsel*, das Protokoll behielt
+  seine 60 KB, und kein Satz kam an, bis die App wegschaltete.
+* **Wenn der Store „voll" meldet** (ein Satz kam nicht an) – auch, wenn er es
+  schon am Ende des Starts meldet –, gibt das Protokoll seinen Schlüssel im
+  selben Moment frei. Ein zweiter Schreibversuch des Stores
+  von dort aus wäre denkbar gewesen und wurde verworfen: Der Satz steht im
+  Arbeitsspeicher und geht mit dem nächsten Schreiben mit, die Warnung ist die
+  Wahrheit über diesen Moment – und `js/store.js` bleibt unangetastet.
+* **Scheitert das eigene Schreiben**, ebenso.
+
+Danach bis zum nächsten Start nur im Arbeitsspeicher (sonst ein Wechselspiel:
+Protokoll schreibt, Satz scheitert, Protokoll räumt). Teilen und Kopieren gehen
+aus dem Arbeitsspeicher weiter; die Karte sagt, dass es so ist.
+
+### Ansehen, teilen, löschen, abschalten
+
+Alles unter *Mehr → Daten*, in der Karte **Diagnoseprotokoll**:
+
+* **Ansehen** – die Zusammenfassung („312 Einträge seit 22.10. 19:02 · 27 KB ·
+  0 Fehler · zuletzt geschrieben …"), der Kasten zum Abfotografieren und
+  **Alles ansehen** für den ganzen Text, das Neueste unten.
+* **Protokoll teilen** – als `workout-diagnose-JJJJ-MM-TT.txt` über den
+  Teilen-Dialog des Handys. Abbrechen bleibt still; lehnt der Browser ab, wird
+  die Datei heruntergeladen, und der Text steht zum Kopieren im Feld.
+* **Kopieren** – in die Zwischenablage; geht das nicht (unter `file://`, ohne
+  Erlaubnis), steht der Text markiert im Feld.
+* **Protokoll löschen** – mit Rückfrage; danach steht eine Zeile da, die sagt,
+  warum es leer ist.
+* **Schalter** – aus schreibt nichts mehr. *Alle Daten löschen* leert das
+  Protokoll und lässt den Schalter, wie er ist; ist es an, heißt die erste
+  Zeile danach `diagnose was=geleert grund=reset`. Bis zum Gegenlesen stellte
+  es ihn wie jede andere Einstellung auf den Standard (an) zurück – wer es
+  bewusst abgeschaltet hatte, wurde nach dem Löschen aller Daten wieder
+  protokolliert, und weder die Rückfrage noch der Einstieg sagte es. Ein
+  Löschen soll nie dazu führen, dass mehr mitgeschrieben wird.
+
+### Ehrlich dazugesagt
+
+* Ein Lade- oder Syntaxfehler im Modulgraphen (ein halbes Update, eine fehlende
+  Datei) verhindert jedes Modul, also auch dieses – die „weiße Seite" bleibt
+  unprotokolliert. Abhilfe wäre ein klassisches Skript in `index.html`, das
+  frühe Fehler sammelt; das ist ein eigener Schritt.
+* Was der Service Worker im Hintergrund tut – die Meldung „Pause vorbei" –,
+  sieht die Seite nicht. `meldung=worker` heißt „übergeben", nicht „gezeigt".
+  Zeigt die Seite die Meldung selbst (kein Worker übernimmt), steht das
+  Ergebnis da, nicht der Versuch: `pause was=meldung … gezeigt=true` oder
+  `gezeigt=false … name=TypeError` – auf Chrome Android wirft
+  `new Notification()` ohne Worker. Bis zum Gegenlesen stand dort schon vor dem
+  Versuch „gezeigt=true".
+* Endet die Seite hart, ohne Wegschalten (der Browser beendet sie, der Akku
+  ist leer), fehlt höchstens die letzte Minute.
+* Zwei Fenster (installiert und als Tab) hängen ihre Zeilen aneinander, statt
+  sich zu überschreiben; die Reihenfolge zwischen beiden ist nicht garantiert.
+* Etwa eine Schreibung je Satz bleibt – aus dem Zeitgeber, nie im Tipp. Ob das
+  am Handy spürbar ist, zeigt die Zeile „Schreibungen diese Sitzung … längste …"
+  im Kopf. Die Stellschraube ist `DIAGNOSE_DROSSEL_MS` in `js/diagnose.js`.
+* Eine Fehlermeldung kann etwas anderes zitieren, als die Regeln oben fangen.
+  Deshalb: höchstens 200 Zeichen, und du siehst den Text vor dem Teilen.
+
+`tests/test-diagnose.mjs` prüft das in 14 Fällen – Start, Kosten, Fehler,
+Pause und Ton, Tagesabschluss, Sicherung, Ansehen, Teilen, Kopieren, Schalter
+und Löschen, Ringpuffer, volle Ablage, „nichts geht raus", Einzeldatei.
 
 ## Rückkanal und Betreiber-Übersicht
 

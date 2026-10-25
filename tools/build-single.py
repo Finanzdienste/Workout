@@ -24,7 +24,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'dist' / 'workout.html'
 
 # Reihenfolge = Abhaengigkeitsreihenfolge
-MODULES = ['js/dates.js', 'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js',
+MODULES = ['js/dates.js',
+           # diagnose.js importiert nichts; audio.js, sicherung.js und app.js
+           # benutzen es (notieren) - es muss vor ihnen stehen.
+           'js/diagnose.js',
+           'js/data.js', 'js/figure.js', 'js/body.js', 'js/chart.js',
            'js/injuries.js', 'js/audio.js', 'js/config.js', 'js/telemetry.js',
            # sicherung.js nach telemetry.js: Es nimmt denselben Weg zum Server
            # (rpcAufruf, grund, fehltFunktion).

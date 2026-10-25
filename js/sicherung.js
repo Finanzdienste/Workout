@@ -68,6 +68,7 @@
  */
 
 import { hatServer } from './config.js';
+import { notieren } from './diagnose.js';
 import { fehltFunktion, grund, rpcAufruf } from './telemetry.js';
 
 /** Eigener Schlüssel im Speicher, nicht im Zustand – siehe sicherungMetaLesen(). */
@@ -166,7 +167,25 @@ export function sicherungMetaLesen() {
 function sicherungMetaSchreiben(teil) {
   const neu = { ...sicherungMetaLesen(), ...teil };
   jsonSchreiben(SICHERUNG_SPEICHER, neu);
+  sicherungVermerken(teil);
   return neu;
+}
+
+/**
+ * Fürs Diagnoseprotokoll (js/diagnose.js): das Ergebnis eines Versuchs.
+ *
+ * Hier und nicht in jedem Zweig von hochladen(): Jedes Ergebnis landet in den
+ * Metadaten, und zwar genau so – gelungen mit `ok` und einer frischen Zeit in
+ * `zuletzt`, gescheitert mit `fehler`, `fehlt` oder `konflikt`. Was sonst
+ * hierherkommt (Schlüssel entsteht, Schalter, Zurückholen, Rückweg), setzt
+ * diese Felder höchstens leer oder ohne Zeit und bleibt still. Der Schlüssel
+ * selbst steht nie in der Zeile – nur, was der Versuch ergab.
+ */
+function sicherungVermerken(teil) {
+  if (teil.konflikt) notieren('sicherung', { ok: false, konflikt: teil.konflikt.art });
+  else if (teil.fehlt === true) notieren('sicherung', { ok: false, fehlt: true });
+  else if (teil.fehler) notieren('sicherung', { ok: false, fehler: teil.fehler });
+  else if (teil.ok && teil.zuletzt) notieren('sicherung', { ok: true });
 }
 
 /** Läuft die automatische Sicherung? Nur mit Server und nicht abgeschaltet. */
@@ -503,6 +522,7 @@ async function hochladen(v, { keepalive = false, nochmal = true } = {}) {
   if (/\bzu oft\b/.test(msg)) {
     // Kein Fehler, nur zu früh – etwa, weil ein zweites Fenster eben gesichert
     // hat. In zehn Sekunden noch einmal, nicht erst nach der Drossel.
+    notieren('sicherung', { ok: false, grund: 'zu oft' });
     sicherungMetaSchreiben({ zuletzt: Date.now() });
     nachDerSperre();
     return false;
@@ -589,7 +609,9 @@ async function auftraegeErledigen() {
   if (!hatServer()) return auftraege().length === 0;
   for (const a of auftraege()) {
     // 0 Zeilen zählt auch als erledigt: Dann lag dort nichts (mehr).
-    if ((await loeschenMit(a.id, a.w)).ok) auftragWeg(a.id);
+    const erg = await loeschenMit(a.id, a.w);
+    notieren('sicherung', { was: 'loeschauftrag', ok: erg.ok, zeilen: erg.zeilen, msg: erg.ok ? undefined : erg.msg });
+    if (erg.ok) auftragWeg(a.id);
   }
   return auftraege().length === 0;
 }
@@ -691,8 +713,19 @@ export function sicherungVerstecken() {
 /**
  * Eine Sicherung holen und entschlüsseln. { ok, text, stand } oder
  * { ok: false, msg, fehlt?, leer? }.
+ *
+ * Fürs Diagnoseprotokoll steht danach eine Zeile da, was dabei herauskam – nur
+ * das Ergebnis: nie der Schlüssel, nie die Kennung, nie der Text.
  */
 export async function sicherungHolen(key) {
+  const erg = await sicherungHolenAusServer(key);
+  notieren('sicherung', {
+    was: 'holen', ok: erg.ok, fehlt: erg.fehlt, leer: erg.leer, msg: erg.ok ? undefined : erg.msg,
+  });
+  return erg;
+}
+
+async function sicherungHolenAusServer(key) {
   if (!hatServer()) return { ok: false, msg: 'In dieser Fassung ist kein Server eingetragen.' };
   const { id } = await sicherungAbleiten(key);
   let res;
@@ -846,6 +879,7 @@ export function sicherungLoeschen() {
     const m = sicherungMetaLesen();
     if (!m.id || !m.w) return { ok: true, zeilen: 0, msg: '' };
     const erg = await loeschenMit(m.id, m.w);
+    notieren('sicherung', { was: 'loeschen', ok: erg.ok, zeilen: erg.zeilen, msg: erg.ok ? undefined : erg.msg });
     if (erg.ok) {
       sicherungMetaSchreiben({
         stand: null, hash: null, ok: null, zuletzt: 0, offen: [], konflikt: null, fehler: null,
@@ -874,6 +908,7 @@ export function sicherungVergessen() {
 /** Schalter unter Mehr und im Einstieg. */
 export function sicherungSchalten(an) {
   sicherungMetaSchreiben({ an });
+  notieren('schalter', { feld: 'sicherung', nach: !!an });
   if (!an) { anhalten(); return; }
   fehltGeprueft = 0;
   sicherungGeaendert();

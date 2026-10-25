@@ -18,6 +18,13 @@
  * Weiter aufteilen ginge, hieße aber, `ui`, `render()` und `go()` über eine
  * Registrierung zu entkoppeln – mehr Maschinerie, als es einbringt.
  */
+// Als Erstes: Das Diagnoseprotokoll hängt seine Fehler-Lauscher ein, bevor
+// data.js und store.js ausgewertet werden (siehe js/diagnose.js).
+import {
+  diagnoseAn, diagnoseFassung, diagnoseGrundMerken, diagnoseLeeren, diagnosePlatzMachen, diagnoseSauber,
+  diagnoseSchalten, diagnoseSchreiben, diagnoseStand, diagnoseStart, diagnoseText, diagnoseZeilen, diagnoseZone,
+  notieren, uaKurz,
+} from './diagnose.js';
 import { EXERCISES, FOCUS, FOKUS_ERSATZ, PLAN, PLANS, TARGET, REST } from './data.js';
 import * as store from './store.js';
 import {
@@ -100,6 +107,33 @@ const toastEl = document.getElementById('toast');
  * diesem Kommentar finden – gefunden beim ersten Bauversuch.)
  */
 const EINZELDATEI = !document.querySelector('script[src$="js/app.js"]');
+
+/** Größe eines Schlüssels im Speicher in KB – fürs Diagnoseprotokoll. */
+function kb(schluessel) {
+  try {
+    return Math.round((localStorage.getItem(schluessel) || '').length / 1024);
+  } catch {
+    return null;
+  }
+}
+
+// Die Startzeile des Diagnoseprotokolls: mit allem, was nur die App weiß –
+// auch, ob gerade eine Einheit oder eine Pause lief (Neuladen mittendrin).
+{
+  const s = store.getState();
+  diagnoseStart({
+    einzeldatei: EINZELDATEI,
+    speicher: store.speicherGrund() || 'ok',
+    haupt: kb('workout.state.v1'),
+    ablage: kb('workout.rounds.v1'),
+    plan: PLAN.length,
+    fokus: s.focus || 'standard',
+    stand: FOCUS.stand,
+    sw: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+    einheit: s.session ? s.session.n : undefined,
+    pause: s.rest ? Math.round((s.rest.endsAt - Date.now()) / 1000) : undefined,
+  });
+}
 
 /* ------------------------------------------------------------------ *
  * Der Punkt am App-Symbol
@@ -316,6 +350,7 @@ function fokusUmzug() {
   store.setSetting('fokusUmzug', {
     von: ziel.name, nach: PLANS[ziel.nach].name, am: todayISO(), abgelegt: hatteVerlauf,
   });
+  notieren('plan', { was: 'umzug', von: alt, nach: ziel.nach, abgelegt: hatteVerlauf });
   return true;
 }
 
@@ -369,6 +404,7 @@ function planWechsel() {
   // zeigt, braucht einen Grund, den man lesen kann.
   store.setSetting('planUmbau', { einheiten, fest: true, fokus: (PLANS[fokus] || {}).name || fokus });
   store.setSetting('planStand', { ...(s.planStand || {}), [fokus]: jetzt });
+  notieren('plan', { was: 'umbau', grund: 'stand', fokus, von: vorher, nach: jetzt, einheiten });
   return true;
 }
 
@@ -436,6 +472,7 @@ function satzWechsel(fokus, ganzNeu = false) {
   const einheiten = Object.keys(fest).length ? store.festschreiben(fest, ausPlan) : 0;
   if (einheiten) {
     store.setSetting('planUmbau', { einheiten, fest: true, fokus: (PLANS[fokus] || {}).name || fokus });
+    notieren('plan', { was: 'umbau', grund: 'saetze', fokus, einheiten });
   }
   merkeSaetze(fokus);
   return einheiten > 0;
@@ -774,14 +811,19 @@ function downloadBackup() {
   // auch im Textfeld zum Kopieren.
   const io = document.getElementById('io');
   if (io) io.value = json;
-  const blob = new Blob([json], { type: 'application/json' });
+  herunterladen(json, `workout-backup-${todayISO()}.json`, 'application/json');
+  store.markBackup(doneCount());
+  notieren('datei', { was: 'download', bytes: json.length });
+  toast('Gesichert – falls kein Download kam: Text in „Mehr" kopieren');
+}
+
+/** Text als Datei herunterladen – die Sicherung und das Diagnoseprotokoll. */
+function herunterladen(text, name, typ) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `workout-backup-${todayISO()}.json`;
+  a.href = URL.createObjectURL(new Blob([text], { type: typ }));
+  a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  store.markBackup(doneCount());
-  toast('Gesichert – falls kein Download kam: Text in „Mehr" kopieren');
 }
 
 /* ------------------------------------------------------------------ *
@@ -833,8 +875,11 @@ async function speicherFestnageln() {
   try {
     const schon = navigator.storage.persisted ? await navigator.storage.persisted() : false;
     const ok = schon || await navigator.storage.persist();
+    notieren('speicher', { dauerhaft: ok, schon });
     if (store.getState().dauerhaft !== ok) store.setSetting('dauerhaft', ok);
-  } catch { /* kennt der Browser nicht – dann eben nicht */ }
+  } catch (e) {
+    notieren('speicher', { dauerhaft: 'fehler', name: e && e.name });   // kennt der Browser nicht – dann eben nicht
+  }
 }
 
 /**
@@ -870,12 +915,17 @@ async function teileBackup() {
   if (navigator.canShare && navigator.canShare({ files: [datei] })) {
     try {
       await navigator.share({ files: [datei], title: 'Workout-Sicherung' });
+      notieren('datei', { was: 'teilen', ok: true, bytes: json.length });
       store.markBackup(doneCount());
       render();
       return;
     } catch (e) {
-      if (e && e.name === 'AbortError') return;   // abgebrochen: eine Entscheidung, keine Meldung
+      if (e && e.name === 'AbortError') {   // abgebrochen: eine Entscheidung, keine Meldung
+        notieren('datei', { was: 'teilen', abbruch: true });
+        return;
+      }
       ui.teilenFehler = e && e.name ? `${e.name}${e.message ? ` – ${e.message}` : ''}` : 'ohne Angabe';
+      notieren('datei', { was: 'teilen', ok: false, name: e && e.name, msg: e && e.message });
     }
   }
   downloadBackup();
@@ -911,8 +961,12 @@ async function teileBackup() {
  * jetzt importJSON selbst).
  */
 function einlesen(text, meldung) {
-  if (!ersetzenErlaubt()) return;
+  if (!ersetzenErlaubt()) {
+    notieren('datei', { was: 'import', abgelehnt: true });
+    return;
+  }
   store.importJSON(text);
+  notieren('datei', { was: 'import', ok: true, bytes: text.length });
   // Beiseitegelegt ist jetzt der Stand von vor *dieser* Datei. Was die
   // Sicherung vor einem früheren Zurückholen wusste, gehört nicht mehr dazu
   // (sicherungRueckweg() in js/sicherung.js).
@@ -949,7 +1003,19 @@ function neuStarten(meldung) {
   store.setSetting('tab', ui.tab);
   store.flush();
   sessionStorage.setItem('workout.nachImport', meldung);
+  vorDemNeuladen('import');
   location.reload();
+}
+
+/**
+ * Vor jedem Neuladen, das die App selbst auslöst: dem Diagnoseprotokoll sagen,
+ * warum (die nächste Startzeile trägt es), und schreiben, was aussteht – wie
+ * store.flush() daneben.
+ */
+function vorDemNeuladen(grund) {
+  notieren('sicht', { zu: 'neu laden', grund });
+  diagnoseGrundMerken(grund);
+  diagnoseSchreiben();
 }
 
 function importBackupDatei() {
@@ -963,7 +1029,12 @@ function importBackupDatei() {
     if (!datei) return;
     datei.text()
       .then((text) => einlesen(text, `Eingelesen: ${datei.name}`))
-      .catch((err) => toast(`Import fehlgeschlagen: ${err.message}`));
+      .catch((err) => {
+        // Nur der Name des Fehlers: Die Meldung eines JSON-Fehlers zitiert den
+        // Anfang der Datei – und darin stünde der Name aus der Sicherung.
+        notieren('datei', { was: 'import', quelle: 'datei', ok: false, name: err && err.name, bytes: datei.size });
+        toast(`Import fehlgeschlagen: ${err.message}`);
+      });
   });
   feld.click();
 }
@@ -1256,7 +1327,10 @@ function planNote(secs, text) {
     noteTimer = null;
     // Nur, wenn die App gerade nicht zu sehen ist: Wer davorsitzt, hört den Ton
     // und sieht die Leiste – eine Systemmeldung wäre da nur Lärm.
-    if (!document.hidden) return;
+    if (!document.hidden) {
+      notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: false, grund: 'sichtbar' });
+      return;
+    }
     const opt = {
       body: text,
       tag: NOTE_TAG,          // ersetzt eine ältere, statt sie zu stapeln
@@ -1266,10 +1340,26 @@ function planNote(secs, text) {
       badge: './badge-96.png',
       vibrate: [180, 90, 180],
     };
+    // Fürs Diagnoseprotokoll erst das Ergebnis, nicht den Versuch: Bis zum
+    // Gegenlesen stand hier vorher „gezeigt=true", und ein Fehlschlag verschwand
+    // im catch – auf Chrome Android wirft `new Notification()` ohne Service
+    // Worker („Illegal constructor"), und genau die Frage „kam die Meldung?"
+    // war damit falsch beantwortet.
+    let ueber;   // bleibt leer, wenn schon die Frage nach dem Worker scheitert
     swReg().then((reg) => {
-      if (reg) reg.showNotification('Pause vorbei', opt);
-      else new Notification('Pause vorbei', opt);
-    }).catch(() => {});
+      if (reg) {
+        ueber = 'worker';
+        return reg.showNotification('Pause vorbei', opt);
+      }
+      ueber = 'konstruktor';
+      new Notification('Pause vorbei', opt);
+      return undefined;
+    }).then(
+      () => notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: true, ueber }),
+      (e) => notieren('pause', {
+        was: 'meldung', weg: 'seite', gezeigt: false, ueber, name: (e && e.name) || 'Fehler', msg: e && e.message,
+      }),
+    );
   }, Math.max(0, secs) * 1000);
 }
 
@@ -1323,6 +1413,10 @@ function armRest() {
     restArmed = false;
   }
   planNote(left, rest.next);
+  notieren('pause', {
+    was: 'auflegen', rest: Math.round(left), armed: restArmed, toene: !!store.getState().sound,
+    meldung: noteAllowed() ? (navigator.serviceWorker && navigator.serviceWorker.controller ? 'worker' : 'seite') : 'aus',
+  });
 }
 
 /**
@@ -1337,13 +1431,15 @@ async function holdScreen(on) {
       await wakeLock.release();
       wakeLock = null;
     }
-  } catch {
+  } catch (e) {
     wakeLock = null; // nicht unterstützt oder abgelehnt – kein Beinbruch
+    notieren('pause', { was: 'wakelock', an: on, ok: false, name: e && e.name });
   }
 }
 
 function startRest(exName, setIndex, sets, secs, exId = null) {
   if (!secs) return;
+  notieren('pause', { was: 'start', dauer: secs, ex: exId, satz: setIndex + 1, von: sets });
   store.setRest({
     endsAt: Date.now() + secs * 1000,
     total: secs,
@@ -1414,6 +1510,17 @@ function endRest(withSignal) {
   const stand = restArmed ? signalStand('rest') : 'keins';
   const frisch = !vorbei || Date.now() - vorbei.endsAt < NACHKLANG_MS;
   const ersatz = withSignal && frisch && stand !== 'erklungen' && stand !== 'laeuft';
+  // Die Stelle von „Jetzt fehlt iwie die Pause": was hier entschieden wurde.
+  // `spaet` nur nach dem Ende, davor `rest` (wie viel noch übrig war) – beim
+  // Gegenlesen stand bei einem Abbruch „spaet=-4", und der Name sagte das
+  // Gegenteil.
+  const ueberzogen = vorbei ? Math.round((Date.now() - vorbei.endsAt) / 1000) : undefined;
+  notieren('pause', {
+    was: withSignal ? 'ablauf' : 'abbruch', stand, frisch, ersatz, toene: !!store.getState().sound,
+    leiste: !restBar.hidden, sichtbar: !document.hidden,
+    spaet: ueberzogen !== undefined && ueberzogen >= 0 ? ueberzogen : undefined,
+    rest: ueberzogen !== undefined && ueberzogen < 0 ? -ueberzogen : undefined,
+  });
   if (ersatz) sound('rest', vorbei ? { faellig: vorbei.endsAt, bis: vorbei.endsAt + NACHKLANG_MS } : undefined);
   cancelSound({ ausklingen: withSignal, ersetzt: ersatz ? 'rest' : null });
   // Bei einer abgebrochenen Pause den Hinweis abbestellen – bei einer
@@ -1494,6 +1601,7 @@ setInterval(() => {
 document.getElementById('restSkip')?.addEventListener('click', () => {
   const gezeigt = leistenPause();
   if (!gezeigt) return;
+  notieren('pause', { was: 'weg', ex: gezeigt.ex, eigene: gezeigt === store.getState().rest });
   // Weggetippt ist weggetippt: Auch wer danach zu dieser Übung zurückwischt,
   // bekommt die Pause nicht noch einmal (leistenPause() rechnet aus satzUhr).
   if (gezeigt.ex) { satzUhr.delete(gezeigt.ex); satzPlus.delete(gezeigt.ex); uhrMerken(); }
@@ -1507,6 +1615,7 @@ document.getElementById('restPlus')?.addEventListener('click', () => {
   const gezeigt = leistenPause();
   if (!gezeigt) return;
   const rest = store.getState().rest;
+  notieren('pause', { was: '+30', ex: gezeigt.ex, eigene: gezeigt === rest });
   // Die 30 s gehören zur Übung, nicht zur Leiste – beim Zurückwischen bleiben
   // sie, und zwar auch im Ganzen, an dem der Balken misst (satzPlus).
   if (gezeigt.ex && satzUhr.has(gezeigt.ex)) {
@@ -1595,6 +1704,10 @@ const ui = {
   sicherungLaeuft: false,
   sicherungLinkText: '',
   teilenFehler: '',
+  // Diagnoseprotokoll unter Mehr → Daten: ganzer Text aufgeklappt, und warum
+  // das Teilen nicht ging (wie teilenFehler bei der Sicherung).
+  diagnoseOffen: false,
+  diagnoseFehler: '',
 };
 
 /* ------------------------------------------------------------------ *
@@ -1655,6 +1768,9 @@ function nachFesthalten(n) {
     warum[m] = p ? Object.fromEntries([...p.warum].filter(([id]) => x.has(id))) : {};
   });
   store.halteNachFest(n, jeModus, warum);
+  const ex = Object.entries(jeModus).filter(([, o]) => Object.keys(o).length)
+    .map(([m, o]) => `${m}:${Object.keys(o).join('+')}`).join(' ');
+  if (ex) notieren('nach', { n, ex });
 }
 
 /**
@@ -1693,6 +1809,7 @@ function zusatzFesthalten(n) {
     }),
     warum: Object.fromEntries(zus.map((it) => [it.id, warum[it.id]]).filter(([, v]) => v)),
   }, b.c.id);
+  notieren('zusatz', { n, woche: b.woche, ex: zus.map((it) => it.id).join('+'), traeger: b.c.id });
 }
 
 /*
@@ -1939,7 +2056,9 @@ const satzPlus = new Map(uhrRoh && Array.isArray(uhrRoh.p) ? uhrRoh.p : []);
 const uhrMerken = () => {
   try {
     localStorage.setItem(UHR_KEY, JSON.stringify({ t: Date.now(), m: [...satzUhr], p: [...satzPlus] }));
-  } catch { /* s. o. */ }
+  } catch (e) {
+    notieren('speicher', { was: 'satzuhr', ok: false, name: e && e.name });   // s. o.
+  }
 };
 
 const superAn = () => !!store.getState().supersatz;
@@ -2396,7 +2515,11 @@ function rundeWeiter() {
   const letzte = PLAN[PLAN.length - 1];
   const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
   const ab = addDays(store.startedOn(letzte.n) || effDate(letzte), abstand);
-  if (!store.restartPlan(daysBetween(PLAN[0].date, ab), rundenBilanz())) return false;
+  if (!store.restartPlan(daysBetween(PLAN[0].date, ab), rundenBilanz())) {
+    notieren('plan', { was: 'runde weiter', ok: false });
+    return false;
+  }
+  notieren('plan', { was: 'runde weiter', ok: true, runden: (store.getState().rounds || []).length });
   ui.workoutNo = PLAN[0].n;
   ui.focus = false;
   ui.listView = false;
@@ -2468,6 +2591,7 @@ function tagAbschliessen() {
     festReparieren();
     festNachReparieren();
     stempleFertige();
+    notieren('tag', { was: 'umbau nachgezogen' });
   }
   const { einheiten, sitzung } = liegenGeblieben(heute);
   if (!einheiten.length && !sitzung) return null;
@@ -2483,6 +2607,14 @@ function tagAbschliessen() {
     return { n, tag: store.startedOn(n), done: p.done, total: p.total };
   });
   if (zeile.length) store.setzeTagesabschluss({ am: heute, einheiten: zeile });
+  // Die Einheiten, die sich eben selbst abgeschlossen haben, und die Sitzung,
+  // die liegen blieb – mit dem, was stand, und wann zuletzt etwas geschah.
+  notieren('tag', {
+    was: 'abschluss',
+    einheiten: zeile.map((z) => `${z.n}:${z.done}/${z.total}@${z.tag || '?'}`).join(',') || undefined,
+    sitzung: sitzung ? sitzung.n : undefined,
+    still: sitzung && sitzung.bis ? Math.round((Date.now() - sitzung.bis) / 60000) : undefined,
+  }, true);
   if (sitzung) einheitBeenden(sitzung.bis);
   // Stand die Startseite auf einer davon, geht sie zur nächsten Einheit –
   // sonst stünde dort „Für heute durch" über dem Samstag. Die Aufrufer fragen
@@ -2523,6 +2655,7 @@ function tagesUhrStellen() {
   const { spaeter } = liegenGeblieben(todayISO(), jetzt.getTime());
   if (spaeter && spaeter < wann) wann = spaeter + 1000;
   tagesUhr = setTimeout(() => {
+    notieren('tag', { was: 'uhr', sichtbar: !document.hidden });
     if (!document.hidden) tagNachziehen();
     tagesUhrStellen();
   }, Math.max(1000, wann - Date.now()));
@@ -2572,8 +2705,10 @@ function frischerStart() {
 function planVorziehen(n) {
   if (istCustom(n) || store.isStarted(n) || firstOpen().n !== n) return false;
   if (daysBetween(todayISO(), effDate(workoutByNo(n))) <= 0) return false;
+  const von = store.getState().shift;
   store.setShift(shiftToToday());
   pruefeZusatztag();
+  notieren('plan', { was: 'vorgezogen', n, von, nach: store.getState().shift });
   return true;
 }
 
@@ -3536,6 +3671,7 @@ function willkommenFertig() {
   if ((PLANS[store.getState().focus] || PLANS.standard) !== FOCUS) {
     store.flush();
     sessionStorage.setItem('workout.nachEinstieg', name ? `Los geht’s, ${name} 💪` : 'Los geht’s 💪');
+    vorDemNeuladen('einstieg');
     location.reload();
     return;
   }
@@ -3700,7 +3836,8 @@ function meldeStand(sofort = false) {
   // nächsten Tag nichts davon.
   if (!sofort && s.lastShare && s.lastShare.on === todayISO() && s.lastShare.ok) return;
   if (!s.deviceId) store.setSetting('deviceId', geraeteId(null));
-  melden(standZeile()).then(({ ok, msg }) => {
+  melden(standZeile()).then(({ ok, status, msg }) => {
+    notieren('rueckkanal', { ok, status, msg: ok ? undefined : msg });
     store.setSetting('lastShare', { on: todayISO(), ok, msg: ok ? '' : msg });
     // Nur neu zeichnen, wo das Ergebnis auch steht – mitten im Training wäre
     // ein Neuaufbau der Seite eine Zumutung.
@@ -5782,6 +5919,7 @@ function zusatztagEx(woche, mode, einheit = null) {
 function pruefeZusatztag() {
   const geaendert = zusatztagRechnen();
   traegerSitzungLoesen();
+  if (geaendert) notieren('zusatz', { was: 'zusatztag neu gerechnet' });
   return geaendert;
 }
 
@@ -6794,6 +6932,9 @@ function showVersion() {
   caches.keys().then((keys) => {
     const mine = keys.filter((k) => k.startsWith('workout-'));
     host.textContent = `${plan} · Zwischenspeicher: ${mine.join(', ') || 'keiner'}`;
+    // Was hier steht, soll auch der Kopf des Protokolls sagen – außer in der
+    // Einzeldatei, die gar keinen Zwischenspeicher hat (dort sagt er „Einzeldatei").
+    if (!EINZELDATEI) diagnoseFassung(keys);
   }).catch(() => { host.textContent = plan; });
 }
 
@@ -7702,6 +7843,7 @@ function renderSettings() {
         <button type="button" class="btn btn-danger" data-act="reset-all">Alle Daten löschen</button>
       </div>
     </div>
+    ${diagnoseKarte()}
 
     <div class="section-title">Fassung</div>
     <div class="card">
@@ -7730,12 +7872,235 @@ function renderSettings() {
 
   showVersion();
   tonStandZeigen();
+  diagnoseZeigen();
   // Hat der Browser das Teilen abgelehnt, steht die Sicherung schon im
   // Textfeld – der Weg, der auch ohne Download und ohne Teilen geht.
   if (ui.teilenFehler) {
     const io = document.getElementById('io');
     if (io && !io.value) io.value = store.exportJSON();
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Diagnoseprotokoll – was davon zu sehen ist
+ *
+ *     „Können wir nicht allgemein alles mögliche im Hintergrund loggen damit du
+ *      siehst was funktioniert und was nicht oder so?"
+ *
+ * Mitgeschrieben wird in js/diagnose.js. Hier steht, wo man es sieht und wie es
+ * weggeht: eine Karte unter Mehr → Daten, mit dem Schalter, der Lage zum
+ * Abfotografieren, Teilen als .txt, Kopieren, Ansehen und Löschen. Einen Weg
+ * nach draußen gibt es nur über diese Knöpfe – kein Server, keine Sicherung,
+ * kein Rückkanal.
+ * ------------------------------------------------------------------ */
+
+/** Ein Stempel aus dem Protokoll („2026-10-22 19:02:…") kurz: „22.10. 19:02". */
+function stempelKurz(stempel) {
+  if (!stempel) return '';
+  return `${stempel.slice(8, 10)}.${stempel.slice(5, 7)}. ${stempel.slice(11, 16)}`;
+}
+
+/** Ein Zeitpunkt (ms oder ISO) in Ortszeit, ebenso kurz. */
+function zeitpunktKurz(wann) {
+  const d = new Date(wann);
+  if (Number.isNaN(d.getTime())) return '?';
+  const zwei = (n) => String(n).padStart(2, '0');
+  return `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}. ${zwei(d.getHours())}:${zwei(d.getMinutes())}`;
+}
+
+/** Millisekunden mit Komma, wie überall in der App. */
+const msKurz = (ms) => `${komma1(ms)} ms`;
+
+/**
+ * Der Kopf über dem Protokoll – die Lage in acht Zeilen, frisch gebaut beim
+ * Ansehen, Teilen und Kopieren, nie gespeichert. Hier und nicht in
+ * js/diagnose.js, weil nur diese Datei Store, Ton und Sicherung kennt.
+ *
+ * Was hier steht, ist dieselbe Sorte Angabe wie im Protokoll: Zustände, Zahlen,
+ * Zeiten. Kein Name, keine Kennung des Geräts, kein Schlüssel, keine Meldung des
+ * Servers ungefiltert (diagnoseSauber()).
+ */
+function diagnoseKopf() {
+  const s = store.getState();
+  const st = diagnoseStand();
+  const t = tonStand();
+  const jetzt = new Date();
+  const zwei = (n) => String(n).padStart(2, '0');
+  const tag = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][jetzt.getDay()];
+  const anzeige = (() => {
+    try {
+      if (navigator.standalone === true) return 'installiert (iOS)';
+      return window.matchMedia('(display-mode: standalone)').matches ? 'installiert (standalone)' : 'im Browser';
+    } catch { return 'Anzeige unbekannt'; }
+  })();
+  const fassung = EINZELDATEI ? 'Einzeldatei' : (st.fassung ? `Fassung ${st.fassung}` : 'Fassung unbekannt');
+  const speicher = store.canPersist() ? 'ok' : (store.speicherGrund() || 'gestört');
+  const ton = { laeuft: 'läuft', schlaeft: 'schläft', aus: 'aus' }[t.zustand] || t.zustand;
+  const erlaubnis = !('Notification' in window) ? 'keine Hinweise im Browser'
+    : ({ granted: 'erlaubt', denied: 'blockiert', default: 'nicht gefragt' }[Notification.permission] || Notification.permission);
+  const sm = sicherungMetaLesen();
+  const sicherung = !hatServer() ? 'Sicherung: kein Server'
+    : !sicherungAn() ? 'Sicherung aus'
+      : `Sicherung ${sm.ok ? `zuletzt ${zeitpunktKurz(sm.ok)} ok` : 'noch nie'}${
+        sm.fehler ? ` · zuletzt gescheitert: ${diagnoseSauber(sm.fehler).slice(0, 80)}` : ''}${
+        sm.konflikt ? ` · Konflikt ${sm.konflikt.art}` : ''}${sm.fehlt ? ' · Server kennt sie nicht' : ''}`;
+  const rueck = !hatServer() ? 'Rückkanal: kein Server'
+    : `Rückkanal ${meldetMit() ? 'an' : 'aus'}${s.lastShare ? `, zuletzt ${s.lastShare.on} ${s.lastShare.ok ? 'ok' : 'gescheitert'}` : ''}`;
+  const pause = s.rest ? `Pause läuft, noch ${Math.max(0, Math.round((s.rest.endsAt - Date.now()) / 1000))} s` : 'Pause keine';
+  return [
+    `Workout-Diagnose · ${tag} ${zwei(jetzt.getDate())}.${zwei(jetzt.getMonth() + 1)}.${jetzt.getFullYear()} `
+      + `${zwei(jetzt.getHours())}:${zwei(jetzt.getMinutes())} · Zeitzone ${diagnoseZone(jetzt)} · bleibt auf dem Gerät, geteilt nur auf Tipp`,
+    `${fassung} · ${anzeige} · ${uaKurz()} · ${window.innerWidth}x${window.innerHeight} · ${navigator.onLine ? 'online' : 'offline'}`,
+    `Speicher ${speicher}, ${s.dauerhaft ? 'dauerhaft zugesagt' : 'nichts zugesagt'} · Stand ${kb('workout.state.v1')} KB`
+      + ` · Ablage ${kb('workout.rounds.v1')} KB · Protokoll ${plural(st.zeilen, 'Zeile', 'Zeilen')} / ${Math.round(st.bytes / 1024)} KB`
+      + `${st.von ? ` seit ${stempelKurz(st.von)}` : ''}${st.nurRam ? ` · nur im Arbeitsspeicher (${st.warum})` : ''}`,
+    `Ton ${ton} · ${t.gespielt} gespielt, ${t.verpasst} verpasst (${t.gesperrt} vor der ersten Berührung), `
+      + `${t.verspaetet} verspätet · frei ${t.frei ? 'ja' : 'nein'} · klemmt ${t.klemmt ? 'ja' : 'nein'}`
+      + `${t.wartet ? ` · wartet auf ${t.wartet}` : ''} · Töne ${s.sound ? 'an' : 'aus'}, `
+      + `Satz-Tupfer ${s.soundSets ? 'an' : 'aus'}, Hinweise ${s.notify ? 'an' : 'aus'} (${erlaubnis})`,
+    `${s.session ? `Einheit ${s.session.n} läuft` : 'keine Einheit läuft'} · ${pause} · Plan ${s.focus || 'standard'}, `
+      + `shift ${s.shift || 0} · Service Worker ${navigator.serviceWorker && navigator.serviceWorker.controller ? 'aktiv' : 'keiner'}`,
+    `${sicherung} · ${rueck}`,
+    `Fehler im Protokoll ${st.fehler} · Einträge heute ${st.heute} · Schreibungen diese Sitzung ${st.schreibungen}`
+      + `${st.schreibungen ? `, längste ${msKurz(st.schreibMsMax)}, Mittel ${msKurz(st.schreibMsMittel)}` : ''}`,
+    `UA: ${navigator.userAgent || '?'}`,
+  ];
+}
+
+/** Die Karte unter Mehr → Daten. Gefüllt wird sie danach (diagnoseZeigen()). */
+function diagnoseKarte() {
+  const st = diagnoseStand();
+  const knoepfe = st.zeilen || st.an;
+  return `
+    <div class="card" id="diagnose">
+      <div class="switch-row">
+        <div>
+          <div class="lbl">Diagnoseprotokoll</div>
+          <div class="hint">Die App schreibt für sich mit, was sie technisch tut: Start und Fassung,
+            Töne, Pausen, abgehakte Sätze (nur Einheit, Übung und Satznummer – keine Gewichte, keine
+            Wiederholungen, kein Name), Fehler, Speicher, Sicherungsversuche. Mit Uhrzeiten, also
+            auch, wann du trainierst. Es bleibt auf diesem Gerät – höchstens 64 KB und 14 Tage, dann
+            fallen die ältesten Zeilen weg – und geht nirgendwohin, auch nicht mit der Sicherung oder
+            an den Betreiber, außer du tippst unten auf „Teilen" oder „Kopieren". Wer die App
+            weiterbaut, sieht daran, was auf deinem Gerät funktioniert und was nicht.</div>
+        </div>
+        <button type="button" class="toggle" aria-pressed="${st.an}" data-act="toggle-diagnose"
+          aria-label="Diagnoseprotokoll"></button>
+      </div>
+      <div class="small muted" id="diagnoseStand" style="margin-top:8px"></div>
+      ${st.zeilen ? '<pre class="io diagnose-lage" id="diagnoseLage"></pre>' : ''}
+      ${ui.diagnoseFehler ? `<div class="notice warn" id="diagnoseFehler">Teilen hat dein Browser
+        abgelehnt (${esc(ui.diagnoseFehler)}). Das Protokoll wurde stattdessen heruntergeladen – kam
+        kein Download, steht es unten zum Kopieren.</div>` : ''}
+      ${knoepfe ? `<div class="btn-row">
+        <button type="button" class="btn btn-primary" data-act="diagnose-teilen">Protokoll teilen</button>
+        <button type="button" class="btn" data-act="diagnose-kopieren">Kopieren</button>
+        <button type="button" class="btn" data-act="diagnose-ansehen">${ui.diagnoseOffen ? 'Zuklappen' : 'Alles ansehen'}</button>
+        <button type="button" class="btn btn-ghost" data-act="diagnose-loeschen">Protokoll löschen</button>
+      </div>` : ''}
+      ${ui.diagnoseOffen ? `<textarea class="io diagnose-text" id="diagnoseText" readonly
+        aria-label="Diagnoseprotokoll" style="margin-top:10px"></textarea>` : ''}
+      <div class="small muted" style="margin-top:8px">${st.zeilen ? `Zum Abfotografieren reicht der
+        Kasten: oben die Lage, darunter die letzten acht Einträge. ` : ''}<i>Alle Daten löschen</i>
+        räumt das Protokoll mit; der Schalter bleibt, wie er ist.</div>
+    </div>`;
+}
+
+/**
+ * Die Karte füllen – nach dem Zeichnen, als Text: Nichts von den 64 KB läuft
+ * durch esc() und innerHTML.
+ */
+function diagnoseZeigen() {
+  const stand = document.getElementById('diagnoseStand');
+  if (!stand) return;
+  const st = diagnoseStand();
+  // „1 Einträge" stand nach jedem Löschen da (die eine Zeile, die sagt, warum)
+  // – gefunden beim Gegenlesen.
+  const eintraege = plural(st.zeilen, 'Eintrag', 'Einträge');
+  if (!st.an) {
+    stand.textContent = `Abgeschaltet – es wird nichts mehr mitgeschrieben.${st.zeilen
+      ? ` Was da ist (${eintraege}), bleibt bis zum Löschen.` : ''}`;
+  } else if (!st.zeilen) {
+    stand.textContent = 'Noch nichts mitgeschrieben – kommt mit dem nächsten Start.';
+  } else if (st.nurRam) {
+    stand.textContent = st.speicherDa
+      ? `${eintraege}. Der Speicher ist knapp – das Protokoll läuft bis zum nächsten Start nur im Arbeitsspeicher und gibt seinen Platz dem Training. Teilen geht trotzdem.`
+      : `${eintraege}. Dieser Browser lässt nichts speichern – das Protokoll lebt nur, bis die Seite zugeht. Teilen geht trotzdem.`;
+  } else {
+    stand.textContent = `${eintraege} seit ${stempelKurz(st.von)} · ${Math.max(1, Math.round(st.bytes / 1024))} KB`
+      + ` · ${st.fehler} Fehler`
+      + `${st.schreibungen ? ` · zuletzt geschrieben ${new Date(st.zuletzt).toTimeString().slice(0, 8)}`
+        + ` (längste Schreibung ${msKurz(st.schreibMsMax)})` : ' · in dieser Sitzung noch nicht geschrieben'}.`;
+  }
+  const kopf = diagnoseKopf();
+  const lage = document.getElementById('diagnoseLage');
+  // Der Kasten ohne die Zeile „UA: …": Am Handy sind das vier umbrochene
+  // Zeilen, und Browser und System stehen kurz schon in der zweiten. Ganz steht
+  // sie im geteilten Text. Gefunden beim Gegenlesen: Mit ihr und einer festen
+  // Höhe zeigte der Kasten bei 414 px keinen der letzten acht Einträge.
+  if (lage) {
+    lage.textContent = `${kopf.filter((z) => !z.startsWith('UA: ')).join('\n')}\n---\n${diagnoseZeilen().slice(-8).join('\n')}`;
+  }
+  const ta = document.getElementById('diagnoseText');
+  if (ta) {
+    ta.value = diagnoseText(kopf);
+    ta.scrollTop = ta.scrollHeight;   // das Neueste steht unten
+  }
+}
+
+/**
+ * Teilen – gebaut wie teileBackup(), weil genau der Weg auf Chrome Android
+ * repariert ist: .txt mit genau 'text/plain', kein await vor share() (sonst ist
+ * die Berührung verbraucht), Abbruch still, jede Ablehnung endet im Download
+ * und im Textfeld.
+ */
+async function diagnoseTeilen() {
+  const text = diagnoseText(diagnoseKopf());
+  const name = `workout-diagnose-${todayISO()}.txt`;
+  const datei = new File([text], name, { type: 'text/plain' });
+  ui.diagnoseFehler = '';
+  if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+    try {
+      await navigator.share({ files: [datei], title: 'Workout-Diagnose' });
+      notieren('diagnose', { was: 'geteilt', bytes: text.length });
+      toast('Protokoll weitergegeben');
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;   // abgebrochen: eine Entscheidung, keine Meldung
+      ui.diagnoseFehler = e && e.name ? `${e.name}${e.message ? ` – ${e.message}` : ''}` : 'ohne Angabe';
+    }
+  }
+  herunterladen(text, name, 'text/plain');
+  notieren('diagnose', { was: 'download', bytes: text.length, fehler: ui.diagnoseFehler ? ui.diagnoseFehler.split(' ')[0] : undefined });
+  ui.diagnoseOffen = true;   // der Weg, der überall geht
+  if (ui.tab === 'settings') render();
+  toast(ui.diagnoseFehler
+    ? 'Teilen hat der Browser abgelehnt – als Datei gespeichert. Der Text steht unten zum Kopieren.'
+    : 'Als Datei gespeichert');
+}
+
+/**
+ * Kopieren – in die Zwischenablage, wo es sie gibt (sicherer Kontext, aus der
+ * Berührung heraus, kein await davor); sonst steht der Text markiert im Feld.
+ * Kein execCommand('copy'): veraltet, und die App benutzt es nirgends.
+ */
+function diagnoseKopieren() {
+  const text = diagnoseText(diagnoseKopf());
+  const zeigen = () => {
+    ui.diagnoseOffen = true;
+    render();
+    const ta = document.getElementById('diagnoseText');
+    if (ta) { ta.focus(); ta.select(); }
+    toast('Kopieren ging nicht – der Text steht unten markiert.');
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      notieren('diagnose', { was: 'kopiert', bytes: text.length });
+      toast('Protokoll kopiert');
+    }, zeigen);
+    return;
+  }
+  zeigen();
 }
 
 /**
@@ -8119,7 +8484,10 @@ function abgehaktInEinheit(n) {
  * bis zu ihrem letzten Lebenszeichen, nicht bis jetzt (store.clockStop()).
  */
 function einheitBeenden(bis) {
+  const lief = store.getState().session;
+  const uhrVorher = store.getState().clock;
   store.endSession(bis);
+  uhrGedeckelt(uhrVorher, bis ? 'liegen geblieben' : 'ende');
   meldeStand(true);
   ui.focus = false;
   ui.listView = false;
@@ -8138,6 +8506,14 @@ function einheitBeenden(bis) {
   // die Startansicht bleibt auf der Einheit, die eben fertig wurde („Für heute
   // durch"), und der Abschluss sagt, was er ist.
   pruefeZusatztag();
+  {
+    const n = lief ? lief.n : null;
+    const e = n !== null ? store.getState().log[n] : null;
+    notieren('einheit', {
+      was: 'ende', n, liegen: bis ? true : undefined, secs: e ? e.secs : undefined,
+      fertig: e && e.done ? e.done : undefined, gestiegen: gestiegen ? store.getState().level : undefined,
+    }, true);
+  }
   // Zuletzt, damit Aufstieg und Zusatztag schon drinstehen: sofort sichern, an
   // der Drossel vorbei. Das ist der Stand, der am meisten wert ist, und das
   // Handy liegt danach oft für Stunden.
@@ -8157,6 +8533,7 @@ function einheitBeenden(bis) {
  */
 function trainingBeenden(n, mode) {
   const prog = progressOf(n, mode);
+  notieren('einheit', { was: 'abschliessen', n, mode, done: prog.done, total: prog.total });
   // Abgehakt ist abgehakt: Wer hier tippt, ist fertig – der Tag zählt als
   // trainiert, auch wenn nicht jeder Satz steht. Ohne einen einzigen Satz
   // wäre das allerdings gelogen.
@@ -8205,7 +8582,7 @@ function einheitStarten(n, wahl) {
   // würde sonst womöglich unter dem Startknopf neu gerechnet.)
   if (!istCustom(n)) pruefeZusatztag();
   const zusNeu = workoutByNo(n, store.workoutMode(n)).ex.filter((x) => x.zusatz);
-  initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
+  initAudio('start'); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
   sound('start');
   // Läuft noch eine andere Einheit, wird sie zuerst beendet – mit ihrer
   // Zeit. startSession() ersetzt die Uhr, und gebucht wird nur beim
@@ -8219,6 +8596,10 @@ function einheitStarten(n, wahl) {
     store.endSession();
   }
   store.startSession(n);
+  notieren('einheit', {
+    was: 'start', n, mode: store.workoutMode(n), vorige: vorige ?? undefined,
+    zusatz: zusNeu.length > zusVorher ? zusNeu.map((x) => x.id).join('+') : undefined,
+  });
   ui.focus = true;
   ui.listView = false;
   ui.focusIdx = firstOpenExercise(n, store.workoutMode(n));
@@ -8365,10 +8746,11 @@ view.addEventListener('click', (e) => {
       // „Weiter: …" davon. Zurücknehmen geht weiter – das ist ein Haken in
       // diesem Modus, der wirklich dasteht.
       if (!cur && saetzeErledigt(n, id, item.sets) >= item.sets) {
+        notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, abgelehnt: 'fertig' });
         toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
         break;
       }
-      initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
+      initAudio('satz'); // Berührung nutzen, solange der Browser Ton noch erlaubt
       // Ein Haken überholt das „Pause vorbei", das seit dem Neuladen auf die
       // erste Berührung wartet – auch einer, der stumm bleibt („Ton bei jedem
       // Satz" aus, im Supersatz ohne Wartezeit weiter; tonUeberholt() in
@@ -8410,6 +8792,7 @@ view.addEventListener('click', (e) => {
       // einheitBeenden(), derselben Stelle wie beim Knopf. Sonst wäre
       // „automatisch beendet" nur halb beendet.
       if (workoutComplete && store.getState().session) {
+        notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, fertig: true });
         const gestiegen = einheitBeenden();
         sound('done');
         render();
@@ -8437,6 +8820,15 @@ view.addEventListener('click', (e) => {
       // Im Supersatz entscheidet der Wechsel, wohin es geht und wie lange
       // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
       const imWechsel = done && !workoutComplete && superWeiter(n, mode, id);
+      // Ein Haken fürs Diagnoseprotokoll: was danach kommt – nie das Gewicht.
+      // Der Satz ab 1 und „von", wie in der Pausen-Zeile daneben; die Einheit
+      // heißt `einheit`, nicht `n` – gefunden beim Gegenlesen: „satz n=1 … i=0"
+      // und gleich darauf „pause … satz=1" las sich wie zwei Sätze.
+      notieren('satz', {
+        einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, exFertig: exDone, fertig: workoutComplete,
+        super: !!imWechsel,
+        pause: !imWechsel && done && !workoutComplete && !exDone && i < item.sets - 1 ? restFor(variant) : 0,
+      });
 
       if (!imWechsel) {
         // In der Fokus-Ansicht sofort zur nächsten offenen Übung rücken. Bis
@@ -8495,7 +8887,9 @@ view.addEventListener('click', (e) => {
       // Auch nach vorn: Liegt der Excel-Termin in der Zukunft, fängt die neue
       // Runde trotzdem heute an und nicht irgendwann.
       const target = daysBetween(PLAN[0].date, todayISO());
-      if (!store.restartPlan(target, rundenBilanz())) {
+      const neu = store.restartPlan(target, rundenBilanz());
+      notieren('plan', { was: 'neustart', ok: neu });
+      if (!neu) {
         toast('Speicher voll – die Runde ließ sich nicht ablegen. Erst sichern und aufräumen.');
         render();
         break;
@@ -8514,6 +8908,7 @@ view.addEventListener('click', (e) => {
     }
     case 'restore-round': {
       const ok = store.restoreRound();
+      notieren('plan', { was: 'runde zurueck', ok });
       // Mit dem Verlauf ändert sich, welche Woche fertig ist und was ihr fehlt –
       // der Zusatztag rechnet sofort neu, wie nach „Von vorn beginnen".
       if (ok) pruefeZusatztag();
@@ -8570,6 +8965,7 @@ view.addEventListener('click', (e) => {
         `Training abbrechen und ${weg === 1 ? 'den abgehakten Satz' : `${weg} abgehakte Sätze`} verwerfen?`,
       );
       if (!ok) break;
+      notieren('einheit', { was: 'verworfen', n, weg });
       store.verwirfEinheit(n);
       // Mit der Einheit ist auch ihr festgehaltener Zusatz weg; ein neuer Träger
       // entsteht, und die Einheit zeigt ihn wieder, gerechnet für jetzt.
@@ -8640,6 +9036,7 @@ view.addEventListener('click', (e) => {
       // Verlaufskurve, und die Steigerungsserie bricht ab, weil sie das
       // Gewicht der letzten Einheit nicht wiederfindet. Beim einzelnen
       // Abhaken schreibt toggle-set es längst mit.
+      notieren('einheit', { was: 'alles abgehakt', n, mode });
       store.completeWorkout(n, mode, workoutByNo(n, mode).ex.map((x) => {
         const v = resolve(x, mode);
         return { ...x, w: v.weight === null ? '' : fmtNum(workingWeight(x.id)) };
@@ -8667,6 +9064,7 @@ view.addEventListener('click', (e) => {
         : `${einheitTitel(n)} (${MODE_LABEL[mode]}) wirklich zurücksetzen?`;
       const etwas = beide ? store.isStarted(n) : hasAnyEntry(n, mode);
       if (!etwas || confirm(frage)) {
+        notieren('einheit', { was: 'zurueckgesetzt', n, mode, beide });
         if (beide) store.verwirfEinheit(n); else store.resetWorkout(n, mode);
         // Steht danach nichts mehr, ist auch der festgehaltene Zusatz weg – wie
         // beim Abbrechen kommt er neu gerechnet wieder.
@@ -8760,6 +9158,7 @@ view.addEventListener('click', (e) => {
         break;
       }
       store.markDone(n, mode);
+      notieren('einheit', { was: 'markiert', n, mode });
       sound('done');
       render();
       toast('Als trainiert eingetragen – steht jetzt so im Kalender');
@@ -8848,7 +9247,7 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'set-rest':
-      initAudio();
+      initAudio('pause-wahl');
       store.setSetting('restSeconds', Number(t.dataset.sec));
       render();
       break;
@@ -8878,14 +9277,17 @@ view.addEventListener('click', (e) => {
       // Keine Rückfrage mehr: Der Wechsel nimmt nichts weg. Der Verlauf des
       // alten Fokus wartet, der des neuen kommt zurück – siehe wechsleFokus().
       if (!store.wechsleFokus(key, laeuft ? rundenBilanz() : null, frischerStart())) {
+        notieren('plan', { was: 'fokus', nach: key, ok: false });
         toast('Speicher voll – der Verlauf ließ sich nicht ablegen. Erst sichern und aufräumen.');
         render();
         break;
       }
       // Der Plan steckt beim Laden in Hunderten von Zeilen; ein Wechsel mitten
       // im Betrieb hieße, dass die halbe App noch mit dem alten rechnet.
-      if (store.getState().greeted) location.reload();
-      else render();
+      if (store.getState().greeted) {
+        vorDemNeuladen('fokus');
+        location.reload();
+      } else render();
       break;
     }
     case 'accept-stand': {
@@ -8952,6 +9354,32 @@ view.addEventListener('click', (e) => {
       ui.adminDaten = null;
       ui.adminFehler = '';
       render();
+      break;
+    case 'toggle-diagnose': {
+      const an = diagnoseSchalten(!diagnoseAn());
+      if (!an) ui.diagnoseOffen = false;
+      render();
+      toast(an ? 'Wird ab jetzt mitgeschrieben – nur auf diesem Gerät'
+        : 'Abgeschaltet – es wird nichts mehr mitgeschrieben');
+      break;
+    }
+    case 'diagnose-teilen':
+      diagnoseTeilen();
+      break;
+    case 'diagnose-kopieren':
+      diagnoseKopieren();
+      break;
+    case 'diagnose-ansehen':
+      ui.diagnoseOffen = !ui.diagnoseOffen;
+      render();
+      break;
+    case 'diagnose-loeschen':
+      if (confirm('Diagnoseprotokoll löschen? Es gibt keine Kopie – außer du hast es geteilt.')) {
+        diagnoseLeeren('tipp');
+        ui.diagnoseFehler = '';
+        render();
+        toast('Protokoll gelöscht');
+      }
       break;
     case 'toggle-share': {
       const an = store.getState().share === false;
@@ -9153,7 +9581,7 @@ view.addEventListener('click', (e) => {
       render();
       break;
     case 'toggle-sound': {
-      initAudio();
+      initAudio('schalter');
       const on = !store.getState().sound;
       store.setSetting('sound', on);
       // Aus heißt aus – auch für einen Gong, der auf die erste Berührung
@@ -9165,7 +9593,7 @@ view.addEventListener('click', (e) => {
       break;
     }
     case 'toggle-sound-sets': {
-      initAudio();
+      initAudio('schalter');
       const on = !store.getState().soundSets;
       store.setSetting('soundSets', on);
       render();
@@ -9299,7 +9727,7 @@ view.addEventListener('click', (e) => {
       // Der Reihe nach, damit man hört, was wofür steht – auf der Audio-Uhr,
       // nicht per setTimeout (siehe probeSpielen in js/audio.js). Die Zeile
       // darunter zieht sich über onTonStand() mit jedem Ton nach, der kommt.
-      initAudio();
+      initAudio('test');
       probeSpielen();
       tonStandZeigen();
       toast('Start · Satz · Übung fertig · fertig machen · Pause vorbei · Workout komplett');
@@ -9320,6 +9748,7 @@ view.addEventListener('click', (e) => {
     case 'export': {
       const io = document.getElementById('io');
       io.value = store.exportJSON();
+      notieren('datei', { was: 'export', bytes: io.value.length });
       io.select();
       toast('Export erzeugt – kopieren und sicher ablegen.');
       break;
@@ -9339,6 +9768,8 @@ view.addEventListener('click', (e) => {
       try {
         einlesen(io.value, 'Import erfolgreich');
       } catch (err) {
+        // Nur der Name, wie bei der Datei: Die Meldung zitiert den Text.
+        notieren('datei', { was: 'import', quelle: 'text', ok: false, name: err && err.name });
         toast(`Import fehlgeschlagen: ${err.message}`);
       }
       break;
@@ -9349,6 +9780,7 @@ view.addEventListener('click', (e) => {
         // schriebe die nächste Sicherung den alten Stand über die eben geholte
         // – die vom alten Handy, und das ist dann oft schon weg.
         if (store.vorImport()) sicherungRueckweg();
+        notieren('datei', { was: 'import zurueck' });
         store.vorImportZurueck();
         neuStarten('Stand von vor dem Import ist zurück');
       }
@@ -9367,23 +9799,30 @@ view.addEventListener('click', (e) => {
           const probe = await fetch(`./index.html?probe=${Date.now()}`, { cache: 'no-store' });
           if (!probe.ok) throw new Error(String(probe.status));
         } catch {
+          notieren('sw', { was: 'notausgang', probe: 'kein netz' });
           toast('Gerade keine Verbindung – ohne Netz würde das die App bis zum nächsten Empfang abschalten. Später noch einmal.');
           return;
         }
+        const geraeumt = { regs: 0, caches: 0 };
         try {
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             await Promise.all(regs.map((r) => r.unregister()));
+            geraeumt.regs = regs.length;
           }
           if (window.caches) {
             const keys = await caches.keys();
             await Promise.all(keys.map((k) => caches.delete(k)));
+            geraeumt.caches = keys.length;
           }
           sessionStorage.removeItem('workout.reloaded');
-        } catch {
+        } catch (e) {
           // Auch ohne Aufräumen ist ein Neuladen besser als nichts.
+          geraeumt.fehler = e && e.name;
         }
+        notieren('sw', { was: 'notausgang', probe: 'ok', ...geraeumt });
         store.flush();
+        vorDemNeuladen('update');
         location.reload();
       })();
       break;
@@ -9412,6 +9851,11 @@ view.addEventListener('click', (e) => {
         const id = s0.deviceId && (meldetMit() || s0.lastShare) ? s0.deviceId : null;
         if (id) loeschen(id);
         store.resetAll();
+        // Das Diagnoseprotokoll räumt mit; sein Schalter bleibt, wie er war –
+        // ein Löschen soll nie dazu führen, dass mehr mitgeschrieben wird
+        // (diagnoseLeeren()). Ist es an, sagt die erste Zeile danach, warum es
+        // leer ist.
+        diagnoseLeeren('reset');
         ui.workoutNo = naechsteEinheit();
         render();
         serverWeg.then((weg) => {
@@ -9583,15 +10027,27 @@ document.addEventListener('visibilitychange', () => {
     const r = store.getState().rest;
     wegSeit = Date.now();
     pauseOffen = r ? Math.max(0, r.endsAt - wegSeit) : 0;
+    const uhrVorher = store.getState().clock;
     store.clockStop();
+    uhrGedeckelt(uhrVorher, 'weg');
     // Ab hier zaehlt der Worker sichtbar mit – die Seite friert gleich ein.
     swSichtbar(false);
     store.flush();
+    // Und das Diagnoseprotokoll im selben Takt: Was danach kommt, weiß niemand.
+    notieren('sicht', {
+      zu: 'weg', pause: pauseOffen ? Math.round(pauseOffen / 1000) : undefined,
+      einheit: store.getState().session ? store.getState().session.n : undefined,
+    });
+    diagnoseSchreiben();
     // Was fertig verschlüsselt bereitliegt, geht mit keepalive hinterher –
     // nur unter 64 KB, sonst beim nächsten Start (js/sicherung.js).
     sicherungVerstecken();
     return;
   }
+  notieren('sicht', {
+    zu: 'da', weg: wegSeit ? Math.round((Date.now() - wegSeit) / 1000) : undefined,
+    gutschrift: wegSeit && pauseOffen ? Math.round(Math.min(Date.now() - wegSeit, pauseOffen) / 1000) : undefined,
+  });
   if (wegSeit) {
     if (pauseOffen) store.clockCredit(Math.min(Date.now() - wegSeit, pauseOffen));
     wegSeit = 0;
@@ -9630,6 +10086,10 @@ function tagNachziehen(abgeschlossen = tagAbschliessen()) {
   const shifted = catchUpPlan() || neueRunde;
   if (shifted || day !== lastSeenDay || abgeschlossen) {
     const neuerTag = day !== lastSeenDay;
+    notieren('tag', {
+      was: 'nachziehen', neuerTag, runde: neueRunde || undefined,
+      nachgerueckt: typeof shifted === 'number' && shifted ? shifted : undefined, abschluss: !!abgeschlossen,
+    });
     lastSeenDay = day;
     // Ein unberührter Zusatztag gilt für den Tag, an dem er gemacht wird –
     // über Mitternacht offen gelassen, wird er für den neuen Tag nachgerechnet
@@ -9650,9 +10110,27 @@ function tagNachziehen(abgeschlossen = tagAbschliessen()) {
 window.addEventListener('pagehide', () => {
   // Hier ohne Gutschrift: Die Seite verschwindet, und beim nächsten Laden
   // rechnet clockResync() die Lücke ohnehin heraus.
+  const uhrVorher = store.getState().clock;
   store.clockStop();
+  uhrGedeckelt(uhrVorher, 'seite zu');
   store.flush();
+  notieren('sicht', { zu: 'seite zu' });
+  diagnoseSchreiben();
 });
+
+/**
+ * Hat das Anhalten der Uhr eben gedeckelt? (store.clockStop(): nie über drei
+ * Stunden Stille hinaus.) Dann steht die Uhr jetzt an einem Zeitpunkt in der
+ * Vergangenheit – fürs Diagnoseprotokoll, wie weit. Nur, wenn dieses Anhalten
+ * etwas getan hat; eine schon stehende Uhr behält ihren alten Halt.
+ */
+function uhrGedeckelt(vorher, wo) {
+  try {
+    const c = store.getState().clock;
+    if (!c || c === vorher || !c.halt || Date.now() - c.halt < 60000) return;
+    notieren('einheit', { was: 'uhr gedeckelt', n: c.n, wo, vorMin: Math.round((Date.now() - c.halt) / 60000) });
+  } catch { /* nur fürs Protokoll */ }
+}
 
 // Offline-Betrieb. Nur über http(s) – unter file:// gibt es keine Service
 // Worker, und die gebündelte Einzeldatei braucht sie ohnehin nicht.
@@ -9671,19 +10149,59 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // dort unnötig. Und nur einmal je Sitzung, damit ein kaputter Service
   // Worker die Seite nicht in eine Schleife schickt.
   const hadController = !!navigator.serviceWorker.controller;
+  // Die Fassung fürs Diagnoseprotokoll nachziehen, sobald ein Worker aktiviert
+  // ist oder die Seite übernimmt: Dann steht sein Zwischenspeicher. Nach „App
+  // aktualisieren" (der Notausgang räumt alle) und bei der ersten Installation
+  // hatte die Startzeile noch keinen gesehen – siehe diagnoseFassung().
+  const fassungNachziehen = () => {
+    if (window.caches) caches.keys().then(diagnoseFassung).catch(() => {});
+  };
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController) return;
+    fassungNachziehen();
+    if (!hadController) {
+      notieren('sw', { was: 'controllerchange', erster: true, reload: false });
+      return;
+    }
     try {
-      if (sessionStorage.getItem('workout.reloaded')) return;
+      if (sessionStorage.getItem('workout.reloaded')) {
+        notieren('sw', { was: 'controllerchange', reload: false, grund: 'schon einmal' }, true);
+        return;
+      }
       sessionStorage.setItem('workout.reloaded', '1');
     } catch {
+      notieren('sw', { was: 'controllerchange', reload: false, grund: 'kein speicher' }, true);
       return;   // ohne Speicher lieber gar nicht neu laden als endlos
     }
+    notieren('sw', { was: 'controllerchange', reload: true });
+    vorDemNeuladen('update');
     location.reload();
   });
+  // Heute schickt sw.js der Seite nichts; der Lauscher ist der Anschluss, falls
+  // er einmal sagen soll, dass die Meldung „Pause vorbei" kam.
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    notieren('sw', { was: 'nachricht', typ: e.data && e.data.typ });
+  });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      // Ohne Registrierung zurück – ein Browser, der Worker sperrt, ohne es zu sagen.
+      if (!reg) {
+        notieren('sw', { was: 'registriert', reg: false });
+        return;
+      }
+      notieren('sw', { was: 'registriert', aktiv: !!reg.active, wartet: !!reg.waiting });
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing;
+        notieren('sw', { was: 'update' });
+        if (w) {
+          w.addEventListener('statechange', () => {
+            notieren('sw', { was: 'zustand', zustand: w.state });
+            if (w.state === 'activated') fassungNachziehen();
+          });
+        }
+      });
+    }).catch((e) => {
       // Kein Offline-Betrieb, aber die App läuft normal weiter.
+      notieren('sw', { was: 'fehler', name: e && e.name, msg: e && e.message }, true);
     });
   });
 }
@@ -9776,6 +10294,7 @@ if (fokusUmzug()) {
 // Runde läuft weiter – kein Neuanfang, also auch kein Verschieben auf heute.
 // Nach fokusUmzug(), nicht davor – der stellt erst fest, welcher Plan gilt.
 const planUmgebaut = planWechsel() || festReparieren();
+if (planUmgebaut) notieren('plan', { was: 'umgebaut', abschluss: 'ab morgen' });
 // Danach, und immer: auch die Listen, die eben erst festgeschrieben wurden,
 // können aus einem `soll` ohne Nacharbeits-Vermerk stammen. Still – die
 // Einheit zeigt danach wieder, was sie vor dem Update zeigte, und das ist
@@ -9830,7 +10349,10 @@ if (abschlussBeimStart && abschlussBeimStart.einheiten.length) {
   startHinweis = true;
 }
 rundeWeiter();
-catchUpPlan();
+{
+  const tage = catchUpPlan();
+  if (tage) notieren('tag', { was: 'nachgerueckt', tage });
+}
 /*
  * Eine neu begonnene Runde fängt heute an – nicht am Plandatum.
  *
@@ -9849,7 +10371,10 @@ catchUpPlan();
  * shiftToToday() statt catchUpPlan(), weil es in beide Richtungen zieht: Ein
  * Plan, dessen Termine in der Zukunft liegen, würde sonst dort stehen bleiben.
  */
-if (neuAngefangen) store.setShift(shiftToToday());
+if (neuAngefangen) {
+  store.setShift(shiftToToday());
+  notieren('plan', { was: 'neu angefangen', shift: store.getState().shift });
+}
 // Die Startseite stand noch auf der eben abgeschlossenen Einheit (`ui.workoutNo`
 // ist seit dem Laden des Moduls gesetzt) – jetzt, nach dem Nachrücken, die
 // nächste.
@@ -9875,6 +10400,7 @@ if (abschlussBeimStart) ui.workoutNo = naechsteEinheit();
 // nacheinander.
 const gestiegenBeimStart = pruefeAufstieg();
 const zusatzBeimStart = pruefeZusatztag();
+if (gestiegenBeimStart) notieren('plan', { was: 'aufstieg', stufe: store.getState().level });
 if (gestiegenBeimStart || zusatzBeimStart) {
   ui.tab = 'dashboard';
   ui.focus = false;
@@ -9981,11 +10507,50 @@ if (gestiegenBeimStart || zusatzBeimStart) {
  * Sonst zöge jeder abgehakte Satz einen zweiten Neuaufbau nach sich.
  */
 let speicherStand = store.canPersist();
+// Kann der Store schon jetzt, am Ende des Starts, nicht schreiben, kommt der
+// Wechsel unten nie – und das Protokoll behielte seinen Platz. Gefunden beim
+// Gegenlesen (Speicher zwischen zwei Sitzungen von außen gefüllt): Kein Satz
+// kam an, bis die App wegschaltete. Meist hat js/diagnose.js schon beim Laden
+// geräumt (DIAGNOSE_PLATZ); das hier ist der zweite Riegel.
+if (!speicherStand) diagnosePlatzMachen();
 store.subscribe(() => {
   if (store.canPersist() === speicherStand) return;
   speicherStand = store.canPersist();
+  // Das Diagnoseprotokoll gibt seinen Platz sofort frei – der nächste
+  // Schreibvorgang gehört dem Training (diagnosePlatzMachen() in js/diagnose.js).
+  if (!speicherStand) diagnosePlatzMachen();
+  notieren('speicher', {
+    kann: speicherStand, grund: store.speicherGrund() || undefined, klemmt: store.ablageKlemmt() || undefined,
+    haupt: kb('workout.state.v1'), ablage: kb('workout.rounds.v1'),
+  }, true);
   render();
 });
+
+/*
+ * Schalter fürs Diagnoseprotokoll: an einer Stelle statt in jedem Handler.
+ *
+ * Ein Vergleich je Meldung des Stores über ein paar Felder, die alle einfache
+ * Werte sind – ob „Töne" über den Schalter, den Einstieg oder eine eingelesene
+ * Sicherung umgelegt wurde, hier kommt es an. Fokus und Modus gehören dazu:
+ * Beides ändert, welche Übungen dastehen.
+ */
+{
+  const FELDER = ['sound', 'soundSets', 'notify', 'supersatz', 'share', 'level', 'restSeconds',
+    'useExerciseRest', 'mode', 'focus', 'aufwaermen'];
+  const bild = (s) => FELDER.map((k) => s[k]);
+  let vorher = bild(store.getState());
+  store.subscribe((s) => {
+    try {
+      let anders = false;
+      FELDER.forEach((k, i) => {
+        if (s[k] === vorher[i]) return;
+        anders = true;
+        notieren('schalter', { feld: k, von: vorher[i] ?? '-', nach: s[k] ?? '-' });
+      });
+      if (anders) vorher = bild(s);
+    } catch { /* nur fürs Protokoll */ }
+  });
+}
 
 /*
  * Den Punkt am App-Symbol nachziehen, sobald sich etwas ändert.
