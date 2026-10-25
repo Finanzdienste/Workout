@@ -916,10 +916,16 @@ nächsten Tipp. Seit v241:
   hat; diese Zeile fehlte bis v240); ein Ton, der sofort hätte kommen sollen,
   kommt mit der ersten Berührung einmal nach. Nur eine Pause, die gerade eben
   zu Ende ging, bekommt den Gong nach – und nur, solange die erste Berührung
-  innerhalb einer Minute nach ihrem Ende kommt (`bis` je Wunsch). Ohne diese
-  Frist käme er auch 70 s später mit dem nächsten Satz-Tipp, zusammen mit
-  dessen Tupfer und dem Start der neuen Pause; so verfällt er und bleibt als
-  *verpasst* gezählt.
+  innerhalb einer Minute nach ihrem Ende kommt (`bis` je Wunsch); danach
+  verfällt er und bleibt als *verpasst* gezählt. Die Frist allein reicht aber
+  nicht: Ein Satz dauert 20 bis 60 s, und die erste Berührung nach dem
+  Pausenende ist meist der nächste Haken. Gemessen 30 s nach dem Ende kam
+  „Pause vorbei" dann zusammen mit dessen Tupfer – genau in dem Moment, in dem
+  die neue Pause begann –, weil der Lauscher ihn spielte, bevor der
+  Klick-Handler lief. Deshalb entscheidet `nachholen()` erst nach dem Klick
+  derselben Berührung (ohne Klick nach einer halben Sekunde): Hat sie selbst
+  einen Ton angestoßen – Haken, neue Pause, Training beenden, „Töne anhören" –,
+  ist der alte überholt und verfällt.
 * **Die installierte App misst, statt anzunehmen.** Chrome hat laut seinen
   Autoplay-Regeln für eine zum Startbildschirm hinzugefügte App keine
   Tonsperre. Dort hätte „nie ohne Berührung" einen Rückschritt bedeutet: Ein
@@ -1003,19 +1009,37 @@ einer Uhr, die noch davor steht). Jeder gewollte Ton landet in genau einem Topf:
   dritten Fall stünde unter *Mehr* kein verpasster Ton, obwohl das lauteste
   Signal ausgefallen ist. Gibt `endRest()` einen Ersatz, zählt der
   liegengebliebene nicht doppelt – der Ersatz zählt.
+* Bei jedem verpassten Ton steht die Ursache dabei, und davon gibt es zwei:
+  *gesperrt* – es gab noch gar keinen Kontext, vor der ersten Berührung nach
+  dem Öffnen lässt der Browser keinen Ton zu (eine Vorwarnung oder ein Gong
+  nach dem Neuladen ohne Tipp, ein verfallener Wunsch) –, oder ein Kontext,
+  den der Browser *angehalten* hatte (im Hintergrund, nach einem Anruf).
+  Anfangs hieß jeder verpasste Ton „angehalten"; dann standen für zwei Töne
+  aus derselben Ursache – noch nicht getippt – zwei verschiedene Gründe da,
+  und der zweite deutete auf ein Problem im Hintergrund, das es nie gab.
 
 Ein nachgeholter Gong heißt deshalb *verspätet*, nicht „kam nicht" – so erlebt
 man ihn auch. Unter *Mehr → Töne und Hinweise* steht die Auswertung, und sie
-zieht sich mit jedem Ton nach, der kommt oder ausfällt (`onTonStand()`). Das
-Urteil zuerst, in Textfarbe und in einem Satz – *✓ Die App schickt Töne los
-(6 seit dem Öffnen).* –, danach, was verspätet oder gar nicht kam, mit Grund;
-darunter grau als Liste, woran es am Handy liegt, wenn trotzdem nichts zu hören
+zieht sich mit jedem Ton nach, der kommt oder ausfällt (`onTonStand()`), und
+wenn die Frist eines wartenden Gongs abläuft. Das Urteil zuerst, in Textfarbe
+und in einem Satz – *✓ Die App schickt Töne los (6 seit dem Öffnen).* –,
+danach, was verspätet oder gar nicht kam, mit seiner Ursache, eine Ursache in
+einem Satz (*Vor deiner ersten Berührung nach dem Öffnen lässt der Browser
+keinen Ton zu – deshalb kam 1 Ton verspätet, 1 Ton kam gar nicht.*); darunter
+grau als Liste, woran es am Handy liegt, wenn trotzdem nichts zu hören
 ist: Medien-Lautstärke (die Wippe regelt sie nur, während etwas spielt),
 Bluetooth-Kopfhörer oder Auto, Bitte nicht stören, in Chrome die
 Website-Einstellung Ton, am iPhone der Stummschalter. Solange „Töne anhören"
 läuft, steht *Töne laufen gerade* da statt der Aufforderung, auf den Knopf zu
-tippen, auf den man eben getippt hat. Hält der Browser den Kanal trotz
-Berührung an (Anruf, App-Wechsel), steht das als Urteil da. Schläft der Kanal
+tippen, auf den man eben getippt hat. Vor der ersten Berührung steht *Noch
+kein Ton angefordert* nur, wenn die App auch wirklich noch nichts wollte. Wurde
+sie mitten in der Pause neu geladen – Android beendet sie, und sie öffnet
+wieder direkt unter *Mehr* –, steht dort *✗ Noch kein Ton frei – vor der
+ersten Berührung nach dem Öffnen lässt der Browser keinen zu*, wie viele Töne
+deshalb fehlten, und was ein Tipp jetzt noch bringt: das Pausensignal
+pünktlich, „Pause vorbei" verspätet, oder nur noch freien Ton. Hält der
+Browser den Kanal trotz Berührung an (Anruf, App-Wechsel), steht das als
+Urteil da. Schläft der Kanal
 gut anderthalb Sekunden nach einer Berührung weiter, zeigt das Dashboard eine
 stille Zeile (kein Popup) – *Töne kommen gerade nicht …; tipp noch einmal,
 bleibt es stumm, App schließen und neu öffnen* –, die von selbst verschwindet,
@@ -1028,8 +1052,11 @@ nach weg und zurück; die erste Berührung – ein Reiter, die Figur – legt ih
 und er läuft sofort; eine Pause, die den Neustart überdauert, wird mit der
 ersten Berührung nachgeholt und spielt genau einmal, ohne vorzeitigen Stopp; ein
 Pausenende ohne Tipp erzeugt keinen Kontext und keine Konsolenmeldung „not
-allowed to start", der Gong kommt mit dem nächsten Satz-Tipp einmal nach (als
-verspätet gezählt) – 70 s danach nicht mehr; „Töne anhören" legt sechs Töne im
+allowed to start", der Gong kommt mit der ersten Berührung, die selbst keinen
+Ton auslöst (die Figur, eine Überschrift unter *Mehr*), einmal nach (als
+verspätet gezählt) – mit dem nächsten Haken 30 s danach nicht, 70 s danach gar
+nicht mehr, und unter *Mehr* steht dann „vor deiner ersten Berührung", nie
+„angehalten"; „Töne anhören" legt sechs Töne im
 Abstand von 0,9 s sofort auf die Uhr; zurück in die App, „+30 s" und „Pause
 weg" je 0,15 s vor dem Ende geben einen, keinen und keinen Gong; ein Signal auf
 einer angehaltenen Uhr, dessen Pause beim Aufwachen 70 s vorbei ist, klingt
@@ -1038,8 +1065,11 @@ verspätet. Ohne Sperre (`--autoplay-policy=no-user-gesture-required`) und als
 installierte App ausgegeben (`display-mode: standalone` über eine Attrappe von
 `matchMedia` – Chromium emuliert das per CDP nicht) klingt das Pausenende nach
 dem Neuladen ohne jede Berührung; mit Sperre wird der Mess-Kontext geschlossen,
-nichts landet auf ihm, und die erste Berührung holt den Gong nach. Jede dieser
-Szenen ist gegen den ersten Stand von v241 gegengeprüft und war dort rot.
+nichts landet auf ihm, und die erste Berührung holt den Gong nach. Neu geladen
+direkt unter *Mehr* steht vor der ersten Berührung, woran es liegt, wie viele
+Töne fehlten und was ein Tipp noch bringt – und das zieht sich nach, wenn die
+Frist des Gongs abläuft. Jede dieser Szenen ist gegen den Stand davor
+gegengeprüft und war dort rot.
 Wichtig für jede weitere Messung: In Playwright zählt jedes `page.evaluate()`
 und jede Locator-Hilfe als Nutzergeste (`Runtime.callFunctionOn` mit
 `userGesture: true`) – ein Test, der vor der ersten Berührung eines davon

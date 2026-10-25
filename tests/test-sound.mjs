@@ -247,7 +247,11 @@ await page.waitForTimeout(500);
 
 const vorher = await page.locator('#tonStand').textContent();
 console.log('     vor dem Testton:', JSON.stringify(vorher));
-check(/Noch kein Ton angefordert/.test(vorher || ''), 'die Zeile steht unter Mehr');
+// Neu geladen ist das Dokument wieder gesperrt. Läuft die 8-s-Pause von oben
+// noch, wartet ihr Signal auf die erste Berührung – dann steht genau das da und
+// nicht „Noch kein Ton angefordert" (das hieße: Die App wollte nichts).
+check(/^(Noch kein Ton angefordert|✗ Noch kein Ton frei – .*Pausensignal pünktlich)/.test((vorher || '').trim()),
+  'die Zeile steht unter Mehr');
 
 await page.locator('[data-act="test-sound"]').first().click();
 // Gezählt wird seit v241, was der Kontext wiedergegeben hat (`ended`), nicht,

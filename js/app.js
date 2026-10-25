@@ -1345,7 +1345,9 @@ function startRest(exName, setIndex, sets, secs, exId = null) {
  * getippt", und dort kommt er nach der ersten Berührung nach – aber nur, wenn
  * die noch in die Frist fällt. Die Frist zählt ab dem Pausenende, nicht ab dem
  * Vormerken: Ohne sie kam der Gong beim ersten Tipp auch 70 s danach, mitten
- * in den nächsten Satz.
+ * in den nächsten Satz. Ist diese erste Berührung der nächste Haken, kommt er
+ * auch innerhalb der Frist nicht – die neue Pause hat ihn überholt (siehe
+ * nachholen() in js/audio.js).
  */
 const NACHKLANG_MS = 60000;
 
@@ -1375,8 +1377,9 @@ function endRest(withSignal) {
    *
    * Ohne Berührung seit dem Laden merkt sich playSound() den Ton und holt ihn
    * bei der ersten nach – aber nur, wenn die Pause gerade eben zu Ende ging
-   * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war, und
-   * nur bis NACHKLANG_MS nach dem Ende.
+   * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war, nur
+   * bis NACHKLANG_MS nach dem Ende, und nicht, wenn diese Berührung selbst
+   * einen Ton anstößt (der nächste Haken, eine neue Pause).
    *
    * Aufgeräumt wird danach mit `ausklingen` nur am echten Ende: Ein Signal,
    * das in den nächsten 0,3 s anfängt, ist das dieses Endes. Bei „Pause weg"
@@ -7372,40 +7375,68 @@ function tonStandZeigen() {
    *   angehalten           → am Browser: ohne Berührung keine Freigabe – oder,
    *                          nach einer Berührung, ein Kontext, den ein Anruf
    *                          oder App-Wechsel unterbrochen hat (klemmt).
-   *   noch nichts          → an der App ist noch nichts passiert.
+   *   noch nichts          → die App wollte noch keinen Ton. Nur dann – zuerst
+   *                          stand das auch, wenn nach dem Neuladen schon zwei
+   *                          Töne verpasst waren und einer auf den ersten Tipp
+   *                          wartete. Dann jetzt: woran es liegt, was deshalb
+   *                          fehlte, was ein Tipp noch bringt.
    *
-   * Was nicht pünktlich kam, steht dahinter – jeweils mit seinem Grund. Ein
+   * Was nicht pünktlich kam, steht dahinter – mit seiner Ursache, und davon
+   * gibt es zwei: noch keine Berührung seit dem Öffnen (dann lässt der Browser
+   * keinen Ton zu), oder ein Kanal, den der Browser angehalten hatte (im
+   * Hintergrund, nach einem Anruf). Zuerst hieß jeder verpasste Ton
+   * „angehalten" – auch die, die nur auf den ersten Tipp gewartet hatten. Dann
+   * standen für zwei Töne aus derselben Ursache zwei verschiedene Gründe da,
+   * und der zweite deutete auf ein Problem im Hintergrund, das es nie gab. Ein
    * nachgeholter Gong kam verspätet, nicht „nicht": So erlebt man es auch.
    */
-  const spaet = t.verspaetet
-    ? ` ${toene(t.verspaetet)} ${kam(t.verspaetet)} verspätet – ${t.nachgeholt === t.verspaetet
-      ? 'erst mit deiner ersten Berührung, vorher lässt der Browser keinen Ton zu'
-      : 'der Browser hatte den Ton angehalten, etwa im Hintergrund'}.`
-    : '';
-  const weg = t.verpasst
-    ? ` ${toene(t.verpasst)} ${kam(t.verpasst)} nicht – der Browser hatte den Ton in dem Moment angehalten.`
-    : '';
+  const SPERRE = 'vor deiner ersten Berührung nach dem Öffnen lässt der Browser keinen Ton zu';
+  const ANGEHALTEN = 'der Browser hatte den Ton angehalten, etwa im Hintergrund';
+  const folgen = (spaet, weg, warumSpaet, warumWeg, warum) => {
+    if (spaet && weg) {
+      return ` ${warum[0].toUpperCase()}${warum.slice(1)} – deshalb ${kam(spaet)} ${toene(spaet)} verspätet, ${toene(weg)} ${kam(weg)} gar nicht.`;
+    }
+    if (spaet) return ` ${toene(spaet)} ${kam(spaet)} verspätet – ${warumSpaet}.`;
+    if (weg) return ` ${toene(weg)} ${kam(weg)} nicht – ${warumWeg}.`;
+    return '';
+  };
+  const angehaltenWeg = t.verpasst - t.gesperrt;
+  const sperre = folgen(t.nachgeholt, t.gesperrt,
+    'erst mit deiner ersten Berührung, vorher lässt der Browser keinen Ton zu', SPERRE, SPERRE);
+  const angehalten = folgen(t.verspaetet - t.nachgeholt, angehaltenWeg,
+    ANGEHALTEN, 'der Browser hatte den Ton in dem Moment angehalten', ANGEHALTEN);
   let urteil;
   let darunter = '';
   if (!t.moeglich) {
     urteil = '✗ Dieser Browser kann keine Töne erzeugen.';
   } else if (t.zustand === 'laeuft' && t.gespielt > 0) {
-    urteil = `✓ Die App schickt Töne los (${t.gespielt} seit dem Öffnen).${spaet}${weg}`;
+    urteil = `✓ Die App schickt Töne los (${t.gespielt} seit dem Öffnen).${sperre}${angehalten}`;
     darunter = `<div class="muted">Hörst du nichts, liegt es am Handy:</div>
       <ul>${TON_URSACHEN.map((u) => `<li>${esc(u)}</li>`).join('')}</ul>`;
   } else if (t.zustand === 'laeuft' && t.laufend) {
     urteil = '♪ Töne laufen gerade …';
   } else if (t.zustand === 'laeuft') {
-    urteil = `Der Ton ist frei, aber noch kam keiner durch – tipp auf „Töne anhören".${spaet}${weg}`;
+    urteil = `Der Ton ist frei, aber noch kam keiner durch – tipp auf „Töne anhören".${sperre}${angehalten}`;
   } else if (t.klemmt) {
-    urteil = `✗ Der Browser hält den Ton an, obwohl du schon getippt hast.${t.verpasst
-      ? ` Deshalb ${kam(t.verpasst)} ${toene(t.verpasst)} nicht.` : ''}`;
+    urteil = `✗ Der Browser hält den Ton an, obwohl du schon getippt hast.${angehaltenWeg
+      ? ` Deshalb ${kam(angehaltenWeg)} ${toene(angehaltenWeg)} nicht.` : ''}${sperre}`;
     darunter = `<div class="muted">Das passiert nach einem Anruf oder einem Wechsel zu einer
       anderen App. Tipp noch einmal; bleibt es stumm, die App schließen und neu öffnen.</div>`;
-  } else if (t.zustand === 'schlaeft') {
+  } else if (!t.verpasst && !t.offen && t.zustand === 'schlaeft') {
     urteil = 'Der Browser lässt Ton erst nach einer Berührung zu – tipp auf „Töne anhören", das ist eine.';
-  } else {
+  } else if (!t.verpasst && !t.offen) {
     urteil = 'Noch kein Ton angefordert. Tipp auf „Töne anhören": Dann steht hier, ob die App Töne losschickt.';
+  } else {
+    // Noch keine Berührung seit dem Öffnen, und die App wollte schon etwas
+    // hören lassen: eine Pause, die das Neuladen überdauert hat, ein Gong.
+    // Dann zuerst, woran es liegt, dann, was deshalb ausfiel, dann, was ein
+    // Tipp jetzt noch bringt.
+    const tipp = {
+      pause: 'dann kommt das Pausensignal pünktlich',
+      rest: 'dann kommt „Pause vorbei" noch nach',
+    }[t.wartet] || (t.wartet ? 'dann kommt der Ton noch nach' : 'dann ist der Ton frei');
+    urteil = `✗ Noch kein Ton frei – vor der ersten Berührung nach dem Öffnen lässt der Browser keinen zu.${t.gesperrt
+      ? ` Deshalb ${kam(t.gesperrt)} ${toene(t.gesperrt)} nicht.` : ''}${angehalten} Tipp einmal irgendwohin, ${tipp}.`;
   }
   host.innerHTML = `<div class="ton-urteil">${esc(urteil)}</div>${darunter}`;
 }

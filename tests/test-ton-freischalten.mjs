@@ -33,8 +33,8 @@
  *      Signal nach, es spielt genau einmal – und endRest() verwirft es nicht
  *      mehr vor seinem Start.
  *   C  Pausenende ohne Tipp: kein Kontext, kein „not allowed to start", der
- *      Ton gilt als verpasst – und kommt mit der ersten Berührung einmal nach,
- *      als verspätet gezählt.
+ *      Ton gilt als verpasst – und kommt mit der ersten Berührung (der Figur)
+ *      einmal nach, als verspätet gezählt.
  *   D  „Töne anhören" als erste Berührung: sechs Töne, sofort auf der Audio-Uhr;
  *      solange sie laufen, steht das da, danach das Urteil zuerst.
  *   E  Attrappe eines unterbrochenen Kontexts ('interrupted'): Die Berührung
@@ -44,7 +44,7 @@
  * (f43f137) und grün danach:
  *
  *   F  Frist: Ein vorgemerktes „Pause vorbei" kommt nicht 70 s nach dem Ende
- *      mit dem nächsten Satz – es verfällt und bleibt verpasst.
+ *      – es verfällt und bleibt verpasst (F1).
  *   G  Ausklingen nur am echten Ende: Zurück in die App 0,15 s vor dem Signal
  *      gibt EINEN Gong, „+30 s" und „Pause weg" 0,15 s davor gar keinen.
  *   H  Installierte App ohne Sperre: Pausenende nach dem Neuladen klingt ohne
@@ -53,6 +53,18 @@
  *   I  Ein fälliges Signal, das nie kam, wird gezählt – ohne Ersatz als
  *      verpasst, mit Ersatz als verspätet.
  *   (Die Tonsitzung, Mangel fünf, prüft A.)
+ *
+ * Und aus der zweiten Nachprüfung, rot gegen d412e37 und grün danach:
+ *
+ *   F2 Die erste Berührung ist der nächste Haken, 30 s nach dem Pausenende –
+ *      mitten in der Frist: „Pause vorbei" kommt NICHT zusammen mit dessen
+ *      Tupfer und dem Start der neuen Pause.
+ *   J  Mehr → Töne und Hinweise vor der ersten Berührung, die App mitten in
+ *      der Pause neu geladen: Dort steht nicht „Noch kein Ton angefordert",
+ *      sondern woran es liegt, wie viele Töne deshalb fehlten und was ein Tipp
+ *      noch bringt – auch dann noch richtig, wenn die Frist verstreicht. Und
+ *      ein Ton, der nur auf den ersten Tipp wartete, heißt nie „angehalten"
+ *      (dazu F1; den echten angehaltenen Fall prüft I1).
  */
 import { chromium } from 'playwright';
 import { URL, SHOT } from './umgebung.mjs';
@@ -389,18 +401,23 @@ console.log('\n--- C  Pausenende ohne Tipp: kein Kontext, der Ton gilt als verpa
   const sperre = konsole.filter((t) => /not allowed to start/.test(t));
   check(sperre.length === 0, `keine Konsolenmeldung „The AudioContext was not allowed to start" (${sperre.length})`);
 
-  // Die erste Berührung: der nächste Satz – gut drei Sekunden nach dem Ende,
-  // innerhalb der Frist.
+  // Die erste Berührung: die Figur – gut drei Sekunden nach dem Ende, innerhalb
+  // der Frist, und eine, die selbst keinen Ton auslöst. (Ist sie der nächste
+  // Haken, kommt der Gong nicht – siehe F2.)
   await bis(endsAt + 3500);
-  await tippe('.focus-set:not(.on)');
+  await tippe('#focusFig');
   await warte(1200);
   const s2 = await stand();
   const neu = s2.log.find((l) => l.ev === 'neu');
-  check(!!neu && neu.state === 'running', `der Satz-Tipp legt den Kontext an, er läuft (${neu && neu.state})`);
+  check(!!neu && neu.state === 'running', `die Berührung legt den Kontext an, er läuft (${neu && neu.state})`);
   check(starts(s2.log, 880, true) === 3, `„Pause vorbei" kommt genau einmal nach (sofortige 880-Hz-Quellen: ${starts(s2.log, 880, true)})`);
-  check(s2.gespielt === 2 && s2.verpasst === 0 && s2.verspaetet === 1 && s2.nachgeholt === 1 && !s2.offen,
-    `durchgelaufen: der nachgeholte Gong und der Satz-Ton – der Gong als verspätet, nicht als verpasst (gespielt=${s2.gespielt}, verspätet=${s2.verspaetet}, nachgeholt=${s2.nachgeholt}, verpasst=${s2.verpasst})`);
-  check(s2.pause, 'und die neue Pause läuft');
+  check(s2.gespielt === 1 && s2.verpasst === 0 && s2.verspaetet === 1 && s2.nachgeholt === 1 && !s2.offen,
+    `durchgelaufen: der nachgeholte Gong – als verspätet, nicht als verpasst (gespielt=${s2.gespielt}, verspätet=${s2.verspaetet}, nachgeholt=${s2.nachgeholt}, verpasst=${s2.verpasst})`);
+  await tippe('.focus-set:not(.on)');
+  await warte(500);
+  const s3 = await stand();
+  check(s3.gespielt === 2 && s3.pause && starts(s3.log, 880, true) === 0,
+    `der nächste Satz: sein Tupfer, die neue Pause, kein zweiter Gong (gespielt=${s3.gespielt}, Pause=${s3.pause})`);
 
   await tippe('.tab[data-tab="settings"]');
   const z = await text('#tonStand');
@@ -478,32 +495,44 @@ console.log('\n--- E  Attrappe eines unterbrochenen Kontexts: Berührung weckt, 
 /* ================================================================== */
 /* F  Frist für den nachgeholten Gong                                     */
 /* ================================================================== */
-console.log('\n--- F  Pausenende ohne Tipp, erster Tipp 70 s später: der Gong verfällt ---');
-{
+console.log('\n--- F  Pausenende ohne Tipp: nach der Frist verfällt der Gong, und der nächste Haken bringt ihn nie ---');
+/*
+ * F1  Erster Tipp 70 s nach dem Ende, auf die Figur – kein Ton von ihr selbst,
+ *     also prüft das nur die Frist.
+ * F2  Erster Tipp 30 s nach dem Ende, mitten in der Frist – aber er ist der
+ *     nächste Haken. Bis d412e37 kam „Pause vorbei" dann zusammen mit dessen
+ *     Tupfer, genau in dem Moment, in dem die neue Pause begann: Der
+ *     Freischalt-Lauscher spielte ihn, bevor der Klick-Handler lief.
+ */
+for (const [name, nach, ziel] of [['F1 70 s danach, die Figur', 70000, '#focusFig'], ['F2 30 s danach, der nächste Satz', 30000, '.focus-set:not(.on)']]) {
+  const satz = ziel !== '#focusFig';
   const endsAt = Date.now() + 3000;
   const { ctx, errs, cdp, tippe, stand, text } = await seite(pause(endsAt));
   await bis(endsAt + 800);
   const s1 = await stand();
   check(s1.akt === '-/-' && !s1.pause && s1.ctxs === 0 && s1.verpasst === 1 && s1.offen,
-    `Pause ohne Berührung zu Ende, Gong vorgemerkt (verpasst=${s1.verpasst}, offen=${s1.offen})`);
-  // Die Seite hat eine gute Minute nichts gesehen – Handy weggelegt, Wasser
-  // geholt. Die Wanduhr steht 70 s nach dem Pausenende.
-  await rein(cdp, `window.__dateOffset += ${endsAt} + 70000 - Date.now()`);
+    `${name}: Pause ohne Berührung zu Ende, Gong vorgemerkt (verpasst=${s1.verpasst}, offen=${s1.offen})`);
+  // Die Seite hat eine Weile nichts gesehen – Handy weggelegt, Wasser geholt,
+  // oder eben den nächsten Satz gemacht.
+  await rein(cdp, `window.__dateOffset += ${endsAt} + ${nach} - Date.now()`);
   await warte(300);
   const s2 = await stand();
-  check(!s2.offen, `nach Ablauf der Frist steht nichts mehr zum Nachholen an (offen=${s2.offen})`);
-  await tippe('.focus-set:not(.on)');
+  check(s2.offen === satz, `${name}: ${satz ? 'innerhalb der Frist steht der Gong noch an' : 'nach Ablauf der Frist steht nichts mehr zum Nachholen an'} (offen=${s2.offen})`);
+  await tippe(ziel);
   await warte(1200);
   const s3 = await stand();
   check(starts(s3.log, 880, true) === 0,
-    `der erste Tipp bringt KEIN „Pause vorbei" mehr – nur seinen eigenen Tupfer (sofortige 880-Hz-Quellen: ${starts(s3.log, 880, true)})`);
-  check(s3.gespielt === 1 && s3.verpasst === 1 && s3.nachgeholt === 0,
-    `der Gong bleibt verpasst, gespielt ist nur der Satz-Ton (gespielt=${s3.gespielt}, verpasst=${s3.verpasst}, nachgeholt=${s3.nachgeholt})`);
-  check(s3.pause, 'die neue Pause läuft');
+    `${name}: der erste Tipp bringt KEIN „Pause vorbei" (sofortige 880-Hz-Quellen: ${starts(s3.log, 880, true)})`);
+  check(s3.gespielt === (satz ? 1 : 0) && s3.verpasst === 1 && s3.gesperrt === 1 && s3.nachgeholt === 0 && !s3.offen,
+    `${name}: der Gong bleibt verpasst – vor der ersten Berührung, nicht angehalten –, gespielt ist ${satz ? 'nur der Satz-Ton' : 'nichts'} (gespielt=${s3.gespielt}, verpasst=${s3.verpasst}, gesperrt=${s3.gesperrt}, nachgeholt=${s3.nachgeholt})`);
+  if (satz) {
+    check(s3.pause && s3.log.some((l) => l.ev === 'start' && l.f === 880 && l.in > 5),
+      `${name}: die neue Pause läuft, ihr Signal liegt voraus (${s3.restTime})`);
+  }
   await tippe('.tab[data-tab="settings"]');
   const z = await text('#tonStand');
-  check(/1 Ton kam nicht – der Browser hatte den Ton in dem Moment angehalten/.test(z) && !/verspätet/.test(z),
-    `unter Mehr: kam nicht – und nicht „verspätet": ${JSON.stringify(z.slice(0, 140))}…`);
+  check(/1 Ton kam nicht – vor deiner ersten Berührung nach dem Öffnen lässt der Browser keinen Ton zu\./.test(z) && !/angehalten|verspätet/.test(z),
+    `${name}: unter Mehr „kam nicht" mit seiner Ursache – nicht „angehalten", nicht „verspätet": ${JSON.stringify(z.slice(0, 160))}…`);
   check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
   await ctx.close();
 }
@@ -612,7 +641,8 @@ console.log('\n--- H  Installierte App: ohne Sperre klingt das Pausenende nach d
     `H2: Pausenende ohne Tipp – kein zweiter Versuch, der Gong ist vorgemerkt (Kontexte=${s1.ctxs}, verpasst=${s1.verpasst})`);
   const sperre = konsole.filter((t) => /not allowed to start/.test(t)).length;
   check(sperre <= 1, `H2: höchstens eine Sperrmeldung je Dokument (${sperre})`);
-  await tippe('.focus-set:not(.on)');
+  // Die Figur, nicht der nächste Haken – der brächte den Gong nicht (F2).
+  await tippe('#focusFig');
   await warte(1200);
   const s2 = await stand();
   const neu2 = s2.log.find((l) => l.ev === 'neu');
@@ -651,12 +681,80 @@ for (const [name, nach, ersatz] of [['I1 70 s danach', 70000, false], ['I2 20 s 
       `${name}: Vorwarnung und Signal waren fällig und kamen nie – beide gezählt (gespielt=${s3.gespielt}, verpasst=${s3.verpasst})`);
     await tippe('.tab[data-tab="settings"]');
     const z = await text('#tonStand');
-    check(/2 Töne kamen nicht/.test(z), `${name}: unter Mehr steht es: ${JSON.stringify(z.slice(0, 120))}…`);
+    // Hier lag es wirklich am angehaltenen Kanal, nicht an der ersten Berührung.
+    check(/2 Töne kamen nicht – der Browser hatte den Ton in dem Moment angehalten\./.test(z) && !/vor deiner ersten Berührung/.test(z),
+      `${name}: unter Mehr steht es, mit der richtigen Ursache: ${JSON.stringify(z.slice(0, 140))}…`);
   } else {
     check(starts(log, 880, true) === 3 && zuEnde(log, 880) === 3, `${name}: Ersatz-Gong, genau einer (zu Ende gespielt: ${zuEnde(log, 880)})`);
     check(s3.gespielt === 1 && s3.verspaetet === 1 && s3.nachgeholt === 0 && s3.verpasst === 1,
       `${name}: der Ersatz zählt als verspätet, der liegengebliebene nicht doppelt, die Vorwarnung als verpasst (gespielt=${s3.gespielt}, verspätet=${s3.verspaetet}, verpasst=${s3.verpasst})`);
   }
+  check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  await ctx.close();
+}
+
+/* ================================================================== */
+/* J  Mehr → Töne und Hinweise vor der ersten Berührung                   */
+/* ================================================================== */
+console.log('\n--- J  Neu geladen mitten in der Pause, direkt unter Mehr: was dort vor dem ersten Tipp steht ---');
+const KEIN_TON = '✗ Noch kein Ton frei – vor der ersten Berührung nach dem Öffnen lässt der Browser keinen zu.';
+{
+  // J1  Tobi steht in der Pause unter Mehr, Android beendet die App, er kommt
+  // zurück: Sie lädt direkt dorthin (der Reiter wird mitgespeichert), und die
+  // Pause läuft ohne Tipp ab. Bis d412e37 stand hier die ganze Zeit „Noch kein
+  // Ton angefordert" – auch mit zwei verpassten Tönen und einem, der wartete.
+  const endsAt = Date.now() + 8000;
+  const { ctx, errs, tippe, stand, text } = await seite({ ...pause(endsAt), tab: 'settings' });
+  const s0 = await stand();
+  check(s0.akt === '-/-' && s0.pause && s0.zustand === 'aus' && s0.wartet === 'pause' && s0.verpasst === 0,
+    `J1: gestenfrei, Pause läuft, ihr Signal wartet auf die erste Berührung (${s0.zustand}, wartet=${s0.wartet})`);
+  check(s0.zeile === `${KEIN_TON} Tipp einmal irgendwohin, dann kommt das Pausensignal pünktlich.`,
+    `J1: unter Mehr steht, woran es liegt und was ein Tipp bringt – nicht „Noch kein Ton angefordert": ${JSON.stringify(s0.zeile)}`);
+  await bis(endsAt + 800);
+  const s1 = await stand();
+  check(!s1.pause && s1.verpasst === 2 && s1.gesperrt === 2 && s1.wartet === 'rest',
+    `J1: Pause ohne Tipp abgelaufen – Vorwarnung und Gong verpasst, beide vor der ersten Berührung, der Gong wartet (verpasst=${s1.verpasst}, gesperrt=${s1.gesperrt}, wartet=${s1.wartet})`);
+  check(s1.zeile === `${KEIN_TON} Deshalb kamen 2 Töne nicht. Tipp einmal irgendwohin, dann kommt „Pause vorbei" noch nach.`,
+    `J1: die Zeile hat sich nachgezogen, mit der Zahl und ohne „angehalten": ${JSON.stringify(s1.zeile)}`);
+  // Die erste Berührung: eine Überschrift unter Mehr – kein Knopf, kein Ton.
+  // Gut drei Sekunden nach dem Ende: Unter zwei Sekunden hieße der Gong nicht
+  // verspätet (SPAET_MS).
+  await bis(endsAt + 3500);
+  await tippe('#daten');
+  await warte(1200);
+  const s2 = await stand();
+  check(s2.zustand === 'laeuft' && starts(s2.log, 880, true) === 3 && s2.gespielt === 1 && s2.verspaetet === 1
+    && s2.nachgeholt === 1 && s2.verpasst === 1 && s2.gesperrt === 1,
+    `J1: die Berührung holt den Gong nach (sofortige 880-Hz-Quellen: ${starts(s2.log, 880, true)}, gespielt=${s2.gespielt}, nachgeholt=${s2.nachgeholt}, verpasst=${s2.verpasst})`);
+  const urteil = await text('#tonStand .ton-urteil');
+  check(urteil === '✓ Die App schickt Töne los (1 seit dem Öffnen). Vor deiner ersten Berührung nach dem Öffnen lässt der Browser keinen Ton zu – deshalb kam 1 Ton verspätet, 1 Ton kam gar nicht.',
+    `J1: eine Ursache, ein Satz – nicht zwei verschiedene Gründe für zwei Töne aus demselben: ${JSON.stringify(urteil)}`);
+  check(!/angehalten/.test(s2.zeile), 'J1: und nirgends „angehalten" – angehalten hatte der Browser nichts');
+  check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  await ctx.close();
+}
+{
+  // J2  Die Frist verstreicht, während Mehr offen ist: „kommt noch nach" darf
+  // dann nicht stehen bleiben. Die Wanduhr springt auf 57 s nach dem Ende –
+  // die Pause endet beim nächsten Takt, der Gong hätte noch drei Sekunden.
+  // Nebenbei: Hier ist beim Pausenende nur der Gong fällig (die Vorwarnung lag
+  // schon beim Laden zurück) – auch dann muss „das Pausensignal kommt
+  // pünktlich" verschwinden; cancelSound() meldete das erst nicht.
+  const endsAt = Date.now() + 3000;
+  const { ctx, errs, stand, cdp } = await seite({ ...pause(endsAt), tab: 'settings' });
+  await rein(cdp, `window.__dateOffset += ${endsAt} + 57000 - Date.now()`);
+  await warte(800);
+  const s1 = await stand();
+  check(s1.akt === '-/-' && !s1.pause && s1.wartet === 'rest' && s1.verpasst === 1 && s1.gesperrt === 1,
+    `J2: Pause zu Ende, der Gong wartet noch (wartet=${s1.wartet}, verpasst=${s1.verpasst})`);
+  check(s1.zeile === `${KEIN_TON} Deshalb kam 1 Ton nicht. Tipp einmal irgendwohin, dann kommt „Pause vorbei" noch nach.`,
+    `J2: ${JSON.stringify(s1.zeile)}`);
+  await warte(3500);
+  const s2 = await stand();
+  check(!s2.offen && s2.wartet === null && s2.verpasst === 1,
+    `J2: nach der Frist wartet nichts mehr (offen=${s2.offen}, verpasst=${s2.verpasst})`);
+  check(s2.zeile === `${KEIN_TON} Deshalb kam 1 Ton nicht. Tipp einmal irgendwohin, dann ist der Ton frei.`,
+    `J2: die Zeile zieht sich ohne Berührung nach – kein „kommt noch nach" mehr: ${JSON.stringify(s2.zeile)}`);
   check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
   await ctx.close();
 }

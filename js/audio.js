@@ -19,7 +19,9 @@
  *                  die App davor schon wollte (eine Pause, die den Neustart
  *                  überdauert hat; ein Pausenende, bei dem niemand getippt hat),
  *                  merkt sie sich und holt es nach, sobald der Kanal frei ist –
- *                  einen Ton aber nur innerhalb seiner Frist.
+ *                  einen Ton aber nur innerhalb seiner Frist, und nie, wenn die
+ *                  Berührung selbst schon etwas Hörbares anstößt (den nächsten
+ *                  Satz, eine neue Pause): siehe nachholen().
  *
  *   Vorausplanen.  Das Pausensignal wird nicht per setTimeout ausgelöst,
  *                  sondern beim Start der Pause fest auf die Uhr des
@@ -37,7 +39,9 @@
  *                  wirklich wiedergegeben hat (`ended` nach der Startzeit) und
  *                  was davon zu spät kam – und getrennt davon jeder Ton, der
  *                  fällig war und nie kam. Jeder gewollte Ton landet in genau
- *                  einem Topf. tonStand() liefert alles, Mehr → Töne und
+ *                  einem Topf, und bei jedem steht, woran es lag: noch keine
+ *                  Berührung seit dem Öffnen, oder ein Kanal, den der Browser
+ *                  angehalten hatte. tonStand() liefert alles, Mehr → Töne und
  *                  Hinweise zeigt es.
  */
 
@@ -136,12 +140,15 @@ const GLEICH = 0.3;
  * Wie lange ein vorgemerkter Ton nachgeholt werden darf, wenn der Aufrufer
  * nichts anderes sagt – und ab wann ein Ton als verspätet gilt.
  *
- * Ein Gong, der eine Minute nach dem Pausenende mit dem nächsten Satz-Tipp
- * kommt, ist kein Signal mehr, sondern ein Rätsel. endRest() gibt dem
- * „Pause vorbei" deshalb eine Frist ab dem Pausenende mit; danach verfällt er
- * und bleibt als verpasst gezählt. Verspätet heißt: mehr als zwei Sekunden
- * nach der Zeit, zu der er hätte kommen sollen – so lange dauert ein Tipp,
- * nicht aber ein angehaltener Kanal.
+ * Ein Gong, der eine Minute nach dem Pausenende kommt, ist kein Signal mehr,
+ * sondern ein Rätsel. endRest() gibt dem „Pause vorbei" deshalb eine Frist ab
+ * dem Pausenende mit; danach verfällt er und bleibt als verpasst gezählt. Die
+ * Frist allein reicht nicht: Ein Satz dauert 20 bis 60 s, die erste Berührung
+ * nach dem Pausenende ist meist der nächste Haken – und mit ihm kam „Pause
+ * vorbei" zuerst genau dann, wenn die neue Pause begann. Das regelt
+ * nachholen(), nicht die Frist. Verspätet heißt: mehr als zwei Sekunden nach
+ * der Zeit, zu der er hätte kommen sollen – so lange dauert ein Tipp, nicht
+ * aber ein angehaltener Kanal.
  */
 const NACHHOLEN_MS = 60000;
 const SPAET_MS = 2000;
@@ -165,11 +172,27 @@ let probiert = false;
 //   verspaetet  davon mehr als SPAET_MS nach seiner Zeit …
 //   nachgeholt  … und davon wiederum die, die bis zur ersten Berührung
 //               vorgemerkt waren
-//   verpasst    fällig gewesen und nie gekommen
+//   verpasst    fällig gewesen und nie gekommen …
+//   ohneKontext … und davon die, für die es noch gar keinen Kontext gab: Vor
+//               der ersten Berührung nach dem Öffnen lässt der Browser keinen
+//               Ton zu. Der Rest von `verpasst` lag auf einem Kontext, den der
+//               Browser angehalten hatte. Zwei Ursachen, die unter Mehr
+//               verschieden heißen müssen – sonst liest man bei einem Ton, der
+//               nur auf den ersten Tipp wartete, „angehalten" und sucht ein
+//               Problem im Hintergrund, das es nie gab. (In tonStand() heißt
+//               dieser Topf `gesperrt`; hier nicht – im Ein-Datei-Bündel
+//               teilen sich alle Module einen Gültigkeitsbereich.)
 let gespielt = 0;
 let verspaetet = 0;
 let nachgeholt = 0;
 let verpasst = 0;
+let ohneKontext = 0;
+
+// Wie oft die App seit dem Laden einen Ton angestoßen hat (playSound,
+// probeSpielen, scheduleSound mit einem Plan). Nur ein Vergleichswert für
+// nachholen(): Hat die Berührung, die den Ton freischaltet, selbst schon einen
+// angestoßen?
+let angestossen = 0;
 
 // Die erste aktivierende Berührung: Hat der Lauscher sie gesehen, und wann?
 // Beide braucht tonStand(): Ein Kanal, der anderthalb Sekunden nach dieser
@@ -188,9 +211,9 @@ let beruehrtSeit = 0;
 //               „Pause vorbei" aus einem Pausenende, bei dem niemand getippt
 //               hat –, mit seiner Zeit (`faellig`) und seiner Frist (`bis`)
 //
-// Der Ton zählt als verpasst, solange er aussteht und wenn er verfällt; erst
-// nachgeholt wechselt er den Topf. Vom Plan zählt, was beim Auflösen schon
-// fällig war (planAufloesen()).
+// Der Ton zählt als verpasst (ohne Kontext), solange er aussteht und wenn er
+// verfällt; erst nachgeholt wechselt er den Topf. Vom Plan zählt, was beim
+// Auflösen schon fällig war (planAufloesen()).
 let wunschPlan = null;
 let wunschTon = null;
 
@@ -356,32 +379,67 @@ for (const ev of ['pointerup', 'touchend', 'mousedown', 'keydown']) {
 /**
  * Nach dem Freischalten: erst die Pause neu auflegen, dann den Ton, der fehlte.
  *
- * Den Ton nur innerhalb seiner Frist. Ohne sie kam das „Pause vorbei" einer
- * Pause, die nach dem Neuladen ohne Tipp ablief, auch 70 s später mit dem
- * nächsten Satz – zusammen mit dessen Tupfer und dem Start der neuen Pause.
- * Verfällt er, bleibt er als verpasst gezählt (das ist er ja); kommt er dran,
- * verlässt er diesen Topf und landet dort, wo er wirklich ankommt – gespielt
- * und verspätet, oder, wenn auch jetzt nichts durchgeht, wieder verpasst.
+ * Den Ton nur innerhalb seiner Frist – und erst nach dem Klick derselben
+ * Berührung. Dieser Lauscher läuft im capture, vor jedem Klick-Handler; was
+ * die Berührung selbst auslöst, steht erst danach fest. Die erste Berührung
+ * nach einer Pause, die nach dem Neuladen ohne Tipp ablief, ist meist der
+ * nächste Haken. Hier sofort gespielt, kam „Pause vorbei" zusammen mit dessen
+ * Tupfer und genau in dem Moment, in dem die neue Pause begann – gemessen 30 s
+ * nach dem Pausenende, also mitten in der Frist. Hat die Berührung selbst
+ * einen Ton angestoßen (Haken, neue Pause, Training beenden, „Töne anhören"),
+ * ist der alte überholt: Er verfällt und bleibt als verpasst gezählt (das ist
+ * er ja), mit derselben Ursache wie vorher. Kommt er dran, verlässt er diesen
+ * Topf und landet dort, wo er wirklich ankommt – gespielt und verspätet, oder,
+ * wenn auch jetzt nichts durchgeht, wieder verpasst.
  */
 function nachholen() {
   const plan = planAufloesen();
-  const ton = wunschTon;
-  wunschTon = null;
   if (plan && plan.neu) {
     try { plan.neu(); } catch { /* der Rückruf gehört der App – ihr Fehler, nicht unserer */ }
   }
-  if (ton && ctx && Date.now() <= ton.bis) {
-    verpasst -= 1;
-    jetztSpielen(ton.name, ton.faellig).nachgeholt = true;
+  if (wunschTon) {
+    const vorher = angestossen;
+    nachDemKlick(() => {
+      const ton = wunschTon;
+      wunschTon = null;
+      if (ton && angestossen === vorher && ctx && Date.now() <= ton.bis) {
+        verpasst -= 1;
+        ohneKontext -= 1;
+        jetztSpielen(ton.name, ton.faellig).nachgeholt = true;
+      }
+      tonMelden();
+    });
   }
   tonMelden();
+}
+
+/**
+ * `fn` nach dem Klick der laufenden Berührung aufrufen – nach allen
+ * Klick-Handlern der App, die auf Elementen darunter sitzen. Kommt kein Klick
+ * (eine Taste, ein langer Druck mit der Maus, ein Finger, der vom Knopf
+ * rutscht), entscheidet nach einer halben Sekunde der Zeitgeber.
+ */
+function nachDemKlick(fn) {
+  let fertig = false;
+  let notfall = 0;
+  const los = () => {
+    if (fertig) return;
+    fertig = true;
+    clearTimeout(notfall);
+    document.removeEventListener('click', klick);
+    fn();
+  };
+  const klick = () => setTimeout(los, 0);
+  document.addEventListener('click', klick);
+  notfall = setTimeout(los, 500);
 }
 
 /**
  * Ein vorgemerkter Plan wird aufgelöst – nachgeholt, ersetzt oder verworfen.
  *
  * Was von ihm schon fällig war, kam nie und zählt als verpasst – etwa die
- * Vorwarnung einer Pause, die nach dem Neuladen ohne Tipp ablief. `ersetzt`
+ * Vorwarnung einer Pause, die nach dem Neuladen ohne Tipp ablief. Und zwar ohne
+ * Kontext: Vorgemerkt wird ein Plan nur, wenn es keinen gab. `ersetzt`
  * nimmt einen Ton davon aus, für den der Aufrufer gerade selbst sorgt
  * (endRest() gibt das „Pause vorbei" dann als eigenen Ton).
  */
@@ -390,7 +448,9 @@ function planAufloesen(ersetzt = null) {
   wunschPlan = null;
   if (!plan) return null;
   const wand = Date.now();
-  verpasst += plan.faellig.filter(([name, f]) => f <= wand && name !== ersetzt).length;
+  const n = plan.faellig.filter(([name, f]) => f <= wand && name !== ersetzt).length;
+  verpasst += n;
+  ohneKontext += n;
   return plan;
 }
 
@@ -585,11 +645,15 @@ function jetztSpielen(name, faellig) {
  */
 export function playSound(name, { faellig = Date.now(), bis = faellig + NACHHOLEN_MS } = {}) {
   if (!SOUNDS[name]) return false;
+  angestossen += 1;
   initAudio();
   if (!ctx) {
     if (!tonFrei() && moeglich()) {
       wunschTon = { name, faellig, bis };
       verpasst += 1;
+      ohneKontext += 1;
+      // Läuft die Frist ab, stimmt „kommt noch nach" unter Mehr nicht mehr.
+      setTimeout(tonMelden, Math.max(0, bis - Date.now()) + 50);
       tonMelden();
     }
     return false;
@@ -610,10 +674,12 @@ export function playSound(name, { faellig = Date.now(), bis = faellig + NACHHOLE
  * nicht. Eine laufende Probe wird durch eine neue ersetzt.
  */
 export function probeSpielen() {
+  angestossen += 1;
   initAudio();
   if (!ctx) {
     if (!tonFrei() && moeglich()) {
       verpasst += PROBE.length;
+      ohneKontext += PROBE.length;
       tonMelden();
     }
     return false;
@@ -644,6 +710,9 @@ export function probeSpielen() {
  *   verpasst    Wie viele fällige Töne nie kamen – vorgemerkt und verfallen,
  *               auf einer stehenden Uhr verworfen, beim Aufräumen fällig
  *               gewesen – oder noch auf die erste Berührung warten
+ *   gesperrt    davon die, für die es noch keinen Kontext gab (vor der ersten
+ *               Berührung nach dem Öffnen); der Rest von `verpasst` lag auf
+ *               einem angehaltenen
  *   frei        Hat das Dokument eine aktivierende Berührung gesehen?
  *   klemmt      Berührt, und trotzdem schläft der Kanal seit über anderthalb
  *               Sekunden – das ist kein Browserrecht mehr, sondern ein Zustand,
@@ -651,14 +720,18 @@ export function probeSpielen() {
  *               nicht weckt)
  *   laufend     „Töne anhören" spielt gerade, und der Kanal läuft
  *   offen       Steht noch etwas an, das nach dem Freischalten nachgeholt wird?
+ *   wartet      … und was: 'pause' (eine Pause wird neu aufgelegt, ihr Signal
+ *               kommt dann pünktlich), der Name eines Tons, der noch innerhalb
+ *               seiner Frist nachkäme, oder null
  */
 export function tonStand() {
   const zustand = !ctx ? 'aus' : (ctx.state === 'running' ? 'laeuft' : 'schlaeft');
   const klemmt = zustand === 'schlaeft' && beruehrt && Date.now() - beruehrtSeit > 1500;
+  const wartet = wunschPlan ? 'pause' : (wunschTon && Date.now() <= wunschTon.bis ? wunschTon.name : null);
   return {
-    moeglich: moeglich(), zustand, gespielt, verspaetet, nachgeholt, verpasst, frei: tonFrei(), klemmt,
+    moeglich: moeglich(), zustand, gespielt, verspaetet, nachgeholt, verpasst, gesperrt: ohneKontext, frei: tonFrei(), klemmt,
     laufend: zustand === 'laeuft' && probe.some((k) => !k.erklungen && !k.verworfen),
-    offen: !!(wunschPlan || (wunschTon && Date.now() <= wunschTon.bis)),
+    offen: !!wartet, wartet,
   };
 }
 
@@ -686,6 +759,7 @@ export function tonStand() {
  */
 export function scheduleSound(plan, spaeter = null) {
   const behalten = cancelSound();
+  if (plan.some(([name, secs]) => SOUNDS[name] && secs >= 0)) angestossen += 1;
   initAudio();
   if (!ctx) {
     if (!tonFrei()) {
@@ -759,6 +833,9 @@ export function signalStand(name) {
  */
 export function cancelSound({ ausklingen = false, ersetzt = null } = {}) {
   const vorher = verpasst;
+  // Ein aufgelöster Wunsch ändert, was unter Mehr steht („das Pausensignal
+  // kommt pünktlich"), auch wenn dabei nichts verpasst wurde.
+  const wunsch = !!wunschPlan;
   planAufloesen(ersetzt);
   const laeuft = !!ctx && ctx.state === 'running';
   const jetzt = ctx ? ctx.currentTime : 0;
@@ -775,7 +852,7 @@ export function cancelSound({ ausklingen = false, ersetzt = null } = {}) {
   });
   geplant = [];
   traeger(false);
-  if (verpasst !== vorher) tonMelden();
+  if (verpasst !== vorher || wunsch) tonMelden();
   return behalten;
 }
 
