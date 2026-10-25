@@ -933,12 +933,25 @@ function bucheZeit() {
  * `bis`, wenn eine liegen gebliebene Einheit beendet wird, deren Uhr noch lief
  * (Seite hart beendet, App über Nacht offen): Dann gehört nur die Zeit bis zu
  * ihrem letzten Lebenszeichen zum Training, nicht die Nacht danach.
+ *
+ * **Und nie über drei Stunden Stille hinaus** (LIEGT_AB_MS), ganz gleich, wer
+ * anhält. Blieb die App über Nacht sichtbar und kam die Uhr um Mitternacht
+ * nicht dran – Rechner oder Tablet geschlafen –, hielten am Morgen das
+ * Wegschalten, das Neuladen (pagehide) oder „Abschließen" die Uhr bis *jetzt*
+ * an: 14 Stunden gebucht statt 45 Minuten. Und weil `halt` dann frisch war,
+ * galt die Einheit als eben noch trainiert und blieb offen. Jetzt endet die
+ * Zählung an ihrem letzten Lebenszeichen, wenn das drei Stunden und mehr her
+ * ist – wer so lange nichts eingetragen hat, trainiert nicht mehr –, und
+ * `halt` bleibt dort: Beim Zurückkommen oder Laden schließt der
+ * Tagesabschluss sie regulär ab.
  */
 export function clockStop(bis) {
   const c = state.clock;
   if (!c || c.since === null) return;
   const jetzt = Date.now();
-  const ende = Number.isFinite(bis) ? Math.min(jetzt, bis) : jetzt;
+  let ende = Number.isFinite(bis) ? Math.min(jetzt, bis) : jetzt;
+  const zuletzt = lebenszeichen(c.n, jetzt);
+  if (zuletzt && jetzt - zuletzt >= LIEGT_AB_MS) ende = Math.min(ende, zuletzt);
   state.clock = { ...c, spent: c.spent + Math.max(0, ende - c.since), since: null, halt: ende };
   bucheZeit();
   persist();

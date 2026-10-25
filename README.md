@@ -5801,6 +5801,15 @@ einer Woche kommt der Zusatztag, der Kalender zeigt „trainiert". Läuft auf ih
 noch eine Sitzung, endet sie wie mit dem Knopf (`einheitBeenden()`) – die Zeit
 gebucht bis zum letzten Lebenszeichen, ohne Ton.
 
+Die Uhr selbst zählt nie über drei Stunden Stille hinaus (`store.clockStop()`),
+ganz gleich, wer sie anhält. Blieb die App über Nacht sichtbar und kam die Uhr
+um Mitternacht nicht dran – Rechner oder Tablet geschlafen –, hielten am Morgen
+das Wegschalten, das Neuladen oder „Abschließen" sie bis *jetzt* an: 14 Stunden
+gebucht statt 45 Minuten, und weil das Anhalten als frisches Lebenszeichen
+galt, blieb die Einheit offen. Jetzt endet die Zählung am letzten
+Lebenszeichen, wenn das drei Stunden und mehr her ist, und der Tagesabschluss
+greift wie sonst.
+
 | Schwelle | Wert | warum |
 | --- | --- | --- |
 | abgehakte Sätze | mindestens 2 (`ABSCHLUSS_AB`) | Ein Fehltipp ist *ein* Tipp: auf der Startseite vorgeblättert, in Workout 13 aus Versehen einen Satz abgehakt – `planVorziehen()` legt sie dann sogar auf heute. Am nächsten Tag hieße sie sonst „trainiert mit 1 von 15", und der Plan ginge an ihr vorbei. Nicht die gebuchte Zeit und nicht, ob eine Sitzung lief: Wer in „Übungen & Gewichte" abhakt, trainiert ohne Uhr. Was darunter liegt, bleibt offen wie bisher. |
@@ -5815,7 +5824,19 @@ Sitzung, deren Uhr gestern gestartet war, auf dem Dashboard (oben, *Zurück in
 der App*). Im Kopf steht dann „Gestern angefangen · Workout 12" statt
 „Gestern · Workout 12" über einem Samstag, an dem man gerade sitzt – das war
 genau das Bild aus Tobis Frage. Für eine abgeschlossene Einheit von gestern
-bleibt es bei „Gestern".
+bleibt es bei „Gestern" – außer, an ihr wird heute weiter trainiert („Rest heute
+machen", unten).
+
+**Der Tag einer Sitzung ist der Tag, an dem auf Start getippt wurde** (`clock.on`),
+nicht der ihrer Einheit. Liegen geblieben ist eine Sitzung erst ab dem nächsten
+Tag; nach drei Stunden Mittagessen am selben Tag läuft sie weiter wie jede
+andere. Bis zur Nachbesserung zählte der Tag der Einheit: „Rest heute machen"
+um 10:00, ein Satz, um 13:30 zurück – die Sitzung war still beendet, die
+Fokusansicht weg. Und ihre Einheit bleibt so lange offen: Wer am Sonntag um
+0:10 eine Einheit vom Samstag fortsetzt, trainiert heute an ihr. Am Montag
+liegt die Sitzung seit gestern, dann endet sie, und die Einheit schließt ab –
+beides zusammen, nie eine Sitzung auf einer Einheit, die sich eben
+abgeschlossen hat.
 
 **Wann.** Beim Laden – nach `stempleFertige()` (was ganz abgehakt ist, trägt
 seinen Stempel schon), vor `rundeWeiter()` (war Workout 84 die liegen
@@ -5829,18 +5850,24 @@ Ladekabel –, stand am Morgen „Gestern · Workout 12" da, bis jemand
 wegschaltet. Die Uhr rechnet die nächste Mitternacht über das Datum, nicht als
 „in 24 Stunden": Der 25. Oktober hat 25. Lag dort eine Einheit von gestern
 noch keine drei Stunden, sieht sie wieder nach, wenn es so weit ist. Nach einem
-Umbau des Plans (`planWechsel()`, `festReparieren()`) wartet der Abschluss bis
-zum nächsten Laden: Die Reparatur vervollständigt nur offene Einheiten, und das
-erst beim Start nach dem Planwechsel.
+Umbau des Plans (`planWechsel()`, `festReparieren()`) wartet der Abschluss an
+diesem Tag bis zum nächsten Laden: Die Reparatur vervollständigt nur offene
+Einheiten, und das erst beim Start nach dem Planwechsel. Bleibt die Seite
+offen, am nächsten Tag – dann holt der Abschluss zuerst nach, was der nächste
+Start davor täte (reparieren, nachrechnen, nachstempeln). Bis zur
+Nachbesserung galt die Sperre für die ganze Lebensdauer der Seite, und die
+bleibt oft tagelang im Speicher: Am Montag stand „vor 2 Tagen angefangen ·
+Workout 12" da, am Mittwoch „vor 4 Tagen".
 
 **Die Zeile.** Oben auf der Startseite, im Stil der anderen Hinweise:
 
 | Lage | Zeile |
 | --- | --- |
-| Sonntag, Workout 12 vom Samstag; der Zusatztag kommt morgen in Workout 13 | „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Davon kommen morgen 3 Sätze in Workout 13 mit rein." |
-| derselbe Montag, nicht weggetippt | „… Davon kommen heute 3 Sätze in Workout 13 mit rein." |
-| Donnerstag (frei), Workout 10 vom Mittwoch | „✓ Workout 10 vom Mittwoch ist abgeschlossen – 3 von 15 Sätzen. Davon kommen dazu: morgen +1, Sa +3." |
-| Freitag (Workout 11 ist dran), Workout 10 vom Mittwoch | „… Davon kommen dazu: heute +1, morgen +3." |
+| Sonntag, Workout 12 vom Samstag; der Zusatztag kommt morgen in Workout 13 | „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Von den 11 offenen Sätzen kommen morgen 3 in Workout 13 mit rein." |
+| derselbe Montag, nicht weggetippt | „… Von den 11 offenen Sätzen kommen heute 3 in Workout 13 mit rein." |
+| Tobis Woche: in Workout 9 fehlen zwei Sätze, Workout 12 trägt sie (17 Sätze) | „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen. Von dem, was in Woche 3 liegen blieb, kommen morgen 3 Sätze in Workout 13 mit rein." |
+| Donnerstag (frei), Workout 10 vom Mittwoch | „✓ Workout 10 vom Mittwoch ist abgeschlossen – 3 von 15 Sätzen. Von den 12 offenen Sätzen kommen dazu: morgen +1, Sa +3." |
+| Freitag (Workout 11 ist dran), Workout 10 vom Mittwoch | „… Von den 12 offenen Sätzen kommen dazu: heute +1, morgen +3." |
 | der Zusatztag steht heute allein da | „… Zum Nachholen steht heute ein Zusatztag bereit." |
 | die Woche ist vorbei, der Rest trägt keinen Zusatztag | „… Für einen Zusatztag reicht der Rest nicht – er entfällt." |
 | nichts, was sicher wäre | nur der erste Satz |
@@ -5861,8 +5888,15 @@ dann tun – keine zweite Rechnung: der Zusatztag in der Einheit von heute
 morgen und die Nacharbeit der Woche aus denselben Teilen wie die Zeile am
 Ruhetag (`ruhetagTeile()`, `zusatzMorgen()`, `nacharbeitVorschau()`,
 `restZiele()`), „entfällt" mit der Schwelle des Zusatztags
-(`zusatzRueckstand()`). „Davon", weil ein Zusatztag in einer Einheit höchstens
-zwei Übungen bringt. Und „der Rest danach" sagt die Zeile nicht: Ob nach der
+(`zusatzRueckstand()`). „Von den 11 offenen Sätzen", weil ein Zusatztag in
+einer Einheit höchstens zwei Übungen bringt – mehr als den Teil verspricht die
+Zeile nicht, und sie sagt, wovon er ein Teil ist. Bis zur Nachbesserung stand
+dort „Davon": Hinter „4 von 15 Sätzen" las es sich wie „von den 4 gemachten",
+und die offenen nannte die Zeile nirgends. Die Zahl steht nur, wenn alles, was
+in der Woche offen ist, aus den Einheiten der Zeile stammt (`offenImBlock()`,
+dieselbe Herkunft, die der Zusatztag an seiner Übung nennt); fehlt auch
+woanders etwas, holt der Teil womöglich auch das nach, und die Zeile sagt „Von
+dem, was in Woche 3 liegen blieb". Und „der Rest danach" sagt die Zeile nicht: Ob nach der
 Woche ein Zusatztag kommt, entscheidet sich erst an seinem Tag, an der
 Erholungsregel. Gemessen mit Workout 11 vom Freitag, 3 von 12 – Rücken,
 Bizeps, hintere Schulter offen –, kam keiner: Am Sonntag ruhen die Gruppen von
@@ -5871,9 +5905,9 @@ Ruhetag verspricht ihn in so einem Fall weiterhin („der Rest danach"); das ist
 dort offen.
 
 **Keine Zahl zweimal.** Was die Zeile oben sagt, lässt die Zeile am Ruhetag
-weg – am Sonntag stand sonst „Davon kommen morgen 3 Sätze in Workout 13 mit
-rein." über „Heute frei. Aus Woche 3 kommt dazu: morgen +3.". Nach dem „OK"
-steht es wieder unten.
+weg – am Sonntag stand sonst „Von den 11 offenen Sätzen kommen morgen 3 in
+Workout 13 mit rein." über „Heute frei. Aus Woche 3 kommt dazu: morgen +3.".
+Nach dem „OK" steht es wieder unten.
 
 **„Rest heute machen"** geht denselben Weg wie „Doch noch weitermachen":
 Start, Fokusansicht, bei der Übung, die dran ist. Die Einheit bleibt auf ihrem
@@ -5888,7 +5922,22 @@ Sitzung und nur nach drei Stunden Pause: Der vergessene dritte Satz von
 gestern, ohne Start in der Liste nachgetragen, ist kein Training, und über
 Mitternacht weitertrainiert ist kein zweiter Trainingstag. Die Rechnung der
 ausgefallenen Tage zählt den Tag mit (verschoben, nicht ausgefallen); die
-Trainingstage der Statistik nicht – dort bleibt es der Tag der Einheit.
+Trainingstage der Statistik nicht – dort bleibt es der Tag der Einheit. Im
+Kopf steht dabei „Gestern angefangen · Workout 12" über „Sa, 24. Oktober" –
+während der Sitzung und danach über „Für heute durch"; bis zur Nachbesserung
+stand dort wieder „Gestern · Workout 12", genau das Bild aus Tobis Frage.
+
+**Und doch nicht?** In der Sitzung stand „Abbrechen | ✓ Abschließen (4/15)".
+„Abbrechen" verwirft eine Einheit ganz – hier hieß es „doch nicht heute" und
+löschte die vier Sätze vom Samstag mit: Workout 12 war untrainiert, der Plan
+rückte einen Tag, und am Sonntag stand „Heute · Workout 12" da, Tobis Bild ohne
+Samstag. Auf einer Einheit, die an einem früheren Tag angefangen und
+abgeschlossen ist, gibt es „Abbrechen" deshalb nicht mehr, auch nicht bei
+„Doch noch weitermachen" (`frueherFertig()`): Was dort steht, war schon
+trainiert. „Abschließen" lässt sie, wie sie ist, und ein versehentlicher Haken
+lässt sich einzeln zurücknehmen. Eine Einheit von heute verwirft „Abbrechen"
+weiter ganz, auch nach „Doch noch weitermachen" (`tests/test-new.mjs`), ein
+Training über Mitternacht ebenso – es ist noch nicht abgeschlossen.
 
 **Eigene Workouts und Zusatztage** schließen sich nicht ab. Sie schieben keinen
 Plan, holen keinen Rückstand nach und stehen nie als nächste Einheit da, sobald
@@ -5911,14 +5960,25 @@ nach hartem Ende, der Fehltipp, der Zusatz in Workout 13 am Montag und die
 Nacharbeit mitten in der Woche – jeweils verglichen mit dem, was die Einheiten
 an ihrem Tag dann wirklich tragen –, Sicherung und Import, die Nacht der
 Zeitumstellung und die Uhr bei offener App über den 25-Stunden-Tag, dazu, dass
-die Startseite mit der Zeile eine Seite bleibt – 94 Prüfungen. Gegen den Stand
-davor (f43f137) sind 38 rot und jeder der zehn Abschnitte; sechs brechen ab,
-weil es Knopf oder Feld nicht gibt. Einzeln zurückgedreht wird jede Stelle rot:
-`trainiertAm()` nur mit `startedOn` (2: der Rest am Sonntag macht ihn nicht zum
-Trainingstag, der Zusatztag steht danach noch für heute da), ein Satz als
-Schwelle (3: der Fehltipp), ohne die drei Stunden (4: über Mitternacht, die
-Zeitumstellung), ohne die Uhr bei offener App (1), die Zeile am Ruhetag lässt
-nichts weg (2), „der Rest danach" versprochen (4).
+die Startseite mit der Zeile eine Seite bleibt. Und aus der Prüfung danach –
+zwei Prüfer, jeder Befund nachgestellt –: Tobis Woche mit den 17 Sätzen vom
+Bild, „Rest heute machen" und doch nicht, der Kopf beim Rest von heute, die
+Sitzung von heute nach drei Stunden Mittag (auch bei offener App), die am
+Sonntag fortgesetzte Einheit vom Samstag, der Start mit Planumbau, die Nacht
+bei sichtbarer App ohne Mitternachts-Uhr – 129 Prüfungen in fünfzehn
+Abschnitten. Gegen den Stand ohne Tagesabschluss (f43f137) sind 47 rot und
+jeder Abschnitt; zehn brechen ab, weil es Knopf oder Feld nicht gibt. Gegen den
+Stand vor der Prüfung (fcd9757) sind 23 rot, genau die neuen Fälle. Einzeln
+zurückgedreht wird jede Stelle rot: `trainiertAm()` nur mit `startedOn` (2: der
+Rest am Sonntag macht ihn nicht zum Trainingstag, der Zusatztag steht danach
+noch für heute da), ein Satz als Schwelle (3: der Fehltipp), ohne die drei
+Stunden (4: über Mitternacht, die Zeitumstellung), ohne die Uhr bei offener App
+(1), die Zeile am Ruhetag lässt nichts weg (2), „der Rest danach" versprochen
+(4) – gemessen vor der Prüfung –, und danach: der Tag der Sitzung wieder von
+ihrer Einheit (3), die Sperre nach dem Planumbau für die ganze Seite (1),
+„Abbrechen" auch auf einer Einheit von gestern (3), der Kopf ohne „angefangen"
+(2), „Davon" statt der offenen Sätze (6), die Uhr ohne Deckel (5) – jede nur in
+ihrem Abschnitt.
 
 `tests/test-fortsetzen.mjs` (Fall 3 und 10) erwartete, dass eine Sitzung von
 gestern auf dem Dashboard wartet; das ist auf Zuruf anders und dort mit

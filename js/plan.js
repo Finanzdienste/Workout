@@ -353,12 +353,27 @@ export const ABSCHLUSS_AB = 2;
  *              abgeschlossen, mit mindestens ABSCHLUSS_AB Sätzen, und seit
  *              LIEGT_AB_MS ohne Lebenszeichen (store.lebenszeichen()) – an
  *              einer Einheit, an der über Mitternacht weiter trainiert wird,
- *              ändert sich nichts.
- *   sitzung    die laufende Sitzung, wenn ihre Einheit (oder, ohne Satz, ihre
- *              Uhr) von einem früheren Tag ist und ebenso lange liegt; `bis`
- *              ist ihr letztes Lebenszeichen – bis dahin wird gebucht.
+ *              ändert sich nichts. Und nicht die Einheit einer Sitzung von
+ *              heute (siehe unten).
+ *   sitzung    die laufende Sitzung, wenn sie an einem früheren Tag gestartet
+ *              wurde und ebenso lange liegt; `bis` ist ihr letztes
+ *              Lebenszeichen – bis dahin wird gebucht.
  *   spaeter    wann die nächste dieser Einheiten liegen wird, die jetzt noch
  *              zu frisch ist – für die Uhr, die bei offener App nachsieht.
+ *
+ * **Der Tag einer Sitzung ist der ihrer Uhr** (`clock.on`, startSession() in
+ * js/store.js) – der Tag, an dem auf Start getippt wurde. Erst ohne Uhr der
+ * Tag ihrer Einheit. Bis zur Nachbesserung war es umgekehrt, und „Rest heute
+ * machen" hatte eine Sitzung von heute auf einer Einheit vom Samstag: Nach
+ * drei Stunden Mittagessen war sie um 13:30 still beendet, die Fokusansicht
+ * weg, kein Wort – jede andere Sitzung von heute läuft nach einer langen
+ * Pause weiter. Liegen geblieben ist eine Sitzung erst ab dem nächsten Tag.
+ *
+ * Und ihre Einheit bleibt so lange offen: Wer am Sonntag um 0:10 eine Einheit
+ * vom Samstag fortsetzt, trainiert heute an ihr – wie über Mitternacht. Am
+ * Montag liegt die Sitzung seit gestern; dann endet sie, und die Einheit
+ * schließt ab. Beides zusammen, nie eine Sitzung auf einer Einheit, die sich
+ * eben abgeschlossen hat.
  *
  * Eigene Workouts und Zusatztage (istCustom) schließt das nicht ab: Sie
  * schieben keinen Plan, holen keinen Rückstand nach und stehen nie als nächste
@@ -377,23 +392,26 @@ export function liegenGeblieben(heute = todayISO(), jetzt = Date.now()) {
     spaeter = spaeter === null ? t : Math.min(spaeter, t);
     return true;
   };
+  const s = store.getState();
+  const k = s.session ? s.session.n : null;
+  const c = k !== null && s.clock && String(s.clock.n) === String(k) ? s.clock : null;
+  const sitzungTag = k === null ? null
+    : ((c && /^\d{4}-\d{2}-\d{2}$/.test(c.on || '') ? c.on : null) || store.startedOn(k));
+  const sitzungVonHeute = !!sitzungTag && !(sitzungTag < heute);
   const einheiten = PLAN.filter((w) => {
     const tag = store.startedOn(w.n);
     // `done` zuerst: Was einmal abgeschlossen ist, trägt es, und completedMode()
     // kostet je Einheit eine ganze Übungsliste – gefragt wird bei jedem
     // Zurückkommen in die App.
     if (!tag || !(tag < heute) || store.getState().log[w.n].done || completedMode(w.n)) return false;
+    if (sitzungVonHeute && String(w.n) === String(k)) return false;
     if (progressOf(w.n, store.workoutMode(w.n)).done < ABSCHLUSS_AB) return false;
     return !frisch(w.n);
   }).map((w) => w.n);
-  const s = store.getState();
-  let sitzung = null;
-  if (s.session) {
-    const k = s.session.n;
-    const c = s.clock && String(s.clock.n) === String(k) ? s.clock : null;
-    const tag = store.startedOn(k) || (c && /^\d{4}-\d{2}-\d{2}$/.test(c.on || '') ? c.on : null);
-    if (tag && tag < heute && !frisch(k)) sitzung = { n: k, bis: store.lebenszeichen(k, jetzt) || undefined };
-  }
+  // Schließt sich ihre Einheit eben ab, ist auch die Sitzung nicht frisch
+  // (dasselbe Lebenszeichen) – sie endet mit.
+  const sitzung = sitzungTag && sitzungTag < heute && !frisch(k)
+    ? { n: k, bis: store.lebenszeichen(k, jetzt) || undefined } : null;
   return { einheiten, sitzung, spaeter };
 }
 
