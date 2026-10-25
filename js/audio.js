@@ -43,7 +43,14 @@
  *                  Berührung seit dem Öffnen, oder ein Kanal, den der Browser
  *                  angehalten hatte. tonStand() liefert alles, Mehr → Töne und
  *                  Hinweise zeigt es.
+ *
+ * Die Zahlen sagen, *wie oft*; das Diagnoseprotokoll (js/diagnose.js) sagt,
+ * *wann und warum*: welcher Kontext woher entstand und in welchem Zustand,
+ * jedes Wecken, jeder Ton, der losging, vorgemerkt, nachgeholt, überholt,
+ * verfallen oder auf einer stehenden Uhr verworfen wurde. Eine Zeile je
+ * Ereignis, an der Stelle, an der es passiert.
  */
+import { notieren } from './diagnose.js';
 
 /*
  * Ein Ton ist ein Objekt, keine nackte Frequenz mehr:
@@ -269,7 +276,10 @@ function tonSitzung() {
   try {
     const s = navigator.audioSession;
     if (s && 'type' in s && s.type !== 'ambient') s.type = 'ambient';
-  } catch { /* nicht vorhanden oder nicht erlaubt – dann eben nicht */ }
+    return s && 'type' in s ? s.type : null;   // fürs Diagnoseprotokoll: was jetzt gilt
+  } catch {
+    return null;   // nicht vorhanden oder nicht erlaubt – dann eben nicht
+  }
 }
 
 /** Läuft die Seite als installierte App (Startbildschirm, eigenes Fenster)? */
@@ -307,25 +317,38 @@ function moeglich() {
  * probiert: Dort sperrt Chrome auf dem Handy immer, und ein Versuch
  * hinterließe nur die Konsolenmeldung „The AudioContext was not allowed to
  * start".
+ *
+ * `woher` nennt den Aufrufer fürs Diagnoseprotokoll – ein Wort statt
+ * `new Error().stack`: billig, lesbar, und ohne Adressen darin.
  */
-export function initAudio() {
+export function initAudio(woher = 'unbekannt') {
   if (ctx) return;
   const frei = tonFrei();
   if (!frei && (probiert || !installiert())) return;
   const Ctx = window.AudioContext || window.webkitAudioContext;
   if (!Ctx) return;
-  tonSitzung();
+  const sitzung = tonSitzung();
   let c;
-  try { c = new Ctx(); } catch { return; }
+  try {
+    c = new Ctx();
+  } catch (e) {
+    notieren('ton', { was: 'kontext', woher, fehler: (e && e.name) || 'unbekannt' });
+    return;
+  }
   if (!frei) {
     probiert = true;
     if (c.state !== 'running') {
+      notieren('ton', { was: 'probe', woher, zustand: c.state, behalten: false });
       try { c.close().catch(() => {}); } catch { /* egal – er wird nicht benutzt */ }
       return;
     }
   }
   ctx = c;
-  ctx.addEventListener('statechange', tonMelden);
+  ctx.addEventListener('statechange', () => {
+    notieren('ton', { was: 'zustand', zustand: ctx.state });
+    tonMelden();
+  });
+  notieren('ton', { was: 'kontext', woher, zustand: ctx.state, frei, probe: !frei || undefined, sitzung });
   tonMelden();
 }
 
@@ -340,7 +363,13 @@ export function initAudio() {
  */
 function wecken() {
   if (!ctx || ctx.state === 'running' || ctx.state === 'closed') return;
-  try { ctx.resume().catch(() => {}); } catch { /* egal */ }
+  notieren('ton', { was: 'wecken', zustand: ctx.state });
+  try {
+    ctx.resume().then(
+      () => notieren('ton', { was: 'resume', ok: true, zustand: ctx.state }),
+      (e) => notieren('ton', { was: 'resume', ok: false, name: e && e.name }),
+    );
+  } catch { /* egal */ }
 }
 
 /**
@@ -362,9 +391,10 @@ function beruehrung() {
   if (u && !u.hasBeenActive) return;
   const erste = !beruehrt;
   if (erste) { beruehrt = true; beruehrtSeit = Date.now(); }
-  initAudio();
+  initAudio('beruehrung');
   wecken();
   if (erste) {
+    notieren('ton', { was: 'beruehrt', kontext: ctx ? ctx.state : 'keiner', api: !!u });
     nachholen();
     // Schläft der Kanal trotz Berührung weiter, soll das jemand erfahren –
     // aber erst, wenn resume() seine Chance hatte (siehe tonStand().klemmt).
@@ -395,6 +425,7 @@ for (const ev of ['pointerup', 'touchend', 'mousedown', 'keydown']) {
 function nachholen() {
   const plan = planAufloesen();
   if (plan && plan.neu) {
+    notieren('ton', { was: 'nachgeholt', plan: 'pause neu auflegen' });
     try { plan.neu(); } catch { /* der Rückruf gehört der App – ihr Fehler, nicht unserer */ }
   }
   if (wunschTon) {
@@ -402,10 +433,16 @@ function nachholen() {
     nachDemKlick(() => {
       const ton = wunschTon;
       wunschTon = null;
+      const spaet = ton ? Math.round((Date.now() - ton.faellig) / 1000) : 0;
       if (ton && angestossen === vorher && ctx && Date.now() <= ton.bis) {
         verpasst -= 1;
         ohneKontext -= 1;
         jetztSpielen(ton.name, ton.faellig).nachgeholt = true;
+        notieren('ton', { was: 'nachgeholt', name: ton.name, spaet, zustand: ctx.state });
+      } else if (ton && !ton.verfallen) {
+        // Warum er nicht kam – die drei Fälle von oben, in dieser Reihenfolge.
+        const grund = angestossen !== vorher ? 'ueberholt' : (!ctx ? 'kein kontext' : 'frist');
+        notieren('ton', { was: 'verfallen', name: ton.name, grund, spaet });
       }
       tonMelden();
     });
@@ -451,6 +488,7 @@ function planAufloesen(ersetzt = null) {
   const n = plan.faellig.filter(([name, f]) => f <= wand && name !== ersetzt).length;
   verpasst += n;
   ohneKontext += n;
+  if (n) notieren('ton', { was: 'verpasst', anzahl: n, grund: 'ohne kontext', quelle: 'vorgemerkte pause' });
   return plan;
 }
 
@@ -536,6 +574,9 @@ function ton(at, s) {
  *   erklungen   hat der Kontext ihn wiedergegeben?
  *   verworfen   wurde er vor seinem Start gestoppt?
  *   nachgeholt  stand er bis zur ersten Berührung auf der Merkliste?
+ *   geplant     vorausgelegt (scheduleSound()) – nur solche, nachgeholte und
+ *               verspätete stehen mit „erklungen" im Diagnoseprotokoll; der
+ *               Satz-Tupfer hat seine Zeile schon mit „los"
  *
  * Ob er erklungen ist, sagt der Grundton selbst: Sein `ended` kommt, wenn die
  * Uhr über sein Ende gelaufen ist. Wird er per stop() vor seinem Start
@@ -549,16 +590,23 @@ function klang(name, at, faellig = Date.now() + (at - ctx.currentTime) * 1000) {
   const s = SOUNDS[name];
   const k = {
     name, at, faellig, quellen: s.flatMap((t) => ton(at, t)),
-    erklungen: false, verworfen: false, nachgeholt: false,
+    erklungen: false, verworfen: false, nachgeholt: false, geplant: false,
   };
   k.quellen[0].addEventListener('ended', () => {
     if (k.erklungen || k.verworfen || !ctx || ctx.currentTime < k.at) return;
     k.erklungen = true;
     gespielt += 1;
     const begann = Date.now() - (ctx.currentTime - k.at) * 1000;
-    if (begann - k.faellig > SPAET_MS) {
+    const spaet = begann - k.faellig > SPAET_MS;
+    if (spaet) {
       verspaetet += 1;
       if (k.nachgeholt) nachgeholt += 1;
+    }
+    if (k.geplant || k.nachgeholt || spaet) {
+      notieren('ton', {
+        was: 'erklungen', name, spaet: spaet ? Math.round((begann - k.faellig) / 1000) : undefined,
+        nachgeholt: k.nachgeholt || undefined,
+      });
     }
     tonMelden();
   });
@@ -591,6 +639,9 @@ function bewachen(k, sofort) {
     if (!spaet) return;
     verwerfen(k);
     verpasst += 1;
+    notieren('ton', {
+      was: 'verworfen', name: k.name, zustand: ctx.state, rueckstand: +(k.at - ctx.currentTime).toFixed(2),
+    });
     tonMelden();
   }, 1200);
 }
@@ -646,19 +697,30 @@ function jetztSpielen(name, faellig) {
 export function playSound(name, { faellig = Date.now(), bis = faellig + NACHHOLEN_MS } = {}) {
   if (!SOUNDS[name]) return false;
   angestossen += 1;
-  initAudio();
+  initAudio('ton');
   if (!ctx) {
     if (!tonFrei() && moeglich()) {
-      wunschTon = { name, faellig, bis };
+      const w = { name, faellig, bis };
+      wunschTon = w;
       verpasst += 1;
       ohneKontext += 1;
+      notieren('ton', { was: 'vorgemerkt', name, frist: Math.round((bis - Date.now()) / 1000) });
       // Läuft die Frist ab, stimmt „kommt noch nach" unter Mehr nicht mehr.
-      setTimeout(tonMelden, Math.max(0, bis - Date.now()) + 50);
+      setTimeout(() => {
+        if (wunschTon === w && !w.verfallen) {
+          w.verfallen = true;
+          notieren('ton', { was: 'verfallen', name, grund: 'frist ohne beruehrung' });
+        }
+        tonMelden();
+      }, Math.max(0, bis - Date.now()) + 50);
       tonMelden();
+    } else {
+      notieren('ton', { was: 'verpasst', name, grund: moeglich() ? 'kein kontext' : 'kein web audio' });
     }
     return false;
   }
   jetztSpielen(name, faellig);
+  notieren('ton', { was: 'los', name, zustand: ctx.state });
   tonMelden();
   return true;
 }
@@ -675,15 +737,17 @@ export function playSound(name, { faellig = Date.now(), bis = faellig + NACHHOLE
  */
 export function probeSpielen() {
   angestossen += 1;
-  initAudio();
+  initAudio('probe');
   if (!ctx) {
     if (!tonFrei() && moeglich()) {
       verpasst += PROBE.length;
       ohneKontext += PROBE.length;
+      notieren('ton', { was: 'verpasst', anzahl: PROBE.length, grund: 'ohne kontext', quelle: 'probe' });
       tonMelden();
     }
     return false;
   }
+  notieren('ton', { was: 'probe', zustand: ctx.state });
   wecken();
   probe.forEach((k) => { if (!k.erklungen) verwerfen(k); });
   const ab = ctx.currentTime + 0.05;
@@ -760,7 +824,8 @@ export function tonStand() {
 export function scheduleSound(plan, spaeter = null) {
   const behalten = cancelSound();
   if (plan.some(([name, secs]) => SOUNDS[name] && secs >= 0)) angestossen += 1;
-  initAudio();
+  initAudio('pause');
+  const namen = plan.filter(([name, secs]) => SOUNDS[name] && secs >= 0).map(([name]) => name).join('+');
   if (!ctx) {
     if (!tonFrei()) {
       const wand = Date.now();
@@ -768,20 +833,32 @@ export function scheduleSound(plan, spaeter = null) {
         neu: spaeter,
         faellig: plan.filter(([name, secs]) => SOUNDS[name] && secs >= 0).map(([name, secs]) => [name, wand + secs * 1000]),
       };
+      if (namen) notieren('ton', { was: 'vorgemerkt', plan: namen });
+    } else if (namen) {
+      notieren('ton', { was: 'nicht geplant', plan: namen, grund: 'kein kontext' });
     }
     tonMelden();
     return false;
   }
   wecken();
   const jetzt = ctx.currentTime;
+  let uebernommen = 0;
   plan.forEach(([name, secs]) => {
     if (!SOUNDS[name] || secs < 0) return;
     const at = jetzt + secs;
     const da = behalten.find((k) => k.name === name && Math.abs(k.at - at) <= GLEICH);
-    geplant.push(da || klang(name, at));
+    if (da) uebernommen += 1;
+    const k = da || klang(name, at);
+    k.geplant = true;
+    geplant.push(k);
   });
   if (!geplant.length) return false;
   if (geplant.some((k) => !k.erklungen)) traeger(true);
+  const letzt = plan[plan.length - 1];
+  notieren('ton', {
+    was: 'geplant', plan: namen, in: letzt ? Math.round(letzt[1]) : undefined,
+    uebernommen: uebernommen || undefined, zustand: ctx.state,
+  });
   tonMelden();
   return true;
 }
@@ -842,16 +919,25 @@ export function cancelSound({ ausklingen = false, ersetzt = null } = {}) {
   const frist = ausklingen ? GLEICH : 0;
   const wand = Date.now();
   const behalten = [];
+  let weg = 0;
   geplant.forEach((k) => {
     if (k.erklungen || (laeuft && k.at <= jetzt + frist)) {
       behalten.push(k);
       return;
     }
     verwerfen(k);
+    weg += 1;
     if (k.name !== ersetzt && k.faellig <= wand) verpasst += 1;
   });
   geplant = [];
   traeger(false);
+  if (weg) {
+    notieren('ton', {
+      was: 'abgesagt', verworfen: weg, verpasst: verpasst - vorher || undefined,
+      behalten: behalten.filter((k) => !k.erklungen).length || undefined,
+      ausklingen: ausklingen || undefined, ersetzt: ersetzt || undefined,
+    });
+  }
   if (verpasst !== vorher || wunsch) tonMelden();
   return behalten;
 }
