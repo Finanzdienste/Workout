@@ -1337,10 +1337,20 @@ textarea.io {
 
 /* Das Diagnoseprotokoll unter Mehr → Daten: der Kasten zum Abfotografieren
    (Lage und letzte acht Einträge) bricht lange Zeilen um, statt seitlich zu
-   rollen – sonst stünde auf dem Foto nur der Anfang jeder Zeile. */
+   rollen – sonst stünde auf dem Foto nur der Anfang jeder Zeile.
+   Umbrochen wird an Wortgrenzen und nur ein Wort, das allein nicht in die
+   Zeile passt, mittendrin (overflow-wrap: anywhere). Und der Kasten hat keine
+   feste Höhe: Gefunden beim Gegenlesen – mit word-break: break-all („Ti pp",
+   „Ablag e") und max-height 260px endete er bei 414 px noch im Kopf, die
+   letzten acht Einträge lagen unsichtbar darunter, und ein Foto zeigte keinen
+   davon. Jetzt zeigt er alles; bei 414 × 896 und Einträgen üblicher Länge
+   ist er rund 560 px hoch, passt also auf einen Bildschirm
+   (tests/test-diagnose.mjs, Fall 7). Sehr lange Zeilen machen ihn höher,
+   verstecken aber nichts. */
 pre.io {
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: normal;
+  overflow-wrap: anywhere;
   margin: 10px 0 0;
   background: var(--bg-elev-2);
   border: 1px solid var(--line);
@@ -1350,8 +1360,6 @@ pre.io {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .diagnose-lage {
-  max-height: 260px;
-  overflow: auto;
   font-size: 11px;
   line-height: 1.35;
 }

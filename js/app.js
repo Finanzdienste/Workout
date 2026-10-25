@@ -21,8 +21,9 @@
 // Als Erstes: Das Diagnoseprotokoll hängt seine Fehler-Lauscher ein, bevor
 // data.js und store.js ausgewertet werden (siehe js/diagnose.js).
 import {
-  diagnoseAn, diagnoseGrundMerken, diagnoseLeeren, diagnosePlatzMachen, diagnoseSauber, diagnoseSchalten,
-  diagnoseSchreiben, diagnoseStand, diagnoseStart, diagnoseText, diagnoseZeilen, diagnoseZone, notieren, uaKurz,
+  diagnoseAn, diagnoseFassung, diagnoseGrundMerken, diagnoseLeeren, diagnosePlatzMachen, diagnoseSauber,
+  diagnoseSchalten, diagnoseSchreiben, diagnoseStand, diagnoseStart, diagnoseText, diagnoseZeilen, diagnoseZone,
+  notieren, uaKurz,
 } from './diagnose.js';
 import { EXERCISES, FOCUS, FOKUS_ERSATZ, PLAN, PLANS, TARGET, REST } from './data.js';
 import * as store from './store.js';
@@ -1323,10 +1324,12 @@ function planNote(secs, text) {
 
   noteTimer = setTimeout(() => {
     noteTimer = null;
-    notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: document.hidden });
     // Nur, wenn die App gerade nicht zu sehen ist: Wer davorsitzt, hört den Ton
     // und sieht die Leiste – eine Systemmeldung wäre da nur Lärm.
-    if (!document.hidden) return;
+    if (!document.hidden) {
+      notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: false, grund: 'sichtbar' });
+      return;
+    }
     const opt = {
       body: text,
       tag: NOTE_TAG,          // ersetzt eine ältere, statt sie zu stapeln
@@ -1336,10 +1339,26 @@ function planNote(secs, text) {
       badge: './badge-96.png',
       vibrate: [180, 90, 180],
     };
+    // Fürs Diagnoseprotokoll erst das Ergebnis, nicht den Versuch: Bis zum
+    // Gegenlesen stand hier vorher „gezeigt=true", und ein Fehlschlag verschwand
+    // im catch – auf Chrome Android wirft `new Notification()` ohne Service
+    // Worker („Illegal constructor"), und genau die Frage „kam die Meldung?"
+    // war damit falsch beantwortet.
+    let ueber;   // bleibt leer, wenn schon die Frage nach dem Worker scheitert
     swReg().then((reg) => {
-      if (reg) reg.showNotification('Pause vorbei', opt);
-      else new Notification('Pause vorbei', opt);
-    }).catch(() => {});
+      if (reg) {
+        ueber = 'worker';
+        return reg.showNotification('Pause vorbei', opt);
+      }
+      ueber = 'konstruktor';
+      new Notification('Pause vorbei', opt);
+      return undefined;
+    }).then(
+      () => notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: true, ueber }),
+      (e) => notieren('pause', {
+        was: 'meldung', weg: 'seite', gezeigt: false, ueber, name: (e && e.name) || 'Fehler', msg: e && e.message,
+      }),
+    );
   }, Math.max(0, secs) * 1000);
 }
 
@@ -1490,10 +1509,15 @@ function endRest(withSignal) {
   const frisch = !vorbei || Date.now() - vorbei.endsAt < NACHKLANG_MS;
   const ersatz = withSignal && frisch && stand !== 'erklungen' && stand !== 'laeuft';
   // Die Stelle von „Jetzt fehlt iwie die Pause": was hier entschieden wurde.
+  // `spaet` nur nach dem Ende, davor `rest` (wie viel noch übrig war) – beim
+  // Gegenlesen stand bei einem Abbruch „spaet=-4", und der Name sagte das
+  // Gegenteil.
+  const ueberzogen = vorbei ? Math.round((Date.now() - vorbei.endsAt) / 1000) : undefined;
   notieren('pause', {
     was: withSignal ? 'ablauf' : 'abbruch', stand, frisch, ersatz, toene: !!store.getState().sound,
     leiste: !restBar.hidden, sichtbar: !document.hidden,
-    spaet: vorbei ? Math.round((Date.now() - vorbei.endsAt) / 1000) : undefined,
+    spaet: ueberzogen !== undefined && ueberzogen >= 0 ? ueberzogen : undefined,
+    rest: ueberzogen !== undefined && ueberzogen < 0 ? -ueberzogen : undefined,
   });
   if (ersatz) sound('rest', vorbei ? { faellig: vorbei.endsAt, bis: vorbei.endsAt + NACHKLANG_MS } : undefined);
   cancelSound({ ausklingen: withSignal, ersetzt: ersatz ? 'rest' : null });
@@ -6896,6 +6920,9 @@ function showVersion() {
   caches.keys().then((keys) => {
     const mine = keys.filter((k) => k.startsWith('workout-'));
     host.textContent = `${plan} · Zwischenspeicher: ${mine.join(', ') || 'keiner'}`;
+    // Was hier steht, soll auch der Kopf des Protokolls sagen – außer in der
+    // Einzeldatei, die gar keinen Zwischenspeicher hat (dort sagt er „Einzeldatei").
+    if (!EINZELDATEI) diagnoseFassung(keys);
   }).catch(() => { host.textContent = plan; });
 }
 
@@ -7913,7 +7940,7 @@ function diagnoseKopf() {
       + `${zwei(jetzt.getHours())}:${zwei(jetzt.getMinutes())} · Zeitzone ${diagnoseZone(jetzt)} · bleibt auf dem Gerät, geteilt nur auf Tipp`,
     `${fassung} · ${anzeige} · ${uaKurz()} · ${window.innerWidth}x${window.innerHeight} · ${navigator.onLine ? 'online' : 'offline'}`,
     `Speicher ${speicher}, ${s.dauerhaft ? 'dauerhaft zugesagt' : 'nichts zugesagt'} · Stand ${kb('workout.state.v1')} KB`
-      + ` · Ablage ${kb('workout.rounds.v1')} KB · Protokoll ${st.zeilen} Zeilen / ${Math.round(st.bytes / 1024)} KB`
+      + ` · Ablage ${kb('workout.rounds.v1')} KB · Protokoll ${plural(st.zeilen, 'Zeile', 'Zeilen')} / ${Math.round(st.bytes / 1024)} KB`
       + `${st.von ? ` seit ${stempelKurz(st.von)}` : ''}${st.nurRam ? ` · nur im Arbeitsspeicher (${st.warum})` : ''}`,
     `Ton ${ton} · ${t.gespielt} gespielt, ${t.verpasst} verpasst (${t.gesperrt} vor der ersten Berührung), `
       + `${t.verspaetet} verspätet · frei ${t.frei ? 'ja' : 'nein'} · klemmt ${t.klemmt ? 'ja' : 'nein'}`
@@ -7963,7 +7990,7 @@ function diagnoseKarte() {
         aria-label="Diagnoseprotokoll" style="margin-top:10px"></textarea>` : ''}
       <div class="small muted" style="margin-top:8px">${st.zeilen ? `Zum Abfotografieren reicht der
         Kasten: oben die Lage, darunter die letzten acht Einträge. ` : ''}<i>Alle Daten löschen</i>
-        räumt das Protokoll mit und stellt diesen Schalter wieder an.</div>
+        räumt das Protokoll mit; der Schalter bleibt, wie er ist.</div>
     </div>`;
 }
 
@@ -7975,24 +8002,33 @@ function diagnoseZeigen() {
   const stand = document.getElementById('diagnoseStand');
   if (!stand) return;
   const st = diagnoseStand();
+  // „1 Einträge" stand nach jedem Löschen da (die eine Zeile, die sagt, warum)
+  // – gefunden beim Gegenlesen.
+  const eintraege = plural(st.zeilen, 'Eintrag', 'Einträge');
   if (!st.an) {
     stand.textContent = `Abgeschaltet – es wird nichts mehr mitgeschrieben.${st.zeilen
-      ? ` Was da ist (${st.zeilen} Einträge), bleibt bis zum Löschen.` : ''}`;
+      ? ` Was da ist (${eintraege}), bleibt bis zum Löschen.` : ''}`;
   } else if (!st.zeilen) {
     stand.textContent = 'Noch nichts mitgeschrieben – kommt mit dem nächsten Start.';
   } else if (st.nurRam) {
     stand.textContent = st.speicherDa
-      ? `${st.zeilen} Einträge. Der Speicher ist knapp – das Protokoll läuft bis zum nächsten Start nur im Arbeitsspeicher und gibt seinen Platz dem Training. Teilen geht trotzdem.`
-      : `${st.zeilen} Einträge. Dieser Browser lässt nichts speichern – das Protokoll lebt nur, bis die Seite zugeht. Teilen geht trotzdem.`;
+      ? `${eintraege}. Der Speicher ist knapp – das Protokoll läuft bis zum nächsten Start nur im Arbeitsspeicher und gibt seinen Platz dem Training. Teilen geht trotzdem.`
+      : `${eintraege}. Dieser Browser lässt nichts speichern – das Protokoll lebt nur, bis die Seite zugeht. Teilen geht trotzdem.`;
   } else {
-    stand.textContent = `${st.zeilen} Einträge seit ${stempelKurz(st.von)} · ${Math.max(1, Math.round(st.bytes / 1024))} KB`
+    stand.textContent = `${eintraege} seit ${stempelKurz(st.von)} · ${Math.max(1, Math.round(st.bytes / 1024))} KB`
       + ` · ${st.fehler} Fehler`
       + `${st.schreibungen ? ` · zuletzt geschrieben ${new Date(st.zuletzt).toTimeString().slice(0, 8)}`
         + ` (längste Schreibung ${msKurz(st.schreibMsMax)})` : ' · in dieser Sitzung noch nicht geschrieben'}.`;
   }
   const kopf = diagnoseKopf();
   const lage = document.getElementById('diagnoseLage');
-  if (lage) lage.textContent = `${kopf.join('\n')}\n---\n${diagnoseZeilen().slice(-8).join('\n')}`;
+  // Der Kasten ohne die Zeile „UA: …": Am Handy sind das vier umbrochene
+  // Zeilen, und Browser und System stehen kurz schon in der zweiten. Ganz steht
+  // sie im geteilten Text. Gefunden beim Gegenlesen: Mit ihr und einer festen
+  // Höhe zeigte der Kasten bei 414 px keinen der letzten acht Einträge.
+  if (lage) {
+    lage.textContent = `${kopf.filter((z) => !z.startsWith('UA: ')).join('\n')}\n---\n${diagnoseZeilen().slice(-8).join('\n')}`;
+  }
   const ta = document.getElementById('diagnoseText');
   if (ta) {
     ta.value = diagnoseText(kopf);
@@ -8691,7 +8727,7 @@ view.addEventListener('click', (e) => {
       // „Weiter: …" davon. Zurücknehmen geht weiter – das ist ein Haken in
       // diesem Modus, der wirklich dasteht.
       if (!cur && saetzeErledigt(n, id, item.sets) >= item.sets) {
-        notieren('satz', { n, mode, ex: id, i, abgelehnt: 'fertig' });
+        notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, abgelehnt: 'fertig' });
         toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
         break;
       }
@@ -8730,7 +8766,7 @@ view.addEventListener('click', (e) => {
       // einheitBeenden(), derselben Stelle wie beim Knopf. Sonst wäre
       // „automatisch beendet" nur halb beendet.
       if (workoutComplete && store.getState().session) {
-        notieren('satz', { n, mode, ex: id, i, done, fertig: true });
+        notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, fertig: true });
         const gestiegen = einheitBeenden();
         sound('done');
         render();
@@ -8759,8 +8795,12 @@ view.addEventListener('click', (e) => {
       // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
       const imWechsel = done && !workoutComplete && superWeiter(n, mode, id);
       // Ein Haken fürs Diagnoseprotokoll: was danach kommt – nie das Gewicht.
+      // Der Satz ab 1 und „von", wie in der Pausen-Zeile daneben; die Einheit
+      // heißt `einheit`, nicht `n` – gefunden beim Gegenlesen: „satz n=1 … i=0"
+      // und gleich darauf „pause … satz=1" las sich wie zwei Sätze.
       notieren('satz', {
-        n, mode, ex: id, i, done, exFertig: exDone, fertig: workoutComplete, super: !!imWechsel,
+        einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, exFertig: exDone, fertig: workoutComplete,
+        super: !!imWechsel,
         pause: !imWechsel && done && !workoutComplete && !exDone && i < item.sets - 1 ? restFor(variant) : 0,
       });
 
@@ -9782,9 +9822,10 @@ view.addEventListener('click', (e) => {
         const id = s0.deviceId && (meldetMit() || s0.lastShare) ? s0.deviceId : null;
         if (id) loeschen(id);
         store.resetAll();
-        // Das Diagnoseprotokoll räumt mit, und sein Schalter geht auf den
-        // Standard (an) – wie jede andere Einstellung. Die erste Zeile danach
-        // sagt, warum es leer ist.
+        // Das Diagnoseprotokoll räumt mit; sein Schalter bleibt, wie er war –
+        // ein Löschen soll nie dazu führen, dass mehr mitgeschrieben wird
+        // (diagnoseLeeren()). Ist es an, sagt die erste Zeile danach, warum es
+        // leer ist.
         diagnoseLeeren('reset');
         ui.workoutNo = naechsteEinheit();
         render();
@@ -10079,7 +10120,15 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // dort unnötig. Und nur einmal je Sitzung, damit ein kaputter Service
   // Worker die Seite nicht in eine Schleife schickt.
   const hadController = !!navigator.serviceWorker.controller;
+  // Die Fassung fürs Diagnoseprotokoll nachziehen, sobald ein Worker aktiviert
+  // ist oder die Seite übernimmt: Dann steht sein Zwischenspeicher. Nach „App
+  // aktualisieren" (der Notausgang räumt alle) und bei der ersten Installation
+  // hatte die Startzeile noch keinen gesehen – siehe diagnoseFassung().
+  const fassungNachziehen = () => {
+    if (window.caches) caches.keys().then(diagnoseFassung).catch(() => {});
+  };
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    fassungNachziehen();
     if (!hadController) {
       notieren('sw', { was: 'controllerchange', erster: true, reload: false });
       return;
@@ -10114,7 +10163,12 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       reg.addEventListener('updatefound', () => {
         const w = reg.installing;
         notieren('sw', { was: 'update' });
-        if (w) w.addEventListener('statechange', () => notieren('sw', { was: 'zustand', zustand: w.state }));
+        if (w) {
+          w.addEventListener('statechange', () => {
+            notieren('sw', { was: 'zustand', zustand: w.state });
+            if (w.state === 'activated') fassungNachziehen();
+          });
+        }
       });
     }).catch((e) => {
       // Kein Offline-Betrieb, aber die App läuft normal weiter.
@@ -10424,6 +10478,12 @@ if (gestiegenBeimStart || zusatzBeimStart) {
  * Sonst zöge jeder abgehakte Satz einen zweiten Neuaufbau nach sich.
  */
 let speicherStand = store.canPersist();
+// Kann der Store schon jetzt, am Ende des Starts, nicht schreiben, kommt der
+// Wechsel unten nie – und das Protokoll behielte seinen Platz. Gefunden beim
+// Gegenlesen (Speicher zwischen zwei Sitzungen von außen gefüllt): Kein Satz
+// kam an, bis die App wegschaltete. Meist hat js/diagnose.js schon beim Laden
+// geräumt (DIAGNOSE_PLATZ); das hier ist der zweite Riegel.
+if (!speicherStand) diagnosePlatzMachen();
 store.subscribe(() => {
   if (store.canPersist() === speicherStand) return;
   speicherStand = store.canPersist();

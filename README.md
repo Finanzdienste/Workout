@@ -7085,19 +7085,25 @@ wie der Rückkanal, nur strenger, weil hier mehr drinsteht.
 * **Abschaltbar.** Ein Schalter in derselben Karte, Standard an. Aus heißt: Es
   wird nichts mehr mitgeschrieben, auch nicht nach dem Neuladen und auch nicht
   in einem zweiten Fenster; was da ist, bleibt bis zum Löschen. **Protokoll
-  löschen** leert es (mit Rückfrage), *Alle Daten löschen* räumt es mit.
+  löschen** leert es (mit Rückfrage), *Alle Daten löschen* räumt es mit – und
+  lässt den Schalter, wie er ist.
 * **Wenig.** Kennungen und Zahlen, keine Inhalte – die Tabelle unten. Uhrzeiten
   stehen drin, also auch, wann du trainierst; das sagt die Karte dazu.
 * **Sichtbar.** Die Karte zeigt, was drinsteht, eine Zusammenfassung und einen
-  Kasten zum Abfotografieren: oben die Lage in acht Zeilen, darunter die
-  letzten acht Einträge. **Alles ansehen** klappt den ganzen Text auf, und jede
-  geteilte Datei beginnt mit „Workout-Diagnose · … · bleibt auf dem Gerät,
-  geteilt nur auf Tipp" – damit auch der Empfänger weiß, was er bekommt.
+  Kasten zum Abfotografieren: oben die Lage (der Kopf ohne den langen
+  User-Agent), darunter die letzten acht Einträge – ohne feste Höhe und an
+  Wortgrenzen umbrochen, damit ein Foto alles zeigt. Bei 414 × 896 und
+  Einträgen üblicher Länge ist er rund 560 px hoch, passt also auf einen
+  Bildschirm. Beim Gegenlesen endete er dort mit fester Höhe noch im Kopf, und
+  „break-all" brach mitten im Wort („Ti pp"). **Alles ansehen** klappt den
+  ganzen Text auf, und jede geteilte Datei beginnt mit „Workout-Diagnose · … ·
+  bleibt auf dem Gerät, geteilt nur auf Tipp" – damit auch der Empfänger weiß,
+  was er bekommt.
 
 | Was drinsteht | Was nie drinsteht |
 | --- | --- |
 | Zeit (Ortszeit, Millisekunden), Art des Eintrags | Name |
-| Einheit als Nummer, Übung als Kennung, Satz als Index | Gewichte, Wiederholungen, Eingaben |
+| Einheit als Nummer, Übung als Kennung, Satz als „2 von 3" | Gewichte, Wiederholungen, Eingaben |
 | Pausenlänge, was am Pausenende entschieden wurde | Beschwerden, Termine, Notizen |
 | Tonzustand: Kontext, woher, angehalten, verpasst und warum | Sicherungsschlüssel, Kennung, Schreibmarke |
 | Fehler mit Meldung und Datei:Zeile | der Anker einer Adresse (`#sicherung=…`, `#stand=…`) |
@@ -7119,7 +7125,7 @@ Eine Zeile je Ereignis, an der Stelle, an der es passiert (`notieren()` in
 `js/app.js`, `js/audio.js`, `js/sicherung.js`):
 
 ```
-2026-10-25 16:37:44.498 satz n=1 mode=db ex=fuesse-erhoehte-liegestuetze i=0 done=true exFertig=false fertig=false super=false pause=90
+2026-10-25 16:37:44.498 satz einheit=1 mode=db ex=fuesse-erhoehte-liegestuetze satz=1 von=3 done=true exFertig=false fertig=false super=false pause=90
 2026-10-25 16:37:44.508 pause was=start dauer=90 ex=fuesse-erhoehte-liegestuetze satz=1 von=3
 2026-10-25 16:37:44.518 ton was=geplant plan=ready+rest in=90 zustand=running
 2026-10-25 16:37:46.520 pause was=ablauf stand=laeuft frisch=true ersatz=false toene=true leiste=true sichtbar=true spaet=0
@@ -7127,13 +7133,13 @@ Eine Zeile je Ereignis, an der Stelle, an der es passiert (`notieren()` in
 
 | Art | Was |
 | --- | --- |
-| `start` | Start der Seite: installiert oder Browser, Browser kurz, Fenster, Zeitzone, Netz, Speicherlage, Größen, Plan, laufende Einheit und Pause, Grund eines Neuladens (Update, Import, Einstieg, Fokus); eine Zeile später die Fassung aus dem Zwischenspeicher |
-| `sw` | Service Worker: registriert, Update gefunden, Zustand, Wechsel mit oder ohne Neuladen, Notausgang „App aktualisieren", Fehler |
+| `start` | Start der Seite: installiert oder Browser, Browser kurz, Fenster, Zeitzone, Netz, Speicherlage, Größen, Plan, laufende Einheit und Pause, Grund eines Neuladens (Update, Import, Einstieg, Fokus); eine Zeile später die Fassung aus dem Zwischenspeicher; auf Android eine weitere mit der Version, die der User-Agent verschweigt (siehe unten) |
+| `sw` | Service Worker: registriert, Update gefunden, Zustand, Wechsel mit oder ohne Neuladen, Notausgang „App aktualisieren", die Fassung, sobald ein neuer Zwischenspeicher steht, Fehler |
 | `fehler` | jeder Fehler, den niemand gefangen hat – geworfen, abgelehnt, eine Datei, die nicht lädt |
 | `sicht` | App weg (mit Rest der Pause), wieder da (wie lange weg, wie viel gutgeschrieben), Seite zu, Neuladen |
 | `ton` | Kontext angelegt (woher, Zustand), Zustandswechsel, Wecken und Ergebnis, erste Berührung, los, geplant, vorgemerkt, nachgeholt, verfallen (mit Grund: Frist, überholt, kein Kontext), verpasst, verworfen auf stehender Uhr, erklungen, abgesagt |
-| `pause` | Start, Auflegen (Ton ja/nein, Hinweis über Worker/Seite/aus), Ablauf oder Abbruch mit dem, was `endRest()` entschied, weg, +30 s, Hinweis gefeuert, Wakelock abgelehnt |
-| `satz` | ein Haken: Einheit, Modus, Übung, Index, was danach kam (Übung fertig, Einheit fertig, Supersatz, Pause) – oder abgelehnt, weil schon fertig |
+| `pause` | Start, Auflegen (Ton ja/nein, Hinweis über Worker/Seite/aus), Ablauf (wie viel zu spät) oder Abbruch (wie viel noch übrig war) mit dem, was `endRest()` entschied, weg, +30 s, Hinweis der Seite gezeigt oder gescheitert (mit Grund), Wakelock abgelehnt |
+| `satz` | ein Haken: Einheit, Modus, Übung, Satz („satz=2 von=3", gezählt wie in der Pausen-Zeile), was danach kam (Übung fertig, Einheit fertig, Supersatz, Pause) – oder abgelehnt, weil schon fertig |
 | `einheit` | Start, Abschließen, Ende (Dauer, liegen geblieben, Aufstieg), verworfen, zurückgesetzt, markiert, alles abgehakt, Uhr gedeckelt |
 | `tag` | Tagesabschluss (welche Einheiten mit wie vielen Sätzen, welche Sitzung, wie lange still), Nachrücken, Nachziehen beim Zurückkommen, die Uhr um Mitternacht |
 | `plan` / `zusatz` / `nach` | Umzug, Umbau, Fokus, Neustart, Runde weiter oder zurück, Vorziehen, Aufstieg, Zusatztag, Nacharbeit festgehalten |
@@ -7155,6 +7161,20 @@ Schaltern; laufende Einheit, Pause, Plan, Service Worker; Sicherung und
 Rückkanal; Fehler, Einträge heute, wie oft und wie lange in dieser Sitzung
 geschrieben wurde; der volle User-Agent.
 
+Zwei Angaben darin waren beim Gegenlesen falsch und sind es nicht mehr:
+
+* **Die Fassung** las die Startzeile einmal aus dem Zwischenspeicher – und
+  genau nach *App aktualisieren* (der Notausgang räumt alle) und bei der
+  ersten Installation ist da noch keiner. Im Kopf stand „Fassung keine", in der
+  Datei nirgends eine Version. Jetzt zieht die App sie nach, sobald ein Service
+  Worker aktiviert ist oder die Seite übernimmt (`sw was=fassung`).
+* **Android.** Chrome schreibt seit Fassung 110 auf Android immer
+  „Android 10; K" in den User-Agent, egal welches Android läuft – das
+  Protokoll schrieb also „Android/10" in jede Datei. Jetzt steht dort
+  „Android/?", und die echte Version kommt aus `navigator.userAgentData` nach
+  (`start system=Android/14`). Nur die Version, nicht das Modell, das dieselbe
+  Abfrage hergäbe: Für Ton, Speicher und Worker zählen Browser und Android.
+
 ### Was es kostet
 
 Geschrieben wird nie im Tipp, sondern gebündelt: höchstens einmal je Minute aus
@@ -7170,6 +7190,7 @@ Fall 2; am Handy zeigt der Kopf die eigene Zahl):
 | je Eintrag | 2–4 µs, kein Speicherzugriff | – |
 | je abgehaktem Satz | 0 Schreibvorgänge im Tipp | der Store: eine Schreibung von 26–65 KB |
 | je Schreibung | 0,1–0,5 ms bei 64 KB, die erste einer Seite mit Platzhalter 2–4 ms | – |
+| Platzhalter beim Laden (nur mit Protokoll im Speicher; die erste Schreibung spart ihn dafür) | 0,3–1,4 ms, Median 0,5 ms; bei sechsfach gedrosselter CPU 2,5–10,5 ms | – |
 | je Satz im Protokoll | 550–770 Zeichen (Satz, Pause, Ton, Ende der Pause; mehr mit +30 s und Wegtippen) | – |
 
 Eine Einheit mit 17 Sätzen ergibt so 10 bis 13 KB; 64 KB halten die letzten
@@ -7183,14 +7204,23 @@ entscheiden die letzten Dutzend Byte (siehe oben,
 [Wenn der Speicher voll ist](#wenn-der-speicher-voll-ist-sagt-die-app-jetzt-das-richtige)).
 Drei Wege, alle drei im Test nachgestellt:
 
-* **Vorher.** Nach dem ersten Schreiben jeder Seite und danach höchstens alle
-  zehn Minuten legt das Protokoll kurz einen Platzhalter von 256 KB daneben und
-  nimmt ihn gleich wieder weg. Passt der nicht, räumt es seinen Schlüssel und
-  läuft nur noch im Arbeitsspeicher – bei so knappem Speicher hat es dort nichts
-  zu suchen. 256 KB sind das Vierfache des Protokolls und mehr als der ganze
-  Zustand samt einer abgelegten Runde.
-* **Wenn der Store „voll" meldet** (ein Satz kam nicht an), gibt das Protokoll
-  seinen Schlüssel im selben Moment frei. Ein zweiter Schreibversuch des Stores
+* **Vorher.** Schon beim Laden, wenn ein Protokoll der letzten Sitzung im
+  Speicher liegt – noch bevor der Store das erste Mal schreibt –, sonst nach
+  dem ersten Schreiben jeder Seite, und danach höchstens alle zehn Minuten legt
+  das Protokoll kurz einen Platzhalter von 256 KB daneben und nimmt ihn gleich
+  wieder weg. Passt der nicht, räumt es seinen Schlüssel und läuft nur noch im
+  Arbeitsspeicher – bei so knappem Speicher hat es dort nichts zu suchen.
+  256 KB sind das Vierfache des Protokolls und mehr als der ganze Zustand samt
+  einer abgelegten Runde.
+
+  Das „beim Laden" kam beim Gegenlesen dazu: Füllte zwischen zwei Sitzungen
+  etwas anderes den Speicher (auf github.io teilen sich alle Projekte eines
+  Kontos die Herkunft), scheiterte schon das erste Schreiben des Stores beim
+  Start. Die App sah „voll" danach nie als *Wechsel*, das Protokoll behielt
+  seine 60 KB, und kein Satz kam an, bis die App wegschaltete.
+* **Wenn der Store „voll" meldet** (ein Satz kam nicht an) – auch, wenn er es
+  schon am Ende des Starts meldet –, gibt das Protokoll seinen Schlüssel im
+  selben Moment frei. Ein zweiter Schreibversuch des Stores
   von dort aus wäre denkbar gewesen und wurde verworfen: Der Satz steht im
   Arbeitsspeicher und geht mit dem nächsten Schreiben mit, die Warnung ist die
   Wahrheit über diesen Moment – und `js/store.js` bleibt unangetastet.
@@ -7214,10 +7244,13 @@ Alles unter *Mehr → Daten*, in der Karte **Diagnoseprotokoll**:
   Erlaubnis), steht der Text markiert im Feld.
 * **Protokoll löschen** – mit Rückfrage; danach steht eine Zeile da, die sagt,
   warum es leer ist.
-* **Schalter** – aus schreibt nichts mehr. *Alle Daten löschen* stellt ihn wie
-  jede andere Einstellung auf den Standard zurück (an); wer es bewusst aus
-  hatte, hat es danach wieder an – die Karte sagt das, und die erste Zeile
-  danach heißt `diagnose was=geleert grund=reset`.
+* **Schalter** – aus schreibt nichts mehr. *Alle Daten löschen* leert das
+  Protokoll und lässt den Schalter, wie er ist; ist es an, heißt die erste
+  Zeile danach `diagnose was=geleert grund=reset`. Bis zum Gegenlesen stellte
+  es ihn wie jede andere Einstellung auf den Standard (an) zurück – wer es
+  bewusst abgeschaltet hatte, wurde nach dem Löschen aller Daten wieder
+  protokolliert, und weder die Rückfrage noch der Einstieg sagte es. Ein
+  Löschen soll nie dazu führen, dass mehr mitgeschrieben wird.
 
 ### Ehrlich dazugesagt
 
@@ -7227,6 +7260,11 @@ Alles unter *Mehr → Daten*, in der Karte **Diagnoseprotokoll**:
   frühe Fehler sammelt; das ist ein eigener Schritt.
 * Was der Service Worker im Hintergrund tut – die Meldung „Pause vorbei" –,
   sieht die Seite nicht. `meldung=worker` heißt „übergeben", nicht „gezeigt".
+  Zeigt die Seite die Meldung selbst (kein Worker übernimmt), steht das
+  Ergebnis da, nicht der Versuch: `pause was=meldung … gezeigt=true` oder
+  `gezeigt=false … name=TypeError` – auf Chrome Android wirft
+  `new Notification()` ohne Worker. Bis zum Gegenlesen stand dort schon vor dem
+  Versuch „gezeigt=true".
 * Endet die Seite hart, ohne Wegschalten (der Browser beendet sie, der Akku
   ist leer), fehlt höchstens die letzte Minute.
 * Zwei Fenster (installiert und als Tab) hängen ihre Zeilen aneinander, statt

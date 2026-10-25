@@ -22,7 +22,7 @@
  *   Abschaltbar.  Ein Schalter (Standard an), „Löschen" daneben, und „Alle
  *                 Daten löschen" räumt es mit.
  *   Wenig.        Kennungen und Zahlen, keine Inhalte: die Einheit als Nummer,
- *                 die Übung als Kennung, der Satz als Index – keine Gewichte,
+ *                 die Übung als Kennung, der Satz als „2 von 3" – keine Gewichte,
  *                 keine Wiederholungen, kein Name, keine Beschwerden, keine
  *                 Eingaben, keine Schlüssel. Jede Adresse verliert Anker,
  *                 Anfrage und Herkunft (diagnoseSauber()): Im Anker eines
@@ -38,7 +38,7 @@
  * Ein Eintrag ist eine Textzeile, kein JSON: Anhängen kostet nichts, Kürzen ist
  * ein indexOf('\n'), und der Text, den man teilt, *ist* das Protokoll.
  *
- *     2026-10-24 18:01:03.120 satz n=12 mode=db ex=goblet-squat i=1 done=true …
+ *     2026-10-24 18:01:03.120 satz einheit=12 mode=db ex=goblet-squat satz=2 von=3 done=true …
  *
  *   Zeit   Ortszeit mit Millisekunden – das Ton-Timing spielt in Fenstern von
  *          20 ms und 1,2 s. Aus den Teilen des Datums gebaut, nicht mit
@@ -56,8 +56,11 @@
  *
  *   start       Start der Seite: Einzeldatei, Anzeige, Browser, Fenster,
  *               Zeitzone, Netz, Speicherlage, Größen, Plan, Grund des Neuladens;
- *               eine zweite Zeile mit der Fassung aus dem Zwischenspeicher
- *   sw          Service Worker: registriert, Update, Zustand, Wechsel, Notausgang
+ *               eine zweite Zeile mit der Fassung aus dem Zwischenspeicher, auf
+ *               Android eine dritte mit der Version, die der User-Agent
+ *               verschweigt
+ *   sw          Service Worker: registriert, Update, Zustand, Wechsel, Notausgang,
+ *               die Fassung, sobald ein neuer Zwischenspeicher steht
  *   fehler      jeder Fehler, den niemand gefangen hat – mit Datei:Zeile
  *   sicht       App weg, wieder da, Neuladen
  *   netz        online / offline
@@ -65,8 +68,10 @@
  *               vorgemerkt, nachgeholt, verfallen (mit Grund), verpasst,
  *               verworfen, erklungen, abgesagt
  *   pause       Start, Auflegen (Ton und Hinweis), Ablauf oder Abbruch mit dem,
- *               was endRest() entschied, weg, +30 s, Hinweis gefeuert, Wakelock
- *   satz        ein Haken: Einheit, Modus, Übung, Index, was danach kam
+ *               was endRest() entschied, weg, +30 s, Hinweis gezeigt oder
+ *               gescheitert (mit Grund), Wakelock
+ *   satz        ein Haken: Einheit, Modus, Übung, Satz (ab 1, wie in der Pause),
+ *               was danach kam
  *   einheit     Start, Ende (wie, Dauer, Uhr gedeckelt), verworfen, markiert
  *   plan / tag / zusatz / nach
  *               Umzug, Umbau, Fokus, Neustart, Runde, Vorziehen, Zusatztag,
@@ -169,6 +174,19 @@ const DIAGNOSE_MAX_MELDUNG = 200;
  * zehn Minuten, nicht bei jeder: Der Platzhalter kostet so viel wie vier volle
  * Protokolle. Füllt in der Zwischenzeit etwas anderes den Speicher (eine andere
  * App unter derselben Adresse), greift der Weg über den Store.
+ *
+ * Und schon beim Laden, wenn ein Protokoll aus der letzten Sitzung im Speicher
+ * liegt (diagLaden()). Gefunden beim Gegenlesen: Füllte zwischen zwei
+ * Sitzungen etwas anderes den Speicher – auf github.io teilen sich alle
+ * Projekte eines Kontos die Herkunft –, scheiterte schon das erste Schreiben
+ * des Stores beim Start. Die App merkte „voll" danach nie als *Wechsel*, das
+ * Protokoll behielt seine 60 KB, und kein Satz kam an, bis die App wegschaltete.
+ * Beim Laden ist die einzige Stelle vor dem Store: Dieses Modul wird vor
+ * store.js ausgewertet (erster Import in js/app.js), also prüft es, bevor der
+ * Store das erste Mal schreibt. Gekostet wird nichts dazu – der Platzhalter
+ * der ersten Schreibung fällt dafür weg (diagPlatzZuletzt). Meldet der Store
+ * am Ende des Starts trotzdem „kann nicht", räumt js/app.js auch dann
+ * (diagnosePlatzMachen()).
  */
 const DIAGNOSE_PLATZ_KEY = 'workout.diagnose.platz';
 const DIAGNOSE_PLATZ = 256 * 1024;
@@ -191,6 +209,7 @@ let diagSofortZuletzt = 0;
 let diagPlatzZuletzt = 0;
 let diagStartGrund = '';
 let diagFassung = '';
+let diagSystem = '';         // die echte Android-Version, wo der User-Agent sie verschweigt (uaKurz())
 const diagMessung = { n: 0, max: 0, summe: 0, zuletzt: 0 };
 
 const diagZwei = (n) => String(n).padStart(2, '0');
@@ -543,9 +562,17 @@ export function diagnoseSchreiben() {
 
 /**
  * Löschen. Danach steht genau eine Zeile da, die sagt, warum – außer es ist
- * abgeschaltet, dann gar keine. `reset` („Alle Daten löschen") stellt auch den
- * Schalter auf den Standard zurück, wie jede andere Einstellung; die Rückfrage
- * dort nennt die Einstellungen ausdrücklich.
+ * abgeschaltet, dann gar keine.
+ *
+ * Auch `reset` („Alle Daten löschen") lässt den Schalter, wie er ist. Bis zum
+ * Gegenlesen stellte es ihn wie jede andere Einstellung auf den Standard (an)
+ * – und wer das Protokoll bewusst abgeschaltet hatte, wurde nach dem Löschen
+ * aller Daten ab der nächsten Sekunde wieder protokolliert, ohne dass die
+ * Rückfrage oder der Einstieg es sagte. Eine Lösch-Aktion, die *mehr*
+ * mitschreiben lässt, nimmt eine Entscheidung still zurück; der Rückkanal hat
+ * dafür den Einstieg, der seinen Schalter neu zeigt, das Protokoll nicht.
+ * Ausgeschaltet bleibt es also aus, und eingeschaltet sagt die erste Zeile
+ * danach, warum es leer ist.
  *
  * Geschrieben wird gleich, wie beim Schalter: ein Tipp unter Mehr, und was
  * danach im Speicher steht, soll genau das sein, was die Karte zeigt.
@@ -560,10 +587,6 @@ export function diagnoseLeeren(grund = 'tipp') {
     diagOffen = [];
     diagOffenBytes = 0;
     diagLetzte = null;
-    if (grund === 'reset') {
-      diagAn = true;
-      localStorage.removeItem(DIAGNOSE_AUS);
-    }
     localStorage.removeItem(DIAGNOSE_KEY);
   } catch { /* gesperrter Speicher – im Arbeitsspeicher ist es leer */ }
   notieren('diagnose', { was: 'geleert', grund });
@@ -587,6 +610,29 @@ export function diagnosePlatzMachen() {
   diagWeichen('platz', '');
 }
 
+/*
+ * Die Fassung, sobald ein neuer Zwischenspeicher steht – aus js/app.js beim
+ * Aktivieren eines Service Workers und unter Mehr → Fassung, wo die Namen
+ * ohnehin gelesen werden.
+ *
+ * Gefunden beim Gegenlesen: Die Startzeile liest die Fassung einmal, und genau
+ * nach „App aktualisieren" (der Notausgang räumt alle Zwischenspeicher) und
+ * bei der ersten Installation ist da noch keiner. Im Kopf stand dann „Fassung
+ * keine", und in der geteilten Datei stand die Version nirgends – gerade dann,
+ * wenn man sie am dringendsten braucht. Jetzt kommt eine Zeile `sw
+ * was=fassung`, sobald sie sich ändert, und der Kopf nennt sie.
+ */
+const diagFassungAus = (namen) => (namen || []).map(String).filter((x) => x.startsWith('workout-')).join(',') || 'keine';
+
+export function diagnoseFassung(namen) {
+  try {
+    const f = diagFassungAus(namen);
+    if (f === diagFassung) return;
+    diagFassung = f;
+    notieren('sw', { was: 'fassung', fassung: f });
+  } catch { /* s. o. */ }
+}
+
 /** Vor einem Neuladen, das die App selbst auslöst: warum (für die nächste Startzeile). */
 export function diagnoseGrundMerken(wort) {
   try { sessionStorage.setItem(DIAGNOSE_GRUND, wort); } catch { /* dann eben ohne */ }
@@ -600,13 +646,44 @@ export function diagnoseGrundMerken(wort) {
 const DIAG_BROWSER = ['SamsungBrowser', 'EdgA', 'Edg', 'OPR', 'FxiOS', 'CriOS', 'Firefox', 'Chrome', 'Version'];
 const DIAG_SYSTEM = [/Android \d+/, /iPhone OS \d+/, /CPU OS \d+/, /Windows NT [\d.]+/, /Mac OS X [\d_]+/, /CrOS/, /Linux/];
 
-/** Browser und System kurz, etwa „Chrome/130,Android/14" – ganz steht er im Kopf. */
-export function uaKurz(ua = navigator.userAgent || '') {
+/*
+ * Der eingefrorene User-Agent: Seit Chrome 110 steht auf Android immer
+ * „Linux; Android 10; K" darin, egal welches Android läuft (und ebenso in den
+ * Browsern, die darauf aufbauen). Gefunden beim Gegenlesen: Das Protokoll
+ * schrieb in Tobis Chrome „Android/10" in jede Datei – und ein altes Android
+ * wäre genau die falsche Spur bei einem Tonproblem. Ehrlich ist „Android/?",
+ * und die echte Version kommt aus navigator.userAgentData nach
+ * (diagnoseStart()). Nur die Version, nicht das Modell, das dieselbe Abfrage
+ * auch hergäbe: Für das Verhalten von Ton, Speicher und Worker zählen Browser
+ * und Android-Version; das Modell wäre mehr, als es braucht („Wenig").
+ */
+const DIAG_EINGEFROREN = /Android 10; K\)/;
+
+/**
+ * Browser und System kurz, etwa „Chrome/130,Android/14" – ganz steht er im
+ * Kopf. `system` ersetzt eine Android-Version, die der User-Agent verschweigt.
+ */
+export function uaKurz(ua = navigator.userAgent || '', system = diagSystem) {
   const b = DIAG_BROWSER.map((n) => ua.match(new RegExp(`${n}/(\\d+)`))).find(Boolean);
   const name = b ? b[0].slice(0, b[0].indexOf('/')) : '';
   const browser = b ? `${name === 'Version' ? 'Safari' : name}/${b[1]}` : '?';
+  if (DIAG_EINGEFROREN.test(ua)) return `${browser},${system || 'Android/?'}`;
   const s = DIAG_SYSTEM.map((r) => ua.match(r)).find(Boolean);
   return `${browser},${s ? s[0].replace(/ (?=\d)/, '/').replace(/ /g, '').replace(/_/g, '.') : '?'}`;
+}
+
+/* Die Android-Version nachfragen, wo der User-Agent sie verschweigt – asynchron, still bei jedem Fehler. */
+function diagSystemNachfragen() {
+  try {
+    const uad = navigator.userAgentData;
+    if (!DIAG_EINGEFROREN.test(navigator.userAgent || '') || !uad || typeof uad.getHighEntropyValues !== 'function') return;
+    uad.getHighEntropyValues(['platformVersion']).then((h) => {
+      const v = String((h && h.platformVersion) || '').split('.')[0];
+      if (!/^\d+$/.test(v) || (h.platform && h.platform !== 'Android')) return;
+      diagSystem = `Android/${v}`;
+      notieren('start', { system: diagSystem });
+    }).catch(() => {});
+  } catch { /* dann bleibt es bei „Android/?" */ }
 }
 
 /** Läuft die Seite als installierte App? */
@@ -636,10 +713,11 @@ export function diagnoseStart(daten = {}) {
     ...daten,
     grund: diagStartGrund || '-',
   });
+  diagSystemNachfragen();
   try {
     if (daten.einzeldatei || !window.caches) return;
     caches.keys().then((k) => {
-      diagFassung = k.filter((x) => x.startsWith('workout-')).join(',') || 'keine';
+      diagFassung = diagFassungAus(k);
       notieren('start', { fassung: diagFassung });
     }).catch(() => {});
   } catch { /* kein Zwischenspeicher – dann eben ohne Fassung */ }
@@ -706,6 +784,10 @@ function diagLaden() {
     const t = diagKuerzen(roh && !roh.endsWith('\n') ? `${roh}\n` : roh);
     diagKoerper = t;
     diagGeaendert = t !== roh;
+    // Vor dem Store: Ist der Speicher seit der letzten Sitzung knapp geworden,
+    // weicht das Protokoll jetzt, nicht erst nach dem ersten verlorenen Satz
+    // (siehe DIAGNOSE_PLATZ).
+    if (roh && !diagPlatzReicht()) diagWeichen('knapp', t);
   } catch {
     // Privates Fenster, blockierte Website-Daten: Es lebt nur bis zum Schließen.
     diagSpeicherDa = false;

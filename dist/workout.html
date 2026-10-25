@@ -1347,10 +1347,20 @@ textarea.io {
 
 /* Das Diagnoseprotokoll unter Mehr → Daten: der Kasten zum Abfotografieren
    (Lage und letzte acht Einträge) bricht lange Zeilen um, statt seitlich zu
-   rollen – sonst stünde auf dem Foto nur der Anfang jeder Zeile. */
+   rollen – sonst stünde auf dem Foto nur der Anfang jeder Zeile.
+   Umbrochen wird an Wortgrenzen und nur ein Wort, das allein nicht in die
+   Zeile passt, mittendrin (overflow-wrap: anywhere). Und der Kasten hat keine
+   feste Höhe: Gefunden beim Gegenlesen – mit word-break: break-all („Ti pp",
+   „Ablag e") und max-height 260px endete er bei 414 px noch im Kopf, die
+   letzten acht Einträge lagen unsichtbar darunter, und ein Foto zeigte keinen
+   davon. Jetzt zeigt er alles; bei 414 × 896 und Einträgen üblicher Länge
+   ist er rund 560 px hoch, passt also auf einen Bildschirm
+   (tests/test-diagnose.mjs, Fall 7). Sehr lange Zeilen machen ihn höher,
+   verstecken aber nichts. */
 pre.io {
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: normal;
+  overflow-wrap: anywhere;
   margin: 10px 0 0;
   background: var(--bg-elev-2);
   border: 1px solid var(--line);
@@ -1360,8 +1370,6 @@ pre.io {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .diagnose-lage {
-  max-height: 260px;
-  overflow: auto;
   font-size: 11px;
   line-height: 1.35;
 }
@@ -1994,7 +2002,7 @@ function monthGrid(iso) {
  *   Abschaltbar.  Ein Schalter (Standard an), „Löschen" daneben, und „Alle
  *                 Daten löschen" räumt es mit.
  *   Wenig.        Kennungen und Zahlen, keine Inhalte: die Einheit als Nummer,
- *                 die Übung als Kennung, der Satz als Index – keine Gewichte,
+ *                 die Übung als Kennung, der Satz als „2 von 3" – keine Gewichte,
  *                 keine Wiederholungen, kein Name, keine Beschwerden, keine
  *                 Eingaben, keine Schlüssel. Jede Adresse verliert Anker,
  *                 Anfrage und Herkunft (diagnoseSauber()): Im Anker eines
@@ -2010,7 +2018,7 @@ function monthGrid(iso) {
  * Ein Eintrag ist eine Textzeile, kein JSON: Anhängen kostet nichts, Kürzen ist
  * ein indexOf('\n'), und der Text, den man teilt, *ist* das Protokoll.
  *
- *     2026-10-24 18:01:03.120 satz n=12 mode=db ex=goblet-squat i=1 done=true …
+ *     2026-10-24 18:01:03.120 satz einheit=12 mode=db ex=goblet-squat satz=2 von=3 done=true …
  *
  *   Zeit   Ortszeit mit Millisekunden – das Ton-Timing spielt in Fenstern von
  *          20 ms und 1,2 s. Aus den Teilen des Datums gebaut, nicht mit
@@ -2028,8 +2036,11 @@ function monthGrid(iso) {
  *
  *   start       Start der Seite: Einzeldatei, Anzeige, Browser, Fenster,
  *               Zeitzone, Netz, Speicherlage, Größen, Plan, Grund des Neuladens;
- *               eine zweite Zeile mit der Fassung aus dem Zwischenspeicher
- *   sw          Service Worker: registriert, Update, Zustand, Wechsel, Notausgang
+ *               eine zweite Zeile mit der Fassung aus dem Zwischenspeicher, auf
+ *               Android eine dritte mit der Version, die der User-Agent
+ *               verschweigt
+ *   sw          Service Worker: registriert, Update, Zustand, Wechsel, Notausgang,
+ *               die Fassung, sobald ein neuer Zwischenspeicher steht
  *   fehler      jeder Fehler, den niemand gefangen hat – mit Datei:Zeile
  *   sicht       App weg, wieder da, Neuladen
  *   netz        online / offline
@@ -2037,8 +2048,10 @@ function monthGrid(iso) {
  *               vorgemerkt, nachgeholt, verfallen (mit Grund), verpasst,
  *               verworfen, erklungen, abgesagt
  *   pause       Start, Auflegen (Ton und Hinweis), Ablauf oder Abbruch mit dem,
- *               was endRest() entschied, weg, +30 s, Hinweis gefeuert, Wakelock
- *   satz        ein Haken: Einheit, Modus, Übung, Index, was danach kam
+ *               was endRest() entschied, weg, +30 s, Hinweis gezeigt oder
+ *               gescheitert (mit Grund), Wakelock
+ *   satz        ein Haken: Einheit, Modus, Übung, Satz (ab 1, wie in der Pause),
+ *               was danach kam
  *   einheit     Start, Ende (wie, Dauer, Uhr gedeckelt), verworfen, markiert
  *   plan / tag / zusatz / nach
  *               Umzug, Umbau, Fokus, Neustart, Runde, Vorziehen, Zusatztag,
@@ -2141,6 +2154,19 @@ const DIAGNOSE_MAX_MELDUNG = 200;
  * zehn Minuten, nicht bei jeder: Der Platzhalter kostet so viel wie vier volle
  * Protokolle. Füllt in der Zwischenzeit etwas anderes den Speicher (eine andere
  * App unter derselben Adresse), greift der Weg über den Store.
+ *
+ * Und schon beim Laden, wenn ein Protokoll aus der letzten Sitzung im Speicher
+ * liegt (diagLaden()). Gefunden beim Gegenlesen: Füllte zwischen zwei
+ * Sitzungen etwas anderes den Speicher – auf github.io teilen sich alle
+ * Projekte eines Kontos die Herkunft –, scheiterte schon das erste Schreiben
+ * des Stores beim Start. Die App merkte „voll" danach nie als *Wechsel*, das
+ * Protokoll behielt seine 60 KB, und kein Satz kam an, bis die App wegschaltete.
+ * Beim Laden ist die einzige Stelle vor dem Store: Dieses Modul wird vor
+ * store.js ausgewertet (erster Import in js/app.js), also prüft es, bevor der
+ * Store das erste Mal schreibt. Gekostet wird nichts dazu – der Platzhalter
+ * der ersten Schreibung fällt dafür weg (diagPlatzZuletzt). Meldet der Store
+ * am Ende des Starts trotzdem „kann nicht", räumt js/app.js auch dann
+ * (diagnosePlatzMachen()).
  */
 const DIAGNOSE_PLATZ_KEY = 'workout.diagnose.platz';
 const DIAGNOSE_PLATZ = 256 * 1024;
@@ -2163,6 +2189,7 @@ let diagSofortZuletzt = 0;
 let diagPlatzZuletzt = 0;
 let diagStartGrund = '';
 let diagFassung = '';
+let diagSystem = '';         // die echte Android-Version, wo der User-Agent sie verschweigt (uaKurz())
 const diagMessung = { n: 0, max: 0, summe: 0, zuletzt: 0 };
 
 const diagZwei = (n) => String(n).padStart(2, '0');
@@ -2515,9 +2542,17 @@ function diagnoseSchreiben() {
 
 /**
  * Löschen. Danach steht genau eine Zeile da, die sagt, warum – außer es ist
- * abgeschaltet, dann gar keine. `reset` („Alle Daten löschen") stellt auch den
- * Schalter auf den Standard zurück, wie jede andere Einstellung; die Rückfrage
- * dort nennt die Einstellungen ausdrücklich.
+ * abgeschaltet, dann gar keine.
+ *
+ * Auch `reset` („Alle Daten löschen") lässt den Schalter, wie er ist. Bis zum
+ * Gegenlesen stellte es ihn wie jede andere Einstellung auf den Standard (an)
+ * – und wer das Protokoll bewusst abgeschaltet hatte, wurde nach dem Löschen
+ * aller Daten ab der nächsten Sekunde wieder protokolliert, ohne dass die
+ * Rückfrage oder der Einstieg es sagte. Eine Lösch-Aktion, die *mehr*
+ * mitschreiben lässt, nimmt eine Entscheidung still zurück; der Rückkanal hat
+ * dafür den Einstieg, der seinen Schalter neu zeigt, das Protokoll nicht.
+ * Ausgeschaltet bleibt es also aus, und eingeschaltet sagt die erste Zeile
+ * danach, warum es leer ist.
  *
  * Geschrieben wird gleich, wie beim Schalter: ein Tipp unter Mehr, und was
  * danach im Speicher steht, soll genau das sein, was die Karte zeigt.
@@ -2532,10 +2567,6 @@ function diagnoseLeeren(grund = 'tipp') {
     diagOffen = [];
     diagOffenBytes = 0;
     diagLetzte = null;
-    if (grund === 'reset') {
-      diagAn = true;
-      localStorage.removeItem(DIAGNOSE_AUS);
-    }
     localStorage.removeItem(DIAGNOSE_KEY);
   } catch { /* gesperrter Speicher – im Arbeitsspeicher ist es leer */ }
   notieren('diagnose', { was: 'geleert', grund });
@@ -2559,6 +2590,29 @@ function diagnosePlatzMachen() {
   diagWeichen('platz', '');
 }
 
+/*
+ * Die Fassung, sobald ein neuer Zwischenspeicher steht – aus js/app.js beim
+ * Aktivieren eines Service Workers und unter Mehr → Fassung, wo die Namen
+ * ohnehin gelesen werden.
+ *
+ * Gefunden beim Gegenlesen: Die Startzeile liest die Fassung einmal, und genau
+ * nach „App aktualisieren" (der Notausgang räumt alle Zwischenspeicher) und
+ * bei der ersten Installation ist da noch keiner. Im Kopf stand dann „Fassung
+ * keine", und in der geteilten Datei stand die Version nirgends – gerade dann,
+ * wenn man sie am dringendsten braucht. Jetzt kommt eine Zeile `sw
+ * was=fassung`, sobald sie sich ändert, und der Kopf nennt sie.
+ */
+const diagFassungAus = (namen) => (namen || []).map(String).filter((x) => x.startsWith('workout-')).join(',') || 'keine';
+
+function diagnoseFassung(namen) {
+  try {
+    const f = diagFassungAus(namen);
+    if (f === diagFassung) return;
+    diagFassung = f;
+    notieren('sw', { was: 'fassung', fassung: f });
+  } catch { /* s. o. */ }
+}
+
 /** Vor einem Neuladen, das die App selbst auslöst: warum (für die nächste Startzeile). */
 function diagnoseGrundMerken(wort) {
   try { sessionStorage.setItem(DIAGNOSE_GRUND, wort); } catch { /* dann eben ohne */ }
@@ -2572,13 +2626,44 @@ function diagnoseGrundMerken(wort) {
 const DIAG_BROWSER = ['SamsungBrowser', 'EdgA', 'Edg', 'OPR', 'FxiOS', 'CriOS', 'Firefox', 'Chrome', 'Version'];
 const DIAG_SYSTEM = [/Android \d+/, /iPhone OS \d+/, /CPU OS \d+/, /Windows NT [\d.]+/, /Mac OS X [\d_]+/, /CrOS/, /Linux/];
 
-/** Browser und System kurz, etwa „Chrome/130,Android/14" – ganz steht er im Kopf. */
-function uaKurz(ua = navigator.userAgent || '') {
+/*
+ * Der eingefrorene User-Agent: Seit Chrome 110 steht auf Android immer
+ * „Linux; Android 10; K" darin, egal welches Android läuft (und ebenso in den
+ * Browsern, die darauf aufbauen). Gefunden beim Gegenlesen: Das Protokoll
+ * schrieb in Tobis Chrome „Android/10" in jede Datei – und ein altes Android
+ * wäre genau die falsche Spur bei einem Tonproblem. Ehrlich ist „Android/?",
+ * und die echte Version kommt aus navigator.userAgentData nach
+ * (diagnoseStart()). Nur die Version, nicht das Modell, das dieselbe Abfrage
+ * auch hergäbe: Für das Verhalten von Ton, Speicher und Worker zählen Browser
+ * und Android-Version; das Modell wäre mehr, als es braucht („Wenig").
+ */
+const DIAG_EINGEFROREN = /Android 10; K\)/;
+
+/**
+ * Browser und System kurz, etwa „Chrome/130,Android/14" – ganz steht er im
+ * Kopf. `system` ersetzt eine Android-Version, die der User-Agent verschweigt.
+ */
+function uaKurz(ua = navigator.userAgent || '', system = diagSystem) {
   const b = DIAG_BROWSER.map((n) => ua.match(new RegExp(`${n}/(\\d+)`))).find(Boolean);
   const name = b ? b[0].slice(0, b[0].indexOf('/')) : '';
   const browser = b ? `${name === 'Version' ? 'Safari' : name}/${b[1]}` : '?';
+  if (DIAG_EINGEFROREN.test(ua)) return `${browser},${system || 'Android/?'}`;
   const s = DIAG_SYSTEM.map((r) => ua.match(r)).find(Boolean);
   return `${browser},${s ? s[0].replace(/ (?=\d)/, '/').replace(/ /g, '').replace(/_/g, '.') : '?'}`;
+}
+
+/* Die Android-Version nachfragen, wo der User-Agent sie verschweigt – asynchron, still bei jedem Fehler. */
+function diagSystemNachfragen() {
+  try {
+    const uad = navigator.userAgentData;
+    if (!DIAG_EINGEFROREN.test(navigator.userAgent || '') || !uad || typeof uad.getHighEntropyValues !== 'function') return;
+    uad.getHighEntropyValues(['platformVersion']).then((h) => {
+      const v = String((h && h.platformVersion) || '').split('.')[0];
+      if (!/^\d+$/.test(v) || (h.platform && h.platform !== 'Android')) return;
+      diagSystem = `Android/${v}`;
+      notieren('start', { system: diagSystem });
+    }).catch(() => {});
+  } catch { /* dann bleibt es bei „Android/?" */ }
 }
 
 /** Läuft die Seite als installierte App? */
@@ -2608,10 +2693,11 @@ function diagnoseStart(daten = {}) {
     ...daten,
     grund: diagStartGrund || '-',
   });
+  diagSystemNachfragen();
   try {
     if (daten.einzeldatei || !window.caches) return;
     caches.keys().then((k) => {
-      diagFassung = k.filter((x) => x.startsWith('workout-')).join(',') || 'keine';
+      diagFassung = diagFassungAus(k);
       notieren('start', { fassung: diagFassung });
     }).catch(() => {});
   } catch { /* kein Zwischenspeicher – dann eben ohne Fassung */ }
@@ -2678,6 +2764,10 @@ function diagLaden() {
     const t = diagKuerzen(roh && !roh.endsWith('\n') ? `${roh}\n` : roh);
     diagKoerper = t;
     diagGeaendert = t !== roh;
+    // Vor dem Store: Ist der Speicher seit der letzten Sitzung knapp geworden,
+    // weicht das Protokoll jetzt, nicht erst nach dem ersten verlorenen Satz
+    // (siehe DIAGNOSE_PLATZ).
+    if (roh && !diagPlatzReicht()) diagWeichen('knapp', t);
   } catch {
     // Privates Fenster, blockierte Website-Daten: Es lebt nur bis zum Schließen.
     diagSpeicherDa = false;
@@ -15485,7 +15575,8 @@ function resetAll() {
     localStorage.removeItem(KEY);
     localStorage.removeItem(KEY_RUNDEN);
     localStorage.removeItem('workout.satzuhr.v1');   // Pausenuhr der Supersätze (js/app.js)
-    // workout.diagnose.* räumt js/app.js (reset-all, diagnoseLeeren('reset')).
+    // Das Diagnoseprotokoll räumt js/app.js (reset-all, diagnoseLeeren('reset'));
+    // seinen Schalter workout.diagnose.aus lässt es stehen.
   } catch { /* ignorieren */ }
   persist();
   emit();
@@ -23634,10 +23725,12 @@ function planNote(secs, text) {
 
   noteTimer = setTimeout(() => {
     noteTimer = null;
-    notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: document.hidden });
     // Nur, wenn die App gerade nicht zu sehen ist: Wer davorsitzt, hört den Ton
     // und sieht die Leiste – eine Systemmeldung wäre da nur Lärm.
-    if (!document.hidden) return;
+    if (!document.hidden) {
+      notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: false, grund: 'sichtbar' });
+      return;
+    }
     const opt = {
       body: text,
       tag: NOTE_TAG,          // ersetzt eine ältere, statt sie zu stapeln
@@ -23647,10 +23740,26 @@ function planNote(secs, text) {
       badge: './badge-96.png',
       vibrate: [180, 90, 180],
     };
+    // Fürs Diagnoseprotokoll erst das Ergebnis, nicht den Versuch: Bis zum
+    // Gegenlesen stand hier vorher „gezeigt=true", und ein Fehlschlag verschwand
+    // im catch – auf Chrome Android wirft `new Notification()` ohne Service
+    // Worker („Illegal constructor"), und genau die Frage „kam die Meldung?"
+    // war damit falsch beantwortet.
+    let ueber;   // bleibt leer, wenn schon die Frage nach dem Worker scheitert
     swReg().then((reg) => {
-      if (reg) reg.showNotification('Pause vorbei', opt);
-      else new Notification('Pause vorbei', opt);
-    }).catch(() => {});
+      if (reg) {
+        ueber = 'worker';
+        return reg.showNotification('Pause vorbei', opt);
+      }
+      ueber = 'konstruktor';
+      new Notification('Pause vorbei', opt);
+      return undefined;
+    }).then(
+      () => notieren('pause', { was: 'meldung', weg: 'seite', gezeigt: true, ueber }),
+      (e) => notieren('pause', {
+        was: 'meldung', weg: 'seite', gezeigt: false, ueber, name: (e && e.name) || 'Fehler', msg: e && e.message,
+      }),
+    );
   }, Math.max(0, secs) * 1000);
 }
 
@@ -23801,10 +23910,15 @@ function endRest(withSignal) {
   const frisch = !vorbei || Date.now() - vorbei.endsAt < NACHKLANG_MS;
   const ersatz = withSignal && frisch && stand !== 'erklungen' && stand !== 'laeuft';
   // Die Stelle von „Jetzt fehlt iwie die Pause": was hier entschieden wurde.
+  // `spaet` nur nach dem Ende, davor `rest` (wie viel noch übrig war) – beim
+  // Gegenlesen stand bei einem Abbruch „spaet=-4", und der Name sagte das
+  // Gegenteil.
+  const ueberzogen = vorbei ? Math.round((Date.now() - vorbei.endsAt) / 1000) : undefined;
   notieren('pause', {
     was: withSignal ? 'ablauf' : 'abbruch', stand, frisch, ersatz, toene: !!store.getState().sound,
     leiste: !restBar.hidden, sichtbar: !document.hidden,
-    spaet: vorbei ? Math.round((Date.now() - vorbei.endsAt) / 1000) : undefined,
+    spaet: ueberzogen !== undefined && ueberzogen >= 0 ? ueberzogen : undefined,
+    rest: ueberzogen !== undefined && ueberzogen < 0 ? -ueberzogen : undefined,
   });
   if (ersatz) sound('rest', vorbei ? { faellig: vorbei.endsAt, bis: vorbei.endsAt + NACHKLANG_MS } : undefined);
   cancelSound({ ausklingen: withSignal, ersetzt: ersatz ? 'rest' : null });
@@ -29207,6 +29321,9 @@ function showVersion() {
   caches.keys().then((keys) => {
     const mine = keys.filter((k) => k.startsWith('workout-'));
     host.textContent = `${plan} · Zwischenspeicher: ${mine.join(', ') || 'keiner'}`;
+    // Was hier steht, soll auch der Kopf des Protokolls sagen – außer in der
+    // Einzeldatei, die gar keinen Zwischenspeicher hat (dort sagt er „Einzeldatei").
+    if (!EINZELDATEI) diagnoseFassung(keys);
   }).catch(() => { host.textContent = plan; });
 }
 
@@ -30224,7 +30341,7 @@ function diagnoseKopf() {
       + `${zwei(jetzt.getHours())}:${zwei(jetzt.getMinutes())} · Zeitzone ${diagnoseZone(jetzt)} · bleibt auf dem Gerät, geteilt nur auf Tipp`,
     `${fassung} · ${anzeige} · ${uaKurz()} · ${window.innerWidth}x${window.innerHeight} · ${navigator.onLine ? 'online' : 'offline'}`,
     `Speicher ${speicher}, ${s.dauerhaft ? 'dauerhaft zugesagt' : 'nichts zugesagt'} · Stand ${kb('workout.state.v1')} KB`
-      + ` · Ablage ${kb('workout.rounds.v1')} KB · Protokoll ${st.zeilen} Zeilen / ${Math.round(st.bytes / 1024)} KB`
+      + ` · Ablage ${kb('workout.rounds.v1')} KB · Protokoll ${plural(st.zeilen, 'Zeile', 'Zeilen')} / ${Math.round(st.bytes / 1024)} KB`
       + `${st.von ? ` seit ${stempelKurz(st.von)}` : ''}${st.nurRam ? ` · nur im Arbeitsspeicher (${st.warum})` : ''}`,
     `Ton ${ton} · ${t.gespielt} gespielt, ${t.verpasst} verpasst (${t.gesperrt} vor der ersten Berührung), `
       + `${t.verspaetet} verspätet · frei ${t.frei ? 'ja' : 'nein'} · klemmt ${t.klemmt ? 'ja' : 'nein'}`
@@ -30274,7 +30391,7 @@ function diagnoseKarte() {
         aria-label="Diagnoseprotokoll" style="margin-top:10px"></textarea>` : ''}
       <div class="small muted" style="margin-top:8px">${st.zeilen ? `Zum Abfotografieren reicht der
         Kasten: oben die Lage, darunter die letzten acht Einträge. ` : ''}<i>Alle Daten löschen</i>
-        räumt das Protokoll mit und stellt diesen Schalter wieder an.</div>
+        räumt das Protokoll mit; der Schalter bleibt, wie er ist.</div>
     </div>`;
 }
 
@@ -30286,24 +30403,33 @@ function diagnoseZeigen() {
   const stand = document.getElementById('diagnoseStand');
   if (!stand) return;
   const st = diagnoseStand();
+  // „1 Einträge" stand nach jedem Löschen da (die eine Zeile, die sagt, warum)
+  // – gefunden beim Gegenlesen.
+  const eintraege = plural(st.zeilen, 'Eintrag', 'Einträge');
   if (!st.an) {
     stand.textContent = `Abgeschaltet – es wird nichts mehr mitgeschrieben.${st.zeilen
-      ? ` Was da ist (${st.zeilen} Einträge), bleibt bis zum Löschen.` : ''}`;
+      ? ` Was da ist (${eintraege}), bleibt bis zum Löschen.` : ''}`;
   } else if (!st.zeilen) {
     stand.textContent = 'Noch nichts mitgeschrieben – kommt mit dem nächsten Start.';
   } else if (st.nurRam) {
     stand.textContent = st.speicherDa
-      ? `${st.zeilen} Einträge. Der Speicher ist knapp – das Protokoll läuft bis zum nächsten Start nur im Arbeitsspeicher und gibt seinen Platz dem Training. Teilen geht trotzdem.`
-      : `${st.zeilen} Einträge. Dieser Browser lässt nichts speichern – das Protokoll lebt nur, bis die Seite zugeht. Teilen geht trotzdem.`;
+      ? `${eintraege}. Der Speicher ist knapp – das Protokoll läuft bis zum nächsten Start nur im Arbeitsspeicher und gibt seinen Platz dem Training. Teilen geht trotzdem.`
+      : `${eintraege}. Dieser Browser lässt nichts speichern – das Protokoll lebt nur, bis die Seite zugeht. Teilen geht trotzdem.`;
   } else {
-    stand.textContent = `${st.zeilen} Einträge seit ${stempelKurz(st.von)} · ${Math.max(1, Math.round(st.bytes / 1024))} KB`
+    stand.textContent = `${eintraege} seit ${stempelKurz(st.von)} · ${Math.max(1, Math.round(st.bytes / 1024))} KB`
       + ` · ${st.fehler} Fehler`
       + `${st.schreibungen ? ` · zuletzt geschrieben ${new Date(st.zuletzt).toTimeString().slice(0, 8)}`
         + ` (längste Schreibung ${msKurz(st.schreibMsMax)})` : ' · in dieser Sitzung noch nicht geschrieben'}.`;
   }
   const kopf = diagnoseKopf();
   const lage = document.getElementById('diagnoseLage');
-  if (lage) lage.textContent = `${kopf.join('\n')}\n---\n${diagnoseZeilen().slice(-8).join('\n')}`;
+  // Der Kasten ohne die Zeile „UA: …": Am Handy sind das vier umbrochene
+  // Zeilen, und Browser und System stehen kurz schon in der zweiten. Ganz steht
+  // sie im geteilten Text. Gefunden beim Gegenlesen: Mit ihr und einer festen
+  // Höhe zeigte der Kasten bei 414 px keinen der letzten acht Einträge.
+  if (lage) {
+    lage.textContent = `${kopf.filter((z) => !z.startsWith('UA: ')).join('\n')}\n---\n${diagnoseZeilen().slice(-8).join('\n')}`;
+  }
   const ta = document.getElementById('diagnoseText');
   if (ta) {
     ta.value = diagnoseText(kopf);
@@ -31002,7 +31128,7 @@ view.addEventListener('click', (e) => {
       // „Weiter: …" davon. Zurücknehmen geht weiter – das ist ein Haken in
       // diesem Modus, der wirklich dasteht.
       if (!cur && saetzeErledigt(n, id, item.sets) >= item.sets) {
-        notieren('satz', { n, mode, ex: id, i, abgelehnt: 'fertig' });
+        notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, abgelehnt: 'fertig' });
         toast(`${variant.name}: schon fertig – die Sätze ${mode === 'bw' ? 'mit Hanteln' : 'ohne Hanteln'} zählen mit`);
         break;
       }
@@ -31041,7 +31167,7 @@ view.addEventListener('click', (e) => {
       // einheitBeenden(), derselben Stelle wie beim Knopf. Sonst wäre
       // „automatisch beendet" nur halb beendet.
       if (workoutComplete && store.getState().session) {
-        notieren('satz', { n, mode, ex: id, i, done, fertig: true });
+        notieren('satz', { einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, fertig: true });
         const gestiegen = einheitBeenden();
         sound('done');
         render();
@@ -31070,8 +31196,12 @@ view.addEventListener('click', (e) => {
       // gewartet wird – beides hängt am Partner. Übernimmt er, ist hier Schluss.
       const imWechsel = done && !workoutComplete && superWeiter(n, mode, id);
       // Ein Haken fürs Diagnoseprotokoll: was danach kommt – nie das Gewicht.
+      // Der Satz ab 1 und „von", wie in der Pausen-Zeile daneben; die Einheit
+      // heißt `einheit`, nicht `n` – gefunden beim Gegenlesen: „satz n=1 … i=0"
+      // und gleich darauf „pause … satz=1" las sich wie zwei Sätze.
       notieren('satz', {
-        n, mode, ex: id, i, done, exFertig: exDone, fertig: workoutComplete, super: !!imWechsel,
+        einheit: n, mode, ex: id, satz: i + 1, von: item.sets, done, exFertig: exDone, fertig: workoutComplete,
+        super: !!imWechsel,
         pause: !imWechsel && done && !workoutComplete && !exDone && i < item.sets - 1 ? restFor(variant) : 0,
       });
 
@@ -32093,9 +32223,10 @@ view.addEventListener('click', (e) => {
         const id = s0.deviceId && (meldetMit() || s0.lastShare) ? s0.deviceId : null;
         if (id) loeschen(id);
         store.resetAll();
-        // Das Diagnoseprotokoll räumt mit, und sein Schalter geht auf den
-        // Standard (an) – wie jede andere Einstellung. Die erste Zeile danach
-        // sagt, warum es leer ist.
+        // Das Diagnoseprotokoll räumt mit; sein Schalter bleibt, wie er war –
+        // ein Löschen soll nie dazu führen, dass mehr mitgeschrieben wird
+        // (diagnoseLeeren()). Ist es an, sagt die erste Zeile danach, warum es
+        // leer ist.
         diagnoseLeeren('reset');
         ui.workoutNo = naechsteEinheit();
         render();
@@ -32390,7 +32521,15 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // dort unnötig. Und nur einmal je Sitzung, damit ein kaputter Service
   // Worker die Seite nicht in eine Schleife schickt.
   const hadController = !!navigator.serviceWorker.controller;
+  // Die Fassung fürs Diagnoseprotokoll nachziehen, sobald ein Worker aktiviert
+  // ist oder die Seite übernimmt: Dann steht sein Zwischenspeicher. Nach „App
+  // aktualisieren" (der Notausgang räumt alle) und bei der ersten Installation
+  // hatte die Startzeile noch keinen gesehen – siehe diagnoseFassung().
+  const fassungNachziehen = () => {
+    if (window.caches) caches.keys().then(diagnoseFassung).catch(() => {});
+  };
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    fassungNachziehen();
     if (!hadController) {
       notieren('sw', { was: 'controllerchange', erster: true, reload: false });
       return;
@@ -32425,7 +32564,12 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       reg.addEventListener('updatefound', () => {
         const w = reg.installing;
         notieren('sw', { was: 'update' });
-        if (w) w.addEventListener('statechange', () => notieren('sw', { was: 'zustand', zustand: w.state }));
+        if (w) {
+          w.addEventListener('statechange', () => {
+            notieren('sw', { was: 'zustand', zustand: w.state });
+            if (w.state === 'activated') fassungNachziehen();
+          });
+        }
       });
     }).catch((e) => {
       // Kein Offline-Betrieb, aber die App läuft normal weiter.
@@ -32735,6 +32879,12 @@ if (gestiegenBeimStart || zusatzBeimStart) {
  * Sonst zöge jeder abgehakte Satz einen zweiten Neuaufbau nach sich.
  */
 let speicherStand = store.canPersist();
+// Kann der Store schon jetzt, am Ende des Starts, nicht schreiben, kommt der
+// Wechsel unten nie – und das Protokoll behielte seinen Platz. Gefunden beim
+// Gegenlesen (Speicher zwischen zwei Sitzungen von außen gefüllt): Kein Satz
+// kam an, bis die App wegschaltete. Meist hat js/diagnose.js schon beim Laden
+// geräumt (DIAGNOSE_PLATZ); das hier ist der zweite Riegel.
+if (!speicherStand) diagnosePlatzMachen();
 store.subscribe(() => {
   if (store.canPersist() === speicherStand) return;
   speicherStand = store.canPersist();

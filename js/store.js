@@ -1699,7 +1699,8 @@ export function resetAll() {
     localStorage.removeItem(KEY);
     localStorage.removeItem(KEY_RUNDEN);
     localStorage.removeItem('workout.satzuhr.v1');   // Pausenuhr der Supersätze (js/app.js)
-    // workout.diagnose.* räumt js/app.js (reset-all, diagnoseLeeren('reset')).
+    // Das Diagnoseprotokoll räumt js/app.js (reset-all, diagnoseLeeren('reset'));
+    // seinen Schalter workout.diagnose.aus lässt es stehen.
   } catch { /* ignorieren */ }
   persist();
   emit();

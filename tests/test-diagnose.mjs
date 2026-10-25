@@ -8,17 +8,23 @@
  * Gemessen wird, was die Zusage ausmacht, nicht nur, dass Zeilen entstehen:
  *
  *   1. Start: eine Startzeile mit Browser, Fenster, Zeitzone, Speicherlage und
- *      Plan; die Fassung aus dem Zwischenspeicher eine Zeile später; der Grund
- *      eines Neuladens, das die App selbst auslöst; installiert oder nicht. Im
- *      Speicher steht sie erst mit dem Wegschalten – nie im Start selbst.
+ *      Plan; die Fassung aus dem Zwischenspeicher eine Zeile später – bei der
+ *      ersten Installation nachgezogen, sobald der Worker steht; der Grund
+ *      eines Neuladens, das die App selbst auslöst; installiert oder nicht; auf
+ *      Android mit eingefrorenem User-Agent nie „Android/10", sondern die
+ *      Version aus userAgentData (oder ehrlich „?"). Im Speicher steht sie erst
+ *      mit dem Wegschalten – nie im Start selbst.
  *   2. Keine Last im Training: Abgehakte Sätze schreiben das Protokoll nicht –
  *      null setItem auf seinen Schlüssel im Tipp, der Store schreibt wie immer.
- *      Geschrieben wird gebündelt, eine Schreibung für alles, was anstand.
+ *      Geschrieben wird gebündelt, eine Schreibung für alles, was anstand. Der
+ *      Satz steht ab 1 da, wie in der Pausen-Zeile.
  *   3. Fehler landen sofort im Speicher – geworfene, abgelehnte Versprechen,
  *      fehlende Dateien –, eine Flut als eine Zeile mit „×n", und weder ein
  *      Schlüssel aus dem Anker noch der zitierte Anfang eines JSON-Textes.
  *   4. Pause und Ton: Start, Auflegen, Ablauf mit dem, was endRest() entschied,
- *      Wegtippen, +30 s, der Kontext und woher er kam. Ohne Berührung: der Ton
+ *      Wegtippen (mit „rest", nie einem negativen „spaet"), +30 s, der Kontext
+ *      und woher er kam. Die Meldung „Pause vorbei" von der Seite mit ihrem
+ *      Ergebnis – gezeigt oder gescheitert, mit Grund. Ohne Berührung: der Ton
  *      vorgemerkt, mit der ersten Berührung nachgeholt – oder nach der Frist
  *      verfallen, mit Grund; ein fälliges Signal ohne Kontext als verpasst.
  *   5. Tagesabschluss: Die liegen gebliebene Einheit schließt sich ab, die
@@ -27,19 +33,22 @@
  *   6. Sicherung: gelungen und gescheitert, mit Grund – und weder der Schlüssel
  *      noch die Kennung im Protokoll; keine Anfrage trägt eine Protokollzeile.
  *   7. Ansehen: die Karte unter Mehr → Daten mit Zusammenfassung, der Lage zum
- *      Abfotografieren und dem ganzen Text.
+ *      Abfotografieren und dem ganzen Text. Der Kasten zeigt bei 414 × 896
+ *      alles, passt auf einen Bildschirm und bricht kein Wort mittendrin.
  *   8. Teilen: eine .txt mit genau text/plain, Kopf oben – ohne Namen, Gewicht,
  *      Sicherungsschlüssel, Wiederherstellungslink, Betreiber-Passwort oder
  *      Server-Schlüssel. Abbruch still, Ablehnung endet im Download.
  *   9. Kopieren: in die Zwischenablage, sonst markiert im Feld.
- *  10. Löschen leert, der Schalter aus schreibt nichts mehr – auch nach dem
- *      Neuladen nicht –, und „Alle Daten löschen" räumt mit und stellt ihn an.
+ *  10. Löschen leert („1 Eintrag" danach), der Schalter aus schreibt nichts
+ *      mehr – auch nach dem Neuladen nicht –, und „Alle Daten löschen" räumt
+ *      mit und lässt den Schalter, wie er ist: aus bleibt aus.
  *  11. Ringpuffer: 64 KB, das Älteste fällt vorn weg; Zeilen älter als 14 Tage
  *      fallen beim Laden weg.
  *  12. Volle Ablage: Meldet der Store „voll", gibt das Protokoll seinen Platz
  *      sofort frei und läuft im Arbeitsspeicher weiter; ist der Speicher knapp,
- *      legt es sich gar nicht erst hinein. Nichts bricht, das Training geht
- *      weiter, Teilen geht weiter.
+ *      legt es sich gar nicht erst hinein; ist er schon beim Laden voll, weicht
+ *      das Protokoll der letzten Sitzung, bevor der erste Satz scheitert.
+ *      Nichts bricht, das Training geht weiter, Teilen geht weiter.
  *  13. Nichts geht raus: js/diagnose.js hat keinen Weg nach draußen, die Knöpfe
  *      lösen keine Anfrage aus, die Sicherungsdatei kennt das Protokoll nicht.
  *  14. Die Einzeldatei: läuft ohne Fehler, sagt „einzeldatei=true", hat die
@@ -51,6 +60,12 @@
  * 14 schon vorher rot: kein Fehler im Speicher, kein Protokoll, keine
  * Startzeile, keine Karte. Grün bleiben nur die Vorbereitung („der Speicher ist
  * dicht") und „14 Einzeldatei: keine Fehler".
+ *
+ * Nachgebessert nach dem Gegenlesen; die neuen Prüfungen gegen 5c6254a (die
+ * erste Fassung des Protokolls): 19 rot – Fassung nach der ersten
+ * Installation (2), „Android/10" (3), Satz ab 0 (2), negatives „spaet" (1),
+ * „gezeigt=true" vor dem Versuch (2), der Kasten (3), „1 Einträge" (1), „Alle
+ * Daten löschen" schaltet ein (3), voll schon beim Laden (2).
  *
  * DIAGNOSE_NUR=1,5 lässt nur diese Abschnitte laufen.
  */
@@ -84,9 +99,9 @@ const GRUND = {
  * `zustand` wird vor dem ersten Laden gesät, `vorher` läuft vor jedem Laden
  * (Attrappen). `window.__hidden` schaltet die App weg.
  */
-async function fall(name, { zustand = GRUND, sw = false, vorher = null, adresse = URL } = {}) {
+async function fall(name, { zustand = GRUND, sw = false, vorher = null, adresse = URL, ua = undefined } = {}) {
   const ctx = await browser.newContext({
-    viewport: { width: 414, height: 896 }, serviceWorkers: sw ? 'allow' : 'block', acceptDownloads: true,
+    viewport: { width: 414, height: 896 }, serviceWorkers: sw ? 'allow' : 'block', acceptDownloads: true, userAgent: ua,
   });
   offen.add(ctx);
   await ctx.route('**/rest/v1/**', (r) => r.fulfill({ status: 204, body: '' }));
@@ -186,6 +201,19 @@ await abschnitt(1, async () => {
   check(!s.includes(NAME), 'kein Name in der Startzeile');
   check(await f.gespeichert() === null,
     'im Start selbst wird nicht geschrieben – die Zeilen warten auf die Drossel');
+  // Die erste Installation: Beim Start gab es noch keinen Zwischenspeicher. Ist
+  // der Worker aktiviert, zieht die App die Fassung nach – vorher stand im Kopf
+  // „Fassung keine" (und nach „App aktualisieren" ebenso).
+  await f.page.evaluate(() => navigator.serviceWorker.ready);
+  await f.page.waitForTimeout(600);
+  z = await f.zeilen();
+  check(hat(z, / start fassung=keine/) && hat(z, / sw was=fassung fassung=workout-v\d+/)
+    && /^workout-v\d+$/.test((await f.stand()).fassung),
+  `erste Installation: erst „keine", dann die Fassung, sobald der Worker steht (${zeige(z, /was=fassung/).slice(24)})`);
+  await f.zuMehr();
+  const kopf2 = ((await f.page.locator('#diagnoseLage').textContent()) || '').split('\n')[1] || '';
+  check(/^Fassung workout-v\d+ · /.test(kopf2), `und der Kopf nennt sie (${kopf2.slice(0, 60)})`);
+  await f.page.locator('.tab[data-tab="dashboard"]').click();
   await f.weg();
   await f.page.waitForTimeout(100);
   const nachWeg = (await f.gespeichert()) || '';
@@ -218,6 +246,42 @@ await abschnitt(1, async () => {
   });
   check(hat(await g.zeilen(), / start anzeige=standalone/), 'als installierte App: anzeige=standalone');
   await ende(g);
+
+  // Chrome auf Android friert den User-Agent ein: immer „Android 10; K", egal
+  // welches Android läuft. Die echte Version kommt aus navigator.userAgentData –
+  // nur die Version, nicht das Modell.
+  const ANDROID = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
+  const a = await fall('1 Android', {
+    ua: ANDROID,
+    vorher: () => {
+      Object.defineProperty(navigator, 'userAgentData', {
+        configurable: true,
+        value: {
+          platform: 'Android', mobile: true, brands: [],
+          getHighEntropyValues: async () => ({ platform: 'Android', platformVersion: '14.0.0', model: 'Pixel 7' }),
+        },
+      });
+    },
+  });
+  z = await a.zeilen();
+  await a.zuMehr();
+  let kopf = ((await a.page.locator('#diagnoseLage').textContent()) || '').split('\n')[1] || '';
+  check(hat(z, / start anzeige=\S+ ua=Chrome\/130,Android\/\? /) && hat(z, / start system=Android\/14$/),
+    `eingefrorener User-Agent: erst „Android/?", dann die echte Version (${zeige(z, /system=/).slice(24)})`);
+  check(/Chrome\/130,Android\/14 · /.test(kopf) && !z.join('\n').includes('Android/10') && !kopf.includes('Android/10'),
+    `nirgends „Android/10", der Kopf nennt Android 14 (${kopf.slice(0, 70)})`);
+  check(!z.join('\n').includes('Pixel'), 'das Modell steht nicht drin');
+  await ende(a);
+  const b = await fall('1 Android ohne userAgentData', {
+    ua: ANDROID,
+    vorher: () => Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: undefined }),
+  });
+  z = await b.zeilen();
+  await b.zuMehr();
+  kopf = ((await b.page.locator('#diagnoseLage').textContent()) || '').split('\n')[1] || '';
+  check(/Chrome\/130,Android\/\? · /.test(kopf) && !z.join('\n').includes('Android/10'),
+    `ohne userAgentData ehrlich „Android/?" (${kopf.slice(0, 70)})`);
+  await ende(b);
 });
 
 /* ------------------------------------------------------------------ *
@@ -255,8 +319,9 @@ await abschnitt(2, async () => {
   }
   await f.page.waitForTimeout(500);
   const z = await f.zeilen();
-  check(z.filter((x) => / satz n=\d+ mode=db ex=\S+ i=\d done=true/.test(x)).length === 5,
-    `jeder Haken steht im Protokoll (${z.filter((x) => / satz /.test(x)).length} Satz-Zeilen)`);
+  // Der Satz ab 1 mit „von", wie in der Pausen-Zeile – nicht als Index ab 0.
+  check(z.filter((x) => / satz einheit=\d+ mode=db ex=\S+ satz=[1-9]\d* von=\d+ done=true/.test(x)).length === 5,
+    `jeder Haken steht im Protokoll (${z.filter((x) => / satz /.test(x)).length} Satz-Zeilen: ${zeige(z, / satz /).slice(24, 110)})`);
   check(imTipp.every((n) => n === vor) && await zahl(KEY) === vor,
     `null Schreibvorgänge des Protokolls in fünf Tipps (${imTipp.map((n) => n - vor).join(',')})`);
   check(await zahl('workout.state.v1') > stateVorher, 'der Store schreibt wie immer');
@@ -359,6 +424,11 @@ await abschnitt(4, async () => {
   check(hat(z, / pause was=auflegen rest=2 armed=true toene=true meldung=aus/), 'aufgelegt: Ton ja, Hinweis aus');
   check(hat(z, / pause was=ablauf stand=\S+ frisch=true ersatz=(true|false) toene=true leiste=true sichtbar=true spaet=0/),
     `abgelaufen – mit dem, was endRest() entschied (${zeige(z, /was=ablauf/).slice(24)})`);
+  // Derselbe Satz heißt im Haken und in der Pause gleich.
+  const haken = /satz=(\d+) von=(\d+)/.exec(zeige(z, / satz einheit=/)) || [];
+  const pz = /satz=(\d+) von=(\d+)/.exec(zeige(z, / pause was=start /)) || [];
+  check(haken[1] === '1' && haken[1] === pz[1] && haken[2] === pz[2],
+    `der erste Haken ist „satz=1", wie in der Pausen-Zeile (Haken ${haken[0] || '-'}, Pause ${pz[0] || '-'})`);
   // Zweiter Satz: Pause weggetippt.
   await f.page.locator('.focus-set:not(.on)').first().click();
   await f.page.waitForTimeout(200);
@@ -366,6 +436,8 @@ await abschnitt(4, async () => {
   z = await f.zeilen();
   check(hat(z, / pause was=weg ex=\S+ eigene=true/) && hat(z, / pause was=abbruch stand=\S+/),
     'weggetippt: „weg" und „abbruch"');
+  check(hat(z, / pause was=abbruch .* rest=[12]$/) && !hat(z, /spaet=-/),
+    `vor dem Ende abgebrochen: „rest" sagt, wie viel übrig war – kein negatives „spaet" (${zeige(z, /was=abbruch/).slice(24)})`);
   check(hat(z, / ton was=abgesagt verworfen=1/), 'und das Signal, das nicht mehr kommen soll, ist abgesagt');
   // Dritter Satz beendet die Übung, der erste der nächsten startet eine Pause: +30 s.
   await f.page.locator('.focus-set:not(.on)').first().click();
@@ -378,6 +450,41 @@ await abschnitt(4, async () => {
     `+30 s, und neu aufgelegt (${zeige(z, /auflegen rest=3/).slice(24)})`);
   check(hat(z, / satz .* exFertig=true/), 'die fertige Übung steht im Haken');
   await ende(f);
+
+  // Die Meldung „Pause vorbei" von der Seite (kein Worker): Das Protokoll sagt
+  // das Ergebnis, nicht den Versuch. Wie Chrome auf Android ohne Worker wirft
+  // der Konstruktor einmal – und einmal geht es.
+  for (const wirft of [true, false]) {
+    const m = await fall(`4 Meldung ${wirft ? 'scheitert' : 'kommt'}`, {
+      zustand: { ...GRUND, restSeconds: 2, notify: true, sound: false },
+      vorher: `(() => {
+        window.__gezeigt = 0;
+        const N = function () {
+          if (${wirft}) throw new TypeError("Failed to construct 'Notification': Illegal constructor.");
+          window.__gezeigt += 1;
+        };
+        N.permission = 'granted';
+        N.requestPermission = async () => 'granted';
+        window.Notification = N;
+      })()`,
+    });
+    await m.klick('[data-act="start-session"]', 300);
+    await m.page.locator('.focus-set:not(.on)').first().click();
+    await m.page.waitForTimeout(100);
+    await m.weg();
+    await m.page.waitForTimeout(2600);
+    z = await m.zeilen();
+    const zeile = zeige(z, /was=meldung/).slice(24);
+    if (wirft) {
+      check(hat(z, / pause was=meldung weg=seite gezeigt=false ueber=konstruktor name=TypeError msg=/) && !hat(z, /was=meldung .*gezeigt=true/),
+        `scheitert sie, steht „gezeigt=false" mit Grund da – nicht „gezeigt=true" (${zeile})`);
+    } else {
+      check(hat(z, / pause was=meldung weg=seite gezeigt=true ueber=konstruktor$/) && await m.page.evaluate(() => window.__gezeigt) === 1,
+        `kommt sie, „gezeigt=true" (${zeile})`);
+    }
+    await m.da();
+    await ende(m);
+  }
 
   // Ohne Berührung seit dem Laden: Die Pause lief vor fünf Sekunden ab.
   // Ab hier kein page.evaluate() vor dem Tipp – Playwright gäbe damit eine
@@ -489,7 +596,7 @@ await abschnitt(6, async () => {
   const alles = z.join('\n');
   check(!!m.key && !alles.includes(m.key) && !alles.includes(m.id) && !alles.includes(m.w || '-'),
     'weder Schlüssel noch Kennung noch Schreibmarke stehen im Protokoll');
-  check(lab.anfragen.every((x) => !/ start anzeige=| sicherung ok=| satz n=/.test(x.roh) && !x.url.includes('diagnose')),
+  check(lab.anfragen.every((x) => !/ start anzeige=| sicherung ok=| satz einheit=/.test(x.roh) && !x.url.includes('diagnose')),
     `keine Anfrage an den Server trägt eine Protokollzeile (${lab.anfragen.length} Anfragen geprüft)`);
   check(lab.fehler.length === 0, `6 Sicherung: keine Fehler${lab.fehler.length ? ` – ${lab.fehler[0]}` : ''}`);
   offen.delete(ctx);
@@ -534,6 +641,28 @@ await abschnitt(7, async () => {
   const lz = lage.split('\n');
   check(/^Workout-Diagnose · /.test(lz[0]) && lz.includes('---') && lz.length - lz.indexOf('---') - 1 === 8
     && / satz /.test(lage), `der Kasten: Lage oben, darunter die letzten acht Einträge (${lz.length} Zeilen)`);
+  // Zum Abfotografieren muss man sie auch sehen: Bei 414 × 896 lag mit fester
+  // Höhe keiner der acht im sichtbaren Teil, und break-all brach „Ti pp".
+  const kasten = await f.page.evaluate(() => {
+    const el = document.getElementById('diagnoseLage');
+    const knoten = el.firstChild;
+    const gebrochen = [];
+    for (const m of knoten.textContent.matchAll(/[A-Za-zÄÖÜäöüß]{3,}/g)) {
+      const r = document.createRange();
+      r.setStart(knoten, m.index);
+      r.setEnd(knoten, m.index + m[0].length);
+      if (new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1) gebrochen.push(m[0]);
+    }
+    return {
+      hoehe: Math.round(el.getBoundingClientRect().height), scroll: el.scrollHeight, client: el.clientHeight,
+      vh: window.innerHeight, ua: el.textContent.includes('UA: '), gebrochen,
+    };
+  });
+  console.log(`     Kasten: ${kasten.hoehe} px hoch, scroll ${kasten.scroll} / sichtbar ${kasten.client}`);
+  check(kasten.scroll <= kasten.client + 1 && kasten.hoehe <= kasten.vh,
+    `alles im Kasten ist sichtbar, und er passt auf einen Bildschirm (${kasten.hoehe} px bei ${kasten.vh})`);
+  check(kasten.gebrochen.length === 0, `kein Wort mitten im Wort umbrochen (${kasten.gebrochen.slice(0, 5).join(', ') || 'keins'})`);
+  check(!kasten.ua, 'die lange Zeile „UA: …" steht nur im geteilten Text, nicht im Kasten');
   await f.klick('[data-act="diagnose-ansehen"]');
   const ganz = await f.page.locator('#diagnoseText').inputValue();
   check(/^Workout-Diagnose · .* bleibt auf dem Gerät, geteilt nur auf Tipp\n/.test(ganz) && /\n---\n\d{4}-\d\d-\d\d /.test(ganz)
@@ -547,8 +676,9 @@ await abschnitt(7, async () => {
   const g = await f.page.evaluate(() => window.__geteilt);
   check(!!g && /^workout-diagnose-\d{4}-\d{2}-\d{2}\.txt$/.test(g.name || '') && g.type === 'text/plain',
     `Teilen: eine .txt mit genau text/plain (${g && g.name}, ${g && g.type})`);
-  check(!!g && /^Workout-Diagnose · /.test(g.text) && /\nFassung |\nEinzeldatei /.test(g.text) && g.text.includes('\n---\n'),
-    'oben der Kopf mit Fassung, eine Linie, dann das Protokoll');
+  check(!!g && /^Workout-Diagnose · /.test(g.text) && /\nFassung |\nEinzeldatei /.test(g.text) && g.text.includes('\n---\n')
+    && g.text.includes('\nUA: '),
+  'oben der Kopf mit Fassung und dem vollen User-Agent, eine Linie, dann das Protokoll');
   check(!!g && geheimnisse(g.text).length === 0 && !g.text.includes('eyJ'),
     `ohne Namen, Gewicht, Sicherungsschlüssel, Link, Passwort, Server-Schlüssel (${g ? geheimnisse(g.text).join(', ') || 'nichts gefunden' : '-'})`);
   check(hat(await f.zeilen(), / diagnose was=geteilt bytes=\d+/), 'das Teilen steht selbst im Protokoll');
@@ -616,14 +746,32 @@ await abschnitt(10, async () => {
   check((await f.gespeichert()) !== null && / diagnose was=geleert grund=tipp\n$/.test(await f.gespeichert())
     && (await f.zeilen()).length === 1, 'Löschen leert: danach genau eine Zeile, die sagt, warum');
   check(/Protokoll gelöscht/.test(await f.page.locator('#toast').textContent()), 'Toast „Protokoll gelöscht"');
-  // Alle Daten löschen: räumt mit und stellt den Schalter auf Standard.
+  const nachLoeschen = (await f.page.locator('#diagnoseStand').textContent()) || '';
+  check(/^1 Eintrag seit /.test(nachLoeschen), `„1 Eintrag", nicht „1 Einträge" (${nachLoeschen.slice(0, 40)})`);
+  // Alle Daten löschen, während es abgeschaltet ist: Es räumt mit – und bleibt
+  // aus. Ein Löschen soll nie dazu führen, dass mehr mitgeschrieben wird.
   await f.klick('[data-act="toggle-diagnose"]', 250);
   await f.klick('[data-act="reset-all"]', 500);
-  const z = await f.zeilen();
+  let z = await f.zeilen();
+  check(z.length === 0 && await f.gespeichert() === null
+    && await f.page.evaluate((k) => localStorage.getItem(k), AUS) === '1'
+    && !(await f.page.evaluate(async (d) => (await import(d)).diagnoseAn(), D)),
+  `„Alle Daten löschen" bei abgeschaltetem Protokoll: leer, und es bleibt aus (${z.length} Zeilen, ${z[0] ? z[0].slice(24) : '-'})`);
+  // Neu eingerichtet (der Einstieg nach dem Zurücksetzen, hier abgekürzt): Der
+  // Schalter steht weiter aus, auch nach dem Neuladen.
+  await f.page.evaluate((s) => sessionStorage.setItem('__neu', JSON.stringify(s)), GRUND);
+  await f.neu();
+  check((await f.zeilen()).length === 0, 'nach dem Neuladen: keine Startzeile, es ist aus');
+  await f.zuMehr();
+  check(await f.page.locator('[data-act="toggle-diagnose"]').getAttribute('aria-pressed') === 'false', 'der Schalter steht aus');
+  // Eingeschaltet: „Alle Daten löschen" hinterlässt die eine Zeile, die sagt, warum.
+  await f.klick('[data-act="toggle-diagnose"]', 250);
+  await f.klick('[data-act="reset-all"]', 500);
+  z = await f.zeilen();
   check(z.length === 1 && / diagnose was=geleert grund=reset$/.test(z[0])
     && await f.page.evaluate((k) => localStorage.getItem(k), AUS) === null
     && await f.page.evaluate(async (d) => (await import(d)).diagnoseAn(), D),
-  `„Alle Daten löschen": eine Zeile „grund=reset", der Schalter wieder an (${z.length} Zeilen)`);
+  `eingeschaltet: eine Zeile „grund=reset", der Schalter bleibt an (${z.length} Zeilen)`);
   await ende(f);
 });
 
@@ -730,6 +878,42 @@ await abschnitt(12, async () => {
   check(await g.page.evaluate(async () => (await import('./js/store.js')).canPersist()), 'und der Satz landet');
   await g.page.evaluate(RAEUMEN);
   await ende(g);
+
+  // Voll schon beim Laden: Sitzung 1 hinterlässt 60 KB Protokoll; zwischen den
+  // Sitzungen füllt eine andere Seite derselben Herkunft den Speicher (auf
+  // github.io teilen sich alle Projekte eines Kontos die Herkunft), und der
+  // Zustand liegt knapp da, wie nach einem Import von Hand – die App schreibt
+  // ihn beim Laden größer. Gefunden beim Gegenlesen: Das Protokoll behielt
+  // seine 60 KB, und kein Satz kam an, bis die App wegschaltete.
+  const h = await fall('12 voll beim Laden', { zustand: { ...GRUND, adminPass: undefined } });
+  await h.page.evaluate(async (d) => {
+    const m = await import(d);
+    for (let i = 0; i < 700; i++) m.notieren('probe', { n: 3, ex: 'goblet-squat', i, x: 'ab cd '.repeat(6) });
+    m.diagnoseSchreiben();
+  }, D);
+  const vorher = ((await h.gespeichert()) || '').length;
+  await h.page.goto(URL.replace(/index\.html$/, 'andere-seite'), { waitUntil: 'load' });
+  await h.page.evaluate(() => localStorage.setItem('workout.state.v1', JSON.stringify({
+    greeted: true, name: 'Tobi', log: {}, sound: false, restSeconds: 0, useExerciseRest: false,
+  })));
+  await h.page.evaluate(FUELLEN, 0);
+  await h.page.goto(URL, { waitUntil: 'networkidle' });
+  await h.page.waitForTimeout(400);
+  const beimLaden = { roh: await h.gespeichert(), st: await h.stand() };
+  await h.klick('[data-act="start-session"]', 300);
+  await h.page.locator('.focus-set:not(.on)').first().click();
+  await h.page.waitForTimeout(700);
+  const gespeichert = await h.page.evaluate(() => {
+    const roh = JSON.parse(localStorage.getItem('workout.state.v1') || '{}');
+    return Object.values(roh.log || {}).map((e) => Object.values(e.db || {}).flat().filter((x) => x && x.done).length)
+      .reduce((a, b) => a + b, 0);
+  });
+  check(vorher > 50000 && beimLaden.roh === null && beimLaden.st.nurRam,
+    `das Protokoll der letzten Sitzung (${vorher} Zeichen) weicht schon beim Laden (${beimLaden.st.warum || 'liegt noch drin'})`);
+  check(gespeichert === 1 && await h.page.locator('.notice.warn').count() === 0,
+    `und der erste Satz landet im Speicher, ohne Warnung (${gespeichert} gespeichert)`);
+  await h.page.evaluate(RAEUMEN);
+  await ende(h);
 });
 
 /* ------------------------------------------------------------------ *
