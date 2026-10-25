@@ -865,12 +865,15 @@ abschalten.
 
 `js/audio.js` erzeugt alle Töne per Web Audio, keiner wird geladen – das hält
 die App offline-tauglich und spart eine Datei, die veralten könnte. Ein Ton ist
-eine Folge von Sinus-Tönen; sieben gibt es: Training gestartet, Satz abgehakt,
-Übung fertig, Fertig machen, Pause vorbei, Workout komplett, Training beendet.
+eine Folge kurzer Stimmen – Sinus, Dreieck und Rechteck, mit Tiefpass, leichter
+Verstimmung und einem Rauschanschlag davor; sieben gibt es: Training gestartet,
+Satz abgehakt, Übung fertig, Fertig machen, Pause vorbei, Workout komplett,
+Training beendet.
 Der Tupfer beim Abhaken hat einen eigenen Schalter, weil er zwanzigmal pro
 Training kommt; die übrigen ein- bis zweimal.
 
-**Freischalten: mit der ersten Berührung, und nie ohne eine (v241).**
+**Freischalten: mit der ersten Berührung – ohne eine nur, wo der Browser keine
+verlangt (v241).**
 
 > „Irgendwie gibt's überhaupt keine soundeffekte mehr in der app"
 >
@@ -878,13 +881,15 @@ Training kommt; die übrigen ein- bis zweimal.
 > (mitten im Training, v236 gerade live)
 
 Mobile Browser lassen Ton nur zu, wenn der AudioContext auf eine Berührung
-zurückgeht. Chrome auf Android (im Tab und als „Zum Startbildschirm"-
-Verknüpfung) merkt sich *eine* Aktivierung für die Lebensdauer des Dokuments:
-pointerup, touchend, mousedown oder keydown – nicht touchstart, nicht
-pointerdown, nicht ein senkrechter Wisch. Danach startet ein neuer Kontext
-`running`, und `resume()` klappt auch Minuten später aus einem Zeitgeber. Ein
-Neuladen (Aktualisierung, Neustart vom Startbildschirm) ist ein neues Dokument
-und wieder gesperrt. iOS gibt einen Kontext frei, wenn `resume()` oder ein
+zurückgeht. Chrome auf Android (im Tab und als bloße „Zum Startbildschirm"-
+Verknüpfung, die im Browser öffnet) merkt sich *eine* Aktivierung für die
+Lebensdauer des Dokuments: pointerup, touchend, mousedown oder keydown – nicht
+touchstart, nicht pointerdown, nicht ein senkrechter Wisch. Danach startet ein
+neuer Kontext `running`, und `resume()` klappt auch Minuten später aus einem
+Zeitgeber. Ein Neuladen (Aktualisierung, Neustart vom Startbildschirm) ist ein
+neues Dokument und wieder gesperrt. Die installierte App im eigenen Fenster
+(WebAPK) hat laut Chromes Autoplay-Regeln gar keine Sperre – siehe unten, wie
+die App damit umgeht. iOS gibt einen Kontext frei, wenn `resume()` oder ein
 `start()` innerhalb von fünf Sekunden nach der Berührung kommt – dann dauerhaft.
 
 Bis v240 entstand der Kontext erst in den Klick-Handlern von „Training starten"
@@ -904,23 +909,49 @@ nächsten Tipp. Seit v241:
   auslöst (die Figur drehen, ein Reiter). Wo es `navigator.userActivation`
   gibt, zählt dessen `hasBeenActive`; ein touchend nach dem Scrollen schaltet
   nichts frei. Jede weitere Berührung weckt einen Kontext, der nicht läuft.
-* **Nichts legt den Kontext ohne Berührung an.** `scheduleSound()` und
+* **Ohne Berührung kein schlafender Kontext.** `scheduleSound()` und
   `playSound()` merken sich stattdessen den Wunsch: die Pause wird nach dem
   Freischalten mit frisch gerechneter Restzeit neu aufgelegt (`armRest()` als
   Rückruf – auch beim Start der Seite, wenn eine Pause den Neustart überdauert
   hat; diese Zeile fehlte bis v240); ein Ton, der sofort hätte kommen sollen,
-  kommt mit der ersten Berührung einmal nach und zählt als *verpasst*. Nur eine
-  Pause, die gerade eben zu Ende ging (unter einer Minute), bekommt den Gong
-  nach – nicht eine, die beim Neustart längst vorbei war.
+  kommt mit der ersten Berührung einmal nach. Nur eine Pause, die gerade eben
+  zu Ende ging, bekommt den Gong nach – und nur, solange die erste Berührung
+  innerhalb einer Minute nach ihrem Ende kommt (`bis` je Wunsch); danach
+  verfällt er und bleibt als *verpasst* gezählt. Die Frist allein reicht aber
+  nicht: Ein Satz dauert 20 bis 60 s, und die erste Berührung nach dem
+  Pausenende ist meist der nächste Haken. Gemessen 30 s nach dem Ende kam
+  „Pause vorbei" dann zusammen mit dessen Tupfer – genau in dem Moment, in dem
+  die neue Pause begann –, weil der Lauscher ihn spielte, bevor der
+  Klick-Handler lief. Deshalb entscheidet `nachholen()` erst nach dem Klick
+  derselben Berührung (ohne Klick nach einer halben Sekunde): Hat sie selbst
+  einen Ton angestoßen – Haken, neue Pause, Training beenden, „Töne anhören" –,
+  ist der alte überholt und verfällt.
+* **Die installierte App misst, statt anzunehmen.** Chrome hat laut seinen
+  Autoplay-Regeln für eine zum Startbildschirm hinzugefügte App keine
+  Tonsperre. Dort hätte „nie ohne Berührung" einen Rückschritt bedeutet: Ein
+  Pausenende nach dem Neuladen, das in v240 klang, bliebe bis zum nächsten Tipp
+  stumm. `initAudio()` legt deshalb in der installierten App
+  (`display-mode: standalone`, `navigator.standalone`) einmal je Dokument
+  ohne Berührung einen Kontext an und behält ihn nur, wenn er sofort `running`
+  ist. Ein schlafender wird gleich wieder geschlossen und nie als bereit
+  gewertet – es bleibt beim Vormerken. Im Browser-Tab wird nicht probiert:
+  Dort sperrt Chrome auf dem Handy immer, und ein Versuch hinterließe nur die
+  Meldung „not allowed to start".
 * **`wecken()` weckt alles, was nicht läuft**, nicht nur `suspended`: iOS
   setzt den Kontext nach einem Anruf oder App-Wechsel auf `interrupted`. Geweckt
   wird bei jeder aktivierenden Berührung und beim Zurückkommen
   (`visibilitychange`).
-* **`navigator.audioSession.type = 'playback'`**, wo es die API gibt (Audio
-  Session API, W3C-Entwurf; MDN; Safari ab 16.4). Sonst liegt Web Audio auf iOS
-  in der Sitzung „ambient", die mit dem Stummschalter verstummt. Der Preis:
-  Musik aus einer anderen App kann während eines Tons kurz leiser werden oder
-  pausieren. Aus den Quellen übernommen, nicht am Gerät gemessen.
+* **`navigator.audioSession.type = 'ambient'`**, wo es die API gibt (Audio
+  Session API, W3C-Entwurf; MDN; Safari ab 16.4) – mischbar: Musik aus Spotify
+  & Co. läuft weiter. Naheliegend wäre `'playback'`, damit das Signal den
+  Stummschalter des iPhones übertönt; nur ist das die *nicht* mischbare
+  Sitzung, und sie gilt, solange der Kontext rendert – hier das ganze Training
+  (Trägerton in jeder Pause). Die Musik wäre ab dem ersten Ton weg gewesen,
+  nicht „kurz". `'playback'` nur rund um ein Signal hilft nicht: Auch dann hält
+  iOS die Musik bei jedem Gong an, und ob sie weiterläuft, entscheidet die
+  andere App. Mischbar und am Stummschalter vorbei gibt es in WebKit nicht; der
+  Preis steht deshalb unter *Mehr → Töne und Hinweise*: Ist der Stummschalter
+  an, bleibt die App stumm. Aus den Quellen, nicht am Gerät gemessen.
 * **„Töne anhören" liegt auf der Audio-Uhr**, nicht mehr auf sechs
   `setTimeout`s (`probeSpielen()`): Auf iOS hätte ein Zeitgeber, der später als
   fünf Sekunden nach dem Tipp feuert, einen schlafenden Kontext nicht mehr
@@ -936,7 +967,13 @@ schlafen legt, läuft bis zum Signal ein Trägerton mit: 30 Hz bei einem
 Tausendstel Lautstärke, den kein Handylautsprecher wiedergibt – im Signalweg ist
 er aber vorhanden, und damit gilt die Seite als aktiv. Wird die Pause
 übersprungen oder um 30 s verlängert, wird der vorgemerkte Ton verworfen und neu
-gelegt.
+gelegt – auch in den letzten 0,3 s davor. Stehen bleibt nur, was schon
+begonnen hat. Kommt man kurz vor dem Signal in die App zurück, legt `armRest()`
+neu auf; liegt der neue Ton in denselben 0,3 s wie ein schon klingender, wird
+der übernommen statt ein zweiter danebengelegt. Gemessen: Galt die Toleranz
+von 0,3 s (siehe unten) für jeden, der aufräumt, gab „zurück in die App 0,15 s
+vor dem Ende" zwei Gongs, und „+30 s" oder „Pause weg" 0,15 s davor ließen den
+alten trotzdem spielen; so ist es einer, keiner, keiner.
 
 **Pausenende: Hat es gespielt?** Bis v240 beendete `tickRest()` die Pause bei
 `Math.round(rest) <= 0`, also bis zu eine halbe Sekunde *vor* dem Endzeitpunkt
@@ -951,25 +988,62 @@ letzten halben Sekunde 0:01), und `endRest()` fragt `signalStand('rest')`:
 Audio-Uhr zeigt das zuletzt gerenderte Quantum, nicht die Wanduhr) → ausklingen
 lassen, kein zweiter Ton; *offen* (noch vor uns, weil der Kontext im Hintergrund
 angehalten war und seine Uhr hinter der Wanduhr zurückliegt) oder *keins* →
-verwerfen und jetzt den Ton geben. Kein Doppelton, kein stummes Ende.
+verwerfen und jetzt den Ton geben. Kein Doppelton, kein stummes Ende. Diese
+0,3 s Toleranz gilt nur hier, am echten Ende (`cancelSound({ ausklingen })`).
 
 **Ehrlich zählen.** `tonStand()` zählt seit v241 nicht mehr, was angefordert
 wurde, sondern was der Kontext *wiedergegeben* hat: Jeder Klang trägt am
 Grundton einen `ended`-Lauscher, und gezählt wird, wenn die Uhr beim Ende über
 seiner Startzeit steht (ein vor dem Start verworfener Ton meldet `ended` mit
-einer Uhr, die noch davor steht). Getrennt davon `verpasst`: Töne, die
-angefordert wurden, als der Kanal nicht frei war, und Töne, die eine Sekunde
-nach der Anforderung noch nicht begonnen hatten, weil der Kontext stand – die
-werden verworfen statt später nachzuklingeln (`bewachen()`). Unter *Mehr → Töne*
-steht die Auswertung in einfachen Worten, und sie zieht sich mit jedem Ton
-nach, der kommt oder ausfällt (`onTonStand()`): *läuft · N Töne losgeschickt* –
-war trotzdem nichts zu hören, liegt es am Gerät: Medien-Lautstärke (die Wippe
-regelt sie nur, während etwas spielt), Bluetooth-Kopfhörer oder Auto, Bitte
-nicht stören, in Chrome die Website-Einstellung Ton, am iPhone der
-Stummschalter. *angehalten* – der Browser wartet auf eine Berührung, oder er
-hält den Kanal trotz Berührung an (Anruf, App-Wechsel). Schläft der Kanal eine
-Sekunde nach einer Berührung weiter, zeigt das Dashboard einmal eine stille
-Zeile (kein Popup), die von selbst verschwindet, sobald er läuft.
+einer Uhr, die noch davor steht). Jeder gewollte Ton landet in genau einem Topf:
+
+* *gespielt* – wiedergegeben; davon *verspätet*, wenn er mehr als zwei Sekunden
+  nach seiner Zeit begann (Wanduhr beim `ended`, zurückgerechnet um seine
+  Dauer), und davon wiederum *nachgeholt*, wenn er bis zur ersten Berührung
+  vorgemerkt war.
+* *verpasst* – fällig gewesen und nie gekommen: vorgemerkt und verfallen (oder
+  noch wartend); gut eine Sekunde nach der Anforderung noch nicht begonnen, weil der
+  Kontext stand – verworfen statt später nachzuklingeln (`bewachen()`); oder
+  beim Aufräumen schon fällig gewesen – ein Pausensignal auf einer angehaltenen
+  Uhr, dessen Pause beim Aufwachen über eine Minute vorbei war. Ohne diesen
+  dritten Fall stünde unter *Mehr* kein verpasster Ton, obwohl das lauteste
+  Signal ausgefallen ist. Gibt `endRest()` einen Ersatz, zählt der
+  liegengebliebene nicht doppelt – der Ersatz zählt.
+* Bei jedem verpassten Ton steht die Ursache dabei, und davon gibt es zwei:
+  *gesperrt* – es gab noch gar keinen Kontext, vor der ersten Berührung nach
+  dem Öffnen lässt der Browser keinen Ton zu (eine Vorwarnung oder ein Gong
+  nach dem Neuladen ohne Tipp, ein verfallener Wunsch) –, oder ein Kontext,
+  den der Browser *angehalten* hatte (im Hintergrund, nach einem Anruf).
+  Anfangs hieß jeder verpasste Ton „angehalten"; dann standen für zwei Töne
+  aus derselben Ursache – noch nicht getippt – zwei verschiedene Gründe da,
+  und der zweite deutete auf ein Problem im Hintergrund, das es nie gab.
+
+Ein nachgeholter Gong heißt deshalb *verspätet*, nicht „kam nicht" – so erlebt
+man ihn auch. Unter *Mehr → Töne und Hinweise* steht die Auswertung, und sie
+zieht sich mit jedem Ton nach, der kommt oder ausfällt (`onTonStand()`), und
+wenn die Frist eines wartenden Gongs abläuft. Das Urteil zuerst, in Textfarbe
+und in einem Satz – *✓ Die App schickt Töne los (6 seit dem Öffnen).* –,
+danach, was verspätet oder gar nicht kam, mit seiner Ursache, eine Ursache in
+einem Satz (*Vor deiner ersten Berührung nach dem Öffnen lässt der Browser
+keinen Ton zu – deshalb kam 1 Ton verspätet, 1 Ton kam gar nicht.*); darunter
+grau als Liste, woran es am Handy liegt, wenn trotzdem nichts zu hören
+ist: Medien-Lautstärke (die Wippe regelt sie nur, während etwas spielt),
+Bluetooth-Kopfhörer oder Auto, Bitte nicht stören, in Chrome die
+Website-Einstellung Ton, am iPhone der Stummschalter. Solange „Töne anhören"
+läuft, steht *Töne laufen gerade* da statt der Aufforderung, auf den Knopf zu
+tippen, auf den man eben getippt hat. Vor der ersten Berührung steht *Noch
+kein Ton angefordert* nur, wenn die App auch wirklich noch nichts wollte. Wurde
+sie mitten in der Pause neu geladen – Android beendet sie, und sie öffnet
+wieder direkt unter *Mehr* –, steht dort *✗ Noch kein Ton frei – vor der
+ersten Berührung nach dem Öffnen lässt der Browser keinen zu*, wie viele Töne
+deshalb fehlten, und was ein Tipp jetzt noch bringt: das Pausensignal
+pünktlich, „Pause vorbei" verspätet, oder nur noch freien Ton. Hält der
+Browser den Kanal trotz Berührung an (Anruf, App-Wechsel), steht das als
+Urteil da. Schläft der Kanal
+gut anderthalb Sekunden nach einer Berührung weiter, zeigt das Dashboard eine
+stille Zeile (kein Popup) – *Töne kommen gerade nicht …; tipp noch einmal,
+bleibt es stumm, App schließen und neu öffnen* –, die von selbst verschwindet,
+sobald er läuft.
 
 **Gemessen, aus Quellen, nicht belegbar.** Gemessen in Chromium 153 mit
 Standard-Autoplay-Policy (keine Flagge) und Touch über eine rohe CDP-Sitzung
@@ -978,20 +1052,37 @@ nach weg und zurück; die erste Berührung – ein Reiter, die Figur – legt ih
 und er läuft sofort; eine Pause, die den Neustart überdauert, wird mit der
 ersten Berührung nachgeholt und spielt genau einmal, ohne vorzeitigen Stopp; ein
 Pausenende ohne Tipp erzeugt keinen Kontext und keine Konsolenmeldung „not
-allowed to start", der Gong kommt mit dem nächsten Satz-Tipp einmal nach; „Töne
-anhören" legt sechs Töne im Abstand von 0,9 s sofort auf die Uhr. Wichtig für
-jede weitere Messung: In Playwright zählt jedes `page.evaluate()` und jede
-Locator-Hilfe als Nutzergeste (`Runtime.callFunctionOn` mit `userGesture:
-true`) – ein Test, der vor der ersten Berührung eines davon aufruft, sieht die
-Sperre nicht; die erste Prüfung jeder Szene ist deshalb
+allowed to start", der Gong kommt mit der ersten Berührung, die selbst keinen
+Ton auslöst (die Figur, eine Überschrift unter *Mehr*), einmal nach (als
+verspätet gezählt) – mit dem nächsten Haken 30 s danach nicht, 70 s danach gar
+nicht mehr, und unter *Mehr* steht dann „vor deiner ersten Berührung", nie
+„angehalten"; „Töne anhören" legt sechs Töne im
+Abstand von 0,9 s sofort auf die Uhr; zurück in die App, „+30 s" und „Pause
+weg" je 0,15 s vor dem Ende geben einen, keinen und keinen Gong; ein Signal auf
+einer angehaltenen Uhr, dessen Pause beim Aufwachen 70 s vorbei ist, klingt
+nicht nach und zählt als verpasst, 20 s danach kommt ein Ersatz und zählt als
+verspätet. Ohne Sperre (`--autoplay-policy=no-user-gesture-required`) und als
+installierte App ausgegeben (`display-mode: standalone` über eine Attrappe von
+`matchMedia` – Chromium emuliert das per CDP nicht) klingt das Pausenende nach
+dem Neuladen ohne jede Berührung; mit Sperre wird der Mess-Kontext geschlossen,
+nichts landet auf ihm, und die erste Berührung holt den Gong nach. Neu geladen
+direkt unter *Mehr* steht vor der ersten Berührung, woran es liegt, wie viele
+Töne fehlten und was ein Tipp noch bringt – und das zieht sich nach, wenn die
+Frist des Gongs abläuft. Jede dieser Szenen ist gegen den Stand davor
+gegengeprüft und war dort rot.
+Wichtig für jede weitere Messung: In Playwright zählt jedes `page.evaluate()`
+und jede Locator-Hilfe als Nutzergeste (`Runtime.callFunctionOn` mit
+`userGesture: true`) – ein Test, der vor der ersten Berührung eines davon
+aufruft, sieht die Sperre nicht; die erste Prüfung jeder Szene ist deshalb
 `navigator.userActivation.hasBeenActive === false`. Aus Quellen (Chromium- und
-WebKit-Quelltext, MDN, W3C): die Aktivierungsregeln oben, die iOS-Fünf-
-Sekunden-Regel, `interrupted`, die Audio Session API. Nicht belegbar ohne
-Gerät: ob Tobis installierte App eine echte WebAPK ist (dort gibt es laut
-Chromium keine Sperre – der Umbau schadet dort nicht, verschiebt aber ein
-Pausenende ohne Tipp nach einem Neustart auf die erste Berührung); ob iOS sich
-wie beschrieben verhält; und ob das Gerät den erzeugten Ton ausgibt – genau
-dafür steht die Zeile unter *Mehr → Töne*.
+WebKit-Quelltext, MDN, W3C, Chromes Autoplay-Regeln): die Aktivierungsregeln
+oben, die iOS-Fünf-Sekunden-Regel, `interrupted`, die Audio Session API, keine
+Sperre für die installierte App. Nicht belegbar ohne Gerät: ob Tobis
+installierte App eine echte WebAPK ist und Chrome dort wirklich nicht sperrt
+(sperrt es doch, misst die App das und merkt vor wie im Tab – höchstens eine
+Konsolenmeldung je Start); ob iOS sich wie beschrieben verhält, auch ob
+Spotify mit `'ambient'` wirklich weiterläuft; und ob das Gerät den erzeugten
+Ton ausgibt – genau dafür steht die Zeile unter *Mehr → Töne und Hinweise*.
 
 Zusätzlich hält die App während der Pause das Display wach
 (`navigator.wakeLock`).

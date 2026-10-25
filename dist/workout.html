@@ -1316,6 +1316,15 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 .abschluss-knoepfe .btn { padding: 6px 12px; font-size: 13px; }
 .ov:has(> .notice.abschluss) .ov-body { min-height: 120px; }
 
+/* Mehr → Töne und Hinweise, unter „Töne anhören": erst das Urteil in
+   Textfarbe, darunter grau die Ursachen am Handy als Liste. Ein Absatz
+   kleines Grau, in dem die Antwort im dritten Satz stand, liest niemand bis
+   dorthin. */
+.ton-stand { font-size: 13px; margin-top: 8px; }
+.ton-urteil { color: var(--text); margin-bottom: 4px; }
+.ton-stand ul { margin: 2px 0 0; padding-left: 18px; color: var(--muted); }
+.ton-stand li { margin-bottom: 2px; }
+
 .empty {
   text-align: center;
   color: var(--muted);
@@ -10602,7 +10611,8 @@ function combosFor(active) {
  *
  * Alles wird per Web Audio erzeugt, nichts geladen: keine zusätzliche Datei,
  * kein Netz, kein Zwischenspeicher, der veralten könnte. Ein Ton ist eine
- * Folge von Sinus-Tönen [Frequenz, Versatz in s, Dauer in s, Lautstärke].
+ * Folge kurzer Stimmen – Sinus, Dreieck und Rechteck, mit Tiefpass, leichter
+ * Verstimmung und einem Rauschanschlag davor (siehe SOUNDS).
  *
  * Drei Dinge sind hier wichtiger, als sie aussehen:
  *
@@ -10610,10 +10620,16 @@ function combosFor(active) {
  *                  eine Berührung zurückgeht. Deshalb entsteht er in der ERSTEN
  *                  aktivierenden Berührung der Seite – pointerup, touchend,
  *                  mousedown, keydown, einmal auf dem Dokument abgehört (siehe
- *                  beruehrung()) – und nie ohne eine. Was die App davor schon
- *                  wollte (eine Pause, die den Neustart überdauert hat; ein
- *                  Pausenende, bei dem niemand getippt hat), merkt sie sich und
- *                  holt es nach, sobald der Kanal frei ist.
+ *                  beruehrung()). Ohne Berührung nur dort, wo der Browser keine
+ *                  verlangt: In der installierten App wird das einmal gemessen,
+ *                  nicht angenommen – ein Kontext, der sofort läuft, bleibt, einer,
+ *                  der schläft, wird gleich wieder geschlossen (initAudio()). Was
+ *                  die App davor schon wollte (eine Pause, die den Neustart
+ *                  überdauert hat; ein Pausenende, bei dem niemand getippt hat),
+ *                  merkt sie sich und holt es nach, sobald der Kanal frei ist –
+ *                  einen Ton aber nur innerhalb seiner Frist, und nie, wenn die
+ *                  Berührung selbst schon etwas Hörbares anstößt (den nächsten
+ *                  Satz, eine neue Pause): siehe nachholen().
  *
  *   Vorausplanen.  Das Pausensignal wird nicht per setTimeout ausgelöst,
  *                  sondern beim Start der Pause fest auf die Uhr des
@@ -10628,9 +10644,13 @@ function combosFor(active) {
  *                  aussehen: Die App schickt keinen Ton los, oder sie schickt
  *                  ihn und das Gerät gibt ihn nicht aus. Gezählt wird deshalb
  *                  nicht, was angefordert wurde, sondern was der Kontext
- *                  wirklich wiedergegeben hat (`ended` nach der Startzeit), und
- *                  getrennt davon, was verloren ging, weil der Kanal nicht frei
- *                  war. tonStand() liefert beides, Mehr → Töne zeigt es.
+ *                  wirklich wiedergegeben hat (`ended` nach der Startzeit) und
+ *                  was davon zu spät kam – und getrennt davon jeder Ton, der
+ *                  fällig war und nie kam. Jeder gewollte Ton landet in genau
+ *                  einem Topf, und bei jedem steht, woran es lag: noch keine
+ *                  Berührung seit dem Öffnen, oder ein Kanal, den der Browser
+ *                  angehalten hatte. tonStand() liefert alles, Mehr → Töne und
+ *                  Hinweise zeigt es.
  */
 
 /*
@@ -10716,38 +10736,97 @@ const PROBE_TAKT = 0.9;   // Sekunden von Ton zu Ton
  * `currentTime` zeigt das zuletzt gerenderte Quantum, nicht die Wanduhr – ohne
  * diese Toleranz würde endRest() ein Signal, das in 20 ms anfängt, als „nicht
  * gespielt" verwerfen und ein zweites obendrauf setzen.
+ *
+ * Nur am echten Ende der Pause, nirgends sonst (cancelSound({ ausklingen })).
+ * Galt sie für jeden, der aufräumt, kam ein Signal, das in den letzten 0,3 s
+ * vor seinem Start stand, trotzdem: nach „+30 s", nach „Pause weg" – und beim
+ * Zurückkommen in die App doppelt, weil armRest() ein zweites danebenlegte.
  */
 const GLEICH = 0.3;
+
+/*
+ * Wie lange ein vorgemerkter Ton nachgeholt werden darf, wenn der Aufrufer
+ * nichts anderes sagt – und ab wann ein Ton als verspätet gilt.
+ *
+ * Ein Gong, der eine Minute nach dem Pausenende kommt, ist kein Signal mehr,
+ * sondern ein Rätsel. endRest() gibt dem „Pause vorbei" deshalb eine Frist ab
+ * dem Pausenende mit; danach verfällt er und bleibt als verpasst gezählt. Die
+ * Frist allein reicht nicht: Ein Satz dauert 20 bis 60 s, die erste Berührung
+ * nach dem Pausenende ist meist der nächste Haken – und mit ihm kam „Pause
+ * vorbei" zuerst genau dann, wenn die neue Pause begann. Das regelt
+ * nachholen(), nicht die Frist. Verspätet heißt: mehr als zwei Sekunden nach
+ * der Zeit, zu der er hätte kommen sollen – so lange dauert ein Tipp, nicht
+ * aber ein angehaltener Kanal.
+ */
+const NACHHOLEN_MS = 60000;
+const SPAET_MS = 2000;
 
 let ctx = null;
 let geplant = [];      // vorausgelegte Pausensignale (siehe klang())
 let probe = [];        // „Töne anhören" – eigene Liste, cancelSound() lässt sie in Ruhe
 let traegerTon = null;
 
-// Wie viele Töne der Kontext in dieser Sitzung wirklich wiedergegeben hat, und
-// wie viele verloren gingen, weil er dafür nicht frei war. Nicht Kosmetik:
+// Ohne Berührung schon einmal gemessen, ob ein Kontext von selbst läuft? Einmal
+// je Dokument genügt: Die Regel des Browsers ändert sich ohne Berührung nicht,
+// und jeder weitere Versuch hinterließe nur eine Konsolenmeldung.
+let probiert = false;
+
+// Wohin jeder gewollte Ton gekommen ist – in genau einen Topf. Nicht Kosmetik:
 // „Ich höre nichts" hat zwei ganz verschiedene Ursachen – die App erzeugt
 // keinen Ton, oder sie erzeugt ihn und das Gerät gibt ihn nicht aus. Von außen
 // sehen beide gleich aus, und ohne diese Zahlen lässt sich das nicht trennen.
+//
+//   gespielt    vom Kontext wiedergegeben, pünktlich oder nicht
+//   verspaetet  davon mehr als SPAET_MS nach seiner Zeit …
+//   nachgeholt  … und davon wiederum die, die bis zur ersten Berührung
+//               vorgemerkt waren
+//   verpasst    fällig gewesen und nie gekommen …
+//   ohneKontext … und davon die, für die es noch gar keinen Kontext gab: Vor
+//               der ersten Berührung nach dem Öffnen lässt der Browser keinen
+//               Ton zu. Der Rest von `verpasst` lag auf einem Kontext, den der
+//               Browser angehalten hatte. Zwei Ursachen, die unter Mehr
+//               verschieden heißen müssen – sonst liest man bei einem Ton, der
+//               nur auf den ersten Tipp wartete, „angehalten" und sucht ein
+//               Problem im Hintergrund, das es nie gab. (In tonStand() heißt
+//               dieser Topf `gesperrt`; hier nicht – im Ein-Datei-Bündel
+//               teilen sich alle Module einen Gültigkeitsbereich.)
 let gespielt = 0;
+let verspaetet = 0;
+let nachgeholt = 0;
 let verpasst = 0;
+let ohneKontext = 0;
+
+// Wie oft die App seit dem Laden einen Ton angestoßen hat (playSound,
+// probeSpielen, scheduleSound mit einem Plan). Nur ein Vergleichswert für
+// nachholen(): Hat die Berührung, die den Ton freischaltet, selbst schon einen
+// angestoßen?
+let angestossen = 0;
 
 // Die erste aktivierende Berührung: Hat der Lauscher sie gesehen, und wann?
-// Beide braucht tonStand(): Ein Kanal, der eine Sekunde nach dieser Berührung
-// immer noch schläft, ist ein Problem – einer, der noch nie berührt wurde, nur
-// die Regel des Browsers.
+// Beide braucht tonStand(): Ein Kanal, der anderthalb Sekunden nach dieser
+// Berührung immer noch schläft, ist ein Problem – einer, der noch nie berührt
+// wurde, nur die Regel des Browsers.
 let beruehrt = false;
 let beruehrtSeit = 0;
 
 // Was vor dem Freischalten gewünscht wurde und nachgeholt wird, sobald der
-// Kanal frei ist: einmal die Pause neu auflegen (ein Rückruf, der die Restzeit
-// frisch rechnet), und ein Ton, der sofort hätte kommen sollen – praktisch
-// immer „Pause vorbei" aus einem Pausenende, bei dem niemand getippt hat.
+// Kanal frei ist:
+//
+//   wunschPlan  die Pause neu auflegen – `neu` ist ein Rückruf, der die
+//               Restzeit frisch rechnet; `faellig` sagt, wann ihre Töne auf
+//               der Wanduhr dran wären (für die Zählung, falls sie verfällt)
+//   wunschTon   ein Ton, der sofort hätte kommen sollen – praktisch immer
+//               „Pause vorbei" aus einem Pausenende, bei dem niemand getippt
+//               hat –, mit seiner Zeit (`faellig`) und seiner Frist (`bis`)
+//
+// Der Ton zählt als verpasst (ohne Kontext), solange er aussteht und wenn er
+// verfällt; erst nachgeholt wechselt er den Topf. Vom Plan zählt, was beim
+// Auflösen schon fällig war (planAufloesen()).
 let wunschPlan = null;
 let wunschTon = null;
 
 // Wer erfahren will, wenn sich an tonStand() etwas ändert – die Zeile unter
-// Mehr → Töne, die stille Zeile im Dashboard.
+// Mehr → Töne und Hinweise, die stille Zeile im Dashboard.
 const lauscher = new Set();
 
 function onTonStand(cb) {
@@ -10775,40 +10854,85 @@ function tonFrei() {
 }
 
 /**
- * iOS: Die Tonsitzung als Wiedergabe antonMelden, nicht als Beiwerk.
+ * iOS: Die Tonsitzung als „ambient" anmelden – mischbar, Musik läuft weiter.
  *
- * WebKit legt Web Audio sonst in die Sitzung „ambient", und die verstummt mit
- * dem Stummschalter des iPhones – ein Pausensignal, das dem Schalter folgt,
- * wäre wenig wert. `navigator.audioSession.type = 'playback'` meldet die Töne
- * als Wiedergabe an (Audio Session API: W3C-Entwurf, MDN, in Safari ab 16.4;
- * nicht am Gerät gemessen, aus den Quellen übernommen). Der Preis: Während ein
- * Ton spielt, kann Musik aus einer anderen App kurz leiser werden oder
- * pausieren – das ist der Tausch, und er ist bewusst so herum gemacht. Wo es
- * die API nicht gibt, passiert nichts.
+ * Wer mit Spotify im Ohr trainiert, soll die Musik behalten. Naheliegend wäre
+ * 'playback', damit das Signal den Stummschalter des iPhones übertönt. Nur ist
+ * 'playback' nach der Audio Session API (W3C-Entwurf, MDN, Safari ab 16.4) die
+ * NICHT mischbare Wiedergabe: Andere Wiedergabe wird angehalten – und zwar,
+ * solange der Kontext rendert, und der läuft hier nach der ersten Berührung
+ * das ganze Training (Trägerton in jeder Pause). Die Musik wäre ab dem ersten
+ * Ton für das ganze Training weg, nicht „kurz". 'playback' nur rund um ein
+ * Signal hilft nicht: Auch dann hält iOS die Musik bei jedem Gong an, und ob
+ * sie danach weiterläuft, entscheidet die andere App. Mischbar und zugleich am
+ * Stummschalter vorbei gibt es in WebKit nicht.
+ *
+ * Also 'ambient', ausdrücklich: Das ist die Sitzung, die der Entwurf als
+ * mischbar beschreibt, und die, in der Web Audio auf iOS bis v240 ohnehin lag
+ * ('auto'). Der Preis steht unter Mehr → Töne und Hinweise: Ist der
+ * Stummschalter an, bleibt die App stumm. Nicht am Gerät gemessen, aus den
+ * Quellen. Wo es die API nicht gibt, passiert nichts.
  */
 function tonSitzung() {
   try {
     const s = navigator.audioSession;
-    if (s && 'type' in s && s.type !== 'playback') s.type = 'playback';
+    if (s && 'type' in s && s.type !== 'ambient') s.type = 'ambient';
   } catch { /* nicht vorhanden oder nicht erlaubt – dann eben nicht */ }
 }
 
+/** Läuft die Seite als installierte App (Startbildschirm, eigenes Fenster)? */
+function installiert() {
+  try {
+    return navigator.standalone === true
+      || ['standalone', 'fullscreen', 'minimal-ui'].some((m) => window.matchMedia(`(display-mode: ${m})`).matches);
+  } catch {
+    return false;
+  }
+}
+
+function moeglich() {
+  return !!(window.AudioContext || window.webkitAudioContext);
+}
+
 /**
- * AudioContext anlegen – nur aus einer Berührung heraus.
+ * AudioContext anlegen – aus einer Berührung heraus, oder dort, wo der Browser
+ * keine verlangt.
  *
- * Ohne Berührung legt diese Funktion nichts an. Vorher tat sie es doch, und
- * das Ergebnis war ein Kontext im Zustand 'suspended' mit einem resume(), das
- * nie antwortet: Töne, die darauf gelegt wurden, lagen auf einer stehenden
- * Uhr und klingelten beim nächsten Tipp alle auf einmal nach – *„Jetzt fehlt
- * iwie die Pause"*, und beim nächsten Satz ein Gong zur Unzeit. Wer ohne
- * Berührung einen Ton will, bekommt ihn vorgemerkt (playSound, scheduleSound).
+ * Ohne Berührung entstand bis v240 hier ein Kontext im Zustand 'suspended' mit
+ * einem resume(), das nie antwortet: Töne, die darauf gelegt wurden, lagen auf
+ * einer stehenden Uhr und klingelten beim nächsten Tipp alle auf einmal nach –
+ * *„Jetzt fehlt iwie die Pause"*, und beim nächsten Satz ein Gong zur Unzeit.
+ *
+ * Ohne Berührung gar keinen anzulegen wäre die einfache Antwort – und für die
+ * installierte App die falsche: Chrome hat dort keine Tonsperre (laut seinen
+ * Autoplay-Regeln dürfen zum Startbildschirm hinzugefügte Seiten von selbst
+ * spielen; nicht am Gerät gemessen), und ein Pausenende nach dem Neuladen,
+ * das in v240 klang, bliebe stumm. Deshalb wird gemessen statt angenommen: In
+ * der installierten App legt diese Funktion ohne Berührung einmal je Dokument
+ * einen Kontext an und behält ihn nur, wenn er sofort läuft. Ein schlafender
+ * wird gleich wieder geschlossen und nie als bereit gewertet – dann bleibt es
+ * beim Vormerken (playSound, scheduleSound). Im Browser-Tab wird nicht
+ * probiert: Dort sperrt Chrome auf dem Handy immer, und ein Versuch
+ * hinterließe nur die Konsolenmeldung „The AudioContext was not allowed to
+ * start".
  */
 function initAudio() {
-  if (ctx || !tonFrei()) return;
+  if (ctx) return;
+  const frei = tonFrei();
+  if (!frei && (probiert || !installiert())) return;
   const Ctx = window.AudioContext || window.webkitAudioContext;
   if (!Ctx) return;
   tonSitzung();
-  try { ctx = new Ctx(); } catch { ctx = null; return; }
+  let c;
+  try { c = new Ctx(); } catch { return; }
+  if (!frei) {
+    probiert = true;
+    if (c.state !== 'running') {
+      try { c.close().catch(() => {}); } catch { /* egal – er wird nicht benutzt */ }
+      return;
+    }
+  }
+  ctx = c;
   ctx.addEventListener('statechange', tonMelden);
   tonMelden();
 }
@@ -10860,16 +10984,82 @@ for (const ev of ['pointerup', 'touchend', 'mousedown', 'keydown']) {
   document.addEventListener(ev, beruehrung, { capture: true, passive: true });
 }
 
-/** Nach dem Freischalten: erst die Pause neu auflegen, dann den Ton, der fehlte. */
+/**
+ * Nach dem Freischalten: erst die Pause neu auflegen, dann den Ton, der fehlte.
+ *
+ * Den Ton nur innerhalb seiner Frist – und erst nach dem Klick derselben
+ * Berührung. Dieser Lauscher läuft im capture, vor jedem Klick-Handler; was
+ * die Berührung selbst auslöst, steht erst danach fest. Die erste Berührung
+ * nach einer Pause, die nach dem Neuladen ohne Tipp ablief, ist meist der
+ * nächste Haken. Hier sofort gespielt, kam „Pause vorbei" zusammen mit dessen
+ * Tupfer und genau in dem Moment, in dem die neue Pause begann – gemessen 30 s
+ * nach dem Pausenende, also mitten in der Frist. Hat die Berührung selbst
+ * einen Ton angestoßen (Haken, neue Pause, Training beenden, „Töne anhören"),
+ * ist der alte überholt: Er verfällt und bleibt als verpasst gezählt (das ist
+ * er ja), mit derselben Ursache wie vorher. Kommt er dran, verlässt er diesen
+ * Topf und landet dort, wo er wirklich ankommt – gespielt und verspätet, oder,
+ * wenn auch jetzt nichts durchgeht, wieder verpasst.
+ */
 function nachholen() {
-  const plan = wunschPlan;
-  const ton = wunschTon;
-  wunschPlan = null;
-  wunschTon = null;
-  if (plan) {
-    try { plan(); } catch { /* der Rückruf gehört der App – ihr Fehler, nicht unserer */ }
+  const plan = planAufloesen();
+  if (plan && plan.neu) {
+    try { plan.neu(); } catch { /* der Rückruf gehört der App – ihr Fehler, nicht unserer */ }
   }
-  if (ton) playSound(ton);
+  if (wunschTon) {
+    const vorher = angestossen;
+    nachDemKlick(() => {
+      const ton = wunschTon;
+      wunschTon = null;
+      if (ton && angestossen === vorher && ctx && Date.now() <= ton.bis) {
+        verpasst -= 1;
+        ohneKontext -= 1;
+        jetztSpielen(ton.name, ton.faellig).nachgeholt = true;
+      }
+      tonMelden();
+    });
+  }
+  tonMelden();
+}
+
+/**
+ * `fn` nach dem Klick der laufenden Berührung aufrufen – nach allen
+ * Klick-Handlern der App, die auf Elementen darunter sitzen. Kommt kein Klick
+ * (eine Taste, ein langer Druck mit der Maus, ein Finger, der vom Knopf
+ * rutscht), entscheidet nach einer halben Sekunde der Zeitgeber.
+ */
+function nachDemKlick(fn) {
+  let fertig = false;
+  let notfall = 0;
+  const los = () => {
+    if (fertig) return;
+    fertig = true;
+    clearTimeout(notfall);
+    document.removeEventListener('click', klick);
+    fn();
+  };
+  const klick = () => setTimeout(los, 0);
+  document.addEventListener('click', klick);
+  notfall = setTimeout(los, 500);
+}
+
+/**
+ * Ein vorgemerkter Plan wird aufgelöst – nachgeholt, ersetzt oder verworfen.
+ *
+ * Was von ihm schon fällig war, kam nie und zählt als verpasst – etwa die
+ * Vorwarnung einer Pause, die nach dem Neuladen ohne Tipp ablief. Und zwar ohne
+ * Kontext: Vorgemerkt wird ein Plan nur, wenn es keinen gab. `ersetzt`
+ * nimmt einen Ton davon aus, für den der Aufrufer gerade selbst sorgt
+ * (endRest() gibt das „Pause vorbei" dann als eigenen Ton).
+ */
+function planAufloesen(ersetzt = null) {
+  const plan = wunschPlan;
+  wunschPlan = null;
+  if (!plan) return null;
+  const wand = Date.now();
+  const n = plan.faellig.filter(([name, f]) => f <= wand && name !== ersetzt).length;
+  verpasst += n;
+  ohneKontext += n;
+  return plan;
 }
 
 /**
@@ -10947,24 +11137,37 @@ function ton(at, s) {
 /**
  * Ein ganzer Klang (ein Eintrag aus SOUNDS) auf der Uhr des Kontexts.
  *
- *   name       welcher Ton
- *   at         Startzeit auf der Audio-Uhr
- *   quellen    alle Oszillatoren und Rauschquellen, zum Verwerfen
- *   erklungen  hat der Kontext ihn wiedergegeben?
- *   verworfen  wurde er vor seinem Start gestoppt?
+ *   name        welcher Ton
+ *   at          Startzeit auf der Audio-Uhr
+ *   faellig     wann er auf der Wanduhr hätte kommen sollen (Date.now())
+ *   quellen     alle Oszillatoren und Rauschquellen, zum Verwerfen
+ *   erklungen   hat der Kontext ihn wiedergegeben?
+ *   verworfen   wurde er vor seinem Start gestoppt?
+ *   nachgeholt  stand er bis zur ersten Berührung auf der Merkliste?
  *
  * Ob er erklungen ist, sagt der Grundton selbst: Sein `ended` kommt, wenn die
  * Uhr über sein Ende gelaufen ist. Wird er per stop() vor seinem Start
  * verworfen, kommt `ended` auch – aber die Uhr steht dann noch vor seiner
  * Startzeit, und genau daran werden die beiden Fälle auseinandergehalten.
+ * Wann er auf der Wanduhr begann, steht dann auch fest: Die Audio-Uhr ist seit
+ * seinem Beginn so weit gelaufen, wie er dauerte. Liegt das mehr als SPAET_MS
+ * hinter `faellig`, kam er verspätet.
  */
-function klang(name, at) {
+function klang(name, at, faellig = Date.now() + (at - ctx.currentTime) * 1000) {
   const s = SOUNDS[name];
-  const k = { name, at, quellen: s.flatMap((t) => ton(at, t)), erklungen: false, verworfen: false };
+  const k = {
+    name, at, faellig, quellen: s.flatMap((t) => ton(at, t)),
+    erklungen: false, verworfen: false, nachgeholt: false,
+  };
   k.quellen[0].addEventListener('ended', () => {
     if (k.erklungen || k.verworfen || !ctx || ctx.currentTime < k.at) return;
     k.erklungen = true;
     gespielt += 1;
+    const begann = Date.now() - (ctx.currentTime - k.at) * 1000;
+    if (begann - k.faellig > SPAET_MS) {
+      verspaetet += 1;
+      if (k.nachgeholt) nachgeholt += 1;
+    }
     tonMelden();
   });
   return k;
@@ -11025,29 +11228,45 @@ function traeger(an) {
   }
 }
 
+/** Einen Ton jetzt auf die Uhr legen und bewachen – `ctx` muss da sein. */
+function jetztSpielen(name, faellig) {
+  wecken();
+  const k = klang(name, ctx.currentTime + 0.02, faellig);
+  bewachen(k, true);
+  return k;
+}
+
 /**
  * Ton sofort abspielen.
  *
- * Ohne Berührung gibt es keinen Kontext – dann wird der Ton vorgemerkt und
- * beim Freischalten einmal nachgeholt, und er zählt als verpasst: Das ist der
- * Fall „Pause vorbei, aber seit dem Neuladen hat niemand getippt". Vorher
- * entstand hier ein schlafender Kontext, der Ton lag auf dessen stehender Uhr
- * und klingelte beim nächsten Satz nach.
+ * Ohne Kontext – keine Berührung, und der Browser verlangt eine – wird der Ton
+ * vorgemerkt und beim Freischalten einmal nachgeholt, wenn seine Frist dann
+ * noch läuft; bis dahin zählt er als verpasst. Das ist der Fall „Pause vorbei,
+ * aber seit dem Neuladen hat niemand getippt". Vorher entstand hier ein
+ * schlafender Kontext, der Ton lag auf dessen stehender Uhr und klingelte beim
+ * nächsten Satz nach.
+ *
+ *   faellig  wann der Ton hätte kommen sollen (Wanduhr) – für „verspätet"
+ *   bis      bis wann er nachgeholt werden darf; danach verfällt er
  *
  * Gibt zurück, ob der Ton auf die Uhr gelegt wurde.
  */
-function playSound(name) {
+function playSound(name, { faellig = Date.now(), bis = faellig + NACHHOLEN_MS } = {}) {
   if (!SOUNDS[name]) return false;
-  if (!tonFrei()) {
-    wunschTon = name;
-    verpasst += 1;
-    tonMelden();
+  angestossen += 1;
+  initAudio();
+  if (!ctx) {
+    if (!tonFrei() && moeglich()) {
+      wunschTon = { name, faellig, bis };
+      verpasst += 1;
+      ohneKontext += 1;
+      // Läuft die Frist ab, stimmt „kommt noch nach" unter Mehr nicht mehr.
+      setTimeout(tonMelden, Math.max(0, bis - Date.now()) + 50);
+      tonMelden();
+    }
     return false;
   }
-  initAudio();
-  if (!ctx) return false;
-  wecken();
-  bewachen(klang(name, ctx.currentTime + 0.02), true);
+  jetztSpielen(name, faellig);
   tonMelden();
   return true;
 }
@@ -11063,13 +11282,16 @@ function playSound(name) {
  * nicht. Eine laufende Probe wird durch eine neue ersetzt.
  */
 function probeSpielen() {
-  if (!tonFrei()) {
-    verpasst += PROBE.length;
-    tonMelden();
+  angestossen += 1;
+  initAudio();
+  if (!ctx) {
+    if (!tonFrei() && moeglich()) {
+      verpasst += PROBE.length;
+      ohneKontext += PROBE.length;
+      tonMelden();
+    }
     return false;
   }
-  initAudio();
-  if (!ctx) return false;
   wecken();
   probe.forEach((k) => { if (!k.erklungen) verwerfen(k); });
   const ab = ctx.currentTime + 0.05;
@@ -11086,25 +11308,38 @@ function probeSpielen() {
  * etwas zu hören war (das kann keine Seite wissen), sondern ob die App etwas
  * losgeschickt hat und in welchem Zustand der Tonkanal dabei war.
  *
- *   moeglich  Kennt dieser Browser Web Audio überhaupt?
- *   zustand   'aus'      – noch kein Kontext, es wurde noch nichts angefordert
- *             'laeuft'   – offen, Töne gehen hinaus
- *             'schlaeft' – angelegt, aber vom Browser angehalten oder unterbrochen
- *   gespielt  Wie viele Töne der Kontext diese Sitzung wiedergegeben hat
- *   verpasst  Wie viele Töne verloren gingen, weil der Kanal nicht frei war
- *   frei      Hat das Dokument eine aktivierende Berührung gesehen?
- *   klemmt    Berührt, und trotzdem schläft der Kanal seit über einer Sekunde –
- *             das ist kein Browserrecht mehr, sondern ein Zustand, den man
- *             sehen sollte (iOS 'interrupted', ein Browser, der nicht weckt)
- *   offen     Steht noch etwas an, das nach dem Freischalten nachgeholt wird?
+ *   moeglich    Kennt dieser Browser Web Audio überhaupt?
+ *   zustand     'aus'      – noch kein Kontext, es wurde noch nichts angefordert
+ *               'laeuft'   – offen, Töne gehen hinaus
+ *               'schlaeft' – angelegt, aber vom Browser angehalten oder unterbrochen
+ *   gespielt    Wie viele Töne der Kontext diese Sitzung wiedergegeben hat
+ *   verspaetet  davon mehr als zwei Sekunden nach ihrer Zeit
+ *   nachgeholt  davon wiederum die, die bis zur ersten Berührung warteten
+ *   verpasst    Wie viele fällige Töne nie kamen – vorgemerkt und verfallen,
+ *               auf einer stehenden Uhr verworfen, beim Aufräumen fällig
+ *               gewesen – oder noch auf die erste Berührung warten
+ *   gesperrt    davon die, für die es noch keinen Kontext gab (vor der ersten
+ *               Berührung nach dem Öffnen); der Rest von `verpasst` lag auf
+ *               einem angehaltenen
+ *   frei        Hat das Dokument eine aktivierende Berührung gesehen?
+ *   klemmt      Berührt, und trotzdem schläft der Kanal seit über anderthalb
+ *               Sekunden – das ist kein Browserrecht mehr, sondern ein Zustand,
+ *               den man sehen sollte (iOS 'interrupted', ein Browser, der
+ *               nicht weckt)
+ *   laufend     „Töne anhören" spielt gerade, und der Kanal läuft
+ *   offen       Steht noch etwas an, das nach dem Freischalten nachgeholt wird?
+ *   wartet      … und was: 'pause' (eine Pause wird neu aufgelegt, ihr Signal
+ *               kommt dann pünktlich), der Name eines Tons, der noch innerhalb
+ *               seiner Frist nachkäme, oder null
  */
 function tonStand() {
-  const moeglich = !!(window.AudioContext || window.webkitAudioContext);
   const zustand = !ctx ? 'aus' : (ctx.state === 'running' ? 'laeuft' : 'schlaeft');
   const klemmt = zustand === 'schlaeft' && beruehrt && Date.now() - beruehrtSeit > 1500;
+  const wartet = wunschPlan ? 'pause' : (wunschTon && Date.now() <= wunschTon.bis ? wunschTon.name : null);
   return {
-    moeglich, zustand, gespielt, verpasst, frei: tonFrei(), klemmt,
-    offen: !!(wunschPlan || wunschTon),
+    moeglich: moeglich(), zustand, gespielt, verspaetet, nachgeholt, verpasst, gesperrt: ohneKontext, frei: tonFrei(), klemmt,
+    laufend: zustand === 'laeuft' && probe.some((k) => !k.erklungen && !k.verworfen),
+    offen: !!wartet, wartet,
   };
 }
 
@@ -11115,30 +11350,46 @@ function tonStand() {
  * einer Pause zwei gehören: die Vorwarnung und das Signal selbst. Alles Frühere
  * wird dabei verworfen – es gibt immer nur eine laufende Pause.
  *
- * `spaeter` ist der Rückruf für den Fall, dass noch keine Berührung da war:
- * Er wird nach dem Freischalten einmal aufgerufen und legt die Pause mit frisch
- * gerechneter Restzeit neu auf (armRest in js/app.js). So überdauert eine
- * Pause den Neustart der Seite, ohne dass ein Kontext ohne Geste entsteht.
+ * `spaeter` ist der Rückruf für den Fall, dass kein Kontext da ist (keine
+ * Berührung, und der Browser verlangt eine): Er wird nach dem Freischalten
+ * einmal aufgerufen und legt die Pause mit frisch gerechneter Restzeit neu auf
+ * (armRest in js/app.js). So überdauert eine Pause den Neustart der Seite,
+ * ohne dass ein schlafender Kontext entsteht.
+ *
+ * Klingt derselbe Ton schon – eben begonnen oder gerade erklungen – und fiele
+ * der neue in dieselben 0,3 s, ist es dasselbe Signal: Es wird übernommen,
+ * nicht ein zweites danebengelegt. Das ist der Fall „zurück in die App, kurz
+ * bevor die Pause endet": armRest() legt neu auf, und die Audio-Uhr ist der
+ * Wanduhr um ein paar Millisekunden voraus oder hinterher.
  *
  * Gibt zurück, ob die Töne auf der Uhr liegen; sonst muss der Aufrufer am Ende
  * selbst für den Ton sorgen (endRest).
  */
 function scheduleSound(plan, spaeter = null) {
-  cancelSound();
-  if (!tonFrei()) {
-    wunschPlan = spaeter;
+  const behalten = cancelSound();
+  if (plan.some(([name, secs]) => SOUNDS[name] && secs >= 0)) angestossen += 1;
+  initAudio();
+  if (!ctx) {
+    if (!tonFrei()) {
+      const wand = Date.now();
+      wunschPlan = {
+        neu: spaeter,
+        faellig: plan.filter(([name, secs]) => SOUNDS[name] && secs >= 0).map(([name, secs]) => [name, wand + secs * 1000]),
+      };
+    }
     tonMelden();
     return false;
   }
-  initAudio();
-  if (!ctx) return false;
   wecken();
+  const jetzt = ctx.currentTime;
   plan.forEach(([name, secs]) => {
     if (!SOUNDS[name] || secs < 0) return;
-    geplant.push(klang(name, ctx.currentTime + secs));
+    const at = jetzt + secs;
+    const da = behalten.find((k) => k.name === name && Math.abs(k.at - at) <= GLEICH);
+    geplant.push(da || klang(name, at));
   });
   if (!geplant.length) return false;
-  traeger(true);
+  if (geplant.some((k) => !k.erklungen)) traeger(true);
   tonMelden();
   return true;
 }
@@ -11164,25 +11415,53 @@ function signalStand(name) {
 }
 
 /**
- * Vorausgelegte Signale verwerfen – Pause übersprungen, verlängert, aus.
+ * Vorausgelegte Signale verwerfen – Pause übersprungen, verlängert, aus, neu
+ * aufgelegt, zu Ende.
  *
- * Was gerade spielt oder in den nächsten Augenblicken anfängt, bleibt: Ein
- * Ton, der schon begonnen hat, würde sonst mitten im Klang abgeschnitten, und
- * einer, der in 20 ms fällig ist, fiele ganz aus – genau das passiert am Ende
- * der Pause, wo endRest() kurz nach dem Signal aufräumt. Ein vorgemerkter
- * Wunsch, die Pause nach dem Freischalten neu aufzulegen, ist damit ebenfalls
- * erledigt.
+ * Was schon begonnen hat, bleibt: Es würde sonst mitten im Klang
+ * abgeschnitten. Alles andere geht – auch ein Signal, das in 0,2 s dran wäre:
+ * Wer „+30 s" oder „Pause weg" tippt, will genau dieses Signal nicht mehr.
+ *
+ *   ausklingen  Nur für endRest() am echten Pausenende: Was in den nächsten
+ *               0,3 s anfängt, ist das Signal dieses Endes und darf kommen
+ *               (siehe GLEICH) – endRest() hat signalStand() eben gefragt und
+ *               keinen Ersatz gegeben.
+ *   ersetzt     Für diesen Ton sorgt der Aufrufer gerade selbst (endRest()
+ *               mit Ersatzton): Ein fälliger, nie gespielter wird dann still
+ *               verworfen, statt als verpasst zu zählen – der Ersatz zählt.
+ *
+ * Jeder andere Ton, der schon fällig war und nie kam, zählt als verpasst: Ohne
+ * das verschwand ein Pausensignal, das auf einer angehaltenen Uhr lag, aus der
+ * Zählung, als hätte es nie existiert. Ein vorgemerkter Wunsch, die Pause nach
+ * dem Freischalten neu aufzulegen, ist damit ebenfalls erledigt – mit
+ * derselben Zählung.
+ *
+ * Gibt zurück, was stehen blieb (begonnen oder erklungen) – scheduleSound()
+ * übernimmt daraus, was es sonst ein zweites Mal legen würde.
  */
-function cancelSound() {
-  wunschPlan = null;
+function cancelSound({ ausklingen = false, ersetzt = null } = {}) {
+  const vorher = verpasst;
+  // Ein aufgelöster Wunsch ändert, was unter Mehr steht („das Pausensignal
+  // kommt pünktlich"), auch wenn dabei nichts verpasst wurde.
+  const wunsch = !!wunschPlan;
+  planAufloesen(ersetzt);
   const laeuft = !!ctx && ctx.state === 'running';
   const jetzt = ctx ? ctx.currentTime : 0;
+  const frist = ausklingen ? GLEICH : 0;
+  const wand = Date.now();
+  const behalten = [];
   geplant.forEach((k) => {
-    if (k.erklungen || (laeuft && k.at <= jetzt + GLEICH)) return;
+    if (k.erklungen || (laeuft && k.at <= jetzt + frist)) {
+      behalten.push(k);
+      return;
+    }
     verwerfen(k);
+    if (k.name !== ersetzt && k.faellig <= wand) verpasst += 1;
   });
   geplant = [];
   traeger(false);
+  if (verpasst !== vorher || wunsch) tonMelden();
+  return behalten;
 }
 
 // Zurück aus dem Hintergrund: iOS legt den Kontext beim Wegschalten schlafen
@@ -22341,11 +22620,11 @@ const VORLAUF = 5;
  * Training zwanzigmal, und ob man das mag, ist Geschmackssache – die
  * Ereignisse drumherum kommen ein- bis zweimal und stören niemanden.
  */
-function sound(name) {
+function sound(name, wann) {
   const s = store.getState();
   if (!s.sound) return;
   if (name === 'set' && !s.soundSets) return;
-  playSound(name);
+  playSound(name, wann);
 }
 
 /* Hinweis zum Pausenende, wenn die App gerade nicht im Vordergrund ist.
@@ -22520,7 +22799,12 @@ function startRest(exName, setIndex, sets, secs, exId = null) {
  * die vor einer Stunde ablief – Leiste weg, Hinweis, fertig. Ein Gong dazu wäre
  * dann kein Signal mehr, sondern ein Rätsel. Innerhalb dieser Frist ist er es
  * noch: Das ist der Fall „Seite mitten in der Pause neu geladen, keiner hat
- * getippt", und dort kommt er nach der ersten Berührung nach.
+ * getippt", und dort kommt er nach der ersten Berührung nach – aber nur, wenn
+ * die noch in die Frist fällt. Die Frist zählt ab dem Pausenende, nicht ab dem
+ * Vormerken: Ohne sie kam der Gong beim ersten Tipp auch 70 s danach, mitten
+ * in den nächsten Satz. Ist diese erste Berührung der nächste Haken, kommt er
+ * auch innerhalb der Frist nicht – die neue Pause hat ihn überholt (siehe
+ * nachholen() in js/audio.js).
  */
 const NACHKLANG_MS = 60000;
 
@@ -22550,12 +22834,22 @@ function endRest(withSignal) {
    *
    * Ohne Berührung seit dem Laden merkt sich playSound() den Ton und holt ihn
    * bei der ersten nach – aber nur, wenn die Pause gerade eben zu Ende ging
-   * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war.
+   * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war, nur
+   * bis NACHKLANG_MS nach dem Ende, und nicht, wenn diese Berührung selbst
+   * einen Ton anstößt (der nächste Haken, eine neue Pause).
+   *
+   * Aufgeräumt wird danach mit `ausklingen` nur am echten Ende: Ein Signal,
+   * das in den nächsten 0,3 s anfängt, ist das dieses Endes. Bei „Pause weg"
+   * (withSignal false) geht auch das – wer wegtippt, will keinen Gong mehr.
+   * Gibt es einen Ersatz, zählt der liegengebliebene nicht als verpasst; gibt
+   * es keinen (Pause schon zu lange vorbei), zählt er – er war fällig und kam
+   * nie.
    */
   const stand = restArmed ? signalStand('rest') : 'keins';
   const frisch = !vorbei || Date.now() - vorbei.endsAt < NACHKLANG_MS;
-  if (withSignal && frisch && stand !== 'erklungen' && stand !== 'laeuft') sound('rest');
-  cancelSound();
+  const ersatz = withSignal && frisch && stand !== 'erklungen' && stand !== 'laeuft';
+  if (ersatz) sound('rest', vorbei ? { faellig: vorbei.endsAt, bis: vorbei.endsAt + NACHKLANG_MS } : undefined);
+  cancelSound({ ausklingen: withSignal, ersetzt: ersatz ? 'rest' : null });
   // Bei einer abgebrochenen Pause den Hinweis abbestellen – bei einer
   // abgelaufenen gerade nicht: Der Wecker soll noch losgehen, falls die App im
   // Hintergrund ist. (Diese Zeile läuft seit v241 erst nach dem Ende, nicht
@@ -28702,7 +28996,7 @@ function renderSettings() {
       </div>
       <!-- Die Auswertung schreibt tonStandZeigen() hinein – und zieht sie mit
            jedem Ton nach, der kommt oder ausfällt (onTonStand). -->
-      <div class="small muted" id="tonStand"></div>` : ''}
+      <div class="ton-stand" id="tonStand"></div>` : ''}
     </div>
 
     <div class="section-title">Sport außerhalb des Plans</div>
@@ -28876,44 +29170,104 @@ function renderSettings() {
  * Ton los, oder sie schickt ihn los und das Gerät gibt ihn nicht aus. Ob eine
  * Seite hörbar ist, kann sie selbst nicht wissen – was sie weiß, ist, ob der
  * Tonkanal offen war und wie viele Töne hinausgingen. Genau das steht hier.
+ *
+ * Das Urteil zuerst, in Textfarbe und in einem Satz: Ist die App stumm oder
+ * das Handy? Erst darunter, grau und als Liste, was ein Handy stumm machen
+ * kann. Vorher stand die Antwort im dritten Satz von 65 Wörtern kleinem Grau,
+ * und die Zahl der Töne stand zweimal hintereinander.
  */
+const TON_URSACHEN = [
+  'Medien-Lautstärke: Die Wippe regelt sie nur, während etwas spielt – also während „Töne anhören" hochdrücken.',
+  'Bluetooth-Kopfhörer oder Auto verbunden? Dann kommt der Ton dort.',
+  'Bitte nicht stören',
+  'Chrome: Einstellungen → Website-Einstellungen → Ton',
+  'iPhone: der Stummschalter – die App folgt ihm, damit Musik aus anderen Apps weiterläuft',
+];
+
 function tonStandZeigen() {
   const host = document.getElementById('tonStand');
   if (!host) return;
   const t = tonStand();
-  if (!t.moeglich) { host.textContent = 'Dieser Browser kann keine Töne erzeugen.'; return; }
-  const wort = { aus: 'noch nicht angefordert', laeuft: 'läuft', schlaeft: 'angehalten' };
   const toene = (n) => (n === 1 ? '1 Ton' : `${n} Töne`);
+  const kam = (n) => (n === 1 ? 'kam' : 'kamen');
   /*
    * Die Auswertung in einfachen Worten. *„Irgendwie gibt's überhaupt keine
    * soundeffekte mehr in der app"* – die Zeile soll genau die eine Frage
    * beantworten, die die App beantworten kann: Liegt es an ihr, am Browser
    * oder am Gerät?
    *
-   *   läuft, Töne durch   → am Gerät. Alles, was ein Handy stumm macht, steht
-   *                         da – jeder Punkt ist auf Android oder iPhone schon
-   *                         einmal die Ursache gewesen.
-   *   angehalten          → am Browser: ohne Berührung keine Freigabe – oder,
-   *                         nach einer Berührung, ein Kontext, den ein Anruf
-   *                         oder App-Wechsel unterbrochen hat (klemmt).
-   *   noch nicht angefordert → an der App ist noch nichts passiert.
+   *   läuft, Töne durch    → am Gerät. Alles, was ein Handy stumm macht, steht
+   *                          darunter – jeder Punkt ist auf Android oder iPhone
+   *                          schon einmal die Ursache gewesen.
+   *   „Töne anhören" läuft → noch kein Urteil, aber auch keine Aufforderung,
+   *                          auf den Knopf zu tippen, auf den man eben tippte.
+   *   angehalten           → am Browser: ohne Berührung keine Freigabe – oder,
+   *                          nach einer Berührung, ein Kontext, den ein Anruf
+   *                          oder App-Wechsel unterbrochen hat (klemmt).
+   *   noch nichts          → die App wollte noch keinen Ton. Nur dann – zuerst
+   *                          stand das auch, wenn nach dem Neuladen schon zwei
+   *                          Töne verpasst waren und einer auf den ersten Tipp
+   *                          wartete. Dann jetzt: woran es liegt, was deshalb
+   *                          fehlte, was ein Tipp noch bringt.
+   *
+   * Was nicht pünktlich kam, steht dahinter – mit seiner Ursache, und davon
+   * gibt es zwei: noch keine Berührung seit dem Öffnen (dann lässt der Browser
+   * keinen Ton zu), oder ein Kanal, den der Browser angehalten hatte (im
+   * Hintergrund, nach einem Anruf). Zuerst hieß jeder verpasste Ton
+   * „angehalten" – auch die, die nur auf den ersten Tipp gewartet hatten. Dann
+   * standen für zwei Töne aus derselben Ursache zwei verschiedene Gründe da,
+   * und der zweite deutete auf ein Problem im Hintergrund, das es nie gab. Ein
+   * nachgeholter Gong kam verspätet, nicht „nicht": So erlebt man es auch.
    */
-  let rat;
-  if (t.zustand === 'aus') {
-    rat = 'Tipp auf „Töne anhören": Dann steht hier, ob die App Töne losschickt und ob der Browser sie durchlässt.';
+  const SPERRE = 'vor deiner ersten Berührung nach dem Öffnen lässt der Browser keinen Ton zu';
+  const ANGEHALTEN = 'der Browser hatte den Ton angehalten, etwa im Hintergrund';
+  const folgen = (spaet, weg, warumSpaet, warumWeg, warum) => {
+    if (spaet && weg) {
+      return ` ${warum[0].toUpperCase()}${warum.slice(1)} – deshalb ${kam(spaet)} ${toene(spaet)} verspätet, ${toene(weg)} ${kam(weg)} gar nicht.`;
+    }
+    if (spaet) return ` ${toene(spaet)} ${kam(spaet)} verspätet – ${warumSpaet}.`;
+    if (weg) return ` ${toene(weg)} ${kam(weg)} nicht – ${warumWeg}.`;
+    return '';
+  };
+  const angehaltenWeg = t.verpasst - t.gesperrt;
+  const sperre = folgen(t.nachgeholt, t.gesperrt,
+    'erst mit deiner ersten Berührung, vorher lässt der Browser keinen Ton zu', SPERRE, SPERRE);
+  const angehalten = folgen(t.verspaetet - t.nachgeholt, angehaltenWeg,
+    ANGEHALTEN, 'der Browser hatte den Ton in dem Moment angehalten', ANGEHALTEN);
+  let urteil;
+  let darunter = '';
+  if (!t.moeglich) {
+    urteil = '✗ Dieser Browser kann keine Töne erzeugen.';
   } else if (t.zustand === 'laeuft' && t.gespielt > 0) {
-    rat = `Die App hat ${toene(t.gespielt)} losgeschickt, der Browser hat sie durchgelassen. War trotzdem nichts zu hören, liegt es am Gerät: Medien-Lautstärke (die Wippe regelt sie nur, während etwas spielt – also während „Töne anhören"), Bluetooth-Kopfhörer oder Auto, Bitte nicht stören, in Chrome die Website-Einstellung Ton (Einstellungen → Website-Einstellungen → Ton), am iPhone der Stummschalter.`;
+    urteil = `✓ Die App schickt Töne los (${t.gespielt} seit dem Öffnen).${sperre}${angehalten}`;
+    darunter = `<div class="muted">Hörst du nichts, liegt es am Handy:</div>
+      <ul>${TON_URSACHEN.map((u) => `<li>${esc(u)}</li>`).join('')}</ul>`;
+  } else if (t.zustand === 'laeuft' && t.laufend) {
+    urteil = '♪ Töne laufen gerade …';
   } else if (t.zustand === 'laeuft') {
-    rat = 'Der Tonkanal ist offen, aber noch ist kein Ton durchgelaufen – tipp auf „Töne anhören".';
+    urteil = `Der Ton ist frei, aber noch kam keiner durch – tipp auf „Töne anhören".${sperre}${angehalten}`;
   } else if (t.klemmt) {
-    rat = 'Der Browser hält den Tonkanal an, obwohl du schon getippt hast – das passiert nach einem Anruf oder einem Wechsel zu einer anderen App. Der nächste Tipp weckt ihn; hilft das nicht, die App einmal schließen und neu öffnen.';
+    urteil = `✗ Der Browser hält den Ton an, obwohl du schon getippt hast.${angehaltenWeg
+      ? ` Deshalb ${kam(angehaltenWeg)} ${toene(angehaltenWeg)} nicht.` : ''}${sperre}`;
+    darunter = `<div class="muted">Das passiert nach einem Anruf oder einem Wechsel zu einer
+      anderen App. Tipp noch einmal; bleibt es stumm, die App schließen und neu öffnen.</div>`;
+  } else if (!t.verpasst && !t.offen && t.zustand === 'schlaeft') {
+    urteil = 'Der Browser lässt Ton erst nach einer Berührung zu – tipp auf „Töne anhören", das ist eine.';
+  } else if (!t.verpasst && !t.offen) {
+    urteil = 'Noch kein Ton angefordert. Tipp auf „Töne anhören": Dann steht hier, ob die App Töne losschickt.';
   } else {
-    rat = 'Der Browser lässt Ton erst nach einer Berührung zu – tipp auf „Töne anhören", das ist eine.';
+    // Noch keine Berührung seit dem Öffnen, und die App wollte schon etwas
+    // hören lassen: eine Pause, die das Neuladen überdauert hat, ein Gong.
+    // Dann zuerst, woran es liegt, dann, was deshalb ausfiel, dann, was ein
+    // Tipp jetzt noch bringt.
+    const tipp = {
+      pause: 'dann kommt das Pausensignal pünktlich',
+      rest: 'dann kommt „Pause vorbei" noch nach',
+    }[t.wartet] || (t.wartet ? 'dann kommt der Ton noch nach' : 'dann ist der Ton frei');
+    urteil = `✗ Noch kein Ton frei – vor der ersten Berührung nach dem Öffnen lässt der Browser keinen zu.${t.gesperrt
+      ? ` Deshalb ${kam(t.gesperrt)} ${toene(t.gesperrt)} nicht.` : ''}${angehalten} Tipp einmal irgendwohin, ${tipp}.`;
   }
-  const verloren = t.verpasst
-    ? ` ${toene(t.verpasst)} ${t.verpasst === 1 ? 'kam' : 'kamen'} deshalb nicht: Der Tonkanal war in dem Moment nicht frei.`
-    : '';
-  host.textContent = `Tonkanal: ${wort[t.zustand]} · ${toene(t.gespielt)} losgeschickt, seit die App offen ist. ${rat}${verloren}`;
+  host.innerHTML = `<div class="ton-urteil">${esc(urteil)}</div>${darunter}`;
 }
 
 /*
@@ -28924,12 +29278,16 @@ function tonStandZeigen() {
  * (tonStand().klemmt – iOS nach Anruf oder App-Wechsel, ein Browser, der nicht
  * weckt), und verschwindet von selbst, sobald er läuft. In allen drei Ansichten
  * des Dashboards, weil die Fokusansicht die ist, in der man trainiert.
+ *
+ * Das Urteil vorn, und kein Versprechen, dass der nächste Tipp weckt: Sie
+ * erscheint ja gerade, weil einer es nicht getan hat. Der Abschnitt heißt so,
+ * wie er unter Mehr heißt.
  */
 function tonHinweis() {
   if (!ui.tonHinweis) return '';
-  return `<div class="notice zeile small" id="tonHinweis"><span>🔇 Der Browser hält den Tonkanal an,
-    obwohl du getippt hast – Töne kommen gerade nicht. Der nächste Tipp weckt ihn;
-    mehr unter <i>Mehr → Töne</i>.</span></div>`;
+  return `<div class="notice zeile small" id="tonHinweis"><span>🔇 Töne kommen gerade nicht – der
+    Browser hält den Ton an, obwohl du getippt hast. Tipp noch einmal; bleibt es stumm, App
+    schließen und neu öffnen. Einzelheiten unter <i>Mehr → Töne und Hinweise</i>.</span></div>`;
 }
 
 /** Nach jeder Änderung am Tonkanal: die Zeile unter Mehr, und die stille Zeile im Dashboard. */

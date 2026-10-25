@@ -247,18 +247,22 @@ await page.waitForTimeout(500);
 
 const vorher = await page.locator('#tonStand').textContent();
 console.log('     vor dem Testton:', JSON.stringify(vorher));
-check(/Tonkanal:/.test(vorher || ''), 'die Zeile steht unter Mehr');
+// Neu geladen ist das Dokument wieder gesperrt. Läuft die 8-s-Pause von oben
+// noch, wartet ihr Signal auf die erste Berührung – dann steht genau das da und
+// nicht „Noch kein Ton angefordert" (das hieße: Die App wollte nichts).
+check(/^(Noch kein Ton angefordert|✗ Noch kein Ton frei – .*Pausensignal pünktlich)/.test((vorher || '').trim()),
+  'die Zeile steht unter Mehr');
 
 await page.locator('[data-act="test-sound"]').first().click();
 // Gezählt wird seit v241, was der Kontext wiedergegeben hat (`ended`), nicht,
 // was angefordert wurde – der letzte der sechs Töne klingt bis gut 6 s nach dem
 // Tipp aus.
 await page.waitForTimeout(7000);
-const nachher = await page.locator('#tonStand').textContent();
+const nachher = (await page.locator('#tonStand').textContent() || '').replace(/\s+/g, ' ');
 console.log('     nach dem Testton:', JSON.stringify(nachher));
-check(/läuft/.test(nachher || ''),
-  `nach dem Testton ist der Tonkanal offen (${nachher})`);
-const tonZahl = Number((/(\d+) Töne/.exec(nachher || '') || [])[1] || 0);
+check(/Die App schickt Töne los/.test(nachher),
+  `nach dem Testton steht das Urteil da: Die App schickt Töne los (${nachher.slice(0, 60)}…)`);
+const tonZahl = Number((/\((\d+) seit dem Öffnen\)/.exec(nachher) || [])[1] || 0);
 check(tonZahl >= 6, `und die Zahl der losgeschickten Töne ist gestiegen (${tonZahl})`);
 
 // Der Rat daneben nennt den einen Grund, den die App nicht sehen kann.
