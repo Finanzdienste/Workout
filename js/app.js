@@ -8372,8 +8372,10 @@ view.addEventListener('click', (e) => {
       // Ein Haken überholt das „Pause vorbei", das seit dem Neuladen auf die
       // erste Berührung wartet – auch einer, der stumm bleibt („Ton bei jedem
       // Satz" aus, im Supersatz ohne Wartezeit weiter; tonUeberholt() in
-      // js/audio.js).
-      tonUeberholt();
+      // js/audio.js). Nur ein gesetzter: Wer als Erstes einen Haken
+      // zurücknimmt, ist mit dem nächsten Satz noch nicht weiter – der Gong
+      // kommt nach, wie bis v241.
+      if (!cur) tonUeberholt();
 
       // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
       // später der Vergleich "Zuletzt" und die Volumenrechnung.

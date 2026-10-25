@@ -1314,11 +1314,15 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 .notice.abschluss { margin: 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
 .abschluss-knoepfe { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
 .abschluss-knoepfe .btn { padding: 6px 12px; font-size: 13px; }
-.ov:has(> .notice.abschluss) .ov-body { min-height: 120px; }
 /* Die stille Zeile zum Ton auf der Startseite (tonHinweis(true) in
    js/app.js): kurz und so klein gesetzt wie die zum Abschluss. In voller Länge
-   waren es bei 360×740 vier Zeilen, 116 px, und der Fuß lag unter der Leiste. */
+   waren es bei 360×740 vier Zeilen, 116 px, und der Fuß lag unter der Leiste.
+   Und die Karte gibt auch für sie Höhe ab: Am Samstag mit angefangener
+   Einheit (Fortschritt, „Training fortsetzen", „Als trainiert markieren")
+   lag der Fuß mit der kurzen Zeile allein noch 13 px unter der Leiste. */
 .notice.kurz { margin: 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
+.ov:has(> .notice.abschluss) .ov-body,
+.ov:has(> .notice.kurz) .ov-body { min-height: 120px; }
 
 /* Mehr → Töne und Hinweise, unter „Töne anhören": erst das Urteil in
    Textfarbe, darunter grau die Ursachen am Handy als Liste. Ein Absatz
@@ -11058,7 +11062,9 @@ function nachholen(gedrueckt = false) {
  * kein Tupfer, keine neue Pause, kein Ton, an dem nachholen() den Haken hätte
  * erkennen können. „Pause vorbei" kam direkt danach, mit „Weiter: B". Und wer
  * unter Mehr als Erstes „Töne" ausschaltete, bekam in dem Moment den
- * lautesten Ton der App.
+ * lautesten Ton der App. Ein zurückgenommener Haken überholt nichts – mit dem
+ * nächsten Satz ist, wer korrigiert, noch nicht weiter; die App ruft das dort
+ * nicht.
  */
 function tonUeberholt() {
   if (!wunschTon) return;
@@ -29931,8 +29937,10 @@ view.addEventListener('click', (e) => {
       // Ein Haken überholt das „Pause vorbei", das seit dem Neuladen auf die
       // erste Berührung wartet – auch einer, der stumm bleibt („Ton bei jedem
       // Satz" aus, im Supersatz ohne Wartezeit weiter; tonUeberholt() in
-      // js/audio.js).
-      tonUeberholt();
+      // js/audio.js). Nur ein gesetzter: Wer als Erstes einen Haken
+      // zurücknimmt, ist mit dem nächsten Satz noch nicht weiter – der Gong
+      // kommt nach, wie bis v241.
+      if (!cur) tonUeberholt();
 
       // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
       // später der Vergleich "Zuletzt" und die Volumenrechnung.

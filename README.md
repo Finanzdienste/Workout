@@ -934,7 +934,11 @@ nächsten Tipp. Seit v241:
   keine neue Pause, also kein Ton, an dem `nachholen()` den Haken erkannt hätte,
   und „Pause vorbei" kam direkt danach. Wer unter *Mehr* als Erstes „Töne"
   ausschaltete, wo eben noch stand, ein Tipp hole den Gong nach, bekam ihn in
-  genau dem Moment. **Die halbe Sekunde läuft ab dem Loslassen.** Mit Maus und
+  genau dem Moment. Nur ein *gesetzter* Haken überholt ihn: Wer als Erstes
+  einen Haken zurücknimmt, ist mit dem nächsten Satz noch nicht weiter, und
+  der Gong kommt nach wie bis v241 (der erste Stand von v242 verwarf ihn auch
+  dabei, ohne dass es irgendwo stand). **Die halbe Sekunde läuft ab dem
+  Loslassen.** Mit Maus und
   Tastatur ist schon `mousedown` bzw. `keydown` die erste Berührung, der Klick
   kommt erst beim Loslassen, auch nach langem Druck: Wer am Rechner die
   Maustaste oder die Leertaste 0,8 s auf dem nächsten Satz hielt, bekam erst
@@ -1066,8 +1070,9 @@ gut anderthalb Sekunden nach einer Berührung weiter, zeigt das Dashboard eine
 stille Zeile (kein Popup) – *Töne kommen gerade nicht …; tipp noch einmal,
 bleibt es stumm, App schließen und neu öffnen* –, die von selbst verschwindet,
 sobald er läuft. Auf der Startseite steht sie kurz (zwei statt vier Zeilen),
-damit die eine Bildschirmseite bleibt, und nicht neben der Zeile zum
-Tagesabschluss (unten, *Liegen geblieben*).
+die Körperkarte gibt für sie Höhe ab, damit die eine Bildschirmseite bleibt,
+und sie steht nicht neben der Zeile zum Tagesabschluss (unten, *Liegen
+geblieben*).
 
 **Gemessen, aus Quellen, nicht belegbar.** Gemessen in Chromium 153 mit
 Standard-Autoplay-Policy (keine Flagge) und Touch über eine rohe CDP-Sitzung
@@ -1099,7 +1104,10 @@ und keiner danach, auf dem Namen der Übung kommt er nach dem Loslassen; eine
 Berührung in der Viertelsekunde nach dem Pausenende (der Takt dafür
 angehalten) gibt den Gong einmal und zählt ihn einmal – gespielt –, die
 Vorwarnung als verpasst. Jede dieser Szenen ist gegen den Stand davor
-gegengeprüft und war dort rot.
+gegengeprüft und war dort rot. Aus der Prüfung danach: Nimmt die erste
+Berührung einen Haken zurück, kommt der Gong nach und zählt als verspätet
+und nachgeholt, nicht als verpasst (K5 – rot gegen den ersten Stand von
+v242, grün gegen v241).
 Wichtig für jede weitere Messung: In Playwright zählt jedes `page.evaluate()`
 und jede Locator-Hilfe als Nutzergeste (`Runtime.callFunctionOn` mit
 `userGesture: true`) – ein Test, der vor der ersten Berührung eines davon
@@ -6020,7 +6028,15 @@ Leiste – mit der Zeile zum Ton allein, vier Zeilen und 116 px, noch 35 bzw.
 danach noch, steht die Zeile zum Ton da, kurz und klein gesetzt (52 px: *Töne
 kommen gerade nicht. Bleibt es stumm, App neu öffnen – Mehr → Töne und
 Hinweise*), und die Seite bleibt eine Seite. Den ganzen Satz zeigen weiter die
-Fokusansicht und die Liste.
+Fokusansicht und die Liste. Die Körperkarte gibt auch für diese Zeile Höhe ab:
+Am Samstag selbst, Workout 12 angefangen – Fortschritt, „Training
+fortsetzen", „Als trainiert markieren" –, lag der Fuß mit der kurzen Zeile
+allein sonst noch 13 px unter der Leiste. Gemessen bei 360×740 am Samstag,
+Sonntag und Montag. Nicht gelöst und unabhängig vom Ton: Eine angefangene
+Einheit mit vier Reihen Muskeln unter der Karte – Workout 13 mit dem Zusatz,
+am Montag nach drei Sätzen verlassen – passt bei 360×740 schon ohne jede Zeile
+nicht, der Fuß liegt 18 px unter der Leiste (in v241 genauso), mit der Zeile
+zum Ton 30 px.
 
 **Wohin der Rest geht, nur wenn es stimmt.** Gerechnet von den Stellen, die es
 dann tun – keine zweite Rechnung: der Zusatztag in der Einheit von heute
@@ -6126,10 +6142,13 @@ ihrem Abschnitt.
 Aus dem Gegenlesen von v241 (v242) kamen dazu: die Startseite mit der Zeile
 zum Abschluss und der zum Ton (2b), Stunden Stille vor dem nächsten Satz (16),
 der Fehltipp in einer anderen Einheit ohne und mit Sitzung (17) und die
-Sicherung von v241 (9) – 158 Prüfungen in siebzehn Abschnitten. Gegen 87e4cd1
-sind 17 davon rot: 8 in 2b, 3 in 16, 3 in 17 und 3 in 9, die das neue Feld
-prüfen. 17c – Unsinn und ein Wert aus der Zukunft im neuen Feld – ist dort grün,
-weil 87e4cd1 das Feld nicht liest; es wacht über das neue.
+Sicherung von v241 (9), und aus der Prüfung danach der Samstag mit
+angefangener Einheit und der Zeile zum Ton (2b) – 161 Prüfungen in siebzehn
+Abschnitten. Gegen 87e4cd1 sind 19 davon rot: 10 in 2b, 3 in 16, 3 in 17 und 3
+in 9, die das neue Feld prüfen. 17c – Unsinn und ein Wert aus der Zukunft im
+neuen Feld – ist dort grün, weil 87e4cd1 das Feld nicht liest; es wacht über
+das neue. Gegen den ersten Stand von v242 (1e98686) ist eine rot: der Samstag
+bei 360×740.
 
 `tests/test-fortsetzen.mjs` (Fall 3 und 10) erwartete, dass eine Sitzung von
 gestern auf dem Dashboard wartet; das ist auf Zuruf anders und dort mit

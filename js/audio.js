@@ -446,7 +446,9 @@ function nachholen(gedrueckt = false) {
  * kein Tupfer, keine neue Pause, kein Ton, an dem nachholen() den Haken hätte
  * erkennen können. „Pause vorbei" kam direkt danach, mit „Weiter: B". Und wer
  * unter Mehr als Erstes „Töne" ausschaltete, bekam in dem Moment den
- * lautesten Ton der App.
+ * lautesten Ton der App. Ein zurückgenommener Haken überholt nichts – mit dem
+ * nächsten Satz ist, wer korrigiert, noch nicht weiter; die App ruft das dort
+ * nicht.
  */
 export function tonUeberholt() {
   if (!wunschTon) return;

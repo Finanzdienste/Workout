@@ -74,8 +74,13 @@
  *      nicht ab dem Drücken (K3, Maus und Leertaste); und eine Berührung kurz
  *      nach dem Pausenende, bevor der Takt es bemerkt, zählt jeden Ton in
  *      genau einem Topf (K4).
- *      Gegen 87e4cd1: 10 von 155 Prüfungen rot, alle in K – K1 (1), K2 (1),
+ *      Gegen 87e4cd1: 10 von 161 Prüfungen rot, alle in K – K1 (1), K2 (1),
  *      K3 (6: Gong schon während des Drückens), K4 (2: „2 Töne kamen nicht").
+ *
+ *      K5 aus der Prüfung danach: Nimmt die erste Berührung einen Haken
+ *      zurück, kommt der Gong nach wie bis 87e4cd1 – nur ein gesetzter Haken
+ *      überholt ihn. Rot gegen 1e98686 (der erste Stand von v242: kein Gong,
+ *      verpasst – 1 von 161), grün gegen 87e4cd1 und danach.
  */
 import { chromium } from 'playwright';
 import { URL, SHOT } from './umgebung.mjs';
@@ -793,7 +798,7 @@ const KEIN_TON = '✗ Noch kein Ton frei – vor der ersten Berührung nach dem 
 /* ================================================================== */
 /* K  Aus dem Gegenlesen von v241                                        */
 /* ================================================================== */
-console.log('\n--- K  Der vorgemerkte Gong: nicht mit einem stummen Haken, nicht nach „Töne aus", nicht vor dem Loslassen, nicht doppelt gezählt ---');
+console.log('\n--- K  Der vorgemerkte Gong: nicht mit einem stummen Haken, nicht nach „Töne aus", nicht vor dem Loslassen, nicht doppelt gezählt – nach einem zurückgenommenen Haken doch ---');
 {
   // K1  Supersatz, „Ton bei jedem Satz" aus. B1 abgehakt, die Pause vor A2
   // läuft, die Seite wird neu geladen, die Pause läuft ohne Tipp ab. Die erste
@@ -929,6 +934,48 @@ for (const [name, ziel, satz, taste] of [
   const urteil = await text('#tonStand .ton-urteil');
   check(urteil === '✓ Die App schickt Töne los (1 seit dem Öffnen). 1 Ton kam nicht – vor deiner ersten Berührung nach dem Öffnen lässt der Browser keinen Ton zu.',
     `K4: unter Mehr: ${JSON.stringify(urteil)}`);
+  check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  await ctx.close();
+}
+{
+  // K5  Die erste Berührung nimmt einen Haken zurück. Das ist weder ein Haken
+  // noch ein Ton noch „Töne" aus, und nur die überholen den Gong (K1, K2): Er
+  // kommt nach, wie bis 87e4cd1. Der erste Stand von v242 überholte bei jedem
+  // Tipp auf einen Satz, auch beim Zurücknehmen – kein Gong, als verpasst
+  // gezählt, und nirgends stand, dass das so sein soll.
+  const { ctx, errs, tippe, stand, page, cdp } = await seite({ ...GRUND });
+  await tippe('[data-act="start-session"]');
+  await tippe('.focus-set:not(.on)');
+  const s0 = await stand();
+  check(s0.pause, `K5: Satz 1 abgehakt, die Pause läuft (Pause=${s0.pause})`);
+  const endsAt = await rein(cdp, `(async () => {
+    const store = await import('./js/store.js');
+    const r = store.getState().rest;
+    store.setRest({ ...r, endsAt: Date.now() + 3000 });
+    store.flush();
+    return store.getState().rest.endsAt;
+  })()`);
+  await page.reload({ waitUntil: 'networkidle' });
+  await warte(300);
+  const s1 = await stand();
+  check(s1.akt === '-/-' && s1.pause && s1.ctxs === 0,
+    `K5: neu geladen – gestenfrei, die Pause läuft (${s1.akt}, Pause=${s1.pause}, Kontexte=${s1.ctxs})`);
+  await bis(endsAt + 800);
+  const s2 = await stand();
+  check(!s2.pause && s2.wartet === 'rest' && s2.gesperrt === 1,
+    `K5: Pause ohne Tipp abgelaufen, der Gong wartet (wartet=${s2.wartet}, verpasst=${s2.verpasst})`);
+  // Gut drei Sekunden nach dem Ende wie in C – innerhalb der Frist, und spät
+  // genug, dass er als verspätet und nachgeholt zählt.
+  await bis(endsAt + 3500);
+  const vorher = await rein(cdp, `document.querySelectorAll('.focus-set.on').length`);
+  await tippe('.focus-set.on');
+  await warte(1200);
+  const s3 = await stand();
+  const nachher = await rein(cdp, `document.querySelectorAll('.focus-set.on').length`);
+  check(vorher === 1 && nachher === 0 && !s3.pause,
+    `K5: die erste Berührung nimmt den Haken auf Satz 1 zurück (Haken ${vorher} → ${nachher}, Pause=${s3.pause})`);
+  check(starts(s3.log, 880, true) === 3 && s3.gespielt === 1 && s3.verspaetet === 1 && s3.nachgeholt === 1 && s3.verpasst === 0 && !s3.offen,
+    `K5: und „Pause vorbei" kommt nach – verspätet und nachgeholt, nicht verpasst (sofortige 880-Hz-Quellen: ${starts(s3.log, 880, true)}, gespielt=${s3.gespielt}, verspätet=${s3.verspaetet}, nachgeholt=${s3.nachgeholt}, verpasst=${s3.verpasst})`);
   check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
   await ctx.close();
 }

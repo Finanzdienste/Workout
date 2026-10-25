@@ -83,7 +83,9 @@
  *
  *  2b. Dazu klemmt der Ton: Auf der Startseite hat die Zeile zum Abschluss
  *      Vorrang vor der stillen Zeile zum Ton, danach steht die kurz da – eine
- *      Seite bei 414×896 und 360×740, Sonntag und Montag.
+ *      Seite bei 414×896 und 360×740, Sonntag und Montag; und am Samstag mit
+ *      angefangener Einheit, wo die Karte auch für die kurze Zeile Höhe
+ *      abgibt (aus der Prüfung danach, rot gegen 1e98686 und 87e4cd1).
  *  16. Stunden Stille bei sichtbarer App, dann zuerst ein Satz: Die Uhr bucht
  *      die Stille nicht, auch nicht, wenn der Satz die Einheit beendet.
  *  17. Ein Eintrag in einer anderen Einheit (ein Fehltipp in Workout 13)
@@ -92,9 +94,10 @@
  *      Der letzte Eintrag je Einheit aus fremder Hand zählt nur, wenn er gilt
  *      (dazu 9: eine Sicherung von v241 zieht um).
  *
- * Gegenprobe gegen 87e4cd1 (v241): 17 von 158 Prüfungen rot – 2b (8), 16 (3),
+ * Gegenprobe gegen 87e4cd1 (v241): 19 von 161 Prüfungen rot – 2b (10), 16 (3),
  * 17a und 17b (3) und in 9 die drei, die das neue Feld prüfen. 17c ist dort
- * grün, weil 87e4cd1 das Feld nicht liest.
+ * grün, weil 87e4cd1 das Feld nicht liest. Gegen 1e98686 (der erste Stand von
+ * v242): 1 rot – 2b Samstag bei 360×740.
  *
  * Gegenprobe gegen f43f137 (ohne Tagesabschluss): 47 von 78 Prüfungen rot,
  * jeder Abschnitt; 1, 3, 4, 7, 8, 9, 11, 12, 13 und 14 brechen ab, weil es
@@ -478,7 +481,7 @@ await abschnitt(2, async () => {
           `2b ${wo} ${b}×${h}, Ton klemmt (${m.klemmt}): oben nur die Zeile zum Abschluss, eine Seite (Ton-Zeile ${m.ton} px, Überhang ${m.scroll}, Fuß ${Math.round(m.fussUnten)} / ${Math.round(m.sichtbar)})`);
       } else {
         check(m.klemmt && m.zeile === 0 && m.ton > 0 && m.ton <= 60 && passt,
-          `2b ${wo} ${b}×${h} nach „OK": die Zeile zum Ton (${m.ton} px), eine Seite (Überhang ${m.scroll}, Fuß ${Math.round(m.fussUnten)} / ${Math.round(m.sichtbar)}) – „${m.tonText}"`);
+          `2b ${wo} ${b}×${h}: die Zeile zum Ton (${m.ton} px), eine Seite (Überhang ${m.scroll}, Fuß ${Math.round(m.fussUnten)} / ${Math.round(m.sichtbar)}) – „${m.tonText}"`);
       }
     }
   };
@@ -488,13 +491,21 @@ await abschnitt(2, async () => {
   await g.tag(T.mo);
   await tonSeite(g, 'Montag', true);
   await g.klick('[data-act="abschluss-ok"]');
-  await tonSeite(g, 'Montag', false);
+  await tonSeite(g, 'Montag nach „OK"', false);
   await ende(g);
   const h = await fall('2b Ton klemmt, Sonntag', samstag(), T.sa, { klemmt: true });
   await h.tag(T.so);
   await h.klick('[data-act="abschluss-ok"]');
-  await tonSeite(h, 'Sonntag', false);
+  await tonSeite(h, 'Sonntag nach „OK"', false);
   await ende(h);
+  // Und am Samstag selbst, Workout 12 angefangen: Fortschritt, „Training
+  // fortsetzen" und „Als trainiert markieren" stehen da, keine Zeile zum
+  // Abschluss. Die Karte gab ihre Höhe nur neben der Zeile zum Abschluss ab –
+  // mit der kurzen Zeile zum Ton allein lag der Fuß bei 360×740 noch 13 px
+  // unter der Leiste (Überhang 40).
+  const s = await fall('2b Ton klemmt, Samstag', samstag(), T.sa, { klemmt: true });
+  await tonSeite(s, 'Samstag, Workout 12 angefangen', false);
+  await ende(s);
 });
 
 /* ------------------------------------------------------------------ *
