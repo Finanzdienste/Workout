@@ -79,6 +79,26 @@
  *      oder „Abschließen" am Morgen buchen nicht die Nacht, und die Einheit
  *      schließt ab.
  *
+ * Aus dem Gegenlesen von v241 (v242):
+ *
+ *  2b. Dazu klemmt der Ton: Auf der Startseite hat die Zeile zum Abschluss
+ *      Vorrang vor der stillen Zeile zum Ton, danach steht die kurz da – eine
+ *      Seite bei 414×896 und 360×740, Sonntag und Montag; und am Samstag mit
+ *      angefangener Einheit, wo die Karte auch für die kurze Zeile Höhe
+ *      abgibt (aus der Prüfung danach, rot gegen 1e98686 und 87e4cd1).
+ *  16. Stunden Stille bei sichtbarer App, dann zuerst ein Satz: Die Uhr bucht
+ *      die Stille nicht, auch nicht, wenn der Satz die Einheit beendet.
+ *  17. Ein Eintrag in einer anderen Einheit (ein Fehltipp in Workout 13)
+ *      nimmt Workout 12 nicht ihr Lebenszeichen: kein Abschluss zehn Minuten
+ *      nach ihrem letzten Satz, kein zweiter Trainingstag nach Mitternacht.
+ *      Der letzte Eintrag je Einheit aus fremder Hand zählt nur, wenn er gilt
+ *      (dazu 9: eine Sicherung von v241 zieht um).
+ *
+ * Gegenprobe gegen 87e4cd1 (v241): 19 von 161 Prüfungen rot – 2b (10), 16 (3),
+ * 17a und 17b (3) und in 9 die drei, die das neue Feld prüfen. 17c ist dort
+ * grün, weil 87e4cd1 das Feld nicht liest. Gegen 1e98686 (der erste Stand von
+ * v242): 1 rot – 2b Samstag bei 360×740.
+ *
  * Gegenprobe gegen f43f137 (ohne Tagesabschluss): 47 von 78 Prüfungen rot,
  * jeder Abschnitt; 1, 3, 4, 7, 8, 9, 11, 12, 13 und 14 brechen ab, weil es
  * Knopf, Zeile oder Feld nicht gibt. Gegen fcd9757 (vor der Prüfung): 23 von
@@ -119,8 +139,11 @@ const offen = new Set();
  * Ein Fall in eigenem Kontext. `zustand` wird vor dem ersten Laden gesät,
  * die Uhr steht fest auf `wann` – oder läuft ab `wann` (`laufend`), wo die
  * Uhr bei offener App geprüft wird. `window.__hidden` schaltet die App weg.
+ * `klemmt`: Der Tonkanal bleibt nach jeder Berührung 'interrupted' – so, wie
+ * iOS ihn nach einer Nacht im Hintergrund hinterlässt (die stille Zeile zum
+ * Ton, siehe klemmen()).
  */
-async function fall(name, zustand, wann, { laufend = false } = {}) {
+async function fall(name, zustand, wann, { laufend = false, klemmt = false } = {}) {
   const ctx = await browser.newContext({
     viewport: { width: 414, height: 896 }, timezoneId: 'Europe/Berlin', serviceWorkers: 'block',
   });
@@ -134,6 +157,16 @@ async function fall(name, zustand, wann, { laufend = false } = {}) {
     });
     navigator.vibrate = () => true;
   });
+  if (klemmt) {
+    await ctx.addInitScript(() => {
+      const Orig = window.AudioContext;
+      window.AudioContext = class extends Orig {
+        get state() { return 'interrupted'; }
+        get currentTime() { return 0; }
+        resume() { return new Promise(() => {}); }
+      };
+    });
+  }
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', (e) => errs.push(`PAGEERROR: ${e.message}`));
@@ -186,6 +219,17 @@ async function ende(f) {
   check(f.errs.length === 0, `${f.name}: keine Fehler${f.errs.length ? ` – ${f.errs.slice(0, 2).join(' | ')}` : ''}`);
   offen.delete(f.ctx);
   await f.ctx.close();
+}
+/**
+ * Die Berührung, nach der der Tonkanal klemmt (fall(…, { klemmt })): ein
+ * Mausklick auf eine leere Stelle, dann die Uhr gut zwei Sekunden weiter –
+ * erst nach anderthalb gilt er als klemmend (tonStand().klemmt in js/audio.js).
+ */
+async function klemmen(f) {
+  const t = await f.page.evaluate(() => Date.now());
+  await f.page.mouse.click(5, 300);
+  await f.page.clock.setFixedTime(new Date(t + 2500));
+  await f.page.waitForTimeout(1900);
 }
 async function abschnitt(nr, fn) {
   if (nur.length && !nur.includes(String(nr))) return;
@@ -254,7 +298,11 @@ function eintrag(n, k = Infinity, tag = tagVon(n)) {
 const fertigBis = (bis) => Object.fromEntries(Array.from({ length: bis }, (_, i) => [i + 1, eintrag(i + 1)]));
 const ms = (iso) => new Date(iso).getTime();
 
-/** Tobis Samstag: 1–11 ganz, Workout 12 mit 4 von 15. `extra` ergänzt den Zustand. */
+/**
+ * Tobis Samstag: 1–11 ganz, Workout 12 mit 4 von 15. `extra` ergänzt den Zustand.
+ * Der letzte Eintrag steht hier, wie v241 ihn schrieb (`letzterEintrag`); er
+ * zieht beim Laden in seine Einheit um – so geht jeder Fall auch über den Umzug.
+ */
 const samstag = (extra = {}) => ({
   ...GRUND,
   log: { ...fertigBis(11), 12: eintrag(12, 4) },
@@ -396,6 +444,68 @@ await abschnitt(2, async () => {
   check(mo.zeile.startsWith(`✓ ${satzText}`) && mo.zeile.includes(`Von den 11 offenen Sätzen kommen heute ${zus} in Workout 13 mit rein.`),
     `2 Montag, nicht weggetippt: „${mo.zeile}"`);
   await ende(f);
+
+  // b) Dazu klemmt der Ton: Die App lag über Nacht im Speicher, iOS hat den
+  //    Tonkanal unterbrochen, und er wacht nach der Berührung nicht auf – dann
+  //    kommt die stille Zeile zum Ton (tonHinweis() in js/app.js). Zusammen
+  //    mit der Zeile zum Abschluss lag der Fuß der Startseite bei 360×740
+  //    78 px (Sonntag) und 111 px (Montag) unter der Leiste, mit der Zeile zum
+  //    Ton allein (116 px) noch 35 und 45 px. Jetzt hat auf der Startseite die
+  //    Zeile zum Abschluss Vorrang – ihr „OK" ist ohnehin die nächste
+  //    Berührung, und die weckt –, danach steht die zum Ton, kurz, und beides
+  //    bleibt eine Seite.
+  const messen = (fl) => fl.page.evaluate(async () => {
+    const a = await import('./js/audio.js');
+    const leiste = document.getElementById('tabbar').getBoundingClientRect();
+    const fuss = document.querySelector('.ov-foot').getBoundingClientRect();
+    const ton = document.querySelector('.ov > #tonHinweis');
+    return {
+      klemmt: a.tonStand().klemmt,
+      sichtbar: Math.min(window.innerHeight, leiste.height ? leiste.top : window.innerHeight),
+      fussUnten: fuss.bottom, zeile: document.querySelectorAll('.ov > .notice.abschluss').length,
+      ton: ton ? Math.round(ton.getBoundingClientRect().height) : 0,
+      tonText: ton ? ton.textContent.replace(/\s+/g, ' ').trim() : '',
+      scroll: document.documentElement.scrollHeight - window.innerHeight,
+    };
+  });
+  const tonSeite = async (fl, wo, mitZeile) => {
+    for (const [b, h] of [[414, 896], [360, 740]]) {
+      await fl.page.setViewportSize({ width: b, height: h });
+      await fl.page.reload({ waitUntil: 'networkidle' });
+      await fl.page.waitForTimeout(300);
+      await klemmen(fl);
+      const m = await messen(fl);
+      const passt = m.scroll <= 0 && m.fussUnten <= m.sichtbar;
+      if (mitZeile) {
+        check(m.klemmt && m.zeile === 1 && m.ton === 0 && passt,
+          `2b ${wo} ${b}×${h}, Ton klemmt (${m.klemmt}): oben nur die Zeile zum Abschluss, eine Seite (Ton-Zeile ${m.ton} px, Überhang ${m.scroll}, Fuß ${Math.round(m.fussUnten)} / ${Math.round(m.sichtbar)})`);
+      } else {
+        check(m.klemmt && m.zeile === 0 && m.ton > 0 && m.ton <= 60 && passt,
+          `2b ${wo} ${b}×${h}: die Zeile zum Ton (${m.ton} px), eine Seite (Überhang ${m.scroll}, Fuß ${Math.round(m.fussUnten)} / ${Math.round(m.sichtbar)}) – „${m.tonText}"`);
+      }
+    }
+  };
+  const g = await fall('2b Ton klemmt', samstag(), T.sa, { klemmt: true });
+  await g.tag(T.so);
+  await tonSeite(g, 'Sonntag', true);
+  await g.tag(T.mo);
+  await tonSeite(g, 'Montag', true);
+  await g.klick('[data-act="abschluss-ok"]');
+  await tonSeite(g, 'Montag nach „OK"', false);
+  await ende(g);
+  const h = await fall('2b Ton klemmt, Sonntag', samstag(), T.sa, { klemmt: true });
+  await h.tag(T.so);
+  await h.klick('[data-act="abschluss-ok"]');
+  await tonSeite(h, 'Sonntag nach „OK"', false);
+  await ende(h);
+  // Und am Samstag selbst, Workout 12 angefangen: Fortschritt, „Training
+  // fortsetzen" und „Als trainiert markieren" stehen da, keine Zeile zum
+  // Abschluss. Die Karte gab ihre Höhe nur neben der Zeile zum Abschluss ab –
+  // mit der kurzen Zeile zum Ton allein lag der Fuß bei 360×740 noch 13 px
+  // unter der Leiste (Überhang 40).
+  const s = await fall('2b Ton klemmt, Samstag', samstag(), T.sa, { klemmt: true });
+  await tonSeite(s, 'Samstag, Workout 12 angefangen', false);
+  await ende(s);
 });
 
 /* ------------------------------------------------------------------ *
@@ -773,8 +883,11 @@ await abschnitt(9, async () => {
   await f.tag(T.so);
   const json = await f.M(({ store }) => store.exportJSON());
   const roh = JSON.parse(json);
-  check(!!roh.tagesabschluss && roh.tagesabschluss.einheiten[0].n === 12 && !!roh.letzterEintrag,
-    `9 die Sicherung trägt das Feld (${JSON.stringify(roh.tagesabschluss)})`);
+  // Der letzte Eintrag steht seit v242 je Einheit (`zuletzt`); der Stand von
+  // samstag() hat noch den einen Platz von v241 und zieht beim Laden um.
+  check(!!roh.tagesabschluss && roh.tagesabschluss.einheiten[0].n === 12
+    && roh.log[12].zuletzt === ms(T.sa) && !('letzterEintrag' in roh),
+    `9 die Sicherung trägt das Feld und den letzten Eintrag in der Einheit (${JSON.stringify(roh.tagesabschluss)}, zuletzt ${roh.log[12].zuletzt}, alt ${'letzterEintrag' in roh})`);
   await ende(f);
 
   // In ein frisches Gerät eingelesen: dieselbe Zeile.
@@ -805,8 +918,17 @@ await abschnitt(9, async () => {
   boese.tagesabschluss = '<script>window.__xss=3</script>';
   boese.letzterEintrag = 'kaputt';
   await g.M(({ store }, text) => store.importJSON(text), JSON.stringify(boese));
-  const leer = await g.M(({ store }) => [store.getState().tagesabschluss, store.getState().letzterEintrag]);
-  check(leer[0] === null && leer[1] === null, `9 eine Zeichenkette statt des Felds: weg (${JSON.stringify(leer)})`);
+  const leer = await g.M(({ store }) => [store.getState().tagesabschluss, 'letzterEintrag' in store.getState()]);
+  check(leer[0] === null && leer[1] === false, `9 eine Zeichenkette statt des Felds: weg (${JSON.stringify(leer)})`);
+
+  // Eine Sicherung von v241: Ihr `letzterEintrag` zieht in seine Einheit um.
+  const alt = JSON.parse(json);
+  delete alt.log[12].zuletzt;
+  alt.letzterEintrag = { n: '12', at: ms(T.sa2350) };
+  await g.M(({ store }, text) => store.importJSON(text), JSON.stringify(alt));
+  const um = await g.M(({ store }) => [store.getState().log[12].zuletzt, 'letzterEintrag' in store.getState()]);
+  check(um[0] === ms(T.sa2350) && um[1] === false,
+    `9 eine Sicherung von v241: der letzte Eintrag steht danach in Workout 12 (${um[0]}, altes Feld ${um[1]})`);
   await ende(g);
 
   // Ein Lebenszeichen aus der Zukunft (falsch gehende Uhr am anderen Gerät)
@@ -1055,6 +1177,137 @@ await abschnitt(15, async () => {
         `15 ${art}: Sitzung beendet, abgeschlossen, die Zeile steht (${JSON.stringify(st.session)}, ${st.log[12].done})`);
     }
     await ende(f);
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * 16: Stunden Stille bei offener App, dann zuerst ein Satz
+ * ------------------------------------------------------------------ */
+await abschnitt(16, async () => {
+  // Der Deckel aus 15 sah nur beim Anhalten nach, wie lange die Stille her
+  // ist. Tablet, App sichtbar: Start 10:00, ein Satz um 10:45, dann 3 h 45
+  // weg. Um 14:30 der nächste Satz – damit war das Lebenszeichen frisch –, um
+  // 14:45 „Abschließen": gebucht 4 h 45 statt einer Stunde. Wer zuerst auf
+  // „Abschließen" tippte, bekam 45 Minuten. Jetzt bemerkt schon der Satz die
+  // Stille: Die Uhr bucht bis 10:45 und läuft ab 14:30 weiter.
+  for (const art of ['Abschließen', 'letzter Satz']) {
+    const z = samstag({
+      session: { n: 12 },
+      clock: { n: 12, on: TAG.sa, spent: 0, since: ms('2026-10-24T10:00:00+02:00'), gebucht: 0 },
+      letzterEintrag: null,
+      fokusOffen: { n: 12, id: null },
+    });
+    // „letzter Satz": bis auf einen alles abgehakt – der Satz um 14:30 beendet
+    // die Einheit selbst (einheitBeenden() wie beim Knopf).
+    if (art === 'letzter Satz') {
+      z.log[12] = eintrag(12, 13);
+    }
+    const f = await fall(`16 ${art}`, z, '2026-10-24T10:00:00+02:00');
+    check((await blick(f)).fokus, `16 ${art}: Samstag 10:00, die Sitzung läuft, Fokusansicht`);
+    await f.page.clock.setFixedTime(new Date('2026-10-24T10:45:00+02:00'));
+    await f.page.locator('.focus-sets .set-btn:not(.on)').first().click();
+    await f.page.waitForTimeout(300);
+    await f.page.clock.setFixedTime(new Date('2026-10-24T14:30:00+02:00'));
+    await f.page.waitForTimeout(400);
+    await f.page.locator('.focus-sets .set-btn:not(.on)').first().click();
+    await f.page.waitForTimeout(300);
+    if (art === 'Abschließen') {
+      // Die Sitzung läuft weiter, die Uhr ab dem Satz: 45 min gezählt, seit 14:30.
+      const mitten = await f.lies();
+      check(!!mitten.session && mitten.clock.spent === 45 * 60000 && mitten.clock.since === ms('2026-10-24T14:30:00+02:00'),
+        `16 ${art}: um 14:30 läuft die Sitzung weiter, die Uhr ab dem Satz (gezählt ${mitten.clock.spent / 60000} min, seit ${new Date(mitten.clock.since).toISOString()})`);
+      await f.page.clock.setFixedTime(new Date('2026-10-24T14:45:00+02:00'));
+      await f.klick('[data-act="finish-session"]', 400);
+    }
+    const st = await f.lies();
+    const soll = art === 'Abschließen' ? 60 * 60 : 45 * 60;
+    check(!st.session && st.log[12].done === 'db' && Math.abs((st.log[12].secs || 0) - soll) <= 2,
+      `16 ${art}: gebucht ${soll / 60} min, nicht die Stille (${st.log[12].secs} s${st.log[12].secs > 3 * 3600 ? ' – mit den 3 h 45' : ''})`);
+    await ende(f);
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * 17: Ein Eintrag in einer anderen Einheit
+ * ------------------------------------------------------------------ */
+await abschnitt(17, async () => {
+  // Das Lebenszeichen hatte einen Platz für alle Einheiten (letzterEintrag),
+  // und jeder Eintrag überschrieb ihn – auch ein Fehltipp in einer anderen.
+  //
+  // a) Ohne Sitzung: Samstag 23:50 ein Satz in Workout 12, um 23:55 in
+  //    Workout 13 vorgeblättert, ein Satz an und gleich wieder ab. Um 0:00:30
+  //    (Neuladen, wie das Zurückkommen) war Workout 12 abgeschlossen – zehn
+  //    Minuten nach dem letzten Satz statt drei Stunden.
+  const f = await fall('17a Fehltipp nebenan', samstag(), '2026-10-24T23:40:00+02:00');
+  await f.page.clock.setFixedTime(new Date(T.sa2350));
+  await zurListe(f);
+  await hake(f, 1);
+  await f.klick('[data-act="hide-list"]', 200).catch(() => {});
+  await f.page.clock.setFixedTime(new Date('2026-10-24T23:55:00+02:00'));
+  await f.klick('[data-act="nav-workout"][data-delta="1"]', 250);
+  await zurListe(f);
+  await hake(f, 1);
+  await f.klick('[data-act="toggle-set"][aria-pressed="true"]', 250);
+  let st = await f.lies();
+  check(!(st.log[13] && st.log[13].startedOn) && st.log[12].startedOn === TAG.sa,
+    `17a Samstag 23:55: Workout 13 an und wieder ab – nicht angefangen (${st.log[13] && st.log[13].startedOn})`);
+  await f.tag('2026-10-25T00:00:30+02:00');
+  st = await f.lies();
+  check(!st.log[12].done && !st.tagesabschluss,
+    `17a Sonntag 0:00:30, zehn Minuten nach dem letzten Satz in Workout 12: offen, keine Zeile (done ${st.log[12].done})`);
+  await f.tag('2026-10-25T01:45:00+02:00');
+  st = await f.lies();
+  check(!st.log[12].done, `17a um 1:45, knapp zwei Stunden danach: noch offen (done ${st.log[12].done})`);
+  // 2:55 MESZ – die Nacht der Zeitumstellung, die Uhr springt erst um 3:00 zurück.
+  await f.tag('2026-10-25T02:55:00+02:00');
+  st = await f.lies();
+  check(st.log[12].done === 'db' && !!st.tagesabschluss,
+    `17a um 2:55, gut drei Stunden nach dem letzten Satz: abgeschlossen, wie sonst (done ${st.log[12].done})`);
+  await ende(f);
+
+  // b) In einer Sitzung: Workout 12 läuft, um 23:40 ein Satz, um 23:45 in
+  //    Workout 13 an und ab, um 0:05 wieder ein Satz in Workout 12. Der Sonntag
+  //    galt dann als zweiter Trainingstag (weiterAm) – kein Zusatztag mehr für
+  //    heute, keine Zeile „Heute frei".
+  const z = samstag({
+    session: { n: 12 },
+    clock: { n: 12, on: TAG.sa, spent: 30 * 60000, since: null, halt: ms('2026-10-24T23:30:00+02:00'), gebucht: 1800 },
+    letzterEintrag: { n: '12', at: ms('2026-10-24T23:30:00+02:00') },
+    fokusOffen: { n: 12, id: null },
+  });
+  z.log[12].secs = 1800;
+  const g = await fall('17b Sitzung, Fehltipp nebenan', z, '2026-10-24T23:35:00+02:00');
+  await g.page.clock.setFixedTime(new Date('2026-10-24T23:40:00+02:00'));
+  await g.page.locator('.focus-sets .set-btn:not(.on)').first().click();
+  await g.page.waitForTimeout(300);
+  await g.page.clock.setFixedTime(new Date('2026-10-24T23:45:00+02:00'));
+  for (let k = 0; k < 3 && await g.page.locator('.focus-cue').count(); k++) {
+    await g.page.goBack();
+    await g.page.waitForTimeout(250);
+  }
+  await g.klick('[data-act="nav-workout"][data-delta="1"]', 250);
+  await zurListe(g);
+  await hake(g, 1);
+  await g.klick('[data-act="toggle-set"][aria-pressed="true"]', 250);
+  await g.klick('[data-act="hide-list"]', 200).catch(() => {});
+  await g.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
+  await g.page.clock.setFixedTime(new Date('2026-10-25T00:05:00+02:00'));
+  await zurListe(g);
+  await hake(g, 1);
+  st = await g.lies();
+  const heute = await g.M(({ store }, iso) => store.trainiertAm(12, iso), TAG.so);
+  check(!!st.session && st.session.n === 12 && st.log[12].weiterAm === undefined && !heute,
+    `17b Sonntag 0:05, weiter in Workout 12: kein zweiter Trainingstag (Sitzung ${JSON.stringify(st.session)}, weiterAm ${st.log[12].weiterAm})`);
+  await ende(g);
+
+  // c) Aus fremder Hand: ein Eintrag aus der Zukunft oder Unsinn in der
+  //    Einheit hält sie nicht offen (wie 9 für das alte Feld).
+  for (const [name, wert] of [['Zukunft', ms('2026-11-30T12:00:00+01:00')], ['Unsinn', '<b>']]) {
+    const zz = samstag();
+    zz.log[12].zuletzt = wert;
+    const h = await fall(`17c ${name}`, zz, T.so);
+    check((await h.lies()).log[12].done === 'db', `17c ${name} als letzter Eintrag der Einheit zählt nicht – abgeschlossen`);
+    await ende(h);
   }
 });
 

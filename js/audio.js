@@ -21,7 +21,9 @@
  *                  merkt sie sich und holt es nach, sobald der Kanal frei ist –
  *                  einen Ton aber nur innerhalb seiner Frist, und nie, wenn die
  *                  Berührung selbst schon etwas Hörbares anstößt (den nächsten
- *                  Satz, eine neue Pause): siehe nachholen().
+ *                  Satz, eine neue Pause), der nächste Haken ist – auch ein
+ *                  stummer – oder die Töne ausschaltet: siehe nachholen() und
+ *                  tonUeberholt().
  *
  *   Vorausplanen.  Das Pausensignal wird nicht per setTimeout ausgelöst,
  *                  sondern beim Start der Pause fest auf die Uhr des
@@ -357,7 +359,7 @@ function wecken() {
  * Finger aktiviert nichts, erst das Loslassen; ein senkrechter Wisch (Scrollen)
  * gar nicht – deshalb die Rückfrage bei `userActivation`, wo es sie gibt.
  */
-function beruehrung() {
+function beruehrung(ev) {
   const u = navigator.userActivation;
   if (u && !u.hasBeenActive) return;
   const erste = !beruehrt;
@@ -365,7 +367,9 @@ function beruehrung() {
   initAudio();
   wecken();
   if (erste) {
-    nachholen();
+    // Mit Maus und Tastatur ist schon das Drücken die Berührung, der Klick
+    // kommt erst beim Loslassen (nachDemKlick()).
+    nachholen(ev && (ev.type === 'mousedown' || ev.type === 'keydown'));
     // Schläft der Kanal trotz Berührung weiter, soll das jemand erfahren –
     // aber erst, wenn resume() seine Chance hatte (siehe tonStand().klemmt).
     setTimeout(tonMelden, 1600);
@@ -391,9 +395,27 @@ for (const ev of ['pointerup', 'touchend', 'mousedown', 'keydown']) {
  * er ja), mit derselben Ursache wie vorher. Kommt er dran, verlässt er diesen
  * Topf und landet dort, wo er wirklich ankommt – gespielt und verspätet, oder,
  * wenn auch jetzt nichts durchgeht, wieder verpasst.
+ *
+ * Ob die Berührung einen Ton angestoßen hat, reicht dafür nicht immer: Ein
+ * Haken kann stumm bleiben („Ton bei jedem Satz" aus, im Supersatz ohne
+ * Wartezeit weiter zum Partner), und „Töne" aus stößt gar nichts an. Beides
+ * sagt die App ausdrücklich (tonUeberholt()).
+ *
+ * **Eine Pause, die schon vorbei ist, bleibt hier liegen.** Fällt die
+ * Berührung in die Viertelsekunde zwischen dem Pausenende und dem Takt, der es
+ * bemerkt, ist von ihrem Plan alles fällig, und neu auflegen lässt sich nichts
+ * mehr. Aufgelöst zählte er hier den Gong als verpasst – und gleich danach gab
+ * endRest() ihn als Ersatz, gespielt: ein Ton in zwei Töpfen. Den Plan löst
+ * dann auf, wer die Pause beendet, und sagt dabei, ob er den Gong selbst gibt
+ * (cancelSound({ ersetzt })).
+ *
+ * `gedrueckt`: Die Berührung war ein Drücken (Maus, Taste) – siehe
+ * nachDemKlick().
  */
-function nachholen() {
-  const plan = planAufloesen();
+function nachholen(gedrueckt = false) {
+  const wand = Date.now();
+  const vorbei = !!wunschPlan && wunschPlan.faellig.every(([, f]) => f <= wand);
+  const plan = vorbei ? null : planAufloesen();
   if (plan && plan.neu) {
     try { plan.neu(); } catch { /* der Rückruf gehört der App – ihr Fehler, nicht unserer */ }
   }
@@ -408,30 +430,75 @@ function nachholen() {
         jetztSpielen(ton.name, ton.faellig).nachgeholt = true;
       }
       tonMelden();
-    });
+    }, gedrueckt);
   }
   tonMelden();
 }
 
 /**
+ * Der Ton, der auf die erste Berührung wartet, ist überholt – auch wenn das,
+ * was ihn überholt, selbst stumm bleibt. Er verfällt und bleibt als verpasst
+ * gezählt (siehe nachholen()).
+ *
+ * Für den nächsten Haken und für „Töne" aus. Supersatz, „Ton bei jedem Satz"
+ * aus, die Seite mitten in der Pause neu geladen, die Pause lief ohne Tipp ab:
+ * Die erste Berührung war der Haken auf A2, und B war ohne Wartezeit dran –
+ * kein Tupfer, keine neue Pause, kein Ton, an dem nachholen() den Haken hätte
+ * erkennen können. „Pause vorbei" kam direkt danach, mit „Weiter: B". Und wer
+ * unter Mehr als Erstes „Töne" ausschaltete, bekam in dem Moment den
+ * lautesten Ton der App. Ein zurückgenommener Haken überholt nichts – mit dem
+ * nächsten Satz ist, wer korrigiert, noch nicht weiter; die App ruft das dort
+ * nicht.
+ */
+export function tonUeberholt() {
+  if (!wunschTon) return;
+  wunschTon = null;
+  tonMelden();
+}
+
+// Womit eine Berührung endet – ab da zählt nachDemKlick() die halbe Sekunde.
+const LOSLASSEN = ['pointerup', 'mouseup', 'keyup', 'touchend'];
+
+/**
  * `fn` nach dem Klick der laufenden Berührung aufrufen – nach allen
  * Klick-Handlern der App, die auf Elementen darunter sitzen. Kommt kein Klick
- * (eine Taste, ein langer Druck mit der Maus, ein Finger, der vom Knopf
- * rutscht), entscheidet nach einer halben Sekunde der Zeitgeber.
+ * (eine Taste ohne Knopf, ein Finger, der vom Knopf rutscht), entscheidet eine
+ * halbe Sekunde nach dem Loslassen der Zeitgeber.
+ *
+ * **Ab dem Loslassen, nicht ab dem Drücken.** Mit Maus und Tastatur ist schon
+ * mousedown bzw. keydown die erste Berührung (`gedrueckt`), der Klick kommt
+ * beim Loslassen – auch nach langem Druck. Lief die halbe Sekunde ab dem
+ * Drücken, bekam, wer die Maustaste oder die Leertaste auf dem nächsten Satz
+ * 0,8 s hielt, erst „Pause vorbei" und beim Loslassen den Haken mit Tupfer und
+ * neuer Pause. Jetzt stellt jedes Loslassen den Zeitgeber, solange kein Klick
+ * kam – auch ein späteres, falls das erste nicht beim Dokument ankam.
  */
-function nachDemKlick(fn) {
+function nachDemKlick(fn, gedrueckt = false) {
   let fertig = false;
   let notfall = 0;
-  const los = () => {
+  const weg = [];
+  function los() {
     if (fertig) return;
     fertig = true;
     clearTimeout(notfall);
-    document.removeEventListener('click', klick);
+    weg.forEach((f) => f());
     fn();
-  };
+  }
+  function stellen() {
+    clearTimeout(notfall);
+    notfall = setTimeout(los, 500);
+  }
   const klick = () => setTimeout(los, 0);
   document.addEventListener('click', klick);
-  notfall = setTimeout(los, 500);
+  weg.push(() => document.removeEventListener('click', klick));
+  if (gedrueckt) {
+    LOSLASSEN.forEach((ev) => {
+      document.addEventListener(ev, stellen, true);
+      weg.push(() => document.removeEventListener(ev, stellen, true));
+    });
+  } else {
+    stellen();
+  }
 }
 
 /**

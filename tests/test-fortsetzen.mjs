@@ -125,7 +125,9 @@ const vonGestern = (wegMs) => page.evaluate(([raw, weg]) => {
   const n = s.session.n;
   s.log[n].startedOn = gestern;
   s.clock = { ...(s.clock || {}), on: gestern, since: null, halt: Date.now() - weg };
-  s.letzterEintrag = { n: String(n), at: Date.now() - weg };
+  // Der letzte Eintrag steht seit v242 in der Einheit (`zuletzt`); den Stand
+  // hat die App eben selbst geschrieben, mit den Sätzen von gerade.
+  s.log[n].zuletzt = Date.now() - weg;
   localStorage.setItem('workout.state.v1', JSON.stringify(s));
   // Ab hier schreibt diese Seite nichts mehr zurück – sonst setzte die App
   // beim Verlassen (pagehide) ihren eigenen Stand wieder drüber.
@@ -498,7 +500,7 @@ const gestrig = await ohneFortsetzen('Sitzung von gestern', () => {
   const weg = Date.now() - 10 * 3600 * 1000;
   st.log[st.session.n].startedOn = gestern;
   st.clock = { ...(st.clock || {}), on: gestern, since: null, halt: weg };
-  st.letzterEintrag = { n: String(st.session.n), at: weg };
+  st.log[st.session.n].zuletzt = weg;   // seit v242 je Einheit, wie oben (Fall 3)
   localStorage.setItem('workout.state.v1', JSON.stringify(st));
   window.Storage.prototype.setItem = () => {};
 });

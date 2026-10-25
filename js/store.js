@@ -152,10 +152,10 @@ const DEFAULT_STATE = {
   // tagAbschliessen() in js/app.js; gelesen wird nur über tagesabschluss() hier,
   // das prüft, statt zu glauben.
   tagesabschluss: null,
-  // Der letzte Eintrag in irgendeiner Einheit: { n, at }, `at` in ms. Daran
-  // erkennt der Tagesabschluss, ob an einer Einheit von gestern eben noch
-  // trainiert wurde (über Mitternacht) oder ob sie liegt (lebenszeichen()).
-  letzterEintrag: null,
+  // (Hier stand bis v241 `letzterEintrag: { n, at }` – ein Platz für alle
+  // Einheiten. Er steht jetzt je Einheit im Protokoll, `zuletzt` unten;
+  // eintragUmziehen() holt einen alten Stand nach.)
+  //
   // Ein abgeschaffter Trainingsfokus, auf den dieses Gerät noch stand, solange
   // der Hinweis dazu offen ist: { von, nach, am, abgelegt }. `von` und `nach`
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
@@ -212,6 +212,10 @@ const DEFAULT_STATE = {
   //           (eingetragen()). startedOn bleibt der Tag
   //           der Einheit (Kalender, Statistik); weiterAm zählt nur für die
   //           Frage „heute schon trainiert?" (trainiertAm()).
+  //   zuletzt  der letzte Eintrag in dieser Einheit, in ms (eingetragen()).
+  //           Daran erkennt der Tagesabschluss, ob an einer Einheit von
+  //           gestern eben noch trainiert wurde (über Mitternacht) oder ob sie
+  //           liegt (lebenszeichen()). Gelesen nur über eintragZuletzt().
   log: {},
 };
 
@@ -347,12 +351,26 @@ export function normAbschluss(roh) {
   return einheiten.length ? { am: roh.am, einheiten } : null;
 }
 
-/** Der letzte Eintrag: { n, at } mit einer Kennung wie im Protokoll und ms – sonst null. */
+/** Der letzte Eintrag von v241: { n, at } mit einer Kennung wie im Protokoll und ms – sonst null. */
 function normEintrag(roh) {
   if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
   const n = String(roh.n ?? '');
   if (!/^(\d{1,3}|c[\w-]{1,40})$/.test(n) || !Number.isFinite(roh.at) || roh.at <= 0) return null;
   return { n, at: roh.at };
+}
+
+/**
+ * Ein Stand von v241 (beim Laden, aus einer Sicherung): Sein `letzterEintrag`
+ * zieht in die Einheit um, zu der er gehört (`zuletzt`), wenn dort nichts
+ * Neueres steht – und das alte Feld ist weg. Ein Wert aus der Zukunft zieht mit
+ * um und zählt dort so wenig wie vorher (eintragZuletzt()).
+ */
+function eintragUmziehen(s, roh) {
+  delete s.letzterEintrag;
+  const l = normEintrag(roh);
+  const e = l && s.log && typeof s.log === 'object' ? s.log[l.n] : null;
+  if (!e || typeof e !== 'object' || Array.isArray(e)) return;
+  if (!(Number.isFinite(e.zuletzt) && e.zuletzt >= l.at)) e.zuletzt = l.at;
 }
 
 let state = load();
@@ -371,7 +389,7 @@ function load() {
     state.friends = normFreunde(state.friends);
     state.customs = normCustoms(state.customs);
     state.tagesabschluss = normAbschluss(state.tagesabschluss);
-    state.letzterEintrag = normEintrag(state.letzterEintrag);
+    eintragUmziehen(state, state.letzterEintrag);
     // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
     // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
     // von Hand gesetzter (Sicherung, Tests). Sonst kommt sie aus ihrem eigenen
@@ -749,7 +767,7 @@ function syncStartedOn(n) {
  * Einheit, sondern ein Training über Mitternacht.
  *
  * Den Unterschied macht die Zeit seit dem letzten Lebenszeichen der Einheit:
- * ihr letzter Eintrag (`letzterEintrag`), das Anhalten ihrer Uhr (`halt` –
+ * ihr letzter Eintrag (`zuletzt`), das Anhalten ihrer Uhr (`halt` –
  * App weggeschaltet oder Seite geschlossen) oder, wenn die Seite hart beendet
  * wurde und die Uhr noch lief, der Moment, seit dem sie lief (`since`).
  *
@@ -761,6 +779,29 @@ function syncStartedOn(n) {
  */
 export const LIEGT_AB_MS = 3 * 3600 * 1000;
 
+/** Ein Zeitpunkt in ms, der als Lebenszeichen gilt: eine Zahl, nicht aus der Zukunft. */
+function lebtNoch(t, jetzt) {
+  return Number.isFinite(t) && t > 0 && t <= jetzt + 60000;
+}
+
+/**
+ * Der letzte Eintrag in der Einheit `n` in ms – 0, wenn keiner gilt.
+ *
+ * Je Einheit, nicht einer für alle. Bis v241 gab es einen Platz
+ * (`letzterEintrag`), und jeder Eintrag überschrieb ihn – auch ein Fehltipp in
+ * einer anderen Einheit: Samstag bis 23:50 in Workout 12 abgehakt, um 23:55 in
+ * Workout 13 einen Satz an und gleich wieder ab, und um Mitternacht war
+ * Workout 12 „liegen geblieben" und abgeschlossen – zehn Minuten nach dem
+ * letzten Satz statt drei Stunden. In einer Sitzung machte derselbe Fehltipp
+ * aus dem nächsten Satz nach Mitternacht einen zweiten Trainingstag
+ * (eingetragen()). `zuletzt` kommt auch aus einer Sicherung, also aus fremder
+ * Hand: Unsinn und Werte aus der Zukunft zählen nicht.
+ */
+function eintragZuletzt(n, jetzt) {
+  const e = state.log[n];
+  return e && lebtNoch(e.zuletzt, jetzt) ? e.zuletzt : 0;
+}
+
 /**
  * Das letzte Lebenszeichen der Einheit `n` in ms – 0, wenn keines bekannt ist
  * (ein Stand von vor diesem Vermerk: dann liegt sie). Werte aus der Zukunft
@@ -769,10 +810,8 @@ export const LIEGT_AB_MS = 3 * 3600 * 1000;
  */
 export function lebenszeichen(n, jetzt = Date.now()) {
   const k = String(n);
-  const gilt = (t) => Number.isFinite(t) && t > 0 && t <= jetzt + 60000;
-  let t = 0;
-  const l = state.letzterEintrag;
-  if (l && String(l.n) === k && gilt(l.at)) t = Math.max(t, l.at);
+  const gilt = (t) => lebtNoch(t, jetzt);
+  let t = eintragZuletzt(k, jetzt);
   const c = state.clock;
   if (c && String(c.n) === k) {
     if (gilt(c.halt)) t = Math.max(t, c.halt);
@@ -811,18 +850,32 @@ export function trainiertAm(k, iso) {
  * LIEGT_AB_MS seit dem letzten Eintrag in derselben Einheit: Über Mitternacht
  * weiter trainiert ist kein zweiter Trainingstag – das Training gehört zum
  * Tag des ersten Satzes.
+ *
+ * **Und die Uhr nach langer Stille.** Der Deckel in clockStop() sah nur beim
+ * Anhalten nach, wie lange das letzte Lebenszeichen her ist. Tablet, App
+ * sichtbar: Start 10:00, ein Satz um 10:45, dann fast vier Stunden weg. Um
+ * 14:30 der nächste Satz – damit war das Lebenszeichen frisch –, um 14:45
+ * „Abschließen": gebucht 4 h 45 statt einer Stunde, und das ging als fertige
+ * Einheit in die Zeiteichung. Wer zuerst auf „Abschließen" tippte, bekam 45
+ * Minuten. Jetzt bemerkt schon der Eintrag die Stille: Die Uhr hält am alten
+ * Lebenszeichen an (clockStop() mit Deckel) und läuft ab jetzt weiter.
  */
 function eingetragen(n, warAngefangen, gehakt) {
   const e = state.log[n];
   const jetzt = Date.now();
   const heute = todayISO();
-  const vorher = state.letzterEintrag;
-  const amStueck = !!vorher && String(vorher.n) === String(n) && jetzt - vorher.at < LIEGT_AB_MS;
+  const c = state.clock;
+  if (c && String(c.n) === String(n) && c.since !== null && jetzt - lebenszeichen(n, jetzt) >= LIEGT_AB_MS) {
+    clockStop();
+    state.clock = { ...state.clock, since: jetzt };
+  }
+  const vorher = eintragZuletzt(n, jetzt);
+  const amStueck = vorher > 0 && jetzt - vorher < LIEGT_AB_MS;
   const inSitzung = !!state.session && String(state.session.n) === String(n);
   if (gehakt && inSitzung && e && e.startedOn && e.startedOn < heute && (e.weiterAm === heute || !amStueck)) {
     e.weiterAm = heute;
   }
-  state.letzterEintrag = { n: String(n), at: jetzt };
+  if (e) e.zuletzt = jetzt;
   if (!warAngefangen && isStarted(n) && state.tagesabschluss) state.tagesabschluss = null;
 }
 
@@ -943,7 +996,9 @@ function bucheZeit() {
  * Zählung an ihrem letzten Lebenszeichen, wenn das drei Stunden und mehr her
  * ist – wer so lange nichts eingetragen hat, trainiert nicht mehr –, und
  * `halt` bleibt dort: Beim Zurückkommen oder Laden schließt der
- * Tagesabschluss sie regulär ab.
+ * Tagesabschluss sie regulär ab. Kommt nach der Stille zuerst ein neuer
+ * Eintrag, wäre das Lebenszeichen hier schon frisch – den Fall fängt
+ * eingetragen() ab, bevor es das wird.
  */
 export function clockStop(bis) {
   const c = state.clock;
@@ -1650,7 +1705,7 @@ export function importJSON(text) {
   fresh.friends = normFreunde(fresh.friends);
   fresh.customs = normCustoms(fresh.customs);
   fresh.tagesabschluss = normAbschluss(fresh.tagesabschluss);
-  fresh.letzterEintrag = normEintrag(fresh.letzterEintrag);
+  eintragUmziehen(fresh, parsed.letzterEintrag);
   // Was an *diesem Gerät* hängt, kommt nicht aus der Datei. Vorher übernahm
   // der Import auch `share`, `deviceId` und `lastShare`: Eine bewusst
   // abgeschaltete Telemetrie war danach still wieder an, und zwei Geräte
