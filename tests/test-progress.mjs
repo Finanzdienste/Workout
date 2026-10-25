@@ -58,8 +58,15 @@ const test = await page.evaluate(async () => {
   const zweite = PLAN.findIndex((w, i) => i > 0 && hat(i, pick.id));
   const soll = (i) => PLAN[i].ex.find((x) => x.id === pick.id).sets;
   const sets = (i) => Array.from({ length: soll(i) }, () => ({ w: '20', r: '', done: true }));
+  // Workout 1 von heute, nicht vom 19.08.: Eine Einheit, die an einem
+  // früheren Tag angefangen wurde, schließt sich seit dem Tagesabschluss
+  // beim Laden selbst ab (tests/test-tagesabschluss.mjs) – gewollt –, und
+  // die Liste zeigte dann die nächste. Hier geht es um die Gewichtsknöpfe in
+  // Workout 1, nicht um seinen Tag.
+  const d = new Date();
+  const heute = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const state = { restSeconds: 0, weights: { [pick.id]: 20 }, log: {
-    [PLAN[0].n]: { db: { [pick.id]: sets(0) }, bw: {}, mode: 'db', startedOn: '2026-08-19' },
+    [PLAN[0].n]: { db: { [pick.id]: sets(0) }, bw: {}, mode: 'db', startedOn: heute },
     [PLAN[zweite].n]: { db: { [pick.id]: sets(zweite) }, bw: {}, mode: 'db', startedOn: '2026-08-21' },
   } };
   localStorage.setItem('workout.state.v1', JSON.stringify(state));
@@ -127,10 +134,13 @@ const bw = await page.evaluate(async () => {
   });
   const soll = (n) => PLAN[n].ex.find((x) => x.id === pick.id).sets;
   const sets = (n) => Array.from({ length: soll(n) }, () => ({ w: '', r: '', done: true }));
+  // Workout 1 von heute – aus demselben Grund wie oben.
+  const d = new Date();
+  const heute = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   localStorage.setItem('workout.state.v1', JSON.stringify({
     restSeconds: 0, mode: 'bw',
     log: {
-      [PLAN[0].n]: { db: {}, bw: { [pick.id]: sets(0) }, mode: 'bw', startedOn: '2026-08-19' },
+      [PLAN[0].n]: { db: {}, bw: { [pick.id]: sets(0) }, mode: 'bw', startedOn: heute },
       [PLAN[zweit].n]: { db: {}, bw: { [pick.id]: sets(zweit) }, mode: 'bw', startedOn: '2026-08-21' },
     },
   }));

@@ -11,7 +11,10 @@
  *   1. Läuft eine heute begonnene Einheit, öffnet die App in der Fokusansicht.
  *   2. Bei der ersten Übung mit offenem Satz – ist die erste fertig, bei der
  *      zweiten.
- *   3. Eine Einheit von gestern wartet auf dem Dashboard.
+ *   3. Eine Einheit von gestern: Lag sie seit gestern, ist sie abgeschlossen
+ *      und öffnet nicht von selbst (bis v241: „wartet auf dem Dashboard");
+ *      lebt die Sitzung noch – Training über Mitternacht –, geht es in der
+ *      Fokusansicht weiter.
  *   4. Wer auf einem anderen Reiter war, bleibt dort.
  *   5. Wer mitten im Training bewusst zurück aufs Dashboard gegangen ist,
  *      landet auch wieder dort.
@@ -25,7 +28,8 @@
  *   9. Mit Supersätzen und Umschalten mitten in der Einheit: Paar 1 mit
  *      Hanteln fertig, dann Bodyweight – weder „Training fortsetzen" noch das
  *      Neuladen noch das Weiterrücken nach Paar 2 führen zurück zu Paar 1.
- *  10. Geht die App nach dem Neuladen nicht weiter (Einheit von gestern oder
+ *  10. Geht die App nach dem Neuladen nicht weiter (Sitzung, die seit gestern
+ *      liegt, oder
  *      vorbei, ein Hinweis beim Start), obwohl der Verlauf auf der
  *      Fokusansicht stand – auch über Liste und Fokusansicht –, führt schon der
  *      erste Druck auf Zurück dorthin, wo man vor dem Dashboard war – und
@@ -100,19 +104,50 @@ const erwartet = await page.evaluate(async (n) => {
 check(weiter.fokus && weiter.ex === erwartet && erwartet !== plan.ex[0].id,
   `ist die erste Übung durch, geht es bei der nächsten offenen weiter (${weiter.ex}, erwartet ${erwartet})`);
 
-// --- 3. Eine Einheit von gestern wartet auf dem Dashboard --------------
-await page.evaluate(() => {
-  const s = JSON.parse(localStorage.getItem('workout.state.v1'));
+// --- 3. Eine Einheit von gestern -------------------------------------------
+// Bis v241 hieß dieser Fall „Eine Einheit von gestern wartet auf dem
+// Dashboard": Die Uhr von gestern genügte, und die App blieb davor stehen –
+// „Training fortsetzen" über dem Samstag, am Sonntag. Genau das fragte Tobi:
+//
+//     „Wieso steht da samstag? Heute ist Sonntag"
+//
+// Seit dem Tagesabschluss (tests/test-tagesabschluss.mjs) gilt auf Zuruf:
+//   a) Liegt sie seit gestern – drei Stunden und mehr nichts –, ist sie
+//      abgeschlossen. Sie öffnet nicht von selbst, die Sitzung ist beendet,
+//      oben steht die Zeile dazu.
+//   b) Lebt die Sitzung noch – Training über Mitternacht, das Handy hat die
+//      App kurz beendet –, geht es in der Fokusansicht weiter, wie bei einer
+//      von heute. Früher wartete auch die auf dem Dashboard.
+const vorher3 = await page.evaluate(() => localStorage.getItem('workout.state.v1'));
+const vonGestern = (wegMs) => page.evaluate(([raw, weg]) => {
+  const s = JSON.parse(raw);
   const gestern = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  s.clock = { ...(s.clock || {}), on: gestern };
+  const n = s.session.n;
+  s.log[n].startedOn = gestern;
+  s.clock = { ...(s.clock || {}), on: gestern, since: null, halt: Date.now() - weg };
+  s.letzterEintrag = { n: String(n), at: Date.now() - weg };
   localStorage.setItem('workout.state.v1', JSON.stringify(s));
   // Ab hier schreibt diese Seite nichts mehr zurück – sonst setzte die App
   // beim Verlassen (pagehide) ihren eigenen Stand wieder drüber.
   window.Storage.prototype.setItem = () => {};
-});
+}, [vorher3, wegMs]);
+await vonGestern(10 * 3600 * 1000);
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
-check(!(await blick()).fokus, 'eine Einheit von gestern öffnet nicht von selbst');
+const gestrig3 = await page.evaluate(async () => {
+  const s = (await import('./js/store.js')).getState();
+  return {
+    fokus: !!document.querySelector('.focus-cue'), session: s.session,
+    done: Object.values(s.log).some((e) => e && e.done), zeile: !!document.querySelector('.notice.abschluss'),
+  };
+});
+check(!gestrig3.fokus, 'eine Einheit, die seit gestern liegt, öffnet nicht von selbst');
+check(!gestrig3.session && gestrig3.done && gestrig3.zeile,
+  `sie ist abgeschlossen, die Sitzung beendet, oben steht die Zeile (${JSON.stringify(gestrig3)})`);
+await vonGestern(10 * 60 * 1000);
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(300);
+check((await blick()).fokus, 'eine Sitzung von gestern, die noch lebt (über Mitternacht), geht in der Fokusansicht weiter');
 
 // --- 4. Anderer Reiter: bleibt ------------------------------------------
 await page.evaluate(() => {
@@ -454,9 +489,16 @@ async function ohneFortsetzen(name, aendern, ueberListe = false) {
     `${name}: ein Zurück führt zur Statistik, wo man vorher war (${zurueck10.tab})`);
   return { c, p };
 }
-const gestrig = await ohneFortsetzen('Einheit von gestern', () => {
+// Die Sitzung liegt seit gestern (seit dem Tagesabschluss: seit drei Stunden
+// und mehr nichts, an einem früheren Tag angefangen). Bis v241 genügte die
+// Uhr von gestern – heute ginge eine solche Sitzung weiter (Fall 3b).
+const gestrig = await ohneFortsetzen('Sitzung von gestern', () => {
   const st = JSON.parse(localStorage.getItem('workout.state.v1'));
-  st.clock = { ...(st.clock || {}), on: new Date(Date.now() - 86400000).toISOString().slice(0, 10) };
+  const gestern = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const weg = Date.now() - 10 * 3600 * 1000;
+  st.log[st.session.n].startedOn = gestern;
+  st.clock = { ...(st.clock || {}), on: gestern, since: null, halt: weg };
+  st.letzterEintrag = { n: String(st.session.n), at: weg };
   localStorage.setItem('workout.state.v1', JSON.stringify(st));
   window.Storage.prototype.setItem = () => {};
 });

@@ -1296,6 +1296,16 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 .notice.zeile > span { flex: 1 1 auto; }
 .notice.zeile .btn { flex: none; padding: 8px 12px; font-size: 13px; }
 
+/* Die Zeile zum Tagesabschluss (abschlussHinweis() in js/app.js): „Workout 12
+   vom Samstag ist abgeschlossen …" mit „Rest heute machen" und „OK". Klein
+   gesetzt und die Knöpfe rechts darunter – als Kasten mit voller Knopfreihe
+   schob sie bei 360×740 Start und Fuß 52 px unter die Leiste. Die Karte gibt
+   dafür an diesem einen Tag etwas Höhe ab. */
+.notice.abschluss { margin: 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
+.abschluss-knoepfe { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+.abschluss-knoepfe .btn { padding: 6px 12px; font-size: 13px; }
+.ov:has(> .notice.abschluss) .ov-body { min-height: 120px; }
+
 .empty {
   text-align: center;
   color: var(--muted);

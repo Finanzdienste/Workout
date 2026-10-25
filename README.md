@@ -5773,6 +5773,162 @@ fielen gleichzeitig um, die Ursache war eine Zeile Reihenfolge.
 wichtigste: dass **nichts** passiert, wenn alles normal läuft. Gegengeprüft –
 nimmt man die Nacharbeit heraus, fallen drei Prüfungen um.
 
+### Liegen geblieben: am nächsten Tag abgeschlossen (v241)
+
+> „Wieso steht da samstag? Heute ist Sonntag"
+
+Tobi, Sonntag 25.10., mit einem Bild der Startseite: „Tobi · Gestern · Workout
+12 / Sa, 24. Oktober 2026 / Hanteln · 5 Übungen · 17 Sätze / 4/17 Sätze",
+darunter „Training fortsetzen" und „Als trainiert markieren". Workout 12 war am
+Samstag angefangen und nie abgeschlossen worden. Eine angefangene Einheit
+bleibt auf ihrem Tag, und die Startseite zeigt die erste nicht abgeschlossene –
+also stand dort Samstag. Am Montag hätte „vor 2 Tagen" dagestanden, Workout 13
+wäre nie drangekommen, und was am Samstag liegen blieb, holte nichts nach: Eine
+offene Einheit trägt keinen Rückstand bei (oben, *Nacharbeit*), und der
+Zusatztag wartet, bis ihre Woche abgeschlossen ist.
+
+Zugesagt war: *„Ab dem nächsten Tag wird eine liegengebliebene Einheit
+automatisch mit dem abgeschlossen, was steht. Oben steht dann eine Zeile dazu
+und ein Knopf ‚Rest heute machen', falls du doch willst."*
+
+**Was jetzt gilt.** Eine Planeinheit, die an einem früheren Tag angefangen
+wurde, nicht abgeschlossen ist, mindestens zwei abgehakte Sätze hat und seit
+drei Stunden kein Lebenszeichen mehr, schließt sich selbst ab – genau wie mit
+„Als trainiert markieren", im Modus der Einheit (`store.markDone()`). Sie
+bleibt auf ihrem Tag. Alles Weitere hängt an „abgeschlossen" und greift von
+selbst: Die restlichen Einheiten der Woche holen nach, nach der letzten Einheit
+einer Woche kommt der Zusatztag, der Kalender zeigt „trainiert". Läuft auf ihr
+noch eine Sitzung, endet sie wie mit dem Knopf (`einheitBeenden()`) – die Zeit
+gebucht bis zum letzten Lebenszeichen, ohne Ton.
+
+| Schwelle | Wert | warum |
+| --- | --- | --- |
+| abgehakte Sätze | mindestens 2 (`ABSCHLUSS_AB`) | Ein Fehltipp ist *ein* Tipp: auf der Startseite vorgeblättert, in Workout 13 aus Versehen einen Satz abgehakt – `planVorziehen()` legt sie dann sogar auf heute. Am nächsten Tag hieße sie sonst „trainiert mit 1 von 15", und der Plan ginge an ihr vorbei. Nicht die gebuchte Zeit und nicht, ob eine Sitzung lief: Wer in „Übungen & Gewichte" abhakt, trainiert ohne Uhr. Was darunter liegt, bleibt offen wie bisher. |
+| ohne Lebenszeichen | 3 Stunden (`LIEGT_AB_MS`) | Eine Pause dauert höchstens drei Minuten, ein Anruf oder das Abendessen mitten im Training eine Stunde. Wer drei Stunden nichts eingetragen hat, trainiert nicht mehr – und eine Einheit vom späten Abend ist am Morgen erledigt, auch wenn sie erst nach Mitternacht liegen blieb. |
+| Lebenszeichen | der letzte Eintrag (`letzterEintrag`), das Anhalten der Uhr (`clock.halt`, neu), bei hart beendeter Seite der Start der laufenden Uhr | in Millisekunden gerechnet, nicht auf der Wanduhr – in der Nacht zum 25.10. sind von 0:30 MESZ bis 2:40 MEZ drei Stunden zehn vergangen, auch wenn die Uhr nur zwei Stunden zehn weiter steht. Werte aus der Zukunft zählen nicht. |
+
+**Wer über Mitternacht trainiert, merkt davon nichts.** Haken um 23:50, App
+kurz weg, um 0:20 wieder da: offen, die Sitzung läuft, die Uhr auch, und der
+letzte Satz beendet die Einheit wie immer. Beendet das Handy die App dabei,
+geht sie nach dem Neuladen in der Fokusansicht weiter – bis v241 wartete eine
+Sitzung, deren Uhr gestern gestartet war, auf dem Dashboard (oben, *Zurück in
+der App*). Im Kopf steht dann „Gestern angefangen · Workout 12" statt
+„Gestern · Workout 12" über einem Samstag, an dem man gerade sitzt – das war
+genau das Bild aus Tobis Frage. Für eine abgeschlossene Einheit von gestern
+bleibt es bei „Gestern".
+
+**Wann.** Beim Laden – nach `stempleFertige()` (was ganz abgehakt ist, trägt
+seinen Stempel schon), vor `rundeWeiter()` (war Workout 84 die liegen
+gebliebene, rollt die Runde im selben Start weiter) und vor `pruefeAufstieg()`
+und `pruefeZusatztag()` (die abgeschlossene Einheit zählt dort mit). Beim
+Zurückkommen in die App, bevor die Uhr weiterläuft. Und bei offener App um
+Mitternacht: Eine Uhr dafür gab es bisher nicht, der Tag wurde nur beim Laden
+und beim Zurückkommen nachgezogen. Auf dem Handy genügt das fast immer, der
+Bildschirm geht aus. Bleibt die App sichtbar – Tablet, Rechner, Handy am
+Ladekabel –, stand am Morgen „Gestern · Workout 12" da, bis jemand
+wegschaltet. Die Uhr rechnet die nächste Mitternacht über das Datum, nicht als
+„in 24 Stunden": Der 25. Oktober hat 25. Lag dort eine Einheit von gestern
+noch keine drei Stunden, sieht sie wieder nach, wenn es so weit ist. Nach einem
+Umbau des Plans (`planWechsel()`, `festReparieren()`) wartet der Abschluss bis
+zum nächsten Laden: Die Reparatur vervollständigt nur offene Einheiten, und das
+erst beim Start nach dem Planwechsel.
+
+**Die Zeile.** Oben auf der Startseite, im Stil der anderen Hinweise:
+
+| Lage | Zeile |
+| --- | --- |
+| Sonntag, Workout 12 vom Samstag; der Zusatztag kommt morgen in Workout 13 | „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Davon kommen morgen 3 Sätze in Workout 13 mit rein." |
+| derselbe Montag, nicht weggetippt | „… Davon kommen heute 3 Sätze in Workout 13 mit rein." |
+| Donnerstag (frei), Workout 10 vom Mittwoch | „✓ Workout 10 vom Mittwoch ist abgeschlossen – 3 von 15 Sätzen. Davon kommen dazu: morgen +1, Sa +3." |
+| Freitag (Workout 11 ist dran), Workout 10 vom Mittwoch | „… Davon kommen dazu: heute +1, morgen +3." |
+| der Zusatztag steht heute allein da | „… Zum Nachholen steht heute ein Zusatztag bereit." |
+| die Woche ist vorbei, der Rest trägt keinen Zusatztag | „… Für einen Zusatztag reicht der Rest nicht – er entfällt." |
+| nichts, was sicher wäre | nur der erste Satz |
+
+Darunter „Rest heute machen" und „OK". Die Zeile bleibt, bis „OK" getippt ist,
+„Rest heute machen" oder der erste Eintrag in einer anderen Einheit – auch über
+das Neuladen hinweg (`tagesabschluss` im Zustand). Der Tag steht als
+Wochentag da und nicht als „gestern": Am Montag stimmte „gestern" schon nicht
+mehr. Klein gesetzt, die Knöpfe rechts darunter: Als Kasten wie die anderen
+Hinweise, mit voller Knopfreihe, war sie bei 360×740 129 px hoch und schob
+Start und Fuß 52 px unter die Leiste. Jetzt sind es 106 px, die Körperkarte
+gibt an dem Tag Höhe ab, und die Startseite bleibt eine Seite – gemessen am
+Sonntag und am Montag, wenn Workout 13 mit dem Zusatz länger ist.
+
+**Wohin der Rest geht, nur wenn es stimmt.** Gerechnet von den Stellen, die es
+dann tun – keine zweite Rechnung: der Zusatztag in der Einheit von heute
+(`zusatzBindung()`) oder allein (`naechsteEinheit()`), der Zusatztag von
+morgen und die Nacharbeit der Woche aus denselben Teilen wie die Zeile am
+Ruhetag (`ruhetagTeile()`, `zusatzMorgen()`, `nacharbeitVorschau()`,
+`restZiele()`), „entfällt" mit der Schwelle des Zusatztags
+(`zusatzRueckstand()`). „Davon", weil ein Zusatztag in einer Einheit höchstens
+zwei Übungen bringt. Und „der Rest danach" sagt die Zeile nicht: Ob nach der
+Woche ein Zusatztag kommt, entscheidet sich erst an seinem Tag, an der
+Erholungsregel. Gemessen mit Workout 11 vom Freitag, 3 von 12 – Rücken,
+Bizeps, hintere Schulter offen –, kam keiner: Am Sonntag ruhen die Gruppen von
+Samstag und Montag, am Montag trifft Workout 13 sie selbst. Die Zeile am
+Ruhetag verspricht ihn in so einem Fall weiterhin („der Rest danach"); das ist
+dort offen.
+
+**Keine Zahl zweimal.** Was die Zeile oben sagt, lässt die Zeile am Ruhetag
+weg – am Sonntag stand sonst „Davon kommen morgen 3 Sätze in Workout 13 mit
+rein." über „Heute frei. Aus Woche 3 kommt dazu: morgen +3.". Nach dem „OK"
+steht es wieder unten.
+
+**„Rest heute machen"** geht denselben Weg wie „Doch noch weitermachen":
+Start, Fokusansicht, bei der Übung, die dran ist. Die Einheit bleibt auf ihrem
+Tag (`startedOn`) – im Kalender und in der Statistik steht sie am Samstag, auch
+mit dem Rest vom Sonntag, wie ein Training über Mitternacht. Ehrlich
+nachgesehen, was das sonst hieße: Überall, wo die App fragt „heute schon
+trainiert?", stand der Sonntag danach als frei da – die Zeile „Heute frei", ein
+Zusatztag als nächste Einheit für heute (`naechsteEinheit()`, `zusatzLage()`,
+`zusatzEinheit()`). Deshalb vermerkt der erste Haken in der Sitzung den Tag
+(`weiterAm`), und diese Stellen fragen `store.trainiertAm()`. Nur in einer
+Sitzung und nur nach drei Stunden Pause: Der vergessene dritte Satz von
+gestern, ohne Start in der Liste nachgetragen, ist kein Training, und über
+Mitternacht weitertrainiert ist kein zweiter Trainingstag. Die Rechnung der
+ausgefallenen Tage zählt den Tag mit (verschoben, nicht ausgefallen); die
+Trainingstage der Statistik nicht – dort bleibt es der Tag der Einheit.
+
+**Eigene Workouts und Zusatztage** schließen sich nicht ab. Sie schieben keinen
+Plan, holen keinen Rückstand nach und stehen nie als nächste Einheit da, sobald
+sie angefangen sind – eine liegen gebliebene blockiert nichts, und ein
+„trainiert" hätte niemand gesagt. Eine Sitzung auf ihnen, die seit gestern
+liegt, endet aber: Sonst stünde über der Einheit von heute „Eigenes Workout
+läuft noch".
+
+**Aus fremder Hand.** `tagesabschluss` und `letzterEintrag` reisen in der
+Sicherung mit. `importJSON()` nimmt ein Feld mit der Vorgabe `null` in jedem
+Typ an, also prüft `normAbschluss()` beim Laden, beim Einlesen und bei jedem
+Lesen: ISO-Tage, kleine ganze Zahlen, höchstens acht Einheiten, sonst nichts –
+eine Zeichenkette oder ein HTML-Schnipsel fällt weg.
+
+`tests/test-tagesabschluss.mjs` spielt es mit Tobis Woche durch: der Sonntag
+beim Laden, die Zeile mit Zahlen, Tag und Ziel, „Rest heute machen" und das
+Nachtragen ohne Sitzung, „OK" über das Neuladen, das Training über
+Mitternacht, die liegen gebliebene Sitzung beim Laden, beim Zurückkommen und
+nach hartem Ende, der Fehltipp, der Zusatz in Workout 13 am Montag und die
+Nacharbeit mitten in der Woche – jeweils verglichen mit dem, was die Einheiten
+an ihrem Tag dann wirklich tragen –, Sicherung und Import, die Nacht der
+Zeitumstellung und die Uhr bei offener App über den 25-Stunden-Tag, dazu, dass
+die Startseite mit der Zeile eine Seite bleibt – 94 Prüfungen. Gegen den Stand
+davor (f43f137) sind 38 rot und jeder der zehn Abschnitte; sechs brechen ab,
+weil es Knopf oder Feld nicht gibt. Einzeln zurückgedreht wird jede Stelle rot:
+`trainiertAm()` nur mit `startedOn` (2: der Rest am Sonntag macht ihn nicht zum
+Trainingstag, der Zusatztag steht danach noch für heute da), ein Satz als
+Schwelle (3: der Fehltipp), ohne die drei Stunden (4: über Mitternacht, die
+Zeitumstellung), ohne die Uhr bei offener App (1), die Zeile am Ruhetag lässt
+nichts weg (2), „der Rest danach" versprochen (4).
+
+`tests/test-fortsetzen.mjs` (Fall 3 und 10) erwartete, dass eine Sitzung von
+gestern auf dem Dashboard wartet; das ist auf Zuruf anders und dort mit
+Begründung angepasst. `tests/test-new.mjs` und `tests/test-progress.mjs`
+legten Workout 1 auf den 19. August und brauchten es offen: jetzt von heute.
+`tests/test-nacharbeit-ruhetag.mjs` (R12) hakt am Freitag einen vergessenen
+Satz von Donnerstag nach und erwartet die Zeile „Heute frei" – daran hat sich
+gezeigt, dass `weiterAm` nur in einer Sitzung zählen darf; der Test blieb, wie
+er war.
+
 ### Name, Gerät, Zeichnung und Hinweis müssen dasselbe sagen
 
 Eine Übung wird an vier Stellen beschrieben, und keine davon kennt die anderen:
@@ -7386,11 +7542,15 @@ hätte.
 
 Das gilt, wenn beim Verlassen die Fokusansicht offen war – die App merkt sich
 das (`fokusOffen`). Wer mitten im Training bewusst zurück aufs Dashboard oder
-in die Übungsliste gegangen ist, landet wieder dort. Dazu zwei Ausnahmen, beide
-mit Absicht: Hat der Start etwas zu sagen (Planwechsel, Aufstieg, Zusatztag,
-ein geschickter Stand), bleibt das Dashboard, wo der Hinweis steht. Und eine
-Einheit, die nicht heute begonnen wurde, öffnet nicht von selbst – die wartet
-auf dem Dashboard, wo man sie abschließt oder bewusst weitermacht.
+in die Übungsliste gegangen ist, landet wieder dort. Dazu eine Ausnahme, mit
+Absicht: Hat der Start etwas zu sagen (Planwechsel, Aufstieg, Zusatztag, ein
+geschickter Stand, ein Tagesabschluss), bleibt das Dashboard, wo der Hinweis
+steht. Bis v241 gab es eine zweite: Eine Einheit, deren Uhr nicht heute
+gestartet war, öffnete nicht von selbst, sie „wartete auf dem Dashboard, wo man
+sie abschließt oder bewusst weitermacht". Seit dem Tagesabschluss (unten,
+*Liegen geblieben: am nächsten Tag abgeschlossen*) ist eine Sitzung, die seit
+gestern liegt, beim Laden schon beendet – was dann noch läuft, ist ein Training
+über Mitternacht, und das geht in der Fokusansicht weiter wie jedes andere.
 
 **Mit Supersätzen beim Partner.** „Eigentlich sollte ja einfach die Übung
 kommen die jetzt als nächstes ansteht" – mit Supersätzen stimmte genau das
@@ -7432,7 +7592,7 @@ Kalt gestartet, mit frischem Verlauf, legt sie weiter genau einen an – sonst
 führte Zurück aus der App hinaus statt aufs Dashboard.
 
 Und umgekehrt: Bleibt die App nach dem Neuladen auf dem Dashboard (ein Hinweis
-beim Start, eine Einheit von gestern), obwohl der Verlauf noch auf der
+beim Start, eine Sitzung, die seit gestern liegt), obwohl der Verlauf noch auf der
 Fokusansicht oder der Liste stand, saß das Dashboard auf diesem Eintrag. Der
 erste Druck auf Zurück führte zum Eintrag darunter – wieder das Dashboard, es
 sah aus, als täte Zurück nichts. Jetzt geht der Start selbst so weit zurück,
