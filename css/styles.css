@@ -1305,6 +1305,10 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 .abschluss-knoepfe { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
 .abschluss-knoepfe .btn { padding: 6px 12px; font-size: 13px; }
 .ov:has(> .notice.abschluss) .ov-body { min-height: 120px; }
+/* Die stille Zeile zum Ton auf der Startseite (tonHinweis(true) in
+   js/app.js): kurz und so klein gesetzt wie die zum Abschluss. In voller Länge
+   waren es bei 360×740 vier Zeilen, 116 px, und der Fuß lag unter der Leiste. */
+.notice.kurz { margin: 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
 
 /* Mehr → Töne und Hinweise, unter „Töne anhören": erst das Urteil in
    Textfarbe, darunter grau die Ursachen am Handy als Liste. Ein Absatz

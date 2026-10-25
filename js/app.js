@@ -40,6 +40,7 @@ import {
 } from './sicherung.js';
 import {
   initAudio, playSound, scheduleSound, cancelSound, signalStand, probeSpielen, tonStand, onTonStand,
+  tonUeberholt,
 } from './audio.js';
 import { esc, fmtNum, komma1 } from './text.js';
 import { MODE_ICON, MODE_LABEL, mitWdh, repsLabel, umfangText, wdhTeile } from './anzeige.js';
@@ -1400,7 +1401,8 @@ function endRest(withSignal) {
    * bei der ersten nach – aber nur, wenn die Pause gerade eben zu Ende ging
    * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war, nur
    * bis NACHKLANG_MS nach dem Ende, und nicht, wenn diese Berührung selbst
-   * einen Ton anstößt (der nächste Haken, eine neue Pause).
+   * einen Ton anstößt (eine neue Pause), der nächste Haken ist – auch ein
+   * stummer – oder die Töne ausschaltet (tonUeberholt()).
    *
    * Aufgeräumt wird danach mit `ausklingen` nur am echten Ende: Ein Signal,
    * das in den nächsten 0,3 s anfängt, ist das dieses Endes. Bei „Pause weg"
@@ -3266,14 +3268,24 @@ function renderOverview() {
 
   // Eine Bildschirmseite, ohne Scrollen: Kopf, Körper, Start. Der Körper
   // nimmt sich den Platz, der zwischen den beiden übrig bleibt.
+  //
+  // Die stille Zeile zum Ton hier kurz, und nicht neben der Zeile zum
+  // Tagesabschluss: Nach einer Nacht im Speicher klemmt auf dem iPhone der
+  // Tonkanal, und beide standen zugleich da – bei 360×740 lag der Fuß dann
+  // 78 px (Sonntag) bzw. 111 px (Montag) unter der Leiste, die Zeile zum Ton
+  // allein (vier Zeilen, 116 px) schob ihn 35 bzw. 45 px darunter. Die Zeile
+  // zum Abschluss hat Vorrang; ihr „OK" ist ohnehin die nächste Berührung, und
+  // die weckt den Kanal. Klemmt er danach noch, steht die zum Ton da. Den
+  // ganzen Satz zeigen die Fokusansicht und die Liste, Einzelheiten Mehr.
+  const abschluss = abschlussHinweis();
   view.innerHTML = `
     <section class="ov">
       ${umzugHinweis()}
       ${umbauHinweis()}
       ${aufstiegHinweis()}
-      ${abschlussHinweis()}
+      ${abschluss}
       ${speicherWarnung()}
-      ${tonHinweis()}
+      ${abschluss ? '' : tonHinweis(true)}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
            Frage, ob eine neue Kalenderdatei erzeugt werden soll. Beides raus,
            auf Zuruf.
@@ -7846,9 +7858,16 @@ function tonStandZeigen() {
  * Das Urteil vorn, und kein Versprechen, dass der nächste Tipp weckt: Sie
  * erscheint ja gerade, weil einer es nicht getan hat. Der Abschnitt heißt so,
  * wie er unter Mehr heißt.
+ *
+ * `kurz`: auf der Startseite, die eine Bildschirmseite bleiben soll (siehe
+ * renderOverview()) – zwei Zeilen statt vier.
  */
-function tonHinweis() {
+function tonHinweis(kurz = false) {
   if (!ui.tonHinweis) return '';
+  if (kurz) {
+    return `<div class="notice zeile small kurz" id="tonHinweis"><span>🔇 Töne kommen gerade nicht. Bleibt es
+      stumm, App neu öffnen – <i>Mehr → Töne und Hinweise</i>.</span></div>`;
+  }
   return `<div class="notice zeile small" id="tonHinweis"><span>🔇 Töne kommen gerade nicht – der
     Browser hält den Ton an, obwohl du getippt hast. Tipp noch einmal; bleibt es stumm, App
     schließen und neu öffnen. Einzelheiten unter <i>Mehr → Töne und Hinweise</i>.</span></div>`;
@@ -8350,6 +8369,11 @@ view.addEventListener('click', (e) => {
         break;
       }
       initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
+      // Ein Haken überholt das „Pause vorbei", das seit dem Neuladen auf die
+      // erste Berührung wartet – auch einer, der stumm bleibt („Ton bei jedem
+      // Satz" aus, im Supersatz ohne Wartezeit weiter; tonUeberholt() in
+      // js/audio.js).
+      tonUeberholt();
 
       // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
       // später der Vergleich "Zuletzt" und die Volumenrechnung.
@@ -9130,6 +9154,9 @@ view.addEventListener('click', (e) => {
       initAudio();
       const on = !store.getState().sound;
       store.setSetting('sound', on);
+      // Aus heißt aus – auch für einen Gong, der auf die erste Berührung
+      // wartet und sonst genau jetzt käme (tonUeberholt() in js/audio.js).
+      if (!on) tonUeberholt();
       armRest(); // eine laufende Pause folgt der neuen Einstellung
       render();
       if (on) playSound('rest');

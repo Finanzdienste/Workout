@@ -1315,6 +1315,10 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 .abschluss-knoepfe { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
 .abschluss-knoepfe .btn { padding: 6px 12px; font-size: 13px; }
 .ov:has(> .notice.abschluss) .ov-body { min-height: 120px; }
+/* Die stille Zeile zum Ton auf der Startseite (tonHinweis(true) in
+   js/app.js): kurz und so klein gesetzt wie die zum Abschluss. In voller Länge
+   waren es bei 360×740 vier Zeilen, 116 px, und der Fuß lag unter der Leiste. */
+.notice.kurz { margin: 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
 
 /* Mehr → Töne und Hinweise, unter „Töne anhören": erst das Urteil in
    Textfarbe, darunter grau die Ursachen am Handy als Liste. Ein Absatz
@@ -10629,7 +10633,9 @@ function combosFor(active) {
  *                  merkt sie sich und holt es nach, sobald der Kanal frei ist –
  *                  einen Ton aber nur innerhalb seiner Frist, und nie, wenn die
  *                  Berührung selbst schon etwas Hörbares anstößt (den nächsten
- *                  Satz, eine neue Pause): siehe nachholen().
+ *                  Satz, eine neue Pause), der nächste Haken ist – auch ein
+ *                  stummer – oder die Töne ausschaltet: siehe nachholen() und
+ *                  tonUeberholt().
  *
  *   Vorausplanen.  Das Pausensignal wird nicht per setTimeout ausgelöst,
  *                  sondern beim Start der Pause fest auf die Uhr des
@@ -10965,7 +10971,7 @@ function wecken() {
  * Finger aktiviert nichts, erst das Loslassen; ein senkrechter Wisch (Scrollen)
  * gar nicht – deshalb die Rückfrage bei `userActivation`, wo es sie gibt.
  */
-function beruehrung() {
+function beruehrung(ev) {
   const u = navigator.userActivation;
   if (u && !u.hasBeenActive) return;
   const erste = !beruehrt;
@@ -10973,7 +10979,9 @@ function beruehrung() {
   initAudio();
   wecken();
   if (erste) {
-    nachholen();
+    // Mit Maus und Tastatur ist schon das Drücken die Berührung, der Klick
+    // kommt erst beim Loslassen (nachDemKlick()).
+    nachholen(ev && (ev.type === 'mousedown' || ev.type === 'keydown'));
     // Schläft der Kanal trotz Berührung weiter, soll das jemand erfahren –
     // aber erst, wenn resume() seine Chance hatte (siehe tonStand().klemmt).
     setTimeout(tonMelden, 1600);
@@ -10999,9 +11007,27 @@ for (const ev of ['pointerup', 'touchend', 'mousedown', 'keydown']) {
  * er ja), mit derselben Ursache wie vorher. Kommt er dran, verlässt er diesen
  * Topf und landet dort, wo er wirklich ankommt – gespielt und verspätet, oder,
  * wenn auch jetzt nichts durchgeht, wieder verpasst.
+ *
+ * Ob die Berührung einen Ton angestoßen hat, reicht dafür nicht immer: Ein
+ * Haken kann stumm bleiben („Ton bei jedem Satz" aus, im Supersatz ohne
+ * Wartezeit weiter zum Partner), und „Töne" aus stößt gar nichts an. Beides
+ * sagt die App ausdrücklich (tonUeberholt()).
+ *
+ * **Eine Pause, die schon vorbei ist, bleibt hier liegen.** Fällt die
+ * Berührung in die Viertelsekunde zwischen dem Pausenende und dem Takt, der es
+ * bemerkt, ist von ihrem Plan alles fällig, und neu auflegen lässt sich nichts
+ * mehr. Aufgelöst zählte er hier den Gong als verpasst – und gleich danach gab
+ * endRest() ihn als Ersatz, gespielt: ein Ton in zwei Töpfen. Den Plan löst
+ * dann auf, wer die Pause beendet, und sagt dabei, ob er den Gong selbst gibt
+ * (cancelSound({ ersetzt })).
+ *
+ * `gedrueckt`: Die Berührung war ein Drücken (Maus, Taste) – siehe
+ * nachDemKlick().
  */
-function nachholen() {
-  const plan = planAufloesen();
+function nachholen(gedrueckt = false) {
+  const wand = Date.now();
+  const vorbei = !!wunschPlan && wunschPlan.faellig.every(([, f]) => f <= wand);
+  const plan = vorbei ? null : planAufloesen();
   if (plan && plan.neu) {
     try { plan.neu(); } catch { /* der Rückruf gehört der App – ihr Fehler, nicht unserer */ }
   }
@@ -11016,30 +11042,73 @@ function nachholen() {
         jetztSpielen(ton.name, ton.faellig).nachgeholt = true;
       }
       tonMelden();
-    });
+    }, gedrueckt);
   }
   tonMelden();
 }
 
 /**
+ * Der Ton, der auf die erste Berührung wartet, ist überholt – auch wenn das,
+ * was ihn überholt, selbst stumm bleibt. Er verfällt und bleibt als verpasst
+ * gezählt (siehe nachholen()).
+ *
+ * Für den nächsten Haken und für „Töne" aus. Supersatz, „Ton bei jedem Satz"
+ * aus, die Seite mitten in der Pause neu geladen, die Pause lief ohne Tipp ab:
+ * Die erste Berührung war der Haken auf A2, und B war ohne Wartezeit dran –
+ * kein Tupfer, keine neue Pause, kein Ton, an dem nachholen() den Haken hätte
+ * erkennen können. „Pause vorbei" kam direkt danach, mit „Weiter: B". Und wer
+ * unter Mehr als Erstes „Töne" ausschaltete, bekam in dem Moment den
+ * lautesten Ton der App.
+ */
+function tonUeberholt() {
+  if (!wunschTon) return;
+  wunschTon = null;
+  tonMelden();
+}
+
+// Womit eine Berührung endet – ab da zählt nachDemKlick() die halbe Sekunde.
+const LOSLASSEN = ['pointerup', 'mouseup', 'keyup', 'touchend'];
+
+/**
  * `fn` nach dem Klick der laufenden Berührung aufrufen – nach allen
  * Klick-Handlern der App, die auf Elementen darunter sitzen. Kommt kein Klick
- * (eine Taste, ein langer Druck mit der Maus, ein Finger, der vom Knopf
- * rutscht), entscheidet nach einer halben Sekunde der Zeitgeber.
+ * (eine Taste ohne Knopf, ein Finger, der vom Knopf rutscht), entscheidet eine
+ * halbe Sekunde nach dem Loslassen der Zeitgeber.
+ *
+ * **Ab dem Loslassen, nicht ab dem Drücken.** Mit Maus und Tastatur ist schon
+ * mousedown bzw. keydown die erste Berührung (`gedrueckt`), der Klick kommt
+ * beim Loslassen – auch nach langem Druck. Lief die halbe Sekunde ab dem
+ * Drücken, bekam, wer die Maustaste oder die Leertaste auf dem nächsten Satz
+ * 0,8 s hielt, erst „Pause vorbei" und beim Loslassen den Haken mit Tupfer und
+ * neuer Pause. Jetzt stellt jedes Loslassen den Zeitgeber, solange kein Klick
+ * kam – auch ein späteres, falls das erste nicht beim Dokument ankam.
  */
-function nachDemKlick(fn) {
+function nachDemKlick(fn, gedrueckt = false) {
   let fertig = false;
   let notfall = 0;
-  const los = () => {
+  const weg = [];
+  function los() {
     if (fertig) return;
     fertig = true;
     clearTimeout(notfall);
-    document.removeEventListener('click', klick);
+    weg.forEach((f) => f());
     fn();
-  };
+  }
+  function stellen() {
+    clearTimeout(notfall);
+    notfall = setTimeout(los, 500);
+  }
   const klick = () => setTimeout(los, 0);
   document.addEventListener('click', klick);
-  notfall = setTimeout(los, 500);
+  weg.push(() => document.removeEventListener('click', klick));
+  if (gedrueckt) {
+    LOSLASSEN.forEach((ev) => {
+      document.addEventListener(ev, stellen, true);
+      weg.push(() => document.removeEventListener(ev, stellen, true));
+    });
+  } else {
+    stellen();
+  }
 }
 
 /**
@@ -13061,10 +13130,10 @@ const DEFAULT_STATE = {
   // tagAbschliessen() in js/app.js; gelesen wird nur über tagesabschluss() hier,
   // das prüft, statt zu glauben.
   tagesabschluss: null,
-  // Der letzte Eintrag in irgendeiner Einheit: { n, at }, `at` in ms. Daran
-  // erkennt der Tagesabschluss, ob an einer Einheit von gestern eben noch
-  // trainiert wurde (über Mitternacht) oder ob sie liegt (lebenszeichen()).
-  letzterEintrag: null,
+  // (Hier stand bis v241 `letzterEintrag: { n, at }` – ein Platz für alle
+  // Einheiten. Er steht jetzt je Einheit im Protokoll, `zuletzt` unten;
+  // eintragUmziehen() holt einen alten Stand nach.)
+  //
   // Ein abgeschaffter Trainingsfokus, auf den dieses Gerät noch stand, solange
   // der Hinweis dazu offen ist: { von, nach, am, abgelegt }. `von` und `nach`
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
@@ -13121,6 +13190,10 @@ const DEFAULT_STATE = {
   //           (eingetragen()). startedOn bleibt der Tag
   //           der Einheit (Kalender, Statistik); weiterAm zählt nur für die
   //           Frage „heute schon trainiert?" (trainiertAm()).
+  //   zuletzt  der letzte Eintrag in dieser Einheit, in ms (eingetragen()).
+  //           Daran erkennt der Tagesabschluss, ob an einer Einheit von
+  //           gestern eben noch trainiert wurde (über Mitternacht) oder ob sie
+  //           liegt (lebenszeichen()). Gelesen nur über eintragZuletzt().
   log: {},
 };
 
@@ -13256,12 +13329,26 @@ function normAbschluss(roh) {
   return einheiten.length ? { am: roh.am, einheiten } : null;
 }
 
-/** Der letzte Eintrag: { n, at } mit einer Kennung wie im Protokoll und ms – sonst null. */
+/** Der letzte Eintrag von v241: { n, at } mit einer Kennung wie im Protokoll und ms – sonst null. */
 function normEintrag(roh) {
   if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
   const n = String(roh.n ?? '');
   if (!/^(\d{1,3}|c[\w-]{1,40})$/.test(n) || !Number.isFinite(roh.at) || roh.at <= 0) return null;
   return { n, at: roh.at };
+}
+
+/**
+ * Ein Stand von v241 (beim Laden, aus einer Sicherung): Sein `letzterEintrag`
+ * zieht in die Einheit um, zu der er gehört (`zuletzt`), wenn dort nichts
+ * Neueres steht – und das alte Feld ist weg. Ein Wert aus der Zukunft zieht mit
+ * um und zählt dort so wenig wie vorher (eintragZuletzt()).
+ */
+function eintragUmziehen(s, roh) {
+  delete s.letzterEintrag;
+  const l = normEintrag(roh);
+  const e = l && s.log && typeof s.log === 'object' ? s.log[l.n] : null;
+  if (!e || typeof e !== 'object' || Array.isArray(e)) return;
+  if (!(Number.isFinite(e.zuletzt) && e.zuletzt >= l.at)) e.zuletzt = l.at;
 }
 
 let state = load();
@@ -13280,7 +13367,7 @@ function load() {
     state.friends = normFreunde(state.friends);
     state.customs = normCustoms(state.customs);
     state.tagesabschluss = normAbschluss(state.tagesabschluss);
-    state.letzterEintrag = normEintrag(state.letzterEintrag);
+    eintragUmziehen(state, state.letzterEintrag);
     // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
     // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
     // von Hand gesetzter (Sicherung, Tests). Sonst kommt sie aus ihrem eigenen
@@ -13658,7 +13745,7 @@ function syncStartedOn(n) {
  * Einheit, sondern ein Training über Mitternacht.
  *
  * Den Unterschied macht die Zeit seit dem letzten Lebenszeichen der Einheit:
- * ihr letzter Eintrag (`letzterEintrag`), das Anhalten ihrer Uhr (`halt` –
+ * ihr letzter Eintrag (`zuletzt`), das Anhalten ihrer Uhr (`halt` –
  * App weggeschaltet oder Seite geschlossen) oder, wenn die Seite hart beendet
  * wurde und die Uhr noch lief, der Moment, seit dem sie lief (`since`).
  *
@@ -13670,6 +13757,29 @@ function syncStartedOn(n) {
  */
 const LIEGT_AB_MS = 3 * 3600 * 1000;
 
+/** Ein Zeitpunkt in ms, der als Lebenszeichen gilt: eine Zahl, nicht aus der Zukunft. */
+function lebtNoch(t, jetzt) {
+  return Number.isFinite(t) && t > 0 && t <= jetzt + 60000;
+}
+
+/**
+ * Der letzte Eintrag in der Einheit `n` in ms – 0, wenn keiner gilt.
+ *
+ * Je Einheit, nicht einer für alle. Bis v241 gab es einen Platz
+ * (`letzterEintrag`), und jeder Eintrag überschrieb ihn – auch ein Fehltipp in
+ * einer anderen Einheit: Samstag bis 23:50 in Workout 12 abgehakt, um 23:55 in
+ * Workout 13 einen Satz an und gleich wieder ab, und um Mitternacht war
+ * Workout 12 „liegen geblieben" und abgeschlossen – zehn Minuten nach dem
+ * letzten Satz statt drei Stunden. In einer Sitzung machte derselbe Fehltipp
+ * aus dem nächsten Satz nach Mitternacht einen zweiten Trainingstag
+ * (eingetragen()). `zuletzt` kommt auch aus einer Sicherung, also aus fremder
+ * Hand: Unsinn und Werte aus der Zukunft zählen nicht.
+ */
+function eintragZuletzt(n, jetzt) {
+  const e = state.log[n];
+  return e && lebtNoch(e.zuletzt, jetzt) ? e.zuletzt : 0;
+}
+
 /**
  * Das letzte Lebenszeichen der Einheit `n` in ms – 0, wenn keines bekannt ist
  * (ein Stand von vor diesem Vermerk: dann liegt sie). Werte aus der Zukunft
@@ -13678,10 +13788,8 @@ const LIEGT_AB_MS = 3 * 3600 * 1000;
  */
 function lebenszeichen(n, jetzt = Date.now()) {
   const k = String(n);
-  const gilt = (t) => Number.isFinite(t) && t > 0 && t <= jetzt + 60000;
-  let t = 0;
-  const l = state.letzterEintrag;
-  if (l && String(l.n) === k && gilt(l.at)) t = Math.max(t, l.at);
+  const gilt = (t) => lebtNoch(t, jetzt);
+  let t = eintragZuletzt(k, jetzt);
   const c = state.clock;
   if (c && String(c.n) === k) {
     if (gilt(c.halt)) t = Math.max(t, c.halt);
@@ -13720,18 +13828,32 @@ function trainiertAm(k, iso) {
  * LIEGT_AB_MS seit dem letzten Eintrag in derselben Einheit: Über Mitternacht
  * weiter trainiert ist kein zweiter Trainingstag – das Training gehört zum
  * Tag des ersten Satzes.
+ *
+ * **Und die Uhr nach langer Stille.** Der Deckel in clockStop() sah nur beim
+ * Anhalten nach, wie lange das letzte Lebenszeichen her ist. Tablet, App
+ * sichtbar: Start 10:00, ein Satz um 10:45, dann fast vier Stunden weg. Um
+ * 14:30 der nächste Satz – damit war das Lebenszeichen frisch –, um 14:45
+ * „Abschließen": gebucht 4 h 45 statt einer Stunde, und das ging als fertige
+ * Einheit in die Zeiteichung. Wer zuerst auf „Abschließen" tippte, bekam 45
+ * Minuten. Jetzt bemerkt schon der Eintrag die Stille: Die Uhr hält am alten
+ * Lebenszeichen an (clockStop() mit Deckel) und läuft ab jetzt weiter.
  */
 function eingetragen(n, warAngefangen, gehakt) {
   const e = state.log[n];
   const jetzt = Date.now();
   const heute = todayISO();
-  const vorher = state.letzterEintrag;
-  const amStueck = !!vorher && String(vorher.n) === String(n) && jetzt - vorher.at < LIEGT_AB_MS;
+  const c = state.clock;
+  if (c && String(c.n) === String(n) && c.since !== null && jetzt - lebenszeichen(n, jetzt) >= LIEGT_AB_MS) {
+    clockStop();
+    state.clock = { ...state.clock, since: jetzt };
+  }
+  const vorher = eintragZuletzt(n, jetzt);
+  const amStueck = vorher > 0 && jetzt - vorher < LIEGT_AB_MS;
   const inSitzung = !!state.session && String(state.session.n) === String(n);
   if (gehakt && inSitzung && e && e.startedOn && e.startedOn < heute && (e.weiterAm === heute || !amStueck)) {
     e.weiterAm = heute;
   }
-  state.letzterEintrag = { n: String(n), at: jetzt };
+  if (e) e.zuletzt = jetzt;
   if (!warAngefangen && isStarted(n) && state.tagesabschluss) state.tagesabschluss = null;
 }
 
@@ -13852,7 +13974,9 @@ function bucheZeit() {
  * Zählung an ihrem letzten Lebenszeichen, wenn das drei Stunden und mehr her
  * ist – wer so lange nichts eingetragen hat, trainiert nicht mehr –, und
  * `halt` bleibt dort: Beim Zurückkommen oder Laden schließt der
- * Tagesabschluss sie regulär ab.
+ * Tagesabschluss sie regulär ab. Kommt nach der Stille zuerst ein neuer
+ * Eintrag, wäre das Lebenszeichen hier schon frisch – den Fall fängt
+ * eingetragen() ab, bevor es das wird.
  */
 function clockStop(bis) {
   const c = state.clock;
@@ -14559,7 +14683,7 @@ function importJSON(text) {
   fresh.friends = normFreunde(fresh.friends);
   fresh.customs = normCustoms(fresh.customs);
   fresh.tagesabschluss = normAbschluss(fresh.tagesabschluss);
-  fresh.letzterEintrag = normEintrag(fresh.letzterEintrag);
+  eintragUmziehen(fresh, parsed.letzterEintrag);
   // Was an *diesem Gerät* hängt, kommt nicht aus der Datei. Vorher übernahm
   // der Import auch `share`, `deviceId` und `lastShare`: Eine bewusst
   // abgeschaltete Telemetrie war danach still wieder an, und zwei Geräte
@@ -22836,7 +22960,8 @@ function endRest(withSignal) {
    * bei der ersten nach – aber nur, wenn die Pause gerade eben zu Ende ging
    * (NACHKLANG_MS), nicht für eine, die beim Neustart längst vorbei war, nur
    * bis NACHKLANG_MS nach dem Ende, und nicht, wenn diese Berührung selbst
-   * einen Ton anstößt (der nächste Haken, eine neue Pause).
+   * einen Ton anstößt (eine neue Pause), der nächste Haken ist – auch ein
+   * stummer – oder die Töne ausschaltet (tonUeberholt()).
    *
    * Aufgeräumt wird danach mit `ausklingen` nur am echten Ende: Ein Signal,
    * das in den nächsten 0,3 s anfängt, ist das dieses Endes. Bei „Pause weg"
@@ -24702,14 +24827,24 @@ function renderOverview() {
 
   // Eine Bildschirmseite, ohne Scrollen: Kopf, Körper, Start. Der Körper
   // nimmt sich den Platz, der zwischen den beiden übrig bleibt.
+  //
+  // Die stille Zeile zum Ton hier kurz, und nicht neben der Zeile zum
+  // Tagesabschluss: Nach einer Nacht im Speicher klemmt auf dem iPhone der
+  // Tonkanal, und beide standen zugleich da – bei 360×740 lag der Fuß dann
+  // 78 px (Sonntag) bzw. 111 px (Montag) unter der Leiste, die Zeile zum Ton
+  // allein (vier Zeilen, 116 px) schob ihn 35 bzw. 45 px darunter. Die Zeile
+  // zum Abschluss hat Vorrang; ihr „OK" ist ohnehin die nächste Berührung, und
+  // die weckt den Kanal. Klemmt er danach noch, steht die zum Ton da. Den
+  // ganzen Satz zeigen die Fokusansicht und die Liste, Einzelheiten Mehr.
+  const abschluss = abschlussHinweis();
   view.innerHTML = `
     <section class="ov">
       ${umzugHinweis()}
       ${umbauHinweis()}
       ${aufstiegHinweis()}
-      ${abschlussHinweis()}
+      ${abschluss}
       ${speicherWarnung()}
-      ${tonHinweis()}
+      ${abschluss ? '' : tonHinweis(true)}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
            Frage, ob eine neue Kalenderdatei erzeugt werden soll. Beides raus,
            auf Zuruf.
@@ -29282,9 +29417,16 @@ function tonStandZeigen() {
  * Das Urteil vorn, und kein Versprechen, dass der nächste Tipp weckt: Sie
  * erscheint ja gerade, weil einer es nicht getan hat. Der Abschnitt heißt so,
  * wie er unter Mehr heißt.
+ *
+ * `kurz`: auf der Startseite, die eine Bildschirmseite bleiben soll (siehe
+ * renderOverview()) – zwei Zeilen statt vier.
  */
-function tonHinweis() {
+function tonHinweis(kurz = false) {
   if (!ui.tonHinweis) return '';
+  if (kurz) {
+    return `<div class="notice zeile small kurz" id="tonHinweis"><span>🔇 Töne kommen gerade nicht. Bleibt es
+      stumm, App neu öffnen – <i>Mehr → Töne und Hinweise</i>.</span></div>`;
+  }
   return `<div class="notice zeile small" id="tonHinweis"><span>🔇 Töne kommen gerade nicht – der
     Browser hält den Ton an, obwohl du getippt hast. Tipp noch einmal; bleibt es stumm, App
     schließen und neu öffnen. Einzelheiten unter <i>Mehr → Töne und Hinweise</i>.</span></div>`;
@@ -29786,6 +29928,11 @@ view.addEventListener('click', (e) => {
         break;
       }
       initAudio(); // Berührung nutzen, solange der Browser Ton noch erlaubt
+      // Ein Haken überholt das „Pause vorbei", das seit dem Neuladen auf die
+      // erste Berührung wartet – auch einer, der stumm bleibt („Ton bei jedem
+      // Satz" aus, im Supersatz ohne Wartezeit weiter; tonUeberholt() in
+      // js/audio.js).
+      tonUeberholt();
 
       // Beim Abhaken das benutzte Gewicht mitschreiben – daraus speist sich
       // später der Vergleich "Zuletzt" und die Volumenrechnung.
@@ -30566,6 +30713,9 @@ view.addEventListener('click', (e) => {
       initAudio();
       const on = !store.getState().sound;
       store.setSetting('sound', on);
+      // Aus heißt aus – auch für einen Gong, der auf die erste Berührung
+      // wartet und sonst genau jetzt käme (tonUeberholt() in js/audio.js).
+      if (!on) tonUeberholt();
       armRest(); // eine laufende Pause folgt der neuen Einstellung
       render();
       if (on) playSound('rest');

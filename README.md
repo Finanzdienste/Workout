@@ -923,9 +923,24 @@ nächsten Tipp. Seit v241:
   „Pause vorbei" dann zusammen mit dessen Tupfer – genau in dem Moment, in dem
   die neue Pause begann –, weil der Lauscher ihn spielte, bevor der
   Klick-Handler lief. Deshalb entscheidet `nachholen()` erst nach dem Klick
-  derselben Berührung (ohne Klick nach einer halben Sekunde): Hat sie selbst
-  einen Ton angestoßen – Haken, neue Pause, Training beenden, „Töne anhören" –,
-  ist der alte überholt und verfällt.
+  derselben Berührung (ohne Klick eine halbe Sekunde nach dem Loslassen): Hat
+  sie selbst einen Ton angestoßen – Haken, neue Pause, Training beenden, „Töne
+  anhören" –, ist der alte überholt und verfällt.
+
+  Aus dem Gegenlesen von v241, seit v242: **Überholt ist er auch von einem
+  stummen Haken und von „Töne" aus** (`tonUeberholt()`). Supersatz, „Ton bei
+  jedem Satz" aus, die Seite mitten in der Pause neu geladen: Die erste
+  Berührung war der Haken auf A2, B war ohne Wartezeit dran – kein Tupfer,
+  keine neue Pause, also kein Ton, an dem `nachholen()` den Haken erkannt hätte,
+  und „Pause vorbei" kam direkt danach. Wer unter *Mehr* als Erstes „Töne"
+  ausschaltete, wo eben noch stand, ein Tipp hole den Gong nach, bekam ihn in
+  genau dem Moment. **Die halbe Sekunde läuft ab dem Loslassen.** Mit Maus und
+  Tastatur ist schon `mousedown` bzw. `keydown` die erste Berührung, der Klick
+  kommt erst beim Loslassen, auch nach langem Druck: Wer am Rechner die
+  Maustaste oder die Leertaste 0,8 s auf dem nächsten Satz hielt, bekam erst
+  den Gong und dann den Haken mit Tupfer und neuer Pause. Jetzt stellt jedes
+  Loslassen den Zeitgeber, solange kein Klick kam. Am Handy ist die erste
+  Berührung ohnehin das Loslassen.
 * **Die installierte App misst, statt anzunehmen.** Chrome hat laut seinen
   Autoplay-Regeln für eine zum Startbildschirm hinzugefügte App keine
   Tonsperre. Dort hätte „nie ohne Berührung" einen Rückschritt bedeutet: Ein
@@ -1008,7 +1023,14 @@ einer Uhr, die noch davor steht). Jeder gewollte Ton landet in genau einem Topf:
   Uhr, dessen Pause beim Aufwachen über eine Minute vorbei war. Ohne diesen
   dritten Fall stünde unter *Mehr* kein verpasster Ton, obwohl das lauteste
   Signal ausgefallen ist. Gibt `endRest()` einen Ersatz, zählt der
-  liegengebliebene nicht doppelt – der Ersatz zählt.
+  liegengebliebene nicht doppelt – der Ersatz zählt. Das galt in v241 nicht für
+  eine Berührung in der Viertelsekunde zwischen dem Pausenende und dem Takt,
+  der es bemerkt (aus dem Gegenlesen): `nachholen()` löste den vorgemerkten
+  Plan auf und zählte Vorwarnung *und* Gong als verpasst, gleich danach gab
+  `endRest()` den Gong als Ersatz, gespielt – unter *Mehr* „1 seit dem Öffnen.
+  2 Töne kamen nicht", obwohl nur die Vorwarnung fehlte. Seit v242 bleibt ein
+  Plan, von dem schon alles fällig ist, liegen, bis die Pause endet; aufgelöst
+  wird er dort, mit dem Ersatz.
 * Bei jedem verpassten Ton steht die Ursache dabei, und davon gibt es zwei:
   *gesperrt* – es gab noch gar keinen Kontext, vor der ersten Berührung nach
   dem Öffnen lässt der Browser keinen Ton zu (eine Vorwarnung oder ein Gong
@@ -1043,7 +1065,9 @@ Urteil da. Schläft der Kanal
 gut anderthalb Sekunden nach einer Berührung weiter, zeigt das Dashboard eine
 stille Zeile (kein Popup) – *Töne kommen gerade nicht …; tipp noch einmal,
 bleibt es stumm, App schließen und neu öffnen* –, die von selbst verschwindet,
-sobald er läuft.
+sobald er läuft. Auf der Startseite steht sie kurz (zwei statt vier Zeilen),
+damit die eine Bildschirmseite bleibt, und nicht neben der Zeile zum
+Tagesabschluss (unten, *Liegen geblieben*).
 
 **Gemessen, aus Quellen, nicht belegbar.** Gemessen in Chromium 153 mit
 Standard-Autoplay-Policy (keine Flagge) und Touch über eine rohe CDP-Sitzung
@@ -1068,7 +1092,13 @@ dem Neuladen ohne jede Berührung; mit Sperre wird der Mess-Kontext geschlossen,
 nichts landet auf ihm, und die erste Berührung holt den Gong nach. Neu geladen
 direkt unter *Mehr* steht vor der ersten Berührung, woran es liegt, wie viele
 Töne fehlten und was ein Tipp noch bringt – und das zieht sich nach, wenn die
-Frist des Gongs abläuft. Jede dieser Szenen ist gegen den Stand davor
+Frist des Gongs abläuft. Seit v242 außerdem (Szene K): kein Gong nach dem
+stummen Haken im Supersatz und keiner nach „Töne" aus; am Rechner, Maus oder
+Leertaste 0,8 s auf dem nächsten Satz gehalten, kein Gong vor dem Loslassen
+und keiner danach, auf dem Namen der Übung kommt er nach dem Loslassen; eine
+Berührung in der Viertelsekunde nach dem Pausenende (der Takt dafür
+angehalten) gibt den Gong einmal und zählt ihn einmal – gespielt –, die
+Vorwarnung als verpasst. Jede dieser Szenen ist gegen den Stand davor
 gegengeprüft und war dort rot.
 Wichtig für jede weitere Messung: In Playwright zählt jedes `page.evaluate()`
 und jede Locator-Hilfe als Nutzergeste (`Runtime.callFunctionOn` mit
@@ -5901,11 +5931,20 @@ galt, blieb die Einheit offen. Jetzt endet die Zählung am letzten
 Lebenszeichen, wenn das drei Stunden und mehr her ist, und der Tagesabschluss
 greift wie sonst.
 
+Das galt in v241 nur, wenn nach der Stille zuerst angehalten wurde (aus dem
+Gegenlesen von v241). Tablet, App sichtbar: Start 10:00, ein Satz um 10:45,
+dann fast vier Stunden weg; um 14:30 der nächste Satz, um 14:45 „Abschließen" –
+gebucht 4 h 45 statt einer Stunde, denn mit dem Satz war das Lebenszeichen
+frisch, und die fertige Einheit ging so in die Zeiteichung. Wer zuerst
+„Abschließen" tippte, bekam 45 Minuten. Jetzt bemerkt schon der Eintrag die
+Stille (`eingetragen()`): Die Uhr hält am alten Lebenszeichen an und läuft ab
+dem Satz weiter – 45 plus 15 Minuten, und die Sitzung bleibt, wie sie war.
+
 | Schwelle | Wert | warum |
 | --- | --- | --- |
 | abgehakte Sätze | mindestens 2 (`ABSCHLUSS_AB`) | Ein Fehltipp ist *ein* Tipp: auf der Startseite vorgeblättert, in Workout 13 aus Versehen einen Satz abgehakt – `planVorziehen()` legt sie dann sogar auf heute. Am nächsten Tag hieße sie sonst „trainiert mit 1 von 15", und der Plan ginge an ihr vorbei. Nicht die gebuchte Zeit und nicht, ob eine Sitzung lief: Wer in „Übungen & Gewichte" abhakt, trainiert ohne Uhr. Was darunter liegt, bleibt offen wie bisher. |
 | ohne Lebenszeichen | 3 Stunden (`LIEGT_AB_MS`) | Eine Pause dauert höchstens drei Minuten, ein Anruf oder das Abendessen mitten im Training eine Stunde. Wer drei Stunden nichts eingetragen hat, trainiert nicht mehr – und eine Einheit vom späten Abend ist am Morgen erledigt, auch wenn sie erst nach Mitternacht liegen blieb. |
-| Lebenszeichen | der letzte Eintrag (`letzterEintrag`), das Anhalten der Uhr (`clock.halt`, neu), bei hart beendeter Seite der Start der laufenden Uhr | in Millisekunden gerechnet, nicht auf der Wanduhr – in der Nacht zum 25.10. sind von 0:30 MESZ bis 2:40 MEZ drei Stunden zehn vergangen, auch wenn die Uhr nur zwei Stunden zehn weiter steht. Werte aus der Zukunft zählen nicht. |
+| Lebenszeichen | der letzte Eintrag in *dieser* Einheit (`zuletzt` im Protokoll, seit v242), das Anhalten der Uhr (`clock.halt`), bei hart beendeter Seite der Start der laufenden Uhr | in Millisekunden gerechnet, nicht auf der Wanduhr – in der Nacht zum 25.10. sind von 0:30 MESZ bis 2:40 MEZ drei Stunden zehn vergangen, auch wenn die Uhr nur zwei Stunden zehn weiter steht. Werte aus der Zukunft zählen nicht. Je Einheit, weil bis v241 ein Platz für alle galt (`letzterEintrag`): Ein Fehltipp in Workout 13 um 23:55 – ein Satz an und gleich wieder ab – löschte das Lebenszeichen von Workout 12, und um Mitternacht war sie zehn Minuten nach ihrem letzten Satz abgeschlossen; in einer Sitzung machte er aus dem Satz nach Mitternacht einen zweiten Trainingstag (`weiterAm`). Ein Stand von v241 zieht beim Laden und beim Einlesen um. |
 
 **Wer über Mitternacht trainiert, merkt davon nichts.** Haken um 23:50, App
 kurz weg, um 0:20 wieder da: offen, die Sitzung läuft, die Uhr auch, und der
@@ -5971,7 +6010,17 @@ mehr. Klein gesetzt, die Knöpfe rechts darunter: Als Kasten wie die anderen
 Hinweise, mit voller Knopfreihe, war sie bei 360×740 129 px hoch und schob
 Start und Fuß 52 px unter die Leiste. Jetzt sind es 106 px, die Körperkarte
 gibt an dem Tag Höhe ab, und die Startseite bleibt eine Seite – gemessen am
-Sonntag und am Montag, wenn Workout 13 mit dem Zusatz länger ist.
+Sonntag und am Montag, wenn Workout 13 mit dem Zusatz länger ist. Nur nicht
+zusammen mit der stillen Zeile zum Ton (aus dem Gegenlesen von v241): Nach
+einer Nacht im Speicher klemmt auf dem iPhone der Tonkanal, und mit beiden
+Zeilen lag der Fuß bei 360×740 78 px (Sonntag) bzw. 111 px (Montag) unter der
+Leiste – mit der Zeile zum Ton allein, vier Zeilen und 116 px, noch 35 bzw.
+45 px. Auf der Startseite hat seit v242 die Zeile zum Abschluss Vorrang; ihr
+„OK" ist ohnehin die nächste Berührung, und die weckt den Kanal. Klemmt er
+danach noch, steht die Zeile zum Ton da, kurz und klein gesetzt (52 px: *Töne
+kommen gerade nicht. Bleibt es stumm, App neu öffnen – Mehr → Töne und
+Hinweise*), und die Seite bleibt eine Seite. Den ganzen Satz zeigen weiter die
+Fokusansicht und die Liste.
 
 **Wohin der Rest geht, nur wenn es stimmt.** Gerechnet von den Stellen, die es
 dann tun – keine zweite Rechnung: der Zusatztag in der Einheit von heute
@@ -6037,11 +6086,14 @@ sie angefangen sind – eine liegen gebliebene blockiert nichts, und ein
 liegt, endet aber: Sonst stünde über der Einheit von heute „Eigenes Workout
 läuft noch".
 
-**Aus fremder Hand.** `tagesabschluss` und `letzterEintrag` reisen in der
-Sicherung mit. `importJSON()` nimmt ein Feld mit der Vorgabe `null` in jedem
-Typ an, also prüft `normAbschluss()` beim Laden, beim Einlesen und bei jedem
-Lesen: ISO-Tage, kleine ganze Zahlen, höchstens acht Einheiten, sonst nichts –
-eine Zeichenkette oder ein HTML-Schnipsel fällt weg.
+**Aus fremder Hand.** `tagesabschluss` und das `zuletzt` der Einheiten reisen
+in der Sicherung mit. `importJSON()` nimmt ein Feld mit der Vorgabe `null` in
+jedem Typ an, also prüft `normAbschluss()` beim Laden, beim Einlesen und bei
+jedem Lesen: ISO-Tage, kleine ganze Zahlen, höchstens acht Einheiten, sonst
+nichts – eine Zeichenkette oder ein HTML-Schnipsel fällt weg. `zuletzt` wird nur
+über `eintragZuletzt()` gelesen: eine Zahl, nicht aus der Zukunft, sonst zählt
+es nicht. Das `letzterEintrag` einer Sicherung von v241 zieht in seine Einheit
+um (`eintragUmziehen()`), wenn es eine gültige Kennung und Zeit trägt.
 
 `tests/test-tagesabschluss.mjs` spielt es mit Tobis Woche durch: der Sonntag
 beim Laden, die Zeile mit Zahlen, Tag und Ziel, „Rest heute machen" und das
@@ -6071,9 +6123,20 @@ ihrer Einheit (3), die Sperre nach dem Planumbau für die ganze Seite (1),
 (2), „Davon" statt der offenen Sätze (6), die Uhr ohne Deckel (5) – jede nur in
 ihrem Abschnitt.
 
+Aus dem Gegenlesen von v241 (v242) kamen dazu: die Startseite mit der Zeile
+zum Abschluss und der zum Ton (2b), Stunden Stille vor dem nächsten Satz (16),
+der Fehltipp in einer anderen Einheit ohne und mit Sitzung (17) und die
+Sicherung von v241 (9) – 158 Prüfungen in siebzehn Abschnitten. Gegen 87e4cd1
+sind 17 davon rot: 8 in 2b, 3 in 16, 3 in 17 und 3 in 9, die das neue Feld
+prüfen. 17c – Unsinn und ein Wert aus der Zukunft im neuen Feld – ist dort grün,
+weil 87e4cd1 das Feld nicht liest; es wacht über das neue.
+
 `tests/test-fortsetzen.mjs` (Fall 3 und 10) erwartete, dass eine Sitzung von
 gestern auf dem Dashboard wartet; das ist auf Zuruf anders und dort mit
-Begründung angepasst. `tests/test-new.mjs` und `tests/test-progress.mjs`
+Begründung angepasst. Es stellt „gestern" auf einem Stand nach, den die App
+eben selbst geschrieben hat; seit v242 setzt es dafür das `zuletzt` der
+Einheit zurück statt `letzterEintrag` – sonst hielten die Sätze von gerade die
+Einheit offen. `tests/test-new.mjs` und `tests/test-progress.mjs`
 legten Workout 1 auf den 19. August und brauchten es offen: jetzt von heute.
 `tests/test-nacharbeit-ruhetag.mjs` (R12) hakt am Freitag einen vergessenen
 Satz von Donnerstag nach und erwartet die Zeile „Heute frei" – daran hat sich

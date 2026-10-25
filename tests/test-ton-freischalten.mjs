@@ -65,6 +65,17 @@
  *      noch bringt – auch dann noch richtig, wenn die Frist verstreicht. Und
  *      ein Ton, der nur auf den ersten Tipp wartete, heißt nie „angehalten"
  *      (dazu F1; den echten angehaltenen Fall prüft I1).
+ *
+ * Und aus dem Gegenlesen von v241, rot gegen 87e4cd1 und grün danach:
+ *
+ *   K  Der vorgemerkte Gong kommt nicht nach einem stummen Haken (Supersatz,
+ *      „Ton bei jedem Satz" aus, ohne Wartezeit weiter – K1) und nicht nach
+ *      „Töne" aus (K2); am Rechner läuft die halbe Sekunde ab dem Loslassen,
+ *      nicht ab dem Drücken (K3, Maus und Leertaste); und eine Berührung kurz
+ *      nach dem Pausenende, bevor der Takt es bemerkt, zählt jeden Ton in
+ *      genau einem Topf (K4).
+ *      Gegen 87e4cd1: 10 von 155 Prüfungen rot, alle in K – K1 (1), K2 (1),
+ *      K3 (6: Gong schon während des Drückens), K4 (2: „2 Töne kamen nicht").
  */
 import { chromium } from 'playwright';
 import { URL, SHOT } from './umgebung.mjs';
@@ -177,6 +188,12 @@ const SONDE = ({ attrappe, installiert }) => {
   });
   window.__klicks = [];
   document.addEventListener('click', () => window.__klicks.push(Date.now()), true);
+  // Den Takt der Seite anhalten können (Szene K4): Solange __taktAus steht,
+  // laufen setInterval-Rückrufe ins Leere – der Takt der Pausenuhr bemerkt ein
+  // Pausenende dann erst, wenn er wieder darf.
+  window.__taktAus = false;
+  const SI = window.setInterval;
+  window.setInterval = (fn, ms, ...a) => SI((...b) => { if (!window.__taktAus) fn(...b); }, ms, ...a);
   if (installiert) {
     const mm = window.matchMedia.bind(window);
     window.matchMedia = (q) => (/display-mode:\s*standalone/.test(q)
@@ -192,8 +209,11 @@ async function rein(cdp, expression) {
   return result.value;
 }
 
-async function seite(zustand, { attrappe = false, installiert = false, br = browser } = {}) {
-  const ctx = await br.newContext({ hasTouch: true, isMobile: true, viewport: { width: 414, height: 896 }, userAgent: UA });
+/** `rechner`: ein Rechner mit Maus und Tastatur statt eines Handys (Szene K3). */
+async function seite(zustand, { attrappe = false, installiert = false, br = browser, rechner = false } = {}) {
+  const ctx = await br.newContext(rechner
+    ? { viewport: { width: 1280, height: 900 } }
+    : { hasTouch: true, isMobile: true, viewport: { width: 414, height: 896 }, userAgent: UA });
   // Nichts nach draußen – die Sicherung spricht sonst mit dem Server.
   await ctx.route((u) => !u.href.startsWith('http://127.0.0.1'), (r) => r.fulfill({ status: 204, body: '' }));
   await ctx.addInitScript(SONDE, { attrappe, installiert });
@@ -232,6 +252,17 @@ async function seite(zustand, { attrappe = false, installiert = false, br = brow
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   };
   const tippe = async (sel) => { await finger(await mitte(sel)); await warte(350); };
+  /** Die Maus (Szene K3): 'mousePressed' oder 'mouseReleased' an `p` – der Klick kommt beim Loslassen. */
+  const maus = async (typ, p) => {
+    if (typ === 'mousePressed') await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: typ, x: p.x, y: p.y, button: 'left', buttons: typ === 'mousePressed' ? 1 : 0, clickCount: 1,
+    });
+  };
+  /** Die Leertaste (Szene K3): 'keyDown' oder 'keyUp' – ein Knopf klickt beim Loslassen. */
+  const leertaste = (typ) => cdp.send('Input.dispatchKeyEvent', {
+    type: typ, key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32, ...(typ === 'keyDown' ? { text: ' ' } : {}),
+  });
   /** Stand ablesen: tonStand() aus derselben Modulinstanz wie die App, dazu die Sonde. */
   const stand = async () => {
     const r = await rein(cdp, `(async () => {
@@ -256,7 +287,7 @@ async function seite(zustand, { attrappe = false, installiert = false, br = brow
   const text = (sel) => rein(cdp, `((document.querySelector(${JSON.stringify(sel)}) || {}).textContent || '').replace(/\\s+/g, ' ').trim()`);
   /** Sichtbarkeit umschalten; gibt die Seitenzeit des Umschaltens zurück. */
   const sicht = (hidden) => rein(cdp, `(() => { window.__hidden = ${hidden}; const t = Date.now(); document.dispatchEvent(new Event('visibilitychange')); return t; })()`);
-  return { ctx, page, cdp, errs, konsole, tippe, mitte, finger, stand, text, sicht };
+  return { ctx, page, cdp, errs, konsole, tippe, mitte, finger, maus, leertaste, stand, text, sicht };
 }
 
 /**
@@ -755,6 +786,149 @@ const KEIN_TON = '✗ Noch kein Ton frei – vor der ersten Berührung nach dem 
     `J2: nach der Frist wartet nichts mehr (offen=${s2.offen}, verpasst=${s2.verpasst})`);
   check(s2.zeile === `${KEIN_TON} Deshalb kam 1 Ton nicht. Tipp einmal irgendwohin, dann ist der Ton frei.`,
     `J2: die Zeile zieht sich ohne Berührung nach – kein „kommt noch nach" mehr: ${JSON.stringify(s2.zeile)}`);
+  check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  await ctx.close();
+}
+
+/* ================================================================== */
+/* K  Aus dem Gegenlesen von v241                                        */
+/* ================================================================== */
+console.log('\n--- K  Der vorgemerkte Gong: nicht mit einem stummen Haken, nicht nach „Töne aus", nicht vor dem Loslassen, nicht doppelt gezählt ---');
+{
+  // K1  Supersatz, „Ton bei jedem Satz" aus. B1 abgehakt, die Pause vor A2
+  // läuft, die Seite wird neu geladen, die Pause läuft ohne Tipp ab. Die erste
+  // Berührung ist der Haken auf A2 – und B ist danach ohne Wartezeit dran:
+  // kein Tupfer, keine neue Pause, also kein Ton, an dem nachholen() den Haken
+  // hätte erkennen können. Bis 87e4cd1 kam „Pause vorbei" direkt nach diesem
+  // Haken, zusammen mit „Weiter: B" – genau das, was F2 abstellen sollte.
+  const { ctx, errs, tippe, stand, text, page, cdp } = await seite({ ...GRUND, supersatz: true, soundSets: false });
+  await tippe('[data-act="start-session"]');
+  const a = await text('.focus-name');
+  await tippe('.focus-set:not(.on)');
+  const b = await text('.focus-name');
+  await tippe('.focus-set:not(.on)');
+  const s0 = await stand();
+  check(a && b && a !== b && (await text('.focus-name')) === a && s0.pause,
+    `K1: im Wechsel – ${a} ↔ ${b}, nach dem ersten Satz von ${b} die Pause vor ${a} (Pause=${s0.pause})`);
+  // Die Pause auf drei Sekunden kürzen und beide Sätze lange her sein lassen:
+  // Nach A2 wartet B nicht mehr (superWeiter(): Wartezeit 0), und nach dem
+  // Pausenende steht unten auch keine aus der Uhr gerechnete mehr.
+  const endsAt = await rein(cdp, `(async () => {
+    const store = await import('./js/store.js');
+    const r = store.getState().rest;
+    store.setRest({ ...r, endsAt: Date.now() + 3000 });
+    store.flush();
+    const roh = JSON.parse(localStorage.getItem('workout.satzuhr.v1'));
+    roh.m = roh.m.map(([id, t]) => [id, t - 600000]);
+    localStorage.setItem('workout.satzuhr.v1', JSON.stringify(roh));
+    return store.getState().rest.endsAt;
+  })()`);
+  await page.reload({ waitUntil: 'networkidle' });
+  await warte(300);
+  const s1 = await stand();
+  check(s1.akt === '-/-' && s1.pause && s1.ctxs === 0 && (await text('.focus-name')) === a,
+    `K1: neu geladen – gestenfrei, Fokusansicht bei ${a}, die Pause läuft (${s1.akt}, Pause=${s1.pause})`);
+  await bis(endsAt + 800);
+  const s2 = await stand();
+  check(!s2.pause && s2.wartet === 'rest' && s2.gesperrt === 1,
+    `K1: Pause ohne Tipp abgelaufen, der Gong wartet (wartet=${s2.wartet}, verpasst=${s2.verpasst}, gesperrt=${s2.gesperrt})`);
+  await tippe('.focus-set:not(.on)');
+  await warte(1200);
+  const s3 = await stand();
+  check(/^Weiter: /.test(s3.toast) && !s3.pause && (await text('.focus-name')) === b,
+    `K1: der Haken auf ${a}, Satz 2 – weiter zu ${b} ohne Wartezeit („${s3.toast}", Pause=${s3.pause})`);
+  check(starts(s3.log, 880, true) === 0 && s3.gespielt === 0 && s3.verpasst === 1 && s3.gesperrt === 1 && !s3.offen,
+    `K1: und KEIN „Pause vorbei" danach – er bleibt verpasst (sofortige 880-Hz-Quellen: ${starts(s3.log, 880, true)}, gespielt=${s3.gespielt}, verpasst=${s3.verpasst})`);
+  check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  await ctx.close();
+}
+{
+  // K2  Unter Mehr steht „Tipp einmal irgendwohin, dann kommt ‚Pause vorbei'
+  // noch nach" – und die erste Berührung ist der Schalter „Töne", auf aus. Bis
+  // 87e4cd1 kam der lauteste Ton der App genau in dem Moment.
+  const endsAt = Date.now() + 3000;
+  const { ctx, errs, tippe, stand, cdp } = await seite({ ...pause(endsAt), tab: 'settings' });
+  await bis(endsAt + 800);
+  const s1 = await stand();
+  check(s1.akt === '-/-' && s1.wartet === 'rest' && /dann kommt „Pause vorbei" noch nach/.test(s1.zeile),
+    `K2: der Gong wartet, und unter Mehr steht es (${JSON.stringify(s1.zeile.slice(-60))})`);
+  await tippe('[data-act="toggle-sound"]');
+  await warte(1200);
+  const s2 = await stand();
+  const an = await rein(cdp, `(async () => (await import('./js/store.js')).getState().sound)()`);
+  check(an === false && starts(s2.log, 880, true) === 0 && s2.gespielt === 0 && s2.verpasst === 1 && !s2.offen,
+    `K2: „Töne" aus – und kein Gong hinterher (Töne=${an}, sofortige 880-Hz-Quellen: ${starts(s2.log, 880, true)}, gespielt=${s2.gespielt}, verpasst=${s2.verpasst})`);
+  check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  await ctx.close();
+}
+/*
+ * K3  Am Rechner ist schon das Drücken die erste Berührung (mousedown,
+ * keydown), der Klick kommt erst beim Loslassen – auch nach langem Druck. Der
+ * Zeitgeber von einer halben Sekunde lief bis 87e4cd1 ab dem Drücken: Wer die
+ * Maustaste oder die Leertaste auf dem nächsten Satz 0,8 s hielt, bekam
+ * „Pause vorbei" und beim Loslassen den Haken mit Tupfer und neuer Pause
+ * hinterher. Auf dem Namen der Übung (kein Knopf, kein Ton) kommt der Gong
+ * nach – nach dem Loslassen, nicht davor. (Nicht die Figur: Ihr pointerdown
+ * unterdrückt das mousedown, dort ist erst das Loslassen die Berührung.)
+ */
+for (const [name, ziel, satz, taste] of [
+  ['K3a Maus, 0,8 s auf dem nächsten Satz', '.focus-set:not(.on)', true, false],
+  ['K3b Maus, 0,8 s auf dem Namen der Übung', '.focus-name', false, false],
+  ['K3c Leertaste, 0,8 s auf dem nächsten Satz', '.focus-set:not(.on)', true, true],
+]) {
+  const endsAt = Date.now() + 3000;
+  const { ctx, errs, mitte, maus, leertaste, stand, cdp } = await seite(pause(endsAt), { rechner: true });
+  await bis(endsAt + 800);
+  const s1 = await stand();
+  check(s1.akt === '-/-' && s1.wartet === 'rest', `${name}: gestenfrei, der Gong wartet (wartet=${s1.wartet})`);
+  const p = await mitte(ziel);
+  if (taste) await rein(cdp, `document.querySelector(${JSON.stringify(ziel)}).focus()`);
+  if (taste) await leertaste('keyDown'); else await maus('mousePressed', p);
+  await warte(800);
+  const s2 = await stand();
+  check(s2.zustand === 'laeuft' && starts(s2.log, 880, true) === 0,
+    `${name}: gedrückt, der Kanal läuft – und noch kein Gong (sofortige 880-Hz-Quellen: ${starts(s2.log, 880, true)})`);
+  if (taste) await leertaste('keyUp'); else await maus('mouseReleased', p);
+  await warte(1200);
+  const s3 = await stand();
+  if (satz) {
+    check(s3.pause && starts(s3.log, 880, true) === 0 && s3.gespielt === 1 && s3.verpasst === 1,
+      `${name}: losgelassen – der Haken, sein Tupfer, die neue Pause, kein Gong (Pause=${s3.pause}, gespielt=${s3.gespielt}, verpasst=${s3.verpasst})`);
+  } else {
+    check(starts(s3.log, 880, true) === 3 && s3.gespielt === 1 && s3.verpasst === 0,
+      `${name}: losgelassen – jetzt kommt er nach (sofortige 880-Hz-Quellen: ${starts(s3.log, 880, true)}, gespielt=${s3.gespielt}, verpasst=${s3.verpasst})`);
+  }
+  check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  await ctx.close();
+}
+{
+  // K4  Die erste Berührung fällt in die Viertelsekunde zwischen dem
+  // Pausenende und dem Takt, der es bemerkt (hier angehalten, damit sie es
+  // sicher tut). Bis 87e4cd1 zählte nachholen() den Gong als verpasst, und
+  // gleich danach gab endRest() ihn als Ersatz – gespielt. Ein Ton in zwei
+  // Töpfen: „1 seit dem Öffnen. 2 Töne kamen nicht", obwohl nur die Vorwarnung
+  // fehlte.
+  const endsAt = Date.now() + 8000;
+  const { ctx, errs, tippe, stand, text, cdp } = await seite(pause(endsAt));
+  const s0 = await stand();
+  check(s0.akt === '-/-' && s0.wartet === 'pause', `K4: gestenfrei, die Pause ist vorgemerkt (wartet=${s0.wartet})`);
+  await bis(endsAt - 400);
+  await rein(cdp, 'window.__taktAus = true');
+  await bis(endsAt + 50);
+  await tippe('#focusFig');
+  const s1 = await stand();
+  await rein(cdp, 'window.__taktAus = false');
+  await warte(1500);
+  const s2 = await stand();
+  const log = [...s1.log, ...s2.log];
+  check(!s2.pause && starts(log, 880, true) === 3 && zuEnde(log, 880) === 3,
+    `K4: „Pause vorbei" kommt, einmal (sofortige 880-Hz-Quellen: ${starts(log, 880, true)})`);
+  check(s2.gespielt === 1 && s2.verpasst === 1 && s2.gesperrt === 1 && s2.gespielt + s2.verpasst === 2,
+    `K4: jeder Ton in genau einem Topf – der Gong gespielt, die Vorwarnung verpasst (gespielt=${s2.gespielt}, verpasst=${s2.verpasst}, gesperrt=${s2.gesperrt})`);
+  await tippe('.tab[data-tab="settings"]');
+  const urteil = await text('#tonStand .ton-urteil');
+  check(urteil === '✓ Die App schickt Töne los (1 seit dem Öffnen). 1 Ton kam nicht – vor deiner ersten Berührung nach dem Öffnen lässt der Browser keinen Ton zu.',
+    `K4: unter Mehr: ${JSON.stringify(urteil)}`);
   check(errs.length === 0, `keine Fehler${errs.length ? ': ' + errs.join(' | ') : ''}`);
   await ctx.close();
 }
