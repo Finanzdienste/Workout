@@ -50,8 +50,15 @@ const probe = await page.evaluate(() => {
     // die jeweilige Einheit vorsieht, sonst gilt sie nicht als geschafft.
     const soll = (i) => PLAN[i].ex.find((x) => x.id === pick.id).sets;
     const sets = (i) => Array.from({ length: soll(i) }, () => ({ w: '20', r: '', done: true }));
+    // Workout 1 von heute, nicht vom 19.08.: Eine Einheit, die an einem
+    // früheren Tag angefangen wurde, schließt sich seit dem Tagesabschluss
+    // beim Laden selbst ab (tests/test-tagesabschluss.mjs) – gewollt –, und
+    // die Liste zeigte dann die nächste. Hier geht es um die Gewichtsknöpfe in
+    // Workout 1, nicht um seinen Tag.
+    const d = new Date();
+    const heute = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     localStorage.setItem(key, JSON.stringify({ restSeconds: 0, weights: { [pick.id]: 20 }, log: {
-      [PLAN[0].n]: { db: { [pick.id]: sets(0) }, bw: {}, mode: 'db', startedOn: '2026-08-19' },
+      [PLAN[0].n]: { db: { [pick.id]: sets(0) }, bw: {}, mode: 'db', startedOn: heute },
       [PLAN[zweite].n]: { db: { [pick.id]: sets(zweite) }, bw: {}, mode: 'db', startedOn: '2026-08-21' },
     } }));
     return { name: byId.get(pick.id).db.name, step: byId.get(pick.id).step, zweite: PLAN[zweite].n };

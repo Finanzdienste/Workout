@@ -20,7 +20,10 @@
  */
 import { EXERCISES, FOCUS, FOKUS_ERSATZ, PLAN, PLANS, TARGET, REST } from './data.js';
 import * as store from './store.js';
-import { todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD } from './dates.js';
+import {
+  todayISO, addDays, daysBetween, fmtDate, plural, fmtMonth, monthStart, addMonths, monthGrid, WEEK_HEAD, tagMonat,
+  wochentag,
+} from './dates.js';
 import { mountFigure, clearFigures } from './figure.js';
 import { mountBody, MUSCLE_LABEL } from './body.js';
 import { INJURIES, KIND_LABEL, CARE, CARE_LABEL, injuryById, blocked, gesperrt, weeklyImpact, combosFor, careFor, needsClearance } from './injuries.js';
@@ -62,7 +65,7 @@ import {
 import {
   NACH_ANTEIL, PLAN_WEEKS, WEEK_SESSIONS, ZUSATZ_IN_EINHEIT, ZUSATZ_NAME, ZUSATZ_UEBUNGEN,
   activeInjuries, ausfallTage, catchUpPlan, completedMode, defaultWorkoutNo, effDate, einheitEx, ersatzGrund, exBasis,
-  exOf, fassungen, festerZusatz, firstOpen, hasAnyEntry, injuryNotes, istCustom, nacharbeit,
+  exOf, fassungen, festerZusatz, firstOpen, hasAnyEntry, injuryNotes, istCustom, liegenGeblieben, nacharbeit,
   nacharbeitPlan, nacharbeitVorschau, nachWarumJe, offenImBlock, offenerZusatztag, progressOf, saetzeErledigt,
   resolve, sammleStats, shiftToToday, stufenKette, tagLaenge, vorherFassung, vorratNotiz, workoutByNo,
   zusatzBindung, zusatzEinheitFuer, zusatzGrund, zusatzIds, zusatzRueckstand, zusatzVergeben, zusatzWeg,
@@ -1105,16 +1108,34 @@ function backupDue() {
  * "Abbrechen" verwirft die Einheit ganz, damit sie als nicht trainiert gilt
  * und der Plan sie behandelt wie einen verpassten Tag. Ohne diese Trennung
  * blieb nach jedem Abbruch ein halb abgehaktes Workout stehen.
+ *
+ * Nicht auf einer Einheit, die an einem früheren Tag trainiert und
+ * abgeschlossen ist (frueherFertig()) – „Rest heute machen" nach dem
+ * Tagesabschluss, „Doch noch weitermachen" auf einer Einheit von gestern. Dort
+ * hieß „Abbrechen" „doch nicht heute", und es löschte das Training von Samstag
+ * mit: Workout 12 war untrainiert, der Plan rückte einen Tag, und am Sonntag
+ * stand „Heute · Workout 12" da. Was an einem früheren Tag trainiert ist, nimmt
+ * ein Abbruch von heute nicht zurück; dann bleibt nur „Abschließen", und ein
+ * versehentlicher Haken lässt sich einzeln zurücknehmen. Eine Einheit von
+ * heute verwirft „Abbrechen" weiter ganz, auch nach „Doch noch weitermachen"
+ * (tests/test-new.mjs) – und ein Training über Mitternacht ebenso, es ist
+ * noch nicht abgeschlossen.
  */
 function sessionButtons(n, mode) {
   const prog = progressOf(n, mode);
   return `
     <div class="btn-row nav">
-      <button type="button" class="btn btn-danger" data-act="discard-session">Abbrechen</button>
+      ${frueherFertig(n) ? '' : '<button type="button" class="btn btn-danger" data-act="discard-session">Abbrechen</button>'}
       <button type="button" class="btn btn-ok" data-act="finish-session">
         ✓ Abschließen${prog.done ? ` (${prog.done}/${prog.total})` : ''}
       </button>
     </div>`;
+}
+
+/** An einem früheren Tag angefangen und abgeschlossen – siehe sessionButtons(). */
+function frueherFertig(n) {
+  const tag = store.startedOn(n);
+  return !!tag && tag < todayISO() && !!completedMode(n);
 }
 
 /** Pausenlänge für eine Übung – empfohlen oder fest, je nach Einstellung. */
@@ -2366,6 +2387,130 @@ function rundeWeiter() {
   return true;
 }
 
+/*
+ * Nicht am Tag eines Starts, der mit einem Umbau des Plans begann
+ * (planWechsel() oder festReparieren() beim Start – siehe dort): Die Reparatur
+ * vervollständigt nur offene Einheiten, und zwar erst beim Start nach dem
+ * Planwechsel. Eine Einheit, die schon vorher abgeschlossen würde, behielte die
+ * kurze Liste von v215 – „2 von 6 Sätzen" statt der ganzen Einheit. Der
+ * Abschluss kommt dann beim nächsten Laden; diesmal hat die App ohnehin etwas
+ * zu sagen (der Hinweis zum Umbau). Hier steht der Tag dieses Starts.
+ *
+ * Bleibt die Seite offen, am nächsten Tag: Bis zur Nachbesserung galt die
+ * Sperre für die ganze Lebensdauer der Seite – und die bleibt oft tagelang im
+ * Speicher. Am Montag stand „vor 2 Tagen angefangen · Workout 12", am Mittwoch
+ * „vor 4 Tagen", Tobis Bild, nur länger. Dann holt tagAbschliessen() zuerst
+ * nach, was der nächste Start davor täte: reparieren, nachrechnen,
+ * nachstempeln.
+ */
+let abschlussWartet = null;
+
+/*
+ * Tagesabschluss: Eine liegen gebliebene Einheit schließt sich selbst ab.
+ *
+ *     „Wieso steht da samstag? Heute ist Sonntag"
+ *
+ * Tobi, Sonntag 25.10.2026, auf der Startseite: „Tobi · Gestern · Workout 12 /
+ * Sa, 24. Oktober 2026 / 4/17 Sätze", darunter „Training fortsetzen" und „Als
+ * trainiert markieren". Workout 12 war am Samstag angefangen und nie
+ * abgeschlossen worden. Eine angefangene Einheit bleibt auf ihrem Tag
+ * (effDate()), und die Startseite zeigt die erste nicht abgeschlossene
+ * (defaultWorkoutNo()) – also stand dort Samstag, am Montag hätte „vor 2 Tagen"
+ * dagestanden, und Workout 13 wäre nie drangekommen, während catchUpPlan() den
+ * Rest des Plans weiterschob. Und was am Samstag liegen blieb, holte nichts
+ * nach: Eine offene Einheit trägt keinen Rückstand bei (offenImBlock() in
+ * js/plan.js), und der Zusatztag wartet, bis die Woche abgeschlossen ist.
+ *
+ * Zugesagt war: „Ab dem nächsten Tag wird eine liegengebliebene Einheit
+ * automatisch mit dem abgeschlossen, was steht. Oben steht dann eine Zeile
+ * dazu und ein Knopf ‚Rest heute machen', falls du doch willst."
+ *
+ * So ist es jetzt. Abgeschlossen wird genau wie mit „Als trainiert markieren"
+ * (store.markDone() im Modus der Einheit, case 'mark-done'), und alles Weitere
+ * folgt von selbst, weil es an completedMode() hängt: die Nacharbeit in den
+ * restlichen Einheiten der Woche, nach ihrer letzten der Zusatztag, der
+ * Kalender. Wann eine Einheit liegt und ab wie vielen Sätzen sie sich
+ * abschließt, steht bei liegenGeblieben() in js/plan.js und LIEGT_AB_MS in
+ * js/store.js – kurz: an einem früheren Tag angefangen, mindestens zwei Sätze,
+ * seit drei Stunden nichts mehr. Wer über Mitternacht trainiert, merkt davon
+ * nichts.
+ *
+ * Eine Sitzung, die so lange liegt, endet wie mit dem Knopf (einheitBeenden())
+ * – Zeit gebucht bis zu ihrem letzten Lebenszeichen, ohne Ton.
+ *
+ * Läuft beim Laden (nach stempleFertige(), vor rundeWeiter()), beim
+ * Zurückkommen in die App und bei offener App um Mitternacht
+ * (tagesUhrStellen()). Gibt { einheiten, sitzung, umgelenkt } zurück, oder
+ * null, wenn nichts zu tun war.
+ */
+function tagAbschliessen() {
+  const heute = todayISO();
+  if (abschlussWartet) {
+    if (!(abschlussWartet < heute)) return null;
+    abschlussWartet = null;
+    festReparieren();
+    festNachReparieren();
+    stempleFertige();
+  }
+  const { einheiten, sitzung } = liegenGeblieben(heute);
+  if (!einheiten.length && !sitzung) return null;
+  const zeile = einheiten.map((n) => {
+    // Der Modus wie bei „Als trainiert markieren" – der der Einheit. Steht
+    // dort kein Eintrag (umgeschaltet, ohne abzuhaken), der andere: Sonst wäre
+    // sie markiert und trotzdem nicht abgeschlossen (completedMode() verlangt
+    // einen Eintrag im Modus des Abschlusses).
+    const eigen = store.workoutMode(n);
+    const mode = hasAnyEntry(n, eigen) ? eigen : (eigen === 'db' ? 'bw' : 'db');
+    const p = progressOf(n, mode);
+    store.markDone(n, mode);
+    return { n, tag: store.startedOn(n), done: p.done, total: p.total };
+  });
+  if (zeile.length) store.setzeTagesabschluss({ am: heute, einheiten: zeile });
+  if (sitzung) einheitBeenden(sitzung.bis);
+  // Stand die Startseite auf einer davon, geht sie zur nächsten Einheit –
+  // sonst stünde dort „Für heute durch" über dem Samstag. Die Aufrufer fragen
+  // nach dem Nachrücken und dem Zusatztag noch einmal (`umgelenkt`).
+  const umgelenkt = !store.getState().session
+    && (einheiten.includes(ui.workoutNo) || (!!sitzung && sitzung.n === ui.workoutNo));
+  if (umgelenkt) {
+    ui.workoutNo = naechsteEinheit();
+    ui.focus = false;
+    ui.listView = false;
+  }
+  return { einheiten, sitzung: !!sitzung, umgelenkt };
+}
+
+/**
+ * Bei offener App: um Mitternacht nachsehen – und dann, wenn eine Einheit von
+ * gestern liegen wird, an der kurz vorher noch trainiert wurde.
+ *
+ * Bisher gab es keine Uhr dafür; der Tag wurde nur beim Laden und beim
+ * Zurückkommen (visibilitychange) nachgezogen. Auf dem Handy genügt das fast
+ * immer, der Bildschirm geht aus. Bleibt die App aber sichtbar – Tablet auf
+ * dem Ständer, Rechner, Handy am Ladekabel mit Display an –, stand am Morgen
+ * „Gestern · Workout 12" mit „Training fortsetzen" da, bis jemand die App
+ * wegschaltet: genau das Bild aus Tobis Frage. Eine Uhr, die einmal am Tag
+ * feuert, kostet nichts. Läuft dabei gerade ein Training über Mitternacht,
+ * ändert sie nichts (liegenGeblieben()), sie sieht drei Stunden nach dem
+ * letzten Eintrag wieder nach.
+ *
+ * Nur bei sichtbarer Seite: Im Hintergrund schläft der Timer ohnehin, und das
+ * Zurückkommen zieht den Tag selbst nach.
+ */
+let tagesUhr = null;
+function tagesUhrStellen() {
+  clearTimeout(tagesUhr);
+  const jetzt = new Date();
+  // Über das Datum gerechnet, nicht über 24 Stunden: Der 25. Oktober hat 25.
+  let wann = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate() + 1, 0, 0, 5).getTime();
+  const { spaeter } = liegenGeblieben(todayISO(), jetzt.getTime());
+  if (spaeter && spaeter < wann) wann = spaeter + 1000;
+  tagesUhr = setTimeout(() => {
+    if (!document.hidden) tagNachziehen();
+    tagesUhrStellen();
+  }, Math.max(1000, wann - Date.now()));
+}
+
 /**
  * Auf welchen Tag Workout 1 fällt, wenn ein Fokus frisch anfängt.
  *
@@ -2496,6 +2641,41 @@ function startBlock(n, mode, prog) {
 /** Wie die laufende Einheit heißt – für Knöpfe und Hinweise. */
 function einheitTitel(k) {
   return istCustom(k) ? ((store.customById(k) || {}).name || 'Eigenes Workout') : `Workout ${k}`;
+}
+
+/**
+ * Das Wann über dem Titel: „Heute", „Morgen", „Gestern", „in 3 Tagen", „vor
+ * 2 Tagen".
+ *
+ * Und bei einer Einheit, die an einem früheren Tag angefangen wurde und noch
+ * offen ist, „Gestern angefangen". Das ist nach dem Tagesabschluss vor allem
+ * das Training über Mitternacht: Um 0:10 stand „Gestern · Workout 12 / Sa, 24.
+ * Oktober" über der Einheit, an der man gerade sitzt – genau die Zeile, die
+ * Tobi fragen ließ: „Wieso steht da samstag? Heute ist Sonntag". „Gestern
+ * angefangen" sagt, warum. Eine abgeschlossene Einheit von gestern war
+ * gestern und heißt weiter so.
+ *
+ * Außer, an ihr wird heute weiter trainiert – „Rest heute machen" nach dem
+ * Tagesabschluss: Die Sitzung läuft auf ihr, oder heute steht schon ein Satz
+ * (store.trainiertAm()). Bis zur Nachbesserung stand dann „Gestern · Workout
+ * 12 / Sa, 24. Oktober 2026" über dem Training von heute und nach dem Ende
+ * über „Für heute durch" – das Bild aus Tobis Frage. Mit „Gestern angefangen"
+ * passt beides zusammen: Die Einheit bleibt auf ihrem Tag, und der Kopf sagt,
+ * warum dort Samstag steht.
+ */
+function wannWort(w, diff) {
+  let when;
+  if (diff === 0) when = 'Heute';
+  else if (diff === 1) when = 'Morgen';
+  else if (diff === -1) when = 'Gestern';
+  else if (diff > 1) when = `in ${diff} Tagen`;
+  else when = `vor ${-diff} Tagen`;
+  if (diff < 0 && !w.custom && store.isStarted(w.n)) {
+    const s = store.getState();
+    const heuteDran = (!!s.session && String(s.session.n) === String(w.n)) || store.trainiertAm(w.n, todayISO());
+    if (!completedMode(w.n) || heuteDran) when += ' angefangen';
+  }
+  return when;
 }
 
 /**
@@ -2744,33 +2924,50 @@ function aktNamen(namen) {
  *
  * Kein Popup, nichts zum Wegtippen, keine Karte – eine Zeile unter der
  * Satzzahl, so leise wie die Herkunftszeile an der Übung.
+ *
+ * ruhetagTeile() rechnet, ob die Zeile steht und woraus: { heute, v,
+ * quellen, zus } oder null. Die Zeile zum Tagesabschluss liest dieselben
+ * Teile (abschlussWohin()), statt sie ein zweites Mal zu rechnen.
  */
-function ruhetagZeile(w) {
+function ruhetagTeile(w) {
   const heute = todayISO();
   // Die Einheit, die die App für heute zeigt (naechsteEinheit()) – nicht eine
   // angeblätterte, und nicht, wenn heute ein Zusatztag allein dasteht.
-  if (w.custom || store.getState().session || naechsteEinheit() !== w.n) return '';
-  if (daysBetween(heute, effDate(w)) <= 0) return '';
+  if (w.custom || store.getState().session || naechsteEinheit() !== w.n) return null;
+  if (daysBetween(heute, effDate(w)) <= 0) return null;
   // Heute schon trainiert: jede Einheit im Protokoll, auch ein eigenes Workout
   // oder ein allein stehender Zusatztag. startedOn steht erst mit dem ersten
-  // Eintrag (syncStartedOn() in js/store.js) – nur geöffnet zählt nicht.
-  if (Object.keys(store.getState().log || {}).some((k) => store.startedOn(k) === heute)) return '';
+  // Eintrag (syncStartedOn() in js/store.js) – nur geöffnet zählt nicht. Und
+  // der Rest einer abgeschlossenen Einheit, heute gemacht (store.trainiertAm()).
+  if (Object.keys(store.getState().log || {}).some((k) => store.trainiertAm(k, heute))) return null;
   const v = nacharbeitVorschau(w);
   const danach = !!v && !!zusatzRueckstand(v.rest);
   const quellen = !v || (!v.einheiten.length && !danach) ? []
     : [...new Set([...v.einheiten.flatMap((e) => e.quellen),
       ...(danach || !v.einheiten.length ? v.herkunft.map((h) => h.n) : [])])].sort((a, b) => a - b);
   const zus = zusatzMorgen(w);
+  if (!quellen.length && !zus) return null;
+  return { heute, v, quellen, zus };
+}
+
+/**
+ * Die Zeile selbst. Was die Zeile zum Tagesabschluss oben schon sagt
+ * (abschlussWohin() – dieselben Teile, auf die abgeschlossene Einheit
+ * bezogen), steht hier nicht noch einmal: dieselbe Zahl zweimal auf einem
+ * Bildschirm ist eine zu viel. Nach dem „OK" dort steht es wieder hier.
+ */
+function ruhetagZeile(w) {
+  const t = ruhetagTeile(w);
+  if (!t) return '';
+  const deckt = abschlussDeckt();
+  const { heute, v } = t;
+  const quellen = deckt.nach ? [] : t.quellen;
+  const zus = deckt.zus ? null : t.zus;
   if (!quellen.length && !zus) return '';
   const tagVon = (n) => effDate(PLAN[n - 1]);
-  const ziel = (iso) => (daysBetween(heute, iso) === 1 ? 'morgen' : tagKurz(iso, heute));
   const saetze = [];
   if (quellen.length) {
-    const zielTage = v.einheiten.map((e) => tagVon(e.n));
-    const letzte = tagVon(v.letzte);
-    // Der Tag der letzten Einheit steht im Satz, wenn der Rest nach ihr kommt
-    // und sie selbst nichts trägt.
-    const nachLetzter = !zielTage.length || (danach && zielTage[zielTage.length - 1] !== letzte);
+    const { ziele, zielTage, letzte, nachLetzter, ziel } = restZiele(v, heute);
     const quellTage = [...new Set(quellen.map(tagVon))];
     // Ein Kürzel, zwei Tage: Der Quelltag bekommt sein Datum.
     const kuerzel = (iso) => fmtDate(iso).slice(0, 2);
@@ -2779,11 +2976,6 @@ function ruhetagZeile(w) {
       [...genannt, ...quellTage.filter((d) => d !== iso)].some((d) => kuerzel(d) === kuerzel(iso)));
     const am = undListe(quellTage.map(quelle));
     if (zielTage.length) {
-      // Tag und Zahl gehören zusammen – ein festes Leerzeichen, damit auf
-      // 360 px nicht „morgen" am Zeilenende steht und „+2" am Anfang der nächsten.
-      const ziele = v.einheiten.map((e, i) => `${ziel(zielTage[i])}\u00a0+${e.saetze}`);
-      if (danach) ziele.push(nachLetzter ? `der Rest nach ${ziel(letzte)}` : 'der Rest danach');
-      else if (Object.values(v.rest).some((x) => x > 0.5)) ziele.push('der Rest entfällt');
       saetze.push(`Was am ${am} liegen blieb, kommt dazu: ${ziele.join(', ')}.`);
     } else {
       saetze.push(`Was am ${am} liegen blieb, kommt nach ${daysBetween(heute, letzte) === 1 ? 'der Einheit morgen' : ziel(letzte)} dazu.`);
@@ -2791,6 +2983,214 @@ function ruhetagZeile(w) {
   }
   if (zus) saetze.push(`Aus Woche ${zus.woche} kommt dazu: morgen\u00a0+${zus.saetze}.`);
   return `<div class="ov-frei">${esc(`Heute frei. ${saetze.join(' ')}`)}</div>`;
+}
+
+/**
+ * Wohin der Rückstand der Woche geht, als Satzteile („morgen +2", „Mo +1",
+ * „der Rest entfällt") – aus nacharbeitVorschau() `v`, von `heute` aus. Eine
+ * Stelle für die Zeile am Ruhetag und die Zeile zum Tagesabschluss
+ * (abschlussWohin()), damit beide dasselbe sagen und keine zweite Rechnung
+ * daneben steht.
+ *
+ * „der Rest danach" nur, wenn das, was nach der letzten Einheit offen bleibt,
+ * einen Zusatztag trägt (zusatzRueckstand()); bleibt weniger, aber in einer
+ * Gruppe mehr als ein halber Satz, „der Rest entfällt". Trägt die letzte
+ * Einheit selbst nichts, steht ihr Tag da („der Rest nach Di"). Ein Ziel, das
+ * heute ist, heißt „heute" – das kommt nur beim Tagesabschluss vor; am
+ * Ruhetag liegt jede Einheit nach heute.
+ */
+function restZiele(v, heute) {
+  const tagVon = (n) => effDate(PLAN[n - 1]);
+  const ziel = (iso) => {
+    const d = daysBetween(heute, iso);
+    if (d === 0) return 'heute';
+    return d === 1 ? 'morgen' : tagKurz(iso, heute);
+  };
+  const danach = !!zusatzRueckstand(v.rest);
+  const zielTage = v.einheiten.map((e) => tagVon(e.n));
+  const letzte = tagVon(v.letzte);
+  // Der Tag der letzten Einheit steht im Satz, wenn der Rest nach ihr kommt
+  // und sie selbst nichts trägt.
+  const nachLetzter = !zielTage.length || (danach && zielTage[zielTage.length - 1] !== letzte);
+  // Tag und Zahl gehören zusammen – ein festes Leerzeichen, damit auf 360 px
+  // nicht „morgen" am Zeilenende steht und „+2" am Anfang der nächsten.
+  const ziele = v.einheiten.map((e, i) => `${ziel(zielTage[i])}\u00a0+${e.saetze}`);
+  if (zielTage.length) {
+    if (danach) ziele.push(nachLetzter ? `der Rest nach ${ziel(letzte)}` : 'der Rest danach');
+    else if (Object.values(v.rest).some((x) => x > 0.5)) ziele.push('der Rest entfällt');
+  }
+  return { ziele, zielTage, letzte, nachLetzter, danach, ziel };
+}
+
+/*
+ * Die Zeile zum Tagesabschluss – oben auf der Startseite, bis „OK", bis
+ * „Rest heute machen" oder bis die nächste Einheit angefangen ist
+ * (store.tagesabschluss(), weg in js/store.js bei eingetragen()).
+ *
+ *     ✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen. Von
+ *       den 13 offenen Sätzen kommen morgen 3 in Workout 13 mit rein.
+ *       [Rest heute machen] [OK]
+ *
+ * Sagt, was passiert ist, mit den Zahlen von dem Moment und dem Tag der
+ * Einheit als Wochentag – „von gestern" stimmte schon am Montag nicht mehr,
+ * und die Zeile bleibt stehen, bis sie weggetippt ist. Länger als sechs Tage
+ * her mit Datum.
+ *
+ * **Wohin der Rest geht, nur wenn es stimmt** (abschlussWohin()), und
+ * gerechnet von den Stellen, die es dann auch tun – keine zweite Rechnung.
+ */
+function abschlussHinweis() {
+  const a = store.tagesabschluss();
+  if (!a) return '';
+  const liste = a.einheiten.filter((e) => PLAN[e.n - 1]);
+  if (!liste.length) return '';
+  const heute = todayISO();
+  const vom = (iso) => {
+    const d = daysBetween(iso, heute);
+    return d >= 1 && d <= 6 ? `vom ${wochentag(iso)}` : `vom ${wochentag(iso)}, ${tagMonat(iso)}`;
+  };
+  const saetze = (e) => `${e.done} von ${e.total} ${e.total === 1 ? 'Satz' : 'Sätzen'}`;
+  const was = liste.length === 1
+    ? `Workout ${liste[0].n} ${vom(liste[0].tag)} ist abgeschlossen – ${saetze(liste[0])}.`
+    : `${undListe(liste.map((e) => `Workout ${e.n} ${vom(e.tag)} (${saetze(e)})`))} sind abgeschlossen.`;
+  // „Rest heute machen" für die jüngste – solange sie noch dieselbe Einheit
+  // ist (nach einem Rundenwechsel stünde unter der Nummer eine andere) und
+  // noch etwas fehlt.
+  const letzte = liste[liste.length - 1];
+  const prog = store.startedOn(letzte.n) === letzte.tag && completedMode(letzte.n)
+    ? progressOf(letzte.n, completedMode(letzte.n)) : null;
+  const rest = prog && !prog.complete;
+  const wohin = abschlussWohin(liste).text;
+  // Klein gesetzt, die Knöpfe rechts darunter: Die Startseite bleibt auch mit
+  // der Zeile eine Bildschirmseite, bis 360×740 (siehe .notice.abschluss in
+  // css/styles.css). Als Kasten wie umbauHinweis() mit Knopfreihe darunter
+  // waren es dort 129 px und 52 px Überhang.
+  return `
+    <div class="notice abschluss">
+      <span>✓ ${esc(was)}${wohin ? ` ${esc(wohin)}` : ''}</span>
+      <div class="abschluss-knoepfe">
+        ${rest ? `<button type="button" class="btn" data-act="abschluss-rest" data-n="${letzte.n}">${
+          liste.length === 1 ? 'Rest heute machen' : `Rest von Workout ${letzte.n} heute machen`}</button>` : ''}
+        <button type="button" class="btn btn-primary" data-act="abschluss-ok">OK</button>
+      </div>
+    </div>`;
+}
+
+/**
+ * Wohin geht, was in den abgeschlossenen Einheiten fehlt? { text, nach, zus }:
+ * der Satz (oder '') und welche Teile der Zeile am Ruhetag er übernimmt.
+ *
+ * Gefragt wird, was die App heute *tut*, an den Stellen, die es tun:
+ *
+ *   gebunden    der Zusatztag ihrer Woche steckt heute in einer Einheit
+ *               (zusatzBindung()): „Von den 13 offenen Sätzen kommen heute 3
+ *               in Workout 13 mit rein."
+ *   allein      er ist heute die nächste Einheit (naechsteEinheit(), ein
+ *               Ruhetag): „Zum Nachholen steht heute ein Zusatztag bereit."
+ *   Ruhetag     die Teile der Zeile am Ruhetag (ruhetagTeile()), soweit sie
+ *               diese Einheiten betreffen: der Zusatztag, der morgen kommt
+ *               (zusatzMorgen()) – „Von den 13 offenen Sätzen kommen morgen 3
+ *               in Workout 13 mit rein." –, und die Nacharbeit der restlichen
+ *               Woche. Die Zeile am Ruhetag lässt sie dann weg (`nach`,
+ *               `zus`), statt dieselbe Zahl ein zweites Mal zu nennen.
+ *   Nacharbeit  heute ist ein Trainingstag derselben Woche: die Verteilung aus
+ *               nacharbeitVorschau(), in Worten wie am Ruhetag (restZiele()) –
+ *               „Von den 12 offenen Sätzen kommen dazu: heute +1, morgen +3."
+ *   entfällt    die Woche ist zu Ende, und was fehlt, trägt keinen Zusatztag
+ *               (zusatzRueckstand(), dieselbe Schwelle wie er selbst)
+ *
+ * „Von den 13 offenen Sätzen", wo nicht alles nachgeholt wird: Ein Zusatztag
+ * in einer Einheit bringt höchstens ZUSATZ_IN_EINHEIT Übungen. Bis zur
+ * Nachbesserung stand dort „Davon" – hinter „4 von 17 Sätzen" las es sich wie
+ * „von den 4 gemachten", und die offenen nannte die Zeile nirgends. Die Zahl
+ * steht nur, wenn alles, was in der Woche offen ist, aus den Einheiten der
+ * Zeile stammt (offenImBlock(), dieselbe Herkunft, die der Zusatztag an seiner
+ * Übung nennt). Fehlt auch woanders etwas – bei Tobi zwei Sätze aus Workout 9 –,
+ * holt der Teil womöglich auch das nach; dann „Von dem, was in Woche 3 liegen
+ * blieb". Sonst nichts – lieber kein Ziel als ein falsches. Gerechnet für die
+ * jüngste Einheit und ihre Woche.
+ */
+function abschlussWohin(liste) {
+  const leer = { text: '', nach: false, zus: false };
+  const e = liste[liste.length - 1];
+  if (store.startedOn(e.n) !== e.tag || !completedMode(e.n)) return leer;
+  const ns = liste.map((x) => x.n);
+  const heute = todayISO();
+  const woche = (n) => Math.floor((n - 1) / WEEK_SESSIONS) + 1;
+  const nr = woche(e.n);
+  // Der Zusatztag holt höchstens ZUSATZ_IN_EINHEIT Übungen nach, nie zwingend
+  // alles – mehr als den Teil, den er bringt, verspricht die Zeile nicht. Und
+  // sie sagt, wovon er ein Teil ist: von den offenen Sätzen der Zeile, wenn
+  // alles Offene der Woche aus ihr stammt, sonst von der Woche.
+  const offenZahl = liste.filter((x) => woche(x.n) === nr).reduce((a, x) => a + x.total - x.done, 0);
+  const eigen = (quellen) => offenZahl > 1 && quellen.length > 0 && quellen.every((n) => ns.includes(n));
+  const wochenQuellen = () => offenImBlock((nr - 1) * WEEK_SESSIONS, nr * WEEK_SESSIONS).herkunft.map((h) => h.n);
+  const kommt = (k) => (k === 1 ? 'kommt' : 'kommen');
+  const davon = (k, wann, n) => (eigen(wochenQuellen())
+    ? `Von den ${offenZahl} offenen Sätzen ${kommt(k)} ${wann} ${k} in Workout ${n} mit rein.`
+    : `Von dem, was in Woche ${nr} liegen blieb, ${kommt(k)} ${wann} ${plural(k, 'Satz', 'Sätze')} in Workout ${n} mit rein.`);
+  const wer = (quellen) => (quellen.every((n) => ns.includes(n)) ? 'Was fehlt' : 'Was in dieser Woche liegen blieb');
+  // Die Nacharbeit der restlichen Einheiten, in den Worten der Zeile am
+  // Ruhetag (restZiele()) – bis auf „der Rest danach". Das hieße: ein
+  // Zusatztag nach der Woche. Ob er kommt, entscheidet sich erst an seinem
+  // Tag, an der Erholungsregel: Gemessen mit Workout 11 vom Freitag (3 von 12,
+  // Rücken, Bizeps, hintere Schulter offen) kam keiner – Sonntag ruhen die
+  // Gruppen von Samstag und Montag, am Montag trifft Workout 13 sie selbst.
+  // Die Zeile versprach ihn trotzdem. Hier steht deshalb nur, was sicher
+  // ist: die Sätze in den Einheiten der Woche – als Teil („Von den 12
+  // offenen Sätzen kommen dazu: …"), wenn danach noch etwas offen ist, sonst
+  // als ganzer Satz, mit „der Rest entfällt".
+  const ziele = (v, quellen) => {
+    const z = restZiele(v, heute);
+    if (!z.zielTage.length) return '';
+    if (z.danach) {
+      const teil = z.ziele.filter((t) => !t.startsWith('der Rest ')).join(', ');
+      return eigen(quellen) ? `Von den ${offenZahl} offenen Sätzen kommen dazu: ${teil}.`
+        : `Von dem, was in dieser Woche liegen blieb, kommt dazu: ${teil}.`;
+    }
+    return `${wer(quellen)}, kommt dazu: ${z.ziele.join(', ')}.`;
+  };
+  const b = zusatzBindung();
+  if (b && b.woche === nr) {
+    const mode = store.workoutMode(b.w.n);
+    const k = workoutByNo(b.w.n, mode).ex.filter((it) => it.zusatz && it.zusatz.woche === nr)
+      .reduce((a, it) => a + it.sets, 0);
+    if (k) return { ...leer, text: davon(k, 'heute', b.w.n) };
+  }
+  const naechste = naechsteEinheit();
+  if (istCustom(naechste)) {
+    const c = store.customById(naechste);
+    return c && c.name === `Zusatztag Woche ${nr}` ? { ...leer, text: 'Zum Nachholen steht heute ein Zusatztag bereit.' } : leer;
+  }
+  const w = PLAN.find((x) => x.n === naechste);
+  if (!w || completedMode(w.n)) return leer;
+  const t = ruhetagTeile(w);
+  if (t) {
+    const nach = t.quellen.some((n) => ns.includes(n)) ? ziele(t.v, t.quellen) : '';
+    const zus = t.zus && t.zus.woche === nr ? davon(t.zus.saetze, 'morgen', w.n) : '';
+    if (nach || zus) return { text: [nach, zus].filter(Boolean).join(' '), nach: !!nach, zus: !!zus };
+  }
+  if (woche(w.n) === nr) {
+    if (effDate(w) > heute) return leer;
+    const v = nacharbeitVorschau(w);
+    if (!v || !v.herkunft.some((h) => ns.includes(h.n))) return leer;
+    return { ...leer, text: ziele(v, v.herkunft.map((h) => h.n)) };
+  }
+  // Die Woche ist vorbei, und kein Zusatztag nimmt den Rest – reicht er nicht?
+  const ziel = zusatzZiel();
+  if (!ziel || ziel.nr !== nr || zusatzVergeben(nr)
+      || store.customs().some((c) => c.name === `Zusatztag Woche ${nr}`)) return leer;
+  const luecke = Object.fromEntries(Object.keys(MUSCLE_LABEL)
+    .map((m) => [m, (ziel.soll[m] || 0) - (ziel.acc[m] || 0)]));
+  if (zusatzRueckstand(luecke) || !Object.values(luecke).some((x) => x > 0.5)) return leer;
+  return { ...leer, text: 'Für einen Zusatztag reicht der Rest nicht – er entfällt.' };
+}
+
+/** Was die Zeile zum Tagesabschluss gerade von der Zeile am Ruhetag übernimmt. */
+function abschlussDeckt() {
+  const a = store.tagesabschluss();
+  const liste = a ? a.einheiten.filter((e) => PLAN[e.n - 1]) : [];
+  return liste.length ? abschlussWohin(liste) : { text: '', nach: false, zus: false };
 }
 
 /**
@@ -2840,12 +3240,7 @@ function renderOverview() {
   const date = effDate(w);
   const diff = daysBetween(today, date);
 
-  let when;
-  if (diff === 0) when = 'Heute';
-  else if (diff === 1) when = 'Morgen';
-  else if (diff === -1) when = 'Gestern';
-  else if (diff > 1) when = `in ${diff} Tagen`;
-  else when = `vor ${-diff} Tagen`;
+  const when = wannWort(w, diff);
 
   const items = w.ex.map((item) => resolve(item, mode));
   const muscles = new Set(items.flatMap((it) => it.muscles));
@@ -2861,6 +3256,7 @@ function renderOverview() {
       ${umzugHinweis()}
       ${umbauHinweis()}
       ${aufstiegHinweis()}
+      ${abschlussHinweis()}
       ${speicherWarnung()}
       ${tonHinweis()}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
@@ -3832,12 +4228,7 @@ function renderDashboard() {
   const sess = store.getState().session;
   const session = sess && sess.n === n ? sess : null;
 
-  let when;
-  if (diff === 0) when = 'Heute';
-  else if (diff === 1) when = 'Morgen';
-  else if (diff === -1) when = 'Gestern';
-  else if (diff > 1) when = `in ${diff} Tagen`;
-  else when = `vor ${-diff} Tagen`;
+  const when = wannWort(w, diff);
 
   const items = w.ex.map((item) => resolve(item, mode));
   // Die Herkunft der Nacharbeit einmal für die ganze Liste, nicht je Karte.
@@ -5522,7 +5913,9 @@ function naechsteEinheit() {
   const w = PLAN.find((x) => x.n === plan);
   if (w && !completedMode(w.n) && effDate(w) <= todayISO()) return plan;
   const offen = offenerZusatztag();
-  if (!offen || zusatzBindung() || PLAN.some((x) => store.startedOn(x.n) === todayISO())) return plan;
+  // „Heute trainiert" mit store.trainiertAm(): auch, wer heute den Rest einer
+  // abgeschlossenen Einheit von gestern gemacht hat (Tagesabschluss).
+  if (!offen || zusatzBindung() || PLAN.some((x) => store.trainiertAm(x.n, todayISO()))) return plan;
   return offen.id;
 }
 
@@ -5575,7 +5968,7 @@ function zusatzLage(c) {
     if (!zus.length) return { art: 'leer', n: b.w.n, ...zahlen(c.ex, mode) };
     return { art: 'gebunden', n: b.w.n, ...zahlen(zus, mode) };
   }
-  const art = PLAN.some((x) => store.startedOn(x.n) === todayISO()) ? 'morgen' : 'bereit';
+  const art = PLAN.some((x) => store.trainiertAm(x.n, todayISO())) ? 'morgen' : 'bereit';
   return { art, ...zahlen(c.ex, store.getState().mode) };
 }
 
@@ -7623,9 +8016,12 @@ function abgehaktInEinheit(n) {
  * sein") – beendete die Einheit, sicherte sie aber nicht sofort. Wer das Handy
  * gleich weglegte, schickte den Stand von vor dem letzten Satz mit: laufende
  * Einheit, letzter Satz offen, nicht als erledigt vermerkt.
+ *
+ * `bis` nur vom Tagesabschluss: Eine liegen gebliebene Sitzung bucht ihre Zeit
+ * bis zu ihrem letzten Lebenszeichen, nicht bis jetzt (store.clockStop()).
  */
-function einheitBeenden() {
-  store.endSession();
+function einheitBeenden(bis) {
+  store.endSession(bis);
   meldeStand(true);
   ui.focus = false;
   ui.listView = false;
@@ -7675,6 +8071,68 @@ function trainingBeenden(n, mode) {
     toast(prog.complete
       ? `Training abgeschlossen – alle ${prog.total} Sätze 🎉`
       : `Gespeichert · ${prog.done}/${prog.total} Sätze`);
+  }
+}
+
+/**
+ * Eine Einheit starten oder fortsetzen – der Knopf „Start", „Training
+ * fortsetzen", „Doch noch weitermachen" und „Rest heute machen" nach dem
+ * Tagesabschluss. `wahl` ist die Variante, wenn der Knopf eine mitbringt.
+ */
+function einheitStarten(n, wahl) {
+  const mode = store.workoutMode(n);
+  if (!workoutByNo(n).ex.length) {
+    toast('Heute fällt alles weg – nichts zu starten');
+    return;
+  }
+  // Die Variante wird vor dem Starten gewählt, nicht während des Trainings:
+  // ein Umschalter zwischen zwei Sätzen ist nur eine Falle.
+  if (wahl) store.setWorkoutMode(n, wahl);
+  // Liegt der Termin dieser Einheit noch in der Zukunft, rückt der Plan
+  // jetzt vor – ungefragt und ohne Anzeige. Dafür gab es früher einen
+  // Knopf ("Heute anfangen – Plan 3 Tage vorziehen"); der ist raus, weil
+  // niemand eine Verschiebung einstellen will, die sich von selbst ergibt.
+  // Nach hinten macht catchUpPlan() dasselbe, wenn ein Termin verstreicht.
+  // Wie viele Übungen aus einem Zusatztag schon in der Einheit stehen –
+  // nach dem Vorziehen wird es womöglich einer mehr (siehe unten).
+  const zusVorher = workoutByNo(n, mode).ex.filter((x) => x.zusatz).length;
+  if (firstOpen().n === n && daysBetween(todayISO(), effDate(workoutByNo(n))) > 0) {
+    store.setShift(shiftToToday());
+  }
+  // Mit dem Vorziehen ist diese Einheit heute fällig, und ein Zusatztag, der
+  // bereitsteht oder jetzt erst entsteht, gehört in sie hinein
+  // (zusatzEinheit() in js/plan.js) – gerechnet für heute. Auch ohne
+  // Vorziehen: Eine verworfene oder umgestellte Einheit soll mit dem Stand
+  // von jetzt anfangen. (Nicht beim allein stehenden Zusatztag selbst: Der
+  // würde sonst womöglich unter dem Startknopf neu gerechnet.)
+  if (!istCustom(n)) pruefeZusatztag();
+  const zusNeu = workoutByNo(n, store.workoutMode(n)).ex.filter((x) => x.zusatz);
+  initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
+  sound('start');
+  // Läuft noch eine andere Einheit, wird sie zuerst beendet – mit ihrer
+  // Zeit. startSession() ersetzt die Uhr, und gebucht wird nur beim
+  // Anhalten; ohne diese Zeile war alles seit dem letzten Wegschalten der
+  // App verloren. Gefragt ist vorher schon: Der Knopf dafür sagt, dass die
+  // andere endet (laufendWoandersBlock()).
+  const lief = store.getState().session;
+  const vorige = lief && lief.n !== n ? lief.n : null;
+  if (vorige !== null) {
+    if (store.getState().rest) endRest(false);
+    store.endSession();
+  }
+  store.startSession(n);
+  ui.focus = true;
+  ui.listView = false;
+  ui.focusIdx = firstOpenExercise(n, store.workoutMode(n));
+  render();
+  // Kam beim Vorziehen etwas dazu, sagt der Start es – nichts ändert sich
+  // unbemerkt. Woher es kommt, steht an der Übung.
+  {
+    const dazu = zusNeu.length > zusVorher
+      ? ` · dazu ${undListe(zusNeu.map((x) => resolve(x, store.workoutMode(n)).name))} aus Woche ${zusNeu[0].zusatz.woche}`
+      : '';
+    toast(vorige !== null ? `${einheitTitel(vorige)} beendet, Zeit gespeichert – los geht’s 💪${dazu}`
+      : `Los geht’s 💪${dazu}`);
   }
 }
 
@@ -7971,59 +8429,7 @@ view.addEventListener('click', (e) => {
       teileBackup();
       break;
     case 'start-session': {
-      if (!workoutByNo(n).ex.length) {
-        toast('Heute fällt alles weg – nichts zu starten');
-        break;
-      }
-      // Die Variante wird vor dem Starten gewählt, nicht während des Trainings:
-      // ein Umschalter zwischen zwei Sätzen ist nur eine Falle.
-      if (t.dataset.mode) store.setWorkoutMode(n, t.dataset.mode);
-      // Liegt der Termin dieser Einheit noch in der Zukunft, rückt der Plan
-      // jetzt vor – ungefragt und ohne Anzeige. Dafür gab es früher einen
-      // Knopf ("Heute anfangen – Plan 3 Tage vorziehen"); der ist raus, weil
-      // niemand eine Verschiebung einstellen will, die sich von selbst ergibt.
-      // Nach hinten macht catchUpPlan() dasselbe, wenn ein Termin verstreicht.
-      // Wie viele Übungen aus einem Zusatztag schon in der Einheit stehen –
-      // nach dem Vorziehen wird es womöglich einer mehr (siehe unten).
-      const zusVorher = workoutByNo(n, mode).ex.filter((x) => x.zusatz).length;
-      if (firstOpen().n === n && daysBetween(todayISO(), effDate(workoutByNo(n))) > 0) {
-        store.setShift(shiftToToday());
-      }
-      // Mit dem Vorziehen ist diese Einheit heute fällig, und ein Zusatztag, der
-      // bereitsteht oder jetzt erst entsteht, gehört in sie hinein
-      // (zusatzEinheit() in js/plan.js) – gerechnet für heute. Auch ohne
-      // Vorziehen: Eine verworfene oder umgestellte Einheit soll mit dem Stand
-      // von jetzt anfangen. (Nicht beim allein stehenden Zusatztag selbst: Der
-      // würde sonst womöglich unter dem Startknopf neu gerechnet.)
-      if (!istCustom(n)) pruefeZusatztag();
-      const zusNeu = workoutByNo(n, store.workoutMode(n)).ex.filter((x) => x.zusatz);
-      initAudio(); // Ton jetzt freischalten, damit das erste Pausensignal sitzt
-      sound('start');
-      // Läuft noch eine andere Einheit, wird sie zuerst beendet – mit ihrer
-      // Zeit. startSession() ersetzt die Uhr, und gebucht wird nur beim
-      // Anhalten; ohne diese Zeile war alles seit dem letzten Wegschalten der
-      // App verloren. Gefragt ist vorher schon: Der Knopf dafür sagt, dass die
-      // andere endet (laufendWoandersBlock()).
-      const lief = store.getState().session;
-      const vorige = lief && lief.n !== n ? lief.n : null;
-      if (vorige !== null) {
-        if (store.getState().rest) endRest(false);
-        store.endSession();
-      }
-      store.startSession(n);
-      ui.focus = true;
-      ui.listView = false;
-      ui.focusIdx = firstOpenExercise(n, store.workoutMode(n));
-      render();
-      // Kam beim Vorziehen etwas dazu, sagt der Start es – nichts ändert sich
-      // unbemerkt. Woher es kommt, steht an der Übung.
-      {
-        const dazu = zusNeu.length > zusVorher
-          ? ` · dazu ${undListe(zusNeu.map((x) => resolve(x, store.workoutMode(n)).name))} aus Woche ${zusNeu[0].zusatz.woche}`
-          : '';
-        toast(vorige !== null ? `${einheitTitel(vorige)} beendet, Zeit gespeichert – los geht’s 💪${dazu}`
-          : `Los geht’s 💪${dazu}`);
-      }
+      einheitStarten(n, t.dataset.mode);
       break;
     }
     case 'zur-laufenden': {
@@ -8041,6 +8447,16 @@ view.addEventListener('click', (e) => {
       trainingBeenden(n, mode);
       break;
     case 'discard-session': {
+      // Eine an einem früheren Tag abgeschlossene Einheit wird nicht verworfen
+      // (siehe sessionButtons()) – auch nicht über einen Knopf, der noch von
+      // vorher dasteht. Die Sitzung endet, und die Einheit bleibt, wie sie ist.
+      if (frueherFertig(n)) {
+        einheitBeenden();
+        sound('stop');
+        render();
+        toast(`Weitermachen beendet – ${einheitTitel(n)} bleibt abgeschlossen`);
+        break;
+      }
       // Verwerfen löscht alles zu diesem Workout, in beiden Varianten – auch
       // die Sätze von vor einem Wechsel unter Mehr (verwirfEinheit() in
       // js/store.js). Die Zahl in der Rückfrage ist genau das, was verschwindet.
@@ -8592,6 +9008,24 @@ view.addEventListener('click', (e) => {
       store.setSetting('aufstieg', null);
       render();
       break;
+    case 'abschluss-ok':
+      store.setzeTagesabschluss(null);
+      render();
+      break;
+    case 'abschluss-rest': {
+      // „Rest heute machen": derselbe Weg wie „Doch noch weitermachen" auf
+      // einer abgeschlossenen Einheit – Start, Fokusansicht, bei der ersten
+      // Übung mit offenem Satz. Die Einheit bleibt auf ihrem Tag (startedOn);
+      // dass heute trainiert wurde, vermerkt der erste Haken (`weiterAm`,
+      // store.trainiertAm()). Die Zeile hat damit ausgedient.
+      const k = Number(t.dataset.n);
+      store.setzeTagesabschluss(null);
+      if (!PLAN.some((w) => w.n === k)) { render(); break; }
+      ui.workoutNo = k;
+      ui.openEx.clear();
+      einheitStarten(k);
+      break;
+    }
     case 'umzug-ok':
       store.setSetting('fokusUmzug', null);
       render();
@@ -9055,6 +9489,11 @@ document.addEventListener('visibilitychange', () => {
     wegSeit = 0;
     pauseOffen = 0;
   }
+  // Vor dem Weiterlaufen der Uhr: Lag die Einheit seit einem früheren Tag
+  // drei Stunden und mehr, schließt sie sich hier ab (tagAbschliessen()), und
+  // ihre Sitzung endet mit der Zeit bis zum Wegschalten. Wer nur kurz weg war –
+  // auch über Mitternacht –, trainiert einfach weiter.
+  const abgeschlossen = tagAbschliessen();
   store.clockStart();
   // Wer wieder davorsitzt, sieht die Leiste in der App – die Meldung in der
   // Statusleiste wäre jetzt nur noch ein Duplikat.
@@ -9066,12 +9505,22 @@ document.addEventListener('visibilitychange', () => {
   // Fehlten dem Server die Funktionen, kann inzwischen jemand den SQL-Block
   // ausgeführt haben – die App bleibt dafür oft tagelang im Speicher.
   sicherungNachsehen();
+  tagNachziehen(abgeschlossen);
+  tagesUhrStellen();
+});
+
+/**
+ * Den Tag nachziehen – beim Zurückkommen in die App und bei offener App von
+ * der Uhr (tagesUhrStellen()): liegen Gebliebenes abschließen, die Runde
+ * weiterrollen, nachrücken, den Zusatztag für heute rechnen.
+ */
+function tagNachziehen(abgeschlossen = tagAbschliessen()) {
   const day = todayISO();
   // Erst die Runde weiterrollen, dann nachrücken: Sonst schöbe catchUpPlan()
   // den alten, längst fertigen Plan durch die Gegend.
   const neueRunde = rundeWeiter();
   const shifted = catchUpPlan() || neueRunde;
-  if (shifted || day !== lastSeenDay) {
+  if (shifted || day !== lastSeenDay || abgeschlossen) {
     const neuerTag = day !== lastSeenDay;
     lastSeenDay = day;
     // Ein unberührter Zusatztag gilt für den Tag, an dem er gemacht wird –
@@ -9080,12 +9529,15 @@ document.addEventListener('visibilitychange', () => {
     // render() einen Bildschirm, der noch auf ihm stand, dorthin um. Und nach
     // einer frisch weitergerollten Runde ebenso, wie nach „Von vorn beginnen":
     // Ein Träger der alten Runde gehört zu deren Protokoll, nicht zur neuen.
-    if ((neuerTag || neueRunde) && pruefeZusatztag() && !store.getState().session) {
+    // Nach einem Tagesabschluss ebenso: Mit der abgeschlossenen Woche kann ein
+    // Zusatztag entstehen.
+    const zusatz = (neuerTag || neueRunde || !!abgeschlossen) && pruefeZusatztag();
+    if ((zusatz || (abgeschlossen && abgeschlossen.umgelenkt)) && !store.getState().session) {
       ui.workoutNo = naechsteEinheit();
     }
     render();
   }
-});
+}
 
 window.addEventListener('pagehide', () => {
   // Hier ohne Gutschrift: Die Seite verschwindet, und beim nächsten Laden
@@ -9251,6 +9703,24 @@ stempleFertige();
 // und die reparierte 4 blieb halb liegen. Vor rundeWeiter(), das beim
 // Weiterrollen selbst auf Workout 1 springt.
 if (planUmgebaut) ui.workoutNo = naechsteEinheit();
+// Liegen Gebliebenes von einem früheren Tag abschließen (tagAbschliessen()):
+// nach stempleFertige(), denn was ganz abgehakt ist, ist schon fertig und
+// trägt seinen Stempel, und abgeschlossen wird nur, was wirklich offen ist.
+// Vor rundeWeiter(): War Workout 84 die liegen gebliebene, rollt die Runde im
+// selben Start weiter. Und vor pruefeAufstieg() und pruefeZusatztag() weiter
+// unten – die abgeschlossene Einheit zählt dort mit, und mit ihr ist ihre
+// Woche womöglich zu Ende. Das Nachrücken (catchUpPlan()) ist davon
+// unabhängig: Es fragt nach der ersten *nicht angefangenen* Einheit. Nach einem
+// Umbau des Plans erst beim nächsten Laden oder am nächsten Tag
+// (`abschlussWartet`).
+abschlussWartet = planUmgebaut ? todayISO() : null;
+const abschlussBeimStart = tagAbschliessen();
+if (abschlussBeimStart && abschlussBeimStart.einheiten.length) {
+  ui.tab = 'dashboard';
+  ui.focus = false;
+  ui.listView = false;
+  startHinweis = true;
+}
 rundeWeiter();
 catchUpPlan();
 /*
@@ -9272,6 +9742,10 @@ catchUpPlan();
  * Plan, dessen Termine in der Zukunft liegen, würde sonst dort stehen bleiben.
  */
 if (neuAngefangen) store.setShift(shiftToToday());
+// Die Startseite stand noch auf der eben abgeschlossenen Einheit (`ui.workoutNo`
+// ist seit dem Laden des Moduls gesetzt) – jetzt, nach dem Nachrücken, die
+// nächste.
+if (abschlussBeimStart) ui.workoutNo = naechsteEinheit();
 // Auch beim Start prüfen, nicht nur nach einer Einheit: Eine eingelesene
 // Sicherung bringt womöglich ein halbes Jahr Training mit, und das soll sofort
 // in der richtigen Stufe landen statt erst nach dem nächsten Training.
@@ -9321,14 +9795,19 @@ if (gestiegenBeimStart || zusatzBeimStart) {
  * Nur, wenn beim Verlassen die Fokusansicht dieser Einheit offen war
  * (`fokusOffen`, siehe render()) – wer mitten im Training bewusst zurück aufs
  * Dashboard oder in die Übungsliste gegangen ist, landet dort wieder. Und
- * nicht, wenn der Start etwas zu sagen hat (`startHinweis`) oder die Einheit
- * nicht heute begonnen wurde: Eine von gestern wartet auf dem Dashboard, wo
- * man sie abschließt oder bewusst weitermacht.
+ * nicht, wenn der Start etwas zu sagen hat (`startHinweis`).
+ *
+ * Bis v241 auch nicht, wenn die Uhr der Einheit an einem früheren Tag
+ * gestartet war: „Eine von gestern wartet auf dem Dashboard, wo man sie
+ * abschließt oder bewusst weitermacht." Seit dem Tagesabschluss gibt es die
+ * nicht mehr – eine Sitzung, die seit gestern liegt, hat tagAbschliessen() oben
+ * schon beendet. Was hier noch läuft, lebt: ein Training über Mitternacht, bei
+ * dem das Handy die App kurz beendet hat. Das geht weiter wie jedes andere.
  */
 {
   const s = store.getState();
   const laeuft = s.session;
-  const heute = laeuft && s.clock && s.clock.n === laeuft.n && s.clock.on === todayISO();
+  const heute = laeuft && s.clock && s.clock.n === laeuft.n;
   // In v217 und v218 stand in `fokusOffen` nur die Nummer der Einheit.
   const offen = s.fokusOffen && typeof s.fokusOffen === 'object'
     ? s.fokusOffen : { n: s.fokusOffen ?? null, id: null };
@@ -9467,3 +9946,5 @@ tickRest(); // eine Pause, die einen Neustart der Seite überdauert hat
 // (scheduleSound mit Rückruf); ist die Pause bis dahin vorbei, kommt einmal
 // „Pause vorbei" (endRest).
 if (store.getState().rest) armRest();
+// Bleibt die App offen, sieht sie um Mitternacht selbst nach (tagesUhrStellen()).
+tagesUhrStellen();

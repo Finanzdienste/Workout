@@ -208,6 +208,11 @@ export function ausfallTage(heute = todayISO()) {
     if (planNr(k)) {
       trainiert.add(tag);
       anker.push({ tag, n: Number(k), v, vi });
+      // Der Rest einer abgeschlossenen Einheit, an einem späteren Tag gemacht
+      // („Rest heute machen", `weiterAm` in js/store.js): An dem Tag wurde
+      // trainiert – verschoben, nicht ausgefallen. Ein Anker ist er nicht, der
+      // Rhythmus läuft weiter ab dem Tag der Einheit.
+      if (TAG.test(e.weiterAm || '') && e.weiterAm > tag) trainiert.add(e.weiterAm);
     } else if (['db', 'bw'].some((m) => Object.values(e[m] || {})
       .some((arr) => Array.isArray(arr) && arr.some((x) => x && x.done)))) {
       trainiert.add(tag);
@@ -321,6 +326,93 @@ export function startTodayRow(n) {
 export function defaultWorkoutNo() {
   const open = PLAN.find((w) => !completedMode(w.n));
   return open ? open.n : PLAN[PLAN.length - 1].n;
+}
+
+/**
+ * Ab wie vielen abgehakten Sätzen sich eine liegen gebliebene Einheit selbst
+ * abschließt: zwei.
+ *
+ * Ein Fehltipp ist *ein* Tipp. Wer auf der Startseite zur nächsten Einheit
+ * vorblättert und dort aus Versehen einen Satz abhakt, hat sie angefangen –
+ * planVorziehen() in js/app.js legt sie sogar auf heute. Am nächsten Tag hieße
+ * sie sonst „trainiert mit 1 von 18", und der Plan ginge an ihr vorbei. Mit
+ * zwei Sätzen hat jemand zweimal entschieden, dass er trainiert.
+ *
+ * Nicht die gebuchte Zeit (`secs`) und nicht, ob eine Sitzung lief: Wer in
+ * „Übungen & Gewichte" abhakt, ohne auf Start zu tippen, trainiert ohne Uhr –
+ * mit zehn Sätzen und null Sekunden. Gezählt wird wie im Kopf der Einheit
+ * („4/17 Sätze", progressOf()). Was darunter liegt, bleibt offen wie bisher.
+ */
+export const ABSCHLUSS_AB = 2;
+
+/**
+ * Was der Tagesabschluss jetzt abschließt (tagAbschliessen() in js/app.js):
+ * { einheiten: [n], sitzung: { n, bis } | null, spaeter: ms | null }.
+ *
+ *   einheiten  Planeinheiten, an einem früheren Tag angefangen, nicht
+ *              abgeschlossen, mit mindestens ABSCHLUSS_AB Sätzen, und seit
+ *              LIEGT_AB_MS ohne Lebenszeichen (store.lebenszeichen()) – an
+ *              einer Einheit, an der über Mitternacht weiter trainiert wird,
+ *              ändert sich nichts. Und nicht die Einheit einer Sitzung von
+ *              heute (siehe unten).
+ *   sitzung    die laufende Sitzung, wenn sie an einem früheren Tag gestartet
+ *              wurde und ebenso lange liegt; `bis` ist ihr letztes
+ *              Lebenszeichen – bis dahin wird gebucht.
+ *   spaeter    wann die nächste dieser Einheiten liegen wird, die jetzt noch
+ *              zu frisch ist – für die Uhr, die bei offener App nachsieht.
+ *
+ * **Der Tag einer Sitzung ist der ihrer Uhr** (`clock.on`, startSession() in
+ * js/store.js) – der Tag, an dem auf Start getippt wurde. Erst ohne Uhr der
+ * Tag ihrer Einheit. Bis zur Nachbesserung war es umgekehrt, und „Rest heute
+ * machen" hatte eine Sitzung von heute auf einer Einheit vom Samstag: Nach
+ * drei Stunden Mittagessen war sie um 13:30 still beendet, die Fokusansicht
+ * weg, kein Wort – jede andere Sitzung von heute läuft nach einer langen
+ * Pause weiter. Liegen geblieben ist eine Sitzung erst ab dem nächsten Tag.
+ *
+ * Und ihre Einheit bleibt so lange offen: Wer am Sonntag um 0:10 eine Einheit
+ * vom Samstag fortsetzt, trainiert heute an ihr – wie über Mitternacht. Am
+ * Montag liegt die Sitzung seit gestern; dann endet sie, und die Einheit
+ * schließt ab. Beides zusammen, nie eine Sitzung auf einer Einheit, die sich
+ * eben abgeschlossen hat.
+ *
+ * Eigene Workouts und Zusatztage (istCustom) schließt das nicht ab: Sie
+ * schieben keinen Plan, holen keinen Rückstand nach und stehen nie als nächste
+ * Einheit da, sobald sie angefangen sind – eine liegen gebliebene blockiert
+ * also nichts. Ihr Abschluss hieße nur, ihnen ein „trainiert" anzuheften, das
+ * niemand gesagt hat. Eine liegen gebliebene *Sitzung* auf ihnen endet aber
+ * (`sitzung`): Sonst stünde über der Einheit von heute „Eigenes Workout läuft
+ * noch" statt des Startknopfs.
+ */
+export function liegenGeblieben(heute = todayISO(), jetzt = Date.now()) {
+  const ab = (n) => store.lebenszeichen(n, jetzt) + store.LIEGT_AB_MS;
+  let spaeter = null;
+  const frisch = (n) => {
+    const t = ab(n);
+    if (t <= jetzt) return false;
+    spaeter = spaeter === null ? t : Math.min(spaeter, t);
+    return true;
+  };
+  const s = store.getState();
+  const k = s.session ? s.session.n : null;
+  const c = k !== null && s.clock && String(s.clock.n) === String(k) ? s.clock : null;
+  const sitzungTag = k === null ? null
+    : ((c && /^\d{4}-\d{2}-\d{2}$/.test(c.on || '') ? c.on : null) || store.startedOn(k));
+  const sitzungVonHeute = !!sitzungTag && !(sitzungTag < heute);
+  const einheiten = PLAN.filter((w) => {
+    const tag = store.startedOn(w.n);
+    // `done` zuerst: Was einmal abgeschlossen ist, trägt es, und completedMode()
+    // kostet je Einheit eine ganze Übungsliste – gefragt wird bei jedem
+    // Zurückkommen in die App.
+    if (!tag || !(tag < heute) || store.getState().log[w.n].done || completedMode(w.n)) return false;
+    if (sitzungVonHeute && String(w.n) === String(k)) return false;
+    if (progressOf(w.n, store.workoutMode(w.n)).done < ABSCHLUSS_AB) return false;
+    return !frisch(w.n);
+  }).map((w) => w.n);
+  // Schließt sich ihre Einheit eben ab, ist auch die Sitzung nicht frisch
+  // (dasselbe Lebenszeichen) – sie endet mit.
+  const sitzung = sitzungTag && sitzungTag < heute && !frisch(k)
+    ? { n: k, bis: store.lebenszeichen(k, jetzt) || undefined } : null;
+  return { einheiten, sitzung, spaeter };
 }
 
 /** Angehakte Verletzungen. */
@@ -1669,7 +1761,9 @@ export function offenerZusatztag() {
 export function zusatzEinheit(heute = todayISO()) {
   const w = PLAN.find((x) => !store.isStarted(x.n));
   if (!w || effDate(w) > heute) return null;
-  if (PLAN.some((x) => store.startedOn(x.n) === heute)) return null;
+  // Heute trainiert heißt auch: den Rest einer abgeschlossenen Einheit von
+  // gestern heute gemacht (store.trainiertAm()).
+  if (PLAN.some((x) => store.trainiertAm(x.n, heute))) return null;
   return w;
 }
 

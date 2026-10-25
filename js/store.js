@@ -104,7 +104,7 @@ const DEFAULT_STATE = {
   customs: [],           // eigene Einheiten: [{ id: 'c1', name, ex: [{id, sets}], warum? }]
                          // `warum` nur am Zusatztag: woher seine Übungen kommen (normWarum())
   session: null,         // laufendes Training: { n }
-  clock: null,           // Uhr der Einheit: { n, on, spent, since } – siehe startSession()
+  clock: null,           // Uhr der Einheit: { n, on, spent, since, halt } – siehe startSession()
   lastBackup: null,      // { on, done } – Stand der letzten Sicherung
   // Hat der Browser zugesagt, diesen Speicher nicht von selbst freizugeben?
   // Ergebnis von storage.persist(), einmal beim Start erfragt – gemerkt, damit
@@ -143,6 +143,19 @@ const DEFAULT_STATE = {
   // { id, name, woche, uebungen, saetze, fehlt, gruppen, am }. Die Einheit
   // selbst steht in `customs` und bleibt auch, wenn der Hinweis weg ist.
   zusatztag: null,
+  // Liegen gebliebene Einheiten, die sich am Folgetag selbst abgeschlossen
+  // haben, solange die Zeile dazu auf der Startseite steht:
+  // { am, einheiten: [{ n, tag, done, total }] }. `am` ist der Tag des
+  // Abschlusses, `tag` der Tag der Einheit (ihr startedOn), `done`/`total` die
+  // Sätze, mit denen sie abgeschlossen wurde. Weg mit „OK", mit „Rest heute
+  // machen" und mit dem ersten Eintrag in einer anderen Einheit. Siehe
+  // tagAbschliessen() in js/app.js; gelesen wird nur über tagesabschluss() hier,
+  // das prüft, statt zu glauben.
+  tagesabschluss: null,
+  // Der letzte Eintrag in irgendeiner Einheit: { n, at }, `at` in ms. Daran
+  // erkennt der Tagesabschluss, ob an einer Einheit von gestern eben noch
+  // trainiert wurde (über Mitternacht) oder ob sie liegt (lebenszeichen()).
+  letzterEintrag: null,
   // Ein abgeschaffter Trainingsfokus, auf den dieses Gerät noch stand, solange
   // der Hinweis dazu offen ist: { von, nach, am, abgelegt }. `von` und `nach`
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
@@ -193,6 +206,12 @@ const DEFAULT_STATE = {
   //           (db/bw), gehören in der Wochenbilanz aber der Woche `woche`
   //           (halteZusatz(), festerZusatz() und einheitEx() in js/plan.js).
   //           Verwerfen und Zurücksetzen löschen ihn.
+  //   weiterAm  der letzte spätere Tag, an dem in dieser Einheit in einer
+  //           Sitzung und nach einer Pause von mindestens LIEGT_AB_MS wieder
+  //           abgehakt wurde – „Rest heute machen" nach dem Tagesabschluss
+  //           (eingetragen()). startedOn bleibt der Tag
+  //           der Einheit (Kalender, Statistik); weiterAm zählt nur für die
+  //           Frage „heute schon trainiert?" (trainiertAm()).
   log: {},
 };
 
@@ -308,6 +327,34 @@ export function normWarum(roh, ids) {
   return out;
 }
 
+/*
+ * Der Tagesabschluss und sein Lebenszeichen aus fremder Hand.
+ *
+ * Beides reist in der Sicherung mit (importJSON() übernimmt jedes Feld, dessen
+ * Vorgabe null ist, mit jedem Typ), und die Zeile auf der Startseite schreibt
+ * die Zahlen in die Seite. Was hier durchgeht: ISO-Tage, kleine ganze Zahlen,
+ * höchstens acht Einheiten – sonst nichts. Gelesen wird immer über diese
+ * Funktionen, nicht über das rohe Feld.
+ */
+const ABSCHLUSS_TAG = /^\d{4}-\d{2}-\d{2}$/;
+export function normAbschluss(roh) {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh) || !ABSCHLUSS_TAG.test(roh.am || '')) return null;
+  const einheiten = (Array.isArray(roh.einheiten) ? roh.einheiten : [])
+    .filter((e) => e && typeof e === 'object' && ganzIn(e.n, 1, 999) && ABSCHLUSS_TAG.test(e.tag || '')
+      && e.tag <= roh.am && ganzIn(e.total, 1, 200) && ganzIn(e.done, 0, e.total))
+    .slice(0, 8)
+    .map((e) => ({ n: e.n, tag: e.tag, done: e.done, total: e.total }));
+  return einheiten.length ? { am: roh.am, einheiten } : null;
+}
+
+/** Der letzte Eintrag: { n, at } mit einer Kennung wie im Protokoll und ms – sonst null. */
+function normEintrag(roh) {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
+  const n = String(roh.n ?? '');
+  if (!/^(\d{1,3}|c[\w-]{1,40})$/.test(n) || !Number.isFinite(roh.at) || roh.at <= 0) return null;
+  return { n, at: roh.at };
+}
+
 let state = load();
 const listeners = new Set();
 
@@ -323,6 +370,8 @@ function load() {
     if ('adminPass' in state) delete state.adminPass;
     state.friends = normFreunde(state.friends);
     state.customs = normCustoms(state.customs);
+    state.tagesabschluss = normAbschluss(state.tagesabschluss);
+    state.letzterEintrag = normEintrag(state.letzterEintrag);
     // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
     // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
     // von Hand gesetzter (Sicherung, Tests). Sonst kommt sie aus ihrem eigenen
@@ -684,7 +733,108 @@ function syncStartedOn(n) {
     if (!e.startedOn) e.startedOn = todayISO();
   } else {
     delete e.startedOn;
+    delete e.weiterAm;
   }
+}
+
+/*
+ * Wann eine Einheit „liegt".
+ *
+ *     „Wieso steht da samstag? Heute ist Sonntag"
+ *
+ * Workout 12 war am Samstag angefangen (4 von 17 Sätzen) und nie
+ * abgeschlossen. Ab dem nächsten Tag schließt sie sich deshalb selbst ab
+ * (tagAbschliessen() in js/app.js) – aber nicht, solange an ihr noch trainiert
+ * wird: Wer um 23:40 bei Satz 9 ist, hat um 0:05 keine liegen gebliebene
+ * Einheit, sondern ein Training über Mitternacht.
+ *
+ * Den Unterschied macht die Zeit seit dem letzten Lebenszeichen der Einheit:
+ * ihr letzter Eintrag (`letzterEintrag`), das Anhalten ihrer Uhr (`halt` –
+ * App weggeschaltet oder Seite geschlossen) oder, wenn die Seite hart beendet
+ * wurde und die Uhr noch lief, der Moment, seit dem sie lief (`since`).
+ *
+ * **Drei Stunden.** Eine Pause dauert höchstens drei Minuten, ein Anruf oder
+ * das Abendessen mitten im Training eine Stunde; wer drei Stunden nichts
+ * eingetragen hat, trainiert nicht mehr. Und drei Stunden sind kurz genug,
+ * dass eine Einheit vom späten Abend am nächsten Morgen erledigt ist – auch
+ * wenn sie erst nach Mitternacht liegen blieb.
+ */
+export const LIEGT_AB_MS = 3 * 3600 * 1000;
+
+/**
+ * Das letzte Lebenszeichen der Einheit `n` in ms – 0, wenn keines bekannt ist
+ * (ein Stand von vor diesem Vermerk: dann liegt sie). Werte aus der Zukunft
+ * zählen nicht – eine Sicherung von einem Gerät mit falsch gehender Uhr hielte
+ * die Einheit sonst für immer offen.
+ */
+export function lebenszeichen(n, jetzt = Date.now()) {
+  const k = String(n);
+  const gilt = (t) => Number.isFinite(t) && t > 0 && t <= jetzt + 60000;
+  let t = 0;
+  const l = state.letzterEintrag;
+  if (l && String(l.n) === k && gilt(l.at)) t = Math.max(t, l.at);
+  const c = state.clock;
+  if (c && String(c.n) === k) {
+    if (gilt(c.halt)) t = Math.max(t, c.halt);
+    if (gilt(c.since)) t = Math.max(t, c.since);
+  }
+  return Math.min(t, jetzt);
+}
+
+/**
+ * Wurde am Tag `iso` in dieser Einheit trainiert? An ihrem Tag (startedOn)
+ * oder an einem späteren, an dem in ihr nach einer langen Pause in einer
+ * Sitzung weiter abgehakt wurde (`weiterAm`) – „Rest heute machen" nach dem
+ * Tagesabschluss.
+ *
+ * Gefragt von allem, was wissen will, ob *heute* schon trainiert wurde: dem
+ * Zusatztag (zusatzEinheit() in js/plan.js, naechsteEinheit() und zusatzLage()
+ * in js/app.js) und der Zeile am Ruhetag. Mit startedOn allein galt ein
+ * Sonntag, an dem der Rest vom Samstag nachgeholt wurde, als frei: „Heute
+ * frei", und der Zusatztag stand als nächste Einheit für heute da.
+ */
+export function trainiertAm(k, iso) {
+  const e = state.log[k];
+  return !!e && (e.startedOn === iso || (e.weiterAm === iso && isStarted(k)));
+}
+
+/**
+ * Nach jedem Eintrag: Lebenszeichen setzen, einen späteren Trainingstag
+ * vermerken und – ist damit eine *andere* Einheit angefangen – die Zeile zum
+ * Tagesabschluss wegnehmen (sie hat dann ausgedient).
+ *
+ * `weiterAm` nur in einer laufenden Sitzung dieser Einheit – „Rest heute
+ * machen" und „Doch noch weitermachen" starten eine. Ein Haken ohne Sitzung
+ * ist Nachtragen: der vergessene dritte Floor-Press-Satz von gestern, in der
+ * Liste nachgeholt (tests/test-nacharbeit-ruhetag.mjs, R12). Der macht aus
+ * heute keinen Trainingstag. Und nur nach einer Pause von mindestens
+ * LIEGT_AB_MS seit dem letzten Eintrag in derselben Einheit: Über Mitternacht
+ * weiter trainiert ist kein zweiter Trainingstag – das Training gehört zum
+ * Tag des ersten Satzes.
+ */
+function eingetragen(n, warAngefangen, gehakt) {
+  const e = state.log[n];
+  const jetzt = Date.now();
+  const heute = todayISO();
+  const vorher = state.letzterEintrag;
+  const amStueck = !!vorher && String(vorher.n) === String(n) && jetzt - vorher.at < LIEGT_AB_MS;
+  const inSitzung = !!state.session && String(state.session.n) === String(n);
+  if (gehakt && inSitzung && e && e.startedOn && e.startedOn < heute && (e.weiterAm === heute || !amStueck)) {
+    e.weiterAm = heute;
+  }
+  state.letzterEintrag = { n: String(n), at: jetzt };
+  if (!warAngefangen && isStarted(n) && state.tagesabschluss) state.tagesabschluss = null;
+}
+
+/** Die Zeile zum Tagesabschluss, geprüft (normAbschluss()) – oder null. */
+export function tagesabschluss() {
+  return normAbschluss(state.tagesabschluss);
+}
+
+export function setzeTagesabschluss(wert) {
+  state.tagesabschluss = normAbschluss(wert);
+  persist();
+  emit();
 }
 
 /**
@@ -744,8 +894,9 @@ export function startSession(n) {
   emit();
 }
 
-export function endSession() {
-  clockStop();
+/** `bis`: siehe clockStop() – nur der Tagesabschluss gibt es mit. */
+export function endSession(bis) {
+  clockStop(bis);
   state.session = null;
   persist();
   emit();
@@ -774,11 +925,34 @@ function bucheZeit() {
   state.clock = { ...c, gebucht: gesamt };
 }
 
-/** Uhr anhalten – App im Hintergrund oder Training beendet. */
-export function clockStop() {
+/**
+ * Uhr anhalten – App im Hintergrund oder Training beendet.
+ *
+ * `halt` merkt sich, wann: Daran misst der Tagesabschluss, wie lange eine
+ * Einheit schon liegt (lebenszeichen()). Gezählt wird bis jetzt – oder bis
+ * `bis`, wenn eine liegen gebliebene Einheit beendet wird, deren Uhr noch lief
+ * (Seite hart beendet, App über Nacht offen): Dann gehört nur die Zeit bis zu
+ * ihrem letzten Lebenszeichen zum Training, nicht die Nacht danach.
+ *
+ * **Und nie über drei Stunden Stille hinaus** (LIEGT_AB_MS), ganz gleich, wer
+ * anhält. Blieb die App über Nacht sichtbar und kam die Uhr um Mitternacht
+ * nicht dran – Rechner oder Tablet geschlafen –, hielten am Morgen das
+ * Wegschalten, das Neuladen (pagehide) oder „Abschließen" die Uhr bis *jetzt*
+ * an: 14 Stunden gebucht statt 45 Minuten. Und weil `halt` dann frisch war,
+ * galt die Einheit als eben noch trainiert und blieb offen. Jetzt endet die
+ * Zählung an ihrem letzten Lebenszeichen, wenn das drei Stunden und mehr her
+ * ist – wer so lange nichts eingetragen hat, trainiert nicht mehr –, und
+ * `halt` bleibt dort: Beim Zurückkommen oder Laden schließt der
+ * Tagesabschluss sie regulär ab.
+ */
+export function clockStop(bis) {
   const c = state.clock;
   if (!c || c.since === null) return;
-  state.clock = { ...c, spent: c.spent + (Date.now() - c.since), since: null };
+  const jetzt = Date.now();
+  let ende = Number.isFinite(bis) ? Math.min(jetzt, bis) : jetzt;
+  const zuletzt = lebenszeichen(c.n, jetzt);
+  if (zuletzt && jetzt - zuletzt >= LIEGT_AB_MS) ende = Math.min(ende, zuletzt);
+  state.clock = { ...c, spent: c.spent + Math.max(0, ende - c.since), since: null, halt: ende };
   bucheZeit();
   persist();
 }
@@ -876,6 +1050,7 @@ export function peekSets(n, mode, exId) {
 }
 
 export function updateSet(n, mode, exId, setCount, index, patch, nach) {
+  const war = isStarted(n);
   const arr = getSets(n, mode, exId, setCount, nach);
   Object.assign(arr[index], patch);
   const e = ensure(n);
@@ -889,6 +1064,7 @@ export function updateSet(n, mode, exId, setCount, index, patch, nach) {
   if (nach === undefined) { if (e.nach) delete e.nach[exId]; } else merkeNach(e, exId, nach);
   e.mode = mode;
   syncStartedOn(n);
+  eingetragen(n, war, !!(patch && patch.done));
   persist();
   emit();
 }
@@ -1007,6 +1183,7 @@ export function halteNachFest(n, jeModus, warum) {
 }
 
 export function completeWorkout(n, mode, exList) {
+  const war = isStarted(n);
   const e = ensure(n);
   e.mode = mode;
   exList.forEach((item) => {
@@ -1016,6 +1193,7 @@ export function completeWorkout(n, mode, exList) {
     arr.forEach((s) => { s.done = true; if (item.w && s.w === '') s.w = item.w; });
   });
   syncStartedOn(n);
+  eingetragen(n, war, true);
   persist();
   emit();
 }
@@ -1471,6 +1649,8 @@ export function importJSON(text) {
   fresh.injuries = fresh.injuries.filter((x) => typeof x === 'string');
   fresh.friends = normFreunde(fresh.friends);
   fresh.customs = normCustoms(fresh.customs);
+  fresh.tagesabschluss = normAbschluss(fresh.tagesabschluss);
+  fresh.letzterEintrag = normEintrag(fresh.letzterEintrag);
   // Was an *diesem Gerät* hängt, kommt nicht aus der Datei. Vorher übernahm
   // der Import auch `share`, `deviceId` und `lastShare`: Eine bewusst
   // abgeschaltete Telemetrie war danach still wieder an, und zwei Geräte
