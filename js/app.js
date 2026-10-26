@@ -1182,9 +1182,10 @@ function backupDue() {
  * blieb nach jedem Abbruch ein halb abgehaktes Workout stehen.
  *
  * Nicht auf einer Einheit, die an einem früheren Tag trainiert und
- * abgeschlossen ist (frueherFertig()) – „Rest heute machen" nach dem
- * Tagesabschluss, „Doch noch weitermachen" auf einer Einheit von gestern. Dort
- * hieß „Abbrechen" „doch nicht heute", und es löschte das Training von Samstag
+ * abgeschlossen ist (frueherFertig()) – „Doch noch weitermachen" auf einer
+ * Einheit von gestern, auch nach dem Tagesabschluss (bis v242 ebenso „Rest
+ * heute machen" in seiner Zeile). Dort hieß „Abbrechen" „doch nicht heute",
+ * und es löschte das Training von Samstag
  * mit: Workout 12 war untrainiert, der Plan rückte einen Tag, und am Sonntag
  * stand „Heute · Workout 12" da. Was an einem früheren Tag trainiert ist, nimmt
  * ein Abbruch von heute nicht zurück; dann bleibt nur „Abschließen", und ein
@@ -2565,7 +2566,17 @@ let abschlussWartet = null;
  * automatisch mit dem abgeschlossen, was steht. Oben steht dann eine Zeile
  * dazu und ein Knopf ‚Rest heute machen', falls du doch willst."
  *
- * So ist es jetzt. Abgeschlossen wird genau wie mit „Als trainiert markieren"
+ * Den Knopf gibt es seit v243 nicht mehr, und das „OK" daneben auch nicht:
+ *
+ *     „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von
+ *      selbst einfach das optimale passieren"
+ *
+ * Das Optimale ist, was ohne Knopf geschieht: im Rhythmus bleiben, und was
+ * fehlt, verteilen Nacharbeit und Zusatztag (siehe abschlussHinweis()). Die
+ * Zeile sagt nur noch, was passiert ist, und geht von selbst. Wer doch in die
+ * Einheit zurück will, blättert zu ihr – dort steht „Doch noch weitermachen".
+ *
+ * Abgeschlossen wird genau wie mit „Als trainiert markieren"
  * (store.markDone() im Modus der Einheit, case 'mark-done'), und alles Weitere
  * folgt von selbst, weil es an completedMode() hängt: die Nacharbeit in den
  * restlichen Einheiten der Woche, nach ihrer letzten der Zusatztag, der
@@ -2585,6 +2596,10 @@ let abschlussWartet = null;
  */
 function tagAbschliessen() {
   const heute = todayISO();
+  // Eine abgelaufene Zeile zum Tagesabschluss räumt der neue Tag weg – sie
+  // steht ohnehin nicht mehr da (store.tagesabschluss()), soll aber auch nicht
+  // in der nächsten Sicherung mitreisen.
+  if (store.abschlussAufraeumen()) notieren('tag', { was: 'zeile abgelaufen' });
   if (abschlussWartet) {
     if (!(abschlussWartet < heute)) return null;
     abschlussWartet = null;
@@ -2757,11 +2772,20 @@ function startBlock(n, mode, prog) {
     // vorhanden. „Abgeschlossen" ist eine Aussage über den Tag, kein Schloss:
     // Wer bei 16 von 18 abbricht und zehn Minuten später doch weitermacht,
     // darf nicht vor einer Karte ohne Knöpfe stehen.
+    //
+    // „Für heute durch" nur, wenn heute an ihr trainiert wurde – an ihrem Tag
+    // oder danach mit „Doch noch weitermachen" (store.trainiertAm()). Eine
+    // Einheit von gestern, die sich am Morgen selbst abgeschlossen hat (der
+    // Tagesabschluss), hieß sonst beim Zurückblättern „Für heute durch",
+    // unter „Gestern · Workout 12" – und dasselbe jede fertige Einheit von
+    // früher. Dann steht da, was stimmt: abgeschlossen, mit wie viel; dass die
+    // nächste von selbst kommt, ist dann längst geschehen.
+    const heute = store.trainiertAm(n, todayISO());
     return `
       <div class="fertig">
-        <div class="fertig-kopf">✓ Für heute durch</div>
+        <div class="fertig-kopf">${heute ? '✓ Für heute durch' : '✓ Abgeschlossen'}</div>
         <div class="fertig-sub">${wieViel}${
-          min ? ` · ${min} min` : ''}. Die nächste Einheit kommt von selbst.</div>
+          min ? ` · ${min} min` : ''}.${heute ? ' Die nächste Einheit kommt von selbst.' : ''}</div>
       </div>
       ${sess ? `<div style="margin-top:8px">${zurLaufendenKnopf(sess.n)}</div>` : (prog.complete ? '' : `
       <button type="button" class="btn btn-ghost btn-block" data-act="start-session"
@@ -2807,8 +2831,8 @@ function einheitTitel(k) {
  * angefangen" sagt, warum. Eine abgeschlossene Einheit von gestern war
  * gestern und heißt weiter so.
  *
- * Außer, an ihr wird heute weiter trainiert – „Rest heute machen" nach dem
- * Tagesabschluss: Die Sitzung läuft auf ihr, oder heute steht schon ein Satz
+ * Außer, an ihr wird heute weiter trainiert – „Doch noch weitermachen" nach
+ * dem Tagesabschluss: Die Sitzung läuft auf ihr, oder heute steht schon ein Satz
  * (store.trainiertAm()). Bis zur Nachbesserung stand dann „Gestern · Workout
  * 12 / Sa, 24. Oktober 2026" über dem Training von heute und nach dem Ende
  * über „Für heute durch" – das Bild aus Tobis Frage. Mit „Gestern angefangen"
@@ -3106,7 +3130,7 @@ function ruhetagTeile(w) {
  * Die Zeile selbst. Was die Zeile zum Tagesabschluss oben schon sagt
  * (abschlussWohin() – dieselben Teile, auf die abgeschlossene Einheit
  * bezogen), steht hier nicht noch einmal: dieselbe Zahl zweimal auf einem
- * Bildschirm ist eine zu viel. Nach dem „OK" dort steht es wieder hier.
+ * Bildschirm ist eine zu viel. Ist die Zeile dort weg, steht es wieder hier.
  */
 function ruhetagZeile(w) {
   const t = ruhetagTeile(w);
@@ -3175,26 +3199,51 @@ function restZiele(v, heute) {
 }
 
 /*
- * Die Zeile zum Tagesabschluss – oben auf der Startseite, bis „OK", bis
- * „Rest heute machen" oder bis die nächste Einheit angefangen ist
- * (store.tagesabschluss(), weg in js/store.js bei eingetragen()).
+ * Die Zeile zum Tagesabschluss – oben auf der Startseite, eine Auskunft ohne
+ * Knopf:
  *
- *     ✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen. Von
- *       den 13 offenen Sätzen kommen morgen 3 in Workout 13 mit rein.
- *       [Rest heute machen] [OK]
+ *     ✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Von
+ *       den 11 offenen Sätzen kommen morgen 3 in Workout 13 mit rein.
+ *
+ *     „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von
+ *      selbst einfach das optimale passieren"
+ *
+ * Bis v242 standen darunter „Rest heute machen" und „OK". Tobi fragte erst,
+ * was der Unterschied sei – „OK" blendete nur aus, man blieb im Rhythmus, und
+ * ein Teil des Fehlenden kam per Zusatz in die nächste Einheit; „Rest heute
+ * machen" holte alles nach, und der Plan rutschte einen Tag. Empfohlen war
+ * „OK". Eine Wahl, deren eine Seite die empfohlene ist, ist keine – also tut
+ * die App sie: Sie bleibt im Rhythmus, und was fehlt, verteilen Nacharbeit und
+ * Zusatztag wie bisher. Damit das nicht unbemerkt geschieht, bleibt die Zeile
+ * – sie sagt, was passiert ist und wohin der Rest geht, und geht von selbst:
+ *
+ *   der erste Eintrag in einer anderen Einheit   die nächste ist angefangen
+ *   ein Eintrag in einer Einheit der Zeile, ihr   die Zeile stimmt für sie
+ *     Zurücksetzen                                nicht mehr (abschlussOhne()
+ *                                                 in js/store.js)
+ *   ein neuer Tagesabschluss                      er ersetzt sie
+ *   ein Fokuswechsel, „Von vorn beginnen"         sie sprach vom alten Plan
+ *   der übernächste Tag                           ABSCHLUSS_ZEILE_TAGE in
+ *                                                 js/store.js – nie ewig
+ *
+ * Sie tritt zurück, solange auf einer ihrer Einheiten eine Sitzung läuft
+ * (abschlussListe()), und auf der Karte dieser Einheit selbst – die sagt dort
+ * schon „✓ Abgeschlossen · 4 von 17 Sätzen" (renderOverview()).
+ *
+ * Wer doch in die Einheit zurück will, blättert zu ihr: „Doch noch
+ * weitermachen" (startBlock()), mit denselben Sicherungen wie vorher der Knopf
+ * hier – kein „Abbrechen", das den Samstag löscht (frueherFertig()), der
+ * Sonntag als Trainingstag (`weiterAm`), im Kopf „Gestern angefangen".
  *
  * Sagt, was passiert ist, mit den Zahlen von dem Moment und dem Tag der
- * Einheit als Wochentag – „von gestern" stimmte schon am Montag nicht mehr,
- * und die Zeile bleibt stehen, bis sie weggetippt ist. Länger als sechs Tage
- * her mit Datum.
+ * Einheit als Wochentag – „von gestern" stimmte am Montag schon nicht mehr.
+ * Länger als sechs Tage her mit Datum.
  *
  * **Wohin der Rest geht, nur wenn es stimmt** (abschlussWohin()), und
  * gerechnet von den Stellen, die es dann auch tun – keine zweite Rechnung.
  */
 function abschlussHinweis() {
-  const a = store.tagesabschluss();
-  if (!a) return '';
-  const liste = a.einheiten.filter((e) => PLAN[e.n - 1]);
+  const liste = abschlussListe();
   if (!liste.length) return '';
   const heute = todayISO();
   const vom = (iso) => {
@@ -3205,27 +3254,50 @@ function abschlussHinweis() {
   const was = liste.length === 1
     ? `Workout ${liste[0].n} ${vom(liste[0].tag)} ist abgeschlossen – ${saetze(liste[0])}.`
     : `${undListe(liste.map((e) => `Workout ${e.n} ${vom(e.tag)} (${saetze(e)})`))} sind abgeschlossen.`;
-  // „Rest heute machen" für die jüngste – solange sie noch dieselbe Einheit
-  // ist (nach einem Rundenwechsel stünde unter der Nummer eine andere) und
-  // noch etwas fehlt.
-  const letzte = liste[liste.length - 1];
-  const prog = store.startedOn(letzte.n) === letzte.tag && completedMode(letzte.n)
-    ? progressOf(letzte.n, completedMode(letzte.n)) : null;
-  const rest = prog && !prog.complete;
   const wohin = abschlussWohin(liste).text;
-  // Klein gesetzt, die Knöpfe rechts darunter: Die Startseite bleibt auch mit
-  // der Zeile eine Bildschirmseite, bis 360×740 (siehe .notice.abschluss in
-  // css/styles.css). Als Kasten wie umbauHinweis() mit Knopfreihe darunter
-  // waren es dort 129 px und 52 px Überhang.
+  // Klein gesetzt: Die Startseite bleibt auch mit der Zeile eine
+  // Bildschirmseite, bis 360×740 (siehe .notice.abschluss in css/styles.css).
+  // Was zusammengehört, bricht nicht um: Bei 360 px stand „– 4" am Zeilenende
+  // und „von 15 Sätzen" darunter, bei 414 px „4 von 15" und „Sätzen". Und das
+  // letzte Wort steht nie allein: An Tobis Sonntag stand bei 360 px „rein." in
+  // einer vierten Zeile (dazu der kürzere Satz in abschlussWohin()).
+  const satz = `${was}${wohin ? ` ${wohin}` : ''}`
+    .replace(/(\d+) von (\d+) (Satz|Sätzen)/g, '$1 von $2 $3')
+    .replace(/Workout (\d+)/g, 'Workout $1')
+    .replace(/ (\S+)$/, '\u00a0$1');
   return `
-    <div class="notice abschluss">
-      <span>✓ ${esc(was)}${wohin ? ` ${esc(wohin)}` : ''}</span>
-      <div class="abschluss-knoepfe">
-        ${rest ? `<button type="button" class="btn" data-act="abschluss-rest" data-n="${letzte.n}">${
-          liste.length === 1 ? 'Rest heute machen' : `Rest von Workout ${letzte.n} heute machen`}</button>` : ''}
-        <button type="button" class="btn btn-primary" data-act="abschluss-ok">OK</button>
-      </div>
-    </div>`;
+    <div class="notice abschluss">✓ ${esc(satz)}</div>`;
+}
+
+/**
+ * Die Einheiten, die die Zeile zum Tagesabschluss zeigt: aus der geprüften
+ * Zeile (store.tagesabschluss() – auch noch nicht abgelaufen), im Plan, und
+ * nur so, wie die Zeile sie nennt – auf ihrem Tag und abgeschlossen. Sonst
+ * stünde „ist abgeschlossen" über einer Einheit, die es nicht mehr ist (eine
+ * Sicherung aus fremder Hand, deren Protokoll etwas anderes sagt). Nach einer
+ * weitergerollten Runde liegt ihr Protokoll in der Ablage: Dann bleibt sie
+ * stehen – die Zeile sagt, warum die Startseite bei Workout 1 steht. (Nach
+ * „Von vorn beginnen" und einem Fokuswechsel ist die Zeile ganz weg, siehe
+ * case 'restart-plan' und store.wechsleFokus().)
+ *
+ * Und nicht, solange auf ihr eine Sitzung läuft. „Doch noch weitermachen"
+ * getippt, ohne Haken zurück: Oben stand „✓ Workout 12 vom Samstag ist
+ * abgeschlossen – 4 von 17 Sätzen.", direkt darunter „Gestern angefangen ·
+ * Workout 12" mit „✓ Training abschließen (4/17)" – am Nachmittag über
+ * „Workout 12 läuft noch.", und bei 360×740 schob sich die Seite. Bis v242 nahm
+ * „Rest heute machen" die Zeile beim Tipp weg. Jetzt tritt sie zurück, solange
+ * an der Einheit trainiert wird; der erste Haken nimmt sie ganz (abschlussOhne()
+ * in js/store.js), und endet die Sitzung ohne einen, steht sie wieder da – der
+ * Tipp allein hat nichts geändert.
+ */
+function abschlussListe() {
+  const a = store.tagesabschluss();
+  if (!a) return [];
+  const log = store.getState().log || {};
+  const sess = store.getState().session;
+  return a.einheiten.filter((e) => PLAN[e.n - 1]
+    && !(sess && String(sess.n) === String(e.n))
+    && (!log[e.n] || (store.startedOn(e.n) === e.tag && !!completedMode(e.n))));
 }
 
 /**
@@ -3258,9 +3330,11 @@ function abschlussHinweis() {
  * steht nur, wenn alles, was in der Woche offen ist, aus den Einheiten der
  * Zeile stammt (offenImBlock(), dieselbe Herkunft, die der Zusatztag an seiner
  * Übung nennt). Fehlt auch woanders etwas – bei Tobi zwei Sätze aus Workout 9 –,
- * holt der Teil womöglich auch das nach; dann „Von dem, was in Woche 3 liegen
- * blieb". Sonst nichts – lieber kein Ziel als ein falsches. Gerechnet für die
- * jüngste Einheit und ihre Woche.
+ * holt der Teil womöglich auch das nach; dann „Aus Woche 3 kommen morgen 3
+ * Sätze in Workout 13 mit rein." (beim Zusatztag) oder „Von dem, was in dieser
+ * Woche liegen blieb, kommt dazu: …" (bei der Nacharbeit). Sonst nichts –
+ * lieber kein Ziel als ein falsches. Gerechnet für die jüngste Einheit und ihre
+ * Woche.
  */
 function abschlussWohin(liste) {
   const leer = { text: '', nach: false, zus: false };
@@ -3278,9 +3352,14 @@ function abschlussWohin(liste) {
   const eigen = (quellen) => offenZahl > 1 && quellen.length > 0 && quellen.every((n) => ns.includes(n));
   const wochenQuellen = () => offenImBlock((nr - 1) * WEEK_SESSIONS, nr * WEEK_SESSIONS).herkunft.map((h) => h.n);
   const kommt = (k) => (k === 1 ? 'kommt' : 'kommen');
+  // Stammt nicht alles aus der Zeile, sagt sie die Woche, im Wortlaut der
+  // Zeile am Ruhetag („Aus Woche 3 kommt dazu: morgen +3."). Hier stand „Von
+  // dem, was in Woche 3 liegen blieb, kommen morgen 3 Sätze in Workout 13 mit
+  // rein." – an Tobis Sonntag bei 360 px vier Zeilen, in der letzten nur
+  // „rein.".
   const davon = (k, wann, n) => (eigen(wochenQuellen())
     ? `Von den ${offenZahl} offenen Sätzen ${kommt(k)} ${wann} ${k} in Workout ${n} mit rein.`
-    : `Von dem, was in Woche ${nr} liegen blieb, ${kommt(k)} ${wann} ${plural(k, 'Satz', 'Sätze')} in Workout ${n} mit rein.`);
+    : `Aus Woche ${nr} ${kommt(k)} ${wann} ${plural(k, 'Satz', 'Sätze')} in Workout ${n} mit rein.`);
   const wer = (quellen) => (quellen.every((n) => ns.includes(n)) ? 'Was fehlt' : 'Was in dieser Woche liegen blieb');
   // Die Nacharbeit der restlichen Einheiten, in den Worten der Zeile am
   // Ruhetag (restZiele()) – bis auf „der Rest danach". Das hieße: ein
@@ -3340,8 +3419,7 @@ function abschlussWohin(liste) {
 
 /** Was die Zeile zum Tagesabschluss gerade von der Zeile am Ruhetag übernimmt. */
 function abschlussDeckt() {
-  const a = store.tagesabschluss();
-  const liste = a ? a.einheiten.filter((e) => PLAN[e.n - 1]) : [];
+  const liste = abschlussListe();
   return liste.length ? abschlussWohin(liste) : { text: '', nach: false, zus: false };
 }
 
@@ -3409,10 +3487,25 @@ function renderOverview() {
   // Tonkanal, und beide standen zugleich da – bei 360×740 lag der Fuß dann
   // 78 px (Sonntag) bzw. 111 px (Montag) unter der Leiste, die Zeile zum Ton
   // allein (vier Zeilen, 116 px) schob ihn 35 bzw. 45 px darunter. Die Zeile
-  // zum Abschluss hat Vorrang; ihr „OK" ist ohnehin die nächste Berührung, und
-  // die weckt den Kanal. Klemmt er danach noch, steht die zum Ton da. Den
-  // ganzen Satz zeigen die Fokusansicht und die Liste, Einzelheiten Mehr.
-  const abschluss = abschlussHinweis();
+  // zum Abschluss hat Vorrang. Bis v242 war ihr „OK" ohnehin die nächste
+  // Berührung, und die weckte den Kanal. Seit v243 hat sie keinen Knopf mehr
+  // und steht womöglich zwei Tage; auch ohne Knöpfe (69 px) passen beide am
+  // Montag bei 360×740 nicht zusammen, die Seite schob sich 24 px. Gebraucht
+  // wird der Ton im Training: Klemmt er nach dem Tipp auf Start noch, zeigen
+  // die Fokusansicht und die Liste den ganzen Satz, Einzelheiten Mehr. Ist die
+  // Zeile zum Abschluss weg, steht die zum Ton auch hier.
+  //
+  // Nicht auf der Karte einer Einheit, von der die Zeile spricht: Am Sonntag
+  // zu Workout 12 zurückgeblättert, stand „4 von 17" dreimal da – in der Zeile,
+  // im Fortschritt und auf der Karte („✓ Abgeschlossen / 4 von 17 Sätzen · 20
+  // min."), und bei 360×740 schob sich die Seite 41 px, die Reihe „Übungen &
+  // Gewichte" halb unter der Leiste. Gerade diese Karte ist seit v243 der Weg
+  // zurück in die Einheit („Doch noch weitermachen"). Sie sagt selbst, was
+  // passiert ist; wohin der Rest geht, steht auf der Startseite. Der Vorrang
+  // vor der Zeile zum Ton bleibt auch dort (`hinweis`): Mit ihr allein schob
+  // sich diese Karte bei 360×740 um 8 px.
+  const hinweis = abschlussHinweis();
+  const abschluss = abschlussListe().some((e) => e.n === w.n) ? '' : hinweis;
   view.innerHTML = `
     <section class="ov">
       ${umzugHinweis()}
@@ -3420,7 +3513,7 @@ function renderOverview() {
       ${aufstiegHinweis()}
       ${abschluss}
       ${speicherWarnung()}
-      ${abschluss ? '' : tonHinweis(true)}
+      ${hinweis ? '' : tonHinweis(true)}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
            Frage, ob eine neue Kalenderdatei erzeugt werden soll. Beides raus,
            auf Zuruf.
@@ -8551,8 +8644,9 @@ function trainingBeenden(n, mode) {
 
 /**
  * Eine Einheit starten oder fortsetzen – der Knopf „Start", „Training
- * fortsetzen", „Doch noch weitermachen" und „Rest heute machen" nach dem
- * Tagesabschluss. `wahl` ist die Variante, wenn der Knopf eine mitbringt.
+ * fortsetzen" und „Doch noch weitermachen" (auch auf einer Einheit, die der
+ * Tagesabschluss abgeschlossen hat). `wahl` ist die Variante, wenn der Knopf
+ * eine mitbringt.
  */
 function einheitStarten(n, wahl) {
   const mode = store.workoutMode(n);
@@ -8899,6 +8993,13 @@ view.addEventListener('click', (e) => {
         render();
         break;
       }
+      // Die Zeile zum Tagesabschluss gehörte zur alten Runde: Über „Heute ·
+      // Workout 1" stand sonst „✓ Workout 12 vom Samstag ist abgeschlossen",
+      // und Workout 12 der neuen Runde liegt in 19 Tagen. Hier, nicht in
+      // store.restartPlan(): Rollt die Runde von selbst weiter (rundeWeiter()),
+      // weil die liegen gebliebene Einheit die letzte war, bleibt sie – dort
+      // sagt sie, warum die Startseite bei Workout 1 steht.
+      store.setzeTagesabschluss(null);
       // Der Zusatztag der alten Runde gehört zu ihrem Protokoll, und das liegt
       // jetzt in der Ablage. Aufgeräumt wurde er bisher erst beim nächsten
       // Start – bis dahin hing er sich an Workout 1 der neuen Runde.
@@ -9550,24 +9651,10 @@ view.addEventListener('click', (e) => {
       store.setSetting('aufstieg', null);
       render();
       break;
-    case 'abschluss-ok':
-      store.setzeTagesabschluss(null);
-      render();
-      break;
-    case 'abschluss-rest': {
-      // „Rest heute machen": derselbe Weg wie „Doch noch weitermachen" auf
-      // einer abgeschlossenen Einheit – Start, Fokusansicht, bei der ersten
-      // Übung mit offenem Satz. Die Einheit bleibt auf ihrem Tag (startedOn);
-      // dass heute trainiert wurde, vermerkt der erste Haken (`weiterAm`,
-      // store.trainiertAm()). Die Zeile hat damit ausgedient.
-      const k = Number(t.dataset.n);
-      store.setzeTagesabschluss(null);
-      if (!PLAN.some((w) => w.n === k)) { render(); break; }
-      ui.workoutNo = k;
-      ui.openEx.clear();
-      einheitStarten(k);
-      break;
-    }
+    // Hier standen bis v242 'abschluss-ok' und 'abschluss-rest', die Knöpfe der
+    // Zeile zum Tagesabschluss. Die Zeile ist eine Auskunft ohne Knopf
+    // (abschlussHinweis()); zurück in die Einheit geht es über
+    // „Doch noch weitermachen" auf ihr (startBlock(), 'start-session').
     case 'umzug-ok':
       store.setSetting('fokusUmzug', null);
       render();

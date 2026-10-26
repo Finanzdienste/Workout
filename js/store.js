@@ -1,4 +1,4 @@
-import { todayISO } from './dates.js';
+import { daysBetween, todayISO } from './dates.js';
 
 const KEY = 'workout.state.v1';
 
@@ -147,10 +147,13 @@ const DEFAULT_STATE = {
   // haben, solange die Zeile dazu auf der Startseite steht:
   // { am, einheiten: [{ n, tag, done, total }] }. `am` ist der Tag des
   // Abschlusses, `tag` der Tag der Einheit (ihr startedOn), `done`/`total` die
-  // Sätze, mit denen sie abgeschlossen wurde. Weg mit „OK", mit „Rest heute
-  // machen" und mit dem ersten Eintrag in einer anderen Einheit. Siehe
-  // tagAbschliessen() in js/app.js; gelesen wird nur über tagesabschluss() hier,
-  // das prüft, statt zu glauben.
+  // Sätze, mit denen sie abgeschlossen wurde. Seit v243 ohne Knopf – weg geht
+  // sie von selbst: mit dem ersten Eintrag in einer anderen Einheit, mit einem
+  // Eintrag in einer Einheit der Zeile oder ihrem Zurücksetzen (die gehört
+  // dann nicht mehr dazu), mit einem neuen Tagesabschluss und spätestens nach
+  // dem Tag danach (ABSCHLUSS_ZEILE_TAGE). Siehe tagAbschliessen() in
+  // js/app.js; gelesen wird nur über tagesabschluss() hier, das prüft, statt
+  // zu glauben.
   tagesabschluss: null,
   // (Hier stand bis v241 `letzterEintrag: { n, at }` – ein Platz für alle
   // Einheiten. Er steht jetzt je Einheit im Protokoll, `zuletzt` unten;
@@ -208,8 +211,8 @@ const DEFAULT_STATE = {
   //           Verwerfen und Zurücksetzen löschen ihn.
   //   weiterAm  der letzte spätere Tag, an dem in dieser Einheit in einer
   //           Sitzung und nach einer Pause von mindestens LIEGT_AB_MS wieder
-  //           abgehakt wurde – „Rest heute machen" nach dem Tagesabschluss
-  //           (eingetragen()). startedOn bleibt der Tag
+  //           abgehakt wurde – „Doch noch weitermachen" nach dem
+  //           Tagesabschluss (eingetragen()). startedOn bleibt der Tag
   //           der Einheit (Kalender, Statistik); weiterAm zählt nur für die
   //           Frage „heute schon trainiert?" (trainiertAm()).
   //   zuletzt  der letzte Eintrag in dieser Einheit, in ms (eingetragen()).
@@ -562,9 +565,13 @@ function schreibeRunden() {
  * vorherige Zustand zurück, und es bleibt beim Fehler. Rückgabe: ob es ging.
  */
 function mitAblage(aendern) {
+  // Die Zeile zum Tagesabschluss gehört dazu: Ein Fokuswechsel nimmt sie weg
+  // (wechsleFokus()), und scheitert er am vollen Speicher, steht sie wieder da
+  // – sonst wäre sie still verschwunden, obwohl sich sonst nichts geändert hat.
   const vorher = {
     log: state.log, rounds: state.rounds, shift: state.shift, focus: state.focus,
     session: state.session, clock: state.clock, rest: state.rest, verlassen: state.verlassen,
+    tagesabschluss: state.tagesabschluss,
   };
   state.rounds = [...(state.rounds || [])];
   aendern();
@@ -823,8 +830,8 @@ export function lebenszeichen(n, jetzt = Date.now()) {
 /**
  * Wurde am Tag `iso` in dieser Einheit trainiert? An ihrem Tag (startedOn)
  * oder an einem späteren, an dem in ihr nach einer langen Pause in einer
- * Sitzung weiter abgehakt wurde (`weiterAm`) – „Rest heute machen" nach dem
- * Tagesabschluss.
+ * Sitzung weiter abgehakt wurde (`weiterAm`) – „Doch noch weitermachen" nach
+ * dem Tagesabschluss.
  *
  * Gefragt von allem, was wissen will, ob *heute* schon trainiert wurde: dem
  * Zusatztag (zusatzEinheit() in js/plan.js, naechsteEinheit() und zusatzLage()
@@ -839,12 +846,13 @@ export function trainiertAm(k, iso) {
 
 /**
  * Nach jedem Eintrag: Lebenszeichen setzen, einen späteren Trainingstag
- * vermerken und – ist damit eine *andere* Einheit angefangen – die Zeile zum
- * Tagesabschluss wegnehmen (sie hat dann ausgedient).
+ * vermerken und die Zeile zum Tagesabschluss nachführen – ist damit eine
+ * *andere* Einheit angefangen, hat sie ausgedient; ist es eine Einheit *aus*
+ * der Zeile, gehört die nicht mehr hinein (abschlussOhne()).
  *
- * `weiterAm` nur in einer laufenden Sitzung dieser Einheit – „Rest heute
- * machen" und „Doch noch weitermachen" starten eine. Ein Haken ohne Sitzung
- * ist Nachtragen: der vergessene dritte Floor-Press-Satz von gestern, in der
+ * `weiterAm` nur in einer laufenden Sitzung dieser Einheit – „Doch noch
+ * weitermachen" startet eine. Ein Haken ohne Sitzung ist Nachtragen: der
+ * vergessene dritte Floor-Press-Satz von gestern, in der
  * Liste nachgeholt (tests/test-nacharbeit-ruhetag.mjs, R12). Der macht aus
  * heute keinen Trainingstag. Und nur nach einer Pause von mindestens
  * LIEGT_AB_MS seit dem letzten Eintrag in derselben Einheit: Über Mitternacht
@@ -877,11 +885,63 @@ function eingetragen(n, warAngefangen, gehakt) {
   }
   if (e) e.zuletzt = jetzt;
   if (!warAngefangen && isStarted(n) && state.tagesabschluss) state.tagesabschluss = null;
+  else abschlussOhne(n);
 }
 
-/** Die Zeile zum Tagesabschluss, geprüft (normAbschluss()) – oder null. */
-export function tagesabschluss() {
-  return normAbschluss(state.tagesabschluss);
+/*
+ * Wie lange die Zeile zum Tagesabschluss höchstens steht: am Tag des
+ * Abschlusses (`am`) und am Tag danach.
+ *
+ *     „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von
+ *      selbst einfach das optimale passieren"
+ *
+ * Bis v242 ging sie mit „OK" weg oder mit „Rest heute machen". Die Knöpfe sind
+ * raus, die Zeile ist eine Auskunft – und eine Auskunft, die niemand wegtippen
+ * kann, muss von selbst gehen. Meist geht sie mit dem ersten Satz der nächsten
+ * Einheit (eingetragen()). Wird gar nicht trainiert, stünde sie sonst ewig –
+ * eine Woche später noch „Workout 12 vom Samstag, 24. Oktober ist
+ * abgeschlossen".
+ *
+ * Zwei Tage, weil der Abschluss oft an einem Ruhetag kommt (Sonntag, Workout
+ * 12 vom Samstag) und die Zeile am Tag danach sagt, was in die Einheit von
+ * heute kommt („Von den 11 offenen Sätzen kommen heute 3 in Workout 13 mit
+ * rein."). Vergeht auch der ohne Training, ist es keine Neuigkeit mehr – was
+ * nachgeholt wird, steht dann an den Übungen selbst (die Herkunftszeile) und
+ * an einem Ruhetag in der Zeile darunter (ruhetagZeile() in js/app.js).
+ */
+export const ABSCHLUSS_ZEILE_TAGE = 2;
+
+/**
+ * Die Zeile zum Tagesabschluss, geprüft (normAbschluss()) – oder null, auch
+ * wenn sie abgelaufen ist (ABSCHLUSS_ZEILE_TAGE) oder `am` nach `heute` liegt
+ * (eine Sicherung von einem Gerät mit falsch gehender Uhr – sonst stünde sie,
+ * bis dieser Tag kommt).
+ */
+export function tagesabschluss(heute = todayISO()) {
+  const a = normAbschluss(state.tagesabschluss);
+  if (!a) return null;
+  const tage = daysBetween(a.am, heute);
+  return tage >= 0 && tage < ABSCHLUSS_ZEILE_TAGE ? a : null;
+}
+
+/**
+ * Die Einheit `n` gehört nicht mehr in die Zeile zum Tagesabschluss: An ihr
+ * wurde weitergemacht oder nachgetragen, oder sie ist zurückgesetzt. Was die
+ * Zeile über sie sagt („4 von 15 Sätzen", „ist abgeschlossen"), stimmt dann
+ * nicht mehr – und wer dort etwas einträgt, weiß, wie es um sie steht. Die
+ * übrigen Einheiten der Zeile bleiben; war sie die einzige, ist die Zeile weg.
+ */
+function abschlussOhne(n) {
+  const a = normAbschluss(state.tagesabschluss);
+  if (!a || !a.einheiten.some((e) => String(e.n) === String(n))) return;
+  state.tagesabschluss = normAbschluss({ ...a, einheiten: a.einheiten.filter((e) => String(e.n) !== String(n)) });
+}
+
+/** Eine abgelaufene Zeile aus dem Zustand nehmen; true, wenn eine dastand. */
+export function abschlussAufraeumen() {
+  if (!state.tagesabschluss || tagesabschluss()) return false;
+  setzeTagesabschluss(null);
+  return true;
 }
 
 export function setzeTagesabschluss(wert) {
@@ -1138,6 +1198,9 @@ export function resetWorkout(n, mode) {
   // Steht danach nichts mehr, ist der nächste Anlauf ein neuer – mit der
   // Nacharbeit, die dann gilt, und mit dem Zusatztag, der dann gilt.
   if (!isStarted(n)) { delete e.nachFest; delete e.nachWarum; delete e.zusatz; }
+  // Nicht mehr abgeschlossen – dann sagt die Zeile zum Tagesabschluss über sie
+  // nichts mehr, was stimmt.
+  if (!e.done) abschlussOhne(n);
   persist();
   emit();
 }
@@ -1167,6 +1230,7 @@ export function verwirfEinheit(n) {
   delete e.zusatz;
   if (state.clock && state.clock.n === n) state.clock = null;
   syncStartedOn(n);
+  abschlussOhne(n);
   persist();
   emit();
 }
@@ -1552,6 +1616,15 @@ export function wechsleFokus(key, bilanz, startShift) {
     state.clock = null;
     state.rest = null;
     state.focus = key;
+    // Die Zeile zum Tagesabschluss sprach vom alten Plan. Nach dem Wechsel
+    // stand über „Morgen · Workout 1" im Aufbau weiter „✓ Workout 12 vom
+    // Samstag ist abgeschlossen – 4 von 15 Sätzen." – Workout 12 des neuen
+    // Plans liegt aber in 20 Tagen und ist unberührt. Bis v242 ließ sie sich
+    // mit „OK" wegtippen; ohne Knopf stand sie bis zum ersten Satz oder bis
+    // Dienstag. Der Wechsel ist ein Ende wie der neue Tagesabschluss: Was sie
+    // sagte, gilt für diesen Plan nicht. Auch beim Umzug eines alten Fokus
+    // (fokusUmzug() in js/app.js), der denselben Weg geht.
+    state.tagesabschluss = null;
   });
 }
 
