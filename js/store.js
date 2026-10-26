@@ -565,9 +565,13 @@ function schreibeRunden() {
  * vorherige Zustand zurück, und es bleibt beim Fehler. Rückgabe: ob es ging.
  */
 function mitAblage(aendern) {
+  // Die Zeile zum Tagesabschluss gehört dazu: Ein Fokuswechsel nimmt sie weg
+  // (wechsleFokus()), und scheitert er am vollen Speicher, steht sie wieder da
+  // – sonst wäre sie still verschwunden, obwohl sich sonst nichts geändert hat.
   const vorher = {
     log: state.log, rounds: state.rounds, shift: state.shift, focus: state.focus,
     session: state.session, clock: state.clock, rest: state.rest, verlassen: state.verlassen,
+    tagesabschluss: state.tagesabschluss,
   };
   state.rounds = [...(state.rounds || [])];
   aendern();
@@ -1612,6 +1616,15 @@ export function wechsleFokus(key, bilanz, startShift) {
     state.clock = null;
     state.rest = null;
     state.focus = key;
+    // Die Zeile zum Tagesabschluss sprach vom alten Plan. Nach dem Wechsel
+    // stand über „Morgen · Workout 1" im Aufbau weiter „✓ Workout 12 vom
+    // Samstag ist abgeschlossen – 4 von 15 Sätzen." – Workout 12 des neuen
+    // Plans liegt aber in 20 Tagen und ist unberührt. Bis v242 ließ sie sich
+    // mit „OK" wegtippen; ohne Knopf stand sie bis zum ersten Satz oder bis
+    // Dienstag. Der Wechsel ist ein Ende wie der neue Tagesabschluss: Was sie
+    // sagte, gilt für diesen Plan nicht. Auch beim Umzug eines alten Fokus
+    // (fokusUmzug() in js/app.js), der denselben Weg geht.
+    state.tagesabschluss = null;
   });
 }
 

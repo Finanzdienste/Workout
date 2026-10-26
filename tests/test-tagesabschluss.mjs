@@ -126,11 +126,34 @@
  *      sagt, warum die Startseite bei Workout 1 steht, und geht mit dem
  *      ersten Satz dort.
  *
+ * Aus der Prüfung von v243 (zwei Prüfer, jeder Befund nachgestellt):
+ *
+ *  4g. Ein Fokuswechsel und „Von vorn beginnen" nehmen die Zeile mit – sie
+ *      sprach vom alten Plan; ein am vollen Speicher gescheiterter Wechsel
+ *      lässt sie stehen.
+ *  8f. Tobis eigener Satz, gemessen: höchstens drei Zeilen, das letzte Wort
+ *      nie allein (bei 360×740 standen vier, in der letzten nur „rein."), und
+ *      die Karte von Workout 12 bleibt eine Seite.
+ *  18. Über der Karte einer Einheit, von der die Zeile spricht, steht sie
+ *      nicht – sonst schob sich die Seite bei 360×740, und „4 von 15" stand
+ *      dreimal da; Sonntag und Montag, 414×896 und 360×740.
+ *  21. „Doch noch weitermachen", ohne Haken zurück: keine Zeile „ist
+ *      abgeschlossen" über „Training abschließen" oder „läuft noch"; endet die
+ *      Sitzung ohne Haken, steht sie wieder da.
+ *
  * Gegenprobe gegen 6b533af (v242): 27 von 192 Prüfungen rot – 2 (Knöpfe), 2b
  * (5: die Zeile geht nicht von selbst, also auch keine zum Ton), 3 und 3b (6),
  * 4 (6), 8d, 8e, 11 und 12 (je 1: Knöpfe oder „Für heute durch" über
  * gestern), 18, 19 (je 2) und 20 (1). Nichts bricht ab: „Doch noch
- * weitermachen" gab es dort schon.
+ * weitermachen" gab es dort schon. Mit der Prüfung von v243 (4g, 8f, 18, 21)
+ * sind es 43 von 218: dazu 4 (2), 8f (6), 18 (6) und 21 (2).
+ *
+ * Gegenprobe gegen 1725a52 (der erste Stand von v243): 13 von 218 rot – 4g
+ * (2: Fokuswechsel, „Von vorn beginnen"), 8f (5: der Wortlaut, die vier
+ * Zeilen, die Karte von Workout 12 bei beiden Größen; dazu als Folge der
+ * Montag, dem ohne den neuen Wortlaut die angekündigte Zahl fehlt), 18 (4: die
+ * Zeile über der eigenen Karte, 24 px bei 360×740) und 21 (2). Grün dort: der
+ * am vollen Speicher gescheiterte Wechsel – er wacht über das Neue.
  *
  * Gegenprobe gegen 87e4cd1 (v241): 19 von 161 Prüfungen rot – 2b (10), 16 (3),
  * 17a und 17b (3) und in 9 die drei, die das neue Feld prüfen. 17c ist dort
@@ -363,6 +386,51 @@ async function blick(f) {
     knoepfe: await f.page.locator('.notice.abschluss button, .notice.abschluss [data-act]').count(),
     kopf: await f.txt('.fertig-kopf'),
   };
+}
+/**
+ * Die Startseite gemessen: die Zeile zum Abschluss (Höhe und ihre Zeilen, wie
+ * sie umbricht – Zeichen für Zeichen nach ihrer Lage), der Überhang und der
+ * Fuß gegen die Leiste.
+ */
+const seiteMessen = (f) => f.page.evaluate(() => {
+  const z = document.querySelector('.notice.abschluss');
+  const zeilen = new Map();
+  if (z) {
+    const gang = document.createTreeWalker(z, window.NodeFilter.SHOW_TEXT);
+    while (gang.nextNode()) {
+      const t = gang.currentNode;
+      for (let i = 0; i < t.length; i++) {
+        const r = document.createRange();
+        r.setStart(t, i);
+        r.setEnd(t, i + 1);
+        const box = r.getClientRects()[0];
+        if (box) zeilen.set(Math.round(box.top), (zeilen.get(Math.round(box.top)) || '') + t.data[i]);
+      }
+    }
+  }
+  const leiste = document.getElementById('tabbar').getBoundingClientRect();
+  const fuss = document.querySelector('.ov-foot').getBoundingClientRect();
+  return {
+    hoehe: z ? Math.round(z.getBoundingClientRect().height) : 0,
+    zeilen: [...zeilen.entries()].sort((a, b) => a[0] - b[0]).map(([, s]) => s.replace(/\s+/g, ' ').trim()),
+    scroll: document.documentElement.scrollHeight - window.innerHeight,
+    fussUnten: Math.round(fuss.bottom),
+    sichtbar: Math.round(Math.min(window.innerHeight, leiste.height ? leiste.top : window.innerHeight)),
+  };
+});
+/** Unter Mehr einen Knopf tippen – die Abschnitte aufklappen, bis er da ist. */
+async function mehr(f, sel) {
+  await f.klick('#tab-settings', 300);
+  for (let i = 0; i < 8 && !(await f.page.locator(sel).count()); i++) {
+    const zu = f.page.locator('details:not([open]) > summary');
+    if (!(await zu.count())) break;
+    await zu.first().click();
+    await f.page.waitForTimeout(150);
+  }
+  await f.page.locator(sel).first().evaluate((b) => b.click());
+  await f.page.waitForTimeout(800);
+  await f.page.waitForLoadState('networkidle').catch(() => {});
+  if (await f.page.locator('#tab-dashboard').count()) await f.klick('#tab-dashboard', 300);
 }
 /**
  * Zurück in eine abgeschlossene Einheit, wie es seit v243 geht: auf der
@@ -752,6 +820,44 @@ await abschnitt(4, async () => {
   await g.klick('[data-act="hide-list"]', 200).catch(() => {});
   check((await blick(g)).zeilen === 0, '4 und steht nicht mehr da');
   await ende(g);
+
+  // g) Ein Fokuswechsel und „Von vorn beginnen": Die Zeile sprach vom alten
+  //    Plan. Danach stand über „Morgen · Workout 1" (Aufbau) bzw. „Heute ·
+  //    Workout 1" weiter „✓ Workout 12 vom Samstag ist abgeschlossen" –
+  //    Workout 12 dort liegt in 20 bzw. 19 Tagen und ist unberührt. Bis v242
+  //    ließ sie sich wegtippen; ohne Knopf stand sie bis zum ersten Satz oder
+  //    bis Dienstag.
+  for (const [name, sel] of [
+    ['Fokuswechsel', '[data-act="set-focus"][data-v="standard"]'],
+    ['Von vorn beginnen', '[data-act="restart-plan"]'],
+  ]) {
+    const p = await fall(`4 ${name}`, sonntag, '2026-10-25T11:00:00+01:00');
+    const vor = await blick(p);
+    await mehr(p, sel);
+    const b = await blick(p);
+    st = await p.lies();
+    check(vor.zeilen === 1 && /Workout 1\b/.test(b.auge) && b.zeilen === 0 && st.tagesabschluss === null,
+      `4 ${name}: „${b.auge}" – die Zeile vom alten Plan ist weg, auch aus dem Zustand („${b.zeile}", ${JSON.stringify(st.tagesabschluss)})`);
+    await ende(p);
+  }
+  // Scheitert der Wechsel am vollen Speicher, bleibt alles, wie es war – die
+  // Zeile auch (mitAblage() in js/store.js).
+  const v = await fall('4 Fokuswechsel, Speicher voll', sonntag, '2026-10-25T11:00:00+01:00');
+  const voll = await v.M(({ store }) => {
+    const orig = window.Storage.prototype.setItem;
+    window.Storage.prototype.setItem = function setItem(k, wert) {
+      if (k === 'workout.rounds.v1') throw new window.DOMException('voll', 'QuotaExceededError');
+      return orig.call(this, k, wert);
+    };
+    try {
+      return { ok: store.wechsleFokus('standard', null, 0), focus: store.getState().focus, z: store.getState().tagesabschluss };
+    } finally {
+      window.Storage.prototype.setItem = orig;
+    }
+  });
+  check(voll.ok === false && voll.focus === 'cut' && !!voll.z && voll.z.einheiten[0].n === 12,
+    `4 Fokuswechsel am vollen Speicher gescheitert: Fokus und Zeile wie vorher (${voll.focus}, ${JSON.stringify(voll.z)})`);
+  await ende(v);
 });
 
 /* ------------------------------------------------------------------ *
@@ -1006,7 +1112,9 @@ await abschnitt(8, async () => {
   //    „5 Übungen · 17 Sätze". Am Samstag um 17:00 gestartet, 4 Sätze, um
   //    17:20 weg. Was der Zusatztag am Montag bringt, stammt dann nicht allein
   //    aus Workout 12 – die Zeile sagt deshalb nicht „von den 13 offenen",
-  //    sondern „von dem, was in Woche 3 liegen blieb".
+  //    sondern „aus Woche 3" (bis zur Nachbesserung von v243 „von dem, was in
+  //    Woche 3 liegen blieb" – bei 360×740 vier Zeilen, in der letzten nur
+  //    „rein.").
   const neun = eintrag(9);
   const fehlen = ['floor-press', 'haengendes-knieheben'].filter((id) => neun.db[id]);
   fehlen.forEach((id) => { neun.db[id][neun.db[id].length - 1].done = false; });
@@ -1028,8 +1136,28 @@ await abschnitt(8, async () => {
   await tw.tag('2026-10-25T09:30:00+01:00');
   const so17 = await blick(tw);
   console.log(`     So (Tobis Woche): ${so17.auge} | ${so17.zeile}`);
-  const m17 = so17.zeile.match(/^✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen\. Von dem, was in Woche 3 liegen blieb, kommen morgen (\d+) Sätze in Workout 13 mit rein\./);
+  const m17 = so17.zeile.match(/^✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen\. Aus Woche 3 kommen morgen (\d+) Sätze in Workout 13 mit rein\.$/);
   check(!!m17, `8f Sonntag: „${so17.zeile}"`);
+  // Gemessen wie in 2, mit Tobis Satz: höchstens drei Zeilen, und in der
+  // letzten nie ein Wort allein – die Seite bleibt eine Seite. Und zu Workout
+  // 12 geblättert, steht die Zeile nicht über ihrer eigenen Karte: Dort schob
+  // sich die Seite bei 360×740 um 41 px (18).
+  for (const [b, h] of [[414, 896], [360, 740]]) {
+    await tw.page.setViewportSize({ width: b, height: h });
+    await tw.page.reload({ waitUntil: 'networkidle' });
+    await tw.page.waitForTimeout(300);
+    const m = await seiteMessen(tw);
+    const letzte = m.zeilen[m.zeilen.length - 1] || '';
+    check(m.zeilen.length >= 2 && m.zeilen.length <= 3 && letzte.split(' ').length >= 2
+      && m.scroll <= 0 && m.fussUnten <= m.sichtbar,
+    `8f Sonntag ${b}×${h}: die Zeile in ${m.zeilen.length} Zeilen (${m.hoehe} px), zuletzt „${letzte}" – eine Seite (Überhang ${m.scroll}, Fuß ${m.fussUnten} / ${m.sichtbar})`);
+    await tw.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
+    const k12 = await blick(tw);
+    const k = await seiteMessen(tw);
+    check(/Gestern · Workout 12/.test(k12.auge) && k12.zeilen === 0 && k.scroll <= 0 && k.fussUnten <= k.sichtbar,
+      `8f Sonntag ${b}×${h}, zu Workout 12 geblättert: keine Zeile über ihrer Karte, eine Seite (Überhang ${k.scroll}, Fuß ${k.fussUnten} / ${k.sichtbar})`);
+  }
+  await tw.page.setViewportSize({ width: 414, height: 896 });
   await tw.tag(T.mo);
   const z17 = await zusatzIn(tw, 13, 3);
   check(!!m17 && z17 === Number(m17[1]), `8f Montag: Workout 13 trägt ${z17} Sätze aus Woche 3, angekündigt ${m17 && m17[1]}`);
@@ -1501,6 +1629,33 @@ await abschnitt(18, async () => {
   check(/vor 2 Tagen · Workout 11/.test(k11.auge) && k11.kopf === '✓ Abgeschlossen' && k11.sub === 'Alle 12 Sätze stehen.' && knopf === 0,
     `18 Workout 11, ganz gemacht: „${k11.auge}" – „${k11.kopf}" – „${k11.sub}", ohne Knopf (${knopf})`);
   await ende(f);
+
+  // Und die Seite: Mit der Zeile darüber schob sich die Karte von Workout 12
+  // bei 360×740 um 24 px (mit Tobis 17 Sätzen 41 px, 8f), die Reihe „Übungen
+  // & Gewichte" halb unter der Leiste – und „4 von 15" stand dreimal da, in
+  // der Zeile, im Fortschritt und auf der Karte. Über der Karte einer Einheit,
+  // von der die Zeile spricht, steht sie deshalb nicht; auf der Startseite und
+  // über Workout 11 weiter.
+  const g = await fall('18 Seite', samstag(), T.sa);
+  for (const [wann, wort] of [[T.so, 'Sonntag'], [T.mo, 'Montag']]) {
+    for (const [b, h] of [[414, 896], [360, 740]]) {
+      await g.page.setViewportSize({ width: b, height: h });
+      await g.tag(wann);
+      const start = await blick(g);
+      await g.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
+      const k = await blick(g);
+      const m = await seiteMessen(g);
+      check(start.zeilen === 1 && /Workout 12/.test(k.auge) && k.kopf === '✓ Abgeschlossen' && k.zeilen === 0
+        && m.scroll <= 0 && m.fussUnten <= m.sichtbar,
+      `18 ${wort} ${b}×${h}, zu Workout 12 geblättert („${k.auge}"): keine Zeile über ihrer Karte, eine Seite (Überhang ${m.scroll}, Fuß ${m.fussUnten} / ${m.sichtbar}); auf der Startseite steht sie (${start.zeilen})`);
+      await g.klick('[data-act="nav-workout"][data-delta="-1"]', 250);
+      const k11 = await blick(g);
+      const m11 = await seiteMessen(g);
+      check(/Workout 11/.test(k11.auge) && k11.zeilen === 1 && m11.scroll <= 0 && m11.fussUnten <= m11.sichtbar,
+        `18 ${wort} ${b}×${h}, Workout 11: die Zeile steht, eine Seite (Überhang ${m11.scroll}, Fuß ${m11.fussUnten} / ${m11.sichtbar})`);
+    }
+  }
+  await ende(g);
 });
 
 /* ------------------------------------------------------------------ *
@@ -1562,6 +1717,55 @@ await abschnitt(20, async () => {
   check(nach.tagesabschluss === null && !!(nach.log[1] && nach.log[1].startedOn),
     `20 der erste Satz in Workout 1 nimmt sie weg (${JSON.stringify(nach.tagesabschluss)})`);
   await ende(f);
+});
+
+/* ------------------------------------------------------------------ *
+ * 21: „Doch noch weitermachen", ohne Haken
+ * ------------------------------------------------------------------ */
+await abschnitt(21, async () => {
+  // Getippt, ohne Haken zurück aufs Dashboard: Oben stand „✓ Workout 12 vom
+  // Samstag ist abgeschlossen – 4 von 15 Sätzen.", direkt darunter „Gestern
+  // angefangen · Workout 12" mit „✓ Training abschließen (4/15)" – am
+  // Nachmittag über „Workout 12 läuft noch.". Bis v242 nahm „Rest heute
+  // machen" die Zeile beim Tipp weg. Jetzt tritt sie zurück, solange die
+  // Sitzung auf der Einheit läuft, und steht wieder da, wenn die ohne Haken
+  // endet: Der Tipp allein hat nichts geändert.
+  const f = await fall('21 ohne Haken', samstag(), T.sa);
+  await f.tag(T.so);
+  await dochWeiter(f);
+  await zurueck(f);
+  const lauf = await blick(f);
+  const knopf = await f.txt('[data-act="finish-session"]');
+  check(/Training abschließen \(4\/15\)/.test(knopf) && /Gestern angefangen · Workout 12/.test(lauf.auge) && lauf.zeilen === 0,
+    `21 zurück aufs Dashboard: „${lauf.auge}", „${knopf}" – keine Zeile „ist abgeschlossen" darüber („${lauf.zeile}")`);
+  check((await f.lies()).tagesabschluss !== null, '21 im Zustand bleibt sie');
+  await f.tag('2026-10-25T14:00:00+01:00');
+  const nm = await blick(f);
+  const ansicht = await f.txt('#view');
+  check(/Workout 12 läuft noch/.test(ansicht) && /Workout 13/.test(nm.auge) && nm.zeilen === 0,
+    `21 um 14:00 neu geöffnet: „${nm.auge}", „Workout 12 läuft noch" – keine Zeile darüber („${nm.zeile}")`);
+  // Die Sitzung endet ohne Haken: Auf der Startseite steht sie wieder, mit dem Ziel.
+  await f.klick('[data-act="zur-laufenden"]', 400);
+  await zurueck(f);
+  await f.klick('[data-act="finish-session"]', 400);
+  if (!/Workout 13/.test((await blick(f)).auge)) await f.klick('[data-act="nav-workout"][data-delta="1"]', 250);
+  const wieder = await blick(f);
+  check(!(await f.lies()).session && wieder.zeile.startsWith(`✓ ${satzText}`)
+    && /Von den 11 offenen Sätzen kommen morgen \d+ in Workout 13 mit rein\./.test(wieder.zeile),
+  `21 „Abschließen" ohne Haken, auf Workout 13: die Zeile steht wieder da („${wieder.zeile}")`);
+  await ende(f);
+
+  // Bleibt die Sitzung bis Montag liegen, endet sie dort (13a) – und die Zeile
+  // steht am Tag danach, wie sonst auch.
+  const g = await fall('21 bis Montag', samstag(), T.sa);
+  await g.tag(T.so);
+  await dochWeiter(g);
+  await zurueck(g);
+  await g.tag(T.mo);
+  const mo = await blick(g);
+  check(!(await g.lies()).session && mo.zeile.startsWith(`✓ ${satzText}`) && mo.zeile.includes('kommen heute'),
+    `21 Montag: die Sitzung von gestern ist zu, die Zeile steht wieder („${mo.zeile}")`);
+  await ende(g);
 });
 
 console.log(`\n${fails ? `${fails} FEHLER` : 'alle Prüfungen bestanden'}`);
