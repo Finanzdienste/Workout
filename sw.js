@@ -104,7 +104,8 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       // Nur die eigenen alten Fassungen. Im selben Ursprung liegt auch der
-      // Vorrat der Schilddrüsen-App (schilddruese/sw.js); ohne den Filter ging
+      // Vorrat der Schilddrüsen- und der Freizeit-App (schilddruese/sw.js,
+      // freizeit/sw.js); ohne den Filter ging
       // der bei jeder neuen Workout-Fassung mit, und wer beide Apps auf einem
       // Handy hat, stand mit der anderen danach offline vor einer leeren Seite.
       .then((keys) => Promise.all(keys
@@ -126,6 +127,8 @@ self.addEventListener('fetch', (event) => {
   // und bei /schilddruese ohne Schrägstrich (GitHub Pages leitet um) sogar
   // mit Netz, jeweils mit der index.html *dieser* App.
   if (url.pathname.startsWith(new URL('./schilddruese', self.location).pathname)) return;
+  // Dasselbe für die Freizeit-App (freizeit/sw.js, Vorrat freizeit-…).
+  if (url.pathname.startsWith(new URL('./freizeit', self.location).pathname)) return;
 
   // Nur im Zwischenspeicher dieser Fassung nachsehen. caches.match() ohne
   // Angabe durchsucht *alle* – ein übrig gebliebener alter Zwischenspeicher

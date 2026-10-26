@@ -21,6 +21,15 @@ nur auf Tipp unter *Mehr → Daten* als Textdatei weiter.
 > für den Arzttermin). Eigener Ordner, eigener Service Worker, eigene Tests
 > (`tests/test-sd-*.mjs`); sie teilt mit dieser App nur die Grundsätze und
 > die Testumgebung.
+>
+> **Umgezogen:** Die Freizeit-App (was in Hamburg los ist, Konzerte,
+> Merkliste) hat ein eigenes Repository,
+> [Finanzdienste/Freizeit](https://github.com/Finanzdienste/Freizeit), und
+> läuft unter <https://finanzdienste.github.io/Freizeit/>. Als Ordner hier
+> rechnete Android sie der installierten Workout-App zu und installierte sie
+> nicht als eigene App. `freizeit/index.html` leitet nur noch weiter; die
+> Ausnahme für `/freizeit` in `sw.js` sorgt dafür, dass der Workout-Worker
+> diese Weiterleitung nicht überdeckt.
 
 ## Tabs
 

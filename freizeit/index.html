@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freizeit – umgezogen</title>
+<!-- Die Freizeit-App lag hier nur kurz (26.10.2026) und ist in ein eigenes
+     Repository umgezogen: Finanzdienste/Freizeit, https://finanzdienste.github.io/Freizeit/.
+     Android rechnete alles unter /Workout/ der installierten Workout-App zu
+     und installierte sie deshalb nicht als eigene App. Diese Seite leitet
+     weiter und meldet vorher den alten Service Worker dieses Ordners ab. -->
+<meta http-equiv="refresh" content="3; url=https://finanzdienste.github.io/Freizeit/">
+<link rel="canonical" href="https://finanzdienste.github.io/Freizeit/">
+<script>
+  (async () => {
+    try {
+      const alle = (await navigator.serviceWorker?.getRegistrations?.()) || [];
+      await Promise.all(alle
+        .filter((r) => new URL(r.scope).pathname === '/Workout/freizeit/')
+        .map((r) => r.unregister()));
+    } catch { /* dann eben ohne Aufräumen */ }
+    location.replace(`https://finanzdienste.github.io/Freizeit/${location.hash}`);
+  })();
+</script>
+</head>
+<body>
+<p>Die Freizeit-App ist umgezogen: <a href="https://finanzdienste.github.io/Freizeit/">finanzdienste.github.io/Freizeit</a></p>
+</body>
+</html>
