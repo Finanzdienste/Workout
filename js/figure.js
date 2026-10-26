@@ -3698,4 +3698,8 @@ function frame(now) {
   }
   requestAnimationFrame(frame);
 }
-if (typeof requestAnimationFrame === 'function') requestAnimationFrame(frame);
+// Nur mit Seite: Ein Worker hat requestAnimationFrame (Chrome), aber kein
+// `document` – und die Vorschau des Kalenders lädt dieses Modul in einem
+// Worker mit (js/kalender-worker.js, über js/plan.js). Dort warf frame() beim
+// ersten Bild „document is not defined".
+if (typeof requestAnimationFrame === 'function' && typeof document !== 'undefined') requestAnimationFrame(frame);

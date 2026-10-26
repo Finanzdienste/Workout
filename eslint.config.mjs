@@ -87,6 +87,10 @@ export default [
         DOMException: 'readonly',
         PopStateEvent: 'readonly',
         ServiceWorkerRegistration: 'readonly',
+        // Die Vorschau des Kalenders rechnet in einem eigenen Modul-Worker
+        // (js/kalender-worker.js) – im Fenster teilte sie sich den Zustand
+        // mit der App.
+        Worker: 'readonly',
         SVGElement: 'readonly',
         HTMLElement: 'readonly',
         // Service Worker

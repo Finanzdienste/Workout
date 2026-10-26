@@ -71,7 +71,7 @@ export function catchUpPlan() {
 /**
  * Tage von Einheit n bis n+1 im Rhythmus des Plans – aus den Plandaten. Nach
  * der letzten Einheit der übliche Abstand, wie beim Weiterrollen der Runde
- * (rundeWeiter() in js/app.js). Reihum, damit auch Nummern jenseits des Plans
+ * (rundeWeiter() in js/tagstart.js). Reihum, damit auch Nummern jenseits des Plans
  * einen Rhythmus haben.
  */
 export function rhythmusLuecke(n) {
@@ -346,7 +346,7 @@ export function defaultWorkoutNo() {
 export const ABSCHLUSS_AB = 2;
 
 /**
- * Was der Tagesabschluss jetzt abschließt (tagAbschliessen() in js/app.js):
+ * Was der Tagesabschluss jetzt abschließt (tagAbschliessen() in js/tagstart.js):
  * { einheiten: [n], sitzung: { n, bis } | null, spaeter: ms | null }.
  *
  *   einheiten  Planeinheiten, an einem früheren Tag angefangen, nicht
@@ -784,7 +784,7 @@ export function planSaetze(w, mode) {
 }
 
 function gestufteSaetze(w, m) {
-  // Festgeschrieben bei einem Planwechsel (planWechsel() in js/app.js): Diese
+  // Festgeschrieben bei einem Planwechsel (planWechsel() in js/tagstart.js): Diese
   // Einheit war schon angefangen oder trainiert, und hinter ihrer Nummer steht
   // im neuen Plan etwas anderes. Sie bleibt, wie sie war – samt der Satzzahl
   // jenes Tages, deshalb hier vor der Stufe und ohne sie.
@@ -826,7 +826,7 @@ function stufenFassung(ex, m, n) {
  * Die Liste der Einheit n aus dem Plan davor – so, wie sie an jenem Tag
  * dastand. `liste` ist der Eintrag aus PLANS[f].vorher.ex: [id, sets, bwSets].
  *
- * planWechsel() und festReparieren() in js/app.js schreiben damit eine
+ * planWechsel() und festReparieren() in js/tagstart.js schreiben damit eine
  * angefangene Einheit fest, und gestufteSaetze() gibt eine feste Liste
  * unverändert zurück. Bis v218 ging sie roh hinein – Plan-IDs, Plan-Sätze –,
  * und was hier fehlt, fehlt danach für immer. Gemessen an einer angefangenen
@@ -891,7 +891,7 @@ export function vorherFassung(n, liste, mode) {
     // damit samt „+1 nachgeholt". Die feste Liste ist aber die Basis, auf die
     // exOf() die Nacharbeit erst legt; stünde sie hier mit drin, käme sie
     // doppelt (siehe merkeNach() in js/store.js). Fehlt der Vermerk, weil
-    // `soll` älter ist, schätzt festNachReparieren() in js/app.js nach.
+    // `soll` älter ist, schätzt festNachReparieren() in js/tagstart.js nach.
     const eigen = soll[id] ? Math.max(1, soll[id] - (nach[id] || 0)) : it.sets;
     // Der andere Modus war an jenem Tag nicht zu sehen – für ihn gilt die
     // Satzzahl, die der Plan dort hatte. Bis hierher bekam er die des
@@ -1075,7 +1075,7 @@ export function exBasis(w, mode) {
 // da ist, weil completedMode() ohne Protokoll vorher aussteigt.
 export const WEEK_SESSIONS = 4;
 
-// Der Zusatztag (siehe zusatzListe() unten und den Abschnitt in js/app.js).
+// Der Zusatztag (siehe zusatzListe() unten und den Abschnitt in js/tagstart.js).
 // Aus demselben Grund hier oben und hier im Modul: naechsteEinheit() läuft in
 // js/app.js schon bei der Modulauswertung (`ui.workoutNo`), und von dort geht
 // es über completedMode() bis in die Liste des Zusatztags. Standen die Zahlen
@@ -1734,7 +1734,7 @@ export function exOf(w, mode) {
  *
  * **Live, dann fest.** Bis zum ersten Eintrag in der Einheit kommen die Übungen
  * aus dem Zusatztag in `customs` (dem Träger) und werden mit ihm neu gerechnet
- * (pruefeZusatztag() in js/app.js). Mit dem ersten Eintrag stehen sie in
+ * (pruefeZusatztag() in js/tagstart.js). Mit dem ersten Eintrag stehen sie in
  * log[n].zusatz fest, und der Träger ist verbraucht – wie die Nacharbeit
  * (nachFest) und die Paarung, die ab dem ersten Satz auch nicht mehr wandern.
  * ------------------------------------------------------------------ */
@@ -1845,7 +1845,7 @@ export function festerZusatz(e) {
  * Die Kennungen, die in dieser Einheit dem Zusatz gehören – großzügig: jede
  * bekannte aus e.zusatz.ex, auch wenn der Rest des Eintrags kaputt ist. Die
  * Leser des rohen Eimers (protokolliert(), vorherFassung(), offenImBlock(),
- * festeListen() in js/app.js, bilanzAus() in js/bilanz.js) lassen sie aus.
+ * festeListen() in js/tagstart.js, bilanzAus() in js/bilanz.js) lassen sie aus.
  * Lieber eine Übung zu viel draußen als ein Zusatz-Satz in der Grundlast.
  */
 export function zusatzIds(e) {
@@ -1905,7 +1905,7 @@ function angefasst(e, id) {
  * Knieheben · Reverse Fly"), und darunter stand als Zusatz die Inverted Row –
  * Rücken, Nacken, Bizeps, hintere Schulter, genau die geschonten Gruppen.
  *
- * Dieselbe Prüfung wählt die Übungen aus (zusatztagEx() in js/app.js) – sonst
+ * Dieselbe Prüfung wählt die Übungen aus (zusatztagEx() in js/tagstart.js) – sonst
  * käme in den Träger, was hier gleich wieder herausfällt.
  */
 export function zusatzGrund(id, m, tag, sperre) {

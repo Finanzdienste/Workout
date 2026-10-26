@@ -2268,7 +2268,9 @@ Umbauzeit, auf fünf Minuten aufgerundet.
 **Verschiebt sich der Plan, wandern die Termine mit** – aber nicht von selbst.
 Die App spricht mit keinem Server und kennt kein Google-Konto; automatisch
 schreiben hieße OAuth, ein Google-Cloud-Projekt und eine Netzverbindung, also
-genau die drei Dinge, die diese App bewusst nicht hat. Stattdessen trägt jeder
+genau die drei Dinge, die diese App bewusst nicht hat. (Von selbst verschiebt
+der Weg unter *Google Kalender automatisch* weiter unten – ohne OAuth und ohne
+Server der App, über ein kleines Skript in Tobis eigenem Google-Konto.) Stattdessen trägt jeder
 Termin eine **feste Kennung** aus seiner Workout-Nummer
 (`workout-7@workout.local`). Wird die Datei nach einer Verschiebung
 neu erzeugt und noch einmal importiert, erkennt der Kalender dieselben Termine
@@ -2322,6 +2324,168 @@ Die Uhrzeit steht **ohne Zeitzone** in der Datei („floating"): 18:00 heißt
 18:00 im Kalender des Geräts, im Sommer wie im Winter. Mit fester Zeitzone
 müsste eine `VTIMEZONE`-Tabelle mitreisen, die zur nächsten Zeitumstellung
 falsch wäre.
+
+### Google Kalender automatisch
+
+> „Sicher dass man jetzt die Workout zeiten täglich um 17:30 nicht
+> reinschreiben kann inkl Verschiebung wenn ich mal was verpasse oder so?"
+
+> „Ja aber nur wenn es wirklich keinen Weg gibt wie verschoben wird auch wenn
+> ich die app nicht öffne"
+
+Die Kalenderdatei oben verschiebt nur, wenn jemand sie neu einliest – und das
+tut niemand jeden Tag. Es gibt aber einen Weg, der auch dann verschiebt, wenn
+die App zu bleibt, und er braucht weder einen Server der App noch OAuth noch
+einen Schlüssel außer Haus.
+
+**Ohne Öffnen der App ändert sich der Plan nur dadurch, dass Tage vergehen.**
+Beim nächsten Öffnen rückt er nach, eine liegen gebliebene Einheit schließt
+sich ab, die Runde rollt weiter, der Zusatztag wird für heute gerechnet. Was die
+App am Tag *d* zeigen würde, steht deshalb schon heute fest – unter der einen
+Annahme, dass bis dahin nicht trainiert wird. Die App rechnet es aus, für jeden
+der nächsten 42 Tage (die *Vorschau*, `js/kalender-vorschau.js`), und schickt
+es an ein kleines Google-Apps-Script in Tobis eigenem Google-Konto. Das Skript
+legt die Vorschau ab und gleicht einen eigenen Kalender „Workout" an: sofort
+und danach jede Stunde mit der Liste für heute (Berliner Zeit). Es rechnet
+nichts selbst, es wählt nur den Tag. Wird trainiert, geht eine neue Vorschau
+hinaus, und die alte ist überholt. Termine stehen um **17:30 Berliner Zeit**,
+30 Minuten vorher kommt die Erinnerung.
+
+In dieser Fassung stehen die Rechnung und der Vertrag mit dem Skript. Die
+Karte unter *Mehr → Kalender*, das Senden und das Skript selbst kommen dazu;
+bis dahin rechnet die App keine Vorschau von sich aus und schickt nichts.
+
+**Keine zweite Rechnung.** Die Vorschau rechnet mit genau den Schritten, mit
+denen die App beim Laden den Tag nachzieht – kein Nachbau, der beim nächsten
+Umbau der Regeln auseinanderliefe. Dafür stehen die Startschritte jetzt in
+`js/tagstart.js` (`tagNachziehen()`), ohne Oberfläche: Umzug eines
+abgeschafften Fokus, Planwechsel und Reparaturen, nachstempeln, Tagesabschluss,
+Runde weiter, nachrücken, Aufstieg, Zusatztag – in der Reihenfolge, die die App
+beim Laden und beim Tageswechsel fährt. Die App ruft dieselbe Funktion und
+hängt nur ihre Anzeige an (Startansicht, Diagnoseprotokoll, das Beenden einer
+liegen gebliebenen Sitzung mit Meldung und Sicherung). Die Termine kommen aus
+`kalenderTermine()` in `js/kalender.js`, derselben Quelle, aus der jetzt auch
+die Kalenderdatei ihre Einheiten nimmt (`kalenderEinheiten()`): jede Einheit an
+ihrem tatsächlichen Tag, mit Titel, Übungsliste und Dauer wie in der Datei. Im
+Kalender „Workout" steht die Einheit so, wie trainiert wird – mit dem Zusatztag
+darin –, die Datei bleibt beim Plan der Einheit, wie bisher.
+
+**Die Kennung** eines Termins ist `<fokus>-<runde>-<n>`, für einen allein
+stehenden Zusatztag `<fokus>-<runde>-z<woche>` – nicht die Nummer allein wie in
+der Datei. Nach dem Rundenende fängt Workout 1 wieder an, und mit derselben
+Kennung hätte der Abgleich das erledigte Workout 1 der alten Runde aus der
+Vergangenheit auf den neuen Tag gezogen.
+
+**Je Tag ein frischer Start.** Jeder Tag der Vorschau beginnt mit dem
+Zustand, den die App jetzt hat (`store.importJSON()`), nicht mit dem des
+Vortags: Der Kalender soll zeigen, was die App beim nächsten Öffnen aus dem
+jetzigen Stand rechnet. Gemessen ist es ohnehin dasselbe – je Tag frisch
+gesät, Tag für Tag fortgeschrieben (die App jeden Tag geöffnet), ein eigener
+Prozess je Tag und die echte App im Browser am Tag *d* ergeben dieselben
+Termine.
+
+**Zu welcher Uhrzeit gerechnet wird.** Um 0:05 – außer, die 3-Stunden-Regel
+des Tagesabschlusses greift später. Wer bis 23:10 trainiert und die Einheit
+liegen lässt, dem schließt die App sie erst ab 2:10 ab; um 0:05 gerechnet, stünde
+sie im Kalender den ganzen nächsten Tag offen, samt der Nacharbeit, die erst
+der Abschluss verteilt. Deshalb max(0:05, letztes Lebenszeichen + 3 h + 1 min),
+höchstens 23:59. Für heute gilt die echte Uhrzeit mit derselben Untergrenze:
+Die Liste für heute gilt im Kalender den ganzen Tag. Die Uhrzeit wirkt nur über
+diese Regel – Nachrücken, Runde und Zusatztag hängen am Tag allein.
+
+**Im Worker, nie im Fenster.** Im Fenster der App teilten sich die Rechenmodule
+den Zustand mit ihr, und das Neusäen je Tag ersetzte das echte Training. Ein
+Modul-Worker (`js/kalender-worker.js`) lädt dieselben Dateien als eigene
+Instanzen, ohne Seite und ohne echten Speicher; die Vorschau ersetzt dort den
+Speicher durch eine Map und die Uhr durch eine Unterklasse von `Date`, bevor
+sie die Module lädt. Im Fenster bricht sie ab, bevor sie etwas anfasst. Ein
+Leerlauf-Rückruf im Fenster wäre kein Ersatz: Er verteilt die Last, trennt aber
+den Zustand nicht. Gemessen am Rechner: 42 Tage in Chromium im Worker 220–255 ms
+beim ersten Mal (mit dem Laden der Module), 115–155 ms danach; in Node
+0,3–0,4 s mit dem Laden, rund 0,2 s danach. Am Handy ist es nicht gemessen und dürfte ein Mehrfaches sein – im
+Worker steht die Oberfläche dabei nicht still. Dabei fiel ein alter Fehler auf:
+`js/figure.js` startete seine Bildschleife überall, wo es
+`requestAnimationFrame` gibt – auch im Worker, der kein `document` hat. Sie
+startet jetzt nur mit Seite.
+
+#### Der Vertrag zwischen App und Skript
+
+Er steht vollständig im Kopf von `js/kalender-vorschau.js`; die Regeln, die
+beide Seiten auswerten, stehen dort als Funktionen (`nutzlastPruefen()`,
+`sendungVergleichen()`, `vorschauFuer()`), damit das Skript sie Zeile für Zeile
+übernimmt. Kurz:
+
+* **Die Sendung** ist ein einfacher POST an die Web-App-Adresse (`…/exec`),
+  Body JSON, Content-Type `text/plain;charset=utf-8`, keine eigenen Header.
+  Apps Script beantwortet kein `OPTIONS`; jede andere Form löste einen
+  Preflight aus und käme nie an. Sie ist idempotent – zweimal geschickt ändert
+  beim zweiten Mal nichts.
+* **Die Felder:** `v` (1), `token`, `geraet`, `seq`, `gesendet`, `app`,
+  `minuten` (Beginn in Minuten nach Mitternacht, Europe/Berlin, Standard 1050 =
+  17:30), `erinnerung` (Minuten vorher, Standard 30), `ab`, `fenster`
+  (`[7, 28]`: je Tag die Termine von 7 Tagen davor bis 28 danach), `stand`
+  (`{einheiten, saetze, zuletzt}`), `texte` (jeder Titel samt Übungsliste
+  einmal, unter einem kurzen Hash) und `tage` (je Tag
+  `[kennung, datum, dauer, hash, fertig]`). Die Uhrzeit rechnet das Skript
+  selbst aus Tag und Minuten in Europe/Berlin – so stimmt sie über die
+  Zeitumstellung hinweg. Dazu zwei Sonderformen: `probe` („Verbinden", nur
+  antworten) und `aus` („Abschalten").
+* **Wer gilt**, wenn zwei Geräte senden: dasselbe Gerät mit der späteren
+  Sendung immer; ein anderes nur, wenn es *zuletzt trainiert* hat, bei
+  gleichem Lebenszeichen mit mindestens so vielen Einheiten und Sätzen. Nicht
+  „die neueste Sendung gewinnt" – ein Tablet, das zwei Wochen in der Schublade
+  lag, rückt beim Öffnen nach, sendet frisch und hätte den Kalender des Handys
+  überschrieben, mit dem seitdem trainiert wird. Ein neues Handy braucht
+  dafür keinen Knopf: Mit dem ersten Satz dort hat es zuletzt trainiert.
+* **Welcher Tag gilt:** die Liste für heute (Berlin), sonst die letzte davor.
+  Nach sechs Wochen ohne neue Sendung ist die Vorschau aufgebraucht; das Skript
+  verschiebt dann nichts mehr und sagt es.
+* **Was das Skript mit der Liste macht:** je Eintrag ein Termin, wiedergefunden
+  über die Kennung, bei *fertig* mit „✓" vor dem Titel und ohne Erinnerung. Ein
+  eigener Termin, dessen Kennung fehlt (`bleibtStehen()`), kommt weg, wenn er
+  heute oder später liegt – die Einheit ist dort leer, weil ein Termin alles
+  schont, oder ein unberührter Zusatztag steckt jetzt in der Einheit des Tages.
+  Vor heute bleibt er nur stehen, wenn er zu einer anderen Runde oder einem
+  anderen Fokus gehört als die Liste: Verlauf, etwa die letzte Einheit einer
+  abgelegten Runde, denn die Liste kennt nur die laufende. Aus der laufenden
+  Runde fehlt in der Vergangenheit nur, was nie gemacht wurde – ein
+  Zusatztag, der an Ruhetagen allein stand und dann in eine Einheit wanderte;
+  der kommt weg. Termine ohne Kennung fasst das Skript nicht an.
+* **Die Antwort** ist immer JSON, auch bei jedem Fehler: `ok`, `code`,
+  `version`, `kalender` und mehr – sonst sähe die App nur einen CORS-Fehler.
+  Ob sie am Handy lesbar ist (Weiterleitung über
+  `script.googleusercontent.com`), ist erst in Tobis Konto zu prüfen; die App
+  darf sich nicht darauf verlassen.
+
+**Größe.** Eine Vorschau über 42 Tage ist an Tobis Stand und den Fällen unten
+32,6–35,4 KiB groß (gzip rund 3,5 KiB), 17–27 verschiedene Texte. Das passt
+unter die 64 KiB, bis zu denen ein Browser beim Wegschalten noch sendet
+(`keepalive`), mit über 40 % Luft. Mit Uhrzeiten als ISO-Text je Eintrag
+wären es gut 70 KiB gewesen; deshalb nur Tag und Dauer, die Uhrzeit einmal.
+
+**Geprüft** in `tests/test-kalender-vorschau.mjs` an Tobis Stand vom Do 08.10.
+und an daraus gebauten Fällen: verpasst bis Mo 12.10. und über die
+Zeitumstellung bis Mo 26.10., Workout 9 liegen geblieben (Abschluss am Sa,
+nachgerückt bis Mi), bis 23:10 trainiert und über Mitternacht bis 0:20, ein
+Bouldern-Termin, das Rundenende 84/84 (auch im Tagesabschluss), ein Turnier,
+das alles schont, der Zusatztag allein an Ruhetagen und danach in der Einheit,
+ein Zusatztag, der an einem eigenen Tag gemacht wurde, ein Start mit
+Planumbau, ein Gerät mit anderem Fokus. Die Liste jedes geprüften Tages ist
+dieselbe wie die der echten App, im Browser an genau diesem Tag zur selben
+Uhrzeit geöffnet (15 Tage), wie die eines eigenen Prozesses (20 Tage) und wie
+die fortgeschriebene (sieben Fälle über je 42 Tage); der Worker rechnet Byte
+für Byte dasselbe wie Node. Gegen die App von v244
+(vor dem Umzug der Startschritte) gemessen: 49 Tage in zwölf Fällen, keine
+Abweichung. Die Kalenderdatei ist wortgleich wie bis v244, auch in dem, was
+sie absagt.
+
+**Grenzen, ehrlich.** Was nicht gesendet wurde, gilt als nicht trainiert: Wer
+ohne Netz trainiert und die App danach nicht mehr mit Netz öffnet, dem
+verschiebt der Kalender fälschlich, bis die nächste Sendung kommt. Die
+Vorschau reicht sechs Wochen. Die App rechnet in der Ortszeit des Handys, der
+Kalender in Berliner Zeit – auf Reisen in einer anderen Zeitzone kann der
+Tageswechsel abweichen. Und Google sieht, was im Kalender steht: Titel,
+Übungen, Zeiten – in Tobis eigenem Konto, sonst nirgends.
 
 ## Übungsvorrat
 
@@ -3426,6 +3590,10 @@ js/stufen.js            Erfahrungsstufen: Startgewichte, Sätze, Aufstieg
 js/gewichte.js          Arbeitsgewichte und die Reihenfolge beim Umbauen
 js/plan.js              Termine, Übungen je Einheit, Nacharbeit, Fortschritt
 js/bilanz.js            Was insgesamt geleistet wurde, über Runden hinweg
+js/tagstart.js          Den Tag nachziehen: was die App beim Laden und beim Tageswechsel am Zustand weiterschreibt
+js/kalender.js          Die Termine, wie ein Kalender sie zeigen soll (Kalenderdatei und Kalender „Workout")
+js/kalender-vorschau.js Was die App an jedem der nächsten 42 Tage zeigen würde – und der Vertrag mit dem Skript
+js/kalender-worker.js   Der Modul-Worker, in dem die Vorschau rechnet
 js/scheiben.js          Welche Gewichte sich aus Stange und Scheiben bauen lassen
 js/supersatz.js         Welche Übungen sich zum Supersatz paaren
 js/vorrat.js            Was gerade da ist, und der Ersatz für das, was fehlt
@@ -3573,6 +3741,17 @@ der Oberfläche braucht, bekommt sie ihn als Argument (`vorratKarte(seite)`,
 | `js/ansicht-scheiben.js` | Stangen und Scheiben | 207 |
 | `js/ansicht-vorrat.js` | was da ist, und die Übungsübersicht | 264 |
 | `js/ansicht-statistik.js` | die Karten der Statistik | 292 |
+
+Am 26.10. (v245) folgten **die Startschritte des Tages** – nicht aus
+Ordnungsliebe, sondern weil der Kalender sie ohne Oberfläche braucht (siehe
+*Google Kalender automatisch*): `js/tagstart.js` mit `tagNachziehen()`, 1530
+Zeilen, `js/app.js` 10719 → 9381. Wortgleich verschoben bis auf die Stellen, an
+denen die Anzeige mitging; die heißen jetzt Anschlüsse
+(`tagstartAnschliessen()`: Diagnoseprotokoll, das Beenden einer liegen
+gebliebenen Sitzung mit Meldung und Sicherung, die Startansicht). Ohne
+Anschluss rechnet derselbe Code still – so in der Vorschau. Die 18 Testdateien,
+die Start, Tageswechsel, Nachrücken, Zusatztag und Kalender berühren, liefen
+vor und nach dem Umzug mit denselben 1211 Prüfungen grün.
 
 **Was bleibt, und warum es vorerst bleibt.** Hier stand am 08.09.: „`js/app.js`
 hat noch 4571 Zeilen … weiter zerlegen ist mehr Maschinerie, als es einbringt."

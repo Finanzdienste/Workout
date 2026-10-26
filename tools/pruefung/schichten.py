@@ -114,8 +114,34 @@ for datei in gelistet:
 sw = (ROOT / 'sw.js').read_text(encoding='utf-8')
 shell = re.search(r'const SHELL = \[(.*?)\];', sw, re.S)
 im_cache = set(re.findall(r"'\./js/([\w.-]+)'", shell.group(1))) if shell else set()
+
+# Der Worker der Kalender-Vorschau laedt an app.js vorbei: js/kalender-worker.js
+# importiert js/kalender-vorschau.js, und das holt die Rechenmodule erst beim
+# ersten Rechnen per import() - vorher muss der Speicher ersetzt sein. Fuers
+# Buendel zaehlt er nicht (dist/workout.html startet keinen Worker aus einer
+# Datei), fuer den Zwischenspeicher schon: Ohne Netz fehlte die Vorschau
+# sonst genau nach dem Training im Studio.
+DYN_RE = re.compile(r"import\(\s*'\./([\w.-]+)'\s*\)")
+WORKER = 'kalender-worker.js'
+im_worker = set()
+
+
+def sammle_worker(d):
+    if d in im_worker or d not in graph:
+        return
+    im_worker.add(d)
+    src = re.sub(r'/\*.*?\*/', '', (JS / d).read_text(encoding='utf-8'), flags=re.S)
+    for z in graph[d] + DYN_RE.findall(src):
+        if z not in graph:
+            fehler.append(f'{d} laedt {z} - die Datei gibt es nicht')
+        sammle_worker(z)
+
+
+if WORKER in graph:
+    sammle_worker(WORKER)
+
 # ics.js wird erst beim Kalenderexport geladen, liegt aber trotzdem im Vorrat.
-fehlt = sorted(erreichbar - im_cache)
+fehlt = sorted((erreichbar | im_worker) - im_cache)
 if fehlt:
     fehler.append('nicht in SHELL (sw.js): ' + ', '.join(fehlt))
 
@@ -128,3 +154,5 @@ if fehler:
 print(f'{len(dateien)} Module, keine Kreise.')
 print(f'Buendel und Zwischenspeicher kennen alle {len(erreichbar)}, die von app.js aus '
       'erreichbar sind.')
+if im_worker:
+    print(f'Der Zwischenspeicher kennt auch alle {len(im_worker)}, die der Kalender-Worker laedt.')

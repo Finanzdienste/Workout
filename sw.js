@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v244';
+const VERSION = 'v245';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -61,6 +61,13 @@ const SHELL = [
   './js/aktivitaeten.js',
   './js/plan.js',
   './js/bilanz.js',
+  './js/tagstart.js',
+  './js/kalender.js',
+  // Die Vorschau des Kalenders rechnet in einem eigenen Worker, an app.js
+  // vorbei (tools/pruefung/schichten.py prüft ihn eigens). Ohne Netz fehlte
+  // sie sonst genau dann, wenn die Vorschau nach dem Training raus soll.
+  './js/kalender-vorschau.js',
+  './js/kalender-worker.js',
   './icon.svg',
   './badge.svg',
   // Das kleine Symbol der Meldungen. Eigene Datei, weil Android den `badge`

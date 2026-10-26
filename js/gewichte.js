@@ -387,7 +387,7 @@ export function ruestOrder(items) {
  * nichts – die Stange bleibt ja geladen.
  *
  * Gebraucht, wenn ein Zusatztag in eine Einheit eingefügt wird (zusatztagEx()
- * in js/app.js): Bei gleichem Nutzen gewinnt die Übung, die keinen weiteren
+ * in js/tagstart.js): Bei gleichem Nutzen gewinnt die Übung, die keinen weiteren
  * Umbau kostet.
  */
 export function ruestSchritte(items) {
