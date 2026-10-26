@@ -22,10 +22,14 @@ nur auf Tipp unter *Mehr → Daten* als Textdatei weiter.
 > (`tests/test-sd-*.mjs`); sie teilt mit dieser App nur die Grundsätze und
 > die Testumgebung.
 >
-> **Und noch eine:** [`freizeit/`](freizeit/README.md) – was in Hamburg und
-> Umgebung diese Woche los ist, die Konzerte der eigenen Künstler und eine
-> Merkliste. Die Daten schreiben zwei geplante Läufe (montags und samstags)
-> nach `freizeit/daten/`; Tests unter `tests/test-fz-*.mjs`.
+> **Umgezogen:** Die Freizeit-App (was in Hamburg los ist, Konzerte,
+> Merkliste) hat ein eigenes Repository,
+> [Finanzdienste/Freizeit](https://github.com/Finanzdienste/Freizeit), und
+> läuft unter <https://finanzdienste.github.io/Freizeit/>. Als Ordner hier
+> rechnete Android sie der installierten Workout-App zu und installierte sie
+> nicht als eigene App. `freizeit/index.html` leitet nur noch weiter; die
+> Ausnahme für `/freizeit` in `sw.js` sorgt dafür, dass der Workout-Worker
+> diese Weiterleitung nicht überdeckt.
 
 ## Tabs
 
