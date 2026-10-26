@@ -5906,7 +5906,7 @@ fielen gleichzeitig um, die Ursache war eine Zeile Reihenfolge.
 wichtigste: dass **nichts** passiert, wenn alles normal läuft. Gegengeprüft –
 nimmt man die Nacharbeit heraus, fallen drei Prüfungen um.
 
-### Liegen geblieben: am nächsten Tag abgeschlossen (v241)
+### Liegen geblieben: am nächsten Tag abgeschlossen (v241, ohne Wahl seit v243)
 
 > „Wieso steht da samstag? Heute ist Sonntag"
 
@@ -5923,6 +5923,25 @@ Zusatztag wartet, bis ihre Woche abgeschlossen ist.
 Zugesagt war: *„Ab dem nächsten Tag wird eine liegengebliebene Einheit
 automatisch mit dem abgeschlossen, was steht. Oben steht dann eine Zeile dazu
 und ein Knopf ‚Rest heute machen', falls du doch willst."*
+
+**Ohne Wahl (v243).** Unter der Zeile standen „Rest heute machen" und „OK".
+Tobi fragte zuerst: *„Was ist der Unterschied zwischen ok und Rest heute
+machen?"* – „OK" blendete nur aus, man blieb im Rhythmus, und ein Teil des
+Fehlenden kam per Zusatz in die nächste Einheit (höchstens zwei Übungen), der
+Rest entfiel; „Rest heute machen" holte alles nach, und der Plan rutschte einen
+Tag. Empfohlen war „OK". Dann:
+
+> „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von selbst
+> einfach das optimale passieren"
+
+Eine Wahl, deren eine Seite die empfohlene ist, ist keine – also trifft die App
+sie selbst: Sie bleibt im Rhythmus, und was fehlt, verteilen Nacharbeit und
+Zusatztag wie bisher. Beide Knöpfe sind weg, es gibt keine Rückfrage und nichts
+zum Wegtippen. Damit das nicht unbemerkt geschieht, bleibt die Zeile als
+Auskunft – was passiert ist und wohin der Rest geht – und geht von selbst
+(unten, *Die Zeile*). Wer doch in die Einheit zurück will, blättert zu ihr:
+Dort steht leise „Doch noch weitermachen", mit denselben Sicherungen, die der
+Knopf hatte (unten, *Zurück in die Einheit*).
 
 **Was jetzt gilt.** Eine Planeinheit, die an einem früheren Tag angefangen
 wurde, nicht abgeschlossen ist, mindestens zwei abgehakte Sätze hat und seit
@@ -5966,14 +5985,15 @@ Sitzung, deren Uhr gestern gestartet war, auf dem Dashboard (oben, *Zurück in
 der App*). Im Kopf steht dann „Gestern angefangen · Workout 12" statt
 „Gestern · Workout 12" über einem Samstag, an dem man gerade sitzt – das war
 genau das Bild aus Tobis Frage. Für eine abgeschlossene Einheit von gestern
-bleibt es bei „Gestern" – außer, an ihr wird heute weiter trainiert („Rest heute
-machen", unten).
+bleibt es bei „Gestern" – außer, an ihr wird heute weiter trainiert („Doch noch
+weitermachen", unten).
 
 **Der Tag einer Sitzung ist der Tag, an dem auf Start getippt wurde** (`clock.on`),
 nicht der ihrer Einheit. Liegen geblieben ist eine Sitzung erst ab dem nächsten
 Tag; nach drei Stunden Mittagessen am selben Tag läuft sie weiter wie jede
 andere. Bis zur Nachbesserung zählte der Tag der Einheit: „Rest heute machen"
-um 10:00, ein Satz, um 13:30 zurück – die Sitzung war still beendet, die
+(heute „Doch noch weitermachen") um 10:00, ein Satz, um 13:30 zurück – die
+Sitzung war still beendet, die
 Fokusansicht weg. Und ihre Einheit bleibt so lange offen: Wer am Sonntag um
 0:10 eine Einheit vom Samstag fortsetzt, trainiert heute an ihr. Am Montag
 liegt die Sitzung seit gestern, dann endet sie, und die Einheit schließt ab –
@@ -6006,7 +6026,7 @@ Workout 12" da, am Mittwoch „vor 4 Tagen".
 | Lage | Zeile |
 | --- | --- |
 | Sonntag, Workout 12 vom Samstag; der Zusatztag kommt morgen in Workout 13 | „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15 Sätzen. Von den 11 offenen Sätzen kommen morgen 3 in Workout 13 mit rein." |
-| derselbe Montag, nicht weggetippt | „… Von den 11 offenen Sätzen kommen heute 3 in Workout 13 mit rein." |
+| derselbe Montag, der Tag danach | „… Von den 11 offenen Sätzen kommen heute 3 in Workout 13 mit rein." |
 | Tobis Woche: in Workout 9 fehlen zwei Sätze, Workout 12 trägt sie (17 Sätze) | „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen. Von dem, was in Woche 3 liegen blieb, kommen morgen 3 Sätze in Workout 13 mit rein." |
 | Donnerstag (frei), Workout 10 vom Mittwoch | „✓ Workout 10 vom Mittwoch ist abgeschlossen – 3 von 15 Sätzen. Von den 12 offenen Sätzen kommen dazu: morgen +1, Sa +3." |
 | Freitag (Workout 11 ist dran), Workout 10 vom Mittwoch | „… Von den 12 offenen Sätzen kommen dazu: heute +1, morgen +3." |
@@ -6014,26 +6034,48 @@ Workout 12" da, am Mittwoch „vor 4 Tagen".
 | die Woche ist vorbei, der Rest trägt keinen Zusatztag | „… Für einen Zusatztag reicht der Rest nicht – er entfällt." |
 | nichts, was sicher wäre | nur der erste Satz |
 
-Darunter „Rest heute machen" und „OK". Die Zeile bleibt, bis „OK" getippt ist,
-„Rest heute machen" oder der erste Eintrag in einer anderen Einheit – auch über
-das Neuladen hinweg (`tagesabschluss` im Zustand). Der Tag steht als
-Wochentag da und nicht als „gestern": Am Montag stimmte „gestern" schon nicht
-mehr. Klein gesetzt, die Knöpfe rechts darunter: Als Kasten wie die anderen
+Kein Knopf darunter (seit v243, oben *Ohne Wahl*) – die Zeile ist eine
+Auskunft, und eine Auskunft, die niemand wegtippen kann, muss von selbst gehen.
+Sie steht auch über das Neuladen hinweg (`tagesabschluss` im Zustand) und geht:
+
+| Ende | warum |
+| --- | --- |
+| der erste Eintrag in einer anderen Einheit | die nächste ist angefangen – gesehen, und die Zeile hat ausgedient |
+| ein Eintrag in einer Einheit der Zeile – weitergemacht, nachgetragen –, oder ihr Zurücksetzen | was die Zeile über sie sagt („4 von 15 Sätzen", „ist abgeschlossen"), stimmt dann nicht mehr; wer dort einträgt, weiß, wie es um sie steht. Stehen zwei Einheiten in der Zeile, geht nur diese heraus (`abschlussOhne()`) |
+| ein neuer Tagesabschluss | er ersetzt sie |
+| der übernächste Tag | `ABSCHLUSS_ZEILE_TAGE` = 2: am Tag des Abschlusses und am Tag danach. Der Abschluss kommt oft an einem Ruhetag (Sonntag, Workout 12 vom Samstag), und am Tag danach sagt die Zeile, was in die Einheit von heute kommt. Vergeht auch der ohne Training, ist es keine Neuigkeit mehr – was nachgeholt wird, steht dann an den Übungen selbst (die Herkunftszeile) und an einem Ruhetag in der Zeile darunter. Ohne dieses Ende stünde sie ewig: eine Woche später noch „Workout 12 vom Samstag, 24. Oktober ist abgeschlossen". Bei offener App geht sie mit der Uhr um Mitternacht, und der neue Tag räumt sie auch aus dem Zustand (`abschlussAufraeumen()`), damit sie nicht in der nächsten Sicherung mitreist. Eine Zeile aus einer Sicherung, deren Tag in der Zukunft liegt (falsch gehende Uhr am anderen Gerät), steht gar nicht. |
+
+Nach einer weitergerollten Runde – Workout 84 lag, schloss sich ab, und die
+Runde rollte im selben Start weiter – bleibt sie stehen, obwohl das Protokoll
+von Workout 84 jetzt in der Ablage liegt: Sie sagt, warum die Startseite bei
+Workout 1 steht. Sonst zeigt sie eine Einheit nur, solange sie so dasteht, wie
+die Zeile sagt – auf ihrem Tag und abgeschlossen (`abschlussListe()`).
+
+Der Tag steht als Wochentag da und nicht als „gestern": Am Montag stimmte
+„gestern" schon nicht mehr. Klein gesetzt: Als Kasten wie die anderen
 Hinweise, mit voller Knopfreihe, war sie bei 360×740 129 px hoch und schob
-Start und Fuß 52 px unter die Leiste. Jetzt sind es 106 px, die Körperkarte
-gibt an dem Tag Höhe ab, und die Startseite bleibt eine Seite – gemessen am
-Sonntag und am Montag, wenn Workout 13 mit dem Zusatz länger ist. Nur nicht
-zusammen mit der stillen Zeile zum Ton (aus dem Gegenlesen von v241): Nach
-einer Nacht im Speicher klemmt auf dem iPhone der Tonkanal, und mit beiden
-Zeilen lag der Fuß bei 360×740 78 px (Sonntag) bzw. 111 px (Montag) unter der
-Leiste – mit der Zeile zum Ton allein, vier Zeilen und 116 px, noch 35 bzw.
-45 px. Auf der Startseite hat seit v242 die Zeile zum Abschluss Vorrang; ihr
-„OK" ist ohnehin die nächste Berührung, und die weckt den Kanal. Klemmt er
-danach noch, steht die Zeile zum Ton da, kurz und klein gesetzt (52 px: *Töne
-kommen gerade nicht. Bleibt es stumm, App neu öffnen – Mehr → Töne und
-Hinweise*), und die Seite bleibt eine Seite. Den ganzen Satz zeigen weiter die
-Fokusansicht und die Liste. Die Körperkarte gibt auch für diese Zeile Höhe ab:
-Am Samstag selbst, Workout 12 angefangen – Fortschritt, „Training
+Start und Fuß 52 px unter die Leiste; mit den kleinen Knöpfen rechts darunter
+(bis v242) 106 px, ohne Knöpfe sind es 69 px, drei Zeilen bei 360 und bei 414
+px Breite. „4 von 15 Sätzen" und „Workout 13" brechen nicht mehr um – bei 360
+px stand „– 4" am Zeilenende und „von 15 Sätzen" darunter, bei 414 px „4 von
+15" und „Sätzen". Die Körperkarte gibt an diesen Tagen Höhe ab, und die
+Startseite bleibt eine Seite – gemessen am Sonntag und am Montag, wenn Workout
+13 mit dem Zusatz länger ist. Nur nicht zusammen mit der stillen Zeile zum Ton (aus dem
+Gegenlesen von v241): Nach einer Nacht im Speicher klemmt auf dem iPhone der
+Tonkanal, und mit beiden Zeilen lag der Fuß bei 360×740 78 px (Sonntag) bzw.
+111 px (Montag) unter der Leiste – mit der Zeile zum Ton allein, vier Zeilen
+und 116 px, noch 35 bzw. 45 px. Auf der Startseite hat seit v242 die Zeile zum
+Abschluss Vorrang. Bis v242 war ihr „OK" ohnehin die nächste Berührung, und die
+weckte den Kanal; seit v243 steht sie ohne Knopf womöglich zwei Tage, und auch
+ohne Knöpfe passen beide am Montag bei 360×740 nicht zusammen (die Seite schob
+sich 24 px). Gebraucht wird der Ton im Training, und dort steht er: Klemmt der
+Kanal nach dem Tipp auf Start noch, zeigen die Fokusansicht und die Liste den
+ganzen Satz. Ist die Zeile zum Abschluss weg, steht die zum Ton auch auf der
+Startseite, kurz und klein gesetzt (52 px: *Töne kommen gerade nicht. Bleibt es
+stumm, App neu öffnen – Mehr → Töne und Hinweise*), und die Seite bleibt eine
+Seite – gemessen am Sonntag nach einem nachgetragenen Satz und am Dienstag.
+Die Körperkarte gibt auch für diese Zeile Höhe ab: Am Samstag selbst, Workout
+12 angefangen – Fortschritt, „Training
 fortsetzen", „Als trainiert markieren" –, lag der Fuß mit der kurzen Zeile
 allein sonst noch 13 px unter der Leiste. Gemessen bei 360×740 am Samstag,
 Sonntag und Montag. Nicht gelöst und unabhängig vom Ton: Eine angefangene
@@ -6067,12 +6109,25 @@ dort offen.
 **Keine Zahl zweimal.** Was die Zeile oben sagt, lässt die Zeile am Ruhetag
 weg – am Sonntag stand sonst „Von den 11 offenen Sätzen kommen morgen 3 in
 Workout 13 mit rein." über „Heute frei. Aus Woche 3 kommt dazu: morgen +3.".
-Nach dem „OK" steht es wieder unten.
+Ist die Zeile oben weg, steht es wieder unten.
 
-**„Rest heute machen"** geht denselben Weg wie „Doch noch weitermachen":
-Start, Fokusansicht, bei der Übung, die dran ist. Die Einheit bleibt auf ihrem
-Tag (`startedOn`) – im Kalender und in der Statistik steht sie am Samstag, auch
-mit dem Rest vom Sonntag, wie ein Training über Mitternacht. Ehrlich
+**Zurück in die Einheit.** Bis v242 führte „Rest heute machen" in der Zeile
+hinein; jetzt geht es dorthin, wo jede abgeschlossene Einheit ihren Weg zurück
+hat: zu ihr blättern (vom allein stehenden Zusatztag erst mit ↩ zurück zum
+Plan), „Doch noch weitermachen" – unaufdringlich, nur für den, der dorthin
+blättert. Derselbe Weg wie vorher der Knopf: Start, Fokusansicht, bei der Übung,
+die dran ist. Ihre Karte sagt dabei, was stimmt. Bis v242 stand über jeder
+fertigen Einheit „✓ Für heute durch / … Die nächste Einheit kommt von selbst." –
+auch über Workout 12 vom Samstag, das sich am Sonntagmorgen selbst
+abgeschlossen hatte, unter „Gestern · Workout 12", und über jeder ganz
+gemachten Einheit von früher. Jetzt heißt es „Für heute durch" nur, wenn heute
+an ihr trainiert wurde (an ihrem Tag oder danach mit „Doch noch weitermachen",
+`store.trainiertAm()`); sonst „✓ Abgeschlossen" mit den Sätzen und der Zeit,
+ohne den Satz über die nächste Einheit – die ist längst gekommen.
+
+Die Einheit bleibt dabei auf ihrem Tag (`startedOn`) – im Kalender und in der
+Statistik steht sie am Samstag, auch mit dem Rest vom Sonntag, wie ein
+Training über Mitternacht. Ehrlich
 nachgesehen, was das sonst hieße: Überall, wo die App fragt „heute schon
 trainiert?", stand der Sonntag danach als frei da – die Zeile „Heute frei", ein
 Zusatztag als nächste Einheit für heute (`naechsteEinheit()`, `zusatzLage()`,
@@ -6153,6 +6208,29 @@ in 9, die das neue Feld prüfen. 17c – Unsinn und ein Wert aus der Zukunft im
 neuen Feld – ist dort grün, weil 87e4cd1 das Feld nicht liest; es wacht über
 das neue. Gegen den ersten Stand von v242 (1e98686) ist eine rot: der Samstag
 bei 360×740.
+
+Ohne Wahl (v243) ging, was über „Rest heute machen" in die Einheit führte,
+über das Blättern und „Doch noch weitermachen" (3, 8e, 11, 12, 13) – mit
+denselben Sicherungen, und die Karte heißt dabei „Abgeschlossen". Neu geprüft:
+keine Knöpfe in der Zeile (2, 4, 19, 20); die Enden – über das Neuladen bleibt
+sie, am Montag steht sie, am Dienstag ist sie weg, auch ohne Neuladen um
+Mitternacht und auch aus dem Zustand; eine Woche alt oder aus der Zukunft
+steht sie nie; Zurücksetzen nimmt sie weg, ein neuer Tagesabschluss ersetzt
+sie (4); ein Satz in der Einheit nimmt sie weg (3, 3b), bei zwei Einheiten nur
+die eine (19); nach der weitergerollten Runde bleibt sie, bis Workout 1
+angefangen ist (20); die Zeile zum Ton kommt, wenn sie weg ist (2b, Sonntag
+und Dienstag); die Karte einer Einheit von gestern (18) – 192 Prüfungen in
+zwanzig Abschnitten. Gegen 6b533af (v242) sind 27 rot, verteilt auf 2, 2b, 3,
+3b, 4, 8d, 8e, 11, 12, 18, 19 und 20; nichts bricht ab. Beim Nachstellen
+fielen zwei Dinge am Test selbst auf: Ein nachgetragener Satz startet die
+Pause, und ihre Leiste (63 px) wäre in 2b mitgemessen worden – dort wird sie
+mit „Fertig" beendet. Und wer die Uhr umstellt und dann neu lädt (`f.tag()`),
+lässt die alte Seite beim Entladen ein „Zurückkommen" sehen, weil der Test
+`document.hidden` auf „sichtbar" hält: Sie rollte die Runde in 20 selbst
+weiter, schrieb die Ablage sofort, den Hauptstand aber nicht mehr – und die
+neue Seite rollte noch einmal, zwei gleiche Runden. Mit `document.hidden` wie
+im Browser beim Entladen geschieht das nicht; 20 öffnet die App deshalb gleich
+am nächsten Tag.
 
 `tests/test-fortsetzen.mjs` (Fall 3 und 10) erwartete, dass eine Sitzung von
 gestern auf dem Dashboard wartet; das ist auf Zuruf anders und dort mit
@@ -7223,7 +7301,7 @@ Eine Zeile je Ereignis, an der Stelle, an der es passiert (`notieren()` in
 | `pause` | Start, Auflegen (Ton ja/nein, Hinweis über Worker/Seite/aus), Ablauf (wie viel zu spät) oder Abbruch (wie viel noch übrig war) mit dem, was `endRest()` entschied, weg, +30 s, Hinweis der Seite gezeigt oder gescheitert (mit Grund), Wakelock abgelehnt |
 | `satz` | ein Haken: Einheit, Modus, Übung, Satz („satz=2 von=3", gezählt wie in der Pausen-Zeile), was danach kam (Übung fertig, Einheit fertig, Supersatz, Pause) – oder abgelehnt, weil schon fertig |
 | `einheit` | Start, Abschließen, Ende (Dauer, liegen geblieben, Aufstieg), verworfen, zurückgesetzt, markiert, alles abgehakt, Uhr gedeckelt |
-| `tag` | Tagesabschluss (welche Einheiten mit wie vielen Sätzen, welche Sitzung, wie lange still), Nachrücken, Nachziehen beim Zurückkommen, die Uhr um Mitternacht |
+| `tag` | Tagesabschluss (welche Einheiten mit wie vielen Sätzen, welche Sitzung, wie lange still), seine Zeile abgelaufen, Nachrücken, Nachziehen beim Zurückkommen, die Uhr um Mitternacht |
 | `plan` / `zusatz` / `nach` | Umzug, Umbau, Fokus, Neustart, Runde weiter oder zurück, Vorziehen, Aufstieg, Zusatztag, Nacharbeit festgehalten |
 | `schalter` | Töne, Satz-Tupfer, Hinweise, Supersatz, Teilen, Stufe, Pause, Modus, Fokus, Aufwärmen, Sicherung – von, nach |
 | `datei` | Sicherung teilen, herunterladen, Export, Import |

@@ -209,7 +209,7 @@ export function ausfallTage(heute = todayISO()) {
       trainiert.add(tag);
       anker.push({ tag, n: Number(k), v, vi });
       // Der Rest einer abgeschlossenen Einheit, an einem späteren Tag gemacht
-      // („Rest heute machen", `weiterAm` in js/store.js): An dem Tag wurde
+      // („Doch noch weitermachen", `weiterAm` in js/store.js): An dem Tag wurde
       // trainiert – verschoben, nicht ausgefallen. Ein Anker ist er nicht, der
       // Rhythmus läuft weiter ab dem Tag der Einheit.
       if (TAG.test(e.weiterAm || '') && e.weiterAm > tag) trainiert.add(e.weiterAm);
@@ -364,8 +364,9 @@ export const ABSCHLUSS_AB = 2;
  * **Der Tag einer Sitzung ist der ihrer Uhr** (`clock.on`, startSession() in
  * js/store.js) – der Tag, an dem auf Start getippt wurde. Erst ohne Uhr der
  * Tag ihrer Einheit. Bis zur Nachbesserung war es umgekehrt, und „Rest heute
- * machen" hatte eine Sitzung von heute auf einer Einheit vom Samstag: Nach
- * drei Stunden Mittagessen war sie um 13:30 still beendet, die Fokusansicht
+ * machen" (bis v242; jetzt „Doch noch weitermachen" auf der Einheit) hatte
+ * eine Sitzung von heute auf einer Einheit vom Samstag: Nach drei Stunden
+ * Mittagessen war sie um 13:30 still beendet, die Fokusansicht
  * weg, kein Wort – jede andere Sitzung von heute läuft nach einer langen
  * Pause weiter. Liegen geblieben ist eine Sitzung erst ab dem nächsten Tag.
  *

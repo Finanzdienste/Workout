@@ -1297,13 +1297,11 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 .notice.zeile .btn { flex: none; padding: 8px 12px; font-size: 13px; }
 
 /* Die Zeile zum Tagesabschluss (abschlussHinweis() in js/app.js): „Workout 12
-   vom Samstag ist abgeschlossen …" mit „Rest heute machen" und „OK". Klein
-   gesetzt und die Knöpfe rechts darunter – als Kasten mit voller Knopfreihe
-   schob sie bei 360×740 Start und Fuß 52 px unter die Leiste. Die Karte gibt
-   dafür an diesem einen Tag etwas Höhe ab. */
+   vom Samstag ist abgeschlossen …". Klein gesetzt – als Kasten mit voller
+   Knopfreihe schob sie bei 360×740 Start und Fuß 52 px unter die Leiste. Seit
+   v243 ohne Knöpfe („Rest heute machen" und „OK" sind weg), nur noch die
+   Auskunft. Die Karte gibt dafür an diesen Tagen etwas Höhe ab. */
 .notice.abschluss { margin: 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
-.abschluss-knoepfe { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
-.abschluss-knoepfe .btn { padding: 6px 12px; font-size: 13px; }
 /* Die stille Zeile zum Ton auf der Startseite (tonHinweis(true) in
    js/app.js): kurz und so klein gesetzt wie die zum Abschluss. In voller Länge
    waren es bei 360×740 vier Zeilen, 116 px, und der Fuß lag unter der Leiste.
