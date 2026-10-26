@@ -2566,7 +2566,7 @@ let abschlussWartet = null;
  * automatisch mit dem abgeschlossen, was steht. Oben steht dann eine Zeile
  * dazu und ein Knopf ‚Rest heute machen', falls du doch willst."
  *
- * Den Knopf gibt es seit v243 nicht mehr, und das „OK" daneben auch nicht:
+ * Den Knopf gibt es seit v244 nicht mehr, und das „OK" daneben auch nicht:
  *
  *     „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von
  *      selbst einfach das optimale passieren"
@@ -3488,7 +3488,7 @@ function renderOverview() {
   // 78 px (Sonntag) bzw. 111 px (Montag) unter der Leiste, die Zeile zum Ton
   // allein (vier Zeilen, 116 px) schob ihn 35 bzw. 45 px darunter. Die Zeile
   // zum Abschluss hat Vorrang. Bis v242 war ihr „OK" ohnehin die nächste
-  // Berührung, und die weckte den Kanal. Seit v243 hat sie keinen Knopf mehr
+  // Berührung, und die weckte den Kanal. Seit v244 hat sie keinen Knopf mehr
   // und steht womöglich zwei Tage; auch ohne Knöpfe (69 px) passen beide am
   // Montag bei 360×740 nicht zusammen, die Seite schob sich 24 px. Gebraucht
   // wird der Ton im Training: Klemmt er nach dem Tipp auf Start noch, zeigen
@@ -3499,7 +3499,7 @@ function renderOverview() {
   // zu Workout 12 zurückgeblättert, stand „4 von 17" dreimal da – in der Zeile,
   // im Fortschritt und auf der Karte („✓ Abgeschlossen / 4 von 17 Sätzen · 20
   // min."), und bei 360×740 schob sich die Seite 41 px, die Reihe „Übungen &
-  // Gewichte" halb unter der Leiste. Gerade diese Karte ist seit v243 der Weg
+  // Gewichte" halb unter der Leiste. Gerade diese Karte ist seit v244 der Weg
   // zurück in die Einheit („Doch noch weitermachen"). Sie sagt selbst, was
   // passiert ist; wohin der Rest geht, steht auf der Startseite. Der Vorrang
   // vor der Zeile zum Ton bleibt auch dort (`hinweis`): Mit ihr allein schob

@@ -5915,7 +5915,7 @@ fielen gleichzeitig um, die Ursache war eine Zeile Reihenfolge.
 wichtigste: dass **nichts** passiert, wenn alles normal läuft. Gegengeprüft –
 nimmt man die Nacharbeit heraus, fallen drei Prüfungen um.
 
-### Liegen geblieben: am nächsten Tag abgeschlossen (v241, ohne Wahl seit v243)
+### Liegen geblieben: am nächsten Tag abgeschlossen (v241, ohne Wahl seit v244)
 
 > „Wieso steht da samstag? Heute ist Sonntag"
 
@@ -5933,7 +5933,7 @@ Zugesagt war: *„Ab dem nächsten Tag wird eine liegengebliebene Einheit
 automatisch mit dem abgeschlossen, was steht. Oben steht dann eine Zeile dazu
 und ein Knopf ‚Rest heute machen', falls du doch willst."*
 
-**Ohne Wahl (v243).** Unter der Zeile standen „Rest heute machen" und „OK".
+**Ohne Wahl (v244).** Unter der Zeile standen „Rest heute machen" und „OK".
 Tobi fragte zuerst: *„Was ist der Unterschied zwischen ok und Rest heute
 machen?"* – „OK" blendete nur aus, man blieb im Rhythmus, und ein Teil des
 Fehlenden kam per Zusatz in die nächste Einheit (höchstens zwei Übungen), der
@@ -6043,7 +6043,7 @@ Workout 12" da, am Mittwoch „vor 4 Tagen".
 | die Woche ist vorbei, der Rest trägt keinen Zusatztag | „… Für einen Zusatztag reicht der Rest nicht – er entfällt." |
 | nichts, was sicher wäre | nur der erste Satz |
 
-Kein Knopf darunter (seit v243, oben *Ohne Wahl*) – die Zeile ist eine
+Kein Knopf darunter (seit v244, oben *Ohne Wahl*) – die Zeile ist eine
 Auskunft, und eine Auskunft, die niemand wegtippen kann, muss von selbst gehen.
 Sie steht auch über das Neuladen hinweg (`tagesabschluss` im Zustand) und geht:
 
@@ -6067,7 +6067,7 @@ Und sie tritt zurück, wo sie sich selbst widerspräche:
 | wo | warum |
 | --- | --- |
 | solange auf einer ihrer Einheiten eine Sitzung läuft | „Doch noch weitermachen" getippt, ohne Haken zurück: Oben stand „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 17 Sätzen.", direkt darunter „Gestern angefangen · Workout 12" mit „✓ Training abschließen (4/17)"; am Nachmittag neu geöffnet über „Workout 12 läuft noch.", und bei 360×740 schob sich die Seite 14 px. Bis v242 nahm „Rest heute machen" die Zeile beim Tipp weg. Jetzt ist sie weg, solange an der Einheit trainiert wird; der erste Haken nimmt sie ganz, und endet die Sitzung ohne einen, steht sie wieder da – der Tipp allein hat nichts geändert |
-| auf der Karte einer Einheit, von der sie spricht | am Sonntag zu Workout 12 zurückgeblättert, stand „4 von 17" dreimal da – in der Zeile, im Fortschritt, auf der Karte („✓ Abgeschlossen / 4 von 17 Sätzen · 20 min.") –, und bei 360×740 schob sich die Seite 41 px (am Montag 24), die Reihe „Übungen & Gewichte" halb unter der Leiste. Gerade diese Karte ist seit v243 der Weg zurück. Sie sagt selbst, was passiert ist; wohin der Rest geht, steht auf der Startseite. Zweimal steht die Zahl dort weiter, im Fortschritt und auf der Karte – wie über jeder abgeschlossenen Einheit, das ist hier nicht angefasst. Die Zeile zum Ton kommt dort trotzdem nicht (unten): Mit ihr allein schob sich die Karte um 8 px |
+| auf der Karte einer Einheit, von der sie spricht | am Sonntag zu Workout 12 zurückgeblättert, stand „4 von 17" dreimal da – in der Zeile, im Fortschritt, auf der Karte („✓ Abgeschlossen / 4 von 17 Sätzen · 20 min.") –, und bei 360×740 schob sich die Seite 41 px (am Montag 24), die Reihe „Übungen & Gewichte" halb unter der Leiste. Gerade diese Karte ist seit v244 der Weg zurück. Sie sagt selbst, was passiert ist; wohin der Rest geht, steht auf der Startseite. Zweimal steht die Zahl dort weiter, im Fortschritt und auf der Karte – wie über jeder abgeschlossenen Einheit, das ist hier nicht angefasst. Die Zeile zum Ton kommt dort trotzdem nicht (unten): Mit ihr allein schob sich die Karte um 8 px |
 
 Der Tag steht als Wochentag da und nicht als „gestern": Am Montag stimmte
 „gestern" schon nicht mehr. Klein gesetzt: Als Kasten wie die anderen
@@ -6091,7 +6091,7 @@ Tonkanal, und mit beiden Zeilen lag der Fuß bei 360×740 78 px (Sonntag) bzw.
 111 px (Montag) unter der Leiste – mit der Zeile zum Ton allein, vier Zeilen
 und 116 px, noch 35 bzw. 45 px. Auf der Startseite hat seit v242 die Zeile zum
 Abschluss Vorrang. Bis v242 war ihr „OK" ohnehin die nächste Berührung, und die
-weckte den Kanal; seit v243 steht sie ohne Knopf womöglich zwei Tage, und auch
+weckte den Kanal; seit v244 steht sie ohne Knopf womöglich zwei Tage, und auch
 ohne Knöpfe passen beide am Montag bei 360×740 nicht zusammen (die Seite schob
 sich 24 px). Gebraucht wird der Ton im Training, und dort steht er: Klemmt der
 Kanal nach dem Tipp auf Start noch, zeigen die Fokusansicht und die Liste den
@@ -6237,7 +6237,7 @@ neuen Feld – ist dort grün, weil 87e4cd1 das Feld nicht liest; es wacht über
 das neue. Gegen den ersten Stand von v242 (1e98686) ist eine rot: der Samstag
 bei 360×740.
 
-Ohne Wahl (v243) ging, was über „Rest heute machen" in die Einheit führte,
+Ohne Wahl (v244) ging, was über „Rest heute machen" in die Einheit führte,
 über das Blättern und „Doch noch weitermachen" (3, 8e, 11, 12, 13) – mit
 denselben Sicherungen, und die Karte heißt dabei „Abgeschlossen". Neu geprüft:
 keine Knöpfe in der Zeile (2, 4, 19, 20); die Enden – über das Neuladen bleibt
@@ -6260,14 +6260,14 @@ neue Seite rollte noch einmal, zwei gleiche Runden. Mit `document.hidden` wie
 im Browser beim Entladen geschieht das nicht; 20 öffnet die App deshalb gleich
 am nächsten Tag.
 
-Aus der Prüfung von v243 – zwei Prüfer, jeder Befund nachgestellt, alle vier
+Aus der Prüfung von v244 – zwei Prüfer, jeder Befund nachgestellt, alle vier
 berechtigt – kamen dazu: Fokuswechsel und „Von vorn beginnen", dazu der am
 vollen Speicher gescheiterte Wechsel (4g); Tobis eigener Satz, gemessen bei
 414×896 und 360×740, und die Karte von Workout 12 mit ihm (8f); die Karten von
 Workout 12 und 11 am Sonntag und am Montag in beiden Größen (18); „Doch noch
 weitermachen" ohne Haken, zurück, am Nachmittag neu geöffnet, ohne Haken
 abgeschlossen und bis Montag liegen gelassen (21) – 218 Prüfungen in
-einundzwanzig Abschnitten. Gegen den ersten Stand von v243 (1725a52) sind 13
+einundzwanzig Abschnitten. Gegen den ersten Stand von v244 (1725a52) sind 13
 rot: 2 in 4, 5 in 8f (einer davon als Folge – ohne den neuen Wortlaut fehlt
 dem Montag die angekündigte Zahl), 4 in 18, 2 in 21. Der gescheiterte Wechsel
 ist dort grün; er wacht über das Neue. Gegen 6b533af (v242) sind 43 rot,

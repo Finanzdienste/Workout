@@ -25,7 +25,7 @@
  *      Startseite zeigt nicht mehr „Gestern · Workout 12".
  *   2. Die Zeile oben: „✓ Workout 12 vom Samstag ist abgeschlossen – 4 von 15
  *      Sätzen." – und wohin der Rest geht, nur so, wie die App es dann tut,
- *      ohne dieselbe Zahl noch einmal in der Zeile am Ruhetag. Seit v243 ohne
+ *      ohne dieselbe Zahl noch einmal in der Zeile am Ruhetag. Seit v244 ohne
  *      Knopf (siehe unten). Die Startseite bleibt mit ihr eine Seite (414×896,
  *      360×740).
  *   3. Zurück in die Einheit geht es über das Blättern: Workout 12 zeigt
@@ -105,7 +105,7 @@
  *      Der letzte Eintrag je Einheit aus fremder Hand zählt nur, wenn er gilt
  *      (dazu 9: eine Sicherung von v241 zieht um).
  *
- * Ohne Wahl (v243):
+ * Ohne Wahl (v244):
  *
  *     „Ich will nicht zwischen ok und Rest heute wählen können. Es soll von
  *      selbst einfach das optimale passieren"
@@ -126,7 +126,7 @@
  *      sagt, warum die Startseite bei Workout 1 steht, und geht mit dem
  *      ersten Satz dort.
  *
- * Aus der Prüfung von v243 (zwei Prüfer, jeder Befund nachgestellt):
+ * Aus der Prüfung von v244 (zwei Prüfer, jeder Befund nachgestellt):
  *
  *  4g. Ein Fokuswechsel und „Von vorn beginnen" nehmen die Zeile mit – sie
  *      sprach vom alten Plan; ein am vollen Speicher gescheiterter Wechsel
@@ -145,10 +145,10 @@
  * (5: die Zeile geht nicht von selbst, also auch keine zum Ton), 3 und 3b (6),
  * 4 (6), 8d, 8e, 11 und 12 (je 1: Knöpfe oder „Für heute durch" über
  * gestern), 18, 19 (je 2) und 20 (1). Nichts bricht ab: „Doch noch
- * weitermachen" gab es dort schon. Mit der Prüfung von v243 (4g, 8f, 18, 21)
+ * weitermachen" gab es dort schon. Mit der Prüfung von v244 (4g, 8f, 18, 21)
  * sind es 43 von 218: dazu 4 (2), 8f (6), 18 (6) und 21 (2).
  *
- * Gegenprobe gegen 1725a52 (der erste Stand von v243): 13 von 218 rot – 4g
+ * Gegenprobe gegen 1725a52 (der erste Stand von v244): 13 von 218 rot – 4g
  * (2: Fokuswechsel, „Von vorn beginnen"), 8f (5: der Wortlaut, die vier
  * Zeilen, die Karte von Workout 12 bei beiden Größen; dazu als Folge der
  * Montag, dem ohne den neuen Wortlaut die angekündigte Zahl fehlt), 18 (4: die
@@ -382,7 +382,7 @@ async function blick(f) {
     zeilen: await f.page.locator('.notice.abschluss').count(),
     frei: await f.txt('.ov-frei'),
     fokus: await f.page.locator('.focus-cue').count() > 0,
-    // Knöpfe in der Zeile – seit v243 keine: kein „Rest heute machen", kein „OK".
+    // Knöpfe in der Zeile – seit v244 keine: kein „Rest heute machen", kein „OK".
     knoepfe: await f.page.locator('.notice.abschluss button, .notice.abschluss [data-act]').count(),
     kopf: await f.txt('.fertig-kopf'),
   };
@@ -433,7 +433,7 @@ async function mehr(f, sel) {
   if (await f.page.locator('#tab-dashboard').count()) await f.klick('#tab-dashboard', 300);
 }
 /**
- * Zurück in eine abgeschlossene Einheit, wie es seit v243 geht: auf der
+ * Zurück in eine abgeschlossene Einheit, wie es seit v244 geht: auf der
  * Startseite zu ihr blättern (von einem Zusatztag aus erst zurück zum Plan) und
  * „Doch noch weitermachen". Gibt zurück, was die Karte davor zeigte.
  */
@@ -592,7 +592,7 @@ await abschnitt(2, async () => {
   //    78 px (Sonntag) und 111 px (Montag) unter der Leiste, mit der Zeile zum
   //    Ton allein (116 px) noch 35 und 45 px. Jetzt hat auf der Startseite die
   //    Zeile zum Abschluss Vorrang, danach steht die zum Ton, kurz, und beides
-  //    bleibt eine Seite. Seit v243 geht die Zeile von selbst statt mit „OK":
+  //    bleibt eine Seite. Seit v244 geht die Zeile von selbst statt mit „OK":
   //    am Sonntag mit dem nachgetragenen Satz, sonst am Dienstag.
   const messen = (fl) => fl.page.evaluate(async () => {
     const a = await import('./js/audio.js');
@@ -1112,7 +1112,7 @@ await abschnitt(8, async () => {
   //    „5 Übungen · 17 Sätze". Am Samstag um 17:00 gestartet, 4 Sätze, um
   //    17:20 weg. Was der Zusatztag am Montag bringt, stammt dann nicht allein
   //    aus Workout 12 – die Zeile sagt deshalb nicht „von den 13 offenen",
-  //    sondern „aus Woche 3" (bis zur Nachbesserung von v243 „von dem, was in
+  //    sondern „aus Woche 3" (bis zur Nachbesserung von v244 „von dem, was in
   //    Woche 3 liegen blieb" – bei 360×740 vier Zeilen, in der letzten nur
   //    „rein.").
   const neun = eintrag(9);

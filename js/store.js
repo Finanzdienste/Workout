@@ -147,7 +147,7 @@ const DEFAULT_STATE = {
   // haben, solange die Zeile dazu auf der Startseite steht:
   // { am, einheiten: [{ n, tag, done, total }] }. `am` ist der Tag des
   // Abschlusses, `tag` der Tag der Einheit (ihr startedOn), `done`/`total` die
-  // Sätze, mit denen sie abgeschlossen wurde. Seit v243 ohne Knopf – weg geht
+  // Sätze, mit denen sie abgeschlossen wurde. Seit v244 ohne Knopf – weg geht
   // sie von selbst: mit dem ersten Eintrag in einer anderen Einheit, mit einem
   // Eintrag in einer Einheit der Zeile oder ihrem Zurücksetzen (die gehört
   // dann nicht mehr dazu), mit einem neuen Tagesabschluss und spätestens nach

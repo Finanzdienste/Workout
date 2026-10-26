@@ -1299,7 +1299,7 @@ body.resting .fo .focus-fig > svg { height: 100%; width: 100%; }
 /* Die Zeile zum Tagesabschluss (abschlussHinweis() in js/app.js): „Workout 12
    vom Samstag ist abgeschlossen …". Klein gesetzt – als Kasten mit voller
    Knopfreihe schob sie bei 360×740 Start und Fuß 52 px unter die Leiste. Seit
-   v243 ohne Knöpfe („Rest heute machen" und „OK" sind weg), nur noch die
+   v244 ohne Knöpfe („Rest heute machen" und „OK" sind weg), nur noch die
    Auskunft. Die Karte gibt dafür an diesen Tagen etwas Höhe ab. */
 .notice.abschluss { margin: 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.35; }
 /* Die stille Zeile zum Ton auf der Startseite (tonHinweis(true) in
