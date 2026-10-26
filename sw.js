@@ -68,6 +68,9 @@ const SHELL = [
   // sie sonst genau dann, wenn die Vorschau nach dem Training raus soll.
   './js/kalender-vorschau.js',
   './js/kalender-worker.js',
+  // Die Vorlage für das Skript in Tobis Google-Konto: „Code kopieren" setzt
+  // dort das Kennwort ein. Kein Modul – sie läuft nur bei Google.
+  './kalender/workout-kalender.gs',
   './icon.svg',
   './badge.svg',
   // Das kleine Symbol der Meldungen. Eigene Datei, weil Android den `badge`

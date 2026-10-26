@@ -144,6 +144,44 @@ export default [
     },
   },
   {
+    // Die Vorlage für das Google-Apps-Script in Tobis Konto
+    // (kalender/workout-kalender.gs). Laufen kann sie nur dort – ein
+    // Tippfehler in einem selten genommenen Zweig fiele erst auf, wenn der
+    // Kalender stehen bleibt. Kein Modul, sondern ein Skript: Apps Script kennt
+    // kein import/export, alle Funktionen stehen auf der obersten Ebene. Die
+    // fünf, die Apps Script von außen aufruft (Auswahl oben, Auslöser,
+    // Web-App), sind „benutzt"; jede andere ungenutzte ist ein Fund.
+    // ecmaVersion 2019: kein `?.` und kein `??` – was Apps Script sicher kann.
+    files: ['kalender/**/*.gs'],
+    languageOptions: {
+      ecmaVersion: 2019,
+      sourceType: 'script',
+      globals: {
+        CalendarApp: 'readonly',
+        ContentService: 'readonly',
+        LockService: 'readonly',
+        PropertiesService: 'readonly',
+        ScriptApp: 'readonly',
+        Session: 'readonly',
+        Utilities: 'readonly',
+        Logger: 'readonly',
+        console: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', {
+        args: 'none', caughtErrors: 'none', varsIgnorePattern: '^(einrichten|stuendlich|abgleichen|doGet|doPost)$',
+      }],
+      'no-fallthrough': 'error',
+      'consistent-return': 'error',
+      eqeqeq: ['error', 'always'],
+      'no-cond-assign': ['error', 'always'],
+      'no-dupe-keys': 'error',
+      'no-unreachable': 'error',
+      'no-var': 'error',
+    },
+  },
+  {
     // Die Prüfskripte laufen in Node und dürfen dessen Globals benutzen.
     files: ['tests/**/*.mjs', 'tools/**/*.mjs'],
     languageOptions: {
