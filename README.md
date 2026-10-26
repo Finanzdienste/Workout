@@ -21,6 +21,11 @@ nur auf Tipp unter *Mehr → Daten* als Textdatei weiter.
 > für den Arzttermin). Eigener Ordner, eigener Service Worker, eigene Tests
 > (`tests/test-sd-*.mjs`); sie teilt mit dieser App nur die Grundsätze und
 > die Testumgebung.
+>
+> **Und noch eine:** [`freizeit/`](freizeit/README.md) – was in Hamburg und
+> Umgebung diese Woche los ist, die Konzerte der eigenen Künstler und eine
+> Merkliste. Die Daten schreiben zwei geplante Läufe (montags und samstags)
+> nach `freizeit/daten/`; Tests unter `tests/test-fz-*.mjs`.
 
 ## Tabs
 
