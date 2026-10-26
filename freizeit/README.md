@@ -52,9 +52,13 @@ Ein Lauf schreibt **nur seine eine Datei**, prüft sie mit
 direkt auf `main`
 („Freizeit: Woche KW 45“ bzw. „Freizeit: Konzerte vom 31.10.“). Die Daten
 stehen bewusst nicht im Offline-Vorrat von `sw.js` – darum braucht ein
-Datenlauf weder eine neue VERSION noch sonst eine Änderung am Code. Dass
-GitHub Pages danach neu baut, besorgt `.github/workflows/pages-anstossen.yml`
-(Pushes aus Claude-Sitzungen lösen den Bau sonst nicht zuverlässig aus).
+Datenlauf weder eine neue VERSION noch sonst eine Änderung am Code.
+
+**Wovon GitHub Pages baut:** derzeit nicht von `main`, sondern vom Zweig
+`claude/workout-app-bodyweight-tabs-1lob1j` (so in den Einstellungen des
+Repositorys). Die Datenläufe schieben ihren Commit deshalb nach dem Push auf
+`main` auch dorthin vor – nur vorspulen, nie erzwingen. Baut Pages eines
+Tages von `main`, entfällt dieser Schritt.
 
 ### `daten/woche.json`
 
