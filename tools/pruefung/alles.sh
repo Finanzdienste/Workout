@@ -14,6 +14,6 @@ python3 tools/pruefung/versionspflicht.py
 python3 tools/pruefung/plan-vorher.py
 echo "✓ Tore"
 sh tools/pruefung/erzeugt.sh
-npx --no-install eslint js sw.js tests tools schilddruese
+npx --no-install eslint js sw.js tests tools schilddruese freizeit
 echo "✓ Linter"
 node tests/lauf.mjs
