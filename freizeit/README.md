@@ -52,7 +52,9 @@ Ein Lauf schreibt **nur seine eine Datei**, prüft sie mit
 direkt auf `main`
 („Freizeit: Woche KW 45“ bzw. „Freizeit: Konzerte vom 31.10.“). Die Daten
 stehen bewusst nicht im Offline-Vorrat von `sw.js` – darum braucht ein
-Datenlauf weder eine neue VERSION noch sonst eine Änderung am Code.
+Datenlauf weder eine neue VERSION noch sonst eine Änderung am Code. Dass
+GitHub Pages danach neu baut, besorgt `.github/workflows/pages-anstossen.yml`
+(Pushes aus Claude-Sitzungen lösen den Bau sonst nicht zuverlässig aus).
 
 ### `daten/woche.json`
 
