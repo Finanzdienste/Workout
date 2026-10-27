@@ -55,6 +55,14 @@ MODULES = ['js/dates.js',
            'js/termine.js',
            # muster.js nach plan.js: Es liest exOf() und resolve() von dort.
            'js/plan.js', 'js/muster.js', 'js/bilanz.js',
+           # tagstart.js nach bilanz.js: Die Folge des Tages (Tagesabschluss,
+           # Runde weiter, Aufstieg, Zusatztag) rechnet mit allem davor.
+           # kalender.js danach: Es fragt naechsteEinheit() von dort.
+           'js/tagstart.js', 'js/kalender.js',
+           # kalender-sync.js danach: Es fragt abschlussWartetAm() von dort und
+           # den Store. In der Einzeldatei schaltet es sich selbst ab (kein
+           # Modul-Worker aus einer Datei) - die Karte sagt das dort.
+           'js/kalender-sync.js',
            # Ansichten zuletzt: Sie haengen an der Rechenschicht, nie umgekehrt.
            'js/anzeige.js', 'js/ansicht-scheiben.js', 'js/ansicht-kalender.js',
            'js/ansicht-vorrat.js', 'js/ansicht-statistik.js',

@@ -73,10 +73,10 @@ const DEFAULT_STATE = {
   // Der Fingerabdruck des Plans, unter dem der laufende Verlauf entstanden ist
   // – je Fokus. Ändert sich der Plan (neue Übungen, neu verteilt), zeigt ein
   // alter Eintrag auf etwas anderes als das, was gemacht wurde. Siehe
-  // planWechsel() in js/app.js.
+  // planWechsel() in js/tagstart.js.
   planStand: {},
   // Dasselbe für die Satzzahlen allein (PLANS[f].saetze) – siehe satzWechsel()
-  // in js/app.js.
+  // in js/tagstart.js.
   planSaetze: {},
   // Übungen, die von Hand nach vorn geholt wurden, weil sie sonst regelmäßig
   // ausfallen. Kostet womöglich einen zusätzlichen Umbau – siehe js/muster.js.
@@ -115,6 +115,16 @@ const DEFAULT_STATE = {
   // damit ein erneuter Import die alten Termine überschreibt statt sie stehen
   // zu lassen.
   lastIcs: null,
+  // Google Kalender automatisch (js/kalender-sync.js): { token, url, minuten,
+  // erinnerung } oder null. Das Kennwort entsteht beim ersten „Code kopieren"
+  // und bleibt dann – ein zweites Kopieren gibt denselben Code. Es reist mit
+  // Sicherung und Exportdatei: Ein neues Handy, das die Sicherung einliest,
+  // schickt danach von selbst weiter. Was nur dieses Gerät angeht (seine
+  // Kennung für das Skript, der Zähler, wann zuletzt etwas ankam), steht nicht
+  // hier, sondern in workout.kalender.v1 – stünde „zuletzt angekommen" im
+  // Zustand, änderte jede Sendung den Zustand und löste die nächste aus.
+  // Geprüft wird über normKalender(), beim Laden und beim Einlesen.
+  kalender: null,
   rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log, verlassen? }]
   // Tage, an denen der laufende Verlauf schon einmal verlassen wurde und aus
   // der Ablage zurückkam (wechsleFokus()): ['2026-09-23', …]. Das finishedOn
@@ -162,10 +172,10 @@ const DEFAULT_STATE = {
   // Ein abgeschaffter Trainingsfokus, auf den dieses Gerät noch stand, solange
   // der Hinweis dazu offen ist: { von, nach, am, abgelegt }. `von` und `nach`
   // sind Klarnamen, keine Schlüssel – den alten Plan gibt es nicht mehr, und
-  // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/app.js.
+  // sein Name steht sonst nirgends. Siehe fokusUmzug() in js/tagstart.js.
   fokusUmzug: null,
   // Dasselbe eine Etage tiefer: Der Fokus bleibt, aber der *Inhalt* des Plans
-  // ist ein anderer geworden. Siehe planWechsel() in js/app.js.
+  // ist ein anderer geworden. Siehe planWechsel() in js/tagstart.js.
   // { fest, einheiten, repariert, fokus }: `einheiten` zählt die
   // festgeschriebenen Einheiten, `repariert` die von festReparieren() wieder
   // vervollständigten – getrennt, weil beide Hinweise zugleich offen sein können.
@@ -192,13 +202,13 @@ const DEFAULT_STATE = {
   //           dazu; `bwSets` fehlt, wo es gleich `sets` ist, und in Listen
   //           von vor dieser Angabe (dort gilt `sets` für beide Modi)
   //   festNetto  die Satzzahlen in `fest` sind ohne Nacharbeit – geprüft von
-  //           festNachReparieren() in js/app.js, einmal je Liste
+  //           festNachReparieren() in js/tagstart.js, einmal je Liste
   //   festAus woher `fest` stammt: der Stand des Plans davor oder der, unter
   //           dem das Protokoll entstand (planWechsel()), oder der Plan, aus
   //           dem festReparieren() die Liste vervollständigt hat
   //           (festErsetzen()). Fehlt nur an Listen aus Planwechseln bis
   //           v219, darunter den kurzen von v215 – und nur die repariert
-  //           festReparieren() in js/app.js, gegen den Plan, aus dem sie kamen.
+  //           festReparieren() in js/tagstart.js, gegen den Plan, aus dem sie kamen.
   //   paare   je Modus die Supersatz-Paarung, festgehalten mit dem ersten
   //           abgehakten Satz: { db: { key, gruppen: [[id, id], [id]] } }
   //           (superGruppen() in js/app.js)
@@ -354,6 +364,33 @@ export function normAbschluss(roh) {
   return einheiten.length ? { am: roh.am, einheiten } : null;
 }
 
+/*
+ * Die Verbindung zum Kalender-Skript, auf genau ihre Felder gebracht.
+ *
+ * Sie kommt aus einer Sicherung oder einer Exportdatei, und hinter `url` geht
+ * das Kennwort hinaus. Deshalb nur eine Adresse, die eine Web-App von Google
+ * Apps Script ist (…/exec, auch unter einer eigenen Domain eines
+ * Google-Workspace-Kontos) – eine Datei, in der jemand eine andere Adresse
+ * eingetragen hat, schickt das Kennwort nirgendwohin sonst. Ohne gültiges
+ * Kennwort gibt es nichts zu verbinden (null). Die Standards sind die aus
+ * js/kalender.js (KALENDER_MINUTEN 17:30, KALENDER_ERINNERUNG 30) – dort
+ * nicht importierbar, dieses Modul steht ganz unten; tests/test-kalender-sync.mjs
+ * vergleicht beide.
+ */
+export const KALENDER_URL = /^https:\/\/script\.google\.com\/(?:macros|a\/macros\/[A-Za-z0-9.-]{1,100})\/s\/[A-Za-z0-9_-]{10,200}\/exec$/;
+export const KALENDER_TOKEN = /^[A-Za-z0-9_-]{16,128}$/;
+const kalGanz = (x, lo, hi, standard) => (Number.isInteger(x) && x >= lo && x <= hi ? x : standard);
+export function normKalender(roh) {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
+  if (typeof roh.token !== 'string' || !KALENDER_TOKEN.test(roh.token)) return null;
+  return {
+    token: roh.token,
+    url: typeof roh.url === 'string' && KALENDER_URL.test(roh.url) ? roh.url : null,
+    minuten: kalGanz(roh.minuten, 0, 1439, 17 * 60 + 30),
+    erinnerung: kalGanz(roh.erinnerung, 0, 1440, 30),
+  };
+}
+
 /** Der letzte Eintrag von v241: { n, at } mit einer Kennung wie im Protokoll und ms – sonst null. */
 function normEintrag(roh) {
   if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
@@ -392,6 +429,7 @@ function load() {
     state.friends = normFreunde(state.friends);
     state.customs = normCustoms(state.customs);
     state.tagesabschluss = normAbschluss(state.tagesabschluss);
+    state.kalender = normKalender(state.kalender);
     eintragUmziehen(state, state.letzterEintrag);
     // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
     // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
@@ -681,7 +719,7 @@ function ensure(n) {
  * `nach` undefined heißt „unbekannt" (ein Aufrufer, der es nicht weiß) – dann
  * wird nichts vermerkt. Gespeichert wird auch die Null: Fehlt der Eintrag,
  * stammt `soll` aus der Zeit vor diesem Vermerk oder von einem solchen
- * Aufrufer, und nur dann darf festNachReparieren() in js/app.js schätzen.
+ * Aufrufer, und nur dann darf festNachReparieren() in js/tagstart.js schätzen.
  */
 function merkeNach(e, exId, nach) {
   if (nach === undefined) return;
@@ -769,7 +807,7 @@ function syncStartedOn(n) {
  *
  * Workout 12 war am Samstag angefangen (4 von 17 Sätzen) und nie
  * abgeschlossen. Ab dem nächsten Tag schließt sie sich deshalb selbst ab
- * (tagAbschliessen() in js/app.js) – aber nicht, solange an ihr noch trainiert
+ * (tagAbschliessen() in js/tagstart.js) – aber nicht, solange an ihr noch trainiert
  * wird: Wer um 23:40 bei Satz 9 ist, hat um 0:05 keine liegen gebliebene
  * Einheit, sondern ein Training über Mitternacht.
  *
@@ -1225,7 +1263,7 @@ export function verwirfEinheit(n) {
   delete e.nachFest;
   delete e.nachWarum;
   // Und der eingefügte Zusatztag: Verworfen ist verworfen. pruefeZusatztag()
-  // in js/app.js legt danach einen neuen Träger an, und die Einheit zeigt ihn
+  // in js/tagstart.js legt danach einen neuen Träger an, und die Einheit zeigt ihn
   // wieder – neu gerechnet, wie vor dem ersten Satz.
   delete e.zusatz;
   if (state.clock && state.clock.n === n) state.clock = null;
@@ -1267,7 +1305,7 @@ export function halteZusatz(n, wert, traegerId) {
 /**
  * Eine Sitzung ohne Buchung beenden – für eine Einheit, die nicht mehr für
  * sich steht: einen Zusatztag, der jetzt in der Einheit des Tages steckt
- * (traegerSitzungLoesen() in js/app.js). Gebucht wird nichts, weil es nichts
+ * (traegerSitzungLoesen() in js/tagstart.js). Gebucht wird nichts, weil es nichts
  * zu buchen gibt: Ein Träger, der sich einfügen lässt, hat keinen Satz, und
  * seine Zeit gehört keiner Einheit, die es noch gibt.
  */
@@ -1359,7 +1397,7 @@ function festEintrag({ id, sets, bwSets }) {
 
 /**
  * Einheiten auf ihre eigene Übungsliste festschreiben – siehe planWechsel()
- * in js/app.js. `einheiten`: { [n]: [{ id, sets, bwSets }] }. Was schon eine hat,
+ * in js/tagstart.js. `einheiten`: { [n]: [{ id, sets, bwSets }] }. Was schon eine hat,
  * behält sie: Festgeschrieben wird der Stand des Tages, an dem trainiert
  * wurde, nicht der des zweiten Planwechsels danach.
  *
@@ -1381,7 +1419,7 @@ export function festschreiben(einheiten, ausPlan = {}) {
 }
 
 /**
- * Festgeschriebene Listen ersetzen – nur für festReparieren() in js/app.js,
+ * Festgeschriebene Listen ersetzen – nur für festReparieren() in js/tagstart.js,
  * das die Fälle eng eingrenzt. festschreiben() lässt vorhandene bewusst stehen.
  * Die neue Liste stammt aus dem Plan `stand` und trägt ihn als `festAus`:
  * Einmal repariert ist sie vollständig, auch wenn später eine Beschwerde
@@ -1402,7 +1440,7 @@ export function festErsetzen(einheiten, stand) {
 
 /**
  * Feste Listen als „ohne Nacharbeit" vermerken, wo nötig mit berichtigten
- * Satzzahlen – nur für festNachReparieren() in js/app.js. `einheiten`:
+ * Satzzahlen – nur für festNachReparieren() in js/tagstart.js. `einheiten`:
  * { [n]: Liste }. Gibt zurück, wie viele Listen sich dabei geändert haben.
  */
 export function festNetto(einheiten) {
@@ -1588,7 +1626,7 @@ export function restartPlan(shiftDays, bilanz) {
  *
  * `startShift` gilt nur für einen Fokus, der noch keinen Verlauf hat: Damit legt
  * die App fest, auf welchen Tag dessen Workout 1 fällt (siehe frischerStart()
- * in js/app.js). Ohne das begänne ein neuer Plan am Tag nach dem letzten
+ * in js/tagstart.js). Ohne das begänne ein neuer Plan am Tag nach dem letzten
  * Training – oder heute, als dritter Trainingstag in Folge.
  */
 export function wechsleFokus(key, bilanz, startShift) {
@@ -1623,7 +1661,7 @@ export function wechsleFokus(key, bilanz, startShift) {
     // mit „OK" wegtippen; ohne Knopf stand sie bis zum ersten Satz oder bis
     // Dienstag. Der Wechsel ist ein Ende wie der neue Tagesabschluss: Was sie
     // sagte, gilt für diesen Plan nicht. Auch beim Umzug eines alten Fokus
-    // (fokusUmzug() in js/app.js), der denselben Weg geht.
+    // (fokusUmzug() in js/tagstart.js), der denselben Weg geht.
     state.tagesabschluss = null;
   });
 }
@@ -1736,6 +1774,22 @@ export function icsPlanNachtragen(focus, stand) {
   emit();
 }
 
+/** Die Verbindung zum Kalender-Skript – { token, url, minuten, erinnerung } oder null. */
+export function kalender() { return state.kalender; }
+
+/**
+ * Die Verbindung ändern: `teil` wird übernommen und geprüft (normKalender()),
+ * null trennt ganz. Gibt zurück, was jetzt gilt. Geschrieben wird gleich – das
+ * Kennwort muss im Speicher stehen, bevor der Code mit ihm die App verlässt.
+ */
+export function setzeKalender(teil) {
+  state.kalender = teil === null ? null : normKalender({ ...(state.kalender || {}), ...teil });
+  persist();
+  flush();
+  emit();
+  return state.kalender;
+}
+
 /**
  * Alles für die Sicherung – bis auf das Betreiber-Passwort.
  *
@@ -1778,6 +1832,14 @@ export function importJSON(text) {
   fresh.friends = normFreunde(fresh.friends);
   fresh.customs = normCustoms(fresh.customs);
   fresh.tagesabschluss = normAbschluss(fresh.tagesabschluss);
+  // Die Verbindung zum Kalender kommt mit der Datei – ein neues Handy schickt
+  // damit weiter. Kennt die Datei keine Adresse (eine Sicherung von vor dem
+  // „Verbinden"), bleibt die dieses Geräts: Sie gehört zu Tobis Google-Konto,
+  // nicht zum Trainingsstand, und ein Einlesen trennte sonst still einen
+  // Kalender, der dann sechs Wochen lang nach einer alten Vorschau schöbe.
+  const kalDatei = normKalender(fresh.kalender);
+  fresh.kalender = kalDatei && (kalDatei.url || !(state.kalender && state.kalender.url))
+    ? kalDatei : (state.kalender || null);
   eintragUmziehen(fresh, parsed.letzterEintrag);
   // Was an *diesem Gerät* hängt, kommt nicht aus der Datei. Vorher übernahm
   // der Import auch `share`, `deviceId` und `lastShare`: Eine bewusst

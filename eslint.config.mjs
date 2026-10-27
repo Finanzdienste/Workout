@@ -87,6 +87,10 @@ export default [
         DOMException: 'readonly',
         PopStateEvent: 'readonly',
         ServiceWorkerRegistration: 'readonly',
+        // Die Vorschau des Kalenders rechnet in einem eigenen Modul-Worker
+        // (js/kalender-worker.js) – im Fenster teilte sie sich den Zustand
+        // mit der App.
+        Worker: 'readonly',
         SVGElement: 'readonly',
         HTMLElement: 'readonly',
         // Service Worker
@@ -136,6 +140,44 @@ export default [
       // `var`. Die App ist durchgehend `const`/`let`; ein einzelnes `var`
       // bringt eine andere Sichtbarkeitsregel mit, und das sieht man ihm nicht
       // an.
+      'no-var': 'error',
+    },
+  },
+  {
+    // Die Vorlage für das Google-Apps-Script in Tobis Konto
+    // (kalender/workout-kalender.gs). Laufen kann sie nur dort – ein
+    // Tippfehler in einem selten genommenen Zweig fiele erst auf, wenn der
+    // Kalender stehen bleibt. Kein Modul, sondern ein Skript: Apps Script kennt
+    // kein import/export, alle Funktionen stehen auf der obersten Ebene. Die
+    // fünf, die Apps Script von außen aufruft (Auswahl oben, Auslöser,
+    // Web-App), sind „benutzt"; jede andere ungenutzte ist ein Fund.
+    // ecmaVersion 2019: kein `?.` und kein `??` – was Apps Script sicher kann.
+    files: ['kalender/**/*.gs'],
+    languageOptions: {
+      ecmaVersion: 2019,
+      sourceType: 'script',
+      globals: {
+        CalendarApp: 'readonly',
+        ContentService: 'readonly',
+        LockService: 'readonly',
+        PropertiesService: 'readonly',
+        ScriptApp: 'readonly',
+        Session: 'readonly',
+        Utilities: 'readonly',
+        Logger: 'readonly',
+        console: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', {
+        args: 'none', caughtErrors: 'none', varsIgnorePattern: '^(einrichten|stuendlich|abgleichen|doGet|doPost)$',
+      }],
+      'no-fallthrough': 'error',
+      'consistent-return': 'error',
+      eqeqeq: ['error', 'always'],
+      'no-cond-assign': ['error', 'always'],
+      'no-dupe-keys': 'error',
+      'no-unreachable': 'error',
       'no-var': 'error',
     },
   },
