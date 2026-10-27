@@ -55,7 +55,10 @@
  *      demselben Kennwort. Zurück aus Apps Script fragt die App nach, sieht
  *      Fassung 2 und schickt von selbst das Jahr. Ein Gerät, das die Fassung
  *      nicht kennt, schickt erst v 1 und gleich danach v 2; weist ein Skript
- *      v 2 zurück, geht dieselbe Vorschau gleich als v 1 hinaus.
+ *      v 2 zurück, geht dieselbe Vorschau gleich als v 1 hinaus (beim
+ *      Wegschalten erst beim Zurückkommen) – ohne dass eine Warnzeile
+ *      aufblitzt. Was v245 vermerkte, sagt die Fassung schon vor der ersten
+ *      Antwort.
  *  14. Über 64 KiB (ein Jahr mit vielen Terminen): beim Wegschalten kein
  *      keepalive, sondern gleich in den Ausgang – der Service Worker schickt
  *      es, und die App merkt sich danach, was ankam.
@@ -1403,14 +1406,54 @@ await abschnitt(13, async () => {
   await vor(f.page, 4000, 1500);
   await bis(() => f.skript.vorschauen().length >= 2, 8000);
   f.skript.fassung1 = true;
+  // Auf der Startseite mitschreiben, ob dazwischen eine Warnzeile aufblitzt.
+  await zumDashboard(f.page);
+  await f.page.evaluate(() => {
+    window.__warnZeile = 0;
+    new window.MutationObserver(() => { if (document.getElementById('kalenderZeile')) window.__warnZeile += 1; })
+      .observe(document.body, { childList: true, subtree: true });
+  });
   const n1 = f.skript.vorschauen().length;
   await f.page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
   await bis(() => f.skript.vorschauen().length >= n1 + 2, 8000);
-  await echteWarte(300);
+  await echteWarte(500);
   const danach = f.skript.vorschauen().slice(n1).map((x) => x.j.v);
   check(danach[0] === 2 && danach[1] === 1 && (await meta(f.page)).letzte.ok && (await meta(f.page)).fassung.version === 1,
     `ein Skript, das v 2 nicht kennt: abgewiesen („format", Fassung 1), gleich noch einmal als v 1 – und angekommen (${danach.join(', ')})`);
+  check(await f.page.evaluate(() => window.__warnZeile) === 0 && await f.page.locator('#kalenderJahrZeile').count() === 1,
+    'dazwischen blitzt auf der Startseite keine Warnzeile auf – danach steht dort nur die dezente Bitte um das Jahr');
   await zu(f);
+
+  // Dasselbe beim Wegschalten: Die Seite darf dann nicht gleich nachschicken
+  // (sie friert ein). Zurück in der App schickt sie dieselbe Vorschau passend.
+  const w = await geraet('13 Wegschalten', { kalender: { token: TOKEN, url: URL_A } });
+  await vor(w.page, 4000, 1500);
+  await bis(() => w.skript.vorschauen().length >= 1, 8000);
+  w.skript.fassung1 = true;
+  await zumDashboard(w.page);
+  await w.page.evaluate(() => {
+    window.__warnZeile = 0;
+    new window.MutationObserver(() => { if (document.getElementById('kalenderZeile')) window.__warnZeile += 1; })
+      .observe(document.body, { childList: true, subtree: true });
+  });
+  const nw = w.skript.vorschauen().length;
+  await w.page.evaluate(async () => (await import('./js/store.js')).setSetting('injuries', ['tennisarm']));
+  await vor(w.page, 2500, 2500);
+  await verstecken(w.page);
+  await bis(() => w.skript.vorschauen().length > nw, 5000);
+  await echteWarte(800);
+  const weg = w.skript.vorschauen().slice(nw);
+  const keep = (await diagZeilen(w.page)).filter((x) => / kalender was=vorschau .*keepalive=true/.test(x));
+  check(weg.length === 1 && weg[0].j.v === 2 && keep.length === 1 && (await meta(w.page)).letzte.ergebnis === 'format',
+    `beim Wegschalten v 2 mit keepalive an ein Skript, das wieder Fassung 1 ist: abgewiesen – und nicht gleich nachgeschickt (${weg.map((x) => x.j.v).join(', ')})`);
+  await zeigen(w.page);
+  await bis(() => w.skript.vorschauen().length > nw + 1, 8000);
+  await echteWarte(500);
+  const zurueck = w.skript.vorschauen().slice(nw + 1);
+  check(zurueck.length === 1 && zurueck[0].j.v === 1 && (await meta(w.page)).letzte.ok
+    && await w.page.evaluate(() => window.__warnZeile) === 0,
+  'zurück in der App: dieselbe Vorschau als v 1 – angekommen, und keine Warnzeile');
+  await zu(w);
 
   // Tobis Handy nach dem Update der App: Was v245 hinterließ, kennt `fassung`
   // noch nicht – die Fassung steht nur beim letzten Versuch und beim letzten,

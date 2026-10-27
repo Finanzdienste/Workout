@@ -23658,12 +23658,22 @@ async function kalLesen(erg) {
 }
 
 /**
+ * Hat ein Skript eine Sendung abgewiesen, weil sie in einer neueren Fassung
+ * des Vertrags kam, als es spricht (v 2 an Fassung 1)? Das richtet die App
+ * selbst – sie schickt dieselbe Vorschau gleich passend (kalSenden(),
+ * kalenderSichtbar()). Nichts für Tobi, keine Warnzeile.
+ */
+const kalFassungZurueck = (a) => !!a && a.ergebnis === 'format' && Number.isInteger(a.version)
+  && Number.isInteger(a.vertrag) && a.version < a.vertrag;
+
+/**
  * Kann das Skript nicht annehmen, was die App schickt? Dann muss neuer Code
  * her, sonst geht gar nichts. Ein Skript der Fassung 1 gehört nicht dazu: Es
  * bekommt v 1 und läuft weiter (kalNeuerCode() bittet dann freundlich um das
- * Jahr). Übrig bleibt, dass das Skript selbst „erneuern" sagt.
+ * Jahr). Übrig bleibt, dass das Skript selbst „erneuern" sagt – zu einer
+ * Sendung in der Fassung, die es spricht.
  */
-const kalZuAlt = (a) => !!a && a.ergebnis === 'format' && /erneuern/i.test(a.hinweis || '');
+const kalZuAlt = (a) => !!a && a.ergebnis === 'format' && /erneuern/i.test(a.hinweis || '') && !kalFassungZurueck(a);
 
 /** Gibt es neueren Code als den im Skript? Fassung bekannt und älter als die Vorlage. */
 const kalNeuerCode = (fassung) => Number.isInteger(fassung) && !!kalVorlage && fassung < kalVorlage.fassung;
@@ -23697,6 +23707,9 @@ const kalSatzEnde = (s) => (/[.!?…]$/.test(s.trim()) ? s.trim() : `${s.trim()}
  */
 function kalenderSatz(a) {
   if (!a) return '';
+  if (kalFassungZurueck(a)) {
+    return `Das Skript ist noch Fassung ${a.version} – die App schickt die Vorschau gleich so, wie es sie versteht.`;
+  }
   if (kalZuAlt(a)) {
     return 'Kalender-Code erneuern: Der Code in Apps Script ist älter als die App. „Code kopieren", in Apps Script den '
       + 'ganzen Code ersetzen, speichern, dann Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → '
@@ -23761,7 +23774,7 @@ function kalenderSatz(a) {
  * Beschäftigtsein mehr.
  */
 function kalenderHandeln(a) {
-  if (!a) return false;
+  if (!a || kalFassungZurueck(a)) return false;
   if (kalZuAlt(a)) return true;
   if (a.wieder) return false;
   if (a.ergebnis === 'fehler' && a.erschoepft) return true;
@@ -24075,9 +24088,12 @@ async function kalSenden(v, { keepalive = false } = {}) {
   });
   // Die Fassung hat sich geklärt: dieselbe Vorschau gleich noch einmal, passend.
   // Nicht beim Wegschalten – die Seite friert gleich ein; dann der nächste Anlass.
+  // Neu gezeichnet wird erst danach: Wies ein Skript der Fassung 1 v 2 zurück
+  // („erneuern"), stünde sonst bis zur Sendung als v 1 kurz eine Warnzeile da.
   if (!keepalive && Number.isInteger(a.version) && kalVertrag(v.ziel) !== v.vertrag) {
     notieren('kalender', { was: 'fassung', von: v.vertrag, nach: kalVertrag(v.ziel), version: a.version });
-    kalenderJetzt('fassung', { zwingen: true });
+    kalenderJetzt('fassung', { zwingen: true }).then(() => kalRuf.nachher());
+    return a;
   }
   kalRuf.nachher();
   return a;
@@ -24250,14 +24266,24 @@ function kalenderVerstecken() {
  * letzte Versuch noch offen (kein Netz, Skript beschäftigt, keine Antwort),
  * gleich noch einmal – die Seite kam vielleicht nach Stunden aus dem
  * Speicher zurück, und ihre Zeitgeber liefen solange nicht. Nicht öfter als
- * einmal je Minute.
+ * einmal je Minute. Ging die letzte Vorschau beim Wegschalten in einer
+ * Fassung des Vertrags hinaus, die nicht zum Skript passt (die Antwort
+ * sagte es, aber nachschicken durfte die Seite da nicht mehr), jetzt passend.
  */
 function kalenderSichtbar() {
   if (!kalenderVerbunden()) return;
   kalNachLesen().then(() => kalRuf.nachher());
-  if (kalMeta().offen && Date.now() - kalLetzterVersuch > 60 * 1000) kalenderJetzt('sichtbar');
-  // Steht neuer Code aus, kommt Tobi vielleicht gerade aus Apps Script zurück.
-  else if (kalNeuerCode(kalFassung())) kalEinreihen(kalFassungFragen);
+  const m = kalMeta();
+  const ziel = kalZiel(store.kalender());
+  const l = m.letzte;
+  if (l && l.ziel === ziel && l.art === 'vorschau' && Number.isInteger(l.vertrag) && l.vertrag !== kalVertrag(ziel)) {
+    kalenderJetzt('fassung', { zwingen: true });
+  } else if (m.offen && Date.now() - kalLetzterVersuch > 60 * 1000) {
+    kalenderJetzt('sichtbar');
+  } else if (kalNeuerCode(kalFassung(ziel))) {
+    // Steht neuer Code aus, kommt Tobi vielleicht gerade aus Apps Script zurück.
+    kalEinreihen(kalFassungFragen);
+  }
 }
 
 /**
