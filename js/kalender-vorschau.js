@@ -72,9 +72,13 @@
  * Ferne trifft genau die Einheit, die gerade auf seinem Tag liegt). Ob das
  * stimmt, wird nicht angenommen, sondern je Tag geprüft: Die echte Fernliste
  * des Tages muss genau herauskommen (ferneBauen()); wo keine Liste mit
- * wenigen Änderungen passt, wird die Fernliste dieses Tages selbst eine neue
- * Referenz. Wird die Sendung trotzdem zu groß, wird die Ferne kürzer, nicht
- * die Sendung abgewiesen – und das steht in `gekuerzt`.
+ * wenigen Änderungen passt oder die Probe nicht aufgeht, wird die Fernliste
+ * dieses Tages selbst eine neue Referenz. Wird die Sendung trotzdem zu groß,
+ * wird die Ferne kürzer, nicht die Sendung abgewiesen – und das steht in
+ * `gekuerzt`. Scheitert die Ferne ganz (ein Fehler beim Rechnen), geht die
+ * Nähe allein hinaus, als v 1: Das Skript gleicht die vier Wochen an und
+ * lässt das Jahr dahinter stehen, wie es ist – `fernFehler` sagt es. Die
+ * Ferne darf das Senden nie aufhalten.
  *
  * **Wo.** Nie im Fenster der App: Dort teilten sich diese Module mit ihr den
  * Zustand, und importJSON() ersetzte das echte Training – deshalb bricht
@@ -256,6 +260,15 @@
  *               holt sie in den nächsten Läufen nach), oder null
  *   bis         Fassung 2: bis zu diesem Tag (ISO) reicht die Liste, die eben
  *               galt, oder null
+ *   stehen      Fassung 2: bis zu diesem Tag (ISO) steht der Kalender schon
+ *               ganz wie die Liste – gleich `bis`, wenn nichts offen ist;
+ *               null, solange heute oder morgen noch etwas fehlt. Daran sagt
+ *               die App, was im Kalender steht, solange das Skript das Jahr
+ *               noch einträgt (bei der Probe: vom letzten Abgleich)
+ *   folge       Fassung 2, nur wenn etwas offen ist: true – der Rest kommt in
+ *               ein paar Minuten (ein einmaliger Auslöser), false – mit dem
+ *               nächsten stündlichen Abgleich (Google bremst, kleiner Rest);
+ *               sonst null
  *   stand, seq  was jetzt gilt (bei 'alt' und 'aelter' das Gespeicherte)
  *   hinweis     ein kurzer Satz zum Anzeigen (darf fehlen)
  *
@@ -472,13 +485,15 @@ export function trainingsStand(zustand, zuletzt = 0, jetzt = Date.now()) {
  *   maxBytes  so groß darf die Nutzlast werden (VORSCHAU_MAX_BYTES_2); wird
  *             sie größer, wird die Ferne kürzer
  *
- * Gibt { v, ab, fenster, stand, texte, tage, ferne, gekuerzt, zeiten, ms,
- * fernMs } zurück – den Teil der Nutzlast, der aus der Rechnung kommt
- * (nutzlastBauen() legt den Rest dazu). `ferne` nur, wenn gerechnet;
- * `gekuerzt`: so viele Tage reicht die Ferne statt der gewünschten, oder null.
- * Nur zum Nachsehen: `zeiten` (je Tag die Uhrzeit, zu der gerechnet wurde,
- * ms), `ms` (wie lange die Rechnung gedauert hat) und `fernMs` (davon die
- * Ferne).
+ * Gibt { v, ab, fenster, stand, texte, tage, ferne, gekuerzt, fernFehler,
+ * zeiten, ms, fernMs } zurück – den Teil der Nutzlast, der aus der Rechnung
+ * kommt (nutzlastBauen() legt den Rest dazu). `ferne` nur, wenn gerechnet;
+ * `gekuerzt`: so viele Tage reicht die Ferne statt der gewünschten, oder null;
+ * `fernFehler`: die Ferne ließ sich nicht rechnen (ein kurzer Grund, ohne
+ * Kennwort und Adresse – die kennt die Rechnung nicht) – dann ist es eine
+ * Vorschau der Fassung 1, die Nähe allein. Nur zum Nachsehen: `zeiten` (je
+ * Tag die Uhrzeit, zu der gerechnet wurde, ms), `ms` (wie lange die Rechnung
+ * gedauert hat) und `fernMs` (davon die Ferne).
  */
 export function vorschauRechnen(zustand, optionen = {}) {
   // Nacheinander, nie verschränkt: Uhr und Speicher gibt es hier einmal.
@@ -529,6 +544,9 @@ async function rechnen(zustand, {
     const aus = {};
     const zeiten = {};
     const fern = [];
+    // Scheitert die Ferne, bleibt es bei der Nähe – die geht immer.
+    let fernFehler = null;
+    const fernGrund = (e) => String((e && e.message) || e || 'Ferne').slice(0, 160);
     // Bis wohin die Ferne je Tag gerechnet wird: bis ans Ende des Fensters
     // des letzten Tags – so reicht eine Referenzliste auch für die Tage
     // danach, an denen sich nichts verschiebt.
@@ -542,33 +560,48 @@ async function rechnen(zustand, {
       tagstart.tagNachziehen({ art: 'start', wartet: k === 0 ? wartet : null });
       const liste = kalender.kalenderTermine({ von: dates.addDays(tag, -zurueck), bis: dates.addDays(tag, voraus) });
       aus[tag] = liste.map((t) => [t.kennung, t.datum, t.dauer, merke(t), t.fertig ? 1 : 0]);
-      if (weit) {
+      if (weit && !fernFehler) {
         const t0 = EchteUhr.now();
-        fern.push({
-          nah: new Set(liste.map((t) => t.kennung)),
-          fern: fernTermine(m, tag, voraus, fernEnde).map((t) => [t.kennung, tageZwischen(ab, t.datum), t.dauer, merke(t), t.fertig ? 1 : 0]),
-        });
+        try {
+          fern.push({
+            nah: new Set(liste.map((t) => t.kennung)),
+            fern: fernTermine(m, tag, voraus, fernEnde).map((t) => [t.kennung, tageZwischen(ab, t.datum), t.dauer, merke(t), t.fertig ? 1 : 0]),
+          });
+        } catch (e) {
+          fernFehler = fernGrund(e);
+        }
         fernMs += EchteUhr.now() - t0;
       }
     }
     const v = {
       v: weit ? 2 : 1, ab, fenster: [zurueck, voraus], stand, texte: null, tage: aus, zeiten, ms: 0, fernMs,
     };
-    if (!weit) {
-      v.texte = texteFuer(pool, aus, null);
-      v.ms = EchteUhr.now() - start;
-      return v;
-    }
     // Kodieren, messen – und wenn es zu groß wird, die Ferne kürzen statt die
     // Sendung scheitern zu lassen: jedes Mal ein Viertel weniger, zuletzt
     // gar keine (dann ist es die Nähe allein, wie in Fassung 1).
     let bis = weit;
-    for (;;) {
-      v.ferne = ferneBauen(fern, bis, voraus);
-      v.texte = texteFuer(pool, aus, v.ferne);
-      const bytes = new TextEncoder().encode(JSON.stringify({ texte: v.texte, tage: aus, ferne: v.ferne })).length + RESERVE_BYTES;
-      if (bytes <= maxBytes || bis <= voraus) break;
-      bis = Math.max(voraus, Math.floor(bis * 0.75));
+    if (weit && !fernFehler) {
+      try {
+        for (;;) {
+          v.ferne = ferneBauen(fern, bis, voraus);
+          v.texte = texteFuer(pool, aus, v.ferne);
+          const bytes = new TextEncoder().encode(JSON.stringify({ texte: v.texte, tage: aus, ferne: v.ferne })).length + RESERVE_BYTES;
+          if (bytes <= maxBytes || bis <= voraus) break;
+          bis = Math.max(voraus, Math.floor(bis * 0.75));
+        }
+      } catch (e) {
+        fernFehler = fernGrund(e);
+      }
+    }
+    if (!weit || fernFehler) {
+      // Ohne Ferne: eine Vorschau der Fassung 1. Ein Skript der Fassung 2
+      // nimmt sie an, gleicht die Nähe an und lässt das Jahr dahinter stehen.
+      v.v = 1;
+      delete v.ferne;
+      v.texte = texteFuer(pool, aus, null);
+      if (fernFehler) v.fernFehler = fernFehler;
+      v.ms = EchteUhr.now() - start;
+      return v;
     }
     v.gekuerzt = bis < weit ? bis : null;
     v.ms = EchteUhr.now() - start;
@@ -610,10 +643,13 @@ function fernTermine({ store, data, dates, tagstart, kalender }, tag, voraus, bi
 /**
  * Die Ferne kodieren: Referenzlisten, je Tag Liste, Versatz und Flicken –
  * und jeder Tag geprüft: Was fernListe() daraus macht, muss genau die echte
- * Fernliste des Tages sein. `roh` je Tag { nah: Set der Kennungen in der
- * Nähe, fern: [[kennung, t, dauer, hash, fertig], …] bis ans Ende }.
+ * Fernliste des Tages sein. Geht die Probe mit einer vorhandenen Liste nicht
+ * auf, wird die Fernliste des Tages selbst eine neue Referenz – die geht
+ * immer auf. `roh` je Tag { nah: Set der Kennungen in der Nähe, fern:
+ * [[kennung, t, dauer, hash, fertig], …] bis ans Ende }. Exportiert nur für
+ * die Prüfung (tests/test-kalender-vorschau.mjs).
  */
-function ferneBauen(roh, bis, voraus) {
+export function ferneBauen(roh, bis, voraus) {
   const listen = [];
   const index = [];
   const saetze = [];
@@ -621,6 +657,8 @@ function ferneBauen(roh, bis, voraus) {
   // nicht weiter, sonst wäre eine gekürzte Ferne kaum kleiner.
   const letzter = roh.length - 1 + bis;
   let zuletzt = -1;
+  const geht = (s, von, ende, nah, soll) => JSON.stringify(entschluesseln(listen[s[0]], s[1], s[2] || [], s[3] || [], von, ende, nah))
+    === JSON.stringify(soll);
   roh.forEach(({ nah, fern }, k) => {
     const von = k + 1;
     const ende = k + bis;
@@ -635,22 +673,23 @@ function ferneBauen(roh, bis, voraus) {
       if (!beste || kosten < beste.kosten) beste = { r, versatz, ...fl, kosten };
       if (!kosten) break;
     }
+    // Die Probe: genau die echte Fernliste – sonst eine neue Referenz.
+    let satz = null;
     if (beste && beste.kosten <= FLICKEN_MAX) {
-      saetze.push(beste.kosten ? [beste.r, beste.versatz, beste.weg, beste.dazu] : [beste.r, beste.versatz]);
-      zuletzt = beste.r;
-    } else {
+      const s = beste.kosten ? [beste.r, beste.versatz, beste.weg, beste.dazu] : [beste.r, beste.versatz];
+      if (geht(s, von, ende, nah, soll)) satz = s;
+    }
+    if (!satz) {
       const liste = bis > voraus ? fern.filter((e) => e[1] >= von && e[1] <= letzter && !nah.has(e[0])).sort(nachTag) : [];
       listen.push(liste);
       index.push(new Map(liste.map((e) => [e[0], e])));
-      zuletzt = listen.length - 1;
-      saetze.push([zuletzt, 0]);
+      satz = [listen.length - 1, 0];
+      // Geht selbst das nicht auf, stimmt an der Rechnung etwas nicht – dann
+      // lieber gar keine Ferne als eine falsche (rechnen() schickt die Nähe).
+      if (!geht(satz, von, ende, nah, soll)) throw new Error(`Ferne am Tag ${k} nicht genau kodierbar`);
     }
-    // Die Probe: genau die echte Fernliste.
-    const s = saetze[k];
-    const pruef = entschluesseln(listen[s[0]], s[1], s[2] || [], s[3] || [], von, ende, nah);
-    if (JSON.stringify(pruef) !== JSON.stringify(soll)) {
-      throw new Error(`kalender-vorschau: Ferne am Tag ${k} nicht genau kodiert`);
-    }
+    saetze.push(satz);
+    zuletzt = satz[0];
   });
   return { bis, listen, tage: saetze };
 }

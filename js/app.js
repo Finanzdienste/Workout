@@ -48,8 +48,8 @@ import {
 } from './sicherung.js';
 import {
   KALENDER_JAHR, kalenderCode, kalenderCodeKopiert, kalenderEinrichten, kalenderGeaendert, kalenderJahrGesehen, kalenderJetzt,
-  kalenderKurz, kalenderLage, kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen, kalenderVerbinden,
-  kalenderVergessen, kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
+  kalenderKurz, kalenderLage, kalenderNachfragen, kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen,
+  kalenderVerbinden, kalenderVergessen, kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
 } from './kalender-sync.js';
 import {
   initAudio, playSound, scheduleSound, cancelSound, signalStand, probeSpielen, tonStand, onTonStand,
@@ -839,6 +839,29 @@ function kalenderZeile() {
 /** Der Tag als „27.10.2027". */
 const kalenderDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
 
+/**
+ * Was im Kalender steht – aus der letzten Auskunft des Skripts (Fassung 2,
+ * kalenderLage().stand). Solange es das Jahr noch einträgt, nur, was schon
+ * steht, und dass der Rest folgt: Bis zur Prüfung stand hier gleich nach dem
+ * Code-Update „Termine bis 27.10.2027", als erst die vier Wochen da waren und
+ * 183 Änderungen offen. Gekürzt hat die App nur, wenn die Sendung sonst zu
+ * groß geworden wäre; das steht dann dabei, statt still weniger zu zeigen.
+ */
+function kalenderImKalender(s, wann) {
+  if (!s || !s.bis) return '';
+  if (s.offen > 0) {
+    const wie = s.folge ? 'in den nächsten Minuten' : 'mit dem nächsten stündlichen Abgleich';
+    const noch = `noch ${s.offen} ${s.offen === 1 ? 'Änderung' : 'Änderungen'}`;
+    const stand = s.probe ? ` (Stand ${wann(s.zeit)})` : '';
+    return s.stehen
+      ? `Im Kalender: Termine bis ${kalenderDatum(s.stehen)}. Den Rest bis ${kalenderDatum(s.bis)} trägt das Skript ${wie} nach – ${noch}${stand}.`
+      : `Im Kalender: Das Skript trägt die Termine bis ${kalenderDatum(s.bis)} gerade ein – ${noch}, ${wie}${stand}.`;
+  }
+  return s.gekuerzt
+    ? `Im Kalender: Termine bis ${kalenderDatum(s.bis)} – diesmal nicht ein ganzes Jahr, weil die Sendung sonst zu groß würde (viele verschiedene Termine).`
+    : `Im Kalender: Termine bis ${kalenderDatum(s.bis)}.`;
+}
+
 /** Was die Karte über den letzten Stand sagt – ein Absatz, ohne Kennwort und Adresse. */
 function kalenderStandText(l) {
   const wann = (ms) => vorWann(new Date(ms).toISOString());
@@ -850,15 +873,8 @@ function kalenderStandText(l) {
     teile.push(l.letzte && !l.letzte.ok ? 'Verbunden, aber beim Skript ist noch nichts angekommen.'
       : 'Verbunden – die erste Vorschau ist unterwegs.');
   }
-  // Bis wann die Termine reichen – aus der Antwort des Skripts (Fassung 2).
-  // Gekürzt hat die App nur, wenn die Sendung sonst zu groß geworden wäre;
-  // das steht dann dabei, statt still weniger zu zeigen.
-  const a = l.angekommen;
-  if (a && a.bis && a.vertrag === 2) {
-    teile.push(a.gekuerzt
-      ? `Im Kalender: Termine bis ${kalenderDatum(a.bis)} – diesmal nicht ein ganzes Jahr, weil die Sendung sonst zu groß würde (viele verschiedene Termine).`
-      : `Im Kalender: Termine bis ${kalenderDatum(a.bis)}.`);
-  }
+  const im = kalenderImKalender(l.stand, wann);
+  if (im) teile.push(im);
   if (l.letzte && !l.letzte.ok && !l.zuAlt) {
     const satz = kalenderSatz(l.letzte);
     teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${satz}`);
@@ -873,13 +889,13 @@ function kalenderStandText(l) {
 /**
  * Die Bitte um neuen Code für das Jahr (KALENDER_JAHR in js/kalender-sync.js):
  * kurz, mit den Schritten und „Code kopieren" gleich darunter. Kein
- * „einrichten" – Kalender und Auslöser bestehen schon. Ist der Code schon ein
- * paar Minuten kopiert und das Skript meldet weiter die alte Fassung, steht
- * darüber, was meist fehlt: „Neue Version".
+ * „einrichten" – Kalender und Auslöser bestehen schon. Meldet eine Antwort
+ * ein paar Minuten nach dem Kopieren noch die alte Fassung, steht darüber,
+ * was meist fehlt: „Neue Version" (kalenderLage().fehlt).
  */
 function kalenderJahrBitte(l) {
   const j = KALENDER_JAHR;
-  const fehlt = l.kopiert && Date.now() - l.kopiert >= j.fehltNach
+  const fehlt = l.fehlt
     ? `<div class="small" id="kalenderJahrFehlt" style="margin-top:6px;color:var(--accent)">${esc(j.fehlt)}</div>` : '';
   return `<div class="notice" id="kalenderJahr" style="margin-top:8px">
       <strong>${esc(j.titel)}</strong>
@@ -897,8 +913,11 @@ function kalenderJahrBitte(l) {
 function kalenderKarte() {
   const l = kalenderLage();
   // Die Vorlage schon jetzt holen: „Code kopieren" soll gleich im Tipp kopieren
-  // können – manche Browser lassen das nur dort zu.
+  // können – manche Browser lassen das nur dort zu. Und nachfragen, wenn es
+  // etwas zu erfahren gibt (neuer Code da? wie weit ist das Jahr?) – höchstens
+  // alle zwei Minuten, die Antwort zeichnet die Karte neu.
   if (l.moeglich) kalenderVorlage().catch(() => {});
+  if (l.verbunden) kalenderNachfragen();
   const was = `<div class="lbl">Google Kalender automatisch</div>
       <div class="small muted" id="kalenderWas" style="margin-top:4px">Deine Trainings stehen in einem eigenen
         Kalender „Workout" in deinem Google-Konto, um ${esc(kalenderUhr(l.minuten))} mit den Übungen, ein Jahr im

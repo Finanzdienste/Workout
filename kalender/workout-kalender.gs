@@ -347,14 +347,19 @@ function annehmen_(e) {
       auslHinweis = 'Den stündlichen Auslöser konnte das Skript nicht prüfen – in Apps Script „einrichten" ausführen.';
     }
     const r = abgleichenSicher_(P, POST_BUDGET_MS);
+    // Was offen bleibt, steht in offen, stehen und folge – daraus macht die
+    // App ihren eigenen Satz, auch später, wenn eine Probe den neuen Stand
+    // holt. Im Hinweis stünde es sonst doppelt und bald veraltet.
     return antwort_(true, urteil === 'neu' ? 'angekommen' : 'gleich', {
       tag: r.tag,
       geaendert: r.geaendert,
       offen: r.offen,
       bis: r.bis,
+      stehen: r.vollBis,
+      folge: r.offen ? !!r.folge : null,
       stand: meta.stand,
       seq: meta.seq,
-      hinweis: r.fehler || r.hinweis || (r.fremd ? null : auslHinweis) || offenSatz_(r) || probeHinweis || undefined,
+      hinweis: r.fehler || r.hinweis || (r.fremd ? null : auslHinweis) || probeHinweis || undefined,
     });
   } finally {
     lock.releaseLock();
@@ -382,10 +387,14 @@ function probeAntwort_(P) {
     hinweis = 'Verbunden.' + (letzter ? ' Zuletzt abgeglichen ' + zeitDe_(letzter.zeit) + '.' : '')
       + (letzter && letzter.offen ? ' Noch ' + letzter.offen + (letzter.offen === 1 ? ' Änderung' : ' Änderungen') + ' offen.' : '');
   }
+  // Wie weit der letzte Abgleich kam – die App fragt so nach, solange das
+  // Skript das Jahr noch einträgt.
   return antwort_(true, 'probe', {
     tag: letzter ? letzter.tag : null,
     offen: letzter && Number.isInteger(letzter.offen) ? letzter.offen : null,
     bis: letzter && letzter.bis ? letzter.bis : null,
+    stehen: letzter && letzter.stehen ? letzter.stehen : null,
+    folge: letzter && letzter.offen ? !!letzter.folge : null,
     stand: meta && !meta.aus ? meta.stand : null,
     seq: meta ? meta.seq : null,
     hinweis: hinweis,
@@ -429,7 +438,8 @@ function abgleichenSicher_(P, budget) {
   if (r.gelaufen !== false) {
     try {
       P.setProperty(P_ABGLEICH, JSON.stringify({
-        zeit: Date.now(), tag: r.tag, geaendert: r.geaendert, offen: r.offen, bis: r.bis, spaeter: r.spaeter, fehler: !!r.fehler,
+        zeit: Date.now(), tag: r.tag, geaendert: r.geaendert, offen: r.offen, bis: r.bis, stehen: r.vollBis, folge: !!r.folge,
+        spaeter: r.spaeter, fehler: !!r.fehler,
       }));
     } catch (err) {
       // Nur eine Auskunft für „Verbinden" – der Abgleich selbst ist durch.
@@ -1515,7 +1525,8 @@ function bereinigt_(x) {
 
 function antwort_(ok, code, mehr) {
   const a = {
-    ok: ok, code: code, version: FASSUNG, kalender: KALENDER_NAME, tag: null, geaendert: null, offen: null, bis: null, stand: null, seq: null,
+    ok: ok, code: code, version: FASSUNG, kalender: KALENDER_NAME, tag: null, geaendert: null, offen: null, bis: null, stehen: null, folge: null,
+    stand: null, seq: null,
   };
   Object.keys(mehr || {}).forEach((k) => {
     if (mehr[k] !== undefined) a[k] = mehr[k];
