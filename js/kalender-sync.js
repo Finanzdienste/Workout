@@ -240,10 +240,16 @@ function kalHash(s) {
 /** Welche Verbindung – damit ein Stand von früher nicht für eine neue spricht. */
 const kalZiel = (k) => (k && k.url && k.token ? kalHash(`${k.url}\u0000${k.token}`) : null);
 
-/** Die Fassung des Skripts dieser Verbindung, soweit bekannt – sonst null. */
+/**
+ * Die Fassung des Skripts dieser Verbindung aus seiner letzten lesbaren
+ * Antwort – sonst null. Seit v246 steht sie in `fassung`; was eine ältere App
+ * hinterließ, steht nur beim letzten Versuch und beim letzten, der ankam.
+ */
 function kalFassung(ziel = kalZiel(store.kalender())) {
-  const f = kalMeta().fassung;
-  return f && ziel && f.ziel === ziel && Number.isInteger(f.version) ? f.version : null;
+  if (!ziel) return null;
+  const m = kalMeta();
+  const f = [m.fassung, m.letzte, m.angekommen].find((x) => x && x.ziel === ziel && Number.isInteger(x.version));
+  return f ? f.version : null;
 }
 
 /** Welche Fassung des Vertrags hinausgeht: die neueste, sobald das Skript sie kennt, sonst 1. */

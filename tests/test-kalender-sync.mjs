@@ -48,6 +48,17 @@
  *  10. Last im Fenster, gemessen mit echter Uhr.
  *  11. Die Einzeldatei: Karte ohne Knöpfe, keine Fehler.
  *  12. Konstanten, die an zwei Stellen stehen, sind gleich.
+ *  13. Ein Jahr im Voraus („Klappt alles aber bisschen wenig Termine. Lass
+ *      doch mal ein Jahr machen"): Solange das Skript Fassung 1 meldet, geht
+ *      v 1 hinaus wie bisher; die Startseite sagt es einmal dezent, die Karte
+ *      bittet um den neuen Code – mit Schritten ohne „einrichten" und
+ *      demselben Kennwort. Zurück aus Apps Script fragt die App nach, sieht
+ *      Fassung 2 und schickt von selbst das Jahr. Ein Gerät, das die Fassung
+ *      nicht kennt, schickt erst v 1 und gleich danach v 2; weist ein Skript
+ *      v 2 zurück, geht dieselbe Vorschau gleich als v 1 hinaus.
+ *  14. Über 64 KiB (ein Jahr mit vielen Terminen): beim Wegschalten kein
+ *      keepalive, sondern gleich in den Ausgang – der Service Worker schickt
+ *      es, und die App merkt sich danach, was ankam.
  *
  *     node tests/test-kalender-sync.mjs            # alles
  *     node tests/test-kalender-sync.mjs 3 7        # nur Abschnitt 3 und 7
@@ -87,6 +98,11 @@ const echteWarte = (ms) => new Promise((r) => { setTimeout(r, ms); });
  * Das gespielte Skript
  * ------------------------------------------------------------------ */
 
+const bisTag = (iso, k) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + k)).toISOString().slice(0, 10);
+};
+
 /**
  * Antwortet wie kalender/workout-kalender.gs – solange `modus` 'ok' ist und
  * kein `code` vorgegeben. Hält jede Anfrage fest: Adresse, Body, Kopf, ob sie
@@ -98,8 +114,10 @@ const echteWarte = (ms) => new Promise((r) => { setTimeout(r, ms); });
  */
 function skriptAttrappe() {
   const s = {
-    anfragen: [], modus: 'ok', code: null, hinweis: undefined, version: 1, halten: null, geaendert: 2, cors: new Set(),
+    anfragen: [], modus: 'ok', code: null, hinweis: undefined, version: 2, halten: null, geaendert: 2, cors: new Set(),
     get: 'status', getCors: false, probeHinweis: null, haltenVorschau: null,
+    // Wie Fassung 1 (Tobis Skript bis zum Code-Update): kennt v 2 nicht.
+    fassung1: false,
   };
   s.route = async (route) => {
     const req = route.request();
@@ -146,13 +164,16 @@ function skriptAttrappe() {
         return;
       }
       let a;
-      if (s.code) a = { ok: ['angekommen', 'gleich', 'probe', 'aus'].includes(s.code), code: s.code };
+      if (s.fassung1 && j && j.v !== 1) a = { ok: false, code: 'format', hinweis: 'Die App ist neuer als dieses Skript – „Kalender-Code erneuern".' };
+      else if (s.code) a = { ok: ['angekommen', 'gleich', 'probe', 'aus'].includes(s.code), code: s.code };
       else if (j && j.probe) a = { ok: true, code: 'probe', hinweis: s.probeHinweis || 'Verbunden. Noch keine Vorschau angekommen.' };
       else if (j && j.aus) a = { ok: true, code: 'aus', geaendert: 3 };
       else a = { ok: true, code: 'angekommen', tag: j && j.ab, geaendert: s.geaendert };
       const antwort = {
-        ok: a.ok, code: a.code, version: s.version, kalender: 'Workout', tag: a.tag || null,
+        ok: a.ok, code: a.code, version: s.fassung1 ? 1 : s.version, kalender: 'Workout', tag: a.tag || null,
         geaendert: a.geaendert ?? null, stand: j && j.stand ? j.stand : null, seq: j ? j.seq : null,
+        // Fassung 2 sagt, bis wann die Liste reicht – wie kalender/workout-kalender.gs.
+        ...(!s.fassung1 && j && j.ferne && a.ok ? { offen: 0, bis: bisTag(j.ab, j.ferne.bis) } : {}),
         ...(s.hinweis !== undefined ? { hinweis: s.hinweis } : a.hinweis ? { hinweis: a.hinweis } : {}),
       };
       await route.fulfill({ status: 200, contentType: 'application/json', headers: ACAO, body: JSON.stringify(antwort) });
@@ -169,15 +190,32 @@ function skriptAttrappe() {
  * Ein Gerät
  * ------------------------------------------------------------------ */
 
+/** Wie kalZiel() in js/kalender-sync.js: welche Verbindung (FNV-1a über Adresse und Kennwort). */
+const zielVon = (url, token) => {
+  const s = `${url}\u0000${token}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+};
+
 /**
  *   zustand   der Stand vor dem ersten Laden (Standard: Tobis vom 08.10.)
  *   kalender  state.kalender dazu – { token, url }
+ *   fassung   ist es verbunden: welche Fassung des Skripts das Gerät aus
+ *             früheren Antworten kennt (Standard 2 – ein Gerät, das schon
+ *             lief); null: noch keine (erst v 1, dann gleich v 2, Abschnitt 13)
+ *   meta      workout.kalender.v1 vor dem ersten Laden, statt `fassung`
  *   zeit      wo die Uhr steht (null: echte Uhr)
  *   sw        Service Worker zulassen
  */
 async function geraet(name, {
-  zustand = ZUSTAND, kalender = null, zeit = START, sw = false, adresse = APP, rechte = true,
+  zustand = ZUSTAND, kalender = null, fassung = 2, meta: vorMeta = null, zeit = START, sw = false, adresse = APP, rechte = true,
 } = {}) {
+  const mt = vorMeta || (kalender && kalender.url && kalender.token && fassung !== null
+    ? { fassung: { ziel: zielVon(kalender.url, kalender.token), version: fassung } } : null);
   const ctx = await browser.newContext({
     timezoneId: 'Europe/Berlin', viewport: { width: 414, height: 896 }, serviceWorkers: sw ? 'allow' : 'block',
   });
@@ -193,10 +231,14 @@ async function geraet(name, {
     rueck.push({ url: r.request().url(), roh: r.request().postData() || '' });
     r.fulfill({ status: 204, body: '' });
   });
-  await ctx.addInitScript(({ z, k }) => {
+  await ctx.addInitScript(({ z, k, mt }) => {
     if (z && !sessionStorage.getItem('__test.zustand')) {
       sessionStorage.setItem('__test.zustand', '1');
       localStorage.setItem('workout.state.v1', JSON.stringify(k ? { ...z, kalender: k } : z));
+    }
+    if (mt && !sessionStorage.getItem('__test.meta')) {
+      sessionStorage.setItem('__test.meta', '1');
+      localStorage.setItem('workout.kalender.v1', JSON.stringify(mt));
     }
     // Sichtbarkeit steuerbar (wie tests/sicherung-labor.mjs).
     window.__hidden = false;
@@ -232,7 +274,7 @@ async function geraet(name, {
       new window.PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lang.push({ start: e.startTime, dauer: e.duration })))
         .observe({ type: 'longtask', buffered: true });
     } catch { /* kein longtask */ }
-  }, { z: zustand, k: kalender });
+  }, { z: zustand, k: kalender, mt });
   const page = await ctx.newPage();
   page.setDefaultTimeout(6000);
   const konsole = [];
@@ -400,7 +442,7 @@ await abschnitt(1, async () => {
     'der kopierte Code ist die Vorlage mit genau diesem Kennwort an der Stelle des Platzhalters');
   check(!code1.includes(PLATZHALTER) && code1.split(k1.token).length === 2 && code1.includes(`const TOKEN = '${k1.token}';`),
     'kein Platzhalter mehr, das Kennwort genau einmal, in der Zeile const TOKEN');
-  check(/^const FASSUNG = 1;$/m.test(code1), 'die Fassung des Skripts steht lesbar darin');
+  check(/^const FASSUNG = 2;$/m.test(code1), 'die Fassung des Skripts steht lesbar darin (2)');
   check(/Code kopiert/.test(await text(page, '#kalenderMeldung')) && await page.locator('#kalenderKennwort').count() === 1,
     'die Karte sagt „Code kopiert" und dass das Kennwort fest gespeichert ist');
   check((await page.locator('#kalenderAuto .btn-primary').allTextContents()).map((x) => x.trim()).join() === 'Verbinden',
@@ -503,7 +545,8 @@ await abschnitt(2, async () => {
   await versuch(URL_A, /kennt dieses Kennwort nicht.*Code kopieren.*Neue Version/, 'falsches Kennwort');
   skript.code = 'format';
   skript.hinweis = 'Die App ist neuer als dieses Skript – „Kalender-Code erneuern".';
-  await versuch(URL_A, /Kalender-Code erneuern.*einrichten.*Neue Version/, 'zu alter Code');
+  const mZuAlt = await versuch(URL_A, /Kalender-Code erneuern.*Neue Version/, 'zu alter Code');
+  check(!/einrichten/.test(mZuAlt), '… ohne „einrichten" – Kalender und Auslöser bestehen schon');
   skript.code = null;
   skript.hinweis = undefined;
   // Keine Antwort: Die Probe hängt, nach 30 s gibt die App auf.
@@ -547,11 +590,11 @@ await abschnitt(2, async () => {
     'die Probe trägt nur v, token, geraet, seq, gesendet, probe');
   const v = neu[1];
   check(V.nutzlastPruefen(v.j) === null, `die Vorschau besteht nutzlastPruefen() aus dem Vertrag (${V.nutzlastPruefen(v.j)})`);
-  check(v.j.token === TOKEN && v.j.minuten === 1050 && v.j.erinnerung === 30 && v.j.v === 1,
-    'mit dem Kennwort, 17:30 (1050) und 30 Minuten Erinnerung als Standard');
+  check(v.j.token === TOKEN && v.j.minuten === 1050 && v.j.erinnerung === 30 && v.j.v === 2 && v.j.ferne && v.j.ferne.bis === 365,
+    'mit dem Kennwort, 17:30 (1050) und 30 Minuten Erinnerung als Standard – und, weil die Probe Fassung 2 meldete, mit dem Jahr (v 2)');
   check(v.j.ab === HEUTE && Object.keys(v.j.tage).length === V.VORSCHAU_TAGE && v.j.fenster.join() === '7,28',
     `ab heute, 42 Tage, Fenster [7, 28] (${Object.keys(v.j.tage).length} Tage)`);
-  check(Buffer.byteLength(v.roh, 'utf8') < 0.75 * V.VORSCHAU_MAX_BYTES, `${(Buffer.byteLength(v.roh) / 1024).toFixed(1)} KiB – unter drei Vierteln der 64 KiB`);
+  check(Buffer.byteLength(v.roh, 'utf8') < V.VORSCHAU_MAX_BYTES, `${(Buffer.byteLength(v.roh) / 1024).toFixed(1)} KiB für ein Jahr – sogar unter den 64 KiB für keepalive`);
   const kopf = v.kopf;
   check(kopf['content-type'] === 'text/plain;charset=UTF-8', `Content-Type text/plain (${kopf['content-type']})`);
   const eigene = Object.keys(kopf).filter((h) => /^x-|^authorization$|^cookie$/i.test(h));
@@ -562,7 +605,7 @@ await abschnitt(2, async () => {
   check(/^[A-Za-z0-9_-]{4,64}$/.test(v.j.geraet || '') && v.j.geraet === m2.geraet && v.j.seq === m2.seq && v.j.seq > p.seq,
     `geraet und seq kommen aus workout.kalender.v1 (seq ${p.seq} → ${v.j.seq})`);
   await bis(async () => /Zuletzt angekommen/.test(await text(page, '#kalenderStand')));
-  check(/Verbunden\. Zuletzt angekommen: gerade eben \(Skript Fassung 1\)/.test(await text(page, '#kalenderStand')),
+  check(/Verbunden\. Zuletzt angekommen: gerade eben \(Skript Fassung 2\)\. Im Kalender: Termine bis 08\.10\.2027\./.test(await text(page, '#kalenderStand')),
     `die Karte sagt, wann es zuletzt ankam („${(await text(page, '#kalenderStand')).slice(0, 70)}")`);
   check(await page.locator('#kalenderMeldung').count() === 0,
     'sobald die erste Vorschau angekommen ist, sagt die Karte nur noch den Stand – kein „Noch keine Vorschau" mehr darunter');
@@ -775,14 +818,18 @@ await abschnitt(4, async () => {
 
   skript.code = null;
   skript.hinweis = undefined;
-  skript.version = 0;
+  skript.version = 1;
   await jetzt();
   l = await lage();
-  check(/älter als die App/.test(l.dash) && await page.locator('#kalenderErneuern').count() === 1,
-    'das Skript meldet eine ältere Fassung als die Vorlage: „Kalender-Code erneuern", auf Karte und Dashboard');
+  await zumDashboard(page);
+  const jahrZeile = await page.locator('#kalenderJahrZeile').count() === 1 ? await text(page, '#kalenderJahrZeile') : '';
+  await zuMehr(page);
+  check(!l.dash && /Ein Jahr im Voraus geht jetzt/.test(jahrZeile) && await page.locator('#kalenderJahr').count() === 1
+    && await page.locator('#kalenderErneuern').count() === 0,
+  'das Skript meldet eine ältere Fassung als die Vorlage: keine Warnzeile – es läuft ja –, aber einmal dezent die Bitte um das Jahr, und auf der Karte die Schritte');
   check(/Bereitstellungen verwalten → Bearbeiten \(Stift\) → Version: Neue Version/.test(l.karte), 'mit „Bereitstellungen verwalten → Bearbeiten → Neue Version"');
-
-  skript.version = 1;
+  skript.version = 2;
+  await jetzt();
   skript.geaendert = null;
   skript.hinweis = 'Der Kalender „Workout" fehlt (gelöscht?). In Apps Script „einrichten" noch einmal ausführen.';
   await jetzt();
@@ -925,8 +972,9 @@ await abschnitt(5, async () => {
   await page.locator('[data-act="kalender-code"]').click();
   await bis(async () => /Code kopiert/.test(await text(page, '#kalenderMeldung')));
   const mc = await text(page, '#kalenderMeldung');
-  check(/einrichten/.test(mc) && /Neue Version/.test(mc) && !/Schritt 2 und 3/.test(mc),
-    `verbunden „Code kopieren": ersetzen, „einrichten", Neue Version – nicht „Schritt 2 und 3" („${mc.slice(0, 70)}…")`);
+  check(/demselben Kennwort/.test(mc) && /im selben Projekt den ganzen Code/.test(mc) && /Neue Version/.test(mc) && !/einrichten/.test(mc)
+    && !/Schritt 2 und 3/.test(mc),
+  `verbunden „Code kopieren": dasselbe Kennwort, im selben Projekt ersetzen, Neue Version – ohne „einrichten" (Kalender und Auslöser bestehen) und nicht „Schritt 2 und 3" („${mc.slice(0, 70)}…")`);
   await zu(g);
 });
 
@@ -1238,8 +1286,10 @@ await abschnitt(12, async () => {
   const store = readFileSync(path.join(ROOT, 'js', 'store.js'), 'utf8');
   const sw = readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
   check(Number((/const KAL_VERTRAG = (\d+);/.exec(sync) || [])[1]) === V.VORSCHAU_V
-    && /const KAL_MAX_BYTES = 64 \* 1024;/.test(sync) && V.VORSCHAU_MAX_BYTES === 64 * 1024,
-    'Fassung des Vertrags und 64 KiB: in js/kalender-sync.js wie in js/kalender-vorschau.js');
+    && /const KAL_MAX_BYTES = 64 \* 1024;/.test(sync) && V.VORSCHAU_MAX_BYTES === 64 * 1024
+    && /const KAL_MAX_BYTES_2 = 192 \* 1024;/.test(sync) && V.VORSCHAU_MAX_BYTES_2 === 192 * 1024
+    && Number((/const KAL_FERNE = (\d+);/.exec(sync) || [])[1]) === V.VORSCHAU_FERNE,
+  'Fassung des Vertrags, 64 und 192 KiB, ein Jahr Ferne: in js/kalender-sync.js wie in js/kalender-vorschau.js');
   const reStore = (/export const KALENDER_URL = (\/.+\/);/.exec(store) || [])[1];
   const reSw = (/const KALENDER_ZIEL = (\/.+\/);/.exec(sw) || [])[1];
   check(!!reStore && reStore === reSw, 'die erlaubte Adresse: in js/store.js und sw.js dieselbe');
@@ -1251,6 +1301,190 @@ await abschnitt(12, async () => {
     return { k: [k.KALENDER_MINUTEN, k.KALENDER_ERINNERUNG], s: s.normKalender({ token: 'abcdefghijklmnop1234' }) };
   });
   check(std.s.minuten === std.k[0] && std.s.erinnerung === std.k[1], `die Standards: ${std.k.join(' / ')} in js/kalender.js wie in normKalender()`);
+  await zu(g);
+});
+
+/* ================================================================== *
+ * 13. Fassung 1 im Skript – und das Code-Update
+ *
+ *     „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr
+ *      machen"
+ * ================================================================== */
+await abschnitt(13, async () => {
+  // Tobis Skript bis zum Update: Fassung 1. Das Gerät kennt die Fassung noch nicht.
+  const g = await geraet('13 Fassung 1', { kalender: { token: TOKEN, url: URL_A }, fassung: null });
+  const { page, skript } = g;
+  skript.fassung1 = true;
+  await vor(page, 4000, 1500);
+  await bis(() => skript.vorschauen().length === 1);
+  await vor(page, 1000, 1500);
+  const erst = skript.vorschauen();
+  check(erst.length === 1 && erst[0].j.v === 1 && !('ferne' in erst[0].j) && V.nutzlastPruefen(erst[0].j) === null
+    && Object.keys(erst[0].j.tage).length === 42 && Buffer.byteLength(erst[0].roh) < V.VORSCHAU_MAX_BYTES,
+  `Fassung unbekannt: die App schickt v 1 wie bisher (${(Buffer.byteLength(erst[0].roh) / 1024).toFixed(1)} KiB) – ein Skript der Fassung 1 nimmt es an`);
+  const m1 = await meta(page);
+  check(m1.fassung.version === 1 && m1.fassung.ziel === zielVon(URL_A, TOKEN) && m1.letzte.ok,
+    'die Antwort sagt Fassung 1 – die App merkt es sich für diese Verbindung, und es bleibt bei v 1');
+  // Die Startseite: einmal, dezent.
+  await zumDashboard(page);
+  const zeile = page.locator('#kalenderJahrZeile');
+  const zText = (await text(page, '#kalenderJahrZeile')).trim();
+  check(await zeile.count() === 1 && !/\bwarn\b/.test(await zeile.getAttribute('class')) && await page.locator('#kalenderZeile').count() === 0
+    && /Ein Jahr im Voraus geht jetzt – dafür einmal den Code im Skript erneuern/.test(zText),
+  `Startseite: einmal dezent, ohne Warnfarbe – kaputt ist nichts („${zText}")`);
+  await page.locator('[data-act="kalender-jahr-ansehen"]').click();
+  await echteWarte(300);
+  const jahr = await page.evaluate(async () => (await import('./js/kalender-sync.js')).KALENDER_JAHR);
+  const karte = await text(page, '#kalenderJahr');
+  const schritte = (await page.locator('#kalenderJahrSchritte li').allTextContents()).map((x) => x.replace(/\s+/g, ' ').trim());
+  check(await page.locator('#kalenderJahr').isVisible() && karte.includes(jahr.titel) && karte.includes(jahr.satz) && karte.includes(jahr.danach)
+    && JSON.stringify(schritte) === JSON.stringify(jahr.schritte),
+  '„Ansehen" führt zur Bitte auf der Karte: der Satz, vier Schritte, was danach passiert');
+  console.log(`     Die Bitte: ${jahr.satz} ${schritte.map((x, i) => `${i + 1}. ${x}`).join(' ')} ${jahr.danach}`);
+  check(schritte.length === 4 && /„Code kopieren"/.test(schritte[0]) && /script\.google\.com/.test(schritte[1]) && /Desktopwebsite/.test(schritte[1])
+    && /dasselbe wie beim Einrichten/.test(schritte[1]) && /den ganzen Code dort durch den kopierten ersetzen und speichern/i.test(schritte[2])
+    && /Bereitstellen → Bereitstellungen verwalten → Bearbeiten \(Stift\) → Version: Neue Version → Bereitstellen/.test(schritte[3])
+    && !/„?einrichten/.test(`${jahr.satz} ${schritte.join(' ')} ${jahr.danach}`.replace('beim Einrichten', '')),
+  'die Schritte: Code kopieren, dasselbe Projekt öffnen, ganzen Code ersetzen und speichern, Neue Version bereitstellen – kein „einrichten"');
+  check(/von selbst/.test(jahr.danach) && /das ganze Jahr/.test(jahr.danach) && /dasselbe/.test(jahr.satz),
+    'dazu: dasselbe Kennwort, und die App merkt es von selbst – keine Wahl, kein Knopf');
+  check(await page.locator('#kalenderJahr .btn-primary[data-act="kalender-code"]').count() === 1
+    && await page.locator('#kalenderAuto [data-act="kalender-code"]').count() === 1,
+  'genau ein „Code kopieren" auf der Karte, als Hauptknopf in der Bitte');
+  await page.locator('#kalenderAuto').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${SHOT}/kalender-karte-jahr.png` });
+  await zumDashboard(page);
+  check(await page.locator('#kalenderJahrZeile').count() === 0, 'einmal: angesehen, steht die Zeile nicht mehr auf der Startseite');
+  await page.reload({ waitUntil: 'load' });
+  await vor(page, 4000, 1500);
+  await zumDashboard(page);
+  check(await page.locator('#kalenderJahrZeile').count() === 0 && skript.vorschauen().length === 1,
+    '… auch nach dem Neuladen nicht; dieselbe Vorschau geht nicht noch einmal hinaus');
+  await zuMehr(page);
+  await page.locator('#kalenderJahr [data-act="kalender-code"]').click();
+  await bis(async () => /Code kopiert/.test(await text(page, '#kalenderMeldung')));
+  const code = await page.evaluate(() => navigator.clipboard.readText());
+  check(code === VORLAGE.replace(PLATZHALTER, TOKEN) && /^const FASSUNG = 2;$/m.test(code) && (await kal(page)).token === TOKEN,
+    '„Code kopieren": die neue Fassung mit demselben Kennwort wie bisher – das Skript erkennt die App weiter');
+  // Tobi ersetzt in Apps Script den Code und stellt die neue Version bereit;
+  // ein paar Minuten später ist er zurück in der App.
+  const proben = skript.proben().length;
+  const n0 = skript.vorschauen().length;
+  skript.fassung1 = false;
+  await vor(page, 3 * 60 * 1000, 300);
+  await verstecken(page);
+  await zeigen(page);
+  await bis(() => skript.vorschauen().length > n0, 8000);
+  const v2 = skript.letzte();
+  check(skript.proben().length > proben && v2 && v2.v === 2 && v2.ferne && v2.ferne.bis === 365 && V.nutzlastPruefen(v2) === null,
+    'zurück aus Apps Script: die App fragt kurz nach (eine Probe), sieht Fassung 2 und schickt von selbst das Jahr');
+  await bis(async () => /Termine bis/.test(await text(page, '#kalenderStand')), 4000);
+  check(await page.locator('#kalenderJahr').count() === 0 && /Skript Fassung 2\)\. Im Kalender: Termine bis 08\.10\.2027\./.test(await text(page, '#kalenderStand')),
+    `die Bitte ist weg; die Karte sagt, bis wann die Termine stehen („${(await text(page, '#kalenderStand')).slice(0, 110)}")`);
+  const dz = (await diagZeilen(page)).filter((x) => / kalender was=(fassung-frage|vorschau) /.test(x)).slice(-2);
+  check(dz.some((x) => /was=fassung-frage version=2/.test(x)) && dz.some((x) => /vertrag=2 fern=365/.test(x)),
+    'im Diagnoseprotokoll: die Nachfrage und die Sendung mit Vertrag 2');
+  await zu(g);
+
+  // Unbekannt heißt v 1 – und meldet die Antwort Fassung 2, geht gleich das Jahr hinterher.
+  const h = await geraet('13 neu', { kalender: { token: TOKEN, url: URL_A }, fassung: null });
+  await vor(h.page, 4000, 1500);
+  await bis(() => h.skript.vorschauen().length >= 2, 8000);
+  const vs = h.skript.vorschauen().map((x) => x.j.v);
+  check(vs.length === 2 && vs[0] === 1 && vs[1] === 2 && h.skript.vorschauen()[1].j.ferne,
+    `ein Gerät, das die Fassung noch nicht kennt: erst v 1, die Antwort sagt Fassung 2, gleich danach v 2 (${vs.join(', ')})`);
+  await zumDashboard(h.page);
+  check(await h.page.locator('#kalenderJahrZeile').count() === 0 && await h.page.locator('#kalenderZeile').count() === 0,
+    'Fassung 2 im Skript: keine Zeile auf der Startseite');
+  await zu(h);
+
+  // Ein Skript, das v 2 zurückweist (der alte Code wieder eingefügt): gleich noch einmal als v 1.
+  const f = await geraet('13 zurück', { kalender: { token: TOKEN, url: URL_A }, fassung: null });
+  await vor(f.page, 4000, 1500);
+  await bis(() => f.skript.vorschauen().length >= 2, 8000);
+  f.skript.fassung1 = true;
+  const n1 = f.skript.vorschauen().length;
+  await f.page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+  await bis(() => f.skript.vorschauen().length >= n1 + 2, 8000);
+  await echteWarte(300);
+  const danach = f.skript.vorschauen().slice(n1).map((x) => x.j.v);
+  check(danach[0] === 2 && danach[1] === 1 && (await meta(f.page)).letzte.ok && (await meta(f.page)).fassung.version === 1,
+    `ein Skript, das v 2 nicht kennt: abgewiesen („format", Fassung 1), gleich noch einmal als v 1 – und angekommen (${danach.join(', ')})`);
+  await zu(f);
+
+  // Tobis Handy nach dem Update der App: Was v245 hinterließ, kennt `fassung`
+  // noch nicht – die Fassung steht nur beim letzten Versuch und beim letzten,
+  // der ankam. Die zählt auch, ohne dass erst etwas ankommen muss (hier: kein Netz).
+  const ziel = zielVon(URL_A, TOKEN);
+  const alt = Date.parse('2026-10-07T18:00:00+02:00');
+  const t = await geraet('13 nach dem Update', {
+    kalender: { token: TOKEN, url: URL_A },
+    meta: {
+      geraet: 'gAltesGeraet01', seq: 41, hash: 'abc123', ziel,
+      letzte: { nr: 9, art: 'vorschau', zeit: alt, ergebnis: 'angekommen', ok: true, version: 1, ziel },
+      angekommen: { zeit: alt, version: 1, tag: '2026-10-07', ziel },
+    },
+  });
+  t.skript.modus = 'netz';
+  await vor(t.page, 4000, 1500);
+  await bis(() => t.skript.vorschauen().length >= 1, 8000);
+  await echteWarte(300);
+  await zumDashboard(t.page);
+  // Ohne Netz versucht der Browser dieselbe Sendung zweimal (mit und ohne CORS) – es bleibt eine.
+  const tv = t.skript.vorschauen();
+  check(new Set(tv.map((x) => x.roh)).size === 1 && tv[0].j.v === 1 && !tv[0].j.ferne
+    && await t.page.locator('#kalenderJahrZeile').count() === 1 && await t.page.locator('#kalenderZeile').count() === 0,
+  'nach dem Update der App: Fassung 1 aus dem, was v245 vermerkte – v 1, und die Bitte steht da, auch ohne Netz');
+  await zu(t);
+});
+
+/* ================================================================== *
+ * 14. Über 64 KiB: beim Wegschalten über den Service Worker
+ * ================================================================== */
+await abschnitt(14, async () => {
+  // Fußball jede Woche, ein Jahr lang: die Ferne voller Termine, die
+  // Sendung über 64 KiB – mehr, als keepalive beim Wegschalten trägt.
+  const z = JSON.parse(JSON.stringify(ZUSTAND));
+  z.termine = Array.from({ length: 52 }, (_, i) => ({ datum: bisTag('2026-11-07', i * 7), name: 'Fußball', aktivitaet: 'fussball', minuten: 90 }));
+  const g = await geraet('14 groß', { zustand: z, kalender: { token: TOKEN, url: URL_A }, sw: true });
+  const { page, skript, ctx } = g;
+  await bis(() => page.evaluate(() => !!navigator.serviceWorker.controller), 10000);
+  await vor(page, 4000, 1500);
+  await bis(() => skript.vorschauen().some((x) => x.j.v === 2), 30000);
+  const gross = skript.vorschauen().find((x) => x.j.v === 2);
+  const kib = (s) => (Buffer.byteLength(s) / 1024).toFixed(1);
+  check(!!gross && Buffer.byteLength(gross.roh) > V.VORSCHAU_MAX_BYTES && Buffer.byteLength(gross.roh) < V.VORSCHAU_MAX_BYTES_2,
+    `52 Termine in der Ferne: ${gross ? kib(gross.roh) : '?'} KiB – über 64 KiB, bei offener Seite trotzdem hinaus (ohne keepalive)`);
+  const n0 = skript.vorschauen().length;
+  await page.evaluate(async () => (await import('./js/store.js')).setSetting('injuries', ['tennisarm']));
+  await vor(page, 2500, 300);
+  await echteWarte(10000);   // der Worker rechnet die 52 Termine in echter Zeit
+  await verstecken(page);
+  await echteWarte(1500);
+  const ausgang = await page.evaluate(async () => {
+    const r = await (await caches.open('kalender-ausgang')).match(new URL('kalender-ausgang', location.href).href);
+    return r ? r.json() : null;
+  });
+  const keepalive = (await diagZeilen(page)).filter((x) => / kalender was=vorschau .*keepalive=true/.test(x));
+  check(skript.vorschauen().length === n0 && !!ausgang && JSON.parse(ausgang.text).v === 2 && Buffer.byteLength(ausgang.text) > V.VORSCHAU_MAX_BYTES
+    && !keepalive.length && (await page.evaluate(() => window.__sync)).includes('kalender'),
+  `Wegschalten mit ${ausgang ? kib(ausgang.text) : '?'} KiB: kein keepalive-Versuch, gleich in den Ausgang – der Service Worker schickt es`);
+  const cdp = await ctx.newCDPSession(page);
+  let regId = null;
+  cdp.on('ServiceWorker.workerRegistrationUpdated', (ev) => { (ev.registrations || []).forEach((r) => { if (!r.isDeleted) regId = r.registrationId; }); });
+  await cdp.send('ServiceWorker.enable');
+  await bis(() => regId !== null, 3000);
+  await cdp.send('ServiceWorker.dispatchSyncEvent', { origin: ORIGIN, registrationId: regId, tag: 'kalender', lastChance: false });
+  await bis(() => skript.vorschauen().length > n0, 8000);
+  const vomSW = skript.vorschauen().slice(n0);
+  check(vomSW.length === 1 && vomSW[0].vonSW && vomSW[0].roh === ausgang.text, 'der Service Worker schickt genau diese Sendung – über 64 KiB, ohne keepalive');
+  await zeigen(page);
+  await bis(async () => !!(await meta(page)).nach, 4000);
+  const m = await meta(page);
+  check(m.nach && m.nach.code === 'angekommen' && m.hash === ausgang.hash && m.fassung.version === 2,
+    'zurück in der App: Sie liest den Vermerk – angekommen, dieselbe Vorschau –, und merkt sich Fingerabdruck und Fassung');
+  await vor(page, 3 * 60 * 1000, 2000);
+  check(skript.vorschauen().length === n0 + 1, 'dieselbe Vorschau geht danach nicht noch einmal hinaus');
   await zu(g);
 });
 

@@ -831,7 +831,7 @@ function kalenderZeile() {
   if (l.neuerCode && !l.gesehen) {
     return `<div class="notice zeile" id="kalenderJahrZeile">📅 <span>Google Kalender: Ein Jahr im Voraus geht jetzt –
       dafür einmal den Code im Skript erneuern.</span>
-      <button type="button" class="btn" data-act="kalender-ansehen">Ansehen</button></div>`;
+      <button type="button" class="btn" data-act="kalender-jahr-ansehen">Ansehen</button></div>`;
   }
   return '';
 }
@@ -8695,9 +8695,13 @@ view.addEventListener('click', (e) => {
       go('settings');
       { const ziel = document.getElementById('daten'); if (ziel) ziel.scrollIntoView(); }
       break;
-    case 'kalender-ansehen':
+    case 'kalender-jahr-ansehen':
       // Angesehen: Die Bitte um neuen Code steht danach nur noch auf der Karte.
       kalenderJahrGesehen();
+      go('settings');
+      { const ziel = document.getElementById('kalenderJahr') || document.getElementById('kalender'); if (ziel) ziel.scrollIntoView(); }
+      break;
+    case 'kalender-ansehen':
       go('settings');
       { const ziel = document.getElementById('kalender'); if (ziel) ziel.scrollIntoView(); }
       break;
