@@ -57,6 +57,11 @@
  *      während des Auffüllens und danach; eine gekürzte Ferne; eine ruhige
  *      Stunde liest nur die Nähe; Termine in der Ferne (Flicken); der Tag des
  *      Rundenwechsels; Abschalten mit einem ganzen Jahr.
+ *  10. Was die Prüfung des Jahres fand: ein „weiter", das sich nicht löschen
+ *      lässt oder nie lief (ein gefeuerter einmaliger Auslöser bleibt gelistet
+ *      – die Attrappe hält es so); ein Lauf, der vor lauter Lesen nichts
+ *      schafft; doPost nach 28 s Warten auf die Sperre; ein gescheitertes
+ *      Löschen alter Stücke im Speicher; das Tageskontingent mitten im Jahr.
  */
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -290,7 +295,7 @@ class Welt {
   constructor(jetzt) {
     Object.assign(this, {
       jetzt: um(jetzt), kalender: [], nr: 0, lesen: 0, schreiben: 0, terminSchreiben: 0,
-      drossel: null, drosselText: DROSSEL, proSchreiben: 0, neueErinnerung: [10], voreinstellungVerdeckt: false,
+      drossel: null, drosselText: DROSSEL, proSchreiben: 0, proLesen: 0, neueErinnerung: [10], voreinstellungVerdeckt: false,
     });
     this.haupt = new Kal(this, 'Tobi', { zone: BERLIN });
     this.CalendarApp = {
@@ -319,7 +324,9 @@ class Welt {
     if (termin) { this.terminSchreiben += 1; termin.schreibzugriffe += 1; }
   }
 
-  lies() { this.lesen += 1; }
+  // Lesen kostet bei Google Zeit, wie viel, ist ungemessen – hier 0, außer
+  // eine Prüfung stellt es ein (Abschnitt 10).
+  lies() { this.lesen += 1; this.jetzt += this.proLesen; }
 
   alle() { return this.kalender.flatMap((k) => k.termine); }
 
@@ -471,7 +478,11 @@ const ausloeser = (fn, art, wert) => {
 
 /** Ein Apps-Script-Projekt in der Welt: eigener Speicher, eigene Auslöser, eigene Sperre – derselbe Kalender. */
 function projekt(welt, code = CODE) {
-  const p = { props: new Map(), ausloeser: [], belegt: false, protokoll: [], id: `skript${++welt.nr}`, scopes: 0, maxWert: 0 };
+  // sperreBis: bis dahin hält ein anderer Lauf die Sperre – tryLock wartet so
+  // lange, wie es darf (Abschnitt 10). belegt: sie bleibt belegt.
+  const p = {
+    props: new Map(), ausloeser: [], belegt: false, sperreBis: null, protokoll: [], id: `skript${++welt.nr}`, scopes: 0, maxWert: 0,
+  };
   const store = {};
   const setzen = (k, v) => {
     const key = String(k);
@@ -529,7 +540,17 @@ function projekt(welt, code = CODE) {
     getScriptLock: () => {
       let halte = false;
       const lock = {
-        tryLock: () => { if (p.belegt) return false; p.belegt = true; halte = true; return true; },
+        tryLock: (ms = 0) => {
+          if (p.sperreBis !== null && welt.jetzt < p.sperreBis) {
+            if (p.sperreBis - welt.jetzt > ms) { welt.jetzt += ms; return false; }
+            welt.jetzt = p.sperreBis;
+            p.sperreBis = null;
+          }
+          if (p.belegt) return false;
+          p.belegt = true;
+          halte = true;
+          return true;
+        },
         waitLock: (ms) => { if (!lock.tryLock(ms)) throw new Error('Sperre nicht bekommen'); },
         releaseLock: () => { if (halte) { p.belegt = false; halte = false; } },
         hasLock: () => halte,
@@ -588,12 +609,20 @@ const feuern = (p, jetzt) => {
   if (t.length !== 1) throw new Error(`${t.length} stündliche Auslöser`);
   return p.g[t[0].fn]();
 };
-/** Der einmalige Folge-Auslöser „weiter" feuert – es muss genau einer warten. */
-const weiterFeuern = (p, jetzt) => {
+/** Einmalige Auslöser, die noch feuern werden. */
+const wartend = (p) => p.ausloeser.filter((x) => x.art === 'nach' && !x.gefeuert);
+/**
+ * Der einmalige Folge-Auslöser „weiter" feuert – es muss genau einer warten.
+ * Wie bei Google bleibt er danach gelistet, bis ihn jemand löscht; er feuert
+ * nur nie wieder (`gefeuert`).
+ */
+const weiterFeuern = (p, jetzt, { abgebrochen = false } = {}) => {
   p.welt.jetzt = um(jetzt);
-  const t = p.ausloeser.filter((x) => x.art === 'nach');
+  const t = wartend(p);
   if (t.length !== 1 || t[0].fn !== 'weiter') throw new Error(`${t.length} einmalige Auslöser (${t.map((x) => x.fn).join(', ')})`);
-  return p.g[t[0].fn]();
+  t[0].gefeuert = true;
+  // `abgebrochen`: Google bricht den Lauf ab, bevor seine erste Zeile läuft.
+  return abgebrochen ? null : p.g[t[0].fn]();
 };
 const kennungOk = (k) => typeof k === 'string' && V.KENNUNG_MUSTER.test(k);
 const eigene = (kal) => kal.termine.filter((t) => !t.weg && t.tags.workoutSkript && kennungOk(t.tags.workout));
@@ -1364,7 +1393,7 @@ const spaeter = (w, min) => new Date(w.jetzt + min * 60000).toISOString();
 const auffuellen = (p, n, tag, { max = 20 } = {}) => {
   const laeufe = [];
   let nahFalsch = '';
-  while (p.ausloeser.some((x) => x.art === 'nach') && laeufe.length < max) {
+  while (wartend(p).length && laeufe.length < max) {
     const r = weiterFeuern(p, spaeter(p.welt, 4));
     laeufe.push(r ? r.geaendert : null);
     const ab = abweichung(workout(p.welt), n, tag, { nah: true });
@@ -1635,6 +1664,150 @@ const listeVon = (n, tag) => [...n.tage[tag], ...V.fernListe(n, tag)];
   w.drossel = null;
   feuern(p, '2026-10-08T13:07:00+02:00');
   check(!abweichung(k, N2.A, '2026-10-08'), 'die nächste Stunde macht den Rest');
+}
+
+/* ------------------------------------------------------------------ *
+ * 10. Was die Prüfung des Jahres fand
+ * ------------------------------------------------------------------ */
+
+const zeileB = (k, i) => k.beschreibung.split('\n')[i] || '';
+/** Ein Jahr von Grund auf, langsam wie bei Tobi: doPost legt an, „weiter" wartet. */
+const jahrBeginnt = () => {
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.proSchreiben = 500;
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  return { w, p, k, a: post(p, N2.A).a };
+};
+{
+  // 10a. Der eigene, gefeuerte Auslöser „weiter" lässt sich einmal nicht
+  // löschen (Google: „server error"). Er bleibt gelistet und feuert nie
+  // wieder. Bis zur Prüfung zählte folgeSichern_() ihn als wartend: Kein
+  // neuer kam, nie mehr, und die Beschreibung versprach Minuten.
+  const { w, p, k, a } = jahrBeginnt();
+  const SA = p.g.ScriptApp;
+  const echt = SA.deleteTrigger;
+  let einmal = true;
+  SA.deleteTrigger = (t) => {
+    if (einmal) { einmal = false; throw new Error('We\'re sorry, a server error occurred. Please wait a bit and try again.'); }
+    return echt(t);
+  };
+  let r;
+  try { r = weiterFeuern(p, spaeter(w, 4)); } finally { SA.deleteTrigger = echt; }
+  check(a.folge === true && r.offen > 0 && r.folge === true && wartend(p).length === 1 && /sie folgen in den nächsten Minuten/.test(zeileB(k, 2)),
+    `„weiter" ließ sich nicht löschen: trotzdem genau ein neuer, der wartet (gelistet ${p.ausloeser.filter((x) => x.art === 'nach').length}, `
+      + `wartend ${wartend(p).length}) – „${zeileB(k, 2)}"`);
+  const { laeufe, nahFalsch } = auffuellen(p, N2.A, '2026-10-08');
+  check(!abweichung(k, N2.A, '2026-10-08') && !nahFalsch && !p.ausloeser.some((x) => x.art === 'nach'),
+    `… nach ${laeufe.length} weiteren Läufen steht das Jahr, und kein Rest bleibt gelistet`);
+}
+{
+  // 10b. Google bricht „weiter" ab, bevor seine erste Zeile läuft: Der
+  // Auslöser ist verbraucht, gemerkt ist er noch. Eine halbe Stunde nach
+  // seiner Zeit gilt er nicht mehr – der nächste Lauf legt einen neuen an.
+  const { w, p, k } = jahrBeginnt();
+  weiterFeuern(p, spaeter(w, 4), { abgebrochen: true });
+  const r = feuern(p, spaeter(w, 55));
+  check(r.offen > 0 && r.folge === true && wartend(p).length === 1 && /sie folgen in den nächsten Minuten/.test(zeileB(k, 2)),
+    `„weiter" lief nie: die nächste Stunde legt einen neuen an (wartend ${wartend(p).length}, folge ${r.folge})`);
+  const { nahFalsch } = auffuellen(p, N2.A, '2026-10-08');
+  check(!abweichung(k, N2.A, '2026-10-08') && !nahFalsch, '… und das Jahr steht danach');
+}
+{
+  // 10c. Lesen so langsam, dass ein ganzer Lauf nichts mehr ändern kann
+  // (ungemessen bei Google – hier fünf Sekunden je Lesezugriff): kein neuer
+  // „weiter" im Minutentakt, der nur die 90 Minuten Laufzeit am Tag aufzehrt.
+  const { w, p, k } = jahrBeginnt();
+  w.proLesen = 5000;
+  const r = weiterFeuern(p, spaeter(w, 4));
+  w.proLesen = 0;
+  check(r.geaendert === 0 && r.offen > 0 && r.folge === false && !wartend(p).length && /sie folgen mit dem nächsten stündlichen Abgleich/.test(zeileB(k, 2)),
+    `ein Lauf ohne Fortschritt (Lesen dauert länger als der Lauf): kein neuer „weiter" – „${zeileB(k, 2)}"`);
+  const r2 = feuern(p, spaeter(w, 40));
+  check(r2.geaendert > 0 && r2.folge === true && wartend(p).length === 1, `geht es wieder voran (${r2.geaendert} Änderungen), kommt „weiter" wieder`);
+}
+{
+  // 10d. doPost wartet 28 s auf die Sperre (ein Lauf „weiter" hält sie). Die
+  // App wartet 45 s auf die Antwort – die 25 s zählen ab Eingang. Bis zur
+  // Prüfung begannen sie erst nach dem Warten: Antwort nach 56 s.
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.proSchreiben = 500;
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  p.sperreBis = w.jetzt + 28000;
+  const t0 = w.jetzt;
+  const a = post(p, N2.A).a;
+  const dauer = (w.jetzt - t0) / 1000;
+  check(a.ok && a.code === 'angekommen' && dauer <= 35 && a.offen > 0 && a.folge === true && wartend(p).length === 1,
+    `28 s auf die Sperre gewartet: Antwort nach ${Math.round(dauer)} s – innerhalb der 45 s der App; noch ${a.offen} offen, „weiter" folgt`);
+  const { nahFalsch } = auffuellen(p, N2.A, '2026-10-08');
+  check(!abweichung(k, N2.A, '2026-10-08') && !nahFalsch, '… und das Jahr steht danach trotzdem');
+}
+{
+  // 10e. Speicher: Nach dem Umschalten auf eine große Sendung (185 KiB)
+  // scheitert das Löschen der alten Stücke mittendrin. Bis zur Prüfung blieben
+  // die Reste für immer, doPost meldete „fehler", und jede weitere große
+  // Sendung scheiterte am vollen Speicher (500 KB).
+  const gross = (seq, kib) => {
+    const g = JSON.parse(JSON.stringify(N2.A));
+    g.seq = seq;
+    g.gesendet = N2.A.gesendet + seq * 1000;
+    for (let i = 0; V.nutzlastBytes(g) < kib * 1024; i++) g.texte[`zz${i}`] = [`Übung ${i}`, 'Kniebeuge – Satz für Satz '.repeat(60)];
+    return g;
+  };
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  const belegt = () => [...p.props].reduce((s, [x, y]) => s + bytes(x) + bytes(y), 0);
+  const a1 = post(p, gross(101, 185)).a;
+  const store = p.g.PropertiesService.getScriptProperties();
+  const echt = store.deleteProperty;
+  let n = 0;
+  store.deleteProperty = (key) => {
+    if (String(key).startsWith('workout.teil.') && ++n === 3) throw new Error('Service error: PropertiesService');
+    return echt(key);
+  };
+  w.jetzt = um('2026-10-08T12:10:05+02:00');
+  let a2;
+  try { a2 = post(p, gross(102, 185)).a; } finally { store.deleteProperty = echt; }
+  const mitResten = belegt();
+  const codes = [];
+  for (let i = 0; i < 3; i++) {
+    w.jetzt = um(`2026-10-08T1${3 + i}:00:05+02:00`);
+    codes.push(post(p, gross(103 + i, 185)).a.code);
+  }
+  const meta = JSON.parse(p.props.get('workout.meta'));
+  check(a1.ok && a2.ok && a2.code === 'angekommen' && codes.every((c) => c === 'angekommen')
+    && [...p.props.keys()].filter((x) => x.startsWith('workout.teil.')).every((x) => x.startsWith(`workout.teil.${meta.gen}.`)),
+  `das Löschen alter Stücke scheiterte einmal (danach ${Math.round(mitResten / 1000)} KB belegt): die Sendung gilt trotzdem, `
+    + `die nächsten großen kommen an (${codes.join(', ')}), und die Reste sind weg (${Math.round(belegt() / 1000)} KB)`);
+}
+{
+  // 10f. Das Tageskontingent ist mitten im Jahr aufgebraucht (Google lässt nach
+  // 30 Terminen keine neuen mehr zu): Die Beschreibung sagt „morgen" – nicht
+  // zugleich „mit dem nächsten stündlichen Abgleich" und darunter „morgen".
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  const orig = Kal.prototype.createEvent;
+  let rest = 30;
+  Kal.prototype.createEvent = function createEvent(...x) {
+    if (rest <= 0) throw new Error('Service invoked too many times for one day: calendar.');
+    rest -= 1;
+    return orig.apply(this, x);
+  };
+  let a;
+  try { a = post(p, N2.A).a; } finally { Kal.prototype.createEvent = orig; }
+  const b = k.beschreibung;
+  check(a.ok && a.offen > 0 && a.folge === false && /Tageskontingent/.test(a.hinweis || '') && /offen, sie folgen morgen\./.test(b) && !/stündlichen Abgleich/.test(b),
+    `Tageskontingent aufgebraucht: „${zeileB(k, 2)}" – ohne „mit dem nächsten stündlichen Abgleich"`);
 }
 
 /* ------------------------------------------------------------------ *

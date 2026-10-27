@@ -122,6 +122,9 @@ const P_LISTE = 'workout.liste';
 // Welche Sendung an welchem Tag zuletzt samt Ferne ganz angeglichen ist –
 // solange beides gleich bleibt, prüft ein Lauf nur noch die Nähe.
 const P_FERNE = 'workout.ferne';
+// Der einmalige Auslöser „weiter", den das Skript zuletzt angelegt hat:
+// { id, faellig } – nur der zählt als unterwegs (folgeSichern_()).
+const P_FOLGE = 'workout.folge';
 const TEIL_BYTES = 8000;
 
 // Die unsichtbaren Markierungen am Termin.
@@ -133,9 +136,12 @@ const HINWEIS_ART = '!hinweis';
 
 // Zeit und Kontingent schonen. Ein Lauf darf bei Google sechs Minuten; nach
 // viereinhalb hört dieser auf, und der Rest kommt im nächsten. Die Antwort an
-// die App wartet nicht so lange: Sie wartet höchstens 45 Sekunden, also gleicht
-// doPost nur 25 Sekunden lang an – das Nächste zuerst – und überlässt den Rest
-// dem Auslöser.
+// die App wartet nicht so lange: Die App wartet höchstens 45 Sekunden, also
+// ist doPost 25 Sekunden nach Eingang der Anfrage mit dem Angleichen fertig –
+// das Nächste zuerst – und überlässt den Rest dem Auslöser. Das Warten auf die
+// Sperre (bis 30 s, ein Lauf „weiter" hält sie bis zu viereinhalb Minuten)
+// zählt mit: Bis zur Prüfung des Entwurfs begannen die 25 s erst danach, und
+// in der Probe kam die Antwort nach 56 s – die App hatte schon aufgegeben.
 const ZEIT_BUDGET_MS = 4.5 * 60 * 1000;
 const POST_BUDGET_MS = 25 * 1000;
 const MAX_AENDERUNGEN = 400;
@@ -144,6 +150,10 @@ const PAUSE_MS = 100;
 // Rest nicht erst in einer Stunde, sondern nach ein paar Minuten (FOLGE).
 const FOLGE_AB = 10;
 const FOLGE_MS = 3 * 60 * 1000;
+// So lange nach seiner Zeit gilt ein gemerkter „weiter" noch als unterwegs.
+// Google sagt bei after() nur „frühestens", keine Obergrenze; feuert er bis
+// dahin nicht, legt der nächste Lauf einen neuen an (folgeSichern_()).
+const FOLGE_FRIST = 30 * 60 * 1000;
 // So weit vor und hinter dem Fenster sucht der Abgleich noch nach einem Termin
 // derselben Einheit, um ihn zu verschieben statt einen zweiten anzulegen.
 const SUCHE_ZURUECK = 35;
@@ -232,8 +242,19 @@ function abgleichen() {
  * ein Jahr Termine anzulegen dauert länger, als ein Lauf darf. Räumt seinen
  * einmaligen Auslöser weg und gleicht weiter an; bleibt wieder viel offen,
  * legt der Lauf den nächsten an.
+ *
+ * Zuerst vergisst es, dass einer unterwegs ist – das ist dieser hier. Ein
+ * gefeuerter einmaliger Auslöser bleibt bei Google gelistet, bis ihn jemand
+ * löscht. Scheitert das Löschen, zählt folgeSichern_() ihn trotzdem nicht
+ * mehr; bis zur Prüfung des Entwurfs hielt so ein Rest das Nachtragen für
+ * immer an, während die Beschreibung „in den nächsten Minuten" versprach.
  */
 function weiter() {
+  try {
+    PropertiesService.getScriptProperties().deleteProperty(P_FOLGE);
+  } catch (err) {
+    // Dann hält folgeSichern_() ihn nach seiner Frist für verbraucht.
+  }
   try {
     ScriptApp.getProjectTriggers().forEach((t) => {
       if (t.getHandlerFunction() === FOLGE) ScriptApp.deleteTrigger(t);
@@ -280,6 +301,9 @@ function doGet(e) {
  * ------------------------------------------------------------------ */
 
 function annehmen_(e) {
+  // Ab Eingang der Anfrage – das Warten auf die Sperre zählt zu den 25 s.
+  const t0 = Date.now();
+  const budget = () => Math.max(0, POST_BUDGET_MS - (Date.now() - t0));
   const body = e && e.postData && typeof e.postData.contents === 'string' ? e.postData.contents : null;
   if (body === null) return antwort_(false, 'format', { hinweis: 'Keine Daten angekommen.' });
   // Vor dem Lesen: Was über der Grenze liegt, wird gar nicht erst ausgepackt.
@@ -314,7 +338,7 @@ function annehmen_(e) {
   try {
     // Ein unlesbarer Speicher heilt mit der nächsten gültigen Sendung.
     const alt = metaLesenSanft_(P);
-    if (n.aus === true) return abschalten_(P, n, alt);
+    if (n.aus === true) return abschalten_(P, n, alt, budget);
     const urteil = sendungVergleichen_(alt, n);
     if (urteil === 'alt' || urteil === 'aelter') {
       return antwort_(false, urteil, {
@@ -325,7 +349,7 @@ function annehmen_(e) {
           : 'Ein anderes Gerät hat zuletzt trainiert – der Kalender bleibt bei dessen Plan.',
       });
     }
-    const meta = urteil === 'neu' ? speichern_(P, n) : alt;
+    const meta = urteil === 'neu' ? speichern_(P, n, alt) : alt;
     // Nie „einrichten" ausgeführt, aber die Probe ist noch da – naheliegend,
     // Tobi hat bei der Probe schon eine Funktion dieses Namens ausgeführt.
     // Dann räumt die erste Vorschau sie weg, wie einrichten() es täte.
@@ -346,7 +370,9 @@ function annehmen_(e) {
     } catch (err) {
       auslHinweis = 'Den stündlichen Auslöser konnte das Skript nicht prüfen – in Apps Script „einrichten" ausführen.';
     }
-    const r = abgleichenSicher_(P, POST_BUDGET_MS);
+    // Bleibt nach dem Warten nichts übrig, gleicht doPost so gut wie nichts an
+    // – offen und folge sagen es, und „weiter" macht es in ein paar Minuten.
+    const r = abgleichenSicher_(P, budget());
     // Was offen bleibt, steht in offen, stehen und folge – daraus macht die
     // App ihren eigenen Satz, auch später, wenn eine Probe den neuen Stand
     // holt. Im Hinweis stünde es sonst doppelt und bald veraltet.
@@ -406,7 +432,7 @@ function probeAntwort_(P) {
  * angleichen, bis wieder eine kommt. Von jedem Gerät mit dem Kennwort – nur
  * eine verspätete frühere Sendung desselben Geräts zählt nicht mehr.
  */
-function abschalten_(P, n, alt) {
+function abschalten_(P, n, alt, budget) {
   if (alt && alt.geraet === n.geraet && sendungVergleichen_(alt, n) === 'alt') {
     return antwort_(false, 'alt', { stand: alt.stand || null, seq: alt.seq, hinweis: 'Eine frühere Sendung dieses Geräts – die spätere gilt schon.' });
   }
@@ -415,7 +441,7 @@ function abschalten_(P, n, alt) {
   };
   P.setProperty(P_META, JSON.stringify(meta));
   teileAufraeumen_(P, null);
-  const r = abgleichenSicher_(P, POST_BUDGET_MS);
+  const r = abgleichenSicher_(P, budget());
   return antwort_(true, 'aus', {
     geaendert: r.geaendert, offen: r.offen, seq: n.seq, hinweis: r.fehler || (r.gebremst ? SPAETER : offenSatz_(r)) || undefined,
   });
@@ -510,7 +536,7 @@ function abgleichen_(P, budget) {
   offenNachholen_(P, kal, projekt);
   const heute = tagIn_(new Date());
   if (meta.aus) {
-    nachLauf_(r, abarbeiten_(eigeneAbHeute_(kal, heute), start, budget, r), heute);
+    nachLauf_(r, abarbeiten_(eigeneAbHeute_(kal, heute), start, budget, r), heute, budget);
     beschreibungSchreiben_(kal, projekt, meta, r);
     return r;
   }
@@ -523,7 +549,7 @@ function abgleichen_(P, budget) {
     // jeder weitere Tag. Stattdessen ein Hinweis-Termin, der auffällt.
     r.hinweis = 'Die Vorschau ist aufgebraucht: Die App hat seit ' + datumDe_(n.ab) + ' keinen neuen Plan geschickt, und sie reichte bis '
       + datumDe_(meta.bis) + '. Der Kalender verschiebt deshalb nicht mehr – einmal die App mit Netz öffnen.';
-    nachLauf_(r, abarbeiten_(hinweisArbeit_(P, kal, heute, n, projekt, meta), start, budget, r), heute);
+    nachLauf_(r, abarbeiten_(hinweisArbeit_(P, kal, heute, n, projekt, meta), start, budget, r), heute, budget);
   } else {
     r.tag = wahl.tag;
     const zweite = n.v === 2 && !!n.ferne;
@@ -535,7 +561,7 @@ function abgleichen_(P, budget) {
       ? { bis: r.bis, oben: plusTage_(heute, FERNE_MAX + SUCHE_VORAUS), weg: true }
       : { bis: nahBis, oben: plusTage_(nahBis, SUCHE_VORAUS), weg: false };
     const liste = wahl.liste.concat(fernListe_(n, wahl.tag));
-    nachLauf_(r, abarbeiten_(angleichArbeit_(P, kal, n, liste, heute, projekt, umfang), start, budget, r), heute);
+    nachLauf_(r, abarbeiten_(angleichArbeit_(P, kal, n, liste, heute, projekt, umfang), start, budget, r), heute, budget);
     // Ganz angeglichen: Ab jetzt liegt kein offener eigener Termin mehr vor
     // dem Fenster dieser Liste – und die Ferne steht bis zu ihrem Ende. Nicht
     // nach einem halben Lauf: dann gilt die frühere, weitere Grenze, und der
@@ -556,8 +582,14 @@ function abgleichen_(P, budget) {
 /**
  * Nach dem Abarbeiten: wie viel offen blieb, bis wann die Termine schon
  * stehen, und ob ein Folge-Auslöser den Rest in ein paar Minuten macht.
+ *
+ * Nicht nach einem ganzen Lauf, der gar nichts ändern konnte (`budget` voll,
+ * die Zeit ging schon beim Lesen drauf): Läufe ohne Fortschritt im
+ * Minutentakt zehrten nur die 90 Minuten Laufzeit auf, die Google den
+ * Auslösern am Tag gibt – dann macht die nächste Stunde weiter. doPost hat
+ * nur Sekunden und legt ihn immer an.
  */
-function nachLauf_(r, rest, heute) {
+function nachLauf_(r, rest, heute, budget) {
   r.offen = (r.offen || 0) + rest.length;
   const kommend = rest.filter((a) => a.datum >= heute).map((a) => a.datum).sort();
   if (!r.bis) r.vollBis = null;
@@ -566,27 +598,58 @@ function nachLauf_(r, rest, heute) {
   if (r.vollBis && r.vollBis > r.bis) r.vollBis = r.bis;
   if (r.offen && !r.gebremst && !r.fehler) {
     const nah = rest.some((a) => a.rang.charAt(0) === '0' || a.rang.charAt(0) === '1');
-    r.folge = folgeSichern_(r.offen >= FOLGE_AB || nah);
+    const voran = r.geaendert > 0 || budget < ZEIT_BUDGET_MS;
+    r.folge = folgeSichern_((r.offen >= FOLGE_AB || nah) && voran);
   }
   if (r.gebremst) r.hinweis = SPAETER;
+}
+
+/** Wann der Rest kommt, als Satzende – für die Beschreibung und die Antwort an die App. */
+function wannSatz_(r) {
+  if (r.fehler === TAGESKONTINGENT) return 'sie folgen morgen.';
+  if (r.gebremst) return 'sie folgen, sobald Google wieder lässt.';
+  return r.folge ? 'sie folgen in den nächsten Minuten.' : 'sie folgen mit dem nächsten stündlichen Abgleich.';
 }
 
 /** Ein Satz zu dem, was offen blieb – für die Antwort an die App. */
 function offenSatz_(r) {
   if (!r || !r.offen || r.gebremst) return null;
-  return 'Noch ' + r.offen + (r.offen === 1 ? ' Änderung' : ' Änderungen') + ' offen – '
-    + (r.folge ? 'das Skript trägt sie in den nächsten Minuten nach.' : 'sie folgen mit dem nächsten stündlichen Abgleich.');
+  return 'Noch ' + r.offen + (r.offen === 1 ? ' Änderung' : ' Änderungen') + ' offen – ' + wannSatz_(r);
 }
 
-/** Den einmaligen Folge-Auslöser anlegen, wenn nötig und noch keiner da ist. true, wenn einer kommt. */
+/**
+ * Den einmaligen Folge-Auslöser sichern, wenn nötig. true, wenn einer kommt.
+ *
+ * Gezählt wird nur der, den das Skript zuletzt selbst angelegt und sich
+ * gemerkt hat (P_FOLGE), und nur bis FOLGE_FRIST nach seiner Zeit. Ein
+ * gefeuerter einmaliger Auslöser bleibt bei Google gelistet, bis ihn jemand
+ * löscht – scheiterte das in weiter(), oder brach Google den Lauf vor seiner
+ * ersten Zeile ab, stand bis zur Prüfung des Entwurfs für immer einer da, der
+ * nie mehr feuert: Kein neuer kam, und Beschreibung und App versprachen
+ * weiter „in den nächsten Minuten". Jetzt kommen solche Reste weg (jeder für
+ * sich – einer, der sich nicht löschen lässt, zählt nur zu den 20 Auslösern),
+ * und ein neuer kommt dazu.
+ */
 function folgeSichern_(noetig) {
   if (!noetig) return false;
   try {
-    if (ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === FOLGE)) return true;
-    ScriptApp.newTrigger(FOLGE).timeBased().after(FOLGE_MS).create();
+    const P = PropertiesService.getScriptProperties();
+    const gemerkt = jsonSanft_(P.getProperty(P_FOLGE));
+    const da = ScriptApp.getProjectTriggers().filter((t) => t.getHandlerFunction() === FOLGE);
+    if (gemerkt && Number.isFinite(gemerkt.faellig) && Date.now() < gemerkt.faellig + FOLGE_FRIST
+      && da.some((t) => t.getUniqueId() === gemerkt.id)) return true;
+    da.forEach((t) => {
+      try {
+        ScriptApp.deleteTrigger(t);
+      } catch (err) {
+        console.log('Einen alten Auslöser „weiter" konnte das Skript nicht wegräumen: ' + bereinigt_(err));
+      }
+    });
+    const t = ScriptApp.newTrigger(FOLGE).timeBased().after(FOLGE_MS).create();
+    P.setProperty(P_FOLGE, JSON.stringify({ id: t.getUniqueId(), faellig: Date.now() + FOLGE_MS }));
     return true;
   } catch (err) {
-    // Dann eben der nächste stündliche Lauf.
+    // Dann eben der nächste stündliche Lauf – und die Beschreibung sagt das.
     return false;
   }
 }
@@ -997,9 +1060,10 @@ function beschreibungSchreiben_(kal, projekt, meta, r) {
     + (r.tag ? ' – Liste für ' + datumDe_(r.tag) + (r.geaendert !== null ? ', ' + r.geaendert + (r.geaendert === 1 ? ' Änderung' : ' Änderungen') : '') : '')
     + '.');
   if (r.offen) {
+    // Ist das Tageskontingent aufgebraucht, nicht „mit dem nächsten
+    // stündlichen Abgleich" – darunter stünde sonst „morgen" (wannSatz_()).
     z.push((r.vollBis ? 'Termine bis ' + datumDe_(r.vollBis) + ' – noch ' : 'Noch ') + r.offen
-      + (r.offen === 1 ? ' Änderung' : ' Änderungen') + ' offen, '
-      + (r.gebremst ? 'sobald Google wieder lässt.' : r.folge ? 'sie folgen in den nächsten Minuten.' : 'sie folgen mit dem nächsten stündlichen Abgleich.'));
+      + (r.offen === 1 ? ' Änderung' : ' Änderungen') + ' offen, ' + wannSatz_(r));
   } else if (r.tag && r.bis) {
     z.push('Termine bis ' + datumDe_(r.bis) + '.');
   }
@@ -1114,8 +1178,16 @@ function ausloeserAus_() {
  * Eine angenommene Sendung ablegen: ohne Kennwort, als JSON in Stücken unter
  * einer neuen Generation; erst danach zeigt die Meta-Zeile auf sie, und erst
  * dann gehen die alten Stücke. Bricht etwas dazwischen ab, gilt die alte.
+ *
+ * Vorher weg, was zu keiner geltenden Sendung gehört (`alt` ist die
+ * Meta-Zeile, die jetzt gilt): Reste eines Wegräumens, das mittendrin
+ * scheiterte. Bis zur Prüfung des Entwurfs blieben sie für immer – jede neue
+ * Sendung brauchte Platz für die Reste, die geltende und sich selbst, und nach
+ * einem einzigen gescheiterten Löschen nahm das Skript keine große Sendung
+ * mehr an (Speicher voll), sondern glich weiter nach der alten an.
  */
-function speichern_(P, n) {
+function speichern_(P, n, alt) {
+  teileAufraeumen_(P, alt && !alt.aus && alt.gen ? alt.gen : null);
   const ohne = {};
   FELDER.forEach((k) => {
     if (n[k] !== undefined) ohne[k] = n[k];
@@ -1146,7 +1218,13 @@ function speichern_(P, n) {
     empfangen: Date.now(),
   };
   P.setProperty(P_META, JSON.stringify(meta));
-  teileAufraeumen_(P, gen);
+  // Ab hier gilt die neue Sendung. Scheitert das Wegräumen der alten, ist das
+  // kein Fehler der Sendung: Die Reste gehen mit der nächsten (oben).
+  try {
+    teileAufraeumen_(P, gen);
+  } catch (err) {
+    console.log('Alte Stücke der Vorschau ließen sich nicht ganz wegräumen – das holt die nächste Sendung nach: ' + bereinigt_(err));
+  }
   return meta;
 }
 
