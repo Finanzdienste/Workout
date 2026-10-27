@@ -99,10 +99,15 @@
  *
  * **Zwei Fassungen.** Fassung 1 (v245) kennt nur die Nähe, Fassung 2 dazu die
  * Ferne. Die App schickt v 2, sobald das Skript in einer lesbaren Antwort
- * `version` 2 oder höher meldet, sonst v 1 – unbekannt heißt 1. So läuft ein
- * Skript der Fassung 1 weiter, bis Tobi den neuen Code einfügt; danach merkt
- * die App es an der nächsten Antwort und schickt die Ferne. Ein Skript der
- * Fassung 2 nimmt v 1 und v 2 an.
+ * `version` 2 oder höher meldet, sonst v 1 – unbekannt heißt 1; es zählt die
+ * letzte lesbare Antwort (jede Antwort trägt `version`, auch eine Ablehnung).
+ * So läuft ein Skript der Fassung 1 weiter, bis Tobi den neuen Code einfügt;
+ * danach merkt die App es an der nächsten Antwort (oder einer Probe, mit der
+ * sie nachfragt, solange neuer Code aussteht) und schickt die Ferne. Weist
+ * ein Skript eine v 2 zurück („format", `version` 1 – etwa wenn der alte Code
+ * wieder bereitgestellt ist), schickt die App dieselbe Vorschau gleich als
+ * v 1. Ein Skript der Fassung 2 nimmt v 1 und v 2 an; Probe und „aus" gehen
+ * immer als v 1, die versteht jede Fassung gleich.
  *
  * **Die Sendung.** Ein einfacher POST an die Web-App-Adresse (…/exec):
  * Body = JSON.stringify(nutzlast), Content-Type „text/plain;charset=utf-8",
