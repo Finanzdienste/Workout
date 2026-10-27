@@ -57,8 +57,9 @@
  *      nicht kennt, schickt erst v 1 und gleich danach v 2; weist ein Skript
  *      v 2 zurück, geht dieselbe Vorschau gleich als v 1 hinaus (beim
  *      Wegschalten erst beim Zurückkommen) – ohne dass eine Warnzeile
- *      aufblitzt. Was v245 vermerkte, sagt die Fassung schon vor der ersten
- *      Antwort.
+ *      aufblitzt. Findet die Rechnung nie zur Fassung (ein Worker ohne
+ *      Ferne), hört die App nach zwei Versuchen auf. Was v245 vermerkte, sagt
+ *      die Fassung schon vor der ersten Antwort.
  *  14. Über 64 KiB (ein Jahr mit vielen Terminen): beim Wegschalten kein
  *      keepalive, sondern gleich in den Ausgang – der Service Worker schickt
  *      es, und die App merkt sich danach, was ankam.
@@ -268,7 +269,9 @@ async function geraet(name, {
           const s = JSON.stringify(m);
           window.__anWorker.push({ geheim: /Testkennwort|AKfycbTest|script\.google/.test(s), zustand: !!(m && m.zustand) });
         } catch { /* nur mitschreiben */ }
-        return post.call(this, m, ...rest);
+        // Abschnitt 13: ein Worker, der die Ferne nicht kennt (wie aus einem älteren Zwischenspeicher).
+        const an = window.__ohneFerne && m && typeof m === 'object' && 'ferne' in m ? { ...m, ferne: 0 } : m;
+        return post.call(this, an, ...rest);
       };
     }
     // Lange Aufgaben im Fenster (Abschnitt 10).
@@ -1454,6 +1457,20 @@ await abschnitt(13, async () => {
     && await w.page.evaluate(() => window.__warnZeile) === 0,
   'zurück in der App: dieselbe Vorschau als v 1 – angekommen, und keine Warnzeile');
   await zu(w);
+
+  // Ein Worker, der die Ferne nicht kennt (etwa aus einem älteren
+  // Zwischenspeicher): Die Rechnung findet nie zur Fassung des Skripts. Die
+  // App versucht es zweimal und hört dann auf, statt ohne Ende zu schicken.
+  const ow = await geraet('13 alter Worker', { kalender: { token: TOKEN, url: URL_A } });
+  await ow.page.evaluate(() => { window.__ohneFerne = true; });
+  await vor(ow.page, 4000, 1500);
+  await bis(() => ow.skript.vorschauen().length >= 3, 8000);
+  await vor(ow.page, 1000, 2500);
+  const ov = ow.skript.vorschauen().map((x) => x.j.v);
+  const auf = (await diagZeilen(ow.page)).filter((x) => / kalender was=fassung .*aufgegeben=true/.test(x));
+  check(ov.length === 3 && ov.every((x) => x === 1) && auf.length === 1 && (await meta(ow.page)).letzte.ok,
+    `findet die Rechnung nie zur Fassung des Skripts: drei Sendungen, dann hört die App auf – vermerkt im Diagnoseprotokoll (${ov.join(', ')})`);
+  await zu(ow);
 
   // Tobis Handy nach dem Update der App: Was v245 hinterließ, kennt `fassung`
   // noch nicht – die Fassung steht nur beim letzten Versuch und beim letzten,

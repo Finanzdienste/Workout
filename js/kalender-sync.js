@@ -854,6 +854,9 @@ export function kalenderAppFassung(namen) {
   if (f) kalAppFassung = f[1];
 }
 
+/** Wie oft hintereinander eine Sendung wegen der Fassung gleich noch einmal hinausging (kalSenden()). */
+let kalFassungRunden = 0;
+
 /**
  * Eine vorbereitete Sendung hinaus – und vermerken, was dabei herauskam.
  * Sagt die Antwort, dass das Skript eine andere Fassung des Vertrags kann als
@@ -906,10 +909,21 @@ async function kalSenden(v, { keepalive = false } = {}) {
   // Nicht beim Wegschalten – die Seite friert gleich ein; dann der nächste Anlass.
   // Neu gezeichnet wird erst danach: Wies ein Skript der Fassung 1 v 2 zurück
   // („erneuern"), stünde sonst bis zur Sendung als v 1 kurz eine Warnzeile da.
+  // Höchstens zweimal hintereinander: Fände die Rechnung nie zur Fassung des
+  // Skripts (etwa ein Worker aus einem älteren Zwischenspeicher, der die Ferne
+  // nicht kennt), schickte die App sonst ohne Ende.
   if (!keepalive && Number.isInteger(a.version) && kalVertrag(v.ziel) !== v.vertrag) {
-    notieren('kalender', { was: 'fassung', von: v.vertrag, nach: kalVertrag(v.ziel), version: a.version });
-    kalenderJetzt('fassung', { zwingen: true }).then(() => kalRuf.nachher());
-    return a;
+    const nochmal = kalFassungRunden < 2;
+    kalFassungRunden += 1;
+    notieren('kalender', {
+      was: 'fassung', von: v.vertrag, nach: kalVertrag(v.ziel), version: a.version, aufgegeben: nochmal ? undefined : true,
+    }, !nochmal);
+    if (nochmal) {
+      kalenderJetzt('fassung', { zwingen: true }).then(() => kalRuf.nachher());
+      return a;
+    }
+  } else if (Number.isInteger(a.version)) {
+    kalFassungRunden = 0;
   }
   kalRuf.nachher();
   return a;
