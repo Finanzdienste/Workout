@@ -2354,7 +2354,9 @@ legt die Vorschau ab und gleicht einen eigenen Kalender „Workout" an: sofort
 und danach jede Stunde mit der Liste für heute (Berliner Zeit). Es rechnet
 nichts selbst, es wählt nur den Tag. Wird trainiert, geht eine neue Vorschau
 hinaus, und die alte ist überholt. Termine stehen um **17:30 Berliner Zeit**,
-30 Minuten vorher kommt die Erinnerung.
+30 Minuten vorher kommt die Erinnerung. Seit v246 reicht der Kalender **ein
+Jahr** voraus: hinter den vier Wochen eine Schätzung, wie es weiterginge, wenn
+ab dann nach Plan trainiert wird (unten, *Ein Jahr im Voraus*).
 
 Seit v245 ist alles da: die Rechnung (hier), der Vertrag mit dem Skript, das
 Skript selbst (`kalender/workout-kalender.gs`, unten *Das Skript in Tobis
@@ -2470,7 +2472,8 @@ beide Seiten auswerten, stehen dort als Funktionen (`nutzlastPruefen()`,
   Apps Script beantwortet kein `OPTIONS`; jede andere Form löste einen
   Preflight aus und käme nie an. Sie ist idempotent – zweimal geschickt ändert
   beim zweiten Mal nichts.
-* **Die Felder:** `v` (1), `token`, `geraet`, `seq`, `gesendet`, `app`,
+* **Die Felder:** `v` (1, seit v246 auch 2 – dann mit `ferne`, unten *Ein Jahr
+  im Voraus*), `token`, `geraet`, `seq`, `gesendet`, `app`,
   `minuten` (Beginn in Minuten nach Mitternacht, Europe/Berlin, Standard 1050 =
   17:30), `erinnerung` (Minuten vorher, Standard 30), `ab`, `fenster`
   (`[7, 28]`: je Tag die Termine von 7 Tagen davor bis 28 danach), `stand`
@@ -2517,6 +2520,7 @@ beide Seiten auswerten, stehen dort als Funktionen (`nutzlastPruefen()`,
 unter die 64 KiB, bis zu denen ein Browser beim Wegschalten noch sendet
 (`keepalive`), mit über 40 % Luft. Mit Uhrzeiten als ISO-Text je Eintrag
 wären es gut 70 KiB gewesen; deshalb nur Tag und Dauer, die Uhrzeit einmal.
+Mit dem Jahr dahinter (v 2) sind es an Tobis Stand 56,1 KiB – unten.
 
 **Geprüft** in `tests/test-kalender-vorschau.mjs` an Tobis Stand vom Do 08.10.
 und an daraus gebauten Fällen: verpasst bis Mo 12.10. und über die
@@ -2541,7 +2545,8 @@ ohne Netz trainiert und die App danach nicht mehr mit Netz öffnet, dem
 verschiebt der Kalender fälschlich, bis die nächste Sendung kommt – auf
 Android schickt der Service Worker sie nach, sobald wieder Netz da ist
 (unten, *Ohne Netz trainiert*), auf dem iPhone nicht. Die
-Vorschau reicht sechs Wochen. Die App rechnet in der Ortszeit des Handys, der
+Vorschau reicht sechs Wochen; was hinter den vier Wochen jedes Tages steht, ist
+eine Schätzung (unten). Die App rechnet in der Ortszeit des Handys, der
 Kalender in Berliner Zeit – auf Reisen in einer anderen Zeitzone kann der
 Tageswechsel abweichen. Und Google sieht, was im Kalender steht: Titel,
 Übungen, Zeiten – in Tobis eigenem Konto, sonst nirgends.
@@ -2557,8 +2562,8 @@ ist. Die Vorlage liegt in `kalender/workout-kalender.gs`; die App setzt beim
 „Code kopieren" das Kennwort ein (der Platzhalter `<<KENNWORT-AUS-DER-APP>>`
 steht genau einmal darin, in der Zeile `const TOKEN = '…';`). Im Repository
 steht kein Kennwort, und unersetzt nimmt das Skript nichts an. Die Fassung des
-Skripts steht als `const FASSUNG = 1;` lesbar darin – daran erkennt die App, ob
-Tobi den Code erneuern sollte.
+Skripts steht als `const FASSUNG = 2;` lesbar darin (bis v245: 1) – daran
+erkennt die App, ob Tobi den Code erneuern sollte und was sie schicken darf.
 
 **Einrichten.** Code in Tobis Probe-Projekt (script.new) ganz ersetzen,
 speichern, oben `einrichten` ausführen. Das räumt die Probe vom 26.10. weg
@@ -2584,14 +2589,17 @@ neuer Abgleich liest. Deshalb ist `doPost` klein (prüfen, ablegen, abgleichen
 versuchen), und jede Fassung liest jedes Speicherformat, das eine frühere
 geschrieben hat. Format 1: die Sendung ohne Kennwort als JSON in Stücken von
 höchstens 8000 Byte (Google erlaubt 9 KB je Wert und 500 KB insgesamt; eine
-Vorschau von 64 KiB sind höchstens neun Stücke), dazu eine Meta-Zeile mit Format,
+Vorschau von 64 KiB sind höchstens neun Stücke, eine mit Ferne bis 192 KiB
+höchstens 25), dazu eine Meta-Zeile mit Format,
 Generation, Länge und Prüfsumme. Erst wenn die neuen Stücke stehen, zeigt die
-Meta-Zeile auf sie, erst dann gehen die alten. Ist der Speicher beschädigt oder
-in einem unbekannten Format, fasst das Skript den Kalender nicht an und der
-Auslöser wirft (dann schickt Google eine Mail); die nächste gültige Sendung
-ersetzt ihn.
+Meta-Zeile auf sie, erst dann gehen die alten (seit v246 dazu vorher alles,
+was zu keiner geltenden Sendung gehört – unten, *Ein Jahr im Voraus*). Ist der
+Speicher beschädigt oder in einem unbekannten Format, fasst das Skript den
+Kalender nicht an und der Auslöser wirft (dann schickt Google eine Mail); die
+nächste gültige Sendung ersetzt ihn.
 
-**Annehmen.** Erst die Größe (über 64 KiB wird gar nicht ausgepackt), dann
+**Annehmen.** Erst die Größe (über 192 KiB wird gar nicht ausgepackt, eine
+v 1 darf wie bisher höchstens 64 KiB haben), dann
 das JSON, dann das Kennwort – verglichen, ohne beim ersten falschen Zeichen
 aufzuhören –, dann der Vertrag (`nutzlastPruefen_()`). Wer gilt, entscheidet
 `sendungVergleichen_()`: dasselbe Gerät mit der späteren Sendung, ein anderes
@@ -2638,7 +2646,9 @@ ist, bis wann er reicht, die Fassung des Skripts und jeden Hinweis.
 
 **Schonen.** Höchstens vier Minuten und 150 Änderungen je Lauf, das Dringendste
 zuerst (heute und die nächsten Tage, dann rückwärts), nach jedem Anlegen und
-Löschen eine Zehntelsekunde Pause. Bremst Google („Service invoked too many
+Löschen eine Zehntelsekunde Pause. (Fassung 2: viereinhalb Minuten, 400
+Änderungen, `doPost` 25 Sekunden, und den Rest macht ein einmaliger Auslöser
+ein paar Minuten später – unten, *Ein Jahr im Voraus*.) Bremst Google („Service invoked too many
 times", auf Deutsch „zu oft"/„zu viele"), hört der Lauf auf, und die nächste
 Stunde macht weiter – jeder Lauf gleicht den ganzen Tag an, nicht nur den
 Unterschied zum letzten. Dabei fiel in der Prüfung auf: Bremst Google zwischen
@@ -2731,15 +2741,18 @@ App öffnet – gerechnet mit „nicht trainiert". An Google geht nur, was im
 Kalender steht (Titel, Übungen, Tage, Uhrzeit), in sein eigenes Konto. Google
 fragt beim Einrichten nach Zugriff auf alle Kalender; dass das Skript nur
 „Workout" anfasst, ist eine Regel seines Codes, keine Sperre von Google.
-Dazu die Grenzen: ohne Netz trainiert, sechs Wochen nicht geöffnet, und
-dass Kennwort und URL mit Sicherung und Exportdatei reisen. Beides steht
+Dazu die Grenzen: ohne Netz trainiert, sechs Wochen nicht geöffnet, dass
+Kennwort und URL mit Sicherung und Exportdatei reisen, und seit v246, dass
+alles hinter den vier Wochen eine Schätzung ist. Beides steht
 zugeklappt unter *Was an Google geht · Grenzen* am Ende der Karte – vorher
 stand es mit rund 200 Wörtern vor den Schritten, und Schritt 1 begann bei
 360 px Breite erst unten am ersten Bildschirm (die Karte war 1326 px hoch).
 Nicht verbunden stehen nach dem ersten Absatz gleich die sechs Schritte von
 oben, *Code kopieren*, das URL-Feld und *Verbinden*; Hauptknopf ist erst *Code
 kopieren*, mit Kennwort *Verbinden*. Verbunden steht dort, wann zuletzt etwas
-ankam („Zuletzt angekommen: vor 3 Min. (Skript Fassung 1)"), was beim letzten
+ankam und bis wann die Termine reichen („Zuletzt angekommen: vor 3 Min. (Skript
+Fassung 2). Im Kalender: Termine bis 08.10.2027." – solange das Skript das Jahr
+noch einträgt, bis wann sie schon stehen, unten *Ein Jahr im Voraus*), was beim letzten
 Versuch schiefging, Uhrzeit (Berliner Zeit) und *Erinnerung vorher* (kurz
 „30 Min." – „30 Min. vorher" passte bei 360 px nicht ins Feld) – jede Änderung
 geht sofort hinaus –, was eine Mail „Summary of failures" von Google bedeutet
@@ -2755,8 +2768,12 @@ ganze Sitzung lang. Bittet das Skript schon beim Verbinden um etwas
 (`einrichten`, ein anderes Projekt pflegt den Kalender) oder ist sein Code zu
 alt, steht dessen Satz in der Farbe für „da ist etwas zu tun" und ohne „nach
 etwa einer Minute stehen die Termine". „Code kopieren" im verbundenen Zustand
-sagt alle Schritte zum Erneuern (ersetzen, speichern, `einrichten`, *Neue
-Version*) statt auf nummerierte Schritte zu zeigen, die dort nicht stehen.
+sagt alle Schritte zum Erneuern (im selben Projekt ersetzen, speichern, *Neue
+Version*) statt auf nummerierte Schritte zu zeigen, die dort nicht stehen –
+seit v246 ohne `einrichten`: Kalender und Auslöser bestehen schon (unten, *Ein
+Jahr im Voraus*). Steht die Bitte um neuen Code für das Jahr mit ihren
+nummerierten Schritten auf der Karte, verweist die Meldung nur auf sie
+(„… Weiter mit Schritt 2.").
 
 **Das Dashboard** bekommt eine Zeile nur, wenn Tobi selbst etwas richten muss:
 Das Skript kennt das Kennwort nicht, der Code in Apps Script ist älter als die
@@ -2769,7 +2786,8 @@ Minuten noch einmal (unten) – und stehen nur unter *Mehr*. Hat die Verbindung
 schon einmal geklappt, ist auch „nicht das Skript" erst nach diesen drei
 Wiederholungen ein Alarm: Meist ist das ein Aussetzer bei Google. Bleibt es
 nach drei Wiederholungen bei `fehler`, ist das kein Beschäftigtsein mehr –
-dann kommt es aufs Dashboard, mit der Bitte um das Diagnoseprotokoll.
+dann kommt es aufs Dashboard, mit der Bitte um das Diagnoseprotokoll. Dazu
+seit v246 einmal, ohne Warnfarbe, die Bitte um neuen Code für das Jahr (unten).
 
 **„Code kopieren"** holt die Vorlage (der Service Worker hält sie vor) und
 setzt das Kennwort ein: 256 Bit, zufällig, beim ersten Tipp erzeugt und
@@ -2795,7 +2813,8 @@ Satz, der sagt, was zu tun ist:
 | … und auch der GET kommt gar nicht durch | „Google hat geantwortet, aber nicht das Skript" mit allen drei Ursachen: Neue Version, „Zugriff: Jeder", „Ausführen als: Ich", URL auf `/exec` |
 | lesbare Fehlerseite | „Unerwartete Antwort von Google (HTTP 404) – stimmt die URL?" |
 | `token` | Code kopieren, in Apps Script ersetzen, Neue Version |
-| `format` mit „erneuern", oder eine ältere `version` als die Vorlage | „Kalender-Code erneuern" samt *Bereitstellungen verwalten → Bearbeiten → Version: Neue Version* |
+| `format` mit „erneuern" (zu einer Sendung in der Fassung, die das Skript spricht) | „Kalender-Code erneuern" samt *Bereitstellungen verwalten → Bearbeiten → Version: Neue Version* |
+| eine ältere `version` als die Vorlage (Fassung 1) | verbunden – es läuft mit v 1 weiter; die Karte bittet um den neuen Code für das Jahr (unten) |
 | 30 s keine Antwort | noch einmal *Verbinden* |
 
 „Keine lesbare Antwort, aber das Netz war da" lässt sich unterscheiden, obwohl
@@ -2824,9 +2843,10 @@ Test in einem Sprung vorging und der Zeitgeber der Drossel nie lief.)
 | erster Haken einer Einheit | sofort – ab da steht sie auf heute fest; ohne Sendung schöbe der Kalender sie morgen als verpasst weiter |
 | Abschluss einer Einheit | sofort, mit „✓" |
 | jede andere Änderung | gerechnet 2 s danach, geschickt frühestens 5 s danach und höchstens alle zwei Minuten |
+| die Pause (Start, Ende, „+30 s") | gar nicht – die Vorschau liest sie nicht (seit v246, unten *Rechenzeit*) |
 | Start | 3 s nach dem Laden – ein neuer Tag ist eine neue Vorschau, und die sechs Wochen zählen ab dem letzten Öffnen |
 | kein Netz, Skript beschäftigt (`fehler`), keine Antwort in 45 s (`zeit`) | dieselbe Vorschau noch einmal nach 2, 5 und 15 Minuten, solange die Seite lebt, dazu bei `online` und beim Zurückkommen (höchstens einmal je Minute) |
-| Wegschalten | nur, was fertig gerechnet bereitliegt, mit `keepalive` (unter 64 KiB, nach der Sicherung) |
+| Wegschalten | nur, was fertig gerechnet bereitliegt, mit `keepalive` (unter 64 KiB, nach der Sicherung); größer (ein Jahr mit vielen Terminen) gleich in den Ausgang für den Service Worker – ohne Background Sync gewöhnlich, und offen, bis die Antwort da ist |
 | App zu | der Service Worker schickt nach, was nicht ankam – ohne Netz, sobald wieder welches da ist; ist das Skript beschäftigt, einige Minuten später (unten) |
 
 Bis zur Prüfung des Entwurfs ging nach `fehler` und `zeit` bei bestehendem Netz
@@ -2853,7 +2873,8 @@ Uhr, vier Läufe): im Worker rund 190–310 ms je Vorschau, im Fenster rund
 1–3,5 ms je Sendung, und während der Worker rechnet, keine Aufgabe im Fenster
 über 50 ms. Am Handy ist es nicht gemessen; dort dauert die Rechnung länger,
 die Oberfläche steht aber auch dann nicht still. Beides steht je Sendung im
-Diagnoseprotokoll (`rechnen=`, `haupt=`).
+Diagnoseprotokoll (`rechnen=`, `haupt=`), seit v246 dazu `vertrag=` und
+`fern=` (wie weit die Ferne reichte). Mit dem Jahr: unten.
 
 **Ohne Netz trainiert** – der häufigste echte Fehlfall: im Studio kein Netz,
 und bis zum nächsten Öffnen mit Netz hielte der Kalender das Training für
@@ -2926,7 +2947,8 @@ bei 360 px, Uhrzeit und Erinnerung, neue URL, Trennen mit und ohne Netz,
 *Alle Daten löschen*, Sicherung und Export samt neuem Handy, wo Kennwort und
 URL nie stehen, der ICS-Hinweis, der Service Worker beim `sync` (per CDP
 ausgelöst – Background Sync ist im Chromium ohne Oberfläche abgeschaltet;
-auch nach `fehler`), die Last im Fenster und die Einzeldatei – 170 Prüfungen.
+auch nach `fehler`), die Last im Fenster und die Einzeldatei – 170 Prüfungen
+in v245 (mit dem Jahr seit v246 mehr, unten).
 Gegen v244 (456214c) gelaufen, war sie rot: 26 Zeilen, die meisten Abschnitte
 brechen gleich ab. Gegen den Stand vor der Nachbesserung (96df6bb) sind 27
 Zeilen rot – alles, was die Prüfung des Entwurfs fand.
@@ -2941,6 +2963,416 @@ geöffnet, nicht per `fetch`. Wäre die Antwort bei ihm nicht lesbar, käme
 nachgebessert werden – stumm verbunden wird nicht. Background Sync auf Tobis Handy und die Rechenzeit
 dort sind ungemessen. Was die App nicht schicken konnte, gilt als nicht
 trainiert; auf dem iPhone bleibt das so bis zum nächsten Öffnen mit Netz.
+
+#### Ein Jahr im Voraus (v246)
+
+> „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr machen"
+
+Bis v245 stand im Kalender „Workout", was die Liste eines Tages kennt: sieben
+Tage zurück, 28 voraus. Seit v246 steht dahinter ein Jahr, und es rückt nach
+wie die vier Wochen – auch ohne dass die App offen ist. Die vier Wochen (die
+*Nähe*) bleiben genau, wie sie waren: Jede der 42 Tageslisten ist Byte für Byte
+dieselbe wie ohne Jahr.
+
+**Wie die Ferne entsteht.** Für jeden Tag *d* der Vorschau rechnet die App
+dazu, wie es ab *d* weiterginge, wenn Tobi von da an nach Plan trainiert: der
+Rest der laufenden Runde an seinen Tagen und über ihr Ende hinaus die nächsten
+Runden, so wie die App sie anlegt. Workout 1 der nächsten Runde kommt im
+üblichen Abstand nach Workout 84 – `naechsteRundeAb()` in `js/tagstart.js`,
+dieselbe Funktion, die jetzt auch `rundeWeiter()` nimmt –, die Runde legt
+`store.restartPlan()` an, die Termine kommen aus `kalenderTermine()` mit der
+Kennung `<fokus>-<runde+1>-<n>`, die Übungen mit den Einstellungen von heute.
+Kein Nachbau der Planregeln, nur die Funktionen der App, im Worker mit frisch
+gesätem Zustand je Tag (`fernTermine()` in `js/kalender-vorschau.js`). Was die
+Nähe eines Tages schon zeigt, steht nicht noch einmal in seiner Ferne. Endet
+die Runde innerhalb der vier Wochen, stehen deren erste Einheiten nach
+Workout 84 trotzdem schon da: Die Nähe kennt die nächste Runde erst, wenn sie
+angelegt ist, und dazwischen klaffte sonst eine Lücke von bis zu vier Wochen.
+
+Dass die Kennungen beim echten Rundenwechsel stimmen, ist nachgespielt, nicht
+angenommen: Workout 1–80 erledigt, dann Tag für Tag nach Plan trainiert, die
+App jeden Tag geöffnet – alle 65 Einheiten der Runde 2 in den nächsten vier
+Monaten stehen mit derselben Kennung, am selben Tag und mit demselben Text da
+wie geschätzt. Im Kalender heißt das: Beim Rundenwechsel wird nichts gelöscht
+und neu angelegt, die Termine bleiben dieselben (in der Attrappe des Skripts:
+84 von 84 dieselben ids).
+
+**Was Schätzung ist.** Alles hinter den vier Wochen. Steigt Tobi in der
+nächsten Runde auf, wechselt den Fokus, trägt einen Termin ein oder trainiert
+nicht nach Plan, sieht es dort anders aus; je näher die Tage rücken, desto mehr
+wird aus der Schätzung die Nähe, und die stimmt. Verpasst er einen Tag, rückt
+das ganze Jahr um einen Tag nach – das steht in der Liste jedes Tages, also
+auch ohne App. Die Karte sagt es zugeklappt unter *Was an Google geht ·
+Grenzen*, die Beschreibung des Kalenders sagt, bis wann Termine stehen.
+
+**Kompakt.** 42 Tage zu je rund 200 Terminen wären über 8000 Einträge. Aber
+zwischen zwei Tagen verschiebt sich die Ferne fast immer als Ganzes:
+`catchUpPlan()` schiebt den ganzen Rest, und die nächsten Runden hängen an der
+letzten Einheit. In der Sendung stehen deshalb wenige Referenzlisten (Tage als
+Zahl ab `ab`, nicht als Datum) und je Tag nur, welche Liste, um wie viele Tage
+verschoben und was dann noch anders ist (`weg`, `dazu` – ein Termin in der
+Ferne trifft genau die Einheit, die gerade auf seinem Tag liegt). Das wird
+nicht angenommen, sondern je Tag geprüft: Die echte Fernliste des Tages muss
+genau herauskommen; wo keine Liste mit höchstens 24 Änderungen passt oder die
+Probe nicht aufgeht, wird sie selbst eine neue Referenz – die geht immer auf.
+Texte stehen einmal unter ihrem Hash, für Nähe und Ferne. An Tobis Stand ist es
+eine Liste mit 216 Einträgen, Versatz 0, 1, 2 … – jeder verpasste Tag schiebt
+sie um einen weiter, ohne eine Änderung.
+
+**Die Ferne hält das Senden nie auf.** Bis zur Prüfung des Entwurfs warf die
+Probe, wenn sie nicht aufging, und mit ihr fiel die ganze Sendung aus – auch die
+vier Wochen, die mit der Ferne nichts zu tun haben. Jetzt wird der Tag dann eine
+eigene Referenz. Scheitert die Ferne trotzdem (ein Fehler beim Rechnen), geht
+die Nähe allein hinaus, als v 1: Das Skript gleicht die vier Wochen an und lässt
+das Jahr dahinter stehen, wie es ist. Das Diagnoseprotokoll vermerkt
+`fernfehler=…`, und die App schickt diese Sendung nicht „passend" als v 2 nach –
+sie ging mit Absicht als v 1.
+
+**Größen**, gemessen in `tests/test-kalender-vorschau.mjs` und
+`tests/test-kalender-gas.mjs`:
+
+| Fall | Sendung |
+| --- | --- |
+| Tobis Stand, ein Jahr (v 2) | 56,1 KiB (gzip 6,9 KiB), 88 Texte, 192 Termine hinter der Nähe |
+| derselbe Stand nur mit Nähe (v 1) | 34,4 KiB |
+| derselbe Stand, 30, 100 oder 200 Tage nicht geöffnet (alles nachgerückt) | je 54,9 KiB, eine Referenzliste |
+| drei Termine in der Ferne (Padel, ein Turnier, das alles schont, Bouldern) | 75,1 KiB |
+| Fußball jede Woche, 52 Termine | 111,9 KiB, 7 Referenzlisten, 186 Texte |
+| Grenze im Test künstlich auf 45 KiB gesetzt | Ferne gekürzt auf 47 Tage, 43,2 KiB |
+
+Den Unterschied machen die Texte, nicht die Tage: 28 Tage Reichweite sind
+34,6 KiB, 85 Tage 48,8, 365 Tage 56,1.
+
+**Das Budget.** Die 64 KiB von bisher sind die Grenze für `keepalive`, und die
+gilt nur für das, was beim Wegschalten hinausgeht: `kalenderVerstecken()` und
+ein Zeitgeber, der bei versteckter Seite feuert (`kalPlanen()`), beide in
+`js/kalender-sync.js` – und `keepalive` teilt sich die 64 KiB mit der
+Sicherung, die vorher hinausgeht. `sw.js` schickt ohne `keepalive`. Eine
+Sendung über 64 KiB versucht es beim Wegschalten deshalb gar nicht erst,
+sondern geht gleich in den Ausgang, und der Service Worker schickt sie; bei
+offener Seite geht sie ganz normal. Die eigentliche Grenze ist der Speicher des
+Skripts: 500 KB Skript-Eigenschaften insgesamt, 9 KB je Wert, und beim
+Speichern stehen die alte und die neue Sendung kurz nebeneinander. Daher
+höchstens 192 KiB für v 2 – zweimal sind es 384 KiB, mit Luft für den Rest.
+Wird es mehr, wird die Ferne kürzer (in Schritten auf drei Viertel, höchstens
+bis auf die vier Wochen), nie die Sendung abgewiesen; `gekuerzt` sagt es, und
+die Karte auch: „Im Kalender: Termine bis 05.02.2027. Diesmal nicht ein ganzes
+Jahr – die Sendung wäre sonst zu groß geworden (viele verschiedene Termine)."
+Passt nicht einmal die Nähe, geht sie ohne Ferne. Ein Skript der Fassung 1
+bekommt nie mehr als 64 KiB: v 1 trägt nur die Nähe und ihre Texte.
+
+**Rechenzeit**, am Rechner gemessen, im Worker in Chromium (vier Läufe nach dem
+Laden der Module):
+
+| Fall | ohne Ferne | mit Ferne | davon Ferne |
+| --- | --- | --- | --- |
+| Tobis Stand | 80–140 ms | 176–203 ms | 92–107 ms |
+| drei Termine in der Ferne | 175–198 ms | 328–440 ms | 149–201 ms |
+| Fußball jede Woche, 52 Termine | 1,5–1,7 s | 2,7–3,0 s | 1,0–1,1 s |
+
+In Node an Tobis Stand 262–280 ms (Ferne rund 145 ms), Fußball 4,1 s (Ferne
+1,5 s) – den größeren Teil kosten dort die Termine schon in der Nähe. In der
+laufenden App (`tests/test-kalender-sync.mjs`, echte Uhr, vom Auftrag an den
+Worker bis zur fertigen Vorschau) 350–550 ms. Am Handy grob das Drei- bis
+Vierfache: an Tobis Stand eine knappe Sekunde, mit Fußball jede Woche um die
+zehn. Beides im Worker, neben der Oberfläche – im Fenster kostet eine Sendung
+1–3 ms, und während der Worker rechnet, gab es keine lange Aufgabe im Fenster.
+Ein Training mit 20 Sätzen rechnet rund zwanzigmal (2 s nach jedem Haken), an
+Tobis Stand am Handy geschätzt eine Viertelminute Rechenzeit über die ganze
+Stunde, im Hintergrund. Die Pause zählt nicht mit: Pausenstart, „+30 s" und
+Pausenende meldet der Store als `pause` (`store.setRest()`), und die liest die
+Vorschau nicht. Bis zur Prüfung des Entwurfs rechnete jede davon die Vorschau
+samt Jahr noch einmal, ohne dass etwas anderes herauskam – gemessen 13 statt 6
+Rechnungen für sechs Sätze mit Pause, also rund 40 je Training; mit Fußball
+jede Woche wären das am Handy 5–7 Minuten im Worker gewesen, die Hälfte
+umsonst.
+
+**Deshalb nicht seltener.** Gerechnet wird ohnehin entprellt (2 s nach einer
+Änderung, gesendet höchstens alle zwei Minuten, sofort nur beim ersten Haken
+und beim Abschluss), und die Ferne nur, solange das Skript sie annimmt. Und
+jede Sendung braucht beides aus derselben Rechnung: Schon der erste Haken
+ändert das Jahr – ohne ihn rückte morgen alles einen Tag nach, mit ihm nicht.
+Die Ferne nur beim Start und nach dem Abschluss hieße, dass nach einem
+abgebrochenen Training beim Skript eine Sendung liegt, deren Jahr nicht zur
+Nähe passt (als v 2), oder eine ohne Jahr (als v 1 – dann verschiebt das Skript
+das Jahr nicht mehr, solange die App zu bleibt). Beides gäbe genau das auf,
+wofür es das Jahr gibt.
+
+**Der Vertrag, Fassung 2** – vollständig im Kopf von `js/kalender-vorschau.js`.
+Rückwärts verträglich in beide Richtungen: Die App schickt v 1 wie bisher,
+solange das Skript Fassung 1 meldet, und v 2 mit `ferne`, sobald es Fassung 2
+meldet. Es zählt die letzte lesbare Antwort (jede trägt `version`, auch eine
+Ablehnung); unbekannt heißt v 1, und was v245 auf dem Gerät vermerkte, zählt
+mit. Ein Gerät, das das Skript noch nicht kennt, schickt also erst v 1 und
+gleich danach v 2. Ein Skript der Fassung 2 nimmt beides. Weist ein Skript eine
+v 2 zurück – etwa, weil der alte Code wieder bereitgestellt ist –, schickt die
+App dieselbe Vorschau gleich als v 1, ohne Warnzeile; ging die v 2 beim
+Wegschalten hinaus, beim Zurückkommen. Probe und „aus" gehen immer als v 1.
+Die Antwort der Fassung 2 trägt dazu `offen` (so viele Änderungen stehen noch
+aus), `bis` (so weit reicht die Liste), `stehen` (bis dahin stimmt der
+Kalender schon ganz) und `folge` (kommt der Rest in ein paar Minuten oder mit
+der nächsten Stunde) – die Probe ebenso, vom letzten Abgleich.
+
+**Das Skript, Fassung 2.** Ein Jahr anzulegen dauert länger, als ein Lauf bei
+Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
+(45 Sekunden). Deshalb:
+
+* `doPost` legt ab und ist 25 Sekunden nach Eingang der Anfrage mit dem
+  Angleichen fertig – das Nächste zuerst: heute und die vier Wochen, dann die
+  letzten Tage, dann die Ferne der Reihe nach. Das Warten auf die Sperre zählt
+  mit (bis 30 s; ein Lauf `weiter` hält sie bis zu viereinhalb Minuten). Bis
+  zur Prüfung des Entwurfs begannen die 25 s erst danach, und in der Probe kam
+  die Antwort nach 56 s – die App hatte nach 45 s aufgegeben („die Antwort
+  blieb aus") und schickte zwei Minuten später noch einmal. Bleibt nach dem
+  Warten nichts übrig, macht `weiter` den Rest. Die Antwort sagt, wie viel noch
+  offen ist (`offen`), bis wann die Liste reicht (`bis`), bis wann der Kalender
+  schon steht (`stehen`) und ob der Rest in Minuten kommt (`folge`) – in
+  Feldern, nicht als Satz im Hinweis: Den Satz „Noch 183 Änderungen offen"
+  zeigte die App bis zur Prüfung des Entwurfs bis zur nächsten Sendung, auch
+  als längst alles eingetragen war.
+* Bleibt etwas offen, legt das Skript einen einmaligen Auslöser `weiter` an
+  (frühestens in drei Minuten), der viereinhalb Minuten lang weitermacht und,
+  wenn nötig, den nächsten anlegt – bis alles steht. Nicht, wenn Google bremst:
+  dann die nächste Stunde. Ein kleiner Rest (unter zehn Änderungen, keine davon
+  in den vier Wochen oder den Tagen davor) wartet ebenfalls auf die nächste
+  Stunde.
+* Als unterwegs zählt nur der `weiter`, den das Skript zuletzt selbst angelegt
+  und sich gemerkt hat (`workout.folge`: id und Zeit), und nur bis eine halbe
+  Stunde nach seiner Zeit. Ein gefeuerter einmaliger Auslöser bleibt bei Google
+  gelistet, bis ihn jemand löscht – `weiter` löscht ihn selbst. Bis zur Prüfung
+  des Entwurfs genügte irgendein gelisteter: Scheiterte das Löschen einmal
+  (Google: „server error"), oder brach Google den Lauf vor seiner ersten Zeile
+  ab, kam nie wieder ein neuer, und Beschreibung und App versprachen weiter „in
+  den nächsten Minuten" – nachgetragen wurde nur noch stündlich, bis zum
+  nächsten `einrichten`. Jetzt kommt so ein Rest weg, und ein neuer kommt.
+* Ein ganzer Lauf, der nichts ändern konnte – die Zeit ging schon beim Lesen
+  drauf (bei Google ungemessen; in der Attrappe mit fünf Sekunden je
+  Lesezugriff) –, legt keinen neuen `weiter` an: Läufe ohne Fortschritt im
+  Minutentakt zehrten nur die 90 Minuten auf, die Google den Auslösern am Tag
+  gibt. Dann macht die nächste Stunde weiter, und die Beschreibung sagt das.
+* Die vier Wochen kommen vor der Ferne dran: Von Grund auf stehen sie in der
+  Attrappe nach dem ersten Lauf `weiter` ganz, erst dann beginnt die Ferne.
+* Ein verpasster Tag verschiebt das ganze Jahr sanft: je Termin genau ein
+  Schreibzugriff (`setTime`); Titel, Beschreibung und Erinnerung nur, wenn sie
+  anders sind; nichts wird neu angelegt.
+* Eine ruhige Stunde – dieselbe Sendung, derselbe Tag, der letzte Lauf fertig –
+  prüft nur die Nähe: 252 Lesezugriffe statt 2341 für das ganze Jahr. Einen
+  Termin in der Ferne, den Tobi von Hand verschiebt, stellt das Skript deshalb
+  erst in der ersten Stunde des nächsten Tages zurück (in der Nähe wie bisher
+  in der nächsten Stunde).
+* Die Beschreibung des Kalenders sagt „Termine bis 27.10.2027" und, solange
+  etwas offen ist, „noch 183 Änderungen offen, sie folgen in den nächsten
+  Minuten". Hat Google das Tageskontingent aufgebraucht: „… sie folgen
+  morgen." Bis zur Prüfung des Entwurfs stand dort „mit dem nächsten
+  stündlichen Abgleich" und eine Zeile darunter „morgen geht es von selbst
+  weiter"; auf der Karte der App ebenso, auch das sagt jetzt „morgen".
+* Der Speicher bleibt im Format 1 – eine Sendung mit Ferne ist nur länger. Die
+  Termine von Fassung 1 tragen dieselben Markierungen und Kennungen und werden
+  übernommen, nicht neu angelegt. Hinter der Ferne einer v 2 räumt das Skript
+  eigene Termine weg (die App hat gekürzt); eine v 1 lässt sie stehen, bis die
+  Nähe sie erreicht.
+* Vor dem Ablegen einer Sendung kommen Stücke weg, die zu keiner geltenden
+  gehören. Bis zur Prüfung des Entwurfs blieben die Reste eines Löschens, das
+  mittendrin scheiterte, für immer: Jede neue Sendung brauchte Platz für sie,
+  die geltende und sich selbst, und mit Sendungen von 185 KiB nahm das Skript
+  danach keine mehr an (500 KB voll) – es glich weiter nach der alten an.
+  Scheitert das Löschen nach dem Umschalten, ist das auch kein Fehler der
+  Sendung mehr (bis dahin „fehler", obwohl sie galt); die Reste gehen mit der
+  nächsten.
+* Workout 84 am Tag des Rundenwechsels gemacht: Sein Termin bleibt jetzt stehen
+  – bis v245 kam er weg, weil er „heute" lag und die Liste nur noch Runde 2
+  kannte. Eine Schätzung von Runde 2, die in der Vergangenheit liegt und nicht
+  eintraf, kommt weg (`bleibtStehen()`).
+* Nach „Abschalten" räumt das Skript das Jahr ab heute weg, ebenfalls in
+  Schritten mit `weiter`.
+
+**Das Update für Tobi.** Sein Skript ist Fassung 1. Die App merkt es an der
+Antwort und schickt ihm weiter v 1 – es läuft also alles weiter wie bisher. Auf
+der Startseite steht einmal, ohne Warnfarbe (kaputt ist nichts): „Google
+Kalender: Ein Jahr im Voraus geht jetzt – dafür einmal den Code im Skript
+erneuern." mit *Ansehen*. Einmal heißt: bis er sie angesehen oder den Code
+kopiert hat – Mehr → Kalender schaut er von sich aus nicht an, dort allein sähe
+er die Bitte nie. Klein gesetzt wie die Zeile zum Ton, und sie eilt nicht:
+Steht oben schon eine andere Zeile (Tagesabschluss, Ton, Sicherung, Kalender)
+oder ist an der Einheit schon etwas abgehakt, tritt sie zurück und kommt, wenn
+das weg ist. Bis zur Prüfung des Entwurfs stand sie als gewöhnliche Zeile da
+(97 px), und bei 360×740 lag der Fuß der Startseite 26 px unter der Leiste;
+jetzt 69 px, und die Seite bleibt eine Seite. (Mit angefangener Einheit,
+„Training fortsetzen", steht die Startseite bei 360×740 schon ohne jede Zeile
+12 px über, so auch in v245 – der Fuß bleibt über der Leiste; das ist hier
+nicht angefasst.) *Ansehen* springt zur Bitte –
+unter die Kopfleiste, nicht dahinter (`scroll-padding-top` am Dokument; das
+hilft auch den Sprüngen zu *Kalender*, *Daten* und *Trainingsfokus*). Bis zur
+Prüfung lagen Überschrift und erster Satz der Bitte darunter, und lesbar begann
+sie mitten im Satz. Oben auf der Karte steht bei Fassung 1 „… vier Wochen im
+Voraus (ein Jahr mit neuem Code, siehe unten)" – bis zur Prüfung „ein Jahr im
+Voraus", zwei Absätze über „trägt nur die nächsten vier Wochen ein". Die Bitte
+selbst steht auf der Karte, bis die App die neue Fassung sieht, wörtlich so:
+
+> **Ein Jahr im Voraus.** Dein Skript bei Google ist noch Fassung 1 und trägt
+> nur die nächsten vier Wochen ein. Für ein ganzes Jahr braucht es einmal den
+> neuen Code – das Kennwort bleibt dasselbe:
+>
+> 1. „Code kopieren" tippen (gleich hier unten).
+> 2. In Chrome script.google.com öffnen, im Drei-Punkte-Menü Desktopwebsite
+>    anhaken und dein Projekt öffnen – dasselbe wie beim Einrichten.
+> 3. Den ganzen Code dort durch den kopierten ersetzen und speichern.
+> 4. Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version:
+>    Neue Version → Bereitstellen.
+>
+> Fertig. Die App merkt den neuen Code von selbst und schickt dann das ganze
+> Jahr. Bis dahin läuft alles weiter wie bisher.
+
+`einrichten` gehört nicht dazu: Der Kalender steht über seine gespeicherte id
+im selben Projekt; der stündliche Auslöser bleibt und ruft `stuendlich` beim
+Namen – mit dem gespeicherten neuen Code, und läse er noch eine Weile den
+alten, schadet auch das nicht (jede Fassung liest jedes Speicherformat, oben
+*Neue Fassung, alter Speicher*); und Fassung 2 ruft dieselben Dienste wie
+Fassung 1 (CalendarApp, ScriptApp, PropertiesService, LockService,
+ContentService, Utilities), Google braucht also keine neuen Rechte. Fehlt doch
+etwas, sagt es das Skript in seiner Antwort, und die App sagt dann
+„einrichten".
+
+Nach *Code kopieren* steht unter den Schritten nur: „Code kopiert – mit
+demselben Kennwort wie bisher. Weiter mit Schritt 2." Bis zur Prüfung des
+Entwurfs wiederholte die Meldung dort die Schritte 3 und 4 in sieben Zeilen.
+Sie geht, sobald eine Antwort nach dem Kopieren die Fassung sagt.
+
+Zu wählen gibt es nichts: Zurück aus Apps Script fragt die App mit einer Probe
+nach – sonst höchstens alle zwei Minuten, in der halben Stunde nach *Code
+kopieren* gleich beim Zurückkommen (höchstens alle zehn Sekunden) und, solange
+sie zu sehen ist, alle zwei Minuten von selbst. Bis zur Prüfung des Entwurfs
+merkte sie den neuen Code nicht, wenn Tobi nach 90 Sekunden zurück war und auf
+der Karte blieb: Gefragt hatte sie eben erst, beim Zeichnen der Karte, und das
+nächste Mal erst nach dem nächsten Wegschalten. Sieht sie Fassung 2, schickt
+sie das Jahr – genau einmal, auch wenn er zwischendurch kurz wegschaltet.
+Solange es beim Skript liegt (`doPost` gleicht bis zu 25 Sekunden an), steht
+auf der Karte:
+
+> ✓ Verbunden. Neuer Code erkannt (Skript Fassung 2) – das ganze Jahr geht
+> jetzt an das Skript. Zuletzt angekommen: vor 6 Min.
+
+Bis zur Prüfung stand dort so lange „(Skript Fassung 1)", ohne ein Wort zum
+Jahr – genau wenn Tobi nachsieht, ob es geklappt hat. Die vier Wochen stehen ja
+schon; das Jahr dahinter folgt in ein paar Läufen `weiter`.
+
+**Wenn „Neue Version" fehlt.** Das ist der Schritt, den man am leichtesten
+vergisst (oben, *Einrichten*), und ohne ihn läuft die Web-App mit dem alten
+Code weiter – der stündliche Auslöser nimmt schon den neuen, und beides geht
+gut zusammen, nur das Jahr kommt nicht. Meldet eine Antwort drei Minuten oder
+länger nach „Code kopieren" noch Fassung 1, steht über der Bitte:
+
+> Der Code ist kopiert, aber das Skript meldet noch Fassung 1. Meist fehlt der
+> letzte Schritt: Bereitstellen → Bereitstellungen verwalten → Bearbeiten
+> (Stift) → Version: Neue Version → Bereitstellen – oder das Speichern davor.
+> Ohne beides läuft die Web-App mit dem alten Code weiter.
+
+Gezählt wird die Zeit der Antwort, nicht die des Anzeigens. Bis zur Prüfung des
+Entwurfs hing der Satz an der Uhr beim Zeichnen: Kam Tobi nach sechs Minuten mit
+allem erledigt zurück, stand er da, bis die Nachfrage Fassung 2 meldete. Die
+grüne Meldung vom Kopieren („… merkt den neuen Code von selbst") steht dann
+nicht mehr daneben; bis zur Prüfung stand sie die ganze Sitzung neben dem
+orangen Satz, und Schritt 4 stand dreimal auf dem Schirm.
+
+**Während das Skript das Jahr einträgt**, sagt die Karte, was schon steht: „Im
+Kalender: Termine bis 10.12.2026. Den Rest bis 27.10.2027 trägt das Skript in
+den nächsten Minuten nach – noch 183 Änderungen." Bis zur Prüfung des Entwurfs
+stand dort gleich nach dem Code-Update „Termine bis 27.10.2027", als erst die
+vier Wochen da waren. Ist die letzte Auskunft drei Minuten alt und noch etwas
+offen, fragt die App beim Zurückkommen oder beim Öffnen der Karte mit einer
+Probe nach – höchstens alle zwei Minuten: „… – noch 95 Änderungen (Stand gerade
+eben)." Ist alles eingetragen, steht dort „Im Kalender: Termine bis
+27.10.2027.", und die App fragt nicht mehr.
+
+**Geprüft.** `tests/test-kalender-vorschau.mjs`: die Ferne über das
+Rundenende, die Kennungen gegen den echten Rundenwechsel, jeder geprüfte Tag
+von Nähe und Ferne gegen einen frischen Lauf der App für diesen Tag allein (an
+Tobis Stand, verpasst bis zur Zeitumstellung, verpasst 100 Tage, liegen
+geblieben, Termine samt Turnier in der Ferne), die Kodierung, das Kürzen, v 1
+aus derselben Rechnung, kaputte Fernen, `bleibtStehen()` am Rundenwechsel, der
+Worker in Chromium. `tests/test-kalender-gas.mjs`: die Regeln des Skripts
+gegen den Kern (`fernListe_()` an 294 Tagen), Tobis Weg von Fassung 1
+(`tests/kalender-fassung1.gs` ist der Code von v245 wörtlich) mit Codetausch
+ohne `einrichten` – 18 Termine übernommen, dieselben ids –, ein Jahr von
+Grund auf in mehreren Läufen, die nächsten vier Wochen zuerst, ein verpasster
+Tag, die ruhige Stunde, Handarbeit in Nähe und Ferne, v 1 und v 2
+abwechselnd, eine gekürzte Ferne, Rundenwechsel, Abschalten, Bremsen.
+`tests/test-kalender-sync.mjs`: v 1, solange das Skript Fassung 1 meldet, die
+Zeile auf der Startseite und die Bitte auf der Karte mit ihren Schritten,
+„Code kopieren" mit demselben Kennwort, die Nachfrage beim Zurückkommen und
+dann von selbst v 2, ein neues Gerät (erst v 1, dann v 2), ein Skript, das v 2
+abweist (auch beim Wegschalten), was v245 vermerkte, und eine Sendung über
+64 KiB über den Service Worker. Und, aus der Prüfung des Entwurfs: eine Probe,
+die mit einer Referenz nicht aufgeht (der Tag wird eine eigene Referenz),
+`stehen` und `folge` in Antwort und Probe, eine Probe mitten im Auffüllen, die
+den Fortschritt sagt, die Karte während des Auffüllens und danach (und dass
+die App dann nicht mehr nachfragt), eine Ferne, die sich nicht rechnen lässt
+(die Nähe geht genau einmal als v 1), „Neue Version" vergessen (der Satz nach
+der Zeit der Antwort – und keiner, solange die Nachfrage läuft) und über 64 KiB
+ohne Background Sync. Gegen v245 (7c56f14) gelaufen, sind alle drei rot: Die
+Prüfung der Vorschau und die des Skripts brechen nach je zwei roten Zeilen ab
+(`fernListe()` fehlt), die der App hat 17 rote Zeilen, und ihre Abschnitte 13
+und 15 brechen ab. Gegen den Stand vor der Prüfung des Entwurfs (c2fa46b): die
+Vorschau an einer Stelle rot (`ferneBauen()` war dort nicht von außen zu
+prüfen), das Skript an sechs (`stehen`, `folge`), die App an acht – jeder
+Befund von oben.
+
+Aus der zweiten Prüfung des Entwurfs kam dazu: im Skript (Abschnitt 10 – die
+Attrappe lässt einen gefeuerten einmaligen Auslöser jetzt gelistet, wie es nach
+Erfahrungsberichten bei Google ist) ein `weiter`, das sich nicht löschen lässt
+oder nie lief, ein Lauf, der vor lauter Lesen nichts schafft, `doPost` nach
+28 s Warten auf die Sperre (Antwort nach 32 statt 56 s), ein gescheitertes
+Löschen alter Stücke bei Sendungen von 185 KiB und das Tageskontingent mitten
+im Jahr; in der App die Pause, die nicht neu rechnet (Abschnitt 3), die
+Startseite mit der Bitte bei 414×896 und 360×740 und wann die Bitte
+zurücktritt, der Sprung unter die Kopfleiste, „vier Wochen im Voraus" bei
+Fassung 1, die kurze Meldung nach dem Kopieren, schnell zurück nach 90 s, auf
+der Karte geblieben, „Neuer Code erkannt", solange die erste v 2 beim Skript
+liegt (und keine zweite), die grüne Meldung neben „Neue Version fehlt" und das
+Tageskontingent auf der Karte. Gegen den Stand vor dieser Prüfung (ed2a885)
+gelaufen: das Skript an acht Stellen rot, die App an 15 – jeder Befund. Am
+Stand von v246 einzeln gelaufen: 164, 178 und 219 Prüfungen, alle grün.
+
+**Ehrlich dazugesagt.** Gemessen ist bei Google nur das Anlegen: Fassung 1 legte
+bei Tobi am 27.10. 18 Termine in 53 Sekunden an, rund drei Sekunden je Termin
+(anlegen, Markierungen, Erinnerung, Beschreibung). Die Attrappe nimmt dafür eine
+halbe Sekunde je Schreibzugriff an – ein neuer Termin braucht sechs. Wie lange
+Verschieben und Lesen dauern, ist ungemessen. So gerechnet steht ein Jahr von
+Grund auf nach drei Läufen `weiter`, ein Jahr nach Tobis Weg von Fassung 1 nach
+zwei und der nächsten Stunde, und ein verpasster Tag – 209 Termine verschieben –
+passt in einen Lauf. Ist Google langsamer, dauert es länger; die vier Wochen
+kommen trotzdem zuerst, und die Beschreibung des Kalenders sagt, wie viel noch
+offen ist. Dass Google nach dem Codetausch nicht neu nach Zugriff fragt, folgt
+aus denselben Diensten, zeigt aber erst Tobis Konto. Fragt es doch, erlaubt Tobi
+es wie beim Einrichten; bliebe es unerlaubt, käme keine Sendung beim Skript an,
+die Karte sagte „nicht das Skript", Google schickte die Mail „Summary of
+failures" – und `einrichten` einmal ausführen hilft, wie die Karte schon sagt.
+Dass ein gefeuerter einmaliger Auslöser bei Google gelistet bleibt, bis ihn
+jemand löscht, sagen Erfahrungsberichte, nicht Googles Dokumentation – das
+Skript rechnet damit (oben, nur der gemerkte zählt), `weiter` löscht ihn
+selbst, und `einrichten` räumt jeden alten Auslöser weg. Wann Google ihn
+feuert, sagt Google nicht genau: `after()` heißt nur „frühestens nach drei
+Minuten" – „The actual duration might vary, but won't be less than your
+specified minimum" –, eine Obergrenze nennt die Dokumentation nicht. (Die
+±15 Minuten dort gehören zu `nearMinute()`; bis zur Prüfung des Entwurfs stand
+hier, `after()` habe sie.) Kommt `weiter` spät oder gar nicht, legt der nächste
+Lauf eine halbe Stunde nach seiner Zeit einen neuen an, und jeder stündliche
+Lauf macht weiter, wo der letzte aufgehört hat – das Auffüllen dauert dann ein
+paar Stunden statt Minuten; die vier Wochen kommen trotzdem zuerst. Während
+`weiter` läuft (bis zu viereinhalb Minuten), wartet eine Sendung der App bis zu
+30 Sekunden auf die Sperre und bekommt sonst „beschäftigt" – die App schickt
+sie nach 2, 5 und 15 Minuten noch einmal, der Service Worker ebenso; einen
+Vorrang für die App gibt es nicht. Ob ein
+Lesezugriff auf einen schon geladenen Termin bei Google ein eigener Aufruf ist,
+ist ungeprüft; deshalb liest eine ruhige Stunde nur die Nähe, und ein Lauf, der
+vor lauter Lesen nichts schafft, legt keinen `weiter` nach. Auf dem iPhone
+gibt es keinen Background Sync: Eine Sendung über 64 KiB geht beim Wegschalten
+dort gewöhnlich hinaus, so weit die Seite noch kommt, und gilt als offen, bis
+die Antwort da ist – kam sie nicht an, geht sie beim Zurückkommen noch einmal.
+Bis zur Prüfung des Entwurfs ging sie dort beim Wegschalten gar nicht, und
+nichts holte sie nach bis zur nächsten Änderung. Und die Ferne bleibt eine
+Schätzung – nach sechs Wochen ohne Sendung verschiebt der Kalender auch sie
+nicht mehr.
 
 ## Übungsvorrat
 

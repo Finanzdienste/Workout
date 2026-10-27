@@ -639,10 +639,18 @@ export function flush() {
   write();
 }
 
-function emit() {
-  listeners.forEach((fn) => fn(state));
+/**
+ * Alle, die zuhören, nach einer Änderung. `was` sagt es genauer, wo das einen
+ * Unterschied macht – bisher nur 'pause': Geändert hat sich allein die
+ * laufende Pause (setRest() – Start, Ende, „+30 s"). Die Vorschau für den
+ * Kalender liest sie nicht und rechnet dann nicht neu (kalenderGeaendert() in
+ * js/kalender-sync.js).
+ */
+function emit(was) {
+  listeners.forEach((fn) => fn(state, was));
 }
 
+/** `fn(state, was)` nach jeder Änderung – `was` siehe emit(). */
 export function subscribe(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -996,7 +1004,7 @@ export function setzeTagesabschluss(wert) {
 export function setRest(rest) {
   state.rest = rest;
   persist();
-  emit();
+  emit('pause');
 }
 
 /** Arbeitsgewicht einer Übung; null, solange der Nutzer nichts geändert hat. */

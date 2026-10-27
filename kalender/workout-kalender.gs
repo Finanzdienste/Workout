@@ -5,13 +5,17 @@
  *     „Ja aber nur wenn es wirklich keinen Weg gibt wie verschoben wird auch
  *      wenn ich die app nicht öffne"
  *
+ *     „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr
+ *      machen"
+ *
  * Ohne Öffnen der App ändert sich der Plan nur dadurch, dass Tage vergehen.
  * Die Workout-App rechnet deshalb vor, was sie an jedem der nächsten 42 Tage
- * zeigen würde, wenn bis dahin nicht trainiert wird, und schickt diese
- * Vorschau hierher. Das Skript legt sie ab und hält den Kalender „Workout"
- * danach aktuell: sofort und dann jede Stunde mit der Liste für heute
- * (Berliner Zeit) – auch wenn die App zu ist. Es rechnet nichts selbst, es
- * wählt nur den Tag. Trainierst du, schickt die App eine neue Vorschau, und
+ * zeigen würde, wenn bis dahin nicht trainiert wird – und je Tag, wie es ein
+ * Jahr lang weitergeht, wenn ab dann nach Plan trainiert wird –, und schickt
+ * diese Vorschau hierher. Das Skript legt sie ab und hält den Kalender
+ * „Workout" danach aktuell: sofort und dann jede Stunde mit der Liste für
+ * heute (Berliner Zeit) – auch wenn die App zu ist. Es rechnet nichts selbst,
+ * es wählt nur den Tag. Trainierst du, schickt die App eine neue Vorschau, und
  * die alte ist überholt.
  *
  * EINRICHTEN (einmal, am Handy im Browser mit „Desktop-Website"):
@@ -27,10 +31,17 @@
  *      „Ausführen als: Ich", „Zugriff: Jeder" (nicht „Jeder mit
  *      Google-Konto" – dann käme die App nie an).
  *   4. Die URL in der App einfügen und „Verbinden" tippen.
- * Eine neue Fassung dieses Codes genauso: einfügen, speichern, „einrichten",
- * Schritt 3. Ohne „Neue Version" liefe die Web-App mit dem alten Code weiter,
- * während der stündliche Auslöser schon den neuen nimmt – darum liest der
- * neue Code alles, was ein alter gespeichert hat.
+ *
+ * NEUE FASSUNG (etwa von Fassung 1 auf 2 – die App sagt es dir): im selben
+ * Projekt den ganzen Code ersetzen, speichern, dann Schritt 3. „einrichten"
+ * braucht es dafür nicht: Kalender und stündlicher Auslöser bleiben (der
+ * Auslöser ruft „stuendlich" beim Namen, und das ist jetzt der neue Code),
+ * und Fassung 2 braucht keine Rechte, die Fassung 1 nicht schon hatte. Fehlt
+ * doch etwas, sagt das Skript selbst, dass „einrichten" hilft. Ohne „Neue
+ * Version" liefe die Web-App mit dem alten Code weiter, während der
+ * stündliche Auslöser schon den neuen nimmt – darum liest der neue Code
+ * alles, was ein alter gespeichert hat, und die App schickt dem alten weiter,
+ * was er versteht.
  *
  * WAS ES DARF UND TUT
  * - Google fragt nach Zugriff auf alle deine Kalender; so ist CalendarApp
@@ -41,6 +52,11 @@
  *   Google.
  * - Seine eigenen Termine überschreibt es beim nächsten Abgleich: Uhrzeit
  *   (Standard 17:30) und Erinnerung stellst du in der App ein.
+ * - Ein Jahr Termine anzulegen dauert länger, als ein Lauf darf (sechs
+ *   Minuten bei Google). Das Skript macht deshalb die nächsten Tage zuerst,
+ *   hört nach gut vier Minuten auf und macht ein paar Minuten später weiter
+ *   (ein einmaliger Auslöser „weiter"), bis alles steht. Die Beschreibung des
+ *   Kalenders sagt, bis wann die Termine stehen und wie viel noch offen ist.
  * - Gespeichert wird nur die letzte Vorschau (Tage, Titel, Übungen) in den
  *   Skript-Eigenschaften dieses Projekts – in deinem Konto, sonst nirgends.
  *   Das Kennwort wird nicht mitgespeichert.
@@ -50,9 +66,9 @@
  *
  * Herkunft: kalender/workout-kalender.gs der Workout-App, Prüfung in
  * tests/test-kalender-gas.mjs. Den Vertrag mit der App beschreibt
- * js/kalender-vorschau.js (Fassung 1); die vier Regeln unten
- * (nutzlastPruefen_, sendungVergleichen_, vorschauFuer_, bleibtStehen_) sind
- * von dort Zeile für Zeile übernommen. Funktionen mit _ am Ende sind intern –
+ * js/kalender-vorschau.js (Fassung 2); die Regeln unten (nutzlastPruefen_,
+ * sendungVergleichen_, vorschauFuer_, fernListe_, bleibtStehen_) sind von
+ * dort Zeile für Zeile übernommen. Funktionen mit _ am Ende sind intern –
  * Apps Script zeigt sie oben in der Auswahl nicht an.
  */
 
@@ -61,32 +77,38 @@
 const TOKEN = '<<KENNWORT-AUS-DER-APP>>';
 
 // Die Fassung dieses Codes. Sie steht in jeder Antwort und in der Beschreibung
-// des Kalenders; ist sie älter als die, die die App mitbringt, bittet die App
-// um „Kalender-Code erneuern".
-const FASSUNG = 1;
+// des Kalenders. Daran wählt die App, was sie schickt (ab Fassung 2 die
+// Ferne), und ist sie älter als die, die die App mitbringt, bittet die App um
+// neuen Code.
+const FASSUNG = 2;
 
 const KALENDER_NAME = 'Workout';
 const ZONE = 'Europe/Berlin';
 // Nie umbenennen: Der Auslöser ruft die Funktion bei diesem Namen, auch einer,
 // den eine ältere Fassung angelegt hat.
 const AUSLOESER = 'stuendlich';
+// Der einmalige Auslöser, der einen Lauf fortsetzt, der nicht fertig wurde.
+const FOLGE = 'weiter';
 
 // Tobis Probe vom 26.10.2026: Kalender „Workout-Probe", seine id in „kal".
 const PROBE_NAME = 'Workout-Probe';
 const PROBE_EIGENSCHAFT = 'kal';
 
-// Der Vertrag (js/kalender-vorschau.js).
-const VORSCHAU_V = 1;
+// Der Vertrag (js/kalender-vorschau.js). Fassung 1 und 2 werden angenommen.
+const VORSCHAU_V = 2;
 const VORSCHAU_MAX_BYTES = 64 * 1024;
+const VORSCHAU_MAX_BYTES_2 = 192 * 1024;
+const FERNE_MAX = 400;
 const KENNUNG_MUSTER = /^[a-z0-9]{1,24}-\d{1,4}-z?\d{1,4}$/;
 const TAG = /^\d{4}-\d{2}-\d{2}$/;
 const ZEICHEN = /^[A-Za-z0-9_-]+$/;
 // Was von einer Sendung aufbewahrt wird – alles außer dem Kennwort.
-const FELDER = ['v', 'geraet', 'seq', 'gesendet', 'app', 'minuten', 'erinnerung', 'ab', 'fenster', 'stand', 'texte', 'tage'];
+const FELDER = ['v', 'geraet', 'seq', 'gesendet', 'app', 'minuten', 'erinnerung', 'ab', 'fenster', 'stand', 'texte', 'tage', 'ferne'];
 
 // Der Speicher (Skript-Eigenschaften). Format 1: die Sendung als JSON in
 // Stücken (Google erlaubt 9 KB je Wert, 500 KB insgesamt), dazu eine kleine
-// Meta-Zeile, die sagt, welche Stücke gelten.
+// Meta-Zeile, die sagt, welche Stücke gelten. Fassung 2 schreibt dasselbe
+// Format – eine Sendung mit Ferne ist nur länger.
 const SPEICHER_FORMAT = 1;
 const P_KALENDER = 'workout.kalender';
 const P_PROJEKT = 'workout.projekt';
@@ -97,6 +119,12 @@ const P_OFFEN = 'workout.offen';
 // Der Anfang des Fensters der zuletzt ganz angeglichenen Liste – davor kann
 // kein offener eigener Termin mehr liegen (siehe angleichArbeit_()).
 const P_LISTE = 'workout.liste';
+// Welche Sendung an welchem Tag zuletzt samt Ferne ganz angeglichen ist –
+// solange beides gleich bleibt, prüft ein Lauf nur noch die Nähe.
+const P_FERNE = 'workout.ferne';
+// Der einmalige Auslöser „weiter", den das Skript zuletzt angelegt hat:
+// { id, faellig } – nur der zählt als unterwegs (folgeSichern_()).
+const P_FOLGE = 'workout.folge';
 const TEIL_BYTES = 8000;
 
 // Die unsichtbaren Markierungen am Termin.
@@ -106,17 +134,32 @@ const T_TEXT = 'workoutText';         // Fingerabdruck der Beschreibung, die es 
 const T_HINWEIS = 'workoutHinweis';   // der Hinweis „Vorschau aufgebraucht"
 const HINWEIS_ART = '!hinweis';
 
-// Zeit und Kontingent schonen: Was in einem Lauf nicht fertig wird, kommt im
-// nächsten dran – jeder Lauf gleicht ohnehin den ganzen Tag an.
-const ZEIT_BUDGET_MS = 4 * 60 * 1000;
-const MAX_AENDERUNGEN = 150;
+// Zeit und Kontingent schonen. Ein Lauf darf bei Google sechs Minuten; nach
+// viereinhalb hört dieser auf, und der Rest kommt im nächsten. Die Antwort an
+// die App wartet nicht so lange: Die App wartet höchstens 45 Sekunden, also
+// ist doPost 25 Sekunden nach Eingang der Anfrage mit dem Angleichen fertig –
+// das Nächste zuerst – und überlässt den Rest dem Auslöser. Das Warten auf die
+// Sperre (bis 30 s, ein Lauf „weiter" hält sie bis zu viereinhalb Minuten)
+// zählt mit: Bis zur Prüfung des Entwurfs begannen die 25 s erst danach, und
+// in der Probe kam die Antwort nach 56 s – die App hatte schon aufgegeben.
+const ZEIT_BUDGET_MS = 4.5 * 60 * 1000;
+const POST_BUDGET_MS = 25 * 1000;
+const MAX_AENDERUNGEN = 400;
 const PAUSE_MS = 100;
+// Bleibt so viel offen (oder etwas aus den nächsten vier Wochen), kommt der
+// Rest nicht erst in einer Stunde, sondern nach ein paar Minuten (FOLGE).
+const FOLGE_AB = 10;
+const FOLGE_MS = 3 * 60 * 1000;
+// So lange nach seiner Zeit gilt ein gemerkter „weiter" noch als unterwegs.
+// Google sagt bei after() nur „frühestens", keine Obergrenze; feuert er bis
+// dahin nicht, legt der nächste Lauf einen neuen an (folgeSichern_()).
+const FOLGE_FRIST = 30 * 60 * 1000;
 // So weit vor und hinter dem Fenster sucht der Abgleich noch nach einem Termin
 // derselben Einheit, um ihn zu verschieben statt einen zweiten anzulegen.
 const SUCHE_ZURUECK = 35;
 const SUCHE_VORAUS = 7;
 // Nach dem Abschalten: so weit voraus räumt das Skript seine Termine weg.
-const AUS_VORAUS = 130;
+const AUS_VORAUS = FERNE_MAX + SUCHE_VORAUS;
 
 const SPAETER = 'Google bremst gerade – der Rest folgt mit dem nächsten stündlichen Abgleich.';
 const TAGESKONTINGENT = 'Google lässt heute keine weiteren Kalender-Änderungen zu (Tageskontingent aufgebraucht) – morgen geht es von selbst weiter.';
@@ -126,10 +169,11 @@ const TAGESKONTINGENT = 'Google lässt heute keine weiteren Kalender-Änderungen
  * ------------------------------------------------------------------ */
 
 /**
- * Einmal von Hand ausführen (und nach jeder neuen Fassung des Codes). Räumt
- * die Probe weg, legt den Kalender „Workout" an oder findet den eigenen
- * wieder, legt genau einen stündlichen Auslöser an und sagt im Protokoll, was
- * es getan hat. Beliebig oft wiederholbar, ohne dass etwas doppelt entsteht.
+ * Einmal von Hand ausführen. Räumt die Probe weg, legt den Kalender „Workout"
+ * an oder findet den eigenen wieder, legt genau einen stündlichen Auslöser an
+ * und sagt im Protokoll, was es getan hat. Beliebig oft wiederholbar, ohne
+ * dass etwas doppelt entsteht. Nach einer neuen Fassung des Codes nur nötig,
+ * wenn das Skript oder die App darum bittet.
  */
 function einrichten() {
   // Mit „einzelnen Häkchen" im Zustimmungsdialog fragt Google sonst nur
@@ -150,11 +194,12 @@ function einrichten() {
       ? '✓ Das Kennwort steht im Code.'
       : '✗ Im Code fehlt das Kennwort. In der App unter Mehr → Kalender „Code kopieren" und hier alles ersetzen.');
     const meta = metaLesenSanft_(P);
-    if (meta && !meta.aus) melde(zusammenfassung_(abgleichenSicher_(P)));
+    if (meta && !meta.aus) melde(zusammenfassung_(abgleichenSicher_(P, ZEIT_BUDGET_MS)));
     else if (meta) melde('– In der App abgeschaltet: Das Skript gleicht nichts an, bis wieder eine Vorschau kommt.');
     else melde('– Noch keine Vorschau von der App. Bis sie kommt, bleibt der Kalender leer.');
     melde('Nächster Schritt: Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → '
-      + 'Version: Neue Version → Bereitstellen. Danach in der App „Verbinden".');
+      + 'Version: Neue Version → Bereitstellen. Danach in der App „Verbinden" – ist sie schon verbunden, '
+      + 'merkt sie den neuen Code von selbst.');
   } finally {
     lock.releaseLock();
   }
@@ -173,12 +218,12 @@ function einrichten() {
 function stuendlich() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) {
-    console.log('Gerade läuft schon ein Abgleich – in der nächsten Stunde wieder.');
+    console.log('Gerade läuft schon ein Abgleich – er macht auch den Rest, oder die nächste Stunde.');
     return null;
   }
   let r;
   try {
-    r = abgleichenSicher_(PropertiesService.getScriptProperties());
+    r = abgleichenSicher_(PropertiesService.getScriptProperties(), ZEIT_BUDGET_MS);
   } finally {
     lock.releaseLock();
   }
@@ -189,6 +234,34 @@ function stuendlich() {
 
 /** Dasselbe von Hand: jetzt gleich abgleichen. */
 function abgleichen() {
+  return stuendlich();
+}
+
+/**
+ * Läuft von selbst ein paar Minuten nach einem Lauf, der nicht fertig wurde –
+ * ein Jahr Termine anzulegen dauert länger, als ein Lauf darf. Räumt seinen
+ * einmaligen Auslöser weg und gleicht weiter an; bleibt wieder viel offen,
+ * legt der Lauf den nächsten an.
+ *
+ * Zuerst vergisst es, dass einer unterwegs ist – das ist dieser hier. Ein
+ * gefeuerter einmaliger Auslöser bleibt bei Google gelistet, bis ihn jemand
+ * löscht. Scheitert das Löschen, zählt folgeSichern_() ihn trotzdem nicht
+ * mehr; bis zur Prüfung des Entwurfs hielt so ein Rest das Nachtragen für
+ * immer an, während die Beschreibung „in den nächsten Minuten" versprach.
+ */
+function weiter() {
+  try {
+    PropertiesService.getScriptProperties().deleteProperty(P_FOLGE);
+  } catch (err) {
+    // Dann hält folgeSichern_() ihn nach seiner Frist für verbraucht.
+  }
+  try {
+    ScriptApp.getProjectTriggers().forEach((t) => {
+      if (t.getHandlerFunction() === FOLGE) ScriptApp.deleteTrigger(t);
+    });
+  } catch (err) {
+    console.log('Den einmaligen Auslöser konnte das Skript nicht wegräumen: ' + bereinigt_(err));
+  }
   return stuendlich();
 }
 
@@ -228,10 +301,13 @@ function doGet(e) {
  * ------------------------------------------------------------------ */
 
 function annehmen_(e) {
+  // Ab Eingang der Anfrage – das Warten auf die Sperre zählt zu den 25 s.
+  const t0 = Date.now();
+  const budget = () => Math.max(0, POST_BUDGET_MS - (Date.now() - t0));
   const body = e && e.postData && typeof e.postData.contents === 'string' ? e.postData.contents : null;
   if (body === null) return antwort_(false, 'format', { hinweis: 'Keine Daten angekommen.' });
   // Vor dem Lesen: Was über der Grenze liegt, wird gar nicht erst ausgepackt.
-  if (utf8Bytes_(body) > VORSCHAU_MAX_BYTES) return antwort_(false, 'format', { hinweis: 'Zu groß – höchstens 64 KiB.' });
+  if (utf8Bytes_(body) > VORSCHAU_MAX_BYTES_2) return antwort_(false, 'format', { hinweis: 'Zu groß – höchstens 192 KiB.' });
   let n;
   try {
     n = JSON.parse(body);
@@ -248,9 +324,10 @@ function annehmen_(e) {
   }
   const grund = nutzlastPruefen_(n);
   if (grund) {
-    return antwort_(false, 'format', {
-      hinweis: grund === 'v' ? 'Die App ist neuer als dieses Skript – „Kalender-Code erneuern".' : 'Die Sendung passt nicht zum Vertrag (' + grund + ').',
-    });
+    let hinweis = 'Die Sendung passt nicht zum Vertrag (' + grund + ').';
+    if (grund === 'v') hinweis = 'Die App ist neuer als dieses Skript – „Kalender-Code erneuern".';
+    if (grund === 'groesse') hinweis = 'Zu groß – höchstens ' + (n.v === 2 ? '192' : '64') + ' KiB.';
+    return antwort_(false, 'format', { hinweis: hinweis });
   }
   const P = PropertiesService.getScriptProperties();
   if (n.probe === true) return probeAntwort_(P);
@@ -261,7 +338,7 @@ function annehmen_(e) {
   try {
     // Ein unlesbarer Speicher heilt mit der nächsten gültigen Sendung.
     const alt = metaLesenSanft_(P);
-    if (n.aus === true) return abschalten_(P, n, alt);
+    if (n.aus === true) return abschalten_(P, n, alt, budget);
     const urteil = sendungVergleichen_(alt, n);
     if (urteil === 'alt' || urteil === 'aelter') {
       return antwort_(false, urteil, {
@@ -272,7 +349,7 @@ function annehmen_(e) {
           : 'Ein anderes Gerät hat zuletzt trainiert – der Kalender bleibt bei dessen Plan.',
       });
     }
-    const meta = urteil === 'neu' ? speichern_(P, n) : alt;
+    const meta = urteil === 'neu' ? speichern_(P, n, alt) : alt;
     // Nie „einrichten" ausgeführt, aber die Probe ist noch da – naheliegend,
     // Tobi hat bei der Probe schon eine Funktion dieses Namens ausgeführt.
     // Dann räumt die erste Vorschau sie weg, wie einrichten() es täte.
@@ -286,20 +363,29 @@ function annehmen_(e) {
         probeHinweis = 'Die Probe ließ sich nicht wegräumen – in Apps Script einmal „einrichten" ausführen.';
       }
     }
-    const r = abgleichenSicher_(P);
+    // Erst den Auslöser: Den Rest des Abgleichs macht er.
     let auslHinweis = null;
     try {
-      // Nicht, wenn sich dieses Projekt eben schlafen gelegt hat (r.fremd).
-      if (!r.fremd) auslHinweis = ausloeserSichern_();
+      auslHinweis = ausloeserSichern_(P);
     } catch (err) {
       auslHinweis = 'Den stündlichen Auslöser konnte das Skript nicht prüfen – in Apps Script „einrichten" ausführen.';
     }
+    // Bleibt nach dem Warten nichts übrig, gleicht doPost so gut wie nichts an
+    // – offen und folge sagen es, und „weiter" macht es in ein paar Minuten.
+    const r = abgleichenSicher_(P, budget());
+    // Was offen bleibt, steht in offen, stehen und folge – daraus macht die
+    // App ihren eigenen Satz, auch später, wenn eine Probe den neuen Stand
+    // holt. Im Hinweis stünde es sonst doppelt und bald veraltet.
     return antwort_(true, urteil === 'neu' ? 'angekommen' : 'gleich', {
       tag: r.tag,
       geaendert: r.geaendert,
+      offen: r.offen,
+      bis: r.bis,
+      stehen: r.vollBis,
+      folge: r.offen ? !!r.folge : null,
       stand: meta.stand,
       seq: meta.seq,
-      hinweis: r.fehler || r.hinweis || auslHinweis || probeHinweis || undefined,
+      hinweis: r.fehler || r.hinweis || (r.fremd ? null : auslHinweis) || probeHinweis || undefined,
     });
   } finally {
     lock.releaseLock();
@@ -323,9 +409,18 @@ function probeAntwort_(P) {
     hinweis = 'Verbunden. Die erste Vorschau räumt die Probe weg (Kalender „' + PROBE_NAME + '") und legt „Workout" an.';
   } else if (meta && meta.aus) hinweis = 'Verbunden. In der App abgeschaltet – es geht weiter, sobald wieder eine Vorschau kommt.';
   else if (!meta) hinweis = 'Verbunden. Noch keine Vorschau angekommen' + (kal ? '.' : ' – der Kalender „Workout" entsteht mit der ersten.');
-  else hinweis = 'Verbunden.' + (letzter ? ' Zuletzt abgeglichen ' + zeitDe_(letzter.zeit) + '.' : '');
+  else {
+    hinweis = 'Verbunden.' + (letzter ? ' Zuletzt abgeglichen ' + zeitDe_(letzter.zeit) + '.' : '')
+      + (letzter && letzter.offen ? ' Noch ' + letzter.offen + (letzter.offen === 1 ? ' Änderung' : ' Änderungen') + ' offen.' : '');
+  }
+  // Wie weit der letzte Abgleich kam – die App fragt so nach, solange das
+  // Skript das Jahr noch einträgt.
   return antwort_(true, 'probe', {
     tag: letzter ? letzter.tag : null,
+    offen: letzter && Number.isInteger(letzter.offen) ? letzter.offen : null,
+    bis: letzter && letzter.bis ? letzter.bis : null,
+    stehen: letzter && letzter.stehen ? letzter.stehen : null,
+    folge: letzter && letzter.offen ? !!letzter.folge : null,
     stand: meta && !meta.aus ? meta.stand : null,
     seq: meta ? meta.seq : null,
     hinweis: hinweis,
@@ -337,7 +432,7 @@ function probeAntwort_(P) {
  * angleichen, bis wieder eine kommt. Von jedem Gerät mit dem Kennwort – nur
  * eine verspätete frühere Sendung desselben Geräts zählt nicht mehr.
  */
-function abschalten_(P, n, alt) {
+function abschalten_(P, n, alt, budget) {
   if (alt && alt.geraet === n.geraet && sendungVergleichen_(alt, n) === 'alt') {
     return antwort_(false, 'alt', { stand: alt.stand || null, seq: alt.seq, hinweis: 'Eine frühere Sendung dieses Geräts – die spätere gilt schon.' });
   }
@@ -346,8 +441,10 @@ function abschalten_(P, n, alt) {
   };
   P.setProperty(P_META, JSON.stringify(meta));
   teileAufraeumen_(P, null);
-  const r = abgleichenSicher_(P);
-  return antwort_(true, 'aus', { geaendert: r.geaendert, seq: n.seq, hinweis: r.fehler || (r.spaeter ? SPAETER : undefined) });
+  const r = abgleichenSicher_(P, budget());
+  return antwort_(true, 'aus', {
+    geaendert: r.geaendert, offen: r.offen, seq: n.seq, hinweis: r.fehler || (r.gebremst ? SPAETER : offenSatz_(r)) || undefined,
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -355,19 +452,20 @@ function abschalten_(P, n, alt) {
  * ------------------------------------------------------------------ */
 
 /** Wie abgleichen_(), wirft aber nie – das Ergebnis sagt, was war. */
-function abgleichenSicher_(P) {
+function abgleichenSicher_(P, budget) {
   let r;
   try {
-    r = abgleichen_(P);
+    r = abgleichen_(P, budget);
   } catch (err) {
-    if (tagesKontingent_(err)) r = { tag: null, geaendert: null, spaeter: false, hinweis: null, fehler: TAGESKONTINGENT };
-    else if (zuOft_(err)) r = { tag: null, geaendert: null, spaeter: true, hinweis: SPAETER, fehler: null };
-    else r = { tag: null, geaendert: null, spaeter: false, hinweis: null, fehler: 'Abgleich gescheitert: ' + bereinigt_(err) };
+    if (tagesKontingent_(err)) r = leer_({ fehler: TAGESKONTINGENT });
+    else if (zuOft_(err)) r = leer_({ spaeter: true, gebremst: true, hinweis: SPAETER });
+    else r = leer_({ fehler: 'Abgleich gescheitert: ' + bereinigt_(err) });
   }
   if (r.gelaufen !== false) {
     try {
       P.setProperty(P_ABGLEICH, JSON.stringify({
-        zeit: Date.now(), tag: r.tag, geaendert: r.geaendert, spaeter: r.spaeter, fehler: !!r.fehler,
+        zeit: Date.now(), tag: r.tag, geaendert: r.geaendert, offen: r.offen, bis: r.bis, stehen: r.vollBis, folge: !!r.folge,
+        spaeter: r.spaeter, fehler: !!r.fehler,
       }));
     } catch (err) {
       // Nur eine Auskunft für „Verbinden" – der Abgleich selbst ist durch.
@@ -376,14 +474,36 @@ function abgleichenSicher_(P) {
   return r;
 }
 
+/** Ein leeres Ergebnis eines Abgleichs, mit dem, was schon feststeht. */
+function leer_(mehr) {
+  const r = {
+    tag: null, geaendert: null, offen: null, bis: null, vollBis: null, spaeter: false, gebremst: false, folge: false,
+    hinweis: null, fehler: null,
+  };
+  Object.keys(mehr || {}).forEach((k) => {
+    r[k] = mehr[k];
+  });
+  return r;
+}
+
 /**
- * Den Kalender an die Liste für heute angleichen. Ein Skript, das noch keine
- * Vorschau angenommen hat, fasst ihn gar nicht an – ein zweites, vergessenes
- * Projekt räumt so nicht im Kalender des ersten herum.
+ * Den Kalender an die Liste für heute angleichen – die Nähe und, bei einer
+ * Sendung der Fassung 2, die Ferne bis ein Jahr voraus. Ein Skript, das noch
+ * keine Vorschau angenommen hat, fasst ihn gar nicht an – ein zweites,
+ * vergessenes Projekt räumt so nicht im Kalender des ersten herum.
+ *
+ * `budget`: so lange darf es dauern (doPost kurz, der Auslöser länger). Was
+ * nicht fertig wird, macht der nächste Lauf – das Nächste zuerst: die nächsten
+ * vier Wochen, dann die letzten Tage, dann die Ferne der Reihe nach.
+ *
+ * Die Ferne wird nur geprüft, wenn sich etwas geändert haben kann: eine neue
+ * Sendung, ein neuer Tag, oder der letzte Lauf wurde nicht fertig. Eine
+ * Stunde wie die davor prüft nur die Nähe (P_FERNE) – sonst läse jede Stunde
+ * rund 200 Termine, von denen sich nichts bewegt hat.
  */
-function abgleichen_(P) {
+function abgleichen_(P, budget) {
   const start = Date.now();
-  const r = { tag: null, geaendert: null, spaeter: false, hinweis: null, fehler: null };
+  const r = leer_();
   // Wirft bei kaputtem Speicher: Dann bleibt der Kalender, wie er ist.
   const meta = metaLesen_(P);
   if (!meta) {
@@ -416,8 +536,7 @@ function abgleichen_(P) {
   offenNachholen_(P, kal, projekt);
   const heute = tagIn_(new Date());
   if (meta.aus) {
-    abarbeiten_(eigeneAbHeute_(kal, heute), start, r);
-    if (r.spaeter) r.hinweis = SPAETER;
+    nachLauf_(r, abarbeiten_(eigeneAbHeute_(kal, heute), start, budget, r), heute, budget);
     beschreibungSchreiben_(kal, projekt, meta, r);
     return r;
   }
@@ -430,40 +549,129 @@ function abgleichen_(P) {
     // jeder weitere Tag. Stattdessen ein Hinweis-Termin, der auffällt.
     r.hinweis = 'Die Vorschau ist aufgebraucht: Die App hat seit ' + datumDe_(n.ab) + ' keinen neuen Plan geschickt, und sie reichte bis '
       + datumDe_(meta.bis) + '. Der Kalender verschiebt deshalb nicht mehr – einmal die App mit Netz öffnen.';
-    abarbeiten_(hinweisArbeit_(P, kal, heute, n, projekt, meta), start, r);
+    nachLauf_(r, abarbeiten_(hinweisArbeit_(P, kal, heute, n, projekt, meta), start, budget, r), heute, budget);
   } else {
     r.tag = wahl.tag;
-    abarbeiten_(angleichArbeit_(P, kal, n, wahl.liste, heute, projekt), start, r);
+    const zweite = n.v === 2 && !!n.ferne;
+    const nahBis = plusTage_(heute, n.fenster[1]);
+    r.bis = zweite ? plusTage_(heute, n.ferne.bis) : nahBis;
+    const fertig = jsonSanft_(P.getProperty(P_FERNE));
+    const voll = zweite && !(fertig && fertig.gen === meta.gen && fertig.heute === heute);
+    const umfang = voll
+      ? { bis: r.bis, oben: plusTage_(heute, FERNE_MAX + SUCHE_VORAUS), weg: true }
+      : { bis: nahBis, oben: plusTage_(nahBis, SUCHE_VORAUS), weg: false };
+    const liste = wahl.liste.concat(fernListe_(n, wahl.tag));
+    nachLauf_(r, abarbeiten_(angleichArbeit_(P, kal, n, liste, heute, projekt, umfang), start, budget, r), heute, budget);
     // Ganz angeglichen: Ab jetzt liegt kein offener eigener Termin mehr vor
-    // dem Fenster dieser Liste. Nicht nach einem halben Lauf – dann gilt die
-    // frühere, weitere Grenze, bis ein Lauf durchkommt.
-    if (!r.spaeter && !r.fehler) {
+    // dem Fenster dieser Liste – und die Ferne steht bis zu ihrem Ende. Nicht
+    // nach einem halben Lauf: dann gilt die frühere, weitere Grenze, und der
+    // nächste Lauf prüft die Ferne noch einmal.
+    if (!r.offen && !r.fehler) {
       try {
         P.setProperty(P_LISTE, plusTage_(heute, -n.fenster[0]));
+        if (voll) P.setProperty(P_FERNE, JSON.stringify({ gen: meta.gen, heute: heute, bis: r.bis }));
       } catch (err) {
-        // Nur eine Suchgrenze – ohne sie sucht der nächste Lauf wie bisher.
+        // Nur Suchgrenzen – ohne sie sucht der nächste Lauf wie bisher.
       }
     }
   }
-  if (r.spaeter) r.hinweis = SPAETER;
   beschreibungSchreiben_(kal, projekt, meta, r);
   return r;
 }
 
 /**
- * Was zu tun ist, damit der Kalender die Liste zeigt – als Arbeitsliste,
- * das Dringendste zuerst (heute und die nächsten Tage, dann rückwärts in die
- * Vergangenheit).
+ * Nach dem Abarbeiten: wie viel offen blieb, bis wann die Termine schon
+ * stehen, und ob ein Folge-Auslöser den Rest in ein paar Minuten macht.
+ *
+ * Nicht nach einem ganzen Lauf, der gar nichts ändern konnte (`budget` voll,
+ * die Zeit ging schon beim Lesen drauf): Läufe ohne Fortschritt im
+ * Minutentakt zehrten nur die 90 Minuten Laufzeit auf, die Google den
+ * Auslösern am Tag gibt – dann macht die nächste Stunde weiter. doPost hat
+ * nur Sekunden und legt ihn immer an.
+ */
+function nachLauf_(r, rest, heute, budget) {
+  r.offen = (r.offen || 0) + rest.length;
+  const kommend = rest.filter((a) => a.datum >= heute).map((a) => a.datum).sort();
+  if (!r.bis) r.vollBis = null;
+  else if (!rest.length) r.vollBis = r.bis;
+  else r.vollBis = kommend.length && kommend[0] > heute ? plusTage_(kommend[0], -1) : null;
+  if (r.vollBis && r.vollBis > r.bis) r.vollBis = r.bis;
+  if (r.offen && !r.gebremst && !r.fehler) {
+    const nah = rest.some((a) => a.rang.charAt(0) === '0' || a.rang.charAt(0) === '1');
+    const voran = r.geaendert > 0 || budget < ZEIT_BUDGET_MS;
+    r.folge = folgeSichern_((r.offen >= FOLGE_AB || nah) && voran);
+  }
+  if (r.gebremst) r.hinweis = SPAETER;
+}
+
+/** Wann der Rest kommt, als Satzende – für die Beschreibung und die Antwort an die App. */
+function wannSatz_(r) {
+  if (r.fehler === TAGESKONTINGENT) return 'sie folgen morgen.';
+  if (r.gebremst) return 'sie folgen, sobald Google wieder lässt.';
+  return r.folge ? 'sie folgen in den nächsten Minuten.' : 'sie folgen mit dem nächsten stündlichen Abgleich.';
+}
+
+/** Ein Satz zu dem, was offen blieb – für die Antwort an die App. */
+function offenSatz_(r) {
+  if (!r || !r.offen || r.gebremst) return null;
+  return 'Noch ' + r.offen + (r.offen === 1 ? ' Änderung' : ' Änderungen') + ' offen – ' + wannSatz_(r);
+}
+
+/**
+ * Den einmaligen Folge-Auslöser sichern, wenn nötig. true, wenn einer kommt.
+ *
+ * Gezählt wird nur der, den das Skript zuletzt selbst angelegt und sich
+ * gemerkt hat (P_FOLGE), und nur bis FOLGE_FRIST nach seiner Zeit. Ein
+ * gefeuerter einmaliger Auslöser bleibt bei Google gelistet, bis ihn jemand
+ * löscht – scheiterte das in weiter(), oder brach Google den Lauf vor seiner
+ * ersten Zeile ab, stand bis zur Prüfung des Entwurfs für immer einer da, der
+ * nie mehr feuert: Kein neuer kam, und Beschreibung und App versprachen
+ * weiter „in den nächsten Minuten". Jetzt kommen solche Reste weg (jeder für
+ * sich – einer, der sich nicht löschen lässt, zählt nur zu den 20 Auslösern),
+ * und ein neuer kommt dazu.
+ */
+function folgeSichern_(noetig) {
+  if (!noetig) return false;
+  try {
+    const P = PropertiesService.getScriptProperties();
+    const gemerkt = jsonSanft_(P.getProperty(P_FOLGE));
+    const da = ScriptApp.getProjectTriggers().filter((t) => t.getHandlerFunction() === FOLGE);
+    if (gemerkt && Number.isFinite(gemerkt.faellig) && Date.now() < gemerkt.faellig + FOLGE_FRIST
+      && da.some((t) => t.getUniqueId() === gemerkt.id)) return true;
+    da.forEach((t) => {
+      try {
+        ScriptApp.deleteTrigger(t);
+      } catch (err) {
+        console.log('Einen alten Auslöser „weiter" konnte das Skript nicht wegräumen: ' + bereinigt_(err));
+      }
+    });
+    const t = ScriptApp.newTrigger(FOLGE).timeBased().after(FOLGE_MS).create();
+    P.setProperty(P_FOLGE, JSON.stringify({ id: t.getUniqueId(), faellig: Date.now() + FOLGE_MS }));
+    return true;
+  } catch (err) {
+    // Dann eben der nächste stündliche Lauf – und die Beschreibung sagt das.
+    return false;
+  }
+}
+
+/**
+ * Was zu tun ist, damit der Kalender die Liste zeigt – als Arbeitsliste, nur
+ * mit dem, was sich wirklich ändert, das Nächste zuerst (rangFuer_()).
  *
  * Je Eintrag genau ein eigener Termin, wiedergefunden über die Kennung –
  * verschoben, nicht neu angelegt, auch wenn er knapp außerhalb des Fensters
- * liegt. Ein eigener Termin im Fenster ohne Eintrag kommt weg oder bleibt
- * stehen, wie bleibtStehen_() es sagt. Außerhalb des Fensters bleibt alles,
- * und fremde Termine (ohne Markierung) fasst das Skript nie an.
+ * liegt; Termine von Fassung 1 sind dieselben. Ein eigener Termin im Fenster
+ * ohne Eintrag kommt weg oder bleibt stehen, wie bleibtStehen_() es sagt.
+ * Hinter dem Fenster: bei Fassung 2 weg (die App hat die Ferne gekürzt),
+ * sonst bleibt er. Fremde Termine (ohne Markierung) fasst das Skript nie an.
+ *
+ * `umfang` { bis, oben, weg }: bis wohin dieser Lauf angleicht, bis wohin er
+ * sucht, und ob eigene Termine hinter `bis` wegkommen. Ein Eintrag hinter
+ * `bis` bleibt in diesem Lauf, wie er ist.
  */
-function angleichArbeit_(P, kal, n, liste, heute, projekt) {
+function angleichArbeit_(P, kal, n, liste, heute, projekt, umfang) {
   const von = plusTage_(heute, -n.fenster[0]);
-  const bis = plusTage_(heute, n.fenster[1]);
+  const rang = rangFuer_(heute, plusTage_(heute, n.fenster[1]));
   // Gesucht wird bis 35 Tage vor dem Fenster – und mindestens bis zum Fenster
   // der zuletzt ganz angeglichenen Liste (P_LISTE): War die Vorschau lange
   // aufgebraucht (sechs Wochen und mehr ohne Sendung), stehen ihre offenen
@@ -473,85 +681,129 @@ function angleichArbeit_(P, kal, n, liste, heute, projekt) {
   let unten = plusTage_(von, -SUCHE_ZURUECK);
   const zuletzt = P.getProperty(P_LISTE);
   if (zuletzt && TAG.test(zuletzt) && zuletzt < unten) unten = zuletzt;
-  const vorhanden = kal.getEvents(beginn_(unten), beginn_(plusTage_(bis, SUCHE_VORAUS + 1)));
+  const vorhanden = kal.getEvents(beginn_(unten), beginn_(plusTage_(umfang.oben, 1)));
   const eigene = {};
   const arbeit = [];
   vorhanden.forEach((ev) => {
     if (!ev.getTag(T_QUELLE)) return;
     if (ev.getTag(T_HINWEIS)) {
       // Der Hinweis „aufgebraucht" ist erledigt, sobald wieder eine Liste gilt.
-      arbeit.push({ datum: heute, tun: () => loeschen_(ev) });
+      arbeit.push({ datum: heute, rang: rang(heute), tun: () => loeschen_(ev) });
       return;
     }
     const k = ev.getTag(T_KENNUNG);
     if (!k || !KENNUNG_MUSTER.test(k)) return;
     (eigene[k] = eigene[k] || []).push({ ev: ev, datum: tagIn_(ev.getStartTime()) });
   });
-  const soll = {};
+  const alle = {};
   liste.forEach((e) => {
-    if (!soll[e[0]]) soll[e[0]] = e;
+    if (!alle[e[0]]) alle[e[0]] = e;
   });
-  Object.keys(soll).forEach((k) => {
-    const e = soll[k];
+  Object.keys(alle).forEach((k) => {
+    const e = alle[k];
+    if (e[1] > umfang.bis) return;
+    const soll = terminSoll_(e, n);
     // Liegt einer schon am richtigen Tag, bleibt der; weitere derselben
     // Einheit sind doppelt und kommen weg.
     const da = (eigene[k] || []).slice().sort((a, b) => (a.datum === e[1] ? 0 : 1) - (b.datum === e[1] ? 0 : 1));
     const behalten = da.length ? da[0].ev : null;
-    arbeit.push({ datum: e[1], tun: () => terminAngleichen_(P, kal, behalten, e, n, projekt) });
-    da.slice(1).forEach((x) => arbeit.push({ datum: x.datum, tun: () => loeschen_(x.ev) }));
+    if (!behalten || terminAnders_(behalten, soll, projekt)) {
+      arbeit.push({ datum: e[1], rang: rang(e[1]), tun: () => terminAngleichen_(P, kal, behalten, soll, projekt) });
+    }
+    da.slice(1).forEach((x) => arbeit.push({ datum: x.datum, rang: rang(x.datum), tun: () => loeschen_(x.ev) }));
   });
   Object.keys(eigene).forEach((k) => {
-    if (soll[k]) return;
+    if (alle[k]) return;
     eigene[k].forEach((x) => {
-      if (x.datum < von || x.datum > bis) return;
+      if (x.datum < von) return;
+      if (x.datum > umfang.bis) {
+        if (umfang.weg) arbeit.push({ datum: x.datum, rang: rang(x.datum), tun: () => loeschen_(x.ev) });
+        return;
+      }
       if (bleibtStehen_({ kennung: k, datum: x.datum }, liste, heute)) return;
-      arbeit.push({ datum: x.datum, tun: () => loeschen_(x.ev) });
+      arbeit.push({ datum: x.datum, rang: rang(x.datum), tun: () => loeschen_(x.ev) });
     });
   });
-  return arbeit.sort(nachDringlichkeit_(heute));
+  return arbeit.sort(nachRang_);
 }
 
-/** Ein Termin wie im Eintrag – angelegt, oder nur geändert, was nicht stimmt. Gibt 1 bei einer Änderung, sonst 0. */
-function terminAngleichen_(P, kal, ev, e, n, projekt) {
-  const kennung = e[0];
+/**
+ * Wie dringend eine Änderung ist: heute und die nächsten vier Wochen zuerst,
+ * aufsteigend; dann die letzten Tage, von gestern rückwärts; dann die Ferne,
+ * aufsteigend – die nächsten Wochen stimmen so nach jedem Lauf, bevor die
+ * Ferne drankommt.
+ */
+function rangFuer_(heute, nahBis) {
+  return (d) => {
+    if (d < heute) return '1' + String(99999999 - Number(d.replace(/-/g, '')));
+    return (d <= nahBis ? '0' : '2') + d;
+  };
+}
+
+function nachRang_(a, b) {
+  if (a.rang === b.rang) return 0;
+  return a.rang < b.rang ? -1 : 1;
+}
+
+/** Wie ein Eintrag im Kalender stehen soll. */
+function terminSoll_(e, n) {
   const fertig = e[4] === 1;
   const text = n.texte[e[3]];
-  const titel = (fertig ? '✓ ' : '') + text[0];
-  const beschreibung = text[1];
   const beginn = zeitpunkt_(e[1], n.minuten);
-  const ende = new Date(beginn.getTime() + e[2] * 60000);
-  const erinnerung = !fertig && n.erinnerung > 0 ? [n.erinnerung] : [];
-  const abdruck = abdruck_(beschreibung);
+  return {
+    kennung: e[0],
+    titel: (fertig ? '✓ ' : '') + text[0],
+    beschreibung: text[1],
+    abdruck: abdruck_(text[1]),
+    beginn: beginn,
+    ende: new Date(beginn.getTime() + e[2] * 60000),
+    erinnerung: !fertig && n.erinnerung > 0 ? [n.erinnerung] : [],
+  };
+}
+
+/** Steht ein eigener Termin anders da, als er soll? Nur lesen. */
+function terminAnders_(ev, s, projekt) {
+  return ev.getStartTime().getTime() !== s.beginn.getTime() || ev.getEndTime().getTime() !== s.ende.getTime()
+    || ev.getTitle() !== s.titel || ev.getTag(T_TEXT) !== s.abdruck || !erinnerungStimmt_(ev, s.erinnerung)
+    || ev.getTag(T_QUELLE) !== projekt;
+}
+
+/**
+ * Ein Termin wie im Eintrag – angelegt, oder nur geändert, was nicht stimmt:
+ * Verschieben ist ein Schreibzugriff, Titel, Beschreibung und Erinnerung nur,
+ * wenn sie anders sind. Gibt 1 bei einer Änderung, sonst 0.
+ */
+function terminAngleichen_(P, kal, ev, s, projekt) {
   if (!ev) {
-    const neu = kal.createEvent(titel, beginn, ende, { description: beschreibung });
-    markieren_(P, neu, kennung, projekt, abdruck);
+    const neu = kal.createEvent(s.titel, s.beginn, s.ende, { description: s.beschreibung });
+    markieren_(P, neu, s.kennung, projekt, s.abdruck);
     // Immer, nicht nur bei einer Abweichung: Ein neuer Termin trägt die
     // Voreinstellung des Kalenders, und ob getPopupReminders() die meldet,
     // ist nicht belegt. Sonst behielten erledigte Termine und alle bei „keine
     // Erinnerung" sie still.
-    erinnerungSetzen_(neu, erinnerung);
+    erinnerungSetzen_(neu, s.erinnerung);
     Utilities.sleep(PAUSE_MS);
     return 1;
   }
   let anders = false;
-  if (ev.getStartTime().getTime() !== beginn.getTime() || ev.getEndTime().getTime() !== ende.getTime()) {
-    ev.setTime(beginn, ende);
+  if (ev.getStartTime().getTime() !== s.beginn.getTime() || ev.getEndTime().getTime() !== s.ende.getTime()) {
+    ev.setTime(s.beginn, s.ende);
     anders = true;
   }
-  if (ev.getTitle() !== titel) {
-    ev.setTitle(titel);
+  if (ev.getTitle() !== s.titel) {
+    ev.setTitle(s.titel);
     anders = true;
   }
   // Verglichen wird der Fingerabdruck dessen, was das Skript gesetzt hat –
   // nicht der Text, den Google zurückgibt: Formt Google ihn um (Zeilenenden,
   // HTML), schriebe das Skript sonst jede Stunde jede Beschreibung neu.
-  if (ev.getTag(T_TEXT) !== abdruck) {
-    ev.setDescription(beschreibung);
-    ev.setTag(T_TEXT, abdruck);
+  if (ev.getTag(T_TEXT) !== s.abdruck) {
+    ev.setDescription(s.beschreibung);
+    ev.setTag(T_TEXT, s.abdruck);
     anders = true;
   }
-  if (!erinnerungStimmt_(ev, erinnerung)) {
-    erinnerungSetzen_(ev, erinnerung);
+  if (!erinnerungStimmt_(ev, s.erinnerung)) {
+    erinnerungSetzen_(ev, s.erinnerung);
     anders = true;
   }
   if (ev.getTag(T_QUELLE) !== projekt) {
@@ -634,10 +886,12 @@ function hinweisArbeit_(P, kal, heute, n, projekt, meta) {
   const ende = new Date(beginn.getTime() + 15 * 60000);
   const erinnerung = n.erinnerung > 0 ? [n.erinnerung] : [];
   const abdruck = abdruck_(beschreibung);
-  const arbeit = da.slice(1).map((ev) => ({ datum: heute, tun: () => loeschen_(ev) }));
+  const rang = '0' + heute;
+  const arbeit = da.slice(1).map((ev) => ({ datum: heute, rang: rang, tun: () => loeschen_(ev) }));
   const ev = da.length ? da[0] : null;
   arbeit.unshift({
     datum: heute,
+    rang: rang,
     tun: () => {
       if (!ev) {
         const neu = kal.createEvent(titel, beginn, ende, { description: beschreibung });
@@ -669,23 +923,27 @@ function hinweisArbeit_(P, kal, heute, n, projekt, meta) {
   return arbeit;
 }
 
-/** Abgeschaltet: alle eigenen Termine ab heute (auch einen Hinweis) als Arbeitsliste zum Löschen. */
+/** Abgeschaltet: alle eigenen Termine ab heute (auch einen Hinweis) als Arbeitsliste zum Löschen, die nächsten zuerst. */
 function eigeneAbHeute_(kal, heute) {
   return kal.getEvents(beginn_(heute), beginn_(plusTage_(heute, AUS_VORAUS)))
     .filter((ev) => ev.getTag(T_QUELLE) && (ev.getTag(T_HINWEIS) || KENNUNG_MUSTER.test(ev.getTag(T_KENNUNG) || ''))
       && tagIn_(ev.getStartTime()) >= heute)
-    .map((ev) => ({ datum: tagIn_(ev.getStartTime()), tun: () => loeschen_(ev) }));
+    .map((ev) => {
+      const d = tagIn_(ev.getStartTime());
+      return { datum: d, rang: '0' + d, tun: () => loeschen_(ev) };
+    })
+    .sort(nachRang_);
 }
 
 /**
  * Die Arbeitsliste abarbeiten, bis sie leer ist, die Zeit um ist oder Google
- * bremst. Was liegen bleibt, holt der nächste Lauf nach – jeder Lauf gleicht
- * den ganzen Tag an, nicht nur den Unterschied zum letzten.
+ * bremst. Gibt zurück, was liegen blieb – das holt der nächste Lauf nach.
  */
-function abarbeiten_(arbeit, start, r) {
+function abarbeiten_(arbeit, start, budget, r) {
   let geaendert = 0;
-  for (let i = 0; i < arbeit.length; i++) {
-    if (geaendert >= MAX_AENDERUNGEN || Date.now() - start > ZEIT_BUDGET_MS) {
+  let i = 0;
+  for (; i < arbeit.length; i++) {
+    if (geaendert >= MAX_AENDERUNGEN || Date.now() - start > budget) {
       r.spaeter = true;
       break;
     }
@@ -698,29 +956,20 @@ function abarbeiten_(arbeit, start, r) {
       }
       if (zuOft_(err)) {
         r.spaeter = true;
+        r.gebremst = true;
         break;
       }
       if (!r.fehler) r.fehler = 'Ein Termin ließ sich nicht angleichen: ' + bereinigt_(err);
     }
   }
   r.geaendert = (r.geaendert || 0) + geaendert;
+  return arbeit.slice(i);
 }
 
 function loeschen_(ev) {
   ev.deleteEvent();
   Utilities.sleep(PAUSE_MS);
   return 1;
-}
-
-/** Heute und die nächsten Tage zuerst, aufsteigend; dann die Vergangenheit, von gestern rückwärts. */
-function nachDringlichkeit_(heute) {
-  const rang = (d) => (d >= heute ? '0' + d : '1' + String(99999999 - Number(d.replace(/-/g, ''))));
-  return (a, b) => {
-    const x = rang(a.datum);
-    const y = rang(b.datum);
-    if (x === y) return 0;
-    return x < y ? -1 : 1;
-  };
 }
 
 /** Stimmen die Erinnerungen? Nur Popups in genau dieser Länge, keine Mails – auch keine Voreinstellung des Kalenders. */
@@ -800,17 +1049,29 @@ function besitzSetzen_(kal, projekt) {
 
 /**
  * Die Beschreibung des Kalenders: wer ihn pflegt, wann zuletzt abgeglichen
- * wurde, von wann der Plan ist, und ein Hinweis, wenn etwas nicht stimmt.
- * Kurz vor dem Schreiben noch einmal nachgesehen: Hat ihn inzwischen ein
- * anderes Projekt übernommen, bleibt dessen Zeile stehen.
+ * wurde, bis wann die Termine stehen und was noch offen ist, von wann der
+ * Plan ist, und ein Hinweis, wenn etwas nicht stimmt. Kurz vor dem Schreiben
+ * noch einmal nachgesehen: Hat ihn inzwischen ein anderes Projekt übernommen,
+ * bleibt dessen Zeile stehen.
  */
 function beschreibungSchreiben_(kal, projekt, meta, r) {
   const z = [];
   z.push('Zuletzt abgeglichen: ' + zeitDe_(Date.now())
     + (r.tag ? ' – Liste für ' + datumDe_(r.tag) + (r.geaendert !== null ? ', ' + r.geaendert + (r.geaendert === 1 ? ' Änderung' : ' Änderungen') : '') : '')
     + '.');
+  if (r.offen) {
+    // Ist das Tageskontingent aufgebraucht, nicht „mit dem nächsten
+    // stündlichen Abgleich" – darunter stünde sonst „morgen" (wannSatz_()).
+    z.push((r.vollBis ? 'Termine bis ' + datumDe_(r.vollBis) + ' – noch ' : 'Noch ') + r.offen
+      + (r.offen === 1 ? ' Änderung' : ' Änderungen') + ' offen, ' + wannSatz_(r));
+  } else if (r.tag && r.bis) {
+    z.push('Termine bis ' + datumDe_(r.bis) + '.');
+  }
   if (meta && meta.aus) z.push('In der App abgeschaltet am ' + zeitDe_(meta.empfangen) + '.');
-  else if (meta) z.push('Plan aus der App: gesendet ' + zeitDe_(meta.gesendet) + (meta.app ? ' (' + meta.app + ')' : '') + ', reicht bis ' + datumDe_(meta.bis) + '.');
+  else if (meta) {
+    z.push('Plan aus der App: gesendet ' + zeitDe_(meta.gesendet) + (meta.app ? ' (' + meta.app + ')' : '')
+      + ', verschiebt von selbst bis ' + datumDe_(meta.bis) + '.');
+  }
   const h = r.fehler || r.hinweis;
   if (h) z.push('Hinweis: ' + h);
   const text = beschreibungText_(projekt, z);
@@ -880,7 +1141,7 @@ function probeWegraeumen_(P, melde) {
  * Auslöser
  * ------------------------------------------------------------------ */
 
-/** Alle Auslöser dieses Projekts weg (auch die der Probe), genau einer neu. */
+/** Alle Auslöser dieses Projekts weg (auch die der Probe und ein wartendes „weiter"), genau einer neu. */
 function ausloeserNeu_(melde) {
   const alte = ScriptApp.getProjectTriggers();
   alte.forEach((t) => ScriptApp.deleteTrigger(t));
@@ -889,9 +1150,17 @@ function ausloeserNeu_(melde) {
     + '✓ Genau ein Auslöser: „' + AUSLOESER + '" jede Stunde.');
 }
 
-/** Kam die App an, ohne dass je eingerichtet wurde: den stündlichen Auslöser nachholen. Gibt einen Hinweis oder null. */
-function ausloeserSichern_() {
+/**
+ * Kam die App an, ohne dass je eingerichtet wurde: den stündlichen Auslöser
+ * nachholen. Gibt einen Hinweis oder null. Nicht, wenn den Kalender ein
+ * anderes Projekt pflegt – dann hat sich dieses hier schlafen gelegt.
+ */
+function ausloeserSichern_(P) {
   if (ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === AUSLOESER)) return null;
+  const kid = P.getProperty(P_KALENDER);
+  const kal = kid ? CalendarApp.getCalendarById(kid) : null;
+  const b = kal ? besitzer_(kal) : null;
+  if (b && b !== projektKennung_(P)) return null;
   ScriptApp.newTrigger(AUSLOESER).timeBased().everyHours(1).create();
   return 'Der stündliche Auslöser fehlte – jetzt angelegt.';
 }
@@ -909,8 +1178,16 @@ function ausloeserAus_() {
  * Eine angenommene Sendung ablegen: ohne Kennwort, als JSON in Stücken unter
  * einer neuen Generation; erst danach zeigt die Meta-Zeile auf sie, und erst
  * dann gehen die alten Stücke. Bricht etwas dazwischen ab, gilt die alte.
+ *
+ * Vorher weg, was zu keiner geltenden Sendung gehört (`alt` ist die
+ * Meta-Zeile, die jetzt gilt): Reste eines Wegräumens, das mittendrin
+ * scheiterte. Bis zur Prüfung des Entwurfs blieben sie für immer – jede neue
+ * Sendung brauchte Platz für die Reste, die geltende und sich selbst, und nach
+ * einem einzigen gescheiterten Löschen nahm das Skript keine große Sendung
+ * mehr an (Speicher voll), sondern glich weiter nach der alten an.
  */
-function speichern_(P, n) {
+function speichern_(P, n, alt) {
+  teileAufraeumen_(P, alt && !alt.aus && alt.gen ? alt.gen : null);
   const ohne = {};
   FELDER.forEach((k) => {
     if (n[k] !== undefined) ohne[k] = n[k];
@@ -926,6 +1203,7 @@ function speichern_(P, n) {
   const tage = Object.keys(n.tage).sort();
   const meta = {
     format: SPEICHER_FORMAT,
+    v: n.v,
     gen: gen,
     teile: teile.length,
     zeichen: text.length,
@@ -940,7 +1218,13 @@ function speichern_(P, n) {
     empfangen: Date.now(),
   };
   P.setProperty(P_META, JSON.stringify(meta));
-  teileAufraeumen_(P, gen);
+  // Ab hier gilt die neue Sendung. Scheitert das Wegräumen der alten, ist das
+  // kein Fehler der Sendung: Die Reste gehen mit der nächsten (oben).
+  try {
+    teileAufraeumen_(P, gen);
+  } catch (err) {
+    console.log('Alte Stücke der Vorschau ließen sich nicht ganz wegräumen – das holt die nächste Sendung nach: ' + bereinigt_(err));
+  }
   return meta;
 }
 
@@ -955,7 +1239,8 @@ function teileAufraeumen_(P, gen) {
  * Die Meta-Zeile lesen. Jede Fassung dieses Codes liest alle Formate, die
  * eine frühere geschrieben hat: Die Web-App läuft auf der bereitgestellten
  * Fassung, der Auslöser auf der zuletzt gespeicherten. Bis jetzt gibt es
- * Format 1; Tobis Probe hatte keins („kal" räumt einrichten() weg).
+ * Format 1 – Fassung 1 und 2 schreiben es beide; Tobis Probe hatte keins
+ * („kal" räumt einrichten() weg).
  */
 function metaLesen_(P) {
   const roh = P.getProperty(P_META);
@@ -1058,17 +1343,17 @@ function eigen_(o, k) {
   return Object.prototype.hasOwnProperty.call(o, k);
 }
 
-/** nutzlastPruefen(): null, wenn die Sendung passt, sonst der erste Grund. */
+/** nutzlastPruefen(): null, wenn die Sendung passt, sonst der erste Grund. Fassung 1 und 2. */
 function nutzlastPruefen_(n, optionen) {
   const kennung = (optionen && optionen.kennung) || KENNUNG_MUSTER;
   if (!n || typeof n !== 'object' || Array.isArray(n)) return 'kein Objekt';
-  if (n.v !== VORSCHAU_V) return 'v';
+  if (n.v !== 1 && n.v !== VORSCHAU_V) return 'v';
   if (!zeichenkette_(n.token, 16, 128)) return 'token';
   if (!zeichenkette_(n.geraet, 4, 64)) return 'geraet';
   if (!ganz_(n.seq, 0, Number.MAX_SAFE_INTEGER)) return 'seq';
   if (!ganz_(n.gesendet, 1, Number.MAX_SAFE_INTEGER)) return 'gesendet';
   if (n.probe === true || n.aus === true) return null;
-  if (utf8Bytes_(JSON.stringify(n)) > VORSCHAU_MAX_BYTES) return 'groesse';
+  if (utf8Bytes_(JSON.stringify(n)) > (n.v === 2 ? VORSCHAU_MAX_BYTES_2 : VORSCHAU_MAX_BYTES)) return 'groesse';
   if (!ganz_(n.minuten, 0, 1439)) return 'minuten';
   if (!ganz_(n.erinnerung, 0, 1440)) return 'erinnerung';
   if (!TAG.test(n.ab || '')) return 'ab';
@@ -1079,7 +1364,7 @@ function nutzlastPruefen_(n, optionen) {
   }
   if (!n.texte || typeof n.texte !== 'object' || Array.isArray(n.texte)) return 'texte';
   const texte = Object.entries(n.texte);
-  if (texte.length > 500) return 'texte';
+  if (texte.length > (n.v === 2 ? 3000 : 500)) return 'texte';
   for (const [h, t] of texte) {
     if (!/^[0-9a-z]{1,12}$/.test(h) || !Array.isArray(t) || t.length !== 2
       || typeof t[0] !== 'string' || t[0].length > 200 || typeof t[1] !== 'string' || t[1].length > 4000) return 'texte';
@@ -1096,6 +1381,34 @@ function nutzlastPruefen_(n, optionen) {
         return 'eintrag';
       }
     }
+  }
+  if (n.v === 2) return fernePruefen_(n, kennung);
+  return null;
+}
+
+/** Fassung 2: die Ferne – null oder 'ferne'. */
+function fernePruefen_(n, kennung) {
+  const f = n.ferne;
+  if (!f || typeof f !== 'object' || Array.isArray(f)) return 'ferne';
+  if (!ganz_(f.bis, n.fenster[1], FERNE_MAX)) return 'ferne';
+  const eintrag = (e) => Array.isArray(e) && e.length === 5 && typeof e[0] === 'string' && kennung.test(e[0])
+    && ganz_(e[1], 0, 2000) && ganz_(e[2], 1, 600) && typeof e[3] === 'string' && eigen_(n.texte, e[3]) && (e[4] === 0 || e[4] === 1);
+  if (!Array.isArray(f.listen) || !f.listen.length || f.listen.length > 60) return 'ferne';
+  for (const l of f.listen) {
+    if (!Array.isArray(l) || l.length > 600 || !l.every(eintrag)) return 'ferne';
+  }
+  if (!Array.isArray(f.tage) || !f.tage.length || f.tage.length > 60) return 'ferne';
+  for (const s of f.tage) {
+    if (!Array.isArray(s) || (s.length !== 2 && s.length !== 4) || !ganz_(s[0], 0, f.listen.length - 1) || !ganz_(s[1], -1000, 1000)) return 'ferne';
+    if (s.length === 4) {
+      if (!Array.isArray(s[2]) || s[2].length > 600 || !s[2].every((k) => typeof k === 'string' && kennung.test(k))) return 'ferne';
+      if (!Array.isArray(s[3]) || s[3].length > 600 || !s[3].every(eintrag)) return 'ferne';
+    }
+  }
+  // Jeder Tag der Vorschau hat seinen Satz.
+  for (const tag of Object.keys(n.tage)) {
+    const k = tageZwischen_(n.ab, tag);
+    if (!(k >= 0 && k < f.tage.length)) return 'ferne';
   }
   return null;
 }
@@ -1119,11 +1432,21 @@ function sendungVergleichen_(alt, neu) {
   return 'neu';
 }
 
-/** bleibtStehen(): ein eigener Termin, dessen Kennung in der Liste fehlt – bleibt er? */
+/**
+ * bleibtStehen(): ein eigener Termin, dessen Kennung in der Liste (Nähe und
+ * Ferne) fehlt – bleibt er? Nach heute nie; heute und davor nur, wenn er zu
+ * einer früheren Runde oder einem anderen Fokus gehört (Verlauf) – nicht zur
+ * laufenden und nicht zu einer, die erst noch kommt (eine Schätzung der Ferne).
+ */
 function bleibtStehen_(termin, liste, heute) {
-  if (!(termin.datum < heute)) return false;
-  const vorn = (k) => String(k).replace(/-z?\d+$/, '');
-  return !(liste || []).some((e) => vorn(e[0]) === vorn(termin.kennung));
+  if (termin.datum > heute) return false;
+  const teile = (k) => /^(.*)-(\d+)-z?\d+$/.exec(String(k)) || [String(k), String(k), '0'];
+  const t = teile(termin.kennung);
+  const fokus = t[1];
+  const runde = t[2];
+  const l = liste || [];
+  if (l.some((e) => teile(e[0])[1] === fokus && teile(e[0])[2] === runde)) return false;
+  return !l.some((e) => teile(e[0])[1] === fokus && Number(teile(e[0])[2]) < Number(runde));
 }
 
 /** vorschauFuer(): die Liste für heute, sonst die letzte davor – { tag, liste, aufgebraucht } oder null. */
@@ -1132,6 +1455,55 @@ function vorschauFuer_(tage, heute) {
   if (!vorher.length) return null;
   const tag = vorher[vorher.length - 1];
   return { tag: tag, liste: tage[tag], aufgebraucht: tag !== heute };
+}
+
+/**
+ * fernListe(): die Ferne des Tages `tag` – listen[r] um v verschoben, ohne
+ * weg, mit dazu, nach dem Tag bis tag + bis, ohne die Kennungen der Nähe.
+ * Leer bei Fassung 1.
+ */
+function fernListe_(n, tag) {
+  const f = n && n.ferne;
+  const nah = n && n.tage && n.tage[tag];
+  if (!f || !Array.isArray(nah)) return [];
+  const k = tageZwischen_(n.ab, tag);
+  const s = f.tage[k];
+  if (!s || !f.listen[s[0]]) return [];
+  const nahe = {};
+  nah.forEach((e) => {
+    nahe[e[0]] = true;
+  });
+  return entschluesseln_(f.listen[s[0]], s[1], s[2] || [], s[3] || [], k + 1, k + f.bis, nahe)
+    .map((e) => [e[0], plusTage_(n.ab, e[1]), e[2], e[3], e[4]]);
+}
+
+function entschluesseln_(liste, versatz, weg, dazu, von, ende, nahe) {
+  const raus = {};
+  weg.forEach((k) => {
+    raus[k] = true;
+  });
+  dazu.forEach((e) => {
+    raus[e[0]] = true;
+  });
+  const out = [];
+  liste.forEach((e) => {
+    if (!raus[e[0]]) out.push([e[0], e[1] + versatz, e[2], e[3], e[4]]);
+  });
+  dazu.forEach((e) => out.push([e[0], e[1], e[2], e[3], e[4]]));
+  return out.filter((e) => e[1] >= von && e[1] <= ende && !nahe[e[0]]).sort(nachTag_);
+}
+
+function kennungRang_(k) {
+  const m = /-(z?)(\d+)$/.exec(k);
+  return m && !m[1] ? Number(m[2]) : 1e6;
+}
+
+function nachTag_(a, b) {
+  if (a[1] !== b[1]) return a[1] < b[1] ? -1 : 1;
+  const r = kennungRang_(a[0]) - kennungRang_(b[0]);
+  if (r) return r;
+  if (a[0] === b[0]) return 0;
+  return a[0] < b[0] ? -1 : 1;
 }
 
 /* ------------------------------------------------------------------ *
@@ -1159,6 +1531,15 @@ function beginn_(tag) {
 function plusTage_(tag, k) {
   const t = tag.split('-').map(Number);
   return new Date(Date.UTC(t[0], t[1] - 1, t[2] + k)).toISOString().slice(0, 10);
+}
+
+/** Ganze Tage von `a` bis `b` (ISO), ohne Uhrzeit. */
+function tageZwischen_(a, b) {
+  const t = (s) => {
+    const x = s.split('-').map(Number);
+    return Date.UTC(x[0], x[1] - 1, x[2]);
+  };
+  return Math.round((t(b) - t(a)) / 86400000);
 }
 
 function datumDe_(tag) {
@@ -1222,7 +1603,8 @@ function bereinigt_(x) {
 
 function antwort_(ok, code, mehr) {
   const a = {
-    ok: ok, code: code, version: FASSUNG, kalender: KALENDER_NAME, tag: null, geaendert: null, stand: null, seq: null,
+    ok: ok, code: code, version: FASSUNG, kalender: KALENDER_NAME, tag: null, geaendert: null, offen: null, bis: null, stehen: null, folge: null,
+    stand: null, seq: null,
   };
   Object.keys(mehr || {}).forEach((k) => {
     if (mehr[k] !== undefined) a[k] = mehr[k];
@@ -1261,6 +1643,8 @@ function zusammenfassung_(r) {
   const teile = [];
   if (r.tag) teile.push('Liste für ' + datumDe_(r.tag));
   if (r.geaendert !== null && r.geaendert !== undefined) teile.push(r.geaendert + (r.geaendert === 1 ? ' Änderung' : ' Änderungen'));
+  if (r.offen) teile.push('noch ' + r.offen + ' offen' + (r.folge ? ' – „weiter" macht in ein paar Minuten weiter' : ''));
+  else if (r.tag && r.bis) teile.push('Termine bis ' + datumDe_(r.bis));
   if (r.fehler) teile.push('✗ ' + r.fehler);
   else if (r.hinweis) teile.push(r.hinweis);
   return 'Abgleich: ' + (teile.join(' · ') || 'nichts zu tun');

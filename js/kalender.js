@@ -88,10 +88,16 @@ export function kalenderRunde() {
  * nach Tag sortiert. Eine Einheit ohne Übungen – ein Termin schont an dem Tag
  * alles – ist kein Termin, wie in der Kalenderdatei; am Tag danach rückt sie
  * nach und ist wieder einer. `fertig`: abgeschlossen (completedMode()).
+ *
+ * `runde` setzt die Nummer der Runde in der Kennung – nur für die Ferne der
+ * Kalender-Vorschau, die Runden vorausrechnet, die es noch nicht gibt
+ * (js/kalender-vorschau.js). Dort steht die Zahl fest (die laufende plus eins,
+ * plus zwei …), egal ob das gespielte Rundenende ein Protokoll ablegen konnte;
+ * beim echten legt rundeWeiter() immer eins ab, und die Kennung ist dieselbe.
  */
-export function kalenderTermine({ von = null, bis = null, zusatz = true } = {}) {
-  const { fokus, runde } = kalenderRunde();
-  const vorn = `${fokus}-${runde}`;
+export function kalenderTermine({ von = null, bis = null, zusatz = true, runde = null } = {}) {
+  const r = kalenderRunde();
+  const vorn = `${r.fokus}-${runde === null ? r.runde : runde}`;
   const drin = (d) => !!d && (!von || d >= von) && (!bis || d <= bis);
   const out = [];
   const termin = (kennung, n, datum, name, liste) => {

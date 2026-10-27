@@ -40,6 +40,28 @@
  *      der Vorschau; doGet ohne Speicher; das Tageskontingent; eine
  *      Voreinstellung, die getPopupReminders() nicht meldet; die Probe ohne
  *      „einrichten".
+ *   9. Fassung 2 – ein Jahr:
+ *
+ *        „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr
+ *         machen"
+ *
+ *      Tobis Weg wörtlich: Fassung 1 (tests/kalender-fassung1.gs, so wie sie
+ *      seit dem 27.10. in seinem Konto läuft) legt die Termine an, dann
+ *      ersetzt er im selben Projekt den Code – ohne „einrichten" –, und die
+ *      erste Sendung der Fassung 2 übernimmt jeden Termin, statt ihn neu
+ *      anzulegen. v 1 und v 2 werden angenommen; das Nächste zuerst, das
+ *      Zeitbudget über mehrere Läufe mit dem Folge-Auslöser „weiter", Google
+ *      mit drei Sekunden je angelegtem Termin wie bei Tobi gemessen; ein
+ *      verpasster Tag verschiebt das ganze Jahr, ohne einen Termin neu
+ *      anzulegen und mit einem Schreibzugriff je Termin; die Beschreibung
+ *      während des Auffüllens und danach; eine gekürzte Ferne; eine ruhige
+ *      Stunde liest nur die Nähe; Termine in der Ferne (Flicken); der Tag des
+ *      Rundenwechsels; Abschalten mit einem ganzen Jahr.
+ *  10. Was die Prüfung des Jahres fand: ein „weiter", das sich nicht löschen
+ *      lässt oder nie lief (ein gefeuerter einmaliger Auslöser bleibt gelistet
+ *      – die Attrappe hält es so); ein Lauf, der vor lauter Lesen nichts
+ *      schafft; doPost nach 28 s Warten auf die Sperre; ein gescheitertes
+ *      Löschen alter Stücke im Speicher; das Tageskontingent mitten im Jahr.
  */
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -156,12 +178,58 @@ if (!GAS) {
   nutz('Spaet30', await rechne(kopie(), '2026-12-18T12:00:00+01:00'), 'handy-tobi', 8, '2026-12-18T12:00:00+01:00');
   nutz('Spaet89', await rechne(kopie(), '2027-02-15T12:00:00+01:00'), 'handy-tobi', 9, '2027-02-15T12:00:00+01:00');
 
+  // Fassung 2: dieselben Stände, mit der Ferne – ein Jahr.
+  const N2 = {};
+  const rechne2 = (z, jetzt, mehr = {}) => V.vorschauRechnen(JSON.stringify(z), { jetzt: um(jetzt), ferne: V.VORSCHAU_FERNE, ...mehr });
+  const nutz2 = (name, v, geraet, seq, gesendet) => {
+    N2[name] = V.nutzlastBauen(v, { token: TOKEN, geraet, seq, gesendet: um(gesendet), app: 'v246' });
+  };
+  nutz2('A', await rechne2(kopie(), '2026-10-08T12:00:00+02:00'), 'handy-tobi', 11, '2026-10-08T12:00:00+02:00');
+  nutz2('Kurz', await rechne2(kopie(), '2026-10-08T13:00:00+02:00', { maxBytes: 45 * 1024 }), 'handy-tobi', 12, '2026-10-08T13:00:00+02:00');
+  // Tobis Tag: Workout 9 am 26.10. gemacht (wie N.T), die App am 27.10. offen.
+  nutz2('T27', await rechne2(zT, '2026-10-27T17:00:00+01:00'), 'handy-tobi', 13, '2026-10-27T17:00:00+01:00');
+  {
+    // Termine in der Ferne: Padel, ein Turnier, das alles schont, Bouldern.
+    const z = kopie();
+    z.termine = [
+      { datum: '2026-12-12', name: 'Padel', aktivitaet: 'padel', minuten: 90 },
+      { datum: '2027-03-06', name: 'Turnier', schont: 'alles' },
+      { datum: '2027-04-17', name: 'Bouldern', aktivitaet: 'bouldern', minuten: 120 },
+    ];
+    nutz2('Termine', await rechne2(z, '2026-10-08T12:00:00+02:00'), 'handy-tobi', 11, '2026-10-08T12:00:00+02:00');
+  }
+  {
+    // Der Tag des Rundenwechsels: Workout 1–83 gemacht, Workout 84 heute
+    // (Do 29.10.) – erst angefangen (Rund1), dann ganz gemacht (Rund2): Die
+    // Vorschau für heute rollt die Runde im selben Start weiter.
+    const z = kopie();
+    z.customs = [];
+    z.log = {};
+    const zw = (a, b) => (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000;
+    z.shift = zw(D.PLAN[83].date, '2026-10-29');
+    D.PLAN.slice(0, 83).forEach((w) => {
+      const db = {};
+      w.ex.forEach((it) => { db[it.id] = satz(it.sets); });
+      z.log[w.n] = { mode: 'db', db, bw: {}, done: 'db', startedOn: addDays(w.date, z.shift) };
+    });
+    const w84 = D.PLAN[83];
+    const offen = JSON.parse(JSON.stringify(z));
+    offen.log[84] = { mode: 'db', db: { [w84.ex[0].id]: satz(1) }, bw: {}, startedOn: '2026-10-29', zuletzt: um('2026-10-29T18:00:00+01:00') };
+    nutz2('Rund1', await rechne2(offen, '2026-10-29T18:05:00+01:00'), 'handy-tobi', 21, '2026-10-29T18:05:00+01:00');
+    const db = {};
+    w84.ex.forEach((it) => { db[it.id] = satz(it.sets); });
+    z.log[84] = { mode: 'db', db, bw: {}, startedOn: '2026-10-29', done: 'db', zuletzt: um('2026-10-29T18:50:00+01:00') };
+    nutz2('Rund2', await rechne2(z, '2026-10-29T18:55:00+01:00'), 'handy-tobi', 22, '2026-10-29T18:55:00+01:00');
+  }
+
   const groessen = Object.entries(N).map(([k, n]) => `${k} ${(V.nutzlastBytes(n) / 1024).toFixed(1)}`);
   zeige(`Nutzlasten (KiB): ${groessen.join(', ')}`);
+  zeige(`Fassung 2 (KiB): ${Object.entries(N2).map(([k, n]) => `${k} ${(V.nutzlastBytes(n) / 1024).toFixed(1)}`).join(', ')}`);
   check(Object.values(N).every((n) => V.nutzlastPruefen(n) === null), `alle ${Object.keys(N).length} Sendungen bestehen nutzlastPruefen() des Kerns`);
+  check(Object.values(N2).every((n) => n.v === 2 && V.nutzlastPruefen(n) === null), `die ${Object.keys(N2).length} Sendungen der Fassung 2 ebenso`);
   check(N.Tablet.stand.zuletzt < N.T.stand.zuletzt && N.Tab2.stand.zuletzt > N.T.stand.zuletzt,
     'Trainingsstände: Tablet aus der Schublade hinter dem Handy, nach Workout 10 davor');
-  writeFileSync(DATEI, JSON.stringify(N));
+  writeFileSync(DATEI, JSON.stringify({ N, N2 }));
   const r = spawnSync(process.execPath, [HIER, '--gas', DATEI], { stdio: 'inherit', env: { ...process.env, TZ: 'America/Los_Angeles' } });
   process.exit(fails || r.status !== 0 ? 1 : 0);
 }
@@ -170,11 +238,15 @@ if (!GAS) {
  * Teil 2, in America/Los_Angeles: die Attrappen
  * ------------------------------------------------------------------ */
 
-const N = JSON.parse(readFileSync(process.argv[3], 'utf8'));
+const { N, N2 } = JSON.parse(readFileSync(process.argv[3], 'utf8'));
 const VORLAGE = readFileSync(path.join(ROOT, 'kalender', 'workout-kalender.gs'), 'utf8');
 const PLATZHALTER = '<<KENNWORT-AUS-DER-APP>>';
 // So setzt die App das Kennwort beim „Code kopieren" ein.
 const CODE = VORLAGE.replace(PLATZHALTER, TOKEN);
+const FASSUNG = Number((/^const FASSUNG = (\d+);$/m.exec(VORLAGE) || [])[1]);
+// Fassung 1, wörtlich so, wie sie seit dem 27.10. in Tobis Konto läuft (aus
+// 7c56f14) – mit demselben Kennwort: Ein Code-Update tauscht nur den Code.
+const CODE1 = readFileSync(path.join(ROOT, 'tests', 'kalender-fassung1.gs'), 'utf8').replace(PLATZHALTER, TOKEN);
 const BERLIN = 'Europe/Berlin';
 
 check(new Date(2026, 9, 26, 12).getTimezoneOffset() === 420,
@@ -223,7 +295,7 @@ class Welt {
   constructor(jetzt) {
     Object.assign(this, {
       jetzt: um(jetzt), kalender: [], nr: 0, lesen: 0, schreiben: 0, terminSchreiben: 0,
-      drossel: null, drosselText: DROSSEL, proSchreiben: 0, neueErinnerung: [10], voreinstellungVerdeckt: false,
+      drossel: null, drosselText: DROSSEL, proSchreiben: 0, proLesen: 0, neueErinnerung: [10], voreinstellungVerdeckt: false,
     });
     this.haupt = new Kal(this, 'Tobi', { zone: BERLIN });
     this.CalendarApp = {
@@ -252,7 +324,9 @@ class Welt {
     if (termin) { this.terminSchreiben += 1; termin.schreibzugriffe += 1; }
   }
 
-  lies() { this.lesen += 1; }
+  // Lesen kostet bei Google Zeit, wie viel, ist ungemessen – hier 0, außer
+  // eine Prüfung stellt es ein (Abschnitt 10).
+  lies() { this.lesen += 1; this.jetzt += this.proLesen; }
 
   alle() { return this.kalender.flatMap((k) => k.termine); }
 
@@ -295,6 +369,7 @@ class Kal {
     if (!(a.getTime() < b.getTime())) throw new Error('Das Ende liegt vor dem Beginn.');
     this.welt.schreib();
     this.welt.terminSchreiben += 1;
+    this.welt.angelegt = (this.welt.angelegt || 0) + 1;
     const t = new Termin(this, titel, a.getTime(), b.getTime(), (o && o.description) || '');
     // Wie Google es vielleicht hält: Ein neuer Termin trägt die Voreinstellung
     // des Kalenders als eigenen Zustand (useDefault), und getPopupReminders()
@@ -403,7 +478,11 @@ const ausloeser = (fn, art, wert) => {
 
 /** Ein Apps-Script-Projekt in der Welt: eigener Speicher, eigene Auslöser, eigene Sperre – derselbe Kalender. */
 function projekt(welt, code = CODE) {
-  const p = { props: new Map(), ausloeser: [], belegt: false, protokoll: [], id: `skript${++welt.nr}`, scopes: 0, maxWert: 0 };
+  // sperreBis: bis dahin hält ein anderer Lauf die Sperre – tryLock wartet so
+  // lange, wie es darf (Abschnitt 10). belegt: sie bleibt belegt.
+  const p = {
+    props: new Map(), ausloeser: [], belegt: false, sperreBis: null, protokoll: [], id: `skript${++welt.nr}`, scopes: 0, maxWert: 0,
+  };
   const store = {};
   const setzen = (k, v) => {
     const key = String(k);
@@ -461,7 +540,17 @@ function projekt(welt, code = CODE) {
     getScriptLock: () => {
       let halte = false;
       const lock = {
-        tryLock: () => { if (p.belegt) return false; p.belegt = true; halte = true; return true; },
+        tryLock: (ms = 0) => {
+          if (p.sperreBis !== null && welt.jetzt < p.sperreBis) {
+            if (p.sperreBis - welt.jetzt > ms) { welt.jetzt += ms; return false; }
+            welt.jetzt = p.sperreBis;
+            p.sperreBis = null;
+          }
+          if (p.belegt) return false;
+          p.belegt = true;
+          halte = true;
+          return true;
+        },
         waitLock: (ms) => { if (!lock.tryLock(ms)) throw new Error('Sperre nicht bekommen'); },
         releaseLock: () => { if (halte) { p.belegt = false; halte = false; } },
         hasLock: () => halte,
@@ -479,19 +568,25 @@ function projekt(welt, code = CODE) {
   konsole.info = konsole.log;
   konsole.warn = konsole.log;
   konsole.error = konsole.log;
-  const ctx = vm.createContext({
-    CalendarApp: welt.CalendarApp, Utilities, PropertiesService: { getScriptProperties: () => store }, LockService, ContentService, ScriptApp,
-    Session: { getScriptTimeZone: () => 'America/Los_Angeles' }, console: konsole, __uhr: () => welt.jetzt,
-  });
-  // Wie Apps Script: kein Intl, und `new Date()` ist die Uhr der Welt.
-  vm.runInContext(`delete globalThis.Intl;
-    (() => { const E = Date; const uhr = globalThis.__uhr; delete globalThis.__uhr;
-      globalThis.Date = class extends E { constructor(...a) { if (a.length) super(...a); else super(uhr()); } static now() { return uhr(); } }; })();`, ctx);
-  const vorher = welt.lesen + welt.schreiben;
-  vm.runInContext(code, ctx, { filename: 'Code.gs' });
-  p.beimLaden = welt.lesen + welt.schreiben - vorher;
-  p.g = ctx;
-  p.lauf = (s) => vm.runInContext(s, ctx);
+  // Den Code laden – auch ein zweites Mal: So tauscht Tobi im selben Projekt
+  // den Code aus. Speicher, Auslöser und Sperre bleiben, wie sie sind.
+  const laden = (quelle) => {
+    const ctx = vm.createContext({
+      CalendarApp: welt.CalendarApp, Utilities, PropertiesService: { getScriptProperties: () => store }, LockService, ContentService, ScriptApp,
+      Session: { getScriptTimeZone: () => 'America/Los_Angeles' }, console: konsole, __uhr: () => welt.jetzt,
+    });
+    // Wie Apps Script: kein Intl, und `new Date()` ist die Uhr der Welt.
+    vm.runInContext(`delete globalThis.Intl;
+      (() => { const E = Date; const uhr = globalThis.__uhr; delete globalThis.__uhr;
+        globalThis.Date = class extends E { constructor(...a) { if (a.length) super(...a); else super(uhr()); } static now() { return uhr(); } }; })();`, ctx);
+    const vorher = welt.lesen + welt.schreiben;
+    vm.runInContext(quelle, ctx, { filename: 'Code.gs' });
+    p.beimLaden = welt.lesen + welt.schreiben - vorher;
+    p.g = ctx;
+    p.lauf = (s) => vm.runInContext(s, ctx);
+  };
+  laden(code);
+  p.ersetzen = laden;
   return p;
 }
 
@@ -500,7 +595,8 @@ const alleAntworten = [];
 const post = (p, body) => {
   const out = p.g.doPost({ postData: { contents: typeof body === 'string' ? body : JSON.stringify(body), type: 'text/plain' }, parameter: {} });
   const roh = out.getContent();
-  alleAntworten.push(roh);
+  // Die Antworten von Fassung 1 (Tobis Weg in 9) zählen nicht zur Vorlage.
+  if (!p.fassung1) alleAntworten.push(roh);
   let a = null;
   try { a = JSON.parse(roh); } catch { a = null; }
   return { a: a || {}, json: !!a, typ: out.getMimeType(), roh };
@@ -512,6 +608,21 @@ const feuern = (p, jetzt) => {
   const t = p.ausloeser.filter((x) => x.art === 'stunden');
   if (t.length !== 1) throw new Error(`${t.length} stündliche Auslöser`);
   return p.g[t[0].fn]();
+};
+/** Einmalige Auslöser, die noch feuern werden. */
+const wartend = (p) => p.ausloeser.filter((x) => x.art === 'nach' && !x.gefeuert);
+/**
+ * Der einmalige Folge-Auslöser „weiter" feuert – es muss genau einer warten.
+ * Wie bei Google bleibt er danach gelistet, bis ihn jemand löscht; er feuert
+ * nur nie wieder (`gefeuert`).
+ */
+const weiterFeuern = (p, jetzt, { abgebrochen = false } = {}) => {
+  p.welt.jetzt = um(jetzt);
+  const t = wartend(p);
+  if (t.length !== 1 || t[0].fn !== 'weiter') throw new Error(`${t.length} einmalige Auslöser (${t.map((x) => x.fn).join(', ')})`);
+  t[0].gefeuert = true;
+  // `abgebrochen`: Google bricht den Lauf ab, bevor seine erste Zeile läuft.
+  return abgebrochen ? null : p.g[t[0].fn]();
 };
 const kennungOk = (k) => typeof k === 'string' && V.KENNUNG_MUSTER.test(k);
 const eigene = (kal) => kal.termine.filter((t) => !t.weg && t.tags.workoutSkript && kennungOk(t.tags.workout));
@@ -532,13 +643,17 @@ const workout = (welt) => {
  * eigener doppelt; und was im Fenster ohne Eintrag steht, darf nur stehen,
  * wenn bleibtStehen() des Kerns es sagt.
  */
-function abweichung(kal, n, tag) {
-  const liste = n.tage[tag];
+function abweichung(kal, n, tag, { nah = false } = {}) {
+  // Fassung 2: die Nähe und dahinter die Ferne des Tages (fernListe() des Kerns).
+  const liste = n.tage[tag] && [...n.tage[tag], ...V.fernListe(n, tag)];
   if (!liste) return `keine Liste für ${tag}`;
+  // `nah`: nur heute − 7 bis heute + 28 – was nach jedem Lauf stimmen muss.
+  const nahBis = addDays(tag, n.fenster[1]);
   const nach = {};
   eigene(kal).forEach((t) => { (nach[t.tags.workout] = nach[t.tags.workout] || []).push(t); });
   for (const [k, ts] of Object.entries(nach)) if (ts.length > 1) return `${k} ${ts.length}× im Kalender`;
   for (const [kennung, datum, dauer, h, fertig] of liste) {
+    if (nah && datum > nahBis) continue;
     const t = (nach[kennung] || [])[0];
     if (!t) return `${kennung} fehlt`;
     const beginn = berlin(datum, n.minuten);
@@ -552,10 +667,15 @@ function abweichung(kal, n, tag) {
   }
   const drin = new Set(liste.map((e) => e[0]));
   const von = addDays(tag, -n.fenster[0]);
-  const bis = addDays(tag, n.fenster[1]);
+  const bis = nah ? nahBis : addDays(tag, n.ferne ? n.ferne.bis : n.fenster[1]);
   for (const t of eigene(kal)) {
     const d = tagB(t.beginn);
-    if (drin.has(t.tags.workout) || d < von || d > bis) continue;
+    if (drin.has(t.tags.workout) || d < von) continue;
+    // Hinter dem Fenster: Bei Fassung 2 steht dort nichts Eigenes mehr.
+    if (d > bis) {
+      if (n.ferne && !nah) return `${t.tags.workout}@${d} liegt hinter dem Fenster (bis ${bis})`;
+      continue;
+    }
     if (!V.bleibtStehen({ kennung: t.tags.workout, datum: d }, liste, tag)) return `${t.tags.workout}@${d} hätte weg müssen`;
   }
   return '';
@@ -589,7 +709,7 @@ check(!/[\w.+-]+@[\w-]+\.[\w.-]+/.test(VORLAGE) && !/https?:\/\//.test(VORLAGE) 
   const funktionen = [...VORLAGE.matchAll(/^function (\w+)\(/gm)].map((m) => m[1]);
   const oeffentlich = funktionen.filter((f) => !f.endsWith('_'));
   check(funktionen[0] === 'einrichten', 'Vorlage: „einrichten" ist die erste Funktion – im Editor ist sie damit schon ausgewählt');
-  check(gleich(oeffentlich.sort(), ['abgleichen', 'doGet', 'doPost', 'einrichten', 'stuendlich']),
+  check(gleich(oeffentlich.sort(), ['abgleichen', 'doGet', 'doPost', 'einrichten', 'stuendlich', 'weiter']),
     `Vorlage: oben auswählbar nur ${oeffentlich.join(', ')} – alles andere endet auf _`);
 }
 {
@@ -681,7 +801,7 @@ let text = p1.g.einrichten();
   check(p1.ausloeser.length === 1 && p1.ausloeser[0] !== probeAusloeser && p1.ausloeser[0].fn === 'stuendlich'
     && p1.ausloeser[0].art === 'stunden' && p1.ausloeser[0].wert === 1, 'einrichten: der alte Auslöser der Probe weg, genau ein neuer – „stuendlich" jede Stunde');
   const k = workout(welt);
-  check(k.zone === BERLIN && /Skript-Kennung: wk-[0-9a-f]{12}/.test(k.beschreibung) && /Fassung 1/.test(k.beschreibung),
+  check(k.zone === BERLIN && /Skript-Kennung: wk-[0-9a-f]{12}/.test(k.beschreibung) && new RegExp(`Fassung ${FASSUNG}\\)`).test(k.beschreibung),
     'einrichten: Kalender „Workout" in Europe/Berlin, mit Fassung und Skript-Kennung in der Beschreibung');
   check(p1.scopes === 1, 'einrichten: fragt alle Rechte auf einmal ab (requireAllScopes)');
   check(/Workout-Probe" gelöscht \(2 Stück\)/.test(text) && /angelegt/.test(text) && /Genau ein Auslöser/.test(text)
@@ -729,14 +849,14 @@ const fremdVorher = fremdBild(welt);
     ['Kennwort ein Zeichen anders', () => post(p1, k((x) => { x.token = TOKEN.replace(/.$/, 'X'); })), 'token'],
     ['Kennwort länger', () => post(p1, k((x) => { x.token = `${TOKEN}0`; })), 'token'],
     ['über 64 KiB', () => post(p1, gross), 'format'],
-    ['Fassung 2 der App', () => post(p1, k((x) => { x.v = 2; })), 'format'],
+    ['eine Fassung der App, die das Skript nicht kennt', () => post(p1, k((x) => { x.v = 3; })), 'format'],
     ['Kennung ohne Muster', () => post(p1, k((x) => { x.tage[x.ab][0][0] = 'Workout 9'; })), 'format'],
     ['Verweis auf „constructor"', () => post(p1, k((x) => { x.tage[x.ab][0][3] = 'constructor'; })), 'format'],
     ['24:00', () => post(p1, k((x) => { x.minuten = 1440; })), 'format'],
   ];
   const ergebnis = faelle.map(([name, f, code]) => {
     const r = f();
-    return { name, ok: r.a.ok === false && r.a.code === code && r.a.version === 1 && r.a.kalender === 'Workout', a: r.a };
+    return { name, ok: r.a.ok === false && r.a.code === code && r.a.version === FASSUNG && r.a.kalender === 'Workout', a: r.a };
   });
   ergebnis.forEach((e) => check(e.ok, `doPost, ${e.name}: ok false, „${e.a.code}"${e.a.hinweis ? ` – ${e.a.hinweis}` : ''}`));
   check(/64 KiB/.test(ergebnis[7].a.hinweis) && /neuer als dieses Skript/.test(ergebnis[8].a.hinweis), 'die Hinweise sagen, was zu tun ist (zu groß, „Kalender-Code erneuern")');
@@ -747,7 +867,7 @@ const fremdVorher = fremdBild(welt);
     `„Verbinden" (probe): ok, nichts gespeichert – ${pr.hinweis}`);
   const out = p1.g.doGet({ parameter: {} });
   const st = JSON.parse(out.getContent());
-  check(out.getMimeType() === 'JSON' && st.ok && st.code === 'status' && st.kennwort === true && st.version === 1
+  check(out.getMimeType() === 'JSON' && st.ok && st.code === 'status' && st.kennwort === true && st.version === FASSUNG
     && st.stand === null && !('eingerichtet' in st) && !('vorschau' in st) && !out.getContent().includes(kal.id) && !out.getContent().includes(TOKEN),
   'doGet: Lebenszeichen mit Fassung, ohne Kennwort, ohne Stand, ohne Kalender-ID – und ohne Auskunft aus dem Speicher');
 }
@@ -981,8 +1101,13 @@ const neu = (jetzt, n, wann) => {
   for (let h = 13; h < 20 && abweichung(k, N.A, '2026-10-08'); h++) {
     try { laeufe.push(feuern(p, `2026-10-08T${h}:00:00+02:00`).geaendert); } catch (e) { fehler = e; break; }
   }
-  check(a.ok && /bremst/.test(a.hinweis) && !fehler && !abweichung(k, N.A, '2026-10-08') && laeufe.length > 2,
-    `langsames Google (6 s je Schreibzugriff, 4 Minuten je Lauf): in ${laeufe.length} Läufen fertig (${laeufe.join(' + ')}), ohne Fehler und ohne Doppel`);
+  // Fassung 2: doPost gleicht nur 25 s an (die App wartet), sagt, was offen
+  // ist (offen, folge – nicht im Hinweis, den die App sonst veraltet zeigte),
+  // und legt den einmaligen Auslöser „weiter" an; den Rest machen die Läufe.
+  check(a.ok && a.offen > 0 && a.folge === true && !/offen/.test(a.hinweis || '')
+    && !fehler && !abweichung(k, N.A, '2026-10-08') && laeufe.length > 2,
+  `langsames Google (6 s je Schreibzugriff, 25 s für doPost, 4,5 Minuten je Lauf): in ${laeufe.length} Läufen fertig (${laeufe.join(' + ')}), `
+    + `ohne Fehler und ohne Doppel – die Antwort sagt noch ${a.offen} offen, Rest in Minuten (folge)`);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1195,7 +1320,7 @@ const tageBis = (von, bis) => { const r = []; for (let t = von; t <= bis; t = ad
   });
   const st = JSON.parse(p.g.doGet({ parameter: {} }).getContent());
   Object.assign(store, echt);
-  check(zugriffe === 0 && st.ok && st.code === 'status' && st.kennwort === true && st.version === 1,
+  check(zugriffe === 0 && st.ok && st.code === 'status' && st.kennwort === true && st.version === FASSUNG,
     `doGet: Lebenszeichen ohne einen Zugriff auf die Skript-Eigenschaften (${zugriffe}) – wer nur die URL hat, leert damit kein Kontingent`);
 }
 {
@@ -1259,13 +1384,441 @@ const tageBis = (von, bis) => { const r = []; for (let t = von; t <= bis; t = ad
 }
 
 /* ------------------------------------------------------------------ *
+ * 9. Fassung 2 – ein Jahr
+ * ------------------------------------------------------------------ */
+
+/** Eine ISO-Zeit `min` Minuten nach der Uhr der Welt. */
+const spaeter = (w, min) => new Date(w.jetzt + min * 60000).toISOString();
+/** Der einmalige Auslöser „weiter", bis keiner mehr wartet – nach jedem Lauf die Nähe geprüft. */
+const auffuellen = (p, n, tag, { max = 20 } = {}) => {
+  const laeufe = [];
+  let nahFalsch = '';
+  while (wartend(p).length && laeufe.length < max) {
+    const r = weiterFeuern(p, spaeter(p.welt, 4));
+    laeufe.push(r ? r.geaendert : null);
+    const ab = abweichung(workout(p.welt), n, tag, { nah: true });
+    if (ab && !nahFalsch) nahFalsch = `nach Lauf ${laeufe.length}: ${ab}`;
+  }
+  return { laeufe, nahFalsch };
+};
+const listeVon = (n, tag) => [...n.tage[tag], ...V.fernListe(n, tag)];
+
+{
+  // 9a. Die Regeln der Fassung 2 = Kern.
+  const p = mitWelt(new Welt('2026-10-08T10:00:00+02:00'));
+  const g = p.g;
+  check(FASSUNG === 2 && p.lauf('VORSCHAU_V') === V.VORSCHAU_V && p.lauf('VORSCHAU_MAX_BYTES_2') === V.VORSCHAU_MAX_BYTES_2
+    && p.lauf('FERNE_MAX') === V.FERNE_MAX, 'Fassung 2: Vertrag, Grenze 192 KiB und Reichweite wie im Kern');
+  const n = N2.A;
+  const mut = (f) => { const k = JSON.parse(JSON.stringify(n)); f(k); return k; };
+  const faelle = [
+    ...Object.values(N2), { ...N.A, v: 2 }, mut((k) => { delete k.ferne; }), mut((k) => { k.ferne.bis = 401; }), mut((k) => { k.ferne.bis = 27; }),
+    mut((k) => { k.ferne.listen = []; }), mut((k) => { k.ferne.tage[2] = [0]; }), mut((k) => { k.ferne.tage[2] = [0, 1, []]; }),
+    mut((k) => { k.ferne.tage[2] = [0, 1, ['cut-1-30'], []]; }), mut((k) => { k.ferne.tage[2] = [0, 1, ['Workout 30'], []]; }),
+    mut((k) => { k.ferne.listen[0][0][1] = -1; }), mut((k) => { k.ferne.listen[0][0][3] = 'constructor'; }), mut((k) => { k.ferne.tage.pop(); }),
+    mut((k) => { k.ferne.tage[5][1] = 1001; }), mut((k) => { k.v = 3; }), mut((k) => { for (let i = 0; i < 90; i++) k.texte[`g${i}`] = ['x', 'ü'.repeat(1100)]; }),
+    mut((k) => { for (let i = 0; i < 40; i++) k.texte[`g${i}`] = ['x', 'ü'.repeat(1000)]; }),
+    { v: 2, token: TOKEN, geraet: 'handy-tobi', seq: 1, gesendet: 1, probe: true },
+  ];
+  const anders = faelle.filter((x) => V.nutzlastPruefen(x) !== g.nutzlastPruefen_(x));
+  check(!anders.length, `nutzlastPruefen_() = Kern auch für Fassung 2, in ${faelle.length} Fällen (${[...new Set(faelle.map((x) => V.nutzlastPruefen(x)))].map(String).join(', ')})`);
+  const tage = [...Object.values(N2), N.A].flatMap((x) => Object.keys(x.tage).map((t) => [x, t]));
+  check(tage.every(([x, t]) => JSON.stringify(V.fernListe(x, t)) === JSON.stringify(g.fernListe_(x, t))),
+    `fernListe_() = Kern an ${tage.length} Tagen (mit Versatz, Flicken, gekürzt, Fassung 1 ohne Ferne)`);
+  const stehen = [
+    [{ kennung: 'cut-1-84', datum: '2026-10-29' }, N2.Rund2.tage['2026-10-29'], '2026-10-29'],
+    [{ kennung: 'cut-2-5', datum: '2026-10-28' }, N.A.tage['2026-10-08'], '2026-10-29'],
+    [{ kennung: 'cut-2-5', datum: '2026-10-29' }, listeVon(N2.A, '2026-10-08'), '2026-10-29'],
+    [{ kennung: 'cut-3-1', datum: '2026-10-01' }, listeVon(N2.A, '2026-10-08'), '2026-10-08'],
+  ];
+  check(stehen.every(([t, l, h]) => V.bleibtStehen(t, l, h) === g.bleibtStehen_(t, l, h)),
+    'bleibtStehen_() = Kern auch am Tag des Rundenwechsels und für eine Schätzung, die nicht eintraf');
+}
+
+{
+  // 9b. Tobis Weg: Fassung 1 hat angelegt; er ersetzt im selben Projekt den
+  // Code – ohne „einrichten" –, und die Fassung 2 übernimmt jeden Termin.
+  const w = new Welt('2026-10-26T10:00:00+01:00');
+  const p = mitWelt(w, CODE1);
+  p.fassung1 = true;
+  p.g.einrichten();
+  const k = workout(w);
+  w.proSchreiben = 500; // ≈ Tobis drei Sekunden je angelegtem Termin (sechs Schreibzugriffe)
+  w.jetzt = um('2026-10-26T19:00:05+01:00');
+  const a1 = post(p, N.T).a;
+  for (let h = 0; h < 3 && abweichung(k, N.T, '2026-10-26'); h++) feuern(p, spaeter(w, 60));
+  feuern(p, '2026-10-27T00:30:00+01:00');
+  check(a1.version === 1 && /Fassung 1/.test(k.beschreibung) && !abweichung(k, N.T, '2026-10-27'),
+    `Fassung 1 läuft wie bei Tobi: ${eigene(k).length} Termine, die Liste vom 27.10.`);
+  const vorher = new Map(eigene(k).map((t) => [t.tags.workout, t.id]));
+  const angelegt = w.angelegt;
+  const auslVorher = p.ausloeser.map((x) => x.getUniqueId()).join();
+  const kalVorher = p.props.get('workout.kalender');
+  p.ersetzen(CODE);
+  p.fassung1 = false;
+  check(p.ausloeser.map((x) => x.getUniqueId()).join() === auslVorher && p.ausloeser.length === 1 && p.ausloeser[0].fn === 'stuendlich'
+    && p.props.get('workout.kalender') === kalVorher && JSON.parse(p.props.get('workout.meta')).format === 1,
+  'Code ersetzt, ohne „einrichten": derselbe stündliche Auslöser, derselbe Kalender, der Speicher von Fassung 1');
+  const r = feuern(p, '2026-10-27T01:30:00+01:00');
+  check(r.tag === '2026-10-27' && r.geaendert === 0 && !abweichung(k, N.T, '2026-10-27') && /Fassung 2/.test(k.beschreibung),
+    'die nächste Stunde läuft schon mit dem neuen Code: liest, was Fassung 1 gespeichert hat – 0 Änderungen');
+  check(probe(p).version === 2, '„Verbinden"/Nachfragen der App: Fassung 2 – ab jetzt schickt die App das Jahr');
+  w.jetzt = um('2026-10-27T17:00:05+01:00');
+  const t0 = w.jetzt;
+  const a2 = post(p, N2.T27).a;
+  const dauer = (w.jetzt - t0) / 1000;
+  const nachPost = new Map(eigene(k).map((t) => [t.tags.workout, t.id]));
+  check(a2.ok && a2.code === 'angekommen' && a2.version === 2 && a2.offen > 100 && a2.bis === addDays('2026-10-27', 365) && dauer < 30
+    && !abweichung(k, N2.T27, '2026-10-27', { nah: true }),
+  `die erste Sendung mit Ferne: angekommen nach ${Math.round(dauer)} s – die Nähe stimmt, ${a2.geaendert} Termine dahinter schon da, noch ${a2.offen} offen`);
+  check([...vorher].every(([kn, id]) => nachPost.get(kn) === id) && w.angelegt - angelegt === a2.geaendert,
+    `alle ${vorher.size} Termine von Fassung 1 übernommen (dieselben ids) – angelegt wurde nur Neues (${w.angelegt - angelegt})`);
+  const f = p.ausloeser.filter((x) => x.art === 'nach');
+  check(f.length === 1 && f[0].fn === 'weiter' && f[0].wert === 3 * 60 * 1000 && /noch \d+ Änderungen offen, sie folgen in den nächsten Minuten/.test(k.beschreibung),
+    `der Rest folgt in ein paar Minuten: genau ein einmaliger Auslöser „weiter" (3 min); die Beschreibung sagt es – „${k.beschreibung.split('\n')[2]}"`);
+  // Was schon steht, sagt die Antwort eigens (stehen): Die App sagt damit
+  // „Termine bis …", ohne das ganze Jahr zu versprechen, das erst kommt.
+  check(a2.folge === true && a2.stehen && a2.stehen >= addDays('2026-10-27', 28) && a2.stehen < a2.bis && !/offen/.test(a2.hinweis || '')
+    && a2.stehen === k.beschreibung.split('\n')[2].replace(/^Termine bis (\d\d)\.(\d\d)\.(\d{4}).*$/, '$3-$2-$1'),
+  `die Antwort sagt, bis wann der Kalender schon steht (stehen ${a2.stehen}, bis ${a2.bis}) und dass der Rest in Minuten kommt – wie die Beschreibung`);
+  const r1 = weiterFeuern(p, spaeter(w, 4));
+  const pr = probe(p);
+  check(pr.ok && pr.code === 'probe' && pr.offen === r1.offen && pr.offen < a2.offen && pr.stehen > a2.stehen && pr.bis === a2.bis && pr.folge === true,
+    `eine Probe dazwischen sagt, wie weit es ist: noch ${pr.offen} statt ${a2.offen} offen, Termine schon bis ${pr.stehen} – so fragt die App nach`);
+  const { laeufe: rest, nahFalsch } = auffuellen(p, N2.T27, '2026-10-27');
+  const laeufe = [r1.geaendert, ...rest];
+  // Bleibt nach dem letzten „weiter" nur wenig offen (unter zehn, nichts aus
+  // den nächsten vier Wochen), macht das die nächste Stunde – und die
+  // Beschreibung sagt genau das.
+  const restText = k.beschreibung.split('\n')[2];
+  const stunde = abweichung(k, N2.T27, '2026-10-27') ? feuern(p, spaeter(w, 40)) : null;
+  const ab = abweichung(k, N2.T27, '2026-10-27');
+  const soll = listeVon(N2.T27, '2026-10-27').length;
+  zeige(`aufgefüllt in ${laeufe.length} Läufen „weiter" (${laeufe.join(' + ')} Änderungen)${stunde ? ` und der nächsten Stunde (${stunde.geaendert})` : ''}, `
+    + `${soll} Termine, fertig um ${uhrB(w.jetzt)}`);
+  check(!stunde || /noch \d Änderungen? offen, sie folgen mit dem nächsten stündlichen Abgleich/.test(restText),
+    `ein kleiner Rest wartet auf die nächste Stunde, und die Beschreibung sagt es („${restText}")`);
+  check(!ab && !nahFalsch && laeufe.length >= 2 && !p.ausloeser.some((x) => x.art === 'nach') && eigene(k).length === soll,
+    `ein Jahr: nach ${laeufe.length} Läufen steht alles, die Nähe nach jedem Lauf, kein „weiter" mehr übrig${ab ? ` – ${ab}` : ''}${nahFalsch ? ` – ${nahFalsch}` : ''}`);
+  check(w.angelegt - angelegt === soll - vorher.size && new Map(eigene(k).map((t) => [t.tags.workout, t.id])).size === soll,
+    'nichts doppelt, kein Termin von Fassung 1 neu angelegt');
+  check(new RegExp(`Termine bis ${addDays('2026-10-27', 365).split('-').reverse().join('.')}\\.`).test(k.beschreibung)
+    && /verschiebt von selbst bis 07\.12\.2026/.test(k.beschreibung) && !/offen/.test(k.beschreibung),
+  `die Beschreibung danach: „${k.beschreibung.split('\n').slice(1, 4).join(' / ')}"`);
+  const fertigProbe = probe(p);
+  check(fertigProbe.offen === 0 && fertigProbe.stehen === addDays('2026-10-27', 365) && fertigProbe.bis === fertigProbe.stehen && fertigProbe.folge === null,
+    `danach sagt die Probe: nichts offen, Termine bis ${fertigProbe.stehen}`);
+}
+
+{
+  // 9c. Von vorn mit Fassung 2: das Nächste zuerst, über mehrere Läufe.
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.proSchreiben = 500;
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  const a = post(p, N2.A).a;
+  const da = eigene(k).map((t) => tagB(t.beginn)).sort();
+  const zukunft = listeVon(N2.A, '2026-10-08').map((e) => e[1]).filter((d) => d >= '2026-10-08').sort();
+  check(a.offen > 150 && da.length === a.geaendert && da.length > 3 && gleich(da, zukunft.slice(0, da.length)),
+    `doPost legt in 25 s ${a.geaendert} Termine an – die nächsten zuerst (${da[0]} bis ${da[da.length - 1]}), noch ${a.offen} offen`);
+  const r1 = weiterFeuern(p, spaeter(w, 3));
+  check(!abweichung(k, N2.A, '2026-10-08', { nah: true }) && r1.offen > 0 && p.ausloeser.filter((x) => x.art === 'nach').length === 1,
+    `nach dem ersten Lauf „weiter" (4,5 Minuten, ${r1.geaendert} Änderungen) stimmen die nächsten vier Wochen ganz, bevor die Ferne drankommt`);
+  const { laeufe, nahFalsch } = auffuellen(p, N2.A, '2026-10-08');
+  check(!abweichung(k, N2.A, '2026-10-08') && !nahFalsch && !p.ausloeser.some((x) => x.art === 'nach'),
+    `danach in ${laeufe.length} weiteren Läufen das ganze Jahr (${laeufe.join(' + ')})`);
+  const leseVoll = w.lesen;
+  const f1 = feuern(p, '2026-10-08T14:07:00+02:00');
+  const leseNah = w.lesen - leseVoll;
+  // 9d. Ein verpasster Tag schiebt das ganze Jahr: kein Termin neu, je Termin ein Schreibzugriff.
+  const vorher = new Map(eigene(k).map((t) => [t.id, { s: t.schreibzugriffe, b: t.beginn }]));
+  const angelegt = w.angelegt;
+  const l0 = w.lesen;
+  const r = feuern(p, '2026-10-09T00:30:00+02:00');
+  const leseVollTag = w.lesen - l0;
+  const bewegt = eigene(k).filter((t) => vorher.has(t.id) && vorher.get(t.id).b !== t.beginn);
+  const mehr = bewegt.map((t) => t.schreibzugriffe - vorher.get(t.id).s);
+  check(!abweichung(k, N2.A, '2026-10-09') && w.angelegt === angelegt && bewegt.length > 150 && mehr.every((x) => x === 1) && !r.offen,
+    `ein verpasster Tag: ${bewegt.length} Termine um einen Tag verschoben, kein einziger neu angelegt, je Termin genau ein Schreibzugriff – in einem Lauf (${r.geaendert} Änderungen)`);
+  zeige(`gelesen: eine ruhige Stunde ${leseNah} Mal (nur die Nähe), die erste Stunde eines neuen Tages ${leseVollTag} Mal (das ganze Jahr)`);
+  check(f1.geaendert === 0 && leseNah < leseVollTag / 3, 'eine ruhige Stunde liest nur die Nähe – sonst läse jede Stunde rund 200 Termine, von denen sich nichts bewegt hat');
+  // Eine Hand im Kalender: in der Nähe gleicht die nächste Stunde zurück, in der Ferne der nächste Tag.
+  const nahT = eigene(k).find((t) => t.tags.workout === 'cut-1-12');
+  const fernT = eigene(k).find((t) => t.tags.workout === 'cut-2-40');
+  nahT.beginn += 3600000; nahT.ende += 3600000;
+  fernT.beginn += 3600000; fernT.ende += 3600000;
+  feuern(p, '2026-10-09T01:30:00+02:00');
+  const fernNoch = fernT.beginn !== berlin(tagB(fernT.beginn), 1050);
+  check(uhrB(nahT.beginn) === '17:30' && fernNoch, 'von Hand verschoben: in der Nähe stellt die nächste Stunde zurück, in der Ferne noch nicht');
+  feuern(p, '2026-10-10T00:30:00+02:00');
+  check(uhrB(fernT.beginn) === '17:30' && !abweichung(k, N2.A, '2026-10-10'), '… dort die erste Stunde des nächsten Tags');
+}
+
+{
+  // 9e. v 1 und v 2 an Fassung 2; eine gekürzte Ferne.
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.jetzt = um('2026-10-08T11:00:05+02:00');
+  const a1 = post(p, N.A).a;
+  check(a1.ok && a1.version === 2 && a1.bis === '2026-11-05' && !abweichung(k, N.A, '2026-10-08') && eigene(k).every((t) => tagB(t.beginn) <= '2026-11-05'),
+    'Fassung 2 nimmt v 1 an: die Nähe wie bisher, bis heute + 28 – und sagt, dass sie Fassung 2 ist');
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  const a2 = post(p, N2.A).a;
+  check(a2.ok && !a2.offen && !abweichung(k, N2.A, '2026-10-08') && eigene(k).some((t) => tagB(t.beginn) > '2027-09-01'),
+    `danach v 2: das ganze Jahr (${eigene(k).length} Termine)`);
+  w.jetzt = um('2026-10-08T13:00:05+02:00');
+  const bis = addDays('2026-10-08', N2.Kurz.ferne.bis);
+  // Fremdes in der Ferne, hinter der gekürzten Grenze: von Hand eingetragen,
+  // und eine eingelesene Kalenderdatei mit derselben Einheit, aber ohne die
+  // Markierung des Skripts. Das Aufräumen dahinter fasst nur Eigenes an.
+  fremd(k, 'Urlaub', '2027-03-01T09:00:00+01:00', 600);
+  fremd(k, 'Workout 30 · aus der Datei', '2027-03-02T18:00:00+01:00', 60, { workout: 'cut-2-30' });
+  const fremdVorher = fremdBild(w);
+  const a3 = post(p, N2.Kurz).a;
+  check(a3.ok && a3.bis === bis && !abweichung(k, N2.Kurz, '2026-10-08') && eigene(k).every((t) => tagB(t.beginn) <= bis)
+    && new RegExp(`Termine bis ${bis.split('-').reverse().join('.')}\\.`).test(k.beschreibung),
+  `eine gekürzte Ferne (bis ${bis}): was dahinter stand, ist weg, und die Beschreibung sagt „Termine bis ${bis.split('-').reverse().join('.')}"`);
+  check(fremdBild(w) === fremdVorher, '… fremde Termine dahinter bleiben, wie sie sind – auch eine eingelesene Einheit ohne die Markierung des Skripts');
+  w.jetzt = um('2026-10-08T14:00:05+02:00');
+  post(p, { ...N2.A, seq: 40, gesendet: um('2026-10-08T14:00:00+02:00') });
+  const weit = eigene(k).filter((t) => tagB(t.beginn) > '2026-11-05').length;
+  w.jetzt = um('2026-10-08T15:00:05+02:00');
+  const a4 = post(p, { ...N.A, seq: 41, gesendet: um('2026-10-08T15:00:00+02:00') }).a;
+  check(a4.ok && !abweichung(k, N.A, '2026-10-08') && eigene(k).filter((t) => tagB(t.beginn) > '2026-11-05').length === weit,
+    `eine Sendung im alten Vertrag nach dem Jahr (etwa ein Gerät mit älterer App): die Nähe gilt, die ${weit} Termine dahinter bleiben stehen`);
+}
+
+{
+  // 9f. Termine in der Ferne: Flicken im Skript wie im Kern, Tag für Tag.
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  post(p, N2.Termine);
+  const tage = ['2026-10-08', '2026-10-09', '2026-10-10', '2026-10-13', '2026-10-30'];
+  const falsch = tage.filter((t, i) => {
+    if (i) feuern(p, `${t}T00:30:00+0${t < '2026-10-25' ? 2 : 1}:00`);
+    return abweichung(k, N2.Termine, t);
+  });
+  check(!falsch.length && N2.Termine.ferne.tage.some((s) => s.length === 4) && !eigene(k).some((t) => tagB(t.beginn) === '2027-03-06'),
+    `Termine in der Ferne (Flicken): an ${tage.length} Tagen genau die Liste – am Turnier keine Einheit${falsch.length ? ` – anders: ${falsch[0]} ${abweichung(k, N2.Termine, falsch[0])}` : ''}`);
+}
+
+{
+  // 9g. Der Tag des Rundenwechsels: Workout 84 heute gemacht, die Runde rollt
+  // im selben Start weiter. Die Schätzung der Runde 2 wird zur Nähe – dieselben
+  // Termine –, und Workout 84 bleibt stehen.
+  const w = new Welt('2026-10-29T10:00:00+01:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.jetzt = um('2026-10-29T18:05:05+01:00');
+  post(p, N2.Rund1);
+  const vorher = new Map(eigene(k).map((t) => [t.tags.workout, t.id]));
+  const w84 = eigene(k).find((t) => t.tags.workout === 'cut-1-84');
+  const angelegt = w.angelegt;
+  w.jetzt = um('2026-10-29T18:55:05+01:00');
+  const a = post(p, N2.Rund2).a;
+  const r2 = eigene(k).filter((t) => t.tags.workout.startsWith('cut-2-'));
+  check(a.ok && w84 && !w84.weg && tagB(w84.beginn) === '2026-10-29' && !abweichung(k, N2.Rund2, '2026-10-29'),
+    'Workout 84 heute gemacht, die Runde rollt weiter: sein Termin bleibt stehen (bis Fassung 1 kam er weg, weil er „heute" lag)');
+  check(r2.length > 80 && r2.every((t) => vorher.get(t.tags.workout) === t.id) && w.angelegt - angelegt < 30,
+    `Runde 2: alle ${r2.length} Termine dieselben wie geschätzt (dieselben ids) – beim echten Rundenwechsel nichts gelöscht und neu angelegt (neu: ${w.angelegt - angelegt}, am Ende des Jahres)`);
+}
+
+{
+  // 9h. Abschalten mit einem ganzen Jahr – über mehrere Läufe.
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  post(p, N2.A);
+  w.proSchreiben = 500;
+  w.jetzt = um('2026-10-08T20:00:05+02:00');
+  const a = post(p, { v: 1, token: TOKEN, geraet: 'handy-tobi', seq: 50, gesendet: um('2026-10-08T20:00:00+02:00'), aus: true }).a;
+  check(a.ok && a.code === 'aus' && a.offen > 100 && /offen/.test(a.hinweis || '') && p.ausloeser.some((x) => x.art === 'nach'),
+    `„Abschalten" mit einem Jahr im Kalender: ${a.geaendert} in 25 s gelöscht, ${a.offen} offen – „weiter" macht den Rest`);
+  const { laeufe } = auffuellen(p, N2.A, '2026-10-08', { max: 10 });
+  check(!eigene(k).some((t) => tagB(t.beginn) >= '2026-10-08') && !p.ausloeser.some((x) => x.art === 'nach'),
+    `… nach ${laeufe.length} Läufen ist ab heute kein eigener Termin mehr da`);
+}
+
+{
+  // 9i. Google bremst („zu oft") mitten im Jahr: kein „weiter" in ein paar
+  // Minuten – Google will eine Pause –, die nächste Stunde macht weiter.
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  w.drossel = 300;
+  const a = post(p, N2.A).a;
+  check(a.ok && /bremst/.test(a.hinweis) && a.offen > 0 && a.folge === false && !p.ausloeser.some((x) => x.art === 'nach'),
+    `Google bremst nach 300 Schreibzugriffen: „${a.hinweis}" – ${a.offen} offen, kein Folge-Auslöser (folge false: die nächste Stunde)`);
+  w.drossel = null;
+  feuern(p, '2026-10-08T13:07:00+02:00');
+  check(!abweichung(k, N2.A, '2026-10-08'), 'die nächste Stunde macht den Rest');
+}
+
+/* ------------------------------------------------------------------ *
+ * 10. Was die Prüfung des Jahres fand
+ * ------------------------------------------------------------------ */
+
+const zeileB = (k, i) => k.beschreibung.split('\n')[i] || '';
+/** Ein Jahr von Grund auf, langsam wie bei Tobi: doPost legt an, „weiter" wartet. */
+const jahrBeginnt = () => {
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.proSchreiben = 500;
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  return { w, p, k, a: post(p, N2.A).a };
+};
+{
+  // 10a. Der eigene, gefeuerte Auslöser „weiter" lässt sich einmal nicht
+  // löschen (Google: „server error"). Er bleibt gelistet und feuert nie
+  // wieder. Bis zur Prüfung zählte folgeSichern_() ihn als wartend: Kein
+  // neuer kam, nie mehr, und die Beschreibung versprach Minuten.
+  const { w, p, k, a } = jahrBeginnt();
+  const SA = p.g.ScriptApp;
+  const echt = SA.deleteTrigger;
+  let einmal = true;
+  SA.deleteTrigger = (t) => {
+    if (einmal) { einmal = false; throw new Error('We\'re sorry, a server error occurred. Please wait a bit and try again.'); }
+    return echt(t);
+  };
+  let r;
+  try { r = weiterFeuern(p, spaeter(w, 4)); } finally { SA.deleteTrigger = echt; }
+  check(a.folge === true && r.offen > 0 && r.folge === true && wartend(p).length === 1 && /sie folgen in den nächsten Minuten/.test(zeileB(k, 2)),
+    `„weiter" ließ sich nicht löschen: trotzdem genau ein neuer, der wartet (gelistet ${p.ausloeser.filter((x) => x.art === 'nach').length}, `
+      + `wartend ${wartend(p).length}) – „${zeileB(k, 2)}"`);
+  const { laeufe, nahFalsch } = auffuellen(p, N2.A, '2026-10-08');
+  check(!abweichung(k, N2.A, '2026-10-08') && !nahFalsch && !p.ausloeser.some((x) => x.art === 'nach'),
+    `… nach ${laeufe.length} weiteren Läufen steht das Jahr, und kein Rest bleibt gelistet`);
+}
+{
+  // 10b. Google bricht „weiter" ab, bevor seine erste Zeile läuft: Der
+  // Auslöser ist verbraucht, gemerkt ist er noch. Eine halbe Stunde nach
+  // seiner Zeit gilt er nicht mehr – der nächste Lauf legt einen neuen an.
+  const { w, p, k } = jahrBeginnt();
+  weiterFeuern(p, spaeter(w, 4), { abgebrochen: true });
+  const r = feuern(p, spaeter(w, 55));
+  check(r.offen > 0 && r.folge === true && wartend(p).length === 1 && /sie folgen in den nächsten Minuten/.test(zeileB(k, 2)),
+    `„weiter" lief nie: die nächste Stunde legt einen neuen an (wartend ${wartend(p).length}, folge ${r.folge})`);
+  const { nahFalsch } = auffuellen(p, N2.A, '2026-10-08');
+  check(!abweichung(k, N2.A, '2026-10-08') && !nahFalsch, '… und das Jahr steht danach');
+}
+{
+  // 10c. Lesen so langsam, dass ein ganzer Lauf nichts mehr ändern kann
+  // (ungemessen bei Google – hier fünf Sekunden je Lesezugriff): kein neuer
+  // „weiter" im Minutentakt, der nur die 90 Minuten Laufzeit am Tag aufzehrt.
+  const { w, p, k } = jahrBeginnt();
+  w.proLesen = 5000;
+  const r = weiterFeuern(p, spaeter(w, 4));
+  w.proLesen = 0;
+  check(r.geaendert === 0 && r.offen > 0 && r.folge === false && !wartend(p).length && /sie folgen mit dem nächsten stündlichen Abgleich/.test(zeileB(k, 2)),
+    `ein Lauf ohne Fortschritt (Lesen dauert länger als der Lauf): kein neuer „weiter" – „${zeileB(k, 2)}"`);
+  const r2 = feuern(p, spaeter(w, 40));
+  check(r2.geaendert > 0 && r2.folge === true && wartend(p).length === 1, `geht es wieder voran (${r2.geaendert} Änderungen), kommt „weiter" wieder`);
+}
+{
+  // 10d. doPost wartet 28 s auf die Sperre (ein Lauf „weiter" hält sie). Die
+  // App wartet 45 s auf die Antwort – die 25 s zählen ab Eingang. Bis zur
+  // Prüfung begannen sie erst nach dem Warten: Antwort nach 56 s.
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.proSchreiben = 500;
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  p.sperreBis = w.jetzt + 28000;
+  const t0 = w.jetzt;
+  const a = post(p, N2.A).a;
+  const dauer = (w.jetzt - t0) / 1000;
+  check(a.ok && a.code === 'angekommen' && dauer <= 35 && a.offen > 0 && a.folge === true && wartend(p).length === 1,
+    `28 s auf die Sperre gewartet: Antwort nach ${Math.round(dauer)} s – innerhalb der 45 s der App; noch ${a.offen} offen, „weiter" folgt`);
+  const { nahFalsch } = auffuellen(p, N2.A, '2026-10-08');
+  check(!abweichung(k, N2.A, '2026-10-08') && !nahFalsch, '… und das Jahr steht danach trotzdem');
+}
+{
+  // 10e. Speicher: Nach dem Umschalten auf eine große Sendung (185 KiB)
+  // scheitert das Löschen der alten Stücke mittendrin. Bis zur Prüfung blieben
+  // die Reste für immer, doPost meldete „fehler", und jede weitere große
+  // Sendung scheiterte am vollen Speicher (500 KB).
+  const gross = (seq, kib) => {
+    const g = JSON.parse(JSON.stringify(N2.A));
+    g.seq = seq;
+    g.gesendet = N2.A.gesendet + seq * 1000;
+    for (let i = 0; V.nutzlastBytes(g) < kib * 1024; i++) g.texte[`zz${i}`] = [`Übung ${i}`, 'Kniebeuge – Satz für Satz '.repeat(60)];
+    return g;
+  };
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  const belegt = () => [...p.props].reduce((s, [x, y]) => s + bytes(x) + bytes(y), 0);
+  const a1 = post(p, gross(101, 185)).a;
+  const store = p.g.PropertiesService.getScriptProperties();
+  const echt = store.deleteProperty;
+  let n = 0;
+  store.deleteProperty = (key) => {
+    if (String(key).startsWith('workout.teil.') && ++n === 3) throw new Error('Service error: PropertiesService');
+    return echt(key);
+  };
+  w.jetzt = um('2026-10-08T12:10:05+02:00');
+  let a2;
+  try { a2 = post(p, gross(102, 185)).a; } finally { store.deleteProperty = echt; }
+  const mitResten = belegt();
+  const codes = [];
+  for (let i = 0; i < 3; i++) {
+    w.jetzt = um(`2026-10-08T1${3 + i}:00:05+02:00`);
+    codes.push(post(p, gross(103 + i, 185)).a.code);
+  }
+  const meta = JSON.parse(p.props.get('workout.meta'));
+  check(a1.ok && a2.ok && a2.code === 'angekommen' && codes.every((c) => c === 'angekommen')
+    && [...p.props.keys()].filter((x) => x.startsWith('workout.teil.')).every((x) => x.startsWith(`workout.teil.${meta.gen}.`)),
+  `das Löschen alter Stücke scheiterte einmal (danach ${Math.round(mitResten / 1000)} KB belegt): die Sendung gilt trotzdem, `
+    + `die nächsten großen kommen an (${codes.join(', ')}), und die Reste sind weg (${Math.round(belegt() / 1000)} KB)`);
+}
+{
+  // 10f. Das Tageskontingent ist mitten im Jahr aufgebraucht (Google lässt nach
+  // 30 Terminen keine neuen mehr zu): Die Beschreibung sagt „morgen" – nicht
+  // zugleich „mit dem nächsten stündlichen Abgleich" und darunter „morgen".
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  const k = workout(w);
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  const orig = Kal.prototype.createEvent;
+  let rest = 30;
+  Kal.prototype.createEvent = function createEvent(...x) {
+    if (rest <= 0) throw new Error('Service invoked too many times for one day: calendar.');
+    rest -= 1;
+    return orig.apply(this, x);
+  };
+  let a;
+  try { a = post(p, N2.A).a; } finally { Kal.prototype.createEvent = orig; }
+  const b = k.beschreibung;
+  check(a.ok && a.offen > 0 && a.folge === false && /Tageskontingent/.test(a.hinweis || '') && /offen, sie folgen morgen\./.test(b) && !/stündlichen Abgleich/.test(b),
+    `Tageskontingent aufgebraucht: „${zeileB(k, 2)}" – ohne „mit dem nächsten stündlichen Abgleich"`);
+}
+
+/* ------------------------------------------------------------------ *
  * Alle Antworten
  * ------------------------------------------------------------------ */
 
 {
   const geparst = alleAntworten.map((x) => { try { return JSON.parse(x); } catch { return null; } });
-  check(geparst.every((a) => a && typeof a.ok === 'boolean' && typeof a.code === 'string' && a.version === 1 && a.kalender === 'Workout'
-    && ['tag', 'geaendert', 'stand', 'seq'].every((f) => f in a)), `alle ${geparst.length} Antworten: JSON mit ok, code, version, kalender, tag, geaendert, stand, seq`);
+  check(geparst.every((a) => a && typeof a.ok === 'boolean' && typeof a.code === 'string' && a.version === FASSUNG && a.kalender === 'Workout'
+    && ['tag', 'geaendert', 'offen', 'bis', 'stehen', 'folge', 'stand', 'seq'].every((f) => f in a)),
+  `alle ${geparst.length} Antworten: JSON mit ok, code, version, kalender, tag, geaendert, offen, bis, stehen, folge, stand, seq`);
   check(!alleAntworten.some((x) => x.includes(TOKEN) || /@group\.calendar|@google\.com|https?:/.test(x)), 'keine Antwort enthält das Kennwort, eine Kalender-ID oder eine Adresse');
   const codes = [...new Set(geparst.map((a) => a.code))].sort();
   check(gleich(codes, ['aelter', 'alt', 'angekommen', 'aus', 'fehler', 'format', 'gleich', 'probe', 'token']), `jede Antwort aus dem Vertrag kam vor (${codes.join(', ')})`);

@@ -29,6 +29,21 @@
  *      App verweigert die Vorschau, ohne Uhr oder Speicher anzufassen.
  *   6. Die Kalenderdatei ist dieselbe wie vor der gemeinsamen Quelle
  *      (kalenderEinheiten() in js/kalender.js).
+ *   7. Die Ferne – ein Jahr (Fassung 2):
+ *
+ *        „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr
+ *         machen"
+ *
+ *      Die Nähe bleibt Byte für Byte dieselbe; dahinter der Rest der Runde und
+ *      die nächsten Runden bis d + 365, mit Kennungen und Tagen wie beim
+ *      echten Rundenwechsel (die App Tag für Tag nach Plan trainiert); die
+ *      verschobenen Referenzlisten ergeben an jedem geprüften Tag genau, was
+ *      ein frischer Lauf in einem eigenen Prozess für diesen Tag allein
+ *      rechnet – mit verpassten Tagen, einem Plan in der Zukunft, dem
+ *      Rundenende in der Vorschau und Terminen in der Ferne (auch einem, der
+ *      alles schont); Größe und Kürzen; der Vertrag der Fassung 2; die Regel
+ *      bleibtStehen() am Tag des Rundenwechsels. Im Browser rechnet der
+ *      Worker die Ferne wie Node, gemessen mit echter Uhr.
  *
  * Node mit TZ=Europe/Berlin – der Container läuft auf UTC, die App rechnet in
  * lokalen Tagen. Ohne gesetzte Zeitzone startet sich die Datei selbst damit
@@ -81,6 +96,22 @@ if (process.argv[2] === '--frisch') {
   const kalender = await modul('kalender.js');
   tagstart.tagNachziehen({ art: 'start' });
   process.stdout.write(JSON.stringify(kalender.kalenderTermine({ von, bis })));
+  process.exit(0);
+}
+
+/*
+ * Die ganze Liste eines Tages – Nähe und Ferne – in einem eigenen Prozess,
+ * für diesen einen Tag gerechnet: eine Vorschau über einen Tag, ohne
+ * Referenz, die verschoben werden könnte. Gibt die Einträge ausgeschrieben aus.
+ *   node test-kalender-vorschau.mjs --fern <root> <zustand.json> <ms>
+ */
+if (process.argv[2] === '--fern') {
+  const [, , , wurzel, datei, msText] = process.argv;
+  const W = await import(pathToFileURL(path.join(wurzel, 'js', 'kalender-vorschau.js')).href);
+  const v = await W.vorschauRechnen(readFileSync(datei, 'utf8'), { jetzt: Number(msText), tage: 1, ferne: W.VORSCHAU_FERNE });
+  const n = W.nutzlastBauen(v, { token: 'testtoken-kein-echtes-0123456789', geraet: 'frisch01', seq: 1, gesendet: 1 });
+  const aus = (l) => l.map(([k, d, dauer, h, f]) => [k, d, dauer, n.texte[h][0], n.texte[h][1], f]);
+  process.stdout.write(JSON.stringify({ tag: v.ab, nah: aus(n.tage[v.ab]), fern: aus(W.fernListe(n, v.ab)), listen: v.ferne.listen.length }));
   process.exit(0);
 }
 
@@ -502,7 +533,8 @@ const nutzlast = (v, mehr = {}) => V.nutzlastBauen(v, {
     return V.nutzlastPruefen(k);
   };
   const tag = vA.ab;
-  check(kaputt((k) => { k.v = 2; }) === 'v', 'falsche Fassung → „v"');
+  check(kaputt((k) => { k.v = 3; }) === 'v' && kaputt((k) => { k.v = '1'; }) === 'v', 'unbekannte Fassung → „v"');
+  check(kaputt((k) => { k.v = 2; }) === 'ferne', 'Fassung 2 ohne Ferne → „ferne"');
   check(kaputt((k) => { k.token = 'kurz'; }) === 'token', 'zu kurzes Token → „token"');
   check(kaputt((k) => { k.token = 'mit leerzeichen 0123456789'; }) === 'token', 'Token mit fremden Zeichen → „token"');
   check(kaputt((k) => { k.minuten = 1440; }) === 'minuten', '24:00 → „minuten"');
@@ -624,6 +656,286 @@ for (const name of ['A', 'D', 'F']) {
 }
 
 /* ------------------------------------------------------------------ *
+ * 7. Die Ferne – ein Jahr
+ * ------------------------------------------------------------------ */
+
+const FERNE = V.VORSCHAU_FERNE;
+const rechneFern = (z, jetzt, mehr = {}) => V.vorschauRechnen(JSON.stringify(z), { jetzt: um(jetzt), ferne: FERNE, ...mehr });
+/** Ein Eintrag ausgeschrieben – wie der frische Prozess (--fern) ihn ausgibt. */
+const schreib = (n, l) => l.map(([k, d, dauer, h, f]) => [k, d, dauer, n.texte[h][0], n.texte[h][1], f]);
+const tageZwischen = (a, b) => (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000;
+const abstand = tageZwischen(D.PLAN[0].date, D.PLAN[1].date);
+const fernDatei = (name, z) => {
+  const p = path.join(ABLAGE, `kalender-vorschau-fern-${name}.json`);
+  writeFileSync(p, JSON.stringify(z));
+  return p;
+};
+/** Die ganze Liste eines Tages, in einem eigenen Prozess für diesen Tag allein gerechnet. */
+const frischFern = (name, z, ms) => {
+  const r = spawnSync(process.execPath, [HIER, '--fern', ROOT, fernDatei(name, z), String(ms)], {
+    env: { ...process.env, TZ: 'Europe/Berlin' }, encoding: 'utf8', maxBuffer: 1 << 26,
+  });
+  if (r.status !== 0) throw new Error(`frischer Prozess (Ferne) ${name}: ${r.stderr.slice(0, 400)}`);
+  return JSON.parse(r.stdout);
+};
+
+{
+  // 7a. Tobis Stand vom 08.10., ein Jahr voraus.
+  const vAF = await rechneFern(Z.A, '2026-10-08T12:00:00+02:00');
+  const nAF = nutzlast(vAF);
+  zeige(`Ferne in Node, 42 Tage: ${Math.round(vAF.ms)} ms, davon Ferne ${Math.round(vAF.fernMs)} ms (ohne Ferne ${Math.round(vA.ms)} ms beim ersten Lauf mit Laden)`);
+  check(nAF.v === 2 && V.nutzlastPruefen(nAF) === null && nAF.ferne.bis === 365,
+    `Fassung 2: die Nutzlast trägt die Ferne bis d + 365 und besteht nutzlastPruefen() (${V.nutzlastPruefen(nAF)})`);
+  check(JSON.stringify(vAF.tage) === JSON.stringify(vA.tage),
+    'die Nähe bleibt exakt wie bisher: jede der 42 Tageslisten Byte für Byte dieselbe wie ohne Ferne');
+  const f0 = V.fernListe(nAF, vAF.ab);
+  const runden = [...new Set(f0.map((e) => e[0].replace(/-z?\d+$/, '')))];
+  check(f0.length >= 180 && f0[0][1] > addDays(vAF.ab, 28) && f0[f0.length - 1][1] <= addDays(vAF.ab, 365) && f0[f0.length - 1][1] > addDays(vAF.ab, 355),
+    `am 08.10.: ${f0.length} Termine dahinter, vom ${f0[0][1]} bis ${f0[f0.length - 1][1]} – ein Jahr`);
+  check(gleich(runden, ['cut-1', 'cut-2', 'cut-3']), `über das Ende der Runde hinaus: ${runden.join(', ')}`);
+  const ganz = [...nAF.tage[vAF.ab], ...f0];
+  const w84 = ganz.find((e) => e[0] === 'cut-1-84');
+  const w1 = ganz.find((e) => e[0] === 'cut-2-1');
+  check(!!w84 && !!w1 && w1[1] === addDays(w84[1], abstand),
+    `Runde 2 beginnt im üblichen Abstand nach Workout 84 (${w84 && w84[1]} → ${w1 && w1[1]}), wie rundeWeiter() sie anlegt`);
+  const r2 = ganz.filter((e) => e[0].startsWith('cut-2-'));
+  check(r2.length === 84 && r2.every((e) => e[1] === addDays(w1[1], tageZwischen(D.PLAN[0].date, D.PLAN[Number(e[0].split('-')[2]) - 1].date))),
+    'Runde 2: alle 84 Einheiten im Rhythmus des Plans – Kennung cut-2-<n>');
+  const w30 = f0.find((e) => e[0] === 'cut-1-30');
+  check(w30 && nAF.texte[w30[3]][0] === nAF.texte[(r2.find((e) => e[0] === 'cut-2-30') || [])[3]][0],
+    `Inhalt nach heutigen Einstellungen: Workout 30 sieht in Runde 2 aus wie in Runde 1 (${w30 && nAF.texte[w30[3]][0]})`);
+  check(!ganz.some((e, i) => ganz.findIndex((x) => x[0] === e[0]) !== i), 'keine Kennung zweimal in der Liste eines Tages (Nähe und Ferne)');
+  check(Object.keys(nAF.tage).every((t) => {
+    const l = [...nAF.tage[t], ...V.fernListe(nAF, t)];
+    return new Set(l.map((e) => e[0])).size === l.length;
+  }), '… an keinem der 42 Tage');
+  const versatz = vAF.ferne.tage.map((s) => s[1]);
+  zeige(`Kodierung: ${vAF.ferne.listen.length} Referenzliste(n) [${vAF.ferne.listen.map((l) => l.length).join(', ')}], Versatz je Tag ${versatz.slice(0, 6).join(', ')} …, `
+    + `${vAF.ferne.tage.filter((s) => s.length > 2).length} Tage mit Flicken, ${Object.keys(nAF.texte).length} Texte`);
+  check(vAF.ferne.listen.length === 1 && versatz.every((x, k) => x === k),
+    'verpasst ab heute: eine Referenzliste, und jeder Tag schiebt sie um einen Tag weiter (Versatz 0, 1, 2 …) – keine Flicken');
+  vorschau.AF = vAF;
+  Z.AF = Z.A;
+}
+
+{
+  // 7b. Versatz und Flicken gegen frische Läufe: je Tag ein eigener Prozess,
+  // der nur diesen Tag rechnet – ohne Referenz, die verschoben werden könnte.
+  // Das Turnier auf dem Tag, an dem am 08.10. Workout 10 der zweiten Runde
+  // läge – dort steht ohne Turnier sicher eine Einheit.
+  const nAF = nutzlast(vorschau.AF);
+  const turnierTag = V.fernListe(nAF, vorschau.AF.ab).find((e) => e[0] === 'cut-2-10')[1];
+  const turnier = kopie();
+  turnier.termine = [
+    { datum: '2026-12-12', name: 'Padel', aktivitaet: 'padel', minuten: 90 },
+    { datum: turnierTag, name: 'Turnier', schont: 'alles' },
+    { datum: '2027-04-17', name: 'Bouldern', aktivitaet: 'bouldern', minuten: 120 },
+  ];
+  const faelle = [
+    ['A', Z.A, '2026-10-08T12:00:00+02:00', [0, 1, 5, 17, 41]],
+    ['R', Z.R, '2026-10-08T12:00:00+02:00', [0, 2, 3, 4, 12]],
+    ['E2', Z.E2, '2026-10-23T19:00:00+02:00', [0, 1, 2, 9]],
+    ['C', Z.C, '2026-10-08T19:00:00+02:00', [0, 1, 2, 6]],
+    ['Termine', turnier, '2026-10-08T12:00:00+02:00', [0, 1, 3, 20, 41]],
+    ['verpasst100', Z.A, '2027-01-16T12:00:00+01:00', [0, 1, 30]],
+  ];
+  for (const [name, z, jetzt, ks] of faelle) {
+    const v = await rechneFern(z, jetzt);
+    const n = nutzlast(v);
+    const flicken = v.ferne.tage.filter((s) => s.length > 2).length;
+    const anders = [];
+    for (const k of ks) {
+      const tag = addDays(v.ab, k);
+      const f = frischFern(name, z, v.zeiten[tag]);
+      if (f.tag !== tag || !gleich(schreib(n, n.tage[tag]), f.nah) || !gleich(schreib(n, V.fernListe(n, tag)), f.fern)) {
+        const soll = f.fern;
+        const ist = schreib(n, V.fernListe(n, tag));
+        anders.push(`${tag} ${abweichung(soll, ist)}`);
+      }
+    }
+    check(!anders.length && V.nutzlastPruefen(n) === null,
+      `${name}: Nähe und Ferne an ${ks.length} Tagen genau wie ein frischer Lauf für diesen Tag allein `
+      + `(${v.ferne.listen.length} Referenzliste(n), ${flicken} Tage mit Flicken)${anders.length ? ` – anders: ${anders[0].slice(0, 220)}` : ''}`);
+    if (name === 'Termine') {
+      const f0 = V.fernListe(n, v.ab);
+      check(!f0.some((e) => e[1] === turnierTag) && V.fernListe(nAF, vorschau.AF.ab).some((e) => e[1] === turnierTag) && flicken > 0,
+        `Termine in der Ferne: am Turnier (${turnierTag}, schont alles) steht keine Einheit – ohne es stünde dort eine –, und die Tage um die Termine sind Flicken`);
+    }
+  }
+}
+
+{
+  // 7c. Die Kennungen der nächsten Runde = die, die die App beim echten
+  // Rundenwechsel vergibt: Workout 1–80 gemacht, 81 heute fällig. Dann nach
+  // Plan trainiert, die App jeden Tag geöffnet – bis in Runde 2 hinein.
+  const z = kopie();
+  const heute = '2026-10-24';
+  z.customs = [];
+  z.log = {};
+  z.shift = tageZwischen(D.PLAN[80].date, heute);
+  D.PLAN.slice(0, 80).forEach((w) => {
+    const db = {};
+    w.ex.forEach((it) => { db[it.id] = Array.from({ length: it.sets }, () => ({ w: '20', done: true })); });
+    z.log[w.n] = { mode: 'db', db, bw: {}, done: 'db', startedOn: addDays(w.date, z.shift) };
+  });
+  const v = await rechneFern(z, `${heute}T12:00:00+02:00`);
+  const n = nutzlast(v);
+  const geschaetzt = new Map([...n.tage[heute], ...V.fernListe(n, heute)].map((e) => [e[0], e]));
+  check(kurz(ausVorschau(v, heute).filter((t) => t.datum >= heute)) === 'cut-1-81@10-24 cut-1-82@10-26 cut-1-83@10-28 cut-1-84@10-29',
+    'Rundenende in Sicht: die Nähe zeigt Workout 81–84 (und nichts danach – die nächste Runde gibt es dort noch nicht)');
+  const r2fruh = V.fernListe(n, heute).filter((e) => e[0].startsWith('cut-2-') && e[1] <= addDays(heute, 28));
+  check(r2fruh.length >= 10 && r2fruh[0][0] === 'cut-2-1' && r2fruh[0][1] === addDays('2026-10-29', abstand),
+    `… die Ferne füllt die Wochen danach schon mit Runde 2 (ab ${r2fruh[0] && r2fruh[0][1]}, ${r2fruh.length} Einheiten in den vier Wochen) – keine Lücke`);
+  const amTag = (iso, h, m) => { const [y, mo, d] = iso.split('-').map(Number); return new Date(y, mo - 1, d, h, m).getTime(); };
+  mitUhr(amTag(heute, 12, 0), () => store.importJSON(JSON.stringify(z)));
+  const gemacht = [];
+  let tag = heute;
+  for (let i = 0; i < 21; i++) {
+    mitUhr(amTag(tag, 18, 0), () => {
+      tagstart.tagNachziehen({ art: 'start' });
+      const w = D.PLAN.find((x) => !P.completedMode(x.n));
+      if (!w || P.effDate(w) !== tag) return;
+      const mode = store.workoutMode(w.n);
+      store.completeWorkout(w.n, mode, P.workoutByNo(w.n, mode).ex.map((x) => ({ id: x.id, sets: x.sets, nach: x.nach || 0, w: '20' })));
+      store.markDone(w.n, mode);
+      gemacht.push(`${w.n}@${tag.slice(5)}`);
+    });
+    tag = addDays(tag, 1);
+  }
+  const echt = mitUhr(amTag(tag, 12, 0), () => {
+    tagstart.tagNachziehen({ art: 'start' });
+    return kalender.kalenderTermine({ von: heute, bis: addDays(heute, 120) });
+  });
+  const r2 = echt.filter((t) => t.kennung.startsWith('cut-2-'));
+  const passt = r2.filter((t) => {
+    const e = geschaetzt.get(t.kennung);
+    return e && e[1] === t.datum && n.texte[e[3]][0] === t.titel && n.texte[e[3]][1] === t.beschreibung;
+  });
+  zeige(`nach Plan trainiert: ${gemacht.join(' ')}`);
+  check(r2.length > 50 && passt.length === r2.length,
+    `echter Rundenwechsel: alle ${r2.length} Einheiten der Runde 2 in den nächsten vier Monaten mit derselben Kennung, demselben Tag und Text wie geschätzt (${passt.length})`);
+  check(store.getState().rounds.length === 1 && kalender.kalenderRunde().runde === 2,
+    'die App hat die Runde selbst weitergerollt (rundeWeiter()), die Schätzung kam aus naechsteRundeAb() und restartPlan()');
+}
+
+{
+  // 7d. Größe: typisch, mit vielen Terminen, gekürzt – nie gescheitert.
+  const fussball = kopie();
+  fussball.termine = Array.from({ length: 52 }, (_, i) => ({
+    datum: addDays('2026-11-07', i * 7), name: 'Fußball', aktivitaet: 'fussball', minuten: 90,
+  }));
+  const vF = await rechneFern(fussball, '2026-10-08T12:00:00+02:00');
+  const nF = nutzlast(vF);
+  const vAF = vorschau.AF;
+  const nAF = nutzlast(vAF);
+  const b = (n) => V.nutzlastBytes(n);
+  zeige(`Größe: typisch ${(b(nAF) / 1024).toFixed(1)} KiB (gzip ${(gzipSync(JSON.stringify(nAF)).length / 1024).toFixed(1)}), `
+    + `Fußball jede Woche ${(b(nF) / 1024).toFixed(1)} KiB (${vF.ferne.listen.length} Referenzlisten, ${Object.keys(nF.texte).length} Texte), `
+    + `Rechenzeit ${Math.round(vF.ms)} ms (Ferne ${Math.round(vF.fernMs)} ms)`);
+  check(b(nAF) < V.VORSCHAU_MAX_BYTES, `typisch (Tobis Stand) ein Jahr in ${(b(nAF) / 1024).toFixed(1)} KiB – sogar unter 64 KiB`);
+  // Viele verpasste Tage: Die App war lange zu, beim Öffnen ist alles nachgerückt.
+  const verpasst = [];
+  for (const [tage, iso] of [[30, '2026-11-07T12:00:00+01:00'], [100, '2027-01-16T12:00:00+01:00'], [200, '2027-04-26T12:00:00+02:00']]) {
+    const vV = await rechneFern(Z.A, iso);
+    const nV = nutzlast(vV);
+    verpasst.push({ tage, kib: b(nV) / 1024, listen: vV.ferne.listen.length, gekuerzt: vV.gekuerzt, pruef: V.nutzlastPruefen(nV) });
+  }
+  zeige(`Größe nach verpassten Tagen: ${verpasst.map((x) => `${x.tage} Tage ${x.kib.toFixed(1)} KiB (${x.listen} Referenzliste)`).join(', ')}`);
+  check(verpasst.every((x) => x.kib < 64 && x.listen === 1 && !x.gekuerzt && x.pruef === null),
+    'viele verpasste Tage (30, 100, 200): so groß wie an einem gewöhnlichen Tag, eine Referenzliste, unter 64 KiB, nicht gekürzt');
+  check(b(nF) < V.VORSCHAU_MAX_BYTES_2 && !vF.gekuerzt && V.nutzlastPruefen(nF) === null,
+    `52 Termine in der Ferne: ${(b(nF) / 1024).toFixed(1)} KiB, unter 192 KiB, nicht gekürzt`);
+  const eng = await rechneFern(Z.A, '2026-10-08T12:00:00+02:00', { maxBytes: 45 * 1024 });
+  const nE = nutzlast(eng);
+  const fE = V.fernListe(nE, eng.ab);
+  check(eng.gekuerzt && eng.gekuerzt < 365 && eng.ferne.bis === eng.gekuerzt && b(nE) <= 45 * 1024 && V.nutzlastPruefen(nE) === null
+    && fE.length && fE[fE.length - 1][1] <= addDays(eng.ab, eng.gekuerzt),
+  `zu groß für 45 KiB: die Ferne wird kürzer (bis d + ${eng.gekuerzt}, ${(b(nE) / 1024).toFixed(1)} KiB), die Sendung geht – und gekuerzt sagt es`);
+  const winzig = await rechneFern(Z.A, '2026-10-08T12:00:00+02:00', { maxBytes: 10 * 1024 });
+  const nW = nutzlast(winzig);
+  check(winzig.gekuerzt === 28 && winzig.ferne.bis === 28 && !V.fernListe(nW, winzig.ab).length && V.nutzlastPruefen(nW) === null
+    && JSON.stringify(nW.tage) === JSON.stringify(vA.tage),
+  'passt nicht einmal die Nähe in die Grenze: Ferne ganz weg, die Nähe geht trotzdem – nie scheitert das Senden an der Ferne');
+  const n1 = V.nutzlastBauen(vAF, { token: TOKEN, geraet: 'testgeraet01', seq: 41, gesendet: um('2026-10-08T12:00:00+02:00'), app: 'v245', v: 1 });
+  check(JSON.stringify(n1) === JSON.stringify(nutzlast(vA)),
+    'für ein Skript der Fassung 1: dieselbe Vorschau als v 1 – ohne Ferne, nur die Texte der Nähe, Byte für Byte wie ohne Ferne gerechnet');
+  check(V.VORSCHAU_MAX_BYTES_2 * 2 + 20 * 1024 < 500 * 1000,
+    'die Grenze: zwei Sendungen zu 192 KiB nebeneinander (alte und neue Generation beim Speichern) passen mit Luft in 500 KB Skript-Eigenschaften');
+}
+
+{
+  // 7e. Der Vertrag, Fassung 2.
+  const n = nutzlast(vorschau.AF);
+  const kaputt = (aendern) => { const k = JSON.parse(JSON.stringify(n)); aendern(k); return V.nutzlastPruefen(k); };
+  const faelle = [
+    ['ohne ferne', (k) => { delete k.ferne; }],
+    ['bis über 400', (k) => { k.ferne.bis = 401; }],
+    ['bis unter fenster[1]', (k) => { k.ferne.bis = 27; }],
+    ['keine Liste', (k) => { k.ferne.listen = []; }],
+    ['Liste zu lang', (k) => { k.ferne.listen[0] = Array.from({ length: 601 }, () => k.ferne.listen[0][0]); }],
+    ['Eintrag mit Datum statt Zahl', (k) => { k.ferne.listen[0][0][1] = '2026-11-07'; }],
+    ['Eintrag ohne Text', (k) => { k.ferne.listen[0][0][3] = 'constructor'; }],
+    ['Kennung ohne Muster', (k) => { k.ferne.listen[0][0][0] = 'Workout 30'; }],
+    ['Satz auf eine Liste, die es nicht gibt', (k) => { k.ferne.tage[3][0] = 1; }],
+    ['Satz mit Flicken ohne dazu', (k) => { k.ferne.tage[3] = [0, 3, []]; }],
+    ['ein Tag ohne Satz', (k) => { k.ferne.tage.pop(); }],
+  ];
+  const gruende = faelle.map(([name, f]) => [name, kaputt(f)]);
+  check(gruende.every(([, g]) => g === 'ferne'), `kaputte Ferne → „ferne" (${gruende.filter(([, g]) => g !== 'ferne').map(([x, g]) => `${x}: ${g}`).join(', ') || '11 Fälle'})`);
+  const gross = kaputt((k) => { for (let i = 0; i < 40; i++) k.texte[`gross${i}`] = ['x', 'y'.repeat(2000)]; });
+  const zuGross = kaputt((k) => { for (let i = 0; i < 90; i++) k.texte[`gross${i}`] = ['x', 'y'.repeat(2000)]; });
+  check(gross === null && zuGross === 'groesse', 'v 2 darf über 64 KiB (hier rund 140 KiB), aber nicht über 192 KiB');
+  check(V.nutzlastPruefen({ ...nutzlast(vA), texte: { ...nutzlast(vA).texte, ...Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`g${i}`, ['x', 'y'.repeat(2000)]])) } }) === 'groesse',
+    'v 1 bleibt bei 64 KiB – mehr nimmt ein Skript der Fassung 1 nicht');
+}
+
+{
+  // 7e2. Die Probe in ferneBauen(): Geht sie mit Versatz und Flicken nicht
+  // auf, wird der Tag eine eigene Referenz – nie wirft die Ferne das Senden
+  // um. Gebaut aus einer Fernliste, die es in der App nicht gibt (zweimal
+  // dieselbe Kennung an einem Tag): Mit einer Referenz und Flicken käme dort
+  // nur einer der beiden heraus.
+  const e = (k, t, h = 'h1') => [k, t, 60, h, 0];
+  const roh = [
+    { nah: new Set(['cut-1-1']), fern: [e('cut-1-30', 40), e('cut-1-31', 42), e('cut-2-1', 300)] },
+    { nah: new Set(['cut-1-1']), fern: [e('cut-1-30', 41), e('cut-1-30', 45, 'h2'), e('cut-2-1', 301)] },
+    { nah: new Set(['cut-1-2']), fern: [e('cut-1-30', 42), e('cut-1-31', 44), e('cut-2-1', 302)] },
+  ];
+  let f = null;
+  let wurf = '';
+  try { f = V.ferneBauen(roh, 365, 28); } catch (err) { wurf = String(err.message || err).slice(0, 80); }
+  const n = {
+    v: 2, ab: '2026-10-08', fenster: [7, 28], texte: { h1: ['A', 'a'], h2: ['B', 'b'] },
+    tage: { '2026-10-08': [e('cut-1-1', '2026-10-08')], '2026-10-09': [e('cut-1-1', '2026-10-08')], '2026-10-10': [e('cut-1-2', '2026-10-10')] },
+    ferne: f,
+  };
+  const genau = !!f && roh.every(({ fern }, k) => {
+    const tag = addDays('2026-10-08', k);
+    const soll = fern.filter((x) => x[1] > k).map((x) => [x[0], addDays('2026-10-08', x[1]), x[2], x[3], x[4]])
+      .sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
+    return JSON.stringify(V.fernListe(n, tag)) === JSON.stringify(soll);
+  });
+  check(genau && f.listen.length === 2 && JSON.stringify(f.tage[1]) === '[1,0]' && JSON.stringify(f.tage[2]) === '[0,2]',
+    `geht die Probe mit Versatz und Flicken nicht auf (Tag 2), wird der Tag selbst eine Referenz; Tag 3 nimmt wieder die erste – jeder Tag genau (${f ? JSON.stringify(f.tage) : wurf})`);
+  check(!vorschau.AF.fernFehler && vorschau.AF.v === 2, 'an Tobis Stand kein fernFehler – die Ferne geht ganz');
+}
+
+{
+  // 7f. bleibtStehen(), Fassung 2: am Tag des Rundenwechsels bleibt die eben
+  // gemachte letzte Einheit stehen; eine Schätzung, die nicht eintraf, nicht.
+  const liste = [['cut-2-1', '2026-10-31', 60, 'h', 0], ['cut-3-1', '2027-03-27', 60, 'h', 0]];
+  check(V.bleibtStehen({ kennung: 'cut-1-84', datum: '2026-10-29' }, liste, '2026-10-29'),
+    'Workout 84 heute gemacht, die Runde rollt im selben Start weiter: sein Termin bleibt (bis v245 kam er weg, weil er „heute" lag)');
+  check(!V.bleibtStehen({ kennung: 'cut-2-5', datum: '2026-10-28' }, [['cut-1-84', '2026-10-30', 60, 'h', 0]], '2026-10-29'),
+    'eine Schätzung von Runde 2 in der Vergangenheit, die Liste kennt nur Runde 1: kommt weg');
+  check(!V.bleibtStehen({ kennung: 'cut-1-9', datum: '2026-10-29' }, [['cut-1-10', '2026-10-31', 60, 'h', 0]], '2026-10-29')
+    && !V.bleibtStehen({ kennung: 'cut-1-z1', datum: '2026-10-27' }, [['cut-1-5', '2026-10-31', 60, 'h', 0]], '2026-10-29')
+    && V.bleibtStehen({ kennung: 'aufbau-1-3', datum: '2026-10-01' }, liste, '2026-10-29')
+    && !V.bleibtStehen({ kennung: 'cut-1-3', datum: '2026-10-30' }, [], '2026-10-29'),
+  'sonst wie bisher: dieselbe Runde heute und davor weg, ein anderer Fokus bleibt, nach heute weg');
+}
+
+/* ------------------------------------------------------------------ *
  * 2b und 5. Im Browser: die echte App am Tag d, der Worker, das Fenster
  * ------------------------------------------------------------------ */
 
@@ -677,7 +989,7 @@ for (const [name, tag] of imBrowser) {
   // Die Seite trägt C (Workout 9 angefangen), der Worker rechnet A (ohne):
   // Hätte die Vorschau den Zustand der Seite angefasst, wäre Workout 9 weg.
   const anders = { ...Z.A, focus: 'standard' };
-  const r = await page.evaluate(async ({ zustand, jetzt, anders }) => {
+  const r = await page.evaluate(async ({ zustand, jetzt, anders, ferne }) => {
     const store = await import('./js/store.js');
     const w9 = () => !!store.getState().log[9] && !!JSON.parse(localStorage.getItem('workout.state.v1')).log['9'];
     const vorher = w9();
@@ -688,23 +1000,37 @@ for (const [name, tag] of imBrowser) {
     const t1 = performance.now();
     const b = await frage({ id: 2, zustand, jetzt });
     const t2 = performance.now();
+    // Mit Ferne, wie für ein Skript der Fassung 2 – dreimal, für die Messung.
+    const d = await frage({ id: 4, zustand, jetzt, ferne });
+    const t3 = performance.now();
+    const mitFerne = [t3 - t2];
+    for (let i = 0; i < 2; i++) {
+      const s = performance.now();
+      await frage({ id: 5 + i, zustand, jetzt, ferne });
+      mitFerne.push(performance.now() - s);
+    }
     const c = await frage({ id: 3, zustand: anders, jetzt });
     w.terminate();
     const V = await import('./js/kalender-vorschau.js');
     let imFenster = 'gerechnet';
     try { await V.vorschauRechnen(zustand, { jetzt }); } catch (e) { imFenster = e.message; }
     return {
-      a, b, c, erster: t1 - t0, zweiter: t2 - t1, imFenster,
+      a, b, c, d, erster: t1 - t0, zweiter: t2 - t1, mitFerne, imFenster,
       zustandGleich: vorher && w9(),
       uhrEcht: Date.name === 'Date' && Math.abs(Date.now() - performance.timeOrigin - performance.now()) < 5000,
       speicherEcht: Object.prototype.toString.call(localStorage) === '[object Storage]',
     };
-  }, { zustand: Z.A, jetzt: um('2026-10-08T12:00:00+02:00'), anders });
+  }, { zustand: Z.A, jetzt: um('2026-10-08T12:00:00+02:00'), anders, ferne: FERNE });
   zeige(`Worker in Chromium: erster Lauf ${Math.round(r.erster)} ms (mit Laden der Module), zweiter ${Math.round(r.zweiter)} ms`);
-  const ohneMessung = (v) => v && JSON.stringify({ ...v, ms: 0 });
+  zeige(`Worker in Chromium mit Ferne (ein Jahr): ${r.mitFerne.map(Math.round).join(' / ')} ms, davon Ferne ${Math.round(r.d.vorschau.fernMs)} ms – am Handy grob das Drei- bis Vierfache`);
+  const ohneMessung = (v) => v && JSON.stringify({ ...v, ms: 0, fernMs: 0 });
   check(r.a.ok && r.a.id === 1 && ohneMessung(r.a.vorschau) === ohneMessung(vA),
     'Worker: dieselbe Vorschau wie in Node, Tag für Tag und Text für Text');
   check(r.b.ok && ohneMessung(r.b.vorschau) === ohneMessung(vA), 'Worker: ein zweiter Lauf im selben Worker ebenso');
+  check(r.d.ok && ohneMessung(r.d.vorschau) === ohneMessung(vorschau.AF),
+    'Worker mit Ferne: dasselbe Jahr wie in Node – Referenzlisten, Versatz, Texte');
+  check(Math.max(...r.mitFerne.slice(1)) < 2000,
+    `die Ferne kostet im Worker unter 2 s je Vorschau (${r.mitFerne.slice(1).map(Math.round).join(', ')} ms) – entprellt, nie im Fenster`);
   check(!r.c.ok && r.c.code === 'fokus', `Worker: anderer Fokus → „fokus", die Seite legt einen neuen an (${r.c.code})`);
   check(/nur in einem Worker/.test(r.imFenster), `im Fenster der App verweigert (${r.imFenster.slice(0, 60)}…)`);
   check(r.zustandGleich && r.uhrEcht && r.speicherEcht,

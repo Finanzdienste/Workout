@@ -47,9 +47,9 @@ import {
   sicherungTrotzdem, sicherungUebernehmen, sicherungVergessen, sicherungVerstecken,
 } from './sicherung.js';
 import {
-  kalenderCode, kalenderEinrichten, kalenderGeaendert, kalenderJetzt, kalenderKurz, kalenderLage,
-  kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen, kalenderVerbinden, kalenderVergessen,
-  kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
+  KALENDER_JAHR, kalenderCode, kalenderCodeKopiert, kalenderEinrichten, kalenderGeaendert, kalenderJahrGesehen, kalenderJetzt,
+  kalenderKurz, kalenderLage, kalenderNachfragen, kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen,
+  kalenderVerbinden, kalenderVergessen, kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
 } from './kalender-sync.js';
 import {
   initAudio, playSound, scheduleSound, cancelSound, signalStand, probeSpielen, tonStand, onTonStand,
@@ -813,17 +813,94 @@ function kalenderZeile() {
       <button type="button" class="btn" data-act="kalender-ansehen">Ansehen</button></div>`;
 }
 
-/** Was die Karte über den letzten Stand sagt – ein Absatz, ohne Kennwort und Adresse. */
+/**
+ * Einmal, dezent, die Bitte um neuen Code für das Jahr:
+ *
+ *     „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr
+ *      machen"
+ *
+ * Kaputt ist dabei nichts – das Skript der Fassung 1 bekommt, was es
+ * versteht, und verschiebt weiter. Aber das Jahr, um das Tobi gebeten hat,
+ * gibt es erst mit neuem Code, und den kann nur er einfügen. Unter Mehr →
+ * Kalender schaut er von sich aus nicht nach; dort stünde die Bitte, ohne
+ * dass er sie je sieht. Deshalb steht sie einmal hier – ohne Warnfarbe, weil
+ * nichts schiefgeht –, bis er sie angesehen oder den Code kopiert hat. Danach
+ * nur noch auf der Karte, bis die App die neue Fassung sieht.
+ *
+ * Klein gesetzt wie die Zeile zum Ton (.notice.kurz): Als gewöhnliche Zeile
+ * waren es bei 360×740 vier Zeilen, 97 px, und der Fuß lag 26 px unter der
+ * Leiste (Prüfung des Entwurfs). Und sie eilt nicht – steht oben schon etwas
+ * anderes, tritt sie zurück und kommt, wenn das weg ist (renderOverview()).
+ */
+function kalenderJahrZeile() {
+  const l = kalenderLage();
+  if (!l.verbunden || l.handeln || l.zuAlt || !l.neuerCode || l.gesehen) return '';
+  return `<div class="notice zeile kurz" id="kalenderJahrZeile">📅 <span>Google Kalender: Ein Jahr im Voraus geht jetzt –
+      dafür einmal den Code im Skript erneuern.</span>
+      <button type="button" class="btn" data-act="kalender-jahr-ansehen">Ansehen</button></div>`;
+}
+
+/** Der Tag als „27.10.2027". */
+const kalenderDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
+
+/**
+ * Was im Kalender steht – aus der letzten Auskunft des Skripts (Fassung 2,
+ * kalenderLage().stand). Solange es das Jahr noch einträgt, nur, was schon
+ * steht, und dass der Rest folgt: Bis zur Prüfung stand hier gleich nach dem
+ * Code-Update „Termine bis 27.10.2027", als erst die vier Wochen da waren und
+ * 183 Änderungen offen. Gekürzt hat die App nur, wenn die Sendung sonst zu
+ * groß geworden wäre; das steht dann dabei, statt still weniger zu zeigen.
+ *
+ * `morgen`: Google hat das Tageskontingent aufgebraucht, und das Skript sagt
+ * „morgen geht es von selbst weiter" – dann darüber nicht „mit dem nächsten
+ * stündlichen Abgleich" (die nächste Stunde schafft es nicht).
+ */
+function kalenderImKalender(s, wann, morgen = false) {
+  if (!s || !s.bis) return '';
+  const kurz = s.gekuerzt ? ' Diesmal nicht ein ganzes Jahr – die Sendung wäre sonst zu groß geworden (viele verschiedene Termine).' : '';
+  if (s.offen > 0) {
+    const spaet = morgen && !s.folge;
+    const wie = s.folge ? 'in den nächsten Minuten' : spaet ? 'morgen' : 'mit dem nächsten stündlichen Abgleich';
+    const noch = `noch ${s.offen} ${s.offen === 1 ? 'Änderung' : 'Änderungen'}`;
+    const stand = s.probe ? ` (Stand ${wann(s.zeit)})` : '';
+    return (s.stehen
+      ? `Im Kalender: Termine bis ${kalenderDatum(s.stehen)}. Den Rest bis ${kalenderDatum(s.bis)} trägt das Skript ${wie} nach – ${noch}${stand}.`
+      : `Im Kalender: Das Skript trägt die Termine bis ${kalenderDatum(s.bis)} ${spaet ? 'morgen' : 'gerade'} ein – ${noch}${
+        spaet ? '' : `, ${wie}`}${stand}.`) + kurz;
+  }
+  return `Im Kalender: Termine bis ${kalenderDatum(s.bis)}.${kurz}`;
+}
+
+/**
+ * Was die Karte über den letzten Stand sagt – ein Absatz, ohne Kennwort und
+ * Adresse. Die Fassung des Skripts ist die aus seiner letzten lesbaren
+ * Antwort, nicht die der letzten Sendung, die ankam: Zurück aus Apps Script
+ * stand bis zur Prüfung des Entwurfs rund eine halbe Minute lang „(Skript
+ * Fassung 1)" da, während die erste Sendung mit dem Jahr schon beim neuen
+ * Code lag – genau dann, wenn Tobi nachsieht, ob es geklappt hat.
+ */
 function kalenderStandText(l) {
   const wann = (ms) => vorWann(new Date(ms).toISOString());
+  // „vor 6 Min." endet schon mit dem Punkt der Abkürzung.
+  const punkt = (s) => (/[.!?…]$/.test(s) ? s : `${s}.`);
   const teile = [];
-  if (l.angekommen) {
-    teile.push(`✓ Verbunden. Zuletzt angekommen: ${wann(l.angekommen.zeit)}${
-      l.angekommen.version ? ` (Skript Fassung ${l.angekommen.version})` : ''}.`);
+  const fassung = l.fassung ?? (l.angekommen ? l.angekommen.version : null);
+  // Neuer Code erkannt, das Jahr ist unterwegs: Die Antwort mit Fassung 2 kam
+  // nach der letzten Sendung, die ankam, und die war noch keine mit dem Jahr.
+  const unterwegs = !!l.angekommen && fassung >= 2 && l.angekommen.vertrag !== 2
+    && Number.isFinite(l.fassungZeit) && l.fassungZeit > l.angekommen.zeit;
+  if (unterwegs) {
+    teile.push(`✓ Verbunden. Neuer Code erkannt (Skript Fassung ${fassung}) – das ganze Jahr geht jetzt an das Skript. `
+      + `Zuletzt angekommen: ${punkt(wann(l.angekommen.zeit))}`);
+  } else if (l.angekommen) {
+    teile.push(`✓ Verbunden. Zuletzt angekommen: ${fassung ? `${wann(l.angekommen.zeit)} (Skript Fassung ${fassung}).` : punkt(wann(l.angekommen.zeit))}`);
   } else {
     teile.push(l.letzte && !l.letzte.ok ? 'Verbunden, aber beim Skript ist noch nichts angekommen.'
       : 'Verbunden – die erste Vorschau ist unterwegs.');
   }
+  const morgen = !!(l.letzte && l.letzte.ok && /Tageskontingent/.test(l.letzte.hinweis || ''));
+  const im = kalenderImKalender(l.stand, wann, morgen);
+  if (im) teile.push(im);
   if (l.letzte && !l.letzte.ok && !l.zuAlt) {
     const satz = kalenderSatz(l.letzte);
     teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${satz}`);
@@ -835,18 +912,52 @@ function kalenderStandText(l) {
   return teile.join(' ');
 }
 
+/**
+ * Die Bitte um neuen Code für das Jahr (KALENDER_JAHR in js/kalender-sync.js):
+ * kurz, mit den Schritten und „Code kopieren" gleich darunter. Kein
+ * „einrichten" – Kalender und Auslöser bestehen schon. Meldet eine Antwort
+ * ein paar Minuten nach dem Kopieren noch die alte Fassung, steht darüber,
+ * was meist fehlt: „Neue Version" (kalenderLage().fehlt).
+ */
+function kalenderJahrBitte(l) {
+  const j = KALENDER_JAHR;
+  const fehlt = l.fehlt
+    ? `<div class="small" id="kalenderJahrFehlt" style="margin-top:6px;color:var(--accent)">${esc(j.fehlt)}</div>` : '';
+  return `<div class="notice" id="kalenderJahr" style="margin-top:8px">
+      <strong>${esc(j.titel)}</strong>
+      ${fehlt}
+      <div class="small" style="margin-top:4px">${esc(j.satz)}</div>
+      <ol class="small kalender-schritte" id="kalenderJahrSchritte">${j.schritte.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" data-act="kalender-code">Code kopieren</button>
+      </div>
+      <div class="small muted" style="margin-top:6px">${esc(j.danach)}</div>
+    </div>`;
+}
+
 /** Mehr → Kalender: die Karte „Google Kalender automatisch". */
 function kalenderKarte() {
   const l = kalenderLage();
   // Die Vorlage schon jetzt holen: „Code kopieren" soll gleich im Tipp kopieren
-  // können – manche Browser lassen das nur dort zu.
+  // können – manche Browser lassen das nur dort zu. Und nachfragen, wenn es
+  // etwas zu erfahren gibt (neuer Code da? wie weit ist das Jahr?) – höchstens
+  // alle zwei Minuten, die Antwort zeichnet die Karte neu.
   if (l.moeglich) kalenderVorlage().catch(() => {});
+  if (l.verbunden) kalenderNachfragen();
+  // Ein Jahr steht erst mit dem Skript der Fassung 2 im Kalender. Bei Fassung
+  // 1 hieß es hier bis zur Prüfung des Entwurfs trotzdem „ein Jahr im
+  // Voraus" – zwei Absätze über der Bitte „trägt nur die nächsten vier Wochen
+  // ein", und für immer, wenn Tobi den Code nie erneuert.
+  const vierWochen = l.verbunden && l.neuerCode;
+  const wieWeit = vierWochen ? 'vier Wochen im Voraus (ein Jahr mit neuem Code, siehe unten)' : 'ein Jahr im Voraus';
+  const danach = vierWochen ? '' : ' und wie es danach weitergeht,';
   const was = `<div class="lbl">Google Kalender automatisch</div>
       <div class="small muted" id="kalenderWas" style="margin-top:4px">Deine Trainings stehen in einem eigenen
-        Kalender „Workout" in deinem Google-Konto, um ${esc(kalenderUhr(l.minuten))} mit den Übungen. Verpasst du
-        eins, rückt es nach – auch wenn du die App nicht öffnest: Die App schickt einem kleinen Skript in deinem
-        Google-Konto, wie der Plan die nächsten sechs Wochen aussähe, wenn du nicht trainierst, und das Skript
-        gleicht den Kalender jede Stunde danach an. Trainierst du, schickt die App das Neue hinterher.</div>`;
+        Kalender „Workout" in deinem Google-Konto, um ${esc(kalenderUhr(l.minuten))} mit den Übungen, ${wieWeit}.
+        Verpasst du eins, rückt es nach – auch wenn du die App nicht öffnest: Die App schickt einem kleinen Skript
+        in deinem Google-Konto, wie der Plan die nächsten sechs Wochen aussähe, wenn du nicht trainierst,${danach}
+        und das Skript gleicht den Kalender jede Stunde danach an. Trainierst du, schickt die App das Neue
+        hinterher.</div>`;
   if (!l.moeglich) {
     return `<div class="card" id="kalenderAuto">${was}
       <div class="small" style="margin-top:8px">Das geht nur in der App aus dem Netz (am Startbildschirm
@@ -872,13 +983,24 @@ function kalenderKarte() {
         geschlossener App. Öffnest du die App sechs Wochen lang nicht, ist der Plan aufgebraucht: Der Kalender
         schiebt dann nicht mehr und sagt es dir mit einem Termin. Und Kennwort und URL reisen mit Sicherung und
         Exportdatei: Wer die Exportdatei hat, kann damit Termine in „Workout" schreiben, sonst nichts.</div>
+      <div class="small muted" id="kalenderSchaetzung" style="margin-top:6px">Weiter als vier Wochen voraus ist der
+        Kalender eine Schätzung: so, wie es weiterginge, wenn du ab heute nach Plan trainierst – auch über das Ende
+        der Runde hinaus, mit deinen Einstellungen von heute. Steigst du auf oder wechselst den Fokus, sieht es dort
+        anders aus; je näher die Tage rücken, desto genauer wird es.</div>
       </div>`;
   // Die Meldung einer Handlung („Verbinden", „Code kopieren", „Trennen") gilt,
   // bis ein neueres Ergebnis da ist – dann sagt kalenderStandText() den Stand.
   // Vorher stand nach dem Verbinden über „✓ Verbunden. Zuletzt angekommen …"
   // weiter groß „Noch keine Vorschau angekommen", die ganze Sitzung lang.
   const ueberholt = !!(l.letzte && Number.isInteger(l.letzte.nr) && l.letzte.nr > (ui.kalenderMeldungNr || 0));
-  const meldung = ui.kalenderMeldung && !ueberholt ? `<div class="hint" id="kalenderMeldung"
+  // Die Meldung von „Code kopieren" zur Bitte um neuen Code gilt, bis eine
+  // Antwort nach dem Kopieren die Fassung sagt: Ist es die neue, ist die Bitte
+  // weg; ist es die alte, sagt die Karte selbst, was meist fehlt (l.fehlt).
+  // Bis zur Prüfung des Entwurfs stand das grüne „… merkt den neuen Code von
+  // selbst" die ganze Sitzung neben dem orangen „meldet noch Fassung 1".
+  const kopiertAlt = !!ui.kalenderKopiert
+    && (l.fehlt || (l.kopiert !== null && Number.isFinite(l.fassungZeit) && l.fassungZeit > l.kopiert));
+  const meldung = ui.kalenderMeldung && !ueberholt && !kopiertAlt ? `<div class="hint" id="kalenderMeldung"
         style="color:${ui.kalenderGut ? 'var(--ok)' : 'var(--accent)'};margin-top:8px">${esc(ui.kalenderMeldung)}</div>` : '';
   const codeText = ui.kalenderCodeText ? `<textarea class="io" id="kalenderCodeText" readonly
         aria-label="Code für Apps Script">${esc(ui.kalenderCodeText)}</textarea>` : '';
@@ -926,6 +1048,7 @@ function kalenderKarte() {
   return `<div class="card" id="kalenderAuto">${was}
       <div class="small" id="kalenderStand" style="margin-top:8px">${esc(kalenderStandText(l))}</div>
       ${l.zuAlt ? `<div class="notice warn" id="kalenderErneuern" style="margin-top:8px">${esc(kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }))}</div>` : ''}
+      ${l.neuerCode && !l.zuAlt ? kalenderJahrBitte(l) : ''}
       ${meldung}
       <div class="zeit-row">
         <label class="zeit"><span class="lbl">Uhrzeit</span>
@@ -944,12 +1067,12 @@ function kalenderKarte() {
         steht, was. Meist hilft, in Apps Script einmal <i>einrichten</i> auszuführen – sonst dem Assistenten Bescheid
         geben.</div>
       <div class="btn-row">
-        <button type="button" class="btn" data-act="kalender-code">Code kopieren</button>
+        ${l.neuerCode && !l.zuAlt ? '' : '<button type="button" class="btn" data-act="kalender-code">Code kopieren</button>'}
         <button type="button" class="btn btn-ghost" data-act="kalender-trennen"
                 ${ui.kalenderLaeuft ? 'disabled' : ''}>Trennen</button>
       </div>
-      <div class="small muted" style="margin-top:6px">„Code kopieren" brauchst du nur, wenn hier „Kalender-Code
-        erneuern" steht. „Trennen": Die Termine ab heute verschwinden aus „Workout", und das Skript schiebt nichts
+      <div class="small muted" style="margin-top:6px">„Code kopieren" brauchst du nur, wenn die App hier um neuen
+        Code bittet. „Trennen": Die Termine ab heute verschwinden aus „Workout", und das Skript schiebt nichts
         mehr; ganz weg ist es erst, wenn du das Projekt in Apps Script löschst.</div>
       ${codeText}
       ${wer}
@@ -968,10 +1091,12 @@ function kalenderKarte() {
  * Eine Meldung der Karte setzen – mit der Nummer des letzten Versuchs, damit
  * die Karte sie wegnimmt, sobald ein neueres Ergebnis da ist (kalenderKarte()).
  */
-function kalenderMelden(text, gut, nr = null) {
+function kalenderMelden(text, gut, nr = null, kopiert = false) {
   ui.kalenderMeldung = text;
   ui.kalenderGut = !!gut;
   ui.kalenderMeldungNr = Number.isInteger(nr) ? nr : ((kalenderLage().letzte || {}).nr || 0);
+  // Die Meldung von „Code kopieren" zur Bitte um neuen Code (kalenderKarte()).
+  ui.kalenderKopiert = !!kopiert;
 }
 
 /** „Code kopieren": erst das Kennwort fest speichern, dann kopieren – oder zum Abschreiben zeigen. */
@@ -986,14 +1111,29 @@ async function kalenderCodeKopieren() {
     render();
     return;
   }
+  // Wer den Code kopiert, hat die Bitte darum gesehen – sie steht dann nicht
+  // mehr auf dem Dashboard, nur noch auf der Karte. Und wann: Meldet das
+  // Skript Minuten später noch die alte Fassung, sagt die Karte, was meist fehlt.
+  kalenderJahrGesehen();
+  kalenderCodeKopiert();
   const gut = () => {
     ui.kalenderCodeText = '';
-    // Verbunden gibt es die nummerierten Schritte nicht – dort braucht man den
-    // Code zum Erneuern, und ohne „Neue Version" liefe die Web-App mit dem alten.
-    kalenderMelden(kalenderVerbunden()
-      ? 'Code kopiert. In Apps Script den ganzen Code damit ersetzen, speichern, „einrichten" ausführen, dann '
-        + 'Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.'
-      : 'Code kopiert. Jetzt in Apps Script den ganzen Code damit ersetzen (Schritt 2 und 3).', true);
+    // Steht die Bitte um neuen Code auf der Karte, stehen ihre Schritte direkt
+    // darüber – dann genügt der Verweis auf Schritt 2. Bis zur Prüfung des
+    // Entwurfs wiederholte die Meldung darunter die Schritte 3 und 4 in sieben
+    // Zeilen. Verbunden ohne Bitte (das Skript selbst bittet um neuen Code)
+    // gibt es keine nummerierten Schritte: dann die ganze Folge – ohne „Neue
+    // Version" liefe die Web-App mit dem alten Code. Kein „einrichten":
+    // Kalender und Auslöser bestehen schon, und der neue Code braucht keine
+    // neuen Rechte. Fehlt doch etwas, sagt es das Skript selbst.
+    const bitte = kalenderLage().neuerCode;
+    const text = bitte ? 'Code kopiert – mit demselben Kennwort wie bisher. Weiter mit Schritt 2.'
+      : kalenderVerbunden()
+        ? 'Code kopiert – mit demselben Kennwort wie bisher. In Apps Script im selben Projekt den ganzen Code damit '
+          + 'ersetzen, speichern, dann Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue '
+          + 'Version → Bereitstellen. Die App merkt den neuen Code von selbst.'
+        : 'Code kopiert. Jetzt in Apps Script den ganzen Code damit ersetzen (Schritt 2 und 3).';
+    kalenderMelden(text, true, null, bitte);
     notieren('kalender', { was: 'code', ok: true, kopiert: true });
     render();
   };
@@ -1616,6 +1756,7 @@ const ui = {
   kalenderMeldung: '',
   kalenderMeldungNr: 0,
   kalenderGut: false,
+  kalenderKopiert: false,   // die Meldung ist die von „Code kopieren" zur Bitte um neuen Code
   kalenderMehr: false,   // „Was an Google geht · Grenzen" aufgeklappt
   kalenderNeu: false,    // „Neues Skript-Projekt?" aufgeklappt
   kalenderLaeuft: false,
@@ -3209,16 +3350,24 @@ function renderOverview() {
   // passiert ist; wohin der Rest geht, steht auf der Startseite. Der Vorrang
   // vor der Zeile zum Ton bleibt auch dort (`hinweis`): Mit ihr allein schob
   // sich diese Karte bei 360×740 um 8 px.
+  //
+  // Die Bitte um das Jahr im Kalender (kalenderJahrZeile()) eilt am wenigsten:
+  // nur, wenn oben sonst nichts steht – auch nicht die Zeile zum Abschluss
+  // auf der Karte ihrer Einheit (`hinweis`, wie bei der Zeile zum Ton) – und
+  // an der gezeigten Einheit noch nichts abgehakt ist. Mit Fortschritt und
+  // „Training fortsetzen" stand der Fuß mit ihr bei 360×740 13 px unter der
+  // Leiste (gemessen; die Seite stand dort schon ohne sie 12 px über, wie in
+  // v245). Steht nichts mehr da, kommt sie.
   const hinweis = abschlussHinweis();
   const abschluss = abschlussListe().some((e) => e.n === w.n) ? '' : hinweis;
+  const oben = [umzugHinweis(), umbauHinweis(), aufstiegHinweis(), abschluss, speicherWarnung(), hinweis ? '' : tonHinweis(true)];
+  const sicherung = sicherungsZeile(due);
+  const kalender = kalenderZeile();
+  const still = hinweis || ui.standAngebot || prog.done > 0 || [...oben, sicherung, kalender].some((x) => x.trim());
+  const jahr = still ? '' : kalenderJahrZeile();
   view.innerHTML = `
     <section class="ov">
-      ${umzugHinweis()}
-      ${umbauHinweis()}
-      ${aufstiegHinweis()}
-      ${abschluss}
-      ${speicherWarnung()}
-      ${hinweis ? '' : tonHinweis(true)}
+      ${oben.join('\n      ')}
       <!-- Hier stand: "3 Tage verpasst. Der Plan ist nachgerückt …" und die
            Frage, ob eine neue Kalenderdatei erzeugt werden soll. Beides raus,
            auf Zuruf.
@@ -3237,8 +3386,8 @@ function renderOverview() {
           <button type="button" class="btn btn-primary" data-act="accept-stand">Zum Vergleich</button>
           <button type="button" class="btn btn-ghost" data-act="drop-stand">Verwerfen</button>
         </div></div>` : ''}
-      ${sicherungsZeile(due)}
-      ${kalenderZeile()}
+      ${sicherung}
+      ${kalender}${jahr}
 
       <header class="ov-top">
         <!-- Kein „von 84" mehr: „Die app geht ja unendlich." Stimmt – der Plan
@@ -8630,6 +8779,12 @@ view.addEventListener('click', (e) => {
       go('settings');
       { const ziel = document.getElementById('daten'); if (ziel) ziel.scrollIntoView(); }
       break;
+    case 'kalender-jahr-ansehen':
+      // Angesehen: Die Bitte um neuen Code steht danach nur noch auf der Karte.
+      kalenderJahrGesehen();
+      go('settings');
+      { const ziel = document.getElementById('kalenderJahr') || document.getElementById('kalender'); if (ziel) ziel.scrollIntoView(); }
+      break;
     case 'kalender-ansehen':
       go('settings');
       { const ziel = document.getElementById('kalender'); if (ziel) ziel.scrollIntoView(); }
@@ -9756,9 +9911,9 @@ store.subscribe(() => { sicherungGeaendert(); });
  */
 kalenderEinrichten({
   nachher: (() => {
-    let zeile = kalenderZeile();
+    let zeile = kalenderZeile() + kalenderJahrZeile();
     return () => {
-      const neu = kalenderZeile();
+      const neu = kalenderZeile() + kalenderJahrZeile();
       const dash = ui.tab === 'dashboard' && !ui.focus && !ui.listView && neu !== zeile;
       zeile = neu;
       const tippt = !!document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
@@ -9766,7 +9921,8 @@ kalenderEinrichten({
     };
   })(),
 });
-store.subscribe(() => { kalenderGeaendert(); });
+// `was` 'pause': nur die Pause geändert – die rechnet die Vorschau nicht neu.
+store.subscribe((s, was) => { kalenderGeaendert(was); });
 
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist
