@@ -19,7 +19,7 @@
  * daran hängt das Aufräumen alter Zwischenspeicher.
  */
 
-const VERSION = 'v245';
+const VERSION = 'v246';
 const CACHE = `workout-${VERSION}`;
 
 const SHELL = [
@@ -344,6 +344,12 @@ self.addEventListener('message', (event) => {
  * sonst wäre es endlos weitergegangen. Vermerkt wird, dass es hinausging, und
  * – wenn lesbar – was das Skript sagte. Nur an eine Web-App von Google Apps
  * Script – dieselbe Prüfung wie KALENDER_URL in js/store.js.
+ *
+ * Ohne keepalive: Der Service Worker friert nicht ein wie die Seite, er lebt,
+ * solange waitUntil() läuft. Darum geht hier auch eine Sendung über 64 KiB
+ * hinaus – ein Jahr Plan mit vielen Terminen (bis 192 KiB, siehe
+ * js/kalender-vorschau.js). Die Seite legt sie beim Wegschalten deshalb
+ * gleich hierher, statt es mit keepalive zu versuchen.
  * ------------------------------------------------------------------ */
 
 const KALENDER_AUSGANG = 'kalender-ausgang';
@@ -363,6 +369,7 @@ async function kalenderNachsenden() {
     method: 'POST', body: s.text, mode, credentials: 'omit', redirect: 'follow',
   });
   let code = null;
+  let version = null;
   let res = null;
   try {
     res = await anfrage('cors');
@@ -373,6 +380,7 @@ async function kalenderNachsenden() {
     try {
       const j = JSON.parse(await res.text());
       code = j && typeof j.code === 'string' ? j.code.slice(0, 20) : null;
+      version = j && Number.isInteger(j.version) ? j.version : null;
     } catch {
       code = null;
     }
@@ -387,8 +395,13 @@ async function kalenderNachsenden() {
   const jetzt = await c.match(schluessel);
   const noch = jetzt ? await jetzt.json().catch(() => null) : null;
   if (!noch || noch.seq === s.seq) await c.delete(schluessel);
+  // Fingerabdruck und Verbindung reisen zurück: Kam die Sendung an, schickt
+  // die App dieselbe Vorschau nicht noch einmal (kalNachLesen() in
+  // js/kalender-sync.js) – und die Fassung des Skripts erfährt sie auch.
   await c.put(new URL('kalender-ausgang-nach', self.registration.scope).href,
-    new Response(JSON.stringify({ seq: s.seq, zeit: Date.now(), code }), { headers: { 'content-type': 'application/json' } }));
+    new Response(JSON.stringify({
+      seq: s.seq, zeit: Date.now(), code, version, hash: typeof s.hash === 'string' ? s.hash : null, ziel: typeof s.ziel === 'string' ? s.ziel : null,
+    }), { headers: { 'content-type': 'application/json' } }));
 }
 
 self.addEventListener('sync', (event) => {

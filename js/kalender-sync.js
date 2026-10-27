@@ -15,6 +15,24 @@
  * Antwort macht. Ohne Oberfläche – was davon zu sehen ist, steht in js/app.js
  * (kalenderKarte()).
  *
+ * **Welche Fassung des Vertrags.**
+ *
+ *     „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr
+ *      machen"
+ *
+ * Ein Jahr kann erst ein Skript der Fassung 2 (die Ferne, siehe
+ * js/kalender-vorschau.js). Tobis Skript ist Fassung 1, bis er den neuen
+ * Code einfügt – und bis dahin soll es weiterlaufen wie bisher. Darum merkt
+ * sich die App je Verbindung die Fassung aus der letzten lesbaren Antwort
+ * (`fassung`) und schickt v 1 ohne Ferne, solange sie unter 2 liegt oder
+ * unbekannt ist, sonst v 2 mit Ferne. Meldet eine Antwort auf v 1 schon
+ * Fassung 2, geht dieselbe Vorschau gleich noch einmal hinaus, jetzt mit dem
+ * Jahr; weist ein Skript v 2 zurück (älterer Code), noch einmal als v 1.
+ * Solange der neue Code aussteht, fragt die App beim Start und beim
+ * Zurückkommen kurz nach (eine Probe, höchstens einmal je zwei Minuten) –
+ * Tobi kommt aus Apps Script zurück, und die App sieht von selbst, dass es
+ * geklappt hat. Keine Wahl, kein Knopf.
+ *
  * **Wann.** Nur mit Verbindung (state.kalender mit url), und nur, wenn sich die
  * Vorschau seit der zuletzt angekommenen geändert hat. In einem Training ist
  * das dreimal so: beim ersten Haken, beim zweiten (ab zwei Sätzen schließt der
@@ -34,9 +52,10 @@
  *   kein Netz, Skript            dieselbe Vorschau noch einmal: nach 2, 5 und
  *   beschäftigt, keine Antwort   15 Minuten, solange die Seite lebt, dazu bei
  *                                „online" und beim Zurückkommen (KAL_NOCHMAL)
- *   Wegschalten                  nur, was schon fertig gerechnet bereitliegt
- *                                und unter 64 KiB bleibt (keepalive) – danach
- *                                friert die Seite ein
+ *   Wegschalten                  nur, was schon fertig gerechnet bereitliegt:
+ *                                bis 64 KiB mit keepalive, größer (ein Jahr
+ *                                mit vielen Terminen) über den Service Worker
+ *                                – danach friert die Seite ein
  *   App zu                       der Service Worker schickt eine Vorschau, die
  *                                nicht ankam, nach – ohne Netz, sobald wieder
  *                                welches da ist; ist das Skript beschäftigt,
@@ -90,12 +109,19 @@ export const KALENDER_SYNC_TAG = 'kalender';
 export const KALENDER_VORLAGE = './kalender/workout-kalender.gs';
 export const KALENDER_PLATZHALTER = '<<KENNWORT-AUS-DER-APP>>';
 
-// Der Vertrag (js/kalender-vorschau.js): Fassung und Größe. Hier noch einmal,
-// weil dieses Modul jenes nicht laden darf – im Fenster holte es sonst die
-// Rechenmodule an der App vorbei, und im Bündel kollidierten die Namen.
-// tests/test-kalender-sync.mjs vergleicht beide.
-const KAL_VERTRAG = 1;
+// Der Vertrag (js/kalender-vorschau.js): Fassung, Größe, Reichweite. Hier noch
+// einmal, weil dieses Modul jenes nicht laden darf – im Fenster holte es sonst
+// die Rechenmodule an der App vorbei, und im Bündel kollidierten die Namen.
+// tests/test-kalender-sync.mjs vergleicht beide. KAL_VERTRAG ist die neueste
+// Fassung; ein Skript der Fassung 1 bekommt v 1 (kalVertrag()).
+const KAL_VERTRAG = 2;
+// Fassung 1, und die Grenze für keepalive beim Wegschalten.
 const KAL_MAX_BYTES = 64 * 1024;
+// Fassung 2 – größer geht über den Service Worker, nie mit keepalive.
+const KAL_MAX_BYTES_2 = 192 * 1024;
+const KAL_FERNE = 365;
+// So oft fragt die App höchstens nach, ob der neue Code schon da ist.
+const KAL_FASSUNG_FRAGEN = 2 * 60 * 1000;
 
 const KAL_VORBEREITEN = 2000;
 const KAL_ERSTE = 5000;
@@ -152,6 +178,11 @@ const KAL_WIEDER = [2 * 60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
  *               geraet, seq, gesendet }] – bis es ankommt, beim Start und bei
  *               „online" wieder versucht
  *   nach        was der Service Worker im Hintergrund nachgeschickt hat
+ *   fassung     die Fassung des Skripts aus seiner letzten lesbaren Antwort:
+ *               { ziel, version } – daran hängt, ob v 1 oder v 2 hinausgeht
+ *   gesehen     die Fassung der Vorlage, zu der Tobi die Bitte um neuen Code
+ *               schon gesehen hat (Ansehen, Code kopieren) – dann steht sie
+ *               nicht mehr auf dem Dashboard, nur noch auf der Karte
  * ------------------------------------------------------------------ */
 
 function kalMeta() {
@@ -208,6 +239,18 @@ function kalHash(s) {
 
 /** Welche Verbindung – damit ein Stand von früher nicht für eine neue spricht. */
 const kalZiel = (k) => (k && k.url && k.token ? kalHash(`${k.url}\u0000${k.token}`) : null);
+
+/** Die Fassung des Skripts dieser Verbindung, soweit bekannt – sonst null. */
+function kalFassung(ziel = kalZiel(store.kalender())) {
+  const f = kalMeta().fassung;
+  return f && ziel && f.ziel === ziel && Number.isInteger(f.version) ? f.version : null;
+}
+
+/** Welche Fassung des Vertrags hinausgeht: die neueste, sobald das Skript sie kennt, sonst 1. */
+function kalVertrag(ziel = kalZiel(store.kalender())) {
+  const f = kalFassung(ziel);
+  return f !== null && f >= KAL_VERTRAG ? KAL_VERTRAG : 1;
+}
 
 const kalBytes = (text) => new TextEncoder().encode(text).length;
 
@@ -329,7 +372,7 @@ function kalWorkerNeu() {
   return w;
 }
 
-function kalRechnenLassen() {
+function kalRechnenLassen(ferne) {
   return new Promise((fertig, fehler) => {
     if (!kalWorker) kalWorker = kalWorkerNeu();
     kalNr += 1;
@@ -340,20 +383,24 @@ function kalRechnenLassen() {
     // Verbindung: Die Vorschau braucht sie nicht, und so kann auch keine
     // Fehlermeldung aus dem Worker Kennwort oder Adresse enthalten.
     kalWorker.postMessage({
-      id: kalNr, zustand: { ...store.getState(), kalender: null }, jetzt: Date.now(), wartet: abschlussWartetAm(),
+      id: kalNr, zustand: { ...store.getState(), kalender: null }, jetzt: Date.now(), wartet: abschlussWartetAm(), ferne,
     });
     kalHauptMs += performance.now() - t0;
   });
 }
 
-/** Rechnen – mit einem frischen Worker, wenn der alte einen anderen Fokus geladen hat. */
-async function kalRechnen() {
+/**
+ * Rechnen – mit einem frischen Worker, wenn der alte einen anderen Fokus
+ * geladen hat. `ferne`: so viele Tage reicht die Ferne, 0 für ein Skript der
+ * Fassung 1 (dann rechnet der Worker sie gar nicht erst).
+ */
+async function kalRechnen(ferne = 0) {
   try {
-    return await kalRechnenLassen();
+    return await kalRechnenLassen(ferne);
   } catch (e) {
     if (e.code !== 'fokus') throw e;
     kalWorkerWeg();
-    return kalRechnenLassen();
+    return kalRechnenLassen(ferne);
   }
 }
 
@@ -405,20 +452,51 @@ async function kalLesen(erg) {
   if (!roh || typeof roh !== 'object' || typeof roh.ok !== 'boolean' || typeof roh.code !== 'string') {
     return { ergebnis: 'http', ok: false, status: res.status };
   }
+  const tag = (x) => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : null);
   return {
     ergebnis: KAL_CODES.has(roh.code) ? roh.code : 'fehler',
     ok: roh.ok === true,
     version: Number.isInteger(roh.version) ? roh.version : null,
     hinweis: typeof roh.hinweis === 'string' ? roh.hinweis.slice(0, 300) : '',
-    tag: typeof roh.tag === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(roh.tag) ? roh.tag : null,
+    tag: tag(roh.tag),
     geaendert: Number.isInteger(roh.geaendert) ? roh.geaendert : null,
+    // Fassung 2: noch offene Änderungen und bis wann die Liste reicht.
+    offen: Number.isInteger(roh.offen) ? roh.offen : null,
+    bis: tag(roh.bis),
     status: res.status,
   };
 }
 
-/** Bittet das Skript, sich zu erneuern? Ältere Fassung als die Vorlage, oder es kennt den Vertrag nicht. */
-const kalZuAlt = (a) => !!a && ((a.ergebnis === 'format' && /erneuern/i.test(a.hinweis || ''))
-  || (Number.isInteger(a.version) && kalVorlage && a.version < kalVorlage.fassung));
+/**
+ * Kann das Skript nicht annehmen, was die App schickt? Dann muss neuer Code
+ * her, sonst geht gar nichts. Ein Skript der Fassung 1 gehört nicht dazu: Es
+ * bekommt v 1 und läuft weiter (kalNeuerCode() bittet dann freundlich um das
+ * Jahr). Übrig bleibt, dass das Skript selbst „erneuern" sagt.
+ */
+const kalZuAlt = (a) => !!a && a.ergebnis === 'format' && /erneuern/i.test(a.hinweis || '');
+
+/** Gibt es neueren Code als den im Skript? Fassung bekannt und älter als die Vorlage. */
+const kalNeuerCode = (fassung) => Number.isInteger(fassung) && !!kalVorlage && fassung < kalVorlage.fassung;
+
+/**
+ * Die Bitte um neuen Code – für die Karte unter Mehr → Kalender, wörtlich so
+ * auch im README. „einrichten" gehört nicht hinein: Kalender und stündlicher
+ * Auslöser bestehen schon, der Auslöser ruft „stuendlich" beim Namen, und
+ * Fassung 2 braucht keine neuen Rechte. Fehlt doch etwas, sagt es das Skript
+ * selbst (kalenderHandeln()).
+ */
+export const KALENDER_JAHR = {
+  titel: 'Ein Jahr im Voraus',
+  satz: 'Dein Skript bei Google ist noch Fassung 1 und trägt nur die nächsten vier Wochen ein. Für ein ganzes Jahr '
+    + 'braucht es einmal den neuen Code – das Kennwort bleibt dasselbe:',
+  schritte: [
+    '„Code kopieren" tippen (gleich hier unten).',
+    'In Chrome script.google.com öffnen, im Drei-Punkte-Menü Desktopwebsite anhaken und dein Projekt öffnen – dasselbe wie beim Einrichten.',
+    'Den ganzen Code dort durch den kopierten ersetzen und speichern.',
+    'Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.',
+  ],
+  danach: 'Fertig. Die App merkt den neuen Code von selbst und schickt dann das ganze Jahr. Bis dahin läuft alles weiter wie bisher.',
+};
 
 /** Ein Satz mit Punkt am Ende – ein Hinweis des Skripts kann ohne kommen. */
 const kalSatzEnde = (s) => (/[.!?…]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
@@ -431,8 +509,8 @@ export function kalenderSatz(a) {
   if (!a) return '';
   if (kalZuAlt(a)) {
     return 'Kalender-Code erneuern: Der Code in Apps Script ist älter als die App. „Code kopieren", in Apps Script den '
-      + 'ganzen Code ersetzen, speichern, „einrichten" ausführen, dann Bereitstellen → Bereitstellungen verwalten → '
-      + 'Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.';
+      + 'ganzen Code ersetzen, speichern, dann Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → '
+      + 'Version: Neue Version → Bereitstellen.';
   }
   switch (a.ergebnis) {
     case 'angekommen':
@@ -462,7 +540,8 @@ export function kalenderSatz(a) {
     case 'http':
       return `Unerwartete Antwort von Google${a.status ? ` (HTTP ${a.status})` : ''} – stimmt die URL?`;
     case 'groesse':
-      return 'Die Vorschau ist größer als die 64 KiB, die das Skript annimmt – sie geht nicht hinaus.';
+      return 'Die Vorschau ist größer, als das Skript annimmt – sie geht nicht hinaus. Bitte dem Assistenten das '
+        + 'Diagnoseprotokoll schicken (Mehr → Daten).';
     case 'worker':
       return 'Die Vorschau lässt sich in diesem Browser nicht rechnen (kein Modul-Worker).';
     case 'rechnen':
@@ -523,14 +602,20 @@ export function kalenderHandeln(a) {
 const kalAusgangSchluessel = () => new URL('kalender-ausgang', location.href).href;
 const kalNachSchluessel = () => new URL('kalender-ausgang-nach', location.href).href;
 
-async function kalAusgangLegen(url, text, seq) {
+/**
+ * Eine Sendung in den Ausgang. `hash` und `ziel` reisen mit und kommen im
+ * Vermerk des Service Workers zurück (kalNachLesen()) – kam sie dort an, geht
+ * dieselbe Vorschau nicht noch einmal hinaus.
+ */
+async function kalAusgangLegen(v) {
   try {
     if (!window.caches || !navigator.serviceWorker) return false;
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg || !reg.sync) return false;
     const c = await caches.open(KALENDER_AUSGANG);
-    await c.put(kalAusgangSchluessel(), new Response(JSON.stringify({ url, text, seq, gelegt: Date.now() }),
-      { headers: { 'content-type': 'application/json' } }));
+    await c.put(kalAusgangSchluessel(), new Response(JSON.stringify({
+      url: v.url, text: v.text, seq: v.seq, hash: v.hash, ziel: v.ziel, gelegt: Date.now(),
+    }), { headers: { 'content-type': 'application/json' } }));
     await reg.sync.register(KALENDER_SYNC_TAG);
     return true;
   } catch {
@@ -559,7 +644,13 @@ async function kalNachLesen() {
     await c.delete(kalNachSchluessel());
     if (!n || !Number.isFinite(n.zeit)) return;
     const code = typeof n.code === 'string' && KAL_CODES.has(n.code) ? n.code : null;
-    kalMetaSchreiben({ nach: { zeit: n.zeit, seq: Number.isInteger(n.seq) ? n.seq : null, code } });
+    const teil = { nach: { zeit: n.zeit, seq: Number.isInteger(n.seq) ? n.seq : null, code } };
+    // Angekommen: Diese Vorschau ist beim Skript – sie geht nicht noch einmal.
+    if ((code === 'angekommen' || code === 'gleich') && typeof n.hash === 'string' && n.ziel === kalZiel(store.kalender())) {
+      Object.assign(teil, { hash: n.hash, ziel: n.ziel, offen: false });
+      if (Number.isInteger(n.version)) teil.fassung = { ziel: n.ziel, version: n.version };
+    }
+    kalMetaSchreiben(teil);
     notieren('kalender', { was: 'nachgesendet', seq: n.seq, lesbar: !!code, ergebnis: code || undefined });
   } catch { /* nur eine Auskunft */ }
 }
@@ -644,17 +735,28 @@ function kalVermerken(art, a, mehr = {}) {
     nr: (vorher && Number.isInteger(vorher.nr) ? vorher.nr : 0) + 1,
     art, zeit: Date.now(), ergebnis: a.ergebnis, ok: !!a.ok, version: a.version ?? null,
     hinweis: a.hinweis || '', tag: a.tag || null, geaendert: a.geaendert ?? null, status: a.status ?? null,
+    offen: a.offen ?? null, bis: a.bis || null,
     bytes: mehr.bytes ?? null, ziel, wieder: !!mehr.wieder, erschoepft: !!mehr.erschoepft,
+    vertrag: mehr.vertrag ?? null, fern: mehr.fern ?? null, gekuerzt: mehr.gekuerzt ?? null,
   };
   const teil = { letzte };
-  if (a.ok && ziel) teil.angekommen = { zeit: letzte.zeit, version: letzte.version, tag: letzte.tag, ziel };
+  if (a.ok && ziel) {
+    teil.angekommen = {
+      zeit: letzte.zeit, version: letzte.version, tag: letzte.tag, ziel, bis: letzte.bis, offen: letzte.offen,
+      vertrag: letzte.vertrag, gekuerzt: letzte.gekuerzt,
+    };
+  }
+  // Jede lesbare Antwort sagt, welche Fassung das Skript hat – daran hängt,
+  // was als Nächstes hinausgeht (kalVertrag()).
+  if (ziel && Number.isInteger(a.version)) teil.fassung = { ziel, version: a.version };
   kalMetaSchreiben(teil);
   // Nur, was die Sendung ergab – nie Kennwort, Adresse oder Hinweistext.
   notieren('kalender', {
     was: art, ergebnis: a.ergebnis, version: a.version ?? undefined, status: a.ergebnis === 'http' ? a.status : undefined,
-    geaendert: a.geaendert ?? undefined, bytes: mehr.bytes ?? undefined, rechnen: mehr.rechnen ?? undefined,
+    geaendert: a.geaendert ?? undefined, offen: a.offen || undefined, bytes: mehr.bytes ?? undefined, rechnen: mehr.rechnen ?? undefined,
     haupt: mehr.haupt ?? undefined, seq: mehr.seq ?? undefined, keepalive: mehr.keepalive || undefined,
     ausgang: mehr.ausgang ?? undefined, wieder: mehr.wieder || undefined, erschoepft: mehr.erschoepft || undefined,
+    vertrag: mehr.vertrag ?? undefined, fern: mehr.fern ?? undefined, gekuerzt: mehr.gekuerzt ?? undefined,
   }, art !== 'vorschau' || !a.ok);
 }
 
@@ -666,11 +768,14 @@ function kalVermerken(art, a, mehr = {}) {
 async function kalVorbereiten({ zwingen = false } = {}) {
   if (!kalenderVerbunden()) { kalVorbereitet = null; return null; }
   const nr = kalStandNr;
+  // Welche Fassung hinausgeht, steht vor dem Rechnen fest: Für ein Skript der
+  // Fassung 1 wird die Ferne gar nicht erst gerechnet.
+  const vertrag = kalVertrag();
   kalHauptMs = 0;
   const t0 = performance.now();
   let vorschau;
   try {
-    vorschau = await kalRechnen();
+    vorschau = await kalRechnen(vertrag >= 2 ? KAL_FERNE : 0);
   } catch (e) {
     kalVorbereitet = null;
     const art = e.code === 'worker' ? 'worker' : 'rechnen';
@@ -690,10 +795,14 @@ async function kalVorbereiten({ zwingen = false } = {}) {
   if (!kalenderVerbunden()) { kalVorbereitet = null; return null; }
   const t1 = performance.now();
   const ziel = kalZiel(k);
+  // Hat sich die Fassung während des Rechnens geklärt (eine Antwort kam
+  // dazwischen), rechnet die nächste Sendung passend – diese geht, wie sie ist.
+  const ferne = vertrag >= 2 && vorschau.ferne ? vorschau.ferne : null;
   const kern = {
     minuten: k.minuten, erinnerung: k.erinnerung, ab: vorschau.ab, fenster: vorschau.fenster,
   };
-  const hash = kalHash(`${ziel}|${KAL_VERTRAG}|${JSON.stringify(kern)}|${JSON.stringify(vorschau.texte)}|${JSON.stringify(vorschau.tage)}`);
+  const hash = kalHash(`${ziel}|${ferne ? 2 : 1}|${JSON.stringify(kern)}|${JSON.stringify(vorschau.texte)}|${JSON.stringify(vorschau.tage)}`
+    + `|${ferne ? JSON.stringify(ferne) : ''}`);
   const m = kalMeta();
   const schonDa = m.hash === hash && m.ziel === ziel;
   if (!zwingen && (schonDa || kalVersucht.has(hash))) {
@@ -703,15 +812,17 @@ async function kalVorbereiten({ zwingen = false } = {}) {
   }
   const app = kalApp();
   const nutzlast = {
-    v: KAL_VERTRAG, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now(), ...(app ? { app } : {}),
+    v: ferne ? 2 : 1, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now(), ...(app ? { app } : {}),
     minuten: kern.minuten, erinnerung: kern.erinnerung, ab: kern.ab, fenster: kern.fenster,
-    stand: vorschau.stand, texte: vorschau.texte, tage: vorschau.tage,
+    stand: vorschau.stand, texte: vorschau.texte, tage: vorschau.tage, ...(ferne ? { ferne } : {}),
   };
   const text = JSON.stringify(nutzlast);
   const bytes = kalBytes(text);
   kalHauptMs += performance.now() - t1;
   kalVorbereitet = {
     text, hash, bytes, seq: nutzlast.seq, url: k.url, ziel, rechnen, haupt: Math.round(kalHauptMs * 10) / 10, nr, zwingen,
+    vertrag: nutzlast.v, fern: ferne ? ferne.bis : null, gekuerzt: ferne ? vorschau.gekuerzt ?? null : null,
+    fernMs: Number.isFinite(vorschau.fernMs) ? Math.round(vorschau.fernMs) : null,
   };
   return kalVorbereitet;
 }
@@ -724,13 +835,18 @@ export function kalenderAppFassung(namen) {
   if (f) kalAppFassung = f[1];
 }
 
-/** Eine vorbereitete Sendung hinaus – und vermerken, was dabei herauskam. */
+/**
+ * Eine vorbereitete Sendung hinaus – und vermerken, was dabei herauskam.
+ * Sagt die Antwort, dass das Skript eine andere Fassung des Vertrags kann als
+ * die eben geschickte (der neue Code ist da, oder ein älterer weist v 2
+ * zurück), geht dieselbe Vorschau gleich noch einmal hinaus, passend.
+ */
 async function kalSenden(v, { keepalive = false } = {}) {
   if (!v || !kalenderVerbunden() || kalZiel(store.kalender()) !== v.ziel) return null;
-  if (v.bytes > KAL_MAX_BYTES) {
+  if (v.bytes > (v.vertrag >= 2 ? KAL_MAX_BYTES_2 : KAL_MAX_BYTES)) {
     const a = { ergebnis: 'groesse', ok: false };
     kalVersucht.set(v.hash, 'groesse');
-    kalVermerken('vorschau', a, { ziel: v.ziel, bytes: v.bytes, seq: v.seq });
+    kalVermerken('vorschau', a, { ziel: v.ziel, bytes: v.bytes, seq: v.seq, vertrag: v.vertrag, fern: v.fern });
     return a;
   }
   kalLetzterVersuch = Date.now();
@@ -753,7 +869,7 @@ async function kalSenden(v, { keepalive = false } = {}) {
     // Auch in den Ausgang: Schließt Tobi die App gleich nach dem Training,
     // schickt der Service Worker sie nach (sw.js) – bei bestehendem Netz
     // sofort, und ist das Skript noch beschäftigt, einige Minuten später.
-    ausgang = await kalAusgangLegen(v.url, v.text, v.seq);
+    ausgang = await kalAusgangLegen(v);
     wieder = kalWiederPlanen(v);
     erschoepft = !wieder;
   } else if ((a.ergebnis === 'undurchsichtig' || a.ergebnis === 'http') && bewaehrt && !keepalive && kalWiederPlanen(v)) {
@@ -765,7 +881,43 @@ async function kalSenden(v, { keepalive = false } = {}) {
   }
   kalVermerken('vorschau', a, {
     ziel: v.ziel, bytes: v.bytes, rechnen: v.rechnen, haupt: v.haupt, seq: v.seq, keepalive, ausgang, wieder, erschoepft,
+    vertrag: v.vertrag, fern: v.fern, gekuerzt: v.gekuerzt,
   });
+  // Die Fassung hat sich geklärt: dieselbe Vorschau gleich noch einmal, passend.
+  // Nicht beim Wegschalten – die Seite friert gleich ein; dann der nächste Anlass.
+  if (!keepalive && Number.isInteger(a.version) && kalVertrag(v.ziel) !== v.vertrag) {
+    notieren('kalender', { was: 'fassung', von: v.vertrag, nach: kalVertrag(v.ziel), version: a.version });
+    kalenderJetzt('fassung', { zwingen: true });
+  }
+  kalRuf.nachher();
+  return a;
+}
+
+/**
+ * Ist der neue Code schon da? Nur, solange er aussteht (die Fassung des
+ * Skripts ist bekannt und älter als die Vorlage), und höchstens einmal je
+ * zwei Minuten: eine Probe, die beim Skript nichts speichert. Meldet sie die
+ * neue Fassung, geht die Vorschau gleich mit dem Jahr hinaus (kalSenden()
+ * über kalVermerken()). Tobi kommt aus Apps Script zurück in die App – und
+ * sie merkt es von selbst.
+ */
+let kalFassungGefragt = 0;
+async function kalFassungFragen() {
+  const k = store.kalender();
+  const ziel = kalZiel(k);
+  if (!ziel || !kalNeuerCode(kalFassung(ziel)) || Date.now() - kalFassungGefragt < KAL_FASSUNG_FRAGEN) return null;
+  kalFassungGefragt = Date.now();
+  const probe = JSON.stringify({ v: 1, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now(), probe: true });
+  const a = await kalLesen(await kalSchicken(k.url, probe, { abbruch: KAL_PROBE_ABBRUCH }));
+  // Nur eine lesbare Antwort zählt; ein Netzfehler ist kein Befund.
+  if (!Number.isInteger(a.version)) return a;
+  const vorher = kalVertrag(ziel);
+  kalMetaSchreiben({ fassung: { ziel, version: a.version } });
+  notieren('kalender', { was: 'fassung-frage', version: a.version });
+  if (kalVertrag(ziel) !== vorher) {
+    kalVorbereitet = null;
+    kalenderJetzt('fassung', { zwingen: true });
+  }
   kalRuf.nachher();
   return a;
 }
@@ -870,7 +1022,10 @@ export function kalenderStart() {
     kalEinreihen(async () => {
       await kalenderVorlage().catch(() => null);
       const v = await kalVorbereiten();
+      // Ging nichts hinaus (dieselbe Vorschau ist schon da), fragt die App,
+      // ob der neue Code inzwischen im Skript steht – nur, solange er aussteht.
       if (v) await kalSenden(v);
+      else await kalFassungFragen();
     });
   }, KAL_START);
 }
@@ -878,15 +1033,25 @@ export function kalenderStart() {
 /**
  * Beim Wegschalten: was fertig gerechnet bereitliegt, mit keepalive hinterher
  * – im selben Takt, ohne await davor. Nicht, solange in der Warteschlange
- * etwas läuft (das ist dann der neueste Stand), und nicht über 64 KiB. Geht
- * es nicht (keepalive teilt sich die 64 KiB mit der Sicherung, die eben
- * hinausging), legt kalSenden() es in den Ausgang.
+ * etwas läuft (das ist dann der neueste Stand). Geht es nicht (keepalive
+ * teilt sich die 64 KiB mit der Sicherung, die eben hinausging), legt
+ * kalSenden() es in den Ausgang. Über 64 KiB – ein Jahr mit vielen Terminen –
+ * trägt keepalive gar nicht: Dann gleich in den Ausgang, und der Service
+ * Worker schickt es, ohne Grenze und auch bei geschlossener App.
  */
 export function kalenderVerstecken() {
   if (!kalenderVerbunden() || kalBelegt > 0) return;
   const v = kalVorbereitet;
-  if (!v || v.bytes > KAL_MAX_BYTES) return;
+  if (!v) return;
   kalAnhalten();
+  if (v.bytes > KAL_MAX_BYTES) {
+    kalEinreihen(async () => {
+      const ausgang = await kalAusgangLegen(v);
+      if (ausgang) kalMetaSchreiben({ offen: true });
+      notieren('kalender', { was: 'ausgang', grund: 'gross', bytes: v.bytes, ausgang }, true);
+    });
+    return;
+  }
   kalEinreihen(() => kalSenden(v, { keepalive: true }));
 }
 
@@ -901,6 +1066,8 @@ export function kalenderSichtbar() {
   if (!kalenderVerbunden()) return;
   kalNachLesen().then(() => kalRuf.nachher());
   if (kalMeta().offen && Date.now() - kalLetzterVersuch > 60 * 1000) kalenderJetzt('sichtbar');
+  // Steht neuer Code aus, kommt Tobi vielleicht gerade aus Apps Script zurück.
+  else if (kalNeuerCode(kalFassung())) kalEinreihen(kalFassungFragen);
 }
 
 /**
@@ -923,7 +1090,8 @@ export async function kalenderVerbinden(eingabe) {
   return kalEinreihen(async () => {
     // Die Fassung der Vorlage, damit die Antwort sagen kann, ob der Code alt ist.
     await kalenderVorlage().catch(() => null);
-    const probe = JSON.stringify({ v: KAL_VERTRAG, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now(), probe: true });
+    // v 1: Probe und „aus" versteht jede Fassung des Skripts gleich.
+    const probe = JSON.stringify({ v: 1, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now(), probe: true });
     const a = await kalLesen(await kalSchicken(u.url, probe, { abbruch: KAL_PROBE_ABBRUCH }));
     const neu = { url: u.url, token: k.token };
     kalVermerken('probe', a, { ziel: kalZiel(neu) });
@@ -958,6 +1126,7 @@ export async function kalenderVerbinden(eingabe) {
     });
     return {
       ok: true, satz: a.hinweis || 'Verbunden.', hinweis: a.hinweis || '', zuAlt: kalZuAlt(a), handeln: kalenderHandeln(a), nr,
+      neuerCode: kalNeuerCode(a.version),
     };
   }).then((r) => r || { ok: false, satz: 'Das ging gerade nicht – noch einmal versuchen.' });
 }
@@ -1039,7 +1208,7 @@ async function kalAusErledigen() {
   let letztes = null;
   for (const job of kalMeta().aus || []) {
     if (!job || !store.KALENDER_URL.test(job.url || '')) continue;
-    const text = JSON.stringify({ v: KAL_VERTRAG, token: job.token, geraet: job.geraet, seq: job.seq, gesendet: job.gesendet, aus: true });
+    const text = JSON.stringify({ v: 1, token: job.token, geraet: job.geraet, seq: job.seq, gesendet: job.gesendet, aus: true });
     const a = await kalLesen(await kalSchicken(job.url, text, { abbruch: KAL_ABBRUCH }));
     letztes = a;
     notieren('kalender', { was: 'aus', ergebnis: a.ergebnis, version: a.version ?? undefined, geaendert: a.geaendert ?? undefined }, true);
@@ -1099,6 +1268,13 @@ export function kalenderVergessen() {
 /**
  * Die Lage für die Karte unter Mehr und das Dashboard – synchron, ohne Netz.
  * `letzte` und `angekommen` nur, wenn sie zur jetzigen Verbindung gehören.
+ *
+ *   fassung    die Fassung des Skripts dieser Verbindung, soweit bekannt
+ *   vertrag    was als Nächstes hinausgeht: 1 oder 2
+ *   neuerCode  im Skript steht ältere Fassung als in der Vorlage – die Karte
+ *              bittet um den neuen Code (KALENDER_JAHR)
+ *   gesehen    Tobi hat die Bitte schon gesehen (Ansehen, Code kopieren) –
+ *              dann nicht mehr auf dem Dashboard
  */
 export function kalenderLage() {
   const k = store.kalender();
@@ -1106,6 +1282,8 @@ export function kalenderLage() {
   const ziel = kalZiel(k);
   const letzte = m.letzte && ziel && m.letzte.ziel === ziel ? m.letzte : null;
   const angekommen = m.angekommen && ziel && m.angekommen.ziel === ziel ? m.angekommen : null;
+  const fassung = kalFassung(ziel);
+  const vorlage = kalenderVorlageFassung();
   return {
     moeglich: kalenderMoeglich(),
     token: !!(k && k.token),
@@ -1116,10 +1294,20 @@ export function kalenderLage() {
     angekommen,
     nach: m.nach || null,
     ausstehend: (m.aus || []).length,
-    zuAlt: kalZuAlt(letzte) || kalZuAlt(angekommen ? { version: angekommen.version } : null),
+    zuAlt: kalZuAlt(letzte),
     handeln: !!ziel && kalenderHandeln(letzte),
-    vorlage: kalenderVorlageFassung(),
+    vorlage,
+    fassung,
+    vertrag: kalVertrag(ziel),
+    neuerCode: !!ziel && kalNeuerCode(fassung),
+    gesehen: !!vorlage && m.gesehen === vorlage,
   };
+}
+
+/** Tobi hat die Bitte um neuen Code gesehen (Ansehen, Code kopieren) – nicht mehr auf dem Dashboard. */
+export function kalenderJahrGesehen() {
+  const v = kalenderVorlageFassung();
+  if (v && kalMeta().gesehen !== v) kalMetaSchreiben({ gesehen: v });
 }
 
 /** Für den Kopf des Diagnoseprotokolls – ohne Kennwort, ohne Adresse. */
@@ -1132,5 +1320,6 @@ export function kalenderKurz() {
     return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}. ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
   return `Kalender verbunden${l.angekommen ? `, zuletzt angekommen ${z(l.angekommen.zeit)}${l.angekommen.version ? ` (Skript ${l.angekommen.version})` : ''}` : ', noch nichts angekommen'}`
+    + ` · Vertrag ${l.vertrag}${l.neuerCode ? ' · neuer Code steht aus' : ''}`
     + `${l.letzte && !l.letzte.ok ? ` · zuletzt ${l.letzte.ergebnis}` : ''}${l.ausstehend ? ` · ${l.ausstehend} Abschalten offen` : ''}`;
 }
