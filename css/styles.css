@@ -69,6 +69,13 @@ button { font: inherit; color: inherit; }
   gap: 12px;
   flex-wrap: wrap;
 }
+/* Ein Sprung auf einen Abschnitt („Ansehen" auf der Startseite: #kalenderJahr,
+   #kalender, #daten; „Anderen Plan wählen": #fokus-wahl) endet unter der
+   Kopfleiste, nicht dahinter – sie klebt oben und ist rund 47 px hoch. Bis
+   zur Prüfung des Entwurfs lagen nach „Ansehen" Überschrift und erster Satz
+   der Bitte um neuen Code für den Kalender darunter, und beim Kalender und
+   bei den Daten die Überschrift des Abschnitts. */
+html { scroll-padding-top: calc(56px + env(safe-area-inset-top, 0px)); }
 .brand {
   margin: 0;
   font-size: 18px;

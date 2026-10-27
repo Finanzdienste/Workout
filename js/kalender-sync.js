@@ -29,9 +29,10 @@
  * Fassung 2, geht dieselbe Vorschau gleich noch einmal hinaus, jetzt mit dem
  * Jahr; weist ein Skript v 2 zurück (älterer Code), noch einmal als v 1.
  * Solange der neue Code aussteht, fragt die App beim Start und beim
- * Zurückkommen kurz nach (eine Probe, höchstens einmal je zwei Minuten) –
- * Tobi kommt aus Apps Script zurück, und die App sieht von selbst, dass es
- * geklappt hat. Keine Wahl, kein Knopf.
+ * Zurückkommen kurz nach (eine Probe, höchstens einmal je zwei Minuten; hat
+ * Tobi den Code eben kopiert, gleich beim Zurückkommen und, solange die App zu
+ * sehen ist, alle zwei Minuten) – Tobi kommt aus Apps Script zurück, und die
+ * App sieht von selbst, dass es geklappt hat. Keine Wahl, kein Knopf.
  *
  * **Wann.** Nur mit Verbindung (state.kalender mit url), und nur, wenn sich die
  * Vorschau seit der zuletzt angekommenen geändert hat. In einem Training ist
@@ -125,6 +126,13 @@ const KAL_FERNE = 365;
 // So oft fragt die App höchstens nach, ob der neue Code schon da ist – und
 // wie weit das Skript mit dem Jahr ist, solange es noch einträgt.
 const KAL_FASSUNG_FRAGEN = 2 * 60 * 1000;
+// Nach „Code kopieren", solange der neue Code aussteht: so lange wartet die
+// App die zwei Minuten beim Zurückkommen nicht ab, und solange sie zu sehen
+// ist, fragt sie alle zwei Minuten von selbst (kalCodeUnterwegs()) …
+const KAL_KOPIERT_FRAGEN = 30 * 60 * 1000;
+// … aber auch dann nicht öfter als so – Zurückkommen kann zweimal kurz
+// hintereinander gemeldet werden.
+const KAL_FRAGEN_MIN = 10 * 1000;
 // Erst so lange nach der letzten Auskunft lohnt es, nach dem Stand zu fragen:
 // Ein Lauf „weiter" kommt frühestens drei Minuten nach dem vorigen.
 const KAL_STAND_FRAGEN = 3 * 60 * 1000;
@@ -988,55 +996,100 @@ function kalStand(m, ziel) {
  *     noch etwas offen war und sie mindestens drei Minuten alt ist – sonst
  *     stünde auf der Karte stundenlang „noch 183 Änderungen offen", obwohl
  *     längst alles eingetragen ist.
+ *
+ * Hat Tobi den Code eben kopiert (kalCodeUnterwegs()), fragt die App beim
+ * Zurückkommen gleich (`sofort`, höchstens alle zehn Sekunden) und, solange
+ * sie zu sehen ist, alle zwei Minuten von selbst (kalNachfrageSpaeter()). Bis
+ * zur Prüfung des Entwurfs merkte sie den neuen Code nicht, wenn er nach 90 s
+ * zurück war und auf der Karte blieb: Gefragt hatte sie eben erst, beim
+ * Zeichnen der Karte, und das nächste Mal erst nach dem nächsten Wegschalten.
  */
 let kalFassungGefragt = 0;
 /** Gibt es etwas zu erfragen? { code } – nur rechnen, ohne Netz. */
-function kalNachfragenNoetig() {
+function kalNachfragenNoetig({ sofort = false } = {}) {
   const ziel = kalZiel(store.kalender());
-  if (!ziel || !kalenderVerbunden() || Date.now() - kalFassungGefragt < KAL_FASSUNG_FRAGEN) return null;
+  if (!ziel || !kalenderVerbunden()) return null;
+  if (Date.now() - kalFassungGefragt < (sofort ? KAL_FRAGEN_MIN : KAL_FASSUNG_FRAGEN)) return null;
   const stand = kalStand(kalMeta(), ziel);
   const code = kalNeuerCode(kalFassung(ziel));
   const eintragen = !!stand && stand.offen > 0 && Date.now() - stand.zeit >= KAL_STAND_FRAGEN;
   return code || eintragen ? { code } : null;
 }
 
-async function kalNachfragen() {
-  const noetig = kalNachfragenNoetig();
+/**
+ * Hat Tobi den Code für die neue Fassung vor weniger als einer halben Stunde
+ * kopiert, und das Skript meldet noch die alte? Dann ist er gerade in Apps
+ * Script – oder eben zurück.
+ */
+function kalCodeUnterwegs(ziel = kalZiel(store.kalender())) {
+  const k = kalMeta().kopiert;
+  return !!ziel && kalenderVerbunden() && !!k && k.ziel === ziel && k.vorlage === kalenderVorlageFassung() && Number.isFinite(k.zeit)
+    && Date.now() - k.zeit < KAL_KOPIERT_FRAGEN && kalNeuerCode(kalFassung(ziel));
+}
+
+async function kalNachfragen({ sofort = false } = {}) {
+  const noetig = kalNachfragenNoetig({ sofort });
   if (!noetig) return null;
-  const { code } = noetig;
-  const k = store.kalender();
-  const ziel = kalZiel(k);
-  kalFassungGefragt = Date.now();
-  const probe = JSON.stringify({ v: 1, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now(), probe: true });
-  const a = await kalLesen(await kalSchicken(k.url, probe, { abbruch: KAL_PROBE_ABBRUCH }));
-  // Nur eine lesbare Antwort zählt; ein Netzfehler ist kein Befund.
-  if (!Number.isInteger(a.version) || kalZiel(store.kalender()) !== ziel) return a;
-  const vorher = kalVertrag(ziel);
-  const teil = { fassung: { ziel, version: a.version, zeit: Date.now() } };
-  if (a.ok && a.ergebnis === 'probe' && Number.isInteger(a.offen) && a.bis) {
-    teil.abgleich = {
-      ziel, zeit: Date.now(), offen: a.offen, bis: a.bis, stehen: a.stehen || null, folge: a.folge ?? null,
-    };
+  try {
+    const { code } = noetig;
+    const k = store.kalender();
+    const ziel = kalZiel(k);
+    kalFassungGefragt = Date.now();
+    const probe = JSON.stringify({ v: 1, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now(), probe: true });
+    const a = await kalLesen(await kalSchicken(k.url, probe, { abbruch: KAL_PROBE_ABBRUCH }));
+    // Nur eine lesbare Antwort zählt; ein Netzfehler ist kein Befund.
+    if (!Number.isInteger(a.version) || kalZiel(store.kalender()) !== ziel) return a;
+    const vorher = kalVertrag(ziel);
+    const teil = { fassung: { ziel, version: a.version, zeit: Date.now() } };
+    if (a.ok && a.ergebnis === 'probe' && Number.isInteger(a.offen) && a.bis) {
+      teil.abgleich = {
+        ziel, zeit: Date.now(), offen: a.offen, bis: a.bis, stehen: a.stehen || null, folge: a.folge ?? null,
+      };
+    }
+    kalMetaSchreiben(teil);
+    notieren('kalender', {
+      was: code ? 'fassung-frage' : 'stand-frage', version: a.version, offen: teil.abgleich ? teil.abgleich.offen : undefined,
+    });
+    if (kalVertrag(ziel) !== vorher) {
+      kalVorbereitet = null;
+      kalenderJetzt('fassung', { zwingen: true });
+    }
+    kalRuf.nachher();
+    return a;
+  } finally {
+    kalNachfrageSpaeter();
   }
-  kalMetaSchreiben(teil);
-  notieren('kalender', {
-    was: code ? 'fassung-frage' : 'stand-frage', version: a.version, offen: teil.abgleich ? teil.abgleich.offen : undefined,
-  });
-  if (kalVertrag(ziel) !== vorher) {
-    kalVorbereitet = null;
-    kalenderJetzt('fassung', { zwingen: true });
-  }
-  kalRuf.nachher();
-  return a;
+}
+
+let kalNachfrageUhr = null;
+/**
+ * Solange der neue Code unterwegs ist und die App zu sehen ist: in zwei
+ * Minuten noch einmal fragen – höchstens ein Zeitgeber. Versteckt fragt
+ * keiner; beim Zurückkommen tut es kalenderSichtbar().
+ */
+function kalNachfrageSpaeter() {
+  if (kalNachfrageUhr || document.hidden || !kalCodeUnterwegs()) return;
+  const warte = Math.max(KAL_FRAGEN_MIN, KAL_FASSUNG_FRAGEN - (Date.now() - kalFassungGefragt));
+  kalNachfrageUhr = setTimeout(() => {
+    kalNachfrageUhr = null;
+    if (document.hidden) return;
+    // Läuft gerade etwas (eine Rechnung nach einem Tipp), kommt die Probe dahinter.
+    if (kalNachfragenNoetig()) kalEinreihen(kalNachfragen);
+    else kalNachfrageSpaeter();
+  }, warte);
 }
 
 /**
  * Für die Karte: nachfragen, wenn es etwas zu erfahren gibt (kalNachfragen())
  * – in der Warteschlange, und nur dann: Ein leerer Auftrag hielte sonst beim
  * Wegschalten das Senden auf (kalenderVerstecken() wartet, solange etwas läuft).
+ * Ist es dafür zu früh, und der neue Code ist unterwegs: später.
  */
 export function kalenderNachfragen() {
-  if (kalBelegt > 0 || !kalNachfragenNoetig()) return;
+  if (kalBelegt > 0 || !kalNachfragenNoetig()) {
+    kalNachfrageSpaeter();
+    return;
+  }
   kalEinreihen(kalNachfragen);
 }
 
@@ -1219,13 +1272,20 @@ export function kalenderSichtbar() {
   const ziel = kalZiel(store.kalender());
   const l = m.letzte;
   if (l && l.ziel === ziel && l.art === 'vorschau' && Number.isInteger(l.vertrag) && l.vertrag !== kalVertrag(ziel) && !l.fernFehler) {
-    kalenderJetzt('fassung', { zwingen: true });
+    // Läuft gerade etwas, ist das meist schon die Sendung in der passenden
+    // Fassung (die Nachfrage beim Zurückkommen hat sie eben angestoßen) – dann
+    // nur, wenn sie danach nicht schon beim Skript ist, statt ein zweites Mal.
+    kalenderJetzt('fassung', { zwingen: kalBelegt === 0 });
   } else if (m.offen && Date.now() - kalLetzterVersuch > 60 * 1000) {
     kalenderJetzt('sichtbar');
-  } else if (kalNachfragenNoetig()) {
+  } else {
     // Steht neuer Code aus, kommt Tobi vielleicht gerade aus Apps Script
-    // zurück; trägt das Skript noch das Jahr ein, sagt die Karte, wie weit.
-    kalEinreihen(kalNachfragen);
+    // zurück – hat er ihn eben kopiert, fragt die App gleich, ohne die zwei
+    // Minuten abzuwarten; trägt das Skript noch das Jahr ein, sagt die Karte,
+    // wie weit.
+    const sofort = kalCodeUnterwegs(ziel);
+    if (kalNachfragenNoetig({ sofort })) kalEinreihen(() => kalNachfragen({ sofort }));
+    else kalNachfrageSpaeter();
   }
 }
 
@@ -1435,6 +1495,8 @@ export function kalenderVergessen() {
  *   gesehen    Tobi hat die Bitte schon gesehen (Ansehen, Code kopieren) –
  *              dann nicht mehr auf dem Dashboard
  *   kopiert    wann er den Code dafür kopiert hat (ms), oder null
+ *   fassungZeit  wann die letzte lesbare Antwort kam, die die Fassung sagte
+ *              (ms), oder null
  *   fehlt      eine Antwort mindestens drei Minuten nach dem Kopieren meldet
  *              noch die alte Fassung – meist fehlt „Neue Version"
  *   stand      wie weit das Skript mit dem Eintragen ist (kalStand()), oder
@@ -1470,6 +1532,7 @@ export function kalenderLage() {
     neuerCode,
     gesehen: !!vorlage && m.gesehen === vorlage,
     kopiert,
+    fassungZeit: antwort,
     fehlt: neuerCode && kopiert !== null && antwort !== null && antwort - kopiert >= KALENDER_JAHR.fehltNach,
     stand: ziel ? kalStand(m, ziel) : null,
   };
@@ -1490,7 +1553,10 @@ export function kalenderJahrGesehen() {
 export function kalenderCodeKopiert() {
   const v = kalenderVorlageFassung();
   const ziel = kalZiel(store.kalender());
-  if (v && ziel && kalNeuerCode(kalFassung(ziel))) kalMetaSchreiben({ kopiert: { zeit: Date.now(), vorlage: v, ziel } });
+  if (!(v && ziel && kalNeuerCode(kalFassung(ziel)))) return;
+  kalMetaSchreiben({ kopiert: { zeit: Date.now(), vorlage: v, ziel } });
+  // Ab jetzt fragt die App öfter nach (kalCodeUnterwegs()).
+  kalNachfrageSpaeter();
 }
 
 /** Für den Kopf des Diagnoseprotokolls – ohne Kennwort, ohne Adresse. */

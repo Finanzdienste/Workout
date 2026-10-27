@@ -51,10 +51,15 @@
  *  12. Konstanten, die an zwei Stellen stehen, sind gleich.
  *  13. Ein Jahr im Voraus („Klappt alles aber bisschen wenig Termine. Lass
  *      doch mal ein Jahr machen"): Solange das Skript Fassung 1 meldet, geht
- *      v 1 hinaus wie bisher; die Startseite sagt es einmal dezent, die Karte
- *      bittet um den neuen Code – mit Schritten ohne „einrichten" und
- *      demselben Kennwort. Zurück aus Apps Script fragt die App nach, sieht
- *      Fassung 2 und schickt von selbst das Jahr. Ein Gerät, das die Fassung
+ *      v 1 hinaus wie bisher; die Startseite sagt es einmal dezent (und bleibt
+ *      eine Seite, bei 414×896 und 360×740; neben einer anderen Zeile und mit
+ *      Fortschritt tritt die Bitte zurück), die Karte bittet um den neuen Code
+ *      – mit Schritten ohne „einrichten" und demselben Kennwort, nach
+ *      „Ansehen" unter der Kopfleiste, oben „vier Wochen im Voraus".
+ *      Zurück aus Apps Script – auch schon nach 90 s, oder auf der Karte
+ *      geblieben – fragt die App nach, sieht Fassung 2 und schickt von selbst
+ *      das Jahr, genau einmal; solange es beim Skript liegt, sagt die Karte
+ *      „Neuer Code erkannt". Ein Gerät, das die Fassung
  *      nicht kennt, schickt erst v 1 und gleich danach v 2; weist ein Skript
  *      v 2 zurück, geht dieselbe Vorschau gleich als v 1 hinaus (beim
  *      Wegschalten erst beim Zurückkommen) – ohne dass eine Warnzeile
@@ -68,7 +73,8 @@
  *      einträgt, sagt die Karte, was schon steht (stehen, folge), und fragt
  *      nach – danach nicht mehr; eine gekürzte Ferne; eine Ferne, die sich
  *      nicht rechnen lässt (die Nähe geht genau einmal als v 1); „Neue
- *      Version" vergessen, gezählt nach der Zeit der Antwort; über 64 KiB ohne
+ *      Version" vergessen, gezählt nach der Zeit der Antwort (ohne die grüne
+ *      Meldung daneben); das Tageskontingent („morgen"); über 64 KiB ohne
  *      Background Sync.
  *
  *     node tests/test-kalender-sync.mjs            # alles
@@ -367,6 +373,28 @@ const meta = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('work
 const diagZeilen = (page) => page.evaluate(async () => (await import('./js/diagnose.js')).diagnoseZeilen().map(String));
 const verstecken = (page) => page.evaluate(() => { window.__hidden = true; document.dispatchEvent(new Event('visibilitychange')); });
 const zeigen = (page) => page.evaluate(() => { window.__hidden = false; document.dispatchEvent(new Event('visibilitychange')); });
+/** Die Startseite: Höhe der Zeile zum Jahr, Überhang, Fuß gegen die Leiste (wie tests/test-tagesabschluss.mjs 2). */
+const seiteMessen = (page) => page.evaluate(() => {
+  const leiste = document.getElementById('tabbar').getBoundingClientRect();
+  const fuss = document.querySelector('.ov-foot').getBoundingClientRect();
+  const z = document.getElementById('kalenderJahrZeile');
+  return {
+    zeile: z ? Math.round(z.getBoundingClientRect().height) : 0,
+    scroll: document.documentElement.scrollHeight - window.innerHeight,
+    fussUnten: Math.round(fuss.bottom),
+    sichtbar: Math.round(Math.min(window.innerHeight, leiste.height ? leiste.top : window.innerHeight)),
+  };
+});
+/** Liegt die Überschrift der Bitte um neuen Code frei – nicht unter der Kopfleiste? */
+const ueberschriftFrei = (page) => page.evaluate(() => {
+  const s = document.querySelector('#kalenderJahr strong');
+  const r = s.getBoundingClientRect();
+  const da = document.elementFromPoint(r.left + 4, r.top + r.height / 2);
+  return {
+    frei: !!da && !da.closest('.topbar') && s.contains(da), oben: Math.round(r.top),
+    leiste: Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom),
+  };
+});
 
 /** Einen Satz in der Einheit von heute abhaken (wie ein Tipp, ohne Oberfläche). */
 const haken = (page, satz = 0, n = null) => page.evaluate(async ({ satz: i, n: nr }) => {
@@ -1414,8 +1442,32 @@ await abschnitt(13, async () => {
   check(await zeile.count() === 1 && !/\bwarn\b/.test(await zeile.getAttribute('class')) && await page.locator('#kalenderZeile').count() === 0
     && /Ein Jahr im Voraus geht jetzt – dafür einmal den Code im Skript erneuern/.test(zText),
   `Startseite: einmal dezent, ohne Warnfarbe – kaputt ist nichts („${zText}")`);
+  // „Hier beim Dashboard soll man nicht scrollen können" – auch mit ihr eine
+  // Seite, bei 414×896 und 360×740. Bis zur Prüfung des Entwurfs stand sie als
+  // gewöhnliche Zeile da (97 px), und bei 360×740 lag der Fuß 26 px unter der
+  // Leiste; jetzt klein gesetzt wie die Zeile zum Ton (.notice.kurz).
+  for (const [b, h] of [[414, 896], [360, 740]]) {
+    await page.setViewportSize({ width: b, height: h });
+    await echteWarte(300);
+    const m = await seiteMessen(page);
+    check(/\bkurz\b/.test(await zeile.getAttribute('class')) && m.zeile > 0 && m.scroll <= 0 && m.fussUnten <= m.sichtbar,
+      `Startseite ${b}×${h} mit der Zeile (${m.zeile} px): eine Seite, Fuß über der Leiste (Überhang ${m.scroll}, Fuß ${m.fussUnten} / ${m.sichtbar})`);
+  }
+  await page.setViewportSize({ width: 414, height: 896 });
+  await echteWarte(300);
   await page.locator('[data-act="kalender-jahr-ansehen"]').click();
   await echteWarte(300);
+  // Die Bitte steht nach dem Sprung unter der Kopfleiste, nicht dahinter. Bis
+  // zur Prüfung des Entwurfs lagen Überschrift und erster Satz darunter, und
+  // Tobi las die Bitte mitten im Satz an.
+  const sprung = await ueberschriftFrei(page);
+  check(sprung.frei && sprung.oben >= sprung.leiste,
+    `„Ansehen": die Überschrift der Bitte liegt unter der Kopfleiste (bei ${sprung.oben} px, die Leiste bis ${sprung.leiste} px)`);
+  // Bei Fassung 1 steht ein Jahr nicht im Kalender – die Karte sagt es oben
+  // nicht anders als die Bitte darunter.
+  const was = await text(page, '#kalenderWas');
+  check(/vier Wochen im Voraus \(ein Jahr mit neuem Code, siehe unten\)/.test(was) && !/ein Jahr im Voraus/.test(was) && !/wie es danach weitergeht/.test(was),
+    `bei Fassung 1 sagt die Karte oben „vier Wochen im Voraus" – nicht „ein Jahr" („${was.slice(0, 150)}…")`);
   const jahr = await page.evaluate(async () => (await import('./js/kalender-sync.js')).KALENDER_JAHR);
   const karte = await text(page, '#kalenderJahr');
   const schritte = (await page.locator('#kalenderJahrSchritte li').allTextContents()).map((x) => x.replace(/\s+/g, ' ').trim());
@@ -1448,25 +1500,106 @@ await abschnitt(13, async () => {
   const code = await page.evaluate(() => navigator.clipboard.readText());
   check(code === VORLAGE.replace(PLATZHALTER, TOKEN) && /^const FASSUNG = 2;$/m.test(code) && (await kal(page)).token === TOKEN,
     '„Code kopieren": die neue Fassung mit demselben Kennwort wie bisher – das Skript erkennt die App weiter');
-  // Tobi ersetzt in Apps Script den Code und stellt die neue Version bereit;
-  // ein paar Minuten später ist er zurück in der App.
+  // Die Schritte stehen direkt darüber – die Meldung verweist auf sie, statt
+  // Schritt 3 und 4 ein zweites Mal in sieben Zeilen zu sagen.
+  const kopiertText = (await text(page, '#kalenderMeldung')).trim();
+  check(kopiertText === 'Code kopiert – mit demselben Kennwort wie bisher. Weiter mit Schritt 2.',
+    `nach dem Kopieren eine kurze Meldung („${kopiertText}")`);
+  // Tobi ersetzt in Apps Script den Code und stellt die neue Version bereit –
+  // die App ist so lange versteckt. Er ist schnell: Nach 90 s ist er zurück,
+  // keine zwei Minuten nach der letzten Nachfrage. Die App weiß, dass er den
+  // Code eben kopiert hat, und fragt gleich. Bis zur Prüfung des Entwurfs
+  // fragte sie erst nach den zwei Minuten und dann erst beim nächsten
+  // Zurückkommen – blieb er auf der Karte, merkte sie den neuen Code nie.
   const proben = skript.proben().length;
   const n0 = skript.vorschauen().length;
-  skript.fassung1 = false;
-  await vor(page, 3 * 60 * 1000, 300);
   await verstecken(page);
+  skript.fassung1 = false;
+  let los;
+  skript.haltenVorschau = new Promise((r) => { los = r; });
+  await vor(page, 90 * 1000, 300);
   await zeigen(page);
   await bis(() => skript.vorschauen().length > n0, 8000);
+  // Die erste Sendung mit dem Jahr liegt beim Skript (doPost gleicht bis zu
+  // 25 s an). Bis zur Prüfung stand dann „(Skript Fassung 1)" da, ohne ein
+  // Wort zum Jahr – genau wenn Tobi nachsieht, ob es geklappt hat.
+  await bis(async () => /Neuer Code erkannt/.test(await text(page, '#kalenderStand')), 4000);
+  const waehrend = await text(page, '#kalenderStand');
+  check(skript.proben().length === proben + 1 && /Neuer Code erkannt \(Skript Fassung 2\) – das ganze Jahr geht jetzt an das Skript\./.test(waehrend)
+    && !/Fassung 1/.test(waehrend) && await page.locator('#kalenderJahr').count() === 0 && await page.locator('#kalenderMeldung').count() === 0,
+  `schnell zurück (90 s): gleich eine Probe – und solange das Jahr beim Skript liegt, sagt die Karte es („${waehrend.slice(0, 110)}"), `
+    + 'die Bitte und die Meldung vom Kopieren sind weg');
+  // Kurz weg und wieder da, während sie noch liegt: keine zweite Sendung.
+  await verstecken(page);
+  await zeigen(page);
+  await echteWarte(300);
+  skript.haltenVorschau = null;
+  los();
+  await bis(async () => /Termine bis/.test(await text(page, '#kalenderStand')), 6000);
+  await vor(page, 1000, 1000);
   const v2 = skript.letzte();
-  check(skript.proben().length > proben && v2 && v2.v === 2 && v2.ferne && v2.ferne.bis === 365 && V.nutzlastPruefen(v2) === null,
-    'zurück aus Apps Script: die App fragt kurz nach (eine Probe), sieht Fassung 2 und schickt von selbst das Jahr');
-  await bis(async () => /Termine bis/.test(await text(page, '#kalenderStand')), 4000);
+  const v2Zahl = skript.vorschauen().slice(n0).length;
+  check(v2Zahl === 1 && v2 && v2.v === 2 && v2.ferne && v2.ferne.bis === 365 && V.nutzlastPruefen(v2) === null,
+    `zurück aus Apps Script: die App sieht Fassung 2 und schickt von selbst das Jahr – genau einmal (${v2Zahl}), auch wenn er zwischendurch kurz weg war`);
   check(await page.locator('#kalenderJahr').count() === 0 && /Skript Fassung 2\)\. Im Kalender: Termine bis 08\.10\.2027\./.test(await text(page, '#kalenderStand')),
     `die Bitte ist weg; die Karte sagt, bis wann die Termine stehen („${(await text(page, '#kalenderStand')).slice(0, 110)}")`);
   const dz = (await diagZeilen(page)).filter((x) => / kalender was=(fassung-frage|vorschau) /.test(x)).slice(-2);
   check(dz.some((x) => /was=fassung-frage version=2/.test(x)) && dz.some((x) => /vertrag=2 fern=365/.test(x)),
     'im Diagnoseprotokoll: die Nachfrage und die Sendung mit Vertrag 2');
   await zu(g);
+
+  // Bleibt Tobi nach dem Kopieren in der App (am Rechner bereitgestellt, oder
+  // Google brauchte einen Moment): Solange sie zu sehen ist, fragt sie alle
+  // zwei Minuten von selbst – eine halbe Stunde lang nach dem Kopieren.
+  const s = await geraet('13 sichtbar', { kalender: { token: TOKEN, url: URL_A }, fassung: 1 });
+  s.skript.fassung1 = true;
+  await vor(s.page, 4000, 1500);
+  await bis(() => s.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(s.page);
+  await bis(() => s.skript.proben().length >= 1, 4000);
+  await s.page.locator('#kalenderJahr [data-act="kalender-code"]').click();
+  await bis(async () => /Code kopiert/.test(await text(s.page, '#kalenderMeldung')));
+  const sp = s.skript.proben().length;
+  s.skript.fassung1 = false;
+  await vor(s.page, 2 * 60 * 1000 + 5000, 1500);
+  await bis(() => s.skript.vorschauen().some((x) => x.j.v === 2), 6000);
+  check(s.skript.proben().length === sp + 1 && s.skript.vorschauen().some((x) => x.j.v === 2) && await s.page.locator('#kalenderJahr').count() === 0,
+    `nach dem Kopieren auf der Karte geblieben: zwei Minuten später fragt die App von selbst (${s.skript.proben().length - sp} Probe), sieht Fassung 2 und schickt das Jahr`);
+  await zu(s);
+
+  // Die Zeile eilt nicht: Steht oben schon etwas (hier die Zeile zum
+  // Tagesabschluss) oder ist an der Einheit schon etwas abgehakt, tritt sie
+  // zurück und kommt wieder, wenn das weg ist. Mit Fortschritt und „Training
+  // fortsetzen" lag der Fuß mit ihr bei 360×740 13 px unter der Leiste.
+  const zs = JSON.parse(JSON.stringify(ZUSTAND));
+  zs.tagesabschluss = { am: HEUTE, einheiten: [{ n: 8, tag: '2026-10-06', done: 10, total: 17 }] };
+  const st = await geraet('13 Startseite', { zustand: zs, kalender: { token: TOKEN, url: URL_A }, fassung: 1 });
+  st.skript.fassung1 = true;
+  await st.page.setViewportSize({ width: 360, height: 740 });
+  await vor(st.page, 4000, 1500);
+  await bis(() => st.skript.vorschauen().length >= 1, 8000);
+  await zumDashboard(st.page);
+  const mitAbschluss = { jahr: await st.page.locator('#kalenderJahrZeile').count(), abschluss: await st.page.locator('.notice.abschluss').count() };
+  await st.page.evaluate(async () => (await import('./js/store.js')).setzeTagesabschluss(null));
+  await zuMehr(st.page);
+  await zumDashboard(st.page);
+  const ohneAbschluss = await st.page.locator('#kalenderJahrZeile').count();
+  await haken(st.page);
+  await zuMehr(st.page);
+  await zumDashboard(st.page);
+  const mitHaken = await st.page.locator('#kalenderJahrZeile').count();
+  const mh = await seiteMessen(st.page);
+  check(mitAbschluss.abschluss === 1 && mitAbschluss.jahr === 0 && ohneAbschluss === 1 && mitHaken === 0 && mh.fussUnten <= mh.sichtbar,
+    `sie tritt zurück: neben der Zeile zum Tagesabschluss nicht (${mitAbschluss.jahr}), ohne sie da (${ohneAbschluss}), `
+      + `mit einem Haken an der Einheit nicht (${mitHaken}, Fuß ${mh.fussUnten} / ${mh.sichtbar})`);
+  // Der Sprung zur Bitte, auch bei 360×740: unter der Kopfleiste.
+  await zuMehr(st.page);
+  await st.page.evaluate(() => document.getElementById('kalenderJahr').scrollIntoView());
+  await echteWarte(200);
+  const sprung360 = await ueberschriftFrei(st.page);
+  check(sprung360.frei && sprung360.oben >= sprung360.leiste,
+    `360×740: zur Bitte gesprungen, liegt die Überschrift unter der Kopfleiste (bei ${sprung360.oben} px, Leiste bis ${sprung360.leiste} px)`);
+  await zu(st);
 
   // Unbekannt heißt v 1 – und meldet die Antwort Fassung 2, geht gleich das Jahr hinterher.
   const h = await geraet('13 neu', { kalender: { token: TOKEN, url: URL_A }, fassung: null });
@@ -1750,9 +1883,29 @@ await abschnitt(15, async () => {
       const satz = (await text(h.page, '#kalenderJahrFehlt')).trim();
       check(frueh === 0 && satz === jahr.fehlt && /Neue Version/.test(satz) && /Speichern/.test(satz) && !/einrichten/.test(satz),
         `„Neue Version" vergessen: zweieinhalb Minuten nach dem Kopieren noch nichts, fünf Minuten danach meldet das Skript weiter Fassung 1 – „${satz}"`);
+      // Daneben nicht mehr das grüne „Code kopiert …" – bis zur Prüfung stand
+      // es die ganze Sitzung neben dem orangen Satz.
+      check(await h.page.locator('#kalenderMeldung').count() === 0,
+        '… und die grüne Meldung vom Kopieren steht nicht mehr daneben');
     }
     await zu(h);
   }
+
+  // c2) Das Tageskontingent ist aufgebraucht, das Skript sagt „morgen geht es
+  // von selbst weiter": Darüber steht nicht „mit dem nächsten stündlichen
+  // Abgleich".
+  const tk = await geraet('15 Tageskontingent', { kalender: { token: TOKEN, url: URL_A } });
+  Object.assign(tk.skript, {
+    offen: 150, stehen: '2026-11-12', folge: false,
+    hinweis: 'Google lässt heute keine weiteren Kalender-Änderungen zu (Tageskontingent aufgebraucht) – morgen geht es von selbst weiter.',
+  });
+  await vor(tk.page, 4000, 1500);
+  await bis(() => tk.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(tk.page);
+  const st = await text(tk.page, '#kalenderStand');
+  check(/Den Rest bis 08\.10\.2027 trägt das Skript morgen nach – noch 150 Änderungen\./.test(st) && !/stündlichen Abgleich/.test(st) && /morgen geht es von selbst weiter/.test(st),
+    `Tageskontingent aufgebraucht: „morgen" – nicht „mit dem nächsten stündlichen Abgleich" („${st.replace(/^.*?(Im Kalender)/, '$1').slice(0, 170)}")`);
+  await zu(tk);
 
   // d) Über 64 KiB bei versteckter Seite, ohne Background Sync (Safari): Die
   // Sendung geht gewöhnlich hinaus, so weit die Seite kommt, und gilt als
