@@ -2398,9 +2398,12 @@ Einstellungen → Workout → *Synchronisieren*.
 Schritt 5 ist der, den man am leichtesten vergisst, und ohne ihn geht nichts:
 Die Web-App läuft auf der bereitgestellten Fassung, nicht auf dem
 gespeicherten Code. Bei Tobi wäre das die Probe, und die hat kein `doPost` –
-Google antwortet dann mit einer Fehlerseite, und die App sagt beim
-„Verbinden": „Google hat geantwortet, aber nicht das Skript", mit „Neue
-Version" als erster Ursache.
+Google antwortet dann mit einer Fehlerseite ohne CORS. Die App fragt dann
+dieselbe Adresse mit einem GET: Antwortet `doGet` lesbar, aber nicht wie der
+neue Code, läuft noch die Probe, und die App sagt genau das – „Die Web-App läuft
+noch mit dem Code der Probe" samt *Neue Version*. Schritt 4 übersprungen (naheliegend:
+bei der Probe hat Tobi schon eine Funktion `einrichten` ausgeführt) schadet
+dagegen nicht: Die erste Vorschau räumt die Probe dann selbst weg.
 
 **Keine zweite Rechnung.** Die Vorschau rechnet mit genau den Schritten, mit
 denen die App beim Laden den Tag nachzieht – kein Nachbau, der beim nächsten
@@ -2479,7 +2482,12 @@ beide Seiten auswerten, stehen dort als Funktionen (`nutzlastPruefen()`,
   antworten) und `aus` („Abschalten").
 * **Wer gilt**, wenn zwei Geräte senden: dasselbe Gerät mit der späteren
   Sendung immer; ein anderes nur, wenn es *zuletzt trainiert* hat, bei
-  gleichem Lebenszeichen mit mindestens so vielen Einheiten und Sätzen. Nicht
+  gleichem Lebenszeichen mit mindestens so vielen Einheiten und Sätzen. Das
+  Lebenszeichen zählt über alle Runden, auch abgelegte und die anderer
+  Fokusse: Am Morgen nach Workout 84 ist das Protokoll leer, nach einem
+  Fokuswechsel steht dort der ältere Verlauf – allein daraus gerechnet, meldete
+  das Handy „nie trainiert", und ein Tablet aus der Schublade überholte es
+  still (gefunden bei der Prüfung). Nicht
   „die neueste Sendung gewinnt" – ein Tablet, das zwei Wochen in der Schublade
   lag, rückt beim Öffnen nach, sendet frisch und hätte den Kalender des Handys
   überschrieben, mit dem seitdem trainiert wird. Ein neues Handy braucht
@@ -2517,7 +2525,9 @@ nachgerückt bis Mi), bis 23:10 trainiert und über Mitternacht bis 0:20, ein
 Bouldern-Termin, das Rundenende 84/84 (auch im Tagesabschluss), ein Turnier,
 das alles schont, der Zusatztag allein an Ruhetagen und danach in der Einheit,
 ein Zusatztag, der an einem eigenen Tag gemacht wurde, ein Start mit
-Planumbau, ein Gerät mit anderem Fokus. Die Liste jedes geprüften Tages ist
+Planumbau, ein Gerät mit anderem Fokus, und „Wer gilt" am Morgen nach dem
+Rundenende und nach einem Fokuswechsel gegen ein Tablet mit älterem Training
+(dazu ein Lebenszeichen aus der Zukunft in der Ablage, das nicht zählt). Die Liste jedes geprüften Tages ist
 dieselbe wie die der echten App, im Browser an genau diesem Tag zur selben
 Uhrzeit geöffnet (15 Tage), wie die eines eigenen Prozesses (20 Tage) und wie
 die fortgeschriebene (sieben Fälle über je 42 Tage); der Worker rechnet Byte
@@ -2562,6 +2572,10 @@ Bereitstellungen verwalten → Bearbeiten → Version: Neue Version →
 Bereitstellen*. Die URL bleibt dabei dieselbe. Wiederholt ausgeführt, entsteht
 nichts doppelt. Wurde nur bereitgestellt und nie eingerichtet, legt die erste
 Sendung der App Kalender und Auslöser selbst an (und sagt es in der Antwort).
+Steht dann noch die Probe da (die Eigenschaft `kal` in diesem Projekt), räumt
+dieselbe Sendung sie weg wie `einrichten` – nur einen eigenen Kalender mit genau
+dem Namen „Workout-Probe" – und sagt es; „Verbinden" kündigt es vorher an.
+Ohne das blieb „Workout-Probe" still neben „Workout" stehen.
 
 **Neue Fassung, alter Speicher.** Die Web-App läuft auf der bereitgestellten
 Fassung, der stündliche Auslöser wahrscheinlich auf dem zuletzt gespeicherten
@@ -2570,7 +2584,7 @@ neuer Abgleich liest. Deshalb ist `doPost` klein (prüfen, ablegen, abgleichen
 versuchen), und jede Fassung liest jedes Speicherformat, das eine frühere
 geschrieben hat. Format 1: die Sendung ohne Kennwort als JSON in Stücken von
 höchstens 8000 Byte (Google erlaubt 9 KB je Wert und 500 KB insgesamt; eine
-Vorschau von 64 KiB sind acht Stücke), dazu eine Meta-Zeile mit Format,
+Vorschau von 64 KiB sind höchstens neun Stücke), dazu eine Meta-Zeile mit Format,
 Generation, Länge und Prüfsumme. Erst wenn die neuen Stücke stehen, zeigt die
 Meta-Zeile auf sie, erst dann gehen die alten. Ist der Speicher beschädigt oder
 in einem unbekannten Format, fasst das Skript den Kalender nicht an und der
@@ -2585,8 +2599,12 @@ nur, wenn es zuletzt trainiert hat. „Abschalten" gilt von jedem Gerät mit dem
 Kennwort, nur nicht als verspätete Wiederholung einer früheren Sendung
 desselben Geräts. Die Antwort ist immer JSON, auch bei jedem Fehler, und nie
 mit dem Kennwort, einer Kalender-ID oder einer Adresse darin – auch nicht in
-einer Fehlermeldung, die Google selbst formuliert. `doGet` sagt nur, ob ein
-Kennwort im Code steht, ob eingerichtet ist und ob eine Vorschau da ist.
+einer Fehlermeldung, die Google selbst formuliert. `doGet` ist öffentlich
+(„Zugriff: Jeder") und sagt deshalb nur die Fassung und ob ein Kennwort im Code
+steht – ohne einen Blick in den Speicher: Wer nur die URL hat, soll damit nicht
+das Tageskontingent der Skript-Eigenschaften (50 000 Zugriffe) leeren können.
+Wie es sonst steht, sagt die Probe beim „Verbinden", und die braucht das
+Kennwort.
 
 **Abgleichen.** Die Liste für heute in Berliner Zeit (`vorschauFuer_()`),
 ausdrücklich mit Zone – die Zeitzone des Projekts zählt nirgends. Je Eintrag
@@ -2595,12 +2613,20 @@ trägt die Kennung, `workoutSkript` die zufällige Kennung des Projekts,
 `workoutText` den Fingerabdruck der Beschreibung, die das Skript gesetzt hat.
 Termine ohne diese Markierungen – von Hand, eine eingelesene Kalenderdatei,
 ein anderes Werkzeug – fasst es nie an. Ein Termin derselben Einheit wird
-verschoben, nicht neu angelegt, auch wenn er knapp außerhalb des Fensters
-liegt; Doppelte kommen weg. Beginn ist der Tag um `minuten` in Europe/Berlin
+verschoben, nicht neu angelegt, auch wenn er außerhalb des Fensters liegt;
+Doppelte kommen weg. Gesucht wird bis 35 Tage vor dem Fenster und mindestens
+bis zum Fenster der zuletzt ganz angeglichenen Liste (`workout.liste`): War
+die Vorschau lange aufgebraucht, stehen ihre offenen Termine weit vor dem
+heutigen Fenster – kam die nächste Sendung erst zwölf Wochen später, fand der
+Abgleich sie nicht, legte jede Einheit neu an, und 17 alte blieben doppelt
+stehen (gefunden bei der Prüfung). Beginn ist der Tag um `minuten` in Europe/Berlin
 (`Utilities.parseDate`), also 17:30 im Sommer wie im Winter. Erledigtes steht mit
 „✓ " davor und ohne Erinnerung, Offenes mit der Popup-Erinnerung aus der App;
 Voreinstellungen des Kalenders und Mail-Erinnerungen entfernt das Skript an
-seinen Terminen, damit nichts doppelt klingelt. Was in der Liste fehlt, kommt
+seinen Terminen, damit nichts doppelt klingelt – an jedem neuen Termin
+ausdrücklich, nicht nur, wenn `getPopupReminders()` eine Abweichung meldet: Ob
+Google die Voreinstellung dort überhaupt meldet, ist nicht belegt, und sonst
+behielten erledigte Termine und bei „keine Erinnerung" alle sie still. Was in der Liste fehlt, kommt
 weg oder bleibt stehen, wie `bleibtStehen_()` sagt: verpasste Termine der
 laufenden Runde weg, weil die Einheit gewandert ist; Verlauf einer abgelegten
 Runde bleibt. Ändert Tobi im Kalender „Workout" einen Termin des Skripts von
@@ -2619,7 +2645,13 @@ Unterschied zum letzten. Dabei fiel in der Prüfung auf: Bremst Google zwischen
 dem Anlegen eines Termins und seiner Markierung, stünde er unmarkiert da, sähe
 aus wie ein fremder und bliebe für immer doppelt. Das Skript merkt sich die id
 deshalb vor dem Markieren (`workout.offen`) und holt die Markierung im nächsten
-Lauf nach.
+Lauf nach. Scheitert Google an so einer gemerkten id aus einem anderen Grund
+als dem Bremsen (der Termin ist gelöscht oder im Papierkorb), gibt das Skript
+sie auf – vorher hielt eine einzige solche id jeden weiteren Abgleich an.
+Ein aufgebrauchtes **Tageskontingent** („… too many times for one day") ist
+kein kurzes Bremsen: Das holt die nächste Stunde nicht nach. Dann hört der Lauf
+auf, und der Auslöser wirft – Google schickt die Mail, statt dass es still
+als „Google bremst" weiterläuft.
 
 **Zwei Projekte.** Richtet Tobi ein zweites Projekt ein, übernimmt es den
 Kalender „Workout" des ersten, statt einen zweiten anzulegen; die Beschreibung
@@ -2656,10 +2688,16 @@ Auslöser, zwölf abgewiesene Sendungen, elf Wochen Abgleich an Tobis Stand
 (Mitternacht, Zeitumstellung, abhaken, zwei Geräte, Horizont, Abschalten), die
 leere Einheit, der Zusatztag, das Rundenende, Bremsen und langsames Google, ein
 zweites Projekt, ein gelöschter Kalender, ein Speicher im Format 1 wörtlich und
-beschädigt, die belegte Sperre. 14 absichtlich eingebaute Fehler (lokaler Tag
+beschädigt, die belegte Sperre – und, was die Prüfung des Entwurfs fand: eine
+gemerkte id, an der Google dauerhaft scheitert, die nächste Sendung 30 und 89
+Tage nach dem Ende der Vorschau, `doGet` ohne Zugriff auf den Speicher, das
+aufgebrauchte Tageskontingent, eine Voreinstellung des Kalenders, die
+`getPopupReminders()` nicht meldet (Attrappe mit eigenem Zustand wie
+`useDefault`), und Tobis Probe ohne `einrichten`. Gegen den Stand vor dieser
+Nachbesserung sind zehn dieser Prüfungen rot. 14 absichtlich eingebaute Fehler (lokaler Tag
 statt Berlin, „die neueste Sendung gewinnt", `YYYY`, Kennwort im Speicher, zu
 große Stücke, fremde Termine anfassen …) fängt die Prüfung alle. Gezählt: die
-erste Sendung legt 21 Termine mit 50 Lese- und 123 Schreibzugriffen an; eine
+erste Sendung legt 21 Termine mit 8 Lese- und 123 Schreibzugriffen an; eine
 ruhige Stunde schreibt nur die Beschreibung (eine Zeile mit der Uhrzeit) und
 fragt rund 240-mal Felder der Termine ab – ob so eine Abfrage in Apps Script
 ein eigener Aufruf ist oder aus dem schon geladenen Termin kommt, ist
@@ -2693,21 +2731,45 @@ App öffnet – gerechnet mit „nicht trainiert". An Google geht nur, was im
 Kalender steht (Titel, Übungen, Tage, Uhrzeit), in sein eigenes Konto. Google
 fragt beim Einrichten nach Zugriff auf alle Kalender; dass das Skript nur
 „Workout" anfasst, ist eine Regel seines Codes, keine Sperre von Google.
-Darunter die Grenzen: ohne Netz trainiert, sechs Wochen nicht geöffnet, und
-dass Kennwort und URL mit Sicherung und Exportdatei reisen. Nicht verbunden
-stehen dort die sechs Schritte von oben, *Code kopieren*, das URL-Feld und
-*Verbinden*. Verbunden steht dort, wann zuletzt etwas ankam („Zuletzt
-angekommen: vor 3 Min. (Skript Fassung 1)"), was beim letzten Versuch
-schiefging, Uhrzeit (Berliner Zeit) und Erinnerung – jede Änderung geht sofort
-hinaus – und *Trennen*.
+Dazu die Grenzen: ohne Netz trainiert, sechs Wochen nicht geöffnet, und
+dass Kennwort und URL mit Sicherung und Exportdatei reisen. Beides steht
+zugeklappt unter *Was an Google geht · Grenzen* am Ende der Karte – vorher
+stand es mit rund 200 Wörtern vor den Schritten, und Schritt 1 begann bei
+360 px Breite erst unten am ersten Bildschirm (die Karte war 1326 px hoch).
+Nicht verbunden stehen nach dem ersten Absatz gleich die sechs Schritte von
+oben, *Code kopieren*, das URL-Feld und *Verbinden*; Hauptknopf ist erst *Code
+kopieren*, mit Kennwort *Verbinden*. Verbunden steht dort, wann zuletzt etwas
+ankam („Zuletzt angekommen: vor 3 Min. (Skript Fassung 1)"), was beim letzten
+Versuch schiefging, Uhrzeit (Berliner Zeit) und *Erinnerung vorher* (kurz
+„30 Min." – „30 Min. vorher" passte bei 360 px nicht ins Feld) – jede Änderung
+geht sofort hinaus –, was eine Mail „Summary of failures" von Google bedeutet
+(sie kommt vom stündlichen Abgleich dieses Skripts; meist hilft `einrichten`,
+sonst dem Assistenten Bescheid geben), *Code kopieren*, *Trennen* und,
+zugeklappt, *Neues Skript-Projekt?* mit dem URL-Feld – ohne Hauptknopf.
+
+Eine Meldung der Karte („Verbunden – die erste Vorschau ist unterwegs …",
+„Code kopiert …") gilt nur, bis ein neueres Ergebnis da ist; dann sagt der
+Stand oben, was los ist. Vorher stand nach dem Verbinden über „✓ Verbunden.
+Zuletzt angekommen" weiter groß und grün „Noch keine Vorschau angekommen", die
+ganze Sitzung lang. Bittet das Skript schon beim Verbinden um etwas
+(`einrichten`, ein anderes Projekt pflegt den Kalender) oder ist sein Code zu
+alt, steht dessen Satz in der Farbe für „da ist etwas zu tun" und ohne „nach
+etwa einer Minute stehen die Termine". „Code kopieren" im verbundenen Zustand
+sagt alle Schritte zum Erneuern (ersetzen, speichern, `einrichten`, *Neue
+Version*) statt auf nummerierte Schritte zu zeigen, die dort nicht stehen.
 
 **Das Dashboard** bekommt eine Zeile nur, wenn Tobi selbst etwas richten muss:
 Das Skript kennt das Kennwort nicht, der Code in Apps Script ist älter als die
 App („Kalender-Code erneuern"), geantwortet hat nicht das Skript, oder das
 Skript bittet um `einrichten` (Kalender gelöscht, ein anderes Projekt pflegt
-ihn, kein stündlicher Auslöser). Kein Netz, eine ausgebliebene Antwort oder ein
-anderes Gerät, das zuletzt trainiert hat, richten sich von selbst und stehen
-nur unter *Mehr*.
+ihn, kein stündlicher Auslöser). Kein Netz, ein beschäftigtes Skript, eine
+ausgebliebene Antwort oder ein anderes Gerät, das zuletzt trainiert hat,
+richten sich von selbst – die App schickt dieselbe Vorschau nach 2, 5 und 15
+Minuten noch einmal (unten) – und stehen nur unter *Mehr*. Hat die Verbindung
+schon einmal geklappt, ist auch „nicht das Skript" erst nach diesen drei
+Wiederholungen ein Alarm: Meist ist das ein Aussetzer bei Google. Bleibt es
+nach drei Wiederholungen bei `fehler`, ist das kein Beschäftigtsein mehr –
+dann kommt es aufs Dashboard, mit der Bitte um das Diagnoseprotokoll.
 
 **„Code kopieren"** holt die Vorlage (der Service Worker hält sie vor) und
 setzt das Kennwort ein: 256 Bit, zufällig, beim ersten Tipp erzeugt und
@@ -2727,7 +2789,10 @@ Satz, der sagt, was zu tun ist:
 | --- | --- |
 | leeres Feld, Test-URL (`…/dev`), Adresse des Editors, Weiterleitung (`googleusercontent`), fremde Adresse | was gemeint ist – vor jeder Anfrage |
 | kein Netz | geht hinaus, sobald Netz da ist |
-| keine lesbare Antwort, aber das Netz war da | „Google hat geantwortet, aber nicht das Skript": Neue Version nicht bereitgestellt, „Zugriff: Jeder" (nicht „Jeder mit Google-Konto"), „Ausführen als: Ich", URL auf `/exec` |
+| keine lesbare Antwort, aber das Netz war da – und ein GET (`doGet`) antwortet lesbar, aber nicht wie der neue Code | „Die Web-App läuft noch mit dem Code der Probe": *Bereitstellungen verwalten → Bearbeiten → Version: Neue Version* |
+| … und auch der GET antwortet ohne CORS (Anmeldeseite, Fehlerseite) | „Google lässt die App nicht zum Skript durch": „Zugriff: Jeder" (nicht „Jeder mit Google-Konto") und „Ausführen als: Ich", sonst ist die URL falsch |
+| … und der GET antwortet wie der neue Code | „Der neue Code ist bereitgestellt, aber das Senden kam bei ihm nicht an": noch einmal *Verbinden* |
+| … und auch der GET kommt gar nicht durch | „Google hat geantwortet, aber nicht das Skript" mit allen drei Ursachen: Neue Version, „Zugriff: Jeder", „Ausführen als: Ich", URL auf `/exec` |
 | lesbare Fehlerseite | „Unerwartete Antwort von Google (HTTP 404) – stimmt die URL?" |
 | `token` | Code kopieren, in Apps Script ersetzen, Neue Version |
 | `format` mit „erneuern", oder eine ältere `version` als die Vorlage | „Kalender-Code erneuern" samt *Bereitstellungen verwalten → Bearbeiten → Version: Neue Version* |
@@ -2737,14 +2802,22 @@ Satz, der sagt, was zu tun ist:
 der Browser in beiden Fällen nur „Failed to fetch" sagt: Die App fragt ein
 zweites Mal ohne CORS. Kommt dann eine undurchsichtige Antwort, war das Netz
 da, und geantwortet hat eine Anmeldeseite, eine Fehlerseite oder eine falsche
-Adresse. Wird eine andere URL verbunden, geht zuerst die Probe an die neue,
+Adresse. Welche davon, fragt die App gleich selbst nach – mit einem einfachen
+GET an dieselbe Adresse, den `doGet` ohne Kennwort beantwortet –, statt Tobi
+zwischen drei Ursachen wählen zu lassen: „Es soll von selbst einfach das
+optimale passieren". Wird eine andere URL verbunden, geht zuerst die Probe an die neue,
 dann ein „aus" an die alte – sonst schöbe deren Skript sechs Wochen nach seiner
 letzten Vorschau weiter –, dann die erste Vorschau an die neue.
 
 **Wann gesendet wird.** Nur verbunden, und nur, wenn sich die Vorschau seit
 der zuletzt angekommenen geändert hat (ein Fingerabdruck über Texte, Tage,
-Uhrzeit, Erinnerung und Verbindung – nicht über die Zahl der Sätze; ein zweiter
-Haken ändert am Kalender nichts):
+Uhrzeit, Erinnerung und Verbindung – nicht über die Zahl der Sätze). In einem
+Training ist das dreimal so: beim ersten Haken, beim zweiten – ab zwei Sätzen
+schließt der Tagesabschluss die Einheit morgen ab, die Liste für morgen zeigt
+sie dann als erledigt, das geht gedrosselt hinaus – und beim Abschluss; weitere
+Sätze ändern bis dahin nichts. (Bis zur Prüfung stand hier „ein zweiter Haken
+ändert am Kalender nichts", und die Prüfung dazu bestand nur, weil die Uhr im
+Test in einem Sprung vorging und der Zeitgeber der Drossel nie lief.)
 
 | Anlass | Wann |
 | --- | --- |
@@ -2752,9 +2825,16 @@ Haken ändert am Kalender nichts):
 | Abschluss einer Einheit | sofort, mit „✓" |
 | jede andere Änderung | gerechnet 2 s danach, geschickt frühestens 5 s danach und höchstens alle zwei Minuten |
 | Start | 3 s nach dem Laden – ein neuer Tag ist eine neue Vorschau, und die sechs Wochen zählen ab dem letzten Öffnen |
-| `online` | wenn der letzte Versuch am Netz scheiterte |
+| kein Netz, Skript beschäftigt (`fehler`), keine Antwort in 45 s (`zeit`) | dieselbe Vorschau noch einmal nach 2, 5 und 15 Minuten, solange die Seite lebt, dazu bei `online` und beim Zurückkommen (höchstens einmal je Minute) |
 | Wegschalten | nur, was fertig gerechnet bereitliegt, mit `keepalive` (unter 64 KiB, nach der Sicherung) |
-| ohne Netz | der Service Worker schickt nach, sobald wieder Netz da ist (unten) |
+| App zu | der Service Worker schickt nach, was nicht ankam – ohne Netz, sobald wieder welches da ist; ist das Skript beschäftigt, einige Minuten später (unten) |
+
+Bis zur Prüfung des Entwurfs ging nach `fehler` und `zeit` bei bestehendem Netz
+nichts mehr hinaus, obwohl das Skript „die App schickt es später noch einmal"
+sagt: Der stündliche Abgleich hält die Sperre bis zu vier Minuten, `doPost`
+wartet 30 s. Beim Skript blieb dann die Vorschau von vor dem Training, und ab
+Mitternacht schob der Kalender die gemachte Einheit als verpasst weiter – bis
+die App wieder offen war. Gemessen: eine Stunde danach null weitere Sendungen.
 
 **Wie.** Ein einfacher POST: der Text als Body (der Browser schreibt
 `text/plain;charset=UTF-8` dazu), keine eigenen Header, `credentials: 'omit'`,
@@ -2780,12 +2860,16 @@ und bis zum nächsten Öffnen mit Netz hielte der Kalender das Training für
 verpasst. Wo es Background Sync gibt (Chrome, also Tobis Android), legt die
 App die fertige Sendung deshalb in einen Ausgang (Cache „kalender-ausgang") und
 bittet den Browser um ein `sync`. Das bekommt der Service Worker, sobald wieder
-Netz da ist, auch bei geschlossener App; er schickt ohne CORS (die Antwort
-könnte er niemandem zeigen), nur an eine Web-App-Adresse von Apps Script, und
-vermerkt, dass es hinausging. Scheitert es am Netz, versucht der Browser es
-später noch einmal. Was das Skript dazu sagt, erfährt die App mit ihrer
-nächsten eigenen Sendung; die Karte sagt „Im Hintergrund nachgeschickt". Auf
-dem iPhone gibt es das nicht.
+Netz da ist, auch bei geschlossener App. Dasselbe nach `fehler` und `zeit`:
+Schließt Tobi die App gleich nach dem Training, bevor die Wiederholung in zwei
+Minuten käme, schickt der Service Worker – bei bestehendem Netz sofort. Er
+schickt erst mit CORS, um die Antwort zu lesen: Sagt das Skript `fehler`
+(beschäftigt), wirft er, behält die Sendung, und der Browser versucht es einige
+Minuten später noch einmal. Scheitert die Anfrage mit CORS, schickt er dieselbe
+ohne CORS – die wirft nur ohne Netz; eine Seite ohne Freigabe hielte ihn sonst
+endlos auf. Nur an eine Web-App-Adresse von Apps Script. Vermerkt wird, dass es
+hinausging, und, wenn lesbar, was das Skript sagte; die Karte sagt „Im
+Hintergrund nachgeschickt". Auf dem iPhone gibt es das nicht.
 
 **Wer was sieht.**
 
@@ -2833,15 +2917,19 @@ die Vorlage lässt sich nicht holen.
 das Kennwort fest im Speicher vor dem Kopieren und dasselbe über zweites
 Kopieren und Neuladen, jede Fehlerart beim Verbinden, die Probe und die erste Vorschau
 als einfacher POST, die `nutzlastPruefen()` aus dem Vertrag besteht, der Takt
-(Start, Neuladen am selben und am nächsten Tag, erster Haken, zweiter Haken,
-Drossel, Abschluss, Wegschalten, `online`), die Antworten und was davon aufs
-Dashboard kommt, Uhrzeit und Erinnerung, neue URL, Trennen mit und ohne Netz,
+(Start, Neuladen am selben und am nächsten Tag, erster, zweiter und dritter
+Haken mit der Uhr in Schritten, Drossel, Abschluss, Wegschalten, `online`), die
+Antworten und was davon aufs Dashboard kommt, die Wiederholungen nach `fehler`,
+`zeit` und einer undurchsichtigen Antwort, die Nachfrage per GET beim
+Verbinden, die Meldung, die dem Stand weicht, Aufbau der Karte, die Erinnerung
+bei 360 px, Uhrzeit und Erinnerung, neue URL, Trennen mit und ohne Netz,
 *Alle Daten löschen*, Sicherung und Export samt neuem Handy, wo Kennwort und
 URL nie stehen, der ICS-Hinweis, der Service Worker beim `sync` (per CDP
-ausgelöst – Background Sync ist im Chromium ohne Oberfläche abgeschaltet), die
-Last im Fenster und die Einzeldatei – 139 Prüfungen. Gegen v244 (456214c)
-gelaufen, ist sie rot: 26 Zeilen, die meisten Abschnitte brechen gleich ab;
-grün bleiben nur die elf, die prüfen, dass etwas *nicht* passiert.
+ausgelöst – Background Sync ist im Chromium ohne Oberfläche abgeschaltet;
+auch nach `fehler`), die Last im Fenster und die Einzeldatei – 170 Prüfungen.
+Gegen v244 (456214c) gelaufen, war sie rot: 26 Zeilen, die meisten Abschnitte
+brechen gleich ab. Gegen den Stand vor der Nachbesserung (96df6bb) sind 27
+Zeilen rot – alles, was die Prüfung des Entwurfs fand.
 
 **Ehrlich dazugesagt.** Ob die Antwort des Skripts am Handy lesbar ist, zeigt
 erst Tobis Konto: Die Weiterleitung über `script.googleusercontent.com` lässt
@@ -7902,7 +7990,7 @@ Eine Zeile je Ereignis, an der Stelle, an der es passiert (`notieren()` in
 | `datei` | Sicherung teilen, herunterladen, Export, Import |
 | `sicherung` | Ergebnis jedes Versuchs (gelungen, keine Verbindung, Server kennt sie nicht, Konflikt, zu oft), Holen, Löschen, Löschauftrag |
 | `rueckkanal` | Ergebnis der Meldung |
-| `kalender` | Google Kalender automatisch: Anlass (erster Haken, Abschluss, Start, online, Einstellung), Ergebnis jeder Sendung mit Fassung des Skripts, geänderten Terminen, Größe in Byte, Rechenzeit im Worker und im Fenster, Zähler, ob mit keepalive oder in den Ausgang des Service Workers; Verbinden, Trennen, nachgesendet, Code kopiert – nie Kennwort, Adresse oder den Hinweistext des Skripts |
+| `kalender` | Google Kalender automatisch: Anlass (erster Haken, Abschluss, Start, online, Einstellung, Wiederholung, Zurückkommen), Ergebnis jeder Sendung mit Fassung des Skripts, geänderten Terminen, Größe in Byte, Rechenzeit im Worker und im Fenster, Zähler, ob mit keepalive oder in den Ausgang des Service Workers, ob eine Wiederholung aussteht oder alle scheiterten (`wieder`, `erschoepft`); Verbinden samt Nachfrage per GET nach einer undurchsichtigen Probe (`probe-get`, Befund), Trennen, nachgesendet (mit dem Ergebnis, wenn der Service Worker es lesen konnte), Code kopiert – nie Kennwort, Adresse oder den Hinweistext des Skripts |
 | `speicher` | Zusage des Browsers, Speicherlage, Platz gemacht, Satzuhr |
 | `diagnose` | das Protokoll selbst: an, aus, geleert, geteilt, kopiert, heruntergeladen |
 

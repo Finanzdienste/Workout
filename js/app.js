@@ -787,8 +787,11 @@ function icsHinweis() {
  * einfügt.
  * ------------------------------------------------------------------ */
 
-const KALENDER_ERINNERUNGEN = [[0, 'keine'], [10, '10 Min. vorher'], [15, '15 Min. vorher'],
-  [30, '30 Min. vorher'], [60, '1 Std. vorher'], [120, '2 Std. vorher']];
+// Kurz, weil das Feld bei 360 px Breite nur gut 100 px Platz hat – „30 Min.
+// vorher" stand dort als „30 Min. vorhe" (gemessen bei der Prüfung). Das
+// „vorher" steht einmal im Namen des Felds.
+const KALENDER_ERINNERUNGEN = [[0, 'keine'], [10, '10 Min.'], [15, '15 Min.'],
+  [30, '30 Min.'], [60, '1 Std.'], [120, '2 Std.']];
 
 const kalenderUhr = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
@@ -822,7 +825,9 @@ function kalenderStandText(l) {
       : 'Verbunden – die erste Vorschau ist unterwegs.');
   }
   if (l.letzte && !l.letzte.ok && !l.zuAlt) {
-    teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${kalenderSatz(l.letzte)}`);
+    const satz = kalenderSatz(l.letzte);
+    teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${satz}`);
+    if (l.letzte.wieder && !/noch einmal/.test(satz)) teile.push('Die App versucht es gleich noch einmal.');
   } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe') {
     teile.push(`Das Skript sagt: ${l.letzte.hinweis}`);
   }
@@ -848,7 +853,16 @@ function kalenderKarte() {
         installiert), nicht in dieser Einzeldatei – hier gibt es weder den Code zum Kopieren noch den Rechner im
         Hintergrund.</div></div>`;
   }
-  const wer = `<div class="small muted" id="kalenderWer" style="margin-top:8px">An Google geht nur, was im Kalender
+  // Was an Google geht und die Grenzen – ganz da, aber zugeklappt: Vor den
+  // Schritten standen sie mit rund 200 Wörtern, und Schritt 1 begann bei 360 px
+  // erst unten am ersten Bildschirm (Prüfung: Karte 1326 px hoch). Im
+  // Dokument bleiben sie (hidden), damit nichts davon verschwindet.
+  const mehrOffen = !!ui.kalenderMehr;
+  const wer = `<button type="button" class="detail-toggle ${mehrOffen ? 'on' : ''}" data-act="kalender-mehr"
+              id="kalenderMehrKnopf" aria-expanded="${mehrOffen}" aria-controls="kalenderMehr">
+        Was an Google geht · Grenzen <span class="chev">▼</span></button>
+      <div id="kalenderMehr"${mehrOffen ? '' : ' hidden'}>
+      <div class="small muted" id="kalenderWer" style="margin-top:8px">An Google geht nur, was im Kalender
         steht – Titel, Übungen, Tage und Uhrzeit –, in dein eigenes Konto; kein Server der App sieht es. Google fragt
         beim Einrichten nach Zugriff auf alle deine Kalender, so ist Googles Baustein gebaut. Das Skript fasst
         trotzdem nur „Workout" an – das ist eine Regel in seinem Code, keine Sperre von Google.</div>
@@ -857,22 +871,28 @@ function kalenderKarte() {
         weiter, bis die App wieder Netz hat – auf Android schickt sie es dann von selbst nach, meist auch bei
         geschlossener App. Öffnest du die App sechs Wochen lang nicht, ist der Plan aufgebraucht: Der Kalender
         schiebt dann nicht mehr und sagt es dir mit einem Termin. Und Kennwort und URL reisen mit Sicherung und
-        Exportdatei: Wer die Exportdatei hat, kann damit Termine in „Workout" schreiben, sonst nichts.</div>`;
-  const meldung = ui.kalenderMeldung ? `<div class="hint" id="kalenderMeldung"
+        Exportdatei: Wer die Exportdatei hat, kann damit Termine in „Workout" schreiben, sonst nichts.</div>
+      </div>`;
+  // Die Meldung einer Handlung („Verbinden", „Code kopieren", „Trennen") gilt,
+  // bis ein neueres Ergebnis da ist – dann sagt kalenderStandText() den Stand.
+  // Vorher stand nach dem Verbinden über „✓ Verbunden. Zuletzt angekommen …"
+  // weiter groß „Noch keine Vorschau angekommen", die ganze Sitzung lang.
+  const ueberholt = !!(l.letzte && Number.isInteger(l.letzte.nr) && l.letzte.nr > (ui.kalenderMeldungNr || 0));
+  const meldung = ui.kalenderMeldung && !ueberholt ? `<div class="hint" id="kalenderMeldung"
         style="color:${ui.kalenderGut ? 'var(--ok)' : 'var(--accent)'};margin-top:8px">${esc(ui.kalenderMeldung)}</div>` : '';
   const codeText = ui.kalenderCodeText ? `<textarea class="io" id="kalenderCodeText" readonly
         aria-label="Code für Apps Script">${esc(ui.kalenderCodeText)}</textarea>` : '';
-  const urlFeld = (platzhalter) => `<input type="url" class="name-input" id="kalenderUrl" inputmode="url"
+  const urlFeld = (platzhalter, haupt) => `<input type="url" class="name-input" id="kalenderUrl" inputmode="url"
         autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(platzhalter)}"
         aria-label="Web-App-URL des Skripts">
       <div class="btn-row">
-        <button type="button" class="btn btn-primary" data-act="kalender-verbinden"
+        <button type="button" class="btn${haupt ? ' btn-primary' : ''}" data-act="kalender-verbinden"
                 ${ui.kalenderLaeuft ? 'disabled' : ''}>Verbinden</button>
       </div>`;
   const offenAus = l.ausstehend ? `<div class="small" id="kalenderAusOffen" style="margin-top:8px">📅 Ein Trennen
         wartet noch auf Netz – die App schickt es dem Skript, sobald welches da ist.</div>` : '';
   if (!l.verbunden) {
-    return `<div class="card" id="kalenderAuto">${was}${wer}
+    return `<div class="card" id="kalenderAuto">${was}
       <div class="lbl" style="margin-top:12px">Einrichten – einmal, am Handy</div>
       <ol class="small kalender-schritte" id="kalenderSchritte">
         <li>Unten „Code kopieren" tippen. Darin steckt ein Kennwort nur für deinen Kalender – nicht weitergeben.</li>
@@ -893,12 +913,16 @@ function kalenderKarte() {
       ${l.token ? `<div class="small muted" id="kalenderKennwort" style="margin-top:6px">Das Kennwort ist fest
         gespeichert – noch einmal kopieren gibt denselben Code.</div>` : ''}
       ${codeText}
-      ${urlFeld('https://script.google.com/macros/s/…/exec')}
+      ${urlFeld('https://script.google.com/macros/s/…/exec', l.token)}
       ${meldung}${offenAus}
+      ${wer}
     </div>`;
   }
   const optionen = [...KALENDER_ERINNERUNGEN];
-  if (!optionen.some(([v]) => v === l.erinnerung)) optionen.push([l.erinnerung, `${l.erinnerung} Min. vorher`]);
+  if (!optionen.some(([v]) => v === l.erinnerung)) optionen.push([l.erinnerung, `${l.erinnerung} Min.`]);
+  // Ein neues Skript-Projekt braucht Tobi so gut wie nie – zugeklappt, und
+  // „Verbinden" dort nicht als auffälligster Knopf der Karte.
+  const neuOffen = !!ui.kalenderNeu;
   return `<div class="card" id="kalenderAuto">${was}
       <div class="small" id="kalenderStand" style="margin-top:8px">${esc(kalenderStandText(l))}</div>
       ${l.zuAlt ? `<div class="notice warn" id="kalenderErneuern" style="margin-top:8px">${esc(kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }))}</div>` : ''}
@@ -907,7 +931,7 @@ function kalenderKarte() {
         <label class="zeit"><span class="lbl">Uhrzeit</span>
           <input type="time" id="kalenderUhrzeit" data-act="kalender-uhrzeit" step="300"
                  value="${esc(kalenderUhr(l.minuten))}"></label>
-        <label class="zeit"><span class="lbl">Erinnerung</span>
+        <label class="zeit"><span class="lbl">Erinnerung vorher</span>
           <select id="kalenderErinnerung" data-act="kalender-erinnerung">
             ${optionen.map(([v, t]) => `<option value="${v}"${v === l.erinnerung ? ' selected' : ''}>${esc(t)}</option>`).join('')}
           </select></label>
@@ -915,7 +939,10 @@ function kalenderKarte() {
       <div class="small muted" style="margin-top:6px">Uhrzeit (Berliner Zeit) und Erinnerung stellst du hier ein,
         nicht im Kalender – das Skript gleicht seine Termine jede Stunde an. Siehst du „Workout" am Handy nicht:
         Google-Kalender-App → Einstellungen → Workout → <i>Synchronisieren</i>.</div>
-      ${wer}
+      <div class="small muted" id="kalenderMail" style="margin-top:6px">Schickt Google dir eine Mail „Summary of
+        failures", kommt sie von diesem Skript: Beim stündlichen Abgleich ist etwas schiefgegangen, und in der Mail
+        steht, was. Meist hilft, in Apps Script einmal <i>einrichten</i> auszuführen – sonst dem Assistenten Bescheid
+        geben.</div>
       <div class="btn-row">
         <button type="button" class="btn" data-act="kalender-code">Code kopieren</button>
         <button type="button" class="btn btn-ghost" data-act="kalender-trennen"
@@ -925,10 +952,26 @@ function kalenderKarte() {
         erneuern" steht. „Trennen": Die Termine ab heute verschwinden aus „Workout", und das Skript schiebt nichts
         mehr; ganz weg ist es erst, wenn du das Projekt in Apps Script löschst.</div>
       ${codeText}
-      <div class="small muted" style="margin-top:10px">Neues Skript-Projekt? Seine URL hier einfügen:</div>
-      ${urlFeld('https://script.google.com/macros/s/…/exec')}
+      ${wer}
+      <button type="button" class="detail-toggle ${neuOffen ? 'on' : ''}" data-act="kalender-neu" id="kalenderNeuKnopf"
+              aria-expanded="${neuOffen}" aria-controls="kalenderNeu">Neues Skript-Projekt? <span class="chev">▼</span></button>
+      <div id="kalenderNeu"${neuOffen ? '' : ' hidden'}>
+        <div class="small muted" style="margin-top:6px">Nur, wenn du in Apps Script ein neues Projekt angelegt hast:
+          seine Web-App-URL hier einfügen. Das alte bekommt dann ein „Trennen".</div>
+        ${urlFeld('https://script.google.com/macros/s/…/exec', false)}
+      </div>
       ${offenAus}
     </div>`;
+}
+
+/**
+ * Eine Meldung der Karte setzen – mit der Nummer des letzten Versuchs, damit
+ * die Karte sie wegnimmt, sobald ein neueres Ergebnis da ist (kalenderKarte()).
+ */
+function kalenderMelden(text, gut, nr = null) {
+  ui.kalenderMeldung = text;
+  ui.kalenderGut = !!gut;
+  ui.kalenderMeldungNr = Number.isInteger(nr) ? nr : ((kalenderLage().letzte || {}).nr || 0);
 }
 
 /** „Code kopieren": erst das Kennwort fest speichern, dann kopieren – oder zum Abschreiben zeigen. */
@@ -937,24 +980,26 @@ async function kalenderCodeKopieren() {
   try {
     code = await kalenderCode();
   } catch (e) {
-    ui.kalenderMeldung = e && e.code === 'speicher' ? e.message
-      : 'Die Vorlage des Codes ist gerade nicht da – mit Netz noch einmal tippen.';
-    ui.kalenderGut = false;
+    kalenderMelden(e && e.code === 'speicher' ? e.message
+      : 'Die Vorlage des Codes ist gerade nicht da – mit Netz noch einmal tippen.', false);
     notieren('kalender', { was: 'code', ok: false, grund: e && e.code === 'speicher' ? 'speicher' : 'vorlage' }, true);
     render();
     return;
   }
   const gut = () => {
     ui.kalenderCodeText = '';
-    ui.kalenderMeldung = 'Code kopiert. Jetzt in Apps Script den ganzen Code damit ersetzen (Schritt 2 und 3).';
-    ui.kalenderGut = true;
+    // Verbunden gibt es die nummerierten Schritte nicht – dort braucht man den
+    // Code zum Erneuern, und ohne „Neue Version" liefe die Web-App mit dem alten.
+    kalenderMelden(kalenderVerbunden()
+      ? 'Code kopiert. In Apps Script den ganzen Code damit ersetzen, speichern, „einrichten" ausführen, dann '
+        + 'Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.'
+      : 'Code kopiert. Jetzt in Apps Script den ganzen Code damit ersetzen (Schritt 2 und 3).', true);
     notieren('kalender', { was: 'code', ok: true, kopiert: true });
     render();
   };
   const zeigen = () => {
     ui.kalenderCodeText = code;
-    ui.kalenderMeldung = 'Kopieren ging nicht – der Code steht unten markiert, dort lang drücken und kopieren.';
-    ui.kalenderGut = false;
+    kalenderMelden('Kopieren ging nicht – der Code steht unten markiert, dort lang drücken und kopieren.', false);
     notieren('kalender', { was: 'code', ok: true, kopiert: false });
     render();
     const ta = document.getElementById('kalenderCodeText');
@@ -971,8 +1016,7 @@ async function kalenderVerbindenTipp() {
   const feld = document.getElementById('kalenderUrl');
   const eingabe = feld ? feld.value : '';
   ui.kalenderLaeuft = true;
-  ui.kalenderMeldung = 'Frage das Skript …';
-  ui.kalenderGut = true;
+  kalenderMelden('Frage das Skript …', true);
   render();
   let r;
   try {
@@ -981,10 +1025,16 @@ async function kalenderVerbindenTipp() {
     r = { ok: false, satz: 'Das ging gerade nicht – noch einmal versuchen.' };
   }
   ui.kalenderLaeuft = false;
-  ui.kalenderMeldung = r.ok
-    ? `${r.satz || 'Verbunden.'} Die erste Vorschau geht gleich hinaus; nach etwa einer Minute stehen die Termine in „Workout".`
-    : r.satz;
-  ui.kalenderGut = !!r.ok;
+  // Gelungen und nichts zu tun: ein Satz, der bis zur ersten Vorschau gilt –
+  // dann übernimmt der Stand der Karte. Bittet das Skript um etwas (einrichten,
+  // ein anderes Projekt pflegt den Kalender) oder ist sein Code zu alt: dessen
+  // Satz, in der Farbe für „da ist etwas zu tun", ohne Versprechen.
+  if (r.ok && !(r.handeln || r.zuAlt)) {
+    kalenderMelden('Verbunden – die erste Vorschau ist unterwegs. Nach etwa einer Minute stehen die Termine in „Workout".', true, r.nr);
+  } else {
+    kalenderMelden(r.satz || 'Verbunden.', false, r.nr);
+  }
+  if (r.ok) ui.kalenderNeu = false;
   ui.kalenderCodeText = '';
   render();
   // Was er eingefügt hatte, bleibt im Feld stehen, wenn es nicht ging – zum Ausbessern.
@@ -1004,8 +1054,7 @@ async function kalenderTrennenTipp() {
     r = { satz: 'Getrennt.' };
   }
   ui.kalenderLaeuft = false;
-  ui.kalenderMeldung = r.satz;
-  ui.kalenderGut = true;
+  kalenderMelden(r.satz, true);
   render();
 }
 
@@ -1565,7 +1614,10 @@ const ui = {
   // eins davon läuft, und der Code zum Abschreiben, wenn das Kopieren nicht
   // ging. Kennwort und Adresse stehen nur im Code und im Eingabefeld.
   kalenderMeldung: '',
+  kalenderMeldungNr: 0,
   kalenderGut: false,
+  kalenderMehr: false,   // „Was an Google geht · Grenzen" aufgeklappt
+  kalenderNeu: false,    // „Neues Skript-Projekt?" aufgeklappt
   kalenderLaeuft: false,
   kalenderCodeText: '',
 };
@@ -8585,6 +8637,16 @@ view.addEventListener('click', (e) => {
     case 'kalender-code':
       kalenderCodeKopieren();
       break;
+    case 'kalender-mehr':
+    case 'kalender-neu': {
+      // Ohne render(): Eine eben eingefügte URL im Feld bliebe sonst nicht stehen.
+      const offen = t.dataset.act === 'kalender-mehr' ? (ui.kalenderMehr = !ui.kalenderMehr) : (ui.kalenderNeu = !ui.kalenderNeu);
+      const box = document.getElementById(t.dataset.act === 'kalender-mehr' ? 'kalenderMehr' : 'kalenderNeu');
+      if (box) box.hidden = !offen;
+      t.classList.toggle('on', offen);
+      t.setAttribute('aria-expanded', String(offen));
+      break;
+    }
     case 'kalender-verbinden':
       if (!ui.kalenderLaeuft) kalenderVerbindenTipp();
       break;

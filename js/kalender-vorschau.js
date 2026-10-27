@@ -90,9 +90,10 @@
  *               enthält die Termine von d − zurueck bis d + voraus (Standard
  *               [7, 28]). Was davor oder danach liegt, fasst das Skript nicht an
  *   stand       der Trainingsstand des Geräts (trainingsStand()):
- *               { einheiten, saetze, zuletzt } – abgeschlossene Planeinheiten
- *               und abgehakte Sätze über alle Runden, das letzte
- *               Lebenszeichen einer Einheit (ms, 0 = keins bekannt)
+ *               { einheiten, saetze, zuletzt } – abgeschlossene Planeinheiten,
+ *               abgehakte Sätze und das letzte Lebenszeichen einer Einheit
+ *               (ms, 0 = keins bekannt), alle drei über alle Runden, auch
+ *               abgelegte und die anderer Fokusse
  *   texte       { <hash>: [titel, beschreibung] } – jeder Text einmal
  *               (Schlüssel [0-9a-z]{1,12}, Titel ≤ 200, Beschreibung ≤ 4000
  *               Zeichen, höchstens 500 Texte)
@@ -112,8 +113,9 @@
  * eingelesenen älteren Sicherung, denn dann zeigt die App deren Stand. Eine
  * frühere Sendung desselben Geräts (eine verspätete Wiederholung) ist
  * überholt. Ein anderes Gerät gilt, wenn es zuletzt trainiert hat (stand.
- * zuletzt später), bei gleichem Lebenszeichen mit mindestens so vielen
- * Einheiten, dann Sätzen. Nicht „die neueste Sendung gewinnt": Ein Tablet,
+ * zuletzt später, über alle Runden – sonst stünde das Handy am Morgen nach
+ * dem Rundenende mit 0 da), bei gleichem Lebenszeichen mit mindestens so
+ * vielen Einheiten, dann Sätzen. Nicht „die neueste Sendung gewinnt": Ein Tablet,
  * das seit zwei Wochen in der Schublade lag, rückt beim Öffnen nach, sendet
  * frisch – und hätte damit den Kalender des Handys überschrieben, mit dem
  * seitdem trainiert wird. Umgekehrt braucht ein neues Handy keinen Knopf
@@ -289,22 +291,34 @@ function textHash(titel, beschreibung) {
 /**
  * Der Trainingsstand eines Zustands: abgeschlossene Planeinheiten und
  * abgehakte Sätze über alle Runden (laufende und abgelegte), dazu das letzte
- * Lebenszeichen. Gezählt wird, was das Gerät weiß – nicht, was der
- * Tagesabschluss gleich daraus macht.
+ * Lebenszeichen – auch das über alle Runden. Gezählt wird, was das Gerät weiß
+ * – nicht, was der Tagesabschluss gleich daraus macht.
+ *
+ * `zuletzt` ist das Lebenszeichen des laufenden Protokolls (store.
+ * lebenszeichen(), samt Uhr der Sitzung). Dazu kommt das jüngste `zuletzt`
+ * der abgelegten Runden: Nach dem Rundenende ist das Protokoll leer, nach
+ * einem Fokuswechsel steht dort der ältere Verlauf des Ziel-Fokus. Allein
+ * gezählt, meldete das Handy am Morgen nach Workout 84 „nie trainiert" – und
+ * ein Tablet aus der Schublade überholte es in der Regel „Wer gilt" still
+ * (gemessen bei der Prüfung). Werte aus der Zukunft (eine Sicherung von einem
+ * Gerät mit falsch gehender Uhr) zählen wie in js/store.js nicht.
  */
-export function trainingsStand(zustand, zuletzt = 0) {
+export function trainingsStand(zustand, zuletzt = 0, jetzt = Date.now()) {
   let einheiten = 0;
   let saetze = 0;
-  const zaehle = (log) => Object.entries(log || {}).forEach(([k, e]) => {
+  let spaetestens = Math.max(0, Math.round(Number(zuletzt) || 0));
+  const zaehle = (log, abgelegt) => Object.entries(log || {}).forEach(([k, e]) => {
     if (!e || typeof e !== 'object') return;
     if (/^\d+$/.test(k) && e.done) einheiten += 1;
     ['db', 'bw'].forEach((m) => Object.values(e[m] || {}).forEach((arr) => {
       if (Array.isArray(arr)) saetze += arr.filter((x) => x && x.done).length;
     }));
+    const t = e.zuletzt;
+    if (abgelegt && Number.isFinite(t) && t > 0 && t <= jetzt + MINUTE) spaetestens = Math.max(spaetestens, Math.round(t));
   });
-  (Array.isArray(zustand.rounds) ? zustand.rounds : []).forEach((r) => zaehle(r && r.log));
-  zaehle(zustand.log);
-  return { einheiten, saetze, zuletzt: Math.max(0, Math.round(Number(zuletzt) || 0)) };
+  (Array.isArray(zustand.rounds) ? zustand.rounds : []).forEach((r) => zaehle(r && r.log, true));
+  zaehle(zustand.log, false);
+  return { einheiten, saetze, zuletzt: spaetestens };
 }
 
 /**
@@ -349,10 +363,12 @@ async function rechnen(zustand, {
     const { store, dates, tagstart, kalender } = await laden(text, roh);
     const ab = tagVon(jetzt);
     // Das letzte Lebenszeichen im Ausgangszustand – daran hängt die 3-Stunden-Regel.
+    // Nur das laufende Protokoll: Eine abgelegte Runde schließt der Tagesabschluss
+    // nicht mehr ab. Für „Wer gilt" zählen alle Runden (trainingsStand()).
     store.importJSON(text);
     const s0 = store.getState();
     const zuletzt = Object.keys(s0.log || {}).reduce((m, k) => Math.max(m, store.lebenszeichen(k, jetzt)), 0);
-    const stand = trainingsStand(s0, zuletzt);
+    const stand = trainingsStand(s0, zuletzt, jetzt);
     const liegtAb = zuletzt ? zuletzt + store.LIEGT_AB_MS + MINUTE : 0;
     // Ohne Prototyp: Ein Schlüssel ist ein Hash, und kein Hash soll auf
     // „constructor" oder „toString" treffen.

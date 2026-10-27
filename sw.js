@@ -325,19 +325,25 @@ self.addEventListener('message', (event) => {
  *
  * Trainiert Tobi im Studio ohne Netz, kann die App die neue Vorschau nicht
  * schicken, und bis zum nächsten Öffnen mit Netz hielte der Kalender das
- * Training für verpasst und schöbe es weiter. Die App legt die fertige
- * Sendung deshalb in den Ausgang (Cache „kalender-ausgang", js/kalender-sync.js)
- * und bittet um ein „sync". Das schickt der Browser, sobald wieder Netz da
- * ist – auch bei geschlossener App (Background Sync: Chrome, also Android;
- * Safari und Firefox kennen es nicht). Scheitert es am Netz, wirft dieser
- * Teil, und der Browser versucht es später noch einmal.
+ * Training für verpasst und schöbe es weiter. Ebenso, wenn das Skript gerade
+ * beschäftigt war oder keine Antwort kam und Tobi die App gleich danach
+ * schließt. Die App legt die fertige Sendung deshalb in den Ausgang (Cache
+ * „kalender-ausgang", js/kalender-sync.js) und bittet um ein „sync". Das
+ * schickt der Browser sofort, wenn Netz da ist, sonst sobald wieder welches
+ * da ist – auch bei geschlossener App (Background Sync: Chrome, also Android;
+ * Safari und Firefox kennen es nicht). Wirft dieser Teil, versucht der
+ * Browser es einige Minuten später noch einmal.
  *
- * Geschickt wird ohne CORS: Die Antwort könnte hier ohnehin niemand lesen, und
- * mit CORS sähe eine Antwort ohne Freigabe aus wie kein Netz – dann versuchte
- * der Browser es endlos. Was das Skript dazu sagt, erfährt die App mit ihrer
- * nächsten eigenen Sendung; hier wird nur vermerkt, dass es hinausging.
- * Nur an eine Web-App von Google Apps Script – dieselbe Prüfung wie
- * KALENDER_URL in js/store.js.
+ * Geschickt wird erst mit CORS, damit die Antwort lesbar ist: Sagt das
+ * Skript „fehler" (beschäftigt – der stündliche Abgleich hält die Sperre bis
+ * zu vier Minuten), wirft dieser Teil, und die Sendung bleibt im Ausgang.
+ * Bis zur Prüfung des Entwurfs ging sie ohne CORS hinaus und galt dann als
+ * geschickt, auch wenn das Skript sie abgewiesen hatte. Scheitert die Anfrage
+ * mit CORS, ist das kein Netz – oder eine Seite ohne Freigabe (Anmeldeseite,
+ * Fehlerseite). Dann dieselbe noch einmal ohne CORS: Die wirft nur ohne Netz;
+ * sonst wäre es endlos weitergegangen. Vermerkt wird, dass es hinausging, und
+ * – wenn lesbar – was das Skript sagte. Nur an eine Web-App von Google Apps
+ * Script – dieselbe Prüfung wie KALENDER_URL in js/store.js.
  * ------------------------------------------------------------------ */
 
 const KALENDER_AUSGANG = 'kalender-ausgang';
@@ -353,17 +359,36 @@ async function kalenderNachsenden() {
     await c.delete(schluessel);
     return;
   }
-  // Wirft ohne Netz – dann kommt das nächste „sync".
-  await fetch(s.url, {
-    method: 'POST', body: s.text, mode: 'no-cors', credentials: 'omit', redirect: 'follow',
+  const anfrage = (mode) => fetch(s.url, {
+    method: 'POST', body: s.text, mode, credentials: 'omit', redirect: 'follow',
   });
+  let code = null;
+  let res = null;
+  try {
+    res = await anfrage('cors');
+  } catch {
+    res = null;
+  }
+  if (res) {
+    try {
+      const j = JSON.parse(await res.text());
+      code = j && typeof j.code === 'string' ? j.code.slice(0, 20) : null;
+    } catch {
+      code = null;
+    }
+    // Beschäftigt (oder ein Fehler im Skript): behalten, später noch einmal.
+    if (code === 'fehler') throw new Error('Kalender-Skript beschäftigt');
+  } else {
+    // Wirft ohne Netz – dann kommt das nächste „sync".
+    await anfrage('no-cors');
+  }
   // Nur wegräumen, was geschickt wurde: Hat die App inzwischen eine neuere
   // Sendung hineingelegt, bleibt die für das nächste „sync".
   const jetzt = await c.match(schluessel);
   const noch = jetzt ? await jetzt.json().catch(() => null) : null;
   if (!noch || noch.seq === s.seq) await c.delete(schluessel);
   await c.put(new URL('kalender-ausgang-nach', self.registration.scope).href,
-    new Response(JSON.stringify({ seq: s.seq, zeit: Date.now() }), { headers: { 'content-type': 'application/json' } }));
+    new Response(JSON.stringify({ seq: s.seq, zeit: Date.now(), code }), { headers: { 'content-type': 'application/json' } }));
 }
 
 self.addEventListener('sync', (event) => {

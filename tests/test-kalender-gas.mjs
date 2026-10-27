@@ -35,6 +35,11 @@
  *      zweites Projekt; Kalender gelöscht; ohne einrichten; Platzhalter.
  *   7. Speicher: Stücke unter 9 KB, alte weg, Format 1 bleibt lesbar,
  *      Beschädigtes fasst den Kalender nicht an. Sperre.
+ *   8. Was die Prüfung des Entwurfs fand: eine gemerkte id, an der Google
+ *      dauerhaft scheitert; die nächste Sendung 30 und 89 Tage nach dem Ende
+ *      der Vorschau; doGet ohne Speicher; das Tageskontingent; eine
+ *      Voreinstellung, die getPopupReminders() nicht meldet; die Probe ohne
+ *      „einrichten".
  */
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -147,6 +152,10 @@ if (!GAS) {
     N.Gross = g;
   }
 
+  // Lange nach dem Ende der Vorschau vom 08.10. (bis 18.11.): 30 und 89 Tage danach (Abschnitt 8).
+  nutz('Spaet30', await rechne(kopie(), '2026-12-18T12:00:00+01:00'), 'handy-tobi', 8, '2026-12-18T12:00:00+01:00');
+  nutz('Spaet89', await rechne(kopie(), '2027-02-15T12:00:00+01:00'), 'handy-tobi', 9, '2027-02-15T12:00:00+01:00');
+
   const groessen = Object.entries(N).map(([k, n]) => `${k} ${(V.nutzlastBytes(n) / 1024).toFixed(1)}`);
   zeige(`Nutzlasten (KiB): ${groessen.join(', ')}`);
   check(Object.values(N).every((n) => V.nutzlastPruefen(n) === null), `alle ${Object.keys(N).length} Sendungen bestehen nutzlastPruefen() des Kerns`);
@@ -214,7 +223,7 @@ class Welt {
   constructor(jetzt) {
     Object.assign(this, {
       jetzt: um(jetzt), kalender: [], nr: 0, lesen: 0, schreiben: 0, terminSchreiben: 0,
-      drossel: null, proSchreiben: 0, neueErinnerung: [10],
+      drossel: null, drosselText: DROSSEL, proSchreiben: 0, neueErinnerung: [10], voreinstellungVerdeckt: false,
     });
     this.haupt = new Kal(this, 'Tobi', { zone: BERLIN });
     this.CalendarApp = {
@@ -235,7 +244,7 @@ class Welt {
   /** Ein Schreibzugriff: Google bremst ab einer Zahl, und jeder kostet Zeit. */
   schreib(termin = null) {
     if (this.drossel !== null) {
-      if (this.drossel <= 0) throw new Error(DROSSEL);
+      if (this.drossel <= 0) throw new Error(this.drosselText);
       this.drossel -= 1;
     }
     this.schreiben += 1;
@@ -287,6 +296,13 @@ class Kal {
     this.welt.schreib();
     this.welt.terminSchreiben += 1;
     const t = new Termin(this, titel, a.getTime(), b.getTime(), (o && o.description) || '');
+    // Wie Google es vielleicht hält: Ein neuer Termin trägt die Voreinstellung
+    // des Kalenders als eigenen Zustand (useDefault), und getPopupReminders()
+    // meldet sie nicht. Belegt ist das nicht – darum beide Fälle.
+    if (this.welt.voreinstellungVerdeckt) {
+      t.popup = [];
+      t.voreinstellung = true;
+    }
     this.termine.push(t);
     return t;
   }
@@ -344,10 +360,11 @@ class Termin {
     if (!Number.isInteger(m) || m < 0 || m > 40320) throw new Error('Ungültige Erinnerung');
     this.w();
     this.popup.push(m);
+    this.voreinstellung = false;
     return this;
   }
 
-  removeAllReminders() { this.w(); this.popup = []; this.email = []; return this; }
+  removeAllReminders() { this.w(); this.popup = []; this.email = []; this.voreinstellung = false; return this; }
 
   deleteEvent() { this.w(); this.weg = true; }
 
@@ -531,6 +548,7 @@ function abweichung(kal, n, tag) {
     if (t.titel !== titel) return `${kennung}: Titel „${t.titel}" statt „${titel}"`;
     if (t.beschreibung !== n.texte[h][1]) return `${kennung}: Beschreibung`;
     if (JSON.stringify([...t.popup].sort()) !== JSON.stringify(popup) || t.email.length) return `${kennung}: Erinnerung ${JSON.stringify(t.popup)} statt ${JSON.stringify(popup)}`;
+    if (t.voreinstellung) return `${kennung}: trägt noch die Voreinstellung des Kalenders`;
   }
   const drin = new Set(liste.map((e) => e[0]));
   const von = addDays(tag, -n.fenster[0]);
@@ -729,9 +747,9 @@ const fremdVorher = fremdBild(welt);
     `„Verbinden" (probe): ok, nichts gespeichert – ${pr.hinweis}`);
   const out = p1.g.doGet({ parameter: {} });
   const st = JSON.parse(out.getContent());
-  check(out.getMimeType() === 'JSON' && st.ok && st.code === 'status' && st.kennwort === true && st.eingerichtet === true && st.vorschau === false
-    && st.stand === null && !out.getContent().includes(kal.id) && !out.getContent().includes(TOKEN),
-  'doGet: Lebenszeichen ohne Kennwort, ohne Stand, ohne Kalender-ID');
+  check(out.getMimeType() === 'JSON' && st.ok && st.code === 'status' && st.kennwort === true && st.version === 1
+    && st.stand === null && !('eingerichtet' in st) && !('vorschau' in st) && !out.getContent().includes(kal.id) && !out.getContent().includes(TOKEN),
+  'doGet: Lebenszeichen mit Fassung, ohne Kennwort, ohne Stand, ohne Kalender-ID – und ohne Auskunft aus dem Speicher');
 }
 
 /* ------------------------------------------------------------------ *
@@ -1117,6 +1135,127 @@ const neu = (jetzt, n, wann) => {
   try { p.g.einrichten(); } catch (e) { fehlerE = e; }
   check(!a.ok && a.code === 'fehler' && /beschäftigt/.test(a.hinweis) && r === null && !fehlerS && fehlerE && w.schreiben === s,
     'die Sperre ist belegt: doPost antwortet „beschäftigt", stündlich wartet still auf die nächste Stunde, einrichten bittet um eine Minute');
+}
+
+/* ------------------------------------------------------------------ *
+ * 8. Was die Prüfung des Entwurfs fand
+ * ------------------------------------------------------------------ */
+
+const tageBis = (von, bis) => { const r = []; for (let t = von; t <= bis; t = addDays(t, 1)) r.push(t); return r; };
+{
+  // Eine gemerkte id (workout.offen), an der Google dauerhaft scheitert –
+  // nicht, weil es bremst. Vorher hielt sie jeden Abgleich für immer an.
+  const { p, k } = neu('2026-10-08T10:00:00+02:00', N.A, '2026-10-08T12:00:05+02:00');
+  p.props.set('workout.offen', JSON.stringify({ 'kaputt@google.com': 'cut-1-99' }));
+  const orig = Kal.prototype.getEventById;
+  let wirft = 'Aktion nicht zulässig';
+  Kal.prototype.getEventById = function getEventById(id) {
+    if (id === 'kaputt@google.com') throw new Error(wirft);
+    return orig.call(this, id);
+  };
+  try {
+    wirft = DROSSEL;
+    const r1 = feuern(p, '2026-10-09T00:30:00+02:00');
+    check(r1.spaeter && p.props.has('workout.offen'), 'eine gemerkte id, an der Google bremst: behalten, die nächste Stunde versucht es wieder');
+    wirft = 'Aktion nicht zulässig';
+    let fehler = null;
+    try { feuern(p, '2026-10-10T00:30:00+02:00'); } catch (e) { fehler = e; }
+    check(!fehler && !p.props.has('workout.offen') && !abweichung(k, N.A, '2026-10-10'),
+      `eine gemerkte id, an der Google sonst scheitert: aufgegeben, der Kalender verschiebt weiter${fehler ? ` – „${fehler.message}"` : ''}`);
+  } finally {
+    Kal.prototype.getEventById = orig;
+  }
+}
+{
+  // Mehr als zwölf Wochen ohne Sendung: Die Vorschau vom 08.10. reicht bis
+  // 18.11., danach verschiebt das Skript nichts mehr. Kommt die nächste erst
+  // im Februar, liegen die offenen Termine vom November weit vor dem Fenster
+  // – sie müssen trotzdem wiedergefunden werden, sonst stehen sie doppelt da.
+  for (const [name, wann] of [['Spaet30', '2026-12-18T12:00:05+01:00'], ['Spaet89', '2027-02-15T12:00:05+01:00']]) {
+    const { w, p, k } = neu('2026-10-08T10:00:00+02:00', N.A, '2026-10-08T12:00:05+02:00');
+    tageBis('2026-10-09', '2026-11-25').forEach((t) => feuern(p, `${t}T00:30:00+01:00`));
+    w.jetzt = um(wann);
+    const a = post(p, N[name]).a;
+    const tag = wann.slice(0, 10);
+    const ab = abweichung(k, N[name], tag);
+    const geister = eigene(k).filter((t) => tagB(t.beginn) < addDays(tag, -N[name].fenster[0]) && !t.titel.startsWith('✓'));
+    check(a.ok && !ab && !geister.length && !hinweise(k).length,
+      `${name}: die nächste Sendung ${name.slice(5)} Tage nach dem Ende der Vorschau – nichts doppelt, kein offener Termin von früher und kein Hinweis „aufgebraucht" bleibt stehen${ab ? ` – ${ab}` : ''}${geister.length ? ` – ${geister.length} offen davor` : ''}${hinweise(k).length ? ` – Hinweis am ${tagB(hinweise(k)[0].beginn)}` : ''}`);
+  }
+}
+{
+  // doGet ist öffentlich („Zugriff: Jeder"): ohne Kennwort kein Zugriff auf den Speicher.
+  const { p } = neu('2026-10-08T10:00:00+02:00', N.A, '2026-10-08T12:00:05+02:00');
+  const store = p.g.PropertiesService.getScriptProperties();
+  let zugriffe = 0;
+  const echt = {};
+  ['getProperty', 'setProperty', 'getProperties', 'setProperties', 'deleteProperty', 'getKeys'].forEach((f) => {
+    echt[f] = store[f];
+    store[f] = (...x) => { zugriffe += 1; return echt[f](...x); };
+  });
+  const st = JSON.parse(p.g.doGet({ parameter: {} }).getContent());
+  Object.assign(store, echt);
+  check(zugriffe === 0 && st.ok && st.code === 'status' && st.kennwort === true && st.version === 1,
+    `doGet: Lebenszeichen ohne einen Zugriff auf die Skript-Eigenschaften (${zugriffe}) – wer nur die URL hat, leert damit kein Kontingent`);
+}
+{
+  // Das Tageskontingent ist aufgebraucht: kein kurzes Bremsen, das die nächste
+  // Stunde von selbst nachholt – der Auslöser wirft, und Google schickt die Mail.
+  const { w, p } = neu('2026-10-08T10:00:00+02:00', N.A, '2026-10-08T12:00:05+02:00');
+  w.drosselText = 'Service invoked too many times for one day: calendar.';
+  w.drossel = 0;
+  let fehler = null;
+  try { feuern(p, '2026-10-09T00:30:00+02:00'); } catch (e) { fehler = e; }
+  check(fehler && /Tageskontingent/.test(fehler.message),
+    `das Tageskontingent ist aufgebraucht: der Auslöser wirft (Fehlermail von Google) – „${fehler && fehler.message}"`);
+  w.drosselText = DROSSEL;
+  let kurz2 = null;
+  try { kurz2 = feuern(p, '2026-10-09T01:30:00+02:00'); } catch (e) { kurz2 = e; }
+  check(kurz2 && kurz2.spaeter && !(kurz2 instanceof Error), 'nur kurz gebremst („in a short time"): kein Fehler, die nächste Stunde macht weiter');
+  w.drossel = null;
+}
+{
+  // Meldet Google die Voreinstellung des Kalenders nicht als Popup (eigener
+  // Zustand useDefault), muss das Skript sie trotzdem ersetzen – an erledigten
+  // Terminen, bei „keine Erinnerung" und am Hinweis-Termin.
+  for (const [was, n] of [['30 Minuten', N.A], ['keine Erinnerung', { ...N.A, erinnerung: 0 }]]) {
+    const w = new Welt('2026-10-08T10:00:00+02:00');
+    w.voreinstellungVerdeckt = true;
+    const p = mitWelt(w);
+    p.g.einrichten();
+    w.jetzt = um('2026-10-08T12:00:05+02:00');
+    post(p, n);
+    const k = workout(w);
+    const mit = eigene(k).filter((t) => t.voreinstellung);
+    const ab = abweichung(k, n, '2026-10-08');
+    check(!mit.length && !ab, `verdeckte Voreinstellung, ${was}: kein eigener Termin behält sie (${mit.length} von ${eigene(k).length})${ab ? ` – ${ab}` : ''}`);
+    if (n === N.A) {
+      feuern(p, '2026-11-19T00:30:00+01:00');
+      const h = hinweise(k);
+      check(h.length === 1 && !h[0].voreinstellung && gleich(h[0].popup, [30]), 'und der Hinweis-Termin „aufgebraucht": genau seine 30 Minuten');
+    }
+  }
+}
+{
+  // Tobi überspringt „einrichten" – naheliegend, er hat bei der Probe schon
+  // eine Funktion dieses Namens ausgeführt. Die erste Vorschau räumt die
+  // Probe dann selbst weg, statt „Workout-Probe" still stehen zu lassen.
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const probeK = new Kal(w, 'Workout-Probe', { zone: BERLIN });
+  fremd(probeK, 'Probe', '2026-10-26T17:30:00+01:00', 30);
+  const urlaubK = new Kal(w, 'Urlaub');
+  const p = mitWelt(w);
+  p.props.set('kal', probeK.id);
+  p.ausloeser.push(ausloeser('stuendlich', 'stunden', 1));
+  const pr = probe(p);
+  check(pr.ok && /Probe/.test(pr.hinweis) && !/einrichten/.test(pr.hinweis),
+    `„Verbinden" ohne einrichten: sagt, dass die erste Vorschau die Probe wegräumt – ohne um „einrichten" zu bitten („${pr.hinweis}")`);
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  const a = post(p, N.A).a;
+  check(a.ok && !w.heisst('Workout-Probe').length && !p.props.has('kal') && w.heisst('Urlaub').length === 1 && !urlaubK.weg
+    && p.ausloeser.length === 1 && w.heisst('Workout').length === 1 && !abweichung(workout(w), N.A, '2026-10-08'),
+  'ohne einrichten: die erste Vorschau räumt die Probe weg („Workout-Probe" und „kal"), legt „Workout" an und gleicht an – „Urlaub" bleibt');
+  check(/Probe/.test(a.hinweis || ''), `und sagt es in der Antwort („${a.hinweis}")`);
 }
 
 /* ------------------------------------------------------------------ *

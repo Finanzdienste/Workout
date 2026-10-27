@@ -716,6 +716,9 @@ button { font: inherit; color: inherit; }
    nummerierte Liste, eng genug für sechs Schritte auf einem Bildschirm. */
 .kalender-schritte { margin: 6px 0 0; padding-left: 20px; line-height: 1.45; }
 .kalender-schritte li { margin-top: 4px; }
+/* Was an Google geht · Grenzen und „Neues Skript-Projekt?": zugeklappt am
+   Ende der Karte, damit die Schritte gleich oben stehen. */
+#kalenderAuto .detail-toggle { margin: 12px 0 0; }
 
 /* ------------------------------------------------------------------ *
  * Sport außerhalb des Plans: Aktivität suchen und auswählen

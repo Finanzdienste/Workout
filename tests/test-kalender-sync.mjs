@@ -26,11 +26,13 @@
  *      Header, keine Cookies, kein OPTIONS), die nutzlastPruefen() besteht.
  *   3. Der Takt: Start, Neuladen am selben Tag (nichts) und am nächsten,
  *      erster Haken sofort (und die Einheit bleibt morgen auf heute), ein
- *      zweiter Haken nichts, andere Änderungen gedrosselt auf einmal in zwei
+ *      zweiter Haken gedrosselt (der Tagesabschluss ab zwei Sätzen), ein
+ *      dritter nichts, andere Änderungen gedrosselt auf einmal in zwei
  *      Minuten, Abschluss sofort, Wegschalten nur mit fertiger Vorschau, ohne
  *      Netz nachgeholt bei „online".
  *   4. Die Antworten: anderes Gerät, Kennwort, zu alter Code, Kalender fehlt,
- *      undurchsichtig – was davon auf das Dashboard gehört und was nicht.
+ *      undurchsichtig – was davon auf das Dashboard gehört und was nicht;
+ *      „fehler" und „zeit" gehen von selbst noch einmal hinaus.
  *   5. Uhrzeit und Erinnerung schicken sofort neu.
  *   6. Trennen, eine neue URL (das „aus" an die alte), Trennen ohne Netz,
  *      „Alle Daten löschen".
@@ -41,7 +43,8 @@
  *   8. Der ICS-Hinweis schweigt, solange der Kalender verbunden ist.
  *   9. Ohne Netz trainiert: Der Service Worker schickt im Hintergrund nach
  *      (das „sync" per CDP ausgelöst – Background Sync ist im Chromium ohne
- *      Oberfläche abgeschaltet).
+ *      Oberfläche abgeschaltet); nach „fehler" ebenso, und ist das Skript
+ *      noch beschäftigt, behält er die Sendung.
  *  10. Last im Fenster, gemessen mit echter Uhr.
  *  11. Die Einzeldatei: Karte ohne Knöpfe, keine Fehler.
  *  12. Konstanten, die an zwei Stellen stehen, sind gleich.
@@ -96,6 +99,7 @@ const echteWarte = (ms) => new Promise((r) => { setTimeout(r, ms); });
 function skriptAttrappe() {
   const s = {
     anfragen: [], modus: 'ok', code: null, hinweis: undefined, version: 1, halten: null, geaendert: 2, cors: new Set(),
+    get: 'status', getCors: false, probeHinweis: null, haltenVorschau: null,
   };
   s.route = async (route) => {
     const req = route.request();
@@ -106,7 +110,23 @@ function skriptAttrappe() {
     try { vonSW = !!req.serviceWorker(); } catch { vonSW = false; }
     s.anfragen.push({ url: req.url(), methode: req.method(), roh, j, kopf: req.headers(), vonSW });
     try {
+      // doGet (die App fragt es nur nach einer undurchsichtigen Probe):
+      //   'status' der neue Code, 'alt' der Code der Probe (JSON ohne code
+      //   'status'), 'html' eine Seite ohne CORS, 'netz' gar nichts.
+      if (req.method() === 'GET') {
+        if (s.get === 'netz') { await route.abort('internetdisconnected'); return; }
+        if (s.get === 'html') {
+          s.getCors = !s.getCors;
+          if (s.getCors) { await route.abort('failed'); return; }
+          await route.fulfill({ status: 200, contentType: 'text/html', body: '<html>Anmelden – Google-Konten</html>' });
+          return;
+        }
+        const body = s.get === 'alt' ? { ok: true, probe: 'läuft' } : { ok: true, code: 'status', version: s.version, kalender: 'Workout', kennwort: true };
+        await route.fulfill({ status: 200, contentType: 'application/json', headers: ACAO, body: JSON.stringify(body) });
+        return;
+      }
       if (s.halten) await s.halten;
+      if (s.haltenVorschau && j && j.tage) await s.haltenVorschau;
       if (s.modus === 'netz') { await route.abort('internetdisconnected'); return; }
       if (s.modus === 'html') {
         // Eine Anmeldeseite ohne CORS-Freigabe. Playwright prüft bei einer
@@ -127,7 +147,7 @@ function skriptAttrappe() {
       }
       let a;
       if (s.code) a = { ok: ['angekommen', 'gleich', 'probe', 'aus'].includes(s.code), code: s.code };
-      else if (j && j.probe) a = { ok: true, code: 'probe', hinweis: 'Verbunden. Noch keine Vorschau angekommen.' };
+      else if (j && j.probe) a = { ok: true, code: 'probe', hinweis: s.probeHinweis || 'Verbunden. Noch keine Vorschau angekommen.' };
       else if (j && j.aus) a = { ok: true, code: 'aus', geaendert: 3 };
       else a = { ok: true, code: 'angekommen', tag: j && j.ab, geaendert: s.geaendert };
       const antwort = {
@@ -284,6 +304,10 @@ const fertig = (page, n) => page.evaluate(async (nr) => {
 const eintrag = (j, tag, n) => ((j && j.tage && j.tage[tag]) || []).find((e) => new RegExp(`-${n}$`).test(e[0]) && !/-z\d+$/.test(e[0]));
 
 async function verbinden(page, url, warten = true) {
+  // Verbunden steht das Feld zugeklappt unter „Neues Skript-Projekt?".
+  if (!(await page.locator('#kalenderUrl').isVisible()) && await page.locator('#kalenderNeuKnopf').count()) {
+    await page.locator('#kalenderNeuKnopf').click();
+  }
   await page.locator('#kalenderUrl').fill(url);
   await page.locator('[data-act="kalender-verbinden"]').click();
   if (warten) {
@@ -339,6 +363,29 @@ await abschnitt(1, async () => {
   check(await page.locator('#kalenderUhrzeit').count() === 0 && await page.locator('[data-act="kalender-trennen"]').count() === 0,
     'Uhrzeit und Trennen erst, wenn verbunden – vorher gibt es nichts einzustellen');
   check((await kal(page)) === null, 'vor dem ersten Kopieren gibt es kein Kennwort');
+  // Die Schritte gleich nach dem ersten Absatz; was an Google geht und die
+  // Grenzen zugeklappt darunter (vorher standen sie mit rund 200 Wörtern davor).
+  const aufbau = await page.evaluate(() => {
+    const karte = document.getElementById('kalenderAuto');
+    const schritte = document.getElementById('kalenderSchritte');
+    const wer = document.getElementById('kalenderWer');
+    const box = document.getElementById('kalenderMehr');
+    return {
+      oben: schritte.getBoundingClientRect().top - karte.getBoundingClientRect().top,
+      danach: !!(schritte.compareDocumentPosition(wer) & window.Node.DOCUMENT_POSITION_FOLLOWING),
+      zu: !!box && box.hidden && box.contains(wer) && box.contains(document.getElementById('kalenderGrenze')),
+      hoehe: karte.getBoundingClientRect().height,
+      haupt: [...karte.querySelectorAll('.btn-primary')].map((b) => b.textContent.trim()),
+    };
+  });
+  console.log(`     Karte vor dem Einrichten: ${Math.round(aufbau.hoehe)} px hoch, Schritte ${Math.round(aufbau.oben)} px unter dem Kopf`);
+  check(aufbau.zu && aufbau.danach && aufbau.oben < 320,
+    `die Schritte stehen gleich nach dem ersten Absatz (${Math.round(aufbau.oben)} px unter dem Kopf); „Was an Google geht · Grenzen" zugeklappt darunter`);
+  check(aufbau.haupt.length === 1 && aufbau.haupt[0] === 'Code kopieren', `vor dem Kopieren genau ein Hauptknopf: „Code kopieren" (${aufbau.haupt.join(', ')})`);
+  await page.locator('#kalenderMehrKnopf').click();
+  check(await page.locator('#kalenderWer').isVisible() && await page.locator('#kalenderGrenze').isVisible(),
+    'aufgeklappt: was an Google geht und die Grenzen');
+  await page.locator('#kalenderMehrKnopf').click();
   await page.locator('#kalenderAuto').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOT}/kalender-karte-einrichten.png` });
 
@@ -356,6 +403,8 @@ await abschnitt(1, async () => {
   check(/^const FASSUNG = 1;$/m.test(code1), 'die Fassung des Skripts steht lesbar darin');
   check(/Code kopiert/.test(await text(page, '#kalenderMeldung')) && await page.locator('#kalenderKennwort').count() === 1,
     'die Karte sagt „Code kopiert" und dass das Kennwort fest gespeichert ist');
+  check((await page.locator('#kalenderAuto .btn-primary').allTextContents()).map((x) => x.trim()).join() === 'Verbinden',
+    'mit Kennwort ist „Verbinden" der Hauptknopf');
   await page.locator('[data-act="kalender-code"]').click();
   await echteWarte(300);
   const code2 = await page.evaluate(() => navigator.clipboard.readText());
@@ -428,10 +477,25 @@ await abschnitt(2, async () => {
 
   skript.modus = 'netz';
   await versuch(URL_A, /Kein Netz/, 'kein Netz');
+  // Die Probe kommt undurchsichtig zurück (eine Seite ohne CORS). Die App
+  // fragt dieselbe Adresse mit einem GET (doGet) und sagt die eine Ursache,
+  // statt Tobi zwischen dreien wählen zu lassen.
   skript.modus = 'html';
-  const m = await versuch(URL_A, /nicht das Skript/, 'Anmeldeseite ohne CORS', 2);
+  skript.get = 'alt';
+  const mAlt = await versuch(URL_A, /Code der Probe/, 'undurchsichtig, doGet antwortet wie Tobis Probe', 3);
+  check(/Neue Version/.test(mAlt) && !/Jeder mit Google-Konto/.test(mAlt) && !/Meist eins davon/.test(mAlt),
+    '… dann nur „Neue Version bereitstellen" – keine drei Ursachen zur Wahl');
+  skript.get = 'html';
+  const mZu = await versuch(URL_A, /„Zugriff: Jeder"/, 'undurchsichtig, und auch doGet antwortet ohne CORS (Anmeldeseite)', 4);
+  check(/Jeder mit Google-Konto/.test(mZu) && /„Ausführen als: Ich"/.test(mZu) && !/Code der Probe/.test(mZu) && !/Meist eins davon/.test(mZu),
+    '… dann nur „Zugriff: Jeder" und „Ausführen als: Ich"');
+  skript.get = 'status';
+  await versuch(URL_A, /neue Code ist bereitgestellt.*[Nn]och einmal „Verbinden"/, 'undurchsichtig, doGet antwortet mit dem neuen Code', 3);
+  skript.get = 'netz';
+  const m = await versuch(URL_A, /nicht das Skript/, 'undurchsichtig, und doGet kommt gar nicht durch', 4);
   check(/Neue Version/.test(m) && /„Zugriff: Jeder"/.test(m) && /Jeder mit Google-Konto/.test(m) && /„Ausführen als: Ich"/.test(m) && /\/exec/.test(m),
-    'der Satz nennt alle drei Ursachen: Neue Version, Zugriff „Jeder" statt „Jeder mit Google-Konto", Ausführen als „Ich", /exec');
+    '… nur dann der lange Satz mit allen drei Ursachen: Neue Version, Zugriff „Jeder" statt „Jeder mit Google-Konto", Ausführen als „Ich", /exec');
+  skript.get = 'status';
   skript.modus = 'kaputt';
   await versuch(URL_A, /HTTP 404.*stimmt die URL/, 'eine lesbare Fehlerseite');
   skript.modus = 'ok';
@@ -461,9 +525,17 @@ await abschnitt(2, async () => {
   await haken(page);
   await echteWarte(300);
   const vorher = skript.anfragen.length;
+  // Die erste Vorschau hält das Skript kurz an – so lässt sich lesen, was die
+  // Karte bis dahin sagt.
+  let vorschauFrei;
+  skript.haltenVorschau = new Promise((r) => { vorschauFrei = r; });
   const ok = await verbinden(page, `  ${URL_A}  `);
-  check(/Verbunden/.test(ok) && /erste Vorschau/.test(ok), `verbunden: „${ok.slice(0, 80)}…"`);
+  check(/^Verbunden – die erste Vorschau ist unterwegs\./.test(ok) && /nach etwa einer Minute/i.test(ok) && !/Noch keine Vorschau/.test(ok)
+    && /var\(--ok\)/.test(await page.locator('#kalenderMeldung').getAttribute('style') || ''),
+  `verbunden: „${ok.slice(0, 80)}…" – grün, ohne den Satz der Probe („Noch keine Vorschau angekommen")`);
   check((await kal(page)).url === URL_A, 'die Adresse steht jetzt in state.kalender (ohne Leerzeichen)');
+  skript.haltenVorschau = null;
+  vorschauFrei();
   await bis(() => skript.vorschauen().length >= 1);
   // Kurz Zeit für eine zweite, die nicht kommen soll.
   await vor(page, 1000, 1500);
@@ -484,13 +556,21 @@ await abschnitt(2, async () => {
   check(kopf['content-type'] === 'text/plain;charset=UTF-8', `Content-Type text/plain (${kopf['content-type']})`);
   const eigene = Object.keys(kopf).filter((h) => /^x-|^authorization$|^cookie$/i.test(h));
   check(eigene.length === 0, `keine eigenen Header, keine Cookies (${eigene.join(', ') || 'keine'})`);
-  check(skript.anfragen.every((a) => a.methode === 'POST'), 'nur POST – kein OPTIONS, also kein Preflight');
+  check(skript.anfragen.every((a) => a.methode === 'POST' || a.methode === 'GET') && neu.every((a) => a.methode === 'POST'),
+    'POST, und GET nur zum Nachfragen nach einer undurchsichtigen Probe – kein OPTIONS, also kein Preflight');
   const m2 = await meta(page);
   check(/^[A-Za-z0-9_-]{4,64}$/.test(v.j.geraet || '') && v.j.geraet === m2.geraet && v.j.seq === m2.seq && v.j.seq > p.seq,
     `geraet und seq kommen aus workout.kalender.v1 (seq ${p.seq} → ${v.j.seq})`);
   await bis(async () => /Zuletzt angekommen/.test(await text(page, '#kalenderStand')));
   check(/Verbunden\. Zuletzt angekommen: gerade eben \(Skript Fassung 1\)/.test(await text(page, '#kalenderStand')),
     `die Karte sagt, wann es zuletzt ankam („${(await text(page, '#kalenderStand')).slice(0, 70)}")`);
+  check(await page.locator('#kalenderMeldung').count() === 0,
+    'sobald die erste Vorschau angekommen ist, sagt die Karte nur noch den Stand – kein „Noch keine Vorschau" mehr darunter');
+  check(/Summary of failures/.test(await text(page, '#kalenderMail')) && /einrichten/.test(await text(page, '#kalenderMail')),
+    'die Karte sagt, was eine Mail „Summary of failures" von Google bedeutet und was dann hilft');
+  check(await page.locator('#kalenderAuto .btn-primary').count() === 0 && !(await page.locator('#kalenderUrl').isVisible())
+    && await page.locator('#kalenderNeuKnopf').count() === 1,
+  'verbunden: kein Hauptknopf, das Feld für ein neues Skript-Projekt zugeklappt');
   check(await page.locator('#kalenderUhrzeit').inputValue() === '17:30'
     && await page.locator('#kalenderErinnerung').inputValue() === '30', 'Uhrzeit 17:30 und Erinnerung 30 Minuten stehen fertig da');
   check(await page.locator('[data-act="kalender-trennen"]').count() === 1, 'dazu „Trennen"');
@@ -563,11 +643,28 @@ await abschnitt(3, async () => {
   await bis(() => skript.vorschauen().length > ruhig, 3000);
   check(skript.vorschauen().length === ruhig + 1, 'aber fünf Sekunden nach der Änderung');
 
-  // Zweiter Haken derselben Einheit: die Vorschau ändert sich nicht.
+  // Zweiter Haken derselben Einheit: Ab zwei Sätzen schließt der
+  // Tagesabschluss sie morgen ab (ABSCHLUSS_AB) – die Vorschau für morgen ist
+  // damit eine andere und geht gedrosselt hinaus. Die Uhr in Schritten: erst
+  // rechnen lassen (der Worker rechnet in echter Zeit), dann die zwei Minuten
+  // – in einem Sprung liefe der Zeitgeber der Drossel nie, und die Prüfung
+  // bestünde auch mit einem kaputten gedrosselten Pfad.
   const vorZweitem = skript.vorschauen().length;
   await haken(page, 1);
-  await vor(page, 3 * 60 * 1000, 1500);
-  check(skript.vorschauen().length === vorZweitem, 'ein zweiter Haken ändert die Vorschau nicht – nichts geht hinaus');
+  await vor(page, 2500, 1500);
+  check(skript.vorschauen().length === vorZweitem, 'ein zweiter Haken: nicht sofort (kein erster Haken, kein Abschluss)');
+  await vor(page, 2 * 60 * 1000, 1500);
+  await bis(() => skript.vorschauen().length > vorZweitem, 3000);
+  await echteWarte(300);
+  const zweiter = skript.letzte();
+  check(skript.vorschauen().length === vorZweitem + 1 && (eintrag(zweiter, MORGEN, n) || [])[4] === 1,
+    `der zweite Haken geht gedrosselt hinaus: ab morgen steht Workout ${n} als abgeschlossen da (Tagesabschluss ab zwei Sätzen)`);
+  const vorDrittem = skript.vorschauen().length;
+  await haken(page, 2);
+  await vor(page, 2500, 1500);
+  await vor(page, 2 * 60 * 1000, 1500);
+  await vor(page, 1000, 800);
+  check(skript.vorschauen().length === vorDrittem, 'ein dritter Haken ändert am Kalender nichts – nichts geht hinaus');
 
   // Abschluss: sofort, mit „fertig".
   const vorAbschluss = skript.vorschauen().length;
@@ -704,15 +801,85 @@ await abschnitt(4, async () => {
 
   skript.geaendert = 2;
   skript.hinweis = undefined;
+  // Eine undurchsichtige Antwort, nachdem es mit dieser Verbindung schon
+  // geklappt hat: meist ein Aussetzer bei Google. Erst wiederholen, dann Alarm.
   skript.modus = 'html';
   await jetzt();
   l = await lage();
-  check(/nicht das Skript/.test(l.dash), 'eine undurchsichtige Antwort im Alltag: auf das Dashboard');
+  check(!l.dash && /nicht das Skript/.test(l.karte) && /gleich noch einmal/.test(l.karte),
+    'eine undurchsichtige Antwort im Alltag: erst nur unter Mehr, mit „versucht es gleich noch einmal" – noch kein Alarm');
+  const vorWieder = skript.anfragen.length;
+  for (const min of [2, 5, 15]) {
+    const n0 = skript.anfragen.length;
+    await vor(page, min * 60 * 1000 + 1000, 400);
+    await bis(() => skript.anfragen.length >= n0 + 2, 4000);
+    await echteWarte(300);
+  }
+  l = await lage();
+  check(skript.anfragen.length - vorWieder === 6 && /nicht das Skript/.test(l.dash),
+    `nach drei Wiederholungen (2, 5 und 15 Minuten) weiter undurchsichtig: jetzt auf das Dashboard (${(skript.anfragen.length - vorWieder) / 2} Wiederholungen)`);
 
   skript.modus = 'ok';
   await jetzt();
   l = await lage();
   check(!l.dash && /Zuletzt angekommen/.test(l.karte), 'wieder angekommen: die Zeile ist weg');
+
+  // „fehler" (das Skript ist beschäftigt – der stündliche Abgleich hält die
+  // Sperre bis zu vier Minuten) und „zeit" (die Antwort blieb aus): Die App
+  // schickt dieselbe Vorschau von selbst noch einmal, ohne dass sich etwas
+  // ändert. Bis v245-Entwurf ging sie bei bestehendem Netz nie wieder hinaus.
+  for (const art of ['fehler', 'zeit']) {
+    await vor(page, 20 * 60 * 1000, 300);
+    let loslassen = null;
+    if (art === 'fehler') {
+      skript.code = 'fehler';
+      skript.hinweis = 'Das Skript ist gerade beschäftigt – die App schickt es später noch einmal.';
+      await jetzt();
+    } else {
+      skript.halten = new Promise((r) => { loslassen = r; });
+      const lauf = page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+      await echteWarte(600);
+      await vor(page, 46 * 1000, 300);
+      await lauf;
+      skript.halten = null;
+      loslassen();
+      await echteWarte(300);
+    }
+    const m = await meta(page);
+    check(m.letzte.ergebnis === art && m.offen === true, `„${art}": vermerkt, der Versuch steht offen`);
+    skript.code = null;
+    skript.hinweis = undefined;
+    const n0 = skript.vorschauen().length;
+    await vor(page, 60 * 1000, 800);
+    check(skript.vorschauen().length === n0, `„${art}": nicht sofort hinterher`);
+    await vor(page, 61 * 1000, 400);
+    await bis(() => skript.vorschauen().length > n0, 4000);
+    await echteWarte(300);
+    const m2 = await meta(page);
+    check(skript.vorschauen().length === n0 + 1 && m2.letzte.ergebnis === 'angekommen' && m2.offen === false,
+      `„${art}": zwei Minuten danach geht sie von selbst noch einmal hinaus – ohne neue Änderung – und kommt an`);
+    await vor(page, 20 * 60 * 1000, 800);
+    check(skript.vorschauen().length === n0 + 1, `„${art}": danach nichts mehr – angekommen ist angekommen`);
+  }
+  l = await lage();
+  check(!l.dash, '„fehler" und „zeit", die sich von selbst richten: nichts auf dem Dashboard');
+
+  // Bleibt es bei „fehler" – auch nach drei Wiederholungen –, ist das kein
+  // Beschäftigtsein mehr: dann aufs Dashboard.
+  skript.code = 'fehler';
+  skript.hinweis = 'Unerwarteter Fehler im Skript: TypeError: x is undefined';
+  await jetzt();
+  for (const min of [2, 5, 15]) {
+    const n0 = skript.vorschauen().length;
+    await vor(page, min * 60 * 1000 + 1000, 400);
+    await bis(() => skript.vorschauen().length > n0, 4000);
+    await echteWarte(300);
+  }
+  l = await lage();
+  check(/Unerwarteter Fehler/.test(l.dash) && /Diagnoseprotokoll/.test(l.karte),
+    '„fehler" auch nach drei Wiederholungen: jetzt auf das Dashboard, und die Karte bittet um das Diagnoseprotokoll');
+  skript.code = null;
+  skript.hinweis = undefined;
   await zu(g);
 });
 
@@ -738,6 +905,28 @@ await abschnitt(5, async () => {
   await page.locator('#kalenderErinnerung').selectOption('0');
   await bis(() => skript.vorschauen().length === 4, 4000);
   check(skript.letzte().erinnerung === 0, 'keine Erinnerung (0)');
+  // Bei 360 px Breite (kleines Android) passt jede Erinnerung ins Feld – vorher stand dort „30 Min. vorhe".
+  await page.setViewportSize({ width: 360, height: 740 });
+  await echteWarte(200);
+  const passt = await page.evaluate(() => {
+    const sel = document.getElementById('kalenderErinnerung');
+    const cs = getComputedStyle(sel);
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    // Platz für den Text: das Feld ohne Innenabstand und ohne den Pfeil (rund 20 px).
+    const platz = sel.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 20;
+    return { platz: Math.round(platz), o: [...sel.options].map((o) => ({ t: o.text, b: Math.round(c.measureText(o.text).width) })) };
+  });
+  check(passt.o.every((x) => x.b <= passt.platz),
+    `bei 360 px passt jede Erinnerung ins Feld (${passt.platz} px Platz: ${passt.o.map((x) => `${x.t} ${x.b}`).join(', ')})`);
+  await page.setViewportSize({ width: 414, height: 896 });
+  // „Code kopieren" im verbundenen Zustand: Die nummerierten Schritte gibt es
+  // hier nicht – der Satz nennt, was beim Erneuern zu tun ist.
+  await page.locator('[data-act="kalender-code"]').click();
+  await bis(async () => /Code kopiert/.test(await text(page, '#kalenderMeldung')));
+  const mc = await text(page, '#kalenderMeldung');
+  check(/einrichten/.test(mc) && /Neue Version/.test(mc) && !/Schritt 2 und 3/.test(mc),
+    `verbunden „Code kopieren": ersetzen, „einrichten", Neue Version – nicht „Schritt 2 und 3" („${mc.slice(0, 70)}…")`);
   await zu(g);
 });
 
@@ -752,7 +941,18 @@ await abschnitt(6, async () => {
   await zuMehr(page);
   // Eine neue URL: erst die Probe dort, dann „aus" an die alte, dann die Vorschau.
   const vorher = skript.anfragen.length;
+  // Dabei bittet das neue Skript um etwas: Der Satz steht in der Farbe für „da
+  // ist etwas zu tun", ohne „nach etwa einer Minute stehen die Termine".
+  skript.probeHinweis = 'Verbunden, aber ohne stündlichen Auslöser – in Apps Script „einrichten" ausführen.';
+  let frei;
+  skript.haltenVorschau = new Promise((r) => { frei = r; });
   const m = await verbinden(page, URL_B);
+  const stil = await page.locator('#kalenderMeldung').getAttribute('style').catch(() => '');
+  check(/ohne stündlichen Auslöser/.test(m) && /einrichten/.test(m) && !/nach etwa einer Minute/.test(m) && /var\(--accent\)/.test(stil || ''),
+    `ein Hinweis, der um „einrichten" bittet: in der Akzentfarbe, ohne Versprechen („${m.slice(0, 70)}")`);
+  skript.probeHinweis = null;
+  skript.haltenVorschau = null;
+  frei();
   await bis(() => skript.anfragen.slice(vorher).filter((a) => a.j && a.j.tage).length === 1 && skript.aus().length === 1, 5000);
   const neu = skript.anfragen.slice(vorher);
   const probe = neu.find((a) => a.j && a.j.probe);
@@ -950,6 +1150,43 @@ await abschnitt(9, async () => {
   await echteWarte(800);
   const leer = await page.evaluate(async () => !(await (await caches.open('kalender-ausgang')).match(new URL('kalender-ausgang', location.href).href)));
   check(fremd === 0 && skript.anfragen.length === vorBoese && leer, 'eine Sendung an eine fremde Adresse schickt der Service Worker nicht – er räumt sie weg');
+
+  // „fehler" (das Skript beschäftigt) mit Service Worker: Die Sendung liegt im
+  // Ausgang – schließt Tobi die App gleich nach dem Training, schickt er sie
+  // nach. Ist das Skript dann noch beschäftigt, liest er das, wirft (der
+  // Browser versucht es einige Minuten später noch einmal) und behält sie.
+  const imAusgang = () => page.evaluate(async () => {
+    const r = await (await caches.open('kalender-ausgang')).match(new URL('kalender-ausgang', location.href).href);
+    return r ? r.json() : null;
+  });
+  const vermerkNach = () => page.evaluate(async () => {
+    const r = await (await caches.open('kalender-ausgang')).match(new URL('kalender-ausgang-nach', location.href).href);
+    return r ? r.json() : null;
+  });
+  skript.code = 'fehler';
+  skript.hinweis = 'Das Skript ist gerade beschäftigt – die App schickt es später noch einmal.';
+  const syncVorher = (await page.evaluate(() => window.__sync)).length;
+  await page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+  await bis(async () => ((await meta(page)).letzte || {}).ergebnis === 'fehler', 5000);
+  const a1 = await imAusgang();
+  check(!!a1 && a1.url === URL_A && (await page.evaluate(() => window.__sync)).length > syncVorher,
+    '„fehler": die Sendung liegt im Ausgang, und die App hat um ein „sync" gebeten');
+  const nachVorher = await vermerkNach();
+  const s1 = skript.anfragen.length;
+  await cdp.send('ServiceWorker.dispatchSyncEvent', { origin: ORIGIN, registrationId: regId, tag: 'kalender', lastChance: false });
+  await bis(() => skript.anfragen.length > s1, 5000);
+  await echteWarte(600);
+  const a2 = await imAusgang();
+  check(skript.anfragen.length === s1 + 1 && !!a2 && a2.seq === a1.seq && JSON.stringify(await vermerkNach()) === JSON.stringify(nachVorher),
+    'noch beschäftigt: der Service Worker liest „fehler" (eine Anfrage, mit CORS) und behält die Sendung – kein Vermerk „nachgeschickt"');
+  skript.code = null;
+  skript.hinweis = undefined;
+  const s2 = skript.anfragen.length;
+  await cdp.send('ServiceWorker.dispatchSyncEvent', { origin: ORIGIN, registrationId: regId, tag: 'kalender', lastChance: false });
+  await bis(async () => skript.anfragen.length > s2 && !(await imAusgang()), 5000);
+  const nach2 = await vermerkNach();
+  check(skript.anfragen.length === s2 + 1 && skript.anfragen[s2].roh === a1.text && !(await imAusgang()) && nach2 && nach2.seq === a1.seq && nach2.code === 'angekommen',
+    'wieder frei: er schickt genau diese Sendung, der Ausgang ist leer, und der Vermerk sagt „angekommen"');
   void n;
   await zu(g);
 });

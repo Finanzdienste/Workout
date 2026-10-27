@@ -94,6 +94,9 @@ const P_META = 'workout.meta';
 const P_TEIL = 'workout.teil.';
 const P_ABGLEICH = 'workout.abgleich';
 const P_OFFEN = 'workout.offen';
+// Der Anfang des Fensters der zuletzt ganz angeglichenen Liste – davor kann
+// kein offener eigener Termin mehr liegen (siehe angleichArbeit_()).
+const P_LISTE = 'workout.liste';
 const TEIL_BYTES = 8000;
 
 // Die unsichtbaren Markierungen am Termin.
@@ -116,6 +119,7 @@ const SUCHE_VORAUS = 7;
 const AUS_VORAUS = 130;
 
 const SPAETER = 'Google bremst gerade – der Rest folgt mit dem nächsten stündlichen Abgleich.';
+const TAGESKONTINGENT = 'Google lässt heute keine weiteren Kalender-Änderungen zu (Tageskontingent aufgebraucht) – morgen geht es von selbst weiter.';
 
 /* ------------------------------------------------------------------ *
  * Was du oben auswählen kannst
@@ -203,22 +207,20 @@ function doPost(e) {
   return ausgabe_(a);
 }
 
-/** Ein Lebenszeichen für den Browser – ohne Kennwort, ohne Stand, ohne Kalender-ID. */
+/**
+ * Ein Lebenszeichen für den Browser – ohne Kennwort, ohne Stand, ohne
+ * Kalender-ID, und ohne einen Blick in den Speicher: doGet ist öffentlich
+ * („Zugriff: Jeder"), und wer nur die URL hat, soll damit kein Kontingent
+ * leeren (Skript-Eigenschaften: 50 000 Zugriffe am Tag). Wie es steht, sagt
+ * „Verbinden" (probe) – die braucht das Kennwort. Die App fragt doGet nur,
+ * wenn „Verbinden" keine lesbare Antwort bekam: Antwortet es, ist der neue
+ * Code bereitgestellt und „Zugriff: Jeder" gesetzt.
+ */
 function doGet(e) {
-  let a;
-  try {
-    const P = PropertiesService.getScriptProperties();
-    const meta = metaLesenSanft_(P);
-    a = antwort_(true, 'status', {
-      kennwort: tokenGesetzt_(),
-      eingerichtet: !!P.getProperty(P_KALENDER),
-      vorschau: !!(meta && !meta.aus),
-      hinweis: tokenGesetzt_() ? undefined : 'Im Code fehlt das Kennwort – in der App „Code kopieren".',
-    });
-  } catch (err) {
-    a = antwort_(false, 'fehler', { hinweis: 'Status nicht lesbar.' });
-  }
-  return ausgabe_(a);
+  return ausgabe_(antwort_(true, 'status', {
+    kennwort: tokenGesetzt_(),
+    hinweis: tokenGesetzt_() ? undefined : 'Im Code fehlt das Kennwort – in der App „Code kopieren".',
+  }));
 }
 
 /* ------------------------------------------------------------------ *
@@ -271,6 +273,19 @@ function annehmen_(e) {
       });
     }
     const meta = urteil === 'neu' ? speichern_(P, n) : alt;
+    // Nie „einrichten" ausgeführt, aber die Probe ist noch da – naheliegend,
+    // Tobi hat bei der Probe schon eine Funktion dieses Namens ausgeführt.
+    // Dann räumt die erste Vorschau sie weg, wie einrichten() es täte.
+    let probeHinweis = null;
+    if (P.getProperty(PROBE_EIGENSCHAFT)) {
+      try {
+        const z = melder_();
+        probeWegraeumen_(P, z);
+        probeHinweis = 'Die Probe ist weggeräumt (Kalender „' + PROBE_NAME + '").';
+      } catch (err) {
+        probeHinweis = 'Die Probe ließ sich nicht wegräumen – in Apps Script einmal „einrichten" ausführen.';
+      }
+    }
     const r = abgleichenSicher_(P);
     let auslHinweis = null;
     try {
@@ -284,7 +299,7 @@ function annehmen_(e) {
       geaendert: r.geaendert,
       stand: meta.stand,
       seq: meta.seq,
-      hinweis: r.fehler || r.hinweis || auslHinweis || undefined,
+      hinweis: r.fehler || r.hinweis || auslHinweis || probeHinweis || undefined,
     });
   } finally {
     lock.releaseLock();
@@ -304,7 +319,9 @@ function probeAntwort_(P) {
   else if (besitzer && besitzer !== P.getProperty(P_PROJEKT)) {
     hinweis = 'Den Kalender „Workout" pflegt ein anderes Skript-Projekt – diese URL gehört zum alten. Die URL des neuen nehmen, oder hier „einrichten" ausführen.';
   } else if (!ausloeser) hinweis = 'Verbunden, aber ohne stündlichen Auslöser – in Apps Script „einrichten" ausführen.';
-  else if (meta && meta.aus) hinweis = 'Verbunden. In der App abgeschaltet – es geht weiter, sobald wieder eine Vorschau kommt.';
+  else if (!meta && P.getProperty(PROBE_EIGENSCHAFT)) {
+    hinweis = 'Verbunden. Die erste Vorschau räumt die Probe weg (Kalender „' + PROBE_NAME + '") und legt „Workout" an.';
+  } else if (meta && meta.aus) hinweis = 'Verbunden. In der App abgeschaltet – es geht weiter, sobald wieder eine Vorschau kommt.';
   else if (!meta) hinweis = 'Verbunden. Noch keine Vorschau angekommen' + (kal ? '.' : ' – der Kalender „Workout" entsteht mit der ersten.');
   else hinweis = 'Verbunden.' + (letzter ? ' Zuletzt abgeglichen ' + zeitDe_(letzter.zeit) + '.' : '');
   return antwort_(true, 'probe', {
@@ -343,9 +360,9 @@ function abgleichenSicher_(P) {
   try {
     r = abgleichen_(P);
   } catch (err) {
-    r = zuOft_(err)
-      ? { tag: null, geaendert: null, spaeter: true, hinweis: SPAETER, fehler: null }
-      : { tag: null, geaendert: null, spaeter: false, hinweis: null, fehler: 'Abgleich gescheitert: ' + bereinigt_(err) };
+    if (tagesKontingent_(err)) r = { tag: null, geaendert: null, spaeter: false, hinweis: null, fehler: TAGESKONTINGENT };
+    else if (zuOft_(err)) r = { tag: null, geaendert: null, spaeter: true, hinweis: SPAETER, fehler: null };
+    else r = { tag: null, geaendert: null, spaeter: false, hinweis: null, fehler: 'Abgleich gescheitert: ' + bereinigt_(err) };
   }
   if (r.gelaufen !== false) {
     try {
@@ -417,6 +434,16 @@ function abgleichen_(P) {
   } else {
     r.tag = wahl.tag;
     abarbeiten_(angleichArbeit_(P, kal, n, wahl.liste, heute, projekt), start, r);
+    // Ganz angeglichen: Ab jetzt liegt kein offener eigener Termin mehr vor
+    // dem Fenster dieser Liste. Nicht nach einem halben Lauf – dann gilt die
+    // frühere, weitere Grenze, bis ein Lauf durchkommt.
+    if (!r.spaeter && !r.fehler) {
+      try {
+        P.setProperty(P_LISTE, plusTage_(heute, -n.fenster[0]));
+      } catch (err) {
+        // Nur eine Suchgrenze – ohne sie sucht der nächste Lauf wie bisher.
+      }
+    }
   }
   if (r.spaeter) r.hinweis = SPAETER;
   beschreibungSchreiben_(kal, projekt, meta, r);
@@ -437,7 +464,16 @@ function abgleichen_(P) {
 function angleichArbeit_(P, kal, n, liste, heute, projekt) {
   const von = plusTage_(heute, -n.fenster[0]);
   const bis = plusTage_(heute, n.fenster[1]);
-  const vorhanden = kal.getEvents(beginn_(plusTage_(von, -SUCHE_ZURUECK)), beginn_(plusTage_(bis, SUCHE_VORAUS + 1)));
+  // Gesucht wird bis 35 Tage vor dem Fenster – und mindestens bis zum Fenster
+  // der zuletzt ganz angeglichenen Liste (P_LISTE): War die Vorschau lange
+  // aufgebraucht (sechs Wochen und mehr ohne Sendung), stehen ihre offenen
+  // Termine weit vor dem heutigen Fenster. Ohne diese Grenze fände der
+  // Abgleich sie nicht, legte jede Einheit neu an, und die alten stünden für
+  // immer doppelt da (gemessen bei der Prüfung: 17 nach zwölf Wochen).
+  let unten = plusTage_(von, -SUCHE_ZURUECK);
+  const zuletzt = P.getProperty(P_LISTE);
+  if (zuletzt && TAG.test(zuletzt) && zuletzt < unten) unten = zuletzt;
+  const vorhanden = kal.getEvents(beginn_(unten), beginn_(plusTage_(bis, SUCHE_VORAUS + 1)));
   const eigene = {};
   const arbeit = [];
   vorhanden.forEach((ev) => {
@@ -489,7 +525,11 @@ function terminAngleichen_(P, kal, ev, e, n, projekt) {
   if (!ev) {
     const neu = kal.createEvent(titel, beginn, ende, { description: beschreibung });
     markieren_(P, neu, kennung, projekt, abdruck);
-    if (!erinnerungStimmt_(neu, erinnerung)) erinnerungSetzen_(neu, erinnerung);
+    // Immer, nicht nur bei einer Abweichung: Ein neuer Termin trägt die
+    // Voreinstellung des Kalenders, und ob getPopupReminders() die meldet,
+    // ist nicht belegt. Sonst behielten erledigte Termine und alle bei „keine
+    // Erinnerung" sie still.
+    erinnerungSetzen_(neu, erinnerung);
     Utilities.sleep(PAUSE_MS);
     return 1;
   }
@@ -540,19 +580,43 @@ function markieren_(P, ev, art, projekt, abdruck) {
   else P.deleteProperty(P_OFFEN);
 }
 
-/** Markierungen nachholen, die ein abgebrochener Lauf nicht mehr setzen konnte. */
+/**
+ * Markierungen nachholen, die ein abgebrochener Lauf nicht mehr setzen konnte.
+ * Je id für sich: Bremst Google, bleibt sie gemerkt, und die nächste Stunde
+ * versucht es wieder. Scheitert Google an einem Termin aus einem anderen Grund
+ * (gelöscht, im Papierkorb …), wird die id aufgegeben – schlimmstenfalls
+ * bleibt ein Termin ohne Markierung stehen. Vorher hielt eine solche id jeden
+ * Abgleich für immer an, und der Kalender verschob nichts mehr.
+ */
 function offenNachholen_(P, kal, projekt) {
   const offen = jsonSanft_(P.getProperty(P_OFFEN));
   if (!offen) return;
+  const uebrig = {};
+  let gebremst = null;
   Object.keys(offen).forEach((id) => {
-    const ev = kal.getEventById(id);
-    if (!ev || ev.getTag(T_QUELLE)) return;
-    if (offen[id] === HINWEIS_ART) ev.setTag(T_HINWEIS, '1');
-    else ev.setTag(T_KENNUNG, offen[id]);
-    // Ohne Fingerabdruck: Der Abgleich setzt die Beschreibung gleich noch einmal.
-    ev.setTag(T_QUELLE, projekt);
+    if (gebremst) {
+      uebrig[id] = offen[id];
+      return;
+    }
+    try {
+      const ev = kal.getEventById(id);
+      if (!ev || ev.getTag(T_QUELLE)) return;
+      if (offen[id] === HINWEIS_ART) ev.setTag(T_HINWEIS, '1');
+      else ev.setTag(T_KENNUNG, offen[id]);
+      // Ohne Fingerabdruck: Der Abgleich setzt die Beschreibung gleich noch einmal.
+      ev.setTag(T_QUELLE, projekt);
+    } catch (err) {
+      if (zuOft_(err) || tagesKontingent_(err)) {
+        gebremst = err;
+        uebrig[id] = offen[id];
+        return;
+      }
+      console.log('Eine Markierung ließ sich nicht nachholen und ist aufgegeben: ' + bereinigt_(err));
+    }
   });
-  P.deleteProperty(P_OFFEN);
+  if (Object.keys(uebrig).length) P.setProperty(P_OFFEN, JSON.stringify(uebrig));
+  else P.deleteProperty(P_OFFEN);
+  if (gebremst) throw gebremst;
 }
 
 /**
@@ -578,7 +642,7 @@ function hinweisArbeit_(P, kal, heute, n, projekt, meta) {
       if (!ev) {
         const neu = kal.createEvent(titel, beginn, ende, { description: beschreibung });
         markieren_(P, neu, HINWEIS_ART, projekt, abdruck);
-        if (!erinnerungStimmt_(neu, erinnerung)) erinnerungSetzen_(neu, erinnerung);
+        erinnerungSetzen_(neu, erinnerung);
         return 1;
       }
       let anders = false;
@@ -628,6 +692,10 @@ function abarbeiten_(arbeit, start, r) {
     try {
       geaendert += arbeit[i].tun();
     } catch (err) {
+      if (tagesKontingent_(err)) {
+        r.fehler = TAGESKONTINGENT;
+        break;
+      }
       if (zuOft_(err)) {
         r.spaeter = true;
         break;
@@ -1129,9 +1197,20 @@ function tokenGesetzt_() {
   return zeichenkette_(TOKEN, 16, 128);
 }
 
-/** Bremst Google? Die Meldungen kommen je nach Konto auf Englisch oder Deutsch. */
+/**
+ * Bremst Google nur kurz? Die Meldungen kommen je nach Konto auf Englisch oder
+ * Deutsch. Ein aufgebrauchtes Tageskontingent („… for one day") zählt nicht
+ * dazu: Das holt die nächste Stunde nicht nach – dann soll der Auslöser
+ * werfen, damit Google die Fehlermail schickt (tagesKontingent_()).
+ */
 function zuOft_(err) {
+  if (tagesKontingent_(err)) return false;
   return /too many|zu oft|zu viele|zu häufig|rate ?limit|quota|kontingent|try again later|später erneut/i.test(String((err && err.message) || err));
+}
+
+/** Ist ein Tageskontingent aufgebraucht (Kalender, Skript-Eigenschaften …)? */
+function tagesKontingent_(err) {
+  return /for one day|per day|an einem Tag|für einen Tag|pro Tag|täglich/i.test(String((err && err.message) || err));
 }
 
 /** Eine Meldung für draußen: ohne Kennwort, ohne Adressen und Kalender-IDs, kurz. */

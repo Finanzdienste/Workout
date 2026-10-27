@@ -545,6 +545,56 @@ const nutzlast = (v, mehr = {}) => V.nutzlastBauen(v, {
     && V.sendungVergleichen(s('a', 1, 1, { einheiten: 9, saetze: 100, zuletzt: 0 }), s('b', 1, 1, { einheiten: 8, saetze: 140, zuletzt: 0 })) === 'aelter'
     && V.sendungVergleichen(s('a', 1, 1, { einheiten: 9, saetze: 100, zuletzt: 0 }), s('b', 1, 1, { einheiten: 9, saetze: 100, zuletzt: 0 })) === 'neu',
   'ohne Lebenszeichen: Einheiten, dann Sätze, Gleichstand gilt');
+
+  // Nach dem Rundenende: Workout 84 am Fr 23.10. um 18:30 liegen gelassen, am
+  // Sa rollt die App beim Start in Runde 2 (E2). Ihr Protokoll ist dann leer –
+  // das letzte Lebenszeichen steht in der abgelegten Runde. Zählte nur das
+  // laufende Protokoll, meldete das Handy „nie trainiert", und ein Tablet, das
+  // seit dem 01.10. in der Schublade lag, überholte es still.
+  const handyRunde = mitUhr(um('2026-10-24T09:00:00+02:00'), () => {
+    store.importJSON(JSON.stringify(Z.E2));
+    tagstart.tagNachziehen({ art: 'start' });
+    return store.exportJSON();
+  });
+  const sRunde = JSON.parse(handyRunde);
+  const vHandyRunde = await V.vorschauRechnen(handyRunde, { jetzt: um('2026-10-24T09:00:00+02:00') });
+  const tabletRunde = JSON.parse(JSON.stringify(Z.E2));
+  Object.keys(tabletRunde.log).forEach((k) => { if (Number(k) > 70) delete tabletRunde.log[k]; });
+  tabletRunde.log[70].zuletzt = um('2026-10-01T18:00:00+02:00');
+  const vTabletRunde = await V.vorschauRechnen(JSON.stringify(tabletRunde), { jetzt: um('2026-10-24T12:00:00+02:00') });
+  zeige(`Rundenende: Handy ${JSON.stringify(vHandyRunde.stand)}, Tablet ${JSON.stringify(vTabletRunde.stand)}`);
+  check(!Object.keys(sRunde.log).length && sRunde.rounds.length === 1 && vHandyRunde.stand.zuletzt === um('2026-10-23T18:30:00+02:00'),
+    'nach dem Rundenende (Protokoll leer, Runde abgelegt): stand.zuletzt ist der letzte Satz der abgelegten Runde, nicht 0');
+  check(V.sendungVergleichen(nutzlast(vHandyRunde, { geraet: 'handy', seq: 50 }), nutzlast(vTabletRunde, { geraet: 'tablet', seq: 3 })) === 'aelter',
+    'Rundenende: das Tablet aus der Schublade (Stand bis Workout 70, 01.10.) bekommt „aelter" – der Kalender bleibt beim Handy');
+
+  // Nach einem Fokuswechsel: Am 19.10. in Aufbau trainiert, am 22.10. zurück
+  // auf Cut – jetzt steht der ältere Cut-Verlauf (letzter Satz 12.10.) im
+  // Protokoll, der Aufbau-Verlauf in der Ablage. Das Tablet hat zuletzt am
+  // 14.10. trainiert (in Cut).
+  const handyFokus = kopie();
+  handyFokus.log[9] = {
+    mode: 'db', db: { 'rumaenisches-kreuzheben': satz(3) }, bw: {}, startedOn: '2026-10-12', done: 'db', zuletzt: um('2026-10-12T18:30:00+02:00'),
+  };
+  handyFokus.rounds = [{
+    finishedOn: '2026-10-22', focus: 'aufbau', shift: 0,
+    log: { 1: { mode: 'db', db: { kniebeuge: satz(3) }, bw: {}, startedOn: '2026-10-19', done: 'db', zuletzt: um('2026-10-19T18:30:00+02:00') } },
+  }];
+  const tabletFokus = kopie();
+  tabletFokus.log[9] = {
+    mode: 'db', db: { 'rumaenisches-kreuzheben': satz(3) }, bw: {}, startedOn: '2026-10-14', done: 'db', zuletzt: um('2026-10-14T18:30:00+02:00'),
+  };
+  const vHandyFokus = await V.vorschauRechnen(JSON.stringify(handyFokus), { jetzt: um('2026-10-22T19:00:00+02:00') });
+  const vTabletFokus = await V.vorschauRechnen(JSON.stringify(tabletFokus), { jetzt: um('2026-10-23T08:00:00+02:00') });
+  check(vHandyFokus.stand.zuletzt === um('2026-10-19T18:30:00+02:00'),
+    'nach dem Fokuswechsel: stand.zuletzt ist der Satz vom 19.10. aus dem abgelegten Aufbau-Verlauf');
+  check(V.sendungVergleichen(nutzlast(vHandyFokus, { geraet: 'handy', seq: 60 }), nutzlast(vTabletFokus, { geraet: 'tablet', seq: 4 })) === 'aelter',
+    'Fokuswechsel: das Tablet (zuletzt 14.10.) bekommt „aelter"');
+  // Ein Lebenszeichen aus der Zukunft (falsch gehende Uhr in einer Sicherung) zählt in der Ablage so wenig wie im Protokoll.
+  const zukunft = JSON.parse(JSON.stringify(handyFokus));
+  zukunft.rounds[0].log[1].zuletzt = um('2027-03-01T12:00:00+01:00');
+  check((await V.vorschauRechnen(JSON.stringify(zukunft), { jetzt: um('2026-10-22T19:00:00+02:00') })).stand.zuletzt === um('2026-10-12T18:30:00+02:00'),
+    'ein Lebenszeichen aus der Zukunft in der Ablage zählt nicht');
 }
 
 /* ------------------------------------------------------------------ *
