@@ -3197,7 +3197,10 @@ Steht oben schon eine andere Zeile (Tagesabschluss, Ton, Sicherung, Kalender)
 oder ist an der Einheit schon etwas abgehakt, tritt sie zurück und kommt, wenn
 das weg ist. Bis zur Prüfung des Entwurfs stand sie als gewöhnliche Zeile da
 (97 px), und bei 360×740 lag der Fuß der Startseite 26 px unter der Leiste;
-jetzt 69 px, und die Seite bleibt eine Seite. *Ansehen* springt zur Bitte –
+jetzt 69 px, und die Seite bleibt eine Seite. (Mit angefangener Einheit,
+„Training fortsetzen", steht die Startseite bei 360×740 schon ohne jede Zeile
+12 px über, so auch in v245 – der Fuß bleibt über der Leiste; das ist hier
+nicht angefasst.) *Ansehen* springt zur Bitte –
 unter die Kopfleiste, nicht dahinter (`scroll-padding-top` am Dokument; das
 hilft auch den Sprüngen zu *Kalender*, *Daten* und *Trainingsfokus*). Bis zur
 Prüfung lagen Überschrift und erster Satz der Bitte darunter, und lesbar begann
@@ -3312,8 +3315,23 @@ Prüfung der Vorschau und die des Skripts brechen nach je zwei roten Zeilen ab
 und 15 brechen ab. Gegen den Stand vor der Prüfung des Entwurfs (c2fa46b): die
 Vorschau an einer Stelle rot (`ferneBauen()` war dort nicht von außen zu
 prüfen), das Skript an sechs (`stehen`, `folge`), die App an acht – jeder
-Befund von oben. Am Stand von v246 einzeln gelaufen: 164, 168 und 207
-Prüfungen, alle grün.
+Befund von oben.
+
+Aus der zweiten Prüfung des Entwurfs kam dazu: im Skript (Abschnitt 10 – die
+Attrappe lässt einen gefeuerten einmaligen Auslöser jetzt gelistet, wie es nach
+Erfahrungsberichten bei Google ist) ein `weiter`, das sich nicht löschen lässt
+oder nie lief, ein Lauf, der vor lauter Lesen nichts schafft, `doPost` nach
+28 s Warten auf die Sperre (Antwort nach 32 statt 56 s), ein gescheitertes
+Löschen alter Stücke bei Sendungen von 185 KiB und das Tageskontingent mitten
+im Jahr; in der App die Pause, die nicht neu rechnet (Abschnitt 3), die
+Startseite mit der Bitte bei 414×896 und 360×740 und wann die Bitte
+zurücktritt, der Sprung unter die Kopfleiste, „vier Wochen im Voraus" bei
+Fassung 1, die kurze Meldung nach dem Kopieren, schnell zurück nach 90 s, auf
+der Karte geblieben, „Neuer Code erkannt", solange die erste v 2 beim Skript
+liegt (und keine zweite), die grüne Meldung neben „Neue Version fehlt" und das
+Tageskontingent auf der Karte. Gegen den Stand vor dieser Prüfung (ed2a885)
+gelaufen: das Skript an acht Stellen rot, die App an 15 – jeder Befund. Am
+Stand von v246 einzeln gelaufen: 164, 178 und 219 Prüfungen, alle grün.
 
 **Ehrlich dazugesagt.** Gemessen ist bei Google nur das Anlegen: Fassung 1 legte
 bei Tobi am 27.10. 18 Termine in 53 Sekunden an, rund drei Sekunden je Termin
