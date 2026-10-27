@@ -2943,7 +2943,8 @@ bei 360 px, Uhrzeit und Erinnerung, neue URL, Trennen mit und ohne Netz,
 *Alle Daten löschen*, Sicherung und Export samt neuem Handy, wo Kennwort und
 URL nie stehen, der ICS-Hinweis, der Service Worker beim `sync` (per CDP
 ausgelöst – Background Sync ist im Chromium ohne Oberfläche abgeschaltet;
-auch nach `fehler`), die Last im Fenster und die Einzeldatei – 170 Prüfungen.
+auch nach `fehler`), die Last im Fenster und die Einzeldatei – 170 Prüfungen
+in v245 (mit dem Jahr seit v246 mehr, unten).
 Gegen v244 (456214c) gelaufen, war sie rot: 26 Zeilen, die meisten Abschnitte
 brechen gleich ab. Gegen den Stand vor der Nachbesserung (96df6bb) sind 27
 Zeilen rot – alles, was die Prüfung des Entwurfs fand.
@@ -3056,20 +3057,36 @@ weil die Sendung sonst zu groß würde (viele verschiedene Termine)." Passt nich
 einmal die Nähe, geht sie ohne Ferne. Ein Skript der Fassung 1 bekommt nie mehr
 als 64 KiB: v 1 trägt nur die Nähe und ihre Texte.
 
-**Rechenzeit.** Im Worker in Chromium am Rechner, allein gemessen: ohne Ferne
-136 ms, mit Ferne 194–261 ms, davon die Ferne rund 144 ms; in Node 303 ms,
-davon 162 ms Ferne. In der laufenden App (`tests/test-kalender-sync.mjs`, echte
-Uhr, vom Auftrag an den Worker bis zur fertigen Vorschau) 380–740 ms. Am Handy
-grob das Drei- bis Vierfache, also eine bis drei Sekunden – im Worker, das
-Training merkt davon nichts: Im Fenster kostet eine Sendung 1–3 ms, und
-während der Worker rechnet, gab es keine lange Aufgabe im Fenster. Der
-schwerste gemessene Fall, Fußball jede Woche, braucht in Node 4,4 s, davon
-1,7 s für die Ferne – den Rest kosten die Termine schon in der Nähe. Deshalb
-rechnet die App die Ferne nicht seltener: Sie rechnet ohnehin entprellt (2 s
-nach einer Änderung, gesendet höchstens alle zwei Minuten, sofort nur beim
-ersten Haken und beim Abschluss), und die Ferne nur, solange das Skript sie
-annimmt. Seltener gerechnet, stünde nach einem Training eine veraltete Ferne
-im Kalender – die neue Nähe und das alte Jahr passten nicht zusammen.
+**Rechenzeit**, am Rechner gemessen, im Worker in Chromium (vier Läufe nach dem
+Laden der Module):
+
+| Fall | ohne Ferne | mit Ferne | davon Ferne |
+| --- | --- | --- | --- |
+| Tobis Stand | 80–140 ms | 176–203 ms | 92–107 ms |
+| drei Termine in der Ferne | 175–198 ms | 328–440 ms | 149–201 ms |
+| Fußball jede Woche, 52 Termine | 1,5–1,7 s | 2,7–3,0 s | 1,0–1,1 s |
+
+In Node an Tobis Stand 262–280 ms (Ferne rund 145 ms), Fußball 4,1 s (Ferne
+1,5 s) – den größeren Teil kosten dort die Termine schon in der Nähe. In der
+laufenden App (`tests/test-kalender-sync.mjs`, echte Uhr, vom Auftrag an den
+Worker bis zur fertigen Vorschau) 350–550 ms. Am Handy grob das Drei- bis
+Vierfache: an Tobis Stand eine knappe Sekunde, mit Fußball jede Woche um die
+zehn. Beides im Worker, neben der Oberfläche – im Fenster kostet eine Sendung
+1–3 ms, und während der Worker rechnet, gab es keine lange Aufgabe im Fenster.
+Ein Training mit 20 Sätzen rechnet rund zwanzigmal (2 s nach jedem Haken), an
+Tobis Stand am Handy geschätzt eine Viertelminute Rechenzeit über die ganze
+Stunde, im Hintergrund.
+
+**Deshalb nicht seltener.** Gerechnet wird ohnehin entprellt (2 s nach einer
+Änderung, gesendet höchstens alle zwei Minuten, sofort nur beim ersten Haken
+und beim Abschluss), und die Ferne nur, solange das Skript sie annimmt. Und
+jede Sendung braucht beides aus derselben Rechnung: Schon der erste Haken
+ändert das Jahr – ohne ihn rückte morgen alles einen Tag nach, mit ihm nicht.
+Die Ferne nur beim Start und nach dem Abschluss hieße, dass nach einem
+abgebrochenen Training beim Skript eine Sendung liegt, deren Jahr nicht zur
+Nähe passt (als v 2), oder eine ohne Jahr (als v 1 – dann verschiebt das Skript
+das Jahr nicht mehr, solange die App zu bleibt). Beides gäbe genau das auf,
+wofür es das Jahr gibt.
 
 **Der Vertrag, Fassung 2** – vollständig im Kopf von `js/kalender-vorschau.js`.
 Rückwärts verträglich in beide Richtungen: Die App schickt v 1 wie bisher,
@@ -3098,7 +3115,7 @@ Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
   Den Satz „Noch 183 Änderungen offen" zeigte die App sonst bis zur nächsten
   Sendung, auch als längst alles eingetragen war.
 * Bleibt etwas offen, legt das Skript einen einmaligen Auslöser `weiter` an
-  (in drei Minuten), der viereinhalb Minuten lang weitermacht und, wenn nötig,
+  (frühestens in drei Minuten), der viereinhalb Minuten lang weitermacht und, wenn nötig,
   den nächsten anlegt – bis alles steht. Nicht, wenn Google bremst: dann die
   nächste Stunde. Ein kleiner Rest (unter zehn Änderungen, keine davon in den
   vier Wochen oder den Tagen davor) wartet ebenfalls auf die nächste Stunde.
@@ -3206,9 +3223,14 @@ Zeile auf der Startseite und die Bitte auf der Karte mit ihren Schritten,
 „Code kopieren" mit demselben Kennwort, die Nachfrage beim Zurückkommen und
 dann von selbst v 2, ein neues Gerät (erst v 1, dann v 2), ein Skript, das v 2
 abweist (auch beim Wegschalten), was v245 vermerkte, und eine Sendung über
-64 KiB über den Service Worker. Gegen v245 (7c56f14) gelaufen, sind alle drei
-rot: Die Prüfung der Vorschau und die des Skripts brechen nach je zwei roten
-Zeilen ab (`fernListe()` fehlt), die der App hat 13 rote Zeilen.
+64 KiB über den Service Worker. Und, aus der Prüfung des Entwurfs: eine Probe,
+die mit einer Referenz nicht aufgeht (der Tag wird eine eigene Referenz),
+`stehen` und `folge` in Antwort und Probe, eine Probe mitten im Auffüllen, die
+den Fortschritt sagt, die Karte während des Auffüllens und danach (und dass
+die App dann nicht mehr nachfragt), eine Ferne, die sich nicht rechnen lässt
+(die Nähe geht genau einmal als v 1), „Neue Version" vergessen (der Satz nach
+der Zeit der Antwort – und keiner, solange die Nachfrage läuft) und über 64 KiB
+ohne Background Sync. ERGEBNIS-GEGENPROBE
 
 **Ehrlich dazugesagt.** Gemessen ist bei Google nur das Anlegen: Fassung 1
 legte bei Tobi am 27.10. 18 Termine in 53 Sekunden an, rund drei Sekunden je
@@ -3227,7 +3249,10 @@ Skript", Google schickte die Mail „Summary of failures" – und `einrichten`
 einmal ausführen hilft, wie die Karte schon sagt. Ob ein
 einmaliger Auslöser nach dem Feuern bei Google stehen bleibt, ist ungeprüft –
 `weiter` löscht ihn deshalb selbst, und `einrichten` räumt jeden alten
-Auslöser weg. Ob ein Lesezugriff auf einen schon geladenen Termin bei
+Auslöser weg. Wann Google ihn feuert, ist nicht auf die Minute zugesagt: Die
+Dokumentation von `after()` nennt eine Unschärfe von einer Viertelstunde. Dann
+dauert das Auffüllen länger – im schlechtesten Fall um die Stunde, denn auch
+jeder stündliche Lauf macht weiter, wo der letzte aufgehört hat. Ob ein Lesezugriff auf einen schon geladenen Termin bei
 Google ein eigener Aufruf ist, ist ungeprüft; deshalb liest eine ruhige Stunde
 nur die Nähe. Auf dem iPhone gibt es keinen Background Sync: Eine Sendung über
 64 KiB geht beim Wegschalten dort gewöhnlich hinaus, so weit die Seite noch

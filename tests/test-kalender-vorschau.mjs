@@ -901,20 +901,22 @@ const frischFern = (name, z, ms) => {
     { nah: new Set(['cut-1-1']), fern: [e('cut-1-30', 41), e('cut-1-30', 45, 'h2'), e('cut-2-1', 301)] },
     { nah: new Set(['cut-1-2']), fern: [e('cut-1-30', 42), e('cut-1-31', 44), e('cut-2-1', 302)] },
   ];
-  const f = V.ferneBauen(roh, 365, 28);
+  let f = null;
+  let wurf = '';
+  try { f = V.ferneBauen(roh, 365, 28); } catch (err) { wurf = String(err.message || err).slice(0, 80); }
   const n = {
     v: 2, ab: '2026-10-08', fenster: [7, 28], texte: { h1: ['A', 'a'], h2: ['B', 'b'] },
     tage: { '2026-10-08': [e('cut-1-1', '2026-10-08')], '2026-10-09': [e('cut-1-1', '2026-10-08')], '2026-10-10': [e('cut-1-2', '2026-10-10')] },
     ferne: f,
   };
-  const genau = roh.every(({ fern }, k) => {
+  const genau = !!f && roh.every(({ fern }, k) => {
     const tag = addDays('2026-10-08', k);
     const soll = fern.filter((x) => x[1] > k).map((x) => [x[0], addDays('2026-10-08', x[1]), x[2], x[3], x[4]])
       .sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
     return JSON.stringify(V.fernListe(n, tag)) === JSON.stringify(soll);
   });
   check(genau && f.listen.length === 2 && JSON.stringify(f.tage[1]) === '[1,0]' && JSON.stringify(f.tage[2]) === '[0,2]',
-    `geht die Probe mit Versatz und Flicken nicht auf (Tag 2), wird der Tag selbst eine Referenz; Tag 3 nimmt wieder die erste – jeder Tag genau (${JSON.stringify(f.tage)})`);
+    `geht die Probe mit Versatz und Flicken nicht auf (Tag 2), wird der Tag selbst eine Referenz; Tag 3 nimmt wieder die erste – jeder Tag genau (${f ? JSON.stringify(f.tage) : wurf})`);
   check(!vorschau.AF.fernFehler && vorschau.AF.v === 2, 'an Tobis Stand kein fernFehler – die Ferne geht ganz');
 }
 

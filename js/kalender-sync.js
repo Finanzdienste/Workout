@@ -124,7 +124,7 @@ const KAL_FERNE = 365;
 // wie weit das Skript mit dem Jahr ist, solange es noch einträgt.
 const KAL_FASSUNG_FRAGEN = 2 * 60 * 1000;
 // Erst so lange nach der letzten Auskunft lohnt es, nach dem Stand zu fragen:
-// Ein Lauf „weiter" kommt drei Minuten nach dem vorigen.
+// Ein Lauf „weiter" kommt frühestens drei Minuten nach dem vorigen.
 const KAL_STAND_FRAGEN = 3 * 60 * 1000;
 
 const KAL_VORBEREITEN = 2000;
