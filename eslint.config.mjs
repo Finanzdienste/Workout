@@ -149,8 +149,9 @@ export default [
     // Tippfehler in einem selten genommenen Zweig fiele erst auf, wenn der
     // Kalender stehen bleibt. Kein Modul, sondern ein Skript: Apps Script kennt
     // kein import/export, alle Funktionen stehen auf der obersten Ebene. Die
-    // fünf, die Apps Script von außen aufruft (Auswahl oben, Auslöser,
-    // Web-App), sind „benutzt"; jede andere ungenutzte ist ein Fund.
+    // sechs, die Apps Script von außen aufruft (Auswahl oben, der stündliche
+    // und der einmalige Auslöser „weiter", Web-App), sind „benutzt"; jede
+    // andere ungenutzte ist ein Fund.
     // ecmaVersion 2019: kein `?.` und kein `??` – was Apps Script sicher kann.
     files: ['kalender/**/*.gs'],
     languageOptions: {
@@ -170,7 +171,7 @@ export default [
     },
     rules: {
       'no-unused-vars': ['error', {
-        args: 'none', caughtErrors: 'none', varsIgnorePattern: '^(einrichten|stuendlich|abgleichen|doGet|doPost)$',
+        args: 'none', caughtErrors: 'none', varsIgnorePattern: '^(einrichten|stuendlich|abgleichen|weiter|doGet|doPost)$',
       }],
       'no-fallthrough': 'error',
       'consistent-return': 'error',

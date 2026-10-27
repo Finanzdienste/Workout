@@ -757,7 +757,7 @@ export const KENNUNG_MUSTER = /^[a-z0-9]{1,24}-\d{1,4}-z?\d{1,4}$/;
  */
 export function nutzlastPruefen(n, { kennung = KENNUNG_MUSTER } = {}) {
   if (!n || typeof n !== 'object' || Array.isArray(n)) return 'kein Objekt';
-  if (n.v !== 1 && n.v !== 2) return 'v';
+  if (n.v !== 1 && n.v !== VORSCHAU_V) return 'v';
   if (!zeichenkette(n.token, 16, 128)) return 'token';
   if (!zeichenkette(n.geraet, 4, 64)) return 'geraet';
   if (!ganz(n.seq, 0, Number.MAX_SAFE_INTEGER)) return 'seq';
