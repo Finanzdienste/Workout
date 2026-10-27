@@ -2750,7 +2750,8 @@ Nicht verbunden stehen nach dem ersten Absatz gleich die sechs Schritte von
 oben, *Code kopieren*, das URL-Feld und *Verbinden*; Hauptknopf ist erst *Code
 kopieren*, mit Kennwort *Verbinden*. Verbunden steht dort, wann zuletzt etwas
 ankam und bis wann die Termine reichen („Zuletzt angekommen: vor 3 Min. (Skript
-Fassung 2). Im Kalender: Termine bis 08.10.2027."), was beim letzten
+Fassung 2). Im Kalender: Termine bis 08.10.2027." – solange das Skript das Jahr
+noch einträgt, bis wann sie schon stehen, unten *Ein Jahr im Voraus*), was beim letzten
 Versuch schiefging, Uhrzeit (Berliner Zeit) und *Erinnerung vorher* (kurz
 „30 Min." – „30 Min. vorher" passte bei 360 px nicht ins Feld) – jede Änderung
 geht sofort hinaus –, was eine Mail „Summary of failures" von Google bedeutet
@@ -2841,7 +2842,7 @@ Test in einem Sprung vorging und der Zeitgeber der Drossel nie lief.)
 | jede andere Änderung | gerechnet 2 s danach, geschickt frühestens 5 s danach und höchstens alle zwei Minuten |
 | Start | 3 s nach dem Laden – ein neuer Tag ist eine neue Vorschau, und die sechs Wochen zählen ab dem letzten Öffnen |
 | kein Netz, Skript beschäftigt (`fehler`), keine Antwort in 45 s (`zeit`) | dieselbe Vorschau noch einmal nach 2, 5 und 15 Minuten, solange die Seite lebt, dazu bei `online` und beim Zurückkommen (höchstens einmal je Minute) |
-| Wegschalten | nur, was fertig gerechnet bereitliegt, mit `keepalive` (unter 64 KiB, nach der Sicherung); größer (ein Jahr mit vielen Terminen) gleich in den Ausgang für den Service Worker |
+| Wegschalten | nur, was fertig gerechnet bereitliegt, mit `keepalive` (unter 64 KiB, nach der Sicherung); größer (ein Jahr mit vielen Terminen) gleich in den Ausgang für den Service Worker – ohne Background Sync gewöhnlich, und offen, bis die Antwort da ist |
 | App zu | der Service Worker schickt nach, was nicht ankam – ohne Netz, sobald wieder welches da ist; ist das Skript beschäftigt, einige Minuten später (unten) |
 
 Bis zur Prüfung des Entwurfs ging nach `fehler` und `zeit` bei bestehendem Netz
@@ -3007,10 +3008,20 @@ Zahl ab `ab`, nicht als Datum) und je Tag nur, welche Liste, um wie viele Tage
 verschoben und was dann noch anders ist (`weg`, `dazu` – ein Termin in der
 Ferne trifft genau die Einheit, die gerade auf seinem Tag liegt). Das wird
 nicht angenommen, sondern je Tag geprüft: Die echte Fernliste des Tages muss
-genau herauskommen; wo keine Liste mit höchstens 24 Änderungen passt, wird sie
-selbst eine neue Referenz. Texte stehen einmal unter ihrem Hash, für Nähe und
-Ferne. An Tobis Stand ist es eine Liste mit 216 Einträgen, Versatz 0, 1, 2 … –
-jeder verpasste Tag schiebt sie um einen weiter, ohne eine Änderung.
+genau herauskommen; wo keine Liste mit höchstens 24 Änderungen passt oder die
+Probe nicht aufgeht, wird sie selbst eine neue Referenz – die geht immer auf.
+Texte stehen einmal unter ihrem Hash, für Nähe und Ferne. An Tobis Stand ist es
+eine Liste mit 216 Einträgen, Versatz 0, 1, 2 … – jeder verpasste Tag schiebt
+sie um einen weiter, ohne eine Änderung.
+
+**Die Ferne hält das Senden nie auf.** Bis zur Prüfung warf die Probe, wenn sie
+nicht aufging, und mit ihr fiel die ganze Sendung aus – auch die vier Wochen,
+die mit der Ferne nichts zu tun haben. Jetzt wird der Tag dann eine eigene
+Referenz. Scheitert die Ferne trotzdem (ein Fehler beim Rechnen), geht die
+Nähe allein hinaus, als v 1: Das Skript gleicht die vier Wochen an und lässt
+das Jahr dahinter stehen, wie es ist. Das Diagnoseprotokoll vermerkt
+`fernfehler=…`, und die App schickt diese Sendung nicht „passend" als v 2
+nach – sie ging mit Absicht als v 1.
 
 **Größen**, gemessen in `tests/test-kalender-vorschau.mjs` und
 `tests/test-kalender-gas.mjs`:
@@ -3070,6 +3081,10 @@ gleich danach v 2. Ein Skript der Fassung 2 nimmt beides. Weist ein Skript eine
 v 2 zurück – etwa, weil der alte Code wieder bereitgestellt ist –, schickt die
 App dieselbe Vorschau gleich als v 1, ohne Warnzeile; ging die v 2 beim
 Wegschalten hinaus, beim Zurückkommen. Probe und „aus" gehen immer als v 1.
+Die Antwort der Fassung 2 trägt dazu `offen` (so viele Änderungen stehen noch
+aus), `bis` (so weit reicht die Liste), `stehen` (bis dahin stimmt der
+Kalender schon ganz) und `folge` (kommt der Rest in ein paar Minuten oder mit
+der nächsten Stunde) – die Probe ebenso, vom letzten Abgleich.
 
 **Das Skript, Fassung 2.** Ein Jahr anzulegen dauert länger, als ein Lauf bei
 Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
@@ -3077,8 +3092,11 @@ Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
 
 * `doPost` legt ab und gleicht dann nur 25 Sekunden lang an – das Nächste
   zuerst: heute und die vier Wochen, dann die letzten Tage, dann die Ferne der
-  Reihe nach. Die Antwort sagt, wie viel noch offen ist (`offen`) und bis wann
-  die Liste reicht (`bis`).
+  Reihe nach. Die Antwort sagt, wie viel noch offen ist (`offen`), bis wann die
+  Liste reicht (`bis`), bis wann der Kalender schon steht (`stehen`) und ob
+  der Rest in Minuten kommt (`folge`) – in Feldern, nicht als Satz im Hinweis:
+  Den Satz „Noch 183 Änderungen offen" zeigte die App sonst bis zur nächsten
+  Sendung, auch als längst alles eingetragen war.
 * Bleibt etwas offen, legt das Skript einen einmaligen Auslöser `weiter` an
   (in drei Minuten), der viereinhalb Minuten lang weitermacht und, wenn nötig,
   den nächsten anlegt – bis alles steht. Nicht, wenn Google bremst: dann die
@@ -3145,6 +3163,31 @@ beim Start und beim Zurückkommen höchstens alle zwei Minuten mit einer Probe
 nach, sieht Fassung 2 und schickt das Jahr. Die vier Wochen stehen ja schon;
 das Jahr dahinter folgt in ein paar Läufen `weiter`.
 
+**Wenn „Neue Version" fehlt.** Das ist der Schritt, den man am leichtesten
+vergisst (oben, *Einrichten*), und ohne ihn läuft die Web-App mit dem alten
+Code weiter – der stündliche Auslöser nimmt schon den neuen, und beides geht
+gut zusammen, nur das Jahr kommt nicht. Meldet eine Antwort drei Minuten oder
+länger nach „Code kopieren" noch Fassung 1, steht über der Bitte:
+
+> Der Code ist kopiert, aber das Skript meldet noch Fassung 1. Meist fehlt der
+> letzte Schritt: Bereitstellen → Bereitstellungen verwalten → Bearbeiten
+> (Stift) → Version: Neue Version → Bereitstellen – oder das Speichern davor.
+> Ohne beides läuft die Web-App mit dem alten Code weiter.
+
+Gezählt wird die Zeit der Antwort, nicht die des Anzeigens. Bis zur Prüfung
+hing der Satz an der Uhr beim Zeichnen: Kam Tobi nach sechs Minuten mit allem
+erledigt zurück, stand er da, bis die Nachfrage Fassung 2 meldete.
+
+**Während das Skript das Jahr einträgt**, sagt die Karte, was schon steht:
+„Im Kalender: Termine bis 10.12.2026. Den Rest bis 27.10.2027 trägt das Skript
+in den nächsten Minuten nach – noch 183 Änderungen." Bis zur Prüfung stand dort
+gleich nach dem Code-Update „Termine bis 27.10.2027", als erst die vier Wochen
+da waren. Ist die letzte Auskunft drei Minuten alt und noch etwas offen, fragt
+die App beim Zurückkommen oder beim Öffnen der Karte mit einer Probe nach –
+höchstens alle zwei Minuten: „… – noch 95 Änderungen (Stand gerade eben)." Ist
+alles eingetragen, steht dort „Im Kalender: Termine bis 27.10.2027.", und die
+App fragt nicht mehr.
+
 **Geprüft.** `tests/test-kalender-vorschau.mjs`: die Ferne über das
 Rundenende, die Kennungen gegen den echten Rundenwechsel, jeder geprüfte Tag
 von Nähe und Ferne gegen einen frischen Lauf der App für diesen Tag allein (an
@@ -3187,9 +3230,12 @@ einmaliger Auslöser nach dem Feuern bei Google stehen bleibt, ist ungeprüft �
 Auslöser weg. Ob ein Lesezugriff auf einen schon geladenen Termin bei
 Google ein eigener Aufruf ist, ist ungeprüft; deshalb liest eine ruhige Stunde
 nur die Nähe. Auf dem iPhone gibt es keinen Background Sync: Eine Sendung über
-64 KiB, die beim Wegschalten nicht mehr hinausging, geht dort erst beim
-nächsten Öffnen. Und die Ferne bleibt eine Schätzung – nach sechs Wochen ohne
-Sendung verschiebt der Kalender auch sie nicht mehr.
+64 KiB geht beim Wegschalten dort gewöhnlich hinaus, so weit die Seite noch
+kommt, und gilt als offen, bis die Antwort da ist – kam sie nicht an, geht sie
+beim Zurückkommen noch einmal. Bis zur Prüfung ging sie dort beim Wegschalten
+gar nicht, und nichts holte sie nach bis zur nächsten Änderung. Und die Ferne
+bleibt eine Schätzung – nach sechs Wochen ohne Sendung verschiebt der Kalender
+auch sie nicht mehr.
 
 ## Übungsvorrat
 
