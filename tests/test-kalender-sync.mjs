@@ -63,6 +63,12 @@
  *  14. Über 64 KiB (ein Jahr mit vielen Terminen): beim Wegschalten kein
  *      keepalive, sondern gleich in den Ausgang – der Service Worker schickt
  *      es, und die App merkt sich danach, was ankam.
+ *  15. Was die Prüfung des Entwurfs fand: Während das Skript das Jahr
+ *      einträgt, sagt die Karte, was schon steht (stehen, folge), und fragt
+ *      nach – danach nicht mehr; eine gekürzte Ferne; eine Ferne, die sich
+ *      nicht rechnen lässt (die Nähe geht genau einmal als v 1); „Neue
+ *      Version" vergessen, gezählt nach der Zeit der Antwort; über 64 KiB ohne
+ *      Background Sync.
  *
  *     node tests/test-kalender-sync.mjs            # alles
  *     node tests/test-kalender-sync.mjs 3 7        # nur Abschnitt 3 und 7

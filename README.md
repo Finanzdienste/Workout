@@ -3016,13 +3016,13 @@ eine Liste mit 216 Einträgen, Versatz 0, 1, 2 … – jeder verpasste Tag schie
 sie um einen weiter, ohne eine Änderung.
 
 **Die Ferne hält das Senden nie auf.** Bis zur Prüfung des Entwurfs warf die
-Probe, wenn sie nicht aufging, und mit ihr fiel die ganze Sendung aus – auch die vier Wochen,
-die mit der Ferne nichts zu tun haben. Jetzt wird der Tag dann eine eigene
-Referenz. Scheitert die Ferne trotzdem (ein Fehler beim Rechnen), geht die
-Nähe allein hinaus, als v 1: Das Skript gleicht die vier Wochen an und lässt
+Probe, wenn sie nicht aufging, und mit ihr fiel die ganze Sendung aus – auch die
+vier Wochen, die mit der Ferne nichts zu tun haben. Jetzt wird der Tag dann eine
+eigene Referenz. Scheitert die Ferne trotzdem (ein Fehler beim Rechnen), geht
+die Nähe allein hinaus, als v 1: Das Skript gleicht die vier Wochen an und lässt
 das Jahr dahinter stehen, wie es ist. Das Diagnoseprotokoll vermerkt
-`fernfehler=…`, und die App schickt diese Sendung nicht „passend" als v 2
-nach – sie ging mit Absicht als v 1.
+`fernfehler=…`, und die App schickt diese Sendung nicht „passend" als v 2 nach –
+sie ging mit Absicht als v 1.
 
 **Größen**, gemessen in `tests/test-kalender-vorschau.mjs` und
 `tests/test-kalender-gas.mjs`:
@@ -3116,9 +3116,10 @@ Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
   Entwurfs bis zur nächsten Sendung, auch als längst alles eingetragen war.
 * Bleibt etwas offen, legt das Skript einen einmaligen Auslöser `weiter` an
   (frühestens in drei Minuten), der viereinhalb Minuten lang weitermacht und,
-  wenn nötig, den nächsten anlegt – bis alles steht. Nicht, wenn Google bremst: dann die
-  nächste Stunde. Ein kleiner Rest (unter zehn Änderungen, keine davon in den
-  vier Wochen oder den Tagen davor) wartet ebenfalls auf die nächste Stunde.
+  wenn nötig, den nächsten anlegt – bis alles steht. Nicht, wenn Google bremst:
+  dann die nächste Stunde. Ein kleiner Rest (unter zehn Änderungen, keine davon
+  in den vier Wochen oder den Tagen davor) wartet ebenfalls auf die nächste
+  Stunde.
 * Die vier Wochen kommen vor der Ferne dran: Von Grund auf stehen sie in der
   Attrappe nach dem ersten Lauf `weiter` ganz, erst dann beginnt die Ferne.
 * Ein verpasster Tag verschiebt das ganze Jahr sanft: je Termin genau ein
@@ -3191,19 +3192,19 @@ länger nach „Code kopieren" noch Fassung 1, steht über der Bitte:
 > (Stift) → Version: Neue Version → Bereitstellen – oder das Speichern davor.
 > Ohne beides läuft die Web-App mit dem alten Code weiter.
 
-Gezählt wird die Zeit der Antwort, nicht die des Anzeigens. Bis zur Prüfung
-des Entwurfs hing der Satz an der Uhr beim Zeichnen: Kam Tobi nach sechs Minuten mit allem
-erledigt zurück, stand er da, bis die Nachfrage Fassung 2 meldete.
+Gezählt wird die Zeit der Antwort, nicht die des Anzeigens. Bis zur Prüfung des
+Entwurfs hing der Satz an der Uhr beim Zeichnen: Kam Tobi nach sechs Minuten mit
+allem erledigt zurück, stand er da, bis die Nachfrage Fassung 2 meldete.
 
-**Während das Skript das Jahr einträgt**, sagt die Karte, was schon steht:
-„Im Kalender: Termine bis 10.12.2026. Den Rest bis 27.10.2027 trägt das Skript
-in den nächsten Minuten nach – noch 183 Änderungen." Bis zur Prüfung des
-Entwurfs stand dort gleich nach dem Code-Update „Termine bis 27.10.2027", als erst die vier Wochen
-da waren. Ist die letzte Auskunft drei Minuten alt und noch etwas offen, fragt
-die App beim Zurückkommen oder beim Öffnen der Karte mit einer Probe nach –
-höchstens alle zwei Minuten: „… – noch 95 Änderungen (Stand gerade eben)." Ist
-alles eingetragen, steht dort „Im Kalender: Termine bis 27.10.2027.", und die
-App fragt nicht mehr.
+**Während das Skript das Jahr einträgt**, sagt die Karte, was schon steht: „Im
+Kalender: Termine bis 10.12.2026. Den Rest bis 27.10.2027 trägt das Skript in
+den nächsten Minuten nach – noch 183 Änderungen." Bis zur Prüfung des Entwurfs
+stand dort gleich nach dem Code-Update „Termine bis 27.10.2027", als erst die
+vier Wochen da waren. Ist die letzte Auskunft drei Minuten alt und noch etwas
+offen, fragt die App beim Zurückkommen oder beim Öffnen der Karte mit einer
+Probe nach – höchstens alle zwei Minuten: „… – noch 95 Änderungen (Stand gerade
+eben)." Ist alles eingetragen, steht dort „Im Kalender: Termine bis
+27.10.2027.", und die App fragt nicht mehr.
 
 **Geprüft.** `tests/test-kalender-vorschau.mjs`: die Ferne über das
 Rundenende, die Kennungen gegen den echten Rundenwechsel, jeder geprüfte Tag
@@ -3230,37 +3231,44 @@ den Fortschritt sagt, die Karte während des Auffüllens und danach (und dass
 die App dann nicht mehr nachfragt), eine Ferne, die sich nicht rechnen lässt
 (die Nähe geht genau einmal als v 1), „Neue Version" vergessen (der Satz nach
 der Zeit der Antwort – und keiner, solange die Nachfrage läuft) und über 64 KiB
-ohne Background Sync. ERGEBNIS-GEGENPROBE
+ohne Background Sync. Gegen v245 (7c56f14) gelaufen, sind alle drei rot: Die
+Prüfung der Vorschau und die des Skripts brechen nach je zwei roten Zeilen ab
+(`fernListe()` fehlt), die der App hat 17 rote Zeilen, und ihre Abschnitte 13
+und 15 brechen ab. Gegen den Stand vor der Prüfung des Entwurfs (c2fa46b): die
+Vorschau an einer Stelle rot (`ferneBauen()` war dort nicht von außen zu
+prüfen), das Skript an sechs (`stehen`, `folge`), die App an acht – jeder
+Befund von oben. Am Stand von v246 einzeln gelaufen: 164, 168 und 207
+Prüfungen, alle grün.
 
-**Ehrlich dazugesagt.** Gemessen ist bei Google nur das Anlegen: Fassung 1
-legte bei Tobi am 27.10. 18 Termine in 53 Sekunden an, rund drei Sekunden je
-Termin (anlegen, Markierungen, Erinnerung, Beschreibung). Die Attrappe nimmt
-dafür eine halbe Sekunde je Schreibzugriff an – ein neuer Termin braucht sechs.
-Wie lange Verschieben und Lesen dauern, ist ungemessen. So gerechnet steht ein
-Jahr von Grund auf nach drei Läufen `weiter`, ein Jahr nach Tobis Weg von
-Fassung 1 nach zwei und der nächsten Stunde, und ein verpasster Tag – 209
-Termine verschieben – passt in einen Lauf. Ist Google langsamer, dauert es
-länger; die vier Wochen kommen trotzdem zuerst, und die Beschreibung des
-Kalenders sagt, wie viel noch offen ist. Dass Google nach dem Codetausch nicht
-neu nach Zugriff fragt, folgt aus denselben Diensten, zeigt aber erst Tobis
-Konto. Fragt es doch, erlaubt Tobi es wie beim Einrichten; bliebe es
-unerlaubt, käme keine Sendung beim Skript an, die Karte sagte „nicht das
-Skript", Google schickte die Mail „Summary of failures" – und `einrichten`
-einmal ausführen hilft, wie die Karte schon sagt. Ob ein
-einmaliger Auslöser nach dem Feuern bei Google stehen bleibt, ist ungeprüft –
-`weiter` löscht ihn deshalb selbst, und `einrichten` räumt jeden alten
-Auslöser weg. Wann Google ihn feuert, ist nicht auf die Minute zugesagt: Die
-Dokumentation von `after()` nennt eine Unschärfe von einer Viertelstunde. Dann
-dauert das Auffüllen länger – im schlechtesten Fall um die Stunde, denn auch
-jeder stündliche Lauf macht weiter, wo der letzte aufgehört hat. Ob ein
+**Ehrlich dazugesagt.** Gemessen ist bei Google nur das Anlegen: Fassung 1 legte
+bei Tobi am 27.10. 18 Termine in 53 Sekunden an, rund drei Sekunden je Termin
+(anlegen, Markierungen, Erinnerung, Beschreibung). Die Attrappe nimmt dafür eine
+halbe Sekunde je Schreibzugriff an – ein neuer Termin braucht sechs. Wie lange
+Verschieben und Lesen dauern, ist ungemessen. So gerechnet steht ein Jahr von
+Grund auf nach drei Läufen `weiter`, ein Jahr nach Tobis Weg von Fassung 1 nach
+zwei und der nächsten Stunde, und ein verpasster Tag – 209 Termine verschieben –
+passt in einen Lauf. Ist Google langsamer, dauert es länger; die vier Wochen
+kommen trotzdem zuerst, und die Beschreibung des Kalenders sagt, wie viel noch
+offen ist. Dass Google nach dem Codetausch nicht neu nach Zugriff fragt, folgt
+aus denselben Diensten, zeigt aber erst Tobis Konto. Fragt es doch, erlaubt Tobi
+es wie beim Einrichten; bliebe es unerlaubt, käme keine Sendung beim Skript an,
+die Karte sagte „nicht das Skript", Google schickte die Mail „Summary of
+failures" – und `einrichten` einmal ausführen hilft, wie die Karte schon sagt.
+Ob ein einmaliger Auslöser nach dem Feuern bei Google stehen bleibt, ist
+ungeprüft – `weiter` löscht ihn deshalb selbst, und `einrichten` räumt jeden
+alten Auslöser weg. Wann Google ihn feuert, ist nicht auf die Minute zugesagt:
+Die Dokumentation von `after()` nennt eine Unschärfe von einer Viertelstunde.
+Dann dauert das Auffüllen länger – im schlechtesten Fall um die Stunde, denn
+auch jeder stündliche Lauf macht weiter, wo der letzte aufgehört hat. Ob ein
 Lesezugriff auf einen schon geladenen Termin bei Google ein eigener Aufruf ist,
-ist ungeprüft; deshalb liest eine ruhige Stunde nur die Nähe. Auf dem iPhone gibt es keinen Background Sync: Eine Sendung über
-64 KiB geht beim Wegschalten dort gewöhnlich hinaus, so weit die Seite noch
-kommt, und gilt als offen, bis die Antwort da ist – kam sie nicht an, geht sie
-beim Zurückkommen noch einmal. Bis zur Prüfung des Entwurfs ging sie dort beim
-Wegschalten gar nicht, und nichts holte sie nach bis zur nächsten Änderung. Und die Ferne
-bleibt eine Schätzung – nach sechs Wochen ohne Sendung verschiebt der Kalender
-auch sie nicht mehr.
+ist ungeprüft; deshalb liest eine ruhige Stunde nur die Nähe. Auf dem iPhone
+gibt es keinen Background Sync: Eine Sendung über 64 KiB geht beim Wegschalten
+dort gewöhnlich hinaus, so weit die Seite noch kommt, und gilt als offen, bis
+die Antwort da ist – kam sie nicht an, geht sie beim Zurückkommen noch einmal.
+Bis zur Prüfung des Entwurfs ging sie dort beim Wegschalten gar nicht, und
+nichts holte sie nach bis zur nächsten Änderung. Und die Ferne bleibt eine
+Schätzung – nach sechs Wochen ohne Sendung verschiebt der Kalender auch sie
+nicht mehr.
 
 ## Übungsvorrat
 
