@@ -18,11 +18,13 @@
  * Gemessen (tests/test-kalender-vorschau.mjs, Chromium am Rechner): siehe
  * README „Google Kalender automatisch".
  *
- * Nachricht hin:  { id, zustand, jetzt, wartet }
+ * Nachricht hin:  { id, zustand, jetzt, wartet, ferne }
  *   zustand  store.getState() oder exportJSON() der App, nach ihrem Start
  *   jetzt    Date.now() der App (ms) – die Uhr des Workers ist dieselbe,
  *            aber so rechnen beide mit demselben Augenblick
  *   wartet   abschlussWartetAm() aus js/tagstart.js
+ *   ferne    so viele Tage reicht die Ferne (VORSCHAU_FERNE), 0 ohne – für
+ *            ein Skript der Fassung 1 wird sie gar nicht erst gerechnet
  * Nachricht zurück: { id, ok: true, vorschau } oder { id, ok: false, code, fehler }.
  *
  * `code` 'fokus': Der Worker hat seine Module mit einem anderen
@@ -32,9 +34,11 @@
 import { vorschauRechnen } from './kalender-vorschau.js';
 
 self.addEventListener('message', async (e) => {
-  const { id = null, zustand, jetzt, wartet = null } = e.data || {};
+  const { id = null, zustand, jetzt, wartet = null, ferne = 0 } = e.data || {};
   try {
-    const vorschau = await vorschauRechnen(zustand, { jetzt: Number.isFinite(jetzt) ? jetzt : Date.now(), wartet });
+    const vorschau = await vorschauRechnen(zustand, {
+      jetzt: Number.isFinite(jetzt) ? jetzt : Date.now(), wartet, ferne: Number.isFinite(ferne) ? ferne : 0,
+    });
     self.postMessage({ id, ok: true, vorschau });
   } catch (err) {
     self.postMessage({

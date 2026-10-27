@@ -597,9 +597,7 @@ function stempleFertige() {
  */
 function rundeWeiter() {
   if (PLAN.some((w) => !completedMode(w.n))) return false;
-  const letzte = PLAN[PLAN.length - 1];
-  const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
-  const ab = addDays(store.startedOn(letzte.n) || effDate(letzte), abstand);
+  const ab = naechsteRundeAb();
   if (!store.restartPlan(daysBetween(PLAN[0].date, ab), rundenBilanz())) {
     startNotiz('plan', { was: 'runde weiter', ok: false });
     return false;
@@ -608,6 +606,26 @@ function rundeWeiter() {
   // Die Startansicht geht auf Workout 1 – das macht die Oberfläche.
   startOberflaeche.neueRunde();
   return true;
+}
+
+/**
+ * Der Tag, an dem Workout 1 der nächsten Runde liegt: der übliche Abstand
+ * nach der letzten Einheit – nach dem Tag, an dem sie angefangen wurde, sonst
+ * nach ihrem Termin.
+ *
+ *     „Klappt alles aber bisschen wenig Termine. Lass doch mal ein Jahr
+ *      machen"
+ *
+ * Ein Jahr reicht über das Ende der Runde hinaus, und dahinter steht der
+ * Kalender nur dann richtig, wenn die nächste Runde dort beginnt, wo
+ * rundeWeiter() sie beginnen lässt. Darum steht die Rechnung hier einmal:
+ * rundeWeiter() nimmt sie beim echten Rundenende, die Ferne der
+ * Kalender-Vorschau für die Runden, die noch kommen (js/kalender-vorschau.js).
+ */
+export function naechsteRundeAb() {
+  const letzte = PLAN[PLAN.length - 1];
+  const abstand = Math.max(1, daysBetween(PLAN[0].date, PLAN[1].date));
+  return addDays(store.startedOn(letzte.n) || effDate(letzte), abstand);
 }
 
 /*
