@@ -1073,10 +1073,12 @@ const neu = (jetzt, n, wann) => {
     try { laeufe.push(feuern(p, `2026-10-08T${h}:00:00+02:00`).geaendert); } catch (e) { fehler = e; break; }
   }
   // Fassung 2: doPost gleicht nur 25 s an (die App wartet), sagt, was offen
-  // ist, und legt den einmaligen Auslöser „weiter" an; den Rest machen die Läufe.
-  check(a.ok && a.offen > 0 && /Noch \d+ Änderungen offen – das Skript trägt sie in den nächsten Minuten nach/.test(a.hinweis)
+  // ist (offen, folge – nicht im Hinweis, den die App sonst veraltet zeigte),
+  // und legt den einmaligen Auslöser „weiter" an; den Rest machen die Läufe.
+  check(a.ok && a.offen > 0 && a.folge === true && !/offen/.test(a.hinweis || '')
     && !fehler && !abweichung(k, N.A, '2026-10-08') && laeufe.length > 2,
-  `langsames Google (6 s je Schreibzugriff, 25 s für doPost, 4,5 Minuten je Lauf): in ${laeufe.length} Läufen fertig (${laeufe.join(' + ')}), ohne Fehler und ohne Doppel – „${a.hinweis}"`);
+  `langsames Google (6 s je Schreibzugriff, 25 s für doPost, 4,5 Minuten je Lauf): in ${laeufe.length} Läufen fertig (${laeufe.join(' + ')}), `
+    + `ohne Fehler und ohne Doppel – die Antwort sagt noch ${a.offen} offen, Rest in Minuten (folge)`);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1445,7 +1447,17 @@ const listeVon = (n, tag) => [...n.tage[tag], ...V.fernListe(n, tag)];
   const f = p.ausloeser.filter((x) => x.art === 'nach');
   check(f.length === 1 && f[0].fn === 'weiter' && f[0].wert === 3 * 60 * 1000 && /noch \d+ Änderungen offen, sie folgen in den nächsten Minuten/.test(k.beschreibung),
     `der Rest folgt in ein paar Minuten: genau ein einmaliger Auslöser „weiter" (3 min); die Beschreibung sagt es – „${k.beschreibung.split('\n')[2]}"`);
-  const { laeufe, nahFalsch } = auffuellen(p, N2.T27, '2026-10-27');
+  // Was schon steht, sagt die Antwort eigens (stehen): Die App sagt damit
+  // „Termine bis …", ohne das ganze Jahr zu versprechen, das erst kommt.
+  check(a2.folge === true && a2.stehen && a2.stehen >= addDays('2026-10-27', 28) && a2.stehen < a2.bis && !/offen/.test(a2.hinweis || '')
+    && a2.stehen === k.beschreibung.split('\n')[2].replace(/^Termine bis (\d\d)\.(\d\d)\.(\d{4}).*$/, '$3-$2-$1'),
+  `die Antwort sagt, bis wann der Kalender schon steht (stehen ${a2.stehen}, bis ${a2.bis}) und dass der Rest in Minuten kommt – wie die Beschreibung`);
+  const r1 = weiterFeuern(p, spaeter(w, 4));
+  const pr = probe(p);
+  check(pr.ok && pr.code === 'probe' && pr.offen === r1.offen && pr.offen < a2.offen && pr.stehen > a2.stehen && pr.bis === a2.bis && pr.folge === true,
+    `eine Probe dazwischen sagt, wie weit es ist: noch ${pr.offen} statt ${a2.offen} offen, Termine schon bis ${pr.stehen} – so fragt die App nach`);
+  const { laeufe: rest, nahFalsch } = auffuellen(p, N2.T27, '2026-10-27');
+  const laeufe = [r1.geaendert, ...rest];
   // Bleibt nach dem letzten „weiter" nur wenig offen (unter zehn, nichts aus
   // den nächsten vier Wochen), macht das die nächste Stunde – und die
   // Beschreibung sagt genau das.
@@ -1464,6 +1476,9 @@ const listeVon = (n, tag) => [...n.tage[tag], ...V.fernListe(n, tag)];
   check(new RegExp(`Termine bis ${addDays('2026-10-27', 365).split('-').reverse().join('.')}\\.`).test(k.beschreibung)
     && /verschiebt von selbst bis 07\.12\.2026/.test(k.beschreibung) && !/offen/.test(k.beschreibung),
   `die Beschreibung danach: „${k.beschreibung.split('\n').slice(1, 4).join(' / ')}"`);
+  const fertigProbe = probe(p);
+  check(fertigProbe.offen === 0 && fertigProbe.stehen === addDays('2026-10-27', 365) && fertigProbe.bis === fertigProbe.stehen && fertigProbe.folge === null,
+    `danach sagt die Probe: nichts offen, Termine bis ${fertigProbe.stehen}`);
 }
 
 {
@@ -1608,8 +1623,8 @@ const listeVon = (n, tag) => [...n.tage[tag], ...V.fernListe(n, tag)];
   w.jetzt = um('2026-10-08T12:00:05+02:00');
   w.drossel = 300;
   const a = post(p, N2.A).a;
-  check(a.ok && /bremst/.test(a.hinweis) && a.offen > 0 && !p.ausloeser.some((x) => x.art === 'nach'),
-    `Google bremst nach 300 Schreibzugriffen: „${a.hinweis}" – ${a.offen} offen, kein Folge-Auslöser`);
+  check(a.ok && /bremst/.test(a.hinweis) && a.offen > 0 && a.folge === false && !p.ausloeser.some((x) => x.art === 'nach'),
+    `Google bremst nach 300 Schreibzugriffen: „${a.hinweis}" – ${a.offen} offen, kein Folge-Auslöser (folge false: die nächste Stunde)`);
   w.drossel = null;
   feuern(p, '2026-10-08T13:07:00+02:00');
   check(!abweichung(k, N2.A, '2026-10-08'), 'die nächste Stunde macht den Rest');
@@ -1622,7 +1637,8 @@ const listeVon = (n, tag) => [...n.tage[tag], ...V.fernListe(n, tag)];
 {
   const geparst = alleAntworten.map((x) => { try { return JSON.parse(x); } catch { return null; } });
   check(geparst.every((a) => a && typeof a.ok === 'boolean' && typeof a.code === 'string' && a.version === FASSUNG && a.kalender === 'Workout'
-    && ['tag', 'geaendert', 'offen', 'bis', 'stand', 'seq'].every((f) => f in a)), `alle ${geparst.length} Antworten: JSON mit ok, code, version, kalender, tag, geaendert, offen, bis, stand, seq`);
+    && ['tag', 'geaendert', 'offen', 'bis', 'stehen', 'folge', 'stand', 'seq'].every((f) => f in a)),
+  `alle ${geparst.length} Antworten: JSON mit ok, code, version, kalender, tag, geaendert, offen, bis, stehen, folge, stand, seq`);
   check(!alleAntworten.some((x) => x.includes(TOKEN) || /@group\.calendar|@google\.com|https?:/.test(x)), 'keine Antwort enthält das Kennwort, eine Kalender-ID oder eine Adresse');
   const codes = [...new Set(geparst.map((a) => a.code))].sort();
   check(gleich(codes, ['aelter', 'alt', 'angekommen', 'aus', 'fehler', 'format', 'gleich', 'probe', 'token']), `jede Antwort aus dem Vertrag kam vor (${codes.join(', ')})`);

@@ -890,6 +890,35 @@ const frischFern = (name, z, ms) => {
 }
 
 {
+  // 7e2. Die Probe in ferneBauen(): Geht sie mit Versatz und Flicken nicht
+  // auf, wird der Tag eine eigene Referenz – nie wirft die Ferne das Senden
+  // um. Gebaut aus einer Fernliste, die es in der App nicht gibt (zweimal
+  // dieselbe Kennung an einem Tag): Mit einer Referenz und Flicken käme dort
+  // nur einer der beiden heraus.
+  const e = (k, t, h = 'h1') => [k, t, 60, h, 0];
+  const roh = [
+    { nah: new Set(['cut-1-1']), fern: [e('cut-1-30', 40), e('cut-1-31', 42), e('cut-2-1', 300)] },
+    { nah: new Set(['cut-1-1']), fern: [e('cut-1-30', 41), e('cut-1-30', 45, 'h2'), e('cut-2-1', 301)] },
+    { nah: new Set(['cut-1-2']), fern: [e('cut-1-30', 42), e('cut-1-31', 44), e('cut-2-1', 302)] },
+  ];
+  const f = V.ferneBauen(roh, 365, 28);
+  const n = {
+    v: 2, ab: '2026-10-08', fenster: [7, 28], texte: { h1: ['A', 'a'], h2: ['B', 'b'] },
+    tage: { '2026-10-08': [e('cut-1-1', '2026-10-08')], '2026-10-09': [e('cut-1-1', '2026-10-08')], '2026-10-10': [e('cut-1-2', '2026-10-10')] },
+    ferne: f,
+  };
+  const genau = roh.every(({ fern }, k) => {
+    const tag = addDays('2026-10-08', k);
+    const soll = fern.filter((x) => x[1] > k).map((x) => [x[0], addDays('2026-10-08', x[1]), x[2], x[3], x[4]])
+      .sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
+    return JSON.stringify(V.fernListe(n, tag)) === JSON.stringify(soll);
+  });
+  check(genau && f.listen.length === 2 && JSON.stringify(f.tage[1]) === '[1,0]' && JSON.stringify(f.tage[2]) === '[0,2]',
+    `geht die Probe mit Versatz und Flicken nicht auf (Tag 2), wird der Tag selbst eine Referenz; Tag 3 nimmt wieder die erste – jeder Tag genau (${JSON.stringify(f.tage)})`);
+  check(!vorschau.AF.fernFehler && vorschau.AF.v === 2, 'an Tobis Stand kein fernFehler – die Ferne geht ganz');
+}
+
+{
   // 7f. bleibtStehen(), Fassung 2: am Tag des Rundenwechsels bleibt die eben
   // gemachte letzte Einheit stehen; eine Schätzung, die nicht eintraf, nicht.
   const liste = [['cut-2-1', '2026-10-31', 60, 'h', 0], ['cut-3-1', '2027-03-27', 60, 'h', 0]];

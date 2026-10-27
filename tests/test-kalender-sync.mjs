@@ -122,6 +122,10 @@ function skriptAttrappe() {
     get: 'status', getCors: false, probeHinweis: null, haltenVorschau: null,
     // Wie Fassung 1 (Tobis Skript bis zum Code-Update): kennt v 2 nicht.
     fassung1: false,
+    // Fassung 2 beim Eintragen des Jahres (Abschnitt 15): so viel ist nach der
+    // Sendung noch offen, bis dahin steht der Kalender, kommt der Rest in Minuten;
+    // probeStand: was eine Probe danach vom letzten Abgleich sagt.
+    offen: 0, stehen: null, folge: null, probeStand: null,
   };
   s.route = async (route) => {
     const req = route.request();
@@ -173,11 +177,16 @@ function skriptAttrappe() {
       else if (j && j.probe) a = { ok: true, code: 'probe', hinweis: s.probeHinweis || 'Verbunden. Noch keine Vorschau angekommen.' };
       else if (j && j.aus) a = { ok: true, code: 'aus', geaendert: 3 };
       else a = { ok: true, code: 'angekommen', tag: j && j.ab, geaendert: s.geaendert };
+      const fern = !s.fassung1 && j && j.ferne && a.ok ? bisTag(j.ab, j.ferne.bis) : null;
       const antwort = {
         ok: a.ok, code: a.code, version: s.fassung1 ? 1 : s.version, kalender: 'Workout', tag: a.tag || null,
         geaendert: a.geaendert ?? null, stand: j && j.stand ? j.stand : null, seq: j ? j.seq : null,
-        // Fassung 2 sagt, bis wann die Liste reicht – wie kalender/workout-kalender.gs.
-        ...(!s.fassung1 && j && j.ferne && a.ok ? { offen: 0, bis: bisTag(j.ab, j.ferne.bis) } : {}),
+        // Fassung 2 sagt, bis wann die Liste reicht, was noch offen ist und
+        // bis wann der Kalender schon steht – wie kalender/workout-kalender.gs.
+        ...(fern ? {
+          offen: s.offen, bis: fern, stehen: s.offen ? s.stehen : fern, folge: s.offen ? s.folge : null,
+        } : {}),
+        ...(j && j.probe && s.probeStand ? s.probeStand : {}),
         ...(s.hinweis !== undefined ? { hinweis: s.hinweis } : a.hinweis ? { hinweis: a.hinweis } : {}),
       };
       await route.fulfill({ status: 200, contentType: 'application/json', headers: ACAO, body: JSON.stringify(antwort) });
@@ -272,6 +281,25 @@ async function geraet(name, {
         // Abschnitt 13: ein Worker, der die Ferne nicht kennt (wie aus einem älteren Zwischenspeicher).
         const an = window.__ohneFerne && m && typeof m === 'object' && 'ferne' in m ? { ...m, ferne: 0 } : m;
         return post.call(this, an, ...rest);
+      };
+      // Abschnitt 15: Die Ferne scheitert beim Rechnen – der Worker meldet,
+      // was rechnen() in js/kalender-vorschau.js dann meldet: die Nähe allein
+      // (v 1) und fernFehler.
+      const hoeren = window.Worker.prototype.addEventListener;
+      window.Worker.prototype.addEventListener = function addEventListener(typ, fn, ...rest) {
+        if (typ !== 'message') return hoeren.call(this, typ, fn, ...rest);
+        return hoeren.call(this, typ, (e) => {
+          const d = e && e.data;
+          if (window.__fernKaputt && d && d.ok && d.vorschau && d.vorschau.ferne) {
+            const v = { ...d.vorschau, v: 1, fernFehler: 'Ferne am Tag 3 nicht genau kodierbar' };
+            delete v.ferne;
+            delete v.gekuerzt;
+            const nah = new Set(Object.values(v.tage).flat().map((x) => x[3]));
+            v.texte = Object.fromEntries(Object.entries(v.texte).filter(([h]) => nah.has(h)));
+            return fn({ data: { ...d, vorschau: v } });
+          }
+          return fn(e);
+        }, ...rest);
       };
     }
     // Lange Aufgaben im Fenster (Abschnitt 10).
@@ -1546,6 +1574,153 @@ await abschnitt(14, async () => {
   await vor(page, 3 * 60 * 1000, 2000);
   check(skript.vorschauen().length === n0 + 1, 'dieselbe Vorschau geht danach nicht noch einmal hinaus');
   await zu(g);
+});
+
+/* ================================================================== *
+ * 15. Während das Skript das Jahr einträgt – und was sonst schiefgehen kann
+ * ================================================================== */
+await abschnitt(15, async () => {
+  // a) Die erste Sendung mit dem Jahr: Das Skript hat in 25 s die vier Wochen
+  // und ein paar Termine dahinter, 183 Änderungen sind offen. Die Karte sagt,
+  // was steht – nicht schon das ganze Jahr.
+  const g = await geraet('15 Auffüllen', { kalender: { token: TOKEN, url: URL_A } });
+  const { page, skript } = g;
+  Object.assign(skript, { offen: 183, stehen: '2026-12-10', folge: true });
+  await vor(page, 4000, 1500);
+  await bis(() => skript.vorschauen().length >= 1, 8000);
+  await zuMehr(page);
+  const s1 = await text(page, '#kalenderStand');
+  check(/Im Kalender: Termine bis 10\.12\.2026\. Den Rest bis 08\.10\.2027 trägt das Skript in den nächsten Minuten nach – noch 183 Änderungen\./.test(s1)
+    && !/Termine bis 08\.10\.2027\./.test(s1) && skript.proben().length === 0,
+  `die erste Sendung mit dem Jahr: die Karte sagt, was schon steht und was folgt („${s1.replace(/^.*?(Im Kalender)/, '$1').slice(0, 140)}")`);
+  // Ein paar Minuten später ist er wieder da: Die App fragt nach (eine Probe).
+  skript.probeStand = { offen: 95, bis: '2027-10-08', stehen: '2027-05-13', folge: true };
+  await vor(page, 3 * 60 * 1000 + 1000, 300);
+  await verstecken(page);
+  await zeigen(page);
+  await bis(async () => /13\.05\.2027/.test(await text(page, '#kalenderStand')), 6000);
+  const s2 = await text(page, '#kalenderStand');
+  check(skript.proben().length === 1 && skript.vorschauen().length === 1
+    && /Im Kalender: Termine bis 13\.05\.2027\. Den Rest bis 08\.10\.2027 trägt das Skript in den nächsten Minuten nach – noch 95 Änderungen \(Stand gerade eben\)\./.test(s2),
+  `ein paar Minuten später fragt die App nach – eine Probe, keine Sendung – und die Karte sagt den neuen Stand („${s2.replace(/^.*?(Im Kalender)/, '$1').slice(0, 150)}")`);
+  skript.probeStand = { offen: 0, bis: '2027-10-08', stehen: '2027-10-08', folge: null };
+  await vor(page, 3 * 60 * 1000 + 1000, 300);
+  await verstecken(page);
+  await zeigen(page);
+  await bis(async () => /Im Kalender: Termine bis 08\.10\.2027\./.test(await text(page, '#kalenderStand')), 6000);
+  const p1 = skript.proben().length;
+  await vor(page, 5 * 60 * 1000, 300);
+  await verstecken(page);
+  await zeigen(page);
+  await echteWarte(800);
+  await zumDashboard(page);
+  await zuMehr(page);
+  const s3 = await text(page, '#kalenderStand');
+  check(/Im Kalender: Termine bis 08\.10\.2027\./.test(s3) && !/offen|Rest|Stand/.test(s3.replace(/^.*?(Im Kalender)/, '$1')) && p1 === 2
+    && skript.proben().length === p1,
+  `alles eingetragen: „Termine bis 08.10.2027." – danach fragt die App nicht mehr nach (${skript.proben().length} Proben)`);
+  await zu(g);
+
+  // b) Die Ferne lässt sich nicht rechnen (ein Fehler in der Rechnung): Die
+  // Nähe geht trotzdem, allein, als v 1 – das Skript gleicht die vier Wochen
+  // an und lässt das Jahr stehen. Genau einmal, ohne „passend nachschicken".
+  const f = await geraet('15 Ferne kaputt', { kalender: { token: TOKEN, url: URL_A } });
+  await f.page.evaluate(() => { window.__fernKaputt = true; });
+  await vor(f.page, 4000, 1500);
+  await bis(() => f.skript.vorschauen().length >= 1, 8000);
+  await vor(f.page, 3000, 1500);
+  const fv = f.skript.vorschauen();
+  const fz = (await diagZeilen(f.page)).filter((x) => / kalender was=vorschau .*fernfehler=/.test(x));
+  check(fv.length === 1 && fv[0].j.v === 1 && !('ferne' in fv[0].j) && V.nutzlastPruefen(fv[0].j) === null && (await meta(f.page)).letzte.ok
+    && fz.length === 1 && /vertrag=1/.test(fz[0]),
+  `die Ferne lässt sich nicht rechnen: die Nähe geht allein als v 1, genau einmal – und das Diagnoseprotokoll sagt es (${(fz[0] || '').replace(/^.* kalender /, '').slice(0, 120)})`);
+  await vor(f.page, 90 * 1000, 300);
+  await verstecken(f.page);
+  await zeigen(f.page);
+  await echteWarte(1500);
+  await zumDashboard(f.page);
+  check(f.skript.vorschauen().length === 1 && await f.page.locator('#kalenderZeile').count() === 0 && await f.page.locator('#kalenderJahrZeile').count() === 0,
+    '… auch beim Zurückkommen nicht noch einmal, und keine Zeile auf der Startseite – die vier Wochen stimmen');
+  await zu(f);
+
+  // c) „Neue Version" vergessen. Der Satz dazu hängt an der Zeit der
+  // Antwort, nicht an der des Anzeigens: Kommt Tobi nach sechs Minuten mit
+  // allem erledigt zurück, steht er nicht da, während die Nachfrage läuft.
+  for (const fall of ['richtig', 'vergessen']) {
+    const h = await geraet(`15 Code ${fall}`, { kalender: { token: TOKEN, url: URL_A }, fassung: 1 });
+    h.skript.fassung1 = true;
+    await vor(h.page, 4000, 1500);
+    await bis(() => h.skript.vorschauen().length >= 1, 8000);
+    await zuMehr(h.page);
+    await bis(() => h.skript.proben().length >= 1, 4000);
+    await h.page.locator('#kalenderJahr [data-act="kalender-code"]').click();
+    await bis(async () => /Code kopiert/.test(await text(h.page, '#kalenderMeldung')));
+    if (fall === 'richtig') {
+      h.skript.fassung1 = false;
+      let los;
+      h.skript.halten = new Promise((r) => { los = r; });
+      await vor(h.page, 6 * 60 * 1000, 300);
+      await verstecken(h.page);
+      await zeigen(h.page);
+      await bis(() => h.skript.proben().length >= 2, 4000);
+      // Neu gezeichnet, während die Nachfrage noch läuft.
+      await zumDashboard(h.page);
+      await zuMehr(h.page);
+      check(await h.page.locator('#kalenderJahr').count() === 1 && await h.page.locator('#kalenderJahrFehlt').count() === 0,
+        'nach sechs Minuten zurück, alles erledigt: Solange die Nachfrage läuft, steht die Bitte da, aber kein „Meist fehlt …"');
+      h.skript.halten = null;
+      los();
+      await bis(async () => await h.page.locator('#kalenderJahr').count() === 0, 8000);
+      await bis(() => h.skript.vorschauen().some((x) => x.j.v === 2), 8000);
+      check(await h.page.locator('#kalenderJahr').count() === 0 && h.skript.vorschauen().some((x) => x.j.v === 2),
+        '… die Antwort sagt Fassung 2: die Bitte ist weg, das Jahr geht hinaus');
+    } else {
+      await vor(h.page, 2.5 * 60 * 1000, 300);
+      await verstecken(h.page);
+      await zeigen(h.page);
+      await bis(() => h.skript.proben().length >= 2, 4000);
+      await echteWarte(400);
+      const frueh = await h.page.locator('#kalenderJahrFehlt').count();
+      await vor(h.page, 2.5 * 60 * 1000, 300);
+      await verstecken(h.page);
+      await zeigen(h.page);
+      await bis(() => h.skript.proben().length >= 3, 4000);
+      await bis(async () => await h.page.locator('#kalenderJahrFehlt').count() === 1, 4000);
+      const jahr = await h.page.evaluate(async () => (await import('./js/kalender-sync.js')).KALENDER_JAHR);
+      const satz = (await text(h.page, '#kalenderJahrFehlt')).trim();
+      check(frueh === 0 && satz === jahr.fehlt && /Neue Version/.test(satz) && /Speichern/.test(satz) && !/einrichten/.test(satz),
+        `„Neue Version" vergessen: zweieinhalb Minuten nach dem Kopieren noch nichts, fünf Minuten danach meldet das Skript weiter Fassung 1 – „${satz}"`);
+    }
+    await zu(h);
+  }
+
+  // d) Über 64 KiB bei versteckter Seite, ohne Background Sync (Safari): Die
+  // Sendung geht gewöhnlich hinaus, so weit die Seite kommt, und gilt als
+  // offen, bis die Antwort da ist. Bis zur Prüfung ging sie dort gar nicht.
+  const z = JSON.parse(JSON.stringify(ZUSTAND));
+  z.termine = Array.from({ length: 52 }, (_, i) => ({ datum: bisTag('2026-11-07', i * 7), name: 'Fußball', aktivitaet: 'fussball', minuten: 90 }));
+  const gr = await geraet('15 groß ohne Sync', { zustand: z, kalender: { token: TOKEN, url: URL_A } });
+  await vor(gr.page, 4000, 1500);
+  await bis(() => gr.skript.vorschauen().some((x) => x.j.v === 2), 30000);
+  const n0 = gr.skript.vorschauen().length;
+  await gr.page.evaluate(async () => (await import('./js/store.js')).setSetting('injuries', ['tennisarm']));
+  await vor(gr.page, 2500, 300);
+  await echteWarte(10000);   // der Worker rechnet die 52 Termine in echter Zeit
+  let los;
+  gr.skript.halten = new Promise((r) => { los = r; });
+  await verstecken(gr.page);
+  await bis(() => gr.skript.vorschauen().length > n0, 5000);
+  await echteWarte(300);
+  const unterwegs = gr.skript.vorschauen().slice(n0);
+  const mOffen = (await meta(gr.page)).offen;
+  gr.skript.halten = null;
+  los();
+  await bis(async () => (await meta(gr.page)).offen === false, 6000);
+  const gz = (await diagZeilen(gr.page)).filter((x) => / kalender was=(ausgang|vorschau) /.test(x)).slice(-2);
+  check(unterwegs.length === 1 && Buffer.byteLength(unterwegs[0].roh) > V.VORSCHAU_MAX_BYTES && unterwegs[0].j.v === 2 && mOffen === true
+    && (await meta(gr.page)).offen === false && gz.some((x) => /was=ausgang .*ausgang=false/.test(x)) && !gz.some((x) => /keepalive=true/.test(x)),
+  `über 64 KiB weggeschaltet, ohne Background Sync: gewöhnlich hinaus (${(Buffer.byteLength(unterwegs[0] ? unterwegs[0].roh : '') / 1024).toFixed(1)} KiB, ohne keepalive), offen bis zur Antwort`);
+  await zu(gr);
 });
 
 check(seitenFehler.length === 0, `keine Fehler auf den Seiten${seitenFehler.length ? `: ${seitenFehler.slice(0, 4).join(' | ')}` : ''}`);
