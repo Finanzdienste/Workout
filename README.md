@@ -3052,8 +3052,8 @@ Speichern stehen die alte und die neue Sendung kurz nebeneinander. Daher
 höchstens 192 KiB für v 2 – zweimal sind es 384 KiB, mit Luft für den Rest.
 Wird es mehr, wird die Ferne kürzer (in Schritten auf drei Viertel, höchstens
 bis auf die vier Wochen), nie die Sendung abgewiesen; `gekuerzt` sagt es, und
-die Karte auch: „Im Kalender: Termine bis … – diesmal nicht ein ganzes Jahr,
-weil die Sendung sonst zu groß würde (viele verschiedene Termine)." Passt nicht
+die Karte auch: „Im Kalender: Termine bis 05.02.2027. Diesmal nicht ein ganzes
+Jahr – die Sendung wäre sonst zu groß geworden (viele verschiedene Termine)." Passt nicht
 einmal die Nähe, geht sie ohne Ferne. Ein Skript der Fassung 1 bekommt nie mehr
 als 64 KiB: v 1 trägt nur die Nähe und ihre Texte.
 

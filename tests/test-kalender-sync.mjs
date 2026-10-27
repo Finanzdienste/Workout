@@ -290,6 +290,12 @@ async function geraet(name, {
         if (typ !== 'message') return hoeren.call(this, typ, fn, ...rest);
         return hoeren.call(this, typ, (e) => {
           const d = e && e.data;
+          // … oder die Rechnung musste die Ferne kürzen (gekuerzt), weil die
+          // Sendung sonst zu groß würde.
+          if (window.__gekuerzt && d && d.ok && d.vorschau && d.vorschau.ferne) {
+            const v = { ...d.vorschau, ferne: { ...d.vorschau.ferne, bis: window.__gekuerzt }, gekuerzt: window.__gekuerzt };
+            return fn({ data: { ...d, vorschau: v } });
+          }
           if (window.__fernKaputt && d && d.ok && d.vorschau && d.vorschau.ferne) {
             const v = { ...d.vorschau, v: 1, fernFehler: 'Ferne am Tag 3 nicht genau kodierbar' };
             delete v.ferne;
@@ -1620,6 +1626,18 @@ await abschnitt(15, async () => {
     && skript.proben().length === p1,
   `alles eingetragen: „Termine bis 08.10.2027." – danach fragt die App nicht mehr nach (${skript.proben().length} Proben)`);
   await zu(g);
+
+  // a2) Gekürzt (die Sendung wäre sonst zu groß geworden): Die Karte sagt es.
+  const gk = await geraet('15 gekürzt', { kalender: { token: TOKEN, url: URL_A } });
+  await gk.page.evaluate(() => { window.__gekuerzt = 120; });
+  await vor(gk.page, 4000, 1500);
+  await bis(() => gk.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(gk.page);
+  const sk = await text(gk.page, '#kalenderStand');
+  check(gk.skript.letzte().ferne.bis === 120 && V.nutzlastPruefen(gk.skript.letzte()) === null
+    && /Im Kalender: Termine bis 05\.02\.2027\. Diesmal nicht ein ganzes Jahr – die Sendung wäre sonst zu groß geworden/.test(sk),
+  `gekürzte Ferne: die Karte sagt es („${sk.replace(/^.*?(Im Kalender)/, '$1').slice(0, 130)}")`);
+  await zu(gk);
 
   // b) Die Ferne lässt sich nicht rechnen (ein Fehler in der Rechnung): Die
   // Nähe geht trotzdem, allein, als v 1 – das Skript gleicht die vier Wochen
