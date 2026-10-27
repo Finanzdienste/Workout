@@ -68,6 +68,8 @@ const SHELL = [
   // sie sonst genau dann, wenn die Vorschau nach dem Training raus soll.
   './js/kalender-vorschau.js',
   './js/kalender-worker.js',
+  // Das Senden an das Skript (Karte unter Mehr → Kalender, Takt, Antwort).
+  './js/kalender-sync.js',
   // Die Vorlage für das Skript in Tobis Google-Konto: „Code kopieren" setzt
   // dort das Kennwort ein. Kein Modul – sie läuft nur bei Google.
   './kalender/workout-kalender.gs',
@@ -313,6 +315,59 @@ self.addEventListener('message', (event) => {
     if (pause) pause.sichtbar = !!m.an;
     if (m.an) event.waitUntil(pauseWeg());
   }
+});
+
+/* ------------------------------------------------------------------ *
+ * Google Kalender automatisch: nachsenden, wenn wieder Netz da ist
+ *
+ *     „Ja aber nur wenn es wirklich keinen Weg gibt wie verschoben wird auch
+ *      wenn ich die app nicht öffne"
+ *
+ * Trainiert Tobi im Studio ohne Netz, kann die App die neue Vorschau nicht
+ * schicken, und bis zum nächsten Öffnen mit Netz hielte der Kalender das
+ * Training für verpasst und schöbe es weiter. Die App legt die fertige
+ * Sendung deshalb in den Ausgang (Cache „kalender-ausgang", js/kalender-sync.js)
+ * und bittet um ein „sync". Das schickt der Browser, sobald wieder Netz da
+ * ist – auch bei geschlossener App (Background Sync: Chrome, also Android;
+ * Safari und Firefox kennen es nicht). Scheitert es am Netz, wirft dieser
+ * Teil, und der Browser versucht es später noch einmal.
+ *
+ * Geschickt wird ohne CORS: Die Antwort könnte hier ohnehin niemand lesen, und
+ * mit CORS sähe eine Antwort ohne Freigabe aus wie kein Netz – dann versuchte
+ * der Browser es endlos. Was das Skript dazu sagt, erfährt die App mit ihrer
+ * nächsten eigenen Sendung; hier wird nur vermerkt, dass es hinausging.
+ * Nur an eine Web-App von Google Apps Script – dieselbe Prüfung wie
+ * KALENDER_URL in js/store.js.
+ * ------------------------------------------------------------------ */
+
+const KALENDER_AUSGANG = 'kalender-ausgang';
+const KALENDER_ZIEL = /^https:\/\/script\.google\.com\/(?:macros|a\/macros\/[A-Za-z0-9.-]{1,100})\/s\/[A-Za-z0-9_-]{10,200}\/exec$/;
+
+async function kalenderNachsenden() {
+  const c = await caches.open(KALENDER_AUSGANG);
+  const schluessel = new URL('kalender-ausgang', self.registration.scope).href;
+  const hit = await c.match(schluessel);
+  if (!hit) return;
+  const s = await hit.json().catch(() => null);
+  if (!s || typeof s.text !== 'string' || !KALENDER_ZIEL.test(s.url || '')) {
+    await c.delete(schluessel);
+    return;
+  }
+  // Wirft ohne Netz – dann kommt das nächste „sync".
+  await fetch(s.url, {
+    method: 'POST', body: s.text, mode: 'no-cors', credentials: 'omit', redirect: 'follow',
+  });
+  // Nur wegräumen, was geschickt wurde: Hat die App inzwischen eine neuere
+  // Sendung hineingelegt, bleibt die für das nächste „sync".
+  const jetzt = await c.match(schluessel);
+  const noch = jetzt ? await jetzt.json().catch(() => null) : null;
+  if (!noch || noch.seq === s.seq) await c.delete(schluessel);
+  await c.put(new URL('kalender-ausgang-nach', self.registration.scope).href,
+    new Response(JSON.stringify({ seq: s.seq, zeit: Date.now() }), { headers: { 'content-type': 'application/json' } }));
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'kalender') event.waitUntil(kalenderNachsenden());
 });
 
 /*

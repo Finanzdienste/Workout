@@ -717,11 +717,15 @@ button { font: inherit; color: inherit; }
    fiel das nie auf, weil die schmal sind; beim Namensfeld der Termine sofort.
    Gefunden von tests/test-weights.mjs, nicht mit dem Auge. */
 .zeit { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.zeit input {
+.zeit input, .zeit select {
   width: 100%; box-sizing: border-box;
   padding: 10px; font: inherit; color: var(--text);
   background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: 10px;
 }
+/* Die Schritte zum Einrichten des Google-Kalenders (Mehr → Kalender): eine
+   nummerierte Liste, eng genug für sechs Schritte auf einem Bildschirm. */
+.kalender-schritte { margin: 6px 0 0; padding-left: 20px; line-height: 1.45; }
+.kalender-schritte li { margin-top: 4px; }
 
 /* ------------------------------------------------------------------ *
  * Sport außerhalb des Plans: Aktivität suchen und auswählen
@@ -14136,6 +14140,16 @@ const DEFAULT_STATE = {
   // damit ein erneuter Import die alten Termine überschreibt statt sie stehen
   // zu lassen.
   lastIcs: null,
+  // Google Kalender automatisch (js/kalender-sync.js): { token, url, minuten,
+  // erinnerung } oder null. Das Kennwort entsteht beim ersten „Code kopieren"
+  // und bleibt dann – ein zweites Kopieren gibt denselben Code. Es reist mit
+  // Sicherung und Exportdatei: Ein neues Handy, das die Sicherung einliest,
+  // schickt danach von selbst weiter. Was nur dieses Gerät angeht (seine
+  // Kennung für das Skript, der Zähler, wann zuletzt etwas ankam), steht nicht
+  // hier, sondern in workout.kalender.v1 – stünde „zuletzt angekommen" im
+  // Zustand, änderte jede Sendung den Zustand und löste die nächste aus.
+  // Geprüft wird über normKalender(), beim Laden und beim Einlesen.
+  kalender: null,
   rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log, verlassen? }]
   // Tage, an denen der laufende Verlauf schon einmal verlassen wurde und aus
   // der Ablage zurückkam (wechsleFokus()): ['2026-09-23', …]. Das finishedOn
@@ -14375,6 +14389,33 @@ function normAbschluss(roh) {
   return einheiten.length ? { am: roh.am, einheiten } : null;
 }
 
+/*
+ * Die Verbindung zum Kalender-Skript, auf genau ihre Felder gebracht.
+ *
+ * Sie kommt aus einer Sicherung oder einer Exportdatei, und hinter `url` geht
+ * das Kennwort hinaus. Deshalb nur eine Adresse, die eine Web-App von Google
+ * Apps Script ist (…/exec, auch unter einer eigenen Domain eines
+ * Google-Workspace-Kontos) – eine Datei, in der jemand eine andere Adresse
+ * eingetragen hat, schickt das Kennwort nirgendwohin sonst. Ohne gültiges
+ * Kennwort gibt es nichts zu verbinden (null). Die Standards sind die aus
+ * js/kalender.js (KALENDER_MINUTEN 17:30, KALENDER_ERINNERUNG 30) – dort
+ * nicht importierbar, dieses Modul steht ganz unten; tests/test-kalender-sync.mjs
+ * vergleicht beide.
+ */
+const KALENDER_URL = /^https:\/\/script\.google\.com\/(?:macros|a\/macros\/[A-Za-z0-9.-]{1,100})\/s\/[A-Za-z0-9_-]{10,200}\/exec$/;
+const KALENDER_TOKEN = /^[A-Za-z0-9_-]{16,128}$/;
+const kalGanz = (x, lo, hi, standard) => (Number.isInteger(x) && x >= lo && x <= hi ? x : standard);
+function normKalender(roh) {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
+  if (typeof roh.token !== 'string' || !KALENDER_TOKEN.test(roh.token)) return null;
+  return {
+    token: roh.token,
+    url: typeof roh.url === 'string' && KALENDER_URL.test(roh.url) ? roh.url : null,
+    minuten: kalGanz(roh.minuten, 0, 1439, 17 * 60 + 30),
+    erinnerung: kalGanz(roh.erinnerung, 0, 1440, 30),
+  };
+}
+
 /** Der letzte Eintrag von v241: { n, at } mit einer Kennung wie im Protokoll und ms – sonst null. */
 function normEintrag(roh) {
   if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
@@ -14413,6 +14454,7 @@ function load() {
     state.friends = normFreunde(state.friends);
     state.customs = normCustoms(state.customs);
     state.tagesabschluss = normAbschluss(state.tagesabschluss);
+    state.kalender = normKalender(state.kalender);
     eintragUmziehen(state, state.letzterEintrag);
     // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
     // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
@@ -15757,6 +15799,22 @@ function icsPlanNachtragen(focus, stand) {
   emit();
 }
 
+/** Die Verbindung zum Kalender-Skript – { token, url, minuten, erinnerung } oder null. */
+function kalender() { return state.kalender; }
+
+/**
+ * Die Verbindung ändern: `teil` wird übernommen und geprüft (normKalender()),
+ * null trennt ganz. Gibt zurück, was jetzt gilt. Geschrieben wird gleich – das
+ * Kennwort muss im Speicher stehen, bevor der Code mit ihm die App verlässt.
+ */
+function setzeKalender(teil) {
+  state.kalender = teil === null ? null : normKalender({ ...(state.kalender || {}), ...teil });
+  persist();
+  flush();
+  emit();
+  return state.kalender;
+}
+
 /**
  * Alles für die Sicherung – bis auf das Betreiber-Passwort.
  *
@@ -15799,6 +15857,14 @@ function importJSON(text) {
   fresh.friends = normFreunde(fresh.friends);
   fresh.customs = normCustoms(fresh.customs);
   fresh.tagesabschluss = normAbschluss(fresh.tagesabschluss);
+  // Die Verbindung zum Kalender kommt mit der Datei – ein neues Handy schickt
+  // damit weiter. Kennt die Datei keine Adresse (eine Sicherung von vor dem
+  // „Verbinden"), bleibt die dieses Geräts: Sie gehört zu Tobis Google-Konto,
+  // nicht zum Trainingsstand, und ein Einlesen trennte sonst still einen
+  // Kalender, der dann sechs Wochen lang nach einer alten Vorschau schöbe.
+  const kalDatei = normKalender(fresh.kalender);
+  fresh.kalender = kalDatei && (kalDatei.url || !(state.kalender && state.kalender.url))
+    ? kalDatei : (state.kalender || null);
   eintragUmziehen(fresh, parsed.letzterEintrag);
   // Was an *diesem Gerät* hängt, kommt nicht aus der Datei. Vorher übernahm
   // der Import auch `share`, `deviceId` und `lastShare`: Eine bewusst
@@ -15855,7 +15921,7 @@ function resetAll() {
   emit();
 }
 
-const store = { ABSCHLUSS_ZEILE_TAGE, LIEGT_AB_MS, ablageKlemmt, abschlussAufraeumen, addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, festErsetzen, festNetto, festschreiben, flush, getSets, getState, halteNachFest, halteZusatz, icsPlanNachtragen, importJSON, isStarted, lebenszeichen, markBackup, markDone, markIcs, normAbschluss, normStand, normWarum, paarung, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setPaarung, setRest, setSetting, setShift, setWeight, setWorkoutMode, setzeTagesabschluss, sitzungVerwerfen, speicherGrund, startSession, startedOn, subscribe, tagesabschluss, toggleCare, toggleInjury, trainiertAm, updateSet, verwirfEinheit, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
+const store = { ABSCHLUSS_ZEILE_TAGE, KALENDER_TOKEN, KALENDER_URL, LIEGT_AB_MS, ablageKlemmt, abschlussAufraeumen, addBwPlus, bandOf, bwPlusOf, canPersist, careDone, clearInjuries, clockCredit, clockResync, clockStart, clockStop, completeWorkout, customById, customs, endSession, exportJSON, festErsetzen, festNetto, festschreiben, flush, getSets, getState, halteNachFest, halteZusatz, icsPlanNachtragen, importJSON, isStarted, kalender, lebenszeichen, markBackup, markDone, markIcs, normAbschluss, normKalender, normStand, normWarum, paarung, peekSets, removeCustom, removeFriend, resetAll, resetWorkout, restartPlan, restorable, restoreRound, saveCustom, sessionSeconds, setBand, setFriend, setMode, setPaarung, setRest, setSetting, setShift, setWeight, setWorkoutMode, setzeKalender, setzeTagesabschluss, sitzungVerwerfen, speicherGrund, startSession, startedOn, subscribe, tagesabschluss, toggleCare, toggleInjury, trainiertAm, updateSet, verwirfEinheit, vorImport, vorImportZurueck, wechsleFokus, weightOf, workoutMode };
 
 /* ===== js/text.js ===== */
 /*
@@ -23089,6 +23155,973 @@ function kalenderTermine({ von = null, bis = null, zusatz = true } = {}) {
   return out.sort((a, b) => a.datum.localeCompare(b.datum) || rang(a) - rang(b) || a.kennung.localeCompare(b.kennung));
 }
 
+/* ===== js/kalender-sync.js ===== */
+/*
+ * Google Kalender automatisch – das Senden.
+ *
+ *     „Sicher dass man jetzt die Workout zeiten täglich um 17:30 nicht
+ *      reinschreiben kann inkl Verschiebung wenn ich mal was verpasse oder
+ *      so?"
+ *
+ *     „Es soll von selbst einfach das optimale passieren"
+ *
+ * Was die App an jedem der nächsten 42 Tage zeigte, wenn bis dahin nicht
+ * trainiert wird, rechnet js/kalender-vorschau.js; das Skript in Tobis
+ * Google-Konto (kalender/workout-kalender.gs) legt es ab und gleicht den
+ * Kalender „Workout" jede Stunde danach an. Hier steht das Dazwischen: wann
+ * die App die Vorschau rechnet, wie sie hinausgeht und was die App aus der
+ * Antwort macht. Ohne Oberfläche – was davon zu sehen ist, steht in js/app.js
+ * (kalenderKarte()).
+ *
+ * **Wann.** Nur mit Verbindung (state.kalender mit url), und nur, wenn sich die
+ * Vorschau seit der zuletzt angekommenen geändert hat – ein Training, in dem
+ * nur Sätze dazukommen, ändert sie erst mit dem Abschluss:
+ *
+ *   erster Haken einer Einheit   sofort. Ab da steht sie auf heute fest; ohne
+ *                                Sendung schöbe der Kalender sie morgen als
+ *                                verpasst weiter.
+ *   Abschluss einer Einheit      sofort (auch aus einheitBeenden() in js/app.js)
+ *   jede andere Änderung         gerechnet 2 s danach, geschickt frühestens
+ *                                5 s danach und höchstens alle zwei Minuten
+ *   Start                        3 s nach dem Laden: Ein neuer Tag ist eine
+ *                                neue Vorschau, und die sechs Wochen zählen
+ *                                ab dem letzten Öffnen.
+ *   „online"                     wenn der letzte Versuch am Netz scheiterte
+ *   Wegschalten                  nur, was schon fertig gerechnet bereitliegt
+ *                                und unter 64 KiB bleibt (keepalive) – danach
+ *                                friert die Seite ein
+ *   ohne Netz                    der Service Worker schickt die Vorschau nach,
+ *                                sobald wieder Netz da ist, auch bei
+ *                                geschlossener App (Background Sync – Chrome
+ *                                und Android; Safari kennt es nicht)
+ *
+ * **Wo gerechnet wird.** In einem Modul-Worker (js/kalender-worker.js). Im
+ * Fenster ginge es nicht – dort teilten sich die Rechenmodule den Zustand mit
+ * der App –, und dort stünde die Oberfläche still, solange 42 Starts laufen.
+ * Im Fenster bleibt nur, den Zustand hinüberzugeben (structured clone) und die
+ * fertige Nutzlast in Text zu wandeln; beides wird gemessen und steht im
+ * Diagnoseprotokoll (`haupt`, in ms).
+ *
+ * **Wie.** Ein einfacher POST an die Web-App-Adresse: Text als Body (der
+ * Browser schreibt text/plain dazu), keine eigenen Header, ohne Cookies
+ * (credentials 'omit') – Apps Script beantwortet kein OPTIONS, und mit
+ * Cookies sähe Google einen angemeldeten Fremden statt „Jeder". Die Antwort
+ * kommt über eine Weiterleitung zu script.googleusercontent.com. Ist sie
+ * lesbar, sagt sie, was los ist (`code`, js/kalender-vorschau.js). Ist sie es
+ * nicht, kann der Browser zweierlei meinen – kein Netz oder eine Antwort ohne
+ * CORS – und sagt in beiden Fällen nur „Failed to fetch". Ein zweiter Versuch
+ * ohne CORS trennt das: Kommt dann eine undurchsichtige Antwort, war das Netz
+ * da, und geantwortet hat nicht das Skript, sondern eine Anmeldeseite (Zugriff
+ * „Jeder mit Google-Konto"), eine Fehlerseite (alter Code ohne doPost, „Neue
+ * Version" vergessen) oder eine falsche Adresse. Die Sendung ist idempotent;
+ * zweimal dieselbe schadet nicht.
+ *
+ * **Was nirgends hinkommt:** das Kennwort und die Adresse – nicht ins
+ * Diagnoseprotokoll (dort steht nur, was eine Sendung ergab und wie groß sie
+ * war), nicht in den Rückkanal, nicht in eine Meldung auf dem Bildschirm,
+ * nicht an den Worker (er bekommt den Zustand ohne die Verbindung).
+ * Gespeichert sind sie in state.kalender (Sicherung und Export, siehe
+ * js/store.js) und, solange eine Sendung auf Netz wartet, im Ausgang des
+ * Service Workers auf diesem Gerät.
+ *
+ * Alles Interne trägt „kal" vorn: Im Ein-Datei-Bündel teilen sich alle Module
+ * einen Gültigkeitsbereich.
+ */
+
+
+
+/** Was nur dieses Gerät angeht – eigener Schlüssel, nicht im Zustand (siehe unten). */
+const KALENDER_GERAET = 'workout.kalender.v1';
+/** Der Ausgang für den Service Worker (Cache Storage – localStorage sieht er nicht). */
+const KALENDER_AUSGANG = 'kalender-ausgang';
+const KALENDER_SYNC_TAG = 'kalender';
+/** Die Vorlage des Skripts; der Service Worker hält sie vor. */
+const KALENDER_VORLAGE = './kalender/workout-kalender.gs';
+const KALENDER_PLATZHALTER = '<<KENNWORT-AUS-DER-APP>>';
+
+// Der Vertrag (js/kalender-vorschau.js): Fassung und Größe. Hier noch einmal,
+// weil dieses Modul jenes nicht laden darf – im Fenster holte es sonst die
+// Rechenmodule an der App vorbei, und im Bündel kollidierten die Namen.
+// tests/test-kalender-sync.mjs vergleicht beide.
+const KAL_VERTRAG = 1;
+const KAL_MAX_BYTES = 64 * 1024;
+
+const KAL_VORBEREITEN = 2000;
+const KAL_ERSTE = 5000;
+const KAL_DROSSEL = 2 * 60 * 1000;
+const KAL_START = 3000;
+// Lange, weil die erste Sendung beim Skript alle Termine anlegt (geschätzt
+// 20–40 s). Ein Abbruch heißt „Antwort blieb aus", nicht „nicht angekommen" –
+// gespeichert hat das Skript vor dem Abgleich.
+const KAL_ABBRUCH = 45000;
+const KAL_PROBE_ABBRUCH = 30000;
+
+// Antworten, die nicht mehr besser werden, wenn man dieselbe Vorschau gleich
+// noch einmal schickt – erst wieder mit einer neuen oder beim nächsten Start.
+const KAL_ENDGUELTIG = new Set(['token', 'format', 'undurchsichtig', 'http', 'aelter', 'alt', 'zeit', 'groesse']);
+const KAL_CODES = new Set(['angekommen', 'gleich', 'probe', 'aus', 'token', 'format', 'alt', 'aelter', 'fehler']);
+
+/* ------------------------------------------------------------------ *
+ * Was dieses Gerät weiß – in workout.kalender.v1, nicht im Zustand
+ *
+ * Nicht im Zustand, aus demselben Grund wie bei der Sicherung: Der Zustand
+ * ist das, was die Vorschau rechnet und die Sicherung sichert – stünde
+ * „zuletzt angekommen" darin, löste jede Sendung die nächste aus. Und eine
+ * Sicherung, die ein neues Handy einliest, soll dort nicht als dasselbe Gerät
+ * auftreten (die Regel „Wer gilt" im Vertrag hängt an `geraet`).
+ *
+ *   geraet      die Kennung dieses Geräts für das Skript (zufällig, nicht die
+ *               des Rückkanals)
+ *   seq         zählt jede Sendung hoch
+ *   hash, ziel  Fingerabdruck der zuletzt angekommenen Vorschau und der
+ *               Verbindung, an die sie ging – dieselbe geht nicht noch einmal
+ *   letzte      der letzte Versuch: { art, zeit, ergebnis, ok, version,
+ *               hinweis, tag, geaendert, bytes, status, ziel }
+ *   angekommen  der letzte, der ankam: { zeit, version, tag, ziel }
+ *   offen       der letzte Versuch scheiterte am Netz (oder das Skript war
+ *               beschäftigt) – „online" holt ihn nach
+ *   aus         Abschalten, das noch nicht beim Skript ist: [{ url, token,
+ *               geraet, seq, gesendet }] – bis es ankommt, beim Start und bei
+ *               „online" wieder versucht
+ *   nach        was der Service Worker im Hintergrund nachgeschickt hat
+ * ------------------------------------------------------------------ */
+
+function kalMeta() {
+  try {
+    const m = JSON.parse(localStorage.getItem(KALENDER_GERAET) || '{}');
+    return m && typeof m === 'object' && !Array.isArray(m) ? m : {};
+  } catch {
+    return {};
+  }
+}
+
+function kalMetaSchreiben(teil) {
+  const neu = { ...kalMeta(), ...teil };
+  try { localStorage.setItem(KALENDER_GERAET, JSON.stringify(neu)); } catch { /* voll – beim nächsten Mal */ }
+  return neu;
+}
+
+function kalZufall(bytes) {
+  const b = crypto.getRandomValues(new Uint8Array(bytes));
+  let s = '';
+  b.forEach((x) => { s += String.fromCharCode(x); });
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** Ein neues Kennwort: 256 Bit, base64url (43 Zeichen). */
+function kalenderNeuesToken() {
+  return kalZufall(32);
+}
+
+function kalGeraet() {
+  const m = kalMeta();
+  if (typeof m.geraet === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(m.geraet)) return m.geraet;
+  const g = `g${kalZufall(12)}`;
+  kalMetaSchreiben({ geraet: g });
+  return g;
+}
+
+function kalSeq() {
+  const m = kalMeta();
+  const seq = Number.isInteger(m.seq) && m.seq >= 0 ? m.seq + 1 : 1;
+  kalMetaSchreiben({ seq });
+  return seq;
+}
+
+/** FNV-1a, 32 Bit, Basis 36 – ein Fingerabdruck, kein Geheimnis. */
+function kalHash(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+/** Welche Verbindung – damit ein Stand von früher nicht für eine neue spricht. */
+const kalZiel = (k) => (k && k.url && k.token ? kalHash(`${k.url}\u0000${k.token}`) : null);
+
+const kalBytes = (text) => new TextEncoder().encode(text).length;
+
+/* ------------------------------------------------------------------ *
+ * Die Adresse
+ * ------------------------------------------------------------------ */
+
+/**
+ * Was jemand ins Feld eingefügt hat → { url } oder { fehler } mit dem Satz,
+ * der sagt, was stattdessen gemeint ist. Die häufigen Verwechslungen haben je
+ * einen eigenen: die Test-URL (…/dev geht nur angemeldet), die Adresse des
+ * Editors, die Weiterleitung.
+ */
+function kalenderUrlPruefen(eingabe) {
+  const roh = String(eingabe || '').trim();
+  if (!roh) return { fehler: 'Bitte die Web-App-URL einfügen – sie endet auf /exec.' };
+  const url = roh.replace(/[?#].*$/, '').replace(/\/+$/, '');
+  if (store.KALENDER_URL.test(url)) return { url };
+  if (/^https:\/\/script\.google\.com\/.*\/dev$/.test(url)) {
+    return { fehler: 'Das ist die Test-URL (endet auf /dev), die geht nur angemeldet. Nimm die Web-App-URL, die auf /exec endet.' };
+  }
+  if (/^https:\/\/script\.google\.com\/(?:home|d\/|macros\/d\/)/.test(url) || /\/edit$/.test(url)) {
+    return { fehler: 'Das ist die Adresse des Editors. Die Web-App-URL steht unter Bereitstellen → Bereitstellungen verwalten und endet auf /exec.' };
+  }
+  if (/^https:\/\/script\.googleusercontent\.com\//.test(url)) {
+    return { fehler: 'Das ist die Weiterleitung, nicht die Web-App-URL. Nimm die aus „Bereitstellungen verwalten" – sie endet auf /exec.' };
+  }
+  return { fehler: 'Das ist keine Web-App-URL von Google Apps Script. Sie beginnt mit https://script.google.com/macros/s/ und endet auf /exec.' };
+}
+
+/* ------------------------------------------------------------------ *
+ * Die Vorlage des Skripts
+ * ------------------------------------------------------------------ */
+
+let kalVorlage = null;   // { text, fassung }
+
+/** Die Vorlage holen (der Service Worker hält sie vor) – einmal je Sitzung. */
+async function kalenderVorlage() {
+  if (kalVorlage) return kalVorlage;
+  const res = await fetch(KALENDER_VORLAGE);
+  if (!res.ok) throw new Error(`Vorlage: HTTP ${res.status}`);
+  const text = await res.text();
+  const m = /^const FASSUNG = (\d+);$/m.exec(text);
+  if (!m || text.split(KALENDER_PLATZHALTER).length !== 2) throw new Error('Vorlage unvollständig');
+  kalVorlage = { text, fassung: Number(m[1]) };
+  return kalVorlage;
+}
+
+/** Die Fassung der Vorlage, sobald sie einmal geholt ist – sonst null. */
+const kalenderVorlageFassung = () => (kalVorlage ? kalVorlage.fassung : null);
+
+/**
+ * Der Code zum Einfügen in Apps Script, mit dem Kennwort dieses Kalenders.
+ *
+ * Das Kennwort steht danach fest im Speicher – *bevor* der Code die App
+ * verlässt: Lädt die App beim Wechsel in den Browser und zurück neu (iOS tut
+ * das oft) und entstünde dabei ein neues, passte der eingefügte Code nicht
+ * mehr, und jede Sendung würde abgewiesen. Ein zweites Kopieren nimmt
+ * dasselbe. Steht es nicht im Speicher (voll, gesperrt), gibt es keinen Code.
+ */
+async function kalenderCode() {
+  let k = store.kalender();
+  if (!k || !k.token) k = store.setzeKalender({ token: kalenderNeuesToken() });
+  let fest = false;
+  try {
+    const roh = JSON.parse(localStorage.getItem('workout.state.v1') || '{}');
+    fest = !!(roh.kalender && roh.kalender.token === k.token);
+  } catch { fest = false; }
+  if (!fest) {
+    const f = new Error('Das Kennwort ließ sich nicht speichern – der Speicher nimmt gerade nichts an.');
+    f.code = 'speicher';
+    throw f;
+  }
+  const v = await kalenderVorlage();
+  return v.text.replace(KALENDER_PLATZHALTER, k.token);
+}
+
+/* ------------------------------------------------------------------ *
+ * Der Worker
+ * ------------------------------------------------------------------ */
+
+let kalWorker = null;
+let kalNr = 0;
+const kalAuftraege = new Map();
+let kalHauptMs = 0;   // Zeit im Fenster für die laufende Sendung
+
+function kalWorkerWeg() {
+  if (kalWorker) {
+    try { kalWorker.terminate(); } catch { /* schon weg */ }
+  }
+  kalWorker = null;
+}
+
+function kalWorkerNeu() {
+  const w = new Worker(new URL('./kalender-worker.js', import.meta.url), { type: 'module' });
+  w.addEventListener('message', (e) => {
+    const d = e.data || {};
+    const a = kalAuftraege.get(d.id);
+    if (!a) return;
+    kalAuftraege.delete(d.id);
+    if (d.ok) {
+      a.fertig(d.vorschau);
+      return;
+    }
+    const f = new Error(String(d.fehler || 'Vorschau gescheitert'));
+    f.code = d.code || 'fehler';
+    a.fehler(f);
+  });
+  // Lädt der Worker gar nicht (kein Modul-Worker, Datei fehlt): alle
+  // wartenden Aufträge scheitern, der nächste legt einen neuen an.
+  w.addEventListener('error', (e) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const f = new Error(`Worker: ${(e && e.message) || 'lädt nicht'}`);
+    f.code = 'worker';
+    kalAuftraege.forEach((a) => a.fehler(f));
+    kalAuftraege.clear();
+    kalWorkerWeg();
+  });
+  return w;
+}
+
+function kalRechnenLassen() {
+  return new Promise((fertig, fehler) => {
+    if (!kalWorker) kalWorker = kalWorkerNeu();
+    kalNr += 1;
+    kalAuftraege.set(kalNr, { fertig, fehler });
+    const t0 = performance.now();
+    // Der Zustand, wie die App ihn nach ihrem Start hat; der Worker bekommt
+    // eine Kopie (structured clone) und fasst das Original nie an. Ohne die
+    // Verbindung: Die Vorschau braucht sie nicht, und so kann auch keine
+    // Fehlermeldung aus dem Worker Kennwort oder Adresse enthalten.
+    kalWorker.postMessage({
+      id: kalNr, zustand: { ...store.getState(), kalender: null }, jetzt: Date.now(), wartet: abschlussWartetAm(),
+    });
+    kalHauptMs += performance.now() - t0;
+  });
+}
+
+/** Rechnen – mit einem frischen Worker, wenn der alte einen anderen Fokus geladen hat. */
+async function kalRechnen() {
+  try {
+    return await kalRechnenLassen();
+  } catch (e) {
+    if (e.code !== 'fokus') throw e;
+    kalWorkerWeg();
+    return kalRechnenLassen();
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Senden und lesen
+ * ------------------------------------------------------------------ */
+
+/**
+ * Einmal hinaus. { res } oder { art: 'netz' | 'zeit' | 'undurchsichtig' }.
+ * Bis zum Abschicken kein await – beim Wegschalten muss die Anfrage im selben
+ * Takt losgehen.
+ */
+async function kalSchicken(url, text, { keepalive = false, abbruch = KAL_ABBRUCH } = {}) {
+  if (navigator.onLine === false) return { art: 'netz' };
+  const ctrl = new AbortController();
+  const uhr = setTimeout(() => ctrl.abort(), abbruch);
+  const anfrage = (mode) => fetch(url, {
+    method: 'POST', body: text, mode, credentials: 'omit', redirect: 'follow', keepalive, signal: ctrl.signal,
+  });
+  try {
+    return { res: await anfrage('cors') };
+  } catch {
+    if (ctrl.signal.aborted) return { art: 'zeit' };
+    // Beim Wegschalten kein zweiter Versuch: Die Seite friert gleich ein.
+    if (keepalive) return { art: 'netz' };
+    try {
+      await anfrage('no-cors');
+      return { art: 'undurchsichtig' };
+    } catch {
+      return { art: ctrl.signal.aborted ? 'zeit' : 'netz' };
+    }
+  } finally {
+    clearTimeout(uhr);
+  }
+}
+
+/**
+ * Was zurückkam → { ergebnis, ok, version, hinweis, tag, geaendert, status }.
+ * `ergebnis` ist ein Code des Skripts (KAL_CODES) oder netz, zeit,
+ * undurchsichtig, http. Der Hinweis ist ein Satz des Skripts (ohne Kennwort
+ * und ohne IDs, bereinigt_() dort) – er wird angezeigt, nicht protokolliert.
+ */
+async function kalLesen(erg) {
+  if (!erg.res) return { ergebnis: erg.art, ok: false };
+  const { res } = erg;
+  if (res.type === 'opaque' || res.type === 'opaqueredirect') return { ergebnis: 'undurchsichtig', ok: false };
+  let roh = null;
+  try { roh = JSON.parse(await res.text()); } catch { roh = null; }
+  if (!roh || typeof roh !== 'object' || typeof roh.ok !== 'boolean' || typeof roh.code !== 'string') {
+    return { ergebnis: 'http', ok: false, status: res.status };
+  }
+  return {
+    ergebnis: KAL_CODES.has(roh.code) ? roh.code : 'fehler',
+    ok: roh.ok === true,
+    version: Number.isInteger(roh.version) ? roh.version : null,
+    hinweis: typeof roh.hinweis === 'string' ? roh.hinweis.slice(0, 300) : '',
+    tag: typeof roh.tag === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(roh.tag) ? roh.tag : null,
+    geaendert: Number.isInteger(roh.geaendert) ? roh.geaendert : null,
+    status: res.status,
+  };
+}
+
+/** Bittet das Skript, sich zu erneuern? Ältere Fassung als die Vorlage, oder es kennt den Vertrag nicht. */
+const kalZuAlt = (a) => !!a && ((a.ergebnis === 'format' && /erneuern/i.test(a.hinweis || ''))
+  || (Number.isInteger(a.version) && kalVorlage && a.version < kalVorlage.fassung));
+
+/**
+ * Der Satz zu einem Ergebnis – für „Verbinden", die Karte und das Dashboard.
+ * Jeder sagt, was zu tun ist, nicht nur, was schiefging.
+ */
+function kalenderSatz(a) {
+  if (!a) return '';
+  if (kalZuAlt(a)) {
+    return 'Kalender-Code erneuern: Der Code in Apps Script ist älter als die App. „Code kopieren", in Apps Script den '
+      + 'ganzen Code ersetzen, speichern, „einrichten" ausführen, dann Bereitstellen → Bereitstellungen verwalten → '
+      + 'Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.';
+  }
+  switch (a.ergebnis) {
+    case 'angekommen':
+    case 'gleich':
+    case 'probe':
+    case 'aus':
+      return a.hinweis || '';
+    case 'netz':
+      return 'Kein Netz – geht hinaus, sobald wieder welches da ist.';
+    case 'zeit':
+      return 'Gesendet, aber die Antwort blieb aus. Beim allerersten Mal braucht das Skript länger – ob es ankam, '
+        + 'zeigt der Kalender „Workout".';
+    case 'undurchsichtig':
+      return 'Google hat geantwortet, aber nicht das Skript. Meist eins davon: (1) Die neue Version ist nicht '
+        + 'bereitgestellt – Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → '
+        + 'Bereitstellen. (2) Bei der Bereitstellung steht nicht „Zugriff: Jeder" (sondern „Jeder mit Google-Konto") '
+        + 'oder nicht „Ausführen als: Ich". (3) Die URL ist nicht die Web-App-URL (endet auf /exec).';
+    case 'token':
+      return 'Das Skript kennt dieses Kennwort nicht. „Code kopieren", in Apps Script den ganzen Code ersetzen, '
+        + 'speichern, dann Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → '
+        + 'Bereitstellen.';
+    case 'aelter':
+      return 'Ein anderes Gerät hat zuletzt trainiert – im Kalender gilt dessen Plan. Sobald du hier trainierst, '
+        + 'gilt wieder dieses.';
+    case 'alt':
+      return 'Schon angekommen – eine spätere Sendung dieses Geräts gilt.';
+    case 'http':
+      return `Unerwartete Antwort von Google${a.status ? ` (HTTP ${a.status})` : ''} – stimmt die URL?`;
+    case 'groesse':
+      return 'Die Vorschau ist größer als die 64 KiB, die das Skript annimmt – sie geht nicht hinaus.';
+    case 'worker':
+      return 'Die Vorschau lässt sich in diesem Browser nicht rechnen (kein Modul-Worker).';
+    case 'rechnen':
+      return 'Die Vorschau ließ sich nicht rechnen – das ist ein Fehler der App. Bitte dem Assistenten das '
+        + 'Diagnoseprotokoll schicken (Mehr → Daten).';
+    case 'format':
+      return `Das Skript hat die Sendung nicht angenommen${a.hinweis ? `: ${a.hinweis}` : '.'}`;
+    default:
+      return a.hinweis || 'Das Skript meldet einen Fehler.';
+  }
+}
+
+/**
+ * Braucht es Tobi? Für die eine Zeile auf dem Dashboard – nur, was er selbst
+ * richten muss. Netz, ein anderes Gerät, eine ausgebliebene Antwort richten
+ * sich von selbst und stehen nur unter Mehr.
+ */
+function kalenderHandeln(a) {
+  if (!a) return false;
+  if (kalZuAlt(a)) return true;
+  if (['token', 'undurchsichtig', 'http', 'format', 'groesse', 'worker', 'rechnen'].includes(a.ergebnis)) return true;
+  // Angenommen, aber das Skript bittet um „einrichten" – der Kalender fehlt,
+  // ein anderes Projekt pflegt ihn, oder der stündliche Auslöser ist nicht
+  // sicher. Ohne den verschiebt nichts, solange die App zu ist.
+  return a.ok && /einrichten/.test(a.hinweis || '');
+}
+
+/* ------------------------------------------------------------------ *
+ * Der Ausgang für den Service Worker (Background Sync)
+ *
+ * Trainiert Tobi im Studio ohne Netz, geht die Vorschau erst beim nächsten
+ * Öffnen mit Netz hinaus – bis dahin hielte der Kalender das Training für
+ * verpasst und schöbe es weiter. Wo es Background Sync gibt (Chrome, Android),
+ * legt die App die fertige Sendung deshalb in den Ausgang und bittet den
+ * Browser um ein „sync", sobald wieder Netz da ist. Das bekommt der Service
+ * Worker auch bei geschlossener App (sw.js, kalenderNachsenden()). Er schickt
+ * ohne CORS – die Antwort kann er ohnehin niemandem zeigen – und vermerkt nur,
+ * dass es hinausging; was das Skript dazu sagt, erfährt die App mit ihrer
+ * nächsten eigenen Sendung.
+ * ------------------------------------------------------------------ */
+
+const kalAusgangSchluessel = () => new URL('kalender-ausgang', location.href).href;
+const kalNachSchluessel = () => new URL('kalender-ausgang-nach', location.href).href;
+
+async function kalAusgangLegen(url, text, seq) {
+  try {
+    if (!window.caches || !navigator.serviceWorker) return false;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg || !reg.sync) return false;
+    const c = await caches.open(KALENDER_AUSGANG);
+    await c.put(kalAusgangSchluessel(), new Response(JSON.stringify({ url, text, seq, gelegt: Date.now() }),
+      { headers: { 'content-type': 'application/json' } }));
+    await reg.sync.register(KALENDER_SYNC_TAG);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function kalAusgangLeeren() {
+  try {
+    // Nicht anlegen, was es nicht gibt: Wer den Kalender nie verbunden hat,
+    // bekommt auch keinen leeren Ausgang.
+    if (!window.caches || !(await caches.has(KALENDER_AUSGANG))) return;
+    const c = await caches.open(KALENDER_AUSGANG);
+    await c.delete(kalAusgangSchluessel());
+  } catch { /* dann eben nicht */ }
+}
+
+/** Hat der Service Worker etwas nachgeschickt? Einmal lesen, vermerken, wegräumen. */
+async function kalNachLesen() {
+  try {
+    if (!window.caches || !(await caches.has(KALENDER_AUSGANG))) return;
+    const c = await caches.open(KALENDER_AUSGANG);
+    const hit = await c.match(kalNachSchluessel());
+    if (!hit) return;
+    const n = await hit.json().catch(() => null);
+    await c.delete(kalNachSchluessel());
+    if (!n || !Number.isFinite(n.zeit)) return;
+    kalMetaSchreiben({ nach: { zeit: n.zeit, seq: Number.isInteger(n.seq) ? n.seq : null } });
+    notieren('kalender', { was: 'nachgesendet', seq: n.seq, lesbar: false });
+  } catch { /* nur eine Auskunft */ }
+}
+
+/* ------------------------------------------------------------------ *
+ * Der Takt
+ * ------------------------------------------------------------------ */
+
+let kalRuf = { nachher: () => {} };
+let kalVorbereitenUhr = null;
+let kalSendenUhr = null;
+let kalVorbereitet = null;      // { text, hash, bytes, seq, url, ziel }
+let kalLetzterVersuch = 0;
+let kalGeaendertUm = 0;          // die letzte Änderung – „frühestens 5 s danach" zählt ab ihr
+let kalKette = Promise.resolve();
+let kalBelegt = 0;
+let kalZeichenVorher = null;
+// Zählt jede Meldung des Stores: Eine Sendung, die bei gleichem Stand
+// vorbereitet wurde, muss zum Senden nicht noch einmal gerechnet werden.
+let kalStandNr = 0;
+// In dieser Sitzung schon endgültig beantwortet (KAL_ENDGUELTIG): Hash → Ergebnis.
+const kalVersucht = new Map();
+
+function kalEinreihen(aufgabe) {
+  kalBelegt += 1;
+  const ergebnis = kalKette.then(aufgabe, aufgabe);
+  kalKette = ergebnis.catch(() => {}).then(() => { kalBelegt -= 1; });
+  return ergebnis.catch(() => undefined);
+}
+
+/** Geht das hier überhaupt? Nur über http(s), mit Modul-Worker, nicht in der Einzeldatei. */
+const kalModul = (() => {
+  try { return /\/js\/kalender-sync\.js$/.test(new URL(import.meta.url).pathname); } catch { return false; }
+})();
+function kalenderMoeglich() {
+  return kalModul && typeof Worker === 'function' && /^https?:$/.test(location.protocol);
+}
+
+/** Verbunden: Kennwort und Adresse stehen, und hier lässt sich rechnen. */
+function kalenderVerbunden() {
+  const k = store.kalender();
+  return !!(k && k.url && k.token) && kalenderMoeglich();
+}
+
+function kalAnhalten() {
+  clearTimeout(kalVorbereitenUhr);
+  clearTimeout(kalSendenUhr);
+  kalVorbereitenUhr = null;
+  kalSendenUhr = null;
+}
+
+function kalVermerken(art, a, mehr = {}) {
+  const ziel = mehr.ziel || null;
+  const letzte = {
+    art, zeit: Date.now(), ergebnis: a.ergebnis, ok: !!a.ok, version: a.version ?? null,
+    hinweis: a.hinweis || '', tag: a.tag || null, geaendert: a.geaendert ?? null, status: a.status ?? null,
+    bytes: mehr.bytes ?? null, ziel,
+  };
+  const teil = { letzte };
+  if (a.ok && ziel) teil.angekommen = { zeit: letzte.zeit, version: letzte.version, tag: letzte.tag, ziel };
+  kalMetaSchreiben(teil);
+  // Nur, was die Sendung ergab – nie Kennwort, Adresse oder Hinweistext.
+  notieren('kalender', {
+    was: art, ergebnis: a.ergebnis, version: a.version ?? undefined, status: a.ergebnis === 'http' ? a.status : undefined,
+    geaendert: a.geaendert ?? undefined, bytes: mehr.bytes ?? undefined, rechnen: mehr.rechnen ?? undefined,
+    haupt: mehr.haupt ?? undefined, seq: mehr.seq ?? undefined, keepalive: mehr.keepalive || undefined,
+    ausgang: mehr.ausgang ?? undefined,
+  }, art !== 'vorschau' || !a.ok);
+}
+
+/**
+ * Die Vorschau rechnen und zur Sendung machen. null, wenn es nichts zu
+ * schicken gibt – keine Verbindung, oder dieselbe Vorschau ist schon da
+ * (`zwingen` schickt trotzdem).
+ */
+async function kalVorbereiten({ zwingen = false } = {}) {
+  if (!kalenderVerbunden()) { kalVorbereitet = null; return null; }
+  const nr = kalStandNr;
+  kalHauptMs = 0;
+  const t0 = performance.now();
+  let vorschau;
+  try {
+    vorschau = await kalRechnen();
+  } catch (e) {
+    kalVorbereitet = null;
+    const art = e.code === 'worker' ? 'worker' : 'rechnen';
+    kalMetaSchreiben({ letzte: { art: 'vorschau', zeit: Date.now(), ergebnis: art, ok: false, ziel: kalZiel(store.kalender()) } });
+    notieren('kalender', { was: 'rechnen', ok: false, code: e.code || 'fehler', fehler: String(e.message || '').slice(0, 160) }, true);
+    return null;
+  }
+  const rechnen = Math.round(performance.now() - t0);
+  // Während des Rechnens getrennt?
+  const k = store.kalender();
+  if (!kalenderVerbunden()) { kalVorbereitet = null; return null; }
+  const t1 = performance.now();
+  const ziel = kalZiel(k);
+  const kern = {
+    minuten: k.minuten, erinnerung: k.erinnerung, ab: vorschau.ab, fenster: vorschau.fenster,
+  };
+  const hash = kalHash(`${ziel}|${KAL_VERTRAG}|${JSON.stringify(kern)}|${JSON.stringify(vorschau.texte)}|${JSON.stringify(vorschau.tage)}`);
+  const m = kalMeta();
+  const schonDa = m.hash === hash && m.ziel === ziel;
+  if (!zwingen && (schonDa || kalVersucht.has(hash))) {
+    kalVorbereitet = null;
+    kalHauptMs += performance.now() - t1;
+    return null;
+  }
+  const app = kalApp();
+  const nutzlast = {
+    v: KAL_VERTRAG, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now(), ...(app ? { app } : {}),
+    minuten: kern.minuten, erinnerung: kern.erinnerung, ab: kern.ab, fenster: kern.fenster,
+    stand: vorschau.stand, texte: vorschau.texte, tage: vorschau.tage,
+  };
+  const text = JSON.stringify(nutzlast);
+  const bytes = kalBytes(text);
+  kalHauptMs += performance.now() - t1;
+  kalVorbereitet = {
+    text, hash, bytes, seq: nutzlast.seq, url: k.url, ziel, rechnen, haupt: Math.round(kalHauptMs * 10) / 10, nr,
+  };
+  return kalVorbereitet;
+}
+
+/** Die Fassung der App (aus dem Namen des Zwischenspeichers), nur zur Anzeige im Skript. */
+let kalAppFassung = null;
+function kalApp() { return kalAppFassung; }
+function kalenderAppFassung(namen) {
+  const f = (namen || []).map(String).map((x) => /^workout-(v\d{1,5})$/.exec(x)).find(Boolean);
+  if (f) kalAppFassung = f[1];
+}
+
+/** Eine vorbereitete Sendung hinaus – und vermerken, was dabei herauskam. */
+async function kalSenden(v, { keepalive = false } = {}) {
+  if (!v || !kalenderVerbunden() || kalZiel(store.kalender()) !== v.ziel) return null;
+  if (v.bytes > KAL_MAX_BYTES) {
+    const a = { ergebnis: 'groesse', ok: false };
+    kalVersucht.set(v.hash, 'groesse');
+    kalVermerken('vorschau', a, { ziel: v.ziel, bytes: v.bytes, seq: v.seq });
+    return a;
+  }
+  kalLetzterVersuch = Date.now();
+  const erg = await kalSchicken(v.url, v.text, { keepalive });
+  const a = await kalLesen(erg);
+  if (kalVorbereitet === v) kalVorbereitet = null;
+  let ausgang;
+  if (a.ok) {
+    kalMetaSchreiben({ hash: v.hash, ziel: v.ziel, offen: false });
+    kalAusgangLeeren();
+  } else if (a.ergebnis === 'netz') {
+    kalMetaSchreiben({ offen: true });
+    ausgang = await kalAusgangLegen(v.url, v.text, v.seq);
+  } else if (a.ergebnis === 'fehler') {
+    kalMetaSchreiben({ offen: true });
+  } else if (KAL_ENDGUELTIG.has(a.ergebnis)) {
+    kalVersucht.set(v.hash, a.ergebnis);
+    kalMetaSchreiben({ offen: false });
+    kalAusgangLeeren();
+  }
+  kalVermerken('vorschau', a, {
+    ziel: v.ziel, bytes: v.bytes, rechnen: v.rechnen, haupt: v.haupt, seq: v.seq, keepalive, ausgang,
+  });
+  kalRuf.nachher();
+  return a;
+}
+
+function kalPlanen() {
+  if (kalSendenUhr) return;
+  const jetzt = Date.now();
+  const warte = Math.max(0, kalGeaendertUm + KAL_ERSTE - jetzt, kalLetzterVersuch + KAL_DROSSEL - jetzt);
+  kalSendenUhr = setTimeout(() => {
+    kalSendenUhr = null;
+    kalEinreihen(async () => {
+      // Ist seitdem etwas passiert, frisch rechnen statt Altes schicken.
+      const fertig = kalVorbereitet && kalVorbereitet.nr === kalStandNr ? kalVorbereitet : null;
+      const v = fertig || await kalVorbereiten();
+      if (v) await kalSenden(v, { keepalive: !!document.hidden && v.bytes <= KAL_MAX_BYTES });
+    });
+  }, warte);
+}
+
+/**
+ * Woran die App erkennt, dass es sofort hinaus muss: eine Einheit bekommt ihren
+ * ersten Eintrag (startedOn) oder wird abgeschlossen (done), oder Fokus und
+ * Runde wechseln. Ein Vergleich über die Einträge des Protokolls je Meldung des
+ * Stores – kein Rechnen.
+ */
+function kalZeichen(s) {
+  const log = (s && s.log) || {};
+  let z = `${s && s.focus}|${((s && s.rounds) || []).length}|`;
+  Object.keys(log).forEach((n) => {
+    const e = log[n];
+    if (!e || typeof e !== 'object') return;
+    if (e.startedOn) z += `${n}s${e.startedOn}`;
+    if (e.done) z += `${n}d`;
+  });
+  return z;
+}
+
+/* ------------------------------------------------------------------ *
+ * Was die App aufruft
+ * ------------------------------------------------------------------ */
+
+/**
+ * Die App sagt, wie sie neu zeichnet (`nachher` nach jedem Versuch – dort
+ * entscheidet sie, ob es sich lohnt).
+ */
+function kalenderEinrichten(ruf = {}) {
+  kalRuf = { nachher: () => {}, ...ruf };
+  kalZeichenVorher = kalZeichen(store.getState());
+  window.addEventListener('online', () => {
+    if (!kalenderMoeglich()) return;
+    if ((kalMeta().aus || []).length) kalEinreihen(kalAusErledigen).then(() => kalRuf.nachher());
+    if (kalenderVerbunden() && kalMeta().offen) kalenderJetzt('online');
+  });
+}
+
+/** Nach jeder Meldung des Stores: sofort, wenn eine Einheit anfängt oder fertig wird, sonst gedrosselt. */
+function kalenderGeaendert() {
+  if (!kalenderVerbunden()) return;
+  kalStandNr += 1;
+  kalGeaendertUm = Date.now();
+  const z = kalZeichen(store.getState());
+  const anders = z !== kalZeichenVorher;
+  kalZeichenVorher = z;
+  if (anders) {
+    kalenderJetzt('einheit');
+    return;
+  }
+  clearTimeout(kalVorbereitenUhr);
+  kalVorbereitenUhr = setTimeout(() => {
+    kalVorbereitenUhr = null;
+    kalEinreihen(async () => { if (await kalVorbereiten()) kalPlanen(); });
+  }, KAL_VORBEREITEN);
+}
+
+/** Sofort, an der Drossel vorbei: Einheit fertig, Uhrzeit oder Erinnerung geändert, eben verbunden. */
+function kalenderJetzt(grund = 'jetzt', { zwingen = false } = {}) {
+  if (!kalenderVerbunden()) return Promise.resolve(null);
+  kalAnhalten();
+  return kalEinreihen(async () => {
+    const v = await kalVorbereiten({ zwingen });
+    if (!v) return null;
+    notieren('kalender', { was: 'anlass', grund });
+    return kalSenden(v);
+  });
+}
+
+/**
+ * Beim Start: ausstehendes Abschalten zuerst, dann die Vorschau – wie die App
+ * sie nach ihrem Start rechnet. Was in der letzten Sitzung endgültig
+ * abgewiesen wurde, darf jetzt noch einmal: Vielleicht ist es inzwischen
+ * gerichtet.
+ */
+function kalenderStart() {
+  // Nie eingerichtet und nichts offen: beim Start gar nichts tun – kein
+  // Zeitgeber, kein Blick in den Zwischenspeicher.
+  if (!kalenderMoeglich() || !(kalenderVerbunden() || (kalMeta().aus || []).length)) return;
+  setTimeout(() => {
+    kalNachLesen();
+    try { if (window.caches) caches.keys().then(kalenderAppFassung).catch(() => {}); } catch { /* ohne Fassung */ }
+    if ((kalMeta().aus || []).length) kalEinreihen(kalAusErledigen).then(() => kalRuf.nachher());
+    if (!kalenderVerbunden()) return;
+    kalEinreihen(async () => {
+      await kalenderVorlage().catch(() => null);
+      const v = await kalVorbereiten();
+      if (v) await kalSenden(v);
+    });
+  }, KAL_START);
+}
+
+/**
+ * Beim Wegschalten: was fertig gerechnet bereitliegt, mit keepalive hinterher
+ * – im selben Takt, ohne await davor. Nicht, solange in der Warteschlange
+ * etwas läuft (das ist dann der neueste Stand), und nicht über 64 KiB. Geht
+ * es nicht (keepalive teilt sich die 64 KiB mit der Sicherung, die eben
+ * hinausging), legt kalSenden() es in den Ausgang.
+ */
+function kalenderVerstecken() {
+  if (!kalenderVerbunden() || kalBelegt > 0) return;
+  const v = kalVorbereitet;
+  if (!v || v.bytes > KAL_MAX_BYTES) return;
+  kalAnhalten();
+  kalEinreihen(() => kalSenden(v, { keepalive: true }));
+}
+
+/** Wieder da: hat der Service Worker inzwischen nachgeschickt? */
+function kalenderSichtbar() {
+  if (kalenderVerbunden()) kalNachLesen().then(() => kalRuf.nachher());
+}
+
+/**
+ * „Verbinden": erst fragen, dann merken. Die Probe ({ probe: true }) speichert
+ * beim Skript nichts und braucht eine lesbare Antwort – sonst wüsste niemand,
+ * ob das, was die URL beantwortet, überhaupt das Skript ist. Gibt
+ * { ok, satz, hinweis } zurück. War vorher eine andere Adresse verbunden, geht
+ * an sie ein „aus": Sonst schöbe ihr Skript den Kalender nach seiner letzten
+ * Vorschau weiter (das neue Projekt übernimmt den Kalender ohnehin, siehe
+ * Skript-Kennung im Skript).
+ */
+async function kalenderVerbinden(eingabe) {
+  const u = kalenderUrlPruefen(eingabe);
+  if (u.fehler) return { ok: false, satz: u.fehler };
+  if (!kalenderMoeglich()) return { ok: false, satz: 'Das geht nur in der App aus dem Netz, nicht in dieser Datei.' };
+  const k = store.kalender();
+  if (!k || !k.token) {
+    return { ok: false, satz: 'Erst „Code kopieren" und den Code in Apps Script einfügen – darin steckt das Kennwort, an dem das Skript die App erkennt.' };
+  }
+  return kalEinreihen(async () => {
+    // Die Fassung der Vorlage, damit die Antwort sagen kann, ob der Code alt ist.
+    await kalenderVorlage().catch(() => null);
+    const probe = JSON.stringify({ v: KAL_VERTRAG, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now(), probe: true });
+    const a = await kalLesen(await kalSchicken(u.url, probe, { abbruch: KAL_PROBE_ABBRUCH }));
+    const neu = { url: u.url, token: k.token };
+    kalVermerken('probe', a, { ziel: kalZiel(neu) });
+    if (!(a.ok && a.ergebnis === 'probe')) {
+      // Bei der Probe heißt keine Antwort nur: noch einmal fragen.
+      const satz = a.ergebnis === 'zeit'
+        ? 'Keine Antwort nach 30 Sekunden – noch einmal „Verbinden" tippen. Beim allerersten Aufruf braucht Google manchmal länger.'
+        : kalenderSatz(a) || `Das Skript sagt: ${a.ergebnis}.`;
+      return { ok: false, satz, ergebnis: a.ergebnis };
+    }
+    const alt = store.kalender();
+    if (alt && alt.url && alt.url !== u.url) kalAusDazu(alt);
+    // Ein „aus" an genau diese Adresse, das noch wartete, gilt nicht mehr.
+    kalMetaSchreiben({ aus: (kalMeta().aus || []).filter((x) => x.url !== u.url) });
+    // Vor dem Speichern: Das meldet der Store sofort (kalenderGeaendert()),
+    // und mit einem alten Zeichen ginge dieselbe Vorschau zweimal hinaus.
+    kalZeichenVorher = kalZeichen(store.getState());
+    store.setzeKalender({ url: u.url });
+    // Erst danach: ein Abschalten an die alte Adresse, und gleich die erste Vorschau.
+    if ((kalMeta().aus || []).length) kalEinreihen(kalAusErledigen);
+    kalEinreihen(async () => {
+      const v = await kalVorbereiten({ zwingen: true });
+      if (v) await kalSenden(v);
+    });
+    return { ok: true, satz: a.hinweis || 'Verbunden.', zuAlt: kalZuAlt(a) };
+  }).then((r) => r || { ok: false, satz: 'Das ging gerade nicht – noch einmal versuchen.' });
+}
+
+/* ------------------------------------------------------------------ *
+ * Trennen
+ * ------------------------------------------------------------------ */
+
+function kalAusDazu(k) {
+  const job = { url: k.url, token: k.token, geraet: kalGeraet(), seq: kalSeq(), gesendet: Date.now() };
+  kalMetaSchreiben({ aus: [...(kalMeta().aus || []).filter((x) => x.url !== k.url), job].slice(-4) });
+}
+
+/**
+ * Alle ausstehenden „aus" schicken. Weg ist eins, sobald das Skript es
+ * angenommen hat – oder sobald klar ist, dass es nie angenommen wird
+ * (falsches Kennwort, keine Antwort vom Skript). Ohne Netz bleibt es liegen.
+ */
+async function kalAusErledigen() {
+  let letztes = null;
+  for (const job of kalMeta().aus || []) {
+    if (!job || !store.KALENDER_URL.test(job.url || '')) continue;
+    const text = JSON.stringify({ v: KAL_VERTRAG, token: job.token, geraet: job.geraet, seq: job.seq, gesendet: job.gesendet, aus: true });
+    const a = await kalLesen(await kalSchicken(job.url, text, { abbruch: KAL_ABBRUCH }));
+    letztes = a;
+    notieren('kalender', { was: 'aus', ergebnis: a.ergebnis, version: a.version ?? undefined, geaendert: a.geaendert ?? undefined }, true);
+    if (!['netz', 'zeit', 'fehler'].includes(a.ergebnis)) {
+      kalMetaSchreiben({ aus: (kalMeta().aus || []).filter((x) => x.url !== job.url || x.seq !== job.seq) });
+    }
+  }
+  return letztes;
+}
+
+/**
+ * „Trennen": Das Skript bekommt ein „aus" (eigene Termine ab heute weg, nichts
+ * mehr angleichen), die App vergisst die Adresse. Das Kennwort bleibt – es
+ * steht ja noch im Skript, und ein erneutes „Verbinden" mit derselben URL
+ * braucht dann keinen neuen Code. Ohne Netz geht das „aus" nach, sobald
+ * welches da ist. { ok, wartet, satz }.
+ */
+async function kalenderTrennen() {
+  const k = store.kalender();
+  if (!k || !k.url) return { ok: true, wartet: false, satz: '' };
+  kalAnhalten();
+  kalVorbereitet = null;
+  kalAusDazu(k);
+  store.setzeKalender({ url: null });
+  kalMetaSchreiben({ hash: null, ziel: null, offen: false });
+  await kalAusgangLeeren();
+  const a = await kalEinreihen(kalAusErledigen);
+  const wartet = (kalMeta().aus || []).length > 0;
+  kalRuf.nachher();
+  if (wartet) return { ok: true, wartet, satz: 'Getrennt. Beim Skript kam das noch nicht an (kein Netz) – die App schickt es nach, sobald Netz da ist.' };
+  if (a && a.ergebnis === 'aus') return { ok: true, wartet, satz: 'Getrennt – die Termine ab heute verschwinden aus „Workout".' };
+  return { ok: true, wartet, satz: `Getrennt. ${kalenderSatz(a) || 'Ob die Termine weg sind, zeigt der Kalender „Workout".'}` };
+}
+
+/**
+ * Für „Alle Daten löschen": Das Skript soll aufhören, nach dem alten Stand zu
+ * schieben. Das „aus" überlebt das Löschen (eigener Schlüssel) und geht nach,
+ * wenn gerade kein Netz ist. Die Gerätekennung bleibt – sie hängt an diesem
+ * Gerät, nicht am Training.
+ */
+function kalenderVergessen() {
+  const k = store.kalender();
+  kalAnhalten();
+  kalVorbereitet = null;
+  if (k && k.url) kalAusDazu(k);
+  kalMetaSchreiben({ hash: null, ziel: null, offen: false, letzte: null, angekommen: null, nach: null });
+  kalAusgangLeeren();
+  if ((kalMeta().aus || []).length && kalenderMoeglich()) kalEinreihen(kalAusErledigen);
+}
+
+/* ------------------------------------------------------------------ *
+ * Was die Karte zeigt
+ * ------------------------------------------------------------------ */
+
+/**
+ * Die Lage für die Karte unter Mehr und das Dashboard – synchron, ohne Netz.
+ * `letzte` und `angekommen` nur, wenn sie zur jetzigen Verbindung gehören.
+ */
+function kalenderLage() {
+  const k = store.kalender();
+  const m = kalMeta();
+  const ziel = kalZiel(k);
+  const letzte = m.letzte && ziel && m.letzte.ziel === ziel ? m.letzte : null;
+  const angekommen = m.angekommen && ziel && m.angekommen.ziel === ziel ? m.angekommen : null;
+  return {
+    moeglich: kalenderMoeglich(),
+    token: !!(k && k.token),
+    verbunden: !!ziel,
+    minuten: k ? k.minuten : 17 * 60 + 30,
+    erinnerung: k ? k.erinnerung : 30,
+    letzte,
+    angekommen,
+    nach: m.nach || null,
+    ausstehend: (m.aus || []).length,
+    zuAlt: kalZuAlt(letzte) || kalZuAlt(angekommen ? { version: angekommen.version } : null),
+    handeln: !!ziel && kalenderHandeln(letzte),
+    vorlage: kalenderVorlageFassung(),
+  };
+}
+
+/** Für den Kopf des Diagnoseprotokolls – ohne Kennwort, ohne Adresse. */
+function kalenderKurz() {
+  const l = kalenderLage();
+  if (!l.moeglich) return 'Kalender: hier nicht möglich';
+  if (!l.verbunden) return `Kalender: ${l.token ? 'Code kopiert, nicht verbunden' : 'nicht eingerichtet'}${l.ausstehend ? ` · ${l.ausstehend} Abschalten offen` : ''}`;
+  const z = (t) => {
+    const d = new Date(t);
+    return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}. ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+  return `Kalender verbunden${l.angekommen ? `, zuletzt angekommen ${z(l.angekommen.zeit)}${l.angekommen.version ? ` (Skript ${l.angekommen.version})` : ''}` : ', noch nichts angekommen'}`
+    + `${l.letzte && !l.letzte.ok ? ` · zuletzt ${l.letzte.ergebnis}` : ''}${l.ausstehend ? ` · ${l.ausstehend} Abschalten offen` : ''}`;
+}
+
 /* ===== js/anzeige.js ===== */
 /* ------------------------------------------------------------------ *
  * Kleinkram, den jede Ansicht braucht
@@ -24436,6 +25469,7 @@ function musterKarte() {
 
 
 
+
 /* Trainingsfokus: js/data.js liefert alle Varianten mit (PLANS) und wählt beim
  * Laden aus, welche gilt – PLAN, TARGET und REST kommen von dort und meinen
  * überall dasselbe. Der Wechsel lädt die Seite neu, siehe 'set-focus'. */
@@ -25073,8 +26107,19 @@ function icsStale() {
   return grund.tage || grund.fokus || grund.plan ? grund : null;
 }
 
-/** Der Hinweis dazu unter Mehr → Kalender, mit dem Grund. */
+/**
+ * Der Hinweis dazu unter Mehr → Kalender, mit dem Grund.
+ *
+ * Er schweigt, solange der Kalender „Workout" sich selbst angleicht (Google
+ * Kalender automatisch, js/kalender-sync.js): Sonst riete er nach jedem
+ * Nachrücken zum Neu-Import, und jeder Import stellte dieselben Trainings ein
+ * zweites Mal hin. Die Datei bleibt erreichbar – mit genau diesem Satz.
+ */
 function icsHinweis() {
+  if (kalenderVerbunden()) {
+    return `<div class="hint" id="icsDoppelt" style="margin-top:8px">Der Kalender „Workout" pflegt sich schon
+        selbst. Die Datei brauchst du dafür nicht – importierst du sie trotzdem, stehen die Termine doppelt da.</div>`;
+  }
   const g = icsStale();
   if (!g) return '';
   const i = store.getState().lastIcs;
@@ -25094,6 +26139,250 @@ function icsHinweis() {
   return `<div class="hint" style="color:var(--accent);margin-top:8px">
         ${teile.join(' ')} Datei neu erzeugen und noch einmal importieren, dann
         ${g.fokus || g.plan ? 'stimmen Termine und Übungen wieder' : 'wandern die Termine mit'}.</div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Google Kalender automatisch – was davon zu sehen ist
+ *
+ *     „Ja aber nur wenn es wirklich keinen Weg gibt wie verschoben wird auch
+ *      wenn ich die app nicht öffne"
+ *
+ * Die Technik steht in js/kalender-sync.js (Senden, Takt, Antwort), die
+ * Rechnung in js/kalender-vorschau.js, das Skript in
+ * kalender/workout-kalender.gs. Hier steht, wo man es sieht:
+ *
+ *   Mehr → Kalender   die Karte: was es tut und wer was sieht, die Schritte
+ *                     zum Einrichten, „Code kopieren", URL und „Verbinden";
+ *                     verbunden: wann zuletzt etwas ankam, Uhrzeit und
+ *                     Erinnerung, „Trennen"
+ *   Dashboard         eine Zeile, und nur, wenn Tobi etwas richten muss
+ *
+ * Keine Wahl, die er treffen müsste: 17:30 und 30 Minuten stehen fertig da,
+ * gesendet wird von selbst. Kennwort und Adresse stehen nirgends in einer
+ * Meldung – nur im Code, den er kopiert, und im Feld, in das er die URL
+ * einfügt.
+ * ------------------------------------------------------------------ */
+
+const KALENDER_ERINNERUNGEN = [[0, 'keine'], [10, '10 Min. vorher'], [15, '15 Min. vorher'],
+  [30, '30 Min. vorher'], [60, '1 Std. vorher'], [120, '2 Std. vorher']];
+
+const kalenderUhr = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+/** Der erste Satz eines Ergebnisses – für die eine Zeile auf dem Dashboard. */
+function kalenderErsterSatz(satz) {
+  const i = satz.indexOf('. ');
+  return i > 0 ? satz.slice(0, i + 1) : satz;
+}
+
+/** Die Zeile auf dem Dashboard: nur, wenn Tobi selbst etwas richten muss. */
+function kalenderZeile() {
+  const l = kalenderLage();
+  if (!l.verbunden || !(l.handeln || l.zuAlt)) return '';
+  // Ein Hinweis des Skripts selbst ist kurz und sagt im zweiten Satz, was zu
+  // tun ist – der bleibt ganz. Die langen Sätze der App kommen unter Mehr.
+  const satz = l.zuAlt ? 'Der Code in Apps Script ist älter als die App – „Kalender-Code erneuern".'
+    : l.letzte.ok ? kalenderSatz(l.letzte) : kalenderErsterSatz(kalenderSatz(l.letzte));
+  return `<div class="notice warn zeile" id="kalenderZeile">📅 <span>Google Kalender: ${esc(satz)}</span>
+      <button type="button" class="btn" data-act="kalender-ansehen">Ansehen</button></div>`;
+}
+
+/** Was die Karte über den letzten Stand sagt – ein Absatz, ohne Kennwort und Adresse. */
+function kalenderStandText(l) {
+  const wann = (ms) => vorWann(new Date(ms).toISOString());
+  const teile = [];
+  if (l.angekommen) {
+    teile.push(`✓ Verbunden. Zuletzt angekommen: ${wann(l.angekommen.zeit)}${
+      l.angekommen.version ? ` (Skript Fassung ${l.angekommen.version})` : ''}.`);
+  } else {
+    teile.push(l.letzte && !l.letzte.ok ? 'Verbunden, aber beim Skript ist noch nichts angekommen.'
+      : 'Verbunden – die erste Vorschau ist unterwegs.');
+  }
+  if (l.letzte && !l.letzte.ok && !l.zuAlt) {
+    teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${kalenderSatz(l.letzte)}`);
+  } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe') {
+    teile.push(`Das Skript sagt: ${l.letzte.hinweis}`);
+  }
+  if (l.nach) teile.push(`Ohne Netz trainiert: Im Hintergrund nachgeschickt ${wann(l.nach.zeit)}.`);
+  return teile.join(' ');
+}
+
+/** Mehr → Kalender: die Karte „Google Kalender automatisch". */
+function kalenderKarte() {
+  const l = kalenderLage();
+  // Die Vorlage schon jetzt holen: „Code kopieren" soll gleich im Tipp kopieren
+  // können – manche Browser lassen das nur dort zu.
+  if (l.moeglich) kalenderVorlage().catch(() => {});
+  const was = `<div class="lbl">Google Kalender automatisch</div>
+      <div class="small muted" id="kalenderWas" style="margin-top:4px">Deine Trainings stehen in einem eigenen
+        Kalender „Workout" in deinem Google-Konto, um ${esc(kalenderUhr(l.minuten))} mit den Übungen. Verpasst du
+        eins, rückt es nach – auch wenn du die App nicht öffnest: Die App schickt einem kleinen Skript in deinem
+        Google-Konto, wie der Plan die nächsten sechs Wochen aussähe, wenn du nicht trainierst, und das Skript
+        gleicht den Kalender jede Stunde danach an. Trainierst du, schickt die App das Neue hinterher.</div>`;
+  if (!l.moeglich) {
+    return `<div class="card" id="kalenderAuto">${was}
+      <div class="small" style="margin-top:8px">Das geht nur in der App aus dem Netz (am Startbildschirm
+        installiert), nicht in dieser Einzeldatei – hier gibt es weder den Code zum Kopieren noch den Rechner im
+        Hintergrund.</div></div>`;
+  }
+  const wer = `<div class="small muted" id="kalenderWer" style="margin-top:8px">An Google geht nur, was im Kalender
+        steht – Titel, Übungen, Tage und Uhrzeit –, in dein eigenes Konto; kein Server der App sieht es. Google fragt
+        beim Einrichten nach Zugriff auf alle deine Kalender, so ist Googles Baustein gebaut. Das Skript fasst
+        trotzdem nur „Workout" an – das ist eine Regel in seinem Code, keine Sperre von Google.</div>
+      <div class="small muted" id="kalenderGrenze" style="margin-top:6px">Ehrlich dazu: Was die App nicht schicken
+        konnte, gilt im Kalender als nicht trainiert. Trainierst du ohne Netz, schiebt er das Training womöglich
+        weiter, bis die App wieder Netz hat – auf Android schickt sie es dann von selbst nach, meist auch bei
+        geschlossener App. Öffnest du die App sechs Wochen lang nicht, ist der Plan aufgebraucht: Der Kalender
+        schiebt dann nicht mehr und sagt es dir mit einem Termin. Und Kennwort und URL reisen mit Sicherung und
+        Exportdatei: Wer die Exportdatei hat, kann damit Termine in „Workout" schreiben, sonst nichts.</div>`;
+  const meldung = ui.kalenderMeldung ? `<div class="hint" id="kalenderMeldung"
+        style="color:${ui.kalenderGut ? 'var(--ok)' : 'var(--accent)'};margin-top:8px">${esc(ui.kalenderMeldung)}</div>` : '';
+  const codeText = ui.kalenderCodeText ? `<textarea class="io" id="kalenderCodeText" readonly
+        aria-label="Code für Apps Script">${esc(ui.kalenderCodeText)}</textarea>` : '';
+  const urlFeld = (platzhalter) => `<input type="url" class="name-input" id="kalenderUrl" inputmode="url"
+        autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(platzhalter)}"
+        aria-label="Web-App-URL des Skripts">
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" data-act="kalender-verbinden"
+                ${ui.kalenderLaeuft ? 'disabled' : ''}>Verbinden</button>
+      </div>`;
+  const offenAus = l.ausstehend ? `<div class="small" id="kalenderAusOffen" style="margin-top:8px">📅 Ein Trennen
+        wartet noch auf Netz – die App schickt es dem Skript, sobald welches da ist.</div>` : '';
+  if (!l.verbunden) {
+    return `<div class="card" id="kalenderAuto">${was}${wer}
+      <div class="lbl" style="margin-top:12px">Einrichten – einmal, am Handy</div>
+      <ol class="small kalender-schritte" id="kalenderSchritte">
+        <li>Unten „Code kopieren" tippen. Darin steckt ein Kennwort nur für deinen Kalender – nicht weitergeben.</li>
+        <li>In Chrome <i>script.google.com</i> öffnen, im Drei-Punkte-Menü <i>Desktopwebsite</i> anhaken und dein
+          Projekt öffnen – das von der Probe (sonst <i>script.new</i>).</li>
+        <li>Den ganzen Code dort durch deinen ersetzen und speichern.</li>
+        <li>Oben die Funktion <i>einrichten</i> wählen und <i>Ausführen</i> tippen. Fragt Google nach Zugriff:
+          <i>Berechtigungen prüfen</i> → dein Konto → <i>Erweitert</i> → <i>… öffnen (unsicher)</i> →
+          <i>Zulassen</i>. Warten, bis unten „Ausführung abgeschlossen" steht.</li>
+        <li><i>Bereitstellen → Bereitstellungen verwalten → Bearbeiten</i> (Stift) <i>→ Version: Neue Version →
+          Bereitstellen</i> – die URL bleibt dieselbe. Gibt es noch keine Bereitstellung: <i>Bereitstellen → Neue
+          Bereitstellung → Web-App</i>, „Ausführen als: Ich", „Zugriff: Jeder".</li>
+        <li>Die <i>Web-App-URL</i> (endet auf /exec) kopieren, hier einfügen und <i>Verbinden</i> tippen.</li>
+      </ol>
+      <div class="btn-row">
+        <button type="button" class="btn${l.token ? '' : ' btn-primary'}" data-act="kalender-code">Code kopieren</button>
+      </div>
+      ${l.token ? `<div class="small muted" id="kalenderKennwort" style="margin-top:6px">Das Kennwort ist fest
+        gespeichert – noch einmal kopieren gibt denselben Code.</div>` : ''}
+      ${codeText}
+      ${urlFeld('https://script.google.com/macros/s/…/exec')}
+      ${meldung}${offenAus}
+    </div>`;
+  }
+  const optionen = [...KALENDER_ERINNERUNGEN];
+  if (!optionen.some(([v]) => v === l.erinnerung)) optionen.push([l.erinnerung, `${l.erinnerung} Min. vorher`]);
+  return `<div class="card" id="kalenderAuto">${was}
+      <div class="small" id="kalenderStand" style="margin-top:8px">${esc(kalenderStandText(l))}</div>
+      ${l.zuAlt ? `<div class="notice warn" id="kalenderErneuern" style="margin-top:8px">${esc(kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }))}</div>` : ''}
+      ${meldung}
+      <div class="zeit-row">
+        <label class="zeit"><span class="lbl">Uhrzeit</span>
+          <input type="time" id="kalenderUhrzeit" data-act="kalender-uhrzeit" step="300"
+                 value="${esc(kalenderUhr(l.minuten))}"></label>
+        <label class="zeit"><span class="lbl">Erinnerung</span>
+          <select id="kalenderErinnerung" data-act="kalender-erinnerung">
+            ${optionen.map(([v, t]) => `<option value="${v}"${v === l.erinnerung ? ' selected' : ''}>${esc(t)}</option>`).join('')}
+          </select></label>
+      </div>
+      <div class="small muted" style="margin-top:6px">Uhrzeit (Berliner Zeit) und Erinnerung stellst du hier ein,
+        nicht im Kalender – das Skript gleicht seine Termine jede Stunde an. Siehst du „Workout" am Handy nicht:
+        Google-Kalender-App → Einstellungen → Workout → <i>Synchronisieren</i>.</div>
+      ${wer}
+      <div class="btn-row">
+        <button type="button" class="btn" data-act="kalender-code">Code kopieren</button>
+        <button type="button" class="btn btn-ghost" data-act="kalender-trennen"
+                ${ui.kalenderLaeuft ? 'disabled' : ''}>Trennen</button>
+      </div>
+      <div class="small muted" style="margin-top:6px">„Code kopieren" brauchst du nur, wenn hier „Kalender-Code
+        erneuern" steht. „Trennen": Die Termine ab heute verschwinden aus „Workout", und das Skript schiebt nichts
+        mehr; ganz weg ist es erst, wenn du das Projekt in Apps Script löschst.</div>
+      ${codeText}
+      <div class="small muted" style="margin-top:10px">Neues Skript-Projekt? Seine URL hier einfügen:</div>
+      ${urlFeld('https://script.google.com/macros/s/…/exec')}
+      ${offenAus}
+    </div>`;
+}
+
+/** „Code kopieren": erst das Kennwort fest speichern, dann kopieren – oder zum Abschreiben zeigen. */
+async function kalenderCodeKopieren() {
+  let code;
+  try {
+    code = await kalenderCode();
+  } catch (e) {
+    ui.kalenderMeldung = e && e.code === 'speicher' ? e.message
+      : 'Die Vorlage des Codes ist gerade nicht da – mit Netz noch einmal tippen.';
+    ui.kalenderGut = false;
+    notieren('kalender', { was: 'code', ok: false, grund: e && e.code === 'speicher' ? 'speicher' : 'vorlage' }, true);
+    render();
+    return;
+  }
+  const gut = () => {
+    ui.kalenderCodeText = '';
+    ui.kalenderMeldung = 'Code kopiert. Jetzt in Apps Script den ganzen Code damit ersetzen (Schritt 2 und 3).';
+    ui.kalenderGut = true;
+    notieren('kalender', { was: 'code', ok: true, kopiert: true });
+    render();
+  };
+  const zeigen = () => {
+    ui.kalenderCodeText = code;
+    ui.kalenderMeldung = 'Kopieren ging nicht – der Code steht unten markiert, dort lang drücken und kopieren.';
+    ui.kalenderGut = false;
+    notieren('kalender', { was: 'code', ok: true, kopiert: false });
+    render();
+    const ta = document.getElementById('kalenderCodeText');
+    if (ta) { ta.focus(); ta.select(); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(gut, zeigen);
+    return;
+  }
+  zeigen();
+}
+
+async function kalenderVerbindenTipp() {
+  const feld = document.getElementById('kalenderUrl');
+  const eingabe = feld ? feld.value : '';
+  ui.kalenderLaeuft = true;
+  ui.kalenderMeldung = 'Frage das Skript …';
+  ui.kalenderGut = true;
+  render();
+  let r;
+  try {
+    r = await kalenderVerbinden(eingabe);
+  } catch {
+    r = { ok: false, satz: 'Das ging gerade nicht – noch einmal versuchen.' };
+  }
+  ui.kalenderLaeuft = false;
+  ui.kalenderMeldung = r.ok
+    ? `${r.satz || 'Verbunden.'} Die erste Vorschau geht gleich hinaus; nach etwa einer Minute stehen die Termine in „Workout".`
+    : r.satz;
+  ui.kalenderGut = !!r.ok;
+  ui.kalenderCodeText = '';
+  render();
+  // Was er eingefügt hatte, bleibt im Feld stehen, wenn es nicht ging – zum Ausbessern.
+  if (!r.ok) {
+    const neu = document.getElementById('kalenderUrl');
+    if (neu) neu.value = eingabe;
+  }
+}
+
+async function kalenderTrennenTipp() {
+  ui.kalenderLaeuft = true;
+  render();
+  let r;
+  try {
+    r = await kalenderTrennen();
+  } catch {
+    r = { satz: 'Getrennt.' };
+  }
+  ui.kalenderLaeuft = false;
+  ui.kalenderMeldung = r.satz;
+  ui.kalenderGut = true;
+  render();
 }
 
 /** Zahl der abgeschlossenen Einheiten in dieser Runde. */
@@ -25647,6 +26936,14 @@ const ui = {
   // das Teilen nicht ging (wie teilenFehler bei der Sicherung).
   diagnoseOffen: false,
   diagnoseFehler: '',
+  // Google Kalender automatisch (js/kalender-sync.js), Mehr → Kalender: was
+  // „Code kopieren", „Verbinden" und „Trennen" eben gesagt haben, ob gerade
+  // eins davon läuft, und der Code zum Abschreiben, wenn das Kopieren nicht
+  // ging. Kennwort und Adresse stehen nur im Code und im Eingabefeld.
+  kalenderMeldung: '',
+  kalenderGut: false,
+  kalenderLaeuft: false,
+  kalenderCodeText: '',
 };
 
 /* ------------------------------------------------------------------ *
@@ -27265,6 +28562,7 @@ function renderOverview() {
           <button type="button" class="btn btn-ghost" data-act="drop-stand">Verwerfen</button>
         </div></div>` : ''}
       ${sicherungsZeile(due)}
+      ${kalenderZeile()}
 
       <header class="ov-top">
         <!-- Kein „von 84" mehr: „Die app geht ja unendlich." Stimmt – der Plan
@@ -30965,7 +32263,8 @@ function renderSettings() {
         nicht auf den Plan.</div>` : '')}
     </div>
 
-    <div class="section-title">Kalender</div>
+    <div class="section-title" id="kalender">Kalender</div>
+    ${kalenderKarte()}
     <div class="card">
       <div class="small muted">Alle Trainingstermine als Kalenderdatei, jeweils um 18 Uhr,
         mit den Übungen des Tages in der Beschreibung.
@@ -31148,7 +32447,7 @@ function diagnoseKopf() {
       + `Satz-Tupfer ${s.soundSets ? 'an' : 'aus'}, Hinweise ${s.notify ? 'an' : 'aus'} (${erlaubnis})`,
     `${s.session ? `Einheit ${s.session.n} läuft` : 'keine Einheit läuft'} · ${pause} · Plan ${s.focus || 'standard'}, `
       + `shift ${s.shift || 0} · Service Worker ${navigator.serviceWorker && navigator.serviceWorker.controller ? 'aktiv' : 'keiner'}`,
-    `${sicherung} · ${rueck}`,
+    `${sicherung} · ${rueck} · ${kalenderKurz()}`,
     `Fehler im Protokoll ${st.fehler} · Einträge heute ${st.heute} · Schreibungen diese Sitzung ${st.schreibungen}`
       + `${st.schreibungen ? `, längste ${msKurz(st.schreibMsMax)}, Mittel ${msKurz(st.schreibMsMittel)}` : ''}`,
     `UA: ${navigator.userAgent || '?'}`,
@@ -31700,6 +32999,8 @@ function einheitBeenden(bis) {
   // der Drossel vorbei. Das ist der Stand, der am meisten wert ist, und das
   // Handy liegt danach oft für Stunden.
   sicherungJetzt();
+  // Und der Kalender „Workout": Die Einheit steht dort ab jetzt mit „✓".
+  kalenderJetzt('abschluss');
   return gestiegen;
 }
 
@@ -32653,6 +33954,20 @@ view.addEventListener('click', (e) => {
       go('settings');
       { const ziel = document.getElementById('daten'); if (ziel) ziel.scrollIntoView(); }
       break;
+    case 'kalender-ansehen':
+      go('settings');
+      { const ziel = document.getElementById('kalender'); if (ziel) ziel.scrollIntoView(); }
+      break;
+    case 'kalender-code':
+      kalenderCodeKopieren();
+      break;
+    case 'kalender-verbinden':
+      if (!ui.kalenderLaeuft) kalenderVerbindenTipp();
+      break;
+    case 'kalender-trennen':
+      if (!ui.kalenderLaeuft && confirm('Kalender trennen? Die Termine ab heute verschwinden aus „Workout", und das '
+        + 'Skript schiebt nichts mehr. Was vorbei ist, bleibt stehen.')) kalenderTrennenTipp();
+      break;
     case 'schluessel-sichern':
       // Ein Tipp: Passwortmanager, wo es ihn gibt – sonst, oder wenn der
       // Browser ablehnt (Chrome ohne Oberfläche tut das), der Link.
@@ -33014,7 +34329,8 @@ view.addEventListener('click', (e) => {
     }
     case 'reset-all':
       if (confirm(`Wirklich alle protokollierten Sätze und Einstellungen löschen?${
-        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}`)) {
+        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}${
+        kalenderVerbunden() ? ' Der Kalender „Workout" wird getrennt: Die Termine ab heute verschwinden dort.' : ''}`)) {
         // Die Sicherung auf dem Server gehört dazu: Bliebe sie stehen, schriebe
         // das erste Training danach einen fast leeren Stand darüber – oder sie
         // läge für immer dort, ohne Schlüssel auf diesem Gerät, der an sie
@@ -33035,6 +34351,10 @@ view.addEventListener('click', (e) => {
         const s0 = store.getState();
         const id = s0.deviceId && (meldetMit() || s0.lastShare) ? s0.deviceId : null;
         if (id) loeschen(id);
+        // Der Kalender ebenso: Ohne Verbindung hier schöbe das Skript sechs
+        // Wochen lang nach der alten Vorschau weiter. Das „aus" geht nach,
+        // wenn gerade kein Netz ist (js/kalender-sync.js).
+        kalenderVergessen();
         store.resetAll();
         // Das Diagnoseprotokoll räumt mit; sein Schalter bleibt, wie er war –
         // ein Löschen soll nie dazu führen, dass mehr mitgeschrieben wird
@@ -33183,6 +34503,33 @@ view.addEventListener('input', (e) => {
   }
 });
 
+// Uhrzeit und Erinnerung des Kalenders: erst beim Übernehmen (change), nicht
+// bei jedem Zwischenstand der Uhrzeitwahl – und gleich hinaus, damit der
+// Kalender es in Minuten zeigt, nicht erst nach der Drossel.
+view.addEventListener('change', (e) => {
+  const t = e.target.closest('[data-act]');
+  if (!t) return;
+  if (t.dataset.act === 'kalender-uhrzeit') {
+    const m = /^(\d{2}):(\d{2})/.exec(t.value || '');
+    if (!m) return;
+    const minuten = Number(m[1]) * 60 + Number(m[2]);
+    if (minuten === (store.kalender() || {}).minuten) return;
+    store.setzeKalender({ minuten });
+    notieren('kalender', { was: 'einstellung', minuten });
+    kalenderJetzt('einstellung');
+    render();
+    toast(`Ab jetzt um ${kalenderUhr(minuten)} – geht gleich an den Kalender`);
+  } else if (t.dataset.act === 'kalender-erinnerung') {
+    const erinnerung = Number(t.value);
+    if (!Number.isInteger(erinnerung) || erinnerung === (store.kalender() || {}).erinnerung) return;
+    store.setzeKalender({ erinnerung });
+    notieren('kalender', { was: 'einstellung', erinnerung });
+    kalenderJetzt('einstellung');
+    render();
+    toast(erinnerung ? 'Erinnerung geändert – geht gleich an den Kalender' : 'Ohne Erinnerung – geht gleich an den Kalender');
+  }
+});
+
 /* ------------------------------------------------------------------ *
  * Start
  * ------------------------------------------------------------------ */
@@ -33227,6 +34574,10 @@ document.addEventListener('visibilitychange', () => {
     // Was fertig verschlüsselt bereitliegt, geht mit keepalive hinterher –
     // nur unter 64 KB, sonst beim nächsten Start (js/sicherung.js).
     sicherungVerstecken();
+    // Dasselbe für den Kalender – nach der Sicherung: Die ist mehr wert, und
+    // beide teilen sich die 64 KiB für keepalive. Passt der Kalender nicht
+    // mehr hinein, geht er über den Service Worker nach (js/kalender-sync.js).
+    kalenderVerstecken();
     return;
   }
   notieren('sicht', {
@@ -33254,6 +34605,8 @@ document.addEventListener('visibilitychange', () => {
   // Fehlten dem Server die Funktionen, kann inzwischen jemand den SQL-Block
   // ausgeführt haben – die App bleibt dafür oft tagelang im Speicher.
   sicherungNachsehen();
+  // Hat der Service Worker im Hintergrund eine Kalender-Sendung nachgeschickt?
+  kalenderSichtbar();
   tagNachziehenZeigen(abgeschlossen);
   tagesUhrStellen();
 });
@@ -33708,9 +35061,31 @@ sicherungEinrichten({
 });
 store.subscribe(() => { sicherungGeaendert(); });
 
+/*
+ * Google Kalender automatisch anschließen (js/kalender-sync.js): Nach jeder
+ * Änderung sieht es nach, ob sich die Vorschau geändert hat – sofort, wenn eine
+ * Einheit anfängt oder fertig wird, sonst gedrosselt. Neu gezeichnet wird wie
+ * bei der Sicherung nur, wo sich dadurch etwas ändert, und nie, während jemand
+ * tippt (das URL-Feld!).
+ */
+kalenderEinrichten({
+  nachher: (() => {
+    let zeile = kalenderZeile();
+    return () => {
+      const neu = kalenderZeile();
+      const dash = ui.tab === 'dashboard' && !ui.focus && !ui.listView && neu !== zeile;
+      zeile = neu;
+      const tippt = !!document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+      if ((ui.tab === 'settings' || dash) && !tippt) render();
+    };
+  })(),
+});
+store.subscribe(() => { kalenderGeaendert(); });
+
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist
 sicherungStart();    // wenn seit der letzten Sicherung etwas dazukam
+kalenderStart();     // die Vorschau für heute, wenn der Kalender verbunden ist
 store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit
 // Neu geladen und sichtbar: Die Uhr eines laufenden Trainings muss wieder
 // anlaufen. Ohne diese Zeile stünde sie bis zum nächsten Wegschalten still.

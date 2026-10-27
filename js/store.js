@@ -115,6 +115,16 @@ const DEFAULT_STATE = {
   // damit ein erneuter Import die alten Termine überschreibt statt sie stehen
   // zu lassen.
   lastIcs: null,
+  // Google Kalender automatisch (js/kalender-sync.js): { token, url, minuten,
+  // erinnerung } oder null. Das Kennwort entsteht beim ersten „Code kopieren"
+  // und bleibt dann – ein zweites Kopieren gibt denselben Code. Es reist mit
+  // Sicherung und Exportdatei: Ein neues Handy, das die Sicherung einliest,
+  // schickt danach von selbst weiter. Was nur dieses Gerät angeht (seine
+  // Kennung für das Skript, der Zähler, wann zuletzt etwas ankam), steht nicht
+  // hier, sondern in workout.kalender.v1 – stünde „zuletzt angekommen" im
+  // Zustand, änderte jede Sendung den Zustand und löste die nächste aus.
+  // Geprüft wird über normKalender(), beim Laden und beim Einlesen.
+  kalender: null,
   rounds: [],            // abgeschlossene Durchläufe: [{ finishedOn, log, verlassen? }]
   // Tage, an denen der laufende Verlauf schon einmal verlassen wurde und aus
   // der Ablage zurückkam (wechsleFokus()): ['2026-09-23', …]. Das finishedOn
@@ -354,6 +364,33 @@ export function normAbschluss(roh) {
   return einheiten.length ? { am: roh.am, einheiten } : null;
 }
 
+/*
+ * Die Verbindung zum Kalender-Skript, auf genau ihre Felder gebracht.
+ *
+ * Sie kommt aus einer Sicherung oder einer Exportdatei, und hinter `url` geht
+ * das Kennwort hinaus. Deshalb nur eine Adresse, die eine Web-App von Google
+ * Apps Script ist (…/exec, auch unter einer eigenen Domain eines
+ * Google-Workspace-Kontos) – eine Datei, in der jemand eine andere Adresse
+ * eingetragen hat, schickt das Kennwort nirgendwohin sonst. Ohne gültiges
+ * Kennwort gibt es nichts zu verbinden (null). Die Standards sind die aus
+ * js/kalender.js (KALENDER_MINUTEN 17:30, KALENDER_ERINNERUNG 30) – dort
+ * nicht importierbar, dieses Modul steht ganz unten; tests/test-kalender-sync.mjs
+ * vergleicht beide.
+ */
+export const KALENDER_URL = /^https:\/\/script\.google\.com\/(?:macros|a\/macros\/[A-Za-z0-9.-]{1,100})\/s\/[A-Za-z0-9_-]{10,200}\/exec$/;
+export const KALENDER_TOKEN = /^[A-Za-z0-9_-]{16,128}$/;
+const kalGanz = (x, lo, hi, standard) => (Number.isInteger(x) && x >= lo && x <= hi ? x : standard);
+export function normKalender(roh) {
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
+  if (typeof roh.token !== 'string' || !KALENDER_TOKEN.test(roh.token)) return null;
+  return {
+    token: roh.token,
+    url: typeof roh.url === 'string' && KALENDER_URL.test(roh.url) ? roh.url : null,
+    minuten: kalGanz(roh.minuten, 0, 1439, 17 * 60 + 30),
+    erinnerung: kalGanz(roh.erinnerung, 0, 1440, 30),
+  };
+}
+
 /** Der letzte Eintrag von v241: { n, at } mit einer Kennung wie im Protokoll und ms – sonst null. */
 function normEintrag(roh) {
   if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return null;
@@ -392,6 +429,7 @@ function load() {
     state.friends = normFreunde(state.friends);
     state.customs = normCustoms(state.customs);
     state.tagesabschluss = normAbschluss(state.tagesabschluss);
+    state.kalender = normKalender(state.kalender);
     eintragUmziehen(state, state.letzterEintrag);
     // Die Ablage: Steht sie noch im Hauptschlüssel, gilt sie und wird gleich
     // ausgelagert – das ist entweder ein Stand aus der Fassung davor oder ein
@@ -1736,6 +1774,22 @@ export function icsPlanNachtragen(focus, stand) {
   emit();
 }
 
+/** Die Verbindung zum Kalender-Skript – { token, url, minuten, erinnerung } oder null. */
+export function kalender() { return state.kalender; }
+
+/**
+ * Die Verbindung ändern: `teil` wird übernommen und geprüft (normKalender()),
+ * null trennt ganz. Gibt zurück, was jetzt gilt. Geschrieben wird gleich – das
+ * Kennwort muss im Speicher stehen, bevor der Code mit ihm die App verlässt.
+ */
+export function setzeKalender(teil) {
+  state.kalender = teil === null ? null : normKalender({ ...(state.kalender || {}), ...teil });
+  persist();
+  flush();
+  emit();
+  return state.kalender;
+}
+
 /**
  * Alles für die Sicherung – bis auf das Betreiber-Passwort.
  *
@@ -1778,6 +1832,14 @@ export function importJSON(text) {
   fresh.friends = normFreunde(fresh.friends);
   fresh.customs = normCustoms(fresh.customs);
   fresh.tagesabschluss = normAbschluss(fresh.tagesabschluss);
+  // Die Verbindung zum Kalender kommt mit der Datei – ein neues Handy schickt
+  // damit weiter. Kennt die Datei keine Adresse (eine Sicherung von vor dem
+  // „Verbinden"), bleibt die dieses Geräts: Sie gehört zu Tobis Google-Konto,
+  // nicht zum Trainingsstand, und ein Einlesen trennte sonst still einen
+  // Kalender, der dann sechs Wochen lang nach einer alten Vorschau schöbe.
+  const kalDatei = normKalender(fresh.kalender);
+  fresh.kalender = kalDatei && (kalDatei.url || !(state.kalender && state.kalender.url))
+    ? kalDatei : (state.kalender || null);
   eintragUmziehen(fresh, parsed.letzterEintrag);
   // Was an *diesem Gerät* hängt, kommt nicht aus der Datei. Vorher übernahm
   // der Import auch `share`, `deviceId` und `lastShare`: Eine bewusst

@@ -47,6 +47,11 @@ import {
   sicherungTrotzdem, sicherungUebernehmen, sicherungVergessen, sicherungVerstecken,
 } from './sicherung.js';
 import {
+  kalenderCode, kalenderEinrichten, kalenderGeaendert, kalenderJetzt, kalenderKurz, kalenderLage,
+  kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen, kalenderVerbinden, kalenderVergessen,
+  kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
+} from './kalender-sync.js';
+import {
   initAudio, playSound, scheduleSound, cancelSound, signalStand, probeSpielen, tonStand, onTonStand,
   tonUeberholt,
 } from './audio.js';
@@ -726,8 +731,19 @@ function icsStale() {
   return grund.tage || grund.fokus || grund.plan ? grund : null;
 }
 
-/** Der Hinweis dazu unter Mehr → Kalender, mit dem Grund. */
+/**
+ * Der Hinweis dazu unter Mehr → Kalender, mit dem Grund.
+ *
+ * Er schweigt, solange der Kalender „Workout" sich selbst angleicht (Google
+ * Kalender automatisch, js/kalender-sync.js): Sonst riete er nach jedem
+ * Nachrücken zum Neu-Import, und jeder Import stellte dieselben Trainings ein
+ * zweites Mal hin. Die Datei bleibt erreichbar – mit genau diesem Satz.
+ */
 function icsHinweis() {
+  if (kalenderVerbunden()) {
+    return `<div class="hint" id="icsDoppelt" style="margin-top:8px">Der Kalender „Workout" pflegt sich schon
+        selbst. Die Datei brauchst du dafür nicht – importierst du sie trotzdem, stehen die Termine doppelt da.</div>`;
+  }
   const g = icsStale();
   if (!g) return '';
   const i = store.getState().lastIcs;
@@ -747,6 +763,250 @@ function icsHinweis() {
   return `<div class="hint" style="color:var(--accent);margin-top:8px">
         ${teile.join(' ')} Datei neu erzeugen und noch einmal importieren, dann
         ${g.fokus || g.plan ? 'stimmen Termine und Übungen wieder' : 'wandern die Termine mit'}.</div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Google Kalender automatisch – was davon zu sehen ist
+ *
+ *     „Ja aber nur wenn es wirklich keinen Weg gibt wie verschoben wird auch
+ *      wenn ich die app nicht öffne"
+ *
+ * Die Technik steht in js/kalender-sync.js (Senden, Takt, Antwort), die
+ * Rechnung in js/kalender-vorschau.js, das Skript in
+ * kalender/workout-kalender.gs. Hier steht, wo man es sieht:
+ *
+ *   Mehr → Kalender   die Karte: was es tut und wer was sieht, die Schritte
+ *                     zum Einrichten, „Code kopieren", URL und „Verbinden";
+ *                     verbunden: wann zuletzt etwas ankam, Uhrzeit und
+ *                     Erinnerung, „Trennen"
+ *   Dashboard         eine Zeile, und nur, wenn Tobi etwas richten muss
+ *
+ * Keine Wahl, die er treffen müsste: 17:30 und 30 Minuten stehen fertig da,
+ * gesendet wird von selbst. Kennwort und Adresse stehen nirgends in einer
+ * Meldung – nur im Code, den er kopiert, und im Feld, in das er die URL
+ * einfügt.
+ * ------------------------------------------------------------------ */
+
+const KALENDER_ERINNERUNGEN = [[0, 'keine'], [10, '10 Min. vorher'], [15, '15 Min. vorher'],
+  [30, '30 Min. vorher'], [60, '1 Std. vorher'], [120, '2 Std. vorher']];
+
+const kalenderUhr = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+/** Der erste Satz eines Ergebnisses – für die eine Zeile auf dem Dashboard. */
+function kalenderErsterSatz(satz) {
+  const i = satz.indexOf('. ');
+  return i > 0 ? satz.slice(0, i + 1) : satz;
+}
+
+/** Die Zeile auf dem Dashboard: nur, wenn Tobi selbst etwas richten muss. */
+function kalenderZeile() {
+  const l = kalenderLage();
+  if (!l.verbunden || !(l.handeln || l.zuAlt)) return '';
+  // Ein Hinweis des Skripts selbst ist kurz und sagt im zweiten Satz, was zu
+  // tun ist – der bleibt ganz. Die langen Sätze der App kommen unter Mehr.
+  const satz = l.zuAlt ? 'Der Code in Apps Script ist älter als die App – „Kalender-Code erneuern".'
+    : l.letzte.ok ? kalenderSatz(l.letzte) : kalenderErsterSatz(kalenderSatz(l.letzte));
+  return `<div class="notice warn zeile" id="kalenderZeile">📅 <span>Google Kalender: ${esc(satz)}</span>
+      <button type="button" class="btn" data-act="kalender-ansehen">Ansehen</button></div>`;
+}
+
+/** Was die Karte über den letzten Stand sagt – ein Absatz, ohne Kennwort und Adresse. */
+function kalenderStandText(l) {
+  const wann = (ms) => vorWann(new Date(ms).toISOString());
+  const teile = [];
+  if (l.angekommen) {
+    teile.push(`✓ Verbunden. Zuletzt angekommen: ${wann(l.angekommen.zeit)}${
+      l.angekommen.version ? ` (Skript Fassung ${l.angekommen.version})` : ''}.`);
+  } else {
+    teile.push(l.letzte && !l.letzte.ok ? 'Verbunden, aber beim Skript ist noch nichts angekommen.'
+      : 'Verbunden – die erste Vorschau ist unterwegs.');
+  }
+  if (l.letzte && !l.letzte.ok && !l.zuAlt) {
+    teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${kalenderSatz(l.letzte)}`);
+  } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe') {
+    teile.push(`Das Skript sagt: ${l.letzte.hinweis}`);
+  }
+  if (l.nach) teile.push(`Ohne Netz trainiert: Im Hintergrund nachgeschickt ${wann(l.nach.zeit)}.`);
+  return teile.join(' ');
+}
+
+/** Mehr → Kalender: die Karte „Google Kalender automatisch". */
+function kalenderKarte() {
+  const l = kalenderLage();
+  // Die Vorlage schon jetzt holen: „Code kopieren" soll gleich im Tipp kopieren
+  // können – manche Browser lassen das nur dort zu.
+  if (l.moeglich) kalenderVorlage().catch(() => {});
+  const was = `<div class="lbl">Google Kalender automatisch</div>
+      <div class="small muted" id="kalenderWas" style="margin-top:4px">Deine Trainings stehen in einem eigenen
+        Kalender „Workout" in deinem Google-Konto, um ${esc(kalenderUhr(l.minuten))} mit den Übungen. Verpasst du
+        eins, rückt es nach – auch wenn du die App nicht öffnest: Die App schickt einem kleinen Skript in deinem
+        Google-Konto, wie der Plan die nächsten sechs Wochen aussähe, wenn du nicht trainierst, und das Skript
+        gleicht den Kalender jede Stunde danach an. Trainierst du, schickt die App das Neue hinterher.</div>`;
+  if (!l.moeglich) {
+    return `<div class="card" id="kalenderAuto">${was}
+      <div class="small" style="margin-top:8px">Das geht nur in der App aus dem Netz (am Startbildschirm
+        installiert), nicht in dieser Einzeldatei – hier gibt es weder den Code zum Kopieren noch den Rechner im
+        Hintergrund.</div></div>`;
+  }
+  const wer = `<div class="small muted" id="kalenderWer" style="margin-top:8px">An Google geht nur, was im Kalender
+        steht – Titel, Übungen, Tage und Uhrzeit –, in dein eigenes Konto; kein Server der App sieht es. Google fragt
+        beim Einrichten nach Zugriff auf alle deine Kalender, so ist Googles Baustein gebaut. Das Skript fasst
+        trotzdem nur „Workout" an – das ist eine Regel in seinem Code, keine Sperre von Google.</div>
+      <div class="small muted" id="kalenderGrenze" style="margin-top:6px">Ehrlich dazu: Was die App nicht schicken
+        konnte, gilt im Kalender als nicht trainiert. Trainierst du ohne Netz, schiebt er das Training womöglich
+        weiter, bis die App wieder Netz hat – auf Android schickt sie es dann von selbst nach, meist auch bei
+        geschlossener App. Öffnest du die App sechs Wochen lang nicht, ist der Plan aufgebraucht: Der Kalender
+        schiebt dann nicht mehr und sagt es dir mit einem Termin. Und Kennwort und URL reisen mit Sicherung und
+        Exportdatei: Wer die Exportdatei hat, kann damit Termine in „Workout" schreiben, sonst nichts.</div>`;
+  const meldung = ui.kalenderMeldung ? `<div class="hint" id="kalenderMeldung"
+        style="color:${ui.kalenderGut ? 'var(--ok)' : 'var(--accent)'};margin-top:8px">${esc(ui.kalenderMeldung)}</div>` : '';
+  const codeText = ui.kalenderCodeText ? `<textarea class="io" id="kalenderCodeText" readonly
+        aria-label="Code für Apps Script">${esc(ui.kalenderCodeText)}</textarea>` : '';
+  const urlFeld = (platzhalter) => `<input type="url" class="name-input" id="kalenderUrl" inputmode="url"
+        autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(platzhalter)}"
+        aria-label="Web-App-URL des Skripts">
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" data-act="kalender-verbinden"
+                ${ui.kalenderLaeuft ? 'disabled' : ''}>Verbinden</button>
+      </div>`;
+  const offenAus = l.ausstehend ? `<div class="small" id="kalenderAusOffen" style="margin-top:8px">📅 Ein Trennen
+        wartet noch auf Netz – die App schickt es dem Skript, sobald welches da ist.</div>` : '';
+  if (!l.verbunden) {
+    return `<div class="card" id="kalenderAuto">${was}${wer}
+      <div class="lbl" style="margin-top:12px">Einrichten – einmal, am Handy</div>
+      <ol class="small kalender-schritte" id="kalenderSchritte">
+        <li>Unten „Code kopieren" tippen. Darin steckt ein Kennwort nur für deinen Kalender – nicht weitergeben.</li>
+        <li>In Chrome <i>script.google.com</i> öffnen, im Drei-Punkte-Menü <i>Desktopwebsite</i> anhaken und dein
+          Projekt öffnen – das von der Probe (sonst <i>script.new</i>).</li>
+        <li>Den ganzen Code dort durch deinen ersetzen und speichern.</li>
+        <li>Oben die Funktion <i>einrichten</i> wählen und <i>Ausführen</i> tippen. Fragt Google nach Zugriff:
+          <i>Berechtigungen prüfen</i> → dein Konto → <i>Erweitert</i> → <i>… öffnen (unsicher)</i> →
+          <i>Zulassen</i>. Warten, bis unten „Ausführung abgeschlossen" steht.</li>
+        <li><i>Bereitstellen → Bereitstellungen verwalten → Bearbeiten</i> (Stift) <i>→ Version: Neue Version →
+          Bereitstellen</i> – die URL bleibt dieselbe. Gibt es noch keine Bereitstellung: <i>Bereitstellen → Neue
+          Bereitstellung → Web-App</i>, „Ausführen als: Ich", „Zugriff: Jeder".</li>
+        <li>Die <i>Web-App-URL</i> (endet auf /exec) kopieren, hier einfügen und <i>Verbinden</i> tippen.</li>
+      </ol>
+      <div class="btn-row">
+        <button type="button" class="btn${l.token ? '' : ' btn-primary'}" data-act="kalender-code">Code kopieren</button>
+      </div>
+      ${l.token ? `<div class="small muted" id="kalenderKennwort" style="margin-top:6px">Das Kennwort ist fest
+        gespeichert – noch einmal kopieren gibt denselben Code.</div>` : ''}
+      ${codeText}
+      ${urlFeld('https://script.google.com/macros/s/…/exec')}
+      ${meldung}${offenAus}
+    </div>`;
+  }
+  const optionen = [...KALENDER_ERINNERUNGEN];
+  if (!optionen.some(([v]) => v === l.erinnerung)) optionen.push([l.erinnerung, `${l.erinnerung} Min. vorher`]);
+  return `<div class="card" id="kalenderAuto">${was}
+      <div class="small" id="kalenderStand" style="margin-top:8px">${esc(kalenderStandText(l))}</div>
+      ${l.zuAlt ? `<div class="notice warn" id="kalenderErneuern" style="margin-top:8px">${esc(kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }))}</div>` : ''}
+      ${meldung}
+      <div class="zeit-row">
+        <label class="zeit"><span class="lbl">Uhrzeit</span>
+          <input type="time" id="kalenderUhrzeit" data-act="kalender-uhrzeit" step="300"
+                 value="${esc(kalenderUhr(l.minuten))}"></label>
+        <label class="zeit"><span class="lbl">Erinnerung</span>
+          <select id="kalenderErinnerung" data-act="kalender-erinnerung">
+            ${optionen.map(([v, t]) => `<option value="${v}"${v === l.erinnerung ? ' selected' : ''}>${esc(t)}</option>`).join('')}
+          </select></label>
+      </div>
+      <div class="small muted" style="margin-top:6px">Uhrzeit (Berliner Zeit) und Erinnerung stellst du hier ein,
+        nicht im Kalender – das Skript gleicht seine Termine jede Stunde an. Siehst du „Workout" am Handy nicht:
+        Google-Kalender-App → Einstellungen → Workout → <i>Synchronisieren</i>.</div>
+      ${wer}
+      <div class="btn-row">
+        <button type="button" class="btn" data-act="kalender-code">Code kopieren</button>
+        <button type="button" class="btn btn-ghost" data-act="kalender-trennen"
+                ${ui.kalenderLaeuft ? 'disabled' : ''}>Trennen</button>
+      </div>
+      <div class="small muted" style="margin-top:6px">„Code kopieren" brauchst du nur, wenn hier „Kalender-Code
+        erneuern" steht. „Trennen": Die Termine ab heute verschwinden aus „Workout", und das Skript schiebt nichts
+        mehr; ganz weg ist es erst, wenn du das Projekt in Apps Script löschst.</div>
+      ${codeText}
+      <div class="small muted" style="margin-top:10px">Neues Skript-Projekt? Seine URL hier einfügen:</div>
+      ${urlFeld('https://script.google.com/macros/s/…/exec')}
+      ${offenAus}
+    </div>`;
+}
+
+/** „Code kopieren": erst das Kennwort fest speichern, dann kopieren – oder zum Abschreiben zeigen. */
+async function kalenderCodeKopieren() {
+  let code;
+  try {
+    code = await kalenderCode();
+  } catch (e) {
+    ui.kalenderMeldung = e && e.code === 'speicher' ? e.message
+      : 'Die Vorlage des Codes ist gerade nicht da – mit Netz noch einmal tippen.';
+    ui.kalenderGut = false;
+    notieren('kalender', { was: 'code', ok: false, grund: e && e.code === 'speicher' ? 'speicher' : 'vorlage' }, true);
+    render();
+    return;
+  }
+  const gut = () => {
+    ui.kalenderCodeText = '';
+    ui.kalenderMeldung = 'Code kopiert. Jetzt in Apps Script den ganzen Code damit ersetzen (Schritt 2 und 3).';
+    ui.kalenderGut = true;
+    notieren('kalender', { was: 'code', ok: true, kopiert: true });
+    render();
+  };
+  const zeigen = () => {
+    ui.kalenderCodeText = code;
+    ui.kalenderMeldung = 'Kopieren ging nicht – der Code steht unten markiert, dort lang drücken und kopieren.';
+    ui.kalenderGut = false;
+    notieren('kalender', { was: 'code', ok: true, kopiert: false });
+    render();
+    const ta = document.getElementById('kalenderCodeText');
+    if (ta) { ta.focus(); ta.select(); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(gut, zeigen);
+    return;
+  }
+  zeigen();
+}
+
+async function kalenderVerbindenTipp() {
+  const feld = document.getElementById('kalenderUrl');
+  const eingabe = feld ? feld.value : '';
+  ui.kalenderLaeuft = true;
+  ui.kalenderMeldung = 'Frage das Skript …';
+  ui.kalenderGut = true;
+  render();
+  let r;
+  try {
+    r = await kalenderVerbinden(eingabe);
+  } catch {
+    r = { ok: false, satz: 'Das ging gerade nicht – noch einmal versuchen.' };
+  }
+  ui.kalenderLaeuft = false;
+  ui.kalenderMeldung = r.ok
+    ? `${r.satz || 'Verbunden.'} Die erste Vorschau geht gleich hinaus; nach etwa einer Minute stehen die Termine in „Workout".`
+    : r.satz;
+  ui.kalenderGut = !!r.ok;
+  ui.kalenderCodeText = '';
+  render();
+  // Was er eingefügt hatte, bleibt im Feld stehen, wenn es nicht ging – zum Ausbessern.
+  if (!r.ok) {
+    const neu = document.getElementById('kalenderUrl');
+    if (neu) neu.value = eingabe;
+  }
+}
+
+async function kalenderTrennenTipp() {
+  ui.kalenderLaeuft = true;
+  render();
+  let r;
+  try {
+    r = await kalenderTrennen();
+  } catch {
+    r = { satz: 'Getrennt.' };
+  }
+  ui.kalenderLaeuft = false;
+  ui.kalenderMeldung = r.satz;
+  ui.kalenderGut = true;
+  render();
 }
 
 /** Zahl der abgeschlossenen Einheiten in dieser Runde. */
@@ -1300,6 +1560,14 @@ const ui = {
   // das Teilen nicht ging (wie teilenFehler bei der Sicherung).
   diagnoseOffen: false,
   diagnoseFehler: '',
+  // Google Kalender automatisch (js/kalender-sync.js), Mehr → Kalender: was
+  // „Code kopieren", „Verbinden" und „Trennen" eben gesagt haben, ob gerade
+  // eins davon läuft, und der Code zum Abschreiben, wenn das Kopieren nicht
+  // ging. Kennwort und Adresse stehen nur im Code und im Eingabefeld.
+  kalenderMeldung: '',
+  kalenderGut: false,
+  kalenderLaeuft: false,
+  kalenderCodeText: '',
 };
 
 /* ------------------------------------------------------------------ *
@@ -2918,6 +3186,7 @@ function renderOverview() {
           <button type="button" class="btn btn-ghost" data-act="drop-stand">Verwerfen</button>
         </div></div>` : ''}
       ${sicherungsZeile(due)}
+      ${kalenderZeile()}
 
       <header class="ov-top">
         <!-- Kein „von 84" mehr: „Die app geht ja unendlich." Stimmt – der Plan
@@ -6618,7 +6887,8 @@ function renderSettings() {
         nicht auf den Plan.</div>` : '')}
     </div>
 
-    <div class="section-title">Kalender</div>
+    <div class="section-title" id="kalender">Kalender</div>
+    ${kalenderKarte()}
     <div class="card">
       <div class="small muted">Alle Trainingstermine als Kalenderdatei, jeweils um 18 Uhr,
         mit den Übungen des Tages in der Beschreibung.
@@ -6801,7 +7071,7 @@ function diagnoseKopf() {
       + `Satz-Tupfer ${s.soundSets ? 'an' : 'aus'}, Hinweise ${s.notify ? 'an' : 'aus'} (${erlaubnis})`,
     `${s.session ? `Einheit ${s.session.n} läuft` : 'keine Einheit läuft'} · ${pause} · Plan ${s.focus || 'standard'}, `
       + `shift ${s.shift || 0} · Service Worker ${navigator.serviceWorker && navigator.serviceWorker.controller ? 'aktiv' : 'keiner'}`,
-    `${sicherung} · ${rueck}`,
+    `${sicherung} · ${rueck} · ${kalenderKurz()}`,
     `Fehler im Protokoll ${st.fehler} · Einträge heute ${st.heute} · Schreibungen diese Sitzung ${st.schreibungen}`
       + `${st.schreibungen ? `, längste ${msKurz(st.schreibMsMax)}, Mittel ${msKurz(st.schreibMsMittel)}` : ''}`,
     `UA: ${navigator.userAgent || '?'}`,
@@ -7353,6 +7623,8 @@ function einheitBeenden(bis) {
   // der Drossel vorbei. Das ist der Stand, der am meisten wert ist, und das
   // Handy liegt danach oft für Stunden.
   sicherungJetzt();
+  // Und der Kalender „Workout": Die Einheit steht dort ab jetzt mit „✓".
+  kalenderJetzt('abschluss');
   return gestiegen;
 }
 
@@ -8306,6 +8578,20 @@ view.addEventListener('click', (e) => {
       go('settings');
       { const ziel = document.getElementById('daten'); if (ziel) ziel.scrollIntoView(); }
       break;
+    case 'kalender-ansehen':
+      go('settings');
+      { const ziel = document.getElementById('kalender'); if (ziel) ziel.scrollIntoView(); }
+      break;
+    case 'kalender-code':
+      kalenderCodeKopieren();
+      break;
+    case 'kalender-verbinden':
+      if (!ui.kalenderLaeuft) kalenderVerbindenTipp();
+      break;
+    case 'kalender-trennen':
+      if (!ui.kalenderLaeuft && confirm('Kalender trennen? Die Termine ab heute verschwinden aus „Workout", und das '
+        + 'Skript schiebt nichts mehr. Was vorbei ist, bleibt stehen.')) kalenderTrennenTipp();
+      break;
     case 'schluessel-sichern':
       // Ein Tipp: Passwortmanager, wo es ihn gibt – sonst, oder wenn der
       // Browser ablehnt (Chrome ohne Oberfläche tut das), der Link.
@@ -8667,7 +8953,8 @@ view.addEventListener('click', (e) => {
     }
     case 'reset-all':
       if (confirm(`Wirklich alle protokollierten Sätze und Einstellungen löschen?${
-        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}`)) {
+        sicherungMetaLesen().id && hatServer() ? ' Die Sicherung auf dem Server wird mitgelöscht.' : ''}${
+        kalenderVerbunden() ? ' Der Kalender „Workout" wird getrennt: Die Termine ab heute verschwinden dort.' : ''}`)) {
         // Die Sicherung auf dem Server gehört dazu: Bliebe sie stehen, schriebe
         // das erste Training danach einen fast leeren Stand darüber – oder sie
         // läge für immer dort, ohne Schlüssel auf diesem Gerät, der an sie
@@ -8688,6 +8975,10 @@ view.addEventListener('click', (e) => {
         const s0 = store.getState();
         const id = s0.deviceId && (meldetMit() || s0.lastShare) ? s0.deviceId : null;
         if (id) loeschen(id);
+        // Der Kalender ebenso: Ohne Verbindung hier schöbe das Skript sechs
+        // Wochen lang nach der alten Vorschau weiter. Das „aus" geht nach,
+        // wenn gerade kein Netz ist (js/kalender-sync.js).
+        kalenderVergessen();
         store.resetAll();
         // Das Diagnoseprotokoll räumt mit; sein Schalter bleibt, wie er war –
         // ein Löschen soll nie dazu führen, dass mehr mitgeschrieben wird
@@ -8836,6 +9127,33 @@ view.addEventListener('input', (e) => {
   }
 });
 
+// Uhrzeit und Erinnerung des Kalenders: erst beim Übernehmen (change), nicht
+// bei jedem Zwischenstand der Uhrzeitwahl – und gleich hinaus, damit der
+// Kalender es in Minuten zeigt, nicht erst nach der Drossel.
+view.addEventListener('change', (e) => {
+  const t = e.target.closest('[data-act]');
+  if (!t) return;
+  if (t.dataset.act === 'kalender-uhrzeit') {
+    const m = /^(\d{2}):(\d{2})/.exec(t.value || '');
+    if (!m) return;
+    const minuten = Number(m[1]) * 60 + Number(m[2]);
+    if (minuten === (store.kalender() || {}).minuten) return;
+    store.setzeKalender({ minuten });
+    notieren('kalender', { was: 'einstellung', minuten });
+    kalenderJetzt('einstellung');
+    render();
+    toast(`Ab jetzt um ${kalenderUhr(minuten)} – geht gleich an den Kalender`);
+  } else if (t.dataset.act === 'kalender-erinnerung') {
+    const erinnerung = Number(t.value);
+    if (!Number.isInteger(erinnerung) || erinnerung === (store.kalender() || {}).erinnerung) return;
+    store.setzeKalender({ erinnerung });
+    notieren('kalender', { was: 'einstellung', erinnerung });
+    kalenderJetzt('einstellung');
+    render();
+    toast(erinnerung ? 'Erinnerung geändert – geht gleich an den Kalender' : 'Ohne Erinnerung – geht gleich an den Kalender');
+  }
+});
+
 /* ------------------------------------------------------------------ *
  * Start
  * ------------------------------------------------------------------ */
@@ -8880,6 +9198,10 @@ document.addEventListener('visibilitychange', () => {
     // Was fertig verschlüsselt bereitliegt, geht mit keepalive hinterher –
     // nur unter 64 KB, sonst beim nächsten Start (js/sicherung.js).
     sicherungVerstecken();
+    // Dasselbe für den Kalender – nach der Sicherung: Die ist mehr wert, und
+    // beide teilen sich die 64 KiB für keepalive. Passt der Kalender nicht
+    // mehr hinein, geht er über den Service Worker nach (js/kalender-sync.js).
+    kalenderVerstecken();
     return;
   }
   notieren('sicht', {
@@ -8907,6 +9229,8 @@ document.addEventListener('visibilitychange', () => {
   // Fehlten dem Server die Funktionen, kann inzwischen jemand den SQL-Block
   // ausgeführt haben – die App bleibt dafür oft tagelang im Speicher.
   sicherungNachsehen();
+  // Hat der Service Worker im Hintergrund eine Kalender-Sendung nachgeschickt?
+  kalenderSichtbar();
   tagNachziehenZeigen(abgeschlossen);
   tagesUhrStellen();
 });
@@ -9361,9 +9685,31 @@ sicherungEinrichten({
 });
 store.subscribe(() => { sicherungGeaendert(); });
 
+/*
+ * Google Kalender automatisch anschließen (js/kalender-sync.js): Nach jeder
+ * Änderung sieht es nach, ob sich die Vorschau geändert hat – sofort, wenn eine
+ * Einheit anfängt oder fertig wird, sonst gedrosselt. Neu gezeichnet wird wie
+ * bei der Sicherung nur, wo sich dadurch etwas ändert, und nie, während jemand
+ * tippt (das URL-Feld!).
+ */
+kalenderEinrichten({
+  nachher: (() => {
+    let zeile = kalenderZeile();
+    return () => {
+      const neu = kalenderZeile();
+      const dash = ui.tab === 'dashboard' && !ui.focus && !ui.listView && neu !== zeile;
+      zeile = neu;
+      const tippt = !!document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+      if ((ui.tab === 'settings' || dash) && !tippt) render();
+    };
+  })(),
+});
+store.subscribe(() => { kalenderGeaendert(); });
+
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist
 sicherungStart();    // wenn seit der letzten Sicherung etwas dazukam
+kalenderStart();     // die Vorschau für heute, wenn der Kalender verbunden ist
 store.clockResync(); // Zeit, in der die Seite gar nicht lief, zählt nicht mit
 // Neu geladen und sichtbar: Die Uhr eines laufenden Trainings muss wieder
 // anlaufen. Ohne diese Zeile stünde sie bis zum nächsten Wegschalten still.
