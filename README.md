@@ -2249,7 +2249,7 @@ diese App läuft auf dem Handy, also ist der Weg über das Handy der einzige, de
 zählt:
 
 1. **Chrome** öffnen (nicht die Kalender-App) und `calendar.google.com` aufrufen.
-2. Im **Drei-Punkte-Menü** *Desktopseite* anhaken. Ohne das fehlt die
+2. Im **Drei-Punkte-Menü** *Desktopwebsite* anhaken. Ohne das fehlt die
    Einstellungsseite – die mobile Fassung zeigt sie gar nicht erst.
 3. *Einstellungen → **Importieren und exportieren*** → Datei wählen → Kalender
    wählen → *Importieren*.
