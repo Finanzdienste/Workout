@@ -183,6 +183,8 @@ const KAL_WIEDER = [2 * 60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
  *   gesehen     die Fassung der Vorlage, zu der Tobi die Bitte um neuen Code
  *               schon gesehen hat (Ansehen, Code kopieren) – dann steht sie
  *               nicht mehr auf dem Dashboard, nur noch auf der Karte
+ *   kopiert     { zeit, vorlage, ziel }: wann er den Code dafür kopiert hat –
+ *               bleibt die alte Fassung danach, fehlt meist „Neue Version"
  * ------------------------------------------------------------------ */
 
 function kalMeta() {
@@ -512,6 +514,12 @@ export const KALENDER_JAHR = {
     'Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.',
   ],
   danach: 'Fertig. Die App merkt den neuen Code von selbst und schickt dann das ganze Jahr. Bis dahin läuft alles weiter wie bisher.',
+  // Ein paar Minuten nach „Code kopieren" noch die alte Fassung: Am leichtesten
+  // vergisst man „Neue Version" – ohne läuft die Web-App mit dem alten Code.
+  fehltNach: 5 * 60 * 1000,
+  fehlt: 'Der Code ist kopiert, aber das Skript meldet noch Fassung 1. Meist fehlt der letzte Schritt: Bereitstellen → '
+    + 'Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen – ohne ihn läuft die '
+    + 'Web-App mit dem alten Code weiter.',
 };
 
 /** Ein Satz mit Punkt am Ende – ein Hinweis des Skripts kann ohne kommen. */
@@ -1321,6 +1329,7 @@ export function kalenderVergessen() {
  *              bittet um den neuen Code (KALENDER_JAHR)
  *   gesehen    Tobi hat die Bitte schon gesehen (Ansehen, Code kopieren) –
  *              dann nicht mehr auf dem Dashboard
+ *   kopiert    wann er den Code dafür kopiert hat (ms), oder null
  */
 export function kalenderLage() {
   const k = store.kalender();
@@ -1347,6 +1356,8 @@ export function kalenderLage() {
     vertrag: kalVertrag(ziel),
     neuerCode: !!ziel && kalNeuerCode(fassung),
     gesehen: !!vorlage && m.gesehen === vorlage,
+    kopiert: m.kopiert && ziel && m.kopiert.ziel === ziel && m.kopiert.vorlage === vorlage && Number.isFinite(m.kopiert.zeit)
+      ? m.kopiert.zeit : null,
   };
 }
 
@@ -1354,6 +1365,18 @@ export function kalenderLage() {
 export function kalenderJahrGesehen() {
   const v = kalenderVorlageFassung();
   if (v && kalMeta().gesehen !== v) kalMetaSchreiben({ gesehen: v });
+}
+
+/**
+ * „Code kopieren", während neuer Code aussteht: wann. Meldet das Skript ein
+ * paar Minuten danach noch die alte Fassung, fehlt meist „Neue Version" – die
+ * Karte sagt es dann (KALENDER_JAHR.fehlt), statt still dieselbe Bitte zu
+ * zeigen.
+ */
+export function kalenderCodeKopiert() {
+  const v = kalenderVorlageFassung();
+  const ziel = kalZiel(store.kalender());
+  if (v && ziel && kalNeuerCode(kalFassung(ziel))) kalMetaSchreiben({ kopiert: { zeit: Date.now(), vorlage: v, ziel } });
 }
 
 /** Für den Kopf des Diagnoseprotokolls – ohne Kennwort, ohne Adresse. */

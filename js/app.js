@@ -47,9 +47,9 @@ import {
   sicherungTrotzdem, sicherungUebernehmen, sicherungVergessen, sicherungVerstecken,
 } from './sicherung.js';
 import {
-  KALENDER_JAHR, kalenderCode, kalenderEinrichten, kalenderGeaendert, kalenderJahrGesehen, kalenderJetzt, kalenderKurz,
-  kalenderLage, kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen, kalenderVerbinden, kalenderVergessen,
-  kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
+  KALENDER_JAHR, kalenderCode, kalenderCodeKopiert, kalenderEinrichten, kalenderGeaendert, kalenderJahrGesehen, kalenderJetzt,
+  kalenderKurz, kalenderLage, kalenderSatz, kalenderSichtbar, kalenderStart, kalenderTrennen, kalenderVerbinden,
+  kalenderVergessen, kalenderVerbunden, kalenderVerstecken, kalenderVorlage,
 } from './kalender-sync.js';
 import {
   initAudio, playSound, scheduleSound, cancelSound, signalStand, probeSpielen, tonStand, onTonStand,
@@ -873,12 +873,17 @@ function kalenderStandText(l) {
 /**
  * Die Bitte um neuen Code für das Jahr (KALENDER_JAHR in js/kalender-sync.js):
  * kurz, mit den Schritten und „Code kopieren" gleich darunter. Kein
- * „einrichten" – Kalender und Auslöser bestehen schon.
+ * „einrichten" – Kalender und Auslöser bestehen schon. Ist der Code schon ein
+ * paar Minuten kopiert und das Skript meldet weiter die alte Fassung, steht
+ * darüber, was meist fehlt: „Neue Version".
  */
-function kalenderJahrBitte() {
+function kalenderJahrBitte(l) {
   const j = KALENDER_JAHR;
+  const fehlt = l.kopiert && Date.now() - l.kopiert >= j.fehltNach
+    ? `<div class="small" id="kalenderJahrFehlt" style="margin-top:6px;color:var(--accent)">${esc(j.fehlt)}</div>` : '';
   return `<div class="notice" id="kalenderJahr" style="margin-top:8px">
       <strong>${esc(j.titel)}</strong>
+      ${fehlt}
       <div class="small" style="margin-top:4px">${esc(j.satz)}</div>
       <ol class="small kalender-schritte" id="kalenderJahrSchritte">${j.schritte.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>
       <div class="btn-row">
@@ -984,7 +989,7 @@ function kalenderKarte() {
   return `<div class="card" id="kalenderAuto">${was}
       <div class="small" id="kalenderStand" style="margin-top:8px">${esc(kalenderStandText(l))}</div>
       ${l.zuAlt ? `<div class="notice warn" id="kalenderErneuern" style="margin-top:8px">${esc(kalenderSatz({ ergebnis: 'format', hinweis: 'erneuern' }))}</div>` : ''}
-      ${l.neuerCode && !l.zuAlt ? kalenderJahrBitte() : ''}
+      ${l.neuerCode && !l.zuAlt ? kalenderJahrBitte(l) : ''}
       ${meldung}
       <div class="zeit-row">
         <label class="zeit"><span class="lbl">Uhrzeit</span>
@@ -1046,8 +1051,10 @@ async function kalenderCodeKopieren() {
     return;
   }
   // Wer den Code kopiert, hat die Bitte darum gesehen – sie steht dann nicht
-  // mehr auf dem Dashboard, nur noch auf der Karte.
+  // mehr auf dem Dashboard, nur noch auf der Karte. Und wann: Meldet das
+  // Skript Minuten später noch die alte Fassung, sagt die Karte, was meist fehlt.
   kalenderJahrGesehen();
+  kalenderCodeKopiert();
   const gut = () => {
     ui.kalenderCodeText = '';
     // Verbunden gibt es die nummerierten Schritte nicht – dort braucht man den

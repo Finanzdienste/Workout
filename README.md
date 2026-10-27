@@ -2740,8 +2740,9 @@ App öffnet – gerechnet mit „nicht trainiert". An Google geht nur, was im
 Kalender steht (Titel, Übungen, Tage, Uhrzeit), in sein eigenes Konto. Google
 fragt beim Einrichten nach Zugriff auf alle Kalender; dass das Skript nur
 „Workout" anfasst, ist eine Regel seines Codes, keine Sperre von Google.
-Dazu die Grenzen: ohne Netz trainiert, sechs Wochen nicht geöffnet, und
-dass Kennwort und URL mit Sicherung und Exportdatei reisen. Beides steht
+Dazu die Grenzen: ohne Netz trainiert, sechs Wochen nicht geöffnet, dass
+Kennwort und URL mit Sicherung und Exportdatei reisen, und seit v246, dass
+alles hinter den vier Wochen eine Schätzung ist. Beides steht
 zugeklappt unter *Was an Google geht · Grenzen* am Ende der Karte – vorher
 stand es mit rund 200 Wörtern vor den Schritten, und Schritt 1 begann bei
 360 px Breite erst unten am ersten Bildschirm (die Karte war 1326 px hoch).
@@ -3018,6 +3019,7 @@ jeder verpasste Tag schiebt sie um einen weiter, ohne eine Änderung.
 | --- | --- |
 | Tobis Stand, ein Jahr (v 2) | 56,1 KiB (gzip 6,9 KiB), 88 Texte, 192 Termine hinter der Nähe |
 | derselbe Stand nur mit Nähe (v 1) | 34,4 KiB |
+| derselbe Stand, 30, 100 oder 200 Tage nicht geöffnet (alles nachgerückt) | je 54,9 KiB, eine Referenzliste |
 | drei Termine in der Ferne (Padel, ein Turnier, das alles schont, Bouldern) | 75,1 KiB |
 | Fußball jede Woche, 52 Termine | 111,9 KiB, 7 Referenzlisten, 186 Texte |
 | Grenze im Test künstlich auf 45 KiB gesetzt | Ferne gekürzt auf 47 Tage, 43,2 KiB |

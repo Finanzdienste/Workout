@@ -833,6 +833,16 @@ const frischFern = (name, z, ms) => {
     + `Fußball jede Woche ${(b(nF) / 1024).toFixed(1)} KiB (${vF.ferne.listen.length} Referenzlisten, ${Object.keys(nF.texte).length} Texte), `
     + `Rechenzeit ${Math.round(vF.ms)} ms (Ferne ${Math.round(vF.fernMs)} ms)`);
   check(b(nAF) < V.VORSCHAU_MAX_BYTES, `typisch (Tobis Stand) ein Jahr in ${(b(nAF) / 1024).toFixed(1)} KiB – sogar unter 64 KiB`);
+  // Viele verpasste Tage: Die App war lange zu, beim Öffnen ist alles nachgerückt.
+  const verpasst = [];
+  for (const [tage, iso] of [[30, '2026-11-07T12:00:00+01:00'], [100, '2027-01-16T12:00:00+01:00'], [200, '2027-04-26T12:00:00+02:00']]) {
+    const vV = await rechneFern(Z.A, iso);
+    const nV = nutzlast(vV);
+    verpasst.push({ tage, kib: b(nV) / 1024, listen: vV.ferne.listen.length, gekuerzt: vV.gekuerzt, pruef: V.nutzlastPruefen(nV) });
+  }
+  zeige(`Größe nach verpassten Tagen: ${verpasst.map((x) => `${x.tage} Tage ${x.kib.toFixed(1)} KiB (${x.listen} Referenzliste)`).join(', ')}`);
+  check(verpasst.every((x) => x.kib < 64 && x.listen === 1 && !x.gekuerzt && x.pruef === null),
+    'viele verpasste Tage (30, 100, 200): so groß wie an einem gewöhnlichen Tag, eine Referenzliste, unter 64 KiB, nicht gekürzt');
   check(b(nF) < V.VORSCHAU_MAX_BYTES_2 && !vF.gekuerzt && V.nutzlastPruefen(nF) === null,
     `52 Termine in der Ferne: ${(b(nF) / 1024).toFixed(1)} KiB, unter 192 KiB, nicht gekürzt`);
   const eng = await rechneFern(Z.A, '2026-10-08T12:00:00+02:00', { maxBytes: 45 * 1024 });
