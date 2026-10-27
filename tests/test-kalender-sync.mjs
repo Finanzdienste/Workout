@@ -29,7 +29,8 @@
  *      zweiter Haken gedrosselt (der Tagesabschluss ab zwei Sätzen), ein
  *      dritter nichts, andere Änderungen gedrosselt auf einmal in zwei
  *      Minuten, Abschluss sofort, Wegschalten nur mit fertiger Vorschau, ohne
- *      Netz nachgeholt bei „online".
+ *      Netz nachgeholt bei „online". Die Pause (Start, Ende, „+30 s") rechnet
+ *      nicht neu.
  *   4. Die Antworten: anderes Gerät, Kennwort, zu alter Code, Kalender fehlt,
  *      undurchsichtig – was davon auf das Dashboard gehört und was nicht;
  *      „fehler" und „zeit" gehen von selbst noch einmal hinaus.
@@ -819,6 +820,41 @@ await abschnitt(3, async () => {
   check(anWorker.length >= 1 && anWorker.every((x) => x.zustand && !x.geheim),
     `an den Worker geht der Zustand ohne die Verbindung – weder Kennwort noch Adresse (${anWorker.length} Auftrag/Aufträge)`);
   await zu(g);
+
+  // Die Pause (Start, Ende, „+30 s" – store.setRest()) ändert am Kalender
+  // nichts: Die Vorschau liest state.rest nicht. Bis zur Prüfung des Entwurfs
+  // rechnete jede davon die Vorschau samt Jahr neu – der erste Haken mit Pause
+  // zweimal, das Pausenende noch einmal (13 statt 6 Rechnungen für sechs Sätze).
+  const p = await geraet('3 Pause', { kalender: { token: TOKEN, url: URL_A } });
+  await vor(p.page, 4000, 1500);
+  await bis(() => p.skript.vorschauen().length === 1);
+  const auftraege = () => p.page.evaluate(() => (window.__anWorker || []).filter((x) => x.zustand).length);
+  const pause = (art) => p.page.evaluate(async (a) => {
+    const store = await import('./js/store.js');
+    const r = store.getState().rest;
+    if (a === 'start') store.setRest({ endsAt: Date.now() + 90000, total: 90, next: 'Satz 2', ex: null });
+    else if (a === 'plus') store.setRest({ ...r, endsAt: r.endsAt + 30000, total: r.total + 30 });
+    else store.setRest(null);
+  }, art);
+  const a0 = await auftraege();
+  await haken(p.page);
+  await pause('start');
+  await bis(() => p.skript.vorschauen().length === 2, 4000);
+  await vor(p.page, 2500, 1500);
+  const a1 = await auftraege();
+  await pause('plus');
+  await vor(p.page, 2500, 1500);
+  await pause('ende');
+  await vor(p.page, 2500, 1500);
+  const a2 = await auftraege();
+  await haken(p.page, 1);
+  await pause('start');
+  await vor(p.page, 2500, 1500);
+  const a3 = await auftraege();
+  check(p.skript.vorschauen().length === 2 && a1 - a0 === 1 && a2 === a1 && a3 - a2 === 1,
+    `die Pause rechnet nicht neu: erster Haken samt Pausenstart ${a1 - a0} Rechnung, „+30 s" und Pausenende ${a2 - a1}, `
+      + `zweiter Haken samt Pausenstart ${a3 - a2} – je Satz eine statt zwei`);
+  await zu(p);
 });
 
 /* ================================================================== *

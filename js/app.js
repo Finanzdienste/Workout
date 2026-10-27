@@ -9862,7 +9862,8 @@ kalenderEinrichten({
     };
   })(),
 });
-store.subscribe(() => { kalenderGeaendert(); });
+// `was` 'pause': nur die Pause geändert – die rechnet die Vorschau nicht neu.
+store.subscribe((s, was) => { kalenderGeaendert(was); });
 
 render();
 meldeStand();        // einmal am Tag, wenn ein Server eingetragen und erlaubt ist

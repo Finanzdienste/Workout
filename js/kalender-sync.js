@@ -46,6 +46,8 @@
  *   jede andere Änderung         gerechnet 2 s danach, geschickt frühestens
  *                                5 s danach und höchstens alle zwei Minuten
  *                                (auch der zweite Haken)
+ *   die Pause                    gar nicht (Start, Ende, „+30 s") – die
+ *                                Vorschau liest sie nicht
  *   Start                        3 s nach dem Laden: Ein neuer Tag ist eine
  *                                neue Vorschau, und die sechs Wochen zählen
  *                                ab dem letzten Öffnen.
@@ -1105,9 +1107,18 @@ export function kalenderEinrichten(ruf = {}) {
   });
 }
 
-/** Nach jeder Meldung des Stores: sofort, wenn eine Einheit anfängt oder fertig wird, sonst gedrosselt. */
-export function kalenderGeaendert() {
-  if (!kalenderVerbunden()) return;
+/**
+ * Nach jeder Meldung des Stores: sofort, wenn eine Einheit anfängt oder fertig
+ * wird, sonst gedrosselt. Gar nicht, wenn sich nur die Pause geändert hat
+ * (`was` 'pause' – Start, Ende, „+30 s", store.setRest()): Die Vorschau liest
+ * state.rest nicht, es käme dasselbe heraus. Bis zur Prüfung des Entwurfs
+ * rechnete jede davon die Vorschau samt Jahr neu – am ersten Haken zweimal
+ * statt einmal, am Pausenende noch einmal: gemessen 13 statt 6 Rechnungen für
+ * sechs Sätze mit Pause, also rund 40 statt 20 je Training. Mit Fußball jede
+ * Woche kostet jede davon im Worker 2,6–2,8 s.
+ */
+export function kalenderGeaendert(was) {
+  if (was === 'pause' || !kalenderVerbunden()) return;
   kalStandNr += 1;
   kalGeaendertUm = Date.now();
   const z = kalZeichen(store.getState());
