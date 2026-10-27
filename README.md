@@ -2592,10 +2592,11 @@ höchstens 8000 Byte (Google erlaubt 9 KB je Wert und 500 KB insgesamt; eine
 Vorschau von 64 KiB sind höchstens neun Stücke, eine mit Ferne bis 192 KiB
 höchstens 25), dazu eine Meta-Zeile mit Format,
 Generation, Länge und Prüfsumme. Erst wenn die neuen Stücke stehen, zeigt die
-Meta-Zeile auf sie, erst dann gehen die alten. Ist der Speicher beschädigt oder
-in einem unbekannten Format, fasst das Skript den Kalender nicht an und der
-Auslöser wirft (dann schickt Google eine Mail); die nächste gültige Sendung
-ersetzt ihn.
+Meta-Zeile auf sie, erst dann gehen die alten (seit v246 dazu vorher alles,
+was zu keiner geltenden Sendung gehört – unten, *Ein Jahr im Voraus*). Ist der
+Speicher beschädigt oder in einem unbekannten Format, fasst das Skript den
+Kalender nicht an und der Auslöser wirft (dann schickt Google eine Mail); die
+nächste gültige Sendung ersetzt ihn.
 
 **Annehmen.** Erst die Größe (über 192 KiB wird gar nicht ausgepackt, eine
 v 1 darf wie bisher höchstens 64 KiB haben), dann
@@ -2770,7 +2771,9 @@ etwa einer Minute stehen die Termine". „Code kopieren" im verbundenen Zustand
 sagt alle Schritte zum Erneuern (im selben Projekt ersetzen, speichern, *Neue
 Version*) statt auf nummerierte Schritte zu zeigen, die dort nicht stehen –
 seit v246 ohne `einrichten`: Kalender und Auslöser bestehen schon (unten, *Ein
-Jahr im Voraus*).
+Jahr im Voraus*). Steht die Bitte um neuen Code für das Jahr mit ihren
+nummerierten Schritten auf der Karte, verweist die Meldung nur auf sie
+(„… Weiter mit Schritt 2.").
 
 **Das Dashboard** bekommt eine Zeile nur, wenn Tobi selbst etwas richten muss:
 Das Skript kennt das Kennwort nicht, der Code in Apps Script ist älter als die
@@ -2840,6 +2843,7 @@ Test in einem Sprung vorging und der Zeitgeber der Drossel nie lief.)
 | erster Haken einer Einheit | sofort – ab da steht sie auf heute fest; ohne Sendung schöbe der Kalender sie morgen als verpasst weiter |
 | Abschluss einer Einheit | sofort, mit „✓" |
 | jede andere Änderung | gerechnet 2 s danach, geschickt frühestens 5 s danach und höchstens alle zwei Minuten |
+| die Pause (Start, Ende, „+30 s") | gar nicht – die Vorschau liest sie nicht (seit v246, unten *Rechenzeit*) |
 | Start | 3 s nach dem Laden – ein neuer Tag ist eine neue Vorschau, und die sechs Wochen zählen ab dem letzten Öffnen |
 | kein Netz, Skript beschäftigt (`fehler`), keine Antwort in 45 s (`zeit`) | dieselbe Vorschau noch einmal nach 2, 5 und 15 Minuten, solange die Seite lebt, dazu bei `online` und beim Zurückkommen (höchstens einmal je Minute) |
 | Wegschalten | nur, was fertig gerechnet bereitliegt, mit `keepalive` (unter 64 KiB, nach der Sicherung); größer (ein Jahr mit vielen Terminen) gleich in den Ausgang für den Service Worker – ohne Background Sync gewöhnlich, und offen, bis die Antwort da ist |
@@ -3075,7 +3079,13 @@ zehn. Beides im Worker, neben der Oberfläche – im Fenster kostet eine Sendung
 1–3 ms, und während der Worker rechnet, gab es keine lange Aufgabe im Fenster.
 Ein Training mit 20 Sätzen rechnet rund zwanzigmal (2 s nach jedem Haken), an
 Tobis Stand am Handy geschätzt eine Viertelminute Rechenzeit über die ganze
-Stunde, im Hintergrund.
+Stunde, im Hintergrund. Die Pause zählt nicht mit: Pausenstart, „+30 s" und
+Pausenende meldet der Store als `pause` (`store.setRest()`), und die liest die
+Vorschau nicht. Bis zur Prüfung des Entwurfs rechnete jede davon die Vorschau
+samt Jahr noch einmal, ohne dass etwas anderes herauskam – gemessen 13 statt 6
+Rechnungen für sechs Sätze mit Pause, also rund 40 je Training; mit Fußball
+jede Woche wären das am Handy 5–7 Minuten im Worker gewesen, die Hälfte
+umsonst.
 
 **Deshalb nicht seltener.** Gerechnet wird ohnehin entprellt (2 s nach einer
 Änderung, gesendet höchstens alle zwei Minuten, sofort nur beim ersten Haken
@@ -3107,19 +3117,39 @@ der nächsten Stunde) – die Probe ebenso, vom letzten Abgleich.
 Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
 (45 Sekunden). Deshalb:
 
-* `doPost` legt ab und gleicht dann nur 25 Sekunden lang an – das Nächste
-  zuerst: heute und die vier Wochen, dann die letzten Tage, dann die Ferne der
-  Reihe nach. Die Antwort sagt, wie viel noch offen ist (`offen`), bis wann die
-  Liste reicht (`bis`), bis wann der Kalender schon steht (`stehen`) und ob
-  der Rest in Minuten kommt (`folge`) – in Feldern, nicht als Satz im Hinweis:
-  Den Satz „Noch 183 Änderungen offen" zeigte die App bis zur Prüfung des
-  Entwurfs bis zur nächsten Sendung, auch als längst alles eingetragen war.
+* `doPost` legt ab und ist 25 Sekunden nach Eingang der Anfrage mit dem
+  Angleichen fertig – das Nächste zuerst: heute und die vier Wochen, dann die
+  letzten Tage, dann die Ferne der Reihe nach. Das Warten auf die Sperre zählt
+  mit (bis 30 s; ein Lauf `weiter` hält sie bis zu viereinhalb Minuten). Bis
+  zur Prüfung des Entwurfs begannen die 25 s erst danach, und in der Probe kam
+  die Antwort nach 56 s – die App hatte nach 45 s aufgegeben („die Antwort
+  blieb aus") und schickte zwei Minuten später noch einmal. Bleibt nach dem
+  Warten nichts übrig, macht `weiter` den Rest. Die Antwort sagt, wie viel noch
+  offen ist (`offen`), bis wann die Liste reicht (`bis`), bis wann der Kalender
+  schon steht (`stehen`) und ob der Rest in Minuten kommt (`folge`) – in
+  Feldern, nicht als Satz im Hinweis: Den Satz „Noch 183 Änderungen offen"
+  zeigte die App bis zur Prüfung des Entwurfs bis zur nächsten Sendung, auch
+  als längst alles eingetragen war.
 * Bleibt etwas offen, legt das Skript einen einmaligen Auslöser `weiter` an
   (frühestens in drei Minuten), der viereinhalb Minuten lang weitermacht und,
   wenn nötig, den nächsten anlegt – bis alles steht. Nicht, wenn Google bremst:
   dann die nächste Stunde. Ein kleiner Rest (unter zehn Änderungen, keine davon
   in den vier Wochen oder den Tagen davor) wartet ebenfalls auf die nächste
   Stunde.
+* Als unterwegs zählt nur der `weiter`, den das Skript zuletzt selbst angelegt
+  und sich gemerkt hat (`workout.folge`: id und Zeit), und nur bis eine halbe
+  Stunde nach seiner Zeit. Ein gefeuerter einmaliger Auslöser bleibt bei Google
+  gelistet, bis ihn jemand löscht – `weiter` löscht ihn selbst. Bis zur Prüfung
+  des Entwurfs genügte irgendein gelisteter: Scheiterte das Löschen einmal
+  (Google: „server error"), oder brach Google den Lauf vor seiner ersten Zeile
+  ab, kam nie wieder ein neuer, und Beschreibung und App versprachen weiter „in
+  den nächsten Minuten" – nachgetragen wurde nur noch stündlich, bis zum
+  nächsten `einrichten`. Jetzt kommt so ein Rest weg, und ein neuer kommt.
+* Ein ganzer Lauf, der nichts ändern konnte – die Zeit ging schon beim Lesen
+  drauf (bei Google ungemessen; in der Attrappe mit fünf Sekunden je
+  Lesezugriff) –, legt keinen neuen `weiter` an: Läufe ohne Fortschritt im
+  Minutentakt zehrten nur die 90 Minuten auf, die Google den Auslösern am Tag
+  gibt. Dann macht die nächste Stunde weiter, und die Beschreibung sagt das.
 * Die vier Wochen kommen vor der Ferne dran: Von Grund auf stehen sie in der
   Attrappe nach dem ersten Lauf `weiter` ganz, erst dann beginnt die Ferne.
 * Ein verpasster Tag verschiebt das ganze Jahr sanft: je Termin genau ein
@@ -3132,12 +3162,23 @@ Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
   in der nächsten Stunde).
 * Die Beschreibung des Kalenders sagt „Termine bis 27.10.2027" und, solange
   etwas offen ist, „noch 183 Änderungen offen, sie folgen in den nächsten
-  Minuten".
+  Minuten". Hat Google das Tageskontingent aufgebraucht: „… sie folgen
+  morgen." Bis zur Prüfung des Entwurfs stand dort „mit dem nächsten
+  stündlichen Abgleich" und eine Zeile darunter „morgen geht es von selbst
+  weiter"; auf der Karte der App ebenso, auch das sagt jetzt „morgen".
 * Der Speicher bleibt im Format 1 – eine Sendung mit Ferne ist nur länger. Die
   Termine von Fassung 1 tragen dieselben Markierungen und Kennungen und werden
   übernommen, nicht neu angelegt. Hinter der Ferne einer v 2 räumt das Skript
   eigene Termine weg (die App hat gekürzt); eine v 1 lässt sie stehen, bis die
   Nähe sie erreicht.
+* Vor dem Ablegen einer Sendung kommen Stücke weg, die zu keiner geltenden
+  gehören. Bis zur Prüfung des Entwurfs blieben die Reste eines Löschens, das
+  mittendrin scheiterte, für immer: Jede neue Sendung brauchte Platz für sie,
+  die geltende und sich selbst, und mit Sendungen von 185 KiB nahm das Skript
+  danach keine mehr an (500 KB voll) – es glich weiter nach der alten an.
+  Scheitert das Löschen nach dem Umschalten, ist das auch kein Fehler der
+  Sendung mehr (bis dahin „fehler", obwohl sie galt); die Reste gehen mit der
+  nächsten.
 * Workout 84 am Tag des Rundenwechsels gemacht: Sein Termin bleibt jetzt stehen
   – bis v245 kam er weg, weil er „heute" lag und die Liste nur noch Runde 2
   kannte. Eine Schätzung von Runde 2, die in der Vergangenheit liegt und nicht
@@ -3151,8 +3192,19 @@ der Startseite steht einmal, ohne Warnfarbe (kaputt ist nichts): „Google
 Kalender: Ein Jahr im Voraus geht jetzt – dafür einmal den Code im Skript
 erneuern." mit *Ansehen*. Einmal heißt: bis er sie angesehen oder den Code
 kopiert hat – Mehr → Kalender schaut er von sich aus nicht an, dort allein sähe
-er die Bitte nie. Auf der Karte steht sie, bis die App die neue Fassung sieht,
-wörtlich so:
+er die Bitte nie. Klein gesetzt wie die Zeile zum Ton, und sie eilt nicht:
+Steht oben schon eine andere Zeile (Tagesabschluss, Ton, Sicherung, Kalender)
+oder ist an der Einheit schon etwas abgehakt, tritt sie zurück und kommt, wenn
+das weg ist. Bis zur Prüfung des Entwurfs stand sie als gewöhnliche Zeile da
+(97 px), und bei 360×740 lag der Fuß der Startseite 26 px unter der Leiste;
+jetzt 69 px, und die Seite bleibt eine Seite. *Ansehen* springt zur Bitte –
+unter die Kopfleiste, nicht dahinter (`scroll-padding-top` am Dokument; das
+hilft auch den Sprüngen zu *Kalender*, *Daten* und *Trainingsfokus*). Bis zur
+Prüfung lagen Überschrift und erster Satz der Bitte darunter, und lesbar begann
+sie mitten im Satz. Oben auf der Karte steht bei Fassung 1 „… vier Wochen im
+Voraus (ein Jahr mit neuem Code, siehe unten)" – bis zur Prüfung „ein Jahr im
+Voraus", zwei Absätze über „trägt nur die nächsten vier Wochen ein". Die Bitte
+selbst steht auf der Karte, bis die App die neue Fassung sieht, wörtlich so:
 
 > **Ein Jahr im Voraus.** Dein Skript bei Google ist noch Fassung 1 und trägt
 > nur die nächsten vier Wochen ein. Für ein ganzes Jahr braucht es einmal den
@@ -3176,10 +3228,30 @@ alten, schadet auch das nicht (jede Fassung liest jedes Speicherformat, oben
 Fassung 1 (CalendarApp, ScriptApp, PropertiesService, LockService,
 ContentService, Utilities), Google braucht also keine neuen Rechte. Fehlt doch
 etwas, sagt es das Skript in seiner Antwort, und die App sagt dann
-„einrichten". Zu wählen gibt es nichts: Zurück aus Apps Script fragt die App
-beim Start und beim Zurückkommen höchstens alle zwei Minuten mit einer Probe
-nach, sieht Fassung 2 und schickt das Jahr. Die vier Wochen stehen ja schon;
-das Jahr dahinter folgt in ein paar Läufen `weiter`.
+„einrichten".
+
+Nach *Code kopieren* steht unter den Schritten nur: „Code kopiert – mit
+demselben Kennwort wie bisher. Weiter mit Schritt 2." Bis zur Prüfung des
+Entwurfs wiederholte die Meldung dort die Schritte 3 und 4 in sieben Zeilen.
+Sie geht, sobald eine Antwort nach dem Kopieren die Fassung sagt.
+
+Zu wählen gibt es nichts: Zurück aus Apps Script fragt die App mit einer Probe
+nach – sonst höchstens alle zwei Minuten, in der halben Stunde nach *Code
+kopieren* gleich beim Zurückkommen (höchstens alle zehn Sekunden) und, solange
+sie zu sehen ist, alle zwei Minuten von selbst. Bis zur Prüfung des Entwurfs
+merkte sie den neuen Code nicht, wenn Tobi nach 90 Sekunden zurück war und auf
+der Karte blieb: Gefragt hatte sie eben erst, beim Zeichnen der Karte, und das
+nächste Mal erst nach dem nächsten Wegschalten. Sieht sie Fassung 2, schickt
+sie das Jahr – genau einmal, auch wenn er zwischendurch kurz wegschaltet.
+Solange es beim Skript liegt (`doPost` gleicht bis zu 25 Sekunden an), steht
+auf der Karte:
+
+> ✓ Verbunden. Neuer Code erkannt (Skript Fassung 2) – das ganze Jahr geht
+> jetzt an das Skript. Zuletzt angekommen: vor 6 Min.
+
+Bis zur Prüfung stand dort so lange „(Skript Fassung 1)", ohne ein Wort zum
+Jahr – genau wenn Tobi nachsieht, ob es geklappt hat. Die vier Wochen stehen ja
+schon; das Jahr dahinter folgt in ein paar Läufen `weiter`.
 
 **Wenn „Neue Version" fehlt.** Das ist der Schritt, den man am leichtesten
 vergisst (oben, *Einrichten*), und ohne ihn läuft die Web-App mit dem alten
@@ -3194,7 +3266,10 @@ länger nach „Code kopieren" noch Fassung 1, steht über der Bitte:
 
 Gezählt wird die Zeit der Antwort, nicht die des Anzeigens. Bis zur Prüfung des
 Entwurfs hing der Satz an der Uhr beim Zeichnen: Kam Tobi nach sechs Minuten mit
-allem erledigt zurück, stand er da, bis die Nachfrage Fassung 2 meldete.
+allem erledigt zurück, stand er da, bis die Nachfrage Fassung 2 meldete. Die
+grüne Meldung vom Kopieren („… merkt den neuen Code von selbst") steht dann
+nicht mehr daneben; bis zur Prüfung stand sie die ganze Sitzung neben dem
+orangen Satz, und Schritt 4 stand dreimal auf dem Schirm.
 
 **Während das Skript das Jahr einträgt**, sagt die Karte, was schon steht: „Im
 Kalender: Termine bis 10.12.2026. Den Rest bis 27.10.2027 trägt das Skript in
@@ -3254,14 +3329,25 @@ aus denselben Diensten, zeigt aber erst Tobis Konto. Fragt es doch, erlaubt Tobi
 es wie beim Einrichten; bliebe es unerlaubt, käme keine Sendung beim Skript an,
 die Karte sagte „nicht das Skript", Google schickte die Mail „Summary of
 failures" – und `einrichten` einmal ausführen hilft, wie die Karte schon sagt.
-Ob ein einmaliger Auslöser nach dem Feuern bei Google stehen bleibt, ist
-ungeprüft – `weiter` löscht ihn deshalb selbst, und `einrichten` räumt jeden
-alten Auslöser weg. Wann Google ihn feuert, ist nicht auf die Minute zugesagt:
-Die Dokumentation von `after()` nennt eine Unschärfe von einer Viertelstunde.
-Dann dauert das Auffüllen länger – im schlechtesten Fall um die Stunde, denn
-auch jeder stündliche Lauf macht weiter, wo der letzte aufgehört hat. Ob ein
+Dass ein gefeuerter einmaliger Auslöser bei Google gelistet bleibt, bis ihn
+jemand löscht, sagen Erfahrungsberichte, nicht Googles Dokumentation – das
+Skript rechnet damit (oben, nur der gemerkte zählt), `weiter` löscht ihn
+selbst, und `einrichten` räumt jeden alten Auslöser weg. Wann Google ihn
+feuert, sagt Google nicht genau: `after()` heißt nur „frühestens nach drei
+Minuten" – „The actual duration might vary, but won't be less than your
+specified minimum" –, eine Obergrenze nennt die Dokumentation nicht. (Die
+±15 Minuten dort gehören zu `nearMinute()`; bis zur Prüfung des Entwurfs stand
+hier, `after()` habe sie.) Kommt `weiter` spät oder gar nicht, legt der nächste
+Lauf eine halbe Stunde nach seiner Zeit einen neuen an, und jeder stündliche
+Lauf macht weiter, wo der letzte aufgehört hat – das Auffüllen dauert dann ein
+paar Stunden statt Minuten; die vier Wochen kommen trotzdem zuerst. Während
+`weiter` läuft (bis zu viereinhalb Minuten), wartet eine Sendung der App bis zu
+30 Sekunden auf die Sperre und bekommt sonst „beschäftigt" – die App schickt
+sie nach 2, 5 und 15 Minuten noch einmal, der Service Worker ebenso; einen
+Vorrang für die App gibt es nicht. Ob ein
 Lesezugriff auf einen schon geladenen Termin bei Google ein eigener Aufruf ist,
-ist ungeprüft; deshalb liest eine ruhige Stunde nur die Nähe. Auf dem iPhone
+ist ungeprüft; deshalb liest eine ruhige Stunde nur die Nähe, und ein Lauf, der
+vor lauter Lesen nichts schafft, legt keinen `weiter` nach. Auf dem iPhone
 gibt es keinen Background Sync: Eine Sendung über 64 KiB geht beim Wegschalten
 dort gewöhnlich hinaus, so weit die Seite noch kommt, und gilt als offen, bis
 die Antwort da ist – kam sie nicht an, geht sie beim Zurückkommen noch einmal.
