@@ -1543,10 +1543,17 @@ const listeVon = (n, tag) => [...n.tage[tag], ...V.fernListe(n, tag)];
     `danach v 2: das ganze Jahr (${eigene(k).length} Termine)`);
   w.jetzt = um('2026-10-08T13:00:05+02:00');
   const bis = addDays('2026-10-08', N2.Kurz.ferne.bis);
+  // Fremdes in der Ferne, hinter der gekürzten Grenze: von Hand eingetragen,
+  // und eine eingelesene Kalenderdatei mit derselben Einheit, aber ohne die
+  // Markierung des Skripts. Das Aufräumen dahinter fasst nur Eigenes an.
+  fremd(k, 'Urlaub', '2027-03-01T09:00:00+01:00', 600);
+  fremd(k, 'Workout 30 · aus der Datei', '2027-03-02T18:00:00+01:00', 60, { workout: 'cut-2-30' });
+  const fremdVorher = fremdBild(w);
   const a3 = post(p, N2.Kurz).a;
   check(a3.ok && a3.bis === bis && !abweichung(k, N2.Kurz, '2026-10-08') && eigene(k).every((t) => tagB(t.beginn) <= bis)
     && new RegExp(`Termine bis ${bis.split('-').reverse().join('.')}\\.`).test(k.beschreibung),
   `eine gekürzte Ferne (bis ${bis}): was dahinter stand, ist weg, und die Beschreibung sagt „Termine bis ${bis.split('-').reverse().join('.')}"`);
+  check(fremdBild(w) === fremdVorher, '… fremde Termine dahinter bleiben, wie sie sind – auch eine eingelesene Einheit ohne die Markierung des Skripts');
   w.jetzt = um('2026-10-08T14:00:05+02:00');
   post(p, { ...N2.A, seq: 40, gesendet: um('2026-10-08T14:00:00+02:00') });
   const weit = eigene(k).filter((t) => tagB(t.beginn) > '2026-11-05').length;
