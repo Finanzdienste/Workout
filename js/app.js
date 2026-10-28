@@ -851,15 +851,16 @@ const kalenderDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${
  * 183 Änderungen offen. Gekürzt hat die App nur, wenn die Sendung sonst zu
  * groß geworden wäre; das steht dann dabei, statt still weniger zu zeigen.
  *
- * `morgen`: Google hat das Tageskontingent aufgebraucht, und das Skript sagt
- * „morgen geht es von selbst weiter" – dann darüber nicht „mit dem nächsten
- * stündlichen Abgleich" (die nächste Stunde schafft es nicht).
+ * `s.morgen`: Google hat das Tageskontingent aufgebraucht – dann nicht „mit
+ * dem nächsten stündlichen Abgleich" (die nächste Stunde schafft es nicht).
+ * Es kommt aus derselben Auskunft wie `offen` (kalStand() in
+ * js/kalender-sync.js), nicht aus dem Hinweis der letzten Sendung.
  */
-function kalenderImKalender(s, wann, morgen = false) {
+function kalenderImKalender(s, wann) {
   if (!s || !s.bis) return '';
   const kurz = s.gekuerzt ? ' Diesmal nicht ein ganzes Jahr – die Sendung wäre sonst zu groß geworden (viele verschiedene Termine).' : '';
   if (s.offen > 0) {
-    const spaet = morgen && !s.folge;
+    const spaet = s.morgen && !s.folge;
     const wie = s.folge ? 'in den nächsten Minuten' : spaet ? 'morgen' : 'mit dem nächsten stündlichen Abgleich';
     const noch = `noch ${s.offen} ${s.offen === 1 ? 'Änderung' : 'Änderungen'}`;
     const stand = s.probe ? ` (Stand ${wann(s.zeit)})` : '';
@@ -885,11 +886,8 @@ function kalenderStandText(l) {
   const punkt = (s) => (/[.!?…]$/.test(s) ? s : `${s}.`);
   const teile = [];
   const fassung = l.fassung ?? (l.angekommen ? l.angekommen.version : null);
-  // Neuer Code erkannt, das Jahr ist unterwegs: Die Antwort mit Fassung 2 kam
-  // nach der letzten Sendung, die ankam, und die war noch keine mit dem Jahr.
-  const unterwegs = !!l.angekommen && fassung >= 2 && l.angekommen.vertrag !== 2
-    && Number.isFinite(l.fassungZeit) && l.fassungZeit > l.angekommen.zeit;
-  if (unterwegs) {
+  // Neuer Code erkannt, das Jahr ist unterwegs (kalenderLage().unterwegs).
+  if (l.unterwegs) {
     teile.push(`✓ Verbunden. Neuer Code erkannt (Skript Fassung ${fassung}) – das ganze Jahr geht jetzt an das Skript. `
       + `Zuletzt angekommen: ${punkt(wann(l.angekommen.zeit))}`);
   } else if (l.angekommen) {
@@ -898,14 +896,24 @@ function kalenderStandText(l) {
     teile.push(l.letzte && !l.letzte.ok ? 'Verbunden, aber beim Skript ist noch nichts angekommen.'
       : 'Verbunden – die erste Vorschau ist unterwegs.');
   }
-  const morgen = !!(l.letzte && l.letzte.ok && /Tageskontingent/.test(l.letzte.hinweis || ''));
-  const im = kalenderImKalender(l.stand, wann, morgen);
+  const im = kalenderImKalender(l.stand, wann);
   if (im) teile.push(im);
-  if (l.letzte && !l.letzte.ok && !l.zuAlt) {
+  // Ein gescheiterter Versuch, nach dem der Service Worker doch zugestellt
+  // hat, ist überholt (kalenderLage().nachgeholt). Und „Tageskontingent
+  // aufgebraucht – morgen …" galt der letzten Sendung: Ist der Stand jünger
+  // als sie – eine Probe danach oder eine Sendung, die der Service Worker
+  // nachgeschickt hat –, sagt der Satz darüber, wie es jetzt weitergeht. Kam
+  // der Stand mit ihr, ist er genauso alt, und der Hinweis bleibt. Bis zur
+  // Prüfung der Nachbesserung zählte nur die Probe: Neben dem Stand einer
+  // nachgeschickten Sendung (über 64 KiB beim Wegschalten, kalGrossWeg() in
+  // js/kalender-sync.js – sie wird nicht der letzte Versuch) stand „mit dem
+  // nächsten stündlichen Abgleich" und „morgen geht es von selbst weiter".
+  const kontingentAlt = !!(l.letzte && l.letzte.morgen && l.stand && Number.isFinite(l.stand.zeit) && l.stand.zeit > l.letzte.zeit);
+  if (l.letzte && !l.letzte.ok && !l.zuAlt && !l.nachgeholt) {
     const satz = kalenderSatz(l.letzte);
     teile.push(`Letzter Versuch ${wann(l.letzte.zeit)}: ${satz}`);
     if (l.letzte.wieder && !/noch einmal/.test(satz)) teile.push('Die App versucht es gleich noch einmal.');
-  } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe') {
+  } else if (l.letzte && l.letzte.ok && l.letzte.hinweis && l.letzte.art !== 'probe' && !kontingentAlt) {
     teile.push(`Das Skript sagt: ${l.letzte.hinweis}`);
   }
   if (l.nach) teile.push(`Ohne Netz trainiert: Im Hintergrund nachgeschickt ${wann(l.nach.zeit)}.`);

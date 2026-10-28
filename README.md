@@ -3085,7 +3085,14 @@ Vorschau nicht. Bis zur Prüfung des Entwurfs rechnete jede davon die Vorschau
 samt Jahr noch einmal, ohne dass etwas anderes herauskam – gemessen 13 statt 6
 Rechnungen für sechs Sätze mit Pause, also rund 40 je Training; mit Fußball
 jede Woche wären das am Handy 5–7 Minuten im Worker gewesen, die Hälfte
-umsonst.
+umsonst. Dafür muss sich alles andere melden. Eine Beschwerde tat es nicht
+(`store.toggleInjury()`, `store.clearInjuries()` – schon vor v246): Solange
+das Pausenende neu rechnete, fiel das im Training nicht auf. Danach ging nach
+einer Beschwerde, die Tobi in der Pause an der Übung anhakt („Wenn etwas weh
+tut"), die Vorschau von davor hinaus, mit der gesperrten Übung, und unter
+Mehr → Verletzungen ging nach dem Anhaken oder „Alle Haken entfernen" gar
+nichts hinaus – bis zur nächsten Änderung. Gefunden beim Gegenlesen von v246;
+jetzt melden sich beide, und auch die Sicherung erfährt davon.
 
 **Deshalb nicht seltener.** Gerechnet wird ohnehin entprellt (2 s nach einer
 Änderung, gesendet höchstens alle zwei Minuten, sofort nur beim ersten Haken
@@ -3110,8 +3117,9 @@ App dieselbe Vorschau gleich als v 1, ohne Warnzeile; ging die v 2 beim
 Wegschalten hinaus, beim Zurückkommen. Probe und „aus" gehen immer als v 1.
 Die Antwort der Fassung 2 trägt dazu `offen` (so viele Änderungen stehen noch
 aus), `bis` (so weit reicht die Liste), `stehen` (bis dahin stimmt der
-Kalender schon ganz) und `folge` (kommt der Rest in ein paar Minuten oder mit
-der nächsten Stunde) – die Probe ebenso, vom letzten Abgleich.
+Kalender schon ganz), `folge` (kommt der Rest in ein paar Minuten oder mit
+der nächsten Stunde) und `morgen` (Google lässt heute nichts mehr zu,
+Tageskontingent) – die Probe ebenso, vom letzten Abgleich.
 
 **Das Skript, Fassung 2.** Ein Jahr anzulegen dauert länger, als ein Lauf bei
 Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
@@ -3126,10 +3134,10 @@ Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
   blieb aus") und schickte zwei Minuten später noch einmal. Bleibt nach dem
   Warten nichts übrig, macht `weiter` den Rest. Die Antwort sagt, wie viel noch
   offen ist (`offen`), bis wann die Liste reicht (`bis`), bis wann der Kalender
-  schon steht (`stehen`) und ob der Rest in Minuten kommt (`folge`) – in
-  Feldern, nicht als Satz im Hinweis: Den Satz „Noch 183 Änderungen offen"
-  zeigte die App bis zur Prüfung des Entwurfs bis zur nächsten Sendung, auch
-  als längst alles eingetragen war.
+  schon steht (`stehen`) und ob der Rest in Minuten kommt (`folge`) oder erst
+  morgen (`morgen`) – in Feldern, nicht als Satz im Hinweis: Den Satz „Noch
+  183 Änderungen offen" zeigte die App bis zur Prüfung des Entwurfs bis zur
+  nächsten Sendung, auch als längst alles eingetragen war.
 * Bleibt etwas offen, legt das Skript einen einmaligen Auslöser `weiter` an
   (frühestens in drei Minuten), der viereinhalb Minuten lang weitermacht und,
   wenn nötig, den nächsten anlegt – bis alles steht. Nicht, wenn Google bremst:
@@ -3155,17 +3163,35 @@ Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
 * Ein verpasster Tag verschiebt das ganze Jahr sanft: je Termin genau ein
   Schreibzugriff (`setTime`); Titel, Beschreibung und Erinnerung nur, wenn sie
   anders sind; nichts wird neu angelegt.
-* Eine ruhige Stunde – dieselbe Sendung, derselbe Tag, der letzte Lauf fertig –
-  prüft nur die Nähe: 252 Lesezugriffe statt 2341 für das ganze Jahr. Einen
-  Termin in der Ferne, den Tobi von Hand verschiebt, stellt das Skript deshalb
-  erst in der ersten Stunde des nächsten Tages zurück (in der Nähe wie bisher
-  in der nächsten Stunde).
+* Eine ruhige Stunde – dieselbe Sendung, derselbe Tag, derselbe Kalender, der
+  letzte Lauf fertig – prüft nur die Nähe: 252 Lesezugriffe statt 2341 für das
+  ganze Jahr. Einen Termin in der Ferne, den Tobi von Hand verschiebt, stellt
+  das Skript deshalb erst in der ersten Stunde des nächsten Tages zurück (in der
+  Nähe wie bisher in der nächsten Stunde). Den Kalender merkt es sich mit
+  (`workout.ferne`), seit dem Gegenlesen von v246: Löschte Tobi „Workout" und
+  führte „einrichten" noch am selben Tag aus, bekam der neue, leere Kalender
+  bis dahin nur die vier Wochen, und Beschreibung, Antwort und Karte sagten
+  trotzdem „Termine bis" in einem Jahr – bis zum ersten Lauf am nächsten Tag.
 * Die Beschreibung des Kalenders sagt „Termine bis 27.10.2027" und, solange
   etwas offen ist, „noch 183 Änderungen offen, sie folgen in den nächsten
   Minuten". Hat Google das Tageskontingent aufgebraucht: „… sie folgen
   morgen." Bis zur Prüfung des Entwurfs stand dort „mit dem nächsten
   stündlichen Abgleich" und eine Zeile darunter „morgen geht es von selbst
-  weiter"; auf der Karte der App ebenso, auch das sagt jetzt „morgen".
+  weiter". Die Karte der App sagt „morgen", wenn die jüngste Auskunft es sagt
+  (`morgen` in Antwort und Probe). Bis zum Gegenlesen von v246 las sie es aus
+  dem Hinweis der Antwort auf die letzte Sendung – das traf nur, wenn das
+  Kontingent schon in `doPost` ausging. Ging es in einem Lauf `weiter` aus (so
+  trägt sich das Jahr gewöhnlich ein), versprach die Karte die nächste
+  Stunde; und stand es im Hinweis, blieb „morgen" auch dann, als eine Probe am
+  nächsten Tag einen kleinen Rest für die nächste Stunde meldete. Den Hinweis
+  von gestern wiederholt die Karte nicht mehr, sobald ein neuerer Stand da ist
+  – aus einer Probe oder von einer Sendung, die der Service Worker
+  nachgeschickt hat. Bis zur Prüfung der Nachbesserung zählte dafür nur die
+  Probe: Eine Sendung über 64 KiB, die beim Wegschalten über den Service
+  Worker geht, wird nicht der letzte Versuch, und neben ihrem Stand („… mit
+  dem nächsten stündlichen Abgleich nach – noch 3 Änderungen") stand weiter
+  „morgen geht es von selbst weiter"; war nichts mehr offen, bis zur nächsten
+  eigenen Sendung, denn nachgefragt wird dann nicht mehr.
 * Der Speicher bleibt im Format 1 – eine Sendung mit Ferne ist nur länger. Die
   Termine von Fassung 1 tragen dieselben Markierungen und Kennungen und werden
   übernommen, nicht neu angelegt. Hinter der Ferne einer v 2 räumt das Skript
@@ -3178,7 +3204,14 @@ Google darf (sechs Minuten), und länger, als die App auf eine Antwort wartet
   danach keine mehr an (500 KB voll) – es glich weiter nach der alten an.
   Scheitert das Löschen nach dem Umschalten, ist das auch kein Fehler der
   Sendung mehr (bis dahin „fehler", obwohl sie galt); die Reste gehen mit der
-  nächsten.
+  nächsten. Weg kommt dabei nur, was sicher zu keiner geltenden gehört:
+  Scheitert schon das Lesen der Meta-Zeile (Google: „Service error"), antwortet
+  `doPost` jetzt „fehler" – die App schickt es noch einmal –, statt den
+  Speicher für leer zu halten. Bis zum Gegenlesen von v246 räumte es dann die
+  Stücke der geltenden Sendung weg; scheiterte danach noch ein Zugriff, zeigte
+  die Meta-Zeile auf Gelöschtes, jeder Lauf warf „unvollständig", und der
+  Kalender verschob nichts, bis eine Sendung durchkam. Und eine ältere Sendung
+  galt in dem Fall als neu.
 * Workout 84 am Tag des Rundenwechsels gemacht: Sein Termin bleibt jetzt stehen
   – bis v245 kam er weg, weil er „heute" lag und die Liste nur noch Runde 2
   kannte. Eine Schätzung von Runde 2, die in der Vergangenheit liegt und nicht
@@ -3254,7 +3287,19 @@ auf der Karte:
 
 Bis zur Prüfung stand dort so lange „(Skript Fassung 1)", ohne ein Wort zum
 Jahr – genau wenn Tobi nachsieht, ob es geklappt hat. Die vier Wochen stehen ja
-schon; das Jahr dahinter folgt in ein paar Läufen `weiter`.
+schon; das Jahr dahinter folgt in ein paar Läufen `weiter`. Der Satz geht,
+sobald die erste Sendung mit dem Jahr angekommen oder endgültig beantwortet
+ist. Bis zum Gegenlesen von v246 blieb er in zwei Fällen stehen, bis die App
+selbst wieder etwas zustellte (der nächste Haken, ein neuer Tag): wenn die
+erste v 2 vorübergehend scheiterte, Tobi die App vor der Wiederholung schloss
+und der Service Worker sie nachschickte – die App vermerkte die Ankunft nicht
+als Sendung, die ankam, und sagte auch nicht, was schon im Kalender steht –,
+und wenn das Skript sie mit `aelter` beantwortete (ein anderes Gerät hat
+zuletzt trainiert). Jetzt reisen Vertrag, Kürzung und die Auskunft der Antwort
+(`offen`, `bis`, `stehen`, `folge`, `morgen`) über den Ausgang und den Vermerk
+des Service Workers mit; die nachgeschickte Sendung gilt als die, die zuletzt
+ankam, und der gescheiterte Versuch davor steht nicht mehr als „Letzter
+Versuch" auf der Karte.
 
 **Wenn „Neue Version" fehlt.** Das ist der Schritt, den man am leichtesten
 vergisst (oben, *Einrichten*), und ohne ihn läuft die Web-App mit dem alten
@@ -3330,8 +3375,39 @@ Fassung 1, die kurze Meldung nach dem Kopieren, schnell zurück nach 90 s, auf
 der Karte geblieben, „Neuer Code erkannt", solange die erste v 2 beim Skript
 liegt (und keine zweite), die grüne Meldung neben „Neue Version fehlt" und das
 Tageskontingent auf der Karte. Gegen den Stand vor dieser Prüfung (ed2a885)
-gelaufen: das Skript an acht Stellen rot, die App an 15 – jeder Befund. Am
-Stand von v246 einzeln gelaufen: 164, 178 und 219 Prüfungen, alle grün.
+gelaufen: das Skript an acht Stellen rot, die App an 15 – jeder Befund. Danach
+einzeln gelaufen: 164, 178 und 219 Prüfungen, alle grün.
+
+Aus dem Gegenlesen von v246 kamen sechs Befunde, jeder erst nachgestellt, dann
+behoben: im Skript (Abschnitt 11) das Tageskontingent in einem Lauf `weiter`
+(die Probe sagt `morgen`), ein Lesefehler an der Meta-Zeile mit einem zweiten
+Fehler beim Speichern (`doPost` löscht nichts und antwortet „fehler", und eine
+ältere Sendung gilt dabei nicht als neu) und „Workout", gelöscht und am selben
+Tag neu eingerichtet (213 Termine statt 21); in der App (Abschnitt 16) eine
+Beschwerde in der Pause an der Übung, ganz über die Oberfläche, Anhaken und
+„Alle Haken entfernen" unter Mehr → Verletzungen, das Kontingent in `weiter`
+und am nächsten Tag vorbei, die erste v 2 über den Service Worker und als
+`aelter` beantwortet; in `tests/test-injuries.mjs` je eine Meldung an den
+Store. Gegen ba32bd2 gelaufen: das Skript an neun Stellen rot, die App an
+sechs, die Beschwerden an einer – jeder Befund. Danach einzeln gelaufen:
+164, 187 und 226 Prüfungen, alle grün; Tobis Weg von Fassung 1 (9b) und v 1
+und v 2 im Wechsel (9e) unverändert. Die Fassung des Skripts bleibt 2:
+derselbe Vertrag mit einem Feld mehr in der Antwort (`morgen`), das eine
+ältere App überliest, und `workout.ferne` merkt sich den Kalender mit (eine
+Zeile ohne ihn gilt als nicht fertig – der Lauf liest das Jahr dann einmal
+ganz). Fassung 1 liest aus `workout.abgleich` nur Tag und Zeit; das neue Feld
+dort stört sie nicht.
+
+Die Prüfung dieser Nachbesserung fand eine Lücke, die erst die Nachbesserung
+selbst aufgemacht hatte. Seit ihr gilt eine Sendung, die der Service Worker
+nachgeschickt hat, als die, die zuletzt ankam – und neben ihrem Stand stand
+der Kontingent-Hinweis der letzten eigenen Sendung weiter da (oben beim
+Tageskontingent). Vorher blieb der Stand bei der eigenen Sendung – veraltet,
+aber ohne Widerspruch. Nachgestellt in Abschnitt 16 f mit echtem Service
+Worker und 52 Terminen (105,7 KiB, beim Wegschalten über den Ausgang): nach
+einer Probe, mit drei Änderungen offen, und dann ganz ohne Rest. Gegen 123c0d3
+gelaufen: zwei Zeilen rot, genau die beiden mit dem Widerspruch; danach
+230 Prüfungen, alle grün. Das Skript ist dafür nicht angefasst.
 
 **Ehrlich dazugesagt.** Gemessen ist bei Google nur das Anlegen: Fassung 1 legte
 bei Tobi am 27.10. 18 Termine in 53 Sekunden an, rund drei Sekunden je Termin

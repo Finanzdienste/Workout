@@ -62,6 +62,10 @@
  *      – die Attrappe hält es so); ein Lauf, der vor lauter Lesen nichts
  *      schafft; doPost nach 28 s Warten auf die Sperre; ein gescheitertes
  *      Löschen alter Stücke im Speicher; das Tageskontingent mitten im Jahr.
+ *  11. Was das Gegenlesen von v246 fand: das Tageskontingent in einem Lauf
+ *      „weiter" (die Probe sagt „morgen"); ein Lesefehler an der Meta-Zeile
+ *      (doPost löscht nichts, eine ältere Sendung gilt nicht als neu); ein
+ *      gelöschter Kalender, am selben Tag neu eingerichtet (wieder das Jahr).
  */
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -1806,8 +1810,128 @@ const jahrBeginnt = () => {
   let a;
   try { a = post(p, N2.A).a; } finally { Kal.prototype.createEvent = orig; }
   const b = k.beschreibung;
-  check(a.ok && a.offen > 0 && a.folge === false && /Tageskontingent/.test(a.hinweis || '') && /offen, sie folgen morgen\./.test(b) && !/stündlichen Abgleich/.test(b),
-    `Tageskontingent aufgebraucht: „${zeileB(k, 2)}" – ohne „mit dem nächsten stündlichen Abgleich"`);
+  check(a.ok && a.offen > 0 && a.folge === false && a.morgen === true && /Tageskontingent/.test(a.hinweis || '') && /offen, sie folgen morgen\./.test(b)
+    && !/stündlichen Abgleich/.test(b),
+  `Tageskontingent aufgebraucht: „${zeileB(k, 2)}" – ohne „mit dem nächsten stündlichen Abgleich"; die Antwort sagt es auch (morgen ${a.morgen})`);
+}
+
+/* ------------------------------------------------------------------ *
+ * 11. Was das Gegenlesen von v246 fand
+ * ------------------------------------------------------------------ */
+
+{
+  // 11a. Das Tageskontingent geht nicht im doPost aus, sondern in einem Lauf
+  // „weiter" – so trägt sich das Jahr gewöhnlich ein: doPost schafft in 25 s
+  // ein paar Termine, den Rest machen die Läufe. Die Beschreibung sagt dann
+  // „morgen", und die Probe, mit der die App nachfragt, muss es auch sagen.
+  // Bis zum Gegenlesen von v246 sagte sie nur offen und folge false (morgen
+  // kannte allein der Hinweis der Antwort auf die Sendung), und die Karte
+  // versprach „mit dem nächsten stündlichen Abgleich" – die nächste Stunde
+  // scheiterte wieder am Kontingent.
+  const { w, p, k, a } = jahrBeginnt();
+  const orig = Kal.prototype.createEvent;
+  Kal.prototype.createEvent = function createEvent() { throw new Error('Service invoked too many times for one day: calendar.'); };
+  let fehler = null;
+  try { weiterFeuern(p, spaeter(w, 4)); } catch (e) { fehler = e; } finally { Kal.prototype.createEvent = orig; }
+  const pr = probe(p);
+  check(a.ok && a.offen > 0 && a.folge === true && a.morgen === false && !/Tageskontingent/.test(a.hinweis || ''),
+    `die Sendung: noch ${a.offen} offen, der Rest in Minuten (folge ${a.folge}, morgen ${a.morgen}) – noch kein Wort vom Kontingent`);
+  check(fehler && /Tageskontingent/.test(fehler.message) && /offen, sie folgen morgen\./.test(zeileB(k, 2)) && !wartend(p).length
+    && pr.ok && pr.offen > 0 && pr.folge === false && pr.morgen === true,
+  `das Kontingent geht im Lauf „weiter" aus: die Probe sagt morgen (offen ${pr.offen}, folge ${pr.folge}, morgen ${pr.morgen}) wie die Beschreibung („${zeileB(k, 2)}")`);
+  // Am nächsten Tag ist das Kontingent wieder frei – die Probe sagt nicht mehr „morgen".
+  let r = null;
+  try { r = feuern(p, '2026-10-09T00:30:00+02:00'); } catch (e) { r = e; }
+  const pr2 = probe(p);
+  check(r && !(r instanceof Error) && r.geaendert > 0 && pr2.morgen === (pr2.offen ? false : null) && JSON.parse(p.props.get('workout.abgleich')).morgen === false,
+    `am nächsten Tag trägt die erste Stunde weiter ein (${r && r.geaendert} Änderungen), und die Probe sagt morgen ${pr2.morgen} (offen ${pr2.offen}, folge ${pr2.folge})`);
+}
+{
+  // 11b. Das Lesen der Meta-Zeile scheitert einmal (Google: „Service error:
+  // PropertiesService", dieselbe Art wie in 10e) und danach noch ein Zugriff
+  // beim Speichern. Bis zum Gegenlesen von v246 hielt doPost den Speicher dann
+  // für leer: Das Aufräumen vor dem Speichern löschte die Stücke der Sendung,
+  // die galt, das Speichern scheiterte, und die Meta-Zeile zeigte auf
+  // gelöschte Stücke – jeder Lauf warf „unvollständig", und der Kalender
+  // verschob nichts mehr, bis eine Sendung durchkam. Jetzt antwortet doPost
+  // „fehler" (die App schickt es noch einmal), bevor etwas gelöscht ist.
+  const { w, p, k } = neu('2026-10-08T10:00:00+02:00', N.A, '2026-10-08T12:00:05+02:00');
+  const sendung = (seq) => ({ ...N.A, seq, gesendet: N.A.gesendet + seq * 1000 });
+  w.jetzt = um('2026-10-08T12:30:05+02:00');
+  post(p, sendung(2));
+  const store = p.g.PropertiesService.getScriptProperties();
+  const echt = { getProperty: store.getProperty, setProperties: store.setProperties };
+  let lesen = 0;
+  let schreiben = 0;
+  store.getProperty = (key) => {
+    if (String(key) === 'workout.meta' && lesen > 0) { lesen -= 1; throw new Error('Service error: PropertiesService'); }
+    return echt.getProperty(key);
+  };
+  store.setProperties = (...x) => {
+    if (schreiben > 0) { schreiben -= 1; throw new Error('Service error: PropertiesService'); }
+    return echt.setProperties(...x);
+  };
+  const teile = () => [...p.props.keys()].filter((x) => x.startsWith('workout.teil.'));
+  let a3;
+  let fehler = null;
+  let r = null;
+  let alt;
+  try {
+    lesen = 1;
+    schreiben = 1;
+    w.jetzt = um('2026-10-08T13:00:05+02:00');
+    a3 = post(p, sendung(3)).a;
+    lesen = 0;
+    schreiben = 0;
+    const meta = JSON.parse(p.props.get('workout.meta'));
+    check(!a3.ok && a3.code === 'fehler' && meta.seq === 2 && teile().length === meta.teile && teile().every((x) => x.startsWith(`workout.teil.${meta.gen}.`)),
+      `Lesefehler und ein zweiter beim Speichern: „${a3.code}" („${a3.hinweis}") – die Sendung, die galt, ist ganz da (seq ${meta.seq}, ${teile().length} von ${meta.teile} Stücken)`);
+    try { r = feuern(p, '2026-10-08T13:07:00+02:00'); } catch (e) { fehler = e; }
+    check(!fehler && r && r.tag === '2026-10-08' && !abweichung(k, N.A, '2026-10-08'),
+      `die nächste Stunde gleicht weiter an${fehler ? ` – „${fehler.message}"` : ''}`);
+    // Eine ältere Sendung (eine verspätete Wiederholung derselben App) mit
+    // demselben Lesefehler: Bis zum Gegenlesen galt sie als neu – „alt"
+    // griff nicht, weil das Skript nicht wusste, was gilt.
+    lesen = 1;
+    w.jetzt = um('2026-10-08T13:10:05+02:00');
+    alt = post(p, sendung(1)).a;
+    lesen = 0;
+  } finally {
+    Object.assign(store, echt);
+  }
+  check(!alt.ok && alt.code === 'fehler' && JSON.parse(p.props.get('workout.meta')).seq === 2,
+    `eine ältere Sendung mit demselben Lesefehler: „${alt.code}" – sie ersetzt die neuere nicht (gilt: seq ${JSON.parse(p.props.get('workout.meta')).seq})`);
+  w.jetzt = um('2026-10-08T13:12:05+02:00');
+  const a4 = post(p, sendung(3)).a;
+  check(a4.ok && a4.code === 'angekommen' && JSON.parse(p.props.get('workout.meta')).seq === 3 && !abweichung(k, N.A, '2026-10-08'),
+    'die App schickt dieselbe Sendung noch einmal: angekommen');
+}
+{
+  // 11c. Tobi löscht „Workout"; Probe und Karte sagen „einrichten", und er
+  // führt es noch am selben Tag aus. Der neue Kalender ist leer. Bis zum
+  // Gegenlesen von v246 prüfte der Lauf trotzdem nur die Nähe – dieselbe
+  // Sendung, derselbe Tag (workout.ferne) –, legte die vier Wochen an, und
+  // Beschreibung, Antwort und Probe sagten „Termine bis <in einem Jahr>".
+  const w = new Welt('2026-10-08T10:00:00+02:00');
+  const p = mitWelt(w);
+  p.g.einrichten();
+  w.jetzt = um('2026-10-08T12:00:05+02:00');
+  const a = post(p, N2.A).a;
+  const vorher = workout(w);
+  const soll = listeVon(N2.A, '2026-10-08').length;
+  check(a.ok && !a.offen && !abweichung(vorher, N2.A, '2026-10-08') && eigene(vorher).length === soll,
+    `vorher: das Jahr steht (${soll} Termine)`);
+  vorher.weg = true;
+  w.jetzt = um('2026-10-08T15:00:00+02:00');
+  const t = p.g.einrichten();
+  const k = workout(w);
+  const ab = abweichung(k, N2.A, '2026-10-08');
+  const pr = probe(p);
+  const bis = addDays('2026-10-08', 365);
+  check(k !== vorher && /nicht mehr da/.test(t) && !ab && eigene(k).length === soll && pr.stehen === bis && !pr.offen
+    && new RegExp(`Termine bis ${bis.split('-').reverse().join('.')}\\.`).test(k.beschreibung),
+  `„Workout" gelöscht und am selben Tag neu eingerichtet: wieder das ganze Jahr (${eigene(k).length} von ${soll} Terminen), `
+    + `und erst dann „Termine bis ${bis.split('-').reverse().join('.')}"${ab ? ` – ${ab}` : ''}`);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1817,8 +1941,8 @@ const jahrBeginnt = () => {
 {
   const geparst = alleAntworten.map((x) => { try { return JSON.parse(x); } catch { return null; } });
   check(geparst.every((a) => a && typeof a.ok === 'boolean' && typeof a.code === 'string' && a.version === FASSUNG && a.kalender === 'Workout'
-    && ['tag', 'geaendert', 'offen', 'bis', 'stehen', 'folge', 'stand', 'seq'].every((f) => f in a)),
-  `alle ${geparst.length} Antworten: JSON mit ok, code, version, kalender, tag, geaendert, offen, bis, stehen, folge, stand, seq`);
+    && ['tag', 'geaendert', 'offen', 'bis', 'stehen', 'folge', 'morgen', 'stand', 'seq'].every((f) => f in a)),
+  `alle ${geparst.length} Antworten: JSON mit ok, code, version, kalender, tag, geaendert, offen, bis, stehen, folge, morgen, stand, seq`);
   check(!alleAntworten.some((x) => x.includes(TOKEN) || /@group\.calendar|@google\.com|https?:/.test(x)), 'keine Antwort enthält das Kennwort, eine Kalender-ID oder eine Adresse');
   const codes = [...new Set(geparst.map((a) => a.code))].sort();
   check(gleich(codes, ['aelter', 'alt', 'angekommen', 'aus', 'fehler', 'format', 'gleich', 'probe', 'token']), `jede Antwort aus dem Vertrag kam vor (${codes.join(', ')})`);
