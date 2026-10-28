@@ -3360,7 +3360,9 @@ Probe nach – höchstens alle zwei Minuten: „… – noch 95 Änderungen (Sta
 eben)." Seit v247 auch von selbst, solange die Karte aufgeschlagen ist (bis
 dahin fragte sie nur beim Zeichnen – wer auf der Karte wartete, bekam eine
 einzige Probe); und sinkt `offen` über mehr als eine Stunde nicht, sagt sie
-das (unten, *Nach jedem Code-Tausch: einrichten*). Ist alles eingetragen,
+das (unten, *Nach jedem Code-Tausch: einrichten*). „In den nächsten Minuten"
+verspricht sie seit der Prüfung von v247 nur eine Viertelstunde lang nach der
+Auskunft, danach steht „(Stand vor …)" da (ebenda). Ist alles eingetragen,
 steht dort „Im Kalender: Termine bis 27.10.2027.", und die App fragt nicht
 mehr.
 
@@ -3775,9 +3777,36 @@ besteht – nichts auf dem Dashboard, keine Probe auf den anderen Seiten, kein
 Satz beim Tageskontingent und keiner mehr, nachdem `offen` sank. Die Sicherung
 an einer Stelle rot, das Skript an einer, der neuen letzten Zeile von
 `einrichten()`; alles andere in Abschnitt 12 läuft mit dem Skript von v246
-genauso, mit denselben Zahlen – am Skript ist nur Text geändert. Danach
-einzeln gelaufen:
-`test-kalender-sync` 255, `test-kalender-gas` 194, `test-sicherung-auto` 76,
+genauso, mit denselben Zahlen – am Skript ist nur Text geändert.
+
+**Geprüft, nach der Prüfung von v247.** `tests/test-kalender-sync.mjs`,
+Abschnitt 18: `aelter`, dann ein Versuch, auf den das Skript „beschäftigt"
+sagt, dann „Trennen" – der Hinweis bleibt, mit dem Stand des anderen Geräts,
+der Versuch steht darüber, und kein „aus" geht hinaus; `aelter`, dann kein
+Netz, dann *Alle Daten löschen* – der Dialog sagt, dass die Termine des anderen
+Geräts stehen bleiben, und auch mit Netz geht kein „aus" nach; dasselbe mit
+„Trennen" ohne Netz – es wartet keins; eine neue URL nach `aelter` und
+„beschäftigt" – an die alte geht kein „aus", und der Satz unter „Neues
+Skript-Projekt?" sagt es vorher; trainiert Tobi doch hier, ist der Hinweis weg,
+und „Trennen" schickt wieder ein „aus"; fünf Stunden weg, die Probe beim
+Zurückkommen ohne `offen` – vor der zweiten Probe kein „in den nächsten
+Minuten", sondern „(Stand vor 5 Std.)"; ein „morgen" von gestern ohne neuere
+Auskunft – kein Versprechen. Abschnitt 9, mit dem echten Service Worker: Sagt
+das Skript ihm `aelter`, trägt sein Vermerk den Stand, die Karte sagt es, obwohl
+der letzte eigene Versuch „beschäftigt" war, und „Trennen" schickt kein „aus".
+Dafür bekommt dort auch der erste Vermerk die Zeit der Seite, wie in 16 d: Die
+Uhr des Service Workers geht echt, die der Seite steht am 08.10. – ohne das lag
+das, was er nachgeschickt hatte, Wochen nach allem, was die Seite danach
+vermerkte. 17 b sagt nach 40 Minuten „(Stand vor 40 Min.)" statt „in den
+nächsten Minuten". `tests/test-kalender-gas.mjs`, Abschnitt 12: was die App an
+der Probe nicht unterscheiden kann (oben). `tests/test-sicherung-auto.mjs`:
+„Zuletzt gesichert: vor 5 Min." mit einem Punkt. Gegen den Stand vor dieser
+Nachbesserung (c072dcf) gelaufen: die App an 13 Stellen rot – Abschnitt 18
+überall außer dort, wo Tobi hier trainiert (das galt schon vorher), 9 an zwei
+Stellen, 17 b an einer –, die Sicherung an einer („vor 5 Min.."). Die neue
+Prüfung im Skript-Test ist auch dort grün: Sie hält fest, wie Fassung 2
+antwortet, und die ist unverändert. Danach einzeln gelaufen:
+`test-kalender-sync` 269, `test-kalender-gas` 195, `test-sicherung-auto` 77,
 `test-kalender-vorschau` 164, `test-tagesabschluss` 218, `test-diagnose` 151,
 `test-bodyweight` 45, `test-single` 18, `test-tabs` 11, `test-update` 5
 Prüfungen, alle grün.
@@ -3792,11 +3821,11 @@ Erkennung kann sich irren: Bremst Google länger als eine Stunde, hängen die
 Läufe aus einem anderen Grund, oder scheiterte ein Lauf von Fassung 2 selbst
 (oben: ein Tageskontingent, das auch die Beschreibung trifft), steht derselbe
 Satz da – `einrichten` schadet dann nicht und schreibt ins
-Ausführungsprotokoll, was los ist. Gefragt wird
-von selbst nur auf der aufgeschlagenen Karte; liegt die App die ganze Zeit
-auf einer anderen Seite, kommt der Satz erst mit den Proben beim Öffnen und
-Zurückkommen. Und die Zeile „Dieses Gerät schickt" sagt, was dieses Gerät
-weiß – welches Gerät Tobi für das richtige hält, weiß nur er.
+Ausführungsprotokoll, was los ist. Gefragt wird von selbst nur auf der
+aufgeschlagenen Karte; liegt die App die ganze Zeit auf einer anderen Seite,
+kommt der Satz erst mit den Proben beim Öffnen und Zurückkommen. Und die Zeile
+„Dieses Gerät schickt" sagt, was dieses Gerät weiß – welches Gerät Tobi für das
+richtige hält, weiß nur er.
 
 ## Übungsvorrat
 
