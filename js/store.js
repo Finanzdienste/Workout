@@ -1548,19 +1548,27 @@ export function addBwPlus(exId, delta) {
   persist();
 }
 
-/** Verletzung an- oder abhaken. Gilt für alle kommenden Trainings. */
+/**
+ * Verletzung an- oder abhaken. Gilt für alle kommenden Trainings – und damit
+ * für die Termine im Kalender und die Sicherung: Beide hören auf die Meldung.
+ * Bis zum Gegenlesen von v246 kam keine, und seit die Pause die Vorschau
+ * nicht mehr neu rechnet, ging nach einer Beschwerde mitten im Training die
+ * Vorschau von davor hinaus, mit der gesperrten Übung.
+ */
 export function toggleInjury(id, on) {
   const set = new Set(state.injuries || []);
   if (on) set.add(id);
   else set.delete(id);
   state.injuries = [...set];
   persist();
+  emit();
 }
 
 /** Alle Haken auf einmal entfernen. */
 export function clearInjuries() {
   state.injuries = [];
   persist();
+  emit();
 }
 
 export function setSetting(key, value) {

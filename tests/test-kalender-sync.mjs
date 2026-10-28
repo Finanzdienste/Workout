@@ -76,6 +76,12 @@
  *      Version" vergessen, gezählt nach der Zeit der Antwort (ohne die grüne
  *      Meldung daneben); das Tageskontingent („morgen"); über 64 KiB ohne
  *      Background Sync.
+ *  16. Was das Gegenlesen von v246 fand: eine Beschwerde in der Pause (die
+ *      Vorschau danach ist die mit der Beschwerde) und „Alle Haken
+ *      entfernen"; das Tageskontingent erst in einem Lauf „weiter" (die Probe
+ *      sagt „morgen") und am nächsten Tag vorbei (kein „morgen" mehr); die
+ *      erste v 2, vom Service Worker nachgeschickt, und als „aelter"
+ *      beantwortet – beide Male kein „Neuer Code erkannt" mehr.
  *
  *     node tests/test-kalender-sync.mjs            # alles
  *     node tests/test-kalender-sync.mjs 3 7        # nur Abschnitt 3 und 7
@@ -127,18 +133,21 @@ const bisTag = (iso, k) => {
  *   modus  'ok' | 'netz' (kein Netz) | 'html' (Anmeldeseite ohne CORS) |
  *          'kaputt' (lesbare Fehlerseite, kein JSON)
  *   code   eine feste Antwort ('token', 'format', 'aelter' …) samt hinweis
+ *   vorschauCode  dasselbe nur für Sendungen mit Vorschau – Probe und „aus"
+ *          antworten wie sonst (Abschnitt 16)
  *   halten ein Versprechen, auf das jede Anfrage wartet (keine Antwort)
  */
 function skriptAttrappe() {
   const s = {
-    anfragen: [], modus: 'ok', code: null, hinweis: undefined, version: 2, halten: null, geaendert: 2, cors: new Set(),
+    anfragen: [], modus: 'ok', code: null, vorschauCode: null, hinweis: undefined, version: 2, halten: null, geaendert: 2, cors: new Set(),
     get: 'status', getCors: false, probeHinweis: null, haltenVorschau: null,
     // Wie Fassung 1 (Tobis Skript bis zum Code-Update): kennt v 2 nicht.
     fassung1: false,
     // Fassung 2 beim Eintragen des Jahres (Abschnitt 15): so viel ist nach der
-    // Sendung noch offen, bis dahin steht der Kalender, kommt der Rest in Minuten;
-    // probeStand: was eine Probe danach vom letzten Abgleich sagt.
-    offen: 0, stehen: null, folge: null, probeStand: null,
+    // Sendung noch offen, bis dahin steht der Kalender, kommt der Rest in
+    // Minuten, oder erst morgen (Tageskontingent); probeStand: was eine Probe
+    // danach vom letzten Abgleich sagt.
+    offen: 0, stehen: null, folge: null, morgen: false, probeStand: null,
   };
   s.route = async (route) => {
     const req = route.request();
@@ -187,6 +196,7 @@ function skriptAttrappe() {
       let a;
       if (s.fassung1 && j && j.v !== 1) a = { ok: false, code: 'format', hinweis: 'Die App ist neuer als dieses Skript – „Kalender-Code erneuern".' };
       else if (s.code) a = { ok: ['angekommen', 'gleich', 'probe', 'aus'].includes(s.code), code: s.code };
+      else if (s.vorschauCode && j && j.tage) a = { ok: ['angekommen', 'gleich'].includes(s.vorschauCode), code: s.vorschauCode };
       else if (j && j.probe) a = { ok: true, code: 'probe', hinweis: s.probeHinweis || 'Verbunden. Noch keine Vorschau angekommen.' };
       else if (j && j.aus) a = { ok: true, code: 'aus', geaendert: 3 };
       else a = { ok: true, code: 'angekommen', tag: j && j.ab, geaendert: s.geaendert };
@@ -197,7 +207,7 @@ function skriptAttrappe() {
         // Fassung 2 sagt, bis wann die Liste reicht, was noch offen ist und
         // bis wann der Kalender schon steht – wie kalender/workout-kalender.gs.
         ...(fern ? {
-          offen: s.offen, bis: fern, stehen: s.offen ? s.stehen : fern, folge: s.offen ? s.folge : null,
+          offen: s.offen, bis: fern, stehen: s.offen ? s.stehen : fern, folge: s.offen ? s.folge : null, morgen: s.offen ? !!s.morgen : null,
         } : {}),
         ...(j && j.probe && s.probeStand ? s.probeStand : {}),
         ...(s.hinweis !== undefined ? { hinweis: s.hinweis } : a.hinweis ? { hinweis: a.hinweis } : {}),
@@ -1896,7 +1906,7 @@ await abschnitt(15, async () => {
   // Abgleich".
   const tk = await geraet('15 Tageskontingent', { kalender: { token: TOKEN, url: URL_A } });
   Object.assign(tk.skript, {
-    offen: 150, stehen: '2026-11-12', folge: false,
+    offen: 150, stehen: '2026-11-12', folge: false, morgen: true,
     hinweis: 'Google lässt heute keine weiteren Kalender-Änderungen zu (Tageskontingent aufgebraucht) – morgen geht es von selbst weiter.',
   });
   await vor(tk.page, 4000, 1500);
@@ -1934,6 +1944,220 @@ await abschnitt(15, async () => {
     && (await meta(gr.page)).offen === false && gz.some((x) => /was=ausgang .*ausgang=false/.test(x)) && !gz.some((x) => /keepalive=true/.test(x)),
   `über 64 KiB weggeschaltet, ohne Background Sync: gewöhnlich hinaus (${(Buffer.byteLength(unterwegs[0] ? unterwegs[0].roh : '') / 1024).toFixed(1)} KiB, ohne keepalive), offen bis zur Antwort`);
   await zu(gr);
+});
+
+/* ================================================================== *
+ * 16. Was das Gegenlesen von v246 fand
+ * ================================================================== */
+await abschnitt(16, async () => {
+  // a) Eine Beschwerde mitten im Training angehakt, in der Pause – an der
+  // Übung („Wenn etwas weh tut" → „… anhaken"), ganz über die Oberfläche: Der
+  // Haken auf dem Satzknopf hält den Zusatztag fest, sonst räumte erst das
+  // Anhaken ihn weg, und das meldete der Store. Bis zum Gegenlesen von v246
+  // meldete store.toggleInjury() selbst nichts, und seit v246 rechnet das
+  // Pausenende die Vorschau nicht mehr neu: Nach der Pause ging die Vorschau
+  // von vor der Beschwerde hinaus, mit der gesperrten Übung – und „Alle Haken
+  // entfernen" unter Mehr → Verletzungen schickte gar nichts.
+  const g = await geraet('16 Beschwerde', { kalender: { token: TOKEN, url: URL_A } });
+  const { page, skript } = g;
+  const inhalt = (j) => JSON.stringify({ texte: j.texte, tage: j.tage, ferne: j.ferne });
+  const frisch = async () => {
+    const n = skript.vorschauen().length;
+    await page.evaluate(async () => (await import('./js/kalender-sync.js')).kalenderJetzt('test', { zwingen: true }));
+    await bis(() => skript.vorschauen().length > n, 6000);
+    return skript.letzte();
+  };
+  await vor(page, 4000, 1500);
+  await bis(() => skript.vorschauen().length === 1);
+  await zumDashboard(page);
+  await page.locator('[data-act="start-session"]').first().click();
+  await echteWarte(300);
+  await page.locator('.focus-set:not(.on)').first().click();
+  await bis(() => skript.vorschauen().length === 2, 4000);
+  const vorher = skript.letzte();
+  await vor(page, 2500, 1500);
+  await page.locator('.focus-set:not(.on)').first().click();
+  await vor(page, 2500, 1500);   // der zweite Haken ist gerechnet und wartet auf die Drossel
+  const pauseLaeuft = await page.evaluate(async () => !!(await import('./js/store.js')).getState().rest);
+  await page.locator('.schmerz-h').first().click();
+  await echteWarte(200);
+  const beschwerde = await page.locator('[data-act="schmerz-anhaken"]').first().getAttribute('data-inj');
+  await page.locator('[data-act="schmerz-anhaken"]').first().click();
+  await echteWarte(200);
+  const n1 = skript.vorschauen().length;
+  const restMs = await page.evaluate(async () => {
+    const r = (await import('./js/store.js')).getState().rest;
+    return r ? r.endsAt - Date.now() : 0;
+  });
+  await vor(page, Math.max(2500, restMs + 1000), 1500);   // die Pause endet
+  const pauseVorbei = await page.evaluate(async () => !(await import('./js/store.js')).getState().rest);
+  await vor(page, 2 * 60 * 1000, 1500);                    // die Drossel ist um
+  await bis(() => skript.vorschauen().length > n1, 3000);
+  await echteWarte(300);
+  const nachPause = skript.vorschauen().length > n1 ? skript.letzte() : null;
+  const mit = await frisch();
+  const angehakt = await page.evaluate(async () => (await import('./js/store.js')).getState().injuries);
+  check(pauseLaeuft && pauseVorbei && angehakt.includes(beschwerde) && inhalt(mit) !== inhalt(vorher) && !!nachPause && inhalt(nachPause) === inhalt(mit),
+    `Beschwerde in der Pause an der Übung angehakt („${beschwerde}", Pause ${Math.round(restMs / 1000)} s): Die nächste Sendung ist die Vorschau `
+    + `mit der Beschwerde – dieselbe, die eine frische Rechnung ergibt${nachPause && inhalt(nachPause) !== inhalt(mit) ? ' (hinaus ging die von davor)' : ''}`
+    + `${!nachPause ? ' (nichts ging hinaus)' : ''}`);
+  await zu(g);
+
+  // a2) Unter Mehr → Verletzungen anhaken und „Alle Haken entfernen" – auf
+  // einem Gerät ohne Zusatztag, wo pruefeZusatztag() danach nichts ändert und
+  // also auch nichts meldet. Getippt wird erst ein paar Sekunden nach dem
+  // Öffnen der Liste (die Navigation selbst meldet sich beim Store, und eine
+  // Rechnung bis zu zwei Sekunden danach nähme den Haken zufällig mit). Bis zum
+  // Gegenlesen ging dann gar nichts hinaus: Der Kalender zeigte weiter den
+  // Plan von vor der Änderung, bis zur nächsten.
+  const v = await geraet('16 Verletzungen', { zustand: { greeted: true, name: 'T', level: 'geuebt', focus: 'cut' }, kalender: { token: TOKEN, url: URL_A } });
+  const vInhalt = (j) => JSON.stringify({ texte: j.texte, tage: j.tage, ferne: j.ferne });
+  await vor(v.page, 4000, 1500);
+  await bis(() => v.skript.vorschauen().length === 1);
+  const ohneHaken = v.skript.letzte();
+  await zuMehr(v.page);
+  await v.page.locator('[data-act="go-tab"][data-tab="injuries"]').click();
+  await vor(v.page, 2500, 1500);
+  const zahl = () => v.skript.vorschauen().length;
+  const nachTipp = async (sel) => {
+    const n = zahl();
+    await v.page.locator(sel).first().click();
+    await echteWarte(200);
+    await vor(v.page, 2500, 1500);
+    await vor(v.page, 2 * 60 * 1000, 1500);
+    await bis(() => zahl() > n, 3000);
+    await echteWarte(300);
+    return zahl() > n ? v.skript.letzte() : null;
+  };
+  const angehakt2 = await nachTipp('[data-act="toggle-injury"][data-inj="tennisarm"]');
+  const zusatzLeer = await v.page.evaluate(async () => (await import('./js/store.js')).customs().length === 0);
+  const geleert = await nachTipp('[data-act="clear-injuries"]');
+  check(zusatzLeer && !!angehakt2 && vInhalt(angehakt2) !== vInhalt(ohneHaken) && !!geleert && vInhalt(geleert) === vInhalt(ohneHaken),
+    `Mehr → Verletzungen: „Tennisarm" angehakt und „Alle Haken entfernen" gehen je von selbst hinaus (${angehakt2 ? 'ja' : 'nichts'}, ${geleert ? 'ja' : 'nichts'})`);
+  await zu(v);
+
+  // b) Das Tageskontingent geht erst in einem Lauf „weiter" aus – so trägt
+  // sich das Jahr gewöhnlich ein. Die Antwort auf die Sendung sagte nichts
+  // davon (offen 185, folge true), die Probe danach sagt morgen. Bis zum
+  // Gegenlesen las die Karte „morgen" nur aus dem Hinweis der Sendung und
+  // versprach die nächste Stunde, während die Beschreibung „morgen" sagte.
+  const kw = await geraet('16 Kontingent in weiter', { kalender: { token: TOKEN, url: URL_A } });
+  Object.assign(kw.skript, { offen: 185, stehen: '2026-11-05', folge: true });
+  await vor(kw.page, 4000, 1500);
+  await bis(() => kw.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(kw.page);
+  kw.skript.probeStand = { offen: 160, bis: '2027-10-08', stehen: '2026-11-20', folge: false, morgen: true };
+  await vor(kw.page, 3 * 60 * 1000 + 1000, 300);
+  await verstecken(kw.page);
+  await zeigen(kw.page);
+  await bis(async () => /160 Änderungen/.test(await text(kw.page, '#kalenderStand')), 6000);
+  const standKw = await text(kw.page, '#kalenderStand');
+  check(kw.skript.proben().length === 1
+    && /Im Kalender: Termine bis 20\.11\.2026\. Den Rest bis 08\.10\.2027 trägt das Skript morgen nach – noch 160 Änderungen \(Stand gerade eben\)\./.test(standKw)
+    && !/stündlichen Abgleich/.test(standKw),
+  `das Kontingent ging erst im Lauf „weiter" aus: die Probe sagt morgen, die Karte auch („${standKw.replace(/^.*?(Im Kalender)/, '$1').slice(0, 150)}")`);
+  await zu(kw);
+
+  // c) Umgekehrt: Die Antwort auf die Sendung sagte „Tageskontingent
+  // aufgebraucht"; am nächsten Tag ist es frei, und die Probe meldet einen
+  // kleinen Rest für die nächste Stunde. Bis zum Gegenlesen stand auf der
+  // Karte weiter „morgen", und darunter der Hinweis von gestern.
+  const tk = await geraet('16 Kontingent von gestern', { kalender: { token: TOKEN, url: URL_A } });
+  Object.assign(tk.skript, {
+    offen: 150, stehen: '2026-11-12', folge: false, morgen: true,
+    hinweis: 'Google lässt heute keine weiteren Kalender-Änderungen zu (Tageskontingent aufgebraucht) – morgen geht es von selbst weiter.',
+  });
+  await vor(tk.page, 4000, 1500);
+  await bis(() => tk.skript.vorschauen().length >= 1, 8000);
+  await zuMehr(tk.page);
+  const s0 = await text(tk.page, '#kalenderStand');
+  tk.skript.hinweis = undefined;
+  tk.skript.probeStand = { offen: 4, bis: '2027-10-08', stehen: '2027-09-30', folge: false, morgen: false };
+  await vor(tk.page, 3 * 60 * 1000 + 1000, 300);
+  await verstecken(tk.page);
+  await zeigen(tk.page);
+  await bis(async () => /noch 4 Änderungen/.test(await text(tk.page, '#kalenderStand')), 6000);
+  const s1 = await text(tk.page, '#kalenderStand');
+  check(/trägt das Skript morgen nach – noch 150 Änderungen\./.test(s0)
+    && /Den Rest bis 08\.10\.2027 trägt das Skript mit dem nächsten stündlichen Abgleich nach – noch 4 Änderungen \(Stand gerade eben\)\./.test(s1)
+    && !/morgen/.test(s1),
+  `am nächsten Tag ein kleiner Rest: „mit dem nächsten stündlichen Abgleich", kein „morgen" mehr („${s1.replace(/^.*?(Im Kalender)/, '$1').slice(0, 170)}")`);
+  await zu(tk);
+
+  // d) Die erste Sendung mit dem Jahr scheitert vorübergehend (das Skript ist
+  // beschäftigt), Tobi schließt die App vor der Wiederholung, der Service
+  // Worker schickt sie nach: angekommen. Beim nächsten Öffnen stand bis zum
+  // Gegenlesen weiter „Neuer Code erkannt … geht jetzt an das Skript", ohne
+  // „Im Kalender: …" und ohne Nachfrage – bis die App selbst wieder etwas
+  // zustellte (der nächste Haken, ein neuer Tag).
+  const d = await geraet('16 Jahr nachgeschickt', { kalender: { token: TOKEN, url: URL_A }, fassung: 1, sw: true });
+  d.skript.fassung1 = true;
+  await bis(() => d.page.evaluate(() => !!navigator.serviceWorker.controller), 10000);
+  await vor(d.page, 4000, 1500);
+  await bis(() => d.skript.vorschauen().length >= 1, 8000);
+  await vor(d.page, 60 * 1000, 300);   // eine Minute später ist der neue Code da
+  Object.assign(d.skript, { fassung1: false, vorschauCode: 'fehler', offen: 183, stehen: '2026-12-10', folge: true });
+  await zuMehr(d.page);
+  await bis(async () => ((await meta(d.page)).letzte || {}).vertrag === 2, 8000);
+  await echteWarte(300);
+  const vorSW = await text(d.page, '#kalenderStand');
+  const ausgang = await d.page.evaluate(async () => {
+    const r = await (await caches.open('kalender-ausgang')).match(new URL('kalender-ausgang', location.href).href);
+    return r ? r.json() : null;
+  });
+  // Eine halbe Minute später, vor der Wiederholung nach zwei Minuten, ist die App zu.
+  await vor(d.page, 30 * 1000, 300);
+  d.skript.vorschauCode = null;
+  const cdp = await d.ctx.newCDPSession(d.page);
+  let regId = null;
+  cdp.on('ServiceWorker.workerRegistrationUpdated', (ev) => { (ev.registrations || []).forEach((r) => { if (!r.isDeleted) regId = r.registrationId; }); });
+  await cdp.send('ServiceWorker.enable');
+  await bis(() => regId !== null, 3000);
+  const nSW = d.skript.vorschauen().length;
+  await cdp.send('ServiceWorker.dispatchSyncEvent', { origin: ORIGIN, registrationId: regId, tag: 'kalender', lastChance: false });
+  await bis(() => d.skript.vorschauen().length > nSW, 5000);
+  // Der Service Worker lebt in echter Zeit, die Seite auf der gestellten
+  // Uhr – sein Vermerk bekommt die Zeit der Seite.
+  await bis(() => d.page.evaluate(async () => !!(await (await caches.open('kalender-ausgang')).match(new URL('kalender-ausgang-nach', location.href).href))), 3000);
+  await d.page.evaluate(async () => {
+    const c = await caches.open('kalender-ausgang');
+    const schluessel = new URL('kalender-ausgang-nach', location.href).href;
+    const n = await (await c.match(schluessel)).json();
+    await c.put(schluessel, new Response(JSON.stringify({ ...n, zeit: Date.now() })));
+  });
+  await d.page.reload({ waitUntil: 'load' });
+  await vor(d.page, 4000, 1500);
+  await bis(async () => !!(await meta(d.page)).nach, 4000);
+  await zuMehr(d.page);
+  await echteWarte(300);
+  const nachSW = await text(d.page, '#kalenderStand');
+  const sws = d.skript.vorschauen().slice(nSW);
+  check(/Neuer Code erkannt/.test(vorSW) && !!ausgang && JSON.parse(ausgang.text).v === 2 && sws.length === 1 && sws[0].vonSW,
+    `die erste v 2 scheitert („fehler"), liegt im Ausgang, der Service Worker schickt sie nach – die App ist zu (${sws.length} Sendung, vom Service Worker: ${!!(sws[0] && sws[0].vonSW)})`);
+  check(!/Neuer Code erkannt/.test(nachSW) && /Skript Fassung 2\)\. Im Kalender: Termine bis 10\.12\.2026\. Den Rest bis 08\.10\.2027 trägt das Skript in den nächsten Minuten nach – noch 183 Änderungen\./.test(nachSW)
+    && !/Letzter Versuch/.test(nachSW) && /Im Hintergrund nachgeschickt/.test(nachSW),
+  `wieder geöffnet: die Karte sagt, was angekommen ist und was schon steht („${nachSW.slice(0, 200)}")`);
+  await zu(d);
+
+  // e) Die erste Sendung mit dem Jahr wird endgültig beantwortet: Ein anderes
+  // Gerät hat zuletzt trainiert („aelter"). Dann ist nichts mehr unterwegs –
+  // bis zum Gegenlesen stand „Neuer Code erkannt" bis zur nächsten Sendung,
+  // die ankam.
+  const e = await geraet('16 Jahr abgewiesen', { kalender: { token: TOKEN, url: URL_A }, fassung: 1 });
+  e.skript.fassung1 = true;
+  await vor(e.page, 4000, 1500);
+  await bis(() => e.skript.vorschauen().length >= 1, 8000);
+  await vor(e.page, 60 * 1000, 300);
+  Object.assign(e.skript, { fassung1: false, vorschauCode: 'aelter' });
+  await zuMehr(e.page);
+  await bis(async () => ((await meta(e.page)).letzte || {}).ergebnis === 'aelter', 8000);
+  await zumDashboard(e.page);
+  await zuMehr(e.page);
+  const se = await text(e.page, '#kalenderStand');
+  check(((await meta(e.page)).letzte || {}).vertrag === 2 && !/Neuer Code erkannt/.test(se) && /\(Skript Fassung 2\)\./.test(se)
+    && /Ein anderes Gerät hat zuletzt trainiert/.test(se),
+  `die erste v 2 kommt als „aelter" zurück: kein „Neuer Code erkannt" mehr, sondern was gilt („${se.slice(0, 180)}")`);
+  await zu(e);
 });
 
 check(seitenFehler.length === 0, `keine Fehler auf den Seiten${seitenFehler.length ? `: ${seitenFehler.slice(0, 4).join(' | ')}` : ''}`);

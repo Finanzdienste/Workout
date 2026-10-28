@@ -241,6 +241,30 @@ check(leer.length === 0, 'alle Haken entfernbar');
 const wieder = await page.evaluate(async () => (await import('./js/data.js')).PLAN[0].ex.map((x) => x.id));
 check(JSON.stringify(wieder) === JSON.stringify(vorher), 'Plan ist danach wieder der alte');
 
+// --- Ein Haken meldet sich beim Store ---
+// Auf die Meldung hören der Kalender (die Vorschau rechnet neu) und die
+// Sicherung. Bis zum Gegenlesen von v246 schrieben toggleInjury() und
+// clearInjuries() still: Nach einer Beschwerde in der Pause ging die Vorschau
+// von davor an Google, und die Sicherung erfuhr von der Beschwerde nichts.
+const meldungen = await page.evaluate(async () => {
+  const store = await import('./js/store.js');
+  const je = [];
+  let n = 0;
+  const weg = store.subscribe(() => { n += 1; });
+  store.toggleInjury('tennisarm', true);
+  je.push(n);
+  store.toggleInjury('tennisarm', false);
+  je.push(n - je[0]);
+  store.toggleInjury('tennisarm', true);
+  const vorLeeren = n;
+  store.clearInjuries();
+  je.push(n - vorLeeren);
+  weg();
+  return { je, uebrig: store.getState().injuries.length };
+});
+check(meldungen.je.every((x) => x === 1) && meldungen.uebrig === 0,
+  `anhaken, abwählen, alle entfernen: je eine Meldung an den Store (${meldungen.je.join(', ')})`);
+
 // --- Geschwister-Übungen: keine halben Sperren ---------------------------
 // Der Anlass: Split Squat, Schulterdrücken, Kreuzheben und hängendes Knieheben
 // kamen später dazu und standen in keiner einzigen Sperre. Wer einen

@@ -370,6 +370,7 @@ async function kalenderNachsenden() {
   });
   let code = null;
   let version = null;
+  let antwort = null;
   let res = null;
   try {
     res = await anfrage('cors');
@@ -381,6 +382,13 @@ async function kalenderNachsenden() {
       const j = JSON.parse(await res.text());
       code = j && typeof j.code === 'string' ? j.code.slice(0, 20) : null;
       version = j && Number.isInteger(j.version) ? j.version : null;
+      // Was das Skript über den Abgleich sagt (Fassung 2) – die App prüft es
+      // wie die Antwort auf eine eigene Sendung (kalAbgleich()).
+      if (j && typeof j === 'object') {
+        antwort = {
+          tag: j.tag, geaendert: j.geaendert, offen: j.offen, bis: j.bis, stehen: j.stehen, folge: j.folge, morgen: j.morgen,
+        };
+      }
     } catch {
       code = null;
     }
@@ -398,9 +406,12 @@ async function kalenderNachsenden() {
   // Fingerabdruck und Verbindung reisen zurück: Kam die Sendung an, schickt
   // die App dieselbe Vorschau nicht noch einmal (kalNachLesen() in
   // js/kalender-sync.js) – und die Fassung des Skripts erfährt sie auch.
+  // Dazu Vertrag, Kürzung und was die Antwort über den Abgleich sagt: Die App
+  // vermerkt die Sendung dann als die, die zuletzt ankam.
   await c.put(new URL('kalender-ausgang-nach', self.registration.scope).href,
     new Response(JSON.stringify({
       seq: s.seq, zeit: Date.now(), code, version, hash: typeof s.hash === 'string' ? s.hash : null, ziel: typeof s.ziel === 'string' ? s.ziel : null,
+      vertrag: Number.isInteger(s.vertrag) ? s.vertrag : null, gekuerzt: Number.isInteger(s.gekuerzt) ? s.gekuerzt : null, antwort,
     }), { headers: { 'content-type': 'application/json' } }));
 }
 

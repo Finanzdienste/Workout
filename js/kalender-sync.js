@@ -184,7 +184,9 @@ const KAL_WIEDER = [2 * 60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
  *               hinweis, tag, geaendert, bytes, status, ziel, wieder,
  *               erschoepft } – wieder: die App versucht es gleich noch
  *               einmal; erschoepft: auch die Wiederholungen scheiterten
- *   angekommen  der letzte, der ankam: { zeit, version, tag, ziel }
+ *   angekommen  der letzte, der ankam – auch einer, den der Service Worker
+ *               nachgeschickt hat: { zeit, version, tag, ziel, vertrag, … }
+ *               mit dem, was die Antwort über den Abgleich sagt (kalAbgleich())
  *   offen       der letzte Versuch scheiterte am Netz, das Skript war
  *               beschäftigt oder die Antwort blieb aus – „online" und das
  *               Zurückkommen holen ihn nach
@@ -201,8 +203,8 @@ const KAL_WIEDER = [2 * 60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
  *   kopiert     { zeit, vorlage, ziel }: wann er den Code dafür kopiert hat –
  *               meldet eine Antwort ein paar Minuten danach noch die alte
  *               Fassung, fehlt meist „Neue Version"
- *   abgleich    { ziel, zeit, offen, bis, stehen, folge }: wie weit das
- *               Skript beim Eintragen des Jahres ist – aus einer Probe,
+ *   abgleich    { ziel, zeit, offen, bis, stehen, folge, morgen }: wie weit
+ *               das Skript beim Eintragen des Jahres ist – aus einer Probe,
  *               solange nach der letzten Sendung noch etwas offen war
  * ------------------------------------------------------------------ */
 
@@ -479,21 +481,33 @@ async function kalLesen(erg) {
   if (!roh || typeof roh !== 'object' || typeof roh.ok !== 'boolean' || typeof roh.code !== 'string') {
     return { ergebnis: 'http', ok: false, status: res.status };
   }
-  const tag = (x) => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : null);
   return {
     ergebnis: KAL_CODES.has(roh.code) ? roh.code : 'fehler',
     ok: roh.ok === true,
     version: Number.isInteger(roh.version) ? roh.version : null,
     hinweis: typeof roh.hinweis === 'string' ? roh.hinweis.slice(0, 300) : '',
-    tag: tag(roh.tag),
-    geaendert: Number.isInteger(roh.geaendert) ? roh.geaendert : null,
-    // Fassung 2: noch offene Änderungen, bis wann die Liste reicht, bis wann
-    // der Kalender schon ganz steht und ob der Rest in Minuten kommt.
-    offen: Number.isInteger(roh.offen) ? roh.offen : null,
-    bis: tag(roh.bis),
-    stehen: tag(roh.stehen),
-    folge: typeof roh.folge === 'boolean' ? roh.folge : null,
+    ...kalAbgleich(roh),
     status: res.status,
+  };
+}
+
+/**
+ * Was eine Antwort über den Abgleich sagt – auch die, die der Service Worker
+ * gelesen hat (kalNachLesen()). Fassung 2 dazu: noch offene Änderungen, bis
+ * wann die Liste reicht, bis wann der Kalender schon ganz steht, ob der Rest
+ * in Minuten kommt und ob erst morgen (Tageskontingent).
+ */
+function kalAbgleich(roh) {
+  const r = roh && typeof roh === 'object' ? roh : {};
+  const tag = (x) => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : null);
+  return {
+    tag: tag(r.tag),
+    geaendert: Number.isInteger(r.geaendert) ? r.geaendert : null,
+    offen: Number.isInteger(r.offen) ? r.offen : null,
+    bis: tag(r.bis),
+    stehen: tag(r.stehen),
+    folge: typeof r.folge === 'boolean' ? r.folge : null,
+    morgen: typeof r.morgen === 'boolean' ? r.morgen : null,
   };
 }
 
@@ -647,8 +661,8 @@ export function kalenderHandeln(a) {
  * der Service Worker auch bei geschlossener App (sw.js, kalenderNachsenden()).
  * Er liest die Antwort, wenn sie lesbar ist: Ist das Skript beschäftigt,
  * wirft er, und der Browser versucht es einige Minuten später noch einmal.
- * Vermerkt wird, dass es hinausging, und, wenn lesbar, was das Skript sagte;
- * mehr erfährt die App mit ihrer nächsten eigenen Sendung.
+ * Vermerkt wird, dass es hinausging, und, wenn lesbar, was das Skript sagte –
+ * kam sie an, gilt sie der App danach als die, die zuletzt ankam.
  * ------------------------------------------------------------------ */
 
 const kalAusgangSchluessel = () => new URL('kalender-ausgang', location.href).href;
@@ -657,7 +671,8 @@ const kalNachSchluessel = () => new URL('kalender-ausgang-nach', location.href).
 /**
  * Eine Sendung in den Ausgang. `hash` und `ziel` reisen mit und kommen im
  * Vermerk des Service Workers zurück (kalNachLesen()) – kam sie dort an, geht
- * dieselbe Vorschau nicht noch einmal hinaus.
+ * dieselbe Vorschau nicht noch einmal hinaus. Ebenso `vertrag` und
+ * `gekuerzt`: Die App vermerkt sie dann wie eine eigene, die ankam.
  */
 async function kalAusgangLegen(v) {
   try {
@@ -666,7 +681,8 @@ async function kalAusgangLegen(v) {
     if (!reg || !reg.sync) return false;
     const c = await caches.open(KALENDER_AUSGANG);
     await c.put(kalAusgangSchluessel(), new Response(JSON.stringify({
-      url: v.url, text: v.text, seq: v.seq, hash: v.hash, ziel: v.ziel, gelegt: Date.now(),
+      url: v.url, text: v.text, seq: v.seq, hash: v.hash, ziel: v.ziel, vertrag: v.vertrag ?? null, gekuerzt: v.gekuerzt ?? null,
+      gelegt: Date.now(),
     }), { headers: { 'content-type': 'application/json' } }));
     await reg.sync.register(KALENDER_SYNC_TAG);
     return true;
@@ -700,7 +716,22 @@ async function kalNachLesen() {
     // Angekommen: Diese Vorschau ist beim Skript – sie geht nicht noch einmal.
     if ((code === 'angekommen' || code === 'gleich') && typeof n.hash === 'string' && n.ziel === kalZiel(store.kalender())) {
       Object.assign(teil, { hash: n.hash, ziel: n.ziel, offen: false });
-      if (Number.isInteger(n.version)) teil.fassung = { ziel: n.ziel, version: n.version, zeit: n.zeit };
+      const version = Number.isInteger(n.version) ? n.version : null;
+      if (version !== null) teil.fassung = { ziel: n.ziel, version, zeit: n.zeit };
+      // Und sie ist die, die zuletzt ankam – wie bei einer eigenen Sendung
+      // (kalVermerken()), mit dem, was das Skript über den Abgleich sagt. Bis
+      // zum Gegenlesen von v246 blieb `angekommen` bei der Sendung davor: War
+      // die nachgeschickte die erste mit dem Jahr, stand auf der Karte weiter
+      // „Neuer Code erkannt … geht jetzt an das Skript", und was schon im
+      // Kalender steht, sagte sie nicht – bis zur nächsten eigenen Sendung.
+      const vorher = kalMeta().angekommen;
+      if (!(vorher && vorher.ziel === n.ziel && vorher.zeit >= n.zeit)) {
+        const { tag, bis, offen, stehen, folge, morgen } = kalAbgleich(n.antwort);
+        teil.angekommen = {
+          zeit: n.zeit, version, tag, ziel: n.ziel, bis, offen, stehen, folge, morgen,
+          vertrag: Number.isInteger(n.vertrag) ? n.vertrag : null, gekuerzt: Number.isInteger(n.gekuerzt) ? n.gekuerzt : null,
+        };
+      }
     }
     kalMetaSchreiben(teil);
     notieren('kalender', { was: 'nachgesendet', seq: n.seq, lesbar: !!code, ergebnis: code || undefined });
@@ -787,7 +818,7 @@ function kalVermerken(art, a, mehr = {}) {
     nr: (vorher && Number.isInteger(vorher.nr) ? vorher.nr : 0) + 1,
     art, zeit: Date.now(), ergebnis: a.ergebnis, ok: !!a.ok, version: a.version ?? null,
     hinweis: a.hinweis || '', tag: a.tag || null, geaendert: a.geaendert ?? null, status: a.status ?? null,
-    offen: a.offen ?? null, bis: a.bis || null, stehen: a.stehen || null, folge: a.folge ?? null,
+    offen: a.offen ?? null, bis: a.bis || null, stehen: a.stehen || null, folge: a.folge ?? null, morgen: a.morgen ?? null,
     bytes: mehr.bytes ?? null, ziel, wieder: !!mehr.wieder, erschoepft: !!mehr.erschoepft,
     vertrag: mehr.vertrag ?? null, fern: mehr.fern ?? null, gekuerzt: mehr.gekuerzt ?? null, fernFehler: !!mehr.fernFehler,
   };
@@ -795,7 +826,7 @@ function kalVermerken(art, a, mehr = {}) {
   if (a.ok && ziel) {
     teil.angekommen = {
       zeit: letzte.zeit, version: letzte.version, tag: letzte.tag, ziel, bis: letzte.bis, offen: letzte.offen,
-      stehen: letzte.stehen, folge: letzte.folge, vertrag: letzte.vertrag, gekuerzt: letzte.gekuerzt,
+      stehen: letzte.stehen, folge: letzte.folge, morgen: letzte.morgen, vertrag: letzte.vertrag, gekuerzt: letzte.gekuerzt,
     };
   }
   // Jede lesbare Antwort sagt, welche Fassung das Skript hat – daran hängt,
@@ -970,8 +1001,15 @@ async function kalSenden(v, { keepalive = false } = {}) {
 /**
  * Wie weit das Skript mit dem Eintragen ist – die jüngste Auskunft dazu:
  * die Antwort auf die letzte Sendung, die ankam (Fassung 2), oder eine Probe
- * danach (`abgleich`). { zeit, offen, bis, stehen, folge, gekuerzt } oder
- * null, wenn die letzte Sendung keine mit Ferne war.
+ * danach (`abgleich`). { zeit, offen, bis, stehen, folge, morgen, gekuerzt }
+ * oder null, wenn die letzte Sendung keine mit Ferne war.
+ *
+ * `morgen` (das Tageskontingent ist aufgebraucht) aus derselben Auskunft wie
+ * `offen`: Bis zum Gegenlesen von v246 las die Karte es aus dem Hinweis der
+ * letzten Sendung. Ging das Kontingent erst in einem Lauf „weiter" aus, stand
+ * dort nichts, und die Karte versprach die nächste Stunde; stand es dort, blieb
+ * „morgen" auch noch, als eine Probe am nächsten Tag einen kleinen Rest für
+ * die nächste Stunde meldete.
  */
 function kalStand(m, ziel) {
   const a = m.angekommen && m.angekommen.ziel === ziel && m.angekommen.vertrag === 2 && m.angekommen.bis ? m.angekommen : null;
@@ -980,7 +1018,7 @@ function kalStand(m, ziel) {
   const s = g || a;
   return {
     zeit: s.zeit, offen: Number.isInteger(s.offen) ? s.offen : 0, bis: s.bis || a.bis, stehen: s.stehen || null,
-    folge: s.folge ?? null, gekuerzt: a.gekuerzt ?? null, probe: !!g,
+    folge: s.folge ?? null, morgen: s.morgen === true, gekuerzt: a.gekuerzt ?? null, probe: !!g,
   };
 }
 
@@ -1043,7 +1081,7 @@ async function kalNachfragen({ sofort = false } = {}) {
     const teil = { fassung: { ziel, version: a.version, zeit: Date.now() } };
     if (a.ok && a.ergebnis === 'probe' && Number.isInteger(a.offen) && a.bis) {
       teil.abgleich = {
-        ziel, zeit: Date.now(), offen: a.offen, bis: a.bis, stehen: a.stehen || null, folge: a.folge ?? null,
+        ziel, zeit: Date.now(), offen: a.offen, bis: a.bis, stehen: a.stehen || null, folge: a.folge ?? null, morgen: a.morgen ?? null,
       };
     }
     kalMetaSchreiben(teil);
@@ -1499,6 +1537,11 @@ export function kalenderVergessen() {
  *              (ms), oder null
  *   fehlt      eine Antwort mindestens drei Minuten nach dem Kopieren meldet
  *              noch die alte Fassung – meist fehlt „Neue Version"
+ *   unterwegs  neuer Code erkannt, das Jahr geht an das Skript: Fassung 2
+ *              meldete eine Antwort nach der letzten Sendung, die ankam, und
+ *              die war noch keine mit dem Jahr
+ *   nachgeholt der letzte Versuch scheiterte, aber danach kam doch etwas an
+ *              (der Service Worker hat nachgeschickt) – er ist überholt
  *   stand      wie weit das Skript mit dem Eintragen ist (kalStand()), oder
  *              null, wenn die letzte Sendung keine mit Ferne war
  */
@@ -1514,6 +1557,16 @@ export function kalenderLage() {
     ? m.kopiert.zeit : null;
   const neuerCode = !!ziel && kalNeuerCode(fassung);
   const antwort = m.fassung && m.fassung.ziel === ziel && Number.isFinite(m.fassung.zeit) ? m.fassung.zeit : null;
+  const nachgeholt = !!letzte && !letzte.ok && !!angekommen && Number.isFinite(angekommen.zeit) && angekommen.zeit > letzte.zeit;
+  // Unterwegs, bis die erste Sendung mit dem Jahr ankommt (`angekommen`, auch
+  // über den Service Worker) oder endgültig beantwortet ist: Bis zum
+  // Gegenlesen von v246 stand „Neuer Code erkannt" nach „aelter" (ein anderes
+  // Gerät hat zuletzt trainiert) bis zur nächsten Sendung, die ankam. Scheitert
+  // sie am Netz, am beschäftigten Skript oder ohne Antwort, ist sie weiter
+  // unterwegs – die App und der Service Worker schicken sie noch einmal.
+  const abgewiesen = !!letzte && letzte.vertrag === KAL_VERTRAG && !letzte.ok && !letzte.wieder && !KAL_NOCHMAL.has(letzte.ergebnis);
+  const unterwegs = !!angekommen && fassung !== null && fassung >= KAL_VERTRAG && angekommen.vertrag !== KAL_VERTRAG
+    && antwort !== null && antwort > angekommen.zeit && !abgewiesen;
   return {
     moeglich: kalenderMoeglich(),
     token: !!(k && k.token),
@@ -1525,7 +1578,7 @@ export function kalenderLage() {
     nach: m.nach || null,
     ausstehend: (m.aus || []).length,
     zuAlt: kalZuAlt(letzte),
-    handeln: !!ziel && kalenderHandeln(letzte),
+    handeln: !!ziel && !nachgeholt && kalenderHandeln(letzte),
     vorlage,
     fassung,
     vertrag: kalVertrag(ziel),
@@ -1534,6 +1587,8 @@ export function kalenderLage() {
     kopiert,
     fassungZeit: antwort,
     fehlt: neuerCode && kopiert !== null && antwort !== null && antwort - kopiert >= KALENDER_JAHR.fehltNach,
+    unterwegs,
+    nachgeholt,
     stand: ziel ? kalStand(m, ziel) : null,
   };
 }
